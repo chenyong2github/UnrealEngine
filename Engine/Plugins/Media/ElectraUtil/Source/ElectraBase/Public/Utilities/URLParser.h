@@ -57,6 +57,9 @@ namespace Electra
 		// Returns the given query parameter string as a list of name/value pairs.
 		// The parameter string MUST NOT start with a '?'.
 		static void GetQueryParams(TArray<FQueryParam>& OutQueryParams, const FString& InQueryParameters, bool bPerformUrlDecoding, bool bSameNameReplacesValue=true);
+		
+		// Replaces query parameters in the URL.
+        void SetQueryParams(const TArray<FQueryParam>& InQueryParams);
 
 		// Decodes %XX escaped sequences into their original characters. Appends to the output. Hence in and out must not be the same.
 		static bool UrlDecode(FString& OutResult, const FString& InUrlToDecode);

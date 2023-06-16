@@ -291,6 +291,19 @@ namespace Electra
 	{
 		GetQueryParams(OutQueryParams, Query, bPerformUrlDecoding, bSameNameReplacesValue);
 	}
+	
+	void FURL_RFC3986::SetQueryParams(const TArray<FQueryParam>& InQueryParams)
+	{
+		Query.Empty();
+		for (int i = 0; i < InQueryParams.Num(); ++i)
+		{
+			Query += InQueryParams[i].Name + '=' + InQueryParams[i].Value;
+			if (i != InQueryParams.Num()-1)
+			{
+				Query.AppendChar(TCHAR('&'));
+			}
+		}
+	}
 
 	// Appends or prepends additional query parameters.
 	void FURL_RFC3986::AddQueryParameters(const FString& InQueryParameters, bool bAppend)
