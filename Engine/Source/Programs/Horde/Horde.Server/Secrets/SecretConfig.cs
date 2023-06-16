@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Text.Json.Serialization;
@@ -28,6 +29,11 @@ namespace Horde.Server.Secrets
 		public Dictionary<string, string> Data { get; set; } = new Dictionary<string, string>();
 
 		/// <summary>
+		/// Providers to source key/value pairs from
+		/// </summary>
+		public List<ExternalSecretConfig> Sources { get; set; } = new List<ExternalSecretConfig>();
+
+		/// <summary>
 		/// Defines access to this particular secret
 		/// </summary>
 		public AclConfig? Acl { get; set; }
@@ -50,5 +56,31 @@ namespace Horde.Server.Secrets
 		{
 			return Acl?.Authorize(action, user) ?? GlobalConfig.Authorize(action, user);
 		}
+	}
+
+	/// <summary>
+	/// Configuration for an external secret provider
+	/// </summary>
+	public class ExternalSecretConfig
+	{
+		/// <summary>
+		/// Name of the provider to use
+		/// </summary>
+		public string Provider { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Optional key indicating the parameter to set in the resulting data array
+		/// </summary>
+		public string? Key { get; set; }
+
+		/// <summary>
+		/// Optional value indicating what to fetch from the provider
+		/// </summary>
+		public string? Path { get; set; }
+
+		/// <summary>
+		/// Additional provider-specific arguments
+		/// </summary>
+		public Dictionary<string, string>? Arguments { get; set; }
 	}
 }

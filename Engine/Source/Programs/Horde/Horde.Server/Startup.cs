@@ -510,6 +510,9 @@ namespace Horde.Server
 				services.AddSingleton<IExternalIssueService, DefaultExternalIssueService>();
 			}
 
+			// Secret providers
+			services.AddSingleton<SecretService>();
+
 			// Storage providers
 			services.AddSingleton<IStorageBackendProvider, StorageBackendProvider>();
 			services.AddSingleton(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
