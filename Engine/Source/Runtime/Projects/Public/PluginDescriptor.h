@@ -146,6 +146,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** Plugins used by this plugin */
 	TArray<FPluginReferenceDescriptor> Plugins;
 
+	/** Plugins that cannot be used by this plugin */
+	TArray<FString> DisallowedPlugins;
+
 #if WITH_EDITOR
 	/** Cached json for custom data */
 	mutable TSharedPtr<FJsonObject> CachedJson;

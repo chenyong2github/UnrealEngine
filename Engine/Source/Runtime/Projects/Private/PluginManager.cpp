@@ -483,6 +483,36 @@ const FString& EnumToString(const EPluginType& InPluginType)
 	}
 }
 
+namespace
+{
+	enum class EConfigurePluginResultCode
+	{
+		PluginMissing,
+		PluginSealed,
+		DisallowedDependency,
+
+		Unset,
+	};
+}
+
+struct FPluginManager::FConfigurePluginResultInfo
+{
+	EConfigurePluginResultCode Code;
+	const FPluginReferenceDescriptor* PluginReference;
+
+	FConfigurePluginResultInfo()
+		: Code(EConfigurePluginResultCode::Unset)
+		, PluginReference(nullptr)
+	{
+	}
+
+	FConfigurePluginResultInfo(EConfigurePluginResultCode InCode, const FPluginReferenceDescriptor* InPluginReference)
+		: Code(InCode)
+		, PluginReference(InPluginReference)
+	{
+	}
+};
+
 FPluginManager::FPluginManager()
 {
 	SCOPED_BOOT_TIMING("DiscoverAllPlugins");
@@ -1866,20 +1896,19 @@ bool FPluginManager::ConfigureEnabledPlugins()
 
 bool FPluginManager::RequiresTempTargetForCodePlugin(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FText& OutReason)
 {
-	const FPluginReferenceDescriptor* MissingPlugin = nullptr;
-	const FPluginReferenceDescriptor* SealedPlugin = nullptr;
+	FConfigurePluginResultInfo ResultInfo;
 
 	TSet<FString> ProjectCodePlugins;
-	if (!GetCodePluginsForProject(ProjectDescriptor, Platform, Configuration, TargetType, AllPlugins, ProjectCodePlugins, MissingPlugin, SealedPlugin))
+	if (!GetCodePluginsForProject(ProjectDescriptor, Platform, Configuration, TargetType, AllPlugins, ProjectCodePlugins, ResultInfo))
 	{
-		OutReason = FText::Format(LOCTEXT("TempTarget_MissingPluginForTarget", "{0} plugin is referenced by target but not found"), FText::FromString(MissingPlugin->Name));
+		OutReason = FText::Format(LOCTEXT("TempTarget_MissingPluginForTarget", "{0} plugin is referenced by target but not found"), FText::FromString(ResultInfo.PluginReference->Name));
 		return true;
 	}
 
 	TSet<FString> DefaultCodePlugins;
-	if (!GetCodePluginsForProject(nullptr, Platform, Configuration, TargetType, AllPlugins, DefaultCodePlugins, MissingPlugin, SealedPlugin))
+	if (!GetCodePluginsForProject(nullptr, Platform, Configuration, TargetType, AllPlugins, DefaultCodePlugins, ResultInfo))
 	{
-		OutReason = FText::Format(LOCTEXT("TempTarget_MissingPluginForDefaultTarget", "{0} plugin is referenced by the default target but not found"), FText::FromString(MissingPlugin->Name));
+		OutReason = FText::Format(LOCTEXT("TempTarget_MissingPluginForDefaultTarget", "{0} plugin is referenced by the default target but not found"), FText::FromString(ResultInfo.PluginReference->Name));
 		return true;
 	}
 
@@ -1904,7 +1933,7 @@ bool FPluginManager::RequiresTempTargetForCodePlugin(const FProjectDescriptor* P
 	return false;
 }
 
-bool FPluginManager::GetCodePluginsForProject(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FDiscoveredPluginMap& AllPlugins, TSet<FString>& CodePluginNames, const FPluginReferenceDescriptor*& OutMissingPlugin, const FPluginReferenceDescriptor*& OutSealedPlugin)
+bool FPluginManager::GetCodePluginsForProject(const FProjectDescriptor* ProjectDescriptor, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, FDiscoveredPluginMap& AllPlugins, TSet<FString>& CodePluginNames, FConfigurePluginResultInfo& OutResultInfo)
 {
 	// Can only check the current project at the moment, since we won't have enumerated them otherwise
 	check(ProjectDescriptor == nullptr || ProjectDescriptor == IProjectManager::Get().GetCurrentProject());
@@ -1930,7 +1959,7 @@ bool FPluginManager::GetCodePluginsForProject(const FProjectDescriptor* ProjectD
 		{
 			if(!ConfiguredPluginNames.Contains(PluginReference.Name))
 			{
-				if (!ConfigureEnabledPluginForTarget(PluginReference, ProjectDescriptor, FString(), Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, OutMissingPlugin, OutSealedPlugin))
+				if (!ConfigureEnabledPluginForTarget(PluginReference, ProjectDescriptor, FString(), Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, OutResultInfo))
 				{
 					return false;
 				}
@@ -1944,7 +1973,7 @@ bool FPluginManager::GetCodePluginsForProject(const FProjectDescriptor* ProjectD
 	{
 		if (DiscoveredPluginMapUtils::ResolvePluginFromMapVal(PluginPair.Value)->IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault) && !ConfiguredPluginNames.Contains(PluginPair.Key))
 		{
-			if (!ConfigureEnabledPluginForTarget(FPluginReferenceDescriptor(PluginPair.Key, true), ProjectDescriptor, FString(), Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, OutMissingPlugin, OutSealedPlugin))
+			if (!ConfigureEnabledPluginForTarget(FPluginReferenceDescriptor(PluginPair.Key, true), ProjectDescriptor, FString(), Platform, Configuration, TargetType, bLoadPluginsForTargetPlatforms, AllPlugins, EnabledPlugins, OutResultInfo))
 			{
 				return false;
 			}
@@ -1974,60 +2003,89 @@ bool FPluginManager::ConfigureEnabledPluginForCurrentTarget(const FPluginReferen
 {
 	SCOPED_BOOT_TIMING("ConfigureEnabledPluginForCurrentTarget");
 
-	const FPluginReferenceDescriptor* MissingPlugin = nullptr;
-	const FPluginReferenceDescriptor* SealedPlugin = nullptr;
-	if (!ConfigureEnabledPluginForTarget(FirstReference, IProjectManager::Get().GetCurrentProject(), UE_APP_NAME, FPlatformMisc::GetUBTPlatform(), FApp::GetBuildConfiguration(), FApp::GetBuildTargetType(), (bool)LOAD_PLUGINS_FOR_TARGET_PLATFORMS, AllPlugins, EnabledPlugins, MissingPlugin, SealedPlugin))
+	FConfigurePluginResultInfo ResultInfo;
+
+	if (!ConfigureEnabledPluginForTarget(FirstReference, IProjectManager::Get().GetCurrentProject(), UE_APP_NAME, FPlatformMisc::GetUBTPlatform(), FApp::GetBuildConfiguration(), FApp::GetBuildTargetType(), (bool)LOAD_PLUGINS_FOR_TARGET_PLATFORMS, AllPlugins, EnabledPlugins, ResultInfo))
 	{
 		// If we're in unattended mode, don't open any windows and fatal out
 		if (FApp::IsUnattended())
 		{
-			if (MissingPlugin != nullptr)
+			switch (ResultInfo.Code)
 			{
-				UE_LOG(LogPluginManager, Fatal, TEXT("This project requires the '%s' plugin. Install it and try again, or remove it from the project's required plugin list."), *MissingPlugin->Name);
-			}
-			else if (SealedPlugin != nullptr)
-			{
-				UE_LOG(LogPluginManager, Fatal, TEXT("This project requires the '%s' plugin, which has an illegal dependency on the sealed plugin '%s'."), *FirstReference.Name, *SealedPlugin->Name);
+			case EConfigurePluginResultCode::PluginMissing:
+				UE_LOG(LogPluginManager, Fatal, TEXT("This project requires the '%s' plugin. Install it and try again, or remove it from the project's required plugin list."), *ResultInfo.PluginReference->Name);
+				break;
+
+			case EConfigurePluginResultCode::PluginSealed:
+				UE_LOG(LogPluginManager, Fatal, TEXT("This project requires the '%s' plugin, which has an illegal dependency on the sealed plugin '%s'."), *FirstReference.Name, *ResultInfo.PluginReference->Name);
+				break;
+
+			case EConfigurePluginResultCode::DisallowedDependency:
+				UE_LOG(LogPluginManager, Fatal, TEXT("This project requires the '%s' plugin, which has a disallowed dependency on the plugin '%s'."), *FirstReference.Name, *ResultInfo.PluginReference->Name);
+				break;
+
+			default:
+				checkf(0, TEXT("Unimplemented EConfigurePluginResultCode switch case"));
 			}
 			return false;
 		}
 
 #if !IS_MONOLITHIC
-		if (MissingPlugin != nullptr)
+		switch (ResultInfo.Code)
 		{
-			// Try to download it from the marketplace
-			if (MissingPlugin->MarketplaceURL.Len() > 0 && PromptToDownloadPlugin(MissingPlugin->Name, MissingPlugin->MarketplaceURL))
+		case EConfigurePluginResultCode::PluginMissing:
 			{
-				UE_LOG(LogPluginManager, Display, TEXT("Downloading '%s' plugin from marketplace (%s)."), *MissingPlugin->Name, *MissingPlugin->MarketplaceURL);
-				return false;
-			}
+				// Try to download it from the marketplace
+				if (ResultInfo.PluginReference->MarketplaceURL.Len() > 0 && PromptToDownloadPlugin(ResultInfo.PluginReference->Name, ResultInfo.PluginReference->MarketplaceURL))
+				{
+					UE_LOG(LogPluginManager, Display, TEXT("Downloading '%s' plugin from marketplace (%s)."), *ResultInfo.PluginReference->Name, *ResultInfo.PluginReference->MarketplaceURL);
+					return false;
+				}
 
-			// Prompt to disable it in the project file, if possible
-			if (PromptToDisableMissingPlugin(FirstReference.Name, MissingPlugin->Name))
-			{
-				UE_LOG(LogPluginManager, Display, TEXT("Disabled plugin '%s', continuing."), *FirstReference.Name);
-				return true;
+				// Prompt to disable it in the project file, if possible
+				if (PromptToDisableMissingPlugin(FirstReference.Name, ResultInfo.PluginReference->Name))
+				{
+					UE_LOG(LogPluginManager, Display, TEXT("Disabled plugin '%s' due to missing plugin '%s', continuing."), *FirstReference.Name, *ResultInfo.PluginReference->Name);
+					return true;
+				}
 			}
-		}
-		else if (SealedPlugin != nullptr)
-		{
-			// Prompt to disable it in the project file, if possible
-			if (PromptToDisableSealedPlugin(FirstReference.Name, SealedPlugin->Name))
+			break;
+
+		case EConfigurePluginResultCode::PluginSealed:
 			{
-				UE_LOG(LogPluginManager, Display, TEXT("Disabled plugin '%s', continuing."), *FirstReference.Name);
-				return true;
+				// Prompt to disable it in the project file, if possible
+				if (PromptToDisableSealedPlugin(FirstReference.Name, ResultInfo.PluginReference->Name))
+				{
+					UE_LOG(LogPluginManager, Display, TEXT("Disabled plugin '%s' due to sealed dependency on plugin '%s', continuing."), *FirstReference.Name, *ResultInfo.PluginReference->Name);
+					return true;
+				}
 			}
+			break;
+
+		case EConfigurePluginResultCode::DisallowedDependency:
+			{
+				// Prompt to disable it in the project file, if possible
+				if (PromptToDisableDisalowedPlugin(FirstReference.Name, ResultInfo.PluginReference->Name))
+				{
+					UE_LOG(LogPluginManager, Display, TEXT("Disabled plugin '%s' due to disallowed dependency on plugin '%s', continuing."), *FirstReference.Name, *ResultInfo.PluginReference->Name);
+					return true;
+				}
+			}
+			break;
+
+		default:
+			checkf(0, TEXT("Unimplemented EConfigurePluginResultCode switch case"));
 		}
 #endif
 
 		// Unable to continue
-		UE_LOG(LogPluginManager, Error, TEXT("Unable to load plugin '%s'. Aborting."), MissingPlugin ? *MissingPlugin->Name : *SealedPlugin->Name);
+		UE_LOG(LogPluginManager, Error, TEXT("Unable to load plugin '%s'. Aborting."), *ResultInfo.PluginReference->Name);
 		return false;
 	}
 	return true;
 }
 
-bool FPluginManager::ConfigureEnabledPluginForTarget(const FPluginReferenceDescriptor& FirstReference, const FProjectDescriptor* ProjectDescriptor, const FString& TargetName, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, bool bLoadPluginsForTargetPlatforms, FDiscoveredPluginMap& AllPlugins, TMap<FString, FPlugin*>& EnabledPlugins, const FPluginReferenceDescriptor*& OutMissingPlugin, const FPluginReferenceDescriptor*& OutSealedPlugin)
+bool FPluginManager::ConfigureEnabledPluginForTarget(const FPluginReferenceDescriptor& FirstReference, const FProjectDescriptor* ProjectDescriptor, const FString& TargetName, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType, bool bLoadPluginsForTargetPlatforms, FDiscoveredPluginMap& AllPlugins, TMap<FString, FPlugin*>& EnabledPlugins, FConfigurePluginResultInfo& OutResultInfo)
 {
 	if (!EnabledPlugins.Contains(FirstReference.Name))
 	{
@@ -2106,7 +2164,7 @@ bool FPluginManager::ConfigureEnabledPluginForTarget(const FPluginReferenceDescr
 				}
 
 				// Add it to the missing list
-				OutMissingPlugin = &Reference;
+				OutResultInfo = FConfigurePluginResultInfo(EConfigurePluginResultCode::PluginMissing, &Reference);
 				return false;
 			}
 
@@ -2169,7 +2227,13 @@ bool FPluginManager::ConfigureEnabledPluginForTarget(const FPluginReferenceDescr
 				const TSharedRef<FPlugin>* NextPluginPtr = DiscoveredPluginMapUtils::FindPluginInMap(AllPlugins, NextReference.Name);
 				if (NextPluginPtr != nullptr && NextPluginPtr->Get().Descriptor.bIsSealed)
 				{
-					OutSealedPlugin = &NextReference;
+					OutResultInfo = FConfigurePluginResultInfo(EConfigurePluginResultCode::PluginSealed, &NextReference);
+					return false;
+				}
+
+				if (NextPluginPtr != nullptr && Plugin.Descriptor.DisallowedPlugins.Contains(NextPluginPtr->Get().Name))
+				{
+					OutResultInfo = FConfigurePluginResultInfo(EConfigurePluginResultCode::DisallowedDependency, &NextReference);
 					return false;
 				}
 
@@ -2222,6 +2286,14 @@ bool FPluginManager::PromptToDownloadPlugin(const FString& PluginName, const FSt
 bool FPluginManager::PromptToDisableSealedPlugin(const FString& PluginName, const FString& SealedPluginName)
 {
 	FText Message = FText::Format(LOCTEXT("DisablePluginMessage_IllegalDependency", "This project requires the '{0}' plugin, which has an illegal dependency on the sealed '{1}' plugin.\n\nWould you like to disable it?\n\nIf you do, you will no longer be able to open any assets created with it. If not, the application will close."), FText::FromString(PluginName), FText::FromString(SealedPluginName));
+	FText Caption(LOCTEXT("DisablePluginCaption_IllegalDependency", "Illegal Dependency"));
+
+	return PromptToDisablePlugin(Caption, Message, PluginName);
+}
+
+bool FPluginManager::PromptToDisableDisalowedPlugin(const FString& PluginName, const FString& DisallowedPluginName)
+{
+	FText Message = FText::Format(LOCTEXT("DisablePluginMessage_DisallowedDependency", "This project requires the '{0}' plugin, which has a disallowed dependency on the '{1}' plugin.\n\nWould you like to disable it?\n\nIf you do, you will no longer be able to open any assets created with it. If not, the application will close."), FText::FromString(PluginName), FText::FromString(DisallowedPluginName));
 	FText Caption(LOCTEXT("DisablePluginCaption_IllegalDependency", "Illegal Dependency"));
 
 	return PromptToDisablePlugin(Caption, Message, PluginName);

@@ -217,6 +217,11 @@ namespace UnrealBuildTool
 		public List<PluginReferenceDescriptor>? Plugins;
 
 		/// <summary>
+		/// Plugins that this plugin should never depend on
+		/// </summary>
+		public String[]? DisallowedPlugins;
+
+		/// <summary>
 		/// Private constructor. This object should not be created directly; read it from disk using FromFile() instead.
 		/// </summary>
 		private PluginDescriptor()
@@ -346,9 +351,10 @@ namespace UnrealBuildTool
 			{
 				Plugins = Array.ConvertAll(PluginsArray, x => PluginReferenceDescriptor.FromJsonObject(x)).ToList();
 			}
+
+			RawObject.TryGetStringArrayField("DisallowedPlugins", out DisallowedPlugins);
 		}
 
-		/// <summary>
 		/// Creates a plugin descriptor from a file on disk
 		/// </summary>
 		/// <param name="FileName">The filename to read</param>
@@ -492,6 +498,11 @@ namespace UnrealBuildTool
 			if (Plugins != null && Plugins.Count > 0)
 			{
 				PluginReferenceDescriptor.WriteArray(Writer, "Plugins", Plugins.ToArray());
+			}
+
+			if (DisallowedPlugins != null && DisallowedPlugins.Length > 0)
+			{
+				Writer.WriteStringArrayField("DisallowedPlugins", DisallowedPlugins);
 			}
 		}
 

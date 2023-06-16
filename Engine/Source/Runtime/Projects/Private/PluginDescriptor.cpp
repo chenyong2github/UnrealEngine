@@ -267,6 +267,8 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*=
 		return false;
 	}
 
+	Object.TryGetStringArrayField(TEXT("DisallowedPlugins"), DisallowedPlugins);
+
 	return true;
 }
 
@@ -474,6 +476,20 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	PostBuildSteps.UpdateJson(JsonObject, TEXT("PostBuildSteps"));
 
 	FPluginReferenceDescriptor::UpdateArray(JsonObject, TEXT("Plugins"), Plugins);
+
+	if (DisallowedPlugins.Num() > 0)
+	{
+		TArray<TSharedPtr<FJsonValue>> DisallowedPluginsValues;
+		for (const FString& DisallowedPlugin : DisallowedPlugins)
+		{
+			DisallowedPluginsValues.Add(MakeShareable(new FJsonValueString(DisallowedPlugin)));
+		}
+		JsonObject.SetArrayField(TEXT("DisallowedPlugins"), DisallowedPluginsValues);
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("DisallowedPlugins"));
+	}
 
 #if WITH_EDITOR
 	for (const auto& KVP : AdditionalFieldsToWrite)

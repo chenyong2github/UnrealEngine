@@ -132,6 +132,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Dependencies, meta=(TitleProperty=Name))
 	TArray<FPluginReferenceMetadata> Plugins;
 
+	/** Plugins that cannot be used by this plugin */
+	UPROPERTY(EditAnywhere, Category = Dependencies, meta=(DisplayName="Disallowed", GetOptions= GetDisallowedPluginsOptions))
+	TArray<FString> DisallowedPlugins;
+
 	/** Plugin this proxy object was constructed from */
 	TWeakPtr<IPlugin> SourcePlugin;
 
@@ -150,6 +154,9 @@ public:
 
 	UFUNCTION()
 	TArray<FString> GetAvailablePluginDependencies() const;
+
+	UFUNCTION()
+	TArray<FString> GetDisallowedPluginsOptions() const;
 };
 
 /**

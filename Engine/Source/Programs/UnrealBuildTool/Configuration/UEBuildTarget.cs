@@ -2273,10 +2273,19 @@ namespace UnrealBuildTool
 			// Check that each plugin does not have a dependency on any sealed plugins
 			foreach (UEBuildPlugin Plugin in BuildPlugins)
 			{
-				UEBuildPlugin? DependencyPlugin = Plugin.Dependencies?.FirstOrDefault(X => X.Descriptor.bIsSealed);
-				if (DependencyPlugin != null)
+				if (Plugin.Dependencies != null)
 				{
-					throw new BuildException("Plugin '{0}' cannot depend on plugin '{1}' because it is sealed.", Plugin.Name, DependencyPlugin.Name);
+					foreach (UEBuildPlugin DependencyPlugin in Plugin.Dependencies)
+					{
+						if (DependencyPlugin.Descriptor.bIsSealed)
+						{
+							throw new BuildException("Plugin '{0}' cannot depend on plugin '{1}' because it is sealed.", Plugin.Name, DependencyPlugin.Name);
+						}
+						else if (Plugin.Descriptor.DisallowedPlugins != null && Plugin.Descriptor.DisallowedPlugins.Contains(DependencyPlugin.Name))
+						{
+							throw new BuildException("Plugin '{0}' cannot depend on plugin '{1}' because it is disallowed.", Plugin.Name, DependencyPlugin.Name);
+						}
+					}
 				}
 			}
 

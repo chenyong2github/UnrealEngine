@@ -60,6 +60,8 @@ void UPluginMetadataObject::PopulateFromPlugin(TSharedPtr<IPlugin> InPlugin)
 		FPluginReferenceMetadata& PluginRef = Plugins.AddDefaulted_GetRef();
 		PluginRef.PopulateFromDescriptor(PluginRefDesc);
 	}
+
+	DisallowedPlugins = InDescriptor.DisallowedPlugins;
 }
 
 void UPluginMetadataObject::CopyIntoDescriptor(FPluginDescriptor& OutDescriptor) const
@@ -102,7 +104,8 @@ void UPluginMetadataObject::CopyIntoDescriptor(FPluginDescriptor& OutDescriptor)
 	}
 
 	OutDescriptor.Plugins = MoveTemp(NewPlugins);
-	
+	OutDescriptor.DisallowedPlugins = DisallowedPlugins;
+
 	// Apply any edits done by an extension
 	for (const TSharedPtr<FPluginEditorExtension>& Extension : Extensions)
 	{
@@ -132,6 +135,16 @@ TArray<FString> UPluginMetadataObject::GetAvailablePluginDependencies() const
 			continue;
 		}
 
+		bool bDependencyDisallowed = false;
+		for (const FString& DisallowedPlugin : DisallowedPlugins)
+		{
+			if (Plugin->GetName() == DisallowedPlugin)
+			{
+				bDependencyDisallowed = true;
+				break;
+			}
+		}
+
 		bool bDependsOnMe = false;
 		for (const FPluginReferenceDescriptor& Dependency : Plugin->GetDescriptor().Plugins)
 		{
@@ -142,10 +155,29 @@ TArray<FString> UPluginMetadataObject::GetAvailablePluginDependencies() const
 			}
 		}
 
-		if (!bDependsOnMe)
+		if (!bDependsOnMe && !bDependencyDisallowed)
 		{
 			Result.Add(Plugin->GetName());
 		}
+	}
+
+	return Result;
+}
+
+TArray<FString> UPluginMetadataObject::GetDisallowedPluginsOptions() const
+{
+	TArray<TSharedRef<IPlugin>> AllPlugins = IPluginManager::Get().GetDiscoveredPlugins();
+	TArray<FString> Result;
+	Result.Reserve(AllPlugins.Num());
+
+	for (const TSharedRef<IPlugin>& Plugin : AllPlugins)
+	{
+		if (Plugin == SourcePlugin)
+		{
+			continue;
+		}
+
+		Result.Add(Plugin->GetName());
 	}
 
 	return Result;
