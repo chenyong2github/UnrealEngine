@@ -1900,9 +1900,9 @@ FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName
 		}
 		else
 		{
-			// Use custom root and make sure it gets added to the ini list for later refresh
+			// Use custom root and add the root to the search list for later refresh
 			NewSource->SourceTagList->ConfigFileName = RootDirToUse / *TagSourceName.ToString();
-			RegisteredSearchPaths.FindOrAdd(NewSource->SourceTagList->ConfigFileName);
+			RegisteredSearchPaths.FindOrAdd(RootDirToUse);
 		}
 		if (GUObjectArray.IsDisregardForGC(this))
 		{
@@ -1917,10 +1917,10 @@ FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName
 			NewSource->SourceRestrictedTagList->ConfigFileName = FString::Printf(TEXT("%sTags/%s"), *FPaths::SourceConfigDir(), *TagSourceName.ToString());
 		}
 		else
-		{
-			// Use custom root and make sure it gets added to the ini list for later refresh
+		{			
+			// Use custom root and add the root to the search list for later refresh
 			NewSource->SourceRestrictedTagList->ConfigFileName = RootDirToUse / *TagSourceName.ToString();
-			RegisteredSearchPaths.FindOrAdd(NewSource->SourceTagList->ConfigFileName);
+			RegisteredSearchPaths.FindOrAdd(RootDirToUse);
 		}
 		if (GUObjectArray.IsDisregardForGC(this))
 		{

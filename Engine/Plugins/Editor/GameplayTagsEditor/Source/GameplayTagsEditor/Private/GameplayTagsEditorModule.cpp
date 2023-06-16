@@ -819,7 +819,20 @@ public:
 			return false;
 		}
 
-		Manager.FindOrAddTagSource(FName(*NewTagSource), EGameplayTagSourceType::TagList, RootDirToUse);
+		// Tag lists should always end with .ini
+		FName TagSourceName;
+		if (NewTagSource.EndsWith(TEXT(".ini")))
+		{
+			TagSourceName = FName(*NewTagSource);
+		}
+		else
+		{
+			TagSourceName = FName(*(NewTagSource + TEXT(".ini")));
+		}
+
+		Manager.FindOrAddTagSource(TagSourceName, EGameplayTagSourceType::TagList, RootDirToUse);
+
+		ShowNotification(FText::Format(LOCTEXT("AddTagSource", "Added {0} as a source for saving new tags"), FText::FromName(TagSourceName)), 3.0f);
 
 		IGameplayTagsModule::OnTagSettingsChanged.Broadcast();
 
