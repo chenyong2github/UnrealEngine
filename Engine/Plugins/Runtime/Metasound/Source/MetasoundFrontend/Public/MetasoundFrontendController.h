@@ -580,10 +580,10 @@ namespace Metasound
 			/** Returns the name of this node. */
 			virtual const FVertexName& GetNodeName() const = 0;
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const = 0;
 			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) = 0;
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 
 			/** Returns the ID associated with this node. */
 			virtual FGuid GetID() const = 0;
@@ -897,13 +897,17 @@ namespace Metasound
 
 			/** Set the description for the output with the given name. */
 			virtual void SetOutputDescription(const FVertexName& InName, const FText& InDescription) = 0;
+#endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 			/** Returns the sort order index for the input with the given name. Returns 0 if not found or unset. */
 			virtual int32 GetSortOrderIndexForInput(const FVertexName& InName) const = 0;
 
 			/** Returns the sort order index for the input with the given name. Returns 0 if not found or unset. */
 			virtual int32 GetSortOrderIndexForOutput(const FVertexName& InName) const = 0;
+#endif // WITH_EDITORONLY_DATA
 
+#if WITH_EDITOR
 			/** Sets the sort order index for the input with the given name. No-ops if input not found. */
 			virtual void SetSortOrderIndexForInput(const FVertexName& InName, int32 InSortOrderIndex) = 0;
 

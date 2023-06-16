@@ -158,9 +158,14 @@ namespace Metasound
 
 			// Set the display name for the output with the given name
 			void SetOutputDisplayName(const FVertexName& InName, const FText& InDisplayName) override;
+#endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 			int32 GetSortOrderIndexForInput(const FVertexName& InName) const override;
 			int32 GetSortOrderIndexForOutput(const FVertexName& InName) const override;
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
 			void SetSortOrderIndexForInput(const FVertexName& InName, int32 InSortOrderIndex) override;
 			void SetSortOrderIndexForOutput(const FVertexName& InName, int32 InSortOrderIndex) override;
 #endif // WITH_EDITOR

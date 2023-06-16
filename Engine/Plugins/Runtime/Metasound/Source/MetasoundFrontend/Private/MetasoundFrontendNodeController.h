@@ -53,10 +53,12 @@ namespace Metasound
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const override;
+#endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const override;
 			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) override;
-#endif // WITH_EDITOR
+#endif // WITH_EDITORONLY_DATA
 
 			virtual bool DiffAgainstRegistryInterface(FClassInterfaceUpdates& OutInterfaceUpdates, bool bInUseHighestMinorVersion) const override;
 

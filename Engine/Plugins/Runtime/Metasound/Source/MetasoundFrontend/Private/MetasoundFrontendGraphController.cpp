@@ -1283,7 +1283,9 @@ namespace Metasound
 
 			return FText::GetEmpty();
 		}
+#endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 		int32 FGraphController::GetSortOrderIndexForInput(const FVertexName& InName) const
 		{
 			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
@@ -1303,6 +1305,9 @@ namespace Metasound
 
 			return 0;
 		}
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
 
 		void FGraphController::SetInputDisplayName(const FVertexName& InName, const FText& InDisplayName)
 		{

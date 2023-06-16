@@ -206,6 +206,9 @@ namespace Metasound
 			static const FMetasoundFrontendClassStyle Invalid;
 			return Invalid;
 		}
+#endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
 
 		const FMetasoundFrontendNodeStyle& FBaseNodeController::GetNodeStyle() const
 		{
@@ -225,6 +228,9 @@ namespace Metasound
 				Node->Style = InStyle;
 			}
 		}
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
 
 		const FText& FBaseNodeController::GetDescription() const
 		{

@@ -215,7 +215,7 @@ namespace Metasound
 			virtual FConstInputHandle GetInputWithID(FGuid InVertexID) const override { return IInputController::GetInvalidHandle(); }
 			virtual FConstOutputHandle GetOutputWithID(FGuid InVertexID) const override { return IOutputController::GetInvalidHandle(); }
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 			virtual const FMetasoundFrontendNodeStyle& GetNodeStyle() const override { static const FMetasoundFrontendNodeStyle Invalid; return Invalid; }
 			virtual void SetNodeStyle(const FMetasoundFrontendNodeStyle& InNodeStyle) override { }
 #endif // WITH_EDITOR
@@ -395,9 +395,12 @@ namespace Metasound
 			virtual void SetOutputDescription(const FVertexName& InName, const FText& InDescription) override { }
 			virtual void SetInputDisplayName(const FVertexName& InName, const FText& InDisplayName) override { }
 			virtual void SetOutputDisplayName(const FVertexName& InName, const FText& InDisplayName) override { }
-
+#endif // WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 			virtual int32 GetSortOrderIndexForInput(const FVertexName& InName) const { return 0; }
 			virtual int32 GetSortOrderIndexForOutput(const FVertexName& InName) const { return 0; }
+#endif // WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 			virtual void SetSortOrderIndexForInput(const FVertexName& InName, int32 InSortOrderIndex) { }
 			virtual void SetSortOrderIndexForOutput(const FVertexName& InName, int32 InSortOrderIndex) { }
 #endif // WITH_EDITOR
