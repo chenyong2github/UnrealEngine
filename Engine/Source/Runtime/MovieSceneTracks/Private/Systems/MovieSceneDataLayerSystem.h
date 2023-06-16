@@ -9,7 +9,7 @@
 #include "EntitySystem/MovieSceneCachedEntityFilterResult.h"
 #include "MovieSceneDataLayerSystem.generated.h"
 
-
+class UDataLayerManager;
 
 namespace UE
 {
@@ -42,6 +42,7 @@ private:
 	virtual void OnLink() override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 
+	UDataLayerManager* GetDataLayerManager(UE::MovieScene::FMovieSceneEntityID EntityID, UE::MovieScene::FRootInstanceHandle RootInstance);
 	void UpdateDesiredStates();
 	void BeginTrackingEntities();
 
