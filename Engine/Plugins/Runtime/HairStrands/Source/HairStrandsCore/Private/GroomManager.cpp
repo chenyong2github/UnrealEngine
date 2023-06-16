@@ -47,10 +47,12 @@ static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable
 static int32 GHairStrands_Streaming = 0;
 static FAutoConsoleVariableRef CVarHairStrands_Streaming(TEXT("r.HairStrands.Streaming"), GHairStrands_Streaming, TEXT("Hair strands streaming toggle."), ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static int32 GHairStrands_AutoLOD_Force = 0;
 static float GHairStrands_AutoLOD_Scale = 1.f;
 static float GHairStrands_AutoLOD_Bias = 0.f;
-static FAutoConsoleVariableRef CVarHairStrands_AutoLOD_Scale(TEXT("r.HairStrands.AutoLOD.Scale"), GHairStrands_Streaming, TEXT("Hair strands Auto LOD rate at which curves get decimated based on screen coverage."), ECVF_RenderThreadSafe | ECVF_ReadOnly);
-static FAutoConsoleVariableRef CVarHairStrands_AutoLOD_Bias(TEXT("r.HairStrands.AutoLOD.Bias"), GHairStrands_Streaming, TEXT("Hair strands Auto LOD screen size bias at which curves get decimated."), ECVF_RenderThreadSafe | ECVF_ReadOnly);
+static FAutoConsoleVariableRef CVarHairStrands_AutoLOD_Force(TEXT("r.HairStrands.AutoLOD.Force"), GHairStrands_AutoLOD_Force, TEXT("Force all groom to use Auto LOD (experimental)."), ECVF_RenderThreadSafe);
+static FAutoConsoleVariableRef CVarHairStrands_AutoLOD_Scale(TEXT("r.HairStrands.AutoLOD.Scale"), GHairStrands_AutoLOD_Scale, TEXT("Hair strands Auto LOD rate at which curves get decimated based on screen coverage."), ECVF_RenderThreadSafe);
+static FAutoConsoleVariableRef CVarHairStrands_AutoLOD_Bias(TEXT("r.HairStrands.AutoLOD.Bias"), GHairStrands_AutoLOD_Bias, TEXT("Hair strands Auto LOD screen size bias at which curves get decimated."), ECVF_RenderThreadSafe);
 
 EHairBufferSwapType GetHairSwapBufferType()
 {
@@ -62,6 +64,11 @@ EHairBufferSwapType GetHairSwapBufferType()
 	case 3: return EHairBufferSwapType::RenderFrame;
 	}
 	return EHairBufferSwapType::EndOfFrame;
+}
+
+bool IsHairStrandsForceAutoLODEnabled()
+{
+	return GHairStrands_AutoLOD_Force > 0;
 }
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
@@ -890,7 +897,7 @@ static void RunHairLODSelection(
 			if (Instance->Strands.ClusterCullingResource)
 			{
 				uint32 EffectiveCurveCount = 0;
-				if (Instance->HairGroupPublicData->bAutoLOD)
+				if (Instance->HairGroupPublicData->bAutoLOD || IsHairStrandsForceAutoLODEnabled())
 				{
 					EffectiveCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount);
 					LODIndex = 0;

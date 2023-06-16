@@ -1354,7 +1354,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Newline(Context);
 
 	// Draw instance details
-	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen CovSc. Strands            Points             Bind.Tri/Sect Vis. Shad. SwLOD ALOD Name"));
+	Print(Context, TEXT("   Group  LOD     Geometry Binding Cache Sim RBF Clip Screen CovSc. Strands            Points             Bind.Tri/Sect Vis. Shad. SwLOD Name"));
 	Newline(Context);
 
 	for (uint InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -1372,10 +1372,17 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Print(Context, TEXT("    "));
 
 		// LOD
-		Print(Context,Info.LOD, FontYellow, 4, 2);
-		Print(Context, TEXT("/"));
-		Print(Context,Info.LODCount-1, FontYellow, 1);
-		Print(Context, TEXT("  "));
+		if (Info.bAutoLOD)
+		{
+			Print(Context, TEXT("Auto    "), FontYellow);
+		}
+		else
+		{
+			Print(Context,Info.LOD, FontYellow, 4, 2);
+			Print(Context, TEXT("/"));
+			Print(Context,Info.LODCount-1, FontYellow, 1);
+			Print(Context, TEXT("  "));
+		}
 
 		// Geometry
 		if (Info.GeometryType == 0)		{ Print(Context, TEXT("Strands "), FontEmerald); }
@@ -1444,10 +1451,6 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 
 		// Has LOD switched
 		PrintBool(Context, Info.bHasLODSwitched);
-		Print(Context, TEXT("  "));
-
-		// Auto LOD
-		PrintBool(Context, Info.bAutoLOD);
 		Print(Context, TEXT("  "));
 		
 		// Name
