@@ -774,6 +774,13 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FImpo
 
 	const UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(BaseMaterialFactoryNode);
 
+	{//Screen Space Reflections:
+		if (bool bScreenSpaceReflections; MaterialFactoryNode->GetCustomScreenSpaceReflections(bScreenSpaceReflections))
+		{
+			Material->bScreenSpaceReflections = bScreenSpaceReflections;
+		}
+	}
+
 	FMaterialExpressionBuilder Builder(Material, nullptr, Arguments);
 
 	if (UInterchangeShaderPortsAPI::HasInput(MaterialFactoryNode, Common::Parameters::BxDF))

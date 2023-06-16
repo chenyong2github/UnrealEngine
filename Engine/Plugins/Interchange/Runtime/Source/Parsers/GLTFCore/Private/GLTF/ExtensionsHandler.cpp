@@ -165,7 +165,7 @@ namespace GLTF
 
 					Material.bHasClearCoat = true;
 
-					Material.ClearCoat.ClearCoatFactor = GetScalar(ClearCoat, TEXT("clearcoatFactor"), 1.0f);
+					Material.ClearCoat.ClearCoatFactor = GetScalar(ClearCoat, TEXT("clearcoatFactor"), 0.0f);
 					GLTF::SetTextureMap(ClearCoat, TEXT("clearcoatTexture"), nullptr, Asset->Textures, Material.ClearCoat.ClearCoatMap, Messages);
 
 					Material.ClearCoat.Roughness = GetScalar(ClearCoat, TEXT("clearcoatRoughnessFactor"), 0.0f);
@@ -178,10 +178,6 @@ namespace GLTF
 				break;
 				case EExtension::KHR_MaterialsTransmission:
 				{
-					if (Material.AlphaMode == FMaterial::EAlphaMode::Blend)
-					{
-						break;
-					}
 					const FJsonObject& Transm = ExtObj;
 
 					Material.bHasTransmission = true;

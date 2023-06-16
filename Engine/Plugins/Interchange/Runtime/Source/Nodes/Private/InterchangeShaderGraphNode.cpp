@@ -245,6 +245,15 @@ bool UInterchangeShaderGraphNode::SetCustomIsAShaderFunction(const bool& Attribu
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(IsAShaderFunction, bool);
 }
 
+bool UInterchangeShaderGraphNode::GetCustomScreenSpaceReflections(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ScreenSpaceReflections, bool);
+}
+bool UInterchangeShaderGraphNode::SetCustomScreenSpaceReflections(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ScreenSpaceReflections, bool);
+}
+
 FString UInterchangeFunctionCallShaderNode::GetTypeName() const
 {
 	const FString TypeName = TEXT("FunctionCallShaderNode");
@@ -260,4 +269,3 @@ bool UInterchangeFunctionCallShaderNode::SetCustomMaterialFunction(const FString
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(MaterialFunction, FString);
 }
-

@@ -1045,6 +1045,11 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 {
 	using namespace UE::Interchange::Materials::Common;
 
+	if (bool bScreenSpaceReflections; ShaderGraphNode->GetCustomScreenSpaceReflections(bScreenSpaceReflections))
+	{
+		MaterialFactoryNode->SetCustomScreenSpaceReflections(bScreenSpaceReflections);
+	}
+
 	// Two sidedness (ignored for thin translucency as it looks wrong)
 	if (!HasThinTranslucency(ShaderGraphNode))
 	{
@@ -1123,36 +1128,54 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 		}
 	}
 
-	// Opacity
+	// Opacity / OpacityMask
 	{
 		TGuardValue<EMaterialInputType> InputTypeBeingProcessedGuard(MaterialCreationContext.InputTypeBeingProcessed, EMaterialInputType::Scalar);
 
-		const bool bHasOpacityInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::Opacity);
-
-		if (bHasOpacityInput)
+		bool bUpdateBlendMode = false;
+		const bool bHasOpacityMaskInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::OpacityMask);
+		if (bHasOpacityMaskInput)
 		{
-			bool bHasSomeTransparency = true;
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> OpacityMaskExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::OpacityMask.ToString(), MaterialFactoryNode->GetUniqueID());
 
-			float OpacityValue;
-			if (ShaderGraphNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Parameters::Opacity.ToString()), OpacityValue))
+			if (OpacityMaskExpressionFactoryNode.Get<0>())
 			{
-				bHasSomeTransparency = !FMath::IsNearlyEqual(OpacityValue, 1.f);
+				MaterialFactoryNode->ConnectOutputToOpacity(OpacityMaskExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityMaskExpressionFactoryNode.Get<1>());
 			}
-
-			if (bHasSomeTransparency)
+			bUpdateBlendMode = true;
+		}
+		else
+		{
+			const bool bHasOpacityInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::Opacity);
+			if (bHasOpacityInput)
 			{
-				TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> OpacityExpressionFactoryNode =
-				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::Opacity.ToString(), MaterialFactoryNode->GetUniqueID());
+				bool bHasSomeTransparency = true;
 
-				if (OpacityExpressionFactoryNode.Get<0>())
+				float OpacityValue;
+				if (ShaderGraphNode->GetFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Parameters::Opacity.ToString()), OpacityValue))
 				{
-					MaterialFactoryNode->ConnectOutputToOpacity(OpacityExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityExpressionFactoryNode.Get<1>());
+					bHasSomeTransparency = !FMath::IsNearlyEqual(OpacityValue, 1.f);
 				}
 
-				using namespace UE::Interchange::InterchangeGenericMaterialPipeline;
+				if (bHasSomeTransparency)
+				{
+					TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> OpacityExpressionFactoryNode =
+						CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::Opacity.ToString(), MaterialFactoryNode->GetUniqueID());
 
-				Private::UpdateBlendModeBasedOnOpacityAttributes(ShaderGraphNode, MaterialFactoryNode);
+					if (OpacityExpressionFactoryNode.Get<0>())
+					{
+						MaterialFactoryNode->ConnectOutputToOpacity(OpacityExpressionFactoryNode.Get<0>()->GetUniqueID(), OpacityExpressionFactoryNode.Get<1>());
+					}
+
+					bUpdateBlendMode = true;
+				}
 			}
+		}
+
+		if (bUpdateBlendMode)
+		{
+			UE::Interchange::InterchangeGenericMaterialPipeline::Private::UpdateBlendModeBasedOnOpacityAttributes(ShaderGraphNode, MaterialFactoryNode);
 		}
 	}
 
@@ -2181,10 +2204,19 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 
 	MaterialExpression->AddTargetNodeUid(ShaderNode->GetUniqueID());
 
-	if (*ShaderType == Nodes::TextureSample::Name)
+	if (*ShaderType == Nodes::TextureSample::Name
+		|| *ShaderType == Nodes::TextureObject::Name)
 	{
 		FString TextureUid;
-		ShaderNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureSample::Inputs::Texture.ToString()), TextureUid);
+		
+		if (*ShaderType == Nodes::TextureSample::Name)
+		{
+			ShaderNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureSample::Inputs::Texture.ToString()), TextureUid);
+		}
+		else if (*ShaderType == Nodes::TextureObject::Name)
+		{
+			ShaderNode->GetStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Nodes::TextureObject::Inputs::Texture.ToString()), TextureUid);
+		}
 
 		// Make the material factory node have a dependency on the texture factory node so that the texture asset gets created first
 		if (const UInterchangeTextureNode* TextureNode = Cast<const UInterchangeTextureNode>(BaseNodeContainer->GetNode(TextureUid)))

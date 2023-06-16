@@ -92,7 +92,7 @@ namespace GLTF
 		};
 		struct FClearCoat
 		{
-			float ClearCoatFactor = 1.0f;
+			float ClearCoatFactor = 0.0f;
 			FTextureMap ClearCoatMap;
 
 			float Roughness = 0.0f;

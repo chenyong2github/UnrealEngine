@@ -365,6 +365,16 @@ bool UInterchangeMaterialFactoryNode::SetCustomRefractionMethod(const TEnumAsByt
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialFactoryNode, RefractionMethod, TEnumAsByte<ERefractionMode>, UMaterial);
 }
 
+bool UInterchangeMaterialFactoryNode::GetCustomScreenSpaceReflections(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(ScreenSpaceReflections, bool);
+}
+
+bool UInterchangeMaterialFactoryNode::SetCustomScreenSpaceReflections(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(ScreenSpaceReflections, bool);
+}
+
 FString UInterchangeMaterialExpressionFactoryNode::GetTypeName() const
 {
 	const FString TypeName = TEXT("MaterialExpressionFactoryNode");

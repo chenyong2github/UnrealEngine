@@ -237,6 +237,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	bool SetCustomRefractionMethod(const TEnumAsByte<ERefractionMode>& AttributeValue, bool bAddApplyDelegate = true);
 
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool GetCustomScreenSpaceReflections(bool& AttributeValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool SetCustomScreenSpaceReflections(const bool& AttributeValue);
+
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomShadingModelKey = UE::Interchange::FAttributeKey(TEXT("ShadingModel"));
 	const UE::Interchange::FAttributeKey Macro_CustomTranslucencyLightingModeKey = UE::Interchange::FAttributeKey(TEXT("TranslucencyLightingMode"));
@@ -244,6 +250,7 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomTwoSidedKey = UE::Interchange::FAttributeKey(TEXT("TwoSided"));
 	const UE::Interchange::FAttributeKey Macro_CustomOpacityMaskClipValueKey = UE::Interchange::FAttributeKey(TEXT("OpacityMaskClipValue"));
 	const UE::Interchange::FAttributeKey Macro_CustomRefractionMethodKey = UE::Interchange::FAttributeKey(TEXT("RefractionMethod"));
+	const UE::Interchange::FAttributeKey Macro_CustomScreenSpaceReflectionsKey = UE::Interchange::FAttributeKey(TEXT("ScreenSpaceReflections"));
 };
 
 UCLASS(BlueprintType)

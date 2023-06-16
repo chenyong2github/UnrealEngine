@@ -290,6 +290,7 @@ namespace Interchange
 				const FName Normal = TEXT("Normal"); // Type: vector3f
 				const FName Tangent = TEXT("Tangent"); // Type: vector3f
 				const FName Opacity = TEXT("Opacity"); // Type: float
+				const FName OpacityMask = TEXT("OpacityMask"); // Type: float
 				const FName Occlusion = TEXT("Occlusion"); // Type: float
 				const FName IndexOfRefraction = TEXT("IOR"); // Type: float
 				const FName BxDF = TEXT("BxDF"); // input/output of BSDF or BRDF or BXDF or BTDF data

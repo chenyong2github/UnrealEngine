@@ -89,10 +89,6 @@ namespace GLTF
 				}
 			}
 		}
-		else
-		{
-			Scale = 0.f;
-		}
 
 		return Scale;
 	}

@@ -38,7 +38,7 @@
 #include "SkeletalMeshOperations.h"
 
 #include "Gltf/InterchangeGltfPrivate.h"
-#include "Gltf/InterchangeGLTFMaterialInstances.h"
+#include "Gltf/InterchangeGLTFMaterial.h"
 
 #include "EngineAnalytics.h"
 #include "Engine/RendererSettings.h"
@@ -352,601 +352,6 @@ void UInterchangeGLTFTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 	}
 }
 
-void UInterchangeGLTFTranslator::HandleGltfMaterialParameter( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap, UInterchangeShaderNode& ShaderNode,
-		const FString& MapName, const TVariant< FLinearColor, float >& MapFactor, const FString& OutputChannel, const bool bInverse, const bool bIsNormal, const bool bUseVertexColor) const
-{
-	using namespace UE::Interchange::Materials;
-	using namespace UE::Interchange::Gltf::Private;
-
-	UInterchangeShaderNode* NodeToConnectTo = &ShaderNode;
-	FString InputToConnectTo = MapName;
-
-	if (bUseVertexColor)
-	{
-		//From GLTF Specification:
-		// "if a primitive specifies a vertex color using the attribute semantic property COLOR_0, then this value acts as an additional linear multiplier to base color."
-		const FString MultiplierNodeName = MapName + TEXT("VertexColorMultiply");
-		UInterchangeShaderNode* MultiplierNode = UInterchangeShaderNode::Create(&NodeContainer, MultiplierNodeName, ShaderNode.GetUniqueID());
-		MultiplierNode->SetCustomShaderType(Standard::Nodes::Multiply::Name.ToString());
-
-		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, MultiplierNode->GetUniqueID());
-		NodeToConnectTo = MultiplierNode;
-		InputToConnectTo = Standard::Nodes::Multiply::Inputs::B.ToString();
-
-
-		const FString VertexColorNodeName = MapName + TEXT("VertexColor");
-		UInterchangeShaderNode* VertexColorNode = UInterchangeShaderNode::Create(&NodeContainer, VertexColorNodeName, ShaderNode.GetUniqueID());
-		VertexColorNode->SetCustomShaderType(Standard::Nodes::VertexColor::Name.ToString());
-
-		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(MultiplierNode, Standard::Nodes::Multiply::Inputs::A.ToString(), VertexColorNode->GetUniqueID());
-	}
-
-	if (bInverse)
-	{
-		const FString OneMinusNodeName = MapName + TEXT("OneMinus");
-		UInterchangeShaderNode* OneMinusNode = UInterchangeShaderNode::Create( &NodeContainer, OneMinusNodeName, ShaderNode.GetUniqueID() );
-
-		OneMinusNode->SetCustomShaderType(Standard::Nodes::OneMinus::Name.ToString());
-
-		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, OneMinusNode->GetUniqueID());
-
-		NodeToConnectTo = OneMinusNode;
-		InputToConnectTo = Standard::Nodes::OneMinus::Inputs::Input.ToString();
-	}
-
-	bool bTextureHasImportance = true;
-
-	if ( MapFactor.IsType< float >() )
-	{
-		bTextureHasImportance = !FMath::IsNearlyZero( MapFactor.Get< float >() );
-	}
-	else if ( MapFactor.IsType< FLinearColor >() )
-	{
-		bTextureHasImportance = !MapFactor.Get< FLinearColor >().IsAlmostBlack();
-	}
-
-	if ( bTextureHasImportance && GltfAsset.Textures.IsValidIndex( TextureMap.TextureIndex ) )
-	{
-		const FString ColorNodeName = MapName;
-		UInterchangeShaderNode* ColorNode = UInterchangeShaderNode::Create( &NodeContainer, ColorNodeName, ShaderNode.GetUniqueID() );
-		ColorNode->SetCustomShaderType( Standard::Nodes::TextureSample::Name.ToString() );
-
-		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(GltfAsset.Textures[TextureMap.TextureIndex].UniqueId);
-
-		ColorNode->AddStringAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureSample::Inputs::Texture.ToString() ), TextureUid );
-
-		if (TextureMap.TexCoord > 0 || TextureMap.bHasTextureTransform)
-		{
-			UInterchangeShaderNode* TexCoordNode = UInterchangeShaderNode::Create(&NodeContainer, MapName + TEXT("\\TexCoord"), ShaderNode.GetUniqueID());
-			TexCoordNode->SetCustomShaderType(Standard::Nodes::TextureCoordinate::Name.ToString());
-
-			TexCoordNode->AddInt32Attribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Standard::Nodes::TextureCoordinate::Inputs::Index.ToString()), TextureMap.TexCoord);
-
-			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ColorNode, Standard::Nodes::TextureSample::Inputs::Coordinates.ToString(), TexCoordNode->GetUniqueID());
-
-			if (TextureMap.bHasTextureTransform)
-			{
-				HandleGltfTextureTransform(NodeContainer, TextureMap.TextureTransform, TextureMap.TexCoord, *TexCoordNode);
-			}
-		}
-
-		bool bNeedsFactorNode = false;
-
-		if ( MapFactor.IsType< float >() )
-		{
-			bNeedsFactorNode = !FMath::IsNearlyEqual( MapFactor.Get< float >(), 1.f );
-		}
-		else if ( MapFactor.IsType< FLinearColor >() )
-		{
-			bNeedsFactorNode = !MapFactor.Get< FLinearColor >().Equals( FLinearColor::White );
-		}
-
-		if ( bNeedsFactorNode )
-		{
-			UInterchangeShaderNode* FactorNode = UInterchangeShaderNode::Create( &NodeContainer, ColorNodeName + TEXT("_Factor"), ShaderNode.GetUniqueID() );
-
-			if ( bIsNormal )
-			{
-				FactorNode->SetCustomShaderType( Standard::Nodes::FlattenNormal::Name.ToString() );
-
-				UInterchangeShaderNode* FactorOneMinusNode = UInterchangeShaderNode::Create( &NodeContainer, ColorNodeName + TEXT("_Factor_OneMinus"), ShaderNode.GetUniqueID() );
-				FactorOneMinusNode->SetCustomShaderType(Standard::Nodes::OneMinus::Name.ToString());
-
-				if ( MapFactor.IsType< float >() )
-				{
-					FactorOneMinusNode->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::OneMinus::Inputs::Input.ToString() ), MapFactor.Get< float >() );
-				}
-
-				UInterchangeShaderPortsAPI::ConnectOuputToInputByName( FactorNode, Standard::Nodes::FlattenNormal::Inputs::Normal.ToString(), ColorNode->GetUniqueID(), OutputChannel );
-				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( FactorNode, Standard::Nodes::FlattenNormal::Inputs::Flatness.ToString(), FactorOneMinusNode->GetUniqueID() );
-			}
-			else
-			{
-				FactorNode->SetCustomShaderType( Standard::Nodes::Multiply::Name.ToString() );
-
-				if ( MapFactor.IsType< float >() )
-				{
-					FactorNode->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Multiply::Inputs::B.ToString() ), MapFactor.Get< float >() );
-				}
-				else if ( MapFactor.IsType< FLinearColor >() )
-				{
-					FactorNode->AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Multiply::Inputs::B.ToString() ), MapFactor.Get< FLinearColor >() );
-				}
-
-				UInterchangeShaderPortsAPI::ConnectOuputToInputByName( FactorNode, Standard::Nodes::Multiply::Inputs::A.ToString(), ColorNode->GetUniqueID(), OutputChannel );
-			}
-
-			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( NodeToConnectTo, InputToConnectTo, FactorNode->GetUniqueID() );
-		}
-		else
-		{
-			UInterchangeShaderPortsAPI::ConnectOuputToInputByName( NodeToConnectTo, InputToConnectTo, ColorNode->GetUniqueID(), OutputChannel );
-		}
-	}
-	else
-	{
-		if ( bIsNormal && !bTextureHasImportance )
-		{
-			//default normal value is 0,0,1 (blue)
-			NodeToConnectTo->AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), FLinearColor::Blue );
-		}
-		else
-		{
-			if ( MapFactor.IsType< FLinearColor >() )
-			{
-				NodeToConnectTo->AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), MapFactor.Get< FLinearColor >() );
-			}
-			else if ( MapFactor.IsType< float >() )
-			{
-				NodeToConnectTo->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), MapFactor.Get< float >() );
-			}
-		}
-	}
-}
-
-void UInterchangeGLTFTranslator::HandleGltfMaterial( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FMaterial& GltfMaterial, UInterchangeShaderGraphNode& ShaderGraphNode, bool bUseVertexColor) const
-{
-	using namespace UE::Interchange::Materials;
-
-	ShaderGraphNode.SetCustomTwoSided( GltfMaterial.bIsDoubleSided );
-
-	if (GltfMaterial.bIsUnlitShadingModel)
-	{
-		// Base Color
-		{
-			TVariant< FLinearColor, float > BaseColorFactor;
-			BaseColorFactor.Set< FLinearColor >(FLinearColor(GltfMaterial.BaseColorFactor));
-
-			HandleGltfMaterialParameter(NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, Unlit::Parameters::UnlitColor.ToString(),
-				BaseColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString(), false, false, bUseVertexColor);
-		}
-
-		// Opacity (use the base color alpha channel)
-		if (GltfMaterial.AlphaMode != GLTF::FMaterial::EAlphaMode::Opaque)
-		{
-			TVariant< FLinearColor, float > OpacityFactor;
-			OpacityFactor.Set< float >(GltfMaterial.BaseColorFactor.W);
-
-			HandleGltfMaterialParameter(NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBRMR::Parameters::Opacity.ToString(),
-				OpacityFactor, Standard::Nodes::TextureSample::Outputs::A.ToString());
-		}
-
-		return;
-	}
-	
-	//if there is a clearcoatnormal map then we want to swap it with the normals map
-	//as the Interchange pipeline will connect the clearcoatnormal map to ClearCoatBottomNormalMap
-	//however as per specification the gltf.clearcoatnormal.map should be the top clearcoat and the gltf.normal.map should be the bottom one.
-	bool bSwapNormalAndClearCoatNormal = GltfMaterial.bHasClearCoat;
-
-	if ( GltfMaterial.ShadingModel == GLTF::FMaterial::EShadingModel::MetallicRoughness )
-	{
-		// Base Color
-		{
-			TVariant< FLinearColor, float > BaseColorFactor;
-			BaseColorFactor.Set< FLinearColor >( FLinearColor( GltfMaterial.BaseColorFactor ) );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBRMR::Parameters::BaseColor.ToString(),
-				BaseColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString(), false, false, bUseVertexColor );
-		}
-
-		// Metallic
-		{
-			TVariant< FLinearColor, float > MetallicFactor;
-			MetallicFactor.Set< float >( GltfMaterial.MetallicRoughness.MetallicFactor );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.MetallicRoughness.Map, ShaderGraphNode, PBRMR::Parameters::Metallic.ToString(),
-				MetallicFactor, Standard::Nodes::TextureSample::Outputs::B.ToString() );
-		}
-
-		// Roughness
-		{
-			TVariant< FLinearColor, float > RoughnessFactor;
-			RoughnessFactor.Set< float >( GltfMaterial.MetallicRoughness.RoughnessFactor );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.MetallicRoughness.Map, ShaderGraphNode, PBRMR::Parameters::Roughness.ToString(),
-				RoughnessFactor, Standard::Nodes::TextureSample::Outputs::G.ToString() );
-		}
-
-		// Specular
-		if (GltfMaterial.bHasSpecular)
-		{
-			TVariant< FLinearColor, float > SpecularFactor;
-			SpecularFactor.Set< float >( GltfMaterial.Specular.SpecularFactor );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Specular.SpecularMap, ShaderGraphNode, PBRMR::Parameters::Specular.ToString(),
-				SpecularFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString() );
-		}
-	}
-	else if ( GltfMaterial.ShadingModel == GLTF::FMaterial::EShadingModel::SpecularGlossiness )
-	{
-		// Diffuse Color
-		{
-			TVariant< FLinearColor, float > DiffuseColorFactor;
-			DiffuseColorFactor.Set< FLinearColor >( FLinearColor( GltfMaterial.BaseColorFactor ) );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBRSG::Parameters::DiffuseColor.ToString(),
-				DiffuseColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString(), false, false, bUseVertexColor );
-		}
-
-		// Specular Color
-		{
-			TVariant< FLinearColor, float > SpecularColorFactor;
-			SpecularColorFactor.Set< FLinearColor >( FLinearColor( GltfMaterial.SpecularGlossiness.SpecularFactor ) );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.SpecularGlossiness.Map, ShaderGraphNode, PBRSG::Parameters::SpecularColor.ToString(),
-				SpecularColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString() );
-		}
-
-		// Glossiness
-		{
-			TVariant< FLinearColor, float > GlossinessFactor;
-			GlossinessFactor.Set< float >( GltfMaterial.SpecularGlossiness.GlossinessFactor );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.SpecularGlossiness.Map, ShaderGraphNode, PBRSG::Parameters::Glossiness.ToString(),
-				GlossinessFactor, Standard::Nodes::TextureSample::Outputs::A.ToString() );
-		}
-	}
-
-	// Additional maps
-	{
-		// Normal
-		if ( GltfMaterial.Normal.TextureIndex != INDEX_NONE )
-		{
-			TVariant< FLinearColor, float > NormalFactor;
-			NormalFactor.Set< float >( GltfMaterial.NormalScale );
-
-			const bool bInverse = false;
-			const bool bIsNormal = true;
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Normal, ShaderGraphNode, bSwapNormalAndClearCoatNormal ? ClearCoat::Parameters::ClearCoatNormal.ToString() : Common::Parameters::Normal.ToString(),
-				NormalFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString(), bInverse, bIsNormal );
-		}
-
-		// Emissive
-		if ( GltfMaterial.Emissive.TextureIndex != INDEX_NONE || !GltfMaterial.EmissiveFactor.IsNearlyZero() || GltfMaterial.bHasEmissiveStrength)
-		{
-			TVariant< FLinearColor, float > EmissiveFactor;
-			EmissiveFactor.Set< FLinearColor >(GltfMaterial.bHasEmissiveStrength ? FLinearColor(GltfMaterial.EmissiveFactor) * GltfMaterial.EmissiveStrength : FLinearColor(GltfMaterial.EmissiveFactor));
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Emissive, ShaderGraphNode, Common::Parameters::EmissiveColor.ToString(),
-				EmissiveFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString() );
-		}
-
-		// Occlusion
-		if ( GltfMaterial.Occlusion .TextureIndex != INDEX_NONE )
-		{
-			TVariant< FLinearColor, float > OcclusionFactor;
-			OcclusionFactor.Set< float >( GltfMaterial.OcclusionStrength );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Occlusion, ShaderGraphNode, PBRMR::Parameters::Occlusion.ToString(),
-				OcclusionFactor, Standard::Nodes::TextureSample::Outputs::R.ToString() );
-		}
-
-		// Opacity (use the base color alpha channel)
-		if ( GltfMaterial.AlphaMode != GLTF::FMaterial::EAlphaMode::Opaque )
-		{
-			TVariant< FLinearColor, float > OpacityFactor;
-			OpacityFactor.Set< float >( GltfMaterial.BaseColorFactor.W );
-
-			HandleGltfMaterialParameter( NodeContainer, GltfMaterial.BaseColor, ShaderGraphNode, PBRMR::Parameters::Opacity.ToString(),
-				OpacityFactor, Standard::Nodes::TextureSample::Outputs::A.ToString() );
-		}
-
-		// Alpha cutoff
-		if ( GltfMaterial.AlphaMode == GLTF::FMaterial::EAlphaMode::Mask )
-		{
-			ShaderGraphNode.SetCustomOpacityMaskClipValue( GltfMaterial.AlphaCutoff );
-		}
-
-		// IOR
-		if ( GltfMaterial.bHasIOR )
-		{
-			ShaderGraphNode.AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( PBRMR::Parameters::IndexOfRefraction.ToString() ), GltfMaterial.IOR );
-		}
-	}
-
-	if ( GltfMaterial.bHasClearCoat )
-	{
-		HandleGltfClearCoat( NodeContainer, GltfMaterial, ShaderGraphNode, bSwapNormalAndClearCoatNormal );
-	}
-
-	if ( GltfMaterial.bHasSheen )
-	{
-		HandleGltfSheen( NodeContainer, GltfMaterial, ShaderGraphNode );
-	}
-
-	if ( GltfMaterial.bHasTransmission )
-	{
-		HandleGltfTransmission( NodeContainer, GltfMaterial, ShaderGraphNode );
-	}
-}
-
-void UInterchangeGLTFTranslator::HandleGltfClearCoat( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FMaterial& GltfMaterial, UInterchangeShaderGraphNode& ShaderGraphNode, const bool bSwapNormalAndClearCoatNormal) const
-{
-	using namespace UE::Interchange::Materials;
-
-	if ( !GltfMaterial.bHasClearCoat || FMath::IsNearlyZero( GltfMaterial.ClearCoat.ClearCoatFactor ) )
-	{
-		return;
-	}
-
-	// ClearCoat::Parameters::ClearCoat
-	{
-		TVariant< FLinearColor, float > ClearCoatFactor;
-		ClearCoatFactor.Set< float >( GltfMaterial.ClearCoat.ClearCoatFactor );
-
-		HandleGltfMaterialParameter( NodeContainer, GltfMaterial.ClearCoat.ClearCoatMap, ShaderGraphNode, ClearCoat::Parameters::ClearCoat.ToString(),
-			ClearCoatFactor, Standard::Nodes::TextureSample::Outputs::R.ToString() );
-	}
-
-	//  ClearCoat::Parameters::ClearCoatRoughness
-	{
-		TVariant< FLinearColor, float > ClearCoatRoughnessFactor;
-		ClearCoatRoughnessFactor.Set< float >( GltfMaterial.ClearCoat.Roughness );
-
-		HandleGltfMaterialParameter( NodeContainer, GltfMaterial.ClearCoat.RoughnessMap, ShaderGraphNode, ClearCoat::Parameters::ClearCoatRoughness.ToString(),
-			ClearCoatRoughnessFactor, Standard::Nodes::TextureSample::Outputs::G.ToString() );
-	}
-
-	// ClearCoat::Parameters::ClearCoatNormal
-	{
-		TVariant< FLinearColor, float > ClearCoatNormalFactor;
-		ClearCoatNormalFactor.Set< float >( GltfMaterial.ClearCoat.NormalMapUVScale );
-
-		const bool bInverse = false;
-		const bool bIsNormal = true;
-
-		HandleGltfMaterialParameter( NodeContainer, GltfMaterial.ClearCoat.NormalMap, ShaderGraphNode, bSwapNormalAndClearCoatNormal ? Common::Parameters::Normal.ToString() : ClearCoat::Parameters::ClearCoatNormal.ToString(),
-			ClearCoatNormalFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString(), bInverse, bIsNormal );
-
-		//check if ClearCoat second normal is enabled in the render settings:
-		if (GltfAsset.Textures.IsValidIndex(GltfMaterial.Normal.TextureIndex) && !bRenderSettingsClearCoatEnableSecondNormal)
-		{
-			UE_LOG(LogInterchangeImport, Warning, TEXT("GLTF Material[%s] uses ClearCoat and has Normal map, however ClearCoat Second Normal is disabled in the Render Settings."), *GltfMaterial.Name);
-		}
-	}
-}
-
-void UInterchangeGLTFTranslator::HandleGltfSheen( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FMaterial& GltfMaterial, UInterchangeShaderGraphNode& ShaderGraphNode ) const
-{
-	using namespace UE::Interchange::Materials;
-
-	if ( !GltfMaterial.bHasSheen )
-	{
-		return;
-	}
-
-	// Sheen::Parameters::SheenColor
-	{
-		TVariant< FLinearColor, float > SheenColorFactor;
-		SheenColorFactor.Set< FLinearColor >( FLinearColor( GltfMaterial.Sheen.SheenColorFactor ) );
-
-		HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Sheen.SheenColorMap, ShaderGraphNode, Sheen::Parameters::SheenColor.ToString(),
-			SheenColorFactor, Standard::Nodes::TextureSample::Outputs::RGB.ToString() );
-	}
-
-	// Sheen::Parameters::SheenRoughness
-	{
-		TVariant< FLinearColor, float > SheenRoughnessFactor;
-		SheenRoughnessFactor.Set< float >( GltfMaterial.Sheen.SheenRoughnessFactor );
-
-		const bool bInverse = true;
-		HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Sheen.SheenRoughnessMap, ShaderGraphNode, Sheen::Parameters::SheenRoughness.ToString(),
-			SheenRoughnessFactor, Standard::Nodes::TextureSample::Outputs::A.ToString(), bInverse);
-	}
-}
-
-/**
- * GLTF transmission is handled a little differently than UE's.
- * GLTF doesn't allow having different reflected and transmitted colors, UE does (base color vs transmittance color).
- * GLTF controls the amount of reflected light vs transmitted light using the transmission factor, UE does that through opacity.
- * GLTF opacity means that the medium is present of not, so it's normal for transmission materials to be considered opaque,
- * meaning that the medium is full present, and the transmission factor determines how much lights is transmitted.
- * When a transmission material isn't fully opaque, we reduce the transmission color by the opacity to mimic GLTF's BTDF.
- * Ideally, this would be better represented by blending a default lit alpha blended material with a thin translucent material based on GLTF's opacity.
- */
-void UInterchangeGLTFTranslator::HandleGltfTransmission( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FMaterial& GltfMaterial, UInterchangeShaderGraphNode& ShaderGraphNode ) const
-{
-	using namespace UE::Interchange::Materials;
-
-	if ( !GltfMaterial.bHasTransmission || FMath::IsNearlyZero( GltfMaterial.Transmission.TransmissionFactor ) )
-	{
-		return;
-	}
- 
-	FString OpacityNodeUid;
-	FString OpacityNodeOutput;
-
-	// Common::Parameters::Opacity
-	{
-		/**
-		 * Per the spec, the red channel of the transmission texture drives how much light is transmitted vs diffused.
-		 * So we're setting the inverse of the red channel as the opacity.
-		 */
-		const FString OneMinusNodeName =  TEXT("OpacityOneMinus");
-		UInterchangeShaderNode* OneMinusNode = UInterchangeShaderNode::Create( &NodeContainer, OneMinusNodeName, ShaderGraphNode.GetUniqueID() );
-
-		OneMinusNode->SetCustomShaderType(Standard::Nodes::OneMinus::Name.ToString());
-
-		UInterchangeShaderNode* CurrentNode = OneMinusNode;
-		FString CurrentInput = Standard::Nodes::OneMinus::Inputs::Input.ToString();
-
-		TVariant< FLinearColor, float > TransmissionFactor;
-		TransmissionFactor.Set< float >( GltfMaterial.Transmission.TransmissionFactor );
-
-		HandleGltfMaterialParameter( NodeContainer, GltfMaterial.Transmission.TransmissionMap, *CurrentNode, CurrentInput,
-			TransmissionFactor, Standard::Nodes::TextureSample::Outputs::R.ToString() );
-
-		// The GLTF transmission model specifies that metallic surfaces don't transmit light, so adjust Common::Parameters::Opacity so that metallic surfaces are opaque.
-		{
-			FString MetallicNodeUid;
-			FString MetallicNodeOutput;
-
-			if ( UInterchangeShaderPortsAPI::GetInputConnection( &ShaderGraphNode, PBRMR::Parameters::Metallic.ToString(), MetallicNodeUid, MetallicNodeOutput ) )
-			{
-				const FString MetallicLerpNodeName =  TEXT("OpacityMetallicLerp");
-				UInterchangeShaderNode* LerpMetallicNode = UInterchangeShaderNode::Create( &NodeContainer, MetallicLerpNodeName, ShaderGraphNode.GetUniqueID() );
-				LerpMetallicNode->SetCustomShaderType( Standard::Nodes::Lerp::Name.ToString() );
-
-
-				LerpMetallicNode->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Lerp::Inputs::B.ToString() ), 1.f );
-				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( LerpMetallicNode, Standard::Nodes::Lerp::Inputs::A.ToString(), CurrentNode->GetUniqueID() );
-				UInterchangeShaderPortsAPI::ConnectOuputToInputByName( LerpMetallicNode, Standard::Nodes::Lerp::Inputs::Factor.ToString(), MetallicNodeUid, MetallicNodeOutput );
-
-				CurrentNode = LerpMetallicNode;
-				CurrentInput = TEXT("");
-			}
-		}
-
-		if ( GltfMaterial.AlphaMode != GLTF::FMaterial::EAlphaMode::Opaque )
-		{
-			if ( UInterchangeShaderPortsAPI::GetInputConnection( &ShaderGraphNode, PBRMR::Parameters::Opacity.ToString(), OpacityNodeUid, OpacityNodeOutput ) )
-			{
-				const FString OpacityLerpNodeName =  TEXT("OpacityLerp");
-				UInterchangeShaderNode* OpacityLerpNode = UInterchangeShaderNode::Create( &NodeContainer, OpacityLerpNodeName, ShaderGraphNode.GetUniqueID() );
-				OpacityLerpNode->SetCustomShaderType( Standard::Nodes::Lerp::Name.ToString() );
-
-				OpacityLerpNode->AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Lerp::Inputs::A.ToString() ), 0.f );
-				UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( OpacityLerpNode, Standard::Nodes::Lerp::Inputs::B.ToString(), CurrentNode->GetUniqueID() );
-				UInterchangeShaderPortsAPI::ConnectOuputToInputByName( OpacityLerpNode, Standard::Nodes::Lerp::Inputs::Factor.ToString(), OpacityNodeUid, OpacityNodeOutput );
-
-				CurrentNode = OpacityLerpNode;
-				CurrentInput = TEXT("");
-			}
-		}
-
-		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput( &ShaderGraphNode, Common::Parameters::Opacity.ToString(), CurrentNode->GetUniqueID() );
-	}
-
-	// ThinTranslucent::Parameters::Transmissioncolor
-	{
-		// There's no separation of reflected and transmitted color in this model. So the same color is used for the base color and the transmitted color.
-		// Since this extension is only supported with the metallic-roughness model, we can reuse its base color
-		const UInterchangeBaseNode* CurrentNode = &ShaderGraphNode;
-		FString CurrentOuput = TEXT("");
-		FLinearColor CurrentColor = FLinearColor::White;
-
-		FString BaseColorNodeUid;
-		FString BaseColorNodeOutput;
-
-		if ( UInterchangeShaderPortsAPI::GetInputConnection( CurrentNode, PBRMR::Parameters::BaseColor.ToString(), BaseColorNodeUid, BaseColorNodeOutput ) )
-		{
-			CurrentNode = NodeContainer.GetNode( BaseColorNodeUid );
-			CurrentOuput = BaseColorNodeOutput;
-		}
-		else
-		{
-			FLinearColor BaseColor;
-			if ( ShaderGraphNode.GetLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( PBRMR::Parameters::BaseColor.ToString() ), BaseColor ) )
-			{
-				CurrentNode = nullptr;
-				CurrentColor = BaseColor;
-			}
-		}
-
-		if ( GltfMaterial.AlphaMode != GLTF::FMaterial::EAlphaMode::Opaque )
-		{
-			if ( !OpacityNodeUid.IsEmpty() )
-			{
-				const FString OpacityLerpNodeName =  TEXT("OpacityTransmissionLerp");
-				UInterchangeShaderNode* OpacityLerpNode = UInterchangeShaderNode::Create( &NodeContainer, OpacityLerpNodeName, ShaderGraphNode.GetUniqueID() );
-				OpacityLerpNode->SetCustomShaderType( Standard::Nodes::Lerp::Name.ToString() );
-
-				OpacityLerpNode->AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Lerp::Inputs::A.ToString() ), FLinearColor::White );
-				UInterchangeShaderPortsAPI::ConnectOuputToInputByName( OpacityLerpNode, Standard::Nodes::Lerp::Inputs::Factor.ToString(), OpacityNodeUid, OpacityNodeOutput );
-
-				if ( CurrentNode )
-				{
-					UInterchangeShaderPortsAPI::ConnectOuputToInputByName( OpacityLerpNode, Standard::Nodes::Lerp::Inputs::B.ToString(), CurrentNode->GetUniqueID(), CurrentOuput );
-				}
-				else
-				{
-					OpacityLerpNode->AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::Lerp::Inputs::B.ToString() ), CurrentColor );
-				}
-
-				CurrentNode = OpacityLerpNode;
-				CurrentOuput = TEXT("");
-			}
-		}
-
-		if ( CurrentNode )
-		{
-			UInterchangeShaderPortsAPI::ConnectOuputToInputByName( &ShaderGraphNode, ThinTranslucent::Parameters::TransmissionColor.ToString(), CurrentNode->GetUniqueID(), CurrentOuput );
-		}
-		else
-		{
-			ShaderGraphNode.AddLinearColorAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( ThinTranslucent::Parameters::TransmissionColor.ToString() ), CurrentColor );
-		}
-	}
-}
-
-void UInterchangeGLTFTranslator::HandleGltfTextureTransform( UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureTransform& TextureTransform, const int32 TexCoordIndex, UInterchangeShaderNode& ShaderNode ) const
-{
-	using namespace UE::Interchange::Materials;
-
-	// Scale
-	if ( !FMath::IsNearlyEqual( TextureTransform.Scale[0], 1.f ) || 
-		 !FMath::IsNearlyEqual( TextureTransform.Scale[1], 1.f ) )
-	{
-		FVector2f TextureScale;
-		TextureScale.X = TextureTransform.Scale[0];
-		TextureScale.Y = TextureTransform.Scale[1];
-
-		ShaderNode.SetAttribute< FVector2f >( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureCoordinate::Inputs::Scale.ToString() ), TextureScale );
-	}
-
-	// Offset
-	if ( !FMath::IsNearlyZero( TextureTransform.Offset[0] ) || 
-		 !FMath::IsNearlyZero( TextureTransform.Offset[1] ) )
-	{
-		FVector2f TextureOffset;
-		TextureOffset.X = TextureTransform.Offset[0];
-		TextureOffset.Y = TextureTransform.Offset[1];
-
-		ShaderNode.SetAttribute< FVector2f >( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureCoordinate::Inputs::Offset.ToString() ), TextureOffset );
-	}
-
-	// Rotate
-	if ( !FMath::IsNearlyZero( TextureTransform.Rotation ) )
-	{
-		float AngleRadians = TextureTransform.Rotation;
-
-		if ( AngleRadians < 0.0f )
-		{
-			AngleRadians = TWO_PI - AngleRadians;
-		}
-
-		AngleRadians = 1.0f - ( AngleRadians / TWO_PI );
-
-		ShaderNode.AddFloatAttribute( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureCoordinate::Inputs::Rotate.ToString() ), AngleRadians );
-
-		FVector2f RotationCenter = FVector2f::Zero();
-		ShaderNode.SetAttribute< FVector2f >( UInterchangeShaderPortsAPI::MakeInputValueKey( Standard::Nodes::TextureCoordinate::Inputs::RotationCenter.ToString() ), RotationCenter );
-	}
-
-}
-
 EInterchangeTranslatorType UInterchangeGLTFTranslator::GetTranslatorType() const
 {
 	return EInterchangeTranslatorType::Scenes;
@@ -1041,6 +446,24 @@ bool UInterchangeGLTFTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 
 	ScaleNodeTranslations(const_cast<UInterchangeGLTFTranslator*>(this)->GltfAsset.Nodes, GltfUnitConversionMultiplier);
 
+	//Check Normal Textures:
+	TSet<int32> NormalTextureIndices;
+	{
+		auto AddTextureIndex = [&](int32 TextureIndex)
+		{
+			if (GltfAsset.Textures.IsValidIndex(TextureIndex))
+			{
+				NormalTextureIndices.Add(TextureIndex);
+			}
+		};
+
+		for (const GLTF::FMaterial& GltfMaterial : GltfAsset.Materials)
+		{
+			AddTextureIndex(GltfMaterial.Normal.TextureIndex);
+			AddTextureIndex(GltfMaterial.ClearCoat.NormalMap.TextureIndex);
+		}
+	}
+
 	// Textures
 	{
 		int32 TextureIndex = 0;
@@ -1072,7 +495,19 @@ bool UInterchangeGLTFTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			TextureNode->SetDisplayLabel(GltfTexture.Name);
 
 			TextureNode->SetCustomFilter(ConvertFilter(GltfTexture.Sampler.MinFilter));
-			TextureNode->SetPayLoadKey( LexToString( TextureIndex++ ) );
+
+			bool TextureUsedAsNormal = NormalTextureIndices.Contains(TextureIndex);
+
+			if (TextureUsedAsNormal)
+			{
+				//According to GLTF documentation the normal maps are right handed (following OpenGL convention),
+				//however UE expects left handed normal maps, this can be resolved by flipping the green channel of the normal textures:
+				//(based on https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0/NormalTangentTest#problem-flipped-y-axis-or-flipped-green-channel)
+				TextureNode->SetCustombFlipGreenChannel(true);
+			}
+
+			FString Payloadkey = LexToString(TextureIndex++) + TEXT(":") + LexToString(TextureUsedAsNormal);
+			TextureNode->SetPayLoadKey(Payloadkey);
 
 			TextureNode->SetCustomWrapU( UE::Interchange::Gltf::Private::ConvertWrap( GltfTexture.Sampler.WrapS ) );
 			TextureNode->SetCustomWrapV( UE::Interchange::Gltf::Private::ConvertWrap( GltfTexture.Sampler.WrapT ) );
@@ -1119,22 +554,13 @@ bool UInterchangeGLTFTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			SetTextureSRGB(NodeContainer, GltfMaterial.ClearCoat.RoughnessMap, false);
 			SetTextureSRGB(NodeContainer, GltfMaterial.Transmission.TransmissionMap, false);
 
-			//According to GLTF documentation the normal maps are right handed (following OpenGL convention),
-			//however UE expects left handed normal maps, this can be resolved by flipping the green channel of the normal textures:
-			//(based on https://github.com/KhronosGroup/glTF-Sample-Models/tree/master/2.0/NormalTangentTest#problem-flipped-y-axis-or-flipped-green-channel)
-			SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.Normal);
-			SetTextureFlipGreenChannel(NodeContainer, GltfMaterial.ClearCoat.NormalMap);
-
 			const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid(GltfMaterial.UniqueId);
 			bool bUseVertexColor = MaterialsUsedOnMeshesWithVertexColor.Contains(ShaderGraphNodeUid);
 
 			UInterchangeShaderGraphNode* ShaderGraphNode = UInterchangeShaderGraphNode::Create(&NodeContainer, GltfMaterial.UniqueId);
 			ShaderGraphNode->SetDisplayLabel(GltfMaterial.Name);
 
-			HandleGltfMaterial(NodeContainer, GltfMaterial, *ShaderGraphNode, bUseVertexColor);
-
-			//Store Gltf Material Attribute values in ShaderGraphNode but do not create MaterialInstances
-			UE::Interchange::GLTFMaterialInstances::AddGltfMaterialValuesToShaderGraphNode(GltfMaterial, GltfAsset.Textures, ShaderGraphNode);
+			UE::Interchange::GLTFMaterials::HandleGltfMaterial(NodeContainer, GltfMaterial, GltfAsset.Textures, ShaderGraphNode);
 			
 			++MaterialIndex;
 		}
@@ -1327,8 +753,16 @@ bool UInterchangeGLTFTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 
 TOptional< UE::Interchange::FImportImage > UInterchangeGLTFTranslator::GetTexturePayloadData(const FString& PayloadKey, TOptional<FString>& AlternateTexturePath) const
 {
+	TArray<FString> PayloadKeys;
+	PayloadKey.ParseIntoArray(PayloadKeys, TEXT(":"));
+
+	if (PayloadKeys.Num() == 0)
+	{
+		return TOptional< UE::Interchange::FImportImage >();
+	}
+
 	int32 TextureIndex = 0;
-	LexFromString( TextureIndex, *PayloadKey);
+	LexFromString( TextureIndex, *PayloadKeys[0]);
 
 	if ( !GltfAsset.Textures.IsValidIndex( TextureIndex ) )
 	{
@@ -1337,12 +771,14 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGLTFTranslator::GetTextur
 
 	const GLTF::FTexture& GltfTexture = GltfAsset.Textures[ TextureIndex ];
 
+	TOptional<UE::Interchange::FImportImage> TexturePayloadData = TOptional<UE::Interchange::FImportImage>();
+
 	if (GltfTexture.Source.FilePath.IsEmpty())
 	{
 		// Embedded texture -- try using ImageWrapper to decode it
 		TArray64<uint8> ImageData(GltfTexture.Source.Data, GltfTexture.Source.DataByteLength);
 		UInterchangeImageWrapperTranslator* ImageWrapperTranslator = NewObject<UInterchangeImageWrapperTranslator>(GetTransientPackage(), NAME_None);
-		return ImageWrapperTranslator->GetTexturePayloadDataFromBuffer(ImageData);
+		TexturePayloadData = ImageWrapperTranslator->GetTexturePayloadDataFromBuffer(ImageData);
 	}
 	else
 	{
@@ -1353,7 +789,7 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGLTFTranslator::GetTextur
 
 		if (!PayloadSourceData)
 		{
-			return TOptional<UE::Interchange::FImportImage>();
+			return TexturePayloadData;
 		}
 
 		UInterchangeTranslatorBase* SourceTranslator = UInterchangeManager::GetInterchangeManager().GetTranslatorForSourceData(PayloadSourceData);
@@ -1361,14 +797,24 @@ TOptional< UE::Interchange::FImportImage > UInterchangeGLTFTranslator::GetTextur
 		const IInterchangeTexturePayloadInterface* TextureTranslator = Cast< IInterchangeTexturePayloadInterface >(SourceTranslator);
 		if (!ensure(TextureTranslator))
 		{
-			return TOptional<UE::Interchange::FImportImage>();
+			return TexturePayloadData;
 		}
 		SourceTranslator->SetResultsContainer(Results);
 
 		AlternateTexturePath = TextureFilePath;
 
-		return TextureTranslator->GetTexturePayloadData(PayloadKey, AlternateTexturePath);
+		TexturePayloadData = TextureTranslator->GetTexturePayloadData(PayloadKey, AlternateTexturePath);
 	}
+
+	if (PayloadKeys.Num() == 2 && TexturePayloadData.IsSet())
+	{
+		bool TextureUsedAsNormal = false;
+		LexFromString(TextureUsedAsNormal, *PayloadKeys[1]);
+
+		TexturePayloadData.GetValue().CompressionSettings = TextureUsedAsNormal ? TC_Normalmap : TC_Default;
+	}
+
+	return TexturePayloadData;
 }
 
 TFuture<TOptional<UE::Interchange::FAnimationPayloadData>> UInterchangeGLTFTranslator::GetAnimationPayloadData(const FInterchangeAnimationPayLoadKey& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
@@ -1722,17 +1168,6 @@ void UInterchangeGLTFTranslator::SetTextureSRGB(UInterchangeBaseNodeContainer& N
 		if (UInterchangeTextureNode* TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureUid))))
 		{
 			TextureNode->SetCustomSRGB(bSRGB);
-		}
-	}
-}
-void UInterchangeGLTFTranslator::SetTextureFlipGreenChannel(UInterchangeBaseNodeContainer& NodeContainer, const GLTF::FTextureMap& TextureMap) const
-{
-	if (GltfAsset.Textures.IsValidIndex(TextureMap.TextureIndex))
-	{
-		const FString TextureUid = UInterchangeTextureNode::MakeNodeUid(GltfAsset.Textures[TextureMap.TextureIndex].UniqueId);
-		if (UInterchangeTextureNode* TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureUid))))
-		{
-			TextureNode->SetCustombFlipGreenChannel(true);
 		}
 	}
 }
@@ -2188,6 +1623,11 @@ UInterchangeGLTFTranslator::UInterchangeGLTFTranslator()
 	if (!HasAllFlags(RF_ClassDefaultObject))
 	{
 		bRenderSettingsClearCoatEnableSecondNormal = GetDefault<URendererSettings>()->bClearCoatEnableSecondNormal != 0;
+	}
+
+	if (!UE::Interchange::GLTFMaterials::AreRequiredPackagesLoaded())
+	{
+		UE_LOG(LogInterchangeImport, Warning, TEXT("UInterchangeGLTFPipeline: Some required packages are missing. Material import might be wrong"));
 	}
 }
 
