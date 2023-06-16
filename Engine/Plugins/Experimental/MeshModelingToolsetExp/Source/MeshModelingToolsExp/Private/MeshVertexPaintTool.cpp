@@ -495,7 +495,8 @@ bool UMeshVertexPaintTool::IsInBrushSubMode() const
 {
 	return BasicProperties->SubToolType == EMeshVertexPaintInteractionType::Brush
 		|| BasicProperties->SubToolType == EMeshVertexPaintInteractionType::Fill
-		|| BasicProperties->SubToolType == EMeshVertexPaintInteractionType::GroupFill;
+		|| BasicProperties->SubToolType == EMeshVertexPaintInteractionType::GroupFill
+		|| BasicProperties->SubToolType == EMeshVertexPaintInteractionType::TriFill;
 }
 
 
@@ -962,7 +963,7 @@ void UMeshVertexPaintTool::InitializeElementROIFromTriangleROI(const TArray<int3
 	FDynamicMesh3* Mesh = GetSculptMesh();
 	FDynamicMeshColorOverlay* ColorOverlay = GetActiveColorOverlay();
 
-	if (FilterProperties->bHardEdges)
+	if (BasicProperties->bHardEdges)
 	{
 		for (int32 tid : Triangles)
 		{
@@ -2001,7 +2002,7 @@ void UMeshVertexPaintTool::UpdateSubToolType(EMeshVertexPaintInteractionType New
 {
 	FilterProperties->CurrentSubToolType = BasicProperties->SubToolType;
 
-	bool bSculptPropsVisible = (NewType == EMeshVertexPaintInteractionType::Brush);
+	bool bSculptPropsVisible = (NewType != EMeshVertexPaintInteractionType::PolyLasso);
 	SetToolPropertySourceEnabled(UMeshSculptToolBase::BrushProperties, bSculptPropsVisible);
 
 	//SetToolPropertySourceEnabled(BasicProperties, true);
