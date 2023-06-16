@@ -1084,7 +1084,7 @@ void FGroomRenderingDetails::ExpandStructForLOD(TSharedRef<IPropertyHandle>& Pro
 			continue;
 		}
 
-		const bool bAutoLOD = GroomAsset->HairGroupsLOD[GroupIndex].LODType == EGroomLODType::Auto;
+		const bool bAutoLOD = GroomAsset->GetHairGroupsLOD()[GroupIndex].LODType == EGroomLODType::Auto;
 		if (bOverrideReset)
 		{
 			FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateSP(this, &FGroomRenderingDetails::ShouldResetToDefault, GroupIndex, LODIndex);
