@@ -1022,7 +1022,9 @@ public:
 		FString ExceptionCallstack;
 		FString ExceptionMsg;
 
-		if (IsValidRef(Job.Input.SharedEnvironment))
+		// if preprocessed cache is disabled, this function is executed as part of the compile process
+		// which will have merged the environment inline prior to calling this, so we can skip merging here 
+		if (Job.Input.bCachePreprocessed && IsValidRef(Job.Input.SharedEnvironment))
 		{
 			// only create new environment & merge if necessary, save some allocs
 			// (need a copy here as we don't want to merge the environment in place like we do in the compile path
