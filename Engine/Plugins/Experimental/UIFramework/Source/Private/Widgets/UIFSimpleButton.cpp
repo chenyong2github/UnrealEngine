@@ -85,7 +85,7 @@ void UUIFrameworkSimpleButton::ServerClick_Implementation(APlayerController* Pla
 
 void UUIFrameworkSimpleButton::SetText(const FLocalizableMessage& InMessage)
 {
-	FLocalizationContext LocContext(this, FInternationalization::Get().GetCurrentCulture());
+	FLocalizationContext LocContext(this);
 	ILocalizableMessageModule& LocalizableMessageModule = ILocalizableMessageModule::Get();
 	FLocalizableMessageProcessor& Processor = LocalizableMessageModule.GetLocalizableMessageProcessor();
 	Text = Processor.Localize(InMessage, LocContext);

@@ -13,15 +13,15 @@ namespace LocalizableMessageTypes
 
 	FText Int_LocalizeValue(const FLocalizableMessageParameterInt& Localizable, const FLocalizationContext& LocalizationContext)
 	{
-		return FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.Culture);
+		return FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.GetLocaleOverride());
 	}
 	FText Float_LocalizeValue(const FLocalizableMessageParameterFloat& Localizable, const FLocalizationContext& LocalizationContext)
 	{
-		return FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.Culture);
+		return FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.GetLocaleOverride());
 	}
 	FText String_LocalizeValue(const FLocalizableMessageParameterString& Localizable, const FLocalizationContext& LocalizationContext)
 	{
-		return FText::FromString(Localizable.Value);
+		return FText::AsCultureInvariant(Localizable.Value);
 	}
 
 	void RegisterTypes()

@@ -36,7 +36,7 @@ void UUIFrameworkTextBase::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 
 void UUIFrameworkTextBase::SetText(const FLocalizableMessage& InMessage)
 {
-	FLocalizationContext LocContext(this, FInternationalization::Get().GetCurrentCulture());
+	FLocalizationContext LocContext(this);
 	ILocalizableMessageModule& LocalizableMessageModule = ILocalizableMessageModule::Get();
 	FLocalizableMessageProcessor& Processor = LocalizableMessageModule.GetLocalizableMessageProcessor();
 	Text = Processor.Localize(InMessage, LocContext);

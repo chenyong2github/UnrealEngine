@@ -18,23 +18,15 @@ FLocalizableMessageProcessor::~FLocalizableMessageProcessor()
 
 FText FLocalizableMessageProcessor::Localize(const FLocalizableMessage& Message, const FLocalizationContext& Context)
 {
-	// todo: look up the localized string via Key
-	// for now we only use the DefaultText in the message
-	FText SubstitutionResult;
 	FFormatNamedArguments FormatArguments;
-
 	for (const FLocalizableMessageParameterEntry& Substitution : Message.Substitutions)
 	{
 		if (ensure(Substitution.Value.IsValid()))
 		{
 			if (const LocalizeValueFnc* Functor = LocalizeValueMapping.Find(Substitution.Value.GetScriptStruct()->GetFName()))
 			{
-				SubstitutionResult = (*Functor)(Substitution.Value, Context);
-
-				if (SubstitutionResult.IsEmpty() == false)
-				{
-					TextFormatUtil::FormatNamed(FormatArguments, Substitution.Key, SubstitutionResult);
-				}
+				FText SubstitutionResult = (*Functor)(Substitution.Value, Context);
+				FormatArguments.Add(Substitution.Key, MoveTemp(SubstitutionResult));
 			}
 			else
 			{
@@ -48,7 +40,10 @@ FText FLocalizableMessageProcessor::Localize(const FLocalizableMessage& Message,
 	}
 
 	// an unfortunate number of allocations and copies here
-	return FText::Format(FTextFormat::FromString(Message.DefaultText), FormatArguments);
+	FText DefaultFText = FInternationalization::ForUseOnlyByLocMacroAndGraphNodeTextLiterals_CreateText(*Message.DefaultText, TEXT(""), *Message.Key);
+	return FormatArguments.Num() > 0
+		? FText::Format(DefaultFText, FormatArguments)
+		: DefaultFText;
 }
 
 void FLocalizableMessageProcessor::UnregisterLocalizableTypes(FScopedRegistrations& ScopedRegistrations)
