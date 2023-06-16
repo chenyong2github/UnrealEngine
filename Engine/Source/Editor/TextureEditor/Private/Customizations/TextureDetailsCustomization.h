@@ -36,7 +36,7 @@ private:
 	TSharedPtr<IPropertyHandle> OodleTextureSdkVersionPropertyHandle;
 	TSharedPtr<IPropertyHandle> MaxTextureSizePropertyHandle;
 	TSharedPtr<IPropertyHandle> VirtualTextureStreamingPropertyHandle;
-	TWeakObjectPtr<UObject> TextureBeingCustomized;
+	TArray<TWeakObjectPtr<UObject>> TexturesBeingCustomized;
 	bool bIsUsingSlider;
 };
 

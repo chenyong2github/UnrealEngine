@@ -22,12 +22,7 @@ TSharedRef<IDetailCustomization> FTextureDetails::MakeInstance()
 
 void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	TArray< TWeakObjectPtr<UObject> > ObjectsBeingCustomized;
-	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
-	if (ensure(ObjectsBeingCustomized.Num() == 1))
-	{
-		TextureBeingCustomized = ObjectsBeingCustomized[0];
-	}
+	DetailBuilder.GetObjectsBeingCustomized(TexturesBeingCustomized);
 
 	DetailBuilder.EditCategory("LevelOfDetail");
 	DetailBuilder.EditCategory("Compression");
@@ -88,7 +83,7 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	}
 	
 	// Customize MaxTextureSize
-	if( MaxTextureSizePropertyHandle->IsValidHandle() )
+	if( MaxTextureSizePropertyHandle->IsValidHandle() && TexturesBeingCustomized.Num() == 1)
 	{
 		IDetailCategoryBuilder& CompressionCategory = DetailBuilder.EditCategory("Compression");
 		IDetailPropertyRow& MaxTextureSizePropertyRow = CompressionCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize));
@@ -99,7 +94,7 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 
 		int32 MaxTextureSize = 2048;
 
-		if (UTexture* Texture = Cast<UTexture>(TextureBeingCustomized.Get()))
+		if (UTexture* Texture = Cast<UTexture>(TexturesBeingCustomized[0].Get()))
 		{
 			// GetMaximumDimension is for current RHI and texture type
 			MaxTextureSize = Texture->GetMaximumDimension();
@@ -146,14 +141,14 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 
 FReply FTextureDetails::OnOodleTextureSdkVersionClicked()
 {
-	UTexture* Texture = Cast<UTexture>(TextureBeingCustomized.Get());
-	if ( Texture == nullptr )
+	for (const TWeakObjectPtr<UObject>& WeakTexture : TexturesBeingCustomized)
 	{
-		return FReply::Unhandled();
+		if (UTexture* Texture = Cast<UTexture>(WeakTexture.Get()))
+		{
+			// true = do Pre/PostEditChange
+			Texture->UpdateOodleTextureSdkVersionToLatest(true);
+		}
 	}
-
-	// true = do Pre/PostEditChange
-	Texture->UpdateOodleTextureSdkVersionToLatest(true);
 
 	return FReply::Handled();
 }
