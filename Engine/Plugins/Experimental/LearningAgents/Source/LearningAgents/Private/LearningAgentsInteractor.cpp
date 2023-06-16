@@ -5,6 +5,7 @@
 #include "LearningAgentsManager.h"
 #include "LearningAgentsObservations.h"
 #include "LearningAgentsActions.h"
+#include "LearningAgentsHelpers.h"
 
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
@@ -80,18 +81,35 @@ void ULearningAgentsInteractor::SetupInteractor()
 	ActionEncodingAgentIteration.SetNumUninitialized({ Manager->GetMaxAgentNum() });
 	UE::Learning::Array::Set<1, uint64>(ObservationEncodingAgentIteration, INDEX_NONE);
 	UE::Learning::Array::Set<1, uint64>(ActionEncodingAgentIteration, INDEX_NONE);
-	SetAgentIteration(Manager->GetAllAgentSet(), 0);
 
 	bIsSetup = true;
+
+	OnAgentsAdded(Manager->GetAllAgentIds());
 }
 
 void ULearningAgentsInteractor::OnAgentsAdded(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentSet = AgentIds;
-		AgentSet.TryMakeSlice();
-		SetAgentIteration(AgentSet, 0);
+		UE::Learning::Array::Set<1, uint64>(ObservationEncodingAgentIteration, 0, AgentIds);
+		UE::Learning::Array::Set<1, uint64>(ActionEncodingAgentIteration, 0, AgentIds);
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsAdded(AgentIds);
+		}
+
+		for (ULearningAgentsObservation* ObservationObject : ObservationObjects)
+		{
+			ObservationObject->OnAgentsAdded(AgentIds);
+		}
+
+		for (ULearningAgentsAction* ActionObject : ActionObjects)
+		{
+			ActionObject->OnAgentsAdded(AgentIds);
+		}
+
+		AgentsAdded(AgentIds);
 	}
 }
 
@@ -99,9 +117,25 @@ void ULearningAgentsInteractor::OnAgentsRemoved(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentSet = AgentIds;
-		AgentSet.TryMakeSlice();
-		SetAgentIteration(AgentSet, INDEX_NONE);
+		UE::Learning::Array::Set<1, uint64>(ObservationEncodingAgentIteration, INDEX_NONE, AgentIds);
+		UE::Learning::Array::Set<1, uint64>(ActionEncodingAgentIteration, INDEX_NONE, AgentIds);
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsRemoved(AgentIds);
+		}
+
+		for (ULearningAgentsObservation* ObservationObject : ObservationObjects)
+		{
+			ObservationObject->OnAgentsRemoved(AgentIds);
+		}
+
+		for (ULearningAgentsAction* ActionObject : ActionObjects)
+		{
+			ActionObject->OnAgentsRemoved(AgentIds);
+		}
+
+		AgentsRemoved(AgentIds);
 	}
 }
 
@@ -109,26 +143,25 @@ void ULearningAgentsInteractor::OnAgentsReset(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentSet = AgentIds;
-		AgentSet.TryMakeSlice();
-		SetAgentIteration(AgentSet, 0);
-	}
-}
+		UE::Learning::Array::Set<1, uint64>(ObservationEncodingAgentIteration, 0, AgentIds);
+		UE::Learning::Array::Set<1, uint64>(ActionEncodingAgentIteration, 0, AgentIds);
+		
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsReset(AgentIds);
+		}
 
-void ULearningAgentsInteractor::SetAgentIteration(const UE::Learning::FIndexSet AgentIds, const uint64 Value)
-{
-	UE::Learning::Array::Set<1, uint64>(ObservationEncodingAgentIteration, Value, AgentIds);
-	UE::Learning::Array::Set<1, uint64>(ActionEncodingAgentIteration, Value, AgentIds);
+		for (ULearningAgentsObservation* ObservationObject : ObservationObjects)
+		{
+			ObservationObject->OnAgentsReset(AgentIds);
+		}
 
-	for (ULearningAgentsObservation* ObservationObject : ObservationObjects)
-	{
-		UE::Learning::Array::Set<1, uint64>(ObservationObject->AgentIteration, Value, AgentIds);
-	}
+		for (ULearningAgentsAction* ActionObject : ActionObjects)
+		{
+			ActionObject->OnAgentsReset(AgentIds);
+		}
 
-	for (ULearningAgentsAction* ActionObject : ActionObjects)
-	{
-		UE::Learning::Array::Set<1, uint64>(ActionObject->AgentGetIteration, Value, AgentIds);
-		UE::Learning::Array::Set<1, uint64>(ActionObject->AgentSetIteration, Value, AgentIds);
+		AgentsReset(AgentIds);
 	}
 }
 
@@ -227,23 +260,23 @@ void ULearningAgentsInteractor::EncodeObservations(const UE::Learning::FIndexSet
 	{
 		for (const int32 AgentId : AgentSet)
 		{
-			if (ObservationObject->AgentIteration[AgentId] <= ObservationEncodingAgentIteration[AgentId])
+			if (ObservationObject->GetAgentIteration(AgentId) <= ObservationEncodingAgentIteration[AgentId])
 			{
-				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->AgentIteration[AgentId], ObservationEncodingAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->GetAgentIteration(AgentId), ObservationEncodingAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
 
-			if (ObservationObject->AgentIteration[AgentId] > ObservationEncodingAgentIteration[AgentId] + 1)
+			if (ObservationObject->GetAgentIteration(AgentId) > ObservationEncodingAgentIteration[AgentId] + 1)
 			{
-				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->AgentIteration[AgentId], ObservationEncodingAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->GetAgentIteration(AgentId), ObservationEncodingAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
 
-			if (ObservationObject->AgentIteration[AgentId] != ObservationEncodingAgentIteration[AgentId] + 1)
+			if (ObservationObject->GetAgentIteration(AgentId) != ObservationEncodingAgentIteration[AgentId] + 1)
 			{
-				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->AgentIteration[AgentId], ObservationEncodingAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Warning, TEXT("%s: Observation %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have observations encoded."), *GetName(), *ObservationObject->GetName(), AgentId, ObservationObject->GetAgentIteration(AgentId), ObservationEncodingAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
@@ -323,21 +356,21 @@ void ULearningAgentsInteractor::DecodeActions(const UE::Learning::FIndexSet Agen
 	{
 		for (const int32 AgentId : ValidAgentSet)
 		{
-			if (ActionObject->AgentGetIteration[AgentId] == ActionEncodingAgentIteration[AgentId] - 1)
+			if (ActionObject->GetAgentGetIteration(AgentId) == ActionEncodingAgentIteration[AgentId] - 1)
 			{
 				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i appears to have not been got."), *GetName(), *ActionObject->GetName(), AgentId);
 				continue;
 			}
 				
-			if (ActionObject->AgentGetIteration[AgentId] > ActionEncodingAgentIteration[AgentId])
+			if (ActionObject->GetAgentGetIteration(AgentId) > ActionEncodingAgentIteration[AgentId])
 			{
 				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i appears to have been got multiple times."), *GetName(), *ActionObject->GetName(), AgentId);
 				continue;
 			}
 				
-			if (ActionObject->AgentGetIteration[AgentId] != ActionEncodingAgentIteration[AgentId])
+			if (ActionObject->GetAgentGetIteration(AgentId) != ActionEncodingAgentIteration[AgentId])
 			{
-				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i does not have a matching iteration number (got %i, expected %i)."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->AgentGetIteration[AgentId], ActionEncodingAgentIteration[AgentId]);
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i does not have a matching iteration number (got %i, expected %i)."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->GetAgentGetIteration(AgentId), ActionEncodingAgentIteration[AgentId]);
 				continue;
 			}
 		}

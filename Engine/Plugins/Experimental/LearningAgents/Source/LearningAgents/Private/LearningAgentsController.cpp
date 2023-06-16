@@ -46,6 +46,8 @@ void ULearningAgentsController::SetupController(ULearningAgentsInteractor* InInt
 	Interactor = InInteractor;
 
 	bIsSetup = true;
+
+	OnAgentsAdded(Manager->GetAllAgentIds());
 }
 
 void ULearningAgentsController::EncodeActions()
@@ -73,23 +75,23 @@ void ULearningAgentsController::EncodeActions()
 	{
 		for (const int32 AgentId : Manager->GetAllAgentSet())
 		{
-			if (ActionObject->AgentSetIteration[AgentId] == ActionEncodingAgentIteration[AgentId])
+			if (ActionObject->GetAgentSetIteration(AgentId) == ActionEncodingAgentIteration[AgentId])
 			{
-				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->AgentSetIteration[AgentId], ActionEncodingAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->GetAgentSetIteration(AgentId), ActionEncodingAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
 
-			if (ActionObject->AgentSetIteration[AgentId] > ActionEncodingAgentIteration[AgentId] + 1)
+			if (ActionObject->GetAgentSetIteration(AgentId) > ActionEncodingAgentIteration[AgentId] + 1)
 			{
-				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->AgentSetIteration[AgentId], ActionEncodingAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->GetAgentSetIteration(AgentId), ActionEncodingAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
 
-			if (ActionObject->AgentSetIteration[AgentId] != ActionEncodingAgentIteration[AgentId] + 1)
+			if (ActionObject->GetAgentSetIteration(AgentId) != ActionEncodingAgentIteration[AgentId] + 1)
 			{
-				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->AgentSetIteration[AgentId], ActionEncodingAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Warning, TEXT("%s: Action %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have actions encoded."), *GetName(), *ActionObject->GetName(), AgentId, ActionObject->GetAgentSetIteration(AgentId), ActionEncodingAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}

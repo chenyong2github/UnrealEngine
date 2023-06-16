@@ -393,9 +393,13 @@ namespace UE::Learning
 		UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(FFloatReward::Evaluate);
 
 		const TLearningArrayView<1, const float> Value = InstanceData->ConstView(ValueHandle);
+		const TLearningArrayView<1, const float> Weight = InstanceData->ConstView(WeightHandle);
 		TLearningArrayView<1, float> Reward = InstanceData->View(RewardHandle);
 
-		Array::Copy(Reward, Value, Instances);
+		for (const int32 InstanceIdx : Instances)
+		{
+			Reward[InstanceIdx] = Weight[InstanceIdx] * Value[InstanceIdx];
+		}
 	}
 
 	//------------------------------------------------------------------

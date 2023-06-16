@@ -89,7 +89,9 @@ void ULearningAgentsPolicy::SetupPolicy(
 	{
 		// Create New Neural Network Asset
 
-		Network = NewObject<ULearningAgentsNeuralNetwork>(this, TEXT("PolicyNetwork"));
+		const FName UniqueName = MakeUniqueObjectName(this, ULearningAgentsNeuralNetwork::StaticClass(), TEXT("PolicyNetwork"), EUniqueObjectNameOptions::GloballyUnique);
+
+		Network = NewObject<ULearningAgentsNeuralNetwork>(this, UniqueName);
 		Network->NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
 		Network->NeuralNetwork->Resize(
 			Interactor->GetObservationFeature().DimNum(),
@@ -117,6 +119,8 @@ void ULearningAgentsPolicy::SetupPolicy(
 	Manager->GetInstanceData()->Link(PolicyObject->OutputHandle, Interactor->GetActionFeature().FeatureHandle);
 
 	bIsSetup = true;
+
+	OnAgentsAdded(Manager->GetAllAgentIds());
 }
 
 ULearningAgentsNeuralNetwork* ULearningAgentsPolicy::GetNetworkAsset()
@@ -316,10 +320,10 @@ void ULearningAgentsPolicy::VisualLog(const UE::Learning::FIndexSet AgentSet) co
 				AgentId,
 				ActionNoiseScaleView[AgentId],
 				*UE::Learning::Array::FormatFloat(InputView[AgentId]),
-				*UE::Learning::Array::FormatFloat(OutputView[AgentId]),
+				*UE::Learning::Agents::Debug::FloatArrayToStatsString(InputView[AgentId]),
 				*UE::Learning::Array::FormatFloat(OutputMeanView[AgentId]),
 				*UE::Learning::Array::FormatFloat(OutputStdView[AgentId]),
-				*UE::Learning::Agents::Debug::FloatArrayToStatsString(InputView[AgentId]),
+				*UE::Learning::Array::FormatFloat(OutputView[AgentId]),
 				*UE::Learning::Agents::Debug::FloatArrayToStatsString(OutputView[AgentId]));
 
 		}

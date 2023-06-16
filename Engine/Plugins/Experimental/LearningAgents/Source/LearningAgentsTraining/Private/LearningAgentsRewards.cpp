@@ -28,8 +28,10 @@ namespace UE::Learning::Agents::Rewards::Private
 			return nullptr;
 		}
 
-		RewardUObject* Reward = NewObject<RewardUObject>(InAgentTrainer, Name);
+		const FName UniqueName = MakeUniqueObjectName(InAgentTrainer, RewardUObject::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
 
+		RewardUObject* Reward = NewObject<RewardUObject>(InAgentTrainer, UniqueName);
+		Reward->Init(InAgentTrainer->GetAgentManager()->GetMaxAgentNum());
 		Reward->AgentTrainer = InAgentTrainer;
 		Reward->RewardObject = MakeShared<RewardFObject>(
 			Reward->GetFName(),
@@ -37,13 +39,38 @@ namespace UE::Learning::Agents::Rewards::Private
 			InAgentTrainer->GetAgentManager()->GetMaxAgentNum(),
 			Forward<InArgTypes>(Args)...);
 
-		Reward->AgentIteration.SetNumUninitialized({ InAgentTrainer->GetAgentManager()->GetMaxAgentNum() });
-		UE::Learning::Array::Set<1, uint64>(Reward->AgentIteration, INDEX_NONE);
-
 		InAgentTrainer->AddReward(Reward, Reward->RewardObject.ToSharedRef());
 
 		return Reward;
 	}
+}
+
+//------------------------------------------------------------------
+
+void ULearningAgentsReward::Init(const int32 MaxAgentNum)
+{
+	AgentIteration.SetNumUninitialized({ MaxAgentNum });
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, INDEX_NONE);
+}
+
+void ULearningAgentsReward::OnAgentsAdded(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, 0, AgentIds);
+}
+
+void ULearningAgentsReward::OnAgentsRemoved(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, INDEX_NONE, AgentIds);
+}
+
+void ULearningAgentsReward::OnAgentsReset(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, 0, AgentIds);
+}
+
+uint64 ULearningAgentsReward::GetAgentIteration(const int32 AgentId) const
+{
+	return AgentIteration[AgentId];
 }
 
 //------------------------------------------------------------------
@@ -85,6 +112,50 @@ void UFloatReward::VisualLog(const UE::Learning::FIndexSet Instances) const
 				Instance,
 				WeightView[Instance],
 				ValueView[Instance],
+				RewardView[Instance]);
+		}
+	}
+}
+#endif
+
+//------------------------------------------------------------------
+
+UConditionalReward* UConditionalReward::AddConditionalReward(ULearningAgentsTrainer* InAgentTrainer, const FName Name, const float Value)
+{
+	return UE::Learning::Agents::Rewards::Private::AddReward<UConditionalReward, UE::Learning::FConditionalConstantReward>(InAgentTrainer, Name, TEXT("AddConditionalReward"), Value);
+}
+
+void UConditionalReward::SetConditionalReward(const int32 AgentId, const bool bCondition)
+{
+	if (!AgentTrainer->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return;
+	}
+
+	RewardObject->InstanceData->View(RewardObject->ConditionHandle)[AgentId] = bCondition;
+	AgentIteration[AgentId]++;
+}
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+void UConditionalReward::VisualLog(const UE::Learning::FIndexSet Instances) const
+{
+	UE_LEARNING_TRACE_CPUPROFILER_EVENT_SCOPE(UBoolReward::VisualLog);
+
+	const TLearningArrayView<1, const bool> ConditionView = RewardObject->InstanceData->ConstView(RewardObject->ConditionHandle);
+	const TLearningArrayView<1, const float> RewardView = RewardObject->InstanceData->ConstView(RewardObject->RewardHandle);
+
+	for (const int32 Instance : Instances)
+	{
+		if (const AActor* Actor = Cast<AActor>(AgentTrainer->GetAgent(Instance)))
+		{
+			UE_LEARNING_AGENTS_VLOG_STRING(this, LogLearning, Display,
+				Actor->GetActorLocation(),
+				VisualLogColor.ToFColor(true),
+				TEXT("Agent %i\nValue: [% 6.2f]\nCondition: %s\nReward: [% 6.3f]"),
+				Instance,
+				RewardObject->Value,
+				ConditionView[Instance] ? TEXT("true") : TEXT("false"),
 				RewardView[Instance]);
 		}
 	}

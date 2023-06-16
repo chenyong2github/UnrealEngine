@@ -194,12 +194,6 @@ private:
 // ----- Private Iteration Checks ----- 
 private:
 
-	/**
-	 * Sets the iteration number for the given set of agents for all observations, actions, as well as for the encoding 
-	 * of observations and actions
-	 */
-	void SetAgentIteration(const UE::Learning::FIndexSet AgentIds, const uint64 Value);
-
 	/** Number of times observations have been encoded for all agents */
 	TLearningArray<1, uint64, TInlineAllocator<32>> ObservationEncodingAgentIteration;
 

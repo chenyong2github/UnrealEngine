@@ -49,8 +49,29 @@ public:
 
 public:
 
-	/** Number of times this completion has been set for all agents */
-	TLearningArray<1, uint64, TInlineAllocator<32>> AgentIteration;
+	/** Initialize the internal state for a given maximum number of agents */
+	void Init(const int32 MaxAgentNum);
+
+	/**
+	 * Called whenever agents are added to the associated ULearningAgentsTrainer object.
+	 * @param AgentIds Array of agent ids which have been added
+	 */
+	virtual void OnAgentsAdded(const TArray<int32>& AgentIds);
+
+	/**
+	 * Called whenever agents are removed from the associated ULearningAgentsTrainer object.
+	 * @param AgentIds Array of agent ids which have been removed
+	 */
+	virtual void OnAgentsRemoved(const TArray<int32>& AgentIds);
+
+	/**
+	 * Called whenever agents are reset on the associated ULearningAgentsTrainer object.
+	 * @param AgentIds Array of agent ids which have been reset
+	 */
+	virtual void OnAgentsReset(const TArray<int32>& AgentIds);
+
+	/** Get the number of times a completion has been set for the given agent id. */
+	uint64 GetAgentIteration(const int32 AgentId) const;
 
 public:
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -60,6 +81,11 @@ public:
 	/** Describes this completion to the visual logger for debugging purposes. */
 	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const {}
 #endif
+
+protected:
+
+	/** Number of times this completion has been set for all agents */
+	TLearningArray<1, uint64, TInlineAllocator<32>> AgentIteration;
 };
 
 //------------------------------------------------------------------

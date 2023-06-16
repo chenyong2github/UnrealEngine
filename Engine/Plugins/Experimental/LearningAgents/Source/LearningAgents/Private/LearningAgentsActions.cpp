@@ -28,19 +28,16 @@ namespace UE::Learning::Agents::Actions::Private
 			return nullptr;
 		}
 
-		ActionUObject* Action = NewObject<ActionUObject>(InInteractor, Name);
+		const FName UniqueName = MakeUniqueObjectName(InInteractor, ActionUObject::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
 
+		ActionUObject* Action = NewObject<ActionUObject>(InInteractor, UniqueName);
+		Action->Init(InInteractor->GetAgentManager()->GetMaxAgentNum());
 		Action->Interactor = InInteractor;
 		Action->FeatureObject = MakeShared<ActionFObject>(
 			Action->GetFName(),
 			InInteractor->GetAgentManager()->GetInstanceData().ToSharedRef(),
 			InInteractor->GetAgentManager()->GetMaxAgentNum(),
 			Forward<InArgTypes>(Args)...);
-
-		Action->AgentGetIteration.SetNumUninitialized({ InInteractor->GetAgentManager()->GetMaxAgentNum() });
-		Action->AgentSetIteration.SetNumUninitialized({ InInteractor->GetAgentManager()->GetMaxAgentNum() });
-		UE::Learning::Array::Set<1, uint64>(Action->AgentGetIteration, INDEX_NONE);
-		UE::Learning::Array::Set<1, uint64>(Action->AgentSetIteration, INDEX_NONE);
 
 		// We assume all supported action feature objects can be encoded and decoded
 		UE_LEARNING_CHECK(Action->FeatureObject->IsEncodable() && Action->FeatureObject->IsDecodable());
@@ -49,6 +46,44 @@ namespace UE::Learning::Agents::Actions::Private
 
 		return Action;
 	}
+}
+
+//------------------------------------------------------------------
+
+void ULearningAgentsAction::Init(const int32 MaxAgentNum)
+{
+	AgentGetIteration.SetNumUninitialized({ MaxAgentNum });
+	AgentSetIteration.SetNumUninitialized({ MaxAgentNum });
+	UE::Learning::Array::Set<1, uint64>(AgentGetIteration, INDEX_NONE);
+	UE::Learning::Array::Set<1, uint64>(AgentSetIteration, INDEX_NONE);
+}
+
+void ULearningAgentsAction::OnAgentsAdded(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentGetIteration, 0, AgentIds);
+	UE::Learning::Array::Set<1, uint64>(AgentSetIteration, 0, AgentIds);
+}
+
+void ULearningAgentsAction::OnAgentsRemoved(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentGetIteration, INDEX_NONE, AgentIds);
+	UE::Learning::Array::Set<1, uint64>(AgentSetIteration, INDEX_NONE, AgentIds);
+}
+
+void ULearningAgentsAction::OnAgentsReset(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentGetIteration, 0, AgentIds);
+	UE::Learning::Array::Set<1, uint64>(AgentSetIteration, 0, AgentIds);
+}
+
+uint64 ULearningAgentsAction::GetAgentGetIteration(const int32 AgentId) const
+{
+	return AgentGetIteration[AgentId];
+}
+
+uint64 ULearningAgentsAction::GetAgentSetIteration(const int32 AgentId) const
+{
+	return AgentSetIteration[AgentId];
 }
 
 //------------------------------------------------------------------

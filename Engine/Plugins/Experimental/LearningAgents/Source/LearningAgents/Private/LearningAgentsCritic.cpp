@@ -4,6 +4,7 @@
 
 #include "LearningAgentsManager.h"
 #include "LearningAgentsInteractor.h"
+#include "LearningAgentsHelpers.h"
 #include "LearningFeatureObject.h"
 #include "LearningNeuralNetwork.h"
 #include "LearningNeuralNetworkObject.h"
@@ -87,7 +88,9 @@ void ULearningAgentsCritic::SetupCritic(
 	{
 		// Create New Neural Network Asset
 
-		Network = NewObject<ULearningAgentsNeuralNetwork>(this, TEXT("CriticNetwork"));
+		const FName UniqueName = MakeUniqueObjectName(this, ULearningAgentsNeuralNetwork::StaticClass(), TEXT("CriticNetwork"), EUniqueObjectNameOptions::GloballyUnique);
+
+		Network = NewObject<ULearningAgentsNeuralNetwork>(this, UniqueName);
 		Network->NeuralNetwork = MakeShared<UE::Learning::FNeuralNetwork>();
 		Network->NeuralNetwork->Resize(
 			Interactor->GetObservationFeature().DimNum(),
@@ -108,18 +111,24 @@ void ULearningAgentsCritic::SetupCritic(
 
 	DiscountedReturnAgentIteration.SetNumUninitialized({ Manager->GetMaxAgentNum() });
 	UE::Learning::Array::Set<1, uint64>(DiscountedReturnAgentIteration, INDEX_NONE);
-	UE::Learning::Array::Set<1, uint64>(DiscountedReturnAgentIteration, 0, Manager->GetAllAgentSet());
 
 	bIsSetup = true;
+
+	OnAgentsAdded(Manager->GetAllAgentIds());
 }
 
 void ULearningAgentsCritic::OnAgentsAdded(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentSet = AgentIds;
-		AgentSet.TryMakeSlice();
-		UE::Learning::Array::Set<1, uint64>(DiscountedReturnAgentIteration, 0, AgentSet);
+		UE::Learning::Array::Set<1, uint64>(DiscountedReturnAgentIteration, 0, AgentIds);
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsAdded(AgentIds);
+		}
+
+		AgentsAdded(AgentIds);
 	}
 }
 
@@ -127,9 +136,14 @@ void ULearningAgentsCritic::OnAgentsRemoved(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentSet = AgentIds;
-		AgentSet.TryMakeSlice();
-		UE::Learning::Array::Set<1, uint64>(DiscountedReturnAgentIteration, INDEX_NONE, AgentSet);
+		UE::Learning::Array::Set<1, uint64>(DiscountedReturnAgentIteration, INDEX_NONE, AgentIds);
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsRemoved(AgentIds);
+		}
+
+		AgentsRemoved(AgentIds);
 	}
 }
 
@@ -137,9 +151,14 @@ void ULearningAgentsCritic::OnAgentsReset(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentSet = AgentIds;
-		AgentSet.TryMakeSlice();
-		UE::Learning::Array::Set<1, uint64>(DiscountedReturnAgentIteration, 0, AgentSet);
+		UE::Learning::Array::Set<1, uint64>(DiscountedReturnAgentIteration, 0, AgentIds);
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsReset(AgentIds);
+		}
+
+		AgentsReset(AgentIds);
 	}
 }
 

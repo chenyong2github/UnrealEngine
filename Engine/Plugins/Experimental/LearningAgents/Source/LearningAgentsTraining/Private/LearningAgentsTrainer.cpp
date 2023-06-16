@@ -9,6 +9,7 @@
 #include "LearningAgentsObservations.h"
 #include "LearningAgentsPolicy.h"
 #include "LearningAgentsCritic.h"
+#include "LearningAgentsHelpers.h"
 #include "LearningArray.h"
 #include "LearningArrayMap.h"
 #include "LearningExperience.h"
@@ -222,22 +223,38 @@ void ULearningAgentsTrainer::SetupTrainer(
 	CompletionEvaluatedAgentIteration.SetNumUninitialized({ Manager->GetMaxAgentNum() });
 	UE::Learning::Array::Set<1, uint64>(RewardEvaluatedAgentIteration, INDEX_NONE);
 	UE::Learning::Array::Set<1, uint64>(CompletionEvaluatedAgentIteration, INDEX_NONE);
-	SetAgentIteration(Manager->GetAllAgentSet(), 0);
 
 	bIsSetup = true;
+
+	OnAgentsAdded(Manager->GetAllAgentIds());
 }
 
 void ULearningAgentsTrainer::OnAgentsAdded(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentsSet = AgentIds;
-		AgentsSet.TryMakeSlice();
-
 		ResetEpisodes(AgentIds);
-		EpisodeBuffer->Reset(AgentsSet);
+		EpisodeBuffer->Reset(AgentIds);
 
-		SetAgentIteration(AgentsSet, 0);
+		UE::Learning::Array::Set<1, uint64>(RewardEvaluatedAgentIteration, 0, AgentIds);
+		UE::Learning::Array::Set<1, uint64>(CompletionEvaluatedAgentIteration, 0, AgentIds);
+
+		for (ULearningAgentsReward* RewardObject : RewardObjects)
+		{
+			RewardObject->OnAgentsAdded(AgentIds);
+		}
+
+		for (ULearningAgentsCompletion* CompletionObject : CompletionObjects)
+		{
+			CompletionObject->OnAgentsAdded(AgentIds);
+		}
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsAdded(AgentIds);
+		}
+
+		AgentsAdded(AgentIds);
 	}
 }
 
@@ -245,10 +262,25 @@ void ULearningAgentsTrainer::OnAgentsRemoved(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentsSet = AgentIds;
-		AgentsSet.TryMakeSlice();
+		UE::Learning::Array::Set<1, uint64>(RewardEvaluatedAgentIteration, INDEX_NONE, AgentIds);
+		UE::Learning::Array::Set<1, uint64>(CompletionEvaluatedAgentIteration, INDEX_NONE, AgentIds);
 
-		SetAgentIteration(AgentsSet, INDEX_NONE);
+		for (ULearningAgentsReward* RewardObject : RewardObjects)
+		{
+			RewardObject->OnAgentsRemoved(AgentIds);
+		}
+
+		for (ULearningAgentsCompletion* CompletionObject : CompletionObjects)
+		{
+			CompletionObject->OnAgentsRemoved(AgentIds);
+		}
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsRemoved(AgentIds);
+		}
+
+		AgentsRemoved(AgentIds);
 	}
 }
 
@@ -256,29 +288,28 @@ void ULearningAgentsTrainer::OnAgentsReset(const TArray<int32>& AgentIds)
 {
 	if (IsSetup())
 	{
-		UE::Learning::FIndexSet AgentsSet = AgentIds;
-		AgentsSet.TryMakeSlice();
-
 		ResetEpisodes(AgentIds);
-		EpisodeBuffer->Reset(AgentsSet);
+		EpisodeBuffer->Reset(AgentIds);
 
-		SetAgentIteration(AgentsSet, 0);
-	}
-}
+		UE::Learning::Array::Set<1, uint64>(RewardEvaluatedAgentIteration, 0, AgentIds);
+		UE::Learning::Array::Set<1, uint64>(CompletionEvaluatedAgentIteration, 0, AgentIds);
 
-void ULearningAgentsTrainer::SetAgentIteration(const UE::Learning::FIndexSet AgentIds, const uint64 Value)
-{
-	UE::Learning::Array::Set<1, uint64>(RewardEvaluatedAgentIteration, Value, AgentIds);
-	UE::Learning::Array::Set<1, uint64>(CompletionEvaluatedAgentIteration, Value, AgentIds);
+		for (ULearningAgentsReward* RewardObject : RewardObjects)
+		{
+			RewardObject->OnAgentsReset(AgentIds);
+		}
 
-	for (ULearningAgentsReward* RewardObject : RewardObjects)
-	{
-		UE::Learning::Array::Set<1, uint64>(RewardObject->AgentIteration, Value, AgentIds);
-	}
+		for (ULearningAgentsCompletion* CompletionObject : CompletionObjects)
+		{
+			CompletionObject->OnAgentsReset(AgentIds);
+		}
 
-	for (ULearningAgentsCompletion* CompletionObject : CompletionObjects)
-	{
-		UE::Learning::Array::Set<1, uint64>(CompletionObject->AgentIteration, Value, AgentIds);
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsReset(AgentIds);
+		}
+
+		AgentsReset(AgentIds);
 	}
 }
 
@@ -650,23 +681,23 @@ void ULearningAgentsTrainer::EvaluateRewards()
 	{
 		for (const int32 AgentId : ValidAgentSet)
 		{
-			if (RewardObject->AgentIteration[AgentId] == RewardEvaluatedAgentIteration[AgentId])
+			if (RewardObject->GetAgentIteration(AgentId) == RewardEvaluatedAgentIteration[AgentId])
 			{
-				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->AgentIteration[AgentId], RewardEvaluatedAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->GetAgentIteration(AgentId), RewardEvaluatedAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
 
-			if (RewardObject->AgentIteration[AgentId] > RewardEvaluatedAgentIteration[AgentId] + 1)
+			if (RewardObject->GetAgentIteration(AgentId) > RewardEvaluatedAgentIteration[AgentId] + 1)
 			{
-				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->AgentIteration[AgentId], RewardEvaluatedAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->GetAgentIteration(AgentId), RewardEvaluatedAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
 
-			if (RewardObject->AgentIteration[AgentId] != RewardEvaluatedAgentIteration[AgentId] + 1)
+			if (RewardObject->GetAgentIteration(AgentId) != RewardEvaluatedAgentIteration[AgentId] + 1)
 			{
-				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->AgentIteration[AgentId], RewardEvaluatedAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Error, TEXT("%s: Reward %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have rewards evaluated."), *GetName(), *RewardObject->GetName(), AgentId, RewardObject->GetAgentIteration(AgentId), RewardEvaluatedAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
@@ -746,23 +777,23 @@ void ULearningAgentsTrainer::EvaluateCompletions()
 	{
 		for (const int32 AgentId : ValidAgentSet)
 		{
-			if (CompletionObject->AgentIteration[AgentId] == CompletionEvaluatedAgentIteration[AgentId])
+			if (CompletionObject->GetAgentIteration(AgentId) == CompletionEvaluatedAgentIteration[AgentId])
 			{
-				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->AgentIteration[AgentId], CompletionEvaluatedAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i has not been set (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->GetAgentIteration(AgentId), CompletionEvaluatedAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
 
-			if (CompletionObject->AgentIteration[AgentId] > CompletionEvaluatedAgentIteration[AgentId] + 1)
+			if (CompletionObject->GetAgentIteration(AgentId) > CompletionEvaluatedAgentIteration[AgentId] + 1)
 			{
-				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->AgentIteration[AgentId], CompletionEvaluatedAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i appears to have been set multiple times (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->GetAgentIteration(AgentId), CompletionEvaluatedAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}
 
-			if (CompletionObject->AgentIteration[AgentId] != CompletionEvaluatedAgentIteration[AgentId] + 1)
+			if (CompletionObject->GetAgentIteration(AgentId) != CompletionEvaluatedAgentIteration[AgentId] + 1)
 			{
-				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->AgentIteration[AgentId], CompletionEvaluatedAgentIteration[AgentId] + 1);
+				UE_LOG(LogLearning, Error, TEXT("%s: Completion %s for agent with id %i does not have a matching iteration number (got iteration %i, expected iteration %i) and so agent will not have completions evaluated."), *GetName(), *CompletionObject->GetName(), AgentId, CompletionObject->GetAgentIteration(AgentId), CompletionEvaluatedAgentIteration[AgentId] + 1);
 				ValidAgentStatus[AgentId] = false;
 				continue;
 			}

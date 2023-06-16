@@ -321,9 +321,10 @@ void ALearningAgentsManager::GetAgents(TArray<UObject*>& OutAgents, const TArray
 	}
 }
 
-void ALearningAgentsManager::GetAllAgents(TArray<UObject*>& OutAgents, const TSubclassOf<UObject> AgentClass) const
+void ALearningAgentsManager::GetAllAgents(TArray<UObject*>& OutAgents, TArray<int32>& OutAgentIds, const TSubclassOf<UObject> AgentClass) const
 {
-	GetAgents(OutAgents, OccupiedAgentIds, AgentClass);
+	OutAgentIds = OccupiedAgentIds;
+	GetAgents(OutAgents, OutAgentIds, AgentClass);
 }
 
 int32 ALearningAgentsManager::GetAgentId(UObject* Agent) const
@@ -359,11 +360,6 @@ void ALearningAgentsManager::GetAgentIds(TArray<int32>& OutAgentIds, const TArra
 			OutAgentIds[AgentIdx] = AgentId;
 		}
 	}
-}
-
-void ALearningAgentsManager::GetAllAgentIds(TArray<int32>& OutAgentIds) const
-{
-	OutAgentIds = OccupiedAgentIds;
 }
 
 int32 ALearningAgentsManager::GetAgentNum() const

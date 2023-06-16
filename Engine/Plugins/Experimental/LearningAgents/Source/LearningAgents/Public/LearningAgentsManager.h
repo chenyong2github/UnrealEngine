@@ -134,9 +134,10 @@ public:
 	 * cast the object to the given type.
 	 * @param AgentClass The class to cast the agent objects to (in blueprint).
 	 * @param OutAgents The output array of agent objects.
+	 * @param OutAgentIds The output array of agent ids.
 	 */
 	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass", DynamicOutputParam = "OutAgents"))
-	void GetAllAgents(TArray<UObject*>& OutAgents, const TSubclassOf<UObject> AgentClass) const;
+	void GetAllAgents(TArray<UObject*>& OutAgents, TArray<int32>& OutAgentIds, const TSubclassOf<UObject> AgentClass) const;
 
 	/**
 	 * Gets the agent id associated with a given agent.
@@ -153,13 +154,6 @@ public:
 	 */
 	UFUNCTION(BlueprintPure = false, Category = "LearningAgents")
 	void GetAgentIds(TArray<int32>& OutAgentIds, const TArray<UObject*>& InAgents) const;
-
-	/**
-	 * Gets all added agent ids.
-	 * @param OutAgentIds The output array of agent ids.
-	 */
-	UFUNCTION(BlueprintPure = false, Category = "LearningAgents")
-	void GetAllAgentIds(TArray<int32>& OutAgentIds) const;
 
 	/**
 	 * Gets the number of agents added

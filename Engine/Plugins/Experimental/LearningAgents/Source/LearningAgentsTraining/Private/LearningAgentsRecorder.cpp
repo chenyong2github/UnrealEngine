@@ -5,6 +5,7 @@
 #include "LearningAgentsManager.h"
 #include "LearningAgentsInteractor.h"
 #include "LearningAgentsRecording.h"
+#include "LearningAgentsHelpers.h"
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
 #include "LearningTrainer.h"
@@ -133,7 +134,9 @@ void ULearningAgentsRecorder::SetupRecorder(
 	}
 	else
 	{
-		Recording = NewObject<ULearningAgentsRecording>(this, TEXT("Recording"));
+		const FName UniqueName = MakeUniqueObjectName(this, ULearningAgentsRecording::StaticClass(), TEXT("Recording"), EUniqueObjectNameOptions::GloballyUnique);
+
+		Recording = NewObject<ULearningAgentsRecording>(this, UniqueName);
 	}
 
 	RecordingDirectory = RecorderPathSettings.IntermediateRelativePath.Path / TEXT("LearningAgents") / RecorderPathSettings.RecordingsSubdirectory;
@@ -142,6 +145,8 @@ void ULearningAgentsRecorder::SetupRecorder(
 	RecordBuffers.SetNum(Manager->GetMaxAgentNum());
 
 	bIsSetup = true;
+
+	OnAgentsAdded(Manager->GetAllAgentIds());
 }
 
 void ULearningAgentsRecorder::OnAgentsRemoved(const TArray<int32>& AgentIds)
@@ -156,6 +161,13 @@ void ULearningAgentsRecorder::OnAgentsRemoved(const TArray<int32>& AgentIds)
 				RecordBuffers[AgentId].Empty();
 			}
 		}
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsRemoved(AgentIds);
+		}
+
+		AgentsRemoved(AgentIds);
 	}
 }
 
@@ -171,6 +183,13 @@ void ULearningAgentsRecorder::OnAgentsReset(const TArray<int32>& AgentIds)
 				RecordBuffers[AgentId].Empty();
 			}
 		}
+
+		for (ULearningAgentsHelper* Helper : HelperObjects)
+		{
+			Helper->OnAgentsReset(AgentIds);
+		}
+
+		AgentsReset(AgentIds);
 	}
 }
 

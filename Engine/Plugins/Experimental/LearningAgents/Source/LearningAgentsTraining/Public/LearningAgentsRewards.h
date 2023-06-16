@@ -14,6 +14,7 @@ namespace UE::Learning
 {
 	struct FRewardObject;
 	struct FFloatReward;
+	struct FConditionalConstantReward;
 	struct FScalarVelocityReward;
 	struct FLocalDirectionalVelocityReward;
 	struct FPlanarPositionDifferencePenalty;
@@ -45,8 +46,29 @@ public:
 
 public:
 
-	/** Number of times this reward has been set for all agents */
-	TLearningArray<1, uint64, TInlineAllocator<32>> AgentIteration;
+	/** Initialize the internal state for a given maximum number of agents */
+	void Init(const int32 MaxAgentNum);
+
+	/**
+	 * Called whenever agents are added to the associated ULearningAgentsTrainer object.
+	 * @param AgentIds Array of agent ids which have been added
+	 */
+	virtual void OnAgentsAdded(const TArray<int32>& AgentIds);
+
+	/**
+	 * Called whenever agents are removed from the associated ULearningAgentsTrainer object.
+	 * @param AgentIds Array of agent ids which have been removed
+	 */
+	virtual void OnAgentsRemoved(const TArray<int32>& AgentIds);
+
+	/**
+	 * Called whenever agents are reset on the associated ULearningAgentsTrainer object.
+	 * @param AgentIds Array of agent ids which have been reset
+	 */
+	virtual void OnAgentsReset(const TArray<int32>& AgentIds);
+
+	/** Get the number of times a reward has been set for the given agent id. */
+	uint64 GetAgentIteration(const int32 AgentId) const;
 
 public:
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
@@ -56,6 +78,11 @@ public:
 	/** Describes this reward to the visual logger for debugging purposes. */
 	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const {}
 #endif
+
+protected:
+
+	/** Number of times this reward has been set for all agents */
+	TLearningArray<1, uint64, TInlineAllocator<32>> AgentIteration;
 };
 
 //------------------------------------------------------------------
@@ -95,6 +122,45 @@ public:
 #endif
 
 	TSharedPtr<UE::Learning::FFloatReward> RewardObject;
+};
+
+//------------------------------------------------------------------
+
+/** A simple conditional reward that gives some constant reward value when a condition is true. */
+UCLASS()
+class LEARNINGAGENTSTRAINING_API UConditionalReward : public ULearningAgentsReward
+{
+	GENERATED_BODY()
+
+public:
+
+	/**
+	 * Adds a new conditional reward to the given trainer. Call during ULearningAgentsTrainer::SetupRewards event.
+	 * @param InAgentTrainer The trainer to add this reward to.
+	 * @param Name The name of this new reward. Used for debugging.
+	 * @param Value The amount of reward to give the agent when the provided condition is true.
+	 * @return The newly created reward.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InAgentTrainer"))
+	static UConditionalReward* AddConditionalReward(
+		ULearningAgentsTrainer* InAgentTrainer,
+		const FName Name = NAME_None,
+		const float Value = 1.0f);
+
+	/**
+	 * Sets if the agent should receive a reward. Call during ULearningAgentsTrainer::SetRewards event.
+	 * @param AgentId The agent id this data corresponds to.
+	 * @param bCondition If the agent should receive a reward this iteration.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void SetConditionalReward(const int32 AgentId, const bool bCondition);
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+	/** Describes this reward to the visual logger for debugging purposes. */
+	virtual void VisualLog(const UE::Learning::FIndexSet Instances) const override;
+#endif
+
+	TSharedPtr<UE::Learning::FConditionalConstantReward> RewardObject;
 };
 
 //------------------------------------------------------------------

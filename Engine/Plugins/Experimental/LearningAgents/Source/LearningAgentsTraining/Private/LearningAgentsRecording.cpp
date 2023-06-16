@@ -128,7 +128,7 @@ void ULearningAgentsRecording::SaveRecordingToFile(const FFilePath& File) const
 
 void ULearningAgentsRecording::AppendRecordingFromFile(const FFilePath& File)
 {
-	ULearningAgentsRecording* TempRecording = NewObject<ULearningAgentsRecording>(this, TEXT("TempRecording"));
+	ULearningAgentsRecording* TempRecording = NewObject<ULearningAgentsRecording>(this);
 	TempRecording->LoadRecordingFromFile(File);
 
 	Records.Append(TempRecording->Records);

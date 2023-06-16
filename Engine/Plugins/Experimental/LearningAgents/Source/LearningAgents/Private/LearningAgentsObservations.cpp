@@ -28,17 +28,17 @@ namespace UE::Learning::Agents::Observations::Private
 			return nullptr;
 		}
 
-		ObservationUObject* Observation = NewObject<ObservationUObject>(InInteractor, Name);
+		const FName UniqueName = MakeUniqueObjectName(InInteractor, ObservationUObject::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
 
+		ObservationUObject* Observation = NewObject<ObservationUObject>(InInteractor, UniqueName);
+
+		Observation->Init(InInteractor->GetAgentManager()->GetMaxAgentNum());
 		Observation->Interactor = InInteractor;
 		Observation->FeatureObject = MakeShared<ObservationFObject>(
 			Observation->GetFName(),
 			InInteractor->GetAgentManager()->GetInstanceData().ToSharedRef(),
 			InInteractor->GetAgentManager()->GetMaxAgentNum(),
 			Forward<InArgTypes>(Args)...);
-
-		Observation->AgentIteration.SetNumUninitialized({ InInteractor->GetAgentManager()->GetMaxAgentNum() });
-		UE::Learning::Array::Set<1, uint64>(Observation->AgentIteration, INDEX_NONE);
 
 		// We assume all supported observation feature objects can be encoded
 		UE_LEARNING_CHECK(Observation->FeatureObject->IsEncodable());
@@ -47,6 +47,34 @@ namespace UE::Learning::Agents::Observations::Private
 
 		return Observation;
 	}
+}
+
+//------------------------------------------------------------------
+
+void ULearningAgentsObservation::Init(const int32 MaxAgentNum)
+{
+	AgentIteration.SetNumUninitialized({ MaxAgentNum });
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, INDEX_NONE);
+}
+
+void ULearningAgentsObservation::OnAgentsAdded(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, 0, AgentIds);
+}
+
+void ULearningAgentsObservation::OnAgentsRemoved(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, INDEX_NONE, AgentIds);
+}
+
+void ULearningAgentsObservation::OnAgentsReset(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, 0, AgentIds);
+}
+
+uint64 ULearningAgentsObservation::GetAgentIteration(const int32 AgentId) const
+{
+	return AgentIteration[AgentId];
 }
 
 //------------------------------------------------------------------

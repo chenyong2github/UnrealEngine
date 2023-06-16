@@ -12,6 +12,12 @@
 
 //------------------------------------------------------------------
 
+void ULearningAgentsHelper::OnAgentsAdded(const TArray<int32>& AgentIds) {}
+void ULearningAgentsHelper::OnAgentsRemoved(const TArray<int32>& AgentIds) {}
+void ULearningAgentsHelper::OnAgentsReset(const TArray<int32>& AgentIds) {}
+
+//------------------------------------------------------------------
+
 USplineComponentHelper* USplineComponentHelper::AddSplineComponentHelper(ULearningAgentsManagerComponent* InManagerComponent, const FName Name)
 {
 	if (!InManagerComponent)
@@ -20,7 +26,9 @@ USplineComponentHelper* USplineComponentHelper::AddSplineComponentHelper(ULearni
 		return nullptr;
 	}
 
-	USplineComponentHelper* Helper = NewObject<USplineComponentHelper>(InManagerComponent, Name);
+	const FName UniqueName = MakeUniqueObjectName(InManagerComponent, USplineComponentHelper::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
+
+	USplineComponentHelper* Helper = NewObject<USplineComponentHelper>(InManagerComponent, UniqueName);
 	Helper->ManagerComponent = InManagerComponent;
 	InManagerComponent->AddHelper(Helper);
 	return Helper;
@@ -426,7 +434,9 @@ UProjectionHelper* UProjectionHelper::AddProjectionHelper(ULearningAgentsManager
 		return nullptr;
 	}
 
-	UProjectionHelper* Helper = NewObject<UProjectionHelper>(InManagerComponent, Name);
+	const FName UniqueName = MakeUniqueObjectName(InManagerComponent, UProjectionHelper::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
+
+	UProjectionHelper* Helper = NewObject<UProjectionHelper>(InManagerComponent, UniqueName);
 	Helper->ManagerComponent = InManagerComponent;
 	InManagerComponent->AddHelper(Helper);
 	return Helper;
@@ -535,7 +545,9 @@ UMeshComponentHelper* UMeshComponentHelper::AddMeshComponentHelper(ULearningAgen
 		return nullptr;
 	}
 
-	UMeshComponentHelper* Helper = NewObject<UMeshComponentHelper>(InManagerComponent, Name);
+	const FName UniqueName = MakeUniqueObjectName(InManagerComponent, UMeshComponentHelper::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
+
+	UMeshComponentHelper* Helper = NewObject<UMeshComponentHelper>(InManagerComponent, UniqueName);
 	Helper->ManagerComponent = InManagerComponent;
 	InManagerComponent->AddHelper(Helper);
 	return Helper;
@@ -608,7 +620,9 @@ URayCastHelper* URayCastHelper::AddRayCastHelper(ULearningAgentsManagerComponent
 		return nullptr;
 	}
 
-	URayCastHelper* Helper = NewObject<URayCastHelper>(InManagerComponent, Name);
+	const FName UniqueName = MakeUniqueObjectName(InManagerComponent, URayCastHelper::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
+
+	URayCastHelper* Helper = NewObject<URayCastHelper>(InManagerComponent, UniqueName);
 	Helper->ManagerComponent = InManagerComponent;
 	InManagerComponent->AddHelper(Helper);
 	return Helper;
@@ -772,7 +786,7 @@ void URayCastHelper::RayCastRadial(
 
 		if (bHit)
 		{
-			OutDistances[RayIdx] = TraceHits[RayIdx].ImpactPoint.Z;
+			OutDistances[RayIdx] = TraceHits[RayIdx].Distance;
 		}
 		else
 		{
@@ -818,4 +832,145 @@ void URayCastHelper::RayCastRadial(
 		}
 	}
 #endif
+}
+
+
+
+UCollisionMonitorHelper* UCollisionMonitorHelper::AddCollisionMonitorHelper(
+	ULearningAgentsManagerComponent* InManagerComponent,
+	const FName Name)
+{
+	if (!InManagerComponent)
+	{
+		UE_LOG(LogLearning, Error, TEXT("AddCollisionMonitorHelper: InManagerComponent is nullptr."));
+		return nullptr;
+	}
+
+	const FName UniqueName = MakeUniqueObjectName(InManagerComponent, UCollisionMonitorHelper::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
+
+	UCollisionMonitorHelper* Helper = NewObject<UCollisionMonitorHelper>(InManagerComponent, UniqueName);
+	Helper->Init(InManagerComponent->GetAgentManager()->GetMaxAgentNum());
+	Helper->ManagerComponent = InManagerComponent;
+
+	InManagerComponent->AddHelper(Helper);
+	return Helper;
+}
+
+void UCollisionMonitorHelper::Init(const int32 MaxAgentNum)
+{
+	Components.SetNumUninitialized({ MaxAgentNum });
+	OtherComponentTags.SetNumUninitialized({ MaxAgentNum });
+	CollisionsOccured.SetNumUninitialized({ MaxAgentNum });
+
+	UE::Learning::Array::Set<1, UPrimitiveComponent*>(Components, nullptr);
+	UE::Learning::Array::Set<1, FName>(OtherComponentTags, NAME_None);
+	UE::Learning::Array::Set<1, bool>(CollisionsOccured, false);
+}
+
+void UCollisionMonitorHelper::OnAgentsRemoved(const TArray<int32>& AgentIds)
+{
+	ULearningAgentsHelper::OnAgentsRemoved(AgentIds);
+
+	for (const int32 AgentId : AgentIds)
+	{
+		if (Components[AgentId])
+		{
+			Components[AgentId]->OnComponentHit.RemoveDynamic(this, &UCollisionMonitorHelper::HandleOnHit);
+		}
+	}
+
+	UE::Learning::Array::Set<1, UPrimitiveComponent*>(Components, nullptr);
+	UE::Learning::Array::Set<1, FName>(OtherComponentTags, NAME_None, AgentIds);
+	UE::Learning::Array::Set<1, bool>(CollisionsOccured, false, AgentIds);
+}
+
+void UCollisionMonitorHelper::OnAgentsReset(const TArray<int32>& AgentIds)
+{
+	ULearningAgentsHelper::OnAgentsReset(AgentIds);
+
+	UE::Learning::Array::Set(CollisionsOccured, false, AgentIds);
+}
+
+void UCollisionMonitorHelper::SetComponent(const int32 AgentId, UPrimitiveComponent* Component, const FName OtherComponentTag)
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return;
+	}
+
+	if (Components[AgentId] != Component)
+	{
+		if (Components[AgentId])
+		{
+			Components[AgentId]->OnComponentHit.RemoveDynamic(this, &UCollisionMonitorHelper::HandleOnHit);
+		}
+
+		Components[AgentId] = Component;
+		OtherComponentTags[AgentId] = OtherComponentTag;
+		Component->OnComponentHit.AddUniqueDynamic(this, &UCollisionMonitorHelper::HandleOnHit);
+	}
+}
+
+bool UCollisionMonitorHelper::GetCollisionOccurred(const int32 AgentId) const
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return false;
+	}
+
+	return CollisionsOccured[AgentId];
+}
+
+bool UCollisionMonitorHelper::GetAndResetCollisionOccurred(const int32 AgentId)
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return false;
+	}
+
+	bool bOccurred = CollisionsOccured[AgentId];
+	CollisionsOccured[AgentId] = false;
+	return bOccurred;
+}
+
+void UCollisionMonitorHelper::ResetCollisionOccurred(const int32 AgentId)
+{
+	if (!ManagerComponent->HasAgent(AgentId))
+	{
+		UE_LOG(LogLearning, Error, TEXT("%s: AgentId %d not found in the agents set."), *GetName(), AgentId);
+		return;
+	}
+
+	CollisionsOccured[AgentId] = false;
+}
+
+void UCollisionMonitorHelper::HandleOnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	for (int32 AgentId = 0; AgentId < Components.Num(); AgentId++)
+	{
+		if (Components[AgentId] == HitComponent)
+		{
+			CollisionsOccured[AgentId] = true;
+
+#if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
+			{
+				UE_LEARNING_AGENTS_VLOG_ARROW(this, LogLearning, Display,
+					Hit.ImpactPoint,
+					Hit.ImpactPoint + Hit.ImpactNormal * 100.0f,
+					VisualLogColor.ToFColor(true),
+					TEXT("Agent %i\nCollision \"%s\" and \"%s\"\nTag: \"%s\""),
+					AgentId,
+					*HitComponent->GetName(),
+					*OtherComp->GetName(),
+					*OtherComponentTags[AgentId].ToString());
+			}
+#endif
+			return;
+		}
+	}
+
+	UE_LOG(LogLearning, Error, TEXT("%s: HitComponent not found in the set of agent's Components."), *GetName());
 }

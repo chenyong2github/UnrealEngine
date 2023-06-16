@@ -29,8 +29,10 @@ namespace UE::Learning::Agents::Completions::Private
 			return nullptr;
 		}
 
-		CompletionUObject* Completion = NewObject<CompletionUObject>(InAgentTrainer, Name);
+		const FName UniqueName = MakeUniqueObjectName(InAgentTrainer, CompletionUObject::StaticClass(), Name, EUniqueObjectNameOptions::GloballyUnique);
 
+		CompletionUObject* Completion = NewObject<CompletionUObject>(InAgentTrainer, UniqueName);
+		Completion->Init(InAgentTrainer->GetAgentManager()->GetMaxAgentNum());
 		Completion->AgentTrainer = InAgentTrainer;
 		Completion->CompletionObject = MakeShared<CompletionFObject>(
 			Completion->GetFName(),
@@ -38,13 +40,38 @@ namespace UE::Learning::Agents::Completions::Private
 			InAgentTrainer->GetAgentManager()->GetMaxAgentNum(),
 			Forward<InArgTypes>(Args)...);
 
-		Completion->AgentIteration.SetNumUninitialized({ InAgentTrainer->GetAgentManager()->GetMaxAgentNum() });
-		UE::Learning::Array::Set<1, uint64>(Completion->AgentIteration, INDEX_NONE);
-
 		InAgentTrainer->AddCompletion(Completion, Completion->CompletionObject.ToSharedRef());
 
 		return Completion;
 	}
+}
+
+//------------------------------------------------------------------
+
+void ULearningAgentsCompletion::Init(const int32 MaxAgentNum)
+{
+	AgentIteration.SetNumUninitialized({ MaxAgentNum });
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, INDEX_NONE);
+}
+
+void ULearningAgentsCompletion::OnAgentsAdded(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, 0, AgentIds);
+}
+
+void ULearningAgentsCompletion::OnAgentsRemoved(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, INDEX_NONE, AgentIds);
+}
+
+void ULearningAgentsCompletion::OnAgentsReset(const TArray<int32>& AgentIds)
+{
+	UE::Learning::Array::Set<1, uint64>(AgentIteration, 0, AgentIds);
+}
+
+uint64 ULearningAgentsCompletion::GetAgentIteration(const int32 AgentId) const
+{
+	return AgentIteration[AgentId];
 }
 
 //------------------------------------------------------------------

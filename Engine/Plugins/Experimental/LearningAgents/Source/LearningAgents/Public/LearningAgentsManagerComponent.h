@@ -32,24 +32,39 @@ public:
 	virtual void PostInitProperties() override;
 
 	/**
+	 * During this event, any additional logic required for when agents are added can be executed.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
+	void AgentsAdded(const TArray<int32>& AgentIds);
+
+	/**
+	 * During this event, any additional logic required for when agents are removed can be executed.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
+	void AgentsRemoved(const TArray<int32>& AgentIds);
+
+	/**
+	 * During this event, any additional logic required for when agents are reset can be executed.
+	 */
+	UFUNCTION(BlueprintNativeEvent, Category = "LearningAgents")
+	void AgentsReset(const TArray<int32>& AgentIds);
+
+	/**
 	 * Called whenever agents are added to the parent ALearningAgentsManager object.
 	 * @param AgentIds Array of agent ids which have been added
 	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	virtual void OnAgentsAdded(const TArray<int32>& AgentIds);
 
 	/**
 	 * Called whenever agents are removed from the parent ALearningAgentsManager object.
 	 * @param AgentIds Array of agent ids which have been removed
 	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	virtual void OnAgentsRemoved(const TArray<int32>& AgentIds);
 
 	/**
 	 * Called whenever agents are reset on the parent ALearningAgentsManager object.
 	 * @param AgentIds Array of agent ids which have been reset
 	 */
-	UFUNCTION(BlueprintCallable, Category = "LearningAgents")
 	virtual void OnAgentsReset(const TArray<int32>& AgentIds);
 
 	/** Returns true if this component has been setup. Otherwise, false. */
@@ -80,6 +95,16 @@ protected:
 	 */
 	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass", DynamicOutputParam = "OutAgents"))
 	void GetAgents(const TArray<int32>& AgentIds, const TSubclassOf<UObject> AgentClass, TArray<UObject*>& OutAgents) const;
+
+	/**
+	 * Gets all added agents from the manager. Calling this from blueprint with the appropriate AgentClass will 
+	 * automatically cast the object to the given type.
+	 * @param AgentClass The class to cast the agent objects to (in blueprint).
+	 * @param OutAgents The output array of agent objects.
+	 * @param OutAgentIds The output array of agent ids.
+	 */
+	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (DeterminesOutputType = "AgentClass", DynamicOutputParam = "OutAgents"))
+	void GetAllAgents(TArray<UObject*>& OutAgents, TArray<int32>& OutAgentIds, const TSubclassOf<UObject> AgentClass) const;
 
 	/**
 	 * Gets the agent manager associated with this component.

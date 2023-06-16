@@ -30,6 +30,27 @@ public:
 	UPROPERTY(VisibleAnywhere, Transient, Category = "LearningAgents")
 	TObjectPtr<ULearningAgentsManagerComponent> ManagerComponent;
 
+public:
+
+	/**
+	 * Called whenever agents are added to the associated ULearningAgentsManagerComponent object.
+	 * @param AgentIds Array of agent ids which have been added
+	 */
+	virtual void OnAgentsAdded(const TArray<int32>& AgentIds);
+
+	/**
+	 * Called whenever agents are removed from the associated ULearningAgentsManagerComponent object.
+	 * @param AgentIds Array of agent ids which have been removed
+	 */
+	virtual void OnAgentsRemoved(const TArray<int32>& AgentIds);
+
+	/**
+	 * Called whenever agents are reset on the associated ULearningAgentsManagerComponent object.
+	 * @param AgentIds Array of agent ids which have been reset
+	 */
+	virtual void OnAgentsReset(const TArray<int32>& AgentIds);
+
+public:
 #if UE_LEARNING_AGENTS_ENABLE_VISUAL_LOG
 	/** Color used to draw this helper in the visual log */
 	FLinearColor VisualLogColor = FColor::Magenta;
@@ -311,4 +332,88 @@ public:
 		const FVector LocalForward = FVector::ForwardVector,
 		const ECollisionChannel CollisionChannel = ECollisionChannel::ECC_WorldStatic) const;
 
+};
+
+//------------------------------------------------------------------
+
+/**
+ * A helper for monitoring collisions between components.
+ *
+ * This object works by monitoring for collisions between a given component and any other components with a given tag.
+ * To indicate which component to monitor for collisions `SetComponent` should be called (generally on the 
+ * `ULearningAgentsManagerComponent::AgentsAdded` event) with the corresponding agent id.
+ * 
+ * If any collisions occur `GetCollisionOccurred` will report true until it is reset to false either by calling 
+ * `ResetCollisionOccurred` or `GetAndResetCollisionOccurred`. It will also be automatically reset when the agent is 
+ * reset.
+ */
+UCLASS()
+class LEARNINGAGENTS_API UCollisionMonitorHelper : public ULearningAgentsHelper
+{
+	GENERATED_BODY()
+
+public:
+
+	/**
+	 * Adds a new collision monitor helper to the given manager component.
+	 * @param InManagerComponent The manager component to add this helper to (such as an Interactor or Trainer).
+	 * @param Name The name of this new helper. Used for debugging.
+	 * @return The newly created helper.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (DefaultToSelf = "InManagerComponent"))
+	static UCollisionMonitorHelper* AddCollisionMonitorHelper(
+		ULearningAgentsManagerComponent* InManagerComponent, 
+		const FName Name = NAME_None);
+
+	/**
+	 * Sets the component to monitor for collisions. Generally this should be called on the 
+	 * `ULearningAgentsManagerComponent::AgentsAdded` event.
+	 * @param AgentId The agent id to associate this component with.
+	 * @param Component The component to monitor for collisions.
+	 * @param OtherComponentTag The tag other components must have to trigger collisions.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void SetComponent(const int32 AgentId, UPrimitiveComponent* Component, const FName OtherComponentTag = NAME_None);
+
+	/**
+	 * Gets if a collision has occurred for this agent.
+	 * @param AgentId The agent id to check for collisions for.
+	 */
+	UFUNCTION(BlueprintPure = false, Category = "LearningAgents", meta = (AgentId = "-1"))
+	bool GetCollisionOccurred(const int32 AgentId) const;
+	
+	/**
+	 * Gets if a collision has occurred for this agent and resets the state of if a collision has occurred back to false.
+	 * @param AgentId The agent id to check for collisions for.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	bool GetAndResetCollisionOccurred(const int32 AgentId);
+
+	/**
+	 * Resets the state of if a collision has occurred back to false.
+	 * @param AgentId The agent id to reset the state for.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LearningAgents", meta = (AgentId = "-1"))
+	void ResetCollisionOccurred(const int32 AgentId);
+
+public:
+
+	/** Initialize the internal state for a given maximum number of agents */
+	void Init(const int32 MaxAgentNum);
+
+	//~ Begin ULearningAgentsHelper Interface
+	virtual void OnAgentsRemoved(const TArray<int32>& AgentIds) override;
+	virtual void OnAgentsReset(const TArray<int32>& AgentIds) override;
+	//~ End ULearningAgentsHelper Interface
+
+private:
+
+	TLearningArray<1, UPrimitiveComponent*, TInlineAllocator<32>> Components;
+	TLearningArray<1, FName, TInlineAllocator<32>> OtherComponentTags;
+	TLearningArray<1, bool, TInlineAllocator<32>> CollisionsOccured;
+
+private:
+
+	UFUNCTION()
+	void HandleOnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 };
