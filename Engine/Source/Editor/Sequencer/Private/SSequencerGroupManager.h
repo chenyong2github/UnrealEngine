@@ -41,6 +41,7 @@ private:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	void UpdateTree();
 	void HandleTreeSelectionChanged(TSharedPtr<FSequencerNodeGroupTreeNode> InSelectedNode, ESelectInfo::Type SelectionType);
+	void SelectItemsInGroup(FSequencerNodeGroupNode* NodeGroupNode);
 	void RequestDeleteNodeGroup(FSequencerNodeGroupNode* NodeGroupNode);
 	void RemoveSelectedItemsFromNodeGroup();
 	void CreateNodeGroup();
