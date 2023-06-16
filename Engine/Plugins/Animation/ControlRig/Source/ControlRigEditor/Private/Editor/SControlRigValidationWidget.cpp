@@ -18,6 +18,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "ControlRigBlueprint.h"
 #include "UObject/UObjectIterator.h"
+#include "Rigs/RigHierarchyController.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigValidationWidget"
 
