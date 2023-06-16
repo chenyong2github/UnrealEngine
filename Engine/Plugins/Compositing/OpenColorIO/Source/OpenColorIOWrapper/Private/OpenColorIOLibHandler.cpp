@@ -8,6 +8,21 @@
 #include "OpenColorIOWrapperModule.h"
 
 
+#if PLATFORM_CPU_ARM_FAMILY
+	#if PLATFORM_WINDOWS
+		#define TARGET_ARCH TEXT("ARM64")
+	#elif PLATFORM_LINUX
+		#define TARGET_ARCH TEXT("aarch64-unknown-linux-gnueabi")
+	#endif
+#else
+	#if PLATFORM_WINDOWS
+		#define TARGET_ARCH TEXT("x64")
+	#elif PLATFORM_LINUX
+		#define TARGET_ARCH TEXT("x86_64-unknown-linux-gnu")
+	#endif
+#endif
+
+
  //~ Static initialization
  //--------------------------------------------------------------------
 void* FOpenColorIOLibHandler::LibHandle = nullptr;
@@ -20,7 +35,11 @@ bool FOpenColorIOLibHandler::Initialize()
 #if WITH_OCIO && defined(OCIO_DLL_NAME)
 	check(LibHandle == nullptr);
 
+#if PLATFORM_WINDOWS || PLATFORM_LINUX
+	const FString OCIOBinPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/OpenColorIO"), FPlatformProcess::GetBinariesSubdirectory(), TARGET_ARCH);
+#else
 	const FString OCIOBinPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/OpenColorIO"), FPlatformProcess::GetBinariesSubdirectory());
+#endif
 	const FString DLLPath = FPaths::Combine(OCIOBinPath, TEXT(PREPROCESSOR_TO_STRING(OCIO_DLL_NAME)));
 
 	FPlatformProcess::PushDllDirectory(*OCIOBinPath);
