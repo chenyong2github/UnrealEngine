@@ -341,8 +341,10 @@ namespace UnrealBuildTool
 				Text.AppendLine("\t<key>LSSupportsOpeningDocumentsInPlace</key>");
 				Text.AppendLine("\t<true/>");
 			}
+
 			Text.AppendLine("\t<key>UIRequiresFullScreen</key>");
 			Text.AppendLine("\t<true/>");
+
 			Text.AppendLine("\t<key>UIViewControllerBasedStatusBarAppearance</key>");
 			Text.AppendLine("\t<false/>");
 			if (!String.IsNullOrEmpty(InterfaceOrientation))
@@ -351,7 +353,7 @@ namespace UnrealBuildTool
 			}
 			Text.AppendLine("\t<key>UISupportedInterfaceOrientations</key>");
 			Text.AppendLine("\t<array>");
-			foreach (string Line in SupportedOrientations.Split("\r\n".ToCharArray()))
+			foreach (string Line in SupportedOrientations.Split("\n".ToCharArray()))
 			{
 				if (!String.IsNullOrWhiteSpace(Line))
 				{
@@ -359,6 +361,25 @@ namespace UnrealBuildTool
 				}
 			}
 			Text.AppendLine("\t</array>");
+
+			bool bEnableSplitView = false;
+			Ini.GetBool("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "bEnableSplitView", out bEnableSplitView);
+			if (bEnableSplitView)
+			{
+				// As this is (currently) an iPad only feature, use the iPad descriminator to set it for iPad only
+				// as it also requires supporting all UIOrientations
+				Text.AppendLine("\t<key>UIRequiresFullScreen~ipad</key>");
+				Text.AppendLine("\t<false/>");
+
+				Text.AppendLine("\t<key>UISupportedInterfaceOrientations~ipad</key>");
+				Text.AppendLine("\t<array>");
+					Text.AppendLine($"\t\t<string>UIInterfaceOrientationPortrait</string>");
+					Text.AppendLine($"\t\t<string>UIInterfaceOrientationPortraitUpsideDown</string>");
+					Text.AppendLine($"\t\t<string>UIInterfaceOrientationLandscapeLeft</string>");
+					Text.AppendLine($"\t\t<string>UIInterfaceOrientationLandscapeRight</string>");
+				Text.AppendLine("\t</array>");
+			}
+
 			Text.AppendLine("\t<key>UIRequiredDeviceCapabilities</key>");
 			Text.AppendLine("\t<array>");
 			foreach (string Cap in RequiredCaps)

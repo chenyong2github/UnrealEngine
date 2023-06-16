@@ -130,28 +130,12 @@ FPlatformRect FIOSWindow::GetScreenRect()
 		CGFloat Scale = View.contentScaleFactor;
 		
 		ScreenRect.Top = FMath::TruncToInt(Frame.origin.y * Scale);
-		ScreenRect.Bottom = FMath::TruncToInt((Frame.origin.y + View.ViewSize.height) * Scale);
 		ScreenRect.Left = FMath::TruncToInt(Frame.origin.x * Scale);
-		ScreenRect.Right = FMath::TruncToInt((Frame.origin.x + View.ViewSize.width) * Scale);
+		ScreenRect.Bottom = FMath::TruncToInt((Frame.origin.y + Frame.size.height) * Scale);
+		ScreenRect.Right = FMath::TruncToInt((Frame.origin.x + Frame.size.width) * Scale);
 	}
 
 	return ScreenRect;
-}
-
-FPlatformRect FIOSWindow::GetUIWindowRect()
-{
-	// get the main window's bounds
-	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
-	UIWindow* Window = AppDelegate.Window;
-	CGRect Bounds = [Window bounds];
-
-	FPlatformRect WindowRect;
-	WindowRect.Top = FMath::TruncToInt(Bounds.origin.y);
-	WindowRect.Bottom = FMath::TruncToInt(Bounds.origin.y + Bounds.size.height);
-	WindowRect.Left = FMath::TruncToInt(Bounds.origin.x);
-	WindowRect.Right = FMath::TruncToInt(Bounds.origin.x + Bounds.size.width);
-
-	return WindowRect;
 }
 
 bool FIOSWindow::GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const

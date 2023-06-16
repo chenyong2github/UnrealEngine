@@ -142,7 +142,7 @@ UIEdgeInsets CachedInsets;
 
 void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 {
-	const FPlatformRect& Rect = FIOSWindow::GetUIWindowRect();
+	const FPlatformRect& Rect = FIOSWindow::GetScreenRect();
 	const FIOSView *View = [[IOSAppDelegate GetDelegate] IOSView];
 	[View CalculateContentScaleFactor:Rect.Right ScreenHeight:Rect.Bottom];
 	
@@ -155,8 +155,6 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
     OutDisplayMetrics.PrimaryDisplayHeight = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top;
     
 #if !PLATFORM_TVOS
-    const double RequestedContentScaleFactor = View.contentScaleFactor;
-    
     //we need to set these according to the orientation
     TAutoConsoleVariable<float>* CVar_Left = nullptr;
     TAutoConsoleVariable<float>* CVar_Top = nullptr;
@@ -192,7 +190,7 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
     OutDisplayMetrics.TitleSafePaddingSize.W = Inset_Bottom;
     
     //scale the thing
-    OutDisplayMetrics.TitleSafePaddingSize *= RequestedContentScaleFactor;
+    OutDisplayMetrics.TitleSafePaddingSize *= View.contentScaleFactor;
     
     OutDisplayMetrics.ActionSafePaddingSize = OutDisplayMetrics.TitleSafePaddingSize;
 #endif

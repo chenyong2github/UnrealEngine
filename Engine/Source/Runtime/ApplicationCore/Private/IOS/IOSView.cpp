@@ -257,15 +257,12 @@ id<MTLDevice> GMetalDevice = nil;
 	int32 Width = ScreenWidth;
 	int32 Height = ScreenHeight;
 	
+	self.contentScaleFactor = mNativeScale;
+	
 	// 0 means to use native size
-	if (RequestedContentScaleFactor == 0.0f && RequestedResX <= 0 && RequestedResY <= 0)
-	{
-		self.contentScaleFactor = mNativeScale;
-	}
-	else
+	if (RequestedContentScaleFactor != 0.0f || RequestedResX > 0 || RequestedResY > 0)
 	{
 		float AspectRatio = (float)ScreenHeight / (float)ScreenWidth;
-		self.contentScaleFactor = 1.0f;
 		if (RequestedResX > 0)
 		{
 			// set long side for orientation to requested X
@@ -410,8 +407,6 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 
 -(void)HandleTouchAtLoc:(CGPoint)Loc PrevLoc:(CGPoint)PrevLoc TouchIndex:(int)TouchIndex Force:(float)Force Type:(TouchType)Type TouchesArray:(TArray<TouchInput>&)TouchesArray
 {
-	const CGFloat Scale = self.contentScaleFactor;
-
 	// init some things on begin
 	if (Type == TouchBegan)
 	{
@@ -427,8 +422,8 @@ self.accessibilityElements = @[Window.accessibilityContainer];
 	TouchInput TouchMessage;
 	TouchMessage.Handle = TouchIndex;
 	TouchMessage.Type = Type;
-	TouchMessage.Position = FVector2D(FMath::Min<double>(_ViewSize.width - 1, Loc.x), FMath::Min<double>(_ViewSize.height - 1, Loc.y)) * Scale;
-	TouchMessage.LastPosition = FVector2D(FMath::Min<double>(_ViewSize.width - 1, PrevLoc.x), FMath::Min<double>(_ViewSize.height - 1, PrevLoc.y)) * Scale;
+	TouchMessage.Position = FVector2D(FMath::Min<double>(_ViewSize.width - 1, Loc.x), FMath::Min<double>(_ViewSize.height - 1, Loc.y));
+	TouchMessage.LastPosition = FVector2D(FMath::Min<double>(_ViewSize.width - 1, PrevLoc.x), FMath::Min<double>(_ViewSize.height - 1, PrevLoc.y));
 	TouchMessage.Force = Type != TouchEnded ? Force : 0.0f;
 	
 	// skip moves that didn't actually move - this will help input handling to skip over the first

@@ -262,6 +262,10 @@ public:
     UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Supports iPhone"))
     bool bSupportsIPhone;
     
+    // Whether or not the iPad app supports Split View (also needed for StageManager support)
+    UPROPERTY(GlobalConfig, EditAnywhere, Category = Build, meta = (DisplayName = "Enable iPad Split View"))
+    bool bEnableSplitView;
+    
     /** Set the maximum frame rate to save on power consumption */
     UPROPERTY(GlobalConfig, EditAnywhere, Category = PowerUsage, meta = (ConfigHierarchyEditable))
     EPowerUsageFrameRateLock FrameRateLock;
