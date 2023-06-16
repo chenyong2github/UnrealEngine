@@ -55,16 +55,6 @@ private:
 	std::atomic<uint64> CachePutsSize = 0;
 	std::atomic<uint64> CacheRejectsSize = 0;
 	uint64 HttpRequestsCompletedSize = 0;
-
-	float BytesToApproxMB(uint64 Bytes)
-	{
-		return float(double(Bytes) / 1024.0 / 1024.0);
-	}
-
-	float BytesToApproxKB(uint64 Bytes)
-	{
-		return float(double(Bytes) / 1024.0);
-	}
 };
 
 #else // IAS_WITH_STATISTICS
