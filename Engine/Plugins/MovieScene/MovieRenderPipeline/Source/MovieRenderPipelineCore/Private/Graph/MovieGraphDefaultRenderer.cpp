@@ -19,7 +19,9 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 	struct FMovieGraphPass
 	{
 		TSubclassOf<UMovieGraphRenderPassNode> ClassType;
-		TArray<FName> LayerBranchNames;
+
+		/** Maps a named branch to the specific render pass node that is assigned to render it. */
+		TMap<FName, TWeakObjectPtr<UMovieGraphRenderPassNode>> BranchRenderers;
 	};
 
 	TArray<FMovieGraphPass> OutputPasses;
@@ -62,7 +64,8 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 				ExistingPass = &OutputPasses.AddDefaulted_GetRef();
 				ExistingPass->ClassType = RenderPassNode->GetClass();
 			}
-			ExistingPass->LayerBranchNames.AddUnique(Branch);
+			
+			ExistingPass->BranchRenderers.Add(Branch, RenderPassNode);
 		}
 	}
 
@@ -72,17 +75,18 @@ void UMovieGraphDefaultRenderer::SetupRenderingPipelineForShot(UMoviePipelineExe
 	{
 		// ToDo: This should probably come from the Renderers themselves, as they can internally produce multiple
 		// renders (such as ObjectID passes).
-		TotalLayerCount += Pass.LayerBranchNames.Num();
+		TotalLayerCount += Pass.BranchRenderers.Num();
 		
 		FMovieGraphRenderPassSetupData SetupData;
 		SetupData.Renderer = this;
 		UE_LOG(LogMovieRenderPipeline, Warning, TEXT("\tRenderer Class: %s"), *Pass.ClassType->GetName());
-		for (const FName& LayerBranchName : Pass.LayerBranchNames)
+		for (const TTuple<FName, TWeakObjectPtr<UMovieGraphRenderPassNode>>& BranchRenderer : Pass.BranchRenderers)
 		{
 			FMovieGraphRenderPassLayerData& LayerData = SetupData.Layers.AddDefaulted_GetRef();
-			LayerData.BranchName = LayerBranchName;
+			LayerData.BranchName = BranchRenderer.Key;
+			LayerData.RenderPassNode = BranchRenderer.Value;
 
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("\t\tBranch Name: %s"), *LayerBranchName.ToString());
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("\t\tBranch Name: %s"), *BranchRenderer.Key.ToString());
 		}
 
 		UMovieGraphRenderPassNode* RenderPassCDO = Pass.ClassType->GetDefaultObject<UMovieGraphRenderPassNode>();

@@ -21,8 +21,8 @@ public class MovieRenderPipelineCore : ModuleRules
 				"Networking",
 				"HTTP",
 				"DeveloperSettings",
-				"ClothingSystemRuntimeInterface"
-
+				"ClothingSystemRuntimeInterface",
+				"Slate",
 			}
 		);
 

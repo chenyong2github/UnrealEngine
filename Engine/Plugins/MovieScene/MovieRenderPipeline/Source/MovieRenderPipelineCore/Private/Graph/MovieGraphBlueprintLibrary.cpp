@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/MovieGraphBlueprintLibrary.h"
+
 #include "Graph/Nodes/MovieGraphOutputSettingNode.h"
 #include "Graph/Nodes/MovieGraphRenderLayerNode.h"
+#include "MoviePipelineBlueprintLibrary.h"
 #include "MoviePipelineUtils.h"
 
 FFrameRate UMovieGraphBlueprintLibrary::GetEffectiveFrameRate(UMovieGraphOutputSettingNode* InNode, const FFrameRate& InDefaultRate)
@@ -197,4 +199,22 @@ FString UMovieGraphBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 
 		++DuplicateIndex;
 	}
+}
+
+FIntPoint UMovieGraphBlueprintLibrary::GetEffectiveOutputResolution(UMovieGraphEvaluatedConfig* InEvaluatedGraph, const FName& InBranchName)
+{
+	if (!InEvaluatedGraph)
+	{
+		FFrame::KismetExecutionMessage(TEXT("InEvaluatedGraph cannot be null."), ELogVerbosity::Error);
+		return FIntPoint();
+	}
+	
+	constexpr bool bIncludeCDOs = true;
+	const UMovieGraphOutputSettingNode* OutputSetting = InEvaluatedGraph->GetSettingForBranch<UMovieGraphOutputSettingNode>(InBranchName, bIncludeCDOs);
+	if (!ensure(OutputSetting))
+	{
+		return FIntPoint();
+	}
+	
+	return UMoviePipelineBlueprintLibrary::Utility_GetEffectiveOutputResolution(0 /* TODO: Overscan percentage needs to be provided */, OutputSetting->OutputResolution);
 }

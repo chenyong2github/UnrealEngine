@@ -163,4 +163,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	static FText GetMoviePipelineEngineChangelistLabel(const UMoviePipeline* InMoviePipeline);
 
+private:
+	// Give the graph BP library access to shared utility methods
+	friend class UMovieGraphBlueprintLibrary;
+
+	/** Get the effective output resolution, taking into account overscan. */
+	static FIntPoint Utility_GetEffectiveOutputResolution(const float OverscanPercentage, const FIntPoint& InOutputResolution);
 };

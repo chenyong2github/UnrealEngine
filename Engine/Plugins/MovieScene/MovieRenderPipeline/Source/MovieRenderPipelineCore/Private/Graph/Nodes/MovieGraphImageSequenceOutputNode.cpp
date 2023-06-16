@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Graph/Nodes/MovieGraphImageSequenceOutputNode.h"
+
 #include "Graph/Nodes/MovieGraphOutputSettingNode.h"
 #include "Graph/Nodes/MovieGraphRenderLayerNode.h"
 #include "Graph/MovieGraphDataTypes.h"
@@ -33,6 +34,23 @@ void UMovieGraphImageSequenceOutputNode::OnReceiveImageDataImpl(UMovieGraphPipel
 {
 	check(InRawFrameData);
 
+	// Gather the passes that need to be composited
+	TArray<TPair<FMovieGraphRenderDataIdentifier, TUniquePtr<FImagePixelData>>> CompositingPasses;
+	for (TPair<FMovieGraphRenderDataIdentifier, TUniquePtr<FImagePixelData>>& RenderData : InRawFrameData->ImageOutputData)
+	{
+		UE::MovieGraph::FMovieGraphSampleState* Payload = RenderData.Value->GetPayload<UE::MovieGraph::FMovieGraphSampleState>();
+		check(Payload);
+		if (!Payload->bCompositeOnOtherRenders)
+		{
+			continue;
+		}
+
+		TPair<FMovieGraphRenderDataIdentifier, TUniquePtr<FImagePixelData>> CompositePass;
+		CompositePass.Key = RenderData.Key;
+		CompositePass.Value = RenderData.Value->CopyImageData();
+		CompositingPasses.Add(MoveTemp(CompositePass));
+	}
+
 	// ToDo:
 	// The ImageWriteQueue is set up in a fire-and-forget manner. This means that the data needs to be placed in the WriteQueue
 	// as a TUniquePtr (so it can free the data when its done). Unfortunately we can have multiple output formats at once,
@@ -48,6 +66,22 @@ void UMovieGraphImageSequenceOutputNode::OnReceiveImageDataImpl(UMovieGraphPipel
 	// The base ImageSequenceOutputNode doesn't support any multilayer formats, so we write out each render pass separately.
 	for (TPair<FMovieGraphRenderDataIdentifier, TUniquePtr<FImagePixelData>>& RenderData : InRawFrameData->ImageOutputData)
 	{
+		// If this pass is composited, skip it for now
+		bool bSkip = false;
+		for (TPair<FMovieGraphRenderDataIdentifier, TUniquePtr<FImagePixelData>>& CompositedPass : CompositingPasses)
+		{
+			if (CompositedPass.Key == RenderData.Key)
+			{
+				bSkip = true;
+				break;
+			}
+		}
+
+		if (bSkip)
+		{
+			continue;
+		}
+		
 		// A layer within this output data may have chosen to not be written to disk by this CDO node
 		if (!InMask.Contains(RenderData.Key))
 		{
@@ -129,6 +163,33 @@ void UMovieGraphImageSequenceOutputNode::OnReceiveImageDataImpl(UMovieGraphPipel
 		TileImageTask->CompressionQuality = 100;
 		TileImageTask->Filename = FileName;
 		TileImageTask->PixelData = RenderData.Value->CopyImageData();
+
+		EImagePixelType PixelType = TileImageTask->PixelData->GetType();
+
+		// Perform compositing if any compositing passes were found earlier
+		for (TPair<FMovieGraphRenderDataIdentifier, TUniquePtr<FImagePixelData>>& CompositedPass : CompositingPasses)
+		{
+			// This compositing pass will only composite on top of renders w/ the same branch and camera
+			const FMovieGraphRenderDataIdentifier& Id = CompositedPass.Key;
+			if ((Id.CameraName != RenderData.Key.CameraName) || (Id.RootBranchName != RenderData.Key.RootBranchName))
+			{
+				continue;
+			}
+
+			// There could be multiple renders within this branch using the composited pass, so we have to copy the image data
+			switch (PixelType)
+			{
+			case EImagePixelType::Color:
+				TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FColor>(CompositedPass.Value->CopyImageData()));
+				break;
+			case EImagePixelType::Float16:
+				TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FFloat16Color>(CompositedPass.Value->CopyImageData()));
+				break;
+			case EImagePixelType::Float32:
+				TileImageTask->PixelPreProcessors.Add(TAsyncCompositeImage<FLinearColor>(CompositedPass.Value->CopyImageData()));
+				break;
+			}
+		}
 
 		UE::MovieGraph::FMovieGraphOutputFutureData OutputData;
 		OutputData.Shot = nullptr;

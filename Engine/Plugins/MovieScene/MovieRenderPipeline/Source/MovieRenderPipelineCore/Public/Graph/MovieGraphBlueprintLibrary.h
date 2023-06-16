@@ -42,4 +42,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Movie Graph")
 	static FString ResolveFilenameFormatArguments(const FString& InFormatString, const FMovieGraphFilenameResolveParams& InParams, FMovieGraphResolveArgs& OutMergedFormatArgs);
 
+	/**
+	* In case of overscan percentage being higher than 0, additional pixels are rendered. This function returns the resolution with overscan taken into account.
+	* @param	InEvaluatedGraph	- The evaluated graph that will provide context for resolving the resolution
+	* @param	InBranchName		- The graph branch that the output resolution should be resolved on
+	* @return						- The output resolution, taking into account overscan
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Movie Graph")
+	static FIntPoint GetEffectiveOutputResolution(UMovieGraphEvaluatedConfig* InEvaluatedGraph, const FName& InBranchName);
 };

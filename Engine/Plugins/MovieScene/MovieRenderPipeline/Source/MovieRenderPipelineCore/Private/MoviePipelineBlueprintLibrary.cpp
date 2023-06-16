@@ -895,25 +895,29 @@ FIntPoint UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(UMoviePip
 {
 	if (InPrimaryConfig && InPipelineExecutorShot)
 	{
-		UMoviePipelineOutputSetting* OutputSetting = InPrimaryConfig->FindSetting<UMoviePipelineOutputSetting>();
+		const UMoviePipelineOutputSetting* OutputSetting = InPrimaryConfig->FindSetting<UMoviePipelineOutputSetting>();
 		const UMoviePipelineCameraSetting* CameraSetting = Cast<const UMoviePipelineCameraSetting>(UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(UMoviePipelineCameraSetting::StaticClass(), InPrimaryConfig, InPipelineExecutorShot));
 		check(OutputSetting);
 		check(CameraSetting);
-		FIntPoint EffectiveResolution(OutputSetting->OutputResolution);
-		float ClampedOverscanPercentage = FMath::Clamp(CameraSetting->OverscanPercentage, 0.0f, 1.0f);
-		if (ClampedOverscanPercentage > 0.f)
-		{
-			float Scale = 1.f + ClampedOverscanPercentage;
-			EffectiveResolution.X = FMath::CeilToInt(((float)EffectiveResolution.X) * Scale);
-			EffectiveResolution.Y = FMath::CeilToInt(((float)EffectiveResolution.Y) * Scale);
-		}
-
-		return EffectiveResolution;
+		return Utility_GetEffectiveOutputResolution(CameraSetting->OverscanPercentage, OutputSetting->OutputResolution);
 	}
 
 	return FIntPoint();
 }
 
+FIntPoint UMoviePipelineBlueprintLibrary::Utility_GetEffectiveOutputResolution(const float OverscanPercentage, const FIntPoint& InOutputResolution)
+{
+	const float ClampedOverscanPercentage = FMath::Clamp(OverscanPercentage, 0.0f, 1.0f);
+	FIntPoint EffectiveResolution(InOutputResolution);
+	if (ClampedOverscanPercentage > 0.f)
+	{
+		const float Scale = 1.f + ClampedOverscanPercentage;
+		EffectiveResolution.X = FMath::CeilToInt(static_cast<float>(EffectiveResolution.X) * Scale);
+		EffectiveResolution.Y = FMath::CeilToInt(static_cast<float>(EffectiveResolution.Y) * Scale);
+	}
+
+	return EffectiveResolution;
+}
 
 UMoviePipelineSetting* UMoviePipelineBlueprintLibrary::FindOrGetDefaultSettingForShot(TSubclassOf<UMoviePipelineSetting> InSettingType, const UMoviePipelinePrimaryConfig* InPrimaryConfig, const UMoviePipelineExecutorShot* InShot)
 {

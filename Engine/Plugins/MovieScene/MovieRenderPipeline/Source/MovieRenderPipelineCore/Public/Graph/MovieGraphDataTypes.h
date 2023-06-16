@@ -166,6 +166,7 @@ struct FMovieGraphRenderPassLayerData
 {
 	FName BranchName;
 	FGuid CameraIdentifier;
+	TWeakObjectPtr<class UMovieGraphRenderPassNode> RenderPassNode;
 };
 // ToDo: Both of these can probably go into the Default Renderer implementation.
 
@@ -219,6 +220,7 @@ namespace UE::MovieGraph
 			: bWriteSampleToDisk(false)
 			, bRequiresAccumulator(false)
 			, bFetchFromAccumulator(false)
+			, bCompositeOnOtherRenders(false)
 		{}
 
 		/** The traversal context used to read graph values at the time of submission. */
@@ -241,6 +243,9 @@ namespace UE::MovieGraph
 
 		/** Set this to true for the last sample for a given frame (if it requires accumulation) to fetch the accumulated data out of the accumulator. */
 		bool bFetchFromAccumulator;
+
+		/** Set this to true if this pass should be composited on top of other renders. */
+		bool bCompositeOnOtherRenders;
 	};
 
 	/**
