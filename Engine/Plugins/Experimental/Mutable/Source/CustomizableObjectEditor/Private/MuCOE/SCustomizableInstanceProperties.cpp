@@ -437,7 +437,7 @@ void SCustomizableInstanceProperties::ResetParamBox()
 			{
 				FCustomizableInstancePropertyArrayElem ParameterSortInfo;
 				ParameterSortInfo.PropertyCOIndex = ParamIndexInObject;
-				if (CustomInstance->IsParameterRelevant(ParameterSortInfo.PropertyCOIndex))
+				if (!CustomInstance->bShowOnlyRelevantParameters || CustomInstance->IsParameterRelevant(ParameterSortInfo.PropertyCOIndex))
 				{
 					ParameterSortInfo.UIOrder = CustomizableObject->GetParameterUIMetadataFromIndex(ParameterSortInfo.PropertyCOIndex).ParamUIMetadata.UIOrder;
 					ParameterSortInfo.ParameterName = CustomizableObject->GetParameterName(ParameterSortInfo.PropertyCOIndex);
@@ -449,20 +449,14 @@ void SCustomizableInstanceProperties::ResetParamBox()
 
 			for (int32 ParamIndexInObject = 0; ParamIndexInObject < ParamIndexesInObject.Num(); ++ParamIndexInObject)
 			{
-				if (CustomInstance->IsParameterRelevant(ParamIndexesInObject[ParamIndexInObject].PropertyCOIndex))
-				{
-					FillChildrenMap(ParamIndexesInObject[ParamIndexInObject].PropertyCOIndex);
-				}
+				FillChildrenMap(ParamIndexesInObject[ParamIndexInObject].PropertyCOIndex);
 			}
 
 			for (int32 ParamIndexInObject = 0; ParamIndexInObject < ParamIndexesInObject.Num(); ++ParamIndexInObject)
 			{
-				if (CustomInstance->IsParameterRelevant(ParamIndexesInObject[ParamIndexInObject].PropertyCOIndex))
+				if (!ParamHasParent.Find(ParamIndexesInObject[ParamIndexInObject].PropertyCOIndex))
 				{
-					if (!ParamHasParent.Find(ParamIndexesInObject[ParamIndexInObject].PropertyCOIndex))
-					{
-						RecursivelyAddParamAndChildren(ParamIndexesInObject[ParamIndexInObject].PropertyCOIndex);
-					}
+					RecursivelyAddParamAndChildren(ParamIndexesInObject[ParamIndexInObject].PropertyCOIndex);
 				}
 			}
 		}
