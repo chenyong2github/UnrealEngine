@@ -45,9 +45,9 @@ enum class EAppleHttpRequestResponseState: uint8
 /** A handle for the response */
 @property(retain) NSHTTPURLResponse* Response;
 /** The total number of bytes written out during the request/response */
-@property int32 BytesWritten;
+@property uint64 BytesWritten;
 /** The total number of bytes received out during the request/response */
-@property int32 BytesReceived;
+@property uint64 BytesReceived;
 /** Response state */
 @property EAppleHttpRequestResponseState ResponseState;
 
@@ -102,7 +102,7 @@ enum class EAppleHttpRequestResponseState: uint8
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didSendBodyData:(int64_t)bytesSent totalBytesSent:(int64_t)totalBytesSent totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend
 {
 	UE_LOG(LogHttp, Verbose, TEXT("URLSession:task:didSendBodyData:totalBytesSent:totalBytesExpectedToSend: totalBytesSent = %lld, totalBytesSent = %lld: %p"), totalBytesSent, totalBytesExpectedToSend, self);
-	self.BytesWritten = (int32)totalBytesSent;
+	self.BytesWritten = totalBytesSent;
 }
 
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveResponse:(NSURLResponse *)response completionHandler:(void (^)(NSURLSessionResponseDisposition disposition))completionHandler
@@ -110,12 +110,12 @@ enum class EAppleHttpRequestResponseState: uint8
 	UE_LOG(LogHttp, Verbose, TEXT("URLSession:dataTask:didReceiveResponse:completionHandler"));
 	
 	self.Response = (NSHTTPURLResponse*)response;
-	int32 ExpectedResponseLength = (int32)response.expectedContentLength;
+	uint64 ExpectedResponseLength = response.expectedContentLength;
 	if(!bInitializedWithValidStream && ExpectedResponseLength != NSURLResponseUnknownLength)
 	{
 		Payload.Empty(ExpectedResponseLength);
 	}
-	UE_LOG(LogHttp, Verbose, TEXT("URLSession:dataTask:didReceiveResponse:completionHandler: expectedContentLength = %lld. Length = %d: %p"), ExpectedResponseLength, Payload.Max(), self);
+	UE_LOG(LogHttp, Verbose, TEXT("URLSession:dataTask:didReceiveResponse:completionHandler: expectedContentLength = %lld. Length = %llu: %p"), ExpectedResponseLength, Payload.Max(), self);
 	completionHandler(NSURLSessionResponseAllow);
 }
 
@@ -151,7 +151,7 @@ enum class EAppleHttpRequestResponseState: uint8
 	// Keep BytesReceived as a separated value to avoid concurrent accesses to Payload
 	self.BytesReceived += NewBytesReceived;
 	
-	UE_LOG(LogHttp, Verbose, TEXT("URLSession:dataTask:didReceiveData with %d bytes. After Append, Payload Length = %d: %p"), NewBytesReceived, self.BytesReceived, self);
+	UE_LOG(LogHttp, Verbose, TEXT("URLSession:dataTask:didReceiveData with %llu bytes. After Append, Payload Length = %llu: %p"), NewBytesReceived, self.BytesReceived, self);
 }
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(nullable NSError *)error
@@ -416,7 +416,7 @@ FString FAppleHttpNSUrlSessionRequest::GetContentType() const
 	return ContentType;
 }
 
-int32 FAppleHttpNSUrlSessionRequest::GetContentLength() const
+uint64 FAppleHttpNSUrlSessionRequest::GetContentLength() const
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionRequest::GetContentLength() - %i"), ContentBytesLength);
 	return ContentBytesLength;
@@ -539,7 +539,7 @@ bool FAppleHttpNSUrlSessionRequest::StartRequest()
 	// set the content-length and user-agent (it is possible that the OS ignores this value)
 	if(GetContentLength() > 0)
 	{
-		[Request setValue:[NSString stringWithFormat:@"%d", GetContentLength()] forHTTPHeaderField:@"Content-Length"];
+		[Request setValue:[NSString stringWithFormat:@"%llu", GetContentLength()] forHTTPHeaderField:@"Content-Length"];
 	}
 
 	const FString UserAgent = GetHeader("User-Agent");
@@ -793,7 +793,7 @@ FString FAppleHttpNSUrlSessionResponse::GetContentType() const
 	return GetHeader( TEXT( "Content-Type" ) );
 }
 
-int32 FAppleHttpNSUrlSessionResponse::GetContentLength() const
+uint64 FAppleHttpNSUrlSessionResponse::GetContentLength() const
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlSessionResponse::GetContentLength()"));
 	
@@ -856,12 +856,12 @@ bool FAppleHttpNSUrlSessionResponse::HadConnectionError() const
 	return (ResponseDelegate.ResponseState == EAppleHttpRequestResponseState::ConnectionError);
 }
 
-const int32 FAppleHttpNSUrlSessionResponse::GetNumBytesReceived() const
+const uint64 FAppleHttpNSUrlSessionResponse::GetNumBytesReceived() const
 {
 	return ResponseDelegate.BytesReceived;
 }
 
-const int32 FAppleHttpNSUrlSessionResponse::GetNumBytesWritten() const
+const uint64 FAppleHttpNSUrlSessionResponse::GetNumBytesWritten() const
 {
 	return ResponseDelegate.BytesWritten;
 }

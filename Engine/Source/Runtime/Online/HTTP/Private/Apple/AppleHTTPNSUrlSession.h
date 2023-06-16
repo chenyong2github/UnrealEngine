@@ -23,7 +23,7 @@ public:
 	virtual FString GetHeader(const FString& HeaderName) const override;
 	virtual TArray<FString> GetAllHeaders() const override;	
 	virtual FString GetContentType() const override;
-	virtual int32 GetContentLength() const override;
+	virtual uint64 GetContentLength() const override;
 	virtual const TArray<uint8>& GetContent() const override;
 	//~ End IHttpBase Interface
 
@@ -97,7 +97,7 @@ private:
 	bool bIsPayloadFile;
 
 	/** The request payload length in bytes. This must be tracked separately for a file stream */
-	int32 ContentBytesLength;
+	uint64 ContentBytesLength;
 
 	/** The response object which we will use to pair with this request */
 	TSharedPtr<class FAppleHttpNSUrlSessionResponse,ESPMode::ThreadSafe> Response;
@@ -147,7 +147,7 @@ public:
 	virtual FString GetHeader(const FString& HeaderName) const override;
 	virtual TArray<FString> GetAllHeaders() const override;	
 	virtual FString GetContentType() const override;
-	virtual int32 GetContentLength() const override;
+	virtual uint64 GetContentLength() const override;
 	virtual const TArray<uint8>& GetContent() const override;
 	//~ End IHttpBase Interface
 
@@ -179,12 +179,12 @@ public:
 	/**
 	 * Get the number of bytes received so far
 	 */
-	const int32 GetNumBytesReceived() const;
+	const uint64 GetNumBytesReceived() const;
 
 	/**
 	* Get the number of bytes sent so far
 	*/
-	const int32 GetNumBytesWritten() const;
+	const uint64 GetNumBytesWritten() const;
 
 	/**
 	 * Cleans internal shared objects between request and response

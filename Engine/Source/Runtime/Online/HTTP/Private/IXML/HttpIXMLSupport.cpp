@@ -292,7 +292,7 @@ RequestStream::~RequestStream()
 //  Name: RequestStream::Open
 //  Desc: Opens the buffer populated with the supplied data
 //--------------------------------------------------------------------------------------
-STDMETHODIMP RequestStream::Open( LPCSTR InBuffer, ULONG BufferSize )
+STDMETHODIMP RequestStream::Open( LPCSTR InBuffer, size_t BufferSize )
 {
 	HRESULT hr = S_OK;
 

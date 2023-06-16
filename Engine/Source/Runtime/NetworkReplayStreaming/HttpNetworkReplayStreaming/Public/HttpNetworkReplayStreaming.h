@@ -388,7 +388,7 @@ public:
 
 	TSet< FString >						EventGroupSet;
 
-	uint32								TotalUploadBytes;
+	uint64								TotalUploadBytes;
 
 	TMap< FString, FCachedResponse >	ResponseCache;
 

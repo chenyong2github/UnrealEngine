@@ -87,7 +87,7 @@ public:
 	virtual FString GetHeader(const FString& HeaderName) const override { return TEXT(""); }
 	virtual TArray<FString> GetAllHeaders() const override { return TArray<FString>(); }
 	virtual FString GetContentType() const override { return TEXT(""); }
-	virtual int32 GetContentLength() const override { return 0; }
+	virtual uint64 GetContentLength() const override { return 0; }
 	virtual const TArray<uint8>& GetContent() const override { static TArray<uint8> Temp; return Temp; }
 
 	// IHttpRequest

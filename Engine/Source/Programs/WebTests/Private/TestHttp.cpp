@@ -403,6 +403,35 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Can run parallel stream downloa
 	}
 }
 
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Can download big file exceeds 32 bits", HTTP_TAG)
+{
+	// 5 * 1024 * 1024 * 1024 BYTES = 5368709120 BYTES = 5 GB
+	uint64 Chunks = 5 * 1024;
+	uint64 ChunkSize = 1024 * 1024;
+
+	TSharedRef<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(UrlStreamDownload(Chunks, ChunkSize));
+	HttpRequest->SetVerb(TEXT("GET"));
+
+	TSharedRef<int64> TotalBytesReceived = MakeShared<int64>(0);
+	FHttpRequestStreamDelegate Delegate;
+	Delegate.BindLambda([TotalBytesReceived](void* Ptr, int64 Length) {
+		*TotalBytesReceived += Length;
+		return true;
+	});
+	HttpRequest->SetResponseBodyReceiveStreamDelegate(Delegate);
+
+	HttpRequest->OnProcessRequestComplete().BindLambda([Chunks, ChunkSize, TotalBytesReceived](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(bSucceeded);
+		REQUIRE(HttpResponse != nullptr);
+		CHECK(HttpResponse->GetContentLength() == Chunks * ChunkSize);
+		CHECK(HttpResponse->GetContent().IsEmpty());
+		CHECK(*TotalBytesReceived == Chunks * ChunkSize);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
+
 TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http upload from memory", HTTP_TAG)
 {
 	TSharedRef<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
@@ -442,6 +471,68 @@ TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Streaming http upload from memo
 		CHECK(bSucceeded);
 		REQUIRE(HttpResponse != nullptr);
 		CHECK(HttpResponse->GetResponseCode() == 200);
+	});
+	HttpRequest->ProcessRequest();
+}
+
+class FTestHttpUploadStream final : public FArchive
+{
+public:
+	FTestHttpUploadStream(uint64 InTotalSize)
+		: FakeTotalSize(InTotalSize)
+	{
+	}
+
+	virtual void Serialize(void* V, int64 Length) override
+	{
+		for (int64 i = 0; i < Length; ++i)
+		{
+			((char*)V)[i] = 'd';
+		}
+
+		CurrentPos += Length;
+	}
+
+	virtual int64 TotalSize() override
+	{
+		return FakeTotalSize;
+	}
+
+	virtual void Seek(int64 InPos) 
+	{ 
+		CurrentPos = InPos;
+	}
+
+	virtual int64 Tell() override
+	{
+		return CurrentPos;
+	}
+
+	uint64 FakeTotalSize;
+	uint64 CurrentPos = 0;
+};
+
+TEST_CASE_METHOD(FWaitUntilCompleteHttpFixture, "Can upload big file exceeds 32 bits", HTTP_TAG)
+{
+	// TODO: Back to check later. xCurl 2206.4.0.0 doesn't work with file bigger than 32 bits
+	// 5 * 1024 * 1024 * 1024 BYTES = 5368709120 BYTES = 5 GB
+	//const uint64 TotalSize = 5368709120;
+	//const uint64 TotalSize = 4294967296;
+	//const uint64 TotalSize = 4294967295;
+	//const uint64 TotalSize = 2147483648;
+	const uint64 TotalSize = 2147483647;
+	TSharedRef<FTestHttpUploadStream> Stream = MakeShared<FTestHttpUploadStream>(TotalSize);
+
+	TSharedRef<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
+	HttpRequest->SetURL(FString::Format(TEXT("{0}/streaming_upload_put"), { *UrlHttpTests() }));
+	HttpRequest->SetVerb(TEXT("PUT"));
+	HttpRequest->SetContentFromStream(Stream);
+	HttpRequest->SetHeader(TEXT("Content-Disposition"), TEXT("attachment;filename=TestStreamUpload.dat"));
+	HttpRequest->OnProcessRequestComplete().BindLambda([Stream, TotalSize](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded) {
+		CHECK(bSucceeded);
+		REQUIRE(HttpResponse != nullptr);
+		CHECK(HttpResponse->GetResponseCode() == 200);
+		CHECK(Stream->CurrentPos == TotalSize);
 	});
 	HttpRequest->ProcessRequest();
 }
@@ -515,6 +606,8 @@ public:
 
 TEST_CASE_METHOD(FWaitThreadedHttpFixture, "Http streaming download request can work in non game thread", HTTP_TAG)
 {
+	// TODO: Block main thread here to verify
+
 	ThreadCallback.BindLambda([this]() {
 		TSharedRef<IHttpRequest> HttpRequest = HttpModule->CreateRequest();
 		HttpRequest->SetURL(UrlStreamDownload(3/*Chunks*/, 1024/*ChunkSize*/));

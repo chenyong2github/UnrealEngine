@@ -41,9 +41,9 @@ FRequestPayloadInFileStream::~FRequestPayloadInFileStream()
 {
 }
 
-int32 FRequestPayloadInFileStream::GetContentLength() const
+uint64 FRequestPayloadInFileStream::GetContentLength() const
 {
-	return static_cast<int32>(File->TotalSize());
+	return File->TotalSize();
 }
 
 const TArray<uint8>& FRequestPayloadInFileStream::GetContent() const
@@ -67,7 +67,7 @@ size_t FRequestPayloadInFileStream::FillOutputBuffer(void* OutputBuffer, size_t 
 
 size_t FRequestPayloadInFileStream::FillOutputBuffer(TArrayView<uint8> OutputBuffer, size_t SizeAlreadySent)
 {
-	const size_t ContentLength = static_cast<size_t>(GetContentLength());
+	const size_t ContentLength = GetContentLength();
 	check(SizeAlreadySent <= ContentLength);
 	const size_t SizeToSend = ContentLength - SizeAlreadySent;
 	const size_t SizeToSendThisTime = FMath::Min(SizeToSend, static_cast<size_t>(OutputBuffer.Num()));
@@ -94,7 +94,7 @@ FRequestPayloadInMemory::~FRequestPayloadInMemory()
 {
 }
 
-int32 FRequestPayloadInMemory::GetContentLength() const
+uint64 FRequestPayloadInMemory::GetContentLength() const
 {
 	return Buffer.Num();
 }

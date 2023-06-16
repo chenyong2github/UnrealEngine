@@ -42,7 +42,7 @@ FString FNullHttpRequest::GetContentType() const
 	return GetHeader(TEXT("Content-Type"));
 }
 
-int32 FNullHttpRequest::GetContentLength() const
+uint64 FNullHttpRequest::GetContentLength() const
 {
 	return Payload.Num();
 }
@@ -227,7 +227,7 @@ FString FNullHttpResponse::GetContentType() const
 	return FString();
 }
 
-int32 FNullHttpResponse::GetContentLength() const
+uint64 FNullHttpResponse::GetContentLength() const
 {
 	return 0;
 }

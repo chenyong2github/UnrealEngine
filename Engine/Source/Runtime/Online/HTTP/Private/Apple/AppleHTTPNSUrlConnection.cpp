@@ -228,7 +228,7 @@ FString FAppleHttpNSUrlConnectionRequest::GetContentType() const
 }
 
 
-int32 FAppleHttpNSUrlConnectionRequest::GetContentLength() const
+uint64 FAppleHttpNSUrlConnectionRequest::GetContentLength() const
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlConnectionRequest::GetContentLength() - %i"), RequestPayloadByteLength);
 	return RequestPayloadByteLength;
@@ -273,7 +273,7 @@ bool FAppleHttpNSUrlConnectionRequest::SetContentAsStreamedFile(const FString& F
 	struct stat FileAttrs = { 0 };
 	if (stat(PlatformFilename.fileSystemRepresentation, &FileAttrs) == 0)
 	{
-		UE_LOG(LogHttp, VeryVerbose, TEXT("FAppleHttpNSUrlConnectionRequest::SetContentAsStreamedFile succeeded in getting the file size - %d"), FileAttrs.st_size);
+		UE_LOG(LogHttp, VeryVerbose, TEXT("FAppleHttpNSUrlConnectionRequest::SetContentAsStreamedFile succeeded in getting the file size - %llu"), FileAttrs.st_size);
 		// Under the hood, the Foundation framework unsets HTTPBody, and takes over as the stream delegate.
 		// The stream itself should be unopened when passed to setHTTPBodyStream.
 		Request.HTTPBodyStream = [NSInputStream inputStreamWithFileAtPath: PlatformFilename];
@@ -369,7 +369,7 @@ bool FAppleHttpNSUrlConnectionRequest::StartRequest()
 	// set the content-length and user-agent
 	if(GetContentLength() > 0)
 	{
-		[Request setValue:[NSString stringWithFormat:@"%d", GetContentLength()] forHTTPHeaderField:@"Content-Length"];
+		[Request setValue:[NSString stringWithFormat:@"%llu", GetContentLength()] forHTTPHeaderField:@"Content-Length"];
 	}
 
 	const FString UserAgent = GetHeader("User-Agent");
@@ -510,8 +510,8 @@ void FAppleHttpNSUrlConnectionRequest::Tick(float DeltaSeconds)
 	{
 		if (OnRequestProgress().IsBound())
 		{
-			const int32 BytesWritten = Response->GetNumBytesWritten();
-			const int32 BytesRead = Response->GetNumBytesReceived();
+			const uint64 BytesWritten = Response->GetNumBytesWritten();
+			const uint64 BytesRead = Response->GetNumBytesReceived();
 			if (BytesWritten != LastReportedBytesWritten || BytesRead != LastReportedBytesRead)
 			{
 				OnRequestProgress().ExecuteIfBound(SharedThis(this), BytesWritten, BytesRead);
@@ -565,7 +565,7 @@ float FAppleHttpNSUrlConnectionRequest::GetElapsedTime() const
 {
 	UE_LOG(LogHttp, Verbose, TEXT("didSendBodyData:(NSInteger)bytesWritten totalBytes:Written:(NSInteger)totalBytesWritten totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite"));
 	self.BytesWritten = totalBytesWritten;
-	UE_LOG(LogHttp, Verbose, TEXT("didSendBodyData: totalBytesWritten = %d, totalBytesExpectedToWrite = %d: %p"), totalBytesWritten, totalBytesExpectedToWrite, self);
+	UE_LOG(LogHttp, Verbose, TEXT("didSendBodyData: totalBytesWritten = %llu, totalBytesExpectedToWrite = %llu: %p"), totalBytesWritten, totalBytesExpectedToWrite, self);
 }
 
 -(void) connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response
@@ -575,14 +575,14 @@ float FAppleHttpNSUrlConnectionRequest::GetElapsedTime() const
 	
 	// presize the payload container if possible
 	Payload.Empty([response expectedContentLength] != NSURLResponseUnknownLength ? [response expectedContentLength] : 0);
-	UE_LOG(LogHttp, Verbose, TEXT("didReceiveResponse: expectedContentLength = %d. Length = %d: %p"), [response expectedContentLength], Payload.Max(), self);
+	UE_LOG(LogHttp, Verbose, TEXT("didReceiveResponse: expectedContentLength = %llu. Length = %llu: %p"), [response expectedContentLength], Payload.Max(), self);
 }
 
 
 -(void) connection:(NSURLConnection *)connection didReceiveData:(NSData *)data
 {
 	Payload.Append((const uint8*)[data bytes], [data length]);
-	UE_LOG(LogHttp, Verbose, TEXT("didReceiveData with %d bytes. After Append, Payload Length = %d: %p"), [data length], Payload.Num(), self);
+	UE_LOG(LogHttp, Verbose, TEXT("didReceiveData with %llu bytes. After Append, Payload Length = %llu: %p"), [data length], Payload.Num(), self);
 }
 
 
@@ -833,7 +833,7 @@ float FAppleHttpNSUrlConnectionRequest::GetElapsedTime() const
 	return Payload;
 }
 
--(int32)getBytesWritten
+-(uint64)getBytesWritten
 {
 	return self.BytesWritten;
 }
@@ -925,7 +925,7 @@ FString FAppleHttpNSUrlConnectionResponse::GetContentType() const
 }
 
 
-int32 FAppleHttpNSUrlConnectionResponse::GetContentLength() const
+uint64 FAppleHttpNSUrlConnectionResponse::GetContentLength() const
 {
 	UE_LOG(LogHttp, Verbose, TEXT("FAppleHttpNSUrlConnectionResponse::GetContentLength()"));
 
@@ -1004,13 +1004,13 @@ bool FAppleHttpNSUrlConnectionResponse::HadError() const
 	return bHadError;
 }
 
-const int32 FAppleHttpNSUrlConnectionResponse::GetNumBytesReceived() const
+const uint64 FAppleHttpNSUrlConnectionResponse::GetNumBytesReceived() const
 {
 	return [ResponseWrapper getPayload].Num();
 }
 
-const int32 FAppleHttpNSUrlConnectionResponse::GetNumBytesWritten() const
+const uint64 FAppleHttpNSUrlConnectionResponse::GetNumBytesWritten() const
 {
-    int32 NumBytesWritten = [ResponseWrapper getBytesWritten];
+    uint64 NumBytesWritten = [ResponseWrapper getBytesWritten];
     return NumBytesWritten;
 }

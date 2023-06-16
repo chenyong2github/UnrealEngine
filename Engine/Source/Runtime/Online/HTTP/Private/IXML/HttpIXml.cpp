@@ -77,7 +77,7 @@ FString FHttpRequestIXML::GetContentType() const
 //-----------------------------------------------------------------------------
 //	
 //-----------------------------------------------------------------------------
-int32 FHttpRequestIXML::GetContentLength() const
+uint64 FHttpRequestIXML::GetContentLength() const
 {
 	return Payload->GetContentLength();
 }
@@ -348,12 +348,12 @@ uint32 FHttpRequestIXML::SendRequest()
 
 	if( Payload )
 	{
-		uint32 SizeInBytes = Payload->GetContentLength();
+		size_t SizeInBytes = Payload->GetContentLength();
 
 		// Create and open a new runtime class
 		SendStream = Make<RequestStream>();
 		LPCSTR PayloadChars = (LPCSTR)Payload->GetContent().GetData();
-		SendStream->Open( PayloadChars, (ULONG) SizeInBytes );
+		SendStream->Open( PayloadChars, SizeInBytes );
 
 		hr = XHR->Send(
 			SendStream.Get(),        // body message as an ISequentialStream*
@@ -589,7 +589,7 @@ FString FHttpResponseIXML::GetContentType() const
 //	
 //-----------------------------------------------------------------------------
 
-int32 FHttpResponseIXML::GetContentLength() const
+int64 FHttpResponseIXML::GetContentLength() const
 {
 	check ( HttpCB );
 	

@@ -55,7 +55,7 @@ public:
 	 *
 	 * @return the content length (if available)
 	 */
-	virtual int32 GetContentLength() const = 0;
+	virtual uint64 GetContentLength() const = 0;
 
 	/**
 	 * Get the content payload of the request or response.

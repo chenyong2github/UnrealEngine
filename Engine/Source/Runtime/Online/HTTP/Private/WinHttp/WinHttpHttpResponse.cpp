@@ -54,7 +54,7 @@ FString FWinHttpHttpResponse::GetContentType() const
 	return GetHeader(TEXT("Content-Type"));
 }
 
-int32 FWinHttpHttpResponse::GetContentLength() const
+uint64 FWinHttpHttpResponse::GetContentLength() const
 {
 	return Payload.Num();
 }

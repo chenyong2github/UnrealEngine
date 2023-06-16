@@ -23,7 +23,7 @@ public:
 	virtual FString                       GetHeader(const FString& HeaderName) const override                      { return HttpRequest->GetHeader(HeaderName); }
 	virtual TArray<FString>               GetAllHeaders() const override                                           { return HttpRequest->GetAllHeaders(); }
 	virtual FString                       GetContentType() const override                                          { return HttpRequest->GetContentType(); }
-	virtual int32                         GetContentLength() const override                                        { return HttpRequest->GetContentLength(); }
+	virtual uint64                        GetContentLength() const override                                        { return HttpRequest->GetContentLength(); }
 	virtual const TArray<uint8>&          GetContent() const override                                              { return HttpRequest->GetContent(); }
 	virtual FString                       GetVerb() const override                                                 { return HttpRequest->GetVerb(); }
 	virtual void                          SetVerb(const FString& Verb) override                                    { HttpRequest->SetVerb(Verb); }

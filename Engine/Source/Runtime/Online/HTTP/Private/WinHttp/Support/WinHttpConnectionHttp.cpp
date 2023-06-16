@@ -144,10 +144,10 @@ bool FWinHttpConnectionHttp::StartRequest()
 	// Setup our buffer
 	if (Payload.IsValid())
 	{
-		const int32 NumBytesToWriteNow = FMath::Min(UE_WINHTTP_WRITE_BUFFER_BYTES, Payload->GetContentLength());
+		const uint64 NumBytesToWriteNow = FMath::Min((uint64)(UE_WINHTTP_WRITE_BUFFER_BYTES), Payload->GetContentLength());
 		PayloadBuffer.SetNumUninitialized(NumBytesToWriteNow, false);
 
-		const int32 BufferSize = Payload->FillOutputBuffer(MakeArrayView(PayloadBuffer), 0);
+		const uint64 BufferSize = Payload->FillOutputBuffer(MakeArrayView(PayloadBuffer), 0);
 		PayloadBuffer.SetNumUninitialized(BufferSize, false);
 	}
 
@@ -233,7 +233,7 @@ void FWinHttpConnectionHttp::PumpMessages()
 		{
 			GameThreadChunk.Append(CurrentChunk);
 		}
-		const int32 ReserveChunkSize = ResponseContentLength >= BytesWrittenToGameThreadChunk 
+		const uint64 ReserveChunkSize = ResponseContentLength >= BytesWrittenToGameThreadChunk 
 			? (ResponseContentLength - BytesWrittenToGameThreadChunk) 
 			: UE_WINHTTP_READ_BUFFER_BYTES;
 		CurrentChunk.Reset(ReserveChunkSize);
@@ -242,10 +242,10 @@ void FWinHttpConnectionHttp::PumpMessages()
 	// Process Data Transfer callbacks
 	if (BytesToReportSent.IsSet() || BytesToReportReceived.IsSet())
 	{
-		const int32 BytesSent = BytesToReportSent.Get(0);
+		const uint64 BytesSent = BytesToReportSent.Get(0);
 		BytesToReportSent.Reset();
 
-		const int32 BytesReceived = BytesToReportReceived.Get(0);
+		const uint64 BytesReceived = BytesToReportReceived.Get(0);
 		BytesToReportReceived.Reset();
 
 		OnDataTransferredHandler.ExecuteIfBound(BytesSent, BytesReceived);
@@ -424,9 +424,9 @@ FWinHttpConnectionHttp::FWinHttpConnectionHttp(
 	: RequestUrl(InUrl)
 {
 	const uint32 LogPort = InPort.Get(bInIsSecure ? 443 : 80);
-	const int32 LogPayloadSize = InPayload.IsValid() ? InPayload->GetContentLength() : 0;
+	const uint64 LogPayloadSize = InPayload.IsValid() ? InPayload->GetContentLength() : 0;
 
-	UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Creating request. InVerb=[%s] bIsSecure=[%d] Domain=[%s] Port=[%u] Path=[%s] PaylodSize=[%d]"), this, *InVerb, bInIsSecure, *InDomain, LogPort, *InPathAndQuery, LogPayloadSize);
+	UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Creating request. InVerb=[%s] bIsSecure=[%d] Domain=[%s] Port=[%u] Path=[%s] PaylodSize=[%llu]"), this, *InVerb, bInIsSecure, *InDomain, LogPort, *InPathAndQuery, LogPayloadSize);
 
 	// Note: Microsoft say not to reuse Connection Handles for multiple requests, despite what the API would suggest!  Microsoft say the Session handle
 	// is to be reused amongst requests with the same Security Protocol. If the same Session is used, backing sockets for connections will be reused
@@ -646,7 +646,7 @@ bool FWinHttpConnectionHttp::SendRequest()
 	return true;
 }
 
-void FWinHttpConnectionHttp::IncrementSentByteCounts(const int32 AmountSent)
+void FWinHttpConnectionHttp::IncrementSentByteCounts(const uint64 AmountSent)
 {
 	check(CurrentAction == EState::WaitForSendComplete);
 
@@ -664,7 +664,7 @@ void FWinHttpConnectionHttp::IncrementSentByteCounts(const int32 AmountSent)
 	NumBytesSuccessfullySent += AmountSent;
 }
 
-void FWinHttpConnectionHttp::IncrementReceivedByteCounts(const int32 AmountReceived)
+void FWinHttpConnectionHttp::IncrementReceivedByteCounts(const uint64 AmountReceived)
 {
 	check(CurrentAction == EState::WaitForNextResponseBodyChunkData);
 
@@ -696,15 +696,15 @@ bool FWinHttpConnectionHttp::SendAdditionalRequestBody()
 	check(HasRequestBodyToSend());
 	check(Payload.IsValid());
 
-	const int32 TotalBytesLeftToWrite = Payload->GetContentLength() - NumBytesSuccessfullySent;
+	const int64 TotalBytesLeftToWrite = Payload->GetContentLength() - NumBytesSuccessfullySent;
 	check(TotalBytesLeftToWrite > 0);
 	
 	// Resize buffer to max amount of data we can write
-	const int32 OptimalAmountToWrite = FMath::Min(TotalBytesLeftToWrite, UE_WINHTTP_WRITE_BUFFER_BYTES);
+	const int64 OptimalAmountToWrite = FMath::Min(TotalBytesLeftToWrite, UE_WINHTTP_WRITE_BUFFER_BYTES);
 	PayloadBuffer.SetNumUninitialized(OptimalAmountToWrite, false);
 
 	// Read data into our buffer if possible
-	const int32 ActualDataSize = Payload->FillOutputBuffer(MakeArrayView(PayloadBuffer), NumBytesSuccessfullySent);
+	const int64 ActualDataSize = Payload->FillOutputBuffer(MakeArrayView(PayloadBuffer), NumBytesSuccessfullySent);
 	if (ActualDataSize < 1)
 	{
 		// Set our buffer to be empty since we didn't write anything into it
@@ -715,7 +715,7 @@ bool FWinHttpConnectionHttp::SendAdditionalRequestBody()
 	// Resize our buffer based on how much was actually written to it
 	PayloadBuffer.SetNumUninitialized(ActualDataSize, false);
 
-	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Writing Data. NumBytes=[%d] TotalBytesWritten=[%d] TotalBytes=[%d]"), this, PayloadBuffer.Num(), NumBytesSuccessfullySent, Payload->GetContentLength())
+	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Writing Data. NumBytes=[%llu] TotalBytesWritten=[%llu] TotalBytes=[%llu]"), this, PayloadBuffer.Num(), NumBytesSuccessfullySent, Payload->GetContentLength())
 
 	CurrentAction = EState::WaitForSendComplete;
 	if (!WinHttpWriteData(RequestHandle.Get(), PayloadBuffer.GetData(), PayloadBuffer.Num(), NULL))
@@ -893,7 +893,7 @@ bool FWinHttpConnectionHttp::RequestNextResponseBodyChunkData()
 	check(CurrentAction == EState::RequestNextResponseBodyChunkData);
 	check(ResponseBytesAvailable.IsSet());
 
-	const int32 NumBytesAvailable = ResponseBytesAvailable.GetValue();
+	const uint64 NumBytesAvailable = ResponseBytesAvailable.GetValue();
 	ResponseBytesAvailable.Reset();
 
 	if (NumBytesAvailable == 0)
@@ -904,7 +904,7 @@ bool FWinHttpConnectionHttp::RequestNextResponseBodyChunkData()
 		return true;
 	}
 
-	int32 ResponseBytesWritten = CurrentChunk.Num();
+	uint64 ResponseBytesWritten = CurrentChunk.Num();
 	CurrentChunk.AddUninitialized(NumBytesAvailable);
 
 	CurrentAction = EState::WaitForNextResponseBodyChunkData;
@@ -980,9 +980,9 @@ void FWinHttpConnectionHttp::HandleSendingRequest()
 	}
 }
 
-void FWinHttpConnectionHttp::HandleWriteComplete(const uint32 NumBytesSent)
+void FWinHttpConnectionHttp::HandleWriteComplete(const uint64 NumBytesSent)
 {
-	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[WRITE_COMPLETE] NumBytesSent=[%d]"), this, NumBytesSent);
+	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[WRITE_COMPLETE] NumBytesSent=[%llu]"), this, NumBytesSent);
 
 	FScopeLock ScopeLock(&SyncObject);
 
@@ -1060,9 +1060,9 @@ void FWinHttpConnectionHttp::HandleHeadersAvailable()
 	ReleasePayloadData();
 }
 
-void FWinHttpConnectionHttp::HandleDataAvailable(const uint32 NumBytesAvailable)
+void FWinHttpConnectionHttp::HandleDataAvailable(const uint64 NumBytesAvailable)
 {
-	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[DATA_AVAILABLE] NumBytesAvailable=[%u]"), this, NumBytesAvailable);
+	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[DATA_AVAILABLE] NumBytesAvailable=[%llu]"), this, NumBytesAvailable);
 
 	FScopeLock ScopeLock(&SyncObject);
 
@@ -1075,9 +1075,9 @@ void FWinHttpConnectionHttp::HandleDataAvailable(const uint32 NumBytesAvailable)
 	CurrentAction = EState::RequestNextResponseBodyChunkData;
 }
 
-void FWinHttpConnectionHttp::HandleReadComplete(const uint32 NumBytesRead)
+void FWinHttpConnectionHttp::HandleReadComplete(const uint64 NumBytesRead)
 {
-	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[READ_COMPLETE] NumBytesRead=[%u]"), this, NumBytesRead);
+	UE_LOG(LogWinHttp, VeryVerbose, TEXT("WinHttp Http[%p]: Callback Status=[READ_COMPLETE] NumBytesRead=[%llu]"), this, NumBytesRead);
 
 	FScopeLock ScopeLock(&SyncObject);
 	
@@ -1270,7 +1270,7 @@ void FWinHttpConnectionHttp::HandleHttpStatusCallback(HINTERNET ResourceHandle, 
 			check(StatusInformationLength == sizeof(DWORD));
 			check(StatusInformation != nullptr);
 			const DWORD NumBytesSent = *static_cast<DWORD*>(StatusInformation);
-			UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Callback Status=[REQUEST_SENT] NumBytesSent=[%d]"), this, static_cast<int32>(NumBytesSent));
+			UE_LOG(LogWinHttp, Verbose, TEXT("WinHttp Http[%p]: Callback Status=[REQUEST_SENT] NumBytesSent=[%llu]"), this, NumBytesSent);
 			return;
 		}
 		case EWinHttpCallbackStatus::ConnectingToServer:

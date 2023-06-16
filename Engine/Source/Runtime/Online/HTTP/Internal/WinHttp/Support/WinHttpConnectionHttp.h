@@ -61,7 +61,7 @@ public:
 	 */
 	TArray<uint8>& GetLastChunk() { return GameThreadChunk; }
 	/** Provides the current known response content length. */
-	int32 GetResponseContentLength() const { return ResponseContentLength; }
+	uint64 GetResponseContentLength() const { return ResponseContentLength; }
 	/** Provides the current known headers received. */
 	const TMap<FString, FString>& GetHeadersReceived() const { return HeadersReceived; }
 
@@ -139,13 +139,13 @@ protected:
 	 *
 	 * @param AmountSent The amount of bytes to increment our counters by
 	 */
-	void IncrementSentByteCounts(const int32 AmountSent);
+	void IncrementSentByteCounts(const uint64 AmountSent);
 	/**
 	 * Increment our bytes-received counters
 	 *
 	 * @param AmountReceived The amount of bytes to increment our counters by
 	 */
-	void IncrementReceivedByteCounts(const int32 AmountReceived);
+	void IncrementReceivedByteCounts(const uint64 AmountReceived);
 	/** 
 	 * Check if we have more data to send
 	 *
@@ -198,15 +198,15 @@ protected:
 	/** Handles validating request now that we have server information (certificates, etc) */
 	void HandleSendingRequest();
 	/** Handles SOMETHING not sure yet*/
-	void HandleWriteComplete(const uint32 NumBytesSent);
+	void HandleWriteComplete(const uint64 NumBytesSent);
 	/** Handles completing the request so we may read the headers and body of the response */
 	void HandleSendRequestComplete();
 	/** Handles reading the response headers */
 	virtual void HandleHeadersAvailable();
 	/** Handles writing the http response body to our response body */
-	void HandleDataAvailable(const uint32 NumBytesAvailable);
+	void HandleDataAvailable(const uint64 NumBytesAvailable);
 	/** Handles querying the next chunk of our http response body */
-	void HandleReadComplete(const uint32 NumBytesRead);
+	void HandleReadComplete(const uint64 NumBytesRead);
 	/** Handles shutting down the request when there was an error */
 	void HandleRequestError(const uint32 ErrorApiId, const uint32 ErrorCode);
 	/** Handles our request object closing, ending this request */
@@ -302,7 +302,7 @@ private:
 	/** Payload body*/
 	TSharedPtr<FRequestPayload, ESPMode::ThreadSafe> Payload;
 	/** Amount of bytes from payload that has been sent successfully */
-	int32 NumBytesSuccessfullySent = 0;
+	uint64 NumBytesSuccessfullySent = 0;
 	/** Data from the payload currently trying to be written */
 	TArray<uint8> PayloadBuffer;
 
@@ -317,20 +317,20 @@ private:
 	/** The current chunk being built for consumption on the game thread. Only access on the game thread. */
 	TArray<uint8> GameThreadChunk;
 	/** The content length from the response headers, or 0. */
-	int32 ResponseContentLength = 0;
+	uint64 ResponseContentLength = 0;
 	/** */
-	int32 BytesWrittenToGameThreadChunk = 0;
+	uint64 BytesWrittenToGameThreadChunk = 0;
 	/** The amount of bytes that are available to read from WinHttpReadData now */
-	TOptional<int32> ResponseBytesAvailable;
+	TOptional<uint64> ResponseBytesAvailable;
 	
 	/// Members for reporting updates to main thread
 
 	/** Called on the game thread during tick if we have sent or received data since last tick */
 	FWinHttpConnectionHttpOnDataTransferred OnDataTransferredHandler;
 	/** Data to report to the game thread about how many bytes have been sent since last tick (not total received) */
-	TOptional<int32> BytesToReportSent;
+	TOptional<uint64> BytesToReportSent;
 	/** Data to report to the game thread about how many bytes have been received since last tick (not total received) */
-	TOptional<int32> BytesToReportReceived;
+	TOptional<uint64> BytesToReportReceived;
 
 	/** Called on the game thread during tick if we have received header data since last tick */
 	FWinHttpConnectionHttpOnHeaderReceived OnHeaderReceivedHandler;

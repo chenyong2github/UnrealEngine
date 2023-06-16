@@ -76,7 +76,7 @@ public:
 	~RequestStream();
 
 	// ISequentialStream
-	STDMETHODIMP Open( LPCSTR Buffer, ULONG BufferSize );
+	STDMETHODIMP Open( LPCSTR Buffer, size_t BufferSize );
 	STDMETHODIMP Read( void *Data, ULONG ByteCount, ULONG *NumReadBytes );
 	STDMETHODIMP Write( const void *Data,  ULONG ByteCount, ULONG *Written );
 

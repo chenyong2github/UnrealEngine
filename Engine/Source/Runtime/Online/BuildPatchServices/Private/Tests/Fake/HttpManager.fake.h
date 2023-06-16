@@ -27,7 +27,7 @@ namespace BuildPatchServices
 		virtual int32 GetResponseCode() const override;
 		virtual const TArray<uint8>& GetContent() const override;
 		virtual FString GetContentAsString() const override;
-		virtual int32 GetContentLength() const override;
+		virtual uint64 GetContentLength() const override;
 
 	public:
 		TArray<uint8> Data;
@@ -73,7 +73,7 @@ namespace BuildPatchServices
 		return UTF8_TO_TCHAR(ZeroTerminatedPayload.GetData());
 	}
 
-	int32 FFakeHttpResponse::GetContentLength() const
+	uint64 FFakeHttpResponse::GetContentLength() const
 	{
 		return Data.Num();
 	}

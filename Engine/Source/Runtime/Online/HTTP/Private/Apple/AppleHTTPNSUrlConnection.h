@@ -29,7 +29,7 @@ public:
 	virtual FString GetHeader(const FString& HeaderName) const override;
 	virtual TArray<FString> GetAllHeaders() const override;	
 	virtual FString GetContentType() const override;
-	virtual int32 GetContentLength() const override;
+	virtual uint64 GetContentLength() const override;
 	virtual const TArray<uint8>& GetContent() const override;
 	//~ End IHttpBase Interface
 
@@ -102,7 +102,7 @@ private:
 	bool bIsPayloadFile;
 
 	/** The request payload length in bytes. This must be tracked separately for a file stream */
-	int32 RequestPayloadByteLength;
+	uint64 RequestPayloadByteLength;
 
 	/** The response object which we will use to pair with this request */
 	TSharedPtr<class FAppleHttpNSUrlConnectionResponse,ESPMode::ThreadSafe> Response;
@@ -114,7 +114,7 @@ private:
 	TArray<uint8> ContentData;
 
 	/** Number of bytes sent to progress update */
-	int32 ProgressBytesSent;
+	uint64 ProgressBytesSent;
 
 	/** Start of the request */
 	double StartRequestTime;
@@ -147,7 +147,7 @@ private:
 /** When the response is complete, indicates whether the response failed with an error specific to connecting to the host. */
 @property BOOL bIsHostConnectionFailure;
 /** The total number of bytes written out during the request/response */
-@property int32 BytesWritten;
+@property uint64 BytesWritten;
 
 /** Delegate called when we send data. See Apple docs for when/how this should be used. */
 -(void) connection:(NSURLConnection *)connection didSendBodyData:(NSInteger)bytesWritten totalBytesWritten:(NSInteger)totalBytesWritten totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite;
@@ -166,7 +166,7 @@ private:
 #endif
 
 - (TArray<uint8>&)getPayload;
-- (int32)getBytesWritten;
+- (uint64)getBytesWritten;
 @end
 
 
@@ -194,7 +194,7 @@ public:
 	virtual FString GetHeader(const FString& HeaderName) const override;
 	virtual TArray<FString> GetAllHeaders() const override;	
 	virtual FString GetContentType() const override;
-	virtual int32 GetContentLength() const override;
+	virtual uint64 GetContentLength() const override;
 	virtual const TArray<uint8>& GetContent() const override;
 	//~ End IHttpBase Interface
 
@@ -218,12 +218,12 @@ public:
 	/**
 	 * Get the number of bytes received so far
 	 */
-	const int32 GetNumBytesReceived() const;
+	const uint64 GetNumBytesReceived() const;
 
 	/**
 	* Get the number of bytes sent so far
 	*/
-	const int32 GetNumBytesWritten() const;
+	const uint64 GetNumBytesWritten() const;
 
 	/**
 	 * Constructor

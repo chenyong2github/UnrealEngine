@@ -58,10 +58,10 @@ namespace BuildPatchServices
 			return FString();
 		}
 
-		virtual int32 GetContentLength() const override
+		virtual uint64 GetContentLength() const override
 		{
 			MOCK_FUNC_NOT_IMPLEMENTED("FMockHttpRequest::GetContentLength");
-			return int32();
+			return uint64();
 		}
 
 		virtual const TArray<uint8>& GetContent() const override
