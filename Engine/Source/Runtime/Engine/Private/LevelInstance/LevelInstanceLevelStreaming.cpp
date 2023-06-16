@@ -368,13 +368,24 @@ void ULevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* InLevel)
 			LevelInstanceSubsystem->RegisterLoadedLevelStreamingLevelInstance(this);
 
 #if WITH_EDITOR
-			if (UWorldPartition* OwningWorldPartition = GetWorld()->GetWorldPartition(); OwningWorldPartition && OwningWorldPartition->IsStreamingEnabled() && !GDisableLevelInstanceEditorPartialLoading)
+			if (UWorldPartition* OuterWorldPartition = NewLoadedLevel->GetWorldPartition())
 			{
-				if (UWorldPartition* OuterWorldPartition = NewLoadedLevel->GetWorldPartition())
+				check(!OuterWorldPartition->IsInitialized());
+				if (UWorldPartition* OwningWorldPartition = GetWorld()->GetWorldPartition(); OwningWorldPartition && OwningWorldPartition->IsStreamingEnabled())
 				{
-					check(!OuterWorldPartition->IsInitialized());
-					ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(LevelInstanceID);
-					OuterWorldPartition->bForceEnableStreamingInEditor = LevelInstance ? LevelInstance->SupportsPartialEditorLoading() : false;
+					if (GDisableLevelInstanceEditorPartialLoading)
+					{
+						OuterWorldPartition->bOverrideEnableStreamingInEditor = false;
+					}
+					else if (ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(LevelInstanceID); LevelInstance && LevelInstance->SupportsPartialEditorLoading())
+					{
+						OuterWorldPartition->bOverrideEnableStreamingInEditor = true;
+					}
+				}
+				else
+				{
+					// Do not enable Streaming in Editor if Level Instance is not part of a World Partition/Streaming world
+					OuterWorldPartition->bOverrideEnableStreamingInEditor = false;
 				}
 			}
 #endif

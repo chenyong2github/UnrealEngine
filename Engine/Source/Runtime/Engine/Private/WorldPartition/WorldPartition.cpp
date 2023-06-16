@@ -275,7 +275,6 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, bEnablingStreamingJustified(false)
 	, bIsPIE(false)
 	, NumUserCreatedLoadedRegions(0)
-	, bForceEnableStreamingInEditor(false)
 #endif
 	, InitState(EWorldPartitionInitState::Uninitialized)
 	, bStreamingInEnabled(true)
@@ -587,7 +586,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		// Follow the world's streaming enabled value most of the times, except:
 		//	- World is instanced and from a Level Instance that supports partial loading
-		const bool bIsStreamingEnabled = bForceEnableStreamingInEditor || IsStreamingEnabled();
+		const bool bIsStreamingEnabled = bOverrideEnableStreamingInEditor.IsSet() ? *bOverrideEnableStreamingInEditor : IsStreamingEnabled();
 
 		if (bIsInstanced)
 		{

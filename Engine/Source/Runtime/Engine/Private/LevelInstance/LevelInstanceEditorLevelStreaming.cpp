@@ -17,6 +17,7 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "PackageTools.h"
+#include "WorldPartition/WorldPartition.h"
 #endif
 
 #if WITH_EDITOR
@@ -168,6 +169,14 @@ void ULevelStreamingLevelInstanceEditor::OnLevelLoadedChanged(ULevel* InLevel)
 
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 		{
+#if WITH_EDITOR
+			if (UWorldPartition* OuterWorldPartition = NewLoadedLevel->GetWorldPartition())
+			{
+				check(!OuterWorldPartition->IsInitialized());
+				OuterWorldPartition->bOverrideEnableStreamingInEditor = false;
+			}
+#endif
+
 			LevelInstanceSubsystem->RegisterLoadedLevelStreamingLevelInstanceEditor(this);
 		}
 	}

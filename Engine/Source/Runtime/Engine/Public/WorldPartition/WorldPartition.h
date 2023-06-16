@@ -439,7 +439,7 @@ private:
 	TSet<FString> GeneratedStreamingPackageNames;
 
 public:
-	bool bForceEnableStreamingInEditor;
+	TOptional<bool> bOverrideEnableStreamingInEditor;
 
 private:
 #endif
