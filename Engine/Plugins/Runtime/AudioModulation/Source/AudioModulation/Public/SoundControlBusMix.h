@@ -22,7 +22,7 @@ struct AUDIOMODULATION_API FSoundControlBusMixStage
 	FSoundControlBusMixStage();
 	FSoundControlBusMixStage(USoundControlBus* InBus, const float TargetValue);
 
-	/* Bus controlled by stage. */
+	/* Bus controlled by the mix stage. */
 	UPROPERTY(EditAnywhere, Category = Stage, BlueprintReadWrite)
 	TObjectPtr<USoundControlBus> Bus;
 

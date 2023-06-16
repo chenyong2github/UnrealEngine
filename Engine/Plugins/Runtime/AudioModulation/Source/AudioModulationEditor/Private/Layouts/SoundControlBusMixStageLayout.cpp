@@ -223,7 +223,7 @@ void FSoundControlBusMixStageLayoutCustomization::CustomizeChildren(TSharedRef<I
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("BusModulationValue_MixValueName", "Value"))
-		.ToolTipText(StructPropertyHandle->GetToolTipText())
+		.ToolTipText(LOCTEXT("BusModulationValue_MixValueTooltip", "Value the mix stage is set to. If the bus's parameter has a unit conversion (eg. dB), there will be a unit value followed by a normalized (0-1) value. Changing one will update the other to have the corresponding value."))
 	]
 	.ValueContent()
 		.MinDesiredWidth(300.0f)
