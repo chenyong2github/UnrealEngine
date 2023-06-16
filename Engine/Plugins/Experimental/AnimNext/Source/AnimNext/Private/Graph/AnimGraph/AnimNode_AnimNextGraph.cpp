@@ -28,12 +28,7 @@ FAnimNode_AnimNextGraph::FAnimNode_AnimNextGraph()
 	, AnimNextGraph(nullptr)
 	, LODThreshold(INDEX_NONE)
 {
-	SequencePlayerState = new FAnimSequencePlayerState();
-}
 
-FAnimNode_AnimNextGraph::~FAnimNode_AnimNextGraph()
-{
-	delete SequencePlayerState;
 }
 
 void FAnimNode_AnimNextGraph::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
@@ -128,7 +123,7 @@ void FAnimNode_AnimNextGraph::Evaluate_AnyThread(FPoseContext & Output)
 	FGenerationTools::RemapPose(LODLevel, SourcePose, RefPose, GraphSourceLODPose.LODPose);
 
 	Context.GetMutableParamStack().PushValues(
-		"AnimSequencePlayerState", *SequencePlayerState,
+		"AnimSequencePlayerState", SequencePlayerState,
 		"GraphReferencePose", GraphReferencePose,
 		"ResultPose", ResultPose,
 		"GraphLODLevel", LODLevel,

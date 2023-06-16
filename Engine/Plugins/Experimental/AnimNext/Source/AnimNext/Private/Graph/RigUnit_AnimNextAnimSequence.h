@@ -4,21 +4,10 @@
 
 #include "Graph/GraphExecuteContext.h"
 #include "Graph/AnimNext_LODPose.h"
+#include "Graph/AnimGraph/AnimNode_AnimNextGraph.h"	// TEST - until we can allocate per-node state again
 #include "RigUnit_AnimNextAnimSequence.generated.h"
 
 class UAnimSequenceBase;
-
-USTRUCT()
-struct FAnimSequencePlayerState
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	float InternalTimeAccumulator = 0.0f;
-
-	UPROPERTY()
-	float PrevInternalTimeAccumulator = 0.0f;
-};
 
 USTRUCT(BlueprintType, meta = (DisplayName = "AnimSequence"))
 struct FAnimNextGraph_AnimSequence

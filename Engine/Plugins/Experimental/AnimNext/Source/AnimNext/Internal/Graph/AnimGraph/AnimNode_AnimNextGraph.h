@@ -8,7 +8,19 @@
 #include "AnimNode_AnimNextGraph.generated.h"
 
 class UNodeMappingContainer;
-struct FAnimSequencePlayerState;
+
+// TEST - until we can allocate per-node state again
+USTRUCT()
+struct FAnimSequencePlayerState
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float InternalTimeAccumulator = 0.0f;
+
+	UPROPERTY()
+	float PrevInternalTimeAccumulator = 0.0f;
+};
 
 /**
  * Animation node that allows a AnimNextGraph output to be used in an animation graph
@@ -19,7 +31,6 @@ struct ANIMNEXT_API FAnimNode_AnimNextGraph : public FAnimNode_CustomProperty
 	GENERATED_BODY()
 
 	FAnimNode_AnimNextGraph();
-	~FAnimNode_AnimNextGraph();
 
 	// FAnimNode_Base interface
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
@@ -49,7 +60,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses = "/Script/Engine.AnimMontage"))
 	TObjectPtr<UAnimSequence> TestSequence = nullptr;
 
-	FAnimSequencePlayerState* SequencePlayerState;	// TEST - until we can allocate per-node state again
+	FAnimSequencePlayerState SequencePlayerState;	// TEST - until we can allocate per-node state again
 
 	/*
 	 * Max LOD that this node is allowed to run
