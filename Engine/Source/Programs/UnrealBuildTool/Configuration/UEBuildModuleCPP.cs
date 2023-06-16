@@ -216,7 +216,10 @@ namespace UnrealBuildTool
 				}
 			}
 
-			AddDefaultIncludePaths();
+			if (Rules.bAddDefaultIncludePaths)
+			{
+				AddDefaultIncludePaths();
+			}
 		}
 
 		/// <summary>
