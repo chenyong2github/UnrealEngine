@@ -329,17 +329,17 @@ struct FTextBlockStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateFontInfo Font;
 	FTextBlockStyle& SetFont(const FSlateFontInfo& InFont) { Font = InFont; return *this; }
-	FTextBlockStyle& SetFont(TSharedPtr<const FCompositeFont> InCompositeFont, const int32 InSize, const FName& InTypefaceFontName = NAME_None) { Font = FSlateFontInfo(InCompositeFont, InSize, InTypefaceFontName); return *this; }
-	FTextBlockStyle& SetFont(const UObject* InFontObject, const int32 InSize, const FName& InTypefaceFontName = NAME_None) { Font = FSlateFontInfo(InFontObject, InSize, InTypefaceFontName); return *this; }
-	FTextBlockStyle& SetFont(const FName& InFontName, uint16 InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
-	FTextBlockStyle& SetFont(const FString& InFontName, uint16 InSize) { Font = FSlateFontInfo(*InFontName, InSize); return *this; }
-	FTextBlockStyle& SetFont(const WIDECHAR* InFontName, uint16 InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
-	FTextBlockStyle& SetFont(const ANSICHAR* InFontName, uint16 InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
+	FTextBlockStyle& SetFont(TSharedPtr<const FCompositeFont> InCompositeFont, const float InSize, const FName& InTypefaceFontName = NAME_None) { Font = FSlateFontInfo(InCompositeFont, InSize, InTypefaceFontName); return *this; }
+	FTextBlockStyle& SetFont(const UObject* InFontObject, const float InSize, const FName& InTypefaceFontName = NAME_None) { Font = FSlateFontInfo(InFontObject, InSize, InTypefaceFontName); return *this; }
+	FTextBlockStyle& SetFont(const FName& InFontName, float InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
+	FTextBlockStyle& SetFont(const FString& InFontName, float InSize) { Font = FSlateFontInfo(*InFontName, InSize); return *this; }
+	FTextBlockStyle& SetFont(const WIDECHAR* InFontName, float InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
+	FTextBlockStyle& SetFont(const ANSICHAR* InFontName, float InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
 	FTextBlockStyle& SetFontName(const FName& InFontName) { Font = FSlateFontInfo(InFontName, Font.GetClampSize()); return *this; }
 	FTextBlockStyle& SetFontName(const FString& InFontName) { Font = FSlateFontInfo(InFontName, Font.GetClampSize()); return *this; }
 	FTextBlockStyle& SetFontName(const WIDECHAR* InFontName) { Font = FSlateFontInfo(InFontName, Font.GetClampSize()); return *this; }
 	FTextBlockStyle& SetFontName(const ANSICHAR* InFontName) { Font = FSlateFontInfo(InFontName, Font.GetClampSize()); return *this; }
-	FTextBlockStyle& SetFontSize(uint16 InSize) { Font.Size = InSize; return *this; }
+	FTextBlockStyle& SetFontSize(float InSize) { Font.Size = InSize; return *this; }
 	FTextBlockStyle& SetTypefaceFontName(const FName& InTypefaceFontName) { Font.TypefaceFontName = InTypefaceFontName; return *this; }
 	FTextBlockStyle& SetFontMaterial(UObject* InMaterial) { Font.FontMaterial = InMaterial; return *this; }
 	FTextBlockStyle& SetFontOutlineMaterial(UObject* InMaterial) { Font.OutlineSettings.OutlineMaterial = InMaterial; return *this; }
@@ -799,7 +799,7 @@ struct FEditableTextStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateFontInfo Font;
 	FEditableTextStyle& SetFont(const FSlateFontInfo& InFont) { Font = InFont; return *this; }
-	FEditableTextStyle& SetFont(const FName& InFontName, uint16 InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
+	FEditableTextStyle& SetFont(const FName& InFontName, float InSize) { Font = FSlateFontInfo(InFontName, InSize); return *this; }
 	FEditableTextStyle& SetFontMaterial(UObject* InMaterial) { Font.FontMaterial = InMaterial; return *this; }
 	FEditableTextStyle& SetFontOutlineMaterial(UObject* InMaterial) { Font.OutlineSettings.OutlineMaterial = InMaterial; return *this; }
 
@@ -980,7 +980,7 @@ struct FEditableTextBoxStyle : public FSlateWidgetStyle
 	FSlateFontInfo Font_DEPRECATED;
 #endif
 	FEditableTextBoxStyle& SetFont(const FSlateFontInfo& InFont) { TextStyle.Font = InFont; return *this; }
-	FEditableTextBoxStyle& SetFont(const FName& InFontName, uint16 InSize) { return SetFont(FSlateFontInfo(InFontName, InSize)); }
+	FEditableTextBoxStyle& SetFont(const FName& InFontName, float InSize) { return SetFont(FSlateFontInfo(InFontName, InSize)); }
 
 	/** The style of the text block, which dictates the font, color, and shadow options. Style overrides all other properties! */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)

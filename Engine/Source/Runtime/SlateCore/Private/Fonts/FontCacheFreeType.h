@@ -44,28 +44,31 @@
 	#undef generic
 #endif	//PLATFORM_COMPILER_HAS_GENERIC_KEYWORD
 
-
-namespace FreeTypeConstants
-{
-	/** The horizontal DPI we render at (horizontal and vertical) */
-	inline const uint32 RenderDPI = 96;
-} // namespace FreeTypeConstants
-
-
 namespace FreeTypeUtils
 {
 
 #if WITH_FREETYPE
 
 /**
+ * Compute the actual size that will be used by Freetype to render or do any process on glyphs.
+ */
+uint32 ComputeFontPixelSize(float InFontSize, float InFontScale);
+
+/**
  * Apply the given point size and scale to the face.
  */
-void ApplySizeAndScale(FT_Face InFace, const int32 InFontSize, const float InFontScale);
+void ApplySizeAndScale(FT_Face InFace, const float InFontSize, const float InFontScale);
+
+/**
+ * Apply the given size in pixel to the face.
+ */
+void ApplySizeAndScale(FT_Face InFace, const uint32 RequiredFontPixelSize);
 
 /**
  * Load the given glyph into the active slot of the given face.
  */
-FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale);
+FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const float InFontSize, const float InFontScale);
+FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const uint32 RequiredFontPixelSize);
 
 /**
  * Get the height of the given face under the given layout method.
@@ -362,7 +365,7 @@ class FFreeTypeGlyphCache
 {
 public:
 #if WITH_FREETYPE
-	FFreeTypeGlyphCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale);
+	FFreeTypeGlyphCache(FT_Face InFace, const int32 InLoadFlags, const float InFontSize, const float InFontScale);
 
 	struct FCachedGlyphData
 	{
@@ -378,9 +381,8 @@ public:
 private:
 #if WITH_FREETYPE
 	FT_Face Face;
-	int32 LoadFlags;
-	int32 FontSize;
-	float FontScale;
+	const int32 LoadFlags;
+	const uint32 FontRenderSize;
 	TMap<uint32, FCachedGlyphData> GlyphDataMap;
 #endif // WITH_FREETYPE
 };
@@ -393,7 +395,7 @@ class FFreeTypeAdvanceCache
 {
 public:
 #if WITH_FREETYPE
-	FFreeTypeAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale);
+	FFreeTypeAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const float InFontSize, const float InFontScale);
 
 	bool FindOrCache(const uint32 InGlyphIndex, FT_Fixed& OutCachedAdvance);
 #endif // WITH_FREETYPE
@@ -404,8 +406,7 @@ private:
 #if WITH_FREETYPE
 	FT_Face Face;
 	const int32 LoadFlags;
-	const int32 FontSize;
-	const float FontScale;
+	const uint32 FontRenderSize;
 	TMap<uint32, FT_Fixed> AdvanceMap;
 #endif // WITH_FREETYPE
 };
@@ -418,7 +419,7 @@ class FFreeTypeKerningCache
 {
 public:
 #if WITH_FREETYPE
-	FFreeTypeKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale);
+	FFreeTypeKerningCache(FT_Face InFace, const int32 InKerningFlags, const float InFontSize, const float InFontScale);
 
 	/**
 	 * Retrieve the kerning vector for a given pair of glyphs.
@@ -465,8 +466,7 @@ private:
 
 	FT_Face Face;
 	const int32 KerningFlags;
-	const int32 FontSize;
-	const float FontScale;
+	const int32 FontRenderSize;
 	TMap<FKerningPair, FT_Vector> KerningMap;
 #endif // WITH_FREETYPE
 };
@@ -483,19 +483,19 @@ public:
 	 * Retrieve the glyph cache for a given set of font parameters.
 	 * @return A reference to the font glyph cache.
 	 */
-	TSharedRef<FFreeTypeGlyphCache> GetGlyphCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale);
+	TSharedRef<FFreeTypeGlyphCache> GetGlyphCache(FT_Face InFace, const int32 InLoadFlags, const float InFontSize, const float InFontScale);
 
 	/**
 	 * Retrieve the advance cache for a given set of font parameters.
 	 * @return A reference to the font advance cache.
 	 */
-	TSharedRef<FFreeTypeAdvanceCache> GetAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale);
+	TSharedRef<FFreeTypeAdvanceCache> GetAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const float InFontSize, const float InFontScale);
 
 	/**
 	 * Retrieve the kerning cache for a given set of font parameters.
 	 * @return A pointer to the font kerning cache, invalid if the font does not perform kerning.
 	 */
-	TSharedPtr<FFreeTypeKerningCache> GetKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale);
+	TSharedPtr<FFreeTypeKerningCache> GetKerningCache(FT_Face InFace, const int32 InKerningFlags, const float InFontSize, const float InFontScale);
 #endif // WITH_FREETYPE
 
 	void FlushCache();
@@ -506,25 +506,22 @@ private:
 	class FFontKey
 	{
 	public:
-		FFontKey(FT_Face InFace, const int32 InFlags, const int32 InFontSize, const float InFontScale)
+		FFontKey(FT_Face InFace, const int32 InFlags, const float InFontSize, const float InFontScale)
 			: Face(InFace)
 			, Flags(InFlags)
-			, FontSize(InFontSize)
-			, FontScale(InFontScale)
+			, FontRenderSize(FreeTypeUtils::ComputeFontPixelSize(InFontSize, InFontScale))
 			, KeyHash(0)
 		{
 			KeyHash = GetTypeHash(Face);
 			KeyHash = HashCombine(KeyHash, GetTypeHash(Flags));
-			KeyHash = HashCombine(KeyHash, GetTypeHash(FontSize));
-			KeyHash = HashCombine(KeyHash, GetTypeHash(FontScale));
+			KeyHash = HashCombine(KeyHash, GetTypeHash(FontRenderSize));
 		}
 
 		FORCEINLINE bool operator==(const FFontKey& Other) const
 		{
 			return Face == Other.Face
 				&& Flags == Other.Flags
-				&& FontSize == Other.FontSize
-				&& FontScale == Other.FontScale;
+				&& FontRenderSize == Other.FontRenderSize;
 		}
 
 		FORCEINLINE bool operator!=(const FFontKey& Other) const
@@ -539,9 +536,8 @@ private:
 
 	private:
 		FT_Face Face;
-		int32 Flags;
-		int32 FontSize;
-		float FontScale;
+		const int32 Flags;
+		const int32 FontRenderSize;
 		uint32 KeyHash;
 	};
 

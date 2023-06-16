@@ -154,16 +154,17 @@ private:
 /** Minimal FShapedGlyphEntry key information used for map lookups */
 struct FShapedGlyphEntryKey
 {
+	friend struct FFontCacheStatsKey;
+
 public:
 	FShapedGlyphEntryKey(const FShapedGlyphFaceData& InFontFaceData, uint32 InGlyphIndex, const FFontOutlineSettings& InOutlineSettings);
 
 	FORCEINLINE bool operator==(const FShapedGlyphEntryKey& Other) const
 	{
 		return FontFace == Other.FontFace 
-			&& FontSize == Other.FontSize
-			&& OutlineSize == Other.OutlineSize
+			&& FontRenderSize == Other.FontRenderSize
+			&& OutlineRenderSize == Other.OutlineRenderSize
 			&& OutlineSeparateFillAlpha == Other.OutlineSeparateFillAlpha
-			&& FontScale == Other.FontScale
 			&& GlyphIndex == Other.GlyphIndex
 			&& FontSkew == Other.FontSkew;
 	}
@@ -181,14 +182,12 @@ public:
 private:
 	/** Weak pointer to the FreeType face to render with */
 	TWeakPtr<FFreeTypeFace> FontFace;
-	/** Provides the point size used to render the font */
-	int32 FontSize;
-	/** The size in pixels of the outline to render for the font */
-	float OutlineSize;
+	/** The size in pixel that Freetype will actually use to render the font, scale included */
+	uint32 FontRenderSize;
+	/** The size in pixels of the outline to render, scale included */
+	int32 OutlineRenderSize;
 	/** If checked, the outline will be completely translucent where the filled area will be. @see FFontOutlineSettings */
 	bool OutlineSeparateFillAlpha;
-	/** Provides the final scale used to render to the font */
-	float FontScale;
 	/** The index of this glyph in the FreeType face */
 	uint32 GlyphIndex;
 	/** Cached hash value used for map lookups */
@@ -782,7 +781,7 @@ public:
 	 * @param Second		The second character in the pair
 	 * @return The kerning amount, 0 if no kerning
 	 */
-	SLATECORE_API int8 GetKerning( const FFontData& InFontData, const int32 InSize, TCHAR First, TCHAR Second, float Scale ) const;
+	SLATECORE_API int8 GetKerning( const FFontData& InFontData, const float InSize, TCHAR First, TCHAR Second, float Scale ) const;
 
 	/**
 	 * @return Whether or not the font used has kerning information
@@ -860,6 +859,12 @@ private:
 	SLATECORE_API bool AddNewEntry(const FShapedGlyphEntry& InShapedGlyph, const FFontOutlineSettings& InOutlineSettings, FShapedGlyphFontAtlasData& OutAtlasData);
 
 	SLATECORE_API bool AddNewEntry(const FCharacterRenderData InRenderData, uint8& OutTextureIndex, uint16& OutGlyphX, uint16& OutGlyphY, uint16& OutGlyphWidth, uint16& OutGlyphHeight);
+
+#if !UE_BUILD_SHIPPING
+	/** Dump statistics about Font cache usage if needed */
+	SLATECORE_API void ConditionalDumpFontCacheStats() const;
+#endif
+
 private:
 
 	/** FreeType library instance (owned by this font cache) */

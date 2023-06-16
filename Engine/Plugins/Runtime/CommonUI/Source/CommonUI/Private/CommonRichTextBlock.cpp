@@ -101,7 +101,8 @@ public:
 			}
 			else if (Tag == SupportedMarkupKeys::Size)
 			{
-				int32 FontSize = FCString::Atoi(*Value);
+				float FontSize;
+				LexFromString(FontSize, *Value);
 				TextStyle.SetFontSize(FontSize);
 			}
 			else if (Tag == SupportedMarkupKeys::Case)

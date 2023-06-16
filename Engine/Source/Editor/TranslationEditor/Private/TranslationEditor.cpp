@@ -846,7 +846,7 @@ void FTranslationEditor::ChangeSourceFont()
 
 	if ( bOpened && NewFontFilename != "")
 	{
-		SourceFont = FSlateFontInfo(NewFontFilename, IntCastChecked<uint16>(SourceFont.Size));
+		SourceFont = FSlateFontInfo(NewFontFilename, SourceFont.Size);
 		RefreshUI();
 	}
 }
@@ -861,7 +861,7 @@ void FTranslationEditor::ChangeTranslationTargetFont()
 
 	if ( bOpened && NewFontFilename != "")
 	{
-		TranslationTargetFont = FSlateFontInfo(NewFontFilename, IntCastChecked<uint16>(TranslationTargetFont.Size));
+		TranslationTargetFont = FSlateFontInfo(NewFontFilename, TranslationTargetFont.Size);
 		RefreshUI();
 	}
 }

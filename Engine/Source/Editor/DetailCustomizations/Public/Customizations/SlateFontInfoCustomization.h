@@ -37,6 +37,29 @@ public:
 	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& InStructBuilder, IPropertyTypeCustomizationUtils& InStructCustomizationUtils) override;
 
 protected:
+	void AddFontSizeProperty(IDetailChildrenBuilder& InStructBuilder);
+
+	/** @return The value or unset if properties with multiple values are viewed */
+	TOptional<float> OnFontSizeGetValue() const;
+	void OnFontSizeValueChanged(float NewDisplayValue);
+	void OnFontSizeValueCommitted(float NewDisplayValue, ETextCommit::Type CommitInfo);
+
+	/**
+	 * Called when the slider begins to move.  We create a transaction here to undo the property
+	 */
+	void OnFontSizeBeginSliderMovement();
+
+	/**
+	 * Called when the slider stops moving.  We end the previously created transaction
+	 */
+	void OnFontSizeEndSliderMovement(float NewDisplayValue);
+
+	/** @return a dynamic text explaining what the size does and showing the current Font DPI setting */
+	FText GetFontSizeTooltipText() const;
+
+	static float ConvertFontSizeFromNativeToDisplay(float FontSize);
+	static float ConvertFontSizeFromDisplayToNative(float FontSize);
+
 	/** Called to filter out invalid font assets */
 	static bool OnFilterFontAsset(const FAssetData& InAssetData);
 
@@ -82,4 +105,11 @@ protected:
 
 	/** Source data for the font entry combo widget */
 	TArray<TSharedPtr<FName>> FontEntryComboData;
+
+	/** True if the slider is being used to change the value of the property */
+	bool bIsUsingSlider = false;
+
+	/** When using the slider, what was the last committed value */
+	float LastSliderFontSizeCommittedValue = 0.0f;
+
 };

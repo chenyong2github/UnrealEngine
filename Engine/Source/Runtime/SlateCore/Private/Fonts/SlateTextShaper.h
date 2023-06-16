@@ -17,7 +17,7 @@ class IBreakIterator;
 class FShapedGlyphFaceData
 {
 public:
-	FShapedGlyphFaceData(TWeakPtr<FFreeTypeFace> InFontFace, const uint32 InGlyphFlags, const int32 InFontSize, const float InFontScale, const float InFontSkew)
+	FShapedGlyphFaceData(TWeakPtr<FFreeTypeFace> InFontFace, const uint32 InGlyphFlags, const float InFontSize, const float InFontScale, const float InFontSkew)
 		: FontFace(MoveTemp(InFontFace))
 		, GlyphFlags(InGlyphFlags)
 		, FontSize(InFontSize)
@@ -38,7 +38,7 @@ public:
 	/** Provides the glyph flags used to render the font */
 	uint32 GlyphFlags;
 	/** Provides the point size used to render the font */
-	int32 FontSize;
+	float FontSize;
 	/** Provides the final scale used to render to the font */
 	float FontScale;
 	/** Any additional scale that should be applied when rendering this glyph */

@@ -50,19 +50,19 @@ FSlateFontInfo::FSlateFontInfo( )
 }
 
 
-FSlateFontInfo::FSlateFontInfo( TSharedPtr<const FCompositeFont> InCompositeFont, const int32 InSize, const FName& InTypefaceFontName, const FFontOutlineSettings& InOutlineSettings )
+FSlateFontInfo::FSlateFontInfo( TSharedPtr<const FCompositeFont> InCompositeFont, const float InSize, const FName& InTypefaceFontName, const FFontOutlineSettings& InOutlineSettings )
 	: FontObject(nullptr)
 	, FontMaterial(nullptr)
 	, OutlineSettings(InOutlineSettings)
 	, CompositeFont(InCompositeFont)
 	, TypefaceFontName(InTypefaceFontName)
-	, Size(FMath::Clamp<int32>(InSize, 0, std::numeric_limits<uint16>::max()))
+	, Size(FMath::Clamp<float>(InSize, 0.f, std::numeric_limits<uint16>::max()))
 	, FontFallback(EFontFallback::FF_Max)
 #if WITH_EDITORONLY_DATA
 	, Hinting_DEPRECATED(EFontHinting::Default)
 #endif
 {
-	ensureMsgf(InSize >= 0 && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
+	ensureMsgf(InSize >= 0.f && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
 	if (!InCompositeFont.IsValid())
 	{
 		UE_LOG(LogSlate, Warning, TEXT("FSlateFontInfo was constructed with a null FCompositeFont. Slate will be forced to use the fallback font path which may be slower."));
@@ -70,19 +70,19 @@ FSlateFontInfo::FSlateFontInfo( TSharedPtr<const FCompositeFont> InCompositeFont
 }
 
 
-FSlateFontInfo::FSlateFontInfo( const UObject* InFontObject, const int32 InSize, const FName& InTypefaceFontName, const FFontOutlineSettings& InOutlineSettings )
+FSlateFontInfo::FSlateFontInfo( const UObject* InFontObject, const float InSize, const FName& InTypefaceFontName, const FFontOutlineSettings& InOutlineSettings )
 	: FontObject(InFontObject)
 	, FontMaterial(nullptr)
 	, OutlineSettings(InOutlineSettings)
 	, CompositeFont()
 	, TypefaceFontName(InTypefaceFontName)
-	, Size(FMath::Clamp<int32>(InSize, 0, std::numeric_limits<uint16>::max()))
+	, Size(FMath::Clamp<float>(InSize, 0.f, std::numeric_limits<uint16>::max()))
 	, FontFallback(EFontFallback::FF_Max)
 #if WITH_EDITORONLY_DATA
 	, Hinting_DEPRECATED(EFontHinting::Default)
 #endif
 {
-	ensureMsgf(InSize >= 0 && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
+	ensureMsgf(InSize >= 0.f && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
 	if (InFontObject)
 	{
 		const IFontProviderInterface* FontProvider = Cast<const IFontProviderInterface>(InFontObject);
@@ -98,19 +98,21 @@ FSlateFontInfo::FSlateFontInfo( const UObject* InFontObject, const int32 InSize,
 }
 
 
-FSlateFontInfo::FSlateFontInfo( const FString& InFontName, uint16 InSize, EFontHinting InHinting, const FFontOutlineSettings& InOutlineSettings)
+FSlateFontInfo::FSlateFontInfo( const FString& InFontName, float InSize, EFontHinting InHinting, const FFontOutlineSettings& InOutlineSettings)
 	: FontObject(nullptr)
 	, FontMaterial(nullptr)
 	, OutlineSettings(InOutlineSettings)
 	, CompositeFont()
 	, TypefaceFontName()
-	, Size(InSize)
+	, Size(FMath::Clamp<float>(InSize, 0.f, std::numeric_limits<uint16>::max()))
 	, FontFallback(EFontFallback::FF_Max)
 #if WITH_EDITORONLY_DATA
 	, FontName_DEPRECATED(*InFontName)
 	, Hinting_DEPRECATED(InHinting)
 #endif
 {
+	ensureMsgf(InSize >= 0.f && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
+
 	//Useful for debugging style breakages
 	//check( FPaths::FileExists( FontName.ToString() ) );
 
@@ -118,18 +120,20 @@ FSlateFontInfo::FSlateFontInfo( const FString& InFontName, uint16 InSize, EFontH
 }
 
 
-FSlateFontInfo::FSlateFontInfo( const FName& InFontName, uint16 InSize, EFontHinting InHinting )
+FSlateFontInfo::FSlateFontInfo( const FName& InFontName, float InSize, EFontHinting InHinting )
 	: FontObject(nullptr)
 	, FontMaterial(nullptr)
 	, CompositeFont()
 	, TypefaceFontName()
-	, Size(InSize)
+	, Size(FMath::Clamp<float>(InSize, 0.f, std::numeric_limits<uint16>::max()))
 	, FontFallback(EFontFallback::FF_Max)
 #if WITH_EDITORONLY_DATA
 	, FontName_DEPRECATED(InFontName)
 	, Hinting_DEPRECATED(InHinting)
 #endif
 {
+	ensureMsgf(InSize >= 0.f && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
+
 	//Useful for debugging style breakages
 	//check( FPaths::FileExists( FontName.ToString() ) );
 
@@ -137,18 +141,20 @@ FSlateFontInfo::FSlateFontInfo( const FName& InFontName, uint16 InSize, EFontHin
 }
 
 
-FSlateFontInfo::FSlateFontInfo( const ANSICHAR* InFontName, uint16 InSize, EFontHinting InHinting )
+FSlateFontInfo::FSlateFontInfo( const ANSICHAR* InFontName, float InSize, EFontHinting InHinting )
 	: FontObject(nullptr)
 	, FontMaterial(nullptr)
 	, CompositeFont()
 	, TypefaceFontName()
-	, Size(InSize)
+	, Size(FMath::Clamp<float>(InSize, 0.f, std::numeric_limits<uint16>::max()))
 	, FontFallback(EFontFallback::FF_Max)
 #if WITH_EDITORONLY_DATA
 	, FontName_DEPRECATED(InFontName)
 	, Hinting_DEPRECATED(InHinting)
 #endif
 {
+	ensureMsgf(InSize >= 0.f && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
+
 	//Useful for debugging style breakages
 	//check( FPaths::FileExists( FontName.ToString() ) );
 
@@ -156,18 +162,20 @@ FSlateFontInfo::FSlateFontInfo( const ANSICHAR* InFontName, uint16 InSize, EFont
 }
 
 
-FSlateFontInfo::FSlateFontInfo( const WIDECHAR* InFontName, uint16 InSize, EFontHinting InHinting )
+FSlateFontInfo::FSlateFontInfo( const WIDECHAR* InFontName, float InSize, EFontHinting InHinting )
 	: FontObject(nullptr)
 	, FontMaterial(nullptr)
 	, CompositeFont()
 	, TypefaceFontName()
-	, Size(InSize)
+	, Size(FMath::Clamp<float>(InSize, 0.f, std::numeric_limits<uint16>::max()))
 	, FontFallback(EFontFallback::FF_Max)
 #if WITH_EDITORONLY_DATA
 	, FontName_DEPRECATED(InFontName)
 	, Hinting_DEPRECATED(InHinting)
 #endif
 {
+	ensureMsgf(InSize >= 0.f && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
+
 	//Useful for debugging style breakages
 	//check( FPaths::FileExists( FontName.ToString() ) );
 
@@ -226,9 +234,9 @@ void FSlateFontInfo::UpgradeLegacyFontInfo(FName LegacyFontName, EFontHinting Le
 		: FLegacySlateFontInfoCache::Get().GetCompositeFont(LegacyFontName, LegacyHinting);
 }
 
-uint16 FSlateFontInfo::GetClampSize() const
+float FSlateFontInfo::GetClampSize() const
 {
-	return (uint16)FMath::Clamp<int32>(Size, 0, std::numeric_limits<uint16>::max());
+	return FMath::Clamp<float>(Size, 0.f, std::numeric_limits<uint16>::max());
 }
 
 float FSlateFontInfo::GetClampSkew() const

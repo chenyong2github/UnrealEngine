@@ -69,7 +69,7 @@ TSharedRef<const FCompositeFont> FCoreStyle::GetDefaultFont()
 }
 
 
-FSlateFontInfo FCoreStyle::GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings)
+FSlateFontInfo FCoreStyle::GetDefaultFontStyle(const FName InTypefaceFontName, const float InSize, const FFontOutlineSettings& InOutlineSettings)
 {
 	return FSlateFontInfo(GetDefaultFont(), InSize, InTypefaceFontName, InOutlineSettings);
 }

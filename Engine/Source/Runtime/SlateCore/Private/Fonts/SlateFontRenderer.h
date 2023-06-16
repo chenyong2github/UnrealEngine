@@ -100,7 +100,7 @@ public:
 	 * @param InScale		The scale at which the font is being drawn
 	 * @return The kerning amount, 0 if no kerning
 	 */
-	int8 GetKerning(const FFontData& InFontData, const int32 InSize, TCHAR First, TCHAR Second, const float InScale) const;
+	int8 GetKerning(const FFontData& InFontData, const float InSize, TCHAR First, TCHAR Second, const float InScale) const;
 
 	/**
 	 * Retrieves the kerning cache object used to retrieve kerning amounts between glyphs
@@ -110,7 +110,7 @@ public:
 	 * @param InScale		The scale at which the font is being drawn
 	 * @return A pointer object referring to the kerning cache matching the given parameters, invalid/null if no kerning is performed
 	 */
-	TSharedPtr<FFreeTypeKerningCache> GetKerningCache(const FFontData& InFontData, const int32 InSize, const float InScale) const;
+	TSharedPtr<FFreeTypeKerningCache> GetKerningCache(const FFontData& InFontData, const float InSize, const float InScale) const;
 
 	/**
 	 * Whether or not the specified character, within the specified font, can be loaded with the specified maximum font fallback level

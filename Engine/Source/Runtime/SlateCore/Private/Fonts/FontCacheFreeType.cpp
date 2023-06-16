@@ -72,35 +72,41 @@ namespace FreeTypeUtils
 
 #if WITH_FREETYPE
 
-void ApplySizeAndScale(FT_Face InFace, const int32 InFontSize, const float InFontScale)
+uint32 ComputeFontPixelSize(float InFontSize, float InFontScale)
 {
 	// Convert to fixed scale for maximum precision
-	const FT_F26Dot6 FixedFontSize = ConvertPixelTo26Dot6<FT_F26Dot6>(FMath::Max<int32>(0, InFontSize));
+	const FT_F26Dot6 FixedFontSize = ConvertPixelTo26Dot6<FT_F26Dot6>(FMath::Max<float>(0.0f, InFontSize));
 	const FT_Long FixedFontScale = ConvertPixelTo16Dot16<FT_Long>(FMath::Max<float>(0.0f, InFontScale));
 
 	// Convert the requested font size to a pixel size based on our render DPI and the requested scale
-	// This result is left in 26.6 space as it is the common format used by both FT_IS_SCALABLE and FT_HAS_FIXED_SIZES fonts
-	FT_F26Dot6 RequiredFixedFontPixelSize = 0;
-	{
-		// Convert the 26.6 character size to the unscaled 26.6 pixel size
-		// Note: The logic here mirrors what FT_REQUEST_WIDTH and FT_REQUEST_HEIGHT do internally when using FT_Set_Char_Size
-		RequiredFixedFontPixelSize = ((FixedFontSize * (FT_Pos)FreeTypeConstants::RenderDPI) + 36) / 72;
 
-		// Scale the 26.6 pixel size by the desired 16.16 fractional scaling value
-		RequiredFixedFontPixelSize = FT_MulFix(RequiredFixedFontPixelSize, FixedFontScale);
-	}
+	// Convert the 26.6 character size to the unscaled 26.6 pixel size
+	// Note: The logic here mirrors what FT_REQUEST_WIDTH and FT_REQUEST_HEIGHT do internally when using FT_Set_Char_Size
+	FT_F26Dot6 RequiredFixedFontPixelSize = ((FixedFontSize * (FT_Pos)FontConstants::RenderDPI) + 36) / 72;
 
+	// Scale the 26.6 pixel size by the desired 16.16 fractional scaling value
+	RequiredFixedFontPixelSize =  FT_MulFix(RequiredFixedFontPixelSize, FixedFontScale);
+
+	return Convert26Dot6ToRoundedPixel<uint32>(RequiredFixedFontPixelSize);
+}
+
+void ApplySizeAndScale(FT_Face InFace, const float InFontSize, const float InFontScale)
+{
+	ApplySizeAndScale(InFace, ComputeFontPixelSize(InFontSize, InFontScale));
+}
+
+void ApplySizeAndScale(FT_Face InFace, const uint32 RequiredFontPixelSize)
+{
 	if (FT_IS_SCALABLE(InFace))
 	{
-		// Convert the 26.6 scaled pixel size back into pixel space
-		const uint32 RequiredFontPixelSize = Convert26Dot6ToRoundedPixel<uint32>(RequiredFixedFontPixelSize);
-
 		// Set the pixel size
 		FT_Error Error = FT_Set_Pixel_Sizes(InFace, RequiredFontPixelSize, RequiredFontPixelSize);
 		check(Error == 0);
 	}
 	else if (FT_HAS_FIXED_SIZES(InFace))
 	{
+		FT_F26Dot6 RequiredFixedFontPixelSize = ConvertPixelTo26Dot6<uint32>(RequiredFontPixelSize);
+
 		// Find the best bitmap strike for our required pixel size
 		// Height is the most important metric, so that is the one we search for
 		int32 BestStrikeIndex = INDEX_NONE;
@@ -174,12 +180,17 @@ void ApplySizeAndScale(FT_Face InFace, const int32 InFontSize, const float InFon
 	}
 }
 
-FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const float InFontSize, const float InFontScale)
+{
+	return LoadGlyph(InFace, InGlyphIndex, InLoadFlags, ComputeFontPixelSize(InFontSize, InFontScale));
+}
+
+FT_Error LoadGlyph(FT_Face InFace, const uint32 InGlyphIndex, const int32 InLoadFlags, const uint32 RequiredFontPixelSize)
 {
 #if WITH_VERY_VERBOSE_SLATE_STATS
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FreetypeLoadGlyph);
 #endif
-	ApplySizeAndScale(InFace, InFontSize, InFontScale);
+	ApplySizeAndScale(InFace, RequiredFontPixelSize);
 	return FT_Load_Glyph(InFace, InGlyphIndex, InLoadFlags);
 }
 
@@ -598,11 +609,10 @@ unsigned long FFreeTypeFace::FFTStreamHandler::ReadData(FT_Stream InStream, unsi
 
 #if WITH_FREETYPE
 
-FFreeTypeGlyphCache::FFreeTypeGlyphCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+FFreeTypeGlyphCache::FFreeTypeGlyphCache(FT_Face InFace, const int32 InLoadFlags, const float InFontSize, const float InFontScale)
 	: Face(InFace)
 	, LoadFlags(InLoadFlags)
-	, FontSize(InFontSize)
-	, FontScale(InFontScale)
+	, FontRenderSize(FreeTypeUtils::ComputeFontPixelSize(InFontSize,InFontScale))
 	, GlyphDataMap()
 {
 }
@@ -620,7 +630,7 @@ bool FFreeTypeGlyphCache::FindOrCache(const uint32 InGlyphIndex, FCachedGlyphDat
 	}
 
 	// No cached data, go ahead and add an entry for it...
-	FT_Error Error = FreeTypeUtils::LoadGlyph(Face, InGlyphIndex, LoadFlags, FontSize, FontScale);
+	FT_Error Error = FreeTypeUtils::LoadGlyph(Face, InGlyphIndex, LoadFlags, FontRenderSize);
 	if (Error == 0)
 	{
 		OutCachedGlyphData = FCachedGlyphData();
@@ -646,11 +656,10 @@ bool FFreeTypeGlyphCache::FindOrCache(const uint32 InGlyphIndex, FCachedGlyphDat
 }
 
 
-FFreeTypeAdvanceCache::FFreeTypeAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+FFreeTypeAdvanceCache::FFreeTypeAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const float InFontSize, const float InFontScale)
 	: Face(InFace)
 	, LoadFlags(InLoadFlags)
-	, FontSize(InFontSize)
-	, FontScale(InFontScale)
+	, FontRenderSize(FreeTypeUtils::ComputeFontPixelSize(InFontSize, InFontScale))
 	, AdvanceMap()
 {
 }
@@ -667,7 +676,7 @@ bool FFreeTypeAdvanceCache::FindOrCache(const uint32 InGlyphIndex, FT_Fixed& Out
 		}
 	}
 
-	FreeTypeUtils::ApplySizeAndScale(Face, FontSize, FontScale);
+	FreeTypeUtils::ApplySizeAndScale(Face, FontRenderSize);
 
 	// No cached data, go ahead and add an entry for it...
 	const FT_Error Error = FT_Get_Advance(Face, InGlyphIndex, LoadFlags, &OutCachedAdvance);
@@ -687,11 +696,10 @@ bool FFreeTypeAdvanceCache::FindOrCache(const uint32 InGlyphIndex, FT_Fixed& Out
 }
 
 
-FFreeTypeKerningCache::FFreeTypeKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale)
+FFreeTypeKerningCache::FFreeTypeKerningCache(FT_Face InFace, const int32 InKerningFlags, const float InFontSize, const float InFontScale)
 	: Face(InFace)
 	, KerningFlags(InKerningFlags)
-	, FontSize(InFontSize)
-	, FontScale(InFontScale)
+	, FontRenderSize(FreeTypeUtils::ComputeFontPixelSize(InFontSize, InFontScale))
 	, KerningMap()
 {
 	check(Face);
@@ -711,7 +719,7 @@ bool FFreeTypeKerningCache::FindOrCache(const uint32 InFirstGlyphIndex, const ui
 		}
 	}
 
-	FreeTypeUtils::ApplySizeAndScale(Face, FontSize, FontScale);
+	FreeTypeUtils::ApplySizeAndScale(Face, FontRenderSize);
 
 	// No cached data, go ahead and add an entry for it...
 	const FT_Error Error = FT_Get_Kerning(Face, InFirstGlyphIndex, InSecondGlyphIndex, KerningFlags, &OutKerning);
@@ -734,7 +742,7 @@ bool FFreeTypeKerningCache::FindOrCache(const uint32 InFirstGlyphIndex, const ui
 	return false;
 }
 
-TSharedRef<FFreeTypeGlyphCache> FFreeTypeCacheDirectory::GetGlyphCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+TSharedRef<FFreeTypeGlyphCache> FFreeTypeCacheDirectory::GetGlyphCache(FT_Face InFace, const int32 InLoadFlags, const float InFontSize, const float InFontScale)
 {
 	const FFontKey Key(InFace, InLoadFlags, InFontSize, InFontScale);
 	TSharedPtr<FFreeTypeGlyphCache>& Entry = GlyphCacheMap.FindOrAdd(Key);
@@ -745,7 +753,7 @@ TSharedRef<FFreeTypeGlyphCache> FFreeTypeCacheDirectory::GetGlyphCache(FT_Face I
 	return Entry.ToSharedRef();
 }
 
-TSharedRef<FFreeTypeAdvanceCache> FFreeTypeCacheDirectory::GetAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const int32 InFontSize, const float InFontScale)
+TSharedRef<FFreeTypeAdvanceCache> FFreeTypeCacheDirectory::GetAdvanceCache(FT_Face InFace, const int32 InLoadFlags, const float InFontSize, const float InFontScale)
 {
 	const FFontKey Key(InFace, InLoadFlags, InFontSize, InFontScale);
 	TSharedPtr<FFreeTypeAdvanceCache>& Entry = AdvanceCacheMap.FindOrAdd(Key);
@@ -756,7 +764,7 @@ TSharedRef<FFreeTypeAdvanceCache> FFreeTypeCacheDirectory::GetAdvanceCache(FT_Fa
 	return Entry.ToSharedRef();
 }
 
-TSharedPtr<FFreeTypeKerningCache> FFreeTypeCacheDirectory::GetKerningCache(FT_Face InFace, const int32 InKerningFlags, const int32 InFontSize, const float InFontScale)
+TSharedPtr<FFreeTypeKerningCache> FFreeTypeCacheDirectory::GetKerningCache(FT_Face InFace, const int32 InKerningFlags, const float InFontSize, const float InFontScale)
 {
 	// Check if this font has kerning as not all fonts do.
 	// We also can't perform kerning between two separate font faces

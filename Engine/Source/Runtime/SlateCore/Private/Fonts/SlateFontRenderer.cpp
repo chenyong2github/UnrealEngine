@@ -286,7 +286,7 @@ bool FSlateFontRenderer::HasKerning(const FFontData& InFontData) const
 #endif // WITH_FREETYPE
 }
 
-int8 FSlateFontRenderer::GetKerning(const FFontData& InFontData, const int32 InSize, TCHAR First, TCHAR Second, const float InScale) const
+int8 FSlateFontRenderer::GetKerning(const FFontData& InFontData, const float InSize, TCHAR First, TCHAR Second, const float InScale) const
 {
 #if WITH_FREETYPE
 	FT_Face FontFace = GetFontFace(InFontData);
@@ -312,7 +312,7 @@ int8 FSlateFontRenderer::GetKerning(const FFontData& InFontData, const int32 InS
 	return 0;
 }
 
-TSharedPtr<FFreeTypeKerningCache> FSlateFontRenderer::GetKerningCache(const FFontData& InFontData, const int32 InSize, const float InScale) const
+TSharedPtr<FFreeTypeKerningCache> FSlateFontRenderer::GetKerningCache(const FFontData& InFontData, const float InSize, const float InScale) const
 {
 #if WITH_FREETYPE
 	FT_Face FontFace = GetFontFace(InFontData);

@@ -161,7 +161,7 @@ class UFont : public UObject, public IFontProviderInterface
 	float ScalingFactor;
 
 	/** The default size of the font used for legacy Canvas APIs that don't specify a font size */
-	UPROPERTY(EditAnywhere, Category=RuntimeFont)
+	UPROPERTY(EditAnywhere, Category=RuntimeFont, meta = (ClampMin = 1, ClampMax = 1000))
 	int32 LegacyFontSize;
 
 	/** The default font name to use for legacy Canvas APIs that don't specify a font name */
@@ -189,7 +189,7 @@ public:
 	/** Get the info needed to use this UFont with Slate, using the fallback data for legacy Canvas APIs */
 	FORCEINLINE FSlateFontInfo GetLegacySlateFontInfo() const
 	{
-		return FSlateFontInfo(this, LegacyFontSize, LegacyFontName);
+		return FSlateFontInfo(this, static_cast<float>(LegacyFontSize), LegacyFontName);
 	}
 
 	/**

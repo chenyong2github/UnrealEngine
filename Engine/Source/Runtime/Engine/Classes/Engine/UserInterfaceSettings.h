@@ -45,6 +45,18 @@ enum class EUIScalingRule : uint8
 	Custom
 };
 
+/** The most used DPI value. */
+UENUM()
+enum class EFontDPI : uint8
+{
+	/** Best for working with with web-based design tools like Figma. */
+	Standard UMETA(DisplayName = "72 DPI (Default)"),
+	/** Resolution used internally by Unreal Engine. */
+	Unreal UMETA(DisplayName = "96 DPI (Unreal Engine)"),
+
+	Custom UMETA(Hidden)
+};
+
 class UWidget;
 class UDPICustomScalingRule;
 
@@ -212,11 +224,47 @@ public:
 	ENGINE_API float GetDPIScaleBasedOnSize(FIntPoint Size) const;
 
 #if WITH_EDITOR
+	/**
+	 * Gets the string to use when we need detailed info about the DPI.
+	 * It will take into account the defined presets to give more context.
+	 */
+	ENGINE_API FText GetFontDPIDisplayString() const;
+
+	/** Gets the Font DPI that should be used for display */
+	ENGINE_API uint32 GetFontDisplayDPI() const;
+
 	ENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 private:
 	float CalculateScale(FIntPoint Size, bool& bError) const;
+
+#if WITH_EDITOR
+	/** Convert from an int to an entry in the EFontDPI enum. Will return the 'Unset' entry if no match is found */
+	static constexpr EFontDPI ConvertToEFontDPI(uint32 inFontDPI);
+	/** Convert from an entry in the EFontDPI enum to an int */
+	static constexpr uint32 ConvertToFontDPI(EFontDPI inFontDPIEntry);
+#endif
+
+#if WITH_EDITORONLY_DATA
+	/**
+	 * Controls the relationship between UMG font size and pixel height.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "UMG Fonts", meta = (DisplayName = "Font Resolution", EditCondition = "bUseCustomFontDPI", EditConditionHides, ClampMin = "1", ClampMax = "1000"))
+	uint32 CustomFontDPI;
+
+	/**
+	 * Controls the relationship between UMG font size and pixel height.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "UMG Fonts", meta = (DisplayName = "Font Resolution", EditCondition = "!bUseCustomFontDPI", EditConditionHides))
+	EFontDPI FontDPIPreset;
+
+	/**
+	 * To set your own custom value, check this box, then enter the value in the text box.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = "UMG Fonts", meta = (DisplayName = "Use Custom DPI"))
+	bool bUseCustomFontDPI;
+#endif
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UObject>> CursorClasses;

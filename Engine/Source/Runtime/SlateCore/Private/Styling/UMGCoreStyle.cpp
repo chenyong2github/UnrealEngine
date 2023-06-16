@@ -126,7 +126,7 @@ TSharedRef<const FCompositeFont> FUMGCoreStyle::GetDefaultFont()
 }
 
 
-FSlateFontInfo FUMGCoreStyle::GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings)
+FSlateFontInfo FUMGCoreStyle::GetDefaultFontStyle(const FName InTypefaceFontName, const float InSize, const FFontOutlineSettings& InOutlineSettings)
 {
 	return FSlateFontInfo(GetDefaultFont(), InSize, InTypefaceFontName, InOutlineSettings);
 }

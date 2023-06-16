@@ -507,7 +507,7 @@ public:
 	//=============================================================================
 
 	/** @return UFont* from given FontSize index */
-	ENGINE_API virtual  UFont* GetFontFromSizeIndex(int32 FontSize) const;
+	ENGINE_API virtual  UFont* GetFontFromSizeIndex(int32 FontSizeIndex) const;
 
 	/**
 	 *	Pauses or unpauses the game due to main window's focus being lost.

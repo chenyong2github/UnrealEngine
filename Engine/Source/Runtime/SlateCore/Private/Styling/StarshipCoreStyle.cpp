@@ -94,7 +94,7 @@ TSharedRef<const FCompositeFont> FStarshipCoreStyle::GetDefaultFont()
 }
 
 
-FSlateFontInfo FStarshipCoreStyle::GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings)
+FSlateFontInfo FStarshipCoreStyle::GetDefaultFontStyle(const FName InTypefaceFontName, const float InSize, const FFontOutlineSettings& InOutlineSettings)
 {
 	return FSlateFontInfo(GetDefaultFont(), InSize, InTypefaceFontName, InOutlineSettings);
 }

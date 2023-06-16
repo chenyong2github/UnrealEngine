@@ -271,7 +271,7 @@ void UWidgetBlueprintLibrary::DrawText(FPaintContext& Context, const FString& In
 		Tint);
 }
 
-void UWidgetBlueprintLibrary::DrawTextFormatted(FPaintContext& Context, const FText& Text, FVector2D Position, UFont* Font, int32 FontSize, FName FontTypeFace, FLinearColor Tint)
+void UWidgetBlueprintLibrary::DrawTextFormatted(FPaintContext& Context, const FText& Text, FVector2D Position, UFont* Font, float FontSize, FName FontTypeFace, FLinearColor Tint)
 {
 	if ( Font )
 	{

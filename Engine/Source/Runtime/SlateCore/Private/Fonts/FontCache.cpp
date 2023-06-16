@@ -55,6 +55,20 @@ static TAutoConsoleVariable<int32> CVarDefaultTextShapingMethod(
 	ECVF_Default
 	);
 
+#if !UE_BUILD_SHIPPING
+static bool bDumpFontCacheStats = false;
+FAutoConsoleVariableRef CVarDumpFontCacheStats(
+	TEXT("Slate.DumpFontCacheStats"),
+	bDumpFontCacheStats,
+	TEXT("Dump statistics about font cache usage."));
+
+static bool bFlushFontCache = false;
+FAutoConsoleVariableRef CVarFlushFontCache(
+	TEXT("Slate.FlushFontCache"),
+	bFlushFontCache,
+	TEXT("Flush the font cache."));
+#endif
+
 ETextShapingMethod GetDefaultTextShapingMethod()
 {
 	const int32 DefaultTextShapingMethodAsInt = CVarDefaultTextShapingMethod.AsVariable()->GetInt();
@@ -88,19 +102,22 @@ float FShapedGlyphEntry::GetBitmapRenderScale() const
 
 FShapedGlyphEntryKey::FShapedGlyphEntryKey(const FShapedGlyphFaceData& InFontFaceData, uint32 InGlyphIndex, const FFontOutlineSettings& InOutlineSettings)
 	: FontFace(InFontFaceData.FontFace)
-	, FontSize(InFontFaceData.FontSize)
-	, OutlineSize((float)InOutlineSettings.OutlineSize)
 	, OutlineSeparateFillAlpha(InOutlineSettings.bSeparateFillAlpha)
-	, FontScale(InFontFaceData.FontScale)
 	, GlyphIndex(InGlyphIndex)
 	, KeyHash(0)
 	, FontSkew(InFontFaceData.FontSkew)
 {
+#if WITH_FREETYPE
+	FontRenderSize = FreeTypeUtils::ComputeFontPixelSize(InFontFaceData.FontSize, InFontFaceData.FontScale);
+#else
+	FontRenderSize = 0;
+#endif
+	OutlineRenderSize = FMath::TruncToInt(FMath::RoundToFloat(InOutlineSettings.OutlineSize * InFontFaceData.FontScale));
+
 	KeyHash = HashCombine(KeyHash, GetTypeHash(FontFace));
-	KeyHash = HashCombine(KeyHash, GetTypeHash(FontSize));
-	KeyHash = HashCombine(KeyHash, GetTypeHash(OutlineSize));
+	KeyHash = HashCombine(KeyHash, GetTypeHash(FontRenderSize));
+	KeyHash = HashCombine(KeyHash, GetTypeHash(OutlineRenderSize));
 	KeyHash = HashCombine(KeyHash, GetTypeHash(OutlineSeparateFillAlpha));
-	KeyHash = HashCombine(KeyHash, GetTypeHash(FontScale));
 	KeyHash = HashCombine(KeyHash, GetTypeHash(GlyphIndex));
 	KeyHash = HashCombine(KeyHash, GetTypeHash(FontSkew));
 }
@@ -135,7 +152,7 @@ FShapedGlyphSequence::FShapedGlyphSequence(TArray<FShapedGlyphEntry> InGlyphsToR
 		if (!SourceIndexToGlyphData)
 		{
 			// Track reverse look-up data
-			UE_LOG(LogSlate, Warning, TEXT("No Gylph! Index %i. Valid %i, %i, Valid Glyph %i, Visible %i, Num %i, Grapheme %i, Dir %u"),
+			UE_LOG(LogSlate, Warning, TEXT("No Glyph! Index %i. Valid %i, %i, Valid Glyph %i, Visible %i, Num %i, Grapheme %i, Dir %u"),
 				CurrentGlyph.SourceIndex,
 				SourceIndicesToGlyphData.GetSourceTextStartIndex(),
 				SourceIndicesToGlyphData.GetSourceTextEndIndex(),
@@ -1041,10 +1058,9 @@ FShapedGlyphFontAtlasData FSlateFontCache::GetShapedGlyphFontAtlasData( const FS
 	}
 
 	{
-
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_SlateFontCacheAddNewShapedEntry)
 
-			// Not cached at all... create a new entry
+		// Not cached at all... create a new entry
 		TSharedRef<FShapedGlyphFontAtlasData> NewAtlasData = MakeShareable(new FShapedGlyphFontAtlasData());
 		AddNewEntry(InShapedGlyph, InOutlineSettings, *NewAtlasData);
 
@@ -1098,7 +1114,7 @@ void FSlateFontCache::GetStrikeMetrics( const FSlateFontInfo& InFontInfo, const 
 	FontRenderer->GetStrikeMetrics(InFontInfo, FontScale, OutStrikeLinePos, OutStrikeLineThickness);
 }
 
-int8 FSlateFontCache::GetKerning( const FFontData& InFontData, const int32 InSize, TCHAR First, TCHAR Second, float Scale ) const
+int8 FSlateFontCache::GetKerning( const FFontData& InFontData, const float InSize, TCHAR First, TCHAR Second, float Scale ) const
 {
 	return FontRenderer->GetKerning(InFontData, InSize, First, Second, Scale);
 }
@@ -1157,14 +1173,151 @@ void FSlateFontCache::FlushCompositeFont(const FCompositeFont& InCompositeFont)
 	CompositeFontCache->FlushCompositeFont(InCompositeFont);
 }
 
+#if (!UE_BUILD_SHIPPING && WITH_FREETYPE)
+struct FFontCacheStatsKey
+{
+	friend inline uint32 GetTypeHash(const FFontCacheStatsKey& Key)
+	{
+		return Key.KeyHash;
+	}
+
+	FFontCacheStatsKey(const FShapedGlyphEntryKey& ShapedGlyphKey)
+		: FontFace(ShapedGlyphKey.FontFace)
+		, FontRenderSize(ShapedGlyphKey.FontRenderSize)
+		, OutlineRenderSize(ShapedGlyphKey.OutlineRenderSize)
+		, OutlineSeparateFillAlpha(ShapedGlyphKey.OutlineSeparateFillAlpha)
+		, KeyHash(0)
+		, FontSkew(ShapedGlyphKey.FontSkew)
+	{
+
+		KeyHash = HashCombine(KeyHash, GetTypeHash(FontFace));
+		KeyHash = HashCombine(KeyHash, GetTypeHash(FontRenderSize));
+		KeyHash = HashCombine(KeyHash, GetTypeHash(OutlineRenderSize));
+		KeyHash = HashCombine(KeyHash, GetTypeHash(OutlineSeparateFillAlpha));
+		KeyHash = HashCombine(KeyHash, GetTypeHash(FontSkew));
+	}
+
+	bool operator==(const FFontCacheStatsKey& Other) const
+	{
+		return FontFace == Other.FontFace
+			&& FontRenderSize == Other.FontRenderSize
+			&& OutlineRenderSize == Other.OutlineRenderSize
+			&& OutlineSeparateFillAlpha == Other.OutlineSeparateFillAlpha
+			&& FontSkew == Other.FontSkew;
+	}
+
+	bool operator!=(const FFontCacheStatsKey& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	/** Weak pointer to the FreeType face to render with */
+	TWeakPtr<FFreeTypeFace> FontFace;
+	/** The size in pixel that Freetype will actually use to render the font, scale included */
+	uint32 FontRenderSize;
+	/** The size in pixels of the outline to render, scale included */
+	uint32 OutlineRenderSize;
+	/** If checked, the outline will be completely translucent where the filled area will be. @see FFontOutlineSettings */
+	bool OutlineSeparateFillAlpha;
+	/** Cached hash value used for map lookups */
+	uint32 KeyHash;
+	/** The skew transform amount for the rendered font */
+	float FontSkew;
+};
+
+void FSlateFontCache::ConditionalDumpFontCacheStats() const
+{
+	if (bDumpFontCacheStats)
+	{
+		TMap<FFontCacheStatsKey, int> Stats;
+
+		// Prepare statistics.
+		int GlyphCount = 0;
+		int PixelsUsedInAtlasCount = 0;
+		for (const TPair<FShapedGlyphEntryKey, TSharedRef<FShapedGlyphFontAtlasData>>& Kvp : ShapedGlyphToAtlasData)
+		{
+			const FShapedGlyphFontAtlasData& FontAtlasData = Kvp.Value.Get();
+			PixelsUsedInAtlasCount += (FontAtlasData.USize * FontAtlasData.VSize);
+			GlyphCount++;
+
+			FFontCacheStatsKey Key(Kvp.Key);
+			FFreeTypeFace* Face = Key.FontFace.Pin().Get();
+			const bool bIsEntryValid = Face != nullptr && Face->GetFace() != nullptr;
+			if (bIsEntryValid) //Only add entries that we'll be able to sort and display.
+			{
+				int& GlyphByFontCount = Stats.FindOrAdd(Key);
+				GlyphByFontCount++;
+			}
+		}
+
+		int FontAtlasPixelTotalCount = 0;
+		for (const TSharedRef<ISlateFontTexture>& FontTexture : AllFontTextures)
+		{
+			ISlateFontTexture& SlateFontTexture = FontTexture.Get();
+			const FSlateShaderResource* SlateShaderResource = SlateFontTexture.GetSlateTexture();
+			check(SlateShaderResource);
+ 
+			FontAtlasPixelTotalCount += SlateShaderResource->GetWidth() * SlateShaderResource->GetHeight();
+		}
+
+		//Display statistics
+		UE_LOG(LogSlate, Log, TEXT("%d glyphs in cache, using %d pixels on %d total. Using %f%% of all font textures."), GlyphCount, PixelsUsedInAtlasCount, FontAtlasPixelTotalCount, static_cast<float>(PixelsUsedInAtlasCount) * 100.0f / static_cast<float>(FontAtlasPixelTotalCount));
+		UE_LOG(LogSlate, Log, TEXT("FontFace & Style | Size (72DPI) | OutlineSize | Sep. Fill α | Skew || Glyphs Count |"));
+
+		Stats.KeySort([](const FFontCacheStatsKey& A, const FFontCacheStatsKey& B)
+			{
+				if (A.FontFace.Pin().Get() == B.FontFace.Pin().Get())
+				{
+					if (A.FontRenderSize == B.FontRenderSize)
+					{
+						if (A.OutlineRenderSize == B.OutlineRenderSize)
+						{
+							if (A.OutlineSeparateFillAlpha == B.OutlineSeparateFillAlpha)
+							{
+								return A.FontSkew < B.FontSkew;
+							}
+							return A.OutlineSeparateFillAlpha < B.OutlineSeparateFillAlpha;
+						}
+						return A.OutlineRenderSize < B.OutlineRenderSize;
+					}
+					return A.FontRenderSize < B.FontRenderSize;
+				}
+				return A.FontFace.Pin().Get()->GetFace()->family_name < B.FontFace.Pin().Get()->GetFace()->family_name;
+			});
+
+		for (const TPair<FFontCacheStatsKey, int>& Kvp : Stats)
+		{
+			FT_Face FT_face = Kvp.Key.FontFace.Pin().Get()->GetFace();
+			UE_LOG(LogSlate, Log, TEXT("%s %s | %d | %d | %s | %.2f || %d |"),
+				*FString(FT_face->family_name),
+				*FString(FT_face->style_name),
+				Kvp.Key.FontRenderSize,
+				Kvp.Key.OutlineRenderSize,
+				Kvp.Key.OutlineSeparateFillAlpha ? *FString("true") : *FString("false"),
+				Kvp.Key.FontSkew,
+				Kvp.Value);
+		}
+
+		bDumpFontCacheStats = false;
+	}
+}
+#endif
+
 bool FSlateFontCache::ConditionalFlushCache()
 {
 	bool bFlushed = false;
-	if (bFlushRequested)
+	if (bFlushRequested
+#if !UE_BUILD_SHIPPING
+		|| bFlushFontCache
+#endif
+		)
 	{
 		if (FlushCache())
 		{
 			bFlushRequested = false;
+#if !UE_BUILD_SHIPPING
+			bFlushFontCache = false;
+#endif
 			bFlushed = true;
 		}
 	}
@@ -1193,6 +1346,10 @@ void FSlateFontCache::UpdateCache()
 	UpdateFontAtlasTextures(ColorFontAtlasIndices);
 
 	CompositeFontCache->Update();
+
+#if (!UE_BUILD_SHIPPING && WITH_FREETYPE)
+	ConditionalDumpFontCacheStats();
+#endif
 }
 
 void FSlateFontCache::ReleaseResources()

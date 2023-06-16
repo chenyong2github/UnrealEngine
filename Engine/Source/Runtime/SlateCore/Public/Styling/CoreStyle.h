@@ -45,7 +45,7 @@ public:
 	static SLATECORE_API TSharedRef<const FCompositeFont> GetDefaultFont();
 
 	/** Get a font style using the default for for Slate */
-	static SLATECORE_API FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const int32 InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
+	static SLATECORE_API FSlateFontInfo GetDefaultFontStyle(const FName InTypefaceFontName, const float InSize, const FFontOutlineSettings& InOutlineSettings = FFontOutlineSettings());
 
 	static SLATECORE_API void ResetToDefault( );
 

@@ -103,7 +103,7 @@ hb_user_data_key_t UserDataKey;
 
 struct FUserData
 {
-	FUserData(const int32 InFontSize, const float InFontScale, FFreeTypeCacheDirectory* InFTCacheDirectory, const hb_font_extents_t& InHarfBuzzFontExtents)
+	FUserData(const float InFontSize, const float InFontScale, FFreeTypeCacheDirectory* InFTCacheDirectory, const hb_font_extents_t& InHarfBuzzFontExtents)
 		: FontSize(InFontSize)
 		, FontScale(InFontScale)
 		, FTCacheDirectory(InFTCacheDirectory)
@@ -111,13 +111,13 @@ struct FUserData
 	{
 	}
 
-	int32 FontSize;
+	float FontSize;
 	float FontScale;
 	FFreeTypeCacheDirectory* FTCacheDirectory;
 	hb_font_extents_t HarfBuzzFontExtents;
 };
 
-void* CreateUserData(const int32 InFontSize, const float InFontScale, FFreeTypeCacheDirectory* InFTCacheDirectory, const hb_font_extents_t& InHarfBuzzFontExtents)
+void* CreateUserData(const float InFontSize, const float InFontScale, FFreeTypeCacheDirectory* InFTCacheDirectory, const hb_font_extents_t& InHarfBuzzFontExtents)
 {
 	return new FUserData(InFontSize, InFontScale, InFTCacheDirectory, InHarfBuzzFontExtents);
 }
@@ -449,7 +449,7 @@ FHarfBuzzFontFactory::~FHarfBuzzFontFactory()
 
 #if WITH_HARFBUZZ
 
-hb_font_t* FHarfBuzzFontFactory::CreateFont(const FFreeTypeFace& InFace, const uint32 InGlyphFlags, const int32 InFontSize, const float InFontScale) const
+hb_font_t* FHarfBuzzFontFactory::CreateFont(const FFreeTypeFace& InFace, const uint32 InGlyphFlags, const float InFontSize, const float InFontScale) const
 {
 	hb_font_t* HarfBuzzFont = nullptr;
 

@@ -211,6 +211,18 @@ namespace
 				TEXT("bAuthorizeAutomaticWidgetVariableCreation"),
 				TEXT("False"),
 				true /* ShouldReplaceExistingValue */);
+
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/Engine.UserInterfaceSettings"),
+				TEXT("FontDPIPreset"),
+				TEXT("Standard"),
+				true /* ShouldReplaceExistingValue */);
+
+			ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
+				TEXT("/Script/Engine.UserInterfaceSettings"),
+				TEXT("FontDPI"),
+				TEXT("72"),
+				true /* ShouldReplaceExistingValue */);
 		}
 	}
 } // namespace <>

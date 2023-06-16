@@ -16,6 +16,11 @@ UUserInterfaceSettings::UUserInterfaceSettings(const FObjectInitializer& ObjectI
 	, ApplicationScale(1)
 	, bLoadWidgetsOnDedicatedServer(true)
 	, bAuthorizeAutomaticWidgetVariableCreation(true)
+#if WITH_EDITORONLY_DATA
+	, CustomFontDPI(FontConstants::RenderDPI)
+	, FontDPIPreset(ConvertToEFontDPI(CustomFontDPI))
+	, bUseCustomFontDPI(false)
+#endif
 {
 	SectionName = TEXT("UI");
 }
@@ -155,13 +160,61 @@ float UUserInterfaceSettings::CalculateScale(FIntPoint Size, bool& bError) const
 }
 
 #if WITH_EDITOR
+FText UUserInterfaceSettings::GetFontDPIDisplayString() const
+{
+	const uint32 DisplayDPI = GetFontDisplayDPI();
+
+	//Wether the Display DPI is from a custom value or preset, try to find the matching preset.
+	const EFontDPI Preset = ConvertToEFontDPI(GetFontDisplayDPI());
+	if (Preset != EFontDPI::Custom)
+	{
+		const UEnum* Enum = StaticEnum<EFontDPI>();
+		return Enum->GetDisplayNameTextByValue(static_cast<int64>(Preset));
+	}
+
+	//If no preset found, just use the value.
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("DPI"), FText::AsNumber(DisplayDPI));
+	return FText::Format(LOCTEXT("DPI","{DPI} DPI"), Args);
+}
+
+uint32 UUserInterfaceSettings::GetFontDisplayDPI() const
+{
+	if (bUseCustomFontDPI)
+	{
+		return CustomFontDPI;
+	}
+	return ConvertToFontDPI(FontDPIPreset);
+}
+
+constexpr EFontDPI UUserInterfaceSettings::ConvertToEFontDPI(uint32 inFontDPI)
+{
+	switch (inFontDPI)
+	{
+		case 72: return EFontDPI::Standard;
+		case 96: return EFontDPI::Unreal;
+		default: return EFontDPI::Custom;
+	}
+}
+
+constexpr uint32 UUserInterfaceSettings::ConvertToFontDPI(EFontDPI inFontDPIEntry)
+{
+	switch (inFontDPIEntry)
+	{
+		case EFontDPI::Unreal:
+			return 96;
+		case EFontDPI::Standard:
+		case EFontDPI::Custom:
+		default:
+			return 72;
+	}
+}
 
 void UUserInterfaceSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	// Look for changed properties
-	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 	const FName MemberPropertyName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 
 	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UUserInterfaceSettings, CustomScalingRuleClass))
