@@ -28,6 +28,18 @@ public:
 	}
 
 	/**
+	 * Destroy and unregister a component of type ComponentType
+	 */
+	template <typename ComponentType>
+	void Unregister()
+	{
+		Components.RemoveAll([](const TUniquePtr<IComponentWrapper>& WrappedComponent)
+		{
+			return WrappedComponent->IsA(TOnlineTypeInfo<ComponentType>::GetTypeName());
+		});
+	}
+
+	/**
 	 * Get the component of type ComponentType
 	 * @return The component or null if one of ComponentType has not been registered
 	 */
