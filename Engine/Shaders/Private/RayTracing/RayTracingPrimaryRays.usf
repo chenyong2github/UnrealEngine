@@ -56,6 +56,11 @@ RWTexture2D<float> RayHitDistanceOutput;
 
 #include "RayTracingLightingCommon.ush"
 
+#define FrontLayerTranslucencyReflectionsStruct LumenGIVolumeStruct
+#define RadianceCacheInterpolation LumenGIVolumeStruct
+
+#include "../Lumen/LumenTranslucencyVolumeShared.ush"
+
 float CalcNoT(float CosTheta1, float N1, float N2)
 {
 	float SinTheta1_Squared = 1.0 - CosTheta1 * CosTheta1;
@@ -140,7 +145,11 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 		const uint RefractionInstanceInclusionMask = (!bPrimaryView && RefractionRayIndex == 0) || !TranslucencyRefraction ? RAY_TRACING_MASK_TRANSLUCENT : RAY_TRACING_MASK_ALL;
 		const bool bRefractionRayTraceSkyLightContribution = false;
 		const bool bRefractionDecoupleSampleGeneration = true;
+#if PROJECT_SUPPORTS_LUMEN
+		const bool bRefractionEnableSkyLightContribution = !IsLumenTranslucencyGIEnabled();
+#else
 		const bool bRefractionEnableSkyLightContribution = true;
+#endif
 		float3 PathVertexRadiance = float3(0, 0, 0);
 
 		RandomSequence RandSequence;
@@ -281,6 +290,39 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 			}
 
 			PathRadiance += PathThroughput * vertexRadianceWeight * ViewFogInScatteringAndTransmittance.a * ReflectionThroughput * ReflectionRadiance;
+		}
+
+		{
+			float3 VolumeLighting = 0;
+
+			const float3 TranslucencyEvaluationTranslatedPosition = HitPoint;
+
+#if PROJECT_SUPPORTS_LUMEN
+			if (IsLumenTranslucencyGIEnabled() && ShouldDoEmissiveAndIndirectLighting)
+			{
+				// Lumen Dynamic GI + shadowed Skylight
+				FLWCVector3 TranslucencyEvaluationPosition = LWCSubtract(TranslucencyEvaluationTranslatedPosition, PrimaryView.PreViewTranslation);
+
+				FTwoBandSHVectorRGB TranslucencyGISH = GetTranslucencyGIVolumeLighting(TranslucencyEvaluationPosition, PrimaryView.WorldToClip, true);
+
+				// Diffuse convolution
+				FTwoBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH(Payload.WorldNormal, 1);
+				VolumeLighting.rgb += max(half3(0, 0, 0), DotSH(TranslucencyGISH, DiffuseTransferSH)) / PI;
+
+				const bool bEvaluateBackface = GetShadingModelRequiresBackfaceLighting(Payload.ShadingModelID);
+				if (bEvaluateBackface)
+				{
+					FTwoBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH(-Payload.WorldNormal, 1);
+					VolumeLighting.rgb += max(half3(0, 0, 0), DotSH(TranslucencyGISH, SubsurfaceTransferSH)) / PI;
+				}
+			}
+#endif
+			else
+			{
+				// noop => if lumen is not enabled: bRefractionEnableSkyLightContribution == true
+			}
+
+			PathRadiance += PathThroughput * vertexRadianceWeight * VolumeLighting * Payload.DiffuseColor;
 		}
 
 		// Update the refraction/transparency path transmittance and check stop condition

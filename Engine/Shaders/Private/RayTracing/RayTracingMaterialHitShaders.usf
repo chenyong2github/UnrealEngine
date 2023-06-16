@@ -54,6 +54,10 @@ void GetSkyLighting(
 	OutDiffuseLighting = float3(0,0,0);
 	OutSubsurfaceLighting = float3(0,0,0);
 
+	// TODO:
+	// Should apply Lumen Dynamic GI + shadowed Skylight based on IsLumenTranslucencyGIEnabled() here
+	// however we are not binding the unnecessary shader parameters in hitgroups at the moment
+
 #if ENABLE_SKY_LIGHT
 
 	// Check if the Sky Light contribution should be ignored
