@@ -2,11 +2,9 @@
 
 using System.ComponentModel;
 using EpicGames.Core;
-using EpicGames.Horde;
 using EpicGames.Serialization;
-using Horde.Server.Utilities;
 
-namespace Horde.Server.Secrets
+namespace EpicGames.Horde.Api
 {
 	/// <summary>
 	/// Identifier for a secret
