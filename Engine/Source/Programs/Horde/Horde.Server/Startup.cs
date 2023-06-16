@@ -221,7 +221,11 @@ namespace Horde.Server
 				{
 					throw new InvalidDataException("Unable to parse object id");
 				}
-				return str.ToObjectId();
+				if (str.Length == 0)
+				{
+					return ObjectId.Empty;
+				}
+				return ObjectId.Parse(str);
 			}
 
 			public override void Write(Utf8JsonWriter writer, ObjectId objectId, JsonSerializerOptions options)

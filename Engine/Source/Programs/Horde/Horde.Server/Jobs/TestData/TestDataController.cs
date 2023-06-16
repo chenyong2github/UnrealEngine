@@ -364,7 +364,7 @@ namespace Horde.Server.Jobs.TestData
 		[ProducesResponseType(typeof(GetTestDataResponse), 200)]
 		public async Task<ActionResult<object>> GetTestDataAsync(string testDataId, [FromQuery] PropertyFilter? filter = null)
 		{
-			ITestData? testData = await _testDataCollection.GetAsync(testDataId.ToObjectId());
+			ITestData? testData = await _testDataCollection.GetAsync(ObjectId.Parse(testDataId));
 			if (testData == null)
 			{
 				return NotFound();

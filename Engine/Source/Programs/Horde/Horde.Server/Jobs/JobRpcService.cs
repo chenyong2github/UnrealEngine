@@ -257,7 +257,7 @@ namespace Horde.Server.Jobs
 		/// <returns>Information about the new agent</returns>
 		public async Task<RpcGetJobResponse> GetJob(GetJobRequest request, ServerCallContext context)
 		{
-			JobId jobIdValue = new JobId(request.JobId.ToObjectId());
+			JobId jobIdValue = new JobId(ObjectId.Parse(request.JobId));
 
 			IJob? job = await _jobService.GetJobAsync(jobIdValue);
 			if (job == null)
@@ -918,7 +918,7 @@ namespace Horde.Server.Jobs
 
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
 
-			Report newReport = new Report { Name = request.Name, Placement = request.Placement, ArtifactId = request.ArtifactId.ToObjectId() };
+			Report newReport = new Report { Name = request.Name, Placement = request.Placement, ArtifactId = ObjectId.Parse(request.ArtifactId) };
 			if (request.Scope == ReportScope.Job)
 			{
 				_logger.LogDebug("Adding report to job {JobId}: {Name} -> {ArtifactId}", job.Id, request.Name, request.ArtifactId);

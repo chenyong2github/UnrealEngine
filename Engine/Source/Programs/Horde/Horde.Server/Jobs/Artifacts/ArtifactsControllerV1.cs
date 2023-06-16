@@ -109,7 +109,7 @@ namespace Horde.Server.Jobs.Artifacts
 		[Route("/api/v1/artifacts/{artifactId}")]
 		public async Task<ActionResult<CreateJobArtifactResponse>> UpdateArtifact(string artifactId, IFormFile file)
 		{
-			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(ObjectId.Parse(artifactId));
 			if (artifact == null)
 			{
 				return NotFound();
@@ -182,7 +182,7 @@ namespace Horde.Server.Jobs.Artifacts
 		[ProducesResponseType(typeof(GetJobArtifactResponse), 200)]
 		public async Task<ActionResult<object>> GetArtifact(string artifactId, bool code = false, [FromQuery] PropertyFilter? filter = null)
 		{
-			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(ObjectId.Parse(artifactId));
 			if (artifact == null)
 			{
 				return NotFound();
@@ -206,7 +206,7 @@ namespace Horde.Server.Jobs.Artifacts
 		[Route("/api/v1/artifacts/{artifactId}/data")]
 		public async Task<ActionResult> GetArtifactData(string artifactId)
 		{
-			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(ObjectId.Parse(artifactId));
 			if (artifact == null)
 			{
 				return NotFound();
@@ -273,7 +273,7 @@ namespace Horde.Server.Jobs.Artifacts
 			JwtSecurityTokenHandler handler = new JwtSecurityTokenHandler();
 			ClaimsPrincipal principal = handler.ValidateToken(code, parameters, out _);
 
-			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(artifactId.ToObjectId());
+			IArtifactV1? artifact = await _artifactCollection.GetArtifactAsync(ObjectId.Parse(artifactId));
 			if (artifact == null)
 			{
 				return NotFound();
@@ -328,7 +328,7 @@ namespace Horde.Server.Jobs.Artifacts
 				foreach (string artifactId in artifactZipRequest.ArtifactIds)
 				{
 					IArtifactV1? artifact;
-					if (idToArtifact.TryGetValue(artifactId.ToObjectId(), out artifact))
+					if (idToArtifact.TryGetValue(ObjectId.Parse(artifactId), out artifact))
 					{
 						zipArtifacts.Add(artifact);
 					}
