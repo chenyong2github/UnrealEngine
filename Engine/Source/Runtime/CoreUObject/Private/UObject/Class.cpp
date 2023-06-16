@@ -6052,8 +6052,8 @@ void UClass::CreateLinkAndAddChildFunctionsToMap(const FClassFunctionLinkInfo* F
 
 void UClass::ClearFunctionMapsCaches()
 {
-	FUClassFuncScopeWriteLock ScopeLock(SuperFuncMapLock);
-	SuperFuncMap.Empty();
+	FUClassFuncScopeWriteLock ScopeLock(AllFunctionsCacheLock);
+	AllFunctionsCache.Empty();
 }
 
 UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type IncludeSuper) const
@@ -6064,44 +6064,71 @@ UFunction* UClass::FindFunctionByName(FName InName, EIncludeSuperFlag::Type Incl
 
 	UE_AUTORTFM_OPEN(
 	{
+		UClass* SuperClass = GetSuperClass();
+		if (IncludeSuper == EIncludeSuperFlag::ExcludeSuper || ( Interfaces.Num() == 0 && SuperClass == nullptr ) )
 		{
+			// Trivial case: just look up in this class's function map and don't involve the cache
 			FUClassFuncScopeReadLock ScopeLock(FuncMapLock);
 			Result = FuncMap.FindRef(InName);
 		}
-
-		if (Result == nullptr && IncludeSuper == EIncludeSuperFlag::IncludeSuper)
+		else
 		{
-			UClass* SuperClass = GetSuperClass();
-			if (SuperClass || Interfaces.Num() > 0)
+			// Check the cache
+			bool bFoundInCache = false;
 			{
-				bool bFoundInSuperFuncMap = false;
+				FUClassFuncScopeReadLock ScopeLock(AllFunctionsCacheLock);
+				if (UFunction** SuperResult = AllFunctionsCache.Find(InName))
 				{
-					FUClassFuncScopeReadLock ScopeLock(SuperFuncMapLock);
-					if (UFunction** SuperResult = SuperFuncMap.Find(InName))
-					{
-						Result = *SuperResult;
-						bFoundInSuperFuncMap = true;
-					}
+					Result = *SuperResult;
+					bFoundInCache = true;
+				}
+			}
+
+			if (!bFoundInCache)
+			{
+				// Try this class's FuncMap first
+				{
+					FUClassFuncScopeReadLock ScopeLock(FuncMapLock);
+					Result = FuncMap.FindRef(InName);
 				}
 
-				if (!bFoundInSuperFuncMap)
+				if (Result)
 				{
-					for (const FImplementedInterface& Inter : Interfaces)
+					// Cache the result
+					FUClassFuncScopeWriteLock ScopeLock(AllFunctionsCacheLock);
+					AllFunctionsCache.Add(InName, Result);
+				}
+				else
+				{
+					// Check superclass and interfaces
+					if (Interfaces.Num() > 0)
 					{
-						Result = Inter.Class ? Inter.Class->FindFunctionByName(InName) : nullptr;
-						if (Result)
+						for (const FImplementedInterface& Inter : Interfaces)
 						{
-							break;
+							Result = Inter.Class ? Inter.Class->FindFunctionByName(InName) : nullptr;
+							if (Result)
+							{
+								break;
+							}
 						}
 					}
 
-					if (SuperClass && Result == nullptr)
+					if (Result == nullptr && SuperClass != nullptr )
 					{
 						Result = SuperClass->FindFunctionByName(InName);
 					}
 
-					FUClassFuncScopeWriteLock ScopeLock(SuperFuncMapLock);
-					SuperFuncMap.Add(InName, Result);
+					{
+						// Do a final check to make sure the function still doesn't exist in this class before we add it to the cache, in case the function was added by another thread since we last checked
+						// This avoids us writing null (or a superclass func with the same name) to the cache if the function was just added
+						FUClassFuncScopeReadLock ScopeLockFuncMap(FuncMapLock);
+						if (FuncMap.FindRef(InName) == nullptr)
+						{
+							// Cache the result (even if it's nullptr)
+							FUClassFuncScopeWriteLock ScopeLock(AllFunctionsCacheLock);
+							AllFunctionsCache.Add(InName, Result);
+						}
+					}
 				}
 			}
 		}

@@ -2907,11 +2907,11 @@ private:
 	/** Scope lock to avoid the FuncMap being read and written to simultaneously on multiple threads. */
 	mutable FUClassFuncLock FuncMapLock;
 
-	/** A cache of all functions by name that exist in a parent (superclass or interface) context */
-	mutable TMap<FName, UFunction*> SuperFuncMap;
+	/** A cache of all functions by name that exist in this class or a parent (superclass or interface) context */
+	mutable TMap<FName, UFunction*> AllFunctionsCache;
 
 	/** Scope lock to avoid the SuperFuncMap being read and written to simultaneously on multiple threads. */
-	mutable FUClassFuncLock SuperFuncMapLock;
+	mutable FUClassFuncLock AllFunctionsCacheLock;
 
 public:
 	/**
@@ -2997,8 +2997,15 @@ public:
 	/** Add a function to the function map */
 	void AddFunctionToFunctionMap(UFunction* Function, FName FuncName)
 	{
-		FUClassFuncScopeWriteLock ScopeLock(FuncMapLock);
-		FuncMap.Add(FuncName, Function);
+		{
+			FUClassFuncScopeWriteLock ScopeLock(FuncMapLock);
+			FuncMap.Add(FuncName, Function);
+		}
+		{
+			// Remove from the function cache if it exists
+			FUClassFuncScopeWriteLock ScopeLock(AllFunctionsCacheLock);
+			AllFunctionsCache.Remove(FuncName);
+		}
 	}
 
 	COREUOBJECT_API void CreateLinkAndAddChildFunctionsToMap(const FClassFunctionLinkInfo* Functions, uint32 NumFunctions);
@@ -3006,8 +3013,15 @@ public:
 	/** Remove a function from the function map */
 	void RemoveFunctionFromFunctionMap(UFunction* Function)
 	{
-		FUClassFuncScopeWriteLock ScopeLock(FuncMapLock);
-		FuncMap.Remove(Function->GetFName());
+		{
+			FUClassFuncScopeWriteLock ScopeLock(FuncMapLock);
+			FuncMap.Remove(Function->GetFName());
+		}
+		{
+			// Remove from the function cache if it exists
+			FUClassFuncScopeWriteLock ScopeLock(AllFunctionsCacheLock);
+			AllFunctionsCache.Remove(Function->GetFName());
+		}
 	}
 
 	/** Clears the function name caches, in case things have changed */
