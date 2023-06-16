@@ -143,6 +143,11 @@ bool AControlRigShapeActor::UpdateControlSettings(
 
 			if(bShapeNameUpdated)
 			{
+				if (!ShapeDef->StaticMesh.IsValid())
+				{
+					ShapeDef->StaticMesh.LoadSynchronous();
+				}
+
 				if(ShapeDef->StaticMesh.IsValid())
 				{
 					if(UStaticMesh* StaticMesh = ShapeDef->StaticMesh.Get())
