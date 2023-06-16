@@ -802,6 +802,12 @@ inline bool IsMetalSM5Platform(const FStaticShaderPlatform Platform)
 		&& FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
 }
 
+inline bool IsMetalSM6Platform(const FStaticShaderPlatform Platform)
+{
+    return FDataDrivenShaderPlatformInfo::GetIsLanguageMetal(Platform)
+        && FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM6;
+}
+
 inline bool IsConsolePlatform(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetIsConsole(Platform);

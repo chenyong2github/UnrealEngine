@@ -29,6 +29,7 @@ void FNullDynamicRHI::Init()
     GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_METAL_MACES3_1;
     GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
     GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_METAL_SM5;
+    GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM6] = SP_METAL_SM6;
 #else
 	GShaderPlatformForFeatureLevel[GetMaxSupportedFeatureLevel(GMaxRHIShaderPlatform)] = GMaxRHIShaderPlatform;
 #endif

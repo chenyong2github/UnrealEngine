@@ -5,7 +5,7 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Metal only shaders
-// GUID = DF88BF25-6438-4D0F-9236-52E326D5C9B3
+// GUID = A634A419-D6F0-460F-85E4-CB558AB61570
 
 #pragma once
 
@@ -17,6 +17,8 @@
 
 #define STRONG_TYPE
 #define StrongTypedBuffer Buffer
+
+#define PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS 1
 
 /* Too many bugs to enable wave-intrinsics just yet, but we are getting there.
 #if COMPUTESHADER || PIXELSHADER
@@ -56,26 +58,28 @@
 	#define SubpassFetchR_4() (0.0)
 #endif //IOS && PIXELSHADER
 
-#define MTL_COMPILER_SUPPORTS_ULONG_TYPES (1 && MTL_ENABLE_EXPERIMENTAL_NANITE_SUPPORT)
-#define MTL_COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS (1 && MTL_COMPILER_SUPPORTS_ULONG_TYPES)
+#if METAL_SM6_PROFILE == 1
+    #define COMPILER_SUPPORTS_ULONG_TYPES 1
+    #define COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS 1
 
-#if MTL_COMPILER_SUPPORTS_ULONG_TYPES
-    #define UlongType uint64_t
+    #if COMPILER_SUPPORTS_ULONG_TYPES
+        #define UlongType uint64_t
 
-    UlongType PackUlongType(uint2 Value)
-    {
-        return ((UlongType)Value.y << 32) | Value.x;
-    }
+        UlongType PackUlongType(uint2 Value)
+        {
+            return ((UlongType)Value.y << 32) | Value.x;
+        }
 
-    uint2 UnpackUlongType(UlongType Value)
-    {
-        return uint2(uint(Value), uint(Value >> 32));
-    }
-#endif
+        uint2 UnpackUlongType(UlongType Value)
+        {
+            return uint2(uint(Value), uint(Value >> 32));
+        }
+    #endif
 
-#if MTL_COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS
-    void ImageInterlockedMaxUInt64(RWTexture2D<UlongType> Dest, uint2 Coord, UlongType Value)
-    {
-        InterlockedMax(Dest[Coord], Value);
-    }
+    #if COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS
+        void ImageInterlockedMaxUInt64(RWTexture2D<UlongType> Dest, uint2 Coord, UlongType Value)
+        {
+            InterlockedMax(Dest[Coord], Value);
+        }
+    #endif
 #endif

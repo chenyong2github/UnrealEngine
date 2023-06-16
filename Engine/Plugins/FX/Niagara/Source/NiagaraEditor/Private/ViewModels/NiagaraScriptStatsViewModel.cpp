@@ -774,6 +774,7 @@ void FNiagaraScriptStatsViewModel::BuildShaderPlatformDetails()
 	StaticShaderPlatforms.Add(SP_VULKAN_ES3_1_ANDROID);
 	StaticShaderPlatforms.Add(SP_VULKAN_SM5_ANDROID);
 	StaticShaderPlatforms.Add(SP_METAL_SM5);
+    StaticShaderPlatforms.Add(SP_METAL_SM6);
 	StaticShaderPlatforms.Add(SP_METAL);
 	StaticShaderPlatforms.Add(SP_METAL_MRT);
 

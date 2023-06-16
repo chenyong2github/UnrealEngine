@@ -94,6 +94,7 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 	case SP_METAL_MRT_TVOS: return TEXT("METAL_MRT_TVOS");
 	case SP_METAL_MRT_MAC: return TEXT("METAL_MRT_MAC");
 	case SP_METAL_SM5: return TEXT("METAL_SM5");
+    case SP_METAL_SM6: return TEXT("METAL_SM6");
 	case SP_METAL_MACES3_1: return TEXT("METAL_MACES3_1");
 	case SP_VULKAN_ES3_1_ANDROID: return TEXT("VULKAN_ES3_1_ANDROID");
 	case SP_VULKAN_PCES3_1: return TEXT("VULKAN_PCES3_1");
@@ -213,6 +214,7 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_METAL_MRT:
 		return NAME_PLATFORM_IOS;
 	case SP_METAL_SM5:
+    case SP_METAL_SM6:
 	case SP_METAL_MACES3_1:
 	case SP_METAL_MRT_MAC:
 		return NAME_PLATFORM_MAC;

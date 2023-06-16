@@ -795,10 +795,6 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		new(Output.Errors) FShaderCompilerError(*FString::Printf(TEXT("Missing SHADER_LANGUAGE_VERSION compile argument; Falling back to default value %d"), GMetalDefaultShadingLanguageVersion));
 	}
 
-	#if PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
-		AdditionalDefines.SetDefine(TEXT("METAL_ENABLE_EXPERIMENTAL_NANITE_SUPPORT"), 1);
-	#endif 
-
 	// TODO read from toolchain
 	bool bAppleTV = (Input.ShaderFormat == NAME_SF_METAL_TVOS || Input.ShaderFormat == NAME_SF_METAL_MRT_TVOS);
 	if (Input.ShaderFormat == NAME_SF_METAL || Input.ShaderFormat == NAME_SF_METAL_TVOS)
@@ -821,6 +817,12 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		AdditionalDefines.SetDefine(TEXT("USING_VERTEX_SHADER_LAYER"), 1);
 		Semantics = EMetalGPUSemanticsImmediateDesktop;
 	}
+    else if (Input.ShaderFormat == NAME_SF_METAL_SM6)
+    {
+        AdditionalDefines.SetDefine(TEXT("METAL_SM6_PROFILE"), 1);
+        AdditionalDefines.SetDefine(TEXT("USING_VERTEX_SHADER_LAYER"), 1);
+        Semantics = EMetalGPUSemanticsImmediateDesktop;
+    }
 	else if (Input.ShaderFormat == NAME_SF_METAL_MRT_MAC)
 	{
 		AdditionalDefines.SetDefine(TEXT("METAL_MRT_PROFILE"), 1);

@@ -645,18 +645,22 @@ void FVirtualShadowMapArrayCacheManager::SetPhysicalPoolSize(FRDGBuilder& GraphB
 
 		// Track changes to these ourselves instead of from the GetDesc() since that may get manipulated internally
 		PhysicalPagePoolCreateFlags = RequestedCreateFlags;
-
+        
+        ETextureCreateFlags PoolTexCreateFlags = TexCreate_ShaderResource | TexCreate_UAV;
+        
+#if PLATFORM_MAC
+        if(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM6)
+        {
+            PoolTexCreateFlags |= TexCreate_AtomicCompatible;
+        }
+#endif
+        
 		FPooledRenderTargetDesc Desc2D = FPooledRenderTargetDesc::Create2DArrayDesc(
 			RequestedSize,
 			PF_R32_UINT,
 			FClearValueBinding::None,
 			PhysicalPagePoolCreateFlags,
-		#if PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
-			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_AtomicCompatible,
-		#else
-			
-			TexCreate_ShaderResource | TexCreate_UAV,
-		#endif
+            PoolTexCreateFlags,
 			false,
 			RequestedArraySize
 		);

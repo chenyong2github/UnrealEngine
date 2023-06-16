@@ -115,6 +115,8 @@ public:
 		{
 			static FName NAME_SF_METAL_SM5(TEXT("SF_METAL_SM5"));
 			OutFormats.AddUnique(NAME_SF_METAL_SM5);
+            static FName NAME_SF_METAL_SM6(TEXT("SF_METAL_SM6"));
+            OutFormats.AddUnique(NAME_SF_METAL_SM6);
 			static FName NAME_SF_METAL_MACES3_1(TEXT("SF_METAL_MACES3_1"));
 			OutFormats.AddUnique(NAME_SF_METAL_MACES3_1);
 			static FName NAME_SF_METAL_MRT_MAC(TEXT("SF_METAL_MRT_MAC"));

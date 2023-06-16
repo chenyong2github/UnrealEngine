@@ -352,7 +352,7 @@ bool DoCompileMetalShader(
 			TArray<SpvReflectBlockVariable*> ConstantBindings;
 			TArray<SpvReflectExecutionMode*> ExecutionModes;
 			
-			uint8 UAVIndices = 0xff;
+            uint32 UAVIndices = 0xffffffff;
 			uint64 TextureIndices = 0xffffffffffffffff;
 			uint64 SamplerIndices = 0xffffffffffffffff;
 			
@@ -982,29 +982,25 @@ bool DoCompileMetalShader(
 			TargetDesc.CompileFlags.SetDefine(TEXT("invariant_float_math"), Options.bEnableFMAPass ? 1 : 0);
 			TargetDesc.CompileFlags.SetDefine(TEXT("enable_decoration_binding"), 1);
 
-			#if PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
-			 // Detect if we need to patch VSM shaders (flatten 2D array as regular 2D texture).
-			 // Must be done as VSM uses 2DArray and requires atomics support. And Metal does not
-			 // support atomics on 2Darray...
-			 const auto& DefinesMap = Input.Environment.GetDefinitions();
-			 bool bShouldFlatten2DArray = DefinesMap.Find("VIRTUAL_SHADOW_MAP") != nullptr
-			                           || DefinesMap.Find("VIRTUAL_TEXTURE_TARGET") != nullptr
-			                           || Input.ShaderName.Find("PhysicalPage") != INDEX_NONE
-			                           || Input.ShaderName.Find("Virtual") != INDEX_NONE
-			                           || Input.ShaderName.Find("ClassifyMaterial") != INDEX_NONE;
+    		// Detect if we need to patch VSM shaders (flatten 2D array as regular 2D texture).
+			// Must be done as VSM uses 2DArray and requires atomics support. And Metal does not
+			// support atomics on 2Darray...
+			bool bShouldFlatten2DArray = Input.Environment.GetCompileArgument(TEXT("VIRTUAL_SHADOW_MAP"), 0)
+                                            || Input.Environment.GetCompileArgument(TEXT("VIRTUAL_TEXTURE_TARGET"), 0)
+                                            || Input.ShaderName.Find("PhysicalPage") != INDEX_NONE
+                                            || Input.ShaderName.Find("Virtual") != INDEX_NONE
+                                            || Input.ShaderName.Find("ClassifyMaterial") != INDEX_NONE;
 
-			 // Need to patch Clear/Memset CS too.
-			 if (!bShouldFlatten2DArray)
-			 {
-			     auto* IsTexArrayClearShader = DefinesMap.Find("RESOURCE_TYPE");
-			     if (IsTexArrayClearShader != nullptr)
-			     {
-			         bShouldFlatten2DArray = (*IsTexArrayClearShader).Find("2") != INDEX_NONE;
-			     }
-			 }
+			// Need to patch Clear/Memset CS too.
+			if (!bShouldFlatten2DArray)
+			{
+			    if (Input.Environment.GetCompileArgument(TEXT("RESOURCE_TYPE"), 0) == 2)
+			    {
+			        bShouldFlatten2DArray = true;
+			    }
+			}
 
-			 TargetDesc.CompileFlags.SetDefine(TEXT("flatten_2d_array"), bShouldFlatten2DArray ? 1 : 0);
-			 #endif
+			TargetDesc.CompileFlags.SetDefine(TEXT("flatten_2d_array"), bShouldFlatten2DArray ? 1 : 0);
 
 			switch (Semantics)
 			{

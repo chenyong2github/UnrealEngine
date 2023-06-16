@@ -321,10 +321,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	bool bSupportsTiledReflections = false;
 	bool bSupportsDistanceFields = false;
 	
-	// Default is SM5 on:
-	// 10.11.6 for AMD/Nvidia
-	// 10.12.2+ for AMD/Nvidia
-	// 10.12.4+ for Intel
+    bool bSupportsSM6 = false;
 	bool bSupportsSM5 = true;
 	bool bIsIntelHaswell = false;
 	
@@ -381,45 +378,41 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		GRHIMinimumWaveSize = 32;
 		GRHIMaximumWaveSize = 32;
 
-#if PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
-        // Int64 atomic support was introduced with M2 devices.
-        GRHISupportsAtomicUInt64 = !GRHIAdapterName.Contains("M1");
-        GRHIPersistentThreadGroupCount = 1024;
-
-        // Disable persistent threads on Apple Silicon (as it doesn't support forward progress guarantee).
-        IConsoleVariable* NanitePersistentThreadCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.PersistentThreadsCulling"));
-        if (NanitePersistentThreadCVar != nullptr && NanitePersistentThreadCVar->GetInt() == 1)
+		bSupportsSM6 = !GRHIAdapterName.Contains("M1");
+        if(bSupportsSM6)
         {
-            NanitePersistentThreadCVar->Set(0);
+            // Int64 atomic support was introduced with M2 devices.
+            GRHISupportsAtomicUInt64 = bSupportsSM6;
+            GRHIPersistentThreadGroupCount = 1024;
+            
+            // Disable persistent threads on Apple Silicon (as it doesn't support forward progress guarantee).
+            IConsoleVariable* NanitePersistentThreadCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.PersistentThreadsCulling"));
+            if (NanitePersistentThreadCVar != nullptr && NanitePersistentThreadCVar->GetInt() == 1)
+            {
+                NanitePersistentThreadCVar->Set(0);
+            }
+            
+            // Switch back to single page allocation for VSM (Metal does not support atomic operations on Texture2DArrays...).
+            IConsoleVariable* VSMCacheStaticSeparateCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Cache.StaticSeparate"));
+            if (VSMCacheStaticSeparateCVar != nullptr)
+            {
+                VSMCacheStaticSeparateCVar->Set(0);
+            }
         }
-
-        // Switch back to single page allocation for VSM (Metal does not support atomic operations on Texture2DArrays...).
-        IConsoleVariable* VSMCacheStaticSeparateCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Cache.StaticSeparate"));
-        if (VSMCacheStaticSeparateCVar != nullptr)
-        {
-            VSMCacheStaticSeparateCVar->Set(0);
-        }
-
-        // TODO: FIXME: Workaround to fix visual artifacts on the CitySample demo (has a severe performance cost 
-		// compared to non-compute materials. This is highly experimental).
-#if 1
-        IConsoleVariable* NaniteAllowComputeMatsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.AllowComputeMaterials"));
-        if (NaniteAllowComputeMatsCVar != nullptr)
-        {
-            NaniteAllowComputeMatsCVar->Set(1);
-        }
-
-        IConsoleVariable* NaniteComputeMatsCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.ComputeMaterials"));
-        if (NaniteComputeMatsCVar != nullptr)
-        {
-            NaniteComputeMatsCVar->Set(1);
-        }
-#endif
-#endif // PLATFORM_MAC_ENABLE_EXPERIMENTAL_NANITE_SUPPORT
 	}
 
-	bool const bRequestedSM5 = (RequestedFeatureLevel == ERHIFeatureLevel::SM5 || (!bRequestedFeatureLevel && (FParse::Param(FCommandLine::Get(),TEXT("metalsm5")) || FParse::Param(FCommandLine::Get(),TEXT("metalmrt")))));
-	if(bSupportsSM5 && bRequestedSM5)
+    bool const bRequestedSM6 = RequestedFeatureLevel == ERHIFeatureLevel::SM6 ||
+                               (!bRequestedFeatureLevel && (FParse::Param(FCommandLine::Get(),TEXT("metalsm6"))));
+        
+	bool const bRequestedSM5 = RequestedFeatureLevel == ERHIFeatureLevel::SM5 ||
+                               (!bRequestedFeatureLevel && (FParse::Param(FCommandLine::Get(),TEXT("metalsm5")) || FParse::Param(FCommandLine::Get(),TEXT("metalmrt"))));
+                                
+    if(bSupportsSM6 && bRequestedSM6)
+    {
+        GMaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
+        GMaxRHIShaderPlatform = SP_METAL_SM6;
+    }
+	else if(bSupportsSM5 && bRequestedSM5)
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
 		if (!FParse::Param(FCommandLine::Get(),TEXT("metalmrt")))
@@ -456,6 +449,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::ES3_1) ? SP_METAL_MACES3_1 : SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5) ? GMaxRHIShaderPlatform : SP_NumPlatforms;
+    GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM6] = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM6) ? GMaxRHIShaderPlatform : SP_NumPlatforms;
 	
 	// Mac GPUs support layer indexing.
 	GSupportsVolumeTextureRendering = (GMaxRHIShaderPlatform != SP_METAL_MRT_MAC);
@@ -485,7 +479,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	
 	// Disable the distance field AO & shadowing effects on GPU drivers that don't currently execute the shaders correctly.
-	if ((GMaxRHIShaderPlatform == SP_METAL_SM5) && !bSupportsDistanceFields && !FParse::Param(FCommandLine::Get(),TEXT("metaldistancefields")))
+	if ((GMaxRHIShaderPlatform == SP_METAL_SM5 || GMaxRHIShaderPlatform == SP_METAL_SM6) && !bSupportsDistanceFields && !FParse::Param(FCommandLine::Get(),TEXT("metaldistancefields")))
 	{
 		static auto CVarDistanceFieldAO = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DistanceFieldAO"));
 		if(CVarDistanceFieldAO && CVarDistanceFieldAO->GetInt() != 0)
