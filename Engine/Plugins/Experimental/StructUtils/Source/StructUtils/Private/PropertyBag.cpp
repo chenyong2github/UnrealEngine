@@ -661,6 +661,34 @@ namespace UE::StructUtils::Private
 		return EPropertyBagResult::Success;
 	}
 
+	EPropertyBagResult GetPropertyValueAsSoftPath(const FPropertyBagPropertyDesc* Desc, const void* Address, FSoftObjectPath& OutValue)
+	{
+		if (Desc == nullptr || Desc->CachedProperty == nullptr)
+		{
+			return EPropertyBagResult::PropertyNotFound;
+		}
+		if (Desc->ValueType != EPropertyBagPropertyType::SoftObject
+			&& Desc->ValueType != EPropertyBagPropertyType::SoftClass)
+		{
+			return EPropertyBagResult::TypeMismatch;
+		}
+		if (Address == nullptr)
+		{
+			return EPropertyBagResult::OutOfBounds;
+		}
+		if (Desc->ContainerTypes.Num() > 0)
+		{
+			return EPropertyBagResult::TypeMismatch;
+		}
+
+		const FSoftObjectProperty* SoftObjectProperty = CastFieldChecked<FSoftObjectProperty>(Desc->CachedProperty);
+		check(SoftObjectProperty->PropertyClass);
+
+		OutValue = SoftObjectProperty->GetPropertyValue(Address).ToSoftObjectPath();
+
+		return EPropertyBagResult::Success;
+	}
+
 	//----------------------------------------------------------------//
 	//  Setters
 	//----------------------------------------------------------------//
@@ -951,6 +979,35 @@ namespace UE::StructUtils::Private
 		}
 
 		ObjectProperty->SetObjectPropertyValue(Address, InValue);
+
+		return EPropertyBagResult::Success;
+	}
+
+	EPropertyBagResult SetPropertyValueAsSoftPath(const FPropertyBagPropertyDesc* Desc, void* Address, const FSoftObjectPath& InValue)
+	{
+		if (Desc == nullptr || Desc->CachedProperty == nullptr)
+		{
+			return EPropertyBagResult::PropertyNotFound;
+		}
+		if (Desc->ValueType != EPropertyBagPropertyType::SoftObject &&
+			Desc->ValueType != EPropertyBagPropertyType::SoftClass)
+		{
+			return EPropertyBagResult::TypeMismatch;
+		}
+		if (Address == nullptr)
+		{
+			return EPropertyBagResult::OutOfBounds;
+		}
+		if (Desc->ContainerTypes.Num() > 0)
+		{
+			return EPropertyBagResult::TypeMismatch;
+		}
+
+		const FSoftObjectProperty* SoftObjectProperty = CastFieldChecked<FSoftObjectProperty>(Desc->CachedProperty);
+		check(SoftObjectProperty->PropertyClass);
+		check(Desc->ValueTypeObject);
+
+		SoftObjectProperty->SetPropertyValue(Address, FSoftObjectPtr(InValue));
 
 		return EPropertyBagResult::Success;
 	}
@@ -1559,6 +1616,19 @@ TValueOrError<UClass*, EPropertyBagResult> FInstancedPropertyBag::GetValueClass(
 	return MakeValue(Class);
 }
 
+TValueOrError<FSoftObjectPath, EPropertyBagResult> FInstancedPropertyBag::GetValueSoftPath(const FName Name) const
+{
+	const FPropertyBagPropertyDesc* Desc = FindPropertyDescByName(Name);
+	FSoftObjectPath ReturnValue;
+	const EPropertyBagResult Result = UE::StructUtils::Private::GetPropertyValueAsSoftPath(Desc, GetValueAddress(Desc), ReturnValue);
+	if (Result != EPropertyBagResult::Success)
+	{
+		return MakeError(Result);
+	}
+
+	return MakeValue(std::move(ReturnValue));
+}
+
 TValueOrError<FString, EPropertyBagResult> FInstancedPropertyBag::GetValueSerializedString(const FName Name)
 {
 	const FPropertyBagPropertyDesc* Desc = FindPropertyDescByName(Name);
@@ -1657,6 +1727,12 @@ EPropertyBagResult FInstancedPropertyBag::SetValueClass(const FName Name, UClass
 {
 	const FPropertyBagPropertyDesc* Desc = FindPropertyDescByName(Name);
 	return UE::StructUtils::Private::SetPropertyValueAsObject(Desc, GetMutableValueAddress(Desc), InValue);
+}
+
+EPropertyBagResult FInstancedPropertyBag::SetValueSoftPath(const FName Name, const FSoftObjectPath& InValue)
+{
+	const FPropertyBagPropertyDesc* Desc = FindPropertyDescByName(Name);
+	return UE::StructUtils::Private::SetPropertyValueAsSoftPath(Desc, GetMutableValueAddress(Desc), InValue);
 }
 
 EPropertyBagResult FInstancedPropertyBag::SetValueSerializedString(const FName Name, const FString& InValue)
@@ -2113,6 +2189,17 @@ TValueOrError<const FPropertyBagArrayRef, EPropertyBagResult> FPropertyBagArrayR
 	return MakeValue(FPropertyBagArrayRef(ValueDesc, Address));
 }
 
+TValueOrError<FSoftObjectPath, EPropertyBagResult> FPropertyBagArrayRef::GetValueSoftPath(const int32 Index) const
+{
+	FSoftObjectPath ReturnValue;
+	const EPropertyBagResult Result = UE::StructUtils::Private::GetPropertyValueAsSoftPath(&ValueDesc, GetAddress(Index), ReturnValue);
+	if (Result != EPropertyBagResult::Success)
+	{
+		return MakeError(Result);
+	}
+	return MakeValue(std::move(ReturnValue));
+}
+
 EPropertyBagResult FPropertyBagArrayRef::SetValueBool(const int32 Index, const bool bInValue)
 {
 	return UE::StructUtils::Private::SetPropertyFromInt64(&ValueDesc, GetMutableAddress(Index), bInValue ? 1 : 0);
@@ -2178,6 +2265,10 @@ EPropertyBagResult FPropertyBagArrayRef::SetValueClass(const int32 Index, UClass
 	return UE::StructUtils::Private::SetPropertyValueAsObject(&ValueDesc, GetMutableAddress(Index), InValue);
 }
 
+EPropertyBagResult FPropertyBagArrayRef::SetValueSoftPath(const int32 Index, const FSoftObjectPath& InValue)
+{
+	return UE::StructUtils::Private::SetPropertyValueAsSoftPath(&ValueDesc, GetMutableAddress(Index), InValue);
+}
 
 //----------------------------------------------------------------//
 //  UPropertyBag

@@ -464,6 +464,7 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	TValueOrError<FStructView, EPropertyBagResult> GetValueStruct(const FName Name, const UScriptStruct* RequestedStruct = nullptr) const;
 	TValueOrError<UObject*, EPropertyBagResult> GetValueObject(const FName Name, const UClass* RequestedClass = nullptr) const;
 	TValueOrError<UClass*, EPropertyBagResult> GetValueClass(const FName Name) const;
+	TValueOrError<FSoftObjectPath, EPropertyBagResult> GetValueSoftPath(const FName Name) const;
 
 	/** @return string-based serialized representation of the value. */
 	TValueOrError<FString, EPropertyBagResult> GetValueSerializedString(const FName Name);
@@ -537,6 +538,7 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	EPropertyBagResult SetValueStruct(const FName Name, FConstStructView InValue);
 	EPropertyBagResult SetValueObject(const FName Name, UObject* InValue);
 	EPropertyBagResult SetValueClass(const FName Name, UClass* InValue);
+	EPropertyBagResult SetValueSoftPath(const FName Name, const FSoftObjectPath& InValue);
 
 	/**
 	 * Sets property value from a serialized representation of the value. If the string value provided
@@ -685,6 +687,7 @@ public:
 	TValueOrError<FStructView, EPropertyBagResult> GetValueStruct(const int32 Index, const UScriptStruct* RequestedStruct = nullptr) const;
 	TValueOrError<UObject*, EPropertyBagResult> GetValueObject(const int32 Index, const UClass* RequestedClass = nullptr) const;
 	TValueOrError<UClass*, EPropertyBagResult> GetValueClass(const int32 Index) const;
+	TValueOrError<FSoftObjectPath, EPropertyBagResult> GetValueSoftPath(const int32 Index) const;
 
 	/** @return enum value of specified type. */
 	template <typename T>
@@ -769,6 +772,7 @@ public:
 	EPropertyBagResult SetValueStruct(const int32 Index, FConstStructView InValue);
 	EPropertyBagResult SetValueObject(const int32 Index, UObject* InValue);
 	EPropertyBagResult SetValueClass(const int32 Index, UClass* InValue);
+	EPropertyBagResult SetValueSoftPath(const int32 Index, const FSoftObjectPath& InValue);
 
 	/** Sets enum value specified type. */
 	template <typename T>
