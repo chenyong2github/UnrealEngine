@@ -156,22 +156,12 @@ public:
 	ENGINE_API virtual int32 GetOverallScalabilityLevel() const;
 
 	// Returns the current resolution scale and the range
-	UE_DEPRECATED(4.12, "Please call GetResolutionScaleInformationEx")
-	UFUNCTION(BlueprintCallable, Category = Settings, meta = (DeprecatedFunction, DisplayName = "GetResolutionScaleInformation_Deprecated"))
-	ENGINE_API void GetResolutionScaleInformation(float& CurrentScaleNormalized, int32& CurrentScaleValue, int32& MinScaleValue, int32& MaxScaleValue) const;
-
-	// Returns the current resolution scale and the range
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DisplayName="GetResolutionScaleInformation"))
 	ENGINE_API void GetResolutionScaleInformationEx(float& CurrentScaleNormalized, float& CurrentScaleValue, float& MinScaleValue, float& MaxScaleValue) const;
 
 	// Gets the current resolution scale as a normalized 0..1 value between MinScaleValue and MaxScaleValue
 	UFUNCTION(BlueprintCallable, Category = Settings)
 	ENGINE_API float GetResolutionScaleNormalized() const;
-
-	// Sets the current resolution scale
-	UE_DEPRECATED(4.12, "Please call SetResolutionScaleValueEx")
-	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DeprecatedFunction, DisplayName="SetResolutionScaleValue_Deprecated"))
-	ENGINE_API void SetResolutionScaleValue(int32 NewScaleValue);
 
 	// Sets the current resolution scale
 	UFUNCTION(BlueprintCallable, Category=Settings, meta=(DisplayName="SetResolutionScaleValue"))
@@ -549,10 +539,6 @@ protected:
 
 	/** Sets the frame rate limit CVar to the passed in value, 0.0 indicates no limit */
 	static ENGINE_API void SetFrameRateLimitCVar(float InLimit);
-
-	/** Sets the sync interval limit CVar for consoles 0-3 */
-	UE_DEPRECATED(4.25, "Please use FPlatformRHIFramePacer::SetFramePace to set the desired frame rate")
-	static ENGINE_API void SetSyncIntervalCVar(int32 InInterval);
 
 	/** Sets the input latency mode 0 and 2 */
 	static ENGINE_API void SetSyncTypeCVar(int32 InInterval);

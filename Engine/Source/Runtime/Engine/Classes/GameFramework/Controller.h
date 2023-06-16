@@ -402,19 +402,6 @@ private:
 	// Hidden functions that don't make sense to use on this class.
 	HIDE_ACTOR_TRANSFORM_FUNCTIONS();
 
-public:
-
-	/** prepares path following component */
-	UE_DEPRECATED(4.20, "InitNavigationControl is depracated. The function lost its meaning due to better Engine-AIModule code separation")
-	virtual void InitNavigationControl(UObject*& PathFollowingComp) {}
-
-	/** If controller has any navigation-related components then this function
-	 *	makes them update their cached data 
-	 *	DEPRECATED: this functionality has been taken over by PathFollowingComponent 
-	 *		by observing newly possessed pawns (via OnNewPawn)
-	 */
-	UE_DEPRECATED(4.20, "UpdateNavigationComponents is depracated. The function lost its meaning due to better Engine-AIModule code separation.")
-	virtual void UpdateNavigationComponents() {}
 };
 
 

@@ -496,28 +496,6 @@ private:
 		Unknown = 0xFC // ~FilteredInMask
 	};
 	uint8 FilterFlags;
-
-public:
-	UE_DEPRECATED(4.26, "Use IsNativeComponent() instead.")
-	bool IsNative() const { return IsNativeComponent(); }
-
-	UE_DEPRECATED(4.26, "Use IsInheritedSCSNode() instead.")
-	bool IsInheritedSCS() const { return IsInheritedSCSNode(); }
-
-	UE_DEPRECATED(4.26, "Use IsInheritedComponent() instead.")
-	bool IsInherited() const { return IsInheritedComponent(); }
-
-	UE_DEPRECATED(4.26, "Use IsUserInstancedComponent() instead.")
-	bool IsUserInstanced() const { return IsUserInstancedComponent(); }
-
-	UE_DEPRECATED(4.26, "Use CanEdit() instead.")
-	bool CanEditDefaults() const { return CanEdit(); }
-
-	UE_DEPRECATED(4.26, "Use SetObject() instead.")
-	void SetComponentTemplate(UActorComponent* Component) { SetObject(Component); }
-
-	UE_DEPRECATED(4.26, "Use RefreshFilteredState() instead. This API has been changed to an internal-only helper method.")
-	void UpdateCachedFilterState(bool bMatchesFilter, bool bUpdateParent) { SetCachedFilterState(bMatchesFilter, bUpdateParent); }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -1113,16 +1091,6 @@ public:
 	   @param Params       					(In) Parameter block of optional behavior flags
 	 */
 	UActorComponent* AddNewComponent(UClass* NewComponentClass, UObject* Asset, const FAddNewComponentParams Params = FAddNewComponentParams());
-
-	/** Adds a component to the SCS tree */
-	UE_DEPRECATED(4.26, "Use version that takes parameter block")
-	UActorComponent* AddNewComponent(UClass* NewComponentClass, UObject* Asset, const bool bSkipMarkBlueprintModified, bool bSetFocusToNewItem = true)
-	{
-		FAddNewComponentParams Params;
-		Params.bSkipMarkBlueprintModified = bSkipMarkBlueprintModified;
-		Params.bSetFocusToNewItem = bSetFocusToNewItem;
-		return AddNewComponent(NewComponentClass, Asset, Params);
-	}
 
 	struct FAddedNodeDetails
 	{

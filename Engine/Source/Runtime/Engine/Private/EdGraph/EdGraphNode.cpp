@@ -350,26 +350,6 @@ UEdGraphPin* UEdGraphNode::CreatePin(EEdGraphPinDirection Dir, const FEdGraphPin
 	return NewPin;
 }
 
-UEdGraphPin* UEdGraphNode::CreatePin(EEdGraphPinDirection Dir, const FNameParameterHelper PinCategory, const FNameParameterHelper PinSubCategory, UObject* PinSubCategoryObject, bool bIsArray, bool bIsReference, const FNameParameterHelper PinName, bool bIsConst /*= false*/, int32 Index /*= INDEX_NONE*/, bool bIsSet /*= false*/, bool bIsMap /*= false*/, const FEdGraphTerminalType& ValueTerminalType /*= FEdGraphTerminalType()*/)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return CreatePin(Dir, PinCategory, PinSubCategory, PinSubCategoryObject, PinName, FEdGraphPinType::ToPinContainerType(bIsArray, bIsSet, bIsMap), bIsReference, bIsConst, Index, ValueTerminalType);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-UEdGraphPin* UEdGraphNode::CreatePin(EEdGraphPinDirection Dir, const FNameParameterHelper PinCategory, const FNameParameterHelper PinSubCategory, UObject* PinSubCategoryObject, const FNameParameterHelper PinName, EPinContainerType PinContainerType /* EPinContainerType::None */, bool bIsReference /* = false */, bool bIsConst /*= false*/, int32 Index /*= INDEX_NONE*/, const FEdGraphTerminalType& ValueTerminalType /*= FEdGraphTerminalType()*/)
-{
-	FCreatePinParams PinParams;
-	PinParams.ContainerType = PinContainerType;
-	PinParams.bIsConst = bIsConst;
-	PinParams.bIsReference = bIsReference;
-	PinParams.Index = Index;
-	PinParams.ValueTerminalType = ValueTerminalType;
-
-	return CreatePin(Dir, *PinCategory, *PinSubCategory, PinSubCategoryObject, *PinName, PinParams);
-}
-
-
 UEdGraphPin* UEdGraphNode::CreatePin(const EEdGraphPinDirection Dir, const FName PinCategory, const FName PinSubCategory, UObject* PinSubCategoryObject, const FName PinName, const FCreatePinParams& PinParams)
 {
 	FEdGraphPinType PinType(PinCategory, PinSubCategory, PinSubCategoryObject, PinParams.ContainerType, PinParams.bIsReference, PinParams.ValueTerminalType);

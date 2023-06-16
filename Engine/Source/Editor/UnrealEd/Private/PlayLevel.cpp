@@ -977,94 +977,6 @@ void UEditorEngine::RequestPlaySession(const FRequestPlaySessionParams& InParams
 	}
 }
 
-// Deprecated, just format to match our new style.
-void UEditorEngine::RequestPlaySession(bool bAtPlayerStart, TSharedPtr<class IAssetViewport> DestinationViewport, bool bInSimulateInEditor, const FVector* StartLocation, const FRotator* StartRotation, int32 DestinationConsole, bool bUseMobilePreview, bool bUseVRPreview, bool bUseVulkanPreview)
-{
-	FRequestPlaySessionParams Params;
-
-	if (StartLocation)
-	{
-		Params.StartLocation = *StartLocation;
-		Params.StartRotation = StartRotation ? *StartRotation : FRotator::ZeroRotator;
-	}
-	if (DestinationViewport != nullptr)
-	{
-		Params.DestinationSlateViewport = DestinationViewport;
-	}
-
-	if (bInSimulateInEditor)
-	{
-		Params.WorldType = EPlaySessionWorldType::SimulateInEditor;
-	}
-
-	if (bUseVRPreview)
-	{
-		check(!bUseMobilePreview && !bUseVulkanPreview);
-		Params.SessionPreviewTypeOverride = EPlaySessionPreviewType::VRPreview;
-	}
-
-	if (bUseVulkanPreview)
-	{
-		check(!bUseMobilePreview && !bUseVRPreview);
-		Params.SessionPreviewTypeOverride = EPlaySessionPreviewType::VulkanPreview;
-		Params.SessionDestination = EPlaySessionDestinationType::NewProcess;
-	}
-
-	if (bUseMobilePreview)
-	{
-		check(!bUseVRPreview && !bUseVulkanPreview);
-		Params.SessionPreviewTypeOverride = EPlaySessionPreviewType::MobilePreview;
-		Params.SessionDestination = EPlaySessionDestinationType::NewProcess;
-	}
-	
-	RequestPlaySession(Params);
-}
-
-// Deprecated, forwards request onto the FRequestPlaySessionParams version.
-void UEditorEngine::RequestPlaySession(const FVector* StartLocation, const FRotator* StartRotation, bool MobilePreview, bool VulkanPreview, const FString& MobilePreviewTargetDevice, FString AdditionalLaunchParameters)
-{
-	FRequestPlaySessionParams Params;
-
-	if (MobilePreview)
-	{
-		check(!VulkanPreview);
-		Params.SessionDestination = EPlaySessionDestinationType::NewProcess;
-		Params.SessionPreviewTypeOverride = EPlaySessionPreviewType::MobilePreview;
-		Params.MobilePreviewTargetDevice = MobilePreviewTargetDevice;
-		Params.AdditionalStandaloneCommandLineParameters = AdditionalLaunchParameters;
-	}
-
-	if (VulkanPreview)
-	{
-		check(!MobilePreview);
-		Params.SessionDestination = EPlaySessionDestinationType::NewProcess;
-		Params.SessionPreviewTypeOverride = EPlaySessionPreviewType::VulkanPreview;
-		Params.AdditionalStandaloneCommandLineParameters = AdditionalLaunchParameters;
-	}
-	
-	if (StartLocation)
-	{
-		Params.StartLocation = *StartLocation;
-		Params.StartRotation = StartRotation ? *StartRotation : FRotator::ZeroRotator;
-	}
-
-	RequestPlaySession(Params);
-}
-
-// Deprecated, forwards request onto the FRequestPlaySessionParams version.
-void UEditorEngine::RequestPlaySession(const FString& DeviceId, const FString& DeviceName)
-{
-	FRequestPlaySessionParams::FLauncherDeviceInfo DeviceInfo;
-	DeviceInfo.DeviceId = DeviceId;
-	DeviceInfo.DeviceName = DeviceName;
-
-	FRequestPlaySessionParams Params;
-	Params.LauncherTargetDevice = DeviceInfo;
-	Params.SessionDestination = EPlaySessionDestinationType::Launcher;
-
-	RequestPlaySession(Params);
-}
-
 void UEditorEngine::CancelRequestPlaySession()
 {
 	FEditorDelegates::CancelPIE.Broadcast();
@@ -1137,12 +1049,6 @@ bool UEditorEngine::ProcessDebuggerCommands(const FKey InKey, const FModifierKey
 	}
 	
 	return false;
-}
-
-// This function is deprecated, just call the non-deprecated version.
-void UEditorEngine::StartQueuedPlayMapRequest()
-{
-	StartQueuedPlaySessionRequest();
 }
 
 void UEditorEngine::StartQueuedPlaySessionRequest()
@@ -3747,20 +3653,4 @@ void UEditorEngine::StoreWindowSizeAndPositionForInstanceIndex(const int32 InVie
 	}
 }
 
-// Deprecated Stubs
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bInSimulateInEditor, bool bAnyBlueprintErrors, bool bStartInSpectatorMode, bool bPlayNetDedicated, bool bPlayStereoscopic, float PIEStartTime)
-{
-	return nullptr;
-}
-
-void UEditorEngine::LoginPIEInstances(bool bAnyBlueprintErrors, bool bStartInSpectatorMode, double PIEStartTime)
-{}
-
-void UEditorEngine::OnLoginPIEAllComplete()
-{}
-
-void UEditorEngine::PlayInEditor(UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides /* = FPlayInEditorOverrides() */)
-{}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #undef LOCTEXT_NAMESPACE

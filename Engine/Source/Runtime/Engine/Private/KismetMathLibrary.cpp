@@ -417,11 +417,6 @@ void UKismetMathLibrary::MinOfByteArray(const TArray<uint8>& ByteArray, int32& I
 	MinValue = FMath::Min(ByteArray, &IndexOfMinValue);
 }
 
-float UKismetMathLibrary::InverseLerp(float A, float B, float Value)
-{
-	return NormalizeToRange(Value, A, B);
-}
-
 double UKismetMathLibrary::Ease(double A, double B, double Alpha, TEnumAsByte<EEasingFunc::Type> EasingFunc, double BlendExp, int32 Steps)
 {
 	return Lerp(A, B, EaseAlpha(Alpha, EasingFunc, BlendExp, Steps));

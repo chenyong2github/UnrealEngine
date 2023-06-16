@@ -247,16 +247,6 @@ public:
 	/** Time at which interpolation started (when bEnableColorScaling and bEnableColorScaleInterp == true) */
 	float ColorScaleInterpStartTime;
 
-	/** Cached camera properties. */
-	UE_DEPRECATED(4.19, "This property is now deprecated, please use GetCameraCachePOV and SetCameraCachePOV functions instead.")
-	UPROPERTY(transient)
-	struct FCameraCacheEntry CameraCache;
-
-	/** Cached camera properties, one frame old. */
-	UE_DEPRECATED(4.19, "This property is now deprecated, please use GetLastFrameCameraCachePOV and SetLastFrameCameraCachePOV functions instead.")
-	UPROPERTY(transient)
-	struct FCameraCacheEntry LastFrameCameraCache;
-
 	/** Current ViewTarget */
 	UPROPERTY(transient)
 	struct FTViewTarget ViewTarget;

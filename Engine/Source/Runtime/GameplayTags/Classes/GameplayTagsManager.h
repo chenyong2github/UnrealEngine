@@ -647,10 +647,6 @@ public:
 		return FString();
 	}
 
-	/** Returns "Categories" meta property from given struct, used for filtering by tag widget */
-	UE_DEPRECATED(4.22, "Please call GetCategoriesMetaFromField instead.")
-	FString GetCategoriesMetaFromStruct(UScriptStruct* Struct) const { return GetCategoriesMetaFromField(Struct); }
-
 	/** Returns "GameplayTagFilter" meta property from given function, used for filtering by tag widget for any parameters of the function that end up as BP pins */
 	FString GetCategoriesMetaFromFunction(const UFunction* Func, FName ParamName = NAME_None) const;
 

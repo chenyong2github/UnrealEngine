@@ -91,12 +91,6 @@ public:
 	UPROPERTY(Config)
 	int32 MaxSplitscreenPlayers = 4;
 
-	/** if true then the title safe border is drawn
-	  * @deprecated - Use the cvar "r.DebugSafeZone.Mode=1".
-	  */
-	UE_DEPRECATED(4.26, "Use the cvar \"r.DebugSafeZone.Mode=1\".")
-	uint32 bShowTitleSafeZone:1;
-
 	/** If true, this viewport is a play in editor viewport */
 	uint32 bIsPlayInEditorViewport:1;
 
@@ -431,20 +425,6 @@ public:
 	bool IsSplitscreenForceDisabled() const
 	{
 		return bDisableSplitScreenOverride;
-	}
-
-	/** Allows game code to disable splitscreen (useful when in menus) */
-	UE_DEPRECATED(4.24, "SetDisableSplitscreenOverride is deprecated. Please call UGameViewportClient::SetForceDisableSplitscreen(bDisabled) instead.")
-	void SetDisableSplitscreenOverride( const bool bDisabled )
-	{
-		SetForceDisableSplitscreen(bDisabled);
-	}
-
-	/** Determines whether splitscreen is forced to be turned off */
-	UE_DEPRECATED(4.24, "GetDisableSplitscreenOverride is deprecated. Please call UGameViewportClient::IsSplitscreenForceDisabled() instead.")
-	bool GetDisableSplitscreenOverride() const
-	{
-		return IsSplitscreenForceDisabled();
 	}
 
 	/** called before rending subtitles to allow the game viewport to determine the size of the subtitle area

@@ -727,21 +727,6 @@ struct GAMEPLAYTAGS_API FGameplayTagNativeAdder
 	virtual void AddTags() = 0;
 };
 
-USTRUCT()
-struct 
-	UE_DEPRECATED(4.26, "FGameplayTagReferenceHelper has been deprecated, to find references right click a normal gameplay tag")
-	FGameplayTagReferenceHelper
-{
-	GENERATED_USTRUCT_BODY()
-
-	FGameplayTagReferenceHelper()
-	{
-	}
-
-	DECLARE_DELEGATE_RetVal_OneParam(FName, FOnGetGameplayTagName, void* /**RawOuterStructData*/);
-	FOnGetGameplayTagName OnGetGameplayTagName;
-};
-
 /** Helper struct: drop this in another struct to get an embedded create new tag widget. */
 USTRUCT()
 struct FGameplayTagCreationWidgetHelper

@@ -985,12 +985,6 @@ FTransform UKismetMathLibrary::MakeRelativeTransform(const FTransform& A, const 
 }
 
 KISMET_MATH_INLINE
-FTransform UKismetMathLibrary::ConvertTransformToRelative(const FTransform& Transform, const FTransform& ParentTransform)
-{
-	return ParentTransform.GetRelativeTransform(Transform);
-}
-
-KISMET_MATH_INLINE
 FTransform UKismetMathLibrary::InvertTransform(const FTransform& T)
 {
 	return T.Inverse();
@@ -1514,12 +1508,6 @@ KISMET_MATH_FORCEINLINE
 FRotator UKismetMathLibrary::Conv_VectorToRotator(FVector InVec)
 {
 	return InVec.ToOrientationRotator();
-}
-
-KISMET_MATH_FORCEINLINE
-FQuat UKismetMathLibrary::Conv_VectorToQuaterion(FVector InVec)
-{
-	return InVec.ToOrientationQuat();
 }
 
 KISMET_MATH_FORCEINLINE
@@ -2126,12 +2114,6 @@ KISMET_MATH_FORCEINLINE
 FRotator UKismetMathLibrary::Conv_Vector4ToRotator(const FVector4& InVec)
 {
 	return InVec.ToOrientationRotator();
-}
-
-KISMET_MATH_FORCEINLINE
-FQuat UKismetMathLibrary::Conv_Vector4ToQuaterion(const FVector4& InVec)
-{
-	return InVec.ToOrientationQuat();
 }
 
 KISMET_MATH_FORCEINLINE

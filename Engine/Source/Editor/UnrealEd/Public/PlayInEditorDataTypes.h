@@ -59,10 +59,6 @@ struct FPieLoginStruct
 	/** World context handle for this login */
 	FName WorldContextHandle;
 
-	/** Setting index for window positioning */
-	UE_DEPRECATED(4.25, "This is now done automatically via PlayInEditorSessionInfo")
-	int32 SettingsIndex;
-
 	/** X location for window positioning */
 	int32 NextX;
 	/** Y location for window positioning */
@@ -76,18 +72,15 @@ struct FPieLoginStruct
 	/** Which index is the instance of this Play in Editor session that will be created. */
 	int32 PIEInstanceIndex;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FPieLoginStruct(const FPieLoginStruct& InOther)
 	{
 		WorldContextHandle = InOther.WorldContextHandle;
-		SettingsIndex = InOther.SettingsIndex;
 		NextX = InOther.NextX;
 		NextY = InOther.NextY;
 		PIEStartTime = InOther.PIEStartTime;
 		GameInstancePIEParameters = InOther.GameInstancePIEParameters;
 		PIEInstanceIndex = InOther.PIEInstanceIndex;
 	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FPieLoginStruct()
 		: WorldContextHandle(NAME_None)
@@ -96,24 +89,7 @@ struct FPieLoginStruct
 		, PIEStartTime(0)
 		, PIEInstanceIndex(-1)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SettingsIndex = 0;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-};
-
-
-/** Overrides you can pass when starting PIE to temporarily suppress the user's options for dedicated server, number of clients..etc. */
-struct UE_DEPRECATED(4.25, "Specify overrides by customizing the ULevelEditorPlaySettings in your PlaySessionRequest instead.") FPlayInEditorOverrides
-{
-	FPlayInEditorOverrides()
-		: bDedicatedServer()
-		, NumberOfClients()
-	{
-	}
-
-	TOptional<bool> bDedicatedServer;
-	TOptional<int32> NumberOfClients;
 };
 
 enum class EPlaySessionDestinationType : uint8

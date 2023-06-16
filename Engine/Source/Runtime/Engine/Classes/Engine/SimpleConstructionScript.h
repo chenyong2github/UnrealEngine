@@ -62,12 +62,6 @@ class USimpleConstructionScript : public UObject
 	 */
 	ENGINE_API USceneComponent* GetSceneRootComponentTemplate(bool bShouldUseDefaultRoot = false, USCS_Node** OutSCSNode = nullptr) const;
 
-	UE_DEPRECATED(4.25, "Use version that specifies whether the default scene root should be used")
-	USceneComponent* GetSceneRootComponentTemplate(USCS_Node** OutSCSNode) const
-	{
-		return GetSceneRootComponentTemplate(false, OutSCSNode);
-	}
-
 	/** Saves the current state of SimpleConstructionScript and its nodes to the transaction buffer. */
 	ENGINE_API void SaveToTransactionBuffer();
 #endif
@@ -84,13 +78,6 @@ class USimpleConstructionScript : public UObject
 #else
 	const TArray<USCS_Node*>& GetAllNodes() const { return AllNodes; }
 #endif	
-
-	/** Return immutable references to nodes in tree as a flat list */
-	UE_DEPRECATED(4.27, "GetAllNodesConst is being removed as it provides no unique functionality that GetAllNodes cannot be used for.")
-	TArray<const USCS_Node*> GetAllNodesConst() const
-	{
-		return TArray<const USCS_Node*>(GetAllNodes());
-	}
 
 	/** Provides read-only access to the root node set */
 	const TArray<USCS_Node*>& GetRootNodes() const { return RootNodes; }

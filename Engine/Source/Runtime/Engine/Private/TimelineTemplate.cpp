@@ -153,13 +153,6 @@ bool UTimelineTemplate::IsNewTrackNameValid(const FName NewTrackName) const
 			FindLinearColorTrackIndex(NewTrackName) == INDEX_NONE;
 }
 
-FName UTimelineTemplate::GetEventTrackFunctionName(int32 EventTrackIndex) const
-{
-	check(EventTrackIndex < EventTracks.Num());
-
-	return EventTracks[EventTrackIndex].GetFunctionName();
-}
-
 int32 UTimelineTemplate::FindMetaDataEntryIndexForKey(const FName Key) const
 {
 	for(int32 i=0; i<MetaDataArray.Num(); i++)

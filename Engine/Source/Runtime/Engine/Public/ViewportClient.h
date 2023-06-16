@@ -101,9 +101,6 @@ public:
 	 */
 	virtual bool InputTouch(FViewport* Viewport, int32 ControllerId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex) { return false; }
 
-	UE_DEPRECATED(4.20, "InputTouch now takes a Force")
-	bool InputTouch(FViewport* Viewport, int32 ControllerId, uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, FDateTime DeviceTimestamp, uint32 TouchpadIndex) { return InputTouch(Viewport, ControllerId, Handle, Type, TouchLocation, 1.0f, DeviceTimestamp, TouchpadIndex); }
-
 	/**
 	 * Check a gesture event received by the viewport.
 	 * If the viewport client uses the event, it should return true to consume it.
@@ -289,9 +286,6 @@ public:
 	 * Gets the mouse capture behavior when the viewport is clicked
 	 */
 	virtual EMouseCaptureMode GetMouseCaptureMode() const { return EMouseCaptureMode::CapturePermanently; }
-
-	UE_DEPRECATED(4.26, "Please call GetMouseCaptureMode() instead.")
-	void CaptureMouseOnClick() { GetMouseCaptureMode(); }
 
 	/**
 	 * Gets whether or not the viewport captures the Mouse on launch of the application

@@ -1896,11 +1896,6 @@ void APlayerController::ClientReturnToMainMenuWithTextReason_Implementation(cons
 	}
 }
 
-void APlayerController::ClientReturnToMainMenu_Implementation(const FString& ReturnReason)
-{
-	ClientReturnToMainMenuWithTextReason_Implementation(FText::FromString(ReturnReason));
-}
-
 bool APlayerController::SetPause( bool bPause, FCanUnpause CanUnpauseDelegate)
 {
 	bool bResult = false;

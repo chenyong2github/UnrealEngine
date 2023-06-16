@@ -264,12 +264,6 @@ public:
 	 */
 	bool StartTravel(UWorld* InCurrentWorld, const FURL& InURL);
 
-	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use StartTravel without a InGuid.")
-	bool StartTravel(UWorld* InCurrentWorld, const FURL& InURL, const FGuid& InGuid)
-	{
-		return StartTravel(InCurrentWorld, InURL);
-	}
-
 	/** @return whether a transition is already in progress */
 	FORCEINLINE bool IsInTransition() const
 	{
@@ -1672,11 +1666,6 @@ private:
 	/** Broadcasts whenever all the levels change */
 	FOnAllLevelsChangedEvent AllLevelsChangedEvent;
 
-	DECLARE_EVENT(UWorld, FOnBeginTearingDownEvent);
-
-	/** Broadcasted on UWorld::BeginTearingDown */
-	FOnBeginTearingDownEvent BeginTearingDownEvent;
-
 	/** Broadcasted when WorldPartition gets initialized */
 	DECLARE_EVENT_OneParam(UWorld, FWorldPartitionInitializedEvent, UWorldPartition*);
 	
@@ -2522,14 +2511,6 @@ public:
 	/** @return Returns the number of Controllers. */
 	int32 GetNumControllers() const;
 	
-	/** @return Returns an iterator for the pawn list. */
-	UE_DEPRECATED(4.24, "The PawnIterator is an inefficient mechanism for iterating pawns. Please use TActorIterator<PawnType> instead.")
-	FConstPawnIterator GetPawnIterator() const;
-	
-	/** @return Returns the number of Pawns. */
-	UE_DEPRECATED(4.23, "GetNumPawns is no longer a supported function on UWorld. The version that remains for backwards compatibility is significantly more expensive to call.")
-	int32 GetNumPawns() const;
-
 	/** @return Returns an iterator for the player controller list. */
 	FConstPlayerControllerIterator GetPlayerControllerIterator() const;
 
@@ -2797,18 +2778,7 @@ public:
 	 * @param	Controller	Controller to remove
 	 */
 	void RemoveController( AController* Controller );
-
-	UE_DEPRECATED(4.23, "There is no longer a reason to AddPawn to UWorld")
-	void AddPawn( APawn* Pawn ) { }
 	
-	/**
-	 * Removes the passed in pawn from the linked list of pawns.
-	 *
-	 * @param	Pawn	Pawn to remove
-	 */
-	UE_DEPRECATED(4.23, "RemovePawn has been deprecated and should no longer need to be called as PawnList is no longer maintained and Unpossess should be handled by EndPlay.")
-	void RemovePawn( APawn* Pawn ) const;
-
 	/**
 	 * Adds the passed in actor to the special network actor list
 	 * This list is used to specifically single out actors that are relevant for networking without having to scan the much large list
@@ -3775,10 +3745,6 @@ public:
 	/** Returns the AllLevelsChangedEvent member. */
 	FOnAllLevelsChangedEvent& OnAllLevelsChanged() { return AllLevelsChangedEvent; }
 
-	/** Returns the BeginTearingDownEvent member. */
-	UE_DEPRECATED(4.26, "OnBeginTearingDown has been replaced by FWorldDelegates::OnWorldBeginTearDown")
-	FOnBeginTearingDownEvent& OnBeginTearingDown() { return BeginTearingDownEvent; }
-
 	/** Returns the actor count. */
 	int32 GetProgressDenominator() const;
 	
@@ -3901,12 +3867,6 @@ public:
 	 * @param bAbsolute (opt) - if true, URL is absolute, otherwise relative
 	 */
 	void SeamlessTravel(const FString& InURL, bool bAbsolute = false);
-
-	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use SeamlessTravel without a NextMapGuid.")
-	void SeamlessTravel(const FString& InURL, bool bAbsolute, FGuid MapPackageGuid)
-	{
-		SeamlessTravel(InURL, bAbsolute);
-	}
 
 	/** @return whether we're currently in a seamless transition */
 	bool IsInSeamlessTravel() const;

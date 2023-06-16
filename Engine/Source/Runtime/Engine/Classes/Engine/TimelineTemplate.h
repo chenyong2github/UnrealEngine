@@ -259,10 +259,6 @@ class UTimelineTemplate : public UObject
 	/** Get the name of the function we expect to find in the owning actor that we will bind the finished event to */
 	FName GetFinishedFunctionName() const { return FinishedFunctionName; }
 
-	/** Get the name of the funcerion we expect to find in the owning actor that we will bind event track with index EvenTrackIndex to */
-	UE_DEPRECATED(4.22, "Access the event track function name directly from the EventTrack instead.")
-	ENGINE_API FName GetEventTrackFunctionName(int32 EventTrackIndex) const;
-
 	/** Set a metadata value on the timeline */
 	ENGINE_API void SetMetaData(FName Key, FString Value);
 

@@ -434,10 +434,6 @@ public:
 	/** Returns true if able to compile */
 	virtual bool IsCompilingEnabled() const;
 
-	/** Returns true if the parent class is also a Blueprint */
-	UE_DEPRECATED(4.27, "Please use FBlueprintEditorUtils::IsParentClassABlueprint instead")
-	bool IsParentClassOfObjectABlueprint(const UBlueprint* Blueprint) const;
-
 	/** Returns true if the parent class of the Blueprint being edited is also a Blueprint */
 	bool IsParentClassABlueprint() const;
 
@@ -802,8 +798,6 @@ public:
 	void SelectAndDuplicateNode(UEdGraphNode* InNode);
 
 protected:
-	UE_DEPRECATED(4.26, "Please do any validation inside the UBlueprint class during compilation, extra errors during compiling only supplied by the designer can lead to design time only errors being reported and being missed during cooks/content validation.")
-	virtual void AppendExtraCompilerResults(TSharedPtr<class IMessageLogListing> ResultsListing) {}
 
 	/** Called during initialization of the blueprint editor to register commands and extenders. */
 	virtual void InitalizeExtenders();

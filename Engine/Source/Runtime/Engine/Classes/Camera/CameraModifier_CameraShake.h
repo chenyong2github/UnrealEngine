@@ -151,19 +151,6 @@ public:
 	 */
 	ENGINE_API virtual UCameraShakeBase* AddCameraShake(TSubclassOf<UCameraShakeBase> NewShake, const FAddCameraShakeParams& Params);
 
-	/** 
-	 * Adds a new active screen shake to be applied. 
-	 * @param NewShake - The class of camera shake to instantiate.
-	 * @param Scale - The scalar intensity to play the shake.
-	 * @param PlaySpace - Which coordinate system to play the shake in.
-	 * @param UserPlaySpaceRot - Coordinate system to play shake when PlaySpace == CAPS_UserDefined.
-	 */
-	UE_DEPRECATED(4.25, "Please use the new AddCameraShake method that takes a parameter struct.")
-	virtual UCameraShakeBase* AddCameraShake(TSubclassOf<UCameraShakeBase> NewShake, float Scale, ECameraShakePlaySpace PlaySpace= ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator)
-	{
-		return AddCameraShake(NewShake, FAddCameraShakeParams(Scale, PlaySpace, UserPlaySpaceRot));
-	}
-
 	/**
 	 * Returns a list of currently active camera shakes.
 	 * @param ActiveCameraShakes - The array to fill up with shake information.

@@ -472,9 +472,6 @@ public:
 	/** Returns the mouse sensitivity along the Y-axis, or 1.0 if none are known. */
 	ENGINE_API float GetMouseSensitivityY();
 
-	UE_DEPRECATED(4.21, "Call axis specific GetMouseSensitivityX or GetMouseSensitivityY instead.")
-	float GetMouseSensitivity() { return GetMouseSensitivityX(); }
-
 	/** Returns whether an Axis Key is inverted */
 	ENGINE_API bool GetInvertAxisKey(const FKey AxisKey);
 
@@ -594,12 +591,6 @@ public:
 	/** Handles a touch input event.  Returns true. */
 	ENGINE_API bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, float Force, FDateTime DeviceTimestamp, uint32 TouchpadIndex);
 
-	UE_DEPRECATED(4.20, "InputTouch now takes a Force")
-	bool InputTouch(uint32 Handle, ETouchType::Type Type, const FVector2D& TouchLocation, FDateTime DeviceTimestamp, uint32 TouchpadIndex)
-	{
-		return InputTouch(Handle, Type, TouchLocation, 1.0f, DeviceTimestamp, TouchpadIndex);
-	}
-
 	/** Handles a motion input event.  Returns true. */
 	ENGINE_API bool InputMotion(const FVector& Tilt, const FVector& RotationRate, const FVector& Gravity, const FVector& Acceleration);
 
@@ -666,12 +657,6 @@ public:
 
 	/** @return raw value of the InKey */
 	ENGINE_API FVector GetRawVectorKeyValue(FKey InKey) const;
-
-	UE_DEPRECATED(4.21, "Use GetProcessedVectorKeyValue or GetRawVectorKeyValue instead. GetRawVectorKeyValue will have the same result as GetVectorKeyValue previously.")
-	FVector GetVectorKeyValue(FKey InKey) const
-	{
-		return GetRawVectorKeyValue(InKey);
-	}
 
 	/** @return true if alt key is pressed */
 	ENGINE_API bool IsAltPressed() const;

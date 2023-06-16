@@ -802,9 +802,6 @@ class UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Math|Float")
 	static ENGINE_API double Lerp(double A, double B, double Alpha);
 	
-	UE_DEPRECATED(4.19, "Use NormalizeToRange instead")
-	static ENGINE_API float InverseLerp(float A, float B, float Value);
-
 	/** Easeing  between A and B using a specified easing function */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Ease", BlueprintInternalUseOnly = "true"), Category = "Math|Interpolation")
 	static ENGINE_API double Ease(double A, double B, double Alpha, TEnumAsByte<EEasingFunc::Type> EasingFunc, double BlendExp = 2, int32 Steps = 2);
@@ -1361,9 +1358,6 @@ class UKismetMathLibrary : public UBlueprintFunctionLibrary
 	/** Create a rotation from an this axis and supplied angle (in degrees) */
 	UFUNCTION(BlueprintPure, meta=(ScriptMethod = "RotatorFromAxisAndAngle", Keywords="make construct build rotate rotation"), Category="Math|Vector")
 	static ENGINE_API FRotator RotatorFromAxisAndAngle(FVector Axis, float Angle);
-
-	UE_DEPRECATED(4.26, "Conv_VectorToQuaterion was renamed to Conv_VectorToQuaternion")
-	static ENGINE_API FQuat Conv_VectorToQuaterion(FVector InVec);
 
 	/**
 	 * Return the Quaternion orientation corresponding to the direction in which the vector points.
@@ -2094,9 +2088,6 @@ class UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Rotation (Vector4)", ScriptMethod = "Rotator", Keywords = "rotation rotate cast convert", BlueprintAutocast), Category = "Math|Conversions")
 	static ENGINE_API FRotator Conv_Vector4ToRotator(const FVector4& InVec);
-
-	UE_DEPRECATED(4.26, "Conv_Vector4ToQuaterion renamed to Conv_Vector4ToQuaternion")
-	static ENGINE_API FQuat Conv_Vector4ToQuaterion(const FVector4& InVec);
 	
 	/**
 	 * Return the Quaternion orientation corresponding to the direction in which the vector points.
@@ -3927,9 +3918,6 @@ class UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 */
 	UFUNCTION(BlueprintPure, meta=(ScriptMethod = "MakeRelative", Keywords="convert torelative"), Category="Math|Transform")
 	static ENGINE_API FTransform MakeRelativeTransform(const FTransform& A, const FTransform& RelativeTo);
-
-	UE_DEPRECATED(4.22, "Use MakeRelativeTransform instead, with reversed order of arguments.")
-	static ENGINE_API FTransform ConvertTransformToRelative(const FTransform& Transform, const FTransform& ParentTransform);
 
 	/** 
 	 * Returns the inverse of the given transform T.

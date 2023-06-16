@@ -11367,11 +11367,6 @@ uint16 UCharacterMovementComponent::ApplyRootMotionSource(TSharedPtr<FRootMotion
 	return (uint16)ERootMotionSourceID::Invalid;
 }
 
-uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* SourcePtr)
-{
-	return ApplyRootMotionSource(TSharedPtr<FRootMotionSource>(SourcePtr));
-}
-
 void UCharacterMovementComponent::OnRootMotionSourceBeingApplied(const FRootMotionSource* Source)
 {
 }

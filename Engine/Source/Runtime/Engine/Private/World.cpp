@@ -3453,7 +3453,6 @@ void UWorld::BeginTearingDown()
 {
 	bIsTearingDown = true;
 	UE_LOG(LogWorld, Log, TEXT("BeginTearingDown for %s"), *GetOutermost()->GetName());
-	BeginTearingDownEvent.Broadcast();
 
 	//Simultaneous similar edits that caused merge conflict. Taking both for now to unblock.
 	//Can likely be unified.
@@ -5596,35 +5595,6 @@ TUniquePtr<FPawnIteratorObject> FConstPawnIterator::operator->() const
 
 	return TUniquePtr<FPawnIteratorObject>(new FPawnIteratorObject(**Iterator));
 }
-
-FConstPawnIterator UWorld::GetPawnIterator() const
-{
-	return FConstPawnIterator(const_cast<UWorld*>(this)); // For backwards compat GetPawnIterator needs to remain const, but TActorIterator can't use a const UWorld.
-}
-
-int32 UWorld::GetNumPawns() const
-{
-	int32 NumPawns = 0;
-	for (APawn* Pawn : TActorRange<APawn>(const_cast<UWorld*>(this))) // For backwards compat GetNumPawns needs to remain const, but TActorRange can't use a const UWorld.
-	{
-		++NumPawns;
-	}
-
-	return NumPawns;
-}
-
-void UWorld::RemovePawn( APawn* Pawn ) const
-{
-	if (Pawn)
-	{
-		AController* Controller = Pawn->GetController();
-		if (Controller && (Controller->GetPawn() == Pawn))
-		{
-			Controller->UnPossess();
-		}
-	}
-}
-
 
 void UWorld::RegisterAutoActivateCamera(ACameraActor* CameraActor, int32 PlayerIndex)
 {

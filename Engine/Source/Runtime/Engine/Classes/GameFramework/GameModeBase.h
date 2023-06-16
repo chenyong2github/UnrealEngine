@@ -554,12 +554,6 @@ protected:
 	 */
 	ENGINE_API virtual APlayerController* ProcessClientTravel(FString& URL, bool bSeamless, bool bAbsolute);
 
-	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use ProcessClientTravel without a NextMapGuid.")
-	virtual APlayerController* ProcessClientTravel(FString& URL, FGuid NextMapGuid, bool bSeamless, bool bAbsolute)
-	{
-		return ProcessClientTravel(URL, bSeamless, bAbsolute);
-	}
-
 	/** Handles initializing a seamless travel player, handles logic similar to InitNewPlayer */
 	ENGINE_API virtual void InitSeamlessTravelPlayer(AController* NewController);
 

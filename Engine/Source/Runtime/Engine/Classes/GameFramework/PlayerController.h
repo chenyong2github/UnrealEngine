@@ -670,11 +670,6 @@ public:
 	ENGINE_API void ServerExec(const FString& Msg);
 
 	/** Return the client to the main menu gracefully */
-	UE_DEPRECATED(4.19, "As an FString, the ReturnReason parameter is not easily localized. Please use ClientReturnToMainMenuWithTextReason instead.")
-	UFUNCTION(Reliable, Client)
-	ENGINE_API virtual void ClientReturnToMainMenu(const FString& ReturnReason);
-
-	/** Return the client to the main menu gracefully */
 	UFUNCTION(Reliable, Client)
 	ENGINE_API virtual void ClientReturnToMainMenuWithTextReason(const FText& ReturnReason);
 
@@ -1117,13 +1112,6 @@ public:
 	UFUNCTION(unreliable, client, BlueprintCallable, Category="Game|Feedback")
 	ENGINE_API void ClientStartCameraShake(TSubclassOf<class UCameraShakeBase> Shake, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator);
 
-	/** Backwards compatible method, for C++ code */
-	UE_DEPRECATED(4.26, "Please use ClientStartCameraShake")
-	void ClientPlayCameraShake(TSubclassOf<class UCameraShakeBase> Shake, float Scale = 1.f, ECameraShakePlaySpace PlaySpace = ECameraShakePlaySpace::CameraLocal, FRotator UserPlaySpaceRot = FRotator::ZeroRotator)
-	{
-		return ClientStartCameraShake(Shake, Scale, PlaySpace, UserPlaySpaceRot);
-	}
-
 	/** 
 	 * Play Camera Shake localized to a given source
 	 * @param Shake - Camera shake animation to play
@@ -1131,13 +1119,6 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Feedback")
 	ENGINE_API void ClientStartCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent);
-
-	/** Backwards compatible method, for C++ code */
-	UE_DEPRECATED(4.26, "Please use ClientStartCameraShakeFromSource")
-	void ClientPlayCameraShakeFromSource(TSubclassOf<class UCameraShakeBase> Shake, class UCameraShakeSourceComponent* SourceComponent)
-	{
-		return ClientStartCameraShakeFromSource(Shake, SourceComponent);
-	}
 
 	/**
 	 * Play sound client-side (so only the client will hear it)

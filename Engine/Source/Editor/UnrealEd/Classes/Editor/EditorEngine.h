@@ -371,10 +371,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Advanced)
 	uint32 UseAxisIndicator:1;
 
-	UE_DEPRECATED(4.25, "This variable is no longer read.")
-	UPROPERTY(EditAnywhere, config, Category=Advanced)
-	uint32 GodMode:1;
-
 	UPROPERTY(EditAnywhere, config, Category=Advanced)
 	FString GameCommandLine;
 
@@ -1682,29 +1678,6 @@ public:
 	 */
 	virtual void CancelCookByTheBookInEditor() { }
 
-
-	/**
-	 * Makes a request to start a play from a Slate editor session
-	 * @param	bAtPlayerStart			Whether or not we would really like to use the game or level's PlayerStart vs the StartLocation
-	 * @param	DestinationViewport		Slate Viewport to play the game in, or NULL to spawn a standalone PIE window
-	 * @param	bInSimulateInEditor		True to start an in-editor simulation session, or false to kick off a play-in-editor session
-	 * @param	StartLocation			If specified, this is the location to play from (via a PlayerStartPIE - Play From Here)
-	 * @param	StartRotation			If specified, this is the rotation to start playing at
-	 * @param	DestinationConsole		Where to play the game - -1 means in editor, 0 or more is an index into the GConsoleSupportContainer
-	 * @param	bUseMobilePreview		True to enable mobile preview mode (PC platform only)
-	 * @param	bUseVRPreview			True to enable VR preview mode (PC platform only)
-	 */
-	UE_DEPRECATED(4.25, "Use the overload of RequestPlaySession which takes a FRequestPlaySessionParams instead.")
-	UNREALED_API void RequestPlaySession( bool bAtPlayerStart, TSharedPtr<class IAssetViewport> DestinationViewport, bool bInSimulateInEditor, const FVector* StartLocation = NULL, const FRotator* StartRotation = NULL, int32 DestinationConsole = -1, bool bUseMobilePreview = false, bool bUseVRPreview = false, bool bUseVulkanPreview = false);
-
-	// @todo gmp: temp hack for Rocket demo
-	UE_DEPRECATED(4.25, "Use the overload of RequestPlaySession which takes a FRequestPlaySessionParams instead.")
-	UNREALED_API void RequestPlaySession(const FVector* StartLocation, const FRotator* StartRotation, bool MobilePreview, bool VulkanPreview, const FString& MobilePreviewTargetDevice, FString AdditionalStandaloneLaunchParameters = TEXT(""));
-
-	/** Request to play a game on a remote device */
-	UE_DEPRECATED(4.25, "Use the overload of RequestPlaySession which takes a FRequestPlaySessionParams instead.")
-	UNREALED_API void RequestPlaySession( const FString& DeviceId, const FString& DeviceName );
-	
 	/** Request a play session (Play in Editor, Play in New Process, Launcher) with the configured parameters. See FRequestPlaySessionParams for more details. */
 	UNREALED_API void RequestPlaySession(const FRequestPlaySessionParams& InParams);
 
@@ -1756,12 +1729,6 @@ public:
 	/** Called when game client received input key */
 	UNREALED_API bool ProcessDebuggerCommands(const FKey InKey, const FModifierKeysState ModifierKeyState, EInputEvent EventType);
 
-	/**
-	 * Kicks off a "Play From Here" request that was most likely made during a transaction
-	 */
-	UE_DEPRECATED(4.25, "Call StartQueuedPlaySessionRequest, or override StartQueuedPlaySessionRequestImpl instead.")
-	UNREALED_API virtual void StartQueuedPlayMapRequest();
-
 	/** Kicks off a "Request Play Session" request if there is one set. This should not be called mid-transaction. */
 	UNREALED_API void StartQueuedPlaySessionRequest();
 
@@ -1791,18 +1758,6 @@ public:
 	 * @return	The URL for the game
 	 */
 	UNREALED_API virtual FString BuildPlayWorldURL(const TCHAR* MapName, bool bSpectatorMode = false, FString AdditionalURLOptions=FString());
-
-	/**
-	 * Starts a Play In Editor session
-	 *
-	 * @param	InWorld		World context
-	 * @param	bInSimulateInEditor	True to start an in-editor simulation session, or false to start a play-in-editor session
-	 */
-	UE_DEPRECATED(4.25, "Override StartPlayInEditorSession(FRequestPlaySessionParams& InRequestParams) instead. InWorld is GetEditorWorldContext().World(), and the other arguments come from InRequestParams now.") 
-	UNREALED_API virtual void PlayInEditor( UWorld* InWorld, bool bInSimulateInEditor, FPlayInEditorOverrides Overrides = FPlayInEditorOverrides());
-
-	UE_DEPRECATED(4.25, "Override CreateInnerProcessPIEGameInstance instead.")
-	UNREALED_API virtual UGameInstance* CreatePIEGameInstance(int32 InPIEInstance, bool bInSimulateInEditor, bool bAnyBlueprintErrors, bool bStartInSpectatorMode, bool bPlayNetDedicated, bool bPlayStereoscopic, float PIEStartTime);
 
 	/**
 	 * Kills the Play From Here session
@@ -2622,19 +2577,6 @@ private:
 	 */
 	UNREALED_API bool LoadPreviewMesh( int32 Index );
 
-	/**
-	 * Login PIE instances with the online platform before actually creating any PIE worlds
-	 *
-	 * @param bAnyBlueprintErrors passthrough value of blueprint errors encountered during PIE creation
-	 * @param bStartInSpectatorMode passthrough value if it is expected that PIE will start in spectator mode
-	 * @param PIEStartTime passthrough value of the time that PIE was initiated by the user
-	 */
-	UE_DEPRECATED(4.25, "This is now done as part of StartPlayInEditorSession as online-login/non-logged in flow is now combined.")
-	UNREALED_API virtual void LoginPIEInstances(bool bAnyBlueprintErrors, bool bStartInSpectatorMode, double PIEStartTime);
-
-	/** Called when all PIE instances have been successfully logged in */
-	UE_DEPRECATED(4.25, "Override OnAllPIEInstancesStarted instead, which is called in both online and offline PIE sessions.")
-	UNREALED_API virtual void OnLoginPIEAllComplete();
 	/** Called when a recompilation of a module is beginning */
 	UNREALED_API void OnModuleCompileStarted(bool bIsAsyncCompile);
 
@@ -2644,17 +2586,6 @@ private:
 public:
 	/** Creates a pie world from the default entry map, used by clients that connect to a PIE server */
 	UNREALED_API UWorld* CreatePIEWorldFromEntry(FWorldContext &WorldContext, UWorld* InWorld, FString &PlayWorldMapName);
-
-	/**
-	 * Continue the creation of a single PIE world after a login was successful
-	 *
-	 * @param PieWorldContext world context for this PIE instance
-	 * @param PlayNetMode mode to create this PIE world in (as server, client, etc)
-	 * @param DataStruct data required to continue PIE creation, set at login time
-	 * @return	true if world created successfully
-	 */
-	UE_DEPRECATED(4.25, "This is now handled as part of OnLoginPIEComplete_Deferred.")
-	UNREALED_API bool CreatePIEWorldFromLogin(FWorldContext& PieWorldContext, EPlayNetMode PlayNetMode, FPieLoginStruct& DataStruct);
 
 	/** Called before creating PIE instance(s). */
 	UNREALED_API virtual FGameInstancePIEResult PreCreatePIEInstances(const bool bAnyBlueprintErrors, const bool bStartInSpectatorMode, const float PIEStartTime, const bool bSupportsOnlinePIE, int32& InNumOnlinePIEInstances);
@@ -2676,17 +2607,7 @@ public:
 	 * @return true if function succeeded, false if failed
 	 */
 	UNREALED_API bool GetSimulateInEditorViewTransform(FTransform& OutViewTransform) const;
-
-public:
-	/**
-	 * Non Online PIE creation flow, creates all instances of PIE at once when online isn't requested/required
-	 *
-	 * @param bAnyBlueprintErrors passthrough value of blueprint errors encountered during PIE creation
-	 * @param bStartInSpectatorMode passthrough value if it is expected that PIE will start in spectator mode
-	 */
-	UE_DEPRECATED(4.25, "This non-online flow is now deprecated and is shared with normal online flow. See OnLoginPIEComplete_Deferred instead.")
-	UNREALED_API void SpawnIntraProcessPIEWorlds(bool bAnyBlueprintErrors, bool bStartInSpectatorMode);
-
+	
 	/*
 	 * Spawns a PlayFromHere playerstart in the given world
 	 * @param	World		The World to spawn in (for PIE this may not be GWorld)
@@ -2949,13 +2870,6 @@ public:
 	*/
 	UNREALED_API FString GetPlayOnTargetPlatformName() const;
 
-	/**
-	* Launch a standalone instance using the Launcher to process required
-	* cooking, building, and deployment to a (possibly) remote device for testing.
-	*/
-	UE_DEPRECATED(4.25, "Use RequestPlaySession with parameters configured to provide a launcher target instead.")
-	UNREALED_API void PlayUsingLauncher();
-
 	/** 
 	* Cancel Play using Launcher on error 
 	* 
@@ -3176,10 +3090,7 @@ public:
 	// Launcher Worker
 	TSharedPtr<class ILauncherWorker> LauncherWorker;
 	
-	/** Function to run the Play On command for automation testing. */
-	UE_DEPRECATED(4.25, "Use RequestPlaySession and StartQueuedPlaySessionRequest instead.")
-	UNREALED_API void AutomationPlayUsingLauncher(const FString& InLauncherDeviceId);	
-
+	/** Load a map for automation testing */
 	UNREALED_API void AutomationLoadMap(const FString& MapName, bool bForceReload, FString* OutError);
 
 	/** This function should be called to notify the editor that new materials were added to our scene or some materials were modified */

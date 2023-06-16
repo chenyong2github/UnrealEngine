@@ -481,22 +481,6 @@ void UEditorEngine::CancelPlayingViaLauncher()
 	}
 }
 
-// Deprecated, just formats a RequestPlaySession instead.
-void UEditorEngine::AutomationPlayUsingLauncher(const FString& InLauncherDeviceId)
-{
-	FRequestPlaySessionParams::FLauncherDeviceInfo LaunchedDeviceInfo;
-	LaunchedDeviceInfo.DeviceId = InLauncherDeviceId;
-	LaunchedDeviceInfo.DeviceName = InLauncherDeviceId.Right(InLauncherDeviceId.Find(TEXT("@")));
-
-	FRequestPlaySessionParams Params;
-	Params.LauncherTargetDevice = LaunchedDeviceInfo;
-
-	RequestPlaySession(Params);
-
-	// Immediately start our requested play session
-	StartQueuedPlaySessionRequest();
-}
-
 /** 
 * Cancel Play using Launcher on error 
 * 
@@ -743,18 +727,6 @@ void UEditorEngine::HandleLaunchCompleted(bool Succeeded, double TotalTime, int3
 FString UEditorEngine::GetPlayOnTargetPlatformName() const
 {
 	return LastPlayUsingLauncherDeviceId.Left(LastPlayUsingLauncherDeviceId.Find(TEXT("@")));
-}
-
-void UEditorEngine::PlayUsingLauncher()
-{
-	// Deprecated, just a wrapper around RequestPlaySession now.
-	FRequestPlaySessionParams::FLauncherDeviceInfo DeviceInfo;
-	DeviceInfo.DeviceId = LastPlayUsingLauncherDeviceId;
-
-	FRequestPlaySessionParams Params;
-	Params.LauncherTargetDevice = DeviceInfo;
-	
-	RequestPlaySession(Params);
 }
 
 #undef LOCTEXT_NAMESPACE // "PlayLevel"

@@ -328,15 +328,6 @@ void UGameUserSettings::SetFrameRateLimitCVar(float InLimit)
 	GEngine->SetMaxFPS(FMath::Max(InLimit, 0.0f));
 }
 
-void UGameUserSettings::SetSyncIntervalCVar(int32 InInterval)
-{
-	static IConsoleVariable* SyncIntervalCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("rhi.syncinterval"));
-	if (ensure(SyncIntervalCVar))
-	{
-		SyncIntervalCVar->Set(InInterval, ECVF_SetByCode);
-	}
-}
-
 void UGameUserSettings::SetSyncTypeCVar(int32 InType)
 {
 	static IConsoleVariable* SyncIntervalCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GTSyncType"));
@@ -766,14 +757,6 @@ int32 UGameUserSettings::GetOverallScalabilityLevel() const
 	return ScalabilityQuality.GetSingleQualityLevel();
 }
 
-void UGameUserSettings::GetResolutionScaleInformation(float& CurrentScaleNormalized, int32& CurrentScaleValue, int32& MinScaleValue, int32& MaxScaleValue) const
-{
-	CurrentScaleValue = ScalabilityQuality.ResolutionQuality;
-	MinScaleValue = MinResolutionScale;
-	MaxScaleValue = Scalability::MaxResolutionScale;
-	CurrentScaleNormalized = ((float)CurrentScaleValue - (float)MinScaleValue) / (float)(MaxScaleValue - MinScaleValue);
-}
-
 void UGameUserSettings::GetResolutionScaleInformationEx(float& CurrentScaleNormalized, float& CurrentScaleValue, float& MinScaleValue, float& MaxScaleValue) const
 {
 	CurrentScaleValue = ScalabilityQuality.ResolutionQuality;
@@ -788,11 +771,6 @@ float UGameUserSettings::GetResolutionScaleNormalized() const
 	GetResolutionScaleInformationEx(CurrentScaleNormalized, CurrentScaleValue, MinScaleValue, MaxScaleValue);
 
 	return CurrentScaleNormalized;
-}
-
-void UGameUserSettings::SetResolutionScaleValue(int32 NewScaleValue)
-{
-	SetResolutionScaleValueEx((float)NewScaleValue);
 }
 
 void UGameUserSettings::SetResolutionScaleValueEx(float NewScaleValue)

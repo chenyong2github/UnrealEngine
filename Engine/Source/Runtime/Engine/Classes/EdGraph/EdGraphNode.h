@@ -501,36 +501,6 @@ public:
 		FName NameParameter;
 	};
 
-	/** Create a new pin on this node using the supplied info, and return the new pin */
-	UE_DEPRECATED(4.19, "Use version that supplies Pin Category, SubCategory, and Name as an FName and uses PinContainerType instead of separate booleans for array, set, and map.")
-	ENGINE_API UEdGraphPin* CreatePin(
-		EEdGraphPinDirection Dir, 
-		const FNameParameterHelper PinCategory, 
-		const FNameParameterHelper PinSubCategory, 
-		UObject* PinSubCategoryObject, 
-		bool bIsArray, 
-		bool bIsReference, 
-		const FNameParameterHelper PinName, 
-		bool bIsConst = false, 
-		int32 Index = INDEX_NONE, 
-		bool bIsSet = false, 
-		bool bIsMap = false,
-		const FEdGraphTerminalType& ValueTerminalType = FEdGraphTerminalType());
-
-	/** Create a new pin on this node using the supplied info, and return the new pin */
-	UE_DEPRECATED(4.19, "Use version that supplies Pin Category, SubCategory, and Name as an FName and uses a parameter structure for optional paramaters.")
-	ENGINE_API UEdGraphPin* CreatePin(
-		EEdGraphPinDirection Dir,
-		const FNameParameterHelper PinCategory,
-		const FNameParameterHelper PinSubCategory,
-		UObject* PinSubCategoryObject,
-		const FNameParameterHelper PinName,
-		EPinContainerType PinContainerType = EPinContainerType::None,
-		bool bIsReference = false,
-		bool bIsConst = false,
-		int32 Index = INDEX_NONE,
-		const FEdGraphTerminalType& ValueTerminalType = FEdGraphTerminalType());
-
 	/** Parameter struct of less common options for CreatePin */
 	struct FCreatePinParams
 	{
@@ -572,12 +542,6 @@ public:
 	/** Create a new pin on this node using the supplied pin type, and return the new pin */
 	ENGINE_API UEdGraphPin* CreatePin(EEdGraphPinDirection Dir, const FEdGraphPinType& InPinType, const FName PinName, int32 Index = INDEX_NONE);
 
-	/** Create a new pin on this node using the supplied pin type, and return the new pin */
-	UE_DEPRECATED(4.19, "Use version that passes PinName as FName instead.")
-	UEdGraphPin* CreatePin(EEdGraphPinDirection Dir, const FEdGraphPinType& InPinType, const FString& PinName, int32 Index = INDEX_NONE)
-	{
-		return CreatePin(Dir, InPinType, FName(*PinName), Index);
-	}
 
 	/** Create a new pin on this node using the supplied pin type, and return the new pin */
 	//UE_DEPRECATED(4.19, "Remove when removing FString version. Exists just to resolve ambiguity")

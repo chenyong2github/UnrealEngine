@@ -2608,11 +2608,6 @@ FText FBlueprintEditor::GetParentClassNameText() const
 	return (ParentClass != nullptr) ? ParentClass->GetDisplayNameText() : LOCTEXT("BlueprintEditor_NoParentClass", "None");
 }
 
-bool FBlueprintEditor::IsParentClassOfObjectABlueprint(const UBlueprint* Blueprint) const
-{
-	return FBlueprintEditorUtils::IsParentClassABlueprint(Blueprint);
-}
-
 bool FBlueprintEditor::IsParentClassABlueprint() const
 {
 	return FBlueprintEditorUtils::IsParentClassABlueprint(GetBlueprintObj());

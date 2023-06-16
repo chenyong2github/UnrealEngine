@@ -32,19 +32,6 @@ enum class ECameraShakePlaySpace : uint8
 	UserDefined,
 };
 
-/** Backwards compatible name for the camera shake play space enum, for C++ code. */
-namespace ECameraAnimPlaySpace
-{
-	UE_DEPRECATED(4.26, "Please use ECameraShakePlaySpace")
-	typedef ECameraShakePlaySpace Type;
-	UE_DEPRECATED(4.26, "Please use ECameraShakePlaySpace")
-	static const ECameraShakePlaySpace CameraLocal = ECameraShakePlaySpace::CameraLocal;
-	UE_DEPRECATED(4.26, "Please use ECameraShakePlaySpace")
-	static const ECameraShakePlaySpace World = ECameraShakePlaySpace::World;
-	UE_DEPRECATED(4.26, "Please use ECameraShakePlaySpace")
-	static const ECameraShakePlaySpace UserDefined = ECameraShakePlaySpace::UserDefined;
-}
-
 USTRUCT(BlueprintType)
 struct FMinimalViewInfo
 {

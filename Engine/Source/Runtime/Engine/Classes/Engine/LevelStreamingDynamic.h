@@ -106,6 +106,3 @@ private:
  	static ENGINE_API ULevelStreamingDynamic* LoadLevelInstance_Internal(const FLoadLevelInstanceParams& Params, bool& bOutSuccess);
 
 };
-
-UE_DEPRECATED(4.21, "ULevelStreamingKismet has been renamed to ULevelStreamingDynamic")
-typedef ULevelStreamingDynamic ULevelStreamingKismet;
