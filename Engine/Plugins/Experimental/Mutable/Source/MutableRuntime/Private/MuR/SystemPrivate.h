@@ -537,17 +537,16 @@ namespace mu
 			}
 		}
 
-		void SetUnused(FCacheAddress at)
+		void SetUnused(FOpExecutionData& Data)
 		{
 			// Only clear datatypes that have results that use relevant amounts of memory			
-			FOpExecutionData& Data = OpExecutionData[at];
 			uint32 DataTypeIndex = Data.DataTypeIndex;
 			Data.IsValueValid = false;
 
 			if (DataTypeIndex)
 			{
-				check(OpExecutionData[at].DataType < DATATYPE::DT_COUNT);
-				switch ((DATATYPE)OpExecutionData[at].DataType)
+				check(Data.DataType < DATATYPE::DT_COUNT);
+				switch ((DATATYPE)Data.DataType)
 				{
 				case DATATYPE::DT_IMAGE:					
 					ImageResults[DataTypeIndex] = nullptr;
@@ -715,7 +714,7 @@ namespace mu
 			--Data->OpHitCount;
 			if (Data->OpHitCount == 0 && !Data->IsCacheLocked)
 			{
-				SetUnused(at);
+				SetUnused(*Data);
 			}
 
 			return Result;
@@ -740,7 +739,7 @@ namespace mu
 			--Data->OpHitCount;
 			if (Data->OpHitCount == 0 && !Data->IsCacheLocked)
 			{
-				SetUnused(at);
+				SetUnused(*Data);
 				bIsLastReference = true;
 			}
 
@@ -766,7 +765,7 @@ namespace mu
 			--Data->OpHitCount;
 			if (Data->OpHitCount == 0 && !Data->IsCacheLocked)
 			{
-				SetUnused(at);
+				SetUnused(*Data);
 				bIsLastReference = true;
 			}
 
@@ -1138,7 +1137,7 @@ namespace mu
 		TArray<Ptr<const Image>> TempImages;
 		TArray<Ptr<const Mesh>> TempMeshes;
 
-		/** */
+		/** List of resources that are currently in any cache position, and the number of positions they are in. */
 		TMap<Ptr<const Resource>, int32> CacheResources;
 
 		/** Given a mutable model, find or create its rom cache. */
