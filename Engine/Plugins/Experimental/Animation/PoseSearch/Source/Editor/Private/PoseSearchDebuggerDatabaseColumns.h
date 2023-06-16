@@ -94,7 +94,7 @@ struct FPoseIdx : ITextColumn
 
 	virtual FText GetLabel() const override
 	{
-		return LOCTEXT("ColumnLabelPoseIndex", "Index");
+		return LOCTEXT("ColumnLabelPoseIndex", "PoseIndex");
 	}
 
 	virtual FText GetLabelTooltip() const override
@@ -112,6 +112,32 @@ struct FPoseIdx : ITextColumn
 		return FText::AsNumber(Row->PoseIdx, &FNumberFormattingOptions::DefaultNoGrouping());
 	}
 };
+
+struct FAssetIdx : ITextColumn
+{
+	using ITextColumn::ITextColumn;
+
+	virtual FText GetLabel() const override
+	{
+		return LOCTEXT("ColumnLabelAssetIndex", "AssetIndex");
+	}
+
+	virtual FText GetLabelTooltip() const override
+	{
+		return LOCTEXT("ColumnLabelTooltipAssetIndex", "Index of the Asset in the Database");
+	}
+
+	virtual FSortPredicate GetSortPredicate() const override
+	{
+		return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->DbAssetIdx < Row1->DbAssetIdx; };
+	}
+
+	virtual FText GetRowText(const FRowDataRef& Row) const override
+	{
+		return FText::AsNumber(Row->DbAssetIdx, &FNumberFormattingOptions::DefaultNoGrouping());
+	}
+};
+
 
 struct FDatabaseName : IColumn
 {

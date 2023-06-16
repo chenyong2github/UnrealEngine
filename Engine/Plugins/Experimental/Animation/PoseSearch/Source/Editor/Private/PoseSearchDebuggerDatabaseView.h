@@ -69,6 +69,9 @@ private:
 	/** Called when the ShowAllPoses Checkbox is Toggled */
 	void OnShowAllPosesCheckboxChanged(ECheckBoxState State);
 	
+	/** Called when the ShowOnlyBestAssetPose Checkbox is Toggled */
+	void OnShowOnlyBestAssetPoseCheckboxChanged(ECheckBoxState State);	
+
 	/** Called when the HideInvalidPoses Checkbox is Toggled */
 	void OnHideInvalidPosesCheckboxChanged(ECheckBoxState State);
 
@@ -146,6 +149,9 @@ private:
 	/* Bool used to show all poses from display */
 	bool bShowAllPoses = false;
 	
+	/* Bool used to show only the best pose of every asset */
+	bool bShowOnlyBestAssetPose = false;
+
 	/* Bool used to hide invalid poses from display */
 	bool bHideInvalidPoses = false;
 
