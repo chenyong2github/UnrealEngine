@@ -646,7 +646,6 @@ public:
 	const FExpression* NewSqrt(const FExpression* Input) { return NewUnaryOp(EOperation::Sqrt, Input); }
 	const FExpression* NewRsqrt(const FExpression* Input) { return NewUnaryOp(EOperation::Rsqrt, Input); }
 	const FExpression* NewLog2(const FExpression* Input) { return NewUnaryOp(EOperation::Log2, Input); }
-	const FExpression* NewExp(const FExpression* Input) { return NewUnaryOp(EOperation::Exp, Input); }
 	const FExpression* NewExp2(const FExpression* Input) { return NewUnaryOp(EOperation::Exp2, Input); }
 	const FExpression* NewFrac(const FExpression* Input) { return NewUnaryOp(EOperation::Frac, Input); }
 	const FExpression* NewLength(const FExpression* Input) { return NewUnaryOp(EOperation::Length, Input); }

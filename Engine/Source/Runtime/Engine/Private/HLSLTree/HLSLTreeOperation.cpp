@@ -46,10 +46,8 @@ FOperationDescription GetOperationDescription(EOperation Op)
 	case EOperation::Rcp: return FOperationDescription(TEXT("Rcp"), TEXT("/"), 1, Shader::EPreshaderOpcode::Rcp); break;
 	case EOperation::Sqrt: return FOperationDescription(TEXT("Sqrt"), TEXT("sqrt"), 1, Shader::EPreshaderOpcode::Sqrt); break;
 	case EOperation::Rsqrt: return FOperationDescription(TEXT("Rsqrt"), TEXT("rsqrt"), 1, Shader::EPreshaderOpcode::Nop); break; // TODO
-	case EOperation::Log: return FOperationDescription(TEXT("Log"), TEXT("log"), 1, Shader::EPreshaderOpcode::Log); break;
 	case EOperation::Log2: return FOperationDescription(TEXT("Log2"), TEXT("log2"), 1, Shader::EPreshaderOpcode::Log2); break;
-	case EOperation::Exp: return FOperationDescription(TEXT("Exp"), TEXT("exp"), 1, Shader::EPreshaderOpcode::Exp); break;
-	case EOperation::Exp2: return FOperationDescription(TEXT("Exp2"), TEXT("exp2"), 1, Shader::EPreshaderOpcode::Exp2); break; // TODO
+	case EOperation::Exp2: return FOperationDescription(TEXT("Exp2"), TEXT("exp2"), 1, Shader::EPreshaderOpcode::Nop); break; // TODO
 	case EOperation::Frac: return FOperationDescription(TEXT("Frac"), TEXT("frac"), 1, Shader::EPreshaderOpcode::Frac); break;
 	case EOperation::Floor: return FOperationDescription(TEXT("Floor"), TEXT("floor"), 1, Shader::EPreshaderOpcode::Floor); break;
 	case EOperation::Ceil: return FOperationDescription(TEXT("Ceil"), TEXT("ceil"), 1, Shader::EPreshaderOpcode::Ceil); break;
@@ -331,9 +329,7 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 			}
 			Types.ResultType = MakeNonLWCType(IntermediateType);
 			break;
-		case EOperation::Log:
 		case EOperation::Log2:
-		case EOperation::Exp:
 		case EOperation::Exp2:
 			// No LWC support yet
 			Types.InputType[0] = Shader::MakeNonLWCType(Types.InputType[0]);
@@ -524,23 +520,9 @@ void FExpressionOperation::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDe
 		OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(Cond0, Tree.NewExpression<FExpressionSelect>(Cond1, InputDerivatives[0].ExpressionDdy, ConstantOne), ConstantZero);
 		break;
 	}
-	case EOperation::Log:
-	{
-		const FExpression* dFdA = Tree.NewRcp(Inputs[0]);
-		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
-		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
-		break;
-	}
 	case EOperation::Log2:
 	{
 		const FExpression* dFdA = Tree.NewMul(Tree.NewRcp(Inputs[0]), Tree.NewConstant(1.442695f));
-		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
-		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
-		break;
-	}
-	case EOperation::Exp:
-	{
-		const FExpression* dFdA = Tree.NewExp(Inputs[0]);
 		OutResult.ExpressionDdx = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdx);
 		OutResult.ExpressionDdy = Tree.NewMul(dFdA, InputDerivatives[0].ExpressionDdy);
 		break;
@@ -771,9 +753,7 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 	case EOperation::Rcp: OutResult.Code = Context.EmitExpression(Scope, ResultType, Types.bIsLWC ? TEXT("LWCRcp(%)") : TEXT("rcp(%)"), InputValue[0]); break;
 	case EOperation::Sqrt: OutResult.Code = Context.EmitExpression(Scope, ResultType, Types.bIsLWC ? TEXT("LWCSqrt(%)") : TEXT("sqrt(%)"), InputValue[0]); break;
 	case EOperation::Rsqrt: OutResult.Code = Context.EmitExpression(Scope, ResultType, Types.bIsLWC ? TEXT("LWCRsqrt(%)") : TEXT("rsqrt(%)"), InputValue[0]); break;
-	case EOperation::Log: OutResult.Code = Context.EmitExpression(Scope, ResultType, TEXT("log(%)"), InputValue[0]); break;
 	case EOperation::Log2: OutResult.Code = Context.EmitExpression(Scope, ResultType, TEXT("log2(%)"), InputValue[0]); break;
-	case EOperation::Exp: OutResult.Code = Context.EmitExpression(Scope, ResultType, TEXT("exp(%)"), InputValue[0]); break;
 	case EOperation::Exp2: OutResult.Code = Context.EmitExpression(Scope, ResultType, TEXT("exp2(%)"), InputValue[0]); break;
 	case EOperation::Frac: OutResult.Code = Context.EmitExpression(Scope, ResultType, Types.bIsLWC ? TEXT("LWCFrac(%)") : TEXT("frac(%)"), InputValue[0]); break;
 	case EOperation::Floor: OutResult.Code = Context.EmitExpression(Scope, ResultType, Types.bIsLWC ? TEXT("LWCFloor(%)") : TEXT("floor(%)"), InputValue[0]); break;

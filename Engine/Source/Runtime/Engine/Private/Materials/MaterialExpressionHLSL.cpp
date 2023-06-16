@@ -77,10 +77,6 @@
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionAbs.h"
 #include "Materials/MaterialExpressionSquareRoot.h"
-#include "Materials/MaterialExpressionExponential.h"
-#include "Materials/MaterialExpressionExponential2.h"
-#include "Materials/MaterialExpressionLength.h"
-#include "Materials/MaterialExpressionLogarithm.h"
 #include "Materials/MaterialExpressionLogarithm2.h"
 #include "Materials/MaterialExpressionLogarithm10.h"
 #include "Materials/MaterialExpressionFrac.h"
@@ -1167,53 +1163,6 @@ bool UMaterialExpressionSquareRoot::GenerateHLSLExpression(FMaterialHLSLGenerato
 		return false;
 	}
 	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Sqrt, InputExpression);
-	return true;
-}
-
-bool UMaterialExpressionExponential::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
-{
-	using namespace UE::HLSLTree;
-	const FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
-	if(!InputExpression)
-	{
-		return false;
-	}
-	OutExpression = Generator.GetTree().NewExp(InputExpression);
-	return true;
-}
-
-bool UMaterialExpressionExponential2::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
-{
-	using namespace UE::HLSLTree;
-	const FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
-	if(!InputExpression)
-	{
-		return false;
-	}
-	OutExpression = Generator.GetTree().NewExp2(InputExpression);
-	return true;
-}
-
-bool UMaterialExpressionLength::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
-{
-	const UE::HLSLTree::FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
-	if(!InputExpression)
-	{
-		return false;
-	}
-	OutExpression = Generator.GetTree().NewLength(InputExpression);
-	return true;
-}
-
-bool UMaterialExpressionLogarithm::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
-{
-	using namespace UE::HLSLTree;
-	const FExpression* InputExpression = Input.AcquireHLSLExpression(Generator, Scope);
-	if(!InputExpression)
-	{
-		return false;
-	}
-	OutExpression = Generator.GetTree().NewUnaryOp(EOperation::Log, InputExpression);
 	return true;
 }
 

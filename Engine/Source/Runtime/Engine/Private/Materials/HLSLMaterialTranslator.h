@@ -1056,9 +1056,6 @@ protected:
 	virtual int32 Dot(int32 A, int32 B) override;
 	virtual int32 Cross(int32 A, int32 B) override;
 	virtual int32 Power(int32 Base, int32 Exponent) override;
-	virtual int32 Exponential(int32 X) override;
-	virtual int32 Exponential2(int32 X) override;
-	virtual int32 Logarithm(int32 X) override;
 	virtual int32 Logarithm2(int32 X) override;
 	virtual int32 Logarithm10(int32 X) override;
 	virtual int32 SquareRoot(int32 X) override;
@@ -1074,8 +1071,6 @@ protected:
 	virtual int32 Saturate(int32 X) override;
 	virtual int32 ComponentMask(int32 Vector, bool R, bool G, bool B, bool A) override;
 	virtual int32 AppendVector(int32 A, int32 B) override;
-	virtual int32 HsvToRgb(int32 X) override;
-	virtual int32 RgbToHsv(int32 X) override;
 
 	int32 TransformBase(EMaterialCommonBasis SourceCoordBasis, EMaterialCommonBasis DestCoordBasis, int32 A, int AWComponent);
 	

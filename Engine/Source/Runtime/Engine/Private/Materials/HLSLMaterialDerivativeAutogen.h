@@ -90,11 +90,9 @@ public:
 	enum class EFunc1
 	{
 		Abs,
-		Log,
 		Log2,
 		Log10,
 		Exp,
-		Exp2,
 		Sin,
 		Cos,
 		Tan,
