@@ -3971,32 +3971,12 @@ void UGroomComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 
 uint32 UGroomComponent::GetResourcesSize() const
 {
-	uint32 Total = 0;
+	FGroomComponentMemoryStats Total;
 	for (const FHairGroupInstance* Instance : HairGroupInstances)
 	{
-		Total += Instance->HairGroupPublicData ? Instance->HairGroupPublicData->GetResourcesSize() : 0;
-
-		Total += Instance->Guides.DeformedResource ? Instance->Guides.DeformedResource->GetResourcesSize() : 0;
-		Total += Instance->Guides.DeformedRootResource ? Instance->Guides.DeformedRootResource->GetResourcesSize() : 0;
-
-		Total += Instance->Strands.DeformedResource ? Instance->Strands.DeformedResource->GetResourcesSize() : 0;
-		Total += Instance->Strands.DeformedRootResource ? Instance->Strands.DeformedRootResource->GetResourcesSize() : 0;
-	#if RHI_RAYTRACING
-		Total += (Instance->Strands.RenRaytracingResourceOwned && Instance->Strands.RenRaytracingResource) ? Instance->Strands.RenRaytracingResource->GetResourcesSize() : 0;
-	#endif
-
-		for (const FHairGroupInstance::FCards::FLOD& LOD : Instance->Cards.LODs)
-		{
-			Total += LOD.DeformedResource ? LOD.DeformedResource->GetResourcesSize() : 0;
-		}
-
-		for (const FHairGroupInstance::FMeshes::FLOD& LOD : Instance->Meshes.LODs)
-		{
-			Total += LOD.DeformedResource ? LOD.DeformedResource->GetResourcesSize() : 0;
-		}
+		Total.Accumulate(FGroomComponentMemoryStats::Get(Instance));
 	}
-
-	return Total;
+	return Total.GetTotalSize();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -4019,11 +3999,7 @@ void DumpLoadedGroomComponent(IConsoleVariable* InCVarPakTesterEnabled)
 	uint32 Total_Component = 0;
 	uint32 Total_Group = 0;
 
-	uint32 Total_GPUMemorySize_Common = 0;
-	uint32 Total_GPUMemorySize_Guides = 0;
-	uint32 Total_GPUMemorySize_Strands= 0;
-	uint32 Total_GPUMemorySize_Cards  = 0;
-	uint32 Total_GPUMemorySize_Meshes = 0;
+	FGroomComponentMemoryStats TotalMemory;
 
 	UE_LOG(LogHairStrands, Log, TEXT("[Groom] ##### UGroomComponent #####"));
 	UE_LOG(LogHairStrands, Log, TEXT("----------------------------------------------------------------------------------------------------------------------------------------------------------------"));
@@ -4037,49 +4013,10 @@ void DumpLoadedGroomComponent(IConsoleVariable* InCVarPakTesterEnabled)
 			const uint32 GroupCount = ComponentIt->GetGroupCount();
 			for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 			{
-				FHairGroupInstance* Instance = ComponentIt->GetGroupInstance(GroupIt);
-
-				uint32 GPUMemorySize_Common = 0;
-				GPUMemorySize_Common += Instance->HairGroupPublicData ? Instance->HairGroupPublicData->GetResourcesSize() : 0;
-
-				uint32 GPUMemorySize_Guides = 0;
-				GPUMemorySize_Guides += Instance->Guides.DeformedResource ? Instance->Guides.DeformedResource->GetResourcesSize() : 0;
-				GPUMemorySize_Guides += Instance->Guides.DeformedRootResource ? Instance->Guides.DeformedRootResource->GetResourcesSize() : 0;
-
-				uint32 GPUMemorySize_Strands = 0;
-				GPUMemorySize_Strands += Instance->Strands.DeformedResource ? Instance->Strands.DeformedResource->GetResourcesSize() : 0;
-				GPUMemorySize_Strands += Instance->Strands.DeformedRootResource ? Instance->Strands.DeformedRootResource->GetResourcesSize() : 0;
-			#if RHI_RAYTRACING
-				GPUMemorySize_Strands += (Instance->Strands.RenRaytracingResourceOwned && Instance->Strands.RenRaytracingResource) ? Instance->Strands.RenRaytracingResource->GetResourcesSize() : 0;
-			#endif
-
-				uint32 GPUMemorySize_Cards  = 0;
-				for (const FHairGroupInstance::FCards::FLOD& LOD : Instance->Cards.LODs)
-				{
-					GPUMemorySize_Cards += LOD.DeformedResource ? LOD.DeformedResource->GetResourcesSize() : 0;
-				}
-
-				uint32 GPUMemorySize_Meshes = 0;
-				for (const FHairGroupInstance::FMeshes::FLOD& LOD : Instance->Meshes.LODs)
-				{
-					GPUMemorySize_Meshes += LOD.DeformedResource ? LOD.DeformedResource->GetResourcesSize() : 0;
-				}
-
-				uint32 LODCount = Instance->Cards.LODs.Num();
-
-				uint32 GPUMemorySize = 0;
-				GPUMemorySize += GPUMemorySize_Common;
-				GPUMemorySize += GPUMemorySize_Guides;
-				GPUMemorySize += GPUMemorySize_Strands;
-				GPUMemorySize += GPUMemorySize_Cards;
-				GPUMemorySize += GPUMemorySize_Meshes;
-
-				Total_GPUMemorySize_Common += GPUMemorySize_Common;
-				Total_GPUMemorySize_Guides += GPUMemorySize_Guides;
-				Total_GPUMemorySize_Strands+= GPUMemorySize_Strands;
-				Total_GPUMemorySize_Cards  += GPUMemorySize_Cards;
-				Total_GPUMemorySize_Meshes += GPUMemorySize_Meshes;
-
+				const FHairGroupInstance* Instance = ComponentIt->GetGroupInstance(GroupIt);
+				const FGroomComponentMemoryStats InstanceMemory = FGroomComponentMemoryStats::Get(ComponentIt->GetGroupInstance(GroupIt));
+				TotalMemory.Accumulate(InstanceMemory);
+				
 				if (bDetails)
 				{
 //					UE_LOG(LogHairStrands, Log, TEXT("--  No.  - LOD -    GPU Total (    Common|     Guides|    Strands|      Cards|     Meshes) - Asset Name "));
@@ -4087,15 +4024,13 @@ void DumpLoadedGroomComponent(IConsoleVariable* InCVarPakTesterEnabled)
 					UE_LOG(LogHairStrands, Log, TEXT("-- %2d/%2d -  %2d -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb|%9.3fMb|%9.3fMb) - %s"), 
 						GroupIt,
 						GroupCount,
-
-						LODCount, 
-
-						GPUMemorySize* ToMb,
-						GPUMemorySize_Common * ToMb,
-						GPUMemorySize_Guides * ToMb,
-						GPUMemorySize_Strands* ToMb,
-						GPUMemorySize_Cards  * ToMb,
-						GPUMemorySize_Meshes * ToMb,
+                        Instance->Cards.LODs.Num(), 
+                        InstanceMemory.GetTotalSize()* ToMb,
+                        InstanceMemory.Common * ToMb,
+						InstanceMemory.Guides * ToMb,
+						InstanceMemory.Strands* ToMb,
+						InstanceMemory.Cards  * ToMb,
+						InstanceMemory.Meshes * ToMb,
 						GroupIt == 0 && ComponentIt->GroomAsset ? *ComponentIt->GroomAsset->GetPathName() : TEXT("."));
 				}
 			}
@@ -4105,24 +4040,16 @@ void DumpLoadedGroomComponent(IConsoleVariable* InCVarPakTesterEnabled)
 		}
 	}
 
-	uint32 Total_GPUMemorySize = 0;
-	Total_GPUMemorySize += Total_GPUMemorySize_Common;
-	Total_GPUMemorySize += Total_GPUMemorySize_Guides;
-	Total_GPUMemorySize += Total_GPUMemorySize_Strands;
-	Total_GPUMemorySize += Total_GPUMemorySize_Cards;
-	Total_GPUMemorySize += Total_GPUMemorySize_Meshes;
-
 	UE_LOG(LogHairStrands, Log, TEXT("----------------------------------------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogHairStrands, Log, TEXT("-- C:%3d|G:%3d -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb|%9.3fMb|%9.3fMb)"),
 		Total_Component,
 		Total_Group,
-
-		Total_GPUMemorySize * ToMb,
-		Total_GPUMemorySize_Common* ToMb,
-		Total_GPUMemorySize_Guides * ToMb,
-		Total_GPUMemorySize_Strands * ToMb,
-		Total_GPUMemorySize_Cards * ToMb,
-		Total_GPUMemorySize_Meshes * ToMb);
+        TotalMemory.GetTotalSize() * ToMb,
+		TotalMemory.Common* ToMb,
+		TotalMemory.Guides * ToMb,
+		TotalMemory.Strands * ToMb,
+		TotalMemory.Cards * ToMb,
+		TotalMemory.Meshes * ToMb);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -4198,5 +4125,44 @@ FGroomComponentRecreateRenderStateContext::~FGroomComponentRecreateRenderStateCo
 }
 #endif
 
+FGroomComponentMemoryStats FGroomComponentMemoryStats::Get(const FHairGroupInstance* In)
+{
+	FGroomComponentMemoryStats Out;
+	Out.Common  += In->HairGroupPublicData ? In->HairGroupPublicData->GetResourcesSize() : 0;
+	Out.Guides  += In->Guides.DeformedResource ? In->Guides.DeformedResource->GetResourcesSize() : 0;
+	Out.Guides  += In->Guides.DeformedRootResource ? In->Guides.DeformedRootResource->GetResourcesSize() : 0;
+	Out.Strands += In->Strands.DeformedResource ? In->Strands.DeformedResource->GetResourcesSize() : 0;
+	Out.Strands += In->Strands.DeformedRootResource ? In->Strands.DeformedRootResource->GetResourcesSize() : 0;
+#if RHI_RAYTRACING
+	Out.Strands += (In->Strands.RenRaytracingResourceOwned && In->Strands.RenRaytracingResource) ? In->Strands.RenRaytracingResource->GetResourcesSize() : 0;
+#endif
+	for (const FHairGroupInstance::FCards::FLOD& LOD : In->Cards.LODs)
+	{
+		Out.Cards += LOD.DeformedResource ? LOD.DeformedResource->GetResourcesSize() : 0;
+	}
+	for (const FHairGroupInstance::FMeshes::FLOD& LOD : In->Meshes.LODs)
+	{
+		Out.Meshes += LOD.DeformedResource ? LOD.DeformedResource->GetResourcesSize() : 0;
+	}
+	return Out;
+}
+
+void FGroomComponentMemoryStats::Accumulate(const FGroomComponentMemoryStats& In)
+{
+	Common += In.Common ;
+	Guides += In.Guides ;
+	Strands+= In.Strands;
+	Cards  += In.Cards  ;
+	Meshes += In.Meshes ;
+}
+uint32 FGroomComponentMemoryStats::GetTotalSize() const
+{
+	uint32 Out = 0;
+	Out += Guides ;
+	Out += Strands;
+	Out += Cards  ;
+	Out += Meshes ;
+	return Out;
+}
 #undef LOCTEXT_NAMESPACE
 

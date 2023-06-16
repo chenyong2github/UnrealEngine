@@ -289,3 +289,20 @@ public:
 	UPROPERTY(EditAnywhere, Transient, EditFixedSize, Category = "Bindings")
 	TArray<TObjectPtr<UGroomBindingAsset>> Bindings;
 };
+
+struct FGroomBindingAssetMemoryStats
+{
+	struct FStats
+	{
+		uint32 Guides = 0;
+		uint32 Strands= 0;
+		uint32 Cards  = 0;
+	};
+	FStats CPU;
+	FStats GPU;
+
+	static FGroomBindingAssetMemoryStats Get(const UGroomBindingAsset::FHairGroupPlatformData& InCPU, const UGroomBindingAsset::FHairGroupResource& InGPU);
+	void Accumulate(const FGroomBindingAssetMemoryStats& In);
+	uint32 GetTotalCPUSize() const;
+	uint32 GetTotalGPUSize() const;
+};

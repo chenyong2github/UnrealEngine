@@ -822,3 +822,31 @@ private:
 	TQueue<FHairGroupCardsTextures*> AssetToSave_Textures;
 #endif // WITH_EDITOR
 };
+
+struct FGroomAssetMemoryStats
+{
+	struct FStats
+	{
+		uint32 Guides = 0;
+		uint32 Strands= 0;
+		uint32 Cards  = 0;
+		uint32 Meshes = 0;
+	};
+	FStats CPU;
+	FStats GPU;
+
+	struct FStrandsDetails
+	{
+		uint32 Rest = 0;
+		uint32 Interpolation= 0;
+		uint32 Cluster  = 0;
+		uint32 Raytracing = 0;
+	};
+	FStrandsDetails Memory;
+	FStrandsDetails Curves;
+
+	static FGroomAssetMemoryStats Get(const FHairGroupPlatformData& In);
+	void Accumulate(const FGroomAssetMemoryStats& In);
+	uint32 GetTotalCPUSize() const;
+	uint32 GetTotalGPUSize() const;
+};

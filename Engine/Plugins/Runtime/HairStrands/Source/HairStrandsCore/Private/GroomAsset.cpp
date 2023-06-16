@@ -132,6 +132,68 @@ uint32 FHairGroupPlatformData::FStrands::GetDataSize() const
 	return BTotal + Total + CTotal;
 }
 
+FGroomAssetMemoryStats FGroomAssetMemoryStats::Get(const FHairGroupPlatformData& In)
+{
+	FGroomAssetMemoryStats Out;
+	Out.CPU.Guides  = In.Guides.GetDataSize();
+	Out.CPU.Strands = In.Strands.GetDataSize();
+	Out.CPU.Cards   = In.Cards.GetDataSize();
+	Out.CPU.Meshes  = In.Meshes.GetDataSize();
+
+	Out.GPU.Guides  = In.Guides.GetResourcesSize();
+	Out.GPU.Strands = In.Strands.GetResourcesSize();
+	Out.GPU.Cards   = In.Cards.GetResourcesSize();
+	Out.GPU.Meshes  = In.Meshes.GetResourcesSize();
+
+	
+	// Strands only
+	if (In.Strands.RestResource) 			Out.Memory.Rest 			= In.Strands.RestResource->GetResourcesSize();
+	if (In.Strands.InterpolationResource) 	Out.Memory.Interpolation 	= In.Strands.InterpolationResource->GetResourcesSize();
+	if (In.Strands.ClusterCullingResource)	Out.Memory.Cluster 			= In.Strands.ClusterCullingResource->GetResourcesSize();
+#if RHI_RAYTRACING
+	if (In.Strands.RaytracingResource) 		Out.Memory.Raytracing 		= In.Strands.RaytracingResource->GetResourcesSize();
+#endif
+	if (In.Strands.RestResource) 			Out.Curves.Rest 			= In.Strands.RestResource->MaxAvailableCurveCount;
+	if (In.Strands.InterpolationResource) 	Out.Curves.Interpolation 	= In.Strands.InterpolationResource->MaxAvailableCurveCount;
+	if (In.Strands.ClusterCullingResource)	Out.Curves.Cluster 			= In.Strands.ClusterCullingResource->MaxAvailableCurveCount;
+#if RHI_RAYTRACING
+	if (In.Strands.RaytracingResource)		Out.Curves.Raytracing 		= In.Strands.RaytracingResource->MaxAvailableCurveCount;
+#endif
+	return Out;
+}
+
+void FGroomAssetMemoryStats::Accumulate(const FGroomAssetMemoryStats& In)
+{
+	CPU.Guides += In.CPU.Guides ;
+	CPU.Strands+= In.CPU.Strands;
+	CPU.Cards  += In.CPU.Cards  ;
+	CPU.Meshes += In.CPU.Meshes ;
+
+	GPU.Guides += In.GPU.Guides ;
+	GPU.Strands+= In.GPU.Strands;
+	GPU.Cards  += In.GPU.Cards  ;
+	GPU.Meshes += In.GPU.Meshes ;
+}
+uint32 FGroomAssetMemoryStats::GetTotalCPUSize() const
+{
+	uint32 Out = 0;
+	Out += GPU.Guides ;
+	Out += GPU.Strands;
+	Out += GPU.Cards  ;
+	Out += GPU.Meshes ;
+	return Out;
+}
+
+uint32 FGroomAssetMemoryStats::GetTotalGPUSize() const
+{
+	uint32 Out = 0;
+	Out += CPU.Guides ;
+	Out += CPU.Strands;
+	Out += CPU.Cards  ;
+	Out += CPU.Meshes ;
+	return Out;
+}
+
 void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled)
 {
 	const bool bDetails = true;
@@ -140,14 +202,7 @@ void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled)
 	uint32 Total_Asset = 0;
 	uint32 Total_Group = 0;
 
-	uint32 Total_CPUMemorySize_Guides = 0;
-	uint32 Total_CPUMemorySize_Strands= 0;
-	uint32 Total_CPUMemorySize_Cards  = 0;
-	uint32 Total_CPUMemorySize_Meshes = 0;
-	uint32 Total_GPUMemorySize_Guides = 0;
-	uint32 Total_GPUMemorySize_Strands= 0;
-	uint32 Total_GPUMemorySize_Cards  = 0;
-	uint32 Total_GPUMemorySize_Meshes = 0;
+	FGroomAssetMemoryStats Total;
 
 	UE_LOG(LogHairStrands, Log, TEXT("[Groom] ##### UGroomAssets #####"));
 	UE_LOG(LogHairStrands, Log, TEXT("----------------------------------------------------------------------------------------------------------------------------------------------------------------"));
@@ -161,37 +216,8 @@ void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled)
 			const uint32 GroupCount = AssetIt->GetHairGroupsPlatformData().Num();
 			for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 			{
-				const uint32 CPUMemorySize_Guides  = AssetIt->GetHairGroupsPlatformData()[GroupIt].Guides.GetDataSize();
-				const uint32 CPUMemorySize_Strands = AssetIt->GetHairGroupsPlatformData()[GroupIt].Strands.GetDataSize();
-				const uint32 CPUMemorySize_Cards   = AssetIt->GetHairGroupsPlatformData()[GroupIt].Cards.GetDataSize();
-				const uint32 CPUMemorySize_Meshes  = AssetIt->GetHairGroupsPlatformData()[GroupIt].Meshes.GetDataSize();
-
-				const uint32 GPUMemorySize_Guides  = AssetIt->GetHairGroupsPlatformData()[GroupIt].Guides.GetResourcesSize();
-				const uint32 GPUMemorySize_Strands = AssetIt->GetHairGroupsPlatformData()[GroupIt].Strands.GetResourcesSize();
-				const uint32 GPUMemorySize_Cards   = AssetIt->GetHairGroupsPlatformData()[GroupIt].Cards.GetResourcesSize();
-				const uint32 GPUMemorySize_Meshes  = AssetIt->GetHairGroupsPlatformData()[GroupIt].Meshes.GetResourcesSize();
-
-				uint32 CPUMemorySize = 0;
-				uint32 GPUMemorySize = 0;
-				CPUMemorySize += CPUMemorySize_Guides;
-				CPUMemorySize += CPUMemorySize_Strands;
-				CPUMemorySize += CPUMemorySize_Cards;
-				CPUMemorySize += CPUMemorySize_Meshes;
-
-				GPUMemorySize += GPUMemorySize_Guides;
-				GPUMemorySize += GPUMemorySize_Strands;
-				GPUMemorySize += GPUMemorySize_Cards;
-				GPUMemorySize += GPUMemorySize_Meshes;
-
-				Total_CPUMemorySize_Guides += CPUMemorySize_Guides;
-				Total_CPUMemorySize_Strands+= CPUMemorySize_Strands;
-				Total_CPUMemorySize_Cards  += CPUMemorySize_Cards;
-				Total_CPUMemorySize_Meshes += CPUMemorySize_Meshes;
-				Total_GPUMemorySize_Guides += GPUMemorySize_Guides;
-				Total_GPUMemorySize_Strands+= GPUMemorySize_Strands;
-				Total_GPUMemorySize_Cards  += GPUMemorySize_Cards;
-				Total_GPUMemorySize_Meshes += GPUMemorySize_Meshes;
-
+				const FGroomAssetMemoryStats Group = FGroomAssetMemoryStats::Get(AssetIt->GetHairGroupsPlatformData()[GroupIt]);
+				Total.Accumulate(Group);
 				const uint32 LODCount = AssetIt->GetHairGroupsLOD()[GroupIt].LODs.Num();
 				if (bDetails)
 				{
@@ -200,20 +226,17 @@ void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled)
 					UE_LOG(LogHairStrands, Log, TEXT("-- %2d/%2d -  %2d -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb|%9.3fMb) -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb|%9.3fMb) - %s"), 
 						GroupIt,
 						GroupCount,
-
 						LODCount, 
-
-						CPUMemorySize * ToMb,
-						CPUMemorySize_Guides * ToMb,
-						CPUMemorySize_Strands* ToMb,
-						CPUMemorySize_Cards  * ToMb,
-						CPUMemorySize_Meshes * ToMb,
-
-						GPUMemorySize* ToMb,
-						GPUMemorySize_Guides * ToMb,
-						GPUMemorySize_Strands* ToMb,
-						GPUMemorySize_Cards  * ToMb,
-						GPUMemorySize_Meshes * ToMb,
+						Group.GetTotalCPUSize() * ToMb,
+						Group.CPU.Guides * ToMb,
+						Group.CPU.Strands* ToMb,
+						Group.CPU.Cards  * ToMb,
+						Group.CPU.Meshes * ToMb,
+                        Group.GetTotalGPUSize()* ToMb,
+						Group.GPU.Guides * ToMb,
+						Group.GPU.Strands* ToMb,
+						Group.GPU.Cards  * ToMb,
+						Group.GPU.Meshes * ToMb,
 						GroupIt == 0 ? *AssetIt->GetPathName() : TEXT("."));
 				}
 			}
@@ -223,34 +246,76 @@ void DumpLoadedGroomAssets(IConsoleVariable* InCVarPakTesterEnabled)
 		}
 	}
 
-	uint32 Total_CPUMemorySize = 0;
-	Total_CPUMemorySize += Total_CPUMemorySize_Guides;
-	Total_CPUMemorySize += Total_CPUMemorySize_Strands;
-	Total_CPUMemorySize += Total_CPUMemorySize_Cards;
-	Total_CPUMemorySize += Total_CPUMemorySize_Meshes;
-
-	uint32 Total_GPUMemorySize = 0;
-	Total_GPUMemorySize += Total_GPUMemorySize_Guides;
-	Total_GPUMemorySize += Total_GPUMemorySize_Strands;
-	Total_GPUMemorySize += Total_GPUMemorySize_Cards;
-	Total_GPUMemorySize += Total_GPUMemorySize_Meshes;
-
 	UE_LOG(LogHairStrands, Log, TEXT("----------------------------------------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogHairStrands, Log, TEXT("-- A:%3d|G:%3d -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb|%9.3fMb) -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb|%9.3fMb)"),
 		Total_Asset,
 		Total_Group,
+		Total.GetTotalCPUSize() * ToMb,
+		Total.CPU.Guides * ToMb,
+		Total.CPU.Strands * ToMb,
+		Total.CPU.Cards * ToMb,
+		Total.CPU.Meshes * ToMb,
+        Total.GetTotalGPUSize() * ToMb,
+		Total.GPU.Guides * ToMb,
+		Total.GPU.Strands * ToMb,
+		Total.GPU.Cards * ToMb,
+		Total.GPU.Meshes * ToMb);
+}
 
-		Total_CPUMemorySize * ToMb,
-		Total_CPUMemorySize_Guides * ToMb,
-		Total_CPUMemorySize_Strands * ToMb,
-		Total_CPUMemorySize_Cards * ToMb,
-		Total_CPUMemorySize_Meshes * ToMb,
+FGroomBindingAssetMemoryStats FGroomBindingAssetMemoryStats::Get(const UGroomBindingAsset::FHairGroupPlatformData& InCPU, const UGroomBindingAsset::FHairGroupResource& InGPU)
+{
+	FGroomBindingAssetMemoryStats Out;
+	Out.CPU.Guides  = InCPU.SimRootBulkData.GetDataSize();
+	Out.CPU.Strands = InCPU.RenRootBulkData.GetDataSize();
 
-		Total_GPUMemorySize * ToMb,
-		Total_GPUMemorySize_Guides * ToMb,
-		Total_GPUMemorySize_Strands * ToMb,
-		Total_GPUMemorySize_Cards * ToMb,
-		Total_GPUMemorySize_Meshes * ToMb);
+	if (const FHairStrandsRestRootResource* R = InGPU.SimRootResources)
+	{
+		Out.GPU.Guides += R->GetResourcesSize();
+	}
+	if (const FHairStrandsRestRootResource* R = InGPU.RenRootResources)
+	{
+		Out.GPU.Strands += R->GetResourcesSize();
+	}
+
+	const uint32 CardCount = InCPU.CardsRootBulkData.Num();
+	for (uint32 CardIt = 0; CardIt < CardCount; ++CardIt)
+	{
+		Out.CPU.Cards += InCPU.CardsRootBulkData[CardIt].GetDataSize();
+		if (const FHairStrandsRestRootResource* R = InGPU.CardsRootResources[CardIt])
+		{
+			Out.GPU.Cards += R->GetResourcesSize();
+		}
+	}
+
+	return Out;
+}
+
+void FGroomBindingAssetMemoryStats::Accumulate(const FGroomBindingAssetMemoryStats& In)
+{
+	CPU.Guides += In.CPU.Guides ;
+	CPU.Strands+= In.CPU.Strands;
+	CPU.Cards  += In.CPU.Cards  ;
+
+	GPU.Guides += In.GPU.Guides ;
+	GPU.Strands+= In.GPU.Strands;
+	GPU.Cards  += In.GPU.Cards  ;
+}
+uint32 FGroomBindingAssetMemoryStats::GetTotalCPUSize() const
+{
+	uint32 Out = 0;
+	Out += GPU.Guides ;
+	Out += GPU.Strands;
+	Out += GPU.Cards  ;
+	return Out;
+}
+
+uint32 FGroomBindingAssetMemoryStats::GetTotalGPUSize() const
+{
+	uint32 Out = 0;
+	Out += CPU.Guides ;
+	Out += CPU.Strands;
+	Out += CPU.Cards  ;
+	return Out;
 }
 
 void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
@@ -261,15 +326,8 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 	uint32 Total_Asset = 0;
 	uint32 Total_Group = 0;
 
-	uint32 Total_CPUMemorySize_Guides = 0;
-	uint32 Total_CPUMemorySize_Strands= 0;
-	uint32 Total_CPUMemorySize_Cards  = 0;
+	FGroomBindingAssetMemoryStats Total;
 	
-	uint32 Total_GPUMemorySize_Guides = 0;
-	uint32 Total_GPUMemorySize_Strands= 0;
-	uint32 Total_GPUMemorySize_Cards  = 0;
-	
-
 	UE_LOG(LogHairStrands, Log, TEXT("[Groom] ##### UGroomBindingAssets #####"));
 	UE_LOG(LogHairStrands, Log, TEXT("----------------------------------------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogHairStrands, Log, TEXT("--  No.  - LOD -    CPU Total (     Guides|    Strands|      Cards) -    GPU Total (     Guides|    Strands|      Cards) - Asset Name "));
@@ -282,42 +340,8 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 			const uint32 GroupCount = AssetIt->GetHairGroupsPlatformData().Num();
 			for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 			{
-				const uint32 CPUMemorySize_Guides  = AssetIt->GetHairGroupsPlatformData()[GroupIt].SimRootBulkData.GetDataSize();
-				const uint32 CPUMemorySize_Strands = AssetIt->GetHairGroupsPlatformData()[GroupIt].RenRootBulkData.GetDataSize();
-
-				uint32 GPUMemorySize_Guides = 0;
-				if (const FHairStrandsRestRootResource* RootResource = AssetIt->GetHairGroupResources()[GroupIt].SimRootResources)
-				{
-					GPUMemorySize_Guides += RootResource->GetResourcesSize();
-				}
-				uint32 GPUMemorySize_Strands = 0;
-				if (const FHairStrandsRestRootResource* RootResource = AssetIt->GetHairGroupResources()[GroupIt].RenRootResources)
-				{
-					GPUMemorySize_Strands += RootResource->GetResourcesSize();
-				}
-
-				uint32 CPUMemorySize_Cards = 0;
-				uint32 GPUMemorySize_Cards = 0;
-				const uint32 CardCount = AssetIt->GetHairGroupsPlatformData()[GroupIt].CardsRootBulkData.Num();
-				for (uint32 CardIt = 0; CardIt < CardCount; ++CardIt)
-				{
-					CPUMemorySize_Cards += AssetIt->GetHairGroupsPlatformData()[GroupIt].CardsRootBulkData[CardIt].GetDataSize();
-					if (const FHairStrandsRestRootResource* RootResource = AssetIt->GetHairGroupResources()[GroupIt].CardsRootResources[CardIt])
-					{
-						GPUMemorySize_Cards += RootResource->GetResourcesSize();
-					}
-				}
-
-				const uint32 CPUMemorySize = CPUMemorySize_Guides + CPUMemorySize_Strands + CPUMemorySize_Cards;
-				const uint32 GPUMemorySize = GPUMemorySize_Guides + GPUMemorySize_Strands + GPUMemorySize_Cards;
-
-				Total_CPUMemorySize_Guides += CPUMemorySize_Guides;
-				Total_CPUMemorySize_Strands+= CPUMemorySize_Strands;
-				Total_CPUMemorySize_Cards  += CPUMemorySize_Cards;
-				
-				Total_GPUMemorySize_Guides += GPUMemorySize_Guides;
-				Total_GPUMemorySize_Strands+= GPUMemorySize_Strands;
-				Total_GPUMemorySize_Cards  += GPUMemorySize_Cards;
+				const FGroomBindingAssetMemoryStats Group = FGroomBindingAssetMemoryStats::Get(AssetIt->GetHairGroupsPlatformData()[GroupIt], AssetIt->GetHairGroupResources()[GroupIt]);
+				Total.Accumulate(Group);
 
 				const uint32 SkelLODCount = AssetIt->GetHairGroupsPlatformData()[GroupIt].RenRootBulkData.GetLODCount();
 				if (bDetails)
@@ -327,18 +351,15 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 					UE_LOG(LogHairStrands, Log, TEXT("-- %2d/%2d -  %2d -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb) -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb) - %s"), 
 						GroupIt,
 						GroupCount,
-
 						SkelLODCount,
-
-						CPUMemorySize * ToMb,
-						CPUMemorySize_Guides * ToMb,
-						CPUMemorySize_Strands* ToMb,
-						CPUMemorySize_Cards  * ToMb,
-
-						GPUMemorySize* ToMb,
-						GPUMemorySize_Guides * ToMb,
-						GPUMemorySize_Strands* ToMb,
-						GPUMemorySize_Cards  * ToMb,
+                        Group.GetTotalCPUSize() * ToMb,
+						Group.CPU.Guides * ToMb,
+						Group.CPU.Strands* ToMb,
+						Group.CPU.Cards  * ToMb,
+                        Group.GetTotalGPUSize()* ToMb,
+						Group.GPU.Guides * ToMb,
+						Group.GPU.Strands* ToMb,
+						Group.GPU.Cards  * ToMb,
 						GroupIt == 0 ? *AssetIt->GetPathName() : TEXT("."));
 				}
 			}
@@ -347,31 +368,18 @@ void DumpLoadedGroomBindingAssets(IConsoleVariable* InCVarPakTesterEnabled)
 			Total_Group += GroupCount;
 		}
 	}
-
-	uint32 Total_CPUMemorySize = 0;
-	Total_CPUMemorySize += Total_CPUMemorySize_Guides;
-	Total_CPUMemorySize += Total_CPUMemorySize_Strands;
-	Total_CPUMemorySize += Total_CPUMemorySize_Cards;
-
-	uint32 Total_GPUMemorySize = 0;
-	Total_GPUMemorySize += Total_GPUMemorySize_Guides;
-	Total_GPUMemorySize += Total_GPUMemorySize_Strands;
-	Total_GPUMemorySize += Total_GPUMemorySize_Cards;
-
 	UE_LOG(LogHairStrands, Log, TEXT("----------------------------------------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogHairStrands, Log, TEXT("-- A:%3d|G:%3d -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb) -  %9.3fMb (%9.3fMb|%9.3fMb|%9.3fMb)"),
 		Total_Asset,
 		Total_Group,
-
-		Total_CPUMemorySize * ToMb,
-		Total_CPUMemorySize_Guides * ToMb,
-		Total_CPUMemorySize_Strands * ToMb,
-		Total_CPUMemorySize_Cards * ToMb,
-
-		Total_GPUMemorySize * ToMb,
-		Total_GPUMemorySize_Guides * ToMb,
-		Total_GPUMemorySize_Strands * ToMb,
-		Total_GPUMemorySize_Cards * ToMb);
+		Total.GetTotalCPUSize() * ToMb,
+		Total.CPU.Guides * ToMb,
+		Total.CPU.Strands * ToMb,
+		Total.CPU.Cards * ToMb,
+		Total.GetTotalGPUSize() * ToMb,
+		Total.GPU.Guides * ToMb,
+		Total.GPU.Strands * ToMb,
+		Total.GPU.Cards * ToMb);
 }
 
 void DumpLoadedGroomData(IConsoleVariable* InCVarPakTesterEnabled)
