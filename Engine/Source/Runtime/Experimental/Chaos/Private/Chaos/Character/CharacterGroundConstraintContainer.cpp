@@ -153,8 +153,6 @@ namespace Chaos
 					}
 				}
 			}
-
-			RemovedParticle->ParticleConstraints().Reset();
 		}
 	}
 

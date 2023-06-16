@@ -91,6 +91,13 @@ namespace ChaosTest
 
 		EXPECT_EQ(Solver->GetCharacterGroundConstraints().GetNumConstraints(), 1);
 
+		// Check that the constraint is set on the constrained particles
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(0).Num(), 1);
+		EXPECT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(0)[0], Constraint_PT);
+
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(1).Num(), 1);
+		EXPECT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(1)[0], Constraint_PT);
+
 		// Change something on the game side and check that it is synced on the physics side
 		RemoteData.Clear(Manager, DataIdx);
 
@@ -101,6 +108,19 @@ namespace ChaosTest
 
 		EXPECT_FLOAT_EQ(Constraint_PT->GetData().GroundDistance, 1234.5f);
 
+		// Change something on the physics thread and check that it's synced back to the game thread
+		FCharacterGroundConstraintDynamicData DynData;
+		DynData.GroundDistance = 1.2f;
+		DynData.GroundNormal = FVector(1.0f, 0.0f, 0.0f);
+		Constraint_PT->SetData(DynData);
+
+		Chaos::FDirtyCharacterGroundConstraintData DirtyConstraintData;
+		Proxy->BufferPhysicsResults(DirtyConstraintData);
+		Proxy->PullFromPhysicsState(DirtyConstraintData, 0);
+
+		EXPECT_FLOAT_EQ(Constraint_GT->GetGroundDistance(), DynData.GroundDistance);
+		EXPECT_VECTOR_FLOAT_EQ(Constraint_GT->GetGroundNormal(), DynData.GroundNormal);
+
 		// Remove the constraint and particles from the solver
 		Solver->UnregisterObject(Constraint_GT);
 		Solver->UnregisterObject(CharacterProxy);
@@ -109,5 +129,80 @@ namespace ChaosTest
 		EXPECT_EQ(Proxy->GetGameThreadAPI(), nullptr);
 
 		// Physics thread constraint is deleted in a callback set on the marshalling manager
+	}
+
+	TEST_F(CharacterGroundConstraintsProxyTest, TestEnableDisable)
+	{
+		// Create a game thread constraint and register it with the solver
+		FCharacterGroundConstraint* Constraint_GT = new FCharacterGroundConstraint();
+		FSingleParticlePhysicsProxy* CharacterProxy = CreateParticle();
+		FSingleParticlePhysicsProxy* GroundProxy = CreateParticle();
+		FSingleParticlePhysicsProxy* SecondGroundProxy = CreateParticle();
+		Constraint_GT->Init(CharacterProxy);
+		Constraint_GT->SetGroundParticleProxy(GroundProxy);
+
+		Solver->RegisterObject(CharacterProxy);
+		Solver->RegisterObject(GroundProxy);
+		Solver->RegisterObject(Constraint_GT);
+
+		FCharacterGroundConstraintProxy* Proxy = Constraint_GT->GetProxy<FCharacterGroundConstraintProxy>();
+
+		const int32 DataIdx = 0;
+		FDirtyProxiesBucketInfo BucketInfo;
+		BucketInfo.Num[(uint32)EPhysicsProxyType::CharacterGroundConstraintType] = 1;
+		FDirtyPropertiesManager Manager;
+		Manager.PrepareBuckets(BucketInfo);
+
+		FDirtyChaosProperties RemoteData;
+
+		Proxy->PushStateOnGameThread(Manager, 0, RemoteData);
+		Proxy->InitializeOnPhysicsThread(Solver, Manager, DataIdx, RemoteData);
+
+		FCharacterGroundConstraintHandle* Constraint_PT = Proxy->GetPhysicsThreadAPI();
+
+		// Check enabling/disabling
+		EXPECT_TRUE(Constraint_PT->IsEnabled());
+		Constraint_PT->SetEnabled(false);
+		EXPECT_FALSE(Constraint_PT->IsEnabled());
+		Constraint_PT->SetEnabled(true);
+		EXPECT_TRUE(Constraint_PT->IsEnabled());
+
+		// Check that the constraint is set on the constrained particles
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(0).Num(), 1);
+		EXPECT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(0)[0], Constraint_PT);
+
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(1).Num(), 1);
+		EXPECT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(1)[0], Constraint_PT);
+
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(2).Num(), 0);
+
+		// Change the ground particle and check that the particle constraints are updated
+
+		Constraint_PT->SetGroundParticle(SecondGroundProxy->GetHandle_LowLevel());
+
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(1).Num(), 0);
+
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(2).Num(), 1);
+		EXPECT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(2)[0], Constraint_PT);
+
+		// Destroy the constraint on the physics thread. Ensure that the particle constraints are unregistered
+		Proxy->DestroyOnPhysicsThread(Solver);
+
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(0).Num(), 0);
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(1).Num(), 0);
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(2).Num(), 0);
+
+		// Reinitialize on the physics thread
+		Proxy->InitializeOnPhysicsThread(Solver, Manager, DataIdx, RemoteData);
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(0).Num(), 1);
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(1).Num(), 1);
+		ASSERT_EQ(Solver->GetParticles().GetDynamicParticles().ParticleConstraints(2).Num(), 0);
+
+		// Disable the character particle - constraint should be disabled
+		Solver->GetEvolution()->DisableParticle(CharacterProxy->GetHandle_LowLevel());
+		ASSERT_FALSE(Constraint_PT->IsEnabled());
+
+		Solver->GetEvolution()->EnableParticle(CharacterProxy->GetHandle_LowLevel());
+		ASSERT_TRUE(Constraint_PT->IsEnabled());
 	}
 }

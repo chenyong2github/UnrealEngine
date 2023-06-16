@@ -636,14 +636,15 @@ public:
 	*/
 	void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
 	{
-		for (FGeometryParticleHandle* ParticleHandle : RemovedParticles)
-		{
-			RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
-		}
-
 		for (FPBDConstraintContainer* Container : ConstraintContainers)
 		{
 			Container->DisconnectConstraints(RemovedParticles);
+		}
+
+		for (FGeometryParticleHandle* ParticleHandle : RemovedParticles)
+		{
+			RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
+			ParticleHandle->ParticleConstraints().Reset();
 		}
 	}
 

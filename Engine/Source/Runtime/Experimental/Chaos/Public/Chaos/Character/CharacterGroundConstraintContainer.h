@@ -71,7 +71,12 @@ namespace Chaos
 		{
 			if (InGroundParticle != GroundParticle)
 			{
+				if (GroundParticle)
+				{
+					GroundParticle->RemoveConstraintHandle(this);
+				}
 				GroundParticle = InGroundParticle;
+				GroundParticle->AddConstraintHandle(this);
 				bGroundParticleChanged = true;
 			}
 		}

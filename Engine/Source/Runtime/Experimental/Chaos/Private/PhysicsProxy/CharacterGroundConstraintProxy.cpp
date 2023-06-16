@@ -68,13 +68,6 @@ namespace Chaos
 				if (ConstraintSettings && ConstraintData)
 				{
 					Constraint_PT = ConstraintContainer.AddConstraint(*ConstraintSettings, *ConstraintData, CharacterHandle, GroundHandle);
-
-					CharacterHandle->AddConstraintHandle(Constraint_PT);
-
-					if (GroundHandle)
-					{
-						GroundHandle->AddConstraintHandle(Constraint_PT);
-					}
 				}
 			}
 		}
