@@ -8,7 +8,7 @@
 #include "WorldPartition/WorldPartitionLog.h"
 #include "UObject/CoreRedirects.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
-#include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteSeasonBranchObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "AssetRegistry/AssetData.h"
 
@@ -23,7 +23,7 @@ FActorDescArchive::FActorDescArchive(FArchive& InArchive, FWorldPartitionActorDe
 	SetIsLoading(InArchive.IsLoading());
 
 	UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
-	UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+	UsingCustomVersion(FFortniteSeasonBranchObjectVersion::GUID);
 	UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	if (CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::WorldPartitionActorClassDescSerialize)
@@ -31,7 +31,7 @@ FActorDescArchive::FActorDescArchive(FArchive& InArchive, FWorldPartitionActorDe
 		InnerArchive << InActorDesc->bIsDefaultActorDesc;
 	}
 
-	if (CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::WorldPartitionActorDescNativeBaseClassSerialization)
+	if (CustomVer(FFortniteSeasonBranchObjectVersion::GUID) >= FFortniteSeasonBranchObjectVersion::WorldPartitionActorDescNativeBaseClassSerialization)
 	{
 		if (CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::WorldPartitionActorDescActorAndClassPaths)
 		{

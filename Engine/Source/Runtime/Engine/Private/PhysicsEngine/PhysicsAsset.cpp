@@ -14,7 +14,7 @@
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteSeasonBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PhysicsAsset)
 
@@ -220,7 +220,7 @@ void UPhysicsAsset::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConst
 
 void UPhysicsAsset::Serialize(FArchive& Ar)
 {
-	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteSeasonBranchObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 	Ar << CollisionDisableTable;
@@ -236,7 +236,7 @@ void UPhysicsAsset::Serialize(FArchive& Ar)
 	// Transfer the legacy solver iteration counts to the new ones. These settings are used by the RBAN solver.
 	// These settings are intended to be roughly equivalent to the previous settings (the new solver adds VelocityIterations
 	// and provides the linear/non-linear joint solver option). Any new PhysicsAssets will get the defaults (new linear solver etc)
-	const bool bRequiresSettingsTransfer = (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::PhysicsAssetNewSolverSettings);
+	const bool bRequiresSettingsTransfer = (Ar.CustomVer(FFortniteSeasonBranchObjectVersion::GUID) < FFortniteSeasonBranchObjectVersion::PhysicsAssetNewSolverSettings);
 	if (bRequiresSettingsTransfer)
 	{
 		SolverSettings.PositionIterations = SolverIterations.SolverIterations * SolverIterations.JointIterations;

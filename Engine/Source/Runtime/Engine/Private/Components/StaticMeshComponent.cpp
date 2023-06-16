@@ -13,7 +13,7 @@
 #include "SceneInterface.h"
 #include "UObject/Package.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
-#include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteSeasonBranchObjectVersion.h"
 #include "Engine/CollisionProfile.h"
 #include "ContentStreaming.h"
 #include "ComponentReregisterContext.h"
@@ -316,10 +316,10 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
-	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteSeasonBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-	const bool bBeforeRemappedEvaluateWorldPositionOffset = (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::RemappedEvaluateWorldPositionOffsetInRayTracing
+	const bool bBeforeRemappedEvaluateWorldPositionOffset = (Ar.CustomVer(FFortniteSeasonBranchObjectVersion::GUID) < FFortniteSeasonBranchObjectVersion::RemappedEvaluateWorldPositionOffsetInRayTracing
 		&& Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::RemappedEvaluateWorldPositionOffsetInRayTracing);
 
 	// When bEvaluateWorldPositionOffsetInRayTracing was named bEvaluateWorldPositionOffset the default value was false and now it is true. 

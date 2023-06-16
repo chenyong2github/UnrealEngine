@@ -15,7 +15,7 @@
 #include "Chaos/RigidParticleControlFlags.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
-#include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteSeasonBranchObjectVersion.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
@@ -604,7 +604,7 @@ struct FCollisionData
 	{
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		Ar.UsingCustomVersion(FExternalPhysicsMaterialCustomObjectVersion::GUID);
-		Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+		Ar.UsingCustomVersion(FFortniteSeasonBranchObjectVersion::GUID);
 
 		Ar << QueryData;
 		Ar << SimData;
@@ -640,7 +640,7 @@ struct FCollisionData
 			CollisionTraceType = (EChaosCollisionTraceFlag)Data;
 		}
 
-		if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::AddShapeIsProbe)
+		if (Ar.CustomVer(FFortniteSeasonBranchObjectVersion::GUID) >= FFortniteSeasonBranchObjectVersion::AddShapeIsProbe)
 		{
 			int8 IsProbe = bIsProbe;
 			Ar << IsProbe;

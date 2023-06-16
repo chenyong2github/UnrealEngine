@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteSeasonBranchObjectVersion.h"
 
-TMap<FGuid, FGuid> FFortniteNCBranchObjectVersion::GetSystemGuids()
+TMap<FGuid, FGuid> FFortniteSeasonBranchObjectVersion::GetSystemGuids()
 {
 	TMap<FGuid, FGuid> SystemGuids;
 	const FDevSystemGuids& DevGuids = FDevSystemGuids::Get();

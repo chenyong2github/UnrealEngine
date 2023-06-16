@@ -13,7 +13,7 @@
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "GeometryCollection/Facades/CollectionRenderingFacade.h"
-#include "UObject/FortniteNCBranchObjectVersion.h"
+#include "UObject/FortniteSeasonBranchObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include <iostream>
@@ -1028,7 +1028,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 		FGeometryCollectionProximityPropertiesInterface::CleanInterfaceForCook();
 	}
 
-	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteSeasonBranchObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	Super::Serialize(Ar);
@@ -1295,7 +1295,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 		}
 
 		Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*this);
-		if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::ChaosGeometryCollectionSaveLevelsAttribute
+		if (Ar.CustomVer(FFortniteSeasonBranchObjectVersion::GUID) < FFortniteSeasonBranchObjectVersion::ChaosGeometryCollectionSaveLevelsAttribute
 			|| !HierarchyFacade.HasLevelAttribute()
 			|| !HierarchyFacade.IsLevelAttributePersistent()
 			)
