@@ -197,7 +197,7 @@ void UVCamOutputProviderBase::CreateUMG()
 		return;
 	}
 
-	UMGWidget = NewObject<UVPFullScreenUserWidget>(this, UVPFullScreenUserWidget::StaticClass(), NAME_None, RF_Transactional);
+	UMGWidget = NewObject<UVPFullScreenUserWidget>(this, UVPFullScreenUserWidget::StaticClass());
 	UMGWidget->SetDisplayTypes(DisplayType, DisplayType, DisplayType);
 	if (UMGWidget->DoesDisplayTypeUsePostProcessSettings(DisplayType))
 	{
