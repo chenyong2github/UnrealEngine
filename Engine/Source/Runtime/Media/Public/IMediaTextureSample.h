@@ -22,6 +22,7 @@
 #if WITH_ENGINE
 	class FRHITexture;
 	class IMediaTextureSampleConverter;
+	class IMediaTextureSampleColorConverter;
 #endif
 
 
@@ -262,6 +263,16 @@ public:
 	 * @return texture sample converter
 	 */
 	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter()
+	{ 
+		return nullptr; 
+	}
+
+	/**
+	 * Get a media texture sample color converter if sample implements it
+	 * @Note IMediaTextureSampleColorConverter will be applied after IMediaTextureSampleConverter if one is provided.
+	 * @return texture sample color converter
+	 */
+	virtual IMediaTextureSampleColorConverter* GetMediaTextureSampleColorConverter()
 	{ 
 		return nullptr; 
 	}

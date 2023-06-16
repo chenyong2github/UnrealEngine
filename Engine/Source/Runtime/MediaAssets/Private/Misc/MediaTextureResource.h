@@ -174,10 +174,10 @@ protected:
 	void UpdateTextureReference(FRHITexture2D* NewTexture);
 
 	/**
-	 * Create/update output render target as needed
+	 * Create/update intermediate render target as needed. If no color conversion is needed, the RT will be used as the output.
 	 */
-	void CreateOutputRenderTarget(const FIntPoint & InDim, EPixelFormat InPixelFormat, bool bInSRGB, const FLinearColor & InClearColor, uint8 InNumMips, bool bNeedsUAVSupport);
-
+	void CreateIntermediateRenderTarget(const FIntPoint & InDim, EPixelFormat InPixelFormat, bool bInSRGB, const FLinearColor & InClearColor, uint8 InNumMips, bool bNeedsUAVSupport);
+	
 	/**
 	 * Caches next available sample from queue in MediaTexture owner to keep single consumer access
 	 *
@@ -214,7 +214,10 @@ private:
 	/** Input render target if the texture samples don't provide one (for conversions). */
 	TRefCountPtr<FRHITexture> InputTarget;
 
-	/** Output render target if the texture samples don't provide one. */
+	/** Holds the intermediate render target if the texture samples don't provide one, or final render target when not using a texture sample color converter. */
+	TRefCountPtr<FRHITexture> IntermediateTarget;
+
+	/** Output render target where the texture sample color converter writes. */
 	TRefCountPtr<FRHITexture> OutputTarget;
 
 	/** The media texture that owns this resource. */
@@ -258,4 +261,6 @@ private:
 	/** Colorspace to override standard proejct "working color space' */
 	TUniquePtr<UE::Color::FColorSpace> OverrideColorSpace;
 
+	/** Used to keep track of whether we should re-create the output target because the intermediate target has changed. */
+	bool bRecreateOutputTarget = false;
 };
