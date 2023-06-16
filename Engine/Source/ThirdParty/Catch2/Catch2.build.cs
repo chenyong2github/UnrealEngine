@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using UnrealBuildTool;
 using System.IO;
 using UnrealBuildBase;
@@ -23,12 +24,18 @@ public class Catch2 : ModuleRules
 		}
 	}
 
+	bool IsPlatformExtension()
+	{
+		return !(Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) || 
+				 Target.Platform == UnrealTargetPlatform.Android ||
+				 Target.Platform == UnrealTargetPlatform.IOS);
+	}
+
 	public virtual string Catch2Root
 	{
 		get
 		{
-			bool IsPlatformExtension = !(Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) || Target.Platform == UnrealTargetPlatform.Android);
-			if (IsPlatformExtension)
+			if (IsPlatformExtension())
 			{
 				return Path.Combine(Unreal.EngineDirectory.FullName, "Platforms", Target.Platform.ToString(), "Source", "ThirdParty", "Catch2");
 			}
@@ -43,9 +50,7 @@ public class Catch2 : ModuleRules
 	{
 		get
 		{
-			bool IsPlatformExtension = !(Target.Platform.IsInGroup(UnrealPlatformGroup.Desktop) || Target.Platform == UnrealTargetPlatform.Android);
-
-			string RelativeLibPath = !IsPlatformExtension ? Target.Platform.ToString() : string.Empty;
+			string RelativeLibPath = IsPlatformExtension() ? string.Empty : Target.Platform.ToString();
 			string Arch = string.Empty;
 			string Variation = string.Empty;
 			if (Target.Platform == UnrealTargetPlatform.Android)
@@ -77,7 +82,6 @@ public class Catch2 : ModuleRules
 			{
 				RelativeLibPath = Path.Combine(RelativeLibPath, Variation);
 			}
-
 			return RelativeLibPath;
 		}
 	}

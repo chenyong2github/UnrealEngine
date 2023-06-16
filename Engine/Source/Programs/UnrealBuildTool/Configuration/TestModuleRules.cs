@@ -127,6 +127,17 @@ namespace UnrealBuildTool
 			{
 				PublicDefinitions.Add("CATCH_CONFIG_NOSTDOUT");
 			}
+
+			if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
+			{
+				// Fix missing frameworks from ApplicationCore
+				
+				// Needed for CADisplayLink
+				PublicFrameworks.Add("QuartzCore");
+
+				// Needed for MTLCreateSystemDefaultDevice
+				PublicWeakFrameworks.Add("Metal");
+			}
 		}
 
 		/// <summary>

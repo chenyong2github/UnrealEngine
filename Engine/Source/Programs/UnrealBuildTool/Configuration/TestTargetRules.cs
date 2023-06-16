@@ -340,14 +340,9 @@ namespace UnrealBuildTool
 				GlobalDefinitions.Add("USE_ANDROID_LAUNCH=0");
 				GlobalDefinitions.Add("USE_ANDROID_JNI=0");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.IOS) // TODO: this doesn't compile
+			else if (Target.Platform == UnrealTargetPlatform.IOS)
 			{
-				GlobalDefinitions.Add("HAS_METAL=0");
-
 				bIsBuildingConsoleApplication = false;
-				// Required for IOS, but needs to fix compilation errors
-				bCompileAgainstApplicationCore = true;
-
 			}
 		}
 	}

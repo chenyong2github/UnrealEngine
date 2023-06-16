@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if defined(PLATFORM_MAC)
+#if PLATFORM_MAC
+
 #include "TestRunner.h"
+#include "Platform/Apple/AppleTestRunnerHelper.h"
 #include <mach-o/dyld.h>
 
 const char* GetCacheDirectory()
@@ -30,6 +32,14 @@ const char* GetProcessExecutablePath()
 
 int main(int argc, const char* argv[])
 {
-	return RunTests(argc, argv);
+	AppleTestsRunnerHelper* Helper = [[AppleTestsRunnerHelper alloc] initWithArgc:argc Argv:argv];
+	
+	[Helper startTestsOnThread];
+	
+	CFRunLoopRun();
+	
+	int Result = Helper.Result;
+	[Helper release];
+	return Result;
 }
 #endif

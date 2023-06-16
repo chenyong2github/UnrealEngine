@@ -6,7 +6,6 @@ IOSPlatformProcess.cpp: iOS implementations of Process functions
 
 #include "IOS/IOSPlatformProcess.h"
 #include "Apple/ApplePlatformRunnableThread.h"
-#include "IOS/IOSAppDelegate.h"
 #include "Misc/CoreDelegates.h"
 #include "Apple/PreAppleSystemHeaders.h"
 #include <mach-o/dyld.h>
@@ -118,6 +117,18 @@ void FIOSPlatformProcess::SetThreadAffinityMask(uint64 AffinityMask)
 	{
 		FGenericPlatformProcess::SetThreadAffinityMask(AffinityMask);
 	}
+}
+
+const TCHAR* FIOSPlatformProcess::ExecutablePath()
+{
+	static TCHAR Result[512]=TEXT("");
+	if( !Result[0] )
+	{
+		SCOPED_AUTORELEASE_POOL;
+		NSString *NSExeName = [[NSBundle mainBundle] executablePath];
+		FPlatformString::CFStringToTCHAR( ( CFStringRef )NSExeName, Result );
+	}
+	return Result;
 }
 
 const TCHAR* FIOSPlatformProcess::ExecutableName(bool bRemoveExtension)
