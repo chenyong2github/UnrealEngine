@@ -95,6 +95,10 @@ public:
 	{
 		Inner->MarkPackagesUpToDate(UpToDatePackages);
 	}
+	virtual EPackageWriterResult BeginCacheForCookedPlatformData(FBeginCacheForCookedPlatformDataInfo& Info) override
+	{
+		return Inner->BeginCacheForCookedPlatformData(Info);
+	}
 	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override;
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
 	virtual TFuture<FCbObject> WriteMPCookMessageForPackage(FName PackageName) override
@@ -231,6 +235,10 @@ public:
 	virtual void MarkPackagesUpToDate(TArrayView<const FName> UpToDatePackages) override
 	{
 		Inner->MarkPackagesUpToDate(UpToDatePackages);
+	}
+	virtual EPackageWriterResult BeginCacheForCookedPlatformData(FBeginCacheForCookedPlatformDataInfo& Info) override
+	{
+		return Inner->BeginCacheForCookedPlatformData(Info);
 	}
 	virtual void UpdateSaveArguments(FSavePackageArgs& SaveArgs) override;
 	virtual bool IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousResult, FSavePackageArgs& SaveArgs) override;
