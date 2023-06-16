@@ -145,8 +145,11 @@ public:
 	void Stop();
 
 	/** Sets the player in scrub mode */
+	UE_DEPRECATED(5.3, "StartScrubbing has been deprecated as it has no functionality")
 	void StartScrubbing();
+
 	/** Ends scrub mode */
+	UE_DEPRECATED(5.3, "EndScrubbing has been deprecated as it has no functionality")
 	void EndScrubbing();
 
 	/** Gets whether playback is looping */

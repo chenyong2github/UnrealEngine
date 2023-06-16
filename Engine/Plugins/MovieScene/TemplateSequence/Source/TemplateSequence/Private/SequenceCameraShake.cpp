@@ -100,25 +100,21 @@ void USequenceCameraShakePattern::UpdateShakePatternImpl(const FCameraShakeUpdat
 
 void USequenceCameraShakePattern::ScrubShakePatternImpl(const FCameraShakeScrubParams& Params, FCameraShakeUpdateResult& OutResult)
 {
-	Player->StartScrubbing();
+	const float BlendWeight = State.Scrub(Params.AbsoluteTime);
+	if (State.IsPlaying())
 	{
-		const float BlendWeight = State.Scrub(Params.AbsoluteTime);
-		if (State.IsPlaying())
-		{
-			const FFrameRate InputRate = Player->GetInputRate();
-			const FFrameTime NewPosition = Params.AbsoluteTime * PlayRate * InputRate;
-			UpdateCamera(NewPosition, Params.POV, OutResult);
+		const FFrameRate InputRate = Player->GetInputRate();
+		const FFrameTime NewPosition = Params.AbsoluteTime * PlayRate * InputRate;
+		UpdateCamera(NewPosition, Params.POV, OutResult);
 
-			OutResult.ApplyScale(BlendWeight);
-		}
-		else
-		{
-			// See the similar else clause in UpdateShakePatternImpl. 
-			check(Player);
-			Player->Stop();
-		}
+		OutResult.ApplyScale(BlendWeight);
 	}
-	Player->EndScrubbing();
+	else
+	{
+		// See the similar else clause in UpdateShakePatternImpl. 
+		check(Player);
+		Player->Stop();
+	}
 }
 
 bool USequenceCameraShakePattern::IsFinishedImpl() const

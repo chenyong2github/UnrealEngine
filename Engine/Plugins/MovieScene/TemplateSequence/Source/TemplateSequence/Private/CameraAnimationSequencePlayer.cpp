@@ -383,7 +383,7 @@ void UCameraAnimationSequencePlayer::Play(bool bLoop, bool bRandomStartTime)
 
 void UCameraAnimationSequencePlayer::Update(FFrameTime NewPosition)
 {
-	check(Status == EMovieScenePlayerStatus::Playing || Status == EMovieScenePlayerStatus::Scrubbing);
+	check(Status == EMovieScenePlayerStatus::Playing);
 	check(RootTemplateInstance.IsValid());
 
 	bool bShouldStop = false;
