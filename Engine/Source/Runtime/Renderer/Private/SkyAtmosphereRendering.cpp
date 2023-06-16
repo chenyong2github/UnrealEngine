@@ -219,7 +219,7 @@ static TAutoConsoleVariable<int32> CVarSkyAtmosphereEditorNotifications(
 
 static TAutoConsoleVariable<bool> CVarSkyAtmosphereASyncCompute(
 	TEXT("r.SkyAtmosphereASyncCompute"), false,
-	TEXT("SkyAtmosphere on async compute (default: false).\n"),
+	TEXT("SkyAtmosphere on async compute (default: false). When running on the async pipe, SkyAtmosphere lut generation will overlap with the occlusion pass.\n"),
 	ECVF_RenderThreadSafe);
 
 
@@ -286,7 +286,7 @@ ESkyAtmospherePassLocation GetSkyAtmospherePassLocation()
 {
 	if (CVarSkyAtmosphereASyncCompute.GetValueOnAnyThread())
 	{
-		// When SkyAtmLUT is running on async compute, try to kick it before occlusion pass to have better wave occupency
+		// When SkyAtmLUT is running on async compute, try to kick it before occlusion pass to have better wave occupancy
 		return ESkyAtmospherePassLocation::BeforeOcclusion;
 	}
 	// When SkyAtmLUT is running on graphics pipe, kickbefore BasePass to have a better overlap when DistanceFieldShadows is running async
