@@ -15,6 +15,7 @@ public:
 	// End of TCommands<> interface
 
 	TSharedPtr<FUICommandInfo> CompactMode;
+	TSharedPtr<FUICommandInfo> ShowDuplicates;	
 	TSharedPtr<FUICommandInfo> ShowEnginePlugins;
 	TSharedPtr<FUICommandInfo> ShowOptionalPlugins;
 

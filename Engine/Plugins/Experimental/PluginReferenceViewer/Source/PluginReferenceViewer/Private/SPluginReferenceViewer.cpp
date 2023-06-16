@@ -357,10 +357,14 @@ TSharedRef<SWidget> SPluginReferenceViewer::GetShowMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, PluginReferenceViewerActions);
 
-	MenuBuilder.BeginSection("ViewOptions", LOCTEXT("ViewOptions", "View Options"));
-	MenuBuilder.AddMenuEntry(FPluginReferenceViewerCommands::Get().CompactMode);
+	MenuBuilder.BeginSection("Reference Types", LOCTEXT("ReferenceTypes", "Reference Types"));
 	MenuBuilder.AddMenuEntry(FPluginReferenceViewerCommands::Get().ShowEnginePlugins);
 	MenuBuilder.AddMenuEntry(FPluginReferenceViewerCommands::Get().ShowOptionalPlugins);
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("ViewOptions", LOCTEXT("ViewOptions", "View Options"));
+	MenuBuilder.AddMenuEntry(FPluginReferenceViewerCommands::Get().CompactMode);
+	MenuBuilder.AddMenuEntry(FPluginReferenceViewerCommands::Get().ShowDuplicates);
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
@@ -544,6 +548,12 @@ void SPluginReferenceViewer::RegisterActions()
 		FIsActionChecked::CreateSP(this, &SPluginReferenceViewer::IsCompactModeChecked));
 
 	PluginReferenceViewerActions->MapAction(
+		FPluginReferenceViewerCommands::Get().ShowDuplicates,
+		FExecuteAction::CreateSP(this, &SPluginReferenceViewer::OnShowDuplicatesChanged),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SPluginReferenceViewer::IsShowDuplicatesChecked));
+
+	PluginReferenceViewerActions->MapAction(
 		FPluginReferenceViewerCommands::Get().ShowEnginePlugins,
 		FExecuteAction::CreateSP(this, &SPluginReferenceViewer::OnShowEnginePluginsChanged),
 		FCanExecuteAction(),
@@ -579,7 +589,18 @@ bool SPluginReferenceViewer::IsCompactModeChecked() const
 void SPluginReferenceViewer::OnCompactModeChanged()
 {
 	Settings.bIsCompactMode = !Settings.bIsCompactMode;
-	GraphObj->RebuildGraph();
+	GraphObj->RefilterGraph();
+}
+
+void SPluginReferenceViewer::OnShowDuplicatesChanged()
+{
+	Settings.bShowDuplicates = !Settings.bShowDuplicates;
+	GraphObj->RefilterGraph();
+}
+
+bool SPluginReferenceViewer::IsShowDuplicatesChecked() const
+{
+	return Settings.bShowDuplicates;
 }
 
 bool SPluginReferenceViewer::IsShowEnginePluginsChecked() const

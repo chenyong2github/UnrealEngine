@@ -20,9 +20,11 @@ class UEdGraphNode_PluginReference : public UEdGraphNode
 
 	FPluginIdentifier GetIdentifier() const;
 
-	void SetupPluginReferenceNode(const FIntPoint& InNodeLoc, const FPluginIdentifier InPluginIdentifier, const TSharedPtr<const IPlugin>& InPlugin, bool bAllowThumbnail);
+	void SetupPluginReferenceNode(const FIntPoint& InNodeLoc, const FPluginIdentifier InPluginIdentifier, const TSharedPtr<const IPlugin>& InPlugin, bool bInAllowThumbnail, bool bInIsADuplicate);
 
 	bool AllowsThumbnail() const;
+	bool IsADuplicate() const { return bIsADuplicate; }
+
 	TSharedPtr<const IPlugin> GetPlugin() const;
 
 	/** Returns our owning graph */
@@ -47,6 +49,7 @@ private:
 
 	bool bAllowThumbnail;
 	bool bIsEnginePlugin;
+	bool bIsADuplicate;
 
 	TSharedPtr<const IPlugin> CachedPlugin;
 	FSlateIcon AssetBrush;

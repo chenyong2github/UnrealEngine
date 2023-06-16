@@ -81,7 +81,7 @@ void SPluginReferenceNode::UpdateGraphNode()
 
 	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
 	UEdGraphNode_PluginReference* RefGraphNode = CastChecked<UEdGraphNode_PluginReference>(GraphNode);
-	bool bIsADuplicate = /*RefGraphNode->IsADuplicate()*/false;
+	bool bIsADuplicate = RefGraphNode->IsADuplicate();
 
 	FLinearColor OpacityColor = /*RefGraphNode->GetIsFiltered() ? FLinearColor(1.0, 1.0, 1.0, 0.4) :*/FLinearColor::White;
 	
@@ -179,7 +179,7 @@ void SPluginReferenceNode::UpdateGraphNode()
 								[
 									SNew(SImage)
 									.Visibility(bIsADuplicate ? EVisibility::Visible : EVisibility::Hidden)
-									.ToolTipText(LOCTEXT("DuplicateAsset", "This asset is referenced multiple times. Only the first occurance shows its decendants."))
+									.ToolTipText(LOCTEXT("DuplicateAsset", "This plugin is referenced multiple times. Only the first occurance shows its descendants."))
 									.DesiredSizeOverride(FVector2D(12.0, 12.0))
 									.Image(FPluginReferenceViewerStyle::Get().GetBrush("Graph.Node.Duplicate"))
 									.ColorAndOpacity(FAppStyle::Get().GetColor("Colors.Foreground"))

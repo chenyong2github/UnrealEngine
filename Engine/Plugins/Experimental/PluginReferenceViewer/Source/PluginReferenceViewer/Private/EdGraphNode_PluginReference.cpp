@@ -15,7 +15,9 @@
 
 UEdGraphNode_PluginReference::UEdGraphNode_PluginReference(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bAllowThumbnail(true)
 	, bIsEnginePlugin(false)
+	, bIsADuplicate(false)
 	, DependencyPin(nullptr)
 	, ReferencerPin(nullptr)
 {
@@ -26,7 +28,7 @@ FPluginIdentifier UEdGraphNode_PluginReference::GetIdentifier() const
 	return PluginIdentifier;
 }
 
-void UEdGraphNode_PluginReference::SetupPluginReferenceNode(const FIntPoint& InNodeLoc, const FPluginIdentifier InPluginIdentifier, const TSharedPtr<const IPlugin>& InPlugin, bool bInAllowThumbnail)
+void UEdGraphNode_PluginReference::SetupPluginReferenceNode(const FIntPoint& InNodeLoc, const FPluginIdentifier InPluginIdentifier, const TSharedPtr<const IPlugin>& InPlugin, bool bInAllowThumbnail, bool bInIsADuplicate)
 {
 	NodePosX = InNodeLoc.X;
 	NodePosY = InNodeLoc.Y;
@@ -38,6 +40,7 @@ void UEdGraphNode_PluginReference::SetupPluginReferenceNode(const FIntPoint& InN
 
 	bAllowThumbnail = bInAllowThumbnail;
 	bIsEnginePlugin = (InPlugin->GetType() == EPluginType::Engine) ? true : false;
+	bIsADuplicate = bInIsADuplicate;
 
 	CachedPlugin = InPlugin;
 

@@ -178,13 +178,15 @@ UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::RecursivelyCreateN
 	else
 	{
 		const bool bIsCompactMode = PluginReferenceViewer.Pin()->IsCompactModeChecked();
+		const bool bIsADuplicate = NodeInfo.Parents.Num() > 1;
 
 		NewNode = CreatePluginReferenceNode();
-		NewNode->SetupPluginReferenceNode(InNodeLoc, NodeInfo.Identifier, NodeInfo.Plugin, !bIsCompactMode);
+		NewNode->SetupPluginReferenceNode(InNodeLoc, NodeInfo.Identifier, NodeInfo.Plugin, !bIsCompactMode, bIsADuplicate);
 		NodeProvSize = NodeInfo.ProvisionSize(InParentId);
 	}
 
 	const bool bIsCompactMode = PluginReferenceViewer.Pin()->IsCompactModeChecked();
+	const bool bShowDuplicates = PluginReferenceViewer.Pin()->IsShowDuplicatesChecked();
 
 	bool bIsFirstOccurance = bIsRoot || NodeInfo.IsFirstParent(InParentId);
 	FIntPoint ChildLoc = InNodeLoc;
@@ -204,10 +206,14 @@ UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::RecursivelyCreateN
 			const TPair<FPluginIdentifier, EPluginReferencePinCategory>& Pair = InNodeInfos[InPluginId].Children[ChildIdx];
 
 			FPluginIdentifier ChildId = Pair.Key;
-			int32 ChildProvSize = 1;
+			int32 ChildProvSize = 0;
 			if (InNodeInfos[ChildId].IsFirstParent(InPluginId))
 			{
 				ChildProvSize = InNodeInfos[ChildId].ProvisionSize(InPluginId);
+			}
+			else if (bShowDuplicates)
+			{
+				ChildProvSize = 1;
 			}
 
 			// The provision size will always be at least 1 if it should be shown
@@ -325,16 +331,52 @@ UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::RefilterGraph()
 
 		const FPluginReferenceNodeInfo& NodeInfo = ReferencerNodeInfos[FirstGraphRootIdentifier];
 		RootNode = CreatePluginReferenceNode();
-		RootNode->SetupPluginReferenceNode(CurrentGraphRootOrigin, NodeInfo.Identifier, NodeInfo.Plugin, !bIsCompactMode);
+		RootNode->SetupPluginReferenceNode(CurrentGraphRootOrigin, NodeInfo.Identifier, NodeInfo.Plugin, !bIsCompactMode, false);
 
 		// Show referencers
+		RecursivelyFilterNodeInfos(FirstGraphRootIdentifier, ReferencerNodeInfos, 0, SettingsReferencerMaxDepth);
 		RecursivelyCreateNodes(true, FirstGraphRootIdentifier, CurrentGraphRootOrigin, FirstGraphRootIdentifier, RootNode, ReferencerNodeInfos, 0, SettingsReferencerMaxDepth, /*bIsRoot*/ true);
 
 		// Show dependencies
+		RecursivelyFilterNodeInfos(FirstGraphRootIdentifier, DependencyNodeInfos, 0, SettingsDependencyMaxDepth);
 		RecursivelyCreateNodes(false, FirstGraphRootIdentifier, CurrentGraphRootOrigin, FirstGraphRootIdentifier, RootNode, DependencyNodeInfos, 0, SettingsDependencyMaxDepth, /*bIsRoot*/ true);
 	}
 
 	return RootNode;
+}
+
+void UEdGraph_PluginReferenceViewer::RecursivelyFilterNodeInfos(const FPluginIdentifier& InPluginId, TMap<FPluginIdentifier, FPluginReferenceNodeInfo>& InNodeInfos, int32 InCurrentDepth, int32 InMaxDepth)
+{
+	const bool bShowDuplicates = PluginReferenceViewer.Pin()->IsShowDuplicatesChecked();
+
+	// Filters and Re-provisions the NodeInfo counts 
+	int32 NewProvisionSize = 0;
+
+	if (!ExceedsMaxSearchDepth(InCurrentDepth, InMaxDepth))
+	{
+		for (const TPair<FPluginIdentifier, EPluginReferencePinCategory>& Pair : InNodeInfos[InPluginId].Children)
+		{
+			FPluginIdentifier ChildId = Pair.Key;
+
+			int32 ChildProvSize = 0;
+			if (InNodeInfos[ChildId].IsFirstParent(InPluginId))
+			{
+				RecursivelyFilterNodeInfos(ChildId, InNodeInfos, InCurrentDepth + 1, InMaxDepth);
+				ChildProvSize = InNodeInfos[ChildId].ProvisionSize(InPluginId);
+			}
+			else if (bShowDuplicates)
+			{
+				ChildProvSize = 1;
+			}
+
+			if (ChildProvSize > 0)
+			{
+				NewProvisionSize += ChildProvSize;
+			}
+		}
+	}
+
+	InNodeInfos[InPluginId].ChildProvisionSize = NewProvisionSize > 0 ? NewProvisionSize : 1;
 }
 
 UEdGraphNode_PluginReference* UEdGraph_PluginReferenceViewer::CreatePluginReferenceNode()

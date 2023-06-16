@@ -34,6 +34,7 @@ public:
 	int32 GetSearchReferencerDepthCount() const;
 	int32 GetSearchDependencyDepthCount() const;
 	bool IsCompactModeChecked() const;
+	bool IsShowDuplicatesChecked() const;
 	bool IsShowEnginePluginsChecked() const;
 	bool IsShowOptionalPluginsChecked() const;
 
@@ -86,6 +87,7 @@ private:
 	void OnAddressBarTextChanged(const FText& NewText);
 
 	void OnCompactModeChanged();
+	void OnShowDuplicatesChanged();
 	void OnShowEnginePluginsChanged();
 	void OnShowOptionalPluginsChanged();
 	void OnApplyHistoryData(const FPluginReferenceViewerHistoryData& History);
@@ -96,6 +98,7 @@ private:
 		int32 MaxSearchReferencersDepth = 1;
 		int32 MaxSearchDependencyDepth = 1;
 		bool bIsCompactMode = false;
+		bool bShowDuplicates = true;
 		bool bShowEnginePlugins = true;
 		bool bShowOptionalPlugins = true;
 	};

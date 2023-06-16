@@ -16,6 +16,7 @@ FPluginReferenceViewerCommands::FPluginReferenceViewerCommands() : TCommands<FPl
 void FPluginReferenceViewerCommands::RegisterCommands()
 {	
 	UI_COMMAND(CompactMode, "Compact Mode", "Toggles Compact View", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::V));
+	UI_COMMAND(ShowDuplicates, "Show Duplicates References", "Toggles visibility of duplicates references", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::U));
 	UI_COMMAND(ShowEnginePlugins, "Show Engine Plugins", "Toggles visibility of Engine Plugins", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ShowOptionalPlugins, "Show Optional Plugins", "Toggles visibility of Optional Plugin dependencies", EUserInterfaceActionType::ToggleButton, FInputChord());
 
