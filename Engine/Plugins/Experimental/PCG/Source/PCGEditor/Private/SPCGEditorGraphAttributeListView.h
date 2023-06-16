@@ -6,6 +6,7 @@
 #include "Metadata/Accessors/IPCGAttributeAccessor.h"
 #include "Metadata/Accessors/PCGAttributeAccessorKeys.h"
 
+#include "Misc/TextFilterExpressionEvaluator.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
@@ -28,6 +29,7 @@ enum class EPCGMetadataTypes : uint8;
 
 class SComboButton;
 class SHeaderRow;
+class SSearchBox;
 struct FSlateBrush;
 
 struct FPCGListViewItem
@@ -68,6 +70,21 @@ private:
 	PCGListviewItemPtr InternalItem;
 };
 
+class FPCGPointFilterExpressionContext : public ITextFilterExpressionContext
+{
+public:
+	explicit FPCGPointFilterExpressionContext(const FPCGListViewItem* InRowItem, const TMap<FName, FPCGColumnData>* InPCGColumnData);
+
+	// ~Begin ITextFilterExpressionContext interface
+	virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override;
+	virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override;
+	// ~End ITextFilterExpressionContext interface
+
+private:
+	const FPCGListViewItem* RowItem = nullptr;
+	const TMap<FName, FPCGColumnData>* PCGColumnData = nullptr;
+};
+
 class SPCGEditorGraphAttributeListView : public SCompoundWidget
 {
 	friend SPCGListViewItemRow;
@@ -98,6 +115,8 @@ private:
 	void RefreshAttributeList();
 	void RefreshPinComboBox();
 	void RefreshDataComboBox();
+
+	void ApplyRowFilter();
 
 	/** Only connected input pins are added to combo box, so keep track of the node pin index for each item. */
 	struct FPinComboBoxItem
@@ -133,6 +152,9 @@ private:
 	EColumnSortMode::Type GetColumnSortMode(const FName InColumnId) const;
 	void RefreshSorting();
 
+	void OnFilterTextChanged(const FText& InFilterText);
+	void OnFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
+
 	void AddColumn(const UPCGPointData* InPCGPointData, const FName& InColumnId, const FText& ColumnLabel, EHorizontalAlignment HeaderHAlign = HAlign_Center, EHorizontalAlignment CellHAlign = HAlign_Right);
 	void AddIndexColumn();
 	void AddPointDataColumns(const UPCGPointData* InPCGPointData);
@@ -147,9 +169,13 @@ private:
 	/** Cached PCGGraphNode being viewed */
 	TWeakObjectPtr<UPCGEditorGraphNodeBase> PCGEditorGraphNode;
 
+	TSharedPtr<FTextFilterExpressionEvaluator> TextFilter;
+
+	TSharedPtr<SSearchBox> SearchBoxWidget;	
 	TSharedPtr<SHeaderRow> ListViewHeader;
 	TSharedPtr<SListView<PCGListviewItemPtr>> ListView;
 	TArray<PCGListviewItemPtr> ListViewItems;
+	TArray<PCGListviewItemPtr> FilteredListViewItems;
 
 	TSharedPtr<SComboBox<TSharedPtr<FPinComboBoxItem>>> PinComboBox;
 	TArray<TSharedPtr<FPinComboBoxItem>> PinComboBoxItems;
@@ -164,6 +190,8 @@ private:
 	TArray<FName> HiddenAttributes;
 
 	TMap<FName, FPCGColumnData> PCGColumnData;
+
+	FText ActiveFilterText;
 
 	FName SortingColumn = NAME_None;
 	EColumnSortMode::Type SortMode = EColumnSortMode::Type::Ascending;

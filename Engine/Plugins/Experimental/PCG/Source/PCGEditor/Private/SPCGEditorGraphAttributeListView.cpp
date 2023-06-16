@@ -24,6 +24,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "SPCGEditorGraphAttributeListView"
@@ -187,6 +188,74 @@ TSharedRef<SWidget> SPCGListViewItemRow::GenerateWidgetForColumn(const FName& Co
 		.Margin(FMargin(2.0f, 0.0f));
 }
 
+FPCGPointFilterExpressionContext::FPCGPointFilterExpressionContext(const FPCGListViewItem* InRowItem, const TMap<FName, FPCGColumnData>* InPCGColumnData)
+	: RowItem(InRowItem)
+	, PCGColumnData(InPCGColumnData)
+{
+	check(InRowItem);
+}
+
+bool FPCGPointFilterExpressionContext::TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const
+{
+	// Basic string search is disabled as it would require us to search the entire attribute table at once and it's not very useful.
+	return false;
+}
+
+bool FPCGPointFilterExpressionContext::TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const
+{
+	const int32 Index = RowItem->Index;
+
+	if (PCGEditorGraphAttributeListView::TEXT_IndexLabel.EqualToCaseIgnored(FText::FromName(InKey)))
+	{
+		const FTextFilterString PointValue(FString::FromInt(Index));
+		return TextFilterUtils::TestComplexExpression(PointValue, InValue, InComparisonOperation, InTextComparisonMode);
+	}
+	else if(const FPCGColumnData* PCGColumnInfo = PCGColumnData->Find(InKey))
+	{
+		if (PCGColumnInfo->DataAccessor.IsValid() && PCGColumnInfo->DataKeys.IsValid())
+		{
+			auto Callback = [&PCGColumnInfo, Index, &InValue, &InComparisonOperation, &InTextComparisonMode] (auto Dummy)
+			{
+				using ValueType = decltype(Dummy);
+				ValueType Value{};
+				if (PCGColumnInfo->DataAccessor->Get<ValueType>(Value, Index, *PCGColumnInfo->DataKeys))
+				{					
+					FText TextValue;
+					if constexpr (PCG::Private::IsOfTypes<ValueType, bool>())
+					{
+						TextValue = FText::FromString(LexToString(Value));
+					}
+					else if constexpr (PCG::Private::IsOfTypes<ValueType, FString>())
+					{
+						TextValue = FText::FromString(Value);
+					}
+					else if constexpr (PCG::Private::IsOfTypes<ValueType, FName>())
+					{
+						TextValue = FText::FromName(Value);
+					}
+					else if constexpr (FTextAsNumberIsValid<ValueType>::value)
+					{
+						TextValue = FText::AsNumber(Value, &FNumberFormattingOptions::DefaultNoGrouping());
+					}
+					else
+					{
+						ensureMsgf(false, TEXT("Unsupported Data Type"));
+						return false;
+					}
+					
+					const FTextFilterString PointValue(TextValue.ToString());
+					return TextFilterUtils::TestComplexExpression(PointValue, InValue, InComparisonOperation, InTextComparisonMode);
+				}
+				return false;
+			};
+
+			return PCGMetadataAttribute::CallbackWithRightType(PCGColumnInfo->DataAccessor->GetUnderlyingType(), Callback);
+		}
+	}
+
+	return true;
+}
+
 SPCGEditorGraphAttributeListView::~SPCGEditorGraphAttributeListView()
 {
 	if (PCGEditorPtr.IsValid())
@@ -204,6 +273,8 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 	PCGEditorPtr.Pin()->OnInspectedComponentChangedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnInspectedComponentChanged);
 	PCGEditorPtr.Pin()->OnInspectedStackChangedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnInspectedStackChanged);
 	PCGEditorPtr.Pin()->OnInspectedNodeChangedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnInspectedNodeChanged);
+
+	TextFilter = MakeShareable(new FTextFilterExpressionEvaluator(ETextFilterExpressionEvaluatorMode::Complex));
 
 	ListViewHeader = CreateHeaderRowWidget();
 
@@ -264,6 +335,14 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 			FilterImage.ToSharedRef()
 		];
 
+	SAssignNew(SearchBoxWidget, SSearchBox)
+		.MinDesiredWidth(300.0f)
+		.InitialText(ActiveFilterText)
+		.OnTextChanged(this, &SPCGEditorGraphAttributeListView::OnFilterTextChanged)
+		.OnTextCommitted(this, &SPCGEditorGraphAttributeListView::OnFilterTextCommitted)
+		.DelayChangeNotificationsWhileTyping(true)
+		.DelayChangeNotificationsWhileTypingSeconds(0.5f);
+
 	this->ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -289,6 +368,12 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 			.Padding(1.0f, 0.0f)
 			[
 				DataComboBox->AsShared()
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1.0f, 0.0f)
+			[
+				SearchBoxWidget->AsShared()
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -550,7 +635,6 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 		}
 	}
 
-	ListView->SetItemsSource(&ListViewItems);
 	RefreshSorting();
 }
 
@@ -634,6 +718,34 @@ void SPCGEditorGraphAttributeListView::RefreshDataComboBox()
 	{
 		DataComboBox->SetSelectedItem(DataComboBoxItems[0]);
 	}
+}
+
+void SPCGEditorGraphAttributeListView::ApplyRowFilter()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SPCGEditorGraphAttributeListView::ApplyRowFilter);
+
+	FilteredListViewItems.Empty();
+
+	const FString& FilterString = ActiveFilterText.ToString();
+	if (!FilterString.IsEmpty())
+	{
+		for (const PCGListviewItemPtr& ListViewItem : ListViewItems)
+		{
+			const FPCGPointFilterExpressionContext PointFilterContext(ListViewItem.Get(), &PCGColumnData);
+			if (TextFilter->TestTextFilter(PointFilterContext))
+			{
+				FilteredListViewItems.Add(ListViewItem);
+			}
+		}
+		
+		ListView->SetItemsSource(&FilteredListViewItems);
+	}
+	else
+	{
+		ListView->SetItemsSource(&ListViewItems);
+	}
+
+	ListView->RequestListRefresh();
 }
 
 const FSlateBrush* SPCGEditorGraphAttributeListView::GetFilterBadgeIcon() const
@@ -1019,7 +1131,25 @@ void SPCGEditorGraphAttributeListView::RefreshSorting()
 		}
 	}
 
-	ListView->RequestListRefresh();
+	ApplyRowFilter();
+}
+
+void SPCGEditorGraphAttributeListView::OnFilterTextChanged(const FText& InFilterText)
+{
+	ActiveFilterText = InFilterText;
+	TextFilter->SetFilterText(InFilterText);
+
+	ApplyRowFilter();
+	SearchBoxWidget->SetError(TextFilter->GetFilterErrorText());
+}
+
+void SPCGEditorGraphAttributeListView::OnFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
+{
+	if (CommitInfo == ETextCommit::OnCleared)
+	{
+		SearchBoxWidget->SetText(FText::GetEmpty());
+		OnFilterTextChanged(FText::GetEmpty());
+	}
 }
 
 void SPCGEditorGraphAttributeListView::AddColumn(const UPCGPointData* InPCGPointData, const FName& InColumnId, const FText& ColumnLabel, EHorizontalAlignment HeaderHAlign, EHorizontalAlignment CellHAlign)
