@@ -5,6 +5,8 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "UDynamicMesh.h"
 #include "Util/ColorConstants.h"
+#include "Operations/SmoothDynamicMeshAttributes.h"
+#include "DynamicMesh/DynamicMeshOverlay.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshVertexColorFunctions)
 
@@ -406,6 +408,76 @@ UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::ConvertMeshVertex
 	
 	return TargetMesh;
 }
+
+UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::BlurMeshVertexColors(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptMeshSelection Selection,
+	int NumIterations,
+	double Strength,
+	EGeometryScriptBlurColorMode BlurMode,
+	FGeometryScriptBlurMeshVertexColorsOptions Options,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("BlurMeshVertexColors_InvalidInput", "BlurMeshVertexColors: TargetMesh is Null."));
+		return TargetMesh;
+	}
+
+	if (NumIterations < 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("BlurMeshVertexColors_InvalidIterationNumber", "BlurMeshVertexColors: Number of iterations must be non-negative."));
+		return TargetMesh;
+	}
+
+	if (Strength < 0)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("BlurMeshVertexColors_InvalidStrength", "BlurMeshVertexColors: Blur strength must be non-negative."));
+		return TargetMesh;
+	}
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		if (EditMesh.HasAttributes() == false || EditMesh.Attributes()->HasPrimaryColors() == false)
+		{
+			return;
+		}
+
+		FDynamicMeshColorOverlay* Colors = EditMesh.Attributes()->PrimaryColors();
+		if (Colors->ElementCount() > 0)
+		{
+			FSmoothDynamicMeshAttributes BlurOp(EditMesh);
+			BlurOp.bUseParallel = true;
+			BlurOp.NumIterations = NumIterations;
+			BlurOp.Strength = Strength;
+			BlurOp.EdgeWeightMethod = static_cast<FSmoothDynamicMeshAttributes::EEdgeWeights>(BlurMode);
+
+			TArray<bool> ColorsToSmooth;
+			ColorsToSmooth.Reserve(4);
+			ColorsToSmooth.Add(Options.Red);
+			ColorsToSmooth.Add(Options.Green);
+			ColorsToSmooth.Add(Options.Blue);
+			ColorsToSmooth.Add(Options.Alpha);
+
+			if (!Selection.IsEmpty())
+			{
+				Selection.ProcessByVertexID(EditMesh, [&](int32 VertexID)
+				{
+					BlurOp.Selection.Add(VertexID);
+				});
+			}
+
+			if (!BlurOp.SmoothOverlay(Colors, ColorsToSmooth))
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("BlurMeshVertexColors_BlurFailed", "BlurMeshVertexColors: Failed to blur the colors."));
+				return;
+			}
+		}
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	
+	return TargetMesh;
+}
+
 
 
 

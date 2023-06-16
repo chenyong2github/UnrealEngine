@@ -11,6 +11,40 @@
 class UDynamicMesh;
 
 
+UENUM(BlueprintType)
+enum class EGeometryScriptBlurColorMode : uint8
+{
+	/** Blur the attributes where each neighbor is weighted equally. */
+	Uniform = 0,
+	/** Blur the attributes where each neighbor is weighted proportionally to the shared edge length. */
+	EdgeLength = 1,
+	/** Blur the attributes where each neighbor is weighted proportionally to the cotangent weight of the shared edge. */
+	CotanWeights = 2
+};
+
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBlurMeshVertexColorsOptions
+{
+	GENERATED_BODY()
+
+	/** Blur red channel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool Red = true;
+
+	/** Blur green channel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool Green = true;
+
+	/** Blur blue channel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool Blue = true;
+
+	/** Blur alpha channel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
+	bool Alpha = true;
+};
+
+
 
 UCLASS(meta = (ScriptName = "GeometryScript_VertexColors"))
 class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshVertexColorFunctions : public UBlueprintFunctionLibrary
@@ -99,6 +133,27 @@ public:
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	ConvertMeshVertexColorsLinearToSRGB(
 		UDynamicMesh* TargetMesh,
+		UGeometryScriptDebug* Debug = nullptr);
+
+
+	/**
+     * Blur the color attribute of the mesh. If the mesh has no color attribute, the function returns the mesh unchanged.
+	 * 
+     * @param TargetMesh The mesh containing the color attribute. 
+     * @param Selection Only vertices in the selection will have their color attribute blurred.
+     * @param NumIterations The number of blur iterations.
+     * @param Strength Each iteration, we will blur between the vertex of the color at the previous iteration and its neighbors' average by Strength amount (expected to be in the zero to one range).
+     * @param BlurMode Determines how neighbors are weighted when computing their average.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
+	BlurMeshVertexColors(
+		UDynamicMesh* TargetMesh,
+		FGeometryScriptMeshSelection Selection,
+		int NumIterations = 1,
+		double Strength = 0.5,
+		EGeometryScriptBlurColorMode BlurMode = EGeometryScriptBlurColorMode::Uniform,
+		FGeometryScriptBlurMeshVertexColorsOptions Options = FGeometryScriptBlurMeshVertexColorsOptions(),
 		UGeometryScriptDebug* Debug = nullptr);
 };
 

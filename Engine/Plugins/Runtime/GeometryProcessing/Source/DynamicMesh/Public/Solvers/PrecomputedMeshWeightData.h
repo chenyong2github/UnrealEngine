@@ -221,6 +221,11 @@ namespace UE
 		}
 
 
-
+	  	/**
+		 * @return Edge cotanget weights.
+		 * @todo Add an option to return the weights computed on an intrinsic mesh.
+		 */
+		void DYNAMICMESH_API ConstructEdgeCotanWeightsDataArray(const FDynamicMesh3& Mesh, TArray<double>& EdgeWeightsDataArray, double ClampMin = -1.e5, double ClampMax = 1.e5);
+		
 	}
 }

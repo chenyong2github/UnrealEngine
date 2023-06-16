@@ -156,3 +156,25 @@ void UE::MeshDeformation::MeanValueTriangleData::Initialize(const FDynamicMesh3&
 #endif
 }
 
+void UE::MeshDeformation::ConstructEdgeCotanWeightsDataArray(const FDynamicMesh3& Mesh, TArray<double>& EdgeWeightsDataArray, double ClampMin, double ClampMax)
+{
+	TArray<UE::MeshDeformation::CotanTriangleData> CotangentTriangleDataArray;
+	CotangentTriangleDataArray.SetNumUninitialized(Mesh.MaxTriangleID());
+
+	for (const int32 TriID : Mesh.TriangleIndicesItr())
+	{
+		CotangentTriangleDataArray[TriID].Initialize(Mesh, TriID);
+	}
+
+	EdgeWeightsDataArray.SetNumUninitialized(Mesh.MaxEdgeID());
+	for (const int32 EdgeId : Mesh.EdgeIndicesItr())
+	{   
+		const FDynamicMesh3::FEdge Edge = Mesh.GetEdge(EdgeId);
+
+		const double CotanAlpha = CotangentTriangleDataArray[Edge.Tri[0]].GetOpposingCotangent(EdgeId);
+
+		const double CotanBeta = (Edge.Tri[1] != FDynamicMesh3::InvalidID) ? CotangentTriangleDataArray[Edge.Tri[1]].GetOpposingCotangent(EdgeId) : 0.0;
+
+		EdgeWeightsDataArray[EdgeId] = FMathd::Clamp(CotanAlpha + CotanBeta, ClampMin, ClampMax);
+	}
+}
