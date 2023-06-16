@@ -6503,6 +6503,10 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 
 				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
 
+#if !UE_BUILD_SHIPPING				
+				SyncTimeSlicedData.TileRegenStartFrame = GFrameCounter;
+#endif // !UE_BUILD_SHIPPING 
+
 				if (SyncTimeSlicedData.TileGeneratorSync->HasDataToBuild())
 				{
 					SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::DoWork;
@@ -6592,12 +6596,17 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 				SyncTimeSlicedData.ProcessTileTasksSyncState = EProcessTileTasksSyncTimeSlicedState::Init;
 
 				SyncTimeSlicedData.CurrentTileRegenDuration += (FPlatformTime::Seconds() - TimeStartProcessingTileThisFrame);
+#if !UE_BUILD_SHIPPING					
+				const double TempRegenDuration = SyncTimeSlicedData.CurrentTileRegenDuration;
+#endif					
 
 				SyncTimeSlicedData.TimeSliceManager->PushTileRegenTime(SyncTimeSlicedData.CurrentTileRegenDuration);
 
 				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
 
 #if !UE_BUILD_SHIPPING					
+				SyncTimeSlicedData.TileRegenEndFrame = GFrameCounter;
+					
 				const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 				if (NavSys)
 				{
@@ -6605,6 +6614,18 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 					const double WaitTime = (FPlatformTime::Seconds() - TileGenerator->TileCreationTime);
 					const int32 NavDataIndex = NavSys->NavDataSet.Find(DestNavMesh);	
 					SyncTimeSlicedData.TimeSliceManager->PushTileWaitTime(NavDataIndex, WaitTime);
+
+					UE_SUPPRESS(LogNavigationHistory, Log,
+					{
+						FTileHistoryData HistoryData;
+						HistoryData.TileX = TileGenerator->TileX;
+						HistoryData.TileY = TileGenerator->TileY;
+						HistoryData.TileRegenTime = (float)TempRegenDuration;
+						HistoryData.TileWaitTime = (float)WaitTime;
+						HistoryData.StartRegenFrame = SyncTimeSlicedData.TileRegenStartFrame;
+						HistoryData.EndRegenFrame = SyncTimeSlicedData.TileRegenEndFrame;
+						SyncTimeSlicedData.TimeSliceManager->PushTileHistoryData(NavDataIndex, HistoryData);
+					});
 				}
 #endif // !UE_BUILD_SHIPPING					
 				

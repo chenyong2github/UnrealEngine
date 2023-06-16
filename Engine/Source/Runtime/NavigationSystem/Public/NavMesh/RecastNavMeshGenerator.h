@@ -1012,6 +1012,14 @@ protected:
 
 		/** Accumulated time spent processing the tile (in seconds). */
 		double CurrentTileRegenDuration;
+
+#if !UE_BUILD_SHIPPING		
+		/** Frame when the tile start being processed. */
+		int64 TileRegenStartFrame = 0;
+
+		/** Frame when the tile is done being processed. */
+		int64 TileRegenEndFrame = 0;
+#endif // !UE_BUILD_SHIPPING		
 		
 		/** if we are currently using time sliced regen or not - currently an experimental feature.
 		 *  do not manipulate this value directly instead call SetNextTimeSliceRegenActive()

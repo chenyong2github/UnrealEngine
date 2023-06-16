@@ -325,6 +325,15 @@ bool FNavRegenTimeSlicer::TestTimeSliceFinished() const
 	return bTimeSliceFinishedCached;
 }
 
+void FNavRegenTimeSliceManager::ResetTileWaitTimeArrays(const TArray<TObjectPtr<ANavigationData>>& NavDataSet)
+{
+	TileWaitTimes.SetNum(NavDataSet.Num());
+	for (TArray<double>& Array : TileWaitTimes)
+	{
+		Array.Empty();
+	}
+}
+
 void FNavRegenTimeSliceManager::PushTileWaitTime(const int32 NavDataIndex, const double NewTime)
 {
 	if (TileWaitTimes.IsValidIndex(NavDataIndex))
@@ -332,6 +341,25 @@ void FNavRegenTimeSliceManager::PushTileWaitTime(const int32 NavDataIndex, const
 		TileWaitTimes[NavDataIndex].Add(NewTime);	
 	}
 }
+
+#if !UE_BUILD_SHIPPING
+void FNavRegenTimeSliceManager::ResetTileHistoryData(const TArray<TObjectPtr<ANavigationData>>& NavDataSet)
+{
+	TileHistoryData.SetNum(NavDataSet.Num());
+	for (TArray<FTileHistoryData>& HistoryData : TileHistoryData)
+	{
+		HistoryData.Empty();
+	}
+}
+
+void FNavRegenTimeSliceManager::PushTileHistoryData(const int32 NavDataIndex, const FTileHistoryData& TileData)
+{
+	if (TileHistoryData.IsValidIndex(NavDataIndex))
+	{
+		TileHistoryData[NavDataIndex].Add(TileData);	
+	}
+}
+#endif // UE_BUILD_SHIPPING
 
 double FNavRegenTimeSliceManager::GetAverageTileWaitTime(const int32 NavDataIndex) const
 {
@@ -460,6 +488,41 @@ void FNavRegenTimeSliceManager::SetMaxDesiredTileRegenDuration(float NewMaxDesir
 
 	UE_LOG(LogNavigationDataBuild, Verbose, TEXT("Navigation System: MaxDesiredTileRegenDuration = %f"), MaxDesiredTileRegenDuration);
 }
+
+#if !UE_BUILD_SHIPPING
+void FNavRegenTimeSliceManager::LogTileStatistics(const TArray<TObjectPtr<ANavigationData>>& NavDataSet) const
+{
+	UE_SUPPRESS(LogNavigationHistory, Log,
+	{
+		// Log median tile processing time every 60 frames.
+		const bool bLog = GFrameCounter % 60 == 0;
+		for (int32 NavDataIndex = 0; bLog && NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
+		{
+			if (TileHistoryData.IsValidIndex(NavDataIndex))
+			{
+				TArray<FTileHistoryData> HistoryData = TileHistoryData[NavDataIndex];
+				if (HistoryData.Num() > 0)
+				{
+					const int32 MedianIndex = HistoryData.Num()/2;
+					const int32 HighIndex = int(HistoryData.Num()*0.9);
+
+					HistoryData.Sort([](const FTileHistoryData& A, const FTileHistoryData& B){ return A.TileRegenTime < B.TileRegenTime; });
+					const double MedianRegenTimeMs = HistoryData[MedianIndex].TileRegenTime * 1000.f;
+					const double HighRegenTimeMs = HistoryData[HighIndex].TileRegenTime * 1000.f;
+					const int64 MedianRegenFrames = HistoryData[MedianIndex].EndRegenFrame - HistoryData[MedianIndex].StartRegenFrame;
+
+					HistoryData.Sort([](const FTileHistoryData& A, const FTileHistoryData& B){ return A.TileWaitTime < B.TileWaitTime; });
+					const double MedianWaitTimeMs = HistoryData[MedianIndex].TileWaitTime * 1000.f;
+					const double HighWaitTimeMs = HistoryData[HighIndex].TileWaitTime * 1000.f;
+					
+					UE_LOG(LogNavigation, Warning, TEXT("%-30s Median tile stats: regen time: %2.2f ms, regen frames %lld, wait time: %4.f ms (high regen time: %2.2f ms, high wait time: %4.f ms."),
+						*GetNameSafe(NavDataSet[NavDataIndex]), MedianRegenTimeMs, MedianRegenFrames, MedianWaitTimeMs, HighRegenTimeMs, HighWaitTimeMs);
+				}
+			}
+		}
+	});
+}
+#endif // !UE_BUILD_SHIPPING
 
 //----------------------------------------------------------------------//
 // UNavigationSystemV1                                                                
@@ -1302,6 +1365,10 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 				{
 					NumTimeSlicedRemainingBuildTasks += NumTasks;
 				}
+
+#if !UE_BUILD_SHIPPING
+				NavRegenTimeSliceManager.LogTileStatistics(NavDataSet);
+#endif // !UE_BUILD_SHIPPING
 				
 				if (NumTimeSlicedRemainingBuildTasks > 0)
 				{
@@ -2539,7 +2606,11 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 		Result = RegistrationFailed_AgentNotValid;
 	}
 
-	NavRegenTimeSliceManager.InitTileWaitTimeArrays(NavDataSet);
+	NavRegenTimeSliceManager.ResetTileWaitTimeArrays(NavDataSet);
+
+#if !UE_BUILD_SHIPPING
+	NavRegenTimeSliceManager.ResetTileHistoryData(NavDataSet);
+#endif // UE_BUILD_SHIPPING
 
 	// @todo else might consider modifying this NavData to implement navigation for one of the supported agents
 	// care needs to be taken to not make it implement navigation for agent who's real implementation has 
@@ -2570,6 +2641,12 @@ void UNavigationSystemV1::UnregisterNavData(ANavigationData* NavData)
 	NavDataRegistrationQueue.Remove(NavData);
 	NavData->OnUnregistered();
 
+	NavRegenTimeSliceManager.ResetTileWaitTimeArrays(NavDataSet);
+
+#if !UE_BUILD_SHIPPING
+	NavRegenTimeSliceManager.ResetTileHistoryData(NavDataSet);
+#endif // UE_BUILD_SHIPPING
+	
 	if (CrowdManager != nullptr)
 	{
 		CrowdManager->OnNavDataUnregistered(*NavData);

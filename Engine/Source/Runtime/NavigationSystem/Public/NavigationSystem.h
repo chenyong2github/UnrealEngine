@@ -183,6 +183,27 @@ protected:
 #endif
 };
 
+#if !UE_BUILD_SHIPPING
+struct FTileHistoryData
+{
+	/** Tile coordinates **/
+	int32 TileX = 0;
+	int32 TileY = 0;
+	
+	/** Accumulated time spent processing the tile (seconds). */
+	float TileRegenTime = 0.f;
+
+	/** Time between the tile was requested and when it's finished building (seconds). */
+	float TileWaitTime = 0.f;
+
+	/** Frame when tile processing started. */
+	int64 StartRegenFrame = 0;
+
+	/** Frame when tile processing ended. */
+	int64 EndRegenFrame = 0;
+};
+#endif // !UE_BUILD_SHIPPING
+
 class NAVIGATIONSYSTEM_API FNavRegenTimeSliceManager
 {
 public:
@@ -194,8 +215,14 @@ public:
 
 	double GetAverageDeltaTime() const { return MovingWindowDeltaTime.GetAverage(); }
 
-	void InitTileWaitTimeArrays(const TArray<TObjectPtr<ANavigationData>>& NavDataSet) { TileWaitTimes.SetNum(NavDataSet.Num()); }
+	void ResetTileWaitTimeArrays(const TArray<TObjectPtr<ANavigationData>>& NavDataSet);
 	void PushTileWaitTime(const int32 NavDataIndex, const double NewTime);
+
+#if !UE_BUILD_SHIPPING
+	void ResetTileHistoryData(const TArray<TObjectPtr<ANavigationData>>& NavDataSet);
+	void PushTileHistoryData(const int32 NavDataIndex, const FTileHistoryData& TileData);
+#endif // UE_BUILD_SHIPPING
+
 	double GetAverageTileWaitTime(const int32 NavDataIndex) const;
 	void ResetTileWaitTime(const int32 NavDataIndex);
 
@@ -217,6 +244,10 @@ public:
 	FNavRegenTimeSlicer& GetTimeSlicer() { return TimeSlicer; }
 	const FNavRegenTimeSlicer& GetTimeSlicer() const { return TimeSlicer; }
 
+#if !UE_BUILD_SHIPPING	
+	void LogTileStatistics(const TArray<TObjectPtr<ANavigationData>>& NavDataSet) const;
+#endif // !UE_BUILD_SHIPPING
+	
 protected:
 	FNavRegenTimeSlicer TimeSlicer;
 
@@ -228,6 +259,11 @@ protected:
 
 	/** Average tile wait time per NavDataIndex */
 	TArray<TArray<double>> TileWaitTimes;
+
+#if !UE_BUILD_SHIPPING
+	/** Tile processing time per NavDataIndex */
+	TArray<TArray<FTileHistoryData>> TileHistoryData;
+#endif // UE_BUILD_SHIPPING
 
 	/** If there are enough tiles to process this in the Min Time Slice Duration */
 	double MinTimeSliceDuration;
