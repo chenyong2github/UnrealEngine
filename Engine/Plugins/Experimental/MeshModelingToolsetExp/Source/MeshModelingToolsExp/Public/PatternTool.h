@@ -125,6 +125,10 @@ public:
 	/** If false, all pattern elements will be positioned at the origin of the first pattern element */
 	UPROPERTY(EditAnywhere, Category = General)
 	bool bUseRelativeTransforms = true;
+
+	/** Whether to randomly pick which source mesh is scattered at each location, or to always use all source meshes */
+	UPROPERTY(EditAnywhere, Category = General)
+	bool bRandomlyPickElements = false;
 	
 	/** Shape of the underlying Pattern */
 	UPROPERTY(EditAnywhere, Category = Shape)
@@ -594,11 +598,11 @@ protected:
 
 	
 	TMap<int32, FComponentSet> StaticMeshPools;
-	UStaticMeshComponent* GetPreviewStaticMesh(FPatternElement& Element);
+	UStaticMeshComponent* GetPreviewStaticMesh(const FPatternElement& Element);
 	void ReturnStaticMeshes(FPatternElement& Element, FComponentSet& ComponentSet);
 
 	TMap<int32, FComponentSet> DynamicMeshPools;
-	UDynamicMeshComponent* GetPreviewDynamicMesh(FPatternElement& Element);
+	UDynamicMeshComponent* GetPreviewDynamicMesh(const FPatternElement& Element);
 	void ReturnDynamicMeshes(FPatternElement& Element, FComponentSet& ComponentSet);
 
 	void HideReturnedPreviewMeshes();
