@@ -137,7 +137,7 @@ bool URigVMSchema::SupportsGraphFunction(URigVMController* InController, const F
 		TRigVMTypeIndex Type = Registry->GetTypeIndexFromCPPType(Argument.CPPType.ToString());
 		if (Type == INDEX_NONE)
 		{
-			if (Argument.CPPTypeObject.IsValid())
+			if (Argument.IsCPPTypeObjectValid())
 			{
 				FRigVMTemplateArgumentType ArgumentType(Argument.CPPType, Argument.CPPTypeObject.Get());
 				Type = Registry->FindOrAddType(ArgumentType);

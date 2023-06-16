@@ -2017,7 +2017,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 			{
 				for (const FRigVMGraphFunctionArgument& Argument : FunctionReferenceNode->GetReferencedFunctionHeader().Arguments)
 				{
-					if (Argument.CPPTypeObject.IsValid())
+					if (Argument.IsCPPTypeObjectValid())
 					{
 						if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Argument.CPPTypeObject.Get()))
 						{

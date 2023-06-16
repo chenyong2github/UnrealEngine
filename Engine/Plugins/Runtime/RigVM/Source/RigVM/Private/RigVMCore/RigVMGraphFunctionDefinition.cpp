@@ -11,8 +11,8 @@ FRigVMExternalVariable FRigVMGraphFunctionArgument::GetExternalVariable() const
 	Variable.Name = Name;
 	Variable.bIsArray = bIsArray;
 	Variable.TypeName = CPPType;
-	
-	if(CPPTypeObject.IsValid())
+
+	if(IsCPPTypeObjectValid())
 	{
 		Variable.TypeObject = CPPTypeObject.Get();
 	}
@@ -20,11 +20,22 @@ FRigVMExternalVariable FRigVMGraphFunctionArgument::GetExternalVariable() const
 	return Variable;
 }
 
+bool FRigVMGraphFunctionArgument::IsCPPTypeObjectValid() const
+{
+	if(!CPPTypeObject.IsValid())
+	{
+		// this is potentially a user defined struct or user defined enum
+		// so we have to try to load it.
+		(void)CPPTypeObject.LoadSynchronous();
+	}
+	return CPPTypeObject.IsValid();
+}
+
 bool FRigVMGraphFunctionHeader::IsMutable() const
 {
 	for(const FRigVMGraphFunctionArgument& Arg : Arguments)
 	{
-		if(Arg.CPPTypeObject.IsValid())
+		if(Arg.IsCPPTypeObjectValid())
 		{
 			if(UScriptStruct* Struct = Cast<UScriptStruct>(Arg.CPPTypeObject.Get()))
 			{

@@ -254,6 +254,9 @@ struct RIGVM_API FRigVMGraphFunctionArgument
 
 	FRigVMExternalVariable GetExternalVariable() const;
 
+	// validates and potentially loads the CPP Type Object
+	bool IsCPPTypeObjectValid() const; 
+
 	friend uint32 GetTypeHash(const FRigVMGraphFunctionArgument& Argument)
 	{
 		uint32 Hash = HashCombine(GetTypeHash(Argument.Name), GetTypeHash(Argument.DisplayName));
