@@ -2,6 +2,7 @@
 
 #include "Sound/QuartzSubscription.h"
 #include "Quartz/QuartzSubsystem.h"
+#include "HAL/IConsoleManager.h"
 
 
 static int32 DecrementSlotIndexOnStartedCvar = 1;
