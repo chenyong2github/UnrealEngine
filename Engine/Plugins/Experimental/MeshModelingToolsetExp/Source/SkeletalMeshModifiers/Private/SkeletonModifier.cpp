@@ -1333,6 +1333,11 @@ FTransform USkeletonModifier::GetBoneTransform(const FName InBoneName, const boo
 
 FName USkeletonModifier::GetParentName(const FName InBoneName) const
 {
+	if (!IsReferenceSkeletonValid())
+	{
+		return NAME_None;
+	}
+	
 	const int32 BoneIndex = ReferenceSkeleton->FindBoneIndex(InBoneName);
 	if (BoneIndex == INDEX_NONE)
 	{
@@ -1341,6 +1346,64 @@ FName USkeletonModifier::GetParentName(const FName InBoneName) const
 	const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton->GetRawRefBoneInfo();
 	const int32 ParentIndex = BoneInfos[BoneIndex].ParentIndex;
 	return (ParentIndex > INDEX_NONE) ? BoneInfos[ParentIndex].Name : NAME_None;
+}
+
+TArray<FName> USkeletonModifier::GetChildrenNames(const FName InBoneName, const bool bRecursive) const
+{
+	TArray<FName> ChildrenNames;
+
+	if (!IsReferenceSkeletonValid())
+	{
+		return ChildrenNames;
+	}
+	
+	const int32 BoneIndex = ReferenceSkeleton->FindRawBoneIndex(InBoneName);
+	if (BoneIndex == INDEX_NONE)
+	{
+		return ChildrenNames; 
+	}
+
+	TArray<int32> ChildrenIndices;
+	if (bRecursive)
+	{
+		auto GetChildren = [&](const int32 InBoneIndex, auto&& GetChildren) -> void
+		{
+			TArray<int32> Children; ReferenceSkeleton->GetRawDirectChildBones(InBoneIndex, Children);
+			for (int32 ChildIndex: Children)
+			{
+				ChildrenIndices.Add(InBoneIndex);
+				GetChildren(ChildIndex, GetChildren);
+			}
+		};
+		GetChildren(BoneIndex, GetChildren);
+	}
+	else
+	{
+		ReferenceSkeleton->GetRawDirectChildBones(BoneIndex, ChildrenIndices);
+	}
+
+	ChildrenNames.Reserve(ChildrenIndices.Num());
+
+	const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton->GetRawRefBoneInfo();
+	Algo::Transform(ChildrenIndices, ChildrenNames, [&BoneInfos](int32 BoneIndex) { return BoneInfos[BoneIndex].Name; });
+
+	return ChildrenNames;
+}
+
+TArray<FName> USkeletonModifier::GetAllBoneNames() const
+{
+	TArray<FName> BoneNames;
+	if (!IsReferenceSkeletonValid())
+	{
+		return BoneNames;
+	}
+
+	const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton->GetRawRefBoneInfo();
+	BoneNames.Reserve(BoneInfos.Num());
+
+	Algo::Transform(BoneInfos, BoneNames, [](const FMeshBoneInfo& BoneInfo) { return BoneInfo.Name; });
+
+	return BoneNames;
 }
 
 const FTransform& USkeletonModifier::GetTransform(const int32 InBoneIndex, const bool bGlobal) const

@@ -171,6 +171,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Skeleton")
 	FName GetParentName(const FName InBoneName) const;
+
+	/** Get Children Names
+	 *  @param InBoneName The parent's name.
+	 *  @param bRecursive If set to true grand-children will also be added recursively
+	 *  @return \c The children names list 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
+	TArray<FName> GetChildrenNames(const FName InBoneName, const bool bRecursive = false) const;
+
+	/** Get All Bone Names
+	 *  @return \c All bone names list
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeleton")
+	TArray<FName> GetAllBoneNames() const;
 	
 	/**
 	 * Actually applies the skeleton modifications to the skeletal mesh.
