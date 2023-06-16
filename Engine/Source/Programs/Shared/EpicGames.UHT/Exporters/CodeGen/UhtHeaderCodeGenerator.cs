@@ -15,6 +15,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		public const string EventParamsMacroSuffix = "EVENT_PARMS";
 		public const string CallbackWrappersMacroSuffix = "CALLBACK_WRAPPERS";
 		public const string SparseDataMacroSuffix = "SPARSE_DATA";
+		public const string SparseDataPropertyAccessorsMacroSuffix = "SPARSE_DATA_PROPERTY_ACCESSORS";
+		public const string EditorOnlySparseDataPropertyAccessorsMacroSuffix = "EDITOR_ONLY_SPARSE_DATA_PROPERTY_ACCESSORS";
 		public const string EditorOnlyRpcWrappersMacroSuffix = "EDITOR_ONLY_RPC_WRAPPERS";
 		public const string RpcWrappersMacroSuffix = "RPC_WRAPPERS";
 		public const string EditorOnlyRpcWrappersNoPureDeclsMacroSuffix = "EDITOR_ONLY_RPC_WRAPPERS_NO_PURE_DECLS";
