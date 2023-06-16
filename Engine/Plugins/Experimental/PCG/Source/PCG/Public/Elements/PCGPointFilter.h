@@ -44,7 +44,9 @@ enum class EPCGPointFilterOperator : uint8
 	LesserOrEqual UMETA(DisplayName="<="),
 	Equal UMETA(DisplayName="="),
 	NotEqual UMETA(DisplayName="!="),
-	InRange UMETA(Hidden)
+	InRange UMETA(Hidden),
+	Substring,
+	Matches
 };
 
 USTRUCT(BlueprintType)

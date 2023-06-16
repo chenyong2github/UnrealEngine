@@ -357,12 +357,14 @@ namespace PCG
 		struct MetadataTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>, DefaultMinMaxTraits<T>, DefaultCompareTraits<T>
 		{
 			enum { CompressData = false };
+			enum { CanSearchString = false };
 		};
 
 		template<>
 		struct MetadataTraits<float> : DefaultOperationTraits<float>, DefaultWeightedSumTraits<float>, DefaultMinMaxTraits<float>, DefaultCompareTraits<float>
 		{
 			enum { CompressData = false };
+			enum { CanSearchString = false };
 
 			static bool Equal(const float& A, const float& B)
 			{
@@ -374,6 +376,7 @@ namespace PCG
 		struct MetadataTraits<double> : DefaultOperationTraits<double>, DefaultWeightedSumTraits<double>, DefaultMinMaxTraits<double>, DefaultCompareTraits<double>
 		{
 			enum { CompressData = false };
+			enum { CanSearchString = false };
 
 			static bool Equal(const double& A, const double& B)
 			{
@@ -390,6 +393,7 @@ namespace PCG
 			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
 			enum { CanCompare = true };
+			enum { CanSearchString = false };
 
 			static bool ZeroValue()
 			{
@@ -450,6 +454,7 @@ namespace PCG
 			enum { CanMinMax = true };
 			enum { CanInterpolate = true };
 			enum { CanCompare = true };
+			enum { CanSearchString = false };
 
 			static T ZeroValue()
 			{
@@ -584,6 +589,7 @@ namespace PCG
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 			enum { CanCompare = false };
+			enum { CanSearchString = false };
 
 			static bool Equal(const FQuat& A, const FQuat& B)
 			{
@@ -637,6 +643,7 @@ namespace PCG
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 			enum { CanCompare = false };
+			enum { CanSearchString = false };
 
 			static bool Equal(const FRotator& A, const FRotator& B)
 			{
@@ -685,6 +692,7 @@ namespace PCG
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 			enum { CanCompare = false };
+			enum { CanSearchString = false };
 
 			static bool Equal(const FTransform& A, const FTransform& B)
 			{
@@ -735,6 +743,7 @@ namespace PCG
 			enum { CanSubAdd = false };
 			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
+			enum { CanSearchString = true };
 
 			static bool Equal(const FString& A, const FString& B)
 			{
@@ -744,6 +753,16 @@ namespace PCG
 			static FString ZeroValue()
 			{
 				return FString();
+			}
+
+			static bool Substring(const FString& A, const FString& B)
+			{
+				return A.Contains(B);
+			}
+
+			static bool Matches(const FString& A, const FString& B)
+			{
+				return A.MatchesWildcard(B);
 			}
 		};
 
@@ -756,6 +775,7 @@ namespace PCG
 			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
 			enum { CanCompare = true };
+			enum { CanSearchString = true };
 
 			static bool Equal(const FName& A, const FName& B)
 			{
@@ -785,6 +805,16 @@ namespace PCG
 			static FName ZeroValue()
 			{
 				return NAME_None;
+			}
+
+			static bool Substring(const FName& A, const FName& B)
+			{
+				return A.ToString().Contains(B.ToString());
+			}
+
+			static bool Matches(const FName& A, const FName& B)
+			{
+				return A.ToString().MatchesWildcard(B.ToString());
 			}
 		};
 	}

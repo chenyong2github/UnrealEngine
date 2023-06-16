@@ -60,13 +60,24 @@ namespace PCGPointFilterHelpers
 			case EPCGPointFilterOperator::LesserOrEqual:
 				return PCG::Private::MetadataTraits<T>::LessOrEqual(Input1, Input2);
 			default:
-				return false;
+				break;
 			}
 		}
-		else
+
+		if constexpr (PCG::Private::MetadataTraits<T>::CanSearchString)
 		{
-			return false;
+			switch (Operation)
+			{
+			case EPCGPointFilterOperator::Substring:
+				return PCG::Private::MetadataTraits<T>::Substring(Input1, Input2);
+			case EPCGPointFilterOperator::Matches:
+				return PCG::Private::MetadataTraits<T>::Matches(Input1, Input2);
+			default:
+				break;
+			}
 		}
+
+		return false;
 	}
 
 	template <typename T>
@@ -142,7 +153,7 @@ namespace PCGPointFilterHelpers
 		return true;
 	}
 
-	bool PrepareThresholdInfoFromInput(FPCGContext* InContext, const UPCGPointData* InputData, const FPCGPointFilterThresholdSettings& ThresholdSettings, ThresholdInfo& InOutThresholdInfo, int16 TargetType, bool bCheckCompare, const ThresholdInfo* OtherInfo = nullptr)
+	bool PrepareThresholdInfoFromInput(FPCGContext* InContext, const UPCGPointData* InputData, const FPCGPointFilterThresholdSettings& ThresholdSettings, ThresholdInfo& InOutThresholdInfo, int16 TargetType, bool bCheckCompare, bool bCheckStringSearch, const ThresholdInfo* OtherInfo = nullptr)
 	{
 		check(InContext && InputData);
 
@@ -205,6 +216,20 @@ namespace PCGPointFilterHelpers
 			if (!bCanCompare)
 			{
 				PCGE_LOG_C(Warning, GraphAndLog, InContext, LOCTEXT("TypeComparisonFailed", "Cannot compare target type"));
+				return false;
+			}
+		}
+
+		if (bCheckStringSearch)
+		{
+			bool bCanSearchString = PCGMetadataAttribute::CallbackWithRightType(InOutThresholdInfo.ThresholdAccessor->GetUnderlyingType(), [](auto Dummy) -> bool
+			{
+				return PCG::Private::MetadataTraits<decltype(Dummy)>::CanSearchString;
+			});
+
+			if (!bCanSearchString)
+			{
+				PCGE_LOG_C(Warning, GraphAndLog, InContext, LOCTEXT("TypeStringSearchFailed", "Cannot perform string operations on target type"));
 				return false;
 			}
 		}
@@ -470,15 +495,16 @@ bool FPCGPointFilterElementBase::DoFiltering(FPCGContext* Context, EPCGPointFilt
 		}
 
 		const int16 TargetType = TargetAccessor->GetUnderlyingType();
-		const bool bCheckCompare = (Operator != EPCGPointFilterOperator::Equal) && (Operator != EPCGPointFilterOperator::NotEqual);
+		const bool bCheckStringSearch = (Operator == EPCGPointFilterOperator::Substring || Operator == EPCGPointFilterOperator::Matches);
+		const bool bCheckCompare = (Operator != EPCGPointFilterOperator::Equal) && (Operator != EPCGPointFilterOperator::NotEqual) && !bCheckStringSearch;
 
-		if (!PCGPointFilterHelpers::PrepareThresholdInfoFromInput(Context, OriginalData, FirstThreshold, FirstThresholdInfo, TargetType, bCheckCompare))
+		if (!PCGPointFilterHelpers::PrepareThresholdInfoFromInput(Context, OriginalData, FirstThreshold, FirstThresholdInfo, TargetType, bCheckCompare, bCheckStringSearch))
 		{
 			ForwardInputToInFilterPin();
 			continue;
 		}
 
-		if (SecondThreshold && !PCGPointFilterHelpers::PrepareThresholdInfoFromInput(Context, OriginalData, *SecondThreshold, SecondThresholdInfo, TargetType, bCheckCompare, &FirstThresholdInfo))
+		if (SecondThreshold && !PCGPointFilterHelpers::PrepareThresholdInfoFromInput(Context, OriginalData, *SecondThreshold, SecondThresholdInfo, TargetType, bCheckCompare, bCheckStringSearch, &FirstThresholdInfo))
 		{
 			ForwardInputToInFilterPin();
 			continue;
