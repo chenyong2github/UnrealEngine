@@ -173,7 +173,7 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 	bUnversioned = Switches.Contains(TEXT("UNVERSIONED"));   // Save all cooked packages without versions. These are then assumed to be current version on load. This is dangerous but results in smaller patch sizes.
 	bCookEditorOptional = Switches.Contains(TEXT("EDITOROPTIONAL")); // Produce the optional editor package data alongside the cooked data.
 	bGenerateStreamingInstallManifests = Switches.Contains(TEXT("MANIFESTS"));   // Generate manifests for building streaming install packages
-	bIterativeCooking = Switches.Contains(TEXT("ITERATE"));
+	bIterativeCooking = Switches.Contains(TEXT("ITERATE")) || Switches.Contains(TEXT("ITERATIVE"));
 	bSkipEditorContent = Switches.Contains(TEXT("SKIPEDITORCONTENT")); // This won't save out any packages in Engine/Content/Editor*
 	bErrorOnEngineContentUse = Switches.Contains(TEXT("ERRORONENGINECONTENTUSE"));
 	bCookSinglePackage = Switches.Contains(TEXT("cooksinglepackagenorefs"));

@@ -1468,7 +1468,12 @@ private:
 	 * objects created by PreSave
 	 */
 	bool bCallIsCachedOnSaveCreatedObjects = false;
-
+	/** Command-line parameter; if true then iterative cooks will not be invalidated by ini changes. */
+	bool bIterativeIgnoreIni = false;
+	/** Command-line parameter; if true then iterative cooks will not be invalidated by exe changes. */
+	bool bIterativeIgnoreExe = false;
+	/** Whether we should calculate the exe's hash; might be true even if bIterativeIgnoreExe is true. */
+	bool bIterativeCalculateExe = true;
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	double SaveBusyStartTimeSeconds = MAX_flt;
 	double SaveBusyRetryTimeSeconds = MAX_flt;
