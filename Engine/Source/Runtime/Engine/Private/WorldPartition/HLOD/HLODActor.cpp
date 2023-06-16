@@ -8,6 +8,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODActor)
 
@@ -107,6 +108,7 @@ void AWorldPartitionHLOD::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 
@@ -222,6 +224,20 @@ void AWorldPartitionHLOD::PostLoad()
 
 		FArchiveMD5 ArMD5;
 		ArMD5 << GridName << CellGlobalCoord[0] << CellGlobalCoord[1] << CellGlobalCoord[2] << DataLayerID << ContentBundleID;
+
+		SourceCellGuid = ArMD5.GetGuidFromHash();
+		check(SourceCellGuid.IsValid());
+	}
+
+	// CellGuid taking the cell size into account
+	if (GetLinkerCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::WorldPartitionRuntimeCellGuidWithCellSize)
+	{
+		check(SourceCellGuid.IsValid());
+
+		int32 CellSize = (int32)FMath::RoundToInt(HLODBounds.GetSize().X);
+
+		FArchiveMD5 ArMD5;
+		ArMD5 << SourceCellGuid << CellSize;
 
 		SourceCellGuid = ArMD5.GetGuidFromHash();
 		check(SourceCellGuid.IsValid());

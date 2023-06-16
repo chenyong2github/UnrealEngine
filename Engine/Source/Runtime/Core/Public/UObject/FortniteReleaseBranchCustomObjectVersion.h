@@ -39,6 +39,9 @@ struct CORE_API FFortniteReleaseBranchCustomObjectVersion
 		// Fixup and synchronize shared properties modified before the synchronicity enforcement
 		LandscapeSharedPropertiesEnforcement,
 
+		// Include the cell size when computing the cell guid
+		WorldPartitionRuntimeCellGuidWithCellSize,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

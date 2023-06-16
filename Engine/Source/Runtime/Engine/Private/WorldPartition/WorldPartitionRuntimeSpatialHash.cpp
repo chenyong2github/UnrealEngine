@@ -1346,17 +1346,30 @@ FString UWorldPartitionRuntimeSpatialHash::GetCellNameString(UWorld* InOuterWorl
 	return CellName;
 }
 
-FGuid UWorldPartitionRuntimeSpatialHash::GetCellGuid(FName InGridName, const FGridCellCoord& InCellGlobalCoord, const FDataLayersID& InDataLayerID, const FGuid& InContentBundleID)
+FGuid UWorldPartitionRuntimeSpatialHash::GetCellGuid(FName InGridName, int32 InCellSize, const FGridCellCoord& InCellGlobalCoord, const FDataLayersID& InDataLayerID, const FGuid& InContentBundleID)
 {
 	FString GridName = InGridName.ToString().ToLower();
 	FGridCellCoord CellGlobalCoord = InCellGlobalCoord;
 	uint32 DataLayerID = InDataLayerID.GetHash();
 	uint32 ContentBundleID = InContentBundleID.IsValid() ? GetTypeHash(InContentBundleID) : 0;
 
-	FArchiveMD5 ArMD5;
-	ArMD5 << GridName << CellGlobalCoord << DataLayerID << ContentBundleID;
-	FGuid CellGuid = ArMD5.GetGuidFromHash();
-	check(CellGuid.IsValid());
+	FGuid CellGuid;
+
+	{
+		FArchiveMD5 ArMD5;
+		ArMD5 << GridName << CellGlobalCoord << DataLayerID << ContentBundleID;
+		CellGuid = ArMD5.GetGuidFromHash();
+		check(CellGuid.IsValid());
+	}
+
+	// FFortniteReleaseBranchCustomObjectVersion::WorldPartitionRuntimeCellGuidWithCellSize
+	// CellGuid taking the cell size into account
+	{
+		FArchiveMD5 ArMD5;
+		ArMD5 << CellGuid << InCellSize;
+		CellGuid = ArMD5.GetGuidFromHash();
+		check(CellGuid.IsValid());
+	}
 
 	return CellGuid;
 }
@@ -1439,7 +1452,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					FString WorldInstanceSuffix;
 					verify(PartionedActors.GetCellGlobalCoords(FGridCellCoord(CellCoordX, CellCoordY, Level), CellGlobalCoords));
 					const FString CellName = GetCellNameString(OuterWorld, CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID(), &WorldInstanceSuffix);
-					const FGuid CellGuid = GetCellGuid(CurrentStreamingGrid.GridName, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
+					const FGuid CellGuid = GetCellGuid(CurrentStreamingGrid.GridName, CurrentStreamingGrid.CellSize, CellGlobalCoords, GridCellDataChunk.GetDataLayersID(), GridCellDataChunk.GetContentBundleID());
 
 					UWorldPartitionRuntimeCell* StreamingCell = CreateRuntimeCell(StreamingPolicy->GetRuntimeCellClass(), UWorldPartitionRuntimeCellDataSpatialHash::StaticClass(), CellName, WorldInstanceSuffix);
 					UWorldPartitionRuntimeCellDataSpatialHash* CellDataSpatialHash = CastChecked<UWorldPartitionRuntimeCellDataSpatialHash>(StreamingCell->RuntimeCellData);
