@@ -3,6 +3,10 @@
 #include "GeometryProcessingAdaptersModule.h"
 #include "Features/IModularFeatures.h"
 
+#include "GeometryProcessing/ApproximateActorsImpl.h"
+#include "GeometryProcessing/CombineMeshInstancesImpl.h"
+#include "GeometryProcessing/MeshAutoUVImpl.h"
+
 #define LOCTEXT_NAMESPACE "FGeometryProcessingAdaptersModule"
 
 using namespace UE::Geometry;
@@ -22,6 +26,12 @@ void FGeometryProcessingAdaptersModule::StartupModule()
 	{
 		IModularFeatures::Get().RegisterModularFeature(IGeometryProcessing_CombineMeshInstances::GetModularFeatureName(), CombineMeshInstances.Get());
 	}
+
+	MeshAutoUV = MakeShared<FMeshAutoUVImpl>();
+	if (CombineMeshInstances.IsValid())
+	{
+		IModularFeatures::Get().RegisterModularFeature(IGeometryProcessing_MeshAutoUV::GetModularFeatureName(), MeshAutoUV.Get());
+	}
 }
 
 void FGeometryProcessingAdaptersModule::ShutdownModule()
@@ -39,6 +49,12 @@ void FGeometryProcessingAdaptersModule::ShutdownModule()
 	{
 		IModularFeatures::Get().UnregisterModularFeature(IGeometryProcessing_CombineMeshInstances::GetModularFeatureName(), CombineMeshInstances.Get());
 		CombineMeshInstances = nullptr;
+	}
+
+	if (MeshAutoUV.IsValid())
+	{
+		IModularFeatures::Get().UnregisterModularFeature(IGeometryProcessing_MeshAutoUV::GetModularFeatureName(), MeshAutoUV.Get());
+		MeshAutoUV = nullptr;
 	}
 }
 
