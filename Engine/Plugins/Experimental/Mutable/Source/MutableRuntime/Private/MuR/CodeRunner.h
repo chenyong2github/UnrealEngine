@@ -479,7 +479,7 @@ namespace  mu
 
 		void StoreMesh(const FCacheAddress& To, Ptr<const Mesh> Resource)
 		{
-			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetMesh(To, Resource);
+			m_pSystem->WorkingMemoryManager.StoreMesh(To, Resource);
 		}
 
 		void StoreImage(const FCacheAddress& To, Ptr<const Image> Resource)
@@ -531,6 +531,25 @@ namespace  mu
 			return m_pSystem->WorkingMemoryManager.Release(Resource);
 		}
 
+		UE_NODISCARD Ptr<Mesh> CreateMesh(int32 BudgetReserveSize = 0)
+		{
+			return m_pSystem->WorkingMemoryManager.CreateMesh(BudgetReserveSize);
+		}
+
+		UE_NODISCARD Ptr<Mesh> CloneOrTakeOver(Ptr<const Mesh>& Ref)
+		{
+			return m_pSystem->WorkingMemoryManager.CloneOrTakeOver(Ref);
+		}
+
+		void Release(Ptr<const Mesh>& Resource)
+		{
+			m_pSystem->WorkingMemoryManager.Release(Resource);
+		}
+
+		void Release(Ptr<Mesh>& Resource)
+		{
+			m_pSystem->WorkingMemoryManager.Release(Resource);
+		}
 
 	// TODO: protect this.
 	public:

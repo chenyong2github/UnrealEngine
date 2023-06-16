@@ -704,13 +704,16 @@ namespace mu
 	//! Rebuild the (previously bound) mesh data for a new shape.
 	//! Proof-of-concept implementation.
 	//---------------------------------------------------------------------------------------------
-	inline MeshPtr MeshApplyShape(const Mesh* BaseMesh, const Mesh* ShapeMesh, EMeshBindShapeFlags BindFlags)
+	inline void MeshApplyShape(Mesh* Result, const Mesh* BaseMesh, const Mesh* ShapeMesh, EMeshBindShapeFlags BindFlags, bool& bOutSuccess)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(MeshApplyReshape);
 
+		bOutSuccess = true;
+
 		if (!BaseMesh)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 		
 		const bool bReshapeVertices = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeVertices);
@@ -723,7 +726,8 @@ namespace mu
 
 		if (!bReshapeVertices && !bSkeletonModification && !bPhysicsModification)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 	
 		// \TODO: Multiple binding data support
@@ -735,9 +739,9 @@ namespace mu
 		const FMeshBufferSet& VB = BaseMesh->GetVertexBuffers();
 		VB.FindChannel(MBS_BARYCENTRICCOORDS, BindingDataIndex, &BarycentricDataBuffer, &BarycentricDataChannel);
 		
-		// Clone Without VertexBuffers or AdditionalBuffers
-		constexpr EMeshCloneFlags CloneFlags = ~(EMeshCloneFlags::WithVertexBuffers | EMeshCloneFlags::WithAdditionalBuffers);
-		MeshPtr Result = BaseMesh->Clone(CloneFlags);
+		// Copy Without VertexBuffers or AdditionalBuffers
+		constexpr EMeshCopyFlags CopyFlags = ~(EMeshCopyFlags::WithVertexBuffers | EMeshCopyFlags::WithAdditionalBuffers);
+		Result->CopyFrom(*BaseMesh, CopyFlags);
 	
 		FMeshBufferSet& ResultBuffers = Result->GetVertexBuffers();
 
@@ -773,14 +777,14 @@ namespace mu
 		}
 		if (!ShapeMesh)
 		{
-			return Result;
+			return;
 		}
 
 		int32 ShapeVertexCount = ShapeMesh->GetVertexCount();
 		int32 ShapeTriangleCount = ShapeMesh->GetFaceCount();
 		if (!ShapeVertexCount || !ShapeTriangleCount)
-		{
-			return Result;
+		{	
+			return;
 		}
 
 		// Generate the temp vertex query data for the shape
@@ -842,7 +846,7 @@ namespace mu
 					(const FReshapeVertexBindingData*)VB.GetBufferData(BarycentricDataBuffer),
 					VB.GetElementCount());
 
-			ApplyToVertices(Result.get(), VerticesBindingData, ShapeDescriptor);
+			ApplyToVertices(Result, VerticesBindingData, ShapeDescriptor);
 		}
 	
 		if (bReshapeSkeleton)
@@ -880,7 +884,7 @@ namespace mu
 				TArrayView<const int32> BoneIndices( 
 						(const int32*)SkeletonBindBuffer->GetBufferData(1), SkeletonBindBuffer->GetElementCount());
 
-				ApplyToPose(Result.get(), SkeletonBindingData, BoneIndices, ShapeDescriptor);
+				ApplyToPose(Result, SkeletonBindingData, BoneIndices, ShapeDescriptor);
 			}
 		}
 
@@ -939,7 +943,5 @@ namespace mu
 				ApplyToAllPhysicsBodies(*Result, *BaseMesh, BindingData, UsedIndices, Offsets, ShapeDescriptor);
 			}
 		}
-		
-		return Result;
 	}
 }

@@ -881,16 +881,20 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
     //! Generate the mesh-shape binding data
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshBindShapeReshape(
+    inline void MeshBindShapeReshape(
+			Mesh* Result,
 			const Mesh* BaseMesh, const Mesh* ShapeMesh, 
 			const TArray<string>& BonesToDeform, const TArray<string>& PhysicsToDeform, 
-			EMeshBindShapeFlags BindFlags)
+			EMeshBindShapeFlags BindFlags,
+			bool& bOutSuccess)
     {
 		MUTABLE_CPUPROFILER_SCOPE(MeshBindShape);
-		
+		bOutSuccess = true;
+
 		if (!BaseMesh)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 
 		const bool bReshapeVertices = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeVertices);
@@ -905,19 +909,22 @@ namespace mu
 
 		if (!bReshapeVertices && !bSkeletonModification && !bPhysicsModification)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 
 		if (!ShapeMesh)
 		{
-			return BaseMesh->Clone();
+			bOutSuccess = false;
+			return;
 		}
 	
 		int32 ShapeVertexCount = ShapeMesh->GetVertexCount();
 		int ShapeTriangleCount = ShapeMesh->GetFaceCount();
 		if (!ShapeVertexCount || !ShapeTriangleCount)
 		{
-			return BaseMesh->Clone();
+			bOutSuccess = false;
+			return;
 		}	
 
 		FShapeMeshDescriptorBind ShapeMeshDescriptor;
@@ -972,23 +979,21 @@ namespace mu
 			ShapeMeshTree.Build();
 		}
 	
-		Ptr<Mesh> Result;
-		
 		// If no vertices are needed, it is assumed we only want to reshape physics or skeleton.
 		// In that case, remove everything except physics bodies, the skeleton and pose.
 		if (!bReshapeVertices)
 		{
-			constexpr EMeshCloneFlags CloneFlags = 
-					EMeshCloneFlags::WithSkeleton    | 
-					EMeshCloneFlags::WithPhysicsBody | 
-				EMeshCloneFlags::WithPoses |
-				EMeshCloneFlags::WithAdditionalPhysics;
+			constexpr EMeshCopyFlags CopyFlags = 
+				EMeshCopyFlags::WithSkeleton    | 
+				EMeshCopyFlags::WithPhysicsBody | 
+				EMeshCopyFlags::WithPoses |
+				EMeshCopyFlags::WithAdditionalPhysics;
 
-			Result = BaseMesh->Clone(CloneFlags);
+			Result->CopyFrom(*BaseMesh, CopyFlags);
 		}
 		else
 		{	
-			Result = BaseMesh->Clone();
+			Result->CopyFrom(*BaseMesh);
 		}
 
 		int32 BindingDataIndex = 0;
@@ -1015,7 +1020,7 @@ namespace mu
 			MUTABLE_CPUPROFILER_SCOPE(BindSkeleton);
 
 			TTuple<TArray<FReshapePointBindingData>, TArray<int32>> SkeletonBindingData = 
-					BindPose(Result.get(), ShapeMeshTree, BonesToDeform);
+					BindPose(Result, ShapeMeshTree, BonesToDeform);
 			const TArray<FReshapePointBindingData>& SkeletonBindDataArray = SkeletonBindingData.Get<0>();
 			const TArray<int32>& BoneIndices = SkeletonBindingData.Get<1>();
 
@@ -1064,7 +1069,7 @@ namespace mu
 			}
 
 			TTuple<TArray<FReshapePointBindingData>, TArray<int32>, TArray<int32>> PhysicsBindingData = 
-					BindPhysicsBodies(PhysicsBodiesToBind, ShapeMeshTree, Result.get(), PhysicsToDeform);
+					BindPhysicsBodies(PhysicsBodiesToBind, ShapeMeshTree, Result, PhysicsToDeform);
 
 			const TArray<FReshapePointBindingData>& PhysicsBindDataArray = PhysicsBindingData.Get<0>();
 			const TArray<int32>& DeformedBodyIndices = PhysicsBindingData.Get<1>();
@@ -1096,9 +1101,7 @@ namespace mu
 			Result->m_AdditionalBuffers.Emplace(EMeshBufferType::PhysicsBodyDeformBinding, MoveTemp(PhysicsBodyBuffer));
 			Result->m_AdditionalBuffers.Emplace(EMeshBufferType::PhysicsBodyDeformSelection, MoveTemp(PhysicsBodySelectionBuffer));
 			Result->m_AdditionalBuffers.Emplace(EMeshBufferType::PhysicsBodyDeformOffsets, MoveTemp(PhysicsBodySelectionOffsetsBuffer));
-		}
-		
-        return Result;
+		}	
     }
 
 	//---------------------------------------------------------------------------------------------
@@ -1322,25 +1325,30 @@ namespace mu
 		return BindData;
 	}
 
-    inline MeshPtr MeshBindShapeClipDeform(const Mesh* BaseMesh, const Mesh* ShapeMesh, EShapeBindingMethod BindingMethod)
+    inline void MeshBindShapeClipDeform(Mesh* Result, const Mesh* BaseMesh, const Mesh* ShapeMesh, EShapeBindingMethod BindingMethod, bool& bOutSuccess)
     {
 		MUTABLE_CPUPROFILER_SCOPE(MeshBindShapeClipDeform);
-		
+	
+		bOutSuccess = true;
+
 		if (!BaseMesh)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 
 		if (!ShapeMesh)
 		{
-			return BaseMesh->Clone();
+			bOutSuccess = false;
+			return;
 		}
 	
 		int32 ShapeVertexCount = ShapeMesh->GetVertexCount();
 		int ShapeTriangleCount = ShapeMesh->GetFaceCount();
 		if (!ShapeVertexCount || !ShapeTriangleCount)
 		{
-			return BaseMesh->Clone();
+			bOutSuccess = false;
+			return;
 		}	
 
 		FShapeMeshDescriptorBind ShapeMeshDescriptor;
@@ -1395,7 +1403,7 @@ namespace mu
 			ShapeMeshTree.Build();
 		}
 	
-		Ptr<Mesh> Result = BaseMesh->Clone();
+		Result->CopyFrom(*BaseMesh);
 		TArray<FClipDeformVertexBindingData> VerticesBindData = BindVerticesClipDeform(BaseMesh, ShapeMeshTree, BindingMethod);
 			
 		// Add the binding information to the mesh
@@ -1412,6 +1420,5 @@ namespace mu
 		VB.SetBuffer(NewBufferIndex, sizeof(FClipDeformVertexBindingData), BufDesc.Channels, BufDesc.Semantics, BufDesc.SemanticIndices, BufDesc.Formats, BufDesc.Components, BufDesc.Offsets);
 		FMemory::Memcpy(VB.GetBufferData(NewBufferIndex), VerticesBindData.GetData(), VerticesBindData.Num()*sizeof(FClipDeformVertexBindingData));
 		
-        return Result;
     }
 }

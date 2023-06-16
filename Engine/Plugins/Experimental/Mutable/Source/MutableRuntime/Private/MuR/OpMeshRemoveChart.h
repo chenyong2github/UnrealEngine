@@ -75,32 +75,33 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshRemoveMask( const Mesh* pSource, const Mesh* pMask )
+    inline void MeshRemoveMask(Mesh* Result, const Mesh* pSource, const Mesh* pMask, bool& bOutSuccess)
     {
         MUTABLE_CPUPROFILER_SCOPE(MeshRemoveMask);
+		bOutSuccess = true;
 
-        MeshPtr pResult = pSource->Clone();
-
-        if (!pMask->GetVertexCount() || !pResult->GetVertexCount() ||
-			!pResult->GetIndexCount() )
+        if (!pMask->GetVertexCount() || !pSource->GetVertexCount() || !pSource->GetIndexCount())
         {
-            return pResult;
+			bOutSuccess = false;
+            return;
         }
 
+		Result->CopyFrom(*pSource);
+
         // TODO
-        pResult->SetFaceGroupCount( 0 );
+        Result->SetFaceGroupCount( 0 );
 
         MeshBufferIteratorConst<MBF_UINT32,uint32_t,1> itMaskVI( pMask->GetVertexBuffers(), MBS_VERTEXINDEX );
 
         int firstFreeVertex = 0;
 
         // For each source vertex, true if it is removed.
-        int resultVertexCount = pResult->GetVertexCount();
+        int resultVertexCount = Result->GetVertexCount();
 		uint8* removedVertices = reinterpret_cast<uint8*>(FMemory::Malloc(resultVertexCount, 16));
 		FMemory::Memzero(removedVertices,resultVertexCount);
         {
 			TArray<ID_INTERVAL> intervals;
-            ExtractVertexIndexIntervals( intervals, pResult.get() );
+            ExtractVertexIndexIntervals(intervals, Result);
 
             for ( int mv=0; mv<pMask->GetVertexBuffers().GetElementCount(); ++mv )
             {
@@ -121,16 +122,16 @@ namespace mu
         // These are indices as in the index buffer, not the absoulte vertex index as in the
         // vertexbuffer MBS_VERTEXINDEX buffers.
 		TArray<int> usedVertices;
-		usedVertices.Init( -1, pResult->GetVertexCount() );
+		usedVertices.Init( -1, Result->GetVertexCount() );
         {
             size_t removedIndices = 0;
 
-            if ( pResult->GetIndexBuffers().GetElementSize(0)==4 )
+            if ( Result->GetIndexBuffers().GetElementSize(0)==4 )
             {
-                MeshBufferIteratorConst<MBF_UINT32,uint32_t,1> itSource( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
-                MeshBufferIterator<MBF_UINT32,uint32_t,1> itDest( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
+                MeshBufferIteratorConst<MBF_UINT32,uint32_t,1> itSource( Result->GetIndexBuffers(), MBS_VERTEXINDEX );
+                MeshBufferIterator<MBF_UINT32,uint32_t,1> itDest( Result->GetIndexBuffers(), MBS_VERTEXINDEX );
 
-                int indexCount = pResult->GetIndexCount();
+                int indexCount = Result->GetIndexCount();
                 for ( int f=0; f<indexCount/3; ++f )
                 {
                     uint32_t sourceIndices[3];
@@ -168,12 +169,12 @@ namespace mu
                 removedIndices = itSource - itDest;
             }
 
-            else if ( pResult->GetIndexBuffers().GetElementSize(0)==2 )
+            else if ( Result->GetIndexBuffers().GetElementSize(0)==2 )
             {
-                MeshBufferIteratorConst<MBF_UINT16,uint16,1> itSource( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
-                MeshBufferIterator<MBF_UINT16,uint16,1> itDest( pResult->GetIndexBuffers(), MBS_VERTEXINDEX );
+                MeshBufferIteratorConst<MBF_UINT16,uint16,1> itSource( Result->GetIndexBuffers(), MBS_VERTEXINDEX );
+                MeshBufferIterator<MBF_UINT16,uint16,1> itDest( Result->GetIndexBuffers(), MBS_VERTEXINDEX );
 
-                int indexCount = pResult->GetIndexCount();
+                int indexCount = Result->GetIndexCount();
                 for ( int f=0; f<indexCount/3; ++f )
                 {
                     uint16 sourceIndices[3];
@@ -219,23 +220,23 @@ namespace mu
 
             check( removedIndices%3==0 );
 
-            int faceCount = pResult->GetFaceCount();
-            pResult->GetFaceBuffers().SetElementCount( faceCount-(int)removedIndices/3 );
-            pResult->GetIndexBuffers().SetElementCount( faceCount*3-(int)removedIndices );
+            int faceCount = Result->GetFaceCount();
+            Result->GetFaceBuffers().SetElementCount( faceCount-(int)removedIndices/3 );
+            Result->GetIndexBuffers().SetElementCount( faceCount*3-(int)removedIndices );
         }
 
         FMemory::Free( removedVertices );
 
         // Rebuild the vertex buffers
-        for ( int b=0; b<pResult->GetVertexBuffers().GetBufferCount(); ++b )
+        for ( int b=0; b<Result->GetVertexBuffers().GetBufferCount(); ++b )
         {
-            int elemSize = pResult->GetVertexBuffers().GetElementSize( b );
+            int elemSize = Result->GetVertexBuffers().GetElementSize( b );
             const uint8_t* pSourceData = pSource->GetVertexBuffers().GetBufferData( b );
-            uint8_t* pData = pResult->GetVertexBuffers().GetBufferData( b );
-            for ( int v=0; v<pResult->GetVertexCount(); ++v )
+            uint8_t* pData = Result->GetVertexBuffers().GetBufferData( b );
+            for ( int v=0; v<Result->GetVertexCount(); ++v )
             {
                 int span = 0;
-                for ( int s=0; v+s<pResult->GetVertexCount(); ++s )
+                for ( int s=0; v+s<Result->GetVertexCount(); ++s )
                 {
                     if ( usedVertices[v+s]>=0 )
                     {
@@ -269,14 +270,11 @@ namespace mu
                 }
             }
         }
-        pResult->GetVertexBuffers().SetElementCount( firstFreeVertex );
+        Result->GetVertexBuffers().SetElementCount( firstFreeVertex );
 
         // Rebuild surface data.
         // \todo: For now make single surfaced
-        pResult->m_surfaces.Empty();
-        pResult->EnsureSurfaceData();
-
-        return pResult;
+        Result->m_surfaces.Empty();
+        Result->EnsureSurfaceData();
     }
-
 }

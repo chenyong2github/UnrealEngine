@@ -171,16 +171,14 @@ namespace MutableMeshPreviewUtils
 			// Skeletal mesh is ready to be used as an argument for the process of reformatting the Mutable Mesh we want to preview
 
 			// 3) Call mu::MeshFormat to get the mesh with the wanted buffer structure to have the data of the original mesh
-			mu::MeshPtrConst ResultMutableMesh = mu::MeshFormat(
-				InMutableMesh.get(),
-				FormattedMutableMesh.get(),
-				false,
-				true,
-				true,
-				false,
-				false );
-			
-			return ResultMutableMesh;
+			mu::Ptr<mu::Mesh> FormatResult = new mu::Mesh();
+
+			bool bOutSuccess = false;
+			mu::MeshFormat(FormatResult.get(), InMutableMesh.get(), FormattedMutableMesh.get(),
+				false, true, true, false, false,
+				bOutSuccess);
+		
+			return FormatResult;
 		}
 
 		/** Method designed to scan the vertex buffers of the provided mutable mesh and tell the caller if the buffers are

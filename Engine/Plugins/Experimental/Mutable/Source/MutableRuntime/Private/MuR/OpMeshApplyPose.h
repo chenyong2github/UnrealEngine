@@ -15,16 +15,17 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! Reference version
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshApplyPose(const Mesh* pBase, const Mesh* pPose)
+    inline void MeshApplyPose(Mesh* Result, const Mesh* pBase, const Mesh* pPose, bool& bOutSuccess)
     {
         MUTABLE_CPUPROFILER_SCOPE(MeshApplyPose);
 
-        MeshPtr pDest = pBase->Clone();
+		bOutSuccess = true;
 
 		mu::SkeletonPtrConst pSkeleton = pBase->GetSkeleton();
 		if (!pSkeleton)
 		{
-			return pDest;
+			bOutSuccess = false;
+			return;
 		}
 
         // We assume the matrices are transforms from the binding pose bone to the new pose
@@ -53,24 +54,30 @@ namespace mu
         }
 
         // Get pointers to vertex position data
-		MeshBufferIteratorConst<MBF_FLOAT32, float, 3> itSource( pBase->m_VertexBuffers, MBS_POSITION, 0 );
-		MeshBufferIterator<MBF_FLOAT32, float, 3> itTarget( pDest->m_VertexBuffers, MBS_POSITION, 0 );
-        if (!itSource.ptr() || !itTarget.ptr())
+		MeshBufferIteratorConst<MBF_FLOAT32, float, 3> itSource(pBase->m_VertexBuffers, MBS_POSITION, 0);
+        if (!itSource.ptr())
         {
             // Formats not implemented
             check(false);
-            return pDest;
+			bOutSuccess = false;
+            return;
         }
 
         // Get pointers to skinning data
-		UntypedMeshBufferIteratorConst itBoneIndices( pBase->m_VertexBuffers, MBS_BONEINDICES, 0 );
-		UntypedMeshBufferIteratorConst itBoneWeights( pBase->m_VertexBuffers, MBS_BONEWEIGHTS, 0 );
+		UntypedMeshBufferIteratorConst itBoneIndices(pBase->m_VertexBuffers, MBS_BONEINDICES, 0);
+		UntypedMeshBufferIteratorConst itBoneWeights(pBase->m_VertexBuffers, MBS_BONEWEIGHTS, 0);
         if (!itBoneIndices.ptr() || !itBoneWeights.ptr())
         {
             // No skinning data
             check(false);
-            return pDest;
+			bOutSuccess = false;
+            return;
         }
+
+		Result->CopyFrom(*pBase);
+
+		MeshBufferIterator<MBF_FLOAT32, float, 3> itTarget(Result->m_VertexBuffers, MBS_POSITION, 0);
+		check(itTarget.ptr());
 
         // Proceed
         int vertexCount = pBase->GetVertexCount();
@@ -120,9 +127,6 @@ namespace mu
             ++itBoneIndices;
             ++itBoneWeights;
         }
-
-
-        return pDest;
     }
 
 }

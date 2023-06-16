@@ -47,10 +47,9 @@ namespace mu
 	extern float ComputeProjectedFootprintBestMip(
 			const Mesh* pMesh, const FProjector& Projector, const FVector2f& TargetSize, const FVector2f& SourceSize);
 
-    extern MeshPtr MeshProject( const Mesh* pMesh,
-                                const FProjector& projector );
+    extern void MeshProject(Mesh* Result, const Mesh* pMesh, const FProjector& projector, bool& bOutSuccess);
 
-	MUTABLERUNTIME_API extern MeshPtr CreateMeshOptimisedForProjection( int layout );
-	MUTABLERUNTIME_API extern MeshPtr CreateMeshOptimisedForWrappingProjection( int layout );
+	MUTABLERUNTIME_API extern void CreateMeshOptimisedForProjection(Mesh* Result, int layout);
+	MUTABLERUNTIME_API extern void CreateMeshOptimisedForWrappingProjection(Mesh* Result, int layout);
 
 }

@@ -13,20 +13,24 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! Reference version
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshTransform( const Mesh* pBase, const FMatrix44f& transform )
+    inline void MeshTransform(Mesh* Result, const Mesh* pBase, const FMatrix44f& transform, bool& bOutSuccess)
 	{
-		MeshPtr pDest = pBase->Clone();
+		bOutSuccess = true;
 
         uint32_t vcount = pBase->GetVertexBuffers().GetElementCount();
 
         if ( !vcount )
 		{
-			return pDest;
+			bOutSuccess = false;
+			return;
 		}
+
+
+		Result->CopyFrom(*pBase);
 
 		FMatrix44f transformIT = transform.Inverse().GetTransposed();
 
-        const FMeshBufferSet& MBSPriv = pDest->GetVertexBuffers();
+        const FMeshBufferSet& MBSPriv = Result->GetVertexBuffers();
         for ( int32 b=0; b<MBSPriv.m_buffers.Num(); ++b )
         {
 
@@ -35,7 +39,7 @@ namespace mu
                 MESH_BUFFER_SEMANTIC sem = MBSPriv.m_buffers[b].m_channels[c].m_semantic;
                 int semIndex = MBSPriv.m_buffers[b].m_channels[c].m_semanticIndex;
 
-                UntypedMeshBufferIterator it( pDest->GetVertexBuffers(), sem, semIndex );
+                UntypedMeshBufferIterator it( Result->GetVertexBuffers(), sem, semIndex );
 
                 switch ( sem )
                 {
@@ -86,9 +90,6 @@ namespace mu
                 }
             }
         }
-
-
-		return pDest;
 	}
 
 }

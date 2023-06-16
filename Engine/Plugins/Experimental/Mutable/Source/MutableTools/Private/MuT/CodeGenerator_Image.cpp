@@ -1412,8 +1412,11 @@ namespace mu
                 // will remove the faces that are not in the layout block we are generating.
                 Ptr<ASTOpConstantResource> cop = new ASTOpConstantResource();
                 cop->type = OP_TYPE::ME_CONSTANT;
-				MeshPtr pFormatMesh = CreateMeshOptimisedForWrappingProjection(node.m_layout);
-                cop->SetValue( pFormatMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
+
+				Ptr<Mesh> FormatMeshResult = new Mesh();
+				CreateMeshOptimisedForWrappingProjection(FormatMeshResult.get(), node.m_layout);
+
+                cop->SetValue(FormatMeshResult, m_compilerOptions->m_optimisationOptions.m_useDiskCache);
 
                 Ptr<ASTOpMeshFormat> fop = new ASTOpMeshFormat();
                 fop->Buffers = OP::MeshFormatArgs::BT_VERTEX
@@ -1441,8 +1444,11 @@ namespace mu
                 // Reformat the mesh to a more efficient format for this operation
                 Ptr<ASTOpConstantResource> cop = new ASTOpConstantResource();
                 cop->type = OP_TYPE::ME_CONSTANT;
-                MeshPtr pFormatMesh = CreateMeshOptimisedForProjection(node.m_layout);
-                cop->SetValue( pFormatMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
+
+				Ptr<Mesh> FormatMeshResult = new Mesh();
+                CreateMeshOptimisedForProjection(FormatMeshResult.get(), node.m_layout);
+
+                cop->SetValue(FormatMeshResult, m_compilerOptions->m_optimisationOptions.m_useDiskCache);
 
                 Ptr<ASTOpMeshFormat> fop = new ASTOpMeshFormat();
                 fop->Buffers = OP::MeshFormatArgs::BT_VERTEX

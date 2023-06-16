@@ -365,7 +365,7 @@ namespace mu
             case DT_STRING:		StoreString( cat, LoadString( rat ) ); break;
             case DT_COLOUR:		StoreColor( cat, LoadColor( rat ) ); break;
             case DT_PROJECTOR:  StoreProjector( cat, LoadProjector(rat) ); break;
-            case DT_MESH:       StoreMesh( cat, LoadMesh(rat) ); break;
+			case DT_MESH:       StoreMesh( cat, LoadMesh(rat) ); break;
             case DT_IMAGE:      StoreImage( cat, LoadImage(rat) ); break;
             case DT_LAYOUT:     StoreLayout( cat, LoadLayout(rat) ); break;
             case DT_INSTANCE:   StoreInstance( cat, LoadInstance(rat) ); break;
@@ -906,28 +906,31 @@ namespace mu
             FProgram& program = pModel->GetPrivate()->m_program;
 
             // Assume the ROM has been loaded previously
-            check(program.m_constantMeshes[cat].Value )
+            check(program.m_constantMeshes[cat].Value)
 
-            MeshPtrConst pSourceConst;
-            program.GetConstant( cat, pSourceConst );
-            MeshPtr Source = pSourceConst->Clone();
+            Ptr<const Mesh> SourceConst;
+            program.GetConstant(cat, SourceConst);
+
+			check(SourceConst);
+			Ptr<Mesh> Source = CreateMesh(SourceConst->GetDataSize());
+			Source->CopyFrom(*SourceConst);
 
             // Set the separate skeleton if necessary
-            if (args.skeleton>=0)
+            if (args.skeleton >= 0)
             {
-                check( program.m_constantSkeletons.Num()>size_t(args.skeleton)  );
+                check(program.m_constantSkeletons.Num() > size_t(args.skeleton));
                 Ptr<const Skeleton> pSkeleton = program.m_constantSkeletons[args.skeleton];
                 Source->SetSkeleton(pSkeleton);
             }
 
 			if (args.physicsBody >= 0)
 			{
-                check( program.m_constantPhysicsBodies.Num()>size_t(args.physicsBody)  );
+                check(program.m_constantPhysicsBodies.Num() > size_t(args.physicsBody));
                 Ptr<const PhysicsBody> pPhysicsBody = program.m_constantPhysicsBodies[args.physicsBody];
                 Source->SetPhysicsBody(pPhysicsBody);
 			}
 
-            StoreMesh( item, Source );
+            StoreMesh(item, Source);
 			//UE_LOG(LogMutableCore, Log, TEXT("Set mesh constant %d."), item.At);
             break;
         }
@@ -941,7 +944,7 @@ namespace mu
 
 			int32 MipsToSkip = item.ExecutionOptions;
             Ptr<const Image> Source;
-            program.GetConstant( cat, Source, MipsToSkip);
+            program.GetConstant(cat, Source, MipsToSkip);
 
 			// Assume the ROM has been loaded previously in a task generated at IssueOp
 			check(Source);
@@ -983,37 +986,45 @@ namespace mu
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Mesh);
 
 		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
+
         switch (type)
         {
 
         case OP_TYPE::ME_APPLYLAYOUT:
         {
 			OP::MeshApplyLayoutArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::MeshApplyLayoutArgs>(item.At);
-            switch (item.Stage)
-            {
-            case 0:
-                    AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.mesh, item),
-                           FScheduledOp( args.layout, item) );
-                break;
-
+			switch (item.Stage)
+			{
+			case 0:
+			{
+				AddOp(FScheduledOp(item.At, item, 1),
+					FScheduledOp(args.mesh, item),
+					FScheduledOp(args.layout, item));
+				break;
+			}
             case 1:
             {
            		MUTABLE_CPUPROFILER_SCOPE(ME_APPLYLAYOUT)
             		
-                Ptr<const Mesh> pBase = LoadMesh( FCacheAddress(args.mesh,item) );
+                Ptr<const Mesh> pBase = LoadMesh(FCacheAddress(args.mesh, item));
 
-                MeshPtr pApplied;
                 if (pBase)
                 {
-                    pApplied = pBase->Clone();
+					Ptr<Mesh> Result = CloneOrTakeOver(pBase);
 
-                    Ptr<const Layout> pLayout = LoadLayout( FCacheAddress(args.layout,item) );
+                    Ptr<const Layout> pLayout = LoadLayout(FCacheAddress(args.layout, item));
                     int texCoordsSet = args.channel;
-                    MeshApplyLayout( pApplied.get(), pLayout.get(), texCoordsSet );
-                }
 
-                StoreMesh( item, pApplied );
+                    MeshApplyLayout(Result.get(), pLayout.get(), texCoordsSet);
+					
+					StoreMesh(item, Result);
+                }
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+
+
                 break;
             }
 
@@ -1029,26 +1040,29 @@ namespace mu
 			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
 			OP::ADDRESS BaseAt = 0;
-			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); 
+			data += sizeof(OP::ADDRESS);
 
 			OP::ADDRESS TargetAt = 0;
-			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); 
+			data += sizeof(OP::ADDRESS);
 
             switch (item.Stage)
             {
             case 0:
-                if (BaseAt && TargetAt)
-                {
-                    AddOp( FScheduledOp( item.At, item, 1),
-                            FScheduledOp( BaseAt, item),
-                            FScheduledOp( TargetAt, item) );
-                }
-                else
-                {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (BaseAt && TargetAt)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(BaseAt, item),
+						FScheduledOp(TargetAt, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
        	        MUTABLE_CPUPROFILER_SCOPE(ME_DIFFERENCE)
@@ -1060,27 +1074,39 @@ namespace mu
 				TArray<int32, TInlineAllocator<8>> SemanticIndices;
 
 				uint8 bIgnoreTextureCoords = 0;
-				FMemory::Memcpy(&bIgnoreTextureCoords, data, sizeof(uint8)); data += sizeof(uint8);
+				FMemory::Memcpy(&bIgnoreTextureCoords, data, sizeof(uint8)); 
+				data += sizeof(uint8);
 
 				uint8 NumChannels = 0;
-				FMemory::Memcpy(&NumChannels, data, sizeof(uint8)); data += sizeof(uint8);
+				FMemory::Memcpy(&NumChannels, data, sizeof(uint8)); 
+				data += sizeof(uint8);
 
-                for ( uint8 i=0; i< NumChannels; ++i )
+                for (uint8 i = 0; i < NumChannels; ++i)
                 {
 					uint8 Semantic = 0;
-					FMemory::Memcpy(&Semantic, data, sizeof(uint8)); data += sizeof(uint8);
+					FMemory::Memcpy(&Semantic, data, sizeof(uint8)); 
+					data += sizeof(uint8);
+					
 					uint8 SemanticIndex = 0;
-					FMemory::Memcpy(&SemanticIndex, data, sizeof(uint8)); data += sizeof(uint8);
+					FMemory::Memcpy(&SemanticIndex, data, sizeof(uint8)); 
+					data += sizeof(uint8);
 
 					Semantics.Add(MESH_BUFFER_SEMANTIC(Semantic));
 					SemanticIndices.Add(SemanticIndex);
                 }
 
-                MeshPtr pResult = MeshDifference( pBase.get(), pTarget.get(),
-                                          NumChannels, Semantics.GetData(), SemanticIndices.GetData(),
-                                          bIgnoreTextureCoords!=0 );
+				Ptr<Mesh> Result = CreateMesh();
+				bool bOutSuccess = false;
+                MeshDifference(Result.get(), pBase.get(), pTarget.get(),
+                               NumChannels, Semantics.GetData(), SemanticIndices.GetData(),
+                               bIgnoreTextureCoords != 0, bOutSuccess);
+			
+				check(bOutSuccess);
 
-                StoreMesh( item, pResult );
+				Release(pBase);
+				Release(pTarget);
+
+                StoreMesh(item, Result);
                 break;
             }
 
@@ -1096,25 +1122,28 @@ namespace mu
 			const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
 			OP::ADDRESS FactorAt = 0;
-			FMemory::Memcpy(&FactorAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			FMemory::Memcpy(&FactorAt, data, sizeof(OP::ADDRESS)); 
+			data += sizeof(OP::ADDRESS);
 			
 			OP::ADDRESS BaseAt = 0;
-			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			FMemory::Memcpy(&BaseAt, data, sizeof(OP::ADDRESS)); 
+			data += sizeof(OP::ADDRESS);
 
 			OP::ADDRESS TargetAt = 0;
-			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+			FMemory::Memcpy(&TargetAt, data, sizeof(OP::ADDRESS)); 
+			data += sizeof(OP::ADDRESS);
 
 			switch (item.Stage)
             {
             case 0:
                 if (BaseAt)
                 {
-                    AddOp( FScheduledOp(item.At, item, 1),
-                           FScheduledOp(FactorAt, item) );
+                    AddOp(FScheduledOp(item.At, item, 1),
+                           FScheduledOp(FactorAt, item));
                 }
                 else
                 {
-                    StoreMesh( item, nullptr );
+                    StoreMesh(item, nullptr);
                 }
                 break;
 
@@ -1122,7 +1151,7 @@ namespace mu
             {
                 MUTABLE_CPUPROFILER_SCOPE(ME_MORPH_1)
 
-                float Factor = LoadScalar( FCacheAddress(FactorAt,item) );
+                float Factor = LoadScalar(FCacheAddress(FactorAt, item));
 
                 // Factor goes from -1 to 1 across all targets. [0 - 1] represents positive morphs, while [-1, 0) represent negative morphs.
 				Factor = FMath::Clamp(Factor, -1.0f, 1.0f); // Is the factor not in range [-1, 1], it will index a non existing morph.
@@ -1132,18 +1161,18 @@ namespace mu
 				uint32 dataAddress = uint32(m_heapData.Add(HeapData));
 
                 // No morph
-				if (Factor < UE_SMALL_NUMBER && Factor > -UE_SMALL_NUMBER )
+				if (FMath::IsNearlyZero(Factor))
                 {                        
-                    AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                            FScheduledOp(BaseAt, item) );
+                    AddOp(FScheduledOp(item.At, item, 2, dataAddress),
+						FScheduledOp(BaseAt, item));
                 }
                 // The Morph, partial or full
                 else
                 {
                     // We will need the base again
-                    AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                            FScheduledOp(BaseAt, item),
-                            FScheduledOp(TargetAt, item) );
+                    AddOp(FScheduledOp(item.At, item, 2, dataAddress),
+						FScheduledOp(BaseAt, item),
+						FScheduledOp(TargetAt, item));
                 }
 
                 break;
@@ -1153,29 +1182,53 @@ namespace mu
             {
        		    MUTABLE_CPUPROFILER_SCOPE(ME_MORPH_2)
 
-                Ptr<const Mesh> pBase = LoadMesh( FCacheAddress(BaseAt,item) );
+                Ptr<const Mesh> pBase = LoadMesh(FCacheAddress(BaseAt, item));
 
                 // Factor from 0 to 1 between the two targets
-                const FScheduledOpData& HeapData = m_heapData[ (size_t)item.CustomState ];
+                const FScheduledOpData& HeapData = m_heapData[(size_t)item.CustomState];
                 float Factor = HeapData.Interpolate.Bifactor;
-
-                MeshPtrConst pResult;
 
                 if (pBase)
                 {
 					// No morph
-					if (Factor < UE_SMALL_NUMBER && Factor > -UE_SMALL_NUMBER )
+					if (FMath::IsNearlyZero(Factor))
                     {
-						pResult = pBase;
+						StoreMesh(item, pBase);
                     }
 					// The Morph, partial or full
                     else 
                     {
-                        Ptr<const Mesh> pMorph = LoadMesh( FCacheAddress(TargetAt,item) );
-						pResult = MeshMorph(pBase.get(), pMorph.get(), Factor);
+                        Ptr<const Mesh> pMorph = LoadMesh(FCacheAddress(TargetAt,item));
+						
+						if (pMorph)
+						{
+							Ptr<Mesh> Result = CreateMesh(pBase->GetDataSize());
+							bool bOutSuccess = false;
+							MeshMorph(Result.get(), pBase.get(), pMorph.get(), Factor, bOutSuccess);
+
+							Release(pMorph);
+
+							if (!bOutSuccess)
+							{
+								Release(Result);
+								StoreMesh(item, pBase);
+							}
+							else
+							{
+								Release(pBase);
+								StoreMesh(item, Result);
+							}
+						}
+						else
+						{
+							StoreMesh(item, pBase);
+						}
                     }
                 }
-                StoreMesh( item, pResult );
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
 
                 break;
             }
@@ -1193,49 +1246,66 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                    AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.base, item),
-                           FScheduledOp( args.added, item) );
-                break;
-
+			{
+				AddOp(FScheduledOp(item.At, item, 1),
+					FScheduledOp(args.base, item),
+					FScheduledOp(args.added, item));
+				break;
+			}
             case 1:
             {
 				MUTABLE_CPUPROFILER_SCOPE(ME_MERGE_1)
 
-                MeshPtrConst pA = LoadMesh( FCacheAddress(args.base,item) );
-                MeshPtrConst pB = LoadMesh( FCacheAddress(args.added,item) );
-
-                MeshPtr pResult;
+                Ptr<const Mesh> pA = LoadMesh(FCacheAddress(args.base, item));
+                Ptr<const Mesh> pB = LoadMesh(FCacheAddress(args.added, item));
 
                 if (pA && pB && pA->GetVertexCount() && pB->GetVertexCount())
                 {
-                    pResult = MeshMerge( pA.get(), pB.get(), !args.newSurfaceID);
+					FMeshMergeScratchMeshes Scratch;
+					Scratch.FirstReformat = CreateMesh();
+					Scratch.SecondReformat = CreateMesh();
+
+					Ptr<Mesh> Result = CreateMesh(pA->GetDataSize() + pB->GetDataSize());
+
+					MeshMerge(Result.get(), pA.get(), pB.get(), !args.newSurfaceID, Scratch);
+
+					Release(Scratch.FirstReformat);
+					Release(Scratch.SecondReformat);
 
                     if (args.newSurfaceID)
                     {
 						check(pB->GetSurfaceCount() == 1);
-						pResult->m_surfaces.Last().m_id = args.newSurfaceID;
+						Result->m_surfaces.Last().m_id = args.newSurfaceID;
                     }
+
+					Release(pA);
+					Release(pB);
+					StoreMesh(item, Result);
                 }
                 else if (pA && pA->GetVertexCount())
                 {
-					pResult = pA->Clone();
+					Release(pB);
+					StoreMesh(item, pA);
                 }
                 else if (pB && pB->GetVertexCount())
                 {
-                    pResult = pB->Clone();
-                    check(pResult->GetSurfaceCount()==1);
-                    if (pResult->GetSurfaceCount()>0 && args.newSurfaceID)
+					Ptr<Mesh> Result = CloneOrTakeOver(pB);
+
+                    check(Result->GetSurfaceCount() == 1);
+
+                    if (Result->GetSurfaceCount() > 0 && args.newSurfaceID)
                     {
-                        pResult->m_surfaces.Last().m_id=args.newSurfaceID;
+                        Result->m_surfaces.Last().m_id = args.newSurfaceID;
                     }
+
+					Release(pA);
+					StoreMesh(item, Result);
                 }
                 else
                 {
-                    pResult = new Mesh();
+					StoreMesh(item, CreateMesh());
                 }
 
-                StoreMesh( item, pResult );
                 break;
             }
 
@@ -1252,18 +1322,19 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if ( args.base )
-                {
-                    AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.base, item),
-                           FScheduledOp( args.factor, item ) );
-                }
-                else
-                {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (args.base)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.base, item),
+						FScheduledOp(args.factor, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
             	MUTABLE_CPUPROFILER_SCOPE(ME_INTERPOLATE_1)
@@ -1277,7 +1348,7 @@ namespace mu
                 }
 
                 // Factor from 0 to 1 across all targets
-                float factor = LoadScalar( FCacheAddress(args.factor,item) );
+                float factor = LoadScalar(FCacheAddress(args.factor, item));
 
                 float delta = 1.0f/(count-1);
                 int min = (int)floorf( factor/delta );
@@ -1293,54 +1364,48 @@ namespace mu
 				uint32 dataAddress = uint32(m_heapData.Num());
 
                 // Just the first of the targets
-                if ( bifactor < UE_SMALL_NUMBER )
+                if (bifactor < UE_SMALL_NUMBER)
                 {
-                    if( min==0 )
+                    if (min == 0)
                     {
                         // Just the base
-                            Ptr<const Mesh> pBase = LoadMesh( FCacheAddress(args.base,item) );
-                            MeshPtr pResult;
-                            if (pBase)
-                            {
-                                pResult = pBase->Clone();
-                            }
-                            StoreMesh( item, pResult );
-                        }
+						Ptr<const Mesh> pBase = LoadMesh(FCacheAddress(args.base, item));
+						StoreMesh(item, pBase);
+					}
                     else
                     {
                         // Base with one full morph
                         m_heapData.Add(data);
-                            AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                                   FScheduledOp( args.base, item),
-                                   FScheduledOp( args.targets[min-1], item) );
-                        }
-                    }
+						AddOp(FScheduledOp(item.At, item, 2, dataAddress),
+							FScheduledOp(args.base, item),
+							FScheduledOp(args.targets[min-1], item));
+					}
+				}
                 // Just the second of the targets
-                else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
+                else if (bifactor > 1.0f-UE_SMALL_NUMBER)
                 {
                     m_heapData.Add(data);
-                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                               FScheduledOp( args.base, item),
-                               FScheduledOp( args.targets[max-1], item) );
-                    }
+					AddOp(FScheduledOp(item.At, item, 2, dataAddress),
+						FScheduledOp(args.base, item),
+						FScheduledOp(args.targets[max-1], item));
+				}
                 // Mix the first target on the base
-                else if ( min==0 )
+                else if (min == 0)
                 {
                     m_heapData.Add(data);
-                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                               FScheduledOp( args.base, item),
-                               FScheduledOp( args.targets[0], item)
-                               );
-                    }
+					AddOp(FScheduledOp(item.At, item, 2, dataAddress),
+						FScheduledOp(args.base, item),
+						FScheduledOp(args.targets[0], item));
+				}
                 // Mix two targets on the base
                 else
                 {
                     m_heapData.Add(data);
-                        AddOp( FScheduledOp( item.At, item, 2, dataAddress),
-                               FScheduledOp( args.base, item),
-                               FScheduledOp( args.targets[min-1], item),
-                               FScheduledOp( args.targets[max-1], item) );
-                    }
+					AddOp(FScheduledOp(item.At, item, 2, dataAddress),
+						FScheduledOp(args.base, item),
+						FScheduledOp(args.targets[min-1], item),
+						FScheduledOp(args.targets[max-1], item));
+				}
 
                 break;
             }
@@ -1364,74 +1429,140 @@ namespace mu
                 int min = data.Interpolate.Min;
                 int max = data.Interpolate.Max;
 
-                Ptr<const Mesh> pBase = LoadMesh( FCacheAddress(args.base, item) );
-
-                MeshPtr pResult;
+                Ptr<const Mesh> pBase = LoadMesh(FCacheAddress(args.base, item));
 
                 if (pBase)
                 {
                     // Just the first of the targets
-                    if ( bifactor < UE_SMALL_NUMBER )
+                    if (bifactor < UE_SMALL_NUMBER)
                     {
-                        if( min==0 )
+                        if (min == 0)
                         {
                             // Just the base. It should have been dealt with in the previous stage.
-                            check( false );
+                            check(false);
                         }
                         else
                         {
                             // Base with one full morph
-                            Ptr<const Mesh> pMorph = LoadMesh( FCacheAddress(args.targets[min-1],item) );
-                            pResult = MeshMorph( pBase.get(), pMorph.get() );
+                            Ptr<const Mesh> pMorph = LoadMesh(FCacheAddress(args.targets[min-1], item));
+							
+							Ptr<Mesh> Result = CreateMesh(pBase->GetDataSize());
+
+							bool bOutSuccess = false;
+                            MeshMorph(Result.get(), pBase.get(), pMorph.get(), bOutSuccess);
+						
+							Release(pMorph);
+
+							if (!bOutSuccess)
+							{
+								Release(Result);
+								StoreMesh(item, pBase);
+							}
+							else
+							{
+								Release(pBase);
+								StoreMesh(item, Result);
+							}
                         }
                     }
                     // Just the second of the targets
-                    else if ( bifactor > 1.0f-UE_SMALL_NUMBER )
+                    else if (bifactor > 1.0f-UE_SMALL_NUMBER)
                     {
-                        check( max>0 );
-                        Ptr<const Mesh> pMorph = LoadMesh( FCacheAddress(args.targets[max-1],item) );
+                        check(max > 0);
+                        Ptr<const Mesh> pMorph = LoadMesh(FCacheAddress(args.targets[max-1], item));
 
                         if (pMorph)
                         {
-                            pResult = MeshMorph( pBase.get(), pMorph.get() );
+							Ptr<Mesh> Result = CreateMesh(pBase->GetDataSize());
+							
+							bool bOutSuccess = false;
+                            MeshMorph(Result.get(), pBase.get(), pMorph.get(), bOutSuccess);
+
+							Release(pMorph);
+							if (!bOutSuccess)
+							{
+								Release(Result);
+								StoreMesh(item, pBase);
+							}
+							else
+							{
+								Release(pBase);
+								StoreMesh(item, Result);
+							}
+
                         }
                         else
                         {
-                            pResult = pBase->Clone();
+							StoreMesh(item, pBase);
                         }
                     }
                     // Mix the first target on the base
-                    else if ( min==0 )
+                    else if (min == 0)
                     {
-                        Ptr<const Mesh> pMorph = LoadMesh( FCacheAddress( args.targets[0], item ) );
+                        Ptr<const Mesh> pMorph = LoadMesh(FCacheAddress(args.targets[0], item));
                         if (pMorph)
                         {
-                            pResult = MeshMorph( pBase.get(), pMorph.get(), bifactor );
+							Ptr<Mesh> Result = CreateMesh(pBase->GetDataSize());
+
+							bool bOutSuccess = false;
+                            MeshMorph(Result.get(), pBase.get(), pMorph.get(), bifactor, bOutSuccess);
+
+							Release(pMorph);
+
+							if (!bOutSuccess)
+							{
+								Release(Result);
+								StoreMesh(item, pBase);
+							}
+							else
+							{
+								Release(pBase);
+								StoreMesh(item, Result);
+							}
                         }
                         else
                         {
-                            pResult = pBase->Clone();
+							StoreMesh(item, pBase);
                         }
-
                     }
                     // Mix two targets on the base
                     else
                     {
-                        Ptr<const Mesh> pMin = LoadMesh( FCacheAddress(args.targets[min-1],item) );
-                        Ptr<const Mesh> pMax = LoadMesh( FCacheAddress(args.targets[max-1],item) );
+                        Ptr<const Mesh> pMin = LoadMesh(FCacheAddress(args.targets[min-1], item));
+                        Ptr<const Mesh> pMax = LoadMesh(FCacheAddress(args.targets[max-1], item));
 
                         if (pMin && pMax)
                         {
-                            pResult = MeshMorph2( pBase.get(), pMin.get(), pMax.get(), bifactor );
+							Ptr<Mesh> Result = CreateMesh(pBase->GetDataSize());
+
+							bool bOutSuccess = false;
+                            MeshMorph2(Result.get(), pBase.get(), pMin.get(), pMax.get(), bifactor, bOutSuccess);
+
+							Release(pMin);
+							Release(pMax);
+
+							if (!bOutSuccess)
+							{
+								Release(Result);
+								StoreMesh(item, pBase);
+							}
+							else
+							{
+								Release(pBase);
+								StoreMesh(item, Result);
+							}
                         }
                         else
                         {
-                            pResult = pBase->Clone();
+							StoreMesh(item, pBase);
                         }
                     }
                 }
+				else
+				{
+					StoreMesh(item, pBase);
+				}
 
-                StoreMesh( item, pResult );
                 break;
             }
 
@@ -1448,25 +1579,45 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                    AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.source, item),
-                           FScheduledOp( args.clip, item) );
-                break;
-
+			{
+				AddOp(FScheduledOp(item.At, item, 1),
+					FScheduledOp(args.source, item),
+					FScheduledOp(args.clip, item));
+				break;
+			}
             case 1:
             {
             	MUTABLE_CPUPROFILER_SCOPE(ME_MASKCLIPMESH_1)
             		
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
-                Ptr<const Mesh> pClip = LoadMesh( FCacheAddress(args.clip,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source, item));
+                Ptr<const Mesh> pClip = LoadMesh(FCacheAddress(args.clip, item));
 
                 // Only if both are valid.
-                MeshPtr pResult;
                 if (Source.get() && pClip.get())
                 {
-                    pResult = MeshMaskClipMesh(Source.get(), pClip.get());
+					Ptr<Mesh> Result = CreateMesh();
+
+					bool bOutSuccess = false;
+                    MeshMaskClipMesh(Result.get(), Source.get(), pClip.get(), bOutSuccess);
+					
+					Release(Source);
+					Release(pClip);
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, nullptr);
+					}
+					else
+					{
+						StoreMesh(item, Result);
+					}
                 }
-                StoreMesh( item, pResult );
+				else
+				{
+					Release(Source);
+					Release(pClip);
+					StoreMesh(item, nullptr);
+				}
 
                 break;
             }
@@ -1484,25 +1635,46 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                    AddOp( FScheduledOp( item.At, item, 1),
-                           FScheduledOp( args.source, item),
-                           FScheduledOp( args.fragment, item) );
-                break;
-
+			{
+				AddOp(FScheduledOp(item.At, item, 1),
+					FScheduledOp(args.source, item),
+					FScheduledOp(args.fragment, item));
+				break;
+			}
             case 1:
             {
            		MUTABLE_CPUPROFILER_SCOPE(ME_MASKDIFF_1)
             		
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
-                Ptr<const Mesh> pClip = LoadMesh( FCacheAddress(args.fragment,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source, item));
+                Ptr<const Mesh> pClip = LoadMesh(FCacheAddress(args.fragment, item));
 
                 // Only if both are valid.
-                MeshPtr pResult;
                 if (Source.get() && pClip.get())
                 {
-                    pResult = MeshMaskDiff(Source.get(), pClip.get());
+					Ptr<Mesh> Result = CreateMesh();
+
+					bool bOutSuccess = false;
+                    MeshMaskDiff(Result.get(), Source.get(), pClip.get(), bOutSuccess);
+
+					Release(Source);
+					Release(pClip);
+
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, nullptr);
+					}
+					else
+					{
+						StoreMesh(item, Result);
+					}
                 }
-                StoreMesh( item, pResult );
+				else
+				{
+					Release(Source);
+					Release(pClip);
+					StoreMesh(item, nullptr);
+				}
 
                 break;
             }
@@ -1520,42 +1692,74 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.source && args.format)
-                {
-                         AddOp( FScheduledOp( item.At, item, 1),
-                                FScheduledOp( args.source, item),
-                                FScheduledOp( args.format, item));
-                    }
-                    else
-                    {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (args.source && args.format)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item),
+						FScheduledOp(args.format, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
             	MUTABLE_CPUPROFILER_SCOPE(ME_FORMAT_1)
             		
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
-                Ptr<const Mesh> pFormat = LoadMesh( FCacheAddress(args.format,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source,item));
+                Ptr<const Mesh> pFormat = LoadMesh(FCacheAddress(args.format,item));
 
-                uint8 flags = args.buffers;
-                MeshPtr pResult;
-                pResult = MeshFormat( Source.get(),
-                                      pFormat.get(),
-                                      true,
-                                      (flags & OP::MeshFormatArgs::BT_VERTEX) != 0,
-                                      (flags & OP::MeshFormatArgs::BT_INDEX) != 0,
-                                      (flags & OP::MeshFormatArgs::BT_FACE) != 0,
-                                      (flags & OP::MeshFormatArgs::BT_IGNORE_MISSING) != 0
-                                      );
+				if (Source)
+				{
+					uint8 flags = args.buffers;
+					if (!pFormat && !(flags & OP::MeshFormatArgs::BT_RESETBUFFERINDICES))
+					{
+						StoreMesh(item, Source);
+					}
+					else if (!pFormat)
+					{
+						Ptr<Mesh> Result = CloneOrTakeOver(Source);
 
-                if (flags & OP::MeshFormatArgs::BT_RESETBUFFERINDICES)
-                {
-                    pResult->ResetBufferIndices();
-                }
+						if (flags & OP::MeshFormatArgs::BT_RESETBUFFERINDICES)
+						{
+							Result->ResetBufferIndices();
+						}
 
-                StoreMesh( item, pResult );
+						StoreMesh(item, Result);
+					}
+					else
+					{
+						Ptr<Mesh> Result = CreateMesh();
+
+						bool bOutSuccess = false;
+						MeshFormat(Result.get(), Source.get(), pFormat.get(),
+							true,
+							(flags & OP::MeshFormatArgs::BT_VERTEX) != 0,
+							(flags & OP::MeshFormatArgs::BT_INDEX) != 0,
+							(flags & OP::MeshFormatArgs::BT_FACE) != 0,
+							(flags & OP::MeshFormatArgs::BT_IGNORE_MISSING) != 0,
+							bOutSuccess);
+
+						check(bOutSuccess);
+
+						if (flags & OP::MeshFormatArgs::BT_RESETBUFFERINDICES)
+						{
+							Result->ResetBufferIndices();
+						}
+
+						Release(Source);
+						Release(pFormat);
+						StoreMesh(item, Result);
+					}
+				}
+				else
+				{
+					Release(pFormat);
+					StoreMesh(item, nullptr);
+				}
                 break;
             }
 
@@ -1585,38 +1789,49 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (source)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( source, item) );
-                }
-                else
-                {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (source)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(source, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
 				MUTABLE_CPUPROFILER_SCOPE(ME_EXTRACTLAYOUTBLOCK_1)
 
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(source,item) );
-				MeshPtr pResult;
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(source, item));
+
+                // Access with memcpy necessary for unaligned arm issues.
+                uint32 blocks[1024];
+				FMemory::Memcpy(blocks, data, sizeof(uint32)*FMath::Min(1024,int(blockCount)));
 
 				if (Source)
 				{
-					// Access with memcpy necessary for unaligned arm issues.
-					uint32 blocks[1024];
-					FMemory::Memcpy(blocks, data, sizeof(uint32)* FMath::Min(1024, int(blockCount)));
+					Ptr<Mesh> Result = CreateMesh();
+					bool bOutSuccess;
+					MeshExtractLayoutBlock(Result.get(), Source.get(), layout, blockCount, blocks, bOutSuccess);
 
-					pResult = MeshExtractLayoutBlock(Source.get(),
-						layout,
-						blockCount,
-						blocks);
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, Source);
+					}
+					else
+					{
+						Release(Source);
+						StoreMesh(item, Result);
+					}
 				}
-
-				StoreMesh(item, pResult);
-
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
                 break;
             }
 
@@ -1633,28 +1848,47 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.source)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( args.source, item) );
-                    }
-                    else
-                    {
-                    StoreMesh( item, nullptr );
-                }
-                break;
+			{
+				if (args.source)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
 
+				break;
+			}
             case 1:
             {
 				MUTABLE_CPUPROFILER_SCOPE(ME_EXTRACTFACEGROUP_1)
 
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source, item));
+				if (Source)
+				{
+					Ptr<Mesh> Result = CreateMesh();
 
-                MeshPtr pResult;
-                pResult = MeshExtractFaceGroup( Source.get(),
-                                                args.group );
+					bool bOutSuccess = false;
+					MeshExtractFaceGroup(Result.get(), Source.get(), args.group, bOutSuccess);
 
-                StoreMesh( item, pResult );
+					Release(Source);
+					if (!bOutSuccess)
+					{
+						check(false);
+						Release(Result);
+						StoreMesh(item, nullptr);
+					}
+					else
+					{
+						StoreMesh(item, Result);
+					}
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
                 break;
             }
 
@@ -1671,29 +1905,41 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.source)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( args.source, item) );
-                    }
-                    else
-                    {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (args.source)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
            		MUTABLE_CPUPROFILER_SCOPE(ME_TRANSFORM_1)
             		
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source,item));
 
-                const mat4f& mat = pModel->GetPrivate()->m_program.
-                    m_constantMatrices[args.matrix];
+                const mat4f& mat = pModel->GetPrivate()->m_program.m_constantMatrices[args.matrix];
 
-                MeshPtr pResult = MeshTransform(Source.get(), ToUnreal(mat) );
+				Ptr<Mesh> Result = CreateMesh(Source ? Source->GetDataSize() : 0);
 
-                StoreMesh( item, pResult );
+				bool bOutSuccess = false;
+                MeshTransform(Result.get(), Source.get(), ToUnreal(mat), bOutSuccess);
+
+				if (!bOutSuccess)
+				{
+					Release(Result);
+					StoreMesh(item, Source);
+				}
+				else
+				{
+					Release(Source);
+					StoreMesh(item, Result);
+				}
                 break;
             }
 
@@ -1710,61 +1956,103 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.source)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( args.source, item) );
-                    }
-                    else
-                    {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (args.source)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
            		MUTABLE_CPUPROFILER_SCOPE(ME_CLIPMORPHPLANE_1)
             		
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source, item));
 
-                MeshPtr pResult;
-
-                check( args.morphShape < (uint32)pModel->GetPrivate()->m_program.m_constantShapes.Num() );
+                check(args.morphShape < (uint32)pModel->GetPrivate()->m_program.m_constantShapes.Num());
 
                 // Should be an ellipse
-                const FShape& morphShape = pModel->GetPrivate()->m_program.
-                    m_constantShapes[args.morphShape];
+                const FShape& morphShape = pModel->GetPrivate()->m_program.m_constantShapes[args.morphShape];
 
                 const mu::vec3f& origin = morphShape.position;
                 const mu::vec3f& normal = morphShape.up;
 
                 if (args.vertexSelectionType == OP::MeshClipMorphPlaneArgs::VS_SHAPE)
                 {
-                    check( args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantShapes.Num() );
+                    check(args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantShapes.Num());
 
                     // Should be None or an axis aligned box
                     const FShape& selectionShape = pModel->GetPrivate()->m_program.m_constantShapes[args.vertexSelectionShapeOrBone];
-                    pResult = MeshClipMorphPlane(Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape);
+
+					Ptr<Mesh> Result = CreateMesh(Source->GetDataSize());
+
+					bool bOutSuccess = false;
+					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, mu::string(), -1);
+					
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, Source);
+					}
+					else
+					{
+						Release(Source);
+						StoreMesh(item, Result);
+					}
                 }
 
-                else if (args.vertexSelectionType == OP::MeshClipMorphPlaneArgs::VS_BONE_HIERARCHY)
-                {
-                    check( args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
+				else if (args.vertexSelectionType == OP::MeshClipMorphPlaneArgs::VS_BONE_HIERARCHY)
+				{
+					check(args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num());
 
-                    FShape selectionShape;
-                    selectionShape.type = (uint8)FShape::Type::None;
-                    const string& selectionBone = pModel->GetPrivate()->m_program.m_constantStrings[args.vertexSelectionShapeOrBone];
-					pResult = MeshClipMorphPlane(Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, selectionBone, args.maxBoneRadius);
+					FShape selectionShape;
+					selectionShape.type = (uint8)FShape::Type::None;
+					const string& selectionBone = pModel->GetPrivate()->m_program.m_constantStrings[args.vertexSelectionShapeOrBone];
+
+					Ptr<Mesh> Result = CreateMesh(Source->GetDataSize());
+
+					bool bOutSuccess = false;
+					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, selectionBone, args.maxBoneRadius);
+
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, Source);
+					}
+					else
+					{
+						Release(Source);
+						StoreMesh(item, Result);
+					}
                 }
                 else
                 {
                     // No vertex selection
                     FShape selectionShape;
                     selectionShape.type = (uint8)FShape::Type::None;
-                    pResult = MeshClipMorphPlane(Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape);
+
+					Ptr<Mesh> Result = CreateMesh(Source->GetDataSize());
+
+					bool bOutSuccess = false;
+					MeshClipMorphPlane(Result.get(), Source.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, bOutSuccess, mu::string(), -1.0f);
+
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, Source);
+					}
+					else
+					{
+						Release(Source);
+						StoreMesh(item, Result);
+					}
                 }
 
-                StoreMesh( item, pResult );
                 break;
             }
 
@@ -1782,37 +2070,53 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.source)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( args.source, item),
-                               FScheduledOp( args.clipMesh, item) );
-                    }
-                    else
-                    {
-                    StoreMesh( item, nullptr );
-                }
-                break;
+			{
+				if (args.source)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item),
+						FScheduledOp(args.clipMesh, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
 
+				break;
+			}
             case 1:
             {
 				MUTABLE_CPUPROFILER_SCOPE(ME_CLIPWITHMESH_1)
 
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
-                Ptr<const Mesh> pClip = LoadMesh( FCacheAddress(args.clipMesh,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source, item));
+                Ptr<const Mesh> pClip = LoadMesh(FCacheAddress(args.clipMesh, item));
 
                 // Only if both are valid.
-                MeshPtr pResult;
                 if (Source && pClip)
                 {
-                    pResult = MeshClipWithMesh(Source.get(), pClip.get());
+					Ptr<Mesh> Result = CreateMesh(Source->GetDataSize());
+
+					bool bOutSuccess = false;
+                    MeshClipWithMesh(Result.get(), Source.get(), pClip.get(), bOutSuccess);
+
+					Release(pClip);
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, Source);
+					}
+					else
+					{
+						Release(Source);
+						StoreMesh(item, Result);
+					}
                 }
-                else if (Source)
+                else
                 {
-                    pResult = Source->Clone();
+					Release(pClip);
+					StoreMesh(item, Source);
                 }
 
-                StoreMesh( item, pResult );
                 break;
             }
 
@@ -1828,36 +2132,52 @@ namespace mu
 			switch (item.Stage)
 			{
 			case 0:
+			{
 				if (args.mesh)
 				{
-						AddOp(FScheduledOp(item.At, item, 1),
-							FScheduledOp(args.mesh, item),
-							FScheduledOp(args.clipShape, item));
-					}
-					else
-					{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.mesh, item),
+						FScheduledOp(args.clipShape, item));
+				}
+				else
+				{
 					StoreMesh(item, nullptr);
 				}
 				break;
-			
+			}
 			case 1:
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ME_CLIPDEFORM_1)
 
 				Ptr<const Mesh> BaseMesh = LoadMesh(FCacheAddress(args.mesh, item));
 				Ptr<const Mesh> ClipShape = LoadMesh(FCacheAddress(args.clipShape, item));
-				Ptr<Mesh> pResult;
 
-				if ( BaseMesh && ClipShape )
+				if (BaseMesh && ClipShape)
 				{
-					pResult = MeshClipDeform(BaseMesh.get(), ClipShape.get(), args.clipWeightThreshold);
+					Ptr<Mesh> Result = CreateMesh(BaseMesh->GetDataSize());
+
+					bool bOutSuccess = false;
+					MeshClipDeform(Result.get(), BaseMesh.get(), ClipShape.get(), args.clipWeightThreshold, bOutSuccess);
+
+					Release(ClipShape);
+
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, BaseMesh);
+					}
+					else
+					{
+						Release(BaseMesh);
+						StoreMesh(item, Result);
+					}
 				}
-				else if( BaseMesh )
+				else
 				{
-					pResult = BaseMesh->Clone();
+					Release(ClipShape);
+					StoreMesh(item, BaseMesh);
 				}
 
-				StoreMesh(item, pResult);
 				break;
 			}
 
@@ -1874,37 +2194,47 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.source)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( args.source, item),
-                               FScheduledOp( args.reference, item) );
-                    }
-                    else
-                    {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (args.source)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item),
+						FScheduledOp(args.reference, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
     			MUTABLE_CPUPROFILER_SCOPE(ME_REMAPINDICES_1)
 
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
-                Ptr<const Mesh> pReference = LoadMesh( FCacheAddress(args.reference,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source,item));
+                Ptr<const Mesh> pReference = LoadMesh(FCacheAddress(args.reference,item));
 
                 // Only if both are valid.
-                MeshPtr pResult;
-                if (Source && pReference)
-                {
-                    pResult = MeshRemapIndices(Source.get(), pReference.get());
+                MeshPtr Result = CreateMesh(Source->GetDataSize());
+                
+				bool bOutSuccess = false;
+				if (Source && pReference)
+                {	
+                    MeshRemapIndices(Result.get(), Source.get(), pReference.get(), bOutSuccess);
                 }
-                else if (Source)
-                {
-                    pResult = Source->Clone();
-                }
+			
+				Release(pReference);
+				if (!bOutSuccess)
+				{
+					Release(Result);
+					StoreMesh(item, Source);
+				}
+				else
+				{	
+					Release(Source);
+					StoreMesh(item, Result);
+				}
 
-                StoreMesh( item, pResult );
                 break;
             }
 
@@ -1922,37 +2252,52 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.base)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( args.base, item),
-                               FScheduledOp( args.pose, item) );
-                    }
-                    else
-                    {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (args.base)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.base, item),
+						FScheduledOp(args.pose, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
           		MUTABLE_CPUPROFILER_SCOPE(ME_APPLYPOSE_1)
 
-                Ptr<const Mesh> pBase = LoadMesh( FCacheAddress(args.base,item) );
-                Ptr<const Mesh> pPose = LoadMesh( FCacheAddress(args.pose,item) );
+                Ptr<const Mesh> pBase = LoadMesh(FCacheAddress(args.base, item));
+                Ptr<const Mesh> pPose = LoadMesh(FCacheAddress(args.pose, item));
 
                 // Only if both are valid.
-                MeshPtr pResult;
                 if (pBase && pPose)
                 {
-                    pResult = MeshApplyPose(pBase.get(), pPose.get());
+					Ptr<Mesh> Result = CreateMesh(pBase->GetSkeleton() ? pBase->GetDataSize() : 0);
+
+					bool bOutSuccess = false;
+					MeshApplyPose(Result.get(), pBase.get(), pPose.get(), bOutSuccess);
+
+					Release(pPose);
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, pBase);
+					}
+					else
+					{
+						Release(pBase);
+						StoreMesh(item, Result);
+					}
                 }
-                else if (pBase)
+                else
                 {
-                    pResult = pBase->Clone();
+					Release(pPose);
+					StoreMesh(item, pBase);
                 }
 
-                StoreMesh( item, pResult );
                 break;
             }
 
@@ -1970,20 +2315,21 @@ namespace mu
 			switch (item.Stage)
 			{
 			case 0:
+			{
 				if (args.meshA)
 				{
-						AddOp(FScheduledOp(item.At, item, 1),
-							FScheduledOp(args.meshA, item),
-							FScheduledOp(args.meshB, item),
-							FScheduledOp(args.scalarA, item),
-							FScheduledOp(args.scalarB, item));
-					}
-					else
-					{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.meshA, item),
+						FScheduledOp(args.meshB, item),
+						FScheduledOp(args.scalarA, item),
+						FScheduledOp(args.scalarB, item));
+				}
+				else
+				{
 					StoreMesh(item, nullptr);
 				}
 				break;
-
+			}
 			case 1:
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ME_GEOMETRYOPERATION_1)
@@ -1993,9 +2339,24 @@ namespace mu
 				float ScalarA = LoadScalar(FCacheAddress(args.scalarA, item));
 				float ScalarB = LoadScalar(FCacheAddress(args.scalarB, item));
 
-				MeshPtr pResult = MeshGeometryOperation(MeshA.get(),MeshB.get(),ScalarA,ScalarB);
+				Ptr<Mesh> Result = CreateMesh(MeshA->GetDataSize());
 
-				StoreMesh(item, pResult);
+				bool bOutSuccess = false;
+				MeshGeometryOperation(Result.get(), MeshA.get(), MeshB.get(), ScalarA, ScalarB, bOutSuccess);
+
+				Release(MeshA);
+				Release(MeshB);
+
+				if (!bOutSuccess)
+				{
+					Release(Result);
+					StoreMesh(item, nullptr);
+				}
+				else
+				{
+					StoreMesh(item, Result);
+				}
+
 				break;
 			}
 
@@ -2015,24 +2376,24 @@ namespace mu
 			switch (item.Stage)
 			{
 			case 0:
+			{
 				if (Args.mesh)
 				{
 					AddOp(FScheduledOp(item.At, item, 1),
-							FScheduledOp(Args.mesh, item),
-							FScheduledOp(Args.shape, item));
+						FScheduledOp(Args.mesh, item),
+						FScheduledOp(Args.shape, item));
 				}
 				else
 				{
 					StoreMesh(item, nullptr);
 				}
 				break;
-
+			}
 			case 1:
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ME_BINDSHAPE_1)
 				Ptr<const Mesh> BaseMesh = LoadMesh(FCacheAddress(Args.mesh, item));
 				Ptr<const Mesh> Shape = LoadMesh(FCacheAddress(Args.shape, item));
-				
 				
 				EShapeBindingMethod BindingMethod = static_cast<EShapeBindingMethod>(Args.bindingMethod); 
 
@@ -2072,33 +2433,54 @@ namespace mu
 
 					const EMeshBindShapeFlags BindFlags = static_cast<EMeshBindShapeFlags>(Args.flags);
 
-					// -----------
-					Ptr<Mesh> BindMesh = 
-						MeshBindShapeReshape( BaseMesh.get(), Shape.get(), BonesToDeform, PhysicsToDeform, BindFlags);
-					
-					// null bind mesh indicates nothing has bond so the base mesh can be reused.
-					if (BindMesh)
+					Ptr<Mesh> BindMeshResult = CreateMesh();
+
+					bool bOutSuccess = false;
+					MeshBindShapeReshape(BindMeshResult.get(), BaseMesh.get(), Shape.get(), BonesToDeform, PhysicsToDeform, BindFlags, bOutSuccess);
+				
+					Release(Shape);
+					// not success indicates nothing has bond so the base mesh can be reused.
+					if (!bOutSuccess)
 					{
-						if (!EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeVertices))
-						{
-							Ptr<Mesh> BindMeshNoVerts = BaseMesh->Clone();
-							BindMeshNoVerts->m_AdditionalBuffers = MoveTemp(BindMesh->m_AdditionalBuffers);
-							StoreMesh(item, BindMeshNoVerts);
-						}
-						else
-						{
-							StoreMesh(item, BindMesh);
-						}
+						Release(BindMeshResult);
+						StoreMesh(item, BaseMesh);
 					}
 					else
 					{
-						StoreMesh(item, BaseMesh);
-					}	
+						if (!EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeVertices))
+						{
+							Ptr<Mesh> BindMeshNoVertsResult = CloneOrTakeOver(BaseMesh);
+							BindMeshNoVertsResult->m_AdditionalBuffers = MoveTemp(BindMeshResult->m_AdditionalBuffers);
+
+							Release(BaseMesh);
+							Release(BindMeshResult);
+							StoreMesh(item, BindMeshNoVertsResult);
+						}
+						else
+						{
+							Release(BaseMesh);
+							StoreMesh(item, BindMeshResult);
+						}
+					}
 				}	
 				else
 				{
-					Ptr<Mesh> ResultPtr = MeshBindShapeClipDeform( BaseMesh.get(), Shape.get(), BindingMethod );
-					StoreMesh(item, ResultPtr);
+					Ptr<Mesh> Result = CreateMesh(BaseMesh->GetDataSize());
+
+					bool bOutSuccess = false;
+					MeshBindShapeClipDeform(Result.get(), BaseMesh.get(), Shape.get(), BindingMethod, bOutSuccess);
+
+					Release(Shape);
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, BaseMesh);
+					}
+					else
+					{
+						Release(BaseMesh);
+						StoreMesh(item, Result);
+					}
 				}
 
 				break;
@@ -2118,18 +2500,19 @@ namespace mu
 			switch (item.Stage)
 			{
 			case 0:
+			{
 				if (args.mesh)
 				{
-						AddOp(FScheduledOp(item.At, item, 1),
-							FScheduledOp(args.mesh, item),
-							FScheduledOp(args.shape, item));
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.mesh, item),
+						FScheduledOp(args.shape, item));
 				}
 				else
 				{
 					StoreMesh(item, nullptr);
 				}
 				break;
-
+			}
 			case 1:
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ME_APPLYSHAPE_1)
@@ -2138,36 +2521,48 @@ namespace mu
 				Ptr<const Mesh> Shape = LoadMesh(FCacheAddress(args.shape, item));
 
 				const EMeshBindShapeFlags ReshapeFlags = static_cast<EMeshBindShapeFlags>(args.flags);
-				Ptr<Mesh> ReshapedMesh = MeshApplyShape(BaseMesh.get(), Shape.get(), ReshapeFlags);
-
 				const bool bReshapeVertices = EnumHasAnyFlags(ReshapeFlags, EMeshBindShapeFlags::ReshapeVertices);
 
-				if (!ReshapedMesh)
-				{
-					StoreMesh(item, BaseMesh);
-				}
-				else if (!bReshapeVertices)
-				{
-					// Clone without Skeleton, Physics or Poses 
-					EMeshCloneFlags CloneFlags = ~(
-							EMeshCloneFlags::WithSkeleton          | 
-							EMeshCloneFlags::WithPhysicsBody       |
-							EMeshCloneFlags::WithAdditionalPhysics |
-							EMeshCloneFlags::WithPoses);
- 
-					Ptr<Mesh> Result = BaseMesh->Clone(CloneFlags);
-					Result->SetSkeleton(ReshapedMesh->GetSkeleton().get());
-					Result->SetPhysicsBody(ReshapedMesh->GetPhysicsBody().get());
-					Result->AdditionalPhysicsBodies = ReshapedMesh->AdditionalPhysicsBodies;
-					Result->BonePoses = ReshapedMesh->BonePoses;
+				Ptr<Mesh> ReshapedMeshResult = CreateMesh(BaseMesh->GetDataSize());
 
-					StoreMesh(item, Result);
+				bool bOutSuccess = false;
+				MeshApplyShape(ReshapedMeshResult.get(), BaseMesh.get(), Shape.get(), ReshapeFlags, bOutSuccess);
+
+				Release(Shape);
+				
+				if (!bOutSuccess)
+				{
+					Release(ReshapedMeshResult);
+					StoreMesh(item, BaseMesh);
 				}
 				else
 				{
-					StoreMesh(item, ReshapedMesh);
-				}
+					if (!bReshapeVertices)
+					{
+						// Clone without Skeleton, Physics or Poses 
+						EMeshCopyFlags CopyFlags = ~(
+							EMeshCopyFlags::WithSkeleton |
+							EMeshCopyFlags::WithPhysicsBody |
+							EMeshCopyFlags::WithAdditionalPhysics |
+							EMeshCopyFlags::WithPoses);
 
+						Ptr<Mesh> NoVerticesReshpedMesh = CloneOrTakeOver(BaseMesh);
+
+						NoVerticesReshpedMesh->SetSkeleton(ReshapedMeshResult->GetSkeleton().get());
+						NoVerticesReshpedMesh->SetPhysicsBody(ReshapedMeshResult->GetPhysicsBody().get());
+						NoVerticesReshpedMesh->AdditionalPhysicsBodies = ReshapedMeshResult->AdditionalPhysicsBodies;
+						NoVerticesReshpedMesh->BonePoses = ReshapedMeshResult->BonePoses;
+
+						Release(BaseMesh);
+						Release(ReshapedMeshResult);
+						StoreMesh(item, NoVerticesReshpedMesh);
+					}
+					else
+					{
+						Release(BaseMesh);
+						StoreMesh(item, ReshapedMeshResult);
+					}
+				}
 				break;
 			}
 
@@ -2188,8 +2583,8 @@ namespace mu
 				if (Args.Morph)
 				{
 					AddOp(FScheduledOp(item.At, item, 1), 
-						  FScheduledOp(Args.Morph, item), 
-						  FScheduledOp(Args.Reshape, item));
+						FScheduledOp(Args.Morph, item),
+						FScheduledOp(Args.Reshape, item));
 				}
 				else 
 				{
@@ -2206,23 +2601,26 @@ namespace mu
 
 				if (ReshapeMesh)
 				{
-					// Clone without Skeleton, Physics or Poses 
-					EMeshCloneFlags CloneFlags = ~(
-							EMeshCloneFlags::WithSkeleton    | 
-							EMeshCloneFlags::WithPhysicsBody | 
-							EMeshCloneFlags::WithPoses);
+					// Copy without Skeleton, Physics or Poses 
+					EMeshCopyFlags CopyFlags = ~(
+							EMeshCopyFlags::WithSkeleton    | 
+							EMeshCopyFlags::WithPhysicsBody | 
+							EMeshCopyFlags::WithPoses);
 
-					Ptr<Mesh> ResultPtr = MorphedMesh->Clone(CloneFlags);
-					ResultPtr->SetSkeleton(ReshapeMesh->GetSkeleton().get());
-					ResultPtr->SetPhysicsBody(ReshapeMesh->GetPhysicsBody().get());
-					ResultPtr->BonePoses = ReshapeMesh->BonePoses;
+					Ptr<Mesh> Result = CreateMesh(MorphedMesh->GetDataSize());
+					Result->CopyFrom(*MorphedMesh, CopyFlags);
 
-					StoreMesh(item, ResultPtr);
+					Result->SetSkeleton(ReshapeMesh->GetSkeleton().get());
+					Result->SetPhysicsBody(ReshapeMesh->GetPhysicsBody().get());
+					Result->BonePoses = ReshapeMesh->BonePoses;
+
+					Release(MorphedMesh);
+					Release(ReshapeMesh);
+					StoreMesh(item, Result);
 				}
 				else
 				{
-					Ptr<Mesh> ResultPtr = MorphedMesh->Clone();
-					StoreMesh(item, ResultPtr);
+					StoreMesh(item, MorphedMesh);
 				}
 
 				break;
@@ -2241,57 +2639,73 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.source)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( args.source, item),
-                               FScheduledOp( args.skeleton, item) );
-                    }
-                    else
-                    {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (args.source)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.source, item),
+						FScheduledOp(args.skeleton, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
             	MUTABLE_CPUPROFILER_SCOPE(ME_SETSKELETON_1)
             		
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(args.source,item) );
-                Ptr<const Mesh> pSkeleton = LoadMesh( FCacheAddress(args.skeleton,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source, item));
+                Ptr<const Mesh> pSkeleton = LoadMesh(FCacheAddress(args.skeleton, item));
 
                 // Only if both are valid.
-                MeshPtr pResult;
                 if (Source && pSkeleton)
                 {
-                    if ( Source->GetSkeleton()
-                         &&
-                         !Source->GetSkeleton()->m_bones.IsEmpty() )
+                    if (Source->GetSkeleton() && !Source->GetSkeleton()->m_bones.IsEmpty())
                     {
                         // For some reason we already have bone data, so we can't just overwrite it
                         // or the skinning may break. This may happen because of a problem in the
                         // optimiser that needs investigation.
                         // \TODO Be defensive, for now.
-                        UE_LOG(LogMutableCore,Warning, TEXT("Performing a MeshRemapSkeleton, instead of MeshSetSkeletonData because source mesh already has some skeleton."));
-                        pResult = MeshRemapSkeleton( Source.get(), pSkeleton->GetSkeleton().get() );
-                        if (!pResult)
+                        UE_LOG(LogMutableCore, Warning, TEXT("Performing a MeshRemapSkeleton, instead of MeshSetSkeletonData because source mesh already has some skeleton."));
+
+						Ptr<Mesh> Result = CreateMesh(Source->GetDataSize());
+
+						bool bOutSuccess = false;
+                        MeshRemapSkeleton(Result.get(), Source.get(), pSkeleton->GetSkeleton().get(), bOutSuccess);
+
+						Release(pSkeleton);
+
+                        if (!bOutSuccess)
                         {
-                            pResult = Source->Clone();
+							Release(Result);
+							StoreMesh(item, Source);
                         }
+						else
+						{
+							//Result->GetPrivate()->CheckIntegrity();
+							Release(Source);
+							StoreMesh(item, Result);
+						}
                     }
                     else
                     {
-                        pResult = Source->Clone();
-                        pResult->SetSkeleton(pSkeleton->GetSkeleton().get());
+						Ptr<Mesh> Result = CloneOrTakeOver(Source);
+
+                        Result->SetSkeleton(pSkeleton->GetSkeleton().get());
+
+						//Result->GetPrivate()->CheckIntegrity();
+						Release(pSkeleton);
+						StoreMesh(item, Result);
                     }
-                    //pResult->GetPrivate()->CheckIntegrity();
                 }
-                else if (Source)
+                else
                 {
-                    pResult = Source->Clone();
+					Release(pSkeleton);
+					StoreMesh(item, Source);
                 }
 
-                StoreMesh( item, pResult );
                 break;
             }
 
@@ -2311,23 +2725,29 @@ namespace mu
             const uint8* data = pModel->GetPrivate()->m_program.GetOpArgsPointer(item.At);
 
             OP::ADDRESS source;
-            FMemory::Memcpy(&source,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
+            FMemory::Memcpy(&source,data,sizeof(OP::ADDRESS)); 
+			data += sizeof(OP::ADDRESS);
 
             TArray<FScheduledOp> conditions;
 			TArray<OP::ADDRESS> masks;
 
             uint16 removes;
-			FMemory::Memcpy(&removes,data,sizeof(uint16)); data += sizeof(uint16);
+			FMemory::Memcpy(&removes,data,sizeof(uint16)); 
+			data += sizeof(uint16);
 
             for( uint16 r=0; r<removes; ++r)
             {
                 OP::ADDRESS condition;
-				FMemory::Memcpy(&condition,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
-                conditions.Emplace( condition, item );
+				FMemory::Memcpy(&condition,data,sizeof(OP::ADDRESS)); 
+				data += sizeof(OP::ADDRESS);
+                
+				conditions.Emplace(condition, item);
 
                 OP::ADDRESS mask;
-				FMemory::Memcpy(&mask,data,sizeof(OP::ADDRESS)); data += sizeof(OP::ADDRESS);
-                masks.Add( mask );
+				FMemory::Memcpy(&mask,data,sizeof(OP::ADDRESS)); 
+				data += sizeof(OP::ADDRESS);
+
+                masks.Add(mask);
             }
 
 
@@ -2335,17 +2755,18 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (source)
-                {
-                    // Request the conditions
-                    AddOp( FScheduledOp( item.At, item, 1), conditions );
-                }
-                else
-                {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (source)
+				{
+					// Request the conditions
+					AddOp(FScheduledOp(item.At, item, 1), conditions);
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
         		MUTABLE_CPUPROFILER_SCOPE(ME_REMOVEMASK_1)
@@ -2360,19 +2781,19 @@ namespace mu
                     bool value = true;
                     if (conditions[r].At)
                     {
-                        value = LoadBool( FCacheAddress(conditions[r].At, item) );
+                        value = LoadBool(FCacheAddress(conditions[r].At, item));
                     }
 
                     if (value)
                     {
-                        deps.Emplace( masks[r], item );
+                        deps.Emplace(masks[r], item);
                     }
                 }
 
                 if (source)
                 {
-                        AddOp( FScheduledOp( item.At, item, 2), deps );
-                    }
+					AddOp(FScheduledOp(item.At, item, 2), deps);
+				}
                 break;
             }
 
@@ -2381,30 +2802,57 @@ namespace mu
             	MUTABLE_CPUPROFILER_SCOPE(ME_REMOVEMASK_2)
             	
                 // \todo: single remove operation with all masks?
-                Ptr<const Mesh> Source = LoadMesh( FCacheAddress(source,item) );
+                Ptr<const Mesh> Source = LoadMesh(FCacheAddress(source, item));
 
-                MeshPtrConst pResult = Source;
+				if (Source)
+				{
+					Ptr<Mesh> Result = CreateMesh(Source->GetDataSize());
+					Result->CopyFrom(*Source);
 
-                for( size_t r=0; pResult && r<conditions.Num(); ++r )
-                {
-                    // If there is no expression, we'll assume true.
-                    bool value = true;
-                    if (conditions[r].At)
-                    {
-                        value = LoadBool( FCacheAddress(conditions[r].At, item) );
-                    }
+					Release(Source);
 
-                    if (value)
-                    {
-                        Ptr<const Mesh> Mask = LoadMesh( FCacheAddress(masks[r],item) );
-                        if (Mask)
-                        {
-                            pResult = MeshRemoveMask(pResult.get(), Mask.get());
-                        }
-                    }
-                }
+					for (int32 r = 0; r < conditions.Num(); ++r)
+					{
+						// If there is no expression, we'll assume true.
+						bool value = true;
+						if (conditions[r].At)
+						{
+							value = LoadBool(FCacheAddress(conditions[r].At, item));
+						}
 
-                StoreMesh( item, pResult );
+						if (value)
+						{
+							Ptr<const Mesh> Mask = LoadMesh(FCacheAddress(masks[r], item));
+							if (Mask)
+							{
+								//MeshRemoveMask will make a copy of Result, try to make room for it. 
+								Ptr<Mesh> IterResult = CreateMesh(Result->GetDataSize());
+
+								bool bOutSuccess = false;
+								MeshRemoveMask(IterResult.get(), Result.get(), Mask.get(), bOutSuccess);
+
+								Release(Mask);
+
+								if (!bOutSuccess)
+								{
+									Release(IterResult);
+								}
+								else
+								{
+									Swap(Result, IterResult);
+									Release(IterResult);
+								}
+							}
+						}
+					}
+
+					StoreMesh(item, Result);
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+
                 break;
             }
 
@@ -2421,34 +2869,52 @@ namespace mu
             switch (item.Stage)
             {
             case 0:
-                if (args.mesh)
-                {
-                        AddOp( FScheduledOp( item.At, item, 1),
-                               FScheduledOp( args.mesh, item),
-                               FScheduledOp( args.projector, item));
-                }
-                else
-                {
-                    StoreMesh( item, nullptr );
-                }
-                break;
-
+			{
+				if (args.mesh)
+				{
+					AddOp(FScheduledOp(item.At, item, 1),
+						FScheduledOp(args.mesh, item),
+						FScheduledOp(args.projector, item));
+				}
+				else
+				{
+					StoreMesh(item, nullptr);
+				}
+				break;
+			}
             case 1:
             {
 				MUTABLE_CPUPROFILER_SCOPE(ME_PROJECT_1)
 
-                Ptr<const Mesh> pMesh = LoadMesh( FCacheAddress(args.mesh,item) );
-                FProjector Projector = LoadProjector( FCacheAddress(args.projector,item) );
+                Ptr<const Mesh> pMesh = LoadMesh(FCacheAddress(args.mesh,item));
+                const FProjector Projector = LoadProjector(FCacheAddress(args.projector, item));
 
                 // Only if both are valid.
-                MeshPtr pResult;
-                if (pMesh
-                    && pMesh.get()
-                    && pMesh.get()->GetVertexBuffers().GetBufferCount() > 0 )
+                if (pMesh && pMesh->GetVertexBuffers().GetBufferCount() > 0)
                 {
-                    pResult = MeshProject(pMesh.get(), Projector);
+					Ptr<Mesh> Result = CreateMesh();
+
+					bool bOutSuccess = false;
+					MeshProject(Result.get(), pMesh.get(), Projector, bOutSuccess);
+
+					if (!bOutSuccess)
+					{
+						Release(Result);
+						StoreMesh(item, pMesh);
+					}
+					else
+					{	
+//						Result->GetPrivate()->CheckIntegrity();
+						Release(pMesh);
+						StoreMesh(item, Result);
+					}
                 }
-                StoreMesh( item, pResult );
+				else
+				{
+					Release(pMesh);
+					StoreMesh(item, nullptr);
+				}
+
                 break;
             }
 
@@ -2465,6 +2931,7 @@ namespace mu
 			switch (item.Stage)
 			{
 			case 0:
+			{
 				if (args.source)
 				{
 					AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.source, item));
@@ -2474,16 +2941,29 @@ namespace mu
 					StoreMesh(item, nullptr);
 				}
 				break;
-
+			}
 			case 1:
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ME_OPTIMIZESKINNING_1)
 
 				Ptr<const Mesh> Source = LoadMesh(FCacheAddress(args.source, item));
 
-				MeshPtrConst pResult = MeshOptimizeSkinning(Source.get());
+				Ptr<Mesh> Result = CreateMesh();
 
-				StoreMesh(item, pResult ? pResult : Source);
+				bool bOutSuccess = false;
+				MeshOptimizeSkinning(Result.get(), Source.get(), bOutSuccess);
+
+				if (!bOutSuccess)
+				{
+					Release(Result);
+					StoreMesh(item, Source);
+				}
+				else
+				{
+					Release(Source);
+					StoreMesh(item, Result);
+				}
+
 				break;
 			}
 
@@ -3934,6 +4414,7 @@ namespace mu
 					if (pMesh)
 					{
 						ImageRasterMesh(pMesh.get(), ResultImage.get(), args.blockIndex, CropMin, UncroppedSize);
+						Release(pMesh);
 					}
 
 					// Stop execution.
@@ -3978,18 +4459,13 @@ namespace mu
 						Data.RasterMesh.Mip = static_cast<uint8>(FMath::FloorToInt32(Data.RasterMesh.MipValue));
 					}
 				}
-	
-				// Set mesh and projector back to the cache to prevent possible code re-execution.
-				// this needs to be done before the operation is re-scheduled otherwise the execution may deadlock.	
-				// TODO: Review if this is a good way of reusing data between stages.
-				StoreMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0), pMesh);
-				StoreProjector(FScheduledOp::FromOpAndOptions(args.projector, item, 0), Projector);
-				
+		
+				const int32 DataHeapAddress = m_heapData.Add(Data);
 
-				int32 DataHeapAddress = m_heapData.Add(Data);
+				// pMesh is need again in the next stage, store it in the heap.
+				m_heapData[DataHeapAddress].Resource = const_cast<Mesh*>(pMesh.get());
 
 				AddOp(FScheduledOp(item.At, item, 2, DataHeapAddress),
-					FScheduledOp::FromOpAndOptions(args.mesh, item, 0),
 					FScheduledOp::FromOpAndOptions(args.projector, item, 0),
 					FScheduledOp::FromOpAndOptions(args.image, item, Data.RasterMesh.Mip),
 					FScheduledOp(args.mask, item),
@@ -4010,7 +4486,11 @@ namespace mu
 					break;
 				}
 
-                Ptr<const Mesh> pMesh = LoadMesh(FScheduledOp::FromOpAndOptions(args.mesh, item, 0));
+				FScheduledOpData& Data = m_heapData[item.CustomState];
+
+				// Unsafe downcast, should be fine as it is known to be a Mesh.
+				Ptr<const Mesh> pMesh = static_cast<Mesh*>(Data.Resource.get());
+				Data.Resource = nullptr;
 
 				if (!pMesh)
 				{
@@ -4040,8 +4520,6 @@ namespace mu
 					}
 					--MipsToDrop;
 				}
-
-				FScheduledOpData Data = m_heapData[item.CustomState];
 
 				// Raster with projection
 				Ptr<const Image> Source = LoadImage(FCacheAddress(args.image, item.ExecutionIndex, Data.RasterMesh.Mip));
@@ -4177,6 +4655,7 @@ namespace mu
 					}
 				}
 
+				Release(pMesh);
 				Release(Source);
 				Release(Mask);
 				StoreImage(item, pNew);
@@ -5318,6 +5797,7 @@ namespace mu
 
 				Ptr<const Layout> Result = LayoutFromMesh_RemoveBlocks(Mesh.get(), args.LayoutIndex);
 
+				Release(Mesh);
 				StoreLayout(item, Result);
 				break;
 			}

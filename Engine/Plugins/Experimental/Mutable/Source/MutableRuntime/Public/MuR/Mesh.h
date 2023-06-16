@@ -117,27 +117,30 @@ namespace mu
 		ClipDeformNormalProject = 3	
 	};
 
-	enum class EMeshCloneFlags : uint32
+	enum class EMeshCopyFlags : uint32
 	{
 		None = 0,
-		WithSkeletalMesh      = 1 << 1,
-		WithSurfaces          = 1 << 2,
-		WithSkeleton          = 1 << 3,
-		WithPhysicsBody       = 1 << 4,
-		WithFaceGroups        = 1 << 5,
-		WithTags              = 1 << 6,
-		WithVertexBuffers     = 1 << 7,
-		WithIndexBuffers      = 1 << 8,
-		WithFaceBuffers       = 1 << 9,
+		WithSkeletalMesh = 1 << 1,
+		WithSurfaces = 1 << 2,
+		WithSkeleton = 1 << 3,
+		WithPhysicsBody = 1 << 4,
+		WithFaceGroups = 1 << 5,
+		WithTags = 1 << 6,
+		WithVertexBuffers = 1 << 7,
+		WithIndexBuffers = 1 << 8,
+		WithFaceBuffers = 1 << 9,
 		WithAdditionalBuffers = 1 << 10,
-		WithLayouts           = 1 << 11,
-		WithPoses			  = 1 << 12,
-		WithBoneMap			  = 1 << 13,
-		WithSkeletonIDs		  = 1 << 14,
-		WithAdditionalPhysics = 1 << 15
+		WithLayouts = 1 << 11,
+		WithPoses = 1 << 12,
+		WithBoneMap = 1 << 13,
+		WithSkeletonIDs = 1 << 14,
+		WithAdditionalPhysics = 1 << 15,
+
+		AllFlags = 0xFFFFFFFF
 	};
 	
-	ENUM_CLASS_FLAGS(EMeshCloneFlags);
+	ENUM_CLASS_FLAGS(EMeshCopyFlags);
+
 
     //! \brief Mesh object containing any number of buffers with any number of channels.
     //! The buffers can be per-index or per-vertex.
@@ -157,7 +160,10 @@ namespace mu
         MeshPtr Clone() const;
 		
 		// Clone with flags allowing to not include some parts in the cloned mesh
-		MeshPtr Clone(EMeshCloneFlags Flags) const;
+		MeshPtr Clone(EMeshCopyFlags Flags) const;
+
+		// Copy form another mesh.
+		void CopyFrom(const Mesh& From, EMeshCopyFlags Flags = EMeshCopyFlags::AllFlags);
 
         //! Serialisation
         static void Serialise( const Mesh* p, OutputArchive& arch );

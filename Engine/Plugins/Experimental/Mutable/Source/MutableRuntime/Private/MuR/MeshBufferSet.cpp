@@ -84,17 +84,23 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void FMeshBufferSet::SetElementCount(int32 count)
+	void FMeshBufferSet::SetElementCount(int32 Count)
 	{
-		check(count >= 0);
+		check(Count >= 0);
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-		m_elementCount = count;
+		// If the new size is 0, allow shrinking.
+		// TODO: Add better shrink policy or let the user decide. Denying shrinking
+		// unconditionally could mean having small meshes that use lots of memory. For now
+		// allow it if no other allocation will be done.  
+		const bool bAllowShrinking = Count == 0;
 
 		for (MESH_BUFFER& buf : m_buffers)
 		{
-			buf.m_data.SetNumUninitialized(buf.m_elementSize * count, false);
+			buf.m_data.SetNumUninitialized(buf.m_elementSize * Count, bAllowShrinking);
 		}
+		
+		m_elementCount = Count;
 	}
 
 
@@ -407,6 +413,17 @@ namespace mu
 		return res;
 	}
 
+	int32 FMeshBufferSet::GetAllocatedSize() const
+	{
+		int32 ByteCount = 0;
+
+		for (int32 BufferIndex = 0; BufferIndex < m_buffers.Num(); ++BufferIndex)
+		{
+			ByteCount += m_buffers[BufferIndex].m_data.GetAllocatedSize();
+		}
+
+		return ByteCount;
+	}
 
 	//-----------------------------------------------------------------------------------------
 	void FMeshBufferSet::CopyElement(uint32_t fromIndex, uint32_t toIndex)

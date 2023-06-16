@@ -14,28 +14,39 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //!
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshRemapIndices( const Mesh* pBase, const Mesh* pReference )
+    inline void MeshRemapIndices(Mesh* Result, const Mesh* pBase, const Mesh* pReference, bool& bOutSuccess)
     {
         MUTABLE_CPUPROFILER_SCOPE(MeshRemapIndices);
 
-        if (!pBase) return nullptr;
+		bOutSuccess = true;
 
-        MeshPtr pDest = pBase->Clone();
+		if (!pBase)
+		{
+			bOutSuccess = false;
+			return;
+		}
 
-        if (!pReference) return pDest;
+		if (!pReference)
+		{
+			bOutSuccess = false;
+			return;
+		}
 
         // Number of vertices to modify
         uint32_t vcountReference = pReference->GetVertexBuffers().GetElementCount();
         uint32_t vcountBase = pBase->GetVertexBuffers().GetElementCount();
         if ( !vcountReference || !vcountBase )
         {
-            return pDest;
+			bOutSuccess = false;
+			return;
         }
+
+		Result->CopyFrom(*pBase);
 
         // Iterator of the vertex ids of the base vertices
         UntypedMeshBufferIteratorConst itReferenceId( pReference->GetVertexBuffers(), MBS_VERTEXINDEX );
 
-        FMeshBufferSet& verts = pDest->m_VertexBuffers;
+        FMeshBufferSet& verts = Result->m_VertexBuffers;
         for ( auto& buf: verts.m_buffers )
         {
             for ( auto& chan: buf.m_channels )
@@ -80,8 +91,6 @@ namespace mu
                 }
             }
         }
-
-        return pDest;
     }
 
 }

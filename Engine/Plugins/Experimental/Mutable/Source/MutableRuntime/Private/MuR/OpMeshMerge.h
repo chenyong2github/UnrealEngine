@@ -12,20 +12,24 @@
 namespace mu
 {
 
+	struct FMeshMergeScratchMeshes
+	{
+		Ptr<Mesh> FirstReformat;
+		Ptr<Mesh> SecondReformat;
+	};
 
 	//---------------------------------------------------------------------------------------------
 	//! Merge two meshes into one new mesh
 	//---------------------------------------------------------------------------------------------
-	inline MeshPtr MeshMerge(const Mesh* pFirst, const Mesh* pSecond, bool bMergeSurfaces)
+	inline void MeshMerge(Mesh* Result, const Mesh* pFirst, const Mesh* pSecond, bool bMergeSurfaces, 
+		FMeshMergeScratchMeshes& ScratchMeshes)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(MeshMerge);
-
-		MeshPtr pResult = new Mesh;
 
 		// Should never happen, but fixes static analysis warnings.
 		if (!(pFirst && pSecond))
 		{
-			return pResult;
+			return;
 		}
 
 		// Indices
@@ -36,13 +40,13 @@ namespace mu
 
 			const int32 FirstCount = pFirst->GetIndexBuffers().GetElementCount();
 			const int32 SecondCount = pSecond->GetIndexBuffers().GetElementCount();
-			pResult->GetIndexBuffers().SetElementCount(FirstCount + SecondCount);
+			Result->GetIndexBuffers().SetElementCount(FirstCount + SecondCount);
 
 			check(pFirst->GetIndexBuffers().GetBufferCount() <= 1);
 			check(pSecond->GetIndexBuffers().GetBufferCount() <= 1);
-			pResult->GetIndexBuffers().SetBufferCount(1);
+			Result->GetIndexBuffers().SetBufferCount(1);
 
-			MESH_BUFFER& ResultIndexBuffer = pResult->GetIndexBuffers().m_buffers[0];
+			MESH_BUFFER& ResultIndexBuffer = Result->GetIndexBuffers().m_buffers[0];
 
 			const MESH_BUFFER& FirstIndexBuffer = pFirst->GetIndexBuffers().m_buffers[0];
 			const MESH_BUFFER& SecondIndexBuffer = pSecond->GetIndexBuffers().m_buffers[0];
@@ -330,15 +334,15 @@ namespace mu
 
 			const int32 FirstCount = pFirst->GetFaceBuffers().GetElementCount();
 			const int32 SecondCount = pSecond->GetFaceBuffers().GetElementCount();
-			pResult->GetFaceBuffers().SetElementCount(FirstCount + SecondCount);
-			pResult->GetFaceBuffers().SetBufferCount(pFirst->GetFaceBuffers().GetBufferCount());
+			Result->GetFaceBuffers().SetElementCount(FirstCount + SecondCount);
+			Result->GetFaceBuffers().SetBufferCount(pFirst->GetFaceBuffers().GetBufferCount());
 
 			// Merge only the buffers present in the first mesh
-			for (int32 b = 0; b < pResult->GetFaceBuffers().GetBufferCount(); ++b)
+			for (int32 b = 0; b < Result->GetFaceBuffers().GetBufferCount(); ++b)
 			{
 				const MESH_BUFFER& first = pFirst->GetFaceBuffers().m_buffers[b];
 
-				MESH_BUFFER& result = pResult->GetFaceBuffers().m_buffers[b];
+				MESH_BUFFER& result = Result->GetFaceBuffers().m_buffers[b];
 				result.m_channels = first.m_channels;
 				result.m_elementSize = first.m_elementSize;
 				result.m_data.SetNum(result.m_elementSize * (FirstCount + SecondCount));
@@ -394,7 +398,7 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Layouts);
 
-			pResult->m_layouts.SetNum(pFirst->m_layouts.Num());
+			Result->m_layouts.SetNum(pFirst->m_layouts.Num());
 			for (int i = 0; i < pFirst->m_layouts.Num(); ++i)
 			{
 				const Layout* pF = pFirst->m_layouts[i].get();
@@ -407,7 +411,7 @@ namespace mu
 					pR->m_blocks.Append(pS->m_blocks);
 				}
 
-				pResult->m_layouts[i] = pR;
+				Result->m_layouts[i] = pR;
 			}
 		}
 
@@ -416,11 +420,11 @@ namespace mu
 		//---------------------------
 
 		// Add SkeletonIDs
-		pResult->SkeletonIDs = pFirst->SkeletonIDs;
+		Result->SkeletonIDs = pFirst->SkeletonIDs;
 
 		for (const int32 SkeletonID : pSecond->SkeletonIDs)
 		{
-			pResult->SkeletonIDs.AddUnique(SkeletonID);
+			Result->SkeletonIDs.AddUnique(SkeletonID);
 		}
 
 		// Do they have the same skeleton?
@@ -446,7 +450,7 @@ namespace mu
 			const int32 NumBonesSecond = pSecondSkeleton ? pSecondSkeleton->GetBoneCount() : 0;
 
 			pResultSkeleton = pFirstSkeleton ? pFirstSkeleton->Clone() : new Skeleton;
-			pResult->SetSkeleton(pResultSkeleton);
+			Result->SetSkeleton(pResultSkeleton);
 
 			SecondToResultBoneIndices.SetNumUninitialized(NumBonesSecond);
 
@@ -487,7 +491,7 @@ namespace mu
 		}
 		else
 		{
-			pResult->SetSkeleton(pFirst->GetSkeleton());
+			Result->SetSkeleton(pFirst->GetSkeleton());
 		}
 
 
@@ -506,7 +510,7 @@ namespace mu
 			MUTABLE_CPUPROFILER_SCOPE(Surfaces);
 			
 			const int32 NumFirstBoneMapIndices = pFirst->BoneMapIndices.Num();
-			pResult->BoneMapIndices = pFirst->BoneMapIndices;
+			Result->BoneMapIndices = pFirst->BoneMapIndices;
 
 			if (bMergeSurfaces)
 			{
@@ -517,47 +521,47 @@ namespace mu
 				{
 					const int32 SecondBoneIndex = pSecond->BoneMapIndices[SecondBoneMapIndex];
 					const int32 BoneIndex = bMergeSkeletons ? SecondToResultBoneIndices[SecondBoneIndex] : SecondBoneIndex;
-					const int32 BoneMapIndex = pResult->BoneMapIndices.AddUnique(BoneIndex);
+					const int32 BoneMapIndex = Result->BoneMapIndices.AddUnique(BoneIndex);
 					RemappedBoneMapIndices[SecondBoneMapIndex] = BoneMapIndex;
 
 					bRemapBoneIndices = bRemapBoneIndices || BoneMapIndex != SecondBoneMapIndex;
 				}
 
-				MESH_SURFACE& NewSurface = pResult->m_surfaces.AddDefaulted_GetRef();
+				MESH_SURFACE& NewSurface = Result->m_surfaces.AddDefaulted_GetRef();
 				NewSurface.m_vertexCount = pFirst->GetVertexCount() + pSecond->GetVertexCount();
 				NewSurface.m_indexCount = pFirst->GetIndexCount() + pSecond->GetIndexCount();
-				NewSurface.BoneMapCount = pResult->BoneMapIndices.Num();
+				NewSurface.BoneMapCount = Result->BoneMapIndices.Num();
 			}
 			else
 			{
 				// Add the bonemaps of the second mesh with the fixed BoneIndices
 				const int32 NumBoneMapIndices = NumFirstBoneMapIndices + NumSecondBoneMapIndices;
-				pResult->BoneMapIndices.Reserve(NumBoneMapIndices);
+				Result->BoneMapIndices.Reserve(NumBoneMapIndices);
 
 				for (const uint16& BoneIndex : pSecond->BoneMapIndices)
 				{
-					pResult->BoneMapIndices.Add(bMergeSkeletons ? SecondToResultBoneIndices[BoneIndex] : BoneIndex);
+					Result->BoneMapIndices.Add(bMergeSkeletons ? SecondToResultBoneIndices[BoneIndex] : BoneIndex);
 				}
 
 				// Add pFirst surfaces
-				pResult->m_surfaces = pFirst->m_surfaces;
+				Result->m_surfaces = pFirst->m_surfaces;
 
 				const int32 FirstVertexIndex = pFirst->GetVertexCount();
 				const int32 FirstIndexIndex = pFirst->GetIndexCount();
 
 				check(pSecond->m_surfaces.Num() == 1);
-				MESH_SURFACE& NewSurface = pResult->m_surfaces.Add_GetRef(pSecond->m_surfaces[0]);
+				MESH_SURFACE& NewSurface = Result->m_surfaces.Add_GetRef(pSecond->m_surfaces[0]);
 				NewSurface.m_firstVertex += FirstVertexIndex;
 				NewSurface.m_firstIndex += FirstIndexIndex;
 				NewSurface.BoneMapIndex += NumFirstBoneMapIndices;
 			}
 
-			for (const MESH_SURFACE& Surface : pResult->m_surfaces)
+			for (const MESH_SURFACE& Surface : Result->m_surfaces)
 			{
 				MaxBoneMapIndices = FMath::Max(MaxBoneMapIndices, Surface.BoneMapCount);
 			}
 
-			pResult->BoneMapIndices.Shrink();
+			Result->BoneMapIndices.Shrink();
 		}
 
 
@@ -566,19 +570,19 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Pose);
 
-			pResult->BonePoses.Reserve(pResult->GetSkeleton()->GetBoneCount());
+			Result->BonePoses.Reserve(Result->GetSkeleton()->GetBoneCount());
 
 			// Copy poses from the first mesh
-			pResult->BonePoses = pFirst->BonePoses;
+			Result->BonePoses = pFirst->BonePoses;
 
 			// Add or override bone poses
 			for (const Mesh::FBonePose& SecondBonePose : pSecond->BonePoses)
 			{
-				const int32 ResultBoneIndex = pResult->FindBonePose(SecondBonePose.BoneName.c_str());
+				const int32 ResultBoneIndex = Result->FindBonePose(SecondBonePose.BoneName.c_str());
 
 				if (ResultBoneIndex != INDEX_NONE)
 				{
-					Mesh::FBonePose& ResultBonePose = pResult->BonePoses[ResultBoneIndex];
+					Mesh::FBonePose& ResultBonePose = Result->BonePoses[ResultBoneIndex];
 
 					// TODO: Not sure how to tune this priority, review it.
 					// For now use a similar strategy as before. 
@@ -598,11 +602,11 @@ namespace mu
 				}
 				else
 				{
-					pResult->BonePoses.Add(SecondBonePose);
+					Result->BonePoses.Add(SecondBonePose);
 				}
 			}
 
-			pResult->BonePoses.Shrink();
+			Result->BonePoses.Shrink();
 		}
 
 
@@ -708,7 +712,7 @@ namespace mu
 			if (SharedResultPhysicsBody.Get<1>())
 			{
 				// Only one or non of the meshes has physics, share the result.
-				pResult->SetPhysicsBody(SharedResultPhysicsBody.Get<0>());
+				Result->SetPhysicsBody(SharedResultPhysicsBody.Get<0>());
 			}
 			else
 			{
@@ -720,14 +724,14 @@ namespace mu
 					AppendPhysicsBodiesUnique(*MergedResultPhysicsBody, *pSecond->GetPhysicsBody()) ||
 					pFirst->GetPhysicsBody()->bBodiesModified || pSecond->GetPhysicsBody()->bBodiesModified;
 
-				pResult->SetPhysicsBody(MergedResultPhysicsBody);
+				Result->SetPhysicsBody(MergedResultPhysicsBody);
 			}
 
 			// Additional physics bodies.
 			const int32 MaxAdditionalPhysicsResultNum = pFirst->AdditionalPhysicsBodies.Num() + pSecond->AdditionalPhysicsBodies.Num();
 
-			pResult->AdditionalPhysicsBodies.Reserve(MaxAdditionalPhysicsResultNum);
-			pResult->AdditionalPhysicsBodies.Append(pFirst->AdditionalPhysicsBodies);
+			Result->AdditionalPhysicsBodies.Reserve(MaxAdditionalPhysicsResultNum);
+			Result->AdditionalPhysicsBodies.Append(pFirst->AdditionalPhysicsBodies);
 			
 			// Not very many additional bodies expected, do a quadratic search to have unique bodies based on external id.
 			const int32 NumSecondAdditionalBodies = pSecond->AdditionalPhysicsBodies.Num();
@@ -742,7 +746,7 @@ namespace mu
 				// may need to be contemplated at some point.
 				if (!Found)
 				{
-					pResult->AdditionalPhysicsBodies.Add(pSecond->AdditionalPhysicsBodies[Index]);
+					Result->AdditionalPhysicsBodies.Add(pSecond->AdditionalPhysicsBodies[Index]);
 				}
 			}
 		}
@@ -811,10 +815,10 @@ namespace mu
 				FastPath = FastPath && !bChangeBoneIndicesFormat;
 			}
 
-			MeshPtrConst pVFirst;
-			MeshPtrConst pVSecond;
-
-			if ( !FastPath )
+			Ptr<const Mesh> pVFirst;
+			Ptr<const Mesh> pVSecond;
+			
+			if (!FastPath)
 			{
                 MUTABLE_CPUPROFILER_SCOPE(SlowPath);
 
@@ -822,11 +826,11 @@ namespace mu
 
 				// Expand component counts in vertex channels of the format mesh
 				int32 vbcount = pFirst->GetVertexBuffers().m_buffers.Num();
-				pResult->GetVertexBuffers().SetBufferCount( (int)vbcount );
+				Result->GetVertexBuffers().SetBufferCount( (int)vbcount );
 
 				for ( int32 vb = 0; vb<vbcount; ++vb )
 				{
-					MESH_BUFFER& result = pResult->GetVertexBuffers().m_buffers[vb];
+					MESH_BUFFER& result = Result->GetVertexBuffers().m_buffers[vb];
 					const MESH_BUFFER& first = pFirst->GetVertexBuffers().m_buffers[vb];
 
 					result.m_channels = first.m_channels;
@@ -906,7 +910,7 @@ namespace mu
 
                     if (someChannel && allNewChannels)
                     {
-                        pResult->GetVertexBuffers().m_buffers.Add(buf);
+                        Result->GetVertexBuffers().m_buffers.Add(buf);
                     }
                 }
 
@@ -914,7 +918,7 @@ namespace mu
 				if(bChangeBoneIndicesFormat)
 				{
 					// Iterate all vertex buffers and update the format
-					FMeshBufferSet& VertexBuffers = pResult->GetVertexBuffers();
+					FMeshBufferSet& VertexBuffers = Result->GetVertexBuffers();
 					for (int32 VertexBufferIndex = 0; VertexBufferIndex < VertexBuffers.m_buffers.Num(); ++VertexBufferIndex)
 					{
 						MESH_BUFFER& result = VertexBuffers.m_buffers[VertexBufferIndex];
@@ -942,30 +946,45 @@ namespace mu
 				}
 
                 // Allocate vertices
-                pResult->GetVertexBuffers().SetElementCount( FirstCount + SecondCount );
-
+                Result->GetVertexBuffers().SetElementCount( FirstCount + SecondCount );
+				
 				// Convert the source meshes to the new format
-                if (pFirst->GetVertexBuffers().HasSameFormat(pResult->GetVertexBuffers()))
+                if (pFirst->GetVertexBuffers().HasSameFormat(Result->GetVertexBuffers()))
                 {
                     pVFirst = pFirst;
                 }
                 else
                 {
-                    pVFirst = MeshFormat( pFirst, pResult.get(), false, true, false, false, false );
+					check(ScratchMeshes.FirstReformat);
+
+					bool bOutSuccess = false;
+					MeshFormat(ScratchMeshes.FirstReformat.get(), pFirst, Result, false, true, false, false, false, bOutSuccess);
+					
+					if (bOutSuccess)
+					{
+						pVFirst = ScratchMeshes.FirstReformat;
+					}
                 }
 
 
-                if (pSecond->GetVertexBuffers().HasSameFormat(pResult->GetVertexBuffers()))
+                if (pSecond->GetVertexBuffers().HasSameFormat(Result->GetVertexBuffers()))
                 {
                     pVSecond = pSecond;
                 }
                 else
                 {
-                    pVSecond = MeshFormat( pSecond, pResult.get(), false, true, false, false, false );
+					check(ScratchMeshes.SecondReformat);
+
+					bool bOutSuccess = false;
+                    MeshFormat(ScratchMeshes.SecondReformat.get(), pSecond, Result, false, true, false, false, false, bOutSuccess);
+
+					if (bOutSuccess)
+					{
+						pVSecond = ScratchMeshes.SecondReformat;
+					}
                 }
 
-				check( pVFirst->GetVertexBuffers().HasSameFormat
-                                ( pVSecond->GetVertexBuffers() ) );
+				check(pVFirst->GetVertexBuffers().HasSameFormat(pVSecond->GetVertexBuffers()));
 			}
 			else
 			{
@@ -975,19 +994,19 @@ namespace mu
 				pVSecond = pSecond;
 			}
 
-
-			pResult->m_VertexBuffers = pVFirst->m_VertexBuffers;
-			pResult->GetVertexBuffers().SetElementCount( FirstCount + SecondCount );
+			Result->m_VertexBuffers = pVFirst->m_VertexBuffers;
+			Result->GetVertexBuffers().SetElementCount( FirstCount + SecondCount );
 
             // first copy all the vertex data
 			{
-				for ( int32 vb = 0; vb<pResult->GetVertexBuffers().m_buffers.Num(); ++vb )
+				for (int32 vb = 0; vb < Result->GetVertexBuffers().m_buffers.Num(); ++vb)
 				{
-					MESH_BUFFER& result = pResult->GetVertexBuffers().m_buffers[vb];
+					MESH_BUFFER& result = Result->GetVertexBuffers().m_buffers[vb];
 					const MESH_BUFFER& second = pVSecond->GetVertexBuffers().m_buffers[vb];
-					if ( SecondCount )
+
+					if (SecondCount)
 					{
-						int elemSize = pResult->GetVertexBuffers().GetElementSize((int)vb);
+						int elemSize = Result->GetVertexBuffers().GetElementSize((int)vb);
 						int firstSize = FirstCount * elemSize;
 						int secondSize = SecondCount * elemSize;
 
@@ -1006,7 +1025,7 @@ namespace mu
 				check(!RemappedBoneMapIndices.IsEmpty())
 
 				// Iterate all vertex buffers and update the format
-				FMeshBufferSet& VertexBuffers = pResult->GetVertexBuffers();
+				FMeshBufferSet& VertexBuffers = Result->GetVertexBuffers();
 				for (int32 VertexBufferIndex = 0; VertexBufferIndex < VertexBuffers.m_buffers.Num(); ++VertexBufferIndex)
 				{
 					MESH_BUFFER& ResultBuffer = VertexBuffers.m_buffers[VertexBufferIndex];
@@ -1099,28 +1118,12 @@ namespace mu
 		}
 
 		// Tags
-		pResult->m_tags = pFirst->m_tags;
+		Result->m_tags = pFirst->m_tags;
 
-		for (auto& secondTag : pSecond->m_tags)
+		for (const string& SecondTag : pSecond->m_tags)
 		{
-			bool repeated = false;
-
-			for (auto& firstTag : pFirst->m_tags)
-			{
-				if (firstTag == secondTag)
-				{
-					repeated = true;
-					break;
-				}				
-			}
-
-			if (!repeated)
-			{
-				pResult->m_tags.Add(secondTag);
-			}
+			Result->m_tags.AddUnique(SecondTag);
 		}
-
-		return pResult;
 	}
 	
 
@@ -1165,15 +1168,14 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! Return null if there is no need to remap the mesh
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshRemapSkeleton( const Mesh* SourceMesh, const Skeleton* Skeleton )
+    inline void MeshRemapSkeleton(Mesh* Result, const Mesh* SourceMesh, const Skeleton* Skeleton, bool& bOutSuccess)
     {
-        if (SourceMesh->GetVertexCount()==0
-             ||
-             !SourceMesh->GetSkeleton()
-             ||
-			SourceMesh->GetSkeleton()->GetBoneCount()==0 )
+		bOutSuccess = true;
+
+        if (SourceMesh->GetVertexCount() == 0 || !SourceMesh->GetSkeleton() || SourceMesh->GetSkeleton()->GetBoneCount() == 0)
         {
-            return nullptr;
+			bOutSuccess = false;
+            return;
         }
 
         mu::SkeletonPtrConst SourceSkeleton = SourceMesh->GetSkeleton();
@@ -1198,14 +1200,14 @@ namespace mu
 
         if (!bBonesRemapped)
         {
-            return nullptr;
+			bOutSuccess = false;
+            return;
         }
 
-		MeshPtr pResult = SourceMesh->Clone();
-		pResult->SetSkeleton(Skeleton);
-		pResult->SetBoneMap(RemappedBoneMap);
+		Result->CopyFrom(*SourceMesh);
 
-        return pResult;
+		Result->SetSkeleton(Skeleton);
+		Result->SetBoneMap(RemappedBoneMap);
     }
 	
 }

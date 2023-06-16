@@ -356,6 +356,8 @@ namespace mu
 		//! Get the total memory size of the buffers and this struct
 		int32 GetDataSize() const;
 
+		int32 GetAllocatedSize() const;
+
 		//! Compare the mesh buffer with another one, but ignore internal data like generated
 		//! vertex indices.
 		bool IsSpecialBufferToIgnoreInSimilar(const MESH_BUFFER& b) const;

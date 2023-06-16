@@ -166,6 +166,8 @@ namespace mu
 		m_pD->WorkingMemoryManager.PooledImages.Empty();
 		m_pD->WorkingMemoryManager.CacheResources.Empty();
 		check(m_pD->WorkingMemoryManager.TempImages.IsEmpty());
+		check(m_pD->WorkingMemoryManager.TempMeshes.IsEmpty());
+
 		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Pooled = 0;
 		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Temp = 0;
 		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Cached = 0;
@@ -363,10 +365,15 @@ namespace mu
 				mu::OP_TYPE opType = program.GetOpType(at);
 				if (GetOpDataType(opType) == DT_IMAGE)
 				{
+					// GetImageDesc may call normal execution paths where meshes are computed.
+					m_pD->WorkingMemoryManager.BeginRunnerThread();
+					
 					int8 executionOptions = 0;
 					CodeRunner Runner(m_pD->Settings, m_pD, EExecutionStrategy::MinimizeMemory, pLiveInstance->Model, pLiveInstance->OldParameters.get(), at, System::AllLODs, executionOptions, 0, FScheduledOp::EType::ImageDesc);
 					Runner.Run();
 					Runner.GetImageDescResult(OutDesc);
+
+					m_pD->WorkingMemoryManager.EndRunnerThread();
 				}
 
 				break;
@@ -479,6 +486,7 @@ namespace mu
 						}
 					}
 				}
+
 				for (Ptr<const Mesh>& Data : Instance.Cache->MeshResults)
 				{
 					if (Data)
@@ -809,10 +817,7 @@ namespace mu
 			if (!bUnrecoverableError)
 			{
 				Result = WorkingMemoryManager.LoadMesh(FCacheAddress(at, 0, 0), true);
-			}
-
-			// Debug check to see if we managed the op-hit-counts correctly
-			WorkingMemoryManager.CurrentInstanceCache->CheckHitCountsCleared();
+			}	
 		}
 
 		WorkingMemoryManager.EndRunnerThread();
@@ -918,6 +923,7 @@ namespace mu
 
 		InternalBytes += PooledImages.GetAllocatedSize();
 		InternalBytes += TempImages.GetAllocatedSize();
+		InternalBytes += TempMeshes.GetAllocatedSize();
 		InternalBytes += CacheResources.GetAllocatedSize();
 		InternalBytes += CachePerModel.GetAllocatedSize();
 		InternalBytes += LiveInstances.GetAllocatedSize();
@@ -1025,7 +1031,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    bool FWorkingMemoryManager::EnsureBudgetBelow( uint64 AdditionalMemory )
+	bool FWorkingMemoryManager::EnsureBudgetBelow( uint64 AdditionalMemory )
     {
 		MUTABLE_CPUPROFILER_SCOPE(EnsureBudgetBelow);
 
@@ -1043,7 +1049,7 @@ namespace mu
 			MUTABLE_CPUPROFILER_SCOPE(EnsureBudgetBelow_Measure);
 			RomBytes = TrackedBudgetBytes_Rom; // GetRomBytes();
 			PoolBytes = TrackedBudgetBytes_Pooled; // GetPooledBytes();
-			TempBytes = TrackedBudgetBytes_Temp; // GetTempBytes();
+			TempBytes = TrackedBudgetBytes_Temp + GetTempMeshesBytes(); // GetTempBytes();
 			TrackedCacheBytes = TrackedBudgetBytes_Cached; // GetTrackedCacheBytes();
 		}
 
@@ -1222,6 +1228,12 @@ namespace mu
 
 						if (Value == Removed)
 						{
+							int32 RemoveCount = CacheResources.Remove(Removed);
+							if (RemoveCount > 0)
+							{
+								TrackedBudgetBytes_Cached -= RemovedDataSize;
+							}
+
 							// \TODO: This is not very efficient, since it will search the data again.
 							Instance.Cache->SetUnused(RemIt.get_address());
 						}
@@ -1398,7 +1410,6 @@ namespace mu
 
         return bFinished;
     }
-
 
     //---------------------------------------------------------------------------------------------
     void FWorkingMemoryManager::MarkRomUsed( int32 romIndex, const TSharedPtr<const Model>& pModel )

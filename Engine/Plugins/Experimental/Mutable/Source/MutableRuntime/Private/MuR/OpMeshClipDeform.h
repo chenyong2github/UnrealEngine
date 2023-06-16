@@ -99,17 +99,19 @@ namespace mu
 		return true;
 	}
 
-	inline MeshPtr MeshClipDeform(const Mesh* BaseMesh, const Mesh* ShapeMesh, const float ClipWeightThreshold )
+	inline void MeshClipDeform(Mesh* Result, const Mesh* BaseMesh, const Mesh* ShapeMesh, const float ClipWeightThreshold, bool& bOutSuccess )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ClipDeform);
+		bOutSuccess = true;
 
 		if (!BaseMesh)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 
-		constexpr EMeshCloneFlags MeshCloneFlags = ~EMeshCloneFlags::WithVertexBuffers;
-		MeshPtr Result = BaseMesh->Clone(MeshCloneFlags);
+		constexpr EMeshCopyFlags MeshCopyFlags = ~EMeshCopyFlags::WithVertexBuffers;
+		Result->CopyFrom(*BaseMesh, MeshCopyFlags);
 	
 		int BarycentricDataBuffer = 0;
 		int BarycentricDataChannel = 0;
@@ -132,12 +134,12 @@ namespace mu
 
 		if (BarycentricDataBuffer < 0)
 		{
-			return Result;
+			return; 
 		}
 
 		if (!ShapeMesh)
 		{
-			return Result;
+			return; 
 		}
 
 		// \TODO: More checks
@@ -151,7 +153,7 @@ namespace mu
 		int ShapeTriangleCount = ShapeMesh->GetFaceCount();
 		if (!ShapeVertexCount || !ShapeTriangleCount)
 		{
-			return Result;
+			return; 
 		}
 
 		TArray<FVector3f> ShapePositions;
@@ -412,7 +414,7 @@ namespace mu
 
 			if ( NumRemainingVerts == NumOriginalVerts )
 			{
-				return Result;
+				return;
 			}
 		
 			// We are guaranteed to find a removed vertex.
@@ -452,6 +454,5 @@ namespace mu
 
 			Result->GetVertexBuffers().SetElementCount( DestEnd );
 		}
-		return Result;
 	}
 }

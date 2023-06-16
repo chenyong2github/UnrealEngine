@@ -21,19 +21,22 @@ struct MORPH_VERTEX
 	//! Create a diff from the mesh vertices. The meshes must have the same amount of vertices.
 	//! If the channel list is empty all the channels will be compared.
 	//---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshDifference( const Mesh* pBase, const Mesh* pTarget,
+    inline void MeshDifference( Mesh* Result, const Mesh* pBase, const Mesh* pTarget,
                                    int numChannels,
                                    const MESH_BUFFER_SEMANTIC* semantics,
                                    const int* semanticIndices,
-                                   bool ignoreTexCoords )
+                                   bool ignoreTexCoords, bool& bOutSuccess)
 
 	{
+		bOutSuccess = true;
+
         if (!pBase || !pTarget)
         {
-            return nullptr;
+			bOutSuccess = false;
+            return;
         }
 
-		bool correct =
+		bool bIsCorrect =
                 pBase
                 &&
 				( pBase->GetVertexBuffers().GetElementCount()
@@ -44,12 +47,13 @@ struct MORPH_VERTEX
                 ( pBase->GetVertexBuffers().GetElementCount()>0 )
                 ;
 
-		MeshPtr pDest = new Mesh();				
+		if (!bIsCorrect)
+		{
+			bOutSuccess = true; // Use the provided empty mesh as result.
+			return ;
+		}
 
-		if (!correct)
-            return pDest;
-
-		uint32_t vcount = pBase->GetVertexBuffers().GetElementCount();		
+		uint32 vcount = pBase->GetVertexBuffers().GetElementCount();		
 
 		// If no channels were specified, get them all
 		TArray<MESH_BUFFER_SEMANTIC> allSemantics;		
@@ -127,8 +131,8 @@ struct MORPH_VERTEX
 
 		// Create the morph mesh
 		{
-			pDest->GetVertexBuffers().SetElementCount( differentVertexCount );			
-			pDest->GetVertexBuffers().SetBufferCount( 1 );								
+			Result->GetVertexBuffers().SetElementCount( differentVertexCount );			
+			Result->GetVertexBuffers().SetBufferCount( 1 );								
 
 			TArray<MESH_BUFFER_SEMANTIC> semantic;
 			TArray<int> semanticIndex;
@@ -155,7 +159,7 @@ struct MORPH_VERTEX
 				offset += 16;				
 			}
 
-			pDest->GetVertexBuffers().SetBuffer
+			Result->GetVertexBuffers().SetBuffer
 				(
 					0,
 					offset,
@@ -172,20 +176,20 @@ struct MORPH_VERTEX
 			check(itBaseId.GetElementSize());
 
 			// Set the data
-			uint8_t* pDestData = pDest->GetVertexBuffers().GetBufferData( 0 );
+			uint8_t* ResultData = Result->GetVertexBuffers().GetBufferData( 0 );
 			for (size_t v=0; v<vcount; ++v)
 			{
 				if ( isVertexDifferent[v] )
 				{
 					// index
-					*((uint32_t*)pDestData) = itBaseId.GetAsUINT32();			
-					pDestData += 4;
+					*((uint32*)ResultData) = itBaseId.GetAsUINT32();			
+					ResultData += 4;
 
 					// all channels
 					for ( int c=0; c<numChannels; ++c )
 					{
-						FMemory::Memcpy(pDestData, &deltas[v * numChannels + c], 16);
-						pDestData += 4*4;											
+						FMemory::Memcpy(ResultData, &deltas[v * numChannels + c], 16);
+						ResultData += 4*4;											
 					}
 				}
 
@@ -196,10 +200,8 @@ struct MORPH_VERTEX
 
         // Rebuild surface data.
         // \todo: For now make single surfaced
-        pDest->m_surfaces.SetNum(0);
-        pDest->EnsureSurfaceData();
-
-		return pDest;
+        Result->m_surfaces.SetNum(0);
+        Result->EnsureSurfaceData();
 	}
 
 

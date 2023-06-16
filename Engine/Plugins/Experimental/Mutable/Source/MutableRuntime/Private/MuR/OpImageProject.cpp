@@ -2682,10 +2682,11 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 
 
 //-------------------------------------------------------------------------------------------------
-MeshPtr MeshProject_Optimised( const Mesh* pMesh,
-                               const FProjector& projector )
+void MeshProject_Optimised(Mesh* Result, const Mesh* pMesh, const FProjector& projector, bool& bOutSuccess)
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject_Optimised);
+
+	bOutSuccess = true;
 
     FVector3f projectorPosition,projectorDirection,projectorSide,projectorUp;
     projectorPosition = FVector3f( projector.position[0], projector.position[1], projector.position[2] );
@@ -2695,7 +2696,6 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
     // Create with worse case, shrink later.
     int vertexCount = pMesh->GetVertexCount();
     int indexCount = pMesh->GetIndexCount();
-    MeshPtr pResult;
     int currentVertex = 0;
     int currentIndex = 0;
 
@@ -2708,41 +2708,41 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
     case PROJECTOR_TYPE::PLANAR:
     case PROJECTOR_TYPE::CYLINDRICAL:
     {
-        pResult = CreateMeshOptimisedForProjection( layout );
-        pResult->GetVertexBuffers().SetElementCount(vertexCount);
-        pResult->GetIndexBuffers().SetElementCount(indexCount);
-		uint32* pResultIndices = reinterpret_cast<uint32*>( pResult->GetIndexBuffers().GetBufferData(0) );
-		OPTIMISED_VERTEX* pResultVertices = reinterpret_cast<OPTIMISED_VERTEX*>( pResult->GetVertexBuffers().GetBufferData(0) );
+        CreateMeshOptimisedForProjection(Result, layout);
+        Result->GetVertexBuffers().SetElementCount(vertexCount);
+        Result->GetIndexBuffers().SetElementCount(indexCount);
+		uint32* pResultIndices = reinterpret_cast<uint32*>(Result->GetIndexBuffers().GetBufferData(0));
+		OPTIMISED_VERTEX* pResultVertices = reinterpret_cast<OPTIMISED_VERTEX*>(Result->GetVertexBuffers().GetBufferData(0));
 
         // Get the vertices
-        check( pMesh->GetVertexBuffers().GetElementSize(0)==sizeof(OPTIMISED_VERTEX) );
-		const OPTIMISED_VERTEX* pVertices = reinterpret_cast<const OPTIMISED_VERTEX*>( pMesh->GetVertexBuffers().GetBufferData(0) );
+        check(pMesh->GetVertexBuffers().GetElementSize(0)==sizeof(OPTIMISED_VERTEX));
+		const OPTIMISED_VERTEX* pVertices = reinterpret_cast<const OPTIMISED_VERTEX*>(pMesh->GetVertexBuffers().GetBufferData(0));
 
         // Get the indices
-        check( pMesh->GetIndexBuffers().GetElementSize(0)==4 );
-		const uint32* pIndices = reinterpret_cast<const uint32*>( pMesh->GetIndexBuffers().GetBufferData(0) );
+        check(pMesh->GetIndexBuffers().GetElementSize(0) == 4);
+		const uint32* pIndices = reinterpret_cast<const uint32*>(pMesh->GetIndexBuffers().GetBufferData(0));
         int faceCount = pMesh->GetFaceCount();
 
         if (projector.type==PROJECTOR_TYPE::PLANAR)
         {
-            MeshProject_Optimised_Planar( pVertices, vertexCount,
+            MeshProject_Optimised_Planar(pVertices, vertexCount,
                                           pIndices, faceCount,
                                           projectorPosition, projectorDirection,
                                           projectorSide, projectorUp,
                                           projectorScale,
                                           pResultVertices, currentVertex,
-                                          pResultIndices, currentIndex  );
+                                          pResultIndices, currentIndex);
         }
 
         else
         {
-            MeshProject_Optimised_Cylindrical( pVertices, vertexCount,
-                                               pIndices, faceCount,
-                                               projectorPosition, projectorDirection,
-                                               projectorSide, projectorUp,
-                                               projectorScale,
-                                               pResultVertices, currentVertex,
-                                               pResultIndices, currentIndex  );
+            MeshProject_Optimised_Cylindrical(pVertices, vertexCount,
+                                              pIndices, faceCount,
+                                              projectorPosition, projectorDirection,
+                                              projectorSide, projectorUp,
+                                              projectorScale,
+                                              pResultVertices, currentVertex,
+                                              pResultIndices, currentIndex);
         }
 
         break;
@@ -2750,18 +2750,18 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
 
     case PROJECTOR_TYPE::WRAPPING:
 	{
-        pResult = CreateMeshOptimisedForWrappingProjection( layout );
-        pResult->GetVertexBuffers().SetElementCount(vertexCount);
-        pResult->GetIndexBuffers().SetElementCount(indexCount);
-		uint32* pResultIndices = reinterpret_cast<uint32*>( pResult->GetIndexBuffers().GetBufferData(0) );
-		OPTIMISED_VERTEX_WRAPPING* pResultVertices = reinterpret_cast<OPTIMISED_VERTEX_WRAPPING*>( pResult->GetVertexBuffers().GetBufferData(0) );
+        CreateMeshOptimisedForWrappingProjection(Result, layout);
+        Result->GetVertexBuffers().SetElementCount(vertexCount);
+        Result->GetIndexBuffers().SetElementCount(indexCount);
+		uint32* pResultIndices = reinterpret_cast<uint32*>(Result->GetIndexBuffers().GetBufferData(0));
+		OPTIMISED_VERTEX_WRAPPING* pResultVertices = reinterpret_cast<OPTIMISED_VERTEX_WRAPPING*>(Result->GetVertexBuffers().GetBufferData(0));
 
-        MeshProject_Optimised_Wrapping( pMesh,
-                                        projectorPosition, projectorDirection,
-                                        projectorSide, projectorUp,
-                                        projectorScale,
-                                        pResultVertices, currentVertex,
-                                        pResultIndices, currentIndex  );
+        MeshProject_Optimised_Wrapping(pMesh,
+                                       projectorPosition, projectorDirection,
+                                       projectorSide, projectorUp,
+                                       projectorScale,
+                                       pResultVertices, currentVertex,
+                                       pResultIndices, currentIndex);
 
         break;
 	}
@@ -2769,16 +2769,15 @@ MeshPtr MeshProject_Optimised( const Mesh* pMesh,
     default:
         // Projector type not implemented.
         check(false);
+		bOutSuccess = false;
         break;
 
     }
 
     // Shrink result mesh
-    pResult->GetVertexBuffers().SetElementCount(currentVertex);
-    pResult->GetIndexBuffers().SetElementCount(currentIndex);
-    pResult->GetFaceBuffers().SetElementCount(currentIndex/3);
-
-    return pResult;
+    Result->GetVertexBuffers().SetElementCount(currentVertex);
+    Result->GetIndexBuffers().SetElementCount(currentIndex);
+    Result->GetFaceBuffers().SetElementCount(currentIndex/3);
 }
 #ifdef DEBUG_PROJECTION
 UE_ENABLE_OPTIMIZATION
@@ -2787,47 +2786,41 @@ UE_ENABLE_OPTIMIZATION
 
 
 //-------------------------------------------------------------------------------------------------
-MeshPtr MeshProject( const Mesh* pMesh,
-                         const FProjector& projector )
+void MeshProject(Mesh* Result, const Mesh* pMesh, const FProjector& projector, bool& bOutSuccess)
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject);
 
-    MeshPtr pResult;
-
-    if ( pMesh->m_staticFormatFlags & (1<<SMF_PROJECT) )
+    if (pMesh->m_staticFormatFlags & (1<<SMF_PROJECT))
     {
         // Mesh-optimised version
-        pResult = MeshProject_Optimised( pMesh, projector );
+        MeshProject_Optimised(Result, pMesh, projector, bOutSuccess);
     }
-    else if ( pMesh->m_staticFormatFlags & (1<<SMF_PROJECTWRAPPING) )
+    else if (pMesh->m_staticFormatFlags & (1<<SMF_PROJECTWRAPPING))
     {
         // Mesh-optimised version for wrapping projectors
         // \todo: make sure the projector is a wrapping projector
-        pResult = MeshProject_Optimised( pMesh, projector );
+        MeshProject_Optimised(Result, pMesh, projector, bOutSuccess);
     }
     else
     {
         check(false);
     }
 
-	if (pResult)
+	if (bOutSuccess)
 	{
-		pResult->m_surfaces.SetNum(0);
-		pResult->EnsureSurfaceData();
-		pResult->ResetStaticFormatFlags();
+		Result->m_surfaces.SetNum(0);
+		Result->EnsureSurfaceData();
+		Result->ResetStaticFormatFlags();
 	}
-
-    return pResult;
 }
 
 
 
 //-------------------------------------------------------------------------------------------------
-MeshPtr CreateMeshOptimisedForProjection( int layout )
+void CreateMeshOptimisedForProjection(Mesh* Result, int layout)
 {
-    MeshPtr pFormatMesh = new Mesh();
-    pFormatMesh->GetVertexBuffers().SetBufferCount( 1 );
-    pFormatMesh->GetIndexBuffers().SetBufferCount( 1 );
+    Result->GetVertexBuffers().SetBufferCount( 1 );
+    Result->GetIndexBuffers().SetBufferCount( 1 );
 
     MESH_BUFFER_SEMANTIC semantics[3] =	{ MBS_TEXCOORDS,	MBS_POSITION,	MBS_NORMAL };
     int semanticIndices[3] =			{ 0,				0,				0 };
@@ -2835,7 +2828,7 @@ MeshPtr CreateMeshOptimisedForProjection( int layout )
     int componentCounts[3] =			{ 2,				3,				3 };
     int offsets[3] =					{ 0,				8,				20 };
     semanticIndices[0] = layout;
-    pFormatMesh->GetVertexBuffers().SetBuffer
+    Result->GetVertexBuffers().SetBuffer
             ( 0, 32, 3,
               semantics, semanticIndices,
               formats, componentCounts,
@@ -2846,22 +2839,19 @@ MeshPtr CreateMeshOptimisedForProjection( int layout )
     MESH_BUFFER_FORMAT iformats[1] =		{ MBF_UINT32 };
     int icomponentCounts[1] =				{ 1 };
     int ioffsets[1] =						{ 0 };
-    pFormatMesh->GetIndexBuffers().SetBuffer
+    Result->GetIndexBuffers().SetBuffer
             ( 0, 4, 1,
               isemantics, isemanticIndices,
               iformats, icomponentCounts,
               ioffsets );
-
-    return pFormatMesh;
 }
 
 
 //-------------------------------------------------------------------------------------------------
-MeshPtr CreateMeshOptimisedForWrappingProjection( int layout )
+void CreateMeshOptimisedForWrappingProjection(Mesh* Result, int layout)
 {
-    MeshPtr pFormatMesh = new Mesh();
-    pFormatMesh->GetVertexBuffers().SetBufferCount( 1 );
-    pFormatMesh->GetIndexBuffers().SetBufferCount( 1 );
+    Result->GetVertexBuffers().SetBufferCount( 1 );
+    Result->GetIndexBuffers().SetBufferCount( 1 );
 
     MESH_BUFFER_SEMANTIC semantics[4] =	{ MBS_TEXCOORDS,	MBS_POSITION,	MBS_NORMAL,     MBS_LAYOUTBLOCK };
     int semanticIndices[4] =			{ 0,				0,				0,              0 };
@@ -2870,7 +2860,7 @@ MeshPtr CreateMeshOptimisedForWrappingProjection( int layout )
     int offsets[4] =					{ 0,				8,				20,             32 };
     semanticIndices[0] = layout;
     semanticIndices[3] = layout;
-    pFormatMesh->GetVertexBuffers().SetBuffer
+    Result->GetVertexBuffers().SetBuffer
             ( 0, 36, 4,
               semantics, semanticIndices,
               formats, componentCounts,
@@ -2881,13 +2871,11 @@ MeshPtr CreateMeshOptimisedForWrappingProjection( int layout )
     MESH_BUFFER_FORMAT iformats[1] =		{ MBF_UINT32 };
     int icomponentCounts[1] =				{ 1 };
     int ioffsets[1] =						{ 0 };
-    pFormatMesh->GetIndexBuffers().SetBuffer
+    Result->GetIndexBuffers().SetBuffer
             ( 0, 4, 1,
               isemantics, isemanticIndices,
               iformats, icomponentCounts,
               ioffsets );
-
-    return pFormatMesh;
 }
 
 }

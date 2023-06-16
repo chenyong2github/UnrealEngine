@@ -15,15 +15,17 @@ class FMeshBufferSet;
 	//! \param keepSystemBuffers Will keep the internal system buffers even if they are not in the
 	//! original format. If they are, they will be duplicated, so be careful.
 	//---------------------------------------------------------------------------------------------
-	MUTABLERUNTIME_API extern MeshPtr MeshFormat
+	MUTABLERUNTIME_API extern void MeshFormat
 		(
+			Mesh* Result,
 			const Mesh* pSource,
 			const Mesh* pFormat,
 			bool keepSystemBuffers,
 			bool formatVertices,
 			bool formatIndices,
 			bool formatFaces,
-			bool ignoreMissingChannels
+			bool ignoreMissingChannels,
+			bool& bOutSuccess
 		);
 
 

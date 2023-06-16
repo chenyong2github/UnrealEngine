@@ -105,13 +105,15 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! Apply an example geometric operation (twist)
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshGeometryOperation(const Mesh* MeshA, const Mesh* MeshB, float ScalarA, float ScalarB)
+    inline void MeshGeometryOperation(Mesh* Result, const Mesh* MeshA, const Mesh* MeshB, float ScalarA, float ScalarB, bool& bOutSuccess)
     {
 		MUTABLE_CPUPROFILER_SCOPE(MeshGeometryOperation);
+		bOutSuccess = true;
 
 		if (!MeshA)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 
         // Generate the FDynamicMesh
@@ -139,10 +141,8 @@ namespace mu
 		//}
 
 		// Update the Mutable mesh from the FDynamicMesh
-		Ptr<Mesh> Result = MeshA->Clone();
-		//UpdateMutableMesh(Result.get(), DynMeshResult.Get(), VertexMutableToDyn);
-
-        return Result;
+		Result->CopyFrom(*MeshA);
+		//UpdateMutableMesh(Result, DynMeshResult.Get(), VertexMutableToDyn);
     }
 
 }

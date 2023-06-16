@@ -1136,6 +1136,7 @@ namespace mu
 
 		/** List of intermediate resources that are not soterd anywhere yet. They are still locally referenced by code. */
 		TArray<Ptr<const Image>> TempImages;
+		TArray<Ptr<const Mesh>> TempMeshes;
 
 		/** */
 		TMap<Ptr<const Resource>, int32> CacheResources;
@@ -1153,7 +1154,7 @@ namespace mu
         void MarkRomUsed( int32 RomIndex, const TSharedPtr<const Model>& );
 
 		/** */
-		Ptr<Image> CreateImage(uint32 SizeX, uint32 SizeY, uint32 Lods, EImageFormat Format, EInitializationType Init = EInitializationType::Black)
+		UE_NODISCARD Ptr<Image> CreateImage(uint32 SizeX, uint32 SizeY, uint32 Lods, EImageFormat Format, EInitializationType Init = EInitializationType::Black)
 		{
 			CheckRunnerThread();
 
@@ -1199,7 +1200,7 @@ namespace mu
 		}
 
 		/** Ref will be nulled and relesed in any case. */
-		Ptr<Image> CloneOrTakeOver(Ptr<const Image>& Resource)
+		UE_NODISCARD Ptr<Image> CloneOrTakeOver(Ptr<const Image>& Resource)
 		{
 			CheckRunnerThread();
 
@@ -1208,7 +1209,7 @@ namespace mu
 			{
 				TrackedBudgetBytes_Temp -= Resource->GetDataSize();
 			}
-
+			
 			check(!TempImages.Contains(Resource));
 			check(!PooledImages.Contains(Resource));
 
@@ -1271,7 +1272,6 @@ namespace mu
 			Resource = nullptr;
 		}
 
-
 		/** */
 		void Release(Ptr<Image>& Resource)
 		{
@@ -1311,8 +1311,79 @@ namespace mu
 			Resource = nullptr;
 		}
 
+		UE_NODISCARD Ptr<Mesh> CreateMesh(int32 BudgetReserveSize)
+		{
+			CheckRunnerThread();
+
+			EnsureBudgetBelow(BudgetReserveSize);
+
+			Ptr<Mesh> Result = new Mesh();
+
+			TempMeshes.Add(Result);
+			//TrackedBudgetBytes_Temp += Result->GetDataSize();
+
+			return Result;
+		}
+
+		UE_NODISCARD Ptr<Mesh> CloneOrTakeOver(Ptr<const Mesh>& Resource)
+		{
+			CheckRunnerThread();
+
+			const int32 ResourceDataSize = Resource->GetDataSize();
+			const int32 Removed = TempMeshes.RemoveSingle(Resource);
+			if (Removed)
+			{
+				//TrackedBudgetBytes_Temp -= ResourceDataSize;
+			}
+
+			Ptr<Mesh> Result;
+			if (!Resource->IsUnique())
+			{
+				Result = CreateMesh(ResourceDataSize); 
+				Result->CopyFrom(*Resource);
+				Release(Resource);
+			}
+			else
+			{
+				Result = Ptr<Mesh>(const_cast<Mesh*>(Resource.get()));
+				Resource = nullptr;
+			}
+
+			return Result;
+		}
+
+		void Release(Ptr<const Mesh>& Resource)
+		{
+			CheckRunnerThread();
+
+			if (!Resource)
+			{
+				return;
+			}
+
+			int32 ResourceDataSize = Resource->GetDataSize();
+			int32 Removed = TempMeshes.RemoveSingle(Resource);
+			if (Removed)
+			{
+				//TrackedBudgetBytes_Temp -= ResourceDataSize;
+			}
+
+			EnsureBudgetBelow(0);
+
+			Resource = nullptr;
+		}
+
+		void Release(Ptr<Mesh>& Resource)
+		{
+			Ptr<const Mesh> ConstPtr = Resource;
+
+			Release(ConstPtr);
+
+			Resource = nullptr;
+		}
+
 		/** */
-		Ptr<const Mesh> LoadMesh(const FCacheAddress& From, bool bTakeOwnership=false)
+		UE_NODISCARD Ptr<const Mesh> LoadMesh(const FCacheAddress& From, bool bTakeOwnership = false)
 		{
 			bool bIsLastReference = false;
 			Ptr<const Mesh> Result = CurrentInstanceCache->GetMesh(From, bIsLastReference);
@@ -1321,30 +1392,32 @@ namespace mu
 				return nullptr;
 			}
 
-			// TODO
+			int32 ResultDataSize = Result->GetDataSize();
+
 			// If we retrieved the last reference to this resource in "From" cache position (it could still be in other cache positions as well)
-			//if (bIsLastReference)
-			//{
-			//	int32* CountPtr = CacheResources.Find(Result);
-			//	check(CountPtr);
-			//	*CountPtr = (*CountPtr) - 1;
-			//	if (!*CountPtr)
-			//	{
-			//		CacheResources.FindAndRemoveChecked(Result);
-			//	}
-			//}
+			if (bIsLastReference)
+			{
+				int32* CountPtr = CacheResources.Find(Result);
+				check(CountPtr);
+				*CountPtr = (*CountPtr) - 1;
+				if (!*CountPtr)
+				{
+					CacheResources.FindAndRemoveChecked(Result);
+					TrackedBudgetBytes_Cached -= ResultDataSize;
+				}
+			}
 
-
-			//if (!bTakeOwnership && Result->IsUnique())
-			//{
-			//	TempMesh.Add(Result);
-			//}
+			if (!bTakeOwnership && Result->IsUnique())
+			{
+				TempMeshes.Add(Result);
+				//TrackedBudgetBytes_Temp += ResultDataSize;
+			}
 
 			return Result;
 		}
 
 		/** */
-		Ptr<const Image> LoadImage(const FCacheAddress& From, bool bTakeOwnership = false)
+		UE_NODISCARD Ptr<const Image> LoadImage(const FCacheAddress& From, bool bTakeOwnership = false)
 		{
 			bool bIsLastReference = false;
 			Ptr<const Image> Result = CurrentInstanceCache->GetImage(From, bIsLastReference);
@@ -1404,18 +1477,40 @@ namespace mu
 			CurrentInstanceCache->SetImage(To, Resource);
 		}
 
+		void StoreMesh(const FCacheAddress& To, Ptr<const Mesh> Resource)
+		{
+			if (Resource)
+			{
+				int32 ResourceDataSize = Resource->GetDataSize();
+				int32 Removed = TempMeshes.RemoveSingle(Resource);
+				if (Removed)
+				{
+					//TrackedBudgetBytes_Temp -= ResourceDataSize;
+				}
+
+				int32& Count = CacheResources.FindOrAdd(Resource, 0);
+				if (!Count)
+				{
+					TrackedBudgetBytes_Cached += ResourceDataSize;
+				}
+
+				++Count;
+			}
+
+			CurrentInstanceCache->SetMesh(To, Resource);
+		}
 
 		/** Return true if the resource is not in any cache (0,1,rom). */
-		bool IsBudgetTemp(const Ptr<const Image>& Resource)
+		bool IsBudgetTemp(const Ptr<const Resource>& Resource)
 		{
 			if (!Resource)
 			{
 				return false;
 			}
+
 			bool bIsTemp = Resource->IsUnique();
 			return bIsTemp;
 		}
-
 
 		int32 GetPooledBytes() const
 		{
@@ -1430,6 +1525,16 @@ namespace mu
 			return Result;
 		}
 
+		int32 GetTempMeshesBytes() const
+		{
+			int32 Result = 0;
+			for (const Ptr<const Mesh>& Value : TempMeshes)
+			{
+				Result += Value->GetDataSize();
+			}
+
+			return Result;
+		}
 
 		int32 GetTempBytes() const
 		{
@@ -1439,7 +1544,7 @@ namespace mu
 				Result += Value->GetDataSize();
 			}
 
-			return Result;
+			return Result + GetTempMeshesBytes();
 		}
 
 
@@ -1488,7 +1593,6 @@ namespace mu
 
 			return Result;
 		}
-
 
 		/** Calculate the amount of bytes in data cached in the level 0 and 1 cache in all live instances. */
 		int32 GetCacheBytes() const
@@ -1549,7 +1653,6 @@ namespace mu
 
 			return Result;
 		}
-
 
 		/** Remove all intermediate data (big and small) from the memory except for the one that has been explicitely
 		* marked as state cache.
@@ -1719,7 +1822,8 @@ namespace mu
 			// If this check fails it means some operation is not correctly handling resource management and didn't release
 			// a resource it created.
 			// This should be reported and reviewed, but it is not fatal. Some unnecessary memory may be used temporarily.
-			ensure(TempImages.Num()==0);
+			ensure(TempImages.Num() == 0);
+			ensure(TempMeshes.Num() == 0);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			// If this check fails it means have not set up correctly all the paths to debug threading for resource management.

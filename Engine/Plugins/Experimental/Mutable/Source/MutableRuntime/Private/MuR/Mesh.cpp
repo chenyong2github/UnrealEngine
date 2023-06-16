@@ -22,7 +22,6 @@ void Mesh::Serialise( const Mesh* p, OutputArchive& arch )
     arch << *p;
 }
 
-
 //---------------------------------------------------------------------------------------------
 MeshPtr Mesh::StaticUnserialise( InputArchive& arch )
 {
@@ -81,7 +80,7 @@ MeshPtr Mesh::Clone() const
     return pResult;
 }
 
-MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
+MeshPtr Mesh::Clone(EMeshCopyFlags Flags) const
 {
     //MUTABLE_CPUPROFILER_SCOPE(MeshClone);
 	LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
@@ -91,55 +90,55 @@ MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
     pResult->m_internalId = m_internalId;
 	pResult->m_staticFormatFlags = m_staticFormatFlags;
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSurfaces))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithSurfaces))
 	{
 		pResult->m_surfaces = m_surfaces;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSkeleton))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithSkeleton))
 	{
 		pResult->m_pSkeleton = m_pSkeleton;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithPhysicsBody))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithPhysicsBody))
 	{
 		pResult->m_pPhysicsBody = m_pPhysicsBody;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithFaceGroups))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithFaceGroups))
 	{
 		pResult->m_faceGroups = m_faceGroups;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithTags))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithTags))
 	{
 		pResult->m_tags = m_tags;
 	}
 
     // Clone the main buffers
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithVertexBuffers))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithVertexBuffers))
     {
 		pResult->m_VertexBuffers = m_VertexBuffers;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithIndexBuffers))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithIndexBuffers))
     {
 		pResult->m_IndexBuffers = m_IndexBuffers;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithFaceBuffers))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithFaceBuffers))
     {
 		pResult->m_FaceBuffers = m_FaceBuffers;
 	}
 
 	// Clone additional buffers
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithAdditionalBuffers))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithAdditionalBuffers))
 	{
 		pResult->m_AdditionalBuffers = m_AdditionalBuffers;
 	}
 
     // Clone the layout	
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithLayouts))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithLayouts))
 	{
 		pResult->m_layouts = m_layouts;
 	}
@@ -149,24 +148,24 @@ MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
 	// physics body doen't need to be deep cloned either as they are also assumed to be shared.
 	
 	// Clone bone poses
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithPoses))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithPoses))
 	{
 		pResult->BonePoses = BonePoses;
 	}
 
 	// Clone BoneMap
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithBoneMap))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithBoneMap))
 	{
 		pResult->BoneMapIndices = BoneMapIndices;
 	}
 
 	// Clone SkeletonIDs
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSkeletonIDs))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithSkeletonIDs))
 	{
 		pResult->SkeletonIDs = SkeletonIDs;
 	}
 
-	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithAdditionalPhysics))
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithAdditionalPhysics))
 	{
 		pResult->AdditionalPhysicsBodies = AdditionalPhysicsBodies;
 	}
@@ -174,6 +173,96 @@ MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
     return pResult;
 }
 
+
+//---------------------------------------------------------------------------------------------
+void Mesh::CopyFrom(const Mesh& From, EMeshCopyFlags Flags)
+{
+    //MUTABLE_CPUPROFILER_SCOPE(CopyFrom);
+
+    m_internalId = From.m_internalId;
+	m_staticFormatFlags = From.m_staticFormatFlags;
+
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithSurfaces))
+	{
+		m_surfaces = From.m_surfaces;
+	}
+
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithSkeleton))
+	{
+		m_pSkeleton = From.m_pSkeleton;
+	}
+
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithPhysicsBody))
+	{
+		m_pPhysicsBody = From.m_pPhysicsBody;
+	}
+
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithFaceGroups))
+	{
+		m_faceGroups = From.m_faceGroups;
+	}
+
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithTags))
+	{
+		m_tags = From.m_tags;
+	}
+
+    // Copy the main buffers
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithVertexBuffers))
+    {
+		m_VertexBuffers = From.m_VertexBuffers;
+	}
+
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithIndexBuffers))
+    {
+		m_IndexBuffers = From.m_IndexBuffers;
+	}
+
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithFaceBuffers))
+    {
+		m_FaceBuffers = From.m_FaceBuffers;
+	}
+
+	// Copy additional buffers
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithAdditionalBuffers))
+	{
+		m_AdditionalBuffers = From.m_AdditionalBuffers;
+	}
+
+    // Copy the layout	
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithLayouts))
+	{
+		m_layouts = From.m_layouts;
+	}
+    // The skeleton is not copied because it is not owned by this mesh and it is always assumed
+    // to be shared.
+
+	// physics body doen't need to be deep copied either as they are also assumed to be shared.
+	
+	// Copy bone poses
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithPoses))
+	{
+		BonePoses = From.BonePoses;
+	}
+
+	// Copy BoneMap
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithBoneMap))
+	{
+		BoneMapIndices = From.BoneMapIndices;
+	}
+
+	// Copy SkeletonIDs
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithSkeletonIDs))
+	{
+		SkeletonIDs = From.SkeletonIDs;
+	}
+
+	if (EnumHasAnyFlags(Flags, EMeshCopyFlags::WithAdditionalPhysics))
+	{
+		AdditionalPhysicsBodies = From.AdditionalPhysicsBodies;
+	}
+
+}
 
 //---------------------------------------------------------------------------------------------
 uint32_t Mesh::GetId() const
@@ -606,12 +695,23 @@ void Mesh::AddSkeletonID(int32 SkeletonID)
 //---------------------------------------------------------------------------------------------
 int32 Mesh::GetDataSize() const
 {
-    return sizeof(Mesh)
+	// TODO: review if other mesh fields like additional physics assets
+	// are relevant and add them to the count.
+
+	// Should be allocation sizes used for this?
+	int32 AdditionalBuffersSize = 0;
+	for (const TPair<EMeshBufferType, FMeshBufferSet>&  AdditionalBuffer : m_AdditionalBuffers)
+	{
+		AdditionalBuffersSize += AdditionalBuffer.Value.GetDataSize();
+	}
+
+	return sizeof(Mesh)
 		+ m_IndexBuffers.GetDataSize()
 		+ m_VertexBuffers.GetDataSize()
-		+ m_FaceBuffers.GetDataSize();
+		+ m_FaceBuffers.GetDataSize()
+		+ BonePoses.Num() * sizeof(FBonePose)
+		+ AdditionalBuffersSize;
 }
-
 
 //---------------------------------------------------------------------------------------------
 bool Mesh::HasCompatibleFormat( const Mesh* pOther ) const

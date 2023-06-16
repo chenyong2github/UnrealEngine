@@ -14,13 +14,16 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//!
 	//---------------------------------------------------------------------------------------------
-	inline MeshPtr MeshOptimizeSkinning(const Mesh* InMesh)
+	inline void MeshOptimizeSkinning(Mesh* Result, const Mesh* InMesh, bool& bOutSuccess)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(MeshOptimizeSkinning);
 
+		bOutSuccess = true;
+
 		if (!InMesh)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 
 		uint32 MaxBoneMapIndex = 0;
@@ -32,7 +35,8 @@ namespace mu
 		// We can't optimize the skinning if the mesh requires 16 bit bone indices 
 		if (MaxBoneMapIndex > MAX_uint8)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 
 		bool bRequiresFormatChange = false;
@@ -60,7 +64,8 @@ namespace mu
 		// Not sure if bRequiresFormatChange will ever be true.
 		if (!bRequiresFormatChange)
 		{
-			return nullptr;
+			bOutSuccess = false;
+			return;
 		}
 
 		MUTABLE_CPUPROFILER_SCOPE(MeshOptimizeSkinning_Format);
@@ -72,7 +77,8 @@ namespace mu
 		const int32 ElementCount = InMeshVertexBuffers.GetElementCount();
 
 		// Clone mesh without VertexBuffers, they will be copied manually.
-		MeshPtr Result = InMesh->Clone(~(EMeshCloneFlags::WithVertexBuffers));
+		constexpr EMeshCopyFlags CopyFlags = ~EMeshCopyFlags::WithVertexBuffers;
+		Result->CopyFrom(*InMesh, CopyFlags);
 
 		mu::FMeshBufferSet& VertexBuffers = Result->GetVertexBuffers();
 
@@ -180,7 +186,5 @@ namespace mu
 			}
 
 		}
-
-		return Result;
 	}
 }

@@ -113,16 +113,19 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshExtractLayoutBlock( const Mesh* pSource,
-                                           uint32_t layout,
+    inline void MeshExtractLayoutBlock(Mesh* Result, const Mesh* pSource,
+                                           uint32 layout,
                                            uint16 blockCount,
-                                           const uint32_t* pExtractBlocks )
+                                           const uint32* pExtractBlocks, bool& bOutSuccess)
 	{
+		check(pSource);
+		bOutSuccess = true;
+		
 		// TODO: Optimise
-		MeshPtr pResult = pSource->Clone();
+		Result->CopyFrom(*pSource);
 
         // TODO
-        pResult->SetFaceGroupCount( 0 );
+        Result->SetFaceGroupCount( 0 );
 
 		UntypedMeshBufferIteratorConst itBlocks( pSource->GetVertexBuffers(),
 												 MBS_LAYOUTBLOCK, layout );
@@ -164,26 +167,28 @@ namespace mu
                 check( false );
             }
 
-            MeshExtractFromVertices( pSource, pResult.get(), oldToNew, newToOld );
+            MeshExtractFromVertices(pSource, Result, oldToNew, newToOld);
         }
 
-        pResult->m_surfaces.Empty();
-        pResult->EnsureSurfaceData();
-
-        return pResult;
+        Result->m_surfaces.Empty();
+        Result->EnsureSurfaceData();
 	}
 
 
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshExtractFaceGroup( const Mesh* pSource, int group )
+    inline void MeshExtractFaceGroup(Mesh* Result, const Mesh* pSource, int group, bool& bOutSuccess)
     {
-        if ( group<0 || group>=pSource->GetFaceGroupCount() )
+		check(pSource);
+		bOutSuccess = true;
+
+        if (group < 0 || group >= pSource->GetFaceGroupCount())
         {
-            return new Mesh;
+			bOutSuccess = true; // use empty mesh as retun value.
+            return;
         }
 
         // TODO: Optimise
-        MeshPtr pResult = pSource->Clone();
+		Result->CopyFrom(*pSource);
 
         int resultVertices = 0;
 		TArray<int> oldToNew;
@@ -207,12 +212,11 @@ namespace mu
             }
         }
 
-        MeshExtractFromVertices( pSource, pResult.get(), oldToNew, newToOld );
+        MeshExtractFromVertices(pSource, Result, oldToNew, newToOld);
 
-        pResult->m_surfaces.Empty();
-        pResult->EnsureSurfaceData();
+        Result->m_surfaces.Empty();
+        Result->EnsureSurfaceData();
 
-        return pResult;
     }
 
 }

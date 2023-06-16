@@ -1104,25 +1104,25 @@ namespace mu
 					return true;
 				}
 
-				for( auto& rep: replacementsFound )
+				for(ADDMESH_SKELETON& Rep: replacementsFound) 
 				{
-					if ( rep.m_contributingMeshes.Contains(at) )
+					if (Rep.m_contributingMeshes.Contains(at))
 					{
 						mu::Ptr<const Mesh> pMesh =  static_cast<const Mesh*>(typedOp->GetValue().get());
 						pMesh->CheckIntegrity();
 
-						mu::Ptr<Mesh> pNewMesh = MeshRemapSkeleton( pMesh.get(),
-																rep.m_pFinalSkeleton.get());
+						Ptr<Mesh> NewMesh = new Mesh();
+						bool bOutSuccess = false;
+						MeshRemapSkeleton(NewMesh.get(), pMesh.get(), Rep.m_pFinalSkeleton.get(), bOutSuccess);
 
-						// It returns null if there is no need to remap.
-						if (pNewMesh)
+						if (bOutSuccess)
 						{
-							pNewMesh->CheckIntegrity();
+							NewMesh->CheckIntegrity();
 							mu::Ptr<ASTOpConstantResource> newOp = new ASTOpConstantResource();
 							newOp->type = OP_TYPE::ME_CONSTANT;
-							newOp->SetValue( pNewMesh, options.m_useDiskCache );
+							newOp->SetValue(NewMesh, options.m_useDiskCache);
 
-							ASTOp::Replace( at, newOp );
+							ASTOp::Replace(at, newOp);
 						}
 					}
 				}

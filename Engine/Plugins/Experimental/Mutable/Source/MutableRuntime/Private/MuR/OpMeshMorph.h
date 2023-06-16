@@ -14,11 +14,16 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//! Optimized linear factor version for morphing 2 targets
 	//---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshMorph2( const Mesh* pBase, const Mesh* pMin, const Mesh* pMax, const float factor )
+    inline void MeshMorph2(Mesh* Result, const Mesh* pBase, const Mesh* pMin, const Mesh* pMax, const float factor, bool& bOutSuccess)
     {
         MUTABLE_CPUPROFILER_SCOPE(MeshMorph2);
+		bOutSuccess = true;
 
-		if (!pBase) return nullptr;
+		if (!pBase)
+		{
+			bOutSuccess = true; // return an empty mesh.
+			return;
+		}
 
         const auto ApplyMorph = []
             ( auto BaseIdIter, const TArray< UntypedMeshBufferIterator >& baseChannelsIters, const int32 baseSize,
@@ -102,8 +107,8 @@ namespace mu
             }
         };
 
-		MeshPtr pDest = pBase->Clone();
 
+		
 		// Number of vertices to modify
 		const uint32 minCount = pMin ? pMin->GetVertexBuffers().GetElementCount() : 0;
 		const uint32 maxCount = pMax ? pMax->GetVertexBuffers().GetElementCount() : 0;
@@ -112,8 +117,11 @@ namespace mu
 
 		if ( baseCount == 0 || (minCount + maxCount) == 0)
 		{
-			return pDest;
+			bOutSuccess = false; // Use the passed pBase as result.
+			return;
 		}
+
+		Result->CopyFrom(*pBase);
 
 		if (refTarget)
 		{
@@ -135,7 +143,7 @@ namespace mu
 				MESH_BUFFER_SEMANTIC sem = MBSPriv.m_buffers[0].m_channels[c].m_semantic;
 				int semIndex = MBSPriv.m_buffers[0].m_channels[c].m_semanticIndex;
 				
-				itBaseChannels[c] = UntypedMeshBufferIterator(pDest->GetVertexBuffers(), sem, semIndex);
+				itBaseChannels[c] = UntypedMeshBufferIterator(Result->GetVertexBuffers(), sem, semIndex);
 				if (minCount > 0)
 				{
 					itMinChannels[c] = UntypedMeshBufferIteratorConst(pMin->GetVertexBuffers(), sem, semIndex);
@@ -159,24 +167,22 @@ namespace mu
 				ApplyMorph(itBaseId, itBaseChannels, baseCount, itMaxId, itMaxChannels, maxCount, factor);
 			}
 		}
-
-        return pDest;
     }
 
 	//---------------------------------------------------------------------------------------------
 	//! \TODO Optimized linear factor version
 	//---------------------------------------------------------------------------------------------
-	inline MeshPtr MeshMorph(const Mesh* pBase, const Mesh* pMorph, float factor)
+	inline void MeshMorph(Mesh* Result, const Mesh* pBase, const Mesh* pMorph, float factor, bool& bOutSuccess)
 	{
-		return MeshMorph2( pBase, nullptr, pMorph, factor );
+		MeshMorph2(Result, pBase, nullptr, pMorph, factor, bOutSuccess);
 	}
 
     //---------------------------------------------------------------------------------------------
     //! \TODO Optimized Factor-less version
     //---------------------------------------------------------------------------------------------
-    inline MeshPtr MeshMorph( const Mesh* pBase, const Mesh* pMorph )
+	inline void MeshMorph(Mesh* Result, const Mesh* pBase, const Mesh* pMorph, bool& bOutSuccess)
     {
         // Trust the compiler to remove the factor
-        return MeshMorph( pBase, pMorph, 1.0f );
+		MeshMorph(Result, pBase, pMorph, 1.0f, bOutSuccess);
     }
 }
