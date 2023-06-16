@@ -92,10 +92,7 @@ void UExtractCollisionGeometryTool::Setup()
 	VizSettings = NewObject<UCollisionGeometryVisualizationProperties>(this);
 	VizSettings->RestoreProperties(this);
 	AddToolPropertySource(VizSettings);
-	VizSettings->WatchProperty(VizSettings->LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
-	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
-	VizSettings->WatchProperty(VizSettings->bRandomColors, [this](bool bNewValue) { bVisualizationDirty = true; });
-	VizSettings->WatchProperty(VizSettings->bShowHidden, [this](bool bNewValue) { bVisualizationDirty = true; });
+	VizSettings->Initialize(this);
 
 	UBodySetup* BodySetup = UE::ToolTarget::GetPhysicsBodySetup(Target);
 	if (BodySetup)
@@ -108,9 +105,8 @@ void UExtractCollisionGeometryTool::Setup()
 		//PhysicsInfo->ExternalScale3D = TargetTransform.GetScale3D();
 		//TargetTransform.SetScale3D(FVector::OneVector);
 		PreviewElements->CreateInWorld(UE::ToolTarget::GetTargetActor(Target)->GetWorld(), TargetTransform);
-		
-		UE::PhysicsTools::InitializePreviewGeometryLines(*PhysicsInfo, PreviewElements,
-			VizSettings->Color, VizSettings->LineThickness, 0.0f, 16, VizSettings->bRandomColors);
+
+		UE::PhysicsTools::InitializeCollisionGeometryVisualization(PreviewElements, VizSettings, *PhysicsInfo);
 
 		ObjectProps = NewObject<UPhysicsObjectToolPropertySet>(this);
 		UE::PhysicsTools::InitializePhysicsToolObjectPropertySet(PhysicsInfo.Get(), ObjectProps);
@@ -216,28 +212,7 @@ void UExtractCollisionGeometryTool::OnTick(float DeltaTime)
 		bResultValid = true;
 	}
 
-	if (bVisualizationDirty)
-	{
-		UpdateVisualization();
-		bVisualizationDirty = false;
-	}
-}
-
-
-
-void UExtractCollisionGeometryTool::UpdateVisualization()
-{
-	float UseThickness = VizSettings->LineThickness;
-	FColor UseColor = VizSettings->Color;
-	int32 ColorIdx = 0;
-	PreviewElements->UpdateAllLineSets([&](ULineSetComponent* LineSet)
-		{
-			LineSet->SetAllLinesThickness(UseThickness);
-			LineSet->SetAllLinesColor(VizSettings->bRandomColors ? LinearColors::SelectFColor(ColorIdx++) : UseColor);
-		});
-	
-	UMaterialInterface* LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !VizSettings->bShowHidden);
-	PreviewElements->SetAllLineSetsMaterial(LineMaterial);
+	UE::PhysicsTools::UpdateCollisionGeometryVisualization(PreviewElements, VizSettings);
 }
 
 

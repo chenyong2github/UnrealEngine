@@ -144,6 +144,23 @@ class MESHMODELINGTOOLSEXP_API UCollisionGeometryVisualizationProperties : publi
 	GENERATED_BODY()
 public:
 
+	/** Sets materials and registers property watchers to set bVisualizationDirty to true when any property changes */
+	void Initialize(UInteractiveTool* Tool);
+
+	/**
+	 * Returns the line set color.
+	 * If bRandomColors == true  LineSetIndex is used to return a random color
+	 * If bRandomColors == false LineSetIndex is ignored and this->Color is returned
+	 */
+	FColor GetLineSetColor(int32 LineSetIndex = 0) const;
+
+	UMaterialInterface* GetLineMaterial() const
+	{
+		ensure(LineMaterial);
+		ensure(LineMaterialShowingHidden);
+		return bShowHidden ? LineMaterialShowingHidden : LineMaterial;
+	}
+
 	/** Thickness of lines used to visualize collision shapes */
 	UPROPERTY(EditAnywhere, Category = "Collision Visualization")
 	float LineThickness = 3.0f;
@@ -159,6 +176,16 @@ public:
 	/** The color to use for all collision visualizations, if random colors are not used */
 	UPROPERTY(EditAnywhere, Category = "Collision Visualization", meta = (EditCondition = "!bRandomColors"))
 	FColor Color = FColor::Red;
+
+	//~Used if bShowHidden is false
+	UPROPERTY(Transient, meta=(TransientToolProperty))
+	TObjectPtr<UMaterialInterface> LineMaterial = nullptr;
+
+	//~Used if bShowHidden is true
+	UPROPERTY(Transient, meta=(TransientToolProperty))
+	TObjectPtr<UMaterialInterface> LineMaterialShowingHidden = nullptr;
+
+	bool bVisualizationDirty = false;
 };
 
 
