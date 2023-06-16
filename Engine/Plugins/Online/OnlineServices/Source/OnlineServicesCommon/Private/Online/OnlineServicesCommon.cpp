@@ -129,6 +129,11 @@ FName FOnlineServicesCommon::GetInstanceName() const
 	return InstanceName;
 }
 
+void FOnlineServicesCommon::AssignBaseInterfaceSharedPtr(const FOnlineTypeName& TypeName, void* OutBaseInterfaceSP)
+{
+	Components.AssignBaseSharedPtr(TypeName, OutBaseInterfaceSP);
+}
+
 void FOnlineServicesCommon::RegisterComponents()
 {
 }

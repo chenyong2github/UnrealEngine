@@ -56,8 +56,3 @@ struct TOnlineTypeInfo
 };
 
 /* UE::Online */ }
-
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
-#include "Online/OnlineMeta.h"
-#include "Templates/RemoveReference.h"
-#endif

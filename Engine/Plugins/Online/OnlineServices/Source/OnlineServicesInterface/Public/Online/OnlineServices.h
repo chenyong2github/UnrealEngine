@@ -4,6 +4,7 @@
 
 #include "Online/CoreOnline.h"
 #include "Online/OnlineMeta.h"
+#include "Online/OnlineTypeInfo.h"
 
 namespace UE::Online { template <typename OpType> class TOnlineResult; }
 namespace UE::Online::Meta { template <typename StructType> struct TStructDetails; }
@@ -158,6 +159,29 @@ public:
 	 * @return instance name
 	 */
 	virtual FName GetInstanceName() const = 0;
+
+	/**
+	 * Retrieve any of the standard or implementation specific interfaces
+	 */
+	template <typename InterfaceType>
+	TSharedPtr<InterfaceType> GetInterface()
+	{
+		const FOnlineTypeName TypeName = TOnlineTypeInfo<InterfaceType>::GetTypeName();
+		using BaseInterfaceType = Meta::TBaseClass_T<InterfaceType>;
+		TSharedPtr<BaseInterfaceType> Interface;
+		AssignBaseInterfaceSharedPtr(TypeName, &Interface);
+		if constexpr (std::is_same_v<BaseInterfaceType, InterfaceType>)
+		{
+			return Interface;
+		}
+		else
+		{
+			return StaticCastSharedPtr<InterfaceType>(Interface);
+		}
+	}
+
+private:
+	virtual void AssignBaseInterfaceSharedPtr(const FOnlineTypeName& TypeName, void* InterfaceSP) = 0;
 };
 
 /**

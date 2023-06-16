@@ -56,6 +56,16 @@ public:
 		return nullptr;
 	}
 
+	// Internal use only. Used to implement IOnlineServices::GetInterface()
+	void AssignBaseSharedPtr(const FOnlineTypeName& TypeName, void* OutBaseInterfaceSP)
+	{
+		const TUniquePtr<IComponentWrapper>* WrappedComponent = Components.FindByPredicate([&TypeName](const TUniquePtr<IComponentWrapper>& WrappedComponent) { return WrappedComponent->IsA(TypeName); });
+		if (WrappedComponent)
+		{
+			(*WrappedComponent)->AssignBaseSharedPtr(OutBaseInterfaceSP);
+		}
+	}
+
 	/**
 	 * Call a callable for each of the components
 	 */
@@ -74,6 +84,7 @@ private:
 	public:
 		virtual ~IComponentWrapper() {}
 		virtual void* GetBase() = 0;
+		virtual void AssignBaseSharedPtr(void* OutSP) = 0;
 		virtual bool IsA(FOnlineTypeName TypeName) const = 0;
 		virtual FOnlineTypeName GetTypeName() const = 0;
 		virtual IOnlineComponent* Get() = 0;
@@ -101,6 +112,13 @@ private:
 		virtual void* GetBase() override final
 		{
 			return static_cast<void*>(static_cast<Meta::TBaseClass_T<T>*>(&Object));
+		}
+
+		virtual void AssignBaseSharedPtr(void* OutSP) override final
+		{
+			// assumes that component has AsShared that returns a shared pointer for the base class
+			TSharedPtr<Meta::TBaseClass_T<T>>& SP = *static_cast<TSharedPtr<Meta::TBaseClass_T<T>>*>(OutSP);
+			SP = Object.AsShared();
 		}
 
 		virtual bool IsA(FOnlineTypeName TypeName) const override final
