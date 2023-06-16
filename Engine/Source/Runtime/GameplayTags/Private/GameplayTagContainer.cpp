@@ -1390,8 +1390,7 @@ bool FGameplayTagQuery::Matches(FGameplayTagContainer const& Tags) const
 {
 	if (IsEmpty())
 	{
-		UE_CLOG(!Tags.IsEmpty(), LogGameplayTags, Warning, TEXT("GameplayTagQuery %s was empty when trying to match tags %s. Defaulting to true."), *GetDescription(), *Tags.ToStringSimple());
-		return true;
+		return false;
 	}
 
 	FQueryEvaluator QE(*this);
