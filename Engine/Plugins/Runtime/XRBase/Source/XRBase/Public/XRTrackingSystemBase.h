@@ -16,7 +16,7 @@ public:
 	static FXRPlayAreaChanged OnXRPlayAreaChanged;
 
 	DECLARE_MULTICAST_DELEGATE(FXRInteractionProfileChanged);
-	static FXRPlayAreaChanged OnXRInteractionProfileChanged;
+	static FXRInteractionProfileChanged OnXRInteractionProfileChanged;
 };
 
 /** 

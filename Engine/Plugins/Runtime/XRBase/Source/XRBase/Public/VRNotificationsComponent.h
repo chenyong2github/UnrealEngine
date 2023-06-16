@@ -93,7 +93,7 @@ private:
 	void VRControllerRecentered_Handler()		{ VRControllerRecenteredDelegate.Broadcast(); }
 	void XRTrackingOriginChanged_Handler(const IXRTrackingSystem* TrackingSys)		{ XRTrackingOriginChangedDelegate.Broadcast(); }
 	void XRPlayAreaChanged_Handler()			{ XRPlayAreaChangedDelegate.Broadcast(); }
-	void XRInteractionProfileChanged_Handler()	{ XRPlayAreaChangedDelegate.Broadcast(); }
+	void XRInteractionProfileChanged_Handler()	{ XRInteractionProfileChangedDelegate.Broadcast(); }
 };
 
 
