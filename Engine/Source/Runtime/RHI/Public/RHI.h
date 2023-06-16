@@ -7,7 +7,6 @@
 #pragma once
 
 #include "Containers/ContainersFwd.h"
-#include "Stats/Stats.h"
 #include "RHIDefinitions.h"
 #include "Containers/StaticArray.h"
 #include "Containers/StringFwd.h"
@@ -16,7 +15,6 @@
 #include "Math/ScaleMatrix.h"
 #include "Math/TranslationMatrix.h"
 #include "PixelFormat.h"
-#include "ProfilingDebugging/CsvProfilerConfig.h"
 #include "GpuProfilerTrace.h"
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"
@@ -651,5 +649,7 @@ inline ERHIBindlessConfiguration RHIGetBindlessSamplersConfiguration(EShaderPlat
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
 #include "CoreMinimal.h"
+#include "ProfilingDebugging/CsvProfilerConfig.h"
 #include "RHIUtilities.h"
+#include "Stats/Stats.h"
 #endif

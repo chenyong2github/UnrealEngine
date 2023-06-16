@@ -4,7 +4,6 @@
 
 #include "Containers/EnumAsByte.h"
 #include "RHIDefinitions.h"
-#include "Serialization/MemoryLayout.h"
 
 #ifndef USE_STATIC_FEATURE_LEVEL_ENUMS
 #define USE_STATIC_FEATURE_LEVEL_ENUMS 0
@@ -55,7 +54,6 @@ namespace ERHIFeatureLevel
 		Num
 	};
 };
-DECLARE_INTRINSIC_TYPE_LAYOUT(ERHIFeatureLevel::Type);
 
 struct FGenericStaticFeatureLevel
 {
@@ -112,4 +110,8 @@ extern RHI_API ERHIFeatureLevel::Type GMaxRHIFeatureLevel;
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHIStrings.h"
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "Serialization/MemoryLayout.h"
 #endif

@@ -31,6 +31,8 @@ struct FDisplayInformation
 	bool   bHDRSupported;
 };
 
+using FDisplayInformationArray = TArray<FDisplayInformation>;
+
 struct FACESTonemapParams
 {
 	// Default Values such as MinLuminanceLog10=-4, MidLuminance=15, MaxLuminance=1000, SceneColorMultiplier=1.5

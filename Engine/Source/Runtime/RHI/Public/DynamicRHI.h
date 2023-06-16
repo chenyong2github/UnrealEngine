@@ -26,6 +26,7 @@ class FRHIComputeFence;
 class FRayTracingPipelineState;
 class IRHITransientResourceAllocator;
 struct FDepthStencilStateInitializerRHI;
+struct FDisplayInformation;
 struct FRasterizerStateInitializerRHI;
 struct FRHIResourceCreateInfo;
 struct FRHIResourceInfo;
@@ -36,6 +37,7 @@ struct FRHIGPUMask;
 struct FUpdateTexture3DData;
 
 typedef TArray<FScreenResolutionRHI> FScreenResolutionArray;
+using FDisplayInformationArray = TArray<FDisplayInformation>;
 
 /** Struct to provide details of swap chain flips */
 struct FRHIFlipDetails

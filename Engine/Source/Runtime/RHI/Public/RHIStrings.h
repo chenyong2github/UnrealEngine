@@ -92,7 +92,6 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	case SF_RayCallable:	String = TEXT("SF_RayCallable"); break;
 
 	default:
-		checkf(0, TEXT("Unknown ShaderFrequency %d"), (int32)Frequency);
 		break;
 	}
 

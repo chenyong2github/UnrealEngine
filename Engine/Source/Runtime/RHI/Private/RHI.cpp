@@ -23,6 +23,7 @@
 #include "RHITextureReference.h"
 #include "RHIStats.h"
 #include "RHICommandList.h"
+#include "RHIUniformBufferLayoutInitializer.h"
 #include <type_traits>
 
 #if RHI_ENABLE_RESOURCE_INFO
@@ -42,7 +43,7 @@ CSV_DEFINE_CATEGORY(DrawCall, true);
 #endif
 
 IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayoutInitializer);
-IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferResource);
+IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferResourceInitializer);
 
 #if !defined(RHIRESOURCE_NUM_FRAMES_TO_EXPIRE)
 	#define RHIRESOURCE_NUM_FRAMES_TO_EXPIRE 3

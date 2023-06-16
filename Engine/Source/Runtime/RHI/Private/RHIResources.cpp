@@ -5,6 +5,7 @@
 #include "Experimental/Containers/HazardPointer.h"
 #include "Misc/MemStack.h"
 #include "RHICommandList.h"
+#include "RHIUniformBufferLayoutInitializer.h"
 #include "Stats/Stats.h"
 #include "TextureProfiler.h"
 #include "RHIGlobals.h"
@@ -304,4 +305,33 @@ RHI_API FRHIViewDesc::FTextureUAV::FViewInfo FRHIViewDesc::FTextureUAV::GetViewI
 	Info.bAllMips = Desc.NumMips == 1;
 
 	return Info;
+}
+
+static_assert(offsetof(FRHIUniformBufferResource, MemberOffset) == offsetof(FRHIUniformBufferResourceInitializer, MemberOffset), "FRHIUniformBufferResource must be identical to FRHIUniformBufferResourceInitializer");
+static_assert(offsetof(FRHIUniformBufferResource, MemberType  ) == offsetof(FRHIUniformBufferResourceInitializer, MemberType  ), "FRHIUniformBufferResource must be identical to FRHIUniformBufferResourceInitializer");
+static_assert(sizeof(FRHIUniformBufferResource) == sizeof(FRHIUniformBufferResourceInitializer), "FRHIUniformBufferResource must be identical to FRHIUniformBufferResourceInitializer");
+
+template <>
+struct TIsBitwiseConstructible<FRHIUniformBufferResource, FRHIUniformBufferResourceInitializer>
+{
+	enum { Value = true };
+};
+
+FRHIUniformBufferLayout::FRHIUniformBufferLayout(const FRHIUniformBufferLayoutInitializer& Initializer)
+	: FRHIResource(RRT_UniformBufferLayout)
+	, Name(Initializer.GetDebugName())
+	, Resources(TConstArrayView<FRHIUniformBufferResourceInitializer>(Initializer.Resources))
+	, GraphResources(TConstArrayView<FRHIUniformBufferResourceInitializer>(Initializer.GraphResources))
+	, GraphTextures(TConstArrayView<FRHIUniformBufferResourceInitializer>(Initializer.GraphTextures))
+	, GraphBuffers(TConstArrayView<FRHIUniformBufferResourceInitializer>(Initializer.GraphBuffers))
+	, GraphUniformBuffers(TConstArrayView<FRHIUniformBufferResourceInitializer>(Initializer.GraphUniformBuffers))
+	, UniformBuffers(TConstArrayView<FRHIUniformBufferResourceInitializer>(Initializer.UniformBuffers))
+	, Hash(Initializer.GetHash())
+	, ConstantBufferSize(Initializer.ConstantBufferSize)
+	, RenderTargetsOffset(Initializer.RenderTargetsOffset)
+	, StaticSlot(Initializer.StaticSlot)
+	, BindingFlags(Initializer.BindingFlags)
+	, bHasNonGraphOutputs(Initializer.bHasNonGraphOutputs)
+	, bNoEmulatedUniformBuffer(Initializer.bNoEmulatedUniformBuffer)
+{
 }

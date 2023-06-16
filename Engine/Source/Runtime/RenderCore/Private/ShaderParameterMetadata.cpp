@@ -6,6 +6,7 @@
 
 #include "ShaderParameterMetadata.h"
 #include "RenderCore.h"
+#include "RHIUniformBufferLayoutInitializer.h"
 #include "ShaderCore.h"
 #include "ShaderParameters.h"
 #include "DataDrivenShaderPlatformInfo.h"
@@ -692,8 +693,8 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 			for (uint32 ArrayElementId = 0; ArrayElementId < (bIsArray ? ArraySize : 1u); ArrayElementId++)
 			{
 				const uint32 AbsoluteMemberOffset = CurrentMember.GetOffset() + MemberStack[i].StructOffset + ArrayElementId * SHADER_PARAMETER_POINTER_ALIGNMENT;
-				check(AbsoluteMemberOffset < (1u << (sizeof(FRHIUniformBufferResource::MemberOffset) * 8)));
-				const FRHIUniformBufferResource ResourceParameter{ uint16(AbsoluteMemberOffset), BaseType };
+				check(AbsoluteMemberOffset < (1u << (sizeof(FRHIUniformBufferResourceInitializer::MemberOffset) * 8)));
+				const FRHIUniformBufferResourceInitializer ResourceParameter{ uint16(AbsoluteMemberOffset), BaseType };
 
 				LayoutInitializer.Resources.Add(ResourceParameter);
 
@@ -741,15 +742,15 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 	}
 
 	const auto ByMemberOffset = [](
-		const FRHIUniformBufferResource& A,
-		const FRHIUniformBufferResource& B)
+		const FRHIUniformBufferResourceInitializer& A,
+		const FRHIUniformBufferResourceInitializer& B)
 	{
 		return A.MemberOffset < B.MemberOffset;
 	};
 
 	const auto ByTypeThenMemberOffset = [](
-		const FRHIUniformBufferResource& A,
-		const FRHIUniformBufferResource& B)
+		const FRHIUniformBufferResourceInitializer& A,
+		const FRHIUniformBufferResourceInitializer& B)
 	{
 		if (A.MemberType == B.MemberType)
 		{

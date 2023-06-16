@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "Math/Vector.h"
 #include "RenderResource.h"
-#include "RHI.h"
+#include "RHIFwd.h"
 
+class FPositionVertexData;
 struct FStaticMeshBuildVertex;
 struct FConstMeshBuildVertexView;
 
@@ -126,7 +128,7 @@ private:
 	FShaderResourceViewRHIRef PositionComponentSRV;
 
 	/** The vertex data storage type */
-	TMemoryImagePtr<class FPositionVertexData> VertexData;
+	FPositionVertexData* VertexData;
 
 	/** The cached vertex data pointer. */
 	uint8* Data;
@@ -145,4 +147,8 @@ private:
 	template <bool bRenderThread>
 	FBufferRHIRef CreateRHIBuffer_Internal();
 };
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "RHI.h"
+#endif
 

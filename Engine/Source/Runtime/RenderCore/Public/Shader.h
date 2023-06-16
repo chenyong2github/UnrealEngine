@@ -31,6 +31,7 @@
 #include "Misc/SecureHash.h"
 #include "RHI.h"
 #include "RHIDefinitions.h"
+#include "RHIMemoryLayout.h"
 #include "RenderResource.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RenderingThread.h"

@@ -8,7 +8,8 @@
 #pragma once
 
 #include "GpuProfilerTrace.h" // TODO Move defines into RHIDefinitions
-#include "Serialization/MemoryLayout.h"
+#include "Math/NumericLimits.h"
+#include "Misc/EnumClassFlags.h"
 #include "ProfilingDebugging/CsvProfilerConfig.h" // TODO Move defines into RHIDefinitions
 
 #ifndef USE_STATIC_SHADER_PLATFORM_ENUMS
@@ -400,7 +401,6 @@ enum EVertexElementType
 	VET_NumBits = 5,
 };
 static_assert(VET_MAX <= (1 << VET_NumBits), "VET_MAX will not fit on VET_NumBits");
-DECLARE_INTRINSIC_TYPE_LAYOUT(EVertexElementType);
 
 enum ECubeFace : uint32
 {
@@ -519,7 +519,6 @@ enum EUniformBufferBaseType : uint8
 	EUniformBufferBaseType_NumBits = 5,
 };
 static_assert(EUniformBufferBaseType_Num <= (1 << EUniformBufferBaseType_NumBits), "EUniformBufferBaseType_Num will not fit on EUniformBufferBaseType_NumBits");
-DECLARE_INTRINSIC_TYPE_LAYOUT(EUniformBufferBaseType);
 
 /** The list of flags declaring which binding models are allowed for a uniform buffer layout. */
 enum class EUniformBufferBindingFlags : uint8
@@ -538,7 +537,6 @@ enum class EUniformBufferBindingFlags : uint8
 	StaticAndShader = Static | Shader
 };
 ENUM_CLASS_FLAGS(EUniformBufferBindingFlags);
-DECLARE_INTRINSIC_TYPE_LAYOUT(EUniformBufferBindingFlags);
 
 /** Numerical type used to store the static slot indices. */
 using FUniformBufferStaticSlot = uint8;
@@ -1137,14 +1135,12 @@ struct FRHIDescriptorHandle
 	inline ERHIDescriptorHeapType GetType() const { return (ERHIDescriptorHeapType)Type; }
 	inline uint8                  GetRawType() const { return Type; }
 
-	inline bool IsValid() const { return Index != UINT_MAX && Type != (uint8)ERHIDescriptorHeapType::Invalid; }
+	inline bool IsValid() const { return Index != MAX_uint32 && Type != (uint8)ERHIDescriptorHeapType::Invalid; }
 
 private:
-	uint32    Index{ UINT_MAX };
+	uint32    Index{ MAX_uint32 };
 	uint8     Type{ (uint8)ERHIDescriptorHeapType::Invalid };
 };
-
-using FDisplayInformationArray = TArray<struct FDisplayInformation>;
 
 enum class ERHIBindlessConfiguration
 {
@@ -1334,7 +1330,6 @@ inline ERHIResourceType GetRHIResourceType(ETextureDimension Dimension)
 	case ETextureDimension::TextureCubeArray:
 		return ERHIResourceType::RRT_TextureCube;
 	}
-	checkNoEntry();
 	return ERHIResourceType::RRT_None;
 }
 
@@ -1367,4 +1362,8 @@ struct FShaderCodeValidationStride
 #include "RHIImmutableSamplerState.h"
 #include "RHIShaderPlatform.h"
 #include "RHIStrings.h"
+#endif
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3
+#include "Serialization/MemoryLayout.h"
 #endif
