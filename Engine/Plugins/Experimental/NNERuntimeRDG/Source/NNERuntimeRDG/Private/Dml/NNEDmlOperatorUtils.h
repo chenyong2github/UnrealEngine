@@ -39,6 +39,35 @@ static EAutoPad AutoPadFromString(FStringView StringVal)
     }
 }
 
+template<typename T>
+static bool IsEqualOrBroadcastable(TConstArrayView<T> ShapeA, TConstArrayView<T> ShapeB)
+{
+    if(ShapeA.Num() < ShapeB.Num())
+    {
+        return false;
+    }
+
+    int32 IdxOffset = 0;
+
+    if(ShapeB.Num() < ShapeA.Num())
+    {
+        IdxOffset = ShapeA.Num() - ShapeB.Num();
+    }
+
+    for(int32 Idx = 0; Idx < ShapeB.Num(); ++Idx)
+    {
+        if(ShapeA[Idx + IdxOffset] != ShapeB[Idx])
+        {
+            if(ShapeB[Idx] != 1)
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 static Util::FSmallUIntArray KernelPadding(
     TConstArrayView<uint32> InputShape, TConstArrayView<uint32> WindowSize, 
     TConstArrayView<uint32> Dilations, TConstArrayView<uint32> Strides
