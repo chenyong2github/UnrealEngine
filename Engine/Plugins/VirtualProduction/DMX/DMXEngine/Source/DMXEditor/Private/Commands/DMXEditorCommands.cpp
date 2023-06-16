@@ -27,9 +27,9 @@ void FDMXEditorCommands::RegisterCommands()
 	UI_COMMAND(ToggleReceiveDMX, "Receive DMX", "Sets whether DMX is received in editor", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Alt, EKeys::M));
 	UI_COMMAND(ToggleSendDMX, "Send DMX", "Sets whether DMX is sent from editor", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Alt, EKeys::N));
 
-	UI_COMMAND(AutoAssignToFirstUniverseInSelection, "Auto Assign", "Auto assigns selected patches, doesn't decrement Universe of selection.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(AutoAssignToFirstReachableUniverse, "Auto Assign to first reachable Universe", "Auto assigns selected patches to the first Universe reachable by the DMX Library", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(AutoAssignAfterLastAddressInLibrary, "Auto Assign after last Patch in Library", "Auto assigns selected patches after the last patch in the DMX Library", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Align, "Align", "Aligns selected patches", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(Stack, "Stack", "Stacks selected patches", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(AutoAssignSelectedUniverse, "Auto-Assign in selected Universe", "Auto-assigns selected patches to first consecutive range of free channels, starting from the selected Universe.", EUserInterfaceActionType::Button, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

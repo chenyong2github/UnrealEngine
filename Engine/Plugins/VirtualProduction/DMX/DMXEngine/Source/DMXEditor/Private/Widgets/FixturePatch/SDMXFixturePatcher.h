@@ -61,7 +61,7 @@ private:
 	TSharedRef<SWidget> CreateToolbar();
 
 	/** Creates the settings menu */
-	TSharedRef<SWidget> CreateDisplaySettingsMenu();
+	TSharedRef<SWidget> CreateSettingsMenu();
 
 	/** Selects the fixture patch name display mode */
 	void SelectFixturePatchNameDisplayMode(EDMXFixturePatcherNameDisplayMode DisplayMode);

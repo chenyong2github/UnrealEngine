@@ -80,6 +80,11 @@ bool SDMXFixtureTypeModesEditorModeRow::OnVerifyModeNameChanged(const FText& InN
 
 void SDMXFixtureTypeModesEditorModeRow::OnModeNameCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
 {
+	if (InNewText.IsEmpty())
+	{
+		return;
+	}
+
 	FText UniqueModeName;
 	ModeItem->SetModeName(InNewText, UniqueModeName);
 

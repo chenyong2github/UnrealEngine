@@ -12,21 +12,19 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-enum class EDMXFixturePatchAutoAssignMode : uint8;
 class FDMXEditor;
 class FDMXFixturePatchNode;
 class FDMXFixturePatchSharedData;
-class SDMXChannelConnector;
-class SDMXFixturePatchFragment;
-class UDMXLibrary;
-class UDMXEntityFixturePatch;
-
 class FDragDropEvent;
 struct FTimerHandle;
 class FUICommandList;
 class SBorder;
+class SDMXChannelConnector;
+class SDMXFixturePatchFragment;
 class SGridPanel;
-
+class UDMXLibrary;
+class UDMXEntityFixturePatch;
+namespace UE::DMXEditor::AutoAssign { enum class EAutoAssignMode : uint8; }
 
 enum class EDMXPatchedUniverseReachability
 {
@@ -178,7 +176,22 @@ private:
 	void OnSelectionChanged();
 
 	/** Auto assigns selected Fixture Patches */
-	void AutoAssignFixturePatches(EDMXFixturePatchAutoAssignMode AutoAssignMode);
+	void AutoAssignFixturePatches(UE::DMXEditor::AutoAssign::EAutoAssignMode AutoAssignMode);
+
+	/** Assign selected Fixture Patches */
+	void AssignFixturePatches();
+
+	/** Aligns selected Fixture Patches */
+	void AlignFixturePatches();
+
+	/** Stacks selected Fixture Patches */
+	void StackFixturePatches();
+
+	/** Spreads selected Fixture Patches over Universes */
+	void SpreadFixturePatchesOverUniverses();
+
+	/** Gets selected fixture patches. Returns false if no patches are selected */
+	bool GetSelectedFixturePatches(TArray<UDMXEntityFixturePatch*>& OutFixturePatchArray) const;
 
 	/** Returns true if the DMX Library has reachable Universes */
 	bool DoesDMXLibraryHaveReachableUniverses() const;
@@ -197,6 +210,9 @@ private:
 
 	/** The hovered channel, or unset if no channel is hovered */
 	TSharedPtr<SDMXChannelConnector> HoveredChannel;
+
+	/** The channel that was last hovered */
+	int32 LastHoveredChannel = 1;
 
 	/** If true, monitors inputs */
 	bool bMonitorInputs = false;
@@ -238,7 +254,7 @@ private:
 	TSharedPtr<FDMXFixturePatchSharedData> SharedData;
 
 	/** The owning editor */
-	TWeakPtr<FDMXEditor> DMXEditorPtr;
+	TWeakPtr<FDMXEditor> WeakDMXEditor;
 
 	private:
 	///////////////////////////////////////////////////

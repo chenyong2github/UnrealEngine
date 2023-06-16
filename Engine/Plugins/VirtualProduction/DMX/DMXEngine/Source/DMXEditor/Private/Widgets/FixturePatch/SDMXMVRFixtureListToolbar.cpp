@@ -2,20 +2,20 @@
 
 #include "SDMXMVRFixtureListToolbar.h"
 
+#include "Algo/MaxElement.h"
+#include "Commands/DMXEditorCommands.h"
 #include "DMXEditor.h"
 #include "DMXEditorUtils.h"
 #include "DMXFixturePatchSharedData.h"
 #include "DMXMVRFixtureListItem.h"
-#include "DMXFixturePatchAutoAssignUtility.h"
+#include "EditorStyleSet.h"
+#include "FixturePatchAutoAssignUtility.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "Commands/DMXEditorCommands.h"
-#include "Widgets/SDMXEntityDropdownMenu.h"
-
-#include "EditorStyleSet.h"
 #include "ScopedTransaction.h"
-#include "Algo/MaxElement.h"
+#include "SAddFixturePatchMenu.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SDMXEntityDropdownMenu.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -198,165 +198,28 @@ TSharedRef<SWidget> SDMXMVRFixtureListToolbar::GenerateFixtureTypeDropdownMenu()
 			]
 			.MenuContent()
 			[
-
-				SNew(SVerticalBox)
-				
-				// Bulk Add Fixture Patches 
-				+ SVerticalBox::Slot()
-				.AutoHeight()
+				SNew(SBox)
+				.Padding(4.f)
+				.MinDesiredWidth(460.f)
 				[
-					SNew(SHorizontalBox)
-					
-					+SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					.Padding(8.f, 2.f, 4.f, 2.f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("BulkAddPatchesLabel", "Quantity"))
-					]
-
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Center)
-					.Padding(4.f, 2.f, 4.f, 2.f)
-					[
-						SNew(SEditableTextBox)
-						.SelectAllTextWhenFocused(true)
-						.ClearKeyboardFocusOnCommit(false)
-						.SelectAllTextOnCommit(true)
-						.Text_Lambda([this]()
-							{
-								return FText::FromString(FString::FromInt(NumFixturePatchesToAdd));
-							})
-						.OnVerifyTextChanged_Lambda([](const FText& InNewText, FText& OutErrorMessage)
-							{
-								int32 Value;
-								if (!LexTryParseString<int32>(Value, *InNewText.ToString()) ||
-									Value < 1)
-								{
-									OutErrorMessage = LOCTEXT("BulkAddPatchesBadString", "Needs a numeric value > 0");
-									return false;
-								}
-								return true;
-							})
-						.OnTextCommitted_Lambda([this](const FText& Text, ETextCommit::Type CommitType)
-							{
-								int32 Value;
-								if (LexTryParseString<int32>(Value, *Text.ToString()) &&
-									Value > 0)
-								{
-									constexpr int32 MaxNumPatchesToBulkAdd = 512;
-									NumFixturePatchesToAdd = FMath::Min(Value, MaxNumPatchesToBulkAdd);
-								}
-							})
-					]
-				]
-
-				// Fixture Type Selection
-				+ SVerticalBox::Slot()
-				[
-					SAssignNew(FixtureTypeDropdownMenu, SDMXEntityDropdownMenu<UDMXEntityFixtureType>)
-					.DMXEditor(WeakDMXEditor)
-					.OnEntitySelected(this, &SDMXMVRFixtureListToolbar::OnAddNewMVRFixtureClicked)
+					SAssignNew(AddFixturePatchMenu, UE::DMXEditor::FixturePatchEditor::SAddFixturePatchMenu, WeakDMXEditor)
 				]
 			]
 			.IsFocusable(true)
-			.ContentPadding(FMargin(5.0f, 1.0f))
+			.ContentPadding(FMargin(4.0f, 4.0f))
 			.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
 			.ButtonStyle(FAppStyle::Get(), "FlatButton.Success")
 			.ForegroundColor(FLinearColor::White)
 			.ToolTipText(AddButtonToolTip)
-			.OnComboBoxOpened(FOnComboBoxOpened::CreateLambda([this]() 
-				{ 
-					FixtureTypeDropdownMenu->RefreshEntitiesList();
-				}));
-
-	FixtureTypeDropdownMenu->SetComboButton(AddComboButton);
+			.OnComboBoxOpened_Lambda([this]()
+				{
+					if (AddFixturePatchMenu.IsValid())
+					{
+						AddFixturePatchMenu->RequestRefresh();
+					}
+				});
 
 	return AddComboButton;
-}
-
-void SDMXMVRFixtureListToolbar::OnAddNewMVRFixtureClicked(UDMXEntity* InSelectedFixtureType)
-{
-	if (!ensureMsgf(InSelectedFixtureType, TEXT("Trying to add Fixture Patches, but selected fixture type is invalid.")))
-	{
-		return;
-	}
-
-	TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin();
-	if (!DMXEditor.IsValid())
-	{
-		return;
-	}
-	UDMXLibrary* DMXLibrary = DMXEditor->GetDMXLibrary();
-	if (!DMXLibrary)
-	{
-		return;
-	}
-	UDMXEntityFixtureType* FixtureType = CastChecked<UDMXEntityFixtureType>(InSelectedFixtureType);
-
-	// Find a Universe and Address
-	TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-	UDMXEntityFixturePatch* const* LastFixturePatchPtr = Algo::MaxElementBy(FixturePatches, [](const UDMXEntityFixturePatch* FixturePatch)
-		{
-			return (int64)FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetStartingChannel();
-		});
-	int32 Universe = 1;
-	int32 Address = 1;
-	int32 ChannelSpan = 0;
-	if (LastFixturePatchPtr && !FixtureType->Modes.IsEmpty())
-	{
-		ChannelSpan = FixtureType->Modes[0].ChannelSpan;
-		const UDMXEntityFixturePatch& LastFixturePatch = **LastFixturePatchPtr;
-		if (LastFixturePatch.GetEndingChannel() + FixtureType->Modes[0].ChannelSpan > DMX_MAX_ADDRESS)
-		{
-			Universe = LastFixturePatch.GetUniverseID() + 1;
-			Address = 1;
-		}
-		else
-		{
-			Universe = LastFixturePatch.GetUniverseID();
-			Address = LastFixturePatch.GetEndingChannel() + 1;
-		}
-	}
-
-	// Create a new fixture patches
-	const FScopedTransaction CreateFixturePatchTransaction(LOCTEXT("CreateFixturePatchTransaction", "Create Fixture Patch"));
-	TArray<UDMXEntityFixturePatch*> NewFixturePatches;
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> NewWeakFixturePatches;
-	DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
-	for (int32 iNumFixturePatchesAdded = 0; iNumFixturePatchesAdded < NumFixturePatchesToAdd; iNumFixturePatchesAdded++)
-	{
-		FDMXEntityFixturePatchConstructionParams FixturePatchConstructionParams;
-		FixturePatchConstructionParams.FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureType);
-		FixturePatchConstructionParams.ActiveMode = 0;
-		FixturePatchConstructionParams.UniverseID = Universe;
-		FixturePatchConstructionParams.StartingAddress = Address;
-
-		constexpr bool bMarkLibraryDirty = false;
-		UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams, FixtureType->Name, bMarkLibraryDirty);
-		NewFixturePatches.Add(NewFixturePatch);
-		NewWeakFixturePatches.Add(NewFixturePatch);	
-
-		// Increment Universe and Address in steps by one. This is enough for auto assign while keeping order of the named patches
-		if (Address + ChannelSpan > DMX_MAX_ADDRESS)
-		{
-			Universe++;
-			Address = 1; 
-		}
-		else
-		{
-			Address++;
-		}
-	}
-
-	// Auto assign
-	FDMXFixturePatchAutoAssignUtility::AutoAssign(NewFixturePatches, EDMXFixturePatchAutoAssignMode::LastAddressInLibrary);
-
-	DMXLibrary->PostEditChange();
-
-	DMXEditor->GetFixturePatchSharedData()->SelectFixturePatches(NewWeakFixturePatches);
 }
 
 void SDMXMVRFixtureListToolbar::OnSearchTextChanged(const FText& SearchText)

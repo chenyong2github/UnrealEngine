@@ -8,26 +8,24 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
 
-enum class EDMXFixturePatchAutoAssignMode : uint8;
 class FDMXEditor;
 class FDMXMVRFixtureListItem;
 class FDMXFixturePatchSharedData;
+class FUICommandList;
+class ITableRow;
+class SBorder;
 class SDMXMVRFixtureListRow;
 class SDMXMVRFixtureListToolbar;
+class SHeaderRow;
+template <typename ItemType> class SListView;
+class STableViewBase;
 class UDMXEntity;
 class UDMXEntityFixturePatch;
 class UDMXEntityFixtureType;
 class UDMXLibrary;
 class UDMXMVRFixtureNode;
 class UDMXMVRGeneralSceneDescription;
-
-class FUICommandList;
-class ITableRow;
-class SBorder;
-class SHeaderRow;
-template <typename ItemType> class SListView;
-class STableViewBase;
-
+namespace UE::DMXEditor::AutoAssign { enum class EAutoAssignMode : uint8; }
 
 /** Collumn IDs in the Fixture Patch List */
 struct FDMXMVRFixtureListCollumnIDs
@@ -115,7 +113,7 @@ private:
 	void AdoptSelectionFromFixturePatchSharedData();
 
 	/** Auto assigns selected Fixture Patches */
-	void AutoAssignFixturePatches(EDMXFixturePatchAutoAssignMode AutoAssignMode);
+	void AutoAssignFixturePatches(UE::DMXEditor::AutoAssign::EAutoAssignMode Mode);
 
 	/** Returns true if the DMX Library has reachable Universes */
 	bool DoesDMXLibraryHaveReachableUniverses() const;
@@ -155,6 +153,9 @@ private:
 
 	/** List source when filtered by search */
 	TArray<TSharedPtr<FDMXMVRFixtureListItem>> FilteredListSource;
+
+	/** The item that was last selected in the list */
+	TSharedPtr<FDMXMVRFixtureListItem> LastSelectedItem;
 
 	/** The Search Bar for the List */
 	TSharedPtr<SDMXMVRFixtureListToolbar> Toolbar;

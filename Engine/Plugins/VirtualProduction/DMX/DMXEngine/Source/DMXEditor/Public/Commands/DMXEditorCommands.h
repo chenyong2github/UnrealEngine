@@ -37,7 +37,7 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleSendDMX;
 
 	// Auto assign
-	TSharedPtr<FUICommandInfo> AutoAssignToFirstUniverseInSelection;
-	TSharedPtr<FUICommandInfo> AutoAssignToFirstReachableUniverse;
-	TSharedPtr<FUICommandInfo> AutoAssignAfterLastAddressInLibrary;
+	TSharedPtr<FUICommandInfo> Align;
+	TSharedPtr<FUICommandInfo> Stack;
+	TSharedPtr<FUICommandInfo> AutoAssignSelectedUniverse;
 };

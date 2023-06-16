@@ -2,34 +2,34 @@
 
 #include "SDMXMVRFixtureList.h"
 
+#include "Algo/Copy.h"
+#include "Algo/MaxElement.h"
+#include "Algo/MinElement.h"
+#include "Algo/Sort.h"
+#include "Commands/DMXEditorCommands.h"
 #include "DMXEditor.h"
 #include "DMXEditorSettings.h"
 #include "DMXEditorUtils.h"
-#include "DMXFixturePatchAutoAssignUtility.h"
 #include "DMXFixturePatchSharedData.h"
 #include "DMXRuntimeUtils.h"
-#include "Commands/DMXEditorCommands.h"
-#include "Framework/Application/SlateApplication.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXLibrary.h"
-#include "Widgets/FixturePatch/DMXMVRFixtureListItem.h"
-#include "Widgets/FixturePatch/SDMXMVRFixtureListRow.h"
-#include "Widgets/FixturePatch/SDMXMVRFixtureListToolbar.h"
-
-#include "Factories.h"
-#include "ScopedTransaction.h"
-#include "TimerManager.h"
-#include "UnrealExporter.h"
-#include "Algo/MinElement.h"
-#include "Algo/Sort.h"
 #include "Exporters/Exporter.h"
+#include "Factories.h"
+#include "FixturePatchAutoAssignUtility.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXLibrary.h"
+#include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
+#include "TimerManager.h"
+#include "UnrealExporter.h"
+#include "Widgets/FixturePatch/DMXMVRFixtureListItem.h"
+#include "Widgets/FixturePatch/SDMXMVRFixtureListRow.h"
+#include "Widgets/FixturePatch/SDMXMVRFixtureListToolbar.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/SListView.h"
@@ -90,41 +90,19 @@ namespace UE::DMX::SDMXMVRFixtureList::Private
 
 		// Find the first free Addresses
 		TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-		if (FixturePatches.Num() == 0)
+		if (FixturePatches.IsEmpty())
 		{
 			return nullptr;
 		}
-
-		FixturePatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
-			{
-				const bool bUniverseIsSmaller = FixturePatchA.GetUniverseID() < FixturePatchB.GetUniverseID();
-				const bool bUniverseIsEqual = FixturePatchA.GetUniverseID() == FixturePatchB.GetUniverseID();
-				const bool bAddressIsSmallerOrEqual = FixturePatchA.GetStartingChannel() <= FixturePatchB.GetStartingChannel();
-
-				return bUniverseIsSmaller || (bUniverseIsEqual && bAddressIsSmallerOrEqual);
-			});
-
-		int32 Address = FixturePatches.Last()->GetStartingChannel() + FixturePatches.Last()->GetChannelSpan();
-		int32 Universe = -1;
-		if (Address > DMX_MAX_ADDRESS)
-		{
-			Address = 1;
-			Universe = FixturePatches.Last()->GetUniverseID() + 1;
-		}
-		else
-		{
-			Universe = FixturePatches.Last()->GetUniverseID();
-		}
-
 		UDMXEntityFixturePatch** FixturePatchToDuplicatePtr = Algo::FindByPredicate(FixturePatches, [MVRFixtureUUID](const UDMXEntityFixturePatch* FixturePatch)
 			{
 				return FixturePatch->GetMVRFixtureUUID() == MVRFixtureUUID;
 			});
-
 		if (!ensureMsgf(FixturePatchToDuplicatePtr, TEXT("Trying to duplicate fixture patch, but source fixture patch cannot be found")))
 		{
 			return nullptr;
 		}
+
 		UDMXEntityFixturePatch* FixturePatchToDuplicate = *FixturePatchToDuplicatePtr;
 		check(FixturePatchToDuplicate);
 
@@ -143,26 +121,17 @@ namespace UE::DMX::SDMXMVRFixtureList::Private
 		}
 
 		// Duplicate the Fixture Patch
-		const int32 ChannelSpan = FixturePatchToDuplicate->GetChannelSpan();
-		if (Address + ChannelSpan - 1 > DMX_MAX_ADDRESS)
-		{
-			Address = 1;
-			Universe++;
-		}
-
 		FDMXEntityFixturePatchConstructionParams ConstructionParams;
 		ConstructionParams.FixtureTypeRef = FixturePatchToDuplicate->GetFixtureType();
 		ConstructionParams.ActiveMode = FixturePatchToDuplicate->GetActiveModeIndex();
-		ConstructionParams.UniverseID = Universe;
-		ConstructionParams.StartingAddress = Address;
+		ConstructionParams.UniverseID = FixturePatchToDuplicate->GetUniverseID();
+		ConstructionParams.StartingAddress = FixturePatchToDuplicate->GetStartingChannel();
 
 		constexpr bool bMarkLibraryDirty = false;
 		UDMXEntityFixturePatch* NewFixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(ConstructionParams, FixturePatchToDuplicate->Name, bMarkLibraryDirty);
 
 		// Use the same color as the duplicated patch
 		NewFixturePatch->EditorColor = FixturePatchToDuplicate->EditorColor;
-
-		Address += ChannelSpan;
 
 		DMXLibrary->PostEditChange();
 
@@ -813,6 +782,8 @@ void SDMXMVRFixtureList::OnSelectionChanged(TSharedPtr<FDMXMVRFixtureListItem> I
 	{
 		return;
 	}
+
+	LastSelectedItem = InItem;
  
 	const TArray<TSharedPtr<FDMXMVRFixtureListItem>> SelectedItems = ListView->GetSelectedItems();
 	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatchesToSelect;
@@ -941,8 +912,13 @@ void SDMXMVRFixtureList::AdoptSelectionFromFixturePatchSharedData()
 	}
 }
 
-void SDMXMVRFixtureList::AutoAssignFixturePatches(EDMXFixturePatchAutoAssignMode AutoAssignMode)
+void SDMXMVRFixtureList::AutoAssignFixturePatches(UE::DMXEditor::AutoAssign::EAutoAssignMode Mode)
 {
+	if (!WeakDMXEditor.IsValid())
+	{
+		return;
+	}
+
 	TArray<UDMXEntityFixturePatch*> FixturePatchesToAutoAssign;
 	const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
 	for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
@@ -958,7 +934,8 @@ void SDMXMVRFixtureList::AutoAssignFixturePatches(EDMXFixturePatchAutoAssignMode
 		return;
 	}
 
-	FDMXFixturePatchAutoAssignUtility::AutoAssign(FixturePatchesToAutoAssign, AutoAssignMode);
+	using namespace UE::DMXEditor::AutoAssign;
+	FAutoAssignUtility::AutoAssign(Mode, WeakDMXEditor.Pin().ToSharedRef(), FixturePatchesToAutoAssign, 1, 1);
 	FixturePatchSharedData->SelectUniverse(FixturePatchesToAutoAssign[0]->GetUniverseID());
 
 	RequestListRefresh();
@@ -1131,7 +1108,7 @@ void SDMXMVRFixtureList::SortByColumnID(const EColumnSortPriority::Type SortPrio
 
 	if (ColumnId == FDMXMVRFixtureListCollumnIDs::FixturePatchName)
 	{
-		Algo::Sort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
+		Algo::StableSort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
 			{
 				const FString FixturePatchNameA = ItemA->GetFixturePatchName();
 				const FString FixturePatchNameB = ItemB->GetFixturePatchName();
@@ -1142,7 +1119,7 @@ void SDMXMVRFixtureList::SortByColumnID(const EColumnSortPriority::Type SortPrio
 	}
 	else if (ColumnId == FDMXMVRFixtureListCollumnIDs::FixtureID)
 	{
-		Algo::Sort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
+		Algo::StableSort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
 			{
 				bool bIsGreater = [ItemA, ItemB]()
 				{
@@ -1171,7 +1148,7 @@ void SDMXMVRFixtureList::SortByColumnID(const EColumnSortPriority::Type SortPrio
 	}
 	else if (ColumnId == FDMXMVRFixtureListCollumnIDs::FixtureType)
 	{
-		Algo::Sort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
+		Algo::StableSort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
 			{
 				const FString FixtureTypeA = ItemA->GetFixtureType()->Name;
 				const FString FixtureTypeB = ItemB->GetFixtureType()->Name;
@@ -1182,7 +1159,7 @@ void SDMXMVRFixtureList::SortByColumnID(const EColumnSortPriority::Type SortPrio
 	}
 	else if (ColumnId == FDMXMVRFixtureListCollumnIDs::Mode)
 	{
-		Algo::Sort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
+		Algo::StableSort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
 			{
 				const bool bIsGreater = ItemA->GetModeIndex() >= ItemB->GetModeIndex();
 				return bAscending ? !bIsGreater : bIsGreater;
@@ -1190,7 +1167,7 @@ void SDMXMVRFixtureList::SortByColumnID(const EColumnSortPriority::Type SortPrio
 	}
 	else if (ColumnId == FDMXMVRFixtureListCollumnIDs::Patch)
 	{
-		Algo::Sort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
+		Algo::StableSort(ListSource, [bAscending](const TSharedPtr<FDMXMVRFixtureListItem>& ItemA, const TSharedPtr<FDMXMVRFixtureListItem>& ItemB)
 			{
 				const UDMXEntityFixturePatch* FixturePatchA = ItemA->GetFixturePatch();
 				const UDMXEntityFixturePatch* FixturePatchB = ItemB->GetFixturePatch();
@@ -1227,20 +1204,6 @@ TSharedPtr<SWidget> SDMXMVRFixtureList::OnContextMenuOpening()
 
 	const bool bCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bCloseWindowAfterMenuSelection, CommandList);
-
-	// Auto Assign Section
-	if (!FixturePatchSharedData->GetSelectedFixturePatches().IsEmpty())
-	{
-		MenuBuilder.BeginSection("AutoAssignSection", LOCTEXT("AutoAssignSection", "Auto-Assign"));
-		{
-			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignToFirstUniverseInSelection);
-			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignToFirstReachableUniverse);
-			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignAfterLastAddressInLibrary);
-		}
-		MenuBuilder.EndSection();
-	}
-
-	// Basic Operations Section
 	MenuBuilder.BeginSection("BasicOperationsSection", LOCTEXT("BasicOperationsSection", "Basic Operations"));
 	{
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
@@ -1248,6 +1211,13 @@ TSharedPtr<SWidget> SDMXMVRFixtureList::OnContextMenuOpening()
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
 		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+	}
+	MenuBuilder.EndSection();
+
+	using namespace UE::DMXEditor::AutoAssign;
+	MenuBuilder.BeginSection("AutoAssignSection", LOCTEXT("AutoAssignActionsSection", "Auto-Assign"));
+	{
+		MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignSelectedUniverse);
 	}
 	MenuBuilder.EndSection();
 
@@ -1293,23 +1263,12 @@ void SDMXMVRFixtureList::RegisterCommands()
 			EUIActionRepeatMode::RepeatEnabled
 		)
 	);
-	CommandList->MapAction
-	(
-		FDMXEditorCommands::Get().AutoAssignToFirstUniverseInSelection,
-		FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::FirstUniverseInSelection)
-	);
 
+	using namespace UE::DMXEditor::AutoAssign;
 	CommandList->MapAction
 	(
-		FDMXEditorCommands::Get().AutoAssignToFirstReachableUniverse,
-		FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::FirstReachableUniverse),
-		FCanExecuteAction::CreateSP(this, &SDMXMVRFixtureList::DoesDMXLibraryHaveReachableUniverses)
-	);
-
-	CommandList->MapAction
-	(
-		FDMXEditorCommands::Get().AutoAssignAfterLastAddressInLibrary,
-		FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::LastAddressInLibrary)
+		FDMXEditorCommands::Get().AutoAssignSelectedUniverse,
+		FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches, EAutoAssignMode::SelectedUniverse)
 	);
 }
 
@@ -1402,31 +1361,40 @@ bool SDMXMVRFixtureList::CanDuplicateItems() const
 
 void SDMXMVRFixtureList::OnDuplicateItems()
 {
-	UDMXLibrary* DMXLibrary = WeakDMXEditor.IsValid() ? WeakDMXEditor.Pin()->GetDMXLibrary() : nullptr;
-	if (!DMXLibrary)
+	const TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin();
+	UDMXLibrary* DMXLibrary = DMXEditor.IsValid() ? DMXEditor->GetDMXLibrary() : nullptr;
+	if (!DMXEditor.IsValid() || !DMXLibrary)
 	{
 		return;
 	}
 
 	TGuardValue<bool>(bChangingDMXLibrary, true);
+
 	const FText TransactionText = LOCTEXT("DuplicateFixturePatchesTransaction", "Duplicate Fixture Patches");
 	const FScopedTransaction PasteTransaction(TransactionText);
 
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
-	
-	// Sort in order of the list so duplicate happens in order of the list
-	Algo::SortBy(SelectedFixturePatches, [this](TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch)
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedWeakFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
+	SelectedWeakFixturePatches.Remove(nullptr);
+	if (SelectedWeakFixturePatches.IsEmpty())
+	{
+		return;
+	}
+
+	TArray<UDMXEntityFixturePatch*> SelectedFixturePatches;
+	Algo::TransformIf(SelectedWeakFixturePatches, SelectedFixturePatches, 
+		[](const TWeakObjectPtr<UDMXEntityFixturePatch>& WeakFixturePatch) { return WeakFixturePatch.IsValid(); },
+		[](const TWeakObjectPtr<UDMXEntityFixturePatch>& WeakFixturePatch) { return WeakFixturePatch.Get(); });
+
+	// Duplicate in order of patch
+	Algo::StableSortBy(SelectedFixturePatches, [this](UDMXEntityFixturePatch* FixturePatch)
 		{
-			return ListSource.IndexOfByPredicate([FixturePatch](const TSharedPtr<FDMXMVRFixtureListItem>& Item)
-				{
-					return Item->GetFixturePatch() == FixturePatch;
-				});
+			return FixturePatch->GetUniverseID() * DMX_UNIVERSE_SIZE + FixturePatch->GetStartingChannel();
 		});
 
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> NewFixturePatches;
-	for (const TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
+	TArray<UDMXEntityFixturePatch*> NewFixturePatches;
+	for (const UDMXEntityFixturePatch* FixturePatch : SelectedFixturePatches)
 	{
-		if(!FixturePatch.IsValid() || !FixturePatch->GetParentLibrary())
+		if(!FixturePatch->GetParentLibrary())
 		{
 			continue;
 		}
@@ -1435,7 +1403,16 @@ void SDMXMVRFixtureList::OnDuplicateItems()
 		UDMXEntityFixturePatch* NewFixturePatch = DuplicatePatchByMVRFixtureUUID(DMXLibrary, FixturePatch->GetMVRFixtureUUID());
 		NewFixturePatches.Add(NewFixturePatch);
 	}
-	FixturePatchSharedData->SelectFixturePatches(NewFixturePatches);
+
+	using namespace UE::DMXEditor::AutoAssign;
+	const int32 AssignedToUniverse = FAutoAssignUtility::AutoAssign(EAutoAssignMode::AfterLastPatchedUniverse, DMXEditor.ToSharedRef(), NewFixturePatches);
+
+	DMXLibrary->PostEditChange();
+
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> NewWeakFixturePatches;
+	Algo::Copy(NewFixturePatches, NewWeakFixturePatches);
+	FixturePatchSharedData->SelectFixturePatches(NewWeakFixturePatches);
+	FixturePatchSharedData->SelectUniverse(AssignedToUniverse);
 
 	RequestListRefresh();
 }

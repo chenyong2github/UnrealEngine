@@ -2,33 +2,64 @@
 
 #include "SDMXPatchedUniverse.h"
 
+#include "Algo/ForEach.h"
+#include "Algo/RemoveIf.h"
+#include "Commands/DMXEditorCommands.h"
 #include "DMXEditor.h"
-#include "DMXFixturePatchAutoAssignUtility.h"
 #include "DMXFixturePatchEditorDefinitions.h"
 #include "DMXFixturePatchNode.h"
 #include "DMXFixturePatchSharedData.h"
-#include "SDMXChannelConnector.h"
-#include "SDMXFixturePatchFragment.h"
-#include "Commands/DMXEditorCommands.h"
 #include "DragDrop/DMXEntityFixturePatchDragDropOp.h"
+#include "FixturePatchAutoAssignUtility.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Application/SlateApplication.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
-
-#include "Algo/RemoveIf.h"
-#include "Framework/Commands/GenericCommands.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
+#include "ScopedTransaction.h"
+#include "SDMXChannelConnector.h"
+#include "SDMXFixturePatchFragment.h"
 #include "SlateOptMacros.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/SCompoundWidget.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXPatchedUniverse"
+
+namespace UE::DMXEditor::FixturePatchEditor::Private
+{
+	/** Helper to raise pre and post edit change events on an array of fixture patches */
+	class FScopedEditChangeFixturePatches
+	{
+	public:
+		FScopedEditChangeFixturePatches(TArray<UDMXEntityFixturePatch*> InFixturePatches)
+			: FixturePatches(InFixturePatches)
+		{
+			for (UDMXEntityFixturePatch* Patch : FixturePatches)
+			{
+				Patch->PreEditChange(nullptr);
+			}
+		}
+
+		~FScopedEditChangeFixturePatches()
+		{
+			for (UDMXEntityFixturePatch* Patch : FixturePatches)
+			{
+				Patch->PostEditChange();
+			}
+		}
+
+	private:
+		TArray<UDMXEntityFixturePatch*> FixturePatches;
+	};
+}
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
@@ -39,12 +70,12 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 
 	UniverseID = InArgs._UniverseID;
 
-	DMXEditorPtr = InArgs._DMXEditor;
+	WeakDMXEditor = InArgs._DMXEditor;
 	OnDragEnterChannel = InArgs._OnDragEnterChannel;
 	OnDragLeaveChannel = InArgs._OnDragLeaveChannel;
 	OnDropOntoChannel = InArgs._OnDropOntoChannel;
 
-	const TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin();
+	const TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin();
 	if (!DMXEditor.IsValid())
 	{
 		return;
@@ -148,7 +179,7 @@ void SDMXPatchedUniverse::CreateChannelConnectors()
 		int32 Channel = ChannelIndex + FDMXChannelGridSpecs::ChannelIDOffset;
 
 		TSharedRef<SDMXChannelConnector> ChannelPatchWidget =
-			SNew(SDMXChannelConnector, DMXEditorPtr.Pin())
+			SNew(SDMXChannelConnector, WeakDMXEditor.Pin())
 			.ChannelID(Channel)
 			.Value(0)
 			.OnHovered(this, &SDMXPatchedUniverse::HandleOnChannelHovered, Channel)
@@ -394,7 +425,7 @@ void SDMXPatchedUniverse::SetUniverseIDInternal(int32 NewUniverseID)
 			TSharedPtr<FDMXFixturePatchNode> Node = FindPatchNode(FixturePatch);
 			if (!Node.IsValid())
 			{
-				Node = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
+				Node = FDMXFixturePatchNode::Create(WeakDMXEditor, FixturePatch);
 			}
 
 			FindOrAdd(Node.ToSharedRef());
@@ -514,12 +545,17 @@ void SDMXPatchedUniverse::ResetMonitor()
 
 void SDMXPatchedUniverse::HandleOnChannelHovered(int32 Channel)
 {
-	HoveredChannel = ChannelConnectors[Channel];
+	if (ChannelConnectors.IsValidIndex(Channel - 1))
+	{
+		HoveredChannel = ChannelConnectors[Channel - 1];
+		LastHoveredChannel = Channel;
+	}
 }
 
 void SDMXPatchedUniverse::HandleOnChannelUnhovered(int32 Channel)
 {
-	if (HoveredChannel == ChannelConnectors[Channel])
+	if (ChannelConnectors.IsValidIndex(Channel - 1) && 
+		HoveredChannel == ChannelConnectors[Channel - 1])
 	{
 		HoveredChannel.Reset();
 	}
@@ -535,7 +571,7 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, con
 			[](TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch) { return WeakFixturePatch.IsValid(); },
 			[](TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch) { return WeakFixturePatch.Get(); }
 		);
-		Algo::SortBy(Selection, [](UDMXEntityFixturePatch* FixturePatch)
+		Algo::StableSortBy(Selection, [](UDMXEntityFixturePatch* FixturePatch)
 			{
 				return FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetStartingChannel();
 			});
@@ -616,6 +652,9 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, con
 		}
 	}
 
+	// Select this universe
+	SharedData->SelectUniverse(UniverseID);
+
 	return FReply::Unhandled();
 }
 
@@ -670,7 +709,7 @@ FReply SDMXPatchedUniverse::HandleOnDragDetectedOnChannel(uint32 Channel, const 
 			return !FixturePatch.IsValid();
 		});
 	SelectedFixturePatches.SetNum(NumValidPatches);
-	Algo::SortBy(SelectedFixturePatches, [](TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch)
+	Algo::StableSortBy(SelectedFixturePatches, [](TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch)
 		{
 			return (int64)FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetStartingChannel();
 		}
@@ -853,27 +892,105 @@ void SDMXPatchedUniverse::OnSelectionChanged()
 	}
 }
 
-void SDMXPatchedUniverse::AutoAssignFixturePatches(EDMXFixturePatchAutoAssignMode AutoAssignMode)
+void SDMXPatchedUniverse::AutoAssignFixturePatches(UE::DMXEditor::AutoAssign::EAutoAssignMode AutoAssignMode)
 {
+	const TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin();
 	TArray<UDMXEntityFixturePatch*> FixturePatchesToAutoAssign;
-	const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = SharedData->GetSelectedFixturePatches();
-	for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
-	{
-		if (FixturePatch.IsValid())
-		{
-			FixturePatchesToAutoAssign.Add(FixturePatch.Get());
-		}
-	}
-
-	if (FixturePatchesToAutoAssign.IsEmpty())
+	if (!DMXEditor.IsValid() || !GetSelectedFixturePatches(FixturePatchesToAutoAssign))
 	{
 		return;
 	}
 
-	FDMXFixturePatchAutoAssignUtility::AutoAssign(FixturePatchesToAutoAssign, AutoAssignMode);
-	SharedData->SelectUniverse(FixturePatchesToAutoAssign[0]->GetUniverseID());
+	const FText TransactionText = FText::Format(LOCTEXT("AutoAssignTransaction", "Auto-Assign Fixture {0}|plural(one=Patch, other=Patches)"), FixturePatchesToAutoAssign.Num());
+	const FScopedTransaction AutoAssignTransaction(TransactionText);
+
+	UE::DMXEditor::FixturePatchEditor::Private::FScopedEditChangeFixturePatches ScopedEditChange(FixturePatchesToAutoAssign);
+	const int32 AssignedToUniverse = UE::DMXEditor::AutoAssign::FAutoAssignUtility::AutoAssign(AutoAssignMode, DMXEditor.ToSharedRef(), FixturePatchesToAutoAssign, UniverseID, LastHoveredChannel);
+
+	SharedData->SelectUniverse(AssignedToUniverse);
 
 	RequestRefresh();
+}
+
+void SDMXPatchedUniverse::AssignFixturePatches()
+{
+	TArray<UDMXEntityFixturePatch*> FixturePatchesToAssign;
+	if (!GetSelectedFixturePatches(FixturePatchesToAssign))
+	{
+		return;
+	}
+
+	const FText TransactionText = FText::Format(LOCTEXT("AssignTransaction", "Assign Fixture {0}|plural(one=Patch, other=Patches)"), FixturePatchesToAssign.Num());
+	const FScopedTransaction AssignTransaction(TransactionText);
+
+	UE::DMXEditor::FixturePatchEditor::Private::FScopedEditChangeFixturePatches ScopedEditChange(FixturePatchesToAssign);
+	const int32 FirstPatchedUniverse = UE::DMXEditor::AutoAssign::FAutoAssignUtility::Assign(FixturePatchesToAssign, UniverseID, LastHoveredChannel);
+
+	SharedData->SelectUniverse(FirstPatchedUniverse);
+	
+	RequestRefresh();
+}
+
+void SDMXPatchedUniverse::AlignFixturePatches()
+{
+	TArray<UDMXEntityFixturePatch*> FixturePatchesToAlign;
+	if (!GetSelectedFixturePatches(FixturePatchesToAlign))
+	{
+		return;
+	}
+
+	const FText TransactionText = FText::Format(LOCTEXT("AlignTransaction", "Align Fixture {0}|plural(one=Patch, other=Patches)"), FixturePatchesToAlign.Num());
+	const FScopedTransaction AlignTransaction(TransactionText);
+	
+	UE::DMXEditor::FixturePatchEditor::Private::FScopedEditChangeFixturePatches ScopedEditChange(FixturePatchesToAlign);
+	UE::DMXEditor::AutoAssign::FAutoAssignUtility::Align(FixturePatchesToAlign);
+
+	RequestRefresh();
+}
+
+void SDMXPatchedUniverse::StackFixturePatches()
+{
+	TArray<UDMXEntityFixturePatch*> FixturePatchesToStack;
+	if (!GetSelectedFixturePatches(FixturePatchesToStack))
+	{
+		return;
+	}
+
+	const FText TransactionText = FText::Format(LOCTEXT("StackTransaction", "Stack Fixture {0}|plural(one=Patch, other=Patches)"), FixturePatchesToStack.Num());
+	const FScopedTransaction StackTransaction(TransactionText);
+
+	UE::DMXEditor::FixturePatchEditor::Private::FScopedEditChangeFixturePatches ScopedEditChange(FixturePatchesToStack);
+	UE::DMXEditor::AutoAssign::FAutoAssignUtility::Stack(FixturePatchesToStack);
+
+	RequestRefresh();
+}
+
+void SDMXPatchedUniverse::SpreadFixturePatchesOverUniverses()
+{
+	TArray<UDMXEntityFixturePatch*> FixturePatchesToSpread;
+	if (!GetSelectedFixturePatches(FixturePatchesToSpread))
+	{
+		return;
+	}
+
+	const FText TransactionText = FText::Format(LOCTEXT("SpreadOverUniverseTransaction", "Spread Fixture {0}|plural(one=Patch, other=Patches) over Universes"), FixturePatchesToSpread.Num());
+	const FScopedTransaction SpreadOverUniverseTransaction(TransactionText);
+
+	UE::DMXEditor::FixturePatchEditor::Private::FScopedEditChangeFixturePatches ScopedEditChange(FixturePatchesToSpread);
+	UE::DMXEditor::AutoAssign::FAutoAssignUtility::SpreadOverUniverses(FixturePatchesToSpread);
+
+	RequestRefresh();
+}
+
+bool SDMXPatchedUniverse::GetSelectedFixturePatches(TArray<UDMXEntityFixturePatch*>& OutFixturePatchArray) const
+{
+	OutFixturePatchArray.Reset();
+
+	Algo::TransformIf(SharedData->GetSelectedFixturePatches(), OutFixturePatchArray,
+		[](const TWeakObjectPtr<UDMXEntityFixturePatch>& WeakFixturePatch) { return WeakFixturePatch.IsValid(); },
+		[](const TWeakObjectPtr<UDMXEntityFixturePatch>& WeakFixturePatch) { return WeakFixturePatch.Get(); });
+
+	return !OutFixturePatchArray.IsEmpty();
 }
 
 bool SDMXPatchedUniverse::DoesDMXLibraryHaveReachableUniverses() const
@@ -944,7 +1061,7 @@ TArray<UDMXEntityFixturePatch*> SDMXPatchedUniverse::GetFixturePatchesOnChannel(
 
 UDMXLibrary* SDMXPatchedUniverse::GetDMXLibrary() const
 {
-	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
+	if (TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin())
 	{
 		return DMXEditor->GetDMXLibrary();
 	}
@@ -961,23 +1078,21 @@ void SDMXPatchedUniverse::RegisterCommands()
 	// listen to common editor shortcuts for copy/paste etc
 	CommandList = MakeShared<FUICommandList>();
 
+	using namespace UE::DMXEditor::AutoAssign;
 	CommandList->MapAction
 	(
-		FDMXEditorCommands::Get().AutoAssignToFirstUniverseInSelection,
-		FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::FirstUniverseInSelection)
+		FDMXEditorCommands::Get().AutoAssignSelectedUniverse,
+		FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AutoAssignFixturePatches, EAutoAssignMode::SelectedUniverse)
 	);
-
 	CommandList->MapAction
 	(
-		FDMXEditorCommands::Get().AutoAssignToFirstReachableUniverse,
-		FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::FirstReachableUniverse),
-		FCanExecuteAction::CreateSP(this, &SDMXPatchedUniverse::DoesDMXLibraryHaveReachableUniverses)
+		FDMXEditorCommands::Get().Align,
+		FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AlignFixturePatches)
 	);
-
 	CommandList->MapAction
 	(
-		FDMXEditorCommands::Get().AutoAssignAfterLastAddressInLibrary,
-		FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AutoAssignFixturePatches, EDMXFixturePatchAutoAssignMode::LastAddressInLibrary)
+		FDMXEditorCommands::Get().Stack,
+		FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::StackFixturePatches)
 	);
 }
 
@@ -995,11 +1110,62 @@ TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 Channel)
 	// Auto Assign Section
 	if (!SharedData->GetSelectedFixturePatches().IsEmpty())
 	{
-		MenuBuilder.BeginSection("AutoAssignSection", LOCTEXT("AutoAssignSection", "Auto-Assign"));
+		using namespace UE::DMXEditor::AutoAssign;
+
+		// Auto assign section
+		MenuBuilder.BeginSection("AutoAssignSection", LOCTEXT("AutoAssignActionsSection", "Auto-Assign"));
 		{
-			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignToFirstUniverseInSelection);
-			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignToFirstReachableUniverse);
-			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignAfterLastAddressInLibrary);
+			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().AutoAssignSelectedUniverse);
+
+			const FText AutoAssignUnderMouseAssignLabel = FText::Format(LOCTEXT("AutoAssignUnderMouseAssignLabel", "Auto-Assign at {0}.{1}"), FText::FromString(FString::FromInt(UniverseID)), FText::FromString(FString::FromInt(LastHoveredChannel)));
+			MenuBuilder.AddMenuEntry
+			(
+				AutoAssignUnderMouseAssignLabel,
+				LOCTEXT("AssignTooltip", "Auto-assigns selected patches to first consecutive range of free channels, starting from the current mouse position."),
+				FSlateIcon(),
+				FUIAction
+				(
+					FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AutoAssignFixturePatches, EAutoAssignMode::ChannelUnderMouse),
+					FCanExecuteAction::CreateLambda([this, SharedThis = AsShared()] { return !SharedData->GetSelectedFixturePatches().IsEmpty(); })
+				),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+		MenuBuilder.EndSection();
+
+		// Assign section
+		MenuBuilder.BeginSection("AssignSection", LOCTEXT("AssignSection", "Assign"));
+		{
+			const FText AssignLabel = FText::Format(LOCTEXT("AssignMenuLabel", "Assign to {0}.{1}"), FText::FromString(FString::FromInt(UniverseID)), FText::FromString(FString::FromInt(LastHoveredChannel)));
+			MenuBuilder.AddMenuEntry
+			(
+				AssignLabel,
+				LOCTEXT("AssignTooltip", "Assigns selected patches to the hovered channel"),
+				FSlateIcon(),
+				FUIAction
+				(
+					FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AssignFixturePatches),
+					FCanExecuteAction::CreateLambda([this, SharedThis = AsShared()] { return !SharedData->GetSelectedFixturePatches().IsEmpty(); })
+				),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().Align);
+			MenuBuilder.AddMenuEntry(FDMXEditorCommands::Get().Stack);
+			MenuBuilder.AddMenuEntry
+			(
+				LOCTEXT("SpreadOverUniversesLabel", "Spread over Universes"),
+				LOCTEXT("SpreadOverUniversesTooltip", "Assigns each patch to its own Universe"),
+				FSlateIcon(),
+				FUIAction
+				(
+					FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::SpreadFixturePatchesOverUniverses),
+					FCanExecuteAction::CreateLambda([this, SharedThis = AsShared()] { return SharedData->GetSelectedFixturePatches().Num() > 1; })
+				),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
 		}
 		MenuBuilder.EndSection();
 	}

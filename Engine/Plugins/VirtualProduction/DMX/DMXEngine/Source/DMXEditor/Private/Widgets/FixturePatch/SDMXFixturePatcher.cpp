@@ -2,6 +2,7 @@
 
 #include "SDMXFixturePatcher.h"
 
+#include "Algo/RemoveIf.h"
 #include "DMXEditor.h"
 #include "DMXEditorSettings.h"
 #include "DMXEditorTabNames.h"
@@ -13,8 +14,6 @@
 #include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
-
-#include "Algo/RemoveIf.h"
 #include "Styling/AppStyle.h"
 #include "ScopedTransaction.h"
 #include "SlateOptMacros.h"
@@ -138,6 +137,14 @@ void SDMXFixturePatcher::Tick(const FGeometry& AllottedGeometry, const double In
 	{
 		SharedData->SelectUniverse(UniverseToSetNextTick);
 		UniverseToSetNextTick = INDEX_NONE;
+
+		for (const TTuple<int32, TSharedPtr<SDMXPatchedUniverse>>& UniverseToWidgetPair : PatchedUniversesByID)
+		{
+			if (UniverseToWidgetPair.Value.IsValid())
+			{
+				UniverseToWidgetPair.Value->RequestRefresh();
+			}
+		}
 	}
 }
 
@@ -170,7 +177,7 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateToolbar()
 			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 			.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
-			.Text(LOCTEXT("UniverseSelectorLabel", "Universe"))
+			.Text(LOCTEXT("UniverseSelectorLabel", "Local Universe"))
 		);
 
 		ToolbarBuilder.AddWidget(
@@ -200,10 +207,13 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateToolbar()
 			.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDisplayAllUniverses)
 			[
 				SNew(STextBlock)
+				.Margin(FMargin(4.f, 0.f))
 				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.Text(LOCTEXT("ShowAllPatchedUniversesLabel", "Show all patched Universes"))
 			]
 		);
+
+		ToolbarBuilder.AddSeparator();
 
 		const UDMXEditorSettings* DMXEditorSettings = GetDefault<UDMXEditorSettings>();
 		const ECheckBoxState InitialDMXMonitorEnabledCheckBoxState = DMXEditorSettings->FixturePatcherSettings.bMonitorEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -214,6 +224,7 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateToolbar()
 			.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDMXMonitorEnabled)
 			[
 				SNew(STextBlock)
+				.Margin(FMargin(4.f, 0.f))
 				.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
 				.Text(LOCTEXT("EnableInputMonitorLabel", "Monitor DMX Inputs"))
 				.ToolTipText(LOCTEXT("EnableInputMonitorTooltip", "If checked, monitors DMX Input Ports used in this DMX Library"))
@@ -222,12 +233,23 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateToolbar()
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.BeginSection("AdvancedSettings");
-	{
-		ToolbarBuilder.AddWidget(
+	const TSharedRef<SWidget> Toolbar =	SNew(SHorizontalBox)
+		
+		// Toolbar menu
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
+		.AutoWidth()
+		[	
+			ToolbarBuilder.MakeWidget()
+		]
+
+		// Settings button
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		[
 			SNew(SComboButton)
 			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButtonWithIcon") // Use the tool bar item style for this button
-			.OnGetMenuContent(this, &SDMXFixturePatcher::CreateDisplaySettingsMenu)
+			.OnGetMenuContent(this, &SDMXFixturePatcher::CreateSettingsMenu)
 			.HasDownArrow(false)
 			.ButtonContent()
 			[
@@ -235,14 +257,12 @@ TSharedRef<SWidget> SDMXFixturePatcher::CreateToolbar()
 				.ColorAndOpacity(FSlateColor::UseForeground())
 				.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
 			]
-		);
-	}
-	ToolbarBuilder.EndSection();
+		];
 
-	return ToolbarBuilder.MakeWidget();
+	return Toolbar;
 }
 
-TSharedRef<SWidget> SDMXFixturePatcher::CreateDisplaySettingsMenu()
+TSharedRef<SWidget> SDMXFixturePatcher::CreateSettingsMenu()
 {
 	constexpr bool bCloseMenuWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bCloseMenuWindowAfterMenuSelection, nullptr);
@@ -331,63 +351,57 @@ FReply SDMXFixturePatcher::OnDropOntoChannel(int32 UniverseID, int32 ChannelID, 
 			const int32 AbsoluteOffset = DraggedNodesToChannelOffsetPair.Value + PadOffset;
 
 			int32 NewUniverseID = UniverseID;
-			int32 DesiredStartingChannel = ChannelID;
-			if (IsUniverseSelectionEnabled())
-			{			
-				// Stay within the current Universe if only one is displayed
-				if (FixturePatch->GetUniverseID() != UniverseID)
-				{
-					continue;
-				}
+			int64 AbsoluteDesiredStartingChannel = UniverseID * DMX_MAX_ADDRESS + ChannelID - AbsoluteOffset;
 
-				DesiredStartingChannel = ChannelID - AbsoluteOffset % DMX_MAX_ADDRESS;
+			// Allow drag to another universe if multiple universes are displayed
+			int32 DesiredUniverse = AbsoluteDesiredStartingChannel / DMX_MAX_ADDRESS;
+			if (DesiredUniverse < 1)
+			{
+				DesiredUniverse = 1;
+				AbsoluteDesiredStartingChannel = ChannelID - AbsoluteOffset % DMX_MAX_ADDRESS;
+			}
+			else if (DesiredUniverse > DMX_MAX_UNIVERSE)
+			{
+				DesiredUniverse = DMX_MAX_UNIVERSE;
+				AbsoluteDesiredStartingChannel = DMX_MAX_UNIVERSE * DMX_MAX_ADDRESS - ChannelSpan + 1;
 			}
 			else
 			{
-				int64 AbsoluteDesiredStartingChannel = UniverseID * DMX_MAX_ADDRESS + ChannelID - AbsoluteOffset;
-
-				// Allow drag to another universe if multiple universes are displayed
-				int32 DesiredUniverse = AbsoluteDesiredStartingChannel / DMX_MAX_ADDRESS;
-				if (DesiredUniverse < 1)
-				{
-					DesiredUniverse = 1;
-					AbsoluteDesiredStartingChannel = ChannelID - AbsoluteOffset % DMX_MAX_ADDRESS;
-				}
-				else if (DesiredUniverse > DMX_MAX_UNIVERSE)
-				{
-					DesiredUniverse = DMX_MAX_UNIVERSE;
-					AbsoluteDesiredStartingChannel = DMX_MAX_UNIVERSE * DMX_MAX_ADDRESS - ChannelSpan + 1;
-				}
-				else
-				{
-					NewUniverseID = DesiredUniverse;
-				}
-
-				// Remove from previous universe if needed
-				if (NewUniverseID != PatchedNode->GetUniverseID())
-				{
-					const TSharedPtr<SDMXPatchedUniverse>* OldUniverseWidgetPtr = PatchedUniversesByID.Find(PatchedNode->GetUniverseID());
-					if (OldUniverseWidgetPtr)
-					{
-						(*OldUniverseWidgetPtr)->Remove(PatchedNode);
-						(*OldUniverseWidgetPtr)->RequestRefresh();
-					}
-				}
-
-				DesiredStartingChannel = AbsoluteDesiredStartingChannel % DMX_MAX_ADDRESS;
+				NewUniverseID = DesiredUniverse;
 			}
 
+			// Remove from previous universe if needed
+			if (NewUniverseID != PatchedNode->GetUniverseID())
+			{
+				const TSharedPtr<SDMXPatchedUniverse>* OldUniverseWidgetPtr = PatchedUniversesByID.Find(PatchedNode->GetUniverseID());
+				if (OldUniverseWidgetPtr)
+				{
+					(*OldUniverseWidgetPtr)->Remove(PatchedNode);
+					(*OldUniverseWidgetPtr)->RequestRefresh();
+				}
+			}
+
+			const int32 DesiredStartingChannel = AbsoluteDesiredStartingChannel % DMX_MAX_ADDRESS;
 			const int32 NewStartingChannel = ClampStartingChannel(DesiredStartingChannel, ChannelSpan);
 			DraggedNodesToChannelOffsetPair.Key->SetAddresses(NewUniverseID, NewStartingChannel, ChannelSpan);
 
+			// Show newly patched universes if many universes are displayed and the user dragged on top of it 
 			const TSharedPtr<SDMXPatchedUniverse>* UniverseWidgetPtr = PatchedUniversesByID.Find(NewUniverseID);
-			if (!UniverseWidgetPtr)
+			if (!UniverseWidgetPtr && !IsUniverseSelectionEnabled())
 			{
-				AddUniverse(NewUniverseID);
-				UniverseWidgetPtr = &PatchedUniversesByID.FindChecked(NewUniverseID);
+				if (!UniverseWidgetPtr)
+				{
+					AddUniverse(NewUniverseID);
+					UniverseWidgetPtr = &PatchedUniversesByID.FindChecked(NewUniverseID);
+				}
+				check(UniverseWidgetPtr);
 			}
-			check(UniverseWidgetPtr);
-			(*UniverseWidgetPtr)->FindOrAdd(DraggedNodesToChannelOffsetPair.Key);
+		
+			// Add the patch, if the universe is visible
+			if (UniverseWidgetPtr)
+			{
+				(*UniverseWidgetPtr)->FindOrAdd(DraggedNodesToChannelOffsetPair.Key);
+			}
 
 			// Pad further patches so they can't be offset more than the currently dropped patch
 			PadOffset = FMath::Min(PadOffset, DesiredStartingChannel - NewStartingChannel);

@@ -5,13 +5,13 @@
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
 
+enum class ECheckBoxState : uint8;
 class FDMXEditor;
 class FDMXMVRFixtureListItem;
 template<typename TEntityType> class SDMXEntityDropdownMenu;
 class UDMXEntity;
 class UDMXEntityFixtureType;
-
-enum class ECheckBoxState : uint8;
+namespace UE::DMXEditor::FixturePatchEditor { class SAddFixturePatchMenu; }
 
 
 /** Search bar for the MVR Fixture List */
@@ -37,9 +37,6 @@ private:
 	/** Generates the 'Add MVR Fixture' Dropdown Menu */
 	TSharedRef<SWidget> GenerateFixtureTypeDropdownMenu();
 
-	/** Called when a new Fixture Patch was selected in the FixtureTypeDropdownMenu */
-	void OnAddNewMVRFixtureClicked(UDMXEntity* InSelectedFixtureType);
-
 	/** Called when the Search Text changed */
 	void OnSearchTextChanged(const FText& SearchText);
 
@@ -52,11 +49,8 @@ private:
 	/** True if only conflicts are searched for */
 	bool bShowConfictsOnly = false;
 
-	/** The number of fixture patches to add when one is selected in the entity dropdown */
-	int32 NumFixturePatchesToAdd = 1;
-
-	/** Dropdown menu of Fixture Types */
-	TSharedPtr<SDMXEntityDropdownMenu<UDMXEntityFixtureType>> FixtureTypeDropdownMenu;
+	/** Menu displayed to add fixture patches */
+	TSharedPtr<UE::DMXEditor::FixturePatchEditor::SAddFixturePatchMenu> AddFixturePatchMenu;
 
 	/** The DMX Editor that owns this widget */
 	TWeakPtr<FDMXEditor> WeakDMXEditor;

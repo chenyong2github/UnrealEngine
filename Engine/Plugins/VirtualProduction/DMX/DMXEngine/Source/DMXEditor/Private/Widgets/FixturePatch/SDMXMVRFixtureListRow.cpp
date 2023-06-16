@@ -698,10 +698,17 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GeneratePatchWidget()
 			[
 				SAssignNew(PatchTextBlock, SInlineEditableTextBlock)
 				.Text_Lambda([this]()
-					{
+					{						
 						const int32 UniverseID = Item->GetUniverse();
 						const int32 StartingAddress = Item->GetAddress();
-						return FText::Format(LOCTEXT("AddressesText", "{0}.{1}"), UniverseID, StartingAddress);
+						if (UniverseID > 0 && StartingAddress > 0)
+						{
+							return FText::Format(LOCTEXT("AddressesText", "{0}.{1}"), UniverseID, StartingAddress);
+						}
+						else
+						{
+							return LOCTEXT("AddressesText", "Not patched");
+						}
 					})
 				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
 				.OnTextCommitted(this, &SDMXMVRFixtureListRow::OnPatchCommitted)

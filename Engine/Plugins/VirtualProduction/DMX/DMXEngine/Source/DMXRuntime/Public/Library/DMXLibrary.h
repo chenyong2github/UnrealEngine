@@ -41,7 +41,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FDMXOnEntityArrayChangedDelegate, class UDM
 /** DEPRECATED 5.0 */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntitiesUpdated_DEPRECATED, class UDMXLibrary*);
 
-UCLASS(BlueprintType, Blueprintable, AutoExpandCategories = DMX)
+UCLASS(BlueprintType, Blueprintable, Config = DMXEditor, AutoExpandCategories = DMX)
 class DMXRUNTIME_API UDMXLibrary
 	: public UDMXObjectBase
 {
@@ -244,7 +244,7 @@ protected:
 	void UpgradeFromControllersToPorts();
 #endif // WITH_EDITOR
 
-	/** Input ports of the Library */
+	/** Ports of the Library */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonTransactional, Category = "DMX", Meta = (ShowOnlyInnerProperties))
 	FDMXLibraryPortReferences PortReferences;
 
