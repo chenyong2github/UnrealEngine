@@ -3,9 +3,11 @@
 #pragma once
 
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "LocalizableMessage.h"
 
 #include "LocalizableMessageLibrary.generated.h"
+
+struct FLocalizableMessage;
+class FText;
 
 /** BlueprintFunctionLibrary for LocalizationMessage */
 UCLASS(Abstract, MinimalAPI, BlueprintInternalUseOnly)
@@ -18,10 +20,7 @@ public:
 	 * Conversion function from LocalizationMessage to FText.
 	 * @note Is only valid on the client. The processor generate a 
 	 */
-	UFUNCTION(BlueprintPure, BlueprintCosmetic, CustomThunk, Category = "Localization Message", meta = (CustomStructureParam = "Message", WorldContext = "WorldContextObject", BlueprintInternalUseOnly = "true"))
-	static LOCALIZABLEMESSAGEBLUEPRINT_API FText Conv_LocalizableMessageToText(const UObject* WorldContextObject, UPARAM(ref) const int32& Message);
-
-private:
-	DECLARE_FUNCTION(execConv_LocalizableMessageToText);
+	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = "Localization Message", meta = (WorldContext = "WorldContextObject", BlueprintInternalUseOnly = "true"))
+	static LOCALIZABLEMESSAGEBLUEPRINT_API FText Conv_LocalizableMessageToText(UObject* WorldContextObject, UPARAM(ref) const FLocalizableMessage& Message);
 };
 
