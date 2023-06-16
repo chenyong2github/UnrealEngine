@@ -173,9 +173,7 @@ uint32 UWorldPartitionStreamingPolicy::ComputeUpdateStreamingHash(bool bCanOptim
 
 		if (WorldPartition->IsServer())
 		{
-			TArray<FName> ClientsVisibleLevelNames = ServerClientsVisibleLevelNames.Array();
-			ClientsVisibleLevelNames.Sort(FNameFastLess());
-			HashBuilder << ClientsVisibleLevelNames;
+			HashBuilder << GetWorld()->GetSubsystem<UWorldPartitionSubsystem>()->GetServerClientsVisibleLevelsHash();
 		}
 
 		return HashBuilder.GetHash();
@@ -297,21 +295,6 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	
 	// Update streaming sources
 	UpdateStreamingSources(bCanOptimizeUpdate);
-
-	if (bIsServer)
-	{
-		// Gather Client visible level names
-		ServerClientsVisibleLevelNames.Reset();
-		if (const UNetDriver* NetDriver = GetWorld()->GetNetDriver())
-		{
-			for (UNetConnection* Connection : NetDriver->ClientConnections)
-			{
-				ServerClientsVisibleLevelNames.Add(Connection->GetClientWorldPackageName());
-				ServerClientsVisibleLevelNames.Append(Connection->ClientVisibleLevelNames);
-				ServerClientsVisibleLevelNames.Append(Connection->GetClientMakingVisibleLevelNames());
-			}
-		}
-	}
 
 	// Detect if nothing relevant changed and early out
 	const uint32 NewUpdateStreamingHash = ComputeUpdateStreamingHash(bCanOptimizeUpdate);
@@ -468,7 +451,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		}
 	}
 
-	auto ShouldWaitForClientVisibility = [bIsServer, this, &bUpdateEpoch](const UWorldPartitionRuntimeCell* Cell)
+	const TSet<FName>& ServerClientsVisibleLevelNames = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>()->ServerClientsVisibleLevelNames;
+	auto ShouldWaitForClientVisibility = [bIsServer, this, &bUpdateEpoch, &ServerClientsVisibleLevelNames](const UWorldPartitionRuntimeCell* Cell)
 	{
 		check(bIsServer);
 		if (ULevel* Level = Cell->GetLevel())

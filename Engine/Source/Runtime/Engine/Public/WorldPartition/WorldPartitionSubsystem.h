@@ -170,11 +170,15 @@ private:
 	void OnLevelBeginMakingVisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
 	void OnLevelBeginMakingInvisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
 	void UpdateLoadingAndPendingLoadStreamingLevels(const ULevelStreaming* InStreamingLevel);
+	
+	// Server information
+	uint32 GetServerClientsVisibleLevelsHash() const { return ServerClientsVisibleLevelsHash; }
+	void UpdateServerClientsVisibleLevelNames();
 
 	static ENGINE_API void UpdateStreamingStateInternal(const UWorld* InWorld, const TArray<TObjectPtr<UWorldPartition>>& InWorldPartitions);
 	static int32 GetMaxCellsToLoad(const UWorld* InWorld);
+	static bool IsServer(const UWorld* InWorld);
 
-	ENGINE_API bool IsServer() const;
 	ENGINE_API bool HasAnyWorldPartitionServerStreamingEnabled() const;
 	ENGINE_API bool HasUninitializationPendingStreamingLevels(const UWorldPartition* InWorldPartition) const;
 
@@ -196,7 +200,11 @@ private:
 	TArray<FWorldPartitionStreamingSource> StreamingSources;
 	TMap<FName, FStreamingSourceVelocity> StreamingSourcesVelocity;
 	uint32 StreamingSourcesHash;
+
+	// Server information
 	int32 NumWorldPartitionServerStreamingEnabled;
+	TSet<FName> ServerClientsVisibleLevelNames;
+	uint32 ServerClientsVisibleLevelsHash;
 
 	TArray<FWorldPartitionDraw2DContext> WorldPartitionsDraw2DContext;
 	FDelegateHandle	DrawHandle;

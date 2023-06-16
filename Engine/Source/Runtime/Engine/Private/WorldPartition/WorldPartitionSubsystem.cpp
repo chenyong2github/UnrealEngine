@@ -21,12 +21,15 @@
 #include "Engine/CoreSettings.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/LevelStreamingGCHelper.h"
+#include "Engine/NetDriver.h"
+#include "Engine/NetConnection.h"
 #include "Streaming/LevelStreamingDelegates.h"
 #include "Engine/LevelBounds.h"
 #include "Debug/DebugDrawService.h"
 #include "GameFramework/PlayerController.h"
 #include "Async/ParallelFor.h"
 #include "Algo/ForEach.h"
+#include "Misc/HashBuilder.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -135,6 +138,7 @@ static FAutoConsoleVariableRef CMaxLoadingStreamingCells(
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 : StreamingSourcesHash(0)
 , NumWorldPartitionServerStreamingEnabled(0)
+, ServerClientsVisibleLevelsHash(0)
 {}
 
 UWorldPartition* UWorldPartitionSubsystem::GetWorldPartition()
@@ -593,9 +597,7 @@ int32 UWorldPartitionSubsystem::GetMaxCellsToLoad(const UWorld* InWorld)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::GetMaxCellsToLoad);
 	int32 MaxCellsToLoad = MAX_int32;
-	const ENetMode NetMode = InWorld->GetNetMode();
-	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
-	if (!bIsServer && !InWorld->GetIsInBlockTillLevelStreamingCompleted() && (GMaxLoadingStreamingCells > 0))
+	if (!IsServer(InWorld) && !InWorld->GetIsInBlockTillLevelStreamingCompleted() && (GMaxLoadingStreamingCells > 0))
 	{
 		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(InWorld))
 		{
@@ -829,9 +831,9 @@ static FAutoConsoleVariableRef CVarUpdateStreamingSources(
 static const FName NAME_SIEStreamingSource(TEXT("SIE"));
 #endif
 
-bool UWorldPartitionSubsystem::IsServer() const
+bool UWorldPartitionSubsystem::IsServer(const UWorld* InWorld)
 {
-	const ENetMode NetMode = GetWorld()->GetNetMode();
+	const ENetMode NetMode = InWorld->GetNetMode();
 	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
 	return bIsServer;
 }
@@ -839,6 +841,30 @@ bool UWorldPartitionSubsystem::IsServer() const
 bool UWorldPartitionSubsystem::HasAnyWorldPartitionServerStreamingEnabled() const
 {
 	return (NumWorldPartitionServerStreamingEnabled > 0);
+}
+
+void UWorldPartitionSubsystem::UpdateServerClientsVisibleLevelNames()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::UpdateServerClientsVisibleLevelNames);
+	UWorld* World = GetWorld();
+	if (IsServer(World))
+	{
+		ServerClientsVisibleLevelNames.Reset();
+		if (const UNetDriver* NetDriver = World->GetNetDriver())
+		{
+			for (UNetConnection* Connection : NetDriver->ClientConnections)
+			{
+				ServerClientsVisibleLevelNames.Add(Connection->GetClientWorldPackageName());
+				ServerClientsVisibleLevelNames.Append(Connection->ClientVisibleLevelNames);
+				ServerClientsVisibleLevelNames.Append(Connection->GetClientMakingVisibleLevelNames());
+			}
+		}
+		FHashBuilder HashBuilder;
+		TArray<FName> SortedServerClientsVisibleLevelNames = ServerClientsVisibleLevelNames.Array();
+		SortedServerClientsVisibleLevelNames.Sort(FNameFastLess());
+		HashBuilder << SortedServerClientsVisibleLevelNames;
+		ServerClientsVisibleLevelsHash = HashBuilder.GetHash();
+	}
 }
 
 void UWorldPartitionSubsystem::UpdateStreamingSources()
@@ -864,7 +890,7 @@ void UWorldPartitionSubsystem::UpdateStreamingSources()
 
 	if (!bIsUsingReplayStreamingSources)
 	{
-		if (!IsServer() || HasAnyWorldPartitionServerStreamingEnabled() || AWorldPartitionReplay::IsRecordingEnabled(World))
+		if (!IsServer(World) || HasAnyWorldPartitionServerStreamingEnabled() || AWorldPartitionReplay::IsRecordingEnabled(World))
 		{
 			bool bAllowPlayerControllerStreamingSources = true;
 #if WITH_EDITOR
@@ -983,6 +1009,8 @@ void UWorldPartitionSubsystem::UpdateStreamingStateInternal(const UWorld* InWorl
 	{
 		// Update streaming sources
 		WorldPartitionSubsystem->UpdateStreamingSources();
+		// Update server's clients visible levels
+		WorldPartitionSubsystem->UpdateServerClientsVisibleLevelNames();
 	}
 	
 	// Make temp copy of array as UpdateStreamingState may FlushAsyncLoading, which may add a new world partition to RegisteredWorldPartitions while iterating

@@ -132,7 +132,6 @@ private:
 	int32 ServerDataLayersStatesEpoch;
 	int32 ServerStreamingStateEpoch;
 	int32 ServerStreamingEnabledEpoch;
-	TSet<FName> ServerClientsVisibleLevelNames;
 	uint32 UpdateStreamingHash;
 	uint32 UpdateStreamingSourcesHash;
 	uint32 UpdateStreamingStateCalls;
