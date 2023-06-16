@@ -192,9 +192,10 @@ void FQuicClient::CollectStatistics()
 	}
 
 	QUIC_STATISTICS Stats{};
+
+	QUIC_STATUS Status;
 	
-	if (const QUIC_STATUS Status
-		= GetConnectionStats(ClientConnection, Stats) != QUIC_STATUS_SUCCESS)
+	if (QUIC_FAILED(Status = GetConnectionStats(ClientConnection, Stats)))
 	{
 		UE_LOG(LogQuicMessagingTransport, Error,
 			TEXT("[QuicClient] Could not collect statistics: %s."),
@@ -251,6 +252,7 @@ void FQuicClient::SendBye()
 }
 
 
+_Function_class_(QUIC_CONNECTION_CALLBACK)
 QUIC_STATUS FQuicClient::ClientConnectionCallback(HQUIC Connection,
 	void* Context, QUIC_CONNECTION_EVENT* Event)
 {
@@ -355,6 +357,7 @@ QUIC_STATUS FQuicClient::ClientConnectionCallback(HQUIC Connection,
 }
 
 
+_Function_class_(QUIC_STREAM_CALLBACK)
 QUIC_STATUS FQuicClient::ClientStreamCallback(HQUIC Stream,
 	void* Context, QUIC_STREAM_EVENT* Event)
 {

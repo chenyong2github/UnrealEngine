@@ -116,6 +116,7 @@ protected:
 	 * @param Context The app context (FQuicServer)
 	 * @param Event The connection event
 	 */
+	_Function_class_(QUIC_CONNECTION_CALLBACK)
 	static QUIC_STATUS ClientConnectionCallback(HQUIC Connection,
 		void* Context, QUIC_CONNECTION_EVENT* Event);
 
@@ -126,6 +127,7 @@ protected:
 	 * @param Context The app context (FQuicServer)
 	 * @param Event The stream event
 	 */
+	_Function_class_(QUIC_STREAM_CALLBACK)
 	static QUIC_STATUS ClientStreamCallback(HQUIC Stream,
 		void* Context, QUIC_STREAM_EVENT* Event);
 

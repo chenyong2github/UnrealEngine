@@ -527,6 +527,7 @@ void FQuicServer::SendBye(const FIPv4Endpoint& HandlerEndpoint)
 }
 
 
+_Function_class_(QUIC_LISTENER_CALLBACK)
 QUIC_STATUS FQuicServer::ServerListenerCallback(HQUIC Listener,
 	void* Context, QUIC_LISTENER_EVENT* Event)
 {
@@ -548,6 +549,7 @@ QUIC_STATUS FQuicServer::ServerListenerCallback(HQUIC Listener,
 }
 
 
+_Function_class_(QUIC_CONNECTION_CALLBACK)
 QUIC_STATUS FQuicServer::ServerConnectionCallback(HQUIC Connection,
 	void* Context, QUIC_CONNECTION_EVENT* Event)
 {
@@ -656,6 +658,7 @@ QUIC_STATUS FQuicServer::ServerConnectionCallback(HQUIC Connection,
 }
 
 
+_Function_class_(QUIC_STREAM_CALLBACK)
 QUIC_STATUS FQuicServer::ServerStreamCallback(HQUIC Stream,
 	void* Context, QUIC_STREAM_EVENT* Event)
 {
@@ -1140,7 +1143,8 @@ void FQuicServer::ReachedEndOfStream(const FInboundQuicBuffer& QuicBuffer)
 
 QUIC_ADDR FQuicServer::GetRemoteAddress(HQUIC Connection) const
 {
-	QUIC_ADDR RemoteAddress;
+	QUIC_ADDR RemoteAddress = {{0}};
+
 	uint32_t RemoteAddressSize = sizeof(RemoteAddress);
 
 	if (MsQuic)
