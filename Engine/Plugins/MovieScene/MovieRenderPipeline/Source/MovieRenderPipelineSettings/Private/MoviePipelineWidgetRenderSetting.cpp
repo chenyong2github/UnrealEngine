@@ -32,7 +32,10 @@ void UMoviePipelineWidgetRenderer::GatherOutputPassesImpl(TArray<FMoviePipelineP
 	{
 		FMoviePipelinePassIdentifier PassIdentifierForCurrentCamera;
 		PassIdentifierForCurrentCamera.Name = TEXT("ViewportUI");
-		PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(CameraIndex);
+		// If we're not rendering all cameras, we need to pass -1 so we pick up the real camera name.
+		int32 LocalCameraIndex = CameraSettings->bRenderAllCameras ? CameraIndex : -1;
+		PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(LocalCameraIndex);
+
 		ExpectedRenderPasses.Add(PassIdentifierForCurrentCamera);
 	}
 }
@@ -57,7 +60,10 @@ void UMoviePipelineWidgetRenderer::RenderSample_GameThreadImpl(const FMoviePipel
 		{
 			FMoviePipelinePassIdentifier PassIdentifierForCurrentCamera;
 			PassIdentifierForCurrentCamera.Name = TEXT("ViewportUI");
-			PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(CameraIndex);
+
+			// If we're not rendering all cameras, we need to pass -1 so we pick up the real camera name.
+			int32 LocalCameraIndex = CameraSettings->bRenderAllCameras ? CameraIndex : -1;
+			PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(LocalCameraIndex);
 
 			// Draw the widget to the render target
 			FRenderTarget* BackbufferRenderTarget = RenderTarget->GameThread_GetRenderTargetResource();

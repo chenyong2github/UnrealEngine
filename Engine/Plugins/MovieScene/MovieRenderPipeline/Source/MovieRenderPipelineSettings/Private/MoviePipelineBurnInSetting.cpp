@@ -34,7 +34,11 @@ void UMoviePipelineBurnInSetting::GatherOutputPassesImpl(TArray<FMoviePipelinePa
 		{
 			FMoviePipelinePassIdentifier PassIdentifierForCurrentCamera;
 			PassIdentifierForCurrentCamera.Name = TEXT("BurnInOverlay");
-			PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(CameraIndex);
+
+			// If we're not rendering all cameras, we need to pass -1 so we pick up the real camera name.
+			int32 LocalCameraIndex = CameraSettings->bRenderAllCameras ? CameraIndex : -1;
+			PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(LocalCameraIndex);
+
 			ExpectedRenderPasses.Add(PassIdentifierForCurrentCamera);
 		}
 	}
@@ -63,11 +67,14 @@ void UMoviePipelineBurnInSetting::RenderSample_GameThreadImpl(const FMoviePipeli
 		int32 NumCameras = CameraSettings->bRenderAllCameras ? CurrentShot->SidecarCameras.Num() : 1;
 		for (int32 CameraIndex = 0; CameraIndex < NumCameras; CameraIndex++)
 		{
+			// If we're not rendering all cameras, we need to pass -1 so we pick up the real camera name.
+			int32 LocalCameraIndex = CameraSettings->bRenderAllCameras ? CameraIndex : -1;
+
 			FMoviePipelinePassIdentifier PassIdentifierForCurrentCamera;
 			PassIdentifierForCurrentCamera.Name = TEXT("BurnInOverlay");
-			PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(CameraIndex);
+			PassIdentifierForCurrentCamera.CameraName = CurrentShot->GetCameraName(LocalCameraIndex);
 
-			UMoviePipelineBurnInWidget* CurrentWidget = BurnInWidgetInstances[CameraIndex];
+			UMoviePipelineBurnInWidget* CurrentWidget = BurnInWidgetInstances[FMath::Clamp(LocalCameraIndex, 0, LocalCameraIndex)];
 			// Put the widget in our window
 			VirtualWindow->SetContent(CurrentWidget->TakeWidget());
 
