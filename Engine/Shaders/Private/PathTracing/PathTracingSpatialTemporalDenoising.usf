@@ -643,8 +643,8 @@ static float NormalizeDeltaEAndEuclideanDistanceToSameMean = 0.0141f;
 float GetDeltaE(float3 LinearRGB0, float3 LinearRGB1, bool bNormalizeToEuclideanMean = true)
 {
 
-	float3 Lab0 = LinearRGB_2_LAB(LinearRGB0, XYZ_WHITE_REF_D65_NOMINAL);
-	float3 Lab1 = LinearRGB_2_LAB(LinearRGB1, XYZ_WHITE_REF_D65_NOMINAL);
+	float3 Lab0 = LinearRGB_2_LAB(LinearRGB0);
+	float3 Lab1 = LinearRGB_2_LAB(LinearRGB1);
 
 	float DeltaE = DeltaE_CIE2000(Lab0, Lab1);
 

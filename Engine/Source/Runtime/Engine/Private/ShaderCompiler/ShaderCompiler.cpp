@@ -6816,13 +6816,30 @@ void GlobalBeginCompileShader(
 		const bool bWorkingColorSpaceIsSRGB = FColorSpace::GetWorking().IsSRGB();
 		Input.Environment.SetDefine(TEXT("WORKING_COLOR_SPACE_IS_SRGB"), bWorkingColorSpaceIsSRGB ? 1 : 0);
 		
-		// We limit matrix definition below when WORKING_COLOR_SPACE_IS_SRGB == 0.
+		// We limit matrix definitions below to WORKING_COLOR_SPACE_IS_SRGB == 0.
 		if (!bWorkingColorSpaceIsSRGB)
 		{
-			TCHAR MatrixFormat[] = TEXT("float3x3(%0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f)");
+			const TCHAR MatrixFormat[] = TEXT("float3x3(%0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f, %0.10f)");
+			const FColorSpace& WorkingColorSpace = FColorSpace::GetWorking();
 
-			const FColorSpaceTransform FromSRGB(FColorSpace(EColorSpace::sRGB), FColorSpace::GetWorking());
+			// Note that we transpose the matrices during print since color matrices are usually pre-multiplied.
+			const FMatrix44d& ToXYZ = WorkingColorSpace.GetRgbToXYZ();
+			Input.Environment.SetDefine(
+				TEXT("WORKING_COLOR_SPACE_RGB_TO_XYZ_MAT"),
+				FString::Printf(MatrixFormat,
+					ToXYZ.M[0][0], ToXYZ.M[1][0], ToXYZ.M[2][0],
+					ToXYZ.M[0][1], ToXYZ.M[1][1], ToXYZ.M[2][1],
+					ToXYZ.M[0][2], ToXYZ.M[1][2], ToXYZ.M[2][2]));
 
+			const FMatrix44d& FromXYZ = WorkingColorSpace.GetXYZToRgb();
+			Input.Environment.SetDefine(
+				TEXT("XYZ_TO_RGB_WORKING_COLOR_SPACE_MAT"),
+				FString::Printf(MatrixFormat,
+					FromXYZ.M[0][0], FromXYZ.M[1][0], FromXYZ.M[2][0],
+					FromXYZ.M[0][1], FromXYZ.M[1][1], FromXYZ.M[2][1],
+					FromXYZ.M[0][2], FromXYZ.M[1][2], FromXYZ.M[2][2]));
+
+			const FColorSpaceTransform FromSRGB(FColorSpace(EColorSpace::sRGB), WorkingColorSpace);
 			Input.Environment.SetDefine(
 				TEXT("SRGB_TO_WORKING_COLOR_SPACE_MAT"),
 				FString::Printf(MatrixFormat,
