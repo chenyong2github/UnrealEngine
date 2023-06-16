@@ -158,3 +158,35 @@ struct FRCRequestedActorsCreated
 	UPROPERTY()
 	int32 RequestId = -1;
 };
+
+/**
+ * Event sent to a client when a client-bound object was created at the request of the client.
+ */
+USTRUCT()
+struct FRCRequestedClientObjectCreated
+{
+	GENERATED_BODY()
+
+	FRCRequestedClientObjectCreated()
+	: Type(TEXT("RequestedClientObjectCreated"))
+	{
+	}
+
+	/**
+	 * Type of the event.
+	 */
+	UPROPERTY()
+	FString Type;
+
+	/**
+	 * The list of newly-created object's path.
+	 */
+	UPROPERTY()
+	FString ObjectPath;
+
+	/**
+	 * The ID passed when the actors were created, or -1 if no ID was provided.
+	 */
+	UPROPERTY()
+	int32 RequestId = -1;
+};

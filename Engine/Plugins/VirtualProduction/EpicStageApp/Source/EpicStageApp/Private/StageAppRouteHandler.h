@@ -133,6 +133,12 @@ private:
 	/** Handles duplicating actors. */
 	void HandleWebSocketStageAppActorsDuplicate(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
+	/** Handles creating an object whose lifetime is tied to the lifetime of the requesting client's connection. */
+	void HandleWebSocketStageAppClientObjectCreate(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	/** Handles destroying an object whose lifetime is tied to the lifetime of the requesting client's connection. */
+	void HandleWebSocketStageAppClientObjectDestroy(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
 	/** Called when a client disconnects from the WebSocket server. */
 	void HandleClientDisconnected(FGuid ClientId);
 
@@ -167,6 +173,9 @@ private:
 
 	/** Map from client GUID to preview renderer data maps for that client. */
 	TMap<FGuid, TClientIdToPerRendererDataMap> PerRendererDataMapsByClientId;
+
+	/** Map from client GUID to objects bound to the lifetime of that client's connection. */
+	TMap<FGuid, TArray<UObject*>> BoundObjectsByClientId;
 
 	/** Image wrapper module used to compress preview images. */
 	class IImageWrapperModule* ImageWrapperModule = nullptr;

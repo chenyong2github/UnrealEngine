@@ -444,3 +444,69 @@ struct FRCWebSocketNDisplayActorDuplicateBody : public FRCRequest
 	UPROPERTY()
 	int32 RequestId = -1;
 };
+
+/**
+ * Holds a request made via websocket to create an object whose lifetime will be bound to the lifetime
+ * of the requesting client's connection.
+ */
+USTRUCT()
+struct FRCWebSocketStageAppClientObjectCreateBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketStageAppClientObjectCreateBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * The class of the object to create.
+	 */
+	UPROPERTY()
+	TSubclassOf<UObject> ObjectClass;
+
+	/**
+	 * An optional number that will be passed back in the ClientObjectCreated response to tell apart
+	 * the results of multiple requests.
+	 */
+	UPROPERTY()
+	int32 RequestId = -1;
+};
+
+/**
+ * Holds a request made via websocket to destroy an object whose lifetime is bound to the lifetime
+ * of the requesting client's connection.
+ */
+USTRUCT()
+struct FRCWebSocketStageAppClientObjectDestroyBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketStageAppClientObjectDestroyBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * The path of the object. Must be an object created using the stageapp.clientobject.create route.
+	 */
+	UPROPERTY()
+	FString ObjectPath;
+
+	/**
+	 * An optional number that will be passed back in the RequestedClientObjectCreated response to tell
+	 * apart the results of multiple requests.
+	 */
+	UPROPERTY()
+	int32 RequestId = -1;
+};
