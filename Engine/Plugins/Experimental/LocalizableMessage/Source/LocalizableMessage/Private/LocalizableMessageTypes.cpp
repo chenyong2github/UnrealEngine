@@ -23,6 +23,14 @@ namespace LocalizableMessageTypes
 	{
 		return FText::AsCultureInvariant(Localizable.Value);
 	}
+	FText Message_LocalizeValue(const FLocalizableMessageParameterMessage& Localizable, const FLocalizationContext& LocalizationContext)
+	{
+		ILocalizableMessageModule& LocalizableMessageModule = ILocalizableMessageModule::Get();
+		FLocalizableMessageProcessor& Processor = LocalizableMessageModule.GetLocalizableMessageProcessor();
+
+		return Processor.Localize(Localizable.Value, LocalizationContext);
+	}
+
 
 	void RegisterTypes()
 	{
@@ -32,6 +40,7 @@ namespace LocalizableMessageTypes
 		Processor.RegisterLocalizableType<FLocalizableMessageParameterInt>(&Int_LocalizeValue,RegisteredLocalizationTypes);
 		Processor.RegisterLocalizableType<FLocalizableMessageParameterFloat>(&Float_LocalizeValue,RegisteredLocalizationTypes);
 		Processor.RegisterLocalizableType<FLocalizableMessageParameterString>(&String_LocalizeValue, RegisteredLocalizationTypes);
+		Processor.RegisterLocalizableType<FLocalizableMessageParameterMessage>(&Message_LocalizeValue, RegisteredLocalizationTypes);
 	}
 
 	void UnregisterTypes()

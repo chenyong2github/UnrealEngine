@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include "LocalizableMessage.h"
 
 #include "LocalizableMessageBaseParameters.generated.h"
 
@@ -37,4 +38,15 @@ public:
 
 	UPROPERTY()
 	FString Value;
+};
+
+USTRUCT()
+struct FLocalizableMessageParameterMessage
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY()
+	FLocalizableMessage Value;
 };
