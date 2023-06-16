@@ -578,7 +578,7 @@ FString FStrataCompilationConfig::GetShaderMapKeyString() const
 {
 	if (bFullSimplify)
 	{
-		return TEXT("_STRTFS");
+		return FString::Printf(TEXT("_STRTFS%i"), BytesPerPixelOverride < 0 ? 0 : BytesPerPixelOverride);
 	}
 	return TEXT("");
 }
@@ -586,11 +586,13 @@ FString FStrataCompilationConfig::GetShaderMapKeyString() const
 void FStrataCompilationConfig::UpdateHash(FSHA1& Hasher) const
 {
 	Hasher.Update((const uint8*)(&bFullSimplify), sizeof(bFullSimplify));
+	Hasher.Update((const uint8*)(&BytesPerPixelOverride), sizeof(BytesPerPixelOverride));
 }
 
 void FStrataCompilationConfig::Serialize(FArchive& Ar)
 {
 	Ar << bFullSimplify;
+	Ar << BytesPerPixelOverride;
 }
 #endif
 

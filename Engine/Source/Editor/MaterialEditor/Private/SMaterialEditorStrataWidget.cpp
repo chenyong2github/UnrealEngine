@@ -31,7 +31,7 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 
 	CheckBoxForceFullSimplification = SNew(SCheckBox)
 		.Padding(5.0f)
-		.ToolTipText(LOCTEXT("CheckBoxForceFullSimplificationToolTip", "This will force full simplification of the material."));	// Just a test, needs to be more explicit
+		.ToolTipText(LOCTEXT("CheckBoxForceFullSimplificationToolTip", "This will force full simplification of the material."));
 
 	DescriptionTextBlock = SNew(STextBlock)
 		.TextStyle(FAppStyle::Get(), "Log.Normal")
@@ -39,6 +39,25 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 		.ShadowColorAndOpacity(FLinearColor::Black)
 		.ShadowOffset(FVector2D::UnitVector)
 		.Text(LOCTEXT("DescriptionTextBlock_Default", "Shader is compiling"));
+
+	BytesPerPixelOverride = Strata::GetBytePerPixel(SP_PCD3D_SM5);
+	BytesPerPixelOverrideInput = SNew(SNumericEntryBox<uint32>)
+		.MinValue(12)
+		.MaxValue(BytesPerPixelOverride)
+		.MinSliderValue(12)
+		.MaxSliderValue(BytesPerPixelOverride)
+		.OnBeginSliderMovement(this, &SMaterialEditorStrataWidget::OnBeginBytesPerPixelSliderMovement)
+		.OnEndSliderMovement(this, &SMaterialEditorStrataWidget::OnEndBytesPerPixelSliderMovement)
+		.AllowSpin(true)
+//		.OnValueChanged(this, &SMaterialEditorStrataWidget::OnBytesPerPixelChanged)
+		.OnValueCommitted(this, &SMaterialEditorStrataWidget::OnBytesPerPixelCommitted)
+		.Value(this, &SMaterialEditorStrataWidget::GetBytesPerPixelValue)
+		.IsEnabled(false);
+
+	CheckBoxBytesPerPixelOverride = SNew(SCheckBox)
+		.Padding(5.0f)
+		.ToolTipText(LOCTEXT("CheckBoxBytesPerPixelOverride", "This will force the byte per pixel count for the preview material. It cannot go higher than the current project setting."))
+		.OnCheckStateChanged(this, &SMaterialEditorStrataWidget::OnCheckBoxBytesPerPixelChanged);
 
 	if (Strata::IsStrataEnabled())
 	{
@@ -85,6 +104,60 @@ void SMaterialEditorStrataWidget::Construct(const FArguments& InArgs, TWeakPtr<F
 							.ShadowColorAndOpacity(FLinearColor::Black)
 							.ShadowOffset(FVector2D::UnitVector)
 							.Text(LOCTEXT("FullsimplificationLabel", "Full simplification"))
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SWrapBox)
+							.UseAllottedSize(true)
+							+SWrapBox::Slot()
+							.Padding(5.0f)
+							.HAlign(HAlign_Left)
+							.VAlign(VAlign_Center)
+							[
+								CheckBoxBytesPerPixelOverride->AsShared()
+							]
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(16.0f, 0.0f)
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.ColorAndOpacity(FLinearColor::White)
+							.ShadowColorAndOpacity(FLinearColor::Black)
+							.ShadowOffset(FVector2D::UnitVector)
+							.Text(LOCTEXT("OverrideBytesPerPixel", "Override bytes per pixel"))
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						[
+							SNew(SWrapBox)
+							.UseAllottedSize(true)
+							+SWrapBox::Slot()
+							.Padding(5.0f)
+							.HAlign(HAlign_Left)
+							.VAlign(VAlign_Center)
+							[
+								BytesPerPixelOverrideInput->AsShared()
+							]
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(16.0f, 0.0f)
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Center)
+						[
+							SNew(STextBlock)
+							.ColorAndOpacity(FLinearColor::White)
+							.ShadowColorAndOpacity(FLinearColor::Black)
+							.ShadowOffset(FVector2D::UnitVector)
+							.Text(LOCTEXT("FullsimplificationLabel", "Bytes per pixel"))
 						]
 						+SHorizontalBox::Slot()
 						.AutoWidth()
@@ -330,6 +403,46 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 	}
 }
 
+//void SMaterialEditorStrataWidget::OnBytesPerPixelChanged(uint32 NewValue)
+//{
+//}
+
+void SMaterialEditorStrataWidget::OnBytesPerPixelCommitted(uint32 NewValue, ETextCommit::Type InCommitType)
+{
+	if (InCommitType == ETextCommit::OnEnter)
+	{
+		BytesPerPixelOverride = NewValue;
+	}
+}
+
+void SMaterialEditorStrataWidget::OnBeginBytesPerPixelSliderMovement()
+{
+	if (bBytesPerPixelStartedTransaction == false)
+	{
+		bBytesPerPixelStartedTransaction = true;
+		GEditor->BeginTransaction(LOCTEXT("PastePoseTransation", "Paste Pose"));
+	}
+}
+void SMaterialEditorStrataWidget::OnEndBytesPerPixelSliderMovement(uint32 NewValue)
+{
+	if (bBytesPerPixelStartedTransaction)
+	{
+		GEditor->EndTransaction();
+		bBytesPerPixelStartedTransaction = false;
+		BytesPerPixelOverride = NewValue;
+	}
+}
+
+TOptional<uint32> SMaterialEditorStrataWidget::GetBytesPerPixelValue() const
+{
+	return BytesPerPixelOverride;
+}
+
+void SMaterialEditorStrataWidget::OnCheckBoxBytesPerPixelChanged(ECheckBoxState InCheckBoxState)
+{
+	BytesPerPixelOverrideInput->SetEnabled(InCheckBoxState == ECheckBoxState::Checked);
+}
+
 FReply SMaterialEditorStrataWidget::OnButtonApplyToPreview()
 {
 	if (MaterialEditorPtr.IsValid())
@@ -338,12 +451,11 @@ FReply SMaterialEditorStrataWidget::OnButtonApplyToPreview()
 
 		FStrataCompilationConfig StrataCompilationConfig;
 		StrataCompilationConfig.bFullSimplify = CheckBoxForceFullSimplification->IsChecked();
+		StrataCompilationConfig.BytesPerPixelOverride = CheckBoxBytesPerPixelOverride->IsChecked() ? FMath::Clamp(BytesPerPixelOverride, 12, Strata::GetBytePerPixel(SP_PCD3D_SM5)) : -1;
 		MaterialInterface->SetStrataCompilationConfig(StrataCompilationConfig);
 
 		MaterialInterface->ForceRecompileForRendering();
 	}
-
-
 
 	return FReply::Handled();
 }

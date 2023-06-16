@@ -465,6 +465,7 @@ class FSHA1;
 struct FStrataCompilationConfig
 {
 	bool bFullSimplify = false;
+	int16 BytesPerPixelOverride = -1;
 
 	FString GetShaderMapKeyString() const;
 
@@ -474,7 +475,7 @@ struct FStrataCompilationConfig
 
 	friend inline bool operator==(const FStrataCompilationConfig& Lhs, const FStrataCompilationConfig& Rhs)
 	{
-		return Lhs.bFullSimplify == Rhs.bFullSimplify;
+		return Lhs.bFullSimplify == Rhs.bFullSimplify && Lhs.BytesPerPixelOverride == Rhs.BytesPerPixelOverride;
 	}
 
 	friend inline bool operator!=(const FStrataCompilationConfig& Lhs, const FStrataCompilationConfig& Rhs)

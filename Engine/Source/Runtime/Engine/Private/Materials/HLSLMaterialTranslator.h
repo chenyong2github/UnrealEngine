@@ -436,6 +436,30 @@ protected:
 
 		uint32 OriginalRequestedByteSize = 0;
 		bool bRunFullSimplification = false;	// Simple implementation for now: if the material does not fit, we simply everything.
+
+		struct FOperatorToSimplify
+		{
+			union
+			{
+				uint32 PackedData;
+				struct
+				{
+					uint32 Index : 16; // Index of the operator
+					uint32 Depth : 16; // Depth of the operator
+				} Data;
+			};
+
+			FORCEINLINE bool operator!=(FOperatorToSimplify B) const
+			{
+				return PackedData != B.PackedData;
+			}
+
+			FORCEINLINE bool operator<(FOperatorToSimplify B) const
+			{
+				return PackedData < B.PackedData;
+			}
+		};
+		TArray<FOperatorToSimplify> OperatorSimplificationOrder;
 	};
 
 	/** Represent a shared local basis description with its associated code. */

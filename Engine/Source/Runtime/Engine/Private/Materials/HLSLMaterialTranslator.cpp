@@ -11419,9 +11419,109 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 
 	StrataSimplificationStatus.bRunFullSimplification = Compiler->StrataCompilationConfig.bFullSimplify || CompilationContextIndex == EStrataCompilationContext::SCC_FullySimplified;
 
-	const uint32 StrataBytePerPixel = Strata::GetBytePerPixel(Compiler->GetShaderPlatform());
+	if (!StrataSimplificationStatus.bRunFullSimplification)
+	{
+		// Generate LayerDepth value for all operators/bsdfs
+		int VOpTopBranchCountTaken = 0;
+		int VOpBottomBranchCountTaken = 0;
+		std::function<void(FStrataOperator&)> WalkOperatorsForDepth = [&](FStrataOperator& CurrentOperator) -> void
+		{
+			CurrentOperator.LayerDepth = VOpBottomBranchCountTaken;
+			switch (CurrentOperator.OperatorType)
+			{
+			case STRATA_OPERATOR_VERTICAL:
+			{
+				VOpTopBranchCountTaken++;
+				WalkOperatorsForDepth(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex]);
+				VOpTopBranchCountTaken--;
+				VOpBottomBranchCountTaken++;
+				WalkOperatorsForDepth(StrataMaterialExpressionRegisteredOperators[CurrentOperator.RightIndex]);
+				VOpBottomBranchCountTaken--;
+				break;
+			}
+			case STRATA_OPERATOR_HORIZONTAL:
+			case STRATA_OPERATOR_ADD:
+			{
+				WalkOperatorsForDepth(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex]);
+				WalkOperatorsForDepth(StrataMaterialExpressionRegisteredOperators[CurrentOperator.RightIndex]);
+				break;
+			}
+			case STRATA_OPERATOR_WEIGHT:
+			{
+				WalkOperatorsForDepth(StrataMaterialExpressionRegisteredOperators[CurrentOperator.LeftIndex]);
+				break;
+			}
+			case STRATA_OPERATOR_BSDF:
+			{
+				break;
+			}
+			}
+		};
+		WalkOperatorsForDepth(*StrataMaterialRootOperator);
+
+		//
+		// Make sure each and every path of the strata tree have valid children and path.
+		//
+		for (auto& It : StrataMaterialExpressionRegisteredOperators)
+		{
+			bool bMustHaveLeftChild = false;
+			bool bMustHaveRightChild = false;
+			switch (It.OperatorType)
+			{
+				// Operators without any child
+			case STRATA_OPERATOR_BSDF:
+				break;
+
+				// Operators with a single child
+			case STRATA_OPERATOR_WEIGHT:
+			{
+			}
+			break;
+
+			// Operators with two children
+			case STRATA_OPERATOR_HORIZONTAL:
+			case STRATA_OPERATOR_VERTICAL:
+			case STRATA_OPERATOR_ADD:
+			{
+				FStrataSimplificationStatus::FOperatorToSimplify OperatorToSimplify;
+				OperatorToSimplify.Data.Index = It.Index;
+				OperatorToSimplify.Data.Depth = It.LayerDepth;
+				StrataSimplificationStatus.OperatorSimplificationOrder.Push(OperatorToSimplify);
+			}
+			break;
+			}
+			StrataSimplificationStatus.OperatorSimplificationOrder.Sort();	// sort according to depth
+		}
+	}
+
+
+	const uint32 StrataBytePerPixel = Compiler->StrataCompilationConfig.BytesPerPixelOverride > 0 ? Compiler->StrataCompilationConfig.BytesPerPixelOverride : Strata::GetBytePerPixel(Compiler->GetShaderPlatform());
+
+	bool bFirstLoop = true;
 	do 
 	{
+		if (!bFirstLoop && !StrataSimplificationStatus.bRunFullSimplification && !StrataSimplificationStatus.bMaterialFitsInMemoryBudget && StrataSimplificationStatus.OperatorSimplificationOrder.Num() > 0)
+		{
+			// Mark the deepest operator for parameter blending
+			FStrataSimplificationStatus::FOperatorToSimplify& OperatorToSimplify = StrataSimplificationStatus.OperatorSimplificationOrder.Top();
+			StrataMaterialExpressionRegisteredOperators[OperatorToSimplify.Data.Index].bNodeRequestParameterBlending = true;
+			StrataSimplificationStatus.OperatorSimplificationOrder.Pop(/*bAllowShrinking*/false);
+		}
+		else if (!bFirstLoop && !StrataSimplificationStatus.bRunFullSimplification && !StrataSimplificationStatus.bMaterialFitsInMemoryBudget && StrataSimplificationStatus.OperatorSimplificationOrder.Num() == 0)
+		{
+			StrataSimplificationStatus.bRunFullSimplification = !StrataSimplificationStatus.bMaterialFitsInMemoryBudget;
+		}
+		else if (bFirstLoop)
+		{
+			// Fall through. This is needed for material with a single BSDF and no operator to simplify.
+			bFirstLoop = false;
+		}
+		else
+		{
+			Compiler->Errorf(TEXT("Unkown Substrate material simplification status error for %s (asset: %s).\r\n"), *CompilerMaterial->GetDebugName(), *CompilerMaterial->GetAssetPath().ToString());
+			return false;
+		}
+
 		// Reset some data
 		StrataMaterialBSDFCount = 0;
 
@@ -11917,7 +12017,6 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 				// Record the original requested byte size before simplification, only for the first pass.
 				StrataSimplificationStatus.OriginalRequestedByteSize = StrataMaterialRequestedSizeByte;
 			}
-			StrataSimplificationStatus.bRunFullSimplification = !StrataSimplificationStatus.bMaterialFitsInMemoryBudget;
 
 			const uint32 RequestedSizeInUint = FMath::DivideAndRoundUp(StrataMaterialRequestedSizeByte, 4u);
 			check(RequestedSizeInUint < 256u);
