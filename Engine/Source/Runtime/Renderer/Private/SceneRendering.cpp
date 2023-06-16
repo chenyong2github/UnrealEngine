@@ -1670,7 +1670,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		FIntVector TextureSize = Texture->GetSizeXYZ();
 		ViewUniformShaderParameters.SpecularProfileTextureSizeAndInvSize = FVector4f(TextureSize.X, TextureSize.Y, 1.0f / TextureSize.X, 1.0f / TextureSize.Y);
 		ViewUniformShaderParameters.SpecularProfileTexture = Texture;
-		ViewUniformShaderParameters.SpecularProfileSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		ViewUniformShaderParameters.SpecularProfileSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
 	{
