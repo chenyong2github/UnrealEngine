@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "GeometryScript/GeometryScriptSelectionTypes.h"
 #include "MeshNormalsFunctions.generated.h"
 
 class UDynamicMesh;
@@ -122,6 +123,21 @@ public:
 	RecomputeNormals(  
 		UDynamicMesh* TargetMesh, 
 		FGeometryScriptCalculateNormalsOptions CalculateOptions,
+		bool bDeferChangeNotifications = false,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Recompute the normals of TargetMesh on all the triangles/vertices of the given Selection using the given CalculateOptions. 
+	 * This method will preserve any existing hard edges, ie each shared triangle-vertex normal is recomputed by averaging 
+	 * the face normals of triangles that reference that shared triangle-vertex normal
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Normals", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	RecomputeNormalsForMeshSelection(  
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptMeshSelection Selection,
+		FGeometryScriptCalculateNormalsOptions CalculateOptions,
+		bool bDeferChangeNotifications = false,
 		UGeometryScriptDebug* Debug = nullptr);
 
 	/**

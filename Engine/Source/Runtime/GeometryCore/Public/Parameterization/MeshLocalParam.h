@@ -46,6 +46,17 @@ public:
 	/** Type of local parameterization to compute */
 	ELocalParamTypes ParamMode = ELocalParamTypes::ExponentialMapUpwindAvg;
 
+	/** 
+	 * If true, ExternalNormalFunc will be used to fetch normals instead of requesting from PointSet->GetVertexNormal.
+	 * This allows for (1) vertex normals to be computed on the fly, if only a subset of the point set is being parameterizedx
+	 * and (2) alternate normals (eg smoothed, etc) to be provided w/o having to define a separate class.
+	 */
+	bool bEnableExternalNormals = false;
+
+	/** Normals will be requested from this function if bEnableExternalNormals == true */
+	TFunction<FVector3d(int32)> ExternalNormalFunc;
+
+
 	TMeshLocalParam(const PointSetType* PointSetIn)
 	{
 		PointSet = PointSetIn;
@@ -188,6 +199,31 @@ public:
 		return (Node != nullptr && Node->bFrozen) ? Node->UV : InvalidUV();
 	}
 
+	/**
+	 * Find all computed UVs within the specified distances
+	 * @param PointIDsOut PointID corresponding to each computed UV is returned here
+	 * @param PointUVsOut UV value corresponding to each PointID is returned here
+	 * @param MaxUVMagnitude computed UVs will only be included if their magnitude is smaller than this value (eg, this is the UV-space radius)
+	 * @param MaxGraphDistance computed UVs will only be included if their graph distance is smaller than this value. Graph distance is generally always be larger than UV distance. This can be used to avoid problematic UVs that might result from algorithm failures.
+	 */
+	void GetAllComputedUVs(
+		TArray<int32>& PointIDsOut, 
+		TArray<FVector2d>& PointUVsOut,
+		double MaxUVMagnitude = TNumericLimits<float>::Max(),
+		double MaxGraphDist = TNumericLimits<float>::Max() ) const
+	{
+		double MaxUVMagSqr = MaxUVMagnitude * MaxUVMagnitude;
+		for (const FGraphNode& Node : AllocatedNodes)
+		{
+			if (Node.bFrozen && Node.GraphDistance < MaxGraphDist && Node.UV.SquaredLength() < MaxUVMagSqr)
+			{
+				PointIDsOut.Add(Node.PointID);
+				PointUVsOut.Add(Node.UV);
+			}
+		}
+	}
+
+
 
 	/**
 	 * Apply a function to each calculated UV
@@ -235,13 +271,6 @@ protected:
 		return FVector3d(PointSet->GetVertexNormal(PointID));
 	}
 
-	FFrame3d GetFrame(const int32 PointID) const
-	{
-		return FFrame3d(GetPosition(PointID), GetNormal(PointID));
-	}
-
-
-
 protected:
 
 	// information about each active/computed point
@@ -252,7 +281,16 @@ protected:
 		double GraphDistance;
 		FVector2d UV;
 		bool bFrozen;
+
+		FVector3d CachedNormal;
 	};
+
+
+	FFrame3d GetFrame(const FGraphNode& Node) const
+	{
+		return FFrame3d(GetPosition(Node.PointID), Node.CachedNormal);
+	}
+
 
 	// To avoid constructing FGraphNode for all input points (because we are computing a "local" param),
 	// we only allocate on demand, and then store a sparse mapping in IDToNodeIndexMap
@@ -270,9 +308,6 @@ protected:
 	// max distances encountered during last compute
 	double MaxGraphDistance;
 	double MaxUVDistance;
-
-
-
 
 
 	void ProcessQueueUntilTermination(double MaxDistance)
@@ -363,8 +398,7 @@ protected:
 		FGraphNode* ParentNode = GetNodeForPointSetID(Node.ParentPointID, false);
 		check(ParentNode != nullptr);
 
-		FVector3d ParentPos = GetPosition(Node.ParentPointID);
-		FFrame3d ParentFrame = GetFrame(Node.ParentPointID);
+		FFrame3d ParentFrame = GetFrame(*ParentNode);
 
 		Node.UV = PropagateUV(GetPosition(Node.PointID), ParentNode->UV, ParentFrame, SeedFrame);
 	}
@@ -386,7 +420,7 @@ protected:
 			FGraphNode* NbrNode = GetNodeForPointSetID(NbrPointID, false);
 			if (NbrNode != nullptr && NbrNode->bFrozen)
 			{
-				FFrame3d NbrFrame(GetFrame(NbrNode->PointID));
+				FFrame3d NbrFrame(GetFrame(*NbrNode));
 				FVector2d NbrUV = PropagateUV(NodePos, NbrNode->UV, NbrFrame, SeedFrame);
 				double Weight = 1.0 / (DistanceSquared(NodePos,NbrFrame.Origin) + TMathUtil<double>::ZeroTolerance);
 				AverageUV += Weight * NbrUV;
@@ -416,7 +450,17 @@ protected:
 		{
 			if (bCreateIfMissing)
 			{
-				FGraphNode NewNode{ PointSetID, -1, 0, FVector2d::Zero(), false };
+				FGraphNode NewNode{ PointSetID, -1, 0, FVector2d::Zero(), false, FVector3d::UnitZ() };
+
+				if (bEnableExternalNormals)
+				{
+					NewNode.CachedNormal = ExternalNormalFunc(PointSetID);
+				}
+				else
+				{
+					NewNode.CachedNormal = GetNormal(PointSetID);
+				}
+
 				int32 NewIndex = AllocatedNodes.Num();
 				AllocatedNodes.Add(NewNode);
 				IDToNodeIndexMap.Add(PointSetID, NewIndex);

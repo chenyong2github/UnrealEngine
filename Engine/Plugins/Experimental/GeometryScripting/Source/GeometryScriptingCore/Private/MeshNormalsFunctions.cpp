@@ -117,6 +117,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::SetPerFaceNormals(UDy
 UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::RecomputeNormals(
 	UDynamicMesh* TargetMesh,
 	FGeometryScriptCalculateNormalsOptions CalculateOptions,
+	bool bDeferChangeNotifications,
 	UGeometryScriptDebug* Debug)
 {
 	if (TargetMesh == nullptr)
@@ -136,10 +137,56 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::RecomputeNormals(
 		MeshNormals.RecomputeOverlayNormals(EditMesh.Attributes()->PrimaryNormals(), CalculateOptions.bAreaWeighted, CalculateOptions.bAngleWeighted);
 		MeshNormals.CopyToOverlay(EditMesh.Attributes()->PrimaryNormals(), false);
 
-	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
 
 	return TargetMesh;
 }
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::RecomputeNormalsForMeshSelection(
+	UDynamicMesh* TargetMesh,
+	FGeometryScriptMeshSelection Selection,
+	FGeometryScriptCalculateNormalsOptions CalculateOptions,
+	bool bDeferChangeNotifications,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("RecomputeNormalsForMeshSelection_InvalidInput", "RecomputeNormalsForMeshSelection: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	// todo: publish correct change types
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh) 
+	{
+		if (EditMesh.HasAttributes() == false || EditMesh.Attributes()->PrimaryNormals() == nullptr)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("RecomputeNormalsForMeshSelection_NoAttributes", "RecomputeNormalsForMeshSelection: TargetMesh has no Normals attribute enabled"));
+			return;
+		}
+		
+		if (Selection.GetSelectionType() == EGeometryScriptMeshSelectionType::Vertices)
+		{
+			FDynamicMeshNormalOverlay* Normals = EditMesh.Attributes()->PrimaryNormals();
+			TSet<int32> Elements;
+			Selection.ProcessByVertexID(EditMesh, [&](int32 VertexID) {
+				Normals->EnumerateVertexElements(VertexID, [&](int32 tid, int32 elemid, const FVector3f&) { Elements.Add(elemid); return true; }, /*bFindUniqueElements*/false);
+			}, /*bProcessAllVertsIfSelectionEmpty*/false);
+			FMeshNormals::RecomputeOverlayElementNormals(EditMesh, Elements.Array(), CalculateOptions.bAreaWeighted, CalculateOptions.bAngleWeighted);
+		}
+		else
+		{
+			TArray<int32> Triangles;
+			Selection.ConvertToMeshIndexArray(EditMesh, Triangles, EGeometryScriptIndexType::Triangle);
+			FMeshNormals::RecomputeOverlayTriNormals(EditMesh, Triangles, CalculateOptions.bAreaWeighted, CalculateOptions.bAngleWeighted);
+		}
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, bDeferChangeNotifications);
+
+	return TargetMesh;
+}
+
 
 
 

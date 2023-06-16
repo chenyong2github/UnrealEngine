@@ -407,4 +407,31 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 
+	/**
+	 * Compute local UV parameterization on TargetMesh vertices around the given CenterPoint / Triangle. This method
+	 * uses a Discrete Exponential Map parameterization, which unwraps the mesh locally based on geodesic distances and angles.
+	 * The CenterPoint will have UV value (0,0), and the computed vertex UVs will be such that Length(UV) == geodesic distance.
+	 * 
+	 * @param CenterPoint the center point of the parameterization. This point must lie on the triangle specified by CenterPointTriangleID
+	 * @param CenterPointTriangleID the ID of the Triangle that contains CenterPoint
+	 * @param Radius the parameterization will be computed out to this geodesic radius
+	 * @param bUseInterpolatedNormal if true (default false), the normal frame used for the parameterization will be taken from the normal overlay, otherwise the CenterPointTriangleID normal will be used
+	 * @param VertexIDs output list of VertexIDs that UVs have been computed for, ie are within geodesic distance Radius from the CenterPoint
+	 * @param VertexUVs output list of Vertex UVs that corresponds to VertexIDs
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod, AdvancedDisplay = "bUseInterpolatedNormal, TangentYDirection"))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ComputeMeshLocalUVParam( 
+		UDynamicMesh* TargetMesh, 
+		FVector CenterPoint,
+		int32 CenterPointTriangleID,
+		TArray<int>& VertexIDs,
+		TArray<FVector2D>& VertexUVs,
+		double Radius = 1,
+		bool bUseInterpolatedNormal = false,
+		FVector TangentYDirection = FVector(0,0,0),
+		double UVRotationDeg = 0.0,
+		UGeometryScriptDebug* Debug = nullptr );
+
+
 };

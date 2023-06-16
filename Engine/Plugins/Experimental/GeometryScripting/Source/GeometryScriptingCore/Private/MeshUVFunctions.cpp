@@ -9,6 +9,8 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "Parameterization/PatchBasedMeshUVGenerator.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "Parameterization/MeshLocalParam.h"
+#include "TriangleTypes.h"
 #include "XAtlasWrapper.h"
 
 #include "Async/ParallelFor.h"
@@ -1080,6 +1082,80 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::CopyMeshToMeshUVLayer(
 
 	CopyToMeshOut = CopyToMesh;
 	return CopyFromUVMesh;
+}
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::ComputeMeshLocalUVParam(
+	UDynamicMesh* TargetMesh,
+	FVector CenterPoint,
+	int32 CenterPointTriangleID,
+	TArray<int>& VertexIDs,
+	TArray<FVector2D>& VertexUVs,
+	double Radius,
+	bool bUseInterpolatedNormal,
+	FVector TangentYDirection,
+	double UVRotationDeg,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeMeshLocalUVParam_InvalidInput", "ComputeMeshLocalUVParam: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& Mesh)
+	{
+		if (Mesh.IsTriangle(CenterPointTriangleID) == false)
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ComputeMeshLocalUVParam_InvalidTriangle", "ComputeMeshLocalUVParam: CenterPointTriangleID is not a valid triangle"));
+			return;
+		}
+		FIndex3i TriVertices = Mesh.GetTriangle(CenterPointTriangleID);
+		FFrame3d SeedFrame(Mesh.GetTriCentroid(CenterPointTriangleID), Mesh.GetTriNormal(CenterPointTriangleID));
+		SeedFrame.Origin = CenterPoint;
+
+		if (bUseInterpolatedNormal && Mesh.HasAttributes())
+		{
+			if (const FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals())
+			{
+				if (Normals->IsSetTriangle(CenterPointTriangleID))
+				{
+					FTriangle3d Triangle(Mesh.GetVertex(TriVertices.A), Mesh.GetVertex(TriVertices.B), Mesh.GetVertex(TriVertices.C));
+					FVector3d BaryCoords = Triangle.GetBarycentricCoords(SeedFrame.Origin);
+					FVector3d InterpNormal;
+					Mesh.Attributes()->PrimaryNormals()->GetTriBaryInterpolate<double>(CenterPointTriangleID, &BaryCoords.X, &InterpNormal.X);
+					SeedFrame.AlignAxis(2, InterpNormal);
+				}
+			}
+		}
+
+		if (TangentYDirection.SquaredLength() > 0.1)
+		{
+			SeedFrame.ConstrainedAlignAxis(1, TangentYDirection, SeedFrame.Z());
+		}
+		else
+		{
+			SeedFrame.ConstrainedAlignAxis(1, FVector3d::UnitZ(), SeedFrame.Z());
+		}
+
+		if (UVRotationDeg != 0)
+		{
+			SeedFrame.Rotate(FQuaterniond(SeedFrame.Z(), UVRotationDeg, true));
+		}
+
+		TMeshLocalParam<FDynamicMesh3> Param(&Mesh);
+		Param.ParamMode = ELocalParamTypes::ExponentialMapUpwindAvg;
+
+		Param.bEnableExternalNormals = true;
+		Param.ExternalNormalFunc = [&](int32 VertexID) { return FMeshNormals::ComputeVertexNormal(Mesh, VertexID); };
+
+		Param.ComputeToMaxDistance(SeedFrame, TriVertices, Radius * FMathd::Sqrt2);
+
+		Param.GetAllComputedUVs(VertexIDs, VertexUVs, Radius, Radius * 2.0);
+	});
+
+	return TargetMesh;
 }
 
 

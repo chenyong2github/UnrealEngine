@@ -89,8 +89,9 @@ public:
 	virtual UDynamicMesh* GetDynamicMesh() override { return MeshObject; }
 
 	/**
-	 * Set the child UDynamicMesh. This can be used to 'share' a UDynamicMesh between Component instances.
-	 * @warning Currently this is somewhat risky, it is on the caller/clients to make sure that the actual mesh is not being simultaneously modified on multiple threads
+	 * Replace the current UDynamicMesh with a new one, and transfer ownership of NewMesh to this Component.
+	 * This can be used to (eg) assign a UDynamicMesh created with NewObject in the Transient Package to this Component.
+	 * @warning If NewMesh is owned/Outer'd to another DynamicMeshComponent, a GLEO error may occur if that Component is serialized.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	void SetDynamicMesh(UDynamicMesh* NewMesh);
@@ -210,8 +211,36 @@ public:
 		TFuture<bool>& Precompute, const TArray<int32>& UpdateSets, const UE::Geometry::FAxisAlignedBox3d& UpdateSetBounds);
 
 
+	//===============================================================================================================
+	// RenderBuffer Update Blueprint API. 
+public:
 
+	/**
+	 * Notify the Component that it's DynamicMesh has been modified externally. This will result in all Rendering Data
+	 * for the Component being rebuilt on the next frame (internally the Scene Proxy is fully destroyed and rebuilt).
+	 *
+	 * You must use this function if the mesh triangulation has been modified, or if polygroups or material assignments
+	 * have been changed, or if Normal/UV/Color topology has changed (ie new split-vertices have been introduced).
+	 * If only vertex attribute values (position, normals, UVs, colors) have been modified, then 
+	 * Notify Vertex Attributes Updated can be used to do a faster update.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering", DisplayName = "Notify Mesh Updated")
+	virtual void NotifyMeshModified();
 
+	/**
+	 * Notify the Component that vertex attribute values of it's DynamicMesh have been modified externally. This will result in
+	 * Rendering vertex buffers being updated. This update path is more efficient than doing a full Notify Mesh Updated.
+	 * 
+	 * @warning it is invalid to call this function if (1) the mesh triangulation has also been changed, (2) triangle MaterialIDs have been changed,
+	 * or (3) any attribute overlay (normal, color, UV) topology has been modified, ie split-vertices have been added/removed.
+	 * Behavior of this function is undefined in these cases and may crash. If you are unsure, use Notify Mesh Updated.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering", DisplayName = "Notify Vertex Attributes Updated")
+	virtual void NotifyMeshVertexAttributesModified(
+		bool bPositions = true, 
+		bool bNormals = true,
+		bool bUVs = true,
+		bool bColors = true);
 
 	//===============================================================================================================
 	// Change Support. These changes are primarily used for Undo/Redo, however there is no strict assumption

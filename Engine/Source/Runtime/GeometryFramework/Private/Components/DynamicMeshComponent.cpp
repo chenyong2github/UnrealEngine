@@ -359,6 +359,11 @@ void UDynamicMeshComponent::NotifyMeshUpdated()
 	ResetProxy();
 }
 
+void UDynamicMeshComponent::NotifyMeshModified()
+{
+	NotifyMeshUpdated();
+}
+
 
 void UDynamicMeshComponent::FastNotifyColorsUpdated()
 {
@@ -515,10 +520,37 @@ void UDynamicMeshComponent::FastNotifyVertexAttributesUpdated(EMeshRenderAttribu
 	}
 }
 
-
 void UDynamicMeshComponent::FastNotifyUVsUpdated()
 {
 	FastNotifyVertexAttributesUpdated(EMeshRenderAttributeFlags::VertexUVs);
+}
+
+
+void UDynamicMeshComponent::NotifyMeshVertexAttributesModified( bool bPositions, bool bNormals, bool bUVs, bool bColors )
+{
+	EMeshRenderAttributeFlags Flags = EMeshRenderAttributeFlags::None;
+	if (bPositions)
+	{
+		Flags |= EMeshRenderAttributeFlags::Positions;
+	}
+	if (bNormals)
+	{
+		Flags |= EMeshRenderAttributeFlags::VertexNormals;
+	}
+	if (bUVs)
+	{
+		Flags |= EMeshRenderAttributeFlags::VertexUVs;
+	}
+	if (bColors)
+	{
+		Flags |= EMeshRenderAttributeFlags::VertexColors;
+	}
+
+	if (Flags == EMeshRenderAttributeFlags::None)
+	{
+		return;
+	}
+	FastNotifyVertexAttributesUpdated(Flags);
 }
 
 
@@ -1148,7 +1180,9 @@ void UDynamicMeshComponent::SetDynamicMesh(UDynamicMesh* NewMesh)
 		MeshObject->OnMeshChanged().Remove(MeshObjectChangedHandle);
 	}
 
-	NewMesh->Rename( nullptr, this );		// set Outer of NewMesh to be this Component
+	// set Outer of NewMesh to be this Component, ie transfer ownership. This is done via "renaming", which is
+	// a bit odd, so the flags prevent some standard "renaming" behaviors from happening
+	NewMesh->Rename( nullptr, this, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 	MeshObject = NewMesh;
 	MeshObjectChangedHandle = MeshObject->OnMeshChanged().AddUObject(this, &UDynamicMeshComponent::OnMeshObjectChanged);
 
