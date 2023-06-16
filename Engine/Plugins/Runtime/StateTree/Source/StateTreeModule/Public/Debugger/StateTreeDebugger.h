@@ -93,7 +93,7 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	bool HasTaskBreakpoint(FStateTreeIndex16 Index, EStateTreeBreakpointType BreakpointType) const;
 	bool HasTransitionBreakpoint(FStateTreeIndex16 Index, EStateTreeBreakpointType BreakpointType) const;
 	void SetBreakpoint(FStateTreeStateHandle StateHandle, EStateTreeBreakpointType BreakpointType);
-	void SetBreakpoint(FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType);
+	void SetTaskBreakpoint(FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType);
 	void ClearBreakpoint(FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType);
 	void ClearAllBreakpoints();
 	int32 NumBreakpoints() const { return Breakpoints.Num(); }

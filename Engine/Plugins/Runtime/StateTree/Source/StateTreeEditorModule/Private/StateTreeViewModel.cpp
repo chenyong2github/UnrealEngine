@@ -309,7 +309,7 @@ void FStateTreeViewModel::RefreshDebuggerBreakpoints()
 			const FStateTreeIndex16 Index = StateTree->GetNodeIndexFromId(Breakpoint.ID);
 			if (Index.IsValid())
 			{
-				Debugger->SetBreakpoint(Index, Breakpoint.BreakpointType);	
+				Debugger->SetTaskBreakpoint(Index, Breakpoint.BreakpointType);	
 			}
 			else
 			{

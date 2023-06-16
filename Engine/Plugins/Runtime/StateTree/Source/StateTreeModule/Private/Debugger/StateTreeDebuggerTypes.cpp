@@ -243,8 +243,15 @@ FStateTreeDebuggerBreakpoint::FStateTreeDebuggerBreakpoint(const FStateTreeState
 	EventType = GetMatchingEventType(BreakpointType);
 }
 
-FStateTreeDebuggerBreakpoint::FStateTreeDebuggerBreakpoint(const FStateTreeIndex16 NodeIndex, const EStateTreeBreakpointType BreakpointType)
-	: ElementIdentifier(TInPlaceType<FStateTreeTaskIndex>(), NodeIndex)
+FStateTreeDebuggerBreakpoint::FStateTreeDebuggerBreakpoint(const FStateTreeTaskIndex Index, const EStateTreeBreakpointType BreakpointType)
+	: ElementIdentifier(TInPlaceType<FStateTreeTaskIndex>(), Index)
+	, BreakpointType(BreakpointType)
+{
+	EventType = GetMatchingEventType(BreakpointType);
+}
+
+FStateTreeDebuggerBreakpoint::FStateTreeDebuggerBreakpoint(const FStateTreeTransitionIndex Index, const EStateTreeBreakpointType BreakpointType)
+	: ElementIdentifier(TInPlaceType<FStateTreeTransitionIndex>(), Index)
 	, BreakpointType(BreakpointType)
 {
 	EventType = GetMatchingEventType(BreakpointType);

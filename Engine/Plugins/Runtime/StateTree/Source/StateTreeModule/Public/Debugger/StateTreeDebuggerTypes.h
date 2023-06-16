@@ -267,14 +267,33 @@ private:
 struct FStateTreeDebuggerBreakpoint
 {
 	// Wrapper structs to be able to use TVariant with more than one type based on FStateTreeIndex16 (can't use 'using')
-	struct FStateTreeTaskIndex { FStateTreeIndex16 Index; };
-	struct FStateTreeTransitionIndex { FStateTreeIndex16 Index; };
+	struct FStateTreeTaskIndex
+	{
+		FStateTreeTaskIndex() = default;
+		explicit FStateTreeTaskIndex(const FStateTreeIndex16& Index)
+			: Index(Index)
+		{
+		}
+
+		FStateTreeIndex16 Index;
+	};
+	
+	struct FStateTreeTransitionIndex
+	{
+		FStateTreeTransitionIndex() = default;
+		explicit FStateTreeTransitionIndex(const FStateTreeIndex16& Index)
+			: Index(Index)
+		{
+		}
+		FStateTreeIndex16 Index;
+	};
 
 	using FIdentifierVariantType = TVariant<FStateTreeStateHandle, FStateTreeTaskIndex, FStateTreeTransitionIndex>;
 	
 	FStateTreeDebuggerBreakpoint();
 	explicit FStateTreeDebuggerBreakpoint(const FStateTreeStateHandle StateHandle, const EStateTreeBreakpointType BreakpointType);
-	explicit FStateTreeDebuggerBreakpoint(const FStateTreeIndex16 NodeIndex, const EStateTreeBreakpointType BreakpointType);
+	explicit FStateTreeDebuggerBreakpoint(const FStateTreeTaskIndex Index, const EStateTreeBreakpointType BreakpointType);
+	explicit FStateTreeDebuggerBreakpoint(const FStateTreeTransitionIndex Index, const EStateTreeBreakpointType BreakpointType);
 
 	FIdentifierVariantType ElementIdentifier;
 	EStateTreeBreakpointType BreakpointType;

@@ -564,9 +564,9 @@ void FStateTreeDebugger::SetBreakpoint(FStateTreeStateHandle StateHandle, EState
 	Breakpoints.Emplace(StateHandle, BreakpointType);
 }
 
-void FStateTreeDebugger::SetBreakpoint(const FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType)
+void FStateTreeDebugger::SetTaskBreakpoint(const FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType)
 {
-	Breakpoints.Emplace(NodeIndex, BreakpointType);
+	Breakpoints.Emplace(FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex(NodeIndex), BreakpointType);
 }
 
 void FStateTreeDebugger::ClearBreakpoint(const FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType)
