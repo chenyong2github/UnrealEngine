@@ -37,6 +37,7 @@ struct CHAOSVDDATA_API FChaosVDSolverFrameData
 	Chaos::FRigidTransform3 SimulationTransform;
 	bool bIsKeyFrame = false;
 	FChaosVDStepsContainer SolverSteps;
+	TSet<int32> ParticlesDestroyedIDs;
 };
 
 struct FChaosVDGameFrameData
@@ -98,6 +99,8 @@ struct CHAOSVDDATA_API FChaosVDRecording
 	 * @return Found frame number. INDEX_NONE if no frame is found for the specified cycle
 	 */
 	int32 GetLowestSolverFrameNumberAtCycle(int32 SolverID, uint64 Cycle);
+
+	int32 FindFirstSolverKeyFrameNumberFromFrame(int32 SolverID, int32 StartFrameNumber);
 	
 	/**
 	 * Searches and returns the lowest frame number of a solver at the specified cycle
@@ -180,8 +183,14 @@ protected:
 	void AddImplicitObject(const uint32 ID, const Chaos::FImplicitObject* InImplicitObject);
 	
 	void AddImplicitObject_Internal(const uint32 ID, const TSharedPtr<const Chaos::FImplicitObject>& InImplicitObject);
+
+	/** Stores a frame number of a solver that is a Key Frame -
+	 * These are used when scrubbing to make sure the visualization is in sync with what was recorded
+	 */
+	void AddKeyFrameNumberForSolver(int32 SolverID, int32 FrameNumber);
 	
 	TMap<int32, TArray<FChaosVDSolverFrameData>> RecordedFramesDataPerSolver;
+	TMap<int32, TArray<int32>> RecordedKeyFramesNumberPerSolver;
 	TArray<FChaosVDGameFrameData> GameFrames;
 	FChaosVDRecordingUpdated RecordingUpdatedDelegate;
 	FChaosVDGeometryDataLoaded GeometryDataLoaded;

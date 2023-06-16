@@ -99,6 +99,27 @@ void FChaosVDPlaybackController::UnloadCurrentRecording(EChaosVDUnloadRecordingF
 	}
 }
 
+void FChaosVDPlaybackController::PlayFromClosestKeyFrame(const int32 InTrackID, const int32 FrameNumber, FChaosVDScene& InSceneToControl)
+{
+	const int32 KeyFrameNumber = LoadedRecording->FindFirstSolverKeyFrameNumberFromFrame(InTrackID, FrameNumber);
+
+	if (!ensure(KeyFrameNumber >= 0))
+	{
+		return;
+	}
+
+	for (int32 CurrentFrameNumber = KeyFrameNumber; CurrentFrameNumber < FrameNumber; CurrentFrameNumber++)
+	{				
+		const FChaosVDSolverFrameData* SolverFrameData = LoadedRecording->GetSolverFrameData(InTrackID, CurrentFrameNumber);
+		const int32 LastStepNumber = SolverFrameData->SolverSteps.Num() - 1;
+
+		if (SolverFrameData && ensure(SolverFrameData->SolverSteps.IsValidIndex(LastStepNumber)))
+		{
+			InSceneToControl.UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[LastStepNumber], *SolverFrameData);
+		}
+	}
+}
+
 void FChaosVDPlaybackController::GoToRecordedSolverStep(const int32 InTrackID, const int32 FrameNumber, const int32 Step, FGuid InstigatorID)
 {
 	if (const TSharedPtr<FChaosVDScene> SceneToControlSharedPtr = SceneToControl.Pin())
@@ -116,8 +137,6 @@ void FChaosVDPlaybackController::GoToRecordedSolverStep(const int32 InTrackID, c
 			// we will need to add a lock to the file. A feature that might need that is Recording Clips
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*TraceSession);
 
-			const FChaosVDSolverFrameData* SolverFrameData = LoadedRecording->GetSolverFrameData(InTrackID, FrameNumber);
-
 			TSharedPtr<FChaosVDTrackInfo> CurrentTrackInfo;
 			if (TrackInfoByIDMap* TrackInfoByID = TrackInfoPerType.Find(EChaosVDTrackType::Solver))
 			{
@@ -132,6 +151,15 @@ void FChaosVDPlaybackController::GoToRecordedSolverStep(const int32 InTrackID, c
 				}
 			}
 
+			const int32 FrameDiff = FrameNumber - CurrentTrackInfo->CurrentFrame;
+			constexpr int32 FrameDriftTolerance = 1;
+			if (FMath::Abs(FrameDiff) > FrameDriftTolerance || CurrentTrackInfo->CurrentFrame == 0)
+			{
+				// As Frames are recorded as delta, we need to make sure of playing back all the deltas since the closest keyframe
+				PlayFromClosestKeyFrame(InTrackID, FrameNumber, *SceneToControlSharedPtr.Get());
+			}
+
+			const FChaosVDSolverFrameData* SolverFrameData = LoadedRecording->GetSolverFrameData(InTrackID, FrameNumber);
 			if (CurrentTrackInfo->LockedOnStep != INDEX_NONE)
 			{
 				// If this track is locked to a specific step, we need to play back the previous steps on the current frame, because not all steps capture the same data.

@@ -64,6 +64,44 @@ int32 FChaosVDRecording::GetLowestSolverFrameNumberAtCycle(int32 SolverID, uint6
 	return INDEX_NONE;
 }
 
+int32 FChaosVDRecording::FindFirstSolverKeyFrameNumberFromFrame(int32 SolverID, int32 StartFrameNumber)
+{
+	if (TArray<int32>* KeyFrameNumbersPtr = RecordedKeyFramesNumberPerSolver.Find(SolverID))
+	{
+		TArray<int32>& KeyFrameNumbers = *KeyFrameNumbersPtr;
+
+		const int32 IndexFound = Algo::LowerBound(KeyFrameNumbers, StartFrameNumber);
+		
+		// If StartFrameNumber is larger than the last keyframe recorded
+		// IndexFound will be outside of the array's bounds. In that case we want to use the last key frame available
+		if (IndexFound >= KeyFrameNumbers.Num())
+		{
+			return KeyFrameNumbers.Last();
+		}
+
+		if (KeyFrameNumbers.IsValidIndex(IndexFound))
+		{
+			// Frame numbers are not repeated, so the lower bound search should give us the
+			// index containing the provided "StartFrameNumber" if it was already a key frame
+			const int32 FoundKeyFrame = KeyFrameNumbers[IndexFound];
+			if (FoundKeyFrame == StartFrameNumber)
+			{
+				return FoundKeyFrame;
+			}
+
+			// If StartFrameNumber was not a keyframe, we will get the lowest index number containing a key frame number larger than "StartFrameNumber"
+			// in which case we want the previous one;
+			const int32 PrevKeyFrameIndex = IndexFound - 1;			
+			if (KeyFrameNumbers.IsValidIndex(PrevKeyFrameIndex))
+			{
+				return KeyFrameNumbers[PrevKeyFrameIndex];
+			}
+		}		
+	}
+
+	return INDEX_NONE;
+}
+
 int32 FChaosVDRecording::GetLowestSolverFrameNumberGameFrame(int32 SolverID, int32 GameFrame)
 {
 	if (!GameFrames.IsValidIndex(GameFrame))
@@ -96,15 +134,37 @@ int32 FChaosVDRecording::GetLowestGameFrameAtSolverFrameNumber(int32 SolverID, i
 	return INDEX_NONE;
 }
 
+void FChaosVDRecording::AddKeyFrameNumberForSolver(const int32 SolverID, int32 FrameNumber)
+{
+	if (TArray<int32>* KeyFrameNumber = RecordedKeyFramesNumberPerSolver.Find(SolverID))
+	{
+		KeyFrameNumber->Add(FrameNumber);
+	}
+	else
+	{
+		RecordedKeyFramesNumberPerSolver.Add(SolverID, { FrameNumber });
+	}
+}
+
 void FChaosVDRecording::AddFrameForSolver(const int32 SolverID, FChaosVDSolverFrameData&& InFrameData)
 {
+	int32 FrameNumber;
+	const bool bIsKeyFrame = InFrameData.bIsKeyFrame;
 	if (TArray<FChaosVDSolverFrameData>* SolverFrames = RecordedFramesDataPerSolver.Find(SolverID))
 	{
-		SolverFrames->Add(MoveTemp(InFrameData));
+		FrameNumber = SolverFrames->Num();
+
+		SolverFrames->Add(MoveTemp(InFrameData));	
 	}
 	else
 	{	
+		FrameNumber = 0;
 		RecordedFramesDataPerSolver.Add(SolverID, { MoveTemp(InFrameData) });
+	}
+
+	if (bIsKeyFrame)
+	{
+		AddKeyFrameNumberForSolver(SolverID, FrameNumber);
 	}
 
 	OnRecordingUpdated().Broadcast();

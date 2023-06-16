@@ -209,6 +209,9 @@ protected:
 	/** Handles any data changes on the loaded recording - Usually called during Trace analysis */
 	void HandleCurrentRecordingUpdated();
 
+	/** Finds the closest Key frame to the provided frame number, and plays all the following frames until the specified frame number (no inclusive) */
+	void PlayFromClosestKeyFrame(int32 InTrackID, int32 FrameNumber, FChaosVDScene& InSceneToControl);
+
 	/** Map containing all track info, by track type*/
 	TMap<EChaosVDTrackType, TrackInfoByIDMap> TrackInfoPerType;
 

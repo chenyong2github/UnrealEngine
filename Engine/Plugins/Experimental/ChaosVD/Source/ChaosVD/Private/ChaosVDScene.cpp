@@ -80,11 +80,15 @@ void FChaosVDScene::AddReferencedObjects(FReferenceCollector& Collector)
 void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FString& SolverName, const FChaosVDStepData& InRecordedStepData, const FChaosVDSolverFrameData& InFrameData)
 {
 	FChaosVDParticlesByIDMap& SolverParticlesByID = ParticlesBySolverID.FindChecked(SolverID);
+	
+	TSet<int32> ParticlesIDsInRecordedStepData;
+	ParticlesIDsInRecordedStepData.Reserve(InRecordedStepData.RecordedParticlesData.Num());
 
 	// Go over existing Particle VD Instances and update them or create them if needed 
 	for (const FChaosVDParticleDataWrapper& Particle : InRecordedStepData.RecordedParticlesData)
 	{
 		const int32 ParticleVDInstanceID = GetIDForRecordedParticleData(Particle);
+		ParticlesIDsInRecordedStepData.Add(ParticleVDInstanceID);
 
 		if (InRecordedStepData.ParticlesDestroyedIDs.Contains(ParticleVDInstanceID))
 		{
@@ -126,12 +130,13 @@ void FChaosVDScene::UpdateFromRecordedStepData(const int32 SolverID, const FStri
 
 	UpdateParticlesCollisionData(InRecordedStepData, SolverID);
 
-	// TODO: This will not work once the recording has what changes between solver steps
-	// So it needs to be update to remove particles based on a Particles Removed event
 	int32 AmountRemoved = 0;
 	for (FChaosVDParticlesByIDMap::TIterator RemoveIterator = SolverParticlesByID.CreateIterator(); RemoveIterator; ++RemoveIterator)
 	{
-		if (InRecordedStepData.ParticlesDestroyedIDs.Contains(RemoveIterator.Key()))
+		// If we are playing back a keyframe, the scene should only contain what it is in the recorded data
+		const bool bShouldDestroyParticleAnyway = InFrameData.bIsKeyFrame && !ParticlesIDsInRecordedStepData.Contains(RemoveIterator.Key());
+		
+		if (bShouldDestroyParticleAnyway || InFrameData.ParticlesDestroyedIDs.Contains(RemoveIterator.Key()))
 		{
 			if (AChaosVDParticleActor* ActorToRemove = RemoveIterator.Value())
 			{

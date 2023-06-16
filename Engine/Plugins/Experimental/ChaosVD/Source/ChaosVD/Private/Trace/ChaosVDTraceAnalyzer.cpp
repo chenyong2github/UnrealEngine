@@ -117,9 +117,16 @@ bool FChaosVDTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEvent
 
 			if (FChaosVDSolverFrameData* FrameData = ChaosVDTraceProvider->GetLastSolverFrame(SolverID))
 			{
+				int32 ParticleDestroyedID = EventData.GetValue<int32>("ParticleID");
+
+				// We need to add all particles that were destroyed in any step of this frame to the Frame data structure
+				// So we can properly process these events when not all the steps are played back
+				// Either because of the lock sub-step feature or because we are manually scrubbing from frame to frame
+				FrameData->ParticlesDestroyedIDs.Add(ParticleDestroyedID);
+				
 				if (FrameData->SolverSteps.Num() > 0)
 				{
-					FrameData->SolverSteps.Last().ParticlesDestroyedIDs.Add(EventData.GetValue<int32>("ParticleID"));
+					FrameData->SolverSteps.Last().ParticlesDestroyedIDs.Add(ParticleDestroyedID);
 				}
 			}
 

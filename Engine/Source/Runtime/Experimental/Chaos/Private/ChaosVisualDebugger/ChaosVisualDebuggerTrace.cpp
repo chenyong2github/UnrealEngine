@@ -224,7 +224,7 @@ void FChaosVisualDebuggerTrace::TraceParticlesSoA(const Chaos::FPBDRigidsSOAs& P
 void FChaosVisualDebuggerTrace::SetupForFullCaptureIfNeeded(int32 SolverID, bool& bOutFullCaptureRequested)
 {
 	DeltaRecordingStatesLock.ReadLock();
-	bOutFullCaptureRequested = RequestedFullCaptureSolverIDs.Contains(SolverID);
+	bOutFullCaptureRequested = RequestedFullCaptureSolverIDs.Contains(SolverID) || !SolverIDsForDeltaRecording.Contains(SolverID);
 	DeltaRecordingStatesLock.ReadUnlock();
 
 	if (bOutFullCaptureRequested)
