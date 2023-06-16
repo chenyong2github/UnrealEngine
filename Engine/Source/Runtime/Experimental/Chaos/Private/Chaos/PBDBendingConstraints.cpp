@@ -192,10 +192,10 @@ void FPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 						&RestAngles.GetData()[ColorStart],
 						&IsBuckled.GetData()[ColorStart],
 						StiffnessHasWeightMap,
-						&Stiffness.GetIndices().GetData()[ColorStart],
+						StiffnessHasWeightMap ? &Stiffness.GetIndices().GetData()[ColorStart] : nullptr,
 						&Stiffness.GetTable().GetData()[0],
 						BucklingStiffnessHasWeightMap,
-						&BucklingStiffness.GetIndices().GetData()[ColorStart],
+						BucklingStiffnessHasWeightMap ? &BucklingStiffness.GetIndices().GetData()[ColorStart] : nullptr,
 						&BucklingStiffness.GetTable().GetData()[0],
 						ColorSize);
 				}

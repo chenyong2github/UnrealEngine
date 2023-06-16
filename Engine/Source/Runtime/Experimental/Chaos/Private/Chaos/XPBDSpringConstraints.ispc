@@ -208,8 +208,8 @@ export void ApplyXPBDSpringConstraintsWithDampingAndWeightMaps(uniform FVector4f
 		const varying FIntVector2 Constraint = VectorLoad(&Constraints[extract(i,0)]);
 		const varying int32 i1 = Constraint.V[0];
 		const varying int32 i2 = Constraint.V[1];
-		const varying int8 StiffnessIndex = select(StiffnessHasMap, StiffnessIndices[i], 0);
-		const varying int8 DampingIndex = select(DampingHasMap, DampingIndices[i], 0);
+		const varying int8 StiffnessIndex = StiffnessHasMap ? StiffnessIndices[i] : 0;
+		const varying int8 DampingIndex = DampingHasMap ? DampingIndices[i] : 0;
 
 		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
 		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);

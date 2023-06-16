@@ -181,10 +181,10 @@ void FXPBDSpringConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 							Dt,
 							MinStiffness,
 							StiffnessHasWeightMap,
-							&Stiffness.GetIndices().GetData()[ColorStart],
+							StiffnessHasWeightMap ? &Stiffness.GetIndices().GetData()[ColorStart] : nullptr,
 							&Stiffness.GetTable().GetData()[0],
 							DampingHasWeightMap,
-							&DampingRatio.GetIndices().GetData()[ColorStart],
+							DampingHasWeightMap ? &DampingRatio.GetIndices().GetData()[ColorStart] : nullptr,
 							&DampingRatio.GetTable().GetData()[0],
 							ColorSize);
 					}

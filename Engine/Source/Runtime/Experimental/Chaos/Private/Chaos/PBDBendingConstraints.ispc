@@ -134,8 +134,8 @@ export void ApplyBendingConstraintsWithMaps(uniform FVector4f PandInvM[],
 		const varying int32 i2 = Constraint.V[1];
 		const varying int32 i3 = Constraint.V[2];
 		const varying int32 i4 = Constraint.V[3];
-		const varying int8 StiffnessIndex = select(StiffnessHasMap, StiffnessIndices[i], 0);
-		const varying int8 BucklingStiffnessIndex = select(BucklingStiffnessHasMap, BucklingStiffnessIndices[i], 0);
+		const varying int8 StiffnessIndex = StiffnessHasMap ? StiffnessIndices[i] : 0;
+		const varying int8 BucklingStiffnessIndex = BucklingStiffnessHasMap ? BucklingStiffnessIndices[i] : 0;
 
 		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
 		const varying FVector4f PandInvM3 = VectorGather(&PandInvM[i3]);

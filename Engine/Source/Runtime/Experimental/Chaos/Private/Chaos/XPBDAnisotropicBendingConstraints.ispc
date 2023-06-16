@@ -241,12 +241,12 @@ export void ApplyXPBDAnisotropicBendingConstraintsWithMaps(uniform FVector4f Pan
 		const varying int32 i2 = Constraint.V[1];
 		const varying int32 i3 = Constraint.V[2];
 		const varying int32 i4 = Constraint.V[3];
-		const varying int8 StiffnessIndex = select(StiffnessHasMap, StiffnessIndices[i], 0);
-		const varying int8 StiffnessWeftIndex = select(StiffnessWeftHasMap, StiffnessWeftIndices[i], 0);
-		const varying int8 StiffnessBiasIndex = select(StiffnessBiasHasMap, StiffnessBiasIndices[i], 0);
-		const varying int8 BucklingStiffnessIndex = select(BucklingStiffnessHasMap, BucklingStiffnessIndices[i], 0);
-		const varying int8 BucklingStiffnessWeftIndex = select(BucklingStiffnessWeftHasMap, BucklingStiffnessWeftIndices[i], 0);
-		const varying int8 BucklingStiffnessBiasIndex = select(BucklingStiffnessBiasHasMap, BucklingStiffnessBiasIndices[i], 0);
+		const varying int8 StiffnessIndex = StiffnessHasMap ? StiffnessIndices[i] : 0;
+		const varying int8 StiffnessWeftIndex = StiffnessWeftHasMap ? StiffnessWeftIndices[i] : 0;
+		const varying int8 StiffnessBiasIndex = StiffnessBiasHasMap ? StiffnessBiasIndices[i] : 0;
+		const varying int8 BucklingStiffnessIndex = BucklingStiffnessHasMap ? BucklingStiffnessIndices[i] : 0;
+		const varying int8 BucklingStiffnessWeftIndex = BucklingStiffnessWeftHasMap ? BucklingStiffnessWeftIndices[i] : 0;
+		const varying int8 BucklingStiffnessBiasIndex = BucklingStiffnessBiasHasMap ? BucklingStiffnessBiasIndices[i] : 0;
 
 		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
 		const varying FVector4f PandInvM3 = VectorGather(&PandInvM[i3]);
@@ -355,13 +355,13 @@ export void ApplyXPBDAnisotropicBendingConstraintsWithDampingAndMaps(uniform FVe
 		const varying int32 i2 = Constraint.V[1];
 		const varying int32 i3 = Constraint.V[2];
 		const varying int32 i4 = Constraint.V[3];
-		const varying int8 StiffnessIndex = select(StiffnessHasMap, StiffnessIndices[i], 0);
-		const varying int8 StiffnessWeftIndex = select(StiffnessWeftHasMap, StiffnessWeftIndices[i], 0);
-		const varying int8 StiffnessBiasIndex = select(StiffnessBiasHasMap, StiffnessBiasIndices[i], 0);
-		const varying int8 BucklingStiffnessIndex = select(BucklingStiffnessHasMap, BucklingStiffnessIndices[i], 0);
-		const varying int8 BucklingStiffnessWeftIndex = select(BucklingStiffnessWeftHasMap, BucklingStiffnessWeftIndices[i], 0);
-		const varying int8 BucklingStiffnessBiasIndex = select(BucklingStiffnessBiasHasMap, BucklingStiffnessBiasIndices[i], 0);
-		const varying int8 DampingIndex = select(DampingHasMap, DampingIndices[i], 0);
+		const varying int8 StiffnessIndex = StiffnessHasMap ? StiffnessIndices[i] : 0;
+		const varying int8 StiffnessWeftIndex = StiffnessWeftHasMap ? StiffnessWeftIndices[i] : 0;
+		const varying int8 StiffnessBiasIndex = StiffnessBiasHasMap ? StiffnessBiasIndices[i] : 0;
+		const varying int8 BucklingStiffnessIndex = BucklingStiffnessHasMap ? BucklingStiffnessIndices[i] : 0;
+		const varying int8 BucklingStiffnessWeftIndex = BucklingStiffnessWeftHasMap ? BucklingStiffnessWeftIndices[i] : 0;
+		const varying int8 BucklingStiffnessBiasIndex = BucklingStiffnessBiasHasMap ? BucklingStiffnessBiasIndices[i] : 0;
+		const varying int8 DampingIndex = DampingHasMap ? DampingIndices[i] : 0;
 
 		const varying FVector4f PandInvM2 = VectorGather(&PandInvM[i2]);
 		const varying FVector4f PandInvM3 = VectorGather(&PandInvM[i3]);

@@ -282,13 +282,13 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 							Dt,
 							MinStiffness,
 							StiffnessHasWeightMap,
-							&Stiffness.GetIndices().GetData()[ColorStart],
+							StiffnessHasWeightMap ? &Stiffness.GetIndices().GetData()[ColorStart] : nullptr,
 							&Stiffness.GetTable().GetData()[0],
 							BucklingStiffnessHasWeightMap,
-							&BucklingStiffness.GetIndices().GetData()[ColorStart],
+							BucklingStiffnessHasWeightMap ? &BucklingStiffness.GetIndices().GetData()[ColorStart] : nullptr,
 							&BucklingStiffness.GetTable().GetData()[0],
 							DampingHasWeightMap,
-							&DampingRatio.GetIndices().GetData()[ColorStart],
+							DampingHasWeightMap ? &DampingRatio.GetIndices().GetData()[ColorStart] : nullptr,
 							&DampingRatio.GetTable().GetData()[0],
 							ColorSize);
 					}
@@ -308,10 +308,10 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 							Dt,
 							MinStiffness,
 							StiffnessHasWeightMap,
-							&Stiffness.GetIndices().GetData()[ColorStart],
+							StiffnessHasWeightMap ? &Stiffness.GetIndices().GetData()[ColorStart] : nullptr,
 							&Stiffness.GetTable().GetData()[0],
 							BucklingStiffnessHasWeightMap,
-							&BucklingStiffness.GetIndices().GetData()[ColorStart],
+							BucklingStiffnessHasWeightMap ? &BucklingStiffness.GetIndices().GetData()[ColorStart] : nullptr,
 							&BucklingStiffness.GetTable().GetData()[0],
 							ColorSize);
 					}

@@ -259,11 +259,11 @@ export void ApplyXPBDStretchBiasConstraintsWithMaps(uniform FVector4f PandInvM[]
 		const varying int32 i0 = Constraint.V[0];
 		const varying int32 i1 = Constraint.V[1];
 		const varying int32 i2 = Constraint.V[2];
-		const varying int8 StiffnessWarpIndex = select(StiffnessWarpHasMap, StiffnessWarpIndices[i], 0);
-		const varying int8 StiffnessWeftIndex = select(StiffnessWeftHasMap, StiffnessWeftIndices[i], 0);
-		const varying int8 StiffnessBiasIndex = select(StiffnessBiasHasMap, StiffnessBiasIndices[i], 0);
-		const varying int8 WarpScaleIndex = select(WarpScaleHasMap, WarpScaleIndices[i], 0);
-		const varying int8 WeftScaleIndex = select(WeftScaleHasMap, WeftScaleIndices[i], 0);
+		const varying int8 StiffnessWarpIndex = StiffnessWarpHasMap ? StiffnessWarpIndices[i] : 0;
+		const varying int8 StiffnessWeftIndex = StiffnessWeftHasMap ? StiffnessWeftIndices[i] : 0;
+		const varying int8 StiffnessBiasIndex = StiffnessBiasHasMap ? StiffnessBiasIndices[i] : 0;
+		const varying int8 WarpScaleIndex = WarpScaleHasMap ? WarpScaleIndices[i] : 0;
+		const varying int8 WeftScaleIndex = WeftScaleHasMap ? WeftScaleIndices[i] : 0;
 		
 		const varying FVector4f PandInvM0 = VectorGather(&PandInvM[i0]);
 		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
@@ -364,12 +364,12 @@ export void ApplyXPBDStretchBiasConstraintsWithDampingAndMaps(uniform FVector4f 
 		const varying int32 i0 = Constraint.V[0];
 		const varying int32 i1 = Constraint.V[1];
 		const varying int32 i2 = Constraint.V[2];
-		const varying int8 StiffnessWarpIndex = select(StiffnessWarpHasMap, StiffnessWarpIndices[i], 0);
-		const varying int8 StiffnessWeftIndex = select(StiffnessWeftHasMap, StiffnessWeftIndices[i], 0);
-		const varying int8 StiffnessBiasIndex = select(StiffnessBiasHasMap, StiffnessBiasIndices[i], 0);
-		const varying int8 WarpScaleIndex = select(WarpScaleHasMap, WarpScaleIndices[i], 0);
-		const varying int8 WeftScaleIndex = select(WeftScaleHasMap, WeftScaleIndices[i], 0);
-		const varying int8 DampingIndex = select(DampingHasMap, DampingIndices[i], 0);
+		const varying int8 StiffnessWarpIndex = StiffnessWarpHasMap ? StiffnessWarpIndices[i] : 0;
+		const varying int8 StiffnessWeftIndex = StiffnessWeftHasMap ? StiffnessWeftIndices[i] : 0;
+		const varying int8 StiffnessBiasIndex = StiffnessBiasHasMap ? StiffnessBiasIndices[i] : 0;
+		const varying int8 WarpScaleIndex = WarpScaleHasMap ? WarpScaleIndices[i] : 0;
+		const varying int8 WeftScaleIndex = WeftScaleHasMap ? WeftScaleIndices[i] : 0;
+		const varying int8 DampingIndex = DampingHasMap ? DampingIndices[i] : 0;
 		
 		const varying FVector4f PandInvM0 = VectorGather(&PandInvM[i0]);
 		const varying FVector4f PandInvM1 = VectorGather(&PandInvM[i1]);
