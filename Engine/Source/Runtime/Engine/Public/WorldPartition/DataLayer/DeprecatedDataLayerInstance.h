@@ -2,7 +2,7 @@
 #pragma once
 
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
-
+#include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "DeprecatedDataLayerInstance.generated.h"
 
 class UDEPRECATED_DataLayer;
@@ -32,6 +32,7 @@ public:
 #if WITH_EDITOR
 	static ENGINE_API FName MakeName();
 	ENGINE_API void OnCreated();
+	FActorDataLayer GetActorDataLayer() const;
 
 	ENGINE_API PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	static FName MakeName(const UDEPRECATED_DataLayer* DeprecatedDataLayer);

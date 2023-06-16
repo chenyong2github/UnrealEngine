@@ -1829,11 +1829,28 @@ bool AActor::SupportsDataLayerType(TSubclassOf<UDataLayerInstance> InDataLayerTy
 		!GetClass()->GetDefaultObject<AActor>()->bHiddenEd);
 }
 
+bool AActor::CanAddDataLayer(const UDataLayerInstance* InDataLayerInstance) const
+{
+	if (InDataLayerInstance && SupportsDataLayerType(InDataLayerInstance->GetClass()))
+	{
+		if (const UDataLayerAsset* DataLayerAsset = InDataLayerInstance->GetAsset())
+		{
+			return !DataLayerAssets.Contains(DataLayerAsset);
+		}
+		else if (const UDeprecatedDataLayerInstance* DataLayerInstance = Cast<UDeprecatedDataLayerInstance>(InDataLayerInstance))
+		{
+			return !DataLayers.Contains(DataLayerInstance->GetActorDataLayer());
+		}
+	}
+
+	return false;
+}
+
 bool FAssignActorDataLayer::AddDataLayerAsset(AActor* InActor, const UDataLayerAsset* InDataLayerAsset)
 {
 	check(InDataLayerAsset != nullptr);
 
-	if (!InActor->ContainsDataLayer(InDataLayerAsset))
+	if (!InActor->DataLayerAssets.Contains(InDataLayerAsset))
 	{
 		InActor->Modify();
 		InActor->DataLayerAssets.Add(InDataLayerAsset);
@@ -1868,7 +1885,7 @@ bool AActor::SupportsDataLayer() const
 
 bool AActor::AddDataLayer(const FActorDataLayer& ActorDataLayer)
 {
-	if (SupportsDataLayerType(UDataLayerInstance::StaticClass()) && !ContainsDataLayer(ActorDataLayer))
+	if (SupportsDataLayerType(UDataLayerInstance::StaticClass()) && !DataLayers.Contains(ActorDataLayer))
 	{
 		Modify();
 		DataLayers.Add(ActorDataLayer);
@@ -1880,7 +1897,7 @@ bool AActor::AddDataLayer(const FActorDataLayer& ActorDataLayer)
 
 bool AActor::RemoveDataLayer(const FActorDataLayer& ActorDataLayer)
 {
-	if (ContainsDataLayer(ActorDataLayer))
+	if (DataLayers.Contains(ActorDataLayer))
 	{
 		Modify();
 		DataLayers.Remove(ActorDataLayer);

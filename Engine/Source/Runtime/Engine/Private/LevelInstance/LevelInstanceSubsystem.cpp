@@ -1312,12 +1312,12 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ILevelInstanceInterface* L
 					{
 						for (const UDataLayerInstance* DataLayerInstance : LevelInstanceDataLayerInstances)
 						{
-							if (const UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(DataLayerInstance))
+							if (const UDataLayerAsset* DataLayerAsset = DataLayerInstance->GetAsset())
 							{
 								// For DataLayerInstanceAsset we add the Asset to the actor instead of the DataLayerInstance because Actor hasn't moved yet and this
 								// will fail on a UDataLayerInstanceWithAsset when comparing the Actor's outer to the DataLayerInstance outer.
 								// todo_ow : Assign the actor to the DataLayerInstance in the destination level via UDataLayerInstance::AddActor to go through the DataLayerInstance process.
-								FAssignActorDataLayer::AddDataLayerAsset(Actor, DataLayerInstanceWithAsset->GetAsset());
+								FAssignActorDataLayer::AddDataLayerAsset(Actor, DataLayerAsset);
 							}
 							else
 							{

@@ -72,14 +72,19 @@ void UDeprecatedDataLayerInstance::OnCreated(const UDEPRECATED_DataLayer* Deprec
 	InitialRuntimeState = DeprecatedDataLayer->InitialRuntimeState;
 }
 
+FActorDataLayer UDeprecatedDataLayerInstance::GetActorDataLayer() const
+{
+	return FActorDataLayer(GetDataLayerFName());
+}
+
 bool UDeprecatedDataLayerInstance::PerformAddActor(AActor* InActor) const
 {
-	return InActor->AddDataLayer(FActorDataLayer(GetDataLayerFName()));
+	return InActor->AddDataLayer(GetActorDataLayer());
 }
 
 bool UDeprecatedDataLayerInstance::PerformRemoveActor(AActor* InActor) const
 {
-	return InActor->RemoveDataLayer(FActorDataLayer(GetDataLayerFName()));
+	return InActor->RemoveDataLayer(GetActorDataLayer());
 }
 
 bool UDeprecatedDataLayerInstance::RelabelDataLayer(FName InDataLayerLabel)
