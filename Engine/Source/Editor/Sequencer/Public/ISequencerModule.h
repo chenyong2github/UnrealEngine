@@ -252,7 +252,7 @@ public:
 	 *
 	 * @param InHandle Handle to the delegate to unregister
 	 */
-	virtual void UnregisterOutlinerColumn(FDelegateHandle Inhandle) = 0;
+	virtual void UnregisterOutlinerColumn(FDelegateHandle InHandle) = 0;
 
 
 	/** 

@@ -9,14 +9,14 @@ class UMovieSceneSequence;
 
 namespace UE
 {
-	namespace Sequencer
-	{
-		class IOutlinerExtension;
-	}
+namespace Sequencer
+{
+class IOutlinerExtension;
+}
 }
 
 /**
- * Interface for sequencer track editors.
+ * Interface for sequencer outliner columns.
  */
 class ISequencerOutlinerColumn
 {
