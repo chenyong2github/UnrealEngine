@@ -247,6 +247,8 @@ bool ExportLocalization(TArrayView<const TSharedRef<IPlugin>> Plugins, const FEx
 				ConfigSection.Add(TEXT("ArchiveName"), FString::Printf(TEXT("%s.archive"), *Plugin->GetName()));
 				ConfigSection.Add(TEXT("PortableObjectName"), FString::Printf(TEXT("%s.po"), *Plugin->GetName()));
 
+				ConfigSection.Add(TEXT("GatheredSourceBasePath"), FPaths::ConvertRelativePathToFull(Plugin->GetBaseDir()));
+
 				ConfigSection.Add(TEXT("CopyrightNotice"), ExportOptions.CopyrightNotice);
 
 				ConfigSection.Add(TEXT("NativeCulture"), ExportOptions.UGCLocDescriptor.NativeCulture);
@@ -309,6 +311,20 @@ bool ExportLocalization(TArrayView<const TSharedRef<IPlugin>> Plugins, const FEx
 					ConfigSection.Add(TEXT("CollectionFilters"), *CollectionFilter);
 				}
 			}
+
+#if WITH_VERSE
+			// Gather Verse
+			if (ExportOptions.bGatherVerse && Plugin->CanContainVerse())
+			{
+				FConfigSection& ConfigSection = GatherConfig.GatherTextStep(GatherStepIndex++);
+				ConfigSection.Add(TEXT("CommandletClass"), TEXT("GatherTextFromVerse"));
+
+				ConfigSection.Add(TEXT("IncludePathFilters"), FPaths::ConvertRelativePathToFull(FPaths::Combine(Plugin->GetBaseDir(), TEXT("*"))));
+
+				ConfigSection.Add(TEXT("ExcludePathFilters"), FPaths::ConvertRelativePathToFull(FPaths::Combine(Plugin->GetContentDir(), TEXT("Localization"), TEXT("*"))));
+				ConfigSection.Add(TEXT("ExcludePathFilters"), FPaths::ConvertRelativePathToFull(FPaths::Combine(Plugin->GetContentDir(), TEXT("L10N"), TEXT("*"))));
+			}
+#endif	// WITH_VERSE
 
 			// Generate manifest
 			{
@@ -383,10 +399,10 @@ bool ExportLocalization(TArrayView<const TSharedRef<IPlugin>> Plugins, const FEx
 			TArray<FString> CommandletOutputLines;
 			CommandletOutput.ParseIntoArrayLines(CommandletOutputLines);
 
-			UE_LOG(LogLocalization, Log, TEXT("Localization commandlet finished with exit code %d"), ReturnCode);
+			UE_LOG(LogLocalization, Display, TEXT("Localization commandlet finished with exit code %d"), ReturnCode);
 			for (const FString& CommandletOutputLine : CommandletOutputLines)
 			{
-				UE_LOG(LogLocalization, Log, TEXT("    %s"), *CommandletOutputLine);
+				UE_LOG(LogLocalization, Display, TEXT("    %s"), *CommandletOutputLine);
 			}
 		}
 

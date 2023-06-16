@@ -132,6 +132,9 @@ struct FExportLocalizationOptions
 	/** True to gather localization from assets */
 	bool bGatherAssets = true;
 
+	/** True to gather localization from Verse */
+	bool bGatherVerse = true;
+
 	/** True to update the plugin descriptors (if needed) so that they contain the exported localization target */
 	bool bUpdatePluginDescriptor = true;
 

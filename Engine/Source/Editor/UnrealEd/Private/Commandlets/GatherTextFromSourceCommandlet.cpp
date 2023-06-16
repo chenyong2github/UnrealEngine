@@ -77,6 +77,14 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 		return -1;
 	}
 
+	// GatheredSourceBasePath
+	FString GatheredSourceBasePath;
+	GetPathFromConfig(*SectionName, TEXT("GatheredSourceBasePath"), GatheredSourceBasePath, GatherTextConfigPath);
+	if (GatheredSourceBasePath.IsEmpty())
+	{
+		GatheredSourceBasePath = UGatherTextCommandletBase::GetProjectBasePath();
+	}
+
 	// SearchDirectoryPaths
 	TArray<FString> SearchDirectoryPaths;
 	GetPathArrayFromConfig(*SectionName, TEXT("SearchDirectoryPaths"), SearchDirectoryPaths, GatherTextConfigPath);
@@ -307,11 +315,9 @@ int32 UGatherTextFromSourceCommandlet::Main( const FString& Params )
 	// Parse all source files for macros and add entries to SourceParsedEntries
 	for ( FString& SourceFile : FilesToProcess)
 	{
-		const FString& ProjectBasePath = UGatherTextCommandletBase::GetProjectBasePath();
-
 		ParseCtxt.Filename = SourceFile;
 		ParseCtxt.FileTypes = ParseCtxt.Filename.EndsWith(TEXT(".ini")) ? EGatherTextSourceFileTypes::Ini : EGatherTextSourceFileTypes::Cpp;
-		FPaths::MakePathRelativeTo(ParseCtxt.Filename, *ProjectBasePath);
+		FPaths::MakePathRelativeTo(ParseCtxt.Filename, *GatheredSourceBasePath);
 		ParseCtxt.LineNumber = 0;
 		ParseCtxt.FilePlatformName = GetSplitPlatformNameFromPath(ParseCtxt.Filename);
 		ParseCtxt.LineText.Reset();
