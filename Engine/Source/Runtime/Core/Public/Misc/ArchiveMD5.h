@@ -45,6 +45,12 @@ public:
 		return *this;
 	}
 
+	virtual void Reset() override
+	{
+		FArchive::Reset();
+		MD5 = FMD5();
+	}
+
 	void GetHash(FMD5Hash& Hash)
 	{
 		Hash.Set(MD5);
