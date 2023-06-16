@@ -43,12 +43,13 @@ public class ModelingComponentsEditorOnly : ModuleRules
 			}
 			);
 
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		// OpenSubdiv has Windows, Mac and Unix support
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.Mac || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"OpenSubdiv", // currently Win64-only
+					"OpenSubdiv",
 				}
 				);
 		}

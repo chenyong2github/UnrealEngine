@@ -6,8 +6,8 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SubdividePoly)
 
-// OpenSubdiv currently only available on Windows. On other platforms we will make this a no-op
-#if PLATFORM_WINDOWS
+// OpenSubdiv currently only available on Windows, Mac and Unix. On other platforms we will make this a no-op
+#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX
 #define HAVE_OPENSUBDIV 1
 #else
 #define HAVE_OPENSUBDIV 0
@@ -28,7 +28,7 @@
 #include "opensubdiv/far/primvarRefiner.h"
 #pragma warning(pop)     
 
-#if LOCAL_M_PI
+#ifdef LOCAL_M_PI
 #undef M_PI
 #endif
 
