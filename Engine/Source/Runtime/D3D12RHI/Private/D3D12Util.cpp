@@ -510,7 +510,13 @@ static bool LogDREDData(ID3D12Device* Device, bool bTrackingAllAllocations, D3D1
 			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: No breadcrumb head found."));
 		}
 
+>>>> ORIGINAL //Fortnite/Release-25.30/Engine/Source/Runtime/D3D12RHI/Private/D3D12Util.cpp#1
+		FGenericCrashContext::SetEngineData(TEXT("RHI.DRED.HasBreadcrumbData"), bHasValidBreadcrumbData ? TEXT("true") : TEXT("false"));
+==== THEIRS //Fortnite/Release-25.30/Engine/Source/Runtime/D3D12RHI/Private/D3D12Util.cpp#2
+		FGenericCrashContext::SetEngineData(TEXT("RHI.DREDHasBreadcrumbData"), bHasValidBreadcrumbData ? TEXT("true") : TEXT("false"));
+==== YOURS //daniele.vettorel_CDW-B2SG6MO9R10_Fortnite_C/Engine/Source/Runtime/D3D12RHI/Private/D3D12Util.cpp
 		FPlatformCrashContext::SetEngineData(TEXT("RHI.DRED.HasBreadcrumbData"), bHasValidBreadcrumbData ? TEXT("true") : TEXT("false"));
+<<<<
 
 		bool bHasValidPageFaultData = false;
 		D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
@@ -561,7 +567,13 @@ static bool LogDREDData(ID3D12Device* Device, bool bTrackingAllAllocations, D3D1
 			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: No PageFault data."));
 		}
 
+>>>> ORIGINAL //Fortnite/Release-25.30/Engine/Source/Runtime/D3D12RHI/Private/D3D12Util.cpp#1
+		FGenericCrashContext::SetEngineData(TEXT("RHI.DRED.HasPageFaultData"), bHasValidPageFaultData ? TEXT("true") : TEXT("false"));
+==== THEIRS //Fortnite/Release-25.30/Engine/Source/Runtime/D3D12RHI/Private/D3D12Util.cpp#2
+		FGenericCrashContext::SetEngineData(TEXT("RHI.DREDHasPageFaultData"), bHasValidPageFaultData ? TEXT("true") : TEXT("false"));
+==== YOURS //daniele.vettorel_CDW-B2SG6MO9R10_Fortnite_C/Engine/Source/Runtime/D3D12RHI/Private/D3D12Util.cpp
 		FPlatformCrashContext::SetEngineData(TEXT("RHI.DRED.HasPageFaultData"), bHasValidPageFaultData ? TEXT("true") : TEXT("false"));
+<<<<
 
 		return true;
 	}
