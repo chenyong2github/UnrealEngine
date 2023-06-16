@@ -154,6 +154,30 @@ bool UBlackmagicMediaSource::Validate() const
 		return false;
 	}
 
+
+	if (EvaluationType == EMediaIOSampleEvaluationType::Timecode && (!bUseTimeSynchronization || AutoDetectableTimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::None))
+	{
+		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The MediaSource '%s' uses 'Timecode' evaluation type which requires time synchronization and timecode enabled."), *GetName());
+		return false;
+	}
+
+	if (bFramelock && (!bRenderJIT || !bUseTimeSynchronization || AutoDetectableTimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::None))
+	{
+		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The MediaSource '%s' uses 'Framelock' which requires JIT rendering, time synchronization and timecode enabled."), *GetName());
+		return false;
+	}
+
+	if (!bRenderJIT && EvaluationType == EMediaIOSampleEvaluationType::Latest)
+	{
+		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The MediaSource '%s' uses 'Latest' evaluation type which requires JIT rendering."), *GetName());
+		return false;
+	}
+
+	if (bFramelock)
+	{
+		UE_LOG(LogBlackmagicMedia, Warning, TEXT("The MediaSource '%s' uses 'Framelock' which has not been implemented yet. This option will be ignored."), *GetName());
+	}
+
 	return true;
 }
 
@@ -186,6 +210,23 @@ void UBlackmagicMediaSource::PostEditChangeChainProperty(struct FPropertyChanged
 		{
 			bUseTimeSynchronization = false;
 			bEncodeTimecodeInTexel = false;
+			EvaluationType = EMediaIOSampleEvaluationType::PlatformTime;
+			bFramelock = false;
+		}
+	}
+
+	if (InPropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UCaptureCardMediaSource, EvaluationType))
+	{
+		// 'Timecode' evaluation is not allowed if no timecode set
+		if (AutoDetectableTimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::None)
+		{
+			EvaluationType = (EvaluationType == EMediaIOSampleEvaluationType::Timecode ? EMediaIOSampleEvaluationType::PlatformTime : EvaluationType);
+		}
+
+		// 'Latest' evaluation is available in JITR only
+		if (!bRenderJIT)
+		{
+			EvaluationType = (EvaluationType == EMediaIOSampleEvaluationType::Latest ? EMediaIOSampleEvaluationType::PlatformTime : EvaluationType);
 		}
 	}
 

@@ -17,6 +17,9 @@
 
 namespace UE::CaptureCardMediaSource
 {
+	static FName RenderJIT("RenderJIT");
+	static FName Framelock("Framelock");
+	static FName EvaluationType("EvaluationType");
 	static FName Deinterlacer("Deinterlacer");
 	static FName InterlaceFieldOrder("InterlaceFieldOrder");
 	static FName OverrideSourceEncoding("OverrideSourceEncoding");
@@ -47,12 +50,22 @@ class MEDIAIOCORE_API UCaptureCardMediaSource : public UTimeSynchronizableMediaS
 	GENERATED_BODY()
 	
 public:
-	
-	UCaptureCardMediaSource()
-	{
-		Deinterlacer = CreateDefaultSubobject<UBobDeinterlacer>("Deinterlacer");
-	}
-	
+
+	UCaptureCardMediaSource();
+
+public:
+	/** Should use JITR technique? It enables late sample picking for render. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Synchronization, meta = (DisplayName = "Just-In-Time Rendering"))
+	bool bRenderJIT = true;
+
+	/** Should wait for some time until requested frame arrives? Requires JIT rendering. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Synchronization, meta = (DisplayName = "Framelock"))
+	bool bFramelock = false;
+
+	/** Sample evaluation type. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Synchronization, meta = (DisplayName = "Sample Evaluation Type"))
+	EMediaIOSampleEvaluationType EvaluationType = EMediaIOSampleEvaluationType::PlatformTime;
+
 	/**
 	 * How interlaced video should be treated.
 	 */
@@ -88,4 +101,10 @@ public:
 	virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
 	virtual bool GetMediaOption(const FName& Key, bool bDefaultValue) const override;
 	virtual bool HasMediaOption(const FName& Key) const override;
+
+public:
+#if WITH_EDITOR
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif //WITH_EDITOR
 };

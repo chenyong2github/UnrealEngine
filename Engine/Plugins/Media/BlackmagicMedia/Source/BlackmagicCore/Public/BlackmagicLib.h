@@ -301,6 +301,22 @@ namespace BlackmagicDesign
 			int32_t AudioRate;
 		};
 
+		/** An empty type to expose. The real job is done in an internal child implementation. */
+		struct BLACKMAGICCORE_API FFrameBufferHolder
+		{
+			virtual ~FFrameBufferHolder() = default;
+		};
+
+		/**
+		 * A container for video and audio buffer holders. These holders prevent
+		 * internal buffers from being released while they are in use.
+		 */
+		struct BLACKMAGICCORE_API FFrameReceivedBufferHolders
+		{
+			TSharedPtr<FFrameBufferHolder>* VideoBufferHolder = nullptr;
+			TSharedPtr<FFrameBufferHolder>* AudioBufferHolder = nullptr;
+		};
+
 		virtual ~IInputEventCallback();
 
 		virtual void AddRef() = 0;
@@ -309,7 +325,12 @@ namespace BlackmagicDesign
 		virtual void OnInitializationCompleted(bool bSuccess) = 0;
 		virtual void OnShutdownCompleted() = 0;
 
-		virtual void OnFrameReceived(const FFrameReceivedInfo&) = 0;
+		virtual void OnFrameReceived(const FFrameReceivedInfo&)
+		{ }
+
+		virtual void OnFrameReceived(const FFrameReceivedInfo&, FFrameReceivedBufferHolders& /* out */)
+		{ }
+
 		virtual void OnFrameFormatChanged(const FFormatInfo& NewFormat) = 0;
 		virtual void OnInterlacedOddFieldEvent(long long FrameNumber) = 0;
 	};

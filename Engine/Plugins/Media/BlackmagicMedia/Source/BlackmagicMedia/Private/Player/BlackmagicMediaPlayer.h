@@ -4,6 +4,8 @@
 
 #include "MediaIOCorePlayerBase.h"
 
+#include "BlackmagicMediaPrivate.h"
+
 #include "BlackmagicMediaSource.h"
 #include "HAL/CriticalSection.h"
 #include "MediaIOCoreAudioSampleBase.h"
@@ -23,6 +25,41 @@ namespace BlackmagicMediaPlayerHelpers
 
 class FBlackmagicMediaTextureSample : public FMediaIOCoreTextureSampleBase
 {
+public:
+	virtual const FMatrix& GetYUVToRGBMatrix() const override
+	{
+		return MediaShaders::YuvToRgbRec709Scaled;
+	}
+
+	//~ Begin IMediaPoolable interface
+public:
+	virtual void ShutdownPoolable() override
+	{
+		// Normally it should be explicitly released after GPU transfer. Just a bit of safety.
+		ReleaseBlackmagicInternalBuffer();
+
+		FMediaIOCoreTextureSampleBase::ShutdownPoolable();
+	}
+	//~ End IMediaPoolable interface
+
+public:
+
+	/** Returns buffer guard so it can be initialized outside (for performance reason) */
+	TSharedPtr<BlackmagicDesign::IInputEventCallback::FFrameBufferHolder>& GetBlackmagicInternalBufferLocker()
+	{
+		return VideoBufferGuard;
+	}
+
+	/** Unlock internal buffer referenced by this sample */
+	void ReleaseBlackmagicInternalBuffer()
+	{
+		VideoBufferGuard.Reset();
+	}
+
+private:
+
+	/** Buffer guard instance */
+	TSharedPtr<BlackmagicDesign::IInputEventCallback::FFrameBufferHolder> VideoBufferGuard;
 };
 
 class FBlackmagicMediaAudioSamplePool : public TMediaObjectPool<FMediaIOCoreAudioSampleBase> { };
@@ -95,8 +132,8 @@ protected:
 	{
 		return BlackmagicColorFormat == EBlackmagicMediaSourceColorFormat::YUV8 ? EMediaIOCoreColorFormat::YUV8 : EMediaIOCoreColorFormat::YUV10;
 	}
-	virtual void AddVideoSample(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample) override;
-	virtual TSharedPtr<FMediaIOCoreTextureSampleBase> AcquireSample_AnyThread() const override
+	virtual void AddVideoSampleAfterGPUTransfer_RenderThread(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample) override;
+	virtual TSharedPtr<FMediaIOCoreTextureSampleBase> AcquireTextureSample_AnyThread() const override
 	{
 		return TextureSamplePool->AcquireShared();
 	}
@@ -105,14 +142,14 @@ protected:
 private:
 
 	friend BlackmagicMediaPlayerHelpers::FBlackmagicMediaPlayerEventCallback;
-	BlackmagicMediaPlayerHelpers::FBlackmagicMediaPlayerEventCallback* EventCallback;
+	BlackmagicMediaPlayerHelpers::FBlackmagicMediaPlayerEventCallback* EventCallback = nullptr;
 
 	/** Audio, MetaData, Texture  sample object pool. */
 	TUniquePtr<FBlackmagicMediaAudioSamplePool> AudioSamplePool;
 	TUniquePtr<FBlackmagicMediaTextureSamplePool> TextureSamplePool;
 
 	/** Log warning about the amount of audio/video frame can't could not be cached . */
-	bool bVerifyFrameDropCount;
+	bool bVerifyFrameDropCount = false;
 
 	/** Max sample count our different buffer can hold. Taken from MediaSource */
 	int32 MaxNumAudioFrameBuffer = 0;

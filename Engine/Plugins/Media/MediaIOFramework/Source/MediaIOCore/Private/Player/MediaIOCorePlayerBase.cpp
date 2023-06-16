@@ -3,6 +3,7 @@
 #include "MediaIOCorePlayerBase.h"
 
 #include "CaptureCardMediaSource.h"
+#include "Async/Async.h"
 #include "Engine/Engine.h"
 #include "Engine/TimecodeProvider.h"
 #include "GPUTextureTransferModule.h"
@@ -12,9 +13,15 @@
 #include "IMediaModule.h"
 #include "IMediaPlayerFactory.h"
 #include "ITimeManagementModule.h"
+#include "MediaIOCoreAudioSampleBase.h"
+#include "MediaIOCoreBinarySampleBase.h"
+#include "MediaIOCoreCaptionSampleBase.h"
 #include "MediaIOCoreDeinterlacer.h"
 #include "MediaIOCoreModule.h"
 #include "MediaIOCoreSamples.h"
+#include "MediaIOCoreSubtitleSampleBase.h"
+#include "MediaIOCoreTextureSampleBase.h"
+#include "MediaIOCoreTextureSampleConverter.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
 #include "RenderingThread.h"
@@ -48,6 +55,13 @@ namespace MediaIOCorePlayerDetail
 		ECVF_Default
 	);
 
+	// [JITR] Detailed insights
+	static TAutoConsoleVariable<bool> CVarMediaIOJITRInsights(
+		TEXT("MediaIO.JITR.Insights"),
+		false,
+		TEXT("Generate detailed Just-in-Time Media Rendering insights"),
+		ECVF_Default);
+
 	static FAutoConsoleCommand CCommandShowTimecode(
 		TEXT("MediaIO.ShowInputTimecode"),
 		TEXT("All media player will log the frame timecode when a new frame is captured."),
@@ -64,8 +78,10 @@ namespace MediaIOCorePlayerDetail
 		TEXT("MediaIO.EnableGPUDirectInput"), 0,
 		TEXT("Whether to enable GPU direct for faster video frame copies. (Experimental)"),
 		ECVF_RenderThreadSafe);
-
 }
+
+DECLARE_GPU_STAT_NAMED(STAT_MediaIOPlayer_JITR_TransferTexture, TEXT("JITR_TransferTexture"));
+
 
 /* FMediaIOCoreMediaOption structors
  *****************************************************************************/
@@ -80,27 +96,16 @@ const FName FMediaIOCoreMediaOption::VideoModeName("VideoModeName");
  *****************************************************************************/
 
 FMediaIOCorePlayerBase::FMediaIOCorePlayerBase(IMediaEventSink& InEventSink)
-	: CurrentState(EMediaState::Closed)
-	, CurrentTime(FTimespan::Zero())
-	, EventSink(InEventSink)
-	, VideoFrameRate(30, 1)
-	, bUseTimeSynchronization(false)
-	, bWarnedIncompatibleFrameRate(false)
-	, bAutoDetect(false)
-	, FrameDelay(0)
-	, TimeDelay(0.0)
-	, PreviousFrameTimespan(FTimespan::Zero())
+	: EventSink(InEventSink)
+	, Samples(MakeUnique<FMediaIOCoreSamples>())
+	, JITRSamples(MakeUnique<FJITRMediaTextureSamples>())
 {
-	Samples = new FMediaIOCoreSamples();
-
 	FGPUTextureTransferModule& Module = FGPUTextureTransferModule::Get();
 	GPUTextureTransfer = Module.GetTextureTransfer();
 }
 
 FMediaIOCorePlayerBase::~FMediaIOCorePlayerBase()
 {
-	delete Samples;
-	Samples = nullptr;
 }
 
 /* IMediaPlayer interface
@@ -118,6 +123,11 @@ void FMediaIOCorePlayerBase::Close()
 		AudioTrackFormat.SampleRate = 0;
 
 		Samples->FlushSamples();
+		JITRSamples->FlushSamples();
+
+		UnregisterSampleBuffers();
+		UnregisterTextures();
+
 		EventSink.ReceiveMediaEvent(EMediaEvent::TracksChanged);
 		EventSink.ReceiveMediaEvent(EMediaEvent::MediaClosed);
 	}
@@ -164,7 +174,16 @@ IMediaControls& FMediaIOCorePlayerBase::GetControls()
 
 IMediaSamples& FMediaIOCorePlayerBase::GetSamples()
 {
-	return *Samples;
+	const bool bIsJITREnabled = IsJustInTimeRenderingEnabled();
+
+	if (bIsJITREnabled)
+	{
+		return *JITRSamples;
+	}
+	else
+	{
+		return *Samples;
+	}
 }
 
 const FMediaIOCoreSamples& FMediaIOCorePlayerBase::GetSamples() const
@@ -201,9 +220,11 @@ bool FMediaIOCorePlayerBase::Open(const FString& Url, const IMediaOptions* Optio
 	OpenUrl = Url;
 	const bool bReadMediaOptions = ReadMediaOptions(Options);
 
-	if (MediaIOCorePlayerDetail::CVarEnableGPUDirectInput.GetValueOnAnyThread())
+	// When AutoDetect is true, we can't create textures now as we don't know the video format.
+	// In this case we need to wait until auto-detection is finished, and video format is known.
+	if (!bAutoDetect && CanUseGPUTextureTransfer())
 	{
-		CreateAndRegisterTextures(Options);
+		CreateAndRegisterTextures();
 	}
 	
 	const EMediaIOInterlaceFieldOrder InterlaceFieldOrder = static_cast<EMediaIOInterlaceFieldOrder>(Options->GetMediaOption(UE::CaptureCardMediaSource::InterlaceFieldOrder, (int64)EMediaIOInterlaceFieldOrder::TopFieldFirst));
@@ -215,11 +236,11 @@ bool FMediaIOCorePlayerBase::Open(const FString& Url, const IMediaOptions* Optio
 	TSharedPtr<UE::MediaIOCore::FDeinterlacer> DeinterlacerInstance;
 	if (DeinterlacerInstancer && DeinterlacerInstancer->IsA<UVideoDeinterlacer>())
 	{
-		Deinterlacer = Cast<UVideoDeinterlacer>(DeinterlacerInstancer)->Instantiate(UE::MediaIOCore::FDeinterlacer::FOnAcquireSample_AnyThread::CreateSP(this, &FMediaIOCorePlayerBase::AcquireSample_AnyThread), InterlaceFieldOrder);
+		Deinterlacer = Cast<UVideoDeinterlacer>(DeinterlacerInstancer)->Instantiate(UE::MediaIOCore::FDeinterlacer::FOnAcquireSample_AnyThread::CreateSP(this, &FMediaIOCorePlayerBase::AcquireTextureSample_AnyThread), InterlaceFieldOrder);
 	}
 	else
 	{
-		Deinterlacer = MakeShared<UE::MediaIOCore::FDeinterlacer>(UE::MediaIOCore::FDeinterlacer::FOnAcquireSample_AnyThread::CreateSP(this, &FMediaIOCorePlayerBase::AcquireSample_AnyThread), InterlaceFieldOrder);
+		Deinterlacer = MakeShared<UE::MediaIOCore::FDeinterlacer>(UE::MediaIOCore::FDeinterlacer::FOnAcquireSample_AnyThread::CreateSP(this, &FMediaIOCorePlayerBase::AcquireTextureSample_AnyThread), InterlaceFieldOrder);
 	}
 
 	return bReadMediaOptions;
@@ -232,7 +253,7 @@ bool FMediaIOCorePlayerBase::Open(const TSharedRef<FArchive, ESPMode::ThreadSafe
 
 void FMediaIOCorePlayerBase::TickTimeManagement()
 {
-	if (bUseTimeSynchronization)
+	if (EvaluationType == EMediaIOSampleEvaluationType::Timecode)
 	{
 		TOptional<FQualifiedFrameTime> CurrentFrameTime = FApp::GetCurrentFrameTime();
 		if (CurrentFrameTime.IsSet())
@@ -269,6 +290,17 @@ void FMediaIOCorePlayerBase::TickTimeManagement()
 
 void FMediaIOCorePlayerBase::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 {
+	// Running JITR?
+	if (CurrentState == EMediaState::Playing && IsJustInTimeRenderingEnabled())
+	{
+		// Nothing to do if no samples received yet
+		if (Samples->NumVideoSamples() > 0)
+		{
+			// Create new JITR proxy sample
+			JITRSamples->ProxySample = AcquireJITRProxySampleInitialized();
+		}
+	}
+
 	Samples->CacheSamplesState(GetTime());
 }
 
@@ -491,10 +523,16 @@ bool FMediaIOCorePlayerBase::SetTrackFormat(EMediaTrackType TrackType, int32 Tra
 
 bool FMediaIOCorePlayerBase::ReadMediaOptions(const IMediaOptions* Options)
 {
-	bUseTimeSynchronization = Options->GetMediaOption(TimeSynchronizableMedia::UseTimeSynchronizatioOption, false);
+	// Break dependency on the bUseTimeSynchronization option, and use EvaluationType instead
+	const bool bUseTimeSynchronization = Options->GetMediaOption(TimeSynchronizableMedia::UseTimeSynchronizatioOption, false);
+
 	FrameDelay = Options->GetMediaOption(TimeSynchronizableMedia::FrameDelay, (int64)0);
 	TimeDelay = Options->GetMediaOption(TimeSynchronizableMedia::TimeDelay, 0.0);
 	bAutoDetect = Options->GetMediaOption(TimeSynchronizableMedia::AutoDetect, false);
+
+	EvaluationType = (EMediaIOSampleEvaluationType)(Options->GetMediaOption(UE::CaptureCardMediaSource::EvaluationType, (int64)EMediaIOSampleEvaluationType::PlatformTime));
+	bJustInTimeRender = Options->GetMediaOption(UE::CaptureCardMediaSource::RenderJIT, true);
+	bFramelock = Options->GetMediaOption(UE::CaptureCardMediaSource::Framelock, false);
 
 	{
 		int32 Numerator = Options->GetMediaOption(FMediaIOCoreMediaOption::FrameRateNumerator, (int64)30);
@@ -510,13 +548,34 @@ bool FMediaIOCorePlayerBase::ReadMediaOptions(const IMediaOptions* Options)
 		VideoTrackFormat.TypeName = Options->GetMediaOption(FMediaIOCoreMediaOption::VideoModeName, FString(TEXT("1080p30")));
 	}
 
+	// Make sure we haven't got invalid data from media source. When time sync is off,
+	// timecode based evaluation and framelock are unavailable.
+	if (!bUseTimeSynchronization)
+	{
+		if (EvaluationType == EMediaIOSampleEvaluationType::Timecode)
+		{
+			EvaluationType = EMediaIOSampleEvaluationType::PlatformTime;
+		}
+		
+		bFramelock = false;
+	}
+
 	//Setup base sampling settings
-	BaseSettings.EvaluationType = bUseTimeSynchronization ? ETimedDataInputEvaluationType::Timecode : ETimedDataInputEvaluationType::PlatformTime;
+	BaseSettings.EvaluationType = GetEvaluationType(); // bJustInTimeRender and JITREvaluationType should have been set before calling
 	BaseSettings.FrameRate = VideoFrameRate;
 	BaseSettings.PlayerTimeOffset = MediaIOCorePlayerDetail::HighPerformanceClockDelta;
 	BaseSettings.AbsoluteMaxBufferSize = MediaIOCorePlayerDetail::CVarMediaIOMaxBufferSize.GetValueOnGameThread();
 
 	return true;
+}
+
+void FMediaIOCorePlayerBase::NotifyVideoFormatDetected()
+{
+	// Now that we know the video format, we can initialize the textures
+	if (bAutoDetect && CanUseGPUTextureTransfer())
+	{
+		CreateAndRegisterTextures();
+	}
 }
 
 double FMediaIOCorePlayerBase::GetApplicationSeconds()
@@ -538,9 +597,32 @@ bool FMediaIOCorePlayerBase::IsTimecodeLogEnabled()
 #endif
 }
 
-bool FMediaIOCorePlayerBase::CanUseGPUTextureTransfer()
+bool FMediaIOCorePlayerBase::CanUseGPUTextureTransfer() const
 {
 	return GPUTextureTransfer && MediaIOCorePlayerDetail::CVarEnableGPUDirectInput.GetValueOnAnyThread();
+}
+
+bool FMediaIOCorePlayerBase::HasTextureAvailableForGPUTransfer() const
+{
+	FScopeLock ScopeLock(&TexturesCriticalSection);
+	return !Textures.IsEmpty();
+}
+
+bool FMediaIOCorePlayerBase::IsJustInTimeRenderingEnabled() const
+{
+	return bJustInTimeRender;
+}
+
+void FMediaIOCorePlayerBase::AddVideoSampleAfterGPUTransfer_RenderThread(const TSharedRef<FMediaIOCoreTextureSampleBase>& Sample)
+{
+	checkSlow(IsInRenderingThread());
+
+	LogBookmark(TEXT("MIO Tex Copy"), Sample);
+
+	if (!IsJustInTimeRenderingEnabled())
+	{
+		Samples->AddVideo(Sample);
+	}
 }
 
 void FMediaIOCorePlayerBase::OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture)
@@ -615,10 +697,24 @@ void FMediaIOCorePlayerBase::UnregisterSampleBuffers()
 	RegisteredBuffers.Reset();
 }
 
-void FMediaIOCorePlayerBase::CreateAndRegisterTextures(const IMediaOptions* Options)
+void FMediaIOCorePlayerBase::CreateAndRegisterTextures()
 {
+	// Call this on the game thread so we can stall until textures are created
+	if (!IsInGameThread())
+	{
+		AsyncTask(ENamedThreads::GameThread, [this]()
+			{
+				CreateAndRegisterTextures();
+			});
+
+		return;
+	}
+
+
+	UnregisterTextures();
+
 	ENQUEUE_RENDER_COMMAND(MediaIOCorePlayerCreateTextures)(
-		[this, Options](FRHICommandListImmediate& CommandList)
+		[this](FRHICommandListImmediate& CommandList)
 		{
 			if (!GPUTextureTransfer)
 			{
@@ -626,7 +722,16 @@ void FMediaIOCorePlayerBase::CreateAndRegisterTextures(const IMediaOptions* Opti
 				return;
 			}
 
-			for (uint8 Index = 0; Index < GetNumVideoFrameBuffers(); Index++)
+			// We need only one texture for JIT rendering. However the original non-JITR pipeline
+			// requires the number of textures must not be less than the number of buffers
+			const bool   bIsJustInTimeRenderingEnabled = IsJustInTimeRenderingEnabled();
+			const uint32 VideoFrameBuffersAmount = GetNumVideoFrameBuffers();
+			const uint32 TexturesAmount = bIsJustInTimeRenderingEnabled ? 1 : VideoFrameBuffersAmount;
+
+			RegisteredTextures.Reserve(TexturesAmount);
+			Textures.Reserve(TexturesAmount);
+
+			for (uint8 Index = 0; Index < TexturesAmount; Index++)
 			{
 				TRefCountPtr<FRHITexture> RHITexture;
 				const FString TextureName = FString::Printf(TEXT("FMediaIOCorePlayerTexture %d"), Index);
@@ -721,20 +826,65 @@ void FMediaIOCorePlayerBase::UnregisterTextures()
 
 void FMediaIOCorePlayerBase::PreGPUTransfer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample)
 {
+	TRefCountPtr<FRHITexture> Texture;
+
+	// Get a texture from the pool
+	{
+		FScopeLock Lock(&TexturesCriticalSection);
+
+		const bool bHasTexture = !Textures.IsEmpty();
+		ensureMsgf(bHasTexture, TEXT("No texture available while doing a gpu texture transfer."));
+
+		if (bHasTexture)
+		{
+			Texture = Textures.Pop();
+		}
+	}
+
 	// Register the buffer and the texture
-	TRefCountPtr<FRHITexture> Texture = Textures.Pop();
 	if (Texture && RegisteredTextures.Contains(Texture))
 	{
 		InSample->SetTexture(Texture);
 		InSample->SetDestructionCallback([MediaPlayerWeakPtr = TWeakPtr<FMediaIOCorePlayerBase>(AsShared())](TRefCountPtr<FRHITexture> InTexture)
-		{
-			if (TSharedPtr<FMediaIOCorePlayerBase> MediaPlayerPtr = MediaPlayerWeakPtr.Pin())
 			{
-				MediaPlayerPtr->OnSampleDestroyed(InTexture);
-			}
-		});
+				if (TSharedPtr<FMediaIOCorePlayerBase> MediaPlayerPtr = MediaPlayerWeakPtr.Pin())
+				{
+					MediaPlayerPtr->OnSampleDestroyed(InTexture);
+				}
+			});
 
 		RegisterSampleBuffer(InSample);
+	}
+	else
+	{
+		UE_LOG(LogMediaIOCore, Display, TEXT("Unregistered texture %u encountered while doing a gpu texture transfer."), Texture ? reinterpret_cast<uintptr_t>(Texture->GetNativeResource()) : 0);
+	}
+}
+
+void FMediaIOCorePlayerBase::PreGPUTransferJITR(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample, const TSharedPtr<FMediaIOCoreTextureSampleBase>& InJITRProxySample)
+{
+	TRefCountPtr<FRHITexture> Texture;
+
+	// Get a texture from the pool. JITR path uses a single texture for GPU transfer.
+	{
+		FScopeLock Lock(&TexturesCriticalSection);
+
+		const bool bHasTexture = !Textures.IsEmpty();
+
+		// Normally this should never yell as we should always have a single texture
+		ensureMsgf(bHasTexture, TEXT("No texture available while doing a gpu texture transfer."));
+
+		Texture = Textures[0];
+	}
+
+	// Register the buffer and the texture
+	if (Texture && RegisteredTextures.Contains(Texture))
+	{
+		// Set data that is necessary to perform fast texture copy right to the proxy sample
+		InJITRProxySample->SetTexture(Texture);
+		InJITRProxySample->SetBuffer(InSample->GetMutableBuffer());
+
+		RegisterSampleBuffer(InJITRProxySample);
 	}
 	else
 	{
@@ -756,7 +906,7 @@ void FMediaIOCorePlayerBase::ExecuteGPUTransfer(const TSharedPtr<FMediaIOCoreTex
 				UE_LOG(LogMediaIOCore, Verbose, TEXT("Starting Transfer with buffer %u"), reinterpret_cast<uintptr_t>(Buffer));
 				MediaPlayerPtr->GPUTextureTransfer->TransferTexture(Buffer, InSample->GetTexture(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
 				MediaPlayerPtr->GPUTextureTransfer->BeginSync((InSample)->GetMutableBuffer(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
-				MediaPlayerPtr->AddVideoSample(InSample.ToSharedRef());
+				MediaPlayerPtr->AddVideoSampleAfterGPUTransfer_RenderThread(InSample.ToSharedRef());
 				MediaPlayerPtr->GPUTextureTransfer->EndSync(InSample->GetMutableBuffer());
 			}
 		}
@@ -793,64 +943,100 @@ FText FMediaIOCorePlayerBase::GetDisplayName() const
 
 	return FText::Format(LOCTEXT("PlayerDisplayName", "{0} - {1}"), FText::FromName(PlayerFactory->GetPlayerName()), FText::FromString(GetUrl()));
 }
+
 ETimedDataInputEvaluationType FMediaIOCorePlayerBase::GetEvaluationType() const
 {
-	if (bUseTimeSynchronization)
+	switch (EvaluationType)
 	{
-		return ETimedDataInputEvaluationType::Timecode;
-	}
-	else
-	{
+	case EMediaIOSampleEvaluationType::Latest:
+		return ETimedDataInputEvaluationType::None;
+
+	case EMediaIOSampleEvaluationType::PlatformTime:
 		return ETimedDataInputEvaluationType::PlatformTime;
+
+	case EMediaIOSampleEvaluationType::Timecode:
+		return ETimedDataInputEvaluationType::Timecode;
+
+	default:
+		checkNoEntry();
+		return ETimedDataInputEvaluationType::None;
 	}
 }
 
 void FMediaIOCorePlayerBase::SetEvaluationType(ETimedDataInputEvaluationType Evaluation)
 {
-	bool bNewEvaluation = false;
+	bool bNewEvaluationModeSet = false;
+
 	switch (Evaluation)
 	{
-	case ETimedDataInputEvaluationType::Timecode:
-		bNewEvaluation = true;
-		break;
-	case ETimedDataInputEvaluationType::PlatformTime:
 	case ETimedDataInputEvaluationType::None:
+		bNewEvaluationModeSet = (EvaluationType != EMediaIOSampleEvaluationType::Latest);
+		EvaluationType = EMediaIOSampleEvaluationType::Latest;
+		break;
+
+	case ETimedDataInputEvaluationType::PlatformTime:
+		bNewEvaluationModeSet = (EvaluationType != EMediaIOSampleEvaluationType::PlatformTime);
+		EvaluationType = EMediaIOSampleEvaluationType::PlatformTime;
+		break;
+
+	case ETimedDataInputEvaluationType::Timecode:
+		bNewEvaluationModeSet = (EvaluationType != EMediaIOSampleEvaluationType::Timecode);
+		EvaluationType = EMediaIOSampleEvaluationType::Timecode;
+		break;
+
 	default:
-		bNewEvaluation = false;
+		checkNoEntry();
 		break;
 	}
 
-	if (bNewEvaluation != bUseTimeSynchronization)
+	if (bNewEvaluationModeSet)
 	{
-		bUseTimeSynchronization = bNewEvaluation;
-		BaseSettings.EvaluationType = bUseTimeSynchronization ? ETimedDataInputEvaluationType::Timecode : ETimedDataInputEvaluationType::PlatformTime;
+		BaseSettings.EvaluationType = GetEvaluationType();
 		SetupSampleChannels();
 	}
 }
 
 double FMediaIOCorePlayerBase::GetEvaluationOffsetInSeconds() const
 {
-	if (bUseTimeSynchronization)
+	switch (EvaluationType)
 	{
-		return ITimedDataInput::ConvertFrameOffsetInSecondOffset(FrameDelay, VideoFrameRate);
-	}
-	else
-	{
+	case EMediaIOSampleEvaluationType::Latest:
+		return 0;
+
+	case EMediaIOSampleEvaluationType::PlatformTime:
 		return TimeDelay;
+
+	case EMediaIOSampleEvaluationType::Timecode:
+		return ITimedDataInput::ConvertFrameOffsetInSecondOffset(FrameDelay, VideoFrameRate);
+
+	default:
+		checkNoEntry();
+		return 0;
 	}
 }
 
 void FMediaIOCorePlayerBase::SetEvaluationOffsetInSeconds(double Offset)
 {
-	if (bUseTimeSynchronization)
+	switch (EvaluationType)
+	{
+	case EMediaIOSampleEvaluationType::Latest:
+		break;
+
+	case EMediaIOSampleEvaluationType::PlatformTime:
+		TimeDelay = Offset;
+		break;
+
+	case EMediaIOSampleEvaluationType::Timecode:
 	{
 		//Media doesn't support subframes playback (interpolation between frames) so offsets are always in full frame
 		const double FrameOffset = ITimedDataInput::ConvertSecondOffsetInFrameOffset(Offset, VideoFrameRate);
 		FrameDelay = FMath::CeilToInt(FrameOffset);
+		break;
 	}
-	else
-	{
-		TimeDelay = Offset;
+
+	default:
+		checkNoEntry();
+		break;
 	}
 }
 
@@ -878,6 +1064,307 @@ void FMediaIOCorePlayerBase::RemoveChannel(ITimedDataInputChannel* Channel)
 bool FMediaIOCorePlayerBase::SupportsSubFrames() const
 {
 	return false;
+}
+
+void FMediaIOCorePlayerBase::AddAudioSample(const TSharedRef<FMediaIOCoreAudioSampleBase>& Sample)
+{
+	Samples->AddAudio(Sample);
+}
+
+void FMediaIOCorePlayerBase::AddCaptionSample(const TSharedRef<FMediaIOCoreCaptionSampleBase>& Sample)
+{
+	Samples->AddCaption(Sample);
+}
+
+void FMediaIOCorePlayerBase::AddMetadataSample(const TSharedRef<FMediaIOCoreBinarySampleBase>& Sample)
+{
+	Samples->AddMetadata(Sample);
+}
+
+void FMediaIOCorePlayerBase::AddSubtitleSample(const TSharedRef<FMediaIOCoreSubtitleSampleBase>& Sample)
+{
+	Samples->AddSubtitle(Sample);
+}
+
+void FMediaIOCorePlayerBase::AddVideoSample(const TSharedRef<FMediaIOCoreTextureSampleBase>& Sample)
+{
+	LogBookmark(TEXT("MIO in"), Sample);
+
+	// When JITR is used, we postpone texture transferring until this sample is chosen to render. It's also
+	// possible that this sample will never be rendered, therefore we don't waste resources for transferring.
+	if (IsJustInTimeRenderingEnabled())
+	{
+		Samples->AddVideo(Sample);
+	}
+	// Otherwise we run original non-JITR pipeline which implies immediate texture transfer if GPUDirect path is available.
+	else
+	{
+		const bool bCanUseGPUTextureTransfer = CanUseGPUTextureTransfer();
+		const bool bIsAwaitingForGPUTransfer = Sample->IsAwaitingForGPUTransfer();
+
+		// So, when GPUDirect is availalbe we transfer data on the rendering thread. The callback AddVideoSampleAfterGPUTransfer_RenderThread
+		// will put the sample to the pool when finished.
+		if (bCanUseGPUTextureTransfer && bIsAwaitingForGPUTransfer)
+		{
+			PreGPUTransfer(Sample);
+			ExecuteGPUTransfer(Sample);
+		}
+		// Just push the sample to the pool if fast GPU transfer isn't available
+		else
+		{
+			Samples->AddVideo(Sample);
+		}
+	}
+}
+
+bool FMediaIOCorePlayerBase::JustInTimeSampleRender_RenderThread(TSharedPtr<FMediaIOCoreTextureSampleBase>& JITRProxySample)
+{
+	checkSlow(IsInRenderingThread());
+
+	// Make sure the sample is valid
+	if (!JITRProxySample.IsValid())
+	{
+		UE_LOG(LogMediaIOCore, Warning, TEXT("Invalid JITR sample."));
+		return false;
+	}
+
+	// JIT rendering is performed once per frame
+	if (LastEngineRTFrameThatUpdatedJustInTime == GFrameCounterRenderThread)
+	{
+		return false;
+	}
+
+	// Pick a sample to render
+	TSharedPtr<FMediaIOCoreTextureSampleBase> SourceSample = PickSampleToRender_RenderThread(JITRProxySample);
+	if (!SourceSample)
+	{
+		UE_LOG(LogMediaIOCore, Warning, TEXT("JustInTimeSampleRender couldn't find a sample to render"));
+		return false;
+	}
+
+	LogBookmark(TEXT("JITR out"), SourceSample.ToSharedRef());
+
+	// Update proxy sample configuration
+	JITRProxySample->CopyConfiguration(SourceSample);
+
+	// Now we know which sample to use, transfer its texture
+	TransferTexture_RenderThread(SourceSample, JITRProxySample);
+
+	// Update frame number so we won't render this sample again
+	LastEngineRTFrameThatUpdatedJustInTime = GFrameCounterRenderThread;
+
+	return true;
+}
+
+TSharedPtr<FMediaIOCoreTextureSampleConverter> FMediaIOCorePlayerBase::CreateTextureSampleConverter() const
+{
+	return MakeShared<FMediaIOCoreTextureSampleConverter>();
+}
+
+TSharedPtr<FMediaIOCoreTextureSampleBase> FMediaIOCorePlayerBase::AcquireJITRProxySampleInitialized()
+{
+	// Create a new media sample acting as a dummy container to be picked by MFW which we will fill during the late update
+	FMediaIOCoreSampleJITRConfigurationArgs Args;
+	Args.Width     = 1; // Dummy value, will be replaced on rendering
+	Args.Height    = 1; // Dummy value, will be replaced on rendering
+	Args.Player    = AsShared().ToSharedPtr();
+	Args.Time      = FTimespan::FromSeconds(GetPlatformSeconds());
+	Args.Timecode  = FApp::GetTimecode();
+	Args.EvaluationOffsetInSeconds = GetEvaluationOffsetInSeconds();
+	Args.Converter = CreateTextureSampleConverter();
+
+	check(Args.Converter.IsValid());
+
+	// This sample is going to be used for rendering
+	TSharedPtr<FMediaIOCoreTextureSampleBase> NewSample = AcquireTextureSample_AnyThread();
+	if (!NewSample.IsValid())
+	{
+		return nullptr;
+	}
+
+	// Setup sample to the converter
+	Args.Converter->Setup(NewSample);
+
+	// Initialize the JITR sample
+	const bool bInitialized = NewSample->InitializeJITR(Args);
+	if (!bInitialized)
+	{
+		return nullptr;
+	}
+
+	return NewSample;
+}
+
+TSharedPtr<FMediaIOCoreTextureSampleBase> FMediaIOCorePlayerBase::PickSampleToRender_RenderThread(const TSharedPtr<FMediaIOCoreTextureSampleBase>& JITRProxySample)
+{
+	switch (EvaluationType)
+	{
+	// Pick the latest available sample
+	case EMediaIOSampleEvaluationType::Latest:
+		return PickSampleToRenderForLatest_RenderThread(JITRProxySample);
+
+	// Pick a sample based on the platform time
+	case EMediaIOSampleEvaluationType::PlatformTime:
+		return PickSampleToRenderForTimeSynchronized_RenderThread(JITRProxySample);
+
+	// Pick a sample based on the engine's timecode
+	case EMediaIOSampleEvaluationType::Timecode:
+		return (bFramelock ?
+			PickSampleToRenderFramelocked_RenderThread(JITRProxySample) :
+			PickSampleToRenderForTimeSynchronized_RenderThread(JITRProxySample));
+	default:
+		checkNoEntry();
+		return PickSampleToRenderForLatest_RenderThread(JITRProxySample);
+	}
+}
+
+TSharedPtr<FMediaIOCoreTextureSampleBase> FMediaIOCorePlayerBase::PickSampleToRenderForLatest_RenderThread(const TSharedPtr<FMediaIOCoreTextureSampleBase>& JITRProxySample)
+{
+	const TArray<TSharedPtr<IMediaTextureSample>> TextureSamples = Samples->GetVideoSamples();
+
+	// Just return the most recent sample available in the queue
+	return TextureSamples.Num() > 0 ?
+		StaticCastSharedPtr<FMediaIOCoreTextureSampleBase, IMediaTextureSample, ESPMode::ThreadSafe>(TextureSamples[0]) :
+		nullptr;
+}
+
+TSharedPtr<FMediaIOCoreTextureSampleBase> FMediaIOCorePlayerBase::PickSampleToRenderForTimeSynchronized_RenderThread(const TSharedPtr<FMediaIOCoreTextureSampleBase>& JITRProxySample)
+{
+	// Reference time based on evaluation type
+	FTimespan TargetSampleTimespan;
+
+	// Get base uncorrected reference point
+	const FTimecode InvalidTimecode;
+	const FTimecode RequestedTimecode = JITRProxySample->GetTimecode().Get(InvalidTimecode);
+	if (EvaluationType == EMediaIOSampleEvaluationType::Timecode && RequestedTimecode != FTimecode())
+	{
+		// We'll use timecode data to find a proper sample
+		TargetSampleTimespan = RequestedTimecode.ToTimespan(VideoFrameRate);
+	}
+	else
+	{
+		// We'll use platform time to find a proper sample
+		TargetSampleTimespan = JITRProxySample->GetTime().Time;
+	}
+
+	// Apply time correction to the target time
+	const double RequestedOffsetInSeconds = JITRProxySample->GetEvaluationOffsetInSeconds();
+	const FTimespan RequestedOffsetTimespan = FTimespan::FromSeconds(RequestedOffsetInSeconds);
+	const FTimespan TargetTimespanCorrected = TargetSampleTimespan + RequestedOffsetTimespan;
+
+	// Go over the sample pool and find a sample closest to the target time
+	int32 ClosestIndex = -1;
+	int64 SmallestInterval(TNumericLimits<int64>::Max());
+
+	// Get all available video samples
+	const TArray<TSharedPtr<IMediaTextureSample>> TextureSamples = Samples->GetVideoSamples();
+
+	for (int32 Index = 0; Index < TextureSamples.Num(); ++Index)
+	{
+		// When EvaluationType == ETimedDataInputEvaluationType::Timecode, the time represents the sample's timecode.
+		// When EvaluationType == ETimedDataInputEvaluationType::PlatformTime, the time is based on the platform time.
+		const FTimespan TestTimespan = TextureSamples[Index]->GetTime().Time;
+
+		// Either closest positive or closest negative
+		const int64 TestInterval = FMath::Abs((TestTimespan - TargetTimespanCorrected).GetTicks());
+
+		// '<=' instead of '<' is used here intentionally. Turns out we might have
+		// some samples with the same timecode. To avoid early termination of the search '<=' is used.
+		if (TestInterval <= SmallestInterval)
+		{
+			ClosestIndex = Index;
+			SmallestInterval = TestInterval;
+		}
+		else
+		{
+			// Since our samples are stored in chronological order, it makes no sense
+			// to continue searching. The interval will continue increasing.
+			break;
+		}
+	}
+
+	checkSlow(ClosestIndex >= 0 && ClosestIndex < TextureSamples.Num());
+
+	// Finally, return the closest sample we found
+	return StaticCastSharedPtr<FMediaIOCoreTextureSampleBase, IMediaTextureSample, ESPMode::ThreadSafe>(TextureSamples[ClosestIndex]);
+}
+
+TSharedPtr<FMediaIOCoreTextureSampleBase> FMediaIOCorePlayerBase::PickSampleToRenderFramelocked_RenderThread(const TSharedPtr<FMediaIOCoreTextureSampleBase>& JITRProxySample)
+{
+	unimplemented();
+	return PickSampleToRenderForTimeSynchronized_RenderThread(JITRProxySample);
+}
+
+void FMediaIOCorePlayerBase::TransferTexture_RenderThread(const TSharedPtr<FMediaIOCoreTextureSampleBase>& Sample, const TSharedPtr<FMediaIOCoreTextureSampleBase>& JITRProxySample)
+{
+	checkSlow(IsInRenderingThread());
+
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	// DMA P2P transfer
+	const bool bIsSampleAwaitingForGpuTransfer = Sample->IsAwaitingForGPUTransfer();
+	if (CanUseGPUTextureTransfer() && bIsSampleAwaitingForGpuTransfer)
+	{
+		SCOPED_GPU_STAT(RHICmdList, STAT_MediaIOPlayer_JITR_TransferTexture);
+		SCOPED_DRAW_EVENT(RHICmdList, STAT_MediaIOPlayer_JITR_TransferTexture);
+
+		// Prepare the proxy sample for DMA texture transfer
+		PreGPUTransferJITR(Sample, JITRProxySample);
+
+		// Perform fast texture transfer to an external registered texture
+		ExecuteGPUTransfer(JITRProxySample);
+	}
+	// Otherwise set raw data buffer so the texture can be built from it by the caller.
+	else
+	{
+		// Since the proxy sample holds a TSharedPtr reference to this original sample,
+		// we can be sure the internal buffer of the source sample won't be released prematurely.
+		JITRProxySample->SetBuffer(Sample->GetMutableBuffer());
+	}
+}
+
+bool FMediaIOCorePlayerBase::FJITRMediaTextureSamples::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample>& OutSample)
+{
+	if (!ProxySample.IsValid())
+	{
+		return false;
+	}
+
+	OutSample = ProxySample;
+
+	ProxySample.Reset();
+
+	return true;
+}
+
+bool FMediaIOCorePlayerBase::FJITRMediaTextureSamples::PeekVideoSampleTime(FMediaTimeStamp& TimeStamp)
+{
+	return false;
+}
+
+void FMediaIOCorePlayerBase::FJITRMediaTextureSamples::FlushSamples()
+{
+	ProxySample.Reset();
+}
+
+void FMediaIOCorePlayerBase::LogBookmark(const FString& Text, const TSharedRef<IMediaTextureSample>& Sample)
+{
+	// Put a bookmark if requested
+	const bool bDetailedInsights = MediaIOCorePlayerDetail::CVarMediaIOJITRInsights.GetValueOnAnyThread();
+	if (bDetailedInsights)
+	{
+		const TOptional<FTimecode> Timecode = Sample->GetTimecode();
+		if (Timecode.IsSet())
+		{
+			const FFrameNumber FrameNumber = Timecode.GetValue().ToFrameNumber(VideoFrameRate);
+			TRACE_BOOKMARK(TEXT("%s [%d]"), *Text, FrameNumber.Value % 100);
+		}
+		else
+		{
+			const int32 Milliseconds = Sample->GetTime().Time.GetFractionMilli();
+			TRACE_BOOKMARK(TEXT("%s [%d]"), *Text, Milliseconds);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

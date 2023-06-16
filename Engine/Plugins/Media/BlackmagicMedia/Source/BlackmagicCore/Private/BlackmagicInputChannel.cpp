@@ -29,6 +29,32 @@ namespace BlackmagicDesign
 		const uint32_t DefaultAudioSampleRate = static_cast<uint32_t>(bmdDefaultAudioSampleRate);
 		const BMDAudioSampleType DefaultAudioSampleType = bmdAudioSampleType32bitInteger;
 
+		/** Implements buffer guarding */
+		struct FSampleBufferHolder : public BlackmagicDesign::IInputEventCallback::FFrameBufferHolder
+		{
+		public:
+			FSampleBufferHolder(IUnknown* InObject)
+				: Object(InObject)
+			{
+				if (Object)
+				{
+					Object->AddRef();
+				}
+			}
+
+			~FSampleBufferHolder()
+			{
+				if (Object)
+				{
+					Object->Release();
+				}
+			}
+
+		private:
+			IUnknown* Object = nullptr;
+		};
+
+
 		FInputChannelNotificationCallback::FInputChannelNotificationCallback(FInputChannel* InOwner, IDeckLinkInput* InDeckLinkInput, IDeckLinkStatus* InDeckLinkStatus)
 			: InputChannel(InOwner)
 			, DeckLinkInput(InDeckLinkInput)
@@ -286,6 +312,23 @@ namespace BlackmagicDesign
 				for (FInputChannel::FListener& Listener : InputChannel->Listeners)
 				{
 					Listener.Callback->OnFrameReceived(FrameInfo);
+
+					{
+						IInputEventCallback::FFrameReceivedBufferHolders BufferHolders;
+						Listener.Callback->OnFrameReceived(FrameInfo, BufferHolders);
+
+						// Instantiate audio buffer holder if requested
+						if (BufferHolders.AudioBufferHolder)
+						{
+							*BufferHolders.AudioBufferHolder = MakeShared<BlackmagicDesign::Private::FSampleBufferHolder>(InAudioPacket);
+						}
+
+						// Instantiate video buffer holder if requested
+						if (BufferHolders.VideoBufferHolder)
+						{
+							*BufferHolders.VideoBufferHolder = MakeShared<BlackmagicDesign::Private::FSampleBufferHolder>(InVideoFrame);
+						}
+					}
 				}
 			}
 

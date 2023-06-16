@@ -88,6 +88,12 @@ namespace  UE::RivermaxMedia
 		//~ Begin FMediaIOCorePlayerBase interface
 		virtual bool IsHardwareReady() const override;
 		virtual void SetupSampleChannels() override;
+		virtual TSharedPtr<FMediaIOCoreTextureSampleBase> AcquireTextureSample_AnyThread() const override
+		{
+			// This needs to be fixed once FRivermaxMediaTextureSample is inherited from FMediaIOCoreTextureSampleBase
+			// return MakeShared<FRivermaxMediaTextureSample>();
+			return nullptr;
+		}
 		//~ End FMediaIOCorePlayerBase interface
 
 	private:

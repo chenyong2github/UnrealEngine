@@ -2,9 +2,7 @@
 
 #include "Player/BlackmagicMediaPlayer.h"
 
-#include "BlackmagicMediaPrivate.h"
 #include "BlackmagicMediaDefinitions.h"
-#include "BlackmagicMediaSource.h"
 
 #include "Engine/GameEngine.h"
 #include "HAL/CriticalSection.h"
@@ -25,8 +23,6 @@
 #include "Stats/Stats2.h"
 #include "Styling/SlateStyle.h"
 #include "Templates/Atomic.h"
-
-#include "BlackmagicMediaSource.h"
 
 #if WITH_EDITOR
 #include "EngineAnalytics.h"
@@ -125,16 +121,21 @@ namespace BlackmagicMediaPlayerHelpers
 					UE_LOG(LogBlackmagicMedia, Warning, TEXT("Lost %d audio frames on input %s. Frame rate is either too slow or buffering capacity is too small."), DeltaAudioDropCount, *InUrl);
 				}
 
-				const int32 CurrentVideoDropCount = MediaPlayer->Samples->GetVideoFrameDropCount();
-				int32 DeltaVideoDropCount = CurrentVideoDropCount;
-				if (CurrentVideoDropCount >= PreviousVideoFrameDropCount)
+				// JITR pipeline always keeps the sample pool full. So every new sample increments internal drop count.
+				// This if-condition is intended to avoid "Lost %d XXX frames on input..." message spam every frame.
+				if (!MediaPlayer->IsJustInTimeRenderingEnabled())
 				{
-					DeltaVideoDropCount = CurrentVideoDropCount - PreviousVideoFrameDropCount;
-				}
-				PreviousVideoFrameDropCount = CurrentVideoDropCount;
-				if (DeltaVideoDropCount > 0)
-				{
-					UE_LOG(LogBlackmagicMedia, Warning, TEXT("Lost %d video frames on input %s. Frame rate is either too slow or buffering capacity is too small."), DeltaVideoDropCount, *InUrl);
+					const int32 CurrentVideoDropCount = MediaPlayer->Samples->GetVideoFrameDropCount();
+					int32 DeltaVideoDropCount = CurrentVideoDropCount;
+					if (CurrentVideoDropCount >= PreviousVideoFrameDropCount)
+					{
+						DeltaVideoDropCount = CurrentVideoDropCount - PreviousVideoFrameDropCount;
+					}
+					PreviousVideoFrameDropCount = CurrentVideoDropCount;
+					if (DeltaVideoDropCount > 0)
+					{
+						UE_LOG(LogBlackmagicMedia, Warning, TEXT("Lost %d video frames on input %s. Frame rate is either too slow or buffering capacity is too small."), DeltaVideoDropCount, *InUrl);
+					}
 				}
 			}
 		}
@@ -164,7 +165,9 @@ namespace BlackmagicMediaPlayerHelpers
 			MediaState = EMediaState::Closed;
 		}
 
-		virtual void OnFrameReceived(const BlackmagicDesign::IInputEventCallback::FFrameReceivedInfo& InFrameInfo) override
+		virtual void OnFrameReceived(
+			const BlackmagicDesign::IInputEventCallback::FFrameReceivedInfo& InFrameInfo,
+			BlackmagicDesign::IInputEventCallback::FFrameReceivedBufferHolders& OutBufferHolders) override
 		{
 			SCOPE_CYCLE_COUNTER(STAT_Blackmagic_MediaPlayer_ProcessReceivedFrame);
 
@@ -228,7 +231,7 @@ namespace BlackmagicMediaPlayerHelpers
 					const FFrameNumber ConvertedFrameNumber = DecodedTimecode.GetValue().ToFrameNumber(MediaPlayer->VideoFrameRate);
 					const double NumberOfSeconds = ConvertedFrameNumber.Value * MediaPlayer->VideoFrameRate.AsInterval();
 					const FTimespan TimecodeDecodedTime = FTimespan::FromSeconds(NumberOfSeconds);
-					if (MediaPlayer->bUseTimeSynchronization)
+					if (MediaPlayer->EvaluationType == EMediaIOSampleEvaluationType::Timecode)
 					{
 						DecodedTime = TimecodeDecodedTime;
 						DecodedTimeF2 = TimecodeDecodedTime + FTimespan::FromSeconds(MediaPlayer->VideoFrameRate.AsInterval());
@@ -259,7 +262,7 @@ namespace BlackmagicMediaPlayerHelpers
 						, DecodedTime
 						, DecodedTimecode))
 					{
-						MediaPlayer->Samples->AddAudio(AudioSamle);
+						MediaPlayer->AddAudioSample(AudioSamle);
 
 						LastBitsPerSample = sizeof(int32);
 						LastSampleRate = InFrameInfo.AudioRate;
@@ -356,14 +359,10 @@ namespace BlackmagicMediaPlayerHelpers
 						bool bGPUDirectTexturesAvailable = false;
 						if (MediaPlayer->CanUseGPUTextureTransfer())
 						{
-							if (!MediaPlayer->Textures.Num())
+							bGPUDirectTexturesAvailable = MediaPlayer->HasTextureAvailableForGPUTransfer();
+							if (!bGPUDirectTexturesAvailable)
 							{
-								bGPUDirectTexturesAvailable = false;
 								UE_LOG(LogBlackmagicMedia, Error, TEXT("No texture available while doing a gpu texture transfer."));
-							}
-							else
-							{
-								bGPUDirectTexturesAvailable = true;
 							}
 						}
 
@@ -395,13 +394,14 @@ namespace BlackmagicMediaPlayerHelpers
 						{
 							if (bGPUDirectTexturesAvailable && MediaPlayer->CanUseGPUTextureTransfer())
 							{
-								MediaPlayer->PreGPUTransfer(TextureSample);
-								MediaPlayer->ExecuteGPUTransfer(TextureSample);
+								// Mark this sample ready for GPU transfer
+								TextureSample->SetAwaitingForGPUTransfer();
+
+								// Keep the internal buffer alive until GPU transfer is finished
+								OutBufferHolders.VideoBufferHolder = &TextureSample->GetBlackmagicInternalBufferLocker();
 							}
-							else
-							{
-								MediaPlayer->Samples->AddVideo(TextureSample);
-							}
+
+							MediaPlayer->AddVideoSample(TextureSample);
 						}
 					}
 					else
@@ -424,7 +424,7 @@ namespace BlackmagicMediaPlayerHelpers
 
 						for (const TSharedRef<FMediaIOCoreTextureSampleBase>& TextureSample : DeinterlacedSamples)
 						{
-							MediaPlayer->Samples->AddVideo(TextureSample);
+							MediaPlayer->AddVideoSample(TextureSample);
 						}
 					}
 				}
@@ -436,6 +436,14 @@ namespace BlackmagicMediaPlayerHelpers
 			if (MediaPlayer->bAutoDetect)
 			{
 				MediaPlayer->VideoFrameRate = FFrameRate(NewFormat.FrameRateNumerator, NewFormat.FrameRateDenominator);
+				MediaPlayer->BaseSettings.FrameRate = MediaPlayer->VideoFrameRate;
+
+				MediaPlayer->VideoTrackFormat.Dim = FIntPoint(NewFormat.Width, NewFormat.Height);
+				MediaPlayer->VideoTrackFormat.FrameRate = NewFormat.FrameRateNumerator / NewFormat.FrameRateDenominator;
+
+				MediaPlayer->SetupSampleChannels();
+
+				MediaPlayer->NotifyVideoFormatDetected();
 			}
 			else
 			{
@@ -490,10 +498,8 @@ namespace BlackmagicMediaPlayerHelpers
 
 FBlackmagicMediaPlayer::FBlackmagicMediaPlayer(IMediaEventSink& InEventSink)
 	: Super(InEventSink)
-	, EventCallback(nullptr)
 	, AudioSamplePool(MakeUnique<FBlackmagicMediaAudioSamplePool>())
 	, TextureSamplePool(MakeUnique<FBlackmagicMediaTextureSamplePool>())
-	, bVerifyFrameDropCount(false)
 	, SupportedSampleTypes(EMediaIOSampleType::None)
 {
 }
@@ -519,9 +525,6 @@ void FBlackmagicMediaPlayer::Close()
 
 	//Disable all our channels from the monitor
 	Samples->EnableTimedDataChannels(this, EMediaIOSampleType::None);
-
-	UnregisterSampleBuffers();
-	UnregisterTextures();
 
 	Super::Close();
 }
@@ -709,9 +712,18 @@ void FBlackmagicMediaPlayer::SetupSampleChannels()
 	Samples->InitializeAudioBuffer(AudioSettings);
 }
 
-void FBlackmagicMediaPlayer::AddVideoSample(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample)
+void FBlackmagicMediaPlayer::AddVideoSampleAfterGPUTransfer_RenderThread(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample)
 {
-	Samples->AddVideo(InSample);
+	checkSlow(IsInRenderingThread());
+
+	const TSharedRef<FBlackmagicMediaTextureSample> BlackMagicSample =
+		StaticCastSharedRef<FBlackmagicMediaTextureSample, FMediaIOCoreTextureSampleBase>(InSample);
+
+	// From now, the internal video buffer can be released
+	BlackMagicSample->ReleaseBlackmagicInternalBuffer();
+
+	// Let the base class do the rest
+	Super::AddVideoSampleAfterGPUTransfer_RenderThread(InSample);
 }
 
 #undef LOCTEXT_NAMESPACE

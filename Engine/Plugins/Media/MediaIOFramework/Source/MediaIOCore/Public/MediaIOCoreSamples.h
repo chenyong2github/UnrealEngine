@@ -273,6 +273,14 @@ public:
 	}
 
 	/**
+	 * Returns all available video samples
+	 */
+	TArray<TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>> GetVideoSamples() const
+	{
+		return VideoSamples.GetSamples();
+	}
+
+	/**
 	 * Caches the current sample container state for a given Player (evaluation) time
 	 */
 	void CacheSamplesState(FTimespan PlayerTime);

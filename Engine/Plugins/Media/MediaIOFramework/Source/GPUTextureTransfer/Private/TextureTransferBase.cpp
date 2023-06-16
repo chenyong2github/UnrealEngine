@@ -119,7 +119,7 @@ namespace UE::GPUTextureTransfer::Private
 					DVP_CALL(dvpBegin());
 					constexpr uint64 NanosecondsToWait = 500000000; // 0.5 seconds
 					DVPStatus SyncStatus = dvpSyncObjClientWaitPartial(Info->GPUMemorySync->DVPSyncObject, Info->GPUMemorySync->AcquireValue, NanosecondsToWait);
-					if (SyncStatus == DVP_STATUS_INVALID_OPERATION)
+					if (SyncStatus != DVP_STATUS_OK)
 					{
 						bSuccess = false;
 						UE_LOG(LogGPUTextureTransfer, Error, TEXT("GPU Direct failed to sync."));

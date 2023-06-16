@@ -76,6 +76,17 @@ enum class EMediaIOInterlaceFieldOrder : uint8
 	BottomFieldFirst
 };
 
+/**
+ * Various sample evaluation types availalbe in MediaIO.
+ */
+UENUM()
+enum class EMediaIOSampleEvaluationType : uint8
+{
+	Latest,
+	PlatformTime,
+	Timecode,
+};
+
 namespace UE::MediaIO
 {
 	static EMediaIOAutoDetectableTimecodeFormat ToAutoDetectableTimecodeFormat(EMediaIOTimecodeFormat TimecodeFormat)

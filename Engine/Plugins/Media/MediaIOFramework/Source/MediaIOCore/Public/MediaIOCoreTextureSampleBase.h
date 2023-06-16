@@ -10,6 +10,8 @@
 #include "Misc/FrameRate.h"
 #include "Templates/RefCounting.h"
 
+class FMediaIOCorePlayerBase;
+class FMediaIOCoreTextureSampleConverter;
 class FRHITexture;
 
 namespace UE::MediaIOCore
@@ -47,6 +49,33 @@ namespace UE::MediaIOCore
 		UE::Color::EColorSpace ColorSpace = UE::Color::EColorSpace::sRGB;
 	};
 }
+
+
+
+/** Used to setup JITR data for a sample */
+struct MEDIAIOCORE_API FMediaIOCoreSampleJITRConfigurationArgs
+{
+	/** Width of the sample in pixels */
+	uint32 Width = 0;
+
+	/** Height of the sample in pixels */
+	uint32 Height = 0;
+
+	/** Platform time fixed on the game thread for JITR sample picking */
+	FTimespan Time;
+
+	/** Engine timecode fixed on the game thread for JITR sample picking */
+	FTimecode Timecode;
+
+	/** Time offset evaluated on game thread */
+	double EvaluationOffsetInSeconds = 0;
+
+	/** Player that produced the sample */
+	TSharedPtr<FMediaIOCorePlayerBase> Player;
+
+	/** Sample converter to process this sample */
+	TSharedPtr<FMediaIOCoreTextureSampleConverter> Converter;
+};
 
 
 /**
@@ -176,8 +205,6 @@ public:
 	 */
 	bool SetBufferWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InHeight);
 
-
-
 	/**
 	 * Request an uninitialized sample buffer.
 	 * Should be used when the buffer could be filled by something else.
@@ -186,6 +213,37 @@ public:
 	 * @param InBufferSize The size of the video buffer.
 	 */
 	virtual void* RequestBuffer(uint32 InBufferSize);
+
+	/**
+	 * Configure this sample for JITR
+	 *
+	 * @param Args JITR configuration parameters.
+	 */
+	virtual bool InitializeJITR(const FMediaIOCoreSampleJITRConfigurationArgs& Args);
+
+	/** Marks this sample as one that is ready and awaiting for fast GPUDirect texture transfer */
+	void SetAwaitingForGPUTransfer()
+	{
+		bIsAwaitingForGPUTransfer = true;
+	}
+
+	/** Returns whether it's ready for GPUDirect texture transfer */
+	bool IsAwaitingForGPUTransfer() const
+	{
+		return bIsAwaitingForGPUTransfer;
+	}
+
+	/** Returns the player that created this sample */
+	TSharedPtr<FMediaIOCorePlayerBase> GetPlayer() const;
+
+	/** Returns time evaluated on the game thread for JITR */
+	double GetEvaluationOffsetInSeconds() const
+	{
+		return EvaluationOffsetInSeconds;
+	}
+
+	/** Copies all neccessary data from a source sample to render JIT */
+	virtual void CopyConfiguration(const TSharedPtr<FMediaIOCoreTextureSampleBase>& SourceSample);
 
 public:
 	//~ IMediaTextureSample interface
@@ -283,6 +341,7 @@ public:
 	}
 
 #if WITH_ENGINE
+	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override;
 	virtual FRHITexture* GetTexture() const override;
 #endif //WITH_ENGINE
 
@@ -310,6 +369,8 @@ protected:
 	virtual void FreeSample()
 	{
 		Buffer.Reset();
+		ExternalBuffer = nullptr;
+		Texture.SafeRelease();
 	}
 
 	/**
@@ -333,9 +394,9 @@ protected:
 	TOptional<FTimecode> Timecode;
 
 	/** Image dimensions */
-	uint32 Stride;
-	uint32 Width;
-	uint32 Height;
+	uint32 Stride = 0;
+	uint32 Width  = 0;
+	uint32 Height = 0;
 
 	/** Pointer to raw pixels */
 	TArray<uint8, TAlignedHeapAllocator<4096>> Buffer;
@@ -355,4 +416,23 @@ protected:
 
 	/** Color space structure of the incoming texture. Used for retrieving chromaticities. */
 	UE::Color::FColorSpace ColorSpaceStruct = UE::Color::FColorSpace(UE::Color::EColorSpace::sRGB);
+
+private:
+	/** The player that created this sample */
+	TWeakPtr<FMediaIOCorePlayerBase> Player;
+
+	/** Custom converter that will be the one checking back with the player for just in time sample render purposes */
+	TSharedPtr<FMediaIOCoreTextureSampleConverter> Converter;
+
+	/**
+	 * A reference to the original sample that was chosen during JITR. The idea of this member is to keep
+	 * the original sample alive, prevent any of its resources from being released while this proxy sample is in use.
+	 */
+	TSharedPtr<FMediaIOCoreTextureSampleBase> OriginalSample;
+
+	/** Whether this sample's texture data is awaiting to be transferred by GPUDirect */
+	bool bIsAwaitingForGPUTransfer = false;
+
+	/** Time offset evaluated on game thread for JITR */
+	double EvaluationOffsetInSeconds = 0;
 };

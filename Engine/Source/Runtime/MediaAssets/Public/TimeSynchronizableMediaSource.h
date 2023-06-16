@@ -42,7 +42,7 @@ public:
 	 * The media player has be able to read timecode.
 	 * The media player will try to play the corresponding frame, base on the frame's timecode value.
 	 */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Synchronization, meta=(DisplayName="Synchronize with Engine's Timecode"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Synchronization, meta=(DisplayName="Time Synchronization"))
 	bool bUseTimeSynchronization;
 
 	/** When using Time Synchronization, how many frame back should it read. */

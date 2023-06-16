@@ -6,7 +6,7 @@
 #include "MediaObjectPool.h"
 
 /**
- * Implements a media binary data sample for AjaMedia.
+ * Implements a media binary data sample.
  */
 class MEDIAIOCORE_API FMediaIOCoreBinarySampleBase
 	: public IMediaBinarySample

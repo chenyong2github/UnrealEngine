@@ -2,6 +2,8 @@
 
 #include "MediaIOCoreTextureSampleBase.h"
 
+#include "MediaIOCoreTextureSampleConverter.h"
+
 #include "RHI.h"
 #include "RHIResources.h"
 
@@ -146,7 +148,60 @@ void* FMediaIOCoreTextureSampleBase::RequestBuffer(uint32 InBufferSize)
 	return Buffer.GetData();
 }
 
+TSharedPtr<FMediaIOCorePlayerBase> FMediaIOCoreTextureSampleBase::GetPlayer() const
+{
+	return Player.Pin();
+}
+
+bool FMediaIOCoreTextureSampleBase::InitializeJITR(const FMediaIOCoreSampleJITRConfigurationArgs& Args)
+{
+	if (!Args.Player|| !Args.Converter)
+	{
+		return false;
+	}
+
+	// Native sample data
+	Width  = Args.Width;
+	Height = Args.Height;
+	Time   = Args.Time;
+	Timecode = Args.Timecode;
+
+	// JITR data
+	Player    = Args.Player;
+	Converter = Args.Converter;
+	EvaluationOffsetInSeconds = Args.EvaluationOffsetInSeconds;
+
+	return true;
+}
+
+void FMediaIOCoreTextureSampleBase::CopyConfiguration(const TSharedPtr<FMediaIOCoreTextureSampleBase>& SourceSample)
+{
+	if (!SourceSample.IsValid())
+	{
+		return;
+	}
+
+	// Copy configuration parameters
+	Stride = SourceSample->Stride;
+	Width  = SourceSample->Width;
+	Height = SourceSample->Height;
+	SampleFormat = SourceSample->SampleFormat;
+	Time = SourceSample->Time;
+	Timecode = SourceSample->Timecode;
+	Encoding = SourceSample->Encoding;
+	ColorSpace = SourceSample->ColorSpace;
+	ColorSpaceStruct = SourceSample->ColorSpaceStruct;
+
+	// Save original sample
+	OriginalSample = SourceSample;
+}
+
 #if WITH_ENGINE
+IMediaTextureSampleConverter* FMediaIOCoreTextureSampleBase::GetMediaTextureSampleConverter()
+{
+	return Converter.Get();
+}
+
 FRHITexture* FMediaIOCoreTextureSampleBase::GetTexture() const
 {
 	return Texture.GetReference();

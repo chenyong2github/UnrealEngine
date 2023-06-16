@@ -78,7 +78,7 @@ private:
 
 private:
 	friend BlackmagicMediaCaptureHelpers::FBlackmagicMediaCaptureEventCallback;
-	BlackmagicMediaCaptureHelpers::FBlackmagicMediaCaptureEventCallback* EventCallback;
+	BlackmagicMediaCaptureHelpers::FBlackmagicMediaCaptureEventCallback* EventCallback = nullptr;
 
 	/** Option from MediaOutput */
 	bool bWaitForSyncEvent;

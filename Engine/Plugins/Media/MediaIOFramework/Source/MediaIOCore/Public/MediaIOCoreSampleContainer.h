@@ -368,6 +368,13 @@ public:
 		return false;
 	}
 
+	/** Returns all available samples */
+	TArray<TSharedPtr<SampleType, ESPMode::ThreadSafe>> GetSamples() const
+	{
+		FScopeLock Lock(&CriticalSection);
+		return Samples;
+	}
+
 	void FlushSamples()
 	{
 		FScopeLock Lock(&CriticalSection);
@@ -408,7 +415,3 @@ protected:
 	mutable FCriticalSection CriticalSection;
 	TArray<TSharedPtr<SampleType, ESPMode::ThreadSafe>> Samples;
 };
-
-
-
-
