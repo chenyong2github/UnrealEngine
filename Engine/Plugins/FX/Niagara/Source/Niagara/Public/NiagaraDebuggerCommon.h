@@ -456,6 +456,10 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Enabled"))
 	bool bOverviewEnabled = false;
 
+	/** When enabled the overview display will include cascade FX. */
+	UPROPERTY(EditAnywhere, Category = "Debug Overview")
+	bool bIncludeCascade = true;
+
 	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Mode"))
 	ENiagaraDebugHUDOverviewMode OverviewMode = ENiagaraDebugHUDOverviewMode::Overview;
 

@@ -77,7 +77,7 @@ public:
 
 	virtual bool Tick()override;
 	virtual void TickRT()override;
-	TSharedPtr<FNiagaraDebugHUDPerfStats> GetSystemStats(UNiagaraSystem* System);
+	TSharedPtr<FNiagaraDebugHUDPerfStats> GetSystemStats(UFXSystemAsset* System);
 	FNiagaraDebugHUDPerfStats& GetGlobalStats();
 
 	virtual void OnAddSystem(const TWeakObjectPtr<const UFXSystemAsset>& NewSystem)override;
