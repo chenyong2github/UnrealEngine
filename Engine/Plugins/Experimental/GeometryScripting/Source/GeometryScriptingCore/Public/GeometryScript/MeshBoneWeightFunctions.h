@@ -80,7 +80,15 @@ enum class ETransferBoneWeightsMethod : uint8
 	 * bone weights from it. This is usually a point on the SourceMesh triangle where the bone weights are computed via 
 	 * interpolation of the bone weights at the vertices of the triangle via barycentric coordinates.
 	 */
-	ClosestPointOnSurface = 0
+	ClosestPointOnSurface = 0,
+
+	/** For every vertex on the target mesh, find the closest point on the surface of the source mesh. If that point 
+	 * is within the search radius (controlled via SearchPercentage), and their normals differ by less than the 
+	 * NormalThreshold, then we directly copy the weights from the source point to the target mesh vertex 
+	 * (same as the ClosestPointOnSurface method). For all the vertices we didn't copy the weights directly, 
+	 * automatically compute the smooth weights. 
+	 */
+	InpaintWeights = 1
 };
 
 UENUM(BlueprintType)
@@ -103,7 +111,7 @@ enum class EOutputTargetMeshBones : uint8
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptTransferBoneWeightsOptions
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 	
 	/** The type of algorithm to use for transferring the bone weights. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
@@ -120,6 +128,60 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptTransferBoneWeightsOptions
 	/** The identifier for the source bone/skin weight profile used to transfer the weights to. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	FGeometryScriptBoneWeightProfile TargetProfile = FGeometryScriptBoneWeightProfile();
+
+	/** Defines the search radius as the RadiusPercentage * (input mesh bounding box diagonal). All points not within the search
+	  * radius will be ignored. If negative, all points are considered. Only used in the InpaintWeights algorithm.*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, Meta = (UIMin = -1, UIMax = 2, ClampMin = -1, ClampMax = 2, EditCondition = "TransferMethod == ETransferBoneWeightsMethod::InpaintWeights"))
+	double RadiusPercentage = -1;
+
+	/** Maximum angle (in degrees) difference between the target and the source point normals to be considred a match. 
+	 * If negative, normals are ignored. Only used in the InpaintWeights algorithm.*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, Meta = (UIMin = -1, UIMax = 180, ClampMin = -1, ClampMax = 180, EditCondition="TransferMethod == ETransferBoneWeightsMethod::InpaintWeights"))
+	double NormalThreshold = -1;
+
+	/** If true, when the closest point doesn't pass the normal threshold test, will try again with a flipped normal. 
+	 * This helps with layered meshes where the "inner" and "outer" layers are close to each other but whose normals 
+	 * are pointing in the opposite directions. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, Meta = (EditCondition = "TransferMethod == ETransferBoneWeightsMethod::InpaintWeights"))
+	bool LayeredMeshSupport = true;
+
+	/** The number of optional post-processing smoothing iterations applied to the vertices without the match. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, meta = (UIMin = 0, UIMax = 100, ClampMin = 0, ClampMax = 100, EditCondition = "TransferMethod == ETransferBoneWeightsMethod::InpaintWeights"))
+	int32 NumSmoothingIterations = 0; 
+
+	/** The strength of each post-processing smoothing iteration. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, meta = (UIMin = 0, UIMax = 1, ClampMin = 0, ClampMax = 1, EditCondition = "TransferMethod == ETransferBoneWeightsMethod::InpaintWeights"))
+	float SmoothingStrength = 0.0f;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName = "Bone Info"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBoneInfo
+{
+	GENERATED_BODY()
+
+	/** Index of the bone in the skeletal hierarchy. */
+	UPROPERTY(BlueprintReadWrite, Category = Bone)
+	int Index = INDEX_NONE;
+
+	/** Bone name. */
+	UPROPERTY(BlueprintReadWrite, Category = Bone)
+	FName Name = NAME_None;
+	
+	/** Parent bone index. */
+	UPROPERTY(BlueprintReadWrite, Category = Bone)
+	int ParentIndex = INDEX_NONE;
+
+	/** Local/bone space reference transform. */
+	UPROPERTY(BlueprintReadWrite, Category = Bone)
+	FTransform LocalTransform = FTransform::Identity;
+
+	/** Global/world space reference transform. */
+	UPROPERTY(BlueprintReadWrite, Category = Bone)
+	FTransform WorldTransform = FTransform::Identity;
+
+	/** Bone color. */
+	UPROPERTY(BlueprintReadWrite, Category = Bone)
+	FLinearColor Color = FLinearColor::White;
 };
 
 UCLASS(meta = (ScriptName = "GeometryScript_BoneWeights"))
@@ -289,6 +351,7 @@ public:
 	 * @param bIsValidBoneName Set to true if the TargetMesh contains a bone with the given name, false otherwise.
 	 * @param BoneIndex The index of the bone with the given name. Will be set to -1 if bIsValidBoneName is false.
 	 */
+	UE_DEPRECATED(5.3, "Use GetBoneInfo instead.")
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
 	GetBoneIndex(
@@ -296,5 +359,67 @@ public:
 		FName BoneName,
 		bool& bIsValidBoneName,
 		int& BoneIndex,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Get the name of the root bone.
+	 * 
+	 * @param TargetMesh Mesh containing the bone attributes.
+	 * @param BoneName The name of the root bone.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	GetRootBoneName(
+		UDynamicMesh* TargetMesh,
+		FName& BoneName,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Get the information about the children of the bone.
+	 * 
+	 * @param TargetMesh Mesh containing the bone attributes.
+	 * @param BoneName The name of bone.
+	 * @param bRecursive If set to true, grandchildren will also be added recursively
+	 * @param bIsValidBoneName Set to true if the TargetMesh contains a bone with the given name, false otherwise.
+	 * @param ChildrenInfo The informattion of the children.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	GetBoneChildren(
+		UDynamicMesh* TargetMesh,
+		FName BoneName,
+		bool bRecursive,
+		bool& bIsValidBoneName,
+		TArray<FGeometryScriptBoneInfo>& ChildrenInfo,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Get the bone information.
+	 * 
+	 * @param TargetMesh Mesh containing the bone attributes.
+	 * @param BoneName The name of bone.
+	 * @param bIsValidBoneName Set to true if the TargetMesh contains a bone with the given name, false otherwise.
+	 * @param BoneInfo The information about the bone.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	GetBoneInfo(
+		UDynamicMesh* TargetMesh,
+		FName BoneName,
+		bool& bIsValidBoneName,
+		FGeometryScriptBoneInfo& BoneInfo,
+		UGeometryScriptDebug* Debug = nullptr);
+
+	/**
+	 * Get an array of bones representing the skeleton. Each entry contains information about the bone.
+	 * 
+	 * @param TargetMesh Mesh containing the bone attributes.
+	 * @param BonesInfo Skeleton information.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|MeshQueries|BoneWeights", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	GetAllBonesInfo(
+		UDynamicMesh* TargetMesh,
+		TArray<FGeometryScriptBoneInfo>& BonesInfo,
 		UGeometryScriptDebug* Debug = nullptr);
 };

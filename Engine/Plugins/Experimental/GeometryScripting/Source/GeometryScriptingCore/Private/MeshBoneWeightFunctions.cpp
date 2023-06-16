@@ -11,7 +11,8 @@
 #include "SkinningOps/SkinBindingOp.h"
 #include "UDynamicMesh.h"
 #include "Operations/TransferBoneWeights.h"
-
+#include "MathUtil.h"
+#include "Containers/Queue.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshBoneWeightFunctions)
 
@@ -380,6 +381,16 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::TransferBoneWeight
 
 		FTransferBoneWeights TransferBoneWeights(&ReadMesh, Options.SourceProfile.GetProfileName());
 		TransferBoneWeights.TransferMethod = static_cast<FTransferBoneWeights::ETransferBoneWeightsMethod>(Options.TransferMethod);
+		TransferBoneWeights.bUseParallel = true;
+		if (Options.TransferMethod == ETransferBoneWeightsMethod::InpaintWeights)
+		{
+			TransferBoneWeights.NormalThreshold = FMathd::DegToRad * Options.NormalThreshold;
+			TransferBoneWeights.SearchRadius = Options.RadiusPercentage * ReadMesh.GetBounds().DiagonalLength();
+			TransferBoneWeights.NumSmoothingIterations = Options.NumSmoothingIterations;
+			TransferBoneWeights.SmoothingStrength = Options.SmoothingStrength;
+			TransferBoneWeights.LayeredMeshSupport = Options.LayeredMeshSupport;
+		}
+
 		if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
 		{
 			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::OperationFailed, LOCTEXT("TransferBoneWeightsFromMesh_ValidationFailed", "TransferBoneWeightsFromMesh: Invalid parameters were set for the transfer weight operator"));
@@ -511,15 +522,274 @@ UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::GetBoneIndex(
 	{	
 		if (!EditMesh.HasAttributes() || !EditMesh.Attributes()->HasBones())
 		{
-			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetBoneIndex_TargetMeshHasNoBones", "TargetMesh has no bone attributes"));
+			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetBoneIndex_TargetMeshHasNoBones", "GetBoneIndex: TargetMesh has no bone attributes"));
 			return;
 		}
 
 		// INDEX_NONE if BoneName doesn't exist in the bone names attribute
 		BoneIndex = EditMesh.Attributes()->GetBoneNames()->GetAttribValues().Find(BoneName);
 		
-		bIsValidBoneName = BoneIndex == INDEX_NONE;
+		bIsValidBoneName = BoneIndex != INDEX_NONE;
 
+	});
+
+	return TargetMesh;
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::GetRootBoneName(
+	UDynamicMesh* TargetMesh,
+	FName& BoneName,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetRootBoneName_InvalidTargetMesh", "GetRootBoneName: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& EditMesh)
+	{	
+		if (!EditMesh.HasAttributes() || !EditMesh.Attributes()->HasBones())
+		{
+			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetRootBoneName_TargetMeshHasNoBones", "GetRootBoneName: TargetMesh has no bone attributes"));
+			return;
+		}
+
+		if (EditMesh.Attributes()->GetBoneNames()->GetAttribValues().IsEmpty())
+		{
+			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetRootBoneName_TargetMeshHasEmptySkeleton", "GetRootBoneName: TargetMesh has bone attributes set, but they are empty (doesn't contain a single bone)"));
+			return;
+		}
+
+		// Root bone's parent will be INDEX_NONE
+		const int32 BoneIdx = EditMesh.Attributes()->GetBoneParentIndices()->GetAttribValues().Find(INDEX_NONE);
+
+		if (BoneIdx == INDEX_NONE)
+		{
+			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetRootBoneName_TargetMeshHasNoRootBone", "GetRootBoneName: TargetMesh has no root bone"));
+			return;
+		}
+
+		BoneName = EditMesh.Attributes()->GetBoneNames()->GetAttribValues()[BoneIdx];
+	});
+
+	return TargetMesh;
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::GetBoneChildren(
+	UDynamicMesh* TargetMesh,
+	FName BoneName,
+	bool bRecursive,
+	bool& bIsValidBoneName,
+	TArray<FGeometryScriptBoneInfo>& ChildrenInfo,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetBoneChildren_InvalidTargetMesh", "GetBoneChildren: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& EditMesh)
+	{	
+		if (!EditMesh.HasAttributes() || !EditMesh.Attributes()->HasBones())
+		{
+			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetBoneChildren_TargetMeshHasNoBones", "GetBoneChildren: TargetMesh has no bone attributes"));
+			return;
+		}
+		
+		const int32 NumBones = EditMesh.Attributes()->GetNumBones();
+		const TArray<FName>& NamesAttrib = EditMesh.Attributes()->GetBoneNames()->GetAttribValues();
+		const TArray<int32>& ParentsAttrib = EditMesh.Attributes()->GetBoneParentIndices()->GetAttribValues();
+		const TArray<FTransform>& TransformsAttrib = EditMesh.Attributes()->GetBonePoses()->GetAttribValues();
+		const TArray<FVector4f>& ColorsAttrib = EditMesh.Attributes()->GetBoneColors()->GetAttribValues();
+
+		// INDEX_NONE if BoneName doesn't exist in the bone names attribute
+		const int32 BoneIndex = NamesAttrib.Find(BoneName);
+		
+		bIsValidBoneName = BoneIndex != INDEX_NONE;
+
+		if (bIsValidBoneName)
+		{	
+			ChildrenInfo.Reset();
+
+			TArray<int32> ChildrenIndices;
+
+			// add direct children only
+			for (int32 Idx = 0; Idx < NumBones; ++Idx)
+			{
+				if (ParentsAttrib[Idx] == BoneIndex)
+				{
+					ChildrenIndices.Add(Idx);
+				}
+			}
+			
+			// add all grandchildren as well
+			if (bRecursive) 
+			{
+				// Map each bone index to its direct children bone indices
+				TMap<int32, TArray<int32>> ChildrenMap;
+				for (int32 Idx = 0; Idx < NumBones; ++Idx)
+				{
+					const int32 ParentIdx = ParentsAttrib[Idx];
+					if (ChildrenMap.Contains(ParentsAttrib[Idx]))
+					{
+						ChildrenMap[ParentIdx].Add(Idx);
+					}
+					else 
+					{
+						ChildrenMap.Add(ParentIdx, {Idx});
+					}
+				}
+
+				// Do breadth first search
+				TQueue<int32> BFS;
+				for (const int32 ChildIdx : ChildrenIndices)
+				{
+					BFS.Enqueue(ChildIdx);
+				}
+
+				while (!BFS.IsEmpty())
+				{
+					int32 ChildIdx; 
+					BFS.Dequeue(ChildIdx);
+
+					if (ChildrenMap.Contains(ChildIdx))
+					{
+						for (const int32 GrandChildIdx : ChildrenMap[ChildIdx])
+						{
+							BFS.Enqueue(GrandChildIdx);
+							checkSlow(ChildrenIndices.Find(GrandChildIdx) == INDEX_NONE);
+							ChildrenIndices.Add(GrandChildIdx);
+						}
+					}
+				}
+			}
+			
+			// Get all information about the children
+			ChildrenInfo.SetNum(NumBones);
+			for (const int ChildIdx : ChildrenIndices)
+			{
+				FGeometryScriptBoneInfo& Entry = ChildrenInfo[ChildIdx];
+				Entry.Index = ChildIdx;
+				Entry.Name = NamesAttrib[ChildIdx];
+				Entry.ParentIndex = ParentsAttrib[ChildIdx];
+				Entry.LocalTransform = TransformsAttrib[ChildIdx];
+				Entry.WorldTransform = Entry.LocalTransform;
+				Entry.Color = ColorsAttrib[ChildIdx];
+
+				int32 CurParentIndex = ParentsAttrib[ChildIdx];
+				while (CurParentIndex != INDEX_NONE) // until we didn't reach the root bone
+				{
+					Entry.WorldTransform = Entry.WorldTransform * TransformsAttrib[CurParentIndex];
+					CurParentIndex = ParentsAttrib[CurParentIndex];
+				}
+			}
+		}
+	});
+
+	return TargetMesh;
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::GetBoneInfo(
+		UDynamicMesh* TargetMesh,
+		FName BoneName,
+		bool& bIsValidBoneName,
+		FGeometryScriptBoneInfo& BoneInfo,
+		UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetBoneInfo_InvalidTargetMesh", "GetBoneInfo: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& EditMesh)
+	{	
+		if (!EditMesh.HasAttributes() || !EditMesh.Attributes()->HasBones())
+		{
+			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetBoneInfo_TargetMeshHasNoBones", "GetBoneInfo: TargetMesh has no bone attributes"));
+			return;
+		}
+		
+		
+		// INDEX_NONE if BoneName doesn't exist in the bone names attribute
+		int32 BoneIndex = EditMesh.Attributes()->GetBoneNames()->GetAttribValues().Find(BoneName);
+
+		bIsValidBoneName = BoneIndex != INDEX_NONE;
+
+		if (bIsValidBoneName)
+		{	
+			const TArray<FName>& NamesAttrib = EditMesh.Attributes()->GetBoneNames()->GetAttribValues();
+			const TArray<int32>& ParentsAttrib = EditMesh.Attributes()->GetBoneParentIndices()->GetAttribValues();
+			const TArray<FTransform>& TransformsAttrib = EditMesh.Attributes()->GetBonePoses()->GetAttribValues();
+			const TArray<FVector4f>& ColorsAttrib = EditMesh.Attributes()->GetBoneColors()->GetAttribValues();
+
+			BoneInfo.Index = BoneIndex;
+			BoneInfo.Name = NamesAttrib[BoneIndex];
+			BoneInfo.ParentIndex = ParentsAttrib[BoneIndex];
+			BoneInfo.LocalTransform = TransformsAttrib[BoneIndex];
+			BoneInfo.WorldTransform = BoneInfo.LocalTransform;
+			BoneInfo.Color = ColorsAttrib[BoneIndex];
+
+			int32 CurParentIndex = ParentsAttrib[BoneIndex];
+			while (CurParentIndex != INDEX_NONE) // until we didn't reach the root bone
+			{
+				BoneInfo.WorldTransform = BoneInfo.WorldTransform * TransformsAttrib[CurParentIndex];
+				CurParentIndex = ParentsAttrib[CurParentIndex];
+			}
+		}
+	});
+
+	return TargetMesh;
+}
+
+UDynamicMesh* UGeometryScriptLibrary_MeshBoneWeightFunctions::GetAllBonesInfo(
+		UDynamicMesh* TargetMesh,
+		TArray<FGeometryScriptBoneInfo>& BonesInfo,
+		UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetAllBonesInfo_InvalidTargetMesh", "GetAllBonesInfo: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	TargetMesh->ProcessMesh([&](const FDynamicMesh3& EditMesh)
+	{	
+		if (!EditMesh.HasAttributes() || !EditMesh.Attributes()->HasBones())
+		{
+			AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetAllBonesInfo_TargetMeshHasNoBones", "GetAllBonesInfo: TargetMesh has no bone attributes"));
+			return;
+		}
+		
+		const int32 NumBones = EditMesh.Attributes()->GetNumBones();
+
+		BonesInfo.SetNum(NumBones);
+
+		const TArray<FName>& NamesAttrib = EditMesh.Attributes()->GetBoneNames()->GetAttribValues();
+		const TArray<int32>& ParentsAttrib = EditMesh.Attributes()->GetBoneParentIndices()->GetAttribValues();
+		const TArray<FTransform>& TransformsAttrib = EditMesh.Attributes()->GetBonePoses()->GetAttribValues();
+		const TArray<FVector4f>& ColorsAttrib = EditMesh.Attributes()->GetBoneColors()->GetAttribValues();
+
+		for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
+		{
+			FGeometryScriptBoneInfo& Entry = BonesInfo[BoneIndex];
+			
+			Entry.Index = BoneIndex;
+			Entry.Name = NamesAttrib[BoneIndex];
+			Entry.ParentIndex = ParentsAttrib[BoneIndex];
+			Entry.LocalTransform = TransformsAttrib[BoneIndex];
+			Entry.WorldTransform = Entry.LocalTransform;
+			Entry.Color = ColorsAttrib[BoneIndex];
+
+			int32 CurParentIndex = ParentsAttrib[BoneIndex];
+			while (CurParentIndex != INDEX_NONE) // until we didn't reach the root bone
+			{
+				Entry.WorldTransform = Entry.WorldTransform * TransformsAttrib[CurParentIndex];
+				CurParentIndex = ParentsAttrib[CurParentIndex];
+			}
+		}
 	});
 
 	return TargetMesh;
