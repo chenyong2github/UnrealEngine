@@ -629,8 +629,22 @@ private:
 
 		if (Context.GetStatus() != EMovieScenePlayerStatus::Playing)
 		{
+			float ScrubDuration = AudioTrackConstants::ScrubDuration;
+			if (FAudioDevice* AudioDevice = AudioComponent.GetAudioDevice())
+			{
+				constexpr float MinScrubFrameRateFactor = 1.5f;
+				float DeviceDeltaTime = AudioDevice->GetGameDeltaTime();
+
+				// When operating at very low frame-rates (<20fps), a single frame will be
+				// longer than the hard coded scrub duration of 50ms in which case the delayed
+				// stop will trigger on the same frame that the sound starts playing and
+				// no audio will be heard. Here we increase the scrub duration to be greater than
+				// a single frame if necessary.
+				ScrubDuration = FMath::Max(ScrubDuration, DeviceDeltaTime * MinScrubFrameRateFactor);
+			}
+
 			// While scrubbing, play the sound for a short time and then cut it.
-			AudioComponent.StopDelayed(AudioTrackConstants::ScrubDuration);
+			AudioComponent.StopDelayed(ScrubDuration);
 		}
 
 		if (AudioComponent.IsPlaying() && AudioInputs)

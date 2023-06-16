@@ -4464,6 +4464,11 @@ void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 Fir
 							}
 						}
 					}
+					else
+					{
+						// This sound is not yet prepared to play, perform any necessary operations 
+						UpdateUnpreparedSound(WaveInstance, bGameTicking);
+					}
 				}
 
 				// If we succeeded above then we need to map the wave instance to the source
@@ -7381,4 +7386,29 @@ int32 FAudioDevice::GetNumPrecacheFrames() const
 	}
 	// Otherwise, use the default value or value set in ini file
 	return NumPrecacheFrames;
+}
+
+void FAudioDevice::UpdateUnpreparedSound(FWaveInstance* WaveInstance, bool bGameTicking) const
+{
+	// If this source is not playing yet due to a pending async decode, push it's active duration out 
+	// by the amount of time that has elapsed.
+	UpdateSoundDuration(WaveInstance, bGameTicking);
+}
+
+void FAudioDevice::UpdateSoundDuration(FWaveInstance* WaveInstance, bool bGameTicking) const
+{
+	if (FActiveSound* ActiveSound = WaveInstance->ActiveSound)
+	{
+		if (bGameTicking || ActiveSound->bIsUISound)
+		{
+			float ActiveDuration = ActiveSound->ComponentVolumeFader.GetActiveDuration();
+			if (ActiveDuration > 0.0f)
+			{
+				float DeltaTime = GetGameDeltaTime();
+				// Push the duration out by the previous frame's delta amount as the fader's elapsed time
+				// has already been updated at this point with the same value.
+				ActiveSound->ComponentVolumeFader.SetActiveDuration(ActiveDuration + DeltaTime);
+			}
+		}
+	}
 }

@@ -1879,6 +1879,12 @@ private:
 	/** Returns the number of frames to use per precache buffer. */
 	int32 GetNumPrecacheFrames() const;
 
+	/** Called by StartSources when sounds are not prepared to Init for whatever reason */
+	void UpdateUnpreparedSound(FWaveInstance* WaveInstance, bool bGameTicking) const;
+
+	/** Adjusts the active sound duration to make up for decode latency */
+	void UpdateSoundDuration(FWaveInstance* WaveInstance, bool bGameTicking) const;
+
 	bool RemoveVirtualLoop(FActiveSound& ActiveSound);
 public:
 
