@@ -298,6 +298,11 @@ public:
 	/** Recreate heightfield and restart physics */
 	LANDSCAPE_API virtual bool RecreateCollision();
 
+private:
+	// @todo(chaos): remove when implicit objects are ref counted
+	void DeferredDestroyCollision(const TRefCountPtr<FHeightfieldGeometryRef>& HeightfieldRefLifetimeExtender);
+public:
+
 #if WITH_EDITORONLY_DATA
 	// Called from editor code to manage foliage instances on landscape.
 	LANDSCAPE_API void SnapFoliageInstances(const FBox& InInstanceBox);
