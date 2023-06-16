@@ -29,8 +29,6 @@
 #include "HairStrandsClusterCulling.h"
 #include "GroomVisualizationData.h"
 
-UE_DISABLE_OPTIMIZATION
-
 static int32 GHairStrandsMinLOD = 0;
 static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD"), GHairStrandsMinLOD, TEXT("Clamp the min hair LOD to this value, preventing to reach lower/high-quality LOD."), ECVF_Scalability);
 
