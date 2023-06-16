@@ -389,7 +389,14 @@ struct FMaterialShader
 		Normal += TransformedTri.Verts[2].RawAttributeData.TangentZ * Barycentrics.UVW[2];
 		Normal = normalize( Normal );
 
-		float4 SvPosition = 0;
+		// Hopefully never used and will be dead code eliminated. TODO VT feedback needs this right now :(
+		float4 SvPosition;
+		SvPosition  = TransformedTri.Verts[0].PointClip * Barycentrics.UVW[0];
+		SvPosition += TransformedTri.Verts[1].PointClip * Barycentrics.UVW[1];
+		SvPosition += TransformedTri.Verts[2].PointClip * Barycentrics.UVW[2];
+		SvPosition.xyz /= SvPosition.w;
+		SvPosition.xy = ( float2(0.5, -0.5) * SvPosition.xy + 0.5 ) * NaniteView.ViewSizeAndInvSize.xy + NaniteView.ViewRect.xy;
+		SvPosition.w = 1;
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 
@@ -397,7 +404,14 @@ struct FMaterialShader
 		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters( PrimitiveData, InstanceData, InstanceDynamicData, NaniteView, TransformedTri, Cluster, Barycentrics, Interpolants, SvPosition );
 
 		FPixelMaterialInputs PixelMaterialInputs;
-		CalcMaterialParameters( MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/ );
+		CalcMaterialParametersEx(
+			MaterialParameters,
+			PixelMaterialInputs,
+			SvPosition,
+			MaterialParameters.ScreenPosition,
+			true, // bIsFrontFace
+			MaterialParameters.WorldPosition_CamRelative,
+			MaterialParameters.WorldPosition_NoOffsets_CamRelative );
 
 		const float Displacement = GetMaterialDisplacementScaled(PixelMaterialInputs);
 		PointLocal += Normal * Displacement;

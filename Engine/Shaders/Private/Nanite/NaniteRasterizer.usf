@@ -242,7 +242,11 @@ FRaster CreateRaster( FNaniteView NaniteView, FInstanceSceneData InstanceData, F
 	return Raster;
 }
 
-#define VERTEX_CACHE_SIZE 256
+#if PATCHES
+	#define VERTEX_CACHE_SIZE 153
+#else
+	#define VERTEX_CACHE_SIZE 256
+#endif
 groupshared float3 GroupVerts[VERTEX_CACHE_SIZE];
 
 struct FCachedVertex
@@ -341,7 +345,7 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	const uint ImmediateDiceLimit = 8;
 	const uint ImmediateSplitLimit = 8;
 
-	bool bCanDice = all( TessFactors <= ImmediateDiceLimit );
+	bool bCanDice = max3( TessFactors.x, TessFactors.y, TessFactors.z ) <= ImmediateDiceLimit;
 
 	{
 		FDiceTask DiceTask;
@@ -349,6 +353,7 @@ void ClusterRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		DiceTask.Shader				= MaterialShader;
 		DiceTask.PixelValue			= ( VisibleIndex + 1 ) << 7;
 		DiceTask.VisualizeValues	= GetVisualizeValues();
+		DiceTask.bReverseWinding	= bReverseWindingOrder;
 		DiceTask.Vert				= Vert;
 
 		uint NumVerts = 0;
@@ -571,9 +576,11 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET );
 		FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
-		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+		FPrimitiveSceneData PrimitiveData = GetPrimitiveData( InstanceData.PrimitiveId );
 		FNaniteView NaniteView = GetNaniteView( VisibleCluster.ViewId );
-
+		const bool bEvaluateWPO = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0;
+		const bool bReverseWindingOrder = ReverseWindingOrder(NaniteView, PrimitiveData, InstanceData);
+	
 	#if NANITE_VERTEX_PROGRAMMABLE || NANITE_PIXEL_PROGRAMMABLE
 		ResolvedView = ResolveView(NaniteView);
 	#endif
@@ -645,7 +652,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 	
 		if (GroupThreadIndex < NumUniqueVerts)
 		{
-			Vert =  = FetchTransformedNaniteVertex( PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, false );
+			Vert = FetchTransformedNaniteVertex( PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, LaneVertIndex, bEvaluateWPO );
 			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
 		}
 	
@@ -663,7 +670,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		if( GroupThreadIndex < 3 )
 		{
-			Vert = FetchTransformedNaniteVertex( PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes[ GroupThreadIndex ], false );
+			Vert = FetchTransformedNaniteVertex( PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes[ GroupThreadIndex ], bEvaluateWPO );
 			PointView = mul( float4( Vert.PointWorld, 1 ), NaniteView.TranslatedWorldToView ).xyz;
 		}
 
@@ -689,8 +696,8 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 
 		float3 TessFactors = GetTessFactors( NaniteView, PatchPointView );
 #else
-		uint3 VertIndexes = DecodeTriangleIndices( Cluster, Patch.TriIndex );
-		FNaniteTransformedTri TransformedTri = FetchTransformedNaniteTriangle(PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes, false);
+		uint3 VertIndexes = DecodeTriangleIndices( Cluster, PatchIndex );
+		FNaniteTransformedTri TransformedTri = FetchTransformedNaniteTriangle(PrimitiveData, InstanceData, MaterialShader.VertTransforms, Cluster, VertIndexes, bEvaluateWPO);
 		MaterialShader.TransformedTri = TransformedTri;
 
 		float3 PointView[3];
@@ -710,23 +717,30 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		uint PixelValue			= ( VisibleClusterIndex + 1 ) << 7;
 		uint2 VisualizeValues	= GetVisualizeValues();
 
+#if 1
 		FTessellatedPatch TessellatedPatch;
 		TessellatedPatch.Init( TessFactors, PatchEncoded.yzw );
 
-		uint NumVerts = TessellatedPatch.GetNumVerts();
-		uint NumTris  = TessellatedPatch.GetNumTris();
-
 		// Decode again since corners may have rotated.
 		Patch.Decode( PatchEncoded );
+#endif
+
+		// TODO change to inout and avoid extracting
+		TessFactors = TessellatedPatch.GetTessFactors();
+
+		uint NumVerts = TessellatedPatch.GetNumVerts();
+		uint NumTris  = TessellatedPatch.GetNumTris();
 
 		for( uint VertIndex = GroupThreadIndex; VertIndex < NumVerts; VertIndex += THREADGROUP_SIZE )
 		{
 			FBarycentrics Barycentrics;
 			Barycentrics.UVW	= TessellatedPatch.GetVert( VertIndex );
-			Barycentrics.UVW_dx	= 0;
-			Barycentrics.UVW_dy	= 0;
+			Barycentrics.UVW_dx	= 0;//float3( -1, 1, 0 ) / TessFactors.x;
+			Barycentrics.UVW_dy	= 0;//float3( 0, -1, 1 ) / TessFactors.y;
 	
 			Barycentrics.UVW	= Patch.TransformBarycentrics( Barycentrics.UVW );
+			Barycentrics.UVW_dx	= Patch.TransformBarycentrics( Barycentrics.UVW_dx );
+			Barycentrics.UVW_dy	= Patch.TransformBarycentrics( Barycentrics.UVW_dy );
 
 			GroupVerts[ VertIndex ] = CalculateSubpixelCoordinates( Raster, MaterialShader.EvaluateDomain( Barycentrics ) ).xyz;
 		}
@@ -736,9 +750,7 @@ void PatchRasterize( uint VisibleIndex, uint GroupThreadIndex )
 		for( uint TriIndex = GroupThreadIndex; TriIndex < NumTris; TriIndex += THREADGROUP_SIZE )
 		{
 			uint3 VertIndexes = TessellatedPatch.GetIndexes( TriIndex );
-	
-			// TODO
-			bool bReverseWindingOrder = false;
+
 			if( bReverseWindingOrder )
 				VertIndexes.yz = VertIndexes.zy;
 

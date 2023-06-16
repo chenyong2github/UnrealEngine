@@ -50,6 +50,7 @@ struct FDiceTask
 	FMaterialShader	Shader;
 	uint			PixelValue;
 	uint2			VisualizeValues;
+	bool			bReverseWinding;
 
 	FNaniteTransformedVert	Vert;
 	FTessellatedPatch		TessellatedPatch;
@@ -79,6 +80,7 @@ struct FDiceTask
 		ChildTask.Shader			= Shader;
 		ChildTask.PixelValue		= PixelValue;
 		ChildTask.VisualizeValues	= VisualizeValues;
+		ChildTask.bReverseWinding	= bReverseWinding;
 
 		ChildTask.TessellatedPatch	= WaveReadLaneAt( TessellatedPatch, ParentLaneIndex );
 		ChildTask.Encoded			= WaveReadLaneAt( Encoded, ParentLaneIndex );
@@ -108,9 +110,7 @@ void FDiceTask::RunChild( uint LocalItemIndex )
 
 	uint3 VertIndexes = TessellatedPatch.GetIndexes( LocalItemIndex );
 
-	// TODO
-	bool bReverseWindingOrder = false;
-	if( bReverseWindingOrder )
+	if( bReverseWinding )
 		VertIndexes.yz = VertIndexes.zy;
 	
 	float4 Verts[3];

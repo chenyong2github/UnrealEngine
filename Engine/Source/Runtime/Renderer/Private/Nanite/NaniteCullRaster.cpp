@@ -158,6 +158,13 @@ TAutoConsoleVariable<float> CVarNaniteMinPixelsPerEdgeHW(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<float> CVarNaniteDicingRate(
+	TEXT("r.Nanite.DicingRate"),
+	2.0f,
+	TEXT("Size of the micropolygons that Nanite tessellation will dice to, measured in pixels."),
+	ECVF_RenderThreadSafe
+	);
+
 // 0 : Disabled
 // 1 : Pixel Clear
 // 2 : Tile Clear
@@ -1009,6 +1016,7 @@ class FPatchSplitCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Offsets )
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Verts )
 		SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Indexes )
+		SHADER_PARAMETER( float,					InvDiceRate )
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 
@@ -1078,6 +1086,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Offsets )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Verts )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer,	TessellationTable_Indexes )
+	SHADER_PARAMETER( float,					InvDiceRate )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,	VisiblePatches )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >,	VisiblePatchesArgs )
@@ -3551,17 +3560,23 @@ FBinningData FRenderer::AddPass_Rasterize(
 	RasterPassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 	RasterPassParameters->RasterBinData				= GraphBuilder.CreateSRV(BinningData.DataBuffer);
 	RasterPassParameters->RasterBinMeta				= GraphBuilder.CreateSRV(BinningData.MetaBuffer);
+
 	RasterPassParameters->TessellationTable_Offsets	= GTessellationTable.Offsets.SRV;
 	RasterPassParameters->TessellationTable_Verts	= GTessellationTable.Verts.SRV;
 	RasterPassParameters->TessellationTable_Indexes	= GTessellationTable.Indexes.SRV;
+	RasterPassParameters->InvDiceRate				= CVarNaniteMaxPixelsPerEdge.GetValueOnRenderThread() / CVarNaniteDicingRate.GetValueOnRenderThread();
 
 	if( bPatches )
 	{
 		RasterPassParameters->VisiblePatches		= GraphBuilder.CreateSRV( VisiblePatches );
 		RasterPassParameters->VisiblePatchesArgs	= GraphBuilder.CreateSRV( VisiblePatchesArgs );
 	}
-
-	RasterPassParameters->SplitWorkQueue = SplitWorkQueue;
+	else
+	{
+		RasterPassParameters->SplitWorkQueue = SplitWorkQueue;
+		CreateSkipBarrierUAV( RasterPassParameters->SplitWorkQueue.DataBuffer );
+		CreateSkipBarrierUAV( RasterPassParameters->SplitWorkQueue.StateBuffer );
+	}
 
 	RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
 
@@ -3775,6 +3790,7 @@ void FRenderer::AddPass_PatchSplit(
 		PassParameters->TessellationTable_Offsets	= GTessellationTable.Offsets.SRV;
 		PassParameters->TessellationTable_Verts		= GTessellationTable.Verts.SRV;
 		PassParameters->TessellationTable_Indexes	= GTessellationTable.Indexes.SRV;
+		PassParameters->InvDiceRate					= CVarNaniteMaxPixelsPerEdge.GetValueOnRenderThread() / CVarNaniteDicingRate.GetValueOnRenderThread();
 
 		PassParameters->RWVisiblePatches		= GraphBuilder.CreateUAV( VisiblePatches );
 		PassParameters->RWVisiblePatchesArgs	= GraphBuilder.CreateUAV( VisiblePatchesArgs );
@@ -4104,7 +4120,7 @@ void FRenderer::DrawGeometry(
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
-	const bool bTessellationEnabled = TessellationEnabled();
+	const bool bTessellationEnabled = TessellationEnabled() && (RenderFlags & NANITE_RENDER_FLAG_DISABLE_PROGRAMMABLE) == 0u;
 	
 	// Split rasterization into multiple passes if there are too many views. Only possible for depth-only rendering.
 	if (ViewArray.NumViews > NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)

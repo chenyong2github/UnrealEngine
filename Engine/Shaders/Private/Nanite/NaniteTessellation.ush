@@ -38,6 +38,14 @@ float3 DecodeBarycentrics( uint Encoded )
 	return Barycentrics;
 }
 
+
+ByteAddressBuffer TessellationTable_Offsets;
+ByteAddressBuffer TessellationTable_Verts;
+ByteAddressBuffer TessellationTable_Indexes;
+static const uint TessellationTable_Size = 16;
+
+float InvDiceRate;
+
 float3 GetTessFactors( FNaniteView NaniteView, float3 PointView[3] )
 {
 #if 0
@@ -54,7 +62,7 @@ float3 GetTessFactors( FNaniteView NaniteView, float3 PointView[3] )
 		length( PointPixels[1] - PointPixels[2] ),
 		length( PointPixels[2] - PointPixels[0] )
 	};
-	TessFactors /= View.GeneralPurposeTweak;
+	TessFactors *= InvDiceRate;
 #else
 	bool bOrtho = NaniteView.ViewToClip[3][3] >= 1;
 
@@ -70,18 +78,11 @@ float3 GetTessFactors( FNaniteView NaniteView, float3 PointView[3] )
 		TessFactors[i] = EdgeLength / EdgeScale;
 	}
 
-	TessFactors *= NaniteView.LODScale / View.GeneralPurposeTweak;
-	//TessFactors *= NaniteView.ViewToClip[1][1] * NaniteView.ViewSizeAndInvSize.y / View.GeneralPurposeTweak;	// TODO real tessellation density control
+	TessFactors *= NaniteView.LODScale * InvDiceRate;
 #endif
 	
 	return TessFactors;
 }
-
-
-ByteAddressBuffer TessellationTable_Offsets;
-ByteAddressBuffer TessellationTable_Verts;
-ByteAddressBuffer TessellationTable_Indexes;
-static const uint TessellationTable_Size = 16;
 
 float3 GetSplitFactors( float3 TessFactors )
 {
@@ -220,7 +221,7 @@ struct FTessellatedPatch
 
 	uint3 GetTessFactors()
 	{
-		uint Packed = Pattern;
+		uint Packed = Pattern & 0xfff;
 		Packed -= (1 + TessellationTable_Size + TessellationTable_Size * TessellationTable_Size);
 		
 		uint3 TessFactors;

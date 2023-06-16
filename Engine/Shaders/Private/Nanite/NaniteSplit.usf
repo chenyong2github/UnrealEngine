@@ -198,6 +198,8 @@ uint FSplitTask::Run()
 
 	float3 TessFactors = GetTessFactors( NaniteView, PointView );
 
+	bool bNeedsSplitting = max3( TessFactors.x, TessFactors.y, TessFactors.z ) > TessellationTable_Size;
+
 	if( Cull.bWasOccluded )
 	{
 	#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -208,7 +210,7 @@ uint FSplitTask::Run()
 		}
 	#endif
 	}
-	else if( all( TessFactors <= TessellationTable_Size ) )
+	else if( !bNeedsSplitting )
 	{
 		if( Cull.bNeedsClipping )
 			return 0;

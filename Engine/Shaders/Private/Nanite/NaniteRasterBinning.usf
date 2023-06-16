@@ -334,7 +334,7 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 				#if RASTER_BIN_COUNT
 					WaveInterlockedAddScalar(OutRasterBinMeta[UniformBinIndex].BinSWCount, 1);
 				#elif RASTER_BIN_SCATTER
-					WaveInterlockedAddScalar_( OutRasterBinArgsSWHW[ UniformBinIndex * NANITE_RASTERIZER_ARG_COUNT + 3 ], 1, IndexInBin );
+					WaveInterlockedAddScalar_( OutRasterBinArgsSWHW[ UniformBinIndex * NANITE_RASTERIZER_ARG_COUNT ], 1, IndexInBin );
 				#endif
 					bDone = true;
 				}
@@ -342,9 +342,6 @@ void RasterBinBuild(uint RelativeClusterIndex : SV_DispatchThreadID, uint GroupT
 		}
 
 	#if RASTER_BIN_SCATTER
-		// TODO Do this during RasterBinReserve.
-		OutRasterBinArgsSWHW[ RasterBin * NANITE_RASTERIZER_ARG_COUNT ] = OutRasterBinMeta[ RasterBin ].BinSWCount;
-
 		const uint BinMapping = GetRasterBinOffset( RasterBin ) + IndexInBin;
 
 		OutRasterBinData[ BinMapping ].x = VisibleIndex;
