@@ -89,7 +89,6 @@ FCalculateTetMetrics::Evaluate(Dataflow::FContext& Context, const FDataflowOutpu
 {
 	if (Out->IsA<DataType>(&Collection))
 	{
-		//DataType OutCollection = GetValue<DataType>(Context, &Collection); // Deep copy
 		TUniquePtr<FFleshCollection> InCollection(GetValue<DataType>(Context, &Collection).NewCopy<FFleshCollection>());
 
 		TManagedArray<FIntVector4>* TetMesh =
@@ -168,8 +167,7 @@ FCalculateTetMetrics::Evaluate(Dataflow::FContext& Context, const FDataflowOutpu
 				MinAR, AvgAR, MaxAR);
 		}
 
-		//SetValue(Context, MoveTemp((FManagedArrayCollection&)(*OutCollection)), &Collection);
-		SetValue(Context, MoveTemp((FManagedArrayCollection&)(*InCollection)), &Collection);
+		SetValue(Context, MoveTemp((FManagedArrayCollection&)(*InCollection.Release())), &Collection);
 	}
 }
 
@@ -200,7 +198,7 @@ void FConstructTetGridNode::Evaluate(Dataflow::FContext& Context, const FDataflo
 			FTetrahedralCollection::NewTetrahedralCollection(X, Tris, Tets));
 		InCollection->AppendGeometry(*TetCollection.Get());
 
-		SetValue(Context, MoveTemp((FManagedArrayCollection&)(*InCollection)), &Collection);
+		SetValue(Context, MoveTemp((FManagedArrayCollection&)(*InCollection.Release())), &Collection);
 	}
 }
 
@@ -327,7 +325,7 @@ void FGenerateTetrahedralCollectionDataflowNodes::Evaluate(Dataflow::FContext& C
 			ensureMsgf(false, TEXT("FGenerateTetrahedralCollectionDataflowNodes is an editor only node."));
 #endif
 		} // end if InStaticMesh || InSkeletalMesh
-		SetValue(Context, MoveTemp((FManagedArrayCollection&)(*InCollection)), &Collection);
+		SetValue(Context, MoveTemp((FManagedArrayCollection&)(*InCollection.Release())), &Collection);
 	}
 }
 

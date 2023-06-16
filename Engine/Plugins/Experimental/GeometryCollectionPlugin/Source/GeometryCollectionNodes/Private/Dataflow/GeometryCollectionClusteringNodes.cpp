@@ -87,7 +87,7 @@ void FAutoClusterDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 				InEnforceSiteParameters,
 				InGridX, InGridY, InGridZ, InMinimumClusterSize, InKMeansIterations);
 
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
+			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
 		}
 	}
 }
@@ -138,16 +138,14 @@ void FClusterUnclusterDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 			GeometryCollection::Facades::FCollectionTransformSelectionFacade SelectionFacade(*GeomCollection);
 			SelectionFacade.ConvertSelectionToClusterNodes(Selection, false);
 			SelectionFacade.RemoveRootNodes(Selection);
-			if (Selection.IsEmpty())
+			if (!Selection.IsEmpty())
 			{
-				SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
-				return;
-			}
-			FGeometryCollectionClusteringUtility::CollapseHierarchyOneLevel(GeomCollection.Get(), Selection);
-			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeomCollection.Get());
+				FGeometryCollectionClusteringUtility::CollapseHierarchyOneLevel(GeomCollection.Get(), Selection);
+				FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeomCollection.Get());
 
-			HierarchyFacade.GenerateLevelAttribute();
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
+				HierarchyFacade.GenerateLevelAttribute();
+			}
+			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
 		}
 	}
 }

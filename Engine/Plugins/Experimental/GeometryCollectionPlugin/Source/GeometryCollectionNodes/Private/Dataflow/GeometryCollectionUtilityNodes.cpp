@@ -188,7 +188,7 @@ void FCreateNonOverlappingConvexHullsDataflowNode::Evaluate(Dataflow::FContext& 
 				(EConvexOverlapRemoval)OverlapRemovalMethod,
 				InOverlapRemovalShrinkPercent);
 
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
+			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
 		}
 	}
 }
@@ -345,7 +345,7 @@ void FGenerateClusterConvexHullsFromChildrenHullsDataflowNode::Evaluate(Dataflow
 				);
 			}
 
-			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection)), &Collection);
+			SetValue(Context, MoveTemp((FManagedArrayCollection&)(*GeomCollection.Release())), &Collection);
 			// Move the negative space to the output container at the end to be sure it is no longer needed
 			Spheres.Spheres = MoveTemp(NegativeSpace);
 		}
