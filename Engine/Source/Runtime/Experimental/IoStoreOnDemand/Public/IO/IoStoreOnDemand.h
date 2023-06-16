@@ -18,7 +18,7 @@ class IIoStoreWriter;
 struct FIoContainerSettings;
 struct FIoStoreWriterSettings;
 
-UE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoStoreOnDemand, VeryVerbose, All);
+UE_API DECLARE_LOG_CATEGORY_EXTERN(LogIas, VeryVerbose, All);
 
 namespace UE
 {
