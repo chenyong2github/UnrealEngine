@@ -186,7 +186,7 @@ bool GetGGXDirection(float2 RandomUV, float Roughness, float3 V, inout float3 L,
 	float2 Alpha; 
 	GetGGXBasis(Roughness, WOLRD_NORMAL, Alpha);
 
-	float4 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandomUV), Alpha, V);
+	float4 H = ImportanceSampleVisibleGGX(RandomUV, Alpha, V);
 
 	Value = 0;
 	L = 0;

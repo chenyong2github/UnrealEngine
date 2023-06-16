@@ -1233,17 +1233,16 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 			// Sample Specular lobe
 			if (Out.Term == SHADING_TERM_SPECULAR)
 			{
-				float4 TangentH = 0;
+				float2 Alpha = 0;
 				if (bHasAnisotropy)
 				{
-					float2 Alpha = 0;
 					GetAnisotropicRoughness(SpecularRoughness, SLAB_ANISOTROPY(BSDFContext.BSDF), Alpha.x, Alpha.y);
-					TangentH = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(E), Alpha, BSDFContext.TangentV);
 				}
 				else
 				{
-					TangentH = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SpecularRoughness), BSDFContext.TangentV);
+					Alpha = Pow2(SpecularRoughness);
 				}
+				float4 TangentH = ImportanceSampleVisibleGGX(E, Alpha, BSDFContext.TangentV);
 
 				const float HPDF = TangentH.w;
 				const float3 H = mul(TangentH.xyz, BSDFContext.TangentBasis);
@@ -1282,7 +1281,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 		case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 		{
 			const float SafeRoughness = MakeRoughnessSafe(SLW_ROUGHNESS(BSDFContext.BSDF));
-			const float4 TangentH = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SafeRoughness), BSDFContext.TangentV);
+			const float4 TangentH = ImportanceSampleVisibleGGX(E, Pow2(SafeRoughness), BSDFContext.TangentV);
 
 			const float HPDF = TangentH.w;
 			const float3 H = mul(TangentH.xyz, BSDFContext.TangentBasis);
@@ -1338,7 +1337,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 			// Sample Specular lobe
 			if (Out.Term == SHADING_TERM_SPECULAR)
 			{
-				float4 TangentH = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SafeRoughness), BSDFContext.TangentV);
+				float4 TangentH = ImportanceSampleVisibleGGX(E, Pow2(SafeRoughness), BSDFContext.TangentV);
 
 				const float HPDF = TangentH.w;
 				const float3 H = mul(TangentH.xyz, BSDFContext.TangentBasis);

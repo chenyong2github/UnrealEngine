@@ -389,59 +389,38 @@ float VisibleGGXPDF_aniso(float3 V, float3 H, float2 Alpha)
 	return Pdf;
 }
 
-// [ Heitz 2018, "Sampling the GGX Distribution of Visible Normals" ]
-// http://jcgt.org/published/0007/04/01/
 // PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
 // PDF = G_SmithV * D / (4 * NoV)
-float4 ImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
-{
-	// NOTE: See below for anisotropic version that avoids this sqrt
-	float a = sqrt(a2);
-
-	// stretch
-	float3 Vh = normalize( float3( a * V.xy, V.z ) );
-
-	// Stable tangent basis based on V
-	// Tangent0 is orthogonal to N
-	float LenSq = Vh.x * Vh.x + Vh.y * Vh.y;
-	float3 Tangent0 = LenSq > 0 ? float3(-Vh.y, Vh.x, 0) * rsqrt(LenSq) : float3(1, 0, 0);
-	float3 Tangent1 = cross(Vh, Tangent0);
-
-	float2 p = DiskE;
-	float s = 0.5 + 0.5 * Vh.z;
-	p.y = (1 - s) * sqrt( 1 - p.x * p.x ) + s * p.y;
-
-	float3 H;
-	H  = p.x * Tangent0;
-	H += p.y * Tangent1;
-	H += sqrt( saturate( 1 - dot( p, p ) ) ) * Vh;
-
-	// unstretch
-	H = normalize( float3( a * H.xy, max(0.0, H.z) ) );
-
-	return float4(H, VisibleGGXPDF(V, H, a2));
-}
-
-// [ Heitz 2018, "Sampling the GGX Distribution of Visible Normals" ]
-// http://jcgt.org/published/0007/04/01/
-// PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
-// PDF = G_SmithV * D / (4 * NoV)
-float4 ImportanceSampleVisibleGGX_aniso(float2 DiskE, float2 Alpha, float3 V)
+float4 ImportanceSampleVisibleGGX(float2 E, float2 Alpha, float3 V)
 {
 	// stretch
 	float3 Vh = normalize(float3(Alpha * V.xy, V.z));
+
+#if 0
+	// [ Heitz 2018, "Sampling the GGX Distribution of Visible Normals" ]
+	// http://jcgt.org/published/0007/04/01/
 
 	// Stable tangent basis based on V
 	float LenSq = Vh.x * Vh.x + Vh.y * Vh.y;
 	float3 Tx = LenSq > 0 ? float3(-Vh.y, Vh.x, 0) * rsqrt(LenSq) : float3(1, 0, 0);
 	float3 Ty = cross(Vh, Tx);
 
-	float2 p = DiskE;
+	// #dxr_todo: Evaluate UniformSampleDiskConcentric
+	float2 p = UniformSampleDisk(E);
 	float s = 0.5 + 0.5 * Vh.z;
 	p.y = lerp(sqrt(1 - p.x * p.x), p.y, s);
 
 	float3 H = p.x * Tx + p.y * Ty + sqrt(saturate(1 - dot(p, p))) * Vh;
-
+#else
+	// "Sampling Visible GGX Normals with Spherical Caps"
+	// Jonathan Dupuy & Anis Benyoub - High Performance Graphics 2023
+	float Phi = (2 * PI) * E.x;
+	float Z = lerp(-Vh.z, 1.0, E.y);
+	float SinTheta = sqrt(saturate(1 - Z * Z));
+	float X = SinTheta * cos(Phi);
+	float Y = SinTheta * sin(Phi);
+	float3 H = float3(X, Y, Z) + Vh;
+#endif
 	// unstretch
 	H = normalize(float3(Alpha * H.xy, max(0.0, H.z)));
 

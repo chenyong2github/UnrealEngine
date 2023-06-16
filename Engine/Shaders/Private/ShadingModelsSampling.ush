@@ -88,17 +88,17 @@ FBxDFSample SampleDefaultLitBxDF(uint TermMask, float3 WorldNormal, float Roughn
 	}
 	else if (TermMask == SHADING_TERM_SPECULAR)
 	{
-		float a2 = Pow4(Roughness);
+		float a = Pow2(Roughness);
 
 		float3 TangentV = mul(TangentBasis, V);
 
 #if 1
 		// PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
 		// PDF = G_SmithV * D / (4 * NoV);
-		float4 TangentH = ImportanceSampleVisibleGGX(DiskE, a2, TangentV);
+		float4 TangentH = ImportanceSampleVisibleGGX(E, a, TangentV);
 #else
 		// PDF = D * NoH / (4 * VoH),
-		float4 TangentH = ImportanceSampleGGX(E.xy, a2);
+		float4 TangentH = ImportanceSampleGGX(E.xy, a * a);
 #endif
 
 		float HPDF = TangentH.w;

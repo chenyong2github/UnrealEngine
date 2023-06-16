@@ -826,7 +826,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 				float3x3 TangentBasis = GetTangentBasis(Payload.GetWorldNormal());
 				float3 TangentV = mul(TangentBasis, -Ray.Direction);
 
-				float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(LumenMaterial.TopLayerRoughness), TangentV);
+				float4 GGXSample = ImportanceSampleVisibleGGX(E, Pow2(LumenMaterial.TopLayerRoughness), TangentV);
 				float3 WorldH = mul(GGXSample.xyz, TangentBasis);
 				float3 ReflectedRayDirection = reflect(Ray.Direction, WorldH);
 				

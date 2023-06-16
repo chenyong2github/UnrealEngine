@@ -59,7 +59,7 @@ void BuildEnergyTableCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float2 Weight = 0;
 
 #if BUILD_ENERGY_TABLE == 0
-		const float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
+		const float3 H = ImportanceSampleVisibleGGX(RandSample.xy, Alpha, V).xyz;
 		const float3 L = reflect(-V, H);
 		if (L.z > 0)
 		{
@@ -67,7 +67,7 @@ void BuildEnergyTableCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			Weight = float2(GGXResult.x, GGXResult.x * Pow5(1 - dot(V, H)));
 		}
 #elif BUILD_ENERGY_TABLE == 1
-		const float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
+		const float3 H = ImportanceSampleVisibleGGX(RandSample.xy, Alpha, V).xyz;
 		{
 			// compute weight for outside -> in case
 			float3 L = 0;

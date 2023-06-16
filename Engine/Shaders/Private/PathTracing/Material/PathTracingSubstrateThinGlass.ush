@@ -119,8 +119,7 @@ FMaterialSample SubstrateThinGlass_SampleMaterial(
 			? (bUseRoughness1 ? Payload.RoughnessData.y : Payload.RoughnessData.x)
 			: (bUseRoughness1 ? Data.RoughnessT.y : Data.RoughnessT.x);
 
-		// #dxr_todo: Evaluate UniformSampleDiskConcentric
-		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
+		H = ImportanceSampleVisibleGGX(RandSample.xy, Alpha, V).xyz;
 		L = reflect(-V, H);
 		if (L.z <= 0)
 		{

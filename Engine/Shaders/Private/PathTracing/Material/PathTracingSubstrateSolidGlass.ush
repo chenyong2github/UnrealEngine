@@ -98,8 +98,7 @@ FMaterialSample SubstrateSolidGlass_SampleMaterial(
 			OutRoughness = Payload.RoughnessData.y;
 		}
 
-		// #dxr_todo: Evaluate UniformSampleDiskConcentric
-		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), bUseSpec0 ? Data.Alpha0 : Data.Alpha1, V).xyz;
+		H = ImportanceSampleVisibleGGX(RandSample.xy, bUseSpec0 ? Data.Alpha0 : Data.Alpha1, V).xyz;
 
 		// Glass lobe (reflection and refraction)
 		float3 L = 0;

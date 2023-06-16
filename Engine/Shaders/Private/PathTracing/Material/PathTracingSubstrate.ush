@@ -121,8 +121,7 @@ FMaterialSample Substrate_SampleMaterial(
 			OutRoughness = Payload.RoughnessData.y;
 		}
 
-		// #dxr_todo: Evaluate UniformSampleDiskConcentric
-		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), bUseSpec0 ? Data.Alpha0 : Data.Alpha1, V).xyz;
+		H = ImportanceSampleVisibleGGX(RandSample.xy, bUseSpec0 ? Data.Alpha0 : Data.Alpha1, V).xyz;
 		L = reflect(-V, H);
 		if (L.z <= 0)
 		{
@@ -380,8 +379,7 @@ FMaterialSample SubstrateClearCoat_SampleMaterial(
 			OutRoughness = Payload.RoughnessData.y;
 		}
 
-		// #dxr_todo: Evaluate UniformSampleDiskConcentric
-		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), bUseBaseSpec ? Data.BaseAlpha : Data.CoatAlpha, V).xyz;
+		H = ImportanceSampleVisibleGGX(RandSample.xy, bUseBaseSpec ? Data.BaseAlpha : Data.CoatAlpha, V).xyz;
 		L = reflect(-V, H);
 		if (L.z <= 0)
 		{

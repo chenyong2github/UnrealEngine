@@ -172,7 +172,7 @@ FMaterialSample ClearCoat_SampleMaterial(
 			RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.x, Data.LobeCdf.y);
 		}
 		const float3 V = bSampledCoat ? Data.CoatV : Data.BaseV;
-		const float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), bSampledCoat ? Data.CoatAlpha : Data.BaseAlpha, V).xyz;
+		const float3 H = ImportanceSampleVisibleGGX(RandSample.xy, bSampledCoat ? Data.CoatAlpha : Data.BaseAlpha, V).xyz;
 		const float3 L = reflect(-V, H);
 		if (L.z <= 0)
 		{

@@ -131,8 +131,7 @@ FMaterialSample Cloth_SampleMaterial(
 	{
 		RandSample.x = RescaleRandomNumber(RandSample.x, Data.LobeCdf.y, 1.0);
 
-		// #dxr_todo: Evaluate UniformSampleDiskConcentric
-		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Data.Alpha, Data.V).xyz;
+		H = ImportanceSampleVisibleGGX(RandSample.xy, Data.Alpha, Data.V).xyz;
 		L = reflect(-Data.V, H);
 		if (L.z <= 0)
 		{

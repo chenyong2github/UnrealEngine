@@ -133,8 +133,7 @@ FSortedReflectionRay GenerateDeferredReflectionRay(uint2 PixelPos, float2 Upscal
 	{
 		// Biased roughness is used for GGX sampling, but original value is still used to compute roughness threshold / fade.
 		// This means that biased roughness will never cause more rays to be traced, so will never cause performance drop.
-		float a2 = Pow4(SampleRoughness);
-		float4 BRDFSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), a2, TangentV);
+		float4 BRDFSample = ImportanceSampleVisibleGGX(E, Pow2(SampleRoughness), TangentV);
 		float3 H = mul(BRDFSample.xyz, TangentBasis);
 		L = 2 * dot(V, H) * H - V;
 		Ray.Pdf = BRDFSample.w;

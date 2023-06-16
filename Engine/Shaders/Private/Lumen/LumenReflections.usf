@@ -373,7 +373,7 @@ void ReflectionGenerateRaysCS(
 				float3 TangentV = mul(TangentBasis, -CameraVector);
 
 				//float4 GGXSample = ImportanceSampleGGX(E, Pow4(Material.TopLayerRoughness));
-				float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(Material.TopLayerRoughness), TangentV);
+				float4 GGXSample = ImportanceSampleVisibleGGX(E, Pow2(Material.TopLayerRoughness), TangentV);
 				float3 WorldH = mul(GGXSample.xyz, TangentBasis);
 				RayDirection = reflect(CameraVector, WorldH);
 				ConeAngle = 1.0f / max(GGXSample.w, 0.0001f);
