@@ -74,6 +74,11 @@ void FTrackRowModel::Initialize()
 	}
 }
 
+FViewModelChildren FTrackRowModel::GetTopLevelChannels()
+{
+	return GetChildrenForList(&TopLevelChannelList);
+}
+
 UMovieSceneTrack* FTrackRowModel::GetTrack() const
 {
 	return WeakTrack.Get();

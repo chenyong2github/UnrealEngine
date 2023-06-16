@@ -41,7 +41,7 @@ public:
 
 	void Initialize();
 
-	TSharedPtr<ISequencerTrackEditor> GetTrackEditor() const { return TrackEditor; }
+	FViewModelChildren GetTopLevelChannels();
 
 	/*~ FOutlinerItemModel */
 	void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
@@ -68,6 +68,7 @@ public:
 	UMovieSceneTrack* GetTrack() const override;
 	int32 GetRowIndex() const override;
 	FViewModelChildren GetSectionModels() override;
+	TSharedPtr<ISequencerTrackEditor> GetTrackEditor() const override { return TrackEditor; }
 
 	/*~ ITrackAreaExtension */
 	FTrackAreaParameters GetTrackAreaParameters() const override;

@@ -267,8 +267,8 @@ void FTrackModel::ForceUpdate()
 		struct FRowData
 		{
 			TSharedPtr<FTrackRowModel> Row;
-			TUniquePtr<FScopedViewModelListHead> OldSections;
 			TSharedPtr<FViewModel> SectionsTail;
+			TUniquePtr<FScopedViewModelListHead> RecycledModels;
 		};
 		TArray<FRowData, TInlineAllocator<8>> RowModels;
 		RowModels.SetNum(PopulatedRows.Num());
@@ -292,9 +292,12 @@ void FTrackModel::ForceUpdate()
 
 				RowModels[RowIndex].Row = TrackRowModel;
 
-				// Keep sections on rows alive as well
-				RowModels[RowIndex].OldSections = MakeUnique<FScopedViewModelListHead>(TrackRowModel, EViewModelListType::Recycled);
-				TrackRowModel->GetSectionModels().MoveChildrenTo<IRecyclableExtension>(RowModels[RowIndex].OldSections->GetChildren(), IRecyclableExtension::CallOnRecycle);
+				// Recycle sections, outliner children, and more, while keeping them alive.
+				RowModels[RowIndex].RecycledModels = MakeUnique<FScopedViewModelListHead>(TrackRowModel, EViewModelListType::Recycled);
+				FViewModelChildren RecycledRowModels = RowModels[RowIndex].RecycledModels->GetChildren();
+				TrackRowModel->GetSectionModels().MoveChildrenTo<IRecyclableExtension>(RecycledRowModels, IRecyclableExtension::CallOnRecycle);
+				TrackRowModel->GetChildList(EViewModelListType::Outliner).MoveChildrenTo<IRecyclableExtension>(RecycledRowModels, IRecyclableExtension::CallOnRecycle);
+				TrackRowModel->GetTopLevelChannels().MoveChildrenTo<IRecyclableExtension>(RecycledRowModels, IRecyclableExtension::CallOnRecycle);
 			}
 		}
 

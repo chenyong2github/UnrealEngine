@@ -29,7 +29,6 @@ class FSectionModel;
 struct FHierarchicalModelListRefresher
 {
 	FHierarchicalModelListRefresher();
-	FHierarchicalModelListRefresher(TSharedPtr<FViewModel> InRoot);
 	FHierarchicalModelListRefresher(TSharedPtr<FViewModel> InRoot, FViewModelChildren InExistingChildren);
 
 	bool IsValid() const;
@@ -79,7 +78,9 @@ struct FHierarchicalModelListRefresher
 		return nullptr;
 	}
 
-	void RecycleChildren(const TSharedPtr<FViewModel>& InModel, FViewModelChildren InExistingChildren);
+private:
+
+	void ConditionalRecycleChildren(const TSharedPtr<FViewModel>& InModel, FViewModelChildren InExistingChildren);
 
 	struct FListData
 	{

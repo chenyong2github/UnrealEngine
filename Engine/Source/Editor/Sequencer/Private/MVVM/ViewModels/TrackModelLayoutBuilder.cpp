@@ -40,12 +40,12 @@ FHierarchicalModelListRefresher::FHierarchicalModelListRefresher(TSharedPtr<FVie
 {
 	// Add a recycled child list to the model. This will get cleaned up when
 	// this FHierarchicalModelListRefresher instance is destroyed
-	RecycleChildren(InRoot, InExistingChildren);
+	ConditionalRecycleChildren(InRoot, InExistingChildren);
 
 	ListData.Add(FListData(InRoot, InExistingChildren));
 }
 
-void FHierarchicalModelListRefresher::RecycleChildren(const TSharedPtr<FViewModel>& InModel, FViewModelChildren InExistingChildren)
+void FHierarchicalModelListRefresher::ConditionalRecycleChildren(const TSharedPtr<FViewModel>& InModel, FViewModelChildren InExistingChildren)
 {
 	TOptional<FViewModelChildren> RecycledChildren = InModel->FindChildList(EViewModelListType::Recycled);
 	if (!RecycledChildren)
@@ -59,9 +59,10 @@ void FHierarchicalModelListRefresher::RecycleChildren(const TSharedPtr<FViewMode
 		RecycledLists.Last().Emplace(InModel, EViewModelListType::Recycled);
 
 		RecycledChildren = InModel->GetChildList(EViewModelListType::Recycled);
+
+		check(RecycledChildren.IsSet());
+		InExistingChildren.MoveChildrenTo<IRecyclableExtension>(RecycledChildren.GetValue(), IRecyclableExtension::CallOnRecycle);
 	}
-	check(RecycledChildren.IsSet());
-	InExistingChildren.MoveChildrenTo<IRecyclableExtension>(RecycledChildren.GetValue(), IRecyclableExtension::CallOnRecycle);
 }
 
 bool FHierarchicalModelListRefresher::IsValid() const
@@ -96,8 +97,10 @@ void FHierarchicalModelListRefresher::RecurseInto(TSharedPtr<FViewModel> Item, F
 	// or row that has multiple sections with different channel layouts.
 	// We ensure that children remain eligible for recycling for the duration
 	// of all sections by adding a temporary recycle list to the model while
-	// the layout is being refreshed
-	RecycleChildren(Item, InExistingChildren);
+	// the layout is being refreshed, but we create this recycle list only on the
+	// first try to not recycle "legitimate" children we added in the previous
+	// loop.
+	ConditionalRecycleChildren(Item, InExistingChildren);
 
 	ListData.Add(FListData(Item, InExistingChildren));
 }
@@ -225,6 +228,8 @@ void FTrackModelLayoutBuilder::SetTopLevelChannel(const FMovieSceneChannelHandle
 	OutlinerList.RecurseInto(CurrentModel, TopLevelGroup);
 
 	AddChannel(Channel, true, OptionalFactory);
+
+	OutlinerList.Pop();
 }
 
 void FTrackModelLayoutBuilder::AddChannel(const FMovieSceneChannelHandle& Channel, TFunction<TSharedPtr<UE::Sequencer::FChannelModel>(FName, const FMovieSceneChannelHandle&)> OptionalFactory)
