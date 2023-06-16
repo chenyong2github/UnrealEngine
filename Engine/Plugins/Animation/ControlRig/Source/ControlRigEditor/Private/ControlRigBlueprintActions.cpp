@@ -18,15 +18,10 @@
 #include "Engine/SkeletalMesh.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "ScopedTransaction.h"
 #include "LevelSequenceActor.h"
-#include "LevelSequence.h"
 #include "LevelSequencePlayer.h"
 #include "EditorDirectories.h"
-#include "EngineUtils.h"
-#include "ISequencer.h"
 #include "ILevelSequenceEditorToolkit.h"
-#include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "ControlRigObjectBinding.h"
 #include "EditMode/ControlRigEditMode.h"
 #include "Editor.h"
@@ -37,6 +32,7 @@
 #include "Misc/PackageName.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
 #include "Sequencer/ControlRigParameterTrackEditor.h"
+#include "Rigs/RigHierarchyController.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprintActions"
 

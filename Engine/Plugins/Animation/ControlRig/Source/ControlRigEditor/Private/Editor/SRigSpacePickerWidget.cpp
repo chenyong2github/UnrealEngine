@@ -20,6 +20,7 @@
 #include "Modules/ModuleManager.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
+#include "RigVMBlueprintGeneratedClass.h"
 
 #define LOCTEXT_NAMESPACE "SRigSpacePickerWidget"
 
@@ -687,7 +688,7 @@ FReply SRigSpacePickerWidget::HandleAddElementClicked()
 						}
 						else if(UControlRigBlueprint* RigBlueprint = StrongHierarchy->GetTypedOuter<UControlRigBlueprint>())
 						{
-							if(UControlRig* CDO = Cast<UControlRig>(RigBlueprint->GetControlRigClass()->GetDefaultObject()))
+							if(UControlRig* CDO = Cast<UControlRig>(RigBlueprint->GetRigVMBlueprintGeneratedClass()->GetDefaultObject()))
 							{
 								DependencyMap = StrongHierarchy->GetDependenciesForVM(CDO->GetVM()); 
 							}

@@ -174,7 +174,7 @@ void FControlRigEditorModule::StartupModule()
 	PropertiesToUnregisterOnShutdown.Add(FRigVMCompileSettings::StaticStruct()->GetFName());
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown.Last(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FRigVMCompileSettingsDetails::MakeInstance));
 
-	PropertiesToUnregisterOnShutdown.Add(FControlRigPythonSettings::StaticStruct()->GetFName());
+	PropertiesToUnregisterOnShutdown.Add(FRigVMPythonSettings::StaticStruct()->GetFName());
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown.Last(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FControlRigPythonLogDetails::MakeInstance));
 
 	PropertiesToUnregisterOnShutdown.Add(FRigVMDrawContainer::StaticStruct()->GetFName());
@@ -1207,7 +1207,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 
 void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlueprintActionDatabaseRegistrar& ActionRegistrar)
 {
-	if (URigVMBlueprintGeneratedClass* GeneratedClass = CRB->GetControlRigBlueprintGeneratedClass())
+	if (URigVMBlueprintGeneratedClass* GeneratedClass = CRB->GetRigVMBlueprintGeneratedClass())
 	{
 		if (UControlRig* CDO = Cast<UControlRig>(GeneratedClass->GetDefaultObject()))
 		{
@@ -2203,7 +2203,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						if(ModelNode->IsEvent())
 						{
 							const FName& EventName = ModelNode->GetEventName();
-							const bool bCanRunOnce = !UControlRigGraphSchema::IsControlRigDefaultEvent(EventName);
+							const bool bCanRunOnce = !CastChecked<URigVMEdGraphSchema>(RigNode->GetSchema())->IsRigVMDefaultEvent(EventName);
 
 							FToolMenuSection& EventsSection = Menu->AddSection("EdGraphSchemaEvents", LOCTEXT("EventsHeader", "Events"));
 
@@ -2537,7 +2537,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 													   }
 												   }
                                     			
-												   FName NewVariableName = RigBlueprint->AddCRMemberVariableFromExternal(ExternalVariable, DefaultValue);
+												   FName NewVariableName = RigBlueprint->AddHostMemberVariableFromExternal(ExternalVariable, DefaultValue);
 												   if(!NewVariableName.IsNone())
 												   {
 													   Controller->SetRemappedVariable(FunctionReferenceNode, ExternalVariable.Name, NewVariableName);
@@ -2796,7 +2796,7 @@ void FControlRigEditorModule::PostChange(const UUserDefinedStruct* Changed,
 		// so to simplify things, here we just reset all rigs upon error
 		if (ResultsLog.NumErrors > 0)
 		{
-			URigVMBlueprintGeneratedClass* RigClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
+			URigVMBlueprintGeneratedClass* RigClass = RigBlueprint->GetRigVMBlueprintGeneratedClass();
 			UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 			if (CDO->GetVM() != nullptr)
 			{

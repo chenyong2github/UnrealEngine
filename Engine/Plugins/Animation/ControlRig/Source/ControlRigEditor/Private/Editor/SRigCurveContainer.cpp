@@ -13,11 +13,10 @@
 #include "Editor/ControlRigEditor.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/Skeleton.h"
-#include "ControlRig.h"
 #include "ControlRigBlueprint.h"
 #include "ScopedTransaction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "ScopedTransaction.h"
+#include "Rigs/RigHierarchyController.h"
 
 #define LOCTEXT_NAMESPACE "SRigCurveContainer"
 
@@ -305,12 +304,12 @@ TSharedPtr<SWidget> SRigCurveContainer::OnGetContextMenuContent() const
 	return MenuBuilder.MakeWidget();
 }
 
-void SRigCurveContainer::OnEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint)
+void SRigCurveContainer::OnEditorClose(const FControlRigEditor* InEditor, URigVMBlueprint* InBlueprint)
 {
-	if (InBlueprint)
+	if (UControlRigBlueprint* BP = Cast<UControlRigBlueprint>(InBlueprint))
 	{
-		InBlueprint->Hierarchy->OnModified().RemoveAll(this);
-		InBlueprint->OnRefreshEditor().RemoveAll(this);
+		BP->Hierarchy->OnModified().RemoveAll(this);
+		BP->OnRefreshEditor().RemoveAll(this);
 	}
 
 	ControlRigBlueprint.Reset();
@@ -618,7 +617,7 @@ void SRigCurveContainer::OnHierarchyModified(ERigHierarchyNotification InNotif, 
     }
 }
 
-void SRigCurveContainer::HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint)
+void SRigCurveContainer::HandleRefreshEditorFromBlueprint(URigVMBlueprint* InBlueprint)
 {
 	RefreshCurveList();
 }

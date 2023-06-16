@@ -378,7 +378,7 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 			return;
 		}
 
-		URigVMBlueprintGeneratedClass* GeneratedClass = ControlRigBlueprint->GetControlRigBlueprintGeneratedClass();
+		URigVMBlueprintGeneratedClass* GeneratedClass = ControlRigBlueprint->GetRigVMBlueprintGeneratedClass();
 		if (GeneratedClass == nullptr)
 		{
 			return;

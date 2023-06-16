@@ -6,6 +6,7 @@
 #include "RigVMModel/RigVMGraph.h"
 #include "AnimNextParameterBlock_EdGraph.h"
 #include "RigVMCore/RigVMGraphFunctionHost.h"
+#include "RigVMBlueprint.h"
 #include "AnimNextParameterBlock_EditorData.generated.h"
 
 class UAnimNextParameterBlock;
@@ -179,16 +180,13 @@ class UAnimNextParameterBlock_EditorData : public UObject, public IRigVMClientHo
 	FRigVMGraphFunctionStore GraphFunctionStore;
 
 	UPROPERTY(EditAnywhere, Category = "User Interface")
-	FRigGraphDisplaySettings RigGraphDisplaySettings;
+	FRigVMEdGraphDisplaySettings RigGraphDisplaySettings;
 
 	UPROPERTY(EditAnywhere, Category = "VM")
 	FRigVMRuntimeSettings VMRuntimeSettings;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM", meta = (AllowPrivateAccess = "true"))
 	FRigVMCompileSettings VMCompileSettings;
-
-	UPROPERTY(EditAnywhere, Category = "Python Log Settings")
-	FControlRigPythonSettings PythonLogSettings;
 
 	UPROPERTY(transient, DuplicateTransient)
 	TMap<FString, FRigVMOperand> PinToOperandMap;
@@ -214,7 +212,7 @@ class UAnimNextParameterBlock_EditorData : public UObject, public IRigVMClientHo
 	
 	FCompilerResultsLog CompileLog;
 
-	FOnVMCompiledEvent RigVMCompiledEvent;
+	FOnRigVMCompiledEvent RigVMCompiledEvent;
 	FRigVMGraphModifiedEvent RigVMGraphModifiedEvent;
 
 	// Delegate to subscribe to modifications to this block

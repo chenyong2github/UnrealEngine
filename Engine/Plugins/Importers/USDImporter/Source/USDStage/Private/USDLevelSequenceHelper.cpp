@@ -78,6 +78,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "RigVMBlueprintGeneratedClass.h"
 
 #if WITH_EDITOR
 #include "ControlRigBlueprint.h"
@@ -2345,7 +2346,7 @@ void FUsdLevelSequenceHelperImpl::UpdateControlRigTracks(UUsdPrimTwin& PrimTwin)
 
 			if (UControlRigBlueprint* BP = Cast<UControlRigBlueprint>(FSoftObjectPath(ControlRigBPPath).TryLoad()))
 			{
-				ControlRigClass = BP->GetControlRigClass();
+				ControlRigClass = BP->GetRigVMBlueprintGeneratedClass();
 			}
 		}
 

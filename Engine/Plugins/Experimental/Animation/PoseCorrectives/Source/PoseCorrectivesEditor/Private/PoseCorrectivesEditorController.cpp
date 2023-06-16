@@ -40,7 +40,7 @@ void FPoseCorrectivesEditorController::InitializeTargetControlRigBP()
 	TObjectPtr<const UControlRigBlueprint> ControlRigBP = Cast<UControlRigBlueprint>(Asset->ControlRigBlueprint);	
 	if (ControlRigBP)
 	{
-		if (const UClass* GeneratedClass = ControlRigBP->GetControlRigBlueprintGeneratedClass())
+		if (const UClass* GeneratedClass = ControlRigBP->GetRigVMBlueprintGeneratedClass())
 		{
 			if (ControlRig)
 			{

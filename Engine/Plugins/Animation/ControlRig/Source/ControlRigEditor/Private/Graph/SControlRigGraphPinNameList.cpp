@@ -259,6 +259,8 @@ FReply SControlRigGraphPinNameList::OnGetSelectedClicked()
 {
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetPinObj()->GetOwningNode()->GetGraph()))
 	{
+		UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(Graph->GetBlueprint());
+
 		if (OnGetNameFromSelection.IsBound())
 		{
 			const TArray<TSharedPtr<FString>> Result = OnGetNameFromSelection.Execute();
@@ -279,7 +281,7 @@ FReply SControlRigGraphPinNameList::OnGetSelectedClicked()
 
 					else if (ModelPin->GetCustomWidgetName() == TEXT("BoneName"))
 					{
-						URigHierarchy* Hierarchy = Graph->GetBlueprint()->Hierarchy;
+						URigHierarchy* Hierarchy = ControlRigBlueprint->Hierarchy;
 						TArray<FRigElementKey> Keys = Hierarchy->GetSelectedKeys();
 						FRigBaseElement* Element = Hierarchy->FindChecked(Keys[0]);
 						if (Element->GetType() == ERigElementType::Bone)
@@ -331,6 +333,7 @@ FReply SControlRigGraphPinNameList::OnBrowseClicked()
 		TSharedPtr<FString> Selected = NameListComboBox->GetSelectedItem();
 		if (Selected.IsValid() && ModelPin)
 		{
+			UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(Graph->GetBlueprint());
 			URigVMPin* KeyPin = ModelPin->GetParentPin();
 			if(KeyPin && KeyPin->GetCPPTypeObject() == FRigElementKey::StaticStruct())
 			{
@@ -342,7 +345,7 @@ FReply SControlRigGraphPinNameList::OnBrowseClicked()
 					FRigElementKey::StaticStruct()->ImportText(*DefaultValue, &Key, nullptr, EPropertyPortFlags::PPF_None, nullptr, FRigElementKey::StaticStruct()->GetName(), true);
 					if (Key.IsValid())
 					{
-						Graph->GetBlueprint()->GetHierarchyController()->SetSelection({Key});
+						ControlRigBlueprint->GetHierarchyController()->SetSelection({Key});
 					}
 				}
 			}
@@ -351,7 +354,7 @@ FReply SControlRigGraphPinNameList::OnBrowseClicked()
 				// browse to named bone
 				const FString DefaultValue = ModelPin->GetDefaultValue();
 				FRigElementKey Key(*DefaultValue, ERigElementType::Bone);
-				Graph->GetBlueprint()->GetHierarchyController()->SetSelection({Key});
+				ControlRigBlueprint->GetHierarchyController()->SetSelection({Key});
 			}
 			else
 			{
@@ -370,7 +373,7 @@ FReply SControlRigGraphPinNameList::OnBrowseClicked()
 							const FString DefaultValue = ModelPin->GetDefaultValue();
 							const ERigElementType ElementType = (ERigElementType)StaticEnum<ERigElementType>()->GetValueByIndex(EnumIndex);
 							FRigElementKey Key(*DefaultValue, ElementType);
-							Graph->GetBlueprint()->GetHierarchyController()->SetSelection({Key});
+							ControlRigBlueprint->GetHierarchyController()->SetSelection({Key});
 							break;
 						}
 					}

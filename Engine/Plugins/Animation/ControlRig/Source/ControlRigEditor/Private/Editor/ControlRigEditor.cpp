@@ -383,7 +383,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	// user-defined-struct can change even after load
 	// refresh the models such that pins are updated to match
 	// the latest struct member layout
-	InControlRigBlueprint->RefreshAllModels(EControlRigBlueprintLoadType::CheckUserDefinedStructs);
+	InControlRigBlueprint->RefreshAllModels(ERigVMBlueprintLoadType::CheckUserDefinedStructs);
 
 	{
 		TArray<UEdGraph*> EdGraphs;
@@ -397,7 +397,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 				continue;
 			}
 
-			RigGraph->Initialize(InControlRigBlueprint);
+			RigGraph->InitializeFromBlueprint(InControlRigBlueprint);
 		}
 
 	}
@@ -510,7 +510,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 
 				if (UPackage* Package = InControlRigBlueprint->GetOutermost())
 				{
-					Package->SetDirtyFlag(InControlRigBlueprint->bDirtyDuringLoad);
+					Package->SetDirtyFlag(InControlRigBlueprint->IsMarkedDirtyDuringLoad());
 				}
 			}
 		}
@@ -741,8 +741,8 @@ void FControlRigEditor::ToggleAutoCompileGraph()
 {
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
-		RigBlueprint->bAutoRecompileVM = !RigBlueprint->bAutoRecompileVM;
-		if (RigBlueprint->bAutoRecompileVM)
+		RigBlueprint->SetAutoVMRecompile(!RigBlueprint->GetAutoVMRecompile());
+		if (RigBlueprint->GetAutoVMRecompile())
 		{
 			RigBlueprint->RequestAutoVMRecompilation();
 		}
@@ -753,7 +753,7 @@ bool FControlRigEditor::IsAutoCompileGraphOn() const
 {
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
-		return RigBlueprint->bAutoRecompileVM;
+		return RigBlueprint->GetAutoVMRecompile();
 	}
 	return false;
 }
@@ -786,11 +786,13 @@ TSharedRef<SWidget> FControlRigEditor::GenerateEventQueueMenuContent()
 
 	if (const UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
+		URigVMEdGraphSchema* Schema = CastChecked<URigVMEdGraphSchema>(RigBlueprint->GetRigVMEdGraphSchemaClass()->GetDefaultObject());
+		
 		bool bFoundUserDefinedEvent = false;
 		const TArray<FName> EntryNames = RigBlueprint->GetRigVMClient()->GetEntryNames();
 		for(const FName& EntryName : EntryNames)
 		{
-			if(UControlRigGraphSchema::IsControlRigDefaultEvent(EntryName))
+			if(Schema->IsRigVMDefaultEvent(EntryName))
 			{
 				continue;
 			}
@@ -1306,7 +1308,7 @@ void FControlRigEditor::SetEventQueue(TArray<FName> InEventQueue, bool bCompile)
 	{
 		if(bCompile)
 		{
-			if (RigBlueprint->bAutoRecompileVM)
+			if (RigBlueprint->GetAutoVMRecompile())
 			{
 				RigBlueprint->RequestAutoVMRecompilation();
 			}
@@ -1515,7 +1517,7 @@ void FControlRigEditor::GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugL
 		DebugList.Add(DebugObject);
 	}
 
-	URigVMBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetControlRigBlueprintGeneratedClass();
+	URigVMBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetRigVMBlueprintGeneratedClass();
 	if (GeneratedClass)
 	{
 		struct Local
@@ -1627,13 +1629,13 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
-		if (URigVMBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetControlRigBlueprintGeneratedClass())
+		if (URigVMBlueprintGeneratedClass* GeneratedClass = RigBlueprint->GetRigVMBlueprintGeneratedClass())
 		{
 			UControlRig* CDO = Cast<UControlRig>(GeneratedClass->GetDefaultObject(true /* create if needed */));
 			if (CDO->VM->GetInstructions().Num() <= 1 /* only exit */)
 			{
 				RigBlueprint->RecompileVM();
-				RigBlueprint->RequestControlRigInit();
+				RigBlueprint->RequestRigVMInit();
 			}
 		}
 
@@ -2248,7 +2250,7 @@ void FControlRigEditor::Compile()
 			return;
 		}
 
-		RigBlueprint->CompileLog.Messages.Reset();
+		RigBlueprint->GetCompileLog().Messages.Reset();
 
 		FString LastDebuggedObjectName = GetCustomDebugObjectLabel(RigBlueprint->GetObjectBeingDebugged());
 		RigBlueprint->SetObjectBeingDebugged(nullptr);
@@ -3258,9 +3260,9 @@ void FControlRigEditor::HandleVMCompiledEvent(UObject* InCompiledObject, URigVM*
 	if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(InCompiledObject))
 	{
 		CompilerResultsListing->ClearMessages();
-		CompilerResultsListing->AddMessages(RigBlueprint->CompileLog.Messages);
-		RigBlueprint->CompileLog.Messages.Reset();
-		RigBlueprint->CompileLog.NumErrors = RigBlueprint->CompileLog.NumWarnings = 0;
+		CompilerResultsListing->AddMessages(RigBlueprint->GetCompileLog().Messages);
+		RigBlueprint->GetCompileLog().Messages.Reset();
+		RigBlueprint->GetCompileLog().NumErrors = RigBlueprint->GetCompileLog().NumWarnings = 0;
 	}
 
 	RefreshDetailView();
@@ -5070,7 +5072,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 	}
 }
 
-void FControlRigEditor::OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier& InFunction, UControlRigBlueprint* InTargetBlueprint, bool bForce)
+void FControlRigEditor::OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier& InFunction, URigVMBlueprint* InTargetBlueprint, bool bForce)
 {
 	check(InTargetBlueprint);
 
@@ -5099,7 +5101,7 @@ void FControlRigEditor::OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdent
 	}
 }
 
-FRigVMController_BulkEditResult FControlRigEditor::OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController,
+FRigVMController_BulkEditResult FControlRigEditor::OnRequestBulkEditDialog(URigVMBlueprint* InBlueprint, URigVMController* InController,
 	URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
 {
 	if (bAllowBulkEdits)
@@ -5557,7 +5559,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 				}
 
 				{
-					FControlRigBlueprintVMCompileScope CompileScope(RigBlueprint);
+					FRigVMBlueprintCompileScope CompileScope(RigBlueprint);
 					for (UEdGraphNode* Node : RigGraph->Nodes)
 					{
 						if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
@@ -6855,7 +6857,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 	}
 }
 
-void FControlRigEditor::HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint)
+void FControlRigEditor::HandleRefreshEditorFromBlueprint(URigVMBlueprint* InBlueprint)
 {
 	OnHierarchyChanged();
 	Compile();
@@ -6930,7 +6932,7 @@ void FControlRigEditor::HandleBreakpointAdded()
 	SetExecutionMode(EControlRigExecutionModeType_Debug);
 }
 
-void FControlRigEditor::OnGraphNodeClicked(UControlRigGraphNode* InNode)
+void FControlRigEditor::OnGraphNodeClicked(URigVMEdGraphNode* InNode)
 {
 	if (InNode)
 	{
@@ -6941,7 +6943,7 @@ void FControlRigEditor::OnGraphNodeClicked(UControlRigGraphNode* InNode)
 	}
 }
 
-void FControlRigEditor::OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, URigVMNode* InNode)
+void FControlRigEditor::OnNodeDoubleClicked(URigVMBlueprint* InBlueprint, URigVMNode* InNode)
 {
 	ensure(GetControlRigBlueprint() == InBlueprint);
 

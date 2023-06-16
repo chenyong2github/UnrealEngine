@@ -8,13 +8,14 @@
 #include "Engine/SkeletalMesh.h"
 #include "Editor/SRigHierarchyTreeView.h"
 #include "Units/RigUnitContext.h"
+#include "ControlRigBlueprint.h"
 #include "SRigHierarchy.generated.h"
 
 class SRigHierarchy;
 class FControlRigEditor;
 class SSearchBox;
 class FUICommandList;
-class UControlRigBlueprint;
+class URigVMBlueprint;
 class UControlRig;
 struct FAssetData;
 class FMenuBuilder;
@@ -85,7 +86,7 @@ public:
 
 private:
 
-	void OnEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint);
+	void OnEditorClose(const FControlRigEditor* InEditor, URigVMBlueprint* InBlueprint);
 
 	/** Bind commands that this widget handles */
 	void BindCommands();
@@ -223,7 +224,7 @@ private:
 	bool bIsChangingRigHierarchy;
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
-	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
+	void HandleRefreshEditorFromBlueprint(URigVMBlueprint* InBlueprint);
 	void HandleSetObjectBeingDebugged(UObject* InObject);
 	void OnPreConstruction_AnyThread(UControlRig* InRig, const FName& InEventName);
 	void OnPostConstruction_AnyThread(UControlRig* InRig, const FName& InEventName);

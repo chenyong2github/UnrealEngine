@@ -198,17 +198,6 @@ void URigVMEdGraphNode::ReconstructNode_Internal(bool bForce)
 		{
 			return;
 		}
-
-		/*
-		 * todoooooooo
-		// if this node has been saved prior to our custom version,
-		// don't reset the node
-		int32 LinkerVersion = RigGraph->GetLinkerCustomVersion(FControlRigObjectVersion::GUID);
-		if (LinkerVersion < FControlRigObjectVersion::SwitchedToRigVM)
-		{
-			return;
-		}
-		*/
 	}
 
 #if WITH_EDITOR

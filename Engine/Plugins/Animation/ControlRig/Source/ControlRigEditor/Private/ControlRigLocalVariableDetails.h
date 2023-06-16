@@ -48,7 +48,7 @@ private:
 	TSharedPtr<IPropertyHandle> TypeObjectHandle;
 	TSharedPtr<IPropertyHandle> DefaultValueHandle;
 
-	FControlRigLocalVariableNameValidator NameValidator;
+	FRigVMLocalVariableNameValidator NameValidator;
 	TArray<TSharedPtr<FString>> EnumOptions;
 
 	FText GetName() const;

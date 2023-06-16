@@ -32,7 +32,7 @@ class FStructOnScope;
 class UToolMenu;
 class FControlRigEditor;
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FControlRigEditorClosed, const FControlRigEditor*, UControlRigBlueprint*);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FControlRigEditorClosed, const FControlRigEditor*, URigVMBlueprint*);
 
 struct FControlRigEditorModes
 {
@@ -360,15 +360,15 @@ private:
 
 	 void HandleOnControlModified(UControlRig* Subject, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context);
 
-	 void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
+	 void HandleRefreshEditorFromBlueprint(URigVMBlueprint* InBlueprint);
 
 	 void HandleVariableDroppedFromBlueprint(UObject* InSubject, FProperty* InVariableToDrop, const FVector2D& InDropPosition, const FVector2D& InScreenPosition);
 
 	 void HandleBreakpointAdded();
 
-	 void OnGraphNodeClicked(UControlRigGraphNode* InNode);
+	 void OnGraphNodeClicked(URigVMEdGraphNode* InNode);
 
-	 void OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, URigVMNode* InNode);
+	 void OnNodeDoubleClicked(URigVMBlueprint* InBlueprint, URigVMNode* InNode);
 
 	 void OnGraphImported(UEdGraph* InEdGraph);
 
@@ -436,8 +436,8 @@ protected:
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	void OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 	void OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperObject* InWrapperObject, const FString& InPropertyPath, FPropertyChangedChainEvent& InPropertyChangedChainEvent);
-	void OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier& InFunction, UControlRigBlueprint* InTargetBlueprint, bool bForce);
-	FRigVMController_BulkEditResult OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
+	void OnRequestLocalizeFunctionDialog(FRigVMGraphFunctionIdentifier& InFunction, URigVMBlueprint* InTargetBlueprint, bool bForce);
+	FRigVMController_BulkEditResult OnRequestBulkEditDialog(URigVMBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
 	bool OnRequestBreakLinksDialog(TArray<URigVMLink*> InLinks);
 	TRigVMTypeIndex OnRequestPinTypeSelectionDialog(const TArray<TRigVMTypeIndex>& InTypes);
 	void HandleJumpToHyperlink(const UObject* InSubject);

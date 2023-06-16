@@ -6,6 +6,7 @@
 #include "RigVMModel/RigVMGraph.h"
 #include "AnimNextGraph_EdGraph.h"
 #include "RigVMCore/RigVMGraphFunctionHost.h"
+#include "RigVMBlueprint.h"
 #include "AnimNextGraph_EditorData.generated.h"
 
 class UAnimNextGraph;
@@ -110,16 +111,13 @@ class UAnimNextGraph_EditorData : public UObject, public IRigVMClientHost, publi
 	TMap<TObjectPtr<URigVMGraph>, TObjectPtr<URigVMController>> Controllers;
 
 	UPROPERTY(EditAnywhere, Category = "User Interface")
-	FRigGraphDisplaySettings RigGraphDisplaySettings;
+	FRigVMEdGraphDisplaySettings RigGraphDisplaySettings;
 
 	UPROPERTY(EditAnywhere, Category = "VM")
 	FRigVMRuntimeSettings VMRuntimeSettings;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM", meta = (AllowPrivateAccess = "true"))
 	FRigVMCompileSettings VMCompileSettings;
-
-	UPROPERTY(EditAnywhere, Category = "Python Log Settings")
-	FControlRigPythonSettings PythonLogSettings;
 
 	UPROPERTY(transient, DuplicateTransient)
 	TMap<FString, FRigVMOperand> PinToOperandMap;
@@ -132,7 +130,7 @@ class UAnimNextGraph_EditorData : public UObject, public IRigVMClientHost, publi
 	
 	FCompilerResultsLog CompileLog;
 
-	FOnVMCompiledEvent VMCompiledEvent;
+	FOnRigVMCompiledEvent VMCompiledEvent;
 	FRigVMGraphModifiedEvent ModifiedEvent;
 
 	bool bAutoRecompileVM = true;

@@ -34,7 +34,7 @@ public:
 	SLATE_BEGIN_ARGS(SControlRigFunctionLocalizationWidget) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FRigVMGraphFunctionIdentifier& InFunctionToLocalize, UControlRigBlueprint* InTargetBlueprint);
+	void Construct(const FArguments& InArgs, const FRigVMGraphFunctionIdentifier& InFunctionToLocalize, URigVMBlueprint* InTargetBlueprint);
 
 	TSharedRef<ITableRow> GenerateFunctionListRow(TSharedPtr<SControlRigFunctionLocalizationItem> InItem, const TSharedRef<STableViewBase>& InOwningTable);
 	ECheckBoxState IsFunctionEnabled(const FRigVMGraphFunctionIdentifier InFunction) const;
@@ -60,7 +60,7 @@ public:
 	}
 
 	SLATE_ARGUMENT(FRigVMGraphFunctionIdentifier, Function)
-	SLATE_ARGUMENT(UControlRigBlueprint*, TargetBlueprint)
+	SLATE_ARGUMENT(URigVMBlueprint*, TargetBlueprint)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);

@@ -54,6 +54,7 @@ namespace UnrealBuildTool.Rules
 					{
 						"BlueprintGraph", // For setting up the Sequencer Dynamic Binding blueprint graphs
 						"ControlRigDeveloper",
+						"RigVMDeveloper",
 						"DeveloperToolSettings",
 						"EditorStyle", // For the font style on the stage actor customization
 						"InputCore", // For keyboard control on the widget in the stage actor customization

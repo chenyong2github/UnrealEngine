@@ -23,7 +23,7 @@
 /// SControlRigFunctionBulkEditWidget
 ///////////////////////////////////////////////////////////
 
-void SControlRigFunctionBulkEditWidget::Construct(const FArguments& InArgs, UControlRigBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
+void SControlRigFunctionBulkEditWidget::Construct(const FArguments& InArgs, URigVMBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
 {
 	Blueprint = InBlueprint;
 	Controller = InController;

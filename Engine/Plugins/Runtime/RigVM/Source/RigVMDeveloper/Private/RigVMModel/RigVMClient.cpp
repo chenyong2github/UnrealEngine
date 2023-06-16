@@ -33,7 +33,12 @@ void FRigVMClient::SetSchemaClass(TSubclassOf<URigVMSchema> InSchemaClass)
 	}
 
 	SchemaClass = InSchemaClass;
-	GetOrCreateSchema();
+
+	URigVMSchema* Schema = GetOrCreateSchema();
+	for(auto& Pair : Controllers)
+	{
+		Pair.Value->SetSchema(Schema);
+	}
 }
 
 void FRigVMClient::SetOuterClientHost(UObject* InOuterClientHost, const FName& InOuterClientHostPropertyName)

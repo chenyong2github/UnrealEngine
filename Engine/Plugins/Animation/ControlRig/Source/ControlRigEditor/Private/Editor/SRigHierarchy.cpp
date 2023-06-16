@@ -272,7 +272,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 	CreateDragDropMenu();
 }
 
-void SRigHierarchy::OnEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint)
+void SRigHierarchy::OnEditorClose(const FControlRigEditor* InEditor, URigVMBlueprint* InBlueprint)
 {
 	if (InEditor)
 	{
@@ -282,9 +282,9 @@ void SRigHierarchy::OnEditorClose(const FControlRigEditor* InEditor, UControlRig
 		Editor->OnViewportContextMenuCommands().Unbind();
 	}
 
-	if (InBlueprint)
+	if (UControlRigBlueprint* BP = Cast<UControlRigBlueprint>(InBlueprint))
 	{
-		InBlueprint->Hierarchy->OnModified().RemoveAll(this);
+		BP->Hierarchy->OnModified().RemoveAll(this);
 		InBlueprint->OnRefreshEditor().RemoveAll(this);
 		InBlueprint->OnSetObjectBeingDebugged().RemoveAll(this);
 	}
@@ -820,7 +820,7 @@ void SRigHierarchy::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNo
 	}
 }
 
-void SRigHierarchy::HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint)
+void SRigHierarchy::HandleRefreshEditorFromBlueprint(URigVMBlueprint* InBlueprint)
 {
 	if (bIsChangingRigHierarchy)
 	{

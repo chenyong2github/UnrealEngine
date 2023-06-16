@@ -29,7 +29,7 @@ public:
 	virtual void HandleRigVMGraphRenamed(const FString& InOldNodePath, const FString& InNewNodePath) override;
 
 	/** Set up this graph */
-	virtual void Initialize(URigVMBlueprint* InBlueprint);
+	virtual void InitializeFromBlueprint(URigVMBlueprint* InBlueprint);
 
 	/** Get the ed graph schema */
 	const URigVMEdGraphSchema* GetRigVMEdGraphSchema();
@@ -53,7 +53,7 @@ public:
 	const URigVMEdGraph* GetRootGraph() const;
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
-	void ConsumeQueuedNotifications();
+	virtual bool HandleModifiedEvent_Internal(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	int32 GetInstructionIndex(const URigVMEdGraphNode* InNode, bool bAsInput);
 
@@ -62,6 +62,10 @@ public:
 
 	UPROPERTY()
 	bool bIsFunctionDefinition;
+
+protected:
+	using Super::AddNode;
+	virtual void AddNode(UEdGraphNode* NodeToAdd, bool bUserAction = false, bool bSelectNewNode = true) override;
 
 private:
 
@@ -112,4 +116,17 @@ private:
 	friend class FControlRigEditor;
 	friend class SControlRigGraphNode;
 	friend class URigVMBlueprint;
+
+	// todo
+	friend class UControlRigUnitNodeSpawner;
+	friend class UControlRigVariableNodeSpawner;
+	friend class UControlRigParameterNodeSpawner;
+	friend class UControlRigBranchNodeSpawner;
+	friend class UControlRigIfNodeSpawner;
+	friend class UControlRigSelectNodeSpawner;
+	friend class UControlRigTemplateNodeSpawner;
+	friend class UControlRigEnumNodeSpawner;
+	friend class UControlRigFunctionRefNodeSpawner;
+	friend class UControlRigArrayNodeSpawner;
+	friend class UControlRigInvokeEntryNodeSpawner;
 };

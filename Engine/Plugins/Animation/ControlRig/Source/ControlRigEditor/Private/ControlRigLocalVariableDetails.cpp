@@ -40,7 +40,7 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 			BlueprintBeingCustomized = GraphBeingCustomized->GetTypedOuter<UControlRigBlueprint>();
 		}
 
-		NameValidator = FControlRigLocalVariableNameValidator(BlueprintBeingCustomized, GraphBeingCustomized, VariableDescription.Name);
+		NameValidator = FRigVMLocalVariableNameValidator(BlueprintBeingCustomized, GraphBeingCustomized, VariableDescription.Name);
 	}
 
 	DetailBuilder.HideCategory(TEXT("RigVMGraphVariableDescription"));
@@ -92,7 +92,7 @@ void FRigVMLocalVariableDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 
 	if (BlueprintBeingCustomized)
 	{
-		URigVMBlueprintGeneratedClass* RigClass = BlueprintBeingCustomized->GetControlRigBlueprintGeneratedClass();
+		URigVMBlueprintGeneratedClass* RigClass = BlueprintBeingCustomized->GetRigVMBlueprintGeneratedClass();
 		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 		if (CDO->GetVM() != nullptr)
 		{
@@ -164,7 +164,7 @@ FEdGraphPinType FRigVMLocalVariableDetails::OnGetPinInfo() const
 void FRigVMLocalVariableDetails::HandlePinInfoChanged(const FEdGraphPinType& PinType)
 {
 	VariableDescription.ChangeType(PinType);
-	FControlRigBlueprintVMCompileScope CompileScope(BlueprintBeingCustomized);
+	FRigVMBlueprintCompileScope CompileScope(BlueprintBeingCustomized);
 	TypeHandle->SetValue(VariableDescription.CPPType);
 	TypeObjectHandle->SetValue(VariableDescription.CPPTypeObject);	
 }

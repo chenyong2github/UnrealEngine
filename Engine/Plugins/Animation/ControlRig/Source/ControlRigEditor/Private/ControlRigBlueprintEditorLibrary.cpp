@@ -66,7 +66,7 @@ void UControlRigBlueprintEditorLibrary::RequestControlRigInit(UControlRigBluepri
 	{
 		return;
 	}
-	InRigBlueprint->RequestControlRigInit();
+	InRigBlueprint->RequestRigVMInit();
 }
 
 URigVMGraph* UControlRigBlueprintEditorLibrary::GetModel(UControlRigBlueprint* InRigBlueprint)
@@ -94,7 +94,8 @@ TArray<UControlRigBlueprint*> UControlRigBlueprintEditorLibrary::GetCurrentlyOpe
 
 TArray<UStruct*> UControlRigBlueprintEditorLibrary::GetAvailableRigUnits()
 {
-	return UControlRigBlueprint::GetAvailableRigUnits();
+	UControlRigBlueprint* CDO = CastChecked<UControlRigBlueprint>(UControlRigBlueprint::StaticClass()->GetDefaultObject());
+	return CDO->GetAvailableRigVMStructs();
 }
 
 URigHierarchy* UControlRigBlueprintEditorLibrary::GetHierarchy(UControlRigBlueprint* InRigBlueprint)

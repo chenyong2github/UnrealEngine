@@ -68,6 +68,10 @@ static TArray<UClass*> GetClassObjectsInPackage(UPackage* InPackage)
 FSoftObjectPath URigVMBlueprint::PreDuplicateAssetPath;
 FSoftObjectPath URigVMBlueprint::PreDuplicateHostPath;
 
+URigVMBlueprint::URigVMBlueprint()
+{
+}
+
 URigVMBlueprint::URigVMBlueprint(const FObjectInitializer& ObjectInitializer)
 {
 	bSuspendModelNotificationsForSelf = false;
@@ -86,24 +90,6 @@ URigVMBlueprint::URigVMBlueprint(const FObjectInitializer& ObjectInitializer)
 	bIsCompiling = false;
 	VMRecompilationBracket = 0;
 
-	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(URigVMBlueprint, RigVMClient));
-	RigVMClient.SetSchemaClass(GetRigVMSchemaClass());
-	{
-		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
-		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer, false);
-		RigVMClient.AddModel(FRigVMClient::RigVMModelPrefix, false, &ObjectInitializer, false);
-	}
-	RigVMClient.SetExecuteContextStruct(GetRigVMExecuteContextStruct());
-	
-	FunctionLibraryEdGraph = Cast<URigVMEdGraph>(ObjectInitializer.CreateDefaultSubobject(this, TEXT("RigVMFunctionLibraryEdGraph"), GetRigVMEdGraphClass(), GetRigVMEdGraphClass()));
-	FunctionLibraryEdGraph->Schema = GetRigVMEdGraphSchemaClass();
-	FunctionLibraryEdGraph->bAllowRenaming = 0;
-	FunctionLibraryEdGraph->bEditable = 0;
-	FunctionLibraryEdGraph->bAllowDeletion = 0;
-	FunctionLibraryEdGraph->bIsFunctionDefinition = false;
-	FunctionLibraryEdGraph->ModelNodePath = RigVMClient.GetFunctionLibrary()->GetNodePath();
-	FunctionLibraryEdGraph->Initialize(this);
-
 	bUpdatingExternalVariables = false;
 	
 	bDirtyDuringLoad = false;
@@ -118,10 +104,44 @@ URigVMBlueprint::URigVMBlueprint(const FObjectInitializer& ObjectInitializer)
 	CompileLog.bLogDetailedResults = false;
 	CompileLog.EventDisplayThresholdMs = false;
 #endif
+
+	if(GetClass() == URigVMBlueprint::StaticClass())
+	{
+		CommonInitialization(ObjectInitializer);
+	}
 }
 
-URigVMBlueprint::URigVMBlueprint()
+void URigVMBlueprint::CommonInitialization(const FObjectInitializer& ObjectInitializer)
 {
+	// guard against this running multiple times
+	check(GetRigVMClient()->GetSchema() == nullptr);
+	
+	RigVMClient.SetSchemaClass(GetRigVMSchemaClass());
+	RigVMClient.SetExecuteContextStruct(GetRigVMExecuteContextStruct());
+
+	for(UEdGraph* UberGraph : UbergraphPages)
+	{
+		if(URigVMEdGraph* EdGraph = Cast<URigVMEdGraph>(UberGraph))
+		{
+			EdGraph->Schema = GetRigVMEdGraphSchemaClass();
+		}
+	}
+
+	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(URigVMBlueprint, RigVMClient));
+	{
+		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
+		RigVMClient.GetOrCreateFunctionLibrary(false, &ObjectInitializer, false);
+		RigVMClient.AddModel(FRigVMClient::RigVMModelPrefix, false, &ObjectInitializer, false);
+	}
+
+ 	FunctionLibraryEdGraph = Cast<URigVMEdGraph>(CreateDefaultSubobject(TEXT("RigVMFunctionLibraryEdGraph"), GetRigVMEdGraphClass(), GetRigVMEdGraphClass(), true, true));
+	FunctionLibraryEdGraph->Schema = GetRigVMEdGraphSchemaClass();
+	FunctionLibraryEdGraph->bAllowRenaming = 0;
+	FunctionLibraryEdGraph->bEditable = 0;
+	FunctionLibraryEdGraph->bAllowDeletion = 0;
+	FunctionLibraryEdGraph->bIsFunctionDefinition = false;
+	FunctionLibraryEdGraph->ModelNodePath = RigVMClient.GetFunctionLibrary()->GetNodePath();
+	FunctionLibraryEdGraph->InitializeFromBlueprint(this);
 }
 
 void URigVMBlueprint::InitializeModelIfRequired(bool bRecompileVM)
@@ -146,7 +166,7 @@ void URigVMBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 					bRecompileRequired = true;
 				}
 
-				Graph->Initialize(this);
+				Graph->InitializeFromBlueprint(this);
 			}
 		}
 
@@ -155,7 +175,7 @@ void URigVMBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 			RecompileVM();
 		}
 
-		FunctionLibraryEdGraph->Initialize(this);
+		FunctionLibraryEdGraph->InitializeFromBlueprint(this);
 	}
 }
 
@@ -224,14 +244,6 @@ bool URigVMBlueprint::RequiresForceLoadMembers(UObject* InObject) const
 		return UBlueprint::RequiresForceLoadMembers(InObject);
 	}
 
-	/* todoooo
-	// old assets don't support preload filtering
-	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RemoveParameters)
-	{
-		return UBlueprint::RequiresForceLoadMembers(InObject);
-	}
-	*/
-	
 	// we can stop traversing when hitting a URigVMNode
 	// except for collapse nodes - since they contain a graphs again
 	// and variable  nodes - since they are needed during preload by the BP compiler
@@ -667,6 +679,13 @@ void URigVMBlueprint::Serialize(FArchive& Ar)
 			TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
 			RigVMClient.SetFromDeprecatedData(Model_DEPRECATED, FunctionLibrary_DEPRECATED);
 		}
+
+		TArray<UEdGraph*> EdGraphs;
+		GetAllGraphs(EdGraphs);
+		for (UEdGraph* EdGraph : EdGraphs)
+		{
+			EdGraph->Schema = GetRigVMEdGraphSchemaClass();
+		}
 	}
 }
 
@@ -751,7 +770,7 @@ void URigVMBlueprint::PostLoad()
 		for (UEdGraph* Graph : UbergraphPages)
 		{
 			URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(Graph);
-			if (RigGraph)
+			if (RigGraph && RigGraph->GetClass() == GetRigVMEdGraphClass())
 			{
 				NewUberGraphPages.Add(RigGraph);
 			}
@@ -1032,8 +1051,7 @@ void URigVMBlueprint::RecompileVM()
 		TGuardValue<bool> ReentrantGuardSelf(bSuspendModelNotificationsForSelf, true);
 		TGuardValue<bool> ReentrantGuardOthers(bSuspendModelNotificationsForOthers, true);
 
-		CDO->PostInitInstanceIfRequired();
-		CDO->VMRuntimeSettings = VMRuntimeSettings;
+		SetupDefaultObjectDuringCompilation(CDO);
 
 		if (!HasAnyFlags(RF_Transient | RF_Transactional))
 		{
@@ -1106,7 +1124,7 @@ void URigVMBlueprint::RecompileVM()
 		VMCompiledEvent.Broadcast(this, CDO->VM);
 
 #if WITH_EDITOR
-		RefreshControlRigBreakpoints();
+		RefreshBreakpoints();
 #endif
 	}
 }
@@ -1440,7 +1458,7 @@ void URigVMBlueprint::ClearBreakpoints()
 	}
 	
 	RigVMBreakpointNodes.Empty();
-	RefreshControlRigBreakpoints();
+	RefreshBreakpoints();
 }
 
 bool URigVMBlueprint::AddBreakpoint(const FString& InBreakpointNodePath)
@@ -1526,7 +1544,7 @@ bool URigVMBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLibraryN
 		if (!RigVMBreakpointNodes.Contains(InBreakpointNode))
 		{
 			// Add the breakpoint to the VM
-			bSuccess = AddBreakpointToControlRig(InBreakpointNode);
+			bSuccess = AddBreakpointToHost(InBreakpointNode);
 			BreakpointAddedEvent.Broadcast();
 		}
 	}
@@ -1534,7 +1552,7 @@ bool URigVMBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLibraryN
 	return bSuccess;
 }
 
-bool URigVMBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNode)
+bool URigVMBlueprint::AddBreakpointToHost(URigVMNode* InBreakpointNode)
 {
 	URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass();
 	URigVMHost* CDO = Cast<URigVMHost>(RigClass->GetDefaultObject(false));
@@ -1637,15 +1655,14 @@ bool URigVMBlueprint::RemoveBreakpoint(URigVMNode* InBreakpointNode)
 		// is another breakpoint node addressing it. For that reason, we just recompute all the
 		// breakpoint instructions.
 		// Refreshing breakpoints in the control rig will keep the state it had before.
-		RefreshControlRigBreakpoints();
+		RefreshBreakpoints();
 		return true;
 	}
 
 	return false;
 }
 
-
-void URigVMBlueprint::RefreshControlRigBreakpoints()
+void URigVMBlueprint::RefreshBreakpoints()
 {
 	if (URigVMBlueprintGeneratedClass* RigClass = GetRigVMBlueprintGeneratedClass())
 	{
@@ -1653,7 +1670,7 @@ void URigVMBlueprint::RefreshControlRigBreakpoints()
 		CDO->GetDebugInfo().Reset();
 		for (URigVMNode* Node : RigVMBreakpointNodes)
 		{
-			AddBreakpointToControlRig(Node);
+			AddBreakpointToHost(Node);
 		}
 	}
 }
@@ -1677,6 +1694,12 @@ TArray<FRigVMReferenceNodeData> URigVMBlueprint::GetReferenceNodeData() const
 }
 
 #endif
+
+void URigVMBlueprint::SetupDefaultObjectDuringCompilation(URigVMHost* InCDO)
+{
+	InCDO->PostInitInstanceIfRequired();
+	InCDO->VMRuntimeSettings = VMRuntimeSettings;
+}
 
 void URigVMBlueprint::RequestRigVMInit()
 {
@@ -1811,13 +1834,18 @@ URigVMController* URigVMBlueprint::GetOrCreateController(const UEdGraph* InEdGra
 TArray<FString> URigVMBlueprint::GeneratePythonCommands(const FString InNewBlueprintName)
 {
 	TArray<FString> InternalCommands;
-	InternalCommands.Add(TEXT("unreal.load_module('ControlRigDeveloper')"));
-	InternalCommands.Add(TEXT("factory = unreal.ControlRigBlueprintFactory"));
-	InternalCommands.Add(FString::Printf(TEXT("blueprint = factory.create_new_control_rig_asset(desired_package_path = '%s')"), *InNewBlueprintName));
+
+	if(GetClass() == StaticClass())
+	{
+		InternalCommands.Add(TEXT("import unreal"));
+		InternalCommands.Add(TEXT("unreal.load_module('RigVMDeveloper')"));
+		InternalCommands.Add(TEXT("blueprint = unreal.RigVMBlueprint()"));
+		InternalCommands.Add(TEXT("hierarchy = blueprint.hierarchy"));
+		InternalCommands.Add(TEXT("hierarchy_controller = hierarchy.get_controller()"));
+	}
+
 	InternalCommands.Add(TEXT("library = blueprint.get_local_function_library()"));
 	InternalCommands.Add(TEXT("library_controller = blueprint.get_controller(library)"));
-	InternalCommands.Add(TEXT("hierarchy = blueprint.hierarchy"));
-	InternalCommands.Add(TEXT("hierarchy_controller = hierarchy.get_controller()"));
 	InternalCommands.Add(TEXT("blueprint.set_auto_vm_recompile(False)"));
 	
 	// Add variables
@@ -2062,13 +2090,13 @@ TArray<FString> URigVMBlueprint::GeneratePythonCommands(const FString InNewBluep
 	// We do not want to pollute the global state with our definitions
 	TArray<FString> Commands;
 	Commands.Add(FString::Printf(TEXT("import unreal\n"
-		"def create_control_rig():\n")));
+		"def create_asset():\n")));
 	for (const FString& InnerCmd : InnerFunctionCmds)
 	{
 		Commands.Add(FString::Printf(TEXT("\t%s"), *InnerCmd));
 	}
 
-	Commands.Add(TEXT("create_control_rig()\n"));
+	Commands.Add(TEXT("create_asset()\n"));
 	return Commands;
 }
 
@@ -2334,10 +2362,7 @@ void URigVMBlueprint::ReplaceDeprecatedNodes()
 
 	for (UEdGraph* EdGraph : EdGraphs)
 	{
-		if (URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(EdGraph))
-		{
-			RigGraph->Schema = URigVMEdGraphSchema::StaticClass();
-		}
+		EdGraph->Schema = GetRigVMEdGraphSchemaClass();
 	}
 
 	Super::ReplaceDeprecatedNodes();
@@ -2434,7 +2459,7 @@ FRigVMGraphModifiedEvent& URigVMBlueprint::OnModified()
 }
 
 
-FOnVMCompiledEvent& URigVMBlueprint::OnVMCompiled()
+FOnRigVMCompiledEvent& URigVMBlueprint::OnVMCompiled()
 {
 	return VMCompiledEvent;
 }
@@ -3779,11 +3804,11 @@ UEdGraph* URigVMBlueprint::CreateEdGraph(URigVMGraph* InModel, bool bForce)
 
 	GraphName = RigVMClient.GetUniqueName(*GraphName).ToString();
 
-	URigVMEdGraph* RigVMEdGraph = NewObject<URigVMEdGraph>(this, *GraphName, RF_Transactional);
-	RigVMEdGraph->Schema = URigVMEdGraphSchema::StaticClass();
+	URigVMEdGraph* RigVMEdGraph = NewObject<URigVMEdGraph>(this, GetRigVMEdGraphClass(), *GraphName, RF_Transactional);
+	RigVMEdGraph->Schema = GetRigVMEdGraphSchemaClass();
 	RigVMEdGraph->bAllowDeletion = true;
 	RigVMEdGraph->ModelNodePath = InModel->GetNodePath();
-	RigVMEdGraph->Initialize(this);
+	RigVMEdGraph->InitializeFromBlueprint(this);
 	
 	FBlueprintEditorUtils::AddUbergraphPage(this, RigVMEdGraph);
 	LastEditedDocuments.AddUnique(RigVMEdGraph);
@@ -3857,8 +3882,8 @@ void URigVMBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* I
 			if (!bFunctionGraphExists)
 			{
 				// create a sub graph
-				URigVMEdGraph* RigFunctionGraph = NewObject<URigVMEdGraph>(this, *InNode->GetName(), RF_Transactional);
-				RigFunctionGraph->Schema = URigVMEdGraphSchema::StaticClass();
+				URigVMEdGraph* RigFunctionGraph = NewObject<URigVMEdGraph>(this, GetRigVMEdGraphClass(), *InNode->GetName(), RF_Transactional);
+				RigFunctionGraph->Schema = GetRigVMEdGraphSchemaClass();
 				RigFunctionGraph->bAllowRenaming = 1;
 				RigFunctionGraph->bEditable = 1;
 				RigFunctionGraph->bAllowDeletion = 1;
@@ -3867,7 +3892,7 @@ void URigVMBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* I
 
 				FunctionGraphs.Add(RigFunctionGraph);
 
-				RigFunctionGraph->Initialize(this);
+				RigFunctionGraph->InitializeFromBlueprint(this);
 
 				GetOrCreateController(ContainedGraph)->ResendAllNotifications();
 			}
@@ -3900,8 +3925,8 @@ void URigVMBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* I
 				}
 				
 				// create a sub graph
-				URigVMEdGraph* SubRigGraph = NewObject<URigVMEdGraph>(RigGraph, *InNode->GetEditorSubGraphName(), RF_Transactional);
-				SubRigGraph->Schema = URigVMEdGraphSchema::StaticClass();
+				URigVMEdGraph* SubRigGraph = NewObject<URigVMEdGraph>(RigGraph, GetRigVMEdGraphClass(), *InNode->GetEditorSubGraphName(), RF_Transactional);
+				SubRigGraph->Schema = GetRigVMEdGraphSchemaClass();
 				SubRigGraph->bAllowRenaming = 1;
 				SubRigGraph->bEditable = bEditable;
 				SubRigGraph->bAllowDeletion = 1;
@@ -3910,7 +3935,7 @@ void URigVMBlueprint::CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* I
 
 				RigGraph->SubGraphs.Add(SubRigGraph);
 
-				SubRigGraph->Initialize(this);
+				SubRigGraph->InitializeFromBlueprint(this);
 
 				GetOrCreateController(ContainedGraph)->ResendAllNotifications();
 			}

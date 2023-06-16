@@ -118,7 +118,7 @@ private:
 	TWeakPtr<SEditableTextBox> ArgumentNameWidget;
 
 	/** The validator to check if a name for an argument is valid */
-	FControlRigLocalVariableNameValidator NameValidator;
+	FRigVMLocalVariableNameValidator NameValidator;
 };
 
 class FControlRigArgumentDefaultNode : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentDefaultNode>

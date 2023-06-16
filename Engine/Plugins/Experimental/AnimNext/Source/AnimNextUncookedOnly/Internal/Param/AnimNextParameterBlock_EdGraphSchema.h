@@ -13,7 +13,7 @@ class UAnimNextParameterBlock_EdGraphSchema : public UControlRigGraphSchema
 	GENERATED_BODY()
 
 	// UControlRigGraphSchema interface
-	virtual TSubclassOf<UControlRigGraphNode> GetGraphNodeClass() const override { return UAnimNextParameterBlock_EdGraphNode::StaticClass(); }
+	virtual TSubclassOf<URigVMEdGraphNode> GetGraphNodeClass(const URigVMEdGraph* InGraph) const override { return UAnimNextParameterBlock_EdGraphNode::StaticClass(); }
 
 	// UEdGraphSchema interface
 	virtual void TrySetDefaultValue(UEdGraphPin& InPin, const FString& InNewDefaultValue, bool bMarkAsModified) const override;

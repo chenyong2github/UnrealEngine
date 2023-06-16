@@ -252,6 +252,8 @@ public:
 public:
 	URigVMEdGraphSchema();
 
+	virtual const FName& GetGraphNameForUI() const { return GraphName_RigVM; }
+
 	// UEdGraphSchema interface
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
 	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
@@ -325,7 +327,7 @@ public:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	// Allow derived classes to spawn derived node classes
-	virtual TSubclassOf<URigVMEdGraphNode> GetGraphNodeClass() const { return URigVMEdGraphNode::StaticClass(); }
+	virtual TSubclassOf<URigVMEdGraphNode> GetGraphNodeClass(const URigVMEdGraph* InGraph) const;
 
 	virtual bool IsRigVMDefaultEvent(const FName& InEventName) const;
 

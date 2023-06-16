@@ -16,7 +16,7 @@ public:
 	SLATE_BEGIN_ARGS(SControlRigFunctionBulkEditWidget) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UControlRigBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
+	void Construct(const FArguments& InArgs, URigVMBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
 
 private:
 
@@ -29,7 +29,7 @@ private:
 	/** Show a progress bar and load all of the assets */
 	void LoadAffectedAssets();
 
-	UControlRigBlueprint* Blueprint;
+	URigVMBlueprint* Blueprint;
 	URigVMController* Controller;
 	URigVMLibraryNode* Function;
 	ERigVMControllerBulkEditType EditType;
@@ -47,7 +47,7 @@ public:
 	{
 	}
 
-	SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
+	SLATE_ARGUMENT(URigVMBlueprint*, Blueprint)
 	SLATE_ARGUMENT(URigVMController*, Controller)
 	SLATE_ARGUMENT(URigVMLibraryNode*, Function)
 	SLATE_ARGUMENT(ERigVMControllerBulkEditType, EditType)

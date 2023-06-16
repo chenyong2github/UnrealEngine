@@ -23,6 +23,7 @@ public class PoseCorrectivesEditor : ModuleRules
 				"ControlRig",
 				"ControlRigDeveloper",
 				"ControlRigEditor",
+				"RigVMDeveloper",
 			}
 			);
 			

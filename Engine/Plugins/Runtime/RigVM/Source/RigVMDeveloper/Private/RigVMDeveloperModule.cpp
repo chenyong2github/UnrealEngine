@@ -6,7 +6,23 @@
 
 #include "RigVMDeveloperModule.h"
 #include "Modules/ModuleManager.h"
-
-IMPLEMENT_MODULE(FDefaultModuleImpl, RigVMDeveloper);
+#include "RigVMBlueprint.h"
 
 DEFINE_LOG_CATEGORY(LogRigVMDeveloper);
+
+class FRigVMDeveloperModule : public IModuleInterface
+{
+public:
+	/** IModuleInterface implementation */
+	virtual void StartupModule() override
+	{
+	}
+
+	virtual void ShutdownModule() override
+	{
+	}
+};
+
+IMPLEMENT_MODULE(FRigVMDeveloperModule, RigVMDeveloper);
+
+

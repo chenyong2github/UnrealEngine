@@ -2,29 +2,11 @@
 
 #include "Graph/ControlRigGraph.h"
 #include "ControlRigBlueprint.h"
-#include "RigVMBlueprintGeneratedClass.h"
-#include "Graph/ControlRigGraphSchema.h"
 #include "ControlRig.h"
 #include "RigVMModel/RigVMGraph.h"
-#include "ControlRigObjectVersion.h"
 #include "Units/RigUnit.h"
-#include "EdGraphNode_Comment.h"
-#include "GraphEditAction.h"
-#include "Units/Execution/RigUnit_BeginExecution.h"
-#include "RigVMModel/Nodes/RigVMLibraryNode.h"
-#include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
-#include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
-#include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigGraph)
-
-#if WITH_EDITOR
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "RigVMBlueprintUtils.h"
-#include "BlueprintCompilationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Framework/Notifications/NotificationManager.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "ControlRigGraph"
 
@@ -32,119 +14,29 @@ UControlRigGraph::UControlRigGraph()
 {
 	bSuspendModelNotifications = false;
 	bIsTemporaryGraphForCopyPaste = false;
-	bIsSelecting = false;
 	LastHierarchyTopologyVersion = INDEX_NONE;
 	bIsFunctionDefinition = false;
 }
 
-FRigVMClient* UControlRigGraph::GetRigVMClient() const
-{
-	if (const IRigVMClientHost* Host = GetImplementingOuter<IRigVMClientHost>())
-	{
-		return (FRigVMClient*)Host->GetRigVMClient();
-	}
-	return nullptr;
-}
-
-FString UControlRigGraph::GetRigVMNodePath() const
-{
-	return ModelNodePath;
-}
-
-void UControlRigGraph::HandleRigVMGraphRenamed(const FString& InOldNodePath, const FString& InNewNodePath)
-{
-	static constexpr TCHAR NodePathPrefixFormat[] = TEXT("%s|");
-	const FString OldPrefix = FString::Printf(NodePathPrefixFormat, *InOldNodePath); 
-	const FString NewPrefix = FString::Printf(NodePathPrefixFormat, *InNewNodePath);
-	
-	if(ModelNodePath == InOldNodePath)
-	{
-		Modify();
-		ModelNodePath = InNewNodePath;
-
-		FString GraphName;
-		if(!ModelNodePath.Split(TEXT("|"), nullptr, &GraphName, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
-		{
-			GraphName = ModelNodePath;
-		}
-		GraphName.RemoveFromEnd(TEXT("::"));
-		GraphName.RemoveFromStart(FRigVMClient::RigVMModelPrefix);
-		GraphName.TrimStartAndEndInline();
-
-		if(GraphName.IsEmpty())
-		{
-			GraphName = UControlRigGraphSchema::GraphName_ControlRig.ToString(); 
-		}
-		GraphName = FRigVMClient::GetUniqueName(GetOuter(), *GraphName).ToString();
-
-		Rename(*GraphName, nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
-	}
-	else if(ModelNodePath.StartsWith(OldPrefix))
-	{
-		Modify();
-		ModelNodePath = NewPrefix + ModelNodePath.RightChop(OldPrefix.Len() - 1);
-	}
-	else
-	{
-		return;
-	}
-
-	for(UEdGraphNode* Node : Nodes)
-	{
-		if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
-		{
-			if(RigNode->ModelNodePath.StartsWith(OldPrefix))
-			{
-				RigNode->Modify();
-				RigNode->ModelNodePath = NewPrefix + RigNode->ModelNodePath.RightChop(OldPrefix.Len() - 1);
-			}
-		}
-	}
-}
-
-void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
+void UControlRigGraph::InitializeFromBlueprint(URigVMBlueprint* InBlueprint)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	InBlueprint->OnModified().RemoveAll(this);
-	InBlueprint->OnModified().AddUObject(this, &UControlRigGraph::HandleModifiedEvent);
-	InBlueprint->OnVMCompiled().RemoveAll(this);
-	InBlueprint->OnVMCompiled().AddUObject(this, &UControlRigGraph::HandleVMCompiledEvent);
+	Super::InitializeFromBlueprint(InBlueprint);
 
-	URigHierarchy* Hierarchy = InBlueprint->Hierarchy;
+	const UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(InBlueprint);
+	URigHierarchy* Hierarchy = ControlRigBlueprint->Hierarchy;
 
-	if(UControlRig* ControlRig = Cast<UControlRig>(InBlueprint->GetObjectBeingDebugged()))
+	if(UControlRig* ControlRig = Cast<UControlRig>(ControlRigBlueprint->GetObjectBeingDebugged()))
 	{
 		Hierarchy = ControlRig->GetHierarchy();
 	}
 
 	if(Hierarchy)
 	{
-		CacheNameLists(Hierarchy, &InBlueprint->DrawContainer, InBlueprint->ShapeLibraries);
+		CacheNameLists(Hierarchy, &ControlRigBlueprint->DrawContainer, ControlRigBlueprint->ShapeLibraries);
 	}
 }
-
-const UControlRigGraphSchema* UControlRigGraph::GetControlRigGraphSchema()
-{
-	return CastChecked<const UControlRigGraphSchema>(GetSchema());
-}
-
-#if WITH_EDITORONLY_DATA
-void UControlRigGraph::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
-
-	if (Ar.IsLoading())
-	{
-		if(Schema == nullptr || !Schema->IsChildOf(UControlRigGraphSchema::StaticClass()))
-		{
-			Schema = UControlRigGraphSchema::StaticClass();
-		}
-	}
-}
-#endif
 
 #if WITH_EDITOR
 
@@ -194,7 +86,7 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FRigVMDr
 	EntryNameList.Reset();
 	EntryNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
 
-	if(const UControlRigBlueprint* Blueprint = GetBlueprint())
+	if(const UControlRigBlueprint* Blueprint = CastChecked<UControlRigBlueprint>(GetBlueprint()))
 	{
 		const TArray<FName> EntryNames = Blueprint->GetRigVMClient()->GetEntryNames();
 		for (const FName& EntryName : EntryNames)
@@ -254,7 +146,7 @@ const TArray<TSharedPtr<FString>>* UControlRigGraph::GetElementNameList(ERigElem
 	
 	if(!ElementNameLists.Contains(InElementType))
 	{
-		UControlRigBlueprint* Blueprint = GetBlueprint();
+		const UControlRigBlueprint* Blueprint = CastChecked<UControlRigBlueprint>(GetBlueprint());
 		if(Blueprint == nullptr)
 		{
 			return &EmptyElementNameList;
@@ -304,7 +196,7 @@ const TArray<TSharedPtr<FString>> UControlRigGraph::GetSelectedElementsNameList(
 		return OuterGraph->GetSelectedElementsNameList();
 	}
 	
-	UControlRigBlueprint* Blueprint = GetBlueprint();
+	const UControlRigBlueprint* Blueprint = CastChecked<UControlRigBlueprint>(GetBlueprint());
 	if(Blueprint == nullptr)
 	{
 		return Result;
@@ -348,387 +240,27 @@ const TArray<TSharedPtr<FString>>* UControlRigGraph::GetShapeNameList(URigVMPin*
 	return &ShapeNameList;
 }
 
+#endif
 
-void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
+bool UControlRigGraph::HandleModifiedEvent_Internal(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	if (bSuspendModelNotifications)
+	if(!Super::HandleModifiedEvent_Internal(InNotifType, InGraph, InSubject))
 	{
-		return;
-	}
-
-	// only make sure to receive notifs for this graph - unless
-	// we are on a template graph (used by node spawners)
-	if (GetModel() != InGraph && TemplateController == nullptr)
-	{
-		return;
-	}
-
-	if(UControlRigGraphSchema* ControlRigSchema = (UControlRigGraphSchema*)GetControlRigGraphSchema())
-	{
-		ControlRigSchema->HandleModifiedEvent(InNotifType, InGraph, InSubject);
-	}
-
-	if(TemplateController)
-	{
-		switch(InNotifType)
-		{
-			case ERigVMGraphNotifType::NodeRemoved:
-			case ERigVMGraphNotifType::PinTypeChanged:
-			case ERigVMGraphNotifType::PinDefaultValueChanged:
-			case ERigVMGraphNotifType::PinRemoved:
-			case ERigVMGraphNotifType::PinRenamed:
-			case ERigVMGraphNotifType::VariableRemoved:
-			case ERigVMGraphNotifType::VariableRenamed:
-			case ERigVMGraphNotifType::GraphChanged:
-			{
-				return;
-			}
-			default:
-			{
-				break;
-			}
-		}
-	}
-
-	// increment the node topology version for any interaction
-	// with a node.
-	{
-		UControlRigGraphNode* EdNode = nullptr;
-		if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-		{
-			EdNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName()));
-		}
-		else if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
-		{
-			EdNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName()));
-		}
-
-		if(EdNode)
-		{
-			EdNode->NodeTopologyVersion++;
-		}
+		return false;
 	}
 
 	switch (InNotifType)
 	{
-		case ERigVMGraphNotifType::GraphChanged:
-		{
-			ModelNodePathToEdNode.Reset();
-
-			for (URigVMNode* Node : InGraph->GetNodes())
-			{
-				UEdGraphNode* EdNode = FindNodeForModelNodeName(Node->GetFName(), false);
-				if (EdNode != nullptr)
-				{
-					RemoveNode(EdNode);
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodeSelectionChanged:
-		{
-			if (bIsSelecting)
-			{
-				return;
-			}
-			TGuardValue<bool> SelectionGuard(bIsSelecting, true);
-
-			TSet<const UEdGraphNode*> NodeSelection;
-			for (FName NodeName : InGraph->GetSelectNodes())
-			{
-				if (UEdGraphNode* EdNode = FindNodeForModelNodeName(NodeName))
-				{
-					NodeSelection.Add(EdNode);
-				}
-			}
-			SelectNodeSet(NodeSelection);
-			break;
-		}
-		case ERigVMGraphNotifType::NodeAdded:
-		{
-			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-			{
-				if (!ModelNode->IsVisibleInUI())
-				{
-					if (URigVMInjectionInfo* Injection = ModelNode->GetInjectionInfo())
-					{
-						if (URigVMPin* ModelPin = Injection->GetPin())
-						{
-							URigVMNode* ParentModelNode = ModelPin->GetNode();
-							if (ParentModelNode)
-							{
-								UEdGraphNode* EdNode = FindNodeForModelNodeName(ParentModelNode->GetFName());
-								if (EdNode)
-								{
-									if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
-									{
-										RigNode->ModelPinsChanged(true);
-									}
-								}
-							}
-						}
-					}
-					break;
-				}
-				else
-				{
-					// check if the node is already part of the graph
-					if(UEdGraphNode* NodeToAdd = FindNodeForModelNodeName(ModelNode->GetFName()))
-					{
-						// Notify the GraphPanel a new node has been added
-						EEdGraphActionType AddNodeAction = GRAPHACTION_AddNode;
-						FEdGraphEditAction Action(AddNodeAction, this, NodeToAdd, false);
-						NotifyGraphChanged(Action);
-						break;
-					}
-				}
-
-				if (URigVMCommentNode* CommentModelNode = Cast<URigVMCommentNode>(ModelNode))
-				{
-					UEdGraphNode_Comment* NewNode = NewObject<UEdGraphNode_Comment>(this, CommentModelNode->GetFName());
-					AddNode(NewNode, false, false);
-
-					NewNode->CreateNewGuid();
-					NewNode->PostPlacedNewNode();
-					NewNode->AllocateDefaultPins();
-
-					NewNode->NodePosX = ModelNode->GetPosition().X;
-					NewNode->NodePosY = ModelNode->GetPosition().Y;
-					NewNode->NodeWidth = ModelNode->GetSize().X;
-					NewNode->NodeHeight = ModelNode->GetSize().Y;
-					NewNode->CommentColor = ModelNode->GetNodeColor();
-					NewNode->NodeComment = CommentModelNode->GetCommentText();
-					NewNode->FontSize = CommentModelNode->GetCommentFontSize();
-					NewNode->bCommentBubbleVisible = CommentModelNode->GetCommentBubbleVisible();
-					NewNode->bCommentBubbleVisible_InDetailsPanel = CommentModelNode->GetCommentBubbleVisible();
-					NewNode->bCommentBubblePinned = CommentModelNode->GetCommentBubbleVisible();
-					NewNode->bColorCommentBubble = CommentModelNode->GetCommentColorBubble();
-					NewNode->SetFlags(RF_Transactional);
-					NewNode->GetNodesUnderComment();
-
-					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);
-				}
-				else // struct, library, parameter + variable
-				{
-					UControlRigGraphNode* NewNode = NewObject<UControlRigGraphNode>(this, GetControlRigGraphSchema()->GetGraphNodeClass(), ModelNode->GetFName());
-					AddNode(NewNode, false, false);
-
-					NewNode->ModelNodePath = ModelNode->GetNodePath();
-					NewNode->CreateNewGuid();
-					NewNode->PostPlacedNewNode();
-					NewNode->AllocateDefaultPins();
-					NewNode->PostReconstructNode();
-
-					NewNode->NodePosX = ModelNode->GetPosition().X;
-					NewNode->NodePosY = ModelNode->GetPosition().Y;
-					if (URigVMRerouteNode* RerouteModelNode = Cast<URigVMRerouteNode>(ModelNode))
-					{
-						if (URigVMPin* ModelPin = ModelNode->FindPin("Value"))
-						{
-							if (UEdGraphPin* ValuePin = NewNode->FindPin(ModelPin->GetPinPath()))
-							{
-								NewNode->SetColorFromModel(GetSchema()->GetPinTypeColor(ValuePin->PinType));
-							}
-						}
-					}
-					else
-					{
-						NewNode->SetColorFromModel(ModelNode->GetNodeColor());
-					}
-					NewNode->SetFlags(RF_Transactional);
-
-					ModelNodePathToEdNode.Add(ModelNode->GetFName(), NewNode);
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodeRemoved:
-		{
-			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-			{
-				if (URigVMInjectionInfo* Injection = ModelNode->GetInjectionInfo())
-				{
-					if (URigVMPin* ModelPin = Injection->GetPin())
-					{
-						if (URigVMNode* ParentModelNode = ModelPin->GetNode())
-						{
-							if (UEdGraphNode* EdNode = FindNodeForModelNodeName(ParentModelNode->GetFName()))
-							{
-								if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
-								{
-									RigNode->ModelPinsChanged(true);
-								}
-							}
-						}
-					}
-					break;
-				}
-
-				if (UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName(), false))
-				{
-					RemoveNode(EdNode);
-				}
-
-				ModelNodePathToEdNode.Remove(ModelNode->GetFName());
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodePositionChanged:
-		{
-			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-			{
-				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName());
-				if (EdNode)
-				{
-					// No need to call Node->Modify(), since control rig has its own undo/redo system see RigVMControllerActions.cpp
-					EdNode->NodePosX = (int32)ModelNode->GetPosition().X;
-					EdNode->NodePosY = (int32)ModelNode->GetPosition().Y;
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodeSizeChanged:
-		{
-			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-			{
-				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
-				if (EdNode)
-				{
-					// No need to call Node->Modify(), since control rig has its own undo/redo system see RigVMControllerActions.cpp
-					EdNode->NodeWidth = (int32)ModelNode->GetSize().X;
-					EdNode->NodeHeight = (int32)ModelNode->GetSize().Y;
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodeDescriptionChanged:
-		case ERigVMGraphNotifType::NodeCategoryChanged:
-		{
-			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-			{
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
-				{
-					RigNode->SyncGraphNodeTitleWithModelNodeTitle();
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodeColorChanged:
-		{
-			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-			{
-				if (ModelNode->IsA<URigVMLibraryNode>() || ModelNode->IsA<URigVMTemplateNode>())
-				{
-					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
-					{
-						RigNode->SetColorFromModel(ModelNode->GetNodeColor());
-					}
-				}
-				else if(UEdGraphNode_Comment * EdComment = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName())))
-				{
-					EdComment->CommentColor = ModelNode->GetNodeColor();
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::CommentTextChanged:
-		{
-			if (URigVMCommentNode* ModelNode = Cast<URigVMCommentNode>(InSubject))
-			{
-				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
-				if (EdNode)
-				{
-					EdNode->NodeComment = ModelNode->GetCommentText();
-					EdNode->FontSize = ModelNode->GetCommentFontSize();
-					EdNode->bCommentBubbleVisible = ModelNode->GetCommentBubbleVisible();
-					EdNode->bCommentBubbleVisible_InDetailsPanel = ModelNode->GetCommentBubbleVisible();
-					EdNode->bColorCommentBubble = ModelNode->GetCommentColorBubble();
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::LinkAdded:
-		case ERigVMGraphNotifType::LinkRemoved:
-		{
-			bool AddLink = InNotifType == ERigVMGraphNotifType::LinkAdded;
-
-			if (URigVMLink* Link = Cast<URigVMLink>(InSubject))
-			{
-				URigVMPin* SourcePin = Link->GetSourcePin();
-				URigVMPin* TargetPin = Link->GetTargetPin();
-
-				if (SourcePin)
-				{
-					SourcePin = SourcePin->GetOriginalPinFromInjectedNode();
-				}
-				if (TargetPin)
-				{
-					TargetPin = TargetPin->GetOriginalPinFromInjectedNode();
-				}
-
-				if (SourcePin && TargetPin && SourcePin != TargetPin)
-				{
-					UControlRigGraphNode* SourceRigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(SourcePin->GetNode()->GetFName()));
-					UControlRigGraphNode* TargetRigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(TargetPin->GetNode()->GetFName()));
-
-					if (SourceRigNode != nullptr && TargetRigNode != nullptr)
-					{
-						FString SourcePinPath = SourcePin->GetPinPath();
-						FString TargetPinPath = TargetPin->GetPinPath();
-						UEdGraphPin* SourceRigPin = SourceRigNode->FindPin(*SourcePinPath, EGPD_Output);
-						UEdGraphPin* TargetRigPin = TargetRigNode->FindPin(*TargetPinPath, EGPD_Input);
-
-						if (SourceRigPin != nullptr && TargetRigPin != nullptr)
-						{
-							if (AddLink)
-							{
-								SourceRigPin->MakeLinkTo(TargetRigPin);
-							}
-							else
-							{
-								SourceRigPin->BreakLinkTo(TargetRigPin);
-							}
-
-							SourceRigPin->LinkedTo.Remove(nullptr);
-							TargetRigPin->LinkedTo.Remove(nullptr);
-						}
-					}
-				}
-			}
-			break;
-		}
 		case ERigVMGraphNotifType::PinDefaultValueChanged:
 		{
 			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
 			{
 				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
 				{
-					UEdGraphPin* RigNodePin = RigNode->FindPin(ModelPin->GetPinPath());
-					if (RigNodePin == nullptr)
+					if (Cast<URigVMUnitNode>(ModelPin->GetNode()))
 					{
-						if(ModelPin->GetNode()->IsEvent())
-						{
-							RigNode->SyncGraphNodeTitleWithModelNodeTitle();
-						}
-						break;
-					}
-
-					RigNode->SetupPinDefaultsFromModel(RigNodePin);
-
-					if (Cast<URigVMVariableNode>(ModelPin->GetNode()))
-					{
-						if (ModelPin->GetName() == TEXT("Variable"))
-						{
-							RigNode->SyncGraphNodeTitleWithModelNodeTitle();
-							RigNode->SynchronizeGraphPinValueWithModelPin(ModelPin);
-						}
-					}
-					else if (Cast<URigVMUnitNode>(ModelPin->GetNode()))
-					{
-						RigNode->SyncGraphNodeTitleWithModelNodeTitle();
-
 						// if the node contains a rig element key - invalidate the node
 						if(RigNode->GetAllPins().ContainsByPredicate([](UEdGraphPin* Pin) -> bool
 						{
@@ -740,170 +272,6 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 						}
 					}
 				}
-				else if (URigVMInjectionInfo* Injection = ModelPin->GetNode()->GetInjectionInfo())
-				{
-					if (Injection->InputPin != ModelPin->GetRootPin())
-					{
-						if (URigVMPin* InjectionPin = Injection->GetPin())
-						{
-							URigVMNode* ParentModelNode = InjectionPin->GetNode();
-							if (ParentModelNode)
-							{
-								UEdGraphNode* HostEdNode = FindNodeForModelNodeName(ParentModelNode->GetFName());
-								if (HostEdNode)
-								{
-									if (UControlRigGraphNode* HostRigNode = Cast<UControlRigGraphNode>(HostEdNode))
-									{
-										HostRigNode->ModelPinsChanged();
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::PinAdded:
-		{
-			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
-			{
-				if(URigVMNode* ModelNode = ModelPin->GetNode())
-				{
-					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
-					{
-						RigNode->ModelPinAdded(ModelPin);
-					}
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::PinRemoved:
-		{
-			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
-			{
-				if(URigVMNode* ModelNode = ModelPin->GetNode())
-				{
-					if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
-					{
-						RigNode->ModelPinRemoved(ModelPin);
-					}
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::PinArraySizeChanged:
-		{
-			// don't do anything here - the UI will update based on the
-			// PinAdded and PinRemoved notifs
-			break;
-		}
-		case ERigVMGraphNotifType::PinDirectionChanged:
-		case ERigVMGraphNotifType::PinIndexChanged:
-		case ERigVMGraphNotifType::PinBoundVariableChanged:
-		{
-			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
-			{
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
-				{
-					RigNode->ModelPinsChanged();
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::LibraryTemplateChanged:
-		{
-			if (URigVMNode* LibraryNode = Cast<URigVMNode>(InSubject))
-			{
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(LibraryNode->GetFName())))
-				{
-					RigNode->ModelPinsChanged(true);
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::PinTypeChanged:
-		{
-			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
-			{
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
-				{
-					RigNode->SynchronizeGraphPinTypeWithModelPin(ModelPin);
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::PinRenamed:
-		{
-			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
-			{
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
-				{
-					RigNode->SynchronizeGraphPinNameWithModelPin(ModelPin);
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodeRenamed:
-		{
-			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-			{
-				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetPreviousFName());
-				ModelNodePathToEdNode.Remove(ModelNode->GetPreviousFName());
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
-				{
-					RigNode->SyncGraphNodeNameWithModelNodeName(ModelNode);
-					ModelNodePathToEdNode.Add(ModelNode->GetFName(), RigNode);
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::VariableRenamed:
-		case ERigVMGraphNotifType::NodeReferenceChanged:
-		{
-			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
-			{
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelNode->GetFName())))
-				{
-					RigNode->SyncGraphNodeTitleWithModelNodeTitle();
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodeSelected:
-		{
-			if (URigVMCommentNode* ModelNode = Cast<URigVMCommentNode>(InSubject))
-			{
-				// UEdGraphNode_Comment cannot access RigVMCommentNode's selection state, so we have to manually toggle its selection state
-				// UControlRigGraphNode does not need this step because it overrides the IsSelectedInEditor() method
-				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
-				if (EdNode)
-				{
-					EdNode->SetSelectionState(UEdGraphNode_Comment::ESelectionState::Selected);
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::NodeDeselected:
-		{
-			if (URigVMCommentNode* ModelNode = Cast<URigVMCommentNode>(InSubject))
-			{
-				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
-				if (EdNode)
-				{
-					EdNode->SetSelectionState(UEdGraphNode_Comment::ESelectionState::Deselected);
-				}
-			}
-			break;
-		}
-		case ERigVMGraphNotifType::PinExpansionChanged:
-		{
-			if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
-			{
-				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(FindNodeForModelNodeName(ModelPin->GetNode()->GetFName())))
-				{
-					RigNode->OnNodePinExpansionChanged().Broadcast();
-				}
 			}
 			break;
 		}
@@ -912,296 +280,9 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			break;
 		}
 	}
+
+	return true;
 }
-
-int32 UControlRigGraph::GetInstructionIndex(const UControlRigGraphNode* InNode, bool bAsInput)
-{
-	if (const TPair<int32, int32>* FoundIndex = CachedInstructionIndices.Find(InNode->GetModelNode()))
-	{
-		return bAsInput ? FoundIndex->Key : FoundIndex->Value;
-	}
-
-	struct Local
-	{
-		static int32 GetInstructionIndex(URigVMNode* InModelNode, const FRigVMByteCode* InByteCode, TMap<URigVMNode*, TPair<int32, int32>>& Indices, bool bAsInput)
-		{
-			if (InModelNode == nullptr)
-			{
-				return INDEX_NONE;
-			}
-
-			if (const TPair<int32, int32>* ExistingIndex = Indices.Find(InModelNode))
-			{
-				const int32 Index = bAsInput ? ExistingIndex->Key : ExistingIndex->Value;
-				if(Index != INDEX_NONE)
-				{
-					return Index;
-				}
-			}
-
-			if(const URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InModelNode))
-			{
-				int32 InstructionIndex = INDEX_NONE;
-				if(bAsInput)
-				{
-					TArray<URigVMNode*> SourceNodes = RerouteNode->GetLinkedSourceNodes();
-					for(URigVMNode* SourceNode : SourceNodes)
-					{
-						InstructionIndex = GetInstructionIndex(SourceNode, InByteCode, Indices, bAsInput);
-						if(InstructionIndex != INDEX_NONE)
-						{
-							break;
-						}
-					}
-					Indices.FindOrAdd(InModelNode).Key = InstructionIndex;
-				}
-				else
-				{
-					TArray<URigVMNode*> TargetNodes = RerouteNode->GetLinkedTargetNodes();
-					for(URigVMNode* TargetNode : TargetNodes)
-					{
-						InstructionIndex = GetInstructionIndex(TargetNode, InByteCode, Indices, bAsInput);
-						if(InstructionIndex != INDEX_NONE)
-						{
-							break;
-						}
-					}
-					Indices.FindOrAdd(InModelNode).Value = InstructionIndex;
-				}
-
-				return InstructionIndex;
-			}
-			else if(URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(InModelNode))
-			{
-				int32 InstructionIndex = INDEX_NONE;
-				if(!bAsInput)
-				{
-					TArray<URigVMNode*> TargetNodes = EntryNode->GetLinkedTargetNodes();
-					for(URigVMNode* TargetNode : TargetNodes)
-					{
-						InstructionIndex = GetInstructionIndex(TargetNode, InByteCode, Indices, bAsInput);
-						if(InstructionIndex != INDEX_NONE)
-						{
-							break;
-						}
-					}
-					Indices.FindOrAdd(InModelNode).Key = InstructionIndex;
-				}
-				return InstructionIndex;
-			}
-			else if(URigVMFunctionReturnNode* ReturnNode = Cast<URigVMFunctionReturnNode>(InModelNode))
-			{
-				int32 InstructionIndex = INDEX_NONE;
-				if(bAsInput)
-				{
-					TArray<URigVMNode*> SourceNodes = ReturnNode->GetLinkedSourceNodes();
-					for(URigVMNode* SourceNode : SourceNodes)
-					{
-						InstructionIndex = GetInstructionIndex(SourceNode, InByteCode, Indices, bAsInput);
-						if(InstructionIndex != INDEX_NONE)
-						{
-							break;
-						}
-					}
-					Indices.FindOrAdd(InModelNode).Key = InstructionIndex;
-				}
-				return InstructionIndex;
-			}
-
-			Indices.FindOrAdd(InModelNode, TPair<int32, int32>(INDEX_NONE, INDEX_NONE));
-
-			int32 InstructionIndex = InByteCode->GetFirstInstructionIndexForSubject(InModelNode);
-			if (InstructionIndex != INDEX_NONE)
-			{
-				TPair<int32, int32> Pair(InstructionIndex, InstructionIndex);
-				if(bAsInput)
-				{
-					Indices.FindOrAdd(InModelNode).Key = InstructionIndex;
-				}
-				else
-				{
-					Indices.FindOrAdd(InModelNode).Value = InstructionIndex;
-				}
-				return InstructionIndex;
-			}
-
-			FRigVMInstructionArray Instructions = InByteCode->GetInstructions();
-			for (int32 i = 0; i < Instructions.Num(); ++i)
-			{
-				const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(InByteCode->GetCallPathForInstruction(i), InModelNode->GetRootGraph());
-				if (Proxy.GetCallstack().Contains(InModelNode))
-				{
-					if(bAsInput)
-					{
-						Indices.FindOrAdd(InModelNode).Key = i;
-					}
-					else
-					{
-						Indices.FindOrAdd(InModelNode).Value = i;
-					}
-					return i;
-				}
-			}
-			return INDEX_NONE;
-		}
-	};
-
-	if (const FRigVMByteCode* ByteCode = GetController()->GetCurrentByteCode())
-	{
-		const int32 SourceInstructionIndex = Local::GetInstructionIndex(InNode->GetModelNode(), ByteCode, CachedInstructionIndices, true);
-		const int32 TargetInstructionIndex = Local::GetInstructionIndex(InNode->GetModelNode(), ByteCode, CachedInstructionIndices, false);
-		return bAsInput ? SourceInstructionIndex : TargetInstructionIndex;
-	}
-
-	return INDEX_NONE;
-}
-
-UEdGraphNode* UControlRigGraph::FindNodeForModelNodeName(const FName& InModelNodeName, const bool bCacheIfRequired)
-{
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
-	if(UEdGraphNode** MappedNode = ModelNodePathToEdNode.Find(InModelNodeName))
-	{
-		return *MappedNode;
-	}
-	
-	const FString InModelNodePath = InModelNodeName.ToString();
-	for (UEdGraphNode* EdNode : Nodes)
-	{
-		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
-		{
-			if (RigNode->ModelNodePath == InModelNodePath)
-			{
-				if (RigNode->GetOuter() == this)
-				{
-					if (bCacheIfRequired)
-					{
-						ModelNodePathToEdNode.Add(InModelNodeName, EdNode);
-					}
-					return EdNode;
-				}
-			}
-		}
-		else if (EdNode)
-		{
-			if (EdNode->GetFName() == InModelNodeName)
-			{
-				if (EdNode->GetOuter() == this)
-				{
-					if (bCacheIfRequired)
-					{
-						ModelNodePathToEdNode.Add(InModelNodeName, EdNode);
-					}
-					return EdNode;
-				}
-			}
-		}
-	}
-	return nullptr;
-}
-
-UControlRigBlueprint* UControlRigGraph::GetBlueprint() const
-{
-	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
-	{
-		return OuterGraph->GetBlueprint();
-	}
-	return Cast<UControlRigBlueprint>(GetOuter());
-}
-
-URigVMGraph* UControlRigGraph::GetModel() const
-{
-	if(CachedModelGraph.IsValid())
-	{
-		return CachedModelGraph.Get();
-	}
-	
-	if (const FRigVMClient* Client = GetRigVMClient())
-	{
-		URigVMGraph* Model = Client->GetModel(this);
-		CachedModelGraph = Model;
-		return Model;
-	}
-	return nullptr;
-}
-
-URigVMController* UControlRigGraph::GetController() const
-{
-	if (FRigVMClient* Client = GetRigVMClient())
-	{
-		return Client->GetOrCreateController(GetModel());
-	}
-	return nullptr;
-}
-
-const UControlRigGraph* UControlRigGraph::GetRootGraph() const
-{
-	if(const UControlRigGraph* ParentGraph = Cast<UControlRigGraph>(GetOuter()))
-	{
-		return ParentGraph->GetRootGraph();
-	}
-	return this;
-}
-
-void UControlRigGraph::AddNode(UEdGraphNode* NodeToAdd, bool bUserAction, bool bSelectNewNode)
-{
-	// Comments are added outside of the ControlRigEditor, so we add here the node to the model
-	if (const UEdGraphNode_Comment* CommentNode = Cast<const UEdGraphNode_Comment>(NodeToAdd))
-	{
-		if (URigVMController* Controller = GetBlueprint()->GetOrCreateController(GetModel()))
-		{
-			if (GetModel()->FindNodeByName(NodeToAdd->GetFName()) == nullptr) // When recreating nodes at RebuildGraphFromModel, the model node already exists
-			{
-				TGuardValue<bool> BlueprintNotifGuard(GetBlueprint()->bSuspendModelNotificationsForOthers, true);
-				FVector2D NodePos(CommentNode->NodePosX, CommentNode->NodePosY);
-				FVector2D NodeSize(CommentNode->NodeWidth, CommentNode->NodeHeight);
-				FLinearColor NodeColor = CommentNode->CommentColor;
-				Controller->AddCommentNode(CommentNode->NodeComment, NodePos, NodeSize, NodeColor, CommentNode->GetName(), GIsTransacting == false, true);
-			}
-		}
-	}
-
-	Super::AddNode(NodeToAdd, bUserAction, bSelectNewNode);
-}
-
-void UControlRigGraph::RemoveNode(UEdGraphNode* InNode)
-{
-	// Make sure EdGraph is not part of the transaction
-	TGuardValue<ITransaction*> TransactionGuard(GUndo, nullptr);
-
-	if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InNode))
-	{
-		RigNode->OnNodeBeginRemoval().Broadcast();
-	}
-
-	// clear out the pin relationships
-	for(UEdGraphPin* Pin : InNode->Pins)
-	{
-		Pin->MarkAsGarbage();
-	}
-	InNode->Pins.Reset();
-					
-	// this also subsequently calls NotifyGraphChanged
-	Super::RemoveNode(InNode);
-}
-
-URigVMController* UControlRigGraph::GetTemplateController()
-{
-	if (TemplateController == nullptr)
-	{
-		TemplateController = GetBlueprint()->GetTemplateController();
-		TemplateController->OnModified().RemoveAll(this);
-		TemplateController->OnModified().AddUObject(this, &UControlRigGraph::HandleModifiedEvent);
-	}
-	return TemplateController;
-}
-
-void UControlRigGraph::HandleVMCompiledEvent(UObject* InCompiledObject, URigVM* InVM)
-{
-	CachedInstructionIndices.Reset();
-}
-
-#endif
 
 #undef LOCTEXT_NAMESPACE
 

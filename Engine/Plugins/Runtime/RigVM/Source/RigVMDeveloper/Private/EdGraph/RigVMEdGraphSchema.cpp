@@ -49,7 +49,7 @@
 
 #define LOCTEXT_NAMESPACE "CRigVMGraphSchema"
 
-const FName URigVMEdGraphSchema::GraphName_RigVM(TEXT("RigVM Graph"));
+const FName URigVMEdGraphSchema::GraphName_RigVM(TEXT("RigVM"));
 
 FRigVMLocalVariableNameValidator::FRigVMLocalVariableNameValidator(const UBlueprint* Blueprint, const URigVMGraph* Graph, FName InExistingName)
 	: FStringSetNameValidator(InExistingName.ToString())
@@ -204,9 +204,9 @@ void FRigVMEdGraphSchemaAction_LocalVar::RenameVariable(const FName& NewName)
 
 bool FRigVMEdGraphSchemaAction_LocalVar::IsValidName(const FName& NewName, FText& OutErrorMessage) const
 {
-	if (const URigVMEdGraph* ControlRigGraph = Cast<URigVMEdGraph>(GetVariableScope()))
+	if (const URigVMEdGraph* EdGraphGraph = Cast<URigVMEdGraph>(GetVariableScope()))
 	{
-		FRigVMLocalVariableNameValidator NameValidator(ControlRigGraph->GetBlueprint(), ControlRigGraph->GetModel(), GetVariableName());
+		FRigVMLocalVariableNameValidator NameValidator(EdGraphGraph->GetBlueprint(), EdGraphGraph->GetModel(), GetVariableName());
 		const EValidatorResult Result = NameValidator.IsValid(NewName.ToString(), false);
 		if (Result != EValidatorResult::Ok && Result != EValidatorResult::ExistingName)
 		{
@@ -236,10 +236,10 @@ void FRigVMEdGraphSchemaAction_LocalVar::DeleteVariable()
 
 bool FRigVMEdGraphSchemaAction_LocalVar::IsVariableUsed()
 {
-	if (const URigVMEdGraph* ControlRigGraph = Cast<URigVMEdGraph>(GetVariableScope()))
+	if (const URigVMEdGraph* EdGraph = Cast<URigVMEdGraph>(GetVariableScope()))
 	{
 		const FString VarNameStr = GetVariableName().ToString();
-		for (URigVMNode* Node : ControlRigGraph->GetModel()->GetNodes())
+		for (URigVMNode* Node : EdGraph->GetModel()->GetNodes())
 		{
 			if (const URigVMVariableNode* VarNode = Cast<URigVMVariableNode>(Node))
 			{
@@ -969,9 +969,9 @@ TSharedPtr<INameValidatorInterface> URigVMEdGraphSchema::GetNameValidator(const 
 {
 	if (ActionTypeId == FRigVMEdGraphSchemaAction_LocalVar::StaticGetTypeId())
 	{
-		if (const URigVMEdGraph* ControlRigGraph = Cast<URigVMEdGraph>(ValidationScope))
+		if (const URigVMEdGraph* EdGraph = Cast<URigVMEdGraph>(ValidationScope))
 		{
-			if (const URigVMGraph* Graph = ControlRigGraph->GetModel())
+			if (const URigVMGraph* Graph = EdGraph->GetModel())
 			{
 				return MakeShareable(new FRigVMLocalVariableNameValidator(BlueprintObj, Graph, OriginalName));
 			}
@@ -987,6 +987,8 @@ bool URigVMEdGraphSchema::SupportsPinType(const UScriptStruct* ScriptStruct) con
 	{
 		return false;
 	}
+
+	// todo: Validate ExecuteContext structs to match URigVMBlueprint::GetExecuteContextStruct()
 
 	for (TFieldIterator<FProperty> It(ScriptStruct); It; ++It)
 	{
@@ -1698,7 +1700,6 @@ bool URigVMEdGraphSchema::TryToGetChildEvents(const UEdGraph* Graph, const int32
 			return true;
 		}
 	}
-
 	return false;
 }
 
@@ -1838,11 +1839,11 @@ URigVMEdGraphNode* URigVMEdGraphSchema::CreateGraphNode(URigVMEdGraph* InGraph, 
 {
 	const bool bSelectNewNode = true;
 	FGraphNodeCreator<URigVMEdGraphNode> GraphNodeCreator(*InGraph);
-	URigVMEdGraphNode* ControlRigGraphNode = GraphNodeCreator.CreateNode(bSelectNewNode);
-	ControlRigGraphNode->ModelNodePath = InPropertyName.ToString();
+	URigVMEdGraphNode* EdGraphNode = GraphNodeCreator.CreateNode(bSelectNewNode, GetGraphNodeClass(InGraph));
+	EdGraphNode->ModelNodePath = InPropertyName.ToString();
 	GraphNodeCreator.Finalize();
 
-	return ControlRigGraphNode;
+	return EdGraphNode;
 }
 
 void URigVMEdGraphSchema::TrySetDefaultValue(UEdGraphPin& InPin, const FString& InNewDefaultValue, bool bMarkAsModified) const
@@ -2393,6 +2394,13 @@ void URigVMEdGraphSchema::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, 
 			break;
 		}
 	}
+}
+
+TSubclassOf<URigVMEdGraphNode> URigVMEdGraphSchema::GetGraphNodeClass(const URigVMEdGraph* InGraph) const
+{
+	const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(InGraph);
+	const URigVMBlueprint* RigBlueprint = CastChecked<URigVMBlueprint>(Blueprint);
+	return RigBlueprint->GetRigVMEdGraphNodeClass();
 }
 
 bool URigVMEdGraphSchema::IsRigVMDefaultEvent(const FName& InEventName) const

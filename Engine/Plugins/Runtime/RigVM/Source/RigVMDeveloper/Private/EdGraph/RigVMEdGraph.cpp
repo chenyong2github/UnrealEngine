@@ -22,7 +22,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #endif
 
-#define LOCTEXT_NAMESPACE "ControlRigGraph"
+#define LOCTEXT_NAMESPACE "RigVMEdGraph"
 
 URigVMEdGraph::URigVMEdGraph()
 {
@@ -97,7 +97,7 @@ void URigVMEdGraph::HandleRigVMGraphRenamed(const FString& InOldNodePath, const 
 	}
 }
 
-void URigVMEdGraph::Initialize(URigVMBlueprint* InBlueprint)
+void URigVMEdGraph::InitializeFromBlueprint(URigVMBlueprint* InBlueprint)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -133,23 +133,28 @@ void URigVMEdGraph::Serialize(FArchive& Ar)
 
 void URigVMEdGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 {
+	(void)HandleModifiedEvent_Internal(InNotifType, InGraph, InSubject);
+}
+
+bool URigVMEdGraph::HandleModifiedEvent_Internal(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
+{
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	if (bSuspendModelNotifications)
 	{
-		return;
+		return false;
 	}
 
 	// only make sure to receive notifs for this graph - unless
 	// we are on a template graph (used by node spawners)
 	if (GetModel() != InGraph && TemplateController == nullptr)
 	{
-		return;
+		return false;
 	}
 
-	if(URigVMEdGraphSchema* ControlRigSchema = (URigVMEdGraphSchema*)GetRigVMEdGraphSchema())
+	if(URigVMEdGraphSchema* EdGraphSchema = (URigVMEdGraphSchema*)GetRigVMEdGraphSchema())
 	{
-		ControlRigSchema->HandleModifiedEvent(InNotifType, InGraph, InSubject);
+		EdGraphSchema->HandleModifiedEvent(InNotifType, InGraph, InSubject);
 	}
 
 	if(TemplateController)
@@ -165,7 +170,7 @@ void URigVMEdGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVM
 			case ERigVMGraphNotifType::VariableRenamed:
 			case ERigVMGraphNotifType::GraphChanged:
 			{
-				return;
+				return false;
 			}
 			default:
 			{
@@ -213,7 +218,7 @@ void URigVMEdGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVM
 		{
 			if (bIsSelecting)
 			{
-				return;
+				return false;
 			}
 			TGuardValue<bool> SelectionGuard(bIsSelecting, true);
 
@@ -290,7 +295,7 @@ void URigVMEdGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVM
 				}
 				else // struct, library, parameter + variable
 				{
-					URigVMEdGraphNode* NewNode = NewObject<URigVMEdGraphNode>(this, GetRigVMEdGraphSchema()->GetGraphNodeClass(), ModelNode->GetFName());
+					URigVMEdGraphNode* NewNode = NewObject<URigVMEdGraphNode>(this, GetRigVMEdGraphSchema()->GetGraphNodeClass(this), ModelNode->GetFName());
 					AddNode(NewNode, false, false);
 
 					NewNode->ModelNodePath = ModelNode->GetNodePath();
@@ -681,6 +686,8 @@ void URigVMEdGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVM
 			break;
 		}
 	}
+
+	return true;
 }
 
 int32 URigVMEdGraph::GetInstructionIndex(const URigVMEdGraphNode* InNode, bool bAsInput)
@@ -911,6 +918,27 @@ const URigVMEdGraph* URigVMEdGraph::GetRootGraph() const
 	return this;
 }
 
+void URigVMEdGraph::AddNode(UEdGraphNode* NodeToAdd, bool bUserAction, bool bSelectNewNode)
+{
+	// Comments are added outside of the RigVMEditor, so we add here the node to the model
+	if (const UEdGraphNode_Comment* CommentNode = Cast<const UEdGraphNode_Comment>(NodeToAdd))
+	{
+		if (URigVMController* Controller = GetBlueprint()->GetOrCreateController(GetModel()))
+		{
+			if (GetModel()->FindNodeByName(NodeToAdd->GetFName()) == nullptr) // When recreating nodes at RebuildGraphFromModel, the model node already exists
+			{
+				TGuardValue<bool> BlueprintNotifGuard(GetBlueprint()->bSuspendModelNotificationsForOthers, true);
+				FVector2D NodePos(CommentNode->NodePosX, CommentNode->NodePosY);
+				FVector2D NodeSize(CommentNode->NodeWidth, CommentNode->NodeHeight);
+				FLinearColor NodeColor = CommentNode->CommentColor;
+				Controller->AddCommentNode(CommentNode->NodeComment, NodePos, NodeSize, NodeColor, CommentNode->GetName(), GIsTransacting == false, true);
+			}
+		}
+	}
+
+	Super::AddNode(NodeToAdd, bUserAction, bSelectNewNode);
+}
+
 void URigVMEdGraph::RemoveNode(UEdGraphNode* InNode)
 {
 	// Make sure EdGraph is not part of the transaction
@@ -936,7 +964,7 @@ void URigVMEdGraph::RemoveNode(UEdGraphNode* InNode)
 		static int32 DeletedIndex = FMath::Rand();
 		do
 		{
-			DeletedName = FString::Printf(TEXT("ControlRigGraph_%s_Deleted_%d"), *InNode->GetName(), DeletedIndex++); 
+			DeletedName = FString::Printf(TEXT("EdGraph_%s_Deleted_%d"), *InNode->GetName(), DeletedIndex++); 
 			ExistingObject = StaticFindObject(/*Class=*/ NULL, this, *DeletedName, true);						
 		}
 		while (ExistingObject);

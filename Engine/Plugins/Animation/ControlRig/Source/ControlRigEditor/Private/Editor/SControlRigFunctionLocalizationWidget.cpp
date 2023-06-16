@@ -86,7 +86,7 @@ void SControlRigFunctionLocalizationTableRow::Construct(const FArguments& InArgs
 /// SControlRigFunctionLocalizationWidget
 ///////////////////////////////////////////////////////////
 
-void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, const FRigVMGraphFunctionIdentifier& InFunctionToLocalize, UControlRigBlueprint* InTargetBlueprint)
+void SControlRigFunctionLocalizationWidget::Construct(const FArguments& InArgs, const FRigVMGraphFunctionIdentifier& InFunctionToLocalize, URigVMBlueprint* InTargetBlueprint)
 {
 	FunctionsToLocalize.Add(InFunctionToLocalize);
 	FunctionItems.Reset();

@@ -15,7 +15,7 @@
 class SInlineEditableTextBlock;
 class FControlRigEditor;
 struct FAssetData;
-class UControlRigBlueprint;
+class URigVMBlueprint;
 
 class FDisplayedRigCurveInfo
 {
@@ -206,7 +206,7 @@ private:
 	/** Handler for context menus */
 	TSharedPtr<SWidget> OnGetContextMenuContent() const;
 
-	void OnEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint);
+	void OnEditorClose(const FControlRigEditor* InEditor, URigVMBlueprint* InBlueprint);
 
 	/**
 	* Clears and rebuilds the table, according to an optional search string
@@ -236,7 +236,7 @@ private:
 
 	bool bIsChangingRigHierarchy;
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
-	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
+	void HandleRefreshEditorFromBlueprint(URigVMBlueprint* InBlueprint);
 
 	// import curve part
 	void ImportCurve(const FAssetData& InAssetData);
