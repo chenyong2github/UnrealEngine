@@ -14,5 +14,5 @@ static TAutoConsoleVariable<bool> CVarEnableGrassInstancedWPOVelocity(
 
 bool UGrassInstancedStaticMeshComponent::SupportsWorldPositionOffsetVelocity() const 
 { 
-	return CVarEnableGrassInstancedWPOVelocity.GetValueOnAnyThread();
+	return CVarEnableGrassInstancedWPOVelocity.GetValueOnAnyThread() && Super::SupportsWorldPositionOffsetVelocity();
 }

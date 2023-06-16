@@ -163,6 +163,14 @@ public:
 	uint8 bEvaluateWorldPositionOffset : 1;
 
 	/** 
+	 * Whether world position offset turns on velocity writes.
+	 * If the WPO isn't static then setting false may give incorrect motion vectors.
+	 * But if we know that the WPO is static then setting false may save performance.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Rendering)
+	uint8 bWorldPositionOffsetWritesVelocity : 1;
+
+	/** 
 	 * Whether to evaluate World Position Offset for ray tracing. 
 	 * This is only used when running with r.RayTracing.Geometry.StaticMeshes.WPO=1 
 	 */
@@ -547,6 +555,7 @@ public:
 	ENGINE_API virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
 #endif
 	virtual float GetStreamingScale() const override { return GetComponentTransform().GetMaximumAxisScale(); }
+	virtual bool SupportsWorldPositionOffsetVelocity() const override { return bWorldPositionOffsetWritesVelocity; }
 	//~ End UPrimitiveComponent Interface.
 
 	//~ Begin INavRelevantInterface Interface.
