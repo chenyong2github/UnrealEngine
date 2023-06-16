@@ -23,7 +23,7 @@ namespace Metasound
 			T* MetaSoundObject = NewObject<T>(InParent, InName, InFlags);
 			check(MetaSoundObject);
 
-			UMetaSoundBaseFactory::InitAsset(*MetaSoundObject, InReferencedMetaSoundObject);
+			UMetaSoundEditorSubsystem::GetChecked().InitAsset(*MetaSoundObject, InReferencedMetaSoundObject);
 			return MetaSoundObject;
 		}
 	}

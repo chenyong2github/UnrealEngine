@@ -20,7 +20,8 @@ class UMetaSoundBaseFactory : public UFactory
 	// using the provided MetaSound as a Reference
 	UPROPERTY(EditAnywhere, Transient, Category = Factory)
 	TObjectPtr<UObject> ReferencedMetaSoundObject;
-
+	
+	UE_DEPRECATED(5.3, "Use UMetaSoundEditorSubsystem::InitAsset instead.")
 	static void InitAsset(UObject& InNewMetaSound, UObject* InReferencedMetaSound = nullptr);
 };
 

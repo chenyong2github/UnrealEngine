@@ -9,11 +9,13 @@
 #include "IContentBrowserSingleton.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
+#include "MetasoundBuilderSubsystem.h"
 #include "MetasoundSource.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
+#include "MetasoundEditorSubsystem.h"
 #include "MetasoundFactory.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ObjectEditorUtils.h"
@@ -51,19 +53,28 @@ namespace Metasound
 			{
 				if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(MenuContext))
 				{
-					for (TClass* MetaSound : Context->LoadSelectedObjects<TClass>())
+					for (TClass* ReferencedMetaSound : Context->LoadSelectedObjects<TClass>())
 					{
 						FString PackagePath;
 						FString AssetName;
 
-						IAssetTools::Get().CreateUniqueAssetName(MetaSound->GetOutermost()->GetName(), TEXT("_Preset"), PackagePath, AssetName);
+						IAssetTools::Get().CreateUniqueAssetName(ReferencedMetaSound->GetOutermost()->GetName(), TEXT("_Preset"), PackagePath, AssetName);
 
-						TFactory* Factory = NewObject<TFactory>();
-						check(Factory);
+						EMetaSoundBuilderResult BuilderResult;
+						UMetaSoundBuilderBase& Builder = UMetaSoundBuilderSubsystem::GetChecked().CreatePresetBuilder(FName(AssetName), ReferencedMetaSound, BuilderResult);
 
-						Factory->ReferencedMetaSoundObject = MetaSound;
+						if (BuilderResult != EMetaSoundBuilderResult::Succeeded)
+						{
+							UE_LOG(LogMetaSound, Error, TEXT("Error creating a preset builder for MetaSound '%s'"), *AssetName);
+							return;
+						}
 
-						IContentBrowserSingleton::Get().CreateNewAsset(AssetName, FPackageName::GetLongPackagePath(PackagePath), TClass::StaticClass(), Factory);
+						UMetaSoundEditorSubsystem& MetaSoundEditorSubsystem = UMetaSoundEditorSubsystem::GetChecked();
+						MetaSoundEditorSubsystem.BuildToAsset(&Builder, MetaSoundEditorSubsystem.GetDefaultAuthor(), AssetName, FPackageName::GetLongPackagePath(PackagePath), BuilderResult);
+						if (BuilderResult != EMetaSoundBuilderResult::Succeeded)
+						{
+							UE_LOG(LogMetaSound, Error, TEXT("Error building to asset when creating preset '%s'"), *AssetName);
+						}
 					}
 				}
 			}

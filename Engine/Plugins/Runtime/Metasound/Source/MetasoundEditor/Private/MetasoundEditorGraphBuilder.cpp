@@ -24,6 +24,7 @@
 #include "MetasoundEditorGraphValidation.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
+#include "MetasoundEditorSubsystem.h"
 #include "MetasoundFactory.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendDocumentAccessPtr.h"
@@ -123,7 +124,7 @@ namespace Metasound
 				// If no graph is set, MetaSound has been created outside of asset factory, so initialize it here.
 				if (!MetaSoundAsset->GetGraph())
 				{
-					UMetaSoundBaseFactory::InitAsset(InMetaSound);
+					UMetaSoundEditorSubsystem::GetChecked().InitAsset(InMetaSound);
 				}
 
 				bEditorGraphModified |= FGraphBuilder::SynchronizeGraphMembers(InMetaSound);

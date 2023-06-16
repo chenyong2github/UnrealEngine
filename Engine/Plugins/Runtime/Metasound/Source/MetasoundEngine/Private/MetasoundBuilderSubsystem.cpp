@@ -9,6 +9,7 @@
 #include "Interfaces/MetasoundOutputFormatInterfaces.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "Metasound.h"
+#include "MetasoundAssetSubsystem.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
@@ -490,6 +491,35 @@ void UMetaSoundBuilderBase::InitNodeLocations()
 	Builder.InitNodeLocations();
 }
 
+UObject* UMetaSoundBuilderBase::GetReferencedPresetAsset() const
+{
+	using namespace Metasound::Frontend;
+	if (!IsPreset())
+	{
+		return nullptr;
+	}
+
+	// Find the single external node which is the referenced preset asset, 
+	// and find the asset with its registry key 
+	auto FindExternalNode = [this](const FMetasoundFrontendNode& Node) 
+	{
+		const FMetasoundFrontendClass* Class = Builder.FindDependency(Node.ClassID);
+		return Class->Metadata.GetType() == EMetasoundFrontendClassType::External;
+	};
+	const FMetasoundFrontendNode* Node = Builder.GetDocument().RootGraph.Graph.Nodes.FindByPredicate(FindExternalNode);
+	if (Node != nullptr)
+	{
+		const FMetasoundFrontendClass* NodeClass = Builder.FindDependency(Node->ClassID);
+		const FNodeRegistryKey NodeClassRegistryKey = NodeRegistryKey::CreateKey(NodeClass->Metadata);
+		if (FMetasoundAssetBase* Asset = IMetaSoundAssetManager::GetChecked().TryLoadAssetFromKey(NodeClassRegistryKey))
+		{
+			return Asset->GetOwningAsset();
+		}
+	}
+
+	return nullptr;
+}
+
 bool UMetaSoundBuilderBase::InterfaceIsDeclared(FName InterfaceName) const
 {
 	return Builder.IsInterfaceDeclared(InterfaceName);
@@ -925,6 +955,24 @@ UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::CreatePatchPresetBuilder(FNa
 	UMetaSoundPatchBuilder& Builder = Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
 	Builder.ConvertToPreset(ReferencedNodeClass, OutResult);
 	return &Builder;
+}
+
+UMetaSoundBuilderBase& UMetaSoundBuilderSubsystem::CreatePresetBuilder(FName BuilderName, const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedPatchClass, EMetaSoundBuilderResult& OutResult)
+{
+	const UClass& Class = ReferencedPatchClass->GetBaseMetaSoundUClass();
+	if (&Class == UMetaSoundSource::StaticClass())
+	{
+		return *CreateSourcePresetBuilder(BuilderName, ReferencedPatchClass, OutResult);
+	}
+	else if (&Class == UMetaSoundPatch::StaticClass())
+	{
+		return *CreatePatchPresetBuilder(BuilderName, ReferencedPatchClass, OutResult);
+	}
+	else
+	{
+		checkf(false, TEXT("UClass '%s' cannot be built to a MetaSound preset"), *Class.GetFullName());
+		return Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
+	}
 }
 
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourcePresetBuilder(FName BuilderName, const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedNodeClass, EMetaSoundBuilderResult& OutResult)
