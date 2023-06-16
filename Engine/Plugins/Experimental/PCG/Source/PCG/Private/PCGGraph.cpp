@@ -13,10 +13,6 @@
 #include "Elements/PCGHiGenGridSize.h"
 #include "Elements/PCGUserParameterGet.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGGraph)
-
-#define LOCTEXT_NAMESPACE "PCGGraph"
-
 #if WITH_EDITOR
 #include "CoreGlobals.h"
 #include "Editor.h"
@@ -25,6 +21,10 @@
 #else
 #include "UObject/Package.h"
 #endif
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(PCGGraph)
+
+#define LOCTEXT_NAMESPACE "PCGGraph"
 
 namespace PCGGraphUtils
 {
