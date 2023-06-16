@@ -15,6 +15,7 @@
 #include "SceneRendering.h"
 #include "ScreenPass.h"
 #include "SystemTextures.h"
+#include "RenderGraphUtils.h"
 
 namespace ShaderPrint
 {
@@ -1116,5 +1117,55 @@ namespace ShaderPrint
 		}
 
 		GDefaultView = nullptr;
+	}
+
+
+	FStrings::FStrings(uint32 InMaxEntryCount, uint32 InMaxStringLength)
+	{
+		static_assert(sizeof(FEntryInfo) == 8);
+		Chars.Reserve(InMaxEntryCount * InMaxStringLength);
+	}
+	
+	void FStrings::Add(const FString& In, uint32 EntryID)
+	{
+		const uint32 Offset = Chars.Num();
+		const uint32 Length = In.Len();
+		for (TCHAR C : In)
+		{
+			Chars.Add(uint8(C));
+		}
+
+		FEntryInfo& Info = Infos.AddDefaulted_GetRef();
+		Info.EntryID = EntryID;
+		Info.Length = Length;
+		Info.Offset = Offset;
+	}
+
+	void FStrings::Add(const FString& In)
+	{
+		Add(In, Infos.Num());
+	}
+	
+	FStrings::FShaderParameters FStrings::GetParameters(FRDGBuilder& GraphBuilder)
+	{
+		if (Infos.IsEmpty())
+		{
+			FEntryInfo& Info = Infos.AddDefaulted_GetRef();
+			Info.EntryID = ~0;
+			Info.Length = 4;
+			Info.Offset = 0;
+			Chars.Add(uint8('N'));
+			Chars.Add(uint8('o'));
+			Chars.Add(uint8('n'));
+			Chars.Add(uint8('e'));
+		}
+	
+		FShaderParameters Out;
+		Out.InfoCount = Infos.Num();
+		Out.CharCount = Chars.Num();
+		Out.InfoBuffer = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("ShaderPrint.Strings.Infos"), Infos));
+		Out.CharBuffer = GraphBuilder.CreateSRV(CreateVertexBuffer(GraphBuilder, TEXT("ShaderPrint.Strings.Chars"), FRDGBufferDesc::CreateBufferDesc(1, Chars.Num()), Chars.GetData(), Chars.Num()), PF_R8_UINT);
+
+		return Out;
 	}
 }

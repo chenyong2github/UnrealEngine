@@ -1342,3 +1342,73 @@ void AddOBBTWS(FShaderPrintContext Ctx, float3 Min, float3 Max, float4 Color, fl
 
 void AddOBBWS (FShaderPrintContext Ctx, float3 Min, float3 Max, float4 Color, float4x4 Transform)	{ Transform[3].xyz += Ctx.Config.TranslatedWorldOffset; AddOBBTWS(Ctx, Min, Max, Color, Transform); }
 void AddOBB   (FShaderPrintContext Ctx, float3 Min, float3 Max, float4 Color, float4x4 Transform)	{ Transform[3].xyz += Ctx.Config.TranslatedWorldOffset; AddOBBTWS(Ctx, Min, Max, Color, Transform); }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Strings
+struct FStringInfo
+{
+	uint EntryID;
+	uint Length;
+	uint Offset;
+	uint Pad;
+};
+
+FStringInfo UnpackStringInfo(uint2 In)
+{
+	FStringInfo Out = (FStringInfo)0;
+	Out.EntryID = In.x;
+	Out.Offset  = (In.y) & 0xFFFF;
+	Out.Length  = (In.y >> 16) & 0xFF;
+	return Out;
+}
+
+FStringInfo FindStringInfo(uint InEntryID, uint InInfoCount, StructuredBuffer<uint2> InInfoBuffer)
+{
+	FStringInfo Out = (FStringInfo)0;
+	Out.EntryID = ~0;
+	for (uint It = 0; It < InInfoCount; ++It)
+	{
+		if (InInfoBuffer[It].x == InEntryID)
+		{
+			return UnpackStringInfo(InInfoBuffer[It]);
+		}
+	}
+	return Out;
+}
+
+void PrintString(inout FShaderPrintContext Ctx, uint InEntryID, FFontColor InColor, uint InInfoCount, uint InCharCount, StructuredBuffer<uint2> InInfoBuffer, Buffer<uint> InCharBuffer)
+{
+	const FStringInfo Info = FindStringInfo(InEntryID, InInfoCount, InInfoBuffer);
+	if (Info.EntryID != ~0 && (Info.Length + Info.Offset) <= InCharCount)
+	{
+		for (uint It = 0; It < Info.Length; ++It)
+		{
+			const uint Char = InCharBuffer[It + Info.Offset];
+			PrintSymbol(Ctx, Char, InColor);
+		}
+	}
+}
+
+uint LenString(uint InEntryID, uint InInfoCount, StructuredBuffer<uint2> InInfoBuffer)
+{
+	const FStringInfo Info = FindStringInfo(InEntryID, InInfoCount, InInfoBuffer);
+	return Info.EntryID != ~0 ? Info.Length : 0;
+}
+
+#define SHADERPRINT_STRINGS(N) \
+	uint					N##_InfoCount;\
+	uint					N##_CharCount;\
+	StructuredBuffer<uint2> N##_InfoBuffer;\
+	Buffer<uint>			N##_CharBuffer;\
+	void Print##N(inout FShaderPrintContext Ctx, uint InEntryID, FFontColor InColor)\
+	{\
+		PrintString(Ctx, InEntryID, InColor, N##_InfoCount, N##_CharCount, N##_InfoBuffer, N##_CharBuffer);\
+	}\
+	uint Len##N(uint InEntryID)\
+	{\
+		return LenString(InEntryID, N##_InfoCount, N##_InfoBuffer);\
+	}\
+	uint Num##N()\
+	{\
+		return N##_InfoCount;\
+	}

@@ -141,6 +141,46 @@ namespace ShaderPrint
 	
 	UE_DEPRECATED(5.1, "Use one of the other implementations of SetParameters()")
 	void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FShaderParameters& OutParameters);
+
+	// Experimental GPU string
+	//
+	// In Cpp:
+	//   SHADER_PARAMETER_STRUCT(ShaderPrint::FStrings::FShaderPararameters, MyVariable)
+	//   ShaderPrint::FStrings MyVariable;
+	//	 MyVariable.Add(FString(...), StringId);
+	//
+	// In shader:
+	//   SHADERPRINT_STRINGS(MyVariable)
+	//   void foo()
+	//   {  
+	//     InitShaderPrintContext Ctx = InitShaderPrintContext(...);
+	//     PrintMyVariable(Ctx, StringId, FontWhite);
+	//   }
+	struct RENDERER_API FStrings
+	{
+	public:
+		BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+			SHADER_PARAMETER(uint32, InfoCount)
+			SHADER_PARAMETER(uint32, CharCount)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, InfoBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, CharBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+		FStrings(uint32 InAvgEntryCount=128u, uint32 InAvgStringLength=32u);
+		void Add(const FString& In, uint32 EntryID);
+		void Add(const FString& In);
+		FShaderParameters GetParameters(FRDGBuilder& GraphBuilder);
+	private:
+		struct FEntryInfo
+		{
+			uint32 EntryID;
+			uint16 Offset;
+			uint8  Length;
+			uint8  Pad0;
+		};
+		TArray<FEntryInfo> Infos;
+		TArray<uint8> Chars;
+	};
 }
 
 /** 
