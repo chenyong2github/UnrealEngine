@@ -14,7 +14,7 @@ class UUserWidget;
 /**
  * Shared data to find or create a ViewModel at runtime.
  */
-UCLASS(Abstract, Blueprintable, EditInlineNew, DisplayName = "Viewmode Resolver")
+UCLASS(Abstract, Blueprintable, EditInlineNew, DisplayName = "Viewmodel Resolver")
 class MODELVIEWVIEWMODEL_API UMVVMViewModelContextResolver : public UObject
 {
 	GENERATED_BODY()
