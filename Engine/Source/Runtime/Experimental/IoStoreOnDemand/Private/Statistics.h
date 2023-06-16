@@ -5,7 +5,7 @@
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-class FIoRequestImpl;
+#include <atomic>
 
 #if COUNTERSTRACE_ENABLED || CSV_PROFILER
 #	define IAS_WITH_STATISTICS 1
@@ -21,10 +21,10 @@ namespace UE::IO::Private
 class FOnDemandIoBackendStats
 {
 public:
-	void OnIoRequestEnqueue(FIoRequestImpl* Request);
-	void OnIoRequestComplete(FIoRequestImpl* Request);
-	void OnIoRequestCancel(FIoRequestImpl* Request);
-	void OnIoRequestFail(FIoRequestImpl* Request);
+	void OnIoRequestEnqueue();
+	void OnIoRequestComplete(uint64 RequestSize);
+	void OnIoRequestCancel();
+	void OnIoRequestFail();
 	void OnChunkRequestCreate();
 	void OnChunkRequestRelease();
 	void OnCacheHit(uint64 InSize);
@@ -72,10 +72,10 @@ private:
 class FOnDemandIoBackendStats
 {
 public:
-	void OnIoRequestEnqueue(FIoRequestImpl* Request) {}
-	void OnIoRequestComplete(FIoRequestImpl* Request) {}
-	void OnIoRequestCancel(FIoRequestImpl* Request) {}
-	void OnIoRequestFail(FIoRequestImpl* Request) {}
+	void OnIoRequestEnqueue() {}
+	void OnIoRequestComplete(uint64 RequestSize) {}
+	void OnIoRequestCancel() {}
+	void OnIoRequestFail() {}
 	void OnChunkRequestCreate() {}
 	void OnChunkRequestRelease() {}
 	void OnCacheHit(uint64 InSize) {}

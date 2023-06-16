@@ -4,8 +4,6 @@
 
 #if IAS_WITH_STATISTICS
 
-#include "IO/IoDispatcherBackend.h"
-
 namespace UE::IO::Private
 {
 
@@ -59,29 +57,29 @@ CSV_DEFINE_STAT(Ias, FrameHttpRequestsPending);
 CSV_DEFINE_STAT(Ias, FrameHttpRequestsInflight);
 CSV_DEFINE_STAT(Ias, FrameHttpRequestsCompletedSize);
 
-void FOnDemandIoBackendStats::OnIoRequestEnqueue(FIoRequestImpl* Request)
+void FOnDemandIoBackendStats::OnIoRequestEnqueue()
 {
 	++IoRequestsMade;
 	TRACE_COUNTER_SET(IoRequestsMade, IoRequestsMade);
 	CSV_CUSTOM_STAT_DEFINED(FrameIoRequestsMade, IoRequestsMade, ECsvCustomStatOp::Set);
 }
-void FOnDemandIoBackendStats::OnIoRequestComplete(FIoRequestImpl* Request)
+void FOnDemandIoBackendStats::OnIoRequestComplete(uint64 RequestSize)
 {
 	int32 Count = IoRequestsCompleted.fetch_add(1, std::memory_order_relaxed);
 	TRACE_COUNTER_SET(IoRequestsCompleted, Count);
 	CSV_CUSTOM_STAT_DEFINED(FrameIoRequestsCompleted, Count, ECsvCustomStatOp::Set);
 
-	uint64 Size = IoRequestsCompletedSize.fetch_add(Request->GetBuffer().DataSize());
+	uint64 Size = IoRequestsCompletedSize.fetch_add(RequestSize);
 	TRACE_COUNTER_SET(IoRequestsCompletedSize, Size);
 	CSV_CUSTOM_STAT_DEFINED(FrameIoRequestsCompletedSize, BytesToApproxKB(Size), ECsvCustomStatOp::Set);
 }
-void FOnDemandIoBackendStats::OnIoRequestCancel(FIoRequestImpl* Request)
+void FOnDemandIoBackendStats::OnIoRequestCancel()
 {
 	++IoRequestsCancelled;
 	TRACE_COUNTER_SET(IoRequestsCancelled, IoRequestsCancelled);
 	CSV_CUSTOM_STAT_DEFINED(FrameIoRequestsCancelled, IoRequestsCancelled, ECsvCustomStatOp::Set);
 }
-void FOnDemandIoBackendStats::OnIoRequestFail(FIoRequestImpl* Request)
+void FOnDemandIoBackendStats::OnIoRequestFail()
 {
 	int32 Count = IoRequestsFailed.fetch_add(1, std::memory_order_relaxed);
 	TRACE_COUNTER_SET(IoRequestsFailed, Count);

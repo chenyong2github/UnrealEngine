@@ -974,12 +974,12 @@ void FOnDemandIoBackend::CompleteRequest(FChunkRequest* ChunkRequest)
 		
 		if (!bDecoded)
 		{
-			Stats.OnIoRequestFail(Request);
+			Stats.OnIoRequestFail();
 			bCanCache = false;
 			Request->SetFailed();
 		}
 
-		Stats.OnIoRequestComplete(Request);
+		Stats.OnIoRequestComplete(Request->GetBuffer().GetSize());
 		CompletedRequests.Enqueue(Request);
 		BackendContext->WakeUpDispatcherThreadDelegate.Execute();
 	}
@@ -1014,7 +1014,7 @@ bool FOnDemandIoBackend::Resolve(FIoRequestImpl* Request)
 		return false;
 	}
 
-	Stats.OnIoRequestEnqueue(Request);
+	Stats.OnIoRequestEnqueue();
 	FChunkRequestParams RequestParams = FChunkRequestParams::Create(Request, ChunkInfo);
 	FChunkRequest* ChunkRequest = ChunkRequests.Create(Request, RequestParams);
 
