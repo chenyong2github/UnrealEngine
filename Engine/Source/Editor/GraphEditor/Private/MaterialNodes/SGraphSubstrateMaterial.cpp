@@ -13,6 +13,7 @@
 #include "Math/Color.h"
 #include "Styling/StyleColors.h"
 #include "StrataDefinitions.h"
+#include "Widgets/SBoxPanel.h"
 
 enum class ESubstrateWidgetOutputType : uint8
 {
