@@ -11,6 +11,10 @@
 
 #include "PCGGraph.generated.h"
 
+#if WITH_EDITOR
+struct FEdGraphPinType;
+#endif // WITH_EDITOR
+
 enum class EPCGGraphParameterEvent
 {
 	GraphChanged,
@@ -250,8 +254,16 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 	// Parameters
-	UPROPERTY(EditAnywhere, Category = Instance, meta = (DisplayName = "Parameters", NoResetToDefault))
+	UPROPERTY(EditAnywhere, Category = Instance, meta = (DisplayName = "Parameters", NoResetToDefault, DefaultType = "EPropertyBagPropertyType::Double", AllowArrays = "false", IsPinTypeAccepted = "UserParametersIsPinTypeAccepted", CanRemoveProperty = "UserParametersCanRemoveProperty"))
 	FInstancedPropertyBag UserParameters;
+
+#if WITH_EDITOR
+	UFUNCTION(BlueprintInternalUseOnly)
+	bool UserParametersIsPinTypeAccepted(FEdGraphPinType InPinType);
+	
+	UFUNCTION(BlueprintInternalUseOnly)
+	bool UserParametersCanRemoveProperty(FGuid InPropertyID, FName InPropertyName);
+#endif // WITH_EDITOR
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bHierarchicalGenerationEnabled = false;

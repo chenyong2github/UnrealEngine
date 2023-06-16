@@ -15,8 +15,13 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGGraph)
 
+#define LOCTEXT_NAMESPACE "PCGGraph"
+
 #if WITH_EDITOR
+#include "CoreGlobals.h"
 #include "Editor.h"
+#include "Dialogs/Dialogs.h"
+#include "EdGraph/EdGraphPin.h"
 #else
 #include "UObject/Package.h"
 #endif
@@ -980,6 +985,57 @@ void UPCGGraph::OnGraphParametersChanged(EPCGGraphParameterEvent InChangeType, F
 	NotifyGraphParametersChanged(InChangeType, InChangedPropertyName);
 }
 
+bool UPCGGraph::UserParametersIsPinTypeAccepted(FEdGraphPinType InPinType)
+{
+	// Text and interface not supported
+	if (InPinType.PinCategory == TEXT("text") || InPinType.PinCategory == TEXT("interface"))
+	{
+		return false;
+	}
+	else if (InPinType.PinCategory == TEXT("struct"))
+	{
+		// Structs other than Vector/Transform/Rotator not supported
+		return InPinType.PinSubCategoryObject == TBaseStructure<FVector>::Get() 
+			|| InPinType.PinSubCategoryObject == TBaseStructure<FTransform>::Get()
+			|| InPinType.PinSubCategoryObject == TBaseStructure<FRotator>::Get();
+	}
+	else
+	{
+		return true;
+	}
+}
+
+bool UPCGGraph::UserParametersCanRemoveProperty(FGuid InPropertyID, FName InPropertyName)
+{
+	// Check if the property has some getters in the graph
+	for (const UPCGNode* Node : Nodes)
+	{
+		if (!Node)
+		{
+			continue;
+		}
+
+		if (const UPCGUserParameterGetSettings* Settings = Cast<UPCGUserParameterGetSettings>(Node->GetSettings()))
+		{
+			if (Settings->PropertyGuid == InPropertyID)
+			{
+				// We found a getter. Ask the user if he is OK with that
+				FText RemoveCheckMessage = FText::Format(LOCTEXT("UserParametersRemoveCheck", "Property {0} is in use in the graph. Are you sure you want to remove it?"), FText::FromName(InPropertyName));
+				FSuppressableWarningDialog::FSetupInfo Info(RemoveCheckMessage, LOCTEXT("UserParametersRemoveCheck_Message", "Remove property"), "UserParametersRemove");
+				Info.ConfirmText = FCoreTexts::Get().Yes;
+				Info.CancelText = FCoreTexts::Get().No;
+				FSuppressableWarningDialog AddLevelWarning(Info);
+				if (AddLevelWarning.ShowModal() == FSuppressableWarningDialog::Cancel)
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
 #endif // WITH_EDITOR
 
 uint32 UPCGGraph::GetNodeGenerationGridSize(const UPCGNode* InNode, uint32 InDefaultGridSize) const
@@ -1591,3 +1647,5 @@ void FPCGOverrideInstancedPropertyBag::MigrateToNewBagInstance(const FInstancedP
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
