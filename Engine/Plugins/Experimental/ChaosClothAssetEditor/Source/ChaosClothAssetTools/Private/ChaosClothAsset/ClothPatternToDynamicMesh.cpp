@@ -42,11 +42,11 @@ public:
 			case EClothPatternVertexType::Render:
 			{
 				const int32 NumVertices = Cloth.GetNumRenderVertices();
-				VertIDs.SetNum(NumVertices);
-				for (int32 VtxIndex = 0; VtxIndex < NumVertices; ++VtxIndex)
-				{
-					VertIDs[VtxIndex] = VtxIndex;
-				}
+		VertIDs.SetNum(NumVertices);
+		for (int32 VtxIndex = 0; VtxIndex < NumVertices; ++VtxIndex)
+		{
+			VertIDs[VtxIndex] = VtxIndex;
+		}
 				NormalIDs = VertIDs;
 
 				const TConstArrayView<FIntVector3> Indices = Cloth.GetRenderIndices();
@@ -212,9 +212,9 @@ public:
 
 		if(VertexDataType != EClothPatternVertexType::Render)
 		{
-			//
-			// Weight map layers precomputation
-			//
+		//
+		// Weight map layers precomputation
+		//
 			// No weight maps for render mesh
 			WeightMapNames = Cloth.GetWeightMapNames();
 		}
@@ -500,8 +500,8 @@ public:
 		}
 		else
 		{
-			return GetTri(TriID, ID0, ID1, ID2);
-		}
+		return GetTri(TriID, ID0, ID1, ID2); 
+	}
 	}
 	
 	const TArray<int32>& GetUVIDs(int32 LayerID) const 
