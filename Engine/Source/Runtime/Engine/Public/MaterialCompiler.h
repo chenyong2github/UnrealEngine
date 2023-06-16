@@ -421,13 +421,18 @@ public:
 	virtual int32 Div(int32 A,int32 B) = 0;
 	virtual int32 Dot(int32 A,int32 B) = 0;
 	virtual int32 Cross(int32 A,int32 B) = 0;
-
+		
 	virtual int32 Power(int32 Base,int32 Exponent) = 0;
+	virtual int32 Exponential(int32 X) = 0;
+	virtual int32 Exponential2(int32 X) = 0;
+	virtual int32 Logarithm(int32 X) = 0;
 	virtual int32 Logarithm2(int32 X) = 0;
 	virtual int32 Logarithm10(int32 X) = 0;
 	virtual int32 SquareRoot(int32 X) = 0;
 	virtual int32 Length(int32 X) = 0;
 	virtual int32 Normalize(int32 X) = 0;
+	virtual int32 HsvToRgb(int32 X) = 0;
+	virtual int32 RgbToHsv(int32 X) = 0;
 
 	virtual int32 Lerp(int32 X,int32 Y,int32 A) = 0;
 	virtual int32 Min(int32 A,int32 B) = 0;
@@ -878,11 +883,16 @@ public:
 	virtual int32 Cross(int32 A, int32 B) override { return Compiler->Cross(A, B); }
 
 	virtual int32 Power(int32 Base, int32 Exponent) override { return Compiler->Power(Base, Exponent); }
+	virtual int32 Exponential(int32 X) override { return Compiler->Exponential(X); }
+	virtual int32 Exponential2(int32 X) override { return Compiler->Exponential2(X); }
+	virtual int32 Logarithm(int32 X) override { return Compiler->Logarithm(X); }
 	virtual int32 Logarithm2(int32 X) override { return Compiler->Logarithm2(X); }
 	virtual int32 Logarithm10(int32 X) override { return Compiler->Logarithm10(X); }
 	virtual int32 SquareRoot(int32 X) override { return Compiler->SquareRoot(X); }
 	virtual int32 Length(int32 X) override { return Compiler->Length(X); }
 	virtual int32 Normalize(int32 X) override { return Compiler->Normalize(X); }
+	virtual int32 HsvToRgb(int32 X) override { return Compiler->HsvToRgb(X); }
+	virtual int32 RgbToHsv(int32 X) override { return Compiler->RgbToHsv(X); }
 
 	virtual int32 Lerp(int32 X, int32 Y, int32 A) override { return Compiler->Lerp(X, Y, A); }
 	virtual int32 Min(int32 A, int32 B) override { return Compiler->Min(A, B); }

@@ -337,6 +337,7 @@ FMaterialDerivativeAutogen::FOperationType1 FMaterialDerivativeAutogen::GetFunc1
 	case EFunc1::InvLength:
 		// Operate on LWCType, but return a float1
 		return FOperationType1(EDerivativeType::Float1, SrcType);
+	case EFunc1::Log:
 	case EFunc1::Log2:
 	case EFunc1::Log10:
 	case EFunc1::Exp:
@@ -492,6 +493,9 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 				DstToken = TEXT("abs(") + SrcToken + TEXT(")");
 			}
 			break;
+		case EFunc1::Log:
+			DstToken = TEXT("log(") + SrcToken + TEXT(")");
+			break;
 		case EFunc1::Log2:
 			DstToken = TEXT("log2(") + SrcToken + TEXT(")");
 			break;
@@ -500,6 +504,9 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 			break;
 		case EFunc1::Exp:
 			DstToken = TEXT("exp(") + SrcToken + TEXT(")");
+			break;
+		case EFunc1::Exp2:
+			DstToken = TEXT("exp2(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Sin:
 			if (bIsLWC)
@@ -720,6 +727,9 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 		case EFunc1::Abs:
 			DstToken = TEXT("AbsDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
+		case EFunc1::Log:
+			DstToken = TEXT("LogDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
+			break;
 		case EFunc1::Log2:
 			DstToken = TEXT("Log2Deriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
@@ -728,6 +738,9 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 			break;
 		case EFunc1::Exp:
 			DstToken = TEXT("ExpDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
+			break;
+		case EFunc1::Exp2:
+			DstToken = TEXT("Exp2Deriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Sin:
 			DstToken = TEXT("SinDeriv") + Suffix + TEXT("(") + SrcToken + TEXT(")");
@@ -2065,6 +2078,18 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
+				case EFunc1::Log:
+					Ret += BaseName + TEXT(" LogDeriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = log(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(A.Value);");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx ;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
 				case EFunc1::Log2:
 					Ret += BaseName + TEXT(" Log2Deriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
@@ -2096,6 +2121,18 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 					Ret += TEXT("\tRet.Value = exp(A.Value);") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddx = exp(A.Value) * A.Ddx;") LINE_TERMINATOR;
 					Ret += TEXT("\tRet.Ddy = exp(A.Value) * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EFunc1::Exp2:
+					Ret += BaseName + TEXT(" Exp2Deriv") + Suffix + TEXT("(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = exp2(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = exp2(A.Value) * 0.693147f;");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;

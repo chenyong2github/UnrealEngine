@@ -8778,6 +8778,69 @@ int32 FHLSLMaterialTranslator::Power(int32 Base,int32 Exponent)
 		return AddCodeChunk(GetParameterType(Base),TEXT("PositiveClampedPow(%s,%s)"),*GetParameterCode(Base),*CoerceParameter(Exponent,MCT_Float));
 	}
 }
+
+int32 FHLSLMaterialTranslator::Exponential(int32 X)
+{
+	if(X == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if(GetParameterUniformExpression(X))
+	{
+		return AddUniformExpression(new FMaterialUniformExpressionExponential(GetParameterUniformExpression(X)), GetParameterType(X), TEXT("exp(%s)"), *GetParameterCode(X));
+	}
+	else if(IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EFunc1::Exp, X);
+	}
+	else
+	{
+		return AddCodeChunk(GetParameterType(X), TEXT("exp(%s)"), *GetParameterCode(X));
+	}
+}
+
+int32 FHLSLMaterialTranslator::Exponential2(int32 X)
+{
+	if(X == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if(GetParameterUniformExpression(X))
+	{
+		return AddUniformExpression(new FMaterialUniformExpressionExponential2(GetParameterUniformExpression(X)), GetParameterType(X), TEXT("exp2(%s)"), *GetParameterCode(X));
+	}
+	else if(IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EFunc1::Exp2, X);
+	}
+	else
+	{
+		return AddCodeChunk(GetParameterType(X), TEXT("exp2(%s)"), *GetParameterCode(X));
+	}
+}
+
+int32 FHLSLMaterialTranslator::Logarithm(int32 X)
+{
+	if(X == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if(GetParameterUniformExpression(X))
+	{
+		return AddUniformExpression(new FMaterialUniformExpressionLogarithm(GetParameterUniformExpression(X)), GetParameterType(X), TEXT("log(%s)"), *GetParameterCode(X));
+	}
+	else if(IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EFunc1::Log, X);
+	}
+	else
+	{
+		return AddCodeChunk(GetParameterType(X), TEXT("log(%s)"), *GetParameterCode(X));
+	}
+}
 	
 int32 FHLSLMaterialTranslator::Logarithm2(int32 X)
 {
@@ -9668,6 +9731,80 @@ int32 FHLSLMaterialTranslator::AppendVector(int32 A,int32 B)
 			return AddInlinedCodeChunk(ResultType, *FiniteCode);
 		}
 	}
+}
+
+int32 FHLSLMaterialTranslator::HsvToRgb(int32 X)
+{
+	if(X == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	FString HSV = CreateSymbolName(TEXT("HSV"));
+	FString H = CreateSymbolName(TEXT("H"));
+	FString R = CreateSymbolName(TEXT("R"));
+	FString G = CreateSymbolName(TEXT("G"));
+	FString B = CreateSymbolName(TEXT("B"));
+	FString RGB = CreateSymbolName(TEXT("RGB"));
+
+	EMaterialValueType ValueType = GetType(X);
+	FString Type = HLSLTypeString(ValueType);
+	FString CodeStr{ Type + TEXT(" ") + HSV + TEXT(" = %s; ") +
+	TEXT("float ") + H + TEXT(" = ") + HSV + TEXT(".r; ") +
+	TEXT("float ") + R + TEXT(" = abs(") + H + TEXT(" * 6 - 3) - 1; ") +
+	TEXT("float ") + G + TEXT(" = 2 - abs(") + H + TEXT(" * 6 - 2); ") +
+	TEXT("float ") + B + TEXT(" = 2 - abs(") + H + TEXT(" * 6 - 4); ") +
+	TEXT("float3 ") + RGB + TEXT(" = saturate(float3(") + R + TEXT(",") + G + TEXT(",") + B + TEXT(")); ") };
+
+	FString Code{ TEXT("((") + RGB + TEXT(" - 1) * ") + HSV + TEXT(".y + 1) * ") + HSV + TEXT(".z") };
+
+
+	if(ValueType == EMaterialValueType::MCT_Float4)
+	{
+		Code = Type + TEXT("(") + Code + TEXT(", ") + HSV + TEXT(".w);");
+	}
+
+	AddInlinedCodeChunk(EMaterialValueType::MCT_VoidStatement, *CodeStr, *GetParameterCode(X));
+	return AddCodeChunk(GetParameterType(X), *Code);
+}
+
+int32 FHLSLMaterialTranslator::RgbToHsv(int32 X)
+{
+	if(X == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	FString RGB = CreateSymbolName(TEXT("RGB"));
+	FString P = CreateSymbolName(TEXT("P"));
+	FString Q = CreateSymbolName(TEXT("Q"));
+	FString Chroma = CreateSymbolName(TEXT("Chroma"));
+	FString Hue = CreateSymbolName(TEXT("Hue"));
+	FString HCV = CreateSymbolName(TEXT("HCV"));
+	FString S = CreateSymbolName(TEXT("s"));
+
+	EMaterialValueType ValueType = GetType(X);
+
+	FString Type = HLSLTypeString(ValueType);
+	FString CodeStr{ Type + TEXT(" ") + RGB + TEXT("= %s;") +
+	TEXT("float4 ") + P + TEXT(" = (") + RGB + TEXT(".g < ") + RGB + TEXT(".b) ? float4(") + RGB + TEXT(".bg, -1.0f, 2.0f / 3.0f) : float4(") + RGB + TEXT(".gb, 0.0f, -1.0f / 3.0f); ") +
+	TEXT("float4 ") + Q + TEXT(" = (") + RGB + TEXT(".r < ") + P + TEXT(".x) ? float4(") + P + TEXT(".xyw, ") + RGB + TEXT(".r)	: float4(") + RGB + TEXT(".r, ") + P + TEXT(".yzx);") +
+	TEXT("float ") + Chroma + TEXT("= ") + Q + TEXT(".x - min(") + Q + TEXT(".w, ") + Q + TEXT(".y);") +
+	TEXT("float ") + Hue + TEXT(" = abs((") + Q + TEXT(".w - ") + Q + TEXT(".y) / (6.0f * ") + Chroma + TEXT(" + 1e-10f) + ") + Q + TEXT(".z);") +
+	TEXT("float3 ") + HCV + TEXT(" = float3(") + Hue + TEXT(", ") + Chroma + TEXT(", ") + Q + TEXT(".x);") +
+	TEXT("float ") + S + TEXT(" = ") + HCV + TEXT(".y / (") + HCV + TEXT(".z + 1e-10f);") };
+
+	FString Code{ Type + TEXT("(") + HCV + TEXT(".x, ") + S + TEXT(", ") + HCV + TEXT(".z") };
+
+	if(ValueType == EMaterialValueType::MCT_Float4)
+	{
+		Code += TEXT(",") + RGB + TEXT(".w");
+	}
+
+	Code += TEXT(");");
+
+	AddInlinedCodeChunk(EMaterialValueType::MCT_VoidStatement, *CodeStr, *GetParameterCode(X));
+	return AddCodeChunk(GetParameterType(X), *Code);
 }
 
 static FString MultiplyMatrix(const TCHAR* Vector, const TCHAR* Matrix, int AWComponent)

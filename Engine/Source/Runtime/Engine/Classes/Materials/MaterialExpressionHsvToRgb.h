@@ -1,16 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Materials/MaterialExpression.h"
+#include "MaterialExpressionHsvToRgb.generated.h"
 
-#include "MaterialExpressionExponential.generated.h"
-
-/**
- * A material expression that computes the exponential of an input
- */
 UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
-class UMaterialExpressionMaterialXExponential : public UMaterialExpression
+class UMaterialExpressionHsvToRgb : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -21,6 +16,8 @@ class UMaterialExpressionMaterialXExponential : public UMaterialExpression
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	virtual void GetExpressionToolTip(TArray<FString>& OutToolTip) override;
+	virtual FText GetKeywords() const override {return FText::FromString(TEXT("hsvtorgb"));}
 #endif
 	//~ End UMaterialExpressionMaterialX Interface
 };
