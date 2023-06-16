@@ -7,6 +7,7 @@
 #include "IDisplayClusterCallbacks.h"
 
 #include "DisplayClusterConfigurationTypes_Media.h"
+#include "DisplayClusterConfigurationTypes_MediaSync.h"
 
 #include "MediaCapture.h"
 #include "MediaOutput.h"
@@ -64,16 +65,28 @@ bool FDisplayClusterMediaCaptureBase::StartCapture()
 			// Initialize and start capture synchronization
 			if (IsValid(SyncPolicy))
 			{
-				if (SyncPolicy->IsCaptureTypeSupported(MediaCapture))
+				SyncPolicyHandler = SyncPolicy->GetHandler();
+				if (SyncPolicyHandler)
 				{
-					if (!SyncPolicy->StartSynchronization(MediaCapture, GetMediaId()))
+					if (SyncPolicyHandler->IsCaptureTypeSupported(MediaCapture))
 					{
-						UE_LOG(LogDisplayClusterMedia, Warning, TEXT("MediaCapture '%s': couldn't start synchronization."), *GetMediaId());
+						if (SyncPolicyHandler->StartSynchronization(MediaCapture, GetMediaId()))
+						{
+							UE_LOG(LogDisplayClusterMedia, Log, TEXT("MediaCapture '%s' started synchronization type '%s'."), *GetMediaId(), *SyncPolicy->GetName());
+						}
+						else
+						{
+							UE_LOG(LogDisplayClusterMedia, Warning, TEXT("MediaCapture '%s': couldn't start synchronization."), *GetMediaId());
+						}
+					}
+					else
+					{
+						UE_LOG(LogDisplayClusterMedia, Warning, TEXT("MediaCapture '%s' is not compatible with media SyncPolicy '%s'."), *GetMediaId(), *SyncPolicy->GetName());
 					}
 				}
 				else
 				{
-					UE_LOG(LogDisplayClusterMedia, Warning, TEXT("MediaCapture '%s' is not compatible with media SyncPolicy '%s'."), *GetMediaId(), *SyncPolicy->GetName());
+					UE_LOG(LogDisplayClusterMedia, Warning, TEXT("Could not create media sync policy handler from '%s'."), *SyncPolicy->GetName());
 				}
 			}
 
@@ -88,9 +101,9 @@ bool FDisplayClusterMediaCaptureBase::StartCapture()
 void FDisplayClusterMediaCaptureBase::StopCapture()
 {
 	// Stop synchronization
-	if (SyncPolicy)
+	if (SyncPolicyHandler)
 	{
-		SyncPolicy->StopSynchronization();
+		SyncPolicyHandler->StopSynchronization();
 	}
 
 	// Stop capture

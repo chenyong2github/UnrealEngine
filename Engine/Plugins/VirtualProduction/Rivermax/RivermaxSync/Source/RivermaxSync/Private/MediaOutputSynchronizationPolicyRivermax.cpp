@@ -8,7 +8,18 @@
 #include "RivermaxPTPUtils.h"
 
 
-bool UMediaOutputSynchronizationPolicyRivermax::IsCaptureTypeSupported(UMediaCapture* MediaCapture) const
+FMediaOutputSynchronizationPolicyRivermaxHandler::FMediaOutputSynchronizationPolicyRivermaxHandler(UMediaOutputSynchronizationPolicyRivermax* InPolicyObject)
+	: Super(InPolicyObject)
+{
+
+}
+
+TSubclassOf<UDisplayClusterMediaOutputSynchronizationPolicy> FMediaOutputSynchronizationPolicyRivermaxHandler::GetPolicyClass() const
+{
+	return UMediaOutputSynchronizationPolicyRivermax::StaticClass();
+}
+
+bool FMediaOutputSynchronizationPolicyRivermaxHandler::IsCaptureTypeSupported(UMediaCapture* MediaCapture) const
 {
 	// We need to make sure:
 	// - it's RivermaxCapture
@@ -37,7 +48,7 @@ bool UMediaOutputSynchronizationPolicyRivermax::IsCaptureTypeSupported(UMediaCap
 	return false;
 }
 
-double UMediaOutputSynchronizationPolicyRivermax::GetTimeBeforeNextSyncPoint()
+double FMediaOutputSynchronizationPolicyRivermaxHandler::GetTimeBeforeNextSyncPoint()
 {
 	if (URivermaxMediaCapture* RmaxCapture = Cast<URivermaxMediaCapture>(CapturingDevice))
 	{
@@ -67,4 +78,14 @@ double UMediaOutputSynchronizationPolicyRivermax::GetTimeBeforeNextSyncPoint()
 	// Normally we should never get here. As a fallback approach, return some big time interval
 	// to prevent calling thread blocking. 1 second is more than any possible threshold.
 	return 1.f;
+}
+
+TSharedPtr<IDisplayClusterMediaOutputSynchronizationPolicyHandler> UMediaOutputSynchronizationPolicyRivermax::GetHandler()
+{
+	if (!Handler)
+	{
+		Handler = MakeShared<FMediaOutputSynchronizationPolicyRivermaxHandler>(this);
+	}
+
+	return Handler;
 }

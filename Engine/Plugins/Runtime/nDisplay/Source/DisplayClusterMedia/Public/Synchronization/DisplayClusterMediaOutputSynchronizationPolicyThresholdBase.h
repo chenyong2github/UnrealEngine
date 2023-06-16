@@ -2,11 +2,34 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Synchronization/DisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase.h"
 
 #include "DisplayClusterMediaOutputSynchronizationPolicyThresholdBase.generated.h"
 
+/*
+ * Synchronization logic handler class for UDisplayClusterMediaOutputSynchronizationPolicyThresholdBase.
+ */
+class DISPLAYCLUSTERMEDIA_API FDisplayClusterMediaOutputSynchronizationPolicyThresholdBaseHandler
+	: public FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler
+{
+	using Super = FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler;
+public:
+	
+	FDisplayClusterMediaOutputSynchronizationPolicyThresholdBaseHandler(UDisplayClusterMediaOutputSynchronizationPolicyThresholdBase* InPolicyObject);
+
+protected:
+	//~ Begin FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler interface
+	virtual void Synchronize() override;
+	//~ End FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler interface
+
+protected:
+	/** Returns amount of time before next synchronization point. */
+	virtual double GetTimeBeforeNextSyncPoint() = 0;
+
+protected:
+	/** Synchronization margin (ms) */
+	int32 MarginMs = 5;
+};
 
 /*
  * Base class for threshold based media synchronization policies.
@@ -19,14 +42,7 @@ class DISPLAYCLUSTERMEDIA_API UDisplayClusterMediaOutputSynchronizationPolicyThr
 {
 	GENERATED_BODY()
 
-protected:
-	/** Synchronization procedure implementation. */
-	virtual void Synchronize() override;
-
-	/** Returns amount of time before next synchronization point. */
-	virtual double GetTimeBeforeNextSyncPoint() PURE_VIRTUAL(UDisplayClusterMediaOutputSynchronizationPolicyThresholdBase::GetTimeBeforeNextSyncPoint, return 0;)
-
-protected:
+public:
 	/** Synchronization margin (ms) */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (DisplayName = "Margin (ms)", ClampMin = "1", ClampMax = "20", UIMin = "1", UIMax = "20"))
 	int32 MarginMs = 5;

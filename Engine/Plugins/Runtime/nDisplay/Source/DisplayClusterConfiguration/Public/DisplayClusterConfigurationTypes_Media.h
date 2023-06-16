@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "DisplayClusterConfigurationTypes_Base.h"
+#include "DisplayClusterConfigurationTypes_MediaSync.h"
 
 #include "MediaPlayer.h"
 #include "MediaSource.h"
@@ -12,33 +13,6 @@
 #include "MediaOutput.h"
 
 #include "DisplayClusterConfigurationTypes_Media.generated.h"
-
-
-/*
- * Base media output synchronization policy class
- */
-UCLASS(Abstract, editinlinenew, BlueprintType, hidecategories = (Object))
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterMediaOutputSynchronizationPolicy
-	: public UObject
-{
-	GENERATED_BODY()
-
-public:
-	/** Returns true if specified media capture type can be synchonized by the policy implementation */
-	virtual bool IsCaptureTypeSupported(UMediaCapture* MediaCapture) const
-	{
-		return true;
-	}
-
-	/** Starts synchronization of specific output stream (capture device). Returns false if failed. */
-	virtual bool StartSynchronization(UMediaCapture* MediaCapture, const FString& MediaId) PURE_VIRTUAL(UDisplayClusterMediaOutputSynchronizationPolicy::StartSynchronization, return false;);
-
-	/** Stops synchronization of specific output stream (capture device). */
-	virtual void StopSynchronization() PURE_VIRTUAL(UDisplayClusterMediaOutputSynchronizationPolicy::StopSynchronization, );
-
-	/** Returns true if currently synchronising a media output. */
-	virtual bool IsRunning() PURE_VIRTUAL(UDisplayClusterMediaOutputSynchronizationPolicy::IsRunning, return false; );
-};
 
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

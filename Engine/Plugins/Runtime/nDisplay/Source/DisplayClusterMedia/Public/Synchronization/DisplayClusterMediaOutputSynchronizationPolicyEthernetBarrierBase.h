@@ -2,52 +2,35 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "DisplayClusterConfigurationTypes_Media.h"
+#include "DisplayClusterConfigurationTypes_MediaSync.h"
 
 #include "Cluster/IDisplayClusterGenericBarriersClient.h"
 
 #include "DisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase.generated.h"
 
-
 /*
- * Base class for Ethernet barrier based media synchronization policies.
- * 
- * It encapsulates network barriers related logic.
+ * Synchronization logic handler class for UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase.
  */
-UCLASS(Abstract, editinlinenew, BlueprintType, hidecategories = (Object))
-class DISPLAYCLUSTERMEDIA_API UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase
-	: public UDisplayClusterMediaOutputSynchronizationPolicy
+class DISPLAYCLUSTERMEDIA_API FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler
+								: public IDisplayClusterMediaOutputSynchronizationPolicyHandler
 {
-	GENERATED_BODY()
-
 public:
-	/** Starts synchronization of specific capture device. Returns false if failed. */
+
+	FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler(UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase* InPolicyObject);
+
+	//~ Begin IDisplayClusterMediaOutputSynchronizationPolicyHandler interface
 	virtual bool StartSynchronization(UMediaCapture* MediaCapture, const FString& MediaId) override;
-
-	/** Stops synchronization of specific output stream (capture device). */
 	virtual void StopSynchronization() override;
-
-	/** Returns true if currently synchronising a media output. */
 	virtual bool IsRunning() override final;
+	//~ End IDisplayClusterMediaOutputSynchronizationPolicyHandler interface
+
+	/** Children implement their own sync approaches. */
+	virtual void Synchronize() = 0;
 
 protected:
 	/** Synchronizes calling thread at the barrier. */
 	void SyncThreadOnBarrier();
 
-	/** Children implement their own sync approaches. */
-	virtual void Synchronize() PURE_VIRTUAL(UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::Synchronize, )
-
-protected:
-	/** Capture device being used. */
-	UPROPERTY(Transient)
-	TObjectPtr<UMediaCapture> CapturingDevice;
-
-	/** Barrier timeout (ms) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (DisplayName = "Barrier Timeout (ms)", ClampMin = "1", ClampMax = "10000", UIMin = "1", UIMax = "10000"))
-	int32 BarrierTimeoutMs = 3000;
-
-protected:
 	/** Returns media device ID being synchronized */
 	FString GetMediaDeviceId() const;
 
@@ -67,6 +50,14 @@ private:
 	/** Handles media capture sync callbacks. */
 	void ProcessMediaSynchronizationCallback();
 
+protected:
+
+	/** Capture device being used. */
+	TObjectPtr<UMediaCapture> CapturingDevice;
+
+	/** Barrier timeout (ms) */
+	int32 BarrierTimeoutMs = 3000;
+
 private:
 	/** Is synchronization currently active. */
 	bool bIsRunning = false;
@@ -82,4 +73,22 @@ private:
 
 	/** Barrier sync client. */
 	TUniquePtr<IDisplayClusterGenericBarriersClient> EthernetBarrierClient;
+};
+
+/*
+ * Base class for Ethernet barrier based media synchronization policies.
+ * 
+ * It encapsulates network barriers related settings.
+ */
+UCLASS(Abstract, editinlinenew, BlueprintType, hidecategories = (Object))
+class DISPLAYCLUSTERMEDIA_API UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase
+	: public UDisplayClusterMediaOutputSynchronizationPolicy
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Barrier timeout (ms) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings", meta = (DisplayName = "Barrier Timeout (ms)", ClampMin = "1", ClampMax = "10000", UIMin = "1", UIMax = "10000"))
+	int32 BarrierTimeoutMs = 3000;
 };

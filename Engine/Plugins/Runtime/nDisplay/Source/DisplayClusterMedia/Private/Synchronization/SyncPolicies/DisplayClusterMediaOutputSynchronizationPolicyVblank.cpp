@@ -9,7 +9,18 @@
 #include "DisplayClusterMediaLog.h"
 
 
-bool UDisplayClusterMediaOutputSynchronizationPolicyVblank::StartSynchronization(UMediaCapture* MediaCapture, const FString& MediaId)
+FDisplayClusterMediaOutputSynchronizationPolicyVblankHandler::FDisplayClusterMediaOutputSynchronizationPolicyVblankHandler(UDisplayClusterMediaOutputSynchronizationPolicyVblank* InPolicyObject)
+	: Super(InPolicyObject)
+{
+
+}
+
+TSubclassOf<UDisplayClusterMediaOutputSynchronizationPolicy> FDisplayClusterMediaOutputSynchronizationPolicyVblankHandler::GetPolicyClass() const
+{
+	return UDisplayClusterMediaOutputSynchronizationPolicyVblank::StaticClass();
+}
+
+bool FDisplayClusterMediaOutputSynchronizationPolicyVblankHandler::StartSynchronization(UMediaCapture* MediaCapture, const FString& MediaId)
 {
 	// Get monitor interface if not yet available
 	if (!VblankMonitor)
@@ -29,7 +40,7 @@ bool UDisplayClusterMediaOutputSynchronizationPolicyVblank::StartSynchronization
 	return Super::StartSynchronization(MediaCapture, MediaId);
 }
 
-double UDisplayClusterMediaOutputSynchronizationPolicyVblank::GetTimeBeforeNextSyncPoint()
+double FDisplayClusterMediaOutputSynchronizationPolicyVblankHandler::GetTimeBeforeNextSyncPoint()
 {
 	// Compute time remaining
 	if(VblankMonitor->IsVblankTimeDataAvailable())
@@ -41,4 +52,14 @@ double UDisplayClusterMediaOutputSynchronizationPolicyVblank::GetTimeBeforeNextS
 
 	// Return 1sec (a huge duration) to prevent calling thread blocking
 	return 1;
+}
+
+TSharedPtr<IDisplayClusterMediaOutputSynchronizationPolicyHandler> UDisplayClusterMediaOutputSynchronizationPolicyVblank::GetHandler()
+{
+	if (!Handler)
+	{
+		Handler = MakeShared<FDisplayClusterMediaOutputSynchronizationPolicyVblankHandler>(this);
+	}
+
+	return Handler;
 }

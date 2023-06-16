@@ -13,7 +13,7 @@ class FRDGBuilder;
 class UMediaCapture;
 class UMediaOutput;
 class UDisplayClusterMediaOutputSynchronizationPolicy;
-
+class IDisplayClusterMediaOutputSynchronizationPolicyHandler;
 
 /**
  * Base media capture class
@@ -70,9 +70,9 @@ private:
 
 private:
 	//~ Begin GC by AddReferencedObjects
-	TObjectPtr<UMediaOutput>  MediaOutput  = nullptr;
-	TObjectPtr<UMediaCapture> MediaCapture = nullptr;
-	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> SyncPolicy = nullptr;
+	TObjectPtr<UMediaOutput>  MediaOutput;
+	TObjectPtr<UMediaCapture> MediaCapture;
+	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> SyncPolicy;
 	//~ End GC by AddReferencedObjects
 
 	// Used to restart media capture in the case it falls in error
@@ -83,4 +83,7 @@ private:
 
 	// Last region size of the texture being exported. Used to restart the capture when in error.
 	std::atomic<FIntSize> LastSrcRegionSize { FIntSize(0,0) };
+
+	/** Sync policy handler to deal with synchronization logic */
+	TSharedPtr<IDisplayClusterMediaOutputSynchronizationPolicyHandler> SyncPolicyHandler;
 };

@@ -5,7 +5,14 @@
 #include "DisplayClusterMediaLog.h"
 
 
-void UDisplayClusterMediaOutputSynchronizationPolicyThresholdBase::Synchronize()
+FDisplayClusterMediaOutputSynchronizationPolicyThresholdBaseHandler::FDisplayClusterMediaOutputSynchronizationPolicyThresholdBaseHandler(UDisplayClusterMediaOutputSynchronizationPolicyThresholdBase* InPolicyObject)
+	: Super(InPolicyObject)
+	, MarginMs(InPolicyObject->MarginMs)
+{
+
+}
+
+void FDisplayClusterMediaOutputSynchronizationPolicyThresholdBaseHandler::Synchronize()
 {
 	// Ask the sync implementation about how much time we have before next synchronization timepoint
 	const double TimeLeftSeconds = GetTimeBeforeNextSyncPoint();

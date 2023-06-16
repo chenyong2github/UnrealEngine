@@ -2,11 +2,31 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Synchronization/DisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase.h"
 
 #include "DisplayClusterMediaOutputSynchronizationPolicyEthernetBarrier.generated.h"
 
+/*
+ * Synchronization logic handler class for UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrier.
+ */
+class DISPLAYCLUSTERMEDIA_API FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierHandler
+	: public FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler
+{
+	using Super = FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler;
+
+public:
+
+	FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierHandler(UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrier* InPolicyObject);
+
+	//~ Begin IDisplayClusterMediaOutputSynchronizationPolicyHandler interface
+	virtual TSubclassOf<UDisplayClusterMediaOutputSynchronizationPolicy> GetPolicyClass() const override;
+	//~ End IDisplayClusterMediaOutputSynchronizationPolicyHandler interface
+
+protected:
+	//~ Begin FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler interface
+	virtual void Synchronize() override;
+	//~ End FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler interface
+};
 
 /*
  * EthernetBarrier media synchronization policy implementation
@@ -18,6 +38,8 @@ class DISPLAYCLUSTERMEDIA_API UDisplayClusterMediaOutputSynchronizationPolicyEth
 	GENERATED_BODY()
 
 protected:
-	/** Synchronization procedure implementation. */
-	virtual void Synchronize() override;
+	virtual TSharedPtr<IDisplayClusterMediaOutputSynchronizationPolicyHandler> GetHandler() override;
+
+protected:
+	TSharedPtr<IDisplayClusterMediaOutputSynchronizationPolicyHandler> Handler;
 };

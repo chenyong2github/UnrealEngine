@@ -18,6 +18,27 @@ namespace UE::RivermaxCore
 		FrameCreation,
 	};
 
+	inline const TCHAR* LexToString(ERivermaxAlignmentMode InValue)
+	{
+		switch (InValue)
+		{
+			case ERivermaxAlignmentMode::AlignmentPoint:
+			{
+				return TEXT("Alignment point");
+			}
+			case ERivermaxAlignmentMode::FrameCreation:
+			{
+				return TEXT("Frame creation");
+			}
+			default:
+			{
+				checkNoEntry();
+			}
+		}
+
+		return TEXT("<Unknown ERivermaxAlignmentMode>");
+	}
+
 	enum class EFrameLockingMode : uint8
 	{
 		/** If no frame available, continue */
@@ -26,6 +47,27 @@ namespace UE::RivermaxCore
 		/** Blocks when reserving a frame slot. */
 		BlockOnReservation,
 	};
+
+	inline const TCHAR* LexToString(EFrameLockingMode InValue)
+	{
+		switch (InValue)
+		{
+			case EFrameLockingMode::FreeRun:
+			{
+				return TEXT("Freerun");
+			}
+			case EFrameLockingMode::BlockOnReservation:
+			{
+				return TEXT("Blocking");
+			}
+			default:
+			{
+				checkNoEntry();
+			}
+		}
+
+		return TEXT("<Unknown EFrameLockingMode>");
+	}
 
 	struct RIVERMAXCORE_API FRivermaxInputStreamOptions
 	{

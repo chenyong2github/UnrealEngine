@@ -17,8 +17,16 @@
 #include "Cluster/IDisplayClusterClusterManager.h"
 #include "Game/IDisplayClusterGameManager.h"
 
+#include "Templates/SharedPointer.h"
 
-bool UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::StartSynchronization(UMediaCapture* MediaCapture, const FString& MediaId)
+
+FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler(UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase* InPolicyObject)
+	: BarrierTimeoutMs(InPolicyObject->BarrierTimeoutMs)
+{
+
+}
+
+bool FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::StartSynchronization(UMediaCapture* MediaCapture, const FString& MediaId)
 {
 	// Cluster mode only
 	if (IDisplayCluster::Get().GetOperationMode() != EDisplayClusterOperationMode::Cluster)
@@ -57,8 +65,7 @@ bool UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::StartSy
 		return false;
 	}
 
-	// And subscribe for sync callbacks
-	CapturingDevice->OnOutputSynchronization.BindUObject(this, &UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::ProcessMediaSynchronizationCallback);
+	CapturingDevice->OnOutputSynchronization.BindSP(this, &FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::ProcessMediaSynchronizationCallback);
 
 	// Update state
 	bIsRunning = true;
@@ -66,7 +73,7 @@ bool UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::StartSy
 	return true;
 }
 
-void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::StopSynchronization()
+void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::StopSynchronization()
 {
 	if (bIsRunning)
 	{
@@ -85,17 +92,17 @@ void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::StopSyn
 	}
 }
 
-bool UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::IsRunning()
+bool FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::IsRunning()
 {
 	return bIsRunning;
 }
 
-FString UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::GetMediaDeviceId() const
+FString FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::GetMediaDeviceId() const
 {
 	return MediaDeviceId;
 }
 
-void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::SyncThreadOnBarrier()
+void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::SyncThreadOnBarrier()
 {
 	// Sync on the barrier if everything is good
 	if (bIsRunning && EthernetBarrierClient && EthernetBarrierClient->IsConnected())
@@ -105,7 +112,7 @@ void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::SyncThr
 	}
 }
 
-bool UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::InitializeBarrier(const FString& MediaId)
+bool FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::InitializeBarrier(const FString& MediaId)
 {
 	if (MediaId.IsEmpty())
 	{
@@ -153,7 +160,7 @@ bool UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::Initial
 	return true;
 }
 
-void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::ReleaseBarrier()
+void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::ReleaseBarrier()
 {
 	if (EthernetBarrierClient)
 	{
@@ -166,7 +173,7 @@ void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::Release
 	}
 }
 
-FString UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::GenerateBarrierName() const
+FString FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::GenerateBarrierName() const
 {
 	// Currently we don't have any synchronization groups. This means all the sync policy instances of the same
 	// class use the same barrier. If we want to introduce sync groups in the future, the barrier ID should
@@ -177,10 +184,10 @@ FString UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::Gene
 	//
 	// However! All media captures are locked to UE rendering pipeline. This means all the captures will run
 	// with the same framerate. Therefore we don't need any sync groups so far.
-	return GetClass()->GetName();
+	return GetPolicyClass()->GetName();
 }
 
-void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::GenerateListOfThreadMarkers(TArray<FString>& OutMarkers) const
+void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::GenerateListOfThreadMarkers(TArray<FString>& OutMarkers) const
 {
 	OutMarkers.Empty();
 
@@ -202,7 +209,7 @@ void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::Generat
 					if (MediaSettings.bEnable && MediaSettings.MediaOutput && MediaSettings.OutputSyncPolicy)
 					{
 						// Pick the same sync policy only
-						if (MediaSettings.OutputSyncPolicy->GetClass() == GetClass())
+						if (MediaSettings.OutputSyncPolicy->GetClass() == GetPolicyClass())
 						{
 							const FString BackbufferCaptureId = DisplayClusterMediaHelpers::MediaId::GenerateMediaId(
 								DisplayClusterMediaHelpers::MediaId::EMediaDeviceType::Output,
@@ -224,7 +231,7 @@ void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::Generat
 						if (MediaSettings.bEnable && MediaSettings.MediaOutput && MediaSettings.OutputSyncPolicy)
 						{
 							// Pick the same sync policy only
-							if (MediaSettings.OutputSyncPolicy->GetClass() == GetClass())
+							if (MediaSettings.OutputSyncPolicy->GetClass() == GetPolicyClass())
 							{
 								const FString ViewportCaptureId = DisplayClusterMediaHelpers::MediaId::GenerateMediaId(
 									DisplayClusterMediaHelpers::MediaId::EMediaDeviceType::Output,
@@ -257,7 +264,7 @@ void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::Generat
 						// Pick the same sync policy only
 						if (MediaOutputGroup.MediaOutput && MediaOutputGroup.OutputSyncPolicy)
 						{
-							if (MediaOutputGroup.OutputSyncPolicy->GetClass() == GetClass())
+							if (MediaOutputGroup.OutputSyncPolicy->GetClass() == GetPolicyClass())
 							{
 								for (const FString& NodeId : MediaOutputGroup.ClusterNodes.ItemNames)
 								{
@@ -283,7 +290,7 @@ void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::Generat
 	}
 }
 
-void UDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBase::ProcessMediaSynchronizationCallback()
+void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::ProcessMediaSynchronizationCallback()
 {
 	UE_LOG(LogDisplayClusterMediaSync, VeryVerbose, TEXT("'%s': Synchronizing capture..."), *GetMediaDeviceId());
 

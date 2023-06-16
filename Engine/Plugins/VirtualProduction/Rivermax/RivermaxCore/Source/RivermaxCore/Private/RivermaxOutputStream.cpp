@@ -367,11 +367,20 @@ namespace UE::RivermaxCore::Private
 						StreamData.FrameFieldTimeIntervalNs = 1E9 / Options.FrameRate.AsDecimal();
 						InitializeStreamTimingSettings();
 
-						UE_LOG(LogRivermax, Display, TEXT("Output stream started sending on stream %s:%d on interface %s%s")
+						TStringBuilder<512> StreamDescription;
+						StreamDescription.Appendf(TEXT("Output stream started sending on stream %s:%d using interface %s%s. ")
 							, *Options.StreamAddress
 							, Options.Port
 							, *Options.InterfaceAddress
 							, bUseGPUDirect ? TEXT(" using GPUDirect") : TEXT(""));
+
+						StreamDescription.Appendf(TEXT("Settings: Resolution = %dx%d, "), Options.AlignedResolution.X, Options.AlignedResolution.Y);
+						StreamDescription.Appendf(TEXT("FrameRate = %s, "), *Options.FrameRate.ToPrettyText().ToString());
+						StreamDescription.Appendf(TEXT("Pixel format = %s, "), LexToString(Options.PixelFormat));
+						StreamDescription.Appendf(TEXT("Alignment = %s, "), LexToString(Options.AlignmentMode));
+						StreamDescription.Appendf(TEXT("Framelocking = %s."), LexToString(Options.FrameLockingMode));
+						
+						UE_LOG(LogRivermax, Display, TEXT("%s"), *FString(StreamDescription));
 
 						bIsActive = true;
 						RivermaxThread.Reset(FRunnableThread::Create(this, TEXT("Rmax OutputStream Thread"), 128 * 1024, TPri_TimeCritical, FPlatformAffinity::GetPoolThreadMask()));
