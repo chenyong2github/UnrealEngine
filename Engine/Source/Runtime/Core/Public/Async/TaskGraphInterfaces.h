@@ -648,20 +648,14 @@ private:
 		FBaseGraphTask::Init(TEXT("GraphTask"), InPriority, InExtendedPriority);
 	}
 
-	virtual bool TryExecuteTaskVirtual() final
+	virtual void ExecuteTask() override final
 	{
-		return TryExecute(
-			[](UE::Tasks::Private::FTaskBase& Task)
-			{
-				TGraphTask& This = static_cast<TGraphTask&>(Task);
-				FGraphEventRef GraphEventRef{ &This };
-				TTask* TaskObject = This.TaskStorage.GetTypedPtr();
-				ENamedThreads::Type ThreadIndex = ENamedThreads::GetThreadIndex(TaskObject->GetDesiredThread());
+		FGraphEventRef GraphEventRef{ this };
+		TTask* TaskObject = TaskStorage.GetTypedPtr();
+		ENamedThreads::Type ThreadIndex = ENamedThreads::GetThreadIndex(TaskObject->GetDesiredThread());
 
-				TaskObject->DoTask(ThreadIndex, GraphEventRef);
-				DestructItem(TaskObject);
-			}
-		);
+		TaskObject->DoTask(ThreadIndex, GraphEventRef);
+		DestructItem(TaskObject);
 	}
 
 private:
@@ -695,10 +689,9 @@ public:
 	static void operator delete(void* Ptr);
 
 private:
-	virtual bool TryExecuteTaskVirtual() override
+	virtual void ExecuteTask() override final
 	{
 		checkNoEntry(); // graph events are never executed
-		return true;
 	}
 };
 

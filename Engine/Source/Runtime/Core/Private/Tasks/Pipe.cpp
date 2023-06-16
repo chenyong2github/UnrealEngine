@@ -59,10 +59,9 @@ namespace UE::Tasks
 				);
 			}
 
-			virtual bool TryExecuteTaskVirtual() final
+			virtual void ExecuteTask() override final
 			{
 				checkNoEntry(); // the method won't be called because the task was initialized with `EExtendedTaskPriority::TaskEvent`
-				return true;
 			}
 		};
 

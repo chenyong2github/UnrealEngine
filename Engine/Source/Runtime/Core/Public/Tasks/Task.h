@@ -181,7 +181,7 @@ namespace UE::Tasks
 		{
 			check(IsValid());
 			FTaskHandle::Wait();
-			return ((Private::TTaskWithResult<ResultType>*)Pimpl.GetReference())->GetResult();
+			return static_cast<Private::TTaskWithResult<ResultType>*>(Pimpl.GetReference())->GetResult();
 		}
 
 	private:
