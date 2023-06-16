@@ -312,6 +312,9 @@ protected:
 	/** Base set of settings to start from when setuping channels */
 	FMediaIOSamplingSettings BaseSettings;
 
+	/** Open color IO conversion data. */
+	TSharedPtr<struct FOpenColorIOColorConversionSettings> OCIOSettings;
+
 private:
 	void OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture);
 	void RegisterSampleBuffer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample);
@@ -321,6 +324,7 @@ private:
 	void PreGPUTransfer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample);
 	void PreGPUTransferJITR(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample, const TSharedPtr<FMediaIOCoreTextureSampleBase>& InJITRProxySample);
 	void ExecuteGPUTransfer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample);
+
 
 	/** GPU Texture transfer object */
 	UE::GPUTextureTransfer::TextureTransferPtr GPUTextureTransfer;

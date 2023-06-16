@@ -566,6 +566,12 @@ bool FMediaIOCorePlayerBase::ReadMediaOptions(const IMediaOptions* Options)
 	BaseSettings.PlayerTimeOffset = MediaIOCorePlayerDetail::HighPerformanceClockDelta;
 	BaseSettings.AbsoluteMaxBufferSize = MediaIOCorePlayerDetail::CVarMediaIOMaxBufferSize.GetValueOnGameThread();
 
+	const TSharedPtr<UCaptureCardMediaSource::FOpenColorIODataContainer> OCIODataContainer = StaticCastSharedPtr<UCaptureCardMediaSource::FOpenColorIODataContainer>(Options->GetMediaOption(UE::CaptureCardMediaSource::OpenColorIOSettings, TSharedPtr<UCaptureCardMediaSource::FOpenColorIODataContainer, ESPMode::ThreadSafe>()));
+	if (OCIODataContainer)
+	{
+		OCIOSettings = MakeShared<FOpenColorIOColorConversionSettings>(OCIODataContainer->ColorConversionSettings);
+	}
+
 	return true;
 }
 

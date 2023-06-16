@@ -4,8 +4,17 @@
 
 #include "MediaIOCoreTextureSampleConverter.h"
 
+#include "OpenColorIOConfiguration.h"
+#include "OpenColorIOColorSpace.h"
+#include "OpenColorIORendering.h"
+#include "OpenColorIOShader.h"
+#include "OpenColorIOShared.h"
+#include "RenderGraphBuilder.h"
 #include "RHI.h"
 #include "RHIResources.h"
+#include "ScreenPass.h"
+
+DECLARE_GPU_STAT(MediaIO_ColorConversion);
 
 FMediaIOCoreTextureSampleBase::FMediaIOCoreTextureSampleBase()
 	: Duration(FTimespan::Zero())
@@ -196,6 +205,75 @@ void FMediaIOCoreTextureSampleBase::CopyConfiguration(const TSharedPtr<FMediaIOC
 	OriginalSample = SourceSample;
 }
 
+bool FMediaIOCoreTextureSampleBase::ApplyColorConversion(FTexture2DRHIRef& InSrcTexture, FTexture2DRHIRef& InDstTexture)
+{
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	if (!CachedOCIOResources.IsValid())
+	{
+		if (ColorConversionSettings.IsValid() && ColorConversionSettings->IsValid())
+		{
+			CachedOCIOResources = MakeShared<FOpenColorIORenderPassResources>();
+
+			FOpenColorIOTransformResource* ShaderResource = nullptr;
+			TSortedMap<int32, FTextureResource*> TransformTextureResources;
+
+			if (ColorConversionSettings->ConfigurationSource != nullptr)
+			{
+				const bool bFoundTransform = ColorConversionSettings->ConfigurationSource->GetRenderResources(
+					GMaxRHIFeatureLevel
+					, *ColorConversionSettings
+					, ShaderResource
+					, TransformTextureResources);
+
+				if (bFoundTransform)
+				{
+					// Transform was found, so shader must be there but doesn't mean the actual shader is available
+					check(ShaderResource);
+					if (ShaderResource->GetShader<FOpenColorIOPixelShader>().IsNull())
+					{
+						ensureMsgf(false, TEXT("Can't apply display look - Shader was invalid for Resource %s"), *ShaderResource->GetFriendlyName());
+
+						//Invalidate shader resource
+						ShaderResource = nullptr;
+					}
+				}
+			}
+
+			CachedOCIOResources->ShaderResource = ShaderResource;
+			CachedOCIOResources->TextureResources = TransformTextureResources;
+		}
+	}
+
+	if (CachedOCIOResources)
+	{
+		FRDGBuilder GraphBuilder(RHICmdList);
+		
+		{
+			RDG_GPU_STAT_SCOPE(GraphBuilder, MediaIO_ColorConversion);
+
+			const FRDGTextureRef ColorConversionInput = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InSrcTexture, TEXT("MediaTextureResourceColorConverisonInputRT")));
+			const FRDGTextureRef ColorConversionOutput = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InDstTexture, TEXT("MediaTextureResourceColorConverisonOutputRT")));
+
+			constexpr float DefaultDisplayGamma = 1;
+		
+			FOpenColorIORendering::AddPass_RenderThread(GraphBuilder,
+				FScreenPassViewInfo(),
+				GMaxRHIFeatureLevel,
+				FScreenPassTexture(ColorConversionInput),
+				FScreenPassRenderTarget(ColorConversionOutput, ERenderTargetLoadAction::EClear),
+				*CachedOCIOResources,
+				DefaultDisplayGamma);
+		}
+
+		GraphBuilder.Execute();
+
+		return true;
+	}
+	
+	return false;
+}
+
 #if WITH_ENGINE
 IMediaTextureSampleConverter* FMediaIOCoreTextureSampleBase::GetMediaTextureSampleConverter()
 {
@@ -205,6 +283,15 @@ IMediaTextureSampleConverter* FMediaIOCoreTextureSampleBase::GetMediaTextureSamp
 FRHITexture* FMediaIOCoreTextureSampleBase::GetTexture() const
 {
 	return Texture.GetReference();
+}
+
+IMediaTextureSampleColorConverter* FMediaIOCoreTextureSampleBase::GetMediaTextureSampleColorConverter()
+{
+	if (ColorConversionSettings && ColorConversionSettings->IsValid())
+	{
+		return this;
+	}
+	return nullptr;
 }
 #endif
 
@@ -243,6 +330,10 @@ const FMatrix& FMediaIOCoreTextureSampleBase::GetYUVToRGBMatrix() const
 
 bool FMediaIOCoreTextureSampleBase::IsOutputSrgb() const
 {
+	if (ColorConversionSettings && ColorConversionSettings->IsValid())
+	{
+		return false; // Don't apply gamma correction as it will be handled by the OCIO conversion.
+	}
 	return Encoding == UE::Color::EEncoding::sRGB;
 }
 
@@ -264,7 +355,7 @@ FVector2f FMediaIOCoreTextureSampleBase::GetDisplayPrimaryRed() const
 FVector2f FMediaIOCoreTextureSampleBase::GetDisplayPrimaryGreen() const
 {
 	return FVector2f(ColorSpaceStruct.GetGreenChromaticity());
-}
+} 
 
 FVector2f FMediaIOCoreTextureSampleBase::GetDisplayPrimaryBlue() const
 {
@@ -273,10 +364,20 @@ FVector2f FMediaIOCoreTextureSampleBase::GetDisplayPrimaryBlue() const
 
 UE::Color::EEncoding FMediaIOCoreTextureSampleBase::GetEncodingType() const
 {
+	if (ColorConversionSettings && ColorConversionSettings->IsValid())
+    {
+    	return UE::Color::EEncoding::Linear;
+    }
+    
 	return Encoding;
 }
 
 float FMediaIOCoreTextureSampleBase::GetHDRNitsNormalizationFactor() const
 {
+	if (ColorConversionSettings && ColorConversionSettings->IsValid())
+    {
+    	return 1.0f;
+    }
+	
 	return (GetEncodingType() == UE::Color::EEncoding::sRGB || GetEncodingType() == UE::Color::EEncoding::Linear) ? 1.0f : kMediaSample_HDR_NitsNormalizationFactor;
 }

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "IMediaTextureSample.h"
+#include "MediaIOCoreDefinitions.h"
+#include "IMediaTextureSampleConverter.h"
 #include "MediaObjectPool.h"
 
 
@@ -84,6 +86,7 @@ struct MEDIAIOCORE_API FMediaIOCoreSampleJITRConfigurationArgs
 class MEDIAIOCORE_API FMediaIOCoreTextureSampleBase
 	: public IMediaTextureSample
 	, public IMediaPoolable
+	, public IMediaTextureSampleColorConverter
 {
 
 public:
@@ -206,6 +209,13 @@ public:
 	bool SetBufferWithEvenOddLine(bool bUseEvenLine, const void* InVideoBuffer, uint32 InBufferSize, uint32 InStride, uint32 InHeight);
 
 	/**
+	 * Set the OCIO settings used for color conversion.
+	 */
+	void SetColorConversionSettings(TSharedPtr<struct FOpenColorIOColorConversionSettings> InColorConversionSettings)
+	{
+		ColorConversionSettings = InColorConversionSettings;
+	}
+	/**
 	 * Request an uninitialized sample buffer.
 	 * Should be used when the buffer could be filled by something else.
 	 * SetProperties should still be called after.
@@ -327,8 +337,10 @@ public:
 		}
 
 		return Buffer.GetData();
-
 	}
+
+	//~ IMediaTextureSampleColorConverter interface
+	virtual bool ApplyColorConversion(FTexture2DRHIRef& InSrcTexture, FTexture2DRHIRef& InDstTexture) override;
 
 	void* GetMutableBuffer()
 	{
@@ -343,6 +355,8 @@ public:
 #if WITH_ENGINE
 	virtual IMediaTextureSampleConverter* GetMediaTextureSampleConverter() override;
 	virtual FRHITexture* GetTexture() const override;
+
+	virtual IMediaTextureSampleColorConverter* GetMediaTextureSampleColorConverter() override;
 #endif //WITH_ENGINE
 
 	void SetBuffer(void* InBuffer)
@@ -435,4 +449,10 @@ private:
 
 	/** Time offset evaluated on game thread for JITR */
 	double EvaluationOffsetInSeconds = 0;
+
+private:
+	/** Settings used to apply an OCIO conversion to the sample. */
+	TSharedPtr<struct FOpenColorIOColorConversionSettings> ColorConversionSettings;
+	/** Cached rendering resources used for the color conversion pass when using OCIO. */
+	TSharedPtr<struct FOpenColorIORenderPassResources> CachedOCIOResources;
 };

@@ -33,6 +33,18 @@ int64 UCaptureCardMediaSource::GetMediaOption(const FName& Key, int64 DefaultVal
 	return UTimeSynchronizableMediaSource::GetMediaOption(Key, DefaultValue);
 }
 
+TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> UCaptureCardMediaSource::GetMediaOption(const FName& Key, const TSharedPtr<FDataContainer, ESPMode::ThreadSafe>& DefaultValue) const
+{
+	if (Key ==  UE::CaptureCardMediaSource::OpenColorIOSettings)
+	{
+		FOpenColorIODataContainer Container;
+		Container.ColorConversionSettings = ColorConversionSettings;
+		return MakeShared<FOpenColorIODataContainer>(MoveTemp(Container));
+	}
+
+	return Super::GetMediaOption(Key, DefaultValue);
+}
+
 FString UCaptureCardMediaSource::GetMediaOption(const FName& Key, const FString& DefaultValue) const
 {
 	if (Key == UE::CaptureCardMediaSource::Deinterlacer)
@@ -81,7 +93,8 @@ bool UCaptureCardMediaSource::HasMediaOption(const FName& Key) const
 		|| Key == UE::CaptureCardMediaSource::SourceColorSpace
 		|| Key == UE::CaptureCardMediaSource::RenderJIT
 		|| Key == UE::CaptureCardMediaSource::Framelock
-		|| Key == UE::CaptureCardMediaSource::EvaluationType)
+		|| Key == UE::CaptureCardMediaSource::EvaluationType
+		|| Key == UE::CaptureCardMediaSource::OpenColorIOSettings)
 		{
 			return true;
 		}

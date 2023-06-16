@@ -5,13 +5,16 @@
 #include "TimeSynchronizableMediaSource.h"
 #include "Containers/UnrealString.h"
 #include "Engine/TextureDefines.h"
+#include "HAL/Platform.h"
 #include "MediaIOCoreDefinitions.h"
 #include "MediaIOCoreDeinterlacer.h"
-#include "HAL/Platform.h"
+#include "OpenColorIOColorSpace.h"
+#include "OpenColorIORendering.h"
 #include "UObject/NameTypes.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
+
 
 #include "CaptureCardMediaSource.generated.h"
 
@@ -26,6 +29,7 @@ namespace UE::CaptureCardMediaSource
 	static FName SourceEncoding("SourceEncoding");
 	static FName OverrideSourceColorSpace("OverrideSourceColorSpace");
 	static FName SourceColorSpace("SourceColorcSpace");
+	static FName OpenColorIOSettings("OpenColorIOSettings");
 }
 
 
@@ -94,12 +98,25 @@ public:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Video", meta = (EditCondition = "bOverrideSourceColorSpace"))
 	ETextureColorSpace OverrideSourceColorSpace = ETextureColorSpace::TCS_sRGB;
 
+	/**
+	 * OCIO Settings used for applying a color conversion to the incoming source.
+	 */
+	UPROPERTY(BlueprintReadWrite ,EditAnywhere, Category="Video")
+	FOpenColorIOColorConversionSettings ColorConversionSettings;
+
+public:
+	struct FOpenColorIODataContainer : public IMediaOptions::FDataContainer
+	{
+		FOpenColorIOColorConversionSettings ColorConversionSettings;
+	};
+
 public:
 	//~ IMediaOptions interface
 	using Super::GetMediaOption;
 	virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
 	virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
 	virtual bool GetMediaOption(const FName& Key, bool bDefaultValue) const override;
+	virtual TSharedPtr<FDataContainer, ESPMode::ThreadSafe> GetMediaOption(const FName& Key, const TSharedPtr<FDataContainer, ESPMode::ThreadSafe>& DefaultValue) const override;
 	virtual bool HasMediaOption(const FName& Key) const override;
 
 public:

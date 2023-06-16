@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"MediaIOCore",
 					"MediaUtils",
+					"OpenColorIO",
 					"Projects",
 					"TimeManagement",
 					"RenderCore",

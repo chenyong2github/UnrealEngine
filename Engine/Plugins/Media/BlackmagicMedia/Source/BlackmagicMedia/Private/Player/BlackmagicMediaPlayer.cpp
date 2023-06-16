@@ -18,6 +18,7 @@
 #include "MediaIOCoreUtilities.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
+#include "OpenColorIOColorSpace.h"
 #include "RenderCommandFence.h"
 #include "Slate/SceneViewport.h"
 #include "Stats/Stats2.h"
@@ -367,6 +368,7 @@ namespace BlackmagicMediaPlayerHelpers
 						}
 
 						auto TextureSample = MediaPlayer->TextureSamplePool->AcquireShared();
+						TextureSample->SetColorConversionSettings(MediaPlayer->OCIOSettings);
 						bool bInitializeResult = false;
 						if (bGPUDirectTexturesAvailable)
 						{
@@ -424,6 +426,7 @@ namespace BlackmagicMediaPlayerHelpers
 
 						for (const TSharedRef<FMediaIOCoreTextureSampleBase>& TextureSample : DeinterlacedSamples)
 						{
+							TextureSample->SetColorConversionSettings(MediaPlayer->OCIOSettings);
 							MediaPlayer->AddVideoSample(TextureSample);
 						}
 					}
@@ -614,7 +617,7 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	// Setup our different supported channels based on source settings
 	SetupSampleChannels();
 
-	bool bSuccess = EventCallback->Initialize(ChannelOptions, bEncodeTimecodeInTexel, MaxNumAudioFrameBuffer, MaxNumVideoFrameBuffer);
+	const bool bSuccess = EventCallback->Initialize(ChannelOptions, bEncodeTimecodeInTexel, MaxNumAudioFrameBuffer, MaxNumVideoFrameBuffer);
 
 	if (!bSuccess)
 	{

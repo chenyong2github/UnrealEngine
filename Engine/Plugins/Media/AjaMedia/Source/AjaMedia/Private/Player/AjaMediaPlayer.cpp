@@ -440,6 +440,7 @@ bool FAjaMediaPlayer::OnRequestInputBuffer(const AJA::AJARequestInputBufferData&
 
 		AjaThreadCurrentTextureSample = TextureSamplePool->AcquireShared();
 		AjaThreadCurrentTextureSample->RequestBuffer(InRequestBuffer.VideoBufferSize);
+		AjaThreadCurrentTextureSample->SetColorConversionSettings(OCIOSettings);
 
 		if (bIsJustInTimeRenderingEnabled && bCanUseGPUTextureTransfer)
 		{
@@ -699,6 +700,7 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 					auto TextureSample = TextureSamplePool->AcquireShared();
 					if (TextureSample->InitializeProgressive(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, ColorFormat))
 					{
+						TextureSample->SetColorConversionSettings(OCIOSettings);
 						AddVideoSample(TextureSample);
 					}
 				}
@@ -727,6 +729,7 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 
 					for (const TSharedRef<FMediaIOCoreTextureSampleBase>& TextureSample : DeinterlacedSamples)
 					{
+						TextureSample->SetColorConversionSettings(OCIOSettings);
 						AddVideoSample(TextureSample);
 					}
 				}

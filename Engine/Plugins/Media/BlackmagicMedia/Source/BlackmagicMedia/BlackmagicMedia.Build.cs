@@ -34,6 +34,7 @@ namespace UnrealBuildTool.Rules
 					"BlackmagicCore",
 					"Engine",
 					"MediaUtils",
+					"OpenColorIO",
 					"Projects",
 					"SlateCore"
                 });
