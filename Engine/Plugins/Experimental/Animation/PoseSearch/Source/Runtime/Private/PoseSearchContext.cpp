@@ -367,7 +367,7 @@ FTransform FSearchContext::GetComponentSpaceTransform(float SampleTime, const UP
 		// collecting the local bone transforms from the IPoseHistory
 		check(History);
 		FTransform BoneComponentSpaceTransform;
-		if (!History->GetComponentSpaceTransformAtTime(SampleTime, BoneIndexType, BoneComponentSpaceTransform))
+		if (!History->GetComponentSpaceTransformAtTime(SampleTime, BoneIndexType, Schema->Skeleton, BoneComponentSpaceTransform))
 		{
 			if (const USkeleton* Skeleton = Schema->Skeleton)
 			{

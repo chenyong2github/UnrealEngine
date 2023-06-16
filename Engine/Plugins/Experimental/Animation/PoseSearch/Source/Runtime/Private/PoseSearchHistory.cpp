@@ -5,6 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimRootMotionProvider.h"
+#include "Animation/SkeletonRemapping.h"
+#include "Animation/SkeletonRemappingRegistry.h"
 #include "BonePose.h"
 #include "DrawDebugHelpers.h"
 #include "PoseSearch/PoseSearchResult.h"
@@ -120,8 +122,25 @@ void FPoseHistory::Init(int32 InNumPoses, float InTimeHorizon, const TArray<FBon
 	Entries.Reserve(InNumPoses);
 }
 
-bool FPoseHistory::GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate) const
+FBoneIndexType FPoseHistory::GetRemappedBoneIndexType(FBoneIndexType BoneIndexType, const USkeleton* BoneIndexSkeleton) const
 {
+	// remapping BoneIndexType in case the skeleton used to store history (LastUpdateSkeleton) is different from BoneIndexSkeleton
+	if (LastUpdateSkeleton != nullptr && LastUpdateSkeleton != BoneIndexSkeleton)
+	{
+		const FSkeletonRemapping& SkeletonRemapping = UE::Anim::FSkeletonRemappingRegistry::Get().GetRemapping(BoneIndexSkeleton, LastUpdateSkeleton.Get());
+		if (SkeletonRemapping.IsValid())
+		{
+			BoneIndexType = SkeletonRemapping.GetTargetSkeletonBoneIndex(BoneIndexType);
+		}
+	}
+
+	return BoneIndexType;
+}
+
+bool FPoseHistory::GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, const USkeleton* BoneIndexSkeleton, FTransform& OutBoneTransform, bool bExtrapolate) const
+{
+	BoneIndexType = GetRemappedBoneIndexType(BoneIndexType, BoneIndexSkeleton);
+
 	FComponentSpaceTransformIndex TransformIndex = FComponentSpaceTransformIndex(BoneIndexType);
 	if (!BoneToTransformMap.IsEmpty())
 	{
@@ -214,6 +233,14 @@ bool FPoseHistory::IsEmpty() const
 
 void FPoseHistory::Update(float SecondsElapsed, FCSPose<FCompactPose>& ComponentSpacePose, const FTransform& ComponentTransform)
 {
+	const USkeleton* Skeleton = ComponentSpacePose.GetPose().GetBoneContainer().GetSkeletonAsset();
+	if (LastUpdateSkeleton != Skeleton)
+	{
+		// @todo: support a different USkeleton per FPoseHistoryEntry if required
+		Entries.Reset();
+		LastUpdateSkeleton = Skeleton;
+	}
+
 	// Age our elapsed times
 	for (FPoseHistoryEntry& Entry : Entries)
 	{
@@ -320,9 +347,13 @@ float FExtendedPoseHistory::GetSampleTimeInterval() const
 	return PoseHistory->GetSampleTimeInterval();
 }
 
-bool FExtendedPoseHistory::GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, FTransform& OutBoneTransform, bool bExtrapolate) const
+bool FExtendedPoseHistory::GetComponentSpaceTransformAtTime(float Time, FBoneIndexType BoneIndexType, const USkeleton* BoneIndexSkeleton, FTransform& OutBoneTransform, bool bExtrapolate) const
 {
 	check(PoseHistory);
+
+	const FBoneIndexType OriginalBoneIndex = BoneIndexType;
+
+	BoneIndexType = PoseHistory->GetRemappedBoneIndexType(BoneIndexType, BoneIndexSkeleton);
 
 	if (Time > 0.f)
 	{
@@ -369,7 +400,7 @@ bool FExtendedPoseHistory::GetComponentSpaceTransformAtTime(float Time, FBoneInd
 		Time = 0.f;
 	}
 
-	return PoseHistory->GetComponentSpaceTransformAtTime(Time, BoneIndexType, OutBoneTransform, bExtrapolate);
+	return PoseHistory->GetComponentSpaceTransformAtTime(Time, OriginalBoneIndex, BoneIndexSkeleton, OutBoneTransform, bExtrapolate);
 }
 
 void FExtendedPoseHistory::GetRootTransformAtTime(float Time, FTransform& OutRootTransform, bool bExtrapolate) const
