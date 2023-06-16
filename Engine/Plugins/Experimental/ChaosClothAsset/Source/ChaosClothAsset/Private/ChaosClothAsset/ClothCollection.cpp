@@ -169,12 +169,10 @@ namespace UE::Chaos::ClothAsset
 	const FName FClothCollection::RenderFacesGroup = Private::RenderFacesGroup;
 	const FName FClothCollection::RenderVerticesGroup = Private::RenderVerticesGroup;
 
-	FClothCollection::FClothCollection(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection)
+	FClothCollection::FClothCollection(const TSharedRef<FManagedArrayCollection>& InManagedArrayCollection)
 		: ManagedArrayCollection(InManagedArrayCollection)
 	{
 		using namespace UE::Chaos::ClothAsset::Private;
-
-		check(ManagedArrayCollection.IsValid());
 
 		// LODs Group
 		PhysicsAssetPathName = ManagedArrayCollection->FindAttribute<FString>(PhysicsAssetPathNameAttribute, LodsGroup);

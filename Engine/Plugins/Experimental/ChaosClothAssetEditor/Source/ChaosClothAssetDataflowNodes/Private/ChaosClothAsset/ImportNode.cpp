@@ -64,8 +64,8 @@ void FChaosClothAssetImportNode::Evaluate(Dataflow::FContext& Context, const FDa
 		{
 			const TObjectPtr<const UChaosClothAsset>& InClothAsset = GetValue<TObjectPtr<const UChaosClothAsset>>(Context, &ClothAsset);
 			const int32& InImportLod = GetValue<int32>(Context, &ImportLod);
-			const TArray<TSharedPtr<const FManagedArrayCollection>>& InClothCollections = InClothAsset->GetClothCollections();
-			if (InImportLod >= 0 && InClothCollections.Num() > InImportLod && InClothCollections[InImportLod].IsValid())
+			const TArray<TSharedRef<const FManagedArrayCollection>>& InClothCollections = InClothAsset->GetClothCollections();
+			if (InImportLod >= 0 && InClothCollections.Num() > InImportLod)
 			{
 				const FCollectionClothConstFacade InClothFacade(InClothCollections[InImportLod]);
 				ClothFacade.Initialize(InClothFacade);

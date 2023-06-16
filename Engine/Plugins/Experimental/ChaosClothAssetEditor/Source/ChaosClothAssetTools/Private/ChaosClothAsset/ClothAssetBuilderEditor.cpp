@@ -34,7 +34,7 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 	// Create a table to remap the LOD materials to the asset materials
 	const TArray<FSkeletalMaterial>& Materials = ClothAsset.GetMaterials();
 
-	const TSharedPtr<const FManagedArrayCollection> ClothCollection = ClothAsset.GetClothCollections()[LodIndex];
+	const TSharedRef<const FManagedArrayCollection> ClothCollection = ClothAsset.GetClothCollections()[LodIndex];
 
 	const FCollectionClothConstFacade ClothFacade(ClothCollection);
 

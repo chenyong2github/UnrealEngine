@@ -586,7 +586,7 @@ private:
 };
 
 
-void FClothPatternToDynamicMesh::Convert(const TSharedPtr<const FManagedArrayCollection> ClothCollection, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut)
+void FClothPatternToDynamicMesh::Convert(const TSharedRef<const FManagedArrayCollection> ClothCollection, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut)
 {
 	const FCollectionClothConstFacade ClothFacade(ClothCollection);
 
@@ -641,9 +641,8 @@ void FClothPatternToDynamicMesh::Convert(const TSharedPtr<const FManagedArrayCol
 
 void FClothPatternToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshIn, int32 LODIndex, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut)
 {
-	const TArray<TSharedPtr<const FManagedArrayCollection>>& ClothCollections = ClothAssetMeshIn->GetClothCollections();
+	const TArray<TSharedRef<const FManagedArrayCollection>>& ClothCollections = ClothAssetMeshIn->GetClothCollections();
 	check(ClothCollections.IsValidIndex(LODIndex));
-	check(ClothCollections[LODIndex].IsValid());
 
 	Convert(ClothCollections[LODIndex], PatternIndex, VertexDataType, MeshOut);
 }

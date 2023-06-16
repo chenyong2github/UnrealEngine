@@ -495,12 +495,12 @@ void UChaosClothAssetEditorMode::ReinitializeDynamicMeshComponents()
 		return;
 	}
 
-	const UE::Chaos::ClothAsset::FCollectionClothConstFacade ClothFacade(Collection);
+	const UE::Chaos::ClothAsset::FCollectionClothConstFacade ClothFacade(Collection.ToSharedRef());
 
 	UE::Geometry::FDynamicMesh3 LodMesh;
 	LodMesh.EnableAttributes();
 	FClothPatternToDynamicMesh Converter;
-	Converter.Convert(Collection, INDEX_NONE, ConstructionViewMode, LodMesh);
+	Converter.Convert(Collection.ToSharedRef(), INDEX_NONE, ConstructionViewMode, LodMesh);
 
 	if (ConstructionViewMode == EClothPatternVertexType::Sim2D)
 	{

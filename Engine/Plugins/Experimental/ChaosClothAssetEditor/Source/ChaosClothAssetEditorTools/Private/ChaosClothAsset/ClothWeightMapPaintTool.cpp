@@ -310,7 +310,7 @@ void UClothEditorWeightMapPaintTool::Setup()
 
 			bHaveDynamicMeshToWeightConversion = bHasNonManifoldMapping || bHas2D3DConversion;
 
-			FCollectionClothConstFacade Cloth(ClothCollection);
+			FCollectionClothConstFacade Cloth(ClothCollection.ToSharedRef());
 			check(Cloth.IsValid());
 			if (bHasNonManifoldMapping)
 			{

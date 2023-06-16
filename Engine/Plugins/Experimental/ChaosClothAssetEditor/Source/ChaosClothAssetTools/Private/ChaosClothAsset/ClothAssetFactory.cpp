@@ -24,8 +24,8 @@ UObject* UChaosClothAssetFactory::FactoryCreateNew(UClass* Class, UObject* Paren
 	ClothAsset->MarkPackageDirty();
 
 	// Add an empty default LOD, to avoid LOD mismatch with render data
-	TArray<TSharedPtr<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
-	TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+	TArray<TSharedRef<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
+	TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
 
 	FCollectionClothFacade ClothFacade(ClothCollection);
 	ClothFacade.DefineSchema();

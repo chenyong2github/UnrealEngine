@@ -8,7 +8,7 @@
 namespace UE::Chaos::ClothAsset
 {
 
-void FClothEngineTools::GenerateTethers(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FName& WeightMapName, const bool bGenerateGeodesicTethers)
+void FClothEngineTools::GenerateTethers(const TSharedRef<FManagedArrayCollection>& ClothCollection, const FName& WeightMapName, const bool bGenerateGeodesicTethers)
 {
 	FCollectionClothFacade ClothFacade(ClothCollection);
 	FClothGeometryTools::DeleteTethers(ClothCollection);

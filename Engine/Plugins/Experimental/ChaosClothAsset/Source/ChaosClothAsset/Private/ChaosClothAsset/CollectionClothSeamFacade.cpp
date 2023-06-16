@@ -497,11 +497,10 @@ namespace UE::Chaos::ClothAsset
 			GetElementIndex());
 	}
 
-	FCollectionClothSeamConstFacade::FCollectionClothSeamConstFacade(const TSharedPtr<const FClothCollection>& ClothCollection, int32 SeamIndex)
+	FCollectionClothSeamConstFacade::FCollectionClothSeamConstFacade(const TSharedRef<const FClothCollection>& ClothCollection, int32 SeamIndex)
 		: ClothCollection(ClothCollection)
 		, SeamIndex(SeamIndex)
 	{
-		check(ClothCollection.IsValid());
 		check(ClothCollection->IsValid());
 		check(SeamIndex >= 0 && SeamIndex < ClothCollection->GetNumElements(FClothCollection::SeamsGroup));
 	}
@@ -766,7 +765,7 @@ namespace UE::Chaos::ClothAsset
 			GetElementIndex());
 	}
 
-	FCollectionClothSeamFacade::FCollectionClothSeamFacade(const TSharedPtr<FClothCollection>& ClothCollection, int32 InSeamIndex)
+	FCollectionClothSeamFacade::FCollectionClothSeamFacade(const TSharedRef<FClothCollection>& ClothCollection, int32 InSeamIndex)
 		: FCollectionClothSeamConstFacade(ClothCollection, InSeamIndex)
 	{
 	}

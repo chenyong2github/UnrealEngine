@@ -8,12 +8,12 @@
 
 namespace UE::Chaos::ClothAsset
 {
-	FCollectionClothConstFacade::FCollectionClothConstFacade(const TSharedPtr<const FManagedArrayCollection>& ManagedArrayCollection)
-		: ClothCollection(MakeShared<const FClothCollection>(ConstCastSharedPtr<FManagedArrayCollection>(ManagedArrayCollection)))
+	FCollectionClothConstFacade::FCollectionClothConstFacade(const TSharedRef<const FManagedArrayCollection>& ManagedArrayCollection)
+		: ClothCollection(MakeShared<const FClothCollection>(ConstCastSharedRef<FManagedArrayCollection>(ManagedArrayCollection)))
 	{
 	}
 
-	FCollectionClothConstFacade::FCollectionClothConstFacade(const TSharedPtr<const FClothCollection>& ClothCollection)
+	FCollectionClothConstFacade::FCollectionClothConstFacade(const TSharedRef<const FClothCollection>& ClothCollection)
 		:ClothCollection(ClothCollection)
 	{
 	}
@@ -275,12 +275,12 @@ namespace UE::Chaos::ClothAsset
 		}
 	}
 
-	FCollectionClothFacade::FCollectionClothFacade(const TSharedPtr<FManagedArrayCollection>& ManagedArrayCollection)
+	FCollectionClothFacade::FCollectionClothFacade(const TSharedRef<FManagedArrayCollection>& ManagedArrayCollection)
 		: FCollectionClothConstFacade(ManagedArrayCollection)
 	{
 	}
 
-	FCollectionClothFacade::FCollectionClothFacade(const TSharedPtr<FClothCollection>& InClothCollection)
+	FCollectionClothFacade::FCollectionClothFacade(const TSharedRef<FClothCollection>& InClothCollection)
 		: FCollectionClothConstFacade(InClothCollection)
 	{
 	}

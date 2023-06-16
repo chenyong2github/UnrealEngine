@@ -29,7 +29,7 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 		const TArray<const FManagedArrayCollection*> CollectionLods = GetCollectionLods();
 
 		// Reset the asset's collection
-		TArray<TSharedPtr<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
+		TArray<TSharedRef<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
 		ClothCollections.Reset(CollectionLods.Num());
 
 		// Reset the asset's material list
@@ -42,7 +42,7 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 		for (int32 LodIndex = 0; LodIndex < CollectionLods.Num(); ++LodIndex)
 		{
 			// New LOD
-			TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+			TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
 			UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
 			ClothFacade.DefineSchema();
 
@@ -131,8 +131,8 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 		// Make sure that whatever happens there is always at least one empty LOD to avoid crashing the render data
 		if (ClothCollections.Num() < 1)
 		{
-			TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
-			UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
+			TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+			FCollectionClothFacade ClothFacade(ClothCollection);
 			ClothFacade.DefineSchema();
 		}
 

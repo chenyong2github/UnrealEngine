@@ -898,7 +898,7 @@ void FChaosClothAssetEditorToolkit::OnNodeSelectionChanged(const TSet<UObject*>&
 				if (Output->GetType() == FName("FManagedArrayCollection"))
 				{
 					const FManagedArrayCollection DefaultValue;
-					TSharedPtr<FManagedArrayCollection> Collection = MakeShared<FManagedArrayCollection>(Output->GetValue<FManagedArrayCollection>(*Context, DefaultValue));
+					TSharedRef<FManagedArrayCollection> Collection = MakeShared<FManagedArrayCollection>(Output->GetValue<FManagedArrayCollection>(*Context, DefaultValue));
 
 					// see if the output collection is a ClothCollection
 					const UE::Chaos::ClothAsset::FCollectionClothConstFacade ClothFacade(Collection);

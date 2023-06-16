@@ -131,11 +131,10 @@ namespace UE::Chaos::ClothAsset
 		return GetNumRenderVertices() == 0 && GetNumRenderFaces() == 0;
 	}
 
-	FCollectionClothRenderPatternConstFacade::FCollectionClothRenderPatternConstFacade(const TSharedPtr<const FClothCollection>& ClothCollection, int32 InPatternIndex)
+	FCollectionClothRenderPatternConstFacade::FCollectionClothRenderPatternConstFacade(const TSharedRef<const FClothCollection>& ClothCollection, int32 InPatternIndex)
 		: ClothCollection(ClothCollection)
 		, PatternIndex(InPatternIndex)
 	{
-		check(ClothCollection.IsValid());
 		check(ClothCollection->IsValid());
 		check(PatternIndex >= 0 && PatternIndex < ClothCollection->GetNumElements(FClothCollection::RenderPatternsGroup));
 	}
@@ -312,7 +311,7 @@ namespace UE::Chaos::ClothAsset
 			GetElementIndex());
 	}
 
-	FCollectionClothRenderPatternFacade::FCollectionClothRenderPatternFacade(const TSharedPtr<FClothCollection>& ClothCollection, int32 InPatternIndex)
+	FCollectionClothRenderPatternFacade::FCollectionClothRenderPatternFacade(const TSharedRef<FClothCollection>& ClothCollection, int32 InPatternIndex)
 		: FCollectionClothRenderPatternConstFacade(ClothCollection, InPatternIndex)
 	{
 	}

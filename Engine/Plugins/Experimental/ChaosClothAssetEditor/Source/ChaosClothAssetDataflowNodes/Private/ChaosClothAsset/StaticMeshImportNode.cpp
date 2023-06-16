@@ -93,7 +93,11 @@ bool BuildSkeletalMeshModelFromMeshDescription(const FMeshDescription* const InM
 	return true;
 }
 
-void InitializeDataFromMeshDescription(const FMeshDescription* const InMeshDescription, const FMeshBuildSettings& InBuildSettings, const TArray<FStaticMaterial>& StaticMaterials, const TSharedPtr<FManagedArrayCollection>& ClothCollection)
+void InitializeDataFromMeshDescription(
+	const FMeshDescription* const InMeshDescription,
+	const FMeshBuildSettings& InBuildSettings,
+	const TArray<FStaticMaterial>& StaticMaterials,
+	const TSharedRef<FManagedArrayCollection>& ClothCollection)
 {
 	FSkeletalMeshLODModel SkeletalMeshModel;
 	if (BuildSkeletalMeshModelFromMeshDescription(InMeshDescription, InBuildSettings, SkeletalMeshModel))

@@ -84,6 +84,7 @@
 #include "Animation/Skeleton.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "GeometryCollection/ManagedArrayCollection.h"
 
 extern UNREALED_API UEditorEngine* GEditor;
 
@@ -495,10 +496,10 @@ void FDatasmithImporter::ImportClothes(FDatasmithImportContext& ImportContext)
 
 		using namespace UE::Chaos::ClothAsset;
 
-		TArray<TSharedPtr<FManagedArrayCollection>>& Collections = ClothAsset->GetClothCollections();
-		Collections.SetNum(1);
-		FCollectionClothFacade Cloth(Collections[0]);
-		Cloth.Reset(); // on reimport, asset is non-empty
+		TArray<TSharedRef<FManagedArrayCollection>>& Collections = ClothAsset->GetClothCollections();
+		Collections.Reset(1);
+		FCollectionClothFacade Cloth(Collections.Emplace_GetRef(MakeShared<FManagedArrayCollection>()));
+		Cloth.DefineSchema();
 
 		for (FDatasmithClothPattern& Pattern : DsCloth.Patterns)
 		{

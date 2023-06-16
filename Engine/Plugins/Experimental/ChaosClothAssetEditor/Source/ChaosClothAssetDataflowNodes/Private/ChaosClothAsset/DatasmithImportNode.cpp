@@ -82,7 +82,7 @@ bool FChaosClothAssetDatasmithImportNode::EvaluateImpl(Dataflow::FContext& Conte
 		UChaosClothAsset* const DatasmithClothAsset = Cast<UChaosClothAsset>(ClothObject);
 		if (ensure(DatasmithClothAsset))
 		{
-			if (DatasmithClothAsset->GetClothCollections().Num() > 0 && DatasmithClothAsset->GetClothCollections()[0].IsValid())
+			if (DatasmithClothAsset->GetClothCollections().Num() > 0)
 			{
 				DatasmithClothAsset->GetClothCollections()[0]->CopyTo(&OutCollection);
 				return true;

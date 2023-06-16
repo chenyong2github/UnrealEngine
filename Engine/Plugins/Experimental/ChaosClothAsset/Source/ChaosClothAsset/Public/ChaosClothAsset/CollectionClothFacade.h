@@ -20,7 +20,7 @@ namespace UE::Chaos::ClothAsset
 	class CHAOSCLOTHASSET_API FCollectionClothConstFacade
 	{
 	public:
-		explicit FCollectionClothConstFacade(const TSharedPtr<const FManagedArrayCollection>& ManagedArrayCollection);
+		explicit FCollectionClothConstFacade(const TSharedRef<const FManagedArrayCollection>& ManagedArrayCollection);
 
 		FCollectionClothConstFacade() = delete;
 
@@ -122,11 +122,11 @@ namespace UE::Chaos::ClothAsset
 			TArray<uint32>& PatternToWeldedIndices, TArray<TArray<int32>>* OptionalWeldedToPatternIndices = nullptr) const;
 
 	protected:
-		TSharedPtr<const class FClothCollection> ClothCollection;
+		TSharedRef<const class FClothCollection> ClothCollection;
 
 		friend class FCollectionClothSeamFacade;
 		friend class FCollectionClothSeamConstFacade;
-		explicit FCollectionClothConstFacade(const TSharedPtr<const class FClothCollection>& ClothCollection);
+		explicit FCollectionClothConstFacade(const TSharedRef<const class FClothCollection>& ClothCollection);
 	};
 
 	/**
@@ -136,7 +136,7 @@ namespace UE::Chaos::ClothAsset
 	class CHAOSCLOTHASSET_API FCollectionClothFacade final : public FCollectionClothConstFacade
 	{
 	public:
-		explicit FCollectionClothFacade(const TSharedPtr<FManagedArrayCollection>& ManagedArrayCollection);
+		explicit FCollectionClothFacade(const TSharedRef<FManagedArrayCollection>& ManagedArrayCollection);
 
 		FCollectionClothFacade() = delete;
 
@@ -252,16 +252,16 @@ namespace UE::Chaos::ClothAsset
 		void RemoveWeightMap(const FName& Name);
 
 		TArrayView<float> GetWeightMap(const FName& Name);
-	private:
 
+	private:
 		void SetDefaults();
 
-		TSharedPtr<class FClothCollection> GetClothCollection() { return ConstCastSharedPtr<class FClothCollection>(ClothCollection); }
+		TSharedRef<class FClothCollection> GetClothCollection() { return ConstCastSharedRef<class FClothCollection>(ClothCollection); }
 
 		friend class FCollectionClothSeamFacade;
 		friend class FCollectionClothSimPatternFacade;
 
-		explicit FCollectionClothFacade(const TSharedPtr<class FClothCollection>& InClothCollection);
+		explicit FCollectionClothFacade(const TSharedRef<class FClothCollection>& InClothCollection);
 
 		// These methods are private because they're managed by the FCollectionClothSeamFacade.
 		//~ Sim Vertices 2D Group

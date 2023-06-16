@@ -35,7 +35,7 @@ namespace UE::Chaos::ClothAsset
 		static constexpr int8 MaxNumBoneInfluences = 12; // This should be <= MAX_TOTAL_INFLUENCES defined in GPUSkinPublicDefs.h 
 		static constexpr int8 MaxNumTetherAttachments = 4; // This should be <= FClothTetherDataPrivate::MaxNumAttachments
 
-		explicit FClothCollection(const TSharedPtr<FManagedArrayCollection>& InManagedArrayCollection);
+		explicit FClothCollection(const TSharedRef<FManagedArrayCollection>& InManagedArrayCollection);
 		~FClothCollection() = default;
 
 		FClothCollection(const FClothCollection&) = delete;
@@ -271,7 +271,7 @@ namespace UE::Chaos::ClothAsset
 
 	private:
 		//~ Cloth collection
-		TSharedPtr<FManagedArrayCollection> ManagedArrayCollection;
+		TSharedRef<FManagedArrayCollection> ManagedArrayCollection;
 
 		//~ LODs Group
 		TManagedArray<FString>* PhysicsAssetPathName;

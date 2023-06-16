@@ -95,10 +95,10 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 
 	UChaosClothAsset* const ClothAsset = CastChecked<UChaosClothAsset>(ExportedAsset);
 	check(ClothAsset);
-	TArray<TSharedPtr<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
+	TArray<TSharedRef<FManagedArrayCollection>>& ClothCollections = ClothAsset->GetClothCollections();
 	
 	const int32 NumLods = ClothingAssetCommon->LodData.Num();
-	ClothCollections.SetNum(NumLods);
+	ClothCollections.Reset(NumLods);
 
 	// Create the LODs
 	for (int32 LodIndex = 0; LodIndex < NumLods; ++LodIndex)
@@ -106,13 +106,9 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 		const FClothLODDataCommon& ClothLODData = ClothingAssetCommon->LodData[LodIndex];
 		const FClothPhysicalMeshData& PhysicalMeshData = ClothLODData.PhysicalMeshData;
 
-		TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections[LodIndex];
-		if (!ClothCollection.IsValid())
-		{
-			ClothCollection = MakeShared<FManagedArrayCollection>();
-			FCollectionClothFacade Cloth(ClothCollection);
-			Cloth.DefineSchema();
-		}
+		TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+		FCollectionClothFacade ClothFacade(ClothCollection);
+		ClothFacade.DefineSchema();
 
 		using namespace UE::Chaos::ClothAsset::Private;
 
@@ -137,14 +133,9 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 	else
 	{
 		// Make sure that at least one empty LOD is always created
-		ClothCollections.SetNum(1);
-		TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections[1];
-		if (!ClothCollection.IsValid())
-		{
-			ClothCollection = MakeShared<FManagedArrayCollection>();
-			FCollectionClothFacade Cloth(ClothCollection);
-			Cloth.DefineSchema();
-		}
+		TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+		FCollectionClothFacade Cloth(ClothCollection);
+		Cloth.DefineSchema();
 	}
 
 	// Assign the physics asset if any (must be done after having added the LODs)

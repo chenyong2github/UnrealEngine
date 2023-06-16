@@ -50,12 +50,12 @@ namespace UE::Chaos::ClothAsset
 	protected:
 		friend class FCollectionClothSimPatternFacade;  // For other instances access
 		friend class FCollectionClothConstFacade;
-		FCollectionClothSimPatternConstFacade(const TSharedPtr<const class FClothCollection>& InClothCollection, int32 InPatternIndex);
+		FCollectionClothSimPatternConstFacade(const TSharedRef<const class FClothCollection>& InClothCollection, int32 InPatternIndex);
 
 		static constexpr int32 GetBaseElementIndex() { return 0; }
 		int32 GetElementIndex() const { return GetBaseElementIndex() + PatternIndex; }
 
-		TSharedPtr<const class FClothCollection> ClothCollection;
+		TSharedRef<const class FClothCollection> ClothCollection;
 		int32 PatternIndex;
 	};
 
@@ -106,7 +106,7 @@ namespace UE::Chaos::ClothAsset
 
 	private:
 		friend class FCollectionClothFacade;
-		FCollectionClothSimPatternFacade(const TSharedPtr<class FClothCollection>& InClothCollection, int32 InPatternIndex);
+		FCollectionClothSimPatternFacade(const TSharedRef<class FClothCollection>& InClothCollection, int32 InPatternIndex);
 
 		void SetDefaults();
 
@@ -116,6 +116,6 @@ namespace UE::Chaos::ClothAsset
 		void SetNumSimVertices2D(int32 NumSimVertices);
 		TArrayView<int32> GetSimVertex3DLookup();
 
-		TSharedPtr<class FClothCollection> GetClothCollection() { return ConstCastSharedPtr<class FClothCollection>(ClothCollection); }
+		TSharedRef<class FClothCollection> GetClothCollection() { return ConstCastSharedRef<class FClothCollection>(ClothCollection); }
 	};
 }  // End namespace UE::Chaos::ClothAsset

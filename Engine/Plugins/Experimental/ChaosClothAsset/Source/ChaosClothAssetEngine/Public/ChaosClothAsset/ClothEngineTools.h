@@ -16,6 +16,6 @@ namespace UE::Chaos::ClothAsset
 	struct CHAOSCLOTHASSETENGINE_API FClothEngineTools
 	{
 		/** Generate tether data. */
-		static void GenerateTethers(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FName& WeightMap, const bool bGeodesicTethers);
+		static void GenerateTethers(const TSharedRef<FManagedArrayCollection>& ClothCollection, const FName& WeightMap, const bool bGeodesicTethers);
 	};
 }  // End namespace UE::Chaos::ClothAsset

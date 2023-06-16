@@ -73,7 +73,7 @@ void UChaosClothComponent::ResetConfigProperties()
 		::Chaos::Softs::FCollectionPropertyMutableFacade CollectionPropertyMutableFacade(PropertyCollection);
 
 		// TODO: Make PropertyCollection also one per LOD.
-		if (GetClothAsset() && GetClothAsset()->GetClothCollections().Num() > 0 && GetClothAsset()->GetClothCollections()[0].IsValid())
+		if (GetClothAsset() && GetClothAsset()->GetClothCollections().Num() > 0)
 		{
 			CollectionPropertyMutableFacade.Copy(*GetClothAsset()->GetClothCollections()[0]);
 		}

@@ -80,11 +80,10 @@ namespace UE::Chaos::ClothAsset
 		return GetNumSimFaces() == 0 && GetNumSimVertices2D() == 0;
 	}
 
-	FCollectionClothSimPatternConstFacade::FCollectionClothSimPatternConstFacade(const TSharedPtr<const FClothCollection>& ClothCollection, int32 InPatternIndex)
+	FCollectionClothSimPatternConstFacade::FCollectionClothSimPatternConstFacade(const TSharedRef<const FClothCollection>& ClothCollection, int32 InPatternIndex)
 		: ClothCollection(ClothCollection)
 		, PatternIndex(InPatternIndex)
 	{
-		check(ClothCollection.IsValid());
 		check(ClothCollection->IsValid());
 		check(PatternIndex >= 0 && PatternIndex < ClothCollection->GetNumElements(FClothCollection::SimPatternsGroup));
 	}
@@ -288,7 +287,7 @@ namespace UE::Chaos::ClothAsset
 			GetElementIndex());
 	}
 
-	FCollectionClothSimPatternFacade::FCollectionClothSimPatternFacade(const TSharedPtr<FClothCollection>& ClothCollection, int32 InPatternIndex)
+	FCollectionClothSimPatternFacade::FCollectionClothSimPatternFacade(const TSharedRef<FClothCollection>& ClothCollection, int32 InPatternIndex)
 		: FCollectionClothSimPatternConstFacade(ClothCollection, InPatternIndex)
 	{
 	}

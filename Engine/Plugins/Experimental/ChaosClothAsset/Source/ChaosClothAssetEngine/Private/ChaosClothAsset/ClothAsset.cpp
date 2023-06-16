@@ -30,7 +30,7 @@
 
 namespace UE::Chaos::ClothAsset::Private
 {
-::Chaos::FChaosArchive& Serialize(::Chaos::FChaosArchive& Ar, TArray<TSharedPtr<FManagedArrayCollection>>& ClothCollections)
+::Chaos::FChaosArchive& Serialize(::Chaos::FChaosArchive& Ar, TArray<TSharedRef<FManagedArrayCollection>>& ClothCollections)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
@@ -38,7 +38,7 @@ namespace UE::Chaos::ClothAsset::Private
 	{
 		// Cloth assets before this version had a single ClothCollection with a completely different schema.
 		ClothCollections.Empty(1);
-		TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+		TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
 		ClothCollection->Serialize(Ar);
 
 		// Now we're just going to hard reset and define a new schema.
@@ -77,7 +77,7 @@ namespace UE::Chaos::ClothAsset::Private
 
 			for (int32 i = 0; i < SerializeNum; i++)
 			{
-				TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+				TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
 				ClothCollection->Serialize(Ar);
 			}
 		}
@@ -104,7 +104,7 @@ UChaosClothAsset::UChaosClothAsset(const FObjectInitializer& ObjectInitializer)
 #endif
 {
 	// Setup a single LOD's Cloth Collection
-	TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+	TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
 	UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
 	ClothFacade.DefineSchema();
 
@@ -209,14 +209,14 @@ void UChaosClothAsset::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Conte
 	if (ClothCollections.IsEmpty())
 	{
 		UE_LOG(LogChaosClothAsset, Warning, TEXT("Invalid Cloth Collection (no LODs) found while loading Cloth Asset %s."), *GetFullName());
-		TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
+		TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections.Emplace_GetRef(MakeShared<FManagedArrayCollection>());
 		UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
 		ClothFacade.DefineSchema();
 		bAnyInvalidLods = true;
 	}
 	for(int32 LODIndex = 0; LODIndex < ClothCollections.Num(); ++LODIndex)
 	{
-		TSharedPtr<FManagedArrayCollection>& ClothCollection = ClothCollections[LODIndex];
+		TSharedRef<FManagedArrayCollection>& ClothCollection = ClothCollections[LODIndex];
 
 		UE::Chaos::ClothAsset::FCollectionClothFacade ClothFacade(ClothCollection);
 		if (!ClothFacade.IsValid())
@@ -394,7 +394,7 @@ void UChaosClothAsset::CalculateBounds()
 
 	FBox BoundingBox(ForceInit);
 
-	for (const TSharedPtr<FManagedArrayCollection>& ClothCollection : ClothCollections)
+	for (const TSharedRef<FManagedArrayCollection>& ClothCollection : ClothCollections)
 	{
 		const FCollectionClothConstFacade Cloth(ClothCollection);
 		const TConstArrayView<FVector3f> RenderPositionArray = Cloth.GetRenderPosition();
@@ -681,7 +681,7 @@ void UChaosClothAsset::SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset)
 	using namespace UE::Chaos::ClothAsset;
 
 	PhysicsAsset = InPhysicsAsset;
-	for (TSharedPtr<FManagedArrayCollection>& ClothCollection : ClothCollections)
+	for (TSharedRef<FManagedArrayCollection>& ClothCollection : ClothCollections)
 	{
 		FCollectionClothFacade Cloth(ClothCollection);
 		Cloth.SetPhysicsAssetPathName(PhysicsAsset ? PhysicsAsset->GetPathName() : FString());
@@ -700,9 +700,8 @@ void UChaosClothAsset::SetSkeleton(USkeleton* InSkeleton, bool bRebuildModels)
 
 	RefSkeleton = Skeleton->GetReferenceSkeleton();
 
-	for (TSharedPtr<FManagedArrayCollection>& ClothCollection : ClothCollections)
+	for (TSharedRef<FManagedArrayCollection>& ClothCollection : ClothCollections)
 	{
-		check(ClothCollection.IsValid());
 		constexpr bool bBindSimMesh = true;
 		constexpr bool bBindRenderMesh = true;
 		FClothGeometryTools::BindMeshToRootBone(ClothCollection, bBindSimMesh, bBindRenderMesh);
@@ -755,9 +754,8 @@ void UChaosClothAsset::CopySimMeshToRenderMesh(UMaterialInterface* Material)
 		FString(TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"));
 
 	bool bAnyLodHasRenderMesh = false;
-	for (TSharedPtr<FManagedArrayCollection>& ClothCollection : ClothCollections)
+	for (TSharedRef<FManagedArrayCollection>& ClothCollection : ClothCollections)
 	{
-		check(ClothCollection.IsValid());
 		constexpr bool bSingleRenderPattern = true;
 		FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, RenderMaterialPathName, bSingleRenderPattern);
 		bAnyLodHasRenderMesh = bAnyLodHasRenderMesh || FClothGeometryTools::HasRenderMesh(ClothCollection);
@@ -794,9 +792,8 @@ void UChaosClothAsset::BindSimMeshToRootBone()
 	using namespace UE::Chaos::ClothAsset;
 	check(ClothCollections.Num());
 
-	for (TSharedPtr<FManagedArrayCollection>& ClothCollection : ClothCollections)
+	for (TSharedRef<FManagedArrayCollection>& ClothCollection : ClothCollections)
 	{
-		check(ClothCollection.IsValid());
 		FClothGeometryTools::BindMeshToRootBone(ClothCollection, true, false);
 	}
 }

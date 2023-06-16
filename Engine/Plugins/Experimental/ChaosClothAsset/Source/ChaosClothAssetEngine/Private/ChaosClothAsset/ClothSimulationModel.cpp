@@ -126,7 +126,7 @@ bool FChaosClothSimulationLodModel::Serialize(FArchive& Ar)
 	return true;
 }
 
-FChaosClothSimulationModel::FChaosClothSimulationModel(const TArray<TSharedPtr<const FManagedArrayCollection>>& ClothCollections, const FReferenceSkeleton& ReferenceSkeleton)
+FChaosClothSimulationModel::FChaosClothSimulationModel(const TArray<TSharedRef<const FManagedArrayCollection>>& ClothCollections, const FReferenceSkeleton& ReferenceSkeleton)
 {
 	using namespace UE::Chaos::ClothAsset;
 

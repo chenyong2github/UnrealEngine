@@ -429,25 +429,25 @@ namespace UE::Chaos::ClothAsset
 	}// namespace Private::SimMeshBuilder
 
 	// TODO: Move these functions to the cloth facade?
-	bool FClothGeometryTools::HasSimMesh(const TSharedPtr<const FManagedArrayCollection>& ClothCollection)
+	bool FClothGeometryTools::HasSimMesh(const TSharedRef<const FManagedArrayCollection>& ClothCollection)
 	{
 		FCollectionClothConstFacade ClothFacade(ClothCollection);
 		return ClothFacade.GetNumSimVertices2D() > 0 && ClothFacade.GetNumSimVertices3D() && ClothFacade.GetNumSimFaces() > 0;
 	}
 
-	bool FClothGeometryTools::HasRenderMesh(const TSharedPtr<const FManagedArrayCollection>& ClothCollection)
+	bool FClothGeometryTools::HasRenderMesh(const TSharedRef<const FManagedArrayCollection>& ClothCollection)
 	{
 		FCollectionClothConstFacade ClothFacade(ClothCollection);
 		return ClothFacade.GetNumRenderVertices() > 0 && ClothFacade.GetNumRenderFaces() > 0;
 	}
 
-	void FClothGeometryTools::DeleteRenderMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection)
+	void FClothGeometryTools::DeleteRenderMesh(const TSharedRef<FManagedArrayCollection>& ClothCollection)
 	{
 		FCollectionClothFacade ClothFacade(ClothCollection);
 		ClothFacade.SetNumRenderPatterns(0);
 	}
 
-	void FClothGeometryTools::DeleteSimMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection)
+	void FClothGeometryTools::DeleteSimMesh(const TSharedRef<FManagedArrayCollection>& ClothCollection)
 	{
 		FCollectionClothFacade ClothFacade(ClothCollection);
 		ClothFacade.SetNumSimPatterns(0);
@@ -455,7 +455,7 @@ namespace UE::Chaos::ClothAsset
 		ClothFacade.SetNumSeams(0);
 	}
 
-	void FClothGeometryTools::DeleteTethers(const TSharedPtr<FManagedArrayCollection>& ClothCollection)
+	void FClothGeometryTools::DeleteTethers(const TSharedRef<FManagedArrayCollection>& ClothCollection)
 	{
 		FCollectionClothFacade ClothFacade(ClothCollection);
 		for (TArray<int32>& KinematicIndex : ClothFacade.GetTetherKinematicIndex())
@@ -468,7 +468,7 @@ namespace UE::Chaos::ClothAsset
 		}
 	}
 
-	void FClothGeometryTools::CopySimMeshToRenderMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection, const FString& RenderMaterialPathName, bool bSingleRenderPattern)
+	void FClothGeometryTools::CopySimMeshToRenderMesh(const TSharedRef<FManagedArrayCollection>& ClothCollection, const FString& RenderMaterialPathName, bool bSingleRenderPattern)
 	{
 		FCollectionClothFacade ClothFacade(ClothCollection);
 
@@ -565,7 +565,7 @@ namespace UE::Chaos::ClothAsset
 	}
 
 	void FClothGeometryTools::ReverseMesh(
-		const TSharedPtr<FManagedArrayCollection>& ClothCollection,
+		const TSharedRef<FManagedArrayCollection>& ClothCollection,
 		bool bReverseSimMeshNormals,
 		bool bReverseSimMeshWindingOrder,
 		bool bReverseRenderMeshNormals,
@@ -681,7 +681,7 @@ namespace UE::Chaos::ClothAsset
 	}
 
 	void FClothGeometryTools::BindMeshToRootBone(
-		const TSharedPtr<FManagedArrayCollection>& ClothCollection,
+		const TSharedRef<FManagedArrayCollection>& ClothCollection,
 		bool bBindSimMesh,
 		bool bBindRenderMesh)
 	{
@@ -719,7 +719,7 @@ namespace UE::Chaos::ClothAsset
 	}
 
 	void FClothGeometryTools::BuildSimMeshFromDynamicMesh(
-		const TSharedPtr<FManagedArrayCollection>& ClothCollection,
+		const TSharedRef<FManagedArrayCollection>& ClothCollection,
 		const UE::Geometry::FDynamicMesh3& DynamicMesh, int32 UVChannelIndex, const FVector2f& UVScale, bool bAppend)
 	{
 		using namespace Private::SimMeshBuilder;
@@ -772,7 +772,7 @@ namespace UE::Chaos::ClothAsset
 		}
 	}
 
-	void FClothGeometryTools::CleanupAndCompactMesh(const TSharedPtr<FManagedArrayCollection>& ClothCollection)
+	void FClothGeometryTools::CleanupAndCompactMesh(const TSharedRef<FManagedArrayCollection>& ClothCollection)
 	{
 		FCollectionClothFacade Cloth(ClothCollection);
 

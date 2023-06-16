@@ -98,10 +98,10 @@ public:
 	//~ End USkinnedAsset interface
 
 	/** Return the enclosed Cloth Collection object. */
-	TArray<TSharedPtr<FManagedArrayCollection>>& GetClothCollections() { return ClothCollections; }
+	TArray<TSharedRef<FManagedArrayCollection>>& GetClothCollections() { return ClothCollections; }
 
 	/** Return the enclosed Cloth Collection object, const version. */
-	const TArray<TSharedPtr<const FManagedArrayCollection>>& GetClothCollections() const { return reinterpret_cast<const TArray<TSharedPtr<const FManagedArrayCollection>>&>(ClothCollections); }
+	const TArray<TSharedRef<const FManagedArrayCollection>>& GetClothCollections() const { return reinterpret_cast<const TArray<TSharedRef<const FManagedArrayCollection>>&>(ClothCollections); }
 
 	/** Return the cloth simulation ready LOD model data. */
 	TSharedPtr<const FChaosClothSimulationModel> GetClothSimulationModel() const { return ClothSimulationModel; }
@@ -275,7 +275,7 @@ private:
 	TArray<FMatrix> CachedComposedRefPoseMatrices;
 
 	/** Cloth Collection containing this asset data. One per LOD. */
-	TArray<TSharedPtr<FManagedArrayCollection>> ClothCollections;
+	TArray<TSharedRef<FManagedArrayCollection>> ClothCollections;
 
 	/** Reference skeleton created from the provided skeleton asset. */
 	FReferenceSkeleton RefSkeleton;
