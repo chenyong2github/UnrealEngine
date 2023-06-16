@@ -45,7 +45,7 @@ UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTarg
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UPCGActorHelpers::GetOrCreateManagedISMC::FindMatchingMISMC);
 		UPCGManagedISMComponent* MatchingResource = nullptr;
-		InSourceComponent->ForEachManagedResource([&MatchingResource, &InParams, SettingsUID](UPCGManagedResource* InResource)
+		InSourceComponent->ForEachManagedResource([&MatchingResource, &InParams, &InTargetActor, SettingsUID](UPCGManagedResource* InResource)
 		{
 			// Early out if already found a match
 			if (MatchingResource)
@@ -63,6 +63,7 @@ UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTarg
 				if (UInstancedStaticMeshComponent* ISMC = Resource->GetComponent())
 				{
 					if (IsValid(ISMC) &&
+						ISMC->GetOwner() == InTargetActor &&
 						ISMC->NumCustomDataFloats == InParams.NumCustomDataFloats &&
 						Resource->GetDescriptor() == InParams.Descriptor)
 					{
@@ -125,6 +126,7 @@ UPCGManagedISMComponent* UPCGActorHelpers::GetOrCreateManagedISMC(AActor* InTarg
 	{
 		Resource->SetRootLocation(InTargetActor->GetRootComponent()->GetComponentLocation());
 	}
+	
 	Resource->SetSettingsUID(SettingsUID);
 	InSourceComponent->AddToManagedResources(Resource);
 
@@ -279,6 +281,22 @@ AActor* UPCGActorHelpers::SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> A
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Name = MakeUniqueObjectName(World->GetCurrentLevel(), ActorClass, BaseName);
 	SpawnParams.Owner = Parent;
+
+	if (PCGHelpers::IsRuntimeOrPIE())
+	{
+		SpawnParams.ObjectFlags |= RF_Transient;
+	}
+
+	return SpawnDefaultActor(World, ActorClass, Transform, SpawnParams, Parent);
+}
+
+AActor* UPCGActorHelpers::SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> ActorClass, const FTransform& Transform, const FActorSpawnParameters& SpawnParams, AActor* Parent)
+{
+	if (!World || !ActorClass)
+	{
+		return nullptr;
+	}
+
 	AActor* NewActor = World->SpawnActor(*ActorClass, &Transform, SpawnParams);
 	
 	if (!NewActor)
@@ -286,8 +304,14 @@ AActor* UPCGActorHelpers::SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> A
 		return nullptr;
 	}
 
+	// HACK: until UE-62747 is fixed, we have to force set the scale after spawning the actor
+	NewActor->SetActorRelativeScale3D(Transform.GetScale3D());
+
 #if WITH_EDITOR
-	NewActor->SetActorLabel(SpawnParams.Name.ToString());
+	if (SpawnParams.Name != NAME_None)
+	{
+		NewActor->SetActorLabel(SpawnParams.Name.ToString());
+	}
 #endif // WITH_EDITOR
 
 	USceneComponent* RootComponent = NewActor->GetRootComponent();

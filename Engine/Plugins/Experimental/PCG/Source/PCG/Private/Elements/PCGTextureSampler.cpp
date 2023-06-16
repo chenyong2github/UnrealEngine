@@ -73,8 +73,6 @@ bool FPCGTextureSamplerElement::ExecuteInternal(FPCGContext* Context) const
 	UPCGTextureData* TextureData = NewObject<UPCGTextureData>();
 	Output.Data = TextureData;
 
-	TextureData->TargetActor = Context->SourceComponent->GetOwner();
-
 	AActor* OriginalActor = UPCGBlueprintHelpers::GetOriginalComponent(*Context)->GetOwner();
 	FTransform FinalTransform = Transform;
 	if (!bUseAbsoluteTransform)

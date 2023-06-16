@@ -14,7 +14,6 @@ void UPCGPrimitiveData::Initialize(UPrimitiveComponent* InPrimitive)
 {
 	check(InPrimitive);
 	Primitive = InPrimitive;
-	TargetActor = InPrimitive->GetOwner();
 	CachedBounds = Primitive->Bounds.GetBox();
 	// Not obvious to find strict bounds, leave at the default value
 }

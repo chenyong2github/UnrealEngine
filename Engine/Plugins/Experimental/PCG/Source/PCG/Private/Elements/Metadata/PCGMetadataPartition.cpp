@@ -72,6 +72,8 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 		TArray<PCGMetadataValueKey> ValueKeyMapping;
 		ValueKeyMapping.Reserve(MetadataValueKeyCount);
 
+		TArray<PCGMetadataValueKey> UniqueValueKeys;
+
 		const bool bUsesValueKeys = AttributeBase->UsesValueKeys();
 
 		for (PCGMetadataValueKey ValueKey = 0; ValueKey < MetadataValueKeyCount; ++ValueKey)
@@ -82,12 +84,18 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 			}
 			else if (!bUsesValueKeys)
 			{
-				PCGMetadataValueKey* MatchingVK = Algo::FindByPredicate(ValueKeyMapping, [ValueKey, AttributeBase](const PCGMetadataValueKey& Key)
+				PCGMetadataValueKey* MatchingVK = Algo::FindByPredicate(UniqueValueKeys, [ValueKey, AttributeBase](const PCGMetadataValueKey& Key)
 				{
 					return AttributeBase->AreValuesEqual(ValueKey, Key);
 				});
 
 				const PCGMetadataValueKey TentativeKey = MatchingVK ? *MatchingVK : ValueKey;
+
+				if (!MatchingVK)
+				{
+					UniqueValueKeys.Add(TentativeKey);
+				}
+
 				ValueKeyMapping.Add(TentativeKey);
 			}
 			else

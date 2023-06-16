@@ -48,8 +48,7 @@ void FPCGWorldRayHitQueryParams::Initialize()
 
 void UPCGWorldVolumetricData::Initialize(UWorld* InWorld, const FBox& InBounds)
 {
-	Super::Initialize(InBounds, nullptr);
-	TargetActor = nullptr;
+	Super::Initialize(InBounds);
 	World = InWorld;
 	check(World.IsValid());
 }

@@ -14,8 +14,8 @@ class PCG_API UPCGVolumeData : public UPCGSpatialDataWithPointCache
 	GENERATED_BODY()
 
 public:
-	void Initialize(AVolume* InVolume, AActor* InTargetActor = nullptr);
-	void Initialize(const FBox& InBounds, AActor* InTargetActor);
+	void Initialize(AVolume* InVolume);
+	void Initialize(const FBox& InBounds);
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Volume; }

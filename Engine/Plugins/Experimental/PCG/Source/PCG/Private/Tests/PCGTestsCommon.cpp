@@ -166,7 +166,7 @@ namespace PCGTestsCommon
 	UPCGVolumeData* CreateVolumeData(const FBox& InBounds)
 	{
 		UPCGVolumeData* VolumeData = NewObject<UPCGVolumeData>();
-		VolumeData->Initialize(InBounds, nullptr);
+		VolumeData->Initialize(InBounds);
 		return VolumeData;
 	}
 

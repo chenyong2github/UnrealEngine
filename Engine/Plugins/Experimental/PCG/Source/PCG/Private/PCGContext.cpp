@@ -79,13 +79,17 @@ FString FPCGContext::GetComponentName() const
 
 AActor* FPCGContext::GetTargetActor(const UPCGSpatialData* InSpatialData) const
 {
-	if (SourceComponent.IsValid() && SourceComponent->GetOwner())
+	if (InSpatialData && InSpatialData->TargetActor.Get())
+	{
+		return InSpatialData->TargetActor.Get();
+	}
+	else if (SourceComponent.IsValid() && SourceComponent->GetOwner())
 	{
 		return SourceComponent->GetOwner();
 	}
 	else
 	{
-		return InSpatialData ? InSpatialData->TargetActor.Get() : nullptr;
+		return nullptr;
 	}
 }
 

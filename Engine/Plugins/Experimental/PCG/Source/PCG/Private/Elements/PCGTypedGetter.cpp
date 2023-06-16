@@ -105,12 +105,6 @@ void FPCGGetLandscapeDataElement::ProcessActors(FPCGContext* Context, const UPCG
 		UPCGLandscapeData* LandscapeData = NewObject<UPCGLandscapeData>();
 		LandscapeData->Initialize(Landscapes, LandscapeBounds, Settings->bGetHeightOnly, Settings->bGetLayerWeights);
 		
-		// Override target actor for the one we're running on, to make sure we don't output on the landscape directly
-		if (Context->SourceComponent.IsValid())
-		{
-			LandscapeData->TargetActor = Context->SourceComponent->GetOwner();
-		}
-
 		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
 		TaggedData.Data = LandscapeData;
 		TaggedData.Tags = LandscapeTags;

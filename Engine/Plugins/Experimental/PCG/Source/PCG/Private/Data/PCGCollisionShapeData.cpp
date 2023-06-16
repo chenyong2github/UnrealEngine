@@ -21,7 +21,6 @@ void UPCGCollisionShapeData::Initialize(UShapeComponent* InComponent)
 
 	//Note: Shape is pre-scaled
 	ShapeAdapter = MakeUnique<FPhysicsShapeAdapter>(Transform.GetRotation(), Shape);
-	TargetActor = InComponent->GetOwner();
 
 	CachedBounds = InComponent->Bounds.GetBox();
 	CachedStrictBounds = CachedBounds;

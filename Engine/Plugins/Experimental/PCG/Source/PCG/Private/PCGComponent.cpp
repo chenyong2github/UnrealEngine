@@ -708,7 +708,7 @@ bool UPCGComponent::MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChil
 		{
 			if (GeneratedResource)
 			{
-				GeneratedResource->MoveResourceToNewActor(NewActor);
+				GeneratedResource->MoveResourceToNewActor(NewActor, Owner);
 				TSet<TSoftObjectPtr<AActor>> Dummy;
 				GeneratedResource->ReleaseIfUnused(Dummy);
 				bHasMovedResources = true;
@@ -2004,7 +2004,7 @@ FPCGDataCollection UPCGComponent::CreateActorPCGDataCollection(AActor* Actor, co
 		check(!Component || Component->GetOwner() == Actor); // Invalid processing otherwise because of the this usage
 
 		UPCGVolumeData* Data = NewObject<UPCGVolumeData>();
-		Data->Initialize(PartitionActor->GetFixedBounds(), PartitionActor);
+		Data->Initialize(PartitionActor->GetFixedBounds());
 
 		UPCGComponent* OriginalComponent = Component ? PartitionActor->GetOriginalComponent(Component) : nullptr;
 		// Important note: we do NOT call the collection version here, as we want to have a union if that's the case
@@ -2248,8 +2248,6 @@ UPCGData* UPCGComponent::CreateLandscapePCGData(bool bHeightOnly)
 	UPCGLandscapeData* LandscapeData = NewObject<UPCGLandscapeData>();
 	const UPCGGraph* PCGGraph = GetGraph();
 	LandscapeData->Initialize(Landscapes, LandscapeBounds, bHeightOnly, /*bUseMetadata=*/PCGGraph && PCGGraph->bLandscapeUsesMetadata);
-	// Need to override target actor for this one, not the landscape
-	LandscapeData->TargetActor = Actor;
 
 	return LandscapeData;
 }

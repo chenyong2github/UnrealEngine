@@ -333,17 +333,6 @@ void FPCGDataFromActorElement::ProcessActor(FPCGContext* Context, const UPCGData
 		FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(FoundActor, Context->SourceComponent.Get(), DataFilter, bParseActor);
 		Outputs += Collection.TaggedData;
 	}
-
-	if (Context->SourceComponent.IsValid())
-	{
-		for (FPCGTaggedData& Output : Outputs)
-		{
-			if (UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Output.Data))
-			{
-				SpatialData->TargetActor = Context->SourceComponent->GetOwner();
-			}
-		}
-	}
 }
 
 #undef LOCTEXT_NAMESPACE

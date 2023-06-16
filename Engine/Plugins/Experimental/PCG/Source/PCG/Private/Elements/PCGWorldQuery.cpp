@@ -51,7 +51,6 @@ bool FPCGWorldVolumetricQueryElement::ExecuteInternal(FPCGContext* Context) cons
 	Data->QueryParams = QueryParams;
 	Data->QueryParams.Initialize();
 	Data->OriginatingComponent = Context->SourceComponent;
-	Data->TargetActor = Context->SourceComponent->GetOwner();
 
 	FPCGTaggedData& Output = Context->OutputData.TaggedData.Emplace_GetRef();
 	Output.Data = Data;
@@ -129,7 +128,6 @@ bool FPCGWorldRayHitQueryElement::ExecuteInternal(FPCGContext* Context) const
 	Data->QueryParams = QueryParams;
 	Data->QueryParams.Initialize();
 	Data->OriginatingComponent = Context->SourceComponent;
-	Data->TargetActor = Context->SourceComponent->GetOwner();
 
 	FPCGTaggedData& Output = Context->OutputData.TaggedData.Emplace_GetRef();
 	Output.Data = Data;

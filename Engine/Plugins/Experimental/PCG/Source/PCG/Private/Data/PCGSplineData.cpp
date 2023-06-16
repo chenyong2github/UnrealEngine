@@ -16,7 +16,6 @@
 void UPCGSplineData::Initialize(USplineComponent* InSpline)
 {
 	check(InSpline);
-	TargetActor = InSpline->GetOwner();
 
 	SplineStruct.Initialize(InSpline);
 
@@ -34,11 +33,8 @@ void UPCGSplineData::Initialize(USplineComponent* InSpline)
 	CachedBounds = CachedBounds.ExpandBy(SplinePointsRadius, SplinePointsRadius);
 }
 
-void UPCGSplineData::Initialize(const TArray<FSplinePoint>& InSplinePoints, bool bIsClosedLoop, AActor* InTargetActor, const FTransform& InTransform)
+void UPCGSplineData::Initialize(const TArray<FSplinePoint>& InSplinePoints, bool bIsClosedLoop, const FTransform& InTransform)
 {
-	check(InTargetActor);
-	TargetActor = InTargetActor;
-
 	SplineStruct.Initialize(InSplinePoints, bIsClosedLoop, InTransform);
 
 	CachedBounds = SplineStruct.GetBounds();

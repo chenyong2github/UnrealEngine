@@ -175,7 +175,6 @@ bool FPCGMeshSamplerElement::PrepareDataInternal(FPCGContext* InContext) const
 
 	TArray<FPCGTaggedData>& Outputs = InContext->OutputData.TaggedData;
 	Context->OutPointData = NewObject<UPCGPointData>();
-	Context->OutPointData->TargetActor = Context->SourceComponent->GetOwner();
 	Outputs.Emplace_GetRef().Data = Context->OutPointData;
 
 	Context->bDataPrepared = true;

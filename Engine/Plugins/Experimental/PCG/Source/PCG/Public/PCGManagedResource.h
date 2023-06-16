@@ -38,6 +38,7 @@ public:
 
 	/** Move the given resource to a new actor. Return true if it has succeeded */
 	virtual bool MoveResourceToNewActor(AActor* NewActor) { return false; };
+	virtual bool MoveResourceToNewActor(AActor* NewActor, const AActor* ExpectedPreviousOwner) { return MoveResourceToNewActor(NewActor); }
 
 	static bool DebugForcePurgeAllResourcesOnGenerate();
 
@@ -88,7 +89,7 @@ public:
 	//~Begin UPCGManagedResource interface
 	virtual bool Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
-	virtual bool MoveResourceToNewActor(AActor* NewActor) override;
+	virtual bool MoveResourceToNewActor(AActor* NewActor, const AActor* ExpectedPreviousOwner) override;
 	//~End UPCGManagedResource interface
 
 	virtual void ResetComponent() { check(0); }

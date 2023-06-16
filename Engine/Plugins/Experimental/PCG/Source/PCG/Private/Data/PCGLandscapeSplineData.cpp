@@ -41,7 +41,6 @@ void UPCGLandscapeSplineData::Initialize(ULandscapeSplinesComponent* InSplineCom
 {
 	check(InSplineComponent);
 	Spline = InSplineComponent;
-	TargetActor = InSplineComponent->GetOwner();
 }
 
 FTransform UPCGLandscapeSplineData::GetTransform() const

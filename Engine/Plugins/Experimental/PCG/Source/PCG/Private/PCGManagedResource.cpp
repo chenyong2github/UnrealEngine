@@ -225,7 +225,7 @@ bool UPCGManagedComponent::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActo
 	return Super::ReleaseIfUnused(OutActorsToDelete) || !GeneratedComponent.IsValid();
 }
 
-bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor)
+bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor, const AActor* ExpectedPreviousOwner)
 {
 	check(NewActor);
 
@@ -236,6 +236,12 @@ bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor)
 
 	TObjectPtr<AActor> OldOwner = GeneratedComponent->GetOwner();
 	check(OldOwner);
+
+	// Prevent moving of components on external (or spawned) actors
+	if (ExpectedPreviousOwner && OldOwner != ExpectedPreviousOwner)
+	{
+		return false;
+	}
 
 	bool bDetached = false;
 	bool bAttached = false;

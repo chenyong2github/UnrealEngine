@@ -50,7 +50,6 @@ void UPCGLandscapeData::Initialize(const TArray<TWeakObjectPtr<ALandscapeProxy>>
 	ALandscapeProxy* FirstLandscape = Landscapes[0].Get();
 	check(FirstLandscape);
 
-	TargetActor = FirstLandscape;
 	Bounds = InBounds;
 	bHeightOnly = bInHeightOnly;
 	bUseMetadata = bInUseMetadata;
@@ -110,7 +109,6 @@ void UPCGLandscapeData::PostLoad()
 		}
 	}
 
-	TargetActor = FirstLandscape;
 	UPCGSubsystem* PCGSubsystem = UPCGSubsystem::GetInstance(FirstLandscape ? FirstLandscape->GetWorld() : nullptr);
 	LandscapeCache = PCGSubsystem ? PCGSubsystem->GetLandscapeCache() : nullptr;
 }

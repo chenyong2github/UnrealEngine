@@ -410,7 +410,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		AActor* TargetActor = Context->GetTargetActor(SpatialData);
+		AActor* TargetActor = Settings->RootActor.Get() ? Settings->RootActor.Get() : Context->GetTargetActor(SpatialData);
 
 		if (!TargetActor)
 		{

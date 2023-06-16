@@ -83,18 +83,18 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
+		AActor* TargetActor = Settings->TargetActor.Get() ? Settings->TargetActor.Get() : Context->GetTargetActor(SpatialData);
+		if (!TargetActor)
+		{
+			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidTargetActor", "Invalid target actor. Ensure TargetActor member is initialized when creating SpatialData."));
+			continue;
+		}
+
 		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
 
 		if (!PointData)
 		{
 			PCGE_LOG(Error, GraphAndLog, LOCTEXT("UnableToGetPointData", "Unable to get point data from input"));
-			continue;
-		}
-
-		AActor* TargetActor = PointData->TargetActor.Get();
-		if (!TargetActor)
-		{
-			PCGE_LOG(Error, GraphAndLog, LOCTEXT("InvalidTargetActor", "Invalid target actor. Ensure TargetActor member is initialized when creating SpatialData."));
 			continue;
 		}
 
@@ -200,7 +200,7 @@ bool FPCGCreateSplineElement::ExecuteInternal(FPCGContext* Context) const
 				PointType);
 		}
 
-		SplineData->Initialize(SplinePoints, Settings->bClosedLoop, TargetActor, FTransform(SplineActorTransform.GetLocation()));
+		SplineData->Initialize(SplinePoints, Settings->bClosedLoop, FTransform(SplineActorTransform.GetLocation()));
 
 		USplineComponent* SplineComponent = nullptr;
 

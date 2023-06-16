@@ -10,11 +10,10 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGVolumeData)
 
-void UPCGVolumeData::Initialize(AVolume* InVolume, AActor* InTargetActor)
+void UPCGVolumeData::Initialize(AVolume* InVolume)
 {
 	check(InVolume);
 	Volume = InVolume;
-	TargetActor = InTargetActor ? InTargetActor : InVolume;
 	
 	FBoxSphereBounds BoxSphereBounds = Volume->GetBounds();
 	Bounds = FBox::BuildAABB(BoxSphereBounds.Origin, BoxSphereBounds.BoxExtent);
@@ -23,11 +22,10 @@ void UPCGVolumeData::Initialize(AVolume* InVolume, AActor* InTargetActor)
 	// Currently, we'll leave the strict bounds empty and fall back to checking against the local box
 }
 
-void UPCGVolumeData::Initialize(const FBox& InBounds, AActor* InTargetActor)
+void UPCGVolumeData::Initialize(const FBox& InBounds)
 {
 	Bounds = InBounds;
 	StrictBounds = InBounds;
-	TargetActor = InTargetActor;
 }
 
 FBox UPCGVolumeData::GetBounds() const

@@ -75,6 +75,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "Option != EPCGSpawnActorOption::CollapseActors", EditConditionHides))
 	TArray<FPCGActorPropertyOverride> ActorOverrides;
 
+	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	TSoftObjectPtr<AActor> RootActor;
+
 protected:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

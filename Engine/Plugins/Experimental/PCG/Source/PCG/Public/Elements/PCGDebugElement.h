@@ -4,11 +4,13 @@
 
 #include "PCGSettings.h"
 
+#include "GameFramework/Actor.h"
+
 #include "PCGDebugElement.generated.h"
 
 namespace PCGDebugElement
 {
-	void ExecuteDebugDisplay(FPCGContext* Context);
+	void ExecuteDebugDisplay(FPCGContext* Context, AActor* TargetActor = nullptr);
 }
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
@@ -30,6 +32,10 @@ protected:
 
 	virtual FPCGElementPtr CreateElement() const override;
 	// ~End UPCGSettings interface
+
+public:
+	UPROPERTY(BlueprintReadWrite, Category = Settings, meta = (PCG_Overridable))
+	TSoftObjectPtr<AActor> TargetActor;
 };
 
 class FPCGDebugElement : public FSimplePCGElement

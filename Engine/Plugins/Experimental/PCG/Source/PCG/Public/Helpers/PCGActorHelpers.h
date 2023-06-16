@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/EngineTypes.h"
+#include "Engine/World.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Templates/SubclassOf.h"
@@ -92,6 +93,16 @@ public:
 	* @param Parent Optional parent to attach to.
 	*/
 	static AActor* SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> ActorClass, FName BaseName, const FTransform& Transform, AActor* Parent = nullptr);
+
+	/**
+	* Spawn a new actor and attach it to the parent (if not null)
+	* @param World The world
+	* @param ActorClass Class of the actor to spawn
+	* @param Transform The transform for the new actor
+	* @param SpawnParams The spawn parameters
+	* @param Parent Optional parent to attach to.
+	*/
+	static AActor* SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> ActorClass, const FTransform& Transform, const FActorSpawnParameters& SpawnParams, AActor* Parent = nullptr);
 
 	/**
 	 * Return the grid cell coordinates on the PCG partition grid given a position and the grid size.
