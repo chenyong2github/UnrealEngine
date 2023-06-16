@@ -54,7 +54,7 @@ namespace UE::NearestNeighborModel
 
 				// Sample the mesh data of the geom cache.
 				FGeometryCacheMeshData& GeomCacheMeshData = GeomCacheMeshDatas[MeshMappingIndex];
-				if (!Track->GetMeshDataAtTime(GeometryCacheComponent->GetTimeAtFrame(InAnimFrameIndex), GeomCacheMeshData))
+				if (!Track->GetMeshDataAtTime(SampleTime, GeomCacheMeshData))
 				{
 					continue;
 				}
