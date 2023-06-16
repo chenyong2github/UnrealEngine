@@ -114,8 +114,8 @@ namespace Chaos
 		FVec3f WorldFrictionDelta = FVec3f(0);
 		if (ManifoldPoint.Flags.bHasStaticFrictionAnchor)
 		{
-			const FVec3f FrictionDelta0 = ShapeWorldTransform0.TransformPositionNoScale(FVec3(ManifoldPoint.ShapeAnchorPoints[0])) - WorldContact0;
-			const FVec3f FrictionDelta1 = ShapeWorldTransform1.TransformPositionNoScale(FVec3(ManifoldPoint.ShapeAnchorPoints[1])) - WorldContact1;
+			const FVec3f FrictionDelta0 = ShapeWorldTransform0.TransformPositionNoScale(FVec3(ManifoldPoint.ShapeAnchorPoints[0]));
+			const FVec3f FrictionDelta1 = ShapeWorldTransform1.TransformPositionNoScale(FVec3(ManifoldPoint.ShapeAnchorPoints[1]));
 			WorldFrictionDelta = FrictionDelta0 - FrictionDelta1;
 		}
 		else
