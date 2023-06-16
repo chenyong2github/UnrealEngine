@@ -1882,7 +1882,7 @@ void UpdateRadianceCaches(
 				PassParameters->SupersampleTileBRDFThreshold = GLumenRadianceCacheSupersampleTileBRDFThreshold;
 				PassParameters->SupersampleDistanceFromCameraSq = GLumenRadianceCacheSupersampleDistanceFromCamera * GLumenRadianceCacheSupersampleDistanceFromCamera;
 				PassParameters->DownsampleDistanceFromCameraSq = GLumenRadianceCacheDownsampleDistanceFromCamera * GLumenRadianceCacheDownsampleDistanceFromCamera;
-				PassParameters->ForcedUniformLevel = FMath::Clamp<int32>(GLumenRadianceCacheForceUniformTraceTileLevel, 0, 2);
+				PassParameters->ForcedUniformLevel = GLumenRadianceCacheForceUniformTraceTileLevel >= 0 ? FMath::Clamp<int32>(GLumenRadianceCacheForceUniformTraceTileLevel, 0, 2) : 1;
 
 				PassParameters->RWDebugBRDFProbabilityDensityFunction = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DebugBRDFProbabilityDensityFunction));
 				PassParameters->DebugProbeBRDFOctahedronResolution = DebugProbeBRDFOctahedronResolution;
