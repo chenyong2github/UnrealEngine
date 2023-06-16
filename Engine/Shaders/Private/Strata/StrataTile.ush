@@ -89,11 +89,6 @@ FStrataBSDFTile UnpackBSDFTile(uint In)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Strata BSDF offset
 
-// BSDF offsets are packed into 32bits to max. BSDF is < STRATA_MAX_BSDF_COUNT, which could leads to some issue.
-#define STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET 8u
-#define STRATA_BSDF_OFFSET_BIT_COUNT 4u
-#define STRATA_BSDF_OFFSET_BIT_MASK  0xF
-
 // Store the material slice index offset for each BSDF, for pixels containing several BSDFs
 struct FStrataBSDFOffset
 {

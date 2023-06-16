@@ -10,9 +10,13 @@
 // Change this to force recompilation of all strata dependent shaders (use https://www.random.org/cgi-bin/randbyte?nbytes=4&format=h)
 #define STRATA_SHADER_VERSION 0x56F06029 
 
+// BSDF offsets are packed into 32bits to max. BSDF is < STRATA_MAX_BSDF_COUNT, which could leads to some issue.
+#define STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET	8u
+#define STRATA_BSDF_OFFSET_BIT_COUNT			4u
+#define STRATA_BSDF_OFFSET_BIT_MASK				0xF
 
-
-#define STRATA_MAX_BSDF_COUNT				15
+// We can only ever use STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET BSDFs for Lumen, se we use that as a global BSDF count limit today.
+#define STRATA_MAX_BSDF_COUNT				STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET
 #define STRATA_MAX_OPERATOR_COUNT			15
 
 // It this is changed, STATE_BIT_COUNT_SHAREDLOCALBASESID and HEADER_BIT_COUNT_SHAREDLOCALBASES_COUNT also needs to be updated
