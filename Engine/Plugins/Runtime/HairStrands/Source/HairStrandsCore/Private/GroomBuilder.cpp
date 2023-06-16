@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r39");
+	return TEXT("v8r40");
 }
 
 namespace FHairStrandsDecimation
@@ -3073,6 +3073,10 @@ static void BuildClusterBulkData(
 	Out.Header.PointCount		= In.PointCount;
 	Out.Header.CurveCount		= In.CurveCount;
 	Out.Header.LODInfos			= In.LODInfos;
+
+	Out.Header.Strides.PackedClusterInfoStride = FHairClusterInfoFormat::SizeInByte;
+	Out.Header.Strides.CurveToClusterIdStride = FHairClusterIndexFormat::SizeInByte;
+	Out.Header.Strides.PointLODStride = sizeof(uint32);
 
 	// Sanity check
 	check(Out.Header.ClusterCount	== uint32(In.ClusterInfos.Num()));

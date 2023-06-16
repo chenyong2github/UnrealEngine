@@ -696,6 +696,10 @@ void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* 
 		Ar << Header.LODInfos[It].ScreenSize;
 		Ar << Header.LODInfos[It].bIsVisible;
 	}
+
+	Ar << Header.Strides.PackedClusterInfoStride;
+	Ar << Header.Strides.CurveToClusterIdStride;
+	Ar << Header.Strides.PointLODStride;
 }
 
 uint32 FHairStrandsClusterCullingBulkData::GetResourceCount() const
@@ -710,9 +714,20 @@ void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQ
 	const bool bHasClusterData = Header.ClusterCount > 0;
 	if (bHasClusterData)
 	{
-		Out.Add(Data.CurveToClusterIds, TEXT("_CurveToClusterIds"), 0, 0); 	// Load all data. TODO load data based on active curve/point count
-		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"), 0, 0);// Load all data
-		Out.Add(Data.PointLODs, TEXT("_PointLODs"), 0, 0); 					// Load all data. TODO load data based on active curve/point count
+		// Translate requested curve count into chunk/offset/size to be read
+		uint32 PointCount = 0;
+		uint32 CurveCount = 0;
+		if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC)
+		{
+			CurveCount = FMath::Min(Header.CurveCount, Out.GetCurveCount());
+			PointCount = FMath::Min(Header.PointCount, Out.GetPointCount());
+		}
+
+		const uint32 PointLODCount = FMath::DivideAndRoundUp(PointCount, HAIR_POINT_LOD_COUNT_PER_UINT);
+
+		Out.Add(Data.PackedClusterInfos, TEXT("_PackedClusterInfos"), Data.PackedClusterInfos.LoadedSize, Header.ClusterCount * Header.Strides.PackedClusterInfoStride); // Load all data
+		Out.Add(Data.CurveToClusterIds, TEXT("_CurveToClusterIds"), Data.CurveToClusterIds.LoadedSize, CurveCount * Header.Strides.CurveToClusterIdStride);
+		Out.Add(Data.PointLODs, TEXT("_PointLODs"), Data.PointLODs.LoadedSize, PointLODCount * Header.Strides.PointLODStride);
 	}
 }
 

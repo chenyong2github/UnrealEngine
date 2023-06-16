@@ -728,6 +728,13 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 		uint32 PointCount = 0;
 		uint32 CurveCount = 0;
 		FVector4f ClusterInfoParameters = FVector4f::Zero(); // xy:Scale/Offset for ScreenSize, zw:Scale/Offset for Radius
+
+		struct FStrides
+		{
+			uint32 PackedClusterInfoStride = 0;
+			uint32 CurveToClusterIdStride = 0;
+			uint32 PointLODStride = 0;
+		} Strides;
 	} Header;
 
 	struct FData
