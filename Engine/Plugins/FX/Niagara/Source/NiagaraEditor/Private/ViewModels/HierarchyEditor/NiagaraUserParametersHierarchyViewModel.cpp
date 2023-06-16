@@ -13,7 +13,7 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraUserParametersHierarchyEditor"
 
-void UNiagaraHierarchyUserParameter::Initialize(UNiagaraScriptVariable& InUserParameterScriptVariable, UNiagaraSystem& InSystem)
+void UNiagaraHierarchyUserParameter::Initialize(UNiagaraScriptVariable& InUserParameterScriptVariable)
 {
 	UserParameterScriptVariable = &InUserParameterScriptVariable;
 	SetIdentity(FNiagaraHierarchyIdentity({InUserParameterScriptVariable.Metadata.GetVariableGuid()}, {}));
@@ -122,7 +122,7 @@ void UNiagaraUserParametersHierarchyViewModel::PrepareSourceItems(UNiagaraHierar
 		
 		// since the source items are transient we need to create them here and keep them around until the end of the tool's lifetime
 		UNiagaraHierarchyUserParameter* UserParameterHierarchyObject = NewObject<UNiagaraHierarchyUserParameter>(SourceRoot);
-		UserParameterHierarchyObject->Initialize(*ScriptVariable.Get(), GetSystemViewModel()->GetSystem());
+		UserParameterHierarchyObject->Initialize(*ScriptVariable.Get());
 		SourceRoot->GetChildrenMutable().Add(UserParameterHierarchyObject);
 	}
 }

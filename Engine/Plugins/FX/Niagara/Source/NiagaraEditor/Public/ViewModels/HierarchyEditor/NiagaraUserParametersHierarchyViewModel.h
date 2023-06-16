@@ -28,11 +28,13 @@ public:
 	UNiagaraHierarchyUserParameter() {}
 	virtual ~UNiagaraHierarchyUserParameter() override {}
 	
-	void Initialize(UNiagaraScriptVariable& InUserParameterScriptVariable, UNiagaraSystem& System);
+	void Initialize(UNiagaraScriptVariable& InUserParameterScriptVariable);
 	
 	const FNiagaraVariable& GetUserParameter() const { return UserParameterScriptVariable->Variable; }
 
 	virtual FString ToString() const override { return GetUserParameter().GetName().ToString(); }
+
+	const UNiagaraScriptVariable* GetScriptVariable() const { return UserParameterScriptVariable; }
 private:
 	UPROPERTY()
 	TObjectPtr<UNiagaraScriptVariable> UserParameterScriptVariable;
