@@ -29,7 +29,8 @@ class MASSLWI_API AMassLWIStaticMeshManager : public ALightWeightInstanceStaticM
 public:
 	bool IsRegisteredWithMass() const { return MassRegistrationHandle.IsValid(); }
 
-	void TransferDataToMass(FMassEntityManager& EntityManager);
+	virtual void TransferDataToMass(FMassEntityManager& EntityManager);
+	virtual void StoreMassDataInActor(FMassEntityManager& EntityManager);
 	FMassLWIManagerRegistrationHandle GetMassRegistrationHandle() const { return MassRegistrationHandle; }
 	void MarkRegisteredWithMass(const FMassLWIManagerRegistrationHandle RegistrationIndex);
 	void MarkUnregisteredWithMass();

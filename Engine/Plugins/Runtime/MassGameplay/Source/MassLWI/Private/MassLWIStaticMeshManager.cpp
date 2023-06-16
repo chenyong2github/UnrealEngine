@@ -56,31 +56,7 @@ void AMassLWIStaticMeshManager::EndPlay(const EEndPlayReason::Type EndPlayReason
 			if (UMassEntitySubsystem* EntitySubsystem = UWorld::GetSubsystem<UMassEntitySubsystem>(GetWorld()))
 			{
 				FMassEntityManager& EntityManager = EntitySubsystem->GetMutableEntityManager();
-
-				TArray<FMassArchetypeEntityCollection> EntityCollectionsToDestroy;
-				UE::Mass::Utils::CreateEntityCollections(EntityManager, Entities, FMassArchetypeEntityCollection::FoldDuplicates, EntityCollectionsToDestroy);
-
-				// we create a query to "recreate" contents of InstanceTransforms just in case BeginPlay will be get
-				// called again for this LWIManager, which can happen with actor streaming
-				FMassEntityQuery LocationQuery;
-				LocationQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
-
-				FMassExecutionContext ExecutionContext(EntityManager);
-				for (FMassArchetypeEntityCollection& Collection : EntityCollectionsToDestroy)
-				{
-					LocationQuery.ForEachEntityChunk(Collection, EntityManager, ExecutionContext, [this](FMassExecutionContext& Context)
-					{
-						TConstArrayView<FTransformFragment> TransformsList = Context.GetFragmentView<FTransformFragment>();
-						for (const FTransformFragment& Fragment : TransformsList)
-						{
-							InstanceTransforms.Add(Fragment.GetTransform());
-						}
-					});
-
-					EntityManager.BatchDestroyEntityChunks(Collection);
-				}
-
-				Entities.Reset();
+				StoreMassDataInActor(EntityManager);
 			}
 		}
 
@@ -145,6 +121,34 @@ void AMassLWIStaticMeshManager::TransferDataToMass(FMassEntityManager& EntityMan
 		InstancedStaticMeshComponent->UnregisterComponent();
 		InstancedStaticMeshComponent->DestroyComponent();
 	}
+}
+
+void AMassLWIStaticMeshManager::StoreMassDataInActor(FMassEntityManager& EntityManager)
+{
+	TArray<FMassArchetypeEntityCollection> EntityCollectionsToDestroy;
+	UE::Mass::Utils::CreateEntityCollections(EntityManager, Entities, FMassArchetypeEntityCollection::FoldDuplicates, EntityCollectionsToDestroy);
+
+	// we create a query to "recreate" contents of InstanceTransforms just in case BeginPlay will be get
+	// called again for this LWIManager, which can happen with actor streaming
+	FMassEntityQuery LocationQuery;
+	LocationQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
+
+	FMassExecutionContext ExecutionContext(EntityManager);
+	for (FMassArchetypeEntityCollection& Collection : EntityCollectionsToDestroy)
+	{
+		LocationQuery.ForEachEntityChunk(Collection, EntityManager, ExecutionContext, [this](FMassExecutionContext& Context)
+		{
+			TConstArrayView<FTransformFragment> TransformsList = Context.GetFragmentView<FTransformFragment>();
+			for (const FTransformFragment& Fragment : TransformsList)
+			{
+				InstanceTransforms.Add(Fragment.GetTransform());
+			}
+		});
+
+		EntityManager.BatchDestroyEntityChunks(Collection);
+	}
+
+	Entities.Reset();
 }
 
 int32 AMassLWIStaticMeshManager::FindIndexForEntity(const FMassEntityHandle Entity) const
