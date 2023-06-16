@@ -35,7 +35,12 @@ void PCGEditorUtils::GetParentPackagePathAndUniqueName(const UObject* OriginalOb
 	FPackageName::SplitLongPackageName(OriginalObject->GetPackage()->GetPathName(), PackageRoot, PackagePath, PackageName);
 
 	OutPackagePath = PackageRoot / PackagePath;
-
+	
+	if (!FPackageName::IsValidObjectPath(OutPackagePath))
+	{
+		OutPackagePath = FPaths::ProjectContentDir();
+	}
+	
 	FString DummyPackageName;
 	AssetTools.CreateUniqueAssetName(OutPackagePath, NewAssetTentativeName, DummyPackageName, OutUniqueName);
 }
