@@ -92,6 +92,7 @@ private:
 #else
 	FBufferRHIRef						PersistBuff;
 #endif
+	uint64								MemSizeWeights;
 	uint64								MemSizeTemp;
 	uint64								MemSizePersist;
 	ID3D12DynamicRHI*					DynamicRHI;
