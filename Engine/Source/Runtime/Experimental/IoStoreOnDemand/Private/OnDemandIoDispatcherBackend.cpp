@@ -37,14 +37,14 @@
 ///////////////////////////////////////////////////////////////////////////////
 int32 GIoDispatcherMaxHttpConnectionCount = 8;
 static FAutoConsoleVariableRef CVar_IoDispatcherMaxHttpConnectionCount (
-	TEXT("s.IoDispatcherMaxHttpConnectionCount"),
+	TEXT("s.IasMaxHttpConnectionCount"),
 	GIoDispatcherMaxHttpConnectionCount,
 	TEXT("Max number of open HTTP connections to the on demand endpoint(s).")
 );
 
 int32 GIoDispatcherMaxHttpRetryCount = 2;
 static FAutoConsoleVariableRef CVar_IoDispatcherMaxHttpRetryCount (
-	TEXT("s.IoDispatcherMaxHttpRetryCount"),
+	TEXT("s.IasMaxHttpRetryCount"),
 	GIoDispatcherMaxHttpRetryCount,
 	TEXT("Max number of HTTP request retries before failing the I/O request.")
 );
