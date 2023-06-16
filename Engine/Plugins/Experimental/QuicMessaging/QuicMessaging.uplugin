@@ -16,8 +16,7 @@
 	"Installed": false,
 	"SupportedTargetPlatforms": [
 		"Win64",
-		"Linux",
-		"Mac"
+		"Linux"
 	],
 	"SupportedPrograms": [
 		"UnrealFrontend",
@@ -33,7 +32,7 @@
 			"Name": "QuicMessaging",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "PreDefault",
-			"PlatformAllowList": [ "Win64", "Linux", "Mac" ],
+			"PlatformAllowList": [ "Win64", "Linux"],
 			"ProgramAllowList": [
 				"UnrealFrontend",
 				"UnrealMultiUserServer",
@@ -48,7 +47,7 @@
 			"Name": "QuicMessagingTransport",
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "PreDefault",
-			"PlatformAllowList": [ "Win64", "Linux", "Mac" ],
+			"PlatformAllowList": [ "Win64", "Linux" ],
 			"ProgramAllowList": [
 				"UnrealFrontend",
 				"UnrealMultiUserServer",
