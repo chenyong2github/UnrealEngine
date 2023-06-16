@@ -861,7 +861,7 @@ FRDGTextureRef FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 
 		if (Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0)
 		{
-			check(!Scene->DistanceFieldSceneData.HasPendingOperations());
+			ensure(!Scene->DistanceFieldSceneData.HasPendingOperations());
 
 			FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, Scene->DistanceFieldSceneData);
 
