@@ -45,6 +45,7 @@ namespace WaveTable
 			virtual ECurveEditorViewID GetViewId() const { return WaveTableViewId; }
 			virtual bool IsReadOnly() const override;
 			virtual FLinearColor GetColor() const override;
+			virtual void GetTimeRange(double& MinValue, double& MaxValue) const override;
 			virtual void GetValueRange(double& MinValue, double& MaxValue) const override;
 
 			float GetCurveDuration() const { return CurveDuration; }
@@ -90,7 +91,7 @@ namespace WaveTable
 				const FGeometry& AllottedGeometry,
 				const FSlateRect& MyCullingRect,
 				FSlateWindowElementList& OutDrawElements,
-				int32 BaseLayerId, 
+				int32 BaseLayerId,
 				const FWidgetStyle& InWidgetStyle,
 				bool bParentEnabled) const override;
 
@@ -99,11 +100,12 @@ namespace WaveTable
 
 			virtual void FormatInputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const;
 			virtual void FormatOutputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const { }
+			virtual FText FormatToolTipTime(const FCurveModel& CurveModel, double EvaluatedTime) const override;
 
 		private:
 			struct FGridDrawInfo
 			{
-				const FGeometry* AllottedGeometry;
+				const FGeometry* AllottedGeometry = nullptr;
 
 				FPaintGeometry PaintGeometry;
 

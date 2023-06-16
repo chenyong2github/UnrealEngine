@@ -223,6 +223,12 @@ void UWaveTableBank::RefreshWaveTables()
 	WaveTableSizeMB = 0.0f;
 	for (FWaveTableBankEntry& Entry : Entries)
 	{
+		if (Entry.Transform.Curve == EWaveTableCurve::Custom && Entry.Transform.CurveCustom.GetNumKeys() < 1)
+		{
+			Entry.Transform.CurveCustom.AddKey(0.0f, 0.0f);
+			Entry.Transform.CurveCustom.AddKey(1.0f, 1.0f);
+		}
+
 		FWaveTableData& RuntimeData = Entry.Transform.TableData;
 		const int32 NumSamples = ::WaveTable::BankPrivate::GetWaveTableNumSamples(*this, Entry);
 
