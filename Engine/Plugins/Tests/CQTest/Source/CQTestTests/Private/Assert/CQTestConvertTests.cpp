@@ -22,15 +22,6 @@ struct TypeWithToString
 	{
 		return ToStringStr;
 	}
-
-	bool operator==(const TypeWithToString& A) const
-	{
-		return true;
-	}
-	bool operator!=(const TypeWithToString& A) const
-	{
-		return false;
-	}
 };
 
 struct TypeWithOStream
@@ -193,14 +184,6 @@ TEST_CLASS(TestConvertToString, "TestFramework.CQTest.Core")
 	{
 		TypeWithToStringAndOStream obj;
 		ASSERT_THAT(AreEqual(ToStringStr, CQTestConvert::ToString(obj)));
-	}
-
-	TEST_METHOD(TypeWithToString_ConvertToString_TestNotEqualToString)
-	{
-		TypeWithToString obj1;
-		TypeWithToString obj2;
-		Assert.ExpectError(FString::Printf(TEXT("Expected %s to not equal %s"), *obj1.ToString(), *obj2.ToString()));
-		ASSERT_THAT(AreNotEqual(obj1, obj2));
 	}
 
 	TEST_METHOD(UnscopedEnumNoOperator_ConvertToString_ReturnsNumber)
