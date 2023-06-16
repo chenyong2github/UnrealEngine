@@ -87,19 +87,16 @@ namespace mu
     public:
 
         //! Detailed optimization options
-        FModelOptimizationOptions m_optimisationOptions;
+        FModelOptimizationOptions OptimisationOptions;
 
-        bool m_ignoreStates = false;
-        CompilerOptions::TextureLayoutStrategy m_textureLayoutStrategy = CompilerOptions::TextureLayoutStrategy::Pack;
-
+        bool bIgnoreStates = false;
 		int MinRomSize = 3;
 		int MinTextureResidentMipCount = 3;
 
-        int m_imageCompressionQuality = 0;
-		int32 m_imageTiling=0 ;
+        int ImageCompressionQuality = 0;
+		int32 ImageTiling=0 ;
 
-        bool m_log = false;
-
+        bool bLog = false;
     };
 
 

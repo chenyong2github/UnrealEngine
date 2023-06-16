@@ -669,9 +669,6 @@ struct FMutableGraphGenerationContext
 	TMap<FGraphCycleKey, const UCustomizableObject*> VisitedPins;
 	const UCustomizableObject* CustomizableObjectWithCycle = nullptr;
 
-	// Texture management flag, captured from the real object root node
-	bool bDisableTextureLayoutManagementFlag = false;
-
 	// Set of all the guids of all the child CustomizableObjects in the compilation
 	TSet<FGuid> CustomizableObjectGuidsInCompilation;
 

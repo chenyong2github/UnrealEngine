@@ -280,7 +280,7 @@ class Node;
 			return;
 		}
 
-		// The layout we are adding must have block ids.
+		// The layout must have block ids.
 		check(GeneratedLayout->m_blocks.IsEmpty() || GeneratedLayout->m_blocks[0].m_id != -1);
 
 
@@ -289,7 +289,7 @@ class Node;
 		currentLayoutMesh->AddLayout(Layout);
 
 		// Create the layout block vertex buffer
-		uint16* LayoutData = 0;
+		uint16* LayoutData = nullptr;
 		{
 			const int32 LayoutBufferIndex = currentLayoutMesh->GetVertexBuffers().GetBufferCount();
 			currentLayoutMesh->GetVertexBuffers().SetBufferCount(LayoutBufferIndex + 1);
@@ -375,14 +375,10 @@ class Node;
 		// Notify Overlapping layout blocks
 		if (!OverlappingBlocks.IsEmpty())
 		{
-			char buf[256];
-			mutable_snprintf
-			(
-				buf, 256,
-				"Source mesh has %d layout block overlapping in LOD %d",
+			FString Msg = FString::Printf(TEXT("Source mesh has %d layout block overlapping in LOD %d"),
 				OverlappingBlocks.Num() + 1, m_currentParents.Last().m_lod
 			);
-			m_pErrorLog->GetPrivate()->Add(buf, ELMT_WARNING, errorContext);
+			m_pErrorLog->GetPrivate()->Add(Msg, ELMT_WARNING, errorContext);
 		}
 
 		// Get the information about the texture coordinates channel
@@ -446,14 +442,8 @@ class Node;
 			// Mutable does not support non-normalized UVs
 			if (bNonNormalizedUVs)
 			{
-				char buf[256];
-				mutable_snprintf
-				(
-					buf, 256,
-					"Source mesh has non-normalized UVs in LOD %d",
-					m_currentParents.Last().m_lod
-				);
-				m_pErrorLog->GetPrivate()->Add(buf, ELMT_WARNING, errorContext);
+				FString Msg = FString::Printf(TEXT("Source mesh has non-normalized UVs in LOD %d"), m_currentParents.Last().m_lod );
+				m_pErrorLog->GetPrivate()->Add(Msg, ELMT_WARNING, errorContext);
 			}
 		}
 
@@ -642,19 +632,13 @@ class Node;
 
 			if (!UnassignedUVs.IsEmpty())
 			{
-				char buf[256];
-				mutable_snprintf
-				(
-					buf, 256,
-					"Source mesh has %d vertices not assigned to any layout block in LOD %d",
-					UnassignedUVs.Num(), m_currentParents.Last().m_lod
-				);
+				FString Msg = FString::Printf(TEXT("Source mesh has %d vertices not assigned to any layout block in LOD %d"), UnassignedUVs.Num(), m_currentParents.Last().m_lod);
 
 				ErrorLogMessageAttachedDataView attachedDataView;
 				attachedDataView.m_unassignedUVs = UnassignedUVs.GetData();
 				attachedDataView.m_unassignedUVsSize = (size_t)UnassignedUVs.Num();
 
-				m_pErrorLog->GetPrivate()->Add(buf, attachedDataView, ELMT_WARNING, errorContext);
+				m_pErrorLog->GetPrivate()->Add(Msg, attachedDataView, ELMT_WARNING, errorContext);
 			}
 		}
 
@@ -772,7 +756,7 @@ class Node;
         else
         {
             // This argument is required
-            OpMorph->Factor = GenerateMissingScalarCode( "Morph factor", 0.5f, node.m_errorContext );
+            OpMorph->Factor = GenerateMissingScalarCode(TEXT("Morph factor"), 0.5f, node.m_errorContext );
         }
 
         // Base
@@ -1003,7 +987,7 @@ class Node;
         {
             // This argument is required
             op->SetChild( op->op.args.MeshInterpolate.factor,
-                          GenerateMissingScalarCode( "Interpolation factor", 0.5f, node.m_errorContext ) );
+                          GenerateMissingScalarCode(TEXT("Interpolation factor"), 0.5f, node.m_errorContext ) );
         }
 
         //
@@ -1094,7 +1078,7 @@ class Node;
         else
         {
             // This argument is required
-            op->variable = GenerateMissingScalarCode( "Switch variable", 0.0f, node.m_errorContext );
+            op->variable = GenerateMissingScalarCode(TEXT("Switch variable"), 0.0f, node.m_errorContext );
         }
 
         // Options
@@ -1280,7 +1264,7 @@ class Node;
 		{
 			// This data is required
 			MeshPtr pTempMesh = new Mesh();
-			op->SetValue(pTempMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache);
+			op->SetValue(pTempMesh, m_compilerOptions->OptimisationOptions.bUseDiskCache);
 			m_constantMeshes.Add(pTempMesh);
 
 			// Log an error message
@@ -1365,7 +1349,7 @@ class Node;
 				}
 			}
 
-			op->SetValue(DuplicateOf, m_compilerOptions->m_optimisationOptions.m_useDiskCache);
+			op->SetValue(DuplicateOf, m_compilerOptions->OptimisationOptions.bUseDiskCache);
 		}
 		else
 		{
@@ -1444,7 +1428,7 @@ class Node;
 
 			// Add the constant data
 			m_constantMeshes.Add(pCloned);
-			op->SetValue(pCloned.get(), m_compilerOptions->m_optimisationOptions.m_useDiskCache);
+			op->SetValue(pCloned.get(), m_compilerOptions->OptimisationOptions.bUseDiskCache);
 		}
 
  
@@ -1498,7 +1482,7 @@ class Node;
 
             Ptr<ASTOpConstantResource> cop = new ASTOpConstantResource();
             cop->type = OP_TYPE::ME_CONSTANT;
-            cop->SetValue( pFormatMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
+            cop->SetValue( pFormatMesh, m_compilerOptions->OptimisationOptions.bUseDiskCache );
             op->Format = cop;
 
             m_constantMeshes.Add(pFormatMesh);

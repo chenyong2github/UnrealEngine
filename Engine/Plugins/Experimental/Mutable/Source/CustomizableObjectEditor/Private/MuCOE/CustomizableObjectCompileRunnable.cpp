@@ -16,9 +16,8 @@ class ITargetPlatform;
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
 
-FCustomizableObjectCompileRunnable::FCustomizableObjectCompileRunnable(mu::NodePtr Root, bool bInDisableTextureLayout)
+FCustomizableObjectCompileRunnable::FCustomizableObjectCompileRunnable(mu::Ptr<mu::Node> Root)
 	: MutableRoot(Root)
-	, bDisableTextureLayout(bInDisableTextureLayout)
 	, bThreadCompleted(false)
 	, MutableIsDisabled(false)
 {
@@ -93,10 +92,6 @@ uint32 FCustomizableObjectCompileRunnable::Run()
 	CompilerOptions->SetEnableProgressiveImages(true);
 	
 	CompilerOptions->SetImageTiling(Options.ImageTiling);
-
-	CompilerOptions->SetTextureLayoutStrategy(bDisableTextureLayout
-		? mu::CompilerOptions::TextureLayoutStrategy::None
-		: mu::CompilerOptions::TextureLayoutStrategy::Pack);
 
 	mu::CompilerPtr Compiler = new mu::Compiler(CompilerOptions);
 

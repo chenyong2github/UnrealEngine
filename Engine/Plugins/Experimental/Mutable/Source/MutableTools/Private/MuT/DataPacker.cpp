@@ -771,9 +771,9 @@ namespace mu
                     // Only replace if the compression was worth!
                     size_t oldSize = pOld->GetDataSize();
                     size_t newSize = pNew->GetDataSize();
-                    if (float(oldSize) > float(newSize) * options.m_minRLECompressionGain)
+                    if (float(oldSize) > float(newSize) * options.MinRLECompressionGain)
                     {
-                        typed->SetValue(pNew, options.m_useDiskCache);
+                        typed->SetValue(pNew, options.bUseDiskCache);
                     }
                 }
                 else if ( accFormat.m_supportedFormats[typed][(size_t)EImageFormat::IF_L_UBYTE_RLE] )
@@ -783,9 +783,9 @@ namespace mu
                     // Only replace if the compression was worth!
                     size_t oldSize = pOld->GetDataSize();
                     size_t newSize = pNew->GetDataSize();
-                    if (float(oldSize) > float(newSize) * options.m_minRLECompressionGain)
+                    if (float(oldSize) > float(newSize) * options.MinRLECompressionGain)
                     {
-                        typed->SetValue(pNew, options.m_useDiskCache);
+                        typed->SetValue(pNew, options.bUseDiskCache);
                     }
                 }
             }
@@ -804,7 +804,7 @@ namespace mu
 				ASTOpConstantResource* typed = dynamic_cast<ASTOpConstantResource*>(n.get());
                 Ptr<Mesh> pMesh = static_cast<const Mesh*>(typed->GetValue().get())->Clone();
                 MeshRemoveUnusedBufferSemantics( pMesh.get(), meshSemanticsVisitor.m_requiredSemantics[typed]);
-                typed->SetValue(pMesh, options.m_useDiskCache);
+                typed->SetValue(pMesh, options.bUseDiskCache);
             }
         });
 

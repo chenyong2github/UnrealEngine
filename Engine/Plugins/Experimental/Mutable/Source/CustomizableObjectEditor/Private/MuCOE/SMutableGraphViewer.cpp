@@ -254,7 +254,7 @@ void SMutableGraphViewer::Construct(const FArguments& InArgs, const mu::NodePtr&
 void SMutableGraphViewer::CompileMutableCodePressed()
 {
 	// Do the compilation to Mutable Code synchronously.
-	TSharedPtr<FCustomizableObjectCompileRunnable> CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(RootNode, false));
+	TSharedPtr<FCustomizableObjectCompileRunnable> CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(RootNode));
 	CompileTask->Options = CompileOptions;
 	CompileTask->Init();
 	CompileTask->Run();

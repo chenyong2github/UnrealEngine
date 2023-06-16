@@ -189,8 +189,7 @@ namespace mu
 		if (node.m_options.Num() == 0)
 		{
 			// No options in the switch!
-			Ptr<ASTOp> missingOp = GenerateMissingColourCode("Switch option",
-				node.m_errorContext);
+			Ptr<ASTOp> missingOp = GenerateMissingColourCode(TEXT("Switch option"), node.m_errorContext);
 			result.op = missingOp;
 			return;
 		}
@@ -206,7 +205,7 @@ namespace mu
 		else
 		{
 			// This argument is required
-			op->variable = GenerateMissingScalarCode("Switch variable", 0.0f, node.m_errorContext);
+			op->variable = GenerateMissingScalarCode(TEXT("Switch variable"), 0.0f, node.m_errorContext);
 		}
 
 		// Options
@@ -220,8 +219,7 @@ namespace mu
 			else
 			{
 				// This argument is required
-				branch = GenerateMissingColourCode("Switch option",
-					node.m_errorContext);
+				branch = GenerateMissingColourCode(TEXT("Switch option"), node.m_errorContext);
 			}
 			op->cases.Emplace((int16)t, op, branch);
 		}
@@ -246,7 +244,7 @@ namespace mu
 		else
 		{
 			// This argument is required
-			currentOp = GenerateMissingColourCode("Variation default", node.m_errorContext);
+			currentOp = GenerateMissingColourCode(TEXT("Variation default"), node.m_errorContext);
 		}
 
 		// Process variations in reverse order, since conditionals are built bottom-up.
@@ -264,11 +262,8 @@ namespace mu
 
 			if (tagIndex < 0)
 			{
-				char buf[256];
-				mutable_snprintf(buf, 256, "Unknown tag found in image variation [%s].",
-					tag.c_str());
-
-				m_pErrorLog->GetPrivate()->Add(buf, ELMT_WARNING, node.m_errorContext);
+				FString Msg = FString::Printf(TEXT("Unknown tag found in image variation [%s]."), *FString(tag.c_str()));
+				m_pErrorLog->GetPrivate()->Add(Msg, ELMT_WARNING, node.m_errorContext);
 				continue;
 			}
 
@@ -280,7 +275,7 @@ namespace mu
 			else
 			{
 				// This argument is required
-				variationOp = GenerateMissingColourCode("Variation option", node.m_errorContext);
+				variationOp = GenerateMissingColourCode(TEXT("Variation option"), node.m_errorContext);
 			}
 
 
@@ -306,13 +301,14 @@ namespace mu
 		Ptr<ASTOpFixed> op = new ASTOpFixed();
 		op->op.type = OP_TYPE::CO_SAMPLEIMAGE;
 
-
 		// Source image
+		FImageGenerationOptions ImageOptions;
+		ImageOptions.ImageLayoutStrategy = CompilerOptions::TextureLayoutStrategy::None;
 		Ptr<ASTOp> base;
-		if (Node* pSource = node.m_pImage.get())
+		if (node.m_pImage)
 		{
 			// We take whatever size will be produced
-			FImageDesc desc = CalculateImageDesc(*pSource->GetBasePrivate());
+			FImageDesc desc = CalculateImageDesc(*node.m_pImage->GetBasePrivate());
 			IMAGE_STATE newState;
 			newState.m_imageSize[0] = desc.m_size[0];
 			newState.m_imageSize[1] = desc.m_size[1];
@@ -323,7 +319,9 @@ namespace mu
 			m_imageState.Add(newState);
 
 			// Generate
-			base = Generate(pSource);
+			FImageGenerationResult MapResult;
+			GenerateImage(ImageOptions, MapResult, node.m_pImage);
+			base = MapResult.op;
 
 			// Restore rect
 			m_imageState.Pop();
@@ -331,7 +329,7 @@ namespace mu
 		else
 		{
 			// This argument is required
-			base = GenerateMissingImageCode("Sample image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext);
+			base = GenerateMissingImageCode(TEXT("Sample image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, ImageOptions);
 		}
 		base = GenerateImageFormat(base, EImageFormat::IF_RGB_UBYTE);
 		op->SetChild(op->op.args.ColourSampleImage.image, base);
@@ -459,11 +457,7 @@ namespace mu
 		else
 		{
 			op->SetChild(op->op.args.ColourArithmetic.a,
-				CodeGenerator::GenerateMissingColourCode
-				(
-					"ColourArithmetic A",
-					node.m_errorContext
-				));
+				CodeGenerator::GenerateMissingColourCode(TEXT("ColourArithmetic A"), node.m_errorContext));
 		}
 
 		// B
@@ -474,11 +468,7 @@ namespace mu
 		else
 		{
 			op->SetChild(op->op.args.ColourArithmetic.b,
-				CodeGenerator::GenerateMissingColourCode
-				(
-					"ColourArithmetic B",
-					node.m_errorContext
-				));
+				CodeGenerator::GenerateMissingColourCode(TEXT("ColourArithmetic B"),node.m_errorContext));
 		}
 
 		result.op = op;
@@ -502,12 +492,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	mu::Ptr<ASTOp> CodeGenerator::GenerateMissingColourCode(const char* strWhere, const void* errorContext)
+	mu::Ptr<ASTOp> CodeGenerator::GenerateMissingColourCode(const TCHAR* strWhere, const void* errorContext)
 	{
 		// Log a warning
-		char buf[256];
-		mutable_snprintf(buf, 256, "Required connection not found: %s", strWhere);
-		m_pErrorLog->GetPrivate()->Add(buf, ELMT_ERROR, errorContext);
+		FString Msg = FString::Printf(TEXT("Required connection not found: %s"), strWhere);
+		m_pErrorLog->GetPrivate()->Add(Msg, ELMT_ERROR, errorContext);
 
 		// Create a constant colour node
 		NodeColourConstantPtr pNode = new NodeColourConstant();

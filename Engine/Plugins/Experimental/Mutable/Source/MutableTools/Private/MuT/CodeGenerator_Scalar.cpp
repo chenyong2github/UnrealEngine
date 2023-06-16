@@ -108,7 +108,7 @@ namespace mu
 		else
 		{
 			check(false);
-			mu::Halt();
+			return;
 		}
 
 		// Cache the result
@@ -225,7 +225,7 @@ namespace mu
 		if (node.m_options.Num() == 0)
 		{
 			// No options in the switch!
-			Ptr<ASTOp> missingOp = GenerateMissingScalarCode("Switch option",
+			Ptr<ASTOp> missingOp = GenerateMissingScalarCode(TEXT("Switch option"),
 				1.0f,
 				node.m_errorContext);
 			result.op = missingOp;
@@ -245,7 +245,7 @@ namespace mu
 		else
 		{
 			// This argument is required
-			op->variable = GenerateMissingScalarCode("Switch variable", 0.0f, node.m_errorContext);
+			op->variable = GenerateMissingScalarCode(TEXT("Switch variable"), 0.0f, node.m_errorContext);
 		}
 
 		// Options
@@ -261,7 +261,7 @@ namespace mu
 			else
 			{
 				// This argument is required
-				branch = GenerateMissingScalarCode("Switch option", 1.0f, node.m_errorContext);
+				branch = GenerateMissingScalarCode(TEXT("Switch option"), 1.0f, node.m_errorContext);
 			}
 			op->cases.Emplace((int16_t)t, op, branch);
 		}
@@ -289,7 +289,7 @@ namespace mu
 		else
 		{
 			// This argument is required
-			op = GenerateMissingScalarCode("Variation default", 0.0f, node.m_errorContext);
+			op = GenerateMissingScalarCode(TEXT("Variation default"), 0.0f, node.m_errorContext);
 		}
 
 		// Process variations in reverse order, since conditionals are built bottom-up.
@@ -307,11 +307,9 @@ namespace mu
 
 			if (tagIndex < 0)
 			{
-				char buf[256];
-				mutable_snprintf(buf, 256, "Unknown tag found in image variation [%s].",
-					tag.c_str());
+				FString Msg = FString::Printf(TEXT("Unknown tag found in image variation [%s]."), *FString(tag.c_str()));
 
-				m_pErrorLog->GetPrivate()->Add(buf, ELMT_WARNING, node.m_errorContext);
+				m_pErrorLog->GetPrivate()->Add(Msg, ELMT_WARNING, node.m_errorContext);
 				continue;
 			}
 
@@ -325,7 +323,7 @@ namespace mu
 			else
 			{
 				// This argument is required
-				variationOp = GenerateMissingScalarCode("Variation option", 0.0f,
+				variationOp = GenerateMissingScalarCode(TEXT("Variation option"), 0.0f,
 					node.m_errorContext);
 			}
 
@@ -357,7 +355,7 @@ namespace mu
 		}
 		else
 		{
-			op->time = CodeGenerator::GenerateMissingScalarCode("Curve T", 0.5f, node.m_errorContext);
+			op->time = CodeGenerator::GenerateMissingScalarCode(TEXT("Curve T"), 0.5f, node.m_errorContext);
 		}
 
 		op->curve = node.m_curve;
@@ -394,12 +392,7 @@ namespace mu
 		else
 		{
 			op->SetChild(op->op.args.ScalarArithmetic.a,
-				CodeGenerator::GenerateMissingScalarCode
-				(
-					"ScalarArithmetic A",
-					1.0f,
-					node.m_errorContext
-				)
+				CodeGenerator::GenerateMissingScalarCode( TEXT("ScalarArithmetic A"), 1.0f, node.m_errorContext )
 			);
 		}
 
@@ -411,12 +404,7 @@ namespace mu
 		else
 		{
 			op->SetChild(op->op.args.ScalarArithmetic.b,
-				CodeGenerator::GenerateMissingScalarCode
-				(
-					"ScalarArithmetic B",
-					1.0f,
-					node.m_errorContext
-				)
+				CodeGenerator::GenerateMissingScalarCode( TEXT("ScalarArithmetic B"), 1.0f, node.m_errorContext )
 			);
 		}
 
@@ -443,17 +431,11 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	mu::Ptr<ASTOp> CodeGenerator::GenerateMissingScalarCode(const char* strWhere, float value, const void* errorContext)
+	mu::Ptr<ASTOp> CodeGenerator::GenerateMissingScalarCode(const TCHAR* strWhere, float value, const void* errorContext)
 	{
 		// Log a warning
-		char buf[256];
-		mutable_snprintf
-		(
-			buf, 256,
-			"Required connection not found: %s",
-			strWhere
-		);
-		m_pErrorLog->GetPrivate()->Add(buf, ELMT_ERROR, errorContext);
+		FString Msg = FString::Printf(TEXT("Required connection not found: %s"), strWhere );
+		m_pErrorLog->GetPrivate()->Add(Msg, ELMT_ERROR, errorContext);
 
 		// Create a constant node
 		NodeScalarConstantPtr pNode = new NodeScalarConstant();

@@ -253,7 +253,7 @@ namespace mu
 
         bool m_modified;
 
-        FModelOptimizationOptions m_optimisationOptions;
+        FModelOptimizationOptions OptimisationOptions;
 
         RuntimeParameterVisitorAST m_hasRuntimeParamVisitor;
 

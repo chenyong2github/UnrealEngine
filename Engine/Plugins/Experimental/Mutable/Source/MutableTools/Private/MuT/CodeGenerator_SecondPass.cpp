@@ -139,7 +139,7 @@ namespace mu
 			}
 
 			// Optimise the condition now.
-			//PartialOptimise( c, m_pCompilerOptions->m_optimisationOptions );
+			//PartialOptimise( c, m_pCompilerOptions->OptimisationOptions );
 		}
 
 
@@ -513,7 +513,7 @@ namespace mu
 			}
 		}
 
-		//PartialOptimise( c, m_pCompilerOptions->m_optimisationOptions );
+		//PartialOptimise( c, m_pCompilerOptions->OptimisationOptions );
 
 		return c;
 	}

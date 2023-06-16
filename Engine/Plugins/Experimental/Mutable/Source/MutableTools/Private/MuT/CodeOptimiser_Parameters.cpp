@@ -274,7 +274,7 @@ namespace mu
             )
             : m_stateProps(s)
             , m_modified(false)
-            , m_optimisationOptions(optimisationOptions)
+            , OptimisationOptions(optimisationOptions)
             , m_hasRuntimeParamVisitor(&s)
     {
     }
@@ -1358,7 +1358,7 @@ namespace mu
                     case OP_TYPE::IM_DODGECOLOUR:
                     case OP_TYPE::IM_MULTIPLYCOLOUR:
                     {
-                        if ( m_optimisationOptions.m_optimiseOverlappedMasks )
+                        if ( OptimisationOptions.m_optimiseOverlappedMasks )
                         {
                             OP::ADDRESS maskAt = op.args.ImageLayer.mask;
                             OP::ADDRESS baseMaskAt =
@@ -2051,7 +2051,7 @@ namespace mu
 
                     UE_LOG(LogMutableCore, Verbose, TEXT(" - before parameter optimiser"));
 
-                    ParameterOptimiserAST param( m_states[s], m_options->GetPrivate()->m_optimisationOptions );
+                    ParameterOptimiserAST param( m_states[s], m_options->GetPrivate()->OptimisationOptions );
                     modified = param.Apply();
 
                     TArray<Ptr<ASTOp>> roots;
@@ -2062,12 +2062,12 @@ namespace mu
 
                     // All kind of optimisations that depend on the meaning of each operation
                     UE_LOG(LogMutableCore, Verbose, TEXT(" - semantic optimiser"));
-                    modified |= SemanticOptimiserAST( roots, m_options->GetPrivate()->m_optimisationOptions, 1 );
+                    modified |= SemanticOptimiserAST( roots, m_options->GetPrivate()->OptimisationOptions, 1 );
 					UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
 					//ASTOp::LogHistogram(roots);
 
                     UE_LOG(LogMutableCore, Verbose, TEXT(" - sink optimiser"));
-                    modified |= SinkOptimiserAST( roots, m_options->GetPrivate()->m_optimisationOptions );
+                    modified |= SinkOptimiserAST( roots, m_options->GetPrivate()->OptimisationOptions );
 					UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
 					//ASTOp::LogHistogram(roots);
 
@@ -2123,26 +2123,6 @@ namespace mu
             }
         }
 
-        // If we are targetting GPU build, gpuize the code
-//        m_pModelReport->GetPrivate()->m_states.resize( pModel->GetStateCount() );
-
-//        for ( int s=0; s<pModel->GetStateCount(); ++s )
-//        {
-//            if ( m_gpuPlatformProps.type!=GPU_NONE
-//                 &&
-//                 ( m_states[s].optimisationFlags.m_gpu.m_internal || m_states[s].optimisationFlags.m_gpu.m_external ) )
-//            {
-//                MUTABLE_CPUPROFILER_SCOPE(GPUTranslator);
-//                GPUTranslator( program,
-//                               s,
-//                               m_gpuPlatformProps,
-//                               m_states[s].optimisationFlags.m_gpu,
-//                               m_pModelReport );
-//            }
-//        }
-
-        //program.Check();
-
         // Reoptimise because of state cache reformats and gpuization
         {
             MUTABLE_CPUPROFILER_SCOPE(Reoptimise);
@@ -2165,7 +2145,7 @@ namespace mu
 
                 UE_LOG(LogMutableCore, Verbose, TEXT(" - semantic optimiser"));
                 modified |=
-                    SemanticOptimiserAST( roots, m_options->GetPrivate()->m_optimisationOptions, 1 );
+                    SemanticOptimiserAST( roots, m_options->GetPrivate()->OptimisationOptions, 1 );
 				UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
 
                 // Image size operations are treated separately
@@ -2207,8 +2187,8 @@ namespace mu
         {
             MUTABLE_CPUPROFILER_SCOPE(DataFormats);
 
-            DataOptimiseAST( m_options->GetPrivate()->m_imageCompressionQuality, roots,
-                             m_options->GetPrivate()->m_optimisationOptions );
+            DataOptimiseAST( m_options->GetPrivate()->ImageCompressionQuality, roots,
+                             m_options->GetPrivate()->OptimisationOptions );
 
             // After optimising the data formats, we may remove more constants
             DuplicatedDataRemoverAST( roots );

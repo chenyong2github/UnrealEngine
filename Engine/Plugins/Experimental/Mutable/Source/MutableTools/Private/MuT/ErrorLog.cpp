@@ -111,7 +111,7 @@ namespace mu
 
 		if ( index >=0 && index<(int)m_pD->m_messages.Num() )
 		{
-			const Private::MSG& message = m_pD->m_messages[index];
+			const Private::FMessage& message = m_pD->m_messages[index];
             
             if ( message.m_data ) 
             {
@@ -124,34 +124,24 @@ namespace mu
 	}
 
 	//---------------------------------------------------------------------------------------------
-	void ErrorLog::Private::Add(const char* strMessage, ErrorLogMessageType type,
-		const void* context)
-	{
-		m_messages.Add(MSG());
-		m_messages.Last().m_type = type;
-		m_messages.Last().m_text = strMessage;
-		m_messages.Last().m_context = context;
-	}
-
-	//---------------------------------------------------------------------------------------------
 	void ErrorLog::Private::Add(const FString& InMessage, ErrorLogMessageType InType, const void* InContext)
 	{
-		m_messages.Add(MSG());
+		m_messages.Add(FMessage());
 		m_messages.Last().m_type = InType;
 		m_messages.Last().m_text = InMessage;
 		m_messages.Last().m_context = InContext;
 	}
 
 	//---------------------------------------------------------------------------------------------
-	void ErrorLog::Private::Add( const char* strMessage, 
-                                 const ErrorLogMessageAttachedDataView& dataView,
-                                 ErrorLogMessageType type, const void* context )
+	void ErrorLog::Private::Add(const FString& InMessage,
+                                const ErrorLogMessageAttachedDataView& dataView,
+                                ErrorLogMessageType type, const void* context )
 	{
-		m_messages.Add( MSG() );
+		m_messages.Add(FMessage() );
 		m_messages.Last().m_type = type;
-		m_messages.Last().m_text = strMessage;
+		m_messages.Last().m_text = InMessage;
 		m_messages.Last().m_context = context;
-		m_messages.Last().m_data = std::make_shared< DATA >();
+		m_messages.Last().m_data = MakeShared<FErrorData>();
 
         if ( dataView.m_unassignedUVs && dataView.m_unassignedUVsSize > 0 )
         {
@@ -165,7 +155,7 @@ namespace mu
 	{
 		UE_LOG(LogMutableCore, Log, TEXT(" Error Log :\n"));
 
-		for ( const Private::MSG& msg : m_pD->m_messages )
+		for ( const Private::FMessage& msg : m_pD->m_messages )
 		{
 			switch ( msg.m_type )
 			{

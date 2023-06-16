@@ -180,19 +180,19 @@ namespace mu
     //! Detailed optimization flags
     struct FModelOptimizationOptions
     {
-        bool m_enabled = true;
-        bool m_optimiseOverlappedMasks = false;
-        bool m_constReduction = true;
+        bool bEnabled = true;
+        bool bOptimiseOverlappedMasks = false;
+        bool bConstReduction = true;
 
         //! Preprocess all mesh fragments so that they use the same skeleton, even if not all bones
         //! are relevant for all fragments.
-        bool m_uniformizeSkeleton = true;
+        bool bUniformizeSkeleton = true;
 
         //! Maximum number of iterations when optimising models. If 0 as many as necessary will be performed.
-        int m_maxOptimisationLoopCount = 8;
+        int32 MaxOptimisationLoopCount = 8;
 
         //! Store resource data in disk instead of memory
-        bool m_useDiskCache = false;
+        bool bUseDiskCache = false;
 
 		/** Compile optimizing for the generation of smaller mipmaps of every image. */
 		bool bEnableProgressiveImages = false;
@@ -201,10 +201,10 @@ namespace mu
         //---------------------------------------------------------------------
 
         //! Ratio used to decide if it is worth to generate a crop operation
-        float m_acceptableCropRatio = 0.5f;
+        float AcceptableCropRatio = 0.5f;
 
         //! Ratio used to decide if it is worth to generate a crop operation
-        float m_minRLECompressionGain = 1.2f;
+        float MinRLECompressionGain = 1.2f;
     };
 
 

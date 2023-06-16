@@ -30,10 +30,6 @@ namespace mu
     using ErrorLogPtr=Ptr<ErrorLog>;
     using ErrorLogPtrConst=Ptr<const ErrorLog>;
 
-    class ModelReport;
-    using ModelReportPtr=Ptr<ModelReport>;
-    using ModelReportPtrConst=Ptr<const ModelReport>;
-
     class Node;
     class NodeTransformedObject;
 
@@ -55,18 +51,18 @@ namespace mu
         void SetConstReductionEnabled( bool bEnabled );
 
         //!
-        void SetOptimisationMaxIteration( int maxIterations );
+        void SetOptimisationMaxIteration( int32 MaxIterations );
 
         //!
-        void SetIgnoreStates( bool ignore );
+        void SetIgnoreStates( bool bIgnore );
 
         //! If enabled, the disk will be used as temporary memory. This will make the compilation
         //! process very slow, but will be able to compile very large models.
-        void SetUseDiskCache( bool enabled );
+        void SetUseDiskCache( bool bEnabled );
 
 		//! Set the quality for the image compression algorithms. The level value is used internally
 		//! with System::SetImagecompressionQuality
-		void SetImageCompressionQuality(int quality);
+		void SetImageCompressionQuality(int32 quality);
 
 		/** Set the image tiling strategy :
 		 * If 0 (default) there is no tiling. Otherwise, images will be generated in tiles of the given size or less, and assembled afterwards as a final step.
@@ -80,7 +76,7 @@ namespace mu
 		void SetEnableProgressiveImages(bool bEnabled);
 
         //! Different data packing strategies
-        enum class TextureLayoutStrategy : std::uint8_t
+        enum class TextureLayoutStrategy : uint8
         {
             //! Pack texture layouts without changing any scale
             Pack,
@@ -94,12 +90,6 @@ namespace mu
 
         //! Return a readable string for a GPU.
         static const char* GetTextureLayoutStrategyName( TextureLayoutStrategy s );
-
-        //! Enable or disable the process that splits data into related sets to serialise in
-        //! separate files. By default it is disabled. In order to get multiple files, this has to
-        //! be enabled AND the appropiate serialisation function needs to be called (see
-        //! rutime/Model.h).
-        void SetTextureLayoutStrategy( TextureLayoutStrategy strategy );
 
         //-----------------------------------------------------------------------------------------
         // Interface pattern

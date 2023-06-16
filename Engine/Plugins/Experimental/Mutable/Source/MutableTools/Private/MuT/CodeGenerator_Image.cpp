@@ -114,7 +114,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage(FImageGenerationResult& result, const NodeImagePtrConst& Untyped)
+	void CodeGenerator::GenerateImage(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImagePtrConst& Untyped)
 	{
 		if (!Untyped)
 		{
@@ -140,6 +140,7 @@ namespace mu
 		}
 
 		// See if it was already generated
+		// \TODO: complete and use FGeneratedImageCacheKey instead of generic keys
 		FVisitedKeyMap key = GetCurrentCacheKey(Untyped);
 		GeneratedImagesMap::ValueType* it = m_generatedImages.Find(key);
 		if (it)
@@ -153,33 +154,33 @@ namespace mu
 			// Generate for each different type of node
 			switch (Untyped->GetImageNodeType())
 			{
-			case NodeImage::EType::Constant: GenerateImage_Constant(result, static_cast<const NodeImageConstant*>(Node)); break;
+			case NodeImage::EType::Constant: GenerateImage_Constant(Options, result, static_cast<const NodeImageConstant*>(Node)); break;
 			case NodeImage::EType::Difference_Deprecated: check(false); break;
-			case NodeImage::EType::Interpolate: GenerateImage_Interpolate(result, static_cast<const NodeImageInterpolate*>(Node)); break;
-			case NodeImage::EType::Saturate: GenerateImage_Saturate(result, static_cast<const NodeImageSaturate*>(Node)); break;
-			case NodeImage::EType::Table: GenerateImage_Table(result, static_cast<const NodeImageTable*>(Node)); break;
-			case NodeImage::EType::Swizzle: GenerateImage_Swizzle(result, static_cast<const NodeImageSwizzle*>(Node)); break;
-			case NodeImage::EType::ColourMap: GenerateImage_ColourMap(result, static_cast<const NodeImageColourMap*>(Node)); break;
-			case NodeImage::EType::Gradient: GenerateImage_Gradient(result, static_cast<const NodeImageGradient*>(Node)); break;
-			case NodeImage::EType::Binarise: GenerateImage_Binarise(result, static_cast<const NodeImageBinarise*>(Node)); break;
-			case NodeImage::EType::Luminance: GenerateImage_Luminance(result, static_cast<const NodeImageLuminance*>(Node)); break;
-			case NodeImage::EType::Layer: GenerateImage_Layer(result, static_cast<const NodeImageLayer*>(Node)); break;
-			case NodeImage::EType::LayerColour: GenerateImage_LayerColour(result, static_cast<const NodeImageLayerColour*>(Node)); break;
-			case NodeImage::EType::Resize: GenerateImage_Resize(result, static_cast<const NodeImageResize*>(Node)); break;
-			case NodeImage::EType::PlainColour: GenerateImage_PlainColour(result, static_cast<const NodeImagePlainColour*>(Node)); break;
-			case NodeImage::EType::Interpolate3: GenerateImage_Interpolate3(result, static_cast<const NodeImageInterpolate3*>(Node)); break;
-			case NodeImage::EType::Project: GenerateImage_Project(result, static_cast<const NodeImageProject*>(Node)); break;
-			case NodeImage::EType::Mipmap: GenerateImage_Mipmap(result, static_cast<const NodeImageMipmap*>(Node)); break;
-			case NodeImage::EType::Switch: GenerateImage_Switch(result, static_cast<const NodeImageSwitch*>(Node)); break;
-			case NodeImage::EType::Conditional: GenerateImage_Conditional(result, static_cast<const NodeImageConditional*>(Node)); break;
-			case NodeImage::EType::Format: GenerateImage_Format(result, static_cast<const NodeImageFormat*>(Node)); break;
-			case NodeImage::EType::Parameter: GenerateImage_Parameter(result, static_cast<const NodeImageParameter*>(Node)); break;
-			case NodeImage::EType::MultiLayer: GenerateImage_MultiLayer(result, static_cast<const NodeImageMultiLayer*>(Node)); break;
-			case NodeImage::EType::Invert: GenerateImage_Invert(result, static_cast<const NodeImageInvert*>(Node)); break;
-			case NodeImage::EType::Variation: GenerateImage_Variation(result, static_cast<const NodeImageVariation*>(Node)); break;
-			case NodeImage::EType::NormalComposite: GenerateImage_NormalComposite(result, static_cast<const NodeImageNormalComposite*>(Node)); break;
-			case NodeImage::EType::Transform: GenerateImage_Transform(result, static_cast<const NodeImageTransform*>(Node)); break;
-			case NodeImage::EType::Reference: GenerateImage_Reference(result, static_cast<const NodeImageReference*>(Node)); break;
+			case NodeImage::EType::Interpolate: GenerateImage_Interpolate(Options, result, static_cast<const NodeImageInterpolate*>(Node)); break;
+			case NodeImage::EType::Saturate: GenerateImage_Saturate(Options, result, static_cast<const NodeImageSaturate*>(Node)); break;
+			case NodeImage::EType::Table: GenerateImage_Table(Options, result, static_cast<const NodeImageTable*>(Node)); break;
+			case NodeImage::EType::Swizzle: GenerateImage_Swizzle(Options, result, static_cast<const NodeImageSwizzle*>(Node)); break;
+			case NodeImage::EType::ColourMap: GenerateImage_ColourMap(Options, result, static_cast<const NodeImageColourMap*>(Node)); break;
+			case NodeImage::EType::Gradient: GenerateImage_Gradient(Options, result, static_cast<const NodeImageGradient*>(Node)); break;
+			case NodeImage::EType::Binarise: GenerateImage_Binarise(Options, result, static_cast<const NodeImageBinarise*>(Node)); break;
+			case NodeImage::EType::Luminance: GenerateImage_Luminance(Options, result, static_cast<const NodeImageLuminance*>(Node)); break;
+			case NodeImage::EType::Layer: GenerateImage_Layer(Options, result, static_cast<const NodeImageLayer*>(Node)); break;
+			case NodeImage::EType::LayerColour: GenerateImage_LayerColour(Options, result, static_cast<const NodeImageLayerColour*>(Node)); break;
+			case NodeImage::EType::Resize: GenerateImage_Resize(Options, result, static_cast<const NodeImageResize*>(Node)); break;
+			case NodeImage::EType::PlainColour: GenerateImage_PlainColour(Options, result, static_cast<const NodeImagePlainColour*>(Node)); break;
+			case NodeImage::EType::Interpolate3: GenerateImage_Interpolate3(Options, result, static_cast<const NodeImageInterpolate3*>(Node)); break;
+			case NodeImage::EType::Project: GenerateImage_Project(Options, result, static_cast<const NodeImageProject*>(Node)); break;
+			case NodeImage::EType::Mipmap: GenerateImage_Mipmap(Options, result, static_cast<const NodeImageMipmap*>(Node)); break;
+			case NodeImage::EType::Switch: GenerateImage_Switch(Options, result, static_cast<const NodeImageSwitch*>(Node)); break;
+			case NodeImage::EType::Conditional: GenerateImage_Conditional(Options, result, static_cast<const NodeImageConditional*>(Node)); break;
+			case NodeImage::EType::Format: GenerateImage_Format(Options, result, static_cast<const NodeImageFormat*>(Node)); break;
+			case NodeImage::EType::Parameter: GenerateImage_Parameter(Options, result, static_cast<const NodeImageParameter*>(Node)); break;
+			case NodeImage::EType::MultiLayer: GenerateImage_MultiLayer(Options, result, static_cast<const NodeImageMultiLayer*>(Node)); break;
+			case NodeImage::EType::Invert: GenerateImage_Invert(Options, result, static_cast<const NodeImageInvert*>(Node)); break;
+			case NodeImage::EType::Variation: GenerateImage_Variation(Options, result, static_cast<const NodeImageVariation*>(Node)); break;
+			case NodeImage::EType::NormalComposite: GenerateImage_NormalComposite(Options, result, static_cast<const NodeImageNormalComposite*>(Node)); break;
+			case NodeImage::EType::Transform: GenerateImage_Transform(Options, result, static_cast<const NodeImageTransform*>(Node)); break;
+			case NodeImage::EType::Reference: GenerateImage_Reference(Options, result, static_cast<const NodeImageReference*>(Node)); break;
 			case NodeImage::EType::None: check(false);
 			}
 
@@ -197,7 +198,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeGenerator::GenerateImage_Constant(FImageGenerationResult& result, const NodeImageConstant* InNode)
+    void CodeGenerator::GenerateImage_Constant(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageConstant* InNode)
     {
 		const NodeImageConstant::Private& node = *InNode->GetPrivate();
 		
@@ -243,13 +244,13 @@ namespace mu
         if ( pImage->GetSizeX()!=cropRect.size[0] || pImage->GetSizeY()!=cropRect.size[1] )
         {
             Ptr<Image> pCropped = new Image(cropRect.size[0], cropRect.size[1], 1, pImage->GetFormat());
-			ImageCrop(pCropped.get(), m_compilerOptions->m_imageCompressionQuality, pImage.get(), cropRect );
-            op->SetValue( pCropped, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
+			ImageCrop(pCropped.get(), m_compilerOptions->ImageCompressionQuality, pImage.get(), cropRect );
+            op->SetValue( pCropped, m_compilerOptions->OptimisationOptions.bUseDiskCache );
         }
         else
         {
             check( cropRect.min[0]==0 && cropRect.min[1]==0 );
-            op->SetValue( pImage, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
+            op->SetValue( pImage, m_compilerOptions->OptimisationOptions.bUseDiskCache );
         }
 
 		result.op = op;
@@ -257,7 +258,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Reference(FImageGenerationResult& result, const NodeImageReference* InNode)
+	void CodeGenerator::GenerateImage_Reference(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageReference* InNode)
 	{
 		const NodeImageReference::Private& node = *InNode->GetPrivate();
 
@@ -271,7 +272,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Parameter(FImageGenerationResult& result, const NodeImageParameter* InNode )
+	void CodeGenerator::GenerateImage_Parameter(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageParameter* InNode )
     {
 		const NodeImageParameter::Private& node = *InNode->GetPrivate();
 
@@ -308,7 +309,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Layer(FImageGenerationResult& result, const NodeImageLayer* InNode)
+	void CodeGenerator::GenerateImage_Layer(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageLayer* InNode)
 	{
 		const NodeImageLayer::Private& node = *InNode->GetPrivate();
 		
@@ -320,15 +321,16 @@ namespace mu
 
         // Base image
         Ptr<ASTOp> base;
-        if ( Node* pBase = node.m_pBase.get() )
+        if ( node.m_pBase )
         {
-            base = Generate( pBase );
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			base = BaseResult.op;
         }
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Image Layer base", EImageFormat::IF_RGB_UBYTE,
-                                             node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Image Layer base"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 
 		FImageSize TargetSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]);
@@ -339,10 +341,13 @@ namespace mu
         op->base = base;
 
         // Mask of the effect
-        Ptr<ASTOp> mask = 0;
-        if ( Node* pMask = node.m_pMask.get() )
+        Ptr<ASTOp> mask;
+        if ( node.m_pMask )
         {
-            mask = Generate( pMask );
+			FImageGenerationResult MaskResult;
+			GenerateImage(Options, MaskResult, node.m_pMask);
+			mask = MaskResult.op;
+
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
             mask = GenerateImageSize( mask, TargetSize);
         }
@@ -350,14 +355,16 @@ namespace mu
 
         // Image to apply
         Ptr<ASTOp> blended = 0;
-        if ( Node* pBlended = node.m_pBlended.get() )
+        if ( node.m_pBlended )
         {
-            blended = Generate( pBlended );
+			FImageGenerationResult BlendedResult;
+			GenerateImage(Options, BlendedResult, node.m_pBlended);
+			blended = BlendedResult.op;
         }
         else
         {
             // This argument is required
-            blended = GeneratePlainImageCode( vec3<float>( 1,1,0 ) );
+            blended = GeneratePlainImageCode( vec3<float>( 1,1,0 ), Options );
         }
         //blended = GenerateImageFormat( blended, EImageFormat::IF_RGB_UBYTE );
         blended = GenerateImageFormat( blended, baseFormat );
@@ -369,7 +376,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_LayerColour(FImageGenerationResult& result, const NodeImageLayerColour* InNode)
+	void CodeGenerator::GenerateImage_LayerColour(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageLayerColour* InNode)
 	{
 		const NodeImageLayerColour::Private& node = *InNode->GetPrivate();
 		
@@ -380,39 +387,46 @@ namespace mu
 
         // Base image
         Ptr<ASTOp> base;
-        if ( Node* pBase = node.m_pBase.get() )
+        if ( node.m_pBase )
         {
-            base = Generate( pBase );
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			base = BaseResult.op;
         }
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Layer base image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Layer base image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options );
         }
         base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
         base = GenerateImageSize( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->base = base;
 
         // Mask of the effect
-        Ptr<ASTOp> mask = 0;
-        if ( Node* pMask = node.m_pMask.get() )
+        Ptr<ASTOp> mask;
+        if ( node.m_pMask )
         {
-            mask = Generate( pMask );
-            mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
+			FImageGenerationResult MaskResult;
+			GenerateImage(Options, MaskResult, node.m_pMask);
+			mask = MaskResult.op;
+			
+			mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
             mask = GenerateImageSize( mask, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
         }
         op->mask = mask;
 
         // Colour to apply
         Ptr<ASTOp> colour = 0;
-        if ( Node* pColour = node.m_pColour.get() )
+        if ( node.m_pColour )
         {
-            colour = Generate( pColour );
+			FColorGenerationResult ColorResult;
+            GenerateColor(ColorResult, node.m_pColour);
+			colour = ColorResult.op;
         }
         else
         {
             // This argument is required
-            colour = GenerateMissingColourCode( "Layer colour", node.m_errorContext );
+            colour = GenerateMissingColourCode(TEXT("Layer colour"), node.m_errorContext );
         }
         op->color = colour;
 
@@ -421,7 +435,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_MultiLayer(FImageGenerationResult& result, const NodeImageMultiLayer* InNode)
+	void CodeGenerator::GenerateImage_MultiLayer(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageMultiLayer* InNode)
 	{
 		const NodeImageMultiLayer::Private& node = *InNode->GetPrivate();
 
@@ -433,29 +447,32 @@ namespace mu
 
         // Base image
         Ptr<ASTOp> base;
-        if ( Node* pBase = node.m_pBase.get() )
+        if ( node.m_pBase )
         {
-            base = Generate( pBase );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			base = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Image MultiLayer base", EImageFormat::IF_RGB_UBYTE,
-                                             node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Image MultiLayer base"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 
 		EImageFormat baseFormat = base->GetImageDesc().m_format;
-        base = GenerateImageSize
-                ( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
-                                   (uint16)m_imageState.Last().m_imageRect.size[1]) );
+        base = GenerateImageSize( base, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0], 
+			                                       (uint16)m_imageState.Last().m_imageRect.size[1]) );
         op->base = base;
 
         // Mask of the effect
         Ptr<ASTOp> mask;
-        if ( Node* pMask = node.m_pMask.get() )
+        if ( node.m_pMask )
         {
-            mask = Generate( pMask );
-            mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
+			FImageGenerationResult MaskResult;
+			GenerateImage(Options, MaskResult, node.m_pMask);
+			mask = MaskResult.op;
+
+			mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
             mask = GenerateImageSize
                     ( mask, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
                                        (uint16)m_imageState.Last().m_imageRect.size[1]) );
@@ -464,16 +481,17 @@ namespace mu
 
         // Image to apply
         Ptr<ASTOp> blended;
-        if ( Node* pBlended = node.m_pBlended.get() )
+        if (node.m_pBlended)
         {
-            blended = Generate( pBlended );
+			FImageGenerationResult MaskResult;
+			GenerateImage(Options, MaskResult, node.m_pBlended);
+			blended = MaskResult.op;
         }
         else
         {
             // This argument is required
-            blended = GeneratePlainImageCode( vec3<float>( 1,1,0 ) );
+            blended = GeneratePlainImageCode( vec3<float>( 1,1,0 ), Options);
         }
-        //blended = GenerateImageFormat( blended, EImageFormat::IF_RGB_UBYTE );
         blended = GenerateImageFormat( blended, baseFormat );
         blended = GenerateImageSize
                 ( blended, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
@@ -483,7 +501,6 @@ namespace mu
         // Range of iteration
         if ( node.m_pRange )
         {
-            //op->range = Generate( pRange );
             FRangeGenerationResult rangeResult;
             GenerateRange( rangeResult, node.m_pRange );
 
@@ -497,7 +514,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_NormalComposite(FImageGenerationResult& result, const NodeImageNormalComposite* InNode)
+	void CodeGenerator::GenerateImage_NormalComposite(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageNormalComposite* InNode)
 	{
 		const NodeImageNormalComposite::Private& node = *InNode->GetPrivate();
 
@@ -510,15 +527,16 @@ namespace mu
 
         // Base image
         Ptr<ASTOp> base;
-        if ( Node* pBase = node.m_pBase.get() )
+        if ( node.m_pBase )
         {
-            base = Generate( pBase );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			base = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Image Composite Base", EImageFormat::IF_RGB_UBYTE,
-                                             node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Image Composite Base"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 
 		EImageFormat baseFormat = base->GetImageDesc().m_format;
@@ -528,9 +546,12 @@ namespace mu
         op->Base = base;
 
         Ptr<ASTOp> normal;
-        if ( Node* pNormal = node.m_pNormal.get() )
+        if ( node.m_pNormal )
         {
-            normal = Generate( pNormal );
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pNormal);
+			normal = BaseResult.op;
+
             normal = GenerateImageFormat( normal, EImageFormat::IF_RGB_UBYTE );
             normal = GenerateImageSize
                     ( normal, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],
@@ -539,8 +560,7 @@ namespace mu
 		else
 		{
             // This argument is required
-            normal = GenerateMissingImageCode( "Image Composite Normal", EImageFormat::IF_RGB_UBYTE,
-                                               node.m_errorContext );
+            normal = GenerateMissingImageCode(TEXT("Image Composite Normal"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
 		}
 
         op->Normal = normal;
@@ -548,7 +568,7 @@ namespace mu
 		result.op = op;
     }
 
-	void CodeGenerator::GenerateImage_Transform(FImageGenerationResult& result, const NodeImageTransform* InNode)
+	void CodeGenerator::GenerateImage_Transform(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageTransform* InNode)
     {
 		const NodeImageTransform::Private& node = *InNode->GetPrivate();
 
@@ -595,15 +615,16 @@ namespace mu
 
         // Base image
         Ptr<ASTOp> base;
-        if ( Node* pBase = node.m_pBase.get() )
+        if ( node.m_pBase )
         {
-            base = Generate( pBase );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			base = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Image Transform Base", EImageFormat::IF_RGB_UBYTE,
-                                             node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Image Transform Base"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 
 		EImageFormat baseFormat = base->GetImageDesc().m_format;
@@ -616,7 +637,7 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Interpolate(FImageGenerationResult& result, const NodeImageInterpolate* InNode)
+	void CodeGenerator::GenerateImage_Interpolate(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageInterpolate* InNode)
 	{
 		const NodeImageInterpolate::Private& node = *InNode->GetPrivate();
 
@@ -634,7 +655,7 @@ namespace mu
         {
             // This argument is required
             op->SetChild( op->op.args.ImageInterpolate.factor,
-                          GenerateMissingScalarCode( "Interpolation factor", 0.5f, node.m_errorContext ));
+                          GenerateMissingScalarCode(TEXT("Interpolation factor"), 0.5f, node.m_errorContext ));
         }
 
         // Target images
@@ -644,9 +665,11 @@ namespace mu
             ; t< node.m_targets.Num() && numTargets<MUTABLE_OP_MAX_INTERPOLATE_COUNT
             ; ++t )
         {
-            if ( Node* pA = node.m_targets[t].get() )
+            if ( node.m_targets[t] )
             {
-                Ptr<ASTOp> target = Generate( pA );
+				FImageGenerationResult BaseResult;
+				GenerateImage(Options, BaseResult, node.m_targets[t]);
+				Ptr<ASTOp> target = BaseResult.op;
 
                 // TODO: Support other formats
                 target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
@@ -661,10 +684,8 @@ namespace mu
         // At least one target is required
         if (!op->op.args.ImageInterpolate.targets[0])
         {
-            Ptr<ASTOp> target = GenerateMissingImageCode( "First interpolation image", EImageFormat::IF_RGB_UBYTE,
-                                                       node.m_errorContext );
-            target = GenerateImageSize
-                    ( target, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
+            Ptr<ASTOp> target = GenerateMissingImageCode(TEXT("First interpolation image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
+            target = GenerateImageSize( target, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
             op->SetChild( op->op.args.ImageInterpolate.targets[0], target);
         }
 
@@ -673,7 +694,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Interpolate3(FImageGenerationResult& result, const NodeImageInterpolate3* InNode)
+	void CodeGenerator::GenerateImage_Interpolate3(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageInterpolate3* InNode)
 	{
 		const NodeImageInterpolate3::Private& node = *InNode->GetPrivate();
 
@@ -691,7 +712,7 @@ namespace mu
         {
             // This argument is required
             op->SetChild( op->op.args.ImageInterpolate3.factor1,
-                          GenerateMissingScalarCode( "Interpolation factor 1", 0.3f, node.m_errorContext ));
+                          GenerateMissingScalarCode(TEXT("Interpolation factor 1"), 0.3f, node.m_errorContext ));
         }
 
         if ( node.m_pFactor2.get() )
@@ -702,20 +723,21 @@ namespace mu
         {
             // This argument is required
             op->SetChild( op->op.args.ImageInterpolate3.factor2,
-                          GenerateMissingScalarCode( "Interpolation factor 2", 0.3f, node.m_errorContext ));
+                          GenerateMissingScalarCode(TEXT("Interpolation factor 2"), 0.3f, node.m_errorContext ));
         }
 
         // Target 0
         Ptr<ASTOp> target;
-        if ( node.m_pTarget0.get() )
+        if ( node.m_pTarget0 )
         {
-            target = Generate( node.m_pTarget0 );
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pTarget0);
+			target = BaseResult.op;
         }
         else
         {
             // This argument is required
-            target = GenerateMissingImageCode( "Interpolation target 0", EImageFormat::IF_RGB_UBYTE,
-                                               node.m_errorContext );
+            target = GenerateMissingImageCode(TEXT("Interpolation target 0"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
         target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
         target = GenerateImageSize
@@ -723,15 +745,16 @@ namespace mu
         op->SetChild( op->op.args.ImageInterpolate3.target0, target);
 
         // Target 1
-        if ( node.m_pTarget1.get() )
+        if ( node.m_pTarget1 )
         {
-            target = Generate( node.m_pTarget1 );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pTarget1);
+			target = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            target = GenerateMissingImageCode( "Interpolation target 1", EImageFormat::IF_RGB_UBYTE,
-                                               node.m_errorContext );
+            target = GenerateMissingImageCode(TEXT("Interpolation target 1"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
         target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
         target = GenerateImageSize
@@ -740,15 +763,16 @@ namespace mu
         op->SetChild( op->op.args.ImageInterpolate3.target1, target);
 
         // Target 2
-        if ( node.m_pTarget2.get() )
+        if ( node.m_pTarget2 )
         {
-            target = Generate( node.m_pTarget2 );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pTarget2);
+			target = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            target = GenerateMissingImageCode( "Interpolation target 2", EImageFormat::IF_RGB_UBYTE,
-                                               node.m_errorContext );
+            target = GenerateMissingImageCode(TEXT("Interpolation target 2"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
         target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
         target = GenerateImageSize
@@ -762,7 +786,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Swizzle(FImageGenerationResult& result, const NodeImageSwizzle* InNode)
+	void CodeGenerator::GenerateImage_Swizzle(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageSwizzle* InNode)
 	{
 		const NodeImageSwizzle::Private& node = *InNode->GetPrivate();
 
@@ -819,15 +843,18 @@ namespace mu
         Ptr<ASTOp> first;
 		for (int32 t = 0; t<node.m_sources.Num(); ++t)
 		{
-			if (Node* pChannel = node.m_sources[t].get())
+			if (node.m_sources[t])
 			{
-                Ptr<ASTOp> source = Generate(pChannel);
+				FImageGenerationResult BaseResult;
+				GenerateImage(Options, BaseResult, node.m_sources[t]);
+                Ptr<ASTOp> source = BaseResult.op;
+
 				source = GenerateImageUncompressed(source);
 
 				if (!source)
 				{
 					// TODO: Warn?
-					source = GenerateMissingImageCode("Swizzle channel", EImageFormat::IF_L_UBYTE, node.m_errorContext);
+					source = GenerateMissingImageCode(TEXT("Swizzle channel"), EImageFormat::IF_L_UBYTE, node.m_errorContext, Options);
 				}
 
                 Ptr<ASTOp> sizedSource;
@@ -853,7 +880,7 @@ namespace mu
 		// At least one source is required
         if (!op->Sources[0])
 		{
-            Ptr<ASTOp> source = GenerateMissingImageCode("First swizzle image", EImageFormat::IF_RGBA_UBYTE, node.m_errorContext);
+            Ptr<ASTOp> source = GenerateMissingImageCode(TEXT("First swizzle image"), EImageFormat::IF_RGBA_UBYTE, node.m_errorContext, Options);
             op->Sources[0] = source;
 		}
 
@@ -872,7 +899,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Format(FImageGenerationResult& result, const NodeImageFormat* InNode)
+	void CodeGenerator::GenerateImage_Format(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageFormat* InNode)
 	{
 		const NodeImageFormat::Private& node = *InNode->GetPrivate();
 
@@ -887,11 +914,13 @@ namespace mu
 		// Source is required
 		if (!node.m_source)
 		{
-            fop->Source = GenerateMissingImageCode("Source image for format.", EImageFormat::IF_RGBA_UBYTE, node.m_errorContext);
+            fop->Source = GenerateMissingImageCode(TEXT("Source image for format."), EImageFormat::IF_RGBA_UBYTE, node.m_errorContext, Options);
 		}
 		else
 		{
-            fop->Source = Generate(node.m_source.get());
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_source);
+			fop->Source = BaseResult.op;
 		}
 
         result.op = fop;
@@ -899,7 +928,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Saturate(FImageGenerationResult& result, const NodeImageSaturate* InNode)
+	void CodeGenerator::GenerateImage_Saturate(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageSaturate* InNode)
 	{
 		const NodeImageSaturate::Private& node = *InNode->GetPrivate();
 
@@ -909,14 +938,16 @@ namespace mu
 
         // Source image
         Ptr<ASTOp> base = 0;
-        if ( Node* pSource = node.m_pSource.get() )
+        if ( node.m_pSource )
         {
-            base = Generate( pSource );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pSource);
+			base = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Saturate image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Saturate image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 		
         base = GenerateImageFormat(base, GetRGBOrRGBAFormat(base->GetImageDesc().m_format));
@@ -933,8 +964,7 @@ namespace mu
         else
         {
             // This argument is required
-            op->SetChild( op->op.args.ImageSaturate.factor, GenerateMissingScalarCode( "Saturation factor", 0.5f,
-                                                                      node.m_errorContext ) );
+            op->SetChild( op->op.args.ImageSaturate.factor, GenerateMissingScalarCode(TEXT("Saturation factor"), 0.5f, node.m_errorContext ) );
         }
 
         result.op = op;
@@ -942,7 +972,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Luminance(FImageGenerationResult& result, const NodeImageLuminance* InNode)
+	void CodeGenerator::GenerateImage_Luminance(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageLuminance* InNode)
 	{
 		const NodeImageLuminance::Private& node = *InNode->GetPrivate();
 
@@ -950,16 +980,17 @@ namespace mu
         op->op.type = OP_TYPE::IM_LUMINANCE;
 
         // Source image
-        Ptr<ASTOp> base = 0;
-        if ( Node* pSource = node.m_pSource.get() )
+        Ptr<ASTOp> base;
+        if ( node.m_pSource )
         {
-            base = Generate( pSource );
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pSource);
+			base = BaseResult.op;
         }
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Image luminance", EImageFormat::IF_RGB_UBYTE,
-                                             node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Image luminance"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
         base = GenerateImageFormat( base, EImageFormat::IF_RGB_UBYTE );
         op->SetChild( op->op.args.ImageLuminance.base, base);
@@ -969,7 +1000,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_ColourMap(FImageGenerationResult& result, const NodeImageColourMap* InNode)
+	void CodeGenerator::GenerateImage_ColourMap(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageColourMap* InNode)
 	{
 		const NodeImageColourMap::Private& node = *InNode->GetPrivate();
 
@@ -977,16 +1008,17 @@ namespace mu
         op->op.type = OP_TYPE::IM_COLOURMAP;
 
         // Base image
-        Ptr<ASTOp> base = 0;
-        if ( Node* pBase = node.m_pBase.get() )
+        Ptr<ASTOp> base ;
+        if ( node.m_pBase )
         {
-            base = Generate( pBase );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			base = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Colourmap base image", EImageFormat::IF_RGB_UBYTE,
-                                             node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Colourmap base image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
         base = GenerateImageSize
                 ( base, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
@@ -994,16 +1026,18 @@ namespace mu
         op->SetChild( op->op.args.ImageColourMap.base, base);
 
         // Mask of the effect
-        Ptr<ASTOp> mask = 0;
-        if ( Node* pMask = node.m_pMask.get() )
+        Ptr<ASTOp> mask;
+        if ( node.m_pMask )
         {
-            mask = Generate( pMask );
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pMask);
+			mask = BaseResult.op;
         }
         else
         {
             // Set the argument default value: affect all pixels.
             // TODO: Special operation code without mask
-            mask = GeneratePlainImageCode( vec3<float>( 1,1,1 ) );
+            mask = GeneratePlainImageCode( vec3<float>( 1,1,1 ), Options);
         }
         mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
         mask = GenerateImageSize
@@ -1013,15 +1047,17 @@ namespace mu
 
         // Map image
 		// \TODO: We are forcing an map image size as it was a normal texture, and this is incorrect.
-        Ptr<ASTOp> mapImage = 0;
-        if ( Node* pMap = node.m_pMap.get() )
+        Ptr<ASTOp> mapImage;
+        if ( node.m_pMap )
         {
-            mapImage = Generate( pMap );
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pMap);
+			mapImage = BaseResult.op;
         }
         else
         {
             // This argument is required
-            mapImage = GenerateMissingImageCode( "Map image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
+            mapImage = GenerateMissingImageCode(TEXT("Map image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
         mapImage = GenerateImageFormat( mapImage, EImageFormat::IF_RGB_UBYTE );
         mapImage = GenerateImageSize
@@ -1034,7 +1070,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Gradient(FImageGenerationResult& result, const NodeImageGradient* InNode)
+	void CodeGenerator::GenerateImage_Gradient(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageGradient* InNode)
 	{
 		const NodeImageGradient::Private& node = *InNode->GetPrivate();
 
@@ -1050,7 +1086,7 @@ namespace mu
         else
         {
             // This argument is required
-            colour0 = GenerateMissingColourCode( "Gradient colour 0", node.m_errorContext );
+            colour0 = GenerateMissingColourCode(TEXT("Gradient colour 0"), node.m_errorContext );
         }
         op->SetChild( op->op.args.ImageGradient.colour0, colour0);
 
@@ -1063,7 +1099,7 @@ namespace mu
         else
         {
             // This argument is required
-            colour1 = GenerateMissingColourCode( "Gradient colour 1", node.m_errorContext );
+            colour1 = GenerateMissingColourCode(TEXT("Gradient colour 1"), node.m_errorContext );
         }
         op->SetChild( op->op.args.ImageGradient.colour1, colour1);
 
@@ -1075,7 +1111,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Binarise(FImageGenerationResult& result, const NodeImageBinarise* InNode)
+	void CodeGenerator::GenerateImage_Binarise(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageBinarise* InNode)
 	{
 		const NodeImageBinarise::Private& node = *InNode->GetPrivate();
 
@@ -1084,15 +1120,16 @@ namespace mu
 
         // A image
         Ptr<ASTOp> a;
-        if ( Node* pBase = node.m_pBase.get() )
+        if ( node.m_pBase )
         {
-            a = Generate( pBase );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			a = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            a = GenerateMissingImageCode( "Image Binarise Base", EImageFormat::IF_RGB_UBYTE,
-                                          node.m_errorContext );
+            a = GenerateMissingImageCode(TEXT("Image Binarise Base"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
         a = GenerateImageFormat( a, EImageFormat::IF_RGB_UBYTE );
         a = GenerateImageSize
@@ -1109,7 +1146,7 @@ namespace mu
         else
         {
             // This argument is required
-            b = GenerateMissingScalarCode( "Image Binarise Threshold", 0.5f, node.m_errorContext );
+            b = GenerateMissingScalarCode(TEXT("Image Binarise Threshold"), 0.5f, node.m_errorContext );
         }
         op->SetChild( op->op.args.ImageBinarise.threshold, b );
 
@@ -1118,7 +1155,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Resize(FImageGenerationResult& result, const NodeImageResize* InNode)
+	void CodeGenerator::GenerateImage_Resize(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageResize* InNode)
 	{
 		const NodeImageResize::Private& node = *InNode->GetPrivate();
 
@@ -1127,8 +1164,8 @@ namespace mu
         Ptr<ASTOp> at = 0;
 
         // Source image
-        Ptr<ASTOp> base = 0;
-        if ( Node* pSource = node.m_pBase.get() )
+        Ptr<ASTOp> base;
+        if ( node.m_pBase )
         {
             IMAGE_STATE newState = m_imageState.Last();
             if ( node.m_relative )
@@ -1143,14 +1180,16 @@ namespace mu
 
             m_imageState.Add(newState);
 
-            base = Generate( pSource );
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			base = BaseResult.op;
 
             m_imageState.Pop();
         }
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Image resize base", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Image resize base"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 
         // Size
@@ -1178,7 +1217,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_PlainColour(FImageGenerationResult& result, const NodeImagePlainColour* InNode)
+	void CodeGenerator::GenerateImage_PlainColour(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImagePlainColour* InNode)
 	{
 		const NodeImagePlainColour::Private& node = *InNode->GetPrivate();
 
@@ -1191,7 +1230,7 @@ namespace mu
         else
         {
             // This argument is required
-            base = GenerateMissingColourCode( "Image plain colour base", node.m_errorContext );
+            base = GenerateMissingColourCode(TEXT("Image plain colour base"), node.m_errorContext );
         }
 
         Ptr<ASTOpFixed> op = new ASTOpFixed();
@@ -1221,7 +1260,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Switch(FImageGenerationResult& result, const NodeImageSwitch* InNode)
+	void CodeGenerator::GenerateImage_Switch(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageSwitch* InNode)
 	{
 		const NodeImageSwitch::Private& node = *InNode->GetPrivate();
 
@@ -1230,9 +1269,7 @@ namespace mu
         if (node.m_options.Num() == 0)
 		{
 			// No options in the switch!
-            Ptr<ASTOp> missingOp = GenerateMissingImageCode("Switch option",
-				EImageFormat::IF_RGBA_UBYTE,
-				node.m_errorContext);
+            Ptr<ASTOp> missingOp = GenerateMissingImageCode(TEXT("Switch option"), EImageFormat::IF_RGBA_UBYTE, node.m_errorContext, Options);
 			result.op = missingOp;
 			return;
 		}
@@ -1248,7 +1285,7 @@ namespace mu
 		else
 		{
 			// This argument is required
-            op->variable = GenerateMissingScalarCode( "Switch variable", 0.0f, node.m_errorContext );
+            op->variable = GenerateMissingScalarCode(TEXT("Switch variable"), 0.0f, node.m_errorContext );
 		}
 
 		// Options
@@ -1258,14 +1295,14 @@ namespace mu
 
             if (node.m_options[t])
             {
-                branch = Generate( node.m_options[t].get() );
-            }
+				FImageGenerationResult BaseResult;
+				GenerateImage(Options, BaseResult, node.m_options[t]);
+				branch = BaseResult.op;
+			}
             else
             {
                 // This argument is required
-                branch = GenerateMissingImageCode("Switch option",
-                                                    EImageFormat::IF_RGBA_UBYTE,
-                                                    node.m_errorContext);
+                branch = GenerateMissingImageCode(TEXT("Switch option"), EImageFormat::IF_RGBA_UBYTE, node.m_errorContext, Options);
             }
 
             op->cases.Emplace((int16_t)t,op,branch);
@@ -1307,7 +1344,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Conditional(FImageGenerationResult& result, const NodeImageConditional* InNode)
+	void CodeGenerator::GenerateImage_Conditional(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageConditional* InNode)
 	{
 		const NodeImageConditional::Private& node = *InNode->GetPrivate();
 
@@ -1322,19 +1359,24 @@ namespace mu
         else
         {
             // This argument is required
-            op->condition = GenerateMissingBoolCode( "Conditional condition", true, node.m_errorContext );
+            op->condition = GenerateMissingBoolCode(TEXT("Conditional condition"), true, node.m_errorContext );
         }
 
         // Options
-        op->yes = Generate( node.m_true.get() );
-        op->no = Generate( node.m_false.get() );
+		FImageGenerationResult YesResult;
+		GenerateImage(Options, YesResult, node.m_true);
+		op->yes = YesResult.op;
 
+		FImageGenerationResult NoResult;
+		GenerateImage(Options, NoResult, node.m_false);
+		op->no = NoResult.op;
+		
         result.op = op;
     }
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Project(FImageGenerationResult& result, const NodeImageProject* InNode)
+	void CodeGenerator::GenerateImage_Project(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageProject* InNode)
 	{
 		const NodeImageProject::Private& node = *InNode->GetPrivate();
 
@@ -1412,11 +1454,10 @@ namespace mu
                 // will remove the faces that are not in the layout block we are generating.
                 Ptr<ASTOpConstantResource> cop = new ASTOpConstantResource();
                 cop->type = OP_TYPE::ME_CONSTANT;
-
 				Ptr<Mesh> FormatMeshResult = new Mesh();
 				CreateMeshOptimisedForWrappingProjection(FormatMeshResult.get(), node.m_layout);
 
-                cop->SetValue(FormatMeshResult, m_compilerOptions->m_optimisationOptions.m_useDiskCache);
+                cop->SetValue(FormatMeshResult, m_compilerOptions->OptimisationOptions.bUseDiskCache);
 
                 Ptr<ASTOpMeshFormat> fop = new ASTOpMeshFormat();
                 fop->Buffers = OP::MeshFormatArgs::BT_VERTEX
@@ -1448,7 +1489,7 @@ namespace mu
 				Ptr<Mesh> FormatMeshResult = new Mesh();
                 CreateMeshOptimisedForProjection(FormatMeshResult.get(), node.m_layout);
 
-                cop->SetValue(FormatMeshResult, m_compilerOptions->m_optimisationOptions.m_useDiskCache);
+                cop->SetValue(FormatMeshResult, m_compilerOptions->OptimisationOptions.bUseDiskCache);
 
                 Ptr<ASTOpMeshFormat> fop = new ASTOpMeshFormat();
                 fop->Buffers = OP::MeshFormatArgs::BT_VERTEX
@@ -1466,7 +1507,7 @@ namespace mu
             Ptr<const Mesh> pMesh = new Mesh();
             Ptr<ASTOpConstantResource> cop = new ASTOpConstantResource();
             cop->type = OP_TYPE::ME_CONSTANT;
-            cop->SetValue( pMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
+            cop->SetValue( pMesh, m_compilerOptions->OptimisationOptions.bUseDiskCache );
             pop->SetChild( pop->op.args.MeshProject.mesh, cop );
             m_pErrorLog->GetPrivate()->Add( "Projector mesh not set.", ELMT_ERROR, node.m_errorContext );
         }
@@ -1493,9 +1534,14 @@ namespace mu
             m_imageState.Add( newState );
 
             // Generate
-            op->image = Generate( node.m_pImage.get() );
+			// \TODO: Build new Options with the above data
+			FImageGenerationResult ImageResult;
+			GenerateImage(Options, ImageResult, node.m_pImage);
+			op->image = ImageResult.op;
+
 			op->SourceSizeX = desc.m_size[0];
 			op->SourceSizeY = desc.m_size[1];
+
 
             // Restore rect
             m_imageState.Pop();
@@ -1504,7 +1550,7 @@ namespace mu
         else
         {
             // This argument is required
-            op->image = GenerateMissingImageCode( "Projector image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
+            op->image = GenerateMissingImageCode(TEXT("Projector image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 
         // Image size, from the current block being generated
@@ -1538,7 +1584,10 @@ namespace mu
         // Target mask
         if ( node.m_pMask )
         {
-            Ptr<ASTOp> mask = Generate( node.m_pMask.get() );
+			FImageGenerationResult MaskResult;
+			GenerateImage(Options, MaskResult, node.m_pMask);
+			Ptr<ASTOp> mask = MaskResult.op;
+
             mask = GenerateImageFormat( mask, EImageFormat::IF_L_UBYTE );
             op->mask = GenerateImageSize( mask, FImageSize( m_imageState.Last().m_imageRect.size ) );
         }
@@ -1564,7 +1613,7 @@ namespace mu
 		MakeGrowMapOp->Border = MUTABLE_GROW_BORDER_VALUE;
 		
 		// If we want to be able to generate progressive mips efficiently, we need mipmaps for the "displacement map".
-		if (m_compilerOptions->m_optimisationOptions.bEnableProgressiveImages)
+		if (m_compilerOptions->OptimisationOptions.bEnableProgressiveImages)
 		{
 			Ptr<ASTOpImageMipmap> MipMask = new ASTOpImageMipmap;
 			MipMask->Source = MakeGrowMapOp->Mask.child();
@@ -1582,7 +1631,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Mipmap(FImageGenerationResult& result, const NodeImageMipmap* InNode)
+	void CodeGenerator::GenerateImage_Mipmap(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageMipmap* InNode)
 	{
 		const NodeImageMipmap::Private& node = *InNode->GetPrivate();
 
@@ -1592,21 +1641,22 @@ namespace mu
 
         Ptr<ASTOpImageMipmap> op = new ASTOpImageMipmap();
 
-        // At the end of the day, we want all the mipmaps. Maybe the code optimiser will split the
-        // process later.
+        // At the end of the day, we want all the mipmaps. Maybe the code optimiser will split the process later.
         op->Levels = 0;
 
         // Source image
         Ptr<ASTOp> base;
-        if ( Node* pSource = node.m_pSource.get() )
+        if ( node.m_pSource )
         {
             MUTABLE_CPUPROFILER_SCOPE(Base);
-            base = Generate( pSource );
-        }
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pSource);
+			base = BaseResult.op;
+		}
         else
         {
             // This argument is required
-            base = GenerateMissingImageCode( "Mipmap image", EImageFormat::IF_RGB_UBYTE, node.m_errorContext );
+            base = GenerateMissingImageCode(TEXT("Mipmap image"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
         }
 
         op->Source = base;
@@ -1615,7 +1665,7 @@ namespace mu
         // optimisation operations. Scan the source image code looking for this info
         int32 blockX = 0;
         int32 blockY = 0;
-        if ( m_compilerOptions->m_textureLayoutStrategy
+        if ( Options.ImageLayoutStrategy
              !=
              CompilerOptions::TextureLayoutStrategy::None )
         {
@@ -1647,7 +1697,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Invert(FImageGenerationResult& result, const NodeImageInvert* InNode)
+	void CodeGenerator::GenerateImage_Invert(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageInvert* InNode)
 	{
 		const NodeImageInvert::Private& node = *InNode->GetPrivate();
 
@@ -1656,15 +1706,16 @@ namespace mu
 
 		// A image
 		Ptr<ASTOp> a;
-		if (Node* pBase = node.m_pBase.get())
+		if (node.m_pBase)
 		{
-			a = Generate(pBase);
+			FImageGenerationResult BaseResult;
+			GenerateImage(Options, BaseResult, node.m_pBase);
+			a = BaseResult.op;
 		}
 		else
 		{
 			// This argument is required
-			a = GenerateMissingImageCode("Image Invert Color", EImageFormat::IF_RGB_UBYTE,
-				node.m_errorContext);
+			a = GenerateMissingImageCode(TEXT("Image Invert Color"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
 		}
 		a = GenerateImageFormat(a, EImageFormat::IF_RGB_UBYTE);
 		a = GenerateImageSize
@@ -1677,7 +1728,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Variation(FImageGenerationResult& result, const NodeImageVariation* InNode)
+	void CodeGenerator::GenerateImage_Variation(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageVariation* InNode)
 	{
 		const NodeImageVariation::Private& node = *InNode->GetPrivate();
 
@@ -1686,14 +1737,14 @@ namespace mu
         // Default case
         if ( node.m_defaultImage )
         {
-            FImageGenerationResult branchResults;
-			GenerateImage(branchResults, node.m_defaultImage);
-			currentOp = branchResults.op;
+            FImageGenerationResult BranchResults;
+			GenerateImage(Options, BranchResults, node.m_defaultImage);
+			currentOp = BranchResults.op;
         }
         else
         {
             // This argument is required
-            currentOp = GenerateMissingImageCode( "Variation default", EImageFormat::IF_RGBA_UBYTE, node.m_errorContext );
+            currentOp = GenerateMissingImageCode(TEXT("Variation default"), EImageFormat::IF_RGBA_UBYTE, node.m_errorContext, Options);
         }
 
         // Process variations in reverse order, since conditionals are built bottom-up.
@@ -1711,23 +1762,23 @@ namespace mu
 
             if ( tagIndex < 0 )
             {
-                char buf[256];
-                mutable_snprintf( buf, 256, "Unknown tag found in image variation [%s].", tag.c_str() );
+				FString Msg = FString::Printf(TEXT("Unknown tag found in image variation [%s]."), tag.c_str() );
 
-                m_pErrorLog->GetPrivate()->Add( buf, ELMT_WARNING, node.m_errorContext );
+                m_pErrorLog->GetPrivate()->Add( Msg, ELMT_WARNING, node.m_errorContext );
                 continue;
             }
 
             Ptr<ASTOp> variationOp;
             if ( node.m_variations[t].m_image )
             {
-                variationOp = Generate( node.m_variations[t].m_image );
+				FImageGenerationResult Result;
+				GenerateImage(Options, Result, node.m_variations[t].m_image);
+				variationOp = Result.op;
             }
             else
             {
                 // This argument is required
-                variationOp = GenerateMissingImageCode( "Variation option", EImageFormat::IF_RGBA_UBYTE,
-                                                        node.m_errorContext );
+                variationOp = GenerateMissingImageCode(TEXT("Variation option"), EImageFormat::IF_RGBA_UBYTE, node.m_errorContext, Options);
             }
 
 
@@ -1771,12 +1822,12 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Table(FImageGenerationResult& result, const NodeImageTable* InNode)
+	void CodeGenerator::GenerateImage_Table(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageTable* InNode)
 	{
 		const NodeImageTable::Private& node = *InNode->GetPrivate();
 
 		result.op = GenerateTableSwitch<NodeImageTable::Private, TCT_IMAGE, OP_TYPE::IM_SWITCH>(node,
-			[this](const NodeImageTable::Private& node, int colIndex, int row, ErrorLog* pErrorLog)
+			[this,Options](const NodeImageTable::Private& node, int colIndex, int row, ErrorLog* pErrorLog)
 			{
 				TABLE_VALUE CellData = node.m_pTable->GetPrivate()->m_rows[row].m_values[colIndex];
 				ImagePtrConst pImage = nullptr;
@@ -1789,10 +1840,8 @@ namespace mu
 
 				if (!pImage)
 				{
-					char temp[256];
-					mutable_snprintf(temp, 256,
-						"Table has a missing image in column %d, row %d.", colIndex, row);
-					pErrorLog->GetPrivate()->Add(temp, ELMT_ERROR, node.m_errorContext);
+					FString Msg = FString::Printf(TEXT("Table has a missing image in column %d, row %d."), colIndex, row);
+					pErrorLog->GetPrivate()->Add(Msg, ELMT_ERROR, node.m_errorContext);
 				}
 				else
 				{
@@ -1812,13 +1861,15 @@ namespace mu
 					}
 				}
 
-				return Generate(CellImage);
+				FImageGenerationResult Result;
+				GenerateImage(Options, Result, CellImage);
+				return Result.op;
 			});
 	}
 
 
     //---------------------------------------------------------------------------------------------
-    ImagePtr CodeGenerator::GenerateMissingImage( EImageFormat format )
+    Ptr<Image> CodeGenerator::GenerateMissingImage( EImageFormat format )
     {
         // Create the image node if it hasn't been created yet.
         if (!m_missingImage[size_t(format)])
@@ -1912,19 +1963,11 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> CodeGenerator::GenerateMissingImageCode( const char* strWhere,
-                                                     EImageFormat format,
-                                                     const void* errorContext )
+    Ptr<ASTOp> CodeGenerator::GenerateMissingImageCode(const TCHAR* strWhere, EImageFormat format, const void* errorContext, const FImageGenerationOptions& Options )
     {
         // Log an error message
-        char buf[256];
-        mutable_snprintf
-            (
-                buf, 256,
-                "Required connection not found: %s",
-                strWhere
-            );
-        m_pErrorLog->GetPrivate()->Add( buf, ELMT_ERROR, errorContext );
+		FString Msg = FString::Printf(TEXT("Required connection not found: %s"), strWhere );
+        m_pErrorLog->GetPrivate()->Add( Msg, ELMT_ERROR, errorContext );
 
         // Make a checkered debug image
         ImagePtr pImage = GenerateMissingImage( format );
@@ -1932,14 +1975,15 @@ namespace mu
         NodeImageConstantPtr pNode = new NodeImageConstant();
         pNode->SetValue( pImage.get() );
 
-        Ptr<ASTOp> result = Generate( pNode );
+		FImageGenerationResult Result;
+		GenerateImage(Options, Result, pNode);
 
-        return result;
+        return Result.op;
     }
 
 
     //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> CodeGenerator::GeneratePlainImageCode( const vec3<float>& colour )
+    Ptr<ASTOp> CodeGenerator::GeneratePlainImageCode( const vec3<float>& colour, const FImageGenerationOptions& Options )
     {
         const int size = 4;
         ImagePtr pImage = new Image( size, size, 1, EImageFormat::IF_RGB_UBYTE );
@@ -1953,10 +1997,12 @@ namespace mu
             pData += 3;
         }
 
-        NodeImageConstantPtr pNode = new NodeImageConstant();
-        pNode->SetValue( pImage.get() );
+        NodeImageConstantPtr ConstantNode = new NodeImageConstant();
+		ConstantNode->SetValue( pImage.get() );
 
-        Ptr<ASTOp> result = Generate( pNode );
+		FImageGenerationResult TempResult;
+		GenerateImage(Options, TempResult, ConstantNode);
+        Ptr<ASTOp> result = TempResult.op;
 
         return result;
     }

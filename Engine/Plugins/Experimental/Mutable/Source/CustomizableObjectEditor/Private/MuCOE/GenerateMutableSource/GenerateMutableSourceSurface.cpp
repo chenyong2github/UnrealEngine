@@ -220,9 +220,10 @@ void SetSurfaceFormat( FMutableGraphGenerationContext& GenerationContext,
 
 void UpdateSharedSurfaceId(FMutableGraphGenerationContext& GenerationContext, UCustomizableObjectNodeMaterial* NodeMaterial, mu::NodeSurfaceNewPtr InNodeSurface)
 {
+	// \TODO: Reusability is actually per-texture: if a texture is set to not use layouts (setting LayoutIndex to -1) then it can always be reused.
 	// Reuse materials between LODs when using automatics LODs, if texture layout management is disabled or if bReuseMaterials is enabled in the node material.
 	const bool bCanShareSurface = GenerationContext.CurrentAutoLODStrategy == ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh
-		&& (GenerationContext.bDisableTextureLayoutManagementFlag || NodeMaterial->bReuseMaterialBetweenLODs);
+		&& NodeMaterial->bReuseMaterialBetweenLODs;
 
 	// Set shared surface Id to reuse materials and textures between LODs if automatic LODs from mesh is being used
 	if (bCanShareSurface && InNodeSurface)

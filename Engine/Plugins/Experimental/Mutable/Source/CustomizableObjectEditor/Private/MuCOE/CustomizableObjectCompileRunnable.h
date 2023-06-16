@@ -32,13 +32,13 @@ public:
 
 private:
 
-	mu::NodePtr MutableRoot;
+	mu::Ptr<mu::Node> MutableRoot;
 	TArray<FError> ArrayWarning;
 	TArray<FError> ArrayError;
 
 public:
 
-	FCustomizableObjectCompileRunnable(mu::NodePtr Root, bool bInDisableTextureLayout);
+	FCustomizableObjectCompileRunnable(mu::Ptr<mu::Node> Root);
 
 	// FRunnable interface
 	uint32 Run() override;
@@ -57,9 +57,6 @@ public:
 public:
 
 	TSharedPtr<mu::Model, ESPMode::ThreadSafe> Model;
-
-	// Texture packing strategy
-	bool bDisableTextureLayout;
 
 	FCompilationOptions Options;
 

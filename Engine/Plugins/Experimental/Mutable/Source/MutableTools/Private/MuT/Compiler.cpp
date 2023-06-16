@@ -59,7 +59,6 @@ namespace mu
     CompilerOptions::CompilerOptions()
     {
         m_pD = new Private();
-        m_pD->m_log = false;
     }
 
 
@@ -80,69 +79,62 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CompilerOptions::SetLogEnabled( bool enabled )
+    void CompilerOptions::SetLogEnabled( bool bEnabled)
     {
-        m_pD->m_log = enabled;
+        m_pD->bLog = bEnabled;
     }
 
 
     //---------------------------------------------------------------------------------------------
-    void CompilerOptions::SetOptimisationEnabled( bool enabled )
+    void CompilerOptions::SetOptimisationEnabled( bool bEnabled)
     {
-        m_pD->m_optimisationOptions.m_enabled = enabled;
-        if (enabled)
+        m_pD->OptimisationOptions.bEnabled = bEnabled;
+        if (bEnabled)
         {
-            m_pD->m_optimisationOptions.m_constReduction = true;
+            m_pD->OptimisationOptions.bConstReduction = true;
         }
     }
 
 
     //---------------------------------------------------------------------------------------------
-    void CompilerOptions::SetConstReductionEnabled( bool constReduction )
+    void CompilerOptions::SetConstReductionEnabled( bool bConstReductionEnabled )
     {
-        m_pD->m_optimisationOptions.m_constReduction = constReduction;
+        m_pD->OptimisationOptions.bConstReduction = bConstReductionEnabled;
     }
 
 
     //---------------------------------------------------------------------------------------------
     void CompilerOptions::SetUseDiskCache( bool enabled )
     {
-        m_pD->m_optimisationOptions.m_useDiskCache = enabled;
+        m_pD->OptimisationOptions.bUseDiskCache = enabled;
     }
 
 
     //---------------------------------------------------------------------------------------------
     void CompilerOptions::SetOptimisationMaxIteration( int maxIterations )
     {
-        m_pD->m_optimisationOptions.m_maxOptimisationLoopCount = maxIterations;
+        m_pD->OptimisationOptions.MaxOptimisationLoopCount = maxIterations;
     }
 
 
     //---------------------------------------------------------------------------------------------
-    void CompilerOptions::SetIgnoreStates( bool ignore )
+    void CompilerOptions::SetIgnoreStates( bool bIgnore )
     {
-        m_pD->m_ignoreStates = ignore;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    void CompilerOptions::SetTextureLayoutStrategy( TextureLayoutStrategy strategy )
-    {
-        m_pD->m_textureLayoutStrategy = strategy;
+        m_pD->bIgnoreStates = bIgnore;
     }
 
 
 	//---------------------------------------------------------------------------------------------
-	void CompilerOptions::SetImageCompressionQuality(int quality)
+	void CompilerOptions::SetImageCompressionQuality(int32 Quality)
 	{
-		m_pD->m_imageCompressionQuality = quality;
+		m_pD->ImageCompressionQuality = Quality;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	void CompilerOptions::SetImageTiling(int32 Tiling)
 	{
-		m_pD->m_imageTiling = Tiling;
+		m_pD->ImageTiling = Tiling;
 	}
 
 
@@ -157,7 +149,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void CompilerOptions::SetEnableProgressiveImages(bool bEnabled)
 	{
-		m_pD->m_optimisationOptions.bEnableProgressiveImages = bEnabled;
+		m_pD->OptimisationOptions.bEnableProgressiveImages = bEnabled;
 	}
 
 

@@ -125,7 +125,7 @@ void FCustomizableObjectCompiler::MutableIsDisabledCase(UCustomizableObject* Obj
 	}
 
 	UE_LOG(LogMutable, Log, TEXT("Mutable has been disabled. To reenable it, please deactivate the Disable Mutale Option in the Plugins -> Mutable option"), FPlatformTime::Seconds());
-	CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(nullptr, true));
+	CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(nullptr));
 	CompileTask->MutableIsDisabled = true;
 	LaunchMutableCompile(false);
 }
@@ -523,7 +523,6 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
 	UCustomizableObjectNodeObject* ActualRoot = Root;
 	UCustomizableObject* ActualRootObject = Object;
 
-	GenerationContext.bDisableTextureLayoutManagementFlag = Object->bDisableTextureLayoutManagement;
 	ArrayAlreadyProcessedChild.Empty();
 
 	if (Root->ObjectName.IsEmpty())
@@ -546,7 +545,6 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
 
 			TArray<UCustomizableObject*> VisitedObjects;
 			ActualRootObject = Root->ParentObject ? GetFullGraphRootObject(Root, VisitedObjects) : Object;
-			GenerationContext.bDisableTextureLayoutManagementFlag = ActualRootObject->bDisableTextureLayoutManagement;
 
 			if (Root->ParentObject != nullptr)
 			{
@@ -621,8 +619,6 @@ mu::NodeObjectPtr FCustomizableObjectCompiler::GenerateMutableRoot(
 
 		VisitedObjects.Empty();
 		ActualRootObject = Root->ParentObject ? GetFullGraphRootObject(Root, VisitedObjects) : Object;
-		GenerationContext.bDisableTextureLayoutManagementFlag = ActualRootObject->bDisableTextureLayoutManagement;
-
 
 	}
 
@@ -1289,7 +1285,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 			UCustomizableObjectSystem::GetInstance()->LockObject(Object);
 		}
 
-		CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(MutableRoot, GenerationContext.bDisableTextureLayoutManagementFlag));
+		CompileTask = MakeShareable(new FCustomizableObjectCompileRunnable(MutableRoot));
 		CompileTask->Options = Options;
 		State = ECustomizableObjectCompilationState::InProgress;
 
@@ -1366,7 +1362,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 }
 
 
-mu::NodePtr FCustomizableObjectCompiler::Export(UCustomizableObject* Object, const FCompilationOptions& InCompilerOptions, bool& bOutDisableLayouts)
+mu::NodePtr FCustomizableObjectCompiler::Export(UCustomizableObject* Object, const FCompilationOptions& InCompilerOptions)
 {
 	UE_LOG(LogMutable, Log, TEXT("Started Customizable Object Export %s."), *Object->GetName());
 
@@ -1408,8 +1404,6 @@ mu::NodePtr FCustomizableObjectCompiler::Export(UCustomizableObject* Object, con
 		PendingTexturesToLoad = true;
 		UpdatePendingTextureConversion(false);
 	}
-
-	bOutDisableLayouts = GenerationContext.bDisableTextureLayoutManagementFlag;
 
 	return MutableRoot;
 }

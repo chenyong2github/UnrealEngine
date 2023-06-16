@@ -474,7 +474,7 @@ namespace mu
 				// Is it worth?
 				float ratio = float(maskUsage.size[0] * maskUsage.size[1])
 					/ float(maskDesc.m_size[0] * maskDesc.m_size[1]);
-				float acceptableCropRatio = options.m_acceptableCropRatio;
+				float acceptableCropRatio = options.AcceptableCropRatio;
 				if (ratio < acceptableCropRatio)
 				{
 					check(maskUsage.size[0] > 0);

@@ -910,69 +910,30 @@ void SCustomizableObjectEditorViewportTabBody::GenerateUVMaterialOptions()
 	ArrayUVMaterialOptionString.Empty();
 	
 	int32 ComponentIndex = 0;
-
 	for (UDebugSkelMeshComponent* PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
 	{
 		if (PreviewSkeletalMeshComponent != nullptr && UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent) != nullptr && UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent)->GetResourceForRendering() != nullptr)
 		{
-			TMap<FString, int32> MaterialLODs;
-
-			// Add Suffix "__X" for materials with duplicated names and Suffing " LOD_X" for multiple LODs.
-			const FSkeletalMeshRenderData* MeshRes = UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent)->GetResourceForRendering();
 			const TArray<UMaterialInterface*> Materials = PreviewSkeletalMeshComponent->GetMaterials();
-			for (UMaterialInterface* m : Materials)
+			const FSkeletalMeshRenderData* MeshRes = UE_MUTABLE_GETSKINNEDASSET(PreviewSkeletalMeshComponent)->GetResourceForRendering();
+			for (int32 LODIndex = 0; LODIndex < MeshRes->LODRenderData.Num(); ++LODIndex)
 			{
-				const UMaterial* BaseMaterial = m->GetBaseMaterial();
-
-				FString BaseMaterialName = BaseMaterial->GetName();
-
-				int32 LODCount = 0;
-				if (int32* Count = MaterialLODs.Find(BaseMaterialName))
+				for (int32 SectionIndex = 0; SectionIndex < MeshRes->LODRenderData[LODIndex].RenderSections.Num(); ++SectionIndex)
 				{
-					if ((*Count) < MeshRes->LODRenderData.Num() - 1)
+					const FSkelMeshRenderSection& Section = MeshRes->LODRenderData[LODIndex].RenderSections[SectionIndex];
+					
+					if (!Materials.IsValidIndex(Section.MaterialIndex))
 					{
-						(*Count)++;
-						LODCount = (*Count);
+						continue;
 					}
-					else
-					{
-						bool bSearchEmptyLOD = true;
-						int MaterialIndexWithinLOD = 1;
 
-						while (bSearchEmptyLOD)
-						{
-							if (int32* DupeMaterialCount = MaterialLODs.Find(BaseMaterialName + FString::Printf(TEXT("__%d"), MaterialIndexWithinLOD)))
-							{
-								if ((*DupeMaterialCount) < MeshRes->LODRenderData.Num() - 1)
-								{
-									(*DupeMaterialCount)++;
-									LODCount = (*DupeMaterialCount);
-									BaseMaterialName += FString::Printf(TEXT("__%d"), MaterialIndexWithinLOD);
-									bSearchEmptyLOD = false;
-								}
-								else
-								{
-									MaterialIndexWithinLOD++;
-								}
-							}
-							else
-							{
-								MaterialLODs.Add(BaseMaterialName + FString::Printf(TEXT("__%d"), MaterialIndexWithinLOD), 0);
+					const UMaterial* BaseMaterial = Materials[Section.MaterialIndex]->GetBaseMaterial();
+					FString BaseMaterialName = BaseMaterial->GetName();
 
-								BaseMaterialName += FString::Printf(TEXT("__%d"), MaterialIndexWithinLOD);
-								bSearchEmptyLOD = false;
-							}
-						}
-					}
+					BaseMaterialName += FString::Printf(TEXT(" LOD_%d_Component_%d"), LODIndex, ComponentIndex);
+
+					ArrayUVMaterialOptionString.Add(MakeShareable(new FString(BaseMaterialName)));
 				}
-				else
-				{
-					MaterialLODs.Add(BaseMaterialName, LODCount);
-				}
-
-				BaseMaterialName += FString::Printf(TEXT(" LOD_%d_Component_%d"), LODCount, ComponentIndex);
-
-				ArrayUVMaterialOptionString.Add(MakeShareable(new FString(BaseMaterialName)));
 			}
 		}
 

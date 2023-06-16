@@ -55,7 +55,7 @@
 #include "MuR/OpMeshMerge.h"
 #include "MuR/OpMeshMorph.h"
 #include "MuR/OpMeshRemapIndices.h"
-#include "MuR/OpMeshRemoveChart.h"
+#include "MuR/OpMeshRemove.h"
 #include "MuR/OpMeshReshape.h"
 #include "MuR/OpMeshTransform.h"
 #include "MuR/OpMeshOptimizeSkinning.h"
