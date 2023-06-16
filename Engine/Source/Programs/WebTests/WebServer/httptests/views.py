@@ -1,8 +1,9 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http.response import JsonResponse
 from django.http import JsonResponse
 from django.http import StreamingHttpResponse
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, parser_classes
+from rest_framework.parsers import FileUploadParser
 import time
 import logging
 
@@ -32,9 +33,7 @@ def streaming_download(request, chunks, chunk_size):
     response['Content-Length'] = chunks * chunk_size
     return response
 
-@api_view(['POST'])
-def streaming_upload(request):
-    f = request.FILES["file"]
+def output_file_info(f):
     if f.multiple_chunks():
         # big file
         total_chunks = 0
@@ -46,4 +45,24 @@ def streaming_upload(request):
     else:
         # small file
         logger.info("Received the whole file: %d bytes", f.size)
+
+@api_view(['POST'])
+def streaming_upload_post(request):
+    f = request.FILES['file']
+    output_file_info(f)
+    return JsonResponse({})
+
+@api_view(['PUT'])
+@parser_classes((FileUploadParser,))
+def streaming_upload_put(request):
+    f = request.data['file']
+    output_file_info(f)
+    return JsonResponse({})
+
+@api_view(['GET'])
+def redirect_from(request):
+    return redirect('redirect_to')
+
+@api_view(['GET'])
+def redirect_to(request):
     return JsonResponse({})
