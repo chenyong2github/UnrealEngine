@@ -39,30 +39,32 @@ static EAutoPad AutoPadFromString(FStringView StringVal)
     }
 }
 
-template<typename T>
-static bool IsEqualOrBroadcastable(TConstArrayView<T> ShapeA, TConstArrayView<T> ShapeB)
+static bool CheckElementwiseTensor(ENNETensorDataType DataType, const NNE::FSymbolicTensorShape& TensorShape)
 {
-    if(ShapeA.Num() < ShapeB.Num())
+    if (DataType != ENNETensorDataType::Float)
     {
+        UE_LOG(LogNNE, Warning, TEXT("Invalid DML tensor data type"));
         return false;
     }
 
-    int32 IdxOffset = 0;
-
-    if(ShapeB.Num() < ShapeA.Num())
+    if(!TensorShape.IsConcrete())
     {
-        IdxOffset = ShapeA.Num() - ShapeB.Num();
+        UE_LOG(LogNNE, Warning, TEXT("DML tensor shape must be concrete"));
+        return false;
     }
 
-    for(int32 Idx = 0; Idx < ShapeB.Num(); ++Idx)
+    if (NNE::FTensorShape::MakeFromSymbolic(TensorShape).Volume() == 0)
     {
-        if(ShapeA[Idx + IdxOffset] != ShapeB[Idx])
-        {
-            if(ShapeB[Idx] != 1)
-            {
-                return false;
-            }
-        }
+        UE_LOG(LogNNE, Warning, TEXT("Invalid DML tensor size, it's 0"));
+        return false;
+    }
+
+    const int32 MinTensorRank(0), MaxTensorRank(DML_TENSOR_DIMENSION_COUNT_MAX1);
+
+    if (TensorShape.Rank() < MinTensorRank || TensorShape.Rank() > MaxTensorRank)
+    {
+        UE_LOG(LogNNE, Warning, TEXT("Invalid DML tensor rank: %d [%d,%d]"), TensorShape.Rank(), MinTensorRank, MaxTensorRank);
+        return false;
     }
 
     return true;

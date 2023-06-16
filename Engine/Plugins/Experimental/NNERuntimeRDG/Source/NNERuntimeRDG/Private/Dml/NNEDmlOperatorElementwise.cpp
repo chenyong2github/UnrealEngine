@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #ifdef NNE_USE_DIRECTML
 #include "NNEDmlOperator.h"
+#include "NNEDmlOperatorUtils.h"
 
 namespace UE::NNERuntimeRDG::Private::Dml
 {
@@ -25,7 +26,17 @@ public:
 
 	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
-		//TODO
+		if(InputShapes.Num() != 1)
+		{
+			UE_LOG(LogNNE, Warning, TEXT("Invalid number of input tensors"));
+			return false;
+		}
+
+		if(!CheckElementwiseTensor(InputTypes[0], InputShapes[0]))
+		{
+			return false;
+		}
+
 		return true;
 	}
 
@@ -135,7 +146,22 @@ public:
 
 	static bool Validate(const NNE::FAttributeMap& AttributeMap, TConstArrayView<ENNETensorDataType> InputTypes, TConstArrayView<NNE::FSymbolicTensorShape> InputShapes)
 	{
-		//TODO
+		if(InputShapes.Num() != 2)
+		{
+			UE_LOG(LogNNE, Warning, TEXT("Invalid number of input tensors"));
+			return false;
+		}
+
+		if(!CheckElementwiseTensor(InputTypes[0], InputShapes[0]))
+		{
+			return false;
+		}
+
+		if(!CheckElementwiseTensor(InputTypes[1], InputShapes[1]))
+		{
+			return false;
+		}
+
 		return true;
 	}
 
