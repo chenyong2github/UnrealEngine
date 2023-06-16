@@ -537,19 +537,6 @@ namespace UnrealBuildTool
 			return OutputFiles;
 		}
 
-		public override void ModifyTargetReceipt(ReadOnlyTargetRules Target, TargetReceipt Receipt)
-		{
-			base.ModifyTargetReceipt(Target, Receipt);
-
-			if (Receipt.Platform == UnrealTargetPlatform.Mac && !Target.bIsBuildingConsoleApplication
-				&& Receipt.Launch != null && String.IsNullOrEmpty(Receipt.Launch!.GetExtension())
-				&& !Receipt.Launch.FullName.Contains(".app/Contents/MacOS/", StringComparison.OrdinalIgnoreCase))
-			{
-				// For Mac binary executables, we may build it outside of app, but expect it to be inside of .app after modern Xcode does its thing
-				Receipt.Launch = Receipt.Launch + ".app/Contents/MacOS/" + Receipt.Launch.GetFileName();
-			}
-		}
-
 		#region Stub Xcode Projects
 
 		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments, ILogger Logger, out DirectoryReference? XcodeProjectFile)

@@ -1120,15 +1120,15 @@ namespace UnrealBuildTool
 
 			if (!BundleContentsDirectories.ContainsKey(Target) && Binary.Type == UEBuildBinaryType.Executable)
 			{
-				if (!Binary.OutputFilePath.Directory.FullName.EndsWith(".app/Contents/MacOS", StringComparison.OrdinalIgnoreCase))
+				// For Mac binary executables, we may build it outside of app, but expect it to be inside of .app after modern Xcode does its thing
+				FileReference FinalBinaryPath = Binary.OutputFilePath;
+				if (!FinalBinaryPath.Directory.FullName.EndsWith(".app/Contents/MacOS", StringComparison.OrdinalIgnoreCase))
 				{
-					// The output binary is outside of the .app bundle (modern Xcode will move it later in the build proccess)
-					BundleContentsDirectories.Add(Target, DirectoryReference.Combine(Binary.OutputFilePath.Directory, Binary.OutputFilePath.GetFileName() + ".app", "Contents"));
+					FinalBinaryPath = FileReference.Combine(FinalBinaryPath.Directory, FinalBinaryPath.GetFileName() + ".app", "Contents", "MacOS", FinalBinaryPath.GetFileName());
+					BuildProducts.Remove(Binary.OutputFilePath);
+					BuildProducts.Add(FinalBinaryPath, BuildProductType.Executable);
 				}
-				else
-				{
-					BundleContentsDirectories.Add(Target, Binary.OutputFilePath.Directory.ParentDirectory!);
-				}
+				BundleContentsDirectories.Add(Target, FinalBinaryPath.Directory.ParentDirectory!);
 			}
 			DirectoryReference? BundleContentsDirectory = BundleContentsDirectories.GetValueOrDefault(Target);
 
