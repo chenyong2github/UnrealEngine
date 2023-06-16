@@ -129,7 +129,7 @@ public:
 	 * @param TrackEditorDelegates Delegates to call to create auto-key handlers for this sequencer.
 	 * @param EditorObjectBindingDelegates Delegates to call to create object bindings for this sequencer.
 	 */
-	void InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates);
+	void InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegatess, const TArray<FOnCreateOutlinerColumn>& OutlinerColumnDelegates);
 
 	/** @return The current view range */
 	virtual FAnimatedRange GetViewRange() const override;
@@ -285,6 +285,14 @@ public:
 	const TArray<TSharedPtr<ISequencerTrackEditor>>& GetTrackEditors() const
 	{
 		return TrackEditors;
+	}
+
+	/**
+	* @return Outliner Columns registered to the sequencer by column name
+	*/
+	const TMap<FName, TSharedPtr<ISequencerOutlinerColumn>>& GetOutlinerColumns() const
+	{
+		return OutlinerColumns;
 	}
 
 public:
@@ -1147,6 +1155,9 @@ private:
 	/** List of tools we own */
 	TArray<TSharedPtr<ISequencerTrackEditor>> TrackEditors;
 	TMap<FObjectKey, TSharedPtr<ISequencerTrackEditor>> TrackEditorsByType;
+
+	/** List of Outliner column creators that are supported by the Sequencer. */
+	TMap<FName, TSharedPtr<ISequencerOutlinerColumn>> OutlinerColumns;
 
 	/** List of object bindings we can use */
 	TArray<TSharedPtr<ISequencerEditorObjectBinding>> ObjectBindings;

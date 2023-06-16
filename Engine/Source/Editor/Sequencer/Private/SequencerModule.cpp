@@ -163,7 +163,7 @@ public:
 
 		OnPreSequencerInit.Broadcast(Sequencer, ObjectChangeListener, InitParams);
 
-		Sequencer->InitSequencer(InitParams, ObjectChangeListener, TrackEditorDelegates, EditorObjectBindingDelegates);
+		Sequencer->InitSequencer(InitParams, ObjectChangeListener, TrackEditorDelegates, EditorObjectBindingDelegates, OutlinerColumnDelegates);
 
 		OnSequencerCreated.Broadcast(Sequencer);
 
@@ -215,6 +215,15 @@ public:
 	virtual void UnregisterTrackModel(FDelegateHandle InHandle) override
 	{
 		TrackModelDelegates.RemoveAll([=](const FOnCreateTrackModel& Delegate) { return Delegate.GetHandle() == InHandle; });
+	}
+
+	virtual FDelegateHandle RegisterOutlinerColumn(FOnCreateOutlinerColumn InCreator) override {
+		OutlinerColumnDelegates.Add(InCreator);
+		return OutlinerColumnDelegates.Last().GetHandle();
+	}
+
+	virtual void UnregisterOutlinerColumn(FDelegateHandle InHandle) override {
+		OutlinerColumnDelegates.RemoveAll([=](const FOnCreateOutlinerColumn& Delegate) { return Delegate.GetHandle() == InHandle; });
 	}
 
 	virtual FDelegateHandle RegisterOnSequencerCreated(FOnSequencerCreated::FDelegate InOnSequencerCreated) override
@@ -482,6 +491,9 @@ private:
 
 	/** List of track model creators */
 	TArray<FOnCreateTrackModel> TrackModelDelegates;
+
+	/** List of outliner column creators */
+	TArray<FOnCreateOutlinerColumn> OutlinerColumnDelegates;
 
 	/** Global details row extension delegate; */
 	FDelegateHandle OnGetGlobalRowExtensionHandle;

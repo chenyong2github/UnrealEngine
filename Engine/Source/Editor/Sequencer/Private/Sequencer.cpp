@@ -127,6 +127,7 @@
 #include "SequencerKeyActor.h"
 #include "ISequencerChannelInterface.h"
 #include "IMovieRendererInterface.h"
+#include "ISequencerOutlinerColumn.h"
 #include "SequencerKeyCollection.h"
 #include "CurveEditor.h"
 #include "CurveEditorScreenSpace.h"
@@ -281,7 +282,7 @@ namespace UE
 } // namespace UE
 
 
-void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates)
+void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates, const TArray<FOnCreateOutlinerColumn>& OutlinerColumnDelegates)
 {
 	using namespace UE::Sequencer;
 
@@ -442,6 +443,19 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		if (TrackEditor->SupportsSequence(InitParams.RootSequence))
 		{
 			TrackEditors.Add( TrackEditor );
+		}
+	}
+
+	// OutlinerColumns are registered to be provided to SOutlinerView by SSequencer
+	for (int32 DelegateIndex = 0; DelegateIndex < OutlinerColumnDelegates.Num(); ++DelegateIndex)
+	{
+		check(OutlinerColumnDelegates[DelegateIndex].IsBound());
+		TSharedRef<ISequencerOutlinerColumn> OutlinerColumn = OutlinerColumnDelegates[DelegateIndex].Execute(SharedThis(this));
+
+		if (OutlinerColumn->SupportsSequence(InitParams.RootSequence))
+		{
+			check(!OutlinerColumns.Contains(OutlinerColumn->GetColumnName()));
+			OutlinerColumns.Add(OutlinerColumn->GetColumnName(), OutlinerColumn);
 		}
 	}
 
