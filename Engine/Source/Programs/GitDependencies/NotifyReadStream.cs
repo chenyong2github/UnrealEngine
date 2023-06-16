@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -12,11 +12,11 @@ namespace GitDependencies
 
 	class NotifyReadStream : Stream
 	{
-		Stream Inner;
+		Stream? Inner;
 		NotifyReadDelegate NotifyRead;
 		long TotalRead;
 
-		public NotifyReadStream(Stream InInner, NotifyReadDelegate InNotifyRead)
+		public NotifyReadStream(Stream? InInner, NotifyReadDelegate InNotifyRead)
 		{
 			Inner = InInner;
 			NotifyRead = InNotifyRead;
@@ -61,7 +61,7 @@ namespace GitDependencies
 
 		public override long Length
 		{
-			get { return Inner.Length; }
+			get { return Inner!.Length; }
 		}
 
 		public override void SetLength(long Value)
@@ -71,7 +71,7 @@ namespace GitDependencies
 
 		public override int Read(byte[] Buffer, int Offset, int Count)
 		{
-			int SizeRead = Inner.Read(Buffer, Offset, Count);
+			int SizeRead = Inner!.Read(Buffer, Offset, Count);
 			NotifyRead(SizeRead);
 			TotalRead += SizeRead;
 			return SizeRead;
@@ -89,7 +89,7 @@ namespace GitDependencies
 
 		public override void Flush()
 		{
-			Inner.Flush();
+			Inner!.Flush();
 		}
 	}
 }

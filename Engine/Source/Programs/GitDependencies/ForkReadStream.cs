@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -10,10 +10,10 @@ namespace GitDependencies
 {
 	class ForkReadStream : Stream
 	{
-		Stream Inner;
-		Stream ForkWrite;
+		Stream? Inner;
+		Stream? ForkWrite;
 
-		public ForkReadStream(Stream InInner, Stream InForkWrite)
+		public ForkReadStream(Stream? InInner, Stream? InForkWrite)
 		{
 			Inner = InInner;
 			ForkWrite = InForkWrite;
@@ -52,7 +52,7 @@ namespace GitDependencies
 		{
 			get
 			{
-				return Inner.Position;
+				return Inner!.Position;
 			}
 			set
 			{
@@ -62,7 +62,7 @@ namespace GitDependencies
 
 		public override long Length
 		{
-			get { return Inner.Length; }
+			get { return Inner!.Length; }
 		}
 
 		public override void SetLength(long Value)
@@ -72,10 +72,10 @@ namespace GitDependencies
 
 		public override int Read(byte[] Buffer, int Offset, int Count)
 		{
-			int SizeRead = Inner.Read(Buffer, Offset, Count);
+			int SizeRead = Inner!.Read(Buffer, Offset, Count);
 			if (SizeRead > 0)
 			{
-				ForkWrite.Write(Buffer, Offset, SizeRead);
+				ForkWrite!.Write(Buffer, Offset, SizeRead);
 			}
 			return SizeRead;
 		}
@@ -92,7 +92,7 @@ namespace GitDependencies
 
 		public override void Flush()
 		{
-			ForkWrite.Flush();
+			ForkWrite!.Flush();
 		}
 	}
 }

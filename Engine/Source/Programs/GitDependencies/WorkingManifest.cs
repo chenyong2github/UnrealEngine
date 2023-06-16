@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -12,13 +12,13 @@ namespace GitDependencies
 	public class WorkingFile
 	{
 		[XmlAttribute]
-		public string Name;
+		public string Name = null!;
 
 		[XmlAttribute]
-		public string Hash;
+		public string Hash = null!;
 
 		[XmlAttribute]
-		public string ExpectedHash;
+		public string ExpectedHash = null!;
 
 		[XmlAttribute]
 		public long Timestamp;

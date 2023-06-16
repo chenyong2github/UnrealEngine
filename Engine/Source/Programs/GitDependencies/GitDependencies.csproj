@@ -10,8 +10,8 @@
     <Configurations>Debug;Release;Development</Configurations>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <DebugType>pdbonly</DebugType> 
-    <Nullable>disable</Nullable> 
-    <PlatformTarget>x64</PlatformTarget> 
+    <Nullable>enable</Nullable> 
+    <PlatformTarget>AnyCPU</PlatformTarget> 
     <StartupObject>GitDependencies.Program</StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Development|AnyCPU' ">

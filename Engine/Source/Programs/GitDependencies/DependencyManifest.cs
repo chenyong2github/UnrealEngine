@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -22,13 +22,13 @@ namespace GitDependencies
 		/// Name of the file, relative to the root. Directories are separated with forward slashes, without a leading slash.
 		/// </summary>
 		[XmlAttribute]
-		public string Name;
+		public string Name = null!;
 
 		/// <summary>
 		/// Hash of this file. Used to determine which blob represents its contents.
 		/// </summary>
 		[XmlAttribute]
-		public string Hash;
+		public string Hash = null!;
 
 		/// <summary>
 		/// Whether this file should have the exectuable bit set, on platforms that support it.
@@ -48,7 +48,7 @@ namespace GitDependencies
 		/// Hash of the blob.
 		/// </summary>
 		[XmlAttribute]
-		public string Hash;
+		public string Hash = null!;
 
 		/// <summary>
 		/// Size of the blob.
@@ -60,7 +60,7 @@ namespace GitDependencies
 		/// Hash of the pack file containing this blob.
 		/// </summary>
 		[XmlAttribute]
-		public string PackHash;
+		public string PackHash = null!;
 
 		/// <summary>
 		/// Offset of this blob's data within the pack file.
@@ -79,7 +79,7 @@ namespace GitDependencies
 		/// Hash of this pack file.
 		/// </summary>
 		[XmlAttribute]
-		public string Hash;
+		public string Hash = null!;
 
 		/// <summary>
 		/// Size of this pack file, when uncompressed.
@@ -97,7 +97,7 @@ namespace GitDependencies
 		/// Subdirectory for this pack file on the remote server.
 		/// </summary>
 		[XmlAttribute]
-		public string RemotePath;
+		public string RemotePath = null!;
 	}
 
 	/// <summary>
