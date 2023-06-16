@@ -180,6 +180,10 @@ namespace UE::RivermaxCore::Private
 		/** Used to know when a frame is ready to be used and receive new data */
 		void OnFrameReadyToBeUsed();
 
+		/** Used to detect when the frame manager has caught a critical error */
+		void OnFrameManagerCriticalError();
+
+
 	private:
 
 		/** Options related to this stream. i.e resolution, frame rate, etc... */

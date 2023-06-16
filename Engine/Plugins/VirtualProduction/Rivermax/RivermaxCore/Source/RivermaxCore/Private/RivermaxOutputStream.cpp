@@ -412,13 +412,7 @@ namespace UE::RivermaxCore::Private
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxOutputStream::PushVideoFrame);
 
-		const bool bSuccess = FrameManager->SetFrameData(NewFrame);
-		if (!bSuccess)
-		{
-			Listener->OnStreamError();
-		}
-
-		return bSuccess;
+		return FrameManager->SetFrameData(NewFrame);
 	}
 
 	void FRivermaxOutputStream::Process_AnyThread()
@@ -1322,5 +1316,12 @@ namespace UE::RivermaxCore::Private
 	{
 		Listener->OnPreFrameEnqueue();
 	}
+
+	void FRivermaxOutputStream::OnFrameManagerCriticalError()
+	{
+		Listener->OnStreamError();
+		Stop();
+	}
+
 }
 

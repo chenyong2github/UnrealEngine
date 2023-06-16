@@ -188,7 +188,7 @@ namespace UE::MediaCapture
 		/** Register a render pass' resources with the render graph builder. Calling this multiple times will simply return the (already) registered resource. */
 		static FRDGViewableResource* RegisterPassOutputResource(const UE::MediaCapture::FRenderPassFrameResources& InFrameResources, FRDGBuilder& InRDGBuilder, const UE::MediaCapture::FRenderPass& InRenderPass);
 	private:
-		TWeakObjectPtr<UMediaCapture> WeakMediaCapture;
+		UMediaCapture* MediaCapture = nullptr;
 		TArray<FRenderPass> RenderPasses;
 	};
 

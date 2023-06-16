@@ -489,14 +489,14 @@ namespace UE::MediaCapture
 	}
 
 	FRenderPipeline::FRenderPipeline(UMediaCapture* InMediaCapture)
-		: WeakMediaCapture(InMediaCapture)
+		: MediaCapture(InMediaCapture)
 	{
 		RenderPasses = FRenderPass::CreateRenderPasses(InMediaCapture);
 	}
 
 	void FRenderPipeline::InitializeResources_RenderThread(const TSharedPtr<MediaCaptureData::FCaptureFrame>& CapturingFrame, FRDGBuilder& GraphBuilder, FRDGTextureRef InputResource) const
 	{
-		if (UMediaCapture* MediaCapture = WeakMediaCapture.Get())
+		if (CapturingFrame->bMediaCaptureActive)
 		{
 			FInitializePassOutputArgs InitializePassOutputArgs;
 			InitializePassOutputArgs.MediaCapture = MediaCapture;
@@ -525,7 +525,7 @@ namespace UE::MediaCapture
 	{
 		FRDGViewableResource* PreviousOutput = InputRGBTexture;
 
-		if (UMediaCapture* MediaCapture = WeakMediaCapture.Get())
+		if (CapturingFrame->bMediaCaptureActive)
 		{
 			for (const UE::MediaCapture::FRenderPass& RenderPass : RenderPasses)
 			{

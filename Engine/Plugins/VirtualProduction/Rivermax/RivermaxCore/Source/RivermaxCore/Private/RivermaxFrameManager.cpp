@@ -21,6 +21,7 @@ namespace UE::RivermaxCore::Private
 		OnFrameReadyDelegate = Args.OnFrameReadyDelegate;
 		OnPreFrameReadyDelegate = Args.OnPreFrameReadyDelegate;
 		OnFreeFrameDelegate = Args.OnFreeFrameDelegate;
+		OnCriticalErrorDelegate = Args.OnCriticalErrorDelegate;
 		FrameResolution = Args.Resolution;
 		TotalFrameCount = Args.NumberOfFrames;
 		const uint32 FrameSize = FrameResolution.Y * Args.Stride;
@@ -190,11 +191,17 @@ namespace UE::RivermaxCore::Private
 
 	bool FFrameManager::SetFrameData(const FRivermaxOutputVideoFrameInfo& NewFrameInfo)
 	{
+		bool bSuccess = false;
 		if (TSharedPtr<FRivermaxOutputFrame> NextFrame = GetNextFrame(NewFrameInfo.FrameIdentifier))
 		{
-			return FrameAllocator->CopyData(NewFrameInfo, NextFrame);
+			 bSuccess = FrameAllocator->CopyData(NewFrameInfo, NextFrame);
+			 if (!bSuccess)
+			 {
+				 OnCriticalErrorDelegate.ExecuteIfBound();
+			 }
+			 
 		}
-		return true;
+		return bSuccess;
 	}
 
 	void FFrameManager::OnDataCopied(const TSharedPtr<FRivermaxOutputFrame>& Frame)

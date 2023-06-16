@@ -35,6 +35,7 @@ namespace UE::RivermaxCore::Private
 	DECLARE_DELEGATE(FOnFrameReadyDelegate);
 	DECLARE_DELEGATE(FOnPreFrameReadyDelegate);
 	DECLARE_DELEGATE(FOnFreeFrameDelegate);
+	DECLARE_DELEGATE(FOnCriticalErrorDelegate);
 
 	/** Holds arguments to configure frame manager during initialization */
 	struct FFrameManagerSetupArgs
@@ -52,13 +53,16 @@ namespace UE::RivermaxCore::Private
 		bool bTryGPUAllocation = true;
 
 		/** Delegate called when a frame is now free to use */
-		FOnFreeFrameDelegate OnFreeFrameDelegate = nullptr;
+		FOnFreeFrameDelegate OnFreeFrameDelegate;
 
 		/** Delegate triggered just before a frame is enqueued to be sent */
-		FOnPreFrameReadyDelegate OnPreFrameReadyDelegate = nullptr;
+		FOnPreFrameReadyDelegate OnPreFrameReadyDelegate;
 		
 		/** Delegate called when a frame is now ready to be sent */
-		FOnFrameReadyDelegate OnFrameReadyDelegate = nullptr;
+		FOnFrameReadyDelegate OnFrameReadyDelegate;
+
+		/** Delegate called when a critical has happened and stream should shut down */
+		FOnCriticalErrorDelegate OnCriticalErrorDelegate;
 	};
 
 	/** 
@@ -150,13 +154,16 @@ namespace UE::RivermaxCore::Private
 		TUniquePtr<FBaseFrameAllocator> FrameAllocator;
 
 		/** Delegate triggered when a frame is free to use */
-		FOnFreeFrameDelegate OnFreeFrameDelegate = nullptr;
+		FOnFreeFrameDelegate OnFreeFrameDelegate;
 
 		/** Delegate triggered just before a frame is enqueued to be sent */
-		FOnPreFrameReadyDelegate OnPreFrameReadyDelegate = nullptr;
+		FOnPreFrameReadyDelegate OnPreFrameReadyDelegate;
 		
 		/** Delegate triggered when a frame is ready to be sent (video data has been copied) */
-		FOnFrameReadyDelegate OnFrameReadyDelegate = nullptr;
+		FOnFrameReadyDelegate OnFrameReadyDelegate;
+
+		/** Delegate triggered when a critical error has happened and stream should shut down */
+		FOnCriticalErrorDelegate OnCriticalErrorDelegate;
 		
 		/** List of available frames. */
 		TArray<int32> FreeFrames;
