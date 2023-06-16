@@ -3314,7 +3314,9 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FRHICommandListBase& RHICmdLi
 {
 	INC_DWORD_STAT(STAT_D3D12RayTracingAllocatedBLAS);
 
-	DebugName = !Initializer.DebugName.IsNone() ? Initializer.DebugName : FDebugName(FName(TEXT("BLAS")));
+	static const FName NAME_BLAS(TEXT("BLAS"));
+
+	DebugName = !Initializer.DebugName.IsNone() ? Initializer.DebugName : NAME_BLAS;
 	OwnerName = Initializer.OwnerName;
 	
 	FMemory::Memzero(bHasPendingCompactionRequests);

@@ -2106,15 +2106,9 @@ FDebugName::FDebugName(FName InName, int32 InNumber)
 {
 }
 
-FDebugName::FDebugName(FMemoryImageName InName, int32 InNumber)
-	: Name(InName)
-	, Number(InNumber)
-{
-}
-
 FDebugName& FDebugName::operator=(FName Other)
 {
-	Name = FMemoryImageName(Other);
+	Name = Other;
 	Number = NAME_NO_NUMBER_INTERNAL;
 	return *this;
 }
@@ -2122,7 +2116,7 @@ FDebugName& FDebugName::operator=(FName Other)
 FString FDebugName::ToString() const
 {
 	FString Out;
-	FName(Name).AppendString(Out);
+	Name.AppendString(Out);
 	if (Number != NAME_NO_NUMBER_INTERNAL)
 	{
 		Out.Appendf(TEXT("_%u"), Number);
@@ -2132,7 +2126,7 @@ FString FDebugName::ToString() const
 
 void FDebugName::AppendString(FStringBuilderBase& Builder) const
 {
-	FName(Name).AppendString(Builder);
+	Name.AppendString(Builder);
 	if (Number != NAME_NO_NUMBER_INTERNAL)
 	{
 		Builder << '_' << Number;

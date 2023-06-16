@@ -2976,13 +2976,10 @@ public:
  */
 class FDebugName
 {
-	DECLARE_INLINE_TYPE_LAYOUT(FDebugName, NonVirtual);
-
 public:
 	RHI_API FDebugName();
 	RHI_API FDebugName(FName InName);
 	RHI_API FDebugName(FName InName, int32 InNumber);
-	RHI_API FDebugName(FMemoryImageName InName, int32 InNumber);
 
 	RHI_API FDebugName& operator=(FName Other);
 
@@ -2991,8 +2988,8 @@ public:
 	RHI_API void AppendString(FStringBuilderBase& Builder) const;
 
 private:
-	LAYOUT_FIELD(FMemoryImageName, Name);
-	LAYOUT_FIELD(uint32, Number);
+	FName Name;
+	uint32 Number;
 };
 
 //
@@ -3089,71 +3086,69 @@ DECLARE_INTRINSIC_TYPE_LAYOUT(ERayTracingGeometryInitializerType);
 
 struct FRayTracingGeometrySegment
 {
-	DECLARE_TYPE_LAYOUT(FRayTracingGeometrySegment, NonVirtual);
 public:
-	LAYOUT_FIELD_INITIALIZED(FBufferRHIRef, VertexBuffer, nullptr);
-	LAYOUT_FIELD_INITIALIZED(EVertexElementType, VertexBufferElementType, VET_Float3);
+	FBufferRHIRef VertexBuffer = nullptr;
+	EVertexElementType VertexBufferElementType = VET_Float3;
 
 	// Offset in bytes from the base address of the vertex buffer.
-	LAYOUT_FIELD_INITIALIZED(uint32, VertexBufferOffset, 0);
+	uint32 VertexBufferOffset = 0;
 
 	// Number of bytes between elements of the vertex buffer (sizeof VET_Float3 by default).
 	// Must be equal or greater than the size of the position vector.
-	LAYOUT_FIELD_INITIALIZED(uint32, VertexBufferStride, 12);
+	uint32 VertexBufferStride = 12;
 
 	// Number of vertices (positions) in VertexBuffer.
 	// If an index buffer is present, this must be at least the maximum index value in the index buffer + 1.
-	LAYOUT_FIELD_INITIALIZED(uint32, MaxVertices, 0);
+	uint32 MaxVertices = 0;
 
 	// Primitive range for this segment.
-	LAYOUT_FIELD_INITIALIZED(uint32, FirstPrimitive, 0);
-	LAYOUT_FIELD_INITIALIZED(uint32, NumPrimitives, 0);
+	uint32 FirstPrimitive = 0;
+	uint32 NumPrimitives = 0;
 
 	// Indicates whether any-hit shader could be invoked when hitting this geometry segment.
 	// Setting this to `false` turns off any-hit shaders, making the section "opaque" and improving ray tracing performance.
-	LAYOUT_FIELD_INITIALIZED(bool, bForceOpaque, false);
+	bool bForceOpaque = false;
 
 	// Any-hit shader may be invoked multiple times for the same primitive during ray traversal.
 	// Setting this to `false` guarantees that only a single instance of any-hit shader will run per primitive, at some performance cost.
-	LAYOUT_FIELD_INITIALIZED(bool, bAllowDuplicateAnyHitShaderInvocation, true);
+	bool bAllowDuplicateAnyHitShaderInvocation = true;
 
 	// Indicates whether this section is enabled and should be taken into account during acceleration structure creation
-	LAYOUT_FIELD_INITIALIZED(bool, bEnabled, true);
+	bool bEnabled = true;
 };
 
 struct FRayTracingGeometryInitializer
 {
-	DECLARE_EXPORTED_TYPE_LAYOUT(FRayTracingGeometryInitializer, RHI_API, NonVirtual);
 public:
-	LAYOUT_FIELD_INITIALIZED(FBufferRHIRef, IndexBuffer, nullptr);
+	FBufferRHIRef IndexBuffer = nullptr;
 
 	// Offset in bytes from the base address of the index buffer.
-	LAYOUT_FIELD_INITIALIZED(uint32, IndexBufferOffset, 0);
+	uint32 IndexBufferOffset = 0;
 
-	LAYOUT_FIELD_INITIALIZED(ERayTracingGeometryType, GeometryType, RTGT_Triangles);
+	ERayTracingGeometryType GeometryType = RTGT_Triangles;
 
 	// Total number of primitives in all segments of the geometry. Only used for validation.
-	LAYOUT_FIELD_INITIALIZED(uint32, TotalPrimitiveCount, 0);
+	uint32 TotalPrimitiveCount = 0;
 
 	// Partitions of geometry to allow different shader and resource bindings.
 	// All ray tracing geometries must have at least one segment.
-	LAYOUT_FIELD(TMemoryImageArray<FRayTracingGeometrySegment>, Segments);
+	TArray<FRayTracingGeometrySegment> Segments;
 
 	// Offline built geometry data. If null, the geometry will be built by the RHI at runtime.
-	LAYOUT_FIELD_INITIALIZED(FResourceArrayInterface*, OfflineData, nullptr);
+	FResourceArrayInterface* OfflineData = nullptr;
 
 	// Pointer to an existing ray tracing geometry which the new geometry is built from.
-	LAYOUT_FIELD_INITIALIZED(FRHIRayTracingGeometry*, SourceGeometry, nullptr);
+	FRHIRayTracingGeometry* SourceGeometry = nullptr;
 
-	LAYOUT_FIELD_INITIALIZED(bool, bFastBuild, false);
-	LAYOUT_FIELD_INITIALIZED(bool, bAllowUpdate, false);
-	LAYOUT_FIELD_INITIALIZED(bool, bAllowCompaction, true);
-	LAYOUT_FIELD_INITIALIZED(ERayTracingGeometryInitializerType, Type, ERayTracingGeometryInitializerType::Rendering);
+	bool bFastBuild = false;
+	bool bAllowUpdate = false;
+	bool bAllowCompaction = true;
+	ERayTracingGeometryInitializerType Type = ERayTracingGeometryInitializerType::Rendering;
 
 	// Use FDebugName for auto-generated debug names with numbered suffixes, it is a variation of FMemoryImageName with optional number postfix.
-	LAYOUT_FIELD(FDebugName, DebugName);
+	FDebugName DebugName;
 	// Store the path name of the owner object for resource tracking. FMemoryImageName allows a conversion to/from FName.
-	LAYOUT_FIELD(FMemoryImageName, OwnerName);
+	FName OwnerName;
 };
 
 enum ERayTracingSceneLifetime
