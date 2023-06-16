@@ -112,6 +112,10 @@ protected:
 	virtual bool GetCurveWithinWidgetRange(const FSlateRect& WidgetRectangle, TArray<FCurvePointHandle>* OutPoints) const override;
 	virtual TOptional<FCurveModelID> GetHoveredCurve() const override;
 
+	virtual FText FormatToolTipCurveName(const FCurveModel& CurveModel) const;
+	virtual FText FormatToolTipTime(const FCurveModel& CurveModel, double EvaluatedTime) const;
+	virtual FText FormatToolTipValue(const FCurveModel& CurveModel, double EvaluatedValue) const;
+
 	virtual void PaintView(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const;
 
 protected:

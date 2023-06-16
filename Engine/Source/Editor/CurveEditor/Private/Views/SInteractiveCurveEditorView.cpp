@@ -730,13 +730,28 @@ void SInteractiveCurveEditorView::UpdateCurveProximities(FVector2D MousePixel)
 			HoveredCurve->Evaluate(EvaluatedTime, EvaluatedValue);
 
 			FCachedToolTipData ToolTipData;
-			ToolTipData.Text = FText::Format(LOCTEXT("CurveEditorTooltipName", "Name: {0}"), HoveredCurve->GetLongDisplayName());
-			ToolTipData.EvaluatedTime = FText::Format(LOCTEXT("CurveEditorTime", "Time: {0}"), EvaluatedTime);
-			ToolTipData.EvaluatedValue = FText::Format(LOCTEXT("CurveEditorValue", "Value: {0}"), EvaluatedValue);
+			ToolTipData.Text = FormatToolTipCurveName(*HoveredCurve);
+			ToolTipData.EvaluatedTime = FormatToolTipTime(*HoveredCurve, EvaluatedTime);
+			ToolTipData.EvaluatedValue = FormatToolTipValue(*HoveredCurve, EvaluatedValue);
 			
 			CachedToolTipData = ToolTipData;
 		}
 	}
+}
+
+FText SInteractiveCurveEditorView::FormatToolTipCurveName(const FCurveModel& CurveModel) const
+{
+	return FText::Format(LOCTEXT("CurveEditorTooltipName", "Name: {0}"), CurveModel.GetLongDisplayName());
+}
+
+FText SInteractiveCurveEditorView::FormatToolTipTime(const FCurveModel& CurveModel, double EvaluatedTime) const
+{
+	return FText::Format(LOCTEXT("CurveEditorTime", "Time: {0}"), EvaluatedTime);
+}
+
+FText SInteractiveCurveEditorView::FormatToolTipValue(const FCurveModel& CurveModel, double EvaluatedValue) const
+{
+	return FText::Format(LOCTEXT("CurveEditorValue", "Value: {0}"), EvaluatedValue);
 }
 
 void SInteractiveCurveEditorView::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
