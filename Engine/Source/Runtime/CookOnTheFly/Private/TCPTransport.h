@@ -19,7 +19,6 @@ public:
 	virtual bool ReceivePayload(FArrayReader& Payload) override;
 	virtual bool HasPendingPayload() override;
 	virtual void Disconnect() override;
-	virtual FString GetHostName() const override;
 
 private: 
 
