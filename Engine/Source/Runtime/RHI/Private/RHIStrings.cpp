@@ -5,6 +5,7 @@
 #include "RHI.h"
 #include "RHIAccess.h"
 #include "RHIShaderFormatDefinitions.inl"
+#include "RHIStaticShaderPlatformNames.h"
 #include "RHIPipeline.h"
 
 static FName NAME_PLATFORM_WINDOWS(TEXT("Windows"));

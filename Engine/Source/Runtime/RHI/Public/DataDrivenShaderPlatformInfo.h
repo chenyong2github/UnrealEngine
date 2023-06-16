@@ -5,6 +5,7 @@
 #include "RHIDefinitions.h"
 #include "RHIShaderPlatform.h"
 #include "RHIFeatureLevel.h"
+#include "UObject/NameTypes.h"
 
 class FText;
 
