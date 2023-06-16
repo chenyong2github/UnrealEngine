@@ -17,6 +17,7 @@
 #include "Misc/Paths.h"
 #include "Tasks/Task.h"
 #include "ImageCore.h"
+#include "ImageParallelFor.h"
 #include <cmath>
 
 #if PLATFORM_WINDOWS
@@ -2787,19 +2788,12 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.AdjustImageColors);
 
-		const int64 NumPixels = (int64)Image.SizeX * Image.SizeY * Image.NumSlices;
-		TArrayView64<FLinearColor> ImageColors = Image.AsRGBA32F();
-
-		int64 NumPixelsEachJob;
-		int32 NumJobs = ImageParallelForComputeNumJobsForPixels(NumPixelsEachJob,NumPixels);
-
-		ParallelFor( TEXT("Texture.AdjustImageColorsFunc.PF"),NumJobs,1, [&](int32 Index)
+		FImageCore::ImageParallelFor( TEXT("Texture.AdjustImageColorsFunc.PF"),Image, [&](FImageView & ImagePart)
 		{
-			int64 StartIndex = Index * NumPixelsEachJob;
-			int64 EndIndex = FMath::Min(StartIndex + NumPixelsEachJob, NumPixels);
+			TArrayView64<FLinearColor> ImageColors = ImagePart.AsRGBA32F();
 
-			FLinearColor * First = &ImageColors[StartIndex];
-			int64 Count = EndIndex-StartIndex;
+			FLinearColor * First = &ImageColors[0];
+			int64 Count = ImageColors.Num();
 
 			// Use new AdjustColors code only for newly added textures
 			// So existing textures maintain exactly same output as before
@@ -2811,7 +2805,7 @@ void ITextureCompressorModule::AdjustImageColors(FImage& Image, const FTextureBu
 			{
 				AdjustColorsOld(First, Count, InBuildSettings);
 			}
-		}, EParallelForFlags::Unbalanced);
+		});
 	}
 }
 
@@ -2824,25 +2818,14 @@ static void ComputeBokehAlpha(FImage& Image)
 {
 	check( Image.SizeX > 0 && Image.SizeY > 0 );
 
-	const int64 NumPixels = Image.GetNumPixels();
-	TArrayView64<FLinearColor> ImageColors = Image.AsRGBA32F();
-
 	// compute LinearAverage
-	FLinearColor LinearAverage;
-	{
-		FLinearColor LinearSum(0, 0, 0, 0);
-		for( int64 CurPixelIndex = 0; CurPixelIndex < NumPixels; ++CurPixelIndex )
-		{
-			LinearSum += ImageColors[ CurPixelIndex ];
-		}
-		LinearAverage = LinearSum / (float)NumPixels;
-	}
+	FLinearColor LinearAverage = FImageCore::ComputeImageLinearAverage(Image);
 
 	FLinearColor Scale(1, 1, 1, 1);
 
 	// we want to normalize the image to have 0.5 as average luminance, this is assuming clamping doesn't happen (can happen when using a very small Bokeh shape)
 	{
-		float RGBLum = (LinearAverage.R + LinearAverage.G + LinearAverage.B) / 3.0f;
+		float RGBLum = (LinearAverage.R + LinearAverage.G + LinearAverage.B) * (1.f/3.0f);
 
 		// ideally this would be 1 but then some pixels would need to be >1 which is not supported for the textureformat we want to use.
 		// The value affects the occlusion computation of the BokehDOF
@@ -2852,18 +2835,17 @@ static void ComputeBokehAlpha(FImage& Image)
 		Scale *= LumGoal / FMath::Max(RGBLum, 0.001f);
 	}
 
-	{
-		for( int64 CurPixelIndex = 0; CurPixelIndex < NumPixels; ++CurPixelIndex )
+	FImageCore::ImageParallelProcessLinearPixels(TEXT("PF.ComputeBokehAlpha"),Image,[&](TArrayView64<FLinearColor> & Colors) {
+		for( FLinearColor & Color : Colors )
 		{
-			const FLinearColor OriginalColor = ImageColors[ CurPixelIndex ];
-
 			// Convert to a linear color
-			FLinearColor LinearColor = OriginalColor * Scale;
-			float RGBLum = (LinearColor.R + LinearColor.G + LinearColor.B) / 3.0f;
+			FLinearColor LinearColor = Color * Scale;
+			float RGBLum = (LinearColor.R + LinearColor.G + LinearColor.B) * (1.f/3.0f);
 			LinearColor.A = FMath::Clamp(RGBLum, 0.0f, 1.0f);
-			ImageColors[ CurPixelIndex ] = LinearColor;
+			Color = LinearColor;
 		}
-	}
+		return FImageCore::ProcessLinearPixelsAction::Modified;
+	} );
 }
 
 /**

@@ -380,6 +380,7 @@ public:
 	TArrayView64<FLinearColor> AsRGBA32F() const
 	{
 		check(Format == ERawImageFormat::RGBA32F);
+		check(GammaSpace == EGammaSpace::Linear);
 		return { (struct FLinearColor*)RawData, GetNumPixels() };
 	}
 
@@ -693,7 +694,7 @@ public:
 
 IMAGECORE_API int32 ImageParallelForComputeNumJobsForPixels(int64 & OutNumPixelsPerJob,int64 NumPixels);
 
-IMAGECORE_API int32 ImageParallelForComputeNumJobsForRows(int32 & OutNumItemsPerJob,int32 SizeX,int32 SizeY);
+IMAGECORE_API int32 ImageParallelForComputeNumJobsForRows(int32 & OutNumItemsPerJob,int64 SizeX,int64 SizeY);
 
 namespace FImageCore
 {

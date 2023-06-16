@@ -70,7 +70,7 @@ static inline int32 ParallelForComputeNumJobs(int64 & OutNumItemsPerJob,int64 Nu
 	// Always use ParallelFor with "Unbalanced"  so it does not do weird things to your job count
 
 	const int32 NumWorkers = FMath::Max(1, FTaskGraphInterface::Get().GetNumWorkerThreads());
-	int32 NumJobs = (int32)(NumItems / MinNumItemsPerJob); // round down
+	int32 NumJobs = IntCastChecked<int32>(NumItems / MinNumItemsPerJob); // round down
 
 	// NumJobs is now the maximum number of jobs we would want to do
 	//	(eg. one for each small packet of MinNumItemsPerJob)
@@ -118,6 +118,8 @@ static constexpr int64 PixelsPerJobAlignment = 64; // must be power of 2
 
 IMAGECORE_API int32 ImageParallelForComputeNumJobsForPixels(int64 & OutNumPixelsPerJob,int64 NumPixels)
 {
+	check( NumPixels > 0 );
+
 	int32 NumJobs = ParallelForComputeNumJobs(OutNumPixelsPerJob,NumPixels,MinPixelsPerJob,MinPixelsForAnyJob);
 	
 	if ( NumJobs > 1 )
@@ -128,16 +130,30 @@ IMAGECORE_API int32 ImageParallelForComputeNumJobsForPixels(int64 & OutNumPixels
 		// recompute NumJobs :
 		NumJobs = (NumPixels + OutNumPixelsPerJob-1) / OutNumPixelsPerJob;
 	}
+
+	check( NumJobs*OutNumPixelsPerJob >= NumPixels );
+	check( (NumJobs-1)*OutNumPixelsPerJob < NumPixels );
+
 	return NumJobs;
 }
 
-IMAGECORE_API int32 ImageParallelForComputeNumJobsForRows(int32 & OutNumItemsPerJob,int32 SizeX,int32 SizeY)
+IMAGECORE_API int32 ImageParallelForComputeNumJobsForRows(int32 & OutNumItemsPerJob,int64 SizeX,int64 SizeY)
 {
-	int64 NumPixels = int64(SizeX)*SizeY;
+	check( SizeX > 0 && SizeY > 0 );
+
+	int64 NumPixels = SizeX*SizeY;
 	int64 OutNumPixelsPerJob;
-	int32 NumJobs = ParallelForComputeNumJobs(OutNumPixelsPerJob,NumPixels,MinPixelsPerJob,MinPixelsForAnyJob);
-	OutNumItemsPerJob = (SizeY + NumJobs-1) / NumJobs; // round up;
-	return NumJobs;
+	int64 NumJobs1 = ParallelForComputeNumJobs(OutNumPixelsPerJob,NumPixels,MinPixelsPerJob,MinPixelsForAnyJob);
+	int64 OutNumItemsPerJob64 = (SizeY + NumJobs1-1) / NumJobs1;
+	
+	// recompute NumJobs :
+	int64 NumJobs = (SizeY + OutNumItemsPerJob64-1) / OutNumItemsPerJob64;
+
+	check( OutNumItemsPerJob64*NumJobs >= SizeY );
+	check( OutNumItemsPerJob64*(NumJobs-1) < SizeY );
+
+	OutNumItemsPerJob = IntCastChecked<int32>(OutNumItemsPerJob64);
+	return IntCastChecked<int32>(NumJobs);
 }
 
 template <typename Lambda>
