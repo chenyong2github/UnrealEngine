@@ -212,9 +212,9 @@ void FSmartObjectAssetToolkit::UpdatePreviewActor()
 		return;
 	}
 
-	if (Definition->PreviewData.ObjectActorClass.IsValid())
+	if (!Definition->PreviewData.ObjectActorClass.IsNull())
 	{
-		SmartObjectViewportClient->SetPreviewActorClass(Definition->PreviewData.ObjectActorClass.Get());
+		SmartObjectViewportClient->SetPreviewActorClass(Definition->PreviewData.ObjectActorClass.LoadSynchronous());
 	}
 	else if (Definition->PreviewData.ObjectMeshPath.IsValid())
 	{
