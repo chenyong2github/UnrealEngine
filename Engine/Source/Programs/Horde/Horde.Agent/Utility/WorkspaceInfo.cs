@@ -231,6 +231,7 @@ namespace Horde.Agent.Utility
 			await newRepository.RevertAsync(perforceClient, cancellationToken);
 
 			// Create the workspace info
+			logger.LogInformation("Syncing {ClientName} to {BaseDir} from {Server}, using view:{View}", clientName, workspaceDir, info.ServerAddress, String.Join("", view.Select(x => $"\n  {x}")));
 			return new WorkspaceInfo(perforceClient, hostName, streamName, streamView, metadataDir, workspaceDir, view, removeUntrackedFiles, newRepository);
 		}
 
