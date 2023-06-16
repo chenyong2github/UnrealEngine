@@ -107,6 +107,16 @@ void IEnhancedInputSubsystemInterface::ShowMappingContextDebugInfo(UCanvas* Canv
 		{
 			const UInputMappingContext* AppliedContext = ContextPair.Key.Get();
 
+			// If you for some reason choose to not use IMC assets and instead dynamically spawn them at runtime, they could be
+			// garbage collected. This is NOT a recommended approach to using Enhanced Input, but we will put this error here
+			// just in case.
+			if (!AppliedContext)
+			{
+				DisplayDebugManager.SetDrawColor(FColor::Red);
+				DisplayDebugManager.DrawString(TEXT("Null Input Mapping Context!"));
+				continue;
+			}
+
 			DisplayDebugManager.SetDrawColor(FColor::Yellow);
 			
 			// If this context was redirected via platform settings, then add some debug info about it here
