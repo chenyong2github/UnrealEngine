@@ -566,12 +566,68 @@ bool UWorldPartitionSubsystem::HasUninitializationPendingStreamingLevels(const U
 	return false;
 }
 
+static FORCEINLINE bool IsLoadingOrPendingLoadStreamingLevel(const ULevelStreaming* InStreamingLevel)
+{
+	// Consider loading and pending to load world partition streaming levels
+	if (InStreamingLevel && InStreamingLevel->IsA<UWorldPartitionLevelStreamingDynamic>())
+	{
+		const ELevelStreamingState CurrentState = InStreamingLevel->GetLevelStreamingState();
+		return ((CurrentState == ELevelStreamingState::Loading) || ((CurrentState == ELevelStreamingState::Removed || CurrentState == ELevelStreamingState::Unloaded) && InStreamingLevel->ShouldBeLoaded()));
+	}
+	return false;
+}
+
+void UWorldPartitionSubsystem::UpdateLoadingAndPendingLoadStreamingLevels(const ULevelStreaming* InStreamingLevel)
+{
+	if (IsLoadingOrPendingLoadStreamingLevel(InStreamingLevel))
+	{
+		WorldPartitionLoadingAndPendingLoadStreamingLevels.Add(InStreamingLevel);
+	}
+	else
+	{
+		WorldPartitionLoadingAndPendingLoadStreamingLevels.Remove(InStreamingLevel);
+	}
+}
+
+int32 UWorldPartitionSubsystem::GetMaxCellsToLoad(const UWorld* InWorld)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionSubsystem::GetMaxCellsToLoad);
+	int32 MaxCellsToLoad = MAX_int32;
+	const ENetMode NetMode = InWorld->GetNetMode();
+	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
+	if (!bIsServer && !InWorld->GetIsInBlockTillLevelStreamingCompleted() && (GMaxLoadingStreamingCells > 0))
+	{
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(InWorld))
+		{
+			MaxCellsToLoad = GMaxLoadingStreamingCells;
+			for (auto It = WorldPartitionSubsystem->WorldPartitionLoadingAndPendingLoadStreamingLevels.CreateIterator(); It; ++It)
+			{
+				const ULevelStreaming* InStreamingLevel = It->Get();
+				if (IsLoadingOrPendingLoadStreamingLevel(InStreamingLevel))
+				{
+					if (!--MaxCellsToLoad)
+					{
+						break;
+					}
+				}
+				else
+				{
+					It.RemoveCurrent();
+				}
+			}
+		}
+	}
+	return MaxCellsToLoad;
+};
+
 void UWorldPartitionSubsystem::OnLevelStreamingStateChanged(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* LevelIfLoaded, ELevelStreamingState PreviousState, ELevelStreamingState NewState)
 {
 	if (InWorld != GetWorld())
 	{
 		return;
 	}
+
+	UpdateLoadingAndPendingLoadStreamingLevels(InStreamingLevel);
 
 	if (NewState == ELevelStreamingState::Removed)
 	{
@@ -628,6 +684,8 @@ void UWorldPartitionSubsystem::OnLevelStreamingTargetStateChanged(UWorld* InWorl
 	{
 		return;
 	}
+
+	UpdateLoadingAndPendingLoadStreamingLevels(InStreamingLevel);
 
 	// Make sure when a WorldPartition is LevelStreamed that changing its state to remove it from world will update the target states of its Cells right away.
 	if(InLevelIfLoaded && InNewTarget != ELevelStreamingTargetState::LoadedVisible)
@@ -952,9 +1010,7 @@ void UWorldPartitionSubsystem::UpdateStreamingStateInternal(const UWorld* InWorl
 	}
 
 	// Compute maximum number of cells to load
-	const ENetMode NetMode = World->GetNetMode();
-	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
-	int32 MaxCellsToLoad = (!bIsServer && !World->GetIsInBlockTillLevelStreamingCompleted() && (GMaxLoadingStreamingCells > 0)) ? (GMaxLoadingStreamingCells - (int32)World->GetNumStreamingLevelsBeingLoaded()) : MAX_int32;
+	int32 MaxCellsToLoad = GetMaxCellsToLoad(World);
 
 	// Process cells to activate
 	{
