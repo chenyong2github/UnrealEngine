@@ -271,11 +271,17 @@ EGeometryScriptIndexType FGeometryScriptMeshSelection::ConvertToMeshIndexArray(
 	}
 	else if (ConvertToType == EGeometryScriptIndexType::Triangle)
 	{
+		TSet<int32> UniqueTriangles;
+
 		if ( (GeoSelection->TopologyType == EGeometryTopologyType::Triangle) &&
 			 (GeoSelection->ElementType == EGeometryElementType::Vertex) )
 		{
 			UE::Geometry::EnumerateSelectionTriangles(*GeoSelection, Mesh,
-				[&](int32 TriangleID) { IndexListOut.Add(TriangleID); });
+				[&](int32 TriangleID) { UniqueTriangles.Add(TriangleID); });
+			for (int32 tid : UniqueTriangles)
+			{
+				IndexListOut.Add(tid);
+			}
 			return EGeometryScriptIndexType::Triangle;
 		}
 		else if (GeoSelection->TopologyType == EGeometryTopologyType::Polygroup && GeoSelection->ElementType == EGeometryElementType::Face)

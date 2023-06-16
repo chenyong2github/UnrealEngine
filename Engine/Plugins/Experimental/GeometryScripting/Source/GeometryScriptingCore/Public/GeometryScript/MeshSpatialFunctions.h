@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "GeometryScript/GeometryScriptTypes.h"
+#include "GeometryScript/GeometryScriptSelectionTypes.h"
 #include "MeshSpatialFunctions.generated.h"
 
 class UDynamicMesh;
@@ -149,5 +150,29 @@ public:
 		bool& bIsInside,
 		EGeometryScriptContainmentOutcomePins& Outcome,
 		UGeometryScriptDebug* Debug = nullptr );
+
+
+	/**
+	* Create Mesh Selection of mesh elements in TargetMesh contained by QueryBox, using QueryBVH to accellerate the computation.
+	* Triangles are selected if MinNumTrianglePoints or more vertices are inside the box. 
+	* PolyGroups are selected if any of their triangles are inside the box
+	* 
+	* @param QueryBVH is an acceleration structure previously built with TargetMesh.
+	* @param QueryPoint the point in the mesh's 3D local space.
+	* @param Options control the fast winding number threshold 
+	*/
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Spatial", meta=(ScriptMethod, AdvancedDisplay = "MinNumTrianglePoints"))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	SelectMeshElementsInBoxWithBVH(
+		UDynamicMesh* TargetMesh,
+		UPARAM(ref) const FGeometryScriptDynamicMeshBVH& QueryBVH,
+		FBox QueryBox,
+		FGeometryScriptSpatialQueryOptions Options,
+		FGeometryScriptMeshSelection& Selection,
+		EGeometryScriptMeshSelectionType SelectionType = EGeometryScriptMeshSelectionType::Vertices,
+		int MinNumTrianglePoints = 3,
+		UGeometryScriptDebug* Debug = nullptr );
+
+
 
 };
