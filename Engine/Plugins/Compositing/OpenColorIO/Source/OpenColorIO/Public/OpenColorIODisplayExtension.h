@@ -58,7 +58,6 @@ public:
 	/** Returns the current display configuration to be updated */
 	FOpenColorIODisplayConfiguration& GetDisplayConfiguration() { return DisplayConfiguration; }
 
-	static float DefaultDisplayGamma;
 private:
 
 	/** Cached pass resources required to apply conversion for render thread */

@@ -145,7 +145,7 @@ void UMovieGraphDeferredRenderPassNode::FMovieGraphDeferredRenderPass::Render(co
 	// OCIO: Since this is a manually created Render target we don't need Gamma to be applied.
 	// We use this render target to render to via a display extension that utilizes Display Gamma
 	// which has a default value of 2.2 (DefaultDisplayGamma), therefore we need to set Gamma on this render target to 2.2 to cancel out any unwanted effects.
-	RenderTargetInitParams.TargetGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
+	RenderTargetInitParams.TargetGamma = FOpenColorIORendering::DefaultDisplayGamma;
 	RenderTargetInitParams.PixelFormat = EPixelFormat::PF_FloatRGBA;
 
 	UTextureRenderTarget2D* RenderTarget = Renderer->GetOrCreateViewRenderTarget(RenderTargetInitParams);

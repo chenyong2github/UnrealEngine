@@ -13,6 +13,7 @@ struct FScreenPassTexture;
 struct FScreenPassViewInfo;
 class FTextureResource;
 class FSceneView;
+class FSceneViewFamily;
 class UTexture;
 class UTextureRenderTarget2D;
 class UWorld;
@@ -72,7 +73,8 @@ public:
 	 * Applies the color transform RDG pass with the provided resources.
 	 *
 	 * @param GraphBuilder Render graph builder
-	 * @param View Scene view with additional information
+	 * @param ViewInfo Scene view with additional information
+	 * @param FeatureLevel - Shader model.
 	 * @param Input Input color texture
 	 * @param Output Destination render target
 	 * @param InPassInfo OpenColorIO shader and texture resources
@@ -88,4 +90,30 @@ public:
 		const FOpenColorIORenderPassResources& InPassInfo,
 		float InGamma,
 		EOpenColorIOTransformAlpha TransformAlpha = EOpenColorIOTransformAlpha::None);
+
+	/**
+	 * Similar to the above, except gamma and feature level are handled by the function itself based on provided View.
+	 *
+	 * @param GraphBuilder Render graph builder
+	 * @param View Scene view with additional information
+	 * @param Input Input color texture
+	 * @param Output Destination render target
+	 * @param InPassInfo OpenColorIO shader and texture resources
+	 * @param TransformAlpha Whether to unpremult/invert before applying the color transform
+	 */
+	static void AddPass_RenderThread(
+		FRDGBuilder& GraphBuilder,
+		const FSceneView& View,
+		const FScreenPassTexture& Input,
+		const FScreenPassRenderTarget& Output,
+		const FOpenColorIORenderPassResources& InPassInfo,
+		EOpenColorIOTransformAlpha TransformAlpha = EOpenColorIOTransformAlpha::None);
+
+	/** 
+	* This function sets up provided view and related family to properly support OCIO. 
+	*/
+	static void PrepareView(FSceneViewFamily& InViewFamily, FSceneView& InView);
+	
+	/** */
+	static float DefaultDisplayGamma;
 };

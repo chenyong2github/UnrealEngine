@@ -33,15 +33,7 @@ void FDisplayClusterViewport_OpenColorIO::SetupSceneView(FSceneViewFamily& InOut
 {
 	if (bShaderResourceValid)
 	{
-		// Code copied from FOpenColorIODisplayExtension::SetupView():
-
-		//Force ToneCurve to be off while we'are alive to make sure the input color space is the working space : srgb linear
-		InOutViewFamily.EngineShowFlags.SetToneCurve(false);
-		// This flags sets tonampper to output to ETonemapperOutputDevice::LinearNoToneCurve
-		InOutViewFamily.SceneCaptureSource = SCS_FinalColorHDR;
-
-		InOutView.FinalPostProcessSettings.bOverride_ToneCurveAmount = 1;
-		InOutView.FinalPostProcessSettings.ToneCurveAmount = 0.0;
+		FOpenColorIORendering::PrepareView(InOutViewFamily, InOutView);
 	}
 }
 
@@ -81,7 +73,7 @@ bool FDisplayClusterViewport_OpenColorIO::IsConversionSettingsEqual(const FOpenC
 
 float FDisplayClusterViewport_OpenColorIO::GetDisplayGamma(const FDisplayClusterViewport_Context& InViewportContext) const
 {
-	const float DefaultDisplayGamma = FOpenColorIODisplayExtension::DefaultDisplayGamma;
+	const float DefaultDisplayGamma = FOpenColorIORendering::DefaultDisplayGamma;
 	const float EngineDisplayGamma = InViewportContext.RenderThreadData.EngineDisplayGamma;
 
 	// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.

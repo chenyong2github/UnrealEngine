@@ -20,7 +20,6 @@
 // for FPostProcessMaterialInputs
 #include "PostProcess/PostProcessMaterialInputs.h"
 
-float FOpenColorIODisplayExtension::DefaultDisplayGamma = 2.2f;
 
 FOpenColorIODisplayExtension::FOpenColorIODisplayExtension(const FAutoRegister& AutoRegister, FViewportClient* AssociatedViewportClient)
 	: FSceneViewExtensionBase(AutoRegister)
@@ -55,15 +54,8 @@ void FOpenColorIODisplayExtension::SetupView(FSceneViewFamily& InViewFamily, FSc
 
 	if (PassResources.IsValid())
 	{
-		//Force ToneCurve to be off while we'are alive to make sure the input color space is the working space : srgb linear
-		InViewFamily.EngineShowFlags.SetToneCurve(false);
-		// This flags sets tonampper to output to ETonemapperOutputDevice::LinearNoToneCurve
-		InViewFamily.SceneCaptureSource = SCS_FinalColorHDR;
-
-		InView.FinalPostProcessSettings.bOverride_ToneCurveAmount = 1;
-		InView.FinalPostProcessSettings.ToneCurveAmount = 0.0;
+		FOpenColorIORendering::PrepareView(InViewFamily, InView);
 	}
-
 	ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
 		[this, ResourcesRenderThread = MoveTemp(PassResources)](FRHICommandListImmediate& RHICmdList)
 		{
@@ -94,19 +86,12 @@ FScreenPassTexture FOpenColorIODisplayExtension::PostProcessPassAfterTonemap_Ren
 		Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, View.GetOverwriteLoadAction(), TEXT("OCIORenderTarget"));
 	}
 
-	const float EngineDisplayGamma = View.Family->RenderTarget->GetDisplayGamma();
-	// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
-	// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
-	float DisplayGamma = (View.Family->EngineShowFlags.Tonemapper == 0) || (View.Family->EngineShowFlags.PostProcessing == 0) ? DefaultDisplayGamma : DefaultDisplayGamma / EngineDisplayGamma;
-
 	FOpenColorIORendering::AddPass_RenderThread(
 		GraphBuilder,
 		View,
-		View.GetFeatureLevel(),
 		SceneColor,
 		Output,
-		CachedResourcesRenderThread,
-		DisplayGamma
+		CachedResourcesRenderThread
 	);
 
 	return MoveTemp(Output);

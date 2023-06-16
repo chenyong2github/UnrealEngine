@@ -23,6 +23,8 @@
 #include "TextureResource.h"
 
 
+float FOpenColorIORendering::DefaultDisplayGamma = 2.2f;
+
 namespace {
 	using namespace UE::Color;
 
@@ -102,6 +104,43 @@ void FOpenColorIORendering::AddPass_RenderThread(
 		FRDGEventName PassName = RDG_EVENT_NAME("OpenColorIOInvalidPass %dx%d", Output.ViewRect.Width(), Output.ViewRect.Height());
 		AddDrawScreenPass(GraphBuilder, MoveTemp(PassName), ViewInfo, OutputViewport, InputViewport, VertexShader, OCIOInvalidPixelShader, Parameters);
 	}
+}
+
+// static
+void FOpenColorIORendering::AddPass_RenderThread(
+	FRDGBuilder& GraphBuilder,
+	const FSceneView& View,
+	const FScreenPassTexture& Input,
+	const FScreenPassRenderTarget& Output,
+	const FOpenColorIORenderPassResources& InPassInfo,
+	EOpenColorIOTransformAlpha TransformAlpha) 
+{
+	const float EngineDisplayGamma = View.Family->RenderTarget->GetDisplayGamma();
+	// There is a special case where post processing and tonemapper are disabled. In this case tonemapper applies a static display Inverse of Gamma which defaults to 2.2.
+	// In the case when Both PostProcessing and ToneMapper are disabled we apply gamma manually. In every other case we apply inverse gamma before applying OCIO.
+	float DisplayGamma = (View.Family->EngineShowFlags.Tonemapper == 0) || (View.Family->EngineShowFlags.PostProcessing == 0) ? DefaultDisplayGamma : DefaultDisplayGamma / EngineDisplayGamma;
+
+	FOpenColorIORendering::AddPass_RenderThread(
+		GraphBuilder,
+		View,
+		View.GetFeatureLevel(),
+		Input,
+		Output,
+		InPassInfo,
+		DisplayGamma,
+		TransformAlpha
+	);
+}
+
+void FOpenColorIORendering::PrepareView(FSceneViewFamily& InViewFamily, FSceneView& InView)
+{
+	//Force ToneCurve to be off while we'are alive to make sure the input color space is the working space : srgb linear
+	InViewFamily.EngineShowFlags.SetToneCurve(false);
+	// This flags sets tonampper to output to ETonemapperOutputDevice::LinearNoToneCurve
+	InViewFamily.SceneCaptureSource = SCS_FinalColorHDR;
+
+	InView.FinalPostProcessSettings.bOverride_ToneCurveAmount = 1;
+	InView.FinalPostProcessSettings.ToneCurveAmount = 0.0;
 }
 
 // static

@@ -19,7 +19,6 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Projects",
-					"RenderCore",
 					"RHI",
 					"RenderCore",
 					"Renderer",
