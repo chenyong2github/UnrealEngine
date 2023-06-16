@@ -512,7 +512,7 @@ public:
 		// Consider using ExecuteIfBound() instead.
 		checkSlow(LocalDelegateInstance != nullptr);
 
-		return LocalDelegateInstance->Execute(Params...);
+		return LocalDelegateInstance->Execute(Forward<ParamTypes>(Params)...);
 	}
 
 	/**
@@ -533,7 +533,7 @@ public:
 
 		if (const DelegateInstanceInterfaceType* Ptr = GetDelegateInstanceProtected())
 		{
-			return Ptr->ExecuteIfSafe(Params...);
+			return Ptr->ExecuteIfSafe(Forward<ParamTypes>(Params)...);
 		}
 
 		return false;
