@@ -1156,13 +1156,8 @@ namespace Chaos
 			{
 				MEvolution->GetCollisionConstraints().SetVelocityFrictionIterations(ChaosSolverCollisionVelocityFrictionIterations);
 			}
-			if (ChaosSolverCollisionPositionShockPropagationIterations >= 0)
 			{
-				MEvolution->GetCollisionConstraints().SetPositionShockPropagationIterations(ChaosSolverCollisionPositionShockPropagationIterations);
-			}
-			if (ChaosSolverCollisionVelocityShockPropagationIterations >= 0)
-			{
-				MEvolution->GetCollisionConstraints().SetVelocityShockPropagationIterations(ChaosSolverCollisionVelocityShockPropagationIterations);
+				MEvolution->SetShockPropagationIterations(ChaosSolverCollisionPositionShockPropagationIterations, ChaosSolverCollisionVelocityShockPropagationIterations);
 			}
 			if (ChaosSolverPositionIterations >= 0)
 			{

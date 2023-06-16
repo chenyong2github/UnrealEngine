@@ -260,6 +260,11 @@ public:
 		SolverSettings.NumVelocityShockPropagationIterations = InNumIterations;
 	}
 
+	bool IsShockPropagationEnabled() const
+	{
+		return (SolverSettings.NumPositionShockPropagationIterations > 0) || (SolverSettings.NumVelocityShockPropagationIterations > 0);
+	}
+
 	int32 NumConstraints() const
 	{
 		return GetConstraints().Num();

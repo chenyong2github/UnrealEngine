@@ -599,6 +599,22 @@ void FPBDRigidsEvolutionGBF::SetIsDeterministic(const bool bInIsDeterministic)
 	IslandManager.SetIsDeterministic(bInIsDeterministic);
 }
 
+void FPBDRigidsEvolutionGBF::SetShockPropagationIterations(const int32 InPositionIts, const int32 InVelocityIts)
+{
+	// Negative inputs mean leave values as they are
+	if (InPositionIts >= 0)
+	{
+		CollisionConstraints.SetPositionShockPropagationIterations(InPositionIts);
+	}
+
+	if (InVelocityIts >= 0)
+	{
+		CollisionConstraints.SetVelocityShockPropagationIterations(InVelocityIts);
+	}
+
+	// If we have shock prop enabled, we require levels to be assigned to constraints and bodies
+	IslandManager.SetAssignLevels(CollisionConstraints.IsShockPropagationEnabled());
+}
 
 void FPBDRigidsEvolutionGBF::TestModeResetParticles()
 {

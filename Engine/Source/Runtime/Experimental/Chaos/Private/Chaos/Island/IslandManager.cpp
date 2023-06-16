@@ -452,6 +452,11 @@ namespace Chaos::Private
 		ApplyDeterminism();
 	}
 
+	void FPBDIslandManager::SetAssignLevels(const bool bInAssignLevels)
+	{
+		bAssignLevels = bInAssignLevels;
+	}
+
 	void FPBDIslandManager::AddConstraintContainer(const FPBDConstraintContainer& Container)
 	{
 		if (ConstraintContainers.Num() < Container.GetContainerId() + 1)
@@ -1732,15 +1737,13 @@ namespace Chaos::Private
 	{
 		SCOPE_CYCLE_COUNTER(STAT_IslandManager_AssignLevels);
 
-		// We only need to assign levels if shock propagation is enabled (but we always sort)
-		const bool bAssignLevels = ((CVars::ChaosSolverCollisionPositionShockPropagationIterations > 0) || (CVars::ChaosSolverCollisionVelocityShockPropagationIterations > 0));
-
 		// Could go wide here...
 		for (FPBDIsland* Island : Islands)
 		{
 			// Levels will only change when awake and when something has been added or removed
 			if (!Island->Flags.bIsSleeping && (!!Island->Flags.bItemsAdded || !!Island->Flags.bItemsRemoved))
 			{
+				// We only need to assign levels if shock propagation is enabled (but we always sort)
 				if (bAssignLevels)
 				{
 					AssignIslandLevels(Island);

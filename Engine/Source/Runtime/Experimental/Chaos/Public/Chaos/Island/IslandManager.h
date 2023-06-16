@@ -421,6 +421,7 @@ namespace Chaos::Private
 		CHAOS_API void SetGravityForces(const FPerParticleGravity* InGravity);
 		CHAOS_API void SetDisableCounterThreshold(const int32 InDisableCounterThreshold);
 		CHAOS_API void SetIsDeterministic(const bool bInIsDeterministic);
+		CHAOS_API void SetAssignLevels(const bool bInAssignLevels);
 		CHAOS_API void UpdateParticles();
 		CHAOS_API void UpdateIslands();
 		CHAOS_API void UpdateSleep();
@@ -572,6 +573,9 @@ namespace Chaos::Private
 
 		// Whether we require determinism
 		bool bIsDeterministic = false;
+
+		// Whether we should assign levels (for shock propagation)
+		bool bAssignLevels = true;
 	};
 
 

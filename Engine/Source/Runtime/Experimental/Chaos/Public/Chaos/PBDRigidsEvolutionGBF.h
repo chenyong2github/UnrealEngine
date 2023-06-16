@@ -106,6 +106,8 @@ namespace Chaos
 
 		void SetIsDeterministic(const bool bInIsDeterministic);
 
+		void SetShockPropagationIterations(const int32 InPositionIts, const int32 InVelocityIts);
+
 		CHAOS_API void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
 		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FSubStepInfo& SubStepInfo = FSubStepInfo());
 
