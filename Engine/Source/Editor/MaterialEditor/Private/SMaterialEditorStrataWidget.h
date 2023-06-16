@@ -58,7 +58,7 @@ private:
 
 	bool bBytesPerPixelStartedTransaction;
 	uint32 BytesPerPixelOverride;
-//	void OnBytesPerPixelChanged(uint32 NewValue);
+	void OnBytesPerPixelChanged(uint32 NewValue);
 	void OnBytesPerPixelCommitted(uint32 NewValue, ETextCommit::Type InCommitType);
 	void OnBeginBytesPerPixelSliderMovement();
 	void OnEndBytesPerPixelSliderMovement(uint32 NewValue);
