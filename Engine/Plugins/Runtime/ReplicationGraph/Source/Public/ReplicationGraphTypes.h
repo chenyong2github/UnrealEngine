@@ -1099,9 +1099,9 @@ ENUM_CLASS_FLAGS(FGlobalActorReplicationInfoMap::EWarnFlag);
 /** Per-Actor data that is stored per connection */
 struct FConnectionReplicationActorInfo
 {
-	FConnectionReplicationActorInfo() : bDormantOnConnection(0), bTearOff(0), bGridSpatilization_AlreadyDormant(0) { }
+	FConnectionReplicationActorInfo() : bDormantOnConnection(0), bTearOff(0), bGridSpatilization_AlreadyDormant(0), bForceCullDistanceToZero(0) { }
 
-	FConnectionReplicationActorInfo(const FGlobalActorReplicationInfo& GlobalInfo) : bDormantOnConnection(0), bTearOff(0), bGridSpatilization_AlreadyDormant(0)
+	FConnectionReplicationActorInfo(const FGlobalActorReplicationInfo& GlobalInfo) : bDormantOnConnection(0), bTearOff(0), bGridSpatilization_AlreadyDormant(0), bForceCullDistanceToZero(0)
 	{
 		// Pull data from the global actor info. This is done for things that we just want to duplicate in both places so that we can avoid a lookup into the global map
 		// and also for things that we want to be overridden per (connection/actor)
@@ -1131,8 +1131,8 @@ struct FConnectionReplicationActorInfo
 		CullDistance = FMath::Sqrt(CullDistanceSquared);
 	}
 
-	float GetCullDistance() const { return CullDistance; }
-	float GetCullDistanceSquared() const { return CullDistanceSquared; }
+	float GetCullDistance() const { return bForceCullDistanceToZero ? 0.0f : CullDistance; }
+	float GetCullDistanceSquared() const { return bForceCullDistanceToZero ? 0.0f : CullDistanceSquared; }
 
 	UActorChannel* Channel = nullptr;
 
@@ -1154,7 +1154,6 @@ public:
 	uint16	ReplicationPeriodFrame = 1;		
 	uint16	FastPath_ReplicationPeriodFrame = 1;
 	
-
 	/** The frame num that we will close the actor channel. This will get updated/pushed anytime the actor replicates based on FGlobalActorReplicationInfo::ActorChannelFrameTimeout  */
 	uint32 ActorChannelCloseFrameNum = 0;
 
@@ -1163,6 +1162,11 @@ public:
 
 	/** Used as an optimization when doing 2D Grid Spatilization, prevents replicating the dormancy of the same actor twice in splitscreen evaluations. */
 	uint8 bGridSpatilization_AlreadyDormant:1;
+
+	/** When enabled: GetCullDistance() and GetCullDistanceSquared() will return 0.0f.
+	*	When disabled: GetCullDistance() and GetCullDistanceSquared() return CullDistance and CullDistanceSquared respectively.
+	*	Useful for temporarily making the actor on this connection always relevant. */
+	uint8 bForceCullDistanceToZero:1;
 
 	void LogDebugString(FOutputDevice& Ar) const;
 };

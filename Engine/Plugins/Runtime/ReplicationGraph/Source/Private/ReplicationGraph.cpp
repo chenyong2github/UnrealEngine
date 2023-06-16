@@ -4385,12 +4385,8 @@ void UReplicationGraphNode_ConnectionDormancyNode::ConditionalGatherDormantActor
 		FConnectionReplicationActorInfo& ConnectionActorInfo = ConnectionActorInfoMap.FindOrAdd(Actor);
 		if (ConnectionActorInfo.bDormantOnConnection)
 		{
-			// If we trickled this actor, restore CullDistance to the default
-			if (ConnectionActorInfo.GetCullDistanceSquared() <= 0.f)
-			{
-				FGlobalActorReplicationInfo& GlobalInfo = GlobalActorReplicationInfoMap->Get(Actor);
-				ConnectionActorInfo.SetCullDistanceSquared(GlobalInfo.Settings.GetCullDistanceSquared());
-			}
+			// If we trickled this actor it doesn't need to be always relevant anymore.
+			ConnectionActorInfo.bForceCullDistanceToZero = false;
 
 			// It can be removed
 			ConnectionList.RemoveAtSwap(idx);
@@ -4400,11 +4396,11 @@ void UReplicationGraphNode_ConnectionDormancyNode::ConditionalGatherDormantActor
 			}
 
 			UE_CLOG(CVar_RepGraph_LogNetDormancyDetails > 0, LogReplicationGraph, Display, TEXT("GRAPH_DORMANCY: Actor %s is Dormant on %s. Removing from list. (%d elements left)"), *Actor->GetPathName(), *GetName(), ConnectionList.Num());
-			bShouldTrickle = false; // Dont trickle this frame because we are still encountering dormant actors
+			bShouldTrickle = false; // Don't trickle this frame because we are still encountering dormant actors
 		}
-		else if (CVar_RepGraph_TrickleDistCullOnDormancyNodes > 0 && bShouldTrickle)
+		else if (CVar_RepGraph_TrickleDistCullOnDormancyNodes > 0 && bShouldTrickle && ConnectionActorInfo.GetCullDistanceSquared() > 0.0f)
 		{
-			ConnectionActorInfo.SetCullDistanceSquared(0.f);
+			ConnectionActorInfo.bForceCullDistanceToZero = true;
 			bShouldTrickle = false; // trickle one actor per frame
 		}
 	}
@@ -5927,7 +5923,12 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 				{
 					if (ActorInfo->bDormantOnConnection)
 					{
-						Params.ConnectionManager.NotifyAddDormantDestructionInfo(Actor);
+						// If this actor is NOT set to always relevant, then flag this actor to be dormancy destroyed on this connection's client.
+						if (ActorInfo->GetCullDistanceSquared() > 0.0f)
+						{
+							Params.ConnectionManager.NotifyAddDormantDestructionInfo(Actor);
+						}
+
 						ActorInfo->bDormantOnConnection = false;
 						// Ideally, no actor info outside this list should be set to true, so we don't have to worry about resetting them.
 						// However we could consider iterating through the actor map to reset all of them.
