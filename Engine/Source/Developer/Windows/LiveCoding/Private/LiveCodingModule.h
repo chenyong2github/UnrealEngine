@@ -64,13 +64,28 @@ private:
 	bool StartLiveCoding(ELiveCodingStartupMode StartupMode);
 	void OnModulesChanged(FName ModuleName, EModuleChangeReason Reason);
 	void UpdateModules(bool bAllowStarting);
-	void ReservePagesTask();
 	bool ShouldPreloadModule(const TSet<FName>& PreloadedFileNames, const FString& FullFilePath) const;
 	bool IsReinstancingEnabled() const;
 	void WaitForStartup();
 	bool HasStarted(bool bAllowStarting) const;
 	void ShowConsole(bool bAllowStarting);
 	void SetBuildArguments();
+
+	struct ModuleChange
+	{
+		FName FullName;
+		bool bLoaded;
+	};
+	struct ReservePagesGlobalData
+	{
+		FCriticalSection ModuleChangeCs;
+		TArray<ModuleChange> ModuleChanges;
+		TArray<uintptr_t> ReservedPages;
+		int LastReservePagesModuleCount = 0;
+		FGraphEventRef ReservePagesTaskRef;
+	};
+	static ReservePagesGlobalData& GetReservePagesGlobalData();
+	static void ReservePagesTask();
 
 #if WITH_EDITOR
 	void ShowNotification(bool Success, const FText& Title, const FText* SubText);
@@ -115,17 +130,7 @@ private:
 	FDelegateHandle ModulesChangedDelegateHandle;
 	FOnPatchCompleteDelegate OnPatchCompleteDelegate;
 
-	struct ModuleChange
-	{
-		FName FullName;
-		bool bLoaded;
-	};
 	FCriticalSection SetBuildArgumentsCs;
-	FCriticalSection ModuleChangeCs;
-	TArray<ModuleChange> ModuleChanges;
-	TArray<uintptr_t> ReservedPages;
-	int LastReservePagesModuleCount = 0;
-	FGraphEventRef ReservePagesTaskRef;
 
 #if WITH_EDITOR
 	TUniquePtr<FReload> Reload;
