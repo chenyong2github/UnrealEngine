@@ -77,8 +77,6 @@ int GetHairRaytracingProceduralSplits()
 	return FMath::Clamp(GHairRaytracingProceduralSplits, 1, STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS);
 }
 
-bool IsHairStrandsContinousLODEnabled();
-
 inline uint32 ComputeGroupSize()
 {
 	const uint32 GroupSize = IsRHIDeviceAMD() ? 64 : (IsRHIDeviceNVIDIA() ? 32 : 64);
@@ -2071,11 +2069,6 @@ void ComputeHairStrandsInterpolation(
 					}
 				}
 
-				// When CLOD is enabled, GPU AABB are not supported yet
-				if (IsHairStrandsContinousLODEnabled())
-				{
-					bNeedGPUAABB = false;
-				}
 				Instance->HairGroupPublicData->bClusterAABBValid = false;
 				Instance->HairGroupPublicData->bGroupAABBValid = false;
 

@@ -44,8 +44,8 @@ static FAutoConsoleVariableRef CVarGHairStrands_ManualSkinCache(TEXT("r.HairStra
 static int32 GHairStrands_InterpolationFrustumCullingEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrands_InterpolationFrustumCullingEnable(TEXT("r.HairStrands.Interoplation.FrustumCulling"), GHairStrands_InterpolationFrustumCullingEnable, TEXT("Swap rendering buffer at the end of frame. This is an experimental toggle. Default:1"));
 
-static int32 GHairStrands_ContinousLOD = 0;
-static FAutoConsoleVariableRef CVarHairStrands_ContinousLOD(TEXT("r.HairStrands.ContinuousLOD"), GHairStrands_ContinousLOD, TEXT("Continuous LODing toggle."), ECVF_RenderThreadSafe);
+static int32 GHairStrands_Streaming = 0;
+static FAutoConsoleVariableRef CVarHairStrands_Streaming(TEXT("r.HairStrands.Streaming"), GHairStrands_Streaming, TEXT("Hair strands streaming toggle."), ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 EHairBufferSwapType GetHairSwapBufferType()
 {
@@ -523,11 +523,6 @@ static void RunHairStrandsInterpolation_Strands(
 		&ClusterData);
 }
 
-bool IsHairStrandsContinousLODEnabled()
-{
-	return GHairStrands_ContinousLOD > 0;
-}
-
 // Return the LOD which should be used for a given screen size and LOD bias value
 // This function is mirrored in HairStrandsClusterCommon.ush
 static float GetHairInstanceLODIndex(const TArray<float>& InLODScreenSizes, float InScreenSize, float InLODBias)
@@ -747,17 +742,6 @@ void AddHairStreamingRequest(FHairGroupInstance* Instance, int32 InLODIndex)
 	}
 }
 
-static uint32 GetHairVisibilityComputeRasterPointCount(float ScreenSize, uint32 InPointCount)
-{
-	if (IsHairVisibilityComputeRasterContinuousLODEnabled())
-	{
-		const float Scale = FMath::Clamp(FMath::Pow(FMath::Clamp(ScreenSize, 1.0f / 16.0f, 1.0f), 1.0f), 0.f, 1.f);
-		InPointCount *= Scale;
-	}
-
-	return InPointCount;
-}
-
 static FVector2f ComputeProjectedScreenPos(const FVector& InWorldPos, const FSceneView& View)
 {
 	// Compute the MinP/MaxP in pixel coord, relative to View.ViewRect.Min
@@ -787,6 +771,13 @@ static FVector2f ComputeProjectedScreenPos(const FVector& InWorldPos, const FSce
 	ScreenPos.Y = FMath::Clamp(ScreenPos.Y, ViewRect.Min.Y, ViewRect.Max.Y);
 
 	return FVector2f(ScreenPos.X, ScreenPos.Y);
+}
+
+static float ComputeActiveCurveCoverageScale(uint32 InAvailableCurveCount, uint32 InRestCurveCount)
+{
+	// Compensate lost in curve by a coverage scale increase
+	const float CurveRatio = InAvailableCurveCount / float(InRestCurveCount);
+	return 1.f/FMath::Max(CurveRatio, 0.01f);
 }
 
 static uint32 ComputeActiveCurveCount(float InScreenSize, uint32 InCurveCount)
@@ -890,35 +881,14 @@ static void RunHairLODSelection(
 			Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
 			Instance->HairGroupPublicData->ContinuousLODCoverageScale = 1.f;
 
-			if (IsHairStrandsContinousLODEnabled())
+			if (Instance->Strands.ClusterCullingResource)
 			{
-				// These values are set later, once the resources are loaded
-				Instance->HairGroupPublicData->ContinuousLODCurveCount = 0;
-				Instance->HairGroupPublicData->ContinuousLODPointCount = 0;
-			}
-			else if (IsHairStrandContinuousDecimationReorderingEnabled() && IsHairVisibilityComputeRasterContinuousLODEnabled())
-			{
-				Instance->HairGroupPublicData->ContinuousLODPointCount = GetHairVisibilityComputeRasterPointCount(MaxScreenSize_Bound, Instance->HairGroupPublicData->RestPointCount);
-				Instance->HairGroupPublicData->ContinuousLODCurveCount = Instance->HairGroupPublicData->RestCurveCount;
-			}
-			else if (Instance->Strands.ClusterCullingResource)
-			{
-				const TArray<FHairLODInfo>& LODInfos = Instance->Strands.ClusterCullingResource->BulkData.Header.LODInfos;
-
-				const int32 iLODIndex = LODIndex;
-				const float S = LODIndex - iLODIndex;
-
-				const uint32 LODIndex0 = FMath::Min(iLODIndex,   LODInfos.Num()-1);
-				const uint32 LODIndex1 = FMath::Min(iLODIndex+1, LODInfos.Num()-1);
-				const uint32 EffectiveCurveCount = FMath::Lerp(LODInfos[LODIndex1].CurveCount, LODInfos[LODIndex0].CurveCount, 1.f-S);
-
-				// Compensate lost in curve by a coverage scale increase
-				const float CurveRatio = EffectiveCurveCount / float(Instance->HairGroupPublicData->RestCurveCount);
-
+				const uint32 EffectiveCurveCount = Instance->Strands.ClusterCullingResource->BulkData.GetCurveCount(LODIndex);				            
 				check(EffectiveCurveCount <= uint32(Instance->Strands.Data->Header.CurveToPointCount.Num()));
+
 				Instance->HairGroupPublicData->ContinuousLODCurveCount = EffectiveCurveCount;
 				Instance->HairGroupPublicData->ContinuousLODPointCount = EffectiveCurveCount > 0 ? Instance->Strands.Data->Header.CurveToPointCount[EffectiveCurveCount - 1] : 0;
-				Instance->HairGroupPublicData->ContinuousLODCoverageScale = 1.f/FMath::Max(CurveRatio, 0.01f);
+				Instance->HairGroupPublicData->ContinuousLODCoverageScale = ComputeActiveCurveCoverageScale(EffectiveCurveCount, Instance->HairGroupPublicData->RestCurveCount);
 			}
 		}
 
@@ -962,7 +932,7 @@ static void RunHairLODSelection(
 				{
 					const bool bNeedLODing		= LODIndex > 0;
 					const bool bNeedDeformation = Instance->Strands.DeformedResource != nullptr;
-					bCullingEnable = (bNeedLODing || bNeedDeformation) && !IsHairStrandsContinousLODEnabled();
+					bCullingEnable = (bNeedLODing || bNeedDeformation);
 				}
 			}
 
@@ -971,12 +941,14 @@ static void RunHairLODSelection(
 				GeometryType = EHairGeometryType::NoneGeometry;
 			}
 
+			// Transform ContinuousLOD CurveCount/PointCount into streaming request
 			uint32 RequestedCurveCount = Instance->HairGroupPublicData->RestCurveCount;
 			uint32 RequestedPointCount = Instance->HairGroupPublicData->RestPointCount;
-			if (GeometryType == EHairGeometryType::Strands && IsHairStrandsContinousLODEnabled() && Instance->bSupportStreaming)
+			const bool bStreamingEnabled = GHairStrands_Streaming > 0;
+			if (GeometryType == EHairGeometryType::Strands && bStreamingEnabled && Instance->bSupportStreaming)
 			{
-				RequestedCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount);
-				RequestedPointCount = (Instance->Strands.RestResource) ? Instance->Strands.RestResource->BulkData.Header.CurveToPointCount[RequestedCurveCount -1] : 0;
+				RequestedCurveCount = Instance->HairGroupPublicData->ContinuousLODCurveCount;
+				RequestedPointCount = Instance->HairGroupPublicData->ContinuousLODPointCount;
 			}
 
 			const bool bSimulationEnable			= Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
@@ -1063,7 +1035,7 @@ static void RunHairLODSelection(
 			}
 
 			// Only switch LOD if the data are ready to be used
-			const bool bIsLODDataReady = !ResourceStatus.HasStatus(EHairResourceStatus::EStatus::Loading) || (IsHairStrandsContinousLODEnabled() && ResourceStatus.AvailableCurveCount > 0);
+			const bool bIsLODDataReady = !ResourceStatus.HasStatus(EHairResourceStatus::EStatus::Loading) || (bStreamingEnabled && ResourceStatus.AvailableCurveCount > 0);
 			if (bIsLODDataReady)
 			{
 				const uint32 IntPrevLODIndex = FMath::FloorToInt(PrevLODIndex); 
@@ -1102,8 +1074,8 @@ static void RunHairLODSelection(
 				return false;
 			}
 
-			// Adapt the number curve/point based on Bound/CPU screen-size
-			if (GeometryType == EHairGeometryType::Strands && IsHairStrandsContinousLODEnabled())
+			// Adapt the number curve/point based on available curves/points
+			if (GeometryType == EHairGeometryType::Strands && bStreamingEnabled)
 			{
 				if (!bIsLODDataReady)
 				{
@@ -1112,9 +1084,11 @@ static void RunHairLODSelection(
 				check(bIsLODDataReady);
 				check(Instance->Strands.RestResource);
 
+				// Adapt CurveCount/PointCount/CoverageScale based on what is actually available
 				const uint32 EffectiveCurveCount = FMath::Min(ResourceStatus.AvailableCurveCount, RequestedCurveCount);
 				Instance->HairGroupPublicData->ContinuousLODCurveCount = EffectiveCurveCount;
 				Instance->HairGroupPublicData->ContinuousLODPointCount = EffectiveCurveCount > 0 ? Instance->Strands.Data->Header.CurveToPointCount[EffectiveCurveCount - 1] : 0;
+				Instance->HairGroupPublicData->ContinuousLODCoverageScale = ComputeActiveCurveCoverageScale(EffectiveCurveCount, Instance->HairGroupPublicData->RestCurveCount);
 				check(Instance->HairGroupPublicData->ContinuousLODPointCount <= Instance->HairGroupPublicData->RestPointCount);
 			}
 			return true;

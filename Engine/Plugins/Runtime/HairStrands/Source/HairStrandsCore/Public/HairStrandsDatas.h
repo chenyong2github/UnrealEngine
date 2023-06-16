@@ -716,6 +716,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulk
 	virtual void SerializeHeader(FArchive& Ar, UObject* Owner) override;
 	virtual uint32 GetResourceCount() const override;
 	virtual void GetResources(FQuery& Out) override;
+	uint32 GetCurveCount(float InLODIndex) const;
 
 	bool IsValid() const { return Header.ClusterCount > 0 && Header.PointCount > 0; }
 

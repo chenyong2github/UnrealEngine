@@ -731,6 +731,20 @@ void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQ
 	}
 }
 
+uint32 FHairStrandsClusterCullingBulkData::GetCurveCount(float InLODIndex) const
+{
+	const TArray<FHairLODInfo>& LODInfos = Header.LODInfos;
+
+	InLODIndex = FMath::Max(InLODIndex, 0.f);
+
+	const int32 iLODIndex = InLODIndex;
+	const float S = InLODIndex - iLODIndex;
+
+	const uint32 LODIndex0 = FMath::Min(iLODIndex,   LODInfos.Num()-1);
+	const uint32 LODIndex1 = FMath::Min(iLODIndex+1, LODInfos.Num()-1);
+	return FMath::Lerp(LODInfos[LODIndex1].CurveCount, LODInfos[LODIndex0].CurveCount, 1.f-S);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////
 // Root data
 

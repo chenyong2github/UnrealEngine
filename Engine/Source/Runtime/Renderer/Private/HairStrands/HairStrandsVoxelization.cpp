@@ -124,12 +124,6 @@ static FAutoConsoleVariableRef CVarHairVirtualVoxelAdaptive_CorrectionThreshold(
 static int32 GHairVirtualVoxel_JitterMode = 1;
 static FAutoConsoleVariableRef CVarHairVirtualVoxel_JitterMode(TEXT("r.HairStrands.Voxelization.Virtual.Jitter"), GHairVirtualVoxel_JitterMode, TEXT("Change jittered for voxelization/traversal. 0: No jitter 1: Regular randomized jitter: 2: Constant Jitter (default = 1)"), ECVF_RenderThreadSafe);
 
-static bool IsHairStrandsContinousLODEnabled()
-{
-	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HairStrands.ContinuousLOD"));
-	return CVar && CVar->GetInt() > 0;
-}
-
 void GetVoxelPageResolution(uint32& OutPageResolution, uint32& OutPageResolutionLog2)
 {
 	OutPageResolutionLog2 = FMath::CeilLogTwo(FMath::Clamp(GHairVirtualVoxel_PageResolution, 2, 256));
@@ -138,8 +132,7 @@ void GetVoxelPageResolution(uint32& OutPageResolution, uint32& OutPageResolution
 
 static bool IsHairStrandsAdaptiveVoxelAllocationEnable()
 {
-	// HAIR_TODO: GPU driven should be compatible with CLOD
-	return !IsHairStrandsContinousLODEnabled() && GHairVirtualVoxelAdaptive_Enable > 0;
+	return GHairVirtualVoxelAdaptive_Enable > 0;
 }
 
 bool IsHairStrandsVoxelizationEnable()
@@ -154,8 +147,7 @@ bool IsHairStrandsForVoxelTransmittanceAndShadowEnable()
 
 bool IsHairStrandsGPUDrivenVoxelizationEnabled()
 {
-	// HAIR_TODO: GPU driven should be compatible with CLOD
-	return !IsHairStrandsContinousLODEnabled() && GHairVirtualVoxelGPUDriven > 0; 
+	return GHairVirtualVoxelGPUDriven > 0; 
 }
 
 
@@ -1171,7 +1163,7 @@ static void AddVirtualVoxelizationComputeRasterPass(
 				PassParameters->VertexCount = PointCount;
 				PassParameters->CoverageScale = CoverageScale;
 			
-				const bool bCullingEnable = !IsHairStrandsContinousLODEnabled() && !IsHairStrandContinuousDecimationReorderingEnabled() && HairGroupPublicData->GetCullingResultAvailable();
+				const bool bCullingEnable = HairGroupPublicData->GetCullingResultAvailable();
 
 				PassParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, *ViewInfo, HairGroupPublicData, bCullingEnable, true);
 
