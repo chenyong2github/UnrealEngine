@@ -607,14 +607,14 @@ void Main(uint3 DispatchThreadId : SV_DispatchThreadID, uint ThreadIndex : SV_Gr
 
 #if SHADER_CLUSTER_CULL_ARGS
 
-ByteAddressBuffer PointCounterBuffer;
+Buffer<uint> PointCounterBuffer;
 RWBuffer<uint> RWIndirectDrawArgsBuffer;
 RWBuffer<uint> RWIndirectDispatchArgsBuffer;
 
 [numthreads(1, 1, 1)]
 void Main(uint DispatchThreadId : SV_DispatchThreadID, uint ThreadIndex : SV_GroupIndex)
 {
-	const uint PointCount = PointCounterBuffer.Load(0);
+	const uint PointCount = PointCounterBuffer[0];
 	const uint DispatchCount = DivideAndRoundUp(PointCount, HAIR_VERTEXCOUNT_GROUP_SIZE);
 
 	RWIndirectDrawArgsBuffer[0] = PointCount * HAIR_POINT_TO_VERTEX;

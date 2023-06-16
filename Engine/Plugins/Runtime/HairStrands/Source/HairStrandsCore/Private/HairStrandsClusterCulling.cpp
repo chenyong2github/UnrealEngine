@@ -121,8 +121,8 @@ static void AddClusterCullingPass(
 	ShaderPrint::RequestSpaceForLines(2048);
 
 	// 0. Glogal counter for visible points
-	FRDGBufferRef PointCounter 	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateByteAddressDesc(4), TEXT("Hair.ClusterPointCounter"));
-	FRDGBufferUAVRef PointCounterUAV = GraphBuilder.CreateUAV(PointCounter);
+	FRDGBufferRef PointCounter 	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Hair.ClusterPointCounter"));
+	FRDGBufferUAVRef PointCounterUAV = GraphBuilder.CreateUAV(PointCounter, PF_R32_UINT);
 	AddClearUAVPass(GraphBuilder, PointCounterUAV, 0);
 
 	// 1. Build culled index buffer
@@ -182,7 +182,7 @@ static void AddClusterCullingPass(
 		FRDGImportedBuffer DrawIndirectParametersRasterComputeBuffer = Register(GraphBuilder, ClusterData.HairGroupPublicPtr->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateViews);
 
 		FHairClusterCullArgsCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterCullArgsCS::FParameters>();
-		Parameters->PointCounterBuffer = GraphBuilder.CreateSRV(PointCounter);
+		Parameters->PointCounterBuffer = GraphBuilder.CreateSRV(PointCounter, PF_R32_UINT);
 		Parameters->RWIndirectDrawArgsBuffer = DrawIndirectParametersBuffer.UAV;
 		Parameters->RWIndirectDispatchArgsBuffer = DrawIndirectParametersRasterComputeBuffer.UAV;
 
