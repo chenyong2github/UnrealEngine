@@ -1462,6 +1462,8 @@ public:
 	FLinearColor SelectionOutlineColor;
 	/** Selection color for use in the editor with inactive primitives */
 	FLinearColor SubduedSelectionOutlineColor;
+	/** Additional selection colors for the editor (used by post processing) */
+	TStaticArray<FLinearColor, 6> AdditionalSelectionOutlineColors;
 	/** True if any components are selected in isolation (independent of actor selection) */
 	bool bHasSelectedComponents;
 #endif

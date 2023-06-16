@@ -234,6 +234,11 @@ public:
 	 * Enqueue and update for the render thread to notify it that the editor is currently moving the owning component with gizmos.
 	 */
 	void SetIsBeingMovedByEditor_GameThread(bool bIsBeingMoved);
+
+	/**
+	 * Enqueue updated selection outline color for the render thread to use.
+	 */
+	void SetSelectionOutlineColorIndex_GameThread(uint8 ColorIndex);
 #endif	// WITH_EDITOR
 
 	/** Enqueue updated setting for evaluation of World Position Offset. */
@@ -684,6 +689,7 @@ public:
 	inline bool HasPerInstancePayloadExtension() const { return bHasPerInstancePayloadExtension; }
 #if WITH_EDITOR
 	inline bool HasPerInstanceEditorData() const { return bHasPerInstanceEditorData; }
+	inline uint8 GetSelectionOutlineColorIndex() const { return SelectionOutlineColorIndex; }
 #else
 	FORCEINLINE bool HasPerInstanceEditorData() const { return false; }
 #endif // WITH_EDITOR
@@ -1532,6 +1538,8 @@ private:
 #if WITH_EDITOR
 	/** A copy of the actor's group membership for handling per-view group hiding */
 	uint64 HiddenEditorViews;
+
+	uint32 SelectionOutlineColorIndex : 8;
 
 	/** Whether this should only draw in any editing mode*/
 	uint32 DrawInAnyEditMode : 1;

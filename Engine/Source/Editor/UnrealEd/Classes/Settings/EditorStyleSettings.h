@@ -74,6 +74,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=UserInterface, meta=(DisplayName="Viewport Selection Color"))
 	FLinearColor SelectionColor;
 
+	/** Additional colors used for selections with extra meaning */
+	UPROPERTY(EditAnywhere, config, Category=UserInterface, meta=(DisplayName="Additional Viewport Selection Colors"))
+	FLinearColor AdditionalSelectionColors[6];
+
 	UPROPERTY(config)
 	bool bEnableEditorWindowBackgroundColor;
 

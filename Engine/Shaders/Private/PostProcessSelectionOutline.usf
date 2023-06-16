@@ -24,16 +24,15 @@ SCREEN_PASS_TEXTURE_VIEWPORT(Color)
 SCREEN_PASS_TEXTURE_VIEWPORT(Depth)
 FScreenTransform ColorToDepth;
 
-float3 OutlineColor;
-float3 SubduedOutlineColor;
+float4 OutlineColors[8];
+int OutlineColorIndexBits;
 float SelectionHighlightIntensity;
 float BSPSelectionIntensity;
 float UILuminanceAndIsSCRGB;
 
 struct FPixelInfo
 {
-	// if there is an selected object
-	bool bObjectMask;
+	float fDepth;
 
 	int ObjectId;
 	// if the current pixel is not occluded by some other object in front of it
@@ -78,9 +77,8 @@ FPixelInfo GetPixelInfo(int2 PixelPos, int SampleID, int OffsetX, int OffsetY, f
 	// this avoids flicking artifacts on the silhouette by limiting the depth reconstruction error
 	SceneDeviceZ = max(SceneDeviceZ, DeviceZMinMax.x);
 	SceneDeviceZ = min(SceneDeviceZ, DeviceZMinMax.y);
-
-	// test against far plane
-	Ret.bObjectMask = DeviceZ != 0.0f;
+	
+	Ret.fDepth = DeviceZ;
 
 	// outline even between multiple selected objects (best usability)
 	Ret.ObjectId = Stencil;
@@ -146,6 +144,14 @@ float4 PerSample(int2 PixelPos, int SampleID, FPixelInfo CenterPixelInfo, float3
 		FLATTEN	if (PixelInfo[3].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[3].ObjectId);
 		FLATTEN	if (PixelInfo[4].bVisible) MinMax(VisibleBorderMinMax, PixelInfo[4].ObjectId);
 	}
+	
+	int ClosestPixelIndex = 0;
+	{
+		FLATTEN if (PixelInfo[1].fDepth > PixelInfo[ClosestPixelIndex].fDepth) ClosestPixelIndex = 1;
+		FLATTEN if (PixelInfo[2].fDepth > PixelInfo[ClosestPixelIndex].fDepth) ClosestPixelIndex = 2;
+		FLATTEN if (PixelInfo[3].fDepth > PixelInfo[ClosestPixelIndex].fDepth) ClosestPixelIndex = 3;
+		FLATTEN if (PixelInfo[4].fDepth > PixelInfo[ClosestPixelIndex].fDepth) ClosestPixelIndex = 4;
+	}
 
 	// this border around the object
 	bool bVisibleBorder = VisibleBorderMinMax.y != 0;
@@ -158,15 +164,12 @@ float4 PerSample(int2 PixelPos, int SampleID, FPixelInfo CenterPixelInfo, float3
 	// the contants express the two opacity values we see when the primitive is hidden
 	float LowContrastPatternMask = lerp(0.2, 1.0f, PatternMask);
 
-	float3  SelectionColor;
-	FLATTEN if (VisibleBorderMinMax.x >= 128 )
-	{
-		SelectionColor = SubduedOutlineColor.rgb;
-	}
-	else
-	{
-		SelectionColor = OutlineColor.rgb;
-	}
+	const int BitsAvailable = 8;
+	const int ColorShiftDistance = (BitsAvailable - OutlineColorIndexBits);
+	const int ColorMask = ((0xFFu >> ColorShiftDistance) << ColorShiftDistance);
+	int SelectionColorId = (PixelInfo[ClosestPixelIndex].ObjectId & ColorMask) >> ColorShiftDistance;
+	float3 SelectionColor = OutlineColors[SelectionColorId].rgb;
+	
 	FLATTEN if (bBorder)
 	{
 		FLATTEN if (bVisibleBorder)
@@ -191,8 +194,8 @@ float4 PerSample(int2 PixelPos, int SampleID, FPixelInfo CenterPixelInfo, float3
 		Color = lerp(Color, float4(SelectionColor * VisibleMask, 1), SelectionHighlightIntensity);
 	}
 
-	// highlight inner part of the object
-	if (PixelInfo[0].bObjectMask)
+	// highlight inner part of the object, test against far plane
+	if (PixelInfo[0].fDepth != 0.0f)
 	{
 		float VisibleMask = lerp(PatternMask, 1.0f, PixelInfo[0].fVisible);
 		float InnerHighlightAmount = PixelInfo[0].ObjectId == 1 ? BSPSelectionIntensity : SelectionHighlightIntensity;

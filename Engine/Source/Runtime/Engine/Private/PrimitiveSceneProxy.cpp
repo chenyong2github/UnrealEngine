@@ -1343,6 +1343,20 @@ void FPrimitiveSceneProxy::SetIsBeingMovedByEditor_GameThread(bool bIsBeingMoved
 			PrimitiveSceneProxy->GetScene().UpdatePrimitiveVelocityState_RenderThread(PrimitiveSceneProxy->GetPrimitiveSceneInfo(), bIsBeingMoved);
 		});
 }
+
+void FPrimitiveSceneProxy::SetSelectionOutlineColorIndex_GameThread(uint8 ColorIndex)
+{
+	check(IsInGameThread());
+	constexpr int IndexBits = 3;
+	constexpr int MaxIndex = (1 << IndexBits) - 1;
+	check(ColorIndex <= MaxIndex);
+
+	ENQUEUE_RENDER_COMMAND(SetSelectionOutlineColorIndex)(
+		[this, ColorIndex](FRHICommandListImmediate&)
+		{
+			SelectionOutlineColorIndex = ColorIndex;
+		});
+}
 #endif
 
 void FPrimitiveSceneProxy::SetEvaluateWorldPositionOffset_GameThread(bool bEvaluate)

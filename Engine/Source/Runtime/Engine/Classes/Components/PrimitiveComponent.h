@@ -689,6 +689,8 @@ protected:
 #if WITH_EDITOR
 public:
 	uint8 bAlwaysAllowTranslucentSelect : 1;
+
+	uint8 SelectionOutlineColorIndex;
 #endif
 
 public:
@@ -2518,6 +2520,9 @@ public:
 
 	/** Sets whether this component is being moved by the editor so the renderer can render velocities for it, even when Static. */
 	ENGINE_API void SetIsBeingMovedByEditor(bool bNewIsBeingMoved);
+
+
+	ENGINE_API void SetSelectionOutlineColorIndex(uint8 SelectionOutlineColorIndex);
 #endif// WITH_EDITOR
 
 	/**

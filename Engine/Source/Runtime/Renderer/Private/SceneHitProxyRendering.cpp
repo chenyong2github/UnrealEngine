@@ -34,6 +34,7 @@
 #include "GPUMessaging.h"
 #include "HairStrands/HairStrandsData.h"
 #include "SimpleMeshDrawCommandPass.h"
+#include "StaticMeshSceneProxy.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
 {
@@ -1016,11 +1017,45 @@ int32 FEditorSelectionMeshProcessor::GetStencilValue(const FSceneView* View, con
 
 	const int32* ExistingStencilValue = PrimitiveSceneProxy->IsIndividuallySelected() ? ProxyToStencilIndex.Find(PrimitiveSceneProxy) : ActorNameToStencilIndex.Find(PrimitiveSceneProxy->GetOwnerName());
 
-	int32 StencilValue = 0;
+	// Reserved values for the stencil buffer that carry specific meaning
+	enum ESelectionStencilValues : int32
+	{
+		NotSelected = 0,
+		BSP = 1, // The outlines of all BSPs should be merged
+
+		COUNT,
+	};
+
+	static constexpr int BitsAvailable = 8; // Stencil buffer is 8-bit
+	static constexpr int ColorBits = 3; // Can be changed
+	static constexpr int UniqueIdBits = BitsAvailable - ColorBits;
+	static constexpr int MaxColor = (1 << ColorBits);
+	static constexpr int MaxUniqueId = (1 << UniqueIdBits);
+	
+	auto EncodeSelectionStencilValue = [](int32 ColorIndex, int32 UniqueId) -> int32
+	{
+		uint8 Bits = 0;
+		const int ColorShiftDistance = BitsAvailable - ColorBits;
+		const uint8 ColorMask = (0xFFu >> ColorShiftDistance) << ColorShiftDistance;
+		const uint8 UniqueIdMask = 0xFF >> (BitsAvailable - UniqueIdBits);
+		Bits |= ((ColorIndex % MaxColor) << ColorShiftDistance) & ColorMask;
+		// Allow all colors except one to use the full range of unreserved values
+		if (ColorIndex == 0)
+		{
+			Bits |= (UniqueId % (MaxUniqueId - ESelectionStencilValues::COUNT) + ESelectionStencilValues::COUNT) & UniqueIdMask;
+		}
+		else
+		{
+			Bits |= (UniqueId % MaxUniqueId) & UniqueIdMask;
+		}
+		return Bits;
+	};
+	
+	int32 StencilValue = ESelectionStencilValues::NotSelected;
 
 	if (PrimitiveSceneProxy->GetOwnerName() == NAME_BSP)
 	{
-		StencilValue = 1;
+		StencilValue = ESelectionStencilValues::BSP;
 	}
 	else if (ExistingStencilValue != nullptr)
 	{
@@ -1028,14 +1063,21 @@ int32 FEditorSelectionMeshProcessor::GetStencilValue(const FSceneView* View, con
 	}
 	else if (PrimitiveSceneProxy->IsIndividuallySelected())
 	{
-		// Any component that is individually selected should have a stencil value of < 128 so that it can have a unique color.  We offset the value by 2 because 0 means no selection and 1 is for bsp
-		StencilValue = ProxyToStencilIndex.Num() % 126 + 2;
+		const int Color = 0;
+		const int UniqueId = ProxyToStencilIndex.Num();
+		StencilValue = EncodeSelectionStencilValue(Color, UniqueId);
 		ProxyToStencilIndex.Add(PrimitiveSceneProxy, StencilValue);
 	}
 	else
 	{
-		// If we are subduing actor color highlight then use the top level bits to indicate that to the shader.  
-		StencilValue = bActorSelectionColorIsSubdued ? ActorNameToStencilIndex.Num() % 128 + 128 : ActorNameToStencilIndex.Num() % 126 + 2;
+		int Color = PrimitiveSceneProxy->GetSelectionOutlineColorIndex();
+		if (bActorSelectionColorIsSubdued && (Color == 0))
+		{
+			Color = 1;
+		}
+		const int UniqueId = ActorNameToStencilIndex.Num();
+
+		StencilValue = EncodeSelectionStencilValue(Color, UniqueId);
 		ActorNameToStencilIndex.Add(PrimitiveSceneProxy->GetOwnerName(), StencilValue);
 	}
 

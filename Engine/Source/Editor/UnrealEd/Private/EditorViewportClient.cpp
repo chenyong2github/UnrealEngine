@@ -69,6 +69,7 @@
 #include "IImageWrapperModule.h"
 #include "HDRHelper.h"
 #include "GlobalRenderResources.h"
+#include "Settings/EditorStyleSettings.h"
 
 #define LOCTEXT_NAMESPACE "EditorViewportClient"
 
@@ -1309,6 +1310,12 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 	View->ViewRotation = ModifiedViewRotation;
 
 	View->SubduedSelectionOutlineColor = GEngine->GetSubduedSelectionOutlineColor();
+	const UEditorStyleSettings* EditorStyle = GetDefault<UEditorStyleSettings>();
+	check(View->AdditionalSelectionOutlineColors.Num() <= UE_ARRAY_COUNT(EditorStyle->AdditionalSelectionColors))
+	for (int OutlineColorIndex = 0; OutlineColorIndex < View->AdditionalSelectionOutlineColors.Num(); ++OutlineColorIndex)
+	{
+		View->AdditionalSelectionOutlineColors[OutlineColorIndex] = EditorStyle->AdditionalSelectionColors[OutlineColorIndex];
+	}
 
 	int32 FamilyIndex = ViewFamily->Views.Add(View);
 	check(FamilyIndex == View->StereoViewIndex || View->StereoViewIndex == INDEX_NONE);

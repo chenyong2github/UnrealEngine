@@ -874,6 +874,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	EditorViewBitflag = InitOptions.EditorViewBitflag;
 
 	SelectionOutlineColor = GEngine->GetSelectionOutlineColor();
+	SubduedSelectionOutlineColor = GEngine->GetSubduedSelectionOutlineColor();
 #endif
 
 	// Query instanced stereo and multi-view state

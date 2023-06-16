@@ -376,6 +376,8 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 
 #if WITH_EDITOR
 	bAlwaysAllowTranslucentSelect = false;
+
+	SelectionOutlineColorIndex = 0;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -1880,6 +1882,16 @@ void UPrimitiveComponent::SetIsBeingMovedByEditor(bool bIsBeingMoved)
 	if (SceneProxy)
 	{
 		SceneProxy->SetIsBeingMovedByEditor_GameThread(bIsBeingMoved);
+	}
+}
+
+void UPrimitiveComponent::SetSelectionOutlineColorIndex(uint8 InSelectionOutlineColorIndex)
+{
+	SelectionOutlineColorIndex = InSelectionOutlineColorIndex;
+	
+	if (SceneProxy)
+	{
+		SceneProxy->SetSelectionOutlineColorIndex_GameThread(InSelectionOutlineColorIndex);
 	}
 }
 #endif// WITH_EDITOR

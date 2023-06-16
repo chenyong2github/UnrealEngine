@@ -23,6 +23,14 @@ class FObjectInitializer;
 
 UEditorStyleSettings::UEditorStyleSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
+	, AdditionalSelectionColors{
+		FStyleColors::AccentBlue.GetSpecifiedColor(),
+		FStyleColors::AccentPurple.GetSpecifiedColor(),
+		FStyleColors::AccentPink.GetSpecifiedColor(),
+		FStyleColors::AccentRed.GetSpecifiedColor(),
+		FStyleColors::AccentYellow.GetSpecifiedColor(),
+		FStyleColors::AccentGreen.GetSpecifiedColor(),
+	}
 {
 	bEnableUserEditorLayoutManagement = true;
 

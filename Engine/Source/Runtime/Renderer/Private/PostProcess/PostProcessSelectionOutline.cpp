@@ -33,9 +33,9 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, EditorPrimitivesStencil)
 		SHADER_PARAMETER(FScreenTransform, ColorToDepth)
-		SHADER_PARAMETER(FVector3f, OutlineColor)
+		SHADER_PARAMETER_ARRAY(FVector4f, OutlineColors, [8])
+		SHADER_PARAMETER(int, OutlineColorIndexBits)
 		SHADER_PARAMETER(float, SelectionHighlightIntensity)
-		SHADER_PARAMETER(FVector3f, SubduedOutlineColor)
 		SHADER_PARAMETER(float, BSPSelectionIntensity)
 		SHADER_PARAMETER(float, UILuminanceAndIsSCRGB)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -220,9 +220,14 @@ FScreenPassTexture AddSelectionOutlinePass(
 		PassParameters->DepthSampler = PointClampSampler;
 		PassParameters->EditorPrimitivesDepth = DepthStencilTexture;
 		PassParameters->EditorPrimitivesStencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(DepthStencilTexture, PF_X24_G8));
-		PassParameters->OutlineColor = FVector3f(View.SelectionOutlineColor);
+		PassParameters->OutlineColors[0] = View.SelectionOutlineColor;
+		PassParameters->OutlineColors[1] = View.SubduedSelectionOutlineColor;
+		for (int OutlineColorIndex = 2; OutlineColorIndex < PassParameters->OutlineColors.Num(); ++OutlineColorIndex)
+		{
+			PassParameters->OutlineColors[OutlineColorIndex] = View.AdditionalSelectionOutlineColors[OutlineColorIndex];
+		}
+		PassParameters->OutlineColorIndexBits = 3;
 		PassParameters->SelectionHighlightIntensity = GEngine->SelectionHighlightIntensity;
-		PassParameters->SubduedOutlineColor = FVector3f(View.SubduedSelectionOutlineColor);
 		PassParameters->BSPSelectionIntensity = GEngine->BSPSelectionHighlightIntensity;
 
 		EDisplayOutputFormat DisplayOutputFormat = View.Family->RenderTarget->GetDisplayOutputFormat();
