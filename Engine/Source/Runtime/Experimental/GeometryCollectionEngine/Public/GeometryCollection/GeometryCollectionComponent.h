@@ -1304,6 +1304,8 @@ protected:
 	int64 LastAsyncPhysicsTickMs = 0;
 
 private:
+	void ProcessRepDataOnPT();
+	void ResetRepDataCommon();
 
 	bool bRenderStateDirty;
 	bool bEnableBoneSelection;

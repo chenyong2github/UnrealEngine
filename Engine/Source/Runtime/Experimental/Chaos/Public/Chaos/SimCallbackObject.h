@@ -337,6 +337,14 @@ class FSimCallbackCommandObject : public ISimCallbackObject
 public:
 	FSimCallbackCommandObject(TUniqueFunction<void()>&& InFunc)
 		: Func(MoveTemp(InFunc))
+		, Func2(nullptr)
+		, bFuncHasTimeParameters(false)
+	{}
+
+	FSimCallbackCommandObject(TUniqueFunction<void(FReal DeltaTime, FReal SimTime)>&& InFunc)
+		: Func(nullptr)
+		, Func2(MoveTemp(InFunc))
+		, bFuncHasTimeParameters(true)
 	{}
 
 	virtual void FreeOutputData_External(FSimCallbackOutput* Output)
@@ -368,10 +376,22 @@ private:
 
 	virtual void OnPreSimulate_Internal() override
 	{
-		Func();
+		if (!bFuncHasTimeParameters)
+		{ 
+			Func();
+		}
+		else
+		{
+			Func2(GetDeltaTime_Internal(), GetSimTime_Internal());
+		}
+		
 	}
 
+	// Those two function could be in an union 
 	TUniqueFunction<void()> Func;
+	TUniqueFunction<void(FReal deltaTime, FReal SimTime)> Func2;
+
+	bool bFuncHasTimeParameters;
 
 	friend struct FSimCallbackInput;
 };
