@@ -11,7 +11,6 @@ public:
 		: TestRunner(InTestRunner)
 		, Query(MoveTemp(Query)) 
 		, Timeout(Timeout)
-		, StartTime(FDateTime::UtcNow())
 		, Description(InDescription)
 	{}
 
@@ -22,7 +21,7 @@ public:
 	FTimespan Timeout;
 	FDateTime StartTime;
 	const TCHAR* Description;
-	bool bHasLoggedStart = false;
+	bool bHasTimerStarted = false;
 };
 
 enum class ECQTestFailureBehavior
@@ -67,7 +66,8 @@ public:
 	void AppendAll(TArray < TSharedPtr<IAutomationLatentCommand>> ToAdd);
 	void Prepend(TSharedPtr<IAutomationLatentCommand> ToAdd);
 
-	bool IsEmpty() const {
+	bool IsEmpty() const
+	{
 		return Commands.IsEmpty();
 	}
 

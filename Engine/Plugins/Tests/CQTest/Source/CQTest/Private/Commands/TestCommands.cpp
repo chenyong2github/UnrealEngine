@@ -7,33 +7,38 @@ DEFINE_LOG_CATEGORY_STATIC(LogCqTest, Log, All)
 
 bool CQTEST_API FWaitUntil::Update()
 {
-	if (Description != nullptr && !bHasLoggedStart)
+	if (!bHasTimerStarted)
 	{
-		UE_LOG(LogCqTest, Log, TEXT("Starting %s"), Description);
-		bHasLoggedStart = true;
+		StartTime = FDateTime::UtcNow();
+		bHasTimerStarted = true;
+		if (Description != nullptr)
+		{
+			UE_LOG(LogCqTest, Log, TEXT("Starting %s"), Description);
+		}
 	}
 	if (TestRunner.HasAnyErrors())
 	{
 		return true;
 	}
 
+	auto Elapsed = FDateTime::UtcNow() - StartTime;
 	if (Query())
 	{
 		if (Description)
 		{
-			UE_LOG(LogCqTest, Log, TEXT("Finished %s"), Description);
+			UE_LOG(LogCqTest, Log, TEXT("Finished %s after %d milliseconds"), Description, Elapsed.GetTotalMilliseconds());
 		}
 		return true;
 	}
-	else if (FDateTime::UtcNow() >= StartTime + Timeout)
+	else if (Elapsed >= Timeout)
 	{
 		if (Description)
 		{
-			TestRunner.AddError(*FString::Printf(TEXT("Timed out waiting for %s"), Description));
+			TestRunner.AddError(*FString::Printf(TEXT("Timed out waiting for %s after %d milliseconds"), Description, Elapsed.GetTotalMilliseconds()));
 		}
 		else
 		{
-			TestRunner.AddError(TEXT("Latent command timed out."));
+			TestRunner.AddError(*FString::Printf(TEXT("Latent command timed out after %d milliseconds"), Elapsed.GetTotalMilliseconds()));
 		}
 		return true;
 	}

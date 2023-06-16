@@ -99,7 +99,7 @@ NETWORK_TEST_CLASS(ReplicationTest, "TestFramework.CQTest.Network")
 			.Build(Network);
 	}
 
-	TEST_METHOD(SpawnActor_WithReplicatedActor_ProvidesActorToClients)
+	TEST_METHOD(SpawnAndReplicateActor_WithReplicatedActor_ProvidesActorToClients)
 	{
 		Network.SpawnAndReplicate<ATestReplicatedActor, &DerivedState::ReplicatedActor>()
 			.ThenServer([&](DerivedState& ServerState) {

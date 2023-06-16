@@ -27,4 +27,9 @@ TEST_CLASS(SpawnHelperTests, "TestFramework.CQTest.Actor")
 		ASSERT_THAT(IsNotNull(TestComponent));
 		ASSERT_THAT(AreEqual(TestComponent->GetOwner(), &Owner ));
 	}
+
+	TEST_METHOD(SpawnObject_WithAnbject_TearsDownCleanly)
+	{
+		auto& SomeComponent = Spawner.SpawnObject<USceneComponent>();
+	}
 };

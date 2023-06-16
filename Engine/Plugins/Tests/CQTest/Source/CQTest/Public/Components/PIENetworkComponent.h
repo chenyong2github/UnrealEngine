@@ -50,10 +50,11 @@ protected:
 	FAutomationTestBase* TestRunner = nullptr;
 	FTestCommandBuilder* CommandBuilder = nullptr;
 	FPacketSimulationSettings* PacketSimulationSettings = nullptr;
+	TSubclassOf<AGameModeBase> GameMode = TSubclassOf<AGameModeBase>(nullptr);
 	FPIENetworkTestStateRestorer StateRestorer;
 };
 
-template <typename FBasePIENetworkComponentState>
+template <typename NetworkDataType>
 class FNetworkComponentBuilder;
 
 template <typename NetworkDataType = FBasePIENetworkComponentState>

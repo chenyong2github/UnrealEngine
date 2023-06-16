@@ -107,9 +107,16 @@ void FBasePIENetworkComponent::StartPie()
 
 	FRequestPlaySessionParams SessionParams;
 	SessionParams.WorldType = EPlaySessionWorldType::PlayInEditor;
-	SessionParams.GameModeOverride = AGameModeBase::StaticClass();
 	SessionParams.DestinationSlateViewport = LevelEditorModule.GetFirstActiveViewport();
 	SessionParams.EditorPlaySettings = PlaySettings;
+	if (GameMode != nullptr)
+	{
+		SessionParams.GameModeOverride = GameMode;
+	}
+	else
+	{
+		SessionParams.GameModeOverride = AGameModeBase::StaticClass();
+	}
 
 	GUnrealEd->RequestPlaySession(SessionParams);
 	GUnrealEd->StartQueuedPlaySessionRequest();

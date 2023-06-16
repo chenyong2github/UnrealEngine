@@ -220,5 +220,6 @@ inline void FNetworkComponentBuilder<NetworkDataType>::Build(FPIENetworkComponen
 	}
 
 	OutNetwork.PacketSimulationSettings = PacketSimulationSettings;
+	OutNetwork.GameMode = GameMode;
 	OutNetwork.StateRestorer = FPIENetworkTestStateRestorer{GameInstanceClass, GameMode};
 }

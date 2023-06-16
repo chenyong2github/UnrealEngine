@@ -50,7 +50,7 @@ namespace
 		{
 			if (UObject* Obj = InSpawnedObjects[Index].Get())
 			{
-				Obj->BeginDestroy();
+				Obj->ConditionalBeginDestroy();
 			}
 		}
 
@@ -66,10 +66,11 @@ FActorTestSpawner::~FActorTestSpawner() {
 		GameInstance = nullptr;
 	}
 
+	DestroySpawnedActors(SpawnedActors);
+	DestroySpawnedObjects(SpawnedObjects);
+
 	if (GameWorld)
 	{
-		DestroySpawnedActors(SpawnedActors);
-		DestroySpawnedObjects(SpawnedObjects);
 		DestroyWorld(GameWorld);
 		GameWorld->RemoveFromRoot();
 		GameWorld = nullptr;
