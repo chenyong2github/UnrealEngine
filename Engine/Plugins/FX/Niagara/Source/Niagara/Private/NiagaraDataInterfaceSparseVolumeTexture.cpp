@@ -285,7 +285,7 @@ void UNiagaraDataInterfaceSparseVolumeTexture::SetShaderParameters(const FNiagar
 	Parameters->PageTableTexture = GBlackUintVolumeTexture->TextureRHI;
 	Parameters->PhysicalTileDataATexture = GBlackVolumeTexture->TextureRHI;
 	Parameters->PhysicalTileDataBTexture = GBlackVolumeTexture->TextureRHI;
-	Parameters->StreamingInfoBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
+	Parameters->StreamingInfoBuffer = GEmptyStructuredBufferWithUAV->ShaderResourceViewRHI;
 	Parameters->PackedUniforms0 = FUintVector4();
 	Parameters->PackedUniforms1 = FUintVector4();
 	Parameters->TextureSize = FIntVector3::ZeroValue;

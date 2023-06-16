@@ -135,7 +135,7 @@ void AddSparseVolumeTextureViewerRenderPass(FRDGBuilder& GraphBuilder, FSceneRen
 			PsPassParameters->SparseVolumeTexturePageTable = GBlackUintVolumeTexture->TextureRHI;
 			PsPassParameters->SparseVolumeTextureA = GBlackVolumeTexture->TextureRHI;
 			PsPassParameters->SparseVolumeTextureB = GBlackVolumeTexture->TextureRHI;
-			PsPassParameters->StreamingInfoBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
+			PsPassParameters->StreamingInfoBuffer = GEmptyStructuredBufferWithUAV->ShaderResourceViewRHI;
 			PsPassParameters->PackedSVTUniforms0 = FUintVector4(0);
 			PsPassParameters->PackedSVTUniforms1 = FUintVector4(0);
 			PsPassParameters->SparseVolumeTextureResolution = SVTSceneProxy->VolumeResolution;

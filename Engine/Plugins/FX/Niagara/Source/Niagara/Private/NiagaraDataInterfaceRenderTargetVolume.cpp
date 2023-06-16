@@ -910,7 +910,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::SimCacheReadFrame(UObject* Storage
 						PassParameters->TileDataTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 						PassParameters->SparseVolumeTexturePageTable = PageTableTexture ? PageTableTexture : GBlackUintVolumeTexture->TextureRHI.GetReference();
 						PassParameters->SparseVolumeTextureA = TextureA ? TextureA : GBlackVolumeTexture->TextureRHI.GetReference();
-						PassParameters->StreamingInfoBuffer = StreamingInfoBufferSRV ? StreamingInfoBufferSRV : GEmptyVertexBufferWithUAV->ShaderResourceViewRHI.GetReference();
+						PassParameters->StreamingInfoBuffer = StreamingInfoBufferSRV ? StreamingInfoBufferSRV : GEmptyStructuredBufferWithUAV->ShaderResourceViewRHI.GetReference();
 							
 						PassParameters->PackedSVTUniforms0 = CurrentPackedUniforms0;
 						PassParameters->PackedSVTUniforms1 = CurrentPackedUniforms1;

@@ -1280,7 +1280,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			*ResourceTableTexturePageTablePtr = GBlackUintVolumeTexture->TextureRHI;
 			*ResourceTableTexturePhysicalAPtr = GBlackVolumeTexture->TextureRHI;
 			*ResourceTableTexturePhysicalBPtr = GBlackVolumeTexture->TextureRHI;
-			*ResourceTableStreamingInfoBufferPtr = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
+			*ResourceTableStreamingInfoBufferPtr = GEmptyStructuredBufferWithUAV->ShaderResourceViewRHI;
 			check(GBlackVolumeTexture->SamplerStateRHI);
 			*ResourceTablePhysicalSamplerPtr = GBlackVolumeTexture->SamplerStateRHI;
 			
