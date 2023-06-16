@@ -431,6 +431,11 @@ public:
 		Transforms[EntryIndex] = Transform;
 	}
 
+	inline const TBitArray<>& GetModifiedTransformIndices() const
+	{
+		return ModifiedTransformIndices;
+	}
+
 private:
 	Chaos::FReal SolverDt;
 

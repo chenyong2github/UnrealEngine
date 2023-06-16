@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/FieldSystemProxyHelper.h"
 
@@ -58,6 +57,14 @@
 #else
 #define GC_PHYSICSPROXY_CHECK_FOR_NAN(Vec)
 #endif
+
+namespace
+{
+	const FName LinearVelocityAttributeName = "LinearVelocity";
+	const FName AngularVelocitiesAttributeName = "AngularVelocity";
+	const FName InternalClusterParentTypeArrayAttributeName = "InternalClusterParentTypeArray";
+	const FName AnimateTransformAttributeName = "AnimateTransformAttribute";
+}
 
 namespace Chaos{
 	extern int32 AccelerationStructureSplitStaticAndDynamic;
@@ -3374,6 +3381,106 @@ private:
 
 };
 
+bool FGeometryCollectionPhysicsProxy::PullNonInterpolatableDataFromSinglePhysicsState(const Chaos::FDirtyGeometryCollectionData& BufferData, bool bForcePullXRVW, const TBitArray<>* Seen)
+{
+	const FGeometryCollectionResults& CurrentResults = BufferData.Results();
+	const bool bHasResults = CurrentResults.GetNumEntries() > 0;
+	if (!bHasResults)
+	{
+		return false;
+	}
+
+	bool bIsCollectionDirty = false;
+
+	TManagedArray<FVector3f>* LinearVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>(LinearVelocityAttributeName, FTransformCollection::TransformGroup);
+	TManagedArray<FVector3f>* AngularVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>(AngularVelocitiesAttributeName, FTransformCollection::TransformGroup);
+	TManagedArray<uint8>* InternalClusterParentTypeArray = GameThreadCollection.FindAttributeTyped<uint8>(InternalClusterParentTypeArrayAttributeName, FTransformCollection::TransformGroup);
+	const TManagedArray<bool>* AnimationsActive = GameThreadCollection.FindAttribute<bool>(AnimateTransformAttributeName, FGeometryCollection::TransformGroup);
+
+	// first step : process the non values that do not need to be interpolated 
+	for (int32 EntryIndex = 0; EntryIndex < CurrentResults.GetNumEntries(); EntryIndex++)
+	{
+		const FGeometryCollectionResults::FStateData& StateData = CurrentResults.GetState(EntryIndex);
+		const int32 TransformGroupIndex = StateData.TransformIndex;
+
+		if (Seen && (*Seen)[TransformGroupIndex])
+		{
+			continue;
+		}
+
+		if (GTParticles[TransformGroupIndex] == nullptr)
+		{
+			continue;
+		}
+
+		FParticle& GTParticle = *GTParticles[TransformGroupIndex];
+
+		const bool bIsActive = !StateData.State.DisabledState;
+		if (UpdateValue(GameThreadCollection.Active[TransformGroupIndex], bIsActive))
+		{
+			GTParticle.SetDisabled(!bIsActive);
+			bIsCollectionDirty = true;
+		}
+
+		if (UpdateValue(GameThreadCollection.DynamicState[TransformGroupIndex], StateData.State.DynamicState))
+		{
+			GTParticle.SetObjectState(static_cast<Chaos::EObjectStateType>(StateData.State.DynamicState));
+			bIsCollectionDirty = true;
+		}
+
+		if (UpdateValue(GameThreadCollection.Parent[TransformGroupIndex], StateData.ParentTransformIndex))
+		{
+			bIsCollectionDirty = true;
+		}
+
+		if (InternalClusterParentTypeArray)
+		{
+			Chaos::EInternalClusterType ParentType = Chaos::EInternalClusterType::None;
+			if (StateData.State.HasInternalClusterParent != 0)
+			{
+				ParentType = (StateData.State.DynamicInternalClusterParent != 0) ? Chaos::EInternalClusterType::Dynamic : Chaos::EInternalClusterType::KinematicOrStatic;
+			}
+			const uint8 ParentTypeUInt8 = static_cast<uint8>(ParentType);
+			if (UpdateValue((*InternalClusterParentTypeArray)[TransformGroupIndex], ParentTypeUInt8))
+			{
+				bIsCollectionDirty = true;
+			}
+		}
+
+		// if interpolation is off , we need to apply XR, VW and transforms
+		if (bForcePullXRVW)
+		{
+			const bool bAnimatingWhileDisabled = AnimationsActive ? (*AnimationsActive)[TransformGroupIndex] : false;
+			if (bIsActive || bAnimatingWhileDisabled)
+			{
+				const FGeometryCollectionResults::FPositionData& PositionData = CurrentResults.GetPositions(EntryIndex);
+
+				const bool XRModified = UpdateGTParticleXR(GTParticle, PositionData.ParticleX, PositionData.ParticleR);
+				bIsCollectionDirty |= XRModified;
+
+				if (LinearVelocities && AngularVelocities)
+				{
+					const FGeometryCollectionResults::FVelocityData& VelocityData = CurrentResults.GetVelocities(EntryIndex);
+					bIsCollectionDirty |= UpdateValue((*LinearVelocities)[TransformGroupIndex], VelocityData.ParticleV);
+					bIsCollectionDirty |= UpdateValue((*AngularVelocities)[TransformGroupIndex], VelocityData.ParticleW);
+				}
+
+				const FTransform& NewTransform = CurrentResults.GetTransform(EntryIndex);
+				bIsCollectionDirty |= UpdateTransform(GameThreadCollection.Transform[TransformGroupIndex], NewTransform);
+			}
+		}
+
+		// internal cluster index map update
+		if (StateData.InternalClusterUniqueIdx > INDEX_NONE)
+		{
+			GTParticlesToInternalClusterUniqueIdx.Add(GTParticles[TransformGroupIndex].Get(), StateData.InternalClusterUniqueIdx);
+			InternalClusterUniqueIdxToChildrenTransformIndices.FindOrAdd(StateData.InternalClusterUniqueIdx).Add(TransformGroupIndex);
+		}
+	}
+
+	return bIsCollectionDirty;
+}
+
 // Called from FPhysScene_ChaosInterface::SyncBodies(), NOT the solver.
 bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGeometryCollectionData& PullData, const int32 SolverSyncTimestamp, const Chaos::FDirtyGeometryCollectionData* NextPullData, const Chaos::FRealSingle* Alpha)
 {
@@ -3391,14 +3498,13 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 	 */
 
 	// earlier exit
-	const bool HasResults = (PullData.Results().GetNumEntries() > 0);
-	const bool HasNextResults = (NextPullData && NextPullData->Results().GetNumEntries() > 0);
-	if (!HasResults && !HasNextResults)
+	const bool bHasResults = (PullData.Results().GetNumEntries() > 0);
+	const bool bHasNextResults = (NextPullData && NextPullData->Results().GetNumEntries() > 0);
+
+	if (!bHasResults && !bHasNextResults)
 	{
 		return false;
 	}
-
-	const FGeometryCollectionResults& CurrentResults = NextPullData ? NextPullData->Results() : PullData.Results();
 
 	const int32 NumTransforms = GameThreadCollection.Transform.Num();
 	const bool bNeedInterpolation = (NextPullData != nullptr);
@@ -3407,101 +3513,25 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 
 	if (NumTransforms > 0)
 	{
-		static const FName LinearVelocityAttributeName = "LinearVelocity";
-		static const FName AngularVelocitiesAttributeName = "AngularVelocity";
-		static const FName InternalClusterParentTypeArrayAttributeName = "InternalClusterParentTypeArray";
-		static const FName AnimateTransformAttributeName = "AnimateTransformAttribute";
+		GTParticlesToInternalClusterUniqueIdx.Reset();
+		InternalClusterUniqueIdxToChildrenTransformIndices.Reset();
 
-		TManagedArray<FVector3f>* LinearVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>(LinearVelocityAttributeName, FTransformCollection::TransformGroup);
-		TManagedArray<FVector3f>* AngularVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>(AngularVelocitiesAttributeName, FTransformCollection::TransformGroup);
-		TManagedArray<uint8>* InternalClusterParentTypeArray = GameThreadCollection.FindAttributeTyped<uint8>(InternalClusterParentTypeArrayAttributeName, FTransformCollection::TransformGroup);
-		const TManagedArray<bool>* AnimationsActive = GameThreadCollection.FindAttribute<bool>(AnimateTransformAttributeName, FGeometryCollection::TransformGroup);
-
-		// first step : process the non values that do not need to be interpolated 
-		for (int32 EntryIndex = 0; EntryIndex < CurrentResults.GetNumEntries(); EntryIndex++)
+		// first: non-interpolatable data (everything besides XRVW OR if no next data exists, everything is non-interpolatable).
+		if (NextPullData)
 		{
-			const FGeometryCollectionResults::FStateData& StateData = CurrentResults.GetState(EntryIndex);
-			const int32 TransformGroupIndex = StateData.TransformIndex;
-
-			if (GTParticles[TransformGroupIndex] == nullptr)
-			{
-				continue;
-			}
-			FParticle& GTParticle = *GTParticles[TransformGroupIndex];
-
-			const bool bIsActive = !StateData.State.DisabledState;
-			if (UpdateValue(GameThreadCollection.Active[TransformGroupIndex], bIsActive))
-			{
-				GTParticle.SetDisabled(!bIsActive);
-				bIsCollectionDirty = true;
-			}
-			
-
-			if (UpdateValue(GameThreadCollection.DynamicState[TransformGroupIndex], StateData.State.DynamicState))
-			{
-				GTParticle.SetObjectState(static_cast<Chaos::EObjectStateType>(StateData.State.DynamicState));
-				bIsCollectionDirty = true;
-			}
-
-			if (UpdateValue(GameThreadCollection.Parent[TransformGroupIndex], StateData.ParentTransformIndex))
-			{
-				bIsCollectionDirty = true;
-			}
-
-			if (InternalClusterParentTypeArray)
-			{
-				Chaos::EInternalClusterType ParentType = Chaos::EInternalClusterType::None;
-				if (StateData.State.HasInternalClusterParent != 0)
-				{
-					ParentType = (StateData.State.DynamicInternalClusterParent != 0)? Chaos::EInternalClusterType::Dynamic: Chaos::EInternalClusterType::KinematicOrStatic;
-				}
-				const uint8 ParentTypeUInt8 = static_cast<uint8>(ParentType);
-				if (UpdateValue((*InternalClusterParentTypeArray)[TransformGroupIndex], ParentTypeUInt8))
-				{
-					bIsCollectionDirty = true;
-				}
-			}
-
-			// if interpolation is off , we need to apply XR, VW and transforms
-			if (bNeedInterpolation == false)
-			{
-				const bool bAnimatingWhileDisabled = AnimationsActive ? (*AnimationsActive)[TransformGroupIndex] : false;
-				if (bIsActive || bAnimatingWhileDisabled)
-				{
-					const FGeometryCollectionResults::FPositionData& PositionData = CurrentResults.GetPositions(EntryIndex);
-
-					const bool XRModified = UpdateGTParticleXR(GTParticle, PositionData.ParticleX, PositionData.ParticleR);
-					bIsCollectionDirty |= XRModified;
-
-					if (LinearVelocities && AngularVelocities)
-					{
-						const FGeometryCollectionResults::FVelocityData& VelocityData = CurrentResults.GetVelocities(EntryIndex);
-						bIsCollectionDirty |= UpdateValue((*LinearVelocities)[TransformGroupIndex], VelocityData.ParticleV);
-						bIsCollectionDirty |= UpdateValue((*AngularVelocities)[TransformGroupIndex], VelocityData.ParticleW);
-					}
-
-					const FTransform& NewTransform = CurrentResults.GetTransform(EntryIndex);
-					bIsCollectionDirty |= UpdateTransform(GameThreadCollection.Transform[TransformGroupIndex], NewTransform);
-				}
-			}
+			bIsCollectionDirty |= PullNonInterpolatableDataFromSinglePhysicsState(*NextPullData, false, nullptr);
 		}
-
-#if WITH_EDITORONLY_DATA
-		if (FDamageCollector* Collector = FRuntimeDataCollector::GetInstance().Find(CollectorGuid))
-		{
-			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
-			{
-				const FGeometryCollectionResults::FDamageData& DamageData = CurrentResults.GetDamages(TransformGroupIndex);
-				Collector->SampleDamage(TransformGroupIndex, DamageData.Damage, DamageData.DamageThreshold);
-			}
-		}
-#endif
+		bIsCollectionDirty |= PullNonInterpolatableDataFromSinglePhysicsState(PullData, !bNeedInterpolation, NextPullData ? &NextPullData->Results().GetModifiedTransformIndices() : nullptr);
 
 		// second : interpolate-able ones
 		if (bNeedInterpolation)
 		{
 			const FGeometryCollectionResults& PrevResults = PullData.Results();
 			const FGeometryCollectionResults& NextResults = NextPullData->Results();
+
+			TManagedArray<FVector3f>* LinearVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>(LinearVelocityAttributeName, FTransformCollection::TransformGroup);
+			TManagedArray<FVector3f>* AngularVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>(AngularVelocitiesAttributeName, FTransformCollection::TransformGroup);
+			const TManagedArray<bool>* AnimationsActive = GameThreadCollection.FindAttribute<bool>(AnimateTransformAttributeName, FGeometryCollection::TransformGroup);
 
 			// for that case we cannot just go through the list of entries since Results and NextResults may have different number of entries that don't always match
 			// so we need to go through the transform indices and find the matching entries on both side 
@@ -3548,23 +3578,19 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 			}
 		} 
 
-		// internal cluster index map update
-		GTParticlesToInternalClusterUniqueIdx.Reset();
-		InternalClusterUniqueIdxToChildrenTransformIndices.Reset();
-		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
-		{
-			const FGeometryCollectionResults::FEntryIndex EntryIndex = CurrentResults.GetEntryIndexByTransformIndex(TransformGroupIndex);
-			if (EntryIndex != INDEX_NONE)
-			{
-				const FGeometryCollectionResults::FStateData& StateData = CurrentResults.GetState(EntryIndex);
 
-				if (StateData.InternalClusterUniqueIdx > INDEX_NONE)
-				{
-					GTParticlesToInternalClusterUniqueIdx.Add(GTParticles[TransformGroupIndex].Get(), StateData.InternalClusterUniqueIdx);
-					InternalClusterUniqueIdxToChildrenTransformIndices.FindOrAdd(StateData.InternalClusterUniqueIdx).Add(TransformGroupIndex);
-				}
+#if WITH_EDITORONLY_DATA
+		// Damage is collected in full every time so no need to go through PullNonInterpolatableDataFromSinglePhysicsState.
+		if (FDamageCollector* Collector = FRuntimeDataCollector::GetInstance().Find(CollectorGuid))
+		{
+			const FGeometryCollectionResults& CurrentResults = NextPullData ? NextPullData->Results() : PullData.Results();
+			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+			{
+				const FGeometryCollectionResults::FDamageData& DamageData = CurrentResults.GetDamages(TransformGroupIndex);
+				Collector->SampleDamage(TransformGroupIndex, DamageData.Damage, DamageData.DamageThreshold);
 			}
 		}
+#endif
 
 		// if physics world transform was dirtied this frame we need to force an update to make sure transforms of 
 		// broken sleeping particles on kinemically driven GCs remained updated and the object feel grounded to the world

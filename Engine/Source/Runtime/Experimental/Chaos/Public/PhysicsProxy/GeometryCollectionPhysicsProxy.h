@@ -517,6 +517,18 @@ protected:
 	CHAOS_API Chaos::FPBDRigidClusteredParticleHandle* FindClusteredParticleHandleByItemIndex_Internal(FGeometryCollectionItemIndex ItemIndex) const;
 private:
 
+	/**
+	 * Since geometry collections only buffer data that has changed, when PullFromPhysicsState is given both PrevData and NextData it must
+	 * examine *both* PrevData and NextData for data about a particle (since that particle's data coudl be in PrevData and not NextData).
+	 * PullNonInterpolatableDataFromSinglePhysicsState will do the work to pull the non-interpolatable data (which could include X/R/V/W in certain scenarios)
+	 * to the game thread.
+	 * 
+	 * @param BufferData The buffered physics data to pull data from (could be PrevData or NextData).
+	 * @param bForcePullXRVW Whether or not to pull interpolatable data as non-interpolatable data (i.e. X/R/V/W). This happens only when NextData doesn't exist.
+	 * @param Seen The bit array of the previously handled FDirtyGeometryCollectionData (should be null in the case of handling NextData, and should be the TBitArray on NextData when handling PrevData).
+	 * @return A boolean indicating whether or not a change to the GT state was detected.
+	 */
+	bool PullNonInterpolatableDataFromSinglePhysicsState(const Chaos::FDirtyGeometryCollectionData& BufferData, bool bForcePullXRVW, const TBitArray<>* Seen);
 
 	/* set to true once InitializeBodiesPT has been called*/
 	bool bIsInitializedOnPhysicsThread = false;
