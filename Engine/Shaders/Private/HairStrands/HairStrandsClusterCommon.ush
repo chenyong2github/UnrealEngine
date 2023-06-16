@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "/Engine/Shared/HairStrandsDefinitions.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -215,4 +216,32 @@ float ComputeBoundsScreenSize(float3 InSphereOrigin, float InSphereRadius, float
 
 	// For clarity, we end up comparing the diameter
 	return ScreenRadius * 2.0f;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Point LOD
+
+uint UnpackPointLOD(uint InPacked, uint InIndex)
+{
+	return (InPacked >> (InIndex * HAIR_POINT_LOD_BIT_COUNT)) & 0xF;
+}
+
+uint GetHairControlPointMinLOD(uint InPointIndex, Buffer<uint> InPointLODBuffer)
+{
+	const uint BlockIt      = InPointIndex >> HAIR_POINT_LOD_COUNT_PER_UINT_DIV_AS_SHIFT;
+	const uint LocalPointIt = InPointIndex - BlockIt * HAIR_POINT_LOD_COUNT_PER_UINT;
+	const uint Packed 		= InPointLODBuffer[BlockIt];
+	const uint MinLOD 		= UnpackPointLOD(Packed, LocalPointIt);
+	return MinLOD;
+}
+
+bool IsHairControlPointActive(uint InMinLOD, float InLODIndex)
+{
+	return floor(InLODIndex) <= InMinLOD;
+}
+
+bool IsHairControlPointActive(uint InPointIndex, Buffer<uint> InPointLODBuffer, float InLODIndex)
+{
+	const uint MinLOD = GetHairControlPointMinLOD(InPointIndex, InPointLODBuffer);
+	return IsHairControlPointActive(MinLOD, InLODIndex);
 }

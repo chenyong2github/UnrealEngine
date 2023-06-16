@@ -594,9 +594,11 @@ uint CurveCount;
 uint ClusterCount;
 float3 CPUBoundMin;
 float3 CPUBoundMax;
+float LODIndex;
 float4x4 LocalToTranslatedWorldMatrix;
 
 Buffer<uint> RenCurveBuffer;
+Buffer<uint> RenPointLODBuffer;
 Buffer<uint4> RenderDeformedPositionBuffer;
 Buffer<float4> RenderDeformedOffsetBuffer;
 
@@ -645,7 +647,6 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 	int3 ClusterAABBMin = 9999999.0f;
 	int3 ClusterAABBMax =-9999999.0f;
 
-	// TODO culled point have invalid position
 	const uint LoopCount = DivideAndRoundUp(CurvePointCount, GROUP_SIZE);
 	for (uint LoopIt = 0; LoopIt < LoopCount; ++LoopIt)
 	{
@@ -653,9 +654,9 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 		if (LocalPointIndex < CurvePointCount)
 		{
 			const uint GlobalPointIndex = CurvePointIndex + LocalPointIndex;
+			const bool bIsActive = IsHairControlPointActive(GlobalPointIndex, RenPointLODBuffer, LODIndex);
 			const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[GlobalPointIndex], OutHairPositionOffset, 1, 1, 1);
-
-			if (all(IsFinite(CP.Position)))
+			if (bIsActive && all(IsFinite(CP.Position)))
 			{
 				const int3 WorldSpaceCentimeters = int3(mul(float4(CP.Position, 1.0f), LocalToTranslatedWorldMatrix).xyz);
 				const int3 WorldSpaceCentimetersMin = WorldSpaceCentimeters - 1;
@@ -735,7 +736,7 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 	#if DEBUG_ENABLE
 	if (ThreadIndex == 0)
 	{
-		const float4 DebugColor = float4(ColorMapViridis(ClusterIndex / float(TotalClusterCount)),1);
+		const float4 DebugColor = float4(ColorMapViridis(ClusterIndex / float(ClusterCount)),1);
 		AddAABBTWS(SharedClusterAABBMin[0], SharedClusterAABBMax[0], DebugColor);
 		AddReferentialWS(LocalToWorldMatrix, 10);
 	}

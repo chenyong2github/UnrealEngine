@@ -321,11 +321,6 @@ RWBuffer<uint>  OutCulledCurveBuffer;
 #define MAX_CURVE CURVE_PER_GROUP
 #define MAX_POINT PERMUTATION_POINT_PER_CURVE
 
-uint UnpackPointLOD(uint InPacked, uint InIndex)
-{
-	return (InPacked >> (InIndex * HAIR_POINT_LOD_BIT_COUNT)) & 0xF;
-}
-
 uint GetGlobalCurveIndex(uint ThreadIndex, uint2 GroupIndex)
 {
 	const uint LinearGroupIndex = GroupIndex.x + GroupIndex.y * DispatchCountX;
@@ -403,17 +398,14 @@ void Main(uint3 DispatchThreadId : SV_DispatchThreadID, uint ThreadIndex : SV_Gr
 		{	
 			if (CurrentPointIndex < CurvePointCount[CurveIndex])
 			{
-				const uint PointIndex   = CurrentPointIndex + CurvePointIndex[CurveIndex];
-				const uint BlockIt      = PointIndex >> HAIR_POINT_LOD_COUNT_PER_UINT_DIV_AS_SHIFT;
-				const uint LocalPointIt = PointIndex - BlockIt * HAIR_POINT_LOD_COUNT_PER_UINT;
-				const uint Packed 		= PointLODBuffer[BlockIt];
-				const uint MinLOD 		= UnpackPointLOD(Packed, LocalPointIt);
+				const uint PointIndex = CurrentPointIndex + CurvePointIndex[CurveIndex];				
+				const uint MinLOD = GetHairControlPointMinLOD(PointIndex, PointLODBuffer);
 
 				// When a curve reach its last LOD, fade its radius progressively
 				RadiusFade = ceil(ClusterLOD[CurveIndex]) >= LODCount[CurveIndex]-1 ? 1.f : saturate(MinLOD+1 - ClusterLOD[CurveIndex]);
 
 				// Prune control point based on their MinLOD value
-				if (floor(ClusterLOD[CurveIndex]) <= MinLOD)
+				if (IsHairControlPointActive(MinLOD, ClusterLOD[CurveIndex]))
 				{
 					ValidPoints[CurveIndex][CurrentPointIndex] = 1;
 				}
@@ -537,17 +529,14 @@ void Main(uint3 DispatchThreadId : SV_DispatchThreadID, uint ThreadIndex : SV_Gr
 			{	
 				if (CurrentPointIndex < CurvePointCount)
 				{
-					const uint PointIndex   = CurrentPointIndex + CurvePointIndex;
-					const uint BlockIt      = PointIndex >> HAIR_POINT_LOD_COUNT_PER_UINT_DIV_AS_SHIFT;
-					const uint LocalPointIt = PointIndex - BlockIt * HAIR_POINT_LOD_COUNT_PER_UINT;
-					const uint Packed 		= PointLODBuffer[BlockIt];
-					const uint MinLOD 		= UnpackPointLOD(Packed, LocalPointIt);
+					const uint PointIndex = CurrentPointIndex + CurvePointIndex;
+					const uint MinLOD = GetHairControlPointMinLOD(PointIndex, PointLODBuffer);
 
 					// When a curve reach its last LOD, fade its radius progressively
 					RadiusFade = ceil(ClusterLOD) >= LODCount-1 ? 1.f : saturate(MinLOD+1 - ClusterLOD);
 
 					// Prune control point based on their MinLOD value
-					if (floor(ClusterLOD) <= MinLOD)
+					if (IsHairControlPointActive(MinLOD, ClusterLOD))
 					{
 						ValidPoints[CurrentPointIndex] = 1;
 					}
