@@ -341,7 +341,7 @@ namespace UsdGeometryCacheTranslatorImpl
 	}
 
 	UGeometryCache* CreateGeometryCache(const FString& RootPrimPath, const FMeshDescription& MeshDescription, const TArray<UE::FSdfPath>& MeshPaths, const TArray<int32>& MaterialOffsets,
-										TSharedRef<FUsdSchemaTranslationContext> Context, bool& bOutIsNew)
+										TSharedRef<FUsdSchemaTranslationContext> Context, bool& bOutIsNew, float& StartOffsetTime)
 	{
 		// Compute the asset hash from the merged mesh description
 		FSHA1 SHA1;
@@ -378,6 +378,8 @@ namespace UsdGeometryCacheTranslatorImpl
 			if (!Context->bIsImporting)
 			{
 				Args = GetReadMeshDataArgs(Context, RootPrimPath);
+				// StartOffsetTime is the offset applied to the GeometryCache section on the sequencer track, so not relevant when importing
+				StartOffsetTime = static_cast<float>(Args->StartFrame) / Args->FramesPerSecond;
 			}
 
 			// Create a track for each mesh to be processed and add it to the GeometryCache
@@ -489,7 +491,7 @@ namespace UsdGeometryCacheTranslatorImpl
 
 					// Parallel frame read: frame data can be read concurrently but have to be processed in order for AddMeshSample
 					ParallelFor(NumFrameThreads, [&Args, &MeshPrim, &FrameWrittenEvent, &WriteFrameIndex, &Mutex, NumFrameThreads, MaterialOffset, StreamableTrack, bConstantTopology](int32 FrameThreadIndex)
-							{
+					{
 						int32 FrameIndex = Args.StartFrame + FrameThreadIndex;
 
 						while (FrameIndex < Args.EndFrame)
@@ -763,8 +765,9 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			}
 
 			bool bIsNew = true;
+			float StartTimeOffset = 0.0f;
 			const FString PrimPathString = PrimPath.GetString();
-			GeometryCache.Reset(UsdGeometryCacheTranslatorImpl::CreateGeometryCache(PrimPathString, LODIndexToMeshDescription[0], MeshPrimPaths, MaterialOffsets, Context, bIsNew));
+			GeometryCache.Reset(UsdGeometryCacheTranslatorImpl::CreateGeometryCache(PrimPathString, LODIndexToMeshDescription[0], MeshPrimPaths, MaterialOffsets, Context, bIsNew, StartTimeOffset));
 
 			if (GeometryCache && bIsNew)
 			{
@@ -772,6 +775,11 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				UserData->PrimPath = PrimPathString;
 				UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;  // We use the same primvar mapping for all LODs
 				GeometryCache->AddAssetUserData(UserData);
+
+				UUsdAnimSequenceAssetUserData* AnimUserData = NewObject<UUsdAnimSequenceAssetUserData>(GeometryCache.Get(), TEXT("UsdAnimUserData"));
+				AnimUserData->PrimPath = PrimPathString;
+				AnimUserData->LayerStartOffsetSeconds = StartTimeOffset;
+				GeometryCache->AddAssetUserData(AnimUserData);
 
 				// Only the original creator of the prim at creation time gets to set the material assignments
 				// directly on the geometry cache, all others prims ensure their materials via material overrides on the
@@ -939,9 +947,10 @@ void FUsdGeometryCacheTranslator::UpdateComponents(USceneComponent* SceneCompone
 		}
 
 		// Manually tick USD GeometryCache only when their tracks are disabled in Sequencer
+		// but also need to tick for the initial setup
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("USD.DisableGeoCacheTracks"));
 		bool bDisableGeoCacheTracks = CVar && CVar->GetBool();
-		if (bDisableGeoCacheTracks)
+		if (bDisableGeoCacheTracks || !Context->bSequencerIsAnimating)
 		{
 			float TimeCode = Context->Time;
 			if (FMath::IsNaN(TimeCode))
@@ -958,7 +967,25 @@ void FUsdGeometryCacheTranslator::UpdateComponents(USceneComponent* SceneCompone
 			// geometry cache to register itself at Context->Time so that it will synchronously load that frame right away.
 			// Otherwise the geometry cache will start at t=0 regardless of Context->Time
 			GeometryCacheComponent->SetManualTick(true);
-			GeometryCacheComponent->TickAtThisTime(TimeCode, true, false, true);
+
+			// Looping is disabled since the animation is driven by Sequencer
+			const bool bIsLooping = false;
+			GeometryCacheComponent->SetLooping(bIsLooping);
+
+			float LayerStartOffsetSeconds = 0.0f;
+			if (GeometryCache)
+			{
+				if (UUsdAnimSequenceAssetUserData* UserData = GeometryCache->GetAssetUserData<UUsdAnimSequenceAssetUserData>())
+				{
+					LayerStartOffsetSeconds = UserData->LayerStartOffsetSeconds;
+				}
+			}
+
+			const double FramesPerSecond = Context->Stage.GetTimeCodesPerSecond();
+			const float AdjustedTime = static_cast<float>(TimeCode / FramesPerSecond - LayerStartOffsetSeconds);
+			const bool bIsRunning = true;
+			const bool bIsBackwards = false;
+			GeometryCacheComponent->TickAtThisTime(AdjustedTime, bIsRunning, bIsBackwards, bIsLooping);
 		}
 
 		// If the prim has a GroomBinding schema, apply the target groom to its associated GroomComponent

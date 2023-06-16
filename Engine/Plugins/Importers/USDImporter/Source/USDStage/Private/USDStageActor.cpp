@@ -1865,15 +1865,7 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim(const UE::FUsdPrim& Prim, bool bResync,
 			UE::FSdfPath PrimPath(*UsdPrimTwin->PrimPath);
 			UE::FUsdPrim UsdPrim(UsdStage.GetPrimAtPath(PrimPath));
 
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("USD.DisableGeoCacheTracks"));
-			const bool bDisableGeoCacheTracks = CVar && CVar->GetBool();
-
-			// Optimization: manually animate mesh prims only when the USD GeometryCaches tracks are disabled
-			const bool bAnimatePrim = bDisableGeoCacheTracks || !UsdPrim.IsA(TEXT("Mesh"));
-			if (bAnimatePrim)
-			{
-				PrimsToAnimate.Add(UsdPrimTwin->PrimPath);
-			}
+			PrimsToAnimate.Add(UsdPrimTwin->PrimPath);
 			LevelSequenceHelper.AddPrim(*UsdPrimTwin);
 		}
 	}

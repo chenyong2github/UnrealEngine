@@ -1045,16 +1045,17 @@ ULevelSequence* FUsdLevelSequenceHelperImpl::FindOrAddSequenceForAttribute(const
 	{
 		if (UE::FSdfLayer AttributeLayer = UsdUtils::FindLayerForAttribute(Attribute, 0.0))
 		{
-			if (UsdStage)
+			const FString SequenceIdentifier = AttributeLayer.GetIdentifier();
+			Sequence = FindOrAddSequenceForLayer(AttributeLayer, SequenceIdentifier, SequenceIdentifier);
+
+#if WITH_EDITORONLY_DATA
+			// Make level sequences for non-local layers read-only: Our current approach is that only
+			// local layers can be written to, so there is no point in doing otherwise
+			if (Sequence && UsdStage && !UsdStage.HasLocalLayer(AttributeLayer))
 			{
-				// Only create level sequences for layers in the local layer stack: Our current approach is that only
-				// those layers can be written to, so there is no point in doing otherwise
-				if (UsdStage.HasLocalLayer(AttributeLayer))
-				{
-					const FString SequenceIdentifier = AttributeLayer.GetIdentifier();
-					Sequence = FindOrAddSequenceForLayer(AttributeLayer, SequenceIdentifier, SequenceIdentifier);
-				}
+				Sequence->GetMovieScene()->SetReadOnly(true);
 			}
+#endif
 		}
 	}
 
@@ -1231,27 +1232,49 @@ void FUsdLevelSequenceHelperImpl::CreateSubSequenceSection(ULevelSequence& Seque
 	}
 
 	const double TimeCodesPerSecond = Layer.GetTimeCodesPerSecond();
+	const bool bIsAlembicSublayer = SubLayerIdentifier->EndsWith(TEXT(".abc"));
+	TRange< FFrameNumber > SubSectionRange;
+	FFrameNumber StartFrame;
 
-	// Section full duration is always [0, endTimeCode]. The play range varies: For the root layer it will be [startTimeCode, endTimeCode],
-	// but for sublayers it will be [0, endTimeCode] too in order to match how USD composes sublayers with non-zero startTimeCode
-	const double SubDurationTimeCodes = SubLayer.GetEndTimeCode() * SubLayerOffset.Scale;
-	const double SubDurationSeconds = SubDurationTimeCodes / TimeCodesPerSecond;
+	if (!bIsAlembicSublayer)
+	{
+		// Section full duration is always [0, endTimeCode]. The play range varies: For the root layer it will be [startTimeCode, endTimeCode],
+		// but for sublayers it will be [0, endTimeCode] too in order to match how USD composes sublayers with non-zero startTimeCode
+		const double SubDurationTimeCodes = SubLayer.GetEndTimeCode() * SubLayerOffset.Scale;
+		const double SubDurationSeconds = SubDurationTimeCodes / TimeCodesPerSecond;
 
-	const double SubStartTimeSeconds = SubLayerOffset.Offset / TimeCodesPerSecond;
-	const double SubEndTimeSeconds = SubStartTimeSeconds + SubDurationSeconds;
+		const double SubStartTimeSeconds = SubLayerOffset.Offset / TimeCodesPerSecond;
+		const double SubEndTimeSeconds = SubStartTimeSeconds + SubDurationSeconds;
 
-	const FFrameNumber StartFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber(TickResolution, SubStartTimeSeconds);
-	const FFrameNumber EndFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber(TickResolution, SubEndTimeSeconds);
+		StartFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber(TickResolution, SubStartTimeSeconds);
+		const FFrameNumber EndFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber(TickResolution, SubEndTimeSeconds);
 
-	// Don't clip subsections with their duration, so that the root layer's [startTimeCode, endTimeCode] range is the only thing clipping
-	// anything, as this is how USD seems to behave. Even if a middle sublayer has startTimeCode == endTimeCode, its animations
-	// (or its child sublayers') won't be clipped by it and play according to the stage's range
-	const double StageEndTimeSeconds = UsdStage.GetEndTimeCode() / UsdStage.GetTimeCodesPerSecond();
-	const FFrameNumber StageEndFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber(TickResolution, StageEndTimeSeconds);
+		// Don't clip subsections with their duration, so that the root layer's [startTimeCode, endTimeCode] range is the only thing clipping
+		// anything, as this is how USD seems to behave. Even if a middle sublayer has startTimeCode == endTimeCode, its animations
+		// (or its child sublayers') won't be clipped by it and play according to the stage's range
+		const double StageEndTimeSeconds = UsdStage.GetEndTimeCode() / UsdStage.GetTimeCodesPerSecond();
+		const FFrameNumber StageEndFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber(TickResolution, StageEndTimeSeconds);
 
-	// Max here because StartFrame can theoretically be larger than StageEndFrame, which would generate a range where the upper bound is smaller
-	// than the lower bound, which can trigger asserts
-	TRange< FFrameNumber > SubSectionRange{StartFrame, FMath::Max(StageEndFrame, EndFrame)};
+		// Max here because StartFrame can theoretically be larger than StageEndFrame, which would generate a range where the upper bound is smaller
+		// than the lower bound, which can trigger asserts
+		SubSectionRange = TRange< FFrameNumber >{StartFrame, FMath::Max(StageEndFrame, EndFrame)};
+	}
+	else
+	{
+		// One issue with a sublayer from Alembic is that the usdAbc plugin does not retrieve the frame rate of the archive.
+		// Another is that the start time does not necessarily represents the actual start of the animation. That's why
+		// there's an option to "skip empty frames" when importing an Alembic. So instead take the start/end timecodes from
+		// the parent layer. That way the user can define the animation range needed.
+		SubLayer = Layer;
+
+		const double SubStartTimeSeconds = SubLayer.GetStartTimeCode() * SubLayerOffset.Scale / TimeCodesPerSecond;
+		const double SubEndTimeSeconds = SubLayer.GetEndTimeCode() * SubLayerOffset.Scale / TimeCodesPerSecond;
+
+		StartFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber(TickResolution, SubStartTimeSeconds);
+		const FFrameNumber EndFrame = UsdLevelSequenceHelperImpl::RoundAsFrameNumber(TickResolution, SubEndTimeSeconds);
+
+		SubSectionRange = TRange<FFrameNumber>{StartFrame, EndFrame};
+	}
 
 	UMovieSceneSubSection* SubSection = FindSubSequenceSection(Sequence, SubSequence);
 	if (SubSection)
@@ -1962,11 +1985,13 @@ void FUsdLevelSequenceHelperImpl::AddGeometryCacheTracks(const UUsdPrimTwin& Pri
 		GeometryCacheTrack->RemoveAllAnimationData();
 
 		double LayerStartOffsetSeconds = 0;
-		if (GeometryCache->Tracks.Num())
+		if (GeometryCacheSequence == MainLevelSequence)
 		{
-			// Use the geometry cache start frame index converted to time as the offset
-			UGeometryCacheTrackUsd* UsdTrack = Cast<UGeometryCacheTrackUsd>(GeometryCache->Tracks[0]);
-			LayerStartOffsetSeconds = UsdTrack->StartFrameIndex / UsdTrack->FramesPerSecond;
+			// The LayerStartOffset needs to be applied only for the track in the main sequence. For subsequences, it's the subsequence section that is offset.
+			if (UUsdAnimSequenceAssetUserData* UserData = GeometryCache->GetAssetUserData<UUsdAnimSequenceAssetUserData>())
+			{
+				LayerStartOffsetSeconds = UserData->LayerStartOffsetSeconds;
+			}
 		}
 
 		const FFrameNumber StartOffsetTick = FFrameTime::FromDecimal(LayerStartOffsetSeconds * MovieScene->GetTickResolution().AsDecimal()).RoundToFrame();
@@ -2049,6 +2074,12 @@ void FUsdLevelSequenceHelperImpl::AddPrim(UUsdPrimTwin& PrimTwin, bool bForceVis
 
 	UE::FSdfLayer PrimLayer = UsdUtils::FindLayerForPrim(UsdPrim);
 	ULevelSequence* PrimSequence = FindSequenceForIdentifier(PrimLayer.GetIdentifier());
+
+	// PrimSequence is needed for a subsequence section to be created so fall back to the main sequence
+	if (!PrimSequence)
+	{
+		PrimSequence = MainLevelSequence;
+	}
 
 	TArray< UE::FUsdAttribute > PrimAttributes = UsdPrim.GetAttributes();
 
