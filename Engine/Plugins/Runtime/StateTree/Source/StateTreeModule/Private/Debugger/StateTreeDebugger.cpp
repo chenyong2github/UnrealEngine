@@ -3,13 +3,11 @@
 #if WITH_STATETREE_DEBUGGER
 
 #include "Debugger/StateTreeDebugger.h"
-#include "Algo/RemoveIf.h"
 #include "Debugger/IStateTreeTraceProvider.h"
 #include "Debugger/StateTreeTraceProvider.h"
 #include "Debugger/StateTreeTraceTypes.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "StateTree.h"
 #include "StateTreeModule.h"
 #include "Trace/StoreClient.h"
 #include "TraceServices/AnalysisService.h"
@@ -522,32 +520,72 @@ void FStateTreeDebugger::StepForwardToNextStateChange()
 	RefreshActiveStates();
 }
 
-void FStateTreeDebugger::ToggleBreakpoints(const TConstArrayView<FStateTreeStateHandle> SelectedStates)
+bool FStateTreeDebugger::HasStateBreakpoint(const FStateTreeStateHandle StateHandle, const EStateTreeBreakpointType BreakpointType) const
 {
-	TArray<FStateTreeStateHandle> CurrentBreakpoints = StatesWithBreakpoint;
-	TArray<FStateTreeStateHandle> NewBreakpoints(SelectedStates);
-
-	// remove from the selected states any state that already has a breakpoint
-	const int32 ExistingBreakpointsStartIndex = Algo::RemoveIf
-	(NewBreakpoints,
-		[&CurrentBreakpoints](const FStateTreeStateHandle BreakpointToToggle)
+	return Breakpoints.ContainsByPredicate([StateHandle, BreakpointType](const FStateTreeDebuggerBreakpoint Breakpoint)
 		{
-			return CurrentBreakpoints.Contains(BreakpointToToggle);
+			if (Breakpoint.BreakpointType == BreakpointType)
+			{
+				const FStateTreeStateHandle* BreakpointStateHandle = Breakpoint.ElementIdentifier.TryGet<FStateTreeStateHandle>();
+				return (BreakpointStateHandle != nullptr && *BreakpointStateHandle == StateHandle);
+			}
+			return false; 
+		});
+}
+
+bool FStateTreeDebugger::HasTaskBreakpoint(const FStateTreeIndex16 Index, const EStateTreeBreakpointType BreakpointType) const
+{
+	return Breakpoints.ContainsByPredicate([Index, BreakpointType](const FStateTreeDebuggerBreakpoint Breakpoint)
+	{
+		if (Breakpoint.BreakpointType == BreakpointType)
+		{
+			const FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex* BreakpointTaskIndex = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex>();
+			return (BreakpointTaskIndex != nullptr && BreakpointTaskIndex->Index == Index);
+		}
+		return false; 
+	});
+}
+
+bool FStateTreeDebugger::HasTransitionBreakpoint(const FStateTreeIndex16 Index, const EStateTreeBreakpointType BreakpointType) const
+{
+	return Breakpoints.ContainsByPredicate([Index, BreakpointType](const FStateTreeDebuggerBreakpoint Breakpoint)
+	{
+		if (Breakpoint.BreakpointType == BreakpointType)
+		{
+			const FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex* BreakpointTransitionIndex = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex>();
+			return (BreakpointTransitionIndex != nullptr && BreakpointTransitionIndex->Index == Index);
+		}
+		return false; 
+	});
+}
+
+void FStateTreeDebugger::SetBreakpoint(FStateTreeStateHandle StateHandle, EStateTreeBreakpointType BreakpointType)
+{
+	Breakpoints.Emplace(StateHandle, BreakpointType);
+}
+
+void FStateTreeDebugger::SetBreakpoint(const FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType)
+{
+	Breakpoints.Emplace(NodeIndex, BreakpointType);
+}
+
+void FStateTreeDebugger::ClearBreakpoint(const FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType)
+{
+	const int32 Index = Breakpoints.IndexOfByPredicate([NodeIndex, BreakpointType](const FStateTreeDebuggerBreakpoint& Breakpoint)
+		{
+			const FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex* IndexPtr = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex>();
+			return (IndexPtr != nullptr && IndexPtr->Index == NodeIndex && Breakpoint.BreakpointType == BreakpointType);
 		});
 
-	for (int32 i = ExistingBreakpointsStartIndex; i < NewBreakpoints.Num(); i++)
+	if (Index != INDEX_NONE)
 	{
-		CurrentBreakpoints.RemoveSingleSwap(NewBreakpoints[i], /*bAllowShrinking*/false);
+		Breakpoints.RemoveAtSwap(Index);
 	}
+}
 
-	NewBreakpoints.SetNum(ExistingBreakpointsStartIndex, /*bAllowShrinking*/false);
-
-	// Both lists were reduced and can be merged as the new complete list of breakpoints.
-	CurrentBreakpoints.Append(NewBreakpoints);
-
-	StatesWithBreakpoint = CurrentBreakpoints;
-
-	OnBreakpointsChanged.ExecuteIfBound(StatesWithBreakpoint);
+void FStateTreeDebugger::ClearAllBreakpoints()
+{
+	Breakpoints.Empty();
 }
 
 const TraceServices::IAnalysisSession* FStateTreeDebugger::GetAnalysisSession() const
@@ -619,10 +657,10 @@ void FStateTreeDebugger::SendNotifications()
 		NewInstances.Reset();
 	}
 
-	if (HitBreakpointStateIndex != INDEX_NONE)
+	if (HitBreakpointIndex != INDEX_NONE)
 	{
 		check(HitBreakpointInstanceId.IsValid());
-		check(StatesWithBreakpoint.IsValidIndex(HitBreakpointStateIndex));
+		check(Breakpoints.IsValidIndex(HitBreakpointIndex));
 
 		// Force scrub time to latest read time to reflect most recent events.
 		// This will notify scrub position changed and active states
@@ -634,9 +672,9 @@ void FStateTreeDebugger::SendNotifications()
 			SelectInstance(HitBreakpointInstanceId);
 		}
 
-		OnBreakpointHit.ExecuteIfBound(HitBreakpointInstanceId, StatesWithBreakpoint[HitBreakpointStateIndex]);
+		OnBreakpointHit.ExecuteIfBound(HitBreakpointInstanceId, Breakpoints[HitBreakpointIndex]);
 
-		HitBreakpointStateIndex = INDEX_NONE;
+		HitBreakpointIndex = INDEX_NONE;
 		HitBreakpointInstanceId.Reset();
 	}
 }
@@ -659,48 +697,69 @@ void FStateTreeDebugger::ReadTrace(
 	}
 }
 
-bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId, const TraceServices::FFrame& Frame, const FStateTreeTraceEventVariantType& Event)
+void FStateTreeDebugger::EvaluateBreakpoints(const FStateTreeInstanceDebugId InstanceId, const FStateTreeTraceEventVariantType& Event)
 {
-	using namespace UE::StateTreeDebugger;
-
-	// Breakpoints 
-	if (bPaused == false // ignored when scrubbing a paused session
-		&& StateTreeAsset != nullptr // asset is required to properly match state handles
-		&& HitBreakpointStateIndex == INDEX_NONE // stop on first hit breakpoint
-		&& StatesWithBreakpoint.Num()
-		&& (SelectedInstanceId == InstanceId || SelectedInstanceId.IsInvalid())) // allow breakpoints on any instances if not specified
+	if (bPaused // ignored when scrubbing a paused session
+		|| StateTreeAsset == nullptr // asset is required to properly match state handles
+		|| HitBreakpointIndex != INDEX_NONE // stop on first hit breakpoint
+		|| Breakpoints.IsEmpty()
+		|| (SelectedInstanceId.IsValid() && InstanceId != SelectedInstanceId)) // ignore events not for the selected instances		
 	{
-		const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>();
-		if (StateEvent != nullptr && StateEvent->EventType == EStateTreeTraceEventType::OnEnter)
-		{
-			const UStateTree* InstanceStateTree = nullptr;
-			if (SelectedInstanceId.IsInvalid())
-			{
-				// No specific instance selected yet, find matching descriptor from id to extract the associated StateTree asset
-				const FInstanceDescriptor* FoundInstance = InstanceDescs.FindByPredicate(
-					[InstanceId](const FInstanceDescriptor& InstanceDesc)
-					{
-						return InstanceDesc.Id == InstanceId;
-					});
+		return;
+	}
+	
+	EStateTreeTraceEventType EventType = EStateTreeTraceEventType::Unset;
+	
+	Visit([&EventType](auto& TypedEvent) { EventType = TypedEvent.EventType; }, Event); 
 
-				if (FoundInstance != nullptr)
+	for (int BreakpointIndex = 0; BreakpointIndex < Breakpoints.Num(); ++BreakpointIndex)
+	{
+		const FStateTreeDebuggerBreakpoint Breakpoint = Breakpoints[BreakpointIndex];
+		if (Breakpoint.EventType == EventType)
+		{
+			if (const FStateTreeStateHandle* StateHandle = Breakpoint.ElementIdentifier.TryGet<FStateTreeStateHandle>())
+			{
+				if (const FStateTreeTraceStateEvent* StateEvent = Event.TryGet<FStateTreeTraceStateEvent>())
 				{
-					InstanceStateTree = FoundInstance->StateTree.Get();
+					if (StateEvent->GetStateHandle() == *StateHandle)
+					{
+						HitBreakpointIndex = BreakpointIndex;
+						HitBreakpointInstanceId = InstanceId;
+					}
 				}
 			}
-
-			if (SelectedInstanceId.IsValid() || InstanceStateTree == StateTreeAsset)
+			else if (const FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex* TaskIndex = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex>())
 			{
-				HitBreakpointStateIndex = StatesWithBreakpoint.Find(StateEvent->GetStateHandle());
-				if (HitBreakpointStateIndex != INDEX_NONE)
+				if (const FStateTreeTraceTaskEvent* TaskEvent = Event.TryGet<FStateTreeTraceTaskEvent>())
 				{
-					HitBreakpointInstanceId = InstanceId;
+					if (TaskEvent->Index == TaskIndex->Index)
+					{
+						HitBreakpointIndex = BreakpointIndex;
+						HitBreakpointInstanceId = InstanceId;
+					}
+				}
+			}
+			else if (const FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex* TransitionIndex = Breakpoint.ElementIdentifier.TryGet<FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex>())
+			{
+				if (const FStateTreeTraceTransitionEvent* TransitionEvent = Event.TryGet<FStateTreeTraceTransitionEvent>())
+				{
+					if (TransitionEvent->TransitionIndex == TransitionIndex->Index)
+					{
+						HitBreakpointIndex = BreakpointIndex;
+						HitBreakpointInstanceId = InstanceId;
+					}
 				}
 			}
 		}
 	}
+}
 
-	FInstanceEventCollection* ExistingCollection = EventCollections.FindByPredicate([InstanceId](const FInstanceEventCollection& Entry)
+bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId, const TraceServices::FFrame& Frame, const FStateTreeTraceEventVariantType& Event)
+{
+	EvaluateBreakpoints(InstanceId, Event);
+
+	UE::StateTreeDebugger::FInstanceEventCollection* ExistingCollection = EventCollections.FindByPredicate(
+		[InstanceId](const UE::StateTreeDebugger::FInstanceEventCollection& Entry)
 		{
 			return Entry.InstanceId == InstanceId;
 		});

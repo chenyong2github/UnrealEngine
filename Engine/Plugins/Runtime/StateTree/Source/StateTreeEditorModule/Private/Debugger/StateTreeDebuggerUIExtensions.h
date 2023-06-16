@@ -12,15 +12,12 @@ class IPropertyHandle;
 class IDetailLayoutBuilder;
 class FDetailWidgetRow;
 class FStateTreeViewModel;
+class UStateTreeEditorData;
 
 namespace UE::StateTreeEditor::DebuggerExtensions
 {
 
-TSharedRef<SWidget> CreateStateWidget(TSharedPtr<IPropertyHandle> EnabledProperty);
-TSharedRef<SWidget> CreateEditorNodeWidget(TSharedPtr<IPropertyHandle> Shared);
-
-void OnConditionEvaluationModeChanged(TSharedPtr<IPropertyHandle> StructProperty, EStateTreeConditionEvaluationMode Mode);
-void OnStateEnableToggled(TSharedPtr<IPropertyHandle> StructProperty);
-void OnTaskEnableToggled(TSharedPtr<IPropertyHandle> StructProperty);
+TSharedRef<SWidget> CreateStateWidget(IDetailLayoutBuilder& DetailBuilder, UStateTreeEditorData* TreeData);
+TSharedRef<SWidget> CreateEditorNodeWidget(const TSharedPtr<IPropertyHandle>& StructPropertyHandle, UStateTreeEditorData* TreeData);
 
 }; // UE::StateTreeEditor::DebuggerExtensions

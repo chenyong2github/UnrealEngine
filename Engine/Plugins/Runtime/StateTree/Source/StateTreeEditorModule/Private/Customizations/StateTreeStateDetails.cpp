@@ -20,14 +20,14 @@ TSharedRef<IDetailCustomization> FStateTreeStateDetails::MakeInstance()
 void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	// Find StateTreeEditorData associated with this panel.
-	const UStateTreeEditorData* EditorData = nullptr;
+	UStateTreeEditorData* EditorData = nullptr;
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
 	for (TWeakObjectPtr<UObject>& WeakObject : Objects)
 	{
 		if (const UObject* Object = WeakObject.Get())
 		{
-			const UStateTreeEditorData* OuterEditorData = Object->GetTypedOuter<UStateTreeEditorData>();
+			if (UStateTreeEditorData* OuterEditorData = Object->GetTypedOuter<UStateTreeEditorData>())
 			{
 				EditorData = OuterEditorData;
 				break;
@@ -55,7 +55,7 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	IDetailCategoryBuilder& StateCategory = DetailBuilder.EditCategory(TEXT("State"), LOCTEXT("StateDetailsState", "State"));
 	StateCategory.SetSortOrder(0);
 
-	StateCategory.HeaderContent(UE::StateTreeEditor::DebuggerExtensions::CreateStateWidget(EnabledProperty));
+	StateCategory.HeaderContent(UE::StateTreeEditor::DebuggerExtensions::CreateStateWidget(DetailBuilder, EditorData));
 
 	if (StateType != EStateTreeStateType::Linked)
 	{

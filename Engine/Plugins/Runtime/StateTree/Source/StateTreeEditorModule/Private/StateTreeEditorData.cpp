@@ -356,7 +356,6 @@ void UStateTreeEditorData::ReparentStates()
 	});
 }
 
-
 void UStateTreeEditorData::FixObjectInstance(TSet<UObject*>& SeenObjects, UObject& Outer, FStateTreeEditorNode& Node)
 {
 	if (Node.InstanceObject)
@@ -785,6 +784,55 @@ EStateTreeVisitor UStateTreeEditorData::VisitAllNodes(TFunctionRef<EStateTreeVis
 
 	return VisitHierarchyNodes(InFunc);
 }
+
+#if WITH_STATETREE_DEBUGGER
+bool UStateTreeEditorData::HasAnyBreakpoint(const FGuid ID) const
+{
+	return Breakpoints.ContainsByPredicate([ID](const FStateTreeEditorBreakpoint& Breakpoint) { return Breakpoint.ID == ID; });
+}
+
+bool UStateTreeEditorData::HasBreakpoint(const FGuid ID, const EStateTreeBreakpointType BreakpointType) const
+{
+	return GetBreakpoint(ID, BreakpointType) != nullptr;
+}
+
+const FStateTreeEditorBreakpoint* UStateTreeEditorData::GetBreakpoint(const FGuid ID, const EStateTreeBreakpointType BreakpointType) const
+{
+	return Breakpoints.FindByPredicate([ID, BreakpointType](const FStateTreeEditorBreakpoint& Breakpoint)
+		{
+			return Breakpoint.ID == ID && Breakpoint.BreakpointType == BreakpointType;
+		});
+}
+
+void UStateTreeEditorData::AddBreakpoint(const FGuid ID, const EStateTreeBreakpointType BreakpointType)
+{
+	Breakpoints.Emplace(ID, BreakpointType);
+
+	const UStateTree* StateTree = GetTypedOuter<UStateTree>();
+	checkf(StateTree, TEXT("UStateTreeEditorData should only be allocated within a UStateTree"));
+	UE::StateTree::Delegates::OnBreakpointsChanged.Broadcast(*StateTree);
+}
+
+bool UStateTreeEditorData::RemoveBreakpoint(const FGuid ID, const EStateTreeBreakpointType BreakpointType)
+{
+	const int32 Index = Breakpoints.IndexOfByPredicate([ID, BreakpointType](const FStateTreeEditorBreakpoint& Breakpoint)
+		{
+			return Breakpoint.ID == ID && Breakpoint.BreakpointType == BreakpointType;
+		});
+		
+	if (Index != INDEX_NONE)
+	{
+		Breakpoints.RemoveAtSwap(Index);
+		
+		const UStateTree* StateTree = GetTypedOuter<UStateTree>();
+		checkf(StateTree, TEXT("UStateTreeEditorData should only be allocated within a UStateTree"));
+		UE::StateTree::Delegates::OnBreakpointsChanged.Broadcast(*StateTree);
+	}
+
+	return Index != INDEX_NONE;
+}
+
+#endif // WITH_STATETREE_DEBUGGER
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UStateTreeEditorData::AddPropertyBinding(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath)

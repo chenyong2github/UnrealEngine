@@ -239,8 +239,14 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 		return false;
 	}
 
+	// Store mapping between node unique ID and their compiled index. Used for debugging purposes.
+	for (const TPair<FGuid, int32>& ToNode : IDToNode)
+	{
+		StateTree->IDToNodeMappings.Emplace(ToNode.Key, FStateTreeIndex16(ToNode.Value));
+	}
+
 	// Store mapping between state unique ID and state handle. Used for debugging purposes.
-	for (const TPair<FGuid, int>& ToState : IDToState)
+	for (const TPair<FGuid, int32>& ToState : IDToState)
 	{
 		StateTree->IDToStateMappings.Emplace(ToState.Key, FStateTreeStateHandle(ToState.Value));
 	}
@@ -856,6 +862,7 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 	}
 
 	// Copy the condition
+	IDToNode.Add(CondNode.ID, Nodes.Num());
 	FInstancedStruct& Node = Nodes.Add_GetRef(CondNode.Node);
 	InstantiateStructSubobjects(Node);
 
@@ -1026,6 +1033,7 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState* State, const FStateTreeEdit
 	}
 
 	// Copy the task
+	IDToNode.Add(TaskNode.ID, Nodes.Num());
 	FInstancedStruct& Node = Nodes.Add_GetRef(TaskNode.Node);
 	InstantiateStructSubobjects(Node);
 	
@@ -1140,6 +1148,7 @@ bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
     }
 
 	// Copy the evaluator
+	IDToNode.Add(EvalNode.ID, Nodes.Num());
 	FInstancedStruct& Node = Nodes.Add_GetRef(EvalNode.Node);
 	InstantiateStructSubobjects(Node);
 	

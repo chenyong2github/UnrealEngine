@@ -13,6 +13,8 @@
 #include "TraceServices/Model/Diagnostics.h"
 #include "TraceServices/Model/Frames.h"
 
+enum class EStateTreeBreakpointType : uint8;
+
 namespace UE::Trace
 {
 	class FStoreClient;
@@ -23,8 +25,7 @@ class UStateTreeState;
 class UStateTree;
 
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerScrubStateChanged, const UE::StateTreeDebugger::FScrubState& ScrubState);
-DECLARE_DELEGATE_TwoParams(FOnStateTreeDebuggerBreakpointHit, FStateTreeInstanceDebugId InstanceId, FStateTreeStateHandle StateHandle);
-DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerBreakpointsChanged, TConstArrayView<FStateTreeStateHandle> Breakpoints);
+DECLARE_DELEGATE_TwoParams(FOnStateTreeDebuggerBreakpointHit, FStateTreeInstanceDebugId InstanceId, const FStateTreeDebuggerBreakpoint Breakpoint);
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerActiveStatesChanges, TConstArrayView<FStateTreeStateHandle> ActiveStates);
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerNewInstance, FStateTreeInstanceDebugId InstanceId);
 DECLARE_DELEGATE(FOnStateTreeDebuggerDebuggedInstanceSet);
@@ -83,9 +84,19 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	FText GetInstanceName(FStateTreeInstanceDebugId InstanceId) const;
 	FText GetInstanceDescription(FStateTreeInstanceDebugId InstanceId) const;
 	void SelectInstance(const FStateTreeInstanceDebugId InstanceId);
+	void ClearSelection() { SelectInstance({}); }
 	FStateTreeInstanceDebugId GetSelectedInstanceId() const { return SelectedInstanceId; }
 	const UE::StateTreeDebugger::FInstanceDescriptor* GetInstanceDescriptor(const FStateTreeInstanceDebugId InstanceId) const ;
 	const UE::StateTreeDebugger::FInstanceDescriptor* GetSelectedInstanceDescriptor() const { return GetInstanceDescriptor(SelectedInstanceId); }
+
+	bool HasStateBreakpoint(FStateTreeStateHandle StateHandle, EStateTreeBreakpointType BreakpointType) const;
+	bool HasTaskBreakpoint(FStateTreeIndex16 Index, EStateTreeBreakpointType BreakpointType) const;
+	bool HasTransitionBreakpoint(FStateTreeIndex16 Index, EStateTreeBreakpointType BreakpointType) const;
+	void SetBreakpoint(FStateTreeStateHandle StateHandle, EStateTreeBreakpointType BreakpointType);
+	void SetBreakpoint(FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType);
+	void ClearBreakpoint(FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType);
+	void ClearAllBreakpoints();
+	int32 NumBreakpoints() const { return Breakpoints.Num(); }
 
 	static FText DescribeTrace(const FTraceDescriptor& TraceDescriptor);
 	static FText DescribeInstance(const UE::StateTreeDebugger::FInstanceDescriptor& StateTreeInstanceDesc);
@@ -120,14 +131,11 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	void StopAnalysis();
 	FTraceDescriptor GetSelectedTraceDescriptor() const { return ActiveSessionTraceDescriptor; }
 	FText GetSelectedTraceDescription() const;
-	
-	void ToggleBreakpoints(const TConstArrayView<FStateTreeStateHandle> SelectedStates);
 
 	FOnStateTreeDebuggerNewInstance OnNewInstance;
 	FOnStateTreeDebuggerDebuggedInstanceSet OnSelectedInstanceCleared;
 	FOnStateTreeDebuggerScrubStateChanged OnScrubStateChanged;
 	FOnStateTreeDebuggerBreakpointHit OnBreakpointHit;
-	FOnStateTreeDebuggerBreakpointsChanged OnBreakpointsChanged;
 	FOnStateTreeDebuggerActiveStatesChanges OnActiveStatesChanged;
 
 protected:
@@ -145,6 +153,8 @@ private:
 		const TraceServices::IFrameProvider& FrameProvider,
 		const TraceServices::FFrame& Frame
 		);
+
+	void EvaluateBreakpoints(FStateTreeInstanceDebugId InstanceId, const FStateTreeTraceEventVariantType& Event);
 
 	void SendNotifications();
 
@@ -193,8 +203,8 @@ private:
 	/** Specific instance selected for more details */
 	FStateTreeInstanceDebugId SelectedInstanceId;
 
-	/** Handles of states on which a breakpoint has been set. This is per asset and not specific to an instance. */
-	TArray<FStateTreeStateHandle> StatesWithBreakpoint;
+	/** List of breakpoints set. This is per asset and not specific to an instance. */
+	TArray<FStateTreeDebuggerBreakpoint> Breakpoints;
 
 	/** List of currently active states in the selected instance */
 	TArray<FStateTreeStateHandle> ActiveStates;
@@ -225,9 +235,9 @@ private:
 
 	/** Indicates the instance for which a breakpoint has been hit */
 	FStateTreeInstanceDebugId HitBreakpointInstanceId = FStateTreeInstanceDebugId::Invalid;
-
-	/** Indicates the state for which a breakpoint has been hit */
-	int32 HitBreakpointStateIndex = INDEX_NONE;
+	
+	/** Indicates the index of the breakpoint that has been hit */
+	int32 HitBreakpointIndex = INDEX_NONE;
 
 	/** List of new instances discovered by processing event in the analysis session. */
 	TArray<FStateTreeInstanceDebugId> NewInstances;

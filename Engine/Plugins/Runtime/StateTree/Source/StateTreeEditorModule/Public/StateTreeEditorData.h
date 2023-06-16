@@ -4,12 +4,32 @@
 
 #include "StateTreeState.h"
 #include "StateTreeEditorPropertyBindings.h"
+#include "Debugger/StateTreeDebuggerTypes.h"
 #include "StateTreeEditorData.generated.h"
 
 struct FStateTreeBindableStructDesc;
 struct FStateTreeEditorPropertyPath;
 
 class UStateTreeSchema;
+
+USTRUCT()
+struct FStateTreeEditorBreakpoint
+{
+	GENERATED_BODY()
+
+	FStateTreeEditorBreakpoint() = default;
+	explicit FStateTreeEditorBreakpoint(const FGuid& ID, const EStateTreeBreakpointType BreakpointType)
+		: ID(ID),
+		BreakpointType(BreakpointType)
+	{
+	}
+
+	UPROPERTY()
+	FGuid ID;
+
+	UPROPERTY()
+	EStateTreeBreakpointType BreakpointType = EStateTreeBreakpointType::Unset;
+};
 
 UENUM()
 enum class EStateTreeVisitor : uint8
@@ -196,6 +216,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return false;
 	}
 
+#if WITH_STATETREE_DEBUGGER
+	bool HasAnyBreakpoint(FGuid ID) const;
+	bool HasBreakpoint(FGuid ID, EStateTreeBreakpointType Type) const;
+	const FStateTreeEditorBreakpoint* GetBreakpoint(FGuid ID, EStateTreeBreakpointType Type) const;
+	void AddBreakpoint(FGuid ID, EStateTreeBreakpointType Type);
+	bool RemoveBreakpoint(FGuid ID, EStateTreeBreakpointType Type);
+#endif // WITH_STATETREE_DEBUGGER
+
 	// ~StateTree Builder API
 
 private:
@@ -224,4 +252,13 @@ public:
 	/** Top level States. */
 	UPROPERTY()
 	TArray<TObjectPtr<UStateTreeState>> SubTrees;
+
+	/**
+	 * Transient list of breakpoints added in the debugging session.
+	 * These will be lost if the asset gets reloaded.
+	 * If there is eventually a change to make those persist with the asset
+	 * we need to prune all dangling breakpoints after states/tasks got removed. (see RemoveUnusedBindings)
+	 */
+	UPROPERTY(Transient)
+	TArray<FStateTreeEditorBreakpoint> Breakpoints;
 };

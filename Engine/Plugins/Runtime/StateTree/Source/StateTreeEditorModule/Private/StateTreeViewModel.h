@@ -6,6 +6,7 @@
 #include "EditorUndoClient.h"
 #include "StateTreeViewModel.generated.h"
 
+struct FStateTreeEditorBreakpoint;
 struct FStateTreeDebugger;
 struct FPropertyChangedEvent;
 
@@ -83,7 +84,7 @@ public:
 	bool CanEnableStates() const;
 	bool CanDisableStates() const;
 	void SetSelectedStatesEnabled(bool bEnable);
-
+	
 	// Force to update the view externally.
 	void NotifyAssetChangedExternally() const;
 	void NotifyStatesChangedExternally(const TSet<UStateTreeState*>& ChangedStates, const FPropertyChangedEvent& PropertyChangedEvent) const;
@@ -91,10 +92,10 @@ public:
 	// Debugging
 #if WITH_STATETREE_DEBUGGER
 	TSharedRef<FStateTreeDebugger> GetDebugger() const { return Debugger; }
+	void RefreshDebuggerBreakpoints();
 #endif // WITH_STATETREE_DEBUGGER
 
 	bool IsStateActiveInDebugger(const UStateTreeState& State) const;
-	bool DoesStateHaveBreakpoint(const UStateTreeState& State) const;
 
 	// Called when the whole asset is updated (i.e. undo/redo).
 	FOnAssetChanged& GetOnAssetChanged() { return OnAssetChanged; }
@@ -121,15 +122,17 @@ protected:
 	void PasteStatesAsChildrenFromText(const FString& TextToImport, UStateTreeState* ParentState, const int32 IndexToInsertAt);
 
 	void HandleIdentifierChanged(const UStateTree& StateTree) const;
-
+	
 	void BindToDebuggerDelegates();
 	
 	TWeakObjectPtr<UStateTreeEditorData> TreeDataWeak;
 	TSet<TWeakObjectPtr<UStateTreeState>> SelectedStates;
 
 #if WITH_STATETREE_DEBUGGER
+	void HandleBreakpointsChanged(const UStateTree& StateTree);
+	void HandlePostCompile(const UStateTree& StateTree);
+
 	TSharedRef<FStateTreeDebugger> Debugger;
-	TArray<FGuid> StatesWithBreakpoints;
 	TArray<FGuid> ActiveStates;
 #endif // WITH_STATETREE_DEBUGGER
 	

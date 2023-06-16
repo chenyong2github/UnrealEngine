@@ -31,7 +31,7 @@ void FStateTreeEditorCommands::RegisterCommands()
 	UI_COMMAND(DuplicateStates, "Duplicate", "Duplicate Selected States", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::D));
 	UI_COMMAND(DeleteStates, "Delete", "Delete Selected States", EUserInterfaceActionType::Button, FInputChord(EKeys::Delete));
 	UI_COMMAND(RenameState, "Rename", "Rename Selected State", EUserInterfaceActionType::Button, FInputChord(EKeys::F2));
-	UI_COMMAND(EnableStates, "Enable", "Enables Selected States", EUserInterfaceActionType::Check, FInputChord());
+	UI_COMMAND(EnableStates, "State Enabled", "Enables Selected States", EUserInterfaceActionType::Check, FInputChord());
 }
 
 #undef LOCTEXT_NAMESPACE

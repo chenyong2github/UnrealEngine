@@ -123,7 +123,7 @@ FString FStateTreeTraceConditionEvent::ToString(const UStateTree& StateTree) con
 // FStateTreeTraceActiveStatesEvent
 //----------------------------------------------------------------------//
 FStateTreeTraceActiveStatesEvent::FStateTreeTraceActiveStatesEvent(const double RecordingWorldTime)
-	: FStateTreeTraceBaseEvent(RecordingWorldTime)
+	: FStateTreeTraceBaseEvent(RecordingWorldTime, EStateTreeTraceEventType::Unset)
 {
 }
 

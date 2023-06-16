@@ -5,7 +5,6 @@
 
 #if WITH_STATETREE_DEBUGGER
 
-#include "Debugger/StateTreeTraceTypes.h"
 #include "InstancedStruct.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/SCompoundWidget.h"
@@ -19,14 +18,19 @@ namespace UE::StateTreeDebugger
 	struct FFrameSpan;
 	struct FEventTreeElement;
 }
+
+enum class EStateTreeBreakpointType : uint8;
+
 struct FStateTreeDebugger;
 struct FStateTreeInstanceDebugId;
+struct FStateTreeDebuggerBreakpoint;
 class FStateTreeEditor;
 class FStateTreeViewModel;
 class FUICommandList;
 class UStateTree;
 class SStateTreeDebuggerTimelines;
 class SStateTreeDebuggerInstanceTree;
+class UStateTreeEditorData;
 
 
 /**
@@ -42,7 +46,7 @@ public:
 	SStateTreeDebuggerView();
 	~SStateTreeDebuggerView();
 
-	void Construct(const FArguments& InArgs, const UStateTree* InStateTree, const TSharedRef<FStateTreeViewModel>& InStateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList);
+	void Construct(const FArguments& InArgs, const UStateTree& InStateTree, const TSharedRef<FStateTreeViewModel>& InStateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList);
 
 private:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -59,7 +63,7 @@ private:
 	void OnPIEResumed(bool bIsSimulating) const;
 	void OnPIESingleStepped(bool bIsSimulating) const;
 	
-	void OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeStateHandle StateHandle, const TSharedRef<FUICommandList> ActionList) const;
+	void OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeDebuggerBreakpoint Breakpoint, const TSharedRef<FUICommandList> ActionList) const;
 	void OnNewInstance(FStateTreeInstanceDebugId InstanceId);
 	void OnSelectedInstanceCleared();
 
@@ -84,13 +88,16 @@ private:
 
 	bool CanStepForwardToNextStateChange() const;
 	void StepForwardToNextStateChange();
-	
-	bool CanToggleBreakpoint() const;
-	void ToggleBreakpoint() const;
 
+	bool CanAddStateBreakpoint(EStateTreeBreakpointType Type) const;
+	bool CanRemoveStateBreakpoint(EStateTreeBreakpointType Type) const;
+	ECheckBoxState GetStateBreakpointCheckState(EStateTreeBreakpointType Type) const;
+	void HandleEnableStateBreakpoint(EStateTreeBreakpointType Type);
+	
 	TSharedPtr<FStateTreeDebugger> Debugger;
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 	TWeakObjectPtr<const UStateTree> StateTree;
+	TWeakObjectPtr<UStateTreeEditorData> StateTreeEditorData;
 
 	/** Tracks for all statetree instance owners producing trace events for the associated state tree asset. */
 	TArray<TSharedPtr<RewindDebugger::FRewindDebuggerTrack>> InstanceOwnerTracks;

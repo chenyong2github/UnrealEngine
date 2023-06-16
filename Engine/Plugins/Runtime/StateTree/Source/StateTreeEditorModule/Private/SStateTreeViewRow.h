@@ -37,14 +37,14 @@ private:
 	FText GetStateDesc() const;
 
 	EVisibility GetConditionVisibility() const;
-	EVisibility GetBreakpointVisibility() const;
+	EVisibility GetStateBreakpointVisibility() const;
+	FText GetStateBreakpointTooltipText() const;
 	
 	const FSlateBrush* GetSelectorIcon() const;
 	FText GetSelectorTooltip() const;
 	FText GetStateTypeTooltip() const;
 
 	EVisibility GetTasksVisibility() const;
-	FText GetTasksDesc() const;
 
 	EVisibility GetLinkedStateVisibility() const;
 	FText GetLinkedStateDesc() const;
@@ -82,5 +82,6 @@ private:
 	
 	TSharedPtr<FStateTreeViewModel> StateTreeViewModel;
 	TWeakObjectPtr<UStateTreeState> WeakState;
+	TWeakObjectPtr<UStateTreeEditorData> WeakTreeData;
 	TSharedPtr<SInlineEditableTextBlock> NameTextBlock;
 };

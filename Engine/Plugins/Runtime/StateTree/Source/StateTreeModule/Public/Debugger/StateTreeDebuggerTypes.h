@@ -5,11 +5,25 @@
 
 #if WITH_STATETREE_DEBUGGER
 
-#include "StateTreeTypes.h"
 #include "StateTree.h"
+#include "StateTreeTypes.h"
 #include "TraceServices/Model/Frames.h"
 
+#endif // WITH_STATETREE_DEBUGGER
+
+UENUM()
+enum class EStateTreeBreakpointType : uint8
+{
+	Unset,
+	OnEnter,
+	OnExit,
+	OnTransition,
+};
+
+#if WITH_STATETREE_DEBUGGER
+
 class UStateTree;
+enum class EStateTreeTraceEventType : uint8;
 
 namespace UE::StateTreeDebugger
 {
@@ -249,5 +263,25 @@ private:
 };
 
 } // UE::StateTreeDebugger
+
+struct FStateTreeDebuggerBreakpoint
+{
+	// Wrapper structs to be able to use TVariant with more than one type based on FStateTreeIndex16 (can't use 'using')
+	struct FStateTreeTaskIndex { FStateTreeIndex16 Index; };
+	struct FStateTreeTransitionIndex { FStateTreeIndex16 Index; };
+
+	using FIdentifierVariantType = TVariant<FStateTreeStateHandle, FStateTreeTaskIndex, FStateTreeTransitionIndex>;
+	
+	FStateTreeDebuggerBreakpoint();
+	explicit FStateTreeDebuggerBreakpoint(const FStateTreeStateHandle StateHandle, const EStateTreeBreakpointType BreakpointType);
+	explicit FStateTreeDebuggerBreakpoint(const FStateTreeIndex16 NodeIndex, const EStateTreeBreakpointType BreakpointType);
+
+	FIdentifierVariantType ElementIdentifier;
+	EStateTreeBreakpointType BreakpointType;
+	EStateTreeTraceEventType EventType;
+
+private:
+	static EStateTreeTraceEventType GetMatchingEventType(EStateTreeBreakpointType BreakpointType);
+};
 
 #endif // WITH_STATETREE_DEBUGGER

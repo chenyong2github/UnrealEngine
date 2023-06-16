@@ -477,7 +477,9 @@ TSharedPtr<SWidget> SStateTreeView::HandleContextMenuOpening()
 #if WITH_STATETREE_DEBUGGER
 	if (UStateTreeSettings::Get().bUseDebugger)
 	{
-		MenuBuilder.AddMenuEntry(FStateTreeDebuggerCommands::Get().ToggleBreakpoint);
+		MenuBuilder.AddSeparator();
+		MenuBuilder.AddMenuEntry(FStateTreeDebuggerCommands::Get().EnableOnEnterStateBreakpoint);
+		MenuBuilder.AddMenuEntry(FStateTreeDebuggerCommands::Get().EnableOnExitStateBreakpoint);
 	}
 #endif // WITH_STATETREE_DEBUGGER
 	

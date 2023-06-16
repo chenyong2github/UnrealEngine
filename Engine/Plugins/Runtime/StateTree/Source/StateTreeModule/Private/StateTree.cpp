@@ -31,6 +31,12 @@ FConstStructView UStateTree::GetNode(const int32 NodeIndex) const
 	return Nodes.IsValidIndex(NodeIndex) ? Nodes[NodeIndex] : FConstStructView();	
 }
 
+FStateTreeIndex16 UStateTree::GetNodeIndexFromId(const FGuid Id) const
+{
+	const FStateTreeNodeIdToIndex* Entry = IDToNodeMappings.FindByPredicate([Id](const FStateTreeNodeIdToIndex& Entry){ return Entry.Id == Id; });
+	return Entry != nullptr ? Entry->Index : FStateTreeIndex16::Invalid;
+}
+
 const FCompactStateTreeState* UStateTree::GetStateFromHandle(const FStateTreeStateHandle StateHandle) const
 {
 	return States.IsValidIndex(StateHandle.Index) ? &States[StateHandle.Index] : nullptr;
@@ -106,6 +112,7 @@ void UStateTree::ResetCompiled()
 	PropertyBindings.Reset();
 	Parameters.Reset();
 	IDToStateMappings.Reset();
+	IDToNodeMappings.Reset();
 
 	ParametersDataViewIndex = FStateTreeIndex8::Invalid;
 	

@@ -381,13 +381,20 @@ TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_CompilerResults(const FSpawnTabA
 #if WITH_STATETREE_DEBUGGER
 TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_Debugger(const FSpawnTabArgs& Args)
 {
+	TSharedPtr<SWidget> Widget = SNullWidget::NullWidget;
+	if (StateTree != nullptr)
+	{
+		DebuggerView = SNew(SStateTreeDebuggerView, *StateTree, StateTreeViewModel.ToSharedRef(), TreeViewCommandList);
+		Widget = DebuggerView;
+	}
+	
 	check(Args.GetTabId() == DebuggerTabId);
 
 	return SNew(SDockTab)
 		.Label(LOCTEXT("DebuggerTitle", "Debugger"))
 		.TabColorScale(GetTabColorScale())
 		[
-			SAssignNew(DebuggerView, SStateTreeDebuggerView, StateTree, StateTreeViewModel.ToSharedRef(), TreeViewCommandList)
+			Widget.ToSharedRef()
 		];
 }
 #endif // WITH_STATETREE_DEBUGGER
@@ -835,7 +842,7 @@ void FStateTreeEditor::RegisterToolbar()
 	const FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
 
 	FToolMenuSection& Section = ToolBar->AddSection("Compile", TAttribute<FText>(), InsertAfterAssetSection);
-
+	
 	Section.AddDynamicEntry("CompileCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{
 		const UStateTreeToolMenuContext* Context = InSection.FindContext<UStateTreeToolMenuContext>();

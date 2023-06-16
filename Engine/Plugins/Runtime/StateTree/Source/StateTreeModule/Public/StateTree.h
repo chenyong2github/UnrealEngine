@@ -121,6 +121,9 @@ public:
 	/** @return Struct views of all nodes */
 	const FInstancedStructContainer& GetNodes() const { return Nodes; }
 
+	/** @return Node index matching a given Id; invalid handle if node not found. */
+	FStateTreeIndex16 GetNodeIndexFromId(const FGuid Id) const;
+
 	/** @return View of all states. */
 	TConstArrayView<FCompactStateTreeState> GetStates() const { return States; }
 
@@ -224,7 +227,11 @@ private:
 	/** Mapping of state guid for the Editor and state handles, created at compilation. */
 	UPROPERTY()
 	TArray<FStateTreeStateIdToHandle> IDToStateMappings;
-	
+
+	/** Mapping of node guid for the Editor and node index, created at compilation. */
+	UPROPERTY()
+	TArray<FStateTreeNodeIdToIndex> IDToNodeMappings;
+
 	/**
 	 * Parameters that could be used for bindings within the Tree.
 	 * Default values are stored within the asset but StateTreeReference can be used to parameterized the tree.

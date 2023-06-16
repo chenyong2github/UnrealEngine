@@ -819,6 +819,28 @@ struct STATETREEMODULE_API FStateTreeStateIdToHandle
 };
 
 /**
+ * Pair of node id and its associated node index created at compilation.
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeNodeIdToIndex
+{
+	GENERATED_BODY()
+
+	FStateTreeNodeIdToIndex() = default;
+	explicit FStateTreeNodeIdToIndex(const FGuid& Id, const FStateTreeIndex16 Index)
+		: Id(Id)
+		, Index(Index)
+	{
+	}
+
+	UPROPERTY();
+	FGuid Id;
+
+	UPROPERTY();
+	FStateTreeIndex16 Index;
+};
+
+/**
  * Describes an external data. The data can point to a struct or object.
  * The code that handles StateTree ticking is responsible for passing in the actually data, see FStateTreeExecutionContext.
  */

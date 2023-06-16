@@ -13,11 +13,13 @@
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/TraceAuxiliary.h"
 #include "PropertyEditorModule.h"
+#include "ScopedTransaction.h"
 #include "SStateTreeDebuggerInstanceTree.h"
 #include "SStateTreeDebuggerTimelines.h"
 #include "StateTree.h"
 #include "StateTreeDebuggerCommands.h"
 #include "StateTreeDebuggerTrack.h"
+#include "StateTreeEditorData.h"
 #include "StateTreeEditorSettings.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeModule.h"
@@ -175,6 +177,8 @@ void SStateTreeDebuggerView::StartRecording()
 	// We give priority to the Editor actions even if an analysis was active (remote process)
 	// This will stop current analysis and connect to the new live trace.
 	Debugger->RequestAnalysisOfNextLiveSession();
+	
+	Debugger->ClearSelection();
 
 	if (CanStartRecording())
 	{
@@ -235,10 +239,11 @@ void SStateTreeDebuggerView::OnPIESingleStepped(bool bSimulating) const
 	Debugger->SyncToCurrentSessionDuration();
 }
 
-void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTree* InStateTree, const TSharedRef<FStateTreeViewModel>& InStateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList)
+void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTree& InStateTree, const TSharedRef<FStateTreeViewModel>& InStateTreeViewModel, const TSharedRef<FUICommandList>& InCommandList)
 {
 	StateTreeViewModel = InStateTreeViewModel;
-	StateTree = InStateTree;
+	StateTree = &InStateTree;
+	StateTreeEditorData = Cast<UStateTreeEditorData>(InStateTree.EditorData.Get()); 
 
 	Debugger = InStateTreeViewModel->GetDebugger();
 	bRecording = FTraceAuxiliary::IsConnected();
@@ -264,11 +269,20 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	// Register the play world commands
 	InCommandList->Append(FPlayWorldCommands::GlobalPlayWorldActions.ToSharedRef());
 
+	// Debug commands
 	InCommandList->MapAction(
-		FStateTreeDebuggerCommands::Get().ToggleBreakpoint,
-		FExecuteAction::CreateSP(this, &SStateTreeDebuggerView::ToggleBreakpoint),
-		FCanExecuteAction::CreateSP(this, &SStateTreeDebuggerView::CanToggleBreakpoint)
-	);
+		FStateTreeDebuggerCommands::Get().EnableOnEnterStateBreakpoint,
+		FExecuteAction::CreateLambda([this] { HandleEnableStateBreakpoint(EStateTreeBreakpointType::OnEnter); }),
+		FCanExecuteAction(),
+		FGetActionCheckState::CreateLambda([this]{ return GetStateBreakpointCheckState(EStateTreeBreakpointType::OnEnter); }),
+		FIsActionButtonVisible::CreateLambda([this] { return CanAddStateBreakpoint(EStateTreeBreakpointType::OnEnter) || CanRemoveStateBreakpoint(EStateTreeBreakpointType::OnEnter); }));
+
+	InCommandList->MapAction(
+		FStateTreeDebuggerCommands::Get().EnableOnExitStateBreakpoint,
+		FExecuteAction::CreateLambda([this] { HandleEnableStateBreakpoint(EStateTreeBreakpointType::OnExit); }),
+		FCanExecuteAction(),
+		FGetActionCheckState::CreateLambda([this] { return GetStateBreakpointCheckState(EStateTreeBreakpointType::OnExit); }),
+		FIsActionButtonVisible::CreateLambda([this] { return CanAddStateBreakpoint(EStateTreeBreakpointType::OnExit) || CanRemoveStateBreakpoint(EStateTreeBreakpointType::OnExit); }));
 	
 	// Toolbar
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(InCommandList, FMultiBoxCustomization::None, /*InExtender*/ nullptr, /*InForceSmallIcons*/ true);
@@ -681,36 +695,145 @@ void SStateTreeDebuggerView::StepForwardToNextStateChange()
 	Debugger->StepForwardToNextStateChange();
 }
 
-bool SStateTreeDebuggerView::CanToggleBreakpoint() const
-{
-	return (Debugger.IsValid() && StateTreeViewModel.IsValid() && StateTreeViewModel->HasSelection());
-}
-
-void SStateTreeDebuggerView::ToggleBreakpoint() const
+bool SStateTreeDebuggerView::CanAddStateBreakpoint(const EStateTreeBreakpointType Type) const
 {
 	check(StateTreeViewModel);
-	check(Debugger);
-	check(StateTree.IsValid());
 
-	TArray<UStateTreeState*> States;
-	StateTreeViewModel->GetSelectedStates(States);
-
-	TArray<FStateTreeStateHandle> StateHandles;
-	StateHandles.Reserve(States.Num());
-	for (const UStateTreeState* SelectedState : States)
+	TArray<UStateTreeState*> SelectedStates;
+	StateTreeViewModel->GetSelectedStates(SelectedStates);
+	if (SelectedStates.IsEmpty())
 	{
-		if (SelectedState->Type != EStateTreeStateType::State || SelectedState->Parent == nullptr)
+		return false;
+	}
+
+	const UStateTreeEditorData* EditorData = StateTreeEditorData.Get();
+	if (!ensure(EditorData != nullptr))
+	{
+		return false;
+	}
+
+	for (const UStateTreeState* SelectedState : SelectedStates)
+	{
+		if (SelectedState != nullptr)
 		{
-			continue;
-		}
-		
-		FStateTreeStateHandle Handle = StateTree->GetStateHandleFromId(SelectedState->ID);
-		if (Handle.IsValid())
-		{
-			StateHandles.Add(Handle);
+			if (EditorData->HasBreakpoint(SelectedState->ID, Type) == false)
+			{
+				return true;
+			}
 		}
 	}
-	Debugger->ToggleBreakpoints(StateHandles);
+
+	return false;
+}
+
+bool SStateTreeDebuggerView::CanRemoveStateBreakpoint(const EStateTreeBreakpointType Type) const
+{
+	check(StateTreeViewModel);
+
+	TArray<UStateTreeState*> SelectedStates;
+	StateTreeViewModel->GetSelectedStates(SelectedStates);
+	if (SelectedStates.IsEmpty())
+	{
+		return false;
+	}
+
+	const UStateTreeEditorData* EditorData = StateTreeEditorData.Get();
+	if (!ensure(EditorData != nullptr))
+	{
+		return false;
+	}
+
+	for (const UStateTreeState* SelectedState : SelectedStates)
+	{
+		if (SelectedState != nullptr)
+		{
+			if (EditorData->HasBreakpoint(SelectedState->ID, Type))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
+ECheckBoxState SStateTreeDebuggerView::GetStateBreakpointCheckState(const EStateTreeBreakpointType Type) const
+{
+	const bool bCanAdd = CanAddStateBreakpoint(Type);
+	const bool bCanRemove = CanRemoveStateBreakpoint(Type);
+	if (bCanAdd && bCanRemove)
+	{
+		return ECheckBoxState::Undetermined;
+	}
+
+	if (bCanRemove)
+	{
+		return ECheckBoxState::Checked;
+	}
+
+	if (bCanAdd)
+	{
+		return ECheckBoxState::Unchecked;
+	}
+
+	// Should not happen since action is not visible in this case
+	return ECheckBoxState::Undetermined;
+}
+
+void SStateTreeDebuggerView::HandleEnableStateBreakpoint(EStateTreeBreakpointType Type)
+{
+	check(StateTreeViewModel);
+
+	TArray<UStateTreeState*> SelectedStates;
+	StateTreeViewModel->GetSelectedStates(SelectedStates);
+	if (SelectedStates.IsEmpty())
+	{
+		return;
+	}
+
+	UStateTreeEditorData* EditorData = StateTreeEditorData.Get();
+	if (!ensure(EditorData != nullptr))
+	{
+		return;
+	}
+
+	TBitArray<> HasBreakpoint;
+	HasBreakpoint.Reserve(SelectedStates.Num());
+	for (const UStateTreeState* SelectedState : SelectedStates)
+	{
+		HasBreakpoint.Add(SelectedState != nullptr && EditorData->HasBreakpoint(SelectedState->ID, Type));
+	}
+
+	check(HasBreakpoint.Num() == SelectedStates.Num());
+
+	// Process CanAdd first so in case of undetermined state (mixed selection) we add by default. 
+	if (CanAddStateBreakpoint(Type))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("AddStateBreakpoint", "Add State Breakpoint(s)"));
+		EditorData->Modify();
+		for (int Index = 0; Index < SelectedStates.Num(); ++Index)
+		{
+			const UStateTreeState* SelectedState = SelectedStates[Index];
+			if (HasBreakpoint[Index] == false && SelectedState != nullptr)
+			{
+				EditorData->AddBreakpoint(SelectedState->ID, Type);	
+			}
+		}
+	}
+	else if (CanRemoveStateBreakpoint(Type))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("RemoveStateBreakpoint", "Remove State Breakpoint(s)"));
+		EditorData->Modify();
+		for (int Index = 0; Index < SelectedStates.Num(); ++Index)
+		{
+			const UStateTreeState* SelectedState = SelectedStates[Index];
+			if (HasBreakpoint[Index] && SelectedState != nullptr)
+			{
+				EditorData->RemoveBreakpoint(SelectedState->ID, Type);	
+			}
+		}
+	}
 }
 
 void SStateTreeDebuggerView::OnTimeLineScrubPositionChanged(double Time, bool bIsScrubbing)
@@ -820,7 +943,7 @@ void SStateTreeDebuggerView::ExpandAll(const TArray<TSharedPtr<UE::StateTreeDebu
 	}
 }
 
-void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeStateHandle StateHandle, const TSharedRef<FUICommandList> ActionList) const
+void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeDebuggerBreakpoint Breakpoint, const TSharedRef<FUICommandList> ActionList) const
 {
 	if (FPlayWorldCommands::Get().PausePlaySession.IsValid())
 	{
@@ -853,7 +976,22 @@ void SStateTreeDebuggerView::OnNewInstance(FStateTreeInstanceDebugId InstanceId)
 	if (FStateTreeDebuggerOwnerTrack* OwnerTrack = static_cast<FStateTreeDebuggerOwnerTrack*>(ExistingOwnerTrack->Get()))
 	{
 		const FString TrackName = FString::Printf(TEXT("Execution #%d"), OwnerTrack->NumSubTracks()+1);
-		OwnerTrack->AddSubTrack(MakeShared<FStateTreeDebuggerInstanceTrack>(Debugger, InstanceId, FText::FromString(TrackName), ViewRange));
+		const TSharedPtr<FStateTreeDebuggerInstanceTrack> SubTrack = MakeShared<FStateTreeDebuggerInstanceTrack>(Debugger, InstanceId, FText::FromString(TrackName), ViewRange);
+		OwnerTrack->AddSubTrack(SubTrack);
+
+		// Look at current selection; if nothing selected or stale track then select new track
+		const TSharedPtr<RewindDebugger::FRewindDebuggerTrack> Selection = InstancesTreeView->GetSelection();
+		if (const FStateTreeDebuggerBaseTrack* DebuggerBaseTrack = static_cast<FStateTreeDebuggerBaseTrack*>(ExistingOwnerTrack->Get()))
+		{
+			if (DebuggerBaseTrack->IsStale())
+			{
+				InstancesTreeView->SetSelection(SubTrack);
+			}
+		}
+		else
+		{
+			InstancesTreeView->SetSelection(SubTrack);
+		}
 	}
 
 	InstancesTreeView->Refresh();

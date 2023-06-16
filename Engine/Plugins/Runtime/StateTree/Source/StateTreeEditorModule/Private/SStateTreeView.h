@@ -11,7 +11,6 @@ class SScrollBar;
 class STableViewBase;
 namespace ESelectInfo { enum Type : int; }
 struct FPropertyChangedEvent;
-class UStateTreeEditorData;
 class UStateTreeState;
 class SScrollBox;
 class FUICommandList;

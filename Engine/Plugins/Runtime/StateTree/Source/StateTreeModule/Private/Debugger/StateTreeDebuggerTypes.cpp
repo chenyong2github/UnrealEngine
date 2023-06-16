@@ -229,4 +229,39 @@ void FScrubState::UpdateActiveStatesIndex(const int32 SpanIndex)
 		});
 }
 } // UE::StateTreeDebugger
+
+FStateTreeDebuggerBreakpoint::FStateTreeDebuggerBreakpoint()
+	: BreakpointType(EStateTreeBreakpointType::Unset)
+	, EventType(EStateTreeTraceEventType::Unset)
+{
+}
+
+FStateTreeDebuggerBreakpoint::FStateTreeDebuggerBreakpoint(const FStateTreeStateHandle StateHandle, const EStateTreeBreakpointType BreakpointType)
+	: ElementIdentifier(TInPlaceType<FStateTreeStateHandle>(), StateHandle)
+	, BreakpointType(BreakpointType)
+{
+	EventType = GetMatchingEventType(BreakpointType);
+}
+
+FStateTreeDebuggerBreakpoint::FStateTreeDebuggerBreakpoint(const FStateTreeIndex16 NodeIndex, const EStateTreeBreakpointType BreakpointType)
+	: ElementIdentifier(TInPlaceType<FStateTreeTaskIndex>(), NodeIndex)
+	, BreakpointType(BreakpointType)
+{
+	EventType = GetMatchingEventType(BreakpointType);
+}
+
+EStateTreeTraceEventType FStateTreeDebuggerBreakpoint::GetMatchingEventType(const EStateTreeBreakpointType BreakpointType)
+{
+	switch (BreakpointType)
+	{
+	case EStateTreeBreakpointType::OnEnter:
+		return EStateTreeTraceEventType::OnEnter;
+	case EStateTreeBreakpointType::OnExit:
+		return EStateTreeTraceEventType::OnExit;
+	default:
+		return EStateTreeTraceEventType::Unset;
+	}
+}
+
 #endif // WITH_STATETREE_DEBUGGER
+

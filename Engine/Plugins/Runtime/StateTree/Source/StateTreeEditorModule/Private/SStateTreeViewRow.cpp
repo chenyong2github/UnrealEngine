@@ -5,10 +5,12 @@
 
 
 #include "EditorFontGlyphs.h"
+#include "StateTreeEditorData.h"
 #include "StateTreeEditorStyle.h"
 
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #include "StateTreeState.h"
 #include "StateTreeTaskBase.h"
@@ -21,6 +23,8 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 {
 	StateTreeViewModel = InStateTreeViewModel;
 	WeakState = InState;
+	const UStateTreeState* State = InState.Get();
+	WeakTreeData = State != nullptr ? State->GetTypedOuter<UStateTreeEditorData>() : nullptr;
 
 	ConstructInternal(STableRow::FArguments()
 		.Padding(5.0f)
@@ -111,71 +115,79 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 										return State != nullptr && State->bEnabled;
 									})
 								[
-									SNew(SHorizontalBox)
-
-									// Breakpoint box
-									+ SHorizontalBox::Slot()
-									.VAlign(VAlign_Top)
-									.HAlign(HAlign_Left)
-									.AutoWidth()
+									SNew(SOverlay)
+									+ SOverlay::Slot()
 									[
-										SNew(SBox)
-										.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+										SNew(SHorizontalBox)
+										// Conditions icon
+										+SHorizontalBox::Slot()
+										.VAlign(VAlign_Center)
+										.AutoWidth()
 										[
-											SNew(SImage)
-											.DesiredSizeOverride(FVector2D(12.f, 12.f))
-											.Image(FAppStyle::GetBrush(TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid")))
-											.Visibility(this, &SStateTreeViewRow::GetBreakpointVisibility)
+											SNew(SBox)
+											.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+											.Visibility(this, &SStateTreeViewRow::GetConditionVisibility)
+											[
+												SNew(SImage)
+												.ColorAndOpacity(IconTint)
+												.Image(FStateTreeEditorStyle::Get().GetBrush("StateTreeEditor.Conditions"))
+												.ToolTipText(LOCTEXT("StateHasEnterConditions", "State selection is guarded with enter conditions."))
+											]
+										]
+
+										// Selector icon
+										+ SHorizontalBox::Slot()
+										.VAlign(VAlign_Center)
+										.AutoWidth()
+										[
+											SNew(SBox)
+											.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
+											[
+												SNew(SImage)
+												.Image(this, &SStateTreeViewRow::GetSelectorIcon)
+												.ColorAndOpacity(IconTint)
+												.ToolTipText(this, &SStateTreeViewRow::GetSelectorTooltip)
+											]
+										]
+
+										// State Name
+										+ SHorizontalBox::Slot()
+										.VAlign(VAlign_Center)
+										.AutoWidth()
+										[
+											SAssignNew(NameTextBlock, SInlineEditableTextBlock)
+											.Style(FStateTreeEditorStyle::Get(), "StateTree.State.TitleInlineEditableText")
+											.OnVerifyTextChanged_Lambda([](const FText& NewLabel, FText& OutErrorMessage)
+												{
+													return !NewLabel.IsEmptyOrWhitespace();
+												})
+											.OnTextCommitted(this, &SStateTreeViewRow::HandleNodeLabelTextCommitted)
+											.Text(this, &SStateTreeViewRow::GetStateDesc)
+											.ToolTipText(this, &SStateTreeViewRow::GetStateTypeTooltip)
+											.Clipping(EWidgetClipping::ClipToBounds)
+											.IsSelected(this, &SStateTreeViewRow::IsStateSelected)
 										]
 									]
-
-									// Conditions icon
-									+ SHorizontalBox::Slot()
-									.VAlign(VAlign_Center)
-									.AutoWidth()
+									+ SOverlay::Slot()
 									[
-										SNew(SBox)
-										.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-										.Visibility(this, &SStateTreeViewRow::GetConditionVisibility)
+										SNew(SHorizontalBox)
+
+										// State breakpoint box
+										+ SHorizontalBox::Slot()
+										.VAlign(VAlign_Top)
+										.HAlign(HAlign_Left)
+										.AutoWidth()
 										[
-											SNew(SImage)
-											.ColorAndOpacity(IconTint)
-											.Image(FStateTreeEditorStyle::Get().GetBrush("StateTreeEditor.Conditions"))
-											.ToolTipText(LOCTEXT("StateHasEnterConditions", "State selection is guarded with enter conditions."))
+											SNew(SBox)
+											.Padding(FMargin(-12.0f, -6.0f, 0.0f, 0.0f))
+											[
+												SNew(SImage)
+												.DesiredSizeOverride(FVector2D(12.f, 12.f))
+												.Image(FStateTreeEditorStyle::Get().GetBrush(TEXT("StateTreeEditor.Debugger.Breakpoint.EnabledAndValid")))
+												.Visibility(this, &SStateTreeViewRow::GetStateBreakpointVisibility)
+												.ToolTipText(this, &SStateTreeViewRow::GetStateBreakpointTooltipText)
+											]
 										]
-									]
-
-									// Selector icon
-									+ SHorizontalBox::Slot()
-									.VAlign(VAlign_Center)
-									.AutoWidth()
-									[
-										SNew(SBox)
-										.Padding(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
-										[
-											SNew(SImage)
-											.Image(this, &SStateTreeViewRow::GetSelectorIcon)
-											.ColorAndOpacity(IconTint)
-											.ToolTipText( this, &SStateTreeViewRow::GetSelectorTooltip)
-										]
-									]
-
-									// State Name
-									+ SHorizontalBox::Slot()
-									.VAlign(VAlign_Center)
-									.AutoWidth()
-									[
-										SAssignNew(NameTextBlock, SInlineEditableTextBlock)
-										.Style(FStateTreeEditorStyle::Get(), "StateTree.State.TitleInlineEditableText")
-										.OnVerifyTextChanged_Lambda([](const FText& NewLabel, FText& OutErrorMessage)
-										{
-											return !NewLabel.IsEmptyOrWhitespace();
-										})
-										.OnTextCommitted(this, &SStateTreeViewRow::HandleNodeLabelTextCommitted)
-										.Text(this, &SStateTreeViewRow::GetStateDesc)
-										.ToolTipText(this, &SStateTreeViewRow::GetStateTypeTooltip)
-										.Clipping(EWidgetClipping::ClipToBounds)
-										.IsSelected(this, &SStateTreeViewRow::IsStateSelected)
 									]
 								]
 							]
@@ -392,10 +404,13 @@ TSharedRef<SHorizontalBox> SStateTreeViewRow::CreateTasksWidget()
 		return TasksBox;
 	}
 
+	TWeakObjectPtr<UStateTreeEditorData> WeakEditorData = State->GetTypedOuter<UStateTreeEditorData>();
+
 	for (int32 TaskIndex = 0; TaskIndex < State->Tasks.Num(); TaskIndex++)
 	{
 		if (const FStateTreeTaskBase* Task = State->Tasks[TaskIndex].Node.GetPtr<FStateTreeTaskBase>())
 		{
+			FGuid TaskId = State->Tasks[TaskIndex].ID;
 			auto IsTaskEnabledFunc = [WeakState=WeakState, TaskIndex]
 				{
 					const UStateTreeState* State = WeakState.Get();
@@ -405,10 +420,53 @@ TSharedRef<SHorizontalBox> SStateTreeViewRow::CreateTasksWidget()
 						{
 							return (State->bEnabled && Task->bTaskEnabled);
 						}
-					}					
+					}
 					return true;
 				};
+
+			auto IsTaskBreakpointEnabledFunc = [WeakEditorData, TaskId]
+				{
+#if WITH_STATETREE_DEBUGGER
+					const UStateTreeEditorData* EditorData = WeakEditorData.Get();
+					if (EditorData != nullptr && EditorData->HasAnyBreakpoint(TaskId))
+					{
+						return EVisibility::Visible;
+					}
+#endif // WITH_STATETREE_DEBUGGER
+					return EVisibility::Hidden;
+				};
 			
+			auto GetTaskBreakpointTooltipFunc = [WeakEditorData, TaskId]
+				{
+#if WITH_STATETREE_DEBUGGER
+					if (const UStateTreeEditorData* EditorData = WeakEditorData.Get())
+					{
+						const bool bHasBreakpointOnEnter = EditorData->HasBreakpoint(TaskId, EStateTreeBreakpointType::OnEnter);
+						const bool bHasBreakpointOnExit = EditorData->HasBreakpoint(TaskId, EStateTreeBreakpointType::OnExit);
+						if (bHasBreakpointOnEnter && bHasBreakpointOnExit)
+						{
+							return LOCTEXT("StateTreeTaskBreakpointOnEnterAndOnExitTooltip","Break when entering or exiting task");
+						}
+
+						if (bHasBreakpointOnEnter)
+						{
+							return LOCTEXT("StateTreeTaskBreakpointOnEnterTooltip","Break when entering task");
+						}
+
+						if (bHasBreakpointOnExit)
+						{
+							return LOCTEXT("StateTreeTaskBreakpointOnExitTooltip","Break when exiting task");
+						}
+					}
+#endif // WITH_STATETREE_DEBUGGER
+					return FText::GetEmpty();
+				};
+
+			FText TaskName = FText::FromName(Task->Name);
+
+			// Uncomment to visualize Task Ids
+			// TaskName = FText::FromString(FString::Printf(TEXT("%s (%s)"), *Task->Name.ToString(), *LexToString(TaskId)));
+
 			TasksBox->AddSlot()
 				.AutoWidth()
 				.VAlign(VAlign_Fill)
@@ -416,14 +474,39 @@ TSharedRef<SHorizontalBox> SStateTreeViewRow::CreateTasksWidget()
 					SNew(SBorder)
 					.VAlign(VAlign_Center)
 					.BorderImage(FStateTreeEditorStyle::Get().GetBrush("StateTree.Task.Rect"))
-					.IsEnabled_Lambda(IsTaskEnabledFunc)					
+					.Padding(0)
+					.IsEnabled_Lambda(IsTaskEnabledFunc)
 					[
-						SNew(STextBlock)
-						.Margin(FMargin(4.f, 0.f))
-						.Text(FText::FromName(Task->Name))
-						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Task.Title")
-						.IsEnabled_Lambda(IsTaskEnabledFunc)						
-						.ToolTipText(FText::FromName(Task->Name))
+						SNew(SOverlay)
+						+ SOverlay::Slot()
+						[
+							SNew(STextBlock)
+							.Margin(FMargin(4.f, 0.f))
+							.Text(TaskName)
+							.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Task.Title")
+							.IsEnabled_Lambda(IsTaskEnabledFunc)
+							.ToolTipText(FText::FromName(Task->Name))
+						]
+						+ SOverlay::Slot()
+						[
+							// Task Breakpoint box
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.VAlign(VAlign_Top)
+							.HAlign(HAlign_Left)
+							.AutoWidth()
+							[
+								SNew(SBox)
+								.Padding(FMargin(0.0f, -10.0f, 0.0f, 0.0f))
+								[
+									SNew(SImage)
+									.DesiredSizeOverride(FVector2D(10.f, 10.f))
+									.Image(FStateTreeEditorStyle::Get().GetBrush(TEXT("StateTreeEditor.Debugger.Breakpoint.EnabledAndValid")))
+									.Visibility_Lambda(IsTaskBreakpointEnabledFunc)
+									.ToolTipText_Lambda(GetTaskBreakpointTooltipFunc)
+								]
+							]
+						]
 					]
 				];
 		}
@@ -502,17 +585,46 @@ EVisibility SStateTreeViewRow::GetConditionVisibility() const
 	return EVisibility::Collapsed;
 }
 
-EVisibility SStateTreeViewRow::GetBreakpointVisibility() const
+EVisibility SStateTreeViewRow::GetStateBreakpointVisibility() const
 {
-	if (const UStateTreeState* State = WeakState.Get())
+#if WITH_STATETREE_DEBUGGER
+	const UStateTreeState* State = WeakState.Get();
+	const UStateTreeEditorData* EditorData = WeakTreeData.Get();
+	if (State != nullptr && EditorData != nullptr)
 	{
-		if (StateTreeViewModel && StateTreeViewModel->DoesStateHaveBreakpoint(*State))
+		return (EditorData != nullptr && EditorData->HasAnyBreakpoint(State->ID)) ? EVisibility::Visible : EVisibility::Hidden;
+	}
+#endif // WITH_STATETREE_DEBUGGER
+	return EVisibility::Hidden;
+}
+
+FText SStateTreeViewRow::GetStateBreakpointTooltipText() const
+{
+#if WITH_STATETREE_DEBUGGER
+	const UStateTreeState* State = WeakState.Get();
+	const UStateTreeEditorData* EditorData = WeakTreeData.Get();
+	if (State != nullptr && EditorData != nullptr)
+	{
+		const bool bHasBreakpointOnEnter = EditorData->HasBreakpoint(State->ID, EStateTreeBreakpointType::OnEnter);
+		const bool bHasBreakpointOnExit = EditorData->HasBreakpoint(State->ID, EStateTreeBreakpointType::OnExit);
+
+		if (bHasBreakpointOnEnter && bHasBreakpointOnExit)
 		{
-			return EVisibility::Visible;
+			return LOCTEXT("StateTreeStateBreakpointOnEnterAndOnExitTooltip","Break when entering or exiting state");
+		}
+
+		if (bHasBreakpointOnEnter)
+		{
+			return LOCTEXT("StateTreeStateBreakpointOnEnterTooltip","Break when entering state");
+		}
+
+		if (bHasBreakpointOnExit)
+		{
+			return LOCTEXT("StateTreeStateBreakpointOnExitTooltip","Break when exiting state");
 		}
 	}
-
-	return EVisibility::Collapsed;
+#endif // WITH_STATETREE_DEBUGGER
+	return FText::GetEmpty();
 }
 
 const FSlateBrush* SStateTreeViewRow::GetSelectorIcon() const
@@ -615,26 +727,6 @@ EVisibility SStateTreeViewRow::GetTasksVisibility() const
 		return ValidCount > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 	return EVisibility::Collapsed;
-}
-
-FText SStateTreeViewRow::GetTasksDesc() const
-{
-	const UStateTreeState* State = WeakState.Get();
-	if (!State)
-	{
-		return FText::GetEmpty();
-	}
-
-	TArray<FText> Names;
-	for (int32 i = 0; i < State->Tasks.Num(); i++)
-	{
-		if (const FStateTreeTaskBase* Task = State->Tasks[i].Node.GetPtr<FStateTreeTaskBase>())
-		{
-			Names.Add(FText::FromName(Task->Name));
-		}
-	}
-
-	return FText::Join((FText::FromString(TEXT(" & "))), Names);
 }
 
 EVisibility SStateTreeViewRow::GetLinkedStateVisibility() const
