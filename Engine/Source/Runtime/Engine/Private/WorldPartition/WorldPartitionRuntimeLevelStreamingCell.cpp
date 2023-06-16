@@ -239,7 +239,6 @@ void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartit
 				InContainerTransform, 
 				InContainer->GetContainerPackage(), 
 				GetWorld()->GetPackage()->GetFName(), 
-				ReferenceActorDesc.GetContentBundleGuid(),
 				InContainerID.GetActorGuid(ReferenceActorDesc.GetGuid()),
 				true
 			);
@@ -253,7 +252,6 @@ void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartit
 		InContainerTransform, 
 		InContainer->GetContainerPackage(), 
 		GetWorld()->GetPackage()->GetFName(), 
-		ActorDescView.GetContentBundleGuid(),
 		InContainerID.GetActorGuid(ActorDescView.GetGuid()),
 		false
 	);

@@ -53,7 +53,6 @@ ULevelStreaming* UWorldPartitionHLODSourceActorsFromCell::LoadSourceActors(bool&
 			SubActor.ContainerTransform,
 			SubActor.ContainerPackage,
 			World->GetPackage()->GetFName(),
-			HLODActor->GetContentBundleGuid(),
 			SubActor.ActorGuid,
 			false
 		);

@@ -12,6 +12,7 @@
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #include "Misc/HierarchicalLogArchive.h"
 #include "Algo/AnyOf.h"
+#include "UObject/ObjectMacros.h"
 #include "WorldPartitionRuntimeCell.generated.h"
 
 class UActorContainer;
@@ -43,7 +44,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 #endif
 	{}
 
-	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage, FName InWorldPackage, const FGuid& InContentBundleGuid, const FGuid& InActorInstanceGuid, bool bInIsEditorOnly)
+	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, FName InContainerPackage, FName InWorldPackage, const FGuid& InActorInstanceGuid, bool bInIsEditorOnly)
 #if WITH_EDITORONLY_DATA
 		: Package(InPackage)
 		, Path(InPath)
@@ -51,7 +52,6 @@ struct FWorldPartitionRuntimeCellObjectMapping
 		, ContainerTransform(InContainerTransform)
 		, ContainerPackage(InContainerPackage)
 		, WorldPackage(InWorldPackage)
-		, ContentBundleGuid(InContentBundleGuid)
 		, ActorInstanceGuid(InActorInstanceGuid)
 		, LoadedPath(InPath)
 		, bIsEditorOnly(bInIsEditorOnly)
@@ -94,12 +94,6 @@ struct FWorldPartitionRuntimeCellObjectMapping
 	 */
 	UPROPERTY()
 	FName WorldPackage;
-
-	/**
-	 * Content Bundle Id
-	 */
-	UPROPERTY()
-	FGuid ContentBundleGuid;
 
 	/**
 	 * GUID of the actor instance

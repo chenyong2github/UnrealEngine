@@ -343,25 +343,10 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 		{
 			if (ContentBundlePaths::IsAContentBundlePath(CellObjectMapping.ContainerPackage.ToString()))
 			{
-				check(CellObjectMapping.ContentBundleGuid.IsValid());
 				check(CellObjectMapping.ContainerPackage != CellObjectMapping.WorldPackage);
-
 				bool bIsContainerPackageAlreadyRemapped = OutLinkInstancingContext.RemapPackage(CellObjectMapping.ContainerPackage) != CellObjectMapping.ContainerPackage;
 				if (!bIsContainerPackageAlreadyRemapped)
 				{
-					// Get Content Bundle World
-					FString ActorDescContainerPackage = CellObjectMapping.ContainerPackage.ToString();
-					FStringView WorldFromContainerPackage = ContentBundlePaths::GetRelativePath(ActorDescContainerPackage);
-
-					// Get ChildPackage World
-					FStringView RelativeWorldPackage;
-					const bool bWithoutSlashes = false;
-					FString WorldPackage = CellObjectMapping.WorldPackage.ToString();
-					FName WorldPackageMountPoint = FPackageName::GetPackageMountPoint(WorldPackage, bWithoutSlashes);
-					ensure(FPathViews::TryMakeChildPathRelativeTo(MakeStringView(WorldPackage), MakeStringView(WorldPackageMountPoint.ToString()), RelativeWorldPackage));
-
-					check(WorldFromContainerPackage.Equals(RelativeWorldPackage));
-					
 					OutLinkInstancingContext.AddPackageMapping(CellObjectMapping.ContainerPackage, RuntimePackage->GetFName());
 					
 				}
