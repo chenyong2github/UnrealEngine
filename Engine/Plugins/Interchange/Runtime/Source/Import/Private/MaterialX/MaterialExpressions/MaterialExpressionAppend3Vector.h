@@ -9,7 +9,7 @@
 /**
  * A material expression that allows combining 3 channels together to create a vector with more channel than the original
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = ( Private))
 class UMaterialExpressionMaterialXAppend3Vector : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

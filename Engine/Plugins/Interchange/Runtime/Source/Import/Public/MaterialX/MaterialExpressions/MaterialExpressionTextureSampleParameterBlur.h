@@ -20,7 +20,7 @@ enum class EMAterialXTextureSampleBlurKernel
 	Kernel7 UMETA(DisplayName = "7x7"),
 };
 
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
 class UMaterialExpressionMaterialXTextureSampleParameterBlur: public UMaterialExpressionTextureSampleParameter2D
 {
 	GENERATED_UCLASS_BODY()

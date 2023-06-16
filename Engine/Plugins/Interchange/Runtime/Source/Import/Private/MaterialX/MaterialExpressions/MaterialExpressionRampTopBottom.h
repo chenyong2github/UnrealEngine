@@ -9,7 +9,7 @@
 /**
  * A material expression that computes a top-to-bottom bilinear value ramp.
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
 class UMaterialExpressionMaterialXRampTopBottom : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
