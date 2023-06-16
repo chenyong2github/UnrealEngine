@@ -8,7 +8,6 @@ public class DatasmithRuntime : ModuleRules
 {
 	public DatasmithRuntime(ReadOnlyTargetRules Target) : base(Target)
 	{
-		OptimizeCode = CodeOptimization.InShippingBuildsOnly;
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(
