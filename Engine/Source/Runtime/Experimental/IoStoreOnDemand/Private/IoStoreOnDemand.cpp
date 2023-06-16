@@ -17,7 +17,7 @@
 #include "Serialization/LargeMemoryWriter.h"
 #include "String/LexFromString.h"
 
-DEFINE_LOG_CATEGORY(LogIoStoreOnDemand);
+DEFINE_LOG_CATEGORY(LogIas);
 
 namespace UE::IO::Private
 {
