@@ -16,6 +16,7 @@
 #include "ChaosSolversModule.h"
 #include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "Chaos/PerParticleGravity.h"
+#include "Chaos/PhysicsObjectInternalInterface.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/ImplicitObjectUnion.h"
@@ -3636,6 +3637,37 @@ void FGeometryCollectionPhysicsProxy::UpdateFilterData_External(const FCollision
 	GameThreadPerFrameData.SetQueryFilter(NewQueryFilter);
 
 	SetProxyDirty_External();
+}
+
+DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::UpdatePerParticleFilterData_External"), STAT_GeometryCollectionPhysicsProxyUpdatePerParticleFilterData, STATGROUP_Chaos);
+void FGeometryCollectionPhysicsProxy::UpdatePerParticleFilterData_External(const TArray<FParticleCollisionFilterData>& PerParticleData)
+{
+	SCOPE_CYCLE_COUNTER(STAT_GeometryCollectionPhysicsProxyUpdatePerParticleFilterData);
+	check(IsInGameThread());
+
+	// TODO: Go through the PushToPhysicsState flow instead?
+	// TODO: Need to figure out how the per-particle collision filter data works with the global one. The per-particle one should probably replace the global one entirely...
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, PerParticleData]()
+		{
+			Chaos::FWritePhysicsObjectInterface_Internal Interface= Chaos::FPhysicsObjectInternalInterface::GetWrite();
+
+			int32 ParticleIndex = 0;
+			for (const FParticleCollisionFilterData& Data : PerParticleData)
+			{
+				Chaos::FPhysicsObjectHandle Object = PhysicsObjects[ParticleIndex].Get();
+				if (Data.bIsValid && Object)
+				{
+					TArrayView<Chaos::FPhysicsObjectHandle> ParticleView{ &Object, 1 };
+					Interface.UpdateShapeCollisionFlags(ParticleView, Data.bSimEnabled, Data.bQueryEnabled);
+					Interface.UpdateShapeFilterData(ParticleView, Data.QueryFilter, Data.SimFilter);
+				}
+
+				++ParticleIndex;
+			}
+		});
+	}
 }
 
 //==============================================================================

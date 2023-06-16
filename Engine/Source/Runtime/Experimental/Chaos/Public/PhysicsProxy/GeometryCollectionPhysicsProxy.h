@@ -443,6 +443,17 @@ public:
 	EReplicationMode GetReplicationMode() const { return ReplicationMode; }
 
 	CHAOS_API void UpdateFilterData_External(const FCollisionFilterData& NewSimFilter, const FCollisionFilterData& NewQueryFilter);
+
+	struct FParticleCollisionFilterData
+	{
+		bool bIsValid = false;
+		bool bQueryEnabled = false;
+		bool bSimEnabled = false;
+		FCollisionFilterData QueryFilter;
+		FCollisionFilterData SimFilter;
+	};
+
+	CHAOS_API void UpdatePerParticleFilterData_External(const TArray<FParticleCollisionFilterData>& Data);
 	
 	/** 
 	 * Traverses the parents of TransformGroupIdx counting number of levels,
