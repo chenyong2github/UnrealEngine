@@ -321,6 +321,9 @@ protected:
 	TObjectPtr<UPhysicsObjectToolPropertySet> ObjectData = nullptr;
 
 	UPROPERTY()
+	TObjectPtr<UMaterialInterface> LineMaterial = nullptr;
+
+	UPROPERTY()
 	TObjectPtr<UPreviewGeometry> CollisionPreview;
 
 protected:
@@ -333,6 +336,10 @@ protected:
 	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> OpFactory;
 
 	void OnSettingsModified();
+
+	bool bCollisionVisualizationDirty = false;
+	void UpdateCollisionVisualization();
+
 
 	void CreateNewAsset();
 	void UpdateExistingAsset();

@@ -49,37 +49,34 @@ void UPhysicsInspectorTool::Setup()
 	VizSettings = NewObject<UCollisionGeometryVisualizationProperties>(this);
 	VizSettings->RestoreProperties(this);
 	AddToolPropertySource(VizSettings);
+	VizSettings->WatchProperty(VizSettings->LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->bRandomColors, [this](bool bNewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->bShowHidden, [this](bool bNewValue) { bVisualizationDirty = true; });
 
-	// Intitialize the collision geometry visualization
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		VizSettings->Initialize(this);
-		int32 FirstLineSetIndex = 0;
-		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
+		UBodySetup* BodySetup = UE::ToolTarget::GetPhysicsBodySetup(Targets[ComponentIdx]);
+		if (BodySetup)
 		{
-			UBodySetup* BodySetup = UE::ToolTarget::GetPhysicsBodySetup(Targets[ComponentIdx]);
-			if (BodySetup)
-			{
-				TSharedPtr<FPhysicsDataCollection> PhysicsData = MakeShared<FPhysicsDataCollection>();
-				PhysicsData->InitializeFromComponent( UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]), true);
+			TSharedPtr<FPhysicsDataCollection> PhysicsData = MakeShared<FPhysicsDataCollection>();
+			PhysicsData->InitializeFromComponent( UE::ToolTarget::GetTargetComponent(Targets[ComponentIdx]), true);
 
-				PhysicsInfos.Add(PhysicsData);
+			PhysicsInfos.Add(PhysicsData);
 
-				UPreviewGeometry* PreviewGeom = NewObject<UPreviewGeometry>(this);
-				FTransform TargetTransform = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
-				PhysicsData->ExternalScale3D = TargetTransform.GetScale3D();
-				TargetTransform.SetScale3D(FVector::OneVector);
-				PreviewGeom->CreateInWorld(UE::ToolTarget::GetTargetActor(Targets[ComponentIdx])->GetWorld(), TargetTransform);
-				PreviewElements.Add(PreviewGeom);
+			UPreviewGeometry* PreviewGeom = NewObject<UPreviewGeometry>(this);
+			FTransform TargetTransform = (FTransform) UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]);
+			PhysicsData->ExternalScale3D = TargetTransform.GetScale3D();
+			TargetTransform.SetScale3D(FVector::OneVector);
+			PreviewGeom->CreateInWorld(UE::ToolTarget::GetTargetActor(Targets[ComponentIdx])->GetWorld(), TargetTransform);
+			PreviewElements.Add(PreviewGeom);
 
-				UE::PhysicsTools::PartiallyInitializeCollisionGeometryVisualization(PreviewGeom, VizSettings, *PhysicsData, FirstLineSetIndex);
-				FirstLineSetIndex += PreviewGeom->LineSets.Num();
+			InitializeGeometry(*PhysicsData, PreviewGeom);
 
-				UPhysicsObjectToolPropertySet* ObjectProps = NewObject<UPhysicsObjectToolPropertySet>(this);
-				UE::PhysicsTools::InitializePhysicsToolObjectPropertySet(PhysicsData.Get(), ObjectProps);
-				AddToolPropertySource(ObjectProps);
-			}
+			UPhysicsObjectToolPropertySet* ObjectProps = NewObject<UPhysicsObjectToolPropertySet>(this);
+			InitializeObjectProperties(*PhysicsData, ObjectProps);
+			AddToolPropertySource(ObjectProps);
 		}
-		VizSettings->bVisualizationDirty = false;
 	}
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Physics Inspector"));
@@ -105,17 +102,46 @@ void UPhysicsInspectorTool::OnShutdown(EToolShutdownType ShutdownType)
 
 void UPhysicsInspectorTool::OnTick(float DeltaTime)
 {
-	if (VizSettings->bVisualizationDirty)
+	if (bVisualizationDirty)
 	{
-		int32 FirstLineSetIndex= 0;
-		for (UPreviewGeometry* Preview : PreviewElements)
-		{
-			UE::PhysicsTools::PartiallyUpdateCollisionGeometryVisualization(Preview, VizSettings, FirstLineSetIndex);
-			FirstLineSetIndex += Preview->LineSets.Num();
-		}
-
-		VizSettings->bVisualizationDirty = false;
+		UpdateVisualization();
+		bVisualizationDirty = false;
 	}
+}
+
+
+
+void UPhysicsInspectorTool::UpdateVisualization()
+{
+	float UseThickness = VizSettings->LineThickness;
+	FColor UseColor = VizSettings->Color;
+	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !VizSettings->bShowHidden);
+
+	int32 ColorIdx = 0;
+	for (UPreviewGeometry* Preview : PreviewElements)
+	{
+		Preview->UpdateAllLineSets([&](ULineSetComponent* LineSet)
+		{
+			LineSet->SetAllLinesThickness(UseThickness);
+			LineSet->SetAllLinesColor(VizSettings->bRandomColors ? LinearColors::SelectFColor(ColorIdx++) : UseColor);
+		});
+		Preview->SetAllLineSetsMaterial(LineMaterial);
+	}
+}
+
+
+
+void UPhysicsInspectorTool::InitializeObjectProperties(const FPhysicsDataCollection& PhysicsData, UPhysicsObjectToolPropertySet* PropSet)
+{
+	UE::PhysicsTools::InitializePhysicsToolObjectPropertySet(&PhysicsData, PropSet);
+}
+
+
+
+void UPhysicsInspectorTool::InitializeGeometry(const FPhysicsDataCollection& PhysicsData, UPreviewGeometry* PreviewGeom)
+{
+	UE::PhysicsTools::InitializePreviewGeometryLines(PhysicsData, PreviewGeom,
+		VizSettings->Color, VizSettings->LineThickness, 0.0f, 16, VizSettings->bRandomColors);
 }
 
 

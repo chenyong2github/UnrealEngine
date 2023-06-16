@@ -6,26 +6,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Physics/PhysicsDataCollection.h"
-#include "Util/ColorConstants.h"
-#include "ToolSetupUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CollisionPropertySets)
-
-void UCollisionGeometryVisualizationProperties::Initialize(UInteractiveTool* Tool)
-{
-	WatchProperty(LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
-	WatchProperty(Color, [this](FColor NewValue) { bVisualizationDirty = true; });
-	WatchProperty(bRandomColors, [this](bool bNewValue) { bVisualizationDirty = true; });
-	WatchProperty(bShowHidden, [this](bool bNewValue) { bVisualizationDirty = true; });
-
-	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(Tool->GetToolManager(), true);
-	LineMaterialShowingHidden = ToolSetupUtil::GetDefaultLineComponentMaterial(Tool->GetToolManager(), false);
-}
-
-FColor UCollisionGeometryVisualizationProperties::GetLineSetColor(int32 LineSetIndex) const
-{
-	return bRandomColors ? UE::Geometry::LinearColors::SelectFColor(LineSetIndex) : Color;
-}
 
 void UE::PhysicsTools::InitializePhysicsToolObjectPropertySet(const FPhysicsDataCollection* PhysicsData, UPhysicsObjectToolPropertySet* PropSet)
 {

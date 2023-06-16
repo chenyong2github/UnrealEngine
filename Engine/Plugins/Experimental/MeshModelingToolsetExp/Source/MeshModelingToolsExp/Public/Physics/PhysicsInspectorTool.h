@@ -50,10 +50,19 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UPhysicsObjectToolPropertySet>> ObjectData;
 
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> LineMaterial = nullptr;
+
 protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UPreviewGeometry>> PreviewElements;
 
 	// these are TSharedPtr because TPimplPtr cannot currently be added to a TArray?
 	TArray<TSharedPtr<FPhysicsDataCollection>> PhysicsInfos;
+
+	void InitializeGeometry(const FPhysicsDataCollection& PhysicsData, UPreviewGeometry* PreviewGeom);
+	void InitializeObjectProperties(const FPhysicsDataCollection& PhysicsData, UPhysicsObjectToolPropertySet* PropSet);
+
+	bool bVisualizationDirty = false;
+	void UpdateVisualization();
 };

@@ -110,4 +110,7 @@ protected:
 	bool bResultValid = false;
 	void RecalculateMesh_Simple();
 	void RecalculateMesh_Complex();
+
+	bool bVisualizationDirty = false;
+	void UpdateVisualization();
 };

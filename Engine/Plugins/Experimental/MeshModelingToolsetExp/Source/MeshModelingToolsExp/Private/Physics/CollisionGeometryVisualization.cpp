@@ -1,31 +1,31 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/CollisionGeometryVisualization.h"
-#include "Physics/PhysicsDataCollection.h"
-#include "Physics/CollisionPropertySets.h"
 #include "Generators/LineSegmentGenerators.h"
-#include "Drawing/PreviewGeometryActor.h"
+#include "Util/ColorConstants.h"
+#include "Chaos/Levelset.h"
 
 using namespace UE::Geometry;
 
-namespace
+void UE::PhysicsTools::InitializePreviewGeometryLines(const FPhysicsDataCollection& PhysicsData, UPreviewGeometry* PreviewGeom,
+	const FColor& LineColor, float LineThickness, float DepthBias, int32 CircleStepResolution, bool bRandomColors)
 {
-
-void InitializePreviewGeometryLines(
-	const FPhysicsDataCollection& PhysicsData,
-	UPreviewGeometry* PreviewGeom,
-	UMaterialInterface* LineMaterial,
-	TFunctionRef<FColor(int32 LineSetIndex)> LineSetIndexToColorFunc,
-	float LineThickness,
-	float DepthBias,
-	int32 CircleStepResolution,
-	int32 FirstLineSetIndex)
-{
-	check(PreviewGeom);
-	check(LineMaterial);
-
 	int32 CircleSteps = FMath::Max(4, CircleStepResolution);
-	int32 LineSetIndex = FirstLineSetIndex;
+	FColor SphereColor = LineColor;
+	FColor BoxColor = LineColor;
+	FColor ConvexColor = LineColor;
+	FColor LevelSetColor = LineColor;
+	FColor CapsuleColor = LineColor;
+	int32 OverrideColorIdx = 0;
+
+	auto GetNextColor = [&OverrideColorIdx, bRandomColors](FColor DefaultColor)
+	{
+		if (bRandomColors)
+		{
+			return LinearColors::SelectFColor(OverrideColorIdx++);
+		}
+		return DefaultColor;
+	};
 
 	const FKAggregateGeom& AggGeom = PhysicsData.AggGeom;
 
@@ -34,7 +34,7 @@ void InitializePreviewGeometryLines(
 	{
 		PreviewGeom->CreateOrUpdateLineSet(FString::Printf(TEXT("Spheres %d"), Index), 1, [&](int32 UnusedIndex, TArray<FRenderableLine>& LinesOut)
 		{
-			FColor Color = LineSetIndexToColorFunc(LineSetIndex++);
+			FColor Color = GetNextColor(SphereColor);
 
 			const FKSphereElem& Sphere = AggGeom.SphereElems[Index];
 			FTransform ElemTransform = Sphere.GetTransform();
@@ -56,7 +56,7 @@ void InitializePreviewGeometryLines(
 	{
 		PreviewGeom->CreateOrUpdateLineSet(FString::Printf(TEXT("Boxes %d"), Index), 1, [&](int32 UnusedIndex, TArray<FRenderableLine>& LinesOut)
 		{
-			FColor Color = LineSetIndexToColorFunc(LineSetIndex++);
+			FColor Color = GetNextColor(BoxColor);
 
 			const FKBoxElem& Box = AggGeom.BoxElems[Index];
 			FTransform ElemTransform = Box.GetTransform();
@@ -77,7 +77,7 @@ void InitializePreviewGeometryLines(
 	{
 		PreviewGeom->CreateOrUpdateLineSet(FString::Printf(TEXT("Capsules %d"), Index), 1, [&](int32 UnusedIndex, TArray<FRenderableLine>& LinesOut)
 		{
-			FColor Color = LineSetIndexToColorFunc(LineSetIndex++);
+			FColor Color = GetNextColor(CapsuleColor);
 
 			const FKSphylElem& Capsule = AggGeom.SphylElems[Index];
 			FTransform ElemTransform = Capsule.GetTransform();
@@ -125,7 +125,7 @@ void InitializePreviewGeometryLines(
 	{
 		PreviewGeom->CreateOrUpdateLineSet(FString::Printf(TEXT("Convex %d"), Index), 1, [&](int32 UnusedIndex, TArray<FRenderableLine>& LinesOut)
 		{
-			FColor Color = LineSetIndexToColorFunc(LineSetIndex++);
+			FColor Color = GetNextColor(ConvexColor);
 
 			const FKConvexElem& Convex = AggGeom.ConvexElems[Index];
 			FTransform ElemTransform = Convex.GetTransform();
@@ -143,13 +143,13 @@ void InitializePreviewGeometryLines(
 			}
 		});
 	}
-
+	
 	// for Level Sets draw the grid cells where phi < 0
 	for (int32 Index = 0; Index < AggGeom.LevelSetElems.Num(); Index++)
 	{
 		PreviewGeom->CreateOrUpdateLineSet(FString::Printf(TEXT("Level Set %d"), Index), 1, [&](int32 UnusedIndex, TArray<FRenderableLine>& LinesOut)
 		{
-			FColor Color = LineSetIndexToColorFunc(LineSetIndex++);
+			const FColor Color = GetNextColor(LevelSetColor);
 			const FKLevelSetElem& LevelSet = AggGeom.LevelSetElems[Index];
 			
 			FTransform ElemTransform = LevelSet.GetTransform();
@@ -183,107 +183,4 @@ void InitializePreviewGeometryLines(
 	// Unclear whether we actually use these in the Engine, for UBodySetup? Does not appear to be supported by UxX import system,
 	// and online documentation suggests they may only be supported for cloth?
 	ensure(AggGeom.TaperedCapsuleElems.Num() == 0);
-
-	PreviewGeom->SetAllLineSetsMaterial(LineMaterial);
 }
-
-void UpdatePreviewGeometryLines(
-	UPreviewGeometry* PartialPreviewGeom,
-	UCollisionGeometryVisualizationProperties* Settings,
-	int32 FirstLineSetIndex = 0)
-{
-	check(PartialPreviewGeom);
-	check(Settings);
-
-	int32 LineSetIndex = FirstLineSetIndex;
-	PartialPreviewGeom->UpdateAllLineSets([&](ULineSetComponent* LineSet)
-	{
-		FColor LineColor = Settings->GetLineSetColor(LineSetIndex++);
-		LineSet->SetAllLinesThickness(Settings->LineThickness);
-		LineSet->SetAllLinesColor(LineColor);
-	});
-	PartialPreviewGeom->SetAllLineSetsMaterial(Settings->GetLineMaterial());
-}
-
-} // end namespace
-
-
-
-
-
-
-void UE::PhysicsTools::InitializeCollisionGeometryVisualization(
-	UPreviewGeometry* PreviewGeom,
-	UCollisionGeometryVisualizationProperties* Settings,
-	const FPhysicsDataCollection& PhysicsData,
-	float DepthBias,
-	int32 CircleStepResolution)
-{
-	check(PreviewGeom);
-	check(Settings);
-
-	InitializePreviewGeometryLines(
-		PhysicsData,
-		PreviewGeom,
-		Settings->GetLineMaterial(),
-		[&Settings](int LineSetIndex) { return Settings->GetLineSetColor(LineSetIndex); },
-		Settings->LineThickness,
-		DepthBias,
-		CircleStepResolution,
-		0);
-
-	Settings->bVisualizationDirty = false;
-}
-
-void UE::PhysicsTools::UpdateCollisionGeometryVisualization(
-	UPreviewGeometry* PreviewGeom,
-	UCollisionGeometryVisualizationProperties* Settings)
-{
-	check(PreviewGeom);
-	check(Settings);
-
-	if (Settings->bVisualizationDirty)
-	{
-		UpdatePreviewGeometryLines(PreviewGeom, Settings);
-		Settings->bVisualizationDirty = false;
-	}
-}
-
-
-
-
-
-
-void UE::PhysicsTools::PartiallyInitializeCollisionGeometryVisualization(
-	UPreviewGeometry* PreviewGeom,
-	UCollisionGeometryVisualizationProperties* Settings,
-	const FPhysicsDataCollection& PhysicsData,
-	int32 FirstLineSetIndex,
-	float DepthBias,
-	int32 CircleStepResolution)
-{
-	check(PreviewGeom);
-	check(Settings);
-
-	InitializePreviewGeometryLines(
-		PhysicsData,
-		PreviewGeom,
-		Settings->GetLineMaterial(),
-		[&Settings](int LineSetIndex) { return Settings->GetLineSetColor(LineSetIndex); },
-		Settings->LineThickness,
-		DepthBias,
-		CircleStepResolution,
-		FirstLineSetIndex);
-}
-
-void UE::PhysicsTools::PartiallyUpdateCollisionGeometryVisualization(
-	UPreviewGeometry* PartialPreviewGeom,
-	UCollisionGeometryVisualizationProperties* Settings,
-	int32 FirstLineSetIndex)
-{
-	check(PartialPreviewGeom);
-	check(Settings);
-
-	UpdatePreviewGeometryLines(PartialPreviewGeom, Settings, FirstLineSetIndex);
-}
-

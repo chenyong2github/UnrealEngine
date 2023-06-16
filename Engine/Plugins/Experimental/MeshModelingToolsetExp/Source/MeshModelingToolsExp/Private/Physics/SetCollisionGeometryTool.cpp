@@ -28,7 +28,6 @@
 #include "ToolTargetManager.h"
 #include "UObject/UObjectIterator.h"
 #include "ModelingToolTargetUtil.h"
-#include "Drawing/PreviewGeometryActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SetCollisionGeometryTool)
 
@@ -303,7 +302,10 @@ void USetCollisionGeometryTool::Setup()
 	VizSettings = NewObject<UCollisionGeometryVisualizationProperties>(this);
 	VizSettings->RestoreProperties(this);
 	AddToolPropertySource(VizSettings);
-	VizSettings->Initialize(this);
+	VizSettings->WatchProperty(VizSettings->LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->bRandomColors, [this](bool bNewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->bShowHidden, [this](bool bNewValue) { bVisualizationDirty = true; });
 
 	// add option for collision properties
 	CollisionProps = NewObject<UPhysicsObjectToolPropertySet>(this);
@@ -519,12 +521,12 @@ void USetCollisionGeometryTool::OnTick(float DeltaTime)
 			{
 				GeneratedCollision = MakeShareable<FPhysicsDataCollection>(Result.Release());
 
-				VizSettings->bVisualizationDirty = true;
+				bVisualizationDirty = true;
 
 				// update visualization
 				PreviewGeom->RemoveAllLineSets();
-
-				UE::PhysicsTools::InitializeCollisionGeometryVisualization(PreviewGeom, VizSettings, *GeneratedCollision);
+				UE::PhysicsTools::InitializePreviewGeometryLines(*GeneratedCollision, PreviewGeom,
+					VizSettings->Color, VizSettings->LineThickness, 0.0f, 16, VizSettings->bRandomColors);
 
 				// update property set
 				CollisionProps->Reset();
@@ -533,7 +535,11 @@ void USetCollisionGeometryTool::OnTick(float DeltaTime)
 		}
 	}
 
-	UE::PhysicsTools::UpdateCollisionGeometryVisualization(PreviewGeom, VizSettings);
+	if (bVisualizationDirty)
+	{
+		UpdateVisualization();
+		bVisualizationDirty = false;
+	}
 }
 
 
@@ -596,6 +602,24 @@ void USetCollisionGeometryTool::UpdateActiveGroupLayer()
 		ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
 		ActiveGroupSet = MakeUnique<UE::Geometry::FPolygroupSet>(GroupLayersMesh, FoundAttrib);
 	}
+}
+
+
+
+
+void USetCollisionGeometryTool::UpdateVisualization()
+{
+	float UseThickness = VizSettings->LineThickness;
+	FColor UseColor = VizSettings->Color;
+	int32 ColorIdx = 0;
+	PreviewGeom->UpdateAllLineSets([&](ULineSetComponent* LineSet)
+	{
+		LineSet->SetAllLinesThickness(UseThickness);
+		LineSet->SetAllLinesColor(VizSettings->bRandomColors ? LinearColors::SelectFColor(ColorIdx++) : UseColor);
+	});
+
+	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !VizSettings->bShowHidden);
+	PreviewGeom->SetAllLineSetsMaterial(LineMaterial);
 }
 
 

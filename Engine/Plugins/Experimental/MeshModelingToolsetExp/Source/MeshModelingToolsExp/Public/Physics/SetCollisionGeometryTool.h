@@ -199,7 +199,7 @@ public:
 	virtual bool CanAccept() const override
 	{
 		// allow accept when we're showing the current, valid result
-		return Super::CanAccept() && bInputMeshesValid && Compute && Compute->HaveValidResult() && !VizSettings->bVisualizationDirty;
+		return Super::CanAccept() && bInputMeshesValid && Compute && Compute->HaveValidResult() && !bVisualizationDirty;
 	}
 
 	// Begin IGenericDataOperatorFactory interface
@@ -218,7 +218,10 @@ protected:
 	TObjectPtr<UCollisionGeometryVisualizationProperties> VizSettings = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UPhysicsObjectToolPropertySet> CollisionProps = nullptr;
+	TObjectPtr<UPhysicsObjectToolPropertySet> CollisionProps;
+
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> LineMaterial = nullptr;
 
 	//
 	// Background compute
@@ -227,7 +230,7 @@ protected:
 
 protected:
 	UPROPERTY()
-	TObjectPtr<UPreviewGeometry> PreviewGeom = nullptr;
+	TObjectPtr<UPreviewGeometry> PreviewGeom;
 
 	TArray<int32> SourceObjectIndices;
 	bool bSourcesHidden = false;
@@ -290,4 +293,7 @@ protected:
 	TSharedPtr<FPhysicsDataCollection, ESPMode::ThreadSafe> GeneratedCollision;
 	TSharedPtr<TArray<FPhysicsDataCollection>, ESPMode::ThreadSafe> OtherInputsCollision;
 	TSharedPtr<TArray<FTransform3d>, ESPMode::ThreadSafe> OtherInputsTransforms;
+
+	bool bVisualizationDirty = false;
+	void UpdateVisualization();
 };
