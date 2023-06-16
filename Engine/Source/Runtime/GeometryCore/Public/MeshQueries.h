@@ -462,6 +462,23 @@ public:
 		return Query;
 	}
 
+	/** 
+	 * Compute the length for each edge and return the result as an array of Mesh.MaxEdgeID() size.
+	 * When mesh is not compact, the length of the missing edges is set to -1.0
+	 */
+	static void GetAllEdgeLengths(const TriangleMeshType& Mesh, TArray<double>& Lengths, double& TotalLength)
+	{
+		Lengths.Init(-1.0, Mesh.MaxEdgeID());
+		TotalLength = 0.0;
+		for (const int32 EdgeID : Mesh.EdgeIndicesItr())
+		{
+			FVector3d vA, vB;
+			Mesh.GetEdgeV(EdgeID, vA, vB);
+			Lengths[EdgeID] = (vA - vB).Length();
+			TotalLength += Lengths[EdgeID];
+		}
+	}
+
 	/// Compute the mean edge length for the given mesh
 	static double AverageEdgeLength(const TriangleMeshType& Mesh)
 	{
@@ -739,6 +756,84 @@ public:
 		RootMeanSqrDeviation = FMathd::Sqrt(RootMeanSqrDeviation / NumDistances);
 	}
 
+	/**
+     * Retrieve the area and/or angle weights for each vertex of a triangle.
+	 * 
+     * @param Mesh the mesh to query
+     * @param TriID the triangle index of the mesh to query
+     * @param TriArea the area of the triangle
+     * @param bWeightByArea if true, include weighting by the area of the triangle
+     * @param bWeightByAngle if true, include weighting by the interior angles of the triangle
+     */
+    static FVector3d GetVertexWeightsOnTriangle(const TriangleMeshType& Mesh, int TriID, double TriArea, bool bWeightByArea, bool bWeightByAngle)
+    {
+        FVector3d TriNormalWeights = FVector3d::One();
+        if (bWeightByAngle)
+        {
+            TriNormalWeights = Mesh.GetTriInternalAnglesR(TriID); // component-wise multiply by per-vertex internal angles
+        }
+        if (bWeightByArea)
+        {
+            TriNormalWeights *= TriArea;
+        }
+        return TriNormalWeights;
+    }
+
+	/**
+	 * Get triangles that contain at least on vertex in the Vertices array.
+	 * 
+	 * @param Vertices Array of mesh vertex IDs.
+	 * @param Triangles Triangle IDs containing at least one vertex ID in Vertices.
+	 */
+	static TArray<int32> GetVertexSelectedTriangles(const TriangleMeshType& Mesh, const TArray<int32>& Vertices)
+	{
+		TSet<int32> TriangleSet; // All triangles shared by vertices in Vertices array
+		TriangleSet.Reserve(Vertices.Num());
+		for (const int32 VID : Vertices)
+		{
+			for (const int32 TID : Mesh.VtxTrianglesItr(VID))
+			{
+				TriangleSet.Add(TID);
+			}
+		}
+
+		return TriangleSet.Array();
+	}
+
+	/**
+	 * Expand selection of vertices with one-ring neighbors.
+	 * 
+	 * @param Selection Array of Mesh vertex IDs.
+     * @param ExpandedSelection All vertices in Selection plus one-ring neighbors for each vertex.
+     * @param VIDToExpandedSelectionIdx Maps mesh Vertex ID to ExpandedSelection array index.
+     */
+    static void ExpandVertexSelectionToNeighbors(const TriangleMeshType& Mesh, 
+                                    	   		 const TArray<int32>& Selection, 
+                                    	   		 TArray<int32>& ExpandedSelection, 
+                                    	   		 TMap<int32,int32>& VIDToExpandedSelectionIdx)
+    {
+        VIDToExpandedSelectionIdx.Reserve(Selection.Num());
+        ExpandedSelection.Reserve(Selection.Num());
+
+        int32 Idx = 0;
+        for (const int32 SelectedVID : Selection)
+        {
+            if (!VIDToExpandedSelectionIdx.Contains(SelectedVID))
+            {
+                VIDToExpandedSelectionIdx.Add(SelectedVID, Idx++);
+                ExpandedSelection.Add(SelectedVID);
+            }
+
+            for (const int32 NeighborVID : Mesh.VtxVerticesItr(SelectedVID))
+            {
+                if (!VIDToExpandedSelectionIdx.Contains(NeighborVID))
+                {
+                    VIDToExpandedSelectionIdx.Add(NeighborVID, Idx++);
+                    ExpandedSelection.Add(NeighborVID);
+                }
+            }
+        }
+    }
 };
 
 

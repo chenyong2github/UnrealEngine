@@ -213,20 +213,7 @@ public:
 	 * @param bWeightByArea if true, include weighting by the area of the triangle
 	 * @param bWeightByAngle if true, include weighting by the interior angles of the triangle
 	 */
-	static FVector3d GetVertexWeightsOnTriangle(const FDynamicMesh3* Mesh, int TriID, double TriArea, bool bWeightByArea, bool bWeightByAngle)
-	{
-		FVector3d TriNormalWeights = FVector3d::One();
-		if (bWeightByAngle)
-		{
-			TriNormalWeights = Mesh->GetTriInternalAnglesR(TriID); // component-wise multiply by per-vertex internal angles
-		}
-		if (bWeightByArea)
-		{
-			TriNormalWeights *= TriArea;
-		}
-		return TriNormalWeights;
-	}
-
+	static FVector3d GetVertexWeightsOnTriangle(const FDynamicMesh3* Mesh, int TriID, double TriArea, bool bWeightByArea, bool bWeightByAngle);
 
 protected:
 	/** Compute per-vertex normals using area-weighted averaging of one-ring triangle normals */

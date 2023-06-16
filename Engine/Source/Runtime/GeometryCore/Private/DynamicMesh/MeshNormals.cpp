@@ -5,6 +5,7 @@
 #include "DynamicMesh/MeshNormals.h"
 #include "Async/ParallelFor.h"
 #include "DynamicMesh/MeshIndexUtil.h"
+#include "MeshQueries.h"
 
 using namespace UE::Geometry;
 
@@ -620,4 +621,7 @@ void FMeshNormals::InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalO
 	}
 }
 
-
+FVector3d FMeshNormals::GetVertexWeightsOnTriangle(const FDynamicMesh3* Mesh, int TriID, double TriArea, bool bWeightByArea, bool bWeightByAngle)
+{
+	return TMeshQueries<FDynamicMesh3>::GetVertexWeightsOnTriangle(*Mesh, TriID, TriArea, bWeightByArea, bWeightByAngle);
+}
