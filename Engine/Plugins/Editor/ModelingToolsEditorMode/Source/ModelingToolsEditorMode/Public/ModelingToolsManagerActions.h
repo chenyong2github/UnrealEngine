@@ -198,6 +198,9 @@ public:
 	TSharedPtr<FUICommandInfo> LoadLodsTools;
 	// For connecting ModelingMode with UVEditor plugin
 	TSharedPtr<FUICommandInfo> LaunchUVEditor;
+	// skeletal mesh editing tools
+	TSharedPtr<FUICommandInfo> LoadSkinTools;
+	TSharedPtr<FUICommandInfo> LoadSkeletonTools;
 
 	//
 	// Accept/Cancel/Complete commands are used to end the active Tool via ToolManager

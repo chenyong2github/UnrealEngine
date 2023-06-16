@@ -12,30 +12,23 @@ class STextBlock;
 class SButton;
 
 
-class FSkeletalMeshModelingToolsEditorModeToolkit : 
-	 public FModeToolkit
+class FSkeletalMeshModelingToolsEditorModeToolkit : public FModeToolkit
 {
 public:
 
-	~FSkeletalMeshModelingToolsEditorModeToolkit();
+	virtual ~FSkeletalMeshModelingToolsEditorModeToolkit() override;
 	
 	// IToolkit overrides
-	void Init(const TSharedPtr<IToolkitHost>& InToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
-	FName GetToolkitFName() const override;
-	FText GetBaseToolkitName() const override;
-	TSharedPtr<SWidget> GetInlineContent() const override { return ToolkitWidget; }
+	virtual void Init(const TSharedPtr<IToolkitHost>& InToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
+	virtual FName GetToolkitFName() const override;
+	virtual FText GetBaseToolkitName() const override;
+	virtual TSharedPtr<SWidget> GetInlineContent() const override { return ToolkitWidget; }
 
-	void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
-	void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
-
-	FText GetActiveToolDisplayName() const override;
-	FText GetActiveToolMessage() const override;
-
-	void GetToolPaletteNames(TArray<FName>& InPaletteName) const override;
-	FText GetToolPaletteDisplayName(FName PaletteName) const override;
-	void BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder) override;
-	void OnToolPaletteChanged(FName PaletteName) override;
-
+	// FModeToolkit overrides
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual FText GetActiveToolDisplayName() const override;
+	virtual FText GetActiveToolMessage() const override;
 
 private:
 	void PostNotification(const FText& Message);
@@ -45,6 +38,11 @@ private:
 	void ClearWarning();
 
 	void UpdateActiveToolProperties(UInteractiveTool* Tool);
+
+	void RegisterPalettes();
+	FDelegateHandle ActivePaletteChangedHandle;
+
+	void MakeToolAcceptCancelWidget();
 
 	FText ActiveToolName;
 	FText ActiveToolMessage;

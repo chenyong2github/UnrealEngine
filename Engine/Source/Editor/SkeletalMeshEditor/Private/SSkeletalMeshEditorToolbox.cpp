@@ -4,230 +4,29 @@
 
 #include "ISkeletalMeshEditor.h"
 
-#include "EdMode.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Tools/UEdMode.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SUniformWrapPanel.h"
-#include "Widgets/Input/SSegmentedControl.h"
-
-
-SSkeletalMeshEditorToolbox::~SSkeletalMeshEditorToolbox()
-{
-}
-
 
 void SSkeletalMeshEditorToolbox::Construct(
 	const FArguments& InArgs, 
 	const TSharedRef<ISkeletalMeshEditor>& InOwningEditor
 	)
 {
-	SkeletalMeshEditor = InOwningEditor;
-
 	ChildSlot
 	[
-		SNew( SBorder )
+		SAssignNew(InlineContentHolder, SBorder)
 		.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
-		.Padding(0.0f)
-		[
-			SNew( SVerticalBox )
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.HAlign( HAlign_Left )
-			[
-				SAssignNew( ModeToolBarContainer, SBorder )
-				.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
-				.Padding( FMargin(4, 0, 0, 0) )
-			]
-
-			+ SVerticalBox::Slot()
-			.FillHeight( 1.0f )
-			[
-				SNew( SVerticalBox )
-
-				+SVerticalBox::Slot()
-				.Padding(0.0, 8.0, 0.0, 0.0)
-				.AutoHeight()
-				[
-					SAssignNew(ModeToolHeader, SBorder)
-					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
-				]
-
-				+ SVerticalBox::Slot()
-				.FillHeight(1)
-				[
-					SAssignNew(InlineContentHolder, SBorder)
-					.BorderImage( FAppStyle::GetBrush( "ToolPanel.GroupBorder" ) )
-					.Visibility( this, &SSkeletalMeshEditorToolbox::GetInlineContentHolderVisibility )
-				]
-			]
-		]
 	];
 }
 
-
 void SSkeletalMeshEditorToolbox::AttachToolkit(const TSharedRef<IToolkit>& InToolkit)
 {
-	UpdateInlineContent(InToolkit, InToolkit->GetInlineContent());
+	TSharedPtr<SWidget> Content = InToolkit->GetInlineContent();
+	InlineContentHolder->SetContent(Content.ToSharedRef());
 }
-
 
 void SSkeletalMeshEditorToolbox::DetachToolkit(const TSharedRef<IToolkit>& InToolkit)
 {
-	UpdateInlineContent(nullptr, SNullWidget::NullWidget);
-}
-
-
-void SSkeletalMeshEditorToolbox::SetOwningTab(TSharedRef<SDockTab>& InOwningTab)
-{
-	OwningTab = InOwningTab;
-}
-
-
-void SSkeletalMeshEditorToolbox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolkit, TSharedPtr<SWidget> InlineContent)
-{
-	static const FName SkeletalMeshEditorStatusBarName = "SkeletalMeshEditor.StatusBar";
-
-	// The display name that the owning tab should have as its label
-	FText TabName;
-
-	// The icon that should be displayed in the parent tab
-	const FSlateBrush* TabIcon = nullptr;
-
-	if (StatusBarMessageHandle.IsValid())
-	{
-		GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PopStatusBarMessage(SkeletalMeshEditorStatusBarName, StatusBarMessageHandle);
-		StatusBarMessageHandle.Reset();
-	}
-	TWeakPtr<FModeToolkit> ModeToolkit = StaticCastSharedPtr<FModeToolkit>(Toolkit);
-	if (ModeToolkit.IsValid())
-	{
-		TabName = ModeToolkit.Pin()->GetEditorModeDisplayName();
-		TabIcon = ModeToolkit.Pin()->GetEditorModeIcon().GetSmallIcon();
-		const TSharedRef<FModeToolkit> ModeToolkitPinned = ModeToolkit.Pin().ToSharedRef();
-
-		UpdatePalette(ModeToolkit);
-
-		// Show the name of the active tool in the statusbar.
-		// FIXME: We should also be showing Ctrl/Shift/Alt LMB/RMB shortcuts.
-		StatusBarMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(
-			SkeletalMeshEditorStatusBarName,
-			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(ModeToolkitPinned, &FModeToolkit::GetActiveToolDisplayName)));
-	}
-	else
-	{
-		TabName = NSLOCTEXT("SkeletalMeshEditor", "ToolboxTab", "Toolbox");
-		TabIcon = FAppStyle::Get().GetBrush("LevelEditor.Tabs.Modes");
-	}
-
-	if (InlineContent.IsValid() && InlineContentHolder.IsValid())
-	{
-		InlineContentHolder->SetContent(InlineContent.ToSharedRef());
-	}
-
-	TSharedPtr<SDockTab> OwningTabPinned = OwningTab.Pin();
-	if (OwningTabPinned.IsValid())
-	{
-		OwningTabPinned->SetLabel(TabName);
-		OwningTabPinned->SetTabIcon(TabIcon);
-	}
-}
-
-
-void SSkeletalMeshEditorToolbox::UpdatePalette(const TWeakPtr<FModeToolkit>& InWeakToolkit) const
-{
-	if (!InWeakToolkit.IsValid())
-	{
-		return;
-	}
-	
-	TSharedRef<SSegmentedControl<FName>> PaletteTabBox = SNew(SSegmentedControl<FName>)
-		.UniformPadding(FMargin(8.f, 3.f))
-		.Value_Lambda([InWeakToolkit]()
-		{
-			return InWeakToolkit.IsValid() ? InWeakToolkit.Pin()->GetCurrentPalette() : NAME_None;
-		})
-		.OnValueChanged_Lambda([InWeakToolkit](const FName& Palette)
-		{
-			if (InWeakToolkit.IsValid())
-			{
-				InWeakToolkit.Pin()->SetCurrentPalette(Palette);
-			}
-		});
-
-	// Only show if there's more than one entry.
-	PaletteTabBox->SetVisibility(TAttribute<EVisibility>::Create(
-		TAttribute<EVisibility>::FGetter::CreateLambda([PaletteTabBox]() -> EVisibility { 
-			return PaletteTabBox->NumSlots() > 1 ? EVisibility::Visible : EVisibility::Collapsed;
-		})));
-
-	const TSharedPtr<FModeToolkit> ModeToolkit = InWeakToolkit.Pin();
-	
-	// Also build the toolkit here
-	TArray<FName> PaletteNames;
-	ModeToolkit->GetToolPaletteNames(PaletteNames);
-
-	const TSharedPtr<FUICommandList> CommandList = ModeToolkit->GetToolkitCommands();
-
-	TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher)
-	.WidgetIndex_Lambda( [PaletteNames, InWeakToolkit] () -> int32 {
-		if (InWeakToolkit.IsValid())
-		{
-			int32 FoundIndex;
-			if (PaletteNames.Find(InWeakToolkit.Pin()->GetCurrentPalette(), FoundIndex))
-			{
-				return FoundIndex;	
-			}
-		}
-		return 0;
-	} );
-			
-	for(auto Palette : PaletteNames)
-	{
-		const FName ToolbarCustomizationName = ModeToolkit->GetEditorMode() ?
-			ModeToolkit->GetEditorMode()->GetModeInfo().ToolbarCustomizationName :
-			ModeToolkit->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
-		FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
-		ModeToolbarBuilder.SetStyle(&FAppStyle::Get(), "PaletteToolBar");
-
-		ModeToolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
-
-		TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
-
-		const bool bRebuildChildren = false;
-		PaletteTabBox->AddSlot(Palette, false)
-		.Text(ModeToolkit->GetToolPaletteDisplayName(Palette));
-
-		PaletteSwitcher->AddSlot()
-		[
-			PaletteWidget
-		]; 
-	}
-
-	PaletteTabBox->RebuildChildren();
-
-	ModeToolHeader->SetContent(
-		SNew(SVerticalBox)
-
-		+SVerticalBox::Slot()
-		.Padding(8.f, 0.f, 0.f, 8.f)
-		.AutoHeight()
-		.HAlign(HAlign_Center)
-		[
-			PaletteTabBox
-		]
-
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			PaletteSwitcher
-		]
-	);
-}
-
-
-EVisibility SSkeletalMeshEditorToolbox::GetInlineContentHolderVisibility() const
-{
-	return InlineContentHolder->GetContent() == SNullWidget::NullWidget ? EVisibility::Collapsed : EVisibility::Visible;
+	InlineContentHolder->SetContent(SNullWidget::NullWidget);
 }

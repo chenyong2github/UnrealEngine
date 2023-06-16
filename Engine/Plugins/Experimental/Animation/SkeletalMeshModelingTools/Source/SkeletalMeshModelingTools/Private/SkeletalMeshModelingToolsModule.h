@@ -42,6 +42,7 @@ private:
 	
 	// The handle for the extender delegate we added. Needed for clean module shutdown.
 	FDelegateHandle SkelMeshEditorExtenderHandle;
+	FDelegateHandle SkelMeshEditorPostInitHandle;
 
 	TArray<TWeakPtr<FApplicationMode>> RegisteredApplicationModes;
 };

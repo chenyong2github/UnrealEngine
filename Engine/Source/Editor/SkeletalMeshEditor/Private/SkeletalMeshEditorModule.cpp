@@ -36,6 +36,7 @@ public:
 		return SkeletalMeshEditor;
 	}
 
+	virtual TArray<FOnSkeletalMeshEditorInitialized>& GetPostEditorInitDelegates() override { return SkeletalMeshEditorInitialized; }
 	virtual TArray<FSkeletalMeshEditorToolbarExtender>& GetAllSkeletalMeshEditorToolbarExtenders() override { return SkeletalMeshEditorToolbarExtenders; }
 
 	/** Gets the extensibility managers for outside entities to extend this editor's menus and toolbars */
@@ -46,6 +47,7 @@ private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 
+	TArray<FOnSkeletalMeshEditorInitialized> SkeletalMeshEditorInitialized;
 	TArray<FSkeletalMeshEditorToolbarExtender> SkeletalMeshEditorToolbarExtenders;
 };
 

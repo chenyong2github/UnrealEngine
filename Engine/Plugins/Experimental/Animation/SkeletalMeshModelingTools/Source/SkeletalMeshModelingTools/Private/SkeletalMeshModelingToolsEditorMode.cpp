@@ -155,7 +155,7 @@ const FEditorModeID USkeletalMeshModelingToolsEditorMode::Id("SkeletalMeshModeli
 
 USkeletalMeshModelingToolsEditorMode::USkeletalMeshModelingToolsEditorMode() 
 {
-	Info = FEditorModeInfo(Id, LOCTEXT("SkeletalMeshModelingMode", "Skeletal Mesh Modeling"), FSlateIcon(), false);
+	Info = FEditorModeInfo(Id, LOCTEXT("SkeletalMeshEditingMode", "Skeletal Mesh Editing"), FSlateIcon(), false);
 }
 
 

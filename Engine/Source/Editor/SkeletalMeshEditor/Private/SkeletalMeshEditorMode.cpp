@@ -56,10 +56,9 @@ FSkeletalMeshEditorMode::FSkeletalMeshEditorMode(TSharedRef<FWorkflowCentricAppl
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.2f)
-					->SetHideTabWell(false)
-					->AddTab(SkeletalMeshEditorTabs::AssetDetailsTab, ETabState::OpenedTab)
-					->AddTab(SkeletalMeshEditorTabs::SkeletonTreeTab, ETabState::OpenedTab)
-					->SetForegroundTab(SkeletalMeshEditorTabs::AssetDetailsTab)
+					->SetHideTabWell(true)
+					->AddTab(SkeletalMeshEditorTabs::ToolboxDetailsTab, ETabState::OpenedTab)
+					->SetForegroundTab(SkeletalMeshEditorTabs::ToolboxDetailsTab)
 				)
 				->Split
 				(
@@ -91,20 +90,20 @@ FSkeletalMeshEditorMode::FSkeletalMeshEditorMode(TSharedRef<FWorkflowCentricAppl
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.5f)
 						->SetHideTabWell(false)
-						->AddTab(SkeletalMeshEditorTabs::DetailsTab, ETabState::OpenedTab)
-						->AddTab(SkeletalMeshEditorTabs::ToolboxDetailsTab, ETabState::ClosedTab)
-						->AddTab(SkeletalMeshEditorTabs::AdvancedPreviewTab, ETabState::OpenedTab)
-						->SetForegroundTab(SkeletalMeshEditorTabs::DetailsTab)
+						->AddTab(SkeletalMeshEditorTabs::SkeletonTreeTab, ETabState::OpenedTab)
+						->AddTab(SkeletalMeshEditorTabs::MorphTargetsTab, ETabState::OpenedTab)
+						->AddTab(SkeletalMeshEditorTabs::CurveMetadataTab, ETabState::OpenedTab)
+						->SetForegroundTab(SkeletalMeshEditorTabs::SkeletonTreeTab)
 					)
 					->Split
 					(
-
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.5f)
 						->SetHideTabWell(false)
-						->AddTab(SkeletalMeshEditorTabs::MorphTargetsTab, ETabState::OpenedTab)
-						->AddTab(SkeletalMeshEditorTabs::CurveMetadataTab, ETabState::OpenedTab)
-						->SetForegroundTab(SkeletalMeshEditorTabs::MorphTargetsTab)
+						->AddTab(SkeletalMeshEditorTabs::AssetDetailsTab, ETabState::OpenedTab)
+						->AddTab(SkeletalMeshEditorTabs::DetailsTab, ETabState::OpenedTab)
+						->AddTab(SkeletalMeshEditorTabs::AdvancedPreviewTab, ETabState::OpenedTab)
+						->SetForegroundTab(SkeletalMeshEditorTabs::AssetDetailsTab)
 					)
 				)
 			)

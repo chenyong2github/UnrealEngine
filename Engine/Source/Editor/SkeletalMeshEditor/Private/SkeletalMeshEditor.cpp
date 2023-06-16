@@ -285,6 +285,14 @@ void FSkeletalMeshEditor::InitSkeletalMeshEditor(const EToolkitMode::Type Mode, 
 	// Make sure we get told when the editor mode changes so we can switch to the appropriate tab
 	// if there's a toolbox available.
 	GetEditorModeManager().OnEditorModeIDChanged().AddSP(this, &FSkeletalMeshEditor::OnEditorModeIdChanged);
+
+	// run attached post-init delegates
+	ISkeletalMeshEditorModule& SkeletalMeshEditorModule = FModuleManager::GetModuleChecked<ISkeletalMeshEditorModule>("SkeletalMeshEditor");
+	const TArray<ISkeletalMeshEditorModule::FOnSkeletalMeshEditorInitialized>& PostInitDelegates = SkeletalMeshEditorModule.GetPostEditorInitDelegates();
+	for (const auto& PostInitDelegate : PostInitDelegates)
+	{
+		PostInitDelegate.ExecuteIfBound(SharedThis<ISkeletalMeshEditor>(this));
+	}
 }
 
 FName FSkeletalMeshEditor::GetToolkitFName() const
@@ -392,18 +400,17 @@ TSharedRef<SDockTab> FSkeletalMeshEditor::SpawnToolboxTab(const FSpawnTabArgs& A
 	ToolboxWidget = SNew(SSkeletalMeshEditorToolbox, SharedThis<ISkeletalMeshEditor>(this));
 
 	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-	    .Label(LOCTEXT("ToolboxTab", "Toolbox"))
+		.Label(LOCTEXT("ToolboxTab", "Toolbox"))
 		[
 			SNew(SBox)
-	        .AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ToolboxTab")))
-	        [
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ToolboxTab")))
+			[
 				ToolboxWidget.ToSharedRef()
 			]
 		];
-
-	ToolboxWidget->SetOwningTab(DockTab);
-	ToolboxWidget->AttachToolkit(HostedToolkit.ToSharedRef());
 	
+	ToolboxWidget->AttachToolkit(HostedToolkit.ToSharedRef());
+
 	return DockTab;
 }
 

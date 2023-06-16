@@ -20,4 +20,8 @@ public:
 	/** Get all toolbar extenders */
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<FExtender>, FSkeletalMeshEditorToolbarExtender, const TSharedRef<FUICommandList> /*InCommandList*/, TSharedRef<ISkeletalMeshEditor> /*InSkeletalMeshEditor*/);
 	virtual TArray<FSkeletalMeshEditorToolbarExtender>& GetAllSkeletalMeshEditorToolbarExtenders() = 0;
+
+	/** Add callback after editor has been initialized */
+	DECLARE_DELEGATE_OneParam(FOnSkeletalMeshEditorInitialized, TWeakPtr<ISkeletalMeshEditor>);
+	virtual TArray<FOnSkeletalMeshEditorInitialized>& GetPostEditorInitDelegates() = 0;
 };

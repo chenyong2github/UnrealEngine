@@ -34,7 +34,8 @@ public class SkeletalMeshModelingTools : ModuleRules
 				"PropertyEditor",
 				"AnimationCore",
 				"AnimationWidgets",
-				"ApplicationCore"
+				"ApplicationCore",
+				"WidgetRegistration",
 			}
 		);
 	}

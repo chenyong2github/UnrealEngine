@@ -36,22 +36,11 @@ FSkeletalMeshModelingToolsEditorModeToolkit::~FSkeletalMeshModelingToolsEditorMo
 
 void FSkeletalMeshModelingToolsEditorModeToolkit::Init(
 	const TSharedPtr<IToolkitHost>& InToolkitHost, 
-	TWeakObjectPtr<UEdMode> InOwningMode
-	)
+	TWeakObjectPtr<UEdMode> InOwningMode)
 {
-	// Create a details view to show the tool props
-	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	bUsesToolkitBuilder = true;
 
-	FDetailsViewArgs DetailsViewArgs;
-
-	DetailsViewArgs.bHideSelectionTip = true;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-	DetailsViewArgs.bAllowSearch = false;
-	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
-	DetailsViewArgs.bShowOptions = false;
-	DetailsViewArgs.bAllowMultipleTopLevelObjects = true;
-
-	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	FModeToolkit::Init(InToolkitHost, InOwningMode);
 
 	ModeWarningArea = SNew(STextBlock)
 		.AutoWrapText(true)
@@ -65,8 +54,7 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::Init(
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12));
 	ModeHeaderArea->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
 	ModeHeaderArea->SetJustification(ETextJustify::Center);
-
-
+	
 	ToolWarningArea = SNew(STextBlock)
 		.AutoWrapText(true)
 		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
@@ -74,34 +62,26 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::Init(
 	ToolWarningArea->SetText(FText::GetEmpty());
 
 
-	SAssignNew(ToolkitWidget, SBox)
-		.HAlign(HAlign_Fill)
-		.Padding(2)
-		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
-			[
-				ModeWarningArea->AsShared()
-			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
-			[
-				ModeHeaderArea->AsShared()
-			]
-			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Fill).Padding(5)
-			[
-				ToolWarningArea->AsShared()
-			]
-			+ SVerticalBox::Slot().FillHeight(1.f).HAlign(HAlign_Fill)
-			[
-				DetailsView->AsShared()
-			]
-		];
-
-	FModeToolkit::Init(InToolkitHost, InOwningMode);
+	RegisterPalettes();
 
 	ClearNotification();
 	ClearWarning();
+	
+	// create the toolkit widget
+	{
+		ToolkitSections->ModeWarningArea = ModeWarningArea;
+		ToolkitSections->DetailsView = ModeDetailsView;
+		ToolkitSections->ToolWarningArea = ToolWarningArea;
 
+		SAssignNew(ToolkitWidget, SBorder)
+		.HAlign(HAlign_Fill)
+		.Padding(0)
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+		[
+			ToolkitBuilder->GenerateWidget()->AsShared()
+		];	
+	}
+	
 	ActiveToolName = FText::GetEmpty();
 	ActiveToolMessage = FText::GetEmpty();
 
@@ -111,6 +91,137 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::Init(
 		Context->OnToolWarningMessage.AddSP(this, &FSkeletalMeshModelingToolsEditorModeToolkit::PostWarning);
 	}
 
+	// add viewport overlay widget to accept / cancel tool
+	MakeToolAcceptCancelWidget();
+}
+
+FName FSkeletalMeshModelingToolsEditorModeToolkit::GetToolkitFName() const
+{
+	return FName("SkeletalMeshModelingToolsEditorModeToolkit");
+}
+
+FText FSkeletalMeshModelingToolsEditorModeToolkit::GetBaseToolkitName() const
+{
+	return LOCTEXT("DisplayName", "Skeletal Mesh Editing Tools");
+}
+
+void FSkeletalMeshModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	UpdateActiveToolProperties(Tool);
+
+	Tool->OnPropertySetsModified.AddSP(this, &FSkeletalMeshModelingToolsEditorModeToolkit::UpdateActiveToolProperties, Tool);
+
+	ModeHeaderArea->SetVisibility(EVisibility::Collapsed);
+	ActiveToolName = Tool->GetToolInfo().ToolDisplayName;
+
+	FString ActiveToolIdentifier = GetScriptableEditorMode()->GetToolManager()->GetActiveToolName(EToolSide::Left);
+	ActiveToolIdentifier.InsertAt(0, ".");
+	FName ActiveToolIconName = ISlateStyle::Join(FModelingToolsManagerCommands::Get().GetContextName(), TCHAR_TO_ANSI(*ActiveToolIdentifier));
+	ActiveToolIcon = FModelingToolsEditorModeStyle::Get()->GetOptionalBrush(ActiveToolIconName);
+	
+	GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+}
+
+void FSkeletalMeshModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	if (IsHosted())
+	{
+		GetToolkitHost()->RemoveViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+	}
+	
+	if (Tool)
+	{
+		Tool->OnPropertySetsModified.RemoveAll(this);
+	}
+
+	ModeHeaderArea->SetVisibility(EVisibility::Visible);
+	ModeDetailsView->SetObject(nullptr);
+	ActiveToolName = FText::GetEmpty();
+	ClearNotification();
+	ClearWarning();
+}
+
+FText FSkeletalMeshModelingToolsEditorModeToolkit::GetActiveToolDisplayName() const
+{
+	return ActiveToolName;
+}
+
+
+FText FSkeletalMeshModelingToolsEditorModeToolkit::GetActiveToolMessage() const
+{
+	return ActiveToolMessage;
+}
+
+void FSkeletalMeshModelingToolsEditorModeToolkit::RegisterPalettes()
+{
+	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
+	const TSharedPtr<FUICommandList> CommandList = GetToolkitCommands();
+	
+	ToolkitSections = MakeShared<FToolkitSections>();
+	FToolkitBuilderArgs ToolkitBuilderArgs(GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName);
+	ToolkitBuilderArgs.ToolkitCommandList = GetToolkitCommands();
+	ToolkitBuilderArgs.ToolkitSections = ToolkitSections;
+	ToolkitBuilderArgs.SelectedCategoryTitleVisibility = EVisibility::Collapsed;
+	ToolkitBuilder = MakeShared<FToolkitBuilder>(ToolkitBuilderArgs);
+
+	const TArray<TSharedPtr<FUICommandInfo>> SkeletonCommands({
+		Commands.BeginSkeletonEditingTool
+	});
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadSkeletonTools.ToSharedRef(), SkeletonCommands ) ) );
+
+	const TArray<TSharedPtr<FUICommandInfo>> SkinCommands({
+		Commands.BeginSkinWeightsBindingTool,
+		Commands.BeginSkinWeightsPaintTool,
+		Commands.BeginAttributeEditorTool,
+		Commands.BeginMeshAttributePaintTool
+	});
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadSkinTools.ToSharedRef(), SkinCommands ) ) );
+
+	const TArray<TSharedPtr<FUICommandInfo>> DeformCommands({
+		Commands.BeginSculptMeshTool,
+		Commands.BeginRemeshSculptMeshTool,
+		Commands.BeginSmoothMeshTool,
+		Commands.BeginOffsetMeshTool,
+		Commands.BeginMeshSpaceDeformerTool,
+		Commands.BeginLatticeDeformerTool,
+		Commands.BeginDisplaceMeshTool
+	});
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadDeformTools.ToSharedRef(), DeformCommands ) ) );
+
+	const TArray<TSharedPtr<FUICommandInfo>> ModelingMeshCommands({
+		Commands.BeginPolyEditTool,
+		Commands.BeginPolyDeformTool,
+		Commands.BeginHoleFillTool,
+		Commands.BeginPolygonCutTool,
+		});
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadPolyTools.ToSharedRef(), ModelingMeshCommands ) ) );
+
+	const TArray<TSharedPtr<FUICommandInfo>> ProcessMeshCommands({
+		Commands.BeginSimplifyMeshTool,
+		Commands.BeginRemeshMeshTool,
+		Commands.BeginWeldEdgesTool,
+		Commands.BeginRemoveOccludedTrianglesTool,
+		Commands.BeginProjectToTargetTool
+	});
+	ToolkitBuilder->AddPalette(
+		MakeShareable( new FToolPalette( Commands.LoadMeshOpsTools.ToSharedRef(), ProcessMeshCommands ) ) );
+
+	ToolkitBuilder->SetActivePaletteOnLoad(Commands.BeginSkeletonEditingTool.Get());
+	ToolkitBuilder->UpdateWidget();
+	
+	// if selected palette changes, make sure we are showing the palette command buttons, which may be hidden by active Tool
+	ActivePaletteChangedHandle = ToolkitBuilder->OnActivePaletteChanged.AddLambda([this]()
+	{
+		ToolkitBuilder->SetActivePaletteCommandsVisibility(EVisibility::Visible);
+	});
+}
+
+void FSkeletalMeshModelingToolsEditorModeToolkit::MakeToolAcceptCancelWidget()
+{
 	SAssignNew(ViewportOverlayWidget, SHorizontalBox)
 
 	+SHorizontalBox::Slot()
@@ -183,136 +294,6 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::Init(
 	];
 }
 
-
-FName FSkeletalMeshModelingToolsEditorModeToolkit::GetToolkitFName() const
-{
-	return FName("SkeletalMeshModelingToolsEditorModeToolkit");
-}
-
-
-FText FSkeletalMeshModelingToolsEditorModeToolkit::GetBaseToolkitName() const
-{
-	return LOCTEXT("DisplayName", "Skeletal Mesh Modeling Tools");
-}
-
-
-void FSkeletalMeshModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
-{
-	UpdateActiveToolProperties(Tool);
-
-	Tool->OnPropertySetsModified.AddSP(this, &FSkeletalMeshModelingToolsEditorModeToolkit::UpdateActiveToolProperties, Tool);
-
-	ModeHeaderArea->SetVisibility(EVisibility::Collapsed);
-	ActiveToolName = Tool->GetToolInfo().ToolDisplayName;
-
-	FString ActiveToolIdentifier = GetScriptableEditorMode()->GetToolManager()->GetActiveToolName(EToolSide::Left);
-	ActiveToolIdentifier.InsertAt(0, ".");
-	FName ActiveToolIconName = ISlateStyle::Join(FModelingToolsManagerCommands::Get().GetContextName(), TCHAR_TO_ANSI(*ActiveToolIdentifier));
-	ActiveToolIcon = FModelingToolsEditorModeStyle::Get()->GetOptionalBrush(ActiveToolIconName);
-	
-	GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
-}
-
-
-void FSkeletalMeshModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
-{
-	if (IsHosted())
-	{
-		GetToolkitHost()->RemoveViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
-	}
-	
-	if (Tool)
-	{
-		Tool->OnPropertySetsModified.RemoveAll(this);
-	}
-
-	ModeHeaderArea->SetVisibility(EVisibility::Visible);
-	DetailsView->SetObject(nullptr);
-	ActiveToolName = FText::GetEmpty();
-	ClearNotification();
-	ClearWarning();
-
-}
-
-
-FText FSkeletalMeshModelingToolsEditorModeToolkit::GetActiveToolDisplayName() const
-{
-	return ActiveToolName;
-}
-
-
-FText FSkeletalMeshModelingToolsEditorModeToolkit::GetActiveToolMessage() const
-{
-	return ActiveToolMessage;
-}
-
-static const FName EditTabName(TEXT("Edit Mesh"));
-static const FName ProcessingTabName(TEXT("MeshOps"));
-static const FName DeformTabName(TEXT("Deform"));
-static const FName SkinWeightsTabName(TEXT("Skin"));
-static const FName SkeletonTabName(TEXT("Skeleton"));
-
-
-void FSkeletalMeshModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
-{
-	InPaletteName = { EditTabName, ProcessingTabName, DeformTabName, SkinWeightsTabName, SkeletonTabName };
-}
-
-
-FText FSkeletalMeshModelingToolsEditorModeToolkit::GetToolPaletteDisplayName(FName PaletteName) const
-{
-	return FText::FromName(PaletteName);
-}
-
-
-void FSkeletalMeshModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder)
-{
-	const FModelingToolsManagerCommands& Commands = FModelingToolsManagerCommands::Get();
-
-	if (PaletteName == EditTabName)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyDeformTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginHoleFillTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginPolygonCutTool);
-	}
-	else if (PaletteName == ProcessingTabName)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSimplifyMeshTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshMeshTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginWeldEdgesTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginRemoveOccludedTrianglesTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginProjectToTargetTool);
-	}
-	else if (PaletteName == DeformTabName)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSculptMeshTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshSculptMeshTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSmoothMeshTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginOffsetMeshTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSpaceDeformerTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginLatticeDeformerTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginDisplaceMeshTool);
-	}
-	else if (PaletteName == SkinWeightsTabName)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshAttributePaintTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSkinWeightsPaintTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSkinWeightsBindingTool);
-	}
-	else if (PaletteName == SkeletonTabName)
-	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginSkeletonEditingTool);
-	}
-}
-
-
-void FSkeletalMeshModelingToolsEditorModeToolkit::OnToolPaletteChanged(FName PaletteName)
-{
-}
-
-
 void FSkeletalMeshModelingToolsEditorModeToolkit::PostNotification(const FText& InMessage)
 {
 	ClearNotification();
@@ -356,11 +337,13 @@ void FSkeletalMeshModelingToolsEditorModeToolkit::ClearWarning()
 
 void FSkeletalMeshModelingToolsEditorModeToolkit::UpdateActiveToolProperties(UInteractiveTool* Tool)
 {
-	if (Tool)
+	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager(EToolsContextScope::EdMode)->GetActiveTool(EToolSide::Left);
+	if (CurTool == nullptr)
 	{
-		DetailsView->SetObjects(Tool->GetToolProperties(true));
+		return;
 	}
+		
+	ModeDetailsView->SetObjects(CurTool->GetToolProperties(true));
 }
-
 
 #undef LOCTEXT_NAMESPACE

@@ -40,10 +40,14 @@ void FSkeletalMeshModelingToolsModule::StartupModule()
 		FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FSkeletalMeshModelingToolsModule::RegisterMenusAndToolbars));
 
 	ISkeletalMeshEditorModule& SkelMeshEditorModule = FModuleManager::Get().LoadModuleChecked<ISkeletalMeshEditorModule>("SkeletalMeshEditor");
+	// register toolbar extender with skeletal mesh editor
 	TArray<ISkeletalMeshEditorModule::FSkeletalMeshEditorToolbarExtender>& ToolbarExtenders = SkelMeshEditorModule.GetAllSkeletalMeshEditorToolbarExtenders();
-
 	ToolbarExtenders.Add(ISkeletalMeshEditorModule::FSkeletalMeshEditorToolbarExtender::CreateRaw(this, &FSkeletalMeshModelingToolsModule::ExtendSkelMeshEditorToolbar));
 	SkelMeshEditorExtenderHandle = ToolbarExtenders.Last().GetHandle();
+	// register post-init callback with skeletal mesh editor
+	TArray<ISkeletalMeshEditorModule::FOnSkeletalMeshEditorInitialized>& PostInitDelegates = SkelMeshEditorModule.GetPostEditorInitDelegates();
+	PostInitDelegates.Add(ISkeletalMeshEditorModule::FOnSkeletalMeshEditorInitialized::CreateRaw(this, &FSkeletalMeshModelingToolsModule::OnToggleEditingToolsMode));
+	SkelMeshEditorPostInitHandle = PostInitDelegates.Last().GetHandle();
 
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FSkeletalMeshModelingToolsModule::OnPostEngineInit);
 
@@ -56,9 +60,13 @@ void FSkeletalMeshModelingToolsModule::ShutdownModule()
 	
 	if (ISkeletalMeshEditorModule* SkelMeshEditorModule = FModuleManager::GetModulePtr<ISkeletalMeshEditorModule>("SkeletalMeshEditor"))
 	{
+		// un-register toolbar extender delegates
 		TArray<ISkeletalMeshEditorModule::FSkeletalMeshEditorToolbarExtender>& Extenders = SkelMeshEditorModule->GetAllSkeletalMeshEditorToolbarExtenders();
-
 		Extenders.RemoveAll([=](const ISkeletalMeshEditorModule::FSkeletalMeshEditorToolbarExtender& InDelegate) { return InDelegate.GetHandle() == SkelMeshEditorExtenderHandle; });
+
+		// un-register post-init delegates
+		TArray<ISkeletalMeshEditorModule::FOnSkeletalMeshEditorInitialized>& PostInitDelegates = SkelMeshEditorModule->GetPostEditorInitDelegates();
+		PostInitDelegates.RemoveAll([=](const ISkeletalMeshEditorModule::FOnSkeletalMeshEditorInitialized& InDelegate) { return InDelegate.GetHandle() == SkelMeshEditorPostInitHandle; });
 	}
 
 	UToolMenus::UnregisterOwner(this);
@@ -121,12 +129,12 @@ TSharedRef<FExtender> FSkeletalMeshModelingToolsModule::ExtendSkelMeshEditorTool
 	// Add toolbar extender
 	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
 
-	TWeakPtr<ISkeletalMeshEditor> Ptr(InSkeletalMeshEditor);
+	TWeakPtr<ISkeletalMeshEditor> EditorPtr(InSkeletalMeshEditor);
 
 	InCommandList->MapAction(FSkeletalMeshModelingToolsCommands::Get().ToggleEditingToolsMode,
-	    FExecuteAction::CreateRaw(this, &FSkeletalMeshModelingToolsModule::OnToggleEditingToolsMode, Ptr),
+	    FExecuteAction::CreateRaw(this, &FSkeletalMeshModelingToolsModule::OnToggleEditingToolsMode, EditorPtr),
 	    FCanExecuteAction(),
-	    FIsActionChecked::CreateRaw(this, &FSkeletalMeshModelingToolsModule::IsEditingToolModeActive, Ptr));
+	    FIsActionChecked::CreateRaw(this, &FSkeletalMeshModelingToolsModule::IsEditingToolModeActive, EditorPtr));
 
 	return ToolbarExtender.ToSharedRef();
 }
