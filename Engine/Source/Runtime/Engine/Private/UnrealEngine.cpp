@@ -3328,6 +3328,18 @@ void UEngine::LoadGlintTextures()
 	}
 }
 
+void UEngine::LoadSimpleVolumeTextures()
+{
+	if (SimpleVolumeTexture == nullptr && SimpleVolumeTextureName.IsValid())
+	{
+		LoadEngineTexture(SimpleVolumeTexture, *SimpleVolumeTextureName.ToString());
+	}
+	if (SimpleVolumeEnvTexture == nullptr && SimpleVolumeEnvTextureName.IsValid())
+	{
+		LoadEngineTexture(SimpleVolumeEnvTexture, *SimpleVolumeEnvTextureName.ToString());
+	}
+}
+
 void UEngine::InitializePortalServices()
 {
 	IMessagingRpcModule* MessagingRpcModule = nullptr;

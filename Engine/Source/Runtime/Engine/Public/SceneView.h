@@ -1014,6 +1014,11 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	// Glints
 	SHADER_PARAMETER_TEXTURE(Texture2DArray<float4>, GlintTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, GlintSampler)
+	// Simple volume texture
+	SHADER_PARAMETER_TEXTURE(Texture3D<float>, SimpleVolumeTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SimpleVolumeTextureSampler)
+	SHADER_PARAMETER_TEXTURE(Texture3D<float>, SimpleVolumeEnvTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SimpleVolumeEnvTextureSampler)
 	// SSS
 	SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SSProfilesSampler)

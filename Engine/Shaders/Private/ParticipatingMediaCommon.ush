@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Common.ush"
+#include "FastMath.ush"
 
 #define PARTICIPATING_MEDIA_MIN_MFP_METER		0.000000000001f
 #define PARTICIPATING_MEDIA_MIN_EXTINCTION		0.000000000001f
@@ -209,6 +210,75 @@ float3 IsotropicMediumSlabPunctualDirectionalAlbedo(FParticipatingMedia PM)
 	return FinalEvaluate * IsotropicMediumSlabDirectionalAlbedoFade(PM.BaseColor, MFP);
 }
 
+// Wait before activating that feature for now.
+#define USE_NEW_SIMPLEVOLUME 0
+
+float IsotropicMediumSlabDirectionalAlbedoFadeLUT(float MFP)
+{
+	// Fade out directional albedo to zero from MFP = 10meters (the last measured MFP for which we have fit the curve) to a large MFP=1000 meters
+	const float FitLastMeasuredSampleMFP = 10.0f;
+	const float AlbedoIsZeroForMFP = 640.0f;	// This limit is realted to the maximum value MFP that can be stored in the material buffer.
+	const float Fade = saturate(1.0f - (MFP - FitLastMeasuredSampleMFP) / (AlbedoIsZeroForMFP - FitLastMeasuredSampleMFP));
+	return Fade;
+}
+
+float IsotropicMediumSlabPunctualDirectionalAlbedoLUT(float MFP, float BaseColor, float NoV, float NoL)
+{
+	// LUT content
+	//		View angle	from 0 to 7/8	with steps of 1/8 => 8  texels
+	//		Light angle	from 0 to 1  	with steps of 1/8 => 9  texels
+	//		BaseColor	from 0 to 1		with steps of 0.1 => 11 texels
+	//		MFP			from 0 to 10	with steps of 1   => 11 texels
+	// 
+	// Indexing  LUTINDEX(V, L, B, M) (V * DimL * DimBC * DimMFP + L * DimBC * DimMFP  + B * DimMFP  + M)
+
+	// LUT dimension for input parameters: MFP, BaseColor, NoL, NoV
+	const float4 LUTDim = float4(11.0f, 11.0, 9.0f, 8.0f);
+	const float4 LUTDimInv = 1.0f / LUTDim;
+	const float4 LUTMin = 0.5f * LUTDimInv;
+	const float4 LUTMax = (LUTDim - 0.5f) * LUTDimInv;
+	const float4 LUTLen = (LUTDim - 1.0f) * LUTDimInv;
+
+	const float PIOver2 = PI / 2.0f;
+	const float LightAngleNorm = saturate(acosFast(saturate(NoL)) / PIOver2);
+	const float ViewAngleNorm  = saturate(acosFast(saturate(NoV)) / PIOver2);
+
+	float4 UVs = float4(MFP / 10.0f, BaseColor, LightAngleNorm, ViewAngleNorm);	// Input parameters in [0,1]
+	UVs = LUTMin + LUTLen * UVs;												// Correct in order to ignore texel border
+
+	float FourthCoord = ViewAngleNorm * LUTDim.w;
+	float FourthCoord0 = floor(FourthCoord);
+	      FourthCoord0 = min(FourthCoord0, LUTDim.w - 1.0);
+	float FourthCoord1 = FourthCoord0 + 1.0;
+	      FourthCoord1 = min(FourthCoord1, LUTDim.w - 1.0);
+	float FourthCoordLerp = saturate(FourthCoord - FourthCoord0);
+
+	const float LUT3DDimZ    = LUTDim.z * LUTDim.w;
+	const float LUT4DUvDimZ  = (LUTDim.z - 1.0) / LUT3DDimZ;	// Size of third dimension along Z
+	const float LUT4DUvStepW = (LUTDim.z      ) / LUT3DDimZ; // Size of step to sample the 4th dimensions along Z
+	const float EdgeOffset = (0.5) / LUT3DDimZ;
+
+	float3 UVW0 = float3(UVs.x, UVs.y, EdgeOffset + FourthCoord0 * LUT4DUvStepW + LightAngleNorm * LUT4DUvDimZ);
+	float3 UVW1 = float3(UVs.x, UVs.y, EdgeOffset + FourthCoord1 * LUT4DUvStepW + LightAngleNorm * LUT4DUvDimZ);
+
+	float Value0 = View.SimpleVolumeTexture.SampleLevel(View.SimpleVolumeTextureSampler, UVW0, 0);
+	float Value1 = View.SimpleVolumeTexture.SampleLevel(View.SimpleVolumeTextureSampler, UVW1, 0);
+
+	float DirectionalAlbedo = lerp(Value0, Value1, FourthCoordLerp);
+
+	const float Fade = IsotropicMediumSlabDirectionalAlbedoFadeLUT(MFP);
+	return DirectionalAlbedo * Fade;
+}
+
+float3 IsotropicMediumSlabPunctualDirectionalAlbedoLUT(FParticipatingMedia PM, float NoV, float3 NoL)
+{
+	return float3(
+		IsotropicMediumSlabPunctualDirectionalAlbedoLUT(PM.MeanFreePath.r, PM.BaseColor.r, NoV, NoL),
+		IsotropicMediumSlabPunctualDirectionalAlbedoLUT(PM.MeanFreePath.g, PM.BaseColor.g, NoV, NoL),
+		IsotropicMediumSlabPunctualDirectionalAlbedoLUT(PM.MeanFreePath.b, PM.BaseColor.b, NoV, NoL)
+	);
+}
+
 float3 IsotropicMediumSlabEnvDirectionalAlbedo(FParticipatingMedia PM)
 {
 	// Our measurement are only valid for a MFP of 0.01 meter so we clamp input MFP to that.
@@ -234,3 +304,40 @@ float3 IsotropicMediumSlabTransmittance(FParticipatingMedia PM, float SlabThickn
 	return SafePathSegmentTransmittance;
 }
 
+float IsotropicMediumSlabEnvDirectionalAlbedoLUT(float MFP, float BaseColor, float NoV)
+{
+	// LUT content
+	//		View angle	from 0 to 7/8	with steps of 1/8 => 8  texels
+	//		Light angle	none
+	//		BaseColor	from 0 to 1		with steps of 0.1 => 11 texels
+	//		MFP			from 0 to 10	with steps of 1   => 11 texels
+	// 
+	// Indexing  LUTINDEX(V, L, B, M) (V * DimL * DimBC * DimMFP + L * DimBC * DimMFP  + B * DimMFP  + M)
+
+	// LUT dimension for input parameters: MFP, BaseColor, NoL, NoV
+	const float3 LUTDim = float3(11.0f, 11.0, 8.0f);
+	const float3 LUTDimInv = 1.0f / LUTDim;
+	const float3 LUTMin = 0.5f * LUTDimInv;
+	const float3 LUTMax = (LUTDim - 0.5f) * LUTDimInv;
+	const float3 LUTLen = (LUTDim - 1.0f) * LUTDimInv;
+
+	const float PIOver2 = PI / 2.0f;
+	const float ViewAngleNorm = saturate(acosFast(saturate(NoV)) / PIOver2);
+
+	float3 UVs = float3(MFP / 10.0f, BaseColor, ViewAngleNorm);	// Input parameters in [0,1]
+	UVs = LUTMin + LUTLen * UVs;								// Correct in order to ignore texel border
+
+	float EnvDirectionalAlbedo = View.SimpleVolumeEnvTexture.SampleLevel(View.SimpleVolumeEnvTextureSampler, UVs, 0);
+
+	const float Fade = IsotropicMediumSlabDirectionalAlbedoFadeLUT(MFP);
+	return EnvDirectionalAlbedo * Fade;
+}
+
+float3 IsotropicMediumSlabEnvDirectionalAlbedoLUT(FParticipatingMedia PM, float NoV)
+{
+	return float3(
+		IsotropicMediumSlabEnvDirectionalAlbedoLUT(PM.MeanFreePath.r, PM.BaseColor.r, NoV),
+		IsotropicMediumSlabEnvDirectionalAlbedoLUT(PM.MeanFreePath.g, PM.BaseColor.g, NoV),
+		IsotropicMediumSlabEnvDirectionalAlbedoLUT(PM.MeanFreePath.b, PM.BaseColor.b, NoV)
+	);
+}

@@ -1368,6 +1368,22 @@ public:
 	/** Path of the glint BSDF texture 2 */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath GlintTexture2Name;
+	
+	/** Simple volume LUT texture */
+	UPROPERTY()
+	TObjectPtr<class UVolumeTexture> SimpleVolumeTexture;
+
+	/** Path of the simple volume LUT texture */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath SimpleVolumeTextureName;
+	
+	/** Simple volume environment LUT texture */
+	UPROPERTY()
+	TObjectPtr<class UVolumeTexture> SimpleVolumeEnvTexture;
+
+	/** Path of the simple volume environment LUT texture */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath SimpleVolumeEnvTextureName;
 
 	/** Texture used to do font rendering in shaders */
 	UPROPERTY()
@@ -1913,6 +1929,12 @@ public:
 	* This texture is not going to be streamed to be available right away.
 	*/
 	ENGINE_API void LoadGlintTextures();
+
+
+	/** Delay loading the SimpleVolume texture until it is needed by the renderer.
+	* This texture is not going to be streamed to be available right away.
+	*/
+	void LoadSimpleVolumeTextures();
 
 private:
 	#if WITH_DYNAMIC_RESOLUTION

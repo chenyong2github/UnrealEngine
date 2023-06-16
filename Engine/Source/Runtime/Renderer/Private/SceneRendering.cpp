@@ -90,6 +90,7 @@
 #include "VolumetricFog.h"
 #include "PrimitiveSceneShaderData.h"
 #include "Engine/SpecularProfile.h"
+#include "Engine/VolumeTexture.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -1975,6 +1976,29 @@ void FViewInfo::SetupUniformBufferParameters(
 	}
 	ViewUniformShaderParameters.GlintTexture = OrBlack2DArrayIfNull(ViewUniformShaderParameters.GlintTexture);
 
+	ViewUniformShaderParameters.SimpleVolumeTextureSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	ViewUniformShaderParameters.SimpleVolumeEnvTextureSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	if (GEngine->SimpleVolumeTexture)
+	{
+		const FTextureResource* SimpleVolumeTextureResources = GEngine->SimpleVolumeTexture->GetResource();
+		if (SimpleVolumeTextureResources)
+		{
+			ViewUniformShaderParameters.SimpleVolumeTexture = SimpleVolumeTextureResources->TextureRHI->GetTexture3D();
+		}
+	}
+	ViewUniformShaderParameters.SimpleVolumeTexture = OrBlack3DIfNull(ViewUniformShaderParameters.SimpleVolumeTexture);
+
+	if (GEngine->SimpleVolumeEnvTexture)
+	{
+		const FTextureResource* SimpleVolumeEnvTextureResources = GEngine->SimpleVolumeEnvTexture->GetResource();
+		if (SimpleVolumeEnvTextureResources)
+		{
+			ViewUniformShaderParameters.SimpleVolumeEnvTexture = SimpleVolumeEnvTextureResources->TextureRHI->GetTexture3D();
+		}
+	}
+	ViewUniformShaderParameters.SimpleVolumeEnvTexture = OrBlack3DIfNull(ViewUniformShaderParameters.SimpleVolumeEnvTexture);
+
 	// Water global resources
 	if (WaterDataBuffer.IsValid() && WaterIndirectionBuffer.IsValid())
 	{
@@ -2537,6 +2561,11 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 		if (Strata::IsGlintEnabled())
 		{
 			GEngine->LoadGlintTextures();
+		}
+
+		if (Strata::IsStrataEnabled())
+		{
+			GEngine->LoadSimpleVolumeTextures();
 		}
 
 		// Handle the FFT bloom kernel textire

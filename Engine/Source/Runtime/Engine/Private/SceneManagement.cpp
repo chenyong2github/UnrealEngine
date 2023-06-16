@@ -1006,6 +1006,12 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	GlintTexture = GBlackArrayTexture->TextureRHI;
 	GlintSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+	// SimpleVolume
+	SimpleVolumeTexture = GBlackVolumeTexture->TextureRHI;
+	SimpleVolumeTextureSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SimpleVolumeEnvTexture = GBlackVolumeTexture->TextureRHI;
+	SimpleVolumeEnvTextureSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 	// Rect light atlas
 	RectLightAtlasMaxMipLevel = 1;
 	RectLightAtlasSizeAndInvSize = FVector4f(1, 1, 1, 1);
