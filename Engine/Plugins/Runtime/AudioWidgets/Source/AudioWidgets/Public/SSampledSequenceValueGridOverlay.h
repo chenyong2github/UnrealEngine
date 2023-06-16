@@ -55,6 +55,7 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	void OnStyleUpdated(const FSampledSequenceValueGridOverlayStyle UpdatedStyle);
 
+	void SetLabelGenerator(TFunction<FText(const double)> InLabelGenerator);
 	void SetMaxDivisionParameter(const uint32 InDivisionParameter);
 	void SetHideLabels(const bool InHideLabels);
 	void SetHideGrid(const bool InHideGrid);

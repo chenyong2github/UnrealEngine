@@ -139,6 +139,12 @@ void SSampledSequenceValueGridOverlay::OnStyleUpdated(const FSampledSequenceValu
 	ForceRedraw();
 }
 
+void SSampledSequenceValueGridOverlay::SetLabelGenerator(TFunction<FText(const double)> InLabelGenerator)
+{
+	OnValueGridLabel = InLabelGenerator;
+	ForceRedraw();
+}
+
 void SSampledSequenceValueGridOverlay::SetMaxDivisionParameter(const uint32 InDivisionParameter)
 {
 	MaxDivisionParameter = InDivisionParameter;

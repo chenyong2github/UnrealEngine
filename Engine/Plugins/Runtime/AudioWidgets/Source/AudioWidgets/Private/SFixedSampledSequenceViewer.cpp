@@ -271,6 +271,11 @@ void SFixedSampledSequenceViewer::UpdateGridMetrics()
 	GridMetrics = GridService->GetGridMetrics();
 }
 
+void SFixedSampledSequenceViewer::SetHideGrid(const bool InHideGrid)
+{
+	bHideGrid = InHideGrid;
+}
+
 void SFixedSampledSequenceViewer::OnStyleUpdated(const FSampledSequenceViewerStyle UpdatedStyle)
 {
 	SequenceColor = UpdatedStyle.SequenceColor;
