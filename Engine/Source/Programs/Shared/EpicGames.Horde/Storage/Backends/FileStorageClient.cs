@@ -136,7 +136,21 @@ namespace EpicGames.Horde.Storage.Backends
 			FileReference file = GetRefFile(name);
 			DirectoryReference.CreateDirectory(file.Directory);
 			_logger.LogInformation("Writing {File}", file);
-			await FileReference.WriteAllTextAsync(file, target.ToString());
+
+			NodeLocator locator = await target.FlushAsync(cancellationToken);
+			for (int attempt = 0; ; attempt++)
+			{
+				try
+				{
+					await FileReference.WriteAllTextAsync(file, locator.ToString());
+					break;
+				}
+				catch (IOException ex) when (attempt < 3)
+				{
+					_logger.LogDebug(ex, "Unable to write to {File}; retrying...", file);
+					await Task.Delay(100 * attempt, cancellationToken);
+				}
+			}
 		}
 
 		#endregion
