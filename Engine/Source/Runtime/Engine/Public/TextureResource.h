@@ -211,11 +211,26 @@ public:
 	ENGINE_API virtual FIntPoint GetPhysicalTextureSize(uint32 LayerIndex) const;
 
 protected:
-	class IAllocatedVirtualTexture* AllocatedVT;
-	struct FVirtualTextureBuiltData* VTData;
-	const UTexture2D* TextureOwner;
+	/** The FName of the texture asset */
+	FName TextureName;
+	/** The FName of the texture package for stats */
+	FName PackageName;
+	/** Cached sampler config */
+	TEnumAsByte<ESamplerFilter> Filter = SF_Point;
+	TEnumAsByte<ESamplerAddressMode> AddressU = AM_Wrap;
+	TEnumAsByte<ESamplerAddressMode> AddressV = AM_Wrap;
+	/** Cached flags for texture creation. */
+	ETextureCreateFlags TexCreateFlags = ETextureCreateFlags::None;
+	/** Cached runtime virtual texture settings */
+	bool bContinuousUpdate = false;
+	bool bSinglePhysicalSpace = false;
+	/** Mip offset */
+	int32 FirstMipToUse = 0;
+	/** Built data owned by texture asset */
+	struct FVirtualTextureBuiltData* VTData = nullptr;
+	/** Local allocated VT objects used for editor views etc. */
+	class IAllocatedVirtualTexture* AllocatedVT = nullptr;
 	FVirtualTextureProducerHandle ProducerHandle;
-	int32 FirstMipToUse;
 };
 
 /** A dynamic 2D texture resource. */
