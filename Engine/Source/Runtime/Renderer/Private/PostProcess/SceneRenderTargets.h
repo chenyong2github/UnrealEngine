@@ -19,6 +19,7 @@
 *		[7]       | primitive receive decal bit
 *
 * After deferred decals, stencil is cleared to 0 and no longer packed in this way, to ensure use of fast hardware clears and HiStencil.
+* Stencil [0] is used by RT shadow for shadow LOD disthering (see: DitheredLODFadingOutMaskPass)
 */
 #define STENCIL_SANDBOX_BIT_ID							0
 // Must match usf
@@ -30,7 +31,7 @@
 #define STENCIL_STRATA_FASTPATH							4 
 #define STENCIL_STRATA_SINGLEPATH						5
 #define STENCIL_STRATA_COMPLEX							6
-#define STENCIL_STRATA_COMPLEX_SPECIAL					0
+#define STENCIL_STRATA_COMPLEX_SPECIAL					1
 // Used only by Strata during the base pass when bUseDBufferPass is enabled (to mark material STRATA_DBUFFER_RESPONSE_xxx Normal/BaseColor/Roughness)
 #define STENCIL_STRATA_RECEIVE_DBUFFER_NORMAL_BIT_ID	1
 #define STENCIL_STRATA_RECEIVE_DBUFFER_DIFFUSE_BIT_ID	3

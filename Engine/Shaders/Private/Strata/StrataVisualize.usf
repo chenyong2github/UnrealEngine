@@ -129,6 +129,15 @@ void Newline(inout FShaderPrintContext Context, inout float2 MaxRect)
 	Newline(Context);
 }
 
+void PrintAddress(inout FShaderPrintContext Context, inout FStrataAddressing StrataAddressing)
+{
+	FFontColor Font;
+	Font.Color = lerp(FontEmerald.Color, FontSilver.Color, 0.75f);
+	Print(Context, TEXT("[Address="), Font);
+	Print(Context, StrataAddressing.CurrentIndex, Font, 2, 0);
+	Print(Context, TEXT("]"), Font);
+}
+
 void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing StrataAddressing, FStrataPixelHeader Header, float3 WorldPosition, float3 V, inout float2 RectMax)
 {
 	const FFontColor FontBSDF         = FontSilver;
@@ -137,8 +146,6 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 	const FFontColor FontBSDFPropName = FontOrange;
 	const FFontColor FontBSDFPropValu = FontWhite;
 
-	Print(Context, TEXT("Address = "), FontEmerald);
-	Print(Context, StrataAddressing.CurrentIndex, FontEmerald);
 	Newline(Context, RectMax);
 
 	const FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, Header);
@@ -159,6 +166,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			const bool bGreyTopTrans = BSDF.TransmittanceAboveAlongN.x == BSDF.TransmittanceAboveAlongN.y && BSDF.TransmittanceAboveAlongN.x == BSDF.TransmittanceAboveAlongN.z;
 
 			Print(Context, TEXT("Slab "), FontBSDFType);
+			PrintAddress(Context, StrataAddressing);
 			Newline(Context, RectMax);
 			Print(Context, TEXT(" NormalID BasisType Aniso TopLayer Scattering IsThin WeightV "), FontBSDFStateName);
 			if (!bGreyWeightV)
@@ -359,6 +367,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 		case STRATA_BSDF_TYPE_HAIR:
 		{
 			Print(Context, TEXT("Hair"), FontBSDFType);
+			PrintAddress(Context, StrataAddressing);
 			Newline(Context, RectMax);
 			Print(Context, TEXT(" NormalID Aniso IsTopLayer LuminanceWeight"), FontBSDFStateName);
 			Newline(Context, RectMax);
@@ -391,6 +400,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 		case STRATA_BSDF_TYPE_EYE:
 		{
 			Print(Context, TEXT("Eye"), FontBSDFType);
+			PrintAddress(Context, StrataAddressing);
 			Newline(Context, RectMax);
 			Print(Context, TEXT(" NormalID IsTopLayer LuminanceWeight"), FontBSDFStateName);
 			Newline(Context, RectMax);
@@ -439,8 +449,9 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 		case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 		{
 			Print(Context, TEXT("Water"), FontBSDFType);
-
+			PrintAddress(Context, StrataAddressing);
 			Newline(Context);
+
 			Print(Context, TEXT(" BaseColor            "), FontBSDFPropName);	Print(Context, SLW_BASECOLOR(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
 			Print(Context, TEXT(" Metallic             "), FontBSDFPropName);	Print(Context, SLW_METALLIC(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
 			Print(Context, TEXT(" Specular             "), FontBSDFPropName);	Print(Context, SLW_SPECULAR(BSDF), FontBSDFPropValu);			Newline(Context, RectMax);
