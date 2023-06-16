@@ -290,6 +290,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 			REGISTER_MODELING_TOOL_COMMAND(BeginBspConversionTool, "BSPConv", "Convert BSP to a new Mesh Object");
 		}
 		REGISTER_MODELING_TOOL_COMMAND(BeginPhysicsInspectorTool, "PInspct", "Inspect the physics/collision geometry for selected Meshes");
+		REGISTER_MODELING_TOOL_COMMAND(BeginSimpleCollisionEditorTool, "SCollEdit", "Edit the simple collision shapes for the selected Mesh");
 		REGISTER_MODELING_TOOL_COMMAND(BeginSetCollisionGeometryTool, "Msh2Coll", "Convert selected Meshes to Simple Collision Geometry (for last selected)");
 		REGISTER_MODELING_TOOL_COMMAND(BeginExtractCollisionGeometryTool, "Coll2Msh", "Convert Simple Collision Geometry to a new Mesh Object");
 	}
@@ -302,6 +303,7 @@ void FModelingToolsManagerCommands::RegisterCommands()
 			REGISTER_MODELING_TOOL_COMMAND(BeginBspConversionTool, "Convert BSPs", "Convert BSP to a new Mesh Object");
 		}
 		REGISTER_MODELING_TOOL_COMMAND(BeginPhysicsInspectorTool, "Inspect Collision", "Inspect the physics/collision geometry for selected Meshes");
+		REGISTER_MODELING_TOOL_COMMAND(BeginSimpleCollisionEditorTool, "Simple Collision Editor", "Edit the simple collision shapes for the selected Mesh");
 		REGISTER_MODELING_TOOL_COMMAND(BeginSetCollisionGeometryTool, "Mesh To Collision", "Convert selected Meshes to Simple Collision Geometry (for last selected)");
 		REGISTER_MODELING_TOOL_COMMAND(BeginExtractCollisionGeometryTool, "Collision To Mesh", "Convert Simple Collision Geometry to a new Mesh Object");
 	}

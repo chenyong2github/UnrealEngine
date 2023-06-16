@@ -116,6 +116,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginMeshVertexPaintTool;
 
 	TSharedPtr<FUICommandInfo> BeginPhysicsInspectorTool;
+	TSharedPtr<FUICommandInfo> BeginSimpleCollisionEditorTool;
 	TSharedPtr<FUICommandInfo> BeginSetCollisionGeometryTool;
 	TSharedPtr<FUICommandInfo> BeginEditCollisionGeometryTool;
 	TSharedPtr<FUICommandInfo> BeginExtractCollisionGeometryTool;
