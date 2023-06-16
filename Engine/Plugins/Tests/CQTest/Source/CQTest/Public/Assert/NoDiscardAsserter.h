@@ -64,6 +64,14 @@ public:
 	template <typename TExpected, typename TActual>
 	UE_NODISCARD bool AreEqual(const TExpected& Expected, const TActual& Actual, const FString& FailureMessage);
 
+	UE_NODISCARD bool AreEqualIgnoreCase(const FString& Expected, const FString& Actual);
+
+	UE_NODISCARD bool AreEqualIgnoreCase(const FString& Expected, const FString& Actual, const char* FailureMessage);
+
+	UE_NODISCARD bool AreEqualIgnoreCase(const FString& Expected, const FString& Actual, const TCHAR* FailureMessage);
+
+	UE_NODISCARD bool AreEqualIgnoreCase(const FString& Expected, const FString& Actual, const FString& FailureMessage);
+
 	template <typename TExpected, typename TActual>
 	UE_NODISCARD bool AreNotEqual(const TExpected& Expected, const TActual& Actual);
 
@@ -76,6 +84,14 @@ public:
 	template <typename TExpected, typename TActual>
 	UE_NODISCARD bool AreNotEqual(const TExpected& Expected, const TActual& Actual, const FString& FailureMessage);
 
+	UE_NODISCARD bool AreNotEqualIgnoreCase(const FString& Expected, const FString& Actual);
+
+	UE_NODISCARD bool AreNotEqualIgnoreCase(const FString& Expected, const FString& Actual, const char* FailureMessage);
+
+	UE_NODISCARD bool AreNotEqualIgnoreCase(const FString& Expected, const FString& Actual, const TCHAR* FailureMessage);
+
+	UE_NODISCARD bool AreNotEqualIgnoreCase(const FString& Expected, const FString& Actual, const FString& FailureMessage);
+
 	template <typename TExpected, typename TActual, typename TEpsilon>
 	UE_NODISCARD bool IsNear(TExpected Expected, TActual Actual, TEpsilon Epsilon);
 
@@ -87,6 +103,7 @@ public:
 
 	template <typename TExpected, typename TActual, typename TEpsilon>
 	UE_NODISCARD bool IsNear(TExpected Expected, TActual Actual, TEpsilon Epsilon, const FString& FailureMessage);
+
 };
 
 #include "Assert/NoDiscardAsserter.inl"

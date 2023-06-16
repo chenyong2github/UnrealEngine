@@ -2,13 +2,14 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include "Misc/StringBuilder.h"
 #include "UObject/NameTypes.h"
 #include <sstream>
 #include <type_traits>
 
 namespace CQTestConvert
 {
-	using PrintStream = std::ostringstream;
+	using PrintStream = FStringBuilderBase;
 }
 
 namespace
@@ -27,10 +28,8 @@ namespace
 	template<typename T>
 	class THasOStream
 	{
-		template <typename C, typename = decltype(std::declval<CQTestConvert::PrintStream&>().operator<<(std::declval<C>()))>
-		static std::true_type test(int);
 		template <typename C, typename = decltype(operator<<(std::declval<CQTestConvert::PrintStream&>(), std::declval<C>()))>
-		static std::true_type test(char);
+		static std::true_type test(int);
 		template<typename C>
 		static std::false_type test(...);
 
@@ -88,19 +87,17 @@ namespace CQTestConvert
 		{
 			PrintStream stream;
 			stream << Input;
-			return FString(stream.str().c_str(), stream.str().length());
+			return stream.ToString();
+		}
+		else if constexpr (std::is_floating_point_v<T>)
+		{
+			// Fallback for floating point type
+			return FString::Printf(TEXT("%f"), Input);
 		}
 		else if constexpr (std::is_enum_v<T>)
 		{
-			// Check special case of uint8/int8 to avoid interpretation as a char
-			if constexpr (std::is_same_v<uint8, std::underlying_type_t<T>> || std::is_same_v<int8, std::underlying_type_t<T>>)
-			{
-				return ToString(static_cast<int>(Input));
-			}
-			else
-			{
-				return ToString(static_cast<std::underlying_type_t<T>>(Input));
-			}
+			// Fallback for enum type
+			return ToString(static_cast<std::underlying_type_t<T>>(Input));
 		}
 		else
 		{

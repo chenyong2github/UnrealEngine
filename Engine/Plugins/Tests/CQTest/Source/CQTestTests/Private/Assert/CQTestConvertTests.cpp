@@ -22,26 +22,38 @@ struct TypeWithToString
 	{
 		return ToStringStr;
 	}
+
+	bool operator==(const TypeWithToString& A) const
+	{
+		return true;
+	}
+	bool operator!=(const TypeWithToString& A) const
+	{
+		return false;
+	}
 };
 
 struct TypeWithOStream
 {
 };
 
-CQTestConvert::PrintStream& operator<<(CQTestConvert::PrintStream& stream, const TypeWithOStream& obj) {
+CQTestConvert::PrintStream& operator<<(CQTestConvert::PrintStream& stream, const TypeWithOStream& obj)
+{
 	stream << OStreamStr;
 	return stream;
 }
 
 struct TypeWithToStringAndOverride
 {
-	FString ToString() const {
+	FString ToString() const
+	{
 		return ToStringStr;
 	}
 };
 
 template<>
-inline FString CQTestConvert::ToString(const TypeWithToStringAndOverride&) {
+inline FString CQTestConvert::ToString(const TypeWithToStringAndOverride&)
+{
 	return OverrideStr;
 }
 
@@ -63,16 +75,58 @@ enum UnscopedEnumNoOperator
 	Two = 2
 };
 
-enum struct ScopedEnumNoOperator
+enum UnscopedEnumWithUCharBase : uint8
 {
-	One = 1,
-	Two = 2
+	First = 1,
+	Second = 2
+};
+
+enum UnscopedEnumWithCharBase : int8
+{
+	Alpha = 1,
+	Beta = 2
+};
+
+enum UnscopedEnumWithIntBase : int32
+{
+	Aleph = 1,
+	Bet = 2
 };
 
 enum UnscopedEnumWithOperator
 {
 	Three = 3,
 	Four = 4
+};
+
+enum struct ScopedEnumNoOperator
+{
+	One = 1,
+	Two = 2
+};
+
+enum struct ScopedEnumWithOperator
+{
+	One = 1,
+	Two = 2
+};
+
+enum class ScopedEnumWithUCharBase : uint8
+{
+	One = 1,
+	Two = 2
+};
+
+enum class ScopedEnumWithCharBase : int8
+{
+	One = 1,
+	Two = 2
+};
+
+enum class ScopedEnumWithIntBase : int32
+{
+	One = 1,
+	Two = 2
 };
 
 CQTestConvert::PrintStream& operator<<(CQTestConvert::PrintStream& stream, const UnscopedEnumWithOperator& e)
@@ -91,12 +145,6 @@ CQTestConvert::PrintStream& operator<<(CQTestConvert::PrintStream& stream, const
 	}
 	return stream;
 }
-
-enum struct ScopedEnumWithOperator
-{
-	One = 1,
-	Two = 2
-};
 
 CQTestConvert::PrintStream& operator<<(CQTestConvert::PrintStream& stream, const ScopedEnumWithOperator& e)
 {
@@ -147,6 +195,14 @@ TEST_CLASS(TestConvertToString, "TestFramework.CQTest.Core")
 		ASSERT_THAT(AreEqual(ToStringStr, CQTestConvert::ToString(obj)));
 	}
 
+	TEST_METHOD(TypeWithToString_ConvertToString_TestNotEqualToString)
+	{
+		TypeWithToString obj1;
+		TypeWithToString obj2;
+		Assert.ExpectError(FString::Printf(TEXT("Expected %s to not equal %s"), *obj1.ToString(), *obj2.ToString()));
+		ASSERT_THAT(AreNotEqual(obj1, obj2));
+	}
+
 	TEST_METHOD(UnscopedEnumNoOperator_ConvertToString_ReturnsNumber)
 	{
 		auto e = UnscopedEnumNoOperator::One;
@@ -169,6 +225,42 @@ TEST_CLASS(TestConvertToString, "TestFramework.CQTest.Core")
 	{
 		auto e = ScopedEnumWithOperator::Two;
 		ASSERT_THAT(AreEqual(FString(TEXT("Two")), CQTestConvert::ToString(e)));
+	}
+
+	TEST_METHOD(ScopedEnumWithUCharBase_ConverToString_ReturnsNumberAsString)
+	{
+		auto e = ScopedEnumWithUCharBase::One;
+		ASSERT_THAT(AreEqual(FString(TEXT("1")), CQTestConvert::ToString(e)));
+	}
+
+	TEST_METHOD(UnscopedEnumWithUCharBase_ConvertToString_ReturnsNumberAsString)
+	{
+		auto e = UnscopedEnumWithUCharBase::First;
+		ASSERT_THAT(AreEqual(FString(TEXT("1")), CQTestConvert::ToString(e)));
+	}
+
+	TEST_METHOD(ScopedEnumWithCharBase_ConverToString_ReturnsNumberAsString)
+	{
+		auto e = ScopedEnumWithCharBase::One;
+		ASSERT_THAT(AreEqual(FString(TEXT("1")), CQTestConvert::ToString(e)));
+	}
+
+	TEST_METHOD(UnscopedEnumWithCharBase_ConvertToString_ReturnsNumberAsString)
+	{
+		auto e = UnscopedEnumWithCharBase::Alpha;
+		ASSERT_THAT(AreEqual(FString(TEXT("1")), CQTestConvert::ToString(e)));
+	}
+
+	TEST_METHOD(ScopedEnumWithIntBase_ConverToString_ReturnsNumberAsString)
+	{
+		auto e = ScopedEnumWithIntBase::One;
+		ASSERT_THAT(AreEqual(FString(TEXT("1")), CQTestConvert::ToString(e)));
+	}
+
+	TEST_METHOD(UnscopedEnumWithIntBase_ConvertToString_ReturnsNumberAsString)
+	{
+		auto e = UnscopedEnumWithIntBase::Aleph;
+		ASSERT_THAT(AreEqual(FString(TEXT("1")), CQTestConvert::ToString(e)));
 	}
 
 	TEST_METHOD(ArrayOfValues_ConvertToString_ReturnsCommaDelimitedList)
@@ -198,5 +290,12 @@ TEST_CLASS(TestConvertToString, "TestFramework.CQTest.Core")
 		ASSERT_THAT(IsTrue(asStr.Contains(TEXT("1:One"))));
 		ASSERT_THAT(IsTrue(asStr.Contains(TEXT("2:Two"))));
 		ASSERT_THAT(IsTrue(asStr.Contains(TEXT("3:Three"))));
+	}
+
+	TEST_METHOD(Float_ConvertToString_ReturnsFloatAsString)
+	{
+		double value = 3.14;
+		auto asStr = CQTestConvert::ToString(value);
+		ASSERT_THAT(IsTrue(asStr.Contains(TEXT("3.14"))));
 	}
 };

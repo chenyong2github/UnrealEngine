@@ -7,14 +7,16 @@ DECLARE_LOG_CATEGORY_CLASS(AssertionTests, Log, All);
 
 namespace CQTests
 {
-	TEST_CLASS(NoDiscardAssert, "TestFramework.CQTest.Core")
+	static const FString ExpectedError = TEXT("Expected");
+	static const TCHAR* AnyError = TEXT("");
+
+	TEST_CLASS(NoDiscardAssert_Errors, "TestFramework.CQTest.Core")
 	{
-		const char* ExpectedError = "Expected";
 
 		TEST_METHOD(AssertFail_WithMessage_AddsError)
 		{
-			Assert.ExpectError(TEXT(""));
-			Assert.Fail(TEXT(""));
+			Assert.ExpectError(AnyError);
+			Assert.Fail(AnyError);
 		}
 
 		TEST_METHOD(AssertFail_Macro_AddsErrorAndExits)
@@ -76,7 +78,10 @@ namespace CQTests
 			Assert.ExpectErrorRegex("\\w+");
 			Assert.Fail("abc");
 		}
+	};
 
+	TEST_CLASS(NoDiscardAssert_Bools, "TestFramework.CQTest.Core")
+	{
 		TEST_METHOD(AssertTrue_WithTrue_Succeeds)
 		{
 			ASSERT_THAT(IsTrue(true));
@@ -87,15 +92,37 @@ namespace CQTests
 		}
 		TEST_METHOD(AssertTrue_WithFalse_AddsError)
 		{
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(IsTrue(false));
 		}
-		TEST_METHOD(AssertTrue_WithFalseAndError_AddSpecificError)
+		TEST_METHOD(AssertTrue_WithFalseAndError_AddsSpecificError)
 		{
-			Assert.ExpectError(FString(ExpectedError));
+			Assert.ExpectError(ExpectedError);
 			ASSERT_THAT(IsTrue(false, ExpectedError));
 		}
 
+		TEST_METHOD(AssertFalse_WithFalse_Succeeds)
+		{
+			ASSERT_THAT(IsFalse(false));
+		}
+		TEST_METHOD(AssertFalse_WithFalseAndErrorMessage_DoesNotAddErrorMessage)
+		{
+			ASSERT_THAT(IsFalse(false, "Unexpected"));
+		}
+		TEST_METHOD(AssertFalse_WithTrue_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(IsFalse(true));
+		}
+		TEST_METHOD(AssertFalse_WithTrueAndError_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(IsFalse(true, ExpectedError));
+		}
+	};
+
+	TEST_CLASS(NoDiscardAssert_Numbers, "TestFramework.CQTest.Core")
+	{
 		TEST_METHOD(AssertEqual_WithSameInts_Succeeds)
 		{
 			ASSERT_THAT(AreEqual(42, 42));
@@ -106,33 +133,13 @@ namespace CQTests
 		}
 		TEST_METHOD(AssertEqual_WithDifferentInts_AddsError)
 		{
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(AreEqual(42, 0));
 		}
 		TEST_METHOD(AssertEqual_WithDifferentIntsAndErrorMessage_AddsSpecificError)
 		{
-			Assert.ExpectError(FString(ExpectedError));
+			Assert.ExpectError(ExpectedError);
 			ASSERT_THAT(AreEqual(42, 0, ExpectedError));
-		}
-
-		TEST_METHOD(AssertEqual_WithSameFStrings_Succeeds)
-		{
-			ASSERT_THAT(AreEqual(TEXT("Hello"), TEXT("Hello")));
-		}
-		TEST_METHOD(AssertEqual_WithDifferentFStrings_AddsError)
-		{
-			Assert.ExpectError(TEXT(""));
-			ASSERT_THAT(AreEqual(TEXT("Hello"), TEXT("World")));
-		}
-		TEST_METHOD(AssertEqual_WithDifferentCases_AddsError)
-		{
-			Assert.ExpectError(TEXT(""));
-			ASSERT_THAT(AreEqual(TEXT("hello"), TEXT("HELLO")));
-		}
-		TEST_METHOD(AssertEqual_WithDifferentFStringsAndErrorMessage_AddsSpecificError)
-		{
-			Assert.ExpectError(FString(ExpectedError));
-			ASSERT_THAT(AreEqual(TEXT("Hello"), TEXT("World"), ExpectedError));
 		}
 		TEST_METHOD(AssertNear_WithSameNumbers_Succeeds)
 		{
@@ -148,15 +155,18 @@ namespace CQTests
 		}
 		TEST_METHOD(AssertNear_WithDifferentNumbers_AddsError)
 		{
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(IsNear(1.0, 2.0, 0.001));
 		}
 		TEST_METHOD(AssertNear_WithDifferentNumbersAndError_AddsSpecificError)
 		{
-			Assert.ExpectError(FString(ExpectedError));
+			Assert.ExpectError(ExpectedError);
 			ASSERT_THAT(IsNear(1.0, 2.0, 0.001, ExpectedError));
 		}
+	};
 
+	TEST_CLASS(NoDiscardAssert_Pointers, "TestFramework.CQTest.Core")
+	{
 		TEST_METHOD(AssertNull_WithNullPtr_Succeeds)
 		{
 			int* ptr = nullptr;
@@ -171,14 +181,14 @@ namespace CQTests
 		{
 			int val = 42;
 			int* ptr = &val;
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(IsNull(ptr));
 		}
 		TEST_METHOD(AssertNull_WithNonNullAndErrorMessage_AddsSpecificErrorMessage)
 		{
 			int val = 42;
 			int* ptr = &val;
-			Assert.ExpectError(FString(ExpectedError));
+			Assert.ExpectError(ExpectedError);
 			ASSERT_THAT(IsNull(ptr, ExpectedError));
 		}
 		TEST_METHOD(AssertNull_WithInvalidSharedPtr_Succeeds)
@@ -189,7 +199,7 @@ namespace CQTests
 		TEST_METHOD(AssertNull_WithValidSharedPtr_AddsError)
 		{
 			TSharedPtr<int> ptr = MakeShared<int>(42);
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(IsNull(ptr));
 		}
 		TEST_METHOD(AssertNull_WithInvalidUniquePtr_Succeeds)
@@ -200,20 +210,20 @@ namespace CQTests
 		TEST_METHOD(AssertNull_WithValidUniquePtr_AddsError)
 		{
 			TUniquePtr<int> ptr = MakeUnique<int>(42);
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(IsNull(ptr));
 		}
 
 		TEST_METHOD(AssertNotNull_WithNullPtr_AddsError)
 		{
 			int* ptr = nullptr;
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(IsNotNull(ptr));
 		}
 		TEST_METHOD(AssertNotNull_WithNullPtrAndError_AddsSpecificError)
 		{
 			int* ptr = nullptr;
-			Assert.ExpectError(FString(ExpectedError));
+			Assert.ExpectError(ExpectedError);
 			ASSERT_THAT(IsNotNull(ptr, ExpectedError));
 		}
 		TEST_METHOD(AssertNotNull_WithNonNull_Succeeds)
@@ -231,7 +241,7 @@ namespace CQTests
 		TEST_METHOD(AssertNotNull_WithInvalidSharedPtr_AddsError)
 		{
 			auto ptr = TSharedPtr<int>{};
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(IsNotNull(ptr));
 		}
 		TEST_METHOD(AssertNotNull_WithValidSharedPtr_Succeeds)
@@ -242,13 +252,193 @@ namespace CQTests
 		TEST_METHOD(AssertNotNull_WithInvalidUniquePtr_AddsError)
 		{
 			TUniquePtr<int> ptr;
-			Assert.ExpectError(TEXT(""));
+			Assert.ExpectError(AnyError);
 			ASSERT_THAT(IsNotNull(ptr));
 		}
 		TEST_METHOD(AssertNotNull_WithValidUniquePtr_Succeeds)
 		{
 			TUniquePtr<int> ptr = MakeUnique<int>(42);
 			ASSERT_THAT(IsNotNull(ptr));
+		}
+	};
+
+	TEST_CLASS(NoDiscardAssert_Strings, "TestFramework.CQTest.Core")
+	{
+		const TCHAR* SomeText{ TEXT("Hello") };
+		const TCHAR* OtherText{ TEXT("World") };
+
+		const TCHAR* UpperText{ TEXT("ONE") };
+		const TCHAR* LowerText{ TEXT("one") };
+
+		const FString SomeString{ SomeText };
+		const FString OtherString{ OtherText };
+
+		TEST_METHOD(AssertAreEqual_Text_Matching_Succeeds)
+		{
+			ASSERT_THAT(AreEqual(SomeText, SomeText));
+		}
+		TEST_METHOD(AssertAreEqual_Text_Mismatch_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreEqual(SomeText, OtherText));
+		}
+		TEST_METHOD(AssertAreEqual_Text_DifferentCases_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreEqual(UpperText, LowerText));
+		}
+		TEST_METHOD(AssertAreEqual_Text_MismatchAndError_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(AreEqual(SomeText, OtherText, ExpectedError));
+		}
+		TEST_METHOD(AssertAreEqual_FString_Matching_Succeeds)
+		{
+			ASSERT_THAT(AreEqual(SomeString, SomeString));
+		}
+		TEST_METHOD(AssertAreEqual_FString_Mismatch_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreEqual(SomeString, OtherString));
+		}
+		TEST_METHOD(AssertAreEqual_FString_MismatchAndError_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(AreEqual(SomeString, OtherString, ExpectedError));
+		}
+		TEST_METHOD(AssertAreEqual_FString_DifferentCases_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreEqual(SomeString.ToLower(), SomeString.ToUpper()));
+		}
+
+		TEST_METHOD(AssertAreEqualIgnoreCase_Text_Matching_Succeeds)
+		{
+			ASSERT_THAT(AreEqualIgnoreCase(SomeText, SomeText));
+		}
+		TEST_METHOD(AssertAreEqualIgnoreCase_Text_Mismatch_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreEqualIgnoreCase(SomeText, OtherText));
+		}
+		TEST_METHOD(AssertAreEqualIgnoreCase_Text_MismatchAndError_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(AreEqualIgnoreCase(SomeText, OtherText, ExpectedError));
+		}
+		TEST_METHOD(AssertAreEqualIgnoreCase_Text_DifferentCases_Succeeds)
+		{
+			ASSERT_THAT(AreEqualIgnoreCase(UpperText, LowerText));
+		}
+		TEST_METHOD(AssertAreEqualIgnoreCase_FString_Matching_Succeeds)
+		{
+			ASSERT_THAT(AreEqualIgnoreCase(SomeString, SomeString));
+		}
+		TEST_METHOD(AssertAreEqualIgnoreCase_FString_Mismatch_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreEqualIgnoreCase(SomeString, OtherString));
+		}
+		TEST_METHOD(AssertAreEqualIgnoreCase_FString_MismatchAndError_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(AreEqualIgnoreCase(SomeString, OtherString, ExpectedError));
+		}
+		TEST_METHOD(AssertAreEqualIgnoreCase_FString_DifferentCases_Succeeds)
+		{
+			ASSERT_THAT(AreEqualIgnoreCase(SomeString.ToUpper(), SomeString.ToLower()));
+		}
+
+		TEST_METHOD(AssertAreNotEqual_Text_Matching_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreNotEqual(SomeText, SomeText));
+		}
+		TEST_METHOD(AssertAreNotEqual_Text_MatchingWithError_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(AreNotEqual(SomeText, SomeText, ExpectedError));
+		}
+		TEST_METHOD(AssertAreNotEqual_Text_Mismatch_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqual(SomeText, OtherText));
+		}
+		TEST_METHOD(AssertAreNotEqual_Text_MismatchWithError_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqual(SomeText, OtherText, "Unexpected"));
+		}
+		TEST_METHOD(AssertAreNotEqual_Text_DifferentCases_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqual(UpperText, LowerText));
+		}
+		TEST_METHOD(AssertAreNotEqual_FString_Matching_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreNotEqual(SomeString, SomeString));
+		}
+		TEST_METHOD(AssertAreNotEqual_FString_MatchingWithMessage_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(AreNotEqual(SomeString, SomeString, ExpectedError));
+		}
+		TEST_METHOD(AssertAreNotEqual_FString_Mismatch_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqual(SomeString, OtherString));
+		}
+		TEST_METHOD(AssertAreNotEqual_FString_MismatchAndError_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqual(SomeString, OtherString, ExpectedError));
+		}
+		TEST_METHOD(AssertAreNotEqual_FString_DifferentCases_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqual(SomeString.ToLower(), SomeString.ToUpper()));
+		}
+
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_Text_Matching_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeText, SomeText));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_Text_MatchingWithError_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeText, SomeText));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_Text_Mismatch_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeText, OtherText));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_Text_MismatchAndError_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeText, OtherText, "Unexpected"));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_Text_DifferentCases_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreNotEqualIgnoreCase(UpperText, LowerText));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_FString_Matching_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeString, SomeString));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_FString_MatchingWithError_AddsSpecificError)
+		{
+			Assert.ExpectError(ExpectedError);
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeString, SomeString, ExpectedError));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_FString_Mismatch_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeString, OtherString));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_FString_MismatchAndError_Succeeds)
+		{
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeString, OtherString, "Unexpected"));
+		}
+		TEST_METHOD(AssertAreNotEqualIgnoreCase_FString_DifferentCases_AddsError)
+		{
+			Assert.ExpectError(AnyError);
+			ASSERT_THAT(AreNotEqualIgnoreCase(SomeString.ToUpper(), SomeString.ToLower()));
 		}
 	};
 	
