@@ -5,12 +5,14 @@
 #include "SGraphSubstrateMaterial.h"
 #include "Internationalization/Text.h"
 #include "Rendering/RenderingCommon.h"
+#include "Rendering/StrataMaterialShared.h"
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionStrata.h"
 #include "SGraphPin.h"
 #include "Math/Color.h"
 #include "Styling/StyleColors.h"
+#include "StrataDefinitions.h"
 
 enum class ESubstrateWidgetOutputType : uint8
 {

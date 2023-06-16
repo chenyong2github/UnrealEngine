@@ -63,6 +63,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Rendering/StrataMaterialShared.h"
 #include "SGraphSubstrateMaterial.h"
+#include "MaterialShared.h"
 
 class FWidgetStyle;
 class SWidget;
