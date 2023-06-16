@@ -100,11 +100,6 @@ struct MASSREPRESENTATION_API FMassStaticMeshInstanceVisualizationMeshDesc
 		}
 		return Hash;
 	}
-
-	operator uint32() const
-	{
-		return GetTypeHash(*this);
-	}
 };
 
 USTRUCT()
@@ -257,11 +252,6 @@ public:
 	{
 	}
 
-	bool operator==(const FStaticMeshInstanceVisualizationDesc& OtherDesc) const
-	{
-		return Desc == OtherDesc;
-	}
-	
 	const FStaticMeshInstanceVisualizationDesc& GetDesc() const
 	{
 		return Desc;
