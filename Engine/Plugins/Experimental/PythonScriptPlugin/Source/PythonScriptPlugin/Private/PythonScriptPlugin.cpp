@@ -1164,7 +1164,7 @@ void FPythonScriptPlugin::GenerateStubCode()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPythonScriptPlugin::GenerateStubCode)
 
-	if (IsDeveloperModeEnabled())
+	if (IsDeveloperModeEnabled() && GIsEditor && !IsRunningCommandlet())
 	{
 		// Generate stub code if developer mode enabled
 		FPyWrapperTypeRegistry::Get().GenerateStubCodeForWrappedTypes();
