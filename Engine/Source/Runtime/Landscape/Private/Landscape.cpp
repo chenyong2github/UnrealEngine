@@ -160,13 +160,13 @@ static FAutoConsoleVariableRef CVarRenderCaptureNextHeightmapRenders(
 
 float LandscapeNaniteAsyncDebugWait = 0.0f;
 static FAutoConsoleVariableRef CVarNaniteAsyncDebugWait(
-	TEXT("landscape.NaniteAsyncDebugWait"),
+	TEXT("landscape.Nanite.AsyncDebugWait"),
 	LandscapeNaniteAsyncDebugWait,
 	TEXT("Time in seconds to pause the async Nanite build. Used for debugging"));
 
 float LandscapeNaniteBuildLag = 0.25f;
 static FAutoConsoleVariableRef CVarNaniteUpdateLag(
-	TEXT("landscape.NaniteUpdateLag"),
+	TEXT("landscape.Nanite.UpdateLag"),
 	LandscapeNaniteBuildLag,
 	TEXT("Time to wait in seconds after the last landscape update before triggering a nanite rebuild"));
 
@@ -327,15 +327,27 @@ FGraphEventRef ALandscapeProxy::UpdateNaniteRepresentationAsync(const ITargetPla
 			CreateNaniteComponent();
 		}
 
+		const FGuid ComponentNaniteContentId = NaniteComponent->GetProxyContentId();
+		const bool bNaniteComponentDirty = NaniteComponent->GetProxyContentId() != NaniteContentId;
+
+		UE_LOG(LogLandscape, Log, TEXT("UpdateNaniteRepresentationAsync actor: '%s' package:'%s' dirty:%i component guid:'%s' proxy guid:'%s'"), *GetActorNameOrLabel(), *GetPackage()->GetName(), bNaniteComponentDirty, *ComponentNaniteContentId.ToString(), *NaniteContentId.ToString());
+
 		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
 		{
 			ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
 			FGraphEventArray UpdateDependencies{ NaniteComponent->InitializeForLandscapeAsync(this, NaniteContentId, Subsystem->IsMultithreadedNaniteBuildEnabled()) };
 
 			// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
-			BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([Proxy = this, InTargetPlatform]() {
-					Proxy->NaniteComponent->InitializePlatformForLandscape(Proxy, InTargetPlatform);
-					Proxy->NaniteComponent->UpdatedSharedPropertiesFromActor();
+			TWeakObjectPtr<ULandscapeNaniteComponent> WeakComponent = NaniteComponent;
+			TWeakObjectPtr<ALandscapeProxy> WeakProxy = this;
+			BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([WeakComponent, WeakProxy, Name = GetActorNameOrLabel(), InTargetPlatform]() {
+					if (!WeakComponent.IsValid() || !WeakProxy.IsValid())
+					{
+						UE_LOG(LogLandscape, Log, TEXT("UpdateNaniteRepresentationAsync Component on: '%s' Is Invalid"), *Name);
+						return;
+					}
+					WeakComponent->InitializePlatformForLandscape(WeakProxy.Get(), InTargetPlatform);
+					WeakComponent->UpdatedSharedPropertiesFromActor();
 				},
 				TStatId(),
 				&UpdateDependencies,
@@ -366,24 +378,33 @@ void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* InTarget
 			bSuccess = true;
 		}
 
-		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
+		FGuid ComponentNaniteContentId = NaniteComponent->GetProxyContentId();
+		const bool bNaniteComponentDirty = ComponentNaniteContentId != NaniteContentId;
+		UE_LOG(LogLandscape, Log, TEXT("UpdateNaniteRepresentation actor: '%s' package:'%s' dirty:%i component guid:'%s' proxy guid:'%s'"), *GetActorNameOrLabel(), *GetPackage()->GetName(), bNaniteComponentDirty , *ComponentNaniteContentId.ToString(), *NaniteContentId.ToString());
+
+		if (bNaniteComponentDirty)
 		{
 			ULandscapeSubsystem* Subsystem = GetWorld()->GetSubsystem<ULandscapeSubsystem>();
 			if (!Subsystem->IsMultithreadedNaniteBuildEnabled() || IsRunningCookCommandlet())
 			{
+
+				UE_LOG(LogLandscape, Log, TEXT("Commandlet synchronous nanite actor: '%s' "), *GetActorNameOrLabel());
+
 				FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
 				ProgressDialog.MakeDialogDelayed(/*Threshold = */1.0f);
 				NaniteComponent->InitializeForLandscape(this, NaniteContentId);
 			}
 			else
 			{
+				UE_LOG(LogLandscape, Log, TEXT("Commandlet asynchronous nanite actor: '%s' "), *GetActorNameOrLabel());
+
 				FGraphEventArray UpdateDependencies { NaniteComponent->InitializeForLandscapeAsync(this, NaniteContentId, Subsystem->IsMultithreadedNaniteBuildEnabled())};
 
 				FGraphEventRef BatchBuildEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([this, InTargetPlatform]()
 					{
 					},
 					TStatId(),
-					& UpdateDependencies,
+					&UpdateDependencies,
 					ENamedThreads::GameThread);
 			}			
 		}
@@ -510,6 +531,12 @@ FGuid ALandscapeProxy::GetNaniteContentId() const
 			}
 		}
 	}
+
+	// nanite content depends on if the skirt geometry is enabled & the depth.
+	int32 NaniteSkirtEnabled = bNaniteSkirtEnabled;
+	float NaniteSkirtDepthTest = bNaniteSkirtEnabled ? NaniteSkirtDepth : 0.0f; // The hash should only change if Skirts are enabled.
+	ContentStateAr << NaniteSkirtEnabled;
+	ContentStateAr << NaniteSkirtDepthTest;
 
 	uint32 Hash[5];
 	FSHA1::HashBuffer(ContentStateAr.GetData(), ContentStateAr.Num(), (uint8*)Hash);
@@ -3815,8 +3842,9 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		ShadowCacheInvalidationBehavior = Landscape->ShadowCacheInvalidationBehavior;
 
 		bUseCompressedHeightmapStorage = Landscape->bUseCompressedHeightmapStorage;
-
 #if WITH_EDITORONLY_DATA
+		bNaniteSkirtEnabled = Landscape->bNaniteSkirtEnabled;
+		NaniteSkirtDepth = Landscape->NaniteSkirtDepth;
 		NaniteLODIndex = Landscape->NaniteLODIndex;
 #endif // WITH_EDITORONLY_DATA
 

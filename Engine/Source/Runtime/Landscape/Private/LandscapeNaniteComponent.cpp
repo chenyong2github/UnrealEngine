@@ -142,6 +142,8 @@ bool ULandscapeNaniteComponent::IsHLODRelevant() const
 
 FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscapeProxy* Landscape, const FGuid& NewProxyContentId, bool bInIsAsync)
 {
+	UE_LOG(LogLandscape, Log, TEXT("InitializeForLandscapeAsync actor: '%s' package:'%s'"), *Landscape->GetActorNameOrLabel(), *Landscape->GetPackage()->GetName());
+
 	UWorld* World = Landscape->GetWorld();
 	
 	ULandscapeSubsystem* LandscapeSubSystem = World->GetSubsystem<ULandscapeSubsystem>();
@@ -151,9 +153,11 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 	FGraphEventRef StaticMeshBuildCompleteEvent = FGraphEvent::CreateGraphEvent();
 	TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> AsyncBuildData = Landscape->MakeAsyncNaniteBuildData(GetLandscapeActor()->GetNaniteLODIndex());
 	
-	FGraphEventRef ExportMeshEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([AsyncBuildData, Name = Landscape->GetActorNameOrLabel()]()
+	FGraphEventRef ExportMeshEvent = FFunctionGraphTask::CreateAndDispatchWhenReady([AsyncBuildData,  Name = Landscape->GetActorNameOrLabel()]()
 		{			
 			TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeNaniteComponent::ExportLandscapeAsync-ExportMeshTask);
+
+			UE_LOG(LogLandscape, Log, TEXT("Exporting actor '%s' package:'%s'"), *Name, *AsyncBuildData->LandscapeWeakRef->GetPackage()->GetName());
 			double StartTimeSeconds = FPlatformTime::Seconds();
 
 			if (!AsyncBuildData->LandscapeWeakRef.IsValid() || AsyncBuildData->bCancelled)
@@ -184,6 +188,11 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 			ALandscapeProxy::FRawMeshExportParams ExportParams;
 			ExportParams.ComponentsToExport = MakeArrayView(AsyncBuildData->InputComponents.GetData(), AsyncBuildData->InputComponents.Num());
 			ExportParams.ComponentsMaterialSlotName = MakeArrayView(AsyncBuildData->InputMaterialSlotNames.GetData(), AsyncBuildData->InputMaterialSlotNames.Num());
+			if (AsyncBuildData->LandscapeWeakRef->IsNaniteSkirtEnabled())
+			{
+				ExportParams.SkirtDepth = AsyncBuildData->LandscapeWeakRef->GetNaniteSkirtDepth();
+			}
+			
 			ExportParams.ExportLOD = LOD;
 			ExportParams.ExportCoordinatesType = ALandscapeProxy::FRawMeshExportParams::EExportCoordinatesType::RelativeToProxy;
 			ExportParams.UVConfiguration.ExportUVMappingTypes.SetNumZeroed(4);
@@ -233,6 +242,7 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 			TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeNaniteComponent::ExportLandscapeAsync-BatchBuildTask);
 			AsyncBuildData->NaniteStaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 
+			UE_LOG(LogLandscape, Log, TEXT("Build Static Mesh '%s' package:'%s'"), *Name, *AsyncBuildData->LandscapeWeakRef->GetPackage()->GetName());
 			auto CompleteStaticMesh = [AsyncBuildData, Component, NewProxyContentId, Name, StaticMeshBuildCompleteEvent, bInIsAsync](UStaticMesh* InStaticMesh)
 			{
 				// this is as horror as we have to mark all the objects created in the background thread as not async 
@@ -304,6 +314,9 @@ FGraphEventRef ULandscapeNaniteComponent::InitializeForLandscapeAsync(ALandscape
 				{
 					AsyncBuildData->LandscapeSubSystemWeakRef->DecNaniteBuild();
 				}
+
+				UE_LOG(LogLandscape, Log, TEXT("Complete Static Mesh '%s' package:'%s'"), *Name, *AsyncBuildData->LandscapeWeakRef->GetPackage()->GetName());
+
 				StaticMeshBuildCompleteEvent->DispatchSubsequents();
 			};
 
@@ -360,11 +373,16 @@ bool ULandscapeNaniteComponent::InitializeForLandscape(ALandscapeProxy* Landscap
 
 bool ULandscapeNaniteComponent::InitializePlatformForLandscape(ALandscapeProxy* Landscape, const ITargetPlatform* TargetPlatform)
 {
+	
+	UE_LOG(LogLandscape, Log, TEXT("InitializePlatformForLandscape '%s' package:'%s'"), *Landscape->GetActorNameOrLabel(), *Landscape->GetPackage()->GetName());
+
 	// This is a workaround. IsCachedCookedPlatformDataLoaded needs to return true to ensure that StreamablePages are loaded from DDC
 	if (TargetPlatform)
 	{
+		UE_LOG(LogLandscape, Log, TEXT("InitializePlatformForLandscape '%s' platform:'%p'"), *Landscape->GetActorNameOrLabel(), TargetPlatform);
 		if (UStaticMesh* NaniteStaticMesh = GetStaticMesh())
 		{
+			UE_LOG(LogLandscape, Log, TEXT("InitializePlatformForLandscape '%s' mesh:'%p'"), *Landscape->GetActorNameOrLabel(), NaniteStaticMesh);
 			NaniteStaticMesh->BeginCacheForCookedPlatformData(TargetPlatform);
 			FStaticMeshCompilingManager::Get().FinishCompilation({ NaniteStaticMesh });
 

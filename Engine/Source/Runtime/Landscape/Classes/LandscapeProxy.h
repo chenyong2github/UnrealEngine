@@ -436,6 +436,12 @@ protected:
 	/** LOD level of the landscape when generating the Nanite mesh. Mostly there for debug reasons, since Nanite is meant to allow high density meshes, we want to use 0 most of the times. */
 	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay, meta = (EditCondition = "bEnableNanite", LandscapeInherited))
 	int32 NaniteLODIndex = 0;
+
+	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay, meta = (EditCondition = "bEnableNanite", LandscapeInherited))
+	bool bNaniteSkirtEnabled = false;
+
+	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay, meta = (EditCondition = "bEnableNanite", LandscapeInherited))
+	float NaniteSkirtDepth = 0.1f;
 #endif // WITH_EDITORONLY_DATA
 
 public:
@@ -895,6 +901,8 @@ public:
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 	virtual bool IsNaniteEnabled() const { return bEnableNanite; }
 	virtual int32 GetNaniteLODIndex() const { return NaniteLODIndex; }
+	virtual bool IsNaniteSkirtEnabled() const { return bNaniteSkirtEnabled; }
+	virtual float GetNaniteSkirtDepth() const { return NaniteSkirtDepth;  }
 	virtual UE::Landscape::EOutdatedDataFlags GetOutdatedDataFlags() const;
 #endif	//WITH_EDITOR
 
@@ -1290,6 +1298,9 @@ public:
 		/** Box/Sphere bounds which limits the geometry exported out into OutRawMesh (optional: if none specified, the entire mesh is exported) */
 		TOptional<FBoxSphereBounds> ExportBounds;
 
+		/** Depth of a one quad skirt to generate around the Proxy*/
+		TOptional<float> SkirtDepth;
+
 		/** List of components from the proxy to actually export (optional : if none specified, all landscape components will be exported) */
 		TOptional<TArrayView<ULandscapeComponent*>> ComponentsToExport;
 
@@ -1297,7 +1308,7 @@ public:
 		TOptional<TArrayView<FUVConfiguration>> ComponentsUVConfiguration;
 
 		/** Per-component material slot name (optional : if specified, one polygon group per component will be assigned the corresponding material slot's name, otherwise, MaterialSlotName will be used. */
-		TOptional<TArrayView<FName>> ComponentsMaterialSlotName;		
+		TOptional<TArrayView<FName>> ComponentsMaterialSlotName;
 	};
 
 	/**
@@ -1312,6 +1323,10 @@ public:
 	LANDSCAPE_API TSharedRef<UE::Landscape::Nanite::FAsyncBuildData> MakeAsyncNaniteBuildData(int32 InLODToExport) const;
 
 	bool ExportToRawMeshDataCopy(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh, const UE::Landscape::Nanite::FAsyncBuildData& AsyncData) const;
+
+	bool ExportToRawMeshDataCopyNew(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh, const UE::Landscape::Nanite::FAsyncBuildData& AsyncData) const;
+
+	bool ExportToRawMeshDataCopyOld(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh, const UE::Landscape::Nanite::FAsyncBuildData& AsyncData) const;
 
 	UE_DEPRECATED(5.1, "CheckGenerateLandscapePlatformData has been deprecated, please use CheckGenerateMobilePlatformData instead.")
 	LANDSCAPE_API void CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);

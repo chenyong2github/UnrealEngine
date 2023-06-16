@@ -50,7 +50,7 @@ static FAutoConsoleVariableRef CVarUseStreamingManagerForCameras(
 
 
 static FAutoConsoleVariable CVarMaxAsyncNaniteProxiesPerSecond(
-	TEXT("landscape.Max"),
+	TEXT("landscape.Nanite.MaxAsyncProxyBuildsPerSecond"),
 	6.0f,
 	TEXT("Number of Async nanite proxies to dispatch per second"));
 
@@ -503,11 +503,16 @@ void ULandscapeSubsystem::BuildNanite(TArrayView<ALandscapeProxy*> InProxiesToBu
 	// Don't keep those that are null or already up to date :
 	FinalProxiesToBuild.SetNum(Algo::RemoveIf(FinalProxiesToBuild, [bForceRebuild](ALandscapeProxy* InProxy) { return (InProxy == nullptr) || (!bForceRebuild && InProxy->IsNaniteMeshUpToDate()); }));
 
-
-	
 	FGraphEventArray AsyncEvents;
 	for (ALandscapeProxy* LandscapeProxy : FinalProxiesToBuild)
 	{
+		// reset the nanite content guid so we force rebuild nanite
+		if (ULandscapeNaniteComponent* NaniteComponent = LandscapeProxy->GetComponentByClass<ULandscapeNaniteComponent>(); NaniteComponent != nullptr && bForceRebuild)
+		{
+			UE_LOG(LogLandscape, Log, TEXT("Reset proxy: '%s'"), *LandscapeProxy->GetActorNameOrLabel());
+			NaniteComponent->SetProxyContentId(FGuid());
+		}
+
 		if (LandscapeProxy->IsNaniteMeshUpToDate())
 		{
 			continue;
@@ -725,13 +730,13 @@ void ULandscapeSubsystem::AddAsyncEvent(FGraphEventRef GraphEventRef)
 
 int32 LiveRebuildNaniteOnModification = 0;
 static FAutoConsoleVariableRef CVarLiveRebuildNaniteOnModification(
-	TEXT("landscape.LiveRebuildNaniteOnModification"),
+	TEXT("landscape.Nanite.LiveRebuildOnModification"),
 	LiveRebuildNaniteOnModification,
 	TEXT("Trigger a rebuild of Nanite representation immediately when a modification is performed (World Partition Maps Only)"));
 
 int32 LandscapeMultithreadNaniteBuild = 1;
 static FAutoConsoleVariableRef CVarLandscapeMultithreadNaniteBuild(
-	TEXT("landscape.MultithreadNaniteBuild"),
+	TEXT("landscape.Nanite.MultithreadBuild"),
 	LandscapeMultithreadNaniteBuild,
 	TEXT("Multithread nanite landscape build in (World Partition Maps Only)"));
 
