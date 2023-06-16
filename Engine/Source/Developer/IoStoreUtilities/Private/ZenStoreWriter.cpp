@@ -16,6 +16,8 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/LargeMemoryWriter.h" 
+#include "SocketSubsystem.h"
+#include "IPAddress.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "IO/IoDispatcher.h"
@@ -423,6 +425,23 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 #endif
 			ManifestWriter << "islocalhost" << IsRunningLocally;
 			ManifestWriter << "hostname" << HttpClient->GetHostName();
+			if (IsRunningLocally)
+			{
+				ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
+				if (SocketSubsystem != nullptr)
+				{
+					TArray<TSharedPtr<FInternetAddr>> Addresses;
+					if (SocketSubsystem->GetLocalAdapterAddresses(Addresses))
+					{
+						ManifestWriter.BeginArray("remotehostnames");
+						for (const TSharedPtr<FInternetAddr>& Address : Addresses)
+						{
+							ManifestWriter << Address->ToString(false);
+						}
+						ManifestWriter.EndArray();
+					}
+				}
+			}
 			ManifestWriter << "hostport" << HttpClient->GetPort();
 			ManifestWriter << "projectid" << ProjectId;
 			ManifestWriter << "oplogid" << OplogId;

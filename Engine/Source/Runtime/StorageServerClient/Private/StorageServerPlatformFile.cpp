@@ -286,6 +286,15 @@ bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR*
 			{
 				HostAddrs.Add(FString(HostName));
 			}
+			FCbArrayView RemoteHostNames = ZenServerField["remotehostnames"].AsArrayView();
+			for (FCbFieldView RemoteHostName : RemoteHostNames)
+			{
+				if (FUtf8StringView HostName = RemoteHostName.AsString(); !HostName.IsEmpty())
+				{
+					HostAddrs.Add(FString(HostName));
+				}
+			}
+
 			HostPort = ZenServerField["hostport"].AsUInt16(HostPort);
 			UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Found .projectstore"));
 		}

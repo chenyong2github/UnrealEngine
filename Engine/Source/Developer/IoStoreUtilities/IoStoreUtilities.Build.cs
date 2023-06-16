@@ -17,7 +17,8 @@ public class IoStoreUtilities : ModuleRules
 			"Projects",
 			"Zen",
 			"RenderCore",
-        });
+			"Sockets",
+		});
 
 		PublicIncludePathModuleNames.AddRange(new string[] {
 			"Zen",
