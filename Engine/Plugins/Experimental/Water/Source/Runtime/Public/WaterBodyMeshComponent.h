@@ -23,7 +23,8 @@ public:
 
 protected:
 	virtual bool CanCreateSceneProxy() const;
+
+	// Exclude water mesh components from HLOD since we have a custom HLOD builder for water bodies.
+	virtual bool IsHLODRelevant() const override { return false; }
 };
 
-
-// #todo_water: UWaterBodyInstancedStaticMeshComponent for the quad meshes to be instanced
