@@ -11105,7 +11105,7 @@ int32 FHLSLMaterialTranslator::GetLocal(const FName& LocalName)
 	return AddInlinedCodeChunk(MCT_Float1, TEXT("%s"), *Entry->Name);
 }
 
-FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int32 OperatorType, FGuid StrataExpressionGuid, UMaterialExpression* Parent, FGuid StrataParentExpressionGuid, bool bUseParameterBlending)
+FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int32 OperatorType, FGuid StrataExpressionGuid, UMaterialExpression* Child, UMaterialExpression* Parent, FGuid StrataParentExpressionGuid, bool bUseParameterBlending)
 {
 	FStrataCompilationContext& StrataCtx = StrataCompilationContext[CurrentStrataCompilationContext];
 
@@ -11155,6 +11155,7 @@ FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int3
 	NewOperator.MaxDistanceFromLeaves = 0;
 	NewOperator.bIsBottom = false;
 	NewOperator.bIsTop = false;
+	NewOperator.MaterialExpressionGuid = Child->MaterialExpressionGuid;
 
 	return NewOperator;
 }
@@ -11534,7 +11535,7 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 		//
 		// Make sure all the types have valid children operator indices
 		//
-		for (auto& It : StrataMaterialExpressionRegisteredOperators)
+		for (const auto& It : StrataMaterialExpressionRegisteredOperators)
 		{
 			if (It.IsDiscarded())
 			{
@@ -11692,7 +11693,7 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 			bool bIsFastWaterPath = false;
 			bool bCustomEncoding = false;
 			bool bUsesComplexSpecialRenderPath = false;
-			for (auto& It : StrataMaterialExpressionRegisteredOperators)
+			for (const auto& It : StrataMaterialExpressionRegisteredOperators)
 			{
 				if (It.IsDiscarded())
 				{

@@ -6062,6 +6062,22 @@ FText FMaterialEditor::GetOriginalObjectName() const
 	return FText::FromString(GetEditingObjects()[0]->GetName());
 }
 
+void FMaterialEditor::UpdateStrataTopologyPreview()
+{
+	if (Strata::IsGlintEnabled())
+	{
+		// Update all Strata node which have a preview
+		for (int32 Index = 0; Index < Material->MaterialGraph->Nodes.Num(); ++Index)
+		{
+			UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(Material->MaterialGraph->Nodes[Index]);
+			if (MaterialNode && MaterialNode->MaterialExpression && MaterialNode->MaterialExpression->IsA(UMaterialExpressionStrataBSDF::StaticClass()))
+			{
+				MaterialNode->ReconstructNode();
+			}
+		}
+	}
+}
+
 void FMaterialEditor::UpdateMaterialAfterGraphChange()
 {
 	FlushRenderingCommands();
@@ -6092,6 +6108,8 @@ void FMaterialEditor::UpdateMaterialAfterGraphChange()
 	}
 
 	Material->MaterialGraph->UpdatePinTypes();
+
+	UpdateStrataTopologyPreview();
 }
 
 void FMaterialEditor::JumpToHyperlink(const UObject* ObjectReference)

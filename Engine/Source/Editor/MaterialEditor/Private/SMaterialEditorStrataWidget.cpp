@@ -14,6 +14,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Notifications/SErrorText.h"
+#include "SGraphSubstrateMaterial.h"
 
 #define LOCTEXT_NAMESPACE "SMaterialEditorStrataWidget"
 
@@ -303,124 +304,8 @@ void SMaterialEditorStrataWidget::Tick(const FGeometry& AllottedGeometry, const 
 				// Now generate a visual representation of the material from the topology tree of operators.
 				{
 					if (CompilationOutput.RootOperatorIndex >= 0)
-					{
-						std::function<const TSharedRef<SWidget>(const FStrataOperator&)> ProcessOperator = [&](const FStrataOperator& Op) -> const TSharedRef<SWidget>
-						{
-							switch (Op.OperatorType)
-							{
-							case STRATA_OPERATOR_WEIGHT:
-								return ProcessOperator(CompilationOutput.Operators[Op.LeftIndex]);
-								break;
-							case STRATA_OPERATOR_VERTICAL:
-							{
-								auto VerticalOperator = SNew(SVerticalBox)
-									+SVerticalBox::Slot()
-									.AutoHeight()
-									.VAlign(VAlign_Fill)
-									.HAlign(HAlign_Fill)
-									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
-									[
-										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
-									]
-									+ SVerticalBox::Slot()
-									.AutoHeight()
-									.VAlign(VAlign_Fill)
-									.HAlign(HAlign_Fill)
-									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
-									[
-										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
-									];
-								return VerticalOperator->AsShared();
-							}
-							break;
-							case STRATA_OPERATOR_HORIZONTAL:
-							{
-								auto HorizontalOperator = SNew(SHorizontalBox)
-									+SHorizontalBox::Slot()
-									.AutoWidth()
-									.VAlign(VAlign_Fill)
-									.HAlign(HAlign_Fill)
-									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
-									[
-										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
-									]
-									+SHorizontalBox::Slot()
-									.AutoWidth()
-									.VAlign(VAlign_Fill)
-									.HAlign(HAlign_Fill)
-									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
-									[
-										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
-									];
-								return HorizontalOperator->AsShared();
-							}
-							break;
-							case STRATA_OPERATOR_ADD:
-							{
-								auto HorizontalOperator = SNew(SHorizontalBox)
-									+SHorizontalBox::Slot()
-									.AutoWidth()
-									.VAlign(VAlign_Fill)
-									.HAlign(HAlign_Fill)
-									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
-									[
-										ProcessOperator(CompilationOutput.Operators[Op.LeftIndex])
-									]
-									+SHorizontalBox::Slot()
-									.AutoWidth()
-									.VAlign(VAlign_Fill)
-									.HAlign(HAlign_Fill)
-									.Padding(0.0f, 0.0f, 1.0f, 1.0f)
-									[
-										ProcessOperator(CompilationOutput.Operators[Op.RightIndex])
-									];
-								return HorizontalOperator->AsShared();
-							}
-							break;
-							case STRATA_OPERATOR_BSDF_LEGACY:	// legacy BSDF should have been converted to BSDF already.
-							case STRATA_OPERATOR_BSDF:
-							{
-								FString BSDFDesc = FString::Printf(TEXT("BSDF (%s%s%s%s%s%s%s%s)")
-									, Op.bBSDFHasEdgeColor ? TEXT("F90 ") : TEXT("")
-									, Op.bBSDFHasSSS ? TEXT("SSS ") : TEXT("")
-									, Op.bBSDFHasMFPPluggedIn ? TEXT("MFP ") : TEXT("")
-									, Op.bBSDFHasAnisotropy ? TEXT("Ani ") : TEXT("")
-									, Op.bBSDFHasSecondRoughnessOrSimpleClearCoat ? TEXT("2Ro ") : TEXT("")
-									, Op.bBSDFHasFuzz ? TEXT("Fuz ") : TEXT("")
-									, Op.bBSDFHasGlint ? TEXT("Gli ") : TEXT("")
-									, Op.bBSDFHasSpecularProfile ? TEXT("Spc ") : TEXT("")
-								);
-
-								static FString ToolTip;
-								if (ToolTip.IsEmpty())
-								{
-									ToolTip += TEXT("SSS means the BSDF features subsurface profile or subsurface setup using MFP.\n");
-									ToolTip += TEXT("MFP means the BSDF MFP is specified by the user.\n");
-									ToolTip += TEXT("F90 means the BSDF edge specular color representing reflectivity at grazing angle is used.\n");
-									ToolTip += TEXT("Fuz means the BSDF fuzz layer is enabled.\n");
-									ToolTip += TEXT("2Ro means the BSDF either uses a second specular lob with a second roughness, or the legacy simple clear coat.\n");
-									ToolTip += TEXT("Ani means the BSDF anisotropic specular lighting is used.\n");
-									ToolTip += TEXT("Gli means the BSDF features glints.\n");
-									ToolTip += TEXT("Spc means the BSDF features specular profile.\n");
-								}
-
-								auto BSDF = SNew(SErrorText)
-									.ErrorText(FText::FromString(BSDFDesc))
-									.BackgroundColor(FSlateColor(EStyleColor::AccentGreen))
-									.ToolTipText(FText::FromString(ToolTip));
-								return BSDF->AsShared();
-							}
-							break;
-							}
-
-							auto TreeOperatorError = SNew(SErrorText)
-								.ErrorText(LOCTEXT("TreeOperatorError", "Tree Operator Error"))
-								.BackgroundColor(FSlateColor(EStyleColor::AccentRed));
-							return TreeOperatorError->AsShared();
-						};
-
-						const FStrataOperator& RootOperator = CompilationOutput.Operators[CompilationOutput.RootOperatorIndex];
-						MaterialBox->SetContent(ProcessOperator(RootOperator));
+					{										
+						MaterialBox->SetContent(FSubstrateWidget::ProcessOperator(CompilationOutput));
 					}
 					else
 					{

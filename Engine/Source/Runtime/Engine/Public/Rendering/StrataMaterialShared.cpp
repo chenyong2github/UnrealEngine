@@ -61,6 +61,7 @@ FStrataOperator::FStrataOperator()
 	bIsBottom = false;
 	bUseParameterBlending = false;
 	bRootOfParameterBlendingSubTree = false;
+	MaterialExpressionGuid = FGuid();
 #endif
 }
 

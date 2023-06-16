@@ -64,7 +64,8 @@ public:
 	LAYOUT_FIELD_EDITORONLY(uint8, bIsBottom);
 
 	LAYOUT_FIELD_EDITORONLY(uint8, bUseParameterBlending);			// True when part of a sub tree where parameter blending is in use
-	LAYOUT_FIELD_EDITORONLY(uint8, bRootOfParameterBlendingSubTree);	// True when the root of a sub tree where parameter blending is in use. Only this node will register a BSDF
+	LAYOUT_FIELD_EDITORONLY(uint8, bRootOfParameterBlendingSubTree);// True when the root of a sub tree where parameter blending is in use. Only this node will register a BSDF
+	LAYOUT_FIELD_EDITORONLY(FGuid, MaterialExpressionGuid);			// Material expression Guid for mapping between UMaterialExpression and FStrataOperator
 
 	void CombineFlagsForParameterBlending(FStrataOperator& A, FStrataOperator& B);
 

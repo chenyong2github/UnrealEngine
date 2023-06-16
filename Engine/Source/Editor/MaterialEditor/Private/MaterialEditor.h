@@ -697,6 +697,8 @@ private:
 	bool IsFeaturePreviewChecked(ERHIFeatureLevel::Type TestFeatureLevel) const;
 	bool IsFeaturePreviewAvailable(ERHIFeatureLevel::Type TestFeatureLevel) const;
 
+	/** Update Substrate topology preview */
+	void UpdateStrataTopologyPreview();
 
 public:
 

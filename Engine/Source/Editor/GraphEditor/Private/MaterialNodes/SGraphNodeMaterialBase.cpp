@@ -25,6 +25,7 @@
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
+#include "Materials/MaterialExpressionStrata.h"
 #include "Materials/MaterialFunction.h"
 #include "Math/Color.h"
 #include "Math/IntPoint.h"
@@ -60,6 +61,8 @@
 #include "Widgets/SOverlay.h"
 #include "Widgets/SViewport.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Rendering/StrataMaterialShared.h"
+#include "SGraphSubstrateMaterial.h"
 
 class FWidgetStyle;
 class SWidget;
@@ -346,6 +349,12 @@ void SGraphNodeMaterialBase::CreatePinWidgets()
 				NewPin->SetCustomPinIcon(CacheImg_Pin_NotConnectable, CacheImg_Pin_NotConnectable);
 			}
 
+			// Override pin color for Substrate node
+			if (Strata::IsStrataEnabled())
+			{
+				FSubstrateWidget::GetPinColor(NewPin, MaterialNode);
+			}
+
 			this->AddPin(NewPin.ToSharedRef());
 		}
 	}
@@ -469,6 +478,37 @@ void SGraphNodeMaterialBase::CreateBelowPinControls(TSharedPtr<SVerticalBox> Mai
 					CreatePreviewWidget()
 				]
 			];
+		}
+	}
+
+	// Preview of Substrate nodes topology
+	if (Strata::IsStrataEnabled() && MaterialNode && MaterialNode->MaterialExpression->IsA(UMaterialExpressionStrataBSDF::StaticClass()))
+	{
+		if (const UMaterialExpressionStrataBSDF* StrataExpression = (const UMaterialExpressionStrataBSDF*)MaterialNode->MaterialExpression)
+		{		
+			if (UMaterial* MaterialForStats = StrataExpression->Material)
+			{
+				if (const FMaterialResource* MaterialResource = MaterialForStats->GetMaterialResource(GMaxRHIFeatureLevel))
+				{
+					if (FMaterialShaderMap* ShaderMap = MaterialResource->GetGameThreadShaderMap())
+					{
+						const FStrataMaterialCompilationOutput& CompilationOutput = ShaderMap->GetStrataMaterialCompilationOutput();
+						MainBox->AddSlot()
+						.Padding(Settings->GetNonPinNodeBodyPadding())
+						.AutoHeight()
+						[
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							.HAlign(HAlign_Center)
+							[							
+								FSubstrateWidget::ProcessOperator(CompilationOutput, StrataExpression->MaterialExpressionGuid)
+							]
+						];
+					}
+				}
+	
+			}
 		}
 	}
 }
