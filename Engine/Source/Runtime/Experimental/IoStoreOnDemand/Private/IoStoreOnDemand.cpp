@@ -5,7 +5,7 @@
 #include "EncryptionKeyManager.h"
 #include "LatencyInjector.h"
 
-#include "FileCache.h"
+#include "FileIoCache.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/FileManager.h"
 #include "Misc/Base64.h"
@@ -73,7 +73,7 @@ static bool ParseEncryptionKeyParam(const FString& Param, FGuid& OutKeyGuid, FAE
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-static FFileIoCacheConfig GetFileCacheConfig(const TCHAR* CommandLine)
+static FFileIoCacheConfig GetFileIoCacheConfig(const TCHAR* CommandLine)
 {
 	FFileIoCacheConfig Ret;
 
@@ -449,7 +449,7 @@ void FIoStoreOnDemandModule::StartupModule()
 	Endpoint.EndpointType = UE::EOnDemandEndpointType::CDN;
 
 	TSharedPtr<IIoCache> Cache;
-	if (FFileIoCacheConfig Config = GetFileCacheConfig(CommandLine); Config.DiskQuota > 0)
+	if (FFileIoCacheConfig Config = GetFileIoCacheConfig(CommandLine); Config.DiskQuota > 0)
 	{
 		Cache = MakeShareable(MakeFileIoCache(Config).Release());
 	}

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FileCache.h"
+// {{{1 misc
+
+#include "FileIoCache.h"
 
 #include "Containers/IntrusiveDoubleLinkedList.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -23,10 +25,14 @@
 
 DEFINE_LOG_CATEGORY(LogIoCache);
 
+// }}}
+
 namespace UE::IO::Private
 {
 
 using namespace UE::Tasks;
+
+// {{{1 stats
 
 ////////////////////////////////////////////////////////////////////////////////
 #define BUILD_DATUM_X(x) \
@@ -217,7 +223,11 @@ FIoStatus FCacheFileToc::Save(const FString& FilePath, const uint64 CursorPos)
 	return FIoStatus(EIoErrorCode::Ok);
 }
 
-///////////////////////////////////////////////////////////////////////////////
+
+
+// {{{1 cache-map
+
+////////////////////////////////////////////////////////////////////////////////
 enum class ECacheEntryState : uint8
 {
 	None,
@@ -226,7 +236,7 @@ enum class ECacheEntryState : uint8
 	Persisted
 };
 
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 struct FCacheEntry
 	: public TIntrusiveDoubleLinkedListNode<FCacheEntry>
 {
@@ -470,6 +480,9 @@ FIoStatus FCacheMap::Save(const FString& FilePath, const uint64 CursorPos)
 }
 
 
+
+// {{{1 governor
+
 ////////////////////////////////////////////////////////////////////////////////
 class FGovernorExternal
 {
@@ -582,6 +595,10 @@ void FGovernorInternal::Return(uint32 LeftOver)
 #else
 	using FGovernor = FGovernorInternal;
 #endif
+
+
+
+// {{{1 file-impl
 
 ////////////////////////////////////////////////////////////////////////////////
 class FFileIoCache final
@@ -905,9 +922,13 @@ void FFileIoCache::FileWriterThreadInner()
 	Entries.Reset();
 }
 
+// }}}
+
 } // namespace UE::IO::Private
 
 TUniquePtr<IIoCache> MakeFileIoCache(const FFileIoCacheConfig& Config)
 {
 	return MakeUnique<UE::IO::Private::FFileIoCache>(Config);
 }
+
+// vim: foldlevel=1

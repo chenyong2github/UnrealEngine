@@ -7,7 +7,7 @@
 #include "Containers/StringView.h"
 #include "CoreHttp/Client.h"
 #include "EncryptionKeyManager.h"
-#include "FileCache.h"
+#include "FileIoCache.h"
 #include "HAL/Event.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformTime.h"
