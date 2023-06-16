@@ -33,8 +33,7 @@ enum class EGCOptions : uint32
 	None = 0,
 	Parallel = 1 << 0,					// Use all task workers to collect references, must be started on main thread
 	AutogenerateSchemas = 1 << 1,		// Assemble schemas for new UClasses
-	WithClusters = 1 << 2,				// Use clusters, see FUObjectCluster
-	WithPendingKill = 1 << 3,			// Internal flag used by reachability analysis
+	WithPendingKill = 1 << 2,			// Internal flag used by reachability analysis
 };
 ENUM_CLASS_FLAGS(EGCOptions);
 
