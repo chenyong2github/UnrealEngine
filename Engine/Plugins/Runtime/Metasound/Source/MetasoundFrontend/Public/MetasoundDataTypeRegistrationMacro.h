@@ -474,13 +474,10 @@ namespace Metasound
 				{
 					if constexpr (std::is_copy_assignable_v<TDataType> && bIsParsable)
 					{
-						if constexpr (!TIsArrayType<TDataType>::Value)
+						this->LiteralAssignmentFunction = [](const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, const FAnyDataReference& OutDataRef)
 						{
-							this->LiteralAssignmentFunction = [](const FOperatorSettings& InOperatorSettings, const FLiteral& InLiteral, const FAnyDataReference& OutDataRef)
-							{
-								*OutDataRef.GetWritableValue<TDataType>() = TDataTypeLiteralFactory<TDataType>::CreateExplicitArgs(InOperatorSettings, InLiteral);
-							};
-						}
+							*OutDataRef.GetWritableValue<TDataType>() = TDataTypeLiteralFactory<TDataType>::CreateExplicitArgs(InOperatorSettings, InLiteral);
+						};
 					}
 				}
 
