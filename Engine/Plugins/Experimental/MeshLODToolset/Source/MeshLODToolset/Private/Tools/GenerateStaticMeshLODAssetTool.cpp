@@ -408,9 +408,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 		FPhysicsDataCollection PhysicsData;
 		PhysicsData.Geometry = GenerateLODOp->ResultCollision;
 		PhysicsData.CopyGeometryToAggregate();
-		UE::PhysicsTools::InitializePreviewGeometryLines(PhysicsData,
-														 CollisionPreview,
-														 CollisionVizSettings->Color, CollisionVizSettings->LineThickness, 0.0f, 16, CollisionVizSettings->bRandomColors);
+		UE::PhysicsTools::InitializeCollisionGeometryVisualization(CollisionPreview, CollisionVizSettings, PhysicsData, 0.f, 16);
 
 		// Must happen on main thread, and GenerateProcess might be in use by an Op somewhere else
 		GenerateProcess->GraphEvalCriticalSection.Lock();
@@ -436,10 +434,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	CollisionVizSettings = NewObject<UCollisionGeometryVisualizationProperties>(this);
 	CollisionVizSettings->RestoreProperties(this);
 	AddToolPropertySource(CollisionVizSettings);
-	CollisionVizSettings->WatchProperty(CollisionVizSettings->LineThickness, [this](float NewValue) { bCollisionVisualizationDirty = true; });
-	CollisionVizSettings->WatchProperty(CollisionVizSettings->Color, [this](FColor NewValue) { bCollisionVisualizationDirty = true; });
-	CollisionVizSettings->WatchProperty(CollisionVizSettings->bRandomColors, [this](bool bNewValue) { bCollisionVisualizationDirty = true; });
-	CollisionVizSettings->WatchProperty(CollisionVizSettings->bShowHidden, [this](bool bNewValue) { bCollisionVisualizationDirty = true; });
+	CollisionVizSettings->Initialize(this);
 
 	CollisionPreview = NewObject<UPreviewGeometry>(this);
 	CollisionPreview->CreateInWorld(GetTargetWorld(), (FTransform)PreviewTransform);
@@ -609,29 +604,9 @@ void UGenerateStaticMeshLODAssetTool::OnTick(float DeltaTime)
 		PreviewWithBackgroundCompute->Tick(DeltaTime);
 	}
 
-	if (bCollisionVisualizationDirty)
-	{
-		UpdateCollisionVisualization();
-		bCollisionVisualizationDirty = false;
-	}
+	UE::PhysicsTools::UpdateCollisionGeometryVisualization(CollisionPreview, CollisionVizSettings);
 }
 
-
-
-void UGenerateStaticMeshLODAssetTool::UpdateCollisionVisualization()
-{
-	float UseThickness = CollisionVizSettings->LineThickness;
-	FColor UseColor = CollisionVizSettings->Color;
-	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !CollisionVizSettings->bShowHidden);
-
-	int32 ColorIdx = 0;
-	CollisionPreview->UpdateAllLineSets([&](ULineSetComponent* LineSet)
-	{
-		LineSet->SetAllLinesThickness(UseThickness);
-		LineSet->SetAllLinesColor(CollisionVizSettings->bRandomColors ? LinearColors::SelectFColor(ColorIdx++) : UseColor);
-	});
-	CollisionPreview->SetAllLineSetsMaterial(LineMaterial);
-}
 
 
 void UGenerateStaticMeshLODAssetTool::CreateNewAsset()
