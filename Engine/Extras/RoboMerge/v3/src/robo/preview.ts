@@ -40,7 +40,7 @@ export async function getPreview(cl: number, singleBot?: string) {
 		const fileText = await p4.print(`${path}@=${cl}`)
 
 		const validationErrors: string[] = []
-		const result = BranchDefs.parseAndValidate(validationErrors, fileText, allStreamSpecs)
+		const result = BranchDefs.parseAndValidate(validationErrors, fileText, allStreamSpecs, true)
 
 		const errorPrefix = `\n\t${bot} validation failed: `
 		if (!result.branchGraphDef) {

@@ -267,7 +267,7 @@ export class BranchDefs {
 		}
 	}
 
-	static parseAndValidate(outErrors: string[], branchSpecsText: string, allStreamSpecs: StreamSpecs): ParseResult {
+	static parseAndValidate(outErrors: string[], branchSpecsText: string, allStreamSpecs: StreamSpecs, isPreviewing?: boolean): ParseResult {
 		const defaultConfigForWholeBot: BotConfig = {
 			defaultStreamDepot: null,
 			defaultIntegrationMethod: null,
@@ -382,7 +382,7 @@ export class BranchDefs {
 				def.streamSubpath
 			)
 
-			if (streamResult.stream && !allStreamSpecs.has(streamResult.stream)) {
+			if (!isPreviewing && streamResult.stream && !allStreamSpecs.has(streamResult.stream)) {
 				outErrors.push(`Stream ${streamResult.stream} not found`)
 			}
 		}
