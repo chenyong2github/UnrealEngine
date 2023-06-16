@@ -43,21 +43,6 @@ FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHiera
 	{
 		if(const URigHierarchy* Hierarchy = InTreeView.Pin()->GetRigTreeDelegates().GetHierarchy())
 		{
-			if(const FRigBaseElement* Element = Hierarchy->Find(Key))
-			{
-				bIsProcedural = Element->IsProcedural();
-				
-				if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
-				{
-					bIsTransient = ControlElement->Settings.bIsTransientControl;
-					bIsAnimationChannel = ControlElement->IsAnimationChannel();
-					if(bIsAnimationChannel)
-					{
-						ChannelName = ControlElement->GetDisplayName();
-					}
-				}
-			}
-
 			const FRigTreeDisplaySettings& Settings = InTreeView.Pin()->GetRigTreeDelegates().GetDisplaySettings();
 			RefreshDisplaySettings(Hierarchy, Settings);
 		}
@@ -81,6 +66,21 @@ void FRigTreeElement::RequestRename()
 void FRigTreeElement::RefreshDisplaySettings(const URigHierarchy* InHierarchy, const FRigTreeDisplaySettings& InSettings)
 {
 	const TPair<const FSlateBrush*, FSlateColor> Result = SRigHierarchyItem::GetBrushForElementType(InHierarchy, Key);
+
+	if(const FRigBaseElement* Element = InHierarchy->Find(Key))
+	{
+		bIsProcedural = Element->IsProcedural();
+				
+		if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
+		{
+			bIsTransient = ControlElement->Settings.bIsTransientControl;
+			bIsAnimationChannel = ControlElement->IsAnimationChannel();
+			if(bIsAnimationChannel)
+			{
+				ChannelName = ControlElement->GetDisplayName();
+			}
+		}
+	}
 
 	IconBrush = Result.Key;
 	IconColor = Result.Value;
