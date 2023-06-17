@@ -289,8 +289,7 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponents()
 	// the same: A single static mesh will be shared between them and one of the task chains will manage to put their
 	// material assignments on the mesh directly. To ensure the correct materials for the second subtree, we need to
 	// set overrides.
-	// Note how we don't have to handle geometry caches in here like the geom mesh translator does though: We don't
-	// collapse geometry caches, at least for now
+	// Note how we don't have to handle geometry caches in here as they're handled by the geometry cache translator now
 	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 	{
 		if (Context->InfoCache)

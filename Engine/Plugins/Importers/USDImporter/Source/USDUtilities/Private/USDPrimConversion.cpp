@@ -2164,6 +2164,7 @@ bool UnrealToUsd::ConvertMaterialOverrides(
 
 	FScopedUsdAllocs Allocs;
 	pxr::UsdStageRefPtr Stage = UsdPrim.GetStage();
+	FString UsdPrimPath = UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath());
 
 	const bool bAllLODs = LowestLOD == INDEX_NONE && HighestLOD == INDEX_NONE;
 
@@ -2187,9 +2188,15 @@ bool UnrealToUsd::ConvertMaterialOverrides(
 				{
 					for (const FString& PrimPath : SourcePrimPaths->PrimPaths)
 					{
-						pxr::SdfPath OverridePrimPath = UnrealToUsd::ConvertPath(*PrimPath).Get();
-						pxr::UsdPrim MeshPrim = Stage->OverridePrim(OverridePrimPath);
-						UE::USDPrimConversionImpl::Private::AuthorMaterialOverride(MeshPrim, Override->GetPathName());
+						// Our mesh assets are shared between multiple prims via the asset cache, and all user prims of that asset will record
+						// their source prim paths for each material slot. In here we just want to apply overrides to the prims that
+						// correspond to the modified component, and not the others
+						if (PrimPath.StartsWith(UsdPrimPath))
+						{
+							pxr::SdfPath OverridePrimPath = UnrealToUsd::ConvertPath(*PrimPath).Get();
+							pxr::UsdPrim MeshPrim = Stage->OverridePrim(OverridePrimPath);
+							UE::USDPrimConversionImpl::Private::AuthorMaterialOverride(MeshPrim, Override->GetPathName());
+						}
 					}
 				}
 			}
@@ -2257,9 +2264,13 @@ bool UnrealToUsd::ConvertMaterialOverrides(
 						{
 							for (const FString& PrimPath : SourcePrimPaths->PrimPaths)
 							{
-								pxr::SdfPath OverridePrimPath = UnrealToUsd::ConvertPath(*PrimPath).Get();
-								pxr::UsdPrim MeshPrim = Stage->OverridePrim(OverridePrimPath);
-								UE::USDPrimConversionImpl::Private::AuthorMaterialOverride(MeshPrim, Override->GetPathName());
+								// See comment on the analogue part for the geometry cache component
+								if (PrimPath.StartsWith(UsdPrimPath))
+								{
+									pxr::SdfPath OverridePrimPath = UnrealToUsd::ConvertPath(*PrimPath).Get();
+									pxr::UsdPrim MeshPrim = Stage->OverridePrim(OverridePrimPath);
+									UE::USDPrimConversionImpl::Private::AuthorMaterialOverride(MeshPrim, Override->GetPathName());
+								}
 							}
 						}
 					}
@@ -2394,9 +2405,13 @@ bool UnrealToUsd::ConvertMaterialOverrides(
 						{
 							for (const FString& PrimPath : SourcePrimPaths->PrimPaths)
 							{
-								pxr::SdfPath OverridePrimPath = UnrealToUsd::ConvertPath(*PrimPath).Get();
-								pxr::UsdPrim MeshPrim = Stage->OverridePrim(OverridePrimPath);
-								UE::USDPrimConversionImpl::Private::AuthorMaterialOverride(MeshPrim, Override->GetPathName());
+								// See comment on the analogue part for the geometry cache component
+								if (PrimPath.StartsWith(UsdPrimPath))
+								{
+									pxr::SdfPath OverridePrimPath = UnrealToUsd::ConvertPath(*PrimPath).Get();
+									pxr::UsdPrim MeshPrim = Stage->OverridePrim(OverridePrimPath);
+									UE::USDPrimConversionImpl::Private::AuthorMaterialOverride(MeshPrim, Override->GetPathName());
+								}
 							}
 						}
 					}

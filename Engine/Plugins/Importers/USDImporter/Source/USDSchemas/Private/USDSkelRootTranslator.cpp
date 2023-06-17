@@ -185,11 +185,6 @@ namespace UsdSkelRootTranslatorImpl
 					bMaterialsHaveChanged = true;
 				}
 
-				if (UserData)
-				{
-					UserData->MaterialSlotToPrimPaths.FindOrAdd(SkeletalMeshSlotIndex).PrimPaths = Slot.PrimPaths.Array();
-				}
-
 				// Already have a material at that LOD remap slot, need to reassign
 				if ( LODMaterialMap.IsValidIndex( LODSlotIndex ) )
 				{
@@ -1388,15 +1383,21 @@ namespace UsdSkelRootTranslatorImpl
 					);
 				}
 
-				if ( SkeletalMesh )
+				if (SkeletalMesh)
 				{
+					UUsdMeshAssetUserData* UserData = SkeletalMesh->GetAssetUserData<UUsdMeshAssetUserData>();
+					if (!UserData)
+					{
+						UserData = NewObject<UUsdMeshAssetUserData>(SkeletalMesh, TEXT("USDAssetUserData"));
+						UserData->PrimPath = SkelRootPath;
+						UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
+						SkeletalMesh->AddAssetUserData(UserData);
+					}
+
+					MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(LODIndexToMaterialInfo, UserData);
+
 					if (bIsNew)
 					{
-						UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(SkeletalMesh, TEXT("USDAssetUserData"));
-						UserData->PrimPath = SkelRootPath;
-						UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;  // We use the same primvar mapping for all LODs
-						SkeletalMesh->AddAssetUserData(UserData);
-
 						const bool bMaterialsHaveChanged = UsdSkelRootTranslatorImpl::ProcessMaterials(
 							GetPrim(),
 							LODIndexToMaterialInfo,
@@ -1408,10 +1409,10 @@ namespace UsdSkelRootTranslatorImpl
 							NewBlendShapes.Num() > 0
 						);
 
-						if ( bMaterialsHaveChanged )
+						if (bMaterialsHaveChanged)
 						{
 							const bool bRebuildAll = true;
-							SkeletalMesh->UpdateUVChannelData( bRebuildAll );
+							SkeletalMesh->UpdateUVChannelData(bRebuildAll);
 						}
 
 						Context->AssetCache->CacheAsset( SkeletalMeshHashString, SkeletalMesh );

@@ -207,12 +207,6 @@ namespace UsdGeomMeshTranslatorImpl
 			ExistingAssignments.Add(StaticMaterial.MaterialInterface);
 		}
 
-		UUsdMeshAssetUserData* UserData = StaticMesh.GetAssetUserData<UUsdMeshAssetUserData>();
-		ensureMsgf(UserData, TEXT("Static Mesh '%s' generated for prim '%s' should have an UUsdMeshAssetUserData at this point!"),
-			*StaticMesh.GetPathName(),
-			*UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath())
-		);
-
 		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 			UsdPrim,
 			LODIndexToMaterialInfo,
@@ -252,11 +246,6 @@ namespace UsdGeomMeshTranslatorImpl
 				{
 					StaticMesh.GetStaticMaterials()[StaticMeshSlotIndex] = MoveTemp(StaticMaterial);
 					bMaterialAssignementsHaveChanged = true;
-				}
-
-				if (UserData)
-				{
-					UserData->MaterialSlotToPrimPaths.FindOrAdd(StaticMeshSlotIndex).PrimPaths = Slot.PrimPaths.Array();
 				}
 
 #if WITH_EDITOR
@@ -817,13 +806,16 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 				StaticMesh->NaniteSettings.bEnabled = bShouldEnableNanite;
 #endif // WITH_EDITOR
 
-				if (bIsNew)
+				UUsdMeshAssetUserData* UserData = StaticMesh->GetAssetUserData<UUsdMeshAssetUserData>();
+				if (!UserData)
 				{
-					UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(StaticMesh, TEXT("UUSDAssetUserData"));
+					UserData = NewObject<UUsdMeshAssetUserData>(StaticMesh, TEXT("UUSDAssetUserData"));
 					UserData->PrimPath = MeshName;
-					UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;  // We use the same primvar mapping for all LODs
+					UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
 					StaticMesh->AddAssetUserData(UserData);
 				}
+
+				MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(LODIndexToMaterialInfo, UserData);
 
 				// Only the original creator of the prim at creation time gets to set the material assignments
 				// directly on the mesh, all others prims ensure their materials via material overrides on the

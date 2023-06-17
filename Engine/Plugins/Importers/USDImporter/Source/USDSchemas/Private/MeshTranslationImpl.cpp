@@ -858,6 +858,29 @@ void MeshTranslationImpl::SetMaterialOverrides(
 	}
 }
 
+void MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(
+	const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo,
+	UUsdMeshAssetUserData* UserData
+)
+{
+	if (!UserData)
+	{
+		return;
+	}
+
+	uint32 SlotIndex = 0;
+	for (int32 LODIndex = 0; LODIndex < LODIndexToMaterialInfo.Num(); ++LODIndex)
+	{
+		const TArray<UsdUtils::FUsdPrimMaterialSlot>& LODSlots = LODIndexToMaterialInfo[LODIndex].Slots;
+
+		for (int32 LODSlotIndex = 0; LODSlotIndex < LODSlots.Num(); ++LODSlotIndex, ++SlotIndex)
+		{
+			const UsdUtils::FUsdPrimMaterialSlot& Slot = LODSlots[LODSlotIndex];
+			UserData->MaterialSlotToPrimPaths.FindOrAdd(SlotIndex).PrimPaths.Append(Slot.PrimPaths.Array());
+		}
+	}
+}
+
 UMaterialInterface* MeshTranslationImpl::GetReferencePreviewSurfaceMaterial(EUsdReferenceMaterialProperties ReferenceMaterialProperties)
 {
 	const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();

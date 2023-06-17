@@ -16,9 +16,10 @@ PXR_NAMESPACE_OPEN_SCOPE
 PXR_NAMESPACE_CLOSE_SCOPE
 
 class FUsdInfoCache;
-class UUsdAssetCache2;
 class UMaterialInterface;
 class UMeshComponent;
+class UUsdAssetCache2;
+class UUsdMeshAssetUserData;
 namespace UsdUtils
 {
 	struct FUsdPrimMaterialSlot;
@@ -52,6 +53,11 @@ namespace MeshTranslationImpl
 		bool bInterpretLODs,
 		const FName& RenderContext,
 		const FName& MaterialPurpose
+	);
+
+	void RecordSourcePrimsForMaterialSlots(
+		const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo,
+		UUsdMeshAssetUserData* UserData
 	);
 
 	enum class EUsdReferenceMaterialProperties

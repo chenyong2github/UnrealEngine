@@ -61,12 +61,6 @@ namespace UsdGeometryCacheTranslatorImpl
 	bool ProcessGeometryCacheMaterials(const pxr::UsdPrim& UsdPrim, const TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& LODIndexToMaterialInfo,
 									   UGeometryCache& GeometryCache, UUsdAssetCache2& AssetCache, FUsdInfoCache* InfoCache, float Time, EObjectFlags Flags)
 	{
-		UUsdMeshAssetUserData* MeshUserData = GeometryCache.GetAssetUserData<UUsdMeshAssetUserData>();
-		ensureMsgf(MeshUserData, TEXT("Geometry Cache '%s' generated for prim '%s' should have an UUsdMeshAssetUserData at this point!"),
-			*GeometryCache.GetPathName(),
-			*UsdToUnreal::ConvertPath(UsdPrim.GetPrimPath())
-		);
-
 		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 			UsdPrim, LODIndexToMaterialInfo, AssetCache, *InfoCache, Flags);
 
@@ -100,8 +94,6 @@ namespace UsdGeometryCacheTranslatorImpl
 					GeometryCache.Materials[SlotIndex] = Material;
 					bMaterialAssignementsHaveChanged = true;
 				}
-
-				MeshUserData->MaterialSlotToPrimPaths.FindOrAdd(SlotIndex).PrimPaths = Slot.PrimPaths.Array();
 			}
 		}
 
@@ -769,36 +761,45 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 			const FString PrimPathString = PrimPath.GetString();
 			GeometryCache.Reset(UsdGeometryCacheTranslatorImpl::CreateGeometryCache(PrimPathString, LODIndexToMeshDescription[0], MeshPrimPaths, MaterialOffsets, Context, bIsNew, StartTimeOffset));
 
-			if (GeometryCache && bIsNew)
+			if (GeometryCache)
 			{
-				UUsdMeshAssetUserData* UserData = NewObject<UUsdMeshAssetUserData>(GeometryCache.Get(), TEXT("UUSDAssetUserData"));
-				UserData->PrimPath = PrimPathString;
-				UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;  // We use the same primvar mapping for all LODs
-				GeometryCache->AddAssetUserData(UserData);
+				UUsdMeshAssetUserData* UserData = GeometryCache->GetAssetUserData<UUsdMeshAssetUserData>();
+				if (!UserData)
+				{
+					UserData = NewObject<UUsdMeshAssetUserData>(GeometryCache.Get(), TEXT("UUSDAssetUserData"));
+					UserData->PrimPath = PrimPathString;
+					UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
+					GeometryCache->AddAssetUserData(UserData);
 
-				UUsdAnimSequenceAssetUserData* AnimUserData = NewObject<UUsdAnimSequenceAssetUserData>(GeometryCache.Get(), TEXT("UsdAnimUserData"));
-				AnimUserData->PrimPath = PrimPathString;
-				AnimUserData->LayerStartOffsetSeconds = StartTimeOffset;
-				GeometryCache->AddAssetUserData(AnimUserData);
+					UUsdAnimSequenceAssetUserData* AnimUserData = NewObject<UUsdAnimSequenceAssetUserData>(GeometryCache.Get(), TEXT("UsdAnimUserData"));
+					AnimUserData->PrimPath = PrimPathString;
+					AnimUserData->LayerStartOffsetSeconds = StartTimeOffset;
+					GeometryCache->AddAssetUserData(AnimUserData);
+				}
 
-				// Only the original creator of the prim at creation time gets to set the material assignments
-				// directly on the geometry cache, all others prims ensure their materials via material overrides on the
-				// components
-				UsdGeometryCacheTranslatorImpl::ProcessGeometryCacheMaterials(
-					GetPrim(),
-					LODIndexToMaterialInfo,
-					*GeometryCache,
-					*Context->AssetCache.Get(),
-					Context->InfoCache.Get(),
-					Context->Time,
-					Context->ObjectFlags
-				);
-			}
+				MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(LODIndexToMaterialInfo, UserData);
 
-			if (GeometryCache && Context->InfoCache)
-			{
-				const UE::FSdfPath& TargetPath = AlternativePrimToLinkAssetsTo.IsSet() ? AlternativePrimToLinkAssetsTo.GetValue() : PrimPath;
-				Context->InfoCache->LinkAssetToPrim(TargetPath, GeometryCache.Get());
+				if (bIsNew)
+				{
+					// Only the original creator of the prim at creation time gets to set the material assignments
+					// directly on the geometry cache, all others prims ensure their materials via material overrides on the
+					// components
+					UsdGeometryCacheTranslatorImpl::ProcessGeometryCacheMaterials(
+						GetPrim(),
+						LODIndexToMaterialInfo,
+						*GeometryCache,
+						*Context->AssetCache.Get(),
+						Context->InfoCache.Get(),
+						Context->Time,
+						Context->ObjectFlags
+					);
+				}
+
+				if (Context->InfoCache)
+				{
+					const UE::FSdfPath& TargetPath = AlternativePrimToLinkAssetsTo.IsSet() ? AlternativePrimToLinkAssetsTo.GetValue() : PrimPath;
+					Context->InfoCache->LinkAssetToPrim(TargetPath, GeometryCache.Get());
+				}
 			}
 
 			// Continue with the import steps
