@@ -3473,6 +3473,12 @@ void AUsdStageActor::OnActorAddedToSequencer(AActor* NewActor, const FGuid Guid,
 		return;
 	}
 
+	// We never need dynamic bindings on our (or other stage actor's) transient level sequences
+	if (Sequence == LevelSequence || Sequence->HasAnyFlags(RF_Transient))
+	{
+		return;
+	}
+
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (!MovieScene)
 	{
@@ -3514,6 +3520,12 @@ void AUsdStageActor::OnMovieSceneDataChanged(EMovieSceneDataChangeType ChangeTyp
 
 	ULevelSequence* Sequence = Cast<ULevelSequence>(PinnedSequencer->GetRootMovieSceneSequence());
 	if (!Sequence)
+	{
+		return;
+	}
+
+	// We never need dynamic bindings on our (or other stage actor's) transient level sequences
+	if (Sequence == LevelSequence || Sequence->HasAnyFlags(RF_Transient))
 	{
 		return;
 	}
