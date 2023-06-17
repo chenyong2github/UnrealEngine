@@ -29,7 +29,7 @@ class UStringTable;
 DECLARE_LOG_CATEGORY_EXTERN(LogStringTable, Log, All);
 
 /** Entry within a string table */
-class CORE_API FStringTableEntry
+class FStringTableEntry
 {
 public:
 	/** Create a new string table entry using the given data */
@@ -39,31 +39,31 @@ public:
 	}
 
 	/** Default constructor */
-	FStringTableEntry();
+	CORE_API FStringTableEntry();
 
 	/** Create a new string table entry using the given data */
-	FStringTableEntry(FStringTableConstRef InOwnerTable, FString InSourceString, FTextId InDisplayStringId);
+	CORE_API FStringTableEntry(FStringTableConstRef InOwnerTable, FString InSourceString, FTextId InDisplayStringId);
 
 	/** @return true if this entry is currently owned by a string table, false if it's been disowned (and should be re-cached) */
-	bool IsOwned() const;
+	CORE_API bool IsOwned() const;
 
 	/** Disown this string table entry. This is used to notify external code that has cached this entry that it needs to re-cache it from the string table */
-	void Disown();
+	CORE_API void Disown();
 
 	/** Is this string table entry owned by the given string table? */
-	bool IsOwnedBy(const FStringTable& InStringTable) const;
+	CORE_API bool IsOwnedBy(const FStringTable& InStringTable) const;
 
 	/** Get the source string of this string table entry */
-	const FString& GetSourceString() const;
+	CORE_API const FString& GetSourceString() const;
 
 	/** Get the display string of this string table entry */
-	FTextConstDisplayStringPtr GetDisplayString() const;
+	CORE_API FTextConstDisplayStringPtr GetDisplayString() const;
 
 	/** Get the display string ID of this string table entry */
-	FTextId GetDisplayStringId() const;
+	CORE_API FTextId GetDisplayStringId() const;
 
 	/** Get the placeholder source string to use for string table entries that are missing */
-	static const FString& GetPlaceholderSourceString();
+	static CORE_API const FString& GetPlaceholderSourceString();
 
 private:
 	/** The string table that owns us (if any) */
@@ -77,7 +77,7 @@ private:
 };
 
 /** String table implementation. Holds Key->SourceString pairs of text. */
-class CORE_API FStringTable : public TSharedFromThis<FStringTable, ESPMode::ThreadSafe>
+class FStringTable : public TSharedFromThis<FStringTable, ESPMode::ThreadSafe>
 {
 public:
 	/** Create a new string table */
@@ -87,78 +87,78 @@ public:
 	}
 
 	/** Default constructor */
-	FStringTable();
+	CORE_API FStringTable();
 
 	/** Destructor */
-	~FStringTable();
+	CORE_API ~FStringTable();
 
 	/** @return The asset that owns this string table instance (if any) */
-	UStringTable* GetOwnerAsset() const;
+	CORE_API UStringTable* GetOwnerAsset() const;
 
 	/** Set the asset that owns this string table instance (if any) */
-	void SetOwnerAsset(UStringTable* InOwnerAsset);
+	CORE_API void SetOwnerAsset(UStringTable* InOwnerAsset);
 
 	/** Has this string table been fully loaded yet? (used during asset loading) */
-	bool IsLoaded() const;
+	CORE_API bool IsLoaded() const;
 
 	/** Set whether this string table has been fully loaded yet */
-	void IsLoaded(const bool bInIsLoaded);
+	CORE_API void IsLoaded(const bool bInIsLoaded);
 
 	/** @return The namespace used by all entries in this string table */
-	FString GetNamespace() const;
+	CORE_API FString GetNamespace() const;
 
 	/** Set the namespace used by all entries in this string table */
-	void SetNamespace(const FString& InNamespace);
+	CORE_API void SetNamespace(const FString& InNamespace);
 
 	/** Get the source string used by the given entry (if any) */
-	bool GetSourceString(const FTextKey& InKey, FString& OutSourceString) const;
+	CORE_API bool GetSourceString(const FTextKey& InKey, FString& OutSourceString) const;
 
 	/** Set the source string used by the given entry (will replace any existing data for that entry) */
-	void SetSourceString(const FTextKey& InKey, const FString& InSourceString);
+	CORE_API void SetSourceString(const FTextKey& InKey, const FString& InSourceString);
 
 	/** Remove the given entry (including its meta-data) */
-	void RemoveSourceString(const FTextKey& InKey);
+	CORE_API void RemoveSourceString(const FTextKey& InKey);
 
 	/** Enumerate all source strings in the table. Return true from the enumerator to continue, or false to stop */
-	void EnumerateSourceStrings(const TFunctionRef<bool(const FString&, const FString&)>& InEnumerator) const;
-	void EnumerateKeysAndSourceStrings(const TFunctionRef<bool(const FTextKey&, const FString&)>& InEnumerator) const;
+	CORE_API void EnumerateSourceStrings(const TFunctionRef<bool(const FString&, const FString&)>& InEnumerator) const;
+	CORE_API void EnumerateKeysAndSourceStrings(const TFunctionRef<bool(const FTextKey&, const FString&)>& InEnumerator) const;
 
 	/** Clear all entries from the table (including their meta-data) */
-	void ClearSourceStrings(const int32 InSlack = 0);
+	CORE_API void ClearSourceStrings(const int32 InSlack = 0);
 
 	/** Find the entry with the given key (if any) */
-	FStringTableEntryConstPtr FindEntry(const FTextKey& InKey) const;
+	CORE_API FStringTableEntryConstPtr FindEntry(const FTextKey& InKey) const;
 
 	/** Given an entry, check to see if it exists in this table, and if so, get its key */
-	bool FindKey(const FStringTableEntryConstRef& InEntry, FString& OutKey) const;
-	bool FindKey(const FStringTableEntryConstRef& InEntry, FTextKey& OutKey) const;
+	CORE_API bool FindKey(const FStringTableEntryConstRef& InEntry, FString& OutKey) const;
+	CORE_API bool FindKey(const FStringTableEntryConstRef& InEntry, FTextKey& OutKey) const;
 
 	/** Get the meta-data with the given ID associated with the given entry, or an empty string if not found */
-	FString GetMetaData(const FTextKey& InKey, const FName InMetaDataId) const;
+	CORE_API FString GetMetaData(const FTextKey& InKey, const FName InMetaDataId) const;
 
 	/** Set the meta-data with the given ID associated with the given entry */
-	void SetMetaData(const FTextKey& InKey, const FName InMetaDataId, const FString& InMetaDataValue);
+	CORE_API void SetMetaData(const FTextKey& InKey, const FName InMetaDataId, const FString& InMetaDataValue);
 
 	/** Remove the meta-data with the given ID associated with the given entry */
-	void RemoveMetaData(const FTextKey& InKey, const FName InMetaDataId);
+	CORE_API void RemoveMetaData(const FTextKey& InKey, const FName InMetaDataId);
 
 	/** Enumerate all meta-data associated with the given entry. Return true from the enumerator to continue, or false to stop */
-	void EnumerateMetaData(const FTextKey& InKey, const TFunctionRef<bool(FName, const FString&)>& InEnumerator) const;
+	CORE_API void EnumerateMetaData(const FTextKey& InKey, const TFunctionRef<bool(FName, const FString&)>& InEnumerator) const;
 
 	/** Remove all meta-data associated with the given entry */
-	void ClearMetaData(const FTextKey& InKey);
+	CORE_API void ClearMetaData(const FTextKey& InKey);
 
 	/** Clear all meta-data from the table */
-	void ClearMetaData(const int32 InSlack = 0);
+	CORE_API void ClearMetaData(const int32 InSlack = 0);
 
 	/** Serialize this string table to/from an archive */
-	void Serialize(FArchive& Ar);
+	CORE_API void Serialize(FArchive& Ar);
 
 	/** Export the key, string, and meta-data information in this string table to a CSV file (does not export the namespace) */
-	bool ExportStrings(const FString& InFilename) const;
+	CORE_API bool ExportStrings(const FString& InFilename) const;
 
 	/** Import key, string, and meta-data information from a CSV file to this string table (does not import the namespace) */
-	bool ImportStrings(const FString& InFilename);
+	CORE_API bool ImportStrings(const FString& InFilename);
 
 private:
 	/** Pointer back to the asset that owns this table */
@@ -185,7 +185,7 @@ private:
 };
 
 /** Interface to allow Core code to access String Table assets from the Engine */
-class CORE_API IStringTableEngineBridge
+class IStringTableEngineBridge
 {
 public:
 	/**
@@ -304,24 +304,24 @@ protected:
 	virtual bool IsStringTableAssetBeingReplacedImpl(const UStringTable* InStringTableAsset) = 0;
 
 	/** Singleton instance, populated by the derived type */
-	static IStringTableEngineBridge* InstancePtr;
+	static CORE_API IStringTableEngineBridge* InstancePtr;
 
 	/** Whether String Table find/load is currently deferred (eg, during module load) */
-	static std::atomic<int8> DeferFindOrLoad;
+	static CORE_API std::atomic<int8> DeferFindOrLoad;
 };
 
 /** String table redirect utils */
-struct CORE_API FStringTableRedirects
+struct FStringTableRedirects
 {
 	/** Initialize the string table redirects */
-	static void InitStringTableRedirects();
+	static CORE_API void InitStringTableRedirects();
 
 	/** Redirect a table ID */
-	static void RedirectTableId(FName& InOutTableId);
+	static CORE_API void RedirectTableId(FName& InOutTableId);
 
 	/** Redirect a key */
-	static void RedirectKey(const FName InTableId, FTextKey& InOutKey);
+	static CORE_API void RedirectKey(const FName InTableId, FTextKey& InOutKey);
 
 	/** Redirect a table ID and key */
-	static void RedirectTableIdAndKey(FName& InOutTableId, FTextKey& InOutKey);
+	static CORE_API void RedirectTableIdAndKey(FName& InOutTableId, FTextKey& InOutKey);
 };

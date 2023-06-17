@@ -26,22 +26,22 @@ public:
 /**
  * Android implementation of the Process OS functions
  **/
-struct CORE_API FAndroidPlatformProcess : public FGenericPlatformProcess
+struct FAndroidPlatformProcess : public FGenericPlatformProcess
 {
-	static void* GetDllHandle(const TCHAR* Filename);
-	static void FreeDllHandle(void* DllHandle);
-	static void* GetDllExport(void* DllHandle, const TCHAR* ProcName);
-	static const TCHAR* ComputerName();
-	static void SetThreadAffinityMask( uint64 AffinityMask );
-	static uint32 GetCurrentProcessId();
-	static uint32 GetCurrentCoreNumber();
-	static const TCHAR* BaseDir();
-	static const TCHAR* ExecutableName(bool bRemoveExtension = true);
-	static class FRunnableThread* CreateRunnableThread();
-	static bool CanLaunchURL(const TCHAR* URL);
-	static void LaunchURL(const TCHAR* URL, const TCHAR* Parms, FString* Error);
-	static FString GetGameBundleId();
-	static void SetThreadName(const TCHAR* ThreadName);
+	static CORE_API void* GetDllHandle(const TCHAR* Filename);
+	static CORE_API void FreeDllHandle(void* DllHandle);
+	static CORE_API void* GetDllExport(void* DllHandle, const TCHAR* ProcName);
+	static CORE_API const TCHAR* ComputerName();
+	static CORE_API void SetThreadAffinityMask( uint64 AffinityMask );
+	static CORE_API uint32 GetCurrentProcessId();
+	static CORE_API uint32 GetCurrentCoreNumber();
+	static CORE_API const TCHAR* BaseDir();
+	static CORE_API const TCHAR* ExecutableName(bool bRemoveExtension = true);
+	static CORE_API class FRunnableThread* CreateRunnableThread();
+	static CORE_API bool CanLaunchURL(const TCHAR* URL);
+	static CORE_API void LaunchURL(const TCHAR* URL, const TCHAR* Parms, FString* Error);
+	static CORE_API FString GetGameBundleId();
+	static CORE_API void SetThreadName(const TCHAR* ThreadName);
 };
 
 typedef FAndroidPlatformProcess FPlatformProcess;

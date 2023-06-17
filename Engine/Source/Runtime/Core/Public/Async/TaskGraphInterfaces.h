@@ -217,7 +217,7 @@ enum class UE_DEPRECATED(4.26, "No longer supported") EPowerSavingEligibility : 
 	NotEligible			// When set high priority tasks will not be downgraded when power saving is required.
 };
 
-class CORE_API FAutoConsoleTaskPriority
+class FAutoConsoleTaskPriority
 {
 	FString RawSetting;
 	FString FullHelpText;
@@ -226,9 +226,9 @@ class CORE_API FAutoConsoleTaskPriority
 	ENamedThreads::Type TaskPriority;
 	ENamedThreads::Type TaskPriorityIfForcedToNormalThreadPriority;
 
-	static FString CreateFullHelpText(const TCHAR* Name, const TCHAR* OriginalHelp);
-	static FString ConfigStringFromPriorities(ENamedThreads::Type InThreadPriority, ENamedThreads::Type InTaskPriority, ENamedThreads::Type InTaskPriorityBackup);
-	void OnSettingChanged(IConsoleVariable* Variable);
+	static CORE_API FString CreateFullHelpText(const TCHAR* Name, const TCHAR* OriginalHelp);
+	static CORE_API FString ConfigStringFromPriorities(ENamedThreads::Type InThreadPriority, ENamedThreads::Type InTaskPriority, ENamedThreads::Type InTaskPriorityBackup);
+	CORE_API void OnSettingChanged(IConsoleVariable* Variable);
 
 public:
 	FAutoConsoleTaskPriority(const TCHAR* Name, const TCHAR* Help, ENamedThreads::Type DefaultThreadPriority, ENamedThreads::Type DefaultTaskPriority, ENamedThreads::Type DefaultTaskPriorityIfForcedToNormalThreadPriority = ENamedThreads::UnusedAnchor)

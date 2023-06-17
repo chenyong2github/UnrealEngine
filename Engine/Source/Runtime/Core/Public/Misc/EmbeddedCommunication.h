@@ -16,7 +16,7 @@
 typedef TMap<FString, FString> FEmbeddedCommunicationMap;
 
 // wraps parameters and a completion delegate
-struct CORE_API FEmbeddedCallParamsHelper
+struct FEmbeddedCallParamsHelper
 {
 	// the command for this call. something like "console" would be a command for the engine to run a console command
 	FString Command;
@@ -29,7 +29,7 @@ struct CORE_API FEmbeddedCallParamsHelper
 	TFunction<void(const FEmbeddedCommunicationMap&, FString)> OnCompleteDelegate;
 };
 
-class CORE_API FEmbeddedDelegates
+class FEmbeddedDelegates
 {
 public:
 
@@ -37,20 +37,20 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FEmbeddedCommunicationParamsDelegate, const FEmbeddedCallParamsHelper&);
 
 	// calling in from native wrapper to engine
-	static FEmbeddedCommunicationParamsDelegate& GetNativeToEmbeddedParamsDelegateForSubsystem(FName SubsystemName);
+	static CORE_API FEmbeddedCommunicationParamsDelegate& GetNativeToEmbeddedParamsDelegateForSubsystem(FName SubsystemName);
 
 	// calling out from engine to native wrapper
-	static FEmbeddedCommunicationParamsDelegate& GetEmbeddedToNativeParamsDelegateForSubsystem(FName SubsystemName);
+	static CORE_API FEmbeddedCommunicationParamsDelegate& GetEmbeddedToNativeParamsDelegateForSubsystem(FName SubsystemName);
 
 	// returns true if NativeToEmbedded delegate for subsystem exists
-	static bool IsEmbeddedSubsystemAvailable(FName SubsystemName);
+	static CORE_API bool IsEmbeddedSubsystemAvailable(FName SubsystemName);
 	
 	// FTSTicker-like delegate, to bind things to be ticked at a regular interval while the game thread is otherwise asleep.
-	static FSimpleMulticastDelegate SleepTickDelegate;
+	static CORE_API FSimpleMulticastDelegate SleepTickDelegate;
 
 	// get/set an object by name, thread safe
-	static void SetNamedObject(const FString& Name, void* Object);
-	static void* GetNamedObject(const FString& Name);
+	static CORE_API void SetNamedObject(const FString& Name, void* Object);
+	static CORE_API void* GetNamedObject(const FString& Name);
 	
 private:
 
@@ -67,41 +67,41 @@ private:
 };
 
 
-class CORE_API FEmbeddedCommunication
+class FEmbeddedCommunication
 {
 public:
 
 	// called early in UE lifecycle - RunOnGameThread can be called before this is called
-	static void Init();
+	static CORE_API void Init();
 
 	// force some ticking to happen - used to process messages during otherwise blocking operations like boot
-	static void ForceTick(int ID, float MinTimeSlice=0.1f, float MaxTimeSlice=0.5f);
+	static CORE_API void ForceTick(int ID, float MinTimeSlice=0.1f, float MaxTimeSlice=0.5f);
 
 	// queue up a function to call on game thread
-	static void RunOnGameThread(int Priority, TFunction<void()> Lambda);
+	static CORE_API void RunOnGameThread(int Priority, TFunction<void()> Lambda);
 
 	// wake up the game thread to process something put onto the game thread
-	static void WakeGameThread();
+	static CORE_API void WakeGameThread();
 
 	// called from game thread to pull off
-	static bool TickGameThread(float DeltaTime);
+	static CORE_API bool TickGameThread(float DeltaTime);
 	
 	// tell UE to stay awake (or allow it to sleep when nothing to do). Repeated calls with the same Requester are
 	// allowed, but bNeedsRendering must match
-	static void KeepAwake(FName Requester, bool bNeedsRendering);
-	static void AllowSleep(FName Requester);
+	static CORE_API void KeepAwake(FName Requester, bool bNeedsRendering);
+	static CORE_API void AllowSleep(FName Requester);
 	
-	static void UELogFatal(const TCHAR* String);
-	static void UELogError(const TCHAR* String);
-	static void UELogWarning(const TCHAR* String);
-	static void UELogDisplay(const TCHAR* String);
-	static void UELogLog(const TCHAR* String);
-	static void UELogVerbose(const TCHAR* String);
+	static CORE_API void UELogFatal(const TCHAR* String);
+	static CORE_API void UELogError(const TCHAR* String);
+	static CORE_API void UELogWarning(const TCHAR* String);
+	static CORE_API void UELogDisplay(const TCHAR* String);
+	static CORE_API void UELogLog(const TCHAR* String);
+	static CORE_API void UELogVerbose(const TCHAR* String);
 
-	static bool IsAwakeForTicking();
-	static bool IsAwakeForRendering();
+	static CORE_API bool IsAwakeForTicking();
+	static CORE_API bool IsAwakeForRendering();
 	
-	static FString GetDebugInfo();
+	static CORE_API FString GetDebugInfo();
 };
 
 // RAII for keep awake functionality

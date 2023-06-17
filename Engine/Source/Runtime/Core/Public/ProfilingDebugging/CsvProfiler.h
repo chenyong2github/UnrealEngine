@@ -424,7 +424,7 @@ public:
 
 	CORE_API void SetDeviceProfileName(FString InDeviceProfileName);
 
-	CORE_API FString GetOutputFilename() const { return OutputFilename; }
+	FString GetOutputFilename() const { return OutputFilename; }
 	CORE_API TMap<FString, FString> GetMetadataMapCopy();
 
 	CORE_API static bool IsWaitTrackingEnabledOnCurrentThread();
@@ -453,12 +453,12 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileEndFrame);
 	FOnCSVProfileEndFrame& OnCSVProfileEndFrame() { return OnCSVProfileEndFrameDelegate; }
 
-	CORE_API void SetRenderThreadId(uint32 InRenderThreadId)
+	void SetRenderThreadId(uint32 InRenderThreadId)
 	{
 		RenderThreadId = InRenderThreadId;
 	}
 
-	CORE_API void SetRHIThreadId(uint32 InRHIThreadId)
+	void SetRHIThreadId(uint32 InRHIThreadId)
 	{
 		RHIThreadId = InRHIThreadId;
 	}
@@ -617,7 +617,7 @@ public:
 	const char * StatName;
 };
 
-struct CORE_API FCsvCategory
+struct FCsvCategory
 {
 	FCsvCategory() : Index(-1) {}
 	FCsvCategory(const TCHAR* CategoryString, bool bDefaultValue, bool bIsGlobal = false)

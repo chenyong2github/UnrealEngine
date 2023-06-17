@@ -56,10 +56,10 @@ enum class EArchiveValueType
  * a fully defined document tree, and allow querying additional properties that aren't available when reading from
  * a pure binary archive. These functions will assert if called on a binary archive.
  */
-class CORE_API FStructuredArchiveFormatter
+class FStructuredArchiveFormatter
 {
 public:
-	virtual ~FStructuredArchiveFormatter();
+	CORE_API virtual ~FStructuredArchiveFormatter();
 
 	virtual FArchive& GetUnderlyingArchive() = 0;
 	virtual FStructuredArchiveFormatter* CreateSubtreeReader() { return this; }

@@ -13,7 +13,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Mapped File Regions"), STAT_Mapp
 
 // Note on threading. Like the rest of the filesystem platform abstraction, these methods are threadsafe, but it is expected you are not concurrently _using_ these data structures. 
 
-class CORE_API IMappedFileRegion
+class IMappedFileRegion
 {
 	const uint8* MappedPtr;
 	size_t MappedSize;
@@ -81,7 +81,7 @@ public:
 	IMappedFileRegion& operator=(const IMappedFileRegion&) = delete;
 };
 
-class CORE_API IMappedFileHandle
+class IMappedFileHandle
 {
 	size_t MappedFileSize;
 

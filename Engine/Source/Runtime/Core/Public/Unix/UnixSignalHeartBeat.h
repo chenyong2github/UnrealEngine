@@ -6,37 +6,37 @@
 
 #include <time.h> // IWYU pragma: export
 
-class CORE_API FUnixSignalGameHitchHeartBeat
+class FUnixSignalGameHitchHeartBeat
 {
 public:
-	static FUnixSignalGameHitchHeartBeat* Singleton;
+	static CORE_API FUnixSignalGameHitchHeartBeat* Singleton;
 
 	/** Gets the heartbeat singleton */
-	static FUnixSignalGameHitchHeartBeat& Get();
-	static FUnixSignalGameHitchHeartBeat* GetNoInit();
+	static CORE_API FUnixSignalGameHitchHeartBeat& Get();
+	static CORE_API FUnixSignalGameHitchHeartBeat* GetNoInit();
 
 	/**
 	* Called at the start of a frame to register the time we are looking to detect a hitch
 	*/
-	void FrameStart(bool bSkipThisFrame = false);
+	CORE_API void FrameStart(bool bSkipThisFrame = false);
 
-	double GetFrameStartTime();
-	double GetCurrentTime();
+	CORE_API double GetFrameStartTime();
+	CORE_API double GetCurrentTime();
 
 	/**
 	* Suspend heartbeat hitch detection. Must call ResumeHeartBeat later to resume.
 	*/
-	void SuspendHeartBeat();
+	CORE_API void SuspendHeartBeat();
 
 	/**
 	* Resume heartbeat hitch detection. Call only after first calling SuspendHeartBeat.
 	*/
-	void ResumeHeartBeat();
+	CORE_API void ResumeHeartBeat();
 
-	void Restart();
-	void Stop();
+	CORE_API void Restart();
+	CORE_API void Stop();
 
-	void PostFork();
+	CORE_API void PostFork();
 
 private:
 	FUnixSignalGameHitchHeartBeat();

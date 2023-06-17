@@ -18,7 +18,7 @@
 /**
  * Unix implementation of the TLS OS functions
  */
-struct CORE_API FUnixTLS : public FGenericPlatformTLS
+struct FUnixTLS : public FGenericPlatformTLS
 {
 	/**
 	 * Returns the currently executing thread's id
@@ -133,10 +133,10 @@ private:
 
 #if IS_MONOLITHIC
 	/** per-thread static variable - cannot have that in a non-monolithic build because it eats into a precious OS limit. */
-	static __thread uint32 ThreadIdTLS;
+	static CORE_API __thread uint32 ThreadIdTLS;
 #else
 	/** TLS key to store TID */
-	static uint32 ThreadIdTLSKey;
+	static CORE_API uint32 ThreadIdTLSKey;
 #endif
 };
 

@@ -42,37 +42,37 @@ namespace UE::StructuredArchive::Private
  * and can merely have a value serialized into it. That value may be a literal (eg. int, float) or compound object
  * (eg. object, array, map).
  */
-class CORE_API FStructuredArchiveSlot final : public UE::StructuredArchive::Private::FSlotBase
+class FStructuredArchiveSlot final : public UE::StructuredArchive::Private::FSlotBase
 {
 public:
-	FStructuredArchiveRecord EnterRecord();
-	FStructuredArchiveArray EnterArray(int32& Num);
-	FStructuredArchiveStream EnterStream();
-	FStructuredArchiveMap EnterMap(int32& Num);
-	FStructuredArchiveSlot EnterAttribute(FArchiveFieldName AttributeName);
-	TOptional<FStructuredArchiveSlot> TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting);
+	CORE_API FStructuredArchiveRecord EnterRecord();
+	CORE_API FStructuredArchiveArray EnterArray(int32& Num);
+	CORE_API FStructuredArchiveStream EnterStream();
+	CORE_API FStructuredArchiveMap EnterMap(int32& Num);
+	CORE_API FStructuredArchiveSlot EnterAttribute(FArchiveFieldName AttributeName);
+	CORE_API TOptional<FStructuredArchiveSlot> TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting);
 
 	// We don't support chaining writes to a single slot, so this returns void.
-	void operator << (uint8& Value);
-	void operator << (uint16& Value);
-	void operator << (uint32& Value);
-	void operator << (uint64& Value);
-	void operator << (int8& Value);
-	void operator << (int16& Value);
-	void operator << (int32& Value);
-	void operator << (int64& Value);
-	void operator << (float& Value);
-	void operator << (double& Value);
-	void operator << (bool& Value);
-	void operator << (FString& Value);
-	void operator << (FName& Value);
-	void operator << (UObject*& Value);
-	void operator << (FText& Value);
-	void operator << (FWeakObjectPtr& Value);
-	void operator << (FSoftObjectPtr& Value);
-	void operator << (FSoftObjectPath& Value);
-	void operator << (FLazyObjectPtr& Value);
-	void operator << (FObjectPtr& Value);
+	CORE_API void operator << (uint8& Value);
+	CORE_API void operator << (uint16& Value);
+	CORE_API void operator << (uint32& Value);
+	CORE_API void operator << (uint64& Value);
+	CORE_API void operator << (int8& Value);
+	CORE_API void operator << (int16& Value);
+	CORE_API void operator << (int32& Value);
+	CORE_API void operator << (int64& Value);
+	CORE_API void operator << (float& Value);
+	CORE_API void operator << (double& Value);
+	CORE_API void operator << (bool& Value);
+	CORE_API void operator << (FString& Value);
+	CORE_API void operator << (FName& Value);
+	CORE_API void operator << (UObject*& Value);
+	CORE_API void operator << (FText& Value);
+	CORE_API void operator << (FWeakObjectPtr& Value);
+	CORE_API void operator << (FSoftObjectPtr& Value);
+	CORE_API void operator << (FSoftObjectPath& Value);
+	CORE_API void operator << (FLazyObjectPtr& Value);
+	CORE_API void operator << (FObjectPtr& Value);
 
 	template <typename T>
 	FORCEINLINE void operator<<(TEnumAsByte<T>& Value)
@@ -110,9 +110,9 @@ public:
 		}
 	}
 
-	void Serialize(TArray<uint8>& Data);
-	void Serialize(void* Data, uint64 DataSize);
-	bool IsFilled() const;
+	CORE_API void Serialize(TArray<uint8>& Data);
+	CORE_API void Serialize(void* Data, uint64 DataSize);
+	CORE_API bool IsFilled() const;
 
 private:
 	friend FStructuredArchive;
@@ -130,16 +130,16 @@ private:
  * Represents a record in the structured archive. An object contains slots that are identified by FArchiveName,
  * which may be compiled out with binary-only archives.
  */
-class CORE_API FStructuredArchiveRecord final : public UE::StructuredArchive::Private::FSlotBase
+class FStructuredArchiveRecord final : public UE::StructuredArchive::Private::FSlotBase
 {
 public:
-	FStructuredArchiveSlot EnterField(FArchiveFieldName Name);
-	FStructuredArchiveRecord EnterRecord(FArchiveFieldName Name);
-	FStructuredArchiveArray EnterArray(FArchiveFieldName Name, int32& Num);
-	FStructuredArchiveStream EnterStream(FArchiveFieldName Name);
-	FStructuredArchiveMap EnterMap(FArchiveFieldName Name, int32& Num);
+	CORE_API FStructuredArchiveSlot EnterField(FArchiveFieldName Name);
+	CORE_API FStructuredArchiveRecord EnterRecord(FArchiveFieldName Name);
+	CORE_API FStructuredArchiveArray EnterArray(FArchiveFieldName Name, int32& Num);
+	CORE_API FStructuredArchiveStream EnterStream(FArchiveFieldName Name);
+	CORE_API FStructuredArchiveMap EnterMap(FArchiveFieldName Name, int32& Num);
 
-	TOptional<FStructuredArchiveSlot> TryEnterField(FArchiveFieldName Name, bool bEnterForSaving);
+	CORE_API TOptional<FStructuredArchiveSlot> TryEnterField(FArchiveFieldName Name, bool bEnterForSaving);
 
 	template<typename T> FORCEINLINE FStructuredArchiveRecord& operator<<(UE::StructuredArchive::Private::TNamedValue<T> Item)
 	{
@@ -158,10 +158,10 @@ private:
  * Represents an array in the structured archive. An object contains slots that are identified by a FArchiveFieldName,
  * which may be compiled out with binary-only archives.
  */
-class CORE_API FStructuredArchiveArray final : public UE::StructuredArchive::Private::FSlotBase
+class FStructuredArchiveArray final : public UE::StructuredArchive::Private::FSlotBase
 {
 public:
-	FStructuredArchiveSlot EnterElement();
+	CORE_API FStructuredArchiveSlot EnterElement();
 
 	template<typename T> FORCEINLINE FStructuredArchiveArray& operator<<(T& Item)
 	{
@@ -179,10 +179,10 @@ private:
 /**
  * Represents an unsized sequence of slots in the structured archive (similar to an array, but without a known size).
  */
-class CORE_API FStructuredArchiveStream final : public UE::StructuredArchive::Private::FSlotBase
+class FStructuredArchiveStream final : public UE::StructuredArchive::Private::FSlotBase
 {
 public:
-	FStructuredArchiveSlot EnterElement();
+	CORE_API FStructuredArchiveSlot EnterElement();
 
 	template<typename T> FORCEINLINE FStructuredArchiveStream& operator<<(T& Item)
 	{
@@ -201,10 +201,10 @@ private:
  * Represents a map in the structured archive. A map is similar to a record, but keys can be read back out from an archive.
  * (This is an important distinction for binary archives).
  */
-class CORE_API FStructuredArchiveMap final : public UE::StructuredArchive::Private::FSlotBase
+class FStructuredArchiveMap final : public UE::StructuredArchive::Private::FSlotBase
 {
 public:
-	FStructuredArchiveSlot EnterElement(FString& Name);
+	CORE_API FStructuredArchiveSlot EnterElement(FString& Name);
 
 private:
 	friend FStructuredArchive;

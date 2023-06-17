@@ -72,7 +72,7 @@ struct FProgramCounterSymbolInfo final
 	CORE_API FProgramCounterSymbolInfo();
 };
 
-struct CORE_API FProgramCounterSymbolInfoEx
+struct FProgramCounterSymbolInfoEx
 {
 	/** Module name. */
 	FString	ModuleName;
@@ -96,13 +96,13 @@ struct CORE_API FProgramCounterSymbolInfoEx
 	uint64	ProgramCounter;
 
 	/** Default constructor. */
-	FProgramCounterSymbolInfoEx(FString InModuleName = "", FString InFunctionName = "", FString InFilename = "", uint32 InLineNumber = 0, uint64 InSymbolDisplacement = 0, uint64 InOffsetInModule = 0, uint64 InProgramCounter = 0);
+	CORE_API FProgramCounterSymbolInfoEx(FString InModuleName = "", FString InFunctionName = "", FString InFilename = "", uint32 InLineNumber = 0, uint64 InSymbolDisplacement = 0, uint64 InOffsetInModule = 0, uint64 InProgramCounter = 0);
 };
 
 /**
  * Generic implementation for most platforms
  */
-struct CORE_API FGenericPlatformStackWalk
+struct FGenericPlatformStackWalk
 {
 	typedef FGenericPlatformStackWalk Base;
 
@@ -124,7 +124,7 @@ struct CORE_API FGenericPlatformStackWalk
 	/**
 	* Initializes options related to stack walking from ini, i.e. how detailed the stack walking should be, performance settings etc.
 	*/
-	static void Init();
+	static CORE_API void Init();
 
 	/**
 	 * Initializes stack traversal and symbol. Must be called before any other stack/symbol functions. Safe to reenter.
@@ -163,7 +163,7 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param	Context					Pointer to crash context, if any
 	 * @return	true if the symbol was found, otherwise false
 	 */ 
-	static bool ProgramCounterToHumanReadableString( int32 CurrentCallDepth, uint64 ProgramCounter, ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, FGenericCrashContext* Context = nullptr );
+	static CORE_API bool ProgramCounterToHumanReadableString( int32 CurrentCallDepth, uint64 ProgramCounter, ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, FGenericCrashContext* Context = nullptr );
 
 	/**
 	 * Converts the passed in symbol information to a human readable string and appends it to the passed in one.
@@ -183,10 +183,10 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param	Context					Pointer to crash context, if any
 	 * @return	true if the symbol was found, otherwise false
 	 */ 
-	static bool SymbolInfoToHumanReadableString( const FProgramCounterSymbolInfo& SymbolInfo, ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize );
+	static CORE_API bool SymbolInfoToHumanReadableString( const FProgramCounterSymbolInfo& SymbolInfo, ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize );
 
 	/** Same as above, but can be used with external applications. */
-	static bool SymbolInfoToHumanReadableStringEx( const FProgramCounterSymbolInfoEx& SymbolInfo, FString& out_HumanReadableString );
+	static CORE_API bool SymbolInfoToHumanReadableStringEx( const FProgramCounterSymbolInfoEx& SymbolInfo, FString& out_HumanReadableString );
 
 	/**
 	 * Converts the passed in program counter address to a symbol info struct, filling in module and filename, line number and displacement.
@@ -213,7 +213,7 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param	MaxDepth			Entries in BackTrace array
 	 * @param	Context				Optional thread context information
 	 */
-	static uint32 CaptureStackBackTrace( uint64* BackTrace, uint32 MaxDepth, void* Context = nullptr );
+	static CORE_API uint32 CaptureStackBackTrace( uint64* BackTrace, uint32 MaxDepth, void* Context = nullptr );
 
 	/**
 	 * Capture a stack backtrace for a specific thread.
@@ -223,7 +223,7 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param	MaxDepth			Entries in BackTrace array
 	 * @param	Context				Optional thread context information
 	 */
-	static uint32 CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context = nullptr);
+	static CORE_API uint32 CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context = nullptr);
 
 	/**
 	 * Walks the stack and appends the human readable string to the passed in one.
@@ -234,7 +234,7 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param	IgnoreCount			Number of stack entries to ignore (some are guaranteed to be in the stack walking code)
 	 * @param	Context				Optional thread context information
 	 */ 
-	FORCENOINLINE static void StackWalkAndDump( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, int32 IgnoreCount, void* Context = nullptr );  // FORCENOINLINE so it can be counted during StackTrace
+	CORE_API FORCENOINLINE static void StackWalkAndDump( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, int32 IgnoreCount, void* Context = nullptr );  // FORCENOINLINE so it can be counted during StackTrace
 
 	/**
 	 * Walks the stack and appends the human readable string to the passed in one.
@@ -245,7 +245,7 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param	ProgramCounter		Instruction address that should be at the top of the stack
 	 * @param	Context				Optional thread context information
 	 */ 
-	static void StackWalkAndDump( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, void* ProgramCounter, void* Context = nullptr );
+	static CORE_API void StackWalkAndDump( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, void* ProgramCounter, void* Context = nullptr );
 
 	/**
 	 * Walks the stack and updates the Stack array with the symbol information for each line in the stack.
@@ -256,7 +256,7 @@ struct CORE_API FGenericPlatformStackWalk
 	 * 
 	 * @return	The stack of symbols to return.
 	 */ 
-	static TArray<FProgramCounterSymbolInfo> GetStack(int32 IgnoreCount, int32 MaxDepth = 100, void* Context = nullptr);
+	static CORE_API TArray<FProgramCounterSymbolInfo> GetStack(int32 IgnoreCount, int32 MaxDepth = 100, void* Context = nullptr);
 
 	/**
 	* Walks the stack for the specified thread and appends the human readable string to the passed in one.
@@ -281,7 +281,7 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param   Flags				Used to pass additional information (see StackWalkFlags)
 	 * @param	Context				Optional thread context information
 	 */ 
-	static void StackWalkAndDumpEx( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, int32 IgnoreCount, uint32 Flags, void* Context = nullptr );
+	static CORE_API void StackWalkAndDumpEx( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, int32 IgnoreCount, uint32 Flags, void* Context = nullptr );
 	/**
 	 * Walks the stack and appends the human readable string to the passed in one.
 	 * @warning: The code assumes that HumanReadableString is large enough to contain the information.
@@ -292,7 +292,7 @@ struct CORE_API FGenericPlatformStackWalk
 	 * @param   Flags				Used to pass additional information (see StackWalkFlags)
 	 * @param	Context				Optional thread context information
 	 */ 
-	static void StackWalkAndDumpEx( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, void* ProgramCounter, uint32 Flags, void* Context = nullptr );
+	static CORE_API void StackWalkAndDumpEx( ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize, void* ProgramCounter, uint32 Flags, void* Context = nullptr );
 
 	/**
 	 * Returns the number of modules loaded by the currently running process.
@@ -321,11 +321,11 @@ struct CORE_API FGenericPlatformStackWalk
 	 *
 	 * @return	A map containing the meta-data (if any).
 	 */
-	static TMap<FName, FString> GetSymbolMetaData();
+	static CORE_API TMap<FName, FString> GetSymbolMetaData();
 
 protected:
 
 	/** Returns true if non-monolithic builds should produce full callstacks in the log (and load all debug symbols) */
-	static bool WantsDetailedCallstacksInNonMonolithicBuilds();
+	static CORE_API bool WantsDetailedCallstacksInNonMonolithicBuilds();
 
 };

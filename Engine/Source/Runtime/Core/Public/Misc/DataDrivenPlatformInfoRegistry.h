@@ -250,34 +250,34 @@ private:
 };
 
 
-struct CORE_API FDataDrivenPlatformInfoRegistry
+struct FDataDrivenPlatformInfoRegistry
 {
 
 	/**
 	* Get the global set of data driven platform information
 	*/
-	static const TMap<FName, FDataDrivenPlatformInfo>& GetAllPlatformInfos();
+	static CORE_API const TMap<FName, FDataDrivenPlatformInfo>& GetAllPlatformInfos();
 
 	/**
 	 * Gets a set of platform names based on GetAllPlatformInfos, their AdditionalRestrictedFolders, and possibly filtered based on what editor has support compiled for
 	 * This is not necessarily the same as IniParents, although there is overlap - IniParents come from chaining DDPIs, so those will be in GetAllPlatformInfos already to be checked 
 	 */
-	static const TArray<FString>& GetValidPlatformDirectoryNames();
+	static CORE_API const TArray<FString>& GetValidPlatformDirectoryNames();
 
 	/**
 	 * Get the data driven platform info for a given platform. If the platform doesn't have any on disk,
 	 * this will return a default constructed FConfigDataDrivenPlatformInfo
 	 */
-	static const FDataDrivenPlatformInfo& GetPlatformInfo(const FString& PlatformName);
-	static const FDataDrivenPlatformInfo& GetPlatformInfo(FName PlatformName);
-	static const FDataDrivenPlatformInfo& GetPlatformInfo(const char* PlatformName);
+	static CORE_API const FDataDrivenPlatformInfo& GetPlatformInfo(const FString& PlatformName);
+	static CORE_API const FDataDrivenPlatformInfo& GetPlatformInfo(FName PlatformName);
+	static CORE_API const FDataDrivenPlatformInfo& GetPlatformInfo(const char* PlatformName);
 
 
 	/**
 	 * Get sorted platorm infos or names. PlatformType is used to choose between true platforms and platform groups (or other fake platforms)
 	 */
-	static const TArray<FName> GetSortedPlatformNames(EPlatformInfoType PlatformType);
-	static const TArray<const FDataDrivenPlatformInfo*>& GetSortedPlatformInfos(EPlatformInfoType PlatformType);
+	static CORE_API const TArray<FName> GetSortedPlatformNames(EPlatformInfoType PlatformType);
+	static CORE_API const TArray<const FDataDrivenPlatformInfo*>& GetSortedPlatformInfos(EPlatformInfoType PlatformType);
 
 	UE_DEPRECATED(5.1, "Use GetSoprtedPlatformNames that takes a PlatformType parameter")
 	static const TArray<FName> GetSortedPlatformNames()
@@ -294,17 +294,17 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 	 * Gets a list of all known confidential platforms (note these are just the platforms you have access to, so, for example PS4 won't be
 	 * returned if you are not a PS4 licensee)
 	 */
-	static const TArray<FName>& GetConfidentialPlatforms();
+	static CORE_API const TArray<FName>& GetConfidentialPlatforms();
 
 	/**
 	 * Returns the number of discovered ini files that can be loaded with LoadDataDrivenIniFile
 	 */
-	static int32 GetNumDataDrivenIniFiles();
+	static CORE_API int32 GetNumDataDrivenIniFiles();
 
 	/**
 	 * Load the given ini file, and 
 	 */
-	static bool LoadDataDrivenIniFile(int32 Index, FConfigFile& IniFile, FString& PlatformName);
+	static CORE_API bool LoadDataDrivenIniFile(int32 Index, FConfigFile& IniFile, FString& PlatformName);
 
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
@@ -321,31 +321,31 @@ struct CORE_API FDataDrivenPlatformInfoRegistry
 		// for instance WindowsClient
 		TargetPlatform,
 	};
-	static bool HasCompiledSupportForPlatform(FName PlatformName, EPlatformNameType PlatformNameType);
+	static CORE_API bool HasCompiledSupportForPlatform(FName PlatformName, EPlatformNameType PlatformNameType);
 
 	/**
 	 * Wipes out cached device status for all devices in a platform (or all platforms if PlatformName is empty)
 	 */
-	static void ClearDeviceStatus(FName PlatformName);
+	static CORE_API void ClearDeviceStatus(FName PlatformName);
 
-	static FDataDrivenPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName = nullptr);
+	static CORE_API FDataDrivenPlatformInfo& DeviceIdToInfo(FString DeviceId, FString* OutDeviceName = nullptr);
 
 	/**
 	 * Retrieve the full list of all known preview platforms from all DDPIs
 	*/
-	static const TArray<struct FPreviewPlatformMenuItem>& GetAllPreviewPlatformMenuItems();
+	static CORE_API const TArray<struct FPreviewPlatformMenuItem>& GetAllPreviewPlatformMenuItems();
 
 	/** Option to hide a platform from the user interface at runtime */
-	static bool IsPlatformHiddenFromUI(FName PlatformName);
-	static void SetPlatformHiddenFromUI(FName PlatformName);
+	static CORE_API bool IsPlatformHiddenFromUI(FName PlatformName);
+	static CORE_API void SetPlatformHiddenFromUI(FName PlatformName);
 
 private:
 	/**
 	 * Get a modifiable DDPI object, for Turnkey to update it's info
 	 */
 	friend class FTurkeySupportModule;
-	static FDataDrivenPlatformInfo& GetMutablePlatformInfo(FName PlatformName);
-	static TMap<FName, FDataDrivenPlatformInfo>& GetMutablePlatformInfos();
+	static CORE_API FDataDrivenPlatformInfo& GetMutablePlatformInfo(FName PlatformName);
+	static CORE_API TMap<FName, FDataDrivenPlatformInfo>& GetMutablePlatformInfos();
 
 #endif
 

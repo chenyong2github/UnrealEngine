@@ -21,24 +21,24 @@ CORE_API void appBitsCpy( uint8* Dest, int32 DestBit, uint8* Src, int32 SrcBit, 
 //
 // Reads bitstreams.
 //
-struct CORE_API FBitReader : public FBitArchive
+struct FBitReader : public FBitArchive
 {
 	friend struct FBitReaderMark;
 
 public:
-	FBitReader( const uint8* Src = nullptr, int64 CountBits = 0 );
+	CORE_API FBitReader( const uint8* Src = nullptr, int64 CountBits = 0 );
 
 	FBitReader(const FBitReader&) = default;
     FBitReader& operator=(const FBitReader&) = default;
     FBitReader(FBitReader&&) = default;
     FBitReader& operator=(FBitReader&&) = default;
 
-	void SetData( FBitReader& Src, int64 CountBits );
-	void SetData( uint8* Src, int64 CountBits );
-	void SetData( TArray<uint8>&& Src, int64 CountBits );
+	CORE_API void SetData( FBitReader& Src, int64 CountBits );
+	CORE_API void SetData( uint8* Src, int64 CountBits );
+	CORE_API void SetData( TArray<uint8>&& Src, int64 CountBits );
 
 	/** Equivalent to SetData (reset position, copy from Src into internal buffer), but uses Reset not Empty to avoid a realloc if possible. */
-	void ResetData(FBitReader& Src, int64 CountBits);
+	CORE_API void ResetData(FBitReader& Src, int64 CountBits);
 
 // Disable false positive buffer overrun warning during pgoprofile linking step
 PRAGMA_DISABLE_BUFFER_OVERRUN_WARNING
@@ -72,7 +72,7 @@ PRAGMA_DISABLE_BUFFER_OVERRUN_WARNING
 			Pos += LengthBits;
 		}
 	}
-PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING
+CORE_API PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING
 
 	virtual void SerializeBitsWithOffset( void* Dest, int32 DestBit, int64 LengthBits ) override;
 
@@ -106,7 +106,7 @@ PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING
 		}
 	}
 
-	virtual void SerializeIntPacked(uint32& Value) override;
+	CORE_API virtual void SerializeIntPacked(uint32& Value) override;
 
 	FORCEINLINE_DEBUGGABLE uint32 ReadInt(uint32 Max)
 	{
@@ -208,17 +208,17 @@ PRAGMA_ENABLE_BUFFER_OVERRUN_WARNING
 	 *
 	 * @param LengthBits	The number of bits being read at the time of overflow
 	 */
-	void SetOverflowed(int64 LengthBits);
+	CORE_API void SetOverflowed(int64 LengthBits);
 
 	/** Set the stream at the end */
 	void SetAtEnd() { Pos = Num; }
 
-	void AppendDataFromChecked( FBitReader& Src );
-	void AppendDataFromChecked( uint8* Src, uint32 NumBits );
-	void AppendTo( TArray<uint8> &Buffer );
+	CORE_API void AppendDataFromChecked( FBitReader& Src );
+	CORE_API void AppendDataFromChecked( uint8* Src, uint32 NumBits );
+	CORE_API void AppendTo( TArray<uint8> &Buffer );
 
 	/** Counts the in-memory bytes used by this object */
-	virtual void CountMemory(FArchive& Ar) const;
+	CORE_API virtual void CountMemory(FArchive& Ar) const;
 
 protected:
 
@@ -227,7 +227,7 @@ protected:
 	int64 Pos;
 
 	/** Copies version information used for network compatibility from Source to this archive */
-	void SetNetVersionsFromArchive(FArchive& Source);
+	CORE_API void SetNetVersionsFromArchive(FArchive& Source);
 
 private:
 
@@ -242,7 +242,7 @@ private:
 //
 // For pushing and popping FBitWriter positions.
 //
-struct CORE_API FBitReaderMark
+struct FBitReaderMark
 {
 public:
 
@@ -264,7 +264,7 @@ public:
 		Reader.Pos = Pos;
 	}
 
-	void Copy( FBitReader& Reader, TArray<uint8> &Buffer );
+	CORE_API void Copy( FBitReader& Reader, TArray<uint8> &Buffer );
 
 private:
 

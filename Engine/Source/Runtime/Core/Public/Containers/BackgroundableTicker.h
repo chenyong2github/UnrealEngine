@@ -10,14 +10,14 @@
  * This works the same as the core FTSTicker, but on supported mobile platforms
  * it continues ticking while the app is running in the background.
  */
-class CORE_API FTSBackgroundableTicker
+class FTSBackgroundableTicker
 	: public FTSTicker
 {
 public:
-	static FTSBackgroundableTicker& GetCoreTicker();
+	static CORE_API FTSBackgroundableTicker& GetCoreTicker();
 
-	FTSBackgroundableTicker();
-	~FTSBackgroundableTicker();
+	CORE_API FTSBackgroundableTicker();
+	CORE_API ~FTSBackgroundableTicker();
 
 private:
 	FDelegateHandle CoreTickerHandle;

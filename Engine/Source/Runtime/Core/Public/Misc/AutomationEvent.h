@@ -13,7 +13,7 @@ enum class EAutomationEventType : uint8
 	Error
 };
 
-struct CORE_API FAutomationEvent
+struct FAutomationEvent
 {
 public:
 	FAutomationEvent(EAutomationEventType InType, const FString& InMessage)
@@ -38,7 +38,7 @@ public:
 	FGuid Artifact;
 };
 
-struct CORE_API FAutomationExecutionEntry
+struct FAutomationExecutionEntry
 {
 	FAutomationEvent Event;
 	FString Filename;
@@ -61,6 +61,6 @@ struct CORE_API FAutomationExecutionEntry
 	{
 	}
 
-	FString ToString() const;
-	FString ToStringFormattedEditorLog() const;
+	CORE_API FString ToString() const;
+	CORE_API FString ToStringFormattedEditorLog() const;
 };

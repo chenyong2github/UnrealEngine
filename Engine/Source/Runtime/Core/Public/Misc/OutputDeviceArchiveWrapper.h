@@ -12,7 +12,7 @@ class FArchive;
 /**
 * Output device wrapping any kind of FArchive.  Note: Works in any build configuration.
 */
-class CORE_API FOutputDeviceArchiveWrapper : public FOutputDevice
+class FOutputDeviceArchiveWrapper : public FOutputDevice
 {
 public:
 	/**
@@ -27,8 +27,8 @@ public:
 	}
 
 	// FOutputDevice interface
-	virtual void Flush() override;
-	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+	CORE_API virtual void Flush() override;
+	CORE_API virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
 	// End of FOutputDevice interface
 
 private:

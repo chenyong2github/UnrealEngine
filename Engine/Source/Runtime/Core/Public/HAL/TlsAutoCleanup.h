@@ -8,7 +8,7 @@
 Base class for objects in TLS that support auto-cleanup. 
 Polymorphically deletes registered instances on thread exit.
 */
-class CORE_API FTlsAutoCleanup
+class FTlsAutoCleanup
 {
 public:
 	/** Virtual destructor. */
@@ -16,7 +16,7 @@ public:
 	{}
 
 	/** Register this instance to be auto-cleanup. */
-	void Register();
+	CORE_API void Register();
 };
 
 /** Wrapper for values to be stored in TLS that support auto-cleanup. */

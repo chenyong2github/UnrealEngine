@@ -24,29 +24,29 @@ class UWorld;
  * Exec handler that registers itself and is being routed via StaticExec.
  * Note: Not intended for use with UObjects!
  */
-class CORE_API FSelfRegisteringExec : public FExec
+class FSelfRegisteringExec : public FExec
 {
 public:
 	/** Constructor, registering this instance. */
-	FSelfRegisteringExec();
+	CORE_API FSelfRegisteringExec();
 	/** Destructor, unregistering this instance. */
-	virtual ~FSelfRegisteringExec();
+	CORE_API virtual ~FSelfRegisteringExec();
 
 	/** Routes a command to the self-registered execs. */
-	static bool StaticExec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar );
+	static CORE_API bool StaticExec( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar );
 };
 
 /** Registers a static Exec function using FSelfRegisteringExec. */
-class CORE_API FStaticSelfRegisteringExec : public FSelfRegisteringExec
+class FStaticSelfRegisteringExec : public FSelfRegisteringExec
 {
 public:
 
 	/** Initialization constructor. */
-	FStaticSelfRegisteringExec(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd,FOutputDevice& Ar));
+	CORE_API FStaticSelfRegisteringExec(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd,FOutputDevice& Ar));
 
 	//~ Begin Exec Interface
 #if UE_ALLOW_EXEC_COMMANDS
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+	CORE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 #endif
 	//~ End Exec Interface
 
@@ -56,15 +56,15 @@ private:
 };
 
 /** Registers a static Exec_Dev function using FSelfRegisteringExec. */
-class CORE_API FStaticSelfRegisteringExec_Dev: public FSelfRegisteringExec
+class FStaticSelfRegisteringExec_Dev: public FSelfRegisteringExec
 {
 public:
 
 	/** Initialization constructor. */
-	explicit FStaticSelfRegisteringExec_Dev(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar));
+	CORE_API explicit FStaticSelfRegisteringExec_Dev(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar));
 
 	//~ Begin Exec Interface
-	virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	CORE_API virtual bool Exec_Dev(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	//~ End Exec Interface
 
 private:
@@ -73,15 +73,15 @@ private:
 };
 
 /** Registers a static Exec_Editor function using FSelfRegisteringExec. */
-class CORE_API FStaticSelfRegisteringExec_Editor: public FSelfRegisteringExec
+class FStaticSelfRegisteringExec_Editor: public FSelfRegisteringExec
 {
 public:
 
 	/** Initialization constructor. */
-	explicit FStaticSelfRegisteringExec_Editor(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar));
+	CORE_API explicit FStaticSelfRegisteringExec_Editor(bool (*InStaticExecFunc)(UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar));
 
 	//~ Begin Exec Interface
-	virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	CORE_API virtual bool Exec_Editor(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	//~ End Exec Interface
 
 private:
@@ -98,10 +98,10 @@ public:
 };
 
 
-struct CORE_API FMaintenance
+struct FMaintenance
 {
 	/** deletes log files older than a number of days specified in the Engine ini file */
-	static void DeleteOldLogs();
+	static CORE_API void DeleteOldLogs();
 };
 
 /*-----------------------------------------------------------------------------
@@ -210,7 +210,7 @@ FORCEINLINE bool IsRunningClientOnly()
 /**
  * Helper for obtaining the default Url configuration
  */
-struct CORE_API FUrlConfig
+struct FUrlConfig
 {
 	FString DefaultProtocol;
 	FString DefaultName;
@@ -222,23 +222,23 @@ struct CORE_API FUrlConfig
 	/**
 	 * Initialize with defaults from ini
 	 */
-	void Init();
+	CORE_API void Init();
 
 	/**
 	 * Reset state
 	 */
-	void Reset();
+	CORE_API void Reset();
 };
 
 bool CORE_API StringHasBadDashes(const TCHAR* Str);
 
 /** Helper structure for boolean values in config */
-struct CORE_API FBoolConfigValueHelper
+struct FBoolConfigValueHelper
 {
 private:
 	bool bValue;
 public:
-	FBoolConfigValueHelper(const TCHAR* Section, const TCHAR* Key, const FString& Filename = GEditorIni);
+	CORE_API FBoolConfigValueHelper(const TCHAR* Section, const TCHAR* Key, const FString& Filename = GEditorIni);
 
 	operator bool() const
 	{
@@ -303,10 +303,10 @@ private:
 /** 
  * Scoped struct used to push and pop a script exception handler
  */
-struct CORE_API FScopedScriptExceptionHandler
+struct FScopedScriptExceptionHandler
 {
-	explicit FScopedScriptExceptionHandler(const FScriptExceptionHandlerFunc& InFunc);
-	~FScopedScriptExceptionHandler();
+	CORE_API explicit FScopedScriptExceptionHandler(const FScriptExceptionHandlerFunc& InFunc);
+	CORE_API ~FScopedScriptExceptionHandler();
 };
 
 /**

@@ -10,16 +10,16 @@
 /**
  * Represents a block of memory, but abstracts away the underlying layout
  */
-class CORE_API IMemoryReadStream
+class IMemoryReadStream
 {
 public:
-	static TRefCountPtr<IMemoryReadStream> CreateFromCopy(const void* InMemory, int64 InSize);
-	static TRefCountPtr<IMemoryReadStream> CreateFromCopy(IMemoryReadStream* InStream);
-	static TRefCountPtr<IMemoryReadStream> CreateFromBuffer(void* InMemory, int64 InSize, bool bOwnPointer);
+	static CORE_API TRefCountPtr<IMemoryReadStream> CreateFromCopy(const void* InMemory, int64 InSize);
+	static CORE_API TRefCountPtr<IMemoryReadStream> CreateFromCopy(IMemoryReadStream* InStream);
+	static CORE_API TRefCountPtr<IMemoryReadStream> CreateFromBuffer(void* InMemory, int64 InSize, bool bOwnPointer);
 
 	virtual const void* Read(int64& OutSize, int64 InOffset, int64 InSize) = 0;
 	virtual int64 GetSize() = 0;
-	virtual void CopyTo(void* Buffer, int64 InOffset, int64 InSize);
+	CORE_API virtual void CopyTo(void* Buffer, int64 InOffset, int64 InSize);
 	virtual void EnsureReadNonBlocking() {};		// Incur any potential wait such that future Read() or CopyTo() calls are wait and thread switch free.
 
 	FORCEINLINE uint32 AddRef() const { return uint32(NumRefs.Increment()); }

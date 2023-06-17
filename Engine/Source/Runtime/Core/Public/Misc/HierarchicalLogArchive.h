@@ -10,10 +10,10 @@
 
 class FArchive;
 
-struct CORE_API FHierarchicalLogArchive : private FArchiveProxy
+struct FHierarchicalLogArchive : private FArchiveProxy
 {
 public:
-	FHierarchicalLogArchive(FArchive& InInnerArchive);
+	CORE_API FHierarchicalLogArchive(FArchive& InInnerArchive);
 
 	struct FIndentScope
 	{
@@ -47,7 +47,7 @@ public:
 	}
 
 private:
-	void WriteLine(const FString& InLine, bool bIndent = false);
+	CORE_API void WriteLine(const FString& InLine, bool bIndent = false);
 
 	int32 Indentation;
 };

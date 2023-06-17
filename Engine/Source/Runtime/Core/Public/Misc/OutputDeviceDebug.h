@@ -9,7 +9,7 @@
 
 #include <atomic>
 
-class CORE_API FOutputDeviceDebug : public FOutputDevice
+class FOutputDeviceDebug : public FOutputDevice
 {
 public:
 	/**
@@ -18,18 +18,18 @@ public:
 	* @param	Data	Text to log
 	* @param	Event	Event name used for suppression purposes
 	*/
-	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override;
+	CORE_API virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override;
 
-	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category) override;
+	CORE_API virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category) override;
 
-	virtual void SerializeRecord(const UE::FLogRecord& Record) override;
+	CORE_API virtual void SerializeRecord(const UE::FLogRecord& Record) override;
 
 	virtual bool CanBeUsedOnAnyThread() const override
 	{
 		return true;
 	}
 
-	virtual bool CanBeUsedOnMultipleThreads() const override;
+	CORE_API virtual bool CanBeUsedOnMultipleThreads() const override;
 
 	virtual bool CanBeUsedOnPanicThread() const override
 	{
@@ -37,8 +37,8 @@ public:
 	}
 
 private:
-	void ConditionalTickAsync(double Time);
-	void TickAsync();
+	CORE_API void ConditionalTickAsync(double Time);
+	CORE_API void TickAsync();
 
 	std::atomic<double> LastTickTime = 0.0;
 	std::atomic<bool> bSerializeAsJson = false;

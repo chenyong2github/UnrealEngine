@@ -23,18 +23,18 @@ class FStatsHierarchical;
  *	a description including its name, path (invocation path / call-stack) and its duration in 
  *  system cycles.
  */
-class CORE_API FStatsTreeElement
+class FStatsTreeElement
 {
 public:
 
 	// Default constructor
-	FStatsTreeElement();
+	CORE_API FStatsTreeElement();
 
 	// Returns the name of this element
-	FName GetFName() const;
+	CORE_API FName GetFName() const;
 
 	// Returns the name of this element as a FString
-	FString GetName() const;
+	CORE_API FString GetName() const;
 
 	/* 
 		Returns the invocation path of this element.
@@ -42,35 +42,35 @@ public:
 		profiling scopes.
 		For example: main.MyClass::Method.Algo::Sort
 	*/
-	FString GetPath() const;
+	CORE_API FString GetPath() const;
 
 	// Returns the number of invocations collected into this element
 	// @param bInclusive If true the invocations will contain the invocations used by child elements
-	uint32 Num(bool bInclusive = false) const;
+	CORE_API uint32 Num(bool bInclusive = false) const;
 
 	// Returns the total number of cycles recorded
 	// @param bInclusive If true the cycles will contain the cycles used by child elements
-	uint32 TotalCycles(bool bInclusive = true) const;
+	CORE_API uint32 TotalCycles(bool bInclusive = true) const;
 
 	// Returns the number of maximum cycles for this element (and children)
-	uint32 MaxCycles(bool bInclusive = true) const;
+	CORE_API uint32 MaxCycles(bool bInclusive = true) const;
 
 	// Returns the total number of seconds recorded
 	// @param bInclusive If true the time will contain the cycles used by child elements
-	double TotalSeconds(bool bInclusive = true) const;
+	CORE_API double TotalSeconds(bool bInclusive = true) const;
 
 	// Returns the average number of seconds recorded (total / num)
 	// @param bInclusive If true the time will contain the cycles used by child elements
-	double AverageSeconds(bool bInclusive = true) const;
+	CORE_API double AverageSeconds(bool bInclusive = true) const;
 
 	// Returns the contribution between 0.0 and 1.0 within the parent element.
 	// 1.0 means that 100% of the time of the parent element is spent in this child.
 	// @param bAgainstMaximum If true the ratio is expressed against the largest time in the tree
 	// @param bInclusive If true the time will contain the cycles used by child elements
-	double Contribution(bool bAgainstMaximum = false, bool bInclusive = true) const;
+	CORE_API double Contribution(bool bAgainstMaximum = false, bool bInclusive = true) const;
 
 	// Returns all child elements
-	const TArray<TSharedPtr<FStatsTreeElement>>& GetChildren() const;
+	CORE_API const TArray<TSharedPtr<FStatsTreeElement>>& GetChildren() const;
 
 protected:
 
@@ -90,9 +90,9 @@ protected:
 	TArray<TSharedPtr<FStatsTreeElement>> Children;
 
 	// returns the child or nullptr based on a given path
-	FStatsTreeElement* FindChild(const FString& InPath);
+	CORE_API FStatsTreeElement* FindChild(const FString& InPath);
 
-	void UpdatePostMeasurement(double InCyclesPerTimerToRemove = 0);
+	CORE_API void UpdatePostMeasurement(double InCyclesPerTimerToRemove = 0);
 
 	friend class FStatsHierarchical;
 	friend class FStatsHierarchicalClient;
@@ -133,7 +133,7 @@ protected:
  * Note: This system is not thread-safe. You want to call it from a single
  * thread only.
  */
-class CORE_API FStatsHierarchical
+class FStatsHierarchical
 {
 public:
 
@@ -158,26 +158,26 @@ public:
 	};
 
 	// Enabled measurements / profiling
-	static void BeginMeasurements();
+	static CORE_API void BeginMeasurements();
 
 	// Returns true if measurements are enabled
-	static bool IsEnabled();
+	static CORE_API bool IsEnabled();
 
 	/**
 	 * Ends measurements / profiling and returns the compacted profiling tree.
 	 * @param MeasurementsToMerge The baseline for the measurement.
 	 * @param bAddUntrackedElements If true adds an element for untracked time (time not profiled) for each node in the tree.
 	 */
-	static FStatsTreeElement EndMeasurements(FStatsTreeElement MeasurementsToMerge = FStatsTreeElement(), bool bAddUntrackedElements = true);
+	static CORE_API FStatsTreeElement EndMeasurements(FStatsTreeElement MeasurementsToMerge = FStatsTreeElement(), bool bAddUntrackedElements = true);
 
 	// Returns the last recorded profiling tree
-	static FStatsTreeElement GetLastMeasurements();
+	static CORE_API FStatsTreeElement GetLastMeasurements();
 
 	// Prints the results into a provided log
-	static void DumpMeasurements(FMessageLog& Log, bool bSortByDuration = true);
+	static CORE_API void DumpMeasurements(FMessageLog& Log, bool bSortByDuration = true);
 
 	// Returns the name to use for untracked time
-	static FName GetUntrackedTimeName();
+	static CORE_API FName GetUntrackedTimeName();
 
 private:
 
@@ -208,13 +208,13 @@ private:
 	 * Begins a single measurement given a label.
 	 * @param Label The label for this measurement (has to be != nullptr)
 	 */
-	static void BeginMeasurement(const ANSICHAR * Label);
+	static CORE_API void BeginMeasurement(const ANSICHAR * Label);
 
 	// Ends the last measurement
-	static void EndMeasurement();
+	static CORE_API void EndMeasurement();
 
-	static bool bEnabled;
-	static TArray<FHierarchicalStatEntry> Entries;
+	static CORE_API bool bEnabled;
+	static CORE_API TArray<FHierarchicalStatEntry> Entries;
 
 	friend struct FStatsHierarchical::FScope;
 };

@@ -10,7 +10,7 @@
 #include "Containers/UnrealString.h"
 
 /** Debug info that is stored on the stack and handled by stack unwinding. */
-class CORE_API FScopedDebugInfo
+class FScopedDebugInfo
 {
 public:
 
@@ -23,10 +23,10 @@ public:
 	FScopedDebugInfo* const NextOuterInfo;
 
 	/** Initialization constructor. */
-	FScopedDebugInfo(int32 InNumReplacedOuterCalls);
+	CORE_API FScopedDebugInfo(int32 InNumReplacedOuterCalls);
 
 	/** Destructor. */
-	virtual ~FScopedDebugInfo();
+	CORE_API virtual ~FScopedDebugInfo();
 
 	/** @return The "function name" to display on the call stack for this debug info. */
 	virtual FString GetFunctionName() const = 0;
@@ -38,6 +38,6 @@ public:
 	virtual int32 GetLineNumber() const = 0;
 
 	/** Accesses the list of debug infos on the stack in this thread. */
-	static FScopedDebugInfo* GetDebugInfoStack();
+	static CORE_API FScopedDebugInfo* GetDebugInfoStack();
 };
 

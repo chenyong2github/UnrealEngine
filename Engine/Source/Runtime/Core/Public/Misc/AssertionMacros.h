@@ -59,36 +59,36 @@ CORE_API TFunction<bool(const FEnsureHandlerArgs& Args)> GetEnsureHandler();
  * These functions offer debugging and diagnostic functionality and its presence 
  * depends on compiler switches.
  **/
-struct CORE_API FDebug
+struct FDebug
 {
 	/** Logs final assert message and exits the program. */
-	static void VARARGS AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format = TEXT(""), ...);
-	static void AssertFailedV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format, va_list Args);
+	static CORE_API void VARARGS AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format = TEXT(""), ...);
+	static CORE_API void AssertFailedV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format, va_list Args);
 
 	/** Triggers a fatal error, using the error formatted to GErrorHist via a previous call to FMsg*/
-	static void ProcessFatalError(void* ProgramCounter);
+	static CORE_API void ProcessFatalError(void* ProgramCounter);
 
 	// returns true if an assert has occurred
-	static bool HasAsserted();
+	static CORE_API bool HasAsserted();
 
 	// returns true if an ensure is currently in progress (e.g. the RenderThread is ensuring)
-	static bool IsEnsuring();
+	static CORE_API bool IsEnsuring();
 
 	// returns the number of times an ensure has failed in this instance.
-	static SIZE_T GetNumEnsureFailures();
+	static CORE_API SIZE_T GetNumEnsureFailures();
 
 	/** Dumps the stack trace into the log, meant to be used for debugging purposes. */
-	static void DumpStackTraceToLog(const ELogVerbosity::Type LogVerbosity);
+	static CORE_API void DumpStackTraceToLog(const ELogVerbosity::Type LogVerbosity);
 
 	/** Dumps the stack trace into the log with a custom heading, meant to be used for debugging purposes. */
-	static void DumpStackTraceToLog(const TCHAR* Heading, const ELogVerbosity::Type LogVerbosity);
+	static CORE_API void DumpStackTraceToLog(const TCHAR* Heading, const ELogVerbosity::Type LogVerbosity);
 
 #if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 public:
-	static bool VARARGS CheckVerifyFailedImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format, ...);
+	static CORE_API bool VARARGS CheckVerifyFailedImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format, ...);
 private:
-	static void VARARGS LogAssertFailedMessageImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Fmt, ...);
-	static void LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Fmt, va_list Args);
+	static CORE_API void VARARGS LogAssertFailedMessageImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Fmt, ...);
+	static CORE_API void LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Fmt, va_list Args);
 
 public:
 //	/**
@@ -108,11 +108,11 @@ public:
 	 * 
 	 * Don't change the name of this function, it's used to detect ensures by the crash reporter.
 	 */
-	static void EnsureFailed( const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Msg );
+	static CORE_API void EnsureFailed( const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Msg );
 
 private:
-	static bool VARARGS OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, ...);
-	static bool OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, va_list Args);
+	static CORE_API bool VARARGS OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, ...);
+	static CORE_API bool OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, va_list Args);
 
 public:
 	/**
@@ -157,7 +157,7 @@ public:
 	* @param	Message		Multi-line message with a callstack
 	*
 	*/
-	static void LogFormattedMessageWithCallstack(const FName& LogName, const ANSICHAR* File, int32 Line, const TCHAR* Heading, const TCHAR* Message, ELogVerbosity::Type Verbosity);
+	static CORE_API void LogFormattedMessageWithCallstack(const FName& LogName, const ANSICHAR* File, int32 Line, const TCHAR* Heading, const TCHAR* Message, ELogVerbosity::Type Verbosity);
 };
 
 /*----------------------------------------------------------------------------

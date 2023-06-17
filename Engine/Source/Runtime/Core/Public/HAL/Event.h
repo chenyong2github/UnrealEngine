@@ -17,7 +17,7 @@
  * 
  * Consider using FEventRef as a safer and more convenient alternative.
  */
-class CORE_API FEvent
+class FEvent
 {
 public:
 
@@ -102,20 +102,20 @@ public:
 	// DO NOT MODIFY THESE
 
 	/** Advances stats associated with this event. Used to monitor wait->trigger history. */
-	void AdvanceStats();
+	CORE_API void AdvanceStats();
 
 protected:
 	/** Sends to the stats a special messages which encodes a wait for the event. */
-	void WaitForStats();
+	CORE_API void WaitForStats();
 
 	/** Send to the stats a special message which encodes a trigger for the event. */
-	void TriggerForStats();
+	CORE_API void TriggerForStats();
 
 	/** Resets start cycles to 0. */
-	void ResetForStats();
+	CORE_API void ResetForStats();
 
 	/** Counter used to generate an unique id for the events. */
-	static TAtomic<uint32> EventUniqueId;
+	static CORE_API TAtomic<uint32> EventUniqueId;
 
 	/** An unique id of this event. */
 	uint32 EventId;
@@ -131,12 +131,12 @@ enum class EEventMode { AutoReset, ManualReset };
  *
  * non-copyable, non-movable
  */
-class CORE_API FEventRef final
+class FEventRef final
 {
 public:
-	explicit FEventRef(EEventMode Mode = EEventMode::AutoReset);
+	CORE_API explicit FEventRef(EEventMode Mode = EEventMode::AutoReset);
 
-	~FEventRef();
+	CORE_API ~FEventRef();
 
 	FEventRef(const FEventRef&) = delete;
 	FEventRef& operator=(const FEventRef&) = delete;
@@ -160,10 +160,10 @@ private:
 /**
  * RAII-style shared and pooled `FEvent`
  */
-class CORE_API FSharedEventRef final
+class FSharedEventRef final
 {
 public:
-	explicit FSharedEventRef(EEventMode Mode = EEventMode::AutoReset);
+	CORE_API explicit FSharedEventRef(EEventMode Mode = EEventMode::AutoReset);
 
 	FEvent* operator->() const
 	{

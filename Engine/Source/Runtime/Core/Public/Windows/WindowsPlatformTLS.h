@@ -10,7 +10,7 @@
 /**
  * Windows implementation of the TLS OS functions.
  */
-struct CORE_API FWindowsPlatformTLS
+struct FWindowsPlatformTLS
 	: public FGenericPlatformTLS
 {
 	/**

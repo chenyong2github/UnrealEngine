@@ -88,29 +88,29 @@ public:
 /**
  * Basic asynchronous task notification that just logs status changes.
  */
-class CORE_API FCoreAsyncTaskNotificationImpl : public IAsyncTaskNotificationImpl
+class FCoreAsyncTaskNotificationImpl : public IAsyncTaskNotificationImpl
 {
 public:
-	FCoreAsyncTaskNotificationImpl();
-	virtual ~FCoreAsyncTaskNotificationImpl();
+	CORE_API FCoreAsyncTaskNotificationImpl();
+	CORE_API virtual ~FCoreAsyncTaskNotificationImpl();
 
 	//~ IAsyncTaskNotificationImpl
-	virtual void Initialize(const FAsyncTaskNotificationConfig& InConfig) override;
-	virtual void SetTitleText(const FText& InTitleText, const bool bClearProgressText) override;
-	virtual void SetProgressText(const FText& InProgressText) override;
-	virtual void SetPromptText(const FText& InPromptText) override;
-	virtual void SetHyperlink(const FSimpleDelegate& InHyperlink, const FText& InHyperlinkText) override;
-	virtual void SetComplete(const bool bSuccess) override;
-	virtual void SetComplete(const FText& InTitleText, const FText& InProgressText, const bool bSuccess) override;
-	virtual void SetNotificationState(const FAsyncNotificationStateData& InState) override;
-	virtual void SetCanCancel(const TAttribute<bool>& InCanCancel) override;
-	virtual void SetKeepOpenOnSuccess(const TAttribute<bool>& InKeepOpenOnSuccess) override;
-	virtual void SetKeepOpenOnFailure(const TAttribute<bool>& InKeepOpenOnFailure) override;
-	virtual EAsyncTaskNotificationPromptAction GetPromptAction() const override;
+	CORE_API virtual void Initialize(const FAsyncTaskNotificationConfig& InConfig) override;
+	CORE_API virtual void SetTitleText(const FText& InTitleText, const bool bClearProgressText) override;
+	CORE_API virtual void SetProgressText(const FText& InProgressText) override;
+	CORE_API virtual void SetPromptText(const FText& InPromptText) override;
+	CORE_API virtual void SetHyperlink(const FSimpleDelegate& InHyperlink, const FText& InHyperlinkText) override;
+	CORE_API virtual void SetComplete(const bool bSuccess) override;
+	CORE_API virtual void SetComplete(const FText& InTitleText, const FText& InProgressText, const bool bSuccess) override;
+	CORE_API virtual void SetNotificationState(const FAsyncNotificationStateData& InState) override;
+	CORE_API virtual void SetCanCancel(const TAttribute<bool>& InCanCancel) override;
+	CORE_API virtual void SetKeepOpenOnSuccess(const TAttribute<bool>& InKeepOpenOnSuccess) override;
+	CORE_API virtual void SetKeepOpenOnFailure(const TAttribute<bool>& InKeepOpenOnFailure) override;
+	CORE_API virtual EAsyncTaskNotificationPromptAction GetPromptAction() const override;
 
 protected:
 	/** Update the notification (the critical section is held while this function is called) */
-	virtual void UpdateNotification();
+	CORE_API virtual void UpdateNotification();
 
 	/** The current state of this notification */
 	EAsyncTaskNotificationState State = EAsyncTaskNotificationState::Pending;
@@ -143,7 +143,7 @@ private:
 /**
  * Factory to allow other systems (such as Slate) to override the default asynchronous task notification implementation.
  */
-class CORE_API FAsyncTaskNotificationFactory
+class FAsyncTaskNotificationFactory
 {
 	friend class FAsyncTaskNotification;
 
@@ -154,23 +154,23 @@ public:
 	/**
 	 * Get the factory singleton.
 	 */
-	static FAsyncTaskNotificationFactory& Get();
+	static CORE_API FAsyncTaskNotificationFactory& Get();
 
 	/**
 	 * Register a factory function.
 	 */
-	void RegisterFactory(const FName InName, const FFactoryFunc& InFunc);
+	CORE_API void RegisterFactory(const FName InName, const FFactoryFunc& InFunc);
 
 	/**
 	 * Unregister a factory function.
 	 */
-	void UnregisterFactory(const FName InName);
+	CORE_API void UnregisterFactory(const FName InName);
 
 private:
 	/**
 	 * Invoke the active factory function (if any), or return a default instance.
 	 */
-	FImplPointerType InvokeFactory() const;
+	CORE_API FImplPointerType InvokeFactory() const;
 
 	/** Registered factories */
 	TArray<TTuple<FName, FFactoryFunc>> Factories;

@@ -17,7 +17,7 @@
 #include <type_traits>
 
 struct FPropertyTag;
-class CORE_API FString;
+class FString;
 class UObject;
 
 /* 

@@ -18,17 +18,17 @@ struct FPrivateTextFormatArguments;
 /**
  * Definition of the pattern used during a text format.
  */
-class CORE_API FTextFormatPatternDefinition : public TSharedFromThis<FTextFormatPatternDefinition, ESPMode::ThreadSafe>
+class FTextFormatPatternDefinition : public TSharedFromThis<FTextFormatPatternDefinition, ESPMode::ThreadSafe>
 {
 public:
 	/** Constructor */
-	FTextFormatPatternDefinition();
+	CORE_API FTextFormatPatternDefinition();
 
 	/** Singleton access to the default instance */
-	static FTextFormatPatternDefinitionConstRef GetDefault();
+	static CORE_API FTextFormatPatternDefinitionConstRef GetDefault();
 
 	/** Get the text format definitions used when formatting text */
-	const FTokenDefinitions& GetTextFormatDefinitions() const;
+	CORE_API const FTokenDefinitions& GetTextFormatDefinitions() const;
 
 	/** Is the given character one that an escape token may escape? */
 	FORCEINLINE bool IsValidEscapeChar(const TCHAR InChar) const
@@ -70,34 +70,34 @@ private:
 /**
  * A text formatter is responsible for formatting text patterns using a set of named or ordered arguments.
  */
-class CORE_API FTextFormatter
+class FTextFormatter
 {
 public:
 	/** Callback function used to compile an argument modifier. Takes an argument modifier string and pattern definition, then returns the compiled result. */
 	typedef TFunction<TSharedPtr<ITextFormatArgumentModifier>(const FTextFormatString&, FTextFormatPatternDefinitionConstRef)> FCompileTextArgumentModifierFuncPtr;
 
 	/** Singleton access */
-	static FTextFormatter& Get();
+	static CORE_API FTextFormatter& Get();
 
-	void RegisterTextArgumentModifier(const FTextFormatString& InKeyword, FCompileTextArgumentModifierFuncPtr InCompileFunc);
-	void UnregisterTextArgumentModifier(const FTextFormatString& InKeyword);
-	FCompileTextArgumentModifierFuncPtr FindTextArgumentModifier(const FTextFormatString& InKeyword) const;
+	CORE_API void RegisterTextArgumentModifier(const FTextFormatString& InKeyword, FCompileTextArgumentModifierFuncPtr InCompileFunc);
+	CORE_API void UnregisterTextArgumentModifier(const FTextFormatString& InKeyword);
+	CORE_API FCompileTextArgumentModifierFuncPtr FindTextArgumentModifier(const FTextFormatString& InKeyword) const;
 
 	/** Low-level versions of Format. You probably want to use FText::Format(...) rather than call these directly */
-	static FText Format(FTextFormat&& InFmt, FFormatNamedArguments&& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
-	static FText Format(FTextFormat&& InFmt, FFormatOrderedArguments&& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
-	static FText Format(FTextFormat&& InFmt, TArray<FFormatArgumentData>&& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
+	static CORE_API FText Format(FTextFormat&& InFmt, FFormatNamedArguments&& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
+	static CORE_API FText Format(FTextFormat&& InFmt, FFormatOrderedArguments&& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
+	static CORE_API FText Format(FTextFormat&& InFmt, TArray<FFormatArgumentData>&& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
 
 	/** Low-level version of Format that returns a string. This should typically only be used externally when rebuilding the display string for some formatted text */
-	static FString FormatStr(const FTextFormat& InFmt, const FFormatNamedArguments& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
-	static FString FormatStr(const FTextFormat& InFmt, const FFormatOrderedArguments& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
-	static FString FormatStr(const FTextFormat& InFmt, const TArray<FFormatArgumentData>& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
+	static CORE_API FString FormatStr(const FTextFormat& InFmt, const FFormatNamedArguments& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
+	static CORE_API FString FormatStr(const FTextFormat& InFmt, const FFormatOrderedArguments& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
+	static CORE_API FString FormatStr(const FTextFormat& InFmt, const TArray<FFormatArgumentData>& InArguments, const bool bInRebuildText, const bool bInRebuildAsSource);
 
 	/** Incredibly low-level version of format. You should only be calling this if you're implementing a custom argument modifier type that itself needs to format using the private arguments */
-	static FString Format(const FTextFormat& InFmt, const FPrivateTextFormatArguments& InFormatArgs);
+	static CORE_API FString Format(const FTextFormat& InFmt, const FPrivateTextFormatArguments& InFormatArgs);
 
 	/** Incredibly low-level version of FFormatArgumentValue::ToFormattedString. You should only be calling this if you're implementing a custom argument modifier type that itself needs to convert the argument to a string */
-	static void ArgumentValueToFormattedString(const FFormatArgumentValue& InValue, const FPrivateTextFormatArguments& InFormatArgs, FString& OutResult);
+	static CORE_API void ArgumentValueToFormattedString(const FFormatArgumentValue& InValue, const FPrivateTextFormatArguments& InFormatArgs, FString& OutResult);
 
 private:
 	static int32 EstimateArgumentValueLength(const FFormatArgumentValue& ArgumentValue);

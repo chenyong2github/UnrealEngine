@@ -205,33 +205,33 @@ protected:
 /**
  * Unix implementation of the Process OS functions
  */
-struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
+struct FUnixPlatformProcess : public FGenericPlatformProcess
 {
 	struct FProcEnumInfo;
 
 	/**
 	 * Process enumerator.
 	 */
-	class CORE_API FProcEnumerator
+	class FProcEnumerator
 	{
 	public:
 		// Constructor
-		FProcEnumerator();
+		CORE_API FProcEnumerator();
 		FProcEnumerator(const FProcEnumerator&) = delete;
 		FProcEnumerator& operator=(const FProcEnumerator&) = delete;
 
 		// Destructor
-		~FProcEnumerator();
+		CORE_API ~FProcEnumerator();
 
 		// Gets current process enumerator info.
-		FProcEnumInfo GetCurrent() const;
+		CORE_API FProcEnumInfo GetCurrent() const;
 		
 		/**
 		 * Moves current to the next process.
 		 *
 		 * @returns True if succeeded. False otherwise.
 		 */
-		bool MoveNext();
+		CORE_API bool MoveNext();
 	private:
 		// Private implementation data.
 		struct FProcEnumData* Data;
@@ -240,21 +240,21 @@ struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
 	/**
 	 * Process enumeration info structure.
 	 */
-	struct CORE_API FProcEnumInfo
+	struct FProcEnumInfo
 	{
 		friend FUnixPlatformProcess::FProcEnumerator::FProcEnumerator();
 
 		// Gets process PID.
-		uint32 GetPID() const;
+		CORE_API uint32 GetPID() const;
 
 		// Gets parent process PID.
-		uint32 GetParentPID() const;
+		CORE_API uint32 GetParentPID() const;
 
 		// Gets process name. I.e. exec name.
-		FString GetName() const;
+		CORE_API FString GetName() const;
 
 		// Gets process full image path. I.e. full path of the exec file.
-		FString GetFullPath() const;
+		CORE_API FString GetFullPath() const;
 
 	private:
 		// Private constructor.
@@ -264,67 +264,67 @@ struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
 		uint32 PID;
 	};
 
-	static void* GetDllHandle( const TCHAR* Filename );
-	static void FreeDllHandle( void* DllHandle );
-	static void* GetDllExport( void* DllHandle, const TCHAR* ProcName );
-	static const TCHAR* ComputerName();
-	static const TCHAR* UserName(bool bOnlyAlphaNumeric = true);
-	static const TCHAR* UserTempDir();
-	static const TCHAR* UserDir();
-	static const TCHAR* UserSettingsDir();
-	static const TCHAR* ApplicationSettingsDir();
-	static FString GetApplicationSettingsDir(const ApplicationSettingsContext& Settings);
-	static void SetCurrentWorkingDirectoryToBaseDir();
-	static FString GetCurrentWorkingDirectory();
-	static FString GenerateApplicationPath(const FString& AppName, EBuildConfiguration BuildConfiguration);
-	static FString GetApplicationName( uint32 ProcessId );
-	static bool SetProcessLimits(EProcessResource::Type Resource, uint64 Limit);
-	static const TCHAR* ExecutablePath();
-	static const TCHAR* ExecutableName(bool bRemoveExtension = true);
-	static const TCHAR* GetModulePrefix();
-	static const TCHAR* GetModuleExtension();
-	static void ClosePipe( void* ReadPipe, void* WritePipe );
-	static bool CreatePipe(void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal = false);
-	static FString ReadPipe( void* ReadPipe );
-	static bool ReadPipeToArray(void* ReadPipe, TArray<uint8> & Output);
-	static bool WritePipe(void* WritePipe, const FString& Message, FString* OutWritten = nullptr);
-	static bool WritePipe(void* WritePipe, const uint8* Data, const int32 DataLength, int32* OutDataLength = nullptr);
-	static class FRunnableThread* CreateRunnableThread();
-	static const FString GetModulesDirectory();
-	static bool CanLaunchURL(const TCHAR* URL);
-	static void LaunchURL(const TCHAR* URL, const TCHAR* Parms, FString* Error);
-	static FProcHandle CreateProc(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild = nullptr);
-	static FProcHandle CreateProc(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild , void* PipeStdErrChild);
-	static FProcHandle OpenProcess(uint32 ProcessID);
-	static bool IsProcRunning( FProcHandle & ProcessHandle );
-	static void WaitForProc( FProcHandle & ProcessHandle );
-	static void CloseProc( FProcHandle & ProcessHandle );
-	static void TerminateProc( FProcHandle & ProcessHandle, bool KillTree = false );
-	static EWaitAndForkResult WaitAndFork();
-	static uint32 GetCurrentProcessId();
-	static uint32 GetCurrentCoreNumber();
-	static bool GetProcReturnCode( FProcHandle & ProcHandle, int32* ReturnCode );
-	static bool Daemonize();
-	static bool IsApplicationRunning( uint32 ProcessId );
-	static bool IsApplicationRunning( const TCHAR* ProcName );
-	static bool ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory = NULL, bool bShouldEndWithParentProcess = false);
-	static void ExploreFolder( const TCHAR* FilePath );
-	static bool LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms = NULL, ELaunchVerb::Type Verb = ELaunchVerb::Open, bool bPromptToOpenOnFailure = true);
-	static bool IsFirstInstance();
-	static void OnChildEndFramePostFork();
-	static int32 TranslateThreadPriority(EThreadPriority Priority);
-	static void SetThreadNiceValue( uint32_t ThreadId, int32 NiceValue );
-	static void SetThreadPriority( EThreadPriority NewPriority );
+	static CORE_API void* GetDllHandle( const TCHAR* Filename );
+	static CORE_API void FreeDllHandle( void* DllHandle );
+	static CORE_API void* GetDllExport( void* DllHandle, const TCHAR* ProcName );
+	static CORE_API const TCHAR* ComputerName();
+	static CORE_API const TCHAR* UserName(bool bOnlyAlphaNumeric = true);
+	static CORE_API const TCHAR* UserTempDir();
+	static CORE_API const TCHAR* UserDir();
+	static CORE_API const TCHAR* UserSettingsDir();
+	static CORE_API const TCHAR* ApplicationSettingsDir();
+	static CORE_API FString GetApplicationSettingsDir(const ApplicationSettingsContext& Settings);
+	static CORE_API void SetCurrentWorkingDirectoryToBaseDir();
+	static CORE_API FString GetCurrentWorkingDirectory();
+	static CORE_API FString GenerateApplicationPath(const FString& AppName, EBuildConfiguration BuildConfiguration);
+	static CORE_API FString GetApplicationName( uint32 ProcessId );
+	static CORE_API bool SetProcessLimits(EProcessResource::Type Resource, uint64 Limit);
+	static CORE_API const TCHAR* ExecutablePath();
+	static CORE_API const TCHAR* ExecutableName(bool bRemoveExtension = true);
+	static CORE_API const TCHAR* GetModulePrefix();
+	static CORE_API const TCHAR* GetModuleExtension();
+	static CORE_API void ClosePipe( void* ReadPipe, void* WritePipe );
+	static CORE_API bool CreatePipe(void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal = false);
+	static CORE_API FString ReadPipe( void* ReadPipe );
+	static CORE_API bool ReadPipeToArray(void* ReadPipe, TArray<uint8> & Output);
+	static CORE_API bool WritePipe(void* WritePipe, const FString& Message, FString* OutWritten = nullptr);
+	static CORE_API bool WritePipe(void* WritePipe, const uint8* Data, const int32 DataLength, int32* OutDataLength = nullptr);
+	static CORE_API class FRunnableThread* CreateRunnableThread();
+	static CORE_API const FString GetModulesDirectory();
+	static CORE_API bool CanLaunchURL(const TCHAR* URL);
+	static CORE_API void LaunchURL(const TCHAR* URL, const TCHAR* Parms, FString* Error);
+	static CORE_API FProcHandle CreateProc(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild = nullptr);
+	static CORE_API FProcHandle CreateProc(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild , void* PipeStdErrChild);
+	static CORE_API FProcHandle OpenProcess(uint32 ProcessID);
+	static CORE_API bool IsProcRunning( FProcHandle & ProcessHandle );
+	static CORE_API void WaitForProc( FProcHandle & ProcessHandle );
+	static CORE_API void CloseProc( FProcHandle & ProcessHandle );
+	static CORE_API void TerminateProc( FProcHandle & ProcessHandle, bool KillTree = false );
+	static CORE_API EWaitAndForkResult WaitAndFork();
+	static CORE_API uint32 GetCurrentProcessId();
+	static CORE_API uint32 GetCurrentCoreNumber();
+	static CORE_API bool GetProcReturnCode( FProcHandle & ProcHandle, int32* ReturnCode );
+	static CORE_API bool Daemonize();
+	static CORE_API bool IsApplicationRunning( uint32 ProcessId );
+	static CORE_API bool IsApplicationRunning( const TCHAR* ProcName );
+	static CORE_API bool ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory = NULL, bool bShouldEndWithParentProcess = false);
+	static CORE_API void ExploreFolder( const TCHAR* FilePath );
+	static CORE_API bool LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms = NULL, ELaunchVerb::Type Verb = ELaunchVerb::Open, bool bPromptToOpenOnFailure = true);
+	static CORE_API bool IsFirstInstance();
+	static CORE_API void OnChildEndFramePostFork();
+	static CORE_API int32 TranslateThreadPriority(EThreadPriority Priority);
+	static CORE_API void SetThreadNiceValue( uint32_t ThreadId, int32 NiceValue );
+	static CORE_API void SetThreadPriority( EThreadPriority NewPriority );
 
 	/**
 	 * @brief Releases locks that we held for IsFirstInstance check
 	 */
-	static void CeaseBeingFirstInstance();
+	static CORE_API void CeaseBeingFirstInstance();
 
 	/**
 	 * @brief Returns user home directory (i.e. $HOME).
 	 *
 	 * Like other directory functions, cannot return nullptr!
 	 */
-	static const TCHAR* UserHomeDir();
+	static CORE_API const TCHAR* UserHomeDir();
 };

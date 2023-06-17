@@ -8,7 +8,7 @@
 #include "Serialization/StructuredArchive.h"
 
 /** Utility functions. */
-class CORE_API FEngineVersion : public FEngineVersionBase
+class FEngineVersion : public FEngineVersionBase
 {
 public:
 
@@ -16,34 +16,34 @@ public:
 	FEngineVersion() = default;
 
 	/** Constructs a version from the given components. */
-	FEngineVersion(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist, const FString &InBranch);
+	CORE_API FEngineVersion(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist, const FString &InBranch);
 
 	/** Sets the version to the given values. */
-	void Set(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist, const FString &InBranch);
+	CORE_API void Set(uint16 InMajor, uint16 InMinor, uint16 InPatch, uint32 InChangelist, const FString &InBranch);
 
 	/** Clears the object. */
-	void Empty();
+	CORE_API void Empty();
 
 	/** Checks whether this engine version is an exact match for another engine version */
-	bool ExactMatch(const FEngineVersion& Other) const;
+	CORE_API bool ExactMatch(const FEngineVersion& Other) const;
 
 	/** Checks compatibility with another version object. */
-	bool IsCompatibleWith(const FEngineVersionBase &Other) const;
+	CORE_API bool IsCompatibleWith(const FEngineVersionBase &Other) const;
 
 	/** Generates a version string */
-	FString ToString(EVersionComponent LastComponent = EVersionComponent::Branch) const;
+	CORE_API FString ToString(EVersionComponent LastComponent = EVersionComponent::Branch) const;
 
 	/** Parses a version object from a string. Returns true on success. */
-	static bool Parse(const FString &Text, FEngineVersion &OutVersion);
+	static CORE_API bool Parse(const FString &Text, FEngineVersion &OutVersion);
 
 	/** Gets the current engine version */
-	static const FEngineVersion& Current();
+	static CORE_API const FEngineVersion& Current();
 
 	/** Gets the earliest version which this engine maintains strict API and package compatibility with */
-	static const FEngineVersion& CompatibleWith();
+	static CORE_API const FEngineVersion& CompatibleWith();
 
 	/** Clears the current and compatible-with engine versions */
-	static void TearDown();
+	static CORE_API void TearDown();
 
 	/** Serialization functions */
 	friend CORE_API void operator<<(class FArchive &Ar, FEngineVersion &Version);
@@ -55,7 +55,7 @@ public:
 		return Branch.Replace( TEXT( "+" ), TEXT( "/" ) );
 	}
 
-	const FString& GetBranchDescriptor() const;
+	CORE_API const FString& GetBranchDescriptor() const;
 		
 
 private:

@@ -27,89 +27,89 @@ namespace EResourceSizeMode
  * Struct used to count up the amount of memory used by a resource.
  * This is typically used for assets via UObject::GetResourceSizeEx(...).
  */
-struct CORE_API FResourceSizeEx
+struct FResourceSizeEx
 {
 public:
 
 	/**
 	 * Default constructor. 
 	 */
-	explicit FResourceSizeEx();
+	CORE_API explicit FResourceSizeEx();
 
 	/**
 	 * Construct using a given mode. 
 	 */
-	explicit FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode);
+	CORE_API explicit FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode);
 
 	/**
 	 * Construct from known sizes. 
 	 */
-	FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode, const SIZE_T InDedicatedSystemMemoryBytes, const SIZE_T InDedicatedVideoMemoryBytes);
+	CORE_API FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode, const SIZE_T InDedicatedSystemMemoryBytes, const SIZE_T InDedicatedVideoMemoryBytes);
 
 	/**
 	 * Construct from legacy unknown size.
 	 * Deliberately explicit to avoid accidental use.
 	 */
-	FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode, const SIZE_T InUnknownMemoryBytes);
+	CORE_API FResourceSizeEx(const EResourceSizeMode::Type InResourceSizeMode, const SIZE_T InUnknownMemoryBytes);
 
-	void LogSummary(FOutputDevice& Ar) const;
+	CORE_API void LogSummary(FOutputDevice& Ar) const;
 
 	/**
 	 * Get the type of resource size held in this struct.
 	 */
-	EResourceSizeMode::Type GetResourceSizeMode() const;
+	CORE_API EResourceSizeMode::Type GetResourceSizeMode() const;
 
-	FResourceSizeEx& AddDedicatedSystemMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
+	CORE_API FResourceSizeEx& AddDedicatedSystemMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
 
 	/**
 	 * Add the given number of bytes to the dedicated system memory count.
 	 * @see DedicatedSystemMemoryBytes for a description of that memory type.
 	 */
-	FResourceSizeEx& AddDedicatedSystemMemoryBytes(const SIZE_T InMemoryBytes);
+	CORE_API FResourceSizeEx& AddDedicatedSystemMemoryBytes(const SIZE_T InMemoryBytes);
 
 	/**
 	 * Get the number of bytes allocated from dedicated system memory.
 	 * @see DedicatedSystemMemoryBytes for a description of that memory type.
 	 */
-	SIZE_T GetDedicatedSystemMemoryBytes() const;
+	CORE_API SIZE_T GetDedicatedSystemMemoryBytes() const;
 
-	FResourceSizeEx& AddDedicatedVideoMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
+	CORE_API FResourceSizeEx& AddDedicatedVideoMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
 
 	/**
 	 * Add the given number of bytes to the dedicated video memory count.
 	 * @see DedicatedVideoMemoryBytes for a description of that memory type.
 	 */
-	FResourceSizeEx& AddDedicatedVideoMemoryBytes(const SIZE_T InMemoryBytes);
+	CORE_API FResourceSizeEx& AddDedicatedVideoMemoryBytes(const SIZE_T InMemoryBytes);
 
 	/**
 	 * Get the number of bytes allocated from dedicated video memory.
 	 * @see DedicatedVideoMemoryBytes for a description of that memory type.
 	 */
-	SIZE_T GetDedicatedVideoMemoryBytes() const;
+	CORE_API SIZE_T GetDedicatedVideoMemoryBytes() const;
 
-	FResourceSizeEx& AddUnknownMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
+	CORE_API FResourceSizeEx& AddUnknownMemoryBytes(const FName& Tag, const SIZE_T InMemoryBytes);
 
 	/**
 	 * Add the given number of bytes to the unknown memory count.
 	 * @see UnknownMemoryBytes for a description of that memory type.
 	 */
-	FResourceSizeEx& AddUnknownMemoryBytes(const SIZE_T InMemoryBytes);
+	CORE_API FResourceSizeEx& AddUnknownMemoryBytes(const SIZE_T InMemoryBytes);
 
 	/**
 	 * Get the number of bytes allocated from unknown memory.
 	 * @see UnknownMemoryBytes for a description of that memory type.
 	 */
-	SIZE_T GetUnknownMemoryBytes() const;
+	CORE_API SIZE_T GetUnknownMemoryBytes() const;
 
 	/**
 	 * Get the total number of bytes allocated from any memory.
 	 */
-	SIZE_T GetTotalMemoryBytes() const;
+	CORE_API SIZE_T GetTotalMemoryBytes() const;
 
 	/**
 	 * Add another FResourceSizeEx to this one.
 	 */
-	FResourceSizeEx& operator+=(const FResourceSizeEx& InRHS);
+	CORE_API FResourceSizeEx& operator+=(const FResourceSizeEx& InRHS);
 
 private:
 	/**

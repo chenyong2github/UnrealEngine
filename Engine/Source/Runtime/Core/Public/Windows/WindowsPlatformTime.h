@@ -15,10 +15,10 @@
  *
  * https://udn.epicgames.com/lists/showpost.php?id=46794&list=unprog3
  */
-struct CORE_API FWindowsPlatformTime
+struct FWindowsPlatformTime
 	: public FGenericPlatformTime
 {
-	static double InitTiming();
+	static CORE_API double InitTiming();
 
 	static FORCEINLINE double Seconds()
 	{
@@ -44,20 +44,20 @@ struct CORE_API FWindowsPlatformTime
 	}
 
 
-	static void SystemTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
-	static void UtcTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
+	static CORE_API void SystemTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
+	static CORE_API void UtcTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
 
-	static bool UpdateCPUTime( float DeltaTime );
-	static bool UpdateThreadCPUTime(float = 0.0);
-	static void AutoUpdateGameThreadCPUTime(double UpdateInterval);
-	static FCPUTime GetCPUTime();
-	static FCPUTime GetThreadCPUTime();
-	static double GetLastIntervalThreadCPUTimeInSeconds();
+	static CORE_API bool UpdateCPUTime( float DeltaTime );
+	static CORE_API bool UpdateThreadCPUTime(float = 0.0);
+	static CORE_API void AutoUpdateGameThreadCPUTime(double UpdateInterval);
+	static CORE_API FCPUTime GetCPUTime();
+	static CORE_API FCPUTime GetThreadCPUTime();
+	static CORE_API double GetLastIntervalThreadCPUTimeInSeconds();
 
 protected:
 
 	/** Percentage CPU utilization for the last interval relative to one core. */
-	static float CPUTimePctRelative;
+	static CORE_API float CPUTimePctRelative;
 };
 
 

@@ -10,29 +10,29 @@
 /**
  * Dictionary of all the non-foreign projects for an engine installation, found by parsing .uprojectdirs files for source directories.
  */
-class CORE_API FUProjectDictionary
+class FUProjectDictionary
 {
 public:
 	/** Scans the engine root directory for all the known projects. */
-	FUProjectDictionary(const FString& InRootDir);
+	CORE_API FUProjectDictionary(const FString& InRootDir);
 	
 	/** Refreshes the list of known projects */
-	void Refresh();
+	CORE_API void Refresh();
 
 	/** Determines whether a project is a foreign project or not. */
-	bool IsForeignProject(const FString& ProjectFileName) const;
+	CORE_API bool IsForeignProject(const FString& ProjectFileName) const;
 
 	/** Gets the project filename for the given game. Empty if not found. */
-	FString GetRelativeProjectPathForGame(const TCHAR* GameName, const FString& BaseDir) const;
+	CORE_API FString GetRelativeProjectPathForGame(const TCHAR* GameName, const FString& BaseDir) const;
 
 	/** Gets the project filename for the given game. Empty if not found. */
-	FString GetProjectPathForGame(const TCHAR* GameName) const;
+	CORE_API FString GetProjectPathForGame(const TCHAR* GameName) const;
 
 	/** Gets a list of all the known projects. */
-	TArray<FString> GetProjectPaths() const;
+	CORE_API TArray<FString> GetProjectPaths() const;
 
 	/** Gets the project dictionary for the active engine installation. */
-	static FUProjectDictionary& GetDefault();
+	static CORE_API FUProjectDictionary& GetDefault();
 
 private:
 	/** The root directory for this engine installation */

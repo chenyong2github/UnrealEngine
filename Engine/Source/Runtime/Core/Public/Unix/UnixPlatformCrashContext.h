@@ -28,7 +28,7 @@ struct ThreadStackUserData
 	TAtomic<bool> bDone;
 };
 
-struct CORE_API FUnixCrashContext : public FGenericCrashContext
+struct FUnixCrashContext : public FGenericCrashContext
 {
 	/** Signal number */
 	int32 Signal;
@@ -52,7 +52,7 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	char MinidumpCallstackInfo[16384];
 
 	/** Fake siginfo used when handling ensure(), etc */
-	static __thread siginfo_t	FakeSiginfoForDiagnostics;
+	static CORE_API __thread siginfo_t	FakeSiginfoForDiagnostics;
 
 	/** The PC of the first function used when handling a crash. Used to figure out the number of frames to ignore */
 	uint64* FirstCrashHandlerFrame = nullptr;
@@ -73,7 +73,7 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 		MinidumpCallstackInfo[ 0 ] = 0;
 	}
 
-	~FUnixCrashContext();
+	CORE_API ~FUnixCrashContext();
 
 	/**
 	 * Inits the crash context from data provided by a signal handler.
@@ -82,34 +82,34 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	 * @param InInfo additional info (e.g. address we tried to read, etc)
 	 * @param InContext thread context
 	 */
-	void InitFromSignal(int32 InSignal, siginfo_t* InInfo, void* InContext);
+	CORE_API void InitFromSignal(int32 InSignal, siginfo_t* InInfo, void* InContext);
 
 	/**
 	 * Inits the crash context from some diagnostic handler (ensure, stall, etc...)
 	 *
 	 * @param InAddress address where the event happened, for optional callstack trimming
 	 */
-	void InitFromDiagnostics(const void* InAddress = nullptr);
+	CORE_API void InitFromDiagnostics(const void* InAddress = nullptr);
 
 	/**
 	 * Populates crash context stack trace and a few related fields for the calling thread
 	 *
 	 */
-	void CaptureStackTrace(void* ErrorProgramCounter);
+	CORE_API void CaptureStackTrace(void* ErrorProgramCounter);
 
 	/**
 	 * Populates crash context stack trace and a few related fields for another thread
 	 *
 	 * @param ThreadId The thread to capture the stack trace from
 	 */
-	void CaptureThreadStackTrace(uint32_t ThreadId);
+	CORE_API void CaptureThreadStackTrace(uint32_t ThreadId);
 
 	/**
 	 * Generates a new crash report containing information needed for the crash reporter and launches it; may not return.
 	 *
 	 * @return If the crash type is not continuable, the function will not return
 	 */
-	void GenerateCrashInfoAndLaunchReporter() const;
+	CORE_API void GenerateCrashInfoAndLaunchReporter() const;
 
 	/**
 	 * Sets whether this crash represents a non-crash event like an ensure
@@ -119,11 +119,11 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	/**
 	 * Sets the FirstCrashHandlerFrame only if it has not been set before
 	 */
-	void SetFirstCrashHandlerFrame(uint64* ProgramCounter);
+	CORE_API void SetFirstCrashHandlerFrame(uint64* ProgramCounter);
 
-	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const override;
+	CORE_API virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const override;
 
-	void AddPlatformSpecificProperties() const;
+	CORE_API void AddPlatformSpecificProperties() const;
 
 protected:
 	/**
@@ -131,7 +131,7 @@ protected:
 	 *
 	 * @param DiagnosticsPath Path to put the file to
 	 */
-	void GenerateReport(const FString & DiagnosticsPath) const;
+	CORE_API void GenerateReport(const FString & DiagnosticsPath) const;
 };
 
 typedef FUnixCrashContext FPlatformCrashContext;

@@ -24,16 +24,16 @@ class SBuildProgressWidget;
 struct FSlowTask;
 
 /** A context for displaying modal warning messages. */
-class CORE_API FFeedbackContext
+class FFeedbackContext
 	: public FOutputDevice
 {
 public:
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override;
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override;
-	virtual void SerializeRecord(const UE::FLogRecord& Record) override;
+	CORE_API virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category) override;
+	CORE_API virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time) override;
+	CORE_API virtual void SerializeRecord(const UE::FLogRecord& Record) override;
 
 	/** Ask the user a binary question, returning their answer */
-	virtual bool YesNof( const FText& Question );
+	CORE_API virtual bool YesNof( const FText& Question );
 	
 	/**
 	 * Whether or not the user has canceled out of the progress dialog
@@ -56,11 +56,11 @@ public:
 
 
 	/**** Legacy API - not deprecated as it's still in heavy use, but superceded by FScopedSlowTask ****/
-	void BeginSlowTask( const FText& Task, bool ShowProgressDialog, bool bShowCancelButton=false );
-	void UpdateProgress( int32 Numerator, int32 Denominator );
-	void StatusUpdate( int32 Numerator, int32 Denominator, const FText& StatusText );
-	void StatusForceUpdate( int32 Numerator, int32 Denominator, const FText& StatusText );
-	void EndSlowTask();
+	CORE_API void BeginSlowTask( const FText& Task, bool ShowProgressDialog, bool bShowCancelButton=false );
+	CORE_API void UpdateProgress( int32 Numerator, int32 Denominator );
+	CORE_API void StatusUpdate( int32 Numerator, int32 Denominator, const FText& StatusText );
+	CORE_API void StatusForceUpdate( int32 Numerator, int32 Denominator, const FText& StatusText );
+	CORE_API void EndSlowTask();
 	/**** end legacy API ****/
 
 protected:
@@ -93,10 +93,10 @@ protected:
 	virtual void ProgressReported( const float TotalProgressInterp, FText DisplayMessage ) {}
 
 	/** Called to check whether we are playing in editor when starting a slow task */
-	virtual bool IsPlayingInEditor() const;
+	CORE_API virtual bool IsPlayingInEditor() const;
 
-	void FormatLine(FStringBuilderBase& Out, const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time, ELogVerbosity::Type* OutVerbosity = nullptr) const;
-	void FormatRecordLine(FStringBuilderBase& Out, const UE::FLogRecord& Record, ELogVerbosity::Type* OutVerbosity = nullptr) const;
+	CORE_API void FormatLine(FStringBuilderBase& Out, const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time, ELogVerbosity::Type* OutVerbosity = nullptr) const;
+	CORE_API void FormatRecordLine(FStringBuilderBase& Out, const UE::FLogRecord& Record, ELogVerbosity::Type* OutVerbosity = nullptr) const;
 
 public:
 	virtual FContextSupplier* GetContext() const { return nullptr; }
@@ -108,8 +108,8 @@ public:
 
 	bool	TreatWarningsAsErrors = false;
 
-	FFeedbackContext();
-	virtual ~FFeedbackContext();
+	CORE_API FFeedbackContext();
+	CORE_API virtual ~FFeedbackContext();
 
 	/** Gets warnings history */
 	void GetWarnings(TArray<FString>& OutWarnings) const
@@ -149,11 +149,11 @@ public:
 	}
 
 private:
-	void AddToHistory(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time);
-	void AddRecordToHistory(const UE::FLogRecord& Record);
+	CORE_API void AddToHistory(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, double Time);
+	CORE_API void AddRecordToHistory(const UE::FLogRecord& Record);
 
-	FFeedbackContext(const FFeedbackContext&);
-	FFeedbackContext& operator=(const FFeedbackContext&);
+	CORE_API FFeedbackContext(const FFeedbackContext&);
+	CORE_API FFeedbackContext& operator=(const FFeedbackContext&);
 
 	/** Warnings history */
 	TArray<FString> Warnings;
@@ -193,10 +193,10 @@ protected:
 	TArray<TUniquePtr<FSlowTask>> LegacyAPIScopes;
 
 	/** Ask that the UI be updated as a result of the scope stack changing */
-	void RequestUpdateUI(bool bForceUpdate = false);
+	CORE_API void RequestUpdateUI(bool bForceUpdate = false);
 
 	/** Update the UI as a result of the scope stack changing */
-	void UpdateUI();
+	CORE_API void UpdateUI();
 
 	/**
 	 * Adds a new warning message to warnings history.

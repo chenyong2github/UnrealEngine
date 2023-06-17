@@ -78,20 +78,20 @@ enum class EUnitType
 template<typename NumericType> struct FNumericUnit;
 
 /** Unit settings accessed globally through FUnitConversion::Settings() */
-class CORE_API FUnitSettings
+class FUnitSettings
 {
 public:
 
-	FUnitSettings();
+	CORE_API FUnitSettings();
 
 	/** Check whether unit display is globally enabled or disabled */
-	bool ShouldDisplayUnits() const;
-	void SetShouldDisplayUnits(bool bInGlobalUnitDisplay);
+	CORE_API bool ShouldDisplayUnits() const;
+	CORE_API void SetShouldDisplayUnits(bool bInGlobalUnitDisplay);
 	
 	/** Get/Set the specific valid units to display the specified type of unit in */
-	const TArray<EUnit>& GetDisplayUnits(EUnitType InType) const;
-	void SetDisplayUnits(EUnitType InType, const TArray<EUnit>& Units);
-	void SetDisplayUnits(EUnitType InType, EUnit Units);
+	CORE_API const TArray<EUnit>& GetDisplayUnits(EUnitType InType) const;
+	CORE_API void SetDisplayUnits(EUnitType InType, const TArray<EUnit>& Units);
+	CORE_API void SetDisplayUnits(EUnitType InType, EUnit Units);
 
 	/** Returns an event delegate that is executed when a display setting has changed. (GlobalUnitDisplay or DefaultInputUnits) */
 	DECLARE_EVENT(FUnitSettings, FDisplaySettingChanged);
@@ -109,25 +109,25 @@ private:
 	FDisplaySettingChanged SettingChangedEvent;
 };
 
-struct CORE_API FUnitConversion
+struct FUnitConversion
 {
 	/** Get the global settings for unit conversion/display */
-	static FUnitSettings& Settings();
+	static CORE_API FUnitSettings& Settings();
 
 	/** Check whether it is possible to convert a number between the two specified units */
-	static bool AreUnitsCompatible(EUnit From, EUnit To);
+	static CORE_API bool AreUnitsCompatible(EUnit From, EUnit To);
 
 	/** Check whether a unit is of the specified type */
-	static bool IsUnitOfType(EUnit Unit, EUnitType Type);
+	static CORE_API bool IsUnitOfType(EUnit Unit, EUnitType Type);
 
 	/** Get the type of the specified unit */
-	static EUnitType GetUnitType(EUnit);
+	static CORE_API EUnitType GetUnitType(EUnit);
 
 	/** Get the display string for the the specified unit type */
-	static const TCHAR* GetUnitDisplayString(EUnit Unit);
+	static CORE_API const TCHAR* GetUnitDisplayString(EUnit Unit);
 
 	/** Helper function to find a unit from a string (name or display string) */
-	static TOptional<EUnit> UnitFromString(const TCHAR* UnitString);
+	static CORE_API TOptional<EUnit> UnitFromString(const TCHAR* UnitString);
 
 public:
 

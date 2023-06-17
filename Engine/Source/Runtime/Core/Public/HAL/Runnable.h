@@ -16,7 +16,7 @@
  * Run() is called where the real threaded work is done. Upon completion, Exit() is called to allow
  * correct clean up.
  */
-class CORE_API FRunnable
+class FRunnable
 {
 public:
 

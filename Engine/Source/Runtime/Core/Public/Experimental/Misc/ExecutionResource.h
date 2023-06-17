@@ -16,18 +16,18 @@ public:
  * Per-thread stack-frame of execution resource currently held.
  * Can be retrieved and passed around to other task until not needed anymore.
  */
-class CORE_API FExecutionResourceContext
+class FExecutionResourceContext
 {
 public:
-	static TRefCountPtr<IExecutionResource> Get();
+	static CORE_API TRefCountPtr<IExecutionResource> Get();
 };
 
 /**
  * Used to push an execution resource on the stack-frame that can be retrieved by FExecutionResourceContext::Get().
  */
-class CORE_API FExecutionResourceContextScope
+class FExecutionResourceContextScope
 {
 public:
-	FExecutionResourceContextScope(TRefCountPtr<IExecutionResource> InExecutionResource);
-	~FExecutionResourceContextScope();
+	CORE_API FExecutionResourceContextScope(TRefCountPtr<IExecutionResource> InExecutionResource);
+	CORE_API ~FExecutionResourceContextScope();
 };

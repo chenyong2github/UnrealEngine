@@ -45,79 +45,79 @@ ENUM_CLASS_FLAGS(EThreadCreateFlags);
 class FGenericPlatformAffinity
 {
 public:
-	static const CORE_API uint64 GetMainGameMask()
+	static const uint64 GetMainGameMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetRenderingThreadMask()
+	static const uint64 GetRenderingThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetRHIThreadMask()
+	static const uint64 GetRHIThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetRHIFrameOffsetThreadMask()
+	static const uint64 GetRHIFrameOffsetThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetRTHeartBeatMask()
+	static const uint64 GetRTHeartBeatMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetPoolThreadMask()
+	static const uint64 GetPoolThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetTaskGraphThreadMask()
+	static const uint64 GetTaskGraphThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetAudioRenderThreadMask()
+	static const uint64 GetAudioRenderThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetNoAffinityMask()
+	static const uint64 GetNoAffinityMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetTaskGraphBackgroundTaskMask()
+	static const uint64 GetTaskGraphBackgroundTaskMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetTaskGraphHighPriorityTaskMask()
+	static const uint64 GetTaskGraphHighPriorityTaskMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetAsyncLoadingThreadMask()
+	static const uint64 GetAsyncLoadingThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetIoDispatcherThreadMask()
+	static const uint64 GetIoDispatcherThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
-	static const CORE_API uint64 GetTraceThreadMask()
+	static const uint64 GetTraceThreadMask()
 	{
 		return 0xFFFFFFFFFFFFFFFF;
 	}
 
 	// @todo what do we think about having this as a function in this class? Should be make a whole new one? 
 	// scrap it and force the priority like before?
-	static CORE_API EThreadPriority GetRenderingThreadPriority()
+	static EThreadPriority GetRenderingThreadPriority()
 	{
 		return TPri_Normal;
 	}
@@ -127,7 +127,7 @@ public:
 		return EThreadCreateFlags::None;
 	}
 	
-	static CORE_API EThreadPriority GetRHIThreadPriority()
+	static EThreadPriority GetRHIThreadPriority()
 	{
 		return TPri_Normal;
 	}

@@ -14,10 +14,10 @@
 
 class FLocMetadataObject;
 
-class CORE_API FArchiveEntry
+class FArchiveEntry
 {
 public:
-	FArchiveEntry(const FLocKey& InNamespace, const FLocKey& InKey, const FLocItem& InSource, const FLocItem& InTranslation, TSharedPtr<FLocMetadataObject> InKeyMetadataObj = nullptr, bool IsOptional = false);
+	CORE_API FArchiveEntry(const FLocKey& InNamespace, const FLocKey& InKey, const FLocItem& InSource, const FLocItem& InTranslation, TSharedPtr<FLocMetadataObject> InKeyMetadataObj = nullptr, bool IsOptional = false);
 
 	const FLocKey Namespace;
 	const FLocKey Key;
@@ -30,7 +30,7 @@ public:
 typedef TMultiMap< FLocKey, TSharedRef< FArchiveEntry > > FArchiveEntryByLocKeyContainer;
 typedef TMultiMap< FString, TSharedRef< FArchiveEntry >, FDefaultSetAllocator, FLocKeyMultiMapFuncs< TSharedRef< FArchiveEntry > > > FArchiveEntryByStringContainer;
 
-class CORE_API FInternationalizationArchive 
+class FInternationalizationArchive 
 {
 public:
 	enum class EFormatVersion : uint8
@@ -48,14 +48,14 @@ public:
 	{
 	}
 
-	bool AddEntry(const FLocKey& Namespace, const FLocKey& Key, const FLocItem& Source, const FLocItem& Translation, const TSharedPtr<FLocMetadataObject> KeyMetadataObj, const bool bOptional);
-	bool AddEntry(const TSharedRef<FArchiveEntry>& InEntry);
+	CORE_API bool AddEntry(const FLocKey& Namespace, const FLocKey& Key, const FLocItem& Source, const FLocItem& Translation, const TSharedPtr<FLocMetadataObject> KeyMetadataObj, const bool bOptional);
+	CORE_API bool AddEntry(const TSharedRef<FArchiveEntry>& InEntry);
 
-	void UpdateEntry(const TSharedRef<FArchiveEntry>& OldEntry, const TSharedRef<FArchiveEntry>& NewEntry);
+	CORE_API void UpdateEntry(const TSharedRef<FArchiveEntry>& OldEntry, const TSharedRef<FArchiveEntry>& NewEntry);
 
-	bool SetTranslation(const FLocKey& Namespace, const FLocKey& Key, const FLocItem& Source, const FLocItem& Translation, const TSharedPtr<FLocMetadataObject> KeyMetadataObj);
+	CORE_API bool SetTranslation(const FLocKey& Namespace, const FLocKey& Key, const FLocItem& Source, const FLocItem& Translation, const TSharedPtr<FLocMetadataObject> KeyMetadataObj);
 
-	TSharedPtr<FArchiveEntry> FindEntryByKey(const FLocKey& Namespace, const FLocKey& Key, const TSharedPtr<FLocMetadataObject> KeyMetadataObj) const;
+	CORE_API TSharedPtr<FArchiveEntry> FindEntryByKey(const FLocKey& Namespace, const FLocKey& Key, const TSharedPtr<FLocMetadataObject> KeyMetadataObj) const;
 
 	FArchiveEntryByLocKeyContainer::TConstIterator GetEntriesByKeyIterator() const
 	{

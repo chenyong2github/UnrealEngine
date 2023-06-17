@@ -75,7 +75,7 @@ private:
  * the reference count.
  *
  */
-class CORE_API FRefCountedObject
+class FRefCountedObject
 {
 public:
 	FRefCountedObject(): NumRefs(0) {}
@@ -106,7 +106,7 @@ private:
 /**
  * Like FRefCountedObject, but internal ref count is thread safe
  */
-class CORE_API FThreadSafeRefCountedObject
+class FThreadSafeRefCountedObject
 {
 public:
 	FThreadSafeRefCountedObject() : NumRefs(0) {}

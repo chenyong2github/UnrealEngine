@@ -69,7 +69,7 @@ private:
 	bool bStarted;
 };
 
-class CORE_API FScopedNamedEvent
+class FScopedNamedEvent
 {
 public:
 
@@ -89,7 +89,7 @@ public:
 	}	
 };
 
-class CORE_API FScopedProfilerColor
+class FScopedProfilerColor
 {
 public:
 
@@ -111,7 +111,7 @@ public:
 // BeginNamedEventStatic works the same as BeginNamedEvent, but should only be passed a compile-time string literal.
 // Some platform profilers can optimize the case where strings for certain events are constant.
 //
-class CORE_API FScopedNamedEventStatic
+class FScopedNamedEventStatic
 {
 public:
 
@@ -178,7 +178,7 @@ public:
 
 #else
 
-class CORE_API FScopedNamedEvent
+class FScopedNamedEvent
 {
 public:
 	UE_DEPRECATED(4.19, "FScopedNamedEvent is compiled out in shipping builds, use SCOPED_NAMED_EVENT or variant instead to compile correctly for all targets.")
@@ -192,7 +192,7 @@ public:
 	}
 };
 
-class CORE_API FScopedNamedEventStatic
+class FScopedNamedEventStatic
 {
 public:
 	UE_DEPRECATED(4.19, "FScopedNamedEventStatic is compiled out in shipping builds, use SCOPED_NAMED_EVENT or variant instead to compile correctly for all targets.")
@@ -217,7 +217,7 @@ public:
 #endif
 
 // For timing OnEnterBackground tasks. This can be time sensitive on some platforms
-class CORE_API FScopedEnterBackgroundEvent
+class FScopedEnterBackgroundEvent
 {
 public:
 

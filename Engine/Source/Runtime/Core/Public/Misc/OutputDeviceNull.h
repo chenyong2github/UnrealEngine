@@ -7,7 +7,7 @@
 #include "Misc/OutputDevice.h"
 
 // Null output device.
-class CORE_API FOutputDeviceNull : public FOutputDevice
+class FOutputDeviceNull : public FOutputDevice
 {
 public:
 	/**
@@ -16,6 +16,6 @@ public:
 	* @param	Data	unused
 	* @param	Event	unused
 	*/
-	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+	CORE_API virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override;
 };
 

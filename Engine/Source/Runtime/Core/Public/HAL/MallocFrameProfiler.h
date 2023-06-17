@@ -11,33 +11,33 @@ class FMalloc;
 class FOutputDevice;
 class UWorld;
 
-class CORE_API FMallocFrameProfiler final : public FMallocCallstackHandler
+class FMallocFrameProfiler final : public FMallocCallstackHandler
 {
 public:
-	FMallocFrameProfiler(FMalloc* InMalloc);
+	CORE_API FMallocFrameProfiler(FMalloc* InMalloc);
 
-	virtual void Init() override;
+	CORE_API virtual void Init() override;
 	
 #if UE_ALLOW_EXEC_COMMANDS
 	/**
 	 * Handles any commands passed in on the command line
 	 */
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	CORE_API virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 #endif
 
 	/** 
 	* Called once per frame, gathers and sets all memory allocator statistics into the corresponding stats. MUST BE THREAD SAFE.
 	*/
-	virtual void UpdateStats() override;
+	CORE_API virtual void UpdateStats() override;
 
-	static FMalloc* OverrideIfEnabled(FMalloc*InUsedAlloc);
+	static CORE_API FMalloc* OverrideIfEnabled(FMalloc*InUsedAlloc);
 
 protected:
-	virtual bool IsDisabled() override;
+	CORE_API virtual bool IsDisabled() override;
 
-	virtual void TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex);
-	virtual void TrackFree(void* Ptr, uint32 OldSize, int32 CallStackIndex);
-	virtual void TrackRealloc(void* OldPtr, void* NewPtr, uint32 NewSize, uint32 OldSize, int32 CallStackIndex);
+	CORE_API virtual void TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex);
+	CORE_API virtual void TrackFree(void* Ptr, uint32 OldSize, int32 CallStackIndex);
+	CORE_API virtual void TrackRealloc(void* OldPtr, void* NewPtr, uint32 NewSize, uint32 OldSize, int32 CallStackIndex);
 
 protected:
 	bool bEnabled;

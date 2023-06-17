@@ -11,7 +11,7 @@
  * This is what allow a UE_LOG(LogHAL, Log, TEXT("...")); within a UE_LOG statement to know what the category and verbosity is.
  * When one of these goes out of scope, it restores the previous values.
 **/
-class CORE_API FLogScopedCategoryAndVerbosityOverride
+class FLogScopedCategoryAndVerbosityOverride
 {
 public:
 	/** STructure to aggregate a category and verbosity pair **/
@@ -39,13 +39,13 @@ private:
 	FOverride Backup;
 public:
 	/** Back up the existing category and verbosity pair, then sets them.*/
-	FLogScopedCategoryAndVerbosityOverride(FName Category, ELogVerbosity::Type Verbosity);
+	CORE_API FLogScopedCategoryAndVerbosityOverride(FName Category, ELogVerbosity::Type Verbosity);
 
 	/** Restore the category and verbosity overrides to the previous value.*/
-	~FLogScopedCategoryAndVerbosityOverride();
+	CORE_API ~FLogScopedCategoryAndVerbosityOverride();
 
 	/** Manages a TLS slot with the current overrides for category and verbosity. **/
-	static FOverride* GetTLSCurrent();
+	static CORE_API FOverride* GetTLSCurrent();
 };
 
 typedef FLogScopedCategoryAndVerbosityOverride FScopedCategoryAndVerbosityOverride;

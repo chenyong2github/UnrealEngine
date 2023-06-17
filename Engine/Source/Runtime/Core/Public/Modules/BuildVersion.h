@@ -11,7 +11,7 @@ class FJsonObject;
 /**
  * Stores the version information associated with a build
  */
-class CORE_API FBuildVersion
+class FBuildVersion
 {
 public:
 	/**
@@ -67,37 +67,37 @@ public:
 	/**
 	 * Default constructor. Initializes the structure to empty.
 	 */
-	FBuildVersion();
+	CORE_API FBuildVersion();
 
 	/// <summary>
 	/// Gets the compatible changelist if set, otherwise the default compatible changelist
 	/// </summary>
 	/// <returns>The compatible changelist</returns>
-	int GetEffectiveCompatibleChangelist() const;
+	CORE_API int GetEffectiveCompatibleChangelist() const;
 
 	/// <summary>
 	/// Get an engine version object for this build version
 	/// </summary>
 	/// <returns>New engine version object</returns>
-	FEngineVersion GetEngineVersion() const;
+	CORE_API FEngineVersion GetEngineVersion() const;
 
 	/// <summary>
 	/// Get a compatible engine version object for this build version
 	/// </summary>
 	/// <returns>New engine version object</returns>
-	FEngineVersion GetCompatibleEngineVersion() const;
+	CORE_API FEngineVersion GetCompatibleEngineVersion() const;
 
 	/// <summary>
 	/// Get the default path to the build.version file on disk
 	/// </summary>
 	/// <returns>Path to the Build.version file</returns>
-	static FString GetDefaultFileName();
+	static CORE_API FString GetDefaultFileName();
 
 	/// <summary>
 	/// Get the path to the version file for the current executable.
 	/// </summary>
 	/// <returns>Path to the target's version file</returns>
-	static FString GetFileNameForCurrentExecutable();
+	static CORE_API FString GetFileNameForCurrentExecutable();
 	
 	/**
 	 * Try to read a version file from disk
@@ -106,5 +106,5 @@ public:
 	 * @param OutVersion The version information
 	 * @return True if the version was read successfully, false otherwise
 	 */
-	static bool TryRead(const FString& FileName, FBuildVersion& OutVersion);
+	static CORE_API bool TryRead(const FString& FileName, FBuildVersion& OutVersion);
 };

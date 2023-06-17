@@ -23,7 +23,7 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FTickerDelegate, float);
 /**
  * Thread-safe ticker class. Fires delegates after a delay.
  */
-class CORE_API FTSTicker
+class FTSTicker
 {
 private:
 	struct FElement;
@@ -32,7 +32,7 @@ public:
 	using FDelegateHandle = TWeakPtr<FElement>;
 
 	/** Singleton used for the ticker in Core / Launch. If you add a new ticker for a different subsystem, do not put that singleton here! **/
-	static FTSTicker& GetCoreTicker();
+	static CORE_API FTSTicker& GetCoreTicker();
 
 	/**
 	 * Add a new ticker with a given delay / interval
@@ -42,7 +42,7 @@ public:
 	 * @param InDelegate Delegate to fire after the delay
 	 * @param InDelay Delay until next fire; 0 means "next frame"
 	 */
-	FDelegateHandle AddTicker(const FTickerDelegate & InDelegate, float InDelay = 0.0f);
+	CORE_API FDelegateHandle AddTicker(const FTickerDelegate & InDelegate, float InDelay = 0.0f);
 
 	/**
 	* Add a new ticker with a given delay / interval.
@@ -53,7 +53,7 @@ public:
 	* @param InDelay Delay until next fire; 0 means "next frame"
 	* @param Function Function to execute. Should return true to fire after another InDelay time
 	*/
-	FDelegateHandle AddTicker(const TCHAR * InName, float InDelay, TFunction<bool(float)> Function);
+	CORE_API FDelegateHandle AddTicker(const TCHAR * InName, float InDelay, TFunction<bool(float)> Function);
 
 	/**
 	 * Removes a previously added ticker delegate.
@@ -63,7 +63,7 @@ public:
 	 *
 	 * @param Handle The handle of the ticker to remove.
 	 */
-	static void RemoveTicker(FDelegateHandle Handle);
+	static CORE_API void RemoveTicker(FDelegateHandle Handle);
 
 	/**
 	 * Fire all tickers who have passed their delay and reschedule the ones that return true
@@ -78,12 +78,12 @@ public:
 	 *
 	 * @param DeltaTime	time that has passed since the last tick call
 	 */
-	void Tick(float DeltaTime);
+	CORE_API void Tick(float DeltaTime);
 
 	/**
 	 * Resets the instance to its default state. Must be called from the ticking thread.
 	 */
-	void Reset();
+	CORE_API void Reset();
 
 private:
 	/** Internal structure to store a ticker delegate and related data **/
@@ -131,7 +131,7 @@ private:
 /**
  * Base class for thread-safe ticker objects
  */
-class CORE_API FTSTickerObjectBase
+class FTSTickerObjectBase
 {
 public:
 	UE_NONCOPYABLE(FTSTickerObjectBase);
@@ -142,10 +142,10 @@ public:
 	 * @param InDelay Delay until next fire; 0 means "next frame"
 	 * @param Ticker the ticker to register with. Defaults to FTSTicker::GetCoreTicker().
 	*/
-	FTSTickerObjectBase(float InDelay = 0.0f, FTSTicker& Ticker = FTSTicker::GetCoreTicker());
+	CORE_API FTSTickerObjectBase(float InDelay = 0.0f, FTSTicker& Ticker = FTSTicker::GetCoreTicker());
 
 	/** Virtual destructor. */
-	virtual ~FTSTickerObjectBase();
+	CORE_API virtual ~FTSTickerObjectBase();
 
 	/**
 	 * Pure virtual that must be overloaded by the inheriting class.

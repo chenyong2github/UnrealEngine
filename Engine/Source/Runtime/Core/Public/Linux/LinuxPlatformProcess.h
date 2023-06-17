@@ -12,10 +12,10 @@
 /**
  * Linux implementation of the Process OS functions
  */
-struct CORE_API FLinuxPlatformProcess : public FUnixPlatformProcess
+struct FLinuxPlatformProcess : public FUnixPlatformProcess
 {
-	static const TCHAR* BaseDir();
-	static const TCHAR* GetBinariesSubdirectory();
+	static CORE_API const TCHAR* BaseDir();
+	static CORE_API const TCHAR* GetBinariesSubdirectory();
 };
 
 typedef FLinuxPlatformProcess FPlatformProcess;

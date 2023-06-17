@@ -27,7 +27,7 @@ class FRunnableThread;
 * Provides a thread-safe serialization interface with a background thread doing the actual writes.
 * [] tags identify which thread owns a variable or function
 */
-class CORE_API FAsyncWriter : public FRunnable, public FSingleThreadRunnable, public FArchive
+class FAsyncWriter : public FRunnable, public FSingleThreadRunnable, public FArchive
 {
 	enum EConstants
 	{
@@ -60,13 +60,13 @@ class CORE_API FAsyncWriter : public FRunnable, public FSingleThreadRunnable, pu
 	double LastArchiveFlushTime;
 
 	/** [WRITER THREAD] Flushes the archive and reset the flush timer. */
-	void FlushArchiveAndResetTimer();
+	CORE_API void FlushArchiveAndResetTimer();
 
 	/** [WRITER THREAD] Serialize the contents of the ring buffer to disk */
-	void SerializeBufferToArchive();
+	CORE_API void SerializeBufferToArchive();
 
 	/** [CLIENT THREAD] Flush the memory buffer (doesn't force the archive to flush). Can only be used from inside of BufferPosCritical lock. */
-	void FlushBuffer();
+	CORE_API void FlushBuffer();
 
 public:
 
@@ -76,27 +76,27 @@ public:
 		Sequential, // Uses a global sequential number to append to the threadname: FAsyncWriter_1
 	};
 
-	FAsyncWriter(FArchive& InAr, FAsyncWriter::EThreadNameOption NameOption=FAsyncWriter::EThreadNameOption::FileName);
+	CORE_API FAsyncWriter(FArchive& InAr, FAsyncWriter::EThreadNameOption NameOption=FAsyncWriter::EThreadNameOption::FileName);
 
-	virtual ~FAsyncWriter();
+	CORE_API virtual ~FAsyncWriter();
 
 	/** [CLIENT THREAD] Serialize data to buffer that will later be saved to disk by the async thread */
-	virtual void Serialize(void* InData, int64 Length) override;
+	CORE_API virtual void Serialize(void* InData, int64 Length) override;
 
 	/** Flush all buffers to disk */
-	void Flush();
+	CORE_API void Flush();
 
 	//~ Begin FRunnable Interface.
-	virtual bool Init();
-	virtual uint32 Run();
-	virtual void Stop();
+	CORE_API virtual bool Init();
+	CORE_API virtual uint32 Run();
+	CORE_API virtual void Stop();
 	virtual FSingleThreadRunnable* GetSingleThreadInterface() override { return this; }
 	//~ End FRunnable Interface
 
 protected:
 	//~ Begin FSingleThreadRunnable Interface.
 	/** [CLIENT THREAD] A substitute for Run() for when threading is disabled. */
-	virtual void Tick() override;
+	CORE_API virtual void Tick() override;
 	//~ End FSingleThreadRunnable Interface
 
 };
@@ -110,7 +110,7 @@ enum class EByteOrderMark : int8
 /**
 * File output device (Note: Only works if ALLOW_LOG_FILE && !NO_LOGGING is true, otherwise Serialize does nothing).
 */
-class CORE_API FOutputDeviceFile : public FOutputDevice
+class FOutputDeviceFile : public FOutputDevice
 {
 public:
 	/**
@@ -123,16 +123,16 @@ public:
 	* @param bCreateWriterLazily If true, delay the creation of the file until something needs to be written, otherwise, open it immediatedly.
 	* @param FileOpenedCallback If bound, invoked when the output file is successfully opened, passing the actual filename.
 	*/
-	FOutputDeviceFile(const TCHAR* InFilename = nullptr, bool bDisableBackup = false, bool bAppendIfExists = false, bool bCreateWriterLazily = true, TFunction<void(const TCHAR*)> FileOpenedCallback = TFunction<void(const TCHAR*)>());
+	CORE_API FOutputDeviceFile(const TCHAR* InFilename = nullptr, bool bDisableBackup = false, bool bAppendIfExists = false, bool bCreateWriterLazily = true, TFunction<void(const TCHAR*)> FileOpenedCallback = TFunction<void(const TCHAR*)>());
 
 	/**
 	* Destructor to perform teardown
 	*
 	*/
-	~FOutputDeviceFile();
+	CORE_API ~FOutputDeviceFile();
 
 	/** Sets the filename that the output device writes to.  If the output device was already writing to a file, closes that file. */
-	void SetFilename(const TCHAR* InFilename);
+	CORE_API void SetFilename(const TCHAR* InFilename);
 
 	//~ Begin FOutputDevice Interface.
 	/**
@@ -140,16 +140,16 @@ public:
 	* as we have to call "delete" which cannot be done for static/ global
 	* objects.
 	*/
-	void TearDown() override;
+	CORE_API void TearDown() override;
 
 	/**
 	* Flush the write cache so the file isn't truncated in case we crash right
 	* after calling this function.
 	*/
-	void Flush() override;
+	CORE_API void Flush() override;
 
-	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category, const double Time) override;
-	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+	CORE_API virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category, const double Time) override;
+	CORE_API virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
 	virtual bool CanBeUsedOnAnyThread() const override
 	{
 		return true;
@@ -161,18 +161,18 @@ public:
 	//~ End FOutputDevice Interface.
 
 	/** Creates a backup copy of a log file if it already exists */
-	static void CreateBackupCopy(const TCHAR* Filename);
+	static CORE_API void CreateBackupCopy(const TCHAR* Filename);
 
 	/** Checks if the filename represents a backup copy of a log file */
-	static bool IsBackupCopy(const TCHAR* Filename);
+	static CORE_API bool IsBackupCopy(const TCHAR* Filename);
 
 	/** Add a category name to our inclusion filter. As soon as one inclusion exists, all others will be ignored */
-	void IncludeCategory(const class FName& InCategoryName);
+	CORE_API void IncludeCategory(const class FName& InCategoryName);
 
 	/** Returns the filename associated with this output device */
 	const TCHAR* GetFilename() const { return Filename; }
 
-	bool IsOpened() const;
+	CORE_API bool IsOpened() const;
 
 private:
 
@@ -195,10 +195,10 @@ private:
 	/** If true, existing files will not be backed up */
 	bool		bDisableBackup;
 
-	void WriteRaw(const TCHAR* C);
+	CORE_API void WriteRaw(const TCHAR* C);
 
 	/** Creates the async writer and its archive. Returns true if successful.  */
-	bool CreateWriter(uint32 MaxAttempts = 32);
+	CORE_API bool CreateWriter(uint32 MaxAttempts = 32);
 
-	void WriteByteOrderMarkToArchive(EByteOrderMark ByteOrderMark);
+	CORE_API void WriteByteOrderMarkToArchive(EByteOrderMark ByteOrderMark);
 };

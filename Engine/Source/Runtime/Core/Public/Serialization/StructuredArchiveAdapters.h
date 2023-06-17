@@ -31,41 +31,41 @@ private:
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
-class CORE_API FArchiveFromStructuredArchiveImpl : public FArchiveProxy
+class FArchiveFromStructuredArchiveImpl : public FArchiveProxy
 {
 	UE_NONCOPYABLE(FArchiveFromStructuredArchiveImpl)
 
 		struct FImpl;
 
 public:
-	explicit FArchiveFromStructuredArchiveImpl(FStructuredArchiveSlot Slot);
-	virtual ~FArchiveFromStructuredArchiveImpl();
+	CORE_API explicit FArchiveFromStructuredArchiveImpl(FStructuredArchiveSlot Slot);
+	CORE_API virtual ~FArchiveFromStructuredArchiveImpl();
 
-	virtual void Flush() override;
-	virtual bool Close() override;
+	CORE_API virtual void Flush() override;
+	CORE_API virtual bool Close() override;
 
-	virtual int64 Tell() override;
-	virtual int64 TotalSize() override;
-	virtual void Seek(int64 InPos) override;
-	virtual bool AtEnd() override;
+	CORE_API virtual int64 Tell() override;
+	CORE_API virtual int64 TotalSize() override;
+	CORE_API virtual void Seek(int64 InPos) override;
+	CORE_API virtual bool AtEnd() override;
 
 	using FArchive::operator<<; // For visibility of the overloads we don't override
 
 	//~ Begin FArchive Interface
-	virtual FArchive& operator<<(class FName& Value) override;
-	virtual FArchive& operator<<(class UObject*& Value) override;
-	virtual FArchive& operator<<(class FText& Value) override;
+	CORE_API virtual FArchive& operator<<(class FName& Value) override;
+	CORE_API virtual FArchive& operator<<(class UObject*& Value) override;
+	CORE_API virtual FArchive& operator<<(class FText& Value) override;
 	//~ End FArchive Interface
 
-	virtual void Serialize(void* V, int64 Length) override;
+	CORE_API virtual void Serialize(void* V, int64 Length) override;
 
-	virtual FArchive* GetCacheableArchive() override;
+	CORE_API virtual FArchive* GetCacheableArchive() override;
 
-	bool ContainsData() const;
+	CORE_API bool ContainsData() const;
 
 protected:
-	virtual bool Finalize(FStructuredArchiveRecord Record);
-	void OpenArchive();
+	CORE_API virtual bool Finalize(FStructuredArchiveRecord Record);
+	CORE_API void OpenArchive();
 
 private:
 	void Commit();

@@ -714,7 +714,7 @@ public:
 /**
  * handles console commands and variables, registered console variables are released on destruction
  */
-struct CORE_API IConsoleManager
+struct IConsoleManager
 {
 	/**
 	 * Create a bool console variable
@@ -1038,7 +1038,7 @@ struct CORE_API IConsoleManager
 	 * @param DeviceProfileName If this is non-empty, the given deviceprofile will be loaded from the platform's inis and inserted into the CVars
 	 * @param Visit the callback to run for each CVar found
 	 */
-	static bool VisitPlatformCVarsForEmulation(FName PlatformName, const FString& DeviceProfileName, TFunctionRef<void(const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)> Visit);
+	static CORE_API bool VisitPlatformCVarsForEmulation(FName PlatformName, const FString& DeviceProfileName, TFunctionRef<void(const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)> Visit);
 #endif
 
 	virtual FConsoleVariableMulticastDelegate& OnCVarUnregistered() = 0;
@@ -1048,17 +1048,17 @@ protected:
 
 private:
 	/** Singleton for the console manager **/
-	static IConsoleManager* Singleton;
+	static CORE_API IConsoleManager* Singleton;
 
 	/** Function to create the singleton **/
-	static void SetupSingleton();
+	static CORE_API void SetupSingleton();
 };
 
 
 /**
  * auto registering console variable sinks (register a callback function that is called when ever a cvar is changes by the user, changes are grouped and happen in specific engine spots during the frame/main loop)
  */
-class CORE_API FAutoConsoleVariableSink
+class FAutoConsoleVariableSink
 {
 public:
 	/** Constructor, saves the argument for future removal from the console variable system **/
@@ -1081,7 +1081,7 @@ public:
 /**
  * Base class for autoregistering console commands.
  */
-class CORE_API FAutoConsoleObject
+class FAutoConsoleObject
 {
 protected:
 	/** Constructor, saves the argument for future removal from the console variable system **/
@@ -1109,9 +1109,9 @@ public:
 		IConsoleManager::Get().UnregisterConsoleObject(Target);
 	}
 
-	static TArray<const FAutoConsoleObject*>& AccessGeneralShaderChangeCvars();
-	static TArray<const FAutoConsoleObject*>& AccessMobileShaderChangeCvars();
-	static TArray<const FAutoConsoleObject*>& AccessDesktopShaderChangeCvars();
+	static CORE_API TArray<const FAutoConsoleObject*>& AccessGeneralShaderChangeCvars();
+	static CORE_API TArray<const FAutoConsoleObject*>& AccessMobileShaderChangeCvars();
+	static CORE_API TArray<const FAutoConsoleObject*>& AccessDesktopShaderChangeCvars();
 
 	/** returns the contained console object as an IConsoleVariable **/
 	FORCEINLINE IConsoleVariable* AsVariable()
@@ -1135,7 +1135,7 @@ private:
 /**
  * Autoregistering float, int or string console variable
  */
-class CORE_API FAutoConsoleVariable : private FAutoConsoleObject
+class FAutoConsoleVariable : private FAutoConsoleObject
 {
 public:
 	/**
@@ -1251,7 +1251,7 @@ public:
 	}
 };
 #else
-class CORE_API FAutoConsoleVariable
+class FAutoConsoleVariable
 {
 public:
 	FAutoConsoleVariable(const TCHAR* Name, int32 DefaultValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
@@ -1272,7 +1272,7 @@ public:
 /**
  * Autoregistering float, int, bool, FString REF variable class...this changes that value when the console variable is changed. 
  */
-class CORE_API FAutoConsoleVariableRef : private FAutoConsoleObject
+class FAutoConsoleVariableRef : private FAutoConsoleObject
 {
 public:
 	/**
@@ -1391,7 +1391,7 @@ public:
 	}
 };
 #else
-class CORE_API FAutoConsoleVariableRef
+class FAutoConsoleVariableRef
 {
 public:
 	FAutoConsoleVariableRef(const TCHAR* Name, int32& RefValue, const TCHAR* Help, uint32 Flags = ECVF_Default)
@@ -1731,7 +1731,7 @@ private:
 /**
  * Autoregistering console command
  */
-class CORE_API FAutoConsoleCommand : private FAutoConsoleObject
+class FAutoConsoleCommand : private FAutoConsoleObject
 {
 public:
 	/**
@@ -1800,7 +1800,7 @@ public:
 	}
 };
 #else
-class CORE_API FAutoConsoleCommand
+class FAutoConsoleCommand
 {
 public:
 	FAutoConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandDelegate& Command, uint32 Flags = ECVF_Default)
@@ -1822,7 +1822,7 @@ public:
 /**
  * Autoregistering console command with a world
  */
-class CORE_API FAutoConsoleCommandWithWorld : private FAutoConsoleObject
+class FAutoConsoleCommandWithWorld : private FAutoConsoleObject
 {
 public:
 	/**
@@ -1844,7 +1844,7 @@ public:
 /**
  * Autoregistering console command with a world and arguments
  */
-class CORE_API FAutoConsoleCommandWithWorldAndArgs : private FAutoConsoleObject
+class FAutoConsoleCommandWithWorldAndArgs : private FAutoConsoleObject
 {
 public:	
 	/**
@@ -1864,7 +1864,7 @@ public:
 /**
  * Autoregistering console command with args and an output device
  */
-class CORE_API FAutoConsoleCommandWithArgsAndOutputDevice : private FAutoConsoleObject
+class FAutoConsoleCommandWithArgsAndOutputDevice : private FAutoConsoleObject
 {
 public:
 	
@@ -1877,7 +1877,7 @@ public:
 /**
  * Autoregistering console command with an output device
  */
-class CORE_API FAutoConsoleCommandWithOutputDevice : private FAutoConsoleObject
+class FAutoConsoleCommandWithOutputDevice : private FAutoConsoleObject
 {
 public:
 	/**
@@ -1897,7 +1897,7 @@ public:
 /**
  * Autoregistering console command with world, args, an output device
  */
-class CORE_API FAutoConsoleCommandWithWorldArgsAndOutputDevice : private FAutoConsoleObject
+class FAutoConsoleCommandWithWorldArgsAndOutputDevice : private FAutoConsoleObject
 {
 public:
 	/**

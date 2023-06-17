@@ -22,20 +22,20 @@ struct FAsyncThreadBackTrace
 /**
 * Android platform stack walking
 */
-struct CORE_API FAndroidPlatformStackWalk : public FGenericPlatformStackWalk
+struct FAndroidPlatformStackWalk : public FGenericPlatformStackWalk
 {
 	typedef FGenericPlatformStackWalk Parent;
 
-	static void ProgramCounterToSymbolInfo(uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo);
-	static uint32 CaptureStackBackTrace(uint64* BackTrace, uint32 MaxDepth, void* Context = nullptr);
-	static bool SymbolInfoToHumanReadableString(const FProgramCounterSymbolInfo& SymbolInfo, ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize);
+	static CORE_API void ProgramCounterToSymbolInfo(uint64 ProgramCounter, FProgramCounterSymbolInfo& out_SymbolInfo);
+	static CORE_API uint32 CaptureStackBackTrace(uint64* BackTrace, uint32 MaxDepth, void* Context = nullptr);
+	static CORE_API bool SymbolInfoToHumanReadableString(const FProgramCounterSymbolInfo& SymbolInfo, ANSICHAR* HumanReadableString, SIZE_T HumanReadableStringSize);
 
-	static uint32 CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context = nullptr);
-	static int CaptureThreadStackBackTraceAsync(FAsyncThreadBackTrace* BackTrace);
+	static CORE_API uint32 CaptureThreadStackBackTrace(uint64 ThreadId, uint64* BackTrace, uint32 MaxDepth, void* Context = nullptr);
+	static CORE_API int CaptureThreadStackBackTraceAsync(FAsyncThreadBackTrace* BackTrace);
 
-	static void HandleBackTraceSignal(siginfo* Info, void* Context);
+	static CORE_API void HandleBackTraceSignal(siginfo* Info, void* Context);
 
-	static bool InitStackWalking();
+	static CORE_API bool InitStackWalking();
 };
 
 typedef FAndroidPlatformStackWalk FPlatformStackWalk;

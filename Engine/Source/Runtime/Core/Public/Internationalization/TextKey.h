@@ -56,13 +56,13 @@ namespace TextKeyUtil
  * Optimized representation of a case-sensitive string, as used by localization keys.
  * This references an entry within a internal table to avoid memory duplication, as well as offering optimized comparison and hashing performance.
  */
-class CORE_API FTextKey
+class FTextKey
 {
 public:
-	FTextKey();
-	FTextKey(const TCHAR* InStr);
-	FTextKey(const FString& InStr);
-	FTextKey(FString&& InStr);
+	CORE_API FTextKey();
+	CORE_API FTextKey(const TCHAR* InStr);
+	CORE_API FTextKey(const FString& InStr);
+	CORE_API FTextKey(FString&& InStr);
 
 	/** Get the underlying chars buffer this text key represents */
 	FORCEINLINE const TCHAR* GetChars() const
@@ -89,22 +89,22 @@ public:
 	}
 
 	/** Serialize this text key as if it were an FString */
-	void SerializeAsString(FArchive& Ar);
+	CORE_API void SerializeAsString(FArchive& Ar);
 
 	/** Serialize this text key including its hash value (this method is sensitive to hashing algorithm changes, so only use it for generated files that can be rebuilt from another source) */
-	void SerializeWithHash(FArchive& Ar);
+	CORE_API void SerializeWithHash(FArchive& Ar);
 
 	/** Serialize this text key including its hash value, discarding the hash on load (to upgrade from an older hashing algorithm) */
-	void SerializeDiscardHash(FArchive& Ar);
+	CORE_API void SerializeDiscardHash(FArchive& Ar);
 
 	/** Serialize this text key as if it were an FString */
-	void SerializeAsString(FStructuredArchiveSlot Slot);
+	CORE_API void SerializeAsString(FStructuredArchiveSlot Slot);
 
 	/** Serialize this text key including its hash value (this method is sensitive to hashing algorithm changes, so only use it for generated files that can be rebuilt from another source) */
-	void SerializeWithHash(FStructuredArchiveSlot Slot);
+	CORE_API void SerializeWithHash(FStructuredArchiveSlot Slot);
 
 	/** Serialize this text key including its hash value, discarding the hash on load (to upgrade from an older hashing algorithm) */
-	void SerializeDiscardHash(FStructuredArchiveSlot Slot);
+	CORE_API void SerializeDiscardHash(FStructuredArchiveSlot Slot);
 
 	/** Is this text key empty? */
 	FORCEINLINE bool IsEmpty() const
@@ -113,13 +113,13 @@ public:
 	}
 
 	/** Reset this text key to be empty */
-	void Reset();
+	CORE_API void Reset();
 
 	/** Compact any slack within the internal table */
-	static void CompactDataStructures();
+	static CORE_API void CompactDataStructures();
 
 	/** Do not use any FTextKey or FTextId after calling this */
-	static void TearDown();
+	static CORE_API void TearDown();
 
 private:
 	/** Pointer to the string buffer we reference from the internal table */
@@ -136,7 +136,7 @@ private:
 /**
  * Optimized representation of a text identity (a namespace and key pair).
  */
-class CORE_API FTextId
+class FTextId
 {
 public:
 	FTextId()

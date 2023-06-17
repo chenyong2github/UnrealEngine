@@ -70,172 +70,172 @@ struct FCrashOverrideParameters
 	CORE_API ~FCrashOverrideParameters();
 };
 
-class CORE_API FCoreDelegates
+class FCoreDelegates
 {
 public:
 	// Callback for platform handling when flushing async loads.
-	static TMulticastDelegate<void()> OnAsyncLoadingFlush;
+	static CORE_API TMulticastDelegate<void()> OnAsyncLoadingFlush;
 
 	// Callback for a game thread interruption point when a async load flushing. Used to updating UI during long loads.
-	static TMulticastDelegate<void()> OnAsyncLoadingFlushUpdate;
+	static CORE_API TMulticastDelegate<void()> OnAsyncLoadingFlushUpdate;
 
 	// Callback on the game thread when an async load is started. This goes off before the packages has finished loading
-	static TMulticastDelegate<void(const FString&)> OnAsyncLoadPackage;
+	static CORE_API TMulticastDelegate<void(const FString&)> OnAsyncLoadPackage;
 
-	static TMulticastDelegate<void(const FString&)> OnSyncLoadPackage;
+	static CORE_API TMulticastDelegate<void(const FString&)> OnSyncLoadPackage;
 
 	// get a hotfix delegate
-	static TDelegate<void(void*, int32)>& GetHotfixDelegate(EHotfixDelegates::Type HotFix);
+	static CORE_API TDelegate<void(void*, int32)>& GetHotfixDelegate(EHotfixDelegates::Type HotFix);
 
 	// Callback when a user logs in/out of the platform.
-	static TMulticastDelegate<void(bool, int32, int32)> OnUserLoginChangedEvent;
+	static CORE_API TMulticastDelegate<void(bool, int32, int32)> OnUserLoginChangedEvent;
 
 	// Callback when controllers disconnected / reconnected
 	UE_DEPRECATED(5.1, "OnControllerConnectionChange, use IPlatformInputDeviceMapper::GetOnInputDeviceConnectionChange() instead")
-	static TMulticastDelegate<void(bool, FPlatformUserId, int32)> OnControllerConnectionChange;
+	static CORE_API TMulticastDelegate<void(bool, FPlatformUserId, int32)> OnControllerConnectionChange;
 
 	// Callback when a single controller pairing changes
 	UE_DEPRECATED(5.1, "OnControllerPairingChange, use IPlatformInputDeviceMapper::GetOnInputDevicePairingChange() instead")
-	static TMulticastDelegate<void(int32 ControllerIndex, FPlatformUserId NewUserPlatformId, FPlatformUserId OldUserPlatformId)> OnControllerPairingChange;
+	static CORE_API TMulticastDelegate<void(int32 ControllerIndex, FPlatformUserId NewUserPlatformId, FPlatformUserId OldUserPlatformId)> OnControllerPairingChange;
 
 	// Callback when a user changes the safe frame size
-	static TMulticastDelegate<void()> OnSafeFrameChangedEvent;
+	static CORE_API TMulticastDelegate<void()> OnSafeFrameChangedEvent;
 
 	// Callback for mounting all the pak files in default locations
-	static TDelegate<int32(const TArray<FString>&)> OnMountAllPakFiles;
+	static CORE_API TDelegate<int32(const TArray<FString>&)> OnMountAllPakFiles;
 
 	// Callback to prompt the pak system to mount a pak file
-	static TDelegate<IPakFile*(const FString&, int32)> MountPak;
+	static CORE_API TDelegate<IPakFile*(const FString&, int32)> MountPak;
 
 	// Callback to prompt the pak system to unmount a pak file.
-	static TDelegate<bool(const FString&)> OnUnmountPak;
+	static CORE_API TDelegate<bool(const FString&)> OnUnmountPak;
 
 	// Callback to optimize memeory for currently mounted paks
-	static TDelegate<void()> OnOptimizeMemoryUsageForMountedPaks;
+	static CORE_API TDelegate<void()> OnOptimizeMemoryUsageForMountedPaks;
 
 	// After a pakfile is mounted this is called
 	UE_DEPRECATED(5.3, "This delegate is not thread-safe, please use GetOnPakFileMounted2().")
-	static TMulticastDelegate<void(const IPakFile&)> OnPakFileMounted2;
-	static TTSMulticastDelegate<void(const IPakFile&)>& GetOnPakFileMounted2();
+	static CORE_API TMulticastDelegate<void(const IPakFile&)> OnPakFileMounted2;
+	static CORE_API TTSMulticastDelegate<void(const IPakFile&)>& GetOnPakFileMounted2();
 
 	// After a file is added this is called
-	static TMulticastDelegate<void(const FString&)> NewFileAddedDelegate;
+	static CORE_API TMulticastDelegate<void(const FString&)> NewFileAddedDelegate;
 
 	// After an attempt to mount all pak files, but none wre found, this is called
-	static TMulticastDelegate<void()> NoPakFilesMountedDelegate;
+	static CORE_API TMulticastDelegate<void()> NoPakFilesMountedDelegate;
 
 	// When a file is opened for read from a pak file.
 	UE_DEPRECATED(5.3, "This delegate is not thread-safe, please use Use FCoreDelegates::GetOnFileOpenedForReadFromPakFile()")
-	static TMulticastDelegate<void(const TCHAR* PakFile, const TCHAR* FileName), FNotThreadSafeNotCheckedDelegateUserPolicy> OnFileOpenedForReadFromPakFile;
-	static TTSMulticastDelegate<void(const TCHAR* PakFile, const TCHAR* FileName)>& GetOnFileOpenedForReadFromPakFile();
+	static CORE_API TMulticastDelegate<void(const TCHAR* PakFile, const TCHAR* FileName), FNotThreadSafeNotCheckedDelegateUserPolicy> OnFileOpenedForReadFromPakFile;
+	static CORE_API TTSMulticastDelegate<void(const TCHAR* PakFile, const TCHAR* FileName)>& GetOnFileOpenedForReadFromPakFile();
 
 	typedef TSharedPtr<class IMovieStreamer, ESPMode::ThreadSafe> FMovieStreamerPtr;
 
     // Delegate used to register a movie streamer with any movie player modules that bind to this delegate
     // Designed to be called when a platform specific movie streamer plugin starts up so that it doesn't need to implement a register for all movie player plugins
-    static TMulticastDelegate<void(FMovieStreamerPtr)> RegisterMovieStreamerDelegate;
+    static CORE_API TMulticastDelegate<void(FMovieStreamerPtr)> RegisterMovieStreamerDelegate;
     // Delegate used to un-register a movie streamer with any movie player modules that bind to this delegate
     // Designed to be called when a platform specific movie streamer plugin shuts down so that it doesn't need to implement a register for all movie player plugins
-    static TMulticastDelegate<void(FMovieStreamerPtr)> UnRegisterMovieStreamerDelegate;
+    static CORE_API TMulticastDelegate<void(FMovieStreamerPtr)> UnRegisterMovieStreamerDelegate;
 
 	// Callback when an ensure has occurred
-	static TMulticastDelegate<void()> OnHandleSystemEnsure;
+	static CORE_API TMulticastDelegate<void()> OnHandleSystemEnsure;
 
 	// Callback when an error (crash) has occurred
-	static TMulticastDelegate<void()> OnHandleSystemError;
+	static CORE_API TMulticastDelegate<void()> OnHandleSystemError;
 
 	// Called when an actor label is changed
-	static TMulticastDelegate<void(AActor*)> OnActorLabelChanged;
+	static CORE_API TMulticastDelegate<void(AActor*)> OnActorLabelChanged;
 
-	static TMulticastDelegate<void(const FGuid&, const FAES::FAESKey&)>& GetRegisterEncryptionKeyMulticastDelegate();
-	static TDelegate<void(uint8[32])>& GetPakEncryptionKeyDelegate();
-	static TDelegate<void(TArray<uint8>&, TArray<uint8>&)>& GetPakSigningKeysDelegate();
+	static CORE_API TMulticastDelegate<void(const FGuid&, const FAES::FAESKey&)>& GetRegisterEncryptionKeyMulticastDelegate();
+	static CORE_API TDelegate<void(uint8[32])>& GetPakEncryptionKeyDelegate();
+	static CORE_API TDelegate<void(TArray<uint8>&, TArray<uint8>&)>& GetPakSigningKeysDelegate();
 
 	
 
 #if WITH_EDITOR
 	// Called before the editor displays a modal window, allowing other windows the opportunity to disable themselves to avoid reentrant calls
-	static FSimpleMulticastDelegate PreModal;
+	static CORE_API FSimpleMulticastDelegate PreModal;
 
 	// Called after the editor dismisses a modal window, allowing other windows the opportunity to disable themselves to avoid reentrant calls
-	static FSimpleMulticastDelegate PostModal;
+	static CORE_API FSimpleMulticastDelegate PostModal;
     
     // Called before the editor displays a Slate (non-platform) modal window, allowing other windows the opportunity to disable themselves to avoid reentrant calls
-    static FSimpleMulticastDelegate PreSlateModal;
+    static CORE_API FSimpleMulticastDelegate PreSlateModal;
     
     // Called after the editor dismisses a Slate (non-platform) modal window, allowing other windows the opportunity to disable themselves to avoid reentrant calls
-    static FSimpleMulticastDelegate PostSlateModal;
+    static CORE_API FSimpleMulticastDelegate PostSlateModal;
     
 #endif	//WITH_EDITOR
 
 #if ALLOW_OTHER_PLATFORM_CONFIG
 	// Called when the CVar (ConsoleManager) needs to retrieve CVars for a deviceprofile for another platform - this dramatically simplifies module dependencies
 	typedef TMap<FName, FString> FCVarKeyValueMap;
-	static TDelegate<FCVarKeyValueMap(const FString& DeviceProfileName)> GatherDeviceProfileCVars;
+	static CORE_API TDelegate<FCVarKeyValueMap(const FString& DeviceProfileName)> GatherDeviceProfileCVars;
 #endif
 
 	// Called when an error occurred.
-	static FSimpleMulticastDelegate OnShutdownAfterError;
+	static CORE_API FSimpleMulticastDelegate OnShutdownAfterError;
 
 	// Called when appInit is called, very early in startup
-	static FSimpleMulticastDelegate OnInit;
+	static CORE_API FSimpleMulticastDelegate OnInit;
 
 	// Called during FEngineLoop::PreInit after GWarn & GError have been first set so that they can be overridden before anything in PreInit uses them
-	static FSimpleMulticastDelegate OnOutputDevicesInit;
+	static CORE_API FSimpleMulticastDelegate OnOutputDevicesInit;
 
 	// Called at the end of UEngine::Init, right before loading PostEngineInit modules for both normal execution and commandlets
-	static FSimpleMulticastDelegate OnPostEngineInit;
+	static CORE_API FSimpleMulticastDelegate OnPostEngineInit;
 
 	// Called after all modules have been loaded for all phases
-	static FSimpleMulticastDelegate OnAllModuleLoadingPhasesComplete;
+	static CORE_API FSimpleMulticastDelegate OnAllModuleLoadingPhasesComplete;
 
 	// Called at the very end of engine initialization, right before the engine starts ticking. This is not called for commandlets
-	static FSimpleMulticastDelegate OnFEngineLoopInitComplete;
+	static CORE_API FSimpleMulticastDelegate OnFEngineLoopInitComplete;
 
 	// Called when the application is about to exit.
-	static FSimpleMulticastDelegate OnExit;
+	static CORE_API FSimpleMulticastDelegate OnExit;
 
 	// Called when before the application is exiting.
-	static FSimpleMulticastDelegate OnPreExit;
+	static CORE_API FSimpleMulticastDelegate OnPreExit;
 
 	// Called before the engine exits. Separate from OnPreExit as OnEnginePreExit occurs before shutting down any core modules.
-	static FSimpleMulticastDelegate OnEnginePreExit;
+	static CORE_API FSimpleMulticastDelegate OnEnginePreExit;
 
 	/** Delegate for gathering up additional localization paths that are unknown to the engine core (such as plugins) */
-	static TMulticastDelegate<void(TArray<FString>&)> GatherAdditionalLocResPathsCallback;
+	static CORE_API TMulticastDelegate<void(TArray<FString>&)> GatherAdditionalLocResPathsCallback;
 
 	/** Color picker color has changed, please refresh as needed*/
-	static FSimpleMulticastDelegate ColorPickerChanged;
+	static CORE_API FSimpleMulticastDelegate ColorPickerChanged;
 
 	/** requests to open a message box */
-	static TDelegate<EAppReturnType::Type(EAppMsgType::Type, const FText&, const FText&)> ModalErrorMessage;
+	static CORE_API TDelegate<EAppReturnType::Type(EAppMsgType::Type, const FText&, const FText&)> ModalErrorMessage;
 
 	/** Called when the user accepts an invitation to the current game */
-	static TMulticastDelegate<void(const FString&, const FString&)> OnInviteAccepted;
+	static CORE_API TMulticastDelegate<void(const FString&, const FString&)> OnInviteAccepted;
 
 	// Called at the beginning of a frame
-	static FSimpleMulticastDelegate OnBeginFrame;
+	static CORE_API FSimpleMulticastDelegate OnBeginFrame;
 
 	// Called at the moment of sampling the input (currently on the gamethread)
-	static FSimpleMulticastDelegate OnSamplingInput;
+	static CORE_API FSimpleMulticastDelegate OnSamplingInput;
 
 	// Called at the end of a frame
-	static FSimpleMulticastDelegate OnEndFrame;
+	static CORE_API FSimpleMulticastDelegate OnEndFrame;
 
 	// Called at the beginning of a frame on the renderthread
-	static FSimpleMulticastDelegate OnBeginFrameRT;
+	static CORE_API FSimpleMulticastDelegate OnBeginFrameRT;
 
 	// Called at the end of a frame on the renderthread
-	static FSimpleMulticastDelegate OnEndFrameRT;
+	static CORE_API FSimpleMulticastDelegate OnEndFrameRT;
 
 
 	/** called before world origin shifting */
-	static TMulticastDelegate<void(class UWorld*, FIntVector, FIntVector)> PreWorldOriginOffset;
+	static CORE_API TMulticastDelegate<void(class UWorld*, FIntVector, FIntVector)> PreWorldOriginOffset;
 	/** called after world origin shifting */
-	static TMulticastDelegate<void(class UWorld*, FIntVector, FIntVector)> PostWorldOriginOffset;
+	static CORE_API TMulticastDelegate<void(class UWorld*, FIntVector, FIntVector)> PostWorldOriginOffset;
 
 	/** called when the main loop would otherwise starve. */
-	static TDelegate<void()> StarvedGameLoop;
+	static CORE_API TDelegate<void()> StarvedGameLoop;
 
 	// IOS-style temperature updates, allowing game to scale down to let temp drop (to avoid thermal throttling on mobile, for instance) */
 	// There is a parellel enum in ApplicationLifecycleComponent
@@ -249,219 +249,219 @@ public:
 
 		NumSeverities,
 	};
-	static TMulticastDelegate<void(ETemperatureSeverity)> OnTemperatureChange;
+	static CORE_API TMulticastDelegate<void(ETemperatureSeverity)> OnTemperatureChange;
 
 	/** Called when the OS goes into low power mode */
-	static TMulticastDelegate<void(bool)> OnLowPowerMode;
+	static CORE_API TMulticastDelegate<void(bool)> OnLowPowerMode;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkConnectionChanged, ENetworkConnectionType /*ConnectionType*/);
-	static FOnNetworkConnectionChanged OnNetworkConnectionChanged;
+	static CORE_API FOnNetworkConnectionChanged OnNetworkConnectionChanged;
 
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, int32& ResponderCount)>& TSCountPreLoadConfigFileRespondersDelegate();
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, FString& LoadedContents)>& TSPreLoadConfigFileDelegate();
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const FString& ContentsToSave, int32& SavedCount)>& TSPreSaveConfigFileDelegate();
-	static TTSMulticastDelegate<void(const FConfigFile*)>& TSOnFConfigCreated();
-	static TTSMulticastDelegate<void(const FConfigFile*)>& TSOnFConfigDeleted();
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName, const TCHAR* Key)>& TSOnConfigValueRead();
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)>& TSOnConfigSectionRead();
-	static TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)>& TSOnConfigSectionNameRead();
-	static TTSMulticastDelegate<void(const FString& IniFilename, const TSet<FString>& SectionNames)>& TSOnConfigSectionsChanged();
+	static CORE_API TTSMulticastDelegate<void(const TCHAR* IniFilename, int32& ResponderCount)>& TSCountPreLoadConfigFileRespondersDelegate();
+	static CORE_API TTSMulticastDelegate<void(const TCHAR* IniFilename, FString& LoadedContents)>& TSPreLoadConfigFileDelegate();
+	static CORE_API TTSMulticastDelegate<void(const TCHAR* IniFilename, const FString& ContentsToSave, int32& SavedCount)>& TSPreSaveConfigFileDelegate();
+	static CORE_API TTSMulticastDelegate<void(const FConfigFile*)>& TSOnFConfigCreated();
+	static CORE_API TTSMulticastDelegate<void(const FConfigFile*)>& TSOnFConfigDeleted();
+	static CORE_API TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName, const TCHAR* Key)>& TSOnConfigValueRead();
+	static CORE_API TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)>& TSOnConfigSectionRead();
+	static CORE_API TTSMulticastDelegate<void(const TCHAR* IniFilename, const TCHAR* SectionName)>& TSOnConfigSectionNameRead();
+	static CORE_API TTSMulticastDelegate<void(const FString& IniFilename, const TSet<FString>& SectionNames)>& TSOnConfigSectionsChanged();
 
-	static TMulticastDelegate<void(const TCHAR* SectionName, const TCHAR* IniFilename, uint32 SetBy, bool bAllowCheating)> OnApplyCVarFromIni;
+	static CORE_API TMulticastDelegate<void(const TCHAR* SectionName, const TCHAR* IniFilename, uint32 SetBy, bool bAllowCheating)> OnApplyCVarFromIni;
 
-	static TMulticastDelegate<void(uint32 ResX, uint32 ResY)> OnSystemResolutionChanged;
+	static CORE_API TMulticastDelegate<void(uint32 ResX, uint32 ResY)> OnSystemResolutionChanged;
 
 #if WITH_EDITOR
 	// called when a target platform changes it's return value of supported formats.  This is so anything caching those results can reset (like cached shaders for cooking)
-	static TMulticastDelegate<void(const ITargetPlatform*)> OnTargetPlatformChangedSupportedFormats;
+	static CORE_API TMulticastDelegate<void(const ITargetPlatform*)> OnTargetPlatformChangedSupportedFormats;
 
 	// Called when a feature level is disabled by the user.
-	static TMulticastDelegate<void(int, const FName&)> OnFeatureLevelDisabled;
+	static CORE_API TMulticastDelegate<void(int, const FName&)> OnFeatureLevelDisabled;
 #endif
 
 	/** IOS-style application lifecycle delegates */
 
 	// This is called when the application is about to be deactivated (e.g., due to a phone call or SMS or the sleep button).
 	// The game should be paused if possible, etc...
-	static TMulticastDelegate<void()> ApplicationWillDeactivateDelegate;
+	static CORE_API TMulticastDelegate<void()> ApplicationWillDeactivateDelegate;
 
 	// Called when the application has been reactivated (reverse any processing done in the Deactivate delegate)
-	static TMulticastDelegate<void()> ApplicationHasReactivatedDelegate;
+	static CORE_API TMulticastDelegate<void()> ApplicationHasReactivatedDelegate;
 
 	// This is called when the application is being backgrounded (e.g., due to switching
 	// to another app or closing it via the home button)
 	// The game should release shared resources, save state, etc..., since it can be
 	// terminated from the background state without any further warning.
-	static TMulticastDelegate<void()> ApplicationWillEnterBackgroundDelegate; // for instance, hitting the home button
+	static CORE_API TMulticastDelegate<void()> ApplicationWillEnterBackgroundDelegate; // for instance, hitting the home button
 
 	// Called when the application is returning to the foreground (reverse any processing done in the EnterBackground delegate)
-	static TMulticastDelegate<void()> ApplicationHasEnteredForegroundDelegate;
+	static CORE_API TMulticastDelegate<void()> ApplicationHasEnteredForegroundDelegate;
 
 	// This *may* be called when the application is getting terminated by the OS.
 	// There is no guarantee that this will ever be called on a mobile device,
 	// save state when ApplicationWillEnterBackgroundDelegate is called instead.
 	UE_DEPRECATED(5.3, "This delegate is not thread safe while it can be used concurrently. Please use to GetApplicationWillTerminateDelegate() instead.")
-	static TMulticastDelegate<void()> ApplicationWillTerminateDelegate;
+	static CORE_API TMulticastDelegate<void()> ApplicationWillTerminateDelegate;
 
-	static TTSMulticastDelegate<void()>& GetApplicationWillTerminateDelegate();
+	static CORE_API TTSMulticastDelegate<void()>& GetApplicationWillTerminateDelegate();
 
 	// Some platform have a System UI Overlay that can draw on top of the application.
 	// The game might want to be notified so it can pause, etc...
 	// Parameter (bool) should be true if the system UI is displayed, otherwise false should be passed
-	static TMulticastDelegate<void(bool)> ApplicationSystemUIOverlayStateChangedDelegate;
+	static CORE_API TMulticastDelegate<void(bool)> ApplicationSystemUIOverlayStateChangedDelegate;
 
 	// Called when in the background, if the OS is giving CPU time to the device. It is very likely
 	// this will never be called due to mobile OS backgrounded CPU restrictions. But if, for instance,
 	// VOIP is active on iOS, the will be getting called
-	static TMulticastDelegate<void(float DeltaTime)> MobileBackgroundTickDelegate;
+	static CORE_API TMulticastDelegate<void(float DeltaTime)> MobileBackgroundTickDelegate;
 
 	// Called when the OS needs control of the music (parameter is true) or when the OS returns
 	// control of the music to the application (parameter is false). This can happen due to a
 	// phone call or timer or other OS-level event. This is currently triggered only on iOS
 	// devices.
-	static TMulticastDelegate<void(bool)> UserMusicInterruptDelegate;
+	static CORE_API TMulticastDelegate<void(bool)> UserMusicInterruptDelegate;
 	
 	// [iOS only] Called when the mute switch is detected as changed or when the
 	// volume changes. Parameter 1 is the mute switch state (true is muted, false is
 	// unmuted). Parameter 2 is the volume as an integer from 0 to 100.
-	static TMulticastDelegate<void(bool, int)> AudioMuteDelegate;
+	static CORE_API TMulticastDelegate<void(bool, int)> AudioMuteDelegate;
 	
 	// [iOS only] Called when the audio device changes
 	// For instance, when the headphones are plugged in or removed
-	static TMulticastDelegate<void(bool)> AudioRouteChangedDelegate;
+	static CORE_API TMulticastDelegate<void(bool)> AudioRouteChangedDelegate;
 
 	// Generally, events triggering UserMusicInterruptDelegate or AudioMuteDelegate happen only
 	// when a change occurs. When a system comes online needing the current audio state but the
 	// event has already been broadcast, calling ApplicationRequestAudioState will force the
 	// UserMusicInterruptDelegate and AudioMuteDelegate to be called again if the low-level
 	// application layer supports it. Currently, this is available only on iOS.
-	static TMulticastDelegate<void()> ApplicationRequestAudioState;
+	static CORE_API TMulticastDelegate<void()> ApplicationRequestAudioState;
 	
 	// Called when the OS is running low on resources and asks the application to free up any cached resources, drop graphics quality etc.
-	static TMulticastDelegate<void()> ApplicationShouldUnloadResourcesDelegate;
+	static CORE_API TMulticastDelegate<void()> ApplicationShouldUnloadResourcesDelegate;
 
 	// Called with arguments passed to the application on statup, perhaps meta data passed on by another application which launched this one.
-	static TMulticastDelegate<void(const TArray<FString>&)> ApplicationReceivedStartupArgumentsDelegate;
+	static CORE_API TMulticastDelegate<void(const TArray<FString>&)> ApplicationReceivedStartupArgumentsDelegate;
 
 	/** IOS-style push notification delegates */
 
 	// called when the user grants permission to register for remote notifications
-	static TMulticastDelegate<void(TArray<uint8>)> ApplicationRegisteredForRemoteNotificationsDelegate;
+	static CORE_API TMulticastDelegate<void(TArray<uint8>)> ApplicationRegisteredForRemoteNotificationsDelegate;
 
 	// called when the user grants permission to register for notifications
-	static TMulticastDelegate<void(int)> ApplicationRegisteredForUserNotificationsDelegate;
+	static CORE_API TMulticastDelegate<void(int)> ApplicationRegisteredForUserNotificationsDelegate;
 
 	// called when the application fails to register for remote notifications
-	static TMulticastDelegate<void(FString)> ApplicationFailedToRegisterForRemoteNotificationsDelegate;
+	static CORE_API TMulticastDelegate<void(FString)> ApplicationFailedToRegisterForRemoteNotificationsDelegate;
 
 	// called when the application receives a remote notification
-	static TMulticastDelegate<void(FString, int)> ApplicationReceivedRemoteNotificationDelegate;
+	static CORE_API TMulticastDelegate<void(FString, int)> ApplicationReceivedRemoteNotificationDelegate;
 
 	// called when the application receives a local notification
-	static TMulticastDelegate<void(FString, int, int)> ApplicationReceivedLocalNotificationDelegate;
+	static CORE_API TMulticastDelegate<void(FString, int, int)> ApplicationReceivedLocalNotificationDelegate;
 
     // called when the application receives notice to perform a background fetch
-    static TMulticastDelegate<void()> ApplicationPerformFetchDelegate;
+    static CORE_API TMulticastDelegate<void()> ApplicationPerformFetchDelegate;
 
     // called when the application receives notice that a background download has completed
-    static TMulticastDelegate<void(FString)> ApplicationBackgroundSessionEventDelegate;
+    static CORE_API TMulticastDelegate<void(FString)> ApplicationBackgroundSessionEventDelegate;
 
 	/** Sent when a device screen orientation changes */
-	static TMulticastDelegate<void(int32)> ApplicationReceivedScreenOrientationChangedNotificationDelegate;
+	static CORE_API TMulticastDelegate<void(int32)> ApplicationReceivedScreenOrientationChangedNotificationDelegate;
 
 	/** Checks to see if the stat is already enabled */
-	static TMulticastDelegate<void(const TCHAR*, bool&, bool&)> StatCheckEnabled;
+	static CORE_API TMulticastDelegate<void(const TCHAR*, bool&, bool&)> StatCheckEnabled;
 
 	/** Sent after each stat is enabled */
-	static TMulticastDelegate<void(const TCHAR*)> StatEnabled;
+	static CORE_API TMulticastDelegate<void(const TCHAR*)> StatEnabled;
 
 	/** Sent after each stat is disabled */
-	static TMulticastDelegate<void(const TCHAR*)> StatDisabled;
+	static CORE_API TMulticastDelegate<void(const TCHAR*)> StatDisabled;
 
 	/** Sent when all stats need to be disabled */
-	static TMulticastDelegate<void(const bool)> StatDisableAll;
+	static CORE_API TMulticastDelegate<void(const bool)> StatDisableAll;
 
 	// Called when an application is notified that the application license info has been updated.
 	// The new license data should be polled and steps taken based on the results (i.e. halt application if license is no longer valid).
-	static TMulticastDelegate<void()> ApplicationLicenseChange;
+	static CORE_API TMulticastDelegate<void()> ApplicationLicenseChange;
 
 	/** Sent when the platform changed its laptop mode (for convertible laptops).*/
-	static TMulticastDelegate<void(EConvertibleLaptopMode)> PlatformChangedLaptopMode;
+	static CORE_API TMulticastDelegate<void(EConvertibleLaptopMode)> PlatformChangedLaptopMode;
 
 	/** Sent when the platform needs the user to fix headset tracking on startup (Most platforms do not need this.) */
-	static TMulticastDelegate<void()> VRHeadsetTrackingInitializingAndNeedsHMDToBeTrackedDelegate;
+	static CORE_API TMulticastDelegate<void()> VRHeadsetTrackingInitializingAndNeedsHMDToBeTrackedDelegate;
 
 	/** Sent when the platform finds that needed headset tracking on startup has completed (Most platforms do not need this.) */
-	static TMulticastDelegate<void()> VRHeadsetTrackingInitializedDelegate;
+	static CORE_API TMulticastDelegate<void()> VRHeadsetTrackingInitializedDelegate;
 
 	/** Sent when the platform requests a low-level VR recentering */
-	static TMulticastDelegate<void()> VRHeadsetRecenter;
+	static CORE_API TMulticastDelegate<void()> VRHeadsetRecenter;
 
 	/** Sent when connection to VR HMD is lost */
-	static TMulticastDelegate<void()> VRHeadsetLost;
+	static CORE_API TMulticastDelegate<void()> VRHeadsetLost;
 
 	/** Sent when connection to VR HMD is restored */
-	static TMulticastDelegate<void()> VRHeadsetReconnected;
+	static CORE_API TMulticastDelegate<void()> VRHeadsetReconnected;
 
 	/** Sent when connection to VR HMD connection is refused by the player */
-	static TMulticastDelegate<void()> VRHeadsetConnectCanceled;
+	static CORE_API TMulticastDelegate<void()> VRHeadsetConnectCanceled;
 
 	/** Sent when the VR HMD detects that it has been put on by the player. */
-	static TMulticastDelegate<void()> VRHeadsetPutOnHead;
+	static CORE_API TMulticastDelegate<void()> VRHeadsetPutOnHead;
 
 	/** Sent when the VR HMD detects that it has been taken off by the player. */
-	static TMulticastDelegate<void()> VRHeadsetRemovedFromHead;
+	static CORE_API TMulticastDelegate<void()> VRHeadsetRemovedFromHead;
 
 	/** Sent when a 3DOF VR controller is recentered */
-	static TMulticastDelegate<void()> VRControllerRecentered;
+	static CORE_API TMulticastDelegate<void()> VRControllerRecentered;
 
 	/** Sent when application code changes the user activity hint string for analytics, crash reports, etc */
-	static TMulticastDelegate<void(const FString&)> UserActivityStringChanged;
+	static CORE_API TMulticastDelegate<void(const FString&)> UserActivityStringChanged;
 
 	/** Sent when application code changes the currently active game session. The exact semantics of this will vary between games but it is useful for analytics, crash reports, etc  */
-	static TMulticastDelegate<void(const FString&)> GameSessionIDChanged;
+	static CORE_API TMulticastDelegate<void(const FString&)> GameSessionIDChanged;
 
 	/** Sent when application code changes game state. The exact semantics of this will vary between games but it is useful for analytics, crash reports, etc  */
-	static TMulticastDelegate<void(const FString&)> GameStateClassChanged;
+	static CORE_API TMulticastDelegate<void(const FString&)> GameStateClassChanged;
 
 	/** Sent by application code to set params that customize crash reporting behavior. */
-	static TMulticastDelegate<void(const FCrashOverrideParameters&)> CrashOverrideParamsChanged;
+	static CORE_API TMulticastDelegate<void(const FCrashOverrideParameters&)> CrashOverrideParamsChanged;
 	
 	/** Sent by engine code when the "vanilla" status of the engine changes */
-	static TMulticastDelegate<void(bool)> IsVanillaProductChanged;
+	static CORE_API TMulticastDelegate<void(bool)> IsVanillaProductChanged;
 
 	// Callback for platform specific very early init code.
-	static TMulticastDelegate<void()>& GetPreMainInitDelegate();
+	static CORE_API TMulticastDelegate<void()>& GetPreMainInitDelegate();
 	
 	/** Sent when GConfig is finished initializing */
-	static TTSMulticastDelegate<void()>& TSConfigReadyForUse();
+	static CORE_API TTSMulticastDelegate<void()>& TSConfigReadyForUse();
 
 	/** Callback for notifications regarding changes of the rendering thread. */
 
 	/** Sent just after the rendering thread has been created. */
-	static TMulticastDelegate<void()> PostRenderingThreadCreated;
+	static CORE_API TMulticastDelegate<void()> PostRenderingThreadCreated;
 	/* Sent just before the rendering thread is destroyed. */
-	static TMulticastDelegate<void()> PreRenderingThreadDestroyed;
+	static CORE_API TMulticastDelegate<void()> PreRenderingThreadDestroyed;
 
 	// Callback to allow custom resolution of package names. Arguments are InRequestedName, OutResolvedName.
 	// Should return True of resolution occured.
-	static TArray<TDelegate<bool(const FString&, FString&)>> PackageNameResolvers;
+	static CORE_API TArray<TDelegate<bool(const FString&, FString&)>> PackageNameResolvers;
 
 	// Called to request that systems free whatever memory they are able to. Called early in LoadMap.
 	// Caller is responsible for flushing rendering etc. See UEngine::TrimMemory
-	static FSimpleMulticastDelegate& GetMemoryTrimDelegate();
+	static CORE_API FSimpleMulticastDelegate& GetMemoryTrimDelegate();
 
 	// Called to request that low level allocator free whatever memory they are able to. 
-	static FSimpleMulticastDelegate& GetLowLevelAllocatorMemoryTrimDelegate();
+	static CORE_API FSimpleMulticastDelegate& GetLowLevelAllocatorMemoryTrimDelegate();
 
 	// Called to request that low level allocator must refreshed
-	static FSimpleMulticastDelegate& GetRefreshLowLevelAllocatorDelegate();
+	static CORE_API FSimpleMulticastDelegate& GetRefreshLowLevelAllocatorDelegate();
 
 	// Called when OOM event occurs, after backup memory has been freed, so there's some hope of being effective
-	static FSimpleMulticastDelegate& GetOutOfMemoryDelegate();
+	static CORE_API FSimpleMulticastDelegate& GetOutOfMemoryDelegate();
 
 	// Called from TerminateOnOutOfMemory in D3D11Util.cpp/D3D12Util.cpp
-	static TMulticastDelegate<void(const uint64, const uint64)>& GetGPUOutOfMemoryDelegate();
+	static CORE_API TMulticastDelegate<void(const uint64, const uint64)>& GetGPUOutOfMemoryDelegate();
 
 	enum class EOnScreenMessageSeverity : uint8
 	{
@@ -477,25 +477,25 @@ public:
 	// {
 	//		OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Info, FText::Format(LOCTEXT("MyMessage", "My Status: {0}"), SomeStatus));
 	// }
-	static TMulticastDelegate<void(FSeverityMessageMap&)> OnGetOnScreenMessages;
+	static CORE_API TMulticastDelegate<void(FSeverityMessageMap&)> OnGetOnScreenMessages;
 
-	static TDelegate<bool()> IsLoadingMovieCurrentlyPlaying;
+	static CORE_API TDelegate<bool()> IsLoadingMovieCurrentlyPlaying;
 
 	// Callback to allow user code to prevent url from being launched from FPlatformProcess::LaunchURL. Used to apply http allow list
 	// Return true for to launch the url
-	static TDelegate<bool(const TCHAR* URL)> ShouldLaunchUrl;
+	static CORE_API TDelegate<bool(const TCHAR* URL)> ShouldLaunchUrl;
 
 	// Callback to allow user code to implement a custom implementation for FPlatformProcess::LaunchURL. (Windows Only)
-	static TDelegate<void(const FString& URL, FString* Error)> LaunchCustomHandlerForURL;
+	static CORE_API TDelegate<void(const FString& URL, FString* Error)> LaunchCustomHandlerForURL;
 	
 	// Callback when the application has been activated by protocol (with optional user id, depending on the platform)
-	static TMulticastDelegate<void(const FString& Parameter, FPlatformUserId UserId /*= PLATFORMUSERID_NONE*/)> OnActivatedByProtocol;
+	static CORE_API TMulticastDelegate<void(const FString& Parameter, FPlatformUserId UserId /*= PLATFORMUSERID_NONE*/)> OnActivatedByProtocol;
 
 	/** Sent when GC finish destroy takes more time than expected */
-	static TMulticastDelegate<void(const FString&)> OnGCFinishDestroyTimeExtended;
+	static CORE_API TMulticastDelegate<void(const FString&)> OnGCFinishDestroyTimeExtended;
 
 	/** Called when the application's network initializes or shutdowns on platforms where the network stack is not always available */
-	static TMulticastDelegate<void(bool bIsNetworkInitialized)> ApplicationNetworkInitializationChanged;
+	static CORE_API TMulticastDelegate<void(bool bIsNetworkInitialized)> ApplicationNetworkInitializationChanged;
 
 	/**
 	 * Called when the connection state as reported by the platform changes
@@ -503,7 +503,7 @@ public:
 	 * @param LastConnectionState last state of the connection
 	 * @param ConnectionState current state of the connection
 	 */
-	static TMulticastDelegate<void(ENetworkConnectionStatus LastConnectionState, ENetworkConnectionStatus ConnectionState)> OnNetworkConnectionStatusChanged;
+	static CORE_API TMulticastDelegate<void(ENetworkConnectionStatus LastConnectionState, ENetworkConnectionStatus ConnectionState)> OnNetworkConnectionStatusChanged;
 
 	// Callback to let code read or write specialized binary data that is generated at Stage time, for optimizing data right before 
 	// final game data is being written to disk
@@ -527,40 +527,40 @@ public:
 		}
 	};
 	
-	static TTSMulticastDelegate<void(FExtraBinaryConfigData&)>& TSAccessExtraBinaryConfigData();
+	static CORE_API TTSMulticastDelegate<void(FExtraBinaryConfigData&)>& TSAccessExtraBinaryConfigData();
 
 	using FAttachShaderReadRequestFunc = TFunctionRef<class FIoRequest(const class FIoChunkId&, FGraphEventRef)>;
-	static TDelegate<void(TArrayView<const FSHAHash>, FAttachShaderReadRequestFunc)> PreloadPackageShaderMaps;
-	static TDelegate<void(TArrayView<const FSHAHash>)> ReleasePreloadedPackageShaderMaps;
+	static CORE_API TDelegate<void(TArrayView<const FSHAHash>, FAttachShaderReadRequestFunc)> PreloadPackageShaderMaps;
+	static CORE_API TDelegate<void(TArrayView<const FSHAHash>)> ReleasePreloadedPackageShaderMaps;
 	/** Called when the verbosity of a log category is changed */
-	static TMulticastDelegate<void(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity)> OnLogVerbosityChanged;
+	static CORE_API TMulticastDelegate<void(const FLogCategoryName& CategoryName, ELogVerbosity::Type OldVerbosity, ELogVerbosity::Type NewVerbosity)> OnLogVerbosityChanged;
 
 	UE_DEPRECATED(5.1, "Use FPackageStore::Mount() instead")
-	static TDelegate<TSharedPtr<class IPackageStore>()> CreatePackageStore;
+	static CORE_API TDelegate<TSharedPtr<class IPackageStore>()> CreatePackageStore;
 
 	// Called immediately before the parent process will start responding to signals to fork
-	static FSimpleMulticastDelegate OnParentBeginFork;
+	static CORE_API FSimpleMulticastDelegate OnParentBeginFork;
 	// Called each time immediately before the parent process forks itself
-	static FSimpleMulticastDelegate OnParentPreFork;
+	static CORE_API FSimpleMulticastDelegate OnParentPreFork;
 
 	// Called immediately after the process spawned a fork
-	static TMulticastDelegate<void(EForkProcessRole ProcessRole)> OnPostFork;
+	static CORE_API TMulticastDelegate<void(EForkProcessRole ProcessRole)> OnPostFork;
 	// Called at the end of the frame where the process spawned a fork
-	static FSimpleMulticastDelegate OnChildEndFramePostFork;
+	static CORE_API FSimpleMulticastDelegate OnChildEndFramePostFork;
 
 	// Called when FParse::Command succeeds. Used to audit named commands usage.
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNamedCommandParsed, const TCHAR* /*Cmd*/);
-	static FOnNamedCommandParsed OnNamedCommandParsed;
+	static CORE_API FOnNamedCommandParsed OnNamedCommandParsed;
 
 	// Called when FExec::Exec is called in a context where it's disallowed (UE_ALLOW_EXEC_COMMANDS = 0).
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDisallowedExecCommandCalled, const TCHAR* /*Cmd*/);
-	static FOnDisallowedExecCommandCalled OnDisallowedExecCommandCalled;
+	static CORE_API FOnDisallowedExecCommandCalled OnDisallowedExecCommandCalled;
 
 	// Extension point for projects to report the URL for a continuous integration job which produced these binaries.
-	static TDelegate<const TCHAR*()> OnGetBuildURL;
+	static CORE_API TDelegate<const TCHAR*()> OnGetBuildURL;
 	
 	// Extension point for projects to report the URL for a continuous integration job which is currently executing this process. 
-	static TDelegate<const TCHAR*()> OnGetExecutingJobURL;
+	static CORE_API TDelegate<const TCHAR*()> OnGetExecutingJobURL;
 	
 private:
 

@@ -108,14 +108,14 @@ public:
 	 * This allows systems that implement IMessageLog to receive messages.
 	 */
 	DECLARE_DELEGATE_RetVal_OneParam( TSharedRef<class IMessageLog>, FGetLog, const FName& );
-	CORE_API static FGetLog& OnGetLog() { return GetLog; }
+	static FGetLog& OnGetLog() { return GetLog; }
 
 	/**
 	 * Delegate used when message selection changes.
 	 * This is used to select object in the scene according to objects referenced in message tokens.
 	 */
 	DECLARE_DELEGATE_OneParam( FMessageSelectionChanged, TArray< TSharedRef<FTokenizedMessage> >& );
-	CORE_API static FMessageSelectionChanged& OnMessageSelectionChanged() { return MessageSelectionChanged; }
+	static FMessageSelectionChanged& OnMessageSelectionChanged() { return MessageSelectionChanged; }
 
 	/** Helper function to convert message log severity to log verbosity */
 	CORE_API static ELogVerbosity::Type GetLogVerbosity( EMessageSeverity::Type InSeverity );

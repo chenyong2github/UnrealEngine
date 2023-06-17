@@ -46,7 +46,7 @@ class IFileHandle;
  * This class is not threadsafe. The public interface can be used at the same time as internal asynchronous tasks are executing, but the
  * public interface can not be used from multiple threads at once.
  */
-class CORE_API FPreloadableArchive : public FArchive
+class FPreloadableArchive : public FArchive
 {
 public:
 	typedef TUniqueFunction<FArchive* ()> FCreateArchive;
@@ -70,59 +70,59 @@ public:
 		DefaultPageSize = 64*1024	// The default size of read requests made to the LowerLevel Archive in PreloadBytes mode when reading bytes into the In-Memory cache.
 	};
 
-	FPreloadableArchive(FStringView ArchiveName);
-	virtual ~FPreloadableArchive();
+	CORE_API FPreloadableArchive(FStringView ArchiveName);
+	CORE_API virtual ~FPreloadableArchive();
 
 	// Initialization
 	/** Set the PageSize used read requests made to the LowerLevel Archive in PreloadBytes mode when reading bytes into the In-Memory cache. Invalid to set after Initialization; PageSize must be constant during use. */
-	void SetPageSize(int64 PageSize);
+	CORE_API void SetPageSize(int64 PageSize);
 	/** Initialize the FPreloadableFile asynchronously, performing FileOpen operations on another thread. Use IsInitialized or WaitForInitialization to check progress. */
-	void InitializeAsync(FCreateArchive&& InCreateArchiveFunction, uint32 InFlags = Flags::None, int64 PrimeSize = DefaultPrimeSize);
-	void InitializeAsync(FCreateAsyncArchive&& InCreateAsyncArchiveFunction, uint32 InFlags = Flags::None, int64 PrimeSize = DefaultPrimeSize);
+	CORE_API void InitializeAsync(FCreateArchive&& InCreateArchiveFunction, uint32 InFlags = Flags::None, int64 PrimeSize = DefaultPrimeSize);
+	CORE_API void InitializeAsync(FCreateAsyncArchive&& InCreateAsyncArchiveFunction, uint32 InFlags = Flags::None, int64 PrimeSize = DefaultPrimeSize);
 	/** Return whether InitializeAsync has completed. If Close is called, state returns to false until the next call to InitializeAsync. */
-	bool IsInitialized() const;
+	CORE_API bool IsInitialized() const;
 	/** Wait for InitializeAsync to complete if it is running, otherwise return immediately. */
-	void WaitForInitialization() const;
+	CORE_API void WaitForInitialization() const;
 
 	// Preloading
 	/** When in PreloadBytes mode, if not already preloading, allocate if necessary the memory for the preloaded bytes and start the chain of asynchronous ReadRequests for the bytes. Returns whether preloading is now active. */
-	bool StartPreload();
+	CORE_API bool StartPreload();
 	/** Cancel any current asynchronous ReadRequests and wait for the asynchronous work to exit. */
-	void StopPreload();
+	CORE_API void StopPreload();
 	/** Return whether preloading is in progress. Value may not be up to date since asynchronous work might complete in a race condition. */
-	bool IsPreloading() const;
+	CORE_API bool IsPreloading() const;
 	/** When in PreloadBytes mode, allocate if necessary the memory for the preloaded bytes. Return whether the memory is now allocated. */
-	bool AllocateCache();
+	CORE_API bool AllocateCache();
 	/** Free all memory used by the cache or for preloading (calling StopPreload if necessary). */
-	void ReleaseCache();
+	CORE_API void ReleaseCache();
 	/** Return whether the cache is currently allocated. */
-	bool IsCacheAllocated() const;
+	CORE_API bool IsCacheAllocated() const;
 	/** Return the LowerLevel FArchive if it has been allocated. May return null, even if the FPreloadableFile is currently active. If return value is non-null, caller is responsible for deleting it. */
-	FArchive* DetachLowerLevel();
+	CORE_API FArchive* DetachLowerLevel();
 
 	// FArchive
-	virtual void Serialize(void* V, int64 Length) final;
-	virtual void Seek(int64 InPos) final;
-	virtual int64 Tell() final;
+	CORE_API virtual void Serialize(void* V, int64 Length) final;
+	CORE_API virtual void Seek(int64 InPos) final;
+	CORE_API virtual int64 Tell() final;
 	/** Return the size of the file, or -1 if the file does not exist. This is also the amount of memory that will be allocated by AllocateCache. */
-	virtual int64 TotalSize() final;
-	virtual bool Close() final;
-	virtual FString GetArchiveName() const final;
+	CORE_API virtual int64 TotalSize() final;
+	CORE_API virtual bool Close() final;
+	CORE_API virtual FString GetArchiveName() const final;
 
 protected:
 	/** Helper function for InitializeAsync, sets up the asynchronous call to InitializeInternal */
-	void InitializeInternalAsync(FCreateArchive&& InCreateArchiveFunction, FCreateAsyncArchive&& InCreateAsyncArchiveFunction, uint32 InFlags, int64 PrimeSize);
+	CORE_API void InitializeInternalAsync(FCreateArchive&& InCreateArchiveFunction, FCreateAsyncArchive&& InCreateAsyncArchiveFunction, uint32 InFlags, int64 PrimeSize);
 	/** Helper function for InitializeAsync, called from a TaskGraph thread. */
-	void InitializeInternal(FCreateArchive&& InCreateArchiveFunction, FCreateAsyncArchive&& InCreateAsyncArchiveFunction, uint32 Flags, int64 PrimeSize);
+	CORE_API void InitializeInternal(FCreateArchive&& InCreateArchiveFunction, FCreateAsyncArchive&& InCreateAsyncArchiveFunction, uint32 Flags, int64 PrimeSize);
 #if FPRELOADABLEFILE_TEST_ENABLED
-	void SerializeInternal(void* V, int64 Length);
+	CORE_API void SerializeInternal(void* V, int64 Length);
 #endif
-	void PausePreload();
-	void ResumePreload();
-	bool ResumePreloadNonRecursive();
-	void OnReadComplete(bool bCanceled, IAsyncReadRequest* ReadRequest);
-	void FreeRetiredRequests();
-	void SerializeSynchronously(void* V, int64 Length);
+	CORE_API void PausePreload();
+	CORE_API void ResumePreload();
+	CORE_API bool ResumePreloadNonRecursive();
+	CORE_API void OnReadComplete(bool bCanceled, IAsyncReadRequest* ReadRequest);
+	CORE_API void FreeRetiredRequests();
+	CORE_API void SerializeSynchronously(void* V, int64 Length);
 
 	FString ArchiveName;
 	/** The Offset into the file or preloaded bytes that will be used in the next call to Serialize. */
@@ -204,13 +204,13 @@ protected:
  * Activate PreloadHandle mode by passing Flags::PreloadHandle to InitializeAsync, optionally or'd with Flags::Prime.
  *
  */
-class CORE_API FPreloadableFile : public FPreloadableArchive
+class FPreloadableFile : public FPreloadableArchive
 {
 public:
-	FPreloadableFile(FStringView FileName);
+	CORE_API FPreloadableFile(FStringView FileName);
 
 	/** Initialize the FPreloadableFile asynchronously, performing FileOpen operations on another thread. Use IsInitialized or WaitForInitialization to check progress. */
-	void InitializeAsync(uint32 InFlags = Flags::None, int64 PrimeSize=DefaultPrimeSize);
+	CORE_API void InitializeAsync(uint32 InFlags = Flags::None, int64 PrimeSize=DefaultPrimeSize);
 
 	// Registration
 	/**
@@ -219,16 +219,16 @@ public:
 	 * Return whether the instance is currently registered. Returns true if the instance was already registered.
 	 * Registered files are referenced-counted, and the reference will not be dropped until (1) (TryTakeArchive or UnRegister is called) and (2) (PreloadBytes mode only) the archive returned from TryTakeArchive is deleted.
 	 */
-	static bool TryRegister(const TSharedPtr<FPreloadableFile>& PreloadableFile);
+	static CORE_API bool TryRegister(const TSharedPtr<FPreloadableFile>& PreloadableFile);
 	/**
 	 * Look up an FPreloadableFile instance registered for the given FileName, and return an FArchive from it.
 	 * If found, removes the registration so no future call to TryTakeArchive can sue the same FArchive.
 	 * If the instance is in PreloadHandle mode, the Lower-Level FArchive will be detached from the FPreloadableFile and returned using DetachLowerLevel.
 	 * If the instance is in PreloadBytes mode, a ProxyArchive will be returned that forwards call to the FPreloadableFile instance.
 	 */
-	static FArchive* TryTakeArchive(const TCHAR* FileName);
+	static CORE_API FArchive* TryTakeArchive(const TCHAR* FileName);
 	/** Remove the FPreloadableFile instance if it is registered for its FileName. Returns whether the instance was registered. */
-	static bool UnRegister(const TSharedPtr<FPreloadableFile>& PreloadableFile);
+	static CORE_API bool UnRegister(const TSharedPtr<FPreloadableFile>& PreloadableFile);
 
 private:
 	/** Map used for TryTakeArchive registration. */

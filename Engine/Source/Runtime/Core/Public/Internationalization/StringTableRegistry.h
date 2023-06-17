@@ -20,51 +20,51 @@ class UStringTable;
 template <typename FuncType> class TFunctionRef;
 
 /** Singleton registry of known string table instances */
-class CORE_API FStringTableRegistry
+class FStringTableRegistry
 {
 public:
 	/** Singleton accessor */
-	static FStringTableRegistry& Get();
+	static CORE_API FStringTableRegistry& Get();
 
 	/** Register a string table with the given ID */
-	void RegisterStringTable(const FName InTableId, FStringTableRef InTable);
+	CORE_API void RegisterStringTable(const FName InTableId, FStringTableRef InTable);
 
 	/** Unregister a string table with the given ID */
-	void UnregisterStringTable(const FName InTableId);
+	CORE_API void UnregisterStringTable(const FName InTableId);
 
 	/** Try and find a string table with the given ID */
-	FStringTablePtr FindMutableStringTable(const FName InTableId) const;
+	CORE_API FStringTablePtr FindMutableStringTable(const FName InTableId) const;
 
 	/** Try and find a string table with the given ID */
-	FStringTableConstPtr FindStringTable(const FName InTableId) const;
+	CORE_API FStringTableConstPtr FindStringTable(const FName InTableId) const;
 
 	/** Try and find a string table asset with the given ID */
-	UStringTable* FindStringTableAsset(const FName InTableId) const;
+	CORE_API UStringTable* FindStringTableAsset(const FName InTableId) const;
 
 	/** Enumerate all registered string tables */
-	void EnumerateStringTables(const TFunctionRef<bool(const FName&, const FStringTableConstRef&)>& InEnumerator) const;
+	CORE_API void EnumerateStringTables(const TFunctionRef<bool(const FName&, const FStringTableConstRef&)>& InEnumerator) const;
 
 	/** Given an FText, try and find the table ID and key for it */
 	UE_DEPRECATED(5.0, "FindTableIdAndKey is deprecated. Use FTextInspector::GetTableIdAndKey instead.")
-	bool FindTableIdAndKey(const FText& InText, FName& OutTableId, FString& OutKey) const;
+	CORE_API bool FindTableIdAndKey(const FText& InText, FName& OutTableId, FString& OutKey) const;
 
 	/** Log a missing string table entry (will only log each missing entry once to avoid spam) */
-	void LogMissingStringTableEntry(const FName InTableId, const FTextKey& InKey);
+	CORE_API void LogMissingStringTableEntry(const FName InTableId, const FTextKey& InKey);
 
 	/** Internal function called by LOCTABLE_NEW to create and register a new FStringTable instance */
-	void Internal_NewLocTable(const FName InTableId, const FString& InNamespace);
+	CORE_API void Internal_NewLocTable(const FName InTableId, const FString& InNamespace);
 
 	/** Internal function called by LOCTABLE_FROMFILE_X to create and register a FStringTable instance that has been populated from a file */
-	void Internal_LocTableFromFile(const FName InTableId, const FString& InNamespace, const FString& InFilePath, const FString& InRootPath);
+	CORE_API void Internal_LocTableFromFile(const FName InTableId, const FString& InNamespace, const FString& InFilePath, const FString& InRootPath);
 
 	/** Internal function called by LOCTABLE_SETSTRING to set the entry denoted by the given key to the given source string, within the given string table (table must have been registered already) */
-	void Internal_SetLocTableEntry(const FName InTableId, const FString& InKey, const FString& InSourceString);
+	CORE_API void Internal_SetLocTableEntry(const FName InTableId, const FString& InKey, const FString& InSourceString);
 
 	/** Internal function called by LOCTABLE_SETMETA to set meta-data for the entry denoted by the given key, within the given string table (table must have been registered already) */
-	void Internal_SetLocTableEntryMetaData(const FName InTableId, const FString& InKey, const FName InMetaDataId, const FString& InMetaData);
+	CORE_API void Internal_SetLocTableEntryMetaData(const FName InTableId, const FString& InKey, const FName InMetaDataId, const FString& InMetaData);
 
 	/** Internal function called by LOCTABLE to find the entry with by the given key within the given string table (redirects, will load assets if needed, and returns a dummy FText if not found) */
-	FText Internal_FindLocTableEntry(const FName InTableId, const FString& InKey, const EStringTableLoadingPolicy InLoadingPolicy) const;
+	CORE_API FText Internal_FindLocTableEntry(const FName InTableId, const FString& InKey, const EStringTableLoadingPolicy InLoadingPolicy) const;
 
 private:
 	/** Private constructor - use singleton accessor */

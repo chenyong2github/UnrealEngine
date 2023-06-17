@@ -43,18 +43,18 @@ class FMemoryImageString;
 // This is also required for creating frozen memory images
 #define UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES (WITH_EDITORONLY_DATA)
 
-class CORE_API FPointerTableBase
+class FPointerTableBase
 {
 public:
 	virtual ~FPointerTableBase() {}
 	virtual int32 AddIndexedPointer(const FTypeLayoutDesc& TypeDesc, void* Ptr) = 0;
 	virtual void* GetIndexedPointer(const FTypeLayoutDesc& TypeDesc, uint32 i) const = 0;
 
-	virtual void SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const;
-	virtual bool LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, void* FrozenObject);
+	CORE_API virtual void SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const;
+	CORE_API virtual bool LoadFromArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, void* FrozenObject);
 
 #if UE_MEMORYIMAGE_TRACK_TYPE_DEPENDENCIES
-	int32 AddTypeDependency(const FTypeLayoutDesc& TypeDesc);
+	CORE_API int32 AddTypeDependency(const FTypeLayoutDesc& TypeDesc);
 	inline const FTypeLayoutDesc* GetTypeDependency(int32 Index) const { return TypeDependencies[Index]; }
 private:
 	TArray<const FTypeLayoutDesc*> TypeDependencies;
@@ -210,7 +210,7 @@ struct FMemoryImageResult
 	CORE_API static FMemoryImageObject LoadFromArchive(FArchive& Ar, const FTypeLayoutDesc& TypeDesc, FPointerTableBase* PointerTable, FPlatformTypeLayoutParameters& OutLayoutParameters);
 };
 
-class CORE_API FMemoryImageSection : public FRefCountedObject
+class FMemoryImageSection : public FRefCountedObject
 {
 public:
 	struct FSectionPointer
@@ -260,14 +260,14 @@ public:
 	template<typename T>
 	uint32 WriteBytes(const T& Data) { return WriteBytes(&Data, sizeof(T)); }
 
-	FMemoryImageSection* WritePointer(const FTypeLayoutDesc& StaticTypeDesc, const FTypeLayoutDesc& DerivedTypeDesc, uint32* OutOffsetToBase = nullptr);
-	uint32 WriteRawPointerSizedBytes(uint64 PointerValue);
-	uint32 WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
-	uint32 WriteFMemoryImageName(int32 NumBytes, const FName& Name);
-	uint32 WriteFScriptName(const FScriptName& Name);
-	uint32 Flatten(FMemoryImageResult& OutResult) const;
+	CORE_API FMemoryImageSection* WritePointer(const FTypeLayoutDesc& StaticTypeDesc, const FTypeLayoutDesc& DerivedTypeDesc, uint32* OutOffsetToBase = nullptr);
+	CORE_API uint32 WriteRawPointerSizedBytes(uint64 PointerValue);
+	CORE_API uint32 WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
+	CORE_API uint32 WriteFMemoryImageName(int32 NumBytes, const FName& Name);
+	CORE_API uint32 WriteFScriptName(const FScriptName& Name);
+	CORE_API uint32 Flatten(FMemoryImageResult& OutResult) const;
 
-	void ComputeHash();
+	CORE_API void ComputeHash();
 
 	FMemoryImage* ParentImage;
 	TArray<uint8> Bytes;
@@ -279,7 +279,7 @@ public:
 	uint32 MaxAlignment;
 };
 
-class CORE_API FMemoryImage
+class FMemoryImage
 {
 public:
 	FMemoryImage()
@@ -304,7 +304,7 @@ public:
 	/** Merging duplicate sections will make the resulting memory image smaller.
 	 * This will only work for data that is expected to be read-only after freezing.  Merging sections will break any manual fix-ups applied to the frozen data
 	 */
-	void Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSections = false);
+	CORE_API void Flatten(FMemoryImageResult& OutResult, bool bMergeDuplicateSections = false);
 
 	TArray<TRefCountPtr<FMemoryImageSection>> Sections;
 	FPointerTableBase* PointerTable;

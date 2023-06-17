@@ -16,11 +16,11 @@ class FName;
 class FString;
 
 /** Helper functions used by FOutputDevice derived classes **/
-struct CORE_API FOutputDeviceHelper
+struct FOutputDeviceHelper
 {
 	/** Append a formatted log line to the string builder. */
-	static void AppendFormatLogLine(FWideStringBuilderBase& Output, ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
-	static void AppendFormatLogLine(FUtf8StringBuilderBase& Output, ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
+	static CORE_API void AppendFormatLogLine(FWideStringBuilderBase& Output, ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
+	static CORE_API void AppendFormatLogLine(FUtf8StringBuilderBase& Output, ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
 
 	/**
 	 * Formats a log line with date, time, category and verbosity prefix
@@ -32,7 +32,7 @@ struct CORE_API FOutputDeviceHelper
 	 * @param OutCategoryIndex (if non-null) The index of the category within the return string is written here, or INDEX_NONE if the category is suppressed
 	 * @returns Formatted log line
 	 */
-	static FString FormatLogLine(ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
+	static CORE_API FString FormatLogLine(ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
 
 	/**
 	 * Formats, casts to ANSI char and serializes a message to archive. Optimized for small number of allocations and Serialize calls
@@ -44,5 +44,5 @@ struct CORE_API FOutputDeviceHelper
 	 * @param bSuppressEventTag True if the message date/time prefix should be suppressed
 	 * @param bAutoEmitLineTerminator True if the message should be automatically appended with a line terminator
 	 **/
-	static void FormatCastAndSerializeLine(FArchive& Output, const TCHAR* Message, ELogVerbosity::Type Verbosity, const FName& Category, double Time, bool bSuppressEventTag, bool bAutoEmitLineTerminator);
+	static CORE_API void FormatCastAndSerializeLine(FArchive& Output, const TCHAR* Message, ELogVerbosity::Type Verbosity, const FName& Category, double Time, bool bSuppressEventTag, bool bAutoEmitLineTerminator);
 };

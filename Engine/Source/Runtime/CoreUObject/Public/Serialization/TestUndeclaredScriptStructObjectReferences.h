@@ -6,7 +6,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"
 
-class CORE_API FArchive;
+class FArchive;
  
 // Helper struct to test if struct serializer object reference declaration tests work properly
 struct FTestUndeclaredScriptStructObjectReferencesTest

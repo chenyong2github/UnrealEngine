@@ -127,7 +127,7 @@ enum class EBlockCanary : uint8
 //
 // Optimized virtual memory allocator.
 //
-class CORE_API FMallocBinned2 : public FMalloc
+class FMallocBinned2 : public FMalloc
 {
 	// Forward declares.
 	struct FPoolInfo;
@@ -469,12 +469,12 @@ class CORE_API FMallocBinned2 : public FMalloc
 public:
 
 
-	FMallocBinned2();
+	CORE_API FMallocBinned2();
 
-	virtual ~FMallocBinned2();
+	CORE_API virtual ~FMallocBinned2();
 
 	// FMalloc interface.
-	virtual bool IsInternallyThreadSafe() const override;
+	CORE_API virtual bool IsInternallyThreadSafe() const override;
 	FORCEINLINE virtual void* Malloc(SIZE_T Size, uint32 Alignment) override
 	{
 #if BINNED2_ALLOCATOR_STATS_VALIDATION
@@ -757,41 +757,41 @@ if (NewSize <= BINNED2_MAX_SMALL_POOL_SIZE && Alignment <= BINNED2_MINIMUM_ALIGN
 		return SizeOut;
 	}
 
-	virtual bool ValidateHeap() override;
-	virtual void Trim(bool bTrimThreadCaches) override;
-	virtual void SetupTLSCachesOnCurrentThread() override;
-	virtual void ClearAndDisableTLSCachesOnCurrentThread() override;
-	virtual const TCHAR* GetDescriptiveName() override;
-	virtual void UpdateStats() override;
-	virtual void OnMallocInitialized() override;
-	virtual void OnPreFork() override;
-	virtual void OnPostFork() override;
+	CORE_API virtual bool ValidateHeap() override;
+	CORE_API virtual void Trim(bool bTrimThreadCaches) override;
+	CORE_API virtual void SetupTLSCachesOnCurrentThread() override;
+	CORE_API virtual void ClearAndDisableTLSCachesOnCurrentThread() override;
+	CORE_API virtual const TCHAR* GetDescriptiveName() override;
+	CORE_API virtual void UpdateStats() override;
+	CORE_API virtual void OnMallocInitialized() override;
+	CORE_API virtual void OnPreFork() override;
+	CORE_API virtual void OnPostFork() override;
 	// End FMalloc interface.
 
-	void FlushCurrentThreadCache();
-	void* MallocExternalSmall(SIZE_T Size, uint32 Alignment);
-	void* MallocExternalLarge(SIZE_T Size, uint32 Alignment);
-	void* ReallocExternal(void* Ptr, SIZE_T NewSize, uint32 Alignment);
-	void FreeExternal(void *Ptr);
-	bool GetAllocationSizeExternal(void* Ptr, SIZE_T& SizeOut);
+	CORE_API void FlushCurrentThreadCache();
+	CORE_API void* MallocExternalSmall(SIZE_T Size, uint32 Alignment);
+	CORE_API void* MallocExternalLarge(SIZE_T Size, uint32 Alignment);
+	CORE_API void* ReallocExternal(void* Ptr, SIZE_T NewSize, uint32 Alignment);
+	CORE_API void FreeExternal(void *Ptr);
+	CORE_API bool GetAllocationSizeExternal(void* Ptr, SIZE_T& SizeOut);
 
-	void CanaryTest(const FFreeBlock* Block) const;
-	void CanaryFail(const FFreeBlock* Block) const;
+	CORE_API void CanaryTest(const FFreeBlock* Block) const;
+	CORE_API void CanaryFail(const FFreeBlock* Block) const;
 
 #if BINNED2_ALLOCATOR_STATS
-	int64 GetTotalAllocatedSmallPoolMemory() const;
+	CORE_API int64 GetTotalAllocatedSmallPoolMemory() const;
 #endif
-	virtual void GetAllocatorStats( FGenericMemoryStats& out_Stats ) override;
+	CORE_API virtual void GetAllocatorStats( FGenericMemoryStats& out_Stats ) override;
 	/** Dumps current allocator stats to the log. */
-	virtual void DumpAllocatorStats(class FOutputDevice& Ar) override;
+	CORE_API virtual void DumpAllocatorStats(class FOutputDevice& Ar) override;
 	
-	static uint16 SmallBlockSizesReversed[BINNED2_SMALL_POOL_COUNT]; // this is reversed to get the smallest elements on our main cache line
-	static FMallocBinned2* MallocBinned2;
-	static uint32 Binned2TlsSlot;
-	static uint32 PageSize;
-	static uint32 OsAllocationGranularity;
+	static CORE_API uint16 SmallBlockSizesReversed[BINNED2_SMALL_POOL_COUNT]; // this is reversed to get the smallest elements on our main cache line
+	static CORE_API FMallocBinned2* MallocBinned2;
+	static CORE_API uint32 Binned2TlsSlot;
+	static CORE_API uint32 PageSize;
+	static CORE_API uint32 OsAllocationGranularity;
 	// Mapping of sizes to small table indices
-	static uint8 MemSizeToIndex[1 + (BINNED2_MAX_SMALL_POOL_SIZE >> BINNED2_MINIMUM_ALIGNMENT_SHIFT)];
+	static CORE_API uint8 MemSizeToIndex[1 + (BINNED2_MAX_SMALL_POOL_SIZE >> BINNED2_MINIMUM_ALIGNMENT_SHIFT)];
 
 	FORCEINLINE uint32 BoundSizeToPoolIndex(SIZE_T Size) 
 	{

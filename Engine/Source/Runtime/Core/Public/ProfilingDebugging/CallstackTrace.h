@@ -72,7 +72,7 @@ inline bool  CallstackTrace_ResolveFullCallStack()
 /*
  * Callstack Trace scope for override CallStack
  */
-class CORE_API FCallStackTraceLimitResolveScope
+class FCallStackTraceLimitResolveScope
 {
 public:
 	FORCENOINLINE FCallStackTraceLimitResolveScope()

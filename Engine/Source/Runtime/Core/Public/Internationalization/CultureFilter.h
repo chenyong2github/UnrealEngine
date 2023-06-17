@@ -8,17 +8,17 @@ enum class EBuildConfiguration : uint8;
 enum class ELocalizationLoadFlags : uint8;
 
 /** Cache of enabled/disabled cultures loaded from config data */
-class CORE_API FCultureFilter
+class FCultureFilter
 {
 public:
 	/** Construct a culture filter based on the current build config and target, optionally filtering any loaded cultures against the set of available cultures */
-	explicit FCultureFilter(const TSet<FString>* AvailableCultures = nullptr);
+	CORE_API explicit FCultureFilter(const TSet<FString>* AvailableCultures = nullptr);
 
 	/** Construct a culture filter based on the given build config and target, optionally filtering any loaded cultures against the set of available cultures */
-	FCultureFilter(const EBuildConfiguration BuildConfig, const ELocalizationLoadFlags TargetFlags, const TSet<FString>* AvailableCultures = nullptr);
+	CORE_API FCultureFilter(const EBuildConfiguration BuildConfig, const ELocalizationLoadFlags TargetFlags, const TSet<FString>* AvailableCultures = nullptr);
 
 	/** Does the given culture pass this filter? */
-	bool IsCultureAllowed(const FString& Culture) const;
+	CORE_API bool IsCultureAllowed(const FString& Culture) const;
 
 private:
 	void Init(const EBuildConfiguration BuildConfig, const ELocalizationLoadFlags TargetFlags, const TSet<FString>* AvailableCultures);

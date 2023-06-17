@@ -44,7 +44,7 @@ class TThreadSingleton : public FTlsAutoCleanup
 	/**
 	 * @return TLS slot that holds a TThreadSingleton.
 	 */
-	CORE_API static uint32& GetTlsSlot()
+	static uint32& GetTlsSlot()
 	{
 		static uint32 TlsSlot = FPlatformTLS::InvalidTlsSlot;
 		return TlsSlot;

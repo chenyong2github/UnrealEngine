@@ -194,45 +194,45 @@ DEFINE_EXPRESSION_NODE_TYPE(TextFilterExpressionParser::FFunction,	0x084E6214, 0
 DECLARE_DELEGATE_RetVal_OneParam(bool, FTokenFunctionHandler, const FTextFilterString&);
 
 /** Defines an expression evaluator that can be used to perform complex text filter queries */
-class CORE_API FTextFilterExpressionEvaluator
+class FTextFilterExpressionEvaluator
 {
 public:
 	/** Construction and assignment */
-	FTextFilterExpressionEvaluator(const ETextFilterExpressionEvaluatorMode InMode);
-	FTextFilterExpressionEvaluator(const FTextFilterExpressionEvaluator& Other);
-	FTextFilterExpressionEvaluator& operator=(const FTextFilterExpressionEvaluator& Other);
+	CORE_API FTextFilterExpressionEvaluator(const ETextFilterExpressionEvaluatorMode InMode);
+	CORE_API FTextFilterExpressionEvaluator(const FTextFilterExpressionEvaluator& Other);
+	CORE_API FTextFilterExpressionEvaluator& operator=(const FTextFilterExpressionEvaluator& Other);
 	virtual ~FTextFilterExpressionEvaluator() {}
 
 	/** Get the complexity of the current filter terms */
-	ETextFilterExpressionType GetFilterType() const;
+	CORE_API ETextFilterExpressionType GetFilterType() const;
 
 	/** Get the filter terms that we're currently using */
-	FText GetFilterText() const;
+	CORE_API FText GetFilterText() const;
 
 	/** Set the filter terms to be compiled for evaluation later. Returns true if the filter was actually changed */
-	bool SetFilterText(const FText& InFilterText);
+	CORE_API bool SetFilterText(const FText& InFilterText);
 
 	/** Get the last error returned from lexing or compiling the current filter text */
-	FText GetFilterErrorText() const;
+	CORE_API FText GetFilterErrorText() const;
 
 	/** Get the filter expression tokens created from the current filter text */
-	const TArray<FExpressionToken>& GetFilterExpressionTokens() const;
+	CORE_API const TArray<FExpressionToken>& GetFilterExpressionTokens() const;
 
 	/** Test our compiled filter using the given context */
-	bool TestTextFilter(const ITextFilterExpressionContext& InContext) const;
+	CORE_API bool TestTextFilter(const ITextFilterExpressionContext& InContext) const;
 
 	/** Helper function to add callbacks for function tokens */
-	void AddFunctionTokenCallback(FString InFunctionName, FTokenFunctionHandler InCallback);
+	CORE_API void AddFunctionTokenCallback(FString InFunctionName, FTokenFunctionHandler InCallback);
 
 protected:
 	/** Sets up grammar used for evaluation */
-	void SetupGrammar();
+	CORE_API void SetupGrammar();
 
 	/** Common function to construct the expression parser */
-	virtual void ConstructExpressionParser();
+	CORE_API virtual void ConstructExpressionParser();
 
 	/** Evaluate the given compiled result, and optionally populate OutErrorText with any error information */
-	virtual bool EvaluateCompiledExpression(const ExpressionParser::CompileResultType& InCompiledResult, const ITextFilterExpressionContext& InContext, FText* OutErrorText) const;
+	CORE_API virtual bool EvaluateCompiledExpression(const ExpressionParser::CompileResultType& InCompiledResult, const ITextFilterExpressionContext& InContext, FText* OutErrorText) const;
 
 	/** Defines whether or not the expression parser can evaluate complex expressions */
 	ETextFilterExpressionEvaluatorMode ExpressionEvaluatorMode;

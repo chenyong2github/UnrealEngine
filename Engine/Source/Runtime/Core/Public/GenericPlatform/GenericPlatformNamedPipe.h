@@ -10,15 +10,15 @@
 /**
  * Wrapper for platform named pipe communication.
  */
-class CORE_API FGenericPlatformNamedPipe
+class FGenericPlatformNamedPipe
 {
 public:
 
 	/** Default constructor. */
-	FGenericPlatformNamedPipe();
+	CORE_API FGenericPlatformNamedPipe();
 
 	/** Virtual destructor. */
-	virtual ~FGenericPlatformNamedPipe();
+	CORE_API virtual ~FGenericPlatformNamedPipe();
 
 	FGenericPlatformNamedPipe(const FGenericPlatformNamedPipe&) = delete;
 	FGenericPlatformNamedPipe& operator=(const FGenericPlatformNamedPipe&) = delete;

@@ -48,7 +48,7 @@ public:
 };
 
 
-class CORE_API FPlatformFileOpenLog : public IPlatformFile
+class FPlatformFileOpenLog : public IPlatformFile
 {
 protected:
 

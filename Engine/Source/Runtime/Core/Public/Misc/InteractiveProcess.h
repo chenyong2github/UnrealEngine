@@ -34,7 +34,7 @@ DECLARE_DELEGATE_OneParam(FOnInteractiveProcessOutput, const FString&);
 /**
 * Implements an external process that can be interacted.
 */
-class CORE_API FInteractiveProcess
+class FInteractiveProcess
 	: public FRunnable
 {
 public:
@@ -46,7 +46,7 @@ public:
 	* @param InParams The command line parameters.
 	* @param InHidden Whether the window of the process should be hidden.
 	*/
-	FInteractiveProcess(const FString& InURL, const FString& InParams, bool InHidden, bool LongTime = false);
+	CORE_API FInteractiveProcess(const FString& InURL, const FString& InParams, bool InHidden, bool LongTime = false);
 
 	/**
 	* Creates a new interactive process.
@@ -56,17 +56,17 @@ public:
 	* @param InWorkingDir The URL of the working dir where the executable should launch.
 	* @param InHidden Whether the window of the process should be hidden.
 	*/
-	FInteractiveProcess(const FString& InURL, const FString& InParams, const FString& InWorkingDir, bool InHidden, bool LongTime = false);
+	CORE_API FInteractiveProcess(const FString& InURL, const FString& InParams, const FString& InWorkingDir, bool InHidden, bool LongTime = false);
 
 	/** Destructor. */
-	~FInteractiveProcess();
+	CORE_API ~FInteractiveProcess();
 
 	/**
 	* Gets the duration of time that the task has been running.
 	*
 	* @return Time duration.
 	*/
-	FTimespan GetDuration() const;
+	CORE_API FTimespan GetDuration() const;
 
 	/**
 	* Gets the Process Handle. The instance can be invalid if the process was not created.
@@ -93,7 +93,7 @@ public:
 	*
 	* @return True if succeed
 	*/
-	bool Launch();
+	CORE_API bool Launch();
 
 	/**
 	* Returns a delegate that is executed when the process has been canceled.
@@ -131,14 +131,14 @@ public:
 	*
 	* @param Message to be sent
 	*/
-	void SendWhenReady(const FString &Message);
+	CORE_API void SendWhenReady(const FString &Message);
 
 	/**
 	* Sends the data message when process is ready
 	*
 	* @param Data to be sent
 	*/
-	void SendWhenReady(const TArray<uint8> &Data);
+	CORE_API void SendWhenReady(const TArray<uint8> &Data);
 
 	/**
 	* Returns the return code from the exited process
@@ -168,7 +168,7 @@ public:
 		return true;
 	}
 
-	virtual uint32 Run() override;
+	CORE_API virtual uint32 Run() override;
 
 	virtual void Stop() override
 	{
@@ -184,12 +184,12 @@ protected:
 	*
 	* @param Output The output string to process.
 	*/
-	void ProcessOutput(const FString& Output);
+	CORE_API void ProcessOutput(const FString& Output);
 
 	/**
 	 * Takes the first message to be sent from MessagesToProcess, if there is one, and sends it to process
 	 */
-	void SendMessageToProcessIf();
+	CORE_API void SendMessageToProcessIf();
 
 private:
 	// Whether the process is being canceled. */

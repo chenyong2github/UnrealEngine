@@ -44,7 +44,7 @@ namespace UE::StructuredArchive::Private
 	};
 
 	// Represents a position of a slot within the hierarchy.
-	class CORE_API FSlotPosition
+	class FSlotPosition
 	{
 		friend class FStructuredArchive;
 
@@ -60,7 +60,7 @@ namespace UE::StructuredArchive::Private
 	};
 
 	// The base class of all slot types
-	class CORE_API FSlotBase
+	class FSlotBase
 #if WITH_TEXT_ARCHIVE_SUPPORT
 		: protected FSlotPosition
 #endif
@@ -86,8 +86,8 @@ namespace UE::StructuredArchive::Private
 		}
 #endif
 
-		FArchive& GetUnderlyingArchive() const;
-		const FArchiveState& GetArchiveState() const;
+		CORE_API FArchive& GetUnderlyingArchive() const;
+		CORE_API const FArchiveState& GetArchiveState() const;
 
 	protected:
 		FStructuredArchive& StructuredArchive;

@@ -20,11 +20,11 @@ class FStructuredArchiveFormatter;
  * Allows serialization code to get an archive instance for the current location, so that it can return to it
  * later on after the master archive has potentially moved on into a different location in the file.
  */
-class CORE_API FStructuredArchiveChildReader
+class FStructuredArchiveChildReader
 {
 public:
-	explicit FStructuredArchiveChildReader(FStructuredArchiveSlot InSlot);
-	~FStructuredArchiveChildReader();
+	CORE_API explicit FStructuredArchiveChildReader(FStructuredArchiveSlot InSlot);
+	CORE_API ~FStructuredArchiveChildReader();
 
 	// Non-copyable
 	FStructuredArchiveChildReader(FStructuredArchiveChildReader&&) = delete;

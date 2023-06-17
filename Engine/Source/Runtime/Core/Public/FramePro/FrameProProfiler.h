@@ -7,31 +7,31 @@
 #if FRAMEPRO_ENABLED
 
 /** Wrapper for FramePro  */
-class CORE_API FFrameProProfiler
+class FFrameProProfiler
 {
 public:
-	static void Initialize();
-	static void TearDown();
+	static CORE_API void Initialize();
+	static CORE_API void TearDown();
 
 	/** Called to mark the start of each frame  */
-	static void FrameStart();
+	static CORE_API void FrameStart();
 
 	/** Begin a named event */
-	static void PushEvent(); // Event with no name, expected to be named at the end
-	static void PushEvent(const TCHAR* Text);
-	static void PushEvent(const ANSICHAR* Text);
+	static CORE_API void PushEvent(); // Event with no name, expected to be named at the end
+	static CORE_API void PushEvent(const TCHAR* Text);
+	static CORE_API void PushEvent(const ANSICHAR* Text);
 
 	/** End currently active named event */
-	static void PopEvent();
-	static void PopEvent(const TCHAR* Override);
-	static void PopEvent(const ANSICHAR* Override);
+	static CORE_API void PopEvent();
+	static CORE_API void PopEvent(const TCHAR* Override);
+	static CORE_API void PopEvent(const ANSICHAR* Override);
 
-	static void StartFrameProRecordingFromCommand(const TArray< FString >& Args);
-	static FString StartFrameProRecording(const FString& FilenameRoot, int32 MinScopeTime, bool bAppendDateTime=true);
-	static void StopFrameProRecording();
+	static CORE_API void StartFrameProRecordingFromCommand(const TArray< FString >& Args);
+	static CORE_API FString StartFrameProRecording(const FString& FilenameRoot, int32 MinScopeTime, bool bAppendDateTime=true);
+	static CORE_API void StopFrameProRecording();
 
-	static bool IsFrameProRecording();
-	static bool IsThreadContextReady();
+	static CORE_API bool IsFrameProRecording();
+	static CORE_API bool IsThreadContextReady();
 };
 
 #endif // FRAMEPRO_ENABLED

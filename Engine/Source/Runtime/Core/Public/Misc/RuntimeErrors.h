@@ -17,7 +17,7 @@ class FText;
 #define UE_RAISE_RUNTIME_ERRORS DO_CHECK
 #endif
 
-struct CORE_API FRuntimeErrors
+struct FRuntimeErrors
 {
 	/**
 	 * Prints out a runtime warning or error (typically by 'throwing' a BP script exception with the BP callstack)
@@ -29,13 +29,13 @@ struct CORE_API FRuntimeErrors
 	 *
 	 * @return false in all cases.
 	 */
-	static void LogRuntimeIssue(ELogVerbosity::Type Verbosity, const ANSICHAR* FileName, int32 LineNumber, const FText& Message);
+	static CORE_API void LogRuntimeIssue(ELogVerbosity::Type Verbosity, const ANSICHAR* FileName, int32 LineNumber, const FText& Message);
 
 	// The style of delegate called when a runtime issue occurs
 	DECLARE_DELEGATE_FourParams(FRuntimeErrorDelegate, ELogVerbosity::Type /*Verbosity*/, const ANSICHAR* /*File*/, int32 /*Line*/, const FText& /*Message*/);
 
 	// A delegate this is called when a runtime issue is raised
-	static FRuntimeErrorDelegate OnRuntimeIssueLogged;
+	static CORE_API FRuntimeErrorDelegate OnRuntimeIssueLogged;
 
 	/**
 	 * Raises a runtime error and returns false.
@@ -46,7 +46,7 @@ struct CORE_API FRuntimeErrors
 	 *
 	 * @return false in all cases.
 	 */
-	static bool LogRuntimeIssueReturningFalse(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line);
+	static CORE_API bool LogRuntimeIssueReturningFalse(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line);
 
 private:
 	FRuntimeErrors() {}

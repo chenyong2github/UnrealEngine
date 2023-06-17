@@ -52,7 +52,7 @@ int32        GetNum(const FString& String);
  * - Use UTF8TEXTVIEW("...") for string view literals (type is FUtf8StringView).
  * - Use \uxxxx or \Uxxxxxxxx escape sequences rather than \x to specify Unicode code points.
  */
-class CORE_API FString
+class FString
 {
 public:
 	using AllocatorType = TSizedDefaultAllocator<32>;
@@ -134,22 +134,22 @@ public:
 	}
 
 	/** Construct from null-terminated C string or nullptr  */
-	FString(const ANSICHAR* Str);
-	FString(const WIDECHAR* Str);
-	FString(const UTF8CHAR* Str);
-	FString(const UCS2CHAR* Str);
+	CORE_API FString(const ANSICHAR* Str);
+	CORE_API FString(const WIDECHAR* Str);
+	CORE_API FString(const UTF8CHAR* Str);
+	CORE_API FString(const UCS2CHAR* Str);
 
 	/** Construct from null-terminated C substring or nullptr */
-	FString(int32 Len, const ANSICHAR* Str);
-	FString(int32 Len, const WIDECHAR* Str);
-	FString(int32 Len, const UTF8CHAR* Str);
-	FString(int32 Len, const UCS2CHAR* Str);
+	CORE_API FString(int32 Len, const ANSICHAR* Str);
+	CORE_API FString(int32 Len, const WIDECHAR* Str);
+	CORE_API FString(int32 Len, const UTF8CHAR* Str);
+	CORE_API FString(int32 Len, const UCS2CHAR* Str);
 
 	/** Construct from null-terminated C string or nullptr with extra slack on top of original string length */
-	FString(const ANSICHAR* Str, int32 ExtraSlack);
-	FString(const WIDECHAR* Str, int32 ExtraSlack);
-	FString(const UTF8CHAR* Str, int32 ExtraSlack);
-	FString(const UCS2CHAR* Str, int32 ExtraSlack);
+	CORE_API FString(const ANSICHAR* Str, int32 ExtraSlack);
+	CORE_API FString(const WIDECHAR* Str, int32 ExtraSlack);
+	CORE_API FString(const UTF8CHAR* Str, int32 ExtraSlack);
+	CORE_API FString(const UCS2CHAR* Str, int32 ExtraSlack);
 
 	/** Construct from contiguous range of characters such as FStringView or FStringBuilderBase */
 	template <typename CharRangeType, typename TEnableIf<TIsCharRangeNotCArrayNotFString<CharRangeType>::Value>::Type* = nullptr>
@@ -195,7 +195,7 @@ public:
 	}
 #endif
 
-	FString& operator=(const TCHAR* Str);
+	CORE_API FString& operator=(const TCHAR* Str);
 
 	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArray<CharRangeType>::Value>::Type* = nullptr>
 	FORCEINLINE FString& operator=(CharRangeType&& Range)
@@ -205,7 +205,7 @@ public:
 	}
 
 private:
-	void AssignRange(const TCHAR* Str, int32 Len);
+	CORE_API void AssignRange(const TCHAR* Str, int32 Len);
 
 public:
 	/**
@@ -284,8 +284,8 @@ public:
 	 *
 	 * @param Slack length of empty string to create
 	 */
-	void Empty();
-	void Empty(int32 Slack);
+	CORE_API void Empty();
+	CORE_API void Empty(int32 Slack);
 
 	/**
 	 * Test whether this string is empty
@@ -302,12 +302,12 @@ public:
 	 *
 	 * @param NewReservedSize The expected usage size (in characters, not including the terminator) after calling this function.
 	 */
-	void Reset(int32 NewReservedSize = 0);
+	CORE_API void Reset(int32 NewReservedSize = 0);
 
 	/**
 	 * Remove unallocated empty character space from the end of this string
 	 */
-	void Shrink();
+	CORE_API void Shrink();
 
 	/**
 	 * Tests if index is valid, i.e. greater than or equal to zero, and less than the number of characters in this string (excluding the null terminator).
@@ -350,7 +350,7 @@ public:
 
 #ifdef __OBJC__
 	/** Convert FString to Objective-C NSString */
-    NSString* GetNSString() const;
+    CORE_API NSString* GetNSString() const;
 #endif
 
 	/** 
@@ -358,10 +358,10 @@ public:
 	 *
 	 * @param Str can be null if Count is 0. Can be unterminated, Str[Count] isn't read.
 	 */
-	void AppendChars(const ANSICHAR* Str, int32 Count);
-	void AppendChars(const WIDECHAR* Str, int32 Count);
-	void AppendChars(const UCS2CHAR* Str, int32 Count);
-	void AppendChars(const UTF8CHAR* Str, int32 Count);
+	CORE_API void AppendChars(const ANSICHAR* Str, int32 Count);
+	CORE_API void AppendChars(const WIDECHAR* Str, int32 Count);
+	CORE_API void AppendChars(const UCS2CHAR* Str, int32 Count);
+	CORE_API void AppendChars(const UTF8CHAR* Str, int32 Count);
 
 	/** Append a string and return a reference to this */
 	template<class CharType>
@@ -395,7 +395,7 @@ public:
 	}
 
 	/** Append a single character and return a reference to this */
-	FString& AppendChar(TCHAR InChar);
+	CORE_API FString& AppendChar(TCHAR InChar);
 
 	/** Append a string and return a reference to this */
 	template <typename StrType>
@@ -422,8 +422,8 @@ public:
 		}
 	}
 
-	void InsertAt(int32 Index, TCHAR Character);
-	void InsertAt(int32 Index, const FString& Characters);
+	CORE_API void InsertAt(int32 Index, TCHAR Character);
+	CORE_API void InsertAt(int32 Index, const FString& Characters);
 
 	/**
 	 * Removes characters within the string.
@@ -432,7 +432,7 @@ public:
 	 * @param Count           The number of characters to remove.
 	 * @param bAllowShrinking Whether or not to reallocate to shrink the storage after removal.
 	 */
-	void RemoveAt(int32 Index, int32 Count = 1, bool bAllowShrinking = true);
+	CORE_API void RemoveAt(int32 Index, int32 Count = 1, bool bAllowShrinking = true);
 
 	/**
 	 * Removes the text from the start of the string if it exists.
@@ -476,7 +476,7 @@ public:
 	 * @param InPrefixLen length of InPrefix
 	 * @return true if the prefix was removed, otherwise false.
 	 */
-	bool RemoveFromStart(const TCHAR* InPrefix, int32 InPrefixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase);
+	CORE_API bool RemoveFromStart(const TCHAR* InPrefix, int32 InPrefixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase);
 
 	/**
 	 * Removes the text from the end of the string if it exists.
@@ -520,7 +520,7 @@ public:
 	 * @param InSuffixLen length of InSuffix
 	 * @return true if the suffix was removed, otherwise false.
 	 */
-	bool RemoveFromEnd(const TCHAR* InSuffix, int32 InSuffixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase);
+	CORE_API bool RemoveFromEnd(const TCHAR* InSuffix, int32 InSuffixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase);
 
 	/**
 	 * Concatenate this path with given path ensuring the / character is used between them
@@ -528,7 +528,7 @@ public:
 	 * @param Str       Pointer to an array of TCHARs (not necessarily null-terminated) to be concatenated onto the end of this.
 	 * @param StrLength Exact number of characters from Str to append.
 	 */
-	void PathAppend(const TCHAR* Str, int32 StrLength);
+	CORE_API void PathAppend(const TCHAR* Str, int32 StrLength);
 
 	/**
 	 * Concatenates an FString with a TCHAR.
@@ -569,18 +569,18 @@ public:
 	}
 
 private:
-	UE_NODISCARD static FString ConcatFF(const FString& Lhs, const FString& Rhs);
-	UE_NODISCARD static FString ConcatFF(FString&& Lhs, const FString& Rhs);
-	UE_NODISCARD static FString ConcatFF(const FString& Lhs, FString&& Rhs);
-	UE_NODISCARD static FString ConcatFF(FString&& Lhs,	FString&& Rhs);
-	UE_NODISCARD static FString ConcatFC(const FString& Lhs, const TCHAR* Rhs);
-	UE_NODISCARD static FString ConcatFC(FString&& Lhs,	const TCHAR* Rhs);
-	UE_NODISCARD static FString ConcatCF(const TCHAR* Lhs, const FString& Rhs);
-	UE_NODISCARD static FString ConcatCF(const TCHAR* Lhs, FString&& Rhs);
-	UE_NODISCARD static FString ConcatFR(const FString& Lhs, const TCHAR* Rhs, int32 RhsLen);
-	UE_NODISCARD static FString ConcatFR(FString&& Lhs,	const TCHAR* Rhs, int32 RhsLen);
-	UE_NODISCARD static FString ConcatRF(const TCHAR* Lhs, int32 LhsLen, const FString& Rhs);
-	UE_NODISCARD static FString ConcatRF(const TCHAR* Lhs, int32 LhsLen, FString&& Rhs);
+	UE_NODISCARD static CORE_API FString ConcatFF(const FString& Lhs, const FString& Rhs);
+	UE_NODISCARD static CORE_API FString ConcatFF(FString&& Lhs, const FString& Rhs);
+	UE_NODISCARD static CORE_API FString ConcatFF(const FString& Lhs, FString&& Rhs);
+	UE_NODISCARD static CORE_API FString ConcatFF(FString&& Lhs,	FString&& Rhs);
+	UE_NODISCARD static CORE_API FString ConcatFC(const FString& Lhs, const TCHAR* Rhs);
+	UE_NODISCARD static CORE_API FString ConcatFC(FString&& Lhs,	const TCHAR* Rhs);
+	UE_NODISCARD static CORE_API FString ConcatCF(const TCHAR* Lhs, const FString& Rhs);
+	UE_NODISCARD static CORE_API FString ConcatCF(const TCHAR* Lhs, FString&& Rhs);
+	UE_NODISCARD static CORE_API FString ConcatFR(const FString& Lhs, const TCHAR* Rhs, int32 RhsLen);
+	UE_NODISCARD static CORE_API FString ConcatFR(FString&& Lhs,	const TCHAR* Rhs, int32 RhsLen);
+	UE_NODISCARD static CORE_API FString ConcatRF(const TCHAR* Lhs, int32 LhsLen, const FString& Rhs);
+	UE_NODISCARD static CORE_API FString ConcatRF(const TCHAR* Lhs, int32 LhsLen, FString&& Rhs);
 
 public:
 	UE_NODISCARD FORCEINLINE friend FString operator+(const FString& Lhs, const FString& Rhs)	{ return ConcatFF(Lhs, Rhs); }
@@ -1039,7 +1039,7 @@ public:
 	}
 
 	/** Returns the string to the right of the specified location, counting forward from the left (from the beginning of the word). */
-	UE_NODISCARD FString RightChop( int32 Count ) const &;
+	UE_NODISCARD CORE_API FString RightChop( int32 Count ) const &;
 
 	UE_NODISCARD FORCEINLINE FString RightChop(int32 Count) &&
 	{
@@ -1054,11 +1054,11 @@ public:
 	}
 
 	/** Returns the substring from Start position for Count characters. */
-	UE_NODISCARD FString Mid(int32 Start, int32 Count) const &;
-	UE_NODISCARD FString Mid(int32 Start, int32 Count) &&;
+	UE_NODISCARD CORE_API FString Mid(int32 Start, int32 Count) const &;
+	UE_NODISCARD CORE_API FString Mid(int32 Start, int32 Count) &&;
 
 	/** Returns the substring from Start position to the end */
-	UE_NODISCARD FORCEINLINE FString Mid(int32 Start) const & { return RightChop(Start); }
+	UE_NODISCARD CORE_API FORCEINLINE FString Mid(int32 Start) const & { return RightChop(Start); }
 	UE_NODISCARD FORCEINLINE FString Mid(int32 Start) && { return ((FString&&)*this).RightChop(Start); }
 
 	/** Modifies the string such that it is now the substring from Start position for Count characters. */
@@ -1149,7 +1149,7 @@ public:
 	 *
 	 *        Consider using UE::String::FindLast() as an alternative.
 	 */
-	UE_NODISCARD int32 Find(const TCHAR* SubStr, int32 InSubStrLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
+	UE_NODISCARD CORE_API int32 Find(const TCHAR* SubStr, int32 InSubStrLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
 		ESearchDir::Type SearchDir = ESearchDir::FromStart, int32 StartPosition = INDEX_NONE) const;
 
 
@@ -1326,47 +1326,47 @@ public:
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return true if string is split, otherwise false
 	 */
-	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase,
+	CORE_API bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase,
 		ESearchDir::Type SearchDir = ESearchDir::FromStart) const;
 
 	/** Split with ESearchCase::IgnoreCase and ESearchDir::FromStart. Allows compiler to avoid branches w/o inlining code. */
-	bool Split(const FString& InS, FString* LeftS, FString* RightS) const;
+	CORE_API bool Split(const FString& InS, FString* LeftS, FString* RightS) const;
 
 	/** Returns a new string with the characters of this converted to uppercase */
-	UE_NODISCARD FString ToUpper() const &;
+	UE_NODISCARD CORE_API FString ToUpper() const &;
 
 	/**
 	 * Converts all characters in this rvalue string to uppercase and moves it into the returned string.
 	 * @return a new string with the characters of this converted to uppercase
 	 */
-	UE_NODISCARD FString ToUpper() &&;
+	UE_NODISCARD CORE_API FString ToUpper() &&;
 
 	/** Converts all characters in this string to uppercase */
-	void ToUpperInline();
+	CORE_API void ToUpperInline();
 
 	/** Returns a new string with the characters of this converted to lowercase */
-	UE_NODISCARD FString ToLower() const &;
+	UE_NODISCARD CORE_API FString ToLower() const &;
 
 	/**
 	 * Converts all characters in this rvalue string to lowercase and moves it into the returned string.
 	 * @return a new string with the characters of this converted to lowercase
 	 */
-	UE_NODISCARD FString ToLower() &&;
+	UE_NODISCARD CORE_API FString ToLower() &&;
 
 	/** Converts all characters in this string to lowercase */
-	void ToLowerInline();
+	CORE_API void ToLowerInline();
 
 	/** Pad the left of this string for ChCount characters */
-	UE_NODISCARD FString LeftPad( int32 ChCount ) const;
+	UE_NODISCARD CORE_API FString LeftPad( int32 ChCount ) const;
 
 	/** Pad the right of this string for ChCount characters */
-	UE_NODISCARD FString RightPad( int32 ChCount ) const;
+	UE_NODISCARD CORE_API FString RightPad( int32 ChCount ) const;
 	
 	/** Returns true if the string only contains numeric characters */
-	UE_NODISCARD bool IsNumeric() const;
+	UE_NODISCARD CORE_API bool IsNumeric() const;
 	
 	/** Removes spaces from the string.  I.E. "Spaces Are Cool" --> "SpacesAreCool". */
-	void RemoveSpacesInline();
+	CORE_API void RemoveSpacesInline();
 
 	/**
 	 * Constructs FString object similarly to how classic sprintf works.
@@ -1400,8 +1400,8 @@ public:
 	}
 
 private:
-	static FString VARARGS PrintfImpl(const TCHAR* Fmt, ...);
-	static void VARARGS AppendfImpl(FString& AppendToMe, const TCHAR* Fmt, ...);
+	static CORE_API FString VARARGS PrintfImpl(const TCHAR* Fmt, ...);
+	static CORE_API void VARARGS AppendfImpl(FString& AppendToMe, const TCHAR* Fmt, ...);
 public:
 
 	/**
@@ -1410,7 +1410,7 @@ public:
 	 * @param InNamedArguments		A map of named arguments that match the tokens specified in InExpression
 	 * @return A string containing the formatted text
 	 */
-	UE_NODISCARD static FString Format(const TCHAR* InFormatString, const FStringFormatNamedArguments& InNamedArguments);
+	UE_NODISCARD static CORE_API FString Format(const TCHAR* InFormatString, const FStringFormatNamedArguments& InNamedArguments);
 
 	/**
 	 * Format the specified string using the specified arguments. Replaces instances of {0} with indices from the given array matching the index specified in the token
@@ -1418,10 +1418,10 @@ public:
 	 * @param InOrderedArguments	An array of ordered arguments that match the tokens specified in InExpression
 	 * @return A string containing the formatted text
 	 */
-	UE_NODISCARD static FString Format(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InOrderedArguments);
+	UE_NODISCARD static CORE_API FString Format(const TCHAR* InFormatString, const FStringFormatOrderedArguments& InOrderedArguments);
 
 	/** Returns a string containing only the Ch character */
-	UE_NODISCARD static FString Chr( TCHAR Ch );
+	UE_NODISCARD static CORE_API FString Chr( TCHAR Ch );
 
 	/**
 	 * Returns a string that is full of a variable number of characters
@@ -1431,7 +1431,7 @@ public:
 	 * 
 	 * @return The string of NumCharacters characters.
 	 */
-	UE_NODISCARD static FString ChrN( int32 NumCharacters, TCHAR Char );
+	UE_NODISCARD static CORE_API FString ChrN( int32 NumCharacters, TCHAR Char );
 
 	/**
 	 * Serializes the string.
@@ -1485,7 +1485,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string begins with specified text, false otherwise
 	 */
-	UE_NODISCARD bool StartsWith(const TCHAR* InPrefix, int32 InPrefixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	UE_NODISCARD CORE_API bool StartsWith(const TCHAR* InPrefix, int32 InPrefixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/**
 	 * Test whether this string ends with given suffix.
@@ -1528,7 +1528,7 @@ public:
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return true if this string ends with specified text, false otherwise
 	 */
-	UE_NODISCARD bool EndsWith(const TCHAR* InSuffix, int32 InSuffixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase ) const;
+	UE_NODISCARD CORE_API bool EndsWith(const TCHAR* InSuffix, int32 InSuffixLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase ) const;
 
 	/**
 	 * Searches this string for a given wild card
@@ -1579,96 +1579,96 @@ public:
 	 * @return true if this string matches the *?-type wildcard given.
 	 * @warning This is a simple, SLOW routine. Use with caution
 	 */
-	UE_NODISCARD bool MatchesWildcard(const TCHAR* Wildcard, int32 WildcardLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	UE_NODISCARD CORE_API bool MatchesWildcard(const TCHAR* Wildcard, int32 WildcardLen, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
 
 	/**
 	 * Removes whitespace characters from the start and end of this string. Modifies the string in-place.
 	 */
-	void TrimStartAndEndInline();
+	CORE_API void TrimStartAndEndInline();
 
 	/**
 	 * Removes whitespace characters from the start and end of this string.
 	 * @note Unlike Trim() this function returns a copy, and does not mutate the string.
 	 */
-	UE_NODISCARD FString TrimStartAndEnd() const &;
+	UE_NODISCARD CORE_API FString TrimStartAndEnd() const &;
 
 	/**
 	 * Removes whitespace characters from the start and end of this string.
 	 * @note Unlike Trim() this function returns a copy, and does not mutate the string.
 	 */
-	UE_NODISCARD FString TrimStartAndEnd() &&;
+	UE_NODISCARD CORE_API FString TrimStartAndEnd() &&;
 
 	/**
 	 * Removes whitespace characters from the start of this string. Modifies the string in-place.
 	 */
-	void TrimStartInline();
+	CORE_API void TrimStartInline();
 
 	/**
 	 * Removes whitespace characters from the start of this string.
 	 * @note Unlike Trim() this function returns a copy, and does not mutate the string.
 	 */
-	UE_NODISCARD FString TrimStart() const &;
+	UE_NODISCARD CORE_API FString TrimStart() const &;
 
 	/**
 	 * Removes whitespace characters from the start of this string.
 	 * @note Unlike Trim() this function returns a copy, and does not mutate the string.
 	 */
-	UE_NODISCARD FString TrimStart() &&;
+	UE_NODISCARD CORE_API FString TrimStart() &&;
 
 	/**
 	 * Removes whitespace characters from the end of this string. Modifies the string in-place.
 	 */
-	void TrimEndInline();
+	CORE_API void TrimEndInline();
 
 	/**
 	 * Removes whitespace characters from the end of this string.
 	 * @note Unlike TrimTrailing() this function returns a copy, and does not mutate the string.
 	 */
-	UE_NODISCARD FString TrimEnd() const &;
+	UE_NODISCARD CORE_API FString TrimEnd() const &;
 
 	/**
 	 * Removes whitespace characters from the end of this string.
 	 * @note Unlike TrimTrailing() this function returns a copy, and does not mutate the string.
 	 */
-	UE_NODISCARD FString TrimEnd() &&;
+	UE_NODISCARD CORE_API FString TrimEnd() &&;
 
 	/** 
 	 * Trims the inner array after the null terminator.
 	 */
-	void TrimToNullTerminator();
+	CORE_API void TrimToNullTerminator();
 
 
 	/**
 	 * Trims wrapping quotation marks from this string.
 	 */
-	void TrimQuotesInline(bool* bQuotesRemoved = nullptr);
+	CORE_API void TrimQuotesInline(bool* bQuotesRemoved = nullptr);
 
 	/**
 	* Trims a single character from the start and end of the string (removes at max one instance in the beginning and end of the string).
 	* @see TrimChar for a variant that returns a modified copy of the string
 	*/
-	void TrimCharInline(const TCHAR CharacterToTrim, bool* bCharRemoved);
+	CORE_API void TrimCharInline(const TCHAR CharacterToTrim, bool* bCharRemoved);
 	
 	/**
 	 * Returns a copy of this string with wrapping quotation marks removed.
 	 */
-	UE_NODISCARD FString TrimQuotes(bool* bQuotesRemoved = nullptr ) const &;
+	UE_NODISCARD CORE_API FString TrimQuotes(bool* bQuotesRemoved = nullptr ) const &;
 
 	/**
 	 * Returns this string with wrapping quotation marks removed.
 	 */
-	UE_NODISCARD FString TrimQuotes(bool* bQuotesRemoved = nullptr) &&;
+	UE_NODISCARD CORE_API FString TrimQuotes(bool* bQuotesRemoved = nullptr) &&;
 	
 	/**
 	* Returns a copy of this string with wrapping CharacterToTrim removed (removes at max one instance in the beginning and end of the string).
 	* @see TrimCharInline for an inline variant
 	*/
-	UE_NODISCARD FString TrimChar(const TCHAR CharacterToTrim, bool* bCharRemoved = nullptr ) const &;
+	UE_NODISCARD CORE_API FString TrimChar(const TCHAR CharacterToTrim, bool* bCharRemoved = nullptr ) const &;
 
 	/**
 	* Returns a copy of this string with wrapping CharacterToTrim removed (removes at max one instance in the beginning and end of the string).
 	*/
-	UE_NODISCARD FString TrimChar(const TCHAR CharacterToTrim, bool* bCharRemoved = nullptr) &&;
+	UE_NODISCARD CORE_API FString TrimChar(const TCHAR CharacterToTrim, bool* bCharRemoved = nullptr) &&;
 	
 	/**
 	 * Breaks up a delimited string into elements of a string array.
@@ -1679,7 +1679,7 @@ public:
 	 *
 	 * @return	The number of elements in InArray
 	 */
-	int32 ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim, bool InCullEmpty = true ) const;
+	CORE_API int32 ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim, bool InCullEmpty = true ) const;
 
 	/**
 	 * Breaks up a delimited string into elements of a string array, using any whitespace and an 
@@ -1691,7 +1691,7 @@ public:
 	 *
 	 * @return	The number of elements in InArray
 	 */
-	int32 ParseIntoArrayWS( TArray<FString>& OutArray, const TCHAR* pchExtraDelim = nullptr, bool InCullEmpty = true ) const;
+	CORE_API int32 ParseIntoArrayWS( TArray<FString>& OutArray, const TCHAR* pchExtraDelim = nullptr, bool InCullEmpty = true ) const;
 
 	/**
 	* Breaks up a delimited string into elements of a string array, using line ending characters
@@ -1701,7 +1701,7 @@ public:
 	*
 	* @return	The number of elements in InArray
 	*/
-	int32 ParseIntoArrayLines(TArray<FString>& OutArray, bool InCullEmpty = true) const;
+	CORE_API int32 ParseIntoArrayLines(TArray<FString>& OutArray, bool InCullEmpty = true) const;
 
 	/**
 	* Breaks up a delimited string into elements of a string array, using the given delimiters
@@ -1713,7 +1713,7 @@ public:
 	*
 	* @return	The number of elements in InArray
 	*/
-	int32 ParseIntoArray(TArray<FString>& OutArray, const TCHAR*const* DelimArray, int32 NumDelims, bool InCullEmpty = true) const;
+	CORE_API int32 ParseIntoArray(TArray<FString>& OutArray, const TCHAR*const* DelimArray, int32 NumDelims, bool InCullEmpty = true) const;
 
 	/**
 	 * Takes an array of strings and removes any zero length entries.
@@ -1722,22 +1722,22 @@ public:
 	 *
 	 * @return	The number of elements left in InArray
 	 */
-	static int32 CullArray( TArray<FString>* InArray );
+	static CORE_API int32 CullArray( TArray<FString>* InArray );
 
 	/**
 	 * Returns a copy of this string, with the characters in reverse order
 	 */
-	UE_NODISCARD FString Reverse() const &;
+	UE_NODISCARD CORE_API FString Reverse() const &;
 
 	/**
 	 * Returns this string, with the characters in reverse order
 	 */
-	UE_NODISCARD FString Reverse() &&;
+	UE_NODISCARD CORE_API FString Reverse() &&;
 
 	/**
 	 * Reverses the order of characters in this string
 	 */
-	void ReverseString();
+	CORE_API void ReverseString();
 
 	/**
 	 * Replace all occurrences of a substring in this string
@@ -1747,7 +1747,7 @@ public:
 	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return a copy of this string with the replacement made
 	 */
-	UE_NODISCARD FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const &;
+	UE_NODISCARD CORE_API FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const &;
 
 	/**
 	 * Replace all occurrences of a substring in this string
@@ -1757,7 +1757,7 @@ public:
 	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return a copy of this string with the replacement made
 	 */
-	UE_NODISCARD FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) &&;
+	UE_NODISCARD CORE_API FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) &&;
 
 	/**
 	 * Replace all occurrences of SearchText with ReplacementText in this string.
@@ -1768,7 +1768,7 @@ public:
 	 *
 	 * @return	the number of occurrences of SearchText that were replaced.
 	 */
-	int32 ReplaceInline( const TCHAR* SearchText, const TCHAR* ReplacementText, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase );
+	CORE_API int32 ReplaceInline( const TCHAR* SearchText, const TCHAR* ReplacementText, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase );
 
 	/**
 	 * Replace all occurrences of a character with another.
@@ -1792,8 +1792,8 @@ public:
 
 private:
 	
-	void ReplaceCharInlineCaseSensitive(const TCHAR SearchChar, const TCHAR ReplacementChar);
-	void ReplaceCharInlineIgnoreCase(const TCHAR SearchChar, const TCHAR ReplacementChar);
+	CORE_API void ReplaceCharInlineCaseSensitive(const TCHAR SearchChar, const TCHAR ReplacementChar);
+	CORE_API void ReplaceCharInlineIgnoreCase(const TCHAR SearchChar, const TCHAR ReplacementChar);
 
 public:
 
@@ -1809,7 +1809,7 @@ public:
 	/**
 	 * Returns a copy of this string with all quote marks escaped (unless the quote is already escaped)
 	 */
-	UE_NODISCARD FString ReplaceQuotesWithEscapedQuotes() &&;
+	UE_NODISCARD CORE_API FString ReplaceQuotesWithEscapedQuotes() &&;
 
 	/**
 	 * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
@@ -1817,7 +1817,7 @@ public:
 	 *
 	 * @param	Chars	by default, replaces all supported characters; this parameter allows you to limit the replacement to a subset.
 	 */
-	void ReplaceCharWithEscapedCharInline( const TArray<TCHAR>* Chars = nullptr );
+	CORE_API void ReplaceCharWithEscapedCharInline( const TArray<TCHAR>* Chars = nullptr );
 
 	/**
 	 * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
@@ -1852,7 +1852,7 @@ public:
 	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
 	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedCharInline().
 	 */
-	void ReplaceEscapedCharWithCharInline( const TArray<TCHAR>* Chars = nullptr );
+	CORE_API void ReplaceEscapedCharWithCharInline( const TArray<TCHAR>* Chars = nullptr );
 
 	/**
 	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
@@ -1881,7 +1881,7 @@ public:
 	 * Replaces all instances of '\t' with TabWidth number of spaces
 	 * @param InSpacesPerTab - Number of spaces that a tab represents
 	 */
-	void ConvertTabsToSpacesInline(const int32 InSpacesPerTab);
+	CORE_API void ConvertTabsToSpacesInline(const int32 InSpacesPerTab);
 
 	/** 
 	 * Replaces all instances of '\t' with TabWidth number of spaces
@@ -1907,10 +1907,10 @@ public:
 	}
 
 	// Takes the number passed in and formats the string in comma format ( 12345 becomes "12,345")
-	UE_NODISCARD static FString FormatAsNumber( int32 InNumber );
+	UE_NODISCARD static CORE_API FString FormatAsNumber( int32 InNumber );
 
 	// To allow more efficient memory handling, automatically adds one for the string termination.
-	void Reserve(int32 CharacterCount);
+	CORE_API void Reserve(int32 CharacterCount);
 
 	/**
 	 * Serializes a string as ANSI char array.
@@ -1919,7 +1919,7 @@ public:
 	 * @param	Ar				Archive to serialize with
 	 * @param	MinCharacters	Minimum number of characters to serialize.
 	 */
-	void SerializeAsANSICharArray( FArchive& Ar, int32 MinCharacters=0 ) const;
+	CORE_API void SerializeAsANSICharArray( FArchive& Ar, int32 MinCharacters=0 ) const;
 
 
 	/** Converts an integer to a string. */
@@ -1931,7 +1931,7 @@ public:
 	}
 
 	/** appends the integer InNum to this string */
-	void AppendInt( int32 InNum );
+	CORE_API void AppendInt( int32 InNum );
 
 	/**
 	 * Converts a string into a boolean value
@@ -1940,7 +1940,7 @@ public:
 	 *
 	 * @return The boolean value
 	 */
-	UE_NODISCARD bool ToBool() const;
+	UE_NODISCARD CORE_API bool ToBool() const;
 
 	/**
 	 * Converts a buffer to a string
@@ -1950,7 +1950,7 @@ public:
 	 *
 	 * @return the blob in string form
 	 */
-	UE_NODISCARD static FString FromBlob(const uint8* SrcBuffer,const uint32 SrcSize);
+	UE_NODISCARD static CORE_API FString FromBlob(const uint8* SrcBuffer,const uint32 SrcSize);
 
 	/**
 	 * Converts a string into a buffer
@@ -1960,7 +1960,7 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ToBlob(const FString& Source,uint8* DestBuffer,const uint32 DestSize);
+	static CORE_API bool ToBlob(const FString& Source,uint8* DestBuffer,const uint32 DestSize);
 
 	/**
 	 * Converts a buffer to a string by hex-ifying the elements
@@ -1970,7 +1970,7 @@ public:
 	 *
 	 * @return the blob in string form
 	 */
-	UE_NODISCARD static FString FromHexBlob(const uint8* SrcBuffer,const uint32 SrcSize);
+	UE_NODISCARD static CORE_API FString FromHexBlob(const uint8* SrcBuffer,const uint32 SrcSize);
 
 	/**
 	 * Converts a string into a buffer
@@ -1980,7 +1980,7 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ToHexBlob(const FString& Source,uint8* DestBuffer,const uint32 DestSize);
+	static CORE_API bool ToHexBlob(const FString& Source,uint8* DestBuffer,const uint32 DestSize);
 
 	/**
 	 * Converts a float string with the trailing zeros stripped
@@ -1991,7 +1991,7 @@ public:
 	 *
 	 * @return sanitized string version of float
 	 */
-	UE_NODISCARD static FString SanitizeFloat( double InFloat, const int32 InMinFractionalDigits = 1 );
+	UE_NODISCARD static CORE_API FString SanitizeFloat( double InFloat, const int32 InMinFractionalDigits = 1 );
 
 	/**
 	 * Joins a range of 'something that can be concatentated to strings with +=' together into a single string with separators.
@@ -2531,7 +2531,7 @@ CORE_API int32 FindMatchingClosingParenthesis(const FString& TargetString, const
 */
 CORE_API FString SlugStringForValidName(const FString& DisplayString, const TCHAR* ReplaceWith = TEXT(""));
 
-struct CORE_API FTextRange
+struct FTextRange
 {
 	FTextRange()
 		: BeginIndex(INDEX_NONE)
@@ -2586,7 +2586,7 @@ struct CORE_API FTextRange
 	/**
 	 * Produce an array of line ranges from the given text, breaking at any new-line characters
 	 */
-	static void CalculateLineRangesFromString(const FString& Input, TArray<FTextRange>& LineRanges);
+	static CORE_API void CalculateLineRangesFromString(const FString& Input, TArray<FTextRange>& LineRanges);
 
 	int32 BeginIndex;
 	int32 EndIndex;

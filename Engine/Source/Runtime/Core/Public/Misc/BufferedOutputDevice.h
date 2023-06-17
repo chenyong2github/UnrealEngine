@@ -10,7 +10,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 
 /** Buffered output device. */
-class CORE_API FBufferedOutputDevice : public FOutputDevice
+class FBufferedOutputDevice : public FOutputDevice
 {
 protected:
 	TArray<FBufferedLine>		BufferedLines;
@@ -19,9 +19,9 @@ protected:
 
 public:
 	void	SetVerbosity(ELogVerbosity::Type Verbosity) { FilterLevel = Verbosity; }
-	void	Serialize(const TCHAR* InData, ELogVerbosity::Type Verbosity, const FName& Category) override;
-	void	GetContents(TArray<FBufferedLine>& DestBuffer);
+	CORE_API void	Serialize(const TCHAR* InData, ELogVerbosity::Type Verbosity, const FName& Category) override;
+	CORE_API void	GetContents(TArray<FBufferedLine>& DestBuffer);
 
 	/** Pushes buffered lines into the specified output device. */
-	void	RedirectTo(FOutputDevice& Ar);
+	CORE_API void	RedirectTo(FOutputDevice& Ar);
 };

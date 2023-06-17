@@ -39,41 +39,41 @@ enum
 };
 
 /** Holds stats related constants. */
-struct CORE_API FStatConstants
+struct FStatConstants
 {
 	/** Special name for thread root. */
-	static const FName NAME_ThreadRoot;
+	static CORE_API const FName NAME_ThreadRoot;
 
 	/** This is a special group name used to store threads metadata. */
-	static const char* ThreadGroupName;
-	static const FName NAME_ThreadGroup;
+	static CORE_API const char* ThreadGroupName;
+	static CORE_API const FName NAME_ThreadGroup;
 
 	/** Stat raw name for seconds per cycle. */
-	static const FName RAW_SecondsPerCycle;
+	static CORE_API const FName RAW_SecondsPerCycle;
 
 	/** Special case category, when we want to Stat to appear at the root of the menu (leaving the category blank omits it from the menu entirely) */
-	static const FName NAME_NoCategory;
+	static CORE_API const FName NAME_NoCategory;
 
 	/** Extension used to save a stats file. */
-	static const FString StatsFileExtension;
+	static CORE_API const FString StatsFileExtension;
 
 	/** Extension used to save a raw stats file, may be changed to the same as a regular stats file. */
-	static const FString StatsFileRawExtension;
+	static CORE_API const FString StatsFileRawExtension;
 
 	/** Indicates that the item is a thread. */
-	static const FString ThreadNameMarker;
+	static CORE_API const FString ThreadNameMarker;
 
 	/** A raw name for the event wait with id. */
-	static const FName RAW_EventWaitWithId;
+	static CORE_API const FName RAW_EventWaitWithId;
 
 	/** A raw name for the event trigger with id. */
-	static const FName RAW_EventTriggerWithId;
+	static CORE_API const FName RAW_EventTriggerWithId;
 
 	/** A raw name for the stat marker. */
-	static const FName RAW_NamedMarker;
+	static CORE_API const FName RAW_NamedMarker;
 
 	/** A special meta data used to advance the frame. */
-	static const FStatNameAndInfo AdvanceFrame;
+	static CORE_API const FStatNameAndInfo AdvanceFrame;
 };
 
 /** Parse a typed value into the specified out parameter.
@@ -216,7 +216,7 @@ struct FStatCallCountComparer<FStatMessage>
 * An indirect array of stat packets.
 */
 //@todo can we just use TIndirectArray here?
-struct CORE_API FStatPacketArray
+struct FStatPacketArray
 {
 	TArray<FStatPacket*> Packets;
 
@@ -226,7 +226,7 @@ struct CORE_API FStatPacketArray
 	}
 
 	/** Deletes all stats packets. */
-	void Empty();
+	CORE_API void Empty();
 
 	void RemovePtrsButNoData()
 	{
@@ -237,7 +237,7 @@ struct CORE_API FStatPacketArray
 /**
 * A call stack of stat messages. Normally we don't store or transmit these; they are used for stats processing and visualization.
 */
-struct CORE_API FRawStatStackNode
+struct FRawStatStackNode
 {
 	/** The stat message corresponding to this node **/
 	FStatMessage Meta; // includes aggregated inclusive time and call counts packed into the int64
@@ -252,7 +252,7 @@ struct CORE_API FRawStatStackNode
 	}
 
 	/** Copy Constructor **/
-	explicit FRawStatStackNode(FRawStatStackNode const& Other);
+	CORE_API explicit FRawStatStackNode(FRawStatStackNode const& Other);
 
 	/** Constructor used to build a child from a stat messasge **/
 	explicit FRawStatStackNode(FStatMessage const& InMeta)
@@ -283,36 +283,36 @@ struct CORE_API FRawStatStackNode
 		DeleteAllChildrenNodes();
 	}
 
-	void MergeMax(FRawStatStackNode const& Other);
-	void MergeAdd(FRawStatStackNode const& Other);
-	void Divide(uint32 Div);
+	CORE_API void MergeMax(FRawStatStackNode const& Other);
+	CORE_API void MergeAdd(FRawStatStackNode const& Other);
+	CORE_API void Divide(uint32 Div);
 
 	/** Cull this tree, merging children below MinCycles long. */
-	void CullByCycles(int64 MinCycles);
+	CORE_API void CullByCycles(int64 MinCycles);
 
 	/** Cull this tree, merging children below NoCullLevels. */
-	void CullByDepth(int32 NoCullLevels);
+	CORE_API void CullByDepth(int32 NoCullLevels);
 
 	/** Adds name hiearchy. **/
-	void AddNameHierarchy(int32 CurrentPrefixDepth = 0);
+	CORE_API void AddNameHierarchy(int32 CurrentPrefixDepth = 0);
 
 	/** Adds self nodes. **/
-	void AddSelf();
+	CORE_API void AddSelf();
 
 	/** Print this tree to the log **/
-	void DebugPrint(TCHAR const* Filter = nullptr, int32 MaxDepth = MAX_int32, int32 Depth = 0) const;
+	CORE_API void DebugPrint(TCHAR const* Filter = nullptr, int32 MaxDepth = MAX_int32, int32 Depth = 0) const;
 
 	/** Print this tree to the log **/
-	void DebugPrintLeafFilter(TCHAR const* Filter) const;
+	CORE_API void DebugPrintLeafFilter(TCHAR const* Filter) const;
 
 	/** Print this tree to the log **/
-	void DebugPrintLeafFilterInner(TCHAR const* Filter, int32 Depth, TArray<FString>& Stack) const;
+	CORE_API void DebugPrintLeafFilterInner(TCHAR const* Filter, int32 Depth, TArray<FString>& Stack) const;
 
 	/** Condense this tree into a flat list using EStatOperation::ChildrenStart, EStatOperation::ChildrenEnd, EStatOperation::Leaf **/
-	void Encode(TArray<FStatMessage>& OutStats) const;
+	CORE_API void Encode(TArray<FStatMessage>& OutStats) const;
 
 	/** Sum the inclusive cycles of the children **/
-	int64 ChildCycles() const;
+	CORE_API int64 ChildCycles() const;
 
 	/** Sorts children using the specified comparer class. */
 	template< class TComparer >
@@ -327,8 +327,8 @@ struct CORE_API FRawStatStackNode
 	}
 
 	/** Custom new/delete; these nodes are always pooled, except the root which one normally puts on the stack. */
-	void* operator new(size_t Size);
-	void operator delete(void *RawMemory);
+	CORE_API void* operator new(size_t Size);
+	CORE_API void operator delete(void *RawMemory);
 
 protected:
 	void DeleteAllChildrenNodes()
@@ -493,7 +493,7 @@ struct IItemFilter
  * Tracks stat state and history
  * GetLocalState() is a singleton to the state for stats being collected in this executable.
  */
-class CORE_API FStatsThreadState
+class FStatsThreadState
 {
 	friend class FStatsThread;
 	friend struct FStatPacketArray;
@@ -506,20 +506,20 @@ class CORE_API FStatsThreadState
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNewRawStatPacket, const FStatPacket*);
 
 	/** Internal method to scan the messages to update the current frame. */
-	void ScanForAdvance(const FStatMessagesArray& Data);
+	CORE_API void ScanForAdvance(const FStatMessagesArray& Data);
 
 	/** Internal method to scan the messages to update the current frame. */
-	void ScanForAdvance(FStatPacketArray& NewData);
+	CORE_API void ScanForAdvance(FStatPacketArray& NewData);
 
 public:
 	/** Internal method to update the internal metadata. **/
 	UE_DEPRECATED(5.2, "Please use the overload that takes TArray64.")
-	void ProcessMetaDataOnly(TArray<FStatMessage>& Data);
+	CORE_API void ProcessMetaDataOnly(TArray<FStatMessage>& Data);
 
-	void ProcessMetaDataOnly(TArray64<FStatMessage>& Data);
+	CORE_API void ProcessMetaDataOnly(TArray64<FStatMessage>& Data);
 
 	/** Toggles tracking the most memory expensive stats. */
-	void ToggleFindMemoryExtensiveStats();
+	CORE_API void ToggleFindMemoryExtensiveStats();
 
 	/** Resets stats for raw stats. */
 	void ResetStatsForRawStats()
@@ -530,38 +530,38 @@ public:
 
 private:
 	/** Internal method to accumulate any non-frame stats. **/
-	void ProcessNonFrameStats( FStatMessagesArray& Data, TSet<FName>* NonFrameStatsFound );
+	CORE_API void ProcessNonFrameStats( FStatMessagesArray& Data, TSet<FName>* NonFrameStatsFound );
 
 	/** Internal method to place the data into the history, discard and broadcast any new frames to anyone who cares. **/
-	void AddToHistoryAndEmpty( FStatPacketArray& NewData );
+	CORE_API void AddToHistoryAndEmpty( FStatPacketArray& NewData );
 
 	/** Does basic processing on the raw stats packets, discard and broadcast any new raw stats packets to anyone who cares. */
-	void ProcessRawStats(FStatPacketArray& NewData);
+	CORE_API void ProcessRawStats(FStatPacketArray& NewData);
 
 	/** Resets the state of the raw stats. */
-	void ResetRawStats();
+	CORE_API void ResetRawStats();
 
 	/** Reset the state of the regular stats. */
-	void ResetRegularStats();
+	CORE_API void ResetRegularStats();
 
 	/** Prepares fake FGameThreadStatsData to display the raw stats memory overhead. */
-	void UpdateStatMessagesMemoryUsage();
+	CORE_API void UpdateStatMessagesMemoryUsage();
 
 	/** Generates a list of most memory expensive stats and dump to the log. */
-	void FindAndDumpMemoryExtensiveStats( const FStatPacketArray& Frame );
+	CORE_API void FindAndDumpMemoryExtensiveStats( const FStatPacketArray& Frame );
 
 protected:
 	/** Called in response to SetLongName messages to update ShortNameToLongName and NotClearedEveryFrame **/
-	void FindOrAddMetaData(FStatMessage const& Item);
+	CORE_API void FindOrAddMetaData(FStatMessage const& Item);
 
 	/** Parse the raw frame history into a tree representation **/
-	void GetRawStackStats(int64 FrameNumber, FRawStatStackNode& Out, TArray<FStatMessage>* OutNonStackStats = nullptr) const;
+	CORE_API void GetRawStackStats(int64 FrameNumber, FRawStatStackNode& Out, TArray<FStatMessage>* OutNonStackStats = nullptr) const;
 
 	/** Parse the raw frame history into a flat-array-based tree representation **/
-	void Condense(int64 TargetFrame, TArray<FStatMessage>& OutStats) const;
+	CORE_API void Condense(int64 TargetFrame, TArray<FStatMessage>& OutStats) const;
 
 	/** Returns cycles spent in the specified thread. */
-	int64 GetFastThreadFrameTimeInternal(int64 TargetFrame, int32 ThreadID, EThreadType::Type Thread) const;
+	CORE_API int64 GetFastThreadFrameTimeInternal(int64 TargetFrame, int32 ThreadID, EThreadType::Type Thread) const;
 
 	/** Number of frames to keep in the history. **/
 	int32 HistoryFrames;
@@ -599,7 +599,7 @@ protected:
 public:
 
 	/** Constructor used by GetLocalState(), also used by the profiler to hold a previewing stats thread state. We don't keep many frames by default **/
-	FStatsThreadState(int32 InHistoryFrames = STAT_FRAME_SLOP + 10);
+	CORE_API FStatsThreadState(int32 InHistoryFrames = STAT_FRAME_SLOP + 10);
 
 	/** Delegate we fire every time we have a new complete frame of data. **/
 	mutable FOnNewFrameHistory NewFrameDelegate;
@@ -635,10 +635,10 @@ public:
 	TMap<int64, FStatPacketArray> History;
 
 	/** Return the oldest frame of data we have. **/
-	int64 GetOldestValidFrame() const;
+	CORE_API int64 GetOldestValidFrame() const;
 
 	/** Return the newest frame of data we have. **/
-	int64 GetLatestValidFrame() const;
+	CORE_API int64 GetLatestValidFrame() const;
 
 	/** Return true if this is a valid frame. **/
 	bool IsFrameValid(int64 Frame) const
@@ -647,14 +647,14 @@ public:
 	}
 
 	/** Used by the hitch detector. Does a very fast look a thread to decide if this is a hitch frame. **/
-	int64 GetFastThreadFrameTime(int64 TargetFrame, EThreadType::Type Thread) const;
-	int64 GetFastThreadFrameTime(int64 TargetFrame, uint32 ThreadID) const;
+	CORE_API int64 GetFastThreadFrameTime(int64 TargetFrame, EThreadType::Type Thread) const;
+	CORE_API int64 GetFastThreadFrameTime(int64 TargetFrame, uint32 ThreadID) const;
 
 	/** For the specified stat packet looks for the thread name. */
-	FName GetStatThreadName( const FStatPacket& Packet ) const;
+	CORE_API FName GetStatThreadName( const FStatPacket& Packet ) const;
 
 	/** Looks in the history for a condensed frame, builds it if it isn't there. **/
-	TArray<FStatMessage> const& GetCondensedHistory(int64 TargetFrame) const;
+	CORE_API TArray<FStatMessage> const& GetCondensedHistory(int64 TargetFrame) const;
 
 	/** Looks in the history for a stat packet array, the stat packet array must be in the history. */
 	const FStatPacketArray& GetStatPacketArray( int64 TargetFrame ) const
@@ -665,28 +665,28 @@ public:
 	}
 
 	/** Gets the old-skool flat grouped inclusive stats. These ignore recursion, merge threads, etc and so generally the condensed callstack is less confusing. **/
-	void GetInclusiveAggregateStackStats( const TArray<FStatMessage>& CondensedMessages, TArray<FStatMessage>& OutStats, IItemFilter* Filter = nullptr, bool bAddNonStackStats = true, TMap<FName, TArray<FStatMessage>>* OptionalOutThreadBreakdownMap = nullptr ) const;
+	CORE_API void GetInclusiveAggregateStackStats( const TArray<FStatMessage>& CondensedMessages, TArray<FStatMessage>& OutStats, IItemFilter* Filter = nullptr, bool bAddNonStackStats = true, TMap<FName, TArray<FStatMessage>>* OptionalOutThreadBreakdownMap = nullptr ) const;
 
 	/** Gets the old-skool flat grouped inclusive stats. These ignore recursion, merge threads, etc and so generally the condensed callstack is less confusing. **/
-	void GetInclusiveAggregateStackStats(int64 TargetFrame, TArray<FStatMessage>& OutStats, IItemFilter* Filter = nullptr, bool bAddNonStackStats = true, TMap<FName, TArray<FStatMessage>>* OptionalOutThreadBreakdownMap = nullptr) const;
+	CORE_API void GetInclusiveAggregateStackStats(int64 TargetFrame, TArray<FStatMessage>& OutStats, IItemFilter* Filter = nullptr, bool bAddNonStackStats = true, TMap<FName, TArray<FStatMessage>>* OptionalOutThreadBreakdownMap = nullptr) const;
 
 	/** Gets the old-skool flat grouped exclusive stats. These merge threads, etc and so generally the condensed callstack is less confusing. **/
-	void GetExclusiveAggregateStackStats( const TArray<FStatMessage>& CondensedMessages, TArray<FStatMessage>& OutStats, IItemFilter* Filter = nullptr, bool bAddNonStackStats = true ) const;
+	CORE_API void GetExclusiveAggregateStackStats( const TArray<FStatMessage>& CondensedMessages, TArray<FStatMessage>& OutStats, IItemFilter* Filter = nullptr, bool bAddNonStackStats = true ) const;
 
 	/** Gets the old-skool flat grouped exclusive stats. These merge threads, etc and so generally the condensed callstack is less confusing. **/
-	void GetExclusiveAggregateStackStats(int64 TargetFrame, TArray<FStatMessage>& OutStats, IItemFilter* Filter = nullptr, bool bAddNonStackStats = true) const;
+	CORE_API void GetExclusiveAggregateStackStats(int64 TargetFrame, TArray<FStatMessage>& OutStats, IItemFilter* Filter = nullptr, bool bAddNonStackStats = true) const;
 
 	/** Used to turn the condensed version of stack stats back into a tree for easier handling. **/
-	void UncondenseStackStats( const TArray<FStatMessage>& CondensedMessages, FRawStatStackNode& Root, IItemFilter* Filter = nullptr, TArray<FStatMessage>* OutNonStackStats = nullptr ) const;
+	CORE_API void UncondenseStackStats( const TArray<FStatMessage>& CondensedMessages, FRawStatStackNode& Root, IItemFilter* Filter = nullptr, TArray<FStatMessage>* OutNonStackStats = nullptr ) const;
 
 	/** Used to turn the condensed version of stack stats back into a tree for easier handling. **/
-	void UncondenseStackStats(int64 TargetFrame, FRawStatStackNode& Root, IItemFilter* Filter = nullptr, TArray<FStatMessage>* OutNonStackStats = nullptr) const;
+	CORE_API void UncondenseStackStats(int64 TargetFrame, FRawStatStackNode& Root, IItemFilter* Filter = nullptr, TArray<FStatMessage>* OutNonStackStats = nullptr) const;
 
 	/** Adds missing stats to the group so it doesn't jitter. **/
-	void AddMissingStats(TArray<FStatMessage>& Dest, TSet<FName> const& EnabledItems) const;
+	CORE_API void AddMissingStats(TArray<FStatMessage>& Dest, TSet<FName> const& EnabledItems) const;
 
 	/** Singleton to get the stats being collected by this executable. Can be only accessed from the stats thread. **/
-	static FStatsThreadState& GetLocalState();
+	static CORE_API FStatsThreadState& GetLocalState();
 };
 
 //@todo split header
@@ -694,22 +694,22 @@ public:
 /**
 * Set of utility functions for dealing with stats
 */
-struct CORE_API FStatsUtils
+struct FStatsUtils
 {
 	/** Divides a stat by an integer. Used to finish an average. **/
-	static void DivideStat(FStatMessage& Dest, uint32 Div);
+	static CORE_API void DivideStat(FStatMessage& Dest, uint32 Div);
 
 	/** Merges two stat message arrays, adding corresponding number values **/
-	static void AddMergeStatArray(TArray<FStatMessage>& Dest, TArray<FStatMessage> const& Item);
+	static CORE_API void AddMergeStatArray(TArray<FStatMessage>& Dest, TArray<FStatMessage> const& Item);
 
 	/** Merges two stat message arrays, corresponding number values are set to the max **/
-	static void MaxMergeStatArray(TArray<FStatMessage>& Dest, TArray<FStatMessage> const& Item);
+	static CORE_API void MaxMergeStatArray(TArray<FStatMessage>& Dest, TArray<FStatMessage> const& Item);
 
 	/** Divides a stat array by an integer. Used to finish an average. **/
-	static void DivideStatArray(TArray<FStatMessage>& Dest, uint32 Div);
+	static CORE_API void DivideStatArray(TArray<FStatMessage>& Dest, uint32 Div);
 
 	/** Apply Op or Item.Op to Item and Dest, soring the result in dest. **/
-	static void AccumulateStat(FStatMessage& Dest, FStatMessage const& Item, EStatOperation::Type Op = EStatOperation::Invalid, bool bAllowNameMismatch = false);
+	static CORE_API void AccumulateStat(FStatMessage& Dest, FStatMessage const& Item, EStatOperation::Type Op = EStatOperation::Invalid, bool bAllowNameMismatch = false);
 
 	/** Adds a non-stack stats */
 	static void AddNonStackStats( const FName LongName, const FStatMessage& Item, const EStatOperation::Type Op, TMap<FName, FStatMessage>& out_NonStackStats )
@@ -735,10 +735,10 @@ struct CORE_API FStatsUtils
 	}
 
 	/** Spews a stat message, not all messages are supported, this is used for reports, so it focuses on numeric output, not say the operation. **/
-	static FString DebugPrint(FStatMessage const& Item);
+	static CORE_API FString DebugPrint(FStatMessage const& Item);
 
 	/** Gets friendly names from a stat message, not all messages are supported, this is used for reports, **/
-	static void GetNameAndGroup(FStatMessage const& Item, FString& OutName, FString& OutGroup);
+	static CORE_API void GetNameAndGroup(FStatMessage const& Item, FString& OutName, FString& OutGroup);
 
 	/** Subtract a CycleScopeStart from a CycleScopeEnd to create a IsPackedCCAndDuration with the call count and inclusive cycles. **/
 	static FStatMessage ComputeCall(FStatMessage const& ScopeStart, FStatMessage const& ScopeEnd)
@@ -787,8 +787,8 @@ struct CORE_API FStatsUtils
 	}
 
 	/** Internal use, converts arbitrary string to and from an escaped notation for storage in an FName. **/
-	static void ToEscapedString(FStringView Input, FStringBuilderBase& Output);
-	static FString FromEscapedString(const TCHAR* Escaped);
+	static CORE_API void ToEscapedString(FStringView Input, FStringBuilderBase& Output);
+	static CORE_API FString FromEscapedString(const TCHAR* Escaped);
 	
 	static FString BuildUniqueThreadName( uint32 InThreadID )
 	{
@@ -819,19 +819,19 @@ struct CORE_API FStatsUtils
 /**
 * Contains helpers functions to manage complex stat messages.
 */
-struct CORE_API FComplexStatUtils
+struct FComplexStatUtils
 {
 	/** Accumulates a stat message into a complex stat message. */
-	static void AddAndMinMax( FComplexStatMessage& Dest, const FStatMessage& Item, EComplexStatField::Type SumIndex, EComplexStatField::Type MaxIndex, EComplexStatField::Type MinIndex);
+	static CORE_API void AddAndMinMax( FComplexStatMessage& Dest, const FStatMessage& Item, EComplexStatField::Type SumIndex, EComplexStatField::Type MaxIndex, EComplexStatField::Type MinIndex);
 
 	/** Divides a complex stat message by the specified value. */
-	static void DivideStat( FComplexStatMessage& Dest, uint32 Div, EComplexStatField::Type SumIndex, EComplexStatField::Type DestIndex );
+	static CORE_API void DivideStat( FComplexStatMessage& Dest, uint32 Div, EComplexStatField::Type SumIndex, EComplexStatField::Type DestIndex );
 
 	/** Merges two complex stat message arrays. */
-	static void MergeAddAndMinMaxArray( TArray<FComplexStatMessage>& Dest, const TArray<FStatMessage>& Source, EComplexStatField::Type SumIndex, EComplexStatField::Type MaxIndex, EComplexStatField::Type MinIndex);
+	static CORE_API void MergeAddAndMinMaxArray( TArray<FComplexStatMessage>& Dest, const TArray<FStatMessage>& Source, EComplexStatField::Type SumIndex, EComplexStatField::Type MaxIndex, EComplexStatField::Type MinIndex);
 
 	/** Divides a complex stat array by the specified value. */
-	static void DiviveStatArray( TArray<FComplexStatMessage>& Dest, uint32 Div, EComplexStatField::Type SumIndex, EComplexStatField::Type DestIndex );
+	static CORE_API void DiviveStatArray( TArray<FComplexStatMessage>& Dest, uint32 Div, EComplexStatField::Type SumIndex, EComplexStatField::Type DestIndex );
 };
 
 //@todo split header

@@ -13,7 +13,7 @@
  */
 
 // A stub for now. Will allow to override any functions if needed
-struct CORE_API FLinuxPlatformMisc : public FUnixPlatformMisc
+struct FLinuxPlatformMisc : public FUnixPlatformMisc
 {
 };
 

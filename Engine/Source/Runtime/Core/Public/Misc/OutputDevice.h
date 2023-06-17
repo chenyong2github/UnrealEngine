@@ -126,7 +126,7 @@ namespace ELogTimes
 class FName;
 
 // An output device.
-class CORE_API FOutputDevice
+class FOutputDevice
 {
 public:
 	FOutputDevice()
@@ -148,7 +148,7 @@ public:
 		Serialize( V, Verbosity, Category );
 	}
 
-	virtual void SerializeRecord(const UE::FLogRecord& Record);
+	CORE_API virtual void SerializeRecord(const UE::FLogRecord& Record);
 
 	virtual void Flush()
 	{
@@ -216,18 +216,18 @@ public:
 	}
 
 	// Simple text printing.
-	void Log( const TCHAR* S );
-	void Log( ELogVerbosity::Type Verbosity, const TCHAR* S );
-	void Log( const FName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Str );
-	void Log( const FString& S );
-	void Log( const FText& S );
-	void Log( ELogVerbosity::Type Verbosity, const FString& S );
-	void Log( const FName& Category, ELogVerbosity::Type Verbosity, const FString& S );
+	CORE_API void Log( const TCHAR* S );
+	CORE_API void Log( ELogVerbosity::Type Verbosity, const TCHAR* S );
+	CORE_API void Log( const FName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Str );
+	CORE_API void Log( const FString& S );
+	CORE_API void Log( const FText& S );
+	CORE_API void Log( ELogVerbosity::Type Verbosity, const FString& S );
+	CORE_API void Log( const FName& Category, ELogVerbosity::Type Verbosity, const FString& S );
 
 private:
-	void VARARGS LogfImpl(const TCHAR* Fmt, ...);
-	void VARARGS LogfImpl(ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...);
-	void VARARGS CategorizedLogfImpl(const FName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...);
+	CORE_API void VARARGS LogfImpl(const TCHAR* Fmt, ...);
+	CORE_API void VARARGS LogfImpl(ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...);
+	CORE_API void VARARGS CategorizedLogfImpl(const FName& Category, ELogVerbosity::Type Verbosity, const TCHAR* Fmt, ...);
 
 public:
 	template <typename FmtType>

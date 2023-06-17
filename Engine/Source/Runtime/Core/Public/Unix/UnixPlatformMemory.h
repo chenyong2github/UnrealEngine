@@ -45,7 +45,7 @@ struct FExtendedPlatformMemoryStats
 /**
 * Unix implementation of the memory OS functions
 **/
-struct CORE_API FUnixPlatformMemory : public FGenericPlatformMemory
+struct FUnixPlatformMemory : public FGenericPlatformMemory
 {
 	/**
 	 * Unix representation of a shared memory region
@@ -74,14 +74,14 @@ struct CORE_API FUnixPlatformMemory : public FGenericPlatformMemory
 	};
 
 	//~ Begin FGenericPlatformMemory Interface
-	static void Init();
-	static class FMalloc* BaseAllocator();
-	static FPlatformMemoryStats GetStats();
-	static FExtendedPlatformMemoryStats GetExtendedStats();
-	static const FPlatformMemoryConstants& GetConstants();
-	static bool PageProtect(void* const Ptr, const SIZE_T Size, const bool bCanRead, const bool bCanWrite);
-	static void* BinnedAllocFromOS(SIZE_T Size);
-	static void BinnedFreeToOS(void* Ptr, SIZE_T Size);
+	static CORE_API void Init();
+	static CORE_API class FMalloc* BaseAllocator();
+	static CORE_API FPlatformMemoryStats GetStats();
+	static CORE_API FExtendedPlatformMemoryStats GetExtendedStats();
+	static CORE_API const FPlatformMemoryConstants& GetConstants();
+	static CORE_API bool PageProtect(void* const Ptr, const SIZE_T Size, const bool bCanRead, const bool bCanWrite);
+	static CORE_API void* BinnedAllocFromOS(SIZE_T Size);
+	static CORE_API void BinnedFreeToOS(void* Ptr, SIZE_T Size);
 
 	class FPlatformVirtualMemoryBlock : public FBasicVirtualMemoryBlock
 	{
@@ -132,13 +132,13 @@ struct CORE_API FUnixPlatformMemory : public FGenericPlatformMemory
 		static size_t GetVirtualSizeAlignment();
 	};
 
-	static FSharedMemoryRegion * MapNamedSharedMemoryRegion(const FString& InName, bool bCreate, uint32 AccessMode, SIZE_T Size);
-	static bool UnmapNamedSharedMemoryRegion(FSharedMemoryRegion * MemoryRegion);
-	static bool GetLLMAllocFunctions(void*(*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment);
-	[[noreturn]] static void OnOutOfMemory(uint64 Size, uint32 Alignment);
+	static CORE_API FSharedMemoryRegion * MapNamedSharedMemoryRegion(const FString& InName, bool bCreate, uint32 AccessMode, SIZE_T Size);
+	static CORE_API bool UnmapNamedSharedMemoryRegion(FSharedMemoryRegion * MemoryRegion);
+	static CORE_API bool GetLLMAllocFunctions(void*(*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment);
+	[[noreturn]] static CORE_API void OnOutOfMemory(uint64 Size, uint32 Alignment);
 	//~ End FGenericPlatformMemory Interface
 
-	static bool HasForkPageProtectorEnabled();
+	static CORE_API bool HasForkPageProtectorEnabled();
 };
 
 typedef FUnixPlatformMemory FPlatformMemory;

@@ -13,13 +13,13 @@ class FString;
 
 
 // Windows wrapper for named pipe communications
-class CORE_API FWindowsPlatformNamedPipe
+class FWindowsPlatformNamedPipe
 	: public FGenericPlatformNamedPipe
 {
 public:
 
-	FWindowsPlatformNamedPipe();
-	virtual ~FWindowsPlatformNamedPipe();
+	CORE_API FWindowsPlatformNamedPipe();
+	CORE_API virtual ~FWindowsPlatformNamedPipe();
 
 	FWindowsPlatformNamedPipe(const FWindowsPlatformNamedPipe&) = delete;
 	FWindowsPlatformNamedPipe& operator=(const FWindowsPlatformNamedPipe&) = delete;
@@ -28,16 +28,16 @@ public:
 
 	// FGenericPlatformNamedPipe overrides
 
-	virtual bool Create(const FString& PipeName, bool bAsServer, bool bAsync) override;
-	virtual bool Destroy() override;
-	virtual bool OpenConnection() override;
-	virtual bool BlockForAsyncIO() override;
-	virtual bool IsReadyForRW() const override;
-	virtual bool UpdateAsyncStatus() override;
-	virtual bool WriteBytes(int32 NumBytes, const void* Data) override;
-	virtual bool ReadBytes(int32 NumBytes, void* OutData) override;
-	virtual bool IsCreated() const override;
-	virtual bool HasFailed() const override;
+	CORE_API virtual bool Create(const FString& PipeName, bool bAsServer, bool bAsync) override;
+	CORE_API virtual bool Destroy() override;
+	CORE_API virtual bool OpenConnection() override;
+	CORE_API virtual bool BlockForAsyncIO() override;
+	CORE_API virtual bool IsReadyForRW() const override;
+	CORE_API virtual bool UpdateAsyncStatus() override;
+	CORE_API virtual bool WriteBytes(int32 NumBytes, const void* Data) override;
+	CORE_API virtual bool ReadBytes(int32 NumBytes, void* OutData) override;
+	CORE_API virtual bool IsCreated() const override;
+	CORE_API virtual bool HasFailed() const override;
 
 private:
 
@@ -60,7 +60,7 @@ private:
 
 	EState State;
 
-	bool UpdateAsyncStatusAfterRW();
+	CORE_API bool UpdateAsyncStatusAfterRW();
 };
 
 

@@ -25,7 +25,7 @@ enum class ESlowTaskVisibility
 /**
  * Data type used to store information about a currently running slow task. Direct use is not advised, use FScopedSlowTask instead
  */
-struct CORE_API FSlowTask
+struct FSlowTask
 {
 	/** Default message to display to the user when not overridden by a frame */
 	FText DefaultMessage;
@@ -88,7 +88,7 @@ public:
 	/**
 	 * True if a slow task should be created. False if a slow task should not be created because another was created recently.
 	 */
-	static bool ShouldCreateThrottledSlowTask();
+	static CORE_API bool ShouldCreateThrottledSlowTask();
 
 	/**
 	 * Construct this scope from an amount of work to do, and a message to display
@@ -97,13 +97,13 @@ public:
 	 * @param		InDefaultMessage		A message to display to the user to describe the purpose of the scope
 	 * @param		bInVisible				When false, this scope will have no effect. Allows for proper scoped objects that are conditionally hidden.
 	 */
-	FSlowTask(float InAmountOfWork, const FText& InDefaultMessage = FText(), bool bInEnabled = true, FFeedbackContext& InContext = *GWarn);
+	CORE_API FSlowTask(float InAmountOfWork, const FText& InDefaultMessage = FText(), bool bInEnabled = true, FFeedbackContext& InContext = *GWarn);
 
 	/** Function that initializes the scope by adding it to its context's stack */
-	void Initialize();
+	CORE_API void Initialize();
 
 	/** Function that finishes any remaining work and removes itself from the global scope stack */
-	void Destroy();
+	CORE_API void Destroy();
 
 	/**
 	 * Creates a new dialog for this slow task after the given time threshold. If the task completes before this time, no dialog will be shown.
@@ -111,40 +111,40 @@ public:
 	 * @param		bShowCancelButton		Whether to show a cancel button on the dialog or not
 	 * @param		bAllowInPIE				Whether to allow this dialog in PIE. If false, this dialog will not appear during PIE sessions.
 	 */
-	void MakeDialogDelayed(float Threshold, bool bShowCancelButton = false, bool bAllowInPIE = false);
+	CORE_API void MakeDialogDelayed(float Threshold, bool bShowCancelButton = false, bool bAllowInPIE = false);
 
 	/**
 	 * Creates a new dialog for this slow task, if there is currently not one open
 	 * @param		bShowCancelButton		Whether to show a cancel button on the dialog or not
 	 * @param		bAllowInPIE				Whether to allow this dialog in PIE. If false, this dialog will not appear during PIE sessions.
 	 */
-	void MakeDialog(bool bShowCancelButton = false, bool bAllowInPIE = false);
+	CORE_API void MakeDialog(bool bShowCancelButton = false, bool bAllowInPIE = false);
 
 	/**
 	 * Indicate that we are to enter a frame that will take up the specified amount of work. Completes any previous frames (potentially contributing to parent scopes' progress).
 	 * @param		ExpectedWorkThisFrame	The amount of work that will happen between now and the next frame, as a numerator of TotalAmountOfWork.
 	 * @param		Text					Optional text to describe this frame's purpose.
 	 */
-	void EnterProgressFrame(float ExpectedWorkThisFrame = 1.f, const FText& Text = FText());
+	CORE_API void EnterProgressFrame(float ExpectedWorkThisFrame = 1.f, const FText& Text = FText());
 
 	/**
 	 * Let the UI refresh but doesn't advance progress. This should be called at regular intervals even when no progress is being made to keep the UI responsive.
 	 */
-	void TickProgress();
+	CORE_API void TickProgress();
 
 	/** 
 	* Whenever we encounter edge condition requiring to force a UI refresh
 	* (Like if another popup would show when the slow task finishes and you want it to show 100%)
 	*/
-	void ForceRefresh();
+	CORE_API void ForceRefresh();
 
 	/**
 	 * Get the frame message or default message if empty
 	 */
-	const FText& GetCurrentMessage() const;
+	CORE_API const FText& GetCurrentMessage() const;
 
 	/**
 	 * True if the user has requested that the slow task be canceled
 	 */
-	bool ShouldCancel() const;
+	CORE_API bool ShouldCancel() const;
 };

@@ -20,17 +20,17 @@ struct FPlatformMemoryStats : public FGenericPlatformMemoryStats
 /**
 * Android implementation of the memory OS functions
 **/
-struct CORE_API FAndroidPlatformMemory : public FGenericPlatformMemory
+struct FAndroidPlatformMemory : public FGenericPlatformMemory
 {
 	//~ Begin FGenericPlatformMemory Interface
-	static void Init();
-	static FPlatformMemoryStats GetStats();
-	static uint64 GetMemoryUsedFast();
-	static const FPlatformMemoryConstants& GetConstants();
-	static EPlatformMemorySizeBucket GetMemorySizeBucket();
-	static FMalloc* BaseAllocator();
-	static void* BinnedAllocFromOS(SIZE_T Size);
-	static void BinnedFreeToOS(void* Ptr, SIZE_T Size);
+	static CORE_API void Init();
+	static CORE_API FPlatformMemoryStats GetStats();
+	static CORE_API uint64 GetMemoryUsedFast();
+	static CORE_API const FPlatformMemoryConstants& GetConstants();
+	static CORE_API EPlatformMemorySizeBucket GetMemorySizeBucket();
+	static CORE_API FMalloc* BaseAllocator();
+	static CORE_API void* BinnedAllocFromOS(SIZE_T Size);
+	static CORE_API void BinnedFreeToOS(void* Ptr, SIZE_T Size);
 
 	class FPlatformVirtualMemoryBlock : public FBasicVirtualMemoryBlock
 	{
@@ -81,7 +81,7 @@ struct CORE_API FAndroidPlatformMemory : public FGenericPlatformMemory
 		static size_t GetVirtualSizeAlignment();
 	};
 
-	static bool GetLLMAllocFunctions(void*(*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment);
+	static CORE_API bool GetLLMAllocFunctions(void*(*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment);
 	//~ End FGenericPlatformMemory Interface
 	
 	// ANDROID ONLY:
@@ -98,7 +98,7 @@ struct CORE_API FAndroidPlatformMemory : public FGenericPlatformMemory
 	};
 	// called when OS (via JNI) reports memory trouble, triggers MemoryWarningHandler callback on game thread if set.
 	enum class EOSMemoryStatusCategory { OSTrim };
-	static void UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value);
+	static CORE_API void UpdateOSMemoryStatus(EOSMemoryStatusCategory OSMemoryStatusCategory, int value);
 };
 
 typedef FAndroidPlatformMemory FPlatformMemory;

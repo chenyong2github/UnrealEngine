@@ -264,10 +264,10 @@ struct FSharedCrashContext
 struct FCrashContextExtendedWriter
 {
 	/** Adds a named buffer to the report. Intended for larger payloads. */
-	CORE_API virtual void AddBuffer(const TCHAR* Identifier, const uint8* Data, uint32 DataSize) = 0;
+	virtual void AddBuffer(const TCHAR* Identifier, const uint8* Data, uint32 DataSize) = 0;
 
 	/** Add a named buffer containing a string to the report. */
-	CORE_API virtual void AddString(const TCHAR* Identifier, const TCHAR* DataStr) = 0;
+	virtual void AddString(const TCHAR* Identifier, const TCHAR* DataStr) = 0;
 };
 
 /** Simple Delegate for additional crash context. */
@@ -461,13 +461,13 @@ public:
 	CORE_API static void ResetEngineData();
 
 	/** Accessor for engine data reset callback delegate */
-	CORE_API static FEngineDataResetDelegate& OnEngineDataResetDelegate() { return OnEngineDataReset; }
+	static FEngineDataResetDelegate& OnEngineDataResetDelegate() { return OnEngineDataReset; }
 
 	/** Updates (or adds if not already present) arbitrary engine data to the crash context (will remove the key if passed an empty string) */
 	CORE_API static void SetEngineData(const FString& Key, const FString& Value);
 
 	/** Accessor for engine data change callback delegate */
-	CORE_API static FEngineDataSetDelegate& OnEngineDataSetDelegate() { return OnEngineDataSet; }
+	static FEngineDataSetDelegate& OnEngineDataSetDelegate() { return OnEngineDataSet; }
 
 	/** Get the engine data dictionary */
 	CORE_API static const TMap<FString, FString>& GetEngineData();
@@ -476,13 +476,13 @@ public:
 	CORE_API static void ResetGameData();
 
 	/** Accessor for game data reset callback delegate */
-	CORE_API static FGameDataResetDelegate& OnGameDataResetDelegate() { return OnGameDataReset; }
+	static FGameDataResetDelegate& OnGameDataResetDelegate() { return OnGameDataReset; }
 
 	/** Updates (or adds if not already present) arbitrary game data to the crash context (will remove the key if passed an empty string) */
 	CORE_API static void SetGameData(const FString& Key, const FString& Value);
 
 	/** Accessor for game data change callback delegate */
-	CORE_API static FGameDataSetDelegate& OnGameDataSetDelegate() { return OnGameDataSet; }
+	static FGameDataSetDelegate& OnGameDataSetDelegate() { return OnGameDataSet; }
 
 	/** Get the game data dictionary */
 	CORE_API static const TMap<FString, FString>& GetGameData();
@@ -707,7 +707,7 @@ private:
 	FGenericCrashContext& operator=(const FGenericCrashContext&) = delete;
 };
 
-struct CORE_API FGenericMemoryWarningContext
+struct FGenericMemoryWarningContext
 {};
 
 namespace RecoveryService

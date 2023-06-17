@@ -15,7 +15,7 @@ struct FDateTime;
 /**
  * Visitor to gather local files with their timestamps.
  */
-class CORE_API FLocalTimestampDirectoryVisitor
+class FLocalTimestampDirectoryVisitor
 	: public IPlatformFile::FDirectoryVisitor
 {
 public:
@@ -32,13 +32,13 @@ public:
 	 * @param bInCacheDirectories - Whether to cache the directories.
 	 * @param bInMakeLowerCase - Whether to lower case filenames and directories.
 	 */
-	FLocalTimestampDirectoryVisitor( IPlatformFile& InFileInterface, const TArray<FString>& InDirectoriesToIgnore, const TArray<FString>& InDirectoriesToNotRecurse, bool bInCacheDirectories = false, bool bInMakeLowerCase = false );
+	CORE_API FLocalTimestampDirectoryVisitor( IPlatformFile& InFileInterface, const TArray<FString>& InDirectoriesToIgnore, const TArray<FString>& InDirectoriesToNotRecurse, bool bInCacheDirectories = false, bool bInMakeLowerCase = false );
 
 public:
 
 	// IPlatformFile::FDirectoryVisitor interface
 
-	virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory);
+	CORE_API virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory);
 
 private:
 

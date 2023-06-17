@@ -22,12 +22,12 @@ namespace ETextComparisonLevel
  * Utility for performing low-level text comparison.
  * The implementation can be found in LegacyText.cpp and ICUText.cpp.
  */
-class CORE_API FTextComparison
+class FTextComparison
 {
 public:
-	static int32 CompareTo(const FString& A, const FString& B, const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default);
-	static int32 CompareToCaseIgnored(const FString& A, const FString& B);
+	static CORE_API int32 CompareTo(const FString& A, const FString& B, const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default);
+	static CORE_API int32 CompareToCaseIgnored(const FString& A, const FString& B);
 
-	static bool EqualTo(const FString& A, const FString& B, const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default);
-	static bool EqualToCaseIgnored(const FString& A, const FString& B);
+	static CORE_API bool EqualTo(const FString& A, const FString& B, const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default);
+	static CORE_API bool EqualToCaseIgnored(const FString& A, const FString& B);
 };

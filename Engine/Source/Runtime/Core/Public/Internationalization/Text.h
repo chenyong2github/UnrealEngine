@@ -175,9 +175,9 @@ enum EMemoryUnitStandard
 	SI
 };
 
-struct CORE_API FNumberFormattingOptions
+struct FNumberFormattingOptions
 {
-	FNumberFormattingOptions();
+	CORE_API FNumberFormattingOptions();
 
 	bool AlwaysSign;
 	FNumberFormattingOptions& SetAlwaysSign( bool InValue ){ AlwaysSign = InValue; return *this; }
@@ -206,18 +206,18 @@ struct CORE_API FNumberFormattingOptions
 	friend CORE_API uint32 GetTypeHash( const FNumberFormattingOptions& Key );
 
 	/** Check to see if our formatting options match the other formatting options */
-	bool IsIdentical( const FNumberFormattingOptions& Other ) const;
+	CORE_API bool IsIdentical( const FNumberFormattingOptions& Other ) const;
 
 	/** Get the default number formatting options with grouping enabled */
-	static const FNumberFormattingOptions& DefaultWithGrouping();
+	static CORE_API const FNumberFormattingOptions& DefaultWithGrouping();
 
 	/** Get the default number formatting options with grouping disabled */
-	static const FNumberFormattingOptions& DefaultNoGrouping();
+	static CORE_API const FNumberFormattingOptions& DefaultNoGrouping();
 };
 
-struct CORE_API FNumberParsingOptions
+struct FNumberParsingOptions
 {
-	FNumberParsingOptions();
+	CORE_API FNumberParsingOptions();
 
 	bool UseGrouping;
 	FNumberParsingOptions& SetUseGrouping( bool InValue ){ UseGrouping = InValue; return *this; }
@@ -236,13 +236,13 @@ struct CORE_API FNumberParsingOptions
 	friend CORE_API uint32 GetTypeHash( const FNumberParsingOptions& Key );
 
 	/** Check to see if our parsing options match the other parsing options */
-	bool IsIdentical( const FNumberParsingOptions& Other ) const;
+	CORE_API bool IsIdentical( const FNumberParsingOptions& Other ) const;
 
 	/** Get the default number parsing options with grouping enabled */
-	static const FNumberParsingOptions& DefaultWithGrouping();
+	static CORE_API const FNumberParsingOptions& DefaultWithGrouping();
 
 	/** Get the default number parsing options with grouping disabled */
-	static const FNumberParsingOptions& DefaultNoGrouping();
+	static CORE_API const FNumberParsingOptions& DefaultNoGrouping();
 };
 
 /**
@@ -251,7 +251,7 @@ struct CORE_API FNumberParsingOptions
  * and is safe to be used as a function-level static.
  * See TextFormatter.cpp for the definition.
  */
-class CORE_API FTextFormat
+class FTextFormat
 {
 	friend class FTextFormatter;
 
@@ -269,83 +269,83 @@ public:
 	/**
 	 * Construct an instance using an empty FText.
 	 */
-	FTextFormat();
+	CORE_API FTextFormat();
 
 	/**
 	 * Construct an instance from an FText.
 	 * The text will be immediately compiled. 
 	 */
-	FTextFormat(const FText& InText);
+	CORE_API FTextFormat(const FText& InText);
 
 	/**
 	 * Construct an instance from an FText and custom format pattern definition.
 	 * The text will be immediately compiled.
 	 */
-	FTextFormat(const FText& InText, FTextFormatPatternDefinitionConstRef InCustomPatternDef);
+	CORE_API FTextFormat(const FText& InText, FTextFormatPatternDefinitionConstRef InCustomPatternDef);
 
 	/**
 	 * Construct an instance from an FString.
 	 * The string will be immediately compiled.
 	 */
-	static FTextFormat FromString(const FString& InString);
-	static FTextFormat FromString(FString&& InString);
+	static CORE_API FTextFormat FromString(const FString& InString);
+	static CORE_API FTextFormat FromString(FString&& InString);
 
 	/**
 	 * Construct an instance from an FString and custom format pattern definition.
 	 * The string will be immediately compiled.
 	 */
-	static FTextFormat FromString(const FString& InString, FTextFormatPatternDefinitionConstRef InCustomPatternDef);
-	static FTextFormat FromString(FString&& InString, FTextFormatPatternDefinitionConstRef InCustomPatternDef);
+	static CORE_API FTextFormat FromString(const FString& InString, FTextFormatPatternDefinitionConstRef InCustomPatternDef);
+	static CORE_API FTextFormat FromString(FString&& InString, FTextFormatPatternDefinitionConstRef InCustomPatternDef);
 
 	/**
 	 * Test to see whether this instance contains valid compiled data.
 	 */
-	bool IsValid() const;
+	CORE_API bool IsValid() const;
 
 	/**
 	 * Check whether this instance is considered identical to the other instance, based on the comparison flags provided.
 	 */
-	bool IdenticalTo(const FTextFormat& Other, const ETextIdenticalModeFlags CompareModeFlags) const;
+	CORE_API bool IdenticalTo(const FTextFormat& Other, const ETextIdenticalModeFlags CompareModeFlags) const;
 
 	/**
 	 * Get the source text that we're holding.
 	 * If we're holding a string then we'll construct a new text.
 	 */
-	FText GetSourceText() const;
+	CORE_API FText GetSourceText() const;
 
 	/**
 	 * Get the source string that we're holding.
 	 * If we're holding a text then we'll return its internal string.
 	 */
-	const FString& GetSourceString() const;
+	CORE_API const FString& GetSourceString() const;
 
 	/**
 	 * Get the type of expression currently compiled.
 	 */
-	EExpressionType GetExpressionType() const;
+	CORE_API EExpressionType GetExpressionType() const;
 
 	/**
 	 * Get the format pattern definition being used.
 	 */
-	FTextFormatPatternDefinitionConstRef GetPatternDefinition() const;
+	CORE_API FTextFormatPatternDefinitionConstRef GetPatternDefinition() const;
 
 	/**
 	 * Validate the format pattern is valid based on the rules of the given culture (or null to use the current language).
 	 * @return true if the pattern is valid, or false if not (false may also fill in OutValidationErrors).
 	 */
-	bool ValidatePattern(const FCulturePtr& InCulture, TArray<FString>& OutValidationErrors) const;
+	CORE_API bool ValidatePattern(const FCulturePtr& InCulture, TArray<FString>& OutValidationErrors) const;
 
 	/**
 	 * Append the names of any arguments to the given array.
 	 */
-	void GetFormatArgumentNames(TArray<FString>& OutArgumentNames) const;
+	CORE_API void GetFormatArgumentNames(TArray<FString>& OutArgumentNames) const;
 
 private:
 	/**
 	 * Construct an instance from an FString.
 	 * The string will be immediately compiled.
 	 */
-	FTextFormat(FString&& InString, FTextFormatPatternDefinitionConstRef InCustomPatternDef);
+	CORE_API FTextFormat(FString&& InString, FTextFormatPatternDefinitionConstRef InCustomPatternDef);
 
 	/** Cached compiled expression data */
 	TSharedRef<FTextFormatData, ESPMode::ThreadSafe> TextFormatData;
@@ -353,15 +353,15 @@ private:
 
 class FCulture;
 
-class CORE_API FText
+class FText
 {
 public:
 
-	static const FText& GetEmpty();
+	static CORE_API const FText& GetEmpty();
 
 public:
 
-	FText();
+	CORE_API FText();
 	FText(const FText&) = default;
 	FText(FText&&) = default;
 
@@ -371,30 +371,30 @@ public:
 	/**
 	 * Generate an FText that represents the passed number in the current culture
 	 */
-	static FText AsNumber(float Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(double Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(int8 Val,		const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(int16 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(int32 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(int64 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(uint8 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(uint16 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(uint32 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(uint64 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsNumber(long Val,		const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(float Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(double Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(int8 Val,		const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(int16 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(int32 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(int64 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(uint8 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(uint16 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(uint32 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(uint64 Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsNumber(long Val,		const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
 
 
-	static FText AsCurrency(float Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(double Val, const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(int8 Val,   const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(int16 Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(int32 Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(int64 Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(uint8 Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(uint16 Val, const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(uint32 Val, const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(uint64 Val, const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsCurrency(long Val,   const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(float Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(double Val, const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(int8 Val,   const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(int16 Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(int32 Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(int64 Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(uint8 Val,  const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(uint16 Val, const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(uint32 Val, const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(uint64 Val, const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsCurrency(long Val,   const FString& CurrencyCode = FString(), const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
 
 	/**
 	 * Generate an FText that represents the passed number as currency in the current culture.
@@ -402,90 +402,90 @@ public:
 	 * Keep in mind the CurrencyCode is completely independent of the culture it's displayed in (and they do not imply one another).
 	 * For example: FText::AsCurrencyBase(650, TEXT("EUR")); would return an FText of "<EUR>6.50" in most English cultures (en_US/en_UK) and "6,50<EUR>" in Spanish (es_ES) (where <EUR> is U+20AC)
 	 */
-	static FText AsCurrencyBase(int64 BaseVal, const FString& CurrencyCode, const FCulturePtr& TargetCulture = NULL, int32 ForceDecimalPlaces = -1);
+	static CORE_API FText AsCurrencyBase(int64 BaseVal, const FString& CurrencyCode, const FCulturePtr& TargetCulture = NULL, int32 ForceDecimalPlaces = -1);
 
 	/**
 	 * Generate an FText that represents the passed number as a percentage in the current culture
 	 */
-	static FText AsPercent(float Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
-	static FText AsPercent(double Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsPercent(float Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsPercent(double Val,	const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL);
 
 	/**
 	 * Generate an FText that represents the passed number as a date and/or time in the current culture
 	 * @note The overload using a custom pattern uses strftime-like syntax (see FDateTime::ToFormattedString)
 	 */
-	static FText AsDate(const FDateTime& DateTime, const EDateTimeStyle::Type DateStyle = EDateTimeStyle::Default, const FString& TimeZone = FString(), const FCulturePtr& TargetCulture = NULL);
-	static FText AsDateTime(const FDateTime& DateTime, const EDateTimeStyle::Type DateStyle = EDateTimeStyle::Default, const EDateTimeStyle::Type TimeStyle = EDateTimeStyle::Default, const FString& TimeZone = FString(), const FCulturePtr& TargetCulture = NULL);
-	static FText AsDateTime(const FDateTime& DateTime, const FString& CustomPattern, const FString& TimeZone = FString(), const FCulturePtr& TargetCulture = NULL);
-	static FText AsTime(const FDateTime& DateTime, const EDateTimeStyle::Type TimeStyle = EDateTimeStyle::Default, const FString& TimeZone = FString(), const FCulturePtr& TargetCulture = NULL);
-	static FText AsTimespan(const FTimespan& Timespan, const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsDate(const FDateTime& DateTime, const EDateTimeStyle::Type DateStyle = EDateTimeStyle::Default, const FString& TimeZone = FString(), const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsDateTime(const FDateTime& DateTime, const EDateTimeStyle::Type DateStyle = EDateTimeStyle::Default, const EDateTimeStyle::Type TimeStyle = EDateTimeStyle::Default, const FString& TimeZone = FString(), const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsDateTime(const FDateTime& DateTime, const FString& CustomPattern, const FString& TimeZone = FString(), const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsTime(const FDateTime& DateTime, const EDateTimeStyle::Type TimeStyle = EDateTimeStyle::Default, const FString& TimeZone = FString(), const FCulturePtr& TargetCulture = NULL);
+	static CORE_API FText AsTimespan(const FTimespan& Timespan, const FCulturePtr& TargetCulture = NULL);
 
 	/**
 	 * Gets the time zone string that represents a non-specific, zero offset, culture invariant time zone.
 	 */
-	static FString GetInvariantTimeZone();
+	static CORE_API FString GetInvariantTimeZone();
 
 	/**
 	 * Generate an FText that represents the passed number as a memory size in the current culture
 	 */
-	static FText AsMemory(uint64 NumBytes, const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL, EMemoryUnitStandard UnitStandard = EMemoryUnitStandard::IEC);
+	static CORE_API FText AsMemory(uint64 NumBytes, const FNumberFormattingOptions* const Options = NULL, const FCulturePtr& TargetCulture = NULL, EMemoryUnitStandard UnitStandard = EMemoryUnitStandard::IEC);
 
 	/**
 	 * Generate an FText that represents the passed number as a memory size in the current culture
 	 */
-	static FText AsMemory(uint64 NumBytes, EMemoryUnitStandard UnitStandard);
+	static CORE_API FText AsMemory(uint64 NumBytes, EMemoryUnitStandard UnitStandard);
 
 	/**
 	 * Attempts to find an existing FText using the representation found in the loc tables for the specified namespace and key
 	 * @return true if OutText was properly set; otherwise false and OutText will be untouched
 	 */
-	static bool FindText( const FTextKey& Namespace, const FTextKey& Key, FText& OutText, const FString* const SourceString = nullptr );
+	static CORE_API bool FindText( const FTextKey& Namespace, const FTextKey& Key, FText& OutText, const FString* const SourceString = nullptr );
 
 	/**
 	 * Attempts to create an FText instance from a string table ID and key (this is the same as the LOCTABLE macro, except this can also work with non-literal string values).
 	 * @return The found text, or a dummy FText if not found.
 	 */
-	static FText FromStringTable(const FName InTableId, const FString& InKey, const EStringTableLoadingPolicy InLoadingPolicy = EStringTableLoadingPolicy::FindOrLoad);
+	static CORE_API FText FromStringTable(const FName InTableId, const FString& InKey, const EStringTableLoadingPolicy InLoadingPolicy = EStringTableLoadingPolicy::FindOrLoad);
 
 	/**
 	 * Generate an FText representing the pass name
 	 */
-	static FText FromName( const FName& Val);
+	static CORE_API FText FromName( const FName& Val);
 	
 	/**
 	 * Generate an FText representing the passed in string
 	 */
-	static FText FromString( const FString& String );
-	static FText FromString( FString&& String );
+	static CORE_API FText FromString( const FString& String );
+	static CORE_API FText FromString( FString&& String );
 
 	/**
 	 * Generate a FText representing the passed string view
 	 */
-	static FText FromStringView(FStringView InString);
+	static CORE_API FText FromStringView(FStringView InString);
 
 	/**
 	 * Generate a culture invariant FText representing the passed in string
 	 */
-	static FText AsCultureInvariant( const FString& String );
-	static FText AsCultureInvariant( FString&& String );
+	static CORE_API FText AsCultureInvariant( const FString& String );
+	static CORE_API FText AsCultureInvariant( FString&& String );
 
 	/**
 	 * Generate a culture invariant FText representing the passed in FText
 	 */
-	static FText AsCultureInvariant( FText Text );
+	static CORE_API FText AsCultureInvariant( FText Text );
 
-	const FString& ToString() const;
+	CORE_API const FString& ToString() const;
 
 	/** Deep build of the source string for this FText, climbing the history hierarchy */
-	FString BuildSourceString() const;
+	CORE_API FString BuildSourceString() const;
 
-	bool IsNumeric() const;
+	CORE_API bool IsNumeric() const;
 
-	int32 CompareTo( const FText& Other, const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default ) const;
-	int32 CompareToCaseIgnored( const FText& Other ) const;
+	CORE_API int32 CompareTo( const FText& Other, const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default ) const;
+	CORE_API int32 CompareToCaseIgnored( const FText& Other ) const;
 
-	bool EqualTo( const FText& Other, const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default ) const;
-	bool EqualToCaseIgnored( const FText& Other ) const;
+	CORE_API bool EqualTo( const FText& Other, const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default ) const;
+	CORE_API bool EqualToCaseIgnored( const FText& Other ) const;
 
 	/**
 	 * Check to see if this FText is identical to the other FText
@@ -495,14 +495,14 @@ public:
 	 *
 	 * @note If you actually want to perform a full lexical comparison, then you need to use EqualTo instead.
 	 */
-	bool IdenticalTo( const FText& Other, const ETextIdenticalModeFlags CompareModeFlags = ETextIdenticalModeFlags::None ) const;
+	CORE_API bool IdenticalTo( const FText& Other, const ETextIdenticalModeFlags CompareModeFlags = ETextIdenticalModeFlags::None ) const;
 
-	class CORE_API FSortPredicate
+	class FSortPredicate
 	{
 	public:
-		FSortPredicate(const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default);
+		CORE_API FSortPredicate(const ETextComparisonLevel::Type ComparisonLevel = ETextComparisonLevel::Default);
 
-		bool operator()(const FText& A, const FText& B) const;
+		CORE_API bool operator()(const FText& A, const FText& B) const;
 
 	private:
 #if UE_ENABLE_ICU
@@ -511,43 +511,43 @@ public:
 #endif
 	};
 
-	bool IsEmpty() const;
+	CORE_API bool IsEmpty() const;
 
-	bool IsEmptyOrWhitespace() const;
+	CORE_API bool IsEmptyOrWhitespace() const;
 
 	/**
 	 * Transforms the text to lowercase in a culture correct way.
 	 * @note The returned instance is linked to the original and will be rebuilt if the active culture is changed.
 	 */
-	FText ToLower() const;
+	CORE_API FText ToLower() const;
 
 	/**
 	 * Transforms the text to uppercase in a culture correct way.
 	 * @note The returned instance is linked to the original and will be rebuilt if the active culture is changed.
 	 */
-	FText ToUpper() const;
+	CORE_API FText ToUpper() const;
 
 	/**
 	 * Removes any whitespace characters from the start of the text.
 	 */
-	static FText TrimPreceding( const FText& );
+	static CORE_API FText TrimPreceding( const FText& );
 
 	/**
 	 * Removes any whitespace characters from the end of the text.
 	 */
-	static FText TrimTrailing( const FText& );
+	static CORE_API FText TrimTrailing( const FText& );
 
 	/**
 	 * Removes any whitespace characters from the start and end of the text.
 	 */
-	static FText TrimPrecedingAndTrailing( const FText& );
+	static CORE_API FText TrimPrecedingAndTrailing( const FText& );
 
 	/**
 	 * Check to see if the given character is considered whitespace by the current culture
 	 */
-	static bool IsWhitespace( const TCHAR Char );
+	static CORE_API bool IsWhitespace( const TCHAR Char );
 
-	static void GetFormatPatternParameters(const FTextFormat& Fmt, TArray<FString>& ParameterNames);
+	static CORE_API void GetFormatPatternParameters(const FTextFormat& Fmt, TArray<FString>& ParameterNames);
 
 	/**
 	 * Format the given map of key->value pairs as named arguments within the given format pattern
@@ -559,8 +559,8 @@ public:
 	 * @param InArguments The map of key->value pairs to inject into the format pattern
 	 * @return The formatted FText
 	 */
-	static FText Format(FTextFormat Fmt, const FFormatNamedArguments& InArguments);
-	static FText Format(FTextFormat Fmt, FFormatNamedArguments&& InArguments);
+	static CORE_API FText Format(FTextFormat Fmt, const FFormatNamedArguments& InArguments);
+	static CORE_API FText Format(FTextFormat Fmt, FFormatNamedArguments&& InArguments);
 
 	/**
 	 * Format the given list values as ordered arguments within the given format pattern
@@ -572,8 +572,8 @@ public:
 	 * @param InArguments The list of values to inject into the format pattern
 	 * @return The formatted FText
 	 */
-	static FText Format(FTextFormat Fmt, const FFormatOrderedArguments& InArguments);
-	static FText Format(FTextFormat Fmt, FFormatOrderedArguments&& InArguments);
+	static CORE_API FText Format(FTextFormat Fmt, const FFormatOrderedArguments& InArguments);
+	static CORE_API FText Format(FTextFormat Fmt, FFormatOrderedArguments&& InArguments);
 
 	/**
 	 * Format the given list of variadic values as ordered arguments within the given format pattern
@@ -638,8 +638,8 @@ public:
 	 * @param Args An array of formattable values to join together
 	 * @return The joined FText
 	 */
-	static FText Join(const FText& Delimiter, const FFormatOrderedArguments& Args);
-	static FText Join(const FText& Delimiter, const TArray<FText>& Args);
+	static CORE_API FText Join(const FText& Delimiter, const FFormatOrderedArguments& Args);
+	static CORE_API FText Join(const FText& Delimiter, const TArray<FText>& Args);
 
 	/**
 	 * Join an arbitrary list of formattable items together, separated by the given delimiter
@@ -664,7 +664,7 @@ public:
 	 *
 	 * @param TextGenerator the text generator object that will generate the text
 	 */
-	static FText FromTextGenerator( const TSharedRef<ITextGenerator>& TextGenerator );
+	static CORE_API FText FromTextGenerator( const TSharedRef<ITextGenerator>& TextGenerator );
 
 	DECLARE_DELEGATE_RetVal_OneParam( TSharedRef<ITextGenerator>, FCreateTextGeneratorDelegate, FStructuredArchive::FRecord );
 	/**
@@ -672,7 +672,7 @@ public:
 	 *
 	 * @param TypeID the name under which to look up the factory function
 	 */
-	static FCreateTextGeneratorDelegate FindRegisteredTextGenerator( FName TypeID );
+	static CORE_API FCreateTextGeneratorDelegate FindRegisteredTextGenerator( FName TypeID );
 
 	/**
 	 * Registers a factory function to be used with serialization of text generators within FText.
@@ -680,7 +680,7 @@ public:
 	 * @param TypeID the name under which to register the factory function. Must match ITextGenerator::GetTypeID().
 	 * @param FactoryFunction the factory function to create the generator instance
 	 */
-	static void RegisterTextGenerator( FName TypeID, FCreateTextGeneratorDelegate FactoryFunction );
+	static CORE_API void RegisterTextGenerator( FName TypeID, FCreateTextGeneratorDelegate FactoryFunction );
 
 	/**
 	 * Registers a standard text generator factory function.
@@ -715,7 +715,7 @@ public:
 	 *
 	 * @see RegisterTextGenerator
 	 */
-	static void UnregisterTextGenerator( FName TypeID );
+	static CORE_API void UnregisterTextGenerator( FName TypeID );
 
 	/**
 	 * Unregisters a standard text generator factory function.
@@ -730,47 +730,47 @@ public:
 		UnregisterTextGenerator( T::TypeID );
 	}
 
-	bool IsTransient() const;
-	bool IsCultureInvariant() const;
-	bool IsInitializedFromString() const;
-	bool IsFromStringTable() const;
+	CORE_API bool IsTransient() const;
+	CORE_API bool IsCultureInvariant() const;
+	CORE_API bool IsInitializedFromString() const;
+	CORE_API bool IsFromStringTable() const;
 
-	bool ShouldGatherForLocalization() const;
+	CORE_API bool ShouldGatherForLocalization() const;
 
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Constructs a new FText with the SourceString of the specified text but with the specified namespace and key
 	 */
-	static FText ChangeKey( const FTextKey& Namespace, const FTextKey& Key, const FText& Text );
+	static CORE_API FText ChangeKey( const FTextKey& Namespace, const FTextKey& Key, const FText& Text );
 #endif
 
 private:
 	/** Special constructor used to create StaticEmptyText without also allocating a history object */
 	enum class EInitToEmptyString : uint8 { Value };
-	explicit FText( EInitToEmptyString );
+	CORE_API explicit FText( EInitToEmptyString );
 
-	explicit FText( TSharedRef<ITextData, ESPMode::ThreadSafe> InTextData );
+	CORE_API explicit FText( TSharedRef<ITextData, ESPMode::ThreadSafe> InTextData );
 
-	explicit FText( FString&& InSourceString );
+	CORE_API explicit FText( FString&& InSourceString );
 
-	FText( FName InTableId, FString InKey, const EStringTableLoadingPolicy InLoadingPolicy );
+	CORE_API FText( FName InTableId, FString InKey, const EStringTableLoadingPolicy InLoadingPolicy );
 
-	FText( FString&& InSourceString, const FTextKey& InNamespace, const FTextKey& InKey, uint32 InFlags=0 );
+	CORE_API FText( FString&& InSourceString, const FTextKey& InNamespace, const FTextKey& InKey, uint32 InFlags=0 );
 
-	static void SerializeText( FArchive& Ar, FText& Value );
-	static void SerializeText(FStructuredArchive::FSlot Slot, FText& Value);
+	static CORE_API void SerializeText( FArchive& Ar, FText& Value );
+	static CORE_API void SerializeText(FStructuredArchive::FSlot Slot, FText& Value);
 
 	/** Get any historic text format data from the history used by this FText */
-	void GetHistoricFormatData(TArray<FHistoricTextFormatData>& OutHistoricFormatData) const;
+	CORE_API void GetHistoricFormatData(TArray<FHistoricTextFormatData>& OutHistoricFormatData) const;
 
 	/** Get any historic numeric format data from the history used by this FText */
-	bool GetHistoricNumericData(FHistoricTextNumericData& OutHistoricNumericData) const;
+	CORE_API bool GetHistoricNumericData(FHistoricTextNumericData& OutHistoricNumericData) const;
 
 	/** Rebuilds the FText under the current culture if needed */
-	void Rebuild() const;
+	CORE_API void Rebuild() const;
 
-	static FText FormatNamedImpl(FTextFormat&& Fmt, FFormatNamedArguments&& InArguments);
-	static FText FormatOrderedImpl(FTextFormat&& Fmt, FFormatOrderedArguments&& InArguments);
+	static CORE_API FText FormatNamedImpl(FTextFormat&& Fmt, FFormatNamedArguments&& InArguments);
+	static CORE_API FText FormatOrderedImpl(FTextFormat&& Fmt, FFormatOrderedArguments&& InArguments);
 
 private:
 	template<typename T1, typename T2>
@@ -812,7 +812,7 @@ public:
 	friend class FScopedTextIdentityPreserver;
 };
 
-class CORE_API FFormatArgumentValue
+class FFormatArgumentValue
 {
 public:
 	FFormatArgumentValue()
@@ -821,7 +821,7 @@ public:
 	{
 	}
 
-	FFormatArgumentValue(const class FCbValue& Value);
+	CORE_API FFormatArgumentValue(const class FCbValue& Value);
 
 	FFormatArgumentValue(const int32 Value)
 		: Type(EFormatArgumentType::Int)
@@ -879,14 +879,14 @@ public:
 
 	friend void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentValue& Value);
 
-	bool IdenticalTo(const FFormatArgumentValue& Other, const ETextIdenticalModeFlags CompareModeFlags) const;
+	CORE_API bool IdenticalTo(const FFormatArgumentValue& Other, const ETextIdenticalModeFlags CompareModeFlags) const;
 
-	FString ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource) const;
-	void ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource, FString& OutResult) const;
+	CORE_API FString ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource) const;
+	CORE_API void ToFormattedString(const bool bInRebuildText, const bool bInRebuildAsSource, FString& OutResult) const;
 
-	FString ToExportedString(const bool bStripPackageNamespace = false) const;
-	void ToExportedString(FString& OutResult, const bool bStripPackageNamespace = false) const;
-	const TCHAR* FromExportedString(const TCHAR* InBuffer);
+	CORE_API FString ToExportedString(const bool bStripPackageNamespace = false) const;
+	CORE_API void ToExportedString(FString& OutResult, const bool bStripPackageNamespace = false) const;
+	CORE_API const TCHAR* FromExportedString(const TCHAR* InBuffer);
 
 	FORCEINLINE EFormatArgumentType::Type GetType() const
 	{
@@ -952,16 +952,16 @@ inline TSharedRef<ITextGenerator> FText::CreateTextGenerator(FStructuredArchive:
  * @note The primary consumer of this type is Blueprints (via a UHT mirror node). It is *not* expected that this be used in general C++ as FFormatArgumentValue is a much better type.
  * The UHT struct is located here: Engine\Source\Runtime\Engine\Classes\Kismet\KismetTextLibrary.h
  */
-struct CORE_API FFormatArgumentData
+struct FFormatArgumentData
 {
 	FFormatArgumentData()
 	{
 		ResetValue();
 	}
 
-	void ResetValue();
+	CORE_API void ResetValue();
 
-	FFormatArgumentValue ToArgumentValue() const;
+	CORE_API FFormatArgumentValue ToArgumentValue() const;
 
 	friend void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentData& Value);
 
@@ -1029,7 +1029,7 @@ FText FText::FormatOrdered( FTextFormat Fmt, TArguments&&... Args )
 }
 
 /** Used to gather information about a historic text format operation */
-class CORE_API FHistoricTextFormatData
+class FHistoricTextFormatData
 {
 public:
 	FHistoricTextFormatData()
@@ -1054,7 +1054,7 @@ public:
 };
 
 /** Used to gather information about a historic numeric format operation */
-class CORE_API FHistoricTextNumericData
+class FHistoricTextNumericData
 {
 public:
 	enum class EType : uint8
@@ -1086,18 +1086,18 @@ public:
 };
 
 /** A snapshot of an FText at a point in time that can be used to detect changes in the FText, including live-culture changes */
-class CORE_API FTextSnapshot
+class FTextSnapshot
 {
 public:
-	FTextSnapshot();
+	CORE_API FTextSnapshot();
 
-	explicit FTextSnapshot(const FText& InText);
+	CORE_API explicit FTextSnapshot(const FText& InText);
 
 	/** Check to see whether the given text is identical to the text this snapshot was made from */
-	bool IdenticalTo(const FText& InText) const;
+	CORE_API bool IdenticalTo(const FText& InText) const;
 
 	/** Check to see whether the display string of the given text is identical to the display string this snapshot was made from */
-	bool IsDisplayStringEqualTo(const FText& InText) const;
+	CORE_API bool IsDisplayStringEqualTo(const FText& InText) const;
 
 private:
 
@@ -1123,30 +1123,30 @@ private:
 	uint32 Flags = 0;
 };
 
-class CORE_API FTextInspector
+class FTextInspector
 {
 private:
 	FTextInspector() {}
 	~FTextInspector() {}
 
 public:
-	static bool ShouldGatherForLocalization(const FText& Text);
-	static TOptional<FString> GetNamespace(const FText& Text);
-	static TOptional<FString> GetKey(const FText& Text);
-	static FTextId GetTextId(const FText& Text);
-	static const FString* GetSourceString(const FText& Text);
-	static const FString& GetDisplayString(const FText& Text);
+	static CORE_API bool ShouldGatherForLocalization(const FText& Text);
+	static CORE_API TOptional<FString> GetNamespace(const FText& Text);
+	static CORE_API TOptional<FString> GetKey(const FText& Text);
+	static CORE_API FTextId GetTextId(const FText& Text);
+	static CORE_API const FString* GetSourceString(const FText& Text);
+	static CORE_API const FString& GetDisplayString(const FText& Text);
 	UE_DEPRECATED(5.0, "GetSharedDisplayString is no longer guaranteed to return a valid result and should NOT be used! If you wanted to get the text ID, use FTextInspector::GetTextId instead. If you wanted a key for unique text instances, use FTextInspector::GetSharedDataId instead.")
-	static FTextConstDisplayStringPtr GetSharedDisplayString(const FText& Text);
-	static bool GetTableIdAndKey(const FText& Text, FName& OutTableId, FString& OutKey);
-	static bool GetTableIdAndKey(const FText& Text, FName& OutTableId, FTextKey& OutKey);
-	static uint32 GetFlags(const FText& Text);
-	static void GetHistoricFormatData(const FText& Text, TArray<FHistoricTextFormatData>& OutHistoricFormatData);
-	static bool GetHistoricNumericData(const FText& Text, FHistoricTextNumericData& OutHistoricNumericData);
-	static const void* GetSharedDataId(const FText& Text);
+	static CORE_API FTextConstDisplayStringPtr GetSharedDisplayString(const FText& Text);
+	static CORE_API bool GetTableIdAndKey(const FText& Text, FName& OutTableId, FString& OutKey);
+	static CORE_API bool GetTableIdAndKey(const FText& Text, FName& OutTableId, FTextKey& OutKey);
+	static CORE_API uint32 GetFlags(const FText& Text);
+	static CORE_API void GetHistoricFormatData(const FText& Text, TArray<FHistoricTextFormatData>& OutHistoricFormatData);
+	static CORE_API bool GetHistoricNumericData(const FText& Text, FHistoricTextNumericData& OutHistoricNumericData);
+	static CORE_API const void* GetSharedDataId(const FText& Text);
 };
 
-class CORE_API FTextStringHelper
+class FTextStringHelper
 {
 public:
 	/**
@@ -1160,7 +1160,7 @@ public:
 	 *
 	 * @return The parsed FText instance.
 	 */
-	static FText CreateFromBuffer(const TCHAR* Buffer, const TCHAR* TextNamespace = nullptr, const TCHAR* PackageNamespace = nullptr, const bool bRequiresQuotes = false);
+	static CORE_API FText CreateFromBuffer(const TCHAR* Buffer, const TCHAR* TextNamespace = nullptr, const TCHAR* PackageNamespace = nullptr, const bool bRequiresQuotes = false);
 
 	/**
 	 * Attempt to extract an FText instance from the given stream of text.
@@ -1173,10 +1173,10 @@ public:
 	 *
 	 * @return The updated buffer after we parsed this text, or nullptr on failure
 	 */
-	static const TCHAR* ReadFromBuffer(const TCHAR* Buffer, FText& OutValue, const TCHAR* TextNamespace = nullptr, const TCHAR* PackageNamespace = nullptr, const bool bRequiresQuotes = false);
+	static CORE_API const TCHAR* ReadFromBuffer(const TCHAR* Buffer, FText& OutValue, const TCHAR* TextNamespace = nullptr, const TCHAR* PackageNamespace = nullptr, const bool bRequiresQuotes = false);
 	
 	UE_DEPRECATED(4.22, "FTextStringHelper::ReadFromString is deprecated. Use FTextStringHelper::ReadFromBuffer instead.")
-	static bool ReadFromString(const TCHAR* Buffer, FText& OutValue, const TCHAR* TextNamespace = nullptr, const TCHAR* PackageNamespace = nullptr, int32* OutNumCharsRead = nullptr, const bool bRequiresQuotes = false, const EStringTableLoadingPolicy InLoadingPolicy = EStringTableLoadingPolicy::FindOrLoad);
+	static CORE_API bool ReadFromString(const TCHAR* Buffer, FText& OutValue, const TCHAR* TextNamespace = nullptr, const TCHAR* PackageNamespace = nullptr, int32* OutNumCharsRead = nullptr, const bool bRequiresQuotes = false, const EStringTableLoadingPolicy InLoadingPolicy = EStringTableLoadingPolicy::FindOrLoad);
 
 	/**
 	 * Write the given FText instance to a stream of text
@@ -1186,64 +1186,64 @@ public:
 	 * @param bRequiresQuotes		 True if the written text literal must be surrounded by quotes (eg, when saving as a delimited list)
 	 * @param bStripPackageNamespace True to strip the package namespace from the written NSLOCTEXT value (eg, when saving cooked data)
 	 */
-	static void WriteToBuffer(FString& Buffer, const FText& Value, const bool bRequiresQuotes = false, const bool bStripPackageNamespace = false);
+	static CORE_API void WriteToBuffer(FString& Buffer, const FText& Value, const bool bRequiresQuotes = false, const bool bStripPackageNamespace = false);
 	
 	UE_DEPRECATED(4.22, "FTextStringHelper::WriteToString is deprecated. Use FTextStringHelper::WriteToBuffer instead.")
-	static bool WriteToString(FString& Buffer, const FText& Value, const bool bRequiresQuotes = false);
+	static CORE_API bool WriteToString(FString& Buffer, const FText& Value, const bool bRequiresQuotes = false);
 
 	/**
 	 * Test to see whether a given buffer contains complex text.
 	 *
 	 * @return True if it does, false otherwise
 	 */
-	static bool IsComplexText(const TCHAR* Buffer);
+	static CORE_API bool IsComplexText(const TCHAR* Buffer);
 
 private:
 	static const TCHAR* ReadFromBuffer_ComplexText(const TCHAR* Buffer, FText& OutValue, const TCHAR* TextNamespace, const TCHAR* PackageNamespace);
 };
 
-class CORE_API FTextBuilder
+class FTextBuilder
 {
 public:
 	/**
 	 * Increase the running indentation of the builder.
 	 */
-	void Indent();
+	CORE_API void Indent();
 
 	/**
 	 * Decrease the running indentation of the builder.
 	 */
-	void Unindent();
+	CORE_API void Unindent();
 
 	/**
 	 * Append an empty line to the builder, indented by the running indentation of the builder.
 	 */
-	void AppendLine();
+	CORE_API void AppendLine();
 
 	/**
 	 * Append the given text line to the builder, indented by the running indentation of the builder.
 	 */
-	void AppendLine(const FText& Text);
+	CORE_API void AppendLine(const FText& Text);
 
 	/**
 	 * Append the given string line to the builder, indented by the running indentation of the builder.
 	 */
-	void AppendLine(const FString& String);
+	CORE_API void AppendLine(const FString& String);
 
 	/**
 	 * Append the given name line to the builder, indented by the running indentation of the builder.
 	 */
-	void AppendLine(const FName& Name);
+	CORE_API void AppendLine(const FName& Name);
 
 	/**
 	 * Append the given formatted text line to the builder, indented by the running indentation of the builder.
 	 */
-	void AppendLineFormat(const FTextFormat& Pattern, const FFormatNamedArguments& Arguments);
+	CORE_API void AppendLineFormat(const FTextFormat& Pattern, const FFormatNamedArguments& Arguments);
 
 	/**
 	 * Append the given formatted text line to the builder, indented by the running indentation of the builder.
 	 */
-	void AppendLineFormat(const FTextFormat& Pattern, const FFormatOrderedArguments& Arguments);
+	CORE_API void AppendLineFormat(const FTextFormat& Pattern, const FFormatOrderedArguments& Arguments);
 
 	/**
 	 * Append the given formatted text line to the builder, indented by the running indentation of the builder.
@@ -1260,30 +1260,30 @@ public:
 	/**
 	 * Clear the builder and reset it to its default state.
 	 */
-	void Clear();
+	CORE_API void Clear();
 
 	/**
 	 * Check to see if the builder has any data.
 	 */
-	bool IsEmpty();
+	CORE_API bool IsEmpty();
 
 	/**
 	 * Build the current set of input into a FText.
 	 */
-	FText ToText() const;
+	CORE_API FText ToText() const;
 
 private:
-	void BuildAndAppendLine(FString&& Data);
-	void BuildAndAppendLine(FText&& Data);
+	CORE_API void BuildAndAppendLine(FString&& Data);
+	CORE_API void BuildAndAppendLine(FText&& Data);
 
 	TArray<FText> Lines;
 	int32 IndentCount = 0;
 };
 
 /** Unicode character helper functions */
-struct CORE_API FUnicodeChar
+struct FUnicodeChar
 {
-	static bool CodepointToString(const uint32 InCodepoint, FString& OutString);
+	static CORE_API bool CodepointToString(const uint32 InCodepoint, FString& OutString);
 };
 
 /**
@@ -1312,7 +1312,7 @@ namespace TextBiDi
 	};
 
 	/** Defines the interface for a re-usable BiDi object */
-	class CORE_API ITextBiDi
+	class ITextBiDi
 	{
 	public:
 		virtual ~ITextBiDi() {}

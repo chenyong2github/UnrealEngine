@@ -47,7 +47,7 @@ namespace UE::StructuredArchive::Private
  * Both reading and writing to the archive are *forward only* from an interface point of view. There is no point at which it is possible to 
  * require seeking.
  */
-class CORE_API FStructuredArchive
+class FStructuredArchive
 {
 	friend FStructuredArchiveSlot;
 	friend FStructuredArchiveRecord;
@@ -67,22 +67,22 @@ public:
 	 *
 	 * @param InFormatter Formatter for the archive data
 	 */
-	explicit FStructuredArchive(FArchiveFormatterType& InFormatter);
+	CORE_API explicit FStructuredArchive(FArchiveFormatterType& InFormatter);
 	
 	/**
 	 * Default destructor. Closes the archive.
 	 */
-	~FStructuredArchive();
+	CORE_API ~FStructuredArchive();
 
 	/**
 	 * Start writing to the archive, and gets an interface to the root slot.
 	 */
-	FStructuredArchiveSlot Open();
+	CORE_API FStructuredArchiveSlot Open();
 
 	/**
 	 * Flushes any remaining scope to the underlying formatter and closes the archive.
 	 */
-	void Close();
+	CORE_API void Close();
 
 	/**
 	 * Gets the serialization context from the underlying archive.
@@ -180,24 +180,24 @@ private:
 	/**
 	 * Enters the current slot for serializing a value. Asserts if the archive is not in a state about to write to an empty-slot.
 	 */
-	void EnterSlot(UE::StructuredArchive::Private::FSlotPosition Slot, bool bEnteringAttributedValue = false);
+	CORE_API void EnterSlot(UE::StructuredArchive::Private::FSlotPosition Slot, bool bEnteringAttributedValue = false);
 
 	/**
 	 * Enters the current slot, adding an element onto the stack. Asserts if the archive is not in a state about to write to an empty-slot.
 	 *
 	 * @return  The depth of the newly-entered slot.
 	 */
-	int32 EnterSlotAsType(UE::StructuredArchive::Private::FSlotPosition Slot, UE::StructuredArchive::Private::EElementType ElementType);
+	CORE_API int32 EnterSlotAsType(UE::StructuredArchive::Private::FSlotPosition Slot, UE::StructuredArchive::Private::EElementType ElementType);
 
 	/**
 	 * Leaves slot at the top of the current scope
 	 */
-	void LeaveSlot();
+	CORE_API void LeaveSlot();
 
 	/**
 	 * Switches to the scope for the given slot.
 	 */
-	void SetScope(UE::StructuredArchive::Private::FSlotPosition Slot);
+	CORE_API void SetScope(UE::StructuredArchive::Private::FSlotPosition Slot);
 #endif
 };
 

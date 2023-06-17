@@ -54,7 +54,7 @@ enum EFileOpenFlags
 };
 
 
-class CORE_API IFileManager
+class IFileManager
 {
 protected:
 
@@ -64,7 +64,7 @@ protected:
 public:
 
 	/** Singleton access, platform specific, also calls PreInit() **/
-	static IFileManager& Get();
+	static CORE_API IFileManager& Get();
 
 	/** Allow the file manager to handle the commandline */
 	virtual void ProcessCommandLineOptions() = 0;

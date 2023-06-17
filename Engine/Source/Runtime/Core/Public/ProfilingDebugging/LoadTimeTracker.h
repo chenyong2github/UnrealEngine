@@ -31,19 +31,19 @@
 #define ENABLE_LOADTIME_RAW_TIMINGS 0
 
 /** High level load time tracker utility (such as initial engine startup or game specific timings) */
-class CORE_API FLoadTimeTracker
+class FLoadTimeTracker
 {
 public:
-	static FLoadTimeTracker& Get();
+	static CORE_API FLoadTimeTracker& Get();
 
 	/** Adds a scoped time for a given label.  Records each instance individually */
-	void ReportScopeTime(double ScopeTime, const FName ScopeLabel);
+	CORE_API void ReportScopeTime(double ScopeTime, const FName ScopeLabel);
 
 	/** Gets/adds a scoped time for a given label and instance. Records each instance individually */
-	double& GetScopeTimeAccumulator(const FName& ScopeLabel, const FName& ScopeInstance);
+	CORE_API double& GetScopeTimeAccumulator(const FName& ScopeLabel, const FName& ScopeInstance);
 
 	/** Prints out total time and individual times */
-	void DumpHighLevelLoadTimes() const;
+	CORE_API void DumpHighLevelLoadTimes() const;
 
 	static void DumpHighLevelLoadTimesStatic()
 	{
@@ -55,31 +55,31 @@ public:
 		return TimeInfo;
 	}
 
-	void ResetHighLevelLoadTimes();
+	CORE_API void ResetHighLevelLoadTimes();
 
 	/** Prints out raw load times for individual timers */
-	void DumpRawLoadTimes() const;
+	CORE_API void DumpRawLoadTimes() const;
 
 	static void DumpRawLoadTimesStatic()
 	{
 		Get().DumpRawLoadTimes();
 	}
 
-	void ResetRawLoadTimes();
+	CORE_API void ResetRawLoadTimes();
 
 	static void ResetRawLoadTimesStatic()
 	{
 		Get().ResetRawLoadTimes();
 	}
 
-	void StartAccumulatedLoadTimes();
+	CORE_API void StartAccumulatedLoadTimes();
 
 	static void StartAccumulatedLoadTimesStatic()
 	{
 		Get().StartAccumulatedLoadTimes();
 	}
 
-	void StopAccumulatedLoadTimes();
+	CORE_API void StopAccumulatedLoadTimes();
 
 	static void StopAccumulatedLoadTimesStatic()
 	{
@@ -257,15 +257,15 @@ private:
 	/** We dont normally track accumulated load time info, only when this flag is true */
 	bool bAccumulating;
 private:
-	FLoadTimeTracker();
+	CORE_API FLoadTimeTracker();
 };
 
 /** Scoped helper class for tracking accumulated object times */
-struct CORE_API FScopedLoadTimeAccumulatorTimer : public FScopedDurationTimer
+struct FScopedLoadTimeAccumulatorTimer : public FScopedDurationTimer
 {
-	static double DummyTimer;
+	static CORE_API double DummyTimer;
 
-	FScopedLoadTimeAccumulatorTimer(const FName& InTimerName, const FName& InInstanceName);
+	CORE_API FScopedLoadTimeAccumulatorTimer(const FName& InTimerName, const FName& InInstanceName);
 };
 
 #if ENABLE_LOADTIME_TRACKING

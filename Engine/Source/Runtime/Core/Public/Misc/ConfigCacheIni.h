@@ -411,7 +411,7 @@ public:
 	CORE_API bool Combine( const FString& Filename);
 	CORE_API void CombineFromBuffer(const FString& Buffer, const FString& FileHint);
 	UE_DEPRECATED(5.1, "Use CombineFromBuffer that takes FileHint")
-	CORE_API void CombineFromBuffer(const FString& Buffer)
+	void CombineFromBuffer(const FString& Buffer)
 	{
 		CombineFromBuffer(Buffer, TEXT("Unknown file, using deprecated function"));
 	}
@@ -525,7 +525,7 @@ public:
 	 */
 	CORE_API void ProcessInputFileContents(FStringView Contents, const FString& FileHint);
 	UE_DEPRECATED(5.1, "Use ProcessInputFileContents that takes FileHint")
-	CORE_API void ProcessInputFileContents(const FString& Buffer)
+	void ProcessInputFileContents(const FString& Buffer)
 	{
 		ProcessInputFileContents(Buffer, TEXT("Unknown file, using deprecated function"));
 	}
@@ -580,7 +580,7 @@ public:
 	CORE_API void AddDynamicLayerToHierarchy(const FString& Filename);
 
 	UE_DEPRECATED(5.0, "Call AddDynamicLayerToHierarchy. You also may need to call GetConfigFilename to get the right FConfigFile")
-	CORE_API void AddDynamicLayerToHeirarchy(const FString& Filename) { AddDynamicLayerToHierarchy(Filename); }
+	void AddDynamicLayerToHeirarchy(const FString& Filename) { AddDynamicLayerToHierarchy(Filename); }
 
 	friend FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile);
 private:
@@ -635,31 +635,31 @@ enum class EConfigCacheType : uint8
 };
 
 // Set of all cached config files.
-class CORE_API FConfigCacheIni
+class FConfigCacheIni
 {
 public:
 	// Basic functions.
-	FConfigCacheIni(EConfigCacheType Type);
+	CORE_API FConfigCacheIni(EConfigCacheType Type);
 
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	FConfigCacheIni();
+	CORE_API FConfigCacheIni();
 
-	virtual ~FConfigCacheIni();
+	CORE_API virtual ~FConfigCacheIni();
 
 	/**
 	* Disables any file IO by the config cache system
 	*/
-	virtual void DisableFileOperations();
+	CORE_API virtual void DisableFileOperations();
 
 	/**
 	* Re-enables file IO by the config cache system
 	*/
-	virtual void EnableFileOperations();
+	CORE_API virtual void EnableFileOperations();
 
 	/**
 	 * Returns whether or not file operations are disabled
 	 */
-	virtual bool AreFileOperationsDisabled();
+	CORE_API virtual bool AreFileOperationsDisabled();
 
 	/**
 	 * @return true after after the basic .ini files have been loaded
@@ -687,7 +687,7 @@ public:
 	*
 	* NOTE: The function naming is weird because you can't apparently have an overridden function differnt only by template type params
 	*/
-	virtual void Parse1ToNSectionOfStrings(const TCHAR* Section, const TCHAR* KeyOne, const TCHAR* KeyN, TMap<FString, TArray<FString> >& OutMap, const FString& Filename);
+	CORE_API virtual void Parse1ToNSectionOfStrings(const TCHAR* Section, const TCHAR* KeyOne, const TCHAR* KeyN, TMap<FString, TArray<FString> >& OutMap, const FString& Filename);
 
 	/**
 	* Parses apart an ini section that contains a list of 1-to-N mappings of names in the following format
@@ -707,7 +707,7 @@ public:
 	*
 	* NOTE: The function naming is weird because you can't apparently have an overridden function differnt only by template type params
 	*/
-	virtual void Parse1ToNSectionOfNames(const TCHAR* Section, const TCHAR* KeyOne, const TCHAR* KeyN, TMap<FName, TArray<FName> >& OutMap, const FString& Filename);
+	CORE_API virtual void Parse1ToNSectionOfNames(const TCHAR* Section, const TCHAR* KeyOne, const TCHAR* KeyN, TMap<FName, TArray<FName> >& OutMap, const FString& Filename);
 
 	/**
 	 * Finds the in-memory config file for a config cache filename.
@@ -716,7 +716,7 @@ public:
 	 *
 	 * @return The existing config file or null if it does not exist in memory
 	 */
-	FConfigFile* FindConfigFile(const FString& Filename);
+	CORE_API FConfigFile* FindConfigFile(const FString& Filename);
 
 	/**
 	 * Finds, loads, or creates the in-memory config file for a config cache filename.
@@ -725,20 +725,20 @@ public:
 	 * 
 	 * @return A new or existing config file
 	 */
-	FConfigFile* Find(const FString& InFilename);
+	CORE_API FConfigFile* Find(const FString& InFilename);
 
 	/**
 	 * Reports whether an FConfigFile* is pointing to a config file inside of this
 	 * Used for downstream functions to check whether a config file they were passed came from this ConfigCacheIni or from 
 	 * a different source such as LoadLocalIniFile
 	 */
-	bool ContainsConfigFile(const FConfigFile* ConfigFile) const;
+	CORE_API bool ContainsConfigFile(const FConfigFile* ConfigFile) const;
 
 	UE_DEPRECATED(5.0, "CreateIfNotFound is deprecated, please use the overload without this parameter or FindConfigFile")
-	FConfigFile* Find(const FString& Filename, bool CreateIfNotFound);
+	CORE_API FConfigFile* Find(const FString& Filename, bool CreateIfNotFound);
 
 	/** Finds Config file that matches the base name such as "Engine" */
-	FConfigFile* FindConfigFileWithBaseName(FName BaseName);
+	CORE_API FConfigFile* FindConfigFileWithBaseName(FName BaseName);
 
 	FConfigFile& Add(const FString& Filename, const FConfigFile& File)
 	{
@@ -749,30 +749,30 @@ public:
 		delete OtherFiles.FindRef(Filename);
 		return OtherFiles.Remove(Filename);
 	}
-	TArray<FString> GetFilenames();
+	CORE_API TArray<FString> GetFilenames();
 
 
-	void Flush(bool bRemoveFromCache, const FString& Filename=TEXT(""));
+	CORE_API void Flush(bool bRemoveFromCache, const FString& Filename=TEXT(""));
 
-	void LoadFile( const FString& InFilename, const FConfigFile* Fallback = NULL, const TCHAR* PlatformString = NULL );
-	void SetFile( const FString& InFilename, const FConfigFile* NewConfigFile );
-	void UnloadFile( const FString& Filename );
-	void Detach( const FString& Filename );
+	CORE_API void LoadFile( const FString& InFilename, const FConfigFile* Fallback = NULL, const TCHAR* PlatformString = NULL );
+	CORE_API void SetFile( const FString& InFilename, const FConfigFile* NewConfigFile );
+	CORE_API void UnloadFile( const FString& Filename );
+	CORE_API void Detach( const FString& Filename );
 
-	bool GetString( const TCHAR* Section, const TCHAR* Key, FString& Value, const FString& Filename );
-	bool GetText( const TCHAR* Section, const TCHAR* Key, FText& Value, const FString& Filename );
-	bool GetSection( const TCHAR* Section, TArray<FString>& Result, const FString& Filename );
-	bool DoesSectionExist(const TCHAR* Section, const FString& Filename);
+	CORE_API bool GetString( const TCHAR* Section, const TCHAR* Key, FString& Value, const FString& Filename );
+	CORE_API bool GetText( const TCHAR* Section, const TCHAR* Key, FText& Value, const FString& Filename );
+	CORE_API bool GetSection( const TCHAR* Section, TArray<FString>& Result, const FString& Filename );
+	CORE_API bool DoesSectionExist(const TCHAR* Section, const FString& Filename);
 	/**
 	 * @param Force Whether to create the Section on Filename if it did not exist previously.
 	 * @param Const If Const (and not Force), then it will not modify File->Dirty. If not Const (or Force is true), then File->Dirty will be set to true.
 	 */
-	FConfigSection* GetSectionPrivate( const TCHAR* Section, const bool Force, const bool Const, const FString& Filename );
-	void SetString( const TCHAR* Section, const TCHAR* Key, const TCHAR* Value, const FString& Filename );
-	void SetText( const TCHAR* Section, const TCHAR* Key, const FText& Value, const FString& Filename );
-	bool RemoveKey( const TCHAR* Section, const TCHAR* Key, const FString& Filename );
-	bool EmptySection( const TCHAR* Section, const FString& Filename );
-	bool EmptySectionsMatchingString( const TCHAR* SectionString, const FString& Filename );
+	CORE_API FConfigSection* GetSectionPrivate( const TCHAR* Section, const bool Force, const bool Const, const FString& Filename );
+	CORE_API void SetString( const TCHAR* Section, const TCHAR* Key, const TCHAR* Value, const FString& Filename );
+	CORE_API void SetText( const TCHAR* Section, const TCHAR* Key, const FText& Value, const FString& Filename );
+	CORE_API bool RemoveKey( const TCHAR* Section, const TCHAR* Key, const FString& Filename );
+	CORE_API bool EmptySection( const TCHAR* Section, const FString& Filename );
+	CORE_API bool EmptySectionsMatchingString( const TCHAR* SectionString, const FString& Filename );
 
 	/**
 	 * For a base ini name, gets the config cache filename key that is used by other functions like Find.
@@ -782,14 +782,14 @@ public:
 	 *
 	 * @return Filename key used by other cache functions
 	 */
-	FString GetConfigFilename(const TCHAR* BaseIniName);
+	CORE_API FString GetConfigFilename(const TCHAR* BaseIniName);
 
 	/**
 	 * Retrieve a list of all of the config files stored in the cache
 	 *
 	 * @param ConfigFilenames Out array to receive the list of filenames
 	 */
-	void GetConfigFilenames(TArray<FString>& ConfigFilenames);
+	CORE_API void GetConfigFilenames(TArray<FString>& ConfigFilenames);
 
 	/**
 	 * Retrieve the names for all sections contained in the file specified by Filename
@@ -799,7 +799,7 @@ public:
 	 *
 	 * @return	true if the file specified was successfully found;
 	 */
-	bool GetSectionNames( const FString& Filename, TArray<FString>& out_SectionNames );
+	CORE_API bool GetSectionNames( const FString& Filename, TArray<FString>& out_SectionNames );
 
 	/**
 	 * Retrieve the names of sections which contain data for the specified PerObjectConfig class.
@@ -811,9 +811,9 @@ public:
 	 *
 	 * @return	true if the file specified was found and it contained at least 1 section for the specified class
 	 */
-	bool GetPerObjectConfigSections( const FString& Filename, const FString& SearchClass, TArray<FString>& out_SectionNames, int32 MaxResults=1024 );
+	CORE_API bool GetPerObjectConfigSections( const FString& Filename, const FString& SearchClass, TArray<FString>& out_SectionNames, int32 MaxResults=1024 );
 
-	void Exit();
+	CORE_API void Exit();
 
 	/**
 	 * Prints out the entire config set, or just a single file if an ini is specified
@@ -821,71 +821,71 @@ public:
 	 * @param Ar the device to write to
 	 * @param IniName An optional ini name to restrict the writing to (Engine or WrangleContent) - meant to be used with "final" .ini files (not Default*)
 	 */
-	void Dump(FOutputDevice& Ar, const TCHAR* IniName=NULL);
+	CORE_API void Dump(FOutputDevice& Ar, const TCHAR* IniName=NULL);
 
 	/**
 	 * Dumps memory stats for each file in the config cache to the specified archive.
 	 *
 	 * @param	Ar	the output device to dump the results to
 	 */
-	virtual void ShowMemoryUsage( FOutputDevice& Ar );
+	CORE_API virtual void ShowMemoryUsage( FOutputDevice& Ar );
 
 	/**
 	 * USed to get the max memory usage for the FConfigCacheIni
 	 *
 	 * @return the amount of memory in byes
 	 */
-	virtual SIZE_T GetMaxMemoryUsage();
+	CORE_API virtual SIZE_T GetMaxMemoryUsage();
 
 	/**
 	 * allows to iterate through all key value pairs
 	 * @return false:error e.g. Section or Filename not found
 	 */
-	virtual bool ForEachEntry(const FKeyValueSink& Visitor, const TCHAR* Section, const FString& Filename);
+	CORE_API virtual bool ForEachEntry(const FKeyValueSink& Visitor, const TCHAR* Section, const FString& Filename);
 
 	// Derived functions.
-	FString GetStr
+	CORE_API FString GetStr
 	(
 		const TCHAR*		Section, 
 		const TCHAR*		Key, 
 		const FString&	Filename 
 	);
-	bool GetInt
+	CORE_API bool GetInt
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		int32&				Value,
 		const FString&	Filename
 	);
-	bool GetInt64
+	CORE_API bool GetInt64
 	(
 		const TCHAR* Section,
 		const TCHAR* Key,
 		int64& Value,
 		const FString& Filename
 	);
-	bool GetFloat
+	CORE_API bool GetFloat
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		float&				Value,
 		const FString&	Filename
 	);
-	bool GetDouble
+	CORE_API bool GetDouble
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		double&				Value,
 		const FString&	Filename
 	);
-	bool GetBool
+	CORE_API bool GetBool
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		bool&				Value,
 		const FString&	Filename
 	);
-	int32 GetArray
+	CORE_API int32 GetArray
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
@@ -898,40 +898,40 @@ public:
 	 * @param out_Arr - Array to load into
 	 * @param Filename - Ini file to load from
 	 */
-	int32 GetSingleLineArray
+	CORE_API int32 GetSingleLineArray
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		TArray<FString>&	out_Arr,
 		const FString&	Filename
 	);
-	bool GetColor
+	CORE_API bool GetColor
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		FColor&				Value,
 		const FString&	Filename
 	);
-	bool GetVector2D(
+	CORE_API bool GetVector2D(
 		const TCHAR*   Section,
 		const TCHAR*   Key,
 		FVector2D&     Value,
 		const FString& Filename);
-	bool GetVector
+	CORE_API bool GetVector
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		FVector&			Value,
 		const FString&	Filename
 	);
-	bool GetVector4
+	CORE_API bool GetVector4
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		FVector4&			Value,
 		const FString&	Filename
 	);
-	bool GetRotator
+	CORE_API bool GetRotator
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
@@ -1012,35 +1012,35 @@ public:
 		}
 	}
 
-	void SetInt
+	CORE_API void SetInt
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		int32					Value,
 		const FString&	Filename
 	);
-	void SetFloat
+	CORE_API void SetFloat
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		float				Value,
 		const FString&	Filename
 	);
-	void SetDouble
+	CORE_API void SetDouble
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		double				Value,
 		const FString&	Filename
 	);
-	void SetBool
+	CORE_API void SetBool
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		bool				Value,
 		const FString&	Filename
 	);
-	void SetArray
+	CORE_API void SetArray
 	(
 		const TCHAR*			Section,
 		const TCHAR*			Key,
@@ -1053,40 +1053,40 @@ public:
 	 * @param out_Arr - Array to save from
 	 * @param Filename - Ini file to save to
 	 */
-	void SetSingleLineArray
+	CORE_API void SetSingleLineArray
 	(
 		const TCHAR*			Section,
 		const TCHAR*			Key,
 		const TArray<FString>&	In_Arr,
 		const FString&		Filename
 	);
-	void SetColor
+	CORE_API void SetColor
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		FColor				Value,
 		const FString&	Filename
 	);
-	void SetVector2D(
+	CORE_API void SetVector2D(
 		const TCHAR*   Section,
 		const TCHAR*   Key,
 		FVector2D      Value,
 		const FString& Filename);
-	void SetVector
+	CORE_API void SetVector
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		FVector				Value,
 		const FString&	Filename
 	);
-	void SetVector4
+	CORE_API void SetVector4
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
 		const FVector4&		Value,
 		const FString&	Filename
 	);
-	void SetRotator
+	CORE_API void SetRotator
 	(
 		const TCHAR*		Section,
 		const TCHAR*		Key,
@@ -1100,14 +1100,14 @@ public:
 	 * Creates GConfig, loads the standard global ini files (Engine, Editor, etc),
 	 * fills out GEngineIni, etc. and marks GConfig as ready for use
 	 */
-	static void InitializeConfigSystem();
+	static CORE_API void InitializeConfigSystem();
 
 	/**
 	 * Returns the Custom Config string, which if set will load additional config files from Config/Custom/{CustomConfig}/DefaultX.ini to allow different types of builds.
 	 * It can be set from a game Target.cs file with CustomConfig = "Name".
 	 * Or in development, it can be overridden with a -CustomConfig=Name command line parameter.
 	 */
-	static const FString& GetCustomConfigString();
+	static CORE_API const FString& GetCustomConfigString();
 
 	/**
 	 * Calculates the name of a dest (generated) .ini file for a given base (ie Engine, Game, etc)
@@ -1118,7 +1118,7 @@ public:
 	 *
 	 * @return Standardized .ini filename
 	 */
-	static FString GetDestIniFilename(const TCHAR* BaseIniName, const TCHAR* PlatformName, const TCHAR* GeneratedConfigDir);
+	static CORE_API FString GetDestIniFilename(const TCHAR* BaseIniName, const TCHAR* PlatformName, const TCHAR* GeneratedConfigDir);
 
 	/**
 	 * Loads and generates a destination ini file and adds it to GConfig:
@@ -1138,7 +1138,7 @@ public:
 	 * @param GeneratedConfigDir The location where generated config files are made.
 	 * @return true if the final ini was created successfully.
 	 */
-	static bool LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform = NULL, bool bForceReload = false, bool bRequireDefaultIni = false, bool bAllowGeneratedIniWhenCooked = true, bool bAllowRemoteConfig = true, const TCHAR* GeneratedConfigDir = *FPaths::GeneratedConfigDir(), FConfigCacheIni* ConfigSystem=GConfig);
+	static CORE_API bool LoadGlobalIniFile(FString& FinalIniFilename, const TCHAR* BaseIniName, const TCHAR* Platform = NULL, bool bForceReload = false, bool bRequireDefaultIni = false, bool bAllowGeneratedIniWhenCooked = true, bool bAllowRemoteConfig = true, const TCHAR* GeneratedConfigDir = *FPaths::GeneratedConfigDir(), FConfigCacheIni* ConfigSystem=GConfig);
 
 	/**
 	 * Load an ini file directly into an FConfigFile, and nothing is written to GConfig or disk. 
@@ -1152,7 +1152,7 @@ public:
 	 * @param bForceReload force reload the ini file from disk this is required if you make changes to the ini file not using the config system as the hierarchy cache will not be updated in this case
 	 * @return true if the ini file was loaded successfully
 	 */
-	static bool LoadLocalIniFile(FConfigFile& ConfigFile, const TCHAR* IniName, bool bIsBaseIniName, const TCHAR* Platform=NULL, bool bForceReload=false);
+	static CORE_API bool LoadLocalIniFile(FConfigFile& ConfigFile, const TCHAR* IniName, bool bIsBaseIniName, const TCHAR* Platform=NULL, bool bForceReload=false);
 
 	/**
 	 * Load an ini file directly into an FConfigFile from the specified config folders, optionally writing to disk. 
@@ -1171,14 +1171,14 @@ public:
 	 * @param GeneratedConfigDir The location where generated config files are made.
 	 * @return true if the ini file was loaded successfully
 	 */
-	static bool LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* IniName, const TCHAR* EngineConfigDir, const TCHAR* SourceConfigDir, bool bIsBaseIniName, const TCHAR* Platform=NULL, bool bForceReload=false, bool bWriteDestIni=false, bool bAllowGeneratedIniWhenCooked = true, const TCHAR* GeneratedConfigDir = *FPaths::GeneratedConfigDir());
+	static CORE_API bool LoadExternalIniFile(FConfigFile& ConfigFile, const TCHAR* IniName, const TCHAR* EngineConfigDir, const TCHAR* SourceConfigDir, bool bIsBaseIniName, const TCHAR* Platform=NULL, bool bForceReload=false, bool bWriteDestIni=false, bool bAllowGeneratedIniWhenCooked = true, const TCHAR* GeneratedConfigDir = *FPaths::GeneratedConfigDir());
 
 	/**
 	 * Needs to be called after GConfig is set and LoadCoalescedFile was called.
 	 * Loads the state of console variables.
 	 * Works even if the variable is registered after the ini file was loaded.
 	 */
-	static void LoadConsoleVariablesFromINI();
+	static CORE_API void LoadConsoleVariablesFromINI();
 
 	/**
 	 * Normalizes file paths to INI files.
@@ -1208,7 +1208,7 @@ public:
 	 *	@param NonNormalizedPath	The path to the INI file we want to access.
 	 *	@return A normalized version of the path (may be the same as the input).
 	 */
-	static FString NormalizeConfigIniPath(const FString& NonNormalizedPath);
+	static CORE_API FString NormalizeConfigIniPath(const FString& NonNormalizedPath);
 
 	/**
 	 * This helper function searches the cache before trying to load the ini file using LoadLocalIniFile. 
@@ -1219,7 +1219,7 @@ public:
 	 * @param Platform The platform to use for Base ini names, NULL means to use the current platform
 	 * @return FConfigFile Found or loaded FConfigFile
 	 */
-	static FConfigFile* FindOrLoadPlatformConfig(FConfigFile& LocalFile, const TCHAR* IniName, const TCHAR* Platform = NULL);
+	static CORE_API FConfigFile* FindOrLoadPlatformConfig(FConfigFile& LocalFile, const TCHAR* IniName, const TCHAR* Platform = NULL);
 
 	/**
 	 * Attempts to find the platform config in the cache.
@@ -1228,14 +1228,14 @@ public:
 	 * @param Platform The platform to use for Base ini names, NULL means to use the current platform
 	 * @return FConfigFile Found FConfigFile
 	 */
-	static FConfigFile* FindPlatformConfig(const TCHAR* IniName, const TCHAR* Platform);
+	static CORE_API FConfigFile* FindPlatformConfig(const TCHAR* IniName, const TCHAR* Platform);
 	
 	/**
 	 * Save the current config cache state into a file for bootstrapping other processes.
 	 */
-	void SaveCurrentStateForBootstrap(const TCHAR* Filename);
+	CORE_API void SaveCurrentStateForBootstrap(const TCHAR* Filename);
 
-	void Serialize(FArchive& Ar);
+	CORE_API void Serialize(FArchive& Ar);
 
 
 	struct FKnownConfigFiles
@@ -1276,38 +1276,38 @@ public:
 	 *
 	 * return True if the engine ini was loaded
 	 */
-	static bool InitializeKnownConfigFiles(FConfigContext& Context);
+	static CORE_API bool InitializeKnownConfigFiles(FConfigContext& Context);
 
 	/**
 	 * Returns true if the given name is one of the known configs, where the matching G****Ini property is going to match the 
 	 * base name ("Engine" returns true, which means GEngineIni's value is just "Engine")
 	 */
-	bool IsKnownConfigName(FName ConfigName);
+	CORE_API bool IsKnownConfigName(FName ConfigName);
 
 	/**
 	 * Create GConfig from a saved file
 	 */
-	static bool CreateGConfigFromSaved(const TCHAR* Filename);
+	static CORE_API bool CreateGConfigFromSaved(const TCHAR* Filename);
 
 	/**
 	 * Retrieve the fully processed ini system for another platform. The editor will start loading these 
 	 * in the background on startup
 	 */
-	static FConfigCacheIni* ForPlatform(FName PlatformName);
+	static CORE_API FConfigCacheIni* ForPlatform(FName PlatformName);
 
 	/**
 	 * Wipe all cached platform configs. Next ForPlatform call will load on-demand the platform configs
 	 */
-	static void ClearOtherPlatformConfigs();
+	static CORE_API void ClearOtherPlatformConfigs();
 
 private:
 #if WITH_EDITOR
 	/** We only auto-initialize other platform configs in the editor to not slow down programs like ShaderCOmpileWorker */
-	static void AsyncInitializeConfigForPlatforms();
+	static CORE_API void AsyncInitializeConfigForPlatforms();
 #endif
 
 	/** Serialize a bootstrapping state into or from an archive */
-	void SerializeStateForBootstrap_Impl(FArchive& Ar);
+	CORE_API void SerializeStateForBootstrap_Impl(FArchive& Ar);
 
 	/** true if file operations should not be performed */
 	bool bAreFileOperationsDisabled;

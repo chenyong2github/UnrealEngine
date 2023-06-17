@@ -7,7 +7,7 @@
 #include "Math/InterpCurvePoint.h"
 
 /** Interface that allows the CurveEditor to edit this type of object. */
-class CORE_API FCurveEdInterface
+class FCurveEdInterface
 {
 public:
 	/** Get number of keyframes in curve. */

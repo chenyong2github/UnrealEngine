@@ -561,7 +561,7 @@ public:
 	 * @return Time of day.
 	 * @see FromUnixTimestamp
 	 */
-	CORE_API int64 ToUnixTimestamp() const
+	int64 ToUnixTimestamp() const
 	{
 		return (Ticks - FDateTime(1970, 1, 1).Ticks) / ETimespan::TicksPerSecond;
 	}
@@ -572,7 +572,7 @@ public:
 	 * @return Time of day.
 	 * @see FromUnixTimestamp
 	 */
-	CORE_API double ToUnixTimestampDecimal() const
+	double ToUnixTimestampDecimal() const
 	{
 		return double(Ticks - FDateTime(1970, 1, 1).Ticks) / ETimespan::TicksPerSecond;
 	}

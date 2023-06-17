@@ -110,18 +110,18 @@ struct FAsyncNotificationStateData
 /**
  * Provides notifications for an on-going asynchronous task.
  */
-class CORE_API FAsyncTaskNotification
+class FAsyncTaskNotification
 {
 public:
 	/**
 	 * Create an asynchronous task notification.
 	 */
-	FAsyncTaskNotification(const FAsyncTaskNotificationConfig& InConfig);
+	CORE_API FAsyncTaskNotification(const FAsyncTaskNotificationConfig& InConfig);
 
 	/**
 	 * Destroy the asynchronous task notification.
 	 */
-	~FAsyncTaskNotification();
+	CORE_API ~FAsyncTaskNotification();
 
 	/**
 	 * Non-copyable.
@@ -132,64 +132,64 @@ public:
 	/**
 	 * Movable.
 	 */
-	FAsyncTaskNotification(FAsyncTaskNotification&& InOther);
-	FAsyncTaskNotification& operator=(FAsyncTaskNotification&& InOther);
+	CORE_API FAsyncTaskNotification(FAsyncTaskNotification&& InOther);
+	CORE_API FAsyncTaskNotification& operator=(FAsyncTaskNotification&& InOther);
 
 	/**
 	 * Set the title text of this notification.
 	 */
-	void SetTitleText(const FText& InTitleText, const bool bClearProgressText = true);
+	CORE_API void SetTitleText(const FText& InTitleText, const bool bClearProgressText = true);
 
 	/**
 	 * Set the progress text of this notification.
 	 */
-	void SetProgressText(const FText& InProgressText);
+	CORE_API void SetProgressText(const FText& InProgressText);
 
 	/**
 	 * Set the prompt text of this notification, if needed.
 	 */
-	void SetPromptText(const FText& InPromptText);
+	CORE_API void SetPromptText(const FText& InPromptText);
 
 	/**
 	 * Set the Hyperlink for this notification.
 	 */
-	void SetHyperlink(const FSimpleDelegate& InHyperlink, const FText& InHyperlinkText = FText());
+	CORE_API void SetHyperlink(const FSimpleDelegate& InHyperlink, const FText& InHyperlinkText = FText());
 
 	/**
 	 * Set the task as complete.
 	 */
-	void SetComplete(const bool bSuccess = true);
+	CORE_API void SetComplete(const bool bSuccess = true);
 
 	/**
 	 * Update the text and set the task as complete.
 	 */
-	void SetComplete(const FText& InTitleText, const FText& InProgressText, const bool bSuccess = true);
+	CORE_API void SetComplete(const FText& InTitleText, const FText& InProgressText, const bool bSuccess = true);
 
 	/**
 	 * Set the notification state. Provide finer control than SetComplete by setting every field of the state.
 	 */
-	void SetNotificationState(const FAsyncNotificationStateData& InState);
+	CORE_API void SetNotificationState(const FAsyncNotificationStateData& InState);
 
 	/**
 	 * Set whether this task be canceled.
 	 */
-	void SetCanCancel(const TAttribute<bool>& InCanCancel);
+	CORE_API void SetCanCancel(const TAttribute<bool>& InCanCancel);
 
 	/**
 	 * Set whether to keep this notification open on success.
 	*/
-	void SetKeepOpenOnSuccess(const TAttribute<bool>& InKeepOpenOnSuccess);
+	CORE_API void SetKeepOpenOnSuccess(const TAttribute<bool>& InKeepOpenOnSuccess);
 
 	/**
 	 * Set whether to keep this notification open on failure.
 	 */
-	void SetKeepOpenOnFailure(const TAttribute<bool>& InKeepOpenOnFailure);
+	CORE_API void SetKeepOpenOnFailure(const TAttribute<bool>& InKeepOpenOnFailure);
 
 	/**
 	 * Return the notification prompt action.
 	 * The action resets to `None` when the notification state changes.
 	 */
-	EAsyncTaskNotificationPromptAction GetPromptAction() const;
+	CORE_API EAsyncTaskNotificationPromptAction GetPromptAction() const;
 
 private:
 	/** Pointer to the real notification implementation */

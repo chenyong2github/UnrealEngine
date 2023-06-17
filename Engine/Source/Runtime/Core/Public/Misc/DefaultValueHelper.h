@@ -14,7 +14,7 @@ struct FLinearColor;
 //	FDefaultValueHelper
 //
 
-class CORE_API FDefaultValueHelper
+class FDefaultValueHelper
 {
 	/** Something like TEXT macro for chars is needed */
 	static TCHAR TS(const TCHAR* Sign);
@@ -51,40 +51,40 @@ class CORE_API FDefaultValueHelper
 
 public:
 
-	static FString GetUnqualifiedEnumValue(const FString& Source);
+	static CORE_API FString GetUnqualifiedEnumValue(const FString& Source);
 
-	static bool HasWhitespaces(const FString& Source);
+	static CORE_API bool HasWhitespaces(const FString& Source);
 
-	static FString RemoveWhitespaces(const FString& Source);
+	static CORE_API FString RemoveWhitespaces(const FString& Source);
 
 	/** Shell parameters list: " TypeName ( A a, B b ) " -> "A a, B b" */
-	static bool GetParameters(const FString& Source, const FString& TypeName, FString& OutForm);
+	static CORE_API bool GetParameters(const FString& Source, const FString& TypeName, FString& OutForm);
 
 	/** returns if given strings are equal, ignores initial and final white spaces in Source */
-	static bool Is(const FString& Source, const TCHAR* CompareStr);
+	static CORE_API bool Is(const FString& Source, const TCHAR* CompareStr);
 
 	/**   
 	 * source forms:	TypeName( TEXT ("ABC") ), TEXT("ABC"), TypeName("ABC"), "ABC"
 	 * output form:		ABC
 	 */
-	static bool StringFromCppString(const FString& Source, const FString& TypeName, FString& OutForm);
+	static CORE_API bool StringFromCppString(const FString& Source, const FString& TypeName, FString& OutForm);
 
 	/*
 	 *	Following functions accept c++ style representations of numbers.
 	 *  e.g. 13.5e-2f for float or -0x123 for int
 	 */
-	static bool IsStringValidInteger(const FString& Source);
+	static CORE_API bool IsStringValidInteger(const FString& Source);
 
-	static bool IsStringValidFloat(const FString& Source);
-
-	/** accepted form: " %f, %f, %f" */
-	static bool IsStringValidVector(const FString& Source);
+	static CORE_API bool IsStringValidFloat(const FString& Source);
 
 	/** accepted form: " %f, %f, %f" */
-	static bool IsStringValidRotator(const FString& Source);
+	static CORE_API bool IsStringValidVector(const FString& Source);
+
+	/** accepted form: " %f, %f, %f" */
+	static CORE_API bool IsStringValidRotator(const FString& Source);
 
 	/** accepted form: " %f, %f, %f " or " %f, %f, %f, %f " (alpha is optional)  */
-	static bool IsStringValidLinearColor(const FString& Source);
+	static CORE_API bool IsStringValidLinearColor(const FString& Source);
 
 
 	/**
@@ -95,7 +95,7 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseInt(const FString& Source, int32& OutVal);
+	static CORE_API bool ParseInt(const FString& Source, int32& OutVal);
 
 	/**
 	 * Converts a string into a int64.
@@ -105,7 +105,7 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseInt64(const FString& Source, int64& OutVal);
+	static CORE_API bool ParseInt64(const FString& Source, int64& OutVal);
 
 	/**
 	 * Converts a string into a float.
@@ -115,7 +115,7 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseFloat(const FString& Source, float& OutVal);
+	static CORE_API bool ParseFloat(const FString& Source, float& OutVal);
 
 	/**
 	 * Converts a string into a double.
@@ -125,7 +125,7 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseDouble(const FString& Source, double& OutVal);
+	static CORE_API bool ParseDouble(const FString& Source, double& OutVal);
 
 	/**
 	 * Converts a string into a FVector. Accepted form: " %f, %f, %f "
@@ -135,8 +135,8 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseVector(const FString& Source, FVector3f& OutVal);
-	static bool ParseVector(const FString& Source, FVector3d& OutVal);
+	static CORE_API bool ParseVector(const FString& Source, FVector3f& OutVal);
+	static CORE_API bool ParseVector(const FString& Source, FVector3d& OutVal);
 
 	/**
 	 * Converts a string into a FVector. Accepted form: " %f, %f "
@@ -146,8 +146,8 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseVector2D(const FString& Source, FVector2f& OutVal);
-	static bool ParseVector2D(const FString& Source, FVector2d& OutVal);
+	static CORE_API bool ParseVector2D(const FString& Source, FVector2f& OutVal);
+	static CORE_API bool ParseVector2D(const FString& Source, FVector2d& OutVal);
 
 	/**
 	* Converts a string into a FVector4. Accepted form: " %f, %f, %f, %f "
@@ -157,8 +157,8 @@ public:
 	*
 	* @return true if the conversion happened, false otherwise
 	*/
-	static bool ParseVector4(const FString& Source, FVector4f& OutVal);
-	static bool ParseVector4(const FString& Source, FVector4d& OutVal);
+	static CORE_API bool ParseVector4(const FString& Source, FVector4f& OutVal);
+	static CORE_API bool ParseVector4(const FString& Source, FVector4d& OutVal);
 
 	/**
 	 * Converts a string into a FRotator. Accepted form: " %f, %f, %f "
@@ -168,8 +168,8 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseRotator(const FString& Source, FRotator3f& OutVal);
-	static bool ParseRotator(const FString& Source, FRotator3d& OutVal);
+	static CORE_API bool ParseRotator(const FString& Source, FRotator3f& OutVal);
+	static CORE_API bool ParseRotator(const FString& Source, FRotator3d& OutVal);
 
 	/**
 	 * Converts a string into a FLinearColor. 
@@ -180,7 +180,7 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseLinearColor(const FString& Source, FLinearColor& OutVal);
+	static CORE_API bool ParseLinearColor(const FString& Source, FLinearColor& OutVal);
 
 	/**
 	 * Converts a string into a FLinearColor. 
@@ -191,5 +191,5 @@ public:
 	 *
 	 * @return true if the conversion happened, false otherwise
 	 */
-	static bool ParseColor(const FString& Source, FColor& OutVal);
+	static CORE_API bool ParseColor(const FString& Source, FColor& OutVal);
 };

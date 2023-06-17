@@ -13,12 +13,12 @@
 class FOutputDevice;
 class FOutputDeviceError;
 
-struct CORE_API FUnixOutputDevices : public FGenericPlatformOutputDevices
+struct FUnixOutputDevices : public FGenericPlatformOutputDevices
 {
-	static void SetupOutputDevices();
-	static FString GetAbsoluteLogFilename();
-	static FOutputDevice* GetEventLog();
-	static FOutputDeviceError* GetError();
+	static CORE_API void SetupOutputDevices();
+	static CORE_API FString GetAbsoluteLogFilename();
+	static CORE_API FOutputDevice* GetEventLog();
+	static CORE_API FOutputDeviceError* GetError();
 };
 
 typedef FUnixOutputDevices FPlatformOutputDevices;

@@ -186,7 +186,7 @@ struct FAutomationTelemetryData
 };
 
 /** Simple class to store the results of the execution of a automation test */
-class CORE_API FAutomationTestExecutionInfo
+class FAutomationTestExecutionInfo
 {
 public:
 	/** Constructor */
@@ -204,19 +204,19 @@ public:
 	}
 
 	/** Helper method to clear out the results from a previous execution */
-	void Clear();
+	CORE_API void Clear();
 
-	int32 RemoveAllEvents(EAutomationEventType EventType);
+	CORE_API int32 RemoveAllEvents(EAutomationEventType EventType);
 
-	int32 RemoveAllEvents(TFunctionRef<bool(FAutomationEvent&)> FilterPredicate);
+	CORE_API int32 RemoveAllEvents(TFunctionRef<bool(FAutomationEvent&)> FilterPredicate);
 
 	/** Any errors that occurred during execution */
 	const TArray<FAutomationExecutionEntry>& GetEntries() const { return Entries; }
 
-	void AddEvent(const FAutomationEvent& Event, int StackOffset = 0, bool bCaptureStack = true);
+	CORE_API void AddEvent(const FAutomationEvent& Event, int StackOffset = 0, bool bCaptureStack = true);
 
-	void AddWarning(const FString& WarningMessage);
-	void AddError(const FString& ErrorMessage);
+	CORE_API void AddWarning(const FString& WarningMessage);
+	CORE_API void AddError(const FString& ErrorMessage);
 
 	int32 GetWarningTotal() const { return Warnings; }
 	int32 GetErrorTotal() const { return Errors; }
@@ -268,7 +268,7 @@ private:
 };
 
 /** Simple class to store the automation test info */
-class CORE_API FAutomationTestInfo
+class FAutomationTestInfo
 {
 public:
 
@@ -728,7 +728,7 @@ struct FAutomationScreenshotData
 	}
 };
 
-struct CORE_API FAutomationScreenshotCompareResults
+struct FAutomationScreenshotCompareResults
 {
 	FGuid UniqueId;
 	FString ErrorMessage;
@@ -737,7 +737,7 @@ struct CORE_API FAutomationScreenshotCompareResults
 	bool bWasNew = false;
 	bool bWasSimilar = false;
 
-	FAutomationEvent ToAutomationEvent(const FString& ScreenhotName) const;
+	CORE_API FAutomationEvent ToAutomationEvent(const FString& ScreenhotName) const;
 };
 
 enum class EAutomationComparisonToleranceLevel : uint8
@@ -814,7 +814,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPerformanceDataRetrieved, bool /*bSucces
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTestEvent, FAutomationTestBase*);
 
 /** Class representing the main framework for running automation tests */
-class CORE_API FAutomationTestFramework
+class FAutomationTestFramework
 {
 public:
 	/** Called right before automated test is about to begin */
@@ -846,7 +846,7 @@ public:
 	 *
 	 * @return The singleton instance of the framework.
 	 */
-	static FAutomationTestFramework& Get();
+	static CORE_API FAutomationTestFramework& Get();
 	static FAutomationTestFramework& GetInstance() { return Get(); }
 
 	/**
@@ -854,7 +854,7 @@ public:
 	 * to do something like generate project files, or create new projects it should use this directory, rather
 	 * than pollute other areas of the machine.
 	 */
-	FString GetUserAutomationDirectory() const;
+	CORE_API FString GetUserAutomationDirectory() const;
 
 	/**
 	 * Register a automation test into the framework. The automation test may or may not be necessarily valid
@@ -867,28 +867,28 @@ public:
 	 * @return	true if the test was successfully registered; false if a test was already registered under the same
 	 *			name as before
 	 */
-	bool RegisterAutomationTest( const FString& InTestNameToRegister, FAutomationTestBase* InTestToRegister );
+	CORE_API bool RegisterAutomationTest( const FString& InTestNameToRegister, FAutomationTestBase* InTestToRegister );
 
 	/**
 	 * Unregister a automation test with the provided name from the framework.
 	 *
 	 * @return true if the test was successfully unregistered; false if a test with that name was not found in the framework.
 	 */
-	bool UnregisterAutomationTest( const FString& InTestNameToUnregister );
+	CORE_API bool UnregisterAutomationTest( const FString& InTestNameToUnregister );
 
 	/**
 	 * Enqueues a latent command for execution on a subsequent frame
 	 *
 	 * @param NewCommand - The new command to enqueue for deferred execution
 	 */
-	void EnqueueLatentCommand(TSharedPtr<IAutomationLatentCommand> NewCommand);
+	CORE_API void EnqueueLatentCommand(TSharedPtr<IAutomationLatentCommand> NewCommand);
 
 	/**
 	 * Enqueues a network command for execution in accordance with this workers role
 	 *
 	 * @param NewCommand - The new command to enqueue for network execution
 	 */
-	void EnqueueNetworkCommand(TSharedPtr<IAutomationNetworkCommand> NewCommand);
+	CORE_API void EnqueueNetworkCommand(TSharedPtr<IAutomationNetworkCommand> NewCommand);
 
 	/**
 	 * Checks if a provided test is contained within the framework.
@@ -897,19 +897,19 @@ public:
 	 *
 	 * @return	true if the provided test is within the framework; false otherwise
 	 */
-	bool ContainsTest( const FString& InTestName ) const;
+	CORE_API bool ContainsTest( const FString& InTestName ) const;
 		
 	/**
 	 * Attempt to run all fast smoke tests that are valid for the current application configuration.
 	 *
 	 * @return	true if all smoke tests run were successful, false if any failed
 	 */
-	bool RunSmokeTests();
+	CORE_API bool RunSmokeTests();
 
 	/**
 	 * Reset status of worker (delete local files, etc)
 	 */
-	void ResetTests();
+	CORE_API void ResetTests();
 
 	/**
 	 * Attempt to start the specified test.
@@ -917,33 +917,33 @@ public:
 	 * @param	InTestToRun			Name of the test that should be run
 	 * @param	InRoleIndex			Identifier for which worker in this group that should execute a command
 	 */
-	void StartTestByName( const FString& InTestToRun, const int32 InRoleIndex );
+	CORE_API void StartTestByName( const FString& InTestToRun, const int32 InRoleIndex );
 
 	/**
 	 * Stop the current test and return the results of execution
 	 *
 	 * @return	true if the test ran successfully, false if it did not (or the test could not be found/was invalid)
 	 */
-	bool StopTest( FAutomationTestExecutionInfo& OutExecutionInfo );
+	CORE_API bool StopTest( FAutomationTestExecutionInfo& OutExecutionInfo );
 
 	/**
 	 * Execute all latent functions that complete during update
 	 *
 	 * @return - true if the latent command queue is now empty and the test is complete
 	 */
-	bool ExecuteLatentCommands();
+	CORE_API bool ExecuteLatentCommands();
 
 	/**
 	 * Execute the next network command if you match the role, otherwise just dequeue
 	 *
 	 * @return - true if any network commands were in the queue to give subsequent latent commands a chance to execute next frame
 	 */
-	bool ExecuteNetworkCommands();
+	CORE_API bool ExecuteNetworkCommands();
 
 	/**
 	 * Dequeue all latent and network commands
 	 */
-	void DequeueAllCommands();
+	CORE_API void DequeueAllCommands();
 
 	/**
 	 * Whether there is no latent command in queue
@@ -956,7 +956,7 @@ public:
 	/**
 	 * Load any modules that are not loaded by default and have test classes in them
 	 */
-	void LoadTestModules();
+	CORE_API void LoadTestModules();
 
 	/**
 	 * Populates the provided array with the names of all tests in the framework that are valid to run for the current
@@ -964,35 +964,35 @@ public:
 	 *
 	 * @param	TestInfo	Array to populate with the test information
 	 */
-	void GetValidTestNames( TArray<FAutomationTestInfo>& TestInfo ) const;
+	CORE_API void GetValidTestNames( TArray<FAutomationTestInfo>& TestInfo ) const;
 
 	/**
 	 * Whether the testing framework should allow content to be tested or not.  Intended to block developer directories.
 	 * @param Path - Full path to the content in question
 	 * @return - Whether this content should have tests performed on it
 	 */
-	bool ShouldTestContent(const FString& Path) const;
+	CORE_API bool ShouldTestContent(const FString& Path) const;
 
 	/**
 	 * Sets whether we want to include content in developer directories in automation testing
 	 */
-	void SetDeveloperDirectoryIncluded(const bool bInDeveloperDirectoryIncluded);
+	CORE_API void SetDeveloperDirectoryIncluded(const bool bInDeveloperDirectoryIncluded);
 
 	/**
 	* Sets which set of tests to pull from.
 	*/
-	void SetRequestedTestFilter(const uint32 InRequestedTestFlags);
+	CORE_API void SetRequestedTestFilter(const uint32 InRequestedTestFlags);
 	
 
 	/**
 	 * Accessor for delegate called when a png screenshot is captured 
 	 */
-	FOnTestScreenshotCaptured& OnScreenshotCaptured();
+	CORE_API FOnTestScreenshotCaptured& OnScreenshotCaptured();
 
 	/**
 	 * Accessor for delegate called when a png screenshot is captured and a frame trace
 	 */
-	FOnTestScreenshotAndTraceCaptured& OnScreenshotAndTraceCaptured();
+	CORE_API FOnTestScreenshotAndTraceCaptured& OnScreenshotAndTraceCaptured();
 
 	/**
 	 * Sets forcing smoke tests.
@@ -1021,7 +1021,7 @@ public:
 	 *
 	 * @param	AnalyticsItem	Log item to add to the current test
 	 */
-	void AddAnalyticsItemToCurrentTest( const FString& AnalyticsItem );
+	CORE_API void AddAnalyticsItemToCurrentTest( const FString& AnalyticsItem );
 
 	/**
 	 * Returns the actively executing test or null if there isn't one
@@ -1034,18 +1034,18 @@ public:
 	/**
 	 * Whether to skip stack walk while iterating for listing the tests
 	 */
-	static bool NeedSkipStackWalk();
+	static CORE_API bool NeedSkipStackWalk();
 
 	/**
 	 * Whether to output blueprint functional test metadata to the log when test is running
 	 */
-	static bool NeedLogBPTestMetadata();
+	static CORE_API bool NeedLogBPTestMetadata();
 
-	void NotifyScreenshotComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults);
-	void NotifyTestDataRetrieved(bool bWasNew, const FString& JsonData);
-	void NotifyPerformanceDataRetrieved(bool bSuccess, const FString& ErrorMessage);
+	CORE_API void NotifyScreenshotComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults);
+	CORE_API void NotifyTestDataRetrieved(bool bWasNew, const FString& JsonData);
+	CORE_API void NotifyPerformanceDataRetrieved(bool bSuccess, const FString& ErrorMessage);
 
-	void NotifyScreenshotTakenAndCompared();
+	CORE_API void NotifyScreenshotTakenAndCompared();
 
 	/**
 	 * Internal helper method designed to check if the given test is able to run in the current environment.
@@ -1056,7 +1056,7 @@ public:
 	 *
 	 * @return	true if the test is able to run; false if it is unable to run.
 	 */
-	bool CanRunTestInEnvironment(const FString& InTestToRun, FString* OutReason, bool* OutWarn) const;
+	CORE_API bool CanRunTestInEnvironment(const FString& InTestToRun, FString* OutReason, bool* OutWarn) const;
 
 private:
 
@@ -1178,10 +1178,10 @@ private:
 
 	friend class FAutomationTestOutputDevice;
 	/** Helper method called to prepare settings for automation testing to follow */
-	void PrepForAutomationTests();
+	CORE_API void PrepForAutomationTests();
 
 	/** Helper method called after automation testing is complete to restore settings to how they should be */
-	void ConcludeAutomationTests();
+	CORE_API void ConcludeAutomationTests();
 
 	/**
 	 * Helper method to dump the contents of the provided test name to execution info map to the provided feedback context
@@ -1189,7 +1189,7 @@ private:
 	 * @param	InContext		Context to dump the execution info to
 	 * @param	InInfoToDump	Execution info that should be dumped to the provided feedback context
 	 */
-	void DumpAutomationTestExecutionInfo( const TMap<FString, FAutomationTestExecutionInfo>& InInfoToDump );
+	CORE_API void DumpAutomationTestExecutionInfo( const TMap<FString, FAutomationTestExecutionInfo>& InInfoToDump );
 
 	/**
 	 * Internal helper method designed to simply start the provided test name.
@@ -1197,7 +1197,7 @@ private:
 	 * @param	InTestToRun			Name of the test that should be run
 	 * @param	OutExecutionInfo	Results of executing the test
 	 */
-	void InternalStartTest( const FString& InTestToRun );
+	CORE_API void InternalStartTest( const FString& InTestToRun );
 
 	/**
 	 * Internal helper method designed to stop current executing test and return the results of execution.
@@ -1205,17 +1205,17 @@ private:
 	 * @return	true if the test was successfully run; false if it was not, could not be found, or is invalid for
 	 *			the current application settings
 	 */
-	bool InternalStopTest(FAutomationTestExecutionInfo& OutExecutionInfo);
+	CORE_API bool InternalStopTest(FAutomationTestExecutionInfo& OutExecutionInfo);
 
 	/** Constructor */
-	FAutomationTestFramework();
+	CORE_API FAutomationTestFramework();
 
 	/** Destructor */
-	~FAutomationTestFramework();
+	CORE_API ~FAutomationTestFramework();
 
 	// Copy constructor and assignment operator intentionally left unimplemented
-	FAutomationTestFramework( const FAutomationTestFramework& );
-	FAutomationTestFramework& operator=( const FAutomationTestFramework& );
+	CORE_API FAutomationTestFramework( const FAutomationTestFramework& );
+	CORE_API FAutomationTestFramework& operator=( const FAutomationTestFramework& );
 
 	/** Specialized output device used for automation testing */
 	FAutomationTestOutputDevice AutomationTestOutputDevice;
@@ -1268,7 +1268,7 @@ private:
 };
 
 /** Simple abstract base class for all automation tests */
-class CORE_API FAutomationTestBase
+class FAutomationTestBase
 {
 public:
 	/**
@@ -1293,10 +1293,10 @@ public:
 	}
 
 	/** Log flags */
-	static bool bSuppressLogWarnings;
-	static bool bSuppressLogErrors;
-	static bool bElevateLogWarningsToErrors;
-	static TArray<FString> SuppressedLogCategories;
+	static CORE_API bool bSuppressLogWarnings;
+	static CORE_API bool bSuppressLogErrors;
+	static CORE_API bool bElevateLogWarningsToErrors;
+	static CORE_API TArray<FString> SuppressedLogCategories;
 
 	/**
 	 * Pure virtual method; returns the flags associated with the given automation test
@@ -1327,14 +1327,14 @@ public:
 	virtual uint32 GetRequiredDeviceNum() const = 0;
 
 	/** Clear any execution info/results from a prior running of this test */
-	void ClearExecutionInfo();
+	CORE_API void ClearExecutionInfo();
 
 	/**
 	 * Adds an error message to this test
 	 *
 	 * @param	InError	Error message to add to this test
 	 */
-	virtual void AddError( const FString& InError, int32 StackOffset = 0 );
+	CORE_API virtual void AddError( const FString& InError, int32 StackOffset = 0 );
 
 	/**
 	 * Adds an error message to this test if the condition is false
@@ -1343,7 +1343,7 @@ public:
 	 * @param   InError	   Error message to add to this test
 	 * @return	False if there was an error
 	 */
-	virtual bool AddErrorIfFalse( bool bCondition, const FString& InError, int32 StackOffset = 0 );
+	CORE_API virtual bool AddErrorIfFalse( bool bCondition, const FString& InError, int32 StackOffset = 0 );
 
 	/**
 	 * Adds an error message to this test
@@ -1352,7 +1352,7 @@ public:
 	 * @param	InFilename	The filename the error originated in
 	 * @param	InLineNumber	The line number in the file this error originated in
 	 */
-	virtual void AddErrorS(const FString& InError, const FString& InFilename, int32 InLineNumber);
+	CORE_API virtual void AddErrorS(const FString& InError, const FString& InFilename, int32 InLineNumber);
 
 	/**
 	 * Adds an warning message to this test
@@ -1361,35 +1361,35 @@ public:
 	 * @param	InFilename	The filename the error originated in
 	 * @param	InLineNumber	The line number in the file this error originated in
 	 */
-	virtual void AddWarningS(const FString& InWarning, const FString& InFilename, int32 InLineNumber);
+	CORE_API virtual void AddWarningS(const FString& InWarning, const FString& InFilename, int32 InLineNumber);
 
 	/**
 	 * Adds a warning to this test
 	 *
 	 * @param	InWarning	Warning message to add to this test
 	 */
-	virtual void AddWarning( const FString& InWarning, int32 StackOffset = 0);
+	CORE_API virtual void AddWarning( const FString& InWarning, int32 StackOffset = 0);
 
 	/**
 	 * Adds a log item to this test
 	 *
 	 * @param	InLogItem	Log item to add to this test
 	 */
-	virtual void AddInfo( const FString& InLogItem, int32 StackOffset = 0, bool bCaptureStack = false);
+	CORE_API virtual void AddInfo( const FString& InLogItem, int32 StackOffset = 0, bool bCaptureStack = false);
 
 	/**
 	 * Adds an automation event directly into the execution log.
 	 *
 	 * @param	InLogItem	Log item to add to this test
 	 */
-	virtual void AddEvent(const FAutomationEvent& InEvent, int32 StackOffset = 0, bool bCaptureStack = false);
+	CORE_API virtual void AddEvent(const FAutomationEvent& InEvent, int32 StackOffset = 0, bool bCaptureStack = false);
 
 	/**
 	 * Adds a analytics string to parse later
 	 *
 	 * @param	InLogItem	Log item to add to this test
 	 */
-	virtual void AddAnalyticsItem(const FString& InAnalyticsItem);
+	CORE_API virtual void AddAnalyticsItem(const FString& InAnalyticsItem);
 
 	/**
 	 * Adds a telemetry data point measurement
@@ -1398,7 +1398,7 @@ public:
 	 * @param	Measurement	Value to associate to the data point
 	 * @param	Context		optional context associated with the data point
 	 */
-	virtual void AddTelemetryData(const FString& DataPoint, double Measurement, const FString& Context = TEXT(""));
+	CORE_API virtual void AddTelemetryData(const FString& DataPoint, double Measurement, const FString& Context = TEXT(""));
 
 	/**
 	 * Adds several telemetry data point measurements
@@ -1406,40 +1406,40 @@ public:
 	 * @param	ValuePairs	value pair of Name and Measurement of several Data points
 	 * @param	Context		optional context associated with the data point
 	 */
-	virtual void AddTelemetryData(const TMap<FString, double>& ValuePairs, const FString& Context = TEXT(""));
+	CORE_API virtual void AddTelemetryData(const TMap<FString, double>& ValuePairs, const FString& Context = TEXT(""));
 
 	/**
 	 * Set telemetry storage name
 	 *
 	 * @param	StorageName	Name of the data storage
 	 */
-	virtual void SetTelemetryStorage(const FString& StorageName);
+	CORE_API virtual void SetTelemetryStorage(const FString& StorageName);
 
 	/**
 	 * Returns whether this test has any errors associated with it or not
 	 *
 	 * @return true if this test has at least one error associated with it; false if not
 	 */
-	bool HasAnyErrors() const;
+	CORE_API bool HasAnyErrors() const;
 
 	/**
 	* Returns whether this test has encountered all expected log messages defined for it
 	* @param VerbosityType Optionally specify to check by log level. Defaults to all.
 	* @return true if this test has encountered all expected messages; false if not
 	*/
-	bool HasMetExpectedMessages(ELogVerbosity::Type VerbosityType = ELogVerbosity::All);
+	CORE_API bool HasMetExpectedMessages(ELogVerbosity::Type VerbosityType = ELogVerbosity::All);
 
 	/**
 	* Returns whether this test has encountered all expected errors defined for it
 	*
 	* @return true if this test has encountered all expected errors; false if not
 	*/
-	bool HasMetExpectedErrors();
+	CORE_API bool HasMetExpectedErrors();
 
 	/**
 	 * Return the last success state for this test
 	 */
-	bool GetLastExecutionSuccessState();
+	CORE_API bool GetLastExecutionSuccessState();
 
 	/**
 	 * [Deprecated] Use AddError(msg) instead to change the state of the test to a failure
@@ -1459,22 +1459,22 @@ public:
 	 *
 	 * @param	OutInfo	Execution info to be populated with the same data contained within this test's execution info
 	 */
-	void GetExecutionInfo( FAutomationTestExecutionInfo& OutInfo ) const;
+	CORE_API void GetExecutionInfo( FAutomationTestExecutionInfo& OutInfo ) const;
 
 	/** 
 	 * Helper function that will generate a list of sub-tests via GetTests
 	 */
-	void GenerateTestNames( TArray<FAutomationTestInfo>& TestInfo ) const;
+	CORE_API void GenerateTestNames( TArray<FAutomationTestInfo>& TestInfo ) const;
 
 	/**
 	 * Helper function that determines if the given log category matches the expected category, inclusively (so an Error counts as a Warning)
 	*/
-	static bool LogCategoryMatchesSeverityInclusive(ELogVerbosity::Type Actual, ELogVerbosity::Type MaximumVerbosity);
+	static CORE_API bool LogCategoryMatchesSeverityInclusive(ELogVerbosity::Type Actual, ELogVerbosity::Type MaximumVerbosity);
 
 	/**
 	 * Enables log settings from config
 	*/
-	static void LoadDefaultLogSettings();
+	static CORE_API void LoadDefaultLogSettings();
 	/**
 	
 	* Adds a regex pattern to an internal list that this test will expect to encounter in logs (of the specified verbosity) during its execution. If an expected pattern
@@ -1486,7 +1486,7 @@ public:
 	* @param Occurrences - How many times to expect this message string to be seen. If > 0, the message must be seen the exact number of times
 	* specified or the test will fail. If == 0, the message must be seen one or more times (with no upper limit) or the test will fail.
 	*/
-	void AddExpectedMessage(FString ExpectedPatternString, ELogVerbosity::Type ExpectedVerbosity, EAutomationExpectedMessageFlags::MatchType CompareType = EAutomationExpectedMessageFlags::Contains, int32 Occurrences = 1);
+	CORE_API void AddExpectedMessage(FString ExpectedPatternString, ELogVerbosity::Type ExpectedVerbosity, EAutomationExpectedMessageFlags::MatchType CompareType = EAutomationExpectedMessageFlags::Contains, int32 Occurrences = 1);
 	
 	/**
 	* Adds a regex pattern to an internal list that this test will expect to encounter in logs (of all severities) during its execution. If an expected pattern
@@ -1497,7 +1497,7 @@ public:
 	* @param Occurrences - How many times to expect this message string to be seen. If > 0, the message must be seen the exact number of times
 	* specified or the test will fail. If == 0, the message must be seen one or more times (with no upper limit) or the test will fail.
 	*/
-	void AddExpectedMessage(FString ExpectedPatternString, EAutomationExpectedMessageFlags::MatchType CompareType = EAutomationExpectedMessageFlags::Contains, int32 Occurrences = 1);
+	CORE_API void AddExpectedMessage(FString ExpectedPatternString, EAutomationExpectedMessageFlags::MatchType CompareType = EAutomationExpectedMessageFlags::Contains, int32 Occurrences = 1);
 
 	/**
 	* Populate the provided expected log messages object with the expected messages contained within the test. Not particularly efficient,
@@ -1505,7 +1505,7 @@ public:
 	* @param Verbosity - Optionally filter the returned messages by verbosity. This is inclusive, so Warning will return Warnings, Errors, etc.
 	* @param OutInfo - Array of Expected Messages to be populated with the same data contained within this test's expected messages list
 	*/
-	void GetExpectedMessages(TArray<FAutomationExpectedMessage>& OutInfo, ELogVerbosity::Type Verbosity = ELogVerbosity::All) const;
+	CORE_API void GetExpectedMessages(TArray<FAutomationExpectedMessage>& OutInfo, ELogVerbosity::Type Verbosity = ELogVerbosity::All) const;
 
 	/**
 	* Adds a regex pattern to an internal list that this test will expect to encounter in error or warning logs during its execution. If an expected pattern
@@ -1516,7 +1516,7 @@ public:
 	* @param Occurrences - How many times to expect this error string to be seen. If > 0, the error must be seen the exact number of times
 	* specified or the test will fail. If == 0, the error must be seen one or more times (with no upper limit) or the test will fail.
 	*/
-	void AddExpectedError(FString ExpectedPatternString, EAutomationExpectedErrorFlags::MatchType CompareType = EAutomationExpectedErrorFlags::Contains, int32 Occurrences = 1);
+	CORE_API void AddExpectedError(FString ExpectedPatternString, EAutomationExpectedErrorFlags::MatchType CompareType = EAutomationExpectedErrorFlags::Contains, int32 Occurrences = 1);
 
 	/**
 	 * Is this a complex tast - if so it will be a stress test.
@@ -1635,20 +1635,20 @@ public:
 
 public:
 
-	bool TestEqual(const TCHAR* What, const int32 Actual, const int32 Expected);
-	bool TestEqual(const TCHAR* What, const int64 Actual, const int64 Expected);
+	CORE_API bool TestEqual(const TCHAR* What, const int32 Actual, const int32 Expected);
+	CORE_API bool TestEqual(const TCHAR* What, const int64 Actual, const int64 Expected);
 #if PLATFORM_64BITS
-	bool TestEqual(const TCHAR* What, const SIZE_T Actual, const SIZE_T Expected);
+	CORE_API bool TestEqual(const TCHAR* What, const SIZE_T Actual, const SIZE_T Expected);
 #endif
-	bool TestEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestEqual(const TCHAR* What, const FTransform Actual, const FTransform Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestEqual(const TCHAR* What, const FRotator Actual, const FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestEqual(const TCHAR* What, const FColor Actual, const FColor Expected);
-	bool TestEqual(const TCHAR* What, const FLinearColor Actual, const FLinearColor Expected);
-	bool TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
-	bool TestEqualInsensitive(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
+	CORE_API bool TestEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestEqual(const TCHAR* What, const FTransform Actual, const FTransform Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestEqual(const TCHAR* What, const FRotator Actual, const FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestEqual(const TCHAR* What, const FColor Actual, const FColor Expected);
+	CORE_API bool TestEqual(const TCHAR* What, const FLinearColor Actual, const FLinearColor Expected);
+	CORE_API bool TestEqual(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
+	CORE_API bool TestEqualInsensitive(const TCHAR* What, const TCHAR* Actual, const TCHAR* Expected);
 
 	bool TestEqual(const FString& What, const int32 Actual, const int32 Expected)
 	{
@@ -1746,11 +1746,11 @@ public:
 		return TestEqual(*What, Actual, Expected);
 	}
 
-	bool TestNearlyEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestNearlyEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestNearlyEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestNearlyEqual(const TCHAR* What, const FTransform Actual, const FTransform Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
-	bool TestNearlyEqual(const TCHAR* What, const FRotator Actual, const FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestNearlyEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestNearlyEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestNearlyEqual(const TCHAR* What, const FVector Actual, const FVector Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestNearlyEqual(const TCHAR* What, const FTransform Actual, const FTransform Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
+	CORE_API bool TestNearlyEqual(const TCHAR* What, const FRotator Actual, const FRotator Expected, float Tolerance = UE_KINDA_SMALL_NUMBER);
 
 	bool TestNearlyEqual(const FString& What, const float Actual, const float Expected, float Tolerance = UE_KINDA_SMALL_NUMBER)
 	{
@@ -1786,7 +1786,7 @@ public:
 	 *
 	 * @see TestFalse
 	 */
-	bool TestFalse(const TCHAR* What, bool Value);
+	CORE_API bool TestFalse(const TCHAR* What, bool Value);
 
 	bool TestFalse(const FString& What, bool Value)
 	{
@@ -1899,7 +1899,7 @@ public:
 	 *
 	 * @see TestNotNull
 	 */
-	bool TestNull(const TCHAR* What, const void* Pointer);
+	CORE_API bool TestNull(const TCHAR* What, const void* Pointer);
 
 	bool TestNull(const FString& What, const void* Pointer)
 	{
@@ -1939,7 +1939,7 @@ public:
 	 *
 	 * @see TestFalse
 	 */
-	bool TestTrue(const TCHAR* What, bool Value);
+	CORE_API bool TestTrue(const TCHAR* What, bool Value);
 
 	bool TestTrue(const FString& What, bool Value)
 	{
@@ -1999,7 +1999,7 @@ protected:
 	virtual void SetTestContext(FString Context) { TestParameterContext = Context; }
 
 	/** Extracts a combined EAutomationTestFlags value from a string representation using tag notation "[Filter_1]...[Filter_n][Tag_1]...[Tag_m]" */
-	uint32 ExtractAutomationTestFlags(FString InTagNotation);
+	CORE_API uint32 ExtractAutomationTestFlags(FString InTagNotation);
 
 protected:
 
@@ -2031,14 +2031,14 @@ private:
 	*
 	* @return true if this message matches any of the expected messages
 	*/
-	bool IsExpectedMessage(const FString& Message, const ELogVerbosity::Type& Verbosity = ELogVerbosity::All);
+	CORE_API bool IsExpectedMessage(const FString& Message, const ELogVerbosity::Type& Verbosity = ELogVerbosity::All);
 
 	/**
 	 * Sets whether the test has succeeded or not
 	 *
 	 * @param	bSuccessful	true to mark the test successful, false to mark the test as failed
 	 */
-	void InternalSetSuccessState(bool bSuccessful);
+	CORE_API void InternalSetSuccessState(bool bSuccessful);
 
 	/* Log messages to be expected while processing this test.*/
 	TArray<FAutomationExpectedMessage> ExpectedMessages;
@@ -2047,7 +2047,7 @@ private:
 	FCriticalSection ActionCS;
 };
 
-class CORE_API FBDDAutomationTestBase : public FAutomationTestBase
+class FBDDAutomationTestBase : public FAutomationTestBase
 { 
 public:
 	FBDDAutomationTestBase(const FString& InName, const bool bInComplexTask)
@@ -2231,7 +2231,7 @@ private:
 
 DECLARE_DELEGATE(FDoneDelegate);
 
-class CORE_API FAutomationSpecBase 
+class FAutomationSpecBase 
 	: public FAutomationTestBase
 	, public TSharedFromThis<FAutomationSpecBase>
 {

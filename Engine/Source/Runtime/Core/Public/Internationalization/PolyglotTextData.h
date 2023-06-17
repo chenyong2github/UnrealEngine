@@ -13,7 +13,7 @@
  * Polyglot data that may be registered to the text localization manager at runtime.
  * @note This struct is mirrored in NoExportTypes.h for UHT.
  */
-struct CORE_API FPolyglotTextData
+struct FPolyglotTextData
 {
 	/** Needed to avoid member access issues in UHT generated code */
 	friend struct Z_Construct_UScriptStruct_FPolyglotTextData_Statics;
@@ -27,125 +27,125 @@ public:
 	/**
 	 * Construct this polyglot data with an identity, optionally immediately providing the source text and native culture.
 	 */
-	FPolyglotTextData(const ELocalizedTextSourceCategory& InCategory, const FString& InNamespace, const FString& InKey, const FString& InNativeString, const FString& InNativeCulture = FString());
+	CORE_API FPolyglotTextData(const ELocalizedTextSourceCategory& InCategory, const FString& InNamespace, const FString& InKey, const FString& InNativeString, const FString& InNativeCulture = FString());
 
 	/**
 	 * Is this polyglot data valid and can be registered with the text localization manager?
 	 */
-	bool IsValid(FText* OutFailureReason = nullptr) const;
+	CORE_API bool IsValid(FText* OutFailureReason = nullptr) const;
 
 	/**
 	 * Set the category of this polyglot data.
 	 * @note This affects when and how the data is loaded into the text localization manager.
 	 */
-	void SetCategory(const ELocalizedTextSourceCategory InCategory);
+	CORE_API void SetCategory(const ELocalizedTextSourceCategory InCategory);
 
 	/**
 	 * Get the category of this polyglot data.
 	 */
-	ELocalizedTextSourceCategory GetCategory() const;
+	CORE_API ELocalizedTextSourceCategory GetCategory() const;
 
 	/**
 	 * Set the native culture of this polyglot data.
 	 * @note This may be empty, and if empty, will be inferred from the native culture of the text category.
 	 */
-	void SetNativeCulture(const FString& InNativeCulture);
+	CORE_API void SetNativeCulture(const FString& InNativeCulture);
 
 	/**
 	 * Get the native culture of this polyglot data.
 	 */
-	const FString& GetNativeCulture() const;
+	CORE_API const FString& GetNativeCulture() const;
 
 	/**
 	 * Resolve the native culture of this polyglot data, either using the native culture if specified, or inferring it from the category.
 	 */
-	FString ResolveNativeCulture() const;
+	CORE_API FString ResolveNativeCulture() const;
 
 	/**
 	 * Get the localized cultures of this polyglot data.
 	 */
-	TArray<FString> GetLocalizedCultures() const;
+	CORE_API TArray<FString> GetLocalizedCultures() const;
 
 	/**
 	 * Set the identity of the text created from this polyglot data.
 	 * @note The key must not be empty.
 	 */
-	void SetIdentity(const FString& InNamespace, const FString& InKey);
+	CORE_API void SetIdentity(const FString& InNamespace, const FString& InKey);
 
 	/**
 	 * Get the identity of the text created from this polyglot data.
 	 */
-	void GetIdentity(FString& OutNamespace, FString& OutKey) const;
+	CORE_API void GetIdentity(FString& OutNamespace, FString& OutKey) const;
 
 	/**
 	 * Get the namespace of the text created from this polyglot data.
 	 */
-	const FString& GetNamespace() const;
+	CORE_API const FString& GetNamespace() const;
 
 	/**
 	 * Get the key of the text created from this polyglot data.
 	 */
-	const FString& GetKey() const;
+	CORE_API const FString& GetKey() const;
 
 	/**
 	 * Set the native string of this polyglot data.
 	 * @note The native string must not be empty.
 	 */
-	void SetNativeString(const FString& InNativeString);
+	CORE_API void SetNativeString(const FString& InNativeString);
 
 	/**
 	 * Get the native string of this polyglot data.
 	 */
-	const FString& GetNativeString() const;
+	CORE_API const FString& GetNativeString() const;
 	
 	/**
 	 * Add a localized string to this polyglot data.
 	 * @note The native culture may also have a translation added via this function.
 	 */
-	void AddLocalizedString(const FString& InCulture, const FString& InLocalizedString);
+	CORE_API void AddLocalizedString(const FString& InCulture, const FString& InLocalizedString);
 
 	/**
 	 * Remove a localized string from this polyglot data.
 	 */
-	void RemoveLocalizedString(const FString& InCulture);
+	CORE_API void RemoveLocalizedString(const FString& InCulture);
 
 	/**
 	 * Get a localized string from this polyglot data.
 	 */
-	bool GetLocalizedString(const FString& InCulture, FString& OutLocalizedString) const;
+	CORE_API bool GetLocalizedString(const FString& InCulture, FString& OutLocalizedString) const;
 
 	/**
 	 * Clear the localized strings from this polyglot data.
 	 */
-	void ClearLocalizedStrings();
+	CORE_API void ClearLocalizedStrings();
 
 	/**
 	 * Set whether this polyglot data is a minimal patch.
 	 * @see bIsMinimalPatch.
 	 */
-	void IsMinimalPatch(const bool InIsMinimalPatch);
+	CORE_API void IsMinimalPatch(const bool InIsMinimalPatch);
 
 	/**
 	 * Get whether this polyglot data is a minimal patch.
 	 * @see bIsMinimalPatch.
 	 */
-	bool IsMinimalPatch() const;
+	CORE_API bool IsMinimalPatch() const;
 
 	/**
 	 * Get the text instance created from this polyglot data.
 	 */
-	FText GetText() const;
+	CORE_API FText GetText() const;
 
 private:
 	/**
 	 * Cache the text instance created from this polyglot data.
 	 */
-	void CacheText(FText* OutFailureReason = nullptr);
+	CORE_API void CacheText(FText* OutFailureReason = nullptr);
 
 	/**
 	 * Clear the cache of the text instance created from this polyglot data.
 	 */
-	void ClearCache();
+	CORE_API void ClearCache();
 
 	/**
 	 * The category of this polyglot data.

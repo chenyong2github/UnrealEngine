@@ -9,19 +9,19 @@
 
 class FEvent;
 
-struct CORE_API FPreLoadFile : public FDelayedAutoRegisterHelper
+struct FPreLoadFile : public FDelayedAutoRegisterHelper
 {
-	FPreLoadFile(const TCHAR* InPath);
+	CORE_API FPreLoadFile(const TCHAR* InPath);
 
-	void* TakeOwnershipOfLoadedData(int64* OutFileSize=nullptr);
-	static void* TakeOwnershipOfLoadedDataByPath(const TCHAR* Filename, int64* OutFileSize);
+	CORE_API void* TakeOwnershipOfLoadedData(int64* OutFileSize=nullptr);
+	static CORE_API void* TakeOwnershipOfLoadedDataByPath(const TCHAR* Filename, int64* OutFileSize);
 
 protected:
-	void KickOffRead();
+	CORE_API void KickOffRead();
 
 	bool bIsComplete;
 	bool bFailedToOpenInKickOff;
-	static bool bSystemNoLongerTakingRequests;
+	static CORE_API bool bSystemNoLongerTakingRequests;
 	void* Data;
 	int64 FileSize;
 	FString Path;

@@ -14,7 +14,7 @@
 /**
  * GCC/Clang implementation of the Atomics OS functions
  **/
-struct CORE_API FClangPlatformAtomics : public FGenericPlatformAtomics
+struct FClangPlatformAtomics : public FGenericPlatformAtomics
 {
 	static FORCEINLINE int8 InterlockedIncrement(volatile int8* Value)
 	{

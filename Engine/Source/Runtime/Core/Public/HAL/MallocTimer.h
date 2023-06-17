@@ -9,7 +9,7 @@
 #define UE_TIME_VIRTUALMALLOC 0
 #endif
 
-struct CORE_API FScopedVirtualMallocTimer
+struct FScopedVirtualMallocTimer
 {
 	enum IndexType : int32 
 	{
@@ -32,8 +32,8 @@ struct CORE_API FScopedVirtualMallocTimer
 	};
 
 #if UE_TIME_VIRTUALMALLOC
-	static uint64 GTotalCycles[IndexType::Max][PlatormIndexType::PlatormIndexTypeMax];
-	static uint64 GTotalCounts[IndexType::Max][PlatormIndexType::PlatormIndexTypeMax];
+	static CORE_API uint64 GTotalCycles[IndexType::Max][PlatormIndexType::PlatormIndexTypeMax];
+	static CORE_API uint64 GTotalCounts[IndexType::Max][PlatormIndexType::PlatormIndexTypeMax];
 
 	int32 Index;
 	int32 PlatformTypeIndex;
@@ -52,7 +52,7 @@ struct CORE_API FScopedVirtualMallocTimer
 		FPlatformAtomics::InterlockedAdd((volatile int64*)&GTotalCycles[Index][PlatformTypeIndex], Add);
 	}
 
-	static void UpdateStats();
+	static CORE_API void UpdateStats();
 #else	//UE_TIME_VIRTUALMALLOC
 	FORCEINLINE FScopedVirtualMallocTimer(int32 InIndex = 0, int32 InPlatformTypeIndex = 0)
 	{

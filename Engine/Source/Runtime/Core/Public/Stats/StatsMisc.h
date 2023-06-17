@@ -185,12 +185,12 @@ protected:
  */
 struct FScopeLogTime : public FConditionalScopeLogTime
 {
-	CORE_API FScopeLogTime(const WIDECHAR* InName, FTotalTimeAndCount* InCumulative = nullptr, EScopeLogTimeUnits InUnits = ScopeLog_Milliseconds)
+	FScopeLogTime(const WIDECHAR* InName, FTotalTimeAndCount* InCumulative = nullptr, EScopeLogTimeUnits InUnits = ScopeLog_Milliseconds)
 		: FConditionalScopeLogTime(true, InName, InCumulative, InUnits)
 	{
 	}
 
-	CORE_API FScopeLogTime(const ANSICHAR* InName, FTotalTimeAndCount* InCumulative = nullptr, EScopeLogTimeUnits InUnits = ScopeLog_Milliseconds)
+	FScopeLogTime(const ANSICHAR* InName, FTotalTimeAndCount* InCumulative = nullptr, EScopeLogTimeUnits InUnits = ScopeLog_Milliseconds)
 		: FConditionalScopeLogTime(true, InName, InCumulative, InUnits)
 	{
 	}

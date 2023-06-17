@@ -5,11 +5,11 @@
 #include "Misc/OutputDevice.h"
 #include "Misc/OutputDeviceError.h"
 
-class CORE_API FAndroidErrorOutputDevice : public FOutputDeviceError
+class FAndroidErrorOutputDevice : public FOutputDeviceError
 {
 public:
 	/** Constructor, initializing member variables */
-	FAndroidErrorOutputDevice();
+	CORE_API FAndroidErrorOutputDevice();
 
 	/**
 	 * Serializes the passed in data unless the current event is suppressed.
@@ -17,13 +17,13 @@ public:
 	 * @param	Data	Text to log
 	 * @param	Event	Event name used for suppression purposes
 	 */
-	virtual void Serialize( const TCHAR* Msg, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
+	CORE_API virtual void Serialize( const TCHAR* Msg, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
 
 	/**
 	 * Error handling function that is being called from within the system wide global
 	 * error handler, e.g. using structured exception handling on the PC.
 	 */
-	void HandleError();
+	CORE_API void HandleError();
 
 private:
 	int32		ErrorPos;

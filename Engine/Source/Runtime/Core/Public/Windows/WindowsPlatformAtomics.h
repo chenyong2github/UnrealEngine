@@ -10,7 +10,7 @@
 /**
  * Windows implementation of the Atomics OS functions
  */
-struct CORE_API FWindowsPlatformAtomics
+struct FWindowsPlatformAtomics
 	: public FGenericPlatformAtomics
 {
 	static_assert(sizeof(int8)  == sizeof(char)      && alignof(int8)  == alignof(char),      "int8 must be compatible with char");
@@ -444,7 +444,7 @@ protected:
 	 *
 	 * @param InFormat - The string format string.
 	 */
-	static void HandleAtomicsFailure( const TCHAR* InFormat, ... );
+	static CORE_API void HandleAtomicsFailure( const TCHAR* InFormat, ... );
 };
 
 

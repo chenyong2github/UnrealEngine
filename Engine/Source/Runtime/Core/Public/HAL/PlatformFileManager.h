@@ -13,7 +13,7 @@
 /**
 * Platform File chain manager.
 **/
-class CORE_API FPlatformFileManager
+class FPlatformFileManager
 {
 #if USE_ATOMIC_PLATFORM_FILE
 	/** Currently used platform file. */
@@ -26,21 +26,21 @@ class CORE_API FPlatformFileManager
 public:
 
 	/** Constructor. */
-	FPlatformFileManager( );
+	CORE_API FPlatformFileManager( );
 
 	/**
 	 * Gets the currently used platform file.
 	 *
 	 * @return Reference to the currently used platform file.
 	 */
-	IPlatformFile& GetPlatformFile( );
+	CORE_API IPlatformFile& GetPlatformFile( );
 
 	/**
 	 * Sets the current platform file.
 	 *
 	 * @param NewTopmostPlatformFile Platform file to be used.
 	 */
-	void SetPlatformFile( IPlatformFile& NewTopmostPlatformFile );
+	CORE_API void SetPlatformFile( IPlatformFile& NewTopmostPlatformFile );
 
 	/**
 	 * Finds a platform file in the chain of active platform files.
@@ -48,7 +48,7 @@ public:
 	 * @param Name of the platform file.
 	 * @return Pointer to the active platform file or nullptr if the platform file was not found.
 	 */
-	IPlatformFile* FindPlatformFile( const TCHAR* Name );
+	CORE_API IPlatformFile* FindPlatformFile( const TCHAR* Name );
 
 	/**
 	 * Creates a new platform file instance.
@@ -56,22 +56,22 @@ public:
 	 * @param Name of the platform file to create.
 	 * @return Platform file instance of the platform file type was found, nullptr otherwise.
 	 */
-	IPlatformFile* GetPlatformFile( const TCHAR* Name );
+	CORE_API IPlatformFile* GetPlatformFile( const TCHAR* Name );
 
 	/**
 	 * calls Tick on the platform files in the TopmostPlatformFile chain
 	 */
-	void TickActivePlatformFile();
+	CORE_API void TickActivePlatformFile();
 
 	/**
 	* Performs additional initialization when the new async IO is enabled.
 	*/
-	void InitializeNewAsyncIO();
+	CORE_API void InitializeNewAsyncIO();
 
 	/**
 	 * Gets FPlatformFileManager Singleton.
 	 */
-	static FPlatformFileManager& Get( );
+	static CORE_API FPlatformFileManager& Get( );
 
 	/**
 	* Removes the specified file wrapper from the platform file wrapper chain.
@@ -81,7 +81,7 @@ public:
 	*
 	* @param The platform file to remove.
 	*/
-	void RemovePlatformFile(IPlatformFile* PlatformFileToRemove);
+	CORE_API void RemovePlatformFile(IPlatformFile* PlatformFileToRemove);
 
 	/**
 	* Inserts a new platform file into the platform file wrapper chain.
@@ -93,5 +93,5 @@ public:
 	* @param The platform file to insert.
 	* @return true if the platform file was inserted.
 	*/
-	bool InsertPlatformFile(IPlatformFile* NewPlatformFile);
+	CORE_API bool InsertPlatformFile(IPlatformFile* NewPlatformFile);
 };

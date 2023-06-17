@@ -118,7 +118,7 @@ struct FProcHandle;
 /**
 * Generic implementation for most platforms, these tend to be unused and unimplemented
 **/
-struct CORE_API FGenericPlatformProcess
+struct FGenericPlatformProcess
 {
 	/**
 	 * Generic representation of a interprocess semaphore
@@ -174,13 +174,13 @@ struct CORE_API FGenericPlatformProcess
 	};
 
 	/** Load a DLL. **/
-	static void* GetDllHandle( const TCHAR* Filename );
+	static CORE_API void* GetDllHandle( const TCHAR* Filename );
 
 	/** Free a DLL. **/
-	static void FreeDllHandle( void* DllHandle );
+	static CORE_API void FreeDllHandle( void* DllHandle );
 
 	/** Lookup the address of a DLL function. **/
-	static void* GetDllExport( void* DllHandle, const TCHAR* ProcName );
+	static CORE_API void* GetDllExport( void* DllHandle, const TCHAR* ProcName );
 
 	/** Adds a directory to search in when resolving implicitly loaded or filename-only DLLs. **/
 	FORCEINLINE static void AddDllDirectory(const TCHAR* Directory)
@@ -211,28 +211,28 @@ struct CORE_API FGenericPlatformProcess
 	 *
 	 * @return the ProcessId of this process.
 	 */
-	static uint32 GetCurrentProcessId();
+	static CORE_API uint32 GetCurrentProcessId();
 
 	/**
 	 * Retrieves the current hardware CPU core
 	 *
 	 * @return the current hardware core.
 	 */
-	static uint32 GetCurrentCoreNumber();
+	static CORE_API uint32 GetCurrentCoreNumber();
 
 	/**	 
 	 * Change the thread processor affinity
 	 *
 	 * @param AffinityMask A bitfield indicating what processors the thread is allowed to run on.
 	 */
-	static void SetThreadAffinityMask( uint64 AffinityMask );
+	static CORE_API void SetThreadAffinityMask( uint64 AffinityMask );
 
 	/**
 	 * Change the thread processor priority
 	 *
 	 * @param NewPriority an EThreadPriority indicating what priority the thread is to run at.
 	 */
-	static void SetThreadPriority( EThreadPriority NewPriority );
+	static CORE_API void SetThreadPriority( EThreadPriority NewPriority );
 
 	/**
 	 * Helper function to set thread name of the current thread.
@@ -241,7 +241,7 @@ struct CORE_API FGenericPlatformProcess
 	static void SetThreadName( const TCHAR* ThreadName ) { }
 
 	/** Get the active stack size for the currently running thread **/
-	static uint32 GetStackSize();
+	static CORE_API uint32 GetStackSize();
 
 	/** Output information about the currently active thread **/
 	static void DumpThreadInfo( const TCHAR* MarkerName ) { }
@@ -262,22 +262,22 @@ struct CORE_API FGenericPlatformProcess
 	static void TeardownAudioThread() { }
 	
 	/** Content saved to the game or engine directories should be rerouted to user directories instead **/
-	static bool ShouldSaveToUserDir();
+	static CORE_API bool ShouldSaveToUserDir();
 
 	/** Get startup directory.  NOTE: Only one return value is valid at a time! **/
-	static const TCHAR* BaseDir();
+	static CORE_API const TCHAR* BaseDir();
 
 	/** Get user directory.  NOTE: Only one return value is valid at a time! **/
-	static const TCHAR* UserDir();
+	static CORE_API const TCHAR* UserDir();
 
 	/** Get the user settings directory.  NOTE: Only one return value is valid at a time! **/
-	static const TCHAR *UserSettingsDir();
+	static CORE_API const TCHAR *UserSettingsDir();
 
 	/** Get the user temporary directory.  NOTE: Only one return value is valid at a time! **/
-	static const TCHAR *UserTempDir();
+	static CORE_API const TCHAR *UserTempDir();
 
 	/** Get the user home directory.  NOTE: Only one return value is valid at a time! **/
-	static const TCHAR *UserHomeDir();
+	static CORE_API const TCHAR *UserHomeDir();
 
 	struct ApplicationSettingsContext
 	{
@@ -292,7 +292,7 @@ struct CORE_API FGenericPlatformProcess
 	};
 
 	/** Get application settings directory.  NOTE: Only one return value is valid at a time! **/
-	static const TCHAR* ApplicationSettingsDir();
+	static CORE_API const TCHAR* ApplicationSettingsDir();
 	
 	/** 
 	 * Get application settings directory for a given context.
@@ -301,19 +301,19 @@ struct CORE_API FGenericPlatformProcess
 	 * 
 	 * @return 			A string to the appropriate directory.
 	 */
-	static FString GetApplicationSettingsDir(const ApplicationSettingsContext& Settings);
+	static CORE_API FString GetApplicationSettingsDir(const ApplicationSettingsContext& Settings);
 
 	/** Get computer name.  NOTE: Only one return value is valid at a time! **/
-	static const TCHAR* ComputerName();
+	static CORE_API const TCHAR* ComputerName();
 
 	/** Get user name.  NOTE: Only one return value is valid at a time! **/
-	static const TCHAR* UserName(bool bOnlyAlphaNumeric = true);
-	static const TCHAR* ShaderDir();
-	static void SetShaderDir(const TCHAR*Where);
-	static void SetCurrentWorkingDirectoryToBaseDir();
+	static CORE_API const TCHAR* UserName(bool bOnlyAlphaNumeric = true);
+	static CORE_API const TCHAR* ShaderDir();
+	static CORE_API void SetShaderDir(const TCHAR*Where);
+	static CORE_API void SetCurrentWorkingDirectoryToBaseDir();
 
 	/** Get the current working directory (only really makes sense on desktop platforms) */
-	static FString GetCurrentWorkingDirectory();
+	static CORE_API FString GetCurrentWorkingDirectory();
 
 	/**
 	 * Sets the process limits.
@@ -332,17 +332,17 @@ struct CORE_API FGenericPlatformProcess
 	 *
 	 * @return The path to the directory.
 	 */
-	static const FString ShaderWorkingDir();
+	static CORE_API const FString ShaderWorkingDir();
 
 	/**	Clean the shader working directory. */
-	static void CleanShaderWorkingDir();
+	static CORE_API void CleanShaderWorkingDir();
 
 	/**
 	 * Return the path to the currently running executable
 	 *
 	 * @return 	Path of the currently running executable
 	 */
-	static const TCHAR* ExecutablePath();
+	static CORE_API const TCHAR* ExecutablePath();
 
 	/**
 	 * Return the name of the currently running executable
@@ -350,7 +350,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param	bRemoveExtension	true to remove the extension of the executable name, false to leave it intact
 	 * @return 	Name of the currently running executable
 	 */
-	static const TCHAR* ExecutableName(bool bRemoveExtension = true);
+	static CORE_API const TCHAR* ExecutableName(bool bRemoveExtension = true);
 
 	/**
 	 * Generates the path to the specified application or game.
@@ -363,7 +363,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param BuildConfiguration The build configuration of the game.
 	 * @return The generated application path.
 	 */
-	static FString GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration);
+	static CORE_API FString GenerateApplicationPath( const FString& AppName, EBuildConfiguration BuildConfiguration);
 
 	/**
 	 * Return the prefix of dynamic library (e.g. lib)
@@ -371,7 +371,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @return The prefix string.
 	 * @see GetModuleExtension, GetModulesDirectory
 	 */
-	static const TCHAR* GetModulePrefix();
+	static CORE_API const TCHAR* GetModulePrefix();
 
 	/**
 	 * Return the extension of dynamic library
@@ -379,12 +379,12 @@ struct CORE_API FGenericPlatformProcess
 	 * @return Extension of dynamic library.
 	 * @see GetModulePrefix, GetModulesDirectory
 	 */
-	static const TCHAR* GetModuleExtension();
+	static CORE_API const TCHAR* GetModuleExtension();
 
 	/**
 	 * Used only by platforms with DLLs, this gives the subdirectory from binaries to find the executables
 	 */
-	static const TCHAR* GetBinariesSubdirectory();
+	static CORE_API const TCHAR* GetBinariesSubdirectory();
 
 	/**
 	 * Used only by platforms with DLLs, this gives the full path to the main directory containing modules
@@ -392,7 +392,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @return The path to the directory.
 	 * @see GetModulePrefix, GetModuleExtension
 	 */
-	static const FString GetModulesDirectory();
+	static CORE_API const FString GetModulesDirectory();
 	
 	/**
 	 * Launch a uniform resource locator (i.e. http://www.epicgames.com/unreal).
@@ -400,7 +400,7 @@ struct CORE_API FGenericPlatformProcess
 	 * task. The URL param must already be a valid URL. If you're looking for code 
 	 * to properly escape a URL fragment, use FGenericPlatformHttp::UrlEncode.
 	 */
-	static void LaunchURL( const TCHAR* URL, const TCHAR* Parms, FString* Error );
+	static CORE_API void LaunchURL( const TCHAR* URL, const TCHAR* Parms, FString* Error );
 
 	/**
 	 * Launch a uniform resource locator (i.e. http://www.epicgames.com/unreal).
@@ -412,19 +412,19 @@ struct CORE_API FGenericPlatformProcess
 	 * 
 	 * @return true if URL passed the filter and was launched, false if it was rejected by the filter.
 	 */
-	static bool LaunchURLFiltered(const TCHAR* URL, const TCHAR* Parms, FString* Error, const UE::Core::FURLRequestFilter& Filter);
+	static CORE_API bool LaunchURLFiltered(const TCHAR* URL, const TCHAR* Parms, FString* Error, const UE::Core::FURLRequestFilter& Filter);
 
 	/**
 	 * Checks if the platform can launch a uniform resource locator (i.e. http://www.epicgames.com/unreal).
 	 **/
-	static bool CanLaunchURL(const TCHAR* URL);
+	static CORE_API bool CanLaunchURL(const TCHAR* URL);
 	
 	/**
 	 * Retrieves the platform-specific bundle identifier or package name of the game
 	 *
 	 * @return The game's bundle identifier or package name.
 	 */
-	static FString GetGameBundleId();
+	static CORE_API FString GetGameBundleId();
 	
 	/**
 	 * Creates a new process and its primary thread. The new process runs the
@@ -441,7 +441,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param PipeReadChild			Optional HANDLE to pipe for redirecting input
 	 * @return	The process handle for use in other process functions
 	 */
-	static FProcHandle CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild = nullptr);
+	static CORE_API FProcHandle CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild = nullptr);
 	
 	/**
 	 * Creates a new process and its primary thread, with separate std pipes. The new process runs the
@@ -459,7 +459,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param PipeStdErrChild		Optional HANDLE to pipe for redirecting stderr
 	 * @return	The process handle for use in other process functions
 	 */
-	static FProcHandle CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild, void* PipeStdErrChild);
+	static CORE_API FProcHandle CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild, void* PipeStdErrChild);
 
 	/**
 	 * Opens an existing process. 
@@ -467,7 +467,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param ProcessID				The process id of the process for which we want to obtain a handle.
 	 * @return The process handle for use in other process functions
 	 */
-	static FProcHandle OpenProcess(uint32 ProcessID);
+	static CORE_API FProcHandle OpenProcess(uint32 ProcessID);
 
 	/**
 	 * Returns true if the specified process is running 
@@ -475,28 +475,28 @@ struct CORE_API FGenericPlatformProcess
 	 * @param ProcessHandle handle returned from FPlatformProcess::CreateProc
 	 * @return true if the process is still running
 	 */
-	static bool IsProcRunning( FProcHandle & ProcessHandle );
+	static CORE_API bool IsProcRunning( FProcHandle & ProcessHandle );
 	
 	/**
 	 * Waits for a process to stop
 	 *
 	 * @param ProcessHandle handle returned from FPlatformProcess::CreateProc
 	 */
-	static void WaitForProc( FProcHandle & ProcessHandle );
+	static CORE_API void WaitForProc( FProcHandle & ProcessHandle );
 
 	/**
 	 * Cleans up FProcHandle after we're done with it.
 	 *
 	 * @param ProcessHandle handle returned from FPlatformProcess::CreateProc.
 	 */
-	static void CloseProc( FProcHandle & ProcessHandle );
+	static CORE_API void CloseProc( FProcHandle & ProcessHandle );
 
 	/** Terminates a process
 	 *
 	 * @param ProcessHandle handle returned from FPlatformProcess::CreateProc
 	 * @param KillTree Whether the entire process tree should be terminated.
 	 */
-	static void TerminateProc( FProcHandle & ProcessHandle, bool KillTree = false );
+	static CORE_API void TerminateProc( FProcHandle & ProcessHandle, bool KillTree = false );
 
 	/** Terminates a process tree
 	 *
@@ -504,7 +504,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param Predicate that returns true if the process identified by ProcessId and ApplicationName
 	 *        should be terminated with its children, else that process and its children will be kept alive
 	 */
-	static void TerminateProcTreeWithPredicate(
+	static CORE_API void TerminateProcTreeWithPredicate(
 			FProcHandle& ProcessHandle,
 			TFunctionRef<bool(uint32 ProcessId, const TCHAR* ApplicationName)> Predicate);
 
@@ -523,22 +523,22 @@ struct CORE_API FGenericPlatformProcess
 	 * will not return until IsEngineExitRequested() is true (EWaitAndForkResult::Parent) or there was an error (EWaitAndForkResult::Error)
 	 * The signal the parent process expects is platform-specific (i.e. SIGRTMIN+1 on Linux). 
 	 */
-	static EWaitAndForkResult WaitAndFork();
+	static CORE_API EWaitAndForkResult WaitAndFork();
 
 	/** Retrieves the termination status of the specified process. **/
-	static bool GetProcReturnCode( FProcHandle & ProcHandle, int32* ReturnCode );
+	static CORE_API bool GetProcReturnCode( FProcHandle & ProcHandle, int32* ReturnCode );
 
 	/** Returns true if the specified application is running */
-	static bool IsApplicationRunning( uint32 ProcessId );
+	static CORE_API bool IsApplicationRunning( uint32 ProcessId );
 
 	/** Returns true if the specified application is running */
-	static bool IsApplicationRunning( const TCHAR* ProcName );
+	static CORE_API bool IsApplicationRunning( const TCHAR* ProcName );
 
 	/** Returns the Name of process given by the PID.  Returns Empty string "" if PID not found. */
-	static FString GetApplicationName( uint32 ProcessId );
+	static CORE_API FString GetApplicationName( uint32 ProcessId );
 
 	/** Outputs the virtual memory usage, of the process with the specified PID */
-	static bool GetApplicationMemoryUsage(uint32 ProcessId, SIZE_T* OutMemoryUsage);
+	static CORE_API bool GetApplicationMemoryUsage(uint32 ProcessId, SIZE_T* OutMemoryUsage);
 
 	/**
 	 * Executes a process, returning the return code, stdout, and stderr. This
@@ -549,13 +549,13 @@ struct CORE_API FGenericPlatformProcess
 	 * @OptionalWorkingDirectory may be 0
 	 * @OptionalbShouldEndWithParentProcess false by default. True to make sure the process is killed with the parent processor (Not Supported on all Platforms)
 	 */
-	static bool ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory = NULL, bool bShouldEndWithParentProcess = false);
+	static CORE_API bool ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory = NULL, bool bShouldEndWithParentProcess = false);
 
 	/**
 	 * Executes a process as administrator, requesting elevation as necessary. This
 	 * call blocks until the process has returned.
 	 */
-	static bool ExecElevatedProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode);
+	static CORE_API bool ExecElevatedProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode);
 
 	/**
 	 * Attempt to launch the provided file name in its default external application. Similar to FPlatformProcess::LaunchURL,
@@ -567,25 +567,25 @@ struct CORE_API FGenericPlatformProcess
 	 * @param	Verb		Optional verb to use when opening the file, if it applies for the platform.
 	 * @return true if the file is launched successfully, false otherwise.
 	 */
-	static bool LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms = NULL, ELaunchVerb::Type Verb = ELaunchVerb::Open, bool bPromptToOpenOnFailure = true );
+	static CORE_API bool LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms = NULL, ELaunchVerb::Type Verb = ELaunchVerb::Open, bool bPromptToOpenOnFailure = true );
 
 	/**
 	 * Attempt to "explore" the folder specified by the provided file path
 	 *
 	 * @param	FilePath	File path specifying a folder to explore
 	 */
-	static void ExploreFolder( const TCHAR* FilePath );
+	static CORE_API void ExploreFolder( const TCHAR* FilePath );
 
 #if PLATFORM_HAS_BSD_TIME 
 
 	/** Sleep this thread for Seconds.  0.0 means release the current time slice to let other threads get some attention. Uses stats.*/
-	static void Sleep( float Seconds );
+	static CORE_API void Sleep( float Seconds );
 	/** Sleep this thread for Seconds.  0.0 means release the current time slice to let other threads get some attention. */
-	static void SleepNoStats( float Seconds );
+	static CORE_API void SleepNoStats( float Seconds );
 	/** Sleep this thread infinitely. */
-	[[noreturn]] static void SleepInfinite();
+	[[noreturn]] static CORE_API void SleepInfinite();
 	/** Yield this thread so another may run for a while. */
-	static void YieldThread();
+	static CORE_API void YieldThread();
 
 #endif // PLATFORM_HAS_BSD_TIME
 
@@ -595,7 +595,7 @@ struct CORE_API FGenericPlatformProcess
 	* @param	Condition	Condition to evaluate.
 	* @param	SleepTime	Time to sleep
 	*/
-	static void ConditionalSleep(TFunctionRef<bool()> Condition, float SleepTime = 0.0f);
+	static CORE_API void ConditionalSleep(TFunctionRef<bool()> Condition, float SleepTime = 0.0f);
 
 	/**
 	 * Creates a new event.
@@ -606,7 +606,7 @@ struct CORE_API FGenericPlatformProcess
 	 */
 	// Message to others in the future, don't try to delete this function as it isn't exactly deprecated, but it should only ever be called from TEventPool::GetEventFromPool()
 	UE_DEPRECATED(5.0, "Please use GetSynchEventFromPool to create a new event, and ReturnSynchEventToPool to release the event.")
-	static class FEvent* CreateSynchEvent(bool bIsManualReset = false);
+	static CORE_API class FEvent* CreateSynchEvent(bool bIsManualReset = false);
 
 	/**
 	 * Gets an event from the pool or creates a new one if necessary.
@@ -615,12 +615,12 @@ struct CORE_API FGenericPlatformProcess
 	 * @return An event, or nullptr none could be created.
 	 * @see CreateSynchEvent, ReturnSynchEventToPool
 	 */
-	static class FEvent* GetSynchEventFromPool(bool bIsManualReset = false);
+	static CORE_API class FEvent* GetSynchEventFromPool(bool bIsManualReset = false);
 
 	/**
 	 * Deletes all the recycled sync events contained by the pools
 	 */
-	static void FlushPoolSyncEvents();
+	static CORE_API void FlushPoolSyncEvents();
 
 	/**
 	 * Returns an event to the pool.
@@ -628,14 +628,14 @@ struct CORE_API FGenericPlatformProcess
 	 * @param Event The event to return.
 	 * @see CreateSynchEvent, GetSynchEventFromPool
 	 */
-	static void ReturnSynchEventToPool(FEvent* Event);
+	static CORE_API void ReturnSynchEventToPool(FEvent* Event);
 
 	/**
 	 * Creates the platform-specific runnable thread. This should only be called from FRunnableThread::Create.
 	 *
 	 * @return The newly created thread
 	 */
-	static class FRunnableThread* CreateRunnableThread();
+	static CORE_API class FRunnableThread* CreateRunnableThread();
 
 	/**
 	 * Closes an anonymous pipe.
@@ -644,7 +644,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param WritePipe The handle to the write end of the pipe.
 	 * @see CreatePipe, ReadPipe
 	 */
-	static void ClosePipe( void* ReadPipe, void* WritePipe );
+	static CORE_API void ClosePipe( void* ReadPipe, void* WritePipe );
 
 	/**
 	 * Creates a writable anonymous pipe.
@@ -658,7 +658,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @return true on success, false otherwise.
 	 * @see ClosePipe, ReadPipe
 	 */
-	static bool CreatePipe(void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal = false);
+	static CORE_API bool CreatePipe(void*& ReadPipe, void*& WritePipe, bool bWritePipeLocal = false);
 
 	/**
 	 * Reads all pending data from an anonymous pipe, such as STDOUT or STDERROR of a process.
@@ -667,7 +667,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @return A string containing the read data.
 	 * @see ClosePipe, CreatePipe
 	 */
-	static FString ReadPipe( void* ReadPipe );
+	static CORE_API FString ReadPipe( void* ReadPipe );
 
 	/**
 	 * Reads all pending data from an anonymous pipe, such as STDOUT or STDERROR of a process.
@@ -677,7 +677,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @return true if successful (i.e. any data was read)
 	 * @see ClosePipe, CreatePipe
 	 */
-	static bool ReadPipeToArray(void* ReadPipe, TArray<uint8> & Output);
+	static CORE_API bool ReadPipeToArray(void* ReadPipe, TArray<uint8> & Output);
 
 	/**
 	* Sends the message to process through pipe
@@ -688,7 +688,7 @@ struct CORE_API FGenericPlatformProcess
 	* @return True if all bytes written successfully.
 	* @see CreatePipe, ClosePipe, ReadPipe
 	*/
-	static bool WritePipe(void* WritePipe, const FString& Message, FString* OutWritten = nullptr);
+	static CORE_API bool WritePipe(void* WritePipe, const FString& Message, FString* OutWritten = nullptr);
 
 	/**
 	* Sends data to process through pipe
@@ -700,7 +700,7 @@ struct CORE_API FGenericPlatformProcess
 	* @return True if all bytes written successfully.
 	* @see CreatePipe, ClosePipe, ReadPipe
 	*/
-	static bool WritePipe(void* WritePipe, const uint8* Data, const int32 DataLength, int32* OutDataLength = nullptr);
+	static CORE_API bool WritePipe(void* WritePipe, const uint8* Data, const int32 DataLength, int32* OutDataLength = nullptr);
 
 
 	/**
@@ -708,7 +708,7 @@ struct CORE_API FGenericPlatformProcess
 	 *
 	 * @return true if the platform can use multiple threads, false otherwise.
 	 */
-	static bool SupportsMultithreading();
+	static CORE_API bool SupportsMultithreading();
 	
 	/** Enables Real Time Mode on the current thread. */
 	static void SetRealTimeMode() { }
@@ -721,7 +721,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param MaxLocks Maximum amount of locks that the semaphore can have (pass 1 to make it act as mutex).
 	 * @return Pointer to heap allocated semaphore object. Caller is responsible for deletion.
 	 */
-	static FSemaphore* NewInterprocessSynchObject(const FString& Name, bool bCreate, uint32 MaxLocks = 1);
+	static CORE_API FSemaphore* NewInterprocessSynchObject(const FString& Name, bool bCreate, uint32 MaxLocks = 1);
 
 	/**
 	 * Creates or opens an interprocess synchronization object.
@@ -731,31 +731,31 @@ struct CORE_API FGenericPlatformProcess
 	 * @param MaxLocks Maximum amount of locks that the semaphore can have (pass 1 to make it act as mutex).
 	 * @return Pointer to heap allocated semaphore object. Caller is responsible for deletion.
 	 */
-	static FSemaphore* NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks = 1);
+	static CORE_API FSemaphore* NewInterprocessSynchObject(const TCHAR* Name, bool bCreate, uint32 MaxLocks = 1);
 
 	/**
 	 * Deletes an interprocess synchronization object.
 	 *
 	 * @param Object object to destroy.
 	 */
-	static bool DeleteInterprocessSynchObject(FSemaphore * Object);
+	static CORE_API bool DeleteInterprocessSynchObject(FSemaphore * Object);
 
 	/**
 	 * Makes process run as a system service (daemon), i.e. detaches it from whatever user session it was initially run from.
 	 *
 	 * @return true if successful, false otherwise.
 	 */
-	static bool Daemonize();
+	static CORE_API bool Daemonize();
 
 	/**
 	 * Checks if we're the first instance. An instance can become first if the previous first instance quits before it.
 	 */
-	static bool IsFirstInstance();
+	static CORE_API bool IsFirstInstance();
 
 	/**
 	 * Tears down allocated process resources.
 	 */
-	static void TearDown();
+	static CORE_API void TearDown();
 
 	/**
 	 * force skip calling FThreadStats::WaitForStats()
@@ -765,12 +765,12 @@ struct CORE_API FGenericPlatformProcess
 	/**
 	 * specifies the thread to use for UObject reference collection
 	 */
-	static ENamedThreads::Type GetDesiredThreadForUObjectReferenceCollector();
+	static CORE_API ENamedThreads::Type GetDesiredThreadForUObjectReferenceCollector();
 
 	/**
 	 * allows a platform to override the threading configuration for reference collection
 	 */
-	static void ModifyThreadAssignmentForUObjectReferenceCollector( int32& NumThreads, int32& NumBackgroundThreads, ENamedThreads::Type& NormalThreadName, ENamedThreads::Type& BackgroundThreadName );
+	static CORE_API void ModifyThreadAssignmentForUObjectReferenceCollector( int32& NumThreads, int32& NumBackgroundThreads, ENamedThreads::Type& NormalThreadName, ENamedThreads::Type& BackgroundThreadName );
 
 	/**
 	 * Tells the processor to pause for implementation-specific amount of time. Is used for spin-loops to improve the speed at 

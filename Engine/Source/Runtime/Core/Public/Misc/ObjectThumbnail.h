@@ -56,7 +56,7 @@ public:
 /**
  * Thumbnail image data for an object.
  */
-class CORE_API FObjectThumbnail
+class FObjectThumbnail
 {
 public:
 
@@ -76,13 +76,13 @@ public:
 private:
 
 	/** Static: Thumbnail compressor. */
-	static FThumbnailCompressionInterface* PNGThumbnailCompressor;
-	static FThumbnailCompressionInterface* JPEGThumbnailCompressor;
+	static CORE_API FThumbnailCompressionInterface* PNGThumbnailCompressor;
+	static CORE_API FThumbnailCompressionInterface* JPEGThumbnailCompressor;
 
 public:
 
 	/** Default constructor. */
-	FObjectThumbnail();
+	CORE_API FObjectThumbnail();
 
 	/** Returns the width of the thumbnail. */
 	int32 GetImageWidth() const
@@ -155,44 +155,44 @@ public:
 	}
 
 	/** Returns thumbnail compressor used on current compressed image data. */
-	FThumbnailCompressionInterface* GetCompressor() const;
+	CORE_API FThumbnailCompressionInterface* GetCompressor() const;
 
 	/** Returns thumbnail compressor that would be used on current uncompressed image data. */
-	FThumbnailCompressionInterface* ChooseNewCompressor() const;
+	CORE_API FThumbnailCompressionInterface* ChooseNewCompressor() const;
 
 	/** Returns uncompressed image data, decompressing it on demand if needed. */
-	const TArray< uint8 >& GetUncompressedImageData() const;
+	CORE_API const TArray< uint8 >& GetUncompressedImageData() const;
 
 	/** Serializers */
-	void Serialize(FArchive& Ar);
-	void Serialize(FStructuredArchive::FSlot Slot);
+	CORE_API void Serialize(FArchive& Ar);
+	CORE_API void Serialize(FStructuredArchive::FSlot Slot);
 	
 	/** Compress image data. */
-	void CompressImageData();
+	CORE_API void CompressImageData();
 
 	/** Decompress image data. */
-	void DecompressImageData();
+	CORE_API void DecompressImageData();
 
 	/**
 	 * Calculates the memory usage of this FObjectThumbnail.
 	 *
 	 * @param	Ar	the FArchiveCountMem (or similar) archive that will store the results of the memory usage calculation.
 	 */
-	void CountBytes( FArchive& Ar ) const;
+	CORE_API void CountBytes( FArchive& Ar ) const;
 
 	/**
 	 * Calculates the amount of memory used by the compressed bytes array.
 	 *
 	 * @param	Ar	the FArchiveCountMem (or similar) archive that will store the results of the memory usage calculation.
 	 */
-	void CountImageBytes_Compressed( FArchive& Ar ) const;
+	CORE_API void CountImageBytes_Compressed( FArchive& Ar ) const;
 
 	/**
 	 * Calculates the amount of memory used by the uncompressed bytes array.
 	 *
 	 * @param	Ar	the FArchiveCountMem (or similar) archive that will store the results of the memory usage calculation.
 	 */
-	void CountImageBytes_Uncompressed( FArchive& Ar ) const;
+	CORE_API void CountImageBytes_Uncompressed( FArchive& Ar ) const;
 
 	/** I/O operator */
 	friend FArchive& operator<<( FArchive& Ar, FObjectThumbnail& Thumb )
@@ -264,7 +264,7 @@ typedef TMap< FName, FObjectThumbnail > FThumbnailMap;
 
 
 /** Wraps an object's full name and thumbnail */
-struct CORE_API FObjectFullNameAndThumbnail
+struct FObjectFullNameAndThumbnail
 {
 	/** Full name of the object */
 	FName ObjectFullName;
@@ -294,7 +294,7 @@ struct CORE_API FObjectFullNameAndThumbnail
 	 *
 	 * @param	Ar	the FArchiveCountMem (or similar) archive that will store the results of the memory usage calculation.
 	 */
-	void CountBytes( FArchive& Ar ) const;
+	CORE_API void CountBytes( FArchive& Ar ) const;
 
 	/** I/O operator */
 	friend FArchive& operator<<( FArchive& Ar, FObjectFullNameAndThumbnail& NameThumbPair )

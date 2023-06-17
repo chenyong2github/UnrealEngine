@@ -18,7 +18,7 @@
 
 class IAsyncReadFileHandle;
 
-class CORE_API FCachedFileHandle : public IFileHandle
+class FCachedFileHandle : public IFileHandle
 {
 public:
 	FCachedFileHandle(IFileHandle* InFileHandle, bool bInReadable, bool bInWritable)
@@ -252,7 +252,7 @@ private:
 	int32					CurrentCache;
 };
 
-class CORE_API FCachedReadPlatformFile : public IPlatformFile
+class FCachedReadPlatformFile : public IPlatformFile
 {
 	IPlatformFile*		LowerLevel;
 public:

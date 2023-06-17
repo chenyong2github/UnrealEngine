@@ -39,7 +39,7 @@ extern bool bSuppressFileLog;
 
 class FLoggedPlatformFile;
 
-class CORE_API FLoggedFileHandle : public IFileHandle
+class FLoggedFileHandle : public IFileHandle
 {
 	TUniquePtr<IFileHandle>	FileHandle;
 	FString					Filename;
@@ -48,8 +48,8 @@ class CORE_API FLoggedFileHandle : public IFileHandle
 #endif
 public:
 
-	FLoggedFileHandle(IFileHandle* InFileHandle, const TCHAR* InFilename, FLoggedPlatformFile& InOwner);
-	virtual ~FLoggedFileHandle();
+	CORE_API FLoggedFileHandle(IFileHandle* InFileHandle, const TCHAR* InFilename, FLoggedPlatformFile& InOwner);
+	CORE_API virtual ~FLoggedFileHandle();
 
 	virtual int64		Tell() override
 	{
@@ -133,7 +133,7 @@ public:
 	}
 };
 
-class CORE_API FLoggedPlatformFile : public IPlatformFile
+class FLoggedPlatformFile : public IPlatformFile
 {
 	IPlatformFile* LowerLevel;
 
@@ -159,9 +159,9 @@ public:
 	using IPlatformFile::IterateDirectoryStat;
 	using IPlatformFile::IterateDirectoryStatRecursively;
 
-	virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
+	CORE_API virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
 
-	virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CommandLineParam) override;
+	CORE_API virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CommandLineParam) override;
 
 	IPlatformFile* GetLowerLevel() override
 	{
@@ -480,7 +480,7 @@ public:
 			OpenHandles.Remove(Filename);
 		}
 	}
-	void HandleDumpCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	CORE_API void HandleDumpCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 #endif
 	virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename) override
 	{

@@ -20,13 +20,13 @@
  *
  * Interface to various external profiler API functions, dynamically linked
  */
-class CORE_API FExternalProfiler : public IModularFeature
+class FExternalProfiler : public IModularFeature
 {
 
 public:
 
 	/** Constructor */
-	FExternalProfiler();
+	CORE_API FExternalProfiler();
 
 	/** Empty virtual destructor. */
 	virtual ~FExternalProfiler()
@@ -34,10 +34,10 @@ public:
 	}
 
 	/** Pauses profiling. */
-	void PauseProfiler();
+	CORE_API void PauseProfiler();
 
 	/** Resumes profiling. */
-	void ResumeProfiler();
+	CORE_API void ResumeProfiler();
 
 	/**
 	 * Profiler interface.
@@ -59,7 +59,7 @@ public:
 	virtual const TCHAR* GetProfilerName() const = 0;
 
 	/** @return Returns the name to use for any profiler registered as a modular feature usable by this system */
-	static FName GetFeatureName();
+	static CORE_API FName GetFeatureName();
 
 	/** Starts a scoped event specific to the profiler. */
 	virtual void StartScopedEvent(const struct FColor& Color, const TCHAR* Text) {};
@@ -84,19 +84,19 @@ private:
 	friend class FScopedExternalProfilerBase;
 };
 
-class CORE_API FActiveExternalProfilerBase
+class FActiveExternalProfilerBase
 {
 public:	
 
 	static FExternalProfiler* GetActiveProfiler() { return ActiveProfiler;	};
 
-	static FExternalProfiler* InitActiveProfiler();
+	static CORE_API FExternalProfiler* InitActiveProfiler();
 private:
 	/** Static: True if we've tried to initialize a profiler already */
-	static bool bDidInitialize;
+	static CORE_API bool bDidInitialize;
 
 	/** Static: Active profiler instance that we're using */
-	static FExternalProfiler* ActiveProfiler;
+	static CORE_API FExternalProfiler* ActiveProfiler;
 };
 
 /**

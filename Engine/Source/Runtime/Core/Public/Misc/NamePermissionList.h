@@ -17,74 +17,74 @@ class FString;
 /** List of owner names that requested a specific item filtered, allows unregistering specific set of changes by a given plugin or system */
 typedef TArray<FName> FPermissionListOwners;
 
-class CORE_API FNamePermissionList : public TSharedFromThis<FNamePermissionList>
+class FNamePermissionList : public TSharedFromThis<FNamePermissionList>
 {
 public:
 	FNamePermissionList() {}
 	virtual ~FNamePermissionList() {}
 
 	/** Returns true if passes filter restrictions using exact match */
-	bool PassesFilter(const FName Item) const;
+	CORE_API bool PassesFilter(const FName Item) const;
 
 	/** 
 	 * Add item to DenyList, this specific item will be filtered out.
 	 * @return whether the filters changed.
 	 */
-	bool AddDenyListItem(const FName OwnerName, const FName Item);
+	CORE_API bool AddDenyListItem(const FName OwnerName, const FName Item);
 
 	/**
 	 * Add item to allowlist after which all items not in the allowlist will be filtered out.
 	 * @return whether the filters changed.
 	 */
-	bool AddAllowListItem(const FName OwnerName, const FName Item);
+	CORE_API bool AddAllowListItem(const FName OwnerName, const FName Item);
 
 	/**
 	 * Removes a previously-added item from the DenyList.
 	 * @return whether the filters changed.
 	 */
-	bool RemoveDenyListItem(const FName OwnerName, const FName Item);
+	CORE_API bool RemoveDenyListItem(const FName OwnerName, const FName Item);
 
 	/**
 	 * Removes a previously-added item from the allowlist.
 	 * @return whether the filters changed.
 	 */
-	bool RemoveAllowListItem(const FName OwnerName, const FName Item);
+	CORE_API bool RemoveAllowListItem(const FName OwnerName, const FName Item);
 
 	/**
 	 * Set to filter out all items.
 	 * @return whether the filters changed.
 	 */
-	bool AddDenyListAll(const FName OwnerName);
+	CORE_API bool AddDenyListAll(const FName OwnerName);
 	
 	/** True if has filters active */
-	bool HasFiltering() const;
+	CORE_API bool HasFiltering() const;
 
 	/** Gathers the names of all the owners in this DenyList. */
-	TArray<FName> GetOwnerNames() const;
+	CORE_API TArray<FName> GetOwnerNames() const;
 
 	/** 
 	* Removes all filtering changes associated with a specific owner name.
 	 * @return whether the filters changed.
 	 */
-	bool UnregisterOwner(const FName OwnerName);
+	CORE_API bool UnregisterOwner(const FName OwnerName);
 
 	/**
 	 * Removes all filtering changes associated with the specified list of owner names.
 	 * @return whether the filters changed.
 	 */
-	bool UnregisterOwners(const TArray<FName>& OwnerNames);
+	CORE_API bool UnregisterOwners(const TArray<FName>& OwnerNames);
 
 	/**
 	 * Add the specified filters to this one.
 	 * @return whether the filters changed.
 	 */
-	bool Append(const FNamePermissionList& Other);
+	CORE_API bool Append(const FNamePermissionList& Other);
 
 	/**
 	* Unregisters specified owners then adds specified filters in one operation (to avoid multiple filters changed events).
 	* @return whether the filters changed.
 	*/
-	bool UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FNamePermissionList& FiltersToAdd);
+	CORE_API bool UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FNamePermissionList& FiltersToAdd);
 
 	/** Get raw DenyList */
 	const TMap<FName, FPermissionListOwners>& GetDenyList() const { return DenyList; }
@@ -122,7 +122,7 @@ enum class EPathPermissionListType
 	ClassPaths	// Class permission list
 };
 
-class CORE_API FPathPermissionList : public TSharedFromThis<FPathPermissionList>
+class FPathPermissionList : public TSharedFromThis<FPathPermissionList>
 {
 public:
 	FPathPermissionList(EPathPermissionListType InType = EPathPermissionListType::Default) 
@@ -132,124 +132,124 @@ public:
 	virtual ~FPathPermissionList() {}
 	
 	/** Returns true if passes filter restrictions using exact match */
-	bool PassesFilter(const FStringView Item) const;
+	CORE_API bool PassesFilter(const FStringView Item) const;
 
 	/** Returns true if passes filter restrictions using exact match */
-	bool PassesFilter(const FName Item) const;
+	CORE_API bool PassesFilter(const FName Item) const;
 
 	/** Returns true if passes filter restrictions using exact match */
-	bool PassesFilter(const TCHAR* Item) const;
+	CORE_API bool PassesFilter(const TCHAR* Item) const;
 
 	/** Returns true if passes filter restrictions for path */
-	bool PassesStartsWithFilter(const FStringView Item, const bool bAllowParentPaths = false) const;
+	CORE_API bool PassesStartsWithFilter(const FStringView Item, const bool bAllowParentPaths = false) const;
 
 	/** Returns true if passes filter restrictions for path */
-	bool PassesStartsWithFilter(const FName Item, const bool bAllowParentPaths = false) const;
+	CORE_API bool PassesStartsWithFilter(const FName Item, const bool bAllowParentPaths = false) const;
 
 	/** Returns true if passes filter restrictions for path */
-	bool PassesStartsWithFilter(const TCHAR* Item, const bool bAllowParentPaths = false) const;
+	CORE_API bool PassesStartsWithFilter(const TCHAR* Item, const bool bAllowParentPaths = false) const;
 
 	/** 
 	 * Add item to DenyList, this specific item will be filtered out.
 	 * @return whether the filters changed.
 	 */
-	bool AddDenyListItem(const FName OwnerName, const FStringView Item);
+	CORE_API bool AddDenyListItem(const FName OwnerName, const FStringView Item);
 
 	/**
 	 * Add item to DenyList, this specific item will be filtered out.
 	 * @return whether the filters changed.
 	 */
-	bool AddDenyListItem(const FName OwnerName, const FName Item);
+	CORE_API bool AddDenyListItem(const FName OwnerName, const FName Item);
 
 	/**
 	 * Add item to DenyList, this specific item will be filtered out.
 	 * @return whether the filters changed.
 	 */
-	bool AddDenyListItem(const FName OwnerName, const TCHAR* Item);
+	CORE_API bool AddDenyListItem(const FName OwnerName, const TCHAR* Item);
 
 	/**
 	* Remove item from the DenyList
 	* @return whether the filters changed
 	*/
-	bool RemoveDenyListItem(const FName OwnerName, const FStringView Item);
+	CORE_API bool RemoveDenyListItem(const FName OwnerName, const FStringView Item);
 
 	/**
 	* Remove item from the DenyList
 	* @return whether the filters changed
 	*/
-	bool RemoveDenyListItem(const FName OwnerName, const FName Item);
+	CORE_API bool RemoveDenyListItem(const FName OwnerName, const FName Item);
 
 	/**
 	* Remove item from the DenyList
 	* @return whether the filters changed
 	*/
-	bool RemoveDenyListItem(const FName OwnerName, const TCHAR* Item);
+	CORE_API bool RemoveDenyListItem(const FName OwnerName, const TCHAR* Item);
 
 	/**
 	 * Add item to allowlist after which all items not in the allowlist will be filtered out.
 	 * @return whether the filters changed.
 	 */
-	bool AddAllowListItem(const FName OwnerName, const FStringView Item);
+	CORE_API bool AddAllowListItem(const FName OwnerName, const FStringView Item);
 
 	/**
 	 * Add item to allowlist after which all items not in the allowlist will be filtered out.
 	 * @return whether the filters changed.
 	 */
-	bool AddAllowListItem(const FName OwnerName, const FName Item);
+	CORE_API bool AddAllowListItem(const FName OwnerName, const FName Item);
 
 	/**
 	 * Add item to allowlist after which all items not in the allowlist will be filtered out.
 	 * @return whether the filters changed.
 	 */
-	bool AddAllowListItem(const FName OwnerName, const TCHAR* Item);
+	CORE_API bool AddAllowListItem(const FName OwnerName, const TCHAR* Item);
 
 	/**
 	* Remove item from the AllowList
 	* @return whether the filters changed
 	*/
-	bool RemoveAllowListItem(const FName OwnerName, const FStringView Item);
+	CORE_API bool RemoveAllowListItem(const FName OwnerName, const FStringView Item);
 
 	/**
 	* Remove item from the AllowList
 	* @return whether the filters changed
 	*/
-	bool RemoveAllowListItem(const FName OwnerName, const FName Item);
+	CORE_API bool RemoveAllowListItem(const FName OwnerName, const FName Item);
 
 	/**
 	* Remove item from the AllowList
 	* @return whether the filters changed
 	*/
-	bool RemoveAllowListItem(const FName OwnerName, const TCHAR* Item);
+	CORE_API bool RemoveAllowListItem(const FName OwnerName, const TCHAR* Item);
 
 	/**
 	 * Set to filter out all items.
 	 * @return whether the filters changed.
 	 */
-	bool AddDenyListAll(const FName OwnerName);
+	CORE_API bool AddDenyListAll(const FName OwnerName);
 	
 	/** True if has filters active */
-	bool HasFiltering() const;
+	CORE_API bool HasFiltering() const;
 
 	/** Gathers the names of all the owners in this DenyList. */
-	TArray<FName> GetOwnerNames() const;
+	CORE_API TArray<FName> GetOwnerNames() const;
 
 	/**
 	 * Removes all filtering changes associated with a specific owner name.
 	 * @return whether the filters changed.
 	 */
-	bool UnregisterOwner(const FName OwnerName);
+	CORE_API bool UnregisterOwner(const FName OwnerName);
 
 	/**
 	 * Removes all filtering changes associated with the specified list of owner names.
 	 * @return whether the filters changed.
 	 */
-	bool UnregisterOwners(const TArray<FName>& OwnerNames);
+	CORE_API bool UnregisterOwners(const TArray<FName>& OwnerNames);
 	
 	/**
 	 * Add the specified filters to this one. Rules are not applied, direct append lists.
 	 * @return whether the filters changed.
 	 */
-	bool Append(const FPathPermissionList& Other);
+	CORE_API bool Append(const FPathPermissionList& Other);
 
 	/**
 	 * Combine two filters.
@@ -257,13 +257,13 @@ public:
 	 * Result will contain AllowList paths that pass both filters.
 	 * @return new combined filter.
 	 */
-	FPathPermissionList CombinePathFilters(const FPathPermissionList& OtherFilter) const;
+	CORE_API FPathPermissionList CombinePathFilters(const FPathPermissionList& OtherFilter) const;
 
 	/**
 	* Unregisters specified owners then adds specified filters in one operation (to avoid multiple filters changed events).
 	* @return whether the filters changed.
 	*/
-	bool UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FPathPermissionList& FiltersToAdd);
+	CORE_API bool UnregisterOwnersAndAppend(const TArray<FName>& OwnerNamesToRemove, const FPathPermissionList& FiltersToAdd);
 
 	/** Get raw DenyList */
 	const TMap<FString, FPermissionListOwners>& GetDenyList() const { return DenyList; }
@@ -278,7 +278,7 @@ public:
 	FSimpleMulticastDelegate& OnFilterChanged() { return OnFilterChangedDelegate; }
 
 	/** Dumps the path permission list details into a multi-line string */
-	FString ToString() const;
+	CORE_API FString ToString() const;
 
 protected:
 
@@ -286,7 +286,7 @@ protected:
 	 * Checks if an item is of a valid format for this list
 	 * @return True if the item passes list type test.
 	 */
-	void VerifyItemMatchesListType(const FStringView Item) const;
+	CORE_API void VerifyItemMatchesListType(const FStringView Item) const;
 
 	/** List if items to filter out */
 	TMap<FString, FPermissionListOwners> DenyList;

@@ -23,12 +23,12 @@ enum class EDelayedRegisterRunPhase : uint8
 	NumPhases,
 };
 
-struct CORE_API FDelayedAutoRegisterHelper
+struct FDelayedAutoRegisterHelper
 {
 
-	FDelayedAutoRegisterHelper(EDelayedRegisterRunPhase RunPhase, TFunction<void()> RegistrationFunction);
+	CORE_API FDelayedAutoRegisterHelper(EDelayedRegisterRunPhase RunPhase, TFunction<void()> RegistrationFunction);
 
-	static void RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase RunPhase);
+	static CORE_API void RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase RunPhase);
 };
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_3

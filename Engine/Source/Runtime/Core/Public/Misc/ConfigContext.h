@@ -26,7 +26,7 @@
 class FConfigCacheIni;
 class FConfigFile;
 
-class CORE_API FConfigContext
+class FConfigContext
 {
 public:
 
@@ -122,19 +122,19 @@ public:
 	/**
 	 * Call to make before attempting parallel config init
 	 */
-	static void EnsureRequiredGlobalPathsHaveBeenInitialized();
+	static CORE_API void EnsureRequiredGlobalPathsHaveBeenInitialized();
 
 	/**
 	 * Use the context to perform the actual load operation. Note that this is where you specify the Ini name (for instance "Engine"), meaning
 	 * you can use the same context for multiple configs (Engine, Game, Input, etc)
 	 */
-	bool Load(const TCHAR* IniName);
+	CORE_API bool Load(const TCHAR* IniName);
 
 	/**
 	 * Use the context to perform the actual load operation as above, but will return the generated final ini filename (in the case of GConfig, this would
 	 * be the key used to look up into GConfig, for example)
 	 */
-	bool Load(const TCHAR* IniName, FString& OutFilename);
+	CORE_API bool Load(const TCHAR* IniName, FString& OutFilename);
 
 
 	// because the hierarchy can jump between platforms, we cache off some directories per chained-platform
@@ -147,7 +147,7 @@ public:
 	/**
 	 * Return the paths to use to find hierarchical config files for the given platform (note that these are independent of the ini name)
 	 */
-	const FPerPlatformDirs& GetPerPlatformDirs(const FString& PlatformName);
+	CORE_API const FPerPlatformDirs& GetPerPlatformDirs(const FString& PlatformName);
 
 
 	// @todo make these private and friend the FCOnfigCacheIni and FConfigFile once everything is a member function!!!!
@@ -190,17 +190,17 @@ protected:
 	bool bDoNotResetConfigFile = false;
 	bool bCacheOnNextLoad = true;
 
-	FConfigContext(FConfigCacheIni* InConfigSystem, bool InIsHierarchicalConfig, const FString& InPlatform, FConfigFile* DestConfigFile=nullptr);
+	CORE_API FConfigContext(FConfigCacheIni* InConfigSystem, bool InIsHierarchicalConfig, const FString& InPlatform, FConfigFile* DestConfigFile=nullptr);
 
-	FConfigContext& ResetBaseIni(const TCHAR* InBaseIniName);
-	void CachePaths();
+	CORE_API FConfigContext& ResetBaseIni(const TCHAR* InBaseIniName);
+	CORE_API void CachePaths();
 
-	bool PrepareForLoad(bool& bPerformLoad);
-	bool PerformLoad();
+	CORE_API bool PrepareForLoad(bool& bPerformLoad);
+	CORE_API bool PerformLoad();
 
-	void AddStaticLayersToHierarchy();
-	bool GenerateDestIniFile();
-	FString PerformFinalExpansions(const FString& InString, const FString& Platform);
+	CORE_API void AddStaticLayersToHierarchy();
+	CORE_API bool GenerateDestIniFile();
+	CORE_API FString PerformFinalExpansions(const FString& InString, const FString& Platform);
 };
 
 bool DoesConfigFileExistWrapper(const TCHAR* IniFile, const TSet<FString>* IniCacheSet = nullptr);

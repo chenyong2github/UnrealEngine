@@ -12,7 +12,7 @@
 class FOutputDevice;
 class UWorld;
 
-class CORE_API FConsoleManager :public IConsoleManager
+class FConsoleManager :public IConsoleManager
 {
 public:
 	/** constructor */
@@ -35,57 +35,57 @@ public:
 	}
 	
 	// internally needed or ECVF_RenderThreadSafe
-	IConsoleThreadPropagation* GetThreadPropagationCallback();
+	CORE_API IConsoleThreadPropagation* GetThreadPropagationCallback();
 	// internally needed or ECVF_RenderThreadSafe
-	bool IsThreadPropagationThread();
+	CORE_API bool IsThreadPropagationThread();
 
 	/** @param InVar must not be 0 */
-	virtual FString FindConsoleObjectName(const IConsoleObject* Obj) const override;
+	CORE_API virtual FString FindConsoleObjectName(const IConsoleObject* Obj) const override;
 
 	/** Can be moved out into some automated testing system */
-	void Test();
+	CORE_API void Test();
 
-	void OnCVarChanged();
+	CORE_API void OnCVarChanged();
 
-	virtual FConsoleVariableMulticastDelegate& OnCVarUnregistered()override;
+	CORE_API virtual FConsoleVariableMulticastDelegate& OnCVarUnregistered()override;
 
 	// interface IConsoleManager -----------------------------------
 
-	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, int32 DefaultValue, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, float DefaultValue, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, const TCHAR* DefaultValue, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, const FString& DefaultValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, bool DefaultValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, int32 DefaultValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, float DefaultValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, const TCHAR* DefaultValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariable(const TCHAR* Name, const FString& DefaultValue, const TCHAR* Help, uint32 Flags) override;
 
-	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, int32& RefValue, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, float& RefValue, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, FString& RefValue, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleVariable* RegisterConsoleVariableBitRef(const TCHAR* CVarName, const TCHAR* FlagName, uint32 BitNumber, uint8* Force0MaskPtr, uint8* Force1MaskPtr, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, bool& RefValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, int32& RefValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, float& RefValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariableRef(const TCHAR* Name, FString& RefValue, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleVariable* RegisterConsoleVariableBitRef(const TCHAR* CVarName, const TCHAR* FlagName, uint32 BitNumber, uint8* Force0MaskPtr, uint8* Force1MaskPtr, const TCHAR* Help, uint32 Flags) override;
 	
-	virtual void CallAllConsoleVariableSinks() override;
+	CORE_API virtual void CallAllConsoleVariableSinks() override;
 
-	virtual FConsoleVariableSinkHandle RegisterConsoleVariableSink_Handle(const FConsoleCommandDelegate& Command) override;
-	virtual void UnregisterConsoleVariableSink_Handle(FConsoleVariableSinkHandle Handle) override;
+	CORE_API virtual FConsoleVariableSinkHandle RegisterConsoleVariableSink_Handle(const FConsoleCommandDelegate& Command) override;
+	CORE_API virtual void UnregisterConsoleVariableSink_Handle(FConsoleVariableSinkHandle Handle) override;
 
-	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandDelegate& Command, uint32 Flags) override;
-	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsDelegate& Command, uint32 Flags) override;
-	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldDelegate& Command, uint32 Flags) override;
-	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldAndArgsDelegate& Command, uint32 Flags) override;
-	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsAndOutputDeviceDelegate& Command, uint32 Flags) override;
-	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldArgsAndOutputDeviceDelegate& Command, uint32 Flags) override;
-	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithOutputDeviceDelegate& Command, uint32 Flags) override;
-	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, uint32 Flags) override;
-	virtual IConsoleObject* FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls = true) const override;
-	virtual IConsoleVariable* FindConsoleVariable(const TCHAR* Name, bool bTrackFrequentCalls = true) const override;
-	virtual void ForEachConsoleObjectThatStartsWith(const FConsoleObjectVisitor& Visitor, const TCHAR* ThatStartsWith) const override;
-	virtual void ForEachConsoleObjectThatContains(const FConsoleObjectVisitor& Visitor, const TCHAR* ThatContains) const override;
-	virtual bool ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevice& Ar, UWorld* InWorld) override;
-	virtual void AddConsoleHistoryEntry(const TCHAR* Key, const TCHAR* Input) override;
-	virtual void GetConsoleHistory(const TCHAR* Key, TArray<FString>& Out) override;
-	virtual bool IsNameRegistered(const TCHAR* Name) const override;	
-	virtual void RegisterThreadPropagation(uint32 ThreadId, IConsoleThreadPropagation* InCallback) override;
-	virtual void UnregisterConsoleObject( IConsoleObject* Object, bool bKeepState) override;
+	CORE_API virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandDelegate& Command, uint32 Flags) override;
+	CORE_API virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsDelegate& Command, uint32 Flags) override;
+	CORE_API virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldDelegate& Command, uint32 Flags) override;
+	CORE_API virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldAndArgsDelegate& Command, uint32 Flags) override;
+	CORE_API virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsAndOutputDeviceDelegate& Command, uint32 Flags) override;
+	CORE_API virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldArgsAndOutputDeviceDelegate& Command, uint32 Flags) override;
+	CORE_API virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithOutputDeviceDelegate& Command, uint32 Flags) override;
+	CORE_API virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, uint32 Flags) override;
+	CORE_API virtual IConsoleObject* FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls = true) const override;
+	CORE_API virtual IConsoleVariable* FindConsoleVariable(const TCHAR* Name, bool bTrackFrequentCalls = true) const override;
+	CORE_API virtual void ForEachConsoleObjectThatStartsWith(const FConsoleObjectVisitor& Visitor, const TCHAR* ThatStartsWith) const override;
+	CORE_API virtual void ForEachConsoleObjectThatContains(const FConsoleObjectVisitor& Visitor, const TCHAR* ThatContains) const override;
+	CORE_API virtual bool ProcessUserConsoleInput(const TCHAR* InInput, FOutputDevice& Ar, UWorld* InWorld) override;
+	CORE_API virtual void AddConsoleHistoryEntry(const TCHAR* Key, const TCHAR* Input) override;
+	CORE_API virtual void GetConsoleHistory(const TCHAR* Key, TArray<FString>& Out) override;
+	CORE_API virtual bool IsNameRegistered(const TCHAR* Name) const override;	
+	CORE_API virtual void RegisterThreadPropagation(uint32 ThreadId, IConsoleThreadPropagation* InCallback) override;
+	CORE_API virtual void UnregisterConsoleObject( IConsoleObject* Object, bool bKeepState) override;
 
 private: // ----------------------------------------------------
 
@@ -116,25 +116,25 @@ private: // ----------------------------------------------------
 	 * @param Obj must not be 0
 	 * @return 0 if the name was already in use
 	 */
-	IConsoleObject* AddConsoleObject(const TCHAR* Name, IConsoleObject* Obj);
+	CORE_API IConsoleObject* AddConsoleObject(const TCHAR* Name, IConsoleObject* Obj);
 
 	/**
 	 * @param Stream must not be 0
 	 * @param Pattern must not be 0
 	 */
-	static bool MatchPartialName(const TCHAR* Stream, const TCHAR* Pattern);
+	static CORE_API bool MatchPartialName(const TCHAR* Stream, const TCHAR* Pattern);
 
 	/** Returns true if Pattern is found in Stream, case insensitive. */
-	static bool MatchSubstring(const TCHAR* Stream, const TCHAR* Pattern);
+	static CORE_API bool MatchSubstring(const TCHAR* Stream, const TCHAR* Pattern);
 
 	/**
 	 * Get string till whitespace, jump over whitespace
 	 * inefficient but this code is not performance critical
 	 */
-	static FString GetTextSection(const TCHAR* &It);
+	static CORE_API FString GetTextSection(const TCHAR* &It);
 
 	/** same as FindConsoleObject() but ECVF_CreatedFromIni are not filtered out (for internal use) */
-	IConsoleObject* FindConsoleObjectUnfiltered(const TCHAR* Name) const;
+	CORE_API IConsoleObject* FindConsoleObjectUnfiltered(const TCHAR* Name) const;
 
 	/**
 	 * Unregisters a console variable or command, if that object was registered.  For console variables, this will
@@ -144,11 +144,11 @@ private: // ----------------------------------------------------
 	 * @param	Name	Name of the console object to remove (not case sensitive)
 	 * @param	bKeepState	if the current state is kept in memory until a cvar with the same name is registered
 	 */
-	void UnregisterConsoleObject(const TCHAR* Name, bool bKeepState);
+	CORE_API void UnregisterConsoleObject(const TCHAR* Name, bool bKeepState);
 
 	// reads HistoryEntriesMap from the .ini file (if not already loaded)
-	void LoadHistoryIfNeeded();
+	CORE_API void LoadHistoryIfNeeded();
 
 	// writes HistoryEntriesMap to the .ini file
-	void SaveHistory();
+	CORE_API void SaveHistory();
 };

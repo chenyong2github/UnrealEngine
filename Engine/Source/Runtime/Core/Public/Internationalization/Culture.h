@@ -19,7 +19,7 @@ class FLegacyCultureImplementation;
 typedef FLegacyCultureImplementation FCultureImplementation;
 #endif
 
-class CORE_API FCulture
+class FCulture
 {
 #if UE_ENABLE_ICU
 	friend class FText;
@@ -29,80 +29,80 @@ class CORE_API FCulture
 #endif
 
 public:
-	~FCulture();
+	CORE_API ~FCulture();
 	
-	static FCultureRef Create(TUniquePtr<FCultureImplementation>&& InImplementation);
+	static CORE_API FCultureRef Create(TUniquePtr<FCultureImplementation>&& InImplementation);
 
-	const FString& GetDisplayName() const;
+	CORE_API const FString& GetDisplayName() const;
 
-	const FString& GetEnglishName() const;
+	CORE_API const FString& GetEnglishName() const;
 
-	int GetKeyboardLayoutId() const;
+	CORE_API int GetKeyboardLayoutId() const;
 
-	int GetLCID() const;
+	CORE_API int GetLCID() const;
 
-	TArray<FString> GetPrioritizedParentCultureNames() const;
+	CORE_API TArray<FString> GetPrioritizedParentCultureNames() const;
 
-	static TArray<FString> GetPrioritizedParentCultureNames(const FString& LanguageCode, const FString& ScriptCode, const FString& RegionCode);
+	static CORE_API TArray<FString> GetPrioritizedParentCultureNames(const FString& LanguageCode, const FString& ScriptCode, const FString& RegionCode);
 
-	static FString CreateCultureName(const FString& LanguageCode, const FString& ScriptCode, const FString& RegionCode);
+	static CORE_API FString CreateCultureName(const FString& LanguageCode, const FString& ScriptCode, const FString& RegionCode);
 
-	static FString GetCanonicalName(const FString& Name);
+	static CORE_API FString GetCanonicalName(const FString& Name);
 
-	const FString& GetName() const;
+	CORE_API const FString& GetName() const;
 	
-	const FString& GetNativeName() const;
+	CORE_API const FString& GetNativeName() const;
 
-	const FString& GetUnrealLegacyThreeLetterISOLanguageName() const;
+	CORE_API const FString& GetUnrealLegacyThreeLetterISOLanguageName() const;
 
-	const FString& GetThreeLetterISOLanguageName() const;
+	CORE_API const FString& GetThreeLetterISOLanguageName() const;
 
-	const FString& GetTwoLetterISOLanguageName() const;
+	CORE_API const FString& GetTwoLetterISOLanguageName() const;
 
-	const FString& GetNativeLanguage() const;
+	CORE_API const FString& GetNativeLanguage() const;
 
-	const FString& GetRegion() const;
+	CORE_API const FString& GetRegion() const;
 
-	const FString& GetNativeRegion() const;
+	CORE_API const FString& GetNativeRegion() const;
 
-	const FString& GetScript() const;
+	CORE_API const FString& GetScript() const;
 
-	const FString& GetVariant() const;
+	CORE_API const FString& GetVariant() const;
 
-	bool IsRightToLeft() const;
+	CORE_API bool IsRightToLeft() const;
 
-	const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules() const;
+	CORE_API const FDecimalNumberFormattingRules& GetDecimalNumberFormattingRules() const;
 
-	const FDecimalNumberFormattingRules& GetPercentFormattingRules() const;
+	CORE_API const FDecimalNumberFormattingRules& GetPercentFormattingRules() const;
 
-	const FDecimalNumberFormattingRules& GetCurrencyFormattingRules(const FString& InCurrencyCode) const;
+	CORE_API const FDecimalNumberFormattingRules& GetCurrencyFormattingRules(const FString& InCurrencyCode) const;
 
 	/**
 	 * Get the correct plural form to use for the given number
 	 * @param PluralType The type of plural form to get (cardinal or ordinal)
 	 */
-	ETextPluralForm GetPluralForm(float Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(double Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(int8 Val,		const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(int16 Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(int32 Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(int64 Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(uint8 Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(uint16 Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(uint32 Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(uint64 Val,	const ETextPluralType PluralType) const;
-	ETextPluralForm GetPluralForm(long Val,		const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(float Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(double Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(int8 Val,		const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(int16 Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(int32 Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(int64 Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(uint8 Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(uint16 Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(uint32 Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(uint64 Val,	const ETextPluralType PluralType) const;
+	CORE_API ETextPluralForm GetPluralForm(long Val,		const ETextPluralType PluralType) const;
 
 	/**
 	 * Get the plural forms supported by this culture
 	 * @param PluralType The type of plural form to get (cardinal or ordinal)
 	 */
-	const TArray<ETextPluralForm>& GetValidPluralForms(const ETextPluralType PluralType) const;
+	CORE_API const TArray<ETextPluralForm>& GetValidPluralForms(const ETextPluralType PluralType) const;
 	
-	void RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames, const bool bFullRefresh = true);
+	CORE_API void RefreshCultureDisplayNames(const TArray<FString>& InPrioritizedDisplayCultureNames, const bool bFullRefresh = true);
 
 private:
-	explicit FCulture(TUniquePtr<FCultureImplementation>&& InImplementation);
+	CORE_API explicit FCulture(TUniquePtr<FCultureImplementation>&& InImplementation);
 
 	TUniquePtr<FCultureImplementation> Implementation;
 

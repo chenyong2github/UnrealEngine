@@ -21,18 +21,18 @@ ENUM_CLASS_FLAGS(ELargeMemoryReaderFlags);
 /**
 * Archive for reading a large amount of arbitrary data from memory
 */
-class CORE_API FLargeMemoryReader : public FMemoryArchive
+class FLargeMemoryReader : public FMemoryArchive
 {
 public:
 
-	FLargeMemoryReader(const uint8* InData, const int64 Num, ELargeMemoryReaderFlags InFlags = ELargeMemoryReaderFlags::None, const FName InArchiveName = NAME_None);
+	CORE_API FLargeMemoryReader(const uint8* InData, const int64 Num, ELargeMemoryReaderFlags InFlags = ELargeMemoryReaderFlags::None, const FName InArchiveName = NAME_None);
 
-	virtual void Serialize(void* OutData, int64 Num) override;
+	CORE_API virtual void Serialize(void* OutData, int64 Num) override;
 
 	/**
 	* Gets the total size of the data buffer
 	*/
-	virtual int64 TotalSize() override;
+	CORE_API virtual int64 TotalSize() override;
 
 	/**
 	* Returns the name of the Archive.  Useful for getting the name of the package a struct or object
@@ -40,12 +40,12 @@ public:
 	*
 	* This is overridden for the specific Archive Types
 	**/
-	virtual FString GetArchiveName() const override;
+	CORE_API virtual FString GetArchiveName() const override;
 
 	/**
 	* Destructor
 	*/
-	~FLargeMemoryReader();
+	CORE_API ~FLargeMemoryReader();
 
 private:
 

@@ -14,22 +14,22 @@
 
 #if PLATFORMFILETRACE_ENABLED
 
-struct CORE_API FPlatformFileTrace
+struct FPlatformFileTrace
 {
-	static void BeginOpen(const TCHAR* Path);
-	static void EndOpen(uint64 FileHandle);
-	static void FailOpen(const TCHAR* Path);
-	static void BeginReOpen(uint64 OldFileHandle);
-	static void EndReOpen(uint64 NewFileHandle);
-	static void BeginClose(uint64 FileHandle);
-	static void EndClose(uint64 FileHandle);
-	static void FailClose(uint64 FileHandle);
-	static void BeginRead(uint64 ReadHandle, uint64 FileHandle, uint64 Offset, uint64 Size);
-	static void EndRead(uint64 ReadHandle, uint64 SizeRead);
-	static void BeginWrite(uint64 WriteHandle, uint64 FileHandle, uint64 Offset, uint64 Size);
-	static void EndWrite(uint64 WriteHandle, uint64 SizeWritten);
+	static CORE_API void BeginOpen(const TCHAR* Path);
+	static CORE_API void EndOpen(uint64 FileHandle);
+	static CORE_API void FailOpen(const TCHAR* Path);
+	static CORE_API void BeginReOpen(uint64 OldFileHandle);
+	static CORE_API void EndReOpen(uint64 NewFileHandle);
+	static CORE_API void BeginClose(uint64 FileHandle);
+	static CORE_API void EndClose(uint64 FileHandle);
+	static CORE_API void FailClose(uint64 FileHandle);
+	static CORE_API void BeginRead(uint64 ReadHandle, uint64 FileHandle, uint64 Offset, uint64 Size);
+	static CORE_API void EndRead(uint64 ReadHandle, uint64 SizeRead);
+	static CORE_API void BeginWrite(uint64 WriteHandle, uint64 FileHandle, uint64 Offset, uint64 Size);
+	static CORE_API void EndWrite(uint64 WriteHandle, uint64 SizeWritten);
 
-	static uint32 GetOpenFileHandleCount();
+	static CORE_API uint32 GetOpenFileHandleCount();
 };
 
 #define TRACE_PLATFORMFILE_BEGIN_OPEN(Path) \

@@ -6,26 +6,26 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 
-class CORE_API FEngineBuildSettings
+class FEngineBuildSettings
 {
 public:
 	/**
 	 * @return True if the build was gotten from perforce
 	 */
-	static bool IsPerforceBuild();
+	static CORE_API bool IsPerforceBuild();
 
 	/**
 	 * @return True if the build is for internal projects only
 	 */
-	static bool IsInternalBuild();
+	static CORE_API bool IsInternalBuild();
 
 	/**
 	 * @return True if the current installation is a source distribution.
 	 */
-	static bool IsSourceDistribution();
+	static CORE_API bool IsSourceDistribution();
 
 	/**
 	 * @return True if a given engine distribution contains source (as opposed to, say, Launcher builds)
 	 */
-	static bool IsSourceDistribution(const FString& RootDir);
+	static CORE_API bool IsSourceDistribution(const FString& RootDir);
 };

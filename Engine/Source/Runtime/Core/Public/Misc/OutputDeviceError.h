@@ -6,7 +6,7 @@
 #include "Misc/OutputDevice.h"
 
 // Error device.
-class CORE_API FOutputDeviceError : public FOutputDevice
+class FOutputDeviceError : public FOutputDevice
 {
 public:
 	virtual bool CanBeUsedOnPanicThread() const override

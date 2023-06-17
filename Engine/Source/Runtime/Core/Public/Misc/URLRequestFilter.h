@@ -25,7 +25,7 @@ namespace UE::Core
  * To allow both an absolute domain and all of its subdomains, provide two entries in the array,
  * one with the period prefix and one without. For example, "epicgames.com" and ".epicgames.com".
  */
-class CORE_API FURLRequestFilter
+class FURLRequestFilter
 {
 public:
 	using FRequestMap = TMap<const FString, const TArray<FString>>;
@@ -43,18 +43,18 @@ public:
 	 * !AllowedDomains=ClearArray
 	 * +AllowedDomains=epicgames.com
 	 */
-	FURLRequestFilter(const TCHAR* ConfigSectionRootName, const FString& ConfigFileName);
+	CORE_API FURLRequestFilter(const TCHAR* ConfigSectionRootName, const FString& ConfigFileName);
 
 	/**
 	 * Initializes the allowlist based on an explicit scheme/domain map
 	 */
-	FURLRequestFilter(const FRequestMap& InAllowedRequests);
-	FURLRequestFilter(FRequestMap&& InAllowedRequests);
+	CORE_API FURLRequestFilter(const FRequestMap& InAllowedRequests);
+	CORE_API FURLRequestFilter(FRequestMap&& InAllowedRequests);
 
 	/**
 	 * Update the allow list by corresponding section in a config file
 	 */
-	void UpdateConfig(const TCHAR* ConfigSectionRootName, const FString& ConfigFileName);
+	CORE_API void UpdateConfig(const TCHAR* ConfigSectionRootName, const FString& ConfigFileName);
 
 	/**
 	 * Check if allow list is empty
@@ -64,7 +64,7 @@ public:
 	/**
 	 * Matches InURL against the configued list of allowed URL schemes and domains. Returns true if the URL is allowed.
 	 */
-	bool IsRequestAllowed(FStringView InURL) const;
+	CORE_API bool IsRequestAllowed(FStringView InURL) const;
 
 private:
 	FRequestMap AllowedRequests;

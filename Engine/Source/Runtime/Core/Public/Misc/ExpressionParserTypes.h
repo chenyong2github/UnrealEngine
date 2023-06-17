@@ -86,7 +86,7 @@ enum class EParseState
 };
 
 /** A token stream wraps up a raw string, providing accessors into it for consuming tokens */
-class CORE_API FTokenStream
+class FTokenStream
 {
 public:
 
@@ -96,53 +96,53 @@ public:
 	 * Optionally supply a token to accumulate into
 	 * Returns a string token for the stream, or empty on error
 	 */
-	TOptional<FStringToken> ParseToken(TFunctionRef<EParseState(TCHAR)> Pred, FStringToken* Accumulate = nullptr) const;
+	CORE_API TOptional<FStringToken> ParseToken(TFunctionRef<EParseState(TCHAR)> Pred, FStringToken* Accumulate = nullptr) const;
 
 	/** Attempt parse out the specified pre-defined string from the current read position (or accumulating into the specified existing token) */
-	TOptional<FStringToken> ParseToken(const TCHAR* Symbol, FStringToken* Accumulate = nullptr) const;
-	TOptional<FStringToken> ParseTokenIgnoreCase(const TCHAR* Symbol, FStringToken* Accumulate = nullptr) const;
+	CORE_API TOptional<FStringToken> ParseToken(const TCHAR* Symbol, FStringToken* Accumulate = nullptr) const;
+	CORE_API TOptional<FStringToken> ParseTokenIgnoreCase(const TCHAR* Symbol, FStringToken* Accumulate = nullptr) const;
 
 	/** Return a string token for the next character in the stream (or accumulating into the specified existing token) */
-	TOptional<FStringToken> ParseSymbol(FStringToken* Accumulate = nullptr) const;
+	CORE_API TOptional<FStringToken> ParseSymbol(FStringToken* Accumulate = nullptr) const;
 
 	/** Attempt parse out the specified pre-defined string from the current read position (or accumulating into the specified existing token) */
-	TOptional<FStringToken> ParseSymbol(TCHAR Symbol, FStringToken* Accumulate = nullptr) const;
+	CORE_API TOptional<FStringToken> ParseSymbol(TCHAR Symbol, FStringToken* Accumulate = nullptr) const;
 
 	/** Parse a whitespace token */
-	TOptional<FStringToken> ParseWhitespace(FStringToken* Accumulate = nullptr) const;
+	CORE_API TOptional<FStringToken> ParseWhitespace(FStringToken* Accumulate = nullptr) const;
 
 	/** Generate a token for the specified number of chars, at the current read position (or end of Accumulate) */
-	TOptional<FStringToken> GenerateToken(int32 NumChars, FStringToken* Accumulate = nullptr) const;
+	CORE_API TOptional<FStringToken> GenerateToken(int32 NumChars, FStringToken* Accumulate = nullptr) const;
 
 public:
 
 	/** Constructor. The stream is only valid for the lifetime of the string provided */
-	FTokenStream(const TCHAR* In);
+	CORE_API FTokenStream(const TCHAR* In);
 	
 	/** Peek at the character at the specified offset from the current read position */
-	TCHAR PeekChar(int32 Offset = 0) const;
+	CORE_API TCHAR PeekChar(int32 Offset = 0) const;
 
 	/** Get the number of characters remaining in the stream after the current read position */
-	int32 CharsRemaining() const;
+	CORE_API int32 CharsRemaining() const;
 
 	/** Check if it is valid to read (the optional number of characters) from the specified position */
-	bool IsReadPosValid(const TCHAR* InPos, int32 MinNumChars = 1) const;
+	CORE_API bool IsReadPosValid(const TCHAR* InPos, int32 MinNumChars = 1) const;
 
 	/** Check if the stream is empty */
-	bool IsEmpty() const;
+	CORE_API bool IsEmpty() const;
 
 	/** Get the current read position from the start of the stream */
-	int32 GetPosition() const;
+	CORE_API int32 GetPosition() const;
 
 	const TCHAR* GetStart() const { return Start; }
 	const TCHAR* GetRead() const { return ReadPos; }
 	const TCHAR* GetEnd() const { return End; }
 
 	/** Get the error context from the current read position */
-	FString GetErrorContext() const;
+	CORE_API FString GetErrorContext() const;
 
 	/** Set the current read position to the character proceeding the specified token */
-	void SetReadPos(const FStringToken& Token);
+	CORE_API void SetReadPos(const FStringToken& Token);
 
 private:
 
@@ -176,7 +176,7 @@ DEFINE_EXPRESSION_NODE_TYPE(double, 0x8444A8A3, 0x19AE4E13, 0xBCFA75EE, 0x39982B
  * 	Can be constructed from any C++ type that has a corresponding DEFINE_EXPRESSION_NODE_TYPE.
  * 	Evaluation behaviour (unary/binary operator etc) is defined in the expression grammar, rather than the type itself.
  */
-class CORE_API FExpressionNode : FNoncopyable
+class FExpressionNode : FNoncopyable
 {
 public:
 
@@ -190,21 +190,21 @@ public:
 		typename TEnableIf<!TPointerIsConvertibleFromTo<T, FExpressionNode>::Value>::Type* = nullptr
 		);
 
-	~FExpressionNode();
+	CORE_API ~FExpressionNode();
 
 	/** Move construction/assignment */
-	FExpressionNode(FExpressionNode&& In);
-	FExpressionNode& operator=(FExpressionNode&& In);
+	CORE_API FExpressionNode(FExpressionNode&& In);
+	CORE_API FExpressionNode& operator=(FExpressionNode&& In);
 
 	/** Get the type identifier of this node */
-	const FGuid& GetTypeId() const;
+	CORE_API const FGuid& GetTypeId() const;
 
 	/** Cast this node to the specified type. Will return nullptr if the types do not match. */
 	template<typename T>
 	const T* Cast() const;
 
 	/** Copy this node and its wrapped data */
-	FExpressionNode Copy() const;
+	CORE_API FExpressionNode Copy() const;
 
 private:
 
@@ -212,8 +212,8 @@ private:
 	static constexpr uint32 MaxStackAllocationSize = 64 - sizeof(FGuid);
 
 	/** Helper accessor to the data interface. Returns null for empty containers. */
-	Impl::IExpressionNodeStorage* GetData();
-	const Impl::IExpressionNodeStorage* GetData() const;
+	CORE_API Impl::IExpressionNodeStorage* GetData();
+	CORE_API const Impl::IExpressionNodeStorage* GetData() const;
 
 	/** TypeID - 16 bytes */
 	FGuid TypeId;
@@ -418,26 +418,26 @@ private:
 typedef TOperatorEvaluationEnvironment<> FOperatorEvaluationEnvironment;
 
 /** Class used to consume tokens from a string */
-class CORE_API FExpressionTokenConsumer
+class FExpressionTokenConsumer
 {
 public:
 	/** Construction from a raw string. The consumer is only valid as long as the string is valid */
-	FExpressionTokenConsumer(const TCHAR* InExpression);
+	CORE_API FExpressionTokenConsumer(const TCHAR* InExpression);
 
 	/** Extract the list of tokens from this consumer */
-	TArray<FExpressionToken> Extract();
+	CORE_API TArray<FExpressionToken> Extract();
 
 	/** Add an expression node to the consumer, specifying the FStringToken this node relates to.
 	 *	Adding a node to the consumer will move its stream read position to the end of the added token.
 	 */
-	void Add(const FStringToken& SourceToken, FExpressionNode&& Node);
+	CORE_API void Add(const FStringToken& SourceToken, FExpressionNode&& Node);
 
 	/** Get the expression stream */
 	FTokenStream& GetStream() { return Stream; }
 
 private:
-	FExpressionTokenConsumer(const FExpressionTokenConsumer&);
-	FExpressionTokenConsumer& operator=(const FExpressionTokenConsumer&);
+	CORE_API FExpressionTokenConsumer(const FExpressionTokenConsumer&);
+	CORE_API FExpressionTokenConsumer& operator=(const FExpressionTokenConsumer&);
 
 	/** Array of added tokens */
 	TArray<FExpressionToken> Tokens;
@@ -455,7 +455,7 @@ typedef TOptional<FExpressionError> (FExpressionDefinition)(FExpressionTokenCons
 
 
 /** A lexeme dictionary defining how to lex an expression. */
-class CORE_API FTokenDefinitions
+class FTokenDefinitions
 {
 public:
 	FTokenDefinitions() : bIgnoreWhitespace(false) {}
@@ -464,7 +464,7 @@ public:
 	void IgnoreWhitespace() { bIgnoreWhitespace = true; }
 
 	/** Define a token by way of a function to be invoked to attempt to parse a token from a stream */
-	void DefineToken(TFunction<FExpressionDefinition>&& Definition);
+	CORE_API void DefineToken(TFunction<FExpressionDefinition>&& Definition);
 
 public:
 
@@ -472,11 +472,11 @@ public:
 	bool DoesIgnoreWhitespace() { return bIgnoreWhitespace; }
 
 	/** Consume a token for the specified consumer */
-	TOptional<FExpressionError> ConsumeTokens(FExpressionTokenConsumer& Consumer) const;
+	CORE_API TOptional<FExpressionError> ConsumeTokens(FExpressionTokenConsumer& Consumer) const;
 
 private:
 
-	TOptional<FExpressionError> ConsumeToken(FExpressionTokenConsumer& Consumer) const;
+	CORE_API TOptional<FExpressionError> ConsumeToken(FExpressionTokenConsumer& Consumer) const;
 
 private:
 
@@ -517,7 +517,7 @@ struct FOpParameters
 };
 
 /** A lexical gammer defining how to parse an expression. Clients must define the tokens and operators to be interpreted by the parser. */
-class CORE_API FExpressionGrammar
+class FExpressionGrammar
 {
 public:
 	/** Define a grouping operator from two expression node types */
@@ -561,16 +561,16 @@ public:
 public:
 
 	/** Retrieve the corresponding grouping token for the specified open group type, or nullptr if it's not a group token */
-	const FGuid* GetGrouping(const FGuid& TypeId) const;
+	CORE_API const FGuid* GetGrouping(const FGuid& TypeId) const;
 
 	/** Check if this grammar defines a pre-unary operator for the specified symbol */
-	bool HasPreUnaryOperator(const FGuid& TypeId) const;
+	CORE_API bool HasPreUnaryOperator(const FGuid& TypeId) const;
 	
 	/** Check if this grammar defines a post-unary operator for the specified symbol */
-	bool HasPostUnaryOperator(const FGuid& TypeId) const;
+	CORE_API bool HasPostUnaryOperator(const FGuid& TypeId) const;
 
 	/** Get the binary operator precedence and associativity parameters, for the specified symbol, if any */
-	const FOpParameters* GetBinaryOperatorDefParameters(const FGuid& TypeId) const;
+	CORE_API const FOpParameters* GetBinaryOperatorDefParameters(const FGuid& TypeId) const;
 
 private:
 

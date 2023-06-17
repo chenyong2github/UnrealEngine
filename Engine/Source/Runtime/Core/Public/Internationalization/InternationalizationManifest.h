@@ -15,7 +15,7 @@
 
 class FLocMetadataObject;
 
-struct CORE_API FManifestContext
+struct FManifestContext
 {
 public:
 	FManifestContext()
@@ -35,12 +35,12 @@ public:
 	}
 
 	/** Copy ctor */
-	FManifestContext(const FManifestContext& Other);
+	CORE_API FManifestContext(const FManifestContext& Other);
 
-	FManifestContext& operator=(const FManifestContext& Other);
-	bool operator==(const FManifestContext& Other) const;
+	CORE_API FManifestContext& operator=(const FManifestContext& Other);
+	CORE_API bool operator==(const FManifestContext& Other) const;
 	inline bool operator!=(const FManifestContext& Other) const { return !(*this == Other); }
-	bool operator<(const FManifestContext& Other) const;
+	CORE_API bool operator<(const FManifestContext& Other) const;
 
 public:
 	FLocKey Key;
@@ -53,7 +53,7 @@ public:
 };
 
 
-struct CORE_API FLocItem
+struct FLocItem
 {
 public:
 	FLocItem()
@@ -75,15 +75,15 @@ public:
 	}
 
 	/** Copy ctor */
-	FLocItem(const FLocItem& Other);
+	CORE_API FLocItem(const FLocItem& Other);
 
-	FLocItem& operator=(const FLocItem& Other);
-	bool operator==(const FLocItem& Other) const;
+	CORE_API FLocItem& operator=(const FLocItem& Other);
+	CORE_API bool operator==(const FLocItem& Other) const;
 	inline bool operator!=(const FLocItem& Other) const { return !(*this == Other); }
-	bool operator<(const FLocItem& Other) const;
+	CORE_API bool operator<(const FLocItem& Other) const;
 
 	/** Similar functionality to == operator but ensures everything matches(ex. ignores COMPARISON_MODIFIER_PREFIX on metadata). */
-	bool IsExactMatch(const FLocItem& Other) const;
+	CORE_API bool IsExactMatch(const FLocItem& Other) const;
 
 public:
 	FString Text;
@@ -91,7 +91,7 @@ public:
 };
 
 
-class CORE_API FManifestEntry
+class FManifestEntry
 {
 public:
 	FManifestEntry(const FLocKey& InNamespace, const FLocItem& InSource)
@@ -101,9 +101,9 @@ public:
 	{
 	}
 
-	const FManifestContext* FindContext(const FLocKey& ContextKey, const TSharedPtr<FLocMetadataObject>& KeyMetadata = nullptr) const;
-	const FManifestContext* FindContextByKey(const FLocKey& ContextKey) const;
-	void MergeContextPlatformInfo(const FManifestContext& InContext);
+	CORE_API const FManifestContext* FindContext(const FLocKey& ContextKey, const TSharedPtr<FLocMetadataObject>& KeyMetadata = nullptr) const;
+	CORE_API const FManifestContext* FindContextByKey(const FLocKey& ContextKey) const;
+	CORE_API void MergeContextPlatformInfo(const FManifestContext& InContext);
 
 	const FLocKey Namespace;
 	const FLocItem Source;
@@ -115,7 +115,7 @@ typedef TMultiMap< FLocKey, TSharedRef< FManifestEntry > > FManifestEntryByLocKe
 typedef TMultiMap< FString, TSharedRef< FManifestEntry >, FDefaultSetAllocator, FLocKeyMultiMapFuncs< TSharedRef< FManifestEntry > > > FManifestEntryByStringContainer;
 
 
-class CORE_API FInternationalizationManifest 
+class FInternationalizationManifest 
 {
 public:
 	enum class EFormatVersion : uint8
@@ -138,15 +138,15 @@ public:
 	*
 	* @return Returns true if add was successful or a matching entry already exists, false is only returned in the case where a duplicate context was found with different text.
 	*/
-	bool AddSource(const FLocKey& Namespace, const FLocItem& Source, const FManifestContext& Context);
+	CORE_API bool AddSource(const FLocKey& Namespace, const FLocItem& Source, const FManifestContext& Context);
 
-	void UpdateEntry(const TSharedRef<FManifestEntry>& OldEntry, TSharedRef<FManifestEntry>& NewEntry);
+	CORE_API void UpdateEntry(const TSharedRef<FManifestEntry>& OldEntry, TSharedRef<FManifestEntry>& NewEntry);
 
-	TSharedPtr<FManifestEntry> FindEntryBySource(const FLocKey& Namespace, const FLocItem& Source) const;
+	CORE_API TSharedPtr<FManifestEntry> FindEntryBySource(const FLocKey& Namespace, const FLocItem& Source) const;
 
-	TSharedPtr<FManifestEntry> FindEntryByContext(const FLocKey& Namespace, const FManifestContext& Context) const;
+	CORE_API TSharedPtr<FManifestEntry> FindEntryByContext(const FLocKey& Namespace, const FManifestContext& Context) const;
 
-	TSharedPtr<FManifestEntry> FindEntryByKey(const FLocKey& Namespace, const FLocKey& Key, const FString* SourceText = nullptr) const;
+	CORE_API TSharedPtr<FManifestEntry> FindEntryByKey(const FLocKey& Namespace, const FLocKey& Key, const FString* SourceText = nullptr) const;
 
 	FManifestEntryByLocKeyContainer::TConstIterator GetEntriesByKeyIterator() const
 	{

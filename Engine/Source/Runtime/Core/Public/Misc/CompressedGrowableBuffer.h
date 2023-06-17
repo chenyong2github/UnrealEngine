@@ -10,7 +10,7 @@
  * Growable compressed buffer. Usage is to append frequently but only request and therefore decompress
  * very infrequently. The prime usage case is the memory profiler keeping track of full call stacks.
  */
-struct CORE_API FCompressedGrowableBuffer
+struct FCompressedGrowableBuffer
 {
 private:
 	/**
@@ -21,7 +21,7 @@ private:
 	{
 		Redirect
 	};
-	FCompressedGrowableBuffer(EVS2015Redirector, int32 MaxPendingBufferSize, ECompressionFlags CompressionFlags);
+	CORE_API FCompressedGrowableBuffer(EVS2015Redirector, int32 MaxPendingBufferSize, ECompressionFlags CompressionFlags);
 public:
 	/**
 	 * Constructor
@@ -34,17 +34,17 @@ public:
 		// Make sure to remove the EVS2015Redirector constructor when this constructor is removed
 		: FCompressedGrowableBuffer(EVS2015Redirector::Redirect, MaxPendingBufferSize, CompressionFlags)
 	{}
-	FCompressedGrowableBuffer(int32 MaxPendingBufferSize, FName COmpressionFormat, ECompressionFlags CompressionFlags=COMPRESS_None);
+	CORE_API FCompressedGrowableBuffer(int32 MaxPendingBufferSize, FName COmpressionFormat, ECompressionFlags CompressionFlags=COMPRESS_None);
 
 	/**
 	 * Locks the buffer for reading. Needs to be called before calls to Access and needs
 	 * to be matched up with Unlock call.
 	 */
-	void Lock();
+	CORE_API void Lock();
 	/**
 	 * Unlocks the buffer and frees temporary resources used for accessing.
 	 */
-	void Unlock();
+	CORE_API void Unlock();
 
 	/**
 	 * Appends passed in data to the buffer. The data needs to be less than the max
@@ -54,7 +54,7 @@ public:
 	 * @param	Size	Size of data in bytes.
 	 * @return	Offset of data, used for retrieval later on
 	 */
-	int32 Append( void* Data, int32 Size );
+	CORE_API int32 Append( void* Data, int32 Size );
 
 	/**
 	 * Accesses the data at passed in offset and returns it. The memory is read-only and
@@ -63,7 +63,7 @@ public:
 	 *
 	 * @param	Offset	Offset to return corresponding data for
 	 */
-	void* Access( int32 Offset );
+	CORE_API void* Access( int32 Offset );
 
 	/**
 	 * @return	Number of entries appended.

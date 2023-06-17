@@ -42,11 +42,11 @@ namespace ESearchDir
 }
 
 /** Helper class used to convert CString into a boolean value. */
-struct CORE_API FToBoolHelper
+struct FToBoolHelper
 {
-	static bool FromCStringAnsi( const ANSICHAR* String );
-	static bool FromCStringWide( const WIDECHAR* String );
-	static bool FromCStringUtf8( const UTF8CHAR* String );
+	static CORE_API bool FromCStringAnsi( const ANSICHAR* String );
+	static CORE_API bool FromCStringWide( const WIDECHAR* String );
+	static CORE_API bool FromCStringUtf8( const UTF8CHAR* String );
 };
 
 /**

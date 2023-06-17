@@ -32,19 +32,19 @@ namespace UE::Core::Private
 /**
  * Path helpers for retrieving game dir, engine dir, etc.
  */
-class CORE_API FPaths
+class FPaths
 {
 public:
 
 	/**
 	 * Should the "saved" directory structures be rooted in the user dir or relative to the "engine/game" 
 	 */
-	static bool ShouldSaveToUserDir();
+	static CORE_API bool ShouldSaveToUserDir();
 
 	/**
 	 * Returns the directory the application was launched from (useful for commandline utilities)
 	 */
-	static FString LaunchDir();
+	static CORE_API FString LaunchDir();
 	 
 	/** 
 	 * Returns the base directory of the "core" engine that can be shared across
@@ -53,21 +53,21 @@ public:
 	 *
 	 * @return engine directory
 	 */
-	static FString EngineDir();
+	static CORE_API FString EngineDir();
 
 	/**
 	* Returns the root directory for user-specific engine files. Always writable.
 	*
 	* @return root user directory
 	*/
-	static FString EngineUserDir();
+	static CORE_API FString EngineUserDir();
 
 	/**
 	* Returns the root directory for user-specific engine files which can be shared between versions. Always writable.
 	*
 	* @return root user directory
 	*/
-	static FString EngineVersionAgnosticUserDir();
+	static CORE_API FString EngineVersionAgnosticUserDir();
 
 	/** 
 	 * Returns the content directory of the "core" engine that can be shared across
@@ -75,113 +75,113 @@ public:
 	 *
 	 * @return engine content directory
 	 */
-	static FString EngineContentDir();
+	static CORE_API FString EngineContentDir();
 
 	/**
 	 * Returns the directory the root configuration files are located.
 	 *
 	 * @return root config directory
 	 */
-	static FString EngineConfigDir();
+	static CORE_API FString EngineConfigDir();
 
 	/**
 	 * Returns the Editor Settings directory of the engine
 	 *
 	 * @return Editor Settings directory.
 	 */
-	static FString EngineEditorSettingsDir();
+	static CORE_API FString EngineEditorSettingsDir();
 
 	/**
 	 * Returns the intermediate directory of the engine
 	 *
 	 * @return content directory
 	 */
-	static FString EngineIntermediateDir();
+	static CORE_API FString EngineIntermediateDir();
 
 	/**
 	 * Returns the saved directory of the engine
 	 *
 	 * @return Saved directory.
 	 */
-	static FString EngineSavedDir();
+	static CORE_API FString EngineSavedDir();
 
 	/**
 	 * Returns the plugins directory of the engine
 	 *
 	 * @return Plugins directory.
 	 */
-	static FString EnginePluginsDir();
+	static CORE_API FString EnginePluginsDir();
 
 	/**
 	 * Returns the directory for default Editor UI Layout files of the engine
 	 * @return Directory for default Editor UI Layout files.
 	 */
-	static FString EngineDefaultLayoutDir();
+	static CORE_API FString EngineDefaultLayoutDir();
 
 	/**
 	 * Returns the directory for project Editor UI Layout files of the engine
 	 * @return Directory for project Editor UI Layout files.
 	 */
-	static FString EngineProjectLayoutDir();
+	static CORE_API FString EngineProjectLayoutDir();
 
 	/**
 	 * Returns the directory for user-generated Editor UI Layout files of the engine
 	 * @return Directory for user-generated Editor UI Layout files.
 	 */
-	static FString EngineUserLayoutDir();
+	static CORE_API FString EngineUserLayoutDir();
 
 	/** 
 	* Returns the base directory enterprise directory.
 	*
 	* @return enterprise directory
 	*/
-	static FString EnterpriseDir();
+	static CORE_API FString EnterpriseDir();
 
 	/**
 	* Returns the enterprise plugins directory
 	*
 	* @return Plugins directory.
 	*/
-	static FString EnterprisePluginsDir();
+	static CORE_API FString EnterprisePluginsDir();
 
 	/**
 	* Returns the enterprise FeaturePack directory
 	*
 	* @return FeaturePack directory.
 	*/
-	static FString EnterpriseFeaturePackDir();
+	static CORE_API FString EnterpriseFeaturePackDir();
 
 	/**
 	 * Returns the directory where engine platform extensions reside
 	 *
 	 * @return engine platform extensions directory
 	 */
-	static FString EnginePlatformExtensionsDir();
+	static CORE_API FString EnginePlatformExtensionsDir();
 
 	/**
 	 * Returns the directory where the project's platform extensions reside
 	 *
 	 * @return project platform extensions directory
 	 */
-	static FString ProjectPlatformExtensionsDir();
+	static CORE_API FString ProjectPlatformExtensionsDir();
 
 	/**
 	 * Returns platform and restricted extensions that are present and valid (for platforms, it uses FDataDrivePlatformInfo to determine valid platforms, it doesn't just use what's present)
 	 *
 	 * @return BaseDir and usable extension directories under BaseDir (either Engine or Project)
 	 */
-	static TArray<FString> GetExtensionDirs(const FString& BaseDir, const FString& SubDir=FString());
+	static CORE_API TArray<FString> GetExtensionDirs(const FString& BaseDir, const FString& SubDir=FString());
 
 	/**
 	 * Returns the root directory of the engine directory tree
 	 *
 	 * @return Root directory.
 	 */
-	static FString RootDir();
+	static CORE_API FString RootDir();
 
 #if WITH_EDITOR
 	/** Returns the special path used when mounting FeaturePaks in editor */
-	static const TCHAR* GameFeatureRootPrefix();
+	static CORE_API const TCHAR* GameFeatureRootPrefix();
 #endif
 
 	/**
@@ -192,68 +192,68 @@ public:
 	 *
 	 * @return base directory
 	 */
-	static FString ProjectDir();
+	static CORE_API FString ProjectDir();
 
 	/**
 	* Returns the root directory for user-specific game files.
 	*
 	* @return game user directory
 	*/
-	static FString ProjectUserDir();
+	static CORE_API FString ProjectUserDir();
 
 	/**
 	 * Returns the content directory of the current game by looking at FApp::GetProjectName().
 	 *
 	 * @return content directory
 	 */
-	static FString ProjectContentDir();
+	static CORE_API FString ProjectContentDir();
 
 	/**
 	* Returns the directory the root configuration files are located.
 	*
 	* @return root config directory
 	*/
-	static FString ProjectConfigDir();
+	static CORE_API FString ProjectConfigDir();
 
 	/**
 	 * Returns the saved directory of the current game by looking at FApp::GetProjectName().
 	 *
 	 * @return saved directory
 	 */
-	static const FString& ProjectSavedDir();
+	static CORE_API const FString& ProjectSavedDir();
 
 	/**
 	 * Returns the intermediate directory of the current game by looking at FApp::GetProjectName().
 	 *
 	 * @return intermediate directory
 	 */
-	static FString ProjectIntermediateDir();
+	static CORE_API FString ProjectIntermediateDir();
 
-	static FString ShaderWorkingDir();
+	static CORE_API FString ShaderWorkingDir();
 
 	/**
 	 * Returns the plugins directory of the current game by looking at FApp::GetProjectName().
 	 *
 	 * @return plugins directory
 	 */
-	static FString ProjectPluginsDir();
+	static CORE_API FString ProjectPluginsDir();
 
 	/**
 	 * Returns the mods directory of the current project by looking at FApp::GetProjectName().
 	 *
 	 * @return mods directory
 	 */
-	static FString ProjectModsDir();
+	static CORE_API FString ProjectModsDir();
 
 	/*
 	* Returns true if a writable directory for downloaded data that persists across play sessions is available
 	*/
-	static bool HasProjectPersistentDownloadDir();
+	static CORE_API bool HasProjectPersistentDownloadDir();
 
 	/*
 	* Returns the writable directory for downloaded data that persists across play sessions.
 	*/
-	static FString ProjectPersistentDownloadDir();
+	static CORE_API FString ProjectPersistentDownloadDir();
 
 	/**
 	 * Returns the directory the engine uses to look for the source leaf ini files. This
@@ -261,56 +261,56 @@ public:
 	 *
 	 * @return source config directory
 	 */
-	static FString SourceConfigDir();
+	static CORE_API FString SourceConfigDir();
 
 	/**
 	 * Returns the directory the engine saves generated config files.
 	 *
 	 * @return config directory
 	 */
-	static FString GeneratedConfigDir();
+	static CORE_API FString GeneratedConfigDir();
 
 	/**
 	 * Returns the directory the engine stores sandbox output
 	 *
 	 * @return sandbox directory
 	 */
-	static FString SandboxesDir();
+	static CORE_API FString SandboxesDir();
 
 	/**
 	 * Returns the directory the engine uses to output profiling files.
 	 *
 	 * @return log directory
 	 */
-	static FString ProfilingDir();
+	static CORE_API FString ProfilingDir();
 
 	/**
 	 * Returns the directory the engine uses to output screenshot files.
 	 *
 	 * @return screenshot directory
 	 */
-	static FString ScreenShotDir();
+	static CORE_API FString ScreenShotDir();
 
 	/**
 	 * Returns the directory the engine uses to output BugIt files.
 	 *
 	 * @return screenshot directory
 	 */
-	static FString BugItDir();
+	static CORE_API FString BugItDir();
 
 	/**
 	 * Returns the directory the engine uses to output user requested video capture files.
 	 *
 	 * @return Video capture directory
 	 */
-	static FString VideoCaptureDir();
+	static CORE_API FString VideoCaptureDir();
 
 	/**
 	 * Returns the directory the engine uses to output user requested audio capture files.
 	 *
 	 * @return Audio capture directory
 	 */
-	static FString AudioCaptureDir();
+	static CORE_API FString AudioCaptureDir();
 	
 	/**
 	 * Returns the directory the engine uses to output logs. This currently can't 
@@ -319,88 +319,88 @@ public:
 	 *
 	 * @return log directory
 	 */
-	static FString ProjectLogDir();
+	static CORE_API FString ProjectLogDir();
 
 	/** Returns the directory for automation save files */
-	static FString AutomationDir();
+	static CORE_API FString AutomationDir();
 
 	/** Returns the directory for automation save files that are meant to be deleted every run */
-	static FString AutomationTransientDir();
+	static CORE_API FString AutomationTransientDir();
 
 	/** Returns the directory for results of automation tests. May be deleted every run. */
-	static FString AutomationReportsDir();
+	static CORE_API FString AutomationReportsDir();
 
 	/** Returns the directory for automation log files */
-	static FString AutomationLogDir();
+	static CORE_API FString AutomationLogDir();
 
 	/** Returns the directory for local files used in cloud emulation or support */
-	static FString CloudDir();
+	static CORE_API FString CloudDir();
 
 	/**
 	 * Returns the directory that contains subfolders for developer-specific content
 	 * Example: "../../../ProjectName/Content/Developers
 	 */
-	static FString GameDevelopersDir();
+	static CORE_API FString GameDevelopersDir();
 
 	/**
 	 * Returns the name of the subfolder for developer-specific content
 	 * Example: "Developers"
 	 */
-	static FStringView DevelopersFolderName();
+	static CORE_API FStringView DevelopersFolderName();
 
 	/** Returns The folder name for the developer-specific directory for the current user */
-	static FString GameUserDeveloperFolderName();
+	static CORE_API FString GameUserDeveloperFolderName();
 
 	/** Returns The directory that contains developer-specific content for the current user */
-	static FString GameUserDeveloperDir();
+	static CORE_API FString GameUserDeveloperDir();
 
 	/** Returns the directory for temp files used for diffing */
-	static FString DiffDir();
+	static CORE_API FString DiffDir();
 
 	/** 
 	 * Returns a list of engine-specific localization paths
 	 */
-	static const TArray<FString>& GetEngineLocalizationPaths();
+	static CORE_API const TArray<FString>& GetEngineLocalizationPaths();
 
 	/** 
 	 * Returns a list of editor-specific localization paths
 	 */
-	static const TArray<FString>& GetEditorLocalizationPaths();
+	static CORE_API const TArray<FString>& GetEditorLocalizationPaths();
 
 	/**
 	 * Returns a list of cooked editor-specific localization paths
 	 */
-	static const TArray<FString>& GetCookedEditorLocalizationPaths();
+	static CORE_API const TArray<FString>& GetCookedEditorLocalizationPaths();
 
 	/** 
 	 * Returns a list of property name localization paths
 	 */
-	static const TArray<FString>& GetPropertyNameLocalizationPaths();
+	static CORE_API const TArray<FString>& GetPropertyNameLocalizationPaths();
 
 	/** 
 	 * Returns a list of tool tip localization paths
 	 */
-	static const TArray<FString>& GetToolTipLocalizationPaths();
+	static CORE_API const TArray<FString>& GetToolTipLocalizationPaths();
 
 	/** 
 	 * Returns a list of game-specific localization paths
 	 */
-	static const TArray<FString>& GetGameLocalizationPaths();
+	static CORE_API const TArray<FString>& GetGameLocalizationPaths();
 
 	/**
 	 * Get the name of the platform-specific localization sub-folder
 	 */
-	static FString GetPlatformLocalizationFolderName();
+	static CORE_API FString GetPlatformLocalizationFolderName();
 
 	/** 
 	 * Returns a list of restricted/internal folder names (without any slashes) which may be tested against full paths to determine if a path is restricted or not.
 	 */
-	static const TArray<FString>& GetRestrictedFolderNames();
+	static CORE_API const TArray<FString>& GetRestrictedFolderNames();
 
 	/** 
 	 * Determines if supplied path uses a restricted/internal subdirectory.	Note that slashes are normalized and character case is ignored for the comparison.
 	 */
-	static bool IsRestrictedPath(const FString& InPath);
+	static CORE_API bool IsRestrictedPath(const FString& InPath);
 
 	/**
 	 * Returns the saved directory that is not game specific. This is usually the same as
@@ -408,37 +408,37 @@ public:
 	 *
 	 * @return saved directory
 	 */
-	static FString GameAgnosticSavedDir();
+	static CORE_API FString GameAgnosticSavedDir();
 
 	/** Returns the directory where engine source code files are kept */
-	static FString EngineSourceDir();
+	static CORE_API FString EngineSourceDir();
 
 	/** Returns the directory where game source code files are kept */
-	static FString GameSourceDir();
+	static CORE_API FString GameSourceDir();
 
 	/** Returns the directory where feature packs are kept */
-	static FString FeaturePackDir();
+	static CORE_API FString FeaturePackDir();
 
 	/**
 	 * Checks whether the path to the project file, if any, is set.
 	 *
 	 * @return true if the path is set, false otherwise.
 	 */
-	static bool IsProjectFilePathSet();
+	static CORE_API bool IsProjectFilePathSet();
 	
 	/**
 	 * Gets the path to the project file.
 	 *
 	 * @return Project file path.
 	 */
-	static FString GetProjectFilePath();
+	static CORE_API FString GetProjectFilePath();
 
 	/**
 	 * Sets the path to the project file.
 	 *
 	 * @param NewGameProjectFilePath - The project file path to set.
 	 */
-	static void SetProjectFilePath( const FString& NewGameProjectFilePath );
+	static CORE_API void SetProjectFilePath( const FString& NewGameProjectFilePath );
 
 	/**
 	 * Gets the extension for this filename.
@@ -447,55 +447,55 @@ public:
 	 *
 	 * @return	the extension of this filename, or an empty string if the filename doesn't have an extension.
 	 */
-	static FString GetExtension( const FString& InPath, bool bIncludeDot=false );
+	static CORE_API FString GetExtension( const FString& InPath, bool bIncludeDot=false );
 
 	// Returns the filename (with extension), minus any path information.
-	static FString GetCleanFilename(const FString& InPath);
+	static CORE_API FString GetCleanFilename(const FString& InPath);
 
 	// Returns the filename (with extension), minus any path information.
-	static FString GetCleanFilename(FString&& InPath);
+	static CORE_API FString GetCleanFilename(FString&& InPath);
 
 	// Returns the same thing as GetCleanFilename, but without the extension
-	static FString GetBaseFilename(const FString& InPath, bool bRemovePath=true );
+	static CORE_API FString GetBaseFilename(const FString& InPath, bool bRemovePath=true );
 
 	// Returns the same thing as GetCleanFilename, but without the extension
-	static FString GetBaseFilename(FString&& InPath, bool bRemovePath = true);
+	static CORE_API FString GetBaseFilename(FString&& InPath, bool bRemovePath = true);
 
 	// Returns the path in front of the filename
-	static FString GetPath(const FString& InPath);
+	static CORE_API FString GetPath(const FString& InPath);
 
 	// Returns the path in front of the filename
-	static FString GetPath(FString&& InPath);
+	static CORE_API FString GetPath(FString&& InPath);
 
 	// Returns the leaf in the path
-	static FString GetPathLeaf(const FString& InPath);
+	static CORE_API FString GetPathLeaf(const FString& InPath);
 
 	// Returns the leaf in the path
-	static FString GetPathLeaf(FString&& InPath);
+	static CORE_API FString GetPathLeaf(FString&& InPath);
 
 	/** Changes the extension of the given filename (does nothing if the file has no extension) */
-	static FString ChangeExtension(const FString& InPath, const FString& InNewExtension);
+	static CORE_API FString ChangeExtension(const FString& InPath, const FString& InNewExtension);
 
 	/** Sets the extension of the given filename (like ChangeExtension, but also applies the extension if the file doesn't have one) */
-	static FString SetExtension(const FString& InPath, const FString& InNewExtension);
+	static CORE_API FString SetExtension(const FString& InPath, const FString& InNewExtension);
 
 	/** Returns true if this file was found, false otherwise */
-	static bool FileExists(const FString& InPath);
+	static CORE_API bool FileExists(const FString& InPath);
 
 	/** Returns true if this directory was found, false otherwise */
-	static bool DirectoryExists(const FString& InPath);
+	static CORE_API bool DirectoryExists(const FString& InPath);
 
 	/** Returns true if this path represents a root drive or volume */
-	static bool IsDrive(const FString& InPath);
+	static CORE_API bool IsDrive(const FString& InPath);
 
 	/** Returns true if this path is relative to another path */
-	static bool IsRelative(const FString& InPath);
+	static CORE_API bool IsRelative(const FString& InPath);
 
 	/** Convert all / and \ to TEXT("/") */
-	static void NormalizeFilename(FString& InPath);
+	static CORE_API void NormalizeFilename(FString& InPath);
 
 	/** Converts the path casing to match the casing found on disk without resolving directory junctions */
-	static FString FindCorrectCase(const FString& Path);
+	static CORE_API FString FindCorrectCase(const FString& Path);
 
 	/**
 	 * Checks if two paths are the same.
@@ -505,13 +505,13 @@ public:
 	 *
 	 * @returns True if both paths are the same. False otherwise.
 	 */
-	static bool IsSamePath(const FString& PathA, const FString& PathB);
+	static CORE_API bool IsSamePath(const FString& PathA, const FString& PathB);
 
 	/** Determines if a path is under a given directory */
-	static bool IsUnderDirectory(const FString& InPath, const FString& InDirectory);
+	static CORE_API bool IsUnderDirectory(const FString& InPath, const FString& InDirectory);
 
 	/** Normalize all / and \ to TEXT("/") and remove any trailing TEXT("/") if the character before that is not a TEXT("/") or a colon */
-	static void NormalizeDirectoryName(FString& InPath);
+	static CORE_API void NormalizeDirectoryName(FString& InPath);
 
 	/**
 	 * Takes a fully pathed string and eliminates relative pathing (eg: annihilates ".." with the adjacent directory).
@@ -521,7 +521,7 @@ public:
 	 * and converts it to:
 	 *	BaseDirectory/SomeOtherDirectory/Filename.ext
 	 */
-	static bool CollapseRelativeDirectories(FString& InPath);
+	static CORE_API bool CollapseRelativeDirectories(FString& InPath);
 
 	/**
 	 * Removes duplicate slashes in paths.
@@ -531,10 +531,10 @@ public:
 	 * and converts it to:
 	 *	BaseDirectory/SomeDirectory/SomeOtherDirectory/Filename.ext
 	 */
-	static void RemoveDuplicateSlashes(FString& InPath);
+	static CORE_API void RemoveDuplicateSlashes(FString& InPath);
 
 	 /** Returns a copy of the given path on which duplicate slashes were removed (see the inplace version for more details). */
-	static FString RemoveDuplicateSlashes(const FString& InPath);
+	static CORE_API FString RemoveDuplicateSlashes(const FString& InPath);
 
 	/**
 	 * Make fully standard "Unreal" pathname:
@@ -543,12 +543,12 @@ public:
 	 *    - Collapses internal ..'s
 	 *    - Makes relative to Engine\Binaries\<Platform> (will ALWAYS start with ..\..\..)
 	 */
-	static FString CreateStandardFilename(const FString& InPath);
+	static CORE_API FString CreateStandardFilename(const FString& InPath);
 
-	static void MakeStandardFilename(FString& InPath);
+	static CORE_API void MakeStandardFilename(FString& InPath);
 
 	/** Takes an "Unreal" pathname and converts it to a platform filename. */
-	static void MakePlatformFilename(FString& InPath);
+	static CORE_API void MakePlatformFilename(FString& InPath);
 
 	/** 
 	 * Assuming both paths (or filenames) are relative to the same base dir, modifies InPath to be relative to InRelativeTo
@@ -557,51 +557,51 @@ public:
 	 * @param InRelativeTo Path to use as the new relative base
 	 * @returns true if InPath was changed to be relative
 	 */
-	static bool MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo );
+	static CORE_API bool MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo );
 
 	/**
 	 * Converts a relative path name to a fully qualified name relative to the process BaseDir().
 	 */
-	static FString ConvertRelativePathToFull(const FString& InPath);
+	static CORE_API FString ConvertRelativePathToFull(const FString& InPath);
 
 	/**
 	 * Converts a relative path name to a fully qualified name relative to the process BaseDir().
 	 */
-	static FString ConvertRelativePathToFull(FString&& InPath);
+	static CORE_API FString ConvertRelativePathToFull(FString&& InPath);
 
 	/**
 	 * Converts a relative path name to a fully qualified name relative to the specified BasePath.
 	 */
-	static FString ConvertRelativePathToFull(const FString& BasePath, const FString& InPath);
+	static CORE_API FString ConvertRelativePathToFull(const FString& BasePath, const FString& InPath);
 
 	/**
 	 * Converts a relative path name to a fully qualified name relative to the specified BasePath.
 	 */
-	static FString ConvertRelativePathToFull(const FString& BasePath, FString&& InPath);
+	static CORE_API FString ConvertRelativePathToFull(const FString& BasePath, FString&& InPath);
 
 	/**
 	 * Converts a relative path name to a fully qualified name relative to the specified BasePath.
 	 */
-	static FString ConvertRelativePathToFull(FString&& BasePath, const FString& InPath);
+	static CORE_API FString ConvertRelativePathToFull(FString&& BasePath, const FString& InPath);
 
 	/**
 	 * Converts a relative path name to a fully qualified name relative to the specified BasePath.
 	 */
-	static FString ConvertRelativePathToFull(FString&& BasePath, FString&& InPath);
+	static CORE_API FString ConvertRelativePathToFull(FString&& BasePath, FString&& InPath);
 
 	/**
 	 * Converts a normal path to a sandbox path (in Saved/Sandboxes).
 	 *
 	 * @param InSandboxName The name of the sandbox.
 	 */
-	static FString ConvertToSandboxPath( const FString& InPath, const TCHAR* InSandboxName );
+	static CORE_API FString ConvertToSandboxPath( const FString& InPath, const TCHAR* InSandboxName );
 
 	/**
 	 * Converts a sandbox (in Saved/Sandboxes) path to a normal path.
 	 *
 	 * @param InSandboxName The name of the sandbox.
 	 */
-	static FString ConvertFromSandboxPath( const FString& InPath, const TCHAR* InSandboxName );
+	static CORE_API FString ConvertFromSandboxPath( const FString& InPath, const TCHAR* InSandboxName );
 
 	/** 
 	 * Creates a temporary filename with the specified prefix.
@@ -610,18 +610,18 @@ public:
 	 * @param Prefix The file prefix.
 	 * @param Extension File extension ('.' required).
 	 */
-	static FString CreateTempFilename( const TCHAR* Path, const TCHAR* Prefix = TEXT(""), const TCHAR* Extension = TEXT(".tmp") );
+	static CORE_API FString CreateTempFilename( const TCHAR* Path, const TCHAR* Prefix = TEXT(""), const TCHAR* Extension = TEXT(".tmp") );
 
 	/**
 	* Returns a string containing all invalid characters as dictated by the operating system
 	*/
-	static FString GetInvalidFileSystemChars();
+	static CORE_API FString GetInvalidFileSystemChars();
 
 	/**
 	*	Returns a string that is safe to use as a filename because all items in
 	*	GetInvalidFileSystemChars() are removed
 	*/
-	static FString MakeValidFileName(const FString& InString, const TCHAR InReplacementChar = TEXT('\0'));
+	static CORE_API FString MakeValidFileName(const FString& InString, const TCHAR InReplacementChar = TEXT('\0'));
 
 	/** 
 	 * Validates that the parts that make up the path contain no invalid characters as dictated by the operating system
@@ -630,7 +630,7 @@ public:
 	 * @param InPath - path to validate
 	 * @param OutReason - optional parameter to fill with the failure reason
 	 */
-	static bool ValidatePath( const FString& InPath, FText* OutReason = nullptr );
+	static CORE_API bool ValidatePath( const FString& InPath, FText* OutReason = nullptr );
 
 	/**
 	 * Parses a fully qualified or relative filename into its components (filename, path, extension).
@@ -640,10 +640,10 @@ public:
 	 * @param	FilenamePart	[out] receives the value of the filename portion of the input string
 	 * @param	ExtensionPart	[out] receives the value of the extension portion of the input string
 	 */
-	static void Split( const FString& InPath, FString& PathPart, FString& FilenamePart, FString& ExtensionPart );
+	static CORE_API void Split( const FString& InPath, FString& PathPart, FString& FilenamePart, FString& ExtensionPart );
 
 	/** Gets the relative path to get from BaseDir to RootDirectory  */
-	static const FString& GetRelativePathToRoot();
+	static CORE_API const FString& GetRelativePathToRoot();
 
 	template <typename... PathTypes>
 	FORCEINLINE static FString Combine(PathTypes&&... InPaths)
@@ -654,11 +654,11 @@ public:
 	/**
 	 * Frees any memory retained by FPaths.
 	 */
-	static void TearDown();
+	static CORE_API void TearDown();
 
 protected:
 
-	static FString CombineInternal(const FStringView* Paths, int32 NumPaths);
+	static CORE_API FString CombineInternal(const FStringView* Paths, int32 NumPaths);
 
 private:
 	struct FStaticData;
@@ -671,8 +671,8 @@ private:
 	}
 
 	/** Returns, if any, the value of the -userdir command line argument. This can be used to sandbox artifacts to a desired location */
-	static const FString& CustomUserDirArgument();
+	static CORE_API const FString& CustomUserDirArgument();
 
 	/** Returns, if any, the value of the -shaderworkingdir command line argument. This can be used to sandbox shader working files to a desired location */
-	static const FString& CustomShaderDirArgument();
+	static CORE_API const FString& CustomShaderDirArgument();
 };

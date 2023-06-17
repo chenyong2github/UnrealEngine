@@ -16,13 +16,13 @@
 /**
  * FArchive Proxy to transparently load compressed data from an array.
  */
-class CORE_API FArchiveLoadCompressedProxy : public FArchive
+class FArchiveLoadCompressedProxy : public FArchive
 {
 public:
-	FArchiveLoadCompressedProxy(const TArray<uint8>& InCompressedData, FName CompressionFormat, ECompressionFlags InCompressionFlags=COMPRESS_NoFlags);
+	CORE_API FArchiveLoadCompressedProxy(const TArray<uint8>& InCompressedData, FName CompressionFormat, ECompressionFlags InCompressionFlags=COMPRESS_NoFlags);
 
 	/** Destructor, freeing temporary memory. */
-	virtual ~FArchiveLoadCompressedProxy();
+	CORE_API virtual ~FArchiveLoadCompressedProxy();
 
 	/**
 	 * Serializes data from archive. This function is called recursively and determines where to serialize
@@ -31,18 +31,18 @@ public:
 	 * @param	Data	Pointer to serialize to
 	 * @param	Count	Number of bytes to read
 	 */
-	virtual void Serialize( void* Data, int64 Count );
+	CORE_API virtual void Serialize( void* Data, int64 Count );
 
 	/**
 	 * Seeks to the passed in position in the stream. This archive only supports forward seeking
 	 * and implements it by serializing data till it reaches the position.
 	 */
-	virtual void Seek( int64 InPos );
+	CORE_API virtual void Seek( int64 InPos );
 
 	/**
 	 * @return current position in uncompressed stream in bytes.
 	 */
-	virtual int64 Tell();
+	CORE_API virtual int64 Tell();
 
 private:
 	/**

@@ -62,29 +62,29 @@ struct FArchiveCookContext;
 //       This will also make TSAN happy when multiple threads are hitting the same bitfield during concurrent saves.
 #define FArchive_Serialize_BitfieldBool(ARCHIVE, BITFIELD_BOOL) { bool TEMP_BITFIELD_BOOL = BITFIELD_BOOL; ARCHIVE << TEMP_BITFIELD_BOOL; if (BITFIELD_BOOL != TEMP_BITFIELD_BOOL) { BITFIELD_BOOL = TEMP_BITFIELD_BOOL; } }
 
-struct CORE_API FArchiveState
+struct FArchiveState
 {
 private:
 	// Only FArchive is allowed to instantiate this, by inheritance
 	friend class FArchive;
 
-	FArchiveState();
+	CORE_API FArchiveState();
 
 	/** Copy constructor. */
-	FArchiveState(const FArchiveState&);
+	CORE_API FArchiveState(const FArchiveState&);
 
 	/**
 	 * Copy assignment operator.
 	 *
 	 * @param ArchiveToCopy The archive to copy from.
 	 */
-	FArchiveState& operator=(const FArchiveState& ArchiveToCopy);
+	CORE_API FArchiveState& operator=(const FArchiveState& ArchiveToCopy);
 
-	virtual ~FArchiveState() = 0;
+	CORE_API virtual ~FArchiveState() = 0;
 
 protected:
-	static void LinkProxy(FArchiveState& Inner, FArchiveState& Proxy);
-	static void UnlinkProxy(FArchiveState& Inner, FArchiveState& Proxy);
+	static CORE_API void LinkProxy(FArchiveState& Inner, FArchiveState& Proxy);
+	static CORE_API void UnlinkProxy(FArchiveState& Inner, FArchiveState& Proxy);
 
 public:
 	/** 
@@ -98,22 +98,22 @@ public:
 	/** 
 	 * Modifies current archive state, can be used to override flags.
 	 */
-	void SetArchiveState(const FArchiveState& InState);
+	CORE_API void SetArchiveState(const FArchiveState& InState);
 
 	/**
 	 * Sets ArIsError to true. Also sets error in the proxy archiver if one is wrapping this.
 	 */
-	void SetError();
+	CORE_API void SetError();
 
 	/**
 	 * Sets ArIsError to false, this does not clear any CriticalErrors
 	 */
-	void ClearError();
+	CORE_API void ClearError();
 
 	/**
 	 * Sets the archiver IsCriticalError and IsError to true. Also sets CriticalError in the proxy archiver if one is wrapping this.
 	 */
-	void SetCriticalError();
+	CORE_API void SetCriticalError();
 
 	/**
 	 * Called to get the computed size from a size-detecting archive after it has finished serializing.
@@ -126,7 +126,7 @@ public:
 	 *
 	 * This is overridden for the specific Archive Types
 	 */
-	virtual FString GetArchiveName() const;
+	CORE_API virtual FString GetArchiveName() const;
 
 	/**
 	 * If this archive is a FLinkerLoad or FLinkerSave, returns a pointer to the ULinker portion.
@@ -232,10 +232,10 @@ public:
 	}
 
 	/** Returns the engine-global network protocol version for this archive. */
-	virtual uint32 EngineNetVer() const;
+	CORE_API virtual uint32 EngineNetVer() const;
 
 	/** Returns the game-specific network protocol version for this archive. */
-	virtual uint32 GameNetVer() const;
+	CORE_API virtual uint32 GameNetVer() const;
 
 	/**
 	 * Queries a custom version from the archive.  If the archive is being used to write, the custom version must have already been registered.
@@ -243,7 +243,7 @@ public:
 	 * @param Key The guid of the custom version to query.
 	 * @return The version number, or -1 if the custom tag isn't stored in the archive.
 	 */
-	int32 CustomVer(const struct FGuid& Key) const;
+	CORE_API int32 CustomVer(const struct FGuid& Key) const;
 
 	/** Returns true if this archive is for loading data. */
 	FORCEINLINE bool IsLoading() const
@@ -338,7 +338,7 @@ public:
 	 * Setting this to true should improve serialization performance by skipping the step entirely.
 	 * @param bShouldSkip Whether we should skip the checking the version registry for new version data if the version key is already set
 	 */
-	void SetShouldSkipUpdateCustomVersion(bool bShouldSkip);
+	CORE_API void SetShouldSkipUpdateCustomVersion(bool bShouldSkip);
 
 	/** Returns true if this Archive is does not update the custom version data for a given key if has already been set previously in the local custom versions container*/
 	FORCEINLINE bool ShouldSkipUpdateCustomVersion() const
@@ -502,17 +502,17 @@ public:
 	 *
 	 * @return The container of custom versions in the archive.
 	 */
-	virtual const FCustomVersionContainer& GetCustomVersions() const;
+	CORE_API virtual const FCustomVersionContainer& GetCustomVersions() const;
 
 	/**
 	 * Sets the custom version numbers for this archive.
 	 *
 	 * @param CustomVersionContainer - The container of custom versions to copy into the archive.
 	 */
-	virtual void SetCustomVersions(const FCustomVersionContainer& CustomVersionContainer);
+	CORE_API virtual void SetCustomVersions(const FCustomVersionContainer& CustomVersionContainer);
 
 	/** Resets the custom version numbers for this archive. */
-	virtual void ResetCustomVersions();
+	CORE_API virtual void ResetCustomVersions();
 
 	/**
 	 * Sets a specific custom version
@@ -521,7 +521,7 @@ public:
 	 * @param Version - The version number to set key to
 	 * @param FriendlyName - Friendly name corresponding to the key
 	 */
-	void SetCustomVersion(const struct FGuid& Key, int32 Version, FName FriendlyName);
+	CORE_API void SetCustomVersion(const struct FGuid& Key, int32 Version, FName FriendlyName);
 
 	/**
 	 * Toggle byte order swapping. This is needed in rare cases when we already know that the data
@@ -688,7 +688,7 @@ public:
 	 * Gets the chain of properties that are currently being serialized
 	 * @note This populates the array in stack order, so the 0th entry in the array is the top of the stack of properties
 	 */
-	void GetSerializedPropertyChain(TArray<class FProperty*>& OutProperties) const;
+	CORE_API void GetSerializedPropertyChain(TArray<class FProperty*>& OutProperties) const;
 
 	/**
 	 * Get the raw serialized property chain for this archive
@@ -702,11 +702,11 @@ public:
 	/**
 	 * Set the raw serialized property chain for this archive, optionally overriding the serialized property too (or null to use the head of the property chain)
 	 */
-	virtual void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class FProperty* InSerializedPropertyOverride = nullptr);
+	CORE_API virtual void SetSerializedPropertyChain(const FArchiveSerializedPropertyChain* InSerializedPropertyChain, class FProperty* InSerializedPropertyOverride = nullptr);
 
 #if WITH_EDITORONLY_DATA
 	/** Returns true if the stack of currently serialized properties contains an editor-only property */
-	virtual bool IsEditorOnlyPropertyOnTheStack() const;
+	CORE_API virtual bool IsEditorOnlyPropertyOnTheStack() const;
 #endif
 
 	/** Sets the current UObject serialization context for this archive. */
@@ -720,17 +720,17 @@ public:
 	 * Set the localization namespace that this archive should use when serializing text properties.
 	 * This is typically the namespace used by the package being serialized (if serializing a package, or an object within a package).
 	 */
-	virtual void SetLocalizationNamespace(const FString& InLocalizationNamespace);
+	CORE_API virtual void SetLocalizationNamespace(const FString& InLocalizationNamespace);
 
 	/**
 	 * Get the localization namespace that this archive should use when serializing text properties.
 	 * This is typically the namespace used by the package being serialized (if serializing a package, or an object within a package).
 	 */
-	virtual FString GetLocalizationNamespace() const;
+	CORE_API virtual FString GetLocalizationNamespace() const;
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
 	/** Resets all of the base archive members. */
-	virtual void Reset();
+	CORE_API virtual void Reset();
 
 public:
 	/* These are used for fastpath inline serializers  */
@@ -759,7 +759,7 @@ public:
 // These will be private in FArchive
 protected:
 	/** Copies all of the members except CustomVersionContainer */
-	void CopyTrivialFArchiveStatusMembers(const FArchiveState& ArchiveStatusToCopy);
+	CORE_API void CopyTrivialFArchiveStatusMembers(const FArchiveState& ArchiveStatusToCopy);
 
 	/** Whether this archive is for loading data. */
 	uint8 ArIsLoading : 1;
@@ -875,44 +875,44 @@ public:
 	 *
 	 * @param bInIsLoading  true if this archive is for loading, false otherwise.
 	 */
-	virtual void SetIsLoading(bool bInIsLoading);
+	CORE_API virtual void SetIsLoading(bool bInIsLoading);
 
 	/** 
 	 * Sets whether the archive is loading from a cooked package.
 	 * @param bInIsLoadingFromCookedPackage  true if this archive is loading from a cooked package, false otherwise
 	 */
-	virtual void SetIsLoadingFromCookedPackage(bool bInIsLoadingFromCookedPackage);
+	CORE_API virtual void SetIsLoadingFromCookedPackage(bool bInIsLoadingFromCookedPackage);
 
 	/**
 	 * Sets whether this archive is for saving data.
 	 *
 	 * @param bInIsSaving  true if this archive is for saving, false otherwise.
 	 */
-	virtual void SetIsSaving(bool bInIsSaving);
+	CORE_API virtual void SetIsSaving(bool bInIsSaving);
 
 	/**
 	 * Sets whether this archive is for transacting.
 	 *
 	 * @param bInIsTransacting  true if this archive is for transacting, false otherwise.
 	 */
-	virtual void SetIsTransacting(bool bInIsTransacting);
+	CORE_API virtual void SetIsTransacting(bool bInIsTransacting);
 
 	/**
 	 * Sets whether this archive is in text format.
 	 *
 	 * @param bInIsTextFormat  true if this archive is in text format, false otherwise.
 	 */
-	virtual void SetIsTextFormat(bool bInIsTextFormat);
+	CORE_API virtual void SetIsTextFormat(bool bInIsTextFormat);
 
 	/**
 	 * Sets whether this archive wants binary property serialization.
 	 *
 	 * @param bInWantBinaryPropertySerialization  true if this archive wants binary serialization, false otherwise.
 	 */
-	virtual void SetWantBinaryPropertySerialization(bool bInWantBinaryPropertySerialization);
+	CORE_API virtual void SetWantBinaryPropertySerialization(bool bInWantBinaryPropertySerialization);
 
 	/** Sets whether tagged property serialization should be replaced by faster unversioned serialization. This assumes writer and reader share the same property definitions. */
-	virtual void SetUseUnversionedPropertySerialization(bool bInUseUnversioned);
+	CORE_API virtual void SetUseUnversionedPropertySerialization(bool bInUseUnversioned);
 
 	/**
 	 * Sets whether this archive wants to force saving as Unicode.
@@ -920,14 +920,14 @@ public:
 	 *
 	 * @param bInForceUnicode  true if this archive wants to force saving as Unicode, false otherwise.
 	 */
-	virtual void SetForceUnicode(bool bInForceUnicode);
+	CORE_API virtual void SetForceUnicode(bool bInForceUnicode);
 
 	/**
 	 * Sets whether this archive is to persistent storage.
 	 *
 	 * @param bInIsPersistent  true if this archive is to persistent storage, false otherwise.
 	 */
-	virtual void SetIsPersistent(bool bInIsPersistent);
+	CORE_API virtual void SetIsPersistent(bool bInIsPersistent);
 
 	/**
 	 * Sets the archive version number. Used by the code that makes sure that FLinkerLoad's 
@@ -935,7 +935,7 @@ public:
 	 *
 	 * @param UEVer	new version number
 	 */
-	virtual void SetUEVer(FPackageFileVersion InVer);
+	CORE_API virtual void SetUEVer(FPackageFileVersion InVer);
 
 	UE_DEPRECATED(5.0, "Use SetUEVer instead which takes the version as a FPackageFileVersion. See the @FPackageFileVersion documentation for further details")
 	FORCEINLINE void SetUE4Ver(int32 InVer)
@@ -950,7 +950,7 @@ public:
 	 *
 	 * @param Ver	new version number
 	 */
-	virtual void SetLicenseeUEVer(int32 InVer);
+	CORE_API virtual void SetLicenseeUEVer(int32 InVer);
 
 	UE_DEPRECATED(5.0, "Use SetLicenseeUEVer instead")
 	FORCEINLINE void SetLicenseeUE4Ver(int32 InVer)
@@ -964,17 +964,17 @@ public:
 	 *
 	 * @param InVer	new version number
 	 */
-	virtual void SetEngineVer(const FEngineVersionBase& InVer);
+	CORE_API virtual void SetEngineVer(const FEngineVersionBase& InVer);
 
 	/**
 	 * Sets the archive engine network version.
 	 */
-	virtual void SetEngineNetVer(const uint32 InEngineNetVer);
+	CORE_API virtual void SetEngineNetVer(const uint32 InEngineNetVer);
 
 	/**
 	 * Sets the archive game network version.
 	 */
-	virtual void SetGameNetVer(const uint32 InGameNetVer);
+	CORE_API virtual void SetGameNetVer(const uint32 InGameNetVer);
 
 // These will be private in FArchive
 protected:
@@ -1023,10 +1023,10 @@ protected:
 	FString* LocalizationNamespacePtr;
 
 	/** See GetLocalizationNamespace */
-	FString GetBaseLocalizationNamespace() const;
+	CORE_API FString GetBaseLocalizationNamespace() const;
 
 	/** See SetLocalizationNamespace */
-	void SetBaseLocalizationNamespace(const FString& InLocalizationNamespace);
+	CORE_API void SetBaseLocalizationNamespace(const FString& InLocalizationNamespace);
 #endif // USE_STABLE_LOCALIZATION_KEYS
 
 	/**
@@ -1131,7 +1131,7 @@ private:
  * Base class for archives that can be used for loading, saving, and garbage
  * collecting in a byte order neutral way.
  */
-class CORE_API FArchive : private FArchiveState
+class FArchive : private FArchiveState
 {
 public:
 	FArchive() = default;
@@ -1165,7 +1165,7 @@ public:
 	 * @param Ar The archive to serialize from or to.
 	 * @param Value The value to serialize.
 	 */
-	virtual FArchive& operator<<(FText& Value);
+	CORE_API virtual FArchive& operator<<(FText& Value);
 
 	/**
 	 * Serializes an UObject value from or into this archive.
@@ -1244,7 +1244,7 @@ public:
 	 * @param Value The value to serialize.
 	 * @return This instance.
 	 */
-	virtual FArchive& operator<<(struct FLazyObjectPtr& Value);
+	CORE_API virtual FArchive& operator<<(struct FLazyObjectPtr& Value);
 
 	/**
 	 * Serializes a wrapped object pointer value from or into this archive.
@@ -1254,7 +1254,7 @@ public:
 	 * @param Value The value to serialize.
 	 * @return This instance.
 	 */
-	virtual FArchive& operator<<(struct FObjectPtr& Value);
+	CORE_API virtual FArchive& operator<<(struct FObjectPtr& Value);
 	
 	/**
 	 * Serializes asset pointer from or into this archive.
@@ -1264,7 +1264,7 @@ public:
 	 * @param Value The asset pointer to serialize.
 	 * @return This instance.
 	 */
-	virtual FArchive& operator<<(struct FSoftObjectPtr& Value);
+	CORE_API virtual FArchive& operator<<(struct FSoftObjectPtr& Value);
 
 	/**
 	 * Serializes soft object paths from or into this archive.
@@ -1272,7 +1272,7 @@ public:
 	 * @param Value Soft object path to serialize.
 	 * @return This instance.
 	 */
-	virtual FArchive& operator<<(struct FSoftObjectPath& Value);
+	CORE_API virtual FArchive& operator<<(struct FSoftObjectPath& Value);
 
 	/**
 	* Serializes FWeakObjectPtr value from or into this archive.
@@ -1282,7 +1282,7 @@ public:
 	* @param Value The value to serialize.
 	* @return This instance.
 	*/
-	virtual FArchive& operator<<(struct FWeakObjectPtr& Value);
+	CORE_API virtual FArchive& operator<<(struct FWeakObjectPtr& Value);
 
 	/** 
 	 * Inform the archive that a blueprint would like to force finalization, normally
@@ -1418,7 +1418,7 @@ public:
 	 */
 #if WITH_EDITOR
 protected:
-	virtual void SerializeBool( bool& D );
+	CORE_API virtual void SerializeBool( bool& D );
 public:
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, bool& D)
 	{
@@ -1603,8 +1603,8 @@ public:
 	}
 
 	/** Packs int value into bytes of 7 bits with 8th bit for 'more' */
-	virtual void SerializeIntPacked(uint32& Value);
-	virtual void SerializeIntPacked64(uint64& Value);
+	CORE_API virtual void SerializeIntPacked(uint32& Value);
+	CORE_API virtual void SerializeIntPacked64(uint64& Value);
 
 	/** Tells the archive to attempt to preload the specified object so data can be loaded out of it. */
 	virtual void Preload(UObject* Object) { }
@@ -1744,7 +1744,7 @@ public:
 	 * @param	Flags	Flags to control what method to use for [de]compression and optionally control memory vs speed when compressing
 	 * @param	bTreatBufferAsFileReader true if V is actually an FArchive, which is used when saving to read data - helps to avoid single huge allocations of source data
 	 */
-	void SerializeCompressed(void* V, int64 Length, FName CompressionFormatCannotChange,
+	CORE_API void SerializeCompressed(void* V, int64 Length, FName CompressionFormatCannotChange,
 		ECompressionFlags Flags=COMPRESS_NoFlags, bool bTreatBufferAsFileReader=false);
 	
 	/**
@@ -1764,7 +1764,7 @@ public:
 	 * @param	bTreatBufferAsFileReader true if V is actually an FArchive, which is used when saving to read data - helps to avoid single huge allocations of source data
 	 * @param	OutPartialReadLength if not null, partial reads are allowed and the size is filled here
 	 */
-	void SerializeCompressedNew(void* V, int64 Length, FName CompressionFormatToEncode, FName CompressionFormatToDecodeOldV1Files,
+	CORE_API void SerializeCompressedNew(void* V, int64 Length, FName CompressionFormatToEncode, FName CompressionFormatToDecodeOldV1Files,
 		ECompressionFlags Flags=COMPRESS_NoFlags, bool bTreatBufferAsFileReader=false,
 		int64 * OutPartialReadLength=nullptr);
 		
@@ -1776,13 +1776,13 @@ public:
 	 * @param	V		Data pointer to serialize data from/ to
 	 * @param	Length	Length of source data if we're saving, unused otherwise
 	 */
-	void SerializeCompressedNew(void* V, int64 Length);
+	CORE_API void SerializeCompressedNew(void* V, int64 Length);
 
 
 	using FArchiveState::IsByteSwapping;
 
 	/** Used to do byte swapping on small items. This does not happen usually, so we don't want it inline. */
-	void ByteSwap(void* V, int32 Length);
+	CORE_API void ByteSwap(void* V, int32 Length);
 
 	/** Serialize data of Length bytes, taking into account byte swapping if needed. */
 	FORCEINLINE FArchive& ByteOrderSerialize(void* V, int32 Length)
@@ -1829,7 +1829,7 @@ public:
 	using FArchiveState::GetArchetypeFromLoader;
 
 private:
-	void VARARGS LogfImpl(const TCHAR* Fmt, ...);
+	CORE_API void VARARGS LogfImpl(const TCHAR* Fmt, ...);
 
 public:
 	// Logf implementation for convenience.
@@ -1855,7 +1855,7 @@ public:
 	 *
 	 * @param Guid The guid of the custom version.  This must have previously been registered with FCustomVersionRegistration.
 	 */
-	virtual void UsingCustomVersion(const struct FGuid& Guid);
+	CORE_API virtual void UsingCustomVersion(const struct FGuid& Guid);
 
 	using FArchiveState::CustomVer;
 
@@ -1932,7 +1932,7 @@ public:
 	 * @param InProperty			Pointer to the property that is currently being serialized
 	 * @param bIsEditorOnlyProperty True if the property is editor only (call FProperty::IsEditorOnlyProperty to work this out, as the archive can't since it can't access CoreUObject types)
 	 */
-	virtual void PushSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty);
+	CORE_API virtual void PushSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty);
 
 	/**
 	 * Pop a property that was previously being serialized off the property stack
@@ -1940,7 +1940,7 @@ public:
 	 * @param InProperty			Pointer to the property that was previously being serialized
 	 * @param bIsEditorOnlyProperty True if the property is editor only (call FProperty::IsEditorOnlyProperty to work this out, as the archive can't since it can't access CoreUObject types)
 	 */
-	virtual void PopSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty);
+	CORE_API virtual void PopSerializedProperty(class FProperty* InProperty, const bool bIsEditorOnlyProperty);
 
 #if WITH_EDITORONLY_DATA
 	using FArchiveState::IsEditorOnlyPropertyOnTheStack;
@@ -2030,10 +2030,10 @@ private:
 	}
 
 	// Not inlined to keep ByteOrderSerialize(), small and fast.
-	FArchive& SerializeByteOrderSwapped(void* V, int32 Length);
-	FArchive& SerializeByteOrderSwapped(uint16& Value);
-	FArchive& SerializeByteOrderSwapped(uint32& Value);
-	FArchive& SerializeByteOrderSwapped(uint64& Value);
+	CORE_API FArchive& SerializeByteOrderSwapped(void* V, int32 Length);
+	CORE_API FArchive& SerializeByteOrderSwapped(uint16& Value);
+	CORE_API FArchive& SerializeByteOrderSwapped(uint32& Value);
+	CORE_API FArchive& SerializeByteOrderSwapped(uint64& Value);
 #if PLATFORM_COMPILER_DISTINGUISHES_INT_AND_LONG
 	FArchive& SerializeByteOrderSwapped(unsigned long& Value)
 	{
@@ -2158,7 +2158,7 @@ public:
 	using FArchiveState::ArDebugSerializationFlags;
 	
 	/** Debug stack storage if you want to add data to the archive for usage further down the serialization stack this should be used in conjunction with the FScopeAddDebugData struct */
-	virtual void PushDebugDataString(const FName& DebugData);
+	CORE_API virtual void PushDebugDataString(const FName& DebugData);
 	virtual void PopDebugDataString() { }
 
 	class FScopeAddDebugData

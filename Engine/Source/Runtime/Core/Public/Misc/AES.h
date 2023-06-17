@@ -16,7 +16,7 @@
 // current code is meant for keeping backwards compatiblity with existing data. Better way
 // to use AES would be integrated with authentication, for example, in AES-GCM mode.
 
-struct CORE_API FAES
+struct FAES
 {
 	static constexpr uint32 AESBlockSize = 16;
 
@@ -65,7 +65,7 @@ struct CORE_API FAES
 	* @param NumBytes the size of the buffer
 	* @param Key An FAESKey object containing the encryption key
 	*/
-	static void EncryptData(uint8* Contents, uint64 NumBytes, const FAESKey& Key);
+	static CORE_API void EncryptData(uint8* Contents, uint64 NumBytes, const FAESKey& Key);
 
 	/**
 	 * Encrypts a chunk of data using a specific key
@@ -74,7 +74,7 @@ struct CORE_API FAES
 	 * @param NumBytes the size of the buffer
 	 * @param Key a null terminated string that is a 32 bytes long
 	 */
-	static void EncryptData(uint8* Contents, uint64 NumBytes, const ANSICHAR* Key);
+	static CORE_API void EncryptData(uint8* Contents, uint64 NumBytes, const ANSICHAR* Key);
 
 	/**
 	* Encrypts a chunk of data using a specific key
@@ -84,7 +84,7 @@ struct CORE_API FAES
 	* @param Key a byte array that is a 32 byte length
 	* @param NumKeyBytes length of Key byte array, must be 32
 	*/
-	static void EncryptData(uint8* Contents, uint64 NumBytes, const uint8* KeyBytes, uint32 NumKeyBytes);
+	static CORE_API void EncryptData(uint8* Contents, uint64 NumBytes, const uint8* KeyBytes, uint32 NumKeyBytes);
 
 	/**
 	* Decrypts a chunk of data using a specific key
@@ -93,7 +93,7 @@ struct CORE_API FAES
 	* @param NumBytes the size of the buffer
 	* @param Key An FAESKey object containing the decryption key
 	*/
-	static void DecryptData(uint8* Contents, uint64 NumBytes, const FAESKey& Key);
+	static CORE_API void DecryptData(uint8* Contents, uint64 NumBytes, const FAESKey& Key);
 
 	/**
 	 * Decrypts a chunk of data using a specific key
@@ -102,7 +102,7 @@ struct CORE_API FAES
 	 * @param NumBytes the size of the buffer
 	 * @param Key a null terminated string that is a 32 bytes long
 	 */
-	static void DecryptData(uint8* Contents, uint64 NumBytes, const ANSICHAR* Key);
+	static CORE_API void DecryptData(uint8* Contents, uint64 NumBytes, const ANSICHAR* Key);
 
 	/**
 	* Decrypts a chunk of data using a specific key
@@ -112,5 +112,5 @@ struct CORE_API FAES
 	* @param Key a byte array that is a 32 byte length
 	* @param NumKeyBytes length of Key byte array, must be 32
 	*/
-	static void DecryptData(uint8* Contents, uint64 NumBytes, const uint8* KeyBytes, uint32 NumKeyBytes);
+	static CORE_API void DecryptData(uint8* Contents, uint64 NumBytes, const uint8* KeyBytes, uint32 NumKeyBytes);
 };

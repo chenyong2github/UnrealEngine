@@ -5,7 +5,7 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 #include "Containers/Map.h"
 
-struct CORE_API FAndroidCrashContext : public FGenericCrashContext
+struct FAndroidCrashContext : public FGenericCrashContext
 {
 	/** Signal number */
 	int32 Signal;
@@ -19,7 +19,7 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 	/** Thread context */
 	void* Context;
 
-	FAndroidCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage);
+	CORE_API FAndroidCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage);
 
 	~FAndroidCrashContext()
 	{
@@ -40,35 +40,35 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 		Context = InContext;
 	}
 
-	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const override;
-	virtual void AddPlatformSpecificProperties() const override;
+	CORE_API virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const override;
+	CORE_API virtual void AddPlatformSpecificProperties() const override;
 
-	void CaptureCrashInfo();
-	void StoreCrashInfo(bool bWriteLog) const;
+	CORE_API void CaptureCrashInfo();
+	CORE_API void StoreCrashInfo(bool bWriteLog) const;
 
 	static const int32 CrashReportMaxPathSize = 512;
 
-	static void Initialize();
+	static CORE_API void Initialize();
 	// Returns the report directory used for this crash context.
 	FString GetCurrentReportDirectoryPath() const {	return FString(ReportDirectory); }
 
 	// Returns the main crash directory for this session. This will not be correct for non-fatal reports.
-	static const FString GetGlobalCrashDirectoryPath();
+	static CORE_API const FString GetGlobalCrashDirectoryPath();
 	// Fills DirectoryNameOUT with the global crash directory for a fatal crash this session. This will not be correct for non-fatal reports.
-	static void GetGlobalCrashDirectoryPath(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
+	static CORE_API void GetGlobalCrashDirectoryPath(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
 
-	void AddAndroidCrashProperty(const FString& Key, const FString& Value);
+	CORE_API void AddAndroidCrashProperty(const FString& Key, const FString& Value);
 
-	void SetOverrideCallstack(const FString& OverrideCallstackIN);
+	CORE_API void SetOverrideCallstack(const FString& OverrideCallstackIN);
 
 	// generate an absolute path to a crash report folder.
-	static void GenerateReportDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
+	static CORE_API void GenerateReportDirectoryName(char(&DirectoryNameOUT)[CrashReportMaxPathSize]);
 
 	// expects externally allocated memory for all threads found in FThreadManager + main thread
-	void DumpAllThreadCallstacks(FAsyncThreadBackTrace* BackTrace, int NumThreads) const;
+	CORE_API void DumpAllThreadCallstacks(FAsyncThreadBackTrace* BackTrace, int NumThreads) const;
 
 	/** Async-safe ItoA */
-	static const ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0);
+	static CORE_API const ANSICHAR* ItoANSI(uint64 Val, uint64 Base, uint32 Len = 0);
 
 	// temporary accessor to allow overriding of the portable callstack.
 	TArray<FCrashStackFrame>& GetPortableCallstack_TEMP() { return CallStack; }
@@ -76,7 +76,7 @@ struct CORE_API FAndroidCrashContext : public FGenericCrashContext
 protected:
 
 	/** Allow platform implementations to provide a callstack property. Primarily used when non-native code triggers a crash. */
-	virtual const TCHAR* GetCallstackProperty() const;
+	CORE_API virtual const TCHAR* GetCallstackProperty() const;
 
 private:
 	FString OverrideCallstack;
@@ -87,7 +87,7 @@ private:
 	char ReportDirectory[CrashReportMaxPathSize];
 };
 
-struct CORE_API FAndroidMemoryWarningContext : public FGenericMemoryWarningContext
+struct FAndroidMemoryWarningContext : public FGenericMemoryWarningContext
 {
 	FAndroidMemoryWarningContext() : LastTrimMemoryState(FAndroidPlatformMemory::ETrimValues::Unknown) {}
 

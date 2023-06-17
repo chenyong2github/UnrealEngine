@@ -28,7 +28,7 @@ class UObject;
  * FChange may eventually be deprecated. You should subclass 
  * FSwapChange and FCommandChange to implement these different styles.
  */
-class CORE_API FChange
+class FChange
 {
 
 public:
@@ -60,7 +60,7 @@ public:
 	virtual FString ToString() const = 0;
 
 	/** Prints this change to the log, including sub-changes if there are any.  For compound changes, there might be multiple lines.  You should not need to override this function. */
-	virtual void PrintToLog( FFeedbackContext& FeedbackContext, const int32 IndentLevel = 0 );
+	CORE_API virtual void PrintToLog( FFeedbackContext& FeedbackContext, const int32 IndentLevel = 0 );
 
 	/** Virtual destructor */
 	virtual ~FChange()
@@ -89,7 +89,7 @@ private:
  *   1) apply the change to the given UObject
  *   2) return a new FSwapChange that does the "opposite" action
  */
-class CORE_API FSwapChange : public FChange
+class FSwapChange : public FChange
 {
 
 public:
@@ -117,7 +117,7 @@ public:
  * To use FCommandChange you must implement Apply() and Revert()
  * Revert() is called to "Undo" and Apply() is called to "Redo"
  */
-class CORE_API FCommandChange : public FChange
+class FCommandChange : public FChange
 {
 
 public:
@@ -139,7 +139,7 @@ public:
 
 
 
-struct CORE_API FCompoundChangeInput
+struct FCompoundChangeInput
 {
 	FCompoundChangeInput()
 	{
@@ -165,7 +165,7 @@ private:
  * FCompoundChange applies a sequence of FSwapChanges.
  * The changes are executed in reverse order (this is like a mini undo stack)
  */
-class CORE_API FCompoundChange : public FSwapChange
+class FCompoundChange : public FSwapChange
 {
 
 public:
@@ -177,9 +177,9 @@ public:
 	}
 
 	// Parent class overrides
-	virtual TUniquePtr<FChange> Execute( UObject* Object ) override;
-	virtual FString ToString() const override;
-	virtual void PrintToLog( class FFeedbackContext& FeedbackContext, const int32 IndentLevel = 0 ) override;
+	CORE_API virtual TUniquePtr<FChange> Execute( UObject* Object ) override;
+	CORE_API virtual FString ToString() const override;
+	CORE_API virtual void PrintToLog( class FFeedbackContext& FeedbackContext, const int32 IndentLevel = 0 ) override;
 
 
 private:

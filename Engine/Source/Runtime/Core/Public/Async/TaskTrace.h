@@ -46,17 +46,17 @@ namespace TaskTrace
 	void CORE_API Completed(FId TaskId);
 	void CORE_API Destroyed(FId TaskId);
 
-	struct CORE_API FWaitingScope
+	struct FWaitingScope
 	{
-		explicit FWaitingScope(const TArray<FId>& Tasks); // waiting for given tasks completion
-		explicit FWaitingScope(FId TaskId);
-		~FWaitingScope();
+		CORE_API explicit FWaitingScope(const TArray<FId>& Tasks); // waiting for given tasks completion
+		CORE_API explicit FWaitingScope(FId TaskId);
+		CORE_API ~FWaitingScope();
 	};
 
-	struct CORE_API FTaskTimingEventScope
+	struct FTaskTimingEventScope
 	{
-		FTaskTimingEventScope(TaskTrace::FId InTaskId);
-		~FTaskTimingEventScope();
+		CORE_API FTaskTimingEventScope(TaskTrace::FId InTaskId);
+		CORE_API ~FTaskTimingEventScope();
 
 	private:
 		bool bIsActive = false;

@@ -16,7 +16,7 @@ class FRunnableThread;
 /**
  * Manages runnables and runnable threads.
  */
-class CORE_API FThreadManager
+class FThreadManager
 {
 	/** Critical section for ThreadList */
 	FCriticalSection ThreadsCritical;
@@ -33,7 +33,7 @@ public:
 	* @param Thread thread object.
 	* @see RemoveThread
 	*/
-	void AddThread(uint32 ThreadId, FRunnableThread* Thread);
+	CORE_API void AddThread(uint32 ThreadId, FRunnableThread* Thread);
 
 	/**
 	* Used internally to remove thread object.
@@ -41,13 +41,13 @@ public:
 	* @param Thread thread object to be removed.
 	* @see AddThread
 	*/
-	void RemoveThread(FRunnableThread* Thread);
+	CORE_API void RemoveThread(FRunnableThread* Thread);
 
 	/** Get the number of registered threads */
 	int32 NumThreads() const { return Threads.Num(); }
 
 	/** Ticks all fake threads and their runnable objects. */
-	void Tick();
+	CORE_API void Tick();
 
 	/** Returns the name of a thread given its TLS id */
 	inline static const FString& GetThreadName(uint32 ThreadId)
@@ -75,29 +75,29 @@ public:
 		TArray<uint64, TInlineAllocator<100>> ProgramCounters;
 	};
 
-	void GetAllThreadStackBackTraces(TArray<FThreadStackBackTrace>& StackTraces);
+	CORE_API void GetAllThreadStackBackTraces(TArray<FThreadStackBackTrace>& StackTraces);
 #endif
 
 	/**
 	 * Enumerate each thread.
 	 *
 	 */
-	void ForEachThread(TFunction<void(uint32 ThreadId, FRunnableThread* Thread)> Func);
+	CORE_API void ForEachThread(TFunction<void(uint32 ThreadId, FRunnableThread* Thread)> Func);
 
 	/**
 	 * Access to the singleton object.
 	 *
 	 * @return Thread manager object.
 	 */
-	static FThreadManager& Get();
+	static CORE_API FThreadManager& Get();
 
 private:
 
 	friend class FForkProcessHelper;
 
 	/** Returns a list of registered forkable threads  */
-	TArray<FRunnableThread*> GetForkableThreads();
+	CORE_API TArray<FRunnableThread*> GetForkableThreads();
 
 	/** Returns internal name of a the thread given its TLS id */
-	const FString& GetThreadNameInternal(uint32 ThreadId);
+	CORE_API const FString& GetThreadNameInternal(uint32 ThreadId);
 };

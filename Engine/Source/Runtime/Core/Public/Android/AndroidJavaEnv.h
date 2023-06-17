@@ -22,7 +22,7 @@ namespace AndroidJavaEnv
 
 // Helper class that automatically calls DeleteLocalRef on the passed-in Java object when goes out of scope
 template <typename T>
-class CORE_API FScopedJavaObject
+class FScopedJavaObject
 {
 public:
 	FScopedJavaObject(JNIEnv* InEnv, const T& InObjRef) :
@@ -90,24 +90,24 @@ CORE_API FScopedJavaObject<T> NewScopedJavaObject(JNIEnv* InEnv, const T& InObjR
 	return FScopedJavaObject<T>(InEnv, InObjRef);
 }
 
-class CORE_API FJavaHelper
+class FJavaHelper
 {
 public:
 	// Converts the java string to FString and calls DeleteLocalRef on the passed-in java string reference
-	static FString FStringFromLocalRef(JNIEnv* Env, jstring JavaString);
+	static CORE_API FString FStringFromLocalRef(JNIEnv* Env, jstring JavaString);
 	
 	// Converts the java string to FString and calls DeleteGlobalRef on the passed-in java string reference
-	static FString FStringFromGlobalRef(JNIEnv* Env, jstring JavaString);
+	static CORE_API FString FStringFromGlobalRef(JNIEnv* Env, jstring JavaString);
 	
 	// Converts the java string to FString, does NOT modify the passed-in java string reference
-	static FString FStringFromParam(JNIEnv* Env, jstring JavaString);
+	static CORE_API FString FStringFromParam(JNIEnv* Env, jstring JavaString);
 	
 	// Converts FString into a Java string wrapped in FScopedJavaObject
-	static FScopedJavaObject<jstring> ToJavaString(JNIEnv* Env, const FString& UnrealString);
+	static CORE_API FScopedJavaObject<jstring> ToJavaString(JNIEnv* Env, const FString& UnrealString);
 
 	// Converts a TArray<FStringView> into a Java string array wrapped in FScopedJavaObject. FStringView content is expected to be null terminated
-	static FScopedJavaObject<jobjectArray> ToJavaStringArray(JNIEnv* Env, const TArray<FStringView>& UnrealStrings);
+	static CORE_API FScopedJavaObject<jobjectArray> ToJavaStringArray(JNIEnv* Env, const TArray<FStringView>& UnrealStrings);
 
 	// Converts the java objectArray to an array of FStrings. jopbjectArray must be a String[] on the Java side
-	static TArray<FString> ObjectArrayToFStringTArray(JNIEnv* Env, jobjectArray ObjectArray);
+	static CORE_API TArray<FString> ObjectArrayToFStringTArray(JNIEnv* Env, jobjectArray ObjectArray);
 };

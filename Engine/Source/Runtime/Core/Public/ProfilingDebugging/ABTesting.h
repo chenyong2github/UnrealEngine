@@ -24,14 +24,14 @@
 template<typename Allocator > class TBitArray;
 
 #if ENABLE_ABTEST
-class CORE_API FABTest
+class FABTest
 {
 public:
 
-	FABTest();
+	CORE_API FABTest();
 	
 	//returns a command to execute, if any.
-	const TCHAR* TickAndGetCommand();
+	CORE_API const TCHAR* TickAndGetCommand();
 
 	bool IsActive()
 	{
@@ -48,9 +48,9 @@ public:
 		return CurrentTest == 0;
 	}
 
-	static FABTest& Get();
+	static CORE_API FABTest& Get();
 
-	static void ABTestCmdFunc(const TArray<FString>& Args);
+	static CORE_API void ABTestCmdFunc(const TArray<FString>& Args);
 
 	static bool StaticIsActive()
 	{
@@ -59,13 +59,13 @@ public:
 
 private:
 
-	void StartFrameLog();
-	void FrameLogTick(double Delta);
+	CORE_API void StartFrameLog();
+	CORE_API void FrameLogTick(double Delta);
 	
-	void Start(FString* InABTestCmds, bool bScopeTest);
-	void Stop();
+	CORE_API void Start(FString* InABTestCmds, bool bScopeTest);
+	CORE_API void Stop();
 
-	const TCHAR* SwitchTest(int32 Index);
+	CORE_API const TCHAR* SwitchTest(int32 Index);
 	
 	
 
@@ -108,7 +108,7 @@ private:
 
 };
 
-class CORE_API FScopedABTimer : public FDurationTimer
+class FScopedABTimer : public FDurationTimer
 {
 public:
 	explicit FScopedABTimer() 
@@ -132,7 +132,7 @@ private:
 #define SCOPED_ABTEST_DOFIRSTTEST() FABTest::Get().GetDoFirstScopeTest()
 #else
 
-class CORE_API FABTest
+class FABTest
 {
 public:
 	static bool StaticIsActive()

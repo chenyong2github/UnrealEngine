@@ -38,24 +38,24 @@ namespace EAndroidSurfaceOrientation
 /**
  * Android implementation of the misc OS functions
  */
-struct CORE_API FAndroidMisc : public FGenericPlatformMisc
+struct FAndroidMisc : public FGenericPlatformMisc
 {
-	static void RequestExit( bool Force, const TCHAR* CallSite = nullptr);
-	static bool RestartApplication();
-	static void LocalPrint(const TCHAR *Message);
+	static CORE_API void RequestExit( bool Force, const TCHAR* CallSite = nullptr);
+	static CORE_API bool RestartApplication();
+	static CORE_API void LocalPrint(const TCHAR *Message);
 	static bool IsLocalPrintThreadSafe() { return true; }
-	static void PlatformPreInit();
-	static void PlatformInit();
-	static void PlatformTearDown();
-	static void PlatformHandleSplashScreen(bool ShowSplashScreen);
+	static CORE_API void PlatformPreInit();
+	static CORE_API void PlatformInit();
+	static CORE_API void PlatformTearDown();
+	static CORE_API void PlatformHandleSplashScreen(bool ShowSplashScreen);
     static EDeviceScreenOrientation GetDeviceOrientation() { return DeviceOrientation; }
 	UE_DEPRECATED(5.1, "SetDeviceOrientation is deprecated. Use SetAllowedDeviceOrientation instead.")
-	static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation);
-	static void SetAllowedDeviceOrientation(EDeviceScreenOrientation NewAllowedDeviceOrientation);
+	static CORE_API void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation);
+	static CORE_API void SetAllowedDeviceOrientation(EDeviceScreenOrientation NewAllowedDeviceOrientation);
 
 	// Change this to an Enum with Always allow, allow and deny
-	static void SetCellularPreference(int32 Value);
-	static int32 GetCellularPreference();
+	static CORE_API void SetCellularPreference(int32 Value);
+	static CORE_API int32 GetCellularPreference();
     
 	FORCEINLINE static int32 GetMaxPathLength()
 	{
@@ -63,19 +63,19 @@ struct CORE_API FAndroidMisc : public FGenericPlatformMisc
 	}
 
 	UE_DEPRECATED(4.21, "void FPlatformMisc::GetEnvironmentVariable(Name, Result, Length) is deprecated. Use FString FPlatformMisc::GetEnvironmentVariable(Name) instead.")
-	static void GetEnvironmentVariable(const TCHAR* VariableName, TCHAR* Result, int32 ResultLength);
+	static CORE_API void GetEnvironmentVariable(const TCHAR* VariableName, TCHAR* Result, int32 ResultLength);
 
-	static FString GetEnvironmentVariable(const TCHAR* VariableName);
-	static const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);
-	static EAppReturnType::Type MessageBoxExt( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption );
-	static bool UseRenderThread();
-	static bool HasPlatformFeature(const TCHAR* FeatureName);
-	static bool ShouldDisablePluginAtRuntime(const FString& PluginName);
-	static bool SupportsES30();
+	static CORE_API FString GetEnvironmentVariable(const TCHAR* VariableName);
+	static CORE_API const TCHAR* GetSystemErrorMessage(TCHAR* OutBuffer, int32 BufferCount, int32 Error);
+	static CORE_API EAppReturnType::Type MessageBoxExt( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption );
+	static CORE_API bool UseRenderThread();
+	static CORE_API bool HasPlatformFeature(const TCHAR* FeatureName);
+	static CORE_API bool ShouldDisablePluginAtRuntime(const FString& PluginName);
+	static CORE_API bool SupportsES30();
 
 public:
 
-	static bool AllowThreadHeartBeat();
+	static CORE_API bool AllowThreadHeartBeat();
 
 	struct FCPUStatTime{
 		uint64_t			TotalTime;
@@ -102,38 +102,38 @@ public:
 		
 	};
 
-	static FCPUState& GetCPUState();
-	static int32 NumberOfCores();
-	static int32 NumberOfCoresIncludingHyperthreads();
-	static bool SupportsLocalCaching();
-	static void CreateGuid(struct FGuid& Result);
-	static void SetCrashHandler(void (* CrashHandler)(const FGenericCrashContext& Context));
+	static CORE_API FCPUState& GetCPUState();
+	static CORE_API int32 NumberOfCores();
+	static CORE_API int32 NumberOfCoresIncludingHyperthreads();
+	static CORE_API bool SupportsLocalCaching();
+	static CORE_API void CreateGuid(struct FGuid& Result);
+	static CORE_API void SetCrashHandler(void (* CrashHandler)(const FGenericCrashContext& Context));
 	// NOTE: THIS FUNCTION IS DEFINED IN ANDROIDOPENGL.CPP
-	static void GetValidTargetPlatforms(class TArray<class FString>& TargetPlatformNames);
-	static bool GetUseVirtualJoysticks();
-	static bool SupportsTouchInput();
+	static CORE_API void GetValidTargetPlatforms(class TArray<class FString>& TargetPlatformNames);
+	static CORE_API bool GetUseVirtualJoysticks();
+	static CORE_API bool SupportsTouchInput();
 	static const TCHAR* GetDefaultDeviceProfileName() { return TEXT("Android_Default"); }
-	static bool GetVolumeButtonsHandledBySystem();
-	static void SetVolumeButtonsHandledBySystem(bool enabled);
+	static CORE_API bool GetVolumeButtonsHandledBySystem();
+	static CORE_API void SetVolumeButtonsHandledBySystem(bool enabled);
 	// Returns current volume, 0-15
-	static int GetVolumeState(double* OutTimeOfChangeInSec = nullptr);
+	static CORE_API int GetVolumeState(double* OutTimeOfChangeInSec = nullptr);
 
-	static int32 GetDeviceVolume();
+	static CORE_API int32 GetDeviceVolume();
 
 #if USE_ANDROID_FILE
-	static const TCHAR* GamePersistentDownloadDir();
-	static FString GetLoginId();
+	static CORE_API const TCHAR* GamePersistentDownloadDir();
+	static CORE_API FString GetLoginId();
 #endif
 #if USE_ANDROID_JNI
-	static FString GetDeviceId();
-	static FString GetUniqueAdvertisingId();
+	static CORE_API FString GetDeviceId();
+	static CORE_API FString GetUniqueAdvertisingId();
 #endif
-	static FString GetCPUVendor();
-	static FString GetCPUBrand();
-	static FString GetCPUChipset();
-	static FString GetPrimaryGPUBrand();
-	static void GetOSVersions(FString& out_OSVersionLabel, FString& out_OSSubVersionLabel);
-	static bool GetDiskTotalAndFreeSpace(const FString& InPath, uint64& TotalNumberOfBytes, uint64& NumberOfFreeBytes);
+	static CORE_API FString GetCPUVendor();
+	static CORE_API FString GetCPUBrand();
+	static CORE_API FString GetCPUChipset();
+	static CORE_API FString GetPrimaryGPUBrand();
+	static CORE_API void GetOSVersions(FString& out_OSVersionLabel, FString& out_OSSubVersionLabel);
+	static CORE_API bool GetDiskTotalAndFreeSpace(const FString& InPath, uint64& TotalNumberOfBytes, uint64& NumberOfFreeBytes);
 	
 	enum EBatteryState
 	{
@@ -150,97 +150,97 @@ public:
 		float						Temperature;    // in degrees of Celsius
 	};
 
-	static FBatteryState GetBatteryState();
-	static int GetBatteryLevel();
-	static bool IsRunningOnBattery();
-	static bool IsInLowPowerMode();
-	static float GetDeviceTemperatureLevel();
-	static bool AreHeadPhonesPluggedIn();
-	static ENetworkConnectionType GetNetworkConnectionType();
+	static CORE_API FBatteryState GetBatteryState();
+	static CORE_API int GetBatteryLevel();
+	static CORE_API bool IsRunningOnBattery();
+	static CORE_API bool IsInLowPowerMode();
+	static CORE_API float GetDeviceTemperatureLevel();
+	static CORE_API bool AreHeadPhonesPluggedIn();
+	static CORE_API ENetworkConnectionType GetNetworkConnectionType();
 #if USE_ANDROID_JNI
-	static bool HasActiveWiFiConnection();
+	static CORE_API bool HasActiveWiFiConnection();
 #endif
 
-	static void RegisterForRemoteNotifications();
-	static void UnregisterForRemoteNotifications();
-	static bool IsAllowedRemoteNotifications();
+	static CORE_API void RegisterForRemoteNotifications();
+	static CORE_API void UnregisterForRemoteNotifications();
+	static CORE_API bool IsAllowedRemoteNotifications();
 
 	/** @return Memory representing a true type or open type font provided by the platform as a default font for unreal to consume; empty array if the default font failed to load. */
-	static TArray<uint8> GetSystemFontBytes();
+	static CORE_API TArray<uint8> GetSystemFontBytes();
 
-	static IPlatformChunkInstall* GetPlatformChunkInstall();
+	static CORE_API IPlatformChunkInstall* GetPlatformChunkInstall();
 
-	static void PrepareMobileHaptics(EMobileHapticsType Type);
-	static void TriggerMobileHaptics();
-	static void ReleaseMobileHaptics();
-	static void ShareURL(const FString& URL, const FText& Description, int32 LocationHintX, int32 LocationHintY);
+	static CORE_API void PrepareMobileHaptics(EMobileHapticsType Type);
+	static CORE_API void TriggerMobileHaptics();
+	static CORE_API void ReleaseMobileHaptics();
+	static CORE_API void ShareURL(const FString& URL, const FText& Description, int32 LocationHintX, int32 LocationHintY);
 
-	static FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
-	static bool FileExistsInPlatformPackage(const FString& RelativePath);
+	static CORE_API FString LoadTextFileFromPlatformPackage(const FString& RelativePath);
+	static CORE_API bool FileExistsInPlatformPackage(const FString& RelativePath);
 
 	// ANDROID ONLY:
-	static void SetVersionInfo(FString AndroidVersion, int32 InTargetSDKVersion, FString DeviceMake, FString DeviceModel, FString DeviceBuildNumber, FString OSLanguage);
-	static const FString GetAndroidVersion();
-	static int32 GetAndroidMajorVersion();
-	static int32 GetTargetSDKVersion();
-	static const FString GetDeviceMake();
-	static const FString GetDeviceModel();
-	static const FString GetOSLanguage();
-	static const FString GetDeviceBuildNumber();
-	static const FString GetProjectVersion();
-	static FString GetDefaultLocale();
-	static FString GetGPUFamily();
-	static FString GetGLVersion();
-	static bool SupportsFloatingPointRenderTargets();
-	static bool SupportsShaderFramebufferFetch();
-	static bool SupportsShaderIOBlocks();
+	static CORE_API void SetVersionInfo(FString AndroidVersion, int32 InTargetSDKVersion, FString DeviceMake, FString DeviceModel, FString DeviceBuildNumber, FString OSLanguage);
+	static CORE_API const FString GetAndroidVersion();
+	static CORE_API int32 GetAndroidMajorVersion();
+	static CORE_API int32 GetTargetSDKVersion();
+	static CORE_API const FString GetDeviceMake();
+	static CORE_API const FString GetDeviceModel();
+	static CORE_API const FString GetOSLanguage();
+	static CORE_API const FString GetDeviceBuildNumber();
+	static CORE_API const FString GetProjectVersion();
+	static CORE_API FString GetDefaultLocale();
+	static CORE_API FString GetGPUFamily();
+	static CORE_API FString GetGLVersion();
+	static CORE_API bool SupportsFloatingPointRenderTargets();
+	static CORE_API bool SupportsShaderFramebufferFetch();
+	static CORE_API bool SupportsShaderIOBlocks();
 #if USE_ANDROID_JNI
-	static int GetAndroidBuildVersion();
+	static CORE_API int GetAndroidBuildVersion();
 #endif
-	static bool IsSupportedAndroidDevice();
-	static void SetForceUnsupported(bool bInOverride);
-	static const TMap<FString, FString>& GetConfigRulesTMap();
-	static FString* GetConfigRulesVariable(const FString& Key);
+	static CORE_API bool IsSupportedAndroidDevice();
+	static CORE_API void SetForceUnsupported(bool bInOverride);
+	static CORE_API const TMap<FString, FString>& GetConfigRulesTMap();
+	static CORE_API FString* GetConfigRulesVariable(const FString& Key);
 
 	/* HasVulkanDriverSupport
 	 * @return true if this Android device supports a Vulkan API Unreal could use
 	 */
-	static bool HasVulkanDriverSupport();
+	static CORE_API bool HasVulkanDriverSupport();
 
 	/* IsVulkanAvailable
 	 * @return	true if there is driver support, we have an RHI, we are packaged with Vulkan support,
 	 *			and not we are not forcing GLES with a command line switch
 	 */
-	static bool IsVulkanAvailable();
+	static CORE_API bool IsVulkanAvailable();
 
 	/* ShouldUseVulkan
 	 * @return true if Vulkan is available, and not disabled by device profile cvar
 	 */
-	static bool ShouldUseVulkan();
-	static bool ShouldUseDesktopVulkan();
-	static FString GetVulkanVersion();
+	static CORE_API bool ShouldUseVulkan();
+	static CORE_API bool ShouldUseDesktopVulkan();
+	static CORE_API FString GetVulkanVersion();
 	typedef TFunction<void(void* NewNativeHandle)> ReInitWindowCallbackType;
-	static ReInitWindowCallbackType GetOnReInitWindowCallback();
-	static void SetOnReInitWindowCallback(ReInitWindowCallbackType InOnReInitWindowCallback);
+	static CORE_API ReInitWindowCallbackType GetOnReInitWindowCallback();
+	static CORE_API void SetOnReInitWindowCallback(ReInitWindowCallbackType InOnReInitWindowCallback);
 	typedef TFunction<void()> ReleaseWindowCallbackType;
-	static ReleaseWindowCallbackType GetOnReleaseWindowCallback();
-	static void SetOnReleaseWindowCallback(ReleaseWindowCallbackType InOnReleaseWindowCallback);
-	static FString GetOSVersion();
+	static CORE_API ReleaseWindowCallbackType GetOnReleaseWindowCallback();
+	static CORE_API void SetOnReleaseWindowCallback(ReleaseWindowCallbackType InOnReleaseWindowCallback);
+	static CORE_API FString GetOSVersion();
 	static bool GetOverrideResolution(int32 &ResX, int32& ResY) { return false; }
 	typedef TFunction<void()> OnPauseCallBackType;
-	static OnPauseCallBackType GetOnPauseCallback();
-	static void SetOnPauseCallback(OnPauseCallBackType InOnPauseCallback);
-	static void TriggerCrashHandler(ECrashContextType InType, const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack = nullptr);
+	static CORE_API OnPauseCallBackType GetOnPauseCallback();
+	static CORE_API void SetOnPauseCallback(OnPauseCallBackType InOnPauseCallback);
+	static CORE_API void TriggerCrashHandler(ECrashContextType InType, const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack = nullptr);
 
 	// To help track down issues with failing crash handler.
-	static FString GetFatalSignalMessage(int Signal, siginfo* Info);
-	static void OverrideFatalSignalHandler(void (*FatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context, uint32 CrashingThreadId));
+	static CORE_API FString GetFatalSignalMessage(int Signal, siginfo* Info);
+	static CORE_API void OverrideFatalSignalHandler(void (*FatalSignalHandlerOverrideFunc)(int Signal, struct siginfo* Info, void* Context, uint32 CrashingThreadId));
 	// To help track down issues with failing crash handler.
 
-	static bool IsInSignalHandler();
+	static CORE_API bool IsInSignalHandler();
 
 #if !UE_BUILD_SHIPPING
-	static bool IsDebuggerPresent();
+	static CORE_API bool IsDebuggerPresent();
 #endif
 
 	FORCEINLINE static void MemoryBarrier()
@@ -250,36 +250,36 @@ public:
 
 
 #if STATS || ENABLE_STATNAMEDEVENTS
-	static void BeginNamedEventFrame();
-	static void BeginNamedEvent(const struct FColor& Color, const TCHAR* Text);
-	static void BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text);
-	static void EndNamedEvent();
-	static void CustomNamedStat(const TCHAR* Text, float Value, const TCHAR* Graph, const TCHAR* Unit);
-	static void CustomNamedStat(const ANSICHAR* Text, float Value, const ANSICHAR* Graph, const ANSICHAR* Unit);
+	static CORE_API void BeginNamedEventFrame();
+	static CORE_API void BeginNamedEvent(const struct FColor& Color, const TCHAR* Text);
+	static CORE_API void BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text);
+	static CORE_API void EndNamedEvent();
+	static CORE_API void CustomNamedStat(const TCHAR* Text, float Value, const TCHAR* Graph, const TCHAR* Unit);
+	static CORE_API void CustomNamedStat(const ANSICHAR* Text, float Value, const ANSICHAR* Graph, const ANSICHAR* Unit);
 #endif
 
 #if (STATS || ENABLE_STATNAMEDEVENTS)
-	static int32 TraceMarkerFileDescriptor;
+	static CORE_API int32 TraceMarkerFileDescriptor;
 #endif
 	
 	// run time compatibility information
-	static FString AndroidVersion; // version of android we are running eg "4.0.4"
-	static int32 AndroidMajorVersion; // integer major version of Android we are running, eg 10
-	static int32 TargetSDKVersion; // Target SDK version, eg 29.
-	static FString DeviceMake; // make of the device we are running on eg. "samsung"
-	static FString DeviceModel; // model of the device we are running on eg "SAMSUNG-SGH-I437"
-	static FString DeviceBuildNumber; // platform image build number of device "R16NW.G960NKSU1ARD6"
-	static FString OSLanguage; // language code the device is set to
+	static CORE_API FString AndroidVersion; // version of android we are running eg "4.0.4"
+	static CORE_API int32 AndroidMajorVersion; // integer major version of Android we are running, eg 10
+	static CORE_API int32 TargetSDKVersion; // Target SDK version, eg 29.
+	static CORE_API FString DeviceMake; // make of the device we are running on eg. "samsung"
+	static CORE_API FString DeviceModel; // model of the device we are running on eg "SAMSUNG-SGH-I437"
+	static CORE_API FString DeviceBuildNumber; // platform image build number of device "R16NW.G960NKSU1ARD6"
+	static CORE_API FString OSLanguage; // language code the device is set to
 
 	// Build version of Android, i.e. API level.
-	static int32 AndroidBuildVersion;
+	static CORE_API int32 AndroidBuildVersion;
 
 	// Key/Value pair variables from the optional configuration.txt
-	static TMap<FString, FString> ConfigRulesVariables;
+	static CORE_API TMap<FString, FString> ConfigRulesVariables;
 
-	static bool VolumeButtonsHandledBySystem;
+	static CORE_API bool VolumeButtonsHandledBySystem;
 
-	static bool bNeedsRestartAfterPSOPrecompile;
+	static CORE_API bool bNeedsRestartAfterPSOPrecompile;
 
 	enum class ECoreFrequencyProperty
 	{
@@ -288,55 +288,55 @@ public:
 		MinFrequency,
 	};
 
-	static uint32 GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty CoreFrequencyProperty);
+	static CORE_API uint32 GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty CoreFrequencyProperty);
 
 	// Returns CPU temperature read from one of the configurable CPU sensors via android.CPUThermalSensorFilePath CVar or AndroidEngine.ini, [ThermalSensors] section.
 	// Doesn't guarantee to work on all devices. Some devices require root access rights to read sensors information, in that case 0.0 will be returned
-	static float GetCPUTemperature();
+	static CORE_API float GetCPUTemperature();
 
-	static void UpdateDeviceOrientation();
+	static CORE_API void UpdateDeviceOrientation();
 
 	static void SaveDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation) { DeviceOrientation = NewDeviceOrentation; }
 
 	// Window access is locked by the game thread before preinit and unlocked here after RHIInit (PlatformCreateDynamicRHI). 
-	static void UnlockAndroidWindow();
+	static CORE_API void UnlockAndroidWindow();
 	
-	static TArray<int32> GetSupportedNativeDisplayRefreshRates();
+	static CORE_API TArray<int32> GetSupportedNativeDisplayRefreshRates();
 
-	static bool SetNativeDisplayRefreshRate(int32 RefreshRate);
+	static CORE_API bool SetNativeDisplayRefreshRate(int32 RefreshRate);
 
-	static int32 GetNativeDisplayRefreshRate();
+	static CORE_API int32 GetNativeDisplayRefreshRate();
 
 	/**
 	 * Returns whether or not a 16 bit index buffer should be promoted to 32 bit on load, needed for some Android devices
 	 */
-	static bool Expand16BitIndicesTo32BitOnLoad();
+	static CORE_API bool Expand16BitIndicesTo32BitOnLoad();
 
 	/**
 	 * Will return true if we wish to propagate the alpha to the backbuffer
 	 */
-	static int GetMobilePropagateAlphaSetting();
+	static CORE_API int GetMobilePropagateAlphaSetting();
 
-	static bool SupportsBackbufferSampling();
+	static CORE_API bool SupportsBackbufferSampling();
 
-	static void SetMemoryWarningHandler(void (*Handler)(const FGenericMemoryWarningContext& Context));
-	static bool HasMemoryWarningHandler();
+	static CORE_API void SetMemoryWarningHandler(void (*Handler)(const FGenericMemoryWarningContext& Context));
+	static CORE_API bool HasMemoryWarningHandler();
 
 	// Android specific requesting of exit, *ONLY* use this function in signal handling code. Otherwise normal RequestExit functions
-	static void NonReentrantRequestExit();
+	static CORE_API void NonReentrantRequestExit();
 
 	// Register/Get thread names for Android specific threads
-	static void RegisterThreadName(const char* Name, uint32 ThreadId);
-	static const char* GetThreadName(uint32 ThreadId);
+	static CORE_API void RegisterThreadName(const char* Name, uint32 ThreadId);
+	static CORE_API const char* GetThreadName(uint32 ThreadId);
 
-	static void ShowConsoleWindow();
+	static CORE_API void ShowConsoleWindow();
 
-	static FDelegateHandle AddNetworkListener(FOnNetworkConnectionChangedDelegate&& InNewDelegate);
-	static bool RemoveNetworkListener(FDelegateHandle Handle);
+	static CORE_API FDelegateHandle AddNetworkListener(FOnNetworkConnectionChangedDelegate&& InNewDelegate);
+	static CORE_API bool RemoveNetworkListener(FDelegateHandle Handle);
 
 private:
-	static const ANSICHAR* CodeToString(int Signal, int si_code);
-	static EDeviceScreenOrientation DeviceOrientation;
+	static CORE_API const ANSICHAR* CodeToString(int Signal, int si_code);
+	static CORE_API EDeviceScreenOrientation DeviceOrientation;
 
 #if USE_ANDROID_JNI
 	enum class EAndroidScreenOrientation
@@ -357,7 +357,7 @@ private:
 		SCREEN_ORIENTATION_USER_PORTRAIT = 12,
 	};
 	
-	static int32 GetAndroidScreenOrientation(EDeviceScreenOrientation ScreenOrientation);
+	static CORE_API int32 GetAndroidScreenOrientation(EDeviceScreenOrientation ScreenOrientation);
 #endif // USE_ANDROID_JNI
 };
 

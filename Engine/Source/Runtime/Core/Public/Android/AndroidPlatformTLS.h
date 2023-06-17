@@ -12,7 +12,7 @@
 /**
  * Android implementation of the TLS OS functions
  */
-struct CORE_API FAndroidTLS : public FGenericPlatformTLS
+struct FAndroidTLS : public FGenericPlatformTLS
 {
 	/**
 	 * Returns the currently executing thread's id

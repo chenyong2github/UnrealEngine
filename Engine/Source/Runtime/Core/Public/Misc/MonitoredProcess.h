@@ -32,7 +32,7 @@ DECLARE_DELEGATE_OneParam(FOnMonitoredProcessOutput, FString)
 /**
  * Implements an external process that can be monitored.
  */
-class CORE_API FMonitoredProcess
+class FMonitoredProcess
 	: public FRunnable, FSingleThreadRunnable
 {
 public:
@@ -45,7 +45,7 @@ public:
 	 * @param InHidden Whether the window of the process should be hidden.
 	 * @param InCreatePipes Whether the output should be redirected to the caller.
 	 */
-	FMonitoredProcess( const FString& InURL, const FString& InParams, bool InHidden, bool InCreatePipes = true );
+	CORE_API FMonitoredProcess( const FString& InURL, const FString& InParams, bool InHidden, bool InCreatePipes = true );
 
 	/**
 	* Creates a new monitored process.
@@ -56,10 +56,10 @@ public:
 	* @param InWorkingDir The URL of the working dir where the executable should launch.
 	* @param InCreatePipes Whether the output should be redirected to the caller.
 	*/
-	FMonitoredProcess( const FString& InURL, const FString& InParams, const FString& InWorkingDir, bool InHidden, bool InCreatePipes = true );
+	CORE_API FMonitoredProcess( const FString& InURL, const FString& InParams, const FString& InWorkingDir, bool InHidden, bool InCreatePipes = true );
 
 	/** Destructor. */
-	virtual ~FMonitoredProcess();
+	CORE_API virtual ~FMonitoredProcess();
 
 public:
 
@@ -79,7 +79,7 @@ public:
 	 *
 	 * @return Time duration.
 	 */
-	FTimespan GetDuration() const;
+	CORE_API FTimespan GetDuration() const;
 
 	/**
 	 * Gets the Process Handle. The instance can be invalid if the process was not created.
@@ -104,10 +104,10 @@ public:
 	*
 	* @return true if the process is running, false otherwise.
 	*/
-	bool Update();
+	CORE_API bool Update();
 
 	/** Launches the process. */
-	virtual bool Launch();
+	CORE_API virtual bool Launch();
 
 	/**
 	 * Sets the sleep interval to be used in the main thread loop.
@@ -179,7 +179,7 @@ public:
 		return true;
 	}
 
-	virtual uint32 Run() override;
+	CORE_API virtual uint32 Run() override;
 
 	virtual void Stop() override
 	{
@@ -198,17 +198,17 @@ protected:
 	/**
 	* FSingleThreadRunnable interface
 	*/
-	void Tick() override;
+	CORE_API void Tick() override;
 
 	/**
 	 * Processes the given output string.
 	 *
 	 * @param Output The output string to process.
 	 */
-	void ProcessOutput( const FString& Output );
+	CORE_API void ProcessOutput( const FString& Output );
 
 protected:
-	void TickInternal();
+	CORE_API void TickInternal();
 
 
 	// Whether the process is being canceled. */
@@ -275,22 +275,22 @@ protected:
 };
 
 
-class CORE_API FSerializedUATProcess : public FMonitoredProcess
+class FSerializedUATProcess : public FMonitoredProcess
 {
 public:
 	/**
 	 * Get the host-platform-specific path to the UAT running script
 	 */
-	static FString GetUATPath();
+	static CORE_API FString GetUATPath();
 
 public:
-	FSerializedUATProcess(const FString& RunUATCommandline);
+	CORE_API FSerializedUATProcess(const FString& RunUATCommandline);
 
 	/**
 	 * Run UAT, serially with other FSerializedUATProcess objects. Because the actual call is delayed, this will
 	 * always return true, and the LaunchFailedDelegate will be called later if an error happens
 	 */
-	virtual bool Launch() override;
+	CORE_API virtual bool Launch() override;
 
 	/**
 	 * Returns a delegate that is executed when the process has been canceled.
@@ -305,9 +305,9 @@ public:
 
 private:
 
-	bool LaunchNext();
-	bool LaunchInternal();
-	static void CancelQueue();
+	CORE_API bool LaunchNext();
+	CORE_API bool LaunchInternal();
+	static CORE_API void CancelQueue();
 
 	// When this one completes, run the next in line
 	FSerializedUATProcess* NextProcessToRun = nullptr;
@@ -316,7 +316,7 @@ private:
 	// of Launch in the parent class, since it's async
 	FSimpleDelegate LaunchFailedDelegate;
 
-	static FCriticalSection Serializer;
-	static bool bHasSucceededOnce;
-	static FSerializedUATProcess* HeadProcess;
+	static CORE_API FCriticalSection Serializer;
+	static CORE_API bool bHasSucceededOnce;
+	static CORE_API FSerializedUATProcess* HeadProcess;
 };

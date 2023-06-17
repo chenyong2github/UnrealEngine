@@ -9,7 +9,7 @@ struct FArchiveCookContext;
 
 // Holds archive data only relevant for cooking archives. Fill this out
 // as part of FSavePackageArgs.
-struct CORE_API FArchiveCookData
+struct FArchiveCookData
 {
 	const ITargetPlatform& TargetPlatform;
 	FArchiveCookContext& CookContext;

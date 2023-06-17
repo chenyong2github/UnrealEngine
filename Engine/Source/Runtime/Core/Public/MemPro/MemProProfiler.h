@@ -19,12 +19,12 @@
 #include "MemPro/MemPro.h"
 #include "Containers/StaticArray.h"
 
-class CORE_API FMemProProfiler
+class FMemProProfiler
 {
 public:
-	static void Init(const TCHAR* CmdLine);
+	static CORE_API void Init(const TCHAR* CmdLine);
 
-	static bool IsUsingPort( uint32 Port );
+	static CORE_API bool IsUsingPort( uint32 Port );
 
 	static inline bool IsStarted()
 	{
@@ -39,8 +39,8 @@ public:
 		return IsStarted() && MemProLLMTagsEnabled[(int32)Tag];
 	}
 
-	static void TrackTag( ELLMTag Tag );
-	static void TrackTagsByName( const TCHAR* TagNamesStr );
+	static CORE_API void TrackTag( ELLMTag Tag );
+	static CORE_API void TrackTagsByName( const TCHAR* TagNamesStr );
 #endif //ENABLE_LOW_LEVEL_MEM_TRACKER
 };
 

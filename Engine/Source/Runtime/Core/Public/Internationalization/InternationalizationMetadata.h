@@ -29,10 +29,10 @@ class FLocMetadataObject;
 /**
  * A Metadata Value is a structure that can be a number of types.
  */
-class CORE_API FLocMetadataValue
+class FLocMetadataValue
 {
 public:
-	virtual ~FLocMetadataValue() = 0;
+	CORE_API virtual ~FLocMetadataValue() = 0;
 
 	virtual FString ToString() const = 0;
 
@@ -63,18 +63,18 @@ protected:
 
 	virtual FString GetTypeString() const = 0;
 
-	void ErrorMessage(const FString& InType);
+	CORE_API void ErrorMessage(const FString& InType);
 
 private:
-	FLocMetadataValue( const FLocMetadataValue& );
-	FLocMetadataValue& operator=( const FLocMetadataValue& );
+	CORE_API FLocMetadataValue( const FLocMetadataValue& );
+	CORE_API FLocMetadataValue& operator=( const FLocMetadataValue& );
 };
 
 
 /**
  * A LocMetadata Object is a structure holding an unordered set of name/value pairs.
  */
-class CORE_API FLocMetadataObject
+class FLocMetadataObject
 {
 public:
 	FLocMetadataObject()
@@ -83,7 +83,7 @@ public:
 	}
 
 	/** Copy ctor */
-	FLocMetadataObject( const FLocMetadataObject& Other );
+	CORE_API FLocMetadataObject( const FLocMetadataObject& Other );
 	
 	template<ELocMetadataType LocMetadataType>
 	TSharedPtr<FLocMetadataValue> GetField( const FString& FieldName )
@@ -125,45 +125,45 @@ public:
 		return false;
 	}
 
-	void SetField( const FString& FieldName, const TSharedPtr<FLocMetadataValue>& Value );
+	CORE_API void SetField( const FString& FieldName, const TSharedPtr<FLocMetadataValue>& Value );
 
-	void RemoveField(const FString& FieldName);
+	CORE_API void RemoveField(const FString& FieldName);
 
 	/** Get the field named FieldName as a string. Ensures that the field is present and is of type LocMetadata string. */
-	FString GetStringField(const FString& FieldName);
+	CORE_API FString GetStringField(const FString& FieldName);
 
 	/** Add a field named FieldName with value of StringValue */
-	void SetStringField( const FString& FieldName, const FString& StringValue );
+	CORE_API void SetStringField( const FString& FieldName, const FString& StringValue );
 
 	/** Get the field named FieldName as a boolean. Ensures that the field is present and is of type LocMetadata boolean. */
-	bool GetBoolField(const FString& FieldName);
+	CORE_API bool GetBoolField(const FString& FieldName);
 
 	/** Set a boolean field named FieldName and value of InValue */
-	void SetBoolField( const FString& FieldName, bool InValue );
+	CORE_API void SetBoolField( const FString& FieldName, bool InValue );
 
 	/** Get the field named FieldName as an array. Ensures that the field is present and is of type LocMetadata Array. */
-	TArray< TSharedPtr<FLocMetadataValue> > GetArrayField(const FString& FieldName);
+	CORE_API TArray< TSharedPtr<FLocMetadataValue> > GetArrayField(const FString& FieldName);
 
 	/** Set an array field named FieldName and value of Array */
-	void SetArrayField( const FString& FieldName, const TArray< TSharedPtr<FLocMetadataValue> >& Array );
+	CORE_API void SetArrayField( const FString& FieldName, const TArray< TSharedPtr<FLocMetadataValue> >& Array );
 
 	/** Get the field named FieldName as a LocMetadata object. Ensures that the field is present and is a LocMetadata object*/
-	TSharedPtr<FLocMetadataObject> GetObjectField(const FString& FieldName);
+	CORE_API TSharedPtr<FLocMetadataObject> GetObjectField(const FString& FieldName);
 
 	/** Set an ObjectField named FieldName and value of LocMetadataObject */
-	void SetObjectField( const FString& FieldName, const TSharedPtr<FLocMetadataObject>& LocMetadataObject );
+	CORE_API void SetObjectField( const FString& FieldName, const TSharedPtr<FLocMetadataObject>& LocMetadataObject );
 
-	FLocMetadataObject& operator=( const FLocMetadataObject& Other );
+	CORE_API FLocMetadataObject& operator=( const FLocMetadataObject& Other );
 
-	bool operator==(const FLocMetadataObject& Other) const;
-	bool operator<( const FLocMetadataObject& Other ) const;
+	CORE_API bool operator==(const FLocMetadataObject& Other) const;
+	CORE_API bool operator<( const FLocMetadataObject& Other ) const;
 
 	/** Similar functionality to == operator but ensures everything matches(ignores COMPARISON_MODIFIER_PREFIX). */
-	bool IsExactMatch( const FLocMetadataObject& Other ) const;
+	CORE_API bool IsExactMatch( const FLocMetadataObject& Other ) const;
 
-	static bool IsMetadataExactMatch( const FLocMetadataObject* const MetadataA, const FLocMetadataObject* const MetadataB );
+	static CORE_API bool IsMetadataExactMatch( const FLocMetadataObject* const MetadataA, const FLocMetadataObject* const MetadataB );
 
-	FString ToString() const;
+	CORE_API FString ToString() const;
 
 	CORE_API friend FArchive& operator<<(FArchive& Archive, FLocMetadataObject& Object);
 	CORE_API friend void operator<<(FStructuredArchive::FSlot Slot, FLocMetadataObject& Object);
@@ -173,20 +173,20 @@ public:
 	TMap< FString, TSharedPtr<FLocMetadataValue> > Values;
 
 	/** Special reserved character.  When encountered as a prefix metadata name(the key in the Values map), it will adjust the way comparisons are done. */
-	static const TCHAR* COMPARISON_MODIFIER_PREFIX;
+	static CORE_API const TCHAR* COMPARISON_MODIFIER_PREFIX;
 };
 
 /** A LocMetadata String Value. */
-class CORE_API FLocMetadataValueString : public FLocMetadataValue
+class FLocMetadataValueString : public FLocMetadataValue
 {
 public:
 	FLocMetadataValueString(const FString& InString) : Value(InString) {}
-	FLocMetadataValueString(FStructuredArchive::FSlot Slot);
-	static void Serialize(FLocMetadataValueString& Value, FStructuredArchive::FSlot Slot);
+	CORE_API FLocMetadataValueString(FStructuredArchive::FSlot Slot);
+	static CORE_API void Serialize(FLocMetadataValueString& Value, FStructuredArchive::FSlot Slot);
 
 	virtual FString AsString() override {return Value;}
 
-	virtual TSharedRef<FLocMetadataValue> Clone() const override;
+	CORE_API virtual TSharedRef<FLocMetadataValue> Clone() const override;
 	void SetString( const FString& InString ) { Value = InString; }
 
 	virtual FString ToString() const override {return Value;}
@@ -197,24 +197,24 @@ protected:
 
 	FString Value;
 
-	virtual bool EqualTo( const FLocMetadataValue& Other ) const override;
-	virtual bool LessThan( const FLocMetadataValue& Other ) const override;
+	CORE_API virtual bool EqualTo( const FLocMetadataValue& Other ) const override;
+	CORE_API virtual bool LessThan( const FLocMetadataValue& Other ) const override;
 
 	virtual FString GetTypeString() const override {return TEXT("String");}
 };
 
 
 /** A LocMetadata Boolean Value. */
-class CORE_API FLocMetadataValueBoolean : public FLocMetadataValue
+class FLocMetadataValueBoolean : public FLocMetadataValue
 {
 public:
 	FLocMetadataValueBoolean(bool InBool) : Value(InBool) {}
-	FLocMetadataValueBoolean(FStructuredArchive::FSlot Slot);
-	static void Serialize(FLocMetadataValueBoolean& Value, FStructuredArchive::FSlot Slot);
+	CORE_API FLocMetadataValueBoolean(FStructuredArchive::FSlot Slot);
+	static CORE_API void Serialize(FLocMetadataValueBoolean& Value, FStructuredArchive::FSlot Slot);
 
 	virtual bool AsBool() override {return Value;}
 
-	virtual TSharedRef<FLocMetadataValue> Clone() const override;
+	CORE_API virtual TSharedRef<FLocMetadataValue> Clone() const override;
 	
 	virtual FString ToString() const override {return Value ? TEXT("true") : TEXT("false");}
 
@@ -223,58 +223,58 @@ public:
 protected:
 	bool Value;
 
-	virtual bool EqualTo( const FLocMetadataValue& Other ) const override;
-	virtual bool LessThan( const FLocMetadataValue& Other ) const override;
+	CORE_API virtual bool EqualTo( const FLocMetadataValue& Other ) const override;
+	CORE_API virtual bool LessThan( const FLocMetadataValue& Other ) const override;
 
 	virtual FString GetTypeString() const override {return TEXT("Boolean");}
 };
 
 /** A LocMetadata Array Value. */
-class CORE_API FLocMetadataValueArray : public FLocMetadataValue
+class FLocMetadataValueArray : public FLocMetadataValue
 {
 public:
 	FLocMetadataValueArray(const TArray< TSharedPtr<FLocMetadataValue> >& InArray) : Value(InArray) {}
-	FLocMetadataValueArray(FStructuredArchive::FSlot Slot);
-	static void Serialize(FLocMetadataValueArray& Value, FStructuredArchive::FSlot Slot);
+	CORE_API FLocMetadataValueArray(FStructuredArchive::FSlot Slot);
+	static CORE_API void Serialize(FLocMetadataValueArray& Value, FStructuredArchive::FSlot Slot);
 
 	virtual TArray< TSharedPtr<FLocMetadataValue> > AsArray() override {return Value;}
 
-	virtual TSharedRef<FLocMetadataValue> Clone() const override;
+	CORE_API virtual TSharedRef<FLocMetadataValue> Clone() const override;
 	
-	virtual FString ToString() const override;
+	CORE_API virtual FString ToString() const override;
 
 	virtual ELocMetadataType GetType() const override {return ELocMetadataType::Array;}
 
 protected:
 	TArray< TSharedPtr<FLocMetadataValue> > Value;
 
-	virtual bool EqualTo( const FLocMetadataValue& Other ) const override;
-	virtual bool LessThan( const FLocMetadataValue& Other ) const override;
+	CORE_API virtual bool EqualTo( const FLocMetadataValue& Other ) const override;
+	CORE_API virtual bool LessThan( const FLocMetadataValue& Other ) const override;
 
 	virtual FString GetTypeString() const override {return TEXT("Array");}
 };
 
 /** A LocMetadata Object Value. */
-class CORE_API FLocMetadataValueObject : public FLocMetadataValue
+class FLocMetadataValueObject : public FLocMetadataValue
 {
 public:
 	FLocMetadataValueObject(TSharedPtr<FLocMetadataObject> InObject) : Value(InObject) {}
-	FLocMetadataValueObject(FStructuredArchive::FSlot Slot);
-	static void Serialize(FLocMetadataValueObject& Value, FStructuredArchive::FSlot Slot);
+	CORE_API FLocMetadataValueObject(FStructuredArchive::FSlot Slot);
+	static CORE_API void Serialize(FLocMetadataValueObject& Value, FStructuredArchive::FSlot Slot);
 
 	virtual TSharedPtr<FLocMetadataObject> AsObject() override {return Value;}
 
-	virtual TSharedRef<FLocMetadataValue> Clone() const override;
+	CORE_API virtual TSharedRef<FLocMetadataValue> Clone() const override;
 	
-	virtual FString ToString() const override;
+	CORE_API virtual FString ToString() const override;
 
 	virtual ELocMetadataType GetType() const override {return ELocMetadataType::Object;}
 
 protected:
 	TSharedPtr<FLocMetadataObject> Value;
 
-	virtual bool EqualTo( const FLocMetadataValue& Other ) const override;
-	virtual bool LessThan( const FLocMetadataValue& Other ) const override;
+	CORE_API virtual bool EqualTo( const FLocMetadataValue& Other ) const override;
+	CORE_API virtual bool LessThan( const FLocMetadataValue& Other ) const override;
 
 	virtual FString GetTypeString() const override {return TEXT("Object");}
 };

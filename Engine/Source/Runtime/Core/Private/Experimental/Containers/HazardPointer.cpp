@@ -21,7 +21,7 @@ FHazardPointerCollection::~FHazardPointerCollection()
 }
 
 template<bool Cached>
-CORE_API FHazardPointerCollection::FHazardRecord* FHazardPointerCollection::Grow()
+FHazardPointerCollection::FHazardRecord* FHazardPointerCollection::Grow()
 {
 	uint32 TotalNumBeforeLock = TotalNumHazardRecords;
 	//No empty Entry found: create new

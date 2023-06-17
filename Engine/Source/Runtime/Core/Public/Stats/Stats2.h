@@ -150,36 +150,36 @@ public:
 CORE_API bool DirectStatsCommand(const TCHAR* Cmd, bool bBlockForCompletion = false, FOutputDevice* Ar = nullptr);
 
 /** Helper struct that contains method available even when the stats are disabled. */
-struct CORE_API FStats
+struct FStats
 {
 	/** Delegate to fire every time we need to advance the stats for the rendering thread. */
 	DECLARE_DELEGATE_ThreeParams( FOnAdvanceRenderingThreadStats, bool /*bDiscardCallstack*/, int64 /*StatsFrame*/, int32 /*PrimaryDisableChangeTagStartFrame*/ );
 
 	/** Advances stats for the current frame. */
-	static void AdvanceFrame( bool bDiscardCallstack, const FOnAdvanceRenderingThreadStats& AdvanceRenderingThreadStatsDelegate = FOnAdvanceRenderingThreadStats() );
+	static CORE_API void AdvanceFrame( bool bDiscardCallstack, const FOnAdvanceRenderingThreadStats& AdvanceRenderingThreadStatsDelegate = FOnAdvanceRenderingThreadStats() );
 
 	/** Advances stats for commandlets, only valid if the command line has the proper token. @see HasStatsForCommandletsToken */
-	static void TickCommandletStats();
+	static CORE_API void TickCommandletStats();
 
 	/**
 	* @return true, if the command line has the LoadTimeStatsForCommandlet or LoadTimeFileForCommandlet token which enables stats in the commandlets.
 	* !!!CAUTION!!! You need to manually advance stats frame in order to maintain the data integrity and not to leak the memory.
 	*/
-	static bool EnabledForCommandlet();
+	static CORE_API bool EnabledForCommandlet();
 
 	/**
 	* @return true, if the command line has the LoadTimeStatsForCommandlet token which enables LoadTimeStats equivalent for commandlets.
 	* All collected stats will be dumped to the log file at the end of running the specified commandlet.
 	*/
-	static bool HasLoadTimeStatsForCommandletToken();
+	static CORE_API bool HasLoadTimeStatsForCommandletToken();
 
 	/**
 	* @return true, if the command line has the LoadTimeFileForCommandlet token which enables LoadTimeFile equivalent for commandlets.
 	*/
-	static bool HasLoadTimeFileForCommandletToken();
+	static CORE_API bool HasLoadTimeFileForCommandletToken();
 
 	/** Current game thread stats frame. */
-	static TAtomic<int32> GameThreadStatsFrame;
+	static CORE_API TAtomic<int32> GameThreadStatsFrame;
 };
 
 enum class EStatFlags : uint8

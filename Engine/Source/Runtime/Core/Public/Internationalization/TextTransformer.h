@@ -9,9 +9,9 @@
  * Utility for performing low-level localized transforms.
  * The implementation can be found in LegacyText.cpp and ICUText.cpp.
  */
-class CORE_API FTextTransformer
+class FTextTransformer
 {
 public:
-	static FString ToLower(const FString& InStr);
-	static FString ToUpper(const FString& InStr);
+	static CORE_API FString ToLower(const FString& InStr);
+	static CORE_API FString ToUpper(const FString& InStr);
 };

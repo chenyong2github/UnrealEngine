@@ -10,7 +10,7 @@ class FString;
 template <typename CharType> class TStringBuilderBase;
 template <typename FuncType> class TFunctionRef;
 
-class CORE_API FPathViews
+class FPathViews
 {
 public:
 	/**
@@ -24,7 +24,7 @@ public:
 	 *
 	 * @return The portion of the path after the last separator.
 	 */
-	static FStringView GetCleanFilename(const FStringView& InPath);
+	static CORE_API FStringView GetCleanFilename(const FStringView& InPath);
 
 	/**
 	 * Returns the portion of the path after the last separator and before the last dot.
@@ -37,7 +37,7 @@ public:
 	 *
 	 * @return The portion of the path after the last separator and before the last dot.
 	 */
-	static FStringView GetBaseFilename(const FStringView& InPath);
+	static CORE_API FStringView GetBaseFilename(const FStringView& InPath);
 
 	/**
 	 * Returns the portion of the path before the last dot.
@@ -50,12 +50,12 @@ public:
 	 *
 	 * @return The portion of the path before the last dot.
 	 */
-	static FStringView GetBaseFilenameWithPath(const FStringView& InPath);
+	static CORE_API FStringView GetBaseFilenameWithPath(const FStringView& InPath);
 
 	/** Returns the portion of the path before the last dot and optionally after the last separator. */
 	UE_DEPRECATED(4.25, "FPathViews::GetBaseFilename(InPath, bRemovePath) has been superseded by "
 		"FPathViews::GetBaseFilename(InPath) and FPathViews::GetBaseFilenameWithPath(InPath).")
-	static FStringView GetBaseFilename(const FStringView& InPath, bool bRemovePath);
+	static CORE_API FStringView GetBaseFilename(const FStringView& InPath, bool bRemovePath);
 
 	/**
 	 * Returns the portion of the path before the last separator.
@@ -68,7 +68,7 @@ public:
 	 *
 	 * @return The portion of the path before the last separator.
 	 */
-	static FStringView GetPath(const FStringView& InPath);
+	static CORE_API FStringView GetPath(const FStringView& InPath);
 
 	/**
 	 * Returns the portion of the path after the last dot following the last separator, optionally including the dot.
@@ -87,7 +87,7 @@ public:
 	 *
 	 * @return The portion of the path after the last dot following the last separator, optionally including the dot.
 	 */
-	static FStringView GetExtension(const FStringView& InPath, bool bIncludeDot=false);
+	static CORE_API FStringView GetExtension(const FStringView& InPath, bool bIncludeDot=false);
 
 	/**
 	 * Returns the last non-empty path component.
@@ -100,7 +100,7 @@ public:
 	 *
 	 * @return The last non-empty path component.
 	 */
-	static FStringView GetPathLeaf(const FStringView& InPath);
+	static CORE_API FStringView GetPathLeaf(const FStringView& InPath);
 
 	/**
 	 * Return whether the given relative or absolute path is a leaf path - has no separators.
@@ -115,7 +115,7 @@ public:
 	 * D:/A		-> false
 	 * //A		-> false
 	 */
-	static bool IsPathLeaf(FStringView InPath);
+	static CORE_API bool IsPathLeaf(FStringView InPath);
 
 	/**
 	 * Splits InPath into individual directory components, and calls ComponentVisitor on each.
@@ -125,7 +125,7 @@ public:
 	 * "A/B/C" -> {"A", "B", "C"}
 	 * "../../A/B/C.D" -> {"..", "..", "A", "B", "C.D" }
 	 */
-	static void IterateComponents(FStringView InPath, TFunctionRef<void(FStringView)> ComponentVisitor);
+	static CORE_API void IterateComponents(FStringView InPath, TFunctionRef<void(FStringView)> ComponentVisitor);
 
 	/**
 	 * Splits a path into three parts, any of which may be empty: the path, the clean name, and the extension.
@@ -144,7 +144,7 @@ public:
 	 * @param OutName [out] Receives the name portion of the input string.
 	 * @param OutExt  [out] Receives the extension portion of the input string, excluding the dot.
 	 */
-	static void Split(const FStringView& InPath, FStringView& OutPath, FStringView& OutName, FStringView& OutExt);
+	static CORE_API void Split(const FStringView& InPath, FStringView& OutPath, FStringView& OutName, FStringView& OutExt);
 
 	/**
 	 * Appends each suffix argument to the path in the builder and ensures that there is a separator between them.
@@ -186,7 +186,7 @@ public:
 	 * @return The new file path complete with the new extension unless InPath is not valid in which
 	 * case a copy of InPath will be returned instead.
 	 */
-	static FString ChangeExtension(const FStringView& InPath, const FStringView& InNewExtension);
+	static CORE_API FString ChangeExtension(const FStringView& InPath, const FStringView& InNewExtension);
 	
 	/**
 	 * Sets the file extension of a filename.
@@ -196,10 +196,10 @@ public:
 	 *
 	 * @return The new file path complete with the new extension.
 	 */
-	static FString SetExtension(const FStringView& InPath, const FStringView& InNewExtension);
+	static CORE_API FString SetExtension(const FStringView& InPath, const FStringView& InNewExtension);
 
 	/** Return whether the given character is a path-separator character (/ or \) */
-	static bool IsSeparator(TCHAR c);
+	static CORE_API bool IsSeparator(TCHAR c);
 
 	/**
 	 * Return true if the given paths are the same path (with exceptions noted below).
@@ -222,7 +222,7 @@ public:
 	 * (d:/root/Engine/..", "d:/root") -> false
 	 * (d:/root/Engine/./Content", "d:/root/Engine/Content") -> false
 	 */
-	static bool Equals(FStringView A, FStringView B);
+	static CORE_API bool Equals(FStringView A, FStringView B);
 
 	/**
 	 * Return true if the the first path is lexicographically less than the second path (with caveats noted below).
@@ -246,7 +246,7 @@ public:
 	 * (d:/root/Engine/..", "d:/root") -> false (A string is greater than any prefix of itself)
 	 * (d:/root/Engine/./Content", "d:/root/Engine/Content") -> false
 	 */
-	static bool Less(FStringView A, FStringView B);
+	static CORE_API bool Less(FStringView A, FStringView B);
 
 	/**
 	 * Check whether Parent is a parent path of Child and report the relative path if so.
@@ -272,7 +272,7 @@ public:
 	 *
 	 * @return True if and only if Child is a child path of Parent (or is equal to it).
 	 */
-	static bool TryMakeChildPathRelativeTo(FStringView Child, FStringView Parent, FStringView& OutRelPath);
+	static CORE_API bool TryMakeChildPathRelativeTo(FStringView Child, FStringView Parent, FStringView& OutRelPath);
 
 	/**
 	 * Return whether Parent is a parent path of (or is equal to) Child.
@@ -297,37 +297,37 @@ public:
 	 *
 	 * @return True if and only if Child is a child path of Parent (or is equal to it).
 	 */
-	static bool IsParentPathOf(FStringView Parent, FStringView Child);
+	static CORE_API bool IsParentPathOf(FStringView Parent, FStringView Child);
 
 	/**
 	 * Return whether the given path is a relativepath - does not start with a separator or volume:.
 	 * Returns true for empty paths.
 	 */
-	static bool IsRelativePath(FStringView InPath);
+	static CORE_API bool IsRelativePath(FStringView InPath);
 
 	/** Convert to absolute using process BaseDir(), normalize and append. FPaths::ConvertRelativePathToFull() equivalent. */
-	static void ToAbsolutePath(FStringView InPath, FStringBuilderBase& OutPath);
+	static CORE_API void ToAbsolutePath(FStringView InPath, FStringBuilderBase& OutPath);
 	
 	/** Convert to absolute using explicit BasePath, normalize and append. FPaths::ConvertRelativePathToFull() equivalent. */
-	static void ToAbsolutePath(FStringView BasePath, FStringView InPath, FStringBuilderBase& OutPath);
+	static CORE_API void ToAbsolutePath(FStringView BasePath, FStringView InPath, FStringBuilderBase& OutPath);
 	
 	/** Convert to absolute using process BaseDir() and normalize inlined. FPaths::ConvertRelativePathToFull() equivalent. */
-	static void ToAbsolutePathInline(FStringBuilderBase& InOutPath);
+	static CORE_API void ToAbsolutePathInline(FStringBuilderBase& InOutPath);
 	
 	/** Convert to absolute using explicit BasePath and normalize inlined. FPaths::ConvertRelativePathToFull() equivalent. */
-	static void ToAbsolutePathInline(FStringView BasePath, FStringBuilderBase& InOutPath);
+	static CORE_API void ToAbsolutePathInline(FStringView BasePath, FStringBuilderBase& InOutPath);
 
 	/** Convert \\ to / and do platform-specific normalization */
-	static void NormalizeFilename(FStringBuilderBase& InOutPath);
+	static CORE_API void NormalizeFilename(FStringBuilderBase& InOutPath);
 
 	/** Normalize and remove trailing slash unless the preceding character is '/' or ':' */
-	static void NormalizeDirectoryName(FStringBuilderBase& InOutPath);
+	static CORE_API void NormalizeDirectoryName(FStringBuilderBase& InOutPath);
 
 	/** Collapses redundant paths like "/./" and "SkipDir/..". FPaths::CollapseRelativeDirectories() equivalent. */
-	static bool CollapseRelativeDirectories(FStringBuilderBase& InOutPath);
+	static CORE_API bool CollapseRelativeDirectories(FStringBuilderBase& InOutPath);
 
 	/** Removes duplicate forward slashes, e.g. "a/b//c////f.e" -> "a/b/c/f.e" */
-	static void RemoveDuplicateSlashes(FStringBuilderBase& InOutPath);
+	static CORE_API void RemoveDuplicateSlashes(FStringBuilderBase& InOutPath);
 
 	/**
 	 * Split the given absolute or relative path into its topmost directory and the relative path from that directory.
@@ -339,7 +339,7 @@ public:
 	 * @param OutFirstComponent Receives the first directory element in the path, or InPath if it is a leaf path.
 	 * @param OutRemainder Receives the relative path from OutFirstComponent to InPath, or empty if InPath is a leaf path.
 	 */
-	static void SplitFirstComponent(FStringView InPath, FStringView& OutFirstComponent, FStringView& OutRemainder);
+	static CORE_API void SplitFirstComponent(FStringView InPath, FStringView& OutFirstComponent, FStringView& OutRemainder);
 
 	/**
 	 * If AppendPath is a relative path, append it as a relative path onto InOutPath.
@@ -347,7 +347,7 @@ public:
 	 * Handles presence or absence of terminating separator in BasePath.
 	 * Does not interpret . or ..; each occurrence of these in either path will remain in the combined InOutPath.
 	 */
-	static void AppendPath(FStringBuilderBase& InOutPath, FStringView AppendPath);
+	static CORE_API void AppendPath(FStringBuilderBase& InOutPath, FStringView AppendPath);
 
 	/**
 	 * Returns the name of the mount point in a path
@@ -355,5 +355,5 @@ public:
 	 * Example: "/Classes_A/Textures" returns "A" and sets bOutHadClassesPrefix=true if bInWithoutSlashes is true
 	 *           returns "/Classes_A" otherwise and sets bOutHadClassesPrefix=false
 	 */
-	static FStringView GetMountPointNameFromPath(const FStringView InPath, bool* bOutHadClassesPrefix = nullptr, bool bInWithoutSlashes = true);
+	static CORE_API FStringView GetMountPointNameFromPath(const FStringView InPath, bool* bOutHadClassesPrefix = nullptr, bool bInWithoutSlashes = true);
 };

@@ -56,7 +56,7 @@ public:
 	 * Get the current culture.
 	 * @note This function exists for legacy API parity with SetCurrentCulture and is equivalent to GetCurrentLanguage. It should *never* be used in internal localization/internationalization code!
 	 */
-	CORE_API FCultureRef GetCurrentCulture() const
+	FCultureRef GetCurrentCulture() const
 	{
 		return CurrentLanguage.ToSharedRef();
 	}
@@ -70,7 +70,7 @@ public:
 	/**
 	 * Get the current language (for localization).
 	 */
-	CORE_API FCultureRef GetCurrentLanguage() const
+	FCultureRef GetCurrentLanguage() const
 	{
 		return CurrentLanguage.ToSharedRef();
 	}
@@ -84,7 +84,7 @@ public:
 	/**
 	 * Get the current locale (for internationalization).
 	 */
-	CORE_API FCultureRef GetCurrentLocale() const
+	FCultureRef GetCurrentLocale() const
 	{
 		return CurrentLocale.ToSharedRef();
 	}
@@ -120,7 +120,7 @@ public:
 	 * Get the default culture specified by the OS.
 	 * @note This function exists for legacy API parity with GetCurrentCulture and is equivalent to GetDefaultLanguage. It should *never* be used in internal localization/internationalization code!
 	 */
-	CORE_API FCultureRef GetDefaultCulture() const
+	FCultureRef GetDefaultCulture() const
 	{
 		return DefaultLanguage.ToSharedRef();
 	}
@@ -128,7 +128,7 @@ public:
 	/**
 	 * Get the default language specified by the OS.
 	 */
-	CORE_API FCultureRef GetDefaultLanguage() const
+	FCultureRef GetDefaultLanguage() const
 	{
 		return DefaultLanguage.ToSharedRef();
 	}
@@ -136,7 +136,7 @@ public:
 	/**
 	 * Get the default locale specified by the OS.
 	 */
-	CORE_API FCultureRef GetDefaultLocale() const
+	FCultureRef GetDefaultLocale() const
 	{
 		return DefaultLocale.ToSharedRef();
 	}
@@ -144,7 +144,7 @@ public:
 	/**
 	 * Get the invariant culture that can be used when you don't care about localization/internationalization.
 	 */
-	CORE_API FCultureRef GetInvariantCulture() const
+	FCultureRef GetInvariantCulture() const
 	{
 		return InvariantCulture.ToSharedRef();
 	}
@@ -164,7 +164,7 @@ public:
 	 */
 	CORE_API void RestoreCultureState(const FCultureStateSnapshot& InSnapshot);
 
-	CORE_API bool IsInitialized() const {return bIsInitialized;}
+	bool IsInitialized() const {return bIsInitialized;}
 
 	/** Load and cache the data needed for every culture we know about (this is usually done per-culture as required) */
 	CORE_API void LoadAllCultureData();
@@ -208,7 +208,7 @@ public:
 
 	/** Broadcasts whenever the current culture changes */
 	DECLARE_EVENT(FInternationalization, FCultureChangedEvent)
-	CORE_API FCultureChangedEvent& OnCultureChanged() { return CultureChangedEvent; }
+	FCultureChangedEvent& OnCultureChanged() { return CultureChangedEvent; }
 
 private:
 	FInternationalization();

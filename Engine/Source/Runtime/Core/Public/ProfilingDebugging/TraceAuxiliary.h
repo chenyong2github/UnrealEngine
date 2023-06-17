@@ -12,7 +12,7 @@
 #include "Misc/Build.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-class CORE_API FTraceAuxiliary
+class FTraceAuxiliary
 {
 public:
 	// In no logging configurations all log categories are of type FNoLoggingCategory, which has no relation with
@@ -81,88 +81,88 @@ public:
 	 * @param LogCategory Log channel to output messages to. Default set to 'Core'.
 	 * @return True when successfully starting the trace, false if the data connection could not be made.
 	 */
-	static bool Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels = TEXT("default"), FOptions* Options = nullptr, const FLogCategoryAlias& LogCategory = LogCore);
+	static CORE_API bool Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels = TEXT("default"), FOptions* Options = nullptr, const FLogCategoryAlias& LogCategory = LogCore);
 
 	/**
 	 * Stop tracing.
 	 * @return True if the trace was stopped, false if there was no data connection.
 	 */
-	static bool Stop();
+	static CORE_API bool Stop();
 
 	/**
 	 * Pause all tracing by disabling all active channels.
 	 */
-	static bool Pause();
+	static CORE_API bool Pause();
 
 	/**
 	 * Resume tracing by enabling all previously active channels.
 	 */
-	static bool Resume();
+	static CORE_API bool Resume();
 
 	/**
 	 * Write tailing memory state to a utrace file.
 	 * @param FilePath Path to the file to write the snapshot to. If it is null or empty a file path will be generated.
 	 */
-	static bool WriteSnapshot(const TCHAR* FilePath);
+	static CORE_API bool WriteSnapshot(const TCHAR* FilePath);
 	
 	/**
 	 * Write tailing memory state to a trace server.
 	 * @param FilePath Path to the file to write the snapshot to. If it is null or empty a file path will be generated.
 	 */
-	static bool SendSnapshot(const TCHAR* Host = nullptr, uint32 Port = 0);
+	static CORE_API bool SendSnapshot(const TCHAR* Host = nullptr, uint32 Port = 0);
 
 	/**
 	 * Initialize Trace systems.
 	 * @param CommandLine to use for initializing
 	 */
-	static void Initialize(const TCHAR* CommandLine);
+	static CORE_API void Initialize(const TCHAR* CommandLine);
 
 	/**
 	 * Initialize channels that use the config driven presets.
 	 * @param CommandLine to use for initializing
 	 */
-	static void InitializePresets(const TCHAR* CommandLine);
+	static CORE_API void InitializePresets(const TCHAR* CommandLine);
 
 	/**
 	 * Shut down Trace systems.
 	 */
-	static void Shutdown();
+	static CORE_API void Shutdown();
 
 	/**
 	 * Attempts to auto connect to an active trace server if an active session
 	 * of Unreal Insights Session Browser is running.
 	 */
-	static void TryAutoConnect();
+	static CORE_API void TryAutoConnect();
 
 	/**
 	 *  Enable previously selected channels. This method can be called multiple times
 	 *  as channels can be announced on module loading.
 	 */
-	static void EnableChannels();
+	static CORE_API void EnableChannels();
 
 	/**
 	* Disable channels to stop recording traces with them.
 	* @param Channels List of channels (or a preset) to disable. If null it will disable all active channels.
 	*/
-	static void DisableChannels(const TCHAR* Channels = nullptr);
+	static CORE_API void DisableChannels(const TCHAR* Channels = nullptr);
 
 	/**
 	 *  Returns the destination string that is currently being traced to.
 	 *  Contains either a file path or network address. Points to an empty string if tracing is disabled.
 	 */
 	UE_DEPRECATED(5.3, "Use GetTraceDestinationString instead.")
-	static const TCHAR*	GetTraceDestination();
+	static CORE_API const TCHAR*	GetTraceDestination();
 	
 	/**
 	 *  Returns the destination string that is currently being traced to.
 	 *  Contains either a file path or network address. Empty if tracing is disabled.
 	 */
-	static FString GetTraceDestinationString();
+	static CORE_API FString GetTraceDestinationString();
 	
 	/**
 	 *  Returns whether the trace system is currently connected to a trace sink (file or network)
 	 */
-	static bool	IsConnected();
+	static CORE_API bool	IsConnected();
 
 
 	/**
@@ -171,23 +171,23 @@ public:
 	 * @param OutTraceGuid If connected, the trace guid
 	 * @return True if connected
 	 */
-	static bool IsConnected(FGuid& OutSessionGuid, FGuid& OutTraceGuid);
+	static CORE_API bool IsConnected(FGuid& OutSessionGuid, FGuid& OutTraceGuid);
 
 	/**
 	*  Returns the current connection type.
 	*/
-	static EConnectionType GetConnectionType();
+	static CORE_API EConnectionType GetConnectionType();
 
 	/**
 	 *  Adds a comma separated list of currently active channels to the passed in StringBuilder
 	 */
-	static void	GetActiveChannelsString(FStringBuilderBase& String);
+	static CORE_API void	GetActiveChannelsString(FStringBuilderBase& String);
 
 	/**
 	 * Used when process is panicking. Stops all tracing immediately to avoid further allocations. Process is not
 	 * expected to continue after this call.
 	 */
-	 static void Panic();
+	 static CORE_API void Panic();
 
 	/**
 	 * Delegate that triggers when a connection is established. Gives subscribers a chance to trace events that appear
@@ -201,24 +201,24 @@ public:
 	 *		 
 	 * @param Callback Delegate to call on new connections.
 	 */
-	static FOnConnection OnConnection;
+	static CORE_API FOnConnection OnConnection;
 
 	/**
 	 * Delegate that triggers when a trace session is started.
 	 * The type of recording and the destination (filepath or network) is passed to the delegate.
 	 */
-	static FOnTraceStarted OnTraceStarted;
+	static CORE_API FOnTraceStarted OnTraceStarted;
 
 	/**
 	 * Delegate that triggers when a trace has finished recording. Useful if you need to collect all completed trace files in a session.
 	 * The type of recording and the destination (filepath or network) is passed to the delegate.
 	 */
-	static FOnTraceStopped OnTraceStopped;
+	static CORE_API FOnTraceStopped OnTraceStopped;
 
 	/**
 	 * Delegate that triggers when a snapshot has been saved.
 	 * The path to the snapshot file is passed to the delegate.
 	 */
-	static FOnSnapshotSaved OnSnapshotSaved;
+	static CORE_API FOnSnapshotSaved OnSnapshotSaved;
 	
 };

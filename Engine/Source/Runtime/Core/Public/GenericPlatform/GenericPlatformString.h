@@ -419,7 +419,7 @@ private:
 	 * @param Src     Pointer to the null-terminated string being converted.
 	 */
 	template <typename DestEncoding, typename SourceEncoding>
-	static CORE_API void LogBogusChars(const SourceEncoding* Src);
+	static void LogBogusChars(const SourceEncoding* Src);
 
 
 	/**
@@ -429,5 +429,5 @@ private:
 	 * @param SrcSize Number of characters in the Src string.
 	 */
 	template <typename DestEncoding, typename SourceEncoding>
-	static CORE_API void LogBogusChars(const SourceEncoding* Src, int32 SrcSize);
+	static void LogBogusChars(const SourceEncoding* Src, int32 SrcSize);
 };

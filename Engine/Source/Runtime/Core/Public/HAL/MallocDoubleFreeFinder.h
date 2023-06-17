@@ -10,16 +10,16 @@ class FMalloc;
 class FOutputDevice;
 class UWorld;
 
-class CORE_API FMallocDoubleFreeFinder final : public FMallocCallstackHandler
+class FMallocDoubleFreeFinder final : public FMallocCallstackHandler
 {
 public:
-	FMallocDoubleFreeFinder(FMalloc* InMalloc);
+	CORE_API FMallocDoubleFreeFinder(FMalloc* InMalloc);
 
 #if UE_ALLOW_EXEC_COMMANDS
 	/**
 	 * Handles any commands passed in on the command line
 	 */
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	CORE_API virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 #endif
 
 	/**
@@ -27,15 +27,15 @@ public:
 	 * It will dump a callstack of the last allocator free most likely to have caused the problem to the log, if you have symbols loaded
 	 * Might be useful to pass an access violation ptr to this!
 	 */
-	void TrackSpecial(void* Ptr);
+	CORE_API void TrackSpecial(void* Ptr);
 
-	virtual void Init();
+	CORE_API virtual void Init();
 
-	static FMalloc* OverrideIfEnabled(FMalloc*InUsedAlloc);
+	static CORE_API FMalloc* OverrideIfEnabled(FMalloc*InUsedAlloc);
 
 protected:
-	virtual void TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex);
-	virtual void TrackFree(void* Ptr, uint32 OldSize, int32 CallStackIndex);
+	CORE_API virtual void TrackMalloc(void* Ptr, uint32 Size, int32 CallStackIndex);
+	CORE_API virtual void TrackFree(void* Ptr, uint32 OldSize, int32 CallStackIndex);
 
 	struct TrackedAllocationData
 	{

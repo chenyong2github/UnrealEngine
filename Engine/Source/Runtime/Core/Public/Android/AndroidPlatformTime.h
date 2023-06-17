@@ -14,7 +14,7 @@
 /**
  * Android implementation of the Time OS functions
  */
-struct CORE_API FAndroidTime : public FGenericPlatformTime
+struct FAndroidTime : public FGenericPlatformTime
 {
 	// android uses BSD time code from GenericPlatformTime
 	static FORCEINLINE double Seconds()

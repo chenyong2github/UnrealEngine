@@ -25,7 +25,7 @@ enum class EVersionComparison
 
 
 /** Base class for the EngineVersion class. Holds basic version numbers. */
-class CORE_API FEngineVersionBase
+class FEngineVersionBase
 {
 public:
 
@@ -33,10 +33,10 @@ public:
 	FEngineVersionBase() = default;
 
 	/** Constructs a version from the given components. */
-	FEngineVersionBase(uint16 InMajor, uint16 InMinor, uint16 InPatch = 0, uint32 InChangelist = 0);
+	CORE_API FEngineVersionBase(uint16 InMajor, uint16 InMinor, uint16 InPatch = 0, uint32 InChangelist = 0);
 
 	/** Returns the changelist number corresponding to this version. */
-	uint32 GetChangelist() const;	
+	CORE_API uint32 GetChangelist() const;	
 
 	/** Returns the Major version number corresponding to this version. */
 	FORCEINLINE uint16 GetMajor() const
@@ -57,19 +57,19 @@ public:
 	}
 
 	/** Checks if the changelist number represents licensee changelist number. */
-	bool IsLicenseeVersion() const;
+	CORE_API bool IsLicenseeVersion() const;
 
 	/** Returns whether the current version is empty. */
-	bool IsEmpty() const;
+	CORE_API bool IsEmpty() const;
 
 	/** Returns whether the engine version has a changelist component. */
-	bool HasChangelist() const; 
+	CORE_API bool HasChangelist() const; 
 
 	/** Returns the newest of two versions, and the component at which they differ */
-	static EVersionComparison GetNewest(const FEngineVersionBase &First, const FEngineVersionBase &Second, EVersionComponent *OutComponent);
+	static CORE_API EVersionComparison GetNewest(const FEngineVersionBase &First, const FEngineVersionBase &Second, EVersionComponent *OutComponent);
 
 	/** Encodes a licensee changelist number (by setting the top bit) */
-	static uint32 EncodeLicenseeChangelist(uint32 Changelist);
+	static CORE_API uint32 EncodeLicenseeChangelist(uint32 Changelist);
 
 protected:
 

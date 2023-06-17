@@ -15,17 +15,17 @@
 	Android File I/O implementation with additional utilities to deal
 	with Java side access.
 **/
-class CORE_API IAndroidPlatformFile : public IPhysicalPlatformFile
+class IAndroidPlatformFile : public IPhysicalPlatformFile
 {
 public:
-	static IAndroidPlatformFile & GetPlatformPhysical();
+	static CORE_API IAndroidPlatformFile & GetPlatformPhysical();
 
 #if USE_ANDROID_FILE
 	/**
 	 * Get the directory path to write log files to.
 	 * This is /temp0 in shipping, or a path inside /data for other configs.
 	 */
-	static const FString* GetOverrideLogDirectory();
+	static CORE_API const FString* GetOverrideLogDirectory();
 #endif
 
 #if USE_ANDROID_JNI
@@ -50,6 +50,6 @@ public:
 	// asset path.
 	virtual FString FileRootPath(const TCHAR* Filename) = 0;
 
-	virtual FString ConvertToAbsolutePathForExternalAppForRead(const TCHAR* Filename) override;
-	virtual FString ConvertToAbsolutePathForExternalAppForWrite(const TCHAR* Filename) override;
+	CORE_API virtual FString ConvertToAbsolutePathForExternalAppForRead(const TCHAR* Filename) override;
+	CORE_API virtual FString ConvertToAbsolutePathForExternalAppForWrite(const TCHAR* Filename) override;
 };

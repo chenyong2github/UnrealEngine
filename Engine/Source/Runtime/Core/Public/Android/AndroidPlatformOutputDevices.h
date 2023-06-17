@@ -8,7 +8,7 @@
 #pragma once
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
 
-struct CORE_API FAndroidOutputDevices : public FGenericPlatformOutputDevices
+struct FAndroidOutputDevices : public FGenericPlatformOutputDevices
 {
 };
 

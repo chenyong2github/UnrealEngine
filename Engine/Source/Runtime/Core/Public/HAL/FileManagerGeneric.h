@@ -32,7 +32,7 @@
  * simple, unoptimized implementations of functions whose implementations
  * can be derived from other functions.
  */
-class CORE_API FFileManagerGeneric
+class FFileManagerGeneric
 	: public IFileManager
 {
 	// instead of caching the LowLevel, we call the singleton each time to never be incorrect
@@ -57,7 +57,7 @@ public:
 
 	// IFileManager interface
 
-	virtual void ProcessCommandLineOptions() override;
+	CORE_API virtual void ProcessCommandLineOptions() override;
 
 	virtual void SetSandboxEnabled(bool bInEnabled) override
 	{
@@ -86,25 +86,25 @@ public:
 	}
 #endif
 
-	bool Delete( const TCHAR* Filename, bool RequireExists=0, bool EvenReadOnly=0, bool Quiet=0 ) override;
-	bool IsReadOnly( const TCHAR* Filename ) override;
-	bool Move( const TCHAR* Dest, const TCHAR* Src, bool Replace=1, bool EvenIfReadOnly=0, bool Attributes=0, bool bDoNotRetryOrError=0 ) override;
-	bool FileExists( const TCHAR* Filename ) override;
-	bool DirectoryExists(const TCHAR* InDirectory) override;
-	void FindFiles( TArray<FString>& Result, const TCHAR* Filename, bool Files, bool Directories ) override;
-	void FindFilesRecursive( TArray<FString>& FileNames, const TCHAR* StartDirectory, const TCHAR* Filename, bool Files, bool Directories, bool bClearFileNames=true) override;
-	double GetFileAgeSeconds( const TCHAR* Filename ) override;
-	FDateTime GetTimeStamp( const TCHAR* Filename ) override;
-	FDateTime GetAccessTimeStamp( const TCHAR* Filename ) override;
-	void GetTimeStampPair(const TCHAR* PathA, const TCHAR* PathB, FDateTime& OutTimeStampA, FDateTime& OutTimeStampB);
-	bool SetTimeStamp( const TCHAR* Filename, FDateTime Timestamp ) override;
-	virtual FString GetFilenameOnDisk(const TCHAR* Filename) override;
+	CORE_API bool Delete( const TCHAR* Filename, bool RequireExists=0, bool EvenReadOnly=0, bool Quiet=0 ) override;
+	CORE_API bool IsReadOnly( const TCHAR* Filename ) override;
+	CORE_API bool Move( const TCHAR* Dest, const TCHAR* Src, bool Replace=1, bool EvenIfReadOnly=0, bool Attributes=0, bool bDoNotRetryOrError=0 ) override;
+	CORE_API bool FileExists( const TCHAR* Filename ) override;
+	CORE_API bool DirectoryExists(const TCHAR* InDirectory) override;
+	CORE_API void FindFiles( TArray<FString>& Result, const TCHAR* Filename, bool Files, bool Directories ) override;
+	CORE_API void FindFilesRecursive( TArray<FString>& FileNames, const TCHAR* StartDirectory, const TCHAR* Filename, bool Files, bool Directories, bool bClearFileNames=true) override;
+	CORE_API double GetFileAgeSeconds( const TCHAR* Filename ) override;
+	CORE_API FDateTime GetTimeStamp( const TCHAR* Filename ) override;
+	CORE_API FDateTime GetAccessTimeStamp( const TCHAR* Filename ) override;
+	CORE_API void GetTimeStampPair(const TCHAR* PathA, const TCHAR* PathB, FDateTime& OutTimeStampA, FDateTime& OutTimeStampB);
+	CORE_API bool SetTimeStamp( const TCHAR* Filename, FDateTime Timestamp ) override;
+	CORE_API virtual FString GetFilenameOnDisk(const TCHAR* Filename) override;
 
-	virtual uint32	Copy( const TCHAR* Dest, const TCHAR* Src, bool Replace = 1, bool EvenIfReadOnly = 0, bool Attributes = 0, FCopyProgress* Progress = nullptr, EFileRead ReadFlags = FILEREAD_None, EFileWrite WriteFlags = FILEWRITE_None ) override;
-	virtual bool	MakeDirectory( const TCHAR* Path, bool Tree=0 ) override;
-	virtual bool	DeleteDirectory( const TCHAR* Path, bool RequireExists=0, bool Tree=0 ) override;
+	CORE_API virtual uint32	Copy( const TCHAR* Dest, const TCHAR* Src, bool Replace = 1, bool EvenIfReadOnly = 0, bool Attributes = 0, FCopyProgress* Progress = nullptr, EFileRead ReadFlags = FILEREAD_None, EFileWrite WriteFlags = FILEWRITE_None ) override;
+	CORE_API virtual bool	MakeDirectory( const TCHAR* Path, bool Tree=0 ) override;
+	CORE_API virtual bool	DeleteDirectory( const TCHAR* Path, bool RequireExists=0, bool Tree=0 ) override;
 
-	virtual FFileStatData GetStatData(const TCHAR* FilenameOrDirectory) override;
+	CORE_API virtual FFileStatData GetStatData(const TCHAR* FilenameOrDirectory) override;
 
 	/**
 	 * Finds all the files within the given directory, with optional file extension filter.
@@ -116,7 +116,7 @@ public:
 	 *
 	 * @return FoundFiles, All the files that matched the optional FileExtension filter, or all files if none was specified.
 	 */
-	virtual void FindFiles(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr) override;
+	CORE_API virtual void FindFiles(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension = nullptr) override;
 
 	/** 
 	 * Call the Visit function of the visitor once for each file or directory in a single directory. This function does not explore subdirectories.
@@ -124,8 +124,8 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	bool IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
-	bool IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitorFunc Visitor) override;
+	CORE_API bool IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
+	CORE_API bool IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitorFunc Visitor) override;
 
 	/** 
 	 * Call the Visit function of the visitor once for each file or directory in a directory tree. This function explores subdirectories.
@@ -133,8 +133,8 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory and each element of all subdirectories.
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	bool IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
-	bool IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitorFunc Visitor) override;
+	CORE_API bool IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
+	CORE_API bool IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitorFunc Visitor) override;
 
 	/** 
 	 * Call the Visit function of the visitor once for each file or directory in a single directory. This function does not explore subdirectories.
@@ -142,8 +142,8 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	bool IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
-	bool IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitorFunc Visitor) override;
+	CORE_API bool IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
+	CORE_API bool IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitorFunc Visitor) override;
 
 	/** 
 	 * Call the Visit function of the visitor once for each file or directory in a directory tree. This function explores subdirectories.
@@ -151,8 +151,8 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory and each element of all subdirectories.
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	bool IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
-	bool IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitorFunc Visitor) override;
+	CORE_API bool IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
+	CORE_API bool IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitorFunc Visitor) override;
 
 	/**
 	 * Converts passed in filename to use a relative path.
@@ -160,7 +160,7 @@ public:
 	 * @param	Filename	filename to convert to use a relative path
 	 * @return	filename using relative path
 	 */
-	static FString DefaultConvertToRelativePath( const TCHAR* Filename );
+	static CORE_API FString DefaultConvertToRelativePath( const TCHAR* Filename );
 
 	/**
 	 * Converts passed in filename to use a relative path.
@@ -168,7 +168,7 @@ public:
 	 * @param	Filename	filename to convert to use a relative path
 	 * @return	filename using relative path
 	 */
-	FString ConvertToRelativePath( const TCHAR* Filename ) override;
+	CORE_API FString ConvertToRelativePath( const TCHAR* Filename ) override;
 
 	/**
 	 * Converts passed in filename to use an absolute path (for reading)
@@ -176,7 +176,7 @@ public:
 	 * @param	Filename	filename to convert to use an absolute path, safe to pass in already using absolute path
 	 * @return	filename using absolute path
 	 */
-	FString ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename ) override;
+	CORE_API FString ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename ) override;
 
 	/**
 	 * Converts passed in filename to use an absolute path (for writing)
@@ -184,7 +184,7 @@ public:
 	 * @param	Filename	filename to convert to use an absolute path, safe to pass in already using absolute path
 	 * @return	filename using absolute path
 	 */
-	FString ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename ) override;
+	CORE_API FString ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename ) override;
 
 	/**
 	 *	Returns the size of a file. (Thread-safe)
@@ -192,7 +192,7 @@ public:
 	 *	@param Filename		Platform-independent Unreal filename.
 	 *	@return				File size in bytes or INDEX_NONE if the file didn't exist.
 	 **/
-	int64 FileSize( const TCHAR* Filename ) override;
+	CORE_API int64 FileSize( const TCHAR* Filename ) override;
 
 	/**
 	 * Sends a message to the file server, and will block until it's complete. Will return 
@@ -207,15 +207,15 @@ public:
 	}
 
 private:
-	FArchive * CreateFileReaderInternal(const TCHAR* Filename, uint32 ReadFlags, uint32 BufferSize);
-	FArchive* CreateFileWriterInternal(const TCHAR* Filename, uint32 WriteFlags, uint32 BufferSize);
+	CORE_API FArchive * CreateFileReaderInternal(const TCHAR* Filename, uint32 ReadFlags, uint32 BufferSize);
+	CORE_API FArchive* CreateFileWriterInternal(const TCHAR* Filename, uint32 WriteFlags, uint32 BufferSize);
 
 	/**
 	 * Helper called from Copy if Progress is available
 	 */
-	uint32	CopyWithProgress(const TCHAR* InDestFile, const TCHAR* InSrcFile, bool ReplaceExisting, bool EvenIfReadOnly, bool Attributes, FCopyProgress* Progress, EFileRead ReadFlags, EFileWrite WriteFlags);
+	CORE_API uint32	CopyWithProgress(const TCHAR* InDestFile, const TCHAR* InSrcFile, bool ReplaceExisting, bool EvenIfReadOnly, bool Attributes, FCopyProgress* Progress, EFileRead ReadFlags, EFileWrite WriteFlags);
 
-	void FindFilesRecursiveInternal( TArray<FString>& FileNames, const TCHAR* StartDirectory, const TCHAR* Filename, bool Files, bool Directories);
+	CORE_API void FindFilesRecursiveInternal( TArray<FString>& FileNames, const TCHAR* StartDirectory, const TCHAR* Filename, bool Files, bool Directories);
 };
 
 
@@ -223,13 +223,13 @@ private:
 	FArchiveFileReaderGeneric
 -----------------------------------------------------------------------------*/
 
-class CORE_API FArchiveFileReaderGeneric : public FArchive
+class FArchiveFileReaderGeneric : public FArchive
 {
 public:
-	FArchiveFileReaderGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InSize, uint32 InBufferSize = PLATFORM_FILE_READER_BUFFER_SIZE, uint32 InFlags = FILEREAD_None );
-	~FArchiveFileReaderGeneric();
+	CORE_API FArchiveFileReaderGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InSize, uint32 InBufferSize = PLATFORM_FILE_READER_BUFFER_SIZE, uint32 InFlags = FILEREAD_None );
+	CORE_API ~FArchiveFileReaderGeneric();
 
-	virtual void Seek( int64 InPos ) override final;
+	CORE_API virtual void Seek( int64 InPos ) override final;
 	virtual int64 Tell() override final
 	{
 		return Pos;
@@ -238,33 +238,33 @@ public:
 	{
 		return Size;
 	}
-	virtual bool Close() override final;
-	virtual void Serialize( void* V, int64 Length ) override final;
+	CORE_API virtual bool Close() override final;
+	CORE_API virtual void Serialize( void* V, int64 Length ) override final;
 	virtual FString GetArchiveName() const override
 	{
 		return Filename;
 	}
-	virtual void FlushCache() override final;
+	CORE_API virtual void FlushCache() override final;
 
-	virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
+	CORE_API virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
 
 protected:
-	bool InternalPrecache( int64 PrecacheOffset, int64 PrecacheSize );
+	CORE_API bool InternalPrecache( int64 PrecacheOffset, int64 PrecacheSize );
 	/** 
 	 * Platform specific seek
 	 * @param InPos - Offset from beginning of file to seek to
 	 * @return false on failure 
 	**/
-	virtual bool SeekLowLevel(int64 InPos);
+	CORE_API virtual bool SeekLowLevel(int64 InPos);
 	/** Close the file handle **/
-	virtual void CloseLowLevel();
+	CORE_API virtual void CloseLowLevel();
 	/** 
 	 * Platform specific read
 	 * @param Dest - Buffer to fill in
 	 * @param CountToRead - Number of bytes to read
 	 * @param OutBytesRead - Bytes actually read
 	**/
-	virtual void ReadLowLevel(uint8* Dest, int64 CountToRead, int64& OutBytesRead);
+	CORE_API virtual void ReadLowLevel(uint8* Dest, int64 CountToRead, int64& OutBytesRead);
 
 	/** Returns true if the archive should suppress logging in case of error */
 	bool IsSilent() const
@@ -300,21 +300,21 @@ protected:
 	FArchiveFileWriterGeneric
 -----------------------------------------------------------------------------*/
 
-class CORE_API FArchiveFileWriterGeneric : public FArchive
+class FArchiveFileWriterGeneric : public FArchive
 {
 public:
-	FArchiveFileWriterGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InPos, uint32 InBufferSize = PLATFORM_FILE_WRITER_BUFFER_SIZE, uint32 InFlags = FILEWRITE_None);
-	~FArchiveFileWriterGeneric();
+	CORE_API FArchiveFileWriterGeneric( IFileHandle* InHandle, const TCHAR* InFilename, int64 InPos, uint32 InBufferSize = PLATFORM_FILE_WRITER_BUFFER_SIZE, uint32 InFlags = FILEWRITE_None);
+	CORE_API ~FArchiveFileWriterGeneric();
 
-	virtual void Seek( int64 InPos ) override final;
+	CORE_API virtual void Seek( int64 InPos ) override final;
 	virtual int64 Tell() override final
 	{
 		return Pos;
 	}
-	virtual int64 TotalSize() override;
-	virtual bool Close() override final;
-	virtual void Serialize( void* V, int64 Length ) override final;
-	virtual void Flush() override final;
+	CORE_API virtual int64 TotalSize() override;
+	CORE_API virtual bool Close() override final;
+	CORE_API virtual void Serialize( void* V, int64 Length ) override final;
+	CORE_API virtual void Flush() override final;
 	virtual FString GetArchiveName() const override
 	{
 		return Filename;
@@ -326,25 +326,25 @@ protected:
 	 * @note Doesn't flush the handle itself, so this data may be cached by the OS and not yet written to disk!
 	 * @return true if there was buffer data and it was written successfully, false if there was nothing to flush or the write failed
 	 */
-	bool FlushBuffer();
+	CORE_API bool FlushBuffer();
 	/** 
 	 * Platform specific seek
 	 * @param InPos - Offset from beginning of file to seek to
 	 * @return false on failure 
 	**/
-	virtual bool SeekLowLevel(int64 InPos);
+	CORE_API virtual bool SeekLowLevel(int64 InPos);
 	/** 
 	 * Close the file handle
 	 * @return false on failure
 	**/
-	virtual bool CloseLowLevel();
+	CORE_API virtual bool CloseLowLevel();
 	/** 
 	 * Platform specific write
 	 * @param Src - Buffer to write out
 	 * @param CountToWrite - Number of bytes to write
 	 * @return false on failure 
 	**/
-	virtual bool WriteLowLevel(const uint8* Src, int64 CountToWrite);
+	CORE_API virtual bool WriteLowLevel(const uint8* Src, int64 CountToWrite);
 
 	/** 
 	 * Logs I/O error
@@ -353,7 +353,7 @@ protected:
 	 * logged in this message.
 	 * @param Message Brief description of what went wrong
 	 */
-	void LogWriteError(const TCHAR* Message);
+	CORE_API void LogWriteError(const TCHAR* Message);
 
 	/** Returns true if the archive should suppress logging in case of error */
 	bool IsSilent() const

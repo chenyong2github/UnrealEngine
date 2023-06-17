@@ -25,10 +25,10 @@ class UWorld;
 #endif
 
 // Any object that is capable of taking commands.
-class CORE_API FExec
+class FExec
 {
 public:
-	virtual ~FExec();
+	CORE_API virtual ~FExec();
 
 #if UE_ALLOW_EXEC_COMMANDS
 
@@ -41,18 +41,18 @@ public:
 	 *
 	 * @return	true if command was handled, false otherwise
 	 */
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
+	CORE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar );
 #else // UE_ALLOW_EXEC_COMMANDS
 
 	/**
 	 * final override of Exec that asserts if called
 	 */
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) final;
+	CORE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) final;
 	
 	/**
 	 * final override of Exec to replace overrides where a default value for Ar is provided
 	 */
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd ) final;
+	CORE_API virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd ) final;
 
 #endif // !UE_ALLOW_EXEC_COMMANDS
 

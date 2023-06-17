@@ -13,7 +13,7 @@
 /**
  * Memory output device. Logs only into pre-allocated memory buffer.
  */
-class CORE_API FOutputDeviceMemory : public FOutputDevice
+class FOutputDeviceMemory : public FOutputDevice
 {
 public:
 	/** 
@@ -22,10 +22,10 @@ public:
 	 * @param InPreserveSize	Bytes of the rung buffer not to overwrite (startup info etc)
 	 * @param InBufferSize		Maximum size of the memory ring buffer
 	 */
-	FOutputDeviceMemory(int32 InPreserveSize = 256 * 1024, int32 InBufferSize = 2048 * 1024, bool bInSuppressEventTag = false);
+	CORE_API FOutputDeviceMemory(int32 InPreserveSize = 256 * 1024, int32 InBufferSize = 2048 * 1024, bool bInSuppressEventTag = false);
 
 	/** Dumps the contents of the buffer to an archive */
-	virtual void Dump(FArchive& Ar) override;
+	CORE_API virtual void Dump(FArchive& Ar) override;
 
 	//~ Begin FOutputDevice Interface.
 	/**
@@ -33,16 +33,16 @@ public:
 	 * as we have to call "delete" which cannot be done for static/ global
 	 * objects.
 	 */
-	virtual void TearDown() override;
+	CORE_API virtual void TearDown() override;
 
 	/**
 	 * Flush the write cache so the file isn't truncated in case we crash right
 	 * after calling this function.
 	 */
-	virtual void Flush() override;
+	CORE_API virtual void Flush() override;
 
-	virtual void Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category, const double Time ) override;
-	virtual void Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+	CORE_API virtual void Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category, const double Time ) override;
+	CORE_API virtual void Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
 	virtual bool CanBeUsedOnAnyThread() const override
 	{
 		return true;
@@ -60,7 +60,7 @@ public:
 private:
 	
 	/** Serialize cast data to the actual memory buffer */
-	void SerializeToBuffer(ANSICHAR* Data, int32 Length);
+	CORE_API void SerializeToBuffer(ANSICHAR* Data, int32 Length);
 
 
 	class FOutputDeviceMemoryProxyArchive : public FArchive

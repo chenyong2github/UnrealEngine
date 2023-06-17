@@ -6,18 +6,18 @@
 #include "Misc/Guid.h"
 
 /** Version information for compiled LocMeta (Localization MetaData Resource) and LocRes (Localization Resource) files */
-struct CORE_API FTextLocalizationResourceVersion
+struct FTextLocalizationResourceVersion
 {
 	/**
 	 * Magic number identifying a LocMeta file.
 	 */
-	static const FGuid LocMetaMagic;
+	static CORE_API const FGuid LocMetaMagic;
 
 	/**
 	 * Magic number identifying a LocRes file.
 	 * @note Legacy LocRes files will be missing this as it wasn't added until version 1.
 	 */
-	static const FGuid LocResMagic;
+	static CORE_API const FGuid LocResMagic;
 
 	/**
 	 * Data versions for LocMeta files.

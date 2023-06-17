@@ -19,7 +19,7 @@ enum class EBase64Mode : uint8
 /**
  * Class for encoding/decoding Base64 data (RFC 4648)
  */
-struct CORE_API FBase64
+struct FBase64
 {
 	/**
 	 * Encodes a FString into a Base64 string
@@ -29,7 +29,7 @@ struct CORE_API FBase64
 	 *
 	 * @return A string that encodes the binary data in a way that can be safely transmitted via various Internet protocols
 	 */
-	static FString Encode(const FString& Source, EBase64Mode Mode = EBase64Mode::Standard);
+	static CORE_API FString Encode(const FString& Source, EBase64Mode Mode = EBase64Mode::Standard);
 
 	/**
 	 * Encodes a binary uint8 array into a Base64 string
@@ -39,7 +39,7 @@ struct CORE_API FBase64
 	 *
 	 * @return A string that encodes the binary data in a way that can be safely transmitted via various Internet protocols
 	 */
-	static FString Encode(const TArray<uint8>& Source, EBase64Mode Mode = EBase64Mode::Standard);
+	static CORE_API FString Encode(const TArray<uint8>& Source, EBase64Mode Mode = EBase64Mode::Standard);
 
 	/**
 	 * Encodes the source into a Base64 string
@@ -50,7 +50,7 @@ struct CORE_API FBase64
 	 *
 	 * @return Base64 encoded string containing the binary data.
 	 */
-	static FString Encode(const uint8* Source, uint32 Length, EBase64Mode Mode = EBase64Mode::Standard);
+	static CORE_API FString Encode(const uint8* Source, uint32 Length, EBase64Mode Mode = EBase64Mode::Standard);
 
 	/**
 	 * Encodes the source into a Base64 string, storing it in a preallocated buffer.
@@ -85,7 +85,7 @@ struct CORE_API FBase64
 	 *
 	 * @return true if the buffer was decoded, false if it was invalid.
 	 */
-	static bool Decode(const FString& Source, FString& OutDest, EBase64Mode Mode = EBase64Mode::Standard);
+	static CORE_API bool Decode(const FString& Source, FString& OutDest, EBase64Mode Mode = EBase64Mode::Standard);
 
 	/**
 	 * Decodes a Base64 string into an array of bytes
@@ -96,7 +96,7 @@ struct CORE_API FBase64
 	 *
 	 * @return true if the buffer was decoded, false if it was invalid.
 	 */
-	static bool Decode(const FString& Source, TArray<uint8>& Dest, EBase64Mode Mode = EBase64Mode::Standard);
+	static CORE_API bool Decode(const FString& Source, TArray<uint8>& Dest, EBase64Mode Mode = EBase64Mode::Standard);
 
 	/**
 	 * Decodes a Base64 string into a preallocated buffer
@@ -117,7 +117,7 @@ struct CORE_API FBase64
 	*
 	* @return The size in bytes of the decoded data
 	*/
-	static uint32 GetDecodedDataSize(const FString& Source);
+	static CORE_API uint32 GetDecodedDataSize(const FString& Source);
 
 	/**
 	* Determine the decoded data size for the incoming base64 encoded string

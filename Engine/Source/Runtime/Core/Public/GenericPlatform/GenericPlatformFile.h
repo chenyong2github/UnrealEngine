@@ -92,7 +92,7 @@ ENUM_CLASS_FLAGS(EDirectoryVisitorFlags);
 /** 
  * File handle interface. 
 **/
-class CORE_API IFileHandle
+class IFileHandle
 {
 public:
 	/** Destructor, also the only way to close the file handle **/
@@ -158,7 +158,7 @@ public:
 	/////////// Utility Functions. These have a default implementation that uses the pure virtual operations.
 
 	/** Return the total size of the file **/
-	virtual int64		Size();
+	CORE_API virtual int64		Size();
 };
 
 
@@ -215,13 +215,13 @@ struct FFileStatData
 /**
 * File I/O Interface
 **/
-class CORE_API IPlatformFile
+class IPlatformFile
 {
 public:
 	/** Physical file system of the _platform_, never wrapped. **/
-	static IPlatformFile& GetPlatformPhysical();
+	static CORE_API IPlatformFile& GetPlatformPhysical();
 	/** Returns the name of the physical platform file type. */
-	static const TCHAR* GetPhysicalTypeName();
+	static CORE_API const TCHAR* GetPhysicalTypeName();
 	/** Destructor. */
 	virtual ~IPlatformFile() {}
 
@@ -458,7 +458,7 @@ public:
 	* @param Filename file to be opened
 	* @return Close the file by delete'ing the handle. A non-null return value does not mean the file exists, since that may not be determined yet.
 	*/
-	virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename);
+	CORE_API virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename);
 
 	/** Controls if the pak precacher should process precache requests.
 	* Requests below this threshold will not get precached. Without this throttle, quite a lot of memory
@@ -482,10 +482,10 @@ public:
 	}
 
 
-	virtual void GetTimeStampPair(const TCHAR* PathA, const TCHAR* PathB, FDateTime& OutTimeStampA, FDateTime& OutTimeStampB);
+	CORE_API virtual void GetTimeStampPair(const TCHAR* PathA, const TCHAR* PathB, FDateTime& OutTimeStampA, FDateTime& OutTimeStampB);
 
 	/** Return the modification time of a file in the local time of the calling code (GetTimeStamp returns UTC). Returns FDateTime::MinValue() on failure **/
-	virtual FDateTime	GetTimeStampLocal(const TCHAR* Filename);
+	CORE_API virtual FDateTime	GetTimeStampLocal(const TCHAR* Filename);
 
 	/**
 	 * Call the visitor once for each file or directory in a single directory. This function does not explore subdirectories.
@@ -493,7 +493,7 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory (see FDirectoryVisitor::Visit for the signature)
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	virtual bool IterateDirectory(const TCHAR* Directory, FDirectoryVisitorFunc Visitor);
+	CORE_API virtual bool IterateDirectory(const TCHAR* Directory, FDirectoryVisitorFunc Visitor);
 
 	/**
 	 * Call the visitor once for each file or directory in a single directory. This function does not explore subdirectories.
@@ -501,7 +501,7 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory (see FDirectoryStatVisitor::Visit for the signature)
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	virtual bool IterateDirectoryStat(const TCHAR* Directory, FDirectoryStatVisitorFunc Visitor);
+	CORE_API virtual bool IterateDirectoryStat(const TCHAR* Directory, FDirectoryStatVisitorFunc Visitor);
 
 	/** 
 	 * Call the Visit function of the visitor once for each file or directory in a directory tree. This function explores subdirectories.
@@ -509,7 +509,7 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory and each element of all subdirectories.
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	virtual bool IterateDirectoryRecursively(const TCHAR* Directory, FDirectoryVisitor& Visitor);
+	CORE_API virtual bool IterateDirectoryRecursively(const TCHAR* Directory, FDirectoryVisitor& Visitor);
 
 	/** 
 	 * Call the Visit function of the visitor once for each file or directory in a directory tree. This function explores subdirectories.
@@ -517,7 +517,7 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory and each element of all subdirectories.
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	virtual bool IterateDirectoryStatRecursively(const TCHAR* Directory, FDirectoryStatVisitor& Visitor);
+	CORE_API virtual bool IterateDirectoryStatRecursively(const TCHAR* Directory, FDirectoryStatVisitor& Visitor);
 
 	/**
 	 * Call the Visit function of the visitor once for each file or directory in a directory tree. This function explores subdirectories.
@@ -525,7 +525,7 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory and each element of all subdirectories (see FDirectoryVisitor::Visit for the signature).
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	virtual bool IterateDirectoryRecursively(const TCHAR* Directory, FDirectoryVisitorFunc Visitor);
+	CORE_API virtual bool IterateDirectoryRecursively(const TCHAR* Directory, FDirectoryVisitorFunc Visitor);
 
 	/**
 	 * Call the Visit function of the visitor once for each file or directory in a directory tree. This function explores subdirectories.
@@ -533,7 +533,7 @@ public:
 	 * @param Visitor		Visitor to call for each element of the directory and each element of all subdirectories (see FDirectoryStatVisitor::Visit for the signature).
 	 * @return				false if the directory did not exist or if the visitor returned false.
 	**/
-	virtual bool IterateDirectoryStatRecursively(const TCHAR* Directory, FDirectoryStatVisitorFunc Visitor);
+	CORE_API virtual bool IterateDirectoryStatRecursively(const TCHAR* Directory, FDirectoryStatVisitorFunc Visitor);
 		
 	/**
 	 * Finds all the files within the given directory, with optional file extension filter
@@ -542,7 +542,7 @@ public:
 	 * 							Otherwise FileExtension can be of the form .EXT or just EXT and only files with that extension will be returned.
 	 * @return FoundFiles		All the files that matched the optional FileExtension filter, or all files if none was specified.
 	 */
-	virtual void FindFiles(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension);
+	CORE_API virtual void FindFiles(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension);
 
 	/**
 	 * Finds all the files within the directory tree, with optional file extension filter
@@ -551,17 +551,17 @@ public:
 	 * 							Otherwise FileExtension can be of the form .EXT or just EXT and only files with that extension will be returned.
 	 * @return FoundFiles		All the files that matched the optional FileExtension filter, or all files if none was specified.
 	 */
-	virtual void FindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension);
+	CORE_API virtual void FindFilesRecursively(TArray<FString>& FoundFiles, const TCHAR* Directory, const TCHAR* FileExtension);
 
 	/** 
 	 * Delete all files and subdirectories in a directory, then delete the directory itself
 	 * @param Directory		The directory to delete.
 	 * @return				true if the directory was deleted or did not exist.
 	**/
-	virtual bool DeleteDirectoryRecursively(const TCHAR* Directory);
+	CORE_API virtual bool DeleteDirectoryRecursively(const TCHAR* Directory);
 
 	/** Create a directory, including any parent directories and return true if the directory was created or already existed. **/
-	virtual bool CreateDirectoryTree(const TCHAR* Directory);
+	CORE_API virtual bool CreateDirectoryTree(const TCHAR* Directory);
 
 	/** 
 	 * Copy a file. This will fail if the destination file already exists.
@@ -571,7 +571,7 @@ public:
 	 * @param WriteFlags		Destination file write options.
 	 * @return			true if the file was copied sucessfully.
 	**/
-	virtual bool CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None);
+	CORE_API virtual bool CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None);
 
 	/** 
 	 * Copy a file or a hierarchy of files (directory).
@@ -580,7 +580,7 @@ public:
 	 * @param bOverwriteAllExisting			Whether to overwrite everything that exists at target
 	 * @return								true if operation completed successfully.
 	 */
-	virtual bool CopyDirectoryTree(const TCHAR* DestinationDirectory, const TCHAR* Source, bool bOverwriteAllExisting);
+	CORE_API virtual bool CopyDirectoryTree(const TCHAR* DestinationDirectory, const TCHAR* Source, bool bOverwriteAllExisting);
 
 	/**
 	 * Converts passed in filename to use an absolute path (for reading).
@@ -589,7 +589,7 @@ public:
 	 * 
 	 * @return	filename using absolute path
 	 */
-	virtual FString ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename );
+	CORE_API virtual FString ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename );
 
 	/**
 	 * Converts passed in filename to use an absolute path (for writing)
@@ -598,7 +598,7 @@ public:
 	 * 
 	 * @return	filename using absolute path
 	 */
-	virtual FString ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename );
+	CORE_API virtual FString ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename );
 
 	/**
 	 * Helper class to send/receive data to the file server function
@@ -667,7 +667,7 @@ public:
 /**
 * Common base for physical platform File I/O Interface
 **/
-class CORE_API IPhysicalPlatformFile : public IPlatformFile
+class IPhysicalPlatformFile : public IPlatformFile
 {
 public:
 	//~ Begin IPlatformFile Interface
@@ -675,7 +675,7 @@ public:
 	{
 		return true;
 	}
-	virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CmdLine) override;
+	CORE_API virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CmdLine) override;
 	virtual IPlatformFile* GetLowerLevel() override
 	{
 		return nullptr;
@@ -692,7 +692,7 @@ public:
 };
 
 /* Interface class for FPakFile to allow usage from modules that cannot have a compile dependency on FPakFile */
-class CORE_API IPakFile
+class IPakFile
 {
 public:
 	virtual const FString& PakGetPakFilename() const = 0;

@@ -16,7 +16,7 @@ class FTlsAutoCleanup;
  *
  * This interface specifies the methods used to manage a thread's life cycle.
  */
-class CORE_API FRunnableThread
+class FRunnableThread
 {
 	friend class FThreadSingletonInitializer;
 	friend class FTlsAutoCleanup;
@@ -25,12 +25,12 @@ class CORE_API FRunnableThread
 	friend class FForkProcessHelper;
 
 	/** Index of TLS slot for FRunnableThread pointer. */
-	static uint32 RunnableTlsSlot;
+	static CORE_API uint32 RunnableTlsSlot;
 
 public:
 
 	/** Gets a new Tls slot for storing the runnable thread pointer. */
-	static uint32 GetTlsSlot();
+	static CORE_API uint32 GetTlsSlot();
 
 	/**
 	 * Factory method to create a thread with the specified stack size and thread priority.
@@ -41,7 +41,7 @@ public:
 	 * @param InThreadPri Tells the thread whether it needs to adjust its priority or not. Defaults to normal priority
 	 * @return The newly created thread or nullptr if it failed
 	 */
-	static FRunnableThread* Create(
+	static CORE_API FRunnableThread* Create(
 		class FRunnable* InRunnable,
 		const TCHAR* ThreadName,
 		uint32 InStackSize = 0,
@@ -134,10 +134,10 @@ public:
 	}
 
 	/** Default constructor. */
-	FRunnableThread();
+	CORE_API FRunnableThread();
 
 	/** Virtual destructor */
-	virtual ~FRunnableThread();
+	CORE_API virtual ~FRunnableThread();
 
 	/**
 	 * @return a runnable thread that is executing this runnable, if return value is nullptr, it means the running thread can be game thread or a thread created outside the runnable interface
@@ -165,10 +165,10 @@ protected:
 		EThreadCreateFlags InCreateFlags = EThreadCreateFlags::None) = 0;
 
 	/** Stores this instance in the runnable thread TLS slot. */
-	void SetTls();
+	CORE_API void SetTls();
 
 	/** Deletes all FTlsAutoCleanup objects created for this thread. */
-	void FreeTls();
+	CORE_API void FreeTls();
 
 	/** Holds the name of the thread. */
 	FString ThreadName;
@@ -191,7 +191,7 @@ protected:
 private:
 
 	/** Called to setup a newly created RunnableThread */
-	static void SetupCreatedThread(FRunnableThread*& NewThread, class FRunnable* InRunnable, const TCHAR* ThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags);
+	static CORE_API void SetupCreatedThread(FRunnableThread*& NewThread, class FRunnable* InRunnable, const TCHAR* ThreadName, uint32 InStackSize, EThreadPriority InThreadPri, uint64 InThreadAffinityMask, EThreadCreateFlags InCreateFlags);
 
 	/** Used by the thread manager to tick threads in single-threaded mode */
 	virtual void Tick() {}
@@ -207,5 +207,5 @@ private:
 	/**
 	 * Called after the internal thread is created so it can register debug information
 	 */
-	void PostCreate(EThreadPriority ThreadPriority);
+	CORE_API void PostCreate(EThreadPriority ThreadPriority);
 };

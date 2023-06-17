@@ -139,7 +139,7 @@ namespace UE::Core::Private
  * The module manager is used to load and unload modules, as well as to keep track of all of the
  * modules that are currently loaded. You can access this singleton using FModuleManager::Get().
  */
-class CORE_API FModuleManager
+class FModuleManager
 	: private FSelfRegisteringExec
 {
 public:
@@ -147,7 +147,7 @@ public:
 	/**
 	 * Destructor.
 	 */
-	~FModuleManager();
+	CORE_API ~FModuleManager();
 
 
 	/**
@@ -155,10 +155,10 @@ public:
 	 *
 	 * @return The module manager instance.
 	 */
-	static FModuleManager& Get( );
+	static CORE_API FModuleManager& Get( );
 
 	/** Destroys singleton if it exists. Get() must not be called after Destroy(). */
-	static void TearDown();
+	static CORE_API void TearDown();
 
 
 	/**
@@ -167,17 +167,17 @@ public:
 	 * @param InModuleName The name of the module to abandon.  Should not include path, extension or platform/configuration info.  This is just the "module name" part of the module file name.
 	 * @see IsModuleLoaded, LoadModule, LoadModuleWithFailureReason, UnloadModule
 	 */
-	void AbandonModule( const FName InModuleName );
+	CORE_API void AbandonModule( const FName InModuleName );
 
 	/**
 	 * Adds a module to our list of modules, unless it's already known.
 	 *
 	 * @param InModuleName The base name of the module file.  Should not include path, extension or platform/configuration info.  This is just the "name" part of the module file name.  Names should be globally unique.
 	 */
-	void AddModule( const FName InModuleName );
+	CORE_API void AddModule( const FName InModuleName );
 
 #if !IS_MONOLITHIC
-	void RefreshModuleFilenameFromManifest(const FName InModuleName);
+	CORE_API void RefreshModuleFilenameFromManifest(const FName InModuleName);
 #endif	// !IS_MONOLITHIC
 
 	/**
@@ -187,7 +187,7 @@ public:
 	 * @return 	The module, or nullptr if the module is not loaded.
 	 * @see GetModuleChecked, GetModulePtr
 	 */
-	IModuleInterface* GetModule( const FName InModuleName );
+	CORE_API IModuleInterface* GetModule( const FName InModuleName );
 
 	/**
 	 * Checks whether the specified module is currently loaded.
@@ -198,7 +198,7 @@ public:
 	 * @return true if module is currently loaded, false otherwise.
 	 * @see AbandonModule, LoadModule, LoadModuleWithFailureReason, UnloadModule
 	 */
-	bool IsModuleLoaded( const FName InModuleName ) const;
+	CORE_API bool IsModuleLoaded( const FName InModuleName ) const;
 
 	/**
 	 * Loads the specified module.
@@ -208,7 +208,7 @@ public:
 	 * @return The loaded module, or nullptr if the load operation failed.
 	 * @see AbandonModule, IsModuleLoaded, LoadModuleChecked, LoadModulePtr, LoadModuleWithFailureReason, UnloadModule
 	 */
-	IModuleInterface* LoadModule( const FName InModuleName, ELoadModuleFlags InLoadModuleFlags = ELoadModuleFlags::None );
+	CORE_API IModuleInterface* LoadModule( const FName InModuleName, ELoadModuleFlags InLoadModuleFlags = ELoadModuleFlags::None );
 
 	/**
 	 * Loads the specified module, checking to ensure it exists.
@@ -217,7 +217,7 @@ public:
 	 * @return The loaded module, or nullptr if the load operation failed.
 	 * @see AbandonModule, IsModuleLoaded, LoadModuleChecked, LoadModulePtr, LoadModuleWithFailureReason, UnloadModule
 	 */
-	IModuleInterface& LoadModuleChecked( const FName InModuleName );
+	CORE_API IModuleInterface& LoadModuleChecked( const FName InModuleName );
 
 	/**
 	 * Loads a module in memory then calls PostLoad.
@@ -227,7 +227,7 @@ public:
 	 * @return true on success, false otherwise.
 	 * @see UnloadOrAbandonModuleWithCallback
 	 */
-	bool LoadModuleWithCallback( const FName InModuleName, FOutputDevice &Ar );
+	CORE_API bool LoadModuleWithCallback( const FName InModuleName, FOutputDevice &Ar );
 
 	/**
 	 * Loads the specified module and returns a result.
@@ -238,7 +238,7 @@ public:
 	 * @return The loaded module (null if the load operation failed).
 	 * @see AbandonModule, IsModuleLoaded, LoadModule, LoadModuleChecked, LoadModulePtr, UnloadModule
 	 */
-	IModuleInterface* LoadModuleWithFailureReason( const FName InModuleName, EModuleLoadResult& OutFailureReason, ELoadModuleFlags InLoadModuleFlags = ELoadModuleFlags::None);
+	CORE_API IModuleInterface* LoadModuleWithFailureReason( const FName InModuleName, EModuleLoadResult& OutFailureReason, ELoadModuleFlags InLoadModuleFlags = ELoadModuleFlags::None);
 
 	/**
 	 * Queries information about a specific module name.
@@ -248,7 +248,7 @@ public:
 	 * @return true if the module was found and the OutModuleStatus is valid, false otherwise.
 	 * @see QueryModules
 	 */
-	bool QueryModule( const FName InModuleName, FModuleStatus& OutModuleStatus ) const;
+	CORE_API bool QueryModule( const FName InModuleName, FModuleStatus& OutModuleStatus ) const;
 
 	/**
 	 * Queries information about all of the currently known modules.
@@ -256,7 +256,7 @@ public:
 	 * @param OutModuleStatuses Status of all modules.
 	 * @see QueryModule
 	 */
-	void QueryModules( TArray<FModuleStatus>& OutModuleStatuses ) const;
+	CORE_API void QueryModules( TArray<FModuleStatus>& OutModuleStatuses ) const;
 
 	/**
 	 * Unloads a specific module
@@ -268,7 +268,7 @@ public:
 	 * @return true if module was unloaded successfully, false otherwise.
 	 * @see AbandonModule, IsModuleLoaded, LoadModule, LoadModuleWithFailureReason
 	 */
-	bool UnloadModule( const FName InModuleName, bool bIsShutdown = false );
+	CORE_API bool UnloadModule( const FName InModuleName, bool bIsShutdown = false );
 
 	/**
 	 * Calls PreUnload then either unloads or abandons a module in memory, depending on whether the module supports unloading.
@@ -277,7 +277,7 @@ public:
 	 * @param Ar The archive to receive error messages, if any.
 	 * @see LoadModuleWithCallback
 	 */
-	void UnloadOrAbandonModuleWithCallback( const FName InModuleName, FOutputDevice &Ar);
+	CORE_API void UnloadOrAbandonModuleWithCallback( const FName InModuleName, FOutputDevice &Ar);
 
 	/**
 	 * Calls PreUnload then abandons a module in memory.
@@ -285,12 +285,12 @@ public:
 	 * @param InModuleName The name of the module to unload.
 	 * @see LoadModuleWithCallback
 	 */
-	void AbandonModuleWithCallback( const FName InModuleName );
+	CORE_API void AbandonModuleWithCallback( const FName InModuleName );
 
 	/**
 	 * Add any extra search paths that may be required
 	 */
-	void AddExtraBinarySearchPaths();
+	CORE_API void AddExtraBinarySearchPaths();
 
 	/**
 	  * Gets a module by name, checking to ensure it exists.
@@ -311,7 +311,7 @@ public:
 	}
 
 private:
-	static IModuleInterface* GetModulePtr_Internal(FName ModuleName);
+	static CORE_API IModuleInterface* GetModulePtr_Internal(FName ModuleName);
 
 public:
 
@@ -364,7 +364,7 @@ public:
 	 * @param WildcardWithoutExtension Filename part (no path, no extension, no build config info) to search for.
 	 * @param OutModules List of modules found.
 	 */
-	void FindModules( const TCHAR* WildcardWithoutExtension, TArray<FName>& OutModules ) const;
+	CORE_API void FindModules( const TCHAR* WildcardWithoutExtension, TArray<FName>& OutModules ) const;
 
 	/**
 	 * Determines if a module with the given name exists, regardless of whether it is currently loaded.
@@ -372,14 +372,14 @@ public:
 	 * @param ModuleName Name of the module to look for.
 	 * @return Whether the module exists.
 	 */
-	bool ModuleExists(const TCHAR* ModuleName) const;
+	CORE_API bool ModuleExists(const TCHAR* ModuleName) const;
 
 	/**
 	 * Gets the number of loaded modules.
 	 *
 	 * @return The number of modules.
 	 */
-	int32 GetModuleCount( ) const;
+	CORE_API int32 GetModuleCount( ) const;
 
 	/**
 	 * Unloads modules during the shutdown process. Modules are unloaded in reverse order to when their StartupModule() FINISHES.
@@ -390,7 +390,7 @@ public:
 	 *
 	 * This method is Usually called at various points while exiting an application.
 	 */
-	void UnloadModulesAtShutdown( );
+	CORE_API void UnloadModulesAtShutdown( );
 
 
 	/** Delegate that's used by the module manager to initialize a registered module that we statically linked with (monolithic only) */
@@ -411,27 +411,27 @@ public:
 	 * Called by the engine at startup to let the Module Manager know that it's now
 	 * safe to process new UObjects discovered by loading C++ modules.
 	 */
-	void StartProcessingNewlyLoadedObjects();
+	CORE_API void StartProcessingNewlyLoadedObjects();
 
 	/** Adds an engine binaries directory. */
-	void AddBinariesDirectory(const TCHAR *InDirectory, bool bIsGameDirectory);
+	CORE_API void AddBinariesDirectory(const TCHAR *InDirectory, bool bIsGameDirectory);
 
 	/** Will load the binary without doing initialization.
 	 *  Calling this will not make it possible to unload the module again
 	 */
-	void LoadModuleBinaryOnly(FName ModuleName);
+	CORE_API void LoadModuleBinaryOnly(FName ModuleName);
 
 	/**
 	 *	Set the game binaries directory
 	 *
 	 *	@param InDirectory The game binaries directory.
 	 */
-	void SetGameBinariesDirectory(const TCHAR* InDirectory);
+	CORE_API void SetGameBinariesDirectory(const TCHAR* InDirectory);
 
 	/**
 	*	Gets the game binaries directory
 	*/
-	FString GetGameBinariesDirectory() const;
+	CORE_API FString GetGameBinariesDirectory() const;
 
 #if !IS_MONOLITHIC
 	/**
@@ -440,7 +440,7 @@ public:
 	 * @param InModuleName The base name of the module file.
 	 * @return true if module exists and is up to date, false otherwise.
 	 */
-	bool IsModuleUpToDate( const FName InModuleName ) const;
+	CORE_API bool IsModuleUpToDate( const FName InModuleName ) const;
 #endif
 
 	/**
@@ -450,27 +450,27 @@ public:
 	 * @param ModuleName Name of the loaded module to check.
 	 * @return True if the module was found to contain UObjects, or false if it did not (or wasn't loaded.)
 	 */
-	bool DoesLoadedModuleHaveUObjects( const FName ModuleName ) const;
+	CORE_API bool DoesLoadedModuleHaveUObjects( const FName ModuleName ) const;
 
 	/**
 	 * Gets the build configuration for compiling modules, as required by UBT.
 	 *
 	 * @return	Configuration name for UBT.
 	 */
-	static const TCHAR* GetUBTConfiguration( );
+	static CORE_API const TCHAR* GetUBTConfiguration( );
 
 #if !IS_MONOLITHIC
 	/** Gets the filename for a module. The return value is a full path of a module known to the module manager. */
-	FString GetModuleFilename(FName ModuleName) const;
+	CORE_API FString GetModuleFilename(FName ModuleName) const;
 
 	/** Sets the filename for a module. The module is not reloaded immediately, but the new name will be used for subsequent unload/load events. */
-	void SetModuleFilename(FName ModuleName, const FString& Filename);
+	CORE_API void SetModuleFilename(FName ModuleName, const FString& Filename);
 
 	/** Determines if any non-default module instances are loaded (eg. hot reloaded modules) */
-	bool HasAnyOverridenModuleFilename() const;
+	CORE_API bool HasAnyOverridenModuleFilename() const;
 
 	/** Save the current module manager's state into a file for bootstrapping other processes. */
-	void SaveCurrentStateForBootstrap(const TCHAR* Filename);
+	CORE_API void SaveCurrentStateForBootstrap(const TCHAR* Filename);
 #endif
 
 	/**
@@ -513,7 +513,7 @@ public:
 
 protected:
 	// FSelfRegisteringExec interface.
-	virtual bool Exec_Dev( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+	CORE_API virtual bool Exec_Dev( UWorld* Inworld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 
 private:
 	friend TOptional<FModuleManager>& UE::Core::Private::GetModuleManagerSingleton();
@@ -525,7 +525,7 @@ public:
 	 *
 	 * Use the static Get function to return the singleton instance.
 	 */
-	FModuleManager(FPrivateToken);
+	CORE_API FModuleManager(FPrivateToken);
 	FModuleManager(const FModuleManager&) = delete;
 	FModuleManager& operator=(const FModuleManager&) = delete;
 
@@ -586,20 +586,20 @@ public:
 	/**
 	 * Generates a unique file name for the specified module name by adding a random suffix and checking for file collisions.
 	 */
-	void MakeUniqueModuleFilename( const FName InModuleName, FString& UniqueSuffix, FString& UniqueModuleFileName ) const;
+	CORE_API void MakeUniqueModuleFilename( const FName InModuleName, FString& UniqueSuffix, FString& UniqueModuleFileName ) const;
 
-	void AddModuleToModulesList(const FName InModuleName, FModuleManager::ModuleInfoRef& ModuleInfo);
+	CORE_API void AddModuleToModulesList(const FName InModuleName, FModuleManager::ModuleInfoRef& ModuleInfo);
 
 	/** Clears module path cache */
-	void ResetModulePathsCache();
+	CORE_API void ResetModulePathsCache();
 
 	friend FArchive& operator<<( FArchive& Ar, FModuleManager& ModuleManager );
 private:
-	static void WarnIfItWasntSafeToLoadHere(const FName InModuleName);
+	static CORE_API void WarnIfItWasntSafeToLoadHere(const FName InModuleName);
 
 	/** Thread safe module finding routine. */
-	ModuleInfoPtr FindModule(FName InModuleName);
-	ModuleInfoRef FindModuleChecked(FName InModuleName);
+	CORE_API ModuleInfoPtr FindModule(FName InModuleName);
+	CORE_API ModuleInfoRef FindModuleChecked(FName InModuleName);
 
 	FORCEINLINE TSharedPtr<const FModuleInfo, ESPMode::ThreadSafe> FindModule(FName InModuleName) const
 	{
@@ -613,20 +613,20 @@ private:
 
 #if !IS_MONOLITHIC
 	/** Finds modules matching a given name wildcard. */
-	void FindModulePaths(const TCHAR *NamePattern, TMap<FName, FString> &OutModulePaths) const;
+	CORE_API void FindModulePaths(const TCHAR *NamePattern, TMap<FName, FString> &OutModulePaths) const;
 
 	/** Finds modules within a given directory. */
-	void FindModulePathsInDirectory(const FString &DirectoryName, bool bIsGameDirectory, TMap<FName, FString> &OutModulePaths) const;
+	CORE_API void FindModulePathsInDirectory(const FString &DirectoryName, bool bIsGameDirectory, TMap<FName, FString> &OutModulePaths) const;
 
 	/** Serialize a bootstrapping state into or from an archive. */
-	void SerializeStateForBootstrap_Impl(FArchive& Ar);
+	CORE_API void SerializeStateForBootstrap_Impl(FArchive& Ar);
 
 	/** Refreshes the filename of a new module from the manifest */
-	void RefreshModuleFilenameFromManifestImpl(const FName InModuleName, FModuleInfo& ModuleInfo);
+	CORE_API void RefreshModuleFilenameFromManifestImpl(const FName InModuleName, FModuleInfo& ModuleInfo);
 #endif
 
 	/** Adds pending module initializer registrations to the StaticallyLinkedModuleInitializers map. */
-	void ProcessPendingStaticallyLinkedModuleInitializers() const;
+	CORE_API void ProcessPendingStaticallyLinkedModuleInitializers() const;
 
 private:
 	/** Map of all modules.  Maps the case-insensitive module name to information about that module, loaded or not. */

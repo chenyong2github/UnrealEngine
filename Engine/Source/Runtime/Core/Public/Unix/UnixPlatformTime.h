@@ -14,9 +14,9 @@
 /**
  * Unix implementation of the Time OS functions
  */
-struct CORE_API FUnixTime : public FGenericPlatformTime
+struct FUnixTime : public FGenericPlatformTime
 {
-	static double InitTiming();
+	static CORE_API double InitTiming();
 
 	static FORCEINLINE double Seconds()
 	{
@@ -49,37 +49,37 @@ struct CORE_API FUnixTime : public FGenericPlatformTime
 		return static_cast<uint64>(static_cast<uint64>(ts.tv_sec) * (uint64)1e7 + static_cast<uint64>(ts.tv_nsec) / 100ULL);
 	}
 
-	static bool UpdateCPUTime(float DeltaSeconds);
-	static bool UpdateThreadCPUTime(float = 0.0);
-	static void AutoUpdateGameThreadCPUTime(double UpdateInterval);
+	static CORE_API bool UpdateCPUTime(float DeltaSeconds);
+	static CORE_API bool UpdateThreadCPUTime(float = 0.0);
+	static CORE_API void AutoUpdateGameThreadCPUTime(double UpdateInterval);
 
-	static FCPUTime GetCPUTime();
-	static FCPUTime GetThreadCPUTime();
-	static double GetLastIntervalThreadCPUTimeInSeconds();
+	static CORE_API FCPUTime GetCPUTime();
+	static CORE_API FCPUTime GetThreadCPUTime();
+	static CORE_API double GetLastIntervalThreadCPUTimeInSeconds();
 
 	/**
 	 * Calibration log to be printed at later time
 	 */
-	static void PrintCalibrationLog();
+	static CORE_API void PrintCalibrationLog();
 
 private:
 
 	/** Clock source to use */
-	static int ClockSource;
+	static CORE_API int ClockSource;
 
 	/** Log information about calibrating the clock. */
-	static char CalibrationLog[4096];
+	static CORE_API char CalibrationLog[4096];
 
 	/**
 	 * Benchmarks clock_gettime(), possibly switches to something else is too slow.
 	 * Unix-specific.
 	 */
-	static int CalibrateAndSelectClock();
+	static CORE_API int CalibrateAndSelectClock();
 
 	/**
 	 * Returns number of time we can call the clock per second.
 	 */
-	static uint64 CallsPerSecondBenchmark(clockid_t BenchClockId, const char * BenchClockIdName);
+	static CORE_API uint64 CallsPerSecondBenchmark(clockid_t BenchClockId, const char * BenchClockIdName);
 };
 
 typedef FUnixTime FPlatformTime;

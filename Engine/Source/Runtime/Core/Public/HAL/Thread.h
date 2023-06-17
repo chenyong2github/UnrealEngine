@@ -20,7 +20,7 @@
  *		Thread.Join();
  * For more verbose example check `TestTypicalUseCase` in `ThreadTest.cpp`
  */
-class CORE_API FThread final
+class FThread final
 {
 public:
 	// indicates if the thread should be forked in case the owning process is forked
@@ -42,7 +42,7 @@ public:
 	* @param ThreadAffinity Tells the thread whether it needs to adjust its affinity or not. Defaults to no affinity
 	* @param IsForkable Tells the thread whether it can be forked. Defaults to NonForkable
 	*/
-	FThread(
+	CORE_API FThread(
 		TCHAR const* ThreadName,
 		TUniqueFunction<void()>&& ThreadFunction,
 		uint32 StackSize = 0,
@@ -53,7 +53,7 @@ public:
 
 	// with SingleThreadTickFunction that will be executed every frame if running with `-nothreading
 	// (FPlatformProcess::SupportsMultithreading() == false)
-	FThread(
+	CORE_API FThread(
 		TCHAR const* ThreadName,
 		TUniqueFunction<void()>&& ThreadFunction,
 		TUniqueFunction<void()>&& SingleThreadTickFunction,
@@ -72,12 +72,12 @@ public:
 	 * Move assignment operator.
 	 * Asserts if the instance is joinable.
 	 */
-	FThread& operator=(FThread&& Other);
+	CORE_API FThread& operator=(FThread&& Other);
 
 	/**
 	 * Destructor asserts if the instance is not joined or detached.
 	 */
-	~FThread();
+	CORE_API ~FThread();
 
 	/**
 	 * Checks if the thread object identifies an active thread of execution. 
@@ -85,7 +85,7 @@ public:
 	 * thread of execution and is therefore joinable.
 	 * @see Join
 	 */
-	bool IsJoinable() const;
+	CORE_API bool IsJoinable() const;
 
 	/**
 	 * Blocks the current thread until the thread identified by `this` finishes its execution.
@@ -94,14 +94,14 @@ public:
 	 * from multiple threads constitutes a data race that results in undefined behavior.
 	 * @see IsJoinable
 	 */
-	void Join();
+	CORE_API void Join();
 
 	static constexpr uint32 InvalidThreadId = ~uint32(0);
 
 	/**
 	 * @return Thread ID for this thread
 	 */
-	uint32 GetThreadId() const;
+	CORE_API uint32 GetThreadId() const;
 
 #if 0 // disabled as it doesn't work as intended
 
@@ -110,7 +110,7 @@ public:
 	 * Any allocated resources will be freed once the thread exits.
 	 * After calling detach `this` no longer owns any thread.
 	 */
-	void Detach();
+	CORE_API void Detach();
 
 #endif
 

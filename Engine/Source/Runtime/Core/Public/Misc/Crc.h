@@ -17,18 +17,18 @@ struct TTuple;
 /** 
  * CRC hash generation for different types of input data
  **/
-struct CORE_API FCrc
+struct FCrc
 {
 	/** lookup table with precalculated CRC values - slicing by 8 implementation */
-	static uint32 CRCTablesSB8[8][256];
+	static CORE_API uint32 CRCTablesSB8[8][256];
 
 	/** initializes the CRC lookup table. Must be called before any of the
 		CRC functions are used. */
-	static void Init();
+	static CORE_API void Init();
 
 	/** generates CRC hash of the memory area */
 	typedef uint32 (*MemCrc32Functor)( const void* Data, int32 Length, uint32 CRC );
-	static MemCrc32Functor MemCrc32Func;
+	static CORE_API MemCrc32Functor MemCrc32Func;
 	static FORCEINLINE uint32 MemCrc32(const void* Data, int32 Length, uint32 CRC = 0)
 	{
 		return MemCrc32Func(Data, Length, CRC);
@@ -86,9 +86,9 @@ struct CORE_API FCrc
 	 */
 
 	/** lookup table with precalculated CRC values */
-	static uint32 CRCTable_DEPRECATED[256];
+	static CORE_API uint32 CRCTable_DEPRECATED[256];
 	/** lookup table with precalculated CRC values - slicing by 8 implementation */
-	static uint32 CRCTablesSB8_DEPRECATED[8][256];
+	static CORE_API uint32 CRCTablesSB8_DEPRECATED[8][256];
 
 	/** String CRC. */
 	template <typename CharType>
@@ -133,7 +133,7 @@ struct CORE_API FCrc
 	template <typename CharType> static inline uint32 Strihash_DEPRECATED( const int32 DataLen, const CharType* Data );
 
 	/** generates CRC hash of the memory area */
-	static uint32 MemCrc_DEPRECATED( const void* Data, int32 Length, uint32 CRC=0 );
+	static CORE_API uint32 MemCrc_DEPRECATED( const void* Data, int32 Length, uint32 CRC=0 );
 };
 
 template <>

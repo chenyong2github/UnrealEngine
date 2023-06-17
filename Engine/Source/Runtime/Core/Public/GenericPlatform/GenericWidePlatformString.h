@@ -40,7 +40,7 @@ public:
 	CORE_API static WIDECHAR* Strncpy(WIDECHAR* Dest, const WIDECHAR* Src, SIZE_T MaxLen);
 	CORE_API static WIDECHAR* Strcat(WIDECHAR* Dest, SIZE_T DestCount, const WIDECHAR* Src);
 
-	CORE_API static int32 Strcmp( const WIDECHAR* String1, const WIDECHAR* String2 )
+	static int32 Strcmp( const WIDECHAR* String1, const WIDECHAR* String2 )
 	{
 		// walk the strings, comparing them case sensitively
 		for (; *String1 || *String2; String1++, String2++)
@@ -54,7 +54,7 @@ public:
 		return 0;
 	}
 
-	CORE_API static int32 Strlen( const WIDECHAR* String )
+	static int32 Strlen( const WIDECHAR* String )
 	{
 		int32 Length = -1;
 
@@ -67,7 +67,7 @@ public:
 		return Length;
 	}
 
-	CORE_API static int32 Strnlen( const WIDECHAR* String, SIZE_T StringSize )
+	static int32 Strnlen( const WIDECHAR* String, SIZE_T StringSize )
 	{
 		int32 Length = -1;
 
@@ -108,7 +108,7 @@ public:
 	}
 #endif
 
-	CORE_API static const WIDECHAR* Strstr( const WIDECHAR* String, const WIDECHAR* Find)
+	static const WIDECHAR* Strstr( const WIDECHAR* String, const WIDECHAR* Find)
 	{
 		WIDECHAR Char1, Char2;
 		if ((Char1 = *Find++) != 0)
@@ -134,7 +134,7 @@ public:
 		return String;
 	}
 
-	CORE_API static const WIDECHAR* Strchr( const WIDECHAR* String, WIDECHAR C)
+	static const WIDECHAR* Strchr( const WIDECHAR* String, WIDECHAR C)
 	{
 		while (*String != C && *String != 0)
 		{
@@ -144,7 +144,7 @@ public:
 		return (*String == C) ? String : nullptr;
 	}
 
-	CORE_API static const WIDECHAR* Strrchr( const WIDECHAR* String, WIDECHAR C)
+	static const WIDECHAR* Strrchr( const WIDECHAR* String, WIDECHAR C)
 	{
 		const WIDECHAR *Last = nullptr;
 		
@@ -173,12 +173,12 @@ public:
 	CORE_API static float Atof(const WIDECHAR* String);
 	CORE_API static double Atod(const WIDECHAR* String);
 
-	CORE_API static FORCEINLINE int32 Atoi(const WIDECHAR* String)
+	static FORCEINLINE int32 Atoi(const WIDECHAR* String)
 	{
 		return Strtoi( String, NULL, 10 );
 	}
 	
-	CORE_API static FORCEINLINE int64 Atoi64(const WIDECHAR* String)
+	static FORCEINLINE int64 Atoi64(const WIDECHAR* String)
 	{
 		return Strtoi64( String, NULL, 10 );
 	}
@@ -192,7 +192,7 @@ public:
 	/**
 	 * Ansi implementation
 	 **/
-	CORE_API static FORCEINLINE ANSICHAR* Strcpy(ANSICHAR* Dest, SIZE_T DestCount, const ANSICHAR* Src)
+	static FORCEINLINE ANSICHAR* Strcpy(ANSICHAR* Dest, SIZE_T DestCount, const ANSICHAR* Src)
 	{
 // Skip suggestions about using strcpy_s instead.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -200,7 +200,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	CORE_API static FORCEINLINE ANSICHAR* Strncpy(ANSICHAR* Dest, const ANSICHAR* Src, SIZE_T MaxLen)
+	static FORCEINLINE ANSICHAR* Strncpy(ANSICHAR* Dest, const ANSICHAR* Src, SIZE_T MaxLen)
 	{
 // Skip suggestions about using strncpy_s instead.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -210,7 +210,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return Dest;
 	}
 
-	CORE_API static FORCEINLINE ANSICHAR* Strcat(ANSICHAR* Dest, SIZE_T DestCount, const ANSICHAR* Src)
+	static FORCEINLINE ANSICHAR* Strcat(ANSICHAR* Dest, SIZE_T DestCount, const ANSICHAR* Src)
 	{
 // Skip suggestions about using strcat_s instead.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -218,77 +218,77 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	CORE_API static FORCEINLINE int32 Strcmp( const ANSICHAR* String1, const ANSICHAR* String2 )
+	static FORCEINLINE int32 Strcmp( const ANSICHAR* String1, const ANSICHAR* String2 )
 	{
 		return strcmp(String1, String2);
 	}
 
-	CORE_API static FORCEINLINE int32 Strncmp( const ANSICHAR* String1, const ANSICHAR* String2, SIZE_T Count )
+	static FORCEINLINE int32 Strncmp( const ANSICHAR* String1, const ANSICHAR* String2, SIZE_T Count )
 	{
 		return strncmp( String1, String2, Count );
 	}
 
-	CORE_API static FORCEINLINE int32 Strlen( const ANSICHAR* String )
+	static FORCEINLINE int32 Strlen( const ANSICHAR* String )
 	{
 		return strlen( String );
 	}
 
-	CORE_API static FORCEINLINE int32 Strnlen( const ANSICHAR* String, SIZE_T StringSize )
+	static FORCEINLINE int32 Strnlen( const ANSICHAR* String, SIZE_T StringSize )
 	{
 		return strnlen( String, StringSize );
 	}
 
-	CORE_API static FORCEINLINE const ANSICHAR* Strstr( const ANSICHAR* String, const ANSICHAR* Find)
+	static FORCEINLINE const ANSICHAR* Strstr( const ANSICHAR* String, const ANSICHAR* Find)
 	{
 		return strstr(String, Find);
 	}
 
-	CORE_API static FORCEINLINE const ANSICHAR* Strchr( const ANSICHAR* String, ANSICHAR C)
+	static FORCEINLINE const ANSICHAR* Strchr( const ANSICHAR* String, ANSICHAR C)
 	{
 		return strchr(String, C);
 	}
 
-	CORE_API static FORCEINLINE const ANSICHAR* Strrchr( const ANSICHAR* String, ANSICHAR C)
+	static FORCEINLINE const ANSICHAR* Strrchr( const ANSICHAR* String, ANSICHAR C)
 	{
 		return strrchr(String, C);
 	}
 
-	CORE_API static FORCEINLINE int32 Atoi(const ANSICHAR* String)
+	static FORCEINLINE int32 Atoi(const ANSICHAR* String)
 	{
 		return atoi( String );
 	}
 
-	CORE_API static FORCEINLINE int64 Atoi64(const ANSICHAR* String)
+	static FORCEINLINE int64 Atoi64(const ANSICHAR* String)
 	{
 		return strtoll( String, NULL, 10 );
 	}
 
-	CORE_API static FORCEINLINE float Atof(const ANSICHAR* String)
+	static FORCEINLINE float Atof(const ANSICHAR* String)
 	{
 		return (float)atof( String );
 	}
 
-	CORE_API static FORCEINLINE double Atod(const ANSICHAR* String)
+	static FORCEINLINE double Atod(const ANSICHAR* String)
 	{
 		return atof( String );
 	}
 
-	CORE_API static FORCEINLINE int32 Strtoi( const ANSICHAR* Start, ANSICHAR** End, int32 Base )
+	static FORCEINLINE int32 Strtoi( const ANSICHAR* Start, ANSICHAR** End, int32 Base )
 	{
 		return strtol( Start, End, Base );
 	}
 
-	CORE_API static FORCEINLINE int64 Strtoi64( const ANSICHAR* Start, ANSICHAR** End, int32 Base )
+	static FORCEINLINE int64 Strtoi64( const ANSICHAR* Start, ANSICHAR** End, int32 Base )
 	{
 		return strtoll(Start, End, Base);
 	}
 
-	CORE_API static FORCEINLINE uint64 Strtoui64( const ANSICHAR* Start, ANSICHAR** End, int32 Base )
+	static FORCEINLINE uint64 Strtoui64( const ANSICHAR* Start, ANSICHAR** End, int32 Base )
 	{
 		return strtoull(Start, End, Base);
 	}
 
-	CORE_API static FORCEINLINE ANSICHAR* Strtok(ANSICHAR* StrToken, const ANSICHAR* Delim, ANSICHAR** Context)
+	static FORCEINLINE ANSICHAR* Strtok(ANSICHAR* StrToken, const ANSICHAR* Delim, ANSICHAR** Context)
 	{
 // Skip suggestions about using strtok_s instead.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -296,7 +296,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	static CORE_API int32 GetVarArgs( ANSICHAR* Dest, SIZE_T DestSize, const ANSICHAR*& Fmt, va_list ArgPtr )
+	static int32 GetVarArgs( ANSICHAR* Dest, SIZE_T DestSize, const ANSICHAR*& Fmt, va_list ArgPtr )
 	{
 		int32 Result = vsnprintf(Dest, DestSize, Fmt, ArgPtr);
 		return (Result != -1 && Result < (int32)DestSize) ? Result : -1;
@@ -404,7 +404,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * UCS2 implementation
 	 **/
 
-	CORE_API static FORCEINLINE int32 Strlen( const UCS2CHAR* String )
+	static FORCEINLINE int32 Strlen( const UCS2CHAR* String )
 	{
 		int32 Result = 0;
 		while (*String++)
@@ -415,7 +415,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return Result;
 	}
 
-	CORE_API static FORCEINLINE int32 Strnlen( const UCS2CHAR* String, SIZE_T StringSize )
+	static FORCEINLINE int32 Strnlen( const UCS2CHAR* String, SIZE_T StringSize )
 	{
 		int32 Result = 0;
 		while (StringSize-- > 0 && *String++)

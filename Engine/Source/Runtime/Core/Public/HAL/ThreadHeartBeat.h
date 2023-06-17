@@ -32,26 +32,26 @@ DECLARE_DELEGATE_OneParam(FOnHangDelegate, uint32);
  * When the title is suspended, this thread is also suspended, and the local clock stops.
  * The delta is clamped so if we are resumed, the clock continues from where it left off.
  */
-class CORE_API FThreadHeartBeatClock
+class FThreadHeartBeatClock
 {
 	uint64 CurrentCycles;
 	uint64 LastRealTickCycles;
 	const uint64 MaxTimeStepCycles;
 
 public:
-	FThreadHeartBeatClock(double InMaxTimeStep);
+	CORE_API FThreadHeartBeatClock(double InMaxTimeStep);
 
-	void Tick();
-	double Seconds();
+	CORE_API void Tick();
+	CORE_API double Seconds();
 };
 
 /**
  * Thread heartbeat check class.
  * Used by crash handling code to check for hangs.
  */
-class CORE_API FThreadHeartBeat : public FRunnable
+class FThreadHeartBeat : public FRunnable
 {
-	static FThreadHeartBeat* Singleton;
+	static CORE_API FThreadHeartBeat* Singleton;
 
 	/** Holds per-thread info about the heartbeat */
 	struct FHeartBeatInfo
@@ -150,15 +150,15 @@ class CORE_API FThreadHeartBeat : public FRunnable
 	FOnHangDelegate OnHangDelegate;
 #endif
 
-	FThreadHeartBeat();
-	virtual ~FThreadHeartBeat();
+	CORE_API FThreadHeartBeat();
+	CORE_API virtual ~FThreadHeartBeat();
 
-	void InitSettings();
+	CORE_API void InitSettings();
 
-	void FORCENOINLINE OnHang(double HangDuration, uint32 ThreadThatHung);
-	void FORCENOINLINE OnPresentHang(double HangDuration);
+	CORE_API void FORCENOINLINE OnHang(double HangDuration, uint32 ThreadThatHung);
+	CORE_API void FORCENOINLINE OnPresentHang(double HangDuration);
 
-	bool IsEnabled();
+	CORE_API bool IsEnabled();
 
 public:
 
@@ -172,58 +172,58 @@ public:
 	};
 
 	/** Gets the heartbeat singleton */
-	static FThreadHeartBeat& Get();
-	static FThreadHeartBeat* GetNoInit();
+	static CORE_API FThreadHeartBeat& Get();
+	static CORE_API FThreadHeartBeat* GetNoInit();
 
 	/** Begin measuring heartbeat */
-	void Start();
+	CORE_API void Start();
 	/** Called from a thread once per frame to update the heartbeat time */
-	void HeartBeat(bool bReadConfig = false);
+	CORE_API void HeartBeat(bool bReadConfig = false);
 	/** Called from the rendering or RHI thread when the platform RHI presents a frame (supported platforms only). */
-	void PresentFrame();
+	CORE_API void PresentFrame();
 	/** Called by a supervising thread to check the threads' health */
-	uint32 CheckHeartBeat(double& OutHangDuration);
+	CORE_API uint32 CheckHeartBeat(double& OutHangDuration);
 	/** Called by a thread when it's no longer expecting to be ticked */
-	void KillHeartBeat();
+	CORE_API void KillHeartBeat();
 
 	/** Called from a thread once on entry to a function to be monitored */
-	void MonitorFunctionStart();
+	CORE_API void MonitorFunctionStart();
 	/** Called by a thread when a function has completed and no longer needs to be monitored */
-	void MonitorFunctionEnd();
+	CORE_API void MonitorFunctionEnd();
 	/** Called by a supervising thread to check all function calls' being monitored health */
-	uint32 CheckFunctionHeartBeat(double& OutHangDuration);
+	CORE_API uint32 CheckFunctionHeartBeat(double& OutHangDuration);
 
 	/* 
 		Called from a thread to register a checkpoint to be monitored 
 		@param EndCheckPoint name of the checkpoint that needs to be reached. TimeToReachCheckPoint the time duration we have to reach the specified checkpoint.
 	*/
-	void MonitorCheckpointStart(FName EndCheckPoint, double TimeToReachCheckpoint);
+	CORE_API void MonitorCheckpointStart(FName EndCheckPoint, double TimeToReachCheckpoint);
 	/* Called from a thread when a checkpoint has ended */
-	void MonitorCheckpointEnd(FName CheckPoint);
+	CORE_API void MonitorCheckpointEnd(FName CheckPoint);
 	/* Called by a supervising thread to check all checkpoints forward progress */
-	uint32 CheckCheckpointHeartBeat(double& OutHangDuration);
+	CORE_API uint32 CheckCheckpointHeartBeat(double& OutHangDuration);
 
 	/** 
 	 * Suspend heartbeat measuring for the current thread if the thread has already had a heartbeat 
 	 * @param bAllThreads If true, suspends heartbeat for all threads, not only the current one
 	 */
-	void SuspendHeartBeat(bool bAllThreads = false);
+	CORE_API void SuspendHeartBeat(bool bAllThreads = false);
 	/** 
 	 * Resume heartbeat measuring for the current thread 
 	 * @param bAllThreads If true, resumes heartbeat for all threads, not only the current one
 	 */
-	void ResumeHeartBeat(bool bAllThreads = false);
+	CORE_API void ResumeHeartBeat(bool bAllThreads = false);
 
 	/**
 	* Returns true/false if this thread is currently performing heartbeat monitoring
 	*/
-	bool IsBeating();
+	CORE_API bool IsBeating();
 
 	/** 
 	 * Sets a multiplier to the hang duration (>= 1.0).
 	 * Can be used to extend the duration during loading screens etc.
 	 */
-	void SetDurationMultiplier(double NewMultiplier);
+	CORE_API void SetDurationMultiplier(double NewMultiplier);
 
 	/*
 	* Get the Id of the last thread to trigger the hang detector.
@@ -258,9 +258,9 @@ public:
 	double GetHangDuration() const { return ConfigHangDuration; };
 
 	//~ Begin FRunnable Interface.
-	virtual bool Init();
-	virtual uint32 Run();
-	virtual void Stop();
+	CORE_API virtual bool Init();
+	CORE_API virtual uint32 Run();
+	CORE_API virtual void Stop();
 	//~ End FRunnable Interface
 };
 
@@ -331,9 +331,9 @@ public:
 #define WALK_STACK_ON_HITCH_DETECTED 0
 #endif
 
-class CORE_API FGameThreadHitchHeartBeatThreaded : public FRunnable
+class FGameThreadHitchHeartBeatThreaded : public FRunnable
 {
-	static FGameThreadHitchHeartBeatThreaded* Singleton;
+	static CORE_API FGameThreadHitchHeartBeatThreaded* Singleton;
 
 	/** Thread to run the worker FRunnable on */
 	FRunnableThread* Thread;
@@ -362,10 +362,10 @@ class CORE_API FGameThreadHitchHeartBeatThreaded : public FRunnable
 
 	FThreadHeartBeatClock Clock;
 
-	void InitSettings();
+	CORE_API void InitSettings();
 
-	FGameThreadHitchHeartBeatThreaded();
-	virtual ~FGameThreadHitchHeartBeatThreaded();
+	CORE_API FGameThreadHitchHeartBeatThreaded();
+	CORE_API virtual ~FGameThreadHitchHeartBeatThreaded();
 
 public:
 
@@ -376,35 +376,35 @@ public:
 	};
 
 	/** Gets the heartbeat singleton */
-	static FGameThreadHitchHeartBeatThreaded& Get();
-	static FGameThreadHitchHeartBeatThreaded* GetNoInit();
+	static CORE_API FGameThreadHitchHeartBeatThreaded& Get();
+	static CORE_API FGameThreadHitchHeartBeatThreaded* GetNoInit();
 
 	/**
 	* Called at the start of a frame to register the time we are looking to detect a hitch
 	*/
-	void FrameStart(bool bSkipThisFrame = false);
+	CORE_API void FrameStart(bool bSkipThisFrame = false);
 
-	double GetFrameStartTime();
-	double GetCurrentTime();
+	CORE_API double GetFrameStartTime();
+	CORE_API double GetCurrentTime();
 
 	/**
 	* Suspend heartbeat hitch detection. Must call ResumeHeartBeat later to resume.
 	*/
-	void SuspendHeartBeat();
+	CORE_API void SuspendHeartBeat();
 
 	/**
 	* Resume heartbeat hitch detection. Call only after first calling SuspendHeartBeat.
 	*/
-	void ResumeHeartBeat();
+	CORE_API void ResumeHeartBeat();
 
 	// No-op, used in FUnixSignalGameHitchHeartBeat
 	void Restart() {}
 	void PostFork() {}
 
 	//~ Begin FRunnable Interface.
-	virtual bool Init();
-	virtual uint32 Run();
-	virtual void Stop();
+	CORE_API virtual bool Init();
+	CORE_API virtual uint32 Run();
+	CORE_API virtual void Stop();
 	//~ End FRunnable Interface
 };
 

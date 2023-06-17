@@ -137,7 +137,7 @@ namespace UE
 	/**
 	 * This structure is allocated as a function-local static to persist stats across stall checks.
 	 */
-	class CORE_API FStallDetectorStats
+	class FStallDetectorStats
 	{
 		friend class FStallDetectorRunnable;
 
@@ -145,17 +145,17 @@ namespace UE
 		/**
 		* Construct a stats object for use with a stall detector
 		*/
-		FStallDetectorStats(const TCHAR* InName, const double InBudgetSeconds, const EStallDetectorReportingMode InReportingMode);
+		CORE_API FStallDetectorStats(const TCHAR* InName, const double InBudgetSeconds, const EStallDetectorReportingMode InReportingMode);
 
 		/**
 		* Destruct a stats object, just removes it from the instance tracking
 		*/
-		~FStallDetectorStats();
+		CORE_API ~FStallDetectorStats();
 
 		/**
 		* Stall detector scope has ended, record the interval
 		*/
-		void OnStallCompleted(double InOverageSeconds);
+		CORE_API void OnStallCompleted(double InOverageSeconds);
 
 		struct TabulatedResult
 		{
@@ -165,7 +165,7 @@ namespace UE
 			double OverageSeconds = 0.0;
 			double OverageRatio = 0.0;
 		};
-		static void TabulateStats(TArray<TabulatedResult>& TabulatedResults);
+		static CORE_API void TabulateStats(TArray<TabulatedResult>& TabulatedResults);
 
 		// The name to refer to this callsite in the codebase
 		const TCHAR* Name;
@@ -180,10 +180,10 @@ namespace UE
 		bool bReported;
 
 		// The total number of times all callsites have been triggered
-		static FCountersTrace::FCounterAtomicInt TotalTriggeredCount;
+		static CORE_API FCountersTrace::FCounterAtomicInt TotalTriggeredCount;
 
 		// The total number of reports that have been sent
-		static FCountersTrace::FCounterAtomicInt TotalReportedCount;
+		static CORE_API FCountersTrace::FCounterAtomicInt TotalReportedCount;
 
 	private:
 		// The number of times this callsite has been triggered
@@ -202,33 +202,33 @@ namespace UE
 	 * FStallTimer tracks remaining time from some budget, and access is protected from multiple threads.
 	 * Owned by FStallDetector
 	 **/
-	class CORE_API FStallTimer
+	class FStallTimer
 	{
 	public:
 		/**
 		* Construct the timer, you must call Reset() before the other methods
 		*/
-		FStallTimer();
+		CORE_API FStallTimer();
 
 		/**
 		* Initialize the timer with the current timestamp and remaining time to track
 		**/
-		void Reset(const double InSeconds, const double InRemainingSeconds);
+		CORE_API void Reset(const double InSeconds, const double InRemainingSeconds);
 
 		/**
 		* Perform a check against the specified timestamp and provide some useful details
 		**/
-		void Check(const double InSeconds, double& OutDeltaSeconds, double& OutOverageSeconds);
+		CORE_API void Check(const double InSeconds, double& OutDeltaSeconds, double& OutOverageSeconds);
 
 		/**
 		* Pause the timer
 		**/
-		void Pause(const double InSeconds);
+		CORE_API void Pause(const double InSeconds);
 
 		/**
 		* Resume the timer
 		**/
-		void Resume(const double InSeconds);
+		CORE_API void Resume(const double InSeconds);
 
 	private:
 		// To track pause/unpause calls
@@ -247,7 +247,7 @@ namespace UE
 	/**
 	* FStallDetector is meant to be constructed and destructed across a single scope to measure that specific timespan
 	**/
-	class CORE_API FStallDetector
+	class FStallDetector
 	{
 		friend class FStallDetectorRunnable;
 
@@ -255,29 +255,29 @@ namespace UE
 		/**
 		* Construct the stall detector linking it to it's stats object and take a timestamp
 		*/
-		FStallDetector(FStallDetectorStats& InStats);
+		CORE_API FStallDetector(FStallDetectorStats& InStats);
 
 		/**
 		* Destruct the stall detector and perform a check if appropriate (the default behavior)
 		*/
-		~FStallDetector();
+		CORE_API ~FStallDetector();
 
 		/**
 		* Perform a Check and then reset the timer to the current time
 		* This changes the mode of this class to defer the first check, and skip the destruction check
 		* This mode enables this class to used as a global or static, and CheckAndReset() callable periodically
 		**/
-		void CheckAndReset();
+		CORE_API void CheckAndReset();
 
 		/**
 		* Pause the timer for an expectantly long/slow operation we don't want counted against the stall timer
 		**/
-		void Pause(const double InSeconds);
+		CORE_API void Pause(const double InSeconds);
 
 		/**
 		* Resume the timer at the specified timestamp
 		**/
-		void Resume(const double InSeconds);
+		CORE_API void Resume(const double InSeconds);
 
 		/**
 		* The Parent stall detector on the calling thread's stack space
@@ -290,40 +290,40 @@ namespace UE
 		/**
 		* Sample the same clock that the stall detector uses internally
 		**/
-		static double Seconds();
+		static CORE_API double Seconds();
 
 		/**
 		* Initialize Stall Detector API resources
 		**/
-		static void Startup();
+		static CORE_API void Startup();
 
 		/**
 		* Cleanup Stall Detector API resources
 		**/
-		static void Shutdown();
+		static CORE_API void Shutdown();
 
 		/**
 		* Stall Detector API is running?
 		**/
-		static bool IsRunning();
+		static CORE_API bool IsRunning();
 
 		/**
 		 * Event that triggers when we detect that a stall in any instance is occuring
 		 * Note: It is possible for multiple instances to stall at the same time,
 		 * delegates should take this into account 
 		 */
-		static FOnStallDetected StallDetected;
+		static CORE_API FOnStallDetected StallDetected;
 
 		/**
 		 * Event that triggers when a stall has stopped
 		 * Note: It is possible for multiple instances to complete their stall at the same time,
 		 * delegates should take this into account
 		 */
-		static FOnStallCompleted StallCompleted;
+		static CORE_API FOnStallCompleted StallCompleted;
 
 	private:
 		/** Monotonically increasing counter to generate a unique ID per stall detector */
-		static TAtomic<uint64> UIDGenerator;
+		static CORE_API TAtomic<uint64> UIDGenerator;
 		
 		// The time provided, the deadline
 		FStallDetectorStats& Stats;
@@ -357,17 +357,17 @@ namespace UE
 		 * @param InCheckSeconds		The timestamp at which to compare the start time to
 		 * @return The amount the scope's budget has been exceeded by or 0.0
 		 **/
-		double Check(bool bFinalCheck, double InCheckSeconds);
+		CORE_API double Check(bool bFinalCheck, double InCheckSeconds);
 	};
 
 	/**
 	* FStallDetectorPause checks, pauses, and resumes the current thread's stack of stall detectors across it's lifetime
 	**/
-	class CORE_API FStallDetectorPause
+	class FStallDetectorPause
 	{
 	public:
-		FStallDetectorPause();
-		~FStallDetectorPause();
+		CORE_API FStallDetectorPause();
+		CORE_API ~FStallDetectorPause();
 
 	private:
 		bool bPaused;

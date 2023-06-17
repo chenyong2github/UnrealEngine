@@ -6,9 +6,9 @@
 #include "Microsoft/MicrosoftPlatformCrashContext.h"
 
 
-struct CORE_API FWindowsPlatformCrashContext : public FMicrosoftPlatformCrashContext
+struct FWindowsPlatformCrashContext : public FMicrosoftPlatformCrashContext
 {
-	static const TCHAR* const UEGPUAftermathMinidumpName;
+	static CORE_API const TCHAR* const UEGPUAftermathMinidumpName;
 	
 	FWindowsPlatformCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
 		: FMicrosoftPlatformCrashContext(InType, InErrorMessage)
@@ -16,8 +16,8 @@ struct CORE_API FWindowsPlatformCrashContext : public FMicrosoftPlatformCrashCon
 	}
 
 	
-	virtual void AddPlatformSpecificProperties() const override;
-	virtual void CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context) override;
+	CORE_API virtual void AddPlatformSpecificProperties() const override;
+	CORE_API virtual void CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context) override;
 };
 
 typedef FWindowsPlatformCrashContext FPlatformCrashContext;

@@ -16,7 +16,7 @@
 /**
  * FArchive Proxy to transparently write out compressed data to an array.
  */
-class CORE_API FArchiveSaveCompressedProxy : public FArchive
+class FArchiveSaveCompressedProxy : public FArchive
 {
 	/**
 	 * This enum and the following constructor is a workaround for VC compiler bug that prevents using attributes
@@ -26,7 +26,7 @@ class CORE_API FArchiveSaveCompressedProxy : public FArchive
 	{
 		Redirect
 	};
-	FArchiveSaveCompressedProxy(EVS2015Redirector, TArray<uint8>& InCompressedData, ECompressionFlags InCompressionFlags);
+	CORE_API FArchiveSaveCompressedProxy(EVS2015Redirector, TArray<uint8>& InCompressedData, ECompressionFlags InCompressionFlags);
 
 public:
 	/** 
@@ -40,15 +40,15 @@ public:
 		// Make sure to remove the EVS2015Redirector constructor when this constructor is removed
 		: FArchiveSaveCompressedProxy(EVS2015Redirector::Redirect, InCompressedData, InCompressionFlags)
 	{}
-	FArchiveSaveCompressedProxy( TArray<uint8>& InCompressedData, FName InCompressionFormat, ECompressionFlags InCompressionFlags=COMPRESS_None);
+	CORE_API FArchiveSaveCompressedProxy( TArray<uint8>& InCompressedData, FName InCompressionFormat, ECompressionFlags InCompressionFlags=COMPRESS_None);
 
 	/** Destructor, flushing array if needed. Also frees temporary memory. */
-	virtual ~FArchiveSaveCompressedProxy();
+	CORE_API virtual ~FArchiveSaveCompressedProxy();
 
 	/**
 	 * Flushes tmp data to array.
 	 */
-	virtual void Flush();
+	CORE_API virtual void Flush();
 
 	/**
 	 * Serializes data to archive. This function is called recursively and determines where to serialize
@@ -57,19 +57,19 @@ public:
 	 * @param	Data	Pointer to serialize to
 	 * @param	Count	Number of bytes to read
 	 */
-	virtual void Serialize( void* Data, int64 Count );
+	CORE_API virtual void Serialize( void* Data, int64 Count );
 
 	/**
 	 * Seeking is only implemented internally for writing out compressed data and asserts otherwise.
 	 * 
 	 * @param	InPos	Position to seek to
 	 */
-	virtual void Seek( int64 InPos );
+	CORE_API virtual void Seek( int64 InPos );
 
 	/**
 	 * @return current position in uncompressed stream in bytes.
 	 */
-	virtual int64 Tell();
+	CORE_API virtual int64 Tell();
 
 private:
 	/** Array to write compressed data to.					*/

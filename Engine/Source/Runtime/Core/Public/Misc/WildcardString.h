@@ -106,11 +106,11 @@ public:
 protected:
 
 	/** Holds the string terminator character. */
-	static CORE_API const TCHAR EndOfString = TCHAR('\0');
+	static const TCHAR EndOfString = TCHAR('\0');
 
 	/** Holds the wild card that matches exactly one character (default is '?'). */
-	static CORE_API const TCHAR ExactWildcard = TCHAR('?');
+	static const TCHAR ExactWildcard = TCHAR('?');
 
 	/** Holds the wild card that matches a sequence of characters (default is '*'). */
-	static CORE_API const TCHAR SequenceWildcard = TCHAR('*');
+	static const TCHAR SequenceWildcard = TCHAR('*');
 };

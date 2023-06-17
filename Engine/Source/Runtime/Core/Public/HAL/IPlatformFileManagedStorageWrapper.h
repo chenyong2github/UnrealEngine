@@ -826,7 +826,7 @@ private:
 // NOTE: This is templated rather than a polymorphic wrapper because a lot code expects the physical layer not to be a wrapper.
 // It also has the benefit of not needing updating every time a new function is added to IPlatformFile.
 template<class BaseClass>
-class CORE_API TManagedStoragePlatformFile : public BaseClass
+class TManagedStoragePlatformFile : public BaseClass
 {
 private:
 	static bool IsReady()

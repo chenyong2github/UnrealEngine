@@ -304,11 +304,11 @@ protected:
 };
 
 /** Handles history for FText::Format when passing named arguments */
-class CORE_API FTextHistory_NamedFormat : public FTextHistory_Generated
+class FTextHistory_NamedFormat : public FTextHistory_Generated
 {
 public:
 	FTextHistory_NamedFormat() = default;
-	FTextHistory_NamedFormat(FString&& InDisplayString, FTextFormat&& InSourceFmt, FFormatNamedArguments&& InArguments);
+	CORE_API FTextHistory_NamedFormat(FString&& InDisplayString, FTextFormat&& InSourceFmt, FFormatNamedArguments&& InArguments);
 
 	/** Allow moving */
 	FTextHistory_NamedFormat(FTextHistory_NamedFormat&& Other) = default;
@@ -317,11 +317,11 @@ public:
 	//~ Begin FTextHistory Interface
 	OVERRIDE_TEXT_HISTORY_STRINGIFICATION;
 	virtual ETextHistoryType GetType() const override { return ETextHistoryType::NamedFormat; }
-	virtual bool IdenticalTo(const FTextHistory& Other, const ETextIdenticalModeFlags CompareModeFlags) const override;
-	virtual FString BuildLocalizedDisplayString() const override;
-	virtual FString BuildInvariantDisplayString() const override;
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
-	virtual void GetHistoricFormatData(const FText& InText, TArray<FHistoricTextFormatData>& OutHistoricFormatData) const override;
+	CORE_API virtual bool IdenticalTo(const FTextHistory& Other, const ETextIdenticalModeFlags CompareModeFlags) const override;
+	CORE_API virtual FString BuildLocalizedDisplayString() const override;
+	CORE_API virtual FString BuildInvariantDisplayString() const override;
+	CORE_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	CORE_API virtual void GetHistoricFormatData(const FText& InText, TArray<FHistoricTextFormatData>& OutHistoricFormatData) const override;
 	//~ End FTextHistory Interface
 
 private:

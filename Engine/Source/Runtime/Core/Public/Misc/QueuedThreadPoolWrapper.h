@@ -37,7 +37,7 @@
   * another thread-pool a breeze and allowing more fine-grained control
   * over scheduling by effectively giving another set of priorities.
   */
-class CORE_API FQueuedThreadPoolWrapper : public FQueuedThreadPool
+class FQueuedThreadPoolWrapper : public FQueuedThreadPool
 {
 public:
 	/**
@@ -45,34 +45,34 @@ public:
 	 * InMaxConcurrency           Maximum number of concurrent tasks allowed, -1 will limit concurrency to number of threads available in the underlying thread pool.
 	 * InPriorityMapper           Thread-safe function used to map any priority from this Queue to the priority that should be used when scheduling the task on the underlying thread pool.
 	 */
-	FQueuedThreadPoolWrapper(FQueuedThreadPool* InWrappedQueuedThreadPool, int32 InMaxConcurrency = -1, TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> InPriorityMapper = [](EQueuedWorkPriority InPriority) { return InPriority; });
-	~FQueuedThreadPoolWrapper();
+	CORE_API FQueuedThreadPoolWrapper(FQueuedThreadPool* InWrappedQueuedThreadPool, int32 InMaxConcurrency = -1, TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> InPriorityMapper = [](EQueuedWorkPriority InPriority) { return InPriority; });
+	CORE_API ~FQueuedThreadPoolWrapper();
 
 	/**
 	 *  Queued task are not scheduled against the wrapped thread-pool until resumed
 	 */
-	void Pause();
+	CORE_API void Pause();
 
 	/**
 	 *  Resume a specified amount of queued work, or -1 to unpause.
 	 */
-	void Resume(int32 InNumQueuedWork = -1);
+	CORE_API void Resume(int32 InNumQueuedWork = -1);
 
 	/**
 	 *  Dynamically adjust the maximum number of concurrent tasks, -1 for unlimited.
 	 */
-	void SetMaxConcurrency(int32 MaxConcurrency = -1);
+	CORE_API void SetMaxConcurrency(int32 MaxConcurrency = -1);
 
-	void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal) override;
-	bool RetractQueuedWork(IQueuedWork* InQueuedWork) override;
-	int32 GetNumThreads() const override;
+	CORE_API void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal) override;
+	CORE_API bool RetractQueuedWork(IQueuedWork* InQueuedWork) override;
+	CORE_API int32 GetNumThreads() const override;
 	int32 GetCurrentConcurrency() const { return CurrentConcurrency.load(std::memory_order_relaxed); }
 
 protected:
-	class CORE_API FScheduledWork : public IQueuedWork, public IExecutionResource
+	class FScheduledWork : public IQueuedWork, public IExecutionResource
 	{
 	public:
-		FScheduledWork();
+		CORE_API FScheduledWork();
 
 		FScheduledWork(const FScheduledWork&) = delete;
 		FScheduledWork& operator=(const FScheduledWork&) = delete;
@@ -80,7 +80,7 @@ protected:
 		FScheduledWork(const FScheduledWork&&) = delete;
 		FScheduledWork& operator=(const FScheduledWork&&) = delete;
 
-		~FScheduledWork() override;
+		CORE_API ~FScheduledWork() override;
 		
 		const TCHAR * GetDebugName() const final
 		{
@@ -199,13 +199,13 @@ protected:
 	// Can be overriden to allocate a more specialized version if needed.
 	virtual FScheduledWork* AllocateScheduledWork() { return new FScheduledWork(); }
 private:
-	FScheduledWork* AllocateWork(IQueuedWork* InnerWork, EQueuedWorkPriority Priority);
-	bool CanSchedule(EQueuedWorkPriority Priority) const;
-	bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override;
-	void Destroy() override;
-	void Schedule(FScheduledWork* Work = nullptr);
-	void ReleaseWorkNoLock(FScheduledWork* Work);
-	bool TryRetractWorkNoLock(EQueuedWorkPriority InPriority);
+	CORE_API FScheduledWork* AllocateWork(IQueuedWork* InnerWork, EQueuedWorkPriority Priority);
+	CORE_API bool CanSchedule(EQueuedWorkPriority Priority) const;
+	CORE_API bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override;
+	CORE_API void Destroy() override;
+	CORE_API void Schedule(FScheduledWork* Work = nullptr);
+	CORE_API void ReleaseWorkNoLock(FScheduledWork* Work);
+	CORE_API bool TryRetractWorkNoLock(EQueuedWorkPriority InPriority);
 	
 	TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> PriorityMapper;
 
@@ -224,7 +224,7 @@ private:
   * another thread-pool a breeze and allowing more fine-grained control
   * over scheduling by giving full control of task reordering.
   */
-class CORE_API FQueuedThreadPoolDynamicWrapper : public FQueuedThreadPoolWrapper
+class FQueuedThreadPoolDynamicWrapper : public FQueuedThreadPoolWrapper
 {
 public:
 	/**
@@ -255,7 +255,7 @@ public:
 
 /** ThreadPool wrapper implementation allowing to schedule thread-pool tasks on the task graph.
   */
-class CORE_API FQueuedThreadPoolTaskGraphWrapper final : public FQueuedThreadPool
+class FQueuedThreadPoolTaskGraphWrapper final : public FQueuedThreadPool
 {
 public:
 	/**
@@ -366,7 +366,7 @@ private:
 
 /** ThreadPool wrapper implementation allowing to schedule thread-pool tasks on the the low level backend which is also used by the taskgraph.
 */
-class CORE_API FQueuedLowLevelThreadPool final : public FQueuedThreadPool
+class FQueuedLowLevelThreadPool final : public FQueuedThreadPool
 {
 	/* Internal data of the scheduler used for cancellation */
 	struct FQueuedWorkInternalData : TConcurrentLinearObject<FQueuedWorkInternalData, FTaskGraphBlockAllocationTag>, IQueuedWorkInternalData

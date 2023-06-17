@@ -11,7 +11,7 @@ class FName;
 /**
  * Output device that writes to Windows Event Log
  */
-class CORE_API FWindowsEventLogOutputDevice
+class FWindowsEventLogOutputDevice
 	: public FOutputDevice
 {
 	/** Handle to the event log object */
@@ -21,18 +21,18 @@ public:
 	/**
 	 * Constructor, initializing member variables
 	 */
-	FWindowsEventLogOutputDevice();
+	CORE_API FWindowsEventLogOutputDevice();
 
 	/** Destructor that cleans up any remaining resources */
-	virtual ~FWindowsEventLogOutputDevice();
+	CORE_API virtual ~FWindowsEventLogOutputDevice();
 
-	virtual void Serialize(const TCHAR* Buffer, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+	CORE_API virtual void Serialize(const TCHAR* Buffer, ELogVerbosity::Type Verbosity, const class FName& Category) override;
 	
 	/** Does nothing */
-	virtual void Flush(void);
+	CORE_API virtual void Flush(void);
 
 	/**
 	 * Closes any event log handles that are open
 	 */
-	virtual void TearDown(void);
+	CORE_API virtual void TearDown(void);
 };

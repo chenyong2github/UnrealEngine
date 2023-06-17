@@ -132,7 +132,7 @@ enum class ENamedChunkType : uint8
 /**
 * Interface for platform specific chunk based install
 **/
-class CORE_API IPlatformChunkInstall
+class IPlatformChunkInstall
 {
 public:
 
@@ -513,13 +513,13 @@ protected:
 
 
 // temporary helper base class for platform chunk installers that have implemented named chunk support to provide FCustomChunk emulation
-class CORE_API FGenericPlatformChunkInstall_WithEmulatedCustomChunks : public FGenericPlatformChunkInstall
+class FGenericPlatformChunkInstall_WithEmulatedCustomChunks : public FGenericPlatformChunkInstall
 {
 public:
 	virtual bool SupportsIntelligentInstall() override final { return true; }
-	virtual bool IsChunkInstallationPending(const TArray<FCustomChunk>& ChunkTagsID) override final;
-	virtual bool InstallChunks(const TArray<FCustomChunk>& ChunkTagsID)  override final;
-	virtual bool UninstallChunks(const TArray<FCustomChunk>& ChunkTagsID) override final;
+	CORE_API virtual bool IsChunkInstallationPending(const TArray<FCustomChunk>& ChunkTagsID) override final;
+	CORE_API virtual bool InstallChunks(const TArray<FCustomChunk>& ChunkTagsID)  override final;
+	CORE_API virtual bool UninstallChunks(const TArray<FCustomChunk>& ChunkTagsID) override final;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -25,12 +25,12 @@ struct FGenericMemoryStats
 // reporting +/- difference in memory.
 // WARNING This will also capture differences in Threads which have nothing to do with the scope
 #if ENABLE_MEMORY_SCOPE_STATS
-class CORE_API FScopedMemoryStats
+class FScopedMemoryStats
 {
 public:
-	explicit FScopedMemoryStats(const TCHAR* Name);
+	CORE_API explicit FScopedMemoryStats(const TCHAR* Name);
 
-	~FScopedMemoryStats();
+	CORE_API ~FScopedMemoryStats();
 
 private:
 	const TCHAR* Text;
@@ -55,24 +55,24 @@ public:
 
 #if ENABLE_SHARED_MEMORY_TRACKER && PLATFORM_UNIX
 
-class CORE_API FSharedMemoryTracker
+class FSharedMemoryTracker
 {
 public:
 
 	/** Print the difference in memory pool sizes since the last call to this function exclusively */
-	static void PrintMemoryDiff(const TCHAR* Context);
+	static CORE_API void PrintMemoryDiff(const TCHAR* Context);
 
 
 	/** Store the memory pool size at construction and log the difference in memory that occurred during the lifetime of the tracker */
-	explicit FSharedMemoryTracker(const FString& InContext);
-	~FSharedMemoryTracker();
+	CORE_API explicit FSharedMemoryTracker(const FString& InContext);
+	CORE_API ~FSharedMemoryTracker();
 
 private:
 	const FString PrintContext;
 	const FExtendedPlatformMemoryStats StartStats;
 };
 #else
-class CORE_API FSharedMemoryTracker
+class FSharedMemoryTracker
 {
 public:
 

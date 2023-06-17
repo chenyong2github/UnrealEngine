@@ -110,7 +110,7 @@ struct EStatsFileConstants
 -----------------------------------------------------------------------------*/
 
 /** Helper struct used to operate on the compressed data. */
-struct CORE_API FCompressedStatsData
+struct FCompressedStatsData
 {
 	/**
 	 * Initialization constructor 
@@ -359,14 +359,14 @@ struct FStatsFrameInfo
 -----------------------------------------------------------------------------*/
 
 /** Struct used to send a stream of stat messages. */
-struct CORE_API FStatsWriteStream
+struct FStatsWriteStream
 {
 protected:
 	/** Writes metadata messages into the stream. */
-	void WriteMetadata( FArchive& Ar );
+	CORE_API void WriteMetadata( FArchive& Ar );
 
 	/** Writes condensed messages into the stream. */
-	void WriteCondensedMessages( FArchive& Ar, int64 TargetFrame );
+	CORE_API void WriteCondensedMessages( FArchive& Ar, int64 TargetFrame );
 
 	/** Sends an FName, and the string it represents if we have not sent that string before. **/
 	FORCEINLINE_STATS void WriteFName( FArchive& Ar, FStatNameAndInfo NameAndInfo )
@@ -438,7 +438,7 @@ protected:
 -----------------------------------------------------------------------------*/
 
 /** Interface for writing stats data. Can be only used in the stats thread. */
-struct CORE_API IStatsWriteFile : public FStatsWriteStream
+struct IStatsWriteFile : public FStatsWriteStream
 {
 	friend class FAsyncStatsWrite;
 
@@ -476,7 +476,7 @@ protected:
 
 protected:
 	/** Default constructor. */
-	IStatsWriteFile();
+	CORE_API IStatsWriteFile();
 
 public:
 	/** Destructor. */
@@ -484,15 +484,15 @@ public:
 	{}
 
 	/** Creates a file writer and registers for the data delegate. */
-	void Start( const FString& InFilename );
+	CORE_API void Start( const FString& InFilename );
 
 	/** Finalizes writing the stats data and unregisters the data delegate. */
-	void Stop();
+	CORE_API void Stop();
 
 	/**
 	 * @return the stats file metadata description like the current size and the duration of the stats session.
 	 */
-	FText GetFileMetaDesc() const;
+	CORE_API FText GetFileMetaDesc() const;
 
 protected:
 	/** Sets the data delegate used to receive a stats data. */
@@ -508,21 +508,21 @@ protected:
 	}
 
 	/** Writes magic value, dummy header and initial metadata. */
-	void WriteHeader();
+	CORE_API void WriteHeader();
 
 protected:
 	/**	Finalizes writing to the file. */
-	void Finalize();
+	CORE_API void Finalize();
 
 	/** Waits on the async send task to complete. */
-	void WaitTask();
+	CORE_API void WaitTask();
 
 	/** Sends the data to the file via async task. */
-	void SendTask();
+	CORE_API void SendTask();
 };
 
 /** Helper struct used to write regular stats to the file. */
-struct CORE_API FStatsWriteFile : public IStatsWriteFile
+struct FStatsWriteFile : public IStatsWriteFile
 {
 	friend class FAsyncStatsWrite;
 
@@ -538,19 +538,19 @@ public:
 	}
 
 protected:
-	virtual void SetDataDelegate( bool bSet ) override;
+	CORE_API virtual void SetDataDelegate( bool bSet ) override;
 
-	virtual void FinalizeSavingData( int64 FrameFileOffset ) override;
+	CORE_API virtual void FinalizeSavingData( int64 FrameFileOffset ) override;
 
 	/**
 	 *	Grabs a frame from the local FStatsThreadState and adds it to the output.
 	 *	Called from the stats thread, but the data is saved using the the FAsyncStatsWrite. 
 	 */
-	void WriteFrame( int64 TargetFrame );
+	CORE_API void WriteFrame( int64 TargetFrame );
 };
 
 /** Helper struct used to write raw stats to the file. */
-struct CORE_API FRawStatsWriteFile : public IStatsWriteFile
+struct FRawStatsWriteFile : public IStatsWriteFile
 {
 	bool bWrittenOffsetToData;
 
@@ -563,12 +563,12 @@ public:
 	}
 
 protected:
-	virtual void SetDataDelegate( bool bSet ) override;
+	CORE_API virtual void SetDataDelegate( bool bSet ) override;
 
-	void WriteRawStatPacket( const FStatPacket* StatPacket );
+	CORE_API void WriteRawStatPacket( const FStatPacket* StatPacket );
 
 	/** Write a stat packed into the specified archive. */
-	void WriteStatPacket( FArchive& Ar, FStatPacket& StatPacket );
+	CORE_API void WriteStatPacket( FArchive& Ar, FStatPacket& StatPacket );
 };
 
 /*-----------------------------------------------------------------------------
@@ -576,7 +576,7 @@ protected:
 -----------------------------------------------------------------------------*/
 
 /** Tracks stat state and history for loaded stats. */
-class CORE_API FStatsLoadedState : public FStatsThreadState
+class FStatsLoadedState : public FStatsThreadState
 {
 	friend struct FStatsReadFile;
 
@@ -588,24 +588,24 @@ public:
 	{}
 
 	/** Method to update the internal metadata. Metadata messages are removed from the array. */
-	void ProcessMetaDataAndLeaveDataOnly( TArray<FStatMessage>& CondensedMessages );
+	CORE_API void ProcessMetaDataAndLeaveDataOnly( TArray<FStatMessage>& CondensedMessages );
 
 	/**
 	* Method to place the data into the history,
 	* maintains the history based on the requested number of frames to keep in the history.
 	* The condensed messages are emplaced in the condensed history.
 	*/
-	void AddFrameFromCondensedMessages( TArray<FStatMessage>& CondensedMessages );
+	CORE_API void AddFrameFromCondensedMessages( TArray<FStatMessage>& CondensedMessages );
 
 	/** Return the oldest frame of data we have. **/
-	int64 GetOldestValidFrame() const;
+	CORE_API int64 GetOldestValidFrame() const;
 
 	/** Return the newest frame of data we have. **/
-	int64 GetLatestValidFrame() const;
+	CORE_API int64 GetLatestValidFrame() const;
 
 protected:
 	/** Internal method to scan the messages to find the current game/render thread frame. */
-	void AdvanceFrameForLoad( TArray<FStatMessage>& CondensedMessages );
+	CORE_API void AdvanceFrameForLoad( TArray<FStatMessage>& CondensedMessages );
 
 	/** Largest frame seen. **/
 	int64 MaxFrameSeen;
@@ -972,23 +972,23 @@ struct FStatsReader
 };
 
 /** Struct used to read from uestats/uestatsraw files, initializes all metadata and starts a process of reading the file asynchronously. */
-struct CORE_API FStatsReadFile
+struct FStatsReadFile
 {
 	friend class FAsyncStatsFile;
 	friend struct FStatsReader<FStatsReadFile>;
 
 	/** Number of seconds between updating the current stage. */
-	static const double NumSecondsBetweenUpdates;
+	static CORE_API const double NumSecondsBetweenUpdates;
 
 public:
 	/** Reads and processes the file on the current thread. This is a blocking operation. */
-	void ReadAndProcessSynchronously();
+	CORE_API void ReadAndProcessSynchronously();
 
 	/** Reads and processes the file using the async tasks on the pool thread. The read data is sent to the game thread using the task graph. This is a non-blocking operation. */
-	void ReadAndProcessAsynchronously();
+	CORE_API void ReadAndProcessAsynchronously();
 
 	/** Sets the number of frame to be stored for future use. */
-	void SetHistoryFrames( int32 InHistoryFrames );
+	CORE_API void SetHistoryFrames( int32 InHistoryFrames );
 
 	/**
 	 * @return number of frames in the file.
@@ -1002,40 +1002,40 @@ public:
 
 protected:
 	/** Initialization constructor. */
-	FStatsReadFile( const TCHAR* InFilename, bool bInRawStatsFile );
+	CORE_API FStatsReadFile( const TCHAR* InFilename, bool bInRawStatsFile );
 
 public:
 	/** Destructor. */
-	virtual ~FStatsReadFile();
+	CORE_API virtual ~FStatsReadFile();
 
 protected:
 	/**
 	 * Prepares file to be loaded, makes sanity checks, reads and initializes metadata
 	 * @return true, if the process was completed successfully
 	 */
-	bool PrepareLoading();
+	CORE_API bool PrepareLoading();
 
 	/** Reads stats from the file. */
-	void ReadStats();
+	CORE_API void ReadStats();
 
 	/** Reads raw stats. */
-	void ReadRawStats();
+	CORE_API void ReadRawStats();
 
 	/** Reads regular stats. */
-	void ReadRegularStats();
+	CORE_API void ReadRegularStats();
 
 	/** Called before started processing. */
-	virtual void PreProcessStats();
+	CORE_API virtual void PreProcessStats();
 
 	/** Processes combined history using the internal functionality and provided overloaded Process*Operation methods. */
-	void ProcessStats();
+	CORE_API void ProcessStats();
 
 	/** Called every each frame has been read from the file. */
 	virtual void ReadStatsFrame( const TArray<FStatMessage>& CondensedMessages, const int64 Frame )
 	{}
 
 	/** Called after finished processing combined history. */
-	virtual void PostProcessStats();
+	CORE_API virtual void PostProcessStats();
 
 	/** Processes special message for advancing the stats frame from the game thread. */
 	virtual void ProcessAdvanceFrameEventGameThreadOperation( const FStatMessage& Message, const FStackState& StackState )
@@ -1176,15 +1176,15 @@ protected:
 	/**
 	 * Updates read stage progress periodically, does debug logging if enabled.
 	 */
-	void UpdateReadStageProgress();
+	CORE_API void UpdateReadStageProgress();
 
 	/** Dumps combined history stats. Only for raw stats. */
-	void UpdateCombinedHistoryStats();
+	CORE_API void UpdateCombinedHistoryStats();
 
 	/**
 	 * Updates process stage progress periodically, does debug logging if enabled.
 	 */
-	void UpdateProcessStageProgress( const int32 CurrentStatMessageIndex, const int32 FrameIndex, const int32 PacketIndex );
+	CORE_API void UpdateProcessStageProgress( const int32 CurrentStatMessageIndex, const int32 FrameIndex, const int32 PacketIndex );
 
 protected:
 	/** Current state of the stats. Mostly for metadata. */

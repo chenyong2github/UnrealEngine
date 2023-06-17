@@ -187,7 +187,7 @@ protected:
 	}
 };
 
-class CORE_API IAsyncReadFileHandle
+class IAsyncReadFileHandle
 {
 public:
 	IAsyncReadFileHandle()

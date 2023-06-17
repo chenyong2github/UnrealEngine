@@ -45,7 +45,7 @@ enum UE_DEPRECATED(5.1, "Using custom versions instead going forward, see FEngin
 	HISTORY_ENGINENETVERSION_LATEST = HISTORY_ENGINENETVERSION_PLUS_ONE - 1,
 };
 
-struct CORE_API FEngineNetworkCustomVersion
+struct FEngineNetworkCustomVersion
 {
 	enum Type
 	{
@@ -93,12 +93,12 @@ struct CORE_API FEngineNetworkCustomVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid Guid;
+	CORE_API const static FGuid Guid;
 
 	FEngineNetworkCustomVersion() = delete;
 };
 
-struct CORE_API FGameNetworkCustomVersion
+struct FGameNetworkCustomVersion
 {
 	enum Type
 	{
@@ -111,7 +111,7 @@ struct CORE_API FGameNetworkCustomVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid Guid;
+	CORE_API const static FGuid Guid;
 
 	FGameNetworkCustomVersion() = delete;
 };

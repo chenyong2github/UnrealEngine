@@ -9,7 +9,7 @@
 /**
  * This class servers as the base class for console window output.
  */
-class CORE_API FOutputDeviceConsole
+class FOutputDeviceConsole
 	: public FOutputDevice
 {
 public:

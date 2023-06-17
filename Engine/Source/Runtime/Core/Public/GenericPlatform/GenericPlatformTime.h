@@ -39,7 +39,7 @@ struct FCPUTime
 /**
 * Generic implementation for most platforms
 **/
-struct CORE_API FGenericPlatformTime
+struct FGenericPlatformTime
 {
 #if PLATFORM_HAS_BSD_TIME 
 	/**
@@ -50,7 +50,7 @@ struct CORE_API FGenericPlatformTime
 	 *
 	 * @return	current time
 	 */
-	static double InitTiming();
+	static CORE_API double InitTiming();
 
 	static FORCEINLINE double Seconds()
 	{
@@ -73,10 +73,10 @@ struct CORE_API FGenericPlatformTime
 	}
 
 	/** Returns the system time. */
-	static void SystemTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
+	static CORE_API void SystemTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
 
 	/** Returns the UTC time. */
-	static void UtcTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
+	static CORE_API void UtcTime( int32& Year, int32& Month, int32& DayOfWeek, int32& Day, int32& Hour, int32& Min, int32& Sec, int32& MSec );
 #endif
 
 	/**
@@ -86,7 +86,7 @@ struct CORE_API FGenericPlatformTime
 	 * @param DestSize Size of destination buffer in characters
 	 * @return Date string
 	 */
-	static TCHAR* StrDate( TCHAR* Dest, SIZE_T DestSize );
+	static CORE_API TCHAR* StrDate( TCHAR* Dest, SIZE_T DestSize );
 	/**
 	 * Get the system time
 	 * 
@@ -94,7 +94,7 @@ struct CORE_API FGenericPlatformTime
 	 * @param DestSize Size of destination buffer in characters
 	 * @return Time string
 	 */
-	static TCHAR* StrTime( TCHAR* Dest, SIZE_T DestSize );
+	static CORE_API TCHAR* StrTime( TCHAR* Dest, SIZE_T DestSize );
 
 	/**
 	 * Returns a timestamp string built from the current date and time.
@@ -102,7 +102,7 @@ struct CORE_API FGenericPlatformTime
 	 *
 	 * @return timestamp string
 	 */
-	static const TCHAR* StrTimestamp();
+	static CORE_API const TCHAR* StrTimestamp();
 
 	/**
 	 * Returns a pretty-string for a time given in seconds. (I.e. "4:31 min", "2:16:30 hours", etc)
@@ -110,7 +110,7 @@ struct CORE_API FGenericPlatformTime
 	 * @param Seconds Time in seconds
 	 * @return Time in a pretty formatted string
 	 */
-	static FString PrettyTime( double Seconds );
+	static CORE_API FString PrettyTime( double Seconds );
 
 	/** Updates CPU utilization, called through a delegate from the Core ticker. */
 	static bool UpdateCPUTime( float DeltaTime )
@@ -186,7 +186,7 @@ struct CORE_API FGenericPlatformTime
 	/**
 	 * @return seconds per cycle.
 	 */
-	static double GetSecondsPerCycle64();
+	static CORE_API double GetSecondsPerCycle64();
 	/** Converts cycles to milliseconds. */
 	static double ToMilliseconds64(const uint64 Cycles)
 	{
@@ -201,7 +201,7 @@ struct CORE_API FGenericPlatformTime
 
 protected:
 
-	static double SecondsPerCycle;
-	static double SecondsPerCycle64;
-	static double LastIntervalCPUTimeInSeconds;
+	static CORE_API double SecondsPerCycle;
+	static CORE_API double SecondsPerCycle64;
+	static CORE_API double LastIntervalCPUTimeInSeconds;
 };

@@ -25,7 +25,7 @@ enum class ETrackedActivityLight : uint8
  * When new console is enabled tracked activities show at the bottom of the window under the log
  * Tracked Activities can be created/updated/destroyed on multiple threads
  */
-class CORE_API FTrackedActivity : public TSharedFromThis<FTrackedActivity>
+class FTrackedActivity : public TSharedFromThis<FTrackedActivity>
 {
 public:
 	/**
@@ -49,33 +49,33 @@ public:
 	* @param Type Decides where activity information show in console. Activity is to the left, Info to the right
 	* @param SortValue Decides in what order within type the activity will show in console. Lower value means earlier
 	*/
-	FTrackedActivity(const TCHAR* Name, const TCHAR* Status = TEXT(""), ELight Light = ELight::None, EType Type = EType::Activity, int32 SortValue = 100);
+	CORE_API FTrackedActivity(const TCHAR* Name, const TCHAR* Status = TEXT(""), ELight Light = ELight::None, EType Type = EType::Activity, int32 SortValue = 100);
 
 	/** Dtor */
-	~FTrackedActivity();
+	CORE_API ~FTrackedActivity();
 
 
 	/**
 	* Pushes new status on to tracked activity, will require a pop to get back to previous status
 	* ShowParent can be used to make sure Status of parent is visible in front of status of pushed scope.
 	*/
-	uint32	Push(const TCHAR* Status, bool bShowParent = false, ELight Light = ELight::Inherit);
-	void	Pop();
+	CORE_API uint32	Push(const TCHAR* Status, bool bShowParent = false, ELight Light = ELight::Inherit);
+	CORE_API void	Pop();
 
 	/** Updates status. If Index is ~0u entry at top of stack will be updated (which is the one showing) */
-	void	Update(const TCHAR* Status, uint32 Index = ~0u);
-	void	Update(const TCHAR* Status, ELight Light, uint32 Index = ~0u);
-	void	Update(ELight Light, uint32 Index = ~0u);
+	CORE_API void	Update(const TCHAR* Status, uint32 Index = ~0u);
+	CORE_API void	Update(const TCHAR* Status, ELight Light, uint32 Index = ~0u);
+	CORE_API void	Update(ELight Light, uint32 Index = ~0u);
 
 
 	/**
 	* Process Engine Activity. General status of the Engine. Used by Engine initialization etc.
 	* By default, status light will stay yellow until main threads hits Tick update, then it turns green.
 	*/
-	static FTrackedActivity& GetEngineActivity();
+	static CORE_API FTrackedActivity& GetEngineActivity();
 
 	/** I/O Activity.Shows current I / O operation.If plugin / game have their own I / O, scopes will need to be manually added */
-	static FTrackedActivity& GetIOActivity();
+	static CORE_API FTrackedActivity& GetIOActivity();
 
 
 
@@ -92,7 +92,7 @@ public:
 	/**
 	* Traverses all FTrackedActivities in the order they were added.
 	*/
-	static void TraverseActivities(const TFunction<void(const FInfo& Info)>& Func);
+	static CORE_API void TraverseActivities(const TFunction<void(const FInfo& Info)>& Func);
 
 
 
@@ -107,7 +107,7 @@ public:
 	/** Register listener that can track adds, removes and changes when they happen.
 	* Listener will be called from the same thread as the event happens, so make sure listener is threadsafe.
 	*/
-	static void RegisterEventListener(TUniqueFunction<void(EEvent Event, const FInfo& Info)>&& Func, uint32 MaxDepth = ~0u);
+	static CORE_API void RegisterEventListener(TUniqueFunction<void(EEvent Event, const FInfo& Info)>&& Func, uint32 MaxDepth = ~0u);
 
 
 private:
@@ -121,11 +121,11 @@ private:
 /**
 * RAII class that calls push in ctor and pop in dtor.
 */
-class CORE_API FTrackedActivityScope
+class FTrackedActivityScope
 {
 public:
-	FTrackedActivityScope(FTrackedActivity& Activity, const TCHAR* Status, bool bShowParent = false, FTrackedActivity::ELight Light = FTrackedActivity::ELight::Inherit);
-	~FTrackedActivityScope();
+	CORE_API FTrackedActivityScope(FTrackedActivity& Activity, const TCHAR* Status, bool bShowParent = false, FTrackedActivity::ELight Light = FTrackedActivity::ELight::Inherit);
+	CORE_API ~FTrackedActivityScope();
 private:
 	FTrackedActivity& Activity;
 };

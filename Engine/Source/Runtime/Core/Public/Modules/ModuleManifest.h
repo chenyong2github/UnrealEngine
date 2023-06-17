@@ -10,7 +10,7 @@
 /**
  * Stores a record of a built target, with all metadata that other tools may need to know about the build.
  */
-class CORE_API FModuleManifest
+class FModuleManifest
 {
 public:
 	FString BuildId;
@@ -19,7 +19,7 @@ public:
 	/**
 	 * Default constructor 
 	 */
-	FModuleManifest();
+	CORE_API FModuleManifest();
 
 	/**
 	 * Gets the path to a version manifest for the given folder.
@@ -28,12 +28,12 @@ public:
 	 * @param bIsGameFolder		Whether the directory is a game folder of not. Used to adjust the name if the application is running in DebugGame.
 	 * @return The filename of the version manifest.
 	 */
-	static FString GetFileName(const FString& DirectoryName, bool bIsGameFolder);
+	static CORE_API FString GetFileName(const FString& DirectoryName, bool bIsGameFolder);
 
 	/**
 	 * Read a version manifest from disk.
 	 *
 	 * @param FileName		Filename to read from
 	 */
-	static bool TryRead(const FString& FileName, FModuleManifest& Manifest);
+	static CORE_API bool TryRead(const FString& FileName, FModuleManifest& Manifest);
 };

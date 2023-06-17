@@ -34,42 +34,42 @@ enum {NAME_WITH_NUMBER_SIZE	= NAME_SIZE + 16};
  * String used by the text filter.
  * The given string will be stored as uppercase since filter text always performs case-insensitive string comparisons, so this will minimize ToUpper calls.
  */
-class CORE_API FTextFilterString
+class FTextFilterString
 {
 public:
 	/** Default constructor */
-	FTextFilterString();
+	CORE_API FTextFilterString();
 
 	/** Move and copy constructors */
-	FTextFilterString(const FTextFilterString& Other);
-	FTextFilterString(FTextFilterString&& Other);
+	CORE_API FTextFilterString(const FTextFilterString& Other);
+	CORE_API FTextFilterString(FTextFilterString&& Other);
 
 	/** Construct from a string */
-	FTextFilterString(const FString& InString);
-	FTextFilterString(FString&& InString);
-	FTextFilterString(const TCHAR* InString);
+	CORE_API FTextFilterString(const FString& InString);
+	CORE_API FTextFilterString(FString&& InString);
+	CORE_API FTextFilterString(const TCHAR* InString);
 
 	/** Construct from a name */
-	FTextFilterString(const FName& InName);
+	CORE_API FTextFilterString(const FName& InName);
 
 	/** Move and copy assignment */
-	FTextFilterString& operator=(const FTextFilterString& Other);
-	FTextFilterString& operator=(FTextFilterString&& Other);
+	CORE_API FTextFilterString& operator=(const FTextFilterString& Other);
+	CORE_API FTextFilterString& operator=(FTextFilterString&& Other);
 
 	/** Compare this string against the other, using the text comparison mode provided */
-	bool CompareText(const FTextFilterString& InOther, const ETextFilterTextComparisonMode InTextComparisonMode) const;
+	CORE_API bool CompareText(const FTextFilterString& InOther, const ETextFilterTextComparisonMode InTextComparisonMode) const;
 
 	/** Compare this string against the other FString, using the text comparison mode provided */
-	bool CompareFString(const FString& InOther, const ETextFilterTextComparisonMode InTextComparisonMode) const;
+	CORE_API bool CompareFString(const FString& InOther, const ETextFilterTextComparisonMode InTextComparisonMode) const;
 
 	/** Compare this string against the other FName, using the text comparison mode provided */
-	bool CompareName(const FName& InOther, const ETextFilterTextComparisonMode InTextComparisonMode) const;
+	CORE_API bool CompareName(const FName& InOther, const ETextFilterTextComparisonMode InTextComparisonMode) const;
 
 	/** Are the two given strings able to be compared numberically? */
-	bool CanCompareNumeric(const FTextFilterString& InOther) const;
+	CORE_API bool CanCompareNumeric(const FTextFilterString& InOther) const;
 
 	/** Compare this string against the other, converting them to numbers and using the comparison operator provided - you should have tested CanCompareNumeric first! */
-	bool CompareNumeric(const FTextFilterString& InOther, const ETextFilterComparisonOperation InComparisonOperation) const;
+	CORE_API bool CompareNumeric(const FTextFilterString& InOther, const ETextFilterComparisonOperation InComparisonOperation) const;
 
 	/** Get the internal uppercase string of this filter string */
 	FORCEINLINE const FString& AsString() const
@@ -91,7 +91,7 @@ public:
 
 private:
 	/** Inline convert our internal string to uppercase */
-	void UppercaseInternalString();
+	CORE_API void UppercaseInternalString();
 
 	/** The uppercase string to use for comparisons */
 	FString InternalString;

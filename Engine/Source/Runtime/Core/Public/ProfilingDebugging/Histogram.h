@@ -30,16 +30,16 @@ DECLARE_LOG_CATEGORY_EXTERN(LogHistograms, Log, All);
  struct FHistogramBuilder;
 
  /** Fairly generic histogram for values that have natural lower bound and possibly no upper bound, e.g., frame time */
-struct CORE_API FHistogram
+struct FHistogram
 {
 	/** Inits histogram with linear, equally sized bins */
-	void InitLinear(double MinTime, double MaxTime, double BinSize);
+	CORE_API void InitLinear(double MinTime, double MaxTime, double BinSize);
 
 	/** Inits histogram to mimic our existing hitch buckets */
-	void InitHitchTracking();
+	CORE_API void InitHitchTracking();
 
 	/** Inits histogram with the specified bin boundaries, with the final bucket extending to infinity (e.g., passing in 0,5 creates a [0..5) bucket and a [5..infinity) bucket) */
-	void InitFromArray(TArrayView<const double> Thresholds);
+	CORE_API void InitFromArray(TArrayView<const double> Thresholds);
 
 	/** Inits histogram with the specified bin boundaries, with the final bucket extending to infinity (e.g., passing in 0,5 creates a [0..5) bucket and a [5..infinity) bucket) */
 	FORCEINLINE void InitFromArray(std::initializer_list<double> Thresholds)
@@ -48,7 +48,7 @@ struct CORE_API FHistogram
 	}
 
 	/** Resets measurements, without resetting the configured bins. */
-	void Reset();
+	CORE_API void Reset();
 
 	/** Adds an observed measurement. */
 	inline void AddMeasurement(double Value)
@@ -57,33 +57,33 @@ struct CORE_API FHistogram
 	}
 
 	/** Adds an observed measurement (with a different thresholding key than the measurement, e.g., when accumulating time spent in a chart keyed on framerate). */
-	void AddMeasurement(double ValueForBinning, double MeasurementValue);
+	CORE_API void AddMeasurement(double ValueForBinning, double MeasurementValue);
 
 	/** Prints histogram contents to the log. */
-	void DumpToLog(const FString& HistogramName);
+	CORE_API void DumpToLog(const FString& HistogramName);
 
 	/** 
 	 * Returns a string in a Json format: [{"Bin":"BinName","Count":Count,"Sum":Sum},...]. 
 	 * Bucket name is constructed by calling ConvertBinToLabel on the MinValue and UpperBound for each bin. 
 	 * Convert function is used to allow the bin range, which is stored as a double, to be printed prettily.
 	 */
-	FString DumpToJsonString(TFunctionRef<FString (double, double)> ConvertBinToLabel) const;
+	CORE_API FString DumpToJsonString(TFunctionRef<FString (double, double)> ConvertBinToLabel) const;
 
 	/** Same as DumpToJsonString but uses a DefaultConvertBinToLabel. */
-	FString DumpToJsonString() const;
+	CORE_API FString DumpToJsonString() const;
 
 	/** 
 	* Returns a string in a Json format: [{"BinName":{"Count":Count,"Sum":Sum}},...]. 
 	* Bucket name is constructed by calling ConvertBinToLabel on the MinValue and UpperBound for each bin. 
 	* Convert function is used to allow the bin range, which is stored as a double, to be printed prettily.
 	*/
-	FString DumpToJsonString2(TFunctionRef<FString (double, double)> ConvertBinToLabel) const;
+	CORE_API FString DumpToJsonString2(TFunctionRef<FString (double, double)> ConvertBinToLabel) const;
 
 	/** Same as DumpToJsonString2 but uses a DefaultConvertBinToLabel. */
-	FString DumpToJsonString2() const;
+	CORE_API FString DumpToJsonString2() const;
 
 	/** Default stringifier for bins for use with DumpToJsonString. Truncates to int and uses Plus as the suffix for the last bin. ie. [0.0, 3.75, 9.8] -> 0_3, 3_9, 9_Plus */
-	static FString DefaultConvertBinToLabel(double MinValue, double UpperBound);
+	static CORE_API FString DefaultConvertBinToLabel(double MinValue, double UpperBound);
 
 	/** Gets number of bins. */
 	inline int32 GetNumBins() const

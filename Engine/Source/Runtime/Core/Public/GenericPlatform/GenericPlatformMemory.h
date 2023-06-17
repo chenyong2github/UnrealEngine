@@ -121,7 +121,7 @@ typedef FGenericPlatformMemoryConstants FPlatformMemoryConstants;
  * Struct used to hold common memory stats for all platforms.
  * These values may change over the entire life of the executable.
  */
-struct CORE_API FGenericPlatformMemoryStats : public FPlatformMemoryConstants
+struct FGenericPlatformMemoryStats : public FPlatformMemoryConstants
 {
 	/** The amount of physical memory currently available, in bytes. */
 	uint64 AvailablePhysical;
@@ -150,10 +150,10 @@ struct CORE_API FGenericPlatformMemoryStats : public FPlatformMemoryConstants
 		Warning,
 		Critical, // high risk of OOM conditions
 	};
-	EMemoryPressureStatus GetMemoryPressureStatus() const;
+	CORE_API EMemoryPressureStatus GetMemoryPressureStatus() const;
 
 	/** Default constructor, clears all variables. */
-	FGenericPlatformMemoryStats();
+	CORE_API FGenericPlatformMemoryStats();
 
 	struct FPlatformSpecificStat
 	{
@@ -166,9 +166,9 @@ struct CORE_API FGenericPlatformMemoryStats : public FPlatformMemoryConstants
 		{}
 	};
 
-	TArray<FPlatformSpecificStat> GetPlatformSpecificStats() const;
+	CORE_API TArray<FPlatformSpecificStat> GetPlatformSpecificStats() const;
 
-	uint64 GetAvailablePhysical(bool bExcludeExtraDevMemory) const;
+	CORE_API uint64 GetAvailablePhysical(bool bExcludeExtraDevMemory) const;
 
 	/** Called by FCsvProfiler::EndFrame to set platform specific CSV stats. */
 	void SetEndFrameCsvStats() const {}
@@ -195,22 +195,22 @@ struct FPlatformMemoryStats;
 #define FMemory_Alloca_Aligned(Size, Alignment) ((Size==0) ? 0 : ((Alignment <= 16) ? FMemory_Alloca(Size) : (void*)(((PTRINT)__FMemory_Alloca_Func(Size + Alignment-1) + Alignment-1) & ~(Alignment-1))))
 
 /** Generic implementation for most platforms, these tend to be unused and unimplemented. */
-struct CORE_API FGenericPlatformMemory
+struct FGenericPlatformMemory
 {
 	/** Set to true if we encounters out of memory. */
-	static bool bIsOOM;
+	static CORE_API bool bIsOOM;
 
 	/** Set to size of allocation that triggered out of memory, zero otherwise. */
-	static uint64 OOMAllocationSize;
+	static CORE_API uint64 OOMAllocationSize;
 
 	/** Set to alignment of allocation that triggered out of memory, zero otherwise. */
-	static uint32 OOMAllocationAlignment;
+	static CORE_API uint32 OOMAllocationAlignment;
 
 	/** Preallocated buffer to delete on out of memory. Used by OOM handling and crash reporting. */
-	static void* BackupOOMMemoryPool;
+	static CORE_API void* BackupOOMMemoryPool;
 
 	/** Size of BackupOOMMemoryPool in bytes. */
-	static uint32 BackupOOMMemoryPoolSize;
+	static CORE_API uint32 BackupOOMMemoryPoolSize;
 
 	/**
 	 * Various memory regions that can be used with memory stats. The exact meaning of
@@ -248,7 +248,7 @@ struct CORE_API FGenericPlatformMemory
 	};
 
 	/** Current allocator */
-	static EMemoryAllocatorToUse AllocatorToUse;
+	static CORE_API EMemoryAllocatorToUse AllocatorToUse;
 
 	/**
 	 * Flags used for shared memory creation/open
@@ -302,12 +302,12 @@ struct CORE_API FGenericPlatformMemory
 
 
 	/** Initializes platform memory specific constants. */
-	static void Init();
+	static CORE_API void Init();
 	
-	[[noreturn]] static void OnOutOfMemory(uint64 Size, uint32 Alignment);
+	[[noreturn]] static CORE_API void OnOutOfMemory(uint64 Size, uint32 Alignment);
 
 	/** Initializes the memory pools, should be called by the init function. */
-	static void SetupMemoryPools();
+	static CORE_API void SetupMemoryPools();
 
 	
 	/**
@@ -322,12 +322,12 @@ struct CORE_API FGenericPlatformMemory
 	/**
 	 * @return the default allocator.
 	 */
-	static FMalloc* BaseAllocator();
+	static CORE_API FMalloc* BaseAllocator();
 
 	/**
 	 * @return platform specific current memory statistics.
 	 */
-	static FPlatformMemoryStats GetStats();
+	static CORE_API FPlatformMemoryStats GetStats();
 
 	/**
 	* @return memory used for platforms that can do it quickly (without affecting stat unit much)
@@ -340,17 +340,17 @@ struct CORE_API FGenericPlatformMemory
 	/**
 	 * Writes all platform specific current memory statistics in the format usable by the malloc profiler.
 	 */
-	static void GetStatsForMallocProfiler( FGenericMemoryStats& out_Stats );
+	static CORE_API void GetStatsForMallocProfiler( FGenericMemoryStats& out_Stats );
 
 	/**
 	 * @return platform specific memory constants.
 	 */
-	static const FPlatformMemoryConstants& GetConstants();
+	static CORE_API const FPlatformMemoryConstants& GetConstants();
 	
 	/**
 	 * @return approximate physical RAM in GB.
 	 */
-	static uint32 GetPhysicalGBRam();
+	static CORE_API uint32 GetPhysicalGBRam();
 
 	/**
 	 * Changes the protection on a region of committed pages in the virtual address space.
@@ -361,7 +361,7 @@ struct CORE_API FGenericPlatformMemory
 	 * @param bCanWrite Can the memory be written to.
 	 * @return True if the specified pages' protection mode was changed.
 	 */
-	static bool PageProtect(void* const Ptr, const SIZE_T Size, const bool bCanRead, const bool bCanWrite);
+	static CORE_API bool PageProtect(void* const Ptr, const SIZE_T Size, const bool bCanRead, const bool bCanWrite);
 
 	/**
 	 * Allocates pages from the OS.
@@ -370,7 +370,7 @@ struct CORE_API FGenericPlatformMemory
 	 *
 	 * @return OS allocated pointer for use by binned allocator
 	 */
-	static void* BinnedAllocFromOS( SIZE_T Size );
+	static CORE_API void* BinnedAllocFromOS( SIZE_T Size );
 	
 	/**
 	 * Returns pages allocated by BinnedAllocFromOS to the OS.
@@ -378,7 +378,7 @@ struct CORE_API FGenericPlatformMemory
 	 * @param A pointer previously returned from BinnedAllocFromOS
 	 * @param Size size of the allocation previously passed to BinnedAllocFromOS
 	 */
-	static void BinnedFreeToOS( void* Ptr, SIZE_T Size );
+	static CORE_API void BinnedFreeToOS( void* Ptr, SIZE_T Size );
 	
 	/**
 	 * Performs initial setup for MiMalloc.
@@ -522,15 +522,15 @@ struct CORE_API FGenericPlatformMemory
 	}
 
 	/** Dumps basic platform memory statistics into the specified output device. */
-	static void DumpStats( FOutputDevice& Ar );
+	static CORE_API void DumpStats( FOutputDevice& Ar );
 
 	/** Dumps basic platform memory statistics and allocator specific statistics into the specified output device. */
-	static void DumpPlatformAndAllocatorStats( FOutputDevice& Ar );
+	static CORE_API void DumpPlatformAndAllocatorStats( FOutputDevice& Ar );
 
 	/**
 	 * Return which "high level", per platform, memory bucket we are in
 	 */
-	static EPlatformMemorySizeBucket GetMemorySizeBucket();
+	static CORE_API EPlatformMemorySizeBucket GetMemorySizeBucket();
 
 	/** @name Memory functions */
 
@@ -596,7 +596,7 @@ private:
 		B = Tmp;
 	}
 
-	static void MemswapGreaterThan8( void* Ptr1, void* Ptr2, SIZE_T Size );
+	static CORE_API void MemswapGreaterThan8( void* Ptr1, void* Ptr2, SIZE_T Size );
 
 public:
 	static inline void Memswap( void* Ptr1, void* Ptr2, SIZE_T Size )
@@ -706,7 +706,7 @@ public:
 	 *
 	 * @return pointer to FSharedMemoryRegion (or its descendants) if successful, NULL if not.
 	 */
-	static FSharedMemoryRegion* MapNamedSharedMemoryRegion(const FString& Name, bool bCreate, uint32 AccessMode, SIZE_T Size);
+	static CORE_API FSharedMemoryRegion* MapNamedSharedMemoryRegion(const FString& Name, bool bCreate, uint32 AccessMode, SIZE_T Size);
 
 	/**
 	 * Unmaps a name shared memory region
@@ -715,7 +715,7 @@ public:
 	 *
 	 * @return true if successful
 	 */
-	static bool UnmapNamedSharedMemoryRegion(FSharedMemoryRegion * MemoryRegion);
+	static CORE_API bool UnmapNamedSharedMemoryRegion(FSharedMemoryRegion * MemoryRegion);
 
 	/**
 	*	Gets whether this platform supports Fast VRAM memory
@@ -732,19 +732,19 @@ public:
 	* Returns true if debug memory has been assigned to the title for general use.
 	* Only applies to platforms with fixed memory and no paging.
 	*/
-	static bool IsExtraDevelopmentMemoryAvailable();
+	static CORE_API bool IsExtraDevelopmentMemoryAvailable();
 
 	/**
 	* Returns >0 if debug memory has been assigned to the title for general use.
 	* Only applies to platforms with fixed memory and no paging.
 	*/
-	static uint64 GetExtraDevelopmentMemorySize();
+	static CORE_API uint64 GetExtraDevelopmentMemorySize();
 
 	/**
 	* This function sets AllocFunction and FreeFunction and returns true, or just returns false.
 	* These functions are the platform dependant low low low level functions that LLM uses to allocate memory.
 	*/
-	static bool GetLLMAllocFunctions(void*(*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment);
+	static CORE_API bool GetLLMAllocFunctions(void*(*&OutAllocFunction)(size_t), void(*&OutFreeFunction)(void*, size_t), int32& OutAlignment);
 
 	/**
 	* Called for all default tracker LLM allocations and frees, when LLM is enabled.
@@ -783,5 +783,5 @@ protected:
 	friend struct FGenericStatsUpdater;
 
 	/** Updates platform specific stats. This method is called through FGenericStatsUpdater from the task graph thread. */
-	static void InternalUpdateStats( const FPlatformMemoryStats& MemoryStats );
+	static CORE_API void InternalUpdateStats( const FPlatformMemoryStats& MemoryStats );
 };

@@ -16,7 +16,7 @@ namespace UE::Core::Private
 }
 
 /** Allocator that allocates memory using standard library functions. */
-class CORE_API FAnsiAllocator
+class FAnsiAllocator
 {
 public:
 	using SizeType = int32;

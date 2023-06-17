@@ -9,13 +9,13 @@
 /**
 * Base class for serializing bitstreams.
 */
-class CORE_API FBitArchive : public FArchive
+class FBitArchive : public FArchive
 {
 public:
 	/**
 	 * Default Constructor
 	 */
-	FBitArchive();
+	CORE_API FBitArchive();
 
-	virtual void SerializeBitsWithOffset( void* Src, int32 SourceBit, int64 LengthBits ) PURE_VIRTUAL(FBitArchive::SerializeBitsWithOffset,);
+	CORE_API virtual void SerializeBitsWithOffset( void* Src, int32 SourceBit, int64 LengthBits ) PURE_VIRTUAL(FBitArchive::SerializeBitsWithOffset,);
 };

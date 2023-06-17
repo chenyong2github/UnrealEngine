@@ -40,7 +40,7 @@ struct FIoChunkDecodingParams
  * The chunk encoding information is enocoded into a 16 byte
  * header followed by N block sizes.
  */
-class CORE_API FIoChunkEncoding
+class FIoChunkEncoding
 {
 public:
 	static constexpr uint32 ExpectedMagic = 0x2e696f; // .io
@@ -49,7 +49,7 @@ public:
 	static constexpr uint64 MaxSize = (uint64(1) << 40);
 
 	/** Header describing the encoded I/O chunk. */
-	struct CORE_API FHeader
+	struct FHeader
 	{
 		uint64 Magic: 24;
 		uint64 RawSize: 40;
@@ -58,24 +58,24 @@ public:
 		uint64 Flags: 8;
 		uint64 Pad: 8;
 
-		bool IsValid() const;
-		uint32 GetBlockSize() const;
-		uint32 GetBlockCount() const;
-		TConstArrayView<uint32> GetBlocks() const;
-		uint64 GetTotalHeaderSize() const;
+		CORE_API bool IsValid() const;
+		CORE_API uint32 GetBlockSize() const;
+		CORE_API uint32 GetBlockCount() const;
+		CORE_API TConstArrayView<uint32> GetBlocks() const;
+		CORE_API uint64 GetTotalHeaderSize() const;
 
-		static const FHeader* Decode(FMemoryView HeaderData);
+		static CORE_API const FHeader* Decode(FMemoryView HeaderData);
 	};
 
 	static_assert(sizeof(FHeader) == 16, "I/O chunk header size mismatch");
 
-	static bool Encode(const FIoChunkEncodingParams& Params, FMemoryView RawData, FIoBuffer& OutEncodedData);
-	static bool Encode(const FIoChunkEncodingParams& Params, FMemoryView RawData, FIoBuffer& OutHeader, FIoBuffer& OutEncodedBlocks);
-	static bool Decode(const FIoChunkDecodingParams& Params, FMemoryView EncodedBlocks, FMutableMemoryView OutRawData);
-	static bool Decode(FMemoryView EncodedData, FName CompressionFormat, FMemoryView EncryptionKey, FMutableMemoryView OutRawData, uint64 Offset = 0);
+	static CORE_API bool Encode(const FIoChunkEncodingParams& Params, FMemoryView RawData, FIoBuffer& OutEncodedData);
+	static CORE_API bool Encode(const FIoChunkEncodingParams& Params, FMemoryView RawData, FIoBuffer& OutHeader, FIoBuffer& OutEncodedBlocks);
+	static CORE_API bool Decode(const FIoChunkDecodingParams& Params, FMemoryView EncodedBlocks, FMutableMemoryView OutRawData);
+	static CORE_API bool Decode(FMemoryView EncodedData, FName CompressionFormat, FMemoryView EncryptionKey, FMutableMemoryView OutRawData, uint64 Offset = 0);
 
-	static TIoStatusOr<FIoOffsetAndLength> GetChunkRange(uint64 TotalRawSize, uint32 RawBlockSize, TConstArrayView<uint32> EncodedBlockSize, uint64 RawOffset, uint64 RawSize);
-	static TIoStatusOr<FIoOffsetAndLength> GetChunkRange(const FIoChunkDecodingParams& Params, uint64 RawSize);
-	static uint64 GetTotalEncodedSize(TConstArrayView<uint32> EncodedBlockSize);
-	static FIoStatus HashBlocks(const FHeader& Header, FMemoryView EncodedData, TArray<FIoHash>& OutHashes);
+	static CORE_API TIoStatusOr<FIoOffsetAndLength> GetChunkRange(uint64 TotalRawSize, uint32 RawBlockSize, TConstArrayView<uint32> EncodedBlockSize, uint64 RawOffset, uint64 RawSize);
+	static CORE_API TIoStatusOr<FIoOffsetAndLength> GetChunkRange(const FIoChunkDecodingParams& Params, uint64 RawSize);
+	static CORE_API uint64 GetTotalEncodedSize(TConstArrayView<uint32> EncodedBlockSize);
+	static CORE_API FIoStatus HashBlocks(const FHeader& Header, FMemoryView EncodedData, TArray<FIoHash>& OutHashes);
 };

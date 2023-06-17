@@ -48,35 +48,35 @@ inline const TCHAR* LexToString(EQueuedWorkPriority Priority)
  *
  *  This class is NOT thread-safe and must be properly protected.
  */
-class CORE_API FThreadPoolPriorityQueue
+class FThreadPoolPriorityQueue
 {
 public:
-	FThreadPoolPriorityQueue();
+	CORE_API FThreadPoolPriorityQueue();
 
 	/**
 	 * Enqueue a work item at specified priority
 	 */
-	void Enqueue(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal);
+	CORE_API void Enqueue(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal);
 
 	/**
 	 * Search and remove a queued work item from the list
 	 */
-	bool Retract(IQueuedWork* InQueuedWork);
+	CORE_API bool Retract(IQueuedWork* InQueuedWork);
 
 	/**
 	 * Get the next work item in priority order.
 	 */
-	IQueuedWork* Dequeue(EQueuedWorkPriority* OutDequeuedWorkPriority = nullptr);
+	CORE_API IQueuedWork* Dequeue(EQueuedWorkPriority* OutDequeuedWorkPriority = nullptr);
 
 	/**
 	 * Get the next work item in priority order without actually dequeuing.
 	 */
-	IQueuedWork* Peek(EQueuedWorkPriority* OutDequeuedWorkPriority = nullptr) const;
+	CORE_API IQueuedWork* Peek(EQueuedWorkPriority* OutDequeuedWorkPriority = nullptr) const;
 
 	/**
 	 * Empty the queue.
 	 */
-	void Reset();
+	CORE_API void Reset();
 
 	/**
 	 * Get the total number of queued items.
@@ -86,7 +86,7 @@ public:
 	/**
 	 * Sort Priority Bucket given Predicate
 	 */
-	void Sort(EQueuedWorkPriority InPriorityBucket, TFunctionRef<bool (const IQueuedWork* A, const IQueuedWork* B)> Predicate);
+	CORE_API void Sort(EQueuedWorkPriority InPriorityBucket, TFunctionRef<bool (const IQueuedWork* A, const IQueuedWork* B)> Predicate);
 private:
 	/** The first queue to extract a work item from to avoid scanning all priorities when unqueuing. */
 	int32 FirstNonEmptyQueueIndex = 0;
@@ -100,7 +100,7 @@ private:
  * This interface is used by all queued thread pools. It used as a callback by
  * FQueuedThreads and is used to queue asynchronous work for callers.
  */
-class CORE_API FQueuedThreadPool
+class FQueuedThreadPool
 {
 public:
 	/**
@@ -142,8 +142,8 @@ public:
 	virtual int32 GetNumThreads() const = 0;
 
 public:
-			FQueuedThreadPool();
-	virtual	~FQueuedThreadPool();
+			CORE_API FQueuedThreadPool();
+	CORE_API virtual	~FQueuedThreadPool();
 
 public:
 
@@ -152,14 +152,14 @@ public:
 	 *
 	 * @return A new thread pool.
 	 */
-	static FQueuedThreadPool* Allocate();
+	static CORE_API FQueuedThreadPool* Allocate();
 
 	/**
 	 *	Stack size for threads created for the thread pool. 
 	 *	Can be overridden by other projects.
 	 *	If 0 means to use the value passed in the Create method.
 	 */
-	static uint32 OverrideStackSize;
+	static CORE_API uint32 OverrideStackSize;
 };
 
 /**

@@ -81,8 +81,8 @@ public:
 
 	CORE_API void InitializeFileEnvironment(FStringView InPath, int32 InOrder = 0);
 
-	CORE_API const FString& GetPath() const { return Path; }
-	CORE_API int32 GetOrder() const { return Order; }
+	const FString& GetPath() const { return Path; }
+	int32 GetOrder() const { return Order; }
 
 private:
 	FString			Path;
@@ -633,7 +633,7 @@ struct FIoStoreCompressedReadResult
 class IIoStoreWriterReferenceChunkDatabase
 {
 public:
-	CORE_API virtual ~IIoStoreWriterReferenceChunkDatabase() = default;
+	virtual ~IIoStoreWriterReferenceChunkDatabase() = default;
 
 	/*
 	* Used by IIoStoreWriter to check and see if there's a reference chunk that matches the data that
@@ -653,19 +653,19 @@ public:
 	* Chunks provided *MUST* decompress to bits that hash to the exact value provided in InChunkKey (i.e. be exactly the same bits),
 	* and also be the same number of blocks (i.e. same CompressionBlockSize)
 	*/
-	CORE_API virtual bool RetrieveChunk(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, TUniqueFunction<void(TIoStatusOr<FIoStoreCompressedReadResult>)> InCompletionCallback) = 0;
+	virtual bool RetrieveChunk(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, TUniqueFunction<void(TIoStatusOr<FIoStoreCompressedReadResult>)> InCompletionCallback) = 0;
 
 	/* 
 	* Quick synchronous existence check that returns the number of blocks for the chunk. This is used to set up
 	* the necessary structures without needing to read the source data for the chunk.
 	*/
-	CORE_API virtual bool ChunkExists(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, uint32& OutNumChunkBlocks) = 0;
+	virtual bool ChunkExists(const TPair<FIoContainerId, FIoChunkHash>& InChunkKey, uint32& OutNumChunkBlocks) = 0;
 
 	/*
 	* Returns the compression block size that was used to break up the IoChunks in the source containers. If this is different than what we want, 
 	* then none of the chunks will ever match. Knowing this up front allows us to only match on hash
 	*/
-	CORE_API virtual uint32 GetCompressionBlockSize() const = 0;
+	virtual uint32 GetCompressionBlockSize() const = 0;
 };
 
 /**
@@ -677,27 +677,27 @@ public:
 class IIoStoreWriterHashDatabase
 {
 public:
-	CORE_API virtual ~IIoStoreWriterHashDatabase() = default;
-	CORE_API virtual bool FindHashForChunkId(const FIoChunkId& ChunkId, FIoChunkHash& OutHash) const = 0;
+	virtual ~IIoStoreWriterHashDatabase() = default;
+	virtual bool FindHashForChunkId(const FIoChunkId& ChunkId, FIoChunkHash& OutHash) const = 0;
 };
 
 
 class IIoStoreWriter
 {
 public:
-	CORE_API virtual ~IIoStoreWriter() = default;
+	virtual ~IIoStoreWriter() = default;
 
 	/**
 	*	If a reference database is provided, the IoStoreWriter implementation may elect to reuse compressed blocks
 	*	from previous containers instead of recompressing input data. This must be set before any writes are appended.
 	*/
-	CORE_API virtual void SetReferenceChunkDatabase(TSharedPtr<IIoStoreWriterReferenceChunkDatabase> ReferenceChunkDatabase) = 0;
-	CORE_API virtual void SetHashDatabase(TSharedPtr<IIoStoreWriterHashDatabase> HashDatabase, bool bVerifyHashDatabase) = 0;
-	CORE_API virtual void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>()) = 0;
-	CORE_API virtual void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64) = 0;
-	CORE_API virtual void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions) = 0;
-	CORE_API virtual TIoStatusOr<FIoStoreWriterResult> GetResult() = 0;
-	CORE_API virtual void EnumerateChunks(TFunction<bool(FIoStoreTocChunkInfo&&)>&& Callback) const = 0;
+	virtual void SetReferenceChunkDatabase(TSharedPtr<IIoStoreWriterReferenceChunkDatabase> ReferenceChunkDatabase) = 0;
+	virtual void SetHashDatabase(TSharedPtr<IIoStoreWriterHashDatabase> HashDatabase, bool bVerifyHashDatabase) = 0;
+	virtual void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>()) = 0;
+	virtual void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64) = 0;
+	virtual void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions) = 0;
+	virtual TIoStatusOr<FIoStoreWriterResult> GetResult() = 0;
+	virtual void EnumerateChunks(TFunction<bool(FIoStoreTocChunkInfo&&)>&& Callback) const = 0;
 };
 
 class FIoStoreReader

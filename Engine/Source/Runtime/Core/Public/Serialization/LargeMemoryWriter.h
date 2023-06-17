@@ -13,13 +13,13 @@
 /**
 * Archive for storing a large amount of arbitrary data to memory
 */
-class CORE_API FLargeMemoryWriter : public FMemoryArchive
+class FLargeMemoryWriter : public FMemoryArchive
 {
 public:
 	
-	FLargeMemoryWriter(const int64 PreAllocateBytes = 0, bool bIsPersistent = false, const TCHAR* InFilename = nullptr);
+	CORE_API FLargeMemoryWriter(const int64 PreAllocateBytes = 0, bool bIsPersistent = false, const TCHAR* InFilename = nullptr);
 
-	virtual void Serialize(void* InData, int64 Num) override;
+	CORE_API virtual void Serialize(void* InData, int64 Num) override;
 
 	/**
 	* Returns the name of the Archive.  Useful for getting the name of the package a struct or object
@@ -27,7 +27,7 @@ public:
 	*
 	* This is overridden for the specific Archive Types
 	**/
-	virtual FString GetArchiveName() const override;
+	CORE_API virtual FString GetArchiveName() const override;
 
 	/**
 	 * Gets the total size of the data written
@@ -40,7 +40,7 @@ public:
 	/**
 	 * Returns the written data. To release this archive's ownership of the data, call ReleaseOwnership()
 	 */
-	uint8* GetData() const;
+	CORE_API uint8* GetData() const;
 
 	/**
 	 * Returns a view on the written data

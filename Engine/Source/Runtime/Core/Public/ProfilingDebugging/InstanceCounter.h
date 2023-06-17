@@ -27,7 +27,7 @@ class FOutputDevice;
 	};
 
 */
-class CORE_API FInstanceCountingObject
+class FInstanceCountingObject
 {
 public:
 
@@ -35,22 +35,22 @@ public:
 	 *	Constructor, though geneerally these objects should be created using the COUNT_INSTANCES_ 
 	 *	macro.
 	 */
-	FInstanceCountingObject(const TCHAR* InName, bool InLogConstruction=false);
+	CORE_API FInstanceCountingObject(const TCHAR* InName, bool InLogConstruction=false);
 
 	/**
 	 *	Copy-constructor for assigment
 	 */
-	FInstanceCountingObject(const FInstanceCountingObject& RHS);
+	CORE_API FInstanceCountingObject(const FInstanceCountingObject& RHS);
 
 	/**	Destructor */
-	virtual ~FInstanceCountingObject();
+	CORE_API virtual ~FInstanceCountingObject();
 
 	/**
 	 * Returns the count of instances with "Name". 
 	 *
 	 * @param: 	Name		
 	 * @return: int32		
-	*/static int32 GetInstanceCount(const TCHAR* Name);
+	*/static CORE_API int32 GetInstanceCount(const TCHAR* Name);
 	
 	/**
 	 * Dumps stats for all counted instances to the provided output device. This
@@ -58,15 +58,15 @@ public:
 	 *
 	 * @param: 	OutputDevice		
 	 * @return: void		
-	*/static void LogCounts(FOutputDevice& OutputDevice);
+	*/static CORE_API void LogCounts(FOutputDevice& OutputDevice);
 	
 protected:
 
 	/**	Increments stats for objects of this type */
-	void IncrementStats();
+	CORE_API void IncrementStats();
 
 	/**	Decrements stats for objects of this type */
-	void DecrementStats();
+	CORE_API void DecrementStats();
 
 protected:
 	
@@ -79,7 +79,7 @@ protected:
 	/**
 	 *	Vars used by our singleton
 	 */
-	struct CORE_API FGlobalVars
+	struct FGlobalVars
 	{
 		TMap<FName, int32>	InstanceCounts;
 		FCriticalSection	Mutex;
@@ -89,8 +89,8 @@ protected:
 	 *	Vars are stored as a pointer and initialized on demand due to avoid dependencies
 	 *	on global crot order
 	 */
-	static FGlobalVars* Globals;
-	static FGlobalVars& GetGlobals();
+	static CORE_API FGlobalVars* Globals;
+	static CORE_API FGlobalVars& GetGlobals();
 };
 
 
