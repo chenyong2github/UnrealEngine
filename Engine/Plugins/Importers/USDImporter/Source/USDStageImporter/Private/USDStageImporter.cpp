@@ -438,8 +438,11 @@ namespace UsdStageImporterImpl
 		{
 			if (UUsdAssetUserData* UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>())
 			{
-				PrimPath = UserData->PrimPath;
-				AssetPath = PrimPath;
+				if (!UserData->PrimPaths.IsEmpty())
+				{
+					PrimPath = UserData->PrimPaths[0];
+					AssetPath = PrimPath;
+				}
 			}
 		}
 
@@ -940,11 +943,11 @@ namespace UsdStageImporterImpl
 						// as we'll always have at least the skeletal mesh and the skeleton
 						if (AssetTypeFolderPtr == &SkeletalMeshesFolder)
 						{
-							AssetToContentFolder.Add(Asset, UserData->PrimPath);
+							AssetToContentFolder.Add(Asset, UserData->PrimPaths.IsEmpty() ? FString{} : UserData->PrimPaths[0]);
 						}
 						else
 						{
-							AssetToContentFolder.Add(Asset, FPaths::GetPath(UserData->PrimPath));
+							AssetToContentFolder.Add(Asset, FPaths::GetPath(UserData->PrimPaths.IsEmpty() ? FString{} : UserData->PrimPaths[0]));
 						}
 					}
 				}
@@ -1976,7 +1979,7 @@ bool UUsdStageImporter::ReimportSingleAsset(
 		if ( Asset &&
 			 UserData &&
 			 Asset->GetClass() == OriginalAsset->GetClass() &&
-			 UserData->PrimPath.Equals(OriginalPrimPath, ESearchCase::CaseSensitive))
+			 UserData->PrimPaths.Contains(OriginalPrimPath))
 		{
 			ReimportedObject = Asset;
 			break;

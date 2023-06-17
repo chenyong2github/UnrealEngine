@@ -1389,7 +1389,6 @@ namespace UsdSkelRootTranslatorImpl
 					if (!UserData)
 					{
 						UserData = NewObject<UUsdMeshAssetUserData>(SkeletalMesh, TEXT("USDAssetUserData"));
-						UserData->PrimPath = SkelRootPath;
 						UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
 						SkeletalMesh->AddAssetUserData(UserData);
 					}
@@ -1630,7 +1629,7 @@ namespace UsdSkelRootTranslatorImpl
 							if (AnimSequence->GetDataModel()->GetNumBoneTracks() != 0 || AnimSequence->GetDataModel()->GetNumberOfFloatCurves() != 0 )
 							{
 								UUsdAnimSequenceAssetUserData* UserData = NewObject<UUsdAnimSequenceAssetUserData>(AnimSequence, TEXT("USDAssetUserData"));
-								UserData->PrimPath = SkelAnimationPrimPath;
+								UserData->PrimPaths = {SkelAnimationPrimPath};
 								UserData->LayerStartOffsetSeconds = LayerStartOffsetSeconds;
 
 								AnimSequence->AddAssetUserData(UserData);

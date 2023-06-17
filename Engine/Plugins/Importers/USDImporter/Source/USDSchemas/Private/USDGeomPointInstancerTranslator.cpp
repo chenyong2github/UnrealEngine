@@ -407,8 +407,11 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents(USceneComponent* PointIn
 	{
 		if (UUsdAssetUserData* UserData = PrototypeMesh->GetAssetUserData<UUsdAssetUserData>())
 		{
-			pxr::SdfPath PrototypePath = UnrealToUsd::ConvertPath(*UserData->PrimPath).Get();
-			PrototypeMeshes.insert({PrototypePath, PrototypeMesh});
+			for (const FString& SourcePrimPath : UserData->PrimPaths)
+			{
+				pxr::SdfPath PrototypePath = UnrealToUsd::ConvertPath(*SourcePrimPath).Get();
+				PrototypeMeshes.insert({PrototypePath, PrototypeMesh});
+			}
 		}
 	}
 

@@ -767,12 +767,10 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 				if (!UserData)
 				{
 					UserData = NewObject<UUsdMeshAssetUserData>(GeometryCache.Get(), TEXT("UUSDAssetUserData"));
-					UserData->PrimPath = PrimPathString;
 					UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
 					GeometryCache->AddAssetUserData(UserData);
 
 					UUsdAnimSequenceAssetUserData* AnimUserData = NewObject<UUsdAnimSequenceAssetUserData>(GeometryCache.Get(), TEXT("UsdAnimUserData"));
-					AnimUserData->PrimPath = PrimPathString;
 					AnimUserData->LayerStartOffsetSeconds = StartTimeOffset;
 					GeometryCache->AddAssetUserData(AnimUserData);
 				}

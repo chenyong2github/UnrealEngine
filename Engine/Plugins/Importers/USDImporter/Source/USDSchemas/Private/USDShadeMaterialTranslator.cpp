@@ -279,7 +279,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			if ( UMaterialInstanceConstant* NewMaterial = NewObject<UMaterialInstanceConstant>( GetTransientPackage(), InstanceName, Context->ObjectFlags | EObjectFlags::RF_Transient ) )
 			{
 				UUsdMaterialAssetUserData* UserData = NewObject<UUsdMaterialAssetUserData>(NewMaterial, TEXT("USDAssetUserData"));
-				UserData->PrimPath = PrimPath.GetString();
+				UserData->PrimPaths = {PrimPath.GetString()};
 				NewMaterial->AddAssetUserData(UserData);
 
 				const bool bSuccess = UsdToUnreal::ConvertMaterial(
@@ -377,7 +377,7 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 				if ( UMaterialInstanceDynamic* NewMaterial = UMaterialInstanceDynamic::Create( ReferenceMaterial, GetTransientPackage(), InstanceName ) )
 				{
 					UUsdMaterialAssetUserData* UserData = NewObject<UUsdMaterialAssetUserData>(NewMaterial, TEXT("USDAssetUserData"));
-					UserData->PrimPath = PrimPath.GetString();
+					UserData->PrimPaths = {PrimPath.GetString()};
 					NewMaterial->AddAssetUserData(UserData);
 
 					NewMaterial->SetFlags(RF_Transient);
@@ -457,7 +457,7 @@ void FUsdShadeMaterialTranslator::PostImportMaterial(const FString& MaterialHash
 		UserData = NewObject<UUsdMaterialAssetUserData>(ImportedMaterial, TEXT("USDAssetUserData"));
 		ImportedMaterial->AddAssetUserData(UserData);
 	}
-	UserData->PrimPath = PrimPath.GetString();
+	UserData->PrimPaths.AddUnique(PrimPath.GetString());
 
 	// Note that this needs to run even if we found this material in the asset cache already, otherwise we won't
 	// re-register the prim asset links when we reload a stage
@@ -529,7 +529,7 @@ void FUsdShadeMaterialTranslator::PostImportMaterial(const FString& MaterialHash
 					TextureUserData = NewObject<UUsdAssetUserData>(ImportedMaterial, TEXT("USDAssetUserData"));
 					Texture->AddAssetUserData(TextureUserData);
 				}
-				TextureUserData->PrimPath = PrimPath.GetString();
+				TextureUserData->PrimPaths.AddUnique(PrimPath.GetString());
 
 				Context->InfoCache->LinkAssetToPrim(PrimPath, Texture);
 			}

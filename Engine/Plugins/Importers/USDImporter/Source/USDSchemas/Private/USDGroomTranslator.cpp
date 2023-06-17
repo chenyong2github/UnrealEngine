@@ -197,7 +197,7 @@ protected:
 						Context->AssetCache->CacheAsset(SHAHash.ToString(), GroomAsset);
 
 						UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(GroomAsset, TEXT("UUSDAssetUserData"));
-						UserData->PrimPath = PrimPathString;
+						UserData->PrimPaths = {PrimPathString};
 
 						GroomAsset->AddAssetUserData(UserData);
 					}
@@ -340,7 +340,7 @@ protected:
 				if (GroomCache)
 				{
 					UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(GroomCache, TEXT("UUSDAssetUserData"));
-					UserData->PrimPath = PrimPath.GetString();
+					UserData->PrimPaths = {PrimPath.GetString()};
 
 					GroomCache->AddAssetUserData(UserData);
 

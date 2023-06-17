@@ -153,7 +153,10 @@ EReimportResult::Type UUsdStageAssetImportFactory::Reimport(UObject* Obj)
 	{
 		if (UUsdAssetUserData* UserData = UserDataInterface->GetAssetUserData<UUsdAssetUserData>())
 		{
-			OriginalPrimPath = UserData->PrimPath;
+			if (!UserData->PrimPaths.IsEmpty())
+			{
+				OriginalPrimPath = UserData->PrimPaths[0];
+			}
 		}
 	}
 

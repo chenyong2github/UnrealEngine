@@ -706,9 +706,12 @@ namespace UE
 								FString MaterialPrimPath;
 								if ( Material )
 								{
-									if(UUsdAssetUserData* UserData = Material->GetAssetUserData<UUsdAssetUserData>())
+									if (UUsdAssetUserData* UserData = Material->GetAssetUserData<UUsdAssetUserData>())
 									{
-										MaterialPrimPath = UserData->PrimPath;
+										if (!UserData->PrimPaths.IsEmpty())
+										{
+											MaterialPrimPath = UserData->PrimPaths[0];
+										}
 									}
 								}
 
@@ -1336,7 +1339,7 @@ namespace UE
 						if ( Texture )
 						{
 							UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(Texture, TEXT("USDAssetUserData"));
-							UserData->PrimPath = PrimPath;
+							UserData->PrimPaths = {PrimPath};
 							Texture->AddAssetUserData(UserData);
 
 							// We set this even if we're not going to import so that we can track our original texture filepath
@@ -2770,14 +2773,18 @@ void UsdUtils::NotifyIfVirtualTexturesNeeded( UTexture* Texture )
 	FString TexturePath = Texture->GetName();
 	if (UUsdAssetUserData* UserData = Texture->GetAssetUserData<UUsdAssetUserData>())
 	{
-		TexturePath = UserData->PrimPath;
+		if (!UserData->PrimPaths.IsEmpty())
+		{
+			TexturePath = UserData->PrimPaths[0];
+		}
 	}
 
 	if ( !UseVirtualTexturing( GMaxRHIFeatureLevel ) )
 	{
 		FUsdLogManager::LogMessage(
 			EMessageSeverity::Warning,
-			FText::Format( LOCTEXT( "DisabledVirtualTexturing", "Texture '{0}' requires Virtual Textures, but the feature is disabled for this project" ),
+			FText::Format( LOCTEXT( "DisabledVirtualTexturing", "Texture '{0}' (from prim '{1}') requires Virtual Textures, but the feature is disabled for this project" ),
+				FText::FromString( Texture->GetName() ),
 				FText::FromString( TexturePath ) )
 		);
 	}

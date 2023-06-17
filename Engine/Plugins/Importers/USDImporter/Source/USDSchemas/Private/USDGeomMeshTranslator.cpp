@@ -810,10 +810,10 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 				if (!UserData)
 				{
 					UserData = NewObject<UUsdMeshAssetUserData>(StaticMesh, TEXT("UUSDAssetUserData"));
-					UserData->PrimPath = MeshName;
 					UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
 					StaticMesh->AddAssetUserData(UserData);
 				}
+				UserData->PrimPaths.AddUnique(MeshName);
 
 				MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(LODIndexToMaterialInfo, UserData);
 

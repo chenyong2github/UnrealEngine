@@ -246,7 +246,7 @@ namespace UE::USDMaterialXTranslator::Private
 						if (!ExistingTexture)
 						{
 							UUsdAssetUserData* UserData = NewObject<UUsdAssetUserData>(Texture, TEXT("USDAssetUserData"));
-							UserData->PrimPath = ReferencerPrimPath;
+							UserData->PrimPaths = {ReferencerPrimPath};
 							Texture->AddAssetUserData(UserData);
 
 							AssetCache.CacheAsset(TextureHash, Texture);

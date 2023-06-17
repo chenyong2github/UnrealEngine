@@ -13,7 +13,7 @@ class USDCLASSES_API UUsdAssetUserData : public UAssetUserData
 
 public:
 	UPROPERTY()
-	FString PrimPath;
+	TArray<FString> PrimPaths;
 };
 
 UCLASS()
