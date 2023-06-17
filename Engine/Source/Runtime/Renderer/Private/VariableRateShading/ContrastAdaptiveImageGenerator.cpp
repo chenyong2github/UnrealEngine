@@ -447,7 +447,7 @@ void AddPrepareImageBasedVRSPass(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("PrepareImageBasedVRS"),
+			RDG_EVENT_NAME("ReprojectShadingRateImage"),
 			ERDGPassFlags::AsyncCompute | ERDGPassFlags::NeverCull,
 			RescaleVariableRateShadingCS,
 			PassParameters,
@@ -477,7 +477,7 @@ FRDGTextureRef FContrastAdaptiveImageGenerator::GetImage(FRDGBuilder& GraphBuild
 
 void FContrastAdaptiveImageGenerator::PrepareImages(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures)
 {
-	RDG_EVENT_SCOPE(GraphBuilder, "VariableRateShading");
+	RDG_EVENT_SCOPE(GraphBuilder, "ContrastAdaptiveShading");
 	bool bAreAllViewsVRSCompatible = true;
 	for (const FSceneView* View : ViewFamily.Views)
 	{

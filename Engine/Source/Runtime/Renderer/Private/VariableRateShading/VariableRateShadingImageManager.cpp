@@ -323,6 +323,9 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 		return nullptr;
 	}
 
+	RDG_EVENT_SCOPE(GraphBuilder, "GetVariableRateShadingImage");
+	SCOPED_NAMED_EVENT(GetVariableRateShadingImage, FColor::Yellow);
+
 	// Use debug rate if provided
 	if (CVarVRSDebugForceRate->GetInt() >= 0)
 	{
@@ -368,6 +371,9 @@ FRDGTextureRef FVariableRateShadingImageManager::GetVariableRateShadingImage(FRD
 
 void FVariableRateShadingImageManager::PrepareImageBasedVRS(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, const FMinimalSceneTextures& SceneTextures)
 {
+	RDG_EVENT_SCOPE(GraphBuilder, "PrepareImageBasedVRS");
+	SCOPED_NAMED_EVENT(PrepareImageBasedVRS, FColor::Red);
+
 	// If no views support VRS, bail immediately
 	bool bIsAnyViewVRSCompatible = false;
 	for (const FSceneView* View : ViewFamily.Views)
@@ -565,6 +571,8 @@ FRDGTextureRef FVariableRateShadingImageManager::CombineShadingRateImages(FRDGBu
 	}
 	else
 	{
+		SCOPED_NAMED_EVENT(CombineShadingRateImages, FColor::Green);
+
 		// Create texture to hold shading rate image
 		FRDGTextureRef CombinedShadingRateTexture = GraphBuilder.CreateTexture(GetSRIDesc(), TEXT("CombinedShadingRateTexture"));
 
