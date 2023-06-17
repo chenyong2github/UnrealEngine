@@ -34,7 +34,7 @@ using namespace UE::Math;
  * incremental convex hull construction.
  */
 template<typename RealType>
-struct GEOMETRYCORE_API TExtremePoints3
+struct TExtremePoints3
 {
 	int Dimension = 0;
 	int Extreme[4]{ 0, 0, 0, 0 };
@@ -49,14 +49,14 @@ struct GEOMETRYCORE_API TExtremePoints3
 	}
 
 private:
-	void Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, RealType Epsilon = TMathUtil<RealType>::Epsilon);
+	GEOMETRYCORE_API void Init(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc, RealType Epsilon = TMathUtil<RealType>::Epsilon);
 };
 
 /**
  * Calculate the Convex Hull of a 3D point set as a Triangle Mesh
  */
 template<typename RealType>
-class GEOMETRYCORE_API TConvexHull3
+class TConvexHull3
 {
 public:
 
@@ -74,7 +74,7 @@ public:
 	 * @param Filter Optional filter to include only a subset of the points in the output hull
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;});
+	GEOMETRYCORE_API bool Solve(int32 NumPoints, TFunctionRef<TVector<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;});
 
 	/**
 	 * Generate convex hull as long as input is not degenerate
@@ -141,7 +141,7 @@ public:
 	 * @param GetPointFunc	Function providing array-style access into points
 	 * TODO: Provide an optional Epsilon parameter to simplify the hull within some tolerance
 	 */
-	void GetFaces(TFunctionRef<void(TArray<int32>&, TVector<RealType>)> PolygonFunc, TFunctionRef<TVector<RealType>(int32)> GetPointFunc) const;
+	GEOMETRYCORE_API void GetFaces(TFunctionRef<void(TArray<int32>&, TVector<RealType>)> PolygonFunc, TFunctionRef<TVector<RealType>(int32)> GetPointFunc) const;
 
 	/**
 	 * Only valid if bSaveTriangleNeighbors was true when Solve() was called

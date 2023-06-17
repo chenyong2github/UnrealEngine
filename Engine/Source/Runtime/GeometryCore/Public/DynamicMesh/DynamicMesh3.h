@@ -103,7 +103,7 @@ enum class EMeshComponents : uint8
 * The function CheckValidity() does extensive sanity checking on the mesh data structure.
 * Use this to test your code, both for mesh construction and editing!!
 */
-class GEOMETRYCORE_API FDynamicMesh3
+class FDynamicMesh3
 {
 
 // TODO:
@@ -155,7 +155,7 @@ public:
 	/** DuplicateTriangleID is returned by AppendTriangle() to indicate that the added triangle already exists in the mesh, and was ignored because we do not support duplicate triangles */
 	constexpr static int DuplicateTriangleID = -3;
 
-	const static FVector3d InvalidVertex;
+	GEOMETRYCORE_API const static FVector3d InvalidVertex;
 	constexpr static FIndex3i InvalidTriangle{InvalidID, InvalidID, InvalidID};
 	constexpr static FIndex2i InvalidEdge{InvalidID, InvalidID};
 
@@ -204,23 +204,23 @@ protected:
 
 public:
 	/** Default constructor */
-	FDynamicMesh3() : FDynamicMesh3(false, false, false, false) {}
+	GEOMETRYCORE_API FDynamicMesh3() : FDynamicMesh3(false, false, false, false) {}
 
 	/** Copy/Move construction */
-	FDynamicMesh3(const FDynamicMesh3& CopyMesh);
-	FDynamicMesh3(FDynamicMesh3&& MoveMesh);
+	GEOMETRYCORE_API FDynamicMesh3(const FDynamicMesh3& CopyMesh);
+	GEOMETRYCORE_API FDynamicMesh3(FDynamicMesh3&& MoveMesh);
 
 	/** Copy and move assignment */
-	const FDynamicMesh3& operator=(const FDynamicMesh3& CopyMesh);
-	const FDynamicMesh3& operator=(FDynamicMesh3&& MoveMesh);
+	GEOMETRYCORE_API const FDynamicMesh3& operator=(const FDynamicMesh3& CopyMesh);
+	GEOMETRYCORE_API const FDynamicMesh3& operator=(FDynamicMesh3&& MoveMesh);
 
 	/** Destructor */
-	virtual ~FDynamicMesh3();
+	GEOMETRYCORE_API virtual ~FDynamicMesh3();
 
 
 	/** Construct an empty mesh with specified attributes */
-	explicit FDynamicMesh3(bool bWantNormals, bool bWantColors, bool bWantUVs, bool bWantTriGroups);
-	explicit FDynamicMesh3(EMeshComponents flags)
+	GEOMETRYCORE_API explicit FDynamicMesh3(bool bWantNormals, bool bWantColors, bool bWantUVs, bool bWantTriGroups);
+	GEOMETRYCORE_API explicit FDynamicMesh3(EMeshComponents flags)
 	    : FDynamicMesh3(((int)flags & (int)EMeshComponents::VertexNormals) != 0,
 	                    ((int)flags & (int)EMeshComponents::VertexColors) != 0,
 	                    ((int)flags & (int)EMeshComponents::VertexUVs) != 0,
@@ -228,17 +228,17 @@ public:
 	{}
 
 	/** Construction from Mesh Generator */
-	FDynamicMesh3(const FMeshShapeGenerator* Generator);
+	GEOMETRYCORE_API FDynamicMesh3(const FMeshShapeGenerator* Generator);
 
 	/** Set internal data structures to be a copy of input mesh using the specified attributes*/
-	void Copy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
+	GEOMETRYCORE_API void Copy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
 	          bool bAttributes = true);
 
 	/** 
 	  * Initialize mesh from the output of a MeshShapeGenerator (assumes Generate() was already called) 
 	  * @return false if any triangles defined in Generator were skipped due to invalid topology
 	  */
-	bool Copy(const FMeshShapeGenerator* Generator);
+	GEOMETRYCORE_API bool Copy(const FMeshShapeGenerator* Generator);
 
 	/** 
 	 * Copy input mesh while compacting, i.e. removing unused vertices/triangles/edges. 
@@ -252,11 +252,11 @@ public:
 	 * @param bAttributes if true, will copy attributes
 	 * @param CompactInfo if not nullptr, will be filled with mapping indicating how vertex and triangle IDs were changed during compaction
 	 */
-	void CompactCopy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
+	GEOMETRYCORE_API void CompactCopy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
 	                 bool bAttributes = true, FCompactMaps* CompactInfo = nullptr);
 
 	/** Discard all data */
-	void Clear();
+	GEOMETRYCORE_API void Clear();
 
 	/**
 	 * Ensure that all the same extended attributes available in ToMatch are also enabled.
@@ -264,7 +264,7 @@ public:
 	 * If bClearExisting is passed as false, existing attributes are not removed/cleared.
 	 * If bDiscardExtraAttributes=true and bClearExisting=false, extra attributes not in ToMatch are discarded, but existing attributes are not cleared/reset
 	 */
-	void EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool bClearExisting = true, bool bDiscardExtraAttributes = false);
+	GEOMETRYCORE_API void EnableMatchingAttributes(const FDynamicMesh3& ToMatch, bool bClearExisting = true, bool bDiscardExtraAttributes = false);
 
 	/**
 	 * Serialization operator for FDynamicMesh3.
@@ -280,7 +280,7 @@ public:
 	}
 
 	/** Serialize the mesh to an archive. */
-	void Serialize(FArchive& Ar);
+	GEOMETRYCORE_API void Serialize(FArchive& Ar);
 
 public:
 	/** @return number of vertices in the mesh */
@@ -348,7 +348,7 @@ public:
 	}
 
 	/** @return bitwise-or of EMeshComponents flags specifying which extra data this mesh has */
-	int GetComponentsFlags() const;
+	GEOMETRYCORE_API int GetComponentsFlags() const;
 
 
 	/** @return true if VertexID is a valid vertex in this mesh */
@@ -540,10 +540,10 @@ public:
 	}
 
 	/** Call ApplyFunc for each one-ring triangle of a vertex. Currently this is significantly more efficient than VtxTrianglesItr() in many use cases. */
-	void EnumerateVertexTriangles(int32 VertexID, TFunctionRef<void(int32)> ApplyFunc) const;
+	GEOMETRYCORE_API void EnumerateVertexTriangles(int32 VertexID, TFunctionRef<void(int32)> ApplyFunc) const;
 
 	/** Call ApplyFunc for each triangle connected to an Edge (1 or 2 triangles) */
-	void EnumerateEdgeTriangles(int32 EdgeID, TFunctionRef<void(int32)> ApplyFunc) const;
+	GEOMETRYCORE_API void EnumerateEdgeTriangles(int32 EdgeID, TFunctionRef<void(int32)> ApplyFunc) const;
 
 
 	//
@@ -551,7 +551,7 @@ public:
 	//
 public:
 	/** Append vertex at position and other fields, returns vid */
-	int AppendVertex(const FVertexInfo& VertInfo);
+	GEOMETRYCORE_API int AppendVertex(const FVertexInfo& VertInfo);
 
 	/** Append vertex at position, returns vid */
 	int AppendVertex(const FVector3d& Position)
@@ -560,10 +560,10 @@ public:
 	}
 
 	/** Copy vertex SourceVertexID from existing SourceMesh, returns new vertex id */
-	int AppendVertex(const FDynamicMesh3& SourceMesh, int SourceVertexID);
+	GEOMETRYCORE_API int AppendVertex(const FDynamicMesh3& SourceMesh, int SourceVertexID);
 
 	/** TriVertices must be distinct and refer to existing, valid vertices */
-	int AppendTriangle(const FIndex3i& TriVertices, int GroupID = 0);
+	GEOMETRYCORE_API int AppendTriangle(const FIndex3i& TriVertices, int GroupID = 0);
 
 	/** Vertex0, Vertex1, and Vertex2 must be distinct and refer to existing, valid vertices */
 	inline int AppendTriangle(int Vertex0, int Vertex1, int Vertex2, int GroupID = 0)
@@ -596,7 +596,7 @@ public:
 	 * If bUnsafe, we use fast id allocation that does not update free list.
 	 * You should only be using this between BeginUnsafeVerticesInsert() / EndUnsafeVerticesInsert() calls
 	 */
-	EMeshResult InsertVertex(int VertexID, const FVertexInfo& VertInfo, bool bUnsafe = false);
+	GEOMETRYCORE_API EMeshResult InsertVertex(int VertexID, const FVertexInfo& VertInfo, bool bUnsafe = false);
 
 	/** Call this before a set of unsafe InsertTriangle() calls */
 	virtual void BeginUnsafeTrianglesInsert()
@@ -615,7 +615,7 @@ public:
 	 * If bUnsafe, we use fast id allocation that does not update free list.
 	 * You should only be using this between BeginUnsafeTrianglesInsert() / EndUnsafeTrianglesInsert() calls
 	 */
-	EMeshResult InsertTriangle(int TriangleID, const FIndex3i& TriVertices, int GroupID = 0, bool bUnsafe = false);
+	GEOMETRYCORE_API EMeshResult InsertTriangle(int TriangleID, const FIndex3i& TriVertices, int GroupID = 0, bool bUnsafe = false);
 
 	//
 	// Vertex/Tri/Edge accessors
@@ -655,10 +655,10 @@ public:
 
 
 	/** Get extended vertex information */
-	bool GetVertex(int VertexID, FVertexInfo& VertInfo, bool bWantNormals, bool bWantColors, bool bWantUVs) const;
+	GEOMETRYCORE_API bool GetVertex(int VertexID, FVertexInfo& VertInfo, bool bWantNormals, bool bWantColors, bool bWantUVs) const;
 
 	/** Get all vertex information available */
-	FVertexInfo GetVertexInfo(int VertexID) const;
+	GEOMETRYCORE_API FVertexInfo GetVertexInfo(int VertexID) const;
 
 	/** @return the valence of a vertex (the number of connected edges) */
 	int GetVtxEdgeCount(int VertexID) const
@@ -667,7 +667,7 @@ public:
 	}
 
 	/** @return the max valence of all vertices in the mesh */
-	int GetMaxVtxEdgeCount() const;
+	GEOMETRYCORE_API int GetMaxVtxEdgeCount() const;
 
 	/** Get triangle vertices */
 	inline FIndex3i GetTriangle(int TriangleID) const
@@ -705,7 +705,7 @@ public:
 	}
 
 	/** Find the neighbour triangles of a triangle (any of them might be InvalidID) */
-	FIndex3i GetTriNeighbourTris(int TriangleID) const;
+	GEOMETRYCORE_API FIndex3i GetTriNeighbourTris(int TriangleID) const;
 
 	/** Get the three vertex positions of a triangle */
 	template<typename VecType>
@@ -765,7 +765,7 @@ public:
 	}
 
 	/** Return edge vertex indices, but oriented based on attached triangle (rather than min-sorted) */
-	FIndex2i GetOrientedBoundaryEdgeV(int EdgeID) const;
+	GEOMETRYCORE_API FIndex2i GetOrientedBoundaryEdgeV(int EdgeID) const;
 
 	/** Return (triangle, edge_index) representation for given Edge ID */
 	inline FMeshTriEdgeID GetTriEdgeIDFromEdgeID(int EdgeID) const
@@ -791,10 +791,10 @@ public:
 	 * and discard any that are not requested
 	 * @param MeshComponentsFlags A 'bitwise or' of requested EMeshComponents flags
 	 */
-	void EnableMeshComponents(int MeshComponentsFlags);
+	GEOMETRYCORE_API void EnableMeshComponents(int MeshComponentsFlags);
 
-	void EnableVertexNormals(const FVector3f& InitialNormal);
-	void DiscardVertexNormals();
+	GEOMETRYCORE_API void EnableVertexNormals(const FVector3f& InitialNormal);
+	GEOMETRYCORE_API void DiscardVertexNormals();
 
 	FVector3f GetVertexNormal(int vID) const
 	{
@@ -817,8 +817,8 @@ public:
 		}
 	}
 
-	void EnableVertexColors(const FVector3f& InitialColor);
-	void DiscardVertexColors();
+	GEOMETRYCORE_API void EnableVertexColors(const FVector3f& InitialColor);
+	GEOMETRYCORE_API void DiscardVertexColors();
 
 
 	FVector3f GetVertexColor(int vID) const
@@ -843,8 +843,8 @@ public:
 		}
 	}
 
-	void EnableVertexUVs(const FVector2f& InitialUV);
-	void DiscardVertexUVs();
+	GEOMETRYCORE_API void EnableVertexUVs(const FVector2f& InitialUV);
+	GEOMETRYCORE_API void DiscardVertexUVs();
 
 	FVector2f GetVertexUV(int vID) const
 	{
@@ -867,8 +867,8 @@ public:
 		}
 	}
 
-	void EnableTriangleGroups(int InitialGroupID = 0);
-	void DiscardTriangleGroups();
+	GEOMETRYCORE_API void EnableTriangleGroups(int InitialGroupID = 0);
+	GEOMETRYCORE_API void DiscardTriangleGroups();
 
 	int AllocateTriangleGroup()
 	{
@@ -900,8 +900,8 @@ public:
 		return HasAttributes() ? AttributeSet.Get() : nullptr;
 	}
 
-	void EnableAttributes();
-	void DiscardAttributes();
+	GEOMETRYCORE_API void EnableAttributes();
+	GEOMETRYCORE_API void DiscardAttributes();
 
 
 	//
@@ -916,40 +916,40 @@ public:
 	}
 
 	/** Returns true if the vertex is part of any boundary edges */
-	bool IsBoundaryVertex(int VertexID) const;
+	GEOMETRYCORE_API bool IsBoundaryVertex(int VertexID) const;
 
 	/** Returns true if any edge of triangle is a boundary edge */
-	bool IsBoundaryTriangle(int TriangleID) const;
+	GEOMETRYCORE_API bool IsBoundaryTriangle(int TriangleID) const;
 
 	/** Find id of edge connecting A and B */
-	int FindEdge(int VertexA, int VertexB) const;
+	GEOMETRYCORE_API int FindEdge(int VertexA, int VertexB) const;
 
 	/** Find edgeid for edge [a,b] from triangle that contains the edge. Faster than FindEdge() because it is constant-time. */
-	int FindEdgeFromTri(int VertexA, int VertexB, int TriangleID) const;
+	GEOMETRYCORE_API int FindEdgeFromTri(int VertexA, int VertexB, int TriangleID) const;
 
 	/** Find edgeid for edge connecting two triangles */
-	int FindEdgeFromTriPair(int TriangleA, int TriangleB) const;
+	GEOMETRYCORE_API int FindEdgeFromTriPair(int TriangleA, int TriangleB) const;
 
 	/** Find triangle made up of any permutation of vertices [a,b,c] */
-	int FindTriangle(int A, int B, int C) const;
+	GEOMETRYCORE_API int FindTriangle(int A, int B, int C) const;
 
 	/**
 	 * If edge has vertices [a,b], and is connected two triangles [a,b,c] and [a,b,d],
 	 * this returns [c,d], or [c,InvalidID] for a boundary edge
 	 */
-	FIndex2i GetEdgeOpposingV(int EdgeID) const;
+	GEOMETRYCORE_API FIndex2i GetEdgeOpposingV(int EdgeID) const;
 
 	/**
 	 * Given an edge and vertex on that edge, returns other vertex of edge, the two opposing verts, and the two connected triangles (OppVert2Out and Tri2Out are be InvalidID for boundary edge)
 	 */
-	void GetVtxNbrhood(int EdgeID, int VertexID, int& OtherVertOut, int& OppVert1Out, int& OppVert2Out, int& Tri1Out,
+	GEOMETRYCORE_API void GetVtxNbrhood(int EdgeID, int VertexID, int& OtherVertOut, int& OppVert1Out, int& OppVert2Out, int& Tri1Out,
 	                   int& Tri2Out) const;
 
 	/**
 	 * Returns count of boundary edges at vertex, and the first two boundary
 	 * edges if found. If return is > 2, call GetAllVtxBoundaryEdges
 	 */
-	int GetVtxBoundaryEdges(int VertexID, int& Edge0Out, int& Edge1Out) const;
+	GEOMETRYCORE_API int GetVtxBoundaryEdges(int VertexID, int& Edge0Out, int& Edge1Out) const;
 
 	/**
 	 * Find edge ids of boundary edges connected to vertex.
@@ -957,22 +957,22 @@ public:
 	 * @param EdgeListOut boundary edge IDs are appended to this list
 	 * @return count of number of elements of e that were filled
 	 */
-	int GetAllVtxBoundaryEdges(int VertexID, TArray<int>& EdgeListOut) const;
+	GEOMETRYCORE_API int GetAllVtxBoundaryEdges(int VertexID, TArray<int>& EdgeListOut) const;
 
 	/**
 	 * return # of triangles attached to vID, or -1 if invalid vertex
 	 */
-	int GetVtxTriangleCount(int VertexID) const;
+	GEOMETRYCORE_API int GetVtxTriangleCount(int VertexID) const;
 
 	/**
 	 * Get triangle one-ring at vertex.
 	 */
-	EMeshResult GetVtxTriangles(int VertexID, TArray<int>& TrianglesOut) const;
+	GEOMETRYCORE_API EMeshResult GetVtxTriangles(int VertexID, TArray<int>& TrianglesOut) const;
 
 	/**
 	 * @return Triangle ID for a single triangle connected to VertexID, or InvalidID if VertexID does not exist or has no attached triangles
 	 */
-	int GetVtxSingleTriangle(int VertexID) const;
+	GEOMETRYCORE_API int GetVtxSingleTriangle(int VertexID) const;
 
 	/**
 	* Get triangles connected to vertex in contiguous order, with multiple groups if vertex is a bowtie.
@@ -981,26 +981,26 @@ public:
 	* @param ContiguousGroupLengths Lengths of contiguous groups packed into TrianglesOut (if not a bowtie, this will just be a length-one array w/ {TrianglesOut.Num()})
 	* @param GroupIsLoop Indicates whether each contiguous group is a loop (first triangle connected to last) or not
 	*/
-	EMeshResult GetVtxContiguousTriangles(int VertexID, TArray<int>& TrianglesOut, TArray<int>& ContiguousGroupLengths,
+	GEOMETRYCORE_API EMeshResult GetVtxContiguousTriangles(int VertexID, TArray<int>& TrianglesOut, TArray<int>& ContiguousGroupLengths,
 	                                      TArray<bool>& GroupIsLoop) const;
 
 	/** Returns true if the two triangles connected to edge have different group IDs */
-	bool IsGroupBoundaryEdge(int EdgeID) const;
+	GEOMETRYCORE_API bool IsGroupBoundaryEdge(int EdgeID) const;
 
 	/** Returns true if vertex has more than one tri group in its tri nbrhood */
-	bool IsGroupBoundaryVertex(int VertexID) const;
+	GEOMETRYCORE_API bool IsGroupBoundaryVertex(int VertexID) const;
 
 	/** Returns true if more than two group boundary edges meet at vertex (ie 3+ groups meet at this vertex) */
-	bool IsGroupJunctionVertex(int VertexID) const;
+	GEOMETRYCORE_API bool IsGroupJunctionVertex(int VertexID) const;
 
 	/** Returns up to 4 group IDs at vertex. Returns false if > 4 encountered */
-	bool GetVertexGroups(int VertexID, FIndex4i& GroupsOut) const;
+	GEOMETRYCORE_API bool GetVertexGroups(int VertexID, FIndex4i& GroupsOut) const;
 
 	/** Returns all group IDs at vertex */
-	bool GetAllVertexGroups(int VertexID, TArray<int>& GroupsOut) const;
+	GEOMETRYCORE_API bool GetAllVertexGroups(int VertexID, TArray<int>& GroupsOut) const;
 
 	/** returns true if vID is a "bowtie" vertex, ie multiple disjoint triangle sets in one-ring */
-	bool IsBowtieVertex(int VertexID) const;
+	GEOMETRYCORE_API bool IsBowtieVertex(int VertexID) const;
 
 	/** returns true if vertices, edges, and triangles are all dense (Count == MaxID) **/
 	bool IsCompact() const
@@ -1027,7 +1027,7 @@ public:
 	}
 
 	/** @return true if mesh has no boundary edges */
-	bool IsClosed() const;
+	GEOMETRYCORE_API bool IsClosed() const;
 
 
 	//
@@ -1035,7 +1035,7 @@ public:
 	//
 public:
 	/** Returns bounding box of all mesh vertices (including unreferenced vertices) */
-	FAxisAlignedBox3d GetBounds(bool bParallel = false) const;
+	GEOMETRYCORE_API FAxisAlignedBox3d GetBounds(bool bParallel = false) const;
 
 	/**
 	 * Compute a normal/tangent frame at vertex that is "stable" as long as
@@ -1046,59 +1046,59 @@ public:
 	 * @param bFrameNormalY if true, then frame.Y is normal (X still points along mesh edge)
 	 * @param UseNormal if defined, this normal is used instead of VertexNormals normal
 	 */
-	FFrame3d GetVertexFrame(int VertexID, bool bFrameNormalY = false, FVector3d* UseNormal = nullptr) const;
+	GEOMETRYCORE_API FFrame3d GetVertexFrame(int VertexID, bool bFrameNormalY = false, FVector3d* UseNormal = nullptr) const;
 
 	/** Calculate face normal of triangle */
-	FVector3d GetTriNormal(int TriangleID) const;
+	GEOMETRYCORE_API FVector3d GetTriNormal(int TriangleID) const;
 
 	/** Calculate area triangle */
-	double GetTriArea(int TriangleID) const;
+	GEOMETRYCORE_API double GetTriArea(int TriangleID) const;
 
 	/**
 	 * Compute triangle normal, area, and centroid all at once. Re-uses vertex
 	 * lookups and computes normal & area simultaneously. *However* does not produce
 	 * the same normal/area as separate calls, because of this.
 	 */
-	void GetTriInfo(int TriangleID, FVector3d& Normal, double& Area, FVector3d& Centroid) const;
+	GEOMETRYCORE_API void GetTriInfo(int TriangleID, FVector3d& Normal, double& Area, FVector3d& Centroid) const;
 
 	/** Compute centroid of triangle */
-	FVector3d GetTriCentroid(int TriangleID) const;
+	GEOMETRYCORE_API FVector3d GetTriCentroid(int TriangleID) const;
 
 	/** Interpolate vertex positions of triangle using barycentric coordinates */
-	FVector3d GetTriBaryPoint(int TriangleID, double Bary0, double Bary1, double Bary2) const;
+	GEOMETRYCORE_API FVector3d GetTriBaryPoint(int TriangleID, double Bary0, double Bary1, double Bary2) const;
 
 	/** Interpolate vertex normals of triangle using barycentric coordinates */
-	FVector3d GetTriBaryNormal(int TriangleID, double Bary0, double Bary1, double Bary2) const;
+	GEOMETRYCORE_API FVector3d GetTriBaryNormal(int TriangleID, double Bary0, double Bary1, double Bary2) const;
 
 	/** Compute interpolated vertex attributes at point of triangle */
-	void GetTriBaryPoint(int TriangleID, double Bary0, double Bary1, double Bary2, FVertexInfo& VertInfo) const;
+	GEOMETRYCORE_API void GetTriBaryPoint(int TriangleID, double Bary0, double Bary1, double Bary2, FVertexInfo& VertInfo) const;
 
 	/** Construct bounding box of triangle as efficiently as possible */
-	FAxisAlignedBox3d GetTriBounds(int TriangleID) const;
+	GEOMETRYCORE_API FAxisAlignedBox3d GetTriBounds(int TriangleID) const;
 
 	/** Construct stable frame at triangle centroid, where frame.Z is face normal, and frame.X is aligned with edge nEdge of triangle. */
-	FFrame3d GetTriFrame(int TriangleID, int Edge = 0) const;
+	GEOMETRYCORE_API FFrame3d GetTriFrame(int TriangleID, int Edge = 0) const;
 
 	/** Compute solid angle of oriented triangle tID relative to point p - see WindingNumber() */
-	double GetTriSolidAngle(int TriangleID, const FVector3d& p) const;
+	GEOMETRYCORE_API double GetTriSolidAngle(int TriangleID, const FVector3d& p) const;
 
 	/** Compute internal angle at vertex i of triangle (where i is 0,1,2); */
-	double GetTriInternalAngleR(int TriangleID, int i) const;
+	GEOMETRYCORE_API double GetTriInternalAngleR(int TriangleID, int i) const;
 
 	/** Compute internal angles at all vertices of triangle */
-	FVector3d GetTriInternalAnglesR(int TriangleID) const;
+	GEOMETRYCORE_API FVector3d GetTriInternalAnglesR(int TriangleID) const;
 
 	/** Returns average normal of connected face normals */
-	FVector3d GetEdgeNormal(int EdgeID) const;
+	GEOMETRYCORE_API FVector3d GetEdgeNormal(int EdgeID) const;
 
 	/** Get point along edge, t clamped to range [0,1] */
-	FVector3d GetEdgePoint(int EdgeID, double ParameterT) const;
+	GEOMETRYCORE_API FVector3d GetEdgePoint(int EdgeID, double ParameterT) const;
 
 	/**
 	 * Fastest possible one-ring centroid. This is used inside many other algorithms
 	 * so it helps to have it be maximally efficient
 	 */
-	void GetVtxOneRingCentroid(int VertexID, FVector3d& CentroidOut) const;
+	GEOMETRYCORE_API void GetVtxOneRingCentroid(int VertexID, FVector3d& CentroidOut) const;
 
 	/**
 	 * Compute mesh winding number, from Jacobson et. al., Robust Inside-Outside Segmentation using Generalized Winding Numbers
@@ -1106,7 +1106,7 @@ public:
 	 * returns ~0 for points outside a closed, consistently oriented mesh, and a positive or negative integer
 	 * for points inside, with value > 1 depending on how many "times" the point inside the mesh (like in 2D polygon winding)
 	 */
-	double CalculateWindingNumber(const FVector3d& QueryPoint) const;
+	GEOMETRYCORE_API double CalculateWindingNumber(const FVector3d& QueryPoint) const;
 
 	//
 	// direct buffer access
@@ -1171,18 +1171,18 @@ public:
 	 * @param CompactInfo if not nullptr, will be filled with mapping indicating how vertex and triangle IDs were changed during compaction
 	 * @todo VertexEdgeLists is not compacted. does not affect indices, but does keep memory.
 	 */
-	void CompactInPlace(FCompactMaps* CompactInfo = nullptr);
+	GEOMETRYCORE_API void CompactInPlace(FCompactMaps* CompactInfo = nullptr);
 
 	/**
 	 * Reverse the ccw/cw orientation of all triangles in the mesh, and
 	 * optionally flip the vertex normals if they exist
 	 */
-	void ReverseOrientation(bool bFlipNormals = true);
+	GEOMETRYCORE_API void ReverseOrientation(bool bFlipNormals = true);
 
 	/**
 	 * Reverse the ccw/cw orientation of a triangle
 	 */
-	EMeshResult ReverseTriOrientation(int TriangleID);
+	GEOMETRYCORE_API EMeshResult ReverseTriOrientation(int TriangleID);
 
 	/**
 	 * Remove vertex VertexID and all connected triangles. 
@@ -1190,7 +1190,7 @@ public:
 	 * If bPreserveManifold is true, checks that we will not create a bowtie vertex first.
 	 * In this case, returns Failed_WouldCreateBowtie if removing the triangles would create a bowtie.
 	 */
-	EMeshResult RemoveVertex(int VertexID, bool bPreserveManifold = false);
+	GEOMETRYCORE_API EMeshResult RemoveVertex(int VertexID, bool bPreserveManifold = false);
 
 	/**
 	* Remove a triangle from the mesh. Also removes any unreferenced edges after tri is removed.
@@ -1199,14 +1199,14 @@ public:
 	* If this check is not done, you have to make sure you don't create a bow tie, because other
 	* code assumes we don't have bow ties, and will not handle it properly
 	*/
-	EMeshResult RemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices = true, bool bPreserveManifold = false);
+	GEOMETRYCORE_API EMeshResult RemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices = true, bool bPreserveManifold = false);
 
 	/**
 	 * Rewrite the triangle to reference the new tuple of vertices.
 	 *
 	 * @todo this function currently does not guarantee that the returned mesh is well-formed. Only call if you know it's OK.
 	 */
-	virtual EMeshResult SetTriangle(int TriangleID, const FIndex3i& NewVertices, bool bRemoveIsolatedVertices = true);
+	GEOMETRYCORE_API virtual EMeshResult SetTriangle(int TriangleID, const FIndex3i& NewVertices, bool bRemoveIsolatedVertices = true);
 
 	/**
 	 * Split an edge of the mesh by inserting a vertex. This creates a new triangle on either side of the edge (ie a 2-4 split).
@@ -1218,7 +1218,7 @@ public:
 	 * @param SplitParameterT defines the position along the edge that we split at, must be between 0 and 1, and is assumed to be based on the order of vertices returned by GetEdgeV()
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult SplitEdge(int EdgeAB, FEdgeSplitInfo& SplitInfo, double SplitParameterT = 0.5);
+	GEOMETRYCORE_API virtual EMeshResult SplitEdge(int EdgeAB, FEdgeSplitInfo& SplitInfo, double SplitParameterT = 0.5);
 
 	/** 
 	 * Splits the edge between two vertices at the midpoint, if this edge exists 
@@ -1227,7 +1227,7 @@ public:
 	 * @param SplitInfo returned information about new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	EMeshResult SplitEdge(int EdgeVertA, int EdgeVertB, FEdgeSplitInfo& SplitInfo);
+	GEOMETRYCORE_API EMeshResult SplitEdge(int EdgeVertA, int EdgeVertB, FEdgeSplitInfo& SplitInfo);
 
 	/**
 	 * Flip/Rotate an edge of the mesh. This does not change the number of edges, vertices, or triangles.
@@ -1236,7 +1236,7 @@ public:
 	 * @param FlipInfo returned information about new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult FlipEdge(int EdgeAB, FEdgeFlipInfo& FlipInfo);
+	GEOMETRYCORE_API virtual EMeshResult FlipEdge(int EdgeAB, FEdgeFlipInfo& FlipInfo);
 
 	/** calls FlipEdge() on the edge between two vertices, if it exists
 	 * @param EdgeVertA index of first vertex
@@ -1244,7 +1244,7 @@ public:
 	 * @param FlipInfo returned information about new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult FlipEdge(int EdgeVertA, int EdgeVertB, FEdgeFlipInfo& FlipInfo);
+	GEOMETRYCORE_API virtual EMeshResult FlipEdge(int EdgeVertA, int EdgeVertB, FEdgeFlipInfo& FlipInfo);
 
 
 	/**
@@ -1254,7 +1254,7 @@ public:
 	 * @param SplitInfo returned info about the new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult SplitVertex(int VertexID, const TArrayView<const int>& TrianglesToUpdate,
+	GEOMETRYCORE_API virtual EMeshResult SplitVertex(int VertexID, const TArrayView<const int>& TrianglesToUpdate,
 	                                FVertexSplitInfo& SplitInfo);
 
 	/**
@@ -1263,7 +1263,7 @@ public:
 	 * @param TrianglesToUpdate triangles that should be updated to use the new vertex anywhere they previously had the old one
 	 * @return true if calling SplitVertex with these arguments would leave an isolated vertex at the original VertexID
 	 */
-	virtual bool SplitVertexWouldLeaveIsolated(int VertexID, const TArrayView<const int>& TrianglesToUpdate);
+	GEOMETRYCORE_API virtual bool SplitVertexWouldLeaveIsolated(int VertexID, const TArrayView<const int>& TrianglesToUpdate);
 
 
 	/**
@@ -1274,7 +1274,7 @@ public:
 	 * @param CollapseInfo returned information about new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult CollapseEdge(int KeepVertID, int RemoveVertID, double EdgeParameterT,
+	GEOMETRYCORE_API virtual EMeshResult CollapseEdge(int KeepVertID, int RemoveVertID, double EdgeParameterT,
 	                                 FEdgeCollapseInfo& CollapseInfo);
 	virtual EMeshResult CollapseEdge(int KeepVertID, int RemoveVertID, FEdgeCollapseInfo& CollapseInfo)
 	{
@@ -1296,7 +1296,7 @@ public:
 	 * @param CheckValidOrientation perform edge consistency orientation checks before merging.
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult MergeEdges(int KeepEdgeID, int DiscardEdgeID, FMergeEdgesInfo& MergeInfo, bool bCheckValidOrientation=true);
+	GEOMETRYCORE_API virtual EMeshResult MergeEdges(int KeepEdgeID, int DiscardEdgeID, FMergeEdgesInfo& MergeInfo, bool bCheckValidOrientation=true);
 
 
 	/**
@@ -1306,7 +1306,7 @@ public:
 	 * @param PokeInfo returned information about new and modified mesh elements
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult PokeTriangle(int TriangleID, const FVector3d& BaryCoordinates, FPokeTriangleInfo& PokeInfo);
+	GEOMETRYCORE_API virtual EMeshResult PokeTriangle(int TriangleID, const FVector3d& BaryCoordinates, FPokeTriangleInfo& PokeInfo);
 
 	/** Call PokeTriangle at the centroid of the triangle */
 	virtual EMeshResult PokeTriangle(int TriangleID, FPokeTriangleInfo& PokeInfo)
@@ -1321,7 +1321,7 @@ public:
 	/**
 	 * Returns a debug string that contains mesh statistics and other information
 	 */
-	virtual FString MeshInfoString() const;
+	GEOMETRYCORE_API virtual FString MeshInfoString() const;
 
 	/**
 	 * Options for the IsSameAs check
@@ -1346,7 +1346,7 @@ public:
 	 * Check if another mesh is the same as this mesh. By default only checks
 	 * vertices and triangles, turn on other parameters w/ flags
 	 */
-	virtual bool IsSameAs(const FDynamicMesh3& OtherMesh, const FSameAsOptions& Options) const;
+	GEOMETRYCORE_API virtual bool IsSameAs(const FDynamicMesh3& OtherMesh, const FSameAsOptions& Options) const;
 
 	/**
 	 * Options for what the validity check will permit
@@ -1379,7 +1379,7 @@ public:
 	/**
 	 * Checks that the mesh is well-formed, ie all internal data structures are consistent
 	 */
-	virtual bool CheckValidity(FValidityOptions ValidityOptions = FValidityOptions(),
+	GEOMETRYCORE_API virtual bool CheckValidity(FValidityOptions ValidityOptions = FValidityOptions(),
 	                           EValidityCheckFailMode FailMode  = EValidityCheckFailMode::Check) const;
 
 	//
@@ -1395,8 +1395,8 @@ protected:
 		TriangleEdges[TriangleID] = FIndex3i(e0, e1, e2);
 	}
 
-	int AddEdgeInternal(int vA, int vB, int tA, int tB = InvalidID);
-	int AddTriangleInternal(int a, int b, int c, int e0, int e1, int e2);
+	GEOMETRYCORE_API int AddEdgeInternal(int vA, int vB, int tA, int tB = InvalidID);
+	GEOMETRYCORE_API int AddTriangleInternal(int a, int b, int c, int e0, int e1, int e2);
 
 	inline int ReplaceTriangleVertex(int TriangleID, int vOld, int vNew)
 	{
@@ -1445,9 +1445,9 @@ protected:
 		Edges[EdgeID].Tri[1] = t1;
 	}
 
-	int ReplaceEdgeVertex(int EdgeID, int vOld, int vNew);
-	int ReplaceEdgeTriangle(int EdgeID, int tOld, int tNew);
-	int ReplaceTriangleEdge(int EdgeID, int eOld, int eNew);
+	GEOMETRYCORE_API int ReplaceEdgeVertex(int EdgeID, int vOld, int vNew);
+	GEOMETRYCORE_API int ReplaceEdgeTriangle(int EdgeID, int tOld, int tNew);
+	GEOMETRYCORE_API int ReplaceTriangleEdge(int EdgeID, int eOld, int eNew);
 
 	inline bool TriangleHasVertex(int TriangleID, int VertexID) const
 	{
@@ -1468,9 +1468,9 @@ protected:
 		return ((Tri.A == vA && Tri.B == vB) || (Tri.B == vA && Tri.C == vB) || (Tri.C == vA && Tri.A == vB));
 	}
 
-	int FindTriangleEdge(int TriangleID, int vA, int vB) const;
+	GEOMETRYCORE_API int FindTriangleEdge(int TriangleID, int vA, int vB) const;
 
-	int32 FindEdgeInternal(int32 vA, int32 vB, bool& bIsBoundary) const;
+	GEOMETRYCORE_API int32 FindEdgeInternal(int32 vA, int32 vB, bool& bIsBoundary) const;
 
 	inline bool EdgeHasVertex(int EdgeID, int VertexID) const
 	{
@@ -1524,7 +1524,7 @@ protected:
 	}
 
 
-	void ReverseTriOrientationInternal(int TriangleID);
+	GEOMETRYCORE_API void ReverseTriOrientationInternal(int TriangleID);
 
 	/**
 	* Internal implementations for serialization to allow for better code separation between different versions and other implementation details.

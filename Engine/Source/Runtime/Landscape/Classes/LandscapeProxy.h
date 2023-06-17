@@ -1067,7 +1067,7 @@ public:
 	LANDSCAPE_API FIntPoint GetSectionBaseOffset() const;
 
 	// ILandscapeSplineInterface
-	LANDSCAPE_API virtual ULandscapeSplinesComponent* GetSplinesComponent() const override { return SplineComponent; }
+	virtual ULandscapeSplinesComponent* GetSplinesComponent() const override { return SplineComponent; }
 	LANDSCAPE_API virtual void UpdateSharedProperties(ULandscapeInfo* InLandscapeInfo) override;
 
 	// Retrieve the screen size at which each LOD should be rendered
@@ -1101,10 +1101,10 @@ public:
 	LANDSCAPE_API bool IsPropertyOverridable(const FProperty* InProperty) const;
 	
 	// Returns true if the shared property is overridden by the object.
-	LANDSCAPE_API virtual bool IsSharedPropertyOverridden(const FString& InPropertyName) const { return false; }
+	virtual bool IsSharedPropertyOverridden(const FString& InPropertyName) const { return false; }
 
 	// Modifies the override state of the property given as argument.
-	LANDSCAPE_API virtual void SetSharedPropertyOverride(const FString& InPropertyName, const bool bIsOverriden) { }
+	virtual void SetSharedPropertyOverride(const FString& InPropertyName, const bool bIsOverriden) { }
 #endif // WITH_EDITOR
 
 	// Get Landscape Material assigned to this Landscape
@@ -1117,16 +1117,16 @@ public:
 	/* Serialize all hashes/guids that record the current state of this proxy */
 	void SerializeStateHashes(FArchive& Ar);
 
-	LANDSCAPE_API void SetSplinesComponent(ULandscapeSplinesComponent* InSplineComponent) { check(!SplineComponent || (SplineComponent == InSplineComponent)); SplineComponent = InSplineComponent; }
+	void SetSplinesComponent(ULandscapeSplinesComponent* InSplineComponent) { check(!SplineComponent || (SplineComponent == InSplineComponent)); SplineComponent = InSplineComponent; }
 
-	LANDSCAPE_API virtual bool SupportsForeignSplineMesh() const override { return true; }
+	virtual bool SupportsForeignSplineMesh() const override { return true; }
 
 	LANDSCAPE_API int32 GetOutdatedGrassMapCount() const;
 	LANDSCAPE_API void BuildGrassMaps(struct FScopedSlowTask* InSlowTask = nullptr);
 	UE_DEPRECATED(5.3, "BuildGIBakedTextures is officially deprecated now")
-	LANDSCAPE_API void BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask = nullptr) {}
+	void BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask = nullptr) {}
 	UE_DEPRECATED(5.3, "GetOutdatedGIBakedTextureComponentsCount is officially deprecated now returns 0")
-	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount() const { return 0; }
+	int32 GetOutdatedGIBakedTextureComponentsCount() const { return 0; }
 	LANDSCAPE_API void BuildPhysicalMaterial(struct FScopedSlowTask* InSlowTask = nullptr);
 	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount() const;
 	LANDSCAPE_API virtual void CreateSplineComponent() override;
@@ -1236,7 +1236,7 @@ public:
 	UE_DEPRECATED(5.2, "Use the version of this function taking a FRawMeshExportParams as a parameter")
 	LANDSCAPE_API bool ExportToRawMesh(const TArrayView<ULandscapeComponent*>& InComponents, int32 InExportLOD, FMeshDescription& OutRawMesh, const FBoxSphereBounds& InBounds, bool bIgnoreBounds = false, bool bGenerateOnePolygonGroupPerComponent = false) const;
 
-	struct LANDSCAPE_API FRawMeshExportParams
+	struct FRawMeshExportParams
 	{
 		static constexpr int32 MaxUVCount = 6;
 
@@ -1261,8 +1261,8 @@ public:
 		/** Describes what to export on each UV channel */
 		struct FUVConfiguration
 		{
-			FUVConfiguration();
-			int32 GetNumUVChannelsNeeded() const;
+			LANDSCAPE_API FUVConfiguration();
+			LANDSCAPE_API int32 GetNumUVChannelsNeeded() const;
 
 		public:
 			// Index 0 = UVChannel 0, Index 1 = UVChannel 1... 
@@ -1280,9 +1280,9 @@ public:
 
 	public:
 		FRawMeshExportParams() = default;
-		const FUVConfiguration& GetUVConfiguration(int32 InComponentIndex) const;
-		const FName& GetMaterialSlotName(int32 InComponentIndex) const;
-		int32 GetNumUVChannelsNeeded() const;
+		LANDSCAPE_API const FUVConfiguration& GetUVConfiguration(int32 InComponentIndex) const;
+		LANDSCAPE_API const FName& GetMaterialSlotName(int32 InComponentIndex) const;
+		LANDSCAPE_API int32 GetNumUVChannelsNeeded() const;
 
 	public:
 		/** LOD level to export. If none specified, LOD 0 will be used */
@@ -1448,7 +1448,7 @@ protected:
 	LANDSCAPE_API void InitializeLayerWithEmptyContent(const FGuid& InLayerGuid);
 
 	/** Fixup any internal representation for shared properties. Will be used when deprecating or renaming a property. */
-	LANDSCAPE_API virtual void FixupOverriddenSharedProperties() {}
+	virtual void FixupOverriddenSharedProperties() {}
 
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;
@@ -1506,12 +1506,12 @@ private:
 /**
  * Helper class used to Build or monitor outdated Grass maps of a world
  */
-class LANDSCAPE_API FLandscapeGrassMapsBuilder
+class FLandscapeGrassMapsBuilder
 {
 public:
-	FLandscapeGrassMapsBuilder(UWorld* InWorld);
-	void Build();
-	int32 GetOutdatedGrassMapCount(bool bInForceUpdate = true) const;
+	LANDSCAPE_API FLandscapeGrassMapsBuilder(UWorld* InWorld);
+	LANDSCAPE_API void Build();
+	LANDSCAPE_API int32 GetOutdatedGrassMapCount(bool bInForceUpdate = true) const;
 private:
 	UWorld* World;
 	mutable int32 OutdatedGrassMapCount;
@@ -1540,12 +1540,12 @@ private:
 /**
  * Helper class used to Build or monitor Landscape Physical Material
  */
-class LANDSCAPE_API FLandscapePhysicalMaterialBuilder
+class FLandscapePhysicalMaterialBuilder
 {
 public:
-	FLandscapePhysicalMaterialBuilder(UWorld* InWorld);
-	void Build();
-	int32 GetOudatedPhysicalMaterialComponentsCount();
+	LANDSCAPE_API FLandscapePhysicalMaterialBuilder(UWorld* InWorld);
+	LANDSCAPE_API void Build();
+	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount();
 private:
 	UWorld* World;
 	int32 OudatedPhysicalMaterialComponentsCount;
@@ -1554,11 +1554,11 @@ private:
 /**
 * Helper class to store proxy changes information 
 */
-class LANDSCAPE_API FLandscapeProxyComponentDataChangedParams
+class FLandscapeProxyComponentDataChangedParams
 {
 public:
-	FLandscapeProxyComponentDataChangedParams(const TSet<ULandscapeComponent*>& InComponents);
-	void ForEachComponent(TFunctionRef<void(const ULandscapeComponent*)> Func) const;
+	LANDSCAPE_API FLandscapeProxyComponentDataChangedParams(const TSet<ULandscapeComponent*>& InComponents);
+	LANDSCAPE_API void ForEachComponent(TFunctionRef<void(const ULandscapeComponent*)> Func) const;
 	const TArray<ULandscapeComponent*>& GetComponents() const { return Components; }
 
 private:

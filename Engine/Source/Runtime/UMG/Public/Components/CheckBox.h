@@ -27,8 +27,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam( FOnCheckBoxComponentStateChanged, b
  * * Single Child
  * * Toggle
  */
-UCLASS()
-class UMG_API UCheckBox : public UContentWidget
+UCLASS(MinimalAPI)
+class UCheckBox : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -82,82 +82,82 @@ public:
 
 	/** Returns true if this button is currently pressed */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool IsPressed() const;
+	UMG_API bool IsPressed() const;
 	
 	/** Returns true if the checkbox is currently checked */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool IsChecked() const;
+	UMG_API bool IsChecked() const;
 
 	/** Returns the full current checked state. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	ECheckBoxState GetCheckedState() const;
+	UMG_API ECheckBoxState GetCheckedState() const;
 
 	/** Sets the checked state. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetIsChecked(bool InIsChecked);
+	UMG_API void SetIsChecked(bool InIsChecked);
 
 	/** Sets the checked state. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetCheckedState(ECheckBoxState InCheckedState);
+	UMG_API void SetCheckedState(ECheckBoxState InCheckedState);
 
 	/** Returns the local style. */
-	const FCheckBoxStyle& GetWidgetStyle() const;
+	UMG_API const FCheckBoxStyle& GetWidgetStyle() const;
 
 	/** Sets the style. */
-	void SetWidgetStyle(const FCheckBoxStyle& InStyle);
+	UMG_API void SetWidgetStyle(const FCheckBoxStyle& InStyle);
 
 	/** Returns the click method. */
-	EButtonClickMethod::Type GetClickMethod() const;
+	UMG_API EButtonClickMethod::Type GetClickMethod() const;
 
 	/** Sets the click method. */
 	UFUNCTION(BlueprintCallable, Category="Button")
-	void SetClickMethod(EButtonClickMethod::Type InClickMethod);
+	UMG_API void SetClickMethod(EButtonClickMethod::Type InClickMethod);
 
 	/** Returns the touch method. */
-	EButtonTouchMethod::Type GetTouchMethod() const;
+	UMG_API EButtonTouchMethod::Type GetTouchMethod() const;
 
 	/** Sets the touch method. */
 	UFUNCTION(BlueprintCallable, Category="Button")
-	void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
+	UMG_API void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
 
 	/** Returns the press method. */
-	EButtonPressMethod::Type GetPressMethod() const;
+	UMG_API EButtonPressMethod::Type GetPressMethod() const;
 
 	/** Sets the press method. */
 	UFUNCTION(BlueprintCallable, Category="Button")
-	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
+	UMG_API void SetPressMethod(EButtonPressMethod::Type InPressMethod);
 
 	/** Is the checkbox focusable. */
-	bool GetIsFocusable() const;
+	UMG_API bool GetIsFocusable() const;
 
 public:
 	
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 	/** Initialize IsFocusable in the constructor before the SWidget is constructed. */
-	void InitIsFocusable(bool InIsFocusable);
+	UMG_API void InitIsFocusable(bool InIsFocusable);
 
-	void InitCheckedStateDelegate(FGetCheckBoxState InCheckedStateDelegate);
+	UMG_API void InitCheckedStateDelegate(FGetCheckBoxState InCheckedStateDelegate);
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 #if WITH_EDITOR
 	virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content) override
 	{
@@ -166,10 +166,10 @@ protected:
 #endif
 	//~ End UWidget Interface
 
-	void SlateOnCheckStateChangedCallback(ECheckBoxState NewState);
+	UMG_API void SlateOnCheckStateChangedCallback(ECheckBoxState NewState);
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+	UMG_API virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
 #endif
 	
 protected:
@@ -180,32 +180,32 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
-UCLASS(Transient)
-class UMG_API UWidgetCheckedStateRegistration : public UWidgetEnumStateRegistration
+UCLASS(Transient, MinimalAPI)
+class UWidgetCheckedStateRegistration : public UWidgetEnumStateRegistration
 {
 	GENERATED_BODY()
 
 public:
 
 	/** Post-load initialized values corresponding to this enum state */
-	static inline FWidgetStateBitfield Unchecked;
-	static inline FWidgetStateBitfield Checked;
-	static inline FWidgetStateBitfield Undetermined;
+	static UMG_API inline FWidgetStateBitfield Unchecked;
+	static UMG_API inline FWidgetStateBitfield Checked;
+	static UMG_API inline FWidgetStateBitfield Undetermined;
 
 	static const inline FName StateName = FName("CheckedState");
 
 	//~ Begin UWidgetEnumStateRegistration Interface.
-	virtual FName GetStateName() const override;
-	virtual uint8 GetRegisteredWidgetState(const UWidget* InWidget) const override;
+	UMG_API virtual FName GetStateName() const override;
+	UMG_API virtual uint8 GetRegisteredWidgetState(const UWidget* InWidget) const override;
 	//~ End UWidgetEnumStateRegistration Interface
 
 	/** Convenience method to get widget state bitfield from enum value */
-	static const FWidgetStateBitfield& GetBitfieldFromValue(uint8 InValue);
+	static UMG_API const FWidgetStateBitfield& GetBitfieldFromValue(uint8 InValue);
 
 protected:
 	friend UWidgetStateSettings;
 
 	//~ Begin UWidgetEnumStateRegistration Interface.
-	virtual void InitializeStaticBitfields() const override;
+	UMG_API virtual void InitializeStaticBitfields() const override;
 	//~ End UWidgetEnumStateRegistration Interface
 };

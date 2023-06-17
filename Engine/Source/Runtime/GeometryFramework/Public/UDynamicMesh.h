@@ -18,8 +18,8 @@
  * mutate an input mesh into an output mesh. A subclass of this class can be attached to
  * a UDynamicMesh to allow for arbitrarily-complex procedural generation
  */
-UCLASS(Abstract)
-class GEOMETRYFRAMEWORK_API UDynamicMeshGenerator : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UDynamicMeshGenerator : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -65,7 +65,7 @@ ENUM_CLASS_FLAGS(EDynamicMeshAttributeChangeFlags)
  * This struct is emitted by the UDynamicMesh OnPreMeshChanged() and OnMeshChanged() delegates.
  */
 USTRUCT(BlueprintType)
-struct GEOMETRYFRAMEWORK_API FDynamicMeshChangeInfo
+struct FDynamicMeshChangeInfo
 {
 	GENERATED_BODY()
 
@@ -96,8 +96,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDynamicMeshModifiedBP, UDynamicMe
 /**
  * UDynamicMesh is a UObject container for a FDynamicMesh3. 
  */
-UCLASS(BlueprintType)
-class GEOMETRYFRAMEWORK_API UDynamicMesh : public UObject,
+UCLASS(BlueprintType, MinimalAPI)
+class UDynamicMesh : public UObject,
 	public IMeshVertexCommandChangeTarget, 
 	public IMeshCommandChangeTarget, 
 	public IMeshReplacementCommandChangeTarget
@@ -110,16 +110,14 @@ public:
 	 * This *does not* allocate a new mesh, so any existing mesh pointers/refs are still valid
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	UPARAM(DisplayName = "Target") UDynamicMesh* 
-	Reset();
+	GEOMETRYFRAMEWORK_API UPARAM(DisplayName = "TarGEOMETRYFRAMEWORK_API get") UDynamicMesh* Reset();
 
 	/**
 	 * Clear the internal mesh to a 100x100x100 cube with base at the origin.
 	 * This this instead of Reset() if an initially-empty mesh is undesirable (eg for a Component)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	UPARAM(DisplayName = "Target") UDynamicMesh* 
-	ResetToCube();
+	GEOMETRYFRAMEWORK_API UPARAM(DisplayName = "TarGEOMETRYFRAMEWORK_API get") UDynamicMesh* ResetToCube();
 
 	//
 	// Native access/modification functions
@@ -128,19 +126,19 @@ public:
 	/**
 	 * Reset the internal mesh data and then optionally run the MeshGenerator
 	 */
-	virtual void InitializeMesh();
+	GEOMETRYFRAMEWORK_API virtual void InitializeMesh();
 
 	/**
 	 * @return true if the mesh has no triangles
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	bool IsEmpty() const;
+	GEOMETRYFRAMEWORK_API bool IsEmpty() const;
 
 	/**
 	 * @return number of triangles in the mesh
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	UPARAM(DisplayName = "Triangle Count") int32 GetTriangleCount() const;
+	GEOMETRYFRAMEWORK_API UPARAM(DisplayName = "TriGEOMETRYFRAMEWORK_API angle Count") int32 GetTriangleCount() const;
 
 
 	/** 
@@ -167,21 +165,21 @@ public:
 
 
 	/** Replace the internal mesh with a copy of MoveMesh */
-	void SetMesh(const UE::Geometry::FDynamicMesh3& MoveMesh);
+	GEOMETRYFRAMEWORK_API void SetMesh(const UE::Geometry::FDynamicMesh3& MoveMesh);
 
 	/** Replace the internal mesh with the data in MoveMesh */
-	void SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh);
+	GEOMETRYFRAMEWORK_API void SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh);
 
 	/**
 	 * Apply ProcessFunc to the internal Mesh
 	 */
-	void ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc) const;
+	GEOMETRYFRAMEWORK_API void ProcessMesh(TFunctionRef<void(const UE::Geometry::FDynamicMesh3&)> ProcessFunc) const;
 
 	/**
 	 * Apply EditFunc to the internal mesh.
 	 * This will broadcast PreMeshChangedEvent, then call EditFunc(), then broadcast MeshChangedEvent and MeshModifiedBPEvent
 	 */
-	void EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc,
+	GEOMETRYFRAMEWORK_API void EditMesh(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc,
 				  EDynamicMeshChangeType ChangeType = EDynamicMeshChangeType::GeneralEdit,
 				  EDynamicMeshAttributeChangeFlags ChangeFlags = EDynamicMeshAttributeChangeFlags::Unknown,
 				  bool bDeferChangeEvents = false);
@@ -189,7 +187,7 @@ public:
 	/**
 	 * Take ownership of the internal Mesh, and have it replaced with a new mesh
 	 */
-	TUniquePtr<UE::Geometry::FDynamicMesh3> ExtractMesh();
+	GEOMETRYFRAMEWORK_API TUniquePtr<UE::Geometry::FDynamicMesh3> ExtractMesh();
 
 
 	//
@@ -198,13 +196,13 @@ public:
 
 
 	// IMeshVertexCommandChangeTarget implementation, allows a FVertexChange to be applied to the mesh
-	void ApplyChange(const FMeshVertexChange* Change, bool bRevert);
+	GEOMETRYFRAMEWORK_API void ApplyChange(const FMeshVertexChange* Change, bool bRevert);
 
 	// IMeshCommandChangeTarget implementation, allows a FMeshChange to be applied to the mesh
-	void ApplyChange(const FMeshChange* Change, bool bRevert);
+	GEOMETRYFRAMEWORK_API void ApplyChange(const FMeshChange* Change, bool bRevert);
 
 	// IMeshReplacementCommandChangeTarget implementation, allows a FMeshReplacementChange to be applied to the mesh
-	void ApplyChange(const FMeshReplacementChange* Change, bool bRevert);
+	GEOMETRYFRAMEWORK_API void ApplyChange(const FMeshReplacementChange* Change, bool bRevert);
 
 
 	//
@@ -249,7 +247,7 @@ public:
 	/**
 	 * Broadcasts FOnMeshRealtimeUpdate
 	 */
-	virtual void PostRealtimeUpdate();
+	GEOMETRYFRAMEWORK_API virtual void PostRealtimeUpdate();
 
 protected:
 	FOnMeshRealtimeUpdate MeshRealtimeUpdateEvent;
@@ -266,21 +264,21 @@ protected:
 	/**
 	 * Allocate a new Mesh (ie pointer will change) and then call InitializeMesh()
 	 */
-	void InitializeNewMesh();
+	GEOMETRYFRAMEWORK_API void InitializeNewMesh();
 
 	/**
 	 * Internal function that edits the Mesh, but broadcasts PreMeshChangedEvent and MeshChangedEvent, and then MeshModifiedBPEvent
 	 */
-	void EditMeshInternal(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo, bool bDeferChangeEvents = false);
+	GEOMETRYFRAMEWORK_API void EditMeshInternal(TFunctionRef<void(UE::Geometry::FDynamicMesh3&)> EditFunc, const FDynamicMeshChangeInfo& ChangeInfo, bool bDeferChangeEvents = false);
 
 
 public:
 	// serialize Mesh to an Archive
-	virtual void Serialize(FArchive& Archive) override;
+	GEOMETRYFRAMEWORK_API virtual void Serialize(FArchive& Archive) override;
 
 	// serialize Mesh to/from T3D
-	virtual void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
-	virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;
+	GEOMETRYFRAMEWORK_API virtual void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
+	GEOMETRYFRAMEWORK_API virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;
 
 
 
@@ -312,17 +310,17 @@ public:
 	/**
 	 * Set the active mesh generator. Clears if nullptr
 	 */
-	virtual void SetMeshGenerator(TObjectPtr<UDynamicMeshGenerator> NewGenerator);
+	GEOMETRYFRAMEWORK_API virtual void SetMeshGenerator(TObjectPtr<UDynamicMeshGenerator> NewGenerator);
 
 	/**
 	 * Set the active mesh generator. Clears if nullptr
 	 */
-	virtual void ClearMeshGenerator();
+	GEOMETRYFRAMEWORK_API virtual void ClearMeshGenerator();
 
 	/**
 	 * Reset() the mesh, which will re-run the active MeshGenerator, if bEnableMeshGenerator
 	 */
-	virtual void Regenerate();
+	GEOMETRYFRAMEWORK_API virtual void Regenerate();
 
 };
 
@@ -366,26 +364,26 @@ public:
  * the internal FDynamicMesh3 (which uses normal C++ memory management, so no garbage collection involved)
  * So the Pool does not re-use mesh memory, only the UObject containers.
  */
-UCLASS(BlueprintType, Transient)
-class GEOMETRYFRAMEWORK_API UDynamicMeshPool : public UObject
+UCLASS(BlueprintType, Transient, MinimalAPI)
+class UDynamicMeshPool : public UObject
 {
 	GENERATED_BODY()
 public:
 	/** @return an available UDynamicMesh from the pool (possibly allocating a new mesh) */
 	UFUNCTION(BlueprintCallable, Category="Dynamic Mesh")
-	UDynamicMesh* RequestMesh();
+	GEOMETRYFRAMEWORK_API UDynamicMesh* RequestMesh();
 
 	/** Release a UDynamicMesh returned by RequestMesh() back to the pool */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	void ReturnMesh(UDynamicMesh* Mesh);
+	GEOMETRYFRAMEWORK_API void ReturnMesh(UDynamicMesh* Mesh);
 
 	/** Release all GeneratedMeshes back to the pool */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	void ReturnAllMeshes();
+	GEOMETRYFRAMEWORK_API void ReturnAllMeshes();
 
 	/** Release all GeneratedMeshes back to the pool and allow them to be garbage collected */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh")
-	void FreeAllMeshes();
+	GEOMETRYFRAMEWORK_API void FreeAllMeshes();
 
 protected:
 	/** Meshes in the pool that are available */

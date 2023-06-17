@@ -43,7 +43,7 @@ struct FXRSensorProperties
 /**
  * Main access point to an XR tracking system. Use it to enumerate devices and query their poses.
  */
-class HEADMOUNTEDDISPLAY_API  IXRTrackingSystem : public IModularFeature, public IXRSystemIdentifier
+class  IXRTrackingSystem : public IModularFeature, public IXRSystemIdentifier
 {
 public:
 	static FName GetModularFeatureName()
@@ -67,7 +67,7 @@ public:
 	 * Other devices can have arbitrary ids defined by each system.
 	 * If a tracking system does not support tracking HMDs, device ID zero should be treated as invalid.
 	 */
-	static const int32 HMDDeviceId = 0;
+	static HEADMOUNTEDDISPLAY_API const int32 HMDDeviceId = 0;
 
 	/**
 	 * Whether or not the system supports positional tracking (either via sensor or other means)
@@ -365,7 +365,7 @@ public:
 	/**
 	 * Same as IsHeadTrackingAllowed, but returns false if the World is not using VR (such as with the non-VR PIE instances when using VR Preview)
 	 **/
-	virtual bool IsHeadTrackingAllowedForWorld(UWorld & World) const;
+	HEADMOUNTEDDISPLAY_API virtual bool IsHeadTrackingAllowedForWorld(UWorld & World) const;
 
 	/** 
 	* Can be used to enforce tracking even when stereo rendering is disabled. 
@@ -423,7 +423,7 @@ public:
 	/**
 	 * Platform Agnostic Query about HMD details
 	 */
-	virtual void GetHMDData(UObject* WorldContext, FXRHMDData& HMDData);
+	HEADMOUNTEDDISPLAY_API virtual void GetHMDData(UObject* WorldContext, FXRHMDData& HMDData);
 
 	/**
 	 * Platform Agnostic Query about MotionControllers details

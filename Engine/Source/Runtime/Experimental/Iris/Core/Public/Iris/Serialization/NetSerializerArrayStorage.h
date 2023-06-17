@@ -51,8 +51,8 @@ public:
 
 private:
 
-	IRISCORE_API static void Free(FNetSerializationContext& Context, void* Ptr);
-	IRISCORE_API static void* Realloc(FNetSerializationContext& Context, void* Original, SIZE_T Size, uint32 Alignment);
+	static IRISCORE_API void Free(FNetSerializationContext& Context, void* Ptr);
+	static IRISCORE_API void* Realloc(FNetSerializationContext& Context, void* Original, SIZE_T Size, uint32 Alignment);
 };
 
 /**

@@ -21,7 +21,7 @@ struct FDataflowOutput;
 *		the asset. They can read the values by the key.
 */
 USTRUCT()
-struct DATAFLOWCORE_API FDataflowOverrideNode : public FDataflowNode
+struct FDataflowOverrideNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -38,7 +38,7 @@ public:
 
 	virtual ~FDataflowOverrideNode() { }
 
-	bool ShouldInvalidate(FName InKey) const;
+	DATAFLOWCORE_API bool ShouldInvalidate(FName InKey) const;
 
 	template <class T>
 	T GetDefaultValue(Dataflow::FContext& Context) const
@@ -47,12 +47,12 @@ public:
 	}
 
 	template <>
-	int32 GetDefaultValue(Dataflow::FContext& Context) const;
+	DATAFLOWCORE_API int32 GetDefaultValue(Dataflow::FContext& Context) const;
 
 	template <>
-	float GetDefaultValue(Dataflow::FContext& Context) const;
+	DATAFLOWCORE_API float GetDefaultValue(Dataflow::FContext& Context) const;
 
-	FString GetValueFromAsset(Dataflow::FContext& Context, const UObject* InOwner) const;
+	DATAFLOWCORE_API FString GetValueFromAsset(Dataflow::FContext& Context, const UObject* InOwner) const;
 
 	//
 	// Evaluate

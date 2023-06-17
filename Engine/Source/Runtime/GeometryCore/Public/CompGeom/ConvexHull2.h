@@ -25,7 +25,7 @@ using namespace UE::Math;
 
 
 template<typename RealType>
-class GEOMETRYCORE_API TConvexHull2
+class TConvexHull2
 {
 public:
 
@@ -39,7 +39,7 @@ public:
 	 * @param bIsKnownCCW		If true, will save some processing time by assuming input is wound counter-clockwise
 	 * @return true if a hull was generated
 	 */
-	bool SolveSimplePolygon(int32 NumPolygonPoints, TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, bool bIsKnownCCW = false);
+	GEOMETRYCORE_API bool SolveSimplePolygon(int32 NumPolygonPoints, TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, bool bIsKnownCCW = false);
 
 	/**
 	 * Generate convex hull as long as input is not degenerate
@@ -51,7 +51,7 @@ public:
 	 * @param FilterFunc Optional filter to include only a subset of the points in the output hull
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(int32 NumPoints, TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;});
+	GEOMETRYCORE_API bool Solve(int32 NumPoints, TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;});
 
 	/**
 	 * Generate convex hull as long as input is not degenerate

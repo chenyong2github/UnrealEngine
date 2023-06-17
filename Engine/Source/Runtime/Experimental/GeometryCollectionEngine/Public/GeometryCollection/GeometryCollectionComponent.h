@@ -199,7 +199,7 @@ namespace GeometryCollection
 *	solver so it can be edited and afterwards will recreate the proxy
 *	The update can also be specified to reset the dynamic collection
 */
-class GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEdit
+class FGeometryCollectionEdit
 {
 public:
 	/**
@@ -208,10 +208,10 @@ public:
 	 * @param bShapeIsUnchanged				Override indicating the overall shape of the geometry and clusters is unchanged, even if the rest collection changed.  Useful to e.g., not re-compute convex hulls when we don't need to.
 	 * @param bPropagateAcrossComponents	Propagate updates to all components with the same underlying Rest Collection
 	 */
-	FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysicsDynamic, bool bShapeIsUnchanged = false, bool bPropagateToAllMatchingComponents = true);
-	~FGeometryCollectionEdit();
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysicsDynamic, bool bShapeIsUnchanged = false, bool bPropagateToAllMatchingComponents = true);
+	GEOMETRYCOLLECTIONENGINE_API ~FGeometryCollectionEdit();
 
-	UGeometryCollection* GetRestCollection();
+	GEOMETRYCOLLECTIONENGINE_API UGeometryCollection* GetRestCollection();
 
 private:
 	UGeometryCollectionComponent* Component;
@@ -222,40 +222,40 @@ private:
 };
 
 #if WITH_EDITOR
-class GEOMETRYCOLLECTIONENGINE_API FScopedColorEdit
+class FScopedColorEdit
 {
 public:
-	FScopedColorEdit(UGeometryCollectionComponent* InComponent, bool bForceUpdate = false);
-	~FScopedColorEdit();
+	GEOMETRYCOLLECTIONENGINE_API FScopedColorEdit(UGeometryCollectionComponent* InComponent, bool bForceUpdate = false);
+	GEOMETRYCOLLECTIONENGINE_API ~FScopedColorEdit();
 
-	void SetShowBoneColors(bool ShowBoneColorsIn);
-	bool GetShowBoneColors() const;
+	GEOMETRYCOLLECTIONENGINE_API void SetShowBoneColors(bool ShowBoneColorsIn);
+	GEOMETRYCOLLECTIONENGINE_API bool GetShowBoneColors() const;
 
-	void SetEnableBoneSelection(bool ShowSelectedBonesIn);
-	bool GetEnableBoneSelection() const;
+	GEOMETRYCOLLECTIONENGINE_API void SetEnableBoneSelection(bool ShowSelectedBonesIn);
+	GEOMETRYCOLLECTIONENGINE_API bool GetEnableBoneSelection() const;
 
-	bool IsBoneSelected(int BoneIndex) const;
-	void Sanitize();
-	void SetSelectedBones(const TArray<int32>& SelectedBonesIn);
-	void AppendSelectedBones(const TArray<int32>& SelectedBonesIn);
-	void ToggleSelectedBones(const TArray<int32>& SelectedBonesIn, bool bAdd, bool bSnapToLevel = true);
-	void AddSelectedBone(int32 BoneIndex);
-	void ClearSelectedBone(int32 BoneIndex);
-	const TArray<int32>& GetSelectedBones() const;
-	void ResetBoneSelection();
-	void SelectBones(GeometryCollection::ESelectionMode SelectionMode);
-	void FilterSelectionToLevel(bool bPreferLowestOnly = false);
-	int32 GetMaxSelectedLevel(bool bOnlyRigid) const;
-	bool IsSelectionValidAtLevel(int32 TargetLevel) const;
+	GEOMETRYCOLLECTIONENGINE_API bool IsBoneSelected(int BoneIndex) const;
+	GEOMETRYCOLLECTIONENGINE_API void Sanitize();
+	GEOMETRYCOLLECTIONENGINE_API void SetSelectedBones(const TArray<int32>& SelectedBonesIn);
+	GEOMETRYCOLLECTIONENGINE_API void AppendSelectedBones(const TArray<int32>& SelectedBonesIn);
+	GEOMETRYCOLLECTIONENGINE_API void ToggleSelectedBones(const TArray<int32>& SelectedBonesIn, bool bAdd, bool bSnapToLevel = true);
+	GEOMETRYCOLLECTIONENGINE_API void AddSelectedBone(int32 BoneIndex);
+	GEOMETRYCOLLECTIONENGINE_API void ClearSelectedBone(int32 BoneIndex);
+	GEOMETRYCOLLECTIONENGINE_API const TArray<int32>& GetSelectedBones() const;
+	GEOMETRYCOLLECTIONENGINE_API void ResetBoneSelection();
+	GEOMETRYCOLLECTIONENGINE_API void SelectBones(GeometryCollection::ESelectionMode SelectionMode);
+	GEOMETRYCOLLECTIONENGINE_API void FilterSelectionToLevel(bool bPreferLowestOnly = false);
+	GEOMETRYCOLLECTIONENGINE_API int32 GetMaxSelectedLevel(bool bOnlyRigid) const;
+	GEOMETRYCOLLECTIONENGINE_API bool IsSelectionValidAtLevel(int32 TargetLevel) const;
 
-	bool IsBoneHighlighted(int BoneIndex) const;
-	void SetHighlightedBones(const TArray<int32>& HighlightedBonesIn, bool bHighlightChildren = false);
-	void AddHighlightedBone(int32 BoneIndex);
-	const TArray<int32>& GetHighlightedBones() const;
-	void ResetHighlightedBones();
+	GEOMETRYCOLLECTIONENGINE_API bool IsBoneHighlighted(int BoneIndex) const;
+	GEOMETRYCOLLECTIONENGINE_API void SetHighlightedBones(const TArray<int32>& HighlightedBonesIn, bool bHighlightChildren = false);
+	GEOMETRYCOLLECTIONENGINE_API void AddHighlightedBone(int32 BoneIndex);
+	GEOMETRYCOLLECTIONENGINE_API const TArray<int32>& GetHighlightedBones() const;
+	GEOMETRYCOLLECTIONENGINE_API void ResetHighlightedBones();
 
-	void SetLevelViewMode(int ViewLevel);
-	int GetViewLevel();
+	GEOMETRYCOLLECTIONENGINE_API void SetLevelViewMode(int ViewLevel);
+	GEOMETRYCOLLECTIONENGINE_API int GetViewLevel();
 
 private:
 	void UpdateBoneColors();
@@ -275,13 +275,13 @@ private:
 //GetArrayRest (gives original rest value)
 //This generates pointers to arrays marked private. Macro assumes getters are public
 //todo(ocohen): may want to take in a static name
-#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)			\
-	const TManagedArray<Type>& Get##Name##Array() const;	\
-	TManagedArray<Type>& Get##Name##ArrayCopyOnWrite();		\
-	void Reset##Name##ArrayDynamic();						\
-	const TManagedArray<Type>& Get##Name##ArrayRest() const;\
-private:													\
-	TManagedArray<Type>* Indirect##Name##Array;				\
+#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)											\
+	GEOMETRYCOLLECTIONENGINE_API const TManagedArray<Type>& Get##Name##Array() const;		\
+	GEOMETRYCOLLECTIONENGINE_API TManagedArray<Type>& Get##Name##ArrayCopyOnWrite();		\
+	GEOMETRYCOLLECTIONENGINE_API void Reset##Name##ArrayDynamic();							\
+	GEOMETRYCOLLECTIONENGINE_API const TManagedArray<Type>& Get##Name##ArrayRest() const;	\
+private:																					\
+	TManagedArray<Type>* Indirect##Name##Array;												\
 public:
 
 /**
@@ -438,8 +438,8 @@ struct TStructOpsTypeTraits<FGeometryCollectionRepData> : public TStructOpsTypeT
 /**
 *	GeometryCollectionComponent
 */
-UCLASS(meta = (BlueprintSpawnableComponent))
-class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionComponent : public UMeshComponent, public IChaosNotifyHandlerInterface
+UCLASS(meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UGeometryCollectionComponent : public UMeshComponent, public IChaosNotifyHandlerInterface
 {
 	GENERATED_UCLASS_BODY()
 	friend class FGeometryCollectionEdit;
@@ -451,72 +451,72 @@ class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionComponent : public UMeshCo
 public:
 
 	//~ Begin UActorComponent Interface.
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void SendRenderDynamicData_Concurrent() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void SendRenderDynamicData_Concurrent() override;
 	FORCEINLINE void SetRenderStateDirty() { bRenderStateDirty = true; }
-	virtual void SetCollisionObjectType(ECollisionChannel Channel) override;
-	virtual void OnActorEnableCollisionChanged() override;
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-	virtual void InitializeComponent() override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void SetCollisionObjectType(ECollisionChannel Channel) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void OnActorEnableCollisionChanged() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void BeginPlay() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void InitializeComponent() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	DECLARE_MULTICAST_DELEGATE(FOnGeometryCollectionPropertyChangedMulticaster)
 	FOnGeometryCollectionPropertyChangedMulticaster OnGeometryCollectionPropertyChanged;
 	typedef FOnGeometryCollectionPropertyChangedMulticaster::FDelegate FOnGeometryCollectionPropertyChanged;
 
 	/** Register / Unregister delegates called when the skeletal mesh property is changed */
-	FDelegateHandle RegisterOnGeometryCollectionPropertyChanged(const FOnGeometryCollectionPropertyChanged& Delegate);
-	void UnregisterOnGeometryCollectionPropertyChanged(FDelegateHandle Handle);
+	GEOMETRYCOLLECTIONENGINE_API FDelegateHandle RegisterOnGeometryCollectionPropertyChanged(const FOnGeometryCollectionPropertyChanged& Delegate);
+	GEOMETRYCOLLECTIONENGINE_API void UnregisterOnGeometryCollectionPropertyChanged(FDelegateHandle Handle);
 #endif
 	//~ Begin UActorComponent Interface. 
 
 
 	//~ Begin USceneComponent Interface.
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	virtual FBoxSphereBounds CalcLocalBounds() const { return LocalBounds; }
 
-	virtual bool HasAnySockets() const override;
-	virtual bool DoesSocketExist(FName InSocketName) const override;
-	virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
-	virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual bool HasAnySockets() const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual bool DoesSocketExist(FName InSocketName) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual FTransform GetSocketTransform(FName InSocketName, ERelativeTransformSpace TransformSpace = RTS_World) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
 	
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	virtual void AsyncPhysicsTickComponent(float DeltaTime, float SimTime) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AsyncPhysicsTickComponent(float DeltaTime, float SimTime) override;
 
-	virtual void OnHiddenInGameChanged() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void OnHiddenInGameChanged() override;
 	//~ Begin USceneComponent Interface.
 
 
 	//~ Begin UPrimitiveComponent Interface.
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = -1) const override;
-	virtual void SetNotifyRigidBodyCollision(bool bNewNotifyRigidBodyCollision) override;
-	virtual bool CanEditSimulatePhysics() override;
-	virtual void SetSimulatePhysics(bool bEnabled) override;
-	virtual void AddForce(FVector Force, FName BoneName = NAME_None, bool bAccelChange = false) override;
-	virtual void AddForceAtLocation(FVector Force, FVector WorldLocation, FName BoneName = NAME_None) override;
-	virtual void AddImpulse(FVector Impulse, FName BoneName = NAME_None, bool bVelChange = false) override;
-	virtual void AddImpulseAtLocation(FVector Impulse, FVector WorldLocation, FName BoneName = NAME_None) override;
-	virtual void AddRadialForce(FVector Origin, float Radius, float Strength, ERadialImpulseFalloff Falloff, bool bAccelChange = false) override;
-	virtual void AddRadialImpulse(FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bVelChange = false) override;
-	virtual void AddTorqueInRadians(FVector Torque, FName BoneName = NAME_None, bool bAccelChange = false) override;
-	virtual void PostLoad() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void OnRegister() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void OnUnregister() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual FBodyInstance* GetBodyInstance(FName BoneName = NAME_None, bool bGetWelded = true, int32 Index = -1) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void SetNotifyRigidBodyCollision(bool bNewNotifyRigidBodyCollision) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual bool CanEditSimulatePhysics() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void SetSimulatePhysics(bool bEnabled) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AddForce(FVector Force, FName BoneName = NAME_None, bool bAccelChange = false) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AddForceAtLocation(FVector Force, FVector WorldLocation, FName BoneName = NAME_None) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AddImpulse(FVector Impulse, FName BoneName = NAME_None, bool bVelChange = false) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AddImpulseAtLocation(FVector Impulse, FVector WorldLocation, FName BoneName = NAME_None) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AddRadialForce(FVector Origin, float Radius, float Strength, ERadialImpulseFalloff Falloff, bool bAccelChange = false) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AddRadialImpulse(FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bVelChange = false) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AddTorqueInRadians(FVector Torque, FName BoneName = NAME_None, bool bAccelChange = false) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void PostLoad() override;
 	//~ End UPrimitiveComponent Interface.
 
 
 	//~ Begin UMeshComponent Interface.	
-	virtual int32 GetNumMaterials() const override;
-	virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
-	virtual FMaterialRelevance GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual int32 GetNumMaterials() const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual FMaterialRelevance GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const override;
 	//~ End UMeshComponent Interface.
 
 	/** Chaos RBD Solver override. Will use the world's default solver actor if null. */
@@ -539,7 +539,7 @@ public:
 	 * @param Strain strain / damage to apply 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void ApplyExternalStrain(int32 ItemIndex, const FVector& Location, float Radius = 0, int32 PropagationDepth = 0, float PropagationFactor = 1, float Strain = 0);
+	GEOMETRYCOLLECTIONENGINE_API void ApplyExternalStrain(int32 ItemIndex, const FVector& Location, float Radius = 0, int32 PropagationDepth = 0, float PropagationFactor = 1, float Strain = 0);
 
 	/**
 	 * Apply an internal strain to specific piece of the geometry collection
@@ -551,45 +551,45 @@ public:
 	 * @param Strain strain / damage to apply 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void ApplyInternalStrain(int32 ItemIndex, const FVector& Location, float Radius = 0, int32 PropagationDepth = 0, float PropagationFactor = 1, float Strain = 0);
+	GEOMETRYCOLLECTIONENGINE_API void ApplyInternalStrain(int32 ItemIndex, const FVector& Location, float Radius = 0, int32 PropagationDepth = 0, float PropagationFactor = 1, float Strain = 0);
 	
 	/**
 	 * Crumbe a cluster into all its pieces
 	 * @param ItemIndex item index ( from HitResult) of the cluster to crumble
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void CrumbleCluster(int32 ItemIndex);
+	GEOMETRYCOLLECTIONENGINE_API void CrumbleCluster(int32 ItemIndex);
 
 	/**
 	* Crumbe active clusters for this entire geometry collection
 	* this will apply to internal and regular clusters
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void CrumbleActiveClusters();
+	GEOMETRYCOLLECTIONENGINE_API void CrumbleActiveClusters();
 
 	/**
 	* Set a piece or cluster to be anchored or not 
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAnchoredByIndex(int32 Index, bool bAnchored);
+	GEOMETRYCOLLECTIONENGINE_API void SetAnchoredByIndex(int32 Index, bool bAnchored);
 
 	/**
 	* Set all pieces within a world space bounding box to be anchored or not 
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored, int32 MaxLevel = -1);
+	GEOMETRYCOLLECTIONENGINE_API void SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored, int32 MaxLevel = -1);
 
 	/**
 	* Set all pieces within a world transformed bounding box to be anchored or not
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAnchoredByTransformedBox(FBox Box, FTransform Transform, bool bAnchored, int32 MaxLevel = -1);
+	GEOMETRYCOLLECTIONENGINE_API void SetAnchoredByTransformedBox(FBox Box, FTransform Transform, bool bAnchored, int32 MaxLevel = -1);
 
 	/**
 	* this will remove anchors on all the pieces ( including the static and kinematic initial states ones ) of the geometry colection
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void RemoveAllAnchors();
+	GEOMETRYCOLLECTIONENGINE_API void RemoveAllAnchors();
 
 	/**
 	 * Apply linear velocity on breaking pieces for a specific cluster
@@ -598,7 +598,7 @@ public:
 	 * @param LinearVelocity linear velocity to apply
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void ApplyBreakingLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity);
+	GEOMETRYCOLLECTIONENGINE_API void ApplyBreakingLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity);
 
 	/**
 	 * Apply linear velocity on breaking pieces for a specific cluster
@@ -607,7 +607,7 @@ public:
 	 * @param AngularVelocity linear velocity to apply
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void ApplyBreakingAngularVelocity(int32 ItemIndex, const FVector& AngularVelocity);
+	GEOMETRYCOLLECTIONENGINE_API void ApplyBreakingAngularVelocity(int32 ItemIndex, const FVector& AngularVelocity);
 	
 	/**
 	 * Apply linear velocity on specific piece 
@@ -615,7 +615,7 @@ public:
 	* @param LinearVelocity linear velocity to apply
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void ApplyLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity);
+	GEOMETRYCOLLECTIONENGINE_API void ApplyLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity);
 
 	/**
 	 * Apply angular velocity on specific piece 
@@ -623,7 +623,7 @@ public:
 	* @param AngularVelocity linear velocity to apply
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void ApplyAngularVelocity(int32 ItemIndex, const FVector& AngularVelocity);
+	GEOMETRYCOLLECTIONENGINE_API void ApplyAngularVelocity(int32 ItemIndex, const FVector& AngularVelocity);
 
 	/**
 	 * Get the initial level of a specific piece
@@ -632,33 +632,33 @@ public:
 	 * @param Level of the piece ( 0 for root level and positive for the rest ) 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	int32 GetInitialLevel(int32 ItemIndex);
+	GEOMETRYCOLLECTIONENGINE_API int32 GetInitialLevel(int32 ItemIndex);
 	
 	/** Get the root item index of the hierarchy */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	int32 GetRootIndex() const;
+	GEOMETRYCOLLECTIONENGINE_API int32 GetRootIndex() const;
 
 	/** Get the root item initial transform in world space */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	FTransform GetRootInitialTransform() const;
+	GEOMETRYCOLLECTIONENGINE_API FTransform GetRootInitialTransform() const;
 
 	/** Get the root item current world transform */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	FTransform GetRootCurrentTransform() const;
+	GEOMETRYCOLLECTIONENGINE_API FTransform GetRootCurrentTransform() const;
 
 	/** 
 	* Get the initial rest transforms in component (local) space  space, 
 	* they are the transforms as defined in the rest collection asset 
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	TArray<FTransform> GetInitialLocalRestTransforms() const;
+	GEOMETRYCOLLECTIONENGINE_API TArray<FTransform> GetInitialLocalRestTransforms() const;
 
 	/** 
 	* Set the local rest transform, this may be different from the rest collection 
 	* If the geometry collection is already simulating those matrices will be overriden by the physics state updates
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetLocalRestTransforms(const TArray<FTransform>& Transforms, bool bOnlyLeaves);
+	GEOMETRYCOLLECTIONENGINE_API void SetLocalRestTransforms(const TArray<FTransform>& Transforms, bool bOnlyLeaves);
 
 	/**
 	* Get mass and extent of a specific piece
@@ -666,15 +666,15 @@ public:
 	* @param Level of the piece ( 0 for root level and positive for the rest )
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void GetMassAndExtents(int32 ItemIndex, float& OutMass, FBox& OutExtents);
+	GEOMETRYCOLLECTIONENGINE_API void GetMassAndExtents(int32 ItemIndex, float& OutMass, FBox& OutExtents);
 
 	/** RestCollection */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetRestCollection(const UGeometryCollection * RestCollectionIn, bool bApplyAssetDefaults = true);
+	GEOMETRYCOLLECTIONENGINE_API void SetRestCollection(const UGeometryCollection * RestCollectionIn, bool bApplyAssetDefaults = true);
 
 	/** RestCollection */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	FString GetDebugInfo();
+	GEOMETRYCOLLECTIONENGINE_API FString GetDebugInfo();
 
 	FORCEINLINE const UGeometryCollection* GetRestCollection() const { return RestCollection; }
 
@@ -683,27 +683,27 @@ public:
 	FORCEINLINE FScopedColorEdit EditBoneSelection(bool bForceUpdate = false) { return FScopedColorEdit(this, bForceUpdate); }
 
 	/** Propagate bone selection to embedded geometry components. */
-	void SelectEmbeddedGeometry();
+	GEOMETRYCOLLECTIONENGINE_API void SelectEmbeddedGeometry();
 #endif
 
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetEnableDamageFromCollision(bool bValue);
+	GEOMETRYCOLLECTIONENGINE_API void SetEnableDamageFromCollision(bool bValue);
 
 
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAbandonedParticleCollisionProfileName(FName CollisionProfile);
+	GEOMETRYCOLLECTIONENGINE_API void SetAbandonedParticleCollisionProfileName(FName CollisionProfile);
 
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetPerLevelCollisionProfileNames(const TArray<FName>& ProfileNames);
+	GEOMETRYCOLLECTIONENGINE_API void SetPerLevelCollisionProfileNames(const TArray<FName>& ProfileNames);
 
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetPerParticleCollisionProfileName(const TArray<int32>& BoneIds, FName ProfileName);
+	GEOMETRYCOLLECTIONENGINE_API void SetPerParticleCollisionProfileName(const TArray<int32>& BoneIds, FName ProfileName);
 
 	/** API for getting at geometry collection data */
-	int32 GetNumElements(FName Group) const;
+	GEOMETRYCOLLECTIONENGINE_API int32 GetNumElements(FName Group) const;
 
 	// Update cached bounds; used e.g. when updating the exploded view of the geometry collection
-	void UpdateCachedBounds();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateCachedBounds();
 
 #define COPY_ON_WRITE_ATTRIBUTES \
 	/* Vertices Group */ \
@@ -753,7 +753,7 @@ public:
 
 	/** Apply default values from asset ( damage related data and physics material ) */
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "ChaosPhysics", meta = (EditCondition = "RestCollection != nullptr"))
-	void ApplyAssetDefaults();
+	GEOMETRYCOLLECTIONENGINE_API void ApplyAssetDefaults();
 
 	UPROPERTY(EditAnywhere, NoClear, BlueprintReadOnly, Category = "ChaosPhysics")
 	TArray<TObjectPtr<const AFieldSystemActor>> InitializationFields;
@@ -806,7 +806,7 @@ public:
 	TArray<float> GetDamageThreshold() const { return DamageThreshold; }
 
 	UFUNCTION(BlueprintCallable, BlueprintInternalUseOnly)
-	void SetDamageThreshold(const TArray<float>& InDamageThreshold);
+	GEOMETRYCOLLECTIONENGINE_API void SetDamageThreshold(const TArray<float>& InDamageThreshold);
 
 	/** Damage threshold for clusters at different levels. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Damage", meta = (EditCondition = "DamageModel == EDamageModelTypeEnum::Chaos_Damage_Model_UserDefined_Damage_Threshold"))
@@ -884,7 +884,7 @@ public:
 	*
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Set Dynamic State")
-	void ApplyKinematicField(UPARAM(DisplayName = "Field Radius") float Radius, 
+	GEOMETRYCOLLECTIONENGINE_API void ApplyKinematicField(UPARAM(DisplayName = "Field Radius") float Radius, 
 							 UPARAM(DisplayName = "Center Position") FVector Position);
 
 	/**
@@ -901,7 +901,7 @@ public:
 	*
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Physics Field")
-	void ApplyPhysicsField(UPARAM(DisplayName = "Enable Field") bool Enabled, 
+	GEOMETRYCOLLECTIONENGINE_API void ApplyPhysicsField(UPARAM(DisplayName = "Enable Field") bool Enabled, 
 						   UPARAM(DisplayName = "Physics Type") EGeometryCollectionPhysicsTypeEnum Target, 
 						   UPARAM(DisplayName = "Meta Data") UFieldSystemMetaData* MetaData, 
 						   UPARAM(DisplayName = "Field Node") UFieldNodeBase* Field);
@@ -915,7 +915,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Game|Damage")
 	FNotifyGeometryCollectionPhysicsStateChange NotifyGeometryCollectionPhysicsStateChange;
 
-	bool GetIsObjectDynamic() const;
+	GEOMETRYCOLLECTIONENGINE_API bool GetIsObjectDynamic() const;
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FNotifyGeometryCollectionPhysicsLoadingStateChange, UGeometryCollectionComponent*, FracturedComponent);
 	UPROPERTY(BlueprintAssignable, Category = "Game|Loading")
@@ -934,24 +934,24 @@ public:
 	bool GetShowBoneColors() const { return bShowBoneColors; }
 	bool GetEnableBoneSelection() const { return bEnableBoneSelection; }
 	
-	bool GetSuppressSelectionMaterial() const;
+	GEOMETRYCOLLECTIONENGINE_API bool GetSuppressSelectionMaterial() const;
 	
-	const int GetBoneSelectedMaterialID() const;
+	GEOMETRYCOLLECTIONENGINE_API const int GetBoneSelectedMaterialID() const;
 	
 #if WITH_EDITORONLY_DATA
 	FORCEINLINE const TArray<int32>& GetSelectedBones() const { return SelectedBones; }
 	FORCEINLINE const TArray<int32>& GetHighlightedBones() const { return HighlightedBones; }
 #endif
 
-	FPhysScene_Chaos* GetInnerChaosScene() const;
-	AChaosSolverActor* GetPhysicsSolverActor() const;
+	GEOMETRYCOLLECTIONENGINE_API FPhysScene_Chaos* GetInnerChaosScene() const;
+	GEOMETRYCOLLECTIONENGINE_API AChaosSolverActor* GetPhysicsSolverActor() const;
 
 	const FGeometryCollectionPhysicsProxy* GetPhysicsProxy() const { return PhysicsProxy; }
 	FGeometryCollectionPhysicsProxy* GetPhysicsProxy() { return PhysicsProxy; }
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	/** Enable/disable the scene proxy per transform selection mode. When disabled the per material id default selection is used instead. */
-	void EnableTransformSelectionMode(bool bEnable);
+	GEOMETRYCOLLECTIONENGINE_API void EnableTransformSelectionMode(bool bEnable);
 	bool GetIsTransformSelectionMode() const { return bIsTransformSelectionModeEnabled; }
 #endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 
@@ -966,13 +966,13 @@ public:
 	/**/
 	const TArray<bool>& GetDisabledFlags() const { return DisabledFlags; }
 
-	virtual void OnCreatePhysicsState() override;
-	void RegisterAndInitializePhysicsProxy();
-	virtual void OnDestroyPhysicsState() override;
-	virtual bool ShouldCreatePhysicsState() const override;
-	virtual bool HasValidPhysicsState() const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void OnCreatePhysicsState() override;
+	GEOMETRYCOLLECTIONENGINE_API void RegisterAndInitializePhysicsProxy();
+	GEOMETRYCOLLECTIONENGINE_API virtual void OnDestroyPhysicsState() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual bool ShouldCreatePhysicsState() const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual bool HasValidPhysicsState() const override;
 
-	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport = ETeleportType::None) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport = ETeleportType::None) override;
 
 	// Mirrored from the proxy on a sync
 	//TManagedArray<int32> RigidBodyIds;
@@ -982,31 +982,31 @@ public:
 
 	/** Changes whether or not this component will get future break notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void SetNotifyBreaks(bool bNewNotifyBreaks);
+	GEOMETRYCOLLECTIONENGINE_API void SetNotifyBreaks(bool bNewNotifyBreaks);
 
 	/** Changes whether or not this component will get future removal notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void SetNotifyRemovals(bool bNewNotifyRemovals);
+	GEOMETRYCOLLECTIONENGINE_API void SetNotifyRemovals(bool bNewNotifyRemovals);
 
 	/** Changes whether or not this component will get future crumbling notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void SetNotifyCrumblings(bool bNewNotifyCrumblings, bool bNewCrumblingEventIncludesChildren = false);
+	GEOMETRYCOLLECTIONENGINE_API void SetNotifyCrumblings(bool bNewNotifyCrumblings, bool bNewCrumblingEventIncludesChildren = false);
 
 	/** Changes whether or not this component will get future global break notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void SetNotifyGlobalBreaks(bool bNewNotifyGlobalBreaks);
+	GEOMETRYCOLLECTIONENGINE_API void SetNotifyGlobalBreaks(bool bNewNotifyGlobalBreaks);
 
 	/** Changes whether or not this component will get future global collision notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void SetNotifyGlobalCollision(bool bNewNotifyGlobalCollisions);
+	GEOMETRYCOLLECTIONENGINE_API void SetNotifyGlobalCollision(bool bNewNotifyGlobalCollisions);
 
 	/** Changes whether or not this component will get future global removal notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void SetNotifyGlobalRemovals(bool bNewNotifyGlobalRemovals);
+	GEOMETRYCOLLECTIONENGINE_API void SetNotifyGlobalRemovals(bool bNewNotifyGlobalRemovals);
 
 	/** Changes whether or not this component will get future global crumbling notifications. */
 	UFUNCTION(BlueprintCallable, Category = "Physics")
-	void SetNotifyGlobalCrumblings(bool bNewNotifyGlobalCrumblings, bool bGlobalNewCrumblingEventIncludesChildren);
+	GEOMETRYCOLLECTIONENGINE_API void SetNotifyGlobalCrumblings(bool bNewNotifyGlobalCrumblings, bool bGlobalNewCrumblingEventIncludesChildren);
 	
 	/** Overrideable native notification */
 	virtual void NotifyBreak(const FChaosBreakEvent& Event) {};
@@ -1026,11 +1026,11 @@ public:
 	// todo(chaos) remove when no longer necessary
 	FOnChaosBreakEvent OnRootBreakEvent;
 
-	void DispatchBreakEvent(const FChaosBreakEvent& Event);
+	GEOMETRYCOLLECTIONENGINE_API void DispatchBreakEvent(const FChaosBreakEvent& Event);
 
-	void DispatchRemovalEvent(const FChaosRemovalEvent& Event);
+	GEOMETRYCOLLECTIONENGINE_API void DispatchRemovalEvent(const FChaosRemovalEvent& Event);
 
-	void DispatchCrumblingEvent(const FChaosCrumblingEvent& Event);
+	GEOMETRYCOLLECTIONENGINE_API void DispatchCrumblingEvent(const FChaosCrumblingEvent& Event);
 
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Interp, Category = "Chaos")
 	float DesiredCacheTime;
@@ -1038,41 +1038,41 @@ public:
 	UPROPERTY(Transient, VisibleAnywhere, BlueprintReadWrite, Category = "Chaos")
 	bool CachePlayback;
 
-	bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
+	GEOMETRYCOLLECTIONENGINE_API bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 
 	/** Gets the physical material to use for this geometry collection, taking into account instance overrides and render materials */
-	UPhysicalMaterial* GetPhysicalMaterial() const;
+	GEOMETRYCOLLECTIONENGINE_API UPhysicalMaterial* GetPhysicalMaterial() const;
 
 	/** Update component structure to reflect any changes to the embedded geometry */
-	void InitializeEmbeddedGeometry();
+	GEOMETRYCOLLECTIONENGINE_API void InitializeEmbeddedGeometry();
 	
 	/** Update instanced static mesh components to reflect internal embedded geometry state. */
-	void RefreshEmbeddedGeometry();
+	GEOMETRYCOLLECTIONENGINE_API void RefreshEmbeddedGeometry();
 
 #if WITH_EDITOR
-	void SetEmbeddedGeometrySelectable(bool bSelectableIn);
-	int32 EmbeddedIndexToTransformIndex(const UInstancedStaticMeshComponent* ISMComponent, int32 InstanceIndex) const;
-	void GetBoneColors(TArray<FColor>& OutColors) const;
-	void GetHiddenTransforms(TArray<bool>& OutHiddenTransforms) const;
+	GEOMETRYCOLLECTIONENGINE_API void SetEmbeddedGeometrySelectable(bool bSelectableIn);
+	GEOMETRYCOLLECTIONENGINE_API int32 EmbeddedIndexToTransformIndex(const UInstancedStaticMeshComponent* ISMComponent, int32 InstanceIndex) const;
+	GEOMETRYCOLLECTIONENGINE_API void GetBoneColors(TArray<FColor>& OutColors) const;
+	GEOMETRYCOLLECTIONENGINE_API void GetHiddenTransforms(TArray<bool>& OutHiddenTransforms) const;
 #endif
 
-	void GetRestTransforms(TArray<FMatrix44f>& OutRestTransforms) const;
+	GEOMETRYCOLLECTIONENGINE_API void GetRestTransforms(TArray<FMatrix44f>& OutRestTransforms) const;
 
 #if WITH_EDITORONLY_DATA
-	const FDamageCollector* GetRunTimeDataCollector() const;
+	GEOMETRYCOLLECTIONENGINE_API const FDamageCollector* GetRunTimeDataCollector() const;
 #endif
 	
 	// #todo should this only be available in editor?
-	void SetRestState(TArray<FTransform>&& InRestTransforms);
+	GEOMETRYCOLLECTIONENGINE_API void SetRestState(TArray<FTransform>&& InRestTransforms);
 
 	/** Set the dynamic state for all bodies in the DynamicCollection. */
-	void SetDynamicState(const Chaos::EObjectStateType& NewDynamicState);
+	GEOMETRYCOLLECTIONENGINE_API void SetDynamicState(const Chaos::EObjectStateType& NewDynamicState);
 
 	/** Set transforms for all bodies in the DynamicCollection. */
-	void SetInitialTransforms(const TArray<FTransform>& InitialTransforms);
+	GEOMETRYCOLLECTIONENGINE_API void SetInitialTransforms(const TArray<FTransform>& InitialTransforms);
 
 	/** Modify DynamicCollection transform hierarchy to effect cluster breaks releasing the specified indices. */
-	void SetInitialClusterBreaks(const TArray<int32>& ReleaseIndices);
+	GEOMETRYCOLLECTIONENGINE_API void SetInitialClusterBreaks(const TArray<int32>& ReleaseIndices);
 
 	/** Used by Niagara DI to query global matrices rather than recalculating them again */
 	UE_DEPRECATED(5.3, "Use GetComponentSpaceTransforms instead")
@@ -1080,23 +1080,23 @@ public:
 
 	const TArray<FTransform> GetComponentSpaceTransforms() { return ComponentSpaceTransforms; }
 
-	const FGeometryDynamicCollection* GetDynamicCollection() const;
-	FGeometryDynamicCollection* GetDynamicCollection();  // TEMP HACK?
+	GEOMETRYCOLLECTIONENGINE_API const FGeometryDynamicCollection* GetDynamicCollection() const;
+	GEOMETRYCOLLECTIONENGINE_API FGeometryDynamicCollection* GetDynamicCollection();  // TEMP HACK?
 
-	TArray<UStaticMeshComponent*> CreateProxyComponents() const;
+	GEOMETRYCOLLECTIONENGINE_API TArray<UStaticMeshComponent*> CreateProxyComponents() const;
 
 	/** Force all GC components to reregister their custom renderer objects. */
-	static void ReregisterAllCustomRenderers();
+	static GEOMETRYCOLLECTIONENGINE_API void ReregisterAllCustomRenderers();
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")
 	FOnChaosPhysicsCollision OnChaosPhysicsCollision;
 	
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Physics Collision"), Category = "Collision")
-	void ReceivePhysicsCollision(const FChaosPhysicsCollisionInfo& CollisionInfo);
+	GEOMETRYCOLLECTIONENGINE_API void ReceivePhysicsCollision(const FChaosPhysicsCollisionInfo& CollisionInfo);
 
 	// IChaosNotifyHandlerInterface
-	virtual void DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo) override;
 	
 	/** If true, this component will generate breaking events that other systems may subscribe to. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "ChaosPhysics|Events")
@@ -1187,38 +1187,38 @@ protected:
 	TObjectPtr<UGeometryCollectionExternalRenderInterface> CustomRenderer;
 
 	/** Populate the dynamic particle data for the render thread. */
-	FGeometryCollectionDynamicData* InitDynamicData(bool bInitialization);
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionDynamicData* InitDynamicData(bool bInitialization);
 
 	/** Reset the dynamic collection from the current rest state. */
-	void ResetDynamicCollection();
+	GEOMETRYCOLLECTIONENGINE_API void ResetDynamicCollection();
 
 	/** Combine the commands from the input field assets */
-	void GetInitializationCommands(TArray<FFieldSystemCommand>& CombinedCommmands);
+	GEOMETRYCOLLECTIONENGINE_API void GetInitializationCommands(TArray<FFieldSystemCommand>& CombinedCommmands);
 
 	/** Issue a field command for the physics thread */
-	void DispatchFieldCommand(const FFieldSystemCommand& InCommand);
+	GEOMETRYCOLLECTIONENGINE_API void DispatchFieldCommand(const FFieldSystemCommand& InCommand);
 
-	Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent);
-	void CalculateLocalBounds();
-	void CalculateGlobalMatrices();
+	GEOMETRYCOLLECTIONENGINE_API Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent);
+	GEOMETRYCOLLECTIONENGINE_API void CalculateLocalBounds();
+	GEOMETRYCOLLECTIONENGINE_API void CalculateGlobalMatrices();
 	
 	UE_DEPRECATED(5.3, "Use ComputeBoundsFromComponentSpaceTransforms instead")
-	FBox ComputeBoundsFromGlobalMatrices(const FMatrix& LocalToWorldWithScale, const TArray<FMatrix>& GlobalMatricesArray) const;
+	GEOMETRYCOLLECTIONENGINE_API FBox ComputeBoundsFromGlobalMatrices(const FMatrix& LocalToWorldWithScale, const TArray<FMatrix>& GlobalMatricesArray) const;
 
-	FBox ComputeBoundsFromComponentSpaceTransforms(const FTransform& LocalToWorldWithScale, const TArray<FTransform>& ComponentSpaceTransformsArray) const;
+	GEOMETRYCOLLECTIONENGINE_API FBox ComputeBoundsFromComponentSpaceTransforms(const FTransform& LocalToWorldWithScale, const TArray<FTransform>& ComponentSpaceTransformsArray) const;
 
 	UE_DEPRECATED(5.3, "Use FTransform version of ComputeBounds instead")
-	FBox ComputeBounds(const FMatrix& LocalToWorldWithScale) const;
+	GEOMETRYCOLLECTIONENGINE_API FBox ComputeBounds(const FMatrix& LocalToWorldWithScale) const;
 
-	FBox ComputeBounds(const FTransform& LocalToWorldWithScale) const;
+	GEOMETRYCOLLECTIONENGINE_API FBox ComputeBounds(const FTransform& LocalToWorldWithScale) const;
 
-	void RegisterForEvents();
-	void UpdateRBCollisionEventRegistration();
-	void UpdateGlobalCollisionEventRegistration();
-	void UpdateBreakEventRegistration();
-	void UpdateRemovalEventRegistration();
-	void UpdateGlobalRemovalEventRegistration();
-	void UpdateCrumblingEventRegistration();
+	GEOMETRYCOLLECTIONENGINE_API void RegisterForEvents();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateRBCollisionEventRegistration();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateGlobalCollisionEventRegistration();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateBreakEventRegistration();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateRemovalEventRegistration();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateGlobalRemovalEventRegistration();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateCrumblingEventRegistration();
 	
 	/* Per-instance override to enable/disable replication for the geometry collection */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Network)
@@ -1283,18 +1283,18 @@ protected:
 
 	/** Called post solve to allow authoritative components to update their replication data */
 	UFUNCTION()
-	void OnRep_RepData();
+	GEOMETRYCOLLECTIONENGINE_API void OnRep_RepData();
 
-	void RequestUpdateRepData();
-	virtual void UpdateRepData();
+	GEOMETRYCOLLECTIONENGINE_API void RequestUpdateRepData();
+	GEOMETRYCOLLECTIONENGINE_API virtual void UpdateRepData();
 
 	/** Clear all rep data, this is required if the physics proxy has been recreated */
-	virtual void ResetRepData();
+	GEOMETRYCOLLECTIONENGINE_API virtual void ResetRepData();
  
 	UE_DEPRECATED(5.3, "The argument-free version of ProcessRepData will be removed. Please use the version which takes DeltaTime and SimTime instead.")
-	virtual void ProcessRepData();
+	GEOMETRYCOLLECTIONENGINE_API virtual void ProcessRepData();
 
-	virtual bool ProcessRepData(float DeltaTime, float SimTime);
+	GEOMETRYCOLLECTIONENGINE_API virtual bool ProcessRepData(float DeltaTime, float SimTime);
 
 	int32 VersionProcessed = INDEX_NONE;
 
@@ -1304,8 +1304,8 @@ protected:
 	int64 LastAsyncPhysicsTickMs = 0;
 
 private:
-	void ProcessRepDataOnPT();
-	void ResetRepDataCommon();
+	GEOMETRYCOLLECTIONENGINE_API void ProcessRepDataOnPT();
+	GEOMETRYCOLLECTIONENGINE_API void ResetRepDataCommon();
 
 	bool bRenderStateDirty;
 	bool bEnableBoneSelection;
@@ -1357,7 +1357,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<AActor> EditorActor;
 #endif
-	void SwitchRenderModels(const AActor* Actor);
+	GEOMETRYCOLLECTIONENGINE_API void SwitchRenderModels(const AActor* Actor);
 
 	// Event dispatcher for break, crumble, removal and collision events
 	UPROPERTY(transient)
@@ -1376,41 +1376,41 @@ private:
 	TArray<int32> EmbeddedInstanceIndex;
 #endif
 
-	bool IsEmbeddedGeometryValid() const;
-	void ClearEmbeddedGeometry();
+	GEOMETRYCOLLECTIONENGINE_API bool IsEmbeddedGeometryValid() const;
+	GEOMETRYCOLLECTIONENGINE_API void ClearEmbeddedGeometry();
 
 	/** return true if a a custom renderer has been set and the feature is enabled */
-	bool CanUseCustomRenderer() const;
+	GEOMETRYCOLLECTIONENGINE_API bool CanUseCustomRenderer() const;
 
-	void RegisterCustomRenderer();
-	void UnregisterCustomRenderer();
-	void RefreshCustomRenderer();
+	GEOMETRYCOLLECTIONENGINE_API void RegisterCustomRenderer();
+	GEOMETRYCOLLECTIONENGINE_API void UnregisterCustomRenderer();
+	GEOMETRYCOLLECTIONENGINE_API void RefreshCustomRenderer();
 
 	/** return true if the root cluster is not longer active at runtime */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	bool IsRootBroken() const;
+	GEOMETRYCOLLECTIONENGINE_API bool IsRootBroken() const;
 
-	void IncrementSleepTimer(float DeltaTime);
-	void IncrementBreakTimer(float DeltaTime);
-	bool CalculateInnerSphere(int32 TransformIndex, UE::Math::TSphere<double>& SphereOut) const;
-	void UpdateDecay(int32 TransformIdx, float UpdatedDecay, bool UseClusterCrumbling, bool HasDynamicInternalClusterParent, FGeometryCollectionDecayContext& ContextInOut);
+	GEOMETRYCOLLECTIONENGINE_API void IncrementSleepTimer(float DeltaTime);
+	GEOMETRYCOLLECTIONENGINE_API void IncrementBreakTimer(float DeltaTime);
+	GEOMETRYCOLLECTIONENGINE_API bool CalculateInnerSphere(int32 TransformIndex, UE::Math::TSphere<double>& SphereOut) const;
+	GEOMETRYCOLLECTIONENGINE_API void UpdateDecay(int32 TransformIdx, float UpdatedDecay, bool UseClusterCrumbling, bool HasDynamicInternalClusterParent, FGeometryCollectionDecayContext& ContextInOut);
 
-	void UpdateAttachedChildrenTransform() const;
+	GEOMETRYCOLLECTIONENGINE_API void UpdateAttachedChildrenTransform() const;
 	
-	void UpdateRenderSystemsIfNeeded(bool bDynamicCollectionDirty);
-	void UpdateNavigationDataIfNeeded(bool bDynamicCollectionDirty);
-	void UpdateRemovalIfNeeded();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateRenderSystemsIfNeeded(bool bDynamicCollectionDirty);
+	GEOMETRYCOLLECTIONENGINE_API void UpdateNavigationDataIfNeeded(bool bDynamicCollectionDirty);
+	GEOMETRYCOLLECTIONENGINE_API void UpdateRemovalIfNeeded();
 
-	void BuildInitialFilterData();
+	GEOMETRYCOLLECTIONENGINE_API void BuildInitialFilterData();
 
-	void LoadCollisionProfiles();
+	GEOMETRYCOLLECTIONENGINE_API void LoadCollisionProfiles();
 
-	void OnPostPhysicsSync();
+	GEOMETRYCOLLECTIONENGINE_API void OnPostPhysicsSync();
 
-	bool HasVisibleGeometry() const;
+	GEOMETRYCOLLECTIONENGINE_API bool HasVisibleGeometry() const;
 
 	/** backward compatibility method, until we can remove GlobalMatrices */
-	TArray<FMatrix> ComputeGlobalMatricesFromComponentSpaceTransforms() const;
+	GEOMETRYCOLLECTIONENGINE_API TArray<FMatrix> ComputeGlobalMatricesFromComponentSpaceTransforms() const;
 
 	/** The clusters we need to replicate */
 	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;
@@ -1424,15 +1424,15 @@ private:
 
 	//~ Begin IPhysicsComponent Interface.
 public:
-	virtual Chaos::FPhysicsObject* GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const override;
-	virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const override;
-	virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
-	virtual Chaos::FPhysicsObjectId GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual Chaos::FPhysicsObject* GetPhysicsObjectById(Chaos::FPhysicsObjectId Id) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual Chaos::FPhysicsObject* GetPhysicsObjectByName(const FName& Name) const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual TArray<Chaos::FPhysicsObject*> GetAllPhysicsObjects() const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual Chaos::FPhysicsObjectId GetIdFromGTParticle(Chaos::FGeometryParticle* Particle) const override;
 	//~ End IPhysicsComponent Interface.
 
 #if WITH_EDITOR
 	//~ Begin UActorComponent interface.
-	virtual bool IsHLODRelevant() const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual bool IsHLODRelevant() const override;
 	//~ End UActorComponent interface.
 #endif
 };

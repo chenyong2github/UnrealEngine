@@ -69,7 +69,7 @@ namespace MeshAttribute
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-class STATICMESHDESCRIPTION_API FStaticMeshAttributes : public FMeshAttributes
+class FStaticMeshAttributes : public FMeshAttributes
 {
 public:
 
@@ -77,7 +77,7 @@ public:
 		: FMeshAttributes(InMeshDescription)
 	{}
 
-	virtual void Register(bool bKeepExistingAttribute = false) override;
+	STATICMESHDESCRIPTION_API virtual void Register(bool bKeepExistingAttribute = false) override;
 	
 	static bool IsReservedAttributeName(const FName InAttributeName)
 	{
@@ -96,9 +96,9 @@ public:
 	}	
 
 	UE_DEPRECATED(4.26, "Please use RegisterTriangleNormalAndTangentAttributes() instead.")
-	void RegisterPolygonNormalAndTangentAttributes();
+	STATICMESHDESCRIPTION_API void RegisterPolygonNormalAndTangentAttributes();
 
-	void RegisterTriangleNormalAndTangentAttributes();
+	STATICMESHDESCRIPTION_API void RegisterTriangleNormalAndTangentAttributes();
 
 	UE_DEPRECATED(4.26, "This attribute is no longer supported, please remove code pertaining to it.")
 	TVertexAttributesRef<float> GetVertexCornerSharpnesses() { return MeshDescription.VertexAttributes().GetAttributesRef<float>(MeshAttribute::Vertex::CornerSharpness); }
