@@ -20,6 +20,10 @@ class USDEXPORTER_API UUsdConversionBlueprintLibrary : public UBlueprintFunction
 	GENERATED_BODY()
 
 public:
+	/** Returns how many total Unreal levels (persistent + all sublevels) will be exported if we consider LevelsToIgnore */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static int32 GetNumLevelsToExport( UWorld* World, const TSet<FString>& LevelsToIgnore );
+
 	/** Fully streams in and displays all levels whose names are not in LevelsToIgnore */
 	UFUNCTION( BlueprintCallable, Category = "World utils" )
 	static void StreamInRequiredLevels( UWorld* World, const TSet<FString>& LevelsToIgnore );

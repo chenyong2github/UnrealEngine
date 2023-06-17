@@ -168,6 +168,37 @@ namespace UE
 	}
 }
 
+int32 UUsdConversionBlueprintLibrary::GetNumLevelsToExport(UWorld* World, const TSet<FString>& LevelsToIgnore)
+{
+	int32 Count = 0;
+
+	if (!World)
+	{
+		return Count;
+	}
+
+	if (!LevelsToIgnore.Contains("Persistent Level"))
+	{
+		Count += 1;
+	}
+
+	for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
+	{
+		if (StreamingLevel)
+		{
+			const FString LevelName = FPaths::GetBaseFilename(StreamingLevel->GetWorldAssetPackageName());
+			if (!LevelsToIgnore.Contains(LevelName))
+			{
+				continue;
+			}
+
+			Count += 1;
+		}
+	}
+
+	return Count;
+}
+
 void UUsdConversionBlueprintLibrary::StreamInRequiredLevels( UWorld* World, const TSet<FString>& LevelsToIgnore )
 {
 	if ( !World )
