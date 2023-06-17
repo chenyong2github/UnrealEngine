@@ -81,19 +81,19 @@ struct FNiagaraDataChannelDataProxy
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDataChannelCreated, const UNiagaraDataChannel*);
 
-UCLASS(Experimental, abstract, EditInlineNew)
-class NIAGARA_API UNiagaraDataChannel : public UObject
+UCLASS(Experimental, abstract, EditInlineNew, MinimalAPI)
+class UNiagaraDataChannel : public UObject
 {
 public:
 	GENERATED_BODY()
 
 	//UObject Interface
-	virtual void PostInitProperties()override;
-	virtual void PostLoad();
-	virtual void BeginDestroy();
+	NIAGARA_API virtual void PostInitProperties()override;
+	NIAGARA_API virtual void PostLoad();
+	NIAGARA_API virtual void BeginDestroy();
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange)override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedDataChannel)override;
+	NIAGARA_API virtual void PreEditChange(FProperty* PropertyAboutToChange)override;
+	NIAGARA_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedDataChannel)override;
 #endif
 	//UObject Interface End.
 
@@ -104,14 +104,14 @@ public:
 	bool KeepPreviousFrameData()const { return bKeepPreviousFrameData; }
 
 	/** Returns the compiled data describing the data layout for DataChannels in this channel. */
-	const FNiagaraDataSetCompiledData& GetCompiledData(ENiagaraSimTarget SimTarget)const;
+	NIAGARA_API const FNiagaraDataSetCompiledData& GetCompiledData(ENiagaraSimTarget SimTarget)const;
 
 	/** Create the appropriate handler object for this data channel. */
-	virtual UNiagaraDataChannelHandler* CreateHandler(UWorld* OwningWorld) const PURE_VIRTUAL(UNiagaraDataChannel::CreateHandler, {return nullptr;} );
+	NIAGARA_API virtual UNiagaraDataChannelHandler* CreateHandler(UWorld* OwningWorld) const PURE_VIRTUAL(UNiagaraDataChannel::CreateHandler, {return nullptr;} );
 	
 	const FNiagaraDataChannelGameDataLayout& GetGameDataLayout()const { return GameDataLayout; }
 
-	FNiagaraDataChannelGameDataPtr CreateGameData()const;
+	NIAGARA_API FNiagaraDataChannelGameDataPtr CreateGameData()const;
 
 	bool IsValid()const;
 

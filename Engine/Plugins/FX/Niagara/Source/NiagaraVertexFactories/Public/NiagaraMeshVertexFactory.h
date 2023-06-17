@@ -121,9 +121,9 @@ class FNiagaraMeshInstanceVertices;
 /**
 * Vertex factory for rendering instanced mesh particles with out dynamic parameter support.
 */
-class NIAGARAVERTEXFACTORIES_API FNiagaraMeshVertexFactory : public FNiagaraVertexFactoryBase
+class FNiagaraMeshVertexFactory : public FNiagaraVertexFactoryBase
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FNiagaraMeshVertexFactory);
+	DECLARE_VERTEX_FACTORY_TYPE_API(FNiagaraMeshVertexFactory, NIAGARAVERTEXFACTORIES_API);
 public:
 	
 	/** Default constructor. */
@@ -144,25 +144,25 @@ public:
 	/**
 	* Should we cache the material's shadertype on this platform with this vertex factory?
 	*/
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static NIAGARAVERTEXFACTORIES_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 
 	/**
 	* Modify compile environment to enable instancing
 	* @param OutEnvironment - shader compile environment to modify
 	*/
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static NIAGARAVERTEXFACTORIES_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	/**
 	* Get vertex elements used when during PSO precaching materials using this vertex factory type
 	*/
-	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
-	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, bool bSupportsManualVertexFetch, FStaticMeshDataType& Data, FVertexDeclarationElementList& Elements);
+	static NIAGARAVERTEXFACTORIES_API void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static NIAGARAVERTEXFACTORIES_API void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, bool bSupportsManualVertexFetch, FStaticMeshDataType& Data, FVertexDeclarationElementList& Elements);
 
 	/**
 	* An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
 	*/
-	void SetData(const FStaticMeshDataType& InData);
+	NIAGARAVERTEXFACTORIES_API void SetData(const FStaticMeshDataType& InData);
 
 	/**
 	* Set the uniform buffer for this vertex factory.
@@ -206,7 +206,7 @@ public:
 	}
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void InitRHI() override;
 
 	int32 GetMeshIndex() const { return MeshIndex; }
 	void SetMeshIndex(int32 InMeshIndex) { MeshIndex = InMeshIndex; }
@@ -222,7 +222,7 @@ public:
 		FNiagaraVertexFactoryBase::SetFeatureLevel(InFeatureLevel);
 	}
 protected:
-	static void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, bool bSupportsManualVertexFetch, FStaticMeshDataType& Data, FVertexDeclarationElementList& Elements, FVertexStreamList& InOutStreams);
+	static NIAGARAVERTEXFACTORIES_API void GetVertexElements(ERHIFeatureLevel::Type FeatureLevel, bool bSupportsManualVertexFetch, FStaticMeshDataType& Data, FVertexDeclarationElementList& Elements, FVertexStreamList& InOutStreams);
 
 protected:
 	FStaticMeshDataType Data;

@@ -9,7 +9,7 @@
 /**
  * 
  */
-class NIAGARAEDITOR_API SNiagaraHierarchyAssignment : public SCompoundWidget
+class SNiagaraHierarchyAssignment : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraHierarchyAssignment)
@@ -19,5 +19,5 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
-	void Construct(const FArguments& InArgs, class UNiagaraNodeAssignment& InAssignmentNode);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, class UNiagaraNodeAssignment& InAssignmentNode);
 };

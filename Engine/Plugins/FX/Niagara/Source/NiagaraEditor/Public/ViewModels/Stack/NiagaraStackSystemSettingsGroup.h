@@ -11,33 +11,33 @@
 
 class FNiagaraScriptViewModel;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackSystemPropertiesGroup : public UNiagaraStackItemGroup
+UCLASS(MinimalAPI)
+class UNiagaraStackSystemPropertiesGroup : public UNiagaraStackItemGroup
 {
 	GENERATED_BODY()
 		
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData);
 
 	virtual EIconMode GetSupportedIconMode() const override { return UNiagaraStackEntry::EIconMode::Brush; }
-	virtual const FSlateBrush* GetIconBrush() const override;
+	NIAGARAEDITOR_API virtual const FSlateBrush* GetIconBrush() const override;
 	virtual bool GetCanExpandInOverview() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return false; }
 
 protected:
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackSystemUserParametersGroup : public UNiagaraStackItemGroup
+UCLASS(MinimalAPI)
+class UNiagaraStackSystemUserParametersGroup : public UNiagaraStackItemGroup
 {
 	GENERATED_BODY()
 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InOwner, FNiagaraParameterStore* InParameterStore);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InOwner, FNiagaraParameterStore* InParameterStore);
 
 	virtual EIconMode GetSupportedIconMode() const override { return UNiagaraStackEntry::EIconMode::Text; }
-	virtual FText GetIconText() const override;
+	NIAGARAEDITOR_API virtual FText GetIconText() const override;
 	virtual bool GetCanExpandInOverview() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return false; }
 private:

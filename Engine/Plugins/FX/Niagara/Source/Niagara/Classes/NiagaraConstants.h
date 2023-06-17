@@ -169,87 +169,87 @@ struct FNiagaraKnownConstantInfo
 	const ENiagaraKnownConstantType ConstantType = ENiagaraKnownConstantType::Other;
 };
 
-struct NIAGARA_API FNiagaraConstants
+struct FNiagaraConstants
 {
-	static void Init();
-	static const TArray<FNiagaraVariable>& GetEngineConstants();
-	static const TArray<FNiagaraVariable>& GetTranslatorConstants();
-	static const TArray<FNiagaraVariable>& GetStaticSwitchConstants();
-	static FNiagaraVariable UpdateEngineConstant(const FNiagaraVariable& InVar);
-	static const FNiagaraVariable *FindEngineConstant(const FNiagaraVariable& InVar);
-	static FText GetEngineConstantDescription(const FNiagaraVariable& InVar);
-	static const TArray<FNiagaraVariable>& GetOldPositionTypeVariables();
+	static NIAGARA_API void Init();
+	static NIAGARA_API const TArray<FNiagaraVariable>& GetEngineConstants();
+	static NIAGARA_API const TArray<FNiagaraVariable>& GetTranslatorConstants();
+	static NIAGARA_API const TArray<FNiagaraVariable>& GetStaticSwitchConstants();
+	static NIAGARA_API FNiagaraVariable UpdateEngineConstant(const FNiagaraVariable& InVar);
+	static NIAGARA_API const FNiagaraVariable *FindEngineConstant(const FNiagaraVariable& InVar);
+	static NIAGARA_API FText GetEngineConstantDescription(const FNiagaraVariable& InVar);
+	static NIAGARA_API const TArray<FNiagaraVariable>& GetOldPositionTypeVariables();
 
-	static const TArray<FNiagaraVariable>& GetCommonParticleAttributes();
-	static FText GetAttributeDescription(const FNiagaraVariable& InVar);
-	static FString GetAttributeDefaultValue(const FNiagaraVariable& InVar);
-	static FNiagaraVariable GetAttributeWithDefaultValue(const FNiagaraVariable& InAttribute);
-	static FNiagaraVariable GetAttributeAsParticleDataSetKey(const FNiagaraVariable& InAttribute);
-	static FNiagaraVariable GetAttributeAsEmitterDataSetKey(const FNiagaraVariable& InAttribute);
-	static FNiagaraVariableAttributeBinding GetAttributeDefaultBinding(const FNiagaraVariable& InAttribute);
+	static NIAGARA_API const TArray<FNiagaraVariable>& GetCommonParticleAttributes();
+	static NIAGARA_API FText GetAttributeDescription(const FNiagaraVariable& InVar);
+	static NIAGARA_API FString GetAttributeDefaultValue(const FNiagaraVariable& InVar);
+	static NIAGARA_API FNiagaraVariable GetAttributeWithDefaultValue(const FNiagaraVariable& InAttribute);
+	static NIAGARA_API FNiagaraVariable GetAttributeAsParticleDataSetKey(const FNiagaraVariable& InAttribute);
+	static NIAGARA_API FNiagaraVariable GetAttributeAsEmitterDataSetKey(const FNiagaraVariable& InAttribute);
+	static NIAGARA_API FNiagaraVariableAttributeBinding GetAttributeDefaultBinding(const FNiagaraVariable& InAttribute);
 
-	static bool IsNiagaraConstant(const FNiagaraVariable& InVar);
-	static const FNiagaraVariableMetaData* GetConstantMetaData(const FNiagaraVariable& InVar);
+	static NIAGARA_API bool IsNiagaraConstant(const FNiagaraVariable& InVar);
+	static NIAGARA_API const FNiagaraVariableMetaData* GetConstantMetaData(const FNiagaraVariable& InVar);
 
-	static const FNiagaraVariable* GetKnownConstant(const FName& InName, bool bAllowPartialNameMatch);
-	static const FNiagaraKnownConstantInfo GetKnownConstantInfo(const FName& InName, bool bAllowPartialNameMatch);
-	static const FNiagaraVariable *FindStaticSwitchConstant(const FName& InName);
+	static NIAGARA_API const FNiagaraVariable* GetKnownConstant(const FName& InName, bool bAllowPartialNameMatch);
+	static NIAGARA_API const FNiagaraKnownConstantInfo GetKnownConstantInfo(const FName& InName, bool bAllowPartialNameMatch);
+	static NIAGARA_API const FNiagaraVariable *FindStaticSwitchConstant(const FName& InName);
 
-	static bool IsEngineManagedAttribute(const FNiagaraVariable& Var);
+	static NIAGARA_API bool IsEngineManagedAttribute(const FNiagaraVariable& Var);
 
-	static const FName InputPinName;
-	static const FName OutputPinName;
+	static NIAGARA_API const FName InputPinName;
+	static NIAGARA_API const FName OutputPinName;
 
 
 	/** Reserved Namespace Names and Scope Names */
-	static const FName UserNamespace;
-	static const FName EngineNamespace;
-	static const FName SystemNamespace;
-	static const FName EmitterNamespace;
-	static const FName ParticleAttributeNamespace;
-	static const FName ModuleNamespace;
-	static const FName OutputNamespace;
-	static const FName TransientNamespace;
-	static const FName StackContextNamespace;
-	static const FName DataInstanceNamespace;
-	static const FName StaticSwitchNamespace;
-	static const FName ArrayNamespace;
-	static const FName ParameterCollectionNamespace;
-	static const FString InitialPrefix;
-	static const FName LocalNamespace;
-	static const FName InitialNamespace;
-	static const FName PreviousNamespace;
-	static const FName OwnerNamespace;
+	static NIAGARA_API const FName UserNamespace;
+	static NIAGARA_API const FName EngineNamespace;
+	static NIAGARA_API const FName SystemNamespace;
+	static NIAGARA_API const FName EmitterNamespace;
+	static NIAGARA_API const FName ParticleAttributeNamespace;
+	static NIAGARA_API const FName ModuleNamespace;
+	static NIAGARA_API const FName OutputNamespace;
+	static NIAGARA_API const FName TransientNamespace;
+	static NIAGARA_API const FName StackContextNamespace;
+	static NIAGARA_API const FName DataInstanceNamespace;
+	static NIAGARA_API const FName StaticSwitchNamespace;
+	static NIAGARA_API const FName ArrayNamespace;
+	static NIAGARA_API const FName ParameterCollectionNamespace;
+	static NIAGARA_API const FString InitialPrefix;
+	static NIAGARA_API const FName LocalNamespace;
+	static NIAGARA_API const FName InitialNamespace;
+	static NIAGARA_API const FName PreviousNamespace;
+	static NIAGARA_API const FName OwnerNamespace;
 
-	static const FName EngineOwnerScopeName;
-	static const FName EngineSystemScopeName;
-	static const FName EngineEmitterScopeName;
+	static NIAGARA_API const FName EngineOwnerScopeName;
+	static NIAGARA_API const FName EngineSystemScopeName;
+	static NIAGARA_API const FName EngineEmitterScopeName;
 
-	static const FName ScriptTransientScopeName;
-	static const FName ScriptPersistentScopeName;
-	static const FName InputScopeName;
-	static const FName OutputScopeName;
-	static const FName UniqueOutputScopeName;
-	static const FName CustomScopeName;
+	static NIAGARA_API const FName ScriptTransientScopeName;
+	static NIAGARA_API const FName ScriptPersistentScopeName;
+	static NIAGARA_API const FName InputScopeName;
+	static NIAGARA_API const FName OutputScopeName;
+	static NIAGARA_API const FName UniqueOutputScopeName;
+	static NIAGARA_API const FName CustomScopeName;
 
 	/** String version of namespaces */
-	static const FString AssignmentNodePrefixString;
-	static const FString EngineNamespaceString;
-	static const FString EmitterNamespaceString;
-	static const FString ModuleNamespaceString;
-	static const FString OutputNamespaceString;
-	static const FString ParameterCollectionNamespaceString;
-	static const FString ParticleAttributeNamespaceString;
-	static const FString RapidIterationParametersNamespaceString;
-	static const FString StackContextNamespaceString;
-	static const FString SystemNamespaceString;
-	static const FString UserNamespaceString;
-	static const FString InternalNamespaceString;
-	static const FString PreviousNamespaceString;
+	static NIAGARA_API const FString AssignmentNodePrefixString;
+	static NIAGARA_API const FString EngineNamespaceString;
+	static NIAGARA_API const FString EmitterNamespaceString;
+	static NIAGARA_API const FString ModuleNamespaceString;
+	static NIAGARA_API const FString OutputNamespaceString;
+	static NIAGARA_API const FString ParameterCollectionNamespaceString;
+	static NIAGARA_API const FString ParticleAttributeNamespaceString;
+	static NIAGARA_API const FString RapidIterationParametersNamespaceString;
+	static NIAGARA_API const FString StackContextNamespaceString;
+	static NIAGARA_API const FString SystemNamespaceString;
+	static NIAGARA_API const FString UserNamespaceString;
+	static NIAGARA_API const FString InternalNamespaceString;
+	static NIAGARA_API const FString PreviousNamespaceString;
 
-	static const int32 MaxCategoryNameLength;
-	static const int32 MaxParameterLength;
-	static const int32 MaxScriptNameLength;
+	static NIAGARA_API const int32 MaxCategoryNameLength;
+	static NIAGARA_API const int32 MaxParameterLength;
+	static NIAGARA_API const int32 MaxScriptNameLength;
 private:
 	static TArray<FNiagaraVariable> SystemParameters;
 	static TArray<FNiagaraVariable> TranslatorParameters;

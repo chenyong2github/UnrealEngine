@@ -31,13 +31,13 @@ struct FPersistentAudioParticleData
 	TFunction<void(struct FAudioPlayerInterface_InstanceData*,UAudioComponent*,FNiagaraSystemInstance*)> UpdateCallback;
 };
 
-UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Niagara Audio Player Settings"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceAudioPlayerSettings : public UObject
+UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Niagara Audio Player Settings"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceAudioPlayerSettings : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	UNiagaraDataInterfaceAudioPlayerSettings();
+	NIAGARA_API UNiagaraDataInterfaceAudioPlayerSettings();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio", meta=(InlineEditConditionToggle))
 	bool bOverrideConcurrency = true;
@@ -80,8 +80,8 @@ struct FAudioPlayerInterface_InstanceData
 };
 
 /** This Data Interface can be used to play one-shot audio effects driven by particle data. */
-UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Audio Player"))
-class NIAGARA_API UNiagaraDataInterfaceAudioPlayer : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Audio Player"), MinimalAPI)
+class UNiagaraDataInterfaceAudioPlayer : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -129,22 +129,22 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio")
 	bool bOnlyActiveDuringGameplay = false;
 
-	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+	NIAGARA_API virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
 	
 	//UObject Interface
-	virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostInitProperties() override;
 	//UObject Interface End
 
 	//UNiagaraDataInterface Interface
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
-	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	NIAGARA_API virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	NIAGARA_API virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual int32 PerInstanceDataSize() const override { return sizeof(FAudioPlayerInterface_InstanceData); }
-	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
-	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	NIAGARA_API virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return Target == ENiagaraSimTarget::CPUSim; }
 
 	virtual bool HasPreSimulateTick() const override { return true; }
@@ -152,29 +152,29 @@ public:
 	virtual bool PostSimulateCanOverlapFrames() const { return false; }
 	//UNiagaraDataInterface Interface
 
-	virtual void PlayOneShotAudio(FVectorVMExternalFunctionContext& Context);
-	virtual void PlayPersistentAudio(FVectorVMExternalFunctionContext& Context);
-	virtual void SetParameterBool(FVectorVMExternalFunctionContext& Context);
-	virtual void SetParameterInteger(FVectorVMExternalFunctionContext& Context);
-	virtual void SetParameterFloat(FVectorVMExternalFunctionContext& Context);
-	virtual void UpdateVolume(FVectorVMExternalFunctionContext& Context);
-	virtual void UpdatePitch(FVectorVMExternalFunctionContext& Context);
-	virtual void UpdateLocation(FVectorVMExternalFunctionContext& Context);
-	virtual void UpdateRotation(FVectorVMExternalFunctionContext& Context);
-	virtual void SetPausedState(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void PlayOneShotAudio(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void PlayPersistentAudio(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void SetParameterBool(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void SetParameterInteger(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void SetParameterFloat(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void UpdateVolume(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void UpdatePitch(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void UpdateLocation(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void UpdateRotation(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API virtual void SetPausedState(FVectorVMExternalFunctionContext& Context);
 
 protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	
 private:
-	static const FName PlayAudioName;
-	static const FName PlayPersistentAudioName;
-	static const FName SetPersistentAudioVolumeName;
-	static const FName SetPersistentAudioPitchName;
-	static const FName SetPersistentAudioLocationName;
-	static const FName SetPersistentAudioRotationName;
-	static const FName SetPersistentAudioBoolParamName;
-	static const FName SetPersistentAudioIntegerParamName;
-	static const FName SetPersistentAudioFloatParamName;
-	static const FName PausePersistentAudioName;
+	static NIAGARA_API const FName PlayAudioName;
+	static NIAGARA_API const FName PlayPersistentAudioName;
+	static NIAGARA_API const FName SetPersistentAudioVolumeName;
+	static NIAGARA_API const FName SetPersistentAudioPitchName;
+	static NIAGARA_API const FName SetPersistentAudioLocationName;
+	static NIAGARA_API const FName SetPersistentAudioRotationName;
+	static NIAGARA_API const FName SetPersistentAudioBoolParamName;
+	static NIAGARA_API const FName SetPersistentAudioIntegerParamName;
+	static NIAGARA_API const FName SetPersistentAudioFloatParamName;
+	static NIAGARA_API const FName PausePersistentAudioName;
 };

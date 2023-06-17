@@ -33,7 +33,7 @@ struct FNiagaraVersionMenuAction : FNiagaraMenuAction
 	FNiagaraAssetVersion AssetVersion;
 };
 
-class NIAGARAEDITOR_API SNiagaraVersionWidget : public SCompoundWidget, FNotifyHook, public FEditorUndoClient
+class SNiagaraVersionWidget : public SCompoundWidget, FNotifyHook, public FEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraVersionWidget)
@@ -47,27 +47,27 @@ public:
 	
 	SLATE_END_ARGS()
 
-	virtual ~SNiagaraVersionWidget() override;
+	NIAGARAEDITOR_API virtual ~SNiagaraVersionWidget() override;
 
-	void Construct(const FArguments& InArgs, FNiagaraVersionedObject* InVersionedObject, UNiagaraVersionMetaData* InMetadata);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, FNiagaraVersionedObject* InVersionedObject, UNiagaraVersionMetaData* InMetadata);
 
-	void UpdateEditedObject(FNiagaraVersionedObject* InVersionedObject, UNiagaraVersionMetaData* InMetadata);
+	NIAGARAEDITOR_API void UpdateEditedObject(FNiagaraVersionedObject* InVersionedObject, UNiagaraVersionMetaData* InMetadata);
 
 	//~ Begin FNotifyHook Interface
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
+	NIAGARAEDITOR_API virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	// End of FNotifyHook
 
 	//~ Begin FEditorUndoClient interface
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override;
+	NIAGARAEDITOR_API virtual void PostUndo(bool bSuccess) override;
+	NIAGARAEDITOR_API virtual void PostRedo(bool bSuccess) override;
 	// End of FEditorUndoClient
 
 	/** See OnVersionDataChanged event */
-	void SetOnVersionDataChanged(FOnVersionPropertyChangedDelegate InOnVersionDataChanged);
+	NIAGARAEDITOR_API void SetOnVersionDataChanged(FOnVersionPropertyChangedDelegate InOnVersionDataChanged);
 
 protected:
-	virtual FText GetInfoHeaderText() const;
-	virtual void ExecuteSaveAsAssetAction(FNiagaraAssetVersion AssetVersion);
+	NIAGARAEDITOR_API virtual FText GetInfoHeaderText() const;
+	NIAGARAEDITOR_API virtual void ExecuteSaveAsAssetAction(FNiagaraAssetVersion AssetVersion);
 	
 private:
 	FNiagaraVersionedObject* VersionedObject = nullptr;

@@ -9,7 +9,7 @@ class FTexture;
 /**
  * Batched element parameters for gathering attributes from different slices into a single color
  */
-class NIAGARASHADER_API FBatchedElementNiagara2DArrayAttribute : public FBatchedElementParameters
+class FBatchedElementNiagara2DArrayAttribute : public FBatchedElementParameters
 {
 public:
 	typedef TFunction<void(FRHITexture*&, FRHISamplerState*&)> FGetTextureAndSamplerDelegate;
@@ -21,7 +21,7 @@ public:
 	}
 
 	/** Binds vertex and pixel shaders for this element */
-	virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
+	NIAGARASHADER_API virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
 
 private:
 	FIntVector4 AttributeSlices;
@@ -31,7 +31,7 @@ private:
 /**
  * Batched element parameters for gathering attributes from a volume texture into a single color
  */
-class NIAGARASHADER_API FBatchedElementNiagaraVolumeAttribute : public FBatchedElementParameters
+class FBatchedElementNiagaraVolumeAttribute : public FBatchedElementParameters
 {
 public:
 	typedef TFunction<void(FRHITexture*&, FRHISamplerState*&)> FGetTextureAndSamplerDelegate;
@@ -45,7 +45,7 @@ public:
 	}
 
 	/** Binds vertex and pixel shaders for this element */
-	virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
+	NIAGARASHADER_API virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
 
 private:
 	FVector2f								TileUVs;
@@ -58,7 +58,7 @@ private:
 /**
  * Batched element parameters for inverting a color channel
  */
-class NIAGARASHADER_API FBatchedElementNiagaraInvertColorChannel : public FBatchedElementParameters
+class FBatchedElementNiagaraInvertColorChannel : public FBatchedElementParameters
 {
 public:
 	FBatchedElementNiagaraInvertColorChannel(uint32 InChannelMask)
@@ -67,7 +67,7 @@ public:
 	}
 
 	/** Binds vertex and pixel shaders for this element */
-	virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
+	NIAGARASHADER_API virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
 
 private:
 	uint32	ChannelMask;
@@ -76,7 +76,7 @@ private:
 /**
  * Simple batched element using a 2d texture
  */
-class NIAGARASHADER_API FBatchedElementNiagaraSimple : public FBatchedElementParameters
+class FBatchedElementNiagaraSimple : public FBatchedElementParameters
 {
 public:
 	FBatchedElementNiagaraSimple(FMatrix InColorTransform = FMatrix::Identity, bool InAlphaBlend = false)
@@ -86,7 +86,7 @@ public:
 	}
 
 	/** Binds vertex and pixel shaders for this element */
-	virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
+	NIAGARASHADER_API virtual void BindShaders(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ERHIFeatureLevel::Type InFeatureLevel, const FMatrix& InTransform, const float InGamma, const FMatrix& ColorWeights, const FTexture* Texture) override;
 
 private:
 	FMatrix	ColorTransform;

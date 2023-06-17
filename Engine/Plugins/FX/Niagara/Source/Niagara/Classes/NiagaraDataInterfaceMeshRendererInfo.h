@@ -11,8 +11,8 @@ class UNiagaraMeshRendererProperties;
 class FNDIMeshRendererInfo;
 
 /** This Data Interface can be used to query information about the mesh renderers of an emitter */
-UCLASS(EditInlineNew, Category = "Mesh Particles", CollapseCategories, meta = (DisplayName = "Mesh Renderer Info"))
-class NIAGARA_API UNiagaraDataInterfaceMeshRendererInfo : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Mesh Particles", CollapseCategories, meta = (DisplayName = "Mesh Renderer Info"), MinimalAPI)
+class UNiagaraDataInterfaceMeshRendererInfo : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -26,45 +26,45 @@ public:
 	UNiagaraMeshRendererProperties* GetMeshRenderer() const { return MeshRenderer; }
 
 	//UObject Interface
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
+	NIAGARA_API virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostLoad() override;
+	NIAGARA_API virtual void BeginDestroy() override;
 #if WITH_EDITOR	
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif 
 	//UObject Interface End
 
-	void OnMeshRendererChanged(UNiagaraMeshRendererProperties* NewMeshRenderer);
+	NIAGARA_API void OnMeshRendererChanged(UNiagaraMeshRendererProperties* NewMeshRenderer);
 
 	//UNiagaraDataInterface Interface
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc) override;
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc) override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 #if WITH_EDITOR
-	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
-	virtual void GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings,
+	NIAGARA_API virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+	NIAGARA_API virtual void GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings,
 		TArray<FNiagaraDataInterfaceFeedback>& OutInfo) override;
 #endif
 	//UNiagaraDataInterface Interface	
 
 protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
-	virtual void PushToRenderThreadImpl() override;
-	void UpdateCachedData();
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual void PushToRenderThreadImpl() override;
+	NIAGARA_API void UpdateCachedData();
 
-	void VMGetNumMeshes(FVectorVMExternalFunctionContext& Context);
-	void VMGetMeshLocalBounds(FVectorVMExternalFunctionContext& Context);
-	void VMGetSubUVDetails(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMGetNumMeshes(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMGetMeshLocalBounds(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMGetSubUVDetails(FVectorVMExternalFunctionContext& Context);
 
 	/** The name of the mesh renderer */
 	UPROPERTY(EditAnywhere, Category = "Source")

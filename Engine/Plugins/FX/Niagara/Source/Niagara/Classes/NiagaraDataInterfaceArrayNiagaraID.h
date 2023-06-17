@@ -5,8 +5,8 @@
 #include "NiagaraDataInterfaceArray.h"
 #include "NiagaraDataInterfaceArrayNiagaraID.generated.h"
 
-UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "NiagaraID Array", Experimental), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayNiagaraID : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", meta = (DisplayName = "NiagaraID Array", Experimental), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayNiagaraID : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()

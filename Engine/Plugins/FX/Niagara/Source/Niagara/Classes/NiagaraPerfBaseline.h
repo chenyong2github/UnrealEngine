@@ -16,7 +16,7 @@ class UTextRenderComponent;
 class FCommonViewportClient;
 
 USTRUCT(BlueprintType)
-struct NIAGARA_API FNiagaraPerfBaselineStats
+struct FNiagaraPerfBaselineStats
 {
 	GENERATED_BODY()
 
@@ -51,25 +51,25 @@ struct NIAGARA_API FNiagaraPerfBaselineStats
 	@param Stats	Accumulated stats we take values from.
 	@param bSyncRT	Whether to sync with the RT. If true we flush the RT and can get the current stat values. If false we get the current GT stats but have to just use the RT stats from the last completed frame.
 	*/
-	FNiagaraPerfBaselineStats(FAccumulatedParticlePerfStats& Stats, bool bSyncRT);
+	NIAGARA_API FNiagaraPerfBaselineStats(FAccumulatedParticlePerfStats& Stats, bool bSyncRT);
 
 	FORCEINLINE bool IsValid()const { return PerInstanceAvg_GT > 0.0f && PerInstanceAvg_RT > 0.0f && PerInstanceMax_GT > 0.0f && PerInstanceMax_RT > 0.0f; }
 	/**
 	Compares a system's performance stats with that of a baseline.
 	*/
-	static EComparisonResult Compare(const FNiagaraPerfBaselineStats& Stat, const FNiagaraPerfBaselineStats& Baseline, FNiagaraPerfBaselineStats& OutRatio);
-	static EComparisonResult Compare(const FNiagaraPerfBaselineStats& Stat, const FNiagaraPerfBaselineStats& Baseline, FNiagaraPerfBaselineStats& OutRatio, EComparisonResult& OutGTAvgResult, EComparisonResult& OutGTMaxResult, EComparisonResult& OutRTAvgResult, EComparisonResult& OutRTMaxResult);
-	static EComparisonResult Compare(float Stat, float Baseline, float& OutRatio);	
-	static FLinearColor GetComparisonResultColor(EComparisonResult Result);
-	static FText GetComparisonResultText(EComparisonResult Result);
+	static NIAGARA_API EComparisonResult Compare(const FNiagaraPerfBaselineStats& Stat, const FNiagaraPerfBaselineStats& Baseline, FNiagaraPerfBaselineStats& OutRatio);
+	static NIAGARA_API EComparisonResult Compare(const FNiagaraPerfBaselineStats& Stat, const FNiagaraPerfBaselineStats& Baseline, FNiagaraPerfBaselineStats& OutRatio, EComparisonResult& OutGTAvgResult, EComparisonResult& OutGTMaxResult, EComparisonResult& OutRTAvgResult, EComparisonResult& OutRTMaxResult);
+	static NIAGARA_API EComparisonResult Compare(float Stat, float Baseline, float& OutRatio);	
+	static NIAGARA_API FLinearColor GetComparisonResultColor(EComparisonResult Result);
+	static NIAGARA_API FText GetComparisonResultText(EComparisonResult Result);
 #endif
 };
 
 /**
 * Base class for baseline controllers. These can are responsible for spawning and manipulating the FX needed for the baseline perf tests.
 */
-UCLASS(abstract, EditInlineNew, BlueprintType, Blueprintable)
-class NIAGARA_API UNiagaraBaselineController : public UObject
+UCLASS(abstract, EditInlineNew, BlueprintType, Blueprintable, MinimalAPI)
+class UNiagaraBaselineController : public UObject
 {
 	GENERATED_BODY()
 	
@@ -77,23 +77,23 @@ public:
 
 	/** Called from the stats system when we begin gathering stats for the given System asset.*/
 	UFUNCTION(BlueprintNativeEvent)
-	void OnBeginTest();
+	NIAGARA_API void OnBeginTest();
 
 	/** Returns whether the baseline test is complete. */
 	UFUNCTION(BlueprintNativeEvent)
-	bool OnTickTest();
+	NIAGARA_API bool OnTickTest();
 
 	/** Called from the stats system on completion of the test with the final stats for the given system asset. */
 	UFUNCTION(BlueprintNativeEvent)
-	void OnEndTest(FNiagaraPerfBaselineStats Stats);
+	NIAGARA_API void OnEndTest(FNiagaraPerfBaselineStats Stats);
 
 	/** Called when the owning actor is ticked. */
 	UFUNCTION(BlueprintNativeEvent)
-	void OnOwnerTick(float DeltaTime);
+	NIAGARA_API void OnOwnerTick(float DeltaTime);
 
 	/** Returns the System for this baseline. Will synchronously load the system if needed. */
 	UFUNCTION(BlueprintCallable, Category="Baseline")
-	UNiagaraSystem* GetSystem();
+	NIAGARA_API UNiagaraSystem* GetSystem();
 	
 	/** Duration to gather performance stats for the given system. */
 	UPROPERTY(EditAnywhere, Category = "Baseline", BlueprintReadWrite)
@@ -117,15 +117,15 @@ private:
 Simple controller that will just spawn the given system N times. If any instance completes, it will spawn a new one to replace it.
 Can handle simple burst or looping systems.
 */
-UCLASS(EditInlineNew)
-class NIAGARA_API UNiagaraBaselineController_Basic : public UNiagaraBaselineController
+UCLASS(EditInlineNew, MinimalAPI)
+class UNiagaraBaselineController_Basic : public UNiagaraBaselineController
 {
 	GENERATED_BODY()
 	
-	virtual void OnBeginTest_Implementation();
-	virtual bool OnTickTest_Implementation();
-	virtual void OnEndTest_Implementation(FNiagaraPerfBaselineStats Stats);
-	virtual void OnOwnerTick_Implementation(float DeltaTime);
+	NIAGARA_API virtual void OnBeginTest_Implementation();
+	NIAGARA_API virtual bool OnTickTest_Implementation();
+	NIAGARA_API virtual void OnEndTest_Implementation(FNiagaraPerfBaselineStats Stats);
+	NIAGARA_API virtual void OnOwnerTick_Implementation(float DeltaTime);
 
 	UPROPERTY(EditAnywhere, Category = "Baseline")
 	int32 NumInstances = 1;
@@ -135,8 +135,8 @@ class NIAGARA_API UNiagaraBaselineController_Basic : public UNiagaraBaselineCont
 };
 
 /** Actor that controls how the baseline system behaves and also controls stats gathering for. */
-UCLASS()
-class NIAGARA_API ANiagaraPerfBaselineActor : public AActor
+UCLASS(MinimalAPI)
+class ANiagaraPerfBaselineActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -152,8 +152,8 @@ public:
 #if NIAGARA_PERF_BASELINES
 
 	//AActor Interface
-	virtual void BeginPlay();
-	virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction);
+	NIAGARA_API virtual void BeginPlay();
+	NIAGARA_API virtual void TickActor(float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction);
 	//AActor Interface END
 #endif
 };
@@ -164,14 +164,14 @@ public:
 Listener that accumulates a short run of stats for a particular baseline system.
 These are then stored for comparison against WIP systems in the editor to give a baseline for performance.
 */
-class NIAGARA_API FNiagaraPerfBaselineStatsListener : public FParticlePerfStatsListener
+class FNiagaraPerfBaselineStatsListener : public FParticlePerfStatsListener
 {
 public:
-	FNiagaraPerfBaselineStatsListener(UNiagaraBaselineController* OwnerBaseline);
-	virtual void Begin()override;
-	virtual void End()override;
-	virtual bool Tick()override;
-	virtual void TickRT()override;
+	NIAGARA_API FNiagaraPerfBaselineStatsListener(UNiagaraBaselineController* OwnerBaseline);
+	NIAGARA_API virtual void Begin()override;
+	NIAGARA_API virtual void End()override;
+	NIAGARA_API virtual bool Tick()override;
+	NIAGARA_API virtual void TickRT()override;
 
 	virtual bool NeedsWorldStats()const override { return false; }
 	virtual bool NeedsSystemStats()const override { return true; }
@@ -189,16 +189,16 @@ private:
 /**
 This listener gathers perf stats for all systems and will render them to the editor viewport with a comparison to their perf baselines.
 */
-class NIAGARA_API FParticlePerfStatsListener_NiagaraBaselineComparisonRender : public FParticlePerfStatsListener_GatherAll
+class FParticlePerfStatsListener_NiagaraBaselineComparisonRender : public FParticlePerfStatsListener_GatherAll
 {
 public:
-	FParticlePerfStatsListener_NiagaraBaselineComparisonRender();
-	virtual bool Tick()override;
-	virtual void TickRT()override;
+	NIAGARA_API FParticlePerfStatsListener_NiagaraBaselineComparisonRender();
+	NIAGARA_API virtual bool Tick()override;
+	NIAGARA_API virtual void TickRT()override;
 	virtual bool NeedsWorldStats()const { return false; }
 	virtual bool NeedsSystemStats()const { return true; }
 
-	int32 RenderStats(UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+	NIAGARA_API int32 RenderStats(UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
 
 	int32 NumFrames = 0;
 	int32 NumFramesRT = 0;
@@ -211,19 +211,19 @@ public:
 /**
 This listener gathers perf stats for all systems and will give less intrusive reports on systems that exceed their baseline cost.
 */
-class NIAGARA_API FParticlePerfStatsListener_NiagaraPerformanceReporter : public FParticlePerfStatsListener_GatherAll
+class FParticlePerfStatsListener_NiagaraPerformanceReporter : public FParticlePerfStatsListener_GatherAll
 {
 public:
-	FParticlePerfStatsListener_NiagaraPerformanceReporter(UWorld* InWorld);
+	NIAGARA_API FParticlePerfStatsListener_NiagaraPerformanceReporter(UWorld* InWorld);
 
-	virtual bool Tick()override;
-	virtual void TickRT()override;
+	NIAGARA_API virtual bool Tick()override;
+	NIAGARA_API virtual void TickRT()override;
 	virtual bool NeedsWorldStats()const override { return false; }
 	virtual bool NeedsSystemStats()const override { return true; }
 
-	void HandleTestResults();
-	void ReportToScreen();
-	void ReportToLog();
+	NIAGARA_API void HandleTestResults();
+	NIAGARA_API void ReportToScreen();
+	NIAGARA_API void ReportToLog();
 
 	TWeakObjectPtr<UWorld> World;
 
@@ -262,7 +262,7 @@ public:
 	FRenderCommandFence ResultsFence;
 	bool bResultsTrigger = false;
 
-	static const int32 TestDebugMessageID;
+	static NIAGARA_API const int32 TestDebugMessageID;
 };
 
 // Helper class for managing the generation and tracking of Niagara Performance Baselines.

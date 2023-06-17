@@ -10,8 +10,8 @@
 #include "NiagaraDataInterfaceCurveBase.generated.h"
 
 /** Base class for curve data interfaces which facilitates handling the curve data in a standardized way. */
-UCLASS(EditInlineNew, abstract)
-class NIAGARA_API UNiagaraDataInterfaceCurveBase : public UNiagaraDataInterface
+UCLASS(EditInlineNew, abstract, MinimalAPI)
+class UNiagaraDataInterfaceCurveBase : public UNiagaraDataInterface
 {
 public:
 	static constexpr float DefaultOptimizeThreshold = 0.01f;
@@ -87,12 +87,12 @@ public:
 
 #if WITH_EDITOR	
 	/** Refreshes and returns the errors detected with the corresponding data, if any.*/
-	virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
+	NIAGARA_API virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
 #endif
 
 public:
-	UNiagaraDataInterfaceCurveBase();
-	UNiagaraDataInterfaceCurveBase(FObjectInitializer const& ObjectInitializer);
+	NIAGARA_API UNiagaraDataInterfaceCurveBase();
+	NIAGARA_API UNiagaraDataInterfaceCurveBase(FObjectInitializer const& ObjectInitializer);
 
 	enum
 	{
@@ -117,47 +117,47 @@ public:
 	};
 
 	//UObject Interface
-	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Ar) override;
+	NIAGARA_API virtual void PostLoad() override;
+	NIAGARA_API virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//UObject Interface End
 
 	/** Gets information for all of the curves owned by this curve data interface. */
 	virtual void GetCurveData(TArray<FCurveData>& OutCurveData) { }
 
-	virtual void CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const FNiagaraVariable& ResolvedVariable, bool bUsedByCPU, bool bUsedByGPU) override;
+	NIAGARA_API virtual void CacheStaticBuffers(struct FNiagaraSystemStaticBuffers& StaticBuffers, const FNiagaraVariable& ResolvedVariable, bool bUsedByCPU, bool bUsedByGPU) override;
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
-	virtual void PostCompile() override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void PostCompile() override;
 
-	void SetDefaultLUT();
+	NIAGARA_API void SetDefaultLUT();
 #if WITH_EDITORONLY_DATA
-	void UpdateLUT(bool bFromSerialize = false);
-	void OptimizeLUT();
-	void UpdateExposedTexture();
+	NIAGARA_API void UpdateLUT(bool bFromSerialize = false);
+	NIAGARA_API void OptimizeLUT();
+	NIAGARA_API void UpdateExposedTexture();
 	virtual void SyncCurvesToAsset() {};
 #endif
 
 	//UNiagaraDataInterface interface
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 
 	virtual bool CanExposeVariables() const override { return true; }
-	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
-	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
+	NIAGARA_API virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
+	NIAGARA_API virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
 
-	virtual int32 GetCurveNumElems() const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::GetCurveNumElems(), return 0;)
+	NIAGARA_API virtual int32 GetCurveNumElems() const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::GetCurveNumElems(), return 0;)
 #if WITH_EDITORONLY_DATA
-	virtual FName GetCurveSampleFunctionName() const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::GetCurveSampleFunctionName(), return NAME_None;)
+	NIAGARA_API virtual FName GetCurveSampleFunctionName() const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::GetCurveSampleFunctionName(), return NAME_None;)
 #endif
 
-	virtual void UpdateTimeRanges() PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::UpdateTimeRanges(), )
+	NIAGARA_API virtual void UpdateTimeRanges() PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::UpdateTimeRanges(), )
 	virtual TArray<float> BuildLUT(int32 NumEntries) const PURE_VIRTUAL(UNiagaraDataInterfaceCurveBase::BuildLUT(), return TArray<float>(); )
 
 	FORCEINLINE float GetMinTime()const { return LUTMinTime; }
@@ -165,9 +165,9 @@ public:
 	FORCEINLINE float GetInvTimeRange()const { return LUTInvTimeRange; }
 
 protected:
-	virtual void PushToRenderThreadImpl() override;
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
-	virtual bool CompareLUTS(const TArray<float>& OtherLUT) const;
+	NIAGARA_API virtual void PushToRenderThreadImpl() override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CompareLUTS(const TArray<float>& OtherLUT) const;
 	//UNiagaraDataInterface interface END
 };
 

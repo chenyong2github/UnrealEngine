@@ -8,25 +8,25 @@
 
 class UNiagaraStackObject;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackSystemPropertiesItem : public UNiagaraStackItem
+UCLASS(MinimalAPI)
+class UNiagaraStackSystemPropertiesItem : public UNiagaraStackItem
 {
 	GENERATED_BODY()
 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData);
 
-	virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
 
-	virtual FText GetTooltipText() const override;
+	NIAGARAEDITOR_API virtual FText GetTooltipText() const override;
 
 	virtual bool GetShouldShowInOverview() const override { return false; }
 
 protected:
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 private:
-	void SystemPropertiesChanged();
+	NIAGARAEDITOR_API void SystemPropertiesChanged();
 
 private:
 	mutable TOptional<bool> bCanResetToBase;

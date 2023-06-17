@@ -12,10 +12,10 @@
 #include "NiagaraMessageDataBase.h"
 #include "NiagaraMessages.generated.h"
 
-struct NIAGARAEDITOR_API FNiagaraMessageTopics
+struct FNiagaraMessageTopics
 {
-	static const FName CompilerTopicName;
-	static const FName ObjectTopicName;
+	static NIAGARAEDITOR_API const FName CompilerTopicName;
+	static NIAGARAEDITOR_API const FName ObjectTopicName;
 };
 
 UENUM()
@@ -43,7 +43,7 @@ public:
 };
 
 // Struct for passing around named simple delegates.
-struct NIAGARAEDITOR_API FLinkNameAndDelegate
+struct FLinkNameAndDelegate
 {
 public:
 	FLinkNameAndDelegate() = default;
@@ -238,13 +238,13 @@ private:
 };
 
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraStackMessage
+struct FNiagaraStackMessage
 {
 	GENERATED_BODY()
 
-	FNiagaraStackMessage();
+	NIAGARAEDITOR_API FNiagaraStackMessage();
 
-	FNiagaraStackMessage(const FText& MessageText, const FText& ShortDescription, ENiagaraMessageSeverity Severity, bool bAllowDismissal, FGuid Guid = FGuid::NewGuid());
+	NIAGARAEDITOR_API FNiagaraStackMessage(const FText& MessageText, const FText& ShortDescription, ENiagaraMessageSeverity Severity, bool bAllowDismissal, FGuid Guid = FGuid::NewGuid());
 	
 	UPROPERTY()
 	FText MessageText;
@@ -262,7 +262,7 @@ struct NIAGARAEDITOR_API FNiagaraStackMessage
 	FGuid Guid;
 };
 
-struct NIAGARAEDITOR_API FGenerateNiagaraMessageInfo
+struct FGenerateNiagaraMessageInfo
 {
 public:
 	FGenerateNiagaraMessageInfo() = default;
@@ -280,26 +280,26 @@ private:
 	FSimpleDelegate DismissHandler;
 };
 
-UCLASS(abstract)
-class NIAGARAEDITOR_API UNiagaraMessageData : public UNiagaraMessageDataBase
+UCLASS(abstract, MinimalAPI)
+class UNiagaraMessageData : public UNiagaraMessageDataBase
 {
 	GENERATED_BODY()
 
 public:
-	virtual TSharedRef<const INiagaraMessage> GenerateNiagaraMessage(const FGenerateNiagaraMessageInfo& InGenerateInfo = FGenerateNiagaraMessageInfo()) const PURE_VIRTUAL(UNiagaraMessageData::GenerateNiagaraMessage, return TSharedRef<const INiagaraMessage>(static_cast<INiagaraMessage*>(nullptr)););
+	NIAGARAEDITOR_API virtual TSharedRef<const INiagaraMessage> GenerateNiagaraMessage(const FGenerateNiagaraMessageInfo& InGenerateInfo = FGenerateNiagaraMessageInfo()) const PURE_VIRTUAL(UNiagaraMessageData::GenerateNiagaraMessage, return TSharedRef<const INiagaraMessage>(static_cast<INiagaraMessage*>(nullptr)););
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraMessageDataText : public UNiagaraMessageData
+UCLASS(MinimalAPI)
+class UNiagaraMessageDataText : public UNiagaraMessageData
 {
 	GENERATED_BODY()
 
 public:
-	void Init(const FText& InMessageText, const ENiagaraMessageSeverity InMessageSeverity, const FName& InTopicName);
+	NIAGARAEDITOR_API void Init(const FText& InMessageText, const ENiagaraMessageSeverity InMessageSeverity, const FName& InTopicName);
 	
-	void Init(const FText& InMessageText, const FText& InShortDescription, const ENiagaraMessageSeverity InMessageSeverity, const FName& InTopicName);
+	NIAGARAEDITOR_API void Init(const FText& InMessageText, const FText& InShortDescription, const ENiagaraMessageSeverity InMessageSeverity, const FName& InTopicName);
 
-	virtual TSharedRef<const INiagaraMessage> GenerateNiagaraMessage(const FGenerateNiagaraMessageInfo& InGenerateInfo = FGenerateNiagaraMessageInfo()) const override;
+	NIAGARAEDITOR_API virtual TSharedRef<const INiagaraMessage> GenerateNiagaraMessage(const FGenerateNiagaraMessageInfo& InGenerateInfo = FGenerateNiagaraMessageInfo()) const override;
 
 	virtual bool GetAllowDismissal() const override { return bAllowDismissal; }
 	void SetAllowDismissal(bool bInAllowDismissal) { bAllowDismissal = bInAllowDismissal; }

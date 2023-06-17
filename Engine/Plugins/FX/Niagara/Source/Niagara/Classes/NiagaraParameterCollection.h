@@ -10,33 +10,33 @@
 class UMaterialParameterCollection;
 class UNiagaraParameterCollection;
 
-UCLASS()
-class NIAGARA_API UNiagaraParameterCollectionInstance : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraParameterCollectionInstance : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual ~UNiagaraParameterCollectionInstance();
+	NIAGARA_API virtual ~UNiagaraParameterCollectionInstance();
 
 	//~UObject interface
-	virtual void PostLoad()override;
+	NIAGARA_API virtual void PostLoad()override;
 	//~UObject interface
 	
-	bool IsDefaultInstance()const;
+	NIAGARA_API bool IsDefaultInstance()const;
 	
-	void SetParent(UNiagaraParameterCollection* InParent);
+	NIAGARA_API void SetParent(UNiagaraParameterCollection* InParent);
 	UNiagaraParameterCollection* GetParent()const { return Collection; }
 
 	FNiagaraParameterStore& GetParameterStore() { return ParameterStorage; }
 	const FNiagaraParameterStore& GetParameterStore() const { return ParameterStorage; }
 
-	bool AddParameter(const FNiagaraVariable& Parameter);
-	bool RemoveParameter(const FNiagaraVariable& Parameter);
-	void RenameParameter(const FNiagaraVariable& Parameter, FName NewName);
-	void Empty();
-	void GetParameters(TArray<FNiagaraVariable>& OutParameters);
+	NIAGARA_API bool AddParameter(const FNiagaraVariable& Parameter);
+	NIAGARA_API bool RemoveParameter(const FNiagaraVariable& Parameter);
+	NIAGARA_API void RenameParameter(const FNiagaraVariable& Parameter, FName NewName);
+	NIAGARA_API void Empty();
+	NIAGARA_API void GetParameters(TArray<FNiagaraVariable>& OutParameters);
 
-	void Tick(UWorld* World);
+	NIAGARA_API void Tick(UWorld* World);
 
 	//TODO: Abstract to some interface to allow a hierarchy like UMaterialInstance?
 	UPROPERTY(EditAnywhere, Category=Instance)
@@ -47,17 +47,17 @@ public:
 	*/
 	UPROPERTY()
 	TArray<FNiagaraVariable> OverridenParameters;
-	bool OverridesParameter(const FNiagaraVariable& Parameter)const;
-	void SetOverridesParameter(const FNiagaraVariable& Parameter, bool bOverrides);
+	NIAGARA_API bool OverridesParameter(const FNiagaraVariable& Parameter)const;
+	NIAGARA_API void SetOverridesParameter(const FNiagaraVariable& Parameter, bool bOverrides);
 
 	/** Synchronizes this instance with any changes with it's parent collection. */
-	void SyncWithCollection();
+	NIAGARA_API void SyncWithCollection();
 
-	void Bind(UWorld* World);
+	NIAGARA_API void Bind(UWorld* World);
 
 private:
-	void RefreshSourceParameters(UWorld* World, const TArray<TPair<FName, float>>& ScalarParameters, const TArray<TPair<FName, FLinearColor>>& VectorParameters);
-	bool EnsureNotBoundToMaterialParameterCollection(FName InVariableName, FString CallingFunction) const;
+	NIAGARA_API void RefreshSourceParameters(UWorld* World, const TArray<TPair<FName, float>>& ScalarParameters, const TArray<TPair<FName, FLinearColor>>& VectorParameters);
+	NIAGARA_API bool EnsureNotBoundToMaterialParameterCollection(FName InVariableName, FString CallingFunction) const;
 
 	UPROPERTY()
 	FNiagaraParameterStore ParameterStorage;
@@ -72,80 +72,80 @@ private:
 
 	//~UObject interface
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)override;
 #endif
 	//~UObject interface
 public:
 	//Accessors from Blueprint. For now just exposing common types but ideally we can expose any somehow in future.
 	
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Bool Parameter"))
-	bool GetBoolParameter(const FString& InVariableName);
+	NIAGARA_API bool GetBoolParameter(const FString& InVariableName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Float Parameter"))
-	float GetFloatParameter(const FString& InVariableName);
+	NIAGARA_API float GetFloatParameter(const FString& InVariableName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Int Parameter"))
-	int32 GetIntParameter(const FString& InVariableName);
+	NIAGARA_API int32 GetIntParameter(const FString& InVariableName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Vector2D Parameter"))
-	FVector2D GetVector2DParameter(const FString& InVariableName);
+	NIAGARA_API FVector2D GetVector2DParameter(const FString& InVariableName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Vector Parameter"))
-	FVector GetVectorParameter(const FString& InVariableName);
+	NIAGARA_API FVector GetVectorParameter(const FString& InVariableName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Vector4 Parameter"))
-	FVector4 GetVector4Parameter(const FString& InVariableName);
+	NIAGARA_API FVector4 GetVector4Parameter(const FString& InVariableName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Quaternion Parameter"))
-	FQuat GetQuatParameter(const FString& InVariableName);
+	NIAGARA_API FQuat GetQuatParameter(const FString& InVariableName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Color Parameter"))
-	FLinearColor GetColorParameter(const FString& InVariableName);
+	NIAGARA_API FLinearColor GetColorParameter(const FString& InVariableName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Bool Parameter"))
-	void SetBoolParameter(const FString& InVariableName, bool InValue);
+	NIAGARA_API void SetBoolParameter(const FString& InVariableName, bool InValue);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Float Parameter"))
-	void SetFloatParameter(const FString& InVariableName, float InValue);
+	NIAGARA_API void SetFloatParameter(const FString& InVariableName, float InValue);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Int Parameter"))
-	void SetIntParameter(const FString& InVariableName, int32 InValue);
+	NIAGARA_API void SetIntParameter(const FString& InVariableName, int32 InValue);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Vector2D Parameter"))
-	void SetVector2DParameter(const FString& InVariableName, FVector2D InValue);
+	NIAGARA_API void SetVector2DParameter(const FString& InVariableName, FVector2D InValue);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Vector Parameter"))
-	void SetVectorParameter(const FString& InVariableName, FVector InValue); // TODO[mg]: add position setter for LWC
+	NIAGARA_API void SetVectorParameter(const FString& InVariableName, FVector InValue); // TODO[mg]: add position setter for LWC
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Vector4 Parameter"))
-	void SetVector4Parameter(const FString& InVariableName, const FVector4& InValue);
+	NIAGARA_API void SetVector4Parameter(const FString& InVariableName, const FVector4& InValue);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Color Parameter"))
-	void SetColorParameter(const FString& InVariableName, FLinearColor InValue);
+	NIAGARA_API void SetColorParameter(const FString& InVariableName, FLinearColor InValue);
 	
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Quaternion Parameter"))
-	void SetQuatParameter(const FString& InVariableName, const FQuat& InValue);
+	NIAGARA_API void SetQuatParameter(const FString& InVariableName, const FQuat& InValue);
 };
 
 /** Asset containing a collection of global parameters usable by Niagara. */
-UCLASS()
-class NIAGARA_API UNiagaraParameterCollection : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraParameterCollection : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
 
 	//~UObject interface
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)override;
 #endif
 	//~UObject interface
 
-	int32 IndexOfParameter(const FNiagaraVariable& Var);
+	NIAGARA_API int32 IndexOfParameter(const FNiagaraVariable& Var);
 
-	int32 AddParameter(const FNiagaraVariable& Parameter);
-	int32 AddParameter(FName Name, FNiagaraTypeDefinition Type);
-	void RemoveParameter(const FNiagaraVariable& Parameter);
-	void RenameParameter(FNiagaraVariable& Parameter, FName NewName);
+	NIAGARA_API int32 AddParameter(const FNiagaraVariable& Parameter);
+	NIAGARA_API int32 AddParameter(FName Name, FNiagaraTypeDefinition Type);
+	NIAGARA_API void RemoveParameter(const FNiagaraVariable& Parameter);
+	NIAGARA_API void RenameParameter(FNiagaraVariable& Parameter, FName NewName);
 
 	TArray<FNiagaraVariable>& GetParameters() { return Parameters; }
 	const TArray<FNiagaraVariable>& GetParameters() const { return Parameters; }
@@ -162,26 +162,26 @@ public:
 	Takes the friendly name presented to the UI and converts to the real parameter name used under the hood.
 	Converts from "ParameterName" to "CollectionUniqueName_ParameterName".
 	*/
-	FString ParameterNameFromFriendlyName(const FString& FriendlyName)const;
+	NIAGARA_API FString ParameterNameFromFriendlyName(const FString& FriendlyName)const;
 	/**
 	Takes the real parameter name used under the hood and converts to the friendly name for use in the UI.
 	Converts from "CollectionUniqueName_ParameterName" to "ParameterName".
 	*/
 
-	FNiagaraVariable CollectionParameterFromFriendlyParameter(const FNiagaraVariable& FriendlyParameter)const;
-	FNiagaraVariable FriendlyParameterFromCollectionParameter(const FNiagaraVariable& CollectionParameter)const;
+	NIAGARA_API FNiagaraVariable CollectionParameterFromFriendlyParameter(const FNiagaraVariable& FriendlyParameter)const;
+	NIAGARA_API FNiagaraVariable FriendlyParameterFromCollectionParameter(const FNiagaraVariable& CollectionParameter)const;
 
-	FString FriendlyNameFromParameterName(FString ParameterName)const;
-	FString GetFullNamespace()const;
+	NIAGARA_API FString FriendlyNameFromParameterName(FString ParameterName)const;
+	NIAGARA_API FString GetFullNamespace()const;
 
 	/** The compile Id is an indicator to any compiled scripts that reference this collection that contents may have changed and a recompile is recommended to be safe.*/
-	FNiagaraCompileHash GetCompileHash() const;
+	NIAGARA_API FNiagaraCompileHash GetCompileHash() const;
 
 	/** If for any reason this data has changed externally and needs recompilation and it isn't autodetected, use this method. */
-	void RefreshCompileId();
+	NIAGARA_API void RefreshCompileId();
 
 	//~UObject interface
-	virtual void PostLoad()override;
+	NIAGARA_API virtual void PostLoad()override;
 	//~UObject interface
 
 	FName GetNamespace()const { return Namespace; }
@@ -195,8 +195,8 @@ public:
 protected:
 	
 #if WITH_EDITORONLY_DATA
-	void MakeNamespaceNameUnique();
-	void AddDefaultSourceParameters();
+	NIAGARA_API void MakeNamespaceNameUnique();
+	NIAGARA_API void AddDefaultSourceParameters();
 #endif
 
 	/** Namespace for this parameter collection. Is enforced to be unique across all parameter collections. */

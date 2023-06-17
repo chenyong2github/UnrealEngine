@@ -7,21 +7,21 @@
 #include "GameFramework/Actor.h"
 #include "NiagaraActor.generated.h"
 
-UCLASS(hideCategories = (Activation, "Components|Activation", Input, Collision, "Game|Damage"), ComponentWrapperClass)
-class NIAGARA_API ANiagaraActor : public AActor
+UCLASS(hideCategories = (Activation, "Components|Activation", Input, Collision, "Game|Damage"), ComponentWrapperClass, MinimalAPI)
+class ANiagaraActor : public AActor
 {
 	GENERATED_BODY()
 protected:
 
-	ANiagaraActor(const FObjectInitializer& ObjectInitializer);
+	NIAGARA_API ANiagaraActor(const FObjectInitializer& ObjectInitializer);
 	
 public:
 
-	virtual void PostRegisterAllComponents() override;
+	NIAGARA_API virtual void PostRegisterAllComponents() override;
 
 	/** Set true for this actor to self-destruct when the Niagara system finishes, false otherwise */
 	UFUNCTION(BlueprintCallable, Category=NiagaraActor)
-	void SetDestroyOnSystemFinish(bool bShouldDestroyOnSystemFinish);
+	NIAGARA_API void SetDestroyOnSystemFinish(bool bShouldDestroyOnSystemFinish);
 
 	/** Returns true if the system will destroy on finish */
 	UFUNCTION(BlueprintCallable, Category=NiagaraActor)
@@ -49,7 +49,7 @@ private:
 
 	/** Callback when Niagara system finishes. */
 	UFUNCTION(CallInEditor)
-	void OnNiagaraSystemFinished(UNiagaraComponent* FinishedComponent);
+	NIAGARA_API void OnNiagaraSystemFinished(UNiagaraComponent* FinishedComponent);
 
 public:
 	/** Returns NiagaraComponent subobject **/
@@ -63,11 +63,11 @@ public:
 
 #if WITH_EDITOR
 	// AActor interface
-	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	NIAGARA_API virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 	// End of AActor interface
 
 	/** Reset this actor in the level.*/
-	void ResetInLevel();
+	NIAGARA_API void ResetInLevel();
 #endif // WITH_EDITOR
 
 };

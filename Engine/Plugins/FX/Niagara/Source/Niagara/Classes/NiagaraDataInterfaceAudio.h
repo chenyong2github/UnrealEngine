@@ -14,7 +14,7 @@
 #endif
 
 /** Class used to to capture the audio stream of an arbitrary submix. */
-class NIAGARA_API FNiagaraSubmixListener : public ISubmixBufferListener
+class FNiagaraSubmixListener : public ISubmixBufferListener
 {
 public:
 
@@ -25,7 +25,7 @@ public:
 	 *                               data to be overwritten by threads that produce audio. High 
 	 *                               values require more memory.
 	 */
-	FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer, Audio::FDeviceId InDeviceId, USoundSubmix* InSoundSubmix);
+	NIAGARA_API FNiagaraSubmixListener(Audio::FPatchMixer& InMixer, int32 InNumSamplesToBuffer, Audio::FDeviceId InDeviceId, USoundSubmix* InSoundSubmix);
 
 	FNiagaraSubmixListener(const FNiagaraSubmixListener& Other)
 	{
@@ -35,27 +35,27 @@ public:
 	}
 
 	/** Move submix listener. */
-	FNiagaraSubmixListener(FNiagaraSubmixListener&& Other);
+	NIAGARA_API FNiagaraSubmixListener(FNiagaraSubmixListener&& Other);
 
-	void RegisterToSubmix();
+	NIAGARA_API void RegisterToSubmix();
 
-	virtual ~FNiagaraSubmixListener();
+	NIAGARA_API virtual ~FNiagaraSubmixListener();
 
 	/** Returns the current sample rate of the current submix. */
-	float GetSampleRate() const;
+	NIAGARA_API float GetSampleRate() const;
 
 	/** Returns the number of channels of the current submix. */
-	int32 GetNumChannels() const;
+	NIAGARA_API int32 GetNumChannels() const;
 
 	// Begin ISubmixBufferListener overrides
-	virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
+	NIAGARA_API virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
 	// End ISubmixBufferListener overrides
 
 private:
-	FNiagaraSubmixListener();
+	NIAGARA_API FNiagaraSubmixListener();
 
 
-	void UnregisterFromSubmix();
+	NIAGARA_API void UnregisterFromSubmix();
 
 	TAtomic<int32> NumChannelsInSubmix;
 	TAtomic<int32> SubmixSampleRate;
@@ -132,8 +132,8 @@ private:
 };
 
 /** Data Interface allowing sampling of recent audio data. */
-UCLASS(EditInlineNew, Category = "Audio", CollapseCategories, meta = (DisplayName = "Audio Submix"))
-class NIAGARA_API UNiagaraDataInterfaceAudioSubmix : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Audio", CollapseCategories, meta = (DisplayName = "Audio Submix"), MinimalAPI)
+class UNiagaraDataInterfaceAudioSubmix : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -143,18 +143,18 @@ public:
 	TObjectPtr<USoundSubmix> Submix;
 
 
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
-	virtual void PostInitProperties() override;
-	virtual void BeginDestroy() override;
-	virtual void PostLoad() override;
+	NIAGARA_API virtual void PostInitProperties() override;
+	NIAGARA_API virtual void BeginDestroy() override;
+	NIAGARA_API virtual void PostLoad() override;
 
 protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 private:
 
 };

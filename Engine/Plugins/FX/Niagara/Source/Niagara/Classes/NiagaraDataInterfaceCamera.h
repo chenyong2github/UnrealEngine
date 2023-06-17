@@ -23,8 +23,8 @@ struct FCameraDataInterface_InstanceData
 	TArray<FDistanceData> ParticlesSortedByDistance;	
 };
 
-UCLASS(EditInlineNew, Category = "Camera", CollapseCategories, meta = (DisplayName = "Camera Query"))
-class NIAGARA_API UNiagaraDataInterfaceCamera : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Camera", CollapseCategories, meta = (DisplayName = "Camera Query"), MinimalAPI)
+class UNiagaraDataInterfaceCamera : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -44,54 +44,54 @@ public:
 	bool bRequireCurrentFrameData = true;
 
 	//UObject Interface
-	virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostInitProperties() override;
 	//UObject Interface End
 
 	//UNiagaraDataInterface Interface
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
-	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	NIAGARA_API virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual int32 PerInstanceDataSize() const override { return sizeof(FCameraDataInterface_InstanceData); }
-	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	NIAGARA_API virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 	virtual bool HasTickGroupPrereqs() const override { return true; }
-	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
+	NIAGARA_API virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 	virtual bool RequiresEarlyViewData() const override { return true; }
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool HasPreSimulateTick() const override { return true; }
 #if WITH_EDITOR	
-	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
+	NIAGARA_API virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
         TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
 #endif
 	//UNiagaraDataInterface Interface
 
-	void CalculateParticleDistances(FVectorVMExternalFunctionContext& Context);
-	void GetClosestParticles(FVectorVMExternalFunctionContext& Context);
-	void GetCameraFOV(FVectorVMExternalFunctionContext& Context);
-	void GetCameraProperties(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void CalculateParticleDistances(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetClosestParticles(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetCameraFOV(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetCameraProperties(FVectorVMExternalFunctionContext& Context);
 
 protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 private:
-	static const TCHAR* TemplateShaderFilePath;
-	static const FName CalculateDistancesName;
-	static const FName QueryClosestName;
-	static const FName GetViewPropertiesName;
-	static const FName GetClipSpaceTransformsName;
-	static const FName GetViewSpaceTransformsName;
-	static const FName GetCameraPropertiesName;
-	static const FName GetFieldOfViewName;
-	static const FName GetTAAJitterName;
-	static const FName ApplyPreViewTranslationToPosition;
-	static const FName RemovePreViewTranslationFromPosition;
+	static NIAGARA_API const TCHAR* TemplateShaderFilePath;
+	static NIAGARA_API const FName CalculateDistancesName;
+	static NIAGARA_API const FName QueryClosestName;
+	static NIAGARA_API const FName GetViewPropertiesName;
+	static NIAGARA_API const FName GetClipSpaceTransformsName;
+	static NIAGARA_API const FName GetViewSpaceTransformsName;
+	static NIAGARA_API const FName GetCameraPropertiesName;
+	static NIAGARA_API const FName GetFieldOfViewName;
+	static NIAGARA_API const FName GetTAAJitterName;
+	static NIAGARA_API const FName ApplyPreViewTranslationToPosition;
+	static NIAGARA_API const FName RemovePreViewTranslationFromPosition;
 };
 
 struct FNiagaraDataIntefaceProxyCameraQuery : public FNiagaraDataInterfaceProxy

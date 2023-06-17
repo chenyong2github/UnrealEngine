@@ -25,17 +25,17 @@ class FNiagaraGPURendererCount;
 class FNiagaraSystemInstanceController;
 
 /** Struct used to pass dynamic data from game thread to render thread */
-struct NIAGARA_API FNiagaraDynamicDataBase
+struct FNiagaraDynamicDataBase
 {
-	explicit FNiagaraDynamicDataBase(const FNiagaraEmitterInstance* InEmitter);
-	virtual ~FNiagaraDynamicDataBase();
+	NIAGARA_API explicit FNiagaraDynamicDataBase(const FNiagaraEmitterInstance* InEmitter);
+	NIAGARA_API virtual ~FNiagaraDynamicDataBase();
 
 	FNiagaraDynamicDataBase() = delete;
 	FNiagaraDynamicDataBase(FNiagaraDynamicDataBase& Other) = delete;
 	FNiagaraDynamicDataBase& operator=(const FNiagaraDynamicDataBase& Other) = delete;
 
-	bool IsGpuLowLatencyTranslucencyEnabled() const;
-	FNiagaraDataBuffer* GetParticleDataToRender(bool bIsLowLatencyTranslucent = false) const;
+	NIAGARA_API bool IsGpuLowLatencyTranslucencyEnabled() const;
+	NIAGARA_API FNiagaraDataBuffer* GetParticleDataToRender(bool bIsLowLatencyTranslucent = false) const;
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 	FORCEINLINE FMaterialRelevance GetMaterialRelevance() const { return MaterialRelevance; }
 
@@ -69,22 +69,22 @@ struct FParticleRenderData
 /**
 * Base class for Niagara System renderers.
 */
-class NIAGARA_API FNiagaraRenderer
+class FNiagaraRenderer
 {
 public:
 
-	FNiagaraRenderer(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
-	virtual ~FNiagaraRenderer();
+	NIAGARA_API FNiagaraRenderer(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	NIAGARA_API virtual ~FNiagaraRenderer();
 
 	FNiagaraRenderer(const FNiagaraRenderer& Other) = delete;
 	FNiagaraRenderer& operator=(const FNiagaraRenderer& Other) = delete;
 
-	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InComponent);
+	NIAGARA_API virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InComponent);
 	virtual void CreateRenderThreadResources() {}
 	virtual void ReleaseRenderThreadResources() {}
 	virtual void DestroyRenderState_Concurrent() {}
 
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const;
+	NIAGARA_API virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const {}
 	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitteride) const { return nullptr; }
 
@@ -92,12 +92,12 @@ public:
 	virtual int32 GetDynamicDataSize()const { return 0; }
 	virtual bool IsMaterialValid(const UMaterialInterface* Mat)const { return Mat != nullptr; }
 
-	static void SortIndices(const struct FNiagaraGPUSortInfo& SortInfo, const FNiagaraRendererVariableInfo& SortVariable, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices);
-	static int32 SortAndCullIndices(const FNiagaraGPUSortInfo& SortInfo, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices);
+	static NIAGARA_API void SortIndices(const struct FNiagaraGPUSortInfo& SortInfo, const FNiagaraRendererVariableInfo& SortVariable, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices);
+	static NIAGARA_API int32 SortAndCullIndices(const FNiagaraGPUSortInfo& SortInfo, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices);
 
-	static FVector4f CalcMacroUVParameters(const FSceneView& View, FVector MacroUVPosition, float MacroUVRadius);
+	static NIAGARA_API FVector4f CalcMacroUVParameters(const FSceneView& View, FVector MacroUVPosition, float MacroUVRadius);
 
-	void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData);
+	NIAGARA_API void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData);
 	FORCEINLINE FNiagaraDynamicDataBase *GetDynamicData() const { return DynamicDataRender; }
 	FORCEINLINE bool HasDynamicData() const { return DynamicDataRender != nullptr; }
 	FORCEINLINE bool HasLights() const { return bHasLights; }
@@ -123,18 +123,18 @@ public:
 	FORCEINLINE static FRHIShaderResourceView* GetSrvOrDefaultUInt(FRHIShaderResourceView* InSRV) { return InSRV ? InSRV : GetDummyUIntBuffer(); }
 	FORCEINLINE static FRHIShaderResourceView* GetSrvOrDefaultInt(FRHIShaderResourceView* InSRV) { return InSRV ? InSRV : GetDummyIntBuffer(); }
 
-	static FRHIShaderResourceView* GetDummyFloatBuffer();
-	static FRHIShaderResourceView* GetDummyFloat2Buffer();
-	static FRHIShaderResourceView* GetDummyFloat4Buffer();
-	static FRHIShaderResourceView* GetDummyWhiteColorBuffer();
-	static FRHIShaderResourceView* GetDummyIntBuffer();
-	static FRHIShaderResourceView* GetDummyUIntBuffer();
-	static FRHIShaderResourceView* GetDummyUInt2Buffer();
-	static FRHIShaderResourceView* GetDummyUInt4Buffer();
-	static FRHIShaderResourceView* GetDummyTextureReadBuffer2D();
-	static FRHIShaderResourceView* GetDummyTextureReadBuffer2DArray();
-	static FRHIShaderResourceView* GetDummyTextureReadBuffer3D();
-	static FRHIShaderResourceView* GetDummyHalfBuffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyFloatBuffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyFloat2Buffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyFloat4Buffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyWhiteColorBuffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyIntBuffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyUIntBuffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyUInt2Buffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyUInt4Buffer();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyTextureReadBuffer2D();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyTextureReadBuffer2DArray();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyTextureReadBuffer3D();
+	static NIAGARA_API FRHIShaderResourceView* GetDummyHalfBuffer();
 
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 
@@ -145,12 +145,12 @@ public:
 
 protected:
 
-	virtual void ProcessMaterialParameterBindings(const FNiagaraRendererMaterialParameters& MaterialParameters, const FNiagaraEmitterInstance* InEmitter, TConstArrayView<UMaterialInterface*> InMaterials) const;
+	NIAGARA_API virtual void ProcessMaterialParameterBindings(const FNiagaraRendererMaterialParameters& MaterialParameters, const FNiagaraEmitterInstance* InEmitter, TConstArrayView<UMaterialInterface*> InMaterials) const;
 
-	bool IsRendererEnabled(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const;
-	bool UseLocalSpace(const FNiagaraSceneProxy* Proxy) const;
+	NIAGARA_API bool IsRendererEnabled(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const;
+	NIAGARA_API bool UseLocalSpace(const FNiagaraSceneProxy* Proxy) const;
 
-	static bool ViewFamilySupportLowLatencyTranslucency(const FSceneViewFamily& ViewFamily);
+	static NIAGARA_API bool ViewFamilySupportLowLatencyTranslucency(const FSceneViewFamily& ViewFamily);
 
 	struct FNiagaraDynamicDataBase *DynamicDataRender;
 
@@ -172,7 +172,7 @@ protected:
 #endif
 
 
-	static FParticleRenderData TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, const FNiagaraRendererLayout* RendererLayout, TConstArrayView<uint32> IntComponents, const FNiagaraDataBuffer* SrcData);
+	static NIAGARA_API FParticleRenderData TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, const FNiagaraRendererLayout* RendererLayout, TConstArrayView<uint32> IntComponents, const FNiagaraDataBuffer* SrcData);
 
 	/** Cached array of materials used from the properties data. Validated with usage flags etc. */
 	TArray<UMaterialInterface*> BaseMaterials_GT;

@@ -180,10 +180,10 @@ public:
 	FNiagaraMessageStore& GetMessageStore() { return MessageStore; }
 
 	// Custom Notes API
-	NIAGARAEDITOR_API const TArray<FNiagaraStackMessage>& GetCustomNotes() const { return StackMessages; };
+	const TArray<FNiagaraStackMessage>& GetCustomNotes() const { return StackMessages; };
 	NIAGARAEDITOR_API void AddCustomNote(const FNiagaraStackMessage& StackMessage);
 	NIAGARAEDITOR_API void RemoveCustomNote(const FGuid& MessageKey);
-	NIAGARAEDITOR_API FSimpleDelegate& OnCustomNotesChanged() { return OnCustomNotesChangedDelegate; }
+	FSimpleDelegate& OnCustomNotesChanged() { return OnCustomNotesChangedDelegate; }
 	void RemoveCustomNoteViaDelegate(const FGuid MessageKey);
 	TArray<FGuid> GetBoundPinGuidsByName(FName InputName) const;
 

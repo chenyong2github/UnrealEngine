@@ -55,7 +55,7 @@ enum class ENiagaraMeshLockedAxisSpace : uint8
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraMeshMICOverride
+struct FNiagaraMeshMICOverride
 {
 	GENERATED_BODY()
 
@@ -67,14 +67,14 @@ struct NIAGARA_API FNiagaraMeshMICOverride
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraMeshMaterialOverride
+struct FNiagaraMeshMaterialOverride
 {
 	GENERATED_USTRUCT_BODY()
 public:
-	FNiagaraMeshMaterialOverride();
+	NIAGARA_API FNiagaraMeshMaterialOverride();
 
 	/** Used to upgrade a serialized FNiagaraParameterStore property to our own struct */
-	bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	NIAGARA_API bool SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	/** Use this UMaterialInterface if set to a valid value. This will be subordinate to UserParamBinding if it is set to a valid user variable.*/
 	UPROPERTY(EditAnywhere, Category = "Material", meta = (EditCondition = "bOverrideMaterials"))
@@ -133,11 +133,11 @@ namespace ENiagaraMeshVFLayout
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraMeshRendererMeshProperties
+struct FNiagaraMeshRendererMeshProperties
 {
 	GENERATED_BODY()
 
-	FNiagaraMeshRendererMeshProperties();
+	NIAGARA_API FNiagaraMeshRendererMeshProperties();
 
 	/** The mesh to use when rendering this slot */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
@@ -169,67 +169,67 @@ struct NIAGARA_API FNiagaraMeshRendererMeshProperties
 	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace;
 
 	/** Resolve renderable mesh. */
-	FNiagaraRenderableMeshPtr ResolveRenderableMesh(const FNiagaraEmitterInstance* EmitterInstance) const;
+	NIAGARA_API FNiagaraRenderableMeshPtr ResolveRenderableMesh(const FNiagaraEmitterInstance* EmitterInstance) const;
 
 	/** Is the renderable mesh potentially valid or not. */
-	bool HasValidRenderableMesh() const;
+	NIAGARA_API bool HasValidRenderableMesh() const;
 };
 
-UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))
-class NIAGARA_API UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
+UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"), MinimalAPI)
+class UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
 {
 public:
 	GENERATED_BODY()
 
-	UNiagaraMeshRendererProperties();
+	NIAGARA_API UNiagaraMeshRendererProperties();
 
 	//UObject Interface
-	virtual void PostLoad() override;
-	virtual void PostInitProperties() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	NIAGARA_API virtual void PostLoad() override;
+	NIAGARA_API virtual void PostInitProperties() override;
+	NIAGARA_API virtual void Serialize(FArchive& Ar) override;
+	NIAGARA_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 #if WITH_EDITORONLY_DATA
-	virtual void BeginDestroy() override;
-	virtual void PreEditChange(class FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter) override;
-	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter) override;
+	NIAGARA_API virtual void BeginDestroy() override;
+	NIAGARA_API virtual void PreEditChange(class FProperty* PropertyThatWillChange) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter) override;
+	NIAGARA_API virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter) override;
 #endif// WITH_EDITORONLY_DATA
 	//UObject Interface END
 
-	static void InitCDOPropertiesAfterModuleStartup();
+	static NIAGARA_API void InitCDOPropertiesAfterModuleStartup();
 
 	//~ UNiagaraRendererProperties interface
-	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController) override;
-	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override;
-	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const override;
-	virtual void GetStreamingMeshInfo(const FBoxSphereBounds& OwnerBounds, const FNiagaraEmitterInstance* InEmitter, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
-	virtual const FVertexFactoryType* GetVertexFactoryType() const override;
+	NIAGARA_API virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController) override;
+	NIAGARA_API virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override;
+	NIAGARA_API virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const override;
+	NIAGARA_API virtual void GetStreamingMeshInfo(const FBoxSphereBounds& OwnerBounds, const FNiagaraEmitterInstance* InEmitter, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
+	NIAGARA_API virtual const FVertexFactoryType* GetVertexFactoryType() const override;
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return true; };
-	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) override;
-	virtual void CollectPSOPrecacheData(FPSOPrecacheParamsList& OutParams) override;
+	NIAGARA_API virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore) override;
+	NIAGARA_API virtual void CollectPSOPrecacheData(FPSOPrecacheParamsList& OutParams) override;
 
 #if WITH_EDITORONLY_DATA
-	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
-	virtual void GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const override;
-	virtual	void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
-	virtual	void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
-	virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const override;
-	void OnMeshChanged();
-	void OnMeshPostBuild(UStaticMesh*);
-	void OnAssetReimported(UObject*);
-	void CheckMaterialUsage();
-	virtual TArray<FNiagaraVariable> GetBoundAttributes() const override;
+	NIAGARA_API virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
+	NIAGARA_API virtual void GetAdditionalVariables(TArray<FNiagaraVariableBase>& OutArray) const override;
+	NIAGARA_API virtual	void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
+	NIAGARA_API virtual	void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
+	NIAGARA_API virtual void GetRendererFeedback(const FVersionedNiagaraEmitter& InEmitter, TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings, TArray<FNiagaraRendererFeedback>& OutInfo) const override;
+	NIAGARA_API void OnMeshChanged();
+	NIAGARA_API void OnMeshPostBuild(UStaticMesh*);
+	NIAGARA_API void OnAssetReimported(UObject*);
+	NIAGARA_API void CheckMaterialUsage();
+	NIAGARA_API virtual TArray<FNiagaraVariable> GetBoundAttributes() const override;
 #endif // WITH_EDITORONLY_DATA
-	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
+	NIAGARA_API virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 	virtual bool UseHeterogeneousVolumes() const override { return bUseHeterogeneousVolumes; }
 
-	void UpdateMICs();
+	NIAGARA_API void UpdateMICs();
 
 	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const override { return SourceMode; }
 	//UNiagaraRendererProperties Interface END
 
-	void ApplyMaterialOverrides(const FNiagaraEmitterInstance* EmitterInstance, TArray<UMaterialInterface*>& InOutMaterials) const;
+	NIAGARA_API void ApplyMaterialOverrides(const FNiagaraEmitterInstance* EmitterInstance, TArray<UMaterialInterface*>& InOutMaterials) const;
 
 	/**
 	 * The static mesh(es) to be instanced when rendering mesh particles.
@@ -459,19 +459,19 @@ public:
 	FNiagaraRendererLayout RendererLayoutWithoutCustomSorting;
 
 protected:
-	void InitBindings();
-	void SetPreviousBindings(const FVersionedNiagaraEmitter& SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode);
-	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
+	NIAGARA_API void InitBindings();
+	NIAGARA_API void SetPreviousBindings(const FVersionedNiagaraEmitter& SrcEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	NIAGARA_API virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
 	virtual bool NeedsMIDsForMaterials() const override { return MaterialParameters.HasAnyBindings(); }
 #if WITH_EDITORONLY_DATA
-	bool ChangeRequiresMeshListRebuild(const FProperty* Property);
-	void RebuildMeshList();
+	NIAGARA_API bool ChangeRequiresMeshListRebuild(const FProperty* Property);
+	NIAGARA_API void RebuildMeshList();
 
-	virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const override;
+	NIAGARA_API virtual FNiagaraVariable GetBoundAttribute(const FNiagaraVariableAttributeBinding* Binding) const override;
 #endif
 
 private:
-	static TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> MeshRendererPropertiesToDeferredInit;
+	static NIAGARA_API TArray<TWeakObjectPtr<UNiagaraMeshRendererProperties>> MeshRendererPropertiesToDeferredInit;
 
 #if WITH_EDITORONLY_DATA
 	// These properties are deprecated and moved to FNiagaraMeshRendererMeshProperties

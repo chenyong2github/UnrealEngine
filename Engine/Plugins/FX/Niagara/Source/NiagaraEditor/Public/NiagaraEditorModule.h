@@ -58,7 +58,7 @@ extern NIAGARAEDITOR_API int32 GbEnableExperimentalInlineDynamicInputs;
 extern NIAGARAEDITOR_API int32 GbEnableCustomInlineDynamicInputFormats;
 
 /* Defines methods for allowing external modules to supply widgets to the core editor module. */
-class NIAGARAEDITOR_API INiagaraEditorWidgetProvider
+class INiagaraEditorWidgetProvider
 {
 public:
 	virtual TSharedRef<SWidget> CreateStackView(UNiagaraStackViewModel& StackViewModel) const = 0;
@@ -101,7 +101,7 @@ private:
 };
 
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraRendererCreationInfo
+struct FNiagaraRendererCreationInfo
 {
 	DECLARE_DELEGATE_RetVal_OneParam(UNiagaraRendererProperties*, FRendererFactory, UObject* OuterEmitter);
 
@@ -192,7 +192,7 @@ public:
 
 	/** Registers a new renderer creation delegate with the display name it's going to use for the UI. */
 	NIAGARAEDITOR_API void RegisterRendererCreationInfo(FNiagaraRendererCreationInfo RendererCreationInfo);
-	NIAGARAEDITOR_API const TArray<FNiagaraRendererCreationInfo>& GetRendererCreationInfos() const { return RendererCreationInfo; }
+	const TArray<FNiagaraRendererCreationInfo>& GetRendererCreationInfos() const { return RendererCreationInfo; }
 	
 	void RegisterParameterTrackCreatorForType(const UScriptStruct& StructType, FOnCreateMovieSceneTrackForParameter CreateTrack);
 	void UnregisterParameterTrackCreatorForType(const UScriptStruct& StructType);

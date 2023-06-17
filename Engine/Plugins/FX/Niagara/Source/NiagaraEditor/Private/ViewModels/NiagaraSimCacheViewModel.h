@@ -14,7 +14,7 @@ struct FNiagaraSystemSimCacheCaptureReply;
 struct FNiagaraSimCacheDataBuffersLayout;
 class UNiagaraComponent;
 
-class NIAGARAEDITOR_API FNiagaraSimCacheViewModel : public TSharedFromThis<FNiagaraSimCacheViewModel>, public FGCObject
+class FNiagaraSimCacheViewModel : public TSharedFromThis<FNiagaraSimCacheViewModel>, public FGCObject
 {
 public:
 	struct FComponentInfo
@@ -32,18 +32,18 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnSimCacheChanged)
 	DECLARE_MULTICAST_DELEGATE(FOnBufferChanged)
 	
-	FNiagaraSimCacheViewModel();
-	~FNiagaraSimCacheViewModel();
+	NIAGARAEDITOR_API FNiagaraSimCacheViewModel();
+	NIAGARAEDITOR_API ~FNiagaraSimCacheViewModel();
 
-	void Initialize(TWeakObjectPtr<UNiagaraSimCache> SimCache);
+	NIAGARAEDITOR_API void Initialize(TWeakObjectPtr<UNiagaraSimCache> SimCache);
 
-	void UpdateSimCache(const FNiagaraSystemSimCacheCaptureReply& Reply);
+	NIAGARAEDITOR_API void UpdateSimCache(const FNiagaraSystemSimCacheCaptureReply& Reply);
 
-	void SetupPreviewComponentAndInstance();
+	NIAGARAEDITOR_API void SetupPreviewComponentAndInstance();
 
 	TConstArrayView<FComponentInfo> GetCurrentComponentInfos() const { return GetComponentInfos(EmitterIndex); }
 
-	TConstArrayView<FComponentInfo> GetComponentInfos(int32 InEmitterIndex) const;
+	NIAGARAEDITOR_API TConstArrayView<FComponentInfo> GetComponentInfos(int32 InEmitterIndex) const;
 
 	TConstArrayView<FString> GetComponentFilters() const { return ComponentFilterArray; }
 
@@ -59,63 +59,63 @@ public:
 	
 	int32 GetNumInstances() const { return NumInstances; }
 
-	int32 GetNumFrames() const;
+	NIAGARAEDITOR_API int32 GetNumFrames() const;
 
 	int32 GetFrameIndex() const { return FrameIndex; }
 
-	void SetFrameIndex(const int32 InFrameIndex);
+	NIAGARAEDITOR_API void SetFrameIndex(const int32 InFrameIndex);
 
 	int32 GetEmitterIndex() const { return EmitterIndex; };
 
-	void SetEmitterIndex(int32 InEmitterIndex);
+	NIAGARAEDITOR_API void SetEmitterIndex(int32 InEmitterIndex);
 
-	FText GetComponentText(FName ComponentName, int32 InstanceIndex) const;
+	NIAGARAEDITOR_API FText GetComponentText(FName ComponentName, int32 InstanceIndex) const;
 
-	bool IsCacheValid();
+	NIAGARAEDITOR_API bool IsCacheValid();
 
-	int32 GetNumEmitterLayouts();
+	NIAGARAEDITOR_API int32 GetNumEmitterLayouts();
 
-	FName GetEmitterLayoutName(int32 Index);
+	NIAGARAEDITOR_API FName GetEmitterLayoutName(int32 Index);
 
-	FOnViewDataChanged& OnViewDataChanged();
+	NIAGARAEDITOR_API FOnViewDataChanged& OnViewDataChanged();
 
-	FOnSimCacheChanged& OnSimCacheChanged();
+	NIAGARAEDITOR_API FOnSimCacheChanged& OnSimCacheChanged();
 
-	FOnBufferChanged& OnBufferChanged();
+	NIAGARAEDITOR_API FOnBufferChanged& OnBufferChanged();
 
-	void OnCacheModified(UNiagaraSimCache* SimCache);
+	NIAGARAEDITOR_API void OnCacheModified(UNiagaraSimCache* SimCache);
 
-	void UpdateCachedFrame();
+	NIAGARAEDITOR_API void UpdateCachedFrame();
 
 	// Build out component infos for each buffer in this cache
-	void UpdateComponentInfos();
+	NIAGARAEDITOR_API void UpdateComponentInfos();
 
-	void BuildTreeItemChildren(TSharedPtr<FNiagaraSimCacheTreeItem> InTreeItem, TWeakPtr<SNiagaraSimCacheTreeView> OwningTreeView);
+	NIAGARAEDITOR_API void BuildTreeItemChildren(TSharedPtr<FNiagaraSimCacheTreeItem> InTreeItem, TWeakPtr<SNiagaraSimCacheTreeView> OwningTreeView);
 
-	void RecursiveBuildTreeItemChildren(FNiagaraSimCacheTreeItem* Root, TSharedRef<FNiagaraSimCacheComponentTreeItem> Parent,
+	NIAGARAEDITOR_API void RecursiveBuildTreeItemChildren(FNiagaraSimCacheTreeItem* Root, TSharedRef<FNiagaraSimCacheComponentTreeItem> Parent,
 	FNiagaraTypeDefinition TypeDefinition, TWeakPtr<SNiagaraSimCacheTreeView> OwningTreeView);
 	
 	// Construct entries for the tree view.
-	void BuildEntries(TWeakPtr<SNiagaraSimCacheTreeView> OwningTreeView);
+	NIAGARAEDITOR_API void BuildEntries(TWeakPtr<SNiagaraSimCacheTreeView> OwningTreeView);
 
-	void UpdateCurrentEntries();
+	NIAGARAEDITOR_API void UpdateCurrentEntries();
 
-	TArray<TSharedRef<FNiagaraSimCacheTreeItem>>* GetCurrentRootEntries();
+	NIAGARAEDITOR_API TArray<TSharedRef<FNiagaraSimCacheTreeItem>>* GetCurrentRootEntries();
 
 
-	TArray<TSharedRef<FNiagaraSimCacheOverviewItem>>* GetBufferEntries();
+	NIAGARAEDITOR_API TArray<TSharedRef<FNiagaraSimCacheOverviewItem>>* GetBufferEntries();
 
 	UNiagaraComponent* GetPreviewComponent() { return PreviewComponent; }
 
 	//~ FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	NIAGARAEDITOR_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override
 	{
 		return TEXT("FNiagaraSimCacheViewModel");
 	}
 
 private:
-	void BuildComponentInfos(const FName Name, const UScriptStruct* Struct, TArray<FComponentInfo>& ComponentInfos);
+	NIAGARAEDITOR_API void BuildComponentInfos(const FName Name, const UScriptStruct* Struct, TArray<FComponentInfo>& ComponentInfos);
 	
 	// The sim cache being viewed
 	TObjectPtr<UNiagaraSimCache> SimCache = nullptr;

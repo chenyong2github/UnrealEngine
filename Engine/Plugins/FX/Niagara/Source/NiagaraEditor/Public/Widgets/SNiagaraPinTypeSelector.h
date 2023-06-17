@@ -15,25 +15,25 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SWidget.h"
 
-class NIAGARAEDITOR_API SNiagaraPinTypeSelector : public SCompoundWidget
+class SNiagaraPinTypeSelector : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraPinTypeSelector)
 	{}
 	SLATE_END_ARGS()
 public:
-	void Construct(const FArguments& InArgs, UEdGraphPin * InGraphPin);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, UEdGraphPin * InGraphPin);
 
 protected:
-	virtual TSharedRef<SWidget>	GetMenuContent();
-	FText GetTooltipText() const;
+	NIAGARAEDITOR_API virtual TSharedRef<SWidget>	GetMenuContent();
+	NIAGARAEDITOR_API FText GetTooltipText() const;
 
 private:
 	UEdGraphPin* Pin = nullptr;
 	TSharedPtr<SComboButton> SelectorButton;
 };
 
-class NIAGARAEDITOR_API SNiagaraIconWidget : public SGraphPaletteItem
+class SNiagaraIconWidget : public SGraphPaletteItem
 {
 public:
 

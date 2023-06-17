@@ -60,8 +60,8 @@ private:
 	void CaptureFinished(UNiagaraSimCache* CapturedSimCache);
 };
 
-UCLASS()
-class NIAGARA_API UNiagaraSimCacheFunctionLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UNiagaraSimCacheFunctionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
@@ -73,11 +73,11 @@ public:
 	When AdvanceSimulation is true we will manually advance the simulation one frame using the provided AdvanceDeltaTime before capturing.
 	*/
 	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache, meta=(ReturnDisplayName="Success"))
-	static bool CaptureNiagaraSimCacheImmediate(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, bool bAdvanceSimulation=false, float AdvanceDeltaTime=0.01666f);
+	static NIAGARA_API bool CaptureNiagaraSimCacheImmediate(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, bool bAdvanceSimulation=false, float AdvanceDeltaTime=0.01666f);
 
 	/**
 	Captures the simulation cache object that can be captured into using the various API calls.
 	*/
 	UFUNCTION(BlueprintCallable, Category=NiagaraSimCache, meta=(WorldContext="WorldContextObject", ReturnDisplayName="SimCache"))
-	static UNiagaraSimCache* CreateNiagaraSimCache(UObject* WorldContextObject);
+	static NIAGARA_API UNiagaraSimCache* CreateNiagaraSimCache(UObject* WorldContextObject);
 };

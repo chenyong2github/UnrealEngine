@@ -193,12 +193,12 @@ struct FNiagaraRendererExecutionIndex
 
 /** Container struct for an array of system scalability overrides. Enables details customization and data validation. */
 USTRUCT()
-struct NIAGARA_API FNiagaraSystemScalabilityOverrides
+struct FNiagaraSystemScalabilityOverrides
 {
 	GENERATED_USTRUCT_BODY()
 
-	FNiagaraSystemScalabilityOverrides();
-	~FNiagaraSystemScalabilityOverrides();
+	NIAGARA_API FNiagaraSystemScalabilityOverrides();
+	NIAGARA_API ~FNiagaraSystemScalabilityOverrides();
 
 	UPROPERTY(EditAnywhere, Category = "Override")
 	TArray<FNiagaraSystemScalabilityOverride> Overrides;
@@ -207,8 +207,8 @@ struct NIAGARA_API FNiagaraSystemScalabilityOverrides
 
 /** A Niagara System contains multiple Niagara Emitters to create various effects.
  * Niagara Systems can be placed in the world, unlike Emitters, and expose User Parameters to configure an effect at runtime.*/
-UCLASS(BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
-class NIAGARA_API UNiagaraSystem : public UFXSystemAsset, public INiagaraParameterDefinitionsSubscriber
+UCLASS(BlueprintType, meta= (LoadBehavior = "LazyOnDemand"), MinimalAPI)
+class UNiagaraSystem : public UFXSystemAsset, public INiagaraParameterDefinitionsSubscriber
 {
 	GENERATED_UCLASS_BODY()
 
@@ -220,35 +220,35 @@ public:
 #endif
 	//TestChange
 
-	UNiagaraSystem(FVTableHelper& Helper);
-	~UNiagaraSystem();
+	NIAGARA_API UNiagaraSystem(FVTableHelper& Helper);
+	NIAGARA_API ~UNiagaraSystem();
 
 	//~ UObject interface
-	void PostInitProperties();
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override; 
+	NIAGARA_API void PostInitProperties();
+	NIAGARA_API virtual void Serialize(FArchive& Ar) override;
+	NIAGARA_API virtual void PostLoad() override; 
 	virtual bool CanBeClusterRoot() const override { return true; }
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	NIAGARA_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static NIAGARA_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
-	virtual void BeginDestroy() override;
+	NIAGARA_API virtual void BeginDestroy() override;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	NIAGARA_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	NIAGARA_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
-	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
-	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	NIAGARA_API virtual void PreEditChange(FProperty* PropertyThatWillChange)override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override; 
+	NIAGARA_API virtual void BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform) override;
+	NIAGARA_API virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 	//~ End UObject interface
 
 	/** Helper method to handle when an internal variable has been renamed. Renames any downstream dependencies in the emitters or exposed variables.*/
-	void HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts);
+	NIAGARA_API void HandleVariableRenamed(const FNiagaraVariable& InOldVariable, const FNiagaraVariable& InNewVariable, bool bUpdateContexts);
 	/** Helper method to handle when an internal variable has been removed. Resets any downstream dependencies in the emitters or exposed variables.*/
-	void HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts);
+	NIAGARA_API void HandleVariableRemoved(const FNiagaraVariable& InOldVariable, bool bUpdateContexts);
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -258,34 +258,34 @@ public:
 	virtual TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() override { return ParameterDefinitionsSubscriptions; };
 
 	/** Get all UNiagaraScriptSourceBase of this subscriber. */
-	virtual TArray<UNiagaraScriptSourceBase*> GetAllSourceScripts() override;
+	NIAGARA_API virtual TArray<UNiagaraScriptSourceBase*> GetAllSourceScripts() override;
 
 	/** Get the path to the UObject of this subscriber. */
-	virtual FString GetSourceObjectPathName() const override;
+	NIAGARA_API virtual FString GetSourceObjectPathName() const override;
 
 	/** Get All adapters to editor only script vars owned directly by this subscriber. */
-	virtual TArray<UNiagaraEditorParametersAdapterBase*> GetEditorOnlyParametersAdapters() override;
+	NIAGARA_API virtual TArray<UNiagaraEditorParametersAdapterBase*> GetEditorOnlyParametersAdapters() override;
 
 	/** Get all subscribers that are owned by this subscriber.
 	 *  Note: Implemented for synchronizing UNiagaraSystem. UNiagaraSystem returns all UNiagaraEmitters it owns to call SynchronizeWithParameterDefinitions for each.
 	 */
-	virtual TArray<INiagaraParameterDefinitionsSubscriber*> GetOwnedParameterDefinitionsSubscribers() override;
+	NIAGARA_API virtual TArray<INiagaraParameterDefinitionsSubscriber*> GetOwnedParameterDefinitionsSubscribers() override;
 	//~ End INiagaraParameterDefinitionsSubscriber interface
 
-	virtual bool ChangeEmitterVersion(const FVersionedNiagaraEmitter& Emitter, const FGuid& NewVersion);
+	NIAGARA_API virtual bool ChangeEmitterVersion(const FVersionedNiagaraEmitter& Emitter, const FGuid& NewVersion);
 #endif 
 
 	/** Gets an array of the emitter handles. */
-	TArray<FNiagaraEmitterHandle>& GetEmitterHandles();
-	const TArray<FNiagaraEmitterHandle>& GetEmitterHandles()const;
+	NIAGARA_API TArray<FNiagaraEmitterHandle>& GetEmitterHandles();
+	NIAGARA_API const TArray<FNiagaraEmitterHandle>& GetEmitterHandles()const;
 	
 	FNiagaraSystemScalabilityOverrides& GetScalabilityOverrides(){return SystemScalabilityOverrides; }
 
 private:
-	bool IsValidInternal() const;
+	NIAGARA_API bool IsValidInternal() const;
 
 #if WITH_EDITORONLY_DATA
-	void FixupPositionUserParameters();
+	NIAGARA_API void FixupPositionUserParameters();
 #endif
 	
 public:
@@ -295,20 +295,20 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Adds a new emitter handle to this System.  The new handle exposes an Instance value which is a copy of the
 		original asset. */
-	FNiagaraEmitterHandle AddEmitterHandle(UNiagaraEmitter& SourceEmitter, FName EmitterName, FGuid EmitterVersion);
+	NIAGARA_API FNiagaraEmitterHandle AddEmitterHandle(UNiagaraEmitter& SourceEmitter, FName EmitterName, FGuid EmitterVersion);
 
 	/** Adds a new emitter handle to this system without copying the original asset. This should only be used for temporary systems and never for live assets. */
-	void AddEmitterHandleDirect(FNiagaraEmitterHandle& EmitterHandleToAdd);
+	NIAGARA_API void AddEmitterHandleDirect(FNiagaraEmitterHandle& EmitterHandleToAdd);
 
 	/** Duplicates an existing emitter handle and adds it to the System.  The new handle will reference the same source asset,
 		but will have a copy of the duplicated Instance value. */
-	FNiagaraEmitterHandle DuplicateEmitterHandle(const FNiagaraEmitterHandle& EmitterHandleToDuplicate, FName EmitterName);
+	NIAGARA_API FNiagaraEmitterHandle DuplicateEmitterHandle(const FNiagaraEmitterHandle& EmitterHandleToDuplicate, FName EmitterName);
 
 	/** Removes the provided emitter handle. */
-	void RemoveEmitterHandle(const FNiagaraEmitterHandle& EmitterHandleToDelete);
+	NIAGARA_API void RemoveEmitterHandle(const FNiagaraEmitterHandle& EmitterHandleToDelete);
 
 	/** Removes the emitter handles which have an Id in the supplied set. */
-	void RemoveEmitterHandlesById(const TSet<FGuid>& HandlesToRemove);
+	NIAGARA_API void RemoveEmitterHandlesById(const TSet<FGuid>& HandlesToRemove);
 
 #endif
 
@@ -335,10 +335,10 @@ public:
 	FNiagaraUserRedirectionParameterStore& GetExposedParameters()  { return ExposedParameters; }
 
 	/** Gets the System script which is used to populate the System parameters and parameter bindings. */
-	UNiagaraScript* GetSystemSpawnScript();
-	UNiagaraScript* GetSystemUpdateScript();
-	const UNiagaraScript* GetSystemSpawnScript() const;
-	const UNiagaraScript* GetSystemUpdateScript() const;
+	NIAGARA_API UNiagaraScript* GetSystemSpawnScript();
+	NIAGARA_API UNiagaraScript* GetSystemUpdateScript();
+	NIAGARA_API const UNiagaraScript* GetSystemSpawnScript() const;
+	NIAGARA_API const UNiagaraScript* GetSystemUpdateScript() const;
 
 	TOptional<float> GetMaxDeltaTime() const { return MaxDeltaTime; }
 	const FNiagaraDataSetAccessor<ENiagaraExecutionState>& GetSystemExecutionStateAccessor() const { return SystemExecutionStateAccessor; }
@@ -355,15 +355,15 @@ public:
 	template<typename TAction>
 	inline void ForEachPlatformSet(TAction Func);
 
-	bool AllowScalabilityForLocalPlayerFX()const;
+	NIAGARA_API bool AllowScalabilityForLocalPlayerFX()const;
 
-	void PrecachePSOs();
+	NIAGARA_API void PrecachePSOs();
 
 private:
-	bool IsReadyToRunInternal() const;
+	NIAGARA_API bool IsReadyToRunInternal() const;
 
 public:
-	bool IsReadyToRun() const;
+	NIAGARA_API bool IsReadyToRun() const;
 
 	FORCEINLINE bool NeedsWarmup()const { return WarmupTickCount > 0 && WarmupTickDelta > SMALL_NUMBER; }
 	FORCEINLINE float GetWarmupTime()const { return WarmupTime; }
@@ -371,14 +371,14 @@ public:
 	FORCEINLINE float GetWarmupTickDelta()const { return WarmupTickDelta; }
 	FORCEINLINE bool HasFixedTickDelta() const { return bFixedTickDelta; }
 	FORCEINLINE float GetFixedTickDeltaTime()const { return FixedTickDeltaTime; }
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)  const override;
+	NIAGARA_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)  const override;
 
 	FORCEINLINE bool NeedsDeterminism() const { return bDeterminism; }
 	FORCEINLINE int32 GetRandomSeed() const { return RandomSeed; }
 
 	FORCEINLINE void SetWarmupTime(float InWarmupTime) { WarmupTime = InWarmupTime; ResolveWarmupTickCount(); }
 	FORCEINLINE void SetWarmupTickDelta(float InWarmupTickDelta) { WarmupTickDelta = InWarmupTickDelta; ResolveWarmupTickCount(); }
-	void ResolveWarmupTickCount();
+	NIAGARA_API void ResolveWarmupTickCount();
 
 #if STATS
 	FNiagaraStatDatabase& GetStatData() { return StatDatabase; }
@@ -386,49 +386,49 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Are there any pending compile requests?*/
-	bool HasOutstandingCompilationRequests(bool bIncludingGPUShaders = false) const;
+	NIAGARA_API bool HasOutstandingCompilationRequests(bool bIncludingGPUShaders = false) const;
 
 	/** Determines if this system has the supplied emitter as an editable and simulating emitter instance. */
-	bool ReferencesInstanceEmitter(const FVersionedNiagaraEmitter& Emitter) const;
+	NIAGARA_API bool ReferencesInstanceEmitter(const FVersionedNiagaraEmitter& Emitter) const;
 
 	/** Updates the system's rapid iteration parameters from a specific emitter. */
-	void RefreshSystemParametersFromEmitter(const FNiagaraEmitterHandle& EmitterHandle);
+	NIAGARA_API void RefreshSystemParametersFromEmitter(const FNiagaraEmitterHandle& EmitterHandle);
 
 	/** Removes the system's rapid iteration parameters for a specific emitter. */
-	void RemoveSystemParametersForEmitter(const FNiagaraEmitterHandle& EmitterHandle);
+	NIAGARA_API void RemoveSystemParametersForEmitter(const FNiagaraEmitterHandle& EmitterHandle);
 
 	/** Request that any dirty scripts referenced by this system be compiled.*/
-	bool RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext = nullptr);
+	NIAGARA_API bool RequestCompile(bool bForce, FNiagaraSystemUpdateContext* OptionalUpdateContext = nullptr);
 
 	/** If we have a pending compile request, is it done with yet? */
-	bool PollForCompilationComplete(bool bFlushRequestCompile = true);
+	NIAGARA_API bool PollForCompilationComplete(bool bFlushRequestCompile = true);
 
 	/** Blocks until all active compile jobs have finished */
-	void WaitForCompilationComplete(bool bIncludingGPUShaders = false, bool bShowProgress = true);
+	NIAGARA_API void WaitForCompilationComplete(bool bIncludingGPUShaders = false, bool bShowProgress = true);
 
 	/** Tries to abort all running shader compilations */
-	void KillAllActiveCompilations();
+	NIAGARA_API void KillAllActiveCompilations();
 
 	/** Invalidates any active compilation requests which will ignore their results. */
-	void InvalidateActiveCompiles();
+	NIAGARA_API void InvalidateActiveCompiles();
 
 	/** Delegate called when the system's dependencies have all been compiled.*/
-	FOnSystemCompiled& OnSystemCompiled();
+	NIAGARA_API FOnSystemCompiled& OnSystemCompiled();
 
 	/** Delegate called on PostEditChange.*/
-	FOnSystemPostEditChange& OnSystemPostEditChange();
+	NIAGARA_API FOnSystemPostEditChange& OnSystemPostEditChange();
 
 	/** Delegate called on effect type or effect type value change */
-	FOnScalabilityChanged& OnScalabilityChanged();
+	NIAGARA_API FOnScalabilityChanged& OnScalabilityChanged();
 
 	/** Gets editor specific data stored with this system. */
-	UNiagaraEditorDataBase* GetEditorData();
+	NIAGARA_API UNiagaraEditorDataBase* GetEditorData();
 
 	/** Gets editor specific parameters stored with this system */
-	UNiagaraEditorParametersAdapterBase* GetEditorParameters();
+	NIAGARA_API UNiagaraEditorParametersAdapterBase* GetEditorParameters();
 
 	/** Gets editor specific data stored with this system. */
-	const UNiagaraEditorDataBase* GetEditorData() const;
+	NIAGARA_API const UNiagaraEditorDataBase* GetEditorData() const;
 
 	/** Internal: The thumbnail image.*/
 	UPROPERTY()
@@ -463,40 +463,40 @@ public:
 	UPROPERTY(transient)
 	FNiagaraParameterStore EditorOnlyAddedParameters;
 
-	bool GetIsolateEnabled() const;
-	void SetIsolateEnabled(bool bIsolate);
+	NIAGARA_API bool GetIsolateEnabled() const;
+	NIAGARA_API void SetIsolateEnabled(bool bIsolate);
 	
 	UPROPERTY(transient)
 	FNiagaraSystemUpdateContext UpdateContext;
 
-	const static FGuid ResolveDIsMessageId;
-	const static FGuid ComputeEmitterExecutionOrderMessageId;
+	NIAGARA_API const static FGuid ResolveDIsMessageId;
+	NIAGARA_API const static FGuid ComputeEmitterExecutionOrderMessageId;
 #endif
 
-	void UpdateSystemAfterLoad();
-	void EnsureFullyLoaded() const;
+	NIAGARA_API void UpdateSystemAfterLoad();
+	NIAGARA_API void EnsureFullyLoaded() const;
 
 	bool ShouldAutoDeactivate() const { return bAutoDeactivate; }
-	bool IsLooping() const;
+	NIAGARA_API bool IsLooping() const;
 
 	const TArray<TSharedRef<const FNiagaraEmitterCompiledData>>& GetEmitterCompiledData() const { return EmitterCompiledData; };
 
 	const FNiagaraSystemCompiledData& GetSystemCompiledData() const { return SystemCompiledData; };
 
-	bool UsesCollection(const UNiagaraParameterCollection* Collection)const;
+	NIAGARA_API bool UsesCollection(const UNiagaraParameterCollection* Collection)const;
 
 	bool SupportsLargeWorldCoordinates() const { return bSupportLargeWorldCoordinates && bLwcEnabledSettingCached; }
 	FORCEINLINE bool ShouldDisableExperimentalVM() const { return bDisableExperimentalVM; }
 
 #if WITH_EDITORONLY_DATA
-	bool UsesEmitter(UNiagaraEmitter* Emitter) const;
-	bool UsesEmitter(const FVersionedNiagaraEmitter& VersionedEmitter) const;
-	bool UsesScript(const UNiagaraScript* Script)const; 
-	void ForceGraphToRecompileOnNextCheck();
+	NIAGARA_API bool UsesEmitter(UNiagaraEmitter* Emitter) const;
+	NIAGARA_API bool UsesEmitter(const FVersionedNiagaraEmitter& VersionedEmitter) const;
+	NIAGARA_API bool UsesScript(const UNiagaraScript* Script)const; 
+	NIAGARA_API void ForceGraphToRecompileOnNextCheck();
 
-	static void RequestCompileForEmitter(const FVersionedNiagaraEmitter& InEmitter);
-	static void RecomputeExecutionOrderForEmitter(const FVersionedNiagaraEmitter& InEmitter);
-	static void RecomputeExecutionOrderForDataInterface(class UNiagaraDataInterface* DataInterface);
+	static NIAGARA_API void RequestCompileForEmitter(const FVersionedNiagaraEmitter& InEmitter);
+	static NIAGARA_API void RecomputeExecutionOrderForEmitter(const FVersionedNiagaraEmitter& InEmitter);
+	static NIAGARA_API void RecomputeExecutionOrderForDataInterface(class UNiagaraDataInterface* DataInterface);
 
 	FORCEINLINE bool ShouldUseRapidIterationParameters() const { return bCompileForEdit ? !bBakeOutRapidIteration : !bBakeOutRapidIterationOnCook; }
 	FORCEINLINE bool ShouldTrimAttributes() const { return bCompileForEdit ? bTrimAttributes : bTrimAttributesOnCook; }
@@ -639,22 +639,22 @@ public:
 	//TArray<TArray<uint8>> CachedDataInterfaceEmitterDependencies;
 
 	/** Computes emitter priorities based on the dependency information. */
-	bool ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph);
+	NIAGARA_API bool ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph);
 
 	/** Queries all the data interfaces in the array for emitter dependencies. */
-	void FindDataInterfaceDependencies(FVersionedNiagaraEmitterData* EmitterData, UNiagaraScript* Script, TArray<FVersionedNiagaraEmitter>& Dependencies);
+	NIAGARA_API void FindDataInterfaceDependencies(FVersionedNiagaraEmitterData* EmitterData, UNiagaraScript* Script, TArray<FVersionedNiagaraEmitter>& Dependencies);
 
 	/** Looks at all the event handlers in the emitter to determine which other emitters it depends on. */
-	void FindEventDependencies(FVersionedNiagaraEmitterData* EmitterData, TArray<FVersionedNiagaraEmitter>& Dependencies);
+	NIAGARA_API void FindEventDependencies(FVersionedNiagaraEmitterData* EmitterData, TArray<FVersionedNiagaraEmitter>& Dependencies);
 
 	/** Computes the order in which the emitters in the Emitters array will be ticked and stores the results in EmitterExecutionOrder. */
-	void ComputeEmittersExecutionOrder();
+	NIAGARA_API void ComputeEmittersExecutionOrder();
 
 	/** Computes the order in which renderers will render */
-	void ComputeRenderersDrawOrder();
+	NIAGARA_API void ComputeRenderersDrawOrder();
 
 	/** Cache data & accessors from the compiled data, allows us to avoid per instance. */
-	void CacheFromCompiledData();
+	NIAGARA_API void CacheFromCompiledData();
 
 #if WITH_EDITORONLY_DATA
 	bool NeedsRequestCompile() const { return bNeedsRequestCompile; }
@@ -693,77 +693,77 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Performance")
 	bool bRequireCurrentFrameData = true;
 
-	bool HasSystemScriptDIsWithPerInstanceData() const;
+	NIAGARA_API bool HasSystemScriptDIsWithPerInstanceData() const;
 	FORCEINLINE bool HasDIsWithPostSimulateTick() const { return bHasDIsWithPostSimulateTick; }
 	FORCEINLINE bool AllDIsPostSimulateCanOverlapFrames() const { return bAllDIsPostSimulateCanOverlapFrames; }
 	FORCEINLINE bool AsyncWorkCanOverlapTickGroups() const { return bAllDIsPostStageCanOverlapTickGroups; }
 	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
 	FORCEINLINE bool NeedsGPUContextInitForDataInterfaces() const { return bNeedsGPUContextInitForDataInterfaces; }
 
-	FBox GetFixedBounds() const;
+	NIAGARA_API FBox GetFixedBounds() const;
 	FORCEINLINE void SetFixedBounds(const FBox& Box) { FixedBounds = Box;  }
 
 #if WITH_EDITOR
-	void SetEffectType(UNiagaraEffectType* EffectType);
+	NIAGARA_API void SetEffectType(UNiagaraEffectType* EffectType);
 
 	FNiagaraSystemScalabilityOverrides& GetSystemScalabilityOverrides() { return SystemScalabilityOverrides; }
 	FORCEINLINE bool GetOverrideScalabilitySettings()const { return bOverrideScalabilitySettings; }
 	FORCEINLINE void SetOverrideScalabilitySettings(bool bOverride) { bOverrideScalabilitySettings = bOverride; }
 
 
-	void GatherStaticVariables(TArray<FNiagaraVariable>& OutVars, TArray<FNiagaraVariable>& OutEmitterVars) const;
+	NIAGARA_API void GatherStaticVariables(TArray<FNiagaraVariable>& OutVars, TArray<FNiagaraVariable>& OutEmitterVars) const;
 #endif
-	UNiagaraEffectType* GetEffectType()const;
+	NIAGARA_API UNiagaraEffectType* GetEffectType()const;
 	FORCEINLINE const FNiagaraSystemScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
-	const FNiagaraSystemScalabilityOverride& GetCurrentOverrideSettings() const;
+	NIAGARA_API const FNiagaraSystemScalabilityOverride& GetCurrentOverrideSettings() const;
 	FORCEINLINE bool NeedsSortedSignificanceCull()const{ return bNeedsSortedSignificanceCull; }
 	
-	void UpdateScalability();
+	NIAGARA_API void UpdateScalability();
 
-	ENiagaraCullProxyMode GetCullProxyMode()const;
+	NIAGARA_API ENiagaraCullProxyMode GetCullProxyMode()const;
 
 	/** Whether or not fixed bounds are enabled. */
 	UPROPERTY(EditAnywhere, Category = "System", meta = (SkipSystemResetOnChange = "true", InlineEditConditionToggle))
 	uint32 bFixedBounds : 1;
 
-	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
-	void AddToInstanceCountStat(int32 NumInstances, bool bSolo)const;
+	NIAGARA_API TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
+	NIAGARA_API void AddToInstanceCountStat(int32 NumInstances, bool bSolo)const;
 
-	const FString& GetCrashReporterTag()const;
-	bool CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace, FNiagaraTypeDefinition& OutBoundType) const;
-	bool CanObtainSystemAttribute(const FNiagaraVariableBase& InVar, FNiagaraTypeDefinition& OutBoundType) const;
-	bool CanObtainUserVariable(const FNiagaraVariableBase& InVar) const;
+	NIAGARA_API const FString& GetCrashReporterTag()const;
+	NIAGARA_API bool CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace, FNiagaraTypeDefinition& OutBoundType) const;
+	NIAGARA_API bool CanObtainSystemAttribute(const FNiagaraVariableBase& InVar, FNiagaraTypeDefinition& OutBoundType) const;
+	NIAGARA_API bool CanObtainUserVariable(const FNiagaraVariableBase& InVar) const;
 
 #if WITH_EDITORONLY_DATA
 	FNiagaraMessageStore& GetMessageStore() { return MessageStore; }
 	const FGuid& GetAssetGuid() const {return AssetGuid;};
 #endif
 
-	FORCEINLINE void RegisterActiveInstance();
-	FORCEINLINE void UnregisterActiveInstance();
+	NIAGARA_API FORCEINLINE void RegisterActiveInstance();
+	NIAGARA_API FORCEINLINE void UnregisterActiveInstance();
 	FORCEINLINE int32& GetActiveInstancesCount() { return ActiveInstances; }
 
 #if WITH_EDITORONLY_DATA
-	UNiagaraBakerSettings* GetBakerSettings();
+	NIAGARA_API UNiagaraBakerSettings* GetBakerSettings();
 	const UNiagaraBakerSettings* GetBakerGeneratedSettings() const { return BakerGeneratedSettings; }
-	void SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings);
+	NIAGARA_API void SetBakerGeneratedSettings(UNiagaraBakerSettings* Settings);
 
 	/** Get the cached parameter map traversal for this emitter.  */
-	const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& GetCachedTraversalData() const;
-	void InvalidateCachedData();
-	void GraphSourceChanged();
+	NIAGARA_API const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& GetCachedTraversalData() const;
+	NIAGARA_API void InvalidateCachedData();
+	NIAGARA_API void GraphSourceChanged();
 
 	/** Resets internal data leaving it in a state which would have minimal cost to exist in headless builds (servers) */
-	void ResetToEmptySystem();
+	NIAGARA_API void ResetToEmptySystem();
 
 	/** Updates any post compile data based upon data interfaces. */
-	void OnCompiledDataInterfaceChanged();
+	NIAGARA_API void OnCompiledDataInterfaceChanged();
 
 	/** Updates the system post UObject change. */
-	void OnCompiledUObjectChanged();
+	NIAGARA_API void OnCompiledUObjectChanged();
 
 	/** Updates the rapid iteration parameters for all scripts referenced by the system. */
-	void PrepareRapidIterationParametersForCompilation();
+	NIAGARA_API void PrepareRapidIterationParametersForCompilation();
 #endif
 
 private:
@@ -774,32 +774,32 @@ private:
 	*   If bWait is true then this *blocks* the game thread (and ui) until all shader compilations are finished.
 	*	Results from the compilation will be applied to the system unless there's already another compilation queued up
 	*/
-	bool QueryCompileComplete(bool bWait);
+	NIAGARA_API bool QueryCompileComplete(bool bWait);
 
-	void BroadcastOnSystemCompiled();
+	NIAGARA_API void BroadcastOnSystemCompiled();
 
-	void EvaluateCompileResultDependencies() const;
+	NIAGARA_API void EvaluateCompileResultDependencies() const;
 
-	void InitEmitterCompiledData();
+	NIAGARA_API void InitEmitterCompiledData();
 
-	void InitSystemCompiledData();
+	NIAGARA_API void InitSystemCompiledData();
 
 	/** Helper for filling in precomputed variable names per emitter. Converts an emitter paramter "Emitter.XXXX" into it's real parameter name. */
-	void InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter* InAssociatedEmitter);
+	NIAGARA_API void InitEmitterVariableAliasNames(FNiagaraEmitterCompiledData& EmitterCompiledDataToInit, const UNiagaraEmitter* InAssociatedEmitter);
 
 	/** Helper for generating aliased FNiagaraVariable names for the Emitter they are associated with. */
-	const FName GetEmitterVariableAliasName(const FNiagaraVariableBase& InEmitterVar, const UNiagaraEmitter* InEmitter) const;
+	NIAGARA_API const FName GetEmitterVariableAliasName(const FNiagaraVariableBase& InEmitterVar, const UNiagaraEmitter* InEmitter) const;
 
 	/** Helper for filling in attribute datasets per emitter. */
-	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
+	NIAGARA_API void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 
-	void ResolveParameterStoreBindings();
+	NIAGARA_API void ResolveParameterStoreBindings();
 #endif
 
-	void ResolveScalabilitySettings();
-	void UpdatePostCompileDIInfo();
-	void UpdateDITickFlags();
-	void UpdateHasGPUEmitters();
+	NIAGARA_API void ResolveScalabilitySettings();
+	NIAGARA_API void UpdatePostCompileDIInfo();
+	NIAGARA_API void UpdateDITickFlags();
+	NIAGARA_API void UpdateHasGPUEmitters();
 
 protected:
 	/** An effect types defines settings shared between systems, for example scalability and validation rules.
@@ -965,16 +965,16 @@ protected:
 	FGraphEventRef PSOPrecacheCompletionEvent;
 
 public:
-	void AsyncOptimizeAllScripts();
+	NIAGARA_API void AsyncOptimizeAllScripts();
 
-	FGraphEventRef GetScriptOptimizationCompletionEvent();
+	NIAGARA_API FGraphEventRef GetScriptOptimizationCompletionEvent();
 
 	bool AllowCullingForLocalPlayers() const { return bAllowCullingForLocalPlayers; }
 
 	const FNiagaraSystemStaticBuffers* GetStaticBuffers() const { return StaticBuffers.Get(); }
 
 protected:
-	void GenerateStatID()const;
+	NIAGARA_API void GenerateStatID()const;
 #if STATS
 	mutable TStatId StatID_GT;
 	mutable TStatId StatID_GT_CNC;

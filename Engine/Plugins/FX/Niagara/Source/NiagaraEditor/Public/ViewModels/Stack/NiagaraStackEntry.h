@@ -46,8 +46,8 @@ private:
 	TArray<UNiagaraStackEntry*> DraggedEntries;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackEntry : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraStackEntry : public UObject
 {
 	GENERATED_BODY()
 
@@ -110,22 +110,22 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnAlternateDisplayNameChanged);
 
 public:
-	struct NIAGARAEDITOR_API FExecutionCategoryNames
+	struct FExecutionCategoryNames
 	{
-		static const FName System;
-		static const FName Emitter;
-		static const FName Particle;
-		static const FName Render;
+		static NIAGARAEDITOR_API const FName System;
+		static NIAGARAEDITOR_API const FName Emitter;
+		static NIAGARAEDITOR_API const FName Particle;
+		static NIAGARAEDITOR_API const FName Render;
 	};
 
-	struct NIAGARAEDITOR_API FExecutionSubcategoryNames
+	struct FExecutionSubcategoryNames
 	{
-		static const FName Settings;
-		static const FName Spawn;
-		static const FName Update;
-		static const FName Event;
-		static const FName SimulationStage;
-		static const FName Render;
+		static NIAGARAEDITOR_API const FName Settings;
+		static NIAGARAEDITOR_API const FName Spawn;
+		static NIAGARAEDITOR_API const FName Update;
+		static NIAGARAEDITOR_API const FName Event;
+		static NIAGARAEDITOR_API const FName SimulationStage;
+		static NIAGARAEDITOR_API const FName Render;
 	};
 
 	enum class EStackRowStyle
@@ -181,23 +181,23 @@ public:
 		Link
 	};
 
-	struct NIAGARAEDITOR_API FStackIssueFix
+	struct FStackIssueFix
 	{
-		FStackIssueFix();
+		NIAGARAEDITOR_API FStackIssueFix();
 
-		FStackIssueFix(FText InDescription, FStackIssueFixDelegate InFixDelegate, EStackIssueFixStyle FixStyle = EStackIssueFixStyle::Fix);
+		NIAGARAEDITOR_API FStackIssueFix(FText InDescription, FStackIssueFixDelegate InFixDelegate, EStackIssueFixStyle FixStyle = EStackIssueFixStyle::Fix);
 
-		bool IsValid() const;
+		NIAGARAEDITOR_API bool IsValid() const;
 
-		const FText& GetDescription() const;
+		NIAGARAEDITOR_API const FText& GetDescription() const;
 
-		void SetFixDelegate(const FStackIssueFixDelegate& InFixDelegate);
+		NIAGARAEDITOR_API void SetFixDelegate(const FStackIssueFixDelegate& InFixDelegate);
 
-		const FStackIssueFixDelegate& GetFixDelegate() const;
+		NIAGARAEDITOR_API const FStackIssueFixDelegate& GetFixDelegate() const;
 
-		EStackIssueFixStyle GetStyle() const;
+		NIAGARAEDITOR_API EStackIssueFixStyle GetStyle() const;
 
-		const FString& GetUniqueIdentifier() const;
+		NIAGARAEDITOR_API const FString& GetUniqueIdentifier() const;
 
 	private:
 		FText Description;
@@ -206,37 +206,37 @@ public:
 		FString UniqueIdentifier;
 	};
 
-	struct NIAGARAEDITOR_API FStackIssue
+	struct FStackIssue
 	{
-		FStackIssue();
+		NIAGARAEDITOR_API FStackIssue();
 
-		FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, const TArray<FStackIssueFix>& InFixes, const FSimpleDelegate& InDismissHandler = FSimpleDelegate());
+		NIAGARAEDITOR_API FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, const TArray<FStackIssueFix>& InFixes, const FSimpleDelegate& InDismissHandler = FSimpleDelegate());
 
-		FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, FStackIssueFix InFix);
+		NIAGARAEDITOR_API FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed, FStackIssueFix InFix);
 
-		FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed);
+		NIAGARAEDITOR_API FStackIssue(EStackIssueSeverity InSeverity, FText InShortDescription, FText InLongDescription, FString InStackEditorDataKey, bool bInCanBeDismissed);
 
-		bool IsValid();
+		NIAGARAEDITOR_API bool IsValid();
 
-		EStackIssueSeverity GetSeverity() const;
+		NIAGARAEDITOR_API EStackIssueSeverity GetSeverity() const;
 
-		const FText& GetShortDescription() const;
+		NIAGARAEDITOR_API const FText& GetShortDescription() const;
 
-		const FText& GetLongDescription() const;
+		NIAGARAEDITOR_API const FText& GetLongDescription() const;
 
-		const FString& GetUniqueIdentifier() const;
+		NIAGARAEDITOR_API const FString& GetUniqueIdentifier() const;
 
-		bool GetCanBeDismissed() const;
+		NIAGARAEDITOR_API bool GetCanBeDismissed() const;
 
-		const FSimpleDelegate& GetDismissHandler() const;
+		NIAGARAEDITOR_API const FSimpleDelegate& GetDismissHandler() const;
 
-		const TArray<FStackIssueFix>& GetFixes() const;
+		NIAGARAEDITOR_API const TArray<FStackIssueFix>& GetFixes() const;
 
-		bool GetIsExpandedByDefault() const;
+		NIAGARAEDITOR_API bool GetIsExpandedByDefault() const;
 
-		void SetIsExpandedByDefault(bool InExpanded);
+		NIAGARAEDITOR_API void SetIsExpandedByDefault(bool InExpanded);
 		
-		void InsertFix(int32 InsertionIdx, const FStackIssueFix& Fix);
+		NIAGARAEDITOR_API void InsertFix(int32 InsertionIdx, const FStackIssueFix& Fix);
 
 	private:
 		EStackIssueSeverity Severity;
@@ -250,70 +250,70 @@ public:
 	};
 
 public:
-	UNiagaraStackEntry();
+	NIAGARAEDITOR_API UNiagaraStackEntry();
 
-	void Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, FString InStackEditorDataKey);
 
-	void Finalize();
+	NIAGARAEDITOR_API void Finalize();
 
-	bool IsFinalized() const;
+	NIAGARAEDITOR_API bool IsFinalized() const;
 
-	virtual FText GetDisplayName() const;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const;
 
-	TOptional<FText> GetAlternateDisplayName() const;
+	NIAGARAEDITOR_API TOptional<FText> GetAlternateDisplayName() const;
 
-	virtual UObject* GetDisplayedObject() const;
+	NIAGARAEDITOR_API virtual UObject* GetDisplayedObject() const;
 
-	virtual FGuid GetSelectionId() const;
+	NIAGARAEDITOR_API virtual FGuid GetSelectionId() const;
 
-	UNiagaraStackEditorData& GetStackEditorData() const;
+	NIAGARAEDITOR_API UNiagaraStackEditorData& GetStackEditorData() const;
 
-	FString GetStackEditorDataKey() const;
+	NIAGARAEDITOR_API FString GetStackEditorDataKey() const;
 
-	virtual FText GetTooltipText() const;
+	NIAGARAEDITOR_API virtual FText GetTooltipText() const;
 
-	virtual bool GetCanExpand() const;
+	NIAGARAEDITOR_API virtual bool GetCanExpand() const;
 
-	virtual bool GetCanExpandInOverview() const;
+	NIAGARAEDITOR_API virtual bool GetCanExpandInOverview() const;
 
-	virtual bool IsExpandedByDefault() const;
+	NIAGARAEDITOR_API virtual bool IsExpandedByDefault() const;
 
-	bool GetIsExpanded() const;
+	NIAGARAEDITOR_API bool GetIsExpanded() const;
 
-	void SetIsExpanded(bool bInExpanded);
+	NIAGARAEDITOR_API void SetIsExpanded(bool bInExpanded);
 
-	void SetIsExpanded_Recursive(bool bInExpanded);
+	NIAGARAEDITOR_API void SetIsExpanded_Recursive(bool bInExpanded);
 
-	bool GetIsExpandedInOverview() const;
+	NIAGARAEDITOR_API bool GetIsExpandedInOverview() const;
 
-	void SetIsExpandedInOverview(bool bInExpanded);
+	NIAGARAEDITOR_API void SetIsExpandedInOverview(bool bInExpanded);
 
-	virtual bool GetIsEnabled() const;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const;
 
-	bool GetOwnerIsEnabled() const;
+	NIAGARAEDITOR_API bool GetOwnerIsEnabled() const;
 
 	bool GetIsEnabledAndOwnerIsEnabled() const { return GetIsEnabled() && GetOwnerIsEnabled(); }
 
-	FName GetExecutionCategoryName() const;
+	NIAGARAEDITOR_API FName GetExecutionCategoryName() const;
 
-	FName GetExecutionSubcategoryName() const;
+	NIAGARAEDITOR_API FName GetExecutionSubcategoryName() const;
 
-	virtual EStackRowStyle GetStackRowStyle() const;
+	NIAGARAEDITOR_API virtual EStackRowStyle GetStackRowStyle() const;
 
-	int32 GetIndentLevel() const;
+	NIAGARAEDITOR_API int32 GetIndentLevel() const;
 
 	/** Returns whether or not this entry should be treated as a child of a previous sibling for layout purposes. */
 	virtual bool IsSemanticChild() const { return false; }
 
-	virtual bool GetShouldShowInStack() const;
+	NIAGARAEDITOR_API virtual bool GetShouldShowInStack() const;
 
-	virtual bool GetShouldShowInOverview() const;
+	NIAGARAEDITOR_API virtual bool GetShouldShowInOverview() const;
 
-	void GetFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren) const;
+	NIAGARAEDITOR_API void GetFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren) const;
 	
-	void GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const;
+	NIAGARAEDITOR_API void GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const;
 
-	void GetCustomFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren, const TArray<FOnFilterChild>& ChildFilters) const;
+	NIAGARAEDITOR_API void GetCustomFilteredChildren(TArray<UNiagaraStackEntry*>& OutFilteredChildren, const TArray<FOnFilterChild>& ChildFilters) const;
 
 	void GetFilteredChildrenOfTypes(TArray<UNiagaraStackEntry*>& OutFilteredChildren, const TSet<UClass*>& AllowedClasses) const
 	{
@@ -393,35 +393,35 @@ public:
 		}
 	}
 
-	FOnExpansionChanged& OnExpansionChanged();
+	NIAGARAEDITOR_API FOnExpansionChanged& OnExpansionChanged();
 
-	FOnExpansionChanged& OnExpansionInOverviewChanged();
+	NIAGARAEDITOR_API FOnExpansionChanged& OnExpansionInOverviewChanged();
 
-	FOnStructureChanged& OnStructureChanged();
+	NIAGARAEDITOR_API FOnStructureChanged& OnStructureChanged();
 
-	FOnDataObjectModified& OnDataObjectModified();
+	NIAGARAEDITOR_API FOnDataObjectModified& OnDataObjectModified();
 
-	FOnRequestFullRefresh& OnRequestFullRefresh();
+	NIAGARAEDITOR_API FOnRequestFullRefresh& OnRequestFullRefresh();
 
-	const FOnRequestFullRefresh& OnRequestFullRefreshDeferred() const;
+	NIAGARAEDITOR_API const FOnRequestFullRefresh& OnRequestFullRefreshDeferred() const;
 
-	FOnRequestFullRefresh& OnRequestFullRefreshDeferred();
+	NIAGARAEDITOR_API FOnRequestFullRefresh& OnRequestFullRefreshDeferred();
 
-	FOnAlternateDisplayNameChanged& OnAlternateDisplayNameChanged();
+	NIAGARAEDITOR_API FOnAlternateDisplayNameChanged& OnAlternateDisplayNameChanged();
 
 	/** Recursively refreshes the children for the current stack entry.  This may cause children to be added or removed and will automatically cause the filtered 
 	children to be refreshed. This will also cause the structure changed delegate to be broadcast. */
-	void RefreshChildren();
+	NIAGARAEDITOR_API void RefreshChildren();
 
 	/** Invalidates the cached filtered children so that the filters will be run the next time that GetFilteredChildren is called.  This should be called any time
 	a change to the data is made which will affect how children are filtered.  This will also cause the structure changed delegate to be broadcast. */
-	void RefreshFilteredChildren();
+	NIAGARAEDITOR_API void RefreshFilteredChildren();
 
-	FDelegateHandle AddChildFilter(FOnFilterChild ChildFilter);
-	void RemoveChildFilter(FDelegateHandle FilterHandle);
+	NIAGARAEDITOR_API FDelegateHandle AddChildFilter(FOnFilterChild ChildFilter);
+	NIAGARAEDITOR_API void RemoveChildFilter(FDelegateHandle FilterHandle);
 
-	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel() const;
-	TSharedPtr<FNiagaraEmitterViewModel> GetEmitterViewModel() const;
+	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel() const;
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterViewModel> GetEmitterViewModel() const;
 
 	template<typename ChildType, typename PredicateType>
 	static ChildType* FindCurrentChildOfTypeByPredicate(const TArray<UNiagaraStackEntry*>& CurrentChildren, PredicateType Predicate)
@@ -437,47 +437,47 @@ public:
 		return nullptr;
 	}
 
-	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const;
+	NIAGARAEDITOR_API virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const;
 
-	virtual UObject* GetExternalAsset() const;
+	NIAGARAEDITOR_API virtual UObject* GetExternalAsset() const;
 
-	virtual bool CanDrag() const;
+	NIAGARAEDITOR_API virtual bool CanDrag() const;
 
-	TOptional<FDropRequestResponse> CanDrop(const FDropRequest& DropRequest);
+	NIAGARAEDITOR_API TOptional<FDropRequestResponse> CanDrop(const FDropRequest& DropRequest);
 
-	TOptional<FDropRequestResponse> Drop(const FDropRequest& DropRequest);
+	NIAGARAEDITOR_API TOptional<FDropRequestResponse> Drop(const FDropRequest& DropRequest);
 
-	void SetOnRequestCanDrop(FOnRequestDrop InOnRequestCanDrop);
+	NIAGARAEDITOR_API void SetOnRequestCanDrop(FOnRequestDrop InOnRequestCanDrop);
 
-	void SetOnRequestDrop(FOnRequestDrop InOnRequestCanDrop);
+	NIAGARAEDITOR_API void SetOnRequestDrop(FOnRequestDrop InOnRequestCanDrop);
 
-	const bool GetIsSearchResult() const;
+	NIAGARAEDITOR_API const bool GetIsSearchResult() const;
 
-	void SetIsSearchResult(bool bInIsSearchResult);
+	NIAGARAEDITOR_API void SetIsSearchResult(bool bInIsSearchResult);
 
-	bool HasBaseEmitter() const;
+	NIAGARAEDITOR_API bool HasBaseEmitter() const;
 
-	bool HasIssuesOrAnyChildHasIssues() const;
-	bool HasUsagesOrAnyChildHasUsages() const;
-	void GetRecursiveUsages(bool& bRead, bool& bWrite) const;
+	NIAGARAEDITOR_API bool HasIssuesOrAnyChildHasIssues() const;
+	NIAGARAEDITOR_API bool HasUsagesOrAnyChildHasUsages() const;
+	NIAGARAEDITOR_API void GetRecursiveUsages(bool& bRead, bool& bWrite) const;
 
-	int32 GetTotalNumberOfCustomNotes() const;
+	NIAGARAEDITOR_API int32 GetTotalNumberOfCustomNotes() const;
 	
-	int32 GetTotalNumberOfInfoIssues() const;
+	NIAGARAEDITOR_API int32 GetTotalNumberOfInfoIssues() const;
 
-	int32 GetTotalNumberOfWarningIssues() const;
+	NIAGARAEDITOR_API int32 GetTotalNumberOfWarningIssues() const;
 
-	int32 GetTotalNumberOfErrorIssues() const;
+	NIAGARAEDITOR_API int32 GetTotalNumberOfErrorIssues() const;
 
 	virtual EStackIssueSeverity GetIssueSeverity() const { return EStackIssueSeverity::None; }
 
-	const TArray<FStackIssue>& GetIssues() const;
+	NIAGARAEDITOR_API const TArray<FStackIssue>& GetIssues() const;
 
-	const TArray<UNiagaraStackEntry*>& GetAllChildrenWithIssues() const;
+	NIAGARAEDITOR_API const TArray<UNiagaraStackEntry*>& GetAllChildrenWithIssues() const;
 	
-	void AddValidationIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed, const TArray<FNiagaraValidationFix>& Fixes, const TArray<FNiagaraValidationFix>& Links);
-	void AddExternalIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed);
-	void ClearExternalIssues();
+	NIAGARAEDITOR_API void AddValidationIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed, const TArray<FNiagaraValidationFix>& Fixes, const TArray<FNiagaraValidationFix>& Links);
+	NIAGARAEDITOR_API void AddExternalIssue(EStackIssueSeverity Severity, const FText& SummaryText, const FText& Description, bool bCanBeDismissed);
+	NIAGARAEDITOR_API void ClearExternalIssues();
 
 	virtual bool SupportsCut() const { return false; }
 
@@ -514,20 +514,20 @@ public:
 	virtual bool SupportsRename() const { return false; }
 
 	/** Gets whether this entry has a rename pending. */
-	virtual bool GetIsRenamePending() const;
+	NIAGARAEDITOR_API virtual bool GetIsRenamePending() const;
 
 	/** Sets whether this entry has a rename pending. */
-	virtual void SetIsRenamePending(bool bIsRenamePending);
+	NIAGARAEDITOR_API virtual void SetIsRenamePending(bool bIsRenamePending);
 
 	/** Handler for when a rename is committed for this stack entry. */
-	virtual void OnRenamed(FText NewName);
+	NIAGARAEDITOR_API virtual void OnRenamed(FText NewName);
 
 	virtual bool SupportsSummaryView() const { return false; }
-	virtual struct FNiagaraHierarchyIdentity DetermineSummaryIdentity() const;
-	bool IsInSummaryView() const;
-	bool IsAnyParentInSummaryView() const;
-	bool IsAnyChildInSummaryView(bool bRecursive = false) const;
-	bool ExistsInParentEmitterSummary() const;
+	NIAGARAEDITOR_API virtual struct FNiagaraHierarchyIdentity DetermineSummaryIdentity() const;
+	NIAGARAEDITOR_API bool IsInSummaryView() const;
+	NIAGARAEDITOR_API bool IsAnyParentInSummaryView() const;
+	NIAGARAEDITOR_API bool IsAnyChildInSummaryView(bool bRecursive = false) const;
+	NIAGARAEDITOR_API bool ExistsInParentEmitterSummary() const;
 
 	virtual EIconMode GetSupportedIconMode() const { return EIconMode::None; }
 
@@ -541,7 +541,7 @@ public:
 
 	virtual FText GetInheritanceMessage() const { return FText(); }
 
-	virtual void InvalidateCollectedUsage();
+	NIAGARAEDITOR_API virtual void InvalidateCollectedUsage();
 
 
 	struct FCollectedUsageData
@@ -550,30 +550,30 @@ public:
 		bool bHasReferencedParameterRead = false;
 		bool bHasReferencedParameterWrite = false;
 	};
-	virtual const FCollectedUsageData& GetCollectedUsageData() const;
+	NIAGARAEDITOR_API virtual const FCollectedUsageData& GetCollectedUsageData() const;
 
 protected:
-	virtual void BeginDestroy() override;
+	NIAGARAEDITOR_API virtual void BeginDestroy() override;
 
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues);
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues);
 
-	virtual void PostRefreshChildrenInternal();
+	NIAGARAEDITOR_API virtual void PostRefreshChildrenInternal();
 
-	FRequiredEntryData CreateDefaultChildRequiredData() const;
+	NIAGARAEDITOR_API FRequiredEntryData CreateDefaultChildRequiredData() const;
 
-	virtual int32 GetChildIndentLevel() const;
+	NIAGARAEDITOR_API virtual int32 GetChildIndentLevel() const;
 
-	virtual TOptional<FDropRequestResponse> CanDropInternal(const FDropRequest& DropRequest);
+	NIAGARAEDITOR_API virtual TOptional<FDropRequestResponse> CanDropInternal(const FDropRequest& DropRequest);
 
-	virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest);
+	NIAGARAEDITOR_API virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest);
 
-	virtual TOptional<FDropRequestResponse> ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	NIAGARAEDITOR_API virtual TOptional<FDropRequestResponse> ChildRequestCanDropInternal(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
 
-	virtual TOptional<FDropRequestResponse> ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	NIAGARAEDITOR_API virtual TOptional<FDropRequestResponse> ChildRequestDropInternal(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
 
-	virtual void ChildStructureChangedInternal();
+	NIAGARAEDITOR_API virtual void ChildStructureChangedInternal();
 
-	virtual void FinalizeInternal();
+	NIAGARAEDITOR_API virtual void FinalizeInternal();
 
 
 	mutable TOptional<FCollectedUsageData> CachedCollectedUsageData;
@@ -582,27 +582,27 @@ protected:
 
 
 private:
-	void ChildStructureChanged(ENiagaraStructureChangedFlags Info);
+	NIAGARAEDITOR_API void ChildStructureChanged(ENiagaraStructureChangedFlags Info);
 
-	void ChildExpansionChanged();
+	NIAGARAEDITOR_API void ChildExpansionChanged();
 
-	void ChildExpansionInOverviewChanged();
+	NIAGARAEDITOR_API void ChildExpansionInOverviewChanged();
 	
-	void ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
+	NIAGARAEDITOR_API void ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 
-	void ChildRequestFullRefresh();
+	NIAGARAEDITOR_API void ChildRequestFullRefresh();
 
-	void ChildRequestFullRefreshDeferred();
+	NIAGARAEDITOR_API void ChildRequestFullRefreshDeferred();
 
-	TOptional<FDropRequestResponse> ChildRequestCanDrop(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	NIAGARAEDITOR_API TOptional<FDropRequestResponse> ChildRequestCanDrop(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
 
-	TOptional<FDropRequestResponse> ChildRequestDrop(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
+	NIAGARAEDITOR_API TOptional<FDropRequestResponse> ChildRequestDrop(const UNiagaraStackEntry& TargetChild, const FDropRequest& DropRequest);
 
-	void RefreshStackErrorChildren();
+	NIAGARAEDITOR_API void RefreshStackErrorChildren();
 
-	void IssueModified();
+	NIAGARAEDITOR_API void IssueModified();
 
-	void InvalidateFilteredChildren();
+	NIAGARAEDITOR_API void InvalidateFilteredChildren();
 
 	struct FCollectedIssueData
 	{
@@ -624,7 +624,7 @@ private:
 	};
 
 
-	const FCollectedIssueData& GetCollectedIssueData() const;
+	NIAGARAEDITOR_API const FCollectedIssueData& GetCollectedIssueData() const;
 
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	TWeakPtr<FNiagaraEmitterViewModel> EmitterViewModel;
@@ -688,12 +688,12 @@ private:
 };
 
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackSpacer : public UNiagaraStackEntry
+UCLASS(MinimalAPI)
+class UNiagaraStackSpacer : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, float InSpacerHeight, TAttribute<bool> InShouldShowInStack, FString InOwningStackItemEditorDataKey);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, float InSpacerHeight, TAttribute<bool> InShouldShowInStack, FString InOwningStackItemEditorDataKey);
 	virtual EStackRowStyle GetStackRowStyle() const override { return UNiagaraStackEntry::EStackRowStyle::Spacer; }
 	virtual bool GetCanExpand() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return ShouldShowInStack.Get(); }

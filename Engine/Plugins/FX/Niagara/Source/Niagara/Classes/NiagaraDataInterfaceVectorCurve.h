@@ -17,8 +17,8 @@ class FNiagaraSystemInstance;
 
 
 /** Data Interface allowing sampling of vector curves. */
-UCLASS(EditInlineNew, Category = "Curves", CollapseCategories, meta = (DisplayName = "Curve for Vector3's"))
-class NIAGARA_API UNiagaraDataInterfaceVectorCurve : public UNiagaraDataInterfaceCurveBase
+UCLASS(EditInlineNew, Category = "Curves", CollapseCategories, meta = (DisplayName = "Curve for Vector3's"), MinimalAPI)
+class UNiagaraDataInterfaceVectorCurve : public UNiagaraDataInterfaceCurveBase
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -48,23 +48,23 @@ public:
 	};
 
 	//UObject Interface
-	virtual void PostInitProperties() override;
-	virtual void Serialize(FArchive& Ar) override;
+	NIAGARA_API virtual void PostInitProperties() override;
+	NIAGARA_API virtual void Serialize(FArchive& Ar) override;
 	//UObject Interface End
 
-	virtual void UpdateTimeRanges() override;
-	virtual TArray<float> BuildLUT(int32 NumEntries) const override;
+	NIAGARA_API virtual void UpdateTimeRanges() override;
+	NIAGARA_API virtual TArray<float> BuildLUT(int32 NumEntries) const override;
 
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
 	template<typename UseLUT>
 	void SampleCurve(FVectorVMExternalFunctionContext& Context);
 
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
 	//~ UNiagaraDataInterfaceCurveBase interface
-	virtual void GetCurveData(TArray<FCurveData>& OutCurveData) override;
+	NIAGARA_API virtual void GetCurveData(TArray<FCurveData>& OutCurveData) override;
 	
 	virtual int32 GetCurveNumElems() const override { return CurveLUTNumElems; }
 #if WITH_EDITORONLY_DATA
@@ -72,16 +72,16 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
-	virtual void SyncCurvesToAsset() override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual void SyncCurvesToAsset() override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
 
 protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 private:
 	template<typename UseLUT>
 	FORCEINLINE_DEBUGGABLE FVector3f SampleCurveInternal(float X);
 
-	static const FName SampleCurveName;
+	static NIAGARA_API const FName SampleCurveName;
 };

@@ -17,8 +17,8 @@ class FNiagaraObjectSelection;
 class UNiagaraScript;
 class UEdGraph;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraSystemEditorDocumentsViewModel : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraSystemEditorDocumentsViewModel : public UObject
 {
 	GENERATED_BODY()
 
@@ -30,55 +30,55 @@ public:
 
 
 public:
-	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
-	void Finalize();
+	NIAGARAEDITOR_API void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
+	NIAGARAEDITOR_API void Finalize();
 
-	void OpenChildScript(UEdGraph* Graph);
-	void CloseChildScript(UEdGraph* Graph);
+	NIAGARAEDITOR_API void OpenChildScript(UEdGraph* Graph);
+	NIAGARAEDITOR_API void CloseChildScript(UEdGraph* Graph);
 
-	TArray<class UNiagaraGraph*> GetEditableGraphsForActiveScriptDocument();
-	TArray<class UNiagaraGraph*> GetAllGraphsForActiveScriptDocument();
-	TArray<class UNiagaraGraph*> GetEditableGraphsForPrimaryDocument();
-	TArray<class UNiagaraGraph*> GetAllGraphsForPrimaryDocument();
-	void InitializePreTabManager(TSharedPtr<class FNiagaraSystemToolkit> InToolkit);
-	void InitializePostTabManager(TSharedPtr<class FNiagaraSystemToolkit> InToolkit);
+	NIAGARAEDITOR_API TArray<class UNiagaraGraph*> GetEditableGraphsForActiveScriptDocument();
+	NIAGARAEDITOR_API TArray<class UNiagaraGraph*> GetAllGraphsForActiveScriptDocument();
+	NIAGARAEDITOR_API TArray<class UNiagaraGraph*> GetEditableGraphsForPrimaryDocument();
+	NIAGARAEDITOR_API TArray<class UNiagaraGraph*> GetAllGraphsForPrimaryDocument();
+	NIAGARAEDITOR_API void InitializePreTabManager(TSharedPtr<class FNiagaraSystemToolkit> InToolkit);
+	NIAGARAEDITOR_API void InitializePostTabManager(TSharedPtr<class FNiagaraSystemToolkit> InToolkit);
 
-	void SetActiveDocumentTab(TSharedPtr<SDockTab> Tab);
+	NIAGARAEDITOR_API void SetActiveDocumentTab(TSharedPtr<SDockTab> Tab);
 	TWeakPtr<SDockTab> GetActiveDocumentTab() const { return ActiveDocumentTab; }
 	FScriptToolkitsActiveDocumentChanged& OnActiveDocumentChanged() {
 		return ActiveDocChangedDelegate;
 	}
 
-	bool IsPrimaryDocumentActive() const;
-	TSharedPtr<class FNiagaraScratchPadScriptViewModel> GetActiveScratchPadViewModelIfSet();
-	static TSharedPtr < class FNiagaraScratchPadScriptViewModel> GetScratchPadViewModelFromGraph(FNiagaraSystemViewModel* InSysViewModel, UEdGraph* InTargetGraph);
+	NIAGARAEDITOR_API bool IsPrimaryDocumentActive() const;
+	NIAGARAEDITOR_API TSharedPtr<class FNiagaraScratchPadScriptViewModel> GetActiveScratchPadViewModelIfSet();
+	static NIAGARAEDITOR_API TSharedPtr < class FNiagaraScratchPadScriptViewModel> GetScratchPadViewModelFromGraph(FNiagaraSystemViewModel* InSysViewModel, UEdGraph* InTargetGraph);
 
-	void DrawAttentionToPrimaryDocument();
+	NIAGARAEDITOR_API void DrawAttentionToPrimaryDocument();
 	void SetPrimaryDocumentID(const FName& TabId) { PrimaryDocumentTabId = TabId; }
-	void SwapEditableScripts(TSharedPtr < class FNiagaraScratchPadScriptViewModel> OldScriptViewModel, TSharedPtr < class FNiagaraScratchPadScriptViewModel> NewScriptViewModel);
+	NIAGARAEDITOR_API void SwapEditableScripts(TSharedPtr < class FNiagaraScratchPadScriptViewModel> OldScriptViewModel, TSharedPtr < class FNiagaraScratchPadScriptViewModel> NewScriptViewModel);
 
 protected:
-	TSharedPtr<SDockTab> OpenDocument(const UObject* DocumentID, FDocumentTracker::EOpenDocumentCause Cause);
+	NIAGARAEDITOR_API TSharedPtr<SDockTab> OpenDocument(const UObject* DocumentID, FDocumentTracker::EOpenDocumentCause Cause);
 
-	void NavigateTab(FDocumentTracker::EOpenDocumentCause InCause);
+	NIAGARAEDITOR_API void NavigateTab(FDocumentTracker::EOpenDocumentCause InCause);
 
-	void CloseDocumentTab(const UObject* DocumentID);
+	NIAGARAEDITOR_API void CloseDocumentTab(const UObject* DocumentID);
 
 	// Finds any open tabs containing the specified document and adds them to the specified array; returns true if at least one is found
-	bool FindOpenTabsContainingDocument(const UObject* DocumentID, /*inout*/ TArray< TSharedPtr<SDockTab> >& Results);
+	NIAGARAEDITOR_API bool FindOpenTabsContainingDocument(const UObject* DocumentID, /*inout*/ TArray< TSharedPtr<SDockTab> >& Results);
 
 	FName PrimaryDocumentTabId;
 
 
 private:
-	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
+	NIAGARAEDITOR_API TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
 
 	FScriptToolkitsActiveDocumentChanged ActiveDocChangedDelegate;
 
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModelWeak;
 	TWeakPtr< FNiagaraSystemGraphSelectionViewModel> SystemGraphSelectionVMWeak;
 
-	TSharedRef<class SNiagaraScratchPadScriptEditor> CreateGraphEditorWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph);
+	NIAGARAEDITOR_API TSharedRef<class SNiagaraScratchPadScriptEditor> CreateGraphEditorWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph);
 
 private:
 	TSharedPtr<FDocumentTracker> DocumentManager;

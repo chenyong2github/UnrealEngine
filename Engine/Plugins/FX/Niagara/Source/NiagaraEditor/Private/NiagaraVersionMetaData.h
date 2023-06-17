@@ -9,12 +9,12 @@
 #include "UObject/Object.h"
 #include "NiagaraVersionMetaData.generated.h"
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraVersionMetaData : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraVersionMetaData : public UObject
 {
 	GENERATED_BODY()
 public:
-	UNiagaraVersionMetaData();
+	NIAGARAEDITOR_API UNiagaraVersionMetaData();
 
 	/** If true then this version is exposed to the user and is used as the default version for new assets. */
 	UPROPERTY(EditAnywhere, Category="Version Details", meta=(EditCondition="!bIsExposedVersion"))

@@ -6,8 +6,8 @@
 #include "NiagaraValidationRuleSet.generated.h"
 
 /** A set of reusable validation rules. */
-UCLASS(BlueprintType)
-class NIAGARA_API UNiagaraValidationRuleSet : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class UNiagaraValidationRuleSet : public UObject
 {
 	GENERATED_BODY()
 public:

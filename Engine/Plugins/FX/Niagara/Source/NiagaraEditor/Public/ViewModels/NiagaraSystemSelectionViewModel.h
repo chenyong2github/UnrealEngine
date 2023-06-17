@@ -11,8 +11,8 @@ class UNiagaraStackEntry;
 class UNiagaraStackSelection;
 class UNiagaraStackViewModel;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraSystemSelectionViewModel : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraSystemSelectionViewModel : public UObject
 {
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnSelectionChanged);
@@ -30,49 +30,49 @@ private:
 public:
 	GENERATED_BODY()
 
-	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
+	NIAGARAEDITOR_API void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 
-	void Finalize();
+	NIAGARAEDITOR_API void Finalize();
 
-	bool ContainsEntry(UNiagaraStackEntry* StackEntry) const;
+	NIAGARAEDITOR_API bool ContainsEntry(UNiagaraStackEntry* StackEntry) const;
 
-	void GetSelectedEntries(TArray<UNiagaraStackEntry*>& OutSelectedEntries) const;
+	NIAGARAEDITOR_API void GetSelectedEntries(TArray<UNiagaraStackEntry*>& OutSelectedEntries) const;
 
-	bool GetSystemIsSelected() const;
+	NIAGARAEDITOR_API bool GetSystemIsSelected() const;
 
-	const TArray<FGuid>& GetSelectedEmitterHandleIds() const;
+	NIAGARAEDITOR_API const TArray<FGuid>& GetSelectedEmitterHandleIds() const;
 
-	void UpdateSelectedEntries(const TArray<UNiagaraStackEntry*> InSelectedEntries, const TArray<UNiagaraStackEntry*> InDeselectedEntries, bool bClearCurrentSelection);
+	NIAGARAEDITOR_API void UpdateSelectedEntries(const TArray<UNiagaraStackEntry*> InSelectedEntries, const TArray<UNiagaraStackEntry*> InDeselectedEntries, bool bClearCurrentSelection);
 
-	UNiagaraStackViewModel* GetSelectionStackViewModel();
+	NIAGARAEDITOR_API UNiagaraStackViewModel* GetSelectionStackViewModel();
 
-	void EmptySelection();
+	NIAGARAEDITOR_API void EmptySelection();
 
-	void RemoveEntriesFromSelection(const TArray<UNiagaraStackEntry*>& InEntriesToRemove);
+	NIAGARAEDITOR_API void RemoveEntriesFromSelection(const TArray<UNiagaraStackEntry*>& InEntriesToRemove);
 
-	void RemoveEntryFromSelectionByDisplayedObject(const UObject* InObject);
+	NIAGARAEDITOR_API void RemoveEntryFromSelectionByDisplayedObject(const UObject* InObject);
 
-	void AddEntriesToSelectionByDisplayedObjectsDeferred(const TArray<const UObject*>& InObjects);
+	NIAGARAEDITOR_API void AddEntriesToSelectionByDisplayedObjectsDeferred(const TArray<const UObject*>& InObjects);
 
-	void AddEntryToSelectionByDisplayedObjectDeferred(const UObject* InObjects);
+	NIAGARAEDITOR_API void AddEntryToSelectionByDisplayedObjectDeferred(const UObject* InObjects);
 
-	void AddEntriesToSelectionByDisplayedObjectKeysDeferred(const TArray<FObjectKey>& InObjectKeys);
+	NIAGARAEDITOR_API void AddEntriesToSelectionByDisplayedObjectKeysDeferred(const TArray<FObjectKey>& InObjectKeys);
 
-	void AddEntryToSelectionByDisplayedObjectKeyDeferred(const FObjectKey& InObjectKey);
+	NIAGARAEDITOR_API void AddEntryToSelectionByDisplayedObjectKeyDeferred(const FObjectKey& InObjectKey);
 
-	void AddEntryToSelectionBySelectionIdDeferred(const FGuid& InSelectionId);
+	NIAGARAEDITOR_API void AddEntryToSelectionBySelectionIdDeferred(const FGuid& InSelectionId);
 
-	bool Refresh();
+	NIAGARAEDITOR_API bool Refresh();
 
-	void RefreshDeferred();
+	NIAGARAEDITOR_API void RefreshDeferred();
 
-	FOnSelectionChanged& OnEntrySelectionChanged();
+	NIAGARAEDITOR_API FOnSelectionChanged& OnEntrySelectionChanged();
 
-	FOnSelectionChanged& OnEmitterHandleIdSelectionChanged();
+	NIAGARAEDITOR_API FOnSelectionChanged& OnEmitterHandleIdSelectionChanged();
 
-	FOnSelectionChanged& OnSystemIsSelectedChanged();
+	NIAGARAEDITOR_API FOnSelectionChanged& OnSystemIsSelectedChanged();
 
-	void Tick();
+	NIAGARAEDITOR_API void Tick();
 
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();

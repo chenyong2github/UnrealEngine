@@ -25,15 +25,15 @@ class FNiagaraSystemGpuComputeProxy;
 
 // Public API for Niagara's Compute Dispatcher
 // This is generally used with DataInterfaces or Custom Renderers
-class NIAGARA_API FNiagaraGpuComputeDispatchInterface : public FFXSystemInterface
+class FNiagaraGpuComputeDispatchInterface : public FFXSystemInterface
 {
 public:
-	static FNiagaraGpuComputeDispatchInterface* Get(class UWorld* World);
-	static FNiagaraGpuComputeDispatchInterface* Get(class FSceneInterface* Scene);
-	static FNiagaraGpuComputeDispatchInterface* Get(class FFXSystemInterface* FXSceneInterface);
+	static NIAGARA_API FNiagaraGpuComputeDispatchInterface* Get(class UWorld* World);
+	static NIAGARA_API FNiagaraGpuComputeDispatchInterface* Get(class FSceneInterface* Scene);
+	static NIAGARA_API FNiagaraGpuComputeDispatchInterface* Get(class FFXSystemInterface* FXSceneInterface);
 
-	explicit FNiagaraGpuComputeDispatchInterface(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel);
-	virtual ~FNiagaraGpuComputeDispatchInterface();
+	NIAGARA_API explicit FNiagaraGpuComputeDispatchInterface(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel);
+	NIAGARA_API virtual ~FNiagaraGpuComputeDispatchInterface();
 
 	/** Get ShaderPlatform the batcher is bound to */
 	EShaderPlatform GetShaderPlatform() const { return ShaderPlatform; }
@@ -86,7 +86,7 @@ public:
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	/** Public interface to Niagara compute debugging. */
-	FNiagaraGpuComputeDebugInterface GetGpuComputeDebugInterface() const;
+	NIAGARA_API FNiagaraGpuComputeDebugInterface GetGpuComputeDebugInterface() const;
 
 	/** Get access to Niagara's GpuComputeDebug this is for internal use */
 	FNiagaraGpuComputeDebug* GetGpuComputeDebugPrivate() const { return GpuComputeDebugPtr.Get(); }
@@ -109,19 +109,19 @@ public:
 	FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, ENiagaraEmptyUAVType Type) const { return EmptyUAVPoolPtr->GetEmptyUAVFromPool(RHICmdList, Format, Type); }
 
 	/** Helper function to return an RDG Texture where the texture contains 0 for all channels. */
-	FRDGTextureRef GetBlackTexture(FRDGBuilder& GraphBuilder, ETextureDimension TextureDimension) const;
+	NIAGARA_API FRDGTextureRef GetBlackTexture(FRDGBuilder& GraphBuilder, ETextureDimension TextureDimension) const;
 
 	/** Helper function to return a RDG Texture SRV where the texture contains 0 for all channels. */
-	FRDGTextureSRVRef GetBlackTextureSRV(FRDGBuilder& GraphBuilder, ETextureDimension TextureDimension) const;
+	NIAGARA_API FRDGTextureSRVRef GetBlackTextureSRV(FRDGBuilder& GraphBuilder, ETextureDimension TextureDimension) const;
 
 	/** Helper function to return a RDG Texture UAV you don't care about the contents of or the results, i.e. to use as a dummy binding. */
-	FRDGTextureUAVRef GetEmptyTextureUAV(FRDGBuilder& GraphBuilder, EPixelFormat Format, ETextureDimension TextureDimension) const;
+	NIAGARA_API FRDGTextureUAVRef GetEmptyTextureUAV(FRDGBuilder& GraphBuilder, EPixelFormat Format, ETextureDimension TextureDimension) const;
 
 	/** Helper function to return a Buffer UAV you don't care about the contents of or the results, i.e. to use as a dummy binding. */
-	FRDGBufferUAVRef GetEmptyBufferUAV(FRDGBuilder& GraphBuilder, EPixelFormat Format) const;
+	NIAGARA_API FRDGBufferUAVRef GetEmptyBufferUAV(FRDGBuilder& GraphBuilder, EPixelFormat Format) const;
 
 	/** Helper function to return a Buffer SRV which will contain 1 element of 0 value, i.e. to use as a dummy binding. */
-	FRDGBufferSRVRef GetEmptyBufferSRV(FRDGBuilder& GraphBuilder, EPixelFormat Format) const;
+	NIAGARA_API FRDGBufferSRVRef GetEmptyBufferSRV(FRDGBuilder& GraphBuilder, EPixelFormat Format) const;
 
 	/**
 	Call this to force all pending ticks to be flushed from the batcher.

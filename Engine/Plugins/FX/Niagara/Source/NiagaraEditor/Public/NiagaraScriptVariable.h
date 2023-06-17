@@ -10,15 +10,15 @@
 class UNiagaraScriptVariable;
 
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraScriptVariableData
+struct FNiagaraScriptVariableData
 {
 	GENERATED_USTRUCT_BODY()
 
 	FNiagaraScriptVariableData() = default;
 
-	void Init(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InVarMetaData);
-	void InitFrom(const UNiagaraScriptVariable& Source, bool bCreateNewGuid = true);
-	void InitFrom(const FNiagaraScriptVariableData& Source, bool bCreateNewGuid = true);
+	NIAGARAEDITOR_API void Init(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InVarMetaData);
+	NIAGARAEDITOR_API void InitFrom(const UNiagaraScriptVariable& Source, bool bCreateNewGuid = true);
+	NIAGARAEDITOR_API void InitFrom(const FNiagaraScriptVariableData& Source, bool bCreateNewGuid = true);
 
 	/** The default mode. Can be Value, Binding or Custom. */
 	UPROPERTY(EditAnywhere, Category = "Default Value")
@@ -37,16 +37,16 @@ struct NIAGARAEDITOR_API FNiagaraScriptVariableData
 	FNiagaraVariableMetaData Metadata;
 
 	/** Entry point for generating the compile hash.*/
-	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+	NIAGARAEDITOR_API bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
 	bool GetIsStaticSwitch() const { return bIsStaticSwitch; };
 	void SetIsStaticSwitch(bool bInIsStaticSwitch) { bIsStaticSwitch = bInIsStaticSwitch; };
 
 	bool GetIsSubscribedToParameterDefinitions() const { return bSubscribedToParameterDefinitions; };
-	void SetIsSubscribedToParameterDefinitions(bool bInSubscribedToParameterDefinitions);
+	NIAGARAEDITOR_API void SetIsSubscribedToParameterDefinitions(bool bInSubscribedToParameterDefinitions);
 
 	bool GetIsOverridingParameterDefinitionsDefaultValue() const { return bOverrideParameterDefinitionsDefaultValue; };
-	void SetIsOverridingParameterDefinitionsDefaultValue(bool bInOverridingParameterDefinitionsDefaultValue);
+	NIAGARAEDITOR_API void SetIsOverridingParameterDefinitionsDefaultValue(bool bInOverridingParameterDefinitionsDefaultValue);
 
 	const FGuid& GetChangeId() const { return ChangeId; };
 	void SetChangeId(const FGuid& NewId) { ChangeId = NewId; };
@@ -133,20 +133,20 @@ private:
 /*
 * Used to store variable data and metadata per graph. 
 */
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraScriptVariable : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraScriptVariable : public UObject
 {
 public:
 	GENERATED_UCLASS_BODY()
 
 	DECLARE_DELEGATE_OneParam(FOnChanged, const UNiagaraScriptVariable* /*ThisScriptVariable*/);
 
-	virtual void PostLoad() override;
+	NIAGARAEDITOR_API virtual void PostLoad() override;
 
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARAEDITOR_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	void Init(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InVarMetaData);
-	void InitFrom(const UNiagaraScriptVariable* Value, bool bCreateNewGuid = true);
+	NIAGARAEDITOR_API void Init(const FNiagaraVariable& InVar, const FNiagaraVariableMetaData& InVarMetaData);
+	NIAGARAEDITOR_API void InitFrom(const UNiagaraScriptVariable* Value, bool bCreateNewGuid = true);
 
 	/** The default mode. Can be Value, Binding or Custom. */
 	UPROPERTY(EditAnywhere, Category = "Default Value")
@@ -165,16 +165,16 @@ public:
 	FNiagaraVariableMetaData Metadata;
 
 	/** Entry point for generating the compile hash.*/
-	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+	NIAGARAEDITOR_API bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
 	bool GetIsStaticSwitch() const { return bIsStaticSwitch; };
 	void SetIsStaticSwitch(bool bInIsStaticSwitch) { bIsStaticSwitch = bInIsStaticSwitch; };
 
 	bool GetIsSubscribedToParameterDefinitions() const { return bSubscribedToParameterDefinitions; };
-	void SetIsSubscribedToParameterDefinitions(bool bInSubscribedToParameterDefinitions);
+	NIAGARAEDITOR_API void SetIsSubscribedToParameterDefinitions(bool bInSubscribedToParameterDefinitions);
 
 	bool GetIsOverridingParameterDefinitionsDefaultValue() const { return bOverrideParameterDefinitionsDefaultValue; };
-	void SetIsOverridingParameterDefinitionsDefaultValue(bool bInOverridingParameterDefinitionsDefaultValue);
+	NIAGARAEDITOR_API void SetIsOverridingParameterDefinitionsDefaultValue(bool bInOverridingParameterDefinitionsDefaultValue);
 
 	const FGuid& GetChangeId() const { return ChangeId; };
 	void SetChangeId(const FGuid& NewId) { ChangeId = NewId; };
@@ -216,9 +216,9 @@ public:
 		return StaticSwitchDefaultValue;
 	}
 
-	static bool DefaultsAreEquivalent(const UNiagaraScriptVariable* ScriptVarA, const UNiagaraScriptVariable* ScriptVarB);
+	static NIAGARAEDITOR_API bool DefaultsAreEquivalent(const UNiagaraScriptVariable* ScriptVarA, const UNiagaraScriptVariable* ScriptVarB);
 
-	static FGuid GenerateStableGuid(const UNiagaraScriptVariable* ScriptVariable);
+	static NIAGARAEDITOR_API FGuid GenerateStableGuid(const UNiagaraScriptVariable* ScriptVariable);
 
 private:
 	void AllocateData()

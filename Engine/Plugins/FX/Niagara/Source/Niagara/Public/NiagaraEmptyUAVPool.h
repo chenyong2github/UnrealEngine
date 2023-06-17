@@ -34,7 +34,7 @@ enum class ENiagaraEmptyUAVType
 };
 
 // Empty UAV pool used for ensuring we bind a buffer when one does not exist
-class NIAGARA_API FNiagaraEmptyUAVPool
+class FNiagaraEmptyUAVPool
 {
 	friend struct FNiagaraEmptyUAVPoolScopedAccess;
 
@@ -43,12 +43,12 @@ public:
 	Grab a temporary empty RW buffer from the pool.
 	Note: When doing this outside of Niagara you must be within a FNiagaraUAVPoolAccessScope.
 	*/
-	FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, ENiagaraEmptyUAVType Type);
+	NIAGARA_API FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, ENiagaraEmptyUAVType Type);
 
 	/**
 	Returns all used UAVs back to the pool
 	*/
-	void ResetEmptyUAVPools();
+	NIAGARA_API void ResetEmptyUAVPools();
 
 protected:
 	struct FEmptyUAV

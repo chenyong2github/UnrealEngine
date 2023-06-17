@@ -14,7 +14,7 @@ class SInlineEditableTextBlock;
 class SBorder;
 class UEdGraphPin;
 
-class NIAGARAEDITOR_API SNiagaraParameterName : public SCompoundWidget
+class SNiagaraParameterName : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnNameChanged, FName /* InNewName */);
@@ -52,17 +52,17 @@ public:
 		SLATE_NAMED_SLOT(FArguments, Decorator)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs);
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	NIAGARAEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
+	NIAGARAEDITOR_API virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
-	void EnterEditingMode();
+	NIAGARAEDITOR_API void EnterEditingMode();
 
-	void EnterNamespaceModifierEditingMode();
+	NIAGARAEDITOR_API void EnterNamespaceModifierEditingMode();
 
-	void UpdateDecorator(TSharedRef<SWidget> InDecorator);
+	NIAGARAEDITOR_API void UpdateDecorator(TSharedRef<SWidget> InDecorator);
 	
 private:
 	TSharedRef<SBorder> CreateNamespaceWidget(FText NamespaceDisplayName, FText NamespaceDescription, FLinearColor NamespaceBorderColor, FName NamespaceForegroundStyle);
@@ -103,7 +103,7 @@ private:
 	TSharedPtr<SWidget> Decorator;
 };
 
-class NIAGARAEDITOR_API SNiagaraParameterNameTextBlock : public SCompoundWidget
+class SNiagaraParameterNameTextBlock : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_RetVal_TwoParams(FReply, FOnDragDetectedHandler, const FGeometry&, const FPointerEvent&);
@@ -131,11 +131,11 @@ public:
 		SLATE_NAMED_SLOT(FArguments, Decorator)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs);
 
-	void EnterEditingMode();
+	NIAGARAEDITOR_API void EnterEditingMode();
 
-	void EnterNamespaceModifierEditingMode();
+	NIAGARAEDITOR_API void EnterNamespaceModifierEditingMode();
 
 private:
 	FName GetParameterName() const;
@@ -144,8 +144,8 @@ private:
 
 	void NameChanged(FName InNewName);
 
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	NIAGARAEDITOR_API virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	NIAGARAEDITOR_API virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 private:
 	TAttribute<FText> ParameterText;
@@ -158,7 +158,7 @@ private:
 	TSharedPtr<SNiagaraParameterName> ParameterName;
 };
 
-class NIAGARAEDITOR_API SNiagaraParameterNamePinLabel : public SCompoundWidget
+class SNiagaraParameterNamePinLabel : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterNamePinLabel)
@@ -181,13 +181,13 @@ public:
 		SLATE_NAMED_SLOT(FArguments, Decorator)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UEdGraphPin* InTargetPin);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, UEdGraphPin* InTargetPin);
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	NIAGARAEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	virtual FSlateColor GetForegroundColor() const override;
+	NIAGARAEDITOR_API virtual FSlateColor GetForegroundColor() const override;
 
-	void EnterEditingMode();
+	NIAGARAEDITOR_API void EnterEditingMode();
 private:
 	UEdGraphPin* TargetPin;
 	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterNameTextBlock;

@@ -13,8 +13,8 @@ class UNiagaraNodeFunctionCall;
 class UNiagaraClipboardContent;
 class UNiagaraStackFunctionInputCollection;
 
-UCLASS(Abstract)
-class NIAGARA_API UNiagaraConvertInPlaceUtilityBase : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UNiagaraConvertInPlaceUtilityBase : public UObject
 {
 	GENERATED_BODY()
 public:

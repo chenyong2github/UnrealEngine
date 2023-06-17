@@ -49,8 +49,8 @@ struct FNiagaraDynamicMeshMaterial
 };
 
 /** Data Interface allowing sampling of a texture */
-UCLASS(Experimental, EditInlineNew, Category = "Mesh", CollapseCategories, meta = (DisplayName = "Dynamic Mesh"))
-class NIAGARA_API UNiagaraDataInterfaceDynamicMesh : public UNiagaraDataInterface, public INiagaraRenderableMeshInterface
+UCLASS(Experimental, EditInlineNew, Category = "Mesh", CollapseCategories, meta = (DisplayName = "Dynamic Mesh"), MinimalAPI)
+class UNiagaraDataInterfaceDynamicMesh : public UNiagaraDataInterface, public INiagaraRenderableMeshInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -91,69 +91,69 @@ public:
 	FBox DefaultBounds = FBox(FVector(-100.0f), FVector(100.0f));
 
 	//UObject Interface
-	virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostInitProperties() override;
 	//UObject Interface End
 
 	//UNiagaraDataInterface Interface
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 
-	virtual int32 PerInstanceDataSize() const override;
-	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	NIAGARA_API virtual int32 PerInstanceDataSize() const override;
+	NIAGARA_API virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	NIAGARA_API virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasPostSimulateTick() const override { return true; }
-	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
-	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	NIAGARA_API virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	NIAGARA_API virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 	//UNiagaraDataInterface Interface End
 
 	//INiagaraRenderableMeshInterface Interface Begin
-	virtual FNiagaraRenderableMeshPtr GetRenderableMesh(FNiagaraSystemInstanceID SystemInstanceID) override;
-	virtual void GetUsedMaterials(FNiagaraSystemInstanceID SystemInstanceID, TArray<UMaterialInterface*>& OutMaterials) const override;
+	NIAGARA_API virtual FNiagaraRenderableMeshPtr GetRenderableMesh(FNiagaraSystemInstanceID SystemInstanceID) override;
+	NIAGARA_API virtual void GetUsedMaterials(FNiagaraSystemInstanceID SystemInstanceID, TArray<UMaterialInterface*>& OutMaterials) const override;
 	//INiagaraRenderableMeshInterface Interface End
 
 	// VM Functions
-	static void VMGetMeshProperties(FVectorVMExternalFunctionContext& Context);
-	static void VMGetSectionCount(FVectorVMExternalFunctionContext& Context);
-	static void VMGetSectionData(FVectorVMExternalFunctionContext& Context);
-	static void VMGetLocalBounds(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetMeshProperties(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetSectionCount(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetSectionData(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetLocalBounds(FVectorVMExternalFunctionContext& Context);
 
-	static void VMSetMeshProperties(FVectorVMExternalFunctionContext& Context);
-	static void VMSetSectionCount(FVectorVMExternalFunctionContext& Context);
-	static void VMSetSectionData(FVectorVMExternalFunctionContext& Context);
-	static void VMSetLocalBounds(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetMeshProperties(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetSectionCount(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetSectionData(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetLocalBounds(FVectorVMExternalFunctionContext& Context);
 
-	static void VMClearAllSectionTriangles(FVectorVMExternalFunctionContext& Context);
-	static void VMClearSectionTriangles(FVectorVMExternalFunctionContext& Context);
-	static void VMAllocateSectionTriangles(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMClearAllSectionTriangles(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMClearSectionTriangles(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMAllocateSectionTriangles(FVectorVMExternalFunctionContext& Context);
 
-	static void VMGetTriangleVertices(FVectorVMExternalFunctionContext& Context);
-	static void VMGetVertexPosition(FVectorVMExternalFunctionContext& Context);
-	static void VMGetVertexTangentBasis(FVectorVMExternalFunctionContext& Context);
-	static void VMGetVertexTexCoord(FVectorVMExternalFunctionContext& Context);
-	static void VMGetVertexColor(FVectorVMExternalFunctionContext& Context);
-	static void VMGetVertexData(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetTriangleVertices(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetVertexPosition(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetVertexTangentBasis(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetVertexTexCoord(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetVertexColor(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMGetVertexData(FVectorVMExternalFunctionContext& Context);
 
-	static void VMSetTriangleVertices(FVectorVMExternalFunctionContext& Context);
-	static void VMSetVertexPosition(FVectorVMExternalFunctionContext& Context);
-	static void VMSetVertexTangentBasis(FVectorVMExternalFunctionContext& Context);
-	static void VMSetVertexTexCoord(FVectorVMExternalFunctionContext& Context);
-	static void VMSetVertexColor(FVectorVMExternalFunctionContext& Context);
-	static void VMSetVertexData(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetTriangleVertices(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetVertexPosition(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetVertexTangentBasis(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetVertexTexCoord(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetVertexColor(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMSetVertexData(FVectorVMExternalFunctionContext& Context);
 
-	static void VMAppendTriangle(FVectorVMExternalFunctionContext& Context);
+	static NIAGARA_API void VMAppendTriangle(FVectorVMExternalFunctionContext& Context);
 };

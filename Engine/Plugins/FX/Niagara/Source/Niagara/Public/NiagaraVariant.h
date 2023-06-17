@@ -19,37 +19,37 @@ enum class ENiagaraVariantMode
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraVariant
+struct FNiagaraVariant
 {
 	GENERATED_BODY()
 
-	FNiagaraVariant();
+	NIAGARA_API FNiagaraVariant();
 	// TODO: Add move support
 	FNiagaraVariant(const FNiagaraVariant&) = default;
 	FNiagaraVariant& operator=(const FNiagaraVariant&) = default;
-	explicit FNiagaraVariant(UNiagaraDataInterface* InDataInterface);
-	explicit FNiagaraVariant(UObject* InObject);
-	explicit FNiagaraVariant(const TArray<uint8>& InBytes);
-	FNiagaraVariant(const void* InBytes, int32 Size);
+	NIAGARA_API explicit FNiagaraVariant(UNiagaraDataInterface* InDataInterface);
+	NIAGARA_API explicit FNiagaraVariant(UObject* InObject);
+	NIAGARA_API explicit FNiagaraVariant(const TArray<uint8>& InBytes);
+	NIAGARA_API FNiagaraVariant(const void* InBytes, int32 Size);
 
-	UObject* GetUObject() const;
-	void SetUObject(UObject* InObject);
+	NIAGARA_API UObject* GetUObject() const;
+	NIAGARA_API void SetUObject(UObject* InObject);
 
-	UNiagaraDataInterface* GetDataInterface() const;
-	void SetDataInterface(UNiagaraDataInterface* InDataInterface);
+	NIAGARA_API UNiagaraDataInterface* GetDataInterface() const;
+	NIAGARA_API void SetDataInterface(UNiagaraDataInterface* InDataInterface);
 
-	void AllocateBytes(int32 InCount);
-	void SetBytes(const uint8* InBytes, int32 InCount);
-	uint8* GetBytes() const;
-	int32 GetNumBytes() const;
+	NIAGARA_API void AllocateBytes(int32 InCount);
+	NIAGARA_API void SetBytes(const uint8* InBytes, int32 InCount);
+	NIAGARA_API uint8* GetBytes() const;
+	NIAGARA_API int32 GetNumBytes() const;
 
 	bool IsValid() const { return CurrentMode != ENiagaraVariantMode::None; }
 	ENiagaraVariantMode GetMode() const { return CurrentMode; }
 
-	bool operator==(const FNiagaraVariant& Other) const;
-	bool operator!=(const FNiagaraVariant& Other) const;
+	NIAGARA_API bool operator==(const FNiagaraVariant& Other) const;
+	NIAGARA_API bool operator!=(const FNiagaraVariant& Other) const;
 
-	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+	NIAGARA_API bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
 private:
 	UPROPERTY(EditAnywhere, Category=Variant, Instanced)

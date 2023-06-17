@@ -61,25 +61,25 @@ Some data channels will have many of these and can distribute them as needed to 
 For example, some data channel handlers may subdivide the scene such that distant systems are not interacting.
 In this case, each subdivision would have it's own FNiagaraDataChannelData and distribute these to the relevant NiagaraSystems.
 */
-struct NIAGARA_API FNiagaraDataChannelData final
+struct FNiagaraDataChannelData final
 {
 	UE_NONCOPYABLE(FNiagaraDataChannelData)
-	explicit FNiagaraDataChannelData(UNiagaraDataChannelHandler* Owner);
-	~FNiagaraDataChannelData();
+	NIAGARA_API explicit FNiagaraDataChannelData(UNiagaraDataChannelHandler* Owner);
+	NIAGARA_API ~FNiagaraDataChannelData();
 
-	void Reset();
+	NIAGARA_API void Reset();
 
-	void BeginFrame(UNiagaraDataChannelHandler* Owner);
-	void EndFrame(UNiagaraDataChannelHandler* Owner);
-	void Tick(UNiagaraDataChannelHandler* Owner);
-	void ConsumePublishRequests(UNiagaraDataChannelHandler* Owner);
+	NIAGARA_API void BeginFrame(UNiagaraDataChannelHandler* Owner);
+	NIAGARA_API void EndFrame(UNiagaraDataChannelHandler* Owner);
+	NIAGARA_API void Tick(UNiagaraDataChannelHandler* Owner);
+	NIAGARA_API void ConsumePublishRequests(UNiagaraDataChannelHandler* Owner);
 
-	FNiagaraDataChannelGameData* GetGameData();
-	FNiagaraDataBufferRef GetCPUData(bool bPreviousFrame);
+	NIAGARA_API FNiagaraDataChannelGameData* GetGameData();
+	NIAGARA_API FNiagaraDataBufferRef GetCPUData(bool bPreviousFrame);
 	FNiagaraDataChannelDataProxy* GetRTProxy(){ return RTProxy.Get(); }
 	
 	/** Adds a request to publish some data into the channel on the next tick. */
-	void Publish(const FNiagaraDataChannelPublishRequest& Request);
+	NIAGARA_API void Publish(const FNiagaraDataChannelPublishRequest& Request);
 		
 	/**
 	 *Removes all publish requests involving the given dataset.
@@ -87,9 +87,9 @@ struct NIAGARA_API FNiagaraDataChannelData final
 	 *This is a hack to get around lifetime issues wrt data buffers/datasets and their compiled data.
 	 *We should rework things such that data buffers can exist beyond their owning dataset, including the compiled data detailing their layout.
 	 **/
-	void RemovePublishRequests(const FNiagaraDataSet* DataSet);
+	NIAGARA_API void RemovePublishRequests(const FNiagaraDataSet* DataSet);
 
-	const FNiagaraDataSetCompiledData& GetCompiledData(ENiagaraSimTarget SimTarget);
+	NIAGARA_API const FNiagaraDataSetCompiledData& GetCompiledData(ENiagaraSimTarget SimTarget);
 
 	void SetLwcTile(FVector3f InLwcTile){ LwcTile = InLwcTile; }
 	FVector3f GetLwcTile()const { return LwcTile; }

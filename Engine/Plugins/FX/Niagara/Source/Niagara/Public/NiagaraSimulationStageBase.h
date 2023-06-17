@@ -16,13 +16,13 @@ class UNiagaraScript;
 /**
 * A base class for niagara simulation stages.  This class should be derived to add stage specific information.
 */
-UCLASS(abstract)
-class NIAGARA_API UNiagaraSimulationStageBase : public UNiagaraMergeable
+UCLASS(abstract, MinimalAPI)
+class UNiagaraSimulationStageBase : public UNiagaraMergeable
 {
 	GENERATED_BODY()
 
 public:
-	static const FName ParticleSpawnUpdateName;
+	static NIAGARA_API const FName ParticleSpawnUpdateName;
 
 	UNiagaraSimulationStageBase()
 	{
@@ -39,25 +39,25 @@ public:
 	uint32 bEnabled : 1;
 
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
-	virtual bool FillCompilationData(TArray<FNiagaraSimulationStageCompilationData>& CompilationSimStageData) const PURE_VIRTUAL(UNiagaraSimulationStageBase::FillCompileSimStageData, return false;);
+	NIAGARA_API virtual bool FillCompilationData(TArray<FNiagaraSimulationStageCompilationData>& CompilationSimStageData) const PURE_VIRTUAL(UNiagaraSimulationStageBase::FillCompileSimStageData, return false;);
 	/** Return the FName to use in place of the default for the location in the stack context. If this would be the default, return NAME_None.*/
 	virtual FName GetStackContextReplacementName() const { return NAME_None; }
-	void SetEnabled(bool bEnabled);
-	void RequestRecompile();
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API void SetEnabled(bool bEnabled);
+	NIAGARA_API void RequestRecompile();
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	UPROPERTY()
 	FGuid OuterEmitterVersion;
 	
-	FVersionedNiagaraEmitterData* GetEmitterData() const;
-	FVersionedNiagaraEmitter GetOuterEmitter() const;
+	NIAGARA_API FVersionedNiagaraEmitterData* GetEmitterData() const;
+	NIAGARA_API FVersionedNiagaraEmitter GetOuterEmitter() const;
 #endif
 };
 
-UCLASS(meta = (DisplayName = "Generic Simulation Stage"))
-class NIAGARA_API UNiagaraSimulationStageGeneric : public UNiagaraSimulationStageBase
+UCLASS(meta = (DisplayName = "Generic Simulation Stage"), MinimalAPI)
+class UNiagaraSimulationStageGeneric : public UNiagaraSimulationStageBase
 {
 	GENERATED_BODY()
 
@@ -204,18 +204,18 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	NIAGARA_API virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual bool FillCompilationData(TArray<FNiagaraSimulationStageCompilationData>& CompilationSimStageData) const override;
-	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter);
-	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter);
-	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter);
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual bool FillCompilationData(TArray<FNiagaraSimulationStageCompilationData>& CompilationSimStageData) const override;
+	NIAGARA_API virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter);
+	NIAGARA_API virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const FVersionedNiagaraEmitter& InEmitter);
+	NIAGARA_API virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter);
 #endif
 #if WITH_EDITOR
-	virtual FName GetStackContextReplacementName() const override; 
+	NIAGARA_API virtual FName GetStackContextReplacementName() const override; 
 
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

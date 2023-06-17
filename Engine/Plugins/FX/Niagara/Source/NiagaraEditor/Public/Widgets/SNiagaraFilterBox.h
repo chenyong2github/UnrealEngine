@@ -14,7 +14,7 @@
 /**
  * A single source filter checkbox, inherited from SCheckBox to add shift-click functionality
  */
-class NIAGARAEDITOR_API SNiagaraSourceFilterCheckBox : public SCheckBox
+class SNiagaraSourceFilterCheckBox : public SCheckBox
 {
 	DECLARE_DELEGATE_TwoParams(FOnSourceStateChanged, EScriptSource, bool);
 	DECLARE_DELEGATE_TwoParams(FOnShiftClicked, EScriptSource, bool);
@@ -26,9 +26,9 @@ class NIAGARAEDITOR_API SNiagaraSourceFilterCheckBox : public SCheckBox
 		SLATE_ATTRIBUTE(ECheckBoxState, IsChecked)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& Args, EScriptSource Source);
+	NIAGARAEDITOR_API void Construct(const FArguments& Args, EScriptSource Source);
 
-	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	NIAGARAEDITOR_API virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 private:	
 	/** The script source entry associated with this checkbox. */
 	EScriptSource Source;
@@ -44,7 +44,7 @@ private:
 /**
  * The source filter box will create a source filter checkbox per enum entry and can be used to filter for different sources of assets, actions etc.
  */
-class NIAGARAEDITOR_API SNiagaraSourceFilterBox : public SCompoundWidget
+class SNiagaraSourceFilterBox : public SCompoundWidget
 {
 public:
 	typedef TMap<EScriptSource, bool> SourceMap;
@@ -55,9 +55,9 @@ public:
 		SLATE_EVENT(FOnFiltersChanged, OnFiltersChanged)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& Args);
+	NIAGARAEDITOR_API void Construct(const FArguments& Args);
 
-	bool IsFilterActive(EScriptSource Source) const;
+	NIAGARAEDITOR_API bool IsFilterActive(EScriptSource Source) const;
 
 private:
 	TMap<EScriptSource, TSharedRef<SNiagaraSourceFilterCheckBox>> SourceButtons;
@@ -78,7 +78,7 @@ private:
  * The template tab box offers buttons (working like tabs or radio buttons) for filtering purposes.
  * It is used for emitters and systems to filter between standard assets, templates and behavior examples.
  */
-class NIAGARAEDITOR_API SNiagaraTemplateTabBox : public SCompoundWidget
+class SNiagaraTemplateTabBox : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnTabActivated, ENiagaraScriptTemplateSpecification Tab);
@@ -86,19 +86,19 @@ public:
 	/**
 	 * The template tab options will tell the tab box which tabs to offer in the form of buttons.
 	 */
-	struct NIAGARAEDITOR_API FNiagaraTemplateTabOptions
+	struct FNiagaraTemplateTabOptions
 	{
 		FNiagaraTemplateTabOptions()
 		{}
 
 		void ChangeTabState(ENiagaraScriptTemplateSpecification AssetTab, bool bAvailable = true) { TabData.Add(AssetTab, bAvailable); }
-		bool IsTabAvailable(ENiagaraScriptTemplateSpecification AssetTab) const;
+		NIAGARAEDITOR_API bool IsTabAvailable(ENiagaraScriptTemplateSpecification AssetTab) const;
 
-		int32 GetNumAvailableTabs() const;
-		bool GetOnlyAvailableTab(ENiagaraScriptTemplateSpecification& OutTab) const;
-		bool GetOnlyShowTemplates() const;
+		NIAGARAEDITOR_API int32 GetNumAvailableTabs() const;
+		NIAGARAEDITOR_API bool GetOnlyAvailableTab(ENiagaraScriptTemplateSpecification& OutTab) const;
+		NIAGARAEDITOR_API bool GetOnlyShowTemplates() const;
 
-		const TMap<ENiagaraScriptTemplateSpecification, bool>& GetTabData() const;
+		NIAGARAEDITOR_API const TMap<ENiagaraScriptTemplateSpecification, bool>& GetTabData() const;
 	
 	private:
 		TMap<ENiagaraScriptTemplateSpecification, bool> TabData;
@@ -111,11 +111,11 @@ public:
 		SLATE_ARGUMENT(UClass*, Class)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FNiagaraTemplateTabOptions TabOptions);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, FNiagaraTemplateTabOptions TabOptions);
 
-	ENiagaraScriptTemplateSpecification GetActiveTab() const;
+	NIAGARAEDITOR_API ENiagaraScriptTemplateSpecification GetActiveTab() const;
 	/** If true, will set the parameter to the currently active tab. If false, the template filter wasn't initialized with any tabs. */
-	bool GetActiveTab(ENiagaraScriptTemplateSpecification& OutTemplateSpecification) const;
+	NIAGARAEDITOR_API bool GetActiveTab(ENiagaraScriptTemplateSpecification& OutTemplateSpecification) const;
 private:
 	FOnTabActivated OnTabActivatedDelegate;
 	void OnTabActivated(ENiagaraScriptTemplateSpecification AssetTab);
@@ -140,29 +140,29 @@ private:
  * The primary access point to use different applicable filters.
  * Can be configured to add a source, library and template filter and offers callbacks via delegates to execute logic when the filter states change.
  */
-class NIAGARAEDITOR_API SNiagaraFilterBox : public SCompoundWidget
+class SNiagaraFilterBox : public SCompoundWidget
 {
 public:
 	/**
 	 * The filter options used to initialized the filter box.
 	 * There needs to be at least two tab options set to true for the tab filter to show up, if added.
 	 */
-	struct NIAGARAEDITOR_API FFilterOptions
+	struct FFilterOptions
 	{
 		FFilterOptions() : bAddSourceFilter(true), bAddLibraryFilter(true), bAddTemplateFilter(false)
 		{}
 
-		bool IsAnyFilterActive();
+		NIAGARAEDITOR_API bool IsAnyFilterActive();
 
-		void SetAddSourceFilter(bool bAddSourceFilter);
-		void SetAddLibraryFilter(bool bAddLibraryFilter);
-		void SetAddTemplateFilter(bool bAddTemplateFilter);
-		void SetTabOptions(const SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions& TabOptions);
+		NIAGARAEDITOR_API void SetAddSourceFilter(bool bAddSourceFilter);
+		NIAGARAEDITOR_API void SetAddLibraryFilter(bool bAddLibraryFilter);
+		NIAGARAEDITOR_API void SetAddTemplateFilter(bool bAddTemplateFilter);
+		NIAGARAEDITOR_API void SetTabOptions(const SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions& TabOptions);
 		
-		bool GetAddSourceFilter() const;
-		bool GetAddLibraryFilter() const;
-		bool GetAddTemplateFilter() const;
-		SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions GetTabOptions() const;
+		NIAGARAEDITOR_API bool GetAddSourceFilter() const;
+		NIAGARAEDITOR_API bool GetAddLibraryFilter() const;
+		NIAGARAEDITOR_API bool GetAddTemplateFilter() const;
+		NIAGARAEDITOR_API SNiagaraTemplateTabBox::FNiagaraTemplateTabOptions GetTabOptions() const;
 	private:
 		bool bAddSourceFilter;
 		bool bAddLibraryFilter;
@@ -182,10 +182,10 @@ public:
 		SLATE_ARGUMENT(UClass*, Class)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FFilterOptions FilterOptions);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, FFilterOptions FilterOptions);
 	
-	bool IsSourceFilterActive(EScriptSource Source) const;
-	bool GetActiveTemplateTab(ENiagaraScriptTemplateSpecification& OutTemplateSpecification) const;
+	NIAGARAEDITOR_API bool IsSourceFilterActive(EScriptSource Source) const;
+	NIAGARAEDITOR_API bool GetActiveTemplateTab(ENiagaraScriptTemplateSpecification& OutTemplateSpecification) const;
 	
 private:
 	TSharedPtr<SNiagaraSourceFilterBox> SourceFilterBox;

@@ -192,7 +192,7 @@ struct FNiagaraMatrix
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraAssetVersion
+struct FNiagaraAssetVersion
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -217,7 +217,7 @@ struct NIAGARA_API FNiagaraAssetVersion
 	bool operator<(const FNiagaraAssetVersion& Other) const { return MajorVersion < Other.MajorVersion || (MajorVersion == Other.MajorVersion && MinorVersion < Other.MinorVersion); }
 	bool operator<=(const FNiagaraAssetVersion& Other) const { return *this < Other || (MajorVersion == Other.MajorVersion && MinorVersion == Other.MinorVersion); }
 
-	static FGuid CreateStableVersionGuid(UObject* Object);
+	static NIAGARA_API FGuid CreateStableVersionGuid(UObject* Object);
 
 	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraAssetVersion& Version)
 	{
@@ -225,18 +225,18 @@ struct NIAGARA_API FNiagaraAssetVersion
 	}
 };
 
-struct NIAGARA_API FNiagaraLWCConverter
+struct FNiagaraLWCConverter
 {
-	explicit FNiagaraLWCConverter(FVector InSystemWorldPos = FVector::ZeroVector);
+	NIAGARA_API explicit FNiagaraLWCConverter(FVector InSystemWorldPos = FVector::ZeroVector);
 
-	[[nodiscard]] FVector3f ConvertWorldToSimulationVector(FVector WorldPosition) const;
-	[[nodiscard]] FNiagaraPosition ConvertWorldToSimulationPosition(FVector WorldPosition) const;
+	[[nodiscard]] NIAGARA_API FVector3f ConvertWorldToSimulationVector(FVector WorldPosition) const;
+	[[nodiscard]] NIAGARA_API FNiagaraPosition ConvertWorldToSimulationPosition(FVector WorldPosition) const;
 	
-	[[nodiscard]] FVector ConvertSimulationPositionToWorld(FNiagaraPosition SimulationPosition) const;
-	[[nodiscard]] FVector ConvertSimulationVectorToWorld(FVector3f SimulationPosition) const;
+	[[nodiscard]] NIAGARA_API FVector ConvertSimulationPositionToWorld(FNiagaraPosition SimulationPosition) const;
+	[[nodiscard]] NIAGARA_API FVector ConvertSimulationVectorToWorld(FVector3f SimulationPosition) const;
 
-	[[nodiscard]] FMatrix ConvertWorldToSimulationMatrix(const FMatrix& Matrix) const;
-	[[nodiscard]] FMatrix ConvertSimulationToWorldMatrix(const FMatrix& Matrix) const;
+	[[nodiscard]] NIAGARA_API FMatrix ConvertWorldToSimulationMatrix(const FMatrix& Matrix) const;
+	[[nodiscard]] NIAGARA_API FMatrix ConvertSimulationToWorldMatrix(const FMatrix& Matrix) const;
 
 private:
 	FVector SystemWorldPos;
@@ -294,14 +294,14 @@ struct FNiagaraStructConversionStep
 
 /** Can convert struct data from custom structs containing LWC data such as FVector3d into struct data suitable for Niagara simulations and vice versa. */
 USTRUCT()
-struct NIAGARA_API FNiagaraLwcStructConverter
+struct FNiagaraLwcStructConverter
 {
 	GENERATED_USTRUCT_BODY();
 
-	void ConvertDataToSimulation(uint8* DestinationData, const uint8* SourceData, int32 Count = 1) const;
-	void ConvertDataFromSimulation(uint8* DestinationData, const uint8* SourceData, int32 Count = 1) const;
+	NIAGARA_API void ConvertDataToSimulation(uint8* DestinationData, const uint8* SourceData, int32 Count = 1) const;
+	NIAGARA_API void ConvertDataFromSimulation(uint8* DestinationData, const uint8* SourceData, int32 Count = 1) const;
 	
-	void AddConversionStep(int32 InSourceBytes, int32 InSourceOffset, int32 InSimulationBytes, int32 InSimulationOffset, ENiagaraStructConversionType ConversionType);
+	NIAGARA_API void AddConversionStep(int32 InSourceBytes, int32 InSourceOffset, int32 InSimulationBytes, int32 InSimulationOffset, ENiagaraStructConversionType ConversionType);
 	bool IsValid() const { return ConversionSteps.Num() > 0 && LWCSize > 0 && SWCSize > 0; }
 	
 private:
@@ -405,32 +405,32 @@ enum class ENiagaraStructConversion : uint8
 *  Can convert a UStruct with fields of base types only (float, int... - will likely add native vector types here as well)
 *	to an FNiagaraTypeDefinition (internal representation)
 */
-class NIAGARA_API FNiagaraTypeHelper
+class FNiagaraTypeHelper
 {
 public:
-	static FString ToString(const uint8* ValueData, const UObject* StructOrEnum);
-	static bool IsLWCStructure(UStruct* InStruct);
-	static bool IsLWCType(const FNiagaraTypeDefinition& InType);
-	static UScriptStruct* FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
-	static bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
-	static UScriptStruct* GetSWCStruct(UScriptStruct* LWCStruct);
-	static UScriptStruct* GetLWCStruct(UScriptStruct* LWCStruct);
-	static FNiagaraTypeDefinition GetSWCType(const FNiagaraTypeDefinition& InType);
-	static void TickTypeRemap();
+	static NIAGARA_API FString ToString(const uint8* ValueData, const UObject* StructOrEnum);
+	static NIAGARA_API bool IsLWCStructure(UStruct* InStruct);
+	static NIAGARA_API bool IsLWCType(const FNiagaraTypeDefinition& InType);
+	static NIAGARA_API UScriptStruct* FindNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
+	static NIAGARA_API bool IsNiagaraFriendlyTopLevelStruct(UScriptStruct* InStruct, ENiagaraStructConversion StructConversion);
+	static NIAGARA_API UScriptStruct* GetSWCStruct(UScriptStruct* LWCStruct);
+	static NIAGARA_API UScriptStruct* GetLWCStruct(UScriptStruct* LWCStruct);
+	static NIAGARA_API FNiagaraTypeDefinition GetSWCType(const FNiagaraTypeDefinition& InType);
+	static NIAGARA_API void TickTypeRemap();
 
 	/**
 	Attempt to get the actual LWC type for a given type that would be used in the rest of the engine etc.
 	Used for cases where we actually need to store types in LWC format.
 	These cannot be properly serialized currently so must be constructed at runtime from their Niagara Simulation types.
 	*/
-	static FNiagaraTypeDefinition GetLWCType(const FNiagaraTypeDefinition& InType);
+	static NIAGARA_API FNiagaraTypeDefinition GetLWCType(const FNiagaraTypeDefinition& InType);
 	
-	static FNiagaraTypeDefinition GetVector2DDef();
-	static FNiagaraTypeDefinition GetVectorDef();
-	static FNiagaraTypeDefinition GetVector4Def();
-	static FNiagaraTypeDefinition GetQuatDef();
+	static NIAGARA_API FNiagaraTypeDefinition GetVector2DDef();
+	static NIAGARA_API FNiagaraTypeDefinition GetVectorDef();
+	static NIAGARA_API FNiagaraTypeDefinition GetVector4Def();
+	static NIAGARA_API FNiagaraTypeDefinition GetQuatDef();
 
-	static void InitStaticTypes();
+	static NIAGARA_API void InitStaticTypes();
 private:
 	struct FRemapEntry
 	{
@@ -596,7 +596,7 @@ enum class ENiagaraOrientationAxis : uint32
 
 /** Defines options for conditionally editing and showing script inputs in the UI. */
 USTRUCT()
-struct NIAGARA_API FNiagaraInputConditionMetadata
+struct FNiagaraInputConditionMetadata
 {
 	GENERATED_USTRUCT_BODY()
 public:
@@ -611,7 +611,7 @@ public:
 
 /** Defines override data for enum parameters displayed in the UI. */
 USTRUCT()
-struct NIAGARA_API FNiagaraEnumParameterMetaData
+struct FNiagaraEnumParameterMetaData
 {
 	GENERATED_BODY()
 	
@@ -650,7 +650,7 @@ enum class ENiagaraInputWidgetType : uint8
 };
 
 USTRUCT()
-struct NIAGARA_API FWidgetNamedInputValue
+struct FWidgetNamedInputValue
 {
 	GENERATED_BODY()
 
@@ -666,7 +666,7 @@ struct NIAGARA_API FWidgetNamedInputValue
 
 /** A struct that serves as display metadata for integer type static switches. Is used in conjuction with the 'EnumStyle' widget customization. */
 USTRUCT()
-struct NIAGARA_API FNiagaraWidgetNamedIntegerInputValue
+struct FNiagaraWidgetNamedIntegerInputValue
 {
 	GENERATED_BODY()
 	
@@ -678,7 +678,7 @@ struct NIAGARA_API FNiagaraWidgetNamedIntegerInputValue
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraInputParameterCustomization
+struct FNiagaraInputParameterCustomization
 {
 	GENERATED_BODY()
 
@@ -727,7 +727,7 @@ enum class ENiagaraBoolDisplayMode : uint8
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraBoolParameterMetaData
+struct FNiagaraBoolParameterMetaData
 {
 	GENERATED_BODY()
 
@@ -756,7 +756,7 @@ struct NIAGARA_API FNiagaraBoolParameterMetaData
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraVariableMetaData
+struct FNiagaraVariableMetaData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -843,7 +843,7 @@ struct NIAGARA_API FNiagaraVariableMetaData
 	int32 GetStaticSwitchDefaultValue_DEPRECATED() const { return StaticSwitchDefaultValue_DEPRECATED; };
 
 	/** Copies all the properties that are marked as editable for the user (e.g. EditAnywhere). */
-	void CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData);
+	NIAGARA_API void CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData);
 
 	FGuid GetVariableGuid() const { return VariableGuid; };
 
@@ -870,7 +870,7 @@ private:
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraTypeDefinition
+struct FNiagaraTypeDefinition
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -1083,7 +1083,7 @@ public:
 		return UnderlyingType == UT_Enum ? CastChecked<UEnum>(ClassStructOrEnum) : nullptr;
 	}
 
-	bool IsDataInterface() const;
+	NIAGARA_API bool IsDataInterface() const;
 
 	FORCEINLINE bool IsUObject() const
 	{
@@ -1105,8 +1105,8 @@ public:
 
 	bool IsIndexWildcard() const { return ClassStructOrEnum == FNiagaraTypeDefinition::GetWildcardStruct(); }
 
-	FNiagaraTypeDefinition ToStaticDef() const;
-	FNiagaraTypeDefinition RemoveStaticDef() const;
+	NIAGARA_API FNiagaraTypeDefinition ToStaticDef() const;
+	NIAGARA_API FNiagaraTypeDefinition RemoveStaticDef() const;
 
 	int32 GetSize() const
 	{
@@ -1163,10 +1163,10 @@ public:
 		return ClassStructOrEnum != nullptr;
 	}
 
-	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
+	NIAGARA_API bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
 #if WITH_EDITORONLY_DATA
-	bool IsInternalType() const;
+	NIAGARA_API bool IsInternalType() const;
 #endif
 
 	/*
@@ -1181,7 +1181,7 @@ public:
 	UPROPERTY(EditAnywhere, Category=Type)
 	uint16 UnderlyingType;
 
-	bool Serialize(FArchive& Ar);
+	NIAGARA_API bool Serialize(FArchive& Ar);
 
 private:
 	UPROPERTY(EditAnywhere, Category = Type)
@@ -1199,9 +1199,9 @@ private:
 #endif
 
 public:
-	static void Init();
+	static NIAGARA_API void Init();
 #if WITH_EDITOR
-	static void RecreateUserDefinedTypeRegistry();
+	static NIAGARA_API void RecreateUserDefinedTypeRegistry();
 #endif
 	static const FNiagaraTypeDefinition& GetFloatDef() { return FloatDef; }
 	static const FNiagaraTypeDefinition& GetBoolDef() { return BoolDef; }
@@ -1267,7 +1267,7 @@ public:
 
 	static const FNiagaraTypeDefinition& GetCollisionEventDef() { return CollisionEventDef; }
 
-	static bool IsScalarDefinition(const FNiagaraTypeDefinition& Type);
+	static NIAGARA_API bool IsScalarDefinition(const FNiagaraTypeDefinition& Type);
 
 	FString ToString(const uint8* ValueData)const
 	{
@@ -1279,94 +1279,94 @@ public:
 		return FNiagaraTypeHelper::ToString(ValueData, ClassStructOrEnum);
 	}
 	
-	static bool TypesAreAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB, bool bAllowLossyLWCConversions = false);
-	static bool IsLossyConversion(const FNiagaraTypeDefinition& FromType, const FNiagaraTypeDefinition& ToType);
-	static FNiagaraTypeDefinition GetNumericOutputType(TConstArrayView<FNiagaraTypeDefinition> TypeDefinintions, ENiagaraNumericOutputTypeSelectionMode SelectionMode);
+	static NIAGARA_API bool TypesAreAssignable(const FNiagaraTypeDefinition& TypeA, const FNiagaraTypeDefinition& TypeB, bool bAllowLossyLWCConversions = false);
+	static NIAGARA_API bool IsLossyConversion(const FNiagaraTypeDefinition& FromType, const FNiagaraTypeDefinition& ToType);
+	static NIAGARA_API FNiagaraTypeDefinition GetNumericOutputType(TConstArrayView<FNiagaraTypeDefinition> TypeDefinintions, ENiagaraNumericOutputTypeSelectionMode SelectionMode);
 
 	static const TArray<FNiagaraTypeDefinition>& GetNumericTypes() { return OrderedNumericTypes; }
-	static bool IsValidNumericInput(const FNiagaraTypeDefinition& TypeDef);
+	static NIAGARA_API bool IsValidNumericInput(const FNiagaraTypeDefinition& TypeDef);
 
 	
 
 private:
 
-	static FNiagaraTypeDefinition FloatDef;
-	static FNiagaraTypeDefinition BoolDef;
-	static FNiagaraTypeDefinition IntDef;
-	static FNiagaraTypeDefinition Vec2Def;
-	static FNiagaraTypeDefinition Vec3Def;
-	static FNiagaraTypeDefinition Vec4Def;
-	static FNiagaraTypeDefinition ColorDef;
-	static FNiagaraTypeDefinition PositionDef;
-	static FNiagaraTypeDefinition QuatDef;
-	static FNiagaraTypeDefinition Matrix4Def;
-	static FNiagaraTypeDefinition NumericDef;
-	static FNiagaraTypeDefinition ParameterMapDef;
-	static FNiagaraTypeDefinition IDDef;
-	static FNiagaraTypeDefinition RandInfoDef;
-	static FNiagaraTypeDefinition UObjectDef;
-	static FNiagaraTypeDefinition UMaterialDef;
-	static FNiagaraTypeDefinition UTextureDef;
-	static FNiagaraTypeDefinition UTextureRenderTargetDef;
-	static FNiagaraTypeDefinition UStaticMeshDef;
-	static FNiagaraTypeDefinition USimCacheClassDef;
-	static FNiagaraTypeDefinition WildcardDef;
+	static NIAGARA_API FNiagaraTypeDefinition FloatDef;
+	static NIAGARA_API FNiagaraTypeDefinition BoolDef;
+	static NIAGARA_API FNiagaraTypeDefinition IntDef;
+	static NIAGARA_API FNiagaraTypeDefinition Vec2Def;
+	static NIAGARA_API FNiagaraTypeDefinition Vec3Def;
+	static NIAGARA_API FNiagaraTypeDefinition Vec4Def;
+	static NIAGARA_API FNiagaraTypeDefinition ColorDef;
+	static NIAGARA_API FNiagaraTypeDefinition PositionDef;
+	static NIAGARA_API FNiagaraTypeDefinition QuatDef;
+	static NIAGARA_API FNiagaraTypeDefinition Matrix4Def;
+	static NIAGARA_API FNiagaraTypeDefinition NumericDef;
+	static NIAGARA_API FNiagaraTypeDefinition ParameterMapDef;
+	static NIAGARA_API FNiagaraTypeDefinition IDDef;
+	static NIAGARA_API FNiagaraTypeDefinition RandInfoDef;
+	static NIAGARA_API FNiagaraTypeDefinition UObjectDef;
+	static NIAGARA_API FNiagaraTypeDefinition UMaterialDef;
+	static NIAGARA_API FNiagaraTypeDefinition UTextureDef;
+	static NIAGARA_API FNiagaraTypeDefinition UTextureRenderTargetDef;
+	static NIAGARA_API FNiagaraTypeDefinition UStaticMeshDef;
+	static NIAGARA_API FNiagaraTypeDefinition USimCacheClassDef;
+	static NIAGARA_API FNiagaraTypeDefinition WildcardDef;
 
-	static FNiagaraTypeDefinition HalfDef;
-	static FNiagaraTypeDefinition HalfVec2Def;
-	static FNiagaraTypeDefinition HalfVec3Def;
-	static FNiagaraTypeDefinition HalfVec4Def;
+	static NIAGARA_API FNiagaraTypeDefinition HalfDef;
+	static NIAGARA_API FNiagaraTypeDefinition HalfVec2Def;
+	static NIAGARA_API FNiagaraTypeDefinition HalfVec3Def;
+	static NIAGARA_API FNiagaraTypeDefinition HalfVec4Def;
 
-	static UScriptStruct* FloatStruct;
-	static UScriptStruct* BoolStruct;
-	static UScriptStruct* IntStruct;
-	static UScriptStruct* Vec2Struct;
-	static UScriptStruct* Vec3Struct;
-	static UScriptStruct* Vec4Struct;
-	static UScriptStruct* QuatStruct;
-	static UScriptStruct* ColorStruct;
-	static UScriptStruct* Matrix4Struct;
-	static UScriptStruct* NumericStruct;
-	static UScriptStruct* WildcardStruct;
-	static UScriptStruct* PositionStruct;
+	static NIAGARA_API UScriptStruct* FloatStruct;
+	static NIAGARA_API UScriptStruct* BoolStruct;
+	static NIAGARA_API UScriptStruct* IntStruct;
+	static NIAGARA_API UScriptStruct* Vec2Struct;
+	static NIAGARA_API UScriptStruct* Vec3Struct;
+	static NIAGARA_API UScriptStruct* Vec4Struct;
+	static NIAGARA_API UScriptStruct* QuatStruct;
+	static NIAGARA_API UScriptStruct* ColorStruct;
+	static NIAGARA_API UScriptStruct* Matrix4Struct;
+	static NIAGARA_API UScriptStruct* NumericStruct;
+	static NIAGARA_API UScriptStruct* WildcardStruct;
+	static NIAGARA_API UScriptStruct* PositionStruct;
 
-	static UScriptStruct* HalfStruct;
-	static UScriptStruct* HalfVec2Struct;
-	static UScriptStruct* HalfVec3Struct;
-	static UScriptStruct* HalfVec4Struct;
+	static NIAGARA_API UScriptStruct* HalfStruct;
+	static NIAGARA_API UScriptStruct* HalfVec2Struct;
+	static NIAGARA_API UScriptStruct* HalfVec3Struct;
+	static NIAGARA_API UScriptStruct* HalfVec4Struct;
 
-	static UClass* UObjectClass;
-	static UClass* UMaterialClass;
-	static UClass* UTextureClass;
-	static UClass* UTextureRenderTargetClass;
+	static NIAGARA_API UClass* UObjectClass;
+	static NIAGARA_API UClass* UMaterialClass;
+	static NIAGARA_API UClass* UTextureClass;
+	static NIAGARA_API UClass* UTextureRenderTargetClass;
 
-	static UEnum* SimulationTargetEnum;
-	static UEnum* ScriptUsageEnum;
-	static UEnum* ScriptContextEnum;
-	static UEnum* ExecutionStateEnum;
-	static UEnum* CoordinateSpaceEnum;
-	static UEnum* OrientationAxisEnum;
-	static UEnum* ExecutionStateSourceEnum;
+	static NIAGARA_API UEnum* SimulationTargetEnum;
+	static NIAGARA_API UEnum* ScriptUsageEnum;
+	static NIAGARA_API UEnum* ScriptContextEnum;
+	static NIAGARA_API UEnum* ExecutionStateEnum;
+	static NIAGARA_API UEnum* CoordinateSpaceEnum;
+	static NIAGARA_API UEnum* OrientationAxisEnum;
+	static NIAGARA_API UEnum* ExecutionStateSourceEnum;
 
-	static UEnum* ParameterScopeEnum;
-	static UEnum* ParameterPanelCategoryEnum;
+	static NIAGARA_API UEnum* ParameterScopeEnum;
+	static NIAGARA_API UEnum* ParameterPanelCategoryEnum;
 
-	static UEnum* FunctionDebugStateEnum;
+	static NIAGARA_API UEnum* FunctionDebugStateEnum;
 
-	static UScriptStruct* ParameterMapStruct;
-	static UScriptStruct* IDStruct;
-	static UScriptStruct* RandInfoStruct;
+	static NIAGARA_API UScriptStruct* ParameterMapStruct;
+	static NIAGARA_API UScriptStruct* IDStruct;
+	static NIAGARA_API UScriptStruct* RandInfoStruct;
 
-	static TSet<UScriptStruct*> NumericStructs;
-	static TArray<FNiagaraTypeDefinition> OrderedNumericTypes;
+	static NIAGARA_API TSet<UScriptStruct*> NumericStructs;
+	static NIAGARA_API TArray<FNiagaraTypeDefinition> OrderedNumericTypes;
 
-	static TSet<UScriptStruct*> ScalarStructs;
+	static NIAGARA_API TSet<UScriptStruct*> ScalarStructs;
 
-	static TSet<UStruct*> FloatStructs;
-	static TSet<UStruct*> IntStructs;
-	static TSet<UStruct*> BoolStructs;
+	static NIAGARA_API TSet<UStruct*> FloatStructs;
+	static NIAGARA_API TSet<UStruct*> IntStructs;
+	static NIAGARA_API TSet<UStruct*> BoolStructs;
 
-	static FNiagaraTypeDefinition CollisionEventDef;
+	static NIAGARA_API FNiagaraTypeDefinition CollisionEventDef;
 
 	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
 	{
@@ -1428,7 +1428,7 @@ ENUM_CLASS_FLAGS(ENiagaraTypeRegistryFlags)
 * Used by UI to provide selection; new uniforms and variables
 * may be instanced using the types provided here
 */
-class NIAGARA_API FNiagaraTypeRegistry : public FGCObject
+class FNiagaraTypeRegistry : public FGCObject
 {
 public:
 	enum
@@ -1488,7 +1488,7 @@ public:
 		return Get().RegisteredIndexTypes;
 	}
 
-	static UNiagaraDataInterfaceBase* GetDefaultDataInterfaceByName(const FString& DIClassName);
+	static NIAGARA_API UNiagaraDataInterfaceBase* GetDefaultDataInterfaceByName(const FString& DIClassName);
 
 	static void ClearUserDefinedRegistry()
 	{
@@ -1668,18 +1668,18 @@ public:
 	}
 
 	/** LazySingleton interface */
-	static FNiagaraTypeRegistry& Get();
-	static void TearDown();
+	static NIAGARA_API FNiagaraTypeRegistry& Get();
+	static NIAGARA_API void TearDown();
 
 	/** FGCObject interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const;
+	NIAGARA_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	NIAGARA_API virtual FString GetReferencerName() const;
 
 private:
 	friend class FLazySingleton;
 
-	FNiagaraTypeRegistry();
-	virtual ~FNiagaraTypeRegistry();
+	NIAGARA_API FNiagaraTypeRegistry();
+	NIAGARA_API virtual ~FNiagaraTypeRegistry();
 
 	RegisteredTypesArray RegisteredTypes;
 
@@ -2258,7 +2258,7 @@ class UNiagaraEmitter;
 
 /** Struct combining an emitter with a specific version.*/
 USTRUCT()
-struct NIAGARA_API FVersionedNiagaraEmitter
+struct FVersionedNiagaraEmitter
 {
 	GENERATED_USTRUCT_BODY()
 	
@@ -2267,8 +2267,8 @@ struct NIAGARA_API FVersionedNiagaraEmitter
 		: Emitter(InEmitter), Version(InVersion)
 	{};
 
-	FVersionedNiagaraEmitterData* GetEmitterData() const;
-	FVersionedNiagaraEmitterWeakPtr ToWeakPtr() const;
+	NIAGARA_API FVersionedNiagaraEmitterData* GetEmitterData() const;
+	NIAGARA_API FVersionedNiagaraEmitterWeakPtr ToWeakPtr() const;
 
 	UPROPERTY()
 	TObjectPtr<UNiagaraEmitter> Emitter = nullptr;
@@ -2292,13 +2292,13 @@ struct NIAGARA_API FVersionedNiagaraEmitter
 	}
 };
 
-struct NIAGARA_API FVersionedNiagaraEmitterWeakPtr
+struct FVersionedNiagaraEmitterWeakPtr
 {
 	FVersionedNiagaraEmitterWeakPtr() : Emitter(nullptr) {}
-	FVersionedNiagaraEmitterWeakPtr(UNiagaraEmitter* InEmitter, const FGuid& InVersion);
-	FVersionedNiagaraEmitter ResolveWeakPtr() const;
-	FVersionedNiagaraEmitterData* GetEmitterData() const;
-	bool IsValid() const;
+	NIAGARA_API FVersionedNiagaraEmitterWeakPtr(UNiagaraEmitter* InEmitter, const FGuid& InVersion);
+	NIAGARA_API FVersionedNiagaraEmitter ResolveWeakPtr() const;
+	NIAGARA_API FVersionedNiagaraEmitterData* GetEmitterData() const;
+	NIAGARA_API bool IsValid() const;
 	bool operator==(const FVersionedNiagaraEmitterWeakPtr& Other) const
 	{
 		return Emitter == Other.Emitter && Version == Other.Version;

@@ -27,7 +27,7 @@ public:
 
 	//~ Begin FEditorUndoClient Interface 
 	NIAGARAEDITOR_API virtual void PostUndo(bool bSuccess) override;
-	NIAGARAEDITOR_API virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); };
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); };
 	//~ End FEditorUndoClient Interface 
 
 	/** Delegate to know when one of the properties has been changed.*/

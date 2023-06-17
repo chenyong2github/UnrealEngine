@@ -23,7 +23,7 @@ class FMessageEndpoint;
 /**
 Listener that accumulates a short run of stats for all systems and components in the scene and reports those stats to the outliner.
 */
-class NIAGARA_API FNiagaraOutlinerPerfListener : public FParticlePerfStatsListener_GatherAll
+class FNiagaraOutlinerPerfListener : public FParticlePerfStatsListener_GatherAll
 {
 public:
 	FNiagaraOutlinerPerfListener() : FParticlePerfStatsListener_GatherAll(true, true, true)

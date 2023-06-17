@@ -19,42 +19,42 @@ class UNiagaraSystem;
  * Stores emitter information within the context of a System.
  */
 USTRUCT()
-struct NIAGARA_API FNiagaraEmitterHandle
+struct FNiagaraEmitterHandle
 {
 	GENERATED_USTRUCT_BODY()
 public:
 	/** Creates a new invalid emitter handle. */
-	FNiagaraEmitterHandle();
+	NIAGARA_API FNiagaraEmitterHandle();
 
 #if WITH_EDITORONLY_DATA
 	/** Creates a new emitter handle from an emitter. */
-	FNiagaraEmitterHandle(UNiagaraEmitter& InEmitter, const FGuid& Version);
+	NIAGARA_API FNiagaraEmitterHandle(UNiagaraEmitter& InEmitter, const FGuid& Version);
 	
 	/** Creates a new emitter handle from an emitter. */
-	FNiagaraEmitterHandle(const FVersionedNiagaraEmitter& InEmitter);
+	NIAGARA_API FNiagaraEmitterHandle(const FVersionedNiagaraEmitter& InEmitter);
 #endif
 
 	/** Whether or not this is a valid emitter handle. */
-	bool IsValid() const;
+	NIAGARA_API bool IsValid() const;
 
 	/** Gets the unique id for this handle. */
-	FGuid GetId() const;
+	NIAGARA_API FGuid GetId() const;
 
 	// HACK!  Data sets used to use the emitter name, but this isn't guaranteed to be unique.  This is a temporary hack
 	// to allow the data sets to continue work with using names, but that code needs to be refactored to use the id defined here.
-	FName GetIdName() const;
+	NIAGARA_API FName GetIdName() const;
 
 	/** Gets the display name for this emitter in the System. */
-	FName GetName() const;
+	NIAGARA_API FName GetName() const;
 
 	/** Sets the display name for this emitter in the System. The system is needed here in order to ensure uniqueness of the name. */
-	void SetName(FName InName, UNiagaraSystem& InOwnerSystem);
+	NIAGARA_API void SetName(FName InName, UNiagaraSystem& InOwnerSystem);
 
 	/** Gets whether or not this emitter is enabled within the System.  Disabled emitters aren't simulated. */
-	bool GetIsEnabled() const;
+	NIAGARA_API bool GetIsEnabled() const;
 
 	/** Sets whether or not this emitter is enabled within the System.  Disabled emitters aren't simulated. Returns whether or not the enabled state changed. */
-	bool SetIsEnabled(bool bInIsEnabled, UNiagaraSystem& InOwnerSystem, bool bRecompileIfChanged);
+	NIAGARA_API bool SetIsEnabled(bool bInIsEnabled, UNiagaraSystem& InOwnerSystem, bool bRecompileIfChanged);
 
 #if WITH_EDITORONLY_DATA
 	bool IsIsolated() const {	return bIsolated; }
@@ -62,33 +62,33 @@ public:
 #endif
 
 	/** Gets the copied instance of the emitter this handle references. */
-	FVersionedNiagaraEmitter GetInstance() const;
-	FVersionedNiagaraEmitter& GetInstance();
+	NIAGARA_API FVersionedNiagaraEmitter GetInstance() const;
+	NIAGARA_API FVersionedNiagaraEmitter& GetInstance();
 
-	FVersionedNiagaraEmitterData* GetEmitterData() const;
+	NIAGARA_API FVersionedNiagaraEmitterData* GetEmitterData() const;
 
 	/** Gets a unique name for this emitter instance for use in scripts and parameter stores etc.*/
-	FString GetUniqueInstanceName()const;
+	NIAGARA_API FString GetUniqueInstanceName()const;
 
 #if WITH_EDITORONLY_DATA
 	/** Determine whether or not the Instance script is in synch with its graph.*/
-	bool NeedsRecompile() const;
+	NIAGARA_API bool NeedsRecompile() const;
 
 	/** Calls conditional post load on all sub-objects this handle references. */
-	void ConditionalPostLoad(int32 NiagaraCustomVersion);
+	NIAGARA_API void ConditionalPostLoad(int32 NiagaraCustomVersion);
 
 	/** Whether or not this handle uses the supplied emitter. */
-	bool UsesEmitter(const FVersionedNiagaraEmitter& InEmitter) const;
-	bool UsesEmitter(const UNiagaraEmitter& InEmitter) const;
+	NIAGARA_API bool UsesEmitter(const FVersionedNiagaraEmitter& InEmitter) const;
+	NIAGARA_API bool UsesEmitter(const UNiagaraEmitter& InEmitter) const;
 
-	void ClearEmitter();
+	NIAGARA_API void ClearEmitter();
 
 	bool GetDebugShowBounds() const { return bDebugShowBounds; }
 	void SetDebugShowBounds(bool bShowBounds) { bDebugShowBounds = bShowBounds; }
 #endif
 public:
 	/** A static const invalid handle. */
-	static const FNiagaraEmitterHandle InvalidHandle;
+	static NIAGARA_API const FNiagaraEmitterHandle InvalidHandle;
 
 private:
 	/** The id of this emitter handle. */

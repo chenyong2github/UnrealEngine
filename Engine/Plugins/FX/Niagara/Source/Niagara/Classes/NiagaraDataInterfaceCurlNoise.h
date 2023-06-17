@@ -8,8 +8,8 @@
 #include "NiagaraDataInterfaceCurlNoise.generated.h"
 
 /** Data Interface allowing sampling of curl noise LUT. */
-UCLASS(EditInlineNew, Category = "Curl Noise LUT", CollapseCategories, meta = (DisplayName = "Curl Noise"))
-class NIAGARA_API UNiagaraDataInterfaceCurlNoise : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Curl Noise LUT", CollapseCategories, meta = (DisplayName = "Curl Noise"), MinimalAPI)
+class UNiagaraDataInterfaceCurlNoise : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,36 +25,36 @@ public:
 	FVector3f OffsetFromSeed;
 
 	//UObject Interface
-	virtual void PostInitProperties()override;
-	virtual void PostLoad() override;
+	NIAGARA_API virtual void PostInitProperties()override;
+	NIAGARA_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//UObject Interface End
 
 	//UNiagaraDataInterface Interface
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	//UNiagaraDataInterface Interface End
 
-	void SampleNoiseField(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void SampleNoiseField(FVectorVMExternalFunctionContext& Context);
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
-	virtual void PushToRenderThreadImpl() override;
+	NIAGARA_API virtual void PushToRenderThreadImpl() override;
 };
 
 struct FNiagaraDataInterfaceProxyCurlNoise : public FNiagaraDataInterfaceProxy

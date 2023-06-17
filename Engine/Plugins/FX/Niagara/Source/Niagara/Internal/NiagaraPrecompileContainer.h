@@ -6,8 +6,8 @@
 #include "NiagaraPrecompileContainer.generated.h"
 
 
-UCLASS()
-class NIAGARA_API UNiagaraPrecompileContainer : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraPrecompileContainer : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

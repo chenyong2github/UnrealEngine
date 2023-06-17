@@ -7,18 +7,18 @@
 class FDeferredDecalProxy;
 class USceneComponent;
 
-class NIAGARA_API FNiagaraRendererDecals : public FNiagaraRenderer
+class FNiagaraRendererDecals : public FNiagaraRenderer
 {
 public:
-	explicit FNiagaraRendererDecals(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
-	~FNiagaraRendererDecals();
+	NIAGARA_API explicit FNiagaraRendererDecals(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	NIAGARA_API ~FNiagaraRendererDecals();
 
-	void ReleaseAllDecals() const;
+	NIAGARA_API void ReleaseAllDecals() const;
 
 	//FNiagaraRenderer interface
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const override;
-	virtual FNiagaraDynamicDataBase *GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
+	NIAGARA_API virtual void DestroyRenderState_Concurrent() override;
+	NIAGARA_API virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const override;
+	NIAGARA_API virtual FNiagaraDynamicDataBase *GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
 	//FNiagaraRenderer interface END
 
 	mutable TWeakObjectPtr<USceneComponent>		WeakOwnerComponent;

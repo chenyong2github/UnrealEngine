@@ -41,7 +41,7 @@ struct FNiagaraSimCacheCaptureParameters
 	float AdvanceDeltaTime = 0.01666f;
 };
 
-class NIAGARA_API FNiagaraSimCacheCapture
+class FNiagaraSimCacheCapture
 {
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnCaptureComplete, UNiagaraSimCache*);
@@ -50,7 +50,7 @@ public:
 	
 	
 	// Captures a niagara sim cache. The caller is responsible for managing the lifetime of the provided component and sim cache. 
-	void CaptureNiagaraSimCache(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheCaptureParameters CaptureParameters);
+	NIAGARA_API void CaptureNiagaraSimCache(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, FNiagaraSimCacheCaptureParameters CaptureParameters);
 
 	/**
 	Captures the simulations current frame data into the SimCache.
@@ -58,7 +58,7 @@ public:
 	The return can be invalid if the component can not be captured for some reason (i.e. not active).
 	When AdvanceSimulation is true we will manually advance the simulation one frame using the provided AdvanceDeltaTime before capturing.
 	*/
-	bool CaptureCurrentFrameImmediate(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, bool bAdvanceSimulation=false, float AdvanceDeltaTime=0.01666f);
+	NIAGARA_API bool CaptureCurrentFrameImmediate(UNiagaraSimCache* SimCache, FNiagaraSimCacheCreateParameters CreateParameters, UNiagaraComponent* NiagaraComponent, UNiagaraSimCache*& OutSimCache, bool bAdvanceSimulation=false, float AdvanceDeltaTime=0.01666f);
 
 private:
 
@@ -76,7 +76,7 @@ private:
 
 	int32 TimeOutCounter = 0;
 	
-	bool OnFrameTick(float DeltaTime);
+	NIAGARA_API bool OnFrameTick(float DeltaTime);
 
-	void FinishCapture();
+	NIAGARA_API void FinishCapture();
 };

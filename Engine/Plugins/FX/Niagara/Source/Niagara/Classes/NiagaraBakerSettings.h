@@ -140,13 +140,13 @@ struct FNiagaraBakerOutputFrameIndices
 	float	Interp = 0.0f;
 };
 
-UCLASS(config=Niagara, defaultconfig)
-class NIAGARA_API UNiagaraBakerSettings : public UObject
+UCLASS(config=Niagara, defaultconfig, MinimalAPI)
+class UNiagaraBakerSettings : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UNiagaraBakerSettings(const FObjectInitializer& Init);
+	NIAGARA_API UNiagaraBakerSettings(const FObjectInitializer& Init);
 
 	/**
 	This is the start time of the simulation where we begin the capture.
@@ -195,32 +195,32 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	uint8 bRenderComponentOnly : 1;
 
-	bool Equals(const UNiagaraBakerSettings& Other) const;
+	NIAGARA_API bool Equals(const UNiagaraBakerSettings& Other) const;
 
 	float GetSeekDelta() const { return 1.0f / float(FramesPerSecond); }
 
-	FVector GetCameraLocation() const;
-	FRotator GetCameraRotation() const;
-	FMatrix GetViewportMatrix() const;
-	FMatrix GetViewMatrix() const;
-	FMatrix GetProjectionMatrix() const;
+	NIAGARA_API FVector GetCameraLocation() const;
+	NIAGARA_API FRotator GetCameraRotation() const;
+	NIAGARA_API FMatrix GetViewportMatrix() const;
+	NIAGARA_API FMatrix GetViewMatrix() const;
+	NIAGARA_API FMatrix GetProjectionMatrix() const;
 
 	FNiagaraBakerCameraSettings& GetCurrentCamera() { return CameraSettings[CurrentCameraIndex]; }
 	const FNiagaraBakerCameraSettings& GetCurrentCamera() const { return CameraSettings[CurrentCameraIndex]; }
 
-	int GetOutputNumFrames(UNiagaraBakerOutput* BakerOutput) const;
-	FNiagaraBakerOutputFrameIndices GetOutputFrameIndices(UNiagaraBakerOutput* BakerOutput, float RelativeTime) const;
+	NIAGARA_API int GetOutputNumFrames(UNiagaraBakerOutput* BakerOutput) const;
+	NIAGARA_API FNiagaraBakerOutputFrameIndices GetOutputFrameIndices(UNiagaraBakerOutput* BakerOutput, float RelativeTime) const;
 
-	int GetOutputNumFrames(int OutputIndex) const;
-	FNiagaraBakerOutputFrameIndices GetOutputFrameIndices(int OutputIndex, float RelativeTime) const;
+	NIAGARA_API int GetOutputNumFrames(int OutputIndex) const;
+	NIAGARA_API FNiagaraBakerOutputFrameIndices GetOutputFrameIndices(int OutputIndex, float RelativeTime) const;
 
-	virtual void PostLoad() override;
+	NIAGARA_API virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static NIAGARA_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	// Deprecated properties

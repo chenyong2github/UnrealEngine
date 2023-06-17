@@ -89,16 +89,16 @@ public:
 /**
  * Wrapper class for passing results back from the version upgrade python script.
  */
-UCLASS(BlueprintType)
-class NIAGARAEDITOR_API UUpgradeNiagaraScriptResults : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class UUpgradeNiagaraScriptResults : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
-	UUpgradeNiagaraScriptResults();
+	NIAGARAEDITOR_API UUpgradeNiagaraScriptResults();
 
-	void Init();
+	NIAGARAEDITOR_API void Init();
 	
 	// Whether the converter process was cancelled due to an unrecoverable error in the python script process.
 	UPROPERTY(BlueprintReadWrite, Category = "Scripting")
@@ -111,43 +111,43 @@ public:
 	TArray<TObjectPtr<UNiagaraPythonScriptModuleInput>> NewInputs;
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    UNiagaraPythonScriptModuleInput* GetOldInput(const FString& InputName);
+    NIAGARAEDITOR_API UNiagaraPythonScriptModuleInput* GetOldInput(const FString& InputName);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetFloatInput(const FString& InputName, float Value);
+    NIAGARAEDITOR_API void SetFloatInput(const FString& InputName, float Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetIntInput(const FString& InputName, int32 Value);
+    NIAGARAEDITOR_API void SetIntInput(const FString& InputName, int32 Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetBoolInput(const FString& InputName, bool Value);
+    NIAGARAEDITOR_API void SetBoolInput(const FString& InputName, bool Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetVec2Input(const FString& InputName, FVector2D Value);
+    NIAGARAEDITOR_API void SetVec2Input(const FString& InputName, FVector2D Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetVec3Input(const FString& InputName, FVector Value);
+    NIAGARAEDITOR_API void SetVec3Input(const FString& InputName, FVector Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetVec4Input(const FString& InputName, FVector4 Value);
+    NIAGARAEDITOR_API void SetVec4Input(const FString& InputName, FVector4 Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetColorInput(const FString& InputName, FLinearColor Value);
+    NIAGARAEDITOR_API void SetColorInput(const FString& InputName, FLinearColor Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetQuatInput(const FString& InputName, FQuat Value);
+    NIAGARAEDITOR_API void SetQuatInput(const FString& InputName, FQuat Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetEnumInput(const FString& InputName, FString Value);
+    NIAGARAEDITOR_API void SetEnumInput(const FString& InputName, FString Value);
     
     UFUNCTION(BlueprintCallable, Category = "Scripting")
-    void SetLinkedInput(const FString& InputName, FString Value);
+    NIAGARAEDITOR_API void SetLinkedInput(const FString& InputName, FString Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-	void SetNewInput(const FString& InputName, UNiagaraPythonScriptModuleInput* Value);
+	NIAGARAEDITOR_API void SetNewInput(const FString& InputName, UNiagaraPythonScriptModuleInput* Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Scripting")
-	void ResetToDefault(const FString& InputName);
+	NIAGARAEDITOR_API void ResetToDefault(const FString& InputName);
 
 private:
 	UNiagaraPythonScriptModuleInput* GetNewInput(const FName& InputName) const;
@@ -157,7 +157,7 @@ private:
 	TObjectPtr<UNiagaraPythonScriptModuleInput> DummyInput;
 };
 
-struct NIAGARAEDITOR_API FNiagaraScriptVersionUpgradeContext {
+struct FNiagaraScriptVersionUpgradeContext {
 	TFunction<void(UNiagaraClipboardContent*)> CreateClipboardCallback;
 	TFunction<void(UNiagaraClipboardContent*, FText&)> ApplyClipboardCallback;
 	FCompileConstantResolver ConstantResolver;
@@ -235,8 +235,8 @@ public:
 /**
  * Wrapper class for passing results back from the version upgrade python script.
  */
-UCLASS(BlueprintType)
-class NIAGARAEDITOR_API UUpgradeNiagaraEmitterContext : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class UUpgradeNiagaraEmitterContext : public UObject
 {
 	GENERATED_BODY()
 
@@ -244,9 +244,9 @@ public:
 
 	UUpgradeNiagaraEmitterContext() {}
 
-	void Init(UNiagaraPythonEmitter* InOldEmitter, UNiagaraPythonEmitter* InNewEmitter);
-	bool IsValid() const;
-	const TArray<FVersionedNiagaraEmitterData*>& GetUpgradeData() const;
+	NIAGARAEDITOR_API void Init(UNiagaraPythonEmitter* InOldEmitter, UNiagaraPythonEmitter* InNewEmitter);
+	NIAGARAEDITOR_API bool IsValid() const;
+	NIAGARAEDITOR_API const TArray<FVersionedNiagaraEmitterData*>& GetUpgradeData() const;
 	
 	// Whether the converter process was cancelled due to an unrecoverable error in the python script process.
 	UPROPERTY(BlueprintReadWrite, Category = "Scripting")

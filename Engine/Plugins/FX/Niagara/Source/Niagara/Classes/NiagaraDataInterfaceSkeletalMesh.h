@@ -256,31 +256,31 @@ struct FSkeletalMeshConnectivityUsage
 	bool RequiresGpuAccess = false;
 };
 
-struct NIAGARA_API FSkeletalMeshConnectivityHandle
+struct FSkeletalMeshConnectivityHandle
 {
-	FSkeletalMeshConnectivityHandle();
-	FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityUsage InUsage, const TSharedPtr<struct FSkeletalMeshConnectivity>& InConnectivityData, bool bNeedsDataImmediately);
+	NIAGARA_API FSkeletalMeshConnectivityHandle();
+	NIAGARA_API FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityUsage InUsage, const TSharedPtr<struct FSkeletalMeshConnectivity>& InConnectivityData, bool bNeedsDataImmediately);
 	FSkeletalMeshConnectivityHandle(const FSkeletalMeshConnectivityHandle& Other) = delete;
-	FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityHandle&& Other) noexcept;
-	~FSkeletalMeshConnectivityHandle();
+	NIAGARA_API FSkeletalMeshConnectivityHandle(FSkeletalMeshConnectivityHandle&& Other) noexcept;
+	NIAGARA_API ~FSkeletalMeshConnectivityHandle();
 
 	FSkeletalMeshConnectivityHandle& operator=(const FSkeletalMeshConnectivityHandle& Other) = delete;
-	FSkeletalMeshConnectivityHandle& operator=(FSkeletalMeshConnectivityHandle&& Other) noexcept;
-	explicit operator bool() const;
+	NIAGARA_API FSkeletalMeshConnectivityHandle& operator=(FSkeletalMeshConnectivityHandle&& Other) noexcept;
+	NIAGARA_API explicit operator bool() const;
 
 	FSkeletalMeshConnectivityUsage Usage;
 
-	int32 GetAdjacentTriangleIndex(int32 VertexIndex, int32 AdjacencyIndex) const;
+	NIAGARA_API int32 GetAdjacentTriangleIndex(int32 VertexIndex, int32 AdjacencyIndex) const;
 
-	const FSkeletalMeshConnectivityProxy* GetProxy() const;
+	NIAGARA_API const FSkeletalMeshConnectivityProxy* GetProxy() const;
 
-	void PinAndInvalidateHandle();
+	NIAGARA_API void PinAndInvalidateHandle();
 
 private:
 	TSharedPtr<FSkeletalMeshConnectivity> ConnectivityData;
 };
 
-class NIAGARA_API FNDI_SkeletalMesh_GeneratedData : public FNDI_GeneratedData
+class FNDI_SkeletalMesh_GeneratedData : public FNDI_GeneratedData
 {
 	FRWLock CachedSkinningDataGuard;
 	TMap<TWeakObjectPtr<USkeletalMeshComponent>, TSharedPtr<FSkeletalMeshSkinningData> > CachedSkinningData;
@@ -292,11 +292,11 @@ class NIAGARA_API FNDI_SkeletalMesh_GeneratedData : public FNDI_GeneratedData
 	TArray<TSharedPtr<FSkeletalMeshConnectivity>> CachedConnectivity;
 
 public:
-	FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage, bool bNeedsDataImmediately);
-	FSkeletalMeshUvMappingHandle GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex, FMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
-	FSkeletalMeshConnectivityHandle GetCachedConnectivity(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, FSkeletalMeshConnectivityUsage Usage, bool bNeedsDataImmediately);
+	NIAGARA_API FSkeletalMeshSkinningDataHandle GetCachedSkinningData(TWeakObjectPtr<USkeletalMeshComponent>& InComponent, FSkeletalMeshSkinningDataUsage Usage, bool bNeedsDataImmediately);
+	NIAGARA_API FSkeletalMeshUvMappingHandle GetCachedUvMapping(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, int32 InUvSetIndex, FMeshUvMappingUsage Usage, bool bNeedsDataImmediately);
+	NIAGARA_API FSkeletalMeshConnectivityHandle GetCachedConnectivity(TWeakObjectPtr<USkeletalMesh>& InMeshObject, int32 InLodIndex, FSkeletalMeshConnectivityUsage Usage, bool bNeedsDataImmediately);
 
-	virtual void Tick(ETickingGroup TickGroup, float DeltaSeconds) override;
+	NIAGARA_API virtual void Tick(ETickingGroup TickGroup, float DeltaSeconds) override;
 
 	static TypeHash GetTypeHash()
 	{
@@ -674,8 +674,8 @@ struct FNDISkeletalMesh_InstanceData
 };
 
 /** Data Interface allowing sampling of skeletal meshes. */
-UCLASS(EditInlineNew, Category = "Meshes", meta = (DisplayName = "Skeletal Mesh"))
-class NIAGARA_API UNiagaraDataInterfaceSkeletalMesh : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Meshes", meta = (DisplayName = "Skeletal Mesh"), MinimalAPI)
+class UNiagaraDataInterfaceSkeletalMesh : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -758,84 +758,84 @@ public:
 	uint32 ChangeId;
 
 	//~ UObject interface
-	virtual void PostInitProperties()override;
-	virtual void PostLoad()override;
+	NIAGARA_API virtual void PostInitProperties()override;
+	NIAGARA_API virtual void PostLoad()override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	//~ UObject interface END
 
 
 	//~ UNiagaraDataInterface interface
-	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
-	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
-	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	NIAGARA_API virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
+	NIAGARA_API virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
+	NIAGARA_API virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FNDISkeletalMesh_InstanceData); }
 	virtual bool HasPreSimulateTick() const override { return true; }
 
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)override;
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
 #if WITH_NIAGARA_DEBUGGER
-	virtual void DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const override;
+	NIAGARA_API virtual void DrawDebugHud(FNDIDrawDebugHudContext& DebugHudContext) const override;
 #endif
 #if WITH_EDITOR
-	virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
+	NIAGARA_API virtual void GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
 		TArray<FNiagaraDataInterfaceFeedback>& Warnings, TArray<FNiagaraDataInterfaceFeedback>& Info) override;
-	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
+	NIAGARA_API virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
 	virtual bool HasTickGroupPrereqs() const override { return true; }
-	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
+	NIAGARA_API virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 
 #if WITH_EDITOR
-	virtual void ModifyCompilationEnvironment(EShaderPlatform ShaderPlatform, struct FShaderCompilerEnvironment& OutEnvironment) const override;
+	NIAGARA_API virtual void ModifyCompilationEnvironment(EShaderPlatform ShaderPlatform, struct FShaderCompilerEnvironment& OutEnvironment) const override;
 #endif
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual void GetCommonHLSL(FString& OutHLSL) override;
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual void GetCommonHLSL(FString& OutHLSL) override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 	//~ UNiagaraDataInterface interface END
 
 	/** This overload is for use when initializing per-instance data. It possibly uses the SystemInstance and instance data to initialize a user binding */
-	USkeletalMesh* GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, USceneComponent* AttachComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData);
+	NIAGARA_API USkeletalMesh* GetSkeletalMesh(FNiagaraSystemInstance* SystemInstance, USceneComponent* AttachComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp, FNDISkeletalMesh_InstanceData* InstData);
 	/** Finds the skeletal mesh based on settings of the DI and the hierarchy of the object provided */
-	USkeletalMesh* GetSkeletalMesh(UNiagaraComponent* Component);
+	NIAGARA_API USkeletalMesh* GetSkeletalMesh(UNiagaraComponent* Component);
 
 	USkeletalMeshComponent* GetSourceComponent() const { return SourceComponent; }
 	AActor* GetSourceActor() const { return SoftSourceActor.Get(); }
 
-	int32 CalculateLODIndexAndSamplingRegions(USkeletalMesh* InMesh, TArray<int32>& OutSamplingRegionIndices, bool& OutAllRegionsAreAreaWeighting) const;
+	NIAGARA_API int32 CalculateLODIndexAndSamplingRegions(USkeletalMesh* InMesh, TArray<int32>& OutSamplingRegionIndices, bool& OutAllRegionsAreAreaWeighting) const;
 
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
+	NIAGARA_API virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 protected:
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	// Bind/unbind delegates to release references to the source actor & component.
-	void UnbindSourceDelegates();
-	void BindSourceDelegates();
+	NIAGARA_API void UnbindSourceDelegates();
+	NIAGARA_API void BindSourceDelegates();
 
 	UFUNCTION()
-	void OnSourceEndPlay(AActor* InSource, EEndPlayReason::Type Reason);
+	NIAGARA_API void OnSourceEndPlay(AActor* InSource, EEndPlayReason::Type Reason);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Misc Functions
-	void VMGetPreSkinnedLocalBounds(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMGetPreSkinnedLocalBounds(FVectorVMExternalFunctionContext& Context);
 
 	//////////////////////////////////////////////////////////////////////////
 	//Triangle sampling
 	//Triangles are sampled a using MeshTriangleCoordinates which are composed of Triangle index and a bary centric coordinate on that triangle.
 public:
 
-	void GetTriangleSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
-	void BindTriangleSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
+	NIAGARA_API void GetTriangleSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
+	NIAGARA_API void BindTriangleSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
 	template<typename FilterMode, typename AreaWeightingMode>
 	void GetFilteredTriangleCount(FVectorVMExternalFunctionContext& Context);
@@ -849,7 +849,7 @@ public:
 	template<typename FilterMode, typename AreaWeightingMode>
 	void IsValidTriCoord(FVectorVMExternalFunctionContext& Context);
 
-	void GetTriangleData(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetTriangleData(FVectorVMExternalFunctionContext& Context);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType, typename bInterpolated>
 	void GetTriCoordSkinnedData(FVectorVMExternalFunctionContext& Context);
@@ -857,9 +857,9 @@ public:
 	template<typename TransformHandlerType, typename bInterpolated>
 	void GetTriCoordSkinnedDataFallback(FVectorVMExternalFunctionContext& Context);
 
-	void GetTriCoordColor(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetTriCoordColor(FVectorVMExternalFunctionContext& Context);
 
-	void GetTriCoordColorFallback(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetTriCoordColorFallback(FVectorVMExternalFunctionContext& Context);
 
 	template<typename VertexAccessorType>
 	void GetTriCoordUV(FVectorVMExternalFunctionContext& Context);
@@ -877,8 +877,8 @@ private:
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE int32 RandomTriIndex(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex);
 
-	void RandomTriangle(FVectorVMExternalFunctionContext& Context);
-	void GetTriangleCount(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void RandomTriangle(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetTriangleCount(FVectorVMExternalFunctionContext& Context);
 
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE int32 GetFilteredTriangleCount(FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
@@ -893,12 +893,12 @@ private:
 	//Vertex sampling done with direct vertex indices.
 public:
 
-	void GetVertexSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
-	void BindVertexSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
+	NIAGARA_API void GetVertexSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
+	NIAGARA_API void BindVertexSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
-	void IsValidVertex(FVectorVMExternalFunctionContext& Context);
-	void RandomVertex(FVectorVMExternalFunctionContext& Context);
-	void GetVertexCount(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void IsValidVertex(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void RandomVertex(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetVertexCount(FVectorVMExternalFunctionContext& Context);
 
 	template<typename FilterMode>
 	void IsValidFilteredVertex(FVectorVMExternalFunctionContext& Context);
@@ -915,9 +915,9 @@ public:
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename VertexAccessorType>
 	void GetVertexSkinnedData(FVectorVMExternalFunctionContext& Context);
 
-	void GetVertexColor(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetVertexColor(FVectorVMExternalFunctionContext& Context);
 
-	void GetVertexColorFallback(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetVertexColorFallback(FVectorVMExternalFunctionContext& Context);
 
 	template<typename VertexAccessorType>
 	void GetVertexUV(FVectorVMExternalFunctionContext& Context);
@@ -939,41 +939,41 @@ private:
 	// Direct Bone + Socket Sampling
 
 public:
-	void GetSkeletonSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
-	void BindSkeletonSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
+	NIAGARA_API void GetSkeletonSamplingFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions);
+	NIAGARA_API void BindSkeletonSamplingFunction(const FVMExternalFunctionBindingInfo& BindingInfo, FNDISkeletalMesh_InstanceData* InstData, FVMExternalFunction &OutFunc);
 
 	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
 	void GetSkinnedBoneData(FVectorVMExternalFunctionContext& Context);
 
-	void IsValidBone(FVectorVMExternalFunctionContext& Context);
-	void RandomBone(FVectorVMExternalFunctionContext& Context);
-	void GetBoneCount(FVectorVMExternalFunctionContext& Context);
-	void GetParentBone(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void IsValidBone(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void RandomBone(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetBoneCount(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetParentBone(FVectorVMExternalFunctionContext& Context);
 
-	void GetFilteredBoneCount(FVectorVMExternalFunctionContext& Context);
-	void GetFilteredBoneAt(FVectorVMExternalFunctionContext& Context);
-	void RandomFilteredBone(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFilteredBoneCount(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFilteredBoneAt(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void RandomFilteredBone(FVectorVMExternalFunctionContext& Context);
 
-	void GetUnfilteredBoneCount(FVectorVMExternalFunctionContext& Context);
-	void GetUnfilteredBoneAt(FVectorVMExternalFunctionContext& Context);
-	void RandomUnfilteredBone(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetUnfilteredBoneCount(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetUnfilteredBoneAt(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void RandomUnfilteredBone(FVectorVMExternalFunctionContext& Context);
 
-	void GetFilteredSocketCount(FVectorVMExternalFunctionContext& Context);
-	void GetFilteredSocketBoneAt(FVectorVMExternalFunctionContext& Context);
-	void GetFilteredSocketTransform(FVectorVMExternalFunctionContext& Context);
-	void RandomFilteredSocket(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFilteredSocketCount(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFilteredSocketBoneAt(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFilteredSocketTransform(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void RandomFilteredSocket(FVectorVMExternalFunctionContext& Context);
 
-	void RandomFilteredSocketOrBone(FVectorVMExternalFunctionContext& Context);
-	void GetFilteredSocketOrBoneCount(FVectorVMExternalFunctionContext& Context);
-	void GetFilteredSocketOrBoneBoneAt(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void RandomFilteredSocketOrBone(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFilteredSocketOrBoneCount(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFilteredSocketOrBoneBoneAt(FVectorVMExternalFunctionContext& Context);
 	// End of Direct Bone + Socket Sampling
 	//////////////////////////////////////////////////////////////////////////
 
-	void SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse);
-	void SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions);
-	void SetFilteredBonesFromBlueprints(const TArray<FName>& InFilteredBones);
-	void SetFilteredSocketsFromBlueprints(const TArray<FName>& InFilteredSockets);
-	void SetWholeMeshLODFromBlueprints(int32 MeshLODLevel);
+	NIAGARA_API void SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse);
+	NIAGARA_API void SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions);
+	NIAGARA_API void SetFilteredBonesFromBlueprints(const TArray<FName>& InFilteredBones);
+	NIAGARA_API void SetFilteredSocketsFromBlueprints(const TArray<FName>& InFilteredSockets);
+	NIAGARA_API void SetWholeMeshLODFromBlueprints(int32 MeshLODLevel);
 };
 
 

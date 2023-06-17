@@ -6,8 +6,8 @@
 #include "NiagaraBakerOutput.h"
 #include "NiagaraBakerOutputTexture2D.generated.h"
 
-UCLASS(meta = (DisplayName = "Texture 2D Output"))
-class NIAGARA_API UNiagaraBakerOutputTexture2D : public UNiagaraBakerOutput
+UCLASS(meta = (DisplayName = "Texture 2D Output"), MinimalAPI)
+class UNiagaraBakerOutputTexture2D : public UNiagaraBakerOutput
 {
 	GENERATED_BODY()
 
@@ -75,16 +75,16 @@ public:
 	UPROPERTY(EditAnywhere, Category="Settings", meta=(EditCondition="bExportFrames"))
 	FString FramesExportPathFormat = TEXT("{SavedDir}/NiagaraBaker/{AssetName}_{OutputName}/Frame_{FrameIndex}.png");
 
-	virtual bool Equals(const UNiagaraBakerOutput& Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraBakerOutput& Other) const override;
 
-	virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual FString MakeOutputName() const override;
-	virtual void FindWarnings(TArray<FText>& OutWarnings) const override;
+	NIAGARA_API virtual FString MakeOutputName() const override;
+	NIAGARA_API virtual void FindWarnings(TArray<FText>& OutWarnings) const override;
 #endif
 
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

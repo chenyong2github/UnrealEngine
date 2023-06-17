@@ -14,14 +14,14 @@ class APlayerCameraManager;
  * Niagara equivalent of AEmitterCameraLensEffectBase.
  * This class is supported by APlayerCameraManager (via ICameraLensEffectInterface) as a camera lens effect.
  */
-UCLASS(abstract, Blueprintable, hideCategories=(NiagaraActorActivation, "Components|Activation", Input, Collision, "Game|Damage"))
-class NIAGARA_API ANiagaraLensEffectBase : public ANiagaraActor, public ICameraLensEffectInterface
+UCLASS(abstract, Blueprintable, hideCategories=(NiagaraActorActivation, "Components|Activation", Input, Collision, "Game|Damage"), MinimalAPI)
+class ANiagaraLensEffectBase : public ANiagaraActor, public ICameraLensEffectInterface
 {
 	GENERATED_BODY()
 
 
 protected:
-	ANiagaraLensEffectBase(const FObjectInitializer& ObjectInitializer);
+	NIAGARA_API ANiagaraLensEffectBase(const FObjectInitializer& ObjectInitializer);
 
 	/**
 	 * Relative offset from the camera (where X is out from the camera)
@@ -64,19 +64,19 @@ protected:
 protected:
 
 	//~ Begin ICameraLensEffectInterface interface
-	virtual const FTransform& GetRelativeTransform() const override;
-	virtual float GetBaseFOV() const override;
-	virtual bool ShouldAllowMultipleInstances() const override;
-	virtual bool ResetWhenTriggered() const override;
-	virtual bool ShouldTreatEmitterAsSame(TSubclassOf<AActor> OtherEmitter) const override;
-	virtual void NotifyWillBePooled() override;
-	virtual void AdjustBaseFOV(float NewFOV);
-	virtual void RegisterCamera(APlayerCameraManager* CameraManager) override;
-	virtual void NotifyRetriggered() override;
-	virtual void ActivateLensEffect() override;
-	virtual void DeactivateLensEffect() override;
-	virtual bool IsLooping() const override;
+	NIAGARA_API virtual const FTransform& GetRelativeTransform() const override;
+	NIAGARA_API virtual float GetBaseFOV() const override;
+	NIAGARA_API virtual bool ShouldAllowMultipleInstances() const override;
+	NIAGARA_API virtual bool ResetWhenTriggered() const override;
+	NIAGARA_API virtual bool ShouldTreatEmitterAsSame(TSubclassOf<AActor> OtherEmitter) const override;
+	NIAGARA_API virtual void NotifyWillBePooled() override;
+	NIAGARA_API virtual void AdjustBaseFOV(float NewFOV);
+	NIAGARA_API virtual void RegisterCamera(APlayerCameraManager* CameraManager) override;
+	NIAGARA_API virtual void NotifyRetriggered() override;
+	NIAGARA_API virtual void ActivateLensEffect() override;
+	NIAGARA_API virtual void DeactivateLensEffect() override;
+	NIAGARA_API virtual bool IsLooping() const override;
 	//~ End ICameraLensEffectInterface interface
 
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	NIAGARA_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 };

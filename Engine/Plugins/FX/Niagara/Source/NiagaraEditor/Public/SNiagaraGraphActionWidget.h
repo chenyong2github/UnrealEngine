@@ -32,7 +32,7 @@ struct FCreateNiagaraWidgetForActionData
 };
 
 /** Custom widget for GraphActionMenu */
-class NIAGARAEDITOR_API SNiagaraGraphActionWidget : public SCompoundWidget
+class SNiagaraGraphActionWidget : public SCompoundWidget
 {
 	public:
 
@@ -40,8 +40,8 @@ class NIAGARAEDITOR_API SNiagaraGraphActionWidget : public SCompoundWidget
 	SLATE_ATTRIBUTE(FText, HighlightText)
 SLATE_END_ARGS()
 
-void Construct(const FArguments& InArgs, const FCreateWidgetForActionData* InCreateData);
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+NIAGARAEDITOR_API void Construct(const FArguments& InArgs, const FCreateWidgetForActionData* InCreateData);
+	NIAGARAEDITOR_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 
 	private:
 	/** The item that we want to display with this widget */
@@ -51,7 +51,7 @@ void Construct(const FArguments& InArgs, const FCreateWidgetForActionData* InCre
 };
 
 /** Custom widget for GraphActionMenu */
-class NIAGARAEDITOR_API SNiagaraActionWidget : public SCompoundWidget
+class SNiagaraActionWidget : public SCompoundWidget
 {
 public:
 
@@ -61,7 +61,7 @@ public:
 		SLATE_ARGUMENT(bool, bShowTypeIfParameter)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FCreateNiagaraWidgetForActionData& InCreateData);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, const FCreateNiagaraWidgetForActionData& InCreateData);
 	//virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 
 private:

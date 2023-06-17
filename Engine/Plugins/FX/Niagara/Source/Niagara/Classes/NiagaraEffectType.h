@@ -181,7 +181,7 @@ struct FNiagaraSystemVisibilityCullingSettings
 
 /** Scalability settings for Niagara Systems for a particular platform set (unless overridden). */
 USTRUCT()
-struct NIAGARA_API FNiagaraSystemScalabilitySettings
+struct FNiagaraSystemScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -247,15 +247,15 @@ struct NIAGARA_API FNiagaraSystemScalabilitySettings
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (DisplayInScalabilityValuesBar))
 	FNiagaraGlobalBudgetScaling BudgetScaling;
 	
-	FNiagaraSystemScalabilitySettings();
+	NIAGARA_API FNiagaraSystemScalabilitySettings();
 
-	void Clear();
-	void PostLoad(int32 Version);
+	NIAGARA_API void Clear();
+	NIAGARA_API void PostLoad(int32 Version);
 };
 
 /** Container struct for an array of system scalability settings. Enables details customization and data validation. */
 USTRUCT()
-struct NIAGARA_API FNiagaraSystemScalabilitySettingsArray
+struct FNiagaraSystemScalabilitySettingsArray
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -264,11 +264,11 @@ struct NIAGARA_API FNiagaraSystemScalabilitySettingsArray
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySettings
+struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	FNiagaraSystemScalabilityOverride();
+	NIAGARA_API FNiagaraSystemScalabilityOverride();
 
 	/** Controls whether we override the distance culling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
@@ -292,7 +292,7 @@ struct NIAGARA_API FNiagaraSystemScalabilityOverride : public FNiagaraSystemScal
 
 /** Scalability settings for Niagara Emitters on a particular platform set. */
 USTRUCT()
-struct NIAGARA_API FNiagaraEmitterScalabilitySettings
+struct FNiagaraEmitterScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -308,13 +308,13 @@ struct NIAGARA_API FNiagaraEmitterScalabilitySettings
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bScaleSpawnCount", DisplayInScalabilityValuesBar))
 	float SpawnCountScale;
 
-	FNiagaraEmitterScalabilitySettings();
-	void Clear();
+	NIAGARA_API FNiagaraEmitterScalabilitySettings();
+	NIAGARA_API void Clear();
 };
 
 /** Container struct for an array of emitter scalability settings. Enables details customization and data validation. */
 USTRUCT()
-struct NIAGARA_API FNiagaraEmitterScalabilitySettingsArray
+struct FNiagaraEmitterScalabilitySettingsArray
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -323,11 +323,11 @@ struct NIAGARA_API FNiagaraEmitterScalabilitySettingsArray
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraEmitterScalabilityOverride : public FNiagaraEmitterScalabilitySettings
+struct FNiagaraEmitterScalabilityOverride : public FNiagaraEmitterScalabilitySettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	FNiagaraEmitterScalabilityOverride();
+	NIAGARA_API FNiagaraEmitterScalabilityOverride();
 
 	//Controls whether spawn count scale should be overridden.
 	UPROPERTY(EditAnywhere, Category = "Override")
@@ -336,7 +336,7 @@ struct NIAGARA_API FNiagaraEmitterScalabilityOverride : public FNiagaraEmitterSc
 
 /** Container struct for an array of emitter scalability overrides. Enables details customization and data validation. */
 USTRUCT()
-struct NIAGARA_API FNiagaraEmitterScalabilityOverrides
+struct FNiagaraEmitterScalabilityOverrides
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -356,53 +356,53 @@ These allow Niagara's scalability system to determine the relative significance 
 Some basic ones are provided but projects are free to implement their own more complex determinations of significance.
 For example, FX attached to the player character could be given higher priority.
 */
-UCLASS(abstract, EditInlineNew)
-class NIAGARA_API UNiagaraSignificanceHandler : public UObject
+UCLASS(abstract, EditInlineNew, MinimalAPI)
+class UNiagaraSignificanceHandler : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices)PURE_VIRTUAL(CalculateSignificance, );
+	NIAGARA_API virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices)PURE_VIRTUAL(CalculateSignificance, );
 };
 
 /** Significance is determined by the system's distance to the nearest camera. Closer systems are more significant. */
-UCLASS(EditInlineNew, meta = (DisplayName = "Distance"))
-class NIAGARA_API UNiagaraSignificanceHandlerDistance : public UNiagaraSignificanceHandler
+UCLASS(EditInlineNew, meta = (DisplayName = "Distance"), MinimalAPI)
+class UNiagaraSignificanceHandlerDistance : public UNiagaraSignificanceHandler
 {
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices) override;
+	NIAGARA_API virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices) override;
 };
 
 /** Significance is determined by the system's age. Newer systems are more significant. */
-UCLASS(EditInlineNew, meta = (DisplayName = "Age"))
-class NIAGARA_API UNiagaraSignificanceHandlerAge : public UNiagaraSignificanceHandler
+UCLASS(EditInlineNew, meta = (DisplayName = "Age"), MinimalAPI)
+class UNiagaraSignificanceHandlerAge : public UNiagaraSignificanceHandler
 {
 	GENERATED_BODY()
 
 public:
-	virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices) override;
+	NIAGARA_API virtual void CalculateSignificance(TConstArrayView<UNiagaraComponent*> Components, TArrayView<FNiagaraScalabilityState> OutState, TConstArrayView<FNiagaraScalabilitySystemData> SystemData, TArray<int32>& OutIndices) override;
 };
 
 //////////////////////////////////////////////////////////////////////////
 
 /** Contains settings and working data shared among many NiagaraSystems that share some commonality of type. For example ImpactFX vs EnvironmentalFX. */
-UCLASS(config = Niagara, perObjectConfig)
-class NIAGARA_API UNiagaraEffectType : public UObject
+UCLASS(config = Niagara, perObjectConfig, MinimalAPI)
+class UNiagaraEffectType : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	//UObject Interface
-	virtual void BeginDestroy()override;
-	virtual bool IsReadyForFinishDestroy()override;
-	virtual void Serialize(FArchive& Ar)override;
-	virtual void PostLoad()override;
+	NIAGARA_API virtual void BeginDestroy()override;
+	NIAGARA_API virtual bool IsReadyForFinishDestroy()override;
+	NIAGARA_API virtual void Serialize(FArchive& Ar)override;
+	NIAGARA_API virtual void PostLoad()override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static NIAGARA_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 #endif
 	//UObject Interface END
 
@@ -445,8 +445,8 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	FORCEINLINE const FNiagaraSystemScalabilitySettingsArray& GetSystemScalabilitySettings()const { return SystemScalabilitySettings; }
 	FORCEINLINE const FNiagaraEmitterScalabilitySettingsArray& GetEmitterScalabilitySettings()const { return EmitterScalabilitySettings; }
 
-	const FNiagaraSystemScalabilitySettings& GetActiveSystemScalabilitySettings()const;
-	const FNiagaraEmitterScalabilitySettings& GetActiveEmitterScalabilitySettings()const;
+	NIAGARA_API const FNiagaraSystemScalabilitySettings& GetActiveSystemScalabilitySettings()const;
+	NIAGARA_API const FNiagaraEmitterScalabilitySettings& GetActiveEmitterScalabilitySettings()const;
 
 	UNiagaraSignificanceHandler* GetSignificanceHandler()const { return SignificanceHandler; }
 
@@ -460,11 +460,11 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	UNiagaraBaselineController* GetPerfBaselineController() { return PerformanceBaselineController; }
 	FNiagaraPerfBaselineStats& GetPerfBaselineStats()const { return PerfBaselineStats; }
 	FORCEINLINE bool IsPerfBaselineValid()const { return PerfBaselineVersion == CurrentPerfBaselineVersion; }
-	void UpdatePerfBaselineStats(FNiagaraPerfBaselineStats& NewBaselineStats);
+	NIAGARA_API void UpdatePerfBaselineStats(FNiagaraPerfBaselineStats& NewBaselineStats);
 
-	void InvalidatePerfBaseline();
+	NIAGARA_API void InvalidatePerfBaseline();
 
-	void SpawnBaselineActor(UWorld* World);
+	NIAGARA_API void SpawnBaselineActor(UWorld* World);
 #endif
 	/** Performs the passed action for all FNiagaraPlatformSets in this system. */
 	template<typename TAction>
@@ -490,15 +490,15 @@ private:
 
 #if NIAGARA_PERF_BASELINES
 	/** The current version for perf baselines. Regenerate this if there are significant performance improvements that would invalidate existing baseline data. */
-	static const FGuid CurrentPerfBaselineVersion;
+	static NIAGARA_API const FGuid CurrentPerfBaselineVersion;
 
 	DECLARE_DELEGATE_OneParam(FGeneratePerfBaselines, TArray<UNiagaraEffectType*>&/**BaselinesToGenerate*/);
 
 	/** Delegate allowing us to call into editor code to generate performance baselines. */
-	static FGeneratePerfBaselines GeneratePerfBaselinesDelegate;
+	static NIAGARA_API FGeneratePerfBaselines GeneratePerfBaselinesDelegate;
 public:
 	static FGeneratePerfBaselines& OnGeneratePerfBaselines(){ return GeneratePerfBaselinesDelegate; }
-	static void GeneratePerfBaselines();
+	static NIAGARA_API void GeneratePerfBaselines();
 #endif
 };
 

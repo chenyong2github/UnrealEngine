@@ -16,8 +16,8 @@ Likely to be replaced in the near future with a custom BP node and a helper stru
 */
 
 
-UCLASS(Experimental, BlueprintType)
-class NIAGARA_API UNiagaraDataChannelReader : public UObject
+UCLASS(Experimental, BlueprintType, MinimalAPI)
+class UNiagaraDataChannelReader : public UObject
 {
 	GENERATED_BODY()
 private:
@@ -35,41 +35,41 @@ public:
 	
 	/** Call before each access to the data channel to grab the correct data to read. */
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	bool InitAccess(FNiagaraDataChannelSearchParameters SearchParams, bool bReadPrevFrameData);
+	NIAGARA_API bool InitAccess(FNiagaraDataChannelSearchParameters SearchParams, bool bReadPrevFrameData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	int32 Num()const;
+	NIAGARA_API int32 Num()const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	double ReadFloat(FName VarName, int32 Index)const;
+	NIAGARA_API double ReadFloat(FName VarName, int32 Index)const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	FVector2D ReadVector2D(FName VarName, int32 Index)const;
+	NIAGARA_API FVector2D ReadVector2D(FName VarName, int32 Index)const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	FVector ReadVector(FName VarName, int32 Index)const;
+	NIAGARA_API FVector ReadVector(FName VarName, int32 Index)const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	FVector4 ReadVector4(FName VarName, int32 Index)const;
+	NIAGARA_API FVector4 ReadVector4(FName VarName, int32 Index)const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	FQuat ReadQuat(FName VarName, int32 Index)const;
+	NIAGARA_API FQuat ReadQuat(FName VarName, int32 Index)const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	FLinearColor ReadLinearColor(FName VarName, int32 Index)const;
+	NIAGARA_API FLinearColor ReadLinearColor(FName VarName, int32 Index)const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	int32 ReadInt(FName VarName, int32 Index)const;
+	NIAGARA_API int32 ReadInt(FName VarName, int32 Index)const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	bool ReadBool(FName VarName, int32 Index)const;
+	NIAGARA_API bool ReadBool(FName VarName, int32 Index)const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "Niagara DataChannel"))
-	FVector ReadPosition(FName VarName, int32 Index)const;
+	NIAGARA_API FVector ReadPosition(FName VarName, int32 Index)const;
 };
 
-UCLASS(Experimental, BlueprintType)
-class NIAGARA_API UNiagaraDataChannelWriter : public UObject
+UCLASS(Experimental, BlueprintType, MinimalAPI)
+class UNiagaraDataChannelWriter : public UObject
 {
 	GENERATED_BODY()
 private:
@@ -87,46 +87,46 @@ public:
 	
 	/** Call before each batch of writes to allocate the data we'll be writing to. */
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	bool InitWrite(FNiagaraDataChannelSearchParameters SearchParams, int32 Count, bool bVisibleToGame=true, bool bVisibleToCPU=true, bool bVisibleToGPU=true);
+	NIAGARA_API bool InitWrite(FNiagaraDataChannelSearchParameters SearchParams, int32 Count, bool bVisibleToGame=true, bool bVisibleToCPU=true, bool bVisibleToGPU=true);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	int32 Num()const;
+	NIAGARA_API int32 Num()const;
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteFloat(FName VarName, int32 Index, double InData);
+	NIAGARA_API void WriteFloat(FName VarName, int32 Index, double InData);
 	
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteVector2D(FName VarName, int32 Index, FVector2D InData);
+	NIAGARA_API void WriteVector2D(FName VarName, int32 Index, FVector2D InData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteVector(FName VarName, int32 Index, FVector InData);
+	NIAGARA_API void WriteVector(FName VarName, int32 Index, FVector InData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteVector4(FName VarName, int32 Index, FVector4 InData);
+	NIAGARA_API void WriteVector4(FName VarName, int32 Index, FVector4 InData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteQuat(FName VarName, int32 Index, FQuat InData);
+	NIAGARA_API void WriteQuat(FName VarName, int32 Index, FQuat InData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteLinearColor(FName VarName, int32 Index, FLinearColor InData);
+	NIAGARA_API void WriteLinearColor(FName VarName, int32 Index, FLinearColor InData);
 	
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteInt(FName VarName, int32 Index, int32 InData);
+	NIAGARA_API void WriteInt(FName VarName, int32 Index, int32 InData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteBool(FName VarName, int32 Index, bool InData);
+	NIAGARA_API void WriteBool(FName VarName, int32 Index, bool InData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WriteSpawnInfo(FName VarName, int32 Index, FNiagaraSpawnInfo InData);
+	NIAGARA_API void WriteSpawnInfo(FName VarName, int32 Index, FNiagaraSpawnInfo InData);
 
 	UFUNCTION(BlueprintCallable, Category = NiagaraDataChannel, meta = (Keywords = "niagara DataChannel"))
-	void WritePosition(FName VarName, int32 Index, FVector InData);
+	NIAGARA_API void WritePosition(FName VarName, int32 Index, FVector InData);
 };
 
 
 
 /** Base clas for template data channel writer objects. Provides common, non-template functionality. */
-struct NIAGARA_API FNiagaraDataChannelGameDataWriterBase
+struct FNiagaraDataChannelGameDataWriterBase
 {
 	FNiagaraDataChannelGameDataWriterBase(FNiagaraDataChannelGameDataPtr InData)
 	: Data(InData)
@@ -134,22 +134,22 @@ struct NIAGARA_API FNiagaraDataChannelGameDataWriterBase
 	}
 
 	/** Call before we begin writing to this data. */
-	void BeginWrite();
+	NIAGARA_API void BeginWrite();
 
 	/** Publish the contents of this writer's Data buffer to the given data channel data. */
-	void Publish(FNiagaraDataChannelDataPtr& Destination);
+	NIAGARA_API void Publish(FNiagaraDataChannelDataPtr& Destination);
 
 	//Binds a specific variable to an index.
-	bool BindVariable(int32 VariableIndex, const FNiagaraVariableBase& Var);
+	NIAGARA_API bool BindVariable(int32 VariableIndex, const FNiagaraVariableBase& Var);
 
 	// Set the size of buffers for all variables.
-	void SetNum(int32 Num);
+	NIAGARA_API void SetNum(int32 Num);
 
 	// Reserve space in buffers for all variables.
-	void Reserve(int32 Num);
+	NIAGARA_API void Reserve(int32 Num);
 
 	/** Adds count elements to all variable buffers. */
-	int32 Add(int32 Count = 1);
+	NIAGARA_API int32 Add(int32 Count = 1);
 
 	FNiagaraDataChannelGameDataPtr& GetData(){ return Data; }
 
@@ -249,9 +249,9 @@ struct NIAGARA_API FNiagaraDataChannelGameDataWriter<FExampleNDCData> : public F
 // Results will be published to the NDC when the scoped writer is destroyed.
 // Call Append(), passing each item's GroupIndex and the data to write.
 
-struct NIAGARA_API FNiagaraDataChannelGameDataGroupedWriterBase
+struct FNiagaraDataChannelGameDataGroupedWriterBase
 {
-	FNiagaraDataChannelDataPtr FindDataChannelData(UWorld* World, const UNiagaraDataChannel* NDC, const FNiagaraDataChannelSearchParameters& ItemSearchParams);
+	NIAGARA_API FNiagaraDataChannelDataPtr FindDataChannelData(UWorld* World, const UNiagaraDataChannel* NDC, const FNiagaraDataChannelSearchParameters& ItemSearchParams);
 };
 
 template<typename T>

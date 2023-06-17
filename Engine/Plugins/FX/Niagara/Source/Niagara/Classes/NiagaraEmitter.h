@@ -221,25 +221,25 @@ struct FNiagaraDetailsLevelScaleOverrides
 	float Cine;
 };
 
-struct NIAGARA_API FMemoryRuntimeEstimation
+struct FMemoryRuntimeEstimation
 {
 	TMap<uint64, int32> RuntimeAllocations;
 	bool IsEstimationDirty = false;
 	int32 AllocationEstimate = 0;
 
-	FCriticalSection* GetCriticalSection();
-	void Init();
+	NIAGARA_API FCriticalSection* GetCriticalSection();
+	NIAGARA_API void Init();
 private:
 	TSharedPtr<FCriticalSection> EstimationCriticalSection;
 };
 
 /** Struct containing all of the data that can be different between different emitter versions.*/
 USTRUCT(BlueprintInternalUseOnly)
-struct NIAGARA_API FVersionedNiagaraEmitterData
+struct FVersionedNiagaraEmitterData
 {
 	GENERATED_BODY()
 
-	FVersionedNiagaraEmitterData();
+	NIAGARA_API FVersionedNiagaraEmitterData();
 	
 	UPROPERTY()
 	FNiagaraAssetVersion Version;
@@ -359,23 +359,23 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	UPROPERTY()
 	TMap<FNiagaraVariableBase, FNiagaraVariableBase> ResolvedDIBindings;
 
-	void CopyFrom(const FVersionedNiagaraEmitterData& Source);
-	void PostLoad(UNiagaraEmitter& Emitter, int32 NiagaraVer);
+	NIAGARA_API void CopyFrom(const FVersionedNiagaraEmitterData& Source);
+	NIAGARA_API void PostLoad(UNiagaraEmitter& Emitter, int32 NiagaraVer);
 
-	void PostInitProperties(UNiagaraEmitter* Outer);
-	bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
-	bool UsesScript(const UNiagaraScript* Script) const;
-	bool IsReadyToRun() const;
+	NIAGARA_API void PostInitProperties(UNiagaraEmitter* Outer);
+	NIAGARA_API bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
+	NIAGARA_API bool UsesScript(const UNiagaraScript* Script) const;
+	NIAGARA_API bool IsReadyToRun() const;
 	const TArray<UNiagaraRendererProperties*>& GetRenderers() const { return RendererProperties; }
-	void GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bCompilableOnly = true, bool bEnabledOnly = false) const;
-	UNiagaraScript* GetScript(ENiagaraScriptUsage Usage, FGuid UsageId);
+	NIAGARA_API void GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bCompilableOnly = true, bool bEnabledOnly = false) const;
+	NIAGARA_API UNiagaraScript* GetScript(ENiagaraScriptUsage Usage, FGuid UsageId);
 	UNiagaraScript* GetGPUComputeScript() { return GPUComputeScript; }
 	const UNiagaraScript* GetGPUComputeScript() const { return GPUComputeScript; }
 	FORCEINLINE const TArray<FNiagaraEventScriptProperties>& GetEventHandlers() const { return EventHandlerScriptProps; }
-	void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData, const UNiagaraEmitter& Emitter);
-	void CacheFromShaderCompiled();
+	NIAGARA_API void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData, const UNiagaraEmitter& Emitter);
+	NIAGARA_API void CacheFromShaderCompiled();
 
-	FGraphEventArray PrecacheComputePSOs(const UNiagaraEmitter& NiagaraEmitter);
+	NIAGARA_API FGraphEventArray PrecacheComputePSOs(const UNiagaraEmitter& NiagaraEmitter);
 	bool DidPSOPrecacheFail() const { return PSOPrecacheResult == EPSOPrecacheResult::NotSupported; }
 
 	bool RequiresViewUniformBuffer() const { return bRequiresViewUniformBuffer; }
@@ -383,23 +383,23 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	uint32 GetMaxInstanceCount() const { return MaxInstanceCount; }
 	uint32 GetMaxAllocationCount() const { return MaxAllocationCount; }
 	TConstArrayView<TSharedPtr<FNiagaraBoundsCalculator>> GetBoundsCalculators() const { return MakeArrayView(BoundsCalculators); }
-	bool RequiresPersistentIDs() const;
+	NIAGARA_API bool RequiresPersistentIDs() const;
 	const TArray<UNiagaraSimulationStageBase*>& GetSimulationStages() const { return SimulationStages; }
 	FORCEINLINE const FNiagaraEmitterScalabilitySettings& GetScalabilitySettings()const { return CurrentScalabilitySettings; }
-	const FNiagaraEmitterScalabilityOverride& GetCurrentOverrideSettings() const;
-	UNiagaraSimulationStageBase* GetSimulationStageById(FGuid ScriptUsageId) const;
-	bool BuildParameterStoreRendererBindings(FNiagaraParameterStore& ParameterStore) const;
-	void RebuildRendererBindings(const UNiagaraEmitter& Emitter);
+	NIAGARA_API const FNiagaraEmitterScalabilityOverride& GetCurrentOverrideSettings() const;
+	NIAGARA_API UNiagaraSimulationStageBase* GetSimulationStageById(FGuid ScriptUsageId) const;
+	NIAGARA_API bool BuildParameterStoreRendererBindings(FNiagaraParameterStore& ParameterStore) const;
+	NIAGARA_API void RebuildRendererBindings(const UNiagaraEmitter& Emitter);
 	FORCEINLINE static FBox GetDefaultFixedBounds() { return FBox(FVector(-100), FVector(100)); }
 	
-	FVersionedNiagaraEmitter GetParent() const;
-	FVersionedNiagaraEmitter GetParentAtLastMerge() const;
-	void RemoveParent();
-	void Reparent(const FVersionedNiagaraEmitter& InParent);
+	NIAGARA_API FVersionedNiagaraEmitter GetParent() const;
+	NIAGARA_API FVersionedNiagaraEmitter GetParentAtLastMerge() const;
+	NIAGARA_API void RemoveParent();
+	NIAGARA_API void Reparent(const FVersionedNiagaraEmitter& InParent);
 	
-	bool IsValid() const;
-	void UpdateDebugName(const UNiagaraEmitter& Emitter, const FNiagaraDataSetCompiledData* CompiledData);
-	void SyncEmitterAlias(const FString& InOldName, const UNiagaraEmitter& InEmitter);
+	NIAGARA_API bool IsValid() const;
+	NIAGARA_API void UpdateDebugName(const UNiagaraEmitter& Emitter, const FNiagaraDataSetCompiledData* CompiledData);
+	NIAGARA_API void SyncEmitterAlias(const FString& InOldName, const UNiagaraEmitter& InEmitter);
 
 	template<typename TAction>
 	void ForEachRenderer(TAction Func) const;
@@ -414,21 +414,21 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	void ForEachPlatformSet(TAction Func);
 
 	/** Returns true if this emitter's platform filter allows it on this platform and quality level. */
-	bool IsAllowedByScalability() const;
+	NIAGARA_API bool IsAllowedByScalability() const;
 
 	/* Returns the number of max expected particles for memory allocations. */
-	int32 GetMaxParticleCountEstimate();
+	NIAGARA_API int32 GetMaxParticleCountEstimate();
 
 	/* Gets whether or not the supplied event generator id matches an event generator which is shared between the particle spawn and update scrips. */
-	bool IsEventGeneratorShared(FName EventGeneratorId) const;
+	NIAGARA_API bool IsEventGeneratorShared(FName EventGeneratorId) const;
 
 	/* This is used by the emitter instances to report runtime allocations to reduce reallocation in future simulation runs. */
-	int32 AddRuntimeAllocation(uint64 ReporterHandle, int32 AllocationCount);
-	void ClearRuntimeAllocationEstimate(uint64 ReportHandle = INDEX_NONE);
+	NIAGARA_API int32 AddRuntimeAllocation(uint64 ReporterHandle, int32 AllocationCount);
+	NIAGARA_API void ClearRuntimeAllocationEstimate(uint64 ReportHandle = INDEX_NONE);
 
 	/* Gets a pointer to an event handler by script usage id.  This method is potentially unsafe because modifications to
 	the event handler array can make this pointer become invalid without warning. */
-	FNiagaraEventScriptProperties* GetEventHandlerByIdUnsafe(FGuid ScriptUsageId);
+	NIAGARA_API FNiagaraEventScriptProperties* GetEventHandlerByIdUnsafe(FGuid ScriptUsageId);
  
 #if WITH_EDITORONLY_DATA
 	/** An allow list of Particle attributes (e.g. "Particle.Position" or "Particle.Age") that will not be removed from the DataSet  even if they aren't read by the VM.
@@ -462,14 +462,14 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	UPROPERTY()
 	FVersionedNiagaraEmitter VersionedParentAtLastMerge;
 
-	bool AreAllScriptAndSourcesSynchronized() const;
-	void InvalidateCompileResults();
-	bool IsSynchronizedWithParent() const;
-	bool UsesEmitter(const UNiagaraEmitter& InEmitter) const;
-	void GatherStaticVariables(TArray<FNiagaraVariable>& OutVars) const;
+	NIAGARA_API bool AreAllScriptAndSourcesSynchronized() const;
+	NIAGARA_API void InvalidateCompileResults();
+	NIAGARA_API bool IsSynchronizedWithParent() const;
+	NIAGARA_API bool UsesEmitter(const UNiagaraEmitter& InEmitter) const;
+	NIAGARA_API void GatherStaticVariables(TArray<FNiagaraVariable>& OutVars) const;
 	
-	UNiagaraEditorDataBase* GetEditorData() const;
-	UNiagaraEditorParametersAdapterBase* GetEditorParameters();
+	NIAGARA_API UNiagaraEditorDataBase* GetEditorData() const;
+	NIAGARA_API UNiagaraEditorParametersAdapterBase* GetEditorParameters();
 #endif
 
 #if STATS
@@ -482,7 +482,7 @@ struct NIAGARA_API FVersionedNiagaraEmitterData
 	const TCHAR* GetDebugSimName() const { return TEXT(""); }
 #endif
 
-	void GatherCompiledParticleAttributes(TArray<FNiagaraVariableBase>& OutVariables) const;
+	NIAGARA_API void GatherCompiledParticleAttributes(TArray<FNiagaraVariableBase>& OutVariables) const;
 	
 private:
 	UPROPERTY()
@@ -538,8 +538,8 @@ private:
 
 	friend UNiagaraEmitter;
 
-	void EnsureScriptsPostLoaded();
-	void OnPostCompile(const UNiagaraEmitter& InEmitter);
+	NIAGARA_API void EnsureScriptsPostLoaded();
+	NIAGARA_API void OnPostCompile(const UNiagaraEmitter& InEmitter);
 
 	EPSOPrecacheResult PSOPrecacheResult = EPSOPrecacheResult::Unknown;
 };
@@ -562,9 +562,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnEventHandlersChanged);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnEmitterCompiled, FVersionedNiagaraEmitter);
 
-	struct NIAGARA_API PrivateMemberNames
+	struct PrivateMemberNames
 	{
-		static const FName EventHandlerScriptProps;
+		static NIAGARA_API const FName EventHandlerScriptProps;
 	};
 #endif
 
@@ -649,7 +649,7 @@ public:
 	NIAGARA_API virtual TSharedPtr<FNiagaraVersionDataAccessor> GetVersionDataAccessor(const FGuid& Version) override; 
 
 	/** If true then this script asset uses active version control to track changes. */
-	NIAGARA_API virtual bool IsVersioningEnabled() const override { return bVersioningEnabled; }
+	virtual bool IsVersioningEnabled() const override { return bVersioningEnabled; }
 
 	/** Returns the version of the exposed version data (i.e. the version used when adding an emitter to a system) */
 	NIAGARA_API virtual FNiagaraAssetVersion GetExposedVersion() const override;
@@ -853,7 +853,7 @@ public:
 	NIAGARA_API FOnEmitterCompiled& OnEmitterGPUCompiled();
 
 	/** Callback issued whenever a GPU compilation successfully happened (even if the results are a script that cannot be executed due to errors)*/
-	NIAGARA_API FOnEmitterCompiled& OnGPUCompilationComplete()
+	FOnEmitterCompiled& OnGPUCompilationComplete()
 	{
 		return OnGPUScriptCompiledDelegate;
 	}
@@ -898,7 +898,7 @@ public:
 	NIAGARA_API void ChangeParentVersion(const FGuid& NewParentVersion, const FGuid& EmitterVersion);
 
 	NIAGARA_API void NotifyScratchPadScriptsChanged();
-	NIAGARA_API FNiagaraMessageStore& GetMessageStore() { return MessageStore; }
+	FNiagaraMessageStore& GetMessageStore() { return MessageStore; }
 #endif
 
 protected:

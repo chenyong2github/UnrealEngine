@@ -6,7 +6,7 @@
 #include "NiagaraCompileHash.generated.h"
 
 USTRUCT()
-struct NIAGARACORE_API FNiagaraCompileHash
+struct FNiagaraCompileHash
 {
 	GENERATED_BODY()
 
@@ -27,18 +27,18 @@ struct NIAGARACORE_API FNiagaraCompileHash
 
 	bool operator==(const FNiagaraCompileHash& Other) const { return DataHash == Other.DataHash; }
 	bool operator!=(const FNiagaraCompileHash& Other) const { return DataHash != Other.DataHash; }
-	bool operator==(const FSHAHash& Other) const;
+	NIAGARACORE_API bool operator==(const FSHAHash& Other) const;
 	inline bool operator!=(const FSHAHash& Other) const { return !operator==(Other); }
 
-	bool ToSHAHash(FSHAHash& OutHash) const;
+	NIAGARACORE_API bool ToSHAHash(FSHAHash& OutHash) const;
 
-	bool IsValid() const;
+	NIAGARACORE_API bool IsValid() const;
 
-	uint32 GetTypeHash() const;
+	NIAGARACORE_API uint32 GetTypeHash() const;
 
-	const uint8* GetData() const;
+	NIAGARACORE_API const uint8* GetData() const;
 
-	void AppendString(FString& Out) const;
+	NIAGARACORE_API void AppendString(FString& Out) const;
 	
 	FString ToString() const
 	{

@@ -11,10 +11,10 @@ class UNiagaraScript;
 class UNiagaraScriptVariable;
 
 
-class NIAGARAEDITOR_API FNiagaraStandaloneScriptViewModel : public FNiagaraScriptViewModel
+class FNiagaraStandaloneScriptViewModel : public FNiagaraScriptViewModel
 {
 public:
-	FNiagaraStandaloneScriptViewModel(
+	NIAGARAEDITOR_API FNiagaraStandaloneScriptViewModel(
 		FText DisplayName,
 		ENiagaraParameterEditMode InParameterEditMode,
 		TSharedPtr<FNiagaraMessageLogViewModel> InNiagaraMessageLogViewModel,
@@ -22,19 +22,19 @@ public:
 		bool bInIsForDataProcessingOnly
 	);
 
-	void Initialize(FVersionedNiagaraScript& InScript, const FVersionedNiagaraScript& InSourceScript);
+	NIAGARAEDITOR_API void Initialize(FVersionedNiagaraScript& InScript, const FVersionedNiagaraScript& InSourceScript);
 
 	//~ Begin INiagaraParameterDefinitionsSubscriberViewModel Interface
 protected:
-	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override;
+	NIAGARAEDITOR_API virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override;
 	//~ End NiagaraParameterDefinitionsSubscriberViewModel Interface
 
 public:
-	virtual FVersionedNiagaraScript GetStandaloneScript() override;
-	const FVersionedNiagaraScript GetStandaloneScript() const;
+	NIAGARAEDITOR_API virtual FVersionedNiagaraScript GetStandaloneScript() override;
+	NIAGARAEDITOR_API const FVersionedNiagaraScript GetStandaloneScript() const;
 
 private:
-	virtual void OnVMScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion) override;
+	NIAGARAEDITOR_API virtual void OnVMScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion) override;
 
 	/** Sends messages to FNiagaraMessageManager for all compile events from the last compile. */
 	void SendLastCompileMessages(const FVersionedNiagaraScript& InScript);

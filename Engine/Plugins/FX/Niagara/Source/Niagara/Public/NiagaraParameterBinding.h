@@ -24,19 +24,19 @@ enum class ENiagaraParameterBindingUsage
 ENUM_CLASS_FLAGS(ENiagaraParameterBindingUsage)
 
 USTRUCT()
-struct NIAGARA_API FNiagaraParameterBinding
+struct FNiagaraParameterBinding
 {
 	GENERATED_USTRUCT_BODY()
 
 #if WITH_EDITORONLY_DATA
 	virtual ~FNiagaraParameterBinding() = default;
 
-	bool CanBindTo(FNiagaraTypeDefinition TypeDefinition) const;
-	bool CanBindTo(FNiagaraVariableBase InVariable, FNiagaraVariableBase& OutAliasedVariable, FStringView EmitterName) const;
+	NIAGARA_API bool CanBindTo(FNiagaraTypeDefinition TypeDefinition) const;
+	NIAGARA_API bool CanBindTo(FNiagaraVariableBase InVariable, FNiagaraVariableBase& OutAliasedVariable, FStringView EmitterName) const;
 
-	void OnRenameEmitter(FStringView EmitterName);
-	void OnRenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, FStringView EmitterName);
-	void OnRemoveVariable(const FNiagaraVariableBase& OldVariable, FStringView EmitterName);
+	NIAGARA_API void OnRenameEmitter(FStringView EmitterName);
+	NIAGARA_API void OnRenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, FStringView EmitterName);
+	NIAGARA_API void OnRemoveVariable(const FNiagaraVariableBase& OldVariable, FStringView EmitterName);
 
 	void SetUsage(ENiagaraParameterBindingUsage InUsage) { BindingUsage = InUsage; }
 	void SetAllowedDataInterfaces(TArray<UClass*> InClasses) { AllowedDataInterfaces = InClasses; }
@@ -44,7 +44,7 @@ struct NIAGARA_API FNiagaraParameterBinding
 	void SetAllowedInterfaces(TArray<UClass*> InClasses) { AllowedInterfaces = InClasses; }
 	void SetAllowedTypeDefinitions(TArray<FNiagaraTypeDefinition> InTypeDefs) { AllowedTypeDefinitions = InTypeDefs; }
 
-	void SetDefaultParameter(const FNiagaraVariable& InVariable);
+	NIAGARA_API void SetDefaultParameter(const FNiagaraVariable& InVariable);
 	void SetDefaultParameter(const FName& InName, const FNiagaraTypeDefinition& InTypeDef) { SetDefaultParameter(FNiagaraVariable(InTypeDef, InName)); }
 
 	const FNiagaraVariable& GetDefaultAliasedParameter() { return DefaultAliasedParameter; }
@@ -61,14 +61,14 @@ struct NIAGARA_API FNiagaraParameterBinding
 	TConstArrayView<UClass*> GetAllowedInterfaces() const { return MakeArrayView(AllowedInterfaces); }
 	TConstArrayView<FNiagaraTypeDefinition> GetAllowedTypeDefinitions() const { return MakeArrayView(AllowedTypeDefinitions); }
 
-	bool IsSetoToDefault() const;
-	void SetToDefault();
+	NIAGARA_API bool IsSetoToDefault() const;
+	NIAGARA_API void SetToDefault();
 
-	FString ToString() const;
+	NIAGARA_API FString ToString() const;
 
-	static void ForEachRenameEmitter(UObject* InObject, FStringView EmitterName);
-	static void ForEachRenameVariable(UObject* InObject, const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, FStringView EmitterName);
-	static void ForEachRemoveVariable(UObject* InObject, const FNiagaraVariableBase& OldVariable, FStringView EmitterName);
+	static NIAGARA_API void ForEachRenameEmitter(UObject* InObject, FStringView EmitterName);
+	static NIAGARA_API void ForEachRenameVariable(UObject* InObject, const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, FStringView EmitterName);
+	static NIAGARA_API void ForEachRemoveVariable(UObject* InObject, const FNiagaraVariableBase& OldVariable, FStringView EmitterName);
 
 	virtual bool HasDefaultValueEditorOnly() const { return false; }
 	virtual TConstArrayView<uint8> GetDefaultValueEditorOnly() const { checkNoEntry(); return MakeArrayView<uint8>(nullptr, 0); }
@@ -120,7 +120,7 @@ protected:
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraParameterBindingWithValue : public FNiagaraParameterBinding
+struct FNiagaraParameterBindingWithValue : public FNiagaraParameterBinding
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -129,10 +129,10 @@ struct NIAGARA_API FNiagaraParameterBindingWithValue : public FNiagaraParameterB
 	template<typename T> void SetDefaultParameter(const FNiagaraTypeDefinition& InTypeDef, const T& InDefaultValue) { SetDefaultParameter(FNiagaraVariableBase(InTypeDef, NAME_None), InDefaultValue); }
 	template<typename T> void SetDefaultParameter(const FName& InName, const FNiagaraTypeDefinition& InTypeDef, const T& InDefaultValue) { SetDefaultParameter(FNiagaraVariableBase(InTypeDef, InName), InDefaultValue); }
 
-	virtual bool HasDefaultValueEditorOnly() const override;
-	virtual TConstArrayView<uint8> GetDefaultValueEditorOnly() const override;
-	virtual void SetDefaultValueEditorOnly(TConstArrayView<uint8> Memory) override;
-	virtual void SetDefaultValueEditorOnly(const uint8* Memory) override;
+	NIAGARA_API virtual bool HasDefaultValueEditorOnly() const override;
+	NIAGARA_API virtual TConstArrayView<uint8> GetDefaultValueEditorOnly() const override;
+	NIAGARA_API virtual void SetDefaultValueEditorOnly(TConstArrayView<uint8> Memory) override;
+	NIAGARA_API virtual void SetDefaultValueEditorOnly(const uint8* Memory) override;
 	template<typename T> void SetDefaultValueEditorOnly(const T& InDefaultValue) { check(sizeof(T) == DefaultAliasedParameter.GetType().GetSize()); SetDefaultValueEditorOnly(MakeArrayView(reinterpret_cast<const uint8*>(&InDefaultValue), sizeof(InDefaultValue))); }
 #endif
 

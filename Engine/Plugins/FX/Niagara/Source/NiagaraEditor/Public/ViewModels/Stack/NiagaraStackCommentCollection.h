@@ -7,21 +7,21 @@
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "NiagaraStackCommentCollection.generated.h"
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackCommentCollection : public UNiagaraStackEntry
+UCLASS(MinimalAPI)
+class UNiagaraStackCommentCollection : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 
 public:
 	UNiagaraStackCommentCollection() {}
 
-	void Initialize(FRequiredEntryData InRequiredEntryData);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData);
 
 	virtual bool GetShouldShowInOverview() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return false; }
 
-	UNiagaraStackObject* FindStackObjectForCommentNode(UEdGraphNode_Comment* CommentNode) const;
+	NIAGARAEDITOR_API UNiagaraStackObject* FindStackObjectForCommentNode(UEdGraphNode_Comment* CommentNode) const;
 	
 protected:
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 };

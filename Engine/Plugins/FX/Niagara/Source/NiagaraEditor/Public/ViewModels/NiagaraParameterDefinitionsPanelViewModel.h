@@ -12,13 +12,13 @@ class UNiagaraParameterDefinitions;
 class FNiagaraObjectSelection;
 
 /** Interface for view models to the parameter panel. */
-class NIAGARAEDITOR_API INiagaraParameterDefinitionsPanelViewModel : public INiagaraImmutableParameterPanelViewModel
+class INiagaraParameterDefinitionsPanelViewModel : public INiagaraImmutableParameterPanelViewModel
 {
 public:
 	//~ Begin INiagaraImmutableParameterPanelViewModel interface
-	virtual const TArray<UNiagaraScriptVariable*> GetEditableScriptVariablesWithName(const FName ParameterName) const override;
+	NIAGARAEDITOR_API virtual const TArray<UNiagaraScriptVariable*> GetEditableScriptVariablesWithName(const FName ParameterName) const override;
 
-	virtual const TArray<FNiagaraGraphParameterReference> GetGraphParameterReferencesForItem(const FNiagaraParameterPanelItemBase& Item) const override;
+	NIAGARAEDITOR_API virtual const TArray<FNiagaraGraphParameterReference> GetGraphParameterReferencesForItem(const FNiagaraParameterPanelItemBase& Item) const override;
 
 	//~ Begin Pure Virtual Methods
 	virtual const TArray<UNiagaraGraph*> GetEditableGraphsConst() const override = 0;

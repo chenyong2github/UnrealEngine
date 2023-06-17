@@ -7,8 +7,8 @@
 
 class FNiagaraSystemInstance;
 
-UCLASS(EditInlineNew, Category = "Vector Field", CollapseCategories, meta = (DisplayName = "Vector Field"))
-class NIAGARA_API UNiagaraDataInterfaceVectorField : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Vector Field", CollapseCategories, meta = (DisplayName = "Vector Field"), MinimalAPI)
+class UNiagaraDataInterfaceVectorField : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -35,55 +35,55 @@ public:
 
 public:
 	//~ UObject interface
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override; 
+	NIAGARA_API virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostLoad() override; 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 #endif
 	//~ UObject interface END
 
 	//~ UNiagaraDataInterface interface
 	// VM functionality
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
-	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override;
 
 #if WITH_EDITOR	
 	// Editor functionality
-	virtual void GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo) override;
+	NIAGARA_API virtual void GetFeedback(UNiagaraSystem* InAsset, UNiagaraComponent* InComponent, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo) override;
 
 #endif
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 	//~ UNiagaraDataInterface interface END
 
 	// VM functions
-	void GetFieldDimensions(FVectorVMExternalFunctionContext& Context);
-	void GetFieldBounds(FVectorVMExternalFunctionContext& Context); 
-	void GetFieldTilingAxes(FVectorVMExternalFunctionContext& Context);
-	void SampleVectorField(FVectorVMExternalFunctionContext& Context);
-	void LoadVectorField(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFieldDimensions(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetFieldBounds(FVectorVMExternalFunctionContext& Context); 
+	NIAGARA_API void GetFieldTilingAxes(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void SampleVectorField(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void LoadVectorField(FVectorVMExternalFunctionContext& Context);
 	
 	//	
-	FVector GetTilingAxes() const;
-	FVector GetDimensions() const;
-	FVector GetMinBounds() const;
-	FVector GetMaxBounds() const;
+	NIAGARA_API FVector GetTilingAxes() const;
+	NIAGARA_API FVector GetDimensions() const;
+	NIAGARA_API FVector GetMinBounds() const;
+	NIAGARA_API FVector GetMaxBounds() const;
 protected:
 	//~ UNiagaraDataInterface interface
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	//~ UNiagaraDataInterface interface END
 
-	virtual void PushToRenderThreadImpl() override;
+	NIAGARA_API virtual void PushToRenderThreadImpl() override;
 };
 
 struct FNiagaraDataInterfaceProxyVectorField : public FNiagaraDataInterfaceProxy

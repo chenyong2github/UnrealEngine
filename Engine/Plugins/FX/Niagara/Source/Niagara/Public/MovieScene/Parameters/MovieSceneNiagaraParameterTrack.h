@@ -20,7 +20,7 @@ public:
 	/** Sets the parameter for this parameter track .*/
 	NIAGARA_API void SetParameter(FNiagaraVariable InParameter);
 
-	NIAGARA_API virtual void SetSectionChannelDefaults(UMovieSceneSection* Section, const TArray<uint8>& DefaultValueData) const { }
+	virtual void SetSectionChannelDefaults(UMovieSceneSection* Section, const TArray<uint8>& DefaultValueData) const { }
 
 protected:
 	template<class ChannelType>

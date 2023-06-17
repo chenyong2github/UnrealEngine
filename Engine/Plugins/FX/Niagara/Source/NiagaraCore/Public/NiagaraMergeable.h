@@ -4,8 +4,8 @@
 
 #include "NiagaraMergeable.generated.h"
 
-UCLASS()
-class NIAGARACORE_API UNiagaraMergeable : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraMergeable : public UObject
 {
 	GENERATED_BODY()
 
@@ -15,19 +15,19 @@ public:
 #endif
 
 public:
-	UNiagaraMergeable();
+	NIAGARACORE_API UNiagaraMergeable();
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+	NIAGARACORE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
 
-	bool Equals(const UNiagaraMergeable* Other);
+	NIAGARACORE_API bool Equals(const UNiagaraMergeable* Other);
 
-	FOnChanged& OnChanged();
+	NIAGARACORE_API FOnChanged& OnChanged();
 
-	FGuid GetMergeId() const;
+	NIAGARACORE_API FGuid GetMergeId() const;
 
 protected:
-	UNiagaraMergeable* StaticDuplicateWithNewMergeIdInternal(UObject* InOuter) const;
+	NIAGARACORE_API UNiagaraMergeable* StaticDuplicateWithNewMergeIdInternal(UObject* InOuter) const;
 #endif
 
 private:

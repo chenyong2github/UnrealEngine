@@ -64,14 +64,14 @@ struct FNiagaraValidationContext
 Base class for system validation logic. 
 These allow Niagara systems to be inspected for content validation either at save time or from a commandlet.
 */
-UCLASS(abstract, EditInlineNew)
-class NIAGARA_API UNiagaraValidationRule : public UObject
+UCLASS(abstract, EditInlineNew, MinimalAPI)
+class UNiagaraValidationRule : public UObject
 {
 	GENERATED_BODY()
 public:
 
 #if WITH_EDITOR
-	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const;
+	NIAGARA_API virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const;
 #endif
 };
 

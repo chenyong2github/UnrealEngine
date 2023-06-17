@@ -10,7 +10,7 @@ NiagaraRendererLights.h: Renderer for rendering Niagara particles as Lights.
 /**
 * NiagaraRendererLights renders an FNiagaraEmitterInstance as simple lights
 */
-class NIAGARA_API FNiagaraRendererLights : public FNiagaraRenderer
+class FNiagaraRendererLights : public FNiagaraRenderer
 {
 public:
 	struct SimpleLightData
@@ -19,12 +19,12 @@ public:
 		FSimpleLightPerViewEntry PerViewEntry;
 	};
 
-	FNiagaraRendererLights(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	NIAGARA_API FNiagaraRendererLights(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
 
 	//FNiagaraRenderer interface
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const override;
-	virtual FNiagaraDynamicDataBase *GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
-	virtual void GatherSimpleLights(FSimpleLightArray& OutParticleLights)const override;
+	NIAGARA_API virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const override;
+	NIAGARA_API virtual FNiagaraDynamicDataBase *GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
+	NIAGARA_API virtual void GatherSimpleLights(FSimpleLightArray& OutParticleLights)const override;
 	//FNiagaraRenderer interface END
 };
 

@@ -7,39 +7,39 @@
 class UNiagaraSystem;
 class FNiagaraEmitterHandleViewModel;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraOverviewNode : public UEdGraphNode
+UCLASS(MinimalAPI)
+class UNiagaraOverviewNode : public UEdGraphNode
 {
 	GENERATED_BODY()
 public:
-	UNiagaraOverviewNode();
-	void Initialize(UNiagaraSystem* InOwningSystem);
-	void Initialize(UNiagaraSystem* InOwningSystem, FGuid InEmitterHandleGuid);
-	const FGuid GetEmitterHandleGuid() const;
-	struct FNiagaraEmitterHandle* TryGetEmitterHandle();
+	NIAGARAEDITOR_API UNiagaraOverviewNode();
+	NIAGARAEDITOR_API void Initialize(UNiagaraSystem* InOwningSystem);
+	NIAGARAEDITOR_API void Initialize(UNiagaraSystem* InOwningSystem, FGuid InEmitterHandleGuid);
+	NIAGARAEDITOR_API const FGuid GetEmitterHandleGuid() const;
+	NIAGARAEDITOR_API struct FNiagaraEmitterHandle* TryGetEmitterHandle();
 	
 	//~ Begin UEdGraphNode Interface
 	/** Gets the name of this node, shown in title bar */
-	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	NIAGARAEDITOR_API virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 
-	virtual FLinearColor GetNodeTitleColor() const override;
+	NIAGARAEDITOR_API virtual FLinearColor GetNodeTitleColor() const override;
 
 	/** Whether or not this node can be deleted by user action */
-	virtual bool CanUserDeleteNode() const override;
+	NIAGARAEDITOR_API virtual bool CanUserDeleteNode() const override;
 
 	/** Whether or not this node can be safely duplicated (via copy/paste, etc...) in the graph */
-	virtual bool CanDuplicateNode() const override;
+	NIAGARAEDITOR_API virtual bool CanDuplicateNode() const override;
 
-	virtual void OnRenameNode(const FString& NewName) override;
+	NIAGARAEDITOR_API virtual void OnRenameNode(const FString& NewName) override;
 
-	virtual bool GetCanRenameNode() const override;
+	NIAGARAEDITOR_API virtual bool GetCanRenameNode() const override;
 
-	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	NIAGARAEDITOR_API virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 
-	virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
+	NIAGARAEDITOR_API virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
 	//~ End UEdGraphNode Interface
 
-	UNiagaraSystem* GetOwningSystem();
+	NIAGARAEDITOR_API UNiagaraSystem* GetOwningSystem();
 
 	void RequestRename() { bRenamePending = true; }
 	void RenameStarted() { bRenamePending = false; }
@@ -54,9 +54,9 @@ private:
 
 	bool bRenamePending;
 
-	static bool bColorsAreInitialized;
-	static FLinearColor SystemColor;
-	static FLinearColor EmitterColor;
-	static FLinearColor IsolatedColor;
-	static FLinearColor NotIsolatedColor;
+	static NIAGARAEDITOR_API bool bColorsAreInitialized;
+	static NIAGARAEDITOR_API FLinearColor SystemColor;
+	static NIAGARAEDITOR_API FLinearColor EmitterColor;
+	static NIAGARAEDITOR_API FLinearColor IsolatedColor;
+	static NIAGARAEDITOR_API FLinearColor NotIsolatedColor;
 };

@@ -486,7 +486,7 @@ namespace FNiagaraParameterUtilities
 	/** A simple utility function to generate a parameter widget. */
 	NIAGARAEDITOR_API TSharedRef<SWidget> GetParameterWidget(FNiagaraVariable Variable, bool bAddTypeIcon, bool bShowValue);
 
-	struct NIAGARAEDITOR_API FNiagaraParameterWidgetOptions
+	struct FNiagaraParameterWidgetOptions
 	{
 		bool bAddTypeIcon = false;
 		bool bShowValue = false;

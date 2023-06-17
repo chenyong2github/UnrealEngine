@@ -17,8 +17,8 @@ class FNiagaraSystemViewModel;
 
 /** A view model for viewing and editing a UNiagaraSystem. */
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraSystemScalabilityViewModel : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraSystemScalabilityViewModel : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -28,15 +28,15 @@ public:
 public:
 
 	/** Creates a new view model with the supplied System and System instance. */
-	UNiagaraSystemScalabilityViewModel();
+	NIAGARAEDITOR_API UNiagaraSystemScalabilityViewModel();
 	
 	/** Initializes this scalability view model with the supplied system view model. */
-	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
+	NIAGARAEDITOR_API void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 
 	/** Returns whether or not this view model is initialized and safe to use. */
-	bool IsValid() const;
+	NIAGARAEDITOR_API bool IsValid() const;
 	
-	bool IsActive() const;
+	NIAGARAEDITOR_API bool IsActive() const;
 
 	TWeakPtr<FNiagaraSystemViewModel> GetSystemViewModel() const { return SystemViewModel; }
 	FNiagaraPlatformSet* GetPreviewPlatformSet() { return PreviewPlatforms.Get(); }
@@ -47,10 +47,10 @@ public:
 	TOptional<TObjectPtr<UDeviceProfile>> GetPreviewDeviceProfile() const { return PreviewDeviceProfile; }
 	bool IsViewModeQualityEnabled(int32 QualityLevel) const { return PreviewPlatforms->IsEffectQualityEnabled(QualityLevel); }
 	
-	void UpdatePreviewDeviceProfile(UDeviceProfile* DeviceProfile);
-	void UpdatePreviewQualityLevel(int32 QualityLevel);
+	NIAGARAEDITOR_API void UpdatePreviewDeviceProfile(UDeviceProfile* DeviceProfile);
+	NIAGARAEDITOR_API void UpdatePreviewQualityLevel(int32 QualityLevel);
 
-	bool IsPlatformActive(const FNiagaraPlatformSet& PlatformSet);
+	NIAGARAEDITOR_API bool IsPlatformActive(const FNiagaraPlatformSet& PlatformSet);
 
 	//void NavigateToScalabilityProperty(UObject* Object, FName PropertyName);
 	

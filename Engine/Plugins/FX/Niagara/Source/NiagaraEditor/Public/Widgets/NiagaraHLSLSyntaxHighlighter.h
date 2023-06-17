@@ -7,13 +7,13 @@
 
 class FTextLayout;
 
-class NIAGARAEDITOR_API FNiagaraHLSLSyntaxHighlighter : public FHLSLSyntaxHighlighterMarshaller
+class FNiagaraHLSLSyntaxHighlighter : public FHLSLSyntaxHighlighterMarshaller
 {
 public:
 
-	static TSharedRef<FNiagaraHLSLSyntaxHighlighter> Create(const FSyntaxTextStyle& InSyntaxTextStyle = GetSyntaxTextStyle());
-	static FSyntaxTextStyle GetSyntaxTextStyle();
+	static NIAGARAEDITOR_API TSharedRef<FNiagaraHLSLSyntaxHighlighter> Create(const FSyntaxTextStyle& InSyntaxTextStyle = GetSyntaxTextStyle());
+	static NIAGARAEDITOR_API FSyntaxTextStyle GetSyntaxTextStyle();
 
 protected:
-	FNiagaraHLSLSyntaxHighlighter(TSharedPtr< ISyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
+	NIAGARAEDITOR_API FNiagaraHLSLSyntaxHighlighter(TSharedPtr< ISyntaxTokenizer > InTokenizer, const FSyntaxTextStyle& InSyntaxTextStyle);
 };

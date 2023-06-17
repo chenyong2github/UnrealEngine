@@ -5,18 +5,18 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
-class NIAGARAEDITOR_API SDynamicLayoutBox : public SCompoundWidget
+class SDynamicLayoutBox : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGenerateNamedWidget, FName /* InWidgetName */);
 
-	class NIAGARAEDITOR_API FNamedWidgetProvider
+	class FNamedWidgetProvider
 	{
 	public:
-		FNamedWidgetProvider();
-		FNamedWidgetProvider(FOnGenerateNamedWidget InGeneratedNamedWidget);
+		NIAGARAEDITOR_API FNamedWidgetProvider();
+		NIAGARAEDITOR_API FNamedWidgetProvider(FOnGenerateNamedWidget InGeneratedNamedWidget);
 
-		TSharedRef<SWidget> GetNamedWidget(FName InWidgetName) const;
+		NIAGARAEDITOR_API TSharedRef<SWidget> GetNamedWidget(FName InWidgetName) const;
 
 	private:
 		mutable TMap<FName, TSharedRef<SWidget>> NameToGeneratedWidgetCache;
@@ -35,9 +35,9 @@ public:
 		SLATE_EVENT(FOnChooseLayout, ChooseLayout);
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs);
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	NIAGARAEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 private:
 	FNamedWidgetProvider NamedWidgetProvider;

@@ -10,8 +10,8 @@ class UNiagaraStackFunctionInputCollection;
 class UNiagaraStackModuleItemOutputCollection;
 class UNiagaraNode;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackItemFooter : public UNiagaraStackEntry
+UCLASS(MinimalAPI)
+class UNiagaraStackItemFooter : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 
@@ -19,24 +19,24 @@ public:
 	DECLARE_DELEGATE(FOnToggleShowAdvanced);
 
 public:
-	void Initialize(
+	NIAGARAEDITOR_API void Initialize(
 		FRequiredEntryData InRequiredEntryData,
 		FString InOwnerStackItemEditorDataKey);
 
-	virtual bool GetCanExpand() const override;
-	virtual EStackRowStyle GetStackRowStyle() const override;
+	NIAGARAEDITOR_API virtual bool GetCanExpand() const override;
+	NIAGARAEDITOR_API virtual EStackRowStyle GetStackRowStyle() const override;
 
-	virtual bool GetIsEnabled() const override;
-	void SetIsEnabled(bool bInIsEnabled);
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API void SetIsEnabled(bool bInIsEnabled);
 
-	bool GetHasAdvancedContent() const;
-	void SetHasAdvancedContent(bool bHInHasAdvancedRows, bool bHasChangedAdvancedContent);
+	NIAGARAEDITOR_API bool GetHasAdvancedContent() const;
+	NIAGARAEDITOR_API void SetHasAdvancedContent(bool bHInHasAdvancedRows, bool bHasChangedAdvancedContent);
 
-	void SetOnToggleShowAdvanced(FOnToggleShowAdvanced OnToggleShowAdvanced);
+	NIAGARAEDITOR_API void SetOnToggleShowAdvanced(FOnToggleShowAdvanced OnToggleShowAdvanced);
 
-	bool GetShowAdvanced() const;
+	NIAGARAEDITOR_API bool GetShowAdvanced() const;
 
-	void ToggleShowAdvanced();
+	NIAGARAEDITOR_API void ToggleShowAdvanced();
 
 	bool HasChangedAdvancedContent() const { return bHasChangedAdvancedContent; }
 

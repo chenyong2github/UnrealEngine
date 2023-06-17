@@ -214,7 +214,7 @@ Messaged broadcast from debugger to request a connection to a particular session
 If any matching client is found and it accepts, it will return a FNiagaraDebuggerAcceptConnection message to the sender. 
 */
 USTRUCT()
-struct NIAGARA_API FNiagaraDebuggerRequestConnection
+struct FNiagaraDebuggerRequestConnection
 {
 	GENERATED_BODY()
 	
@@ -234,7 +234,7 @@ struct NIAGARA_API FNiagaraDebuggerRequestConnection
 
 /** Response message from the a debugger client accepting a connection requested by a FNiagaraDebuggerRequestConnection message. */
 USTRUCT()
-struct NIAGARA_API FNiagaraDebuggerAcceptConnection
+struct FNiagaraDebuggerAcceptConnection
 {
 	GENERATED_BODY()
 		
@@ -254,7 +254,7 @@ struct NIAGARA_API FNiagaraDebuggerAcceptConnection
 
 /** Empty message informing a debugger client that the debugger is closing the connection. */
 USTRUCT()
-struct NIAGARA_API FNiagaraDebuggerConnectionClosed
+struct FNiagaraDebuggerConnectionClosed
 {
 	GENERATED_BODY()
 	
@@ -274,7 +274,7 @@ struct NIAGARA_API FNiagaraDebuggerConnectionClosed
 
 /** Command that will execute a console command on the debugger client. */
 USTRUCT() 
-struct NIAGARA_API FNiagaraDebuggerExecuteConsoleCommand
+struct FNiagaraDebuggerExecuteConsoleCommand
 {
 	GENERATED_BODY()
 	
@@ -294,7 +294,7 @@ struct NIAGARA_API FNiagaraDebuggerExecuteConsoleCommand
 
 /** Message containing updated outliner information sent from the client to the debugger. */
 USTRUCT()
-struct NIAGARA_API FNiagaraDebuggerOutlinerUpdate
+struct FNiagaraDebuggerOutlinerUpdate
 {
 	GENERATED_BODY()
 
@@ -366,7 +366,7 @@ struct FNiagaraDebugHudTextOptions
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraDebugHUDVariable
+struct FNiagaraDebugHUDVariable
 {
 	GENERATED_BODY()
 		
@@ -377,8 +377,8 @@ struct NIAGARA_API FNiagaraDebugHUDVariable
 	UPROPERTY(EditAnywhere, Category = "Attribute")
 	FString Name;
 
-	static FString BuildVariableString(const TArray<FNiagaraDebugHUDVariable>& Variables);
-	static void InitFromString(const FString& VariablesString, TArray<FNiagaraDebugHUDVariable>& OutVariables);
+	static NIAGARA_API FString BuildVariableString(const TArray<FNiagaraDebugHUDVariable>& Variables);
+	static NIAGARA_API void InitFromString(const FString& VariablesString, TArray<FNiagaraDebugHUDVariable>& OutVariables);
 };
 
 UENUM()
@@ -408,11 +408,11 @@ enum class ENiagaraDebugHUDPerfSampleMode
 
 /** Settings for Niagara debug HUD. Contained in it's own struct so that we can pass it whole in a message to the debugger client. */
 USTRUCT()
-struct NIAGARA_API FNiagaraDebugHUDSettingsData
+struct FNiagaraDebugHUDSettingsData
 {
 	GENERATED_BODY()
 
-	FNiagaraDebugHUDSettingsData();
+	NIAGARA_API FNiagaraDebugHUDSettingsData();
 
 	bool IsEnabled() const
 	{
@@ -730,13 +730,13 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 
 /** Message passed from debugger to client when it needs updated simple client info. */
 USTRUCT()
-struct NIAGARA_API FNiagaraRequestSimpleClientInfoMessage
+struct FNiagaraRequestSimpleClientInfoMessage
 {
 	GENERATED_BODY()
 };
 
-UCLASS(config = EditorPerProjectUserSettings, defaultconfig)
-class NIAGARA_API UNiagaraDebugHUDSettings : public UObject, public FNotifyHook
+UCLASS(config = EditorPerProjectUserSettings, defaultconfig, MinimalAPI)
+class UNiagaraDebugHUDSettings : public UObject, public FNotifyHook
 {
 	GENERATED_BODY()
 
@@ -747,7 +747,7 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Settings", meta=(ShowOnlyInnerProperties))
 	FNiagaraDebugHUDSettingsData Data;
 
-	void NotifyPropertyChanged();
+	NIAGARA_API void NotifyPropertyChanged();
 	virtual void NotifyPreChange(FProperty*) {}
 	virtual void NotifyPostChange(const FPropertyChangedEvent&, FProperty*) { NotifyPropertyChanged(); }
 	virtual void NotifyPreChange(class FEditPropertyChain*) {}
@@ -756,7 +756,7 @@ public:
 
 
 USTRUCT()
-struct NIAGARA_API FNiagaraOutlinerCaptureSettings
+struct FNiagaraOutlinerCaptureSettings
 {
 	GENERATED_BODY()
 
@@ -778,7 +778,7 @@ struct NIAGARA_API FNiagaraOutlinerCaptureSettings
 
 /** Simple information on the connected client for use in continuous or immediate response UI elements. */
 USTRUCT()
-struct NIAGARA_API FNiagaraSimpleClientInfo
+struct FNiagaraSimpleClientInfo
 {
 	GENERATED_BODY()
 
@@ -801,7 +801,7 @@ struct NIAGARA_API FNiagaraSimpleClientInfo
 
 /** Message sent from the debugger to a client to request a sim cache capture for a particular component. */
 USTRUCT()
-struct NIAGARA_API FNiagaraSystemSimCacheCaptureRequest
+struct FNiagaraSystemSimCacheCaptureRequest
 {
 	GENERATED_BODY()
 
@@ -821,7 +821,7 @@ struct NIAGARA_API FNiagaraSystemSimCacheCaptureRequest
 
 /** Message sent from a debugger client to a connected debugger containing the results of a sim cache capture. */
 USTRUCT()
-struct NIAGARA_API FNiagaraSystemSimCacheCaptureReply
+struct FNiagaraSystemSimCacheCaptureReply
 {
 	GENERATED_BODY()
 

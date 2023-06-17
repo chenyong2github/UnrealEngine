@@ -9,7 +9,7 @@ class FNiagaraGpuComputeDispatchInterface;
 // Abstract class for managing GPU data for Niagara
 // Once the manager is created it will last for the lifetime of the owner dispatch interface
 // The manager will be destroyed when the dispatch interface is also destroyed
-class NIAGARA_API FNiagaraGpuComputeDataManager
+class FNiagaraGpuComputeDataManager
 {
 	UE_NONCOPYABLE(FNiagaraGpuComputeDataManager);
 

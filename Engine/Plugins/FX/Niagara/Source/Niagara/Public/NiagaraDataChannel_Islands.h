@@ -106,14 +106,14 @@ struct FNDCIslandDebugDrawSettings
 	bool ShowBounds()const { return bEnabled && bShowIslandBounds; }
 };
 
-UCLASS(Experimental)
-class NIAGARA_API UNiagaraDataChannel_Islands : public UNiagaraDataChannel
+UCLASS(Experimental, MinimalAPI)
+class UNiagaraDataChannel_Islands : public UNiagaraDataChannel
 {
 	GENERATED_BODY()
 
 public: 
 
-	virtual UNiagaraDataChannelHandler* CreateHandler(UWorld* OwningWorld)const override;
+	NIAGARA_API virtual UNiagaraDataChannelHandler* CreateHandler(UWorld* OwningWorld)const override;
 
 	/** Controls how islands are placed and sized. */
 	UPROPERTY(EditAnywhere, Category = "Islands")
@@ -160,20 +160,20 @@ public:
 	FNDCIslandDebugDrawSettings DebugDrawSettings;
 };
 
-UCLASS(Experimental, BlueprintType)
-class NIAGARA_API UNiagaraDataChannelHandler_Islands : public UNiagaraDataChannelHandler
+UCLASS(Experimental, BlueprintType, MinimalAPI)
+class UNiagaraDataChannelHandler_Islands : public UNiagaraDataChannelHandler
 {
 	GENERATED_UCLASS_BODY()
 
 	//UObject Interface
-	virtual void BeginDestroy()override;
+	NIAGARA_API virtual void BeginDestroy()override;
 	//UObject Interface End
 
-	virtual void Init(const UNiagaraDataChannel* InChannel) override;
-	virtual void BeginFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
-	virtual void EndFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
-	virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld) override;
-	virtual FNiagaraDataChannelDataPtr FindData(FNiagaraDataChannelSearchParameters SearchParams, ENiagaraResourceAccess AccessType) override;
+	NIAGARA_API virtual void Init(const UNiagaraDataChannel* InChannel) override;
+	NIAGARA_API virtual void BeginFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
+	NIAGARA_API virtual void EndFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
+	NIAGARA_API virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld) override;
+	NIAGARA_API virtual FNiagaraDataChannelDataPtr FindData(FNiagaraDataChannelSearchParameters SearchParams, ENiagaraResourceAccess AccessType) override;
 
 private:
 

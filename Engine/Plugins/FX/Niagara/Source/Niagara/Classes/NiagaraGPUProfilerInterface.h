@@ -11,13 +11,13 @@ struct FNiagaraSimStageData;
 
 //////////////////////////////////////////////////////////////////////////
 // Public API for tracking GPU time when the profiler is enabled
-struct NIAGARA_API FNiagaraGpuProfileEvent
+struct FNiagaraGpuProfileEvent
 {
 #if WITH_NIAGARA_GPU_PROFILER
 	friend class FNiagaraGPUProfiler;
 
-	explicit FNiagaraGpuProfileEvent(const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, const bool bFirstInstanceData);
-	explicit FNiagaraGpuProfileEvent(const FNiagaraComputeInstanceData& InstanceData, FName CustomStageName);
+	NIAGARA_API explicit FNiagaraGpuProfileEvent(const FNiagaraComputeInstanceData& InstanceData, const FNiagaraSimStageData& SimStageData, const bool bFirstInstanceData);
+	NIAGARA_API explicit FNiagaraGpuProfileEvent(const FNiagaraComputeInstanceData& InstanceData, FName CustomStageName);
 
 private:
 	uint32									bUniqueInstance : 1;
@@ -30,11 +30,11 @@ private:
 #endif
 };
 
-struct NIAGARA_API FNiagaraGpuProfileScope
+struct FNiagaraGpuProfileScope
 {
 #if WITH_NIAGARA_GPU_PROFILER
-	explicit FNiagaraGpuProfileScope(FRHICommandList& RHICmdList, const class FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, const FNiagaraGpuProfileEvent& Event);
-	~FNiagaraGpuProfileScope();
+	NIAGARA_API explicit FNiagaraGpuProfileScope(FRHICommandList& RHICmdList, const class FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, const FNiagaraGpuProfileEvent& Event);
+	NIAGARA_API ~FNiagaraGpuProfileScope();
 
 private:
 	FRHICommandList& RHICmdList;
@@ -70,13 +70,13 @@ using FNiagaraGpuFrameResultsPtr = TSharedPtr<FNiagaraGpuFrameResults, ESPMode::
 
 //////////////////////////////////////////////////////////////////////////
 // Allows various systems to listen to profiler results
-struct NIAGARA_API FNiagaraGpuProfilerListener
+struct FNiagaraGpuProfilerListener
 {
-	FNiagaraGpuProfilerListener();
-	~FNiagaraGpuProfilerListener();
+	NIAGARA_API FNiagaraGpuProfilerListener();
+	NIAGARA_API ~FNiagaraGpuProfilerListener();
 
-	void SetEnabled(bool bEnabled);
-	void SetHandler(TFunction<void(const FNiagaraGpuFrameResultsPtr&)> Function);
+	NIAGARA_API void SetEnabled(bool bEnabled);
+	NIAGARA_API void SetHandler(TFunction<void(const FNiagaraGpuFrameResultsPtr&)> Function);
 	bool IsEnabled() const { return bEnabled; }
 
 private:

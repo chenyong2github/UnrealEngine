@@ -110,9 +110,9 @@ typedef TUniformBufferRef<FNiagaraSpriteVFLooseParameters> FNiagaraSpriteVFLoose
 /**
  * Vertex factory for rendering particle sprites.
  */
-class NIAGARAVERTEXFACTORIES_API FNiagaraSpriteVertexFactory : public FNiagaraVertexFactoryBase
+class FNiagaraSpriteVertexFactory : public FNiagaraVertexFactoryBase
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FNiagaraSpriteVertexFactory);
+	DECLARE_VERTEX_FACTORY_TYPE_API(FNiagaraSpriteVertexFactory, NIAGARAVERTEXFACTORIES_API);
 
 public:
 
@@ -140,26 +140,26 @@ public:
 	{}
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void InitRHI() override;
 
 	virtual bool RendersPrimitivesAsCameraFacingSprites() const override { return true; }
 
 	/**
 	 * Should we cache the material's shadertype on this platform with this vertex factory? 
 	 */
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static NIAGARAVERTEXFACTORIES_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	/**
 	 * Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	 */
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static NIAGARAVERTEXFACTORIES_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	/**
 	* Get vertex elements used when during PSO precaching materials using this vertex factory type
 	*/
-	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static NIAGARAVERTEXFACTORIES_API void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
 
-	void SetTexCoordBuffer(const FVertexBuffer* InTexCoordBuffer);
+	NIAGARAVERTEXFACTORIES_API void SetTexCoordBuffer(const FVertexBuffer* InTexCoordBuffer);
 	
 	/**
 	 * Set the uniform buffer for this vertex factory.
@@ -230,7 +230,7 @@ public:
 
 protected:
 	/** Initialize streams for this vertex factory. */
-	void InitStreams();
+	NIAGARAVERTEXFACTORIES_API void InitStreams();
 
 private:
 

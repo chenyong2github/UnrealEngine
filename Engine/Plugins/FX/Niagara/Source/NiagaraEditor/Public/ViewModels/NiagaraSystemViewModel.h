@@ -74,9 +74,9 @@ enum class ENiagaraGetGraphParameterReferencesMode
 DECLARE_DELEGATE_RetVal(FName, FOnGetWorkflowMode);
 
 /** Defines options for the niagara System view model */
-struct NIAGARAEDITOR_API FNiagaraSystemViewModelOptions
+struct FNiagaraSystemViewModelOptions
 {
-	FNiagaraSystemViewModelOptions();
+	NIAGARAEDITOR_API FNiagaraSystemViewModelOptions();
 
 	/** Whether or not the user can edit emitters from the timeline. */
 	bool bCanModifyEmittersFromTimeline = true;

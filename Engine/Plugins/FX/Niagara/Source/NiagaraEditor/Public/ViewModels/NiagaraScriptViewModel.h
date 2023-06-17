@@ -77,7 +77,7 @@ public:
 
 	//~ FEditorUndoClient Interface
 	NIAGARAEDITOR_API virtual void PostUndo(bool bSuccess) override;
-	NIAGARAEDITOR_API virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
 	UNiagaraScript* GetContainerScript(ENiagaraScriptUsage InUsage, FGuid InUsageId = FGuid());
 	UNiagaraScript* GetScript(ENiagaraScriptUsage InUsage, FGuid InUsageId = FGuid());

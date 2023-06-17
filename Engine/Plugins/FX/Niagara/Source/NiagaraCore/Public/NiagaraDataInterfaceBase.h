@@ -40,8 +40,8 @@ struct FNiagaraDataInterfaceParametersCS
 //////////////////////////////////////////////////////////////////////////
 
 /** Base class for all Niagara data interfaces. */
-UCLASS(abstract, EditInlineNew)
-class NIAGARACORE_API UNiagaraDataInterfaceBase : public UNiagaraMergeable
+UCLASS(abstract, EditInlineNew, MinimalAPI)
+class UNiagaraDataInterfaceBase : public UNiagaraMergeable
 {
 	GENERATED_UCLASS_BODY()
 

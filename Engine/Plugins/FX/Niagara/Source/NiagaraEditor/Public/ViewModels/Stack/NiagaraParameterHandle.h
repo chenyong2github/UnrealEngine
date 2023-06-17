@@ -8,67 +8,67 @@
 class UNiagaraNodeFunctionCall;
 struct FNiagaraVariable;
 
-class NIAGARAEDITOR_API FNiagaraParameterHandle
+class FNiagaraParameterHandle
 {
 public:
-	FNiagaraParameterHandle();
+	NIAGARAEDITOR_API FNiagaraParameterHandle();
 
-	FNiagaraParameterHandle(FName InParameterHandleString);
+	NIAGARAEDITOR_API FNiagaraParameterHandle(FName InParameterHandleString);
 
-	FNiagaraParameterHandle(FName InNamespace, FName InName);
+	NIAGARAEDITOR_API FNiagaraParameterHandle(FName InNamespace, FName InName);
 
-	bool operator==(const FNiagaraParameterHandle& Other) const;
+	NIAGARAEDITOR_API bool operator==(const FNiagaraParameterHandle& Other) const;
 
 	bool operator!=(const FNiagaraParameterHandle& Other) const { return (*this == Other) == false; }
 
-	static FNiagaraParameterHandle CreateAliasedModuleParameterHandle(const FNiagaraParameterHandle& ModuleParameterHandle, const UNiagaraNodeFunctionCall* ModuleNode);
-	static FNiagaraParameterHandle CreateAliasedModuleParameterHandle(const FName FullInputName, const FName FunctionName);
+	static NIAGARAEDITOR_API FNiagaraParameterHandle CreateAliasedModuleParameterHandle(const FNiagaraParameterHandle& ModuleParameterHandle, const UNiagaraNodeFunctionCall* ModuleNode);
+	static NIAGARAEDITOR_API FNiagaraParameterHandle CreateAliasedModuleParameterHandle(const FName FullInputName, const FName FunctionName);
 
-	static FNiagaraParameterHandle CreateEngineParameterHandle(const FNiagaraVariable& SystemVariable);
+	static NIAGARAEDITOR_API FNiagaraParameterHandle CreateEngineParameterHandle(const FNiagaraVariable& SystemVariable);
 
-	static FNiagaraParameterHandle CreateEmitterParameterHandle(const FNiagaraVariable& EmitterVariable);
+	static NIAGARAEDITOR_API FNiagaraParameterHandle CreateEmitterParameterHandle(const FNiagaraVariable& EmitterVariable);
 
-	static FNiagaraParameterHandle CreateParticleAttributeParameterHandle(const FName InName);
+	static NIAGARAEDITOR_API FNiagaraParameterHandle CreateParticleAttributeParameterHandle(const FName InName);
 
-	static FNiagaraParameterHandle CreateModuleParameterHandle(const FName InName);
+	static NIAGARAEDITOR_API FNiagaraParameterHandle CreateModuleParameterHandle(const FName InName);
 
-	static FNiagaraParameterHandle CreateInitialParameterHandle(const FNiagaraParameterHandle& Handle);
+	static NIAGARAEDITOR_API FNiagaraParameterHandle CreateInitialParameterHandle(const FNiagaraParameterHandle& Handle);
 
-	bool IsValid() const;
+	NIAGARAEDITOR_API bool IsValid() const;
 
-	const FName GetParameterHandleString() const;
+	NIAGARAEDITOR_API const FName GetParameterHandleString() const;
 
-	const FName GetName() const;
+	NIAGARAEDITOR_API const FName GetName() const;
 
-	const FName GetNamespace() const;
+	NIAGARAEDITOR_API const FName GetNamespace() const;
 
-	const TArray<FName> GetHandleParts() const;
+	NIAGARAEDITOR_API const TArray<FName> GetHandleParts() const;
 
-	bool IsUserHandle() const;
+	NIAGARAEDITOR_API bool IsUserHandle() const;
 
-	bool IsEngineHandle() const;
+	NIAGARAEDITOR_API bool IsEngineHandle() const;
 
-	bool IsSystemHandle() const;
+	NIAGARAEDITOR_API bool IsSystemHandle() const;
 
-	bool IsEmitterHandle() const;
+	NIAGARAEDITOR_API bool IsEmitterHandle() const;
 
-	bool IsParticleAttributeHandle() const;
+	NIAGARAEDITOR_API bool IsParticleAttributeHandle() const;
 
-	bool IsModuleHandle() const;
+	NIAGARAEDITOR_API bool IsModuleHandle() const;
 
-	bool IsOutputHandle() const;
+	NIAGARAEDITOR_API bool IsOutputHandle() const;
 
-	bool IsLocalHandle() const;
+	NIAGARAEDITOR_API bool IsLocalHandle() const;
 
-	bool IsParameterCollectionHandle() const;
+	NIAGARAEDITOR_API bool IsParameterCollectionHandle() const;
 
-	bool IsReadOnlyHandle() const;
+	NIAGARAEDITOR_API bool IsReadOnlyHandle() const;
 
-	bool IsTransientHandle() const;
+	NIAGARAEDITOR_API bool IsTransientHandle() const;
 
-	bool IsDataInstanceHandle() const;
+	NIAGARAEDITOR_API bool IsDataInstanceHandle() const;
 
-	bool IsStackContextHandle() const;
+	NIAGARAEDITOR_API bool IsStackContextHandle() const;
 
 private:
 	FName ParameterHandleName;

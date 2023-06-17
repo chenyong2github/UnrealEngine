@@ -14,8 +14,8 @@ struct FNiagaraDataInterfaceGeneratedFunction;
 Thread safe counter starts at the initial value on start / reset.
 When operating between CPU & GPU ensure you set the appropriate sync mode.
 */
-UCLASS(EditInlineNew, Category = "Counting", CollapseCategories, meta = (DisplayName = "Simple Counter"))
-class NIAGARA_API UNiagaraDataInterfaceSimpleCounter : public UNiagaraDataInterfaceRWBase
+UCLASS(EditInlineNew, Category = "Counting", CollapseCategories, meta = (DisplayName = "Simple Counter"), MinimalAPI)
+class UNiagaraDataInterfaceSimpleCounter : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,46 +25,46 @@ class NIAGARA_API UNiagaraDataInterfaceSimpleCounter : public UNiagaraDataInterf
 
 public:
 	// UObject Interface
-	virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostInitProperties() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	// UObject Interface End
 
 	// UNiagaraDataInterface Interface Begin
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
 
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
-	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual int32 PerInstanceDataSize() const override;
+	NIAGARA_API virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	NIAGARA_API virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	NIAGARA_API virtual int32 PerInstanceDataSize() const override;
 
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 #if WITH_EDITORONLY_DATA
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 #endif
 #if WITH_EDITOR
 	virtual bool GetGpuUseIndirectDispatch() const override { return true; }
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
-	virtual void PushToRenderThreadImpl() override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void PushToRenderThreadImpl() override;
 	// UNiagaraDataInterface Interface End
 
 	// VM functions
-	void VMGet(FVectorVMExternalFunctionContext& Context);
-	void VMSet(FVectorVMExternalFunctionContext& Context);
-	void VMExchange(FVectorVMExternalFunctionContext& Context);
-	void VMAdd(FVectorVMExternalFunctionContext& Context);
-	void VMIncrement(FVectorVMExternalFunctionContext& Context);
-	void VMDecrement(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMGet(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMSet(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMExchange(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMAdd(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMIncrement(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void VMDecrement(FVectorVMExternalFunctionContext& Context);
 
-	void GetNextValue_Deprecated(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetNextValue_Deprecated(FVectorVMExternalFunctionContext& Context);
 
 	/** Select how we should synchronize the counter between Cpu & Gpu */
 	UPROPERTY(EditAnywhere, Category = "Simple Counter")

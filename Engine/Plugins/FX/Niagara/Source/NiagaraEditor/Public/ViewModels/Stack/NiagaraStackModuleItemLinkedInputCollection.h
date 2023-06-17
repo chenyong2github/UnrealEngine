@@ -7,25 +7,25 @@
 
 class UNiagaraNodeFunctionCall;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackModuleItemLinkedInputCollection : public UNiagaraStackEntry
+UCLASS(MinimalAPI)
+class UNiagaraStackModuleItemLinkedInputCollection : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 
 public:
-	UNiagaraStackModuleItemLinkedInputCollection();
+	NIAGARAEDITOR_API UNiagaraStackModuleItemLinkedInputCollection();
 
-	void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraNodeFunctionCall& InFunctionCallNode);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraNodeFunctionCall& InFunctionCallNode);
 
 	//~ UNiagaraStackEntry interface
-	virtual FText GetDisplayName() const override;
-	virtual bool IsExpandedByDefault() const override;
-	virtual bool GetIsEnabled() const override;
-	virtual EStackRowStyle GetStackRowStyle() const override;
-	virtual bool GetShouldShowInStack() const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual bool IsExpandedByDefault() const override;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API virtual EStackRowStyle GetStackRowStyle() const override;
+	NIAGARAEDITOR_API virtual bool GetShouldShowInStack() const override;
 
 protected:
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 private:
 	void GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const;

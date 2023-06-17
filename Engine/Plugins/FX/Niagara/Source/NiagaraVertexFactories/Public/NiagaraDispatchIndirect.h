@@ -29,9 +29,9 @@ struct FNiagaraDispatchIndirectParametersCS
 	FUintVector4	ThreadCount = FUintVector4(0, 0, 0, 0);
 };
 
-class NIAGARAVERTEXFACTORIES_API FNiagaraDispatchIndirectArgsGenCS : public FGlobalShader
+class FNiagaraDispatchIndirectArgsGenCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FNiagaraDispatchIndirectArgsGenCS);
+	DECLARE_EXPORTED_GLOBAL_SHADER(FNiagaraDispatchIndirectArgsGenCS, NIAGARAVERTEXFACTORIES_API);
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraDispatchIndirectArgsGenCS, FGlobalShader);
 
 public:
@@ -46,5 +46,5 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint4>,	RWDispatchIndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static NIAGARAVERTEXFACTORIES_API void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 };

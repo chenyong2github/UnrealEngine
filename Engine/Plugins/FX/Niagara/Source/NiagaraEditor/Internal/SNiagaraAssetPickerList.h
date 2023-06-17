@@ -56,7 +56,7 @@ private:
 	bool bAddLibraryOnlyCheckbox;
 };
 
-class NIAGARAEDITOR_API SNiagaraAssetPickerList : public SCompoundWidget
+class SNiagaraAssetPickerList : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnTemplateAssetActivated, const FAssetData&);
@@ -94,17 +94,17 @@ public:
 		SLATE_ARGUMENT(EItemSelectorClickActivateMode, ClickActivateMode);
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs, UClass* AssetClass);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, UClass* AssetClass);
 
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	NIAGARAEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	TArray<FAssetData> GetSelectedAssets() const;
+	NIAGARAEDITOR_API TArray<FAssetData> GetSelectedAssets() const;
 
-	void RefreshAll() const;
+	NIAGARAEDITOR_API void RefreshAll() const;
 
-	void ExpandTree();
+	NIAGARAEDITOR_API void ExpandTree();
 
-	TSharedRef<SWidget> GetSearchBox() const;
+	NIAGARAEDITOR_API TSharedRef<SWidget> GetSearchBox() const;
 
 private:
 	TArray<FAssetData> GetAssetDataForSelector(UClass* AssetClass);

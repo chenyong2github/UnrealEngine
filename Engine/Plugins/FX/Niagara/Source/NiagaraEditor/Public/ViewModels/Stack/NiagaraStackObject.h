@@ -12,8 +12,8 @@ class UNiagaraNode;
 class IDetailTreeNode;
 class INiagaraMessage;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackObject : public UNiagaraStackItemContent, public FNotifyHook
+UCLASS(MinimalAPI)
+class UNiagaraStackObject : public UNiagaraStackItemContent, public FNotifyHook
 {
 	GENERATED_BODY()
 		
@@ -21,7 +21,7 @@ public:
 	DECLARE_DELEGATE_TwoParams(FOnSelectRootNodes, TArray<TSharedRef<IDetailTreeNode>>, TArray<TSharedRef<IDetailTreeNode>>*);
 
 public:
-	UNiagaraStackObject();
+	NIAGARAEDITOR_API UNiagaraStackObject();
 
 	/** Initialized an entry for displaying a UObject in the niagara stack. 
 		@param InRequiredEntryData Struct with required data for all stack entries.
@@ -29,35 +29,35 @@ public:
 		@param bInIsTopLevelObject Whether or not the object being displayed should be treated as a top level object shown in the root of the stack.  This can be used to make layout decisions such as category styling.
 		@param InOwnerStackItemEditorDataKey The stack editor data key of the owning stack entry. 
 		@param InOwningNiagaraNode An optional niagara node which owns this object. */
-	void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InObject, bool bInIsTopLevelObject, FString InOwnerStackItemEditorDataKey, UNiagaraNode* InOwningNiagaraNode = nullptr);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, UObject* InObject, bool bInIsTopLevelObject, FString InOwnerStackItemEditorDataKey, UNiagaraNode* InOwningNiagaraNode = nullptr);
 
-	void SetOnSelectRootNodes(FOnSelectRootNodes OnSelectRootNodes);
+	NIAGARAEDITOR_API void SetOnSelectRootNodes(FOnSelectRootNodes OnSelectRootNodes);
 
-	void RegisterInstancedCustomPropertyLayout(UStruct* Class, FOnGetDetailCustomizationInstance DetailLayoutDelegate);
-	void RegisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr);
+	NIAGARAEDITOR_API void RegisterInstancedCustomPropertyLayout(UStruct* Class, FOnGetDetailCustomizationInstance DetailLayoutDelegate);
+	NIAGARAEDITOR_API void RegisterInstancedCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr);
 
-	UObject* GetObject();
+	NIAGARAEDITOR_API UObject* GetObject();
 
 	//~ FNotifyHook interface
-	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
+	NIAGARAEDITOR_API virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 	//~ UNiagaraStackEntry interface
-	virtual bool GetIsEnabled() const override;
-	virtual bool GetShouldShowInStack() const override;
-	virtual UObject* GetDisplayedObject() const override;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API virtual bool GetShouldShowInStack() const override;
+	NIAGARAEDITOR_API virtual UObject* GetDisplayedObject() const override;
 
 	void SetObjectGuid(FGuid InGuid) { ObjectGuid = InGuid; }
 	virtual bool SupportsSummaryView() const override { return ObjectGuid.IsSet() && ObjectGuid->IsValid(); }
-	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
+	NIAGARAEDITOR_API virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 protected:
-	virtual void FinalizeInternal() override;
+	NIAGARAEDITOR_API virtual void FinalizeInternal() override;
 
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
-	virtual void PostRefreshChildrenInternal() override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void PostRefreshChildrenInternal() override;
 
 private:
-	void PropertyRowsRefreshed();
-	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
+	NIAGARAEDITOR_API void PropertyRowsRefreshed();
+	NIAGARAEDITOR_API void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
 
 private:
 	struct FRegisteredClassCustomization

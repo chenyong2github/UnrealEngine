@@ -34,7 +34,7 @@ enum class EScriptSource : uint8
 };
 
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraActionSourceData
+struct FNiagaraActionSourceData
 {
 	GENERATED_BODY()
 	
@@ -53,7 +53,7 @@ struct NIAGARAEDITOR_API FNiagaraActionSourceData
 };
 
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
+struct FNiagaraMenuAction : public FEdGraphSchemaAction
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -61,8 +61,8 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 	DECLARE_DELEGATE_RetVal(bool, FCanExecuteStackAction);
 
 	FNiagaraMenuAction() {}
-	FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, FOnExecuteStackAction InAction, int32 InSectionID = 0);
-	FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, FOnExecuteStackAction InAction, FCanExecuteStackAction InCanPerformAction, int32 InSectionID = 0);
+	NIAGARAEDITOR_API FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, FOnExecuteStackAction InAction, int32 InSectionID = 0);
+	NIAGARAEDITOR_API FNiagaraMenuAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords, FOnExecuteStackAction InAction, FCanExecuteStackAction InCanPerformAction, int32 InSectionID = 0);
 
 	void ExecuteAction()
 	{
@@ -80,8 +80,8 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction : public FEdGraphSchemaAction
 
 	bool IsExperimental = false;
 
-	TOptional<FNiagaraVariable> GetParameterVariable() const;
-	void SetParameterVariable(const FNiagaraVariable& InParameterVariable);
+	NIAGARAEDITOR_API TOptional<FNiagaraVariable> GetParameterVariable() const;
+	NIAGARAEDITOR_API void SetParameterVariable(const FNiagaraVariable& InParameterVariable);
 	void SetSectionId(const int32 NewSectionId) { SectionID = NewSectionId; };
 
 private:
@@ -110,7 +110,7 @@ private:
 // new action hierarchy for the new menus. Prefer inheriting from this rather than the above
 // this action does not have any use; inherit from it and provide your own functionality
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraMenuAction_Base
+struct FNiagaraMenuAction_Base
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -118,9 +118,9 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction_Base
 	DECLARE_DELEGATE_RetVal(bool, FCanExecuteAction);
 
 	FNiagaraMenuAction_Base() {}
-	FNiagaraMenuAction_Base(FText DisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier = 1.f);
+	NIAGARAEDITOR_API FNiagaraMenuAction_Base(FText DisplayName, ENiagaraMenuSections Section, TArray<FString> InNodeCategories, FText InToolTip, FText InKeywords, float InIntrinsicWeightMultiplier = 1.f);
 
-	void UpdateFullSearchText();
+	NIAGARAEDITOR_API void UpdateFullSearchText();
 
 	bool bIsExperimental = false;
 
@@ -152,7 +152,7 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction_Base
 };
 
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraMenuAction_Generic : public FNiagaraMenuAction_Base
+struct FNiagaraMenuAction_Generic : public FNiagaraMenuAction_Base
 {
 	GENERATED_BODY()
 
@@ -188,8 +188,8 @@ struct NIAGARAEDITOR_API FNiagaraMenuAction_Generic : public FNiagaraMenuAction_
 		}
 	}
 
-	TOptional<FNiagaraVariable> GetParameterVariable() const;
-	void SetParameterVariable(const FNiagaraVariable& InParameterVariable);
+	NIAGARAEDITOR_API TOptional<FNiagaraVariable> GetParameterVariable() const;
+	NIAGARAEDITOR_API void SetParameterVariable(const FNiagaraVariable& InParameterVariable);
 protected:
 	FOnExecuteAction Action;
 	FCanExecuteAction CanExecuteAction;
@@ -198,7 +198,7 @@ protected:
 };
 
 USTRUCT()
-struct NIAGARAEDITOR_API FNiagaraAction_NewNode : public FNiagaraMenuAction_Generic
+struct FNiagaraAction_NewNode : public FNiagaraMenuAction_Generic
 {
 	GENERATED_BODY()
 
@@ -209,14 +209,14 @@ struct NIAGARAEDITOR_API FNiagaraAction_NewNode : public FNiagaraMenuAction_Gene
 	{		
 	}
 
-	class UEdGraphNode* CreateNode(UEdGraph* Graph, UEdGraphPin* FromPin, FVector2D NodePosition, bool bSelectNewNode = true) const;
-	class UEdGraphNode* CreateNode(UEdGraph* Graph, TArray<UEdGraphPin*>& FromPins, FVector2D NodePosition, bool bSelectNewNode = true) const;
+	NIAGARAEDITOR_API class UEdGraphNode* CreateNode(UEdGraph* Graph, UEdGraphPin* FromPin, FVector2D NodePosition, bool bSelectNewNode = true) const;
+	NIAGARAEDITOR_API class UEdGraphNode* CreateNode(UEdGraph* Graph, TArray<UEdGraphPin*>& FromPins, FVector2D NodePosition, bool bSelectNewNode = true) const;
 
 	UPROPERTY()
 	TObjectPtr<class UEdGraphNode> NodeTemplate = nullptr;
 };
 
-struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
+struct FNiagaraParameterAction : public FEdGraphSchemaAction
 {
 	FNiagaraParameterAction()
 		: ScriptVar(nullptr)
@@ -228,18 +228,18 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 	{
 	}
 
-	FNiagaraParameterAction(const FNiagaraVariable& InParameter,
+	NIAGARAEDITOR_API FNiagaraParameterAction(const FNiagaraVariable& InParameter,
 		const TArray<FNiagaraGraphParameterReferenceCollection>& InReferenceCollection,
 		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
 		TSharedPtr<TArray<FName>> ParametersWithNamespaceModifierRenamePending,
 		int32 InSectionID = 0);
 
-	FNiagaraParameterAction(const FNiagaraVariable& InParameter, 
+	NIAGARAEDITOR_API FNiagaraParameterAction(const FNiagaraVariable& InParameter, 
 		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
 		TSharedPtr<TArray<FName>> ParametersWithNamespaceModifierRenamePending,
 		int32 InSectionID = 0);
 
-	FNiagaraParameterAction(const UNiagaraScriptVariable* InScriptVar,
+	NIAGARAEDITOR_API FNiagaraParameterAction(const UNiagaraScriptVariable* InScriptVar,
 		FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, FText InKeywords,
 		int32 InSectionID = 0);
 
@@ -247,23 +247,23 @@ struct NIAGARAEDITOR_API FNiagaraParameterAction : public FEdGraphSchemaAction
 	static FName StaticGetTypeId() { return FNiagaraEditorStrings::FNiagaraParameterActionId; };
 	virtual FName GetTypeId() const { return StaticGetTypeId(); };
 
-	const UNiagaraScriptVariable* GetScriptVar() const;
+	NIAGARAEDITOR_API const UNiagaraScriptVariable* GetScriptVar() const;
 
-	const FNiagaraVariable& GetParameter() const;
+	NIAGARAEDITOR_API const FNiagaraVariable& GetParameter() const;
 
-	TArray<FNiagaraGraphParameterReferenceCollection>& GetReferenceCollection();
+	NIAGARAEDITOR_API TArray<FNiagaraGraphParameterReferenceCollection>& GetReferenceCollection();
 
-	bool GetIsNamespaceModifierRenamePending() const;
+	NIAGARAEDITOR_API bool GetIsNamespaceModifierRenamePending() const;
 
-	void SetIsNamespaceModifierRenamePending(bool bIsNamespaceModifierRenamePending);
+	NIAGARAEDITOR_API void SetIsNamespaceModifierRenamePending(bool bIsNamespaceModifierRenamePending);
 
-	bool GetIsExternallyReferenced() const;
+	NIAGARAEDITOR_API bool GetIsExternallyReferenced() const;
 
-	void SetIsExternallyReferenced(bool bInIsExternallyReferenced);
+	NIAGARAEDITOR_API void SetIsExternallyReferenced(bool bInIsExternallyReferenced);
 
-	bool GetIsSourcedFromCustomStackContext() const;
+	NIAGARAEDITOR_API bool GetIsSourcedFromCustomStackContext() const;
 
-	void SetIsSourcedFromCustomStackContext(bool bInIsSourcedFromCustomStackContext);
+	NIAGARAEDITOR_API void SetIsSourcedFromCustomStackContext(bool bInIsSourcedFromCustomStackContext);
 
 private:
 	const UNiagaraScriptVariable* ScriptVar;
@@ -279,23 +279,23 @@ private:
 	TWeakPtr<TArray<FName>> ParametersWithNamespaceModifierRenamePendingWeak;
 };
 
-struct NIAGARAEDITOR_API FNiagaraScriptParameterAction : public FEdGraphSchemaAction
+struct FNiagaraScriptParameterAction : public FEdGraphSchemaAction
 {
 	FNiagaraScriptParameterAction() {}
-	FNiagaraScriptParameterAction(const FNiagaraVariable& InVariable, const FNiagaraVariableMetaData& InVariableMetaData);
+	NIAGARAEDITOR_API FNiagaraScriptParameterAction(const FNiagaraVariable& InVariable, const FNiagaraVariableMetaData& InVariableMetaData);
 };
 
-class NIAGARAEDITOR_API FNiagaraParameterGraphDragOperation : public FGraphSchemaActionDragDropAction
+class FNiagaraParameterGraphDragOperation : public FGraphSchemaActionDragDropAction
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FNiagaraParameterGraphDragOperation, FGraphSchemaActionDragDropAction)
 
-	static TSharedRef<FNiagaraParameterGraphDragOperation> New(const TSharedPtr<FEdGraphSchemaAction>& InActionNode);
+	static NIAGARAEDITOR_API TSharedRef<FNiagaraParameterGraphDragOperation> New(const TSharedPtr<FEdGraphSchemaAction>& InActionNode);
 
 	// FGraphEditorDragDropAction interface
-	virtual void HoverTargetChanged() override;
-	virtual FReply DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition) override;
-	virtual FReply DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph) override;
+	NIAGARAEDITOR_API virtual void HoverTargetChanged() override;
+	NIAGARAEDITOR_API virtual FReply DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition) override;
+	NIAGARAEDITOR_API virtual FReply DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph) override;
 	// End of FGraphEditorDragDropAction
 
 	/** Set if operation is modified by alt */
@@ -305,13 +305,13 @@ public:
 	void SetCtrlDrag(bool InIsCtrlDrag) { bControlDrag = InIsCtrlDrag; }
 
 	/** Returns true if the drag operation is currently hovering over the supplied node */
-	bool IsCurrentlyHoveringNode(const UEdGraphNode* TestNode) const;
+	NIAGARAEDITOR_API bool IsCurrentlyHoveringNode(const UEdGraphNode* TestNode) const;
 
 	const TSharedPtr<FEdGraphSchemaAction>& GetSourceAction() const { return SourceAction; }
 
 protected:
 	/** Constructor */
-	FNiagaraParameterGraphDragOperation();
+	NIAGARAEDITOR_API FNiagaraParameterGraphDragOperation();
 
 	/** Structure for required node construction parameters */
 	struct FNiagaraParameterNodeConstructionParams
@@ -335,12 +335,12 @@ protected:
 		const UNiagaraScriptVariable* ScriptVar;
 	};
 
-	static void MakeGetMap(FNiagaraParameterNodeConstructionParams InParams);
-	static void MakeSetMap(FNiagaraParameterNodeConstructionParams InParams);
-	static void MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams, const UNiagaraScriptVariable* ScriptVariable);
+	static NIAGARAEDITOR_API void MakeGetMap(FNiagaraParameterNodeConstructionParams InParams);
+	static NIAGARAEDITOR_API void MakeSetMap(FNiagaraParameterNodeConstructionParams InParams);
+	static NIAGARAEDITOR_API void MakeStaticSwitch(FNiagaraParameterNodeConstructionParams InParams, const UNiagaraScriptVariable* ScriptVariable);
 
-	virtual EVisibility GetIconVisible() const override;
-	virtual EVisibility GetErrorIconVisible() const override;
+	NIAGARAEDITOR_API virtual EVisibility GetIconVisible() const override;
+	NIAGARAEDITOR_API virtual EVisibility GetErrorIconVisible() const override;
 
 	/** Was ctrl held down at start of drag */
 	bool bControlDrag;
@@ -348,7 +348,7 @@ protected:
 	bool bAltDrag;
 };
 
-class NIAGARAEDITOR_API FNiagaraParameterDragOperation : public FDecoratedDragDropOp
+class FNiagaraParameterDragOperation : public FDecoratedDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FNiagaraParameterDragOperation, FDecoratedDragDropOp)
@@ -360,16 +360,16 @@ public:
 
 	const TSharedPtr<FEdGraphSchemaAction>& GetSourceAction() const { return SourceAction; }
 
-	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
+	NIAGARAEDITOR_API virtual TSharedPtr<SWidget> GetDefaultDecorator() const override;
 
 	void SetAdditionalText(FText InAdditionalText) { CurrentHoverText = InAdditionalText; }
-	EVisibility IsTextVisible() const;
+	NIAGARAEDITOR_API EVisibility IsTextVisible() const;
 private:
 	TSharedPtr<FEdGraphSchemaAction> SourceAction;
 	TOptional<FNiagaraVariable> TargetParameter;
 };
 
-class NIAGARAEDITOR_API FNiagaraScriptDragOperation : public FDecoratedDragDropOp
+class FNiagaraScriptDragOperation : public FDecoratedDragDropOp
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FNiagaraScriptDragOperation, FDecoratedDragDropOp)
@@ -385,7 +385,7 @@ public:
 };
 
 
-class NIAGARAEDITOR_API INiagaraDataInterfaceNodeActionProvider
+class INiagaraDataInterfaceNodeActionProvider
 {
 public:
 
@@ -411,15 +411,15 @@ public:
 	template<typename DIClass>
 	static void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature);
 
-	static void GetNodeContextMenuActions(UClass* DIClass, UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature);
+	static NIAGARAEDITOR_API void GetNodeContextMenuActions(UClass* DIClass, UToolMenu* Menu, UGraphNodeContextMenuContext* Context, FNiagaraFunctionSignature Signature);
 
 	template<typename DIClass>
 	static void CollectAddPinActions(FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin);
 
-	static void CollectAddPinActions(UClass* DIClass, FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin);
+	static NIAGARAEDITOR_API void CollectAddPinActions(UClass* DIClass, FNiagaraMenuActionCollector& Collector, UEdGraphPin* AddPin);
 
 	/** All currently registered action providers. */
-	static TMap<FName, TUniquePtr<INiagaraDataInterfaceNodeActionProvider>> RegisteredActionProviders;
+	static NIAGARAEDITOR_API TMap<FName, TUniquePtr<INiagaraDataInterfaceNodeActionProvider>> RegisteredActionProviders;
 };
 
 template<typename DIClass, typename ActionProviderClass>

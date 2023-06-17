@@ -10,7 +10,7 @@ class FNiagaraScriptToolkitParameterPanelViewModel;
 class FUICommandList;
 
 
-class NIAGARAEDITOR_API FNiagaraScratchPadScriptViewModel : public FNiagaraScriptViewModel, public FGCObject
+class FNiagaraScratchPadScriptViewModel : public FNiagaraScriptViewModel, public FGCObject
 {
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnRenamed);
@@ -21,28 +21,28 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPinIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGraphSubObjectSelectionChanged, const UObject*);
 
-	FNiagaraScratchPadScriptViewModel(bool bInIsForDataProcessingOnly);
+	NIAGARAEDITOR_API FNiagaraScratchPadScriptViewModel(bool bInIsForDataProcessingOnly);
 
-	~FNiagaraScratchPadScriptViewModel();
+	NIAGARAEDITOR_API ~FNiagaraScratchPadScriptViewModel();
 
-	void Initialize(UNiagaraScript* Script, UNiagaraScript* InEditScript, TWeakPtr<class FNiagaraSystemViewModel> InSystemViewModel);
+	NIAGARAEDITOR_API void Initialize(UNiagaraScript* Script, UNiagaraScript* InEditScript, TWeakPtr<class FNiagaraSystemViewModel> InSystemViewModel);
 
-	void TransferFromOldWhenDoingApply(TSharedPtr< FNiagaraScratchPadScriptViewModel> InOldScriptVM);
+	NIAGARAEDITOR_API void TransferFromOldWhenDoingApply(TSharedPtr< FNiagaraScratchPadScriptViewModel> InOldScriptVM);
 
-	void Finalize();
+	NIAGARAEDITOR_API void Finalize();
 
 	//~ Begin FGCObject
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	NIAGARAEDITOR_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	//~ End FGCObject
 
-	TArray<UNiagaraGraph*> GetEditableGraphs();
+	NIAGARAEDITOR_API TArray<UNiagaraGraph*> GetEditableGraphs();
 
 	//~ Begin NiagaraParameterDefinitionsSubscriberViewModel Interface
 protected:
 	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override { return &EditScript; };
 	//~ End NiagaraParameterDefinitionsSubscriberViewModel Interface
 
-	void OnGraphSubObjectSelectionChanged(const UObject* Obj);
+	NIAGARAEDITOR_API void OnGraphSubObjectSelectionChanged(const UObject* Obj);
 
 	FDelegateHandle ExternalSelectionChangedDelegate;
 
@@ -52,60 +52,60 @@ public:
 		return TEXT("FNiagaraScratchPadScriptViewModel");
 	}
 
-	UNiagaraScript* GetOriginalScript() const;
+	NIAGARAEDITOR_API UNiagaraScript* GetOriginalScript() const;
 
-	const FVersionedNiagaraScript& GetEditScript() const;
+	NIAGARAEDITOR_API const FVersionedNiagaraScript& GetEditScript() const;
 
-	TSharedPtr<INiagaraParameterPanelViewModel> GetParameterPanelViewModel() const;
+	NIAGARAEDITOR_API TSharedPtr<INiagaraParameterPanelViewModel> GetParameterPanelViewModel() const;
 
-	TSharedPtr<FUICommandList> GetParameterPanelCommands() const;
+	NIAGARAEDITOR_API TSharedPtr<FUICommandList> GetParameterPanelCommands() const;
 
-	FText GetToolTip() const;
+	NIAGARAEDITOR_API FText GetToolTip() const;
 
-	bool GetIsPendingRename() const;
+	NIAGARAEDITOR_API bool GetIsPendingRename() const;
 
-	void SetIsPendingRename(bool bInIsPendingRename);
+	NIAGARAEDITOR_API void SetIsPendingRename(bool bInIsPendingRename);
 
-	void SetScriptName(FText InScriptName);
+	NIAGARAEDITOR_API void SetScriptName(FText InScriptName);
 
-	bool GetIsPinned() const;
+	NIAGARAEDITOR_API bool GetIsPinned() const;
 
-	void SetIsPinned(bool bInIsPinned);
+	NIAGARAEDITOR_API void SetIsPinned(bool bInIsPinned);
 
-	float GetEditorHeight() const;
+	NIAGARAEDITOR_API float GetEditorHeight() const;
 
-	void SetEditorHeight(float InEditorHeight);
+	NIAGARAEDITOR_API void SetEditorHeight(float InEditorHeight);
 
-	bool HasUnappliedChanges() const;
+	NIAGARAEDITOR_API bool HasUnappliedChanges() const;
 
-	void ApplyChanges();
+	NIAGARAEDITOR_API void ApplyChanges();
 
-	void DiscardChanges();
+	NIAGARAEDITOR_API void DiscardChanges();
 
-	FOnRenamed& OnRenamed();
+	NIAGARAEDITOR_API FOnRenamed& OnRenamed();
 
-	FOnPinnedChanged& OnPinnedChanged();
+	NIAGARAEDITOR_API FOnPinnedChanged& OnPinnedChanged();
 
-	FOnHasUnappliedChangesChanged& OnHasUnappliedChangesChanged();
+	NIAGARAEDITOR_API FOnHasUnappliedChangesChanged& OnHasUnappliedChangesChanged();
 
-	FOnChangesApplied& OnChangesApplied();
+	NIAGARAEDITOR_API FOnChangesApplied& OnChangesApplied();
 
-	FSimpleDelegate& OnRequestDiscardChanges();
+	NIAGARAEDITOR_API FSimpleDelegate& OnRequestDiscardChanges();
 
-	FOnNodeIDFocusRequested& OnNodeIDFocusRequested();
-	FOnPinIDFocusRequested& OnPinIDFocusRequested();
+	NIAGARAEDITOR_API FOnNodeIDFocusRequested& OnNodeIDFocusRequested();
+	NIAGARAEDITOR_API FOnPinIDFocusRequested& OnPinIDFocusRequested();
 
 	FOnGraphSubObjectSelectionChanged& OnGraphSelectionChanged() { return OnGraphSubObjectSelectionChangedDelegate;	};
 
-	void RaisePinFocusRequested(FNiagaraScriptIDAndGraphFocusInfo*  InFocusInfo);
-	void RaiseNodeFocusRequested(FNiagaraScriptIDAndGraphFocusInfo* InFocusInfo);
+	NIAGARAEDITOR_API void RaisePinFocusRequested(FNiagaraScriptIDAndGraphFocusInfo*  InFocusInfo);
+	NIAGARAEDITOR_API void RaiseNodeFocusRequested(FNiagaraScriptIDAndGraphFocusInfo* InFocusInfo);
 
 private:
-	FText GetDisplayNameInternal() const;
+	NIAGARAEDITOR_API FText GetDisplayNameInternal() const;
 
-	void OnScriptGraphChanged(const FEdGraphEditAction &Action);
+	NIAGARAEDITOR_API void OnScriptGraphChanged(const FEdGraphEditAction &Action);
 
-	void OnScriptPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent);
+	NIAGARAEDITOR_API void OnScriptPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent);
 
 	bool bIsPendingRename;
 	bool bIsPinned;

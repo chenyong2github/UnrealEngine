@@ -100,8 +100,8 @@ struct FNDIPhysicsAssetData
 };
 
 /** Data Interface for interacting with PhysicsAssets */
-UCLASS(EditInlineNew, Category = "Physics", CollapseCategories, meta = (DisplayName = "Physics Asset"))
-class NIAGARA_API UNiagaraDataInterfacePhysicsAsset : public UNiagaraDataInterface
+UCLASS(EditInlineNew, Category = "Physics", CollapseCategories, meta = (DisplayName = "Physics Asset"), MinimalAPI)
+class UNiagaraDataInterfacePhysicsAsset : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -130,70 +130,70 @@ public:
 	TArray<TWeakObjectPtr<class UPhysicsAsset>> PhysicsAssets;
 
 	/** UObject Interface */
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	NIAGARA_API virtual void PostInitProperties() override;
+	NIAGARA_API virtual void PostLoad() override;
 
 	/** UNiagaraDataInterface Interface */
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc) override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc) override;
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return Target == ENiagaraSimTarget::GPUComputeSim; }
-	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
-	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
+	NIAGARA_API virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	NIAGARA_API virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)override;
+	NIAGARA_API virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FNDIPhysicsAssetData); }
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasTickGroupPrereqs() const override { return true; }
-	virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
+	NIAGARA_API virtual ETickingGroup CalculateTickGroup(const void* PerInstanceData) const override;
 
 	/** GPU simulation  functionality */
 #if WITH_EDITORONLY_DATA
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
-	virtual void GetCommonHLSL(FString& OutHLSL) override;
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	NIAGARA_API virtual void GetCommonHLSL(FString& OutHLSL) override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
-	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
-	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+	NIAGARA_API virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	NIAGARA_API virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
+	NIAGARA_API virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	/** Extract the source component */
-	void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance, FTransform& LocalTransform);
+	NIAGARA_API void ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance, FTransform& LocalTransform);
 
 	/** Get the number of boxes*/
-	void GetNumBoxes(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetNumBoxes(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the number of spheres  */
-	void GetNumSpheres(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetNumSpheres(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the number of capsules */
-	void GetNumCapsules(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetNumCapsules(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the element point */
-	void GetElementPoint(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetElementPoint(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the element distance */
-	void GetElementDistance(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetElementDistance(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the closest element */
-	void GetClosestElement(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetClosestElement(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the closest point */
-	void GetClosestPoint(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetClosestPoint(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the closest distance */
-	void GetClosestDistance(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetClosestDistance(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the closest texture point */
-	void GetTexturePoint(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetTexturePoint(FVectorVMExternalFunctionContext& Context);
 
 	/** Get the projection point */
-	void GetProjectionPoint(FVectorVMExternalFunctionContext& Context);
+	NIAGARA_API void GetProjectionPoint(FVectorVMExternalFunctionContext& Context);
 
 protected:
 	/** Copy one niagara DI to this */
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 };
 
 /** Proxy to send data to gpu */
@@ -218,13 +218,13 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 	TMap<FNiagaraSystemInstanceID, FNDIPhysicsAssetData> SystemInstancesToProxyData;
 };
 
-UINTERFACE()
-class NIAGARA_API UNiagaraPhysicsAssetDICollectorInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UNiagaraPhysicsAssetDICollectorInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class NIAGARA_API INiagaraPhysicsAssetDICollectorInterface
+class INiagaraPhysicsAssetDICollectorInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

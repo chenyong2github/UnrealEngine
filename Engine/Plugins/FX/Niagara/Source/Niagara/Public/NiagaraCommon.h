@@ -343,7 +343,7 @@ struct FNiagaraScriptDataUsageInfo
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraFunctionSignature
+struct FNiagaraFunctionSignature
 {
 	GENERATED_BODY()
 
@@ -665,12 +665,12 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	int32 NumRequiredOutputs()const { return RequiredOutputs == INDEX_NONE ? Outputs.Num() : RequiredOutputs; }
 	int32 NumOptionalOutputs()const { return Outputs.Num() - NumRequiredOutputs(); }
 
-	void GetVariadicInputs(TArray<FNiagaraVariableBase>& OutVariadicInputs, bool bStripNonExecution = true)const;
-	void GetVariadicOutputs(TArray<FNiagaraVariableBase>& OutVariadicOutputs, bool bStripNonExecution = true)const;
+	NIAGARA_API void GetVariadicInputs(TArray<FNiagaraVariableBase>& OutVariadicInputs, bool bStripNonExecution = true)const;
+	NIAGARA_API void GetVariadicOutputs(TArray<FNiagaraVariableBase>& OutVariadicOutputs, bool bStripNonExecution = true)const;
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraScriptUObjectCompileInfo
+struct FNiagaraScriptUObjectCompileInfo
 {
 	GENERATED_BODY()
 
@@ -691,7 +691,7 @@ struct NIAGARA_API FNiagaraScriptUObjectCompileInfo
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraResolvedUObjectInfo
+struct FNiagaraResolvedUObjectInfo
 {
 	GENERATED_BODY()
 
@@ -709,7 +709,7 @@ struct NIAGARA_API FNiagaraResolvedUObjectInfo
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraExternalUObjectInfo
+struct FNiagaraExternalUObjectInfo
 {
 	GENERATED_BODY()
 
@@ -723,7 +723,7 @@ struct NIAGARA_API FNiagaraExternalUObjectInfo
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraScriptDataInterfaceInfo
+struct FNiagaraScriptDataInterfaceInfo
 {
 	GENERATED_USTRUCT_BODY()
 public:
@@ -760,11 +760,11 @@ public:
 	UPROPERTY()
 	FString SourceEmitterName;
 
-	bool IsUserDataInterface() const;
+	NIAGARA_API bool IsUserDataInterface() const;
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraResolvedUserDataInterfaceBinding
+struct FNiagaraResolvedUserDataInterfaceBinding
 {
 	GENERATED_BODY()
 
@@ -785,7 +785,7 @@ struct NIAGARA_API FNiagaraResolvedUserDataInterfaceBinding
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraScriptResolvedDataInterfaceInfo
+struct FNiagaraScriptResolvedDataInterfaceInfo
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -820,11 +820,11 @@ struct NIAGARA_API FNiagaraScriptResolvedDataInterfaceInfo
 	UPROPERTY()
 	int32 UserPtrIdx;
 
-	bool NeedsPerInstanceBinding() const;
+	NIAGARA_API bool NeedsPerInstanceBinding() const;
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraScriptDataInterfaceCompileInfo
+struct FNiagaraScriptDataInterfaceCompileInfo
 {
 	GENERATED_USTRUCT_BODY()
 public:
@@ -865,14 +865,14 @@ public:
 	FString SourceEmitterName;
 
 	/** Would this data interface work on the target execution type? Only call this on the game thread.*/
-	bool CanExecuteOnTarget(ENiagaraSimTarget SimTarget) const;
+	NIAGARA_API bool CanExecuteOnTarget(ENiagaraSimTarget SimTarget) const;
 
 	/** Note that this is the CDO for this type of data interface, as we often cannot guarantee that the same instance of the data interface we compiled with is the one the user ultimately executes.  Only call this on the game thread.*/
-	UNiagaraDataInterface* GetDefaultDataInterface() const;
+	NIAGARA_API UNiagaraDataInterface* GetDefaultDataInterface() const;
 
-	bool NeedsPerInstanceBinding() const;
+	NIAGARA_API bool NeedsPerInstanceBinding() const;
 
-	bool MatchesClass(const UClass* InClass) const;
+	NIAGARA_API bool MatchesClass(const UClass* InClass) const;
 };
 
 USTRUCT()
@@ -966,7 +966,7 @@ For example, this can be split between PreEditChange and PostEditChange to ensur
 This can be made a UPROPERTY() to ensure safey in cases where a GC could be possible between Add() and CommitUpdate().
 */
 USTRUCT()
-struct NIAGARA_API FNiagaraSystemUpdateContext
+struct FNiagaraSystemUpdateContext
 {
 	GENERATED_BODY()
 
@@ -979,32 +979,32 @@ struct NIAGARA_API FNiagaraSystemUpdateContext
 	FNiagaraSystemUpdateContext() :bDestroyOnAdd(false), bOnlyActive(false), bDestroySystemSim(true) { }
 	FNiagaraSystemUpdateContext(FNiagaraSystemUpdateContext& Other) = delete;
 
-	~FNiagaraSystemUpdateContext();
+	NIAGARA_API ~FNiagaraSystemUpdateContext();
 
 	void SetDestroyOnAdd(bool bInDestroyOnAdd) { bDestroyOnAdd = bInDestroyOnAdd; }
 	void SetOnlyActive(bool bInOnlyActive) { bOnlyActive = bInOnlyActive; }
 	void SetDestroySystemSim(bool bInDestroySystemSim) { bDestroySystemSim = bInDestroySystemSim; }
 
-	void AddSoloComponent(UNiagaraComponent* Component, bool bReInit);
-	void Add(const UNiagaraSystem* System, bool bReInit);
+	NIAGARA_API void AddSoloComponent(UNiagaraComponent* Component, bool bReInit);
+	NIAGARA_API void Add(const UNiagaraSystem* System, bool bReInit);
 #if WITH_EDITORONLY_DATA
-	void Add(const FVersionedNiagaraEmitter& Emitter, bool bReInit);
-	void Add(const UNiagaraScript* Script, bool bReInit);
-	void Add(const UNiagaraParameterCollection* Collection, bool bReInit);
+	NIAGARA_API void Add(const FVersionedNiagaraEmitter& Emitter, bool bReInit);
+	NIAGARA_API void Add(const UNiagaraScript* Script, bool bReInit);
+	NIAGARA_API void Add(const UNiagaraParameterCollection* Collection, bool bReInit);
 #endif
 
 	/** Adds all currently active systems.*/
-	void AddAll(bool bReInit);
+	NIAGARA_API void AddAll(bool bReInit);
 	
 	/** Handles any pending reinits or resets of system instances in this update context. */
-	void CommitUpdate();
+	NIAGARA_API void CommitUpdate();
 
 	DECLARE_DELEGATE_OneParam(FCustomWorkDelegate, UNiagaraComponent*);
 	FCustomWorkDelegate& GetPreWork(){ return PreWork; }
 	FCustomWorkDelegate& GetPostWork() { return PostWork; }
 
 private:
-	void AddInternal(class UNiagaraComponent* Comp, bool bReInit, bool bAllowDestroySystemSim);
+	NIAGARA_API void AddInternal(class UNiagaraComponent* Comp, bool bReInit, bool bAllowDestroySystemSim);
 
 	UPROPERTY(transient)
 	TArray<TObjectPtr<UNiagaraComponent>> ComponentsToReset;
@@ -1165,26 +1165,26 @@ private:
 /** Combines all stat reporting and evaluation of niagara instances (emitter or system).
  * This is then used by the SNiagaraStackRowPerfWidget to display the data in the ui.
  */
-struct NIAGARA_API FNiagaraStatDatabase
+struct FNiagaraStatDatabase
 {	
 	typedef TTuple<uint64, ENiagaraScriptUsage> FStatReportKey;
 
 	/* Used by emitter and system instances to add the recorded data of a frame to this emitter's data store. */
-	void AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData);
+	NIAGARA_API void AddStatCapture(FStatReportKey ReportKey, TMap<TStatIdData const*, float> CapturedData);
 
 	/* Removes all captured stats. */
-	void ClearStatCaptures();
+	NIAGARA_API void ClearStatCaptures();
 
 	/* Returns the average runtime cost of a specific module call inside the script for the given usage. Returns 0 if no data was found. */
-	float GetRuntimeStat(FName StatName, ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
+	NIAGARA_API float GetRuntimeStat(FName StatName, ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
 
 	/* Returns the average runtime cost of a script for the given usage. Returns 0 if no data was recorded for that usage. */
-	float GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
+	NIAGARA_API float GetRuntimeStat(ENiagaraScriptUsage Usage, ENiagaraStatEvaluationType EvaluationType);
 
 	/* Returns the names of all captures stat data points. Useful for debugging and to dump the stat data. */
-	TMap<ENiagaraScriptUsage, TSet<FName>> GetAvailableStatNames();
+	NIAGARA_API TMap<ENiagaraScriptUsage, TSet<FName>> GetAvailableStatNames();
 
-	void Init();
+	NIAGARA_API void Init();
 
 private:
 	/** The captured runtime stat data. The first key is a combination of reporter handle and script usage, the second key is the stat id which correlates to a single recorded scope. */
@@ -1230,9 +1230,9 @@ struct FNiagaraVariableAttributeBinding
 
 	FNiagaraVariableAttributeBinding() : BindingSourceMode(ENiagaraBindingSource::ImplicitFromSource), bBindingExistsOnSource(false), bIsCachedParticleValue(true) {}
 
-	bool NIAGARA_API IsParticleBinding() const { return bIsCachedParticleValue; }
-	bool NIAGARA_API DoesBindingExistOnSource() const { return bBindingExistsOnSource; }
-	bool NIAGARA_API CanBindToHostParameterMap() const { return bBindingExistsOnSource && !bIsCachedParticleValue; }
+	bool IsParticleBinding() const { return bIsCachedParticleValue; }
+	bool DoesBindingExistOnSource() const { return bBindingExistsOnSource; }
+	bool CanBindToHostParameterMap() const { return bBindingExistsOnSource && !bIsCachedParticleValue; }
 	void NIAGARA_API SetValue(const FName& InValue, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	void NIAGARA_API SetAsPreviousValue(const FNiagaraVariableBase& Src, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 	void NIAGARA_API SetAsPreviousValue(const FNiagaraVariableAttributeBinding& Src, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
@@ -1241,15 +1241,15 @@ struct FNiagaraVariableAttributeBinding
 	bool NIAGARA_API Matches(const FNiagaraVariableBase& OldVariable, const FVersionedNiagaraEmitter& InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 
 #if WITH_EDITORONLY_DATA
-	NIAGARA_API const FName& GetName() const { return CachedDisplayName; }
+	const FName& GetName() const { return CachedDisplayName; }
 	[[nodiscard]] NIAGARA_API FString GetDefaultValueString() const;
 #endif
-	NIAGARA_API const FNiagaraVariableBase& GetParamMapBindableVariable() const { return ParamMapVariable; }
-	[[nodiscard]] NIAGARA_API FNiagaraVariableBase GetDataSetBindableVariable() const { return FNiagaraVariableBase(ParamMapVariable.GetType(), DataSetName); }
-	NIAGARA_API const FNiagaraTypeDefinition& GetType() const { return ParamMapVariable.GetType(); }
-	NIAGARA_API ENiagaraBindingSource GetBindingSourceMode() const { return BindingSourceMode; }
+	const FNiagaraVariableBase& GetParamMapBindableVariable() const { return ParamMapVariable; }
+	[[nodiscard]] FNiagaraVariableBase GetDataSetBindableVariable() const { return FNiagaraVariableBase(ParamMapVariable.GetType(), DataSetName); }
+	const FNiagaraTypeDefinition& GetType() const { return ParamMapVariable.GetType(); }
+	ENiagaraBindingSource GetBindingSourceMode() const { return BindingSourceMode; }
 
-	NIAGARA_API bool IsValid() const { return !DataSetName.IsNone() && ParamMapVariable.GetType().IsValid(); }
+	bool IsValid() const { return !DataSetName.IsNone() && ParamMapVariable.GetType().IsValid(); }
 	
 	template<typename T>
 	T GetDefaultValue() const
@@ -1372,7 +1372,7 @@ struct FNiagaraScriptVariableBinding
 	bool IsValid() const { return Name != NAME_None; }
 };
 
-struct NIAGARA_API FNiagaraAliasContext
+struct FNiagaraAliasContext
 {
 	/** Defines different modes which can be used to split rapid iteration parameter constant names. */
 	enum class ERapidIterationParameterMode
@@ -1397,25 +1397,25 @@ struct NIAGARA_API FNiagaraAliasContext
 	}
 
 	/** Configures the context to replace the unaliased emitter namespace with an emitter name namespace in parameter map parameters and rapid iteration parameters. */
-	FNiagaraAliasContext& ChangeEmitterToEmitterName(const FString& InEmitterName);
+	NIAGARA_API FNiagaraAliasContext& ChangeEmitterToEmitterName(const FString& InEmitterName);
 
 	/** Configures the context to replace an emitter name namespace with the unaliased emitter namespace in parameter map parameters and rapid iteration parameters. */
-	FNiagaraAliasContext& ChangeEmitterNameToEmitter(const FString& InEmitterName);
+	NIAGARA_API FNiagaraAliasContext& ChangeEmitterNameToEmitter(const FString& InEmitterName);
 
 	/** Configures the context to replace an old emitter name namespace with a new emitter name namespace in parameter map parameters and rapid iteration parameters. */
-	FNiagaraAliasContext& ChangeEmitterName(const FString& InOldEmitterName, const FString& InNewEmitterName);
+	NIAGARA_API FNiagaraAliasContext& ChangeEmitterName(const FString& InOldEmitterName, const FString& InNewEmitterName);
 
 	/** Configures the context to replace the unaliased module namespace with a module name namespace in parameter map parameters and rapid iteration parameters. */
-	FNiagaraAliasContext& ChangeModuleToModuleName(const FString& InModuleName);
+	NIAGARA_API FNiagaraAliasContext& ChangeModuleToModuleName(const FString& InModuleName);
 
 	/** Configures the context to replace a module name namespace with the unaliased module namespace in parameter map parameters and rapid iteration parameters. */
-	FNiagaraAliasContext& ChangeModuleNameToModule(const FString& InModuleName);
+	NIAGARA_API FNiagaraAliasContext& ChangeModuleNameToModule(const FString& InModuleName);
 
 	/** Configures the context to replace an old module name namespace with a new module name namespace in parameter map parameters and rapid iteration parameters. */
-	FNiagaraAliasContext& ChangeModuleName(const FString& InOldModuleName, const FString& InNewModuleName);
+	NIAGARA_API FNiagaraAliasContext& ChangeModuleName(const FString& InOldModuleName, const FString& InNewModuleName);
 
 	/** Configures the context to replace the stack context namespace with the specified named stack context in parameter map parameters. */
-	FNiagaraAliasContext& ChangeStackContext(const FString& InStackContextName);
+	NIAGARA_API FNiagaraAliasContext& ChangeStackContext(const FString& InStackContextName);
 
 	ERapidIterationParameterMode GetRapidIterationParameterMode() const { return RapidIterationParameterMode; }
 
@@ -1530,13 +1530,13 @@ namespace FNiagaraUtilities
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraUserParameterBinding
+struct FNiagaraUserParameterBinding
 {
 	GENERATED_USTRUCT_BODY()
 
-	FNiagaraUserParameterBinding();
+	NIAGARA_API FNiagaraUserParameterBinding();
 
-	FNiagaraUserParameterBinding(const FNiagaraTypeDefinition& InMaterialDef);
+	NIAGARA_API FNiagaraUserParameterBinding(const FNiagaraTypeDefinition& InMaterialDef);
 
 	UPROPERTY(EditAnywhere, Category = "User Parameter")
 	FNiagaraVariable Parameter;
@@ -1719,9 +1719,9 @@ enum class ENiagaraFunctionDebugState : uint8
 };
 
 /** Args struct for INiagaraParameterDefinitionsSubscriberViewModel::SynchronizeWithParameterDefinitions(...). */
-struct NIAGARA_API FSynchronizeWithParameterDefinitionsArgs
+struct FSynchronizeWithParameterDefinitionsArgs
 {
-	FSynchronizeWithParameterDefinitionsArgs();
+	NIAGARA_API FSynchronizeWithParameterDefinitionsArgs();
 
 	/** If set, instead of gathering all available parameter libraries, only consider subscribed parameter definitions that have a matching Id. */
 	TArray<FGuid> SpecificDefinitionsUniqueIds;

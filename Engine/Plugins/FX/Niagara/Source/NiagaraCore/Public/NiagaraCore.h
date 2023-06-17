@@ -21,7 +21,7 @@ enum class ENiagaraIterationSource : uint8
 
 /** A utility class allowing for references to FNiagaraVariableBase outside of the Niagara module. */
 USTRUCT()
-struct NIAGARACORE_API FNiagaraVariableCommonReference
+struct FNiagaraVariableCommonReference
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -31,7 +31,7 @@ struct NIAGARACORE_API FNiagaraVariableCommonReference
 	UPROPERTY()
 	TObjectPtr<UObject> UnderlyingType;
 
-	bool Serialize(FArchive& Ar);
+	NIAGARACORE_API bool Serialize(FArchive& Ar);
 	friend bool operator<<(FArchive& Ar, FNiagaraVariableCommonReference& VariableReference);
 
 	bool operator==(const FNiagaraVariableCommonReference& Other)const

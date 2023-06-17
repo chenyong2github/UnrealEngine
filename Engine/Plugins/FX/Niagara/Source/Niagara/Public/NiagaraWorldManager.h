@@ -159,7 +159,7 @@ public:
 		return static_cast<T&>(**ExistingValue);
 	}
 
-	NIAGARA_API TArrayView<const FNiagaraCachedViewInfo> GetCachedViewInfo() const { return MakeArrayView(CachedViewInfo); }
+	TArrayView<const FNiagaraCachedViewInfo> GetCachedViewInfo() const { return MakeArrayView(CachedViewInfo); }
 
 	UNiagaraComponentPool* GetComponentPool() { return ComponentPool; }
 
@@ -226,7 +226,7 @@ public:
 	static void OnRefreshOwnerAllowsScalability();
 
 	NIAGARA_API static void SetScalabilityCullingMode(ENiagaraScalabilityCullingMode NewMode);
-	NIAGARA_API static ENiagaraScalabilityCullingMode GetScalabilityCullingMode() { return ScalabilityCullingMode; }
+	static ENiagaraScalabilityCullingMode GetScalabilityCullingMode() { return ScalabilityCullingMode; }
 
 	FNiagaraDataChannelManager& GetDataChannelManager(){ return *DataChannelManager; }
 	NIAGARA_API void InitDataChannel(const UNiagaraDataChannel* Channel, bool bForce);

@@ -5,8 +5,8 @@
 #include "NiagaraDataInterfaceArray.h"
 #include "NiagaraDataInterfaceArrayFloat.generated.h"
 
-UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Float Array"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayFloat : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Float Array"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayFloat : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()
@@ -17,8 +17,8 @@ public:
 	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayFloat, float, FloatData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Vector 2D Array"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayFloat2 : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Vector 2D Array"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayFloat2 : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()
@@ -34,8 +34,8 @@ public:
 	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat2, FVector2f, FloatData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Vector Array"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayFloat3 : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Vector Array"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayFloat3 : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()
@@ -51,8 +51,8 @@ public:
 	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat3, FVector3f, FloatData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Position Array"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayPosition : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Position Array"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayPosition : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()
@@ -63,8 +63,8 @@ public:
 	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayPosition, FNiagaraPosition, PositionData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Vector 4 Array"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayFloat4 : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Vector 4 Array"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayFloat4 : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()
@@ -80,8 +80,8 @@ public:
 	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayFloat4, FVector4f, FloatData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Color Array"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayColor : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Color Array"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayColor : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()
@@ -92,8 +92,8 @@ public:
 	NDIARRAY_GENERATE_BODY(UNiagaraDataInterfaceArrayColor, FLinearColor, ColorData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Quaternion Array"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayQuat : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Quaternion Array"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayQuat : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()
@@ -109,8 +109,8 @@ public:
 	NDIARRAY_GENERATE_BODY_LWC(UNiagaraDataInterfaceArrayQuat, FQuat4f, QuatData)
 };
 
-UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Matrix Array"), Blueprintable, BlueprintType)
-class NIAGARA_API UNiagaraDataInterfaceArrayMatrix : public UNiagaraDataInterfaceArray
+UCLASS(EditInlineNew, Category = "Array", CollapseCategories, meta = (DisplayName = "Matrix Array"), Blueprintable, BlueprintType, MinimalAPI)
+class UNiagaraDataInterfaceArrayMatrix : public UNiagaraDataInterfaceArray
 {
 public:
 	GENERATED_BODY()

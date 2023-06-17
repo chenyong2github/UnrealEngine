@@ -39,14 +39,14 @@ public:
 };
 
 /** Interface for classes which subscribe to parameter definitions. */
-class NIAGARA_API INiagaraParameterDefinitionsSubscriber
+class INiagaraParameterDefinitionsSubscriber
 {
 #if WITH_EDITORONLY_DATA
 public:
-	virtual ~INiagaraParameterDefinitionsSubscriber();
+	NIAGARA_API virtual ~INiagaraParameterDefinitionsSubscriber();
 
-	void PostLoadDefinitionsSubscriptions();
-	void CleanupDefinitionsSubscriptions();
+	NIAGARA_API void PostLoadDefinitionsSubscriptions();
+	NIAGARA_API void CleanupDefinitionsSubscriptions();
 
 	//~ Begin Pure Virtual Methods
 	virtual const TArray<FParameterDefinitionsSubscription>& GetParameterDefinitionsSubscriptions() const = 0;
@@ -67,13 +67,13 @@ public:
 	 */
 	virtual TArray<INiagaraParameterDefinitionsSubscriber*> GetOwnedParameterDefinitionsSubscribers() { return TArray<INiagaraParameterDefinitionsSubscriber*>(); };
 
-	TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitions() const;
-	bool GetIsSubscribedToParameterDefinitions(const UNiagaraParameterDefinitionsBase* Definition) const;
-	UNiagaraParameterDefinitionsBase* FindSubscribedParameterDefinitionsById(const FGuid& DefinitionsId) const;
+	NIAGARA_API TArray<UNiagaraParameterDefinitionsBase*> GetSubscribedParameterDefinitions() const;
+	NIAGARA_API bool GetIsSubscribedToParameterDefinitions(const UNiagaraParameterDefinitionsBase* Definition) const;
+	NIAGARA_API UNiagaraParameterDefinitionsBase* FindSubscribedParameterDefinitionsById(const FGuid& DefinitionsId) const;
 
-	void SubscribeToParameterDefinitions(UNiagaraParameterDefinitionsBase* NewParameterDefinitions, bool bDoNotAssertIfAlreadySubscribed = false);
-	void UnsubscribeFromParameterDefinitions(const FGuid& ParameterDefinitionsToRemoveId);
-	void SynchronizeWithParameterDefinitions(const FSynchronizeWithParameterDefinitionsArgs Args = FSynchronizeWithParameterDefinitionsArgs());
+	NIAGARA_API void SubscribeToParameterDefinitions(UNiagaraParameterDefinitionsBase* NewParameterDefinitions, bool bDoNotAssertIfAlreadySubscribed = false);
+	NIAGARA_API void UnsubscribeFromParameterDefinitions(const FGuid& ParameterDefinitionsToRemoveId);
+	NIAGARA_API void SynchronizeWithParameterDefinitions(const FSynchronizeWithParameterDefinitionsArgs Args = FSynchronizeWithParameterDefinitionsArgs());
 
 	FOnSubscribedParameterDefinitionsChanged& GetOnSubscribedParameterDefinitionsChangedDelegate() { return OnSubscribedParameterDefinitionsChangedDelegate; };
 
@@ -84,6 +84,6 @@ private:
 
 private:
 	/** Update the cached change Id of specified Synchronized Subscribed Parameter Definition subscriptions so that they are not marked pending sync. */
-	void MarkParameterDefinitionSubscriptionsSynchronized(TArray<FGuid> SynchronizedParameterDefinitionsIds /*= TArray<FGuid>()*/);
+	NIAGARA_API void MarkParameterDefinitionSubscriptionsSynchronized(TArray<FGuid> SynchronizedParameterDefinitionsIds /*= TArray<FGuid>()*/);
 #endif
 };

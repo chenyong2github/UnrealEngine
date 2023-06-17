@@ -10,7 +10,7 @@
 
 DECLARE_UNIFORM_BUFFER_STRUCT(FSceneUniformParameters, RENDERER_API)
 
-class NIAGARASHADER_API FNiagaraGPUSceneUtils
+class FNiagaraGPUSceneUtils
 {
 public:	
 	BEGIN_SHADER_PARAMETER_STRUCT(FUpdateMeshParticleInstancesParams, NIAGARASHADER_API)
@@ -35,7 +35,7 @@ public:
 		SHADER_PARAMETER(int, bNeedsPrevTransform)
 	END_SHADER_PARAMETER_STRUCT()
 
-	static void AddUpdateMeshParticleInstancesPass(
+	static NIAGARASHADER_API void AddUpdateMeshParticleInstancesPass(
 		FRDGBuilder& GraphBuilder,
 		FUpdateMeshParticleInstancesParams& Params,
 		ERHIFeatureLevel::Type FeatureLevel,

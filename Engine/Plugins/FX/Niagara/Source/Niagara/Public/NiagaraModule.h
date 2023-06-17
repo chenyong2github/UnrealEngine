@@ -31,7 +31,7 @@ extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 /**
 * Niagara module interface
 */
-class NIAGARA_API INiagaraModule : public IModuleInterface
+class INiagaraModule : public IModuleInterface
 {
 public:
 #if WITH_EDITOR
@@ -53,98 +53,98 @@ public:
 	DECLARE_DELEGATE_RetVal(void, FOnProcessQueue);
 
 public:
-	virtual void StartupModule()override;
-	virtual void ShutdownModule()override;
-	void ShutdownRenderingResources();
+	NIAGARA_API virtual void StartupModule()override;
+	NIAGARA_API virtual void ShutdownModule()override;
+	NIAGARA_API void ShutdownRenderingResources();
 	
-	void OnPostEngineInit();
-	void OnPreExit();
+	NIAGARA_API void OnPostEngineInit();
+	NIAGARA_API void OnPreExit();
 
-	void OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds);
-	void OnBeginFrame();
-	void OnPostGarbageCollect();
-	void OnWorldBeginTearDown(UWorld* World);
+	NIAGARA_API void OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds);
+	NIAGARA_API void OnBeginFrame();
+	NIAGARA_API void OnPostGarbageCollect();
+	NIAGARA_API void OnWorldBeginTearDown(UWorld* World);
 
-	FDelegateHandle SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue);
-	void ResetOnProcessShaderCompilationQueue(FDelegateHandle DelegateHandle);
-	void ProcessShaderCompilationQueue();
+	NIAGARA_API FDelegateHandle SetOnProcessShaderCompilationQueue(FOnProcessQueue InOnProcessQueue);
+	NIAGARA_API void ResetOnProcessShaderCompilationQueue(FDelegateHandle DelegateHandle);
+	NIAGARA_API void ProcessShaderCompilationQueue();
 
 #if WITH_NIAGARA_DEBUGGER
 	FNiagaraDebuggerClient* GetDebuggerClient() { return DebuggerClient.Get(); }
 #endif
 
 #if WITH_EDITOR
-	const INiagaraMergeManager& GetMergeManager() const;
+	NIAGARA_API const INiagaraMergeManager& GetMergeManager() const;
 
-	void RegisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
+	NIAGARA_API void RegisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
 
-	void UnregisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
+	NIAGARA_API void UnregisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
 
-	const INiagaraEditorOnlyDataUtilities& GetEditorOnlyDataUtilities() const;
+	NIAGARA_API const INiagaraEditorOnlyDataUtilities& GetEditorOnlyDataUtilities() const;
 
-	void RegisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
+	NIAGARA_API void RegisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
-	void UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
+	NIAGARA_API void UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
-	int32 StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileRequestDuplicateDataBase* InCompileDuplicateData, const FNiagaraCompileOptions& InCompileOptions);
-	TSharedPtr<FNiagaraVMExecutableData> GetCompileJobResult(int32 JobID, bool bWait, FNiagaraScriptCompileMetrics& Metrics);
+	NIAGARA_API int32 StartScriptCompileJob(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileRequestDuplicateDataBase* InCompileDuplicateData, const FNiagaraCompileOptions& InCompileOptions);
+	NIAGARA_API TSharedPtr<FNiagaraVMExecutableData> GetCompileJobResult(int32 JobID, bool bWait, FNiagaraScriptCompileMetrics& Metrics);
 
-	FDelegateHandle RegisterScriptCompiler(FScriptCompiler ScriptCompiler);
-	void UnregisterScriptCompiler(FDelegateHandle DelegateHandle);
+	NIAGARA_API FDelegateHandle RegisterScriptCompiler(FScriptCompiler ScriptCompiler);
+	NIAGARA_API void UnregisterScriptCompiler(FDelegateHandle DelegateHandle);
 
-	FDelegateHandle RegisterCompileResultDelegate(FCheckCompilationResult ResultDelegate);
-	void UnregisterCompileResultDelegate(FDelegateHandle DelegateHandle);
+	NIAGARA_API FDelegateHandle RegisterCompileResultDelegate(FCheckCompilationResult ResultDelegate);
+	NIAGARA_API void UnregisterCompileResultDelegate(FDelegateHandle DelegateHandle);
 
-	TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> Precompile(UObject* InObj, FGuid Version);
-	TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> PrecompileDuplicate(
+	NIAGARA_API TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> Precompile(UObject* InObj, FGuid Version);
+	NIAGARA_API TSharedPtr<FNiagaraCompileRequestDuplicateDataBase, ESPMode::ThreadSafe> PrecompileDuplicate(
 		const FNiagaraCompileRequestDataBase* OwningSystemRequestData,
 		UNiagaraSystem* OwningSystem,
 		UNiagaraEmitter* OwningEmitter,
 		UNiagaraScript* TargetScript,
 		FGuid TargetVersion);
-	FDelegateHandle RegisterPrecompiler(FOnPrecompile PreCompiler);
-	void UnregisterPrecompiler(FDelegateHandle DelegateHandle);
-	FDelegateHandle RegisterPrecompileDuplicator(FOnPrecompileDuplicate PreCompileDuplicator);
-	void UnregisterPrecompileDuplicator(FDelegateHandle DelegateHandle);
+	NIAGARA_API FDelegateHandle RegisterPrecompiler(FOnPrecompile PreCompiler);
+	NIAGARA_API void UnregisterPrecompiler(FDelegateHandle DelegateHandle);
+	NIAGARA_API FDelegateHandle RegisterPrecompileDuplicator(FOnPrecompileDuplicate PreCompileDuplicator);
+	NIAGARA_API void UnregisterPrecompileDuplicator(FDelegateHandle DelegateHandle);
 
-	TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CacheGraphTraversal(const UObject* InObj, FGuid Version);
-	FDelegateHandle RegisterGraphTraversalCacher(FOnCacheGraphTraversal PreCompiler);
-	void UnregisterGraphTraversalCacher(FDelegateHandle DelegateHandle);
+	NIAGARA_API TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe> CacheGraphTraversal(const UObject* InObj, FGuid Version);
+	NIAGARA_API FDelegateHandle RegisterGraphTraversalCacher(FOnCacheGraphTraversal PreCompiler);
+	NIAGARA_API void UnregisterGraphTraversalCacher(FDelegateHandle DelegateHandle);
 
-	FNiagaraCompilationTaskHandle RequestCompileSystem(UNiagaraSystem* System, bool bForce);
-	FDelegateHandle RegisterRequestCompileSystem(FOnRequestCompileSystem RequestCompileSystemCallback);
-	void UnregisterRequestCompileSystem(FDelegateHandle DelegateHandle);
+	NIAGARA_API FNiagaraCompilationTaskHandle RequestCompileSystem(UNiagaraSystem* System, bool bForce);
+	NIAGARA_API FDelegateHandle RegisterRequestCompileSystem(FOnRequestCompileSystem RequestCompileSystemCallback);
+	NIAGARA_API void UnregisterRequestCompileSystem(FDelegateHandle DelegateHandle);
 
-	bool PollSystemCompile(FNiagaraCompilationTaskHandle, FNiagaraSystemAsyncCompileResults&, bool /*bWait*/, bool /*bPeek*/);
-	FDelegateHandle RegisterPollSystemCompile(FOnPollSystemCompile PollSystemCompileCallback);
-	void UnregisterPollSystemCompile(FDelegateHandle DelegateHandle);
+	NIAGARA_API bool PollSystemCompile(FNiagaraCompilationTaskHandle, FNiagaraSystemAsyncCompileResults&, bool /*bWait*/, bool /*bPeek*/);
+	NIAGARA_API FDelegateHandle RegisterPollSystemCompile(FOnPollSystemCompile PollSystemCompileCallback);
+	NIAGARA_API void UnregisterPollSystemCompile(FDelegateHandle DelegateHandle);
 
-	void AbortSystemCompile(FNiagaraCompilationTaskHandle);
-	FDelegateHandle RegisterAbortSystemCompile(FOnAbortSystemCompile AbortSystemCompileCallback);
-	void UnregisterAbortSystemCompile(FDelegateHandle DelegateHandle);
+	NIAGARA_API void AbortSystemCompile(FNiagaraCompilationTaskHandle);
+	NIAGARA_API FDelegateHandle RegisterAbortSystemCompile(FOnAbortSystemCompile AbortSystemCompileCallback);
+	NIAGARA_API void UnregisterAbortSystemCompile(FDelegateHandle DelegateHandle);
 
-	void OnAssetLoaded(UObject* Asset);
+	NIAGARA_API void OnAssetLoaded(UObject* Asset);
 
 #endif
 
 #if NIAGARA_PERF_BASELINES
-	void GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate);
+	NIAGARA_API void GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate);
 
-	bool ToggleStatPerfBaselines(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
-	int32 RenderStatPerfBaselines(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	NIAGARA_API bool ToggleStatPerfBaselines(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	NIAGARA_API int32 RenderStatPerfBaselines(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif
 
 	FORCEINLINE static bool UseGlobalFXBudget() { return bUseGlobalFXBudget; }
-	static void OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable);
+	static NIAGARA_API void OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable);
 
 	FORCEINLINE static bool DataChannelsEnabled() { return bDataChannelsEnabled; }
-	static void OnDataChannelsEnabledChanged(IConsoleVariable* Variable);
+	static NIAGARA_API void OnDataChannelsEnabledChanged(IConsoleVariable* Variable);
 
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
 	FORCEINLINE static float GetGlobalSystemCountScale() { return EngineGlobalSystemCountScale; }
 
-	static float EngineGlobalSpawnCountScale;
-	static float EngineGlobalSystemCountScale;
+	static NIAGARA_API float EngineGlobalSpawnCountScale;
+	static NIAGARA_API float EngineGlobalSystemCountScale;
 
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_WorldDeltaTime() { return Engine_WorldDeltaTime; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Engine_DeltaTime() { return Engine_DeltaTime; }
@@ -273,122 +273,122 @@ public:
 	FOnAbortSystemCompile AbortSystemCompileDelegate;
 #endif
 
-	static int32 EngineEffectsQuality;
+	static NIAGARA_API int32 EngineEffectsQuality;
 
-	static bool bUseGlobalFXBudget;
-	static bool bDataChannelsEnabled;
+	static NIAGARA_API bool bUseGlobalFXBudget;
+	static NIAGARA_API bool bDataChannelsEnabled;
 
 private:
-	static FNiagaraVariable Engine_WorldDeltaTime;
-	static FNiagaraVariable Engine_DeltaTime;
-	static FNiagaraVariable Engine_InvDeltaTime;
-	static FNiagaraVariable Engine_Time; 
-	static FNiagaraVariable Engine_RealTime; 
-	static FNiagaraVariable Engine_QualityLevel; 
+	static NIAGARA_API FNiagaraVariable Engine_WorldDeltaTime;
+	static NIAGARA_API FNiagaraVariable Engine_DeltaTime;
+	static NIAGARA_API FNiagaraVariable Engine_InvDeltaTime;
+	static NIAGARA_API FNiagaraVariable Engine_Time; 
+	static NIAGARA_API FNiagaraVariable Engine_RealTime; 
+	static NIAGARA_API FNiagaraVariable Engine_QualityLevel; 
 
-	static FNiagaraVariable Engine_Owner_Position;
-	static FNiagaraVariable Engine_Owner_Velocity;
-	static FNiagaraVariable Engine_Owner_XAxis;
-	static FNiagaraVariable Engine_Owner_YAxis;
-	static FNiagaraVariable Engine_Owner_ZAxis;
-	static FNiagaraVariable Engine_Owner_Scale;
-	static FNiagaraVariable Engine_Owner_Rotation;
-	static FNiagaraVariable Engine_Owner_LWC_Tile;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_Position;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_Velocity;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_XAxis;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_YAxis;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_ZAxis;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_Scale;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_Rotation;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_LWC_Tile;
 
-	static FNiagaraVariable Engine_Owner_SystemLocalToWorld;
-	static FNiagaraVariable Engine_Owner_SystemWorldToLocal;
-	static FNiagaraVariable Engine_Owner_SystemLocalToWorldTransposed;
-	static FNiagaraVariable Engine_Owner_SystemWorldToLocalTransposed;
-	static FNiagaraVariable Engine_Owner_SystemLocalToWorldNoScale;
-	static FNiagaraVariable Engine_Owner_SystemWorldToLocalNoScale;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_SystemLocalToWorld;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_SystemWorldToLocal;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_SystemLocalToWorldTransposed;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_SystemWorldToLocalTransposed;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_SystemLocalToWorldNoScale;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_SystemWorldToLocalNoScale;
 
-	static FNiagaraVariable Engine_Owner_TimeSinceRendered;
-	static FNiagaraVariable Engine_Owner_LODDistance;
-	static FNiagaraVariable Engine_Owner_LODDistanceFraction;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_TimeSinceRendered;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_LODDistance;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_LODDistanceFraction;
 	
-	static FNiagaraVariable Engine_Owner_ExecutionState;
+	static NIAGARA_API FNiagaraVariable Engine_Owner_ExecutionState;
 
-	static FNiagaraVariable Engine_ExecutionCount;
-	static FNiagaraVariable Engine_Emitter_NumParticles;
-	static FNiagaraVariable Engine_Emitter_SimulationPosition;
-	static FNiagaraVariable Engine_Emitter_TotalSpawnedParticles;
-	static FNiagaraVariable Engine_Emitter_SpawnCountScale;
-	static FNiagaraVariable Engine_System_TickCount;
-	static FNiagaraVariable Engine_System_NumEmittersAlive;
-	static FNiagaraVariable Engine_System_SignificanceIndex;
-	static FNiagaraVariable Engine_System_RandomSeed;
+	static NIAGARA_API FNiagaraVariable Engine_ExecutionCount;
+	static NIAGARA_API FNiagaraVariable Engine_Emitter_NumParticles;
+	static NIAGARA_API FNiagaraVariable Engine_Emitter_SimulationPosition;
+	static NIAGARA_API FNiagaraVariable Engine_Emitter_TotalSpawnedParticles;
+	static NIAGARA_API FNiagaraVariable Engine_Emitter_SpawnCountScale;
+	static NIAGARA_API FNiagaraVariable Engine_System_TickCount;
+	static NIAGARA_API FNiagaraVariable Engine_System_NumEmittersAlive;
+	static NIAGARA_API FNiagaraVariable Engine_System_SignificanceIndex;
+	static NIAGARA_API FNiagaraVariable Engine_System_RandomSeed;
 	
-	static FNiagaraVariable Engine_System_CurrentTimeStep;
-	static FNiagaraVariable Engine_System_NumTimeSteps;
-	static FNiagaraVariable Engine_System_TimeStepFraction;
-	static FNiagaraVariable Engine_System_NumParticles;
+	static NIAGARA_API FNiagaraVariable Engine_System_CurrentTimeStep;
+	static NIAGARA_API FNiagaraVariable Engine_System_NumTimeSteps;
+	static NIAGARA_API FNiagaraVariable Engine_System_TimeStepFraction;
+	static NIAGARA_API FNiagaraVariable Engine_System_NumParticles;
 	
-	static FNiagaraVariable Engine_System_NumEmitters;
-	static FNiagaraVariable Engine_NumSystemInstances;
+	static NIAGARA_API FNiagaraVariable Engine_System_NumEmitters;
+	static NIAGARA_API FNiagaraVariable Engine_NumSystemInstances;
 
-	static FNiagaraVariable Engine_GlobalSpawnCountScale;
-	static FNiagaraVariable Engine_GlobalSystemScale;
+	static NIAGARA_API FNiagaraVariable Engine_GlobalSpawnCountScale;
+	static NIAGARA_API FNiagaraVariable Engine_GlobalSystemScale;
 
-	static FNiagaraVariable Engine_System_Age;
-	static FNiagaraVariable Emitter_Age;
-	static FNiagaraVariable Emitter_LocalSpace;
-	static FNiagaraVariable Emitter_Determinism;
-	static FNiagaraVariable Emitter_InterpolatedSpawn;
-	static FNiagaraVariable Emitter_OverrideGlobalSpawnCountScale;
-	static FNiagaraVariable Emitter_SimulationTarget;
-	static FNiagaraVariable Emitter_RandomSeed;
-	static FNiagaraVariable Engine_Emitter_InstanceSeed;
-	static FNiagaraVariable Emitter_SpawnRate;
-	static FNiagaraVariable Emitter_SpawnInterval;
-	static FNiagaraVariable Emitter_InterpSpawnStartDt;
-	static FNiagaraVariable Emitter_SpawnGroup;
+	static NIAGARA_API FNiagaraVariable Engine_System_Age;
+	static NIAGARA_API FNiagaraVariable Emitter_Age;
+	static NIAGARA_API FNiagaraVariable Emitter_LocalSpace;
+	static NIAGARA_API FNiagaraVariable Emitter_Determinism;
+	static NIAGARA_API FNiagaraVariable Emitter_InterpolatedSpawn;
+	static NIAGARA_API FNiagaraVariable Emitter_OverrideGlobalSpawnCountScale;
+	static NIAGARA_API FNiagaraVariable Emitter_SimulationTarget;
+	static NIAGARA_API FNiagaraVariable Emitter_RandomSeed;
+	static NIAGARA_API FNiagaraVariable Engine_Emitter_InstanceSeed;
+	static NIAGARA_API FNiagaraVariable Emitter_SpawnRate;
+	static NIAGARA_API FNiagaraVariable Emitter_SpawnInterval;
+	static NIAGARA_API FNiagaraVariable Emitter_InterpSpawnStartDt;
+	static NIAGARA_API FNiagaraVariable Emitter_SpawnGroup;
 
-	static FNiagaraVariable Particles_UniqueID;
-	static FNiagaraVariable Particles_ID;
-	static FNiagaraVariable Particles_Position;
-	static FNiagaraVariable Particles_Velocity;
-	static FNiagaraVariable Particles_Color;
-	static FNiagaraVariable Particles_SpriteRotation;
-	static FNiagaraVariable Particles_NormalizedAge;
-	static FNiagaraVariable Particles_SpriteSize;
-	static FNiagaraVariable Particles_SpriteFacing;
-	static FNiagaraVariable Particles_SpriteAlignment;
-	static FNiagaraVariable Particles_SubImageIndex;
-	static FNiagaraVariable Particles_DynamicMaterialParameter;
-	static FNiagaraVariable Particles_DynamicMaterialParameter1;
-	static FNiagaraVariable Particles_DynamicMaterialParameter2;
-	static FNiagaraVariable Particles_DynamicMaterialParameter3;
-	static FNiagaraVariable Particles_Scale;
-	static FNiagaraVariable Particles_Lifetime;
-	static FNiagaraVariable Particles_MeshOrientation;
-	static FNiagaraVariable Particles_VisibilityTag;
-	static FNiagaraVariable Particles_MeshIndex;
-	static FNiagaraVariable Particles_UVScale;
-	static FNiagaraVariable Particles_PivotOffset;
-	static FNiagaraVariable Particles_CameraOffset;
-	static FNiagaraVariable Particles_MaterialRandom;
-	static FNiagaraVariable Particles_LightRadius;
-	static FNiagaraVariable Particles_LightExponent;
-	static FNiagaraVariable Particles_LightEnabled;
-	static FNiagaraVariable Particles_LightVolumetricScattering;
-	static FNiagaraVariable Particles_RibbonID;
-	static FNiagaraVariable Particles_RibbonWidth;
-	static FNiagaraVariable Particles_RibbonTwist;
-	static FNiagaraVariable Particles_RibbonFacing;
-	static FNiagaraVariable Particles_RibbonLinkOrder;
-	static FNiagaraVariable Particles_ComponentsEnabled;
-	static FNiagaraVariable Particles_RibbonUVDistance;
-	static FNiagaraVariable Particles_RibbonU0Override;
-	static FNiagaraVariable Particles_RibbonV0RangeOverride;
-	static FNiagaraVariable Particles_RibbonU1Override;
-	static FNiagaraVariable Particles_RibbonV1RangeOverride;
+	static NIAGARA_API FNiagaraVariable Particles_UniqueID;
+	static NIAGARA_API FNiagaraVariable Particles_ID;
+	static NIAGARA_API FNiagaraVariable Particles_Position;
+	static NIAGARA_API FNiagaraVariable Particles_Velocity;
+	static NIAGARA_API FNiagaraVariable Particles_Color;
+	static NIAGARA_API FNiagaraVariable Particles_SpriteRotation;
+	static NIAGARA_API FNiagaraVariable Particles_NormalizedAge;
+	static NIAGARA_API FNiagaraVariable Particles_SpriteSize;
+	static NIAGARA_API FNiagaraVariable Particles_SpriteFacing;
+	static NIAGARA_API FNiagaraVariable Particles_SpriteAlignment;
+	static NIAGARA_API FNiagaraVariable Particles_SubImageIndex;
+	static NIAGARA_API FNiagaraVariable Particles_DynamicMaterialParameter;
+	static NIAGARA_API FNiagaraVariable Particles_DynamicMaterialParameter1;
+	static NIAGARA_API FNiagaraVariable Particles_DynamicMaterialParameter2;
+	static NIAGARA_API FNiagaraVariable Particles_DynamicMaterialParameter3;
+	static NIAGARA_API FNiagaraVariable Particles_Scale;
+	static NIAGARA_API FNiagaraVariable Particles_Lifetime;
+	static NIAGARA_API FNiagaraVariable Particles_MeshOrientation;
+	static NIAGARA_API FNiagaraVariable Particles_VisibilityTag;
+	static NIAGARA_API FNiagaraVariable Particles_MeshIndex;
+	static NIAGARA_API FNiagaraVariable Particles_UVScale;
+	static NIAGARA_API FNiagaraVariable Particles_PivotOffset;
+	static NIAGARA_API FNiagaraVariable Particles_CameraOffset;
+	static NIAGARA_API FNiagaraVariable Particles_MaterialRandom;
+	static NIAGARA_API FNiagaraVariable Particles_LightRadius;
+	static NIAGARA_API FNiagaraVariable Particles_LightExponent;
+	static NIAGARA_API FNiagaraVariable Particles_LightEnabled;
+	static NIAGARA_API FNiagaraVariable Particles_LightVolumetricScattering;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonID;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonWidth;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonTwist;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonFacing;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonLinkOrder;
+	static NIAGARA_API FNiagaraVariable Particles_ComponentsEnabled;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonUVDistance;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonU0Override;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonV0RangeOverride;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonU1Override;
+	static NIAGARA_API FNiagaraVariable Particles_RibbonV1RangeOverride;
 
-	static FNiagaraVariable ScriptUsage;
-	static FNiagaraVariable ScriptContext;
-	static FNiagaraVariable FunctionDebugState;
-	static FNiagaraVariable DataInstance_Alive;
-	static FNiagaraVariable Translator_BeginDefaults;
-	static FNiagaraVariable Translator_CallID;
+	static NIAGARA_API FNiagaraVariable ScriptUsage;
+	static NIAGARA_API FNiagaraVariable ScriptContext;
+	static NIAGARA_API FNiagaraVariable FunctionDebugState;
+	static NIAGARA_API FNiagaraVariable DataInstance_Alive;
+	static NIAGARA_API FNiagaraVariable Translator_BeginDefaults;
+	static NIAGARA_API FNiagaraVariable Translator_CallID;
 
 #if NIAGARA_PERF_BASELINES
 	TUniquePtr<FNiagaraPerfBaselineHandler> BaselineHandler;

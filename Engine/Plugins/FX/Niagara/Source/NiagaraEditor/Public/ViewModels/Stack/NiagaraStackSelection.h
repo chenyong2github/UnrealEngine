@@ -5,22 +5,22 @@
 #include "NiagaraStackEntry.h"
 #include "NiagaraStackSelection.generated.h"
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackSelection : public UNiagaraStackEntry
+UCLASS(MinimalAPI)
+class UNiagaraStackSelection : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData);
 
-	virtual bool GetCanExpand() const override;
+	NIAGARAEDITOR_API virtual bool GetCanExpand() const override;
 
-	virtual bool GetShouldShowInStack() const override;
+	NIAGARAEDITOR_API virtual bool GetShouldShowInStack() const override;
 
-	void SetSelectedEntries(const TArray<UNiagaraStackEntry*>& InSelectedEntries);
+	NIAGARAEDITOR_API void SetSelectedEntries(const TArray<UNiagaraStackEntry*>& InSelectedEntries);
 
 protected:
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 private:
 	TArray<TWeakObjectPtr<UNiagaraStackEntry>> SelectedEntries;

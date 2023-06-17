@@ -66,7 +66,7 @@ private:
 #endif
 };
 
-class NIAGARA_API FNiagaraSystemInstance 
+class FNiagaraSystemInstance 
 {
 	friend class FNiagaraSystemSimulation;
 	friend class FNiagaraGPUSystemTick;
@@ -104,40 +104,40 @@ public:
 	FORCEINLINE bool GetAreDataInterfacesInitialized() const { return bDataInterfacesInitialized; }
 
 	/** Creates a new Niagara system instance. */
-	FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& InAsset, FNiagaraUserRedirectionParameterStore* InOverrideParameters = nullptr,
+	NIAGARA_API FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& InAsset, FNiagaraUserRedirectionParameterStore* InOverrideParameters = nullptr,
 		USceneComponent* InAttachComponent = nullptr, ENiagaraTickBehavior InTickBehavior = ENiagaraTickBehavior::UsePrereqs, bool bInPooled = false);
 
 	/** Cleanup*/
-	virtual ~FNiagaraSystemInstance();
+	NIAGARA_API virtual ~FNiagaraSystemInstance();
 
-	void Cleanup();
+	NIAGARA_API void Cleanup();
 
 	/** Initializes this System instance to simulate the supplied System. */
-	void Init(bool bInForceSolo=false);
+	NIAGARA_API void Init(bool bInForceSolo=false);
 
-	void Activate(EResetMode InResetMode = EResetMode::ResetAll);
-	void Deactivate(bool bImmediate = false);
-	void Complete(bool bExternalCompletion);
+	NIAGARA_API void Activate(EResetMode InResetMode = EResetMode::ResetAll);
+	NIAGARA_API void Deactivate(bool bImmediate = false);
+	NIAGARA_API void Complete(bool bExternalCompletion);
 
-	void OnPooledReuse(UWorld& NewWorld);
+	NIAGARA_API void OnPooledReuse(UWorld& NewWorld);
 
-	void SetPaused(bool bInPaused);
+	NIAGARA_API void SetPaused(bool bInPaused);
 	FORCEINLINE bool IsPaused() const { return (SystemInstanceState == ENiagaraSystemInstanceState::PendingSpawnPaused) || (SystemInstanceState == ENiagaraSystemInstanceState::Paused); }
 
-	void SetSolo(bool bInSolo);
+	NIAGARA_API void SetSolo(bool bInSolo);
 
-	void SetGpuComputeDebug(bool bEnableDebug);
-	void SetWarmupSettings(int32 WarmupTickCount, float WarmupTickDelta);
+	NIAGARA_API void SetGpuComputeDebug(bool bEnableDebug);
+	NIAGARA_API void SetWarmupSettings(int32 WarmupTickCount, float WarmupTickDelta);
 
-	UActorComponent* GetPrereqComponent() const;
+	NIAGARA_API UActorComponent* GetPrereqComponent() const;
 
 	//void RebindParameterCollection(UNiagaraParameterCollectionInstance* OldInstance, UNiagaraParameterCollectionInstance* NewInstance);
-	void BindParameters();
-	void UnbindParameters(bool bFromComplete = false);
+	NIAGARA_API void BindParameters();
+	NIAGARA_API void UnbindParameters(bool bFromComplete = false);
 
 	FORCEINLINE FNiagaraParameterStore& GetInstanceParameters() { return InstanceParameters; }
-	FNiagaraLWCConverter GetLWCConverter(bool bLocalSpaceEmitter = false) const;
-	FTransform GetLWCSimToWorld(bool bLocalSpaceEmitter = false) const;
+	NIAGARA_API FNiagaraLWCConverter GetLWCConverter(bool bLocalSpaceEmitter = false) const;
+	NIAGARA_API FTransform GetLWCSimToWorld(bool bLocalSpaceEmitter = false) const;
 
 	FORCEINLINE uint32 GetParameterIndex(bool PreviousFrame = false) const
 	{
@@ -161,35 +161,35 @@ public:
 	FORCEINLINE const FNiagaraEmitterParameters& GetEmitterParameters(int32 EmitterIdx, bool PreviousFrame = false) const { return EmitterParameters[EmitterIdx * 2 + GetParameterIndex(PreviousFrame)]; }
 	FORCEINLINE FNiagaraEmitterParameters& EditEmitterParameters(int32 EmitterIdx) { return EmitterParameters[EmitterIdx * 2 + GetParameterIndex()]; }
 	
-	FNiagaraWorldManager* GetWorldManager()const;
-	bool RequiresDistanceFieldData() const;
-	bool RequiresDepthBuffer() const;
-	bool RequiresEarlyViewData() const;
-	bool RequiresViewUniformBuffer() const;
-	bool RequiresRayTracingScene() const;
+	NIAGARA_API FNiagaraWorldManager* GetWorldManager()const;
+	NIAGARA_API bool RequiresDistanceFieldData() const;
+	NIAGARA_API bool RequiresDepthBuffer() const;
+	NIAGARA_API bool RequiresEarlyViewData() const;
+	NIAGARA_API bool RequiresViewUniformBuffer() const;
+	NIAGARA_API bool RequiresRayTracingScene() const;
 
 	/** Requests the the simulation be reset on the next tick. */
-	void Reset(EResetMode Mode);
+	NIAGARA_API void Reset(EResetMode Mode);
 
-	void ManualTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+	NIAGARA_API void ManualTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
 
 	/** Ticks the system using the a SimCache. */
-	void SimCacheTick_GameThread(UNiagaraSimCache* SimCache, float DesiredAge, float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+	NIAGARA_API void SimCacheTick_GameThread(UNiagaraSimCache* SimCache, float DesiredAge, float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
 	/** Concurrent work for SimCache tick */
-	void SimCacheTick_Concurrent(UNiagaraSimCache* SimCache);
+	NIAGARA_API void SimCacheTick_Concurrent(UNiagaraSimCache* SimCache);
 
 	/** Initial phase of system instance tick. Must be executed on the game thread. */
-	void Tick_GameThread(float DeltaSeconds);
+	NIAGARA_API void Tick_GameThread(float DeltaSeconds);
 	/** Secondary phase of the system instance tick that can be executed on any thread. */
-	void Tick_Concurrent(bool bEnqueueGPUTickIfNeeded = true);
+	NIAGARA_API void Tick_Concurrent(bool bEnqueueGPUTickIfNeeded = true);
 	/** 
 		Final phase of system instance tick. Must be executed on the game thread. 
 		Returns whether the Finalize was actually done. It's possible for the finalize in a task to have already been done earlier on the GT by a WaitForAsyncAndFinalize call.
 	*/
-	void FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded = true);
+	NIAGARA_API void FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeeded = true);
 
-	void GenerateAndSubmitGPUTick();
-	void InitGPUTick(FNiagaraGPUSystemTick& OutTick);
+	NIAGARA_API void GenerateAndSubmitGPUTick();
+	NIAGARA_API void InitGPUTick(FNiagaraGPUSystemTick& OutTick);
 
 	void SetPendingFinalize(FNiagaraSystemInstanceFinalizeRef InFinalizeRef) { FinalizeRef = InFinalizeRef; }
 	bool HasPendingFinalize() const { return FinalizeRef.IsPending(); }
@@ -198,27 +198,27 @@ public:
 	Wait for any pending concurrent work to complete, must be called on the GameThread.
 	This will NOT call finalize on the instance so can leave a dangling finalize task.
 	*/
-	void WaitForConcurrentTickDoNotFinalize(bool bEnsureComplete = false);
+	NIAGARA_API void WaitForConcurrentTickDoNotFinalize(bool bEnsureComplete = false);
 
 	/**
 	Wait for any pending concurrent work to complete, must be called on the GameThread.
 	The instance will be finalized if pending, this can complete the instance and remove it from the system simulation.
 	*/
-	void WaitForConcurrentTickAndFinalize(bool bEnsureComplete = false);
+	NIAGARA_API void WaitForConcurrentTickAndFinalize(bool bEnsureComplete = false);
 
 	/** Handles completion of the system and returns true if the system is complete. */
-	bool HandleCompletion();
+	NIAGARA_API bool HandleCompletion();
 
-	void SetEmitterEnable(FName EmitterName, bool bNewEnableState);
+	NIAGARA_API void SetEmitterEnable(FName EmitterName, bool bNewEnableState);
 
 	/** Perform per-tick updates on data interfaces that need it. This can cause systems to complete so cannot be parallelized. */
-	void TickDataInterfaces(float DeltaSeconds, bool bPostSimulate);
+	NIAGARA_API void TickDataInterfaces(float DeltaSeconds, bool bPostSimulate);
 
 	ENiagaraExecutionState GetRequestedExecutionState()const { return RequestedExecutionState; }
-	void SetRequestedExecutionState(ENiagaraExecutionState InState);
+	NIAGARA_API void SetRequestedExecutionState(ENiagaraExecutionState InState);
 
 	ENiagaraExecutionState GetActualExecutionState() { return ActualExecutionState; }
-	void SetActualExecutionState(ENiagaraExecutionState InState);
+	NIAGARA_API void SetActualExecutionState(ENiagaraExecutionState InState);
 
 //	float GetSystemTimeSinceRendered() const { return SystemTimeSinceRenderedParam.GetValue(); }
 
@@ -231,7 +231,7 @@ public:
 	FORCEINLINE bool IsDisabled()const { return ActualExecutionState == ENiagaraExecutionState::Disabled; }
 
 	/** Gets the simulation for the supplied emitter handle. */
-	TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> GetSimulationForHandle(const FNiagaraEmitterHandle& EmitterHandle);
+	NIAGARA_API TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> GetSimulationForHandle(const FNiagaraEmitterHandle& EmitterHandle);
 
 	FORCEINLINE UWorld* GetWorld() const { return World; }
 	FORCEINLINE UNiagaraSystem* GetSystem() const { return System; }
@@ -242,16 +242,16 @@ public:
 	FORCEINLINE const TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> >& GetEmitters() const { return Emitters; }
 	FORCEINLINE const FBox& GetLocalBounds() const { return LocalBounds;  }
 	FORCEINLINE const FVector3f& GetLWCTile() const { return LWCTile;  }
-	TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const;
+	NIAGARA_API TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const;
 
 	FORCEINLINE void SetSystemFixedBounds(const FBox& InLocalBounds) { FixedBounds_GT = InLocalBounds; }
-	FBox GetSystemFixedBounds() const;
-	void SetEmitterFixedBounds(FName EmitterName, const FBox& InLocalBounds);
-	FBox GetEmitterFixedBounds(FName EmitterName) const;
+	NIAGARA_API FBox GetSystemFixedBounds() const;
+	NIAGARA_API void SetEmitterFixedBounds(FName EmitterName, const FBox& InLocalBounds);
+	NIAGARA_API FBox GetEmitterFixedBounds(FName EmitterName) const;
 
-	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
+	NIAGARA_API FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
-	void SetForceSolo(bool bForceSolo);
+	NIAGARA_API void SetForceSolo(bool bForceSolo);
 	FORCEINLINE bool IsSolo() const { return bSolo; }
 
 	FORCEINLINE bool NeedsGPUTick() const { return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
@@ -265,16 +265,16 @@ public:
 
 #if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
-	FOnInitialized& OnInitialized();
+	NIAGARA_API FOnInitialized& OnInitialized();
 
 	/** Gets a multicast delegate which is called whenever this instance is reset due to external changes in the source System asset. */
-	FOnReset& OnReset();
+	NIAGARA_API FOnReset& OnReset();
 
-	FOnDestroyed& OnDestroyed();
+	NIAGARA_API FOnDestroyed& OnDestroyed();
 #endif
 
 #if WITH_EDITORONLY_DATA
-	bool GetIsolateEnabled() const;
+	NIAGARA_API bool GetIsolateEnabled() const;
 #endif
 
 	FNiagaraSystemInstanceID GetId() const { return ID; }
@@ -324,10 +324,10 @@ public:
 
 	FORCEINLINE const FNiagaraPerInstanceDIFuncInfo& GetPerInstanceDIFunction(ENiagaraSystemSimulationScript ScriptType, int32 FuncIndex)const { return PerInstanceDIFunctions[(int32)ScriptType][FuncIndex]; }
 
-	void EvaluateBoundFunction(FName FunctionName, bool& UsedOnCpu, bool& UsedOnGpu) const;
+	NIAGARA_API void EvaluateBoundFunction(FName FunctionName, bool& UsedOnCpu, bool& UsedOnGpu) const;
 
 #if WITH_EDITORONLY_DATA
-	bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
+	NIAGARA_API bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
 #endif
 
 	FORCEINLINE bool IsPendingSpawn() const { return (SystemInstanceState == ENiagaraSystemInstanceState::PendingSpawn) || (SystemInstanceState == ENiagaraSystemInstanceState::PendingSpawnPaused); }
@@ -343,77 +343,77 @@ public:
 		return SystemSimulation; 
 	}
 
-	bool IsReadyToRun() const;
+	NIAGARA_API bool IsReadyToRun() const;
 
-	UNiagaraParameterCollectionInstance* GetParameterCollectionInstance(UNiagaraParameterCollection* Collection);
+	NIAGARA_API UNiagaraParameterCollectionInstance* GetParameterCollectionInstance(UNiagaraParameterCollection* Collection);
 
 	/** 
 	Manually advances this system's simulation by the specified number of ticks and tick delta. 
 	To be advanced in this way a system must be in solo mode or moved into solo mode which will add additional overhead.
 	*/
-	void AdvanceSimulation(int32 TickCountToSimulate, float TickDeltaSeconds);
+	NIAGARA_API void AdvanceSimulation(int32 TickCountToSimulate, float TickDeltaSeconds);
 
 #if NIAGARA_SYSTEM_CAPTURE
 	/** Request that this simulation capture a frame. Cannot capture if disabled or already completed.*/
-	bool RequestCapture(const FGuid& RequestId);
+	NIAGARA_API bool RequestCapture(const FGuid& RequestId);
 
 	/** Poll for previous frame capture requests. Once queried and bool is returned, the results are cleared from this system instance.*/
-	bool QueryCaptureResults(const FGuid& RequestId, TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>& OutCaptureResults);
+	NIAGARA_API bool QueryCaptureResults(const FGuid& RequestId, TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>& OutCaptureResults);
 
 	/** Only call from within the script execution states. Value is null if not capturing a frame.*/
-	TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>* GetActiveCaptureResults();
+	NIAGARA_API TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>* GetActiveCaptureResults();
 
 	/** Only call from within the script execution states. Does nothing if not capturing a frame.*/
-	void FinishCapture();
+	NIAGARA_API void FinishCapture();
 
 	/** Only call from within the script execution states. Value is false if not capturing a frame.*/
-	bool ShouldCaptureThisFrame() const;
+	NIAGARA_API bool ShouldCaptureThisFrame() const;
 
 	/** Only call from within the script execution states. Value is nullptr if not capturing a frame.*/
-	TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> GetActiveCaptureWrite(const FName& InHandleName, ENiagaraScriptUsage InUsage, const FGuid& InUsageId);
+	NIAGARA_API TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> GetActiveCaptureWrite(const FName& InHandleName, ENiagaraScriptUsage InUsage, const FGuid& InUsageId);
 
 #endif
 
 	/** Dumps all of this systems info to the log. */
-	void Dump()const;
+	NIAGARA_API void Dump()const;
 
 	/** Dumps information about the instances tick to the log */
-	void DumpTickInfo(FOutputDevice& Ar);
+	NIAGARA_API void DumpTickInfo(FOutputDevice& Ar);
 
 	FNiagaraGpuComputeDispatchInterface* GetComputeDispatchInterface() const { return ComputeDispatchInterface; }
 
-	static bool AllocateSystemInstance(FNiagaraSystemInstancePtr& OutSystemInstanceAllocation, UWorld& InWorld, UNiagaraSystem& InAsset,
+	static NIAGARA_API bool AllocateSystemInstance(FNiagaraSystemInstancePtr& OutSystemInstanceAllocation, UWorld& InWorld, UNiagaraSystem& InAsset,
 		FNiagaraUserRedirectionParameterStore* InOverrideParameters = nullptr, USceneComponent* InAttachComponent = nullptr,
 		ENiagaraTickBehavior InTickBehavior = ENiagaraTickBehavior::UsePrereqs, bool bInPooled = false);
-	static bool DeallocateSystemInstance(FNiagaraSystemInstancePtr& SystemInstanceAllocation);
+	static NIAGARA_API bool DeallocateSystemInstance(FNiagaraSystemInstancePtr& SystemInstanceAllocation);
 	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }*/
 	bool HasGPUEmitters() { return bHasGPUEmitters;  }
 
-	void TickInstanceParameters_GameThread(float DeltaSeconds);
+	NIAGARA_API void TickInstanceParameters_GameThread(float DeltaSeconds);
 
-	void TickInstanceParameters_Concurrent();
+	NIAGARA_API void TickInstanceParameters_Concurrent();
 
-	FNiagaraDataSet* CreateEventDataSet(FName EmitterName, FName EventName);
-	FNiagaraDataSet* GetEventDataSet(FName EmitterName, FName EventName) const;
-	void ClearEventDataSets();
+	NIAGARA_API FNiagaraDataSet* CreateEventDataSet(FName EmitterName, FName EventName);
+	NIAGARA_API FNiagaraDataSet* GetEventDataSet(FName EmitterName, FName EventName) const;
+	NIAGARA_API void ClearEventDataSets();
 
-	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance, bool bOverride);
-	FORCEINLINE void ClearLODDistance();
+	NIAGARA_API FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance, bool bOverride);
+	NIAGARA_API FORCEINLINE void ClearLODDistance();
 
-	const FString& GetCrashReporterTag()const;
+	NIAGARA_API const FString& GetCrashReporterTag()const;
 
 #if WITH_EDITOR
-	void RaiseNeedsUIResync();
-	bool HandleNeedsUIResync();
+	NIAGARA_API void RaiseNeedsUIResync();
+	NIAGARA_API bool HandleNeedsUIResync();
 #endif
 
 	/** Get the current tick behavior */
 	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
 	/** Set a new tick behavior, this will not move the instance straight away and will wait until the next time it is evaluated */
-	void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
+	NIAGARA_API void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
 	
 	/** Calculates which tick group the instance should be in. */
-	ETickingGroup CalculateTickGroup() const;
+	NIAGARA_API ETickingGroup CalculateTickGroup() const;
 
 	/** Gets the current world transform of the system */
 	FORCEINLINE const FTransform& GetWorldTransform() const { return WorldTransform; }
@@ -432,35 +432,35 @@ public:
 	FORCEINLINE void SetSystemSignificanceIndex(int32 InIndex) { SignificanceIndex = InIndex; }
 
 	/** Calculates the distance to use for distance based LODing / culling. */
-	float GetLODDistance();
+	NIAGARA_API float GetLODDistance();
 	float GetMaxLODDistance() const { return MaxLODDistance ;}
 
-	void OnSimulationDestroyed();
+	NIAGARA_API void OnSimulationDestroyed();
 
 	void SetRandomSeedOffset(int32 Offset) { RandomSeedOffset = Offset; }
 	int32 GetRandomSeedOffset() const { return RandomSeedOffset; }
 
-	FNDIStageTickHandler* GetSystemDIStageTickHandler(ENiagaraScriptUsage Usage);
+	NIAGARA_API FNDIStageTickHandler* GetSystemDIStageTickHandler(ENiagaraScriptUsage Usage);
 private:
-	void DumpStalledInfo();
+	NIAGARA_API void DumpStalledInfo();
 
-	void DestroyDataInterfaceInstanceData();
+	NIAGARA_API void DestroyDataInterfaceInstanceData();
 
 	/** Builds the emitter simulations. */
-	void InitEmitters();
+	NIAGARA_API void InitEmitters();
 
 	/** Resets the System, emitter simulations, and renderers to initial conditions. */
-	void ReInitInternal();
+	NIAGARA_API void ReInitInternal();
 	/** Resets for restart, assumes no change in emitter setup */
-	void ResetInternal(bool bResetSimulations);
+	NIAGARA_API void ResetInternal(bool bResetSimulations);
 
 	/** Resets the parameter structs */
-	void ResetParameters();
+	NIAGARA_API void ResetParameters();
 
 	/** Call PrepareForSImulation on each data source from the simulations and determine which need per-tick updates.*/
-	void InitDataInterfaces();
+	NIAGARA_API void InitDataInterfaces();
 
-	void ResolveUserDataInterfaceBindings();
+	NIAGARA_API void ResolveUserDataInterfaceBindings();
 
 	/** The LWC tile of this system instance, used to offset all local simulation relative to the origin */
 	FVector3f LWCTile = FVector3f::ZeroVector;

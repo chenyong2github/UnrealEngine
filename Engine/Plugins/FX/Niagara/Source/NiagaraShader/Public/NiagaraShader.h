@@ -28,7 +28,7 @@ class UClass;
 template<typename TBufferStruct> class TUniformBufferRef;
 
 /** Base class of all shaders that need material parameters. */
-class NIAGARASHADER_API FNiagaraShader : public FShader
+class FNiagaraShader : public FShader
 {
 public:
 	DECLARE_SHADER_TYPE(FNiagaraShader, Niagara);
@@ -208,7 +208,7 @@ public:
 
 	using FPermutationParameters = FNiagaraShaderPermutationParameters;
 
-	static FName UniformBufferLayoutName;
+	static NIAGARASHADER_API FName UniformBufferLayoutName;
 
 	static FIntVector GetDefaultThreadGroupSize(ENiagaraGpuDispatchType DispatchType)
 	{
@@ -230,7 +230,7 @@ public:
 	}
 
 	FNiagaraShader() {}
-	FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);
+	NIAGARASHADER_API FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);
 
 	TConstArrayView<FNiagaraDataInterfaceParamRef> GetDIParameters()
 	{

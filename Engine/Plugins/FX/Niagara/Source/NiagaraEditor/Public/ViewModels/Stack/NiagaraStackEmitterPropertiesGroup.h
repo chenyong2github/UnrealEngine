@@ -12,28 +12,28 @@ class UNiagaraSimulationStageBase;
 class UNiagaraStackEmitterPropertiesItem;
 class UNiagaraStackObject;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackEmitterPropertiesGroup : public UNiagaraStackItemGroup
+UCLASS(MinimalAPI)
+class UNiagaraStackEmitterPropertiesGroup : public UNiagaraStackItemGroup
 {
 	GENERATED_BODY()
 
 public:
-	UNiagaraStackEmitterPropertiesGroup();
+	NIAGARAEDITOR_API UNiagaraStackEmitterPropertiesGroup();
 
-	void Initialize(FRequiredEntryData InRequiredEntryData);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData);
 
 	virtual EIconMode GetSupportedIconMode() const override { return EIconMode::Brush; }
-	virtual const FSlateBrush* GetIconBrush() const override;
+	NIAGARAEDITOR_API virtual const FSlateBrush* GetIconBrush() const override;
 	virtual bool SupportsSecondaryIcon() const override { return true; }
-	virtual const FSlateBrush* GetSecondaryIconBrush() const override;
+	NIAGARAEDITOR_API virtual const FSlateBrush* GetSecondaryIconBrush() const override;
 	virtual bool GetCanExpandInOverview() const override { return false; }
 	virtual bool GetShouldShowInStack() const override { return false; }
 
 protected:
-	void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 private:
-	void ItemAddedFromUtilities(FGuid AddedEventHandlerId, UNiagaraSimulationStageBase* AddedSimulationStage);
+	NIAGARAEDITOR_API void ItemAddedFromUtilities(FGuid AddedEventHandlerId, UNiagaraSimulationStageBase* AddedSimulationStage);
 
 private:
 	UPROPERTY()

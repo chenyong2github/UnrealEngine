@@ -190,7 +190,7 @@ enum class EParameterDefinitionMatchState : uint8
 
 
 USTRUCT()
-struct NIAGARAEDITOR_API FFunctionInputSummaryViewKey
+struct FFunctionInputSummaryViewKey
 {
 	GENERATED_BODY()
 
@@ -239,7 +239,7 @@ public:
 };
 
 USTRUCT()
-struct NIAGARAEDITOR_API FFunctionInputSummaryViewMetadata
+struct FFunctionInputSummaryViewMetadata
 {
 	GENERATED_BODY()
 

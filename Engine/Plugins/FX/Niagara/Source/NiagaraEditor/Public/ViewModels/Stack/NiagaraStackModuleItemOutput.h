@@ -10,35 +10,35 @@
 class UNiagaraNodeFunctionCall;
 
 /** Represents a single module Output in the module stack view model. */
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackModuleItemOutput : public UNiagaraStackEntry
+UCLASS(MinimalAPI)
+class UNiagaraStackModuleItemOutput : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 
 public:
-	UNiagaraStackModuleItemOutput();
+	NIAGARAEDITOR_API UNiagaraStackModuleItemOutput();
 
 	/** 
 	 * Sets the Output data for this entry.
 	 * @param InFunctionCallNode The function call node representing the module in the stack graph which owns this Output.
 	 * @param InOutputParameterHandle The Namespace.Name handle for the Output to the owning module.
 	 */
-	void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraNodeFunctionCall& InFunctionCallNode, FName InOutputParameterHandle, FNiagaraTypeDefinition InOutputType);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraNodeFunctionCall& InFunctionCallNode, FName InOutputParameterHandle, FNiagaraTypeDefinition InOutputType);
 
 	//~ UNiagaraStackEntry interface
-	virtual FText GetDisplayName() const override;
-	virtual FText GetTooltipText() const override;
-	virtual bool GetIsEnabled() const override;
-	virtual EStackRowStyle GetStackRowStyle() const override;
-	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual FText GetTooltipText() const override;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API virtual EStackRowStyle GetStackRowStyle() const override;
+	NIAGARAEDITOR_API virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 
 	/** Gets the parameter handle which defined this Output in the module. */
-	const FNiagaraParameterHandle& GetOutputParameterHandle() const;
+	NIAGARAEDITOR_API const FNiagaraParameterHandle& GetOutputParameterHandle() const;
 
 	/** Gets the assigned parameter handle as displayable text. */
-	FText GetOutputParameterHandleText() const;
+	NIAGARAEDITOR_API FText GetOutputParameterHandleText() const;
 
-	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
+	NIAGARAEDITOR_API virtual const FCollectedUsageData& GetCollectedUsageData() const override;
 
 private:
 	/** The function call node which represents the emitter which owns this Output */

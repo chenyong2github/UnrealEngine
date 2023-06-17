@@ -12,85 +12,85 @@ class UNiagaraEmitter;
 class UNiagaraRendererProperties;
 class UNiagaraStackObject;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackRendererItem : public UNiagaraStackItem
+UCLASS(MinimalAPI)
+class UNiagaraStackRendererItem : public UNiagaraStackItem
 {
 	GENERATED_BODY()
 		
 public:
-	UNiagaraStackRendererItem();
+	NIAGARAEDITOR_API UNiagaraStackRendererItem();
 
-	void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraRendererProperties* InRendererProperties);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraRendererProperties* InRendererProperties);
 
-	UNiagaraRendererProperties* GetRendererProperties();
-	const UNiagaraRendererProperties* GetRendererProperties() const;
+	NIAGARAEDITOR_API UNiagaraRendererProperties* GetRendererProperties();
+	NIAGARAEDITOR_API const UNiagaraRendererProperties* GetRendererProperties() const;
 	
-	virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
 
 	virtual bool SupportsCut() const override { return true; }
-	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
-	virtual FText GetCutTransactionText() const override;
-	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
-	virtual void RemoveForCut() override;
+	NIAGARAEDITOR_API virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
+	NIAGARAEDITOR_API virtual FText GetCutTransactionText() const override;
+	NIAGARAEDITOR_API virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
+	NIAGARAEDITOR_API virtual void RemoveForCut() override;
 
 	virtual bool SupportsCopy() const override { return true; }
-	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
-	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
+	NIAGARAEDITOR_API virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
+	NIAGARAEDITOR_API virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
 
 	virtual bool SupportsPaste() const override { return true; }
-	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
-	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
-	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
+	NIAGARAEDITOR_API virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	NIAGARAEDITOR_API virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	NIAGARAEDITOR_API virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
 
 	virtual bool SupportsDelete() const override { return true; }
-	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
-	virtual FText GetDeleteTransactionText() const override;
-	virtual void Delete() override;
+	NIAGARAEDITOR_API virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
+	NIAGARAEDITOR_API virtual FText GetDeleteTransactionText() const override;
+	NIAGARAEDITOR_API virtual void Delete() override;
 
 	virtual bool SupportsInheritance() const override { return true; }
-	virtual bool GetIsInherited() const override;
-	virtual FText GetInheritanceMessage() const override;
+	NIAGARAEDITOR_API virtual bool GetIsInherited() const override;
+	NIAGARAEDITOR_API virtual FText GetInheritanceMessage() const override;
 
 	virtual bool SupportsSummaryView() const override { return true; }
-	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
+	NIAGARAEDITOR_API virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 	
 	virtual bool SupportsRename() const override { return true; }
 
-	bool HasBaseRenderer() const;
+	NIAGARAEDITOR_API bool HasBaseRenderer() const;
 
 	virtual bool SupportsChangeEnabled() const override { return true; }
-	virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
 
 	virtual EIconMode GetSupportedIconMode() const override { return EIconMode::Brush; }
-	virtual const FSlateBrush* GetIconBrush() const override;
+	NIAGARAEDITOR_API virtual const FSlateBrush* GetIconBrush() const override;
 
 	virtual bool SupportsResetToBase() const override { return true; }
-	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
-	virtual void ResetToBase() override;
+	NIAGARAEDITOR_API virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
+	NIAGARAEDITOR_API virtual void ResetToBase() override;
 
-	static TArray<FNiagaraVariable> GetMissingVariables(UNiagaraRendererProperties* RendererProperties, const FVersionedNiagaraEmitterData* EmitterData);
-	static bool AddMissingVariable(const FVersionedNiagaraEmitterData* EmitterData, const FNiagaraVariable& Variable);
+	static NIAGARAEDITOR_API TArray<FNiagaraVariable> GetMissingVariables(UNiagaraRendererProperties* RendererProperties, const FVersionedNiagaraEmitterData* EmitterData);
+	static NIAGARAEDITOR_API bool AddMissingVariable(const FVersionedNiagaraEmitterData* EmitterData, const FNiagaraVariable& Variable);
 
-	bool IsExcludedFromScalability() const;
-	bool IsOwningEmitterExcludedFromScalability() const;
+	NIAGARAEDITOR_API bool IsExcludedFromScalability() const;
+	NIAGARAEDITOR_API bool IsOwningEmitterExcludedFromScalability() const;
 
-	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
+	NIAGARAEDITOR_API virtual const FCollectedUsageData& GetCollectedUsageData() const override;
 
-	bool CanMoveRendererUp() const;
-	void MoveRendererUp() const;
-	bool CanMoveRendererDown() const;
-	void MoveRendererDown() const;
+	NIAGARAEDITOR_API bool CanMoveRendererUp() const;
+	NIAGARAEDITOR_API void MoveRendererUp() const;
+	NIAGARAEDITOR_API bool CanMoveRendererDown() const;
+	NIAGARAEDITOR_API void MoveRendererDown() const;
 protected:
-	virtual void FinalizeInternal() override;
+	NIAGARAEDITOR_API virtual void FinalizeInternal() override;
 
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
-	virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
+	NIAGARAEDITOR_API virtual void SetIsEnabledInternal(bool bInIsEnabled) override;
 
 private:
-	void RendererChanged();
-	void RefreshIssues(TArray<FStackIssue>& NewIssues);
-	void ProcessRendererIssues(const TArray<FNiagaraRendererFeedback>& InIssues, EStackIssueSeverity Severity, TArray<FStackIssue>& OutIssues);
+	NIAGARAEDITOR_API void RendererChanged();
+	NIAGARAEDITOR_API void RefreshIssues(TArray<FStackIssue>& NewIssues);
+	NIAGARAEDITOR_API void ProcessRendererIssues(const TArray<FNiagaraRendererFeedback>& InIssues, EStackIssueSeverity Severity, TArray<FStackIssue>& OutIssues);
 
 private:
 	TWeakObjectPtr<UNiagaraRendererProperties> RendererProperties;

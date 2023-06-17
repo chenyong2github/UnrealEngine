@@ -26,7 +26,7 @@ struct FNiagaraDataInterfaceProxy;
 *	Useful for transient working data generated in one dispatch and consumed in others.
 *	All buffers in the same scratch pad are transitioned as one.
 */
-class NIAGARA_API FNiagaraGpuScratchPad
+class FNiagaraGpuScratchPad
 {
 public:
 	struct FAllocation
@@ -275,7 +275,7 @@ FORCEINLINE FNiagaraGpuScratchPad::FAllocation FNiagaraGpuScratchPad::Alloc<uint
 /** Behaves similar to FNiagaraGpuScratchPad but for use with RWStructuredBuffers
 */
 template<typename T>
-class NIAGARA_API FNiagaraGpuScratchPadStructured
+class FNiagaraGpuScratchPadStructured
 {
 public:
 	struct FAllocation

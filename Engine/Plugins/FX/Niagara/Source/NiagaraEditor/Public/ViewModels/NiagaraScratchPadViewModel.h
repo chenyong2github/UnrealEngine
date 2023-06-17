@@ -11,8 +11,8 @@ class FNiagaraScratchPadScriptViewModel;
 class FNiagaraObjectSelection;
 class UNiagaraScript;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraScratchPadViewModel : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraScratchPadViewModel : public UObject
 {
 	GENERATED_BODY()
 
@@ -23,68 +23,68 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnScriptDeleted);
 
 public:
-	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
+	NIAGARAEDITOR_API void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 
-	void Finalize();
+	NIAGARAEDITOR_API void Finalize();
 
-	void RefreshScriptViewModels();
+	NIAGARAEDITOR_API void RefreshScriptViewModels();
 
-	void ApplyScratchPadChanges();
+	NIAGARAEDITOR_API void ApplyScratchPadChanges();
 	
-	const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& GetScriptViewModels() const;
+	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& GetScriptViewModels() const;
 
-	const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& GetEditScriptViewModels() const;
+	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraScratchPadScriptViewModel>>& GetEditScriptViewModels() const;
 
-	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForScript(UNiagaraScript* InScript);
-	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForScript(FName InScriptName);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForScript(UNiagaraScript* InScript);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForScript(FName InScriptName);
 
-	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForEditScript(UNiagaraScript* InEditScript);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraScratchPadScriptViewModel> GetViewModelForEditScript(UNiagaraScript* InEditScript);
 
-	const TArray<ENiagaraScriptUsage>& GetAvailableUsages() const;
+	NIAGARAEDITOR_API const TArray<ENiagaraScriptUsage>& GetAvailableUsages() const;
 
-	FText GetDisplayNameForUsage(ENiagaraScriptUsage InUsage) const;
+	NIAGARAEDITOR_API FText GetDisplayNameForUsage(ENiagaraScriptUsage InUsage) const;
 
-	TSharedRef<FNiagaraObjectSelection> GetObjectSelection();
+	NIAGARAEDITOR_API TSharedRef<FNiagaraObjectSelection> GetObjectSelection();
 
-	TSharedPtr<FNiagaraScratchPadScriptViewModel> GetActiveScriptViewModel();
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraScratchPadScriptViewModel> GetActiveScriptViewModel();
 
-	void SetActiveScriptViewModel(TSharedRef<FNiagaraScratchPadScriptViewModel> InActiveScriptViewModel);
+	NIAGARAEDITOR_API void SetActiveScriptViewModel(TSharedRef<FNiagaraScratchPadScriptViewModel> InActiveScriptViewModel);
 
-	void FocusScratchPadScriptViewModel(TSharedRef<FNiagaraScratchPadScriptViewModel> InScriptViewModel);
+	NIAGARAEDITOR_API void FocusScratchPadScriptViewModel(TSharedRef<FNiagaraScratchPadScriptViewModel> InScriptViewModel);
 
-	void ResetActiveScriptViewModel();
+	NIAGARAEDITOR_API void ResetActiveScriptViewModel();
 
-	void CopyActiveScript();
+	NIAGARAEDITOR_API void CopyActiveScript();
 
-	bool CanPasteScript() const;
+	NIAGARAEDITOR_API bool CanPasteScript() const;
 
-	void PasteScript();
+	NIAGARAEDITOR_API void PasteScript();
 
-	void DeleteActiveScript();
+	NIAGARAEDITOR_API void DeleteActiveScript();
 
-	TSharedPtr<FNiagaraScratchPadScriptViewModel> CreateNewScript(ENiagaraScriptUsage InScriptUsage, ENiagaraScriptUsage InTargetSupportedUsage, FNiagaraTypeDefinition InOutputType);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraScratchPadScriptViewModel> CreateNewScript(ENiagaraScriptUsage InScriptUsage, ENiagaraScriptUsage InTargetSupportedUsage, FNiagaraTypeDefinition InOutputType);
 
-	TSharedPtr<FNiagaraScratchPadScriptViewModel> CreateNewScriptAsDuplicate(const UNiagaraScript* ScriptToDuplicate);
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraScratchPadScriptViewModel> CreateNewScriptAsDuplicate(const UNiagaraScript* ScriptToDuplicate);
 
-	void CreateAssetFromActiveScript();
+	NIAGARAEDITOR_API void CreateAssetFromActiveScript();
 
-	bool CanSelectNextUsageForActiveScript();
+	NIAGARAEDITOR_API bool CanSelectNextUsageForActiveScript();
 
-	void SelectNextUsageForActiveScript();
+	NIAGARAEDITOR_API void SelectNextUsageForActiveScript();
 
-	bool HasUnappliedChanges() const;
+	NIAGARAEDITOR_API bool HasUnappliedChanges() const;
 
-	FOnScriptViewModelsChanged& OnScriptViewModelsChanged();
+	NIAGARAEDITOR_API FOnScriptViewModelsChanged& OnScriptViewModelsChanged();
 
-	FOnScriptViewModelsChanged& OnEditScriptViewModelsChanged();
+	NIAGARAEDITOR_API FOnScriptViewModelsChanged& OnEditScriptViewModelsChanged();
 
-	FOnActiveScriptChanged& OnActiveScriptChanged();
+	NIAGARAEDITOR_API FOnActiveScriptChanged& OnActiveScriptChanged();
 
-	FOnScriptRenamed& OnScriptRenamed();
+	NIAGARAEDITOR_API FOnScriptRenamed& OnScriptRenamed();
 
-	FOnScriptDeleted& OnScriptDeleted();
+	NIAGARAEDITOR_API FOnScriptDeleted& OnScriptDeleted();
 
-	void OpenEditorForActive();
+	NIAGARAEDITOR_API void OpenEditorForActive();
 
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();

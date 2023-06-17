@@ -185,19 +185,19 @@ enum class ENiagaraCVarConditionResponse : uint8
 
 /** Imposes a condition that a CVar must contain a set value or range of values for a platform set to be enabled. */
 USTRUCT()
-struct NIAGARA_API FNiagaraPlatformSetCVarCondition
+struct FNiagaraPlatformSetCVarCondition
 {
 	GENERATED_BODY();
 	
-	FNiagaraPlatformSetCVarCondition();
+	NIAGARA_API FNiagaraPlatformSetCVarCondition();
 
 	/** Return true if this condition is met for the given device profile. */
-	bool Evaluate(const UDeviceProfile* DeviceProfile, int32 QualityLevel, bool bCheckCurrentStateOnly, bool& bOutCanEverPass, bool& bOutCanEverFail)const;
+	NIAGARA_API bool Evaluate(const UDeviceProfile* DeviceProfile, int32 QualityLevel, bool bCheckCurrentStateOnly, bool& bOutCanEverPass, bool& bOutCanEverFail)const;
 
 	/** Returns the CVar for this condition. Can be null if the name give is not a valid CVar or the CVar is removed. */
-	IConsoleVariable* GetCVar()const;
+	NIAGARA_API IConsoleVariable* GetCVar()const;
 
-	void SetCVar(FName InCVarName);
+	NIAGARA_API void SetCVar(FName InCVarName);
 
 	/** The name of the CVar we're testing the value of. */
 	UPROPERTY(EditAnywhere, Category = "CVar")
@@ -305,76 +305,76 @@ struct FNiagaraPlatformSetRedirect
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraPlatformSet
+struct FNiagaraPlatformSet
 {
 	GENERATED_BODY();
 
-	static FORCEINLINE int32 QualityLevelFromMask(int32 QLMask);
-	static FORCEINLINE int32 CreateQualityLevelMask(int32 QL);
-	static FText GetQualityLevelText(int32 QualityLevel);
-	static FText GetQualityLevelMaskText(int32 QualityLevelMask);
+	static NIAGARA_API FORCEINLINE int32 QualityLevelFromMask(int32 QLMask);
+	static NIAGARA_API FORCEINLINE int32 CreateQualityLevelMask(int32 QL);
+	static NIAGARA_API FText GetQualityLevelText(int32 QualityLevel);
+	static NIAGARA_API FText GetQualityLevelMaskText(int32 QualityLevelMask);
 
-	static int32 GetQualityLevel();
-	static int32 GetMinQualityLevel();
-	static int32 GetMaxQualityLevel();
-	static int32 GetAvailableQualityLevelMask();
-	static int32 GetFullQualityLevelMask(int32 NumQualityLevels);
+	static NIAGARA_API int32 GetQualityLevel();
+	static NIAGARA_API int32 GetMinQualityLevel();
+	static NIAGARA_API int32 GetMaxQualityLevel();
+	static NIAGARA_API int32 GetAvailableQualityLevelMask();
+	static NIAGARA_API int32 GetFullQualityLevelMask(int32 NumQualityLevels);
 	
 public:
 
 	//Runtime public API
 
-	FNiagaraPlatformSet(int32 QLMask);
-	FNiagaraPlatformSet();
+	NIAGARA_API FNiagaraPlatformSet(int32 QLMask);
+	NIAGARA_API FNiagaraPlatformSet();
 
-	bool operator==(const FNiagaraPlatformSet& Other)const;
+	NIAGARA_API bool operator==(const FNiagaraPlatformSet& Other)const;
 
 	/** Is this set active right now. i.e. enabled for the current device profile and quality level. */
-	bool IsActive()const;
+	NIAGARA_API bool IsActive()const;
 	
 	/** Is this platform set enabled for the give device profile. */
-	int32 IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
+	NIAGARA_API int32 IsEnabledForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
 
 	/** Is this platform set enabled on any quality level for the passed device profile. Returns the QualityLevelMask for all enabled effects qualities for this profile. */
-	int32 GetEnabledMaskForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
+	NIAGARA_API int32 GetEnabledMaskForDeviceProfile(const UDeviceProfile* DeviceProfile)const;
 
 	/** Is this platform set enabled at this quality level on any device profile. */
-	bool IsEnabledForQualityLevel(int32 QualityLevel)const;
+	NIAGARA_API bool IsEnabledForQualityLevel(int32 QualityLevel)const;
 
 	/** Fill OutProfiles with all device profiles that have been overridden at the passed QualityLevel. */
-	void GetOverridenDeviceProfiles(int32 QualityLevel, TArray<UDeviceProfile*>& OutEnabledProfiles, TArray<UDeviceProfile*>& OutDisabledProfiles)const;
+	NIAGARA_API void GetOverridenDeviceProfiles(int32 QualityLevel, TArray<UDeviceProfile*>& OutEnabledProfiles, TArray<UDeviceProfile*>& OutDisabledProfiles)const;
 
 	/** Returns true if this set is enabled for any profiles on the specified platform. */
-	bool IsEnabledForPlatform(const FString& PlatformName)const;
+	NIAGARA_API bool IsEnabledForPlatform(const FString& PlatformName)const;
 
 	/** Returns true if the current platform can modify it's Niagara scalability settings at runtime. */
-	static bool CanChangeScalabilityAtRuntime();
+	static NIAGARA_API bool CanChangeScalabilityAtRuntime();
 
 	/**Will force all platform sets to regenerate their cached data next time they are used.*/
-	static void InvalidateCachedData();
+	static NIAGARA_API void InvalidateCachedData();
 
 	/** Returns the currenlty(or default) active quality mask for a profile. */
-	static int32 GetActiveQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
+	static NIAGARA_API int32 GetActiveQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
 
 	/** Returns the mask of all available quality levels for a device profile. */
-	static int32 GetAvailableQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
+	static NIAGARA_API int32 GetAvailableQualityMaskForDeviceProfile(const UDeviceProfile* Profile);
 
 	/** Returns true if the passed platform should prune emitters on cook. */
-	static bool ShouldPruneEmittersOnCook(const FString& PlatformName);
+	static NIAGARA_API bool ShouldPruneEmittersOnCook(const FString& PlatformName);
 
 	/** Returns true if the passed platform can modify it's niagara scalability settings at runtime. */
-	static bool CanChangeScalabilityAtRuntime(const UDeviceProfile* DeviceProfile);
+	static NIAGARA_API bool CanChangeScalabilityAtRuntime(const UDeviceProfile* DeviceProfile);
 
-	FNiagaraPlatformSetEnabledState IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel, bool bCheckCurrentStateOnly, FNiagaraPlatformSetEnabledStateDetails* OutDetails=nullptr)const;
+	NIAGARA_API FNiagaraPlatformSetEnabledState IsEnabled(const UDeviceProfile* Profile, int32 QualityLevel, bool bCheckCurrentStateOnly, FNiagaraPlatformSetEnabledStateDetails* OutDetails=nullptr)const;
 
-	bool CanConsiderDeviceProfile(const UDeviceProfile* Profile)const;
+	NIAGARA_API bool CanConsiderDeviceProfile(const UDeviceProfile* Profile)const;
 
-	bool ApplyRedirects();
+	NIAGARA_API bool ApplyRedirects();
 
-	static void RefreshScalability();
-	static void OnCVarChanged(IConsoleVariable* CVar);
-	static void OnCVarUnregistered(IConsoleVariable* CVar);
-	static IConsoleVariable* GetCVar(FName CVarName);
+	static NIAGARA_API void RefreshScalability();
+	static NIAGARA_API void OnCVarChanged(IConsoleVariable* CVar);
+	static NIAGARA_API void OnCVarUnregistered(IConsoleVariable* CVar);
+	static NIAGARA_API IConsoleVariable* GetCVar(FName CVarName);
 
 	//Editor only public API
 #if WITH_EDITOR
@@ -385,16 +385,16 @@ public:
 	//bool Conflicts(const FNiagaraPlatformSet& Other, TArray<const UDeviceProfile*>& OutConflictingProfiles, bool bIncludeProfilesWithVariableQualityLevel=false)const;
 	
 	/** Direct state accessors for the UI. */
-	bool IsEffectQualityEnabled(int32 EffectQuality)const;
-	void SetEnabledForEffectQuality(int32 EffectQuality, bool bEnabled);
-	void SetDeviceProfileState(UDeviceProfile* Profile, int32 QualityLevel, ENiagaraPlatformSelectionState NewState);
-	ENiagaraPlatformSelectionState GetDeviceProfileState(UDeviceProfile* Profile, int32 QualityLevel)const;
+	NIAGARA_API bool IsEffectQualityEnabled(int32 EffectQuality)const;
+	NIAGARA_API void SetEnabledForEffectQuality(int32 EffectQuality, bool bEnabled);
+	NIAGARA_API void SetDeviceProfileState(UDeviceProfile* Profile, int32 QualityLevel, ENiagaraPlatformSelectionState NewState);
+	NIAGARA_API ENiagaraPlatformSelectionState GetDeviceProfileState(UDeviceProfile* Profile, int32 QualityLevel)const;
 	
 	/** Invalidates any cached data on this platform set when something has changed. */
-	void OnChanged();
+	NIAGARA_API void OnChanged();
 
 	/** Inspects the passed sets and generates an array of all conflicts between these sets. Used to keep arrays of platform sets orthogonal. */
-	static bool GatherConflicts(TConstArrayView<const FNiagaraPlatformSet*> PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);
+	static NIAGARA_API bool GatherConflicts(TConstArrayView<const FNiagaraPlatformSet*> PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);
 	
 	DECLARE_DELEGATE_RetVal(int32, FOnOverrideQualityLevel);
 	FOnOverrideQualityLevel OnOverrideQualityLevelDelegate;
@@ -429,15 +429,15 @@ public:
 
 		TArray<int32> QualityLevelsPerEffectsQuality;
 	};
-	static FPlatformIniSettings& GetPlatformIniSettings(const FString& PlatformName);
+	static NIAGARA_API FPlatformIniSettings& GetPlatformIniSettings(const FString& PlatformName);
 
-	static int32 GetEffectQualityMaskForPlatform(const FString& PlatformName);
+	static NIAGARA_API int32 GetEffectQualityMaskForPlatform(const FString& PlatformName);
 #endif
 
 	static uint32 GetLastDirtiedFrame(){ return LastDirtiedFrame; }
 
-	static void SetNiagaraQualityLevelOverride(int32 Override);
-	static void ClearNiagaraQualityLevelOverride();
+	static NIAGARA_API void SetNiagaraQualityLevelOverride(int32 Override);
+	static NIAGARA_API void ClearNiagaraQualityLevelOverride();
 
 private:
 
@@ -447,21 +447,21 @@ private:
 	mutable uint32 LastBuiltFrame;
 
 	//Set from outside when we need to force all cached values to be regenerated. For example on CVar changes.
-	static uint32 LastDirtiedFrame;
+	static NIAGARA_API uint32 LastDirtiedFrame;
 
 	/** Cached value of the CVar fx.Niagara.QualityLevel. Allows us to detect when it has changed so we can properly apply scalability changes. */
-	static int32 CachedQualityLevel;
-	static int32 CachedAvailableQualityLevelMask;
+	static NIAGARA_API int32 CachedQualityLevel;
+	static NIAGARA_API int32 CachedAvailableQualityLevelMask;
 
 	/** An override for Niagara quality level, driven from the Niagara UI. */
-	static int32 QualityLevelOverride;
+	static NIAGARA_API int32 QualityLevelOverride;
 
 #if WITH_EDITOR
 	//Cached data read from platform ini files.
-	static TMap<FName, FPlatformIniSettings> CachedPlatformIniSettings;
+	static NIAGARA_API TMap<FName, FPlatformIniSettings> CachedPlatformIniSettings;
 
 	//Cached final QualityLevel setting for each device profile.
-	static TMap<const UDeviceProfile*, int32> CachedQLMasksPerDeviceProfile;
+	static NIAGARA_API TMap<const UDeviceProfile*, int32> CachedQLMasksPerDeviceProfile;
 #endif
 
 	/**
@@ -472,10 +472,10 @@ private:
 		IConsoleVariable* CVar = nullptr;
 		FDelegateHandle ChangedHandle;
 	};
-	static TMap<FName, FCachedCVarInfo> CachedCVarInfo;
-	static FCriticalSection CachedCVarInfoCritSec;
+	static NIAGARA_API TMap<FName, FCachedCVarInfo> CachedCVarInfo;
+	static NIAGARA_API FCriticalSection CachedCVarInfoCritSec;
 
-	static TArray<FName> ChangedCVars;
+	static NIAGARA_API TArray<FName> ChangedCVars;
 };
 
 

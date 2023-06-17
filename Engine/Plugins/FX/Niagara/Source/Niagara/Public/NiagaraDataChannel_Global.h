@@ -7,33 +7,33 @@
 #include "NiagaraDataChannel_Global.generated.h"
 
 
-UCLASS(Experimental)
-class NIAGARA_API UNiagaraDataChannel_Global : public UNiagaraDataChannel
+UCLASS(Experimental, MinimalAPI)
+class UNiagaraDataChannel_Global : public UNiagaraDataChannel
 {
 	GENERATED_BODY()
 
-	virtual UNiagaraDataChannelHandler* CreateHandler(UWorld* OwningWorld)const override;
+	NIAGARA_API virtual UNiagaraDataChannelHandler* CreateHandler(UWorld* OwningWorld)const override;
 };
 
 /**
 Basic DataChannel handler that makes all data visible globally.
 */
-UCLASS(Experimental, BlueprintType)
-class NIAGARA_API UNiagaraDataChannelHandler_Global : public UNiagaraDataChannelHandler
+UCLASS(Experimental, BlueprintType, MinimalAPI)
+class UNiagaraDataChannelHandler_Global : public UNiagaraDataChannelHandler
 {
 	GENERATED_UCLASS_BODY()
 
 	FNiagaraDataChannelDataPtr Data;
 
 	//UObject Interface
-	virtual void BeginDestroy()override;
+	NIAGARA_API virtual void BeginDestroy()override;
 	//UObject Interface End
 
-	virtual void Init(const UNiagaraDataChannel* InChannel) override;
-	virtual void BeginFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
-	virtual void EndFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
-	virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld) override;
-	virtual FNiagaraDataChannelDataPtr FindData(FNiagaraDataChannelSearchParameters SearchParams, ENiagaraResourceAccess AccessType) override;
+	NIAGARA_API virtual void Init(const UNiagaraDataChannel* InChannel) override;
+	NIAGARA_API virtual void BeginFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
+	NIAGARA_API virtual void EndFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld)override;
+	NIAGARA_API virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld) override;
+	NIAGARA_API virtual FNiagaraDataChannelDataPtr FindData(FNiagaraDataChannelSearchParameters SearchParams, ENiagaraResourceAccess AccessType) override;
 };
 
 /**

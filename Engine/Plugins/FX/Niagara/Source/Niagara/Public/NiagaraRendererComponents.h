@@ -15,18 +15,18 @@ class FNiagaraDataSet;
 /**
 * NiagaraRendererComponents renders an FNiagaraEmitterInstance as scene components
 */
-class NIAGARA_API FNiagaraRendererComponents : public FNiagaraRenderer
+class FNiagaraRendererComponents : public FNiagaraRenderer
 {
 	friend struct FNiagaraRendererComponentsOnObjectsReplacedHelper;
 public:
 
-	FNiagaraRendererComponents(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
-	virtual ~FNiagaraRendererComponents();
+	NIAGARA_API FNiagaraRendererComponents(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	NIAGARA_API virtual ~FNiagaraRendererComponents();
 
 	//FNiagaraRenderer interface
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual void PostSystemTick_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) override;
-	virtual void OnSystemComplete_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) override;
+	NIAGARA_API virtual void DestroyRenderState_Concurrent() override;
+	NIAGARA_API virtual void PostSystemTick_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) override;
+	NIAGARA_API virtual void OnSystemComplete_GameThread(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) override;
 	//FNiagaraRenderer interface END
 
 private:
@@ -57,12 +57,12 @@ private:
 		int32 LastAssignedToParticleID = -1;
 	};
 
-	void ResetComponentPool(bool bResetOwner);
+	NIAGARA_API void ResetComponentPool(bool bResetOwner);
 #if WITH_EDITOR
-	void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
+	NIAGARA_API void OnObjectsReplacedCallback(const TMap<UObject*, UObject*>& ReplacementsMap);
 #endif
 	
-	static void TickPropertyBindings(
+	static NIAGARA_API void TickPropertyBindings(
 		const UNiagaraComponentRendererProperties* Properties,
 		USceneComponent* Component,
 		FNiagaraDataSet& Data,
@@ -71,8 +71,8 @@ private:
 		const FNiagaraLWCConverter& LwcConverter);
 
 	// These property accessor methods are largely copied over from MovieSceneCommonHelpers.h
-	static FComponentPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);
-	static FComponentPropertyAddress FindProperty(const UObject& Object, const FString& InPropertyPath);
+	static NIAGARA_API FComponentPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);
+	static NIAGARA_API FComponentPropertyAddress FindProperty(const UObject& Object, const FString& InPropertyPath);
 
 	// this key is used to check if the template object was changed, e.g. a blueprint compilation
 	TObjectKey<USceneComponent> TemplateKey;

@@ -56,11 +56,11 @@ enum class ENiagaraSimStageExecuteBehavior : uint8
 };
 
 USTRUCT()
-struct NIAGARASHADER_API FSimulationStageMetaData
+struct FSimulationStageMetaData
 {
 	GENERATED_USTRUCT_BODY()
 public:
-	FSimulationStageMetaData();
+	NIAGARASHADER_API FSimulationStageMetaData();
 
 	/** User simulation stage name. */
 	UPROPERTY()

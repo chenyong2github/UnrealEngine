@@ -93,8 +93,8 @@ namespace ENDICollisionQuery_AsyncGpuTraceProvider
 	};
 }
 
-UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
-class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
+UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"), MinimalAPI)
+class UNiagaraSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -236,26 +236,26 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	TArray<FNiagaraPlatformSetRedirect> PlatformSetRedirects;
 
 	// Begin UDeveloperSettings Interface
-	virtual FName GetCategoryName() const override;
+	NIAGARA_API virtual FName GetCategoryName() const override;
 #if WITH_EDITOR
-	void AddEnumParameterType(UEnum* Enum);
-	virtual FText GetSectionText() const override;
+	NIAGARA_API void AddEnumParameterType(UEnum* Enum);
+	NIAGARA_API virtual FText GetSectionText() const override;
 
 	// END UDeveloperSettings Interface
 
-	UNiagaraEffectType* GetDefaultEffectType() const;
+	NIAGARA_API UNiagaraEffectType* GetDefaultEffectType() const;
 
-	UNiagaraEffectType* GetRequiredEffectType() const;
+	NIAGARA_API UNiagaraEffectType* GetRequiredEffectType() const;
 
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNiagaraSettingsChanged, const FName&, const UNiagaraSettings*);
 
 	/** Gets a multicast delegate which is called whenever one of the parameters in this settings object changes. */
-	static FOnNiagaraSettingsChanged& OnSettingsChanged();
+	static NIAGARA_API FOnNiagaraSettingsChanged& OnSettingsChanged();
 
 protected:
-	static FOnNiagaraSettingsChanged SettingsChangedDelegate;
+	static NIAGARA_API FOnNiagaraSettingsChanged SettingsChangedDelegate;
 #endif
 };

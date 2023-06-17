@@ -11,43 +11,43 @@ class FNiagaraEmitterHandleViewModel;
 class UNiagaraStackItemGroupFooter;
 struct FSlateBrush;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackItemGroup : public UNiagaraStackEntry
+UCLASS(MinimalAPI)
+class UNiagaraStackItemGroup : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayName, FText InToolTip, INiagaraStackItemGroupAddUtilities* InAddUtilities);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, FText InDisplayName, FText InToolTip, INiagaraStackItemGroupAddUtilities* InAddUtilities);
 
 	//~ UNiagaraStackEntry interface
-	virtual FText GetDisplayName() const override;
-	virtual EStackRowStyle GetStackRowStyle() const override;
-	virtual FText GetTooltipText() const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual EStackRowStyle GetStackRowStyle() const override;
+	NIAGARAEDITOR_API virtual FText GetTooltipText() const override;
 
 	virtual bool GetCanExpandInOverview() const override { return true; }
-	virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
 	virtual void SetIsEnabled(bool bEnabled) {}
 	virtual bool SupportsChangeEnabled() const { return false; }
 
 	virtual bool SupportsSecondaryIcon() const { return false; }
 	virtual const FSlateBrush* GetSecondaryIconBrush() const { return nullptr; };
 
-	INiagaraStackItemGroupAddUtilities* GetAddUtilities() const;
+	NIAGARAEDITOR_API INiagaraStackItemGroupAddUtilities* GetAddUtilities() const;
 
-	uint32 GetRecursiveStackIssuesCount() const;
-	EStackIssueSeverity GetHighestStackIssueSeverity() const;
+	NIAGARAEDITOR_API uint32 GetRecursiveStackIssuesCount() const;
+	NIAGARAEDITOR_API EStackIssueSeverity GetHighestStackIssueSeverity() const;
 	
 protected:
-	void SetDisplayName(FText InDisplayName);
+	NIAGARAEDITOR_API void SetDisplayName(FText InDisplayName);
 	
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
-	virtual int32 GetChildIndentLevel() const override;
+	NIAGARAEDITOR_API virtual int32 GetChildIndentLevel() const override;
 
-	virtual void ChildStructureChangedInternal() override;
+	NIAGARAEDITOR_API virtual void ChildStructureChangedInternal() override;
 
 private:
-	bool FilterChildrenWithIssues(const UNiagaraStackEntry& Child) const;
+	NIAGARAEDITOR_API bool FilterChildrenWithIssues(const UNiagaraStackEntry& Child) const;
 
 private:
 	UPROPERTY()
@@ -66,15 +66,15 @@ private:
 	TWeakPtr<FNiagaraEmitterHandleViewModel> OwningEmitterHandleViewModelWeak;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackItemGroupFooter : public UNiagaraStackEntry
+UCLASS(MinimalAPI)
+class UNiagaraStackItemGroupFooter : public UNiagaraStackEntry
 {
 	GENERATED_BODY()
 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData);
 
-	virtual EStackRowStyle GetStackRowStyle() const override;
+	NIAGARAEDITOR_API virtual EStackRowStyle GetStackRowStyle() const override;
 
-	virtual bool GetCanExpand() const;
+	NIAGARAEDITOR_API virtual bool GetCanExpand() const;
 };

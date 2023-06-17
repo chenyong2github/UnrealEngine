@@ -7,8 +7,8 @@
 #include "ViewModels/HierarchyEditor/NiagaraHierarchyViewModelBase.h"
 #include "NiagaraStackSummaryViewInputCollection.generated.h"
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackSummaryViewCollection : public UNiagaraStackValueCollection
+UCLASS(MinimalAPI)
+class UNiagaraStackSummaryViewCollection : public UNiagaraStackValueCollection
 {
 	GENERATED_BODY()
 		
@@ -18,21 +18,21 @@ public:
 public:
 	UNiagaraStackSummaryViewCollection() {}
 
-	void Initialize(FRequiredEntryData InRequiredEntryData, FVersionedNiagaraEmitterWeakPtr InEmitter, FString InOwningStackItemEditorDataKey);
-	virtual void FinalizeInternal() override;
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, FVersionedNiagaraEmitterWeakPtr InEmitter, FString InOwningStackItemEditorDataKey);
+	NIAGARAEDITOR_API virtual void FinalizeInternal() override;
 
-	virtual FText GetDisplayName() const override;
-	virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
 	
 protected:
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
-	virtual void GetSectionsInternal(TArray<FNiagaraStackSection>& OutStackSections) const override;
-	const TArray<UNiagaraHierarchySection*>& GetHierarchySections() const;
+	NIAGARAEDITOR_API virtual void GetSectionsInternal(TArray<FNiagaraStackSection>& OutStackSections) const override;
+	NIAGARAEDITOR_API const TArray<UNiagaraHierarchySection*>& GetHierarchySections() const;
 
-	virtual bool FilterByActiveSection(const UNiagaraStackEntry& Child) const override;
+	NIAGARAEDITOR_API virtual bool FilterByActiveSection(const UNiagaraStackEntry& Child) const override;
 private:
-	void OnViewStateChanged();
+	NIAGARAEDITOR_API void OnViewStateChanged();
 private:
 
 	FVersionedNiagaraEmitterWeakPtr Emitter;

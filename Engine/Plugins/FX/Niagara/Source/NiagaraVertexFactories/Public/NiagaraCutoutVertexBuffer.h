@@ -12,17 +12,17 @@ NiagaraCutoutVertexBuffer.h: Niagara cutout uv buffer.
 /**
  * Vertex buffer to hold cutout UVs. 
  */
-class NIAGARAVERTEXFACTORIES_API FNiagaraCutoutVertexBuffer : public FVertexBuffer
+class FNiagaraCutoutVertexBuffer : public FVertexBuffer
 {
 public:
 
-	FNiagaraCutoutVertexBuffer(int32 ZeroInitCount = 0);
+	NIAGARAVERTEXFACTORIES_API FNiagaraCutoutVertexBuffer(int32 ZeroInitCount = 0);
 
 	/**
 	 * Initialize the RHI for this rendering resource
 	 */
-	virtual void InitRHI() override;
-	virtual void ReleaseRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void InitRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void ReleaseRHI() override;
 	FShaderResourceViewRHIRef VertexBufferSRV;
 
 	/** Data to initialize the buffer. */

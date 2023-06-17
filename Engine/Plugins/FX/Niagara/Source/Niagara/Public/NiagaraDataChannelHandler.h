@@ -14,41 +14,41 @@ Some more complex handlers may want to divide up the scene in various different 
 #include "NiagaraDataChannelPublic.h"
 #include "NiagaraDataChannelHandler.generated.h"
 
-UCLASS(Experimental, abstract, BlueprintType)
-class NIAGARA_API UNiagaraDataChannelHandler : public UObject
+UCLASS(Experimental, abstract, BlueprintType, MinimalAPI)
+class UNiagaraDataChannelHandler : public UObject
 {
 public:
 
 	GENERATED_BODY()
 
-	virtual ~UNiagaraDataChannelHandler();
+	NIAGARA_API virtual ~UNiagaraDataChannelHandler();
 
-	virtual void Init(const UNiagaraDataChannel* InChannel);
+	NIAGARA_API virtual void Init(const UNiagaraDataChannel* InChannel);
 
-	virtual void BeginFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld);
+	NIAGARA_API virtual void BeginFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld);
 
-	virtual void EndFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld);
+	NIAGARA_API virtual void EndFrame(float DeltaTime, FNiagaraWorldManager* OwningWorld);
 
-	virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld);
+	NIAGARA_API virtual void Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld);
 
 	/** 
 	Finds the correct internal data for this data channel and the given search parameters. For example in some cases this may require a search of several elements of data that correspond to different spacial regions.
 	This shared ptr provides access to Game level data, CPU simulation data and a render thread proxy that can be given to the RT and provides access to GPUSimulaiton data.
 	*/
-	virtual FNiagaraDataChannelDataPtr FindData(FNiagaraDataChannelSearchParameters SearchParams, ENiagaraResourceAccess AccessType)  PURE_VIRTUAL(UNiagaraDataChannelHandler::FindData, return nullptr;);
+	NIAGARA_API virtual FNiagaraDataChannelDataPtr FindData(FNiagaraDataChannelSearchParameters SearchParams, ENiagaraResourceAccess AccessType)  PURE_VIRTUAL(UNiagaraDataChannelHandler::FindData, return nullptr;);
 
 	const UNiagaraDataChannel* GetDataChannel()const { return DataChannel; }
 
 	UFUNCTION(BlueprintCallable, Category="Data Channel")
-	UNiagaraDataChannelWriter* GetDataChannelWriter();
+	NIAGARA_API UNiagaraDataChannelWriter* GetDataChannelWriter();
 
 	UFUNCTION(BlueprintCallable, Category = "Data Channel")
-	UNiagaraDataChannelReader* GetDataChannelReader();
+	NIAGARA_API UNiagaraDataChannelReader* GetDataChannelReader();
 
 	template<typename T> 
 	T* GetChannelTyped()const{ return Cast<T>(DataChannel); }
 
-	FNiagaraDataChannelDataPtr CreateData();
+	NIAGARA_API FNiagaraDataChannelDataPtr CreateData();
 
 protected:
 

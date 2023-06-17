@@ -6,7 +6,7 @@
 #include "NiagaraCompileHashVisitor.generated.h"
 
 USTRUCT()
-struct NIAGARA_API FNiagaraCompileHashVisitorDebugInfo
+struct FNiagaraCompileHashVisitorDebugInfo
 {
 	GENERATED_USTRUCT_BODY()
 public:
@@ -23,7 +23,7 @@ public:
 /**
 Used to store the state of a graph when deciding if it has been dirtied for recompile.
 */
-struct NIAGARA_API FNiagaraCompileHashVisitor
+struct FNiagaraCompileHashVisitor
 {
 public:
 	FNiagaraCompileHashVisitor(FSHA1& InHashState) : HashState(InHashState) {}
@@ -31,7 +31,7 @@ public:
 	FSHA1& HashState;
 	TArray<const void*> ObjectList;
 
-	static int LogCompileIdGeneration;
+	static NIAGARA_API int LogCompileIdGeneration;
 
 #if WITH_EDITORONLY_DATA
 	FNiagaraCompileHashVisitorDebugInfo* AddDebugInfo()
@@ -144,10 +144,10 @@ public:
 		return UpdatePOD(ShaderParametersMetadata->GetStructTypeName(), ShaderParametersMetadata->GetLayoutHash());
 	}
 
-	bool UpdateShaderFile(const TCHAR* ShaderFilePath);
+	NIAGARA_API bool UpdateShaderFile(const TCHAR* ShaderFilePath);
 
 	/**
 	Adds an string value to the hash.
 	*/
-	bool UpdateString(const TCHAR* InDebugName, FStringView InData);
+	NIAGARA_API bool UpdateString(const TCHAR* InDebugName, FStringView InData);
 };

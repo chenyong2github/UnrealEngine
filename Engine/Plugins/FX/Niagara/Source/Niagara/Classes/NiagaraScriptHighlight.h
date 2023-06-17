@@ -5,13 +5,13 @@
 #include "NiagaraScriptHighlight.generated.h"
 
 USTRUCT()
-struct NIAGARA_API FNiagaraScriptHighlight
+struct FNiagaraScriptHighlight
 {
 	GENERATED_BODY()
 
-	FNiagaraScriptHighlight();
+	NIAGARA_API FNiagaraScriptHighlight();
 
-	bool IsValid() const;
+	NIAGARA_API bool IsValid() const;
 
 	UPROPERTY(EditAnywhere, Category = Highlight)
 	FLinearColor Color;
@@ -19,10 +19,10 @@ struct NIAGARA_API FNiagaraScriptHighlight
 	UPROPERTY(EditAnywhere, Category = Highlight)
 	FText DisplayName;
 
-	bool operator==(const FNiagaraScriptHighlight& Other) const;
+	NIAGARA_API bool operator==(const FNiagaraScriptHighlight& Other) const;
 
 #if WITH_EDITORONLY_DATA
-	static void ArrayToJson(const TArray<FNiagaraScriptHighlight>& InHighlights, FString& OutJson);
-	static void JsonToArray(const FString& InJson, TArray<FNiagaraScriptHighlight>& OutHighlights);
+	static NIAGARA_API void ArrayToJson(const TArray<FNiagaraScriptHighlight>& InHighlights, FString& OutJson);
+	static NIAGARA_API void JsonToArray(const FString& InJson, TArray<FNiagaraScriptHighlight>& OutHighlights);
 #endif
 };

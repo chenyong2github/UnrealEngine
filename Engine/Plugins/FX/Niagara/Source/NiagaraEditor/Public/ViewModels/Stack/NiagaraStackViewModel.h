@@ -35,8 +35,8 @@ private:
 	bool bIncludeEmitterInformation;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackViewModel : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraStackViewModel : public UObject
 {
 	GENERATED_BODY()
 
@@ -59,21 +59,21 @@ public:
 		}
 	};
 
-	struct NIAGARAEDITOR_API FTopLevelViewModel
+	struct FTopLevelViewModel
 	{
-		FTopLevelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel);
+		NIAGARAEDITOR_API FTopLevelViewModel(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel);
 
-		FTopLevelViewModel(TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel);
+		NIAGARAEDITOR_API FTopLevelViewModel(TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel);
 
-		bool IsValid() const;
+		NIAGARAEDITOR_API bool IsValid() const;
 
-		UNiagaraStackEditorData* GetStackEditorData() const;
+		NIAGARAEDITOR_API UNiagaraStackEditorData* GetStackEditorData() const;
 
-		void GetMessageStores(TArray<FNiagaraMessageSourceAndStore>& OutMessageStores);
+		NIAGARAEDITOR_API void GetMessageStores(TArray<FNiagaraMessageSourceAndStore>& OutMessageStores);
 
-		FText GetDisplayName() const;
+		NIAGARAEDITOR_API FText GetDisplayName() const;
 
-		bool operator==(const FTopLevelViewModel& Other)const;
+		NIAGARAEDITOR_API bool operator==(const FTopLevelViewModel& Other)const;
 
 		const TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 		const TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
@@ -81,79 +81,79 @@ public:
 	};
 
 public:
-	void InitializeWithViewModels(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, FNiagaraStackViewModelOptions InOptions);
-	void InitializeWithRootEntry(UNiagaraStackEntry* Root);
+	NIAGARAEDITOR_API void InitializeWithViewModels(TSharedPtr<FNiagaraSystemViewModel> InSystemViewModel, TSharedPtr<FNiagaraEmitterHandleViewModel> InEmitterHandleViewModel, FNiagaraStackViewModelOptions InOptions);
+	NIAGARAEDITOR_API void InitializeWithRootEntry(UNiagaraStackEntry* Root);
 
-	void Finalize();
+	NIAGARAEDITOR_API void Finalize();
 
-	virtual void BeginDestroy() override;
+	NIAGARAEDITOR_API virtual void BeginDestroy() override;
 
-	UNiagaraStackEntry* GetRootEntry();
+	NIAGARAEDITOR_API UNiagaraStackEntry* GetRootEntry();
 
-	TArray<UNiagaraStackEntry*>& GetRootEntryAsArray();
+	NIAGARAEDITOR_API TArray<UNiagaraStackEntry*>& GetRootEntryAsArray();
 
-	FOnChangeSearchTextExternal& OnChangeSearchTextExternal();
+	NIAGARAEDITOR_API FOnChangeSearchTextExternal& OnChangeSearchTextExternal();
 
-	FOnExpansionChanged& OnExpansionChanged();
-	FOnExpansionChanged& OnExpansionInOverviewChanged();
-	FOnStructureChanged& OnStructureChanged();
-	FOnSearchCompleted& OnSearchCompleted();
-	FOnDataObjectChanged& OnDataObjectChanged();
+	NIAGARAEDITOR_API FOnExpansionChanged& OnExpansionChanged();
+	NIAGARAEDITOR_API FOnExpansionChanged& OnExpansionInOverviewChanged();
+	NIAGARAEDITOR_API FOnStructureChanged& OnStructureChanged();
+	NIAGARAEDITOR_API FOnSearchCompleted& OnSearchCompleted();
+	NIAGARAEDITOR_API FOnDataObjectChanged& OnDataObjectChanged();
 
-	bool GetShowAllAdvanced() const;
-	void SetShowAllAdvanced(bool bInShowAllAdvanced);
+	NIAGARAEDITOR_API bool GetShowAllAdvanced() const;
+	NIAGARAEDITOR_API void SetShowAllAdvanced(bool bInShowAllAdvanced);
 
-	bool GetShowOutputs() const;
-	void SetShowOutputs(bool bInShowOutputs);
+	NIAGARAEDITOR_API bool GetShowOutputs() const;
+	NIAGARAEDITOR_API void SetShowOutputs(bool bInShowOutputs);
 
-	bool GetShowLinkedInputs() const;
-	void SetShowLinkedInputs(bool bInShowLinkedInputs);
+	NIAGARAEDITOR_API bool GetShowLinkedInputs() const;
+	NIAGARAEDITOR_API void SetShowLinkedInputs(bool bInShowLinkedInputs);
 
-	bool GetShowOnlyIssues() const;
-	void SetShowOnlyIssues(bool bInShowOnlyIssues);
+	NIAGARAEDITOR_API bool GetShowOnlyIssues() const;
+	NIAGARAEDITOR_API void SetShowOnlyIssues(bool bInShowOnlyIssues);
 
-	double GetLastScrollPosition() const;
-	void SetLastScrollPosition(double InLastScrollPosition);
+	NIAGARAEDITOR_API double GetLastScrollPosition() const;
+	NIAGARAEDITOR_API void SetLastScrollPosition(double InLastScrollPosition);
 
-	virtual void Tick();
+	NIAGARAEDITOR_API virtual void Tick();
 	//~ stack search stuff
-	void ResetSearchText();
+	NIAGARAEDITOR_API void ResetSearchText();
 	FText GetCurrentSearchText() const { return CurrentSearchText; };
-	void OnSearchTextChanged(const FText& SearchText);
-	void SetSearchTextExternal(const FText& NewSearchText);
-	bool IsSearching();
-	const TArray<FSearchResult>& GetCurrentSearchResults();
-	UNiagaraStackEntry* GetCurrentFocusedEntry() const;
-	int32 GetCurrentFocusedEntryIndex() const;
-	void AddSearchScrollOffset(int NumberOfSteps);
+	NIAGARAEDITOR_API void OnSearchTextChanged(const FText& SearchText);
+	NIAGARAEDITOR_API void SetSearchTextExternal(const FText& NewSearchText);
+	NIAGARAEDITOR_API bool IsSearching();
+	NIAGARAEDITOR_API const TArray<FSearchResult>& GetCurrentSearchResults();
+	NIAGARAEDITOR_API UNiagaraStackEntry* GetCurrentFocusedEntry() const;
+	NIAGARAEDITOR_API int32 GetCurrentFocusedEntryIndex() const;
+	NIAGARAEDITOR_API void AddSearchScrollOffset(int NumberOfSteps);
 
-	void OnCycleThroughIssues(TSharedPtr<FTopLevelViewModel> TopLevelToCycle);
-	UNiagaraStackEntry* GetCurrentFocusedIssue() const;
+	NIAGARAEDITOR_API void OnCycleThroughIssues(TSharedPtr<FTopLevelViewModel> TopLevelToCycle);
+	NIAGARAEDITOR_API UNiagaraStackEntry* GetCurrentFocusedIssue() const;
 
-	void GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const;
+	NIAGARAEDITOR_API void GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const;
 
 	/** Starts recursing through all entries to expand all groups and collapse all items. */
-	void CollapseToHeaders();
+	NIAGARAEDITOR_API void CollapseToHeaders();
 	
-	void UndismissAllIssues();
-	bool HasDismissedStackIssues();
+	NIAGARAEDITOR_API void UndismissAllIssues();
+	NIAGARAEDITOR_API bool HasDismissedStackIssues();
 
-	const TArray<TSharedRef<FTopLevelViewModel>>& GetTopLevelViewModels() const;
+	NIAGARAEDITOR_API const TArray<TSharedRef<FTopLevelViewModel>>& GetTopLevelViewModels() const;
 
-	TSharedPtr<FTopLevelViewModel> GetTopLevelViewModelForEntry(UNiagaraStackEntry& InEntry) const;
+	NIAGARAEDITOR_API TSharedPtr<FTopLevelViewModel> GetTopLevelViewModelForEntry(UNiagaraStackEntry& InEntry) const;
 
-	void Reset();
-	bool HasIssues() const;
-	void RequestRefreshDeferred();
+	NIAGARAEDITOR_API void Reset();
+	NIAGARAEDITOR_API bool HasIssues() const;
+	NIAGARAEDITOR_API void RequestRefreshDeferred();
 	void RequestValidationUpdate() { bValidatorUpdatePending = true; }
 
-	bool ShouldHideDisabledModules() const;
+	NIAGARAEDITOR_API bool ShouldHideDisabledModules() const;
 
-	void InvalidateCachedParameterUsage();
+	NIAGARAEDITOR_API void InvalidateCachedParameterUsage();
 
 private:
 	/** Recursively Expands all groups and collapses all items in the stack. */
-	void CollapseToHeadersRecursive(TArray<UNiagaraStackEntry*> Entries);
+	NIAGARAEDITOR_API void CollapseToHeadersRecursive(TArray<UNiagaraStackEntry*> Entries);
 
 	struct FSearchWorkItem
 	{
@@ -166,23 +166,23 @@ private:
 		}
 	};
 
-	void EntryExpansionChanged();
-	void EntryExpansionInOverviewChanged();
-	void EntryStructureChanged(ENiagaraStructureChangedFlags Flags);
-	void EntryDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
-	void EntryRequestFullRefresh();
-	void RefreshTopLevelViewModels();
-	void RefreshHasIssues();
-	void EmitterParentRemoved();
+	NIAGARAEDITOR_API void EntryExpansionChanged();
+	NIAGARAEDITOR_API void EntryExpansionInOverviewChanged();
+	NIAGARAEDITOR_API void EntryStructureChanged(ENiagaraStructureChangedFlags Flags);
+	NIAGARAEDITOR_API void EntryDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
+	NIAGARAEDITOR_API void EntryRequestFullRefresh();
+	NIAGARAEDITOR_API void RefreshTopLevelViewModels();
+	NIAGARAEDITOR_API void RefreshHasIssues();
+	NIAGARAEDITOR_API void EmitterParentRemoved();
 	/** Called by the tick function to perform partial search */
-	void SearchTick();
-	void GenerateTraversalEntries(UNiagaraStackEntry* Root, TArray<UNiagaraStackEntry*> ParentChain, 
+	NIAGARAEDITOR_API void SearchTick();
+	NIAGARAEDITOR_API void GenerateTraversalEntries(UNiagaraStackEntry* Root, TArray<UNiagaraStackEntry*> ParentChain, 
 		TArray<FSearchWorkItem>& TraversedArray);
-	bool ItemMatchesSearchCriteria(UNiagaraStackEntry::FStackSearchItem SearchItem);
-	void GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath) const;
+	NIAGARAEDITOR_API bool ItemMatchesSearchCriteria(UNiagaraStackEntry::FStackSearchItem SearchItem);
+	NIAGARAEDITOR_API void GeneratePathForEntry(UNiagaraStackEntry* Root, UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*> CurrentPath, TArray<UNiagaraStackEntry*>& EntryPath) const;
 
-	void RestartSearch();
-	void UpdateStackWithValidationResults();
+	NIAGARAEDITOR_API void RestartSearch();
+	NIAGARAEDITOR_API void UpdateStackWithValidationResults();
 
 private:
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
@@ -208,7 +208,7 @@ private:
 	FOnSearchCompleted SearchCompletedDelegate;
 	TArray<FSearchWorkItem> ItemsToSearch;
 	TArray<FSearchResult> CurrentSearchResults;
-	static const double MaxSearchTime;
+	static NIAGARAEDITOR_API const double MaxSearchTime;
 	TOptional<FSearchResult> FocusedSearchResultCache;
 	bool bRestartSearch;
 	bool bRefreshPending;

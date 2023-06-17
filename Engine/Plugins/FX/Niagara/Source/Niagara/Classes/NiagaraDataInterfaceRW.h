@@ -17,7 +17,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNDIGpuComputeDispatchArgsGenParameters, )
 	RDG_TEXTURE_ACCESS_ARRAY(TextureAccessArray)
 END_SHADER_PARAMETER_STRUCT()
 
-struct NIAGARA_API FNDIGpuComputeDispatchArgsGenContext : public FNDIGpuComputeContext
+struct FNDIGpuComputeDispatchArgsGenContext : public FNDIGpuComputeContext
 {
 	using FIndirectArgs = TPair<FRDGBuffer*, uint32>;
 	using FCreateIndirectCallback = TFunction<void(FRHICommandList&, FRDGBuffer*, uint32)>;
@@ -42,25 +42,25 @@ struct NIAGARA_API FNDIGpuComputeDispatchArgsGenContext : public FNDIGpuComputeC
 	void SetDirect(uint32 InElementCount, uint32 GpuCountOffset = INDEX_NONE) const { SetDirect(FIntVector3(InElementCount, 1, 1), GpuCountOffset); }
 	void SetDirect(const FIntPoint& InElementCount, uint32 GpuCountOffset = INDEX_NONE) const { SetDirect(FIntVector3(InElementCount.X, InElementCount.Y, 1), GpuCountOffset); }
 	void SetDirect(const FIntVector2& InElementCountXY, uint32 GpuCountOffset = INDEX_NONE) const { SetDirect(FIntVector3(InElementCountXY.X, InElementCountXY.Y, 1), GpuCountOffset); }
-	void SetDirect(const FIntVector3& InElementCountXYZ, uint32 GpuCountOffset = INDEX_NONE) const;
+	NIAGARA_API void SetDirect(const FIntVector3& InElementCountXYZ, uint32 GpuCountOffset = INDEX_NONE) const;
 
 	// Set Indirect buffer to use
-	void SetIndirect(FRDGBuffer* InBuffer, uint32 BufferByteOffset) const;
+	NIAGARA_API void SetIndirect(FRDGBuffer* InBuffer, uint32 BufferByteOffset) const;
 	// Set indirect buffer to use, the callback will be inside the RDG pass
-	void SetIndirect(FRDGBuffer* InBuffer, uint32 BufferByteOffset, FCreateIndirectCallback&& Callback) const;
+	NIAGARA_API void SetIndirect(FRDGBuffer* InBuffer, uint32 BufferByteOffset, FCreateIndirectCallback&& Callback) const;
 	// Create indirect buffer from count values that are held in the GPU count buffer
 	// The returned indirect argument information can be kept around for the current frame
 	FIndirectArgs CreateIndirect(uint32 InCounterOffset) const { return CreateIndirect(FUintVector3(InCounterOffset, INDEX_NONE, INDEX_NONE)); }
 	FIndirectArgs CreateIndirect(const FUintVector2& InCounterOffsets) const { return CreateIndirect(FUintVector3(InCounterOffsets.X, InCounterOffsets.Y, INDEX_NONE)); }
-	FIndirectArgs CreateIndirect(const FUintVector3& InCounterOffsets) const;
+	NIAGARA_API FIndirectArgs CreateIndirect(const FUintVector3& InCounterOffsets) const;
 
 	// Add buffer / texture access used for batching transitions together
-	void AddBufferAccess(FRDGBuffer* InBuffer, ERHIAccess InAccess) const;
-	void AddTextureAccess(FRDGTexture* InTexture, ERHIAccess InAccess) const;
+	NIAGARA_API void AddBufferAccess(FRDGBuffer* InBuffer, ERHIAccess InAccess) const;
+	NIAGARA_API void AddTextureAccess(FRDGTexture* InTexture, ERHIAccess InAccess) const;
 
 protected:
-	FNDIGpuComputeDispatchArgsGenParameters* GetPassParameters() const;
-	void FlushPass() const;
+	NIAGARA_API FNDIGpuComputeDispatchArgsGenParameters* GetPassParameters() const;
+	NIAGARA_API void FlushPass() const;
 
 protected:
 	FNiagaraSystemInstanceID SystemInstanceID;
@@ -105,42 +105,42 @@ public:
 	virtual FNiagaraDataInterfaceProxyRW* AsIterationProxy() override { return this; }
 };
 
-UCLASS(abstract, EditInlineNew)
-class NIAGARA_API UNiagaraDataInterfaceRWBase : public UNiagaraDataInterface
+UCLASS(abstract, EditInlineNew, MinimalAPI)
+class UNiagaraDataInterfaceRWBase : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 public:
 	// Global HLSL variable base names, used by HLSL.
-	static const FString NumAttributesName;
-	static const FString NumNamedAttributesName;
-	static const FString NumCellsName;
-	static const FString UnitToUVName;
-	static const FString CellSizeName;
-	static const FString WorldBBoxSizeName;
+	static NIAGARA_API const FString NumAttributesName;
+	static NIAGARA_API const FString NumNamedAttributesName;
+	static NIAGARA_API const FString NumCellsName;
+	static NIAGARA_API const FString UnitToUVName;
+	static NIAGARA_API const FString CellSizeName;
+	static NIAGARA_API const FString WorldBBoxSizeName;
 
 	// Attribute names
-	static const FName NAME_Attribute;
+	static NIAGARA_API const FName NAME_Attribute;
 
 	// Global VM function names, also used by the shaders code generation methods.
-	static const FName NumCellsFunctionName;
-	static const FName CellSizeFunctionName;
+	static NIAGARA_API const FName NumCellsFunctionName;
+	static NIAGARA_API const FName CellSizeFunctionName;
 
-	static const FName WorldBBoxSizeFunctionName;
+	static NIAGARA_API const FName WorldBBoxSizeFunctionName;
 
-	static const FName SimulationToUnitFunctionName;
-	static const FName UnitToSimulationFunctionName;
-	static const FName UnitToIndexFunctionName;
-	static const FName UnitToFloatIndexFunctionName;
-	static const FName IndexToUnitFunctionName;
+	static NIAGARA_API const FName SimulationToUnitFunctionName;
+	static NIAGARA_API const FName UnitToSimulationFunctionName;
+	static NIAGARA_API const FName UnitToIndexFunctionName;
+	static NIAGARA_API const FName UnitToFloatIndexFunctionName;
+	static NIAGARA_API const FName IndexToUnitFunctionName;
 
-	static const FName IndexToUnitStaggeredXFunctionName;
-	static const FName IndexToUnitStaggeredYFunctionName;
+	static NIAGARA_API const FName IndexToUnitStaggeredXFunctionName;
+	static NIAGARA_API const FName IndexToUnitStaggeredYFunctionName;
 
-	static const FName IndexToLinearFunctionName;
-	static const FName LinearToIndexFunctionName;
+	static NIAGARA_API const FName IndexToLinearFunctionName;
+	static NIAGARA_API const FName LinearToIndexFunctionName;
 
-	static const FName ExecutionIndexToGridIndexFunctionName;
-	static const FName ExecutionIndexToUnitFunctionName;
+	static NIAGARA_API const FName ExecutionIndexToGridIndexFunctionName;
+	static NIAGARA_API const FName ExecutionIndexToUnitFunctionName;
 	//~ UObject interface
 
 	virtual void PostLoad() override
@@ -185,8 +185,8 @@ public:
 };
 
 
-UCLASS(abstract, EditInlineNew)
-class NIAGARA_API UNiagaraDataInterfaceGrid3D : public UNiagaraDataInterfaceRWBase
+UCLASS(abstract, EditInlineNew, MinimalAPI)
+class UNiagaraDataInterfaceGrid3D : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -221,28 +221,28 @@ public:
 
 	//~ UNiagaraDataInterface interface
 	// VM functionality
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;	
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;	
 
 
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
 	//~ UNiagaraDataInterface interface END
 
 protected:
 	//~ UNiagaraDataInterface interface
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	//~ UNiagaraDataInterface interface END	
 };
 
 
-UCLASS(abstract, EditInlineNew)
-class NIAGARA_API UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBase
+UCLASS(abstract, EditInlineNew, MinimalAPI)
+class UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -280,29 +280,29 @@ public:
 
 public:
 
-	virtual void Serialize(FArchive& Ar) override;
+	NIAGARA_API virtual void Serialize(FArchive& Ar) override;
 
 	//~ UNiagaraDataInterface interface
 	// VM functionality
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	NIAGARA_API virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
-	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
-	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
-	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
+	NIAGARA_API virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	NIAGARA_API virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
 
 #if WITH_EDITOR		
-	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
+	NIAGARA_API virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
 	//~ UNiagaraDataInterface interface END
 
 
 protected:
 	//~ UNiagaraDataInterface interface
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	NIAGARA_API virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	//~ UNiagaraDataInterface interface END	
 };

@@ -6,8 +6,8 @@
 #include "NiagaraSimCache.h"
 #include "NiagaraBakerOutputSimCache.generated.h"
 
-UCLASS(meta = (DisplayName = "Simulation Cache Output (Experimental)"))
-class NIAGARA_API UNiagaraBakerOutputSimCache : public UNiagaraBakerOutput
+UCLASS(meta = (DisplayName = "Simulation Cache Output (Experimental)"), MinimalAPI)
+class UNiagaraBakerOutputSimCache : public UNiagaraBakerOutput
 {
 	GENERATED_BODY()
 
@@ -22,13 +22,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FNiagaraSimCacheCreateParameters CreateParameters;
 
-	virtual bool Equals(const UNiagaraBakerOutput& Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraBakerOutput& Other) const override;
 
 #if WITH_EDITOR
-	FString MakeOutputName() const override;
+	NIAGARA_API FString MakeOutputName() const override;
 #endif
 
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

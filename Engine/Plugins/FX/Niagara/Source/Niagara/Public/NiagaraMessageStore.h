@@ -7,19 +7,19 @@
 class UNiagaraMessageDataBase;
 
 USTRUCT()
-struct NIAGARA_API FNiagaraMessageStore
+struct FNiagaraMessageStore
 {
 	GENERATED_BODY();
 
 #if WITH_EDITORONLY_DATA
-	const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& GetMessages() const;
-	void SetMessages(const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& InMessageKeyToMessageMap);
-	void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage);
-	void RemoveMessage(const FGuid& MessageKey);
-	void DismissMessage(const FGuid& MessageKey);
-	bool IsMessageDismissed(const FGuid& MessageKey);
-	bool HasDismissedMessages() const;
-	void ClearDismissedMessages();
+	NIAGARA_API const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& GetMessages() const;
+	NIAGARA_API void SetMessages(const TMap<FGuid, TObjectPtr<UNiagaraMessageDataBase>>& InMessageKeyToMessageMap);
+	NIAGARA_API void AddMessage(const FGuid& MessageKey, UNiagaraMessageDataBase* NewMessage);
+	NIAGARA_API void RemoveMessage(const FGuid& MessageKey);
+	NIAGARA_API void DismissMessage(const FGuid& MessageKey);
+	NIAGARA_API bool IsMessageDismissed(const FGuid& MessageKey);
+	NIAGARA_API bool HasDismissedMessages() const;
+	NIAGARA_API void ClearDismissedMessages();
 
 private:
 	UPROPERTY()
@@ -32,14 +32,14 @@ private:
 
 #if WITH_EDITORONLY_DATA
 
-struct NIAGARA_API FNiagaraMessageSourceAndStore
+struct FNiagaraMessageSourceAndStore
 {
 public:
-	FNiagaraMessageSourceAndStore(UObject& InSource, FNiagaraMessageStore& InStore);
+	NIAGARA_API FNiagaraMessageSourceAndStore(UObject& InSource, FNiagaraMessageStore& InStore);
 
-	UObject* GetSource() const;
+	NIAGARA_API UObject* GetSource() const;
 
-	FNiagaraMessageStore* GetStore() const;
+	NIAGARA_API FNiagaraMessageStore* GetStore() const;
 
 private:
 	TWeakObjectPtr<UObject> SourceWeak;

@@ -5,7 +5,7 @@
 #include "NiagaraShared.h"
 #include "ShaderParameterMetadataBuilder.h"
 
-class NIAGARASHADER_API FNiagaraShaderParametersBuilder
+class FNiagaraShaderParametersBuilder
 {
 public:
 	explicit FNiagaraShaderParametersBuilder(const FNiagaraDataInterfaceGPUParamInfo& InGPUParamInfo, TArray<FString>& InLooseNames, TArray<FNiagaraDataInterfaceStructIncludeInfo>& InStructIncludeInfos, FShaderParametersMetadataBuilder& InMetadataBuilder)

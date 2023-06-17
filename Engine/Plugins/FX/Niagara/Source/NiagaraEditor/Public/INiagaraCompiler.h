@@ -103,7 +103,7 @@ struct FNiagaraTranslateResults
 	static ENiagaraScriptCompileStatus TranslateResultsToSummary(const FNiagaraTranslateResults* CompileResults);
 };
 
-class NIAGARAEDITOR_API FHlslNiagaraTranslatorOptions
+class FHlslNiagaraTranslatorOptions
 {
 public:
 	ENiagaraSimTarget SimTarget = ENiagaraSimTarget::CPUSim;
@@ -121,7 +121,7 @@ public:
 	TArray<FNiagaraVariable> OverrideModuleConstants;
 };
 
-class NIAGARAEDITOR_API INiagaraHlslTranslator
+class INiagaraHlslTranslator
 {
 public:
 	virtual ~INiagaraHlslTranslator() = default;
@@ -130,14 +130,14 @@ public:
 	virtual const FNiagaraTranslatorOutput& GetTranslateOutput() const = 0;
 	virtual const FString& GetTranslatedHLSL() const = 0;
 
-	static TUniquePtr<INiagaraHlslTranslator> CreateTranslator(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileRequestDuplicateDataBase* InDuplicateData);
-	static TUniquePtr<INiagaraHlslTranslator> CreateTranslator(const FNiagaraPrecompileData* InCompileData, const FNiagaraCompilationCopyData* InDuplicateData);
+	static NIAGARAEDITOR_API TUniquePtr<INiagaraHlslTranslator> CreateTranslator(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileRequestDuplicateDataBase* InDuplicateData);
+	static NIAGARAEDITOR_API TUniquePtr<INiagaraHlslTranslator> CreateTranslator(const FNiagaraPrecompileData* InCompileData, const FNiagaraCompilationCopyData* InDuplicateData);
 
-	static FString BuildHLSLStructDecl(const FNiagaraTypeDefinition& Type, FText& OutErrorMessage, bool bGpuScript);
-	static bool IsBuiltInHlslType(const FNiagaraTypeDefinition& Type);
-	static FString GetStructHlslTypeName(const FNiagaraTypeDefinition& Type);
-	static FString GetPropertyHlslTypeName(const FProperty* Property);
-	static bool IsHlslBuiltinVector(const FNiagaraTypeDefinition& Type);
-	static TArray<FName> ConditionPropertyPath(const FNiagaraTypeDefinition& Type, const TArray<FName>& InPath);
-	static FString GetHlslDefaultForType(const FNiagaraTypeDefinition& Type);
+	static NIAGARAEDITOR_API FString BuildHLSLStructDecl(const FNiagaraTypeDefinition& Type, FText& OutErrorMessage, bool bGpuScript);
+	static NIAGARAEDITOR_API bool IsBuiltInHlslType(const FNiagaraTypeDefinition& Type);
+	static NIAGARAEDITOR_API FString GetStructHlslTypeName(const FNiagaraTypeDefinition& Type);
+	static NIAGARAEDITOR_API FString GetPropertyHlslTypeName(const FProperty* Property);
+	static NIAGARAEDITOR_API bool IsHlslBuiltinVector(const FNiagaraTypeDefinition& Type);
+	static NIAGARAEDITOR_API TArray<FName> ConditionPropertyPath(const FNiagaraTypeDefinition& Type, const TArray<FName>& InPath);
+	static NIAGARAEDITOR_API FString GetHlslDefaultForType(const FNiagaraTypeDefinition& Type);
 };

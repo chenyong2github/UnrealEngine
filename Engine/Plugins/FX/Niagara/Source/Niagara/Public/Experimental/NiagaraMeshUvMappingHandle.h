@@ -22,32 +22,32 @@ struct FMeshUvMappingUsage
 	bool RequiresGpuAccess = false;
 };
 
-struct NIAGARA_API FMeshUvMappingHandleBase
+struct FMeshUvMappingHandleBase
 {
 	FMeshUvMappingHandleBase() = default;
 	FMeshUvMappingHandleBase(const FMeshUvMappingHandleBase& Other) = delete;
-	~FMeshUvMappingHandleBase();
+	NIAGARA_API ~FMeshUvMappingHandleBase();
 	FMeshUvMappingHandleBase& operator=(const FMeshUvMappingHandleBase& Other) = delete;
-	explicit operator bool() const;
+	NIAGARA_API explicit operator bool() const;
 
-	const FMeshUvMappingBufferProxy* GetQuadTreeProxy() const;
-	int32 GetUvSetIndex() const;
-	int32 GetLodIndex() const;
-	void PinAndInvalidateHandle();
+	NIAGARA_API const FMeshUvMappingBufferProxy* GetQuadTreeProxy() const;
+	NIAGARA_API int32 GetUvSetIndex() const;
+	NIAGARA_API int32 GetLodIndex() const;
+	NIAGARA_API void PinAndInvalidateHandle();
 
 	FMeshUvMappingUsage Usage;
 
 protected:
-	FMeshUvMappingHandleBase(FMeshUvMappingUsage InUsage, const TSharedPtr<FMeshUvMapping>& InUvMappingData, bool bNeedsDataImmediately);
-	FMeshUvMappingHandleBase(FMeshUvMappingHandleBase&& Other) noexcept;
-	FMeshUvMappingHandleBase& operator=(FMeshUvMappingHandleBase&& Other) noexcept;
+	NIAGARA_API FMeshUvMappingHandleBase(FMeshUvMappingUsage InUsage, const TSharedPtr<FMeshUvMapping>& InUvMappingData, bool bNeedsDataImmediately);
+	NIAGARA_API FMeshUvMappingHandleBase(FMeshUvMappingHandleBase&& Other) noexcept;
+	NIAGARA_API FMeshUvMappingHandleBase& operator=(FMeshUvMappingHandleBase&& Other) noexcept;
 
 	TSharedPtr<FMeshUvMapping> UvMappingData;
 };
 
 
 template<typename MappingType>
-struct NIAGARA_API TTypedMeshUvMappingHandle : public FMeshUvMappingHandleBase
+struct TTypedMeshUvMappingHandle : public FMeshUvMappingHandleBase
 {
 	TTypedMeshUvMappingHandle() = default;
 	TTypedMeshUvMappingHandle(FMeshUvMappingUsage InUsage, const TSharedPtr<MappingType>& InUvMappingData, bool bNeedsDataImmediately)

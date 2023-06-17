@@ -13,34 +13,34 @@ class UNiagaraStackObject;
 struct FNiagaraEventScriptProperties;
 class IDetailTreeNode;
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackSimulationStagePropertiesItem : public UNiagaraStackItem
+UCLASS(MinimalAPI)
+class UNiagaraStackSimulationStagePropertiesItem : public UNiagaraStackItem
 {
 	GENERATED_BODY()
 		 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraSimulationStageBase* InSimulationStage);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, UNiagaraSimulationStageBase* InSimulationStage);
 
-	virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
 
 	virtual bool SupportsResetToBase() const override { return true; }
-	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
-	virtual void ResetToBase() override;
+	NIAGARAEDITOR_API virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
+	NIAGARAEDITOR_API virtual void ResetToBase() override;
 
-	void SetSimulationStageEnabled(bool bIsEnabled);
+	NIAGARAEDITOR_API void SetSimulationStageEnabled(bool bIsEnabled);
 
 	TWeakObjectPtr<UNiagaraSimulationStageBase> GetSimulationStage() const { return SimulationStage; }
 protected:
-	virtual void FinalizeInternal() override;
+	NIAGARAEDITOR_API virtual void FinalizeInternal() override;
 
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 	virtual bool SupportsSummaryView() const override { return true; }
-	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
+	NIAGARAEDITOR_API virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 private:
-	void SimulationStagePropertiesChanged();
+	NIAGARAEDITOR_API void SimulationStagePropertiesChanged();
 
-	bool HasBaseSimulationStage() const;
+	NIAGARAEDITOR_API bool HasBaseSimulationStage() const;
 
 private:
 	TWeakObjectPtr<UNiagaraSimulationStageBase> SimulationStage;
@@ -53,9 +53,9 @@ private:
 	TObjectPtr<UNiagaraStackObject> SimulationStageObject;
 };
 
-UCLASS()
+UCLASS(MinimalAPI)
 /** Meant to contain a single binding of a Emitter::EventScriptProperties to the stack.*/
-class NIAGARAEDITOR_API UNiagaraStackSimulationStageGroup : public UNiagaraStackScriptItemGroup
+class UNiagaraStackSimulationStageGroup : public UNiagaraStackScriptItemGroup
 {
 	GENERATED_BODY()
 
@@ -63,44 +63,44 @@ public:
 	DECLARE_DELEGATE(FOnModifiedSimulationStages);
 
 public:
-	void Initialize(
+	NIAGARAEDITOR_API void Initialize(
 		FRequiredEntryData InRequiredEntryData,
 		TSharedRef<FNiagaraScriptViewModel> InScriptViewModel,
 		UNiagaraSimulationStageBase* InSimulationStage);
 
-	UNiagaraSimulationStageBase* GetSimulationStage() const;
+	NIAGARAEDITOR_API UNiagaraSimulationStageBase* GetSimulationStage() const;
 	const TObjectPtr<UNiagaraStackSimulationStagePropertiesItem>& GetSimulationStagePropertiesItem() const { return SimulationStageProperties; }
-	void SetOnModifiedSimulationStages(FOnModifiedSimulationStages OnModifiedSimulationStages);
+	NIAGARAEDITOR_API void SetOnModifiedSimulationStages(FOnModifiedSimulationStages OnModifiedSimulationStages);
 
 	virtual bool SupportsDelete() const override { return true; }
-	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
-	virtual void Delete() override;
+	NIAGARAEDITOR_API virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
+	NIAGARAEDITOR_API virtual void Delete() override;
 
 	virtual bool SupportsInheritance() const override { return true; }
-	virtual bool GetIsInherited() const override;
-	virtual FText GetInheritanceMessage() const override;
+	NIAGARAEDITOR_API virtual bool GetIsInherited() const override;
+	NIAGARAEDITOR_API virtual FText GetInheritanceMessage() const override;
 
 	virtual bool CanDrag() const override { return true; }
 
-	virtual bool GetIsEnabled() const override;
-	virtual void SetIsEnabled(bool bEnabled) override;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API virtual void SetIsEnabled(bool bEnabled) override;
 	virtual bool SupportsChangeEnabled() const override { return true; }
 
 protected:
-	virtual void FinalizeInternal() override;
+	NIAGARAEDITOR_API virtual void FinalizeInternal() override;
 
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
-	virtual TOptional<FDropRequestResponse> CanDropInternal(const FDropRequest& DropRequest) override;
+	NIAGARAEDITOR_API virtual TOptional<FDropRequestResponse> CanDropInternal(const FDropRequest& DropRequest) override;
 
-	virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest) override;
+	NIAGARAEDITOR_API virtual TOptional<FDropRequestResponse> DropInternal(const FDropRequest& DropRequest) override;
 
 	virtual bool SupportsSummaryView() const override { return true; }
-	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
+	NIAGARAEDITOR_API virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 private:
-	void SimulationStagePropertiesChanged();
+	NIAGARAEDITOR_API void SimulationStagePropertiesChanged();
 
-	bool HasBaseSimulationStage() const;
+	NIAGARAEDITOR_API bool HasBaseSimulationStage() const;
 	
 private:
 	TWeakObjectPtr<UNiagaraSimulationStageBase> SimulationStage;

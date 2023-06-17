@@ -7,7 +7,7 @@
 
 class FRDGBuilder;
 
-class NIAGARA_API FNiagaraGpuReadbackManager
+class FNiagaraGpuReadbackManager
 {
 protected:
 	typedef TFunction<void(TConstArrayView<TPair<void*, uint32>>)> FCompletionCallback;
@@ -41,11 +41,11 @@ public:
 	};
 
 public:
-	FNiagaraGpuReadbackManager();
-	~FNiagaraGpuReadbackManager();
+	NIAGARA_API FNiagaraGpuReadbackManager();
+	NIAGARA_API ~FNiagaraGpuReadbackManager();
 
 	// Tick call which polls for completed readbacks
-	void Tick();
+	NIAGARA_API void Tick();
 	
 private:
 	// Internal tick impl
@@ -53,27 +53,27 @@ private:
 
 public:
 	// Wait for all pending readbacks to complete
-	void WaitCompletion(FRHICommandListImmediate& RHICmdList);
+	NIAGARA_API void WaitCompletion(FRHICommandListImmediate& RHICmdList);
 
 	// Enqueue a readback of a single buffer
-	void EnqueueReadback(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, FCompletionCallback Callback);
-	void EnqueueReadback(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, uint32 Offset, uint32 NumBytes, FCompletionCallback Callback);
+	NIAGARA_API void EnqueueReadback(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, FCompletionCallback Callback);
+	NIAGARA_API void EnqueueReadback(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, uint32 Offset, uint32 NumBytes, FCompletionCallback Callback);
 
 	// Enqueue a readback of multiple buffers
-	void EnqueueReadbacks(FRDGBuilder& GraphBuilder, TConstArrayView<FRDGBufferRef> Buffers, FCompletionCallback Callback);
-	void EnqueueReadbacks(FRDGBuilder& GraphBuilder, TConstArrayView<FRDGBufferRequest> BufferRequest, FCompletionCallback Callback);
+	NIAGARA_API void EnqueueReadbacks(FRDGBuilder& GraphBuilder, TConstArrayView<FRDGBufferRef> Buffers, FCompletionCallback Callback);
+	NIAGARA_API void EnqueueReadbacks(FRDGBuilder& GraphBuilder, TConstArrayView<FRDGBufferRequest> BufferRequest, FCompletionCallback Callback);
 
 	//-TODO:RDG:Deprecate these calls
 	//UE_DEPRECATED(5.1, "Support for legacy shaders bindings will be removed in a future release, please upgrade your data interface.")
-	void EnqueueReadback(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, FCompletionCallback Callback);
+	NIAGARA_API void EnqueueReadback(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, FCompletionCallback Callback);
 	//UE_DEPRECATED(5.1, "Support for legacy shaders bindings will be removed in a future release, please upgrade your data interface.")
-	void EnqueueReadback(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 NumBytes, FCompletionCallback Callback);
+	NIAGARA_API void EnqueueReadback(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, uint32 Offset, uint32 NumBytes, FCompletionCallback Callback);
 
 	//-TODO:RDG:Deprecate these calls
 	//UE_DEPRECATED(5.1, "Support for legacy shaders bindings will be removed in a future release, please upgrade your data interface.")
-	void EnqueueReadbacks(FRHICommandList& RHICmdList, TConstArrayView<FRHIBuffer*> Buffers, FCompletionCallback Callback);
+	NIAGARA_API void EnqueueReadbacks(FRHICommandList& RHICmdList, TConstArrayView<FRHIBuffer*> Buffers, FCompletionCallback Callback);
 	//UE_DEPRECATED(5.1, "Support for legacy shaders bindings will be removed in a future release, please upgrade your data interface.")
-	void EnqueueReadbacks(FRHICommandList& RHICmdList, TConstArrayView<FBufferRequest> BufferRequest, FCompletionCallback Callback);
+	NIAGARA_API void EnqueueReadbacks(FRHICommandList& RHICmdList, TConstArrayView<FBufferRequest> BufferRequest, FCompletionCallback Callback);
 
 private:
 	TQueue<FPendingReadback> PendingReadbacks;

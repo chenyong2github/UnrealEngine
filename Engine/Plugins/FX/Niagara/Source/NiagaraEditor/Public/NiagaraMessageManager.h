@@ -61,7 +61,7 @@ private:
 	const TOptional<const FGuid> PinGUID;
 };
 
-class NIAGARAEDITOR_API INiagaraMessageRegistrationHandle : public TSharedFromThis<INiagaraMessageRegistrationHandle>
+class INiagaraMessageRegistrationHandle : public TSharedFromThis<INiagaraMessageRegistrationHandle>
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnRequestRefresh, const TArray<TSharedRef<const INiagaraMessage>>& /** NewMessages*/)
@@ -154,7 +154,7 @@ public:
 
 private:
 
-	struct NIAGARAEDITOR_API FAssetMessageInfo
+	struct FAssetMessageInfo
 	{
 		FAssetMessageInfo()
 			: bDirty(false)

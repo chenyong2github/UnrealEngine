@@ -19,16 +19,16 @@ DECLARE_DELEGATE_ThreeParams(FOnDistanceFieldCaptureComplete, FVector /*Extents*
  * Utility interface used by an editor console command to capture the global distance field and store it into a volume
  * texture selected in the Content Browser
  */
-class NIAGARAEDITOR_API FGlobalDistanceFieldCapture
+class FGlobalDistanceFieldCapture
 {
 public:
-	virtual ~FGlobalDistanceFieldCapture();
+	NIAGARAEDITOR_API virtual ~FGlobalDistanceFieldCapture();
 	
 	/**	Requests a capture. Will overwrite the volume texture selected in the Content Browser or create a new one. */
-	static void Request(UVolumeTexture* VolumeTexture, bool bRangeCompress, FOnDistanceFieldCaptureComplete& InCompletionDelegate);
+	static NIAGARAEDITOR_API void Request(UVolumeTexture* VolumeTexture, bool bRangeCompress, FOnDistanceFieldCaptureComplete& InCompletionDelegate);
 
 	/**	Requests a capture at the specified camera location. Will overwrite the volume texture selected in the Content Browser or create a new one. */
-	static void Request(UVolumeTexture* VolumeTexture, bool bRangeCompress, const FVector& CameraPos, FOnDistanceFieldCaptureComplete& InCompletionDelegate);
+	static NIAGARAEDITOR_API void Request(UVolumeTexture* VolumeTexture, bool bRangeCompress, const FVector& CameraPos, FOnDistanceFieldCaptureComplete& InCompletionDelegate);
 
 private:
 	TWeakObjectPtr<UVolumeTexture> VolumeTex;

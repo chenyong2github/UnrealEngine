@@ -14,8 +14,8 @@ struct FNiagaraEventScriptProperties;
 class IDetailTreeNode;
 
 // This is a wrapper class used for the details customization in the stack, since the event script properties were moved from the emitter object into the version data struct
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackEventWrapper : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraStackEventWrapper : public UObject
 {
 	GENERATED_BODY()
 
@@ -26,40 +26,40 @@ public:
 
 	FVersionedNiagaraEmitterWeakPtr EmitterWeakPtr;
 
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARAEDITOR_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackEventHandlerPropertiesItem : public UNiagaraStackItem
+UCLASS(MinimalAPI)
+class UNiagaraStackEventHandlerPropertiesItem : public UNiagaraStackItem
 {
 	GENERATED_BODY()
 		 
 public:
-	void Initialize(FRequiredEntryData InRequiredEntryData, FGuid InEventScriptUsageId);
+	NIAGARAEDITOR_API void Initialize(FRequiredEntryData InRequiredEntryData, FGuid InEventScriptUsageId);
 
-	virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
 
 	virtual bool SupportsResetToBase() const override { return true; }
-	virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
-	virtual void ResetToBase() override;
+	NIAGARAEDITOR_API virtual bool TestCanResetToBaseWithMessage(FText& OutCanResetToBaseMessage) const override;
+	NIAGARAEDITOR_API virtual void ResetToBase() override;
 
 	virtual FGuid GetSelectionId() const override { return EventScriptUsageId; }
 
 	FGuid GetEventScriptUsageId() const { return EventScriptUsageId; };
 
 protected:
-	virtual void FinalizeInternal() override;
+	NIAGARAEDITOR_API virtual void FinalizeInternal() override;
 
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 	virtual bool SupportsSummaryView() const override { return true; }
-	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
+	NIAGARAEDITOR_API virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 private:
-	void EventHandlerPropertiesChanged();
+	NIAGARAEDITOR_API void EventHandlerPropertiesChanged();
 
-	void SelectEmitterStackObjectRootTreeNodes(TArray<TSharedRef<IDetailTreeNode>> Source, TArray<TSharedRef<IDetailTreeNode>>* Selected);
+	NIAGARAEDITOR_API void SelectEmitterStackObjectRootTreeNodes(TArray<TSharedRef<IDetailTreeNode>> Source, TArray<TSharedRef<IDetailTreeNode>>* Selected);
 
-	bool HasBaseEventHandler() const;
+	NIAGARAEDITOR_API bool HasBaseEventHandler() const;
 
 private:
 	FGuid EventScriptUsageId;
@@ -77,9 +77,9 @@ private:
 	TObjectPtr<UNiagaraStackEventWrapper> EventWrapper;
 };
 
-UCLASS()
+UCLASS(MinimalAPI)
 /** Meant to contain a single binding of a Emitter::EventScriptProperties to the stack.*/
-class NIAGARAEDITOR_API UNiagaraStackEventScriptItemGroup : public UNiagaraStackScriptItemGroup
+class UNiagaraStackEventScriptItemGroup : public UNiagaraStackScriptItemGroup
 {
 	GENERATED_BODY()
 
@@ -87,22 +87,22 @@ public:
 	DECLARE_DELEGATE(FOnModifiedEventHandlers);
 
 public:
-	void Initialize(
+	NIAGARAEDITOR_API void Initialize(
 		FRequiredEntryData InRequiredEntryData,
 		TSharedRef<FNiagaraScriptViewModel> InScriptViewModel,
 		ENiagaraScriptUsage InScriptUsage,
 		FGuid InScriptUsageId,
 		FGuid InEventSourceEmitterId);
 
-	void SetOnModifiedEventHandlers(FOnModifiedEventHandlers OnModifiedEventHandlers);
+	NIAGARAEDITOR_API void SetOnModifiedEventHandlers(FOnModifiedEventHandlers OnModifiedEventHandlers);
 
 	virtual bool SupportsDelete() const override { return true; }
-	virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
-	virtual void Delete() override;
+	NIAGARAEDITOR_API virtual bool TestCanDeleteWithMessage(FText& OutCanDeleteMessage) const override;
+	NIAGARAEDITOR_API virtual void Delete() override;
 
 	virtual bool SupportsInheritance() const override { return true; }
-	virtual bool GetIsInherited() const override;
-	virtual FText GetInheritanceMessage() const override;
+	NIAGARAEDITOR_API virtual bool GetIsInherited() const override;
+	NIAGARAEDITOR_API virtual FText GetInheritanceMessage() const override;
 
 	const TObjectPtr<UNiagaraStackEventHandlerPropertiesItem>& GetEventHandlerPropertiesItem() const { return EventHandlerProperties; }
 	FGuid GetEventSourceEmitterId() const {return EventSourceEmitterId; };
@@ -110,12 +110,12 @@ public:
 protected:
 	FOnModifiedEventHandlers OnModifiedEventHandlersDelegate;
 
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 	virtual bool SupportsSummaryView() const override { return true; }
-	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
+	NIAGARAEDITOR_API virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 private:
-	bool HasBaseEventHandler() const;
+	NIAGARAEDITOR_API bool HasBaseEventHandler() const;
 	
 private:
 	mutable TOptional<bool> bHasBaseEventHandlerCache;

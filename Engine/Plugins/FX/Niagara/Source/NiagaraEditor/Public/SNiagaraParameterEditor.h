@@ -9,7 +9,7 @@
 
 /** Base class for inline parameter editors. These editors are expected to maintain an internal value which
 	is populated from a parameter struct. */
-class NIAGARAEDITOR_API SNiagaraParameterEditor : public SCompoundWidget
+class SNiagaraParameterEditor : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE(FOnValueChange);
@@ -25,7 +25,7 @@ public:
 		SLATE_ARGUMENT(TOptional<float>, MaximumDesiredWidth)
 	SLATE_END_ARGS();
 
-	void Construct(const FArguments& InArgs);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs);
 
 	/** Updates the internal value of the widget from a struct. */
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) = 0;
@@ -36,37 +36,37 @@ public:
 	/** Gets whether this is currently the exclusive editor of this parameter, meaning that the corresponding details view
 		should not be updated.  This hack is necessary because the details view closes all color pickers when
 		it's changed! */
-	bool GetIsEditingExclusively();
+	NIAGARAEDITOR_API bool GetIsEditingExclusively();
 
 	/** Sets the OnBeginValueChange delegate which is run when a continuous internal value change begins. */
-	void SetOnBeginValueChange(FOnValueChange InOnBeginValueChange);
+	NIAGARAEDITOR_API void SetOnBeginValueChange(FOnValueChange InOnBeginValueChange);
 
 	/** Sets the OnBeginValueChange delegate which is run when a continuous internal value change ends. */
-	void SetOnEndValueChange(FOnValueChange InOnEndValueChange);
+	NIAGARAEDITOR_API void SetOnEndValueChange(FOnValueChange InOnEndValueChange);
 
 	/** Sets the OnValueChanged delegate which is run when the internal value changes. */
-	void SetOnValueChanged(FOnValueChange InOnValueChanged);
+	NIAGARAEDITOR_API void SetOnValueChanged(FOnValueChange InOnValueChanged);
 
 	/** Gets an optional minimum desired width for this parameter editor. */
-	const TOptional<float>& GetMinimumDesiredWidth() const;
+	NIAGARAEDITOR_API const TOptional<float>& GetMinimumDesiredWidth() const;
 
 	/** Sets the minimum desired width for this parameter editor.  If the option parameter is not set it clears the current value. */
-	void SetMinimumDesiredWidth(TOptional<float> InMinimumDesiredWidth);
+	NIAGARAEDITOR_API void SetMinimumDesiredWidth(TOptional<float> InMinimumDesiredWidth);
 
 	/** Gets an optional maximum desired width for this parameter editor. */
-	const TOptional<float>& GetMaximumDesiredWidth() const;
+	NIAGARAEDITOR_API const TOptional<float>& GetMaximumDesiredWidth() const;
 
 	/** Sets the maximum desired width for this parameter editor.  If the option parameter is not set it clears the current value. */
-	void SetMaximumDesiredWidth(TOptional<float> InMaximumDesiredWidth);
+	NIAGARAEDITOR_API void SetMaximumDesiredWidth(TOptional<float> InMaximumDesiredWidth);
 
 	/** Gets the desired horizontal alignment of this parameter editor for it's parent container. */
-	EHorizontalAlignment GetHorizontalAlignment() const;
+	NIAGARAEDITOR_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	/** Gets the desired horizontal alignment of this parameter editor for it's parent container. */
-	EVerticalAlignment GetVerticalAlignment() const;
+	NIAGARAEDITOR_API EVerticalAlignment GetVerticalAlignment() const;
 
 	//~ SWidget interface
-	virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
+	NIAGARAEDITOR_API virtual FVector2D ComputeDesiredSize(float LayoutScaleMultiplier) const override;
 
 	/** */
 	virtual bool CanChangeContinuously() const { return false; }
@@ -74,16 +74,16 @@ protected:
 	/** Sets whether this is currently the exclusive editor of this parameter, meaning that the corresponding details view
 		should not be updated.  This hack is necessary because the details view closes all color pickers when
 		it's changed! */
-	void SetIsEditingExclusively(bool bInIsEditingExclusively);
+	NIAGARAEDITOR_API void SetIsEditingExclusively(bool bInIsEditingExclusively);
 
 	/** Executes the OnBeginValueChange delegate */
-	void ExecuteOnBeginValueChange();
+	NIAGARAEDITOR_API void ExecuteOnBeginValueChange();
 
 	/** Executes the OnEndValueChange delegate. */
-	void ExecuteOnEndValueChange();
+	NIAGARAEDITOR_API void ExecuteOnEndValueChange();
 
 	/** Executes the OnValueChanged delegate. */
-	void ExecuteOnValueChanged();
+	NIAGARAEDITOR_API void ExecuteOnValueChanged();
 
 	template<typename NumericType>
 	static TSharedPtr<TNumericUnitTypeInterface<NumericType>> GetTypeInterface(EUnit TypeUnit)
@@ -96,7 +96,7 @@ protected:
 	}
 
 protected:
-	static const float DefaultInputSize;
+	static NIAGARAEDITOR_API const float DefaultInputSize;
 
 private:
 	//** Flag set when a continuous change is in progress to prevent invoking ExecuteOnBeginValueChange() or ExecuteOnEndValueChange() more than once for a change. */

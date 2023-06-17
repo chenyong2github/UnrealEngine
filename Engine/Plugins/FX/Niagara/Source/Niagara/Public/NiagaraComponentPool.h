@@ -65,8 +65,8 @@ public:
 	int32 NumComponents() { return FreeElements.Num(); }
 };
 
-UCLASS(Transient)
-class NIAGARA_API UNiagaraComponentPool : public UObject
+UCLASS(Transient, MinimalAPI)
+class UNiagaraComponentPool : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -77,29 +77,29 @@ private:
 	double LastParticleSytemPoolCleanTime;
 
 public:
-	static bool Enabled();
+	static NIAGARA_API bool Enabled();
 
-	~UNiagaraComponentPool();
+	NIAGARA_API ~UNiagaraComponentPool();
 
-	void Cleanup(UWorld* World);
+	NIAGARA_API void Cleanup(UWorld* World);
 
 	/** Clear all free entires of the specified system. */
-	void ClearPool(UNiagaraSystem* System);
+	NIAGARA_API void ClearPool(UNiagaraSystem* System);
 
-	void PrimePool(UNiagaraSystem* Template, UWorld* World);
-	UNiagaraComponent* CreateWorldParticleSystem(UNiagaraSystem* Template, UWorld* World, ENCPoolMethod PoolingMethod);
+	NIAGARA_API void PrimePool(UNiagaraSystem* Template, UWorld* World);
+	NIAGARA_API UNiagaraComponent* CreateWorldParticleSystem(UNiagaraSystem* Template, UWorld* World, ENCPoolMethod PoolingMethod);
 
 	/** Called when an in-use particle component is finished and wishes to be returned to the pool. */
-	void ReclaimWorldParticleSystem(UNiagaraComponent* Component);
+	NIAGARA_API void ReclaimWorldParticleSystem(UNiagaraComponent* Component);
 
 	/** Notification that the component is being destroyed but has relevance to the component pool. */
-	void PooledComponentDestroyed(UNiagaraComponent* Component);
+	NIAGARA_API void PooledComponentDestroyed(UNiagaraComponent* Component);
 
 	/** Remove any components that are using this system. */
-	void RemoveComponentsBySystem(UNiagaraSystem* System);
+	NIAGARA_API void RemoveComponentsBySystem(UNiagaraSystem* System);
 
 	/** Dumps the current state of the pool to the log. */
-	void Dump();
+	NIAGARA_API void Dump();
 
 #if ENABLE_NC_POOL_DEBUGGING
 	//Array of currently in flight components that will auto release.

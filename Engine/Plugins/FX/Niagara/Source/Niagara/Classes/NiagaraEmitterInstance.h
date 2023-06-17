@@ -121,7 +121,7 @@ public:
 	float NIAGARA_API GetTotalCPUTimeMS();
 	int64 NIAGARA_API GetTotalBytesUsed();
 
-	ENiagaraExecutionState NIAGARA_API GetExecutionState() { return ExecutionState; }
+	ENiagaraExecutionState GetExecutionState() { return ExecutionState; }
 	void NIAGARA_API SetExecutionState(ENiagaraExecutionState InState);
 
 	bool AreBoundsDynamic() const { return bCachedBoundsDynamic; }

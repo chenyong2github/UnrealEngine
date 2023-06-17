@@ -5,23 +5,23 @@
 
 //////////////////////////////////////////////////////////////////////////
 // Helper for wrapping a persistent RW buffer
-struct NIAGARA_API FNiagaraPooledRWBuffer
+struct FNiagaraPooledRWBuffer
 {
 	~FNiagaraPooledRWBuffer() { Release(); }
 
-	void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, EPixelFormat PixelFormat, const FRDGBufferDesc& BufferDesc);
-	void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, EPixelFormat PixelFormat, const uint32 BytesPerElemenet, const uint32 NumElements, EBufferUsageFlags UsageFlags = EBufferUsageFlags::None);
-	void Release();
+	NIAGARA_API void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, EPixelFormat PixelFormat, const FRDGBufferDesc& BufferDesc);
+	NIAGARA_API void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, EPixelFormat PixelFormat, const uint32 BytesPerElemenet, const uint32 NumElements, EBufferUsageFlags UsageFlags = EBufferUsageFlags::None);
+	NIAGARA_API void Release();
 
 	bool IsValid() const { return Buffer.IsValid(); }
 
 
 	const TRefCountPtr<FRDGPooledBuffer>& GetPooledBuffer() const { return Buffer; }
-	FRDGBufferRef GetOrCreateBuffer(FRDGBuilder& GraphBuilder);
-	FRDGBufferSRVRef GetOrCreateSRV(FRDGBuilder& GraphBuilder);
-	FRDGBufferUAVRef GetOrCreateUAV(FRDGBuilder& GraphBuilder);
+	NIAGARA_API FRDGBufferRef GetOrCreateBuffer(FRDGBuilder& GraphBuilder);
+	NIAGARA_API FRDGBufferSRVRef GetOrCreateSRV(FRDGBuilder& GraphBuilder);
+	NIAGARA_API FRDGBufferUAVRef GetOrCreateUAV(FRDGBuilder& GraphBuilder);
 
-	void EndGraphUsage();
+	NIAGARA_API void EndGraphUsage();
 
 private:
 	TRefCountPtr<FRDGPooledBuffer>	Buffer;
@@ -38,23 +38,23 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 // Helper for wrapping a persistent RW texture
-struct NIAGARA_API FNiagaraPooledRWTexture
+struct FNiagaraPooledRWTexture
 {
 	~FNiagaraPooledRWTexture() { Release(); }
 
-	void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, const FRDGTextureDesc& TextureDesc);
-	void Release();
+	NIAGARA_API void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, const FRDGTextureDesc& TextureDesc);
+	NIAGARA_API void Release();
 
 	bool IsValid() const { return Texture.IsValid(); }
 
 	const TRefCountPtr<IPooledRenderTarget>& GetPooledTexture() const { return Texture; }
-	FRDGTextureRef GetOrCreateTexture(FRDGBuilder& GraphBuilder);
-	FRDGTextureSRVRef GetOrCreateSRV(FRDGBuilder& GraphBuilder);
-	FRDGTextureUAVRef GetOrCreateUAV(FRDGBuilder& GraphBuilder);
+	NIAGARA_API FRDGTextureRef GetOrCreateTexture(FRDGBuilder& GraphBuilder);
+	NIAGARA_API FRDGTextureSRVRef GetOrCreateSRV(FRDGBuilder& GraphBuilder);
+	NIAGARA_API FRDGTextureUAVRef GetOrCreateUAV(FRDGBuilder& GraphBuilder);
 
-	void CopyToTexture(FRDGBuilder& GraphBuilder, FRHITexture* DestinationTexture, const TCHAR* NameIfNotRegistered);
+	NIAGARA_API void CopyToTexture(FRDGBuilder& GraphBuilder, FRHITexture* DestinationTexture, const TCHAR* NameIfNotRegistered);
 
-	void EndGraphUsage();
+	NIAGARA_API void EndGraphUsage();
 
 private:
 	TRefCountPtr<IPooledRenderTarget>	Texture;

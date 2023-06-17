@@ -42,7 +42,7 @@ public:
 };
 
 USTRUCT()
-struct NIAGARA_API FNiagaraDataSetCompiledData
+struct FNiagaraDataSetCompiledData
 {
 	GENERATED_BODY()
 
@@ -76,12 +76,12 @@ struct NIAGARA_API FNiagaraDataSetCompiledData
 	UPROPERTY()
 	ENiagaraSimTarget SimTarget;
 
-	FNiagaraDataSetCompiledData();
-	const FNiagaraVariableLayoutInfo* FindVariableLayoutInfo(const FNiagaraVariableBase& VariableDef) const;
-	void BuildLayout();
-	void Empty();
+	NIAGARA_API FNiagaraDataSetCompiledData();
+	NIAGARA_API const FNiagaraVariableLayoutInfo* FindVariableLayoutInfo(const FNiagaraVariableBase& VariableDef) const;
+	NIAGARA_API void BuildLayout();
+	NIAGARA_API void Empty();
 
-	static FNiagaraDataSetCompiledData DummyCompiledData;
+	static NIAGARA_API FNiagaraDataSetCompiledData DummyCompiledData;
 
 	uint32 GetLayoutHash()const
 	{

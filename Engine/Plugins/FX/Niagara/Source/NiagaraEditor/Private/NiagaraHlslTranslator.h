@@ -221,7 +221,7 @@ struct FunctionNodeStackEntry
 	TSet<FString> CulledFunctionNames;
 };
 
-class NIAGARAEDITOR_API FNiagaraHlslTranslator : public INiagaraHlslTranslator
+class FNiagaraHlslTranslator : public INiagaraHlslTranslator
 {
 public:
 
@@ -268,7 +268,7 @@ protected:
 	TMap<FNiagaraDataSetID, TMap<int32, FDataSetAccessInfo>> DataSetWriteInfo[(int32)ENiagaraDataSetAccessMode::Num];
 	TMap<FNiagaraDataSetID, int32> DataSetWriteConditionalInfo[(int32)ENiagaraDataSetAccessMode::Num];
 
-	FString GetDataSetAccessSymbol(FNiagaraDataSetID DataSet, int32 IndexChunk, bool bRead);
+	NIAGARAEDITOR_API FString GetDataSetAccessSymbol(FNiagaraDataSetID DataSet, int32 IndexChunk, bool bRead);
 	FORCEINLINE FNiagaraDataSetID GetInstanceDataSetID()const { return FNiagaraDataSetID(TEXT("DataInstance"), ENiagaraDataSetType::ParticleData); }
 	FORCEINLINE FNiagaraDataSetID GetSystemEngineDataSetID()const { return FNiagaraDataSetID(TEXT("Engine"), ENiagaraDataSetType::ParticleData); }
 	FORCEINLINE FNiagaraDataSetID GetSystemUserDataSetID()const { return FNiagaraDataSetID(TEXT("User"), ENiagaraDataSetType::ParticleData); }
@@ -289,15 +289,15 @@ protected:
 	TMap<FNiagaraFunctionSignature, TArray<FName>> FunctionStageReadTargets;
 	TArray<TArray<FName>> ActiveStageReadTargets;
 
-	void GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArrayView<const int32> Inputs, TArray<int32>& Outputs);
-	FString GetFunctionIncludeStatement(const FNiagaraCustomHlslInclude& Include) const;
-	FString GetFunctionSignature(const FNiagaraFunctionSignature& Sig);
+	NIAGARAEDITOR_API void GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArrayView<const int32> Inputs, TArray<int32>& Outputs);
+	NIAGARAEDITOR_API FString GetFunctionIncludeStatement(const FNiagaraCustomHlslInclude& Include) const;
+	NIAGARAEDITOR_API FString GetFunctionSignature(const FNiagaraFunctionSignature& Sig);
 
-	void WriteDataSetContextVars(TMap<FNiagaraDataSetID, TMap<int32, FDataSetAccessInfo>>& DataSetAccessInfo, bool bRead, FString& OutHLSLOutput);
-	void WriteDataSetStructDeclarations(TMap<FNiagaraDataSetID, TMap<int32, FDataSetAccessInfo>>& DataSetAccessInfo, bool bRead, FString& OutHLSLOutput);
-	void DecomposeVariableAccess(UStruct* Struct, bool bRead, FString IndexSymbol, FString HLSLString);
+	NIAGARAEDITOR_API void WriteDataSetContextVars(TMap<FNiagaraDataSetID, TMap<int32, FDataSetAccessInfo>>& DataSetAccessInfo, bool bRead, FString& OutHLSLOutput);
+	NIAGARAEDITOR_API void WriteDataSetStructDeclarations(TMap<FNiagaraDataSetID, TMap<int32, FDataSetAccessInfo>>& DataSetAccessInfo, bool bRead, FString& OutHLSLOutput);
+	NIAGARAEDITOR_API void DecomposeVariableAccess(UStruct* Struct, bool bRead, FString IndexSymbol, FString HLSLString);
 
-	FString GetUniqueSymbolName(FName BaseName);
+	NIAGARAEDITOR_API FString GetUniqueSymbolName(FName BaseName);
 
 	/** Stack of all function params. */
 	struct FFunctionContext
@@ -315,37 +315,37 @@ protected:
 	};
 	TArray<FFunctionContext> FunctionContextStack;
 	const FFunctionContext* FunctionCtx()const { return FunctionContextStack.Num() > 0 ? &FunctionContextStack.Last() : nullptr; }
-	FString GetCallstack();
-	TArray<FGuid> GetCallstackGuids();
+	NIAGARAEDITOR_API FString GetCallstack();
+	NIAGARAEDITOR_API TArray<FGuid> GetCallstackGuids();
 
-	void EnterStatsScope(FNiagaraStatScope StatScope);
-	void ExitStatsScope();
-	void EnterStatsScope(FNiagaraStatScope StatScope, FString& OutHlsl);
-	void ExitStatsScope(FString& OutHlsl);
+	NIAGARAEDITOR_API void EnterStatsScope(FNiagaraStatScope StatScope);
+	NIAGARAEDITOR_API void ExitStatsScope();
+	NIAGARAEDITOR_API void EnterStatsScope(FNiagaraStatScope StatScope, FString& OutHlsl);
+	NIAGARAEDITOR_API void ExitStatsScope(FString& OutHlsl);
 
-	FString GeneratedConstantString(float Constant);
-	FString GeneratedConstantString(FVector4 Constant);
+	NIAGARAEDITOR_API FString GeneratedConstantString(float Constant);
+	NIAGARAEDITOR_API FString GeneratedConstantString(FVector4 Constant);
 
 	/* Add a chunk that is not written to the source, only used as a source chunk for others. */
-	int32 AddSourceChunk(FString SymbolName, const FNiagaraTypeDefinition& Type, bool bSanitize = true);
+	NIAGARAEDITOR_API int32 AddSourceChunk(FString SymbolName, const FNiagaraTypeDefinition& Type, bool bSanitize = true);
 
 	/** Add a chunk defining a uniform value. */
-	int32 AddUniformChunk(FString SymbolName, const FNiagaraVariable& InVariable, ENiagaraCodeChunkMode ChunkMode, bool AddPadding);
+	NIAGARAEDITOR_API int32 AddUniformChunk(FString SymbolName, const FNiagaraVariable& InVariable, ENiagaraCodeChunkMode ChunkMode, bool AddPadding);
 
 	/* Add a chunk that is written to the body of the shader code. */
-	int32 AddBodyChunk(FString SymbolName, FString Definition, const FNiagaraTypeDefinition& Type, TArray<int32>& SourceChunks, bool bDecl = true, bool bIsTerminated = true);
-	int32 AddBodyChunk(FString SymbolName, FString Definition, const FNiagaraTypeDefinition& Type, int32 SourceChunk, bool bDecl = true, bool bIsTerminated = true);
-	int32 AddBodyChunk(FString SymbolName, FString Definition, const FNiagaraTypeDefinition& Type, bool bDecl = true, bool bIsTerminated = true);
-	int32 AddBodyComment(const FString& Comment);
-	int32 AddBodyChunk(const FString& Definition);
+	NIAGARAEDITOR_API int32 AddBodyChunk(FString SymbolName, FString Definition, const FNiagaraTypeDefinition& Type, TArray<int32>& SourceChunks, bool bDecl = true, bool bIsTerminated = true);
+	NIAGARAEDITOR_API int32 AddBodyChunk(FString SymbolName, FString Definition, const FNiagaraTypeDefinition& Type, int32 SourceChunk, bool bDecl = true, bool bIsTerminated = true);
+	NIAGARAEDITOR_API int32 AddBodyChunk(FString SymbolName, FString Definition, const FNiagaraTypeDefinition& Type, bool bDecl = true, bool bIsTerminated = true);
+	NIAGARAEDITOR_API int32 AddBodyComment(const FString& Comment);
+	NIAGARAEDITOR_API int32 AddBodyChunk(const FString& Definition);
 
-	FString GetUniqueEmitterName() const;
-	void ConvertCompileInfoToParamInfo(const FNiagaraScriptDataInterfaceCompileInfo& InCompileInfo, FNiagaraDataInterfaceGPUParamInfo& OutGPUParamInfo, TArray<FNiagaraFunctionSignature>& GeneratedFunctionSignatures);
+	NIAGARAEDITOR_API FString GetUniqueEmitterName() const;
+	NIAGARAEDITOR_API void ConvertCompileInfoToParamInfo(const FNiagaraScriptDataInterfaceCompileInfo& InCompileInfo, FNiagaraDataInterfaceGPUParamInfo& OutGPUParamInfo, TArray<FNiagaraFunctionSignature>& GeneratedFunctionSignatures);
 
-	FString GetFunctionDefinitions();
+	NIAGARAEDITOR_API FString GetFunctionDefinitions();
 
 public:
-	FNiagaraHlslTranslator();
+	NIAGARAEDITOR_API FNiagaraHlslTranslator();
 	virtual ~FNiagaraHlslTranslator() = default;
 
 	virtual const FNiagaraTranslatorOutput& GetTranslateOutput() const override { return CompilationOutput; }
@@ -353,65 +353,65 @@ public:
 
 	bool DisableDebugSwitches() const { return TranslationOptions.bDisableDebugSwitches; }
 
-	bool IsCompileOptionDefined(const TCHAR* InDefineStr);
+	NIAGARAEDITOR_API bool IsCompileOptionDefined(const TCHAR* InDefineStr);
 
-	int32 GetAttribute(const FNiagaraVariable& Attribute);
+	NIAGARAEDITOR_API int32 GetAttribute(const FNiagaraVariable& Attribute);
 
-	int32 GetConstant(const FNiagaraVariable& Constant, FString* DebugOutputValue = nullptr);
+	NIAGARAEDITOR_API int32 GetConstant(const FNiagaraVariable& Constant, FString* DebugOutputValue = nullptr);
 
-	int32 ParameterMapForInnerIndex() const;
+	NIAGARAEDITOR_API int32 ParameterMapForInnerIndex() const;
 
-	void DefinePreviousParametersFunction(FString& HlslOutput, TArray<TArray<FNiagaraVariable>>& DataSetVariables, TMap<FNiagaraDataSetID, int32>& DataSetReads, TMap<FNiagaraDataSetID, int32>& DataSetWrites);
+	NIAGARAEDITOR_API void DefinePreviousParametersFunction(FString& HlslOutput, TArray<TArray<FNiagaraVariable>>& DataSetVariables, TMap<FNiagaraDataSetID, int32>& DataSetReads, TMap<FNiagaraDataSetID, int32>& DataSetWrites);
 
-	void DefineDataSetReadFunction(FString& HlslOutput, TArray<FNiagaraDataSetID>& ReadDataSets);
-	void DefineDataSetWriteFunction(FString& HlslOutput, TArray<FNiagaraDataSetProperties>& WriteDataSets, TArray<int32>& WriteConditionVarIndices);
-	void DefineMain(FString& HLSLOutput, const TArray<TArray<FNiagaraVariable>>& DataSetVariables, const TMap<FNiagaraDataSetID, int32>& DataSetReads, const TMap<FNiagaraDataSetID, int32>& DataSetWrites);
+	NIAGARAEDITOR_API void DefineDataSetReadFunction(FString& HlslOutput, TArray<FNiagaraDataSetID>& ReadDataSets);
+	NIAGARAEDITOR_API void DefineDataSetWriteFunction(FString& HlslOutput, TArray<FNiagaraDataSetProperties>& WriteDataSets, TArray<int32>& WriteConditionVarIndices);
+	NIAGARAEDITOR_API void DefineMain(FString& HLSLOutput, const TArray<TArray<FNiagaraVariable>>& DataSetVariables, const TMap<FNiagaraDataSetID, int32>& DataSetReads, const TMap<FNiagaraDataSetID, int32>& DataSetWrites);
 
-	void DefineDataSetVariableReads(FString& HLSLOutput, const FNiagaraDataSetID& Id, int32 DataSetIndex, const TArray<FNiagaraVariable>& ReadVars);
-	void DefineDataInterfaceHLSL(FString& HlslOutput);
-	void DefineExternalFunctionsHLSL(FString& HlslOutput);
+	NIAGARAEDITOR_API void DefineDataSetVariableReads(FString& HLSLOutput, const FNiagaraDataSetID& Id, int32 DataSetIndex, const TArray<FNiagaraVariable>& ReadVars);
+	NIAGARAEDITOR_API void DefineDataInterfaceHLSL(FString& HlslOutput);
+	NIAGARAEDITOR_API void DefineExternalFunctionsHLSL(FString& HlslOutput);
 
 	// Format string should have up to 5 entries, {{0} = Computed Variable Suffix, {1} = Float or Int, {2} = Data Set Index, {3} = Register Index, {4} Default value for that type.
-	void GatherVariableForDataSetAccess(const FNiagaraVariable& Variable, FString Format, int32& RegisterIdxInt, int32& RegisterIdxFloat, int32& RegisterIdxHalf, int32 DataSetIndex, FString InstanceIdxSymbol, FString& HlslOutput, bool bWriteHLSL = true);
-	void GatherComponentsForDataSetAccess(UScriptStruct* Struct, FString VariableSymbol, bool bMatrixRoot, TArray<FString>& Components, TArray<ENiagaraBaseTypes>& Types);
+	NIAGARAEDITOR_API void GatherVariableForDataSetAccess(const FNiagaraVariable& Variable, FString Format, int32& RegisterIdxInt, int32& RegisterIdxFloat, int32& RegisterIdxHalf, int32 DataSetIndex, FString InstanceIdxSymbol, FString& HlslOutput, bool bWriteHLSL = true);
+	NIAGARAEDITOR_API void GatherComponentsForDataSetAccess(UScriptStruct* Struct, FString VariableSymbol, bool bMatrixRoot, TArray<FString>& Components, TArray<ENiagaraBaseTypes>& Types);
 
-	void EnterFunctionCallNode(const TSet<FName>& UnusedInputs);
-	void ExitFunctionCallNode();
-	bool IsFunctionVariableCulledFromCompilation(const FName& InputName) const;
+	NIAGARAEDITOR_API void EnterFunctionCallNode(const TSet<FName>& UnusedInputs);
+	NIAGARAEDITOR_API void ExitFunctionCallNode();
+	NIAGARAEDITOR_API bool IsFunctionVariableCulledFromCompilation(const FName& InputName) const;
 
-	bool GetFunctionParameter(const FNiagaraVariable& Parameter, int32& OutParam)const;
-	int32 GetUniqueCallerID();
+	NIAGARAEDITOR_API bool GetFunctionParameter(const FNiagaraVariable& Parameter, int32& OutParam)const;
+	NIAGARAEDITOR_API int32 GetUniqueCallerID();
 
-	bool CanReadAttributes()const;
-	ENiagaraScriptUsage GetTargetUsage() const;
-	FGuid GetTargetUsageId() const;
+	NIAGARAEDITOR_API bool CanReadAttributes()const;
+	NIAGARAEDITOR_API ENiagaraScriptUsage GetTargetUsage() const;
+	NIAGARAEDITOR_API FGuid GetTargetUsageId() const;
 	ENiagaraSimTarget GetSimulationTarget() const
 	{
 		return CompilationTarget;
 	}
 
-	static TArray<FName> ConditionPropertyPath(const FNiagaraTypeDefinition& Type, const TArray<FName>& InPath);
-	static FString GetSanitizedSymbolName(FStringView SymbolName, bool bCollapseNamespaces = false);
-	static FString GetSanitizedDIFunctionName(const FString& FunctionName);
-	static FString GetSanitizedFunctionNameSuffix(FString Name);
+	static NIAGARAEDITOR_API TArray<FName> ConditionPropertyPath(const FNiagaraTypeDefinition& Type, const TArray<FName>& InPath);
+	static NIAGARAEDITOR_API FString GetSanitizedSymbolName(FStringView SymbolName, bool bCollapseNamespaces = false);
+	static NIAGARAEDITOR_API FString GetSanitizedDIFunctionName(const FString& FunctionName);
+	static NIAGARAEDITOR_API FString GetSanitizedFunctionNameSuffix(FString Name);
 
 	/** Replaces all non-ascii characters with a "ASCXXX" string, where XXX is their int value */
-	static FString ConvertToAsciiString(FString Name);
+	static NIAGARAEDITOR_API FString ConvertToAsciiString(FString Name);
 
-	bool AddStructToDefinitionSet(const FNiagaraTypeDefinition& TypeDef);
+	NIAGARAEDITOR_API bool AddStructToDefinitionSet(const FNiagaraTypeDefinition& TypeDef);
 
-	static FString GetFunctionSignatureSymbol(const FNiagaraFunctionSignature& Sig);
+	static NIAGARAEDITOR_API FString GetFunctionSignatureSymbol(const FNiagaraFunctionSignature& Sig);
 
-	static FName GetDataInterfaceName(FName BaseName, const FString& UniqueEmitterName, bool bIsParameterMapDataInterface);
+	static NIAGARAEDITOR_API FName GetDataInterfaceName(FName BaseName, const FString& UniqueEmitterName, bool bIsParameterMapDataInterface);
 
 
 
-	static FString GenerateFunctionHlslPrototype(FStringView InVariableName, const FNiagaraFunctionSignature& FunctionSignature);
+	static NIAGARAEDITOR_API FString GenerateFunctionHlslPrototype(FStringView InVariableName, const FNiagaraFunctionSignature& FunctionSignature);
 
-	void SetConstantByStaticVariable(int32& OutValue, const FNiagaraVariable& Var, FString* DebugString = nullptr);
-	void SetConstantByStaticVariable(FNiagaraVariable& OutValue, const FNiagaraVariable& Var, FString* DebugString = nullptr);
+	NIAGARAEDITOR_API void SetConstantByStaticVariable(int32& OutValue, const FNiagaraVariable& Var, FString* DebugString = nullptr);
+	NIAGARAEDITOR_API void SetConstantByStaticVariable(FNiagaraVariable& OutValue, const FNiagaraVariable& Var, FString* DebugString = nullptr);
 
-	bool IsEventSpawnScript()const;
+	NIAGARAEDITOR_API bool IsEventSpawnScript()const;
 
 	// collection of functions that rely on the graph implementation and so must be relegated to the TNiagaraHlslTranslator
 	virtual void DefineDataSetVariableWrites(FString& HlslOutput, const FNiagaraDataSetID& Id, int32 DataSetIndex, const TArray<FNiagaraVariable>& WriteVars) = 0;
@@ -424,48 +424,48 @@ public:
 
 
 protected:
-	bool ShouldConsiderTargetParameterMap(ENiagaraScriptUsage InUsage) const;
+	NIAGARAEDITOR_API bool ShouldConsiderTargetParameterMap(ENiagaraScriptUsage InUsage) const;
 
-	void HandleNamespacedExternalVariablesToDataSetRead(TArray<FNiagaraVariable>& InDataSetVars, FString InNamespaceStr);
+	NIAGARAEDITOR_API void HandleNamespacedExternalVariablesToDataSetRead(TArray<FNiagaraVariable>& InDataSetVars, FString InNamespaceStr);
 
 	// For GPU simulations we have to special case some variables and pass them view shader parameters rather than the uniform buffer as they vary from CPU simulations
-	bool IsVariableInUniformBuffer(const FNiagaraVariable& Variable) const;
+	NIAGARAEDITOR_API bool IsVariableInUniformBuffer(const FNiagaraVariable& Variable) const;
 
-	FString ComputeMatrixColumnAccess(const FString& Name);
-	FString ComputeMatrixRowAccess(const FString& Name);
+	NIAGARAEDITOR_API FString ComputeMatrixColumnAccess(const FString& Name);
+	NIAGARAEDITOR_API FString ComputeMatrixRowAccess(const FString& Name);
 
 	// Add a raw float constant chunk
-	int32 GetConstantDirect(float InValue);
-	int32 GetConstantDirect(bool InValue);
-	int32 GetConstantDirect(int InValue);
+	NIAGARAEDITOR_API int32 GetConstantDirect(float InValue);
+	NIAGARAEDITOR_API int32 GetConstantDirect(bool InValue);
+	NIAGARAEDITOR_API int32 GetConstantDirect(int InValue);
 
-	FNiagaraTypeDefinition GetChildType(const FNiagaraTypeDefinition& BaseType, const FName& PropertyName);
-	FString NamePathToString(const FString& Prefix, const FNiagaraTypeDefinition& RootType, const TArray<FName>& NamePath);
-	FString GenerateAssignment(const FNiagaraTypeDefinition& SrcType, const TArray<FName>& SrcPath, const FNiagaraTypeDefinition& DestType, const TArray<FName>& DestPath);
+	NIAGARAEDITOR_API FNiagaraTypeDefinition GetChildType(const FNiagaraTypeDefinition& BaseType, const FName& PropertyName);
+	NIAGARAEDITOR_API FString NamePathToString(const FString& Prefix, const FNiagaraTypeDefinition& RootType, const TArray<FName>& NamePath);
+	NIAGARAEDITOR_API FString GenerateAssignment(const FNiagaraTypeDefinition& SrcType, const TArray<FName>& SrcPath, const FNiagaraTypeDefinition& DestType, const TArray<FName>& DestPath);
 
 	//Generates the code for the passed chunk.
-	FString GetCode(FNiagaraCodeChunk& Chunk);
-	FString GetCode(int32 ChunkIdx);
+	NIAGARAEDITOR_API FString GetCode(FNiagaraCodeChunk& Chunk);
+	NIAGARAEDITOR_API FString GetCode(int32 ChunkIdx);
 	//Retreives the code for this chunk being used as a source for another chunk
-	FString GetCodeAsSource(int32 ChunkIdx);
+	NIAGARAEDITOR_API FString GetCodeAsSource(int32 ChunkIdx);
 
 	// Generate a structure initializer string
 	// Returns true if we generated the structure successfully or false if we encounter something we could not handle
-	bool GenerateStructInitializer(TStringBuilder<128>& InitializerString, UStruct* UserDefinedStruct, const void* StructData, int32 ByteOffset = 0);
+	NIAGARAEDITOR_API bool GenerateStructInitializer(TStringBuilder<128>& InitializerString, UStruct* UserDefinedStruct, const void* StructData, int32 ByteOffset = 0);
 	// Convert a variable with actual data into a constant string
-	FString GenerateConstantString(const FNiagaraVariable& Constant);
+	NIAGARAEDITOR_API FString GenerateConstantString(const FNiagaraVariable& Constant);
 
 	// Takes the current script state (interpolated or not) and determines the correct context variable.
-	FString GetParameterMapInstanceName(int32 ParamMapHistoryIdx);
+	NIAGARAEDITOR_API FString GetParameterMapInstanceName(int32 ParamMapHistoryIdx);
 
 	// Register an attribute in its non namespaced form
 	virtual bool ParameterMapRegisterNamespaceAttributeVariable(const FNiagaraVariable& InVariable, int32 InParamMapHistoryIdx, int32& Output) = 0;
 
-	bool ShouldInterpolateParameter(const FNiagaraVariable& Parameter);
+	NIAGARAEDITOR_API bool ShouldInterpolateParameter(const FNiagaraVariable& Parameter);
 
-	bool IsBulkSystemScript() const;
-	bool IsSpawnScript() const;
-	bool RequiresInterpolation() const;
+	NIAGARAEDITOR_API bool IsBulkSystemScript() const;
+	NIAGARAEDITOR_API bool IsSpawnScript() const;
+	NIAGARAEDITOR_API bool RequiresInterpolation() const;
 
 	template<typename T>
 	void BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode);

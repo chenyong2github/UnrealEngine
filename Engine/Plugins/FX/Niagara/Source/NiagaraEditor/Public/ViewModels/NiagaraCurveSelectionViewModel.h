@@ -17,22 +17,22 @@ class UNiagaraSystem;
 class FNiagaraSystemViewModel;
 struct FRichCurve;
 
-struct NIAGARAEDITOR_API FNiagaraCurveSelectionTreeNodeDataId
+struct FNiagaraCurveSelectionTreeNodeDataId
 {
 	FNiagaraCurveSelectionTreeNodeDataId()
 		: Object(nullptr)
 	{
 	}
 
-	bool operator==(const FNiagaraCurveSelectionTreeNodeDataId& Other) const;
+	NIAGARAEDITOR_API bool operator==(const FNiagaraCurveSelectionTreeNodeDataId& Other) const;
 
 	FName UniqueName;
 	FGuid Guid;
 	UObject* Object;
 
-	static FNiagaraCurveSelectionTreeNodeDataId FromUniqueName(FName UniqueName);
-	static FNiagaraCurveSelectionTreeNodeDataId FromGuid(FGuid Guid);
-	static FNiagaraCurveSelectionTreeNodeDataId FromObject(UObject* Object);
+	static NIAGARAEDITOR_API FNiagaraCurveSelectionTreeNodeDataId FromUniqueName(FName UniqueName);
+	static NIAGARAEDITOR_API FNiagaraCurveSelectionTreeNodeDataId FromGuid(FGuid Guid);
+	static NIAGARAEDITOR_API FNiagaraCurveSelectionTreeNodeDataId FromObject(UObject* Object);
 };
 
 enum class ENiagaraCurveSelectionNodeStyleMode
@@ -45,90 +45,90 @@ enum class ENiagaraCurveSelectionNodeStyleMode
 	CurveComponent
 };
 
-struct NIAGARAEDITOR_API FNiagaraCurveSelectionTreeNode : TSharedFromThis<FNiagaraCurveSelectionTreeNode>
+struct FNiagaraCurveSelectionTreeNode : TSharedFromThis<FNiagaraCurveSelectionTreeNode>
 {
 public:
-	FNiagaraCurveSelectionTreeNode();
+	NIAGARAEDITOR_API FNiagaraCurveSelectionTreeNode();
 
-	const FNiagaraCurveSelectionTreeNodeDataId& GetDataId() const;
+	NIAGARAEDITOR_API const FNiagaraCurveSelectionTreeNodeDataId& GetDataId() const;
 
-	void SetDataId(const FNiagaraCurveSelectionTreeNodeDataId& InDataId);
+	NIAGARAEDITOR_API void SetDataId(const FNiagaraCurveSelectionTreeNodeDataId& InDataId);
 
-	FGuid GetNodeUniqueId() const;
+	NIAGARAEDITOR_API FGuid GetNodeUniqueId() const;
 
-	FText GetDisplayName() const;
+	NIAGARAEDITOR_API FText GetDisplayName() const;
 
-	void SetDisplayName(FText InDisplayName);
+	NIAGARAEDITOR_API void SetDisplayName(FText InDisplayName);
 
-	FText GetSecondDisplayName() const;
+	NIAGARAEDITOR_API FText GetSecondDisplayName() const;
 
-	void SetSecondDisplayName(FText InSecondDisplayName);
+	NIAGARAEDITOR_API void SetSecondDisplayName(FText InSecondDisplayName);
 
-	ENiagaraCurveSelectionNodeStyleMode GetStyleMode() const;
+	NIAGARAEDITOR_API ENiagaraCurveSelectionNodeStyleMode GetStyleMode() const;
 
-	FName GetExecutionCategory() const;
+	NIAGARAEDITOR_API FName GetExecutionCategory() const;
 
-	FName GetExecutionSubcategory() const;
+	NIAGARAEDITOR_API FName GetExecutionSubcategory() const;
 
-	bool GetIsParameter() const;
+	NIAGARAEDITOR_API bool GetIsParameter() const;
 
-	void SetStyle(ENiagaraCurveSelectionNodeStyleMode InStyleMode, FName InExecutionCategory, FName InExecutionSubcategory, bool bInIsParameter);
+	NIAGARAEDITOR_API void SetStyle(ENiagaraCurveSelectionNodeStyleMode InStyleMode, FName InExecutionCategory, FName InExecutionSubcategory, bool bInIsParameter);
 
-	TSharedPtr<FNiagaraCurveSelectionTreeNode> GetParent() const;
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraCurveSelectionTreeNode> GetParent() const;
 
 protected:
-	void SetParent(TSharedPtr<FNiagaraCurveSelectionTreeNode> InParent);
+	NIAGARAEDITOR_API void SetParent(TSharedPtr<FNiagaraCurveSelectionTreeNode> InParent);
 
 public:
-	const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>>& GetChildNodes() const;
+	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>>& GetChildNodes() const;
 
-	void SetChildNodes(const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> InChildNodes);
+	NIAGARAEDITOR_API void SetChildNodes(const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> InChildNodes);
 
-	static TSharedPtr<FNiagaraCurveSelectionTreeNode> FindNodeWithDataId(const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>>& Nodes, FNiagaraCurveSelectionTreeNodeDataId DataId);
+	static NIAGARAEDITOR_API TSharedPtr<FNiagaraCurveSelectionTreeNode> FindNodeWithDataId(const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>>& Nodes, FNiagaraCurveSelectionTreeNodeDataId DataId);
 
-	TWeakObjectPtr<UNiagaraDataInterfaceCurveBase> GetCurveDataInterface() const;
+	NIAGARAEDITOR_API TWeakObjectPtr<UNiagaraDataInterfaceCurveBase> GetCurveDataInterface() const;
 
-	FRichCurve* GetCurve() const;
+	NIAGARAEDITOR_API FRichCurve* GetCurve() const;
 
-	FName GetCurveName() const;
+	NIAGARAEDITOR_API FName GetCurveName() const;
 
-	FLinearColor GetCurveColor() const;
+	NIAGARAEDITOR_API FLinearColor GetCurveColor() const;
 
-	bool GetCurveIsReadOnly() const;
+	NIAGARAEDITOR_API bool GetCurveIsReadOnly() const;
 
-	void SetCurveDataInterface(UNiagaraDataInterfaceCurveBase* InCurveDataInterface);
+	NIAGARAEDITOR_API void SetCurveDataInterface(UNiagaraDataInterfaceCurveBase* InCurveDataInterface);
 
-	void SetPlaceholderDataInterfaceHandle(TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> InPlaceholderDataInterfaceHandle);
+	NIAGARAEDITOR_API void SetPlaceholderDataInterfaceHandle(TSharedPtr<FNiagaraPlaceholderDataInterfaceHandle> InPlaceholderDataInterfaceHandle);
 
-	void SetCurveData(UNiagaraDataInterfaceCurveBase* InCurveDataInterface, FRichCurve* InCurve, FName InCurveName, FLinearColor InCurveColor);
+	NIAGARAEDITOR_API void SetCurveData(UNiagaraDataInterfaceCurveBase* InCurveDataInterface, FRichCurve* InCurve, FName InCurveName, FLinearColor InCurveColor);
 
-	const TOptional<FObjectKey>& GetDisplayedObjectKey() const;
+	NIAGARAEDITOR_API const TOptional<FObjectKey>& GetDisplayedObjectKey() const;
 
-	void SetDisplayedObjectKey(FObjectKey InDisplayedObjectKey);
+	NIAGARAEDITOR_API void SetDisplayedObjectKey(FObjectKey InDisplayedObjectKey);
 
-	bool GetShowInTree() const;
+	NIAGARAEDITOR_API bool GetShowInTree() const;
 
-	void SetShowInTree(bool bInShouldShowInTree);
+	NIAGARAEDITOR_API void SetShowInTree(bool bInShouldShowInTree);
 
-	bool GetIsExpanded() const;
+	NIAGARAEDITOR_API bool GetIsExpanded() const;
 
-	void SetIsExpanded(bool bInIsExpanded);
+	NIAGARAEDITOR_API void SetIsExpanded(bool bInIsExpanded);
 
-	bool GetIsEnabled() const;
+	NIAGARAEDITOR_API bool GetIsEnabled() const;
 
-	void SetIsEnabled(bool bInIsEnabled);
+	NIAGARAEDITOR_API void SetIsEnabled(bool bInIsEnabled);
 
-	bool GetIsEnabledAndParentIsEnabled() const;
+	NIAGARAEDITOR_API bool GetIsEnabledAndParentIsEnabled() const;
 
-	const TArray<int32>& GetSortIndices() const;
+	NIAGARAEDITOR_API const TArray<int32>& GetSortIndices() const;
 
-	void UpdateSortIndices(int32 Index);
+	NIAGARAEDITOR_API void UpdateSortIndices(int32 Index);
 
-	void ResetCachedEnabledState();
+	NIAGARAEDITOR_API void ResetCachedEnabledState();
 
-	FSimpleMulticastDelegate& GetOnCurveChanged();
+	NIAGARAEDITOR_API FSimpleMulticastDelegate& GetOnCurveChanged();
 
-	void NotifyCurveChanged();
+	NIAGARAEDITOR_API void NotifyCurveChanged();
 
 private:
 	FNiagaraCurveSelectionTreeNodeDataId DataId;
@@ -158,8 +158,8 @@ private:
 	FSimpleMulticastDelegate OnCurveChangedDelegate;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraCurveSelectionViewModel : public UObject
+UCLASS(MinimalAPI)
+class UNiagaraCurveSelectionViewModel : public UObject
 {
 public:
 	GENERATED_BODY()
@@ -168,23 +168,23 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRequestSelectNode, FGuid /* NodeIdToSelect */);
 
 public:
-	void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
+	NIAGARAEDITOR_API void Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
 
-	void Finalize();
+	NIAGARAEDITOR_API void Finalize();
 
-	const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>>& GetRootNodes();
+	NIAGARAEDITOR_API const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>>& GetRootNodes();
 
-	void FocusAndSelectCurveDataInterface(UNiagaraDataInterfaceCurveBase& CurveDataInterface);
+	NIAGARAEDITOR_API void FocusAndSelectCurveDataInterface(UNiagaraDataInterfaceCurveBase& CurveDataInterface);
 
-	void Refresh();
+	NIAGARAEDITOR_API void Refresh();
 
-	void RefreshDeferred();
+	NIAGARAEDITOR_API void RefreshDeferred();
 
-	void Tick();
+	NIAGARAEDITOR_API void Tick();
 
-	FSimpleMulticastDelegate& OnRefreshed();
+	NIAGARAEDITOR_API FSimpleMulticastDelegate& OnRefreshed();
 
-	FOnRequestSelectNode& OnRequestSelectNode();
+	NIAGARAEDITOR_API FOnRequestSelectNode& OnRequestSelectNode();
 
 private:
 	TSharedRef<FNiagaraCurveSelectionTreeNode> CreateNodeForCurveDataInterface(const FNiagaraCurveSelectionTreeNodeDataId& DataId, UNiagaraDataInterfaceCurveBase& CurveDataInterface, bool bIsParameter) const;

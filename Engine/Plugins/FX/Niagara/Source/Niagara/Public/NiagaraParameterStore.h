@@ -162,7 +162,7 @@ struct TStructOpsTypeTraits<FNiagaraVariableWithOffset> : public TStructOpsTypeT
 
 /** Base storage class for Niagara parameter values. */
 USTRUCT()
-struct NIAGARA_API FNiagaraParameterStore
+struct FNiagaraParameterStore
 {
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnChanged);
@@ -243,17 +243,17 @@ private:
 	FOnParameterRenamed OnParameterRenamedDelegate;
 #endif
 
-	void SetPositionData(const FName& Name, const FVector& Position);
-	bool HasPositionData(const FName& Name) const;
-	const FVector* GetPositionData(const FName& Name) const;
-	void RemovePositionData(const FName& Name);
+	NIAGARA_API void SetPositionData(const FName& Name, const FVector& Position);
+	NIAGARA_API bool HasPositionData(const FName& Name) const;
+	NIAGARA_API const FVector* GetPositionData(const FName& Name) const;
+	NIAGARA_API void RemovePositionData(const FName& Name);
 
 public:
-	FNiagaraParameterStore();
-	FNiagaraParameterStore(const FNiagaraParameterStore& Other);
-	FNiagaraParameterStore& operator=(const FNiagaraParameterStore& Other);
+	NIAGARA_API FNiagaraParameterStore();
+	NIAGARA_API FNiagaraParameterStore(const FNiagaraParameterStore& Other);
+	NIAGARA_API FNiagaraParameterStore& operator=(const FNiagaraParameterStore& Other);
 
-	virtual ~FNiagaraParameterStore();
+	NIAGARA_API virtual ~FNiagaraParameterStore();
 	
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -264,11 +264,11 @@ public:
 	TMap<FNiagaraVariable, FGuid> ParameterGuidMapping;
 #endif
 
-	void SetOwner(UObject* InOwner);
+	NIAGARA_API void SetOwner(UObject* InOwner);
 	UObject* GetOwner() const { return Owner.Get(); }
 
-	void Dump() const;
-	void DumpParameters(bool bDumpBindings = false)const;
+	NIAGARA_API void Dump() const;
+	NIAGARA_API void DumpParameters(bool bDumpBindings = false)const;
 
 	SIZE_T GetResourceSize() const
 	{
@@ -296,33 +296,33 @@ public:
 	FORCEINLINE uint32 GetLayoutVersion() const { return LayoutVersion; }
 
 	/** Binds this parameter store to another, by default if we find no matching parameters we will not maintain a pointer to the store. */
-	void Bind(FNiagaraParameterStore* DestStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
+	NIAGARA_API void Bind(FNiagaraParameterStore* DestStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
 	/** Unbinds this store form one it's bound to. */
-	void Unbind(FNiagaraParameterStore* DestStore);
+	NIAGARA_API void Unbind(FNiagaraParameterStore* DestStore);
 	/** Unbinds this store from all source and destination stores. */
-	void UnbindAll();
+	NIAGARA_API void UnbindAll();
 	/** Recreates any bindings to reflect a layout change etc. */
-	void Rebind();
+	NIAGARA_API void Rebind();
 	/** Recreates any bindings to reflect a layout change etc. */
-	void TransferBindings(FNiagaraParameterStore& OtherStore);
+	NIAGARA_API void TransferBindings(FNiagaraParameterStore& OtherStore);
 	/** Handles any update such as pushing parameters to bound stores etc. */
-	void Tick();
+	NIAGARA_API void Tick();
 	/** Unbinds this store from all stores it's being driven by. */
-	void UnbindFromSourceStores();
+	NIAGARA_API void UnbindFromSourceStores();
 	
-	bool VerifyBinding(const FNiagaraParameterStore* InDestStore) const;
+	NIAGARA_API bool VerifyBinding(const FNiagaraParameterStore* InDestStore) const;
 
-	void CheckForNaNs() const;
+	NIAGARA_API void CheckForNaNs() const;
 
 	/**
 	Adds the passed parameter to this store.
 	Does nothing if this parameter is already present.
 	Returns true if we added a new parameter.
 	*/
-	virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr);
+	NIAGARA_API virtual bool AddParameter(const FNiagaraVariable& Param, bool bInitialize = true, bool bTriggerRebind = true, int32* OutOffset = nullptr);
 
 #if WITH_EDITORONLY_DATA
-	virtual void ConvertParameterType(const FNiagaraVariable& ExistingParam, const FNiagaraTypeDefinition& NewType);
+	NIAGARA_API virtual void ConvertParameterType(const FNiagaraVariable& ExistingParam, const FNiagaraTypeDefinition& NewType);
 	
 	template<typename BufferType>
 	void AddConstantBuffer()
@@ -335,19 +335,19 @@ public:
 #endif
 
 	/** Removes the passed parameter if it exists in the store. */
-	virtual bool RemoveParameter(const FNiagaraVariableBase& Param);
+	NIAGARA_API virtual bool RemoveParameter(const FNiagaraVariableBase& Param);
 
 	/** Renames the passed parameter. */
-	virtual void RenameParameter(const FNiagaraVariableBase& Param, FName NewName);
+	NIAGARA_API virtual void RenameParameter(const FNiagaraVariableBase& Param, FName NewName);
 
 	/** Changes the type of the passed parameter. */
-	virtual void ChangeParameterType(const FNiagaraVariableBase& Param, const FNiagaraTypeDefinition& NewType);
+	NIAGARA_API virtual void ChangeParameterType(const FNiagaraVariableBase& Param, const FNiagaraTypeDefinition& NewType);
 
 	/** Removes all parameters from this store and releases any data. */
-	virtual void Empty(bool bClearBindings = true);
+	NIAGARA_API virtual void Empty(bool bClearBindings = true);
 
 	/** Removes all parameters from this store but doesn't change memory allocations. */
-	virtual void Reset(bool bClearBindings = true);
+	NIAGARA_API virtual void Reset(bool bClearBindings = true);
 
 	FORCEINLINE void GetParameters(TArray<FNiagaraVariable>& OutParameters) const
 	{
@@ -369,10 +369,10 @@ public:
 	FORCEINLINE int32 Num() const {return SortedParameterOffsets.Num(); }
 	FORCEINLINE bool IsEmpty() const { return SortedParameterOffsets.Num() == 0; }
 
-	virtual void SanityCheckData(bool bInitInterfaces = true);
+	NIAGARA_API virtual void SanityCheckData(bool bInitInterfaces = true);
 
 	// Called to initially set up the parameter store to *exactly* match the input store (other than any bindings and the internal name of it).
-	virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty);
+	NIAGARA_API virtual void InitFromSource(const FNiagaraParameterStore* SrcStore, bool bNotifyAsDirty);
 
 	/** Gets the index of the passed parameter. If it is a data interface, this is an offset into the data interface table, otherwise a byte offset into the parameter data buffer. */
 	FORCEINLINE_DEBUGGABLE int32 IndexOf(const FNiagaraVariableBase& Parameter) const
@@ -381,7 +381,7 @@ public:
 		return Off ? *Off : (int32)INDEX_NONE;
 	}
 	
-	virtual const FNiagaraVariableWithOffset* FindParameterVariable(const FNiagaraVariable& Parameter, bool IgnoreType = false) const;
+	NIAGARA_API virtual const FNiagaraVariableWithOffset* FindParameterVariable(const FNiagaraVariable& Parameter, bool IgnoreType = false) const;
 
 	/** Gets the typed parameter data. */
 	template<typename T>
@@ -448,7 +448,7 @@ public:
 	 * Just using the raw parameter store pointer via IndexOf() will be wrong if the target struct contains a lwc type like FVector.
 	 * Returns true if the data was copied, false if the parameter could not be found in the store.
 	 */
-	bool CopyParameterData(const FNiagaraVariable& Parameter, uint8* DestinationData) const;
+	NIAGARA_API bool CopyParameterData(const FNiagaraVariable& Parameter, uint8* DestinationData) const;
 
 	/** Returns the data interface at the passed offset. */
 	FORCEINLINE UNiagaraDataInterface* GetDataInterface(int32 Offset)const
@@ -462,18 +462,18 @@ public:
 	}
 
 	/** Returns the data interface for the passed parameter if it exists in this store. */
-	UNiagaraDataInterface* GetDataInterface(const FNiagaraVariable& Parameter) const;
+	NIAGARA_API UNiagaraDataInterface* GetDataInterface(const FNiagaraVariable& Parameter) const;
 
 	/** Returns a struct converter for the given variable, if the store contains the variable and it's a LWC type. */
-	FNiagaraLwcStructConverter GetStructConverter(const FNiagaraVariable& Parameter) const;
+	NIAGARA_API FNiagaraLwcStructConverter GetStructConverter(const FNiagaraVariable& Parameter) const;
 
 	/** Returns the associated FNiagaraVariable for the passed data interface if it exists in the store. Null if not.*/
-	const FNiagaraVariableBase* FindVariable(const UNiagaraDataInterface* Interface) const;
+	NIAGARA_API const FNiagaraVariableBase* FindVariable(const UNiagaraDataInterface* Interface) const;
 
-	virtual const int32* FindParameterOffset(const FNiagaraVariableBase& Parameter, bool IgnoreType = false) const;
+	NIAGARA_API virtual const int32* FindParameterOffset(const FNiagaraVariableBase& Parameter, bool IgnoreType = false) const;
 
-	void PostLoad();
-	void SortParameters();
+	NIAGARA_API void PostLoad();
+	NIAGARA_API void SortParameters();
 
 	/** Returns the UObject at the passed offset. */
 	FORCEINLINE UObject* GetUObject(int32 Offset)const
@@ -495,8 +495,8 @@ public:
 	}
 
 	/** Copies the passed parameter from this parameter store into another. */
-	void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& Parameter) const;
-	void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& SourceParameter, const FNiagaraVariable& TargetParameter) const;
+	NIAGARA_API void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& Parameter) const;
+	NIAGARA_API void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& SourceParameter, const FNiagaraVariable& TargetParameter) const;
 	
 	enum class EDataInterfaceCopyMethod
 	{
@@ -510,16 +510,16 @@ public:
 	};
 
 	/** Copies all parameters from this parameter store into another.*/
-	void CopyParametersTo(FNiagaraParameterStore& DestStore, bool bOnlyAdd, EDataInterfaceCopyMethod DataInterfaceCopyMethod = EDataInterfaceCopyMethod::None) const;
+	NIAGARA_API void CopyParametersTo(FNiagaraParameterStore& DestStore, bool bOnlyAdd, EDataInterfaceCopyMethod DataInterfaceCopyMethod = EDataInterfaceCopyMethod::None) const;
 
 	/** Remove all parameters from this parameter store from another.*/
-	void RemoveParameters(FNiagaraParameterStore& DestStore);
+	NIAGARA_API void RemoveParameters(FNiagaraParameterStore& DestStore);
 
-	FString ToString() const;
+	NIAGARA_API FString ToString() const;
 
-	virtual bool SetPositionParameterValue(const FVector& InValue, const FName& ParamName, bool bAdd=false);
-	virtual const FVector* GetPositionParameterValue(const FName& ParamName) const;
-	void ResolvePositions(FNiagaraLWCConverter LwcConverter);
+	NIAGARA_API virtual bool SetPositionParameterValue(const FVector& InValue, const FName& ParamName, bool bAdd=false);
+	NIAGARA_API virtual const FVector* GetPositionParameterValue(const FName& ParamName) const;
+	NIAGARA_API void ResolvePositions(FNiagaraLWCConverter LwcConverter);
 
 	template<typename T>
 	FORCEINLINE_DEBUGGABLE bool SetParameterValue(const T& InValue, const FNiagaraVariable& Param, bool bAdd=false)
@@ -573,7 +573,7 @@ public:
 		OnParameterChange();
 	}
 
-	bool SetParameterData(const uint8* Data, FNiagaraVariable Param, bool bAdd = false);
+	NIAGARA_API bool SetParameterData(const uint8* Data, FNiagaraVariable Param, bool bAdd = false);
 
 	FORCEINLINE_DEBUGGABLE void SetDataInterface(UNiagaraDataInterface* InInterface, int32 Offset)
 	{
@@ -654,9 +654,9 @@ public:
 	}
 
 #if WITH_EDITOR
-	FDelegateHandle AddOnChangedHandler(FOnChanged::FDelegate InOnChanged);
-	void RemoveOnChangedHandler(FDelegateHandle DelegateHandle);
-	void RemoveAllOnChangedHandlers(const void* InUserObject);
+	NIAGARA_API FDelegateHandle AddOnChangedHandler(FOnChanged::FDelegate InOnChanged);
+	NIAGARA_API void RemoveOnChangedHandler(FDelegateHandle DelegateHandle);
+	NIAGARA_API void RemoveAllOnChangedHandlers(const void* InUserObject);
 
 	FOnStructureChanged& OnStructureChanged() { return OnStructureChangedDelegate; }
 	FOnParameterRenamed& OnParameterRenamed() { return OnParameterRenamedDelegate; }
@@ -665,11 +665,11 @@ public:
 	void TriggerOnLayoutChanged() { OnLayoutChange(); }
 
 protected:
-	void TickBindings() const;
-	void OnLayoutChange();
-	void CopySortedParameterOffsets(TArrayView<const FNiagaraVariableWithOffset> Src);
-	void AssignParameterData(TConstArrayView<uint8> SourceParameterData);
-	static int32 PaddedParameterSize(int32 ParameterSize);
+	NIAGARA_API void TickBindings() const;
+	NIAGARA_API void OnLayoutChange();
+	NIAGARA_API void CopySortedParameterOffsets(TArrayView<const FNiagaraVariableWithOffset> Src);
+	NIAGARA_API void AssignParameterData(TConstArrayView<uint8> SourceParameterData);
+	static NIAGARA_API int32 PaddedParameterSize(int32 ParameterSize);
 
 	/** Returns the parameter data at the passed offset. */
 	FORCEINLINE uint8* GetParameterData_Internal(int32 Offset) 
@@ -685,10 +685,10 @@ protected:
 		//SetParameterData((const uint8*)&Param, ParamOffset, sizeof(ParamType)); // TODO why aren't we using this path instead of SetParametersByOffset?
 	}
 
-	void SetParameterDataArray(const TArray<uint8>& InParameterDataArray, bool bNotifyAsDirty = true);
-	void SetDataInterfaces(const TArray<UNiagaraDataInterface*>& InDataInterfaces, bool bNotifyAsDirty = true);
-	void SetUObjects(const TArray<UObject*>& InUObjects, bool bNotifyAsDirty = true);
-	void SetOriginalPositionData(const TArray<FNiagaraPositionSource>& InOriginalPositionData);
+	NIAGARA_API void SetParameterDataArray(const TArray<uint8>& InParameterDataArray, bool bNotifyAsDirty = true);
+	NIAGARA_API void SetDataInterfaces(const TArray<UNiagaraDataInterface*>& InDataInterfaces, bool bNotifyAsDirty = true);
+	NIAGARA_API void SetUObjects(const TArray<UObject*>& InUObjects, bool bNotifyAsDirty = true);
+	NIAGARA_API void SetOriginalPositionData(const TArray<FNiagaraPositionSource>& InOriginalPositionData);
 
 	friend struct FNiagaraParameterStoreToDataSetBinding;    // this should be the only class calling SetParameterByOffset
 };

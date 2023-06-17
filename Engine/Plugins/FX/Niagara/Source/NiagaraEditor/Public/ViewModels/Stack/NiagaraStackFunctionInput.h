@@ -27,8 +27,8 @@ class UNiagaraScriptVariable;
 class FNiagaraPlaceholderDataInterfaceHandle;
 
 /** Represents a single module input in the module stack view model. */
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraStackFunctionInput : public UNiagaraStackItemContent
+UCLASS(MinimalAPI)
+class UNiagaraStackFunctionInput : public UNiagaraStackItemContent
 {
 	GENERATED_BODY()
 
@@ -61,7 +61,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnValueChanged);
 
 public:
-	UNiagaraStackFunctionInput();
+	NIAGARAEDITOR_API UNiagaraStackFunctionInput();
 
 	/** 
 	 * Sets the input data for this entry.
@@ -74,7 +74,7 @@ public:
 	 * @param InParameterBehavior Determines how the parameter should behave in the stack
 	 * @param InOwnerStackItemEditorDataKey The editor data key of the item that owns this input.
 	 */
-	void Initialize(
+	NIAGARAEDITOR_API void Initialize(
 		FRequiredEntryData InRequiredEntryData,
 		UNiagaraNodeFunctionCall& InModuleNode,
 		UNiagaraNodeFunctionCall& InInputFunctionCallNode,
@@ -84,240 +84,240 @@ public:
 		FString InOwnerStackItemEditorDataKey);
 
 	/** Gets the function call node which owns this input. */
-	const UNiagaraNodeFunctionCall& GetInputFunctionCallNode() const;
+	NIAGARAEDITOR_API const UNiagaraNodeFunctionCall& GetInputFunctionCallNode() const;
 
 	/** Gets the script that the function call node was referencing when this input was initialized. */
-	UNiagaraScript* GetInputFunctionCallInitialScript() const;
+	NIAGARAEDITOR_API UNiagaraScript* GetInputFunctionCallInitialScript() const;
 
 	/** Gets the current value mode */
-	EValueMode GetValueMode() const;
+	NIAGARAEDITOR_API EValueMode GetValueMode() const;
 
 	/** Gets the type of this input. */
-	const FNiagaraTypeDefinition& GetInputType() const;
+	NIAGARAEDITOR_API const FNiagaraTypeDefinition& GetInputType() const;
 
 	/** Gets the unit of this input. */
-	EUnit GetInputDisplayUnit() const;
+	NIAGARAEDITOR_API EUnit GetInputDisplayUnit() const;
 
-	FNiagaraInputParameterCustomization GetInputWidgetCustomization() const;
+	NIAGARAEDITOR_API FNiagaraInputParameterCustomization GetInputWidgetCustomization() const;
 
 	//~ UNiagaraStackEntry interface
-	virtual FText GetDisplayName() const override;
-	virtual FText GetTooltipText() const override;
-	virtual bool GetIsEnabled() const override;
-	virtual UObject* GetExternalAsset() const override;
+	NIAGARAEDITOR_API virtual FText GetDisplayName() const override;
+	NIAGARAEDITOR_API virtual FText GetTooltipText() const override;
+	NIAGARAEDITOR_API virtual bool GetIsEnabled() const override;
+	NIAGARAEDITOR_API virtual UObject* GetExternalAsset() const override;
 	virtual bool SupportsCut() const override { return true; }
-	virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
-	virtual FText GetCutTransactionText() const override;
-	virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
-	virtual void RemoveForCut() override;
+	NIAGARAEDITOR_API virtual bool TestCanCutWithMessage(FText& OutMessage) const override;
+	NIAGARAEDITOR_API virtual FText GetCutTransactionText() const override;
+	NIAGARAEDITOR_API virtual void CopyForCut(UNiagaraClipboardContent* ClipboardContent) const override;
+	NIAGARAEDITOR_API virtual void RemoveForCut() override;
 	virtual bool SupportsCopy() const override { return true; }
-	virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
-	virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
+	NIAGARAEDITOR_API virtual bool TestCanCopyWithMessage(FText& OutMessage) const override;
+	NIAGARAEDITOR_API virtual void Copy(UNiagaraClipboardContent* ClipboardContent) const override;
 	virtual bool SupportsPaste() const override { return true; }
-	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
-	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
-	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
-	virtual bool HasOverridenContent() const override;
-	virtual bool SupportsSummaryView() const override;
-	virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
+	NIAGARAEDITOR_API virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
+	NIAGARAEDITOR_API virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
+	NIAGARAEDITOR_API virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
+	NIAGARAEDITOR_API virtual bool HasOverridenContent() const override;
+	NIAGARAEDITOR_API virtual bool SupportsSummaryView() const override;
+	NIAGARAEDITOR_API virtual FNiagaraHierarchyIdentity DetermineSummaryIdentity() const override;
 	
 	/** Gets the tooltip that should be shown for the value of this input. */
-	FText GetValueToolTip() const;
+	NIAGARAEDITOR_API FText GetValueToolTip() const;
 
 	/** Gets the tooltip that should be shown for the value of this input. */
-	FText GetCollapsedStateText() const;
+	NIAGARAEDITOR_API FText GetCollapsedStateText() const;
 
-	void SetSummaryViewDisplayName(TAttribute<FText> InDisplayName);
-	void SetSummaryViewTooltip(TAttribute<FText> InTooltipOverride);
+	NIAGARAEDITOR_API void SetSummaryViewDisplayName(TAttribute<FText> InDisplayName);
+	NIAGARAEDITOR_API void SetSummaryViewTooltip(TAttribute<FText> InTooltipOverride);
 
 	/** Gets the path of parameter handles from the owning module to the function call which owns this input. */
-	const TArray<FNiagaraParameterHandle>& GetInputParameterHandlePath() const;
+	NIAGARAEDITOR_API const TArray<FNiagaraParameterHandle>& GetInputParameterHandlePath() const;
 
 	/** Gets the parameter handle which defined this input in the module. */
-	const FNiagaraParameterHandle& GetInputParameterHandle() const;
+	NIAGARAEDITOR_API const FNiagaraParameterHandle& GetInputParameterHandle() const;
 
 	/** Gets the handle to the linked value for this input if there is one. */
-	const FNiagaraParameterHandle& GetLinkedValueHandle() const;
+	NIAGARAEDITOR_API const FNiagaraParameterHandle& GetLinkedValueHandle() const;
 
 	/** Sets the value of this input to a linked parameter handle. */
-	void SetLinkedValueHandle(const FNiagaraParameterHandle& InParameterHandle);
+	NIAGARAEDITOR_API void SetLinkedValueHandle(const FNiagaraParameterHandle& InParameterHandle);
 
 	/** Gets the current set of available parameter handles which can be assigned to this input. Optionally returns possible conversion scripts. */
-	void GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles, TMap<FNiagaraVariable, UNiagaraScript*>& AvailableConversionHandles, bool bIncludeConversionScripts = true) const;
+	NIAGARAEDITOR_API void GetAvailableParameterHandles(TArray<FNiagaraParameterHandle>& AvailableParameterHandles, TMap<FNiagaraVariable, UNiagaraScript*>& AvailableConversionHandles, bool bIncludeConversionScripts = true) const;
 
 	/** Gets the function node form the script graph if the current value mode is DefaultFunction. */
-	UNiagaraNodeFunctionCall* GetDefaultFunctionNode() const;
+	NIAGARAEDITOR_API UNiagaraNodeFunctionCall* GetDefaultFunctionNode() const;
 
 	/** Gets the dynamic input node providing the value for this input, if one is available. */
-	UNiagaraNodeFunctionCall* GetDynamicInputNode() const;
+	NIAGARAEDITOR_API UNiagaraNodeFunctionCall* GetDynamicInputNode() const;
 
 	/** Gets the dynamic inputs available for this input. */
-	void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs = false);
+	NIAGARAEDITOR_API void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs = false);
 
 	/** Sets the dynamic input script for this input. */
-	void SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName = FString(), const FGuid& InScriptVersion = FGuid());
+	NIAGARAEDITOR_API void SetDynamicInput(UNiagaraScript* DynamicInput, FString SuggestedName = FString(), const FGuid& InScriptVersion = FGuid());
 
 	/** Gets the expression providing the value for this input, if one is available. */
-	FText GetCustomExpressionText() const;
+	NIAGARAEDITOR_API FText GetCustomExpressionText() const;
 
 	/** Sets the dynamic custom expression script for this input. */
-	void SetCustomExpression(const FString& InCustomExpression);
+	NIAGARAEDITOR_API void SetCustomExpression(const FString& InCustomExpression);
 
 	/** Create a new scratch pad dynamic inputs and set this input to use it. */
-	void SetScratch();
+	NIAGARAEDITOR_API void SetScratch();
 
 	/** Gets the current struct value of this input is there is one. */
-	TSharedPtr<const FStructOnScope> GetLocalValueStruct();
+	NIAGARAEDITOR_API TSharedPtr<const FStructOnScope> GetLocalValueStruct();
 
 	/** Gets the current data object value of this input is there is one. */
-	UNiagaraDataInterface* GetDataValueObject();
+	NIAGARAEDITOR_API UNiagaraDataInterface* GetDataValueObject();
 
 	/** Gets the current object Asset value of this input is there is one. */
-	UObject* GetObjectAssetValue();
+	NIAGARAEDITOR_API UObject* GetObjectAssetValue();
 
 	/** Sets the current object Asset value of this input is there is one. */
-	void SetObjectAssetValue(UObject* NewValue);
+	NIAGARAEDITOR_API void SetObjectAssetValue(UObject* NewValue);
 
 	/** Called to notify the input that an ongoing change to it's value has begun. */
-	void NotifyBeginLocalValueChange();
+	NIAGARAEDITOR_API void NotifyBeginLocalValueChange();
 
 	/** Called to notify the input that an ongoing change to it's value has ended. */
-	void NotifyEndLocalValueChange();
+	NIAGARAEDITOR_API void NotifyEndLocalValueChange();
 
 	/** Is this pin editable or should it show as disabled?*/
-	bool IsEnabled() const;
+	NIAGARAEDITOR_API bool IsEnabled() const;
 
 	/** Sets this input's local value. */
-	void SetLocalValue(TSharedRef<FStructOnScope> InLocalValue);
+	NIAGARAEDITOR_API void SetLocalValue(TSharedRef<FStructOnScope> InLocalValue);
 	
 	/** Returns whether or not the value or handle of this input has been overridden and can be reset. */
-	bool CanReset() const;
+	NIAGARAEDITOR_API bool CanReset() const;
 
 	/** Resets the value and handle of this input to the value and handle defined in the module. */
-	void Reset();
+	NIAGARAEDITOR_API void Reset();
 
 	/** Determine if this field is editable */
-	bool IsEditable() const;
+	NIAGARAEDITOR_API bool IsEditable() const;
 
 	/** If true the parameter can only be set to local constant values */
-	bool IsStaticParameter() const;
+	NIAGARAEDITOR_API bool IsStaticParameter() const;
 
 	/** Whether or not this input has a base value.  This is true for emitter instances in systems. */
-	bool EmitterHasBase() const;
+	NIAGARAEDITOR_API bool EmitterHasBase() const;
 
 	/** Whether or not this input can be reset to a base value. */
-	bool CanResetToBase() const;
+	NIAGARAEDITOR_API bool CanResetToBase() const;
 
 	/** Resets this input to its base value. */
-	void ResetToBase();
+	NIAGARAEDITOR_API void ResetToBase();
 
 	/** Returns whether or not this input can be renamed. */
-	virtual bool SupportsRename() const override;
+	NIAGARAEDITOR_API virtual bool SupportsRename() const override;
 
 	/** Renames this input to the name specified. */
-	virtual void OnRenamed(FText NewName) override;
+	NIAGARAEDITOR_API virtual void OnRenamed(FText NewName) override;
 
 	/** Returns whether or not this input can be deleted. */
-	bool CanDeleteInput() const;
+	NIAGARAEDITOR_API bool CanDeleteInput() const;
 
 	/** Deletes this input */
-	void DeleteInput();
+	NIAGARAEDITOR_API void DeleteInput();
 
 	/** Gets the namespaces which new parameters for this input can be read from. */
-	void GetNamespacesForNewReadParameters(TArray<FName>& OutNamespacesForNewParameters) const;
+	NIAGARAEDITOR_API void GetNamespacesForNewReadParameters(TArray<FName>& OutNamespacesForNewParameters) const;
 
 	/** Gets the namespaces which new parameters for this input can write to. */
-	void GetNamespacesForNewWriteParameters(TArray<FName>& OutNamespacesForNewParameters) const;
+	NIAGARAEDITOR_API void GetNamespacesForNewWriteParameters(TArray<FName>& OutNamespacesForNewParameters) const;
 
 	/** Gets a multicast delegate which is called whenever the value on this input changes. */
-	FOnValueChanged& OnValueChanged();
+	NIAGARAEDITOR_API FOnValueChanged& OnValueChanged();
 
 	/** Gets the variable that serves as an edit condition for this input. */
-	TOptional<FNiagaraVariable> GetEditConditionVariable() const;
+	NIAGARAEDITOR_API TOptional<FNiagaraVariable> GetEditConditionVariable() const;
 	
 	/** Gets whether or not this input has an associated edit condition input. */
-	bool GetHasEditCondition() const;
+	NIAGARAEDITOR_API bool GetHasEditCondition() const;
 
 	/** Gets whether or not to show a control inline for the edit condition input associated with this input. */
-	bool GetShowEditConditionInline() const;
+	NIAGARAEDITOR_API bool GetShowEditConditionInline() const;
 
 	/** Gets the enabled value of the edit condition input associated with this input. */
-	bool GetEditConditionEnabled() const;
+	NIAGARAEDITOR_API bool GetEditConditionEnabled() const;
 
 	/** Sets the enabled value of the edit condition input associated with this input. */
-	void SetEditConditionEnabled(bool bIsEnabled);
+	NIAGARAEDITOR_API void SetEditConditionEnabled(bool bIsEnabled);
 
 	/** Gets whether or not this input has an associated visible condition input. */
-	bool GetHasVisibleCondition() const;
+	NIAGARAEDITOR_API bool GetHasVisibleCondition() const;
 
 	/** Gets the enabled value of the visible condition input associated with this input. */
-	bool GetVisibleConditionEnabled() const;
+	NIAGARAEDITOR_API bool GetVisibleConditionEnabled() const;
 
 	/** Gets whether or not this input is used as an edit condition for another input and should be hidden. */
-	bool GetIsInlineEditConditionToggle() const;
+	NIAGARAEDITOR_API bool GetIsInlineEditConditionToggle() const;
 
 	/** Gets whether or not a dynamic input script reassignment is pending.  This can happen when trying to fix dynamic inputs which are missing their scripts. */
-	bool GetIsDynamicInputScriptReassignmentPending() const;
+	NIAGARAEDITOR_API bool GetIsDynamicInputScriptReassignmentPending() const;
 
 	/** Gets whether or not a dynamic input script reassignment should be be pending. */
-	void SetIsDynamicInputScriptReassignmentPending(bool bIsPending);
+	NIAGARAEDITOR_API void SetIsDynamicInputScriptReassignmentPending(bool bIsPending);
 
 	/** Reassigns the function script for the current dynamic input without resetting the sub-inputs. */
-	void ReassignDynamicInputScript(UNiagaraScript* DynamicInputScript);
+	NIAGARAEDITOR_API void ReassignDynamicInputScript(UNiagaraScript* DynamicInputScript);
 
 	/** Gets whether or not this input is filtered from search results and appearing in stack due to visibility metadata*/
-	bool GetShouldPassFilterForVisibleCondition() const;
+	NIAGARAEDITOR_API bool GetShouldPassFilterForVisibleCondition() const;
 	
-	TArray<UNiagaraScript*> GetPossibleConversionScripts(const FNiagaraTypeDefinition& FromType) const;
-	static TArray<UNiagaraScript*> GetPossibleConversionScripts(const FNiagaraTypeDefinition& FromType, const FNiagaraTypeDefinition& ToType);
+	NIAGARAEDITOR_API TArray<UNiagaraScript*> GetPossibleConversionScripts(const FNiagaraTypeDefinition& FromType) const;
+	static NIAGARAEDITOR_API TArray<UNiagaraScript*> GetPossibleConversionScripts(const FNiagaraTypeDefinition& FromType, const FNiagaraTypeDefinition& ToType);
 
-	void SetLinkedInputViaConversionScript(const FName& LinkedInputName, const FNiagaraTypeDefinition& FromType);
-	void SetLinkedInputViaConversionScript(const FNiagaraVariable& LinkedInput, UNiagaraScript* ConversionScript);
-	void SetClipboardContentViaConversionScript(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
+	NIAGARAEDITOR_API void SetLinkedInputViaConversionScript(const FName& LinkedInputName, const FNiagaraTypeDefinition& FromType);
+	NIAGARAEDITOR_API void SetLinkedInputViaConversionScript(const FNiagaraVariable& LinkedInput, UNiagaraScript* ConversionScript);
+	NIAGARAEDITOR_API void SetClipboardContentViaConversionScript(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
 
-	void ChangeScriptVersion(FGuid NewScriptVersion);
+	NIAGARAEDITOR_API void ChangeScriptVersion(FGuid NewScriptVersion);
 
-	const UNiagaraClipboardFunctionInput* ToClipboardFunctionInput(UObject* InOuter) const;
+	NIAGARAEDITOR_API const UNiagaraClipboardFunctionInput* ToClipboardFunctionInput(UObject* InOuter) const;
 
-	void SetValueFromClipboardFunctionInput(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
+	NIAGARAEDITOR_API void SetValueFromClipboardFunctionInput(const UNiagaraClipboardFunctionInput& ClipboardFunctionInput);
 
-	bool IsScratchDynamicInput() const;
+	NIAGARAEDITOR_API bool IsScratchDynamicInput() const;
 
-	bool ShouldDisplayInline() const;
+	NIAGARAEDITOR_API bool ShouldDisplayInline() const;
 	
-	TArray<UNiagaraStackFunctionInput*> GetChildInputs() const;
+	NIAGARAEDITOR_API TArray<UNiagaraStackFunctionInput*> GetChildInputs() const;
 
-	TOptional<FNiagaraVariableMetaData> GetInputMetaData() const;
+	NIAGARAEDITOR_API TOptional<FNiagaraVariableMetaData> GetInputMetaData() const;
 	
-	void GetFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutFilteredChildInputs) const;
+	NIAGARAEDITOR_API void GetFilteredChildInputs(TArray<UNiagaraStackFunctionInput*>& OutFilteredChildInputs) const;
 
-	UNiagaraStackObject* GetChildDataObject() const;
+	NIAGARAEDITOR_API UNiagaraStackObject* GetChildDataObject() const;
 
-	virtual bool IsSemanticChild() const override;
-	void SetSemanticChild(bool IsSemanticChild);
+	NIAGARAEDITOR_API virtual bool IsSemanticChild() const override;
+	NIAGARAEDITOR_API void SetSemanticChild(bool IsSemanticChild);
 
 	//~ UNiagaraStackEntry interface
-	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
+	NIAGARAEDITOR_API virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 
-	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
+	NIAGARAEDITOR_API virtual const FCollectedUsageData& GetCollectedUsageData() const override;
 
-	ENiagaraStackEntryInlineDisplayMode GetInlineDisplayMode() const;
+	NIAGARAEDITOR_API ENiagaraStackEntryInlineDisplayMode GetInlineDisplayMode() const;
 
-	void SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode InlineDisplayMode);
+	NIAGARAEDITOR_API void SetInlineDisplayMode(ENiagaraStackEntryInlineDisplayMode InlineDisplayMode);
 
-	bool OpenSourceAsset() const;
+	NIAGARAEDITOR_API bool OpenSourceAsset() const;
 
-	bool SupportsCustomExpressions() const;
+	NIAGARAEDITOR_API bool SupportsCustomExpressions() const;
 
 protected:
 	//~ UNiagaraStackEntry interface
-	virtual void FinalizeInternal() override;
-	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
+	NIAGARAEDITOR_API virtual void FinalizeInternal() override;
+	NIAGARAEDITOR_API virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
-	bool UpdateRapidIterationParametersForAffectedScripts(const uint8* Data);
-	bool RemoveRapidIterationParametersForAffectedScripts(bool bUpdateGraphGuidsForAffected = false);
-	FString ResolveDisplayNameArgument(const FString& InArg) const;
-	FStackIssueFixDelegate GetUpgradeDynamicInputVersionFix();
+	NIAGARAEDITOR_API bool UpdateRapidIterationParametersForAffectedScripts(const uint8* Data);
+	NIAGARAEDITOR_API bool RemoveRapidIterationParametersForAffectedScripts(bool bUpdateGraphGuidsForAffected = false);
+	NIAGARAEDITOR_API FString ResolveDisplayNameArgument(const FString& InArg) const;
+	NIAGARAEDITOR_API FStackIssueFixDelegate GetUpgradeDynamicInputVersionFix();
 
 private:
 	struct FInputValues
@@ -344,65 +344,65 @@ private:
 
 private:
 	/** Refreshes the current values for this input from the state of the graph. */
-	void RefreshValues();
+	NIAGARAEDITOR_API void RefreshValues();
 
 	/** Refreshes additional state for this input which comes from input metadata. */
-	void RefreshFromMetaData(TArray<FStackIssue>& NewIssues);
+	NIAGARAEDITOR_API void RefreshFromMetaData(TArray<FStackIssue>& NewIssues);
 
 	/** Called whenever the graph which generated this input changes. */
-	void OnGraphChanged(const struct FEdGraphEditAction& InAction);
+	NIAGARAEDITOR_API void OnGraphChanged(const struct FEdGraphEditAction& InAction);
 
 	/** Called whenever rapid iteration parameters are changed for the script that owns the function that owns this input. */
-	void OnRapidIterationParametersChanged();
+	NIAGARAEDITOR_API void OnRapidIterationParametersChanged();
 
 	/** Called whenever the script source that owns the function that owns this input changes. */
-	void OnScriptSourceChanged();
+	NIAGARAEDITOR_API void OnScriptSourceChanged();
 
 	/** Gets the graph node which owns the local overrides for the module that owns this input if it exists. */
-	UNiagaraNodeParameterMapSet* GetOverrideNode() const;
+	NIAGARAEDITOR_API UNiagaraNodeParameterMapSet* GetOverrideNode() const;
 
 	/** Gets the graph node which owns the local overrides for the module that owns this input this input.  
 	  * This will create the node and add it to the graph if it doesn't exist. */
-	UNiagaraNodeParameterMapSet& GetOrCreateOverrideNode();
+	NIAGARAEDITOR_API UNiagaraNodeParameterMapSet& GetOrCreateOverrideNode();
 
 	/** Gets the pin on the override node which is associated with this input if it exists. */
-	UEdGraphPin* GetOverridePin() const;
+	NIAGARAEDITOR_API UEdGraphPin* GetOverridePin() const;
 
 	/** Gets the pin on the override node which is associated with this input.  If either the override node or
 	  * pin don't exist, they will be created. */
-	UEdGraphPin& GetOrCreateOverridePin();
+	NIAGARAEDITOR_API UEdGraphPin& GetOrCreateOverridePin();
 
-	void GetDefaultDataInterfaceValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
+	NIAGARAEDITOR_API void GetDefaultDataInterfaceValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
 
-	void GetDefaultObjectAssetValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
+	NIAGARAEDITOR_API void GetDefaultObjectAssetValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
 
-	void GetDefaultLocalValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
+	NIAGARAEDITOR_API void GetDefaultLocalValueFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
 
-	void GetDefaultLinkedHandleOrLinkedFunctionFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
+	NIAGARAEDITOR_API void GetDefaultLinkedHandleOrLinkedFunctionFromDefaultPin(UEdGraphPin* DefaultPin, UNiagaraStackFunctionInput::FInputValues& InInputValues) const;
 
-	void UpdateValuesFromScriptDefaults(FInputValues& InInputValues) const;
+	NIAGARAEDITOR_API void UpdateValuesFromScriptDefaults(FInputValues& InInputValues) const;
 
-	void UpdateValuesFromOverridePin(const FInputValues& OldInputValues, FInputValues& NewInputValues, UEdGraphPin& InOverridePin) const;
+	NIAGARAEDITOR_API void UpdateValuesFromOverridePin(const FInputValues& OldInputValues, FInputValues& NewInputValues, UEdGraphPin& InOverridePin) const;
 
 	/** Removes all nodes connected to the override pin which provide it's value. */
-	void RemoveNodesForOverridePin(UEdGraphPin& OverridePin);
+	NIAGARAEDITOR_API void RemoveNodesForOverridePin(UEdGraphPin& OverridePin);
 
 	/** Remove the override pin and all nodes connected to it. */
-	void RemoveOverridePin();
+	NIAGARAEDITOR_API void RemoveOverridePin();
 
 	/** Determine if the values in this input are possibly under the control of the rapid iteration array on the script.*/
-	bool IsRapidIterationCandidate() const;
+	NIAGARAEDITOR_API bool IsRapidIterationCandidate() const;
 
-	FNiagaraVariable CreateRapidIterationVariable(const FName& InName);
+	NIAGARAEDITOR_API FNiagaraVariable CreateRapidIterationVariable(const FName& InName);
 
 	/** Handles the message manager refreshing messages. */
-	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
+	NIAGARAEDITOR_API void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
 
-	void GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const;
+	NIAGARAEDITOR_API void GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const;
 
-	UNiagaraScript* FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache, bool bIncludeConversionScripts) const;
+	NIAGARAEDITOR_API UNiagaraScript* FindConversionScript(const FNiagaraTypeDefinition& FromType, TMap<FNiagaraTypeDefinition, UNiagaraScript*>& ConversionScriptCache, bool bIncludeConversionScripts) const;
 
-	bool FilterInlineChildren(const UNiagaraStackEntry& Child) const;
+	NIAGARAEDITOR_API bool FilterInlineChildren(const UNiagaraStackEntry& Child) const;
 
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function

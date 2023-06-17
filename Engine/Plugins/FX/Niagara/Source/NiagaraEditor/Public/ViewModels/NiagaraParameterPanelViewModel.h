@@ -77,7 +77,7 @@ struct FMenuAndSearchBoxWidgets
 };
 
 /** Base Interface for view models to SiagaraParameterPanel and SNiagaraParameterDefinitionsPanel. */
-class NIAGARAEDITOR_API INiagaraImmutableParameterPanelViewModel : public TSharedFromThis<INiagaraImmutableParameterPanelViewModel>, public FSelfRegisteringEditorUndoClient
+class INiagaraImmutableParameterPanelViewModel : public TSharedFromThis<INiagaraImmutableParameterPanelViewModel>, public FSelfRegisteringEditorUndoClient
 {
 public:
 	/** Delegate to signal the view model's state has changed. */
@@ -98,17 +98,17 @@ public:
 	//~ End Pure Virtual Methods
 
 	//~ Begin FEditorUndoClient Interface 
-	virtual void PostUndo(bool bSuccess) override;
+	NIAGARAEDITOR_API virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); };
 	//~ End FEditorUndoClient Interface 
 
-	virtual void CopyParameterReference(const FNiagaraParameterPanelItemBase& ItemToCopy) const;
+	NIAGARAEDITOR_API virtual void CopyParameterReference(const FNiagaraParameterPanelItemBase& ItemToCopy) const;
 
-	virtual bool GetCanCopyParameterReferenceAndToolTip(const FNiagaraParameterPanelItemBase& ItemToCopy, FText& OutCanCopyParameterToolTip) const;
+	NIAGARAEDITOR_API virtual bool GetCanCopyParameterReferenceAndToolTip(const FNiagaraParameterPanelItemBase& ItemToCopy, FText& OutCanCopyParameterToolTip) const;
 
-	virtual void CopyParameterMetaData(const FNiagaraParameterPanelItemBase ItemToCopy) const;
+	NIAGARAEDITOR_API virtual void CopyParameterMetaData(const FNiagaraParameterPanelItemBase ItemToCopy) const;
 
-	virtual bool GetCanCopyParameterMetaDataAndToolTip(const FNiagaraParameterPanelItemBase& ItemToCopy, FText& OutCanCopyToolTip) const;
+	NIAGARAEDITOR_API virtual bool GetCanCopyParameterMetaDataAndToolTip(const FNiagaraParameterPanelItemBase& ItemToCopy, FText& OutCanCopyToolTip) const;
 
 	// Refresh often encapsulates GUI rebuilding, so we have multiple API's for very specific use cases within the view model.
 
@@ -116,13 +116,13 @@ public:
 	void Refresh() const { RefreshFull(false); };
 	
 	// RefreshFull allows for optional category tree expansion/collapse, which can be more expensive.
-	virtual void RefreshFull(bool bDoCategoryExpansion) const;
+	NIAGARAEDITOR_API virtual void RefreshFull(bool bDoCategoryExpansion) const;
 
 	// Enqueue light refresh next tick
 	void RefreshNextTick() const { RefreshFullNextTick(false); }
 	
 	// Equeue a full refresh, parameterized by inputs next tick
-	virtual void RefreshFullNextTick(bool bDoCategoryExpansion) const;
+	NIAGARAEDITOR_API virtual void RefreshFullNextTick(bool bDoCategoryExpansion) const;
 
 	// Do an exhaustive refresh as context may be swapped out entirely
 	virtual void RefreshDueToActiveDocumentChanged() {};

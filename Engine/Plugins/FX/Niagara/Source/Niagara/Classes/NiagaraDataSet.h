@@ -75,30 +75,30 @@ protected:
 };
 
 /** Buffer containing one frame of Niagara simulation data. */
-class NIAGARA_API FNiagaraDataBuffer : public FNiagaraSharedObject
+class FNiagaraDataBuffer : public FNiagaraSharedObject
 {
 	friend class FScopedNiagaraDataSetGPUReadback;
 	//friend class FNiagaraGpuComputeDispatchInterface;
 	
 protected:
-	virtual ~FNiagaraDataBuffer();
+	NIAGARA_API virtual ~FNiagaraDataBuffer();
 
 public:
-	FNiagaraDataBuffer(FNiagaraDataSet* InOwner);
-	void Allocate(uint32 NumInstances, bool bMaintainExisting = false);
-	void ReleaseCPU();
+	NIAGARA_API FNiagaraDataBuffer(FNiagaraDataSet* InOwner);
+	NIAGARA_API void Allocate(uint32 NumInstances, bool bMaintainExisting = false);
+	NIAGARA_API void ReleaseCPU();
 
-	void AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumInstances, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
-	void SwapGPU(FNiagaraDataBuffer* BufferToSwap);
-	void ReleaseGPU();
+	NIAGARA_API void AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumInstances, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
+	NIAGARA_API void SwapGPU(FNiagaraDataBuffer* BufferToSwap);
+	NIAGARA_API void ReleaseGPU();
 
-	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
-	void KillInstance(uint32 InstanceIdx);
-	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
-	void CopyToUnrelated(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
-	void GPUCopyFrom(const float* GPUReadBackFloat, const int* GPUReadBackInt, const FFloat16* GPUReadBackHalf, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride, uint32 InSrcHalfStride);
-	void PushCPUBuffersToGPU(const TArray<FNiagaraDataBufferRef>& SourceBuffers, bool bReleaseRef, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
-	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label, const FName& SortParameterKey = FName())const;
+	NIAGARA_API void SwapInstances(uint32 OldIndex, uint32 NewIndex);
+	NIAGARA_API void KillInstance(uint32 InstanceIdx);
+	NIAGARA_API void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
+	NIAGARA_API void CopyToUnrelated(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
+	NIAGARA_API void GPUCopyFrom(const float* GPUReadBackFloat, const int* GPUReadBackInt, const FFloat16* GPUReadBackHalf, int32 StartIdx, int32 NumInstances, uint32 InSrcFloatStride, uint32 InSrcIntStride, uint32 InSrcHalfStride);
+	NIAGARA_API void PushCPUBuffersToGPU(const TArray<FNiagaraDataBufferRef>& SourceBuffers, bool bReleaseRef, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
+	NIAGARA_API void Dump(int32 StartIndex, int32 NumInstances, const FString& Label, const FName& SortParameterKey = FName())const;
 
 	FORCEINLINE TArrayView<uint8 const* RESTRICT const> GetRegisterTable() const { return TArrayView<uint8 const* RESTRICT const>(RegisterTable); }
 	
@@ -159,19 +159,19 @@ public:
 
 	FORCEINLINE FNiagaraDataSet* GetOwner()const { return Owner; }
 
-	int32 TransferInstance(FNiagaraDataBuffer& SourceBuffer, int32 InstanceIndex, bool bRemoveFromSource=true);
+	NIAGARA_API int32 TransferInstance(FNiagaraDataBuffer& SourceBuffer, int32 InstanceIndex, bool bRemoveFromSource=true);
 
-	bool CheckForNaNs()const;
+	NIAGARA_API bool CheckForNaNs()const;
 
 	FORCEINLINE TArray<int32>& GetIDTable() { return IDToIndexTable; }
 	FORCEINLINE const TArray<int32>& GetIDTable() const { return IDToIndexTable; }
 
 	FORCEINLINE void ClearGPUInstanceCount() { GPUInstanceCountBufferOffset = INDEX_NONE; }
 
-	void BuildRegisterTable();
+	NIAGARA_API void BuildRegisterTable();
 
 private:
-	FORCEINLINE void CheckUsage(bool bReadOnly)const;
+	NIAGARA_API FORCEINLINE void CheckUsage(bool bReadOnly)const;
 
 	FORCEINLINE int32 GetSafeComponentBufferSize(int32 RequiredSize) const
 	{
@@ -240,37 +240,37 @@ private:
 /**
 General storage class for all per instance simulation data in Niagara.
 */
-class NIAGARA_API FNiagaraDataSet
+class FNiagaraDataSet
 {
 	friend FNiagaraDataBuffer;
 	friend class FNiagaraGpuComputeDispatch;
 
 public:
 
-	FNiagaraDataSet();
-	~FNiagaraDataSet();
+	NIAGARA_API FNiagaraDataSet();
+	NIAGARA_API ~FNiagaraDataSet();
 	FNiagaraDataSet& operator=(const FNiagaraDataSet&) = delete;
 
 	/** Initialize the data set with the compiled data */
-	void Init(const FNiagaraDataSetCompiledData* InDataSetCompiledData);
+	NIAGARA_API void Init(const FNiagaraDataSetCompiledData* InDataSetCompiledData);
 
 	/** Resets current data but leaves variable/layout information etc intact. */
-	void ResetBuffers();
+	NIAGARA_API void ResetBuffers();
 
 	/** Begins a new simulation pass and grabs a destination buffer. Returns the new destination data buffer. */
-	FNiagaraDataBuffer& BeginSimulate(bool bResetDestinationData = true);
+	NIAGARA_API FNiagaraDataBuffer& BeginSimulate(bool bResetDestinationData = true);
 
 	/** Ends a simulation pass and sets the current simulation state. */
-	void EndSimulate(bool SetCurrentData = true);
+	NIAGARA_API void EndSimulate(bool SetCurrentData = true);
 
 	/** Set current data directly, you can not call this while inside a BeginSimulate block */
-	void SetCurrentData(FNiagaraDataBuffer* CurrentData);
+	NIAGARA_API void SetCurrentData(FNiagaraDataBuffer* CurrentData);
 
 	/** Allocates space for NumInstances in the current destination buffer. */
-	void Allocate(int32 NumInstances, bool bMaintainExisting = false);
+	NIAGARA_API void Allocate(int32 NumInstances, bool bMaintainExisting = false);
 
 	/** Returns size in bytes for all data buffers currently allocated by this dataset. */
-	int64 GetSizeBytes() const;
+	NIAGARA_API int64 GetSizeBytes() const;
 
 	FORCEINLINE bool IsInitialized() const { return bInitialized; }
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return CompiledData->SimTarget; }
@@ -297,16 +297,16 @@ public:
 	FORCEINLINE uint32 GetNumHalfComponents() const { return CompiledData->TotalHalfComponents; }
 
 	const TArray<FNiagaraVariableLayoutInfo>& GetVariableLayouts() const { return CompiledData->VariableLayouts; }
-	const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariableBase& Var) const;
-	bool GetVariableComponentOffsets(const FNiagaraVariableBase& Var, int32 &FloatStart, int32 &IntStart, int32& HalfStart) const;
+	NIAGARA_API const FNiagaraVariableLayoutInfo* GetVariableLayout(const FNiagaraVariableBase& Var) const;
+	NIAGARA_API bool GetVariableComponentOffsets(const FNiagaraVariableBase& Var, int32 &FloatStart, int32 &IntStart, int32& HalfStart) const;
 
-	void CopyTo(FNiagaraDataSet& Other, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, bool bResetOther=true)const;
+	NIAGARA_API void CopyTo(FNiagaraDataSet& Other, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, bool bResetOther=true)const;
 
-	void CopyFromGPUReadback(const float* GPUReadBackFloat, const int* GPUReadBackInt, const FFloat16* GPUReadBackHalf, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, uint32 FloatStride = 0, uint32 IntStride = 0, uint32 HalfStride = 0);
+	NIAGARA_API void CopyFromGPUReadback(const float* GPUReadBackFloat, const int* GPUReadBackInt, const FFloat16* GPUReadBackHalf, int32 StartIdx = 0, int32 NumInstances = INDEX_NONE, uint32 FloatStride = 0, uint32 IntStride = 0, uint32 HalfStride = 0);
 
-	void CheckForNaNs() const;
+	NIAGARA_API void CheckForNaNs() const;
 
-	void Dump(int32 StartIndex, int32 NumInstances, const FString& Label, const FName& SortParameterKey = FName()) const;
+	NIAGARA_API void Dump(int32 StartIndex, int32 NumInstances, const FString& Label, const FName& SortParameterKey = FName()) const;
 
 	FORCEINLINE bool IsCurrentDataValid()const { return CurrentData != nullptr; }
 	FORCEINLINE FNiagaraDataBuffer* GetCurrentData()const {	return CurrentData; }
@@ -324,7 +324,7 @@ public:
 		return *DestinationData;
 	}
 
-	void AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
+	NIAGARA_API void AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
 
 	void SetMaxInstanceCount(uint32 InMaxInstanceCount) { MaxInstanceCount = InMaxInstanceCount; }
 	void SetMaxAllocationCount(uint32 InMaxAllocationCount) { MaxAllocationCount = InMaxAllocationCount; }
@@ -336,9 +336,9 @@ public:
 	int NumSpawnedIDs;
 private:
 
-	void Reset();
+	NIAGARA_API void Reset();
 
-	void ResetBuffersInternal();
+	NIAGARA_API void ResetBuffersInternal();
 
 	FORCEINLINE void CheckCorrectThread()const
 	{
@@ -470,7 +470,7 @@ Allows immediate access to GPU data on the CPU, you can then use FNiagaraDataSet
 This will make a copy of the GPU data and will stall the CPU until the data is ready from the GPU,
 therefore it should only be used for tools / debugging.  For async readback see FNiagaraSystemInstance::RequestCapture.
 */
-class NIAGARA_API FScopedNiagaraDataSetGPUReadback
+class FScopedNiagaraDataSetGPUReadback
 {
 public:
 	FScopedNiagaraDataSetGPUReadback() {}
@@ -483,7 +483,7 @@ public:
 		}
 	}
 
-	void ReadbackData(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FNiagaraDataSet* InDataSet);
+	NIAGARA_API void ReadbackData(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface, FNiagaraDataSet* InDataSet);
 	uint32 GetNumInstances() const { check(DataSet != nullptr); return NumInstances; }
 
 private:

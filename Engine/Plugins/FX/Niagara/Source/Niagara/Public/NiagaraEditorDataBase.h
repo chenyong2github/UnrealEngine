@@ -53,7 +53,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual void PostLoadFromOwner(UObject* InOwner) { }
 
-	NIAGARA_API FSimpleMulticastDelegate& OnPersistentDataChanged() { return PersistentDataChangedDelegate; }
+	FSimpleMulticastDelegate& OnPersistentDataChanged() { return PersistentDataChangedDelegate; }
 
 private:
 	FSimpleMulticastDelegate PersistentDataChangedDelegate;

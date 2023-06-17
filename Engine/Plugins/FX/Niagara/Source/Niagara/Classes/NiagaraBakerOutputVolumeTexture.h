@@ -5,8 +5,8 @@
 #include "NiagaraBakerOutput.h"
 #include "NiagaraBakerOutputVolumeTexture.generated.h"
 
-UCLASS(meta = (DisplayName = "Volume Texture Output"))
-class NIAGARA_API UNiagaraBakerOutputVolumeTexture : public UNiagaraBakerOutput
+UCLASS(meta = (DisplayName = "Volume Texture Output"), MinimalAPI)
+class UNiagaraBakerOutputVolumeTexture : public UNiagaraBakerOutput
 {
 	GENERATED_BODY()
 
@@ -46,13 +46,13 @@ public:
 	UPROPERTY(EditAnywhere, Category="Settings", meta=(EditCondition="bExportFrames"))
 	FString FramesExportPathFormat = TEXT("{SavedDir}/NiagaraBaker/{AssetName}_{OutputName}/Frame_{FrameIndex}.png");
 
-	virtual bool Equals(const UNiagaraBakerOutput& Other) const override;
+	NIAGARA_API virtual bool Equals(const UNiagaraBakerOutput& Other) const override;
 
 #if WITH_EDITOR
-	FString MakeOutputName() const override;
+	NIAGARA_API FString MakeOutputName() const override;
 #endif
 
 #if WITH_EDITORONLY_DATA
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };

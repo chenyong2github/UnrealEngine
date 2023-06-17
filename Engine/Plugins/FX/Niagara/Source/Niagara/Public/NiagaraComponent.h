@@ -44,8 +44,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNia
 * @see ANiagaraActor
 * @see UNiagaraSystem
 */
-UCLASS(ClassGroup = (Rendering, Common), Blueprintable, hidecategories = Object, hidecategories = Physics, hidecategories = Collision, showcategories = Trigger, editinlinenew, meta = (BlueprintSpawnableComponent, DisplayName = "Niagara Particle System Component"))
-class NIAGARA_API UNiagaraComponent : public UFXSystemComponent
+UCLASS(ClassGroup = (Rendering, Common), Blueprintable, hidecategories = Object, hidecategories = Physics, hidecategories = Collision, showcategories = Trigger, editinlinenew, meta = (BlueprintSpawnableComponent, DisplayName = "Niagara Particle System Component"), MinimalAPI)
+class UNiagaraComponent : public UFXSystemComponent
 {
 	friend struct FNiagaraScalabilityManager;
 	GENERATED_UCLASS_BODY()
@@ -58,21 +58,21 @@ class NIAGARA_API UNiagaraComponent : public UFXSystemComponent
 public:
 
 	/********* UFXSystemComponent *********/
-	void SetBoolParameter(FName ParameterName, bool Param) override;
-	void SetIntParameter(FName ParameterName, int Param) override;
-	void SetFloatParameter(FName ParameterName, float Param) override;
-	void SetVectorParameter(FName ParameterName, FVector Param) override;
-	void SetColorParameter(FName ParameterName, FLinearColor Param) override;
-	void SetActorParameter(FName ParameterName, class AActor* Param) override;
+	NIAGARA_API void SetBoolParameter(FName ParameterName, bool Param) override;
+	NIAGARA_API void SetIntParameter(FName ParameterName, int Param) override;
+	NIAGARA_API void SetFloatParameter(FName ParameterName, float Param) override;
+	NIAGARA_API void SetVectorParameter(FName ParameterName, FVector Param) override;
+	NIAGARA_API void SetColorParameter(FName ParameterName, FLinearColor Param) override;
+	NIAGARA_API void SetActorParameter(FName ParameterName, class AActor* Param) override;
 
-	virtual UFXSystemAsset* GetFXSystemAsset() const override;
-	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
-	void ReleaseToPool() override;
-	uint32 GetApproxMemoryUsage() const override;
-	virtual void ActivateSystem(bool bFlagAsJustAttached = false) override;
+	NIAGARA_API virtual UFXSystemAsset* GetFXSystemAsset() const override;
+	NIAGARA_API void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
+	NIAGARA_API void ReleaseToPool() override;
+	NIAGARA_API uint32 GetApproxMemoryUsage() const override;
+	NIAGARA_API virtual void ActivateSystem(bool bFlagAsJustAttached = false) override;
 	/********* UFXSystemComponent *********/
 
-	virtual FName GetFNameForStatID() const override;
+	NIAGARA_API virtual FName GetFNameForStatID() const override;
 
 private:
 	UPROPERTY(EditAnywhere, Category="Niagara", meta = (DisplayName = "Niagara System Asset"))
@@ -164,14 +164,14 @@ private:
 
 	//~ Begin UActorComponent Interface.
 protected:
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override; 
-	virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
-	virtual void OnEndOfFrameUpdateDuringTick() override;
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void DestroyRenderState_Concurrent() override;
-	virtual void SendRenderDynamicData_Concurrent() override;
-	virtual void BeginDestroy() override;
+	NIAGARA_API virtual void OnRegister() override;
+	NIAGARA_API virtual void OnUnregister() override; 
+	NIAGARA_API virtual void ApplyWorldOffset(const FVector& InOffset, bool bWorldShift) override;
+	NIAGARA_API virtual void OnEndOfFrameUpdateDuringTick() override;
+	NIAGARA_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	NIAGARA_API virtual void DestroyRenderState_Concurrent() override;
+	NIAGARA_API virtual void SendRenderDynamicData_Concurrent() override;
+	NIAGARA_API virtual void BeginDestroy() override;
 	//virtual void OnAttachmentChanged() override;
 
 public:
@@ -202,66 +202,66 @@ public:
 	/** How to handle pooling for this component instance. */
 	ENCPoolMethod PoolingMethod;
 
-	virtual void Activate(bool bReset = false) override;
-	virtual void Deactivate() override;
-	virtual void DeactivateImmediate() override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	NIAGARA_API virtual void Activate(bool bReset = false) override;
+	NIAGARA_API virtual void Deactivate() override;
+	NIAGARA_API virtual void DeactivateImmediate() override;
+	NIAGARA_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 
-	ENiagaraExecutionState GetRequestedExecutionState() const;
-	ENiagaraExecutionState GetExecutionState() const;
+	NIAGARA_API ENiagaraExecutionState GetRequestedExecutionState() const;
+	NIAGARA_API ENiagaraExecutionState GetExecutionState() const;
 
-	bool IsComplete() const;
+	NIAGARA_API bool IsComplete() const;
 
 private:
 
 	//Internal versions that can be called from the scalability code.
 	//These will behave as expected but will keep the component registered with the scalability manager.
-	void ActivateInternal(bool bReset, bool bIsScalabilityCull);
-	void DeactivateInternal(bool bIsScalabilityCull);
-	void DeactivateImmediateInternal(bool bIsScalabilityCull);
-	void SetPausedInternal(bool bInPaused, bool bIsScalabilityCull);	
+	NIAGARA_API void ActivateInternal(bool bReset, bool bIsScalabilityCull);
+	NIAGARA_API void DeactivateInternal(bool bIsScalabilityCull);
+	NIAGARA_API void DeactivateImmediateInternal(bool bIsScalabilityCull);
+	NIAGARA_API void SetPausedInternal(bool bInPaused, bool bIsScalabilityCull);	
 
 
-	bool ShouldPreCull();
-	void RegisterWithScalabilityManager();
-	void UnregisterWithScalabilityManager();
+	NIAGARA_API bool ShouldPreCull();
+	NIAGARA_API void RegisterWithScalabilityManager();
+	NIAGARA_API void UnregisterWithScalabilityManager();
 
-	void PostSystemTick_GameThread();
-	void OnSystemComplete(bool bExternalCompletion);
+	NIAGARA_API void PostSystemTick_GameThread();
+	NIAGARA_API void OnSystemComplete(bool bExternalCompletion);
 
 public:
 
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	virtual const UObject* AdditionalStatObject() const override;
-	virtual bool IsReadyForOwnerToAutoDestroy() const override;
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
-	virtual void OnComponentCreated() override;
-	virtual void PostApplyToComponent() override;
+	NIAGARA_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	NIAGARA_API virtual const UObject* AdditionalStatObject() const override;
+	NIAGARA_API virtual bool IsReadyForOwnerToAutoDestroy() const override;
+	NIAGARA_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	NIAGARA_API virtual void OnComponentCreated() override;
+	NIAGARA_API virtual void PostApplyToComponent() override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin UPrimitiveComponent Interface
-	virtual int32 GetNumMaterials() const override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
-	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
-	virtual void OnAttachmentChanged() override;
+	NIAGARA_API virtual int32 GetNumMaterials() const override;
+	NIAGARA_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	NIAGARA_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	NIAGARA_API virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	NIAGARA_API virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
+	NIAGARA_API virtual void OnAttachmentChanged() override;
 	//~ End UPrimitiveComponent Interface
 
 	//~ Begin USceneComponent Interface
-	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
-	virtual void OnChildDetached(USceneComponent* ChildComponent) override;
-	virtual bool IsVisible() const override;
+	NIAGARA_API virtual void OnChildAttached(USceneComponent* ChildComponent) override;
+	NIAGARA_API virtual void OnChildDetached(USceneComponent* ChildComponent) override;
+	NIAGARA_API virtual bool IsVisible() const override;
 	//~ Begin USceneComponent Interface
 
 	UE_DEPRECATED(5.0, "This interface is no longer safe to access directly. Use the interface provided by GetSystemInstanceController instead.")
-	TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation();
+	NIAGARA_API TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation();
 
-	bool InitializeSystem();
-	void DestroyInstance();
-	void DestroyInstanceNotComponent();
+	NIAGARA_API bool InitializeSystem();
+	NIAGARA_API void DestroyInstance();
+	NIAGARA_API void DestroyInstanceNotComponent();
 
-	void OnPooledReuse(UWorld* NewWorld);
+	NIAGARA_API void OnPooledReuse(UWorld* NewWorld);
 
 	/*
 	Switch which asset the component is using.
@@ -269,80 +269,80 @@ public:
 	By default existing parameters are reset when we call SetAsset, modify bResetExistingOverrideParameters to leave existing parameter data as is.
 	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara System Asset"))
-	void SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOverrideParameters = true);
+	NIAGARA_API void SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOverrideParameters = true);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara System Asset"))
 	UNiagaraSystem* GetAsset() const { return Asset; }
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Forced Solo Mode"))
-	void SetForceSolo(bool bInForceSolo);
+	NIAGARA_API void SetForceSolo(bool bInForceSolo);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Is In Forced Solo Mode"))
 	bool GetForceSolo()const { return bForceSolo; }
 
 private:
-	bool RequiresSoloMode() const;
-	void UpdateInstanceSoloMode();
+	NIAGARA_API bool RequiresSoloMode() const;
+	NIAGARA_API void UpdateInstanceSoloMode();
 public:
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void SetGpuComputeDebug(bool bEnableDebug);
+	NIAGARA_API void SetGpuComputeDebug(bool bEnableDebug);
 
 	/**
 	Sets the custom time dilation value for the component.
 	Note: This is only available on components that are in solo mode currently.
 	*/
 	UFUNCTION(BlueprintCallable, Category=Niagara)
-	void SetCustomTimeDilation(float Dilation = 1.0f);
+	NIAGARA_API void SetCustomTimeDilation(float Dilation = 1.0f);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
 	float GetCustomTimeDilation() const { return CustomTimeDilation; }
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Age Update Mode"))
-	ENiagaraAgeUpdateMode GetAgeUpdateMode() const;
+	NIAGARA_API ENiagaraAgeUpdateMode GetAgeUpdateMode() const;
 
 	/** Sets the age update mode for the System instance. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Age Update Mode"))
-	void SetAgeUpdateMode(ENiagaraAgeUpdateMode InAgeUpdateMode);
+	NIAGARA_API void SetAgeUpdateMode(ENiagaraAgeUpdateMode InAgeUpdateMode);
 
 	/** Gets the desired age of the System instance.  This is only relevant when using the DesiredAge age update mode. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Desired Age"))
-	float GetDesiredAge() const;
+	NIAGARA_API float GetDesiredAge() const;
 
 	/** Sets the desired age of the System instance.  This is only relevant when using the DesiredAge age update mode. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Desired Age"))
-	void SetDesiredAge(float InDesiredAge);
+	NIAGARA_API void SetDesiredAge(float InDesiredAge);
 
 	/** Sets the desired age of the System instance and designates that this change is a seek.  When seeking to a desired age the
 	    The component can optionally prevent rendering. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Seek to Desired Age"))
-	void SeekToDesiredAge(float InDesiredAge);
+	NIAGARA_API void SeekToDesiredAge(float InDesiredAge);
 
 	/** Sets whether or not the system can render while seeking. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Can Render While Seeking"))
-	void SetCanRenderWhileSeeking(bool bInCanRenderWhileSeeking);
+	NIAGARA_API void SetCanRenderWhileSeeking(bool bInCanRenderWhileSeeking);
 
 	/** Gets the delta value which is used when seeking from the current age, to the desired age.  This is only relevant
 	when using the DesiredAge age update mode. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Desired Age Seek Delta"))
-	float GetSeekDelta() const;
+	NIAGARA_API float GetSeekDelta() const;
 
 	/** Sets the delta value which is used when seeking from the current age, to the desired age.  This is only relevant
 	when using the DesiredAge age update mode. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Desired Age Seek Delta"))
-	void SetSeekDelta(float InSeekDelta);
+	NIAGARA_API void SetSeekDelta(float InSeekDelta);
 
 	/** Gets whether or not the delta time used to tick the system instance when using desired age is locked to the seek delta.  When true, the system instance
 	will only be ticked when the desired age has changed by more than the seek delta.  When false the system instance will be ticked by the change in desired
 	age when not seeking. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get whether or not to lock the desired age delta time to the seek delta."))
-	bool GetLockDesiredAgeDeltaTimeToSeekDelta() const;
+	NIAGARA_API bool GetLockDesiredAgeDeltaTimeToSeekDelta() const;
 
 	/** Sets whether or not the delta time used to tick the system instance when using desired age is locked to the seek delta.  When true, the system instance
 	will only be ticked when the desired age has changed by more than the seek delta.  When false the system instance will be ticked by the change in desired
 	age when not seeking. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set whether or not to lock the desired age delta time to the seek delta."))
-	void SetLockDesiredAgeDeltaTimeToSeekDelta(bool bLock);
+	NIAGARA_API void SetLockDesiredAgeDeltaTimeToSeekDelta(bool bLock);
 
 	/**
 	Get the maximum CPU time in seconds we will simulate to the desired age, when we go beyond this limit ticks will be processed in the next frame.
@@ -350,7 +350,7 @@ public:
 	Note: The componet will not be visibile if we have ticks to process and SetCanRenderWhileSeeking is set to true
 	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Max Desired Age Tick Delta"))
-	float GetMaxSimTime() const;
+	NIAGARA_API float GetMaxSimTime() const;
 
 	/**
 	Sets the maximum CPU time in seconds we will simulate to the desired age, when we go beyond this limit ticks will be processed in the next frame.
@@ -358,19 +358,19 @@ public:
 	Note: The componet will not be visibile if we have ticks to process and SetCanRenderWhileSeeking is set to true
 	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Max Desired Age Tick Delta"))
-	void SetMaxSimTime(float InMaxTime);
+	NIAGARA_API void SetMaxSimTime(float InMaxTime);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Auto Destroy"))
-	void SetAutoDestroy(bool bInAutoDestroy);
+	NIAGARA_API void SetAutoDestroy(bool bInAutoDestroy);
 
 	UE_DEPRECATED(5.0, "This interface is no longer safe to access directly. Use the interface provided by GetSystemInstanceController instead.")
-	FNiagaraSystemInstance* GetSystemInstance() const;
+	NIAGARA_API FNiagaraSystemInstance* GetSystemInstance() const;
 
 	FNiagaraSystemInstanceControllerPtr GetSystemInstanceController() { return SystemInstanceController; }
 	FNiagaraSystemInstanceControllerConstPtr GetSystemInstanceController() const { return SystemInstanceController; }
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Tick Behavior"))
-	void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
+	NIAGARA_API void SetTickBehavior(ENiagaraTickBehavior NewTickBehavior);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Tick Behavior"))
 	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
@@ -381,7 +381,7 @@ public:
 	A default uninitialized box will clear the fixed bounds and revert back to system fixed / dynamic bounds.
 	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void SetSystemFixedBounds(FBox LocalBounds);
+	NIAGARA_API void SetSystemFixedBounds(FBox LocalBounds);
 
 	/**
 	Gets the fixed bounds for the system instance.
@@ -389,11 +389,11 @@ public:
 	Note: The returned box may be invalid if no fixed bounds exist
 	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	FBox GetSystemFixedBounds() const;
+	NIAGARA_API FBox GetSystemFixedBounds() const;
 
 	/** Clear any previously set fixed bounds for the system instance. */
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void ClearSystemFixedBounds();
+	NIAGARA_API void ClearSystemFixedBounds();
 
 	/**
 	Sets the fixed bounds for an emitter instance, this overrides all other bounds.
@@ -401,7 +401,7 @@ public:
 	A default uninitialized box will clear the fixed bounds and revert back to emitter fixed / dynamic bounds.
 	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void SetEmitterFixedBounds(FName EmitterName, FBox LocalBounds);
+	NIAGARA_API void SetEmitterFixedBounds(FName EmitterName, FBox LocalBounds);
 
 	/**
 	Gets the fixed bounds for an emitter instance.
@@ -409,14 +409,14 @@ public:
 	Note: The returned box may be invalid if no fixed bounds exist
 	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	FBox GetEmitterFixedBounds(FName EmitterName) const;
+	NIAGARA_API FBox GetEmitterFixedBounds(FName EmitterName) const;
 
 	/** Clear any previously set fixed bounds for the emitter instance. */
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void ClearEmitterFixedBounds(FName EmitterName);
+	NIAGARA_API void ClearEmitterFixedBounds(FName EmitterName);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Random Seed Offset"))
-	void SetRandomSeedOffset(int32 NewRandomSeedOffset);
+	NIAGARA_API void SetRandomSeedOffset(int32 NewRandomSeedOffset);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Random Seed Offset"))
 	int32 GetRandomSeedOffset() const { return RandomSeedOffset; }
@@ -424,180 +424,180 @@ public:
 	/** Sets a Niagara FLinearColor parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (LinearColor)", Keywords="user parameter variable color"))
-	void SetNiagaraVariableLinearColor(const FString& InVariableName, const FLinearColor& InValue);
+	NIAGARA_API void SetNiagaraVariableLinearColor(const FString& InVariableName, const FLinearColor& InValue);
 
 	/** Sets a Niagara FLinearColor parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (LinearColor)", Keywords="user parameter variable color"))
-	void SetVariableLinearColor(FName InVariableName, const FLinearColor& InValue);
+	NIAGARA_API void SetVariableLinearColor(FName InVariableName, const FLinearColor& InValue);
 
 	/** Sets a Niagara Vector4 parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Vector4)", Keywords="user parameter variable vector"))
-	void SetNiagaraVariableVec4(const FString& InVariableName, const FVector4& InValue);
+	NIAGARA_API void SetNiagaraVariableVec4(const FString& InVariableName, const FVector4& InValue);
 
 	/** Sets a Niagara Vector4 parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Vector4)", Keywords="user parameter variable vector"))
-	void SetVariableVec4(FName InVariableName, const FVector4& InValue);
+	NIAGARA_API void SetVariableVec4(FName InVariableName, const FVector4& InValue);
 
 	/** Sets a Niagara quaternion parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Quaternion)", Keywords="user parameter variable quaternion rotation"))
-	void SetNiagaraVariableQuat(const FString& InVariableName, const FQuat& InValue);
+	NIAGARA_API void SetNiagaraVariableQuat(const FString& InVariableName, const FQuat& InValue);
 
 	/** Sets a Niagara quaternion parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Quaternion)", Keywords="user parameter variable quaternion rotation"))
-	void SetVariableQuat(FName InVariableName, const FQuat& InValue);
+	NIAGARA_API void SetVariableQuat(FName InVariableName, const FQuat& InValue);
 
 	/** Sets a Niagara matrix parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Matrix)", Keywords="user parameter variable matrix"))
-	void SetNiagaraVariableMatrix(const FString& InVariableName, const FMatrix& InValue);
+	NIAGARA_API void SetNiagaraVariableMatrix(const FString& InVariableName, const FMatrix& InValue);
 
 	/** Sets a Niagara matrix parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Matrix)", Keywords="user parameter variable matrix"))
-	void SetVariableMatrix(FName InVariableName, const FMatrix& InValue);
+	NIAGARA_API void SetVariableMatrix(FName InVariableName, const FMatrix& InValue);
 
 	/** Sets a Niagara Vector3 parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Vector3)", Keywords="user parameter variable vector"))
-	void SetNiagaraVariableVec3(const FString& InVariableName, FVector InValue);
+	NIAGARA_API void SetNiagaraVariableVec3(const FString& InVariableName, FVector InValue);
 
 	/** Sets a Niagara Vector3 parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Vector3)", Keywords="user parameter variable vector"))
-	void SetVariableVec3(FName InVariableName, FVector InValue);
+	NIAGARA_API void SetVariableVec3(FName InVariableName, FVector InValue);
 
 	/** Sets a Niagara Position parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Position)", Keywords="user parameter variable vector position lwc"))
-	void SetNiagaraVariablePosition(const FString& InVariableName, FVector InValue);
+	NIAGARA_API void SetNiagaraVariablePosition(const FString& InVariableName, FVector InValue);
 
 	/** Sets a Niagara Position parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Position)", Keywords="user parameter variable vector position lwc"))
-	void SetVariablePosition(FName InVariableName, FVector InValue);
+	NIAGARA_API void SetVariablePosition(FName InVariableName, FVector InValue);
 
 	/** Sets a Niagara Vector2 parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Vector2)", Keywords="user parameter variable vector"))
-	void SetNiagaraVariableVec2(const FString& InVariableName, FVector2D InValue);
+	NIAGARA_API void SetNiagaraVariableVec2(const FString& InVariableName, FVector2D InValue);
 
 	/** Sets a Niagara Vector2 parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Vector2)", Keywords="user parameter variable vector"))
-	void SetVariableVec2(FName InVariableName, FVector2D InValue);
+	NIAGARA_API void SetVariableVec2(FName InVariableName, FVector2D InValue);
 
 	/** Sets a Niagara float parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Float)", Keywords="user parameter variable float"))
-	void SetNiagaraVariableFloat(const FString& InVariableName, float InValue);
+	NIAGARA_API void SetNiagaraVariableFloat(const FString& InVariableName, float InValue);
 
 	/** Sets a Niagara float parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Float)", Keywords="user parameter variable float"))
-	void SetVariableFloat(FName InVariableName, float InValue);
+	NIAGARA_API void SetVariableFloat(FName InVariableName, float InValue);
 
 	/** Sets a Niagara int parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Int32)", Keywords="user parameter variable int"))
-	void SetNiagaraVariableInt(const FString& InVariableName, int32 InValue);
+	NIAGARA_API void SetNiagaraVariableInt(const FString& InVariableName, int32 InValue);
 
 	/** Sets a Niagara int parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Int32)", Keywords="user parameter variable int"))
-	void SetVariableInt(FName InVariableName, int32 InValue);
+	NIAGARA_API void SetVariableInt(FName InVariableName, int32 InValue);
 
 	/** Sets a Niagara bool parameter by name, overriding locally if necessary.*/
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Bool)", Keywords="user parameter variable bool"))
-	void SetNiagaraVariableBool(const FString& InVariableName, bool InValue);
+	NIAGARA_API void SetNiagaraVariableBool(const FString& InVariableName, bool InValue);
 
 	/** Sets a Niagara bool parameter by name, overriding locally if necessary.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Bool)", Keywords="user parameter variable bool"))
-	void SetVariableBool(FName InVariableName, bool InValue);
+	NIAGARA_API void SetVariableBool(FName InVariableName, bool InValue);
 
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Actor)", Keywords="user parameter variable actor"))
-	void SetNiagaraVariableActor(const FString& InVariableName, AActor* Actor);
+	NIAGARA_API void SetNiagaraVariableActor(const FString& InVariableName, AActor* Actor);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Actor)", Keywords="user parameter variable actor"))
-	void SetVariableActor(FName InVariableName, AActor* Actor);
+	NIAGARA_API void SetVariableActor(FName InVariableName, AActor* Actor);
 
 	UE_DEPRECATED(5.3, "This method will be removed in a future release.  Please update to use the FName variant")
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable By String (Object)", Keywords="user parameter variable object"))
-	void SetNiagaraVariableObject(const FString& InVariableName, UObject* Object);
+	NIAGARA_API void SetNiagaraVariableObject(const FString& InVariableName, UObject* Object);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Object)", Keywords="user parameter variable object"))
-	void SetVariableObject(FName InVariableName, UObject* Object);
+	NIAGARA_API void SetVariableObject(FName InVariableName, UObject* Object);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Material)", Keywords="user parameter variable material"))
-	void SetVariableMaterial(FName InVariableName, UMaterialInterface* Object);
+	NIAGARA_API void SetVariableMaterial(FName InVariableName, UMaterialInterface* Object);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Static Mesh)", Keywords="user parameter variable mesh"))
-	void SetVariableStaticMesh(FName InVariableName, UStaticMesh* InValue);
+	NIAGARA_API void SetVariableStaticMesh(FName InVariableName, UStaticMesh* InValue);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (Texture)", Keywords="user parameter variable texture"))
-	void SetVariableTexture(FName InVariableName, class UTexture* Texture);
+	NIAGARA_API void SetVariableTexture(FName InVariableName, class UTexture* Texture);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara Variable (TextureRenderTarget)"))
-	void SetVariableTextureRenderTarget(FName InVariableName, class UTextureRenderTarget* TextureRenderTarget);
+	NIAGARA_API void SetVariableTextureRenderTarget(FName InVariableName, class UTextureRenderTarget* TextureRenderTarget);
 
 	/** Debug accessors for getting positions in blueprints. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara Emitter Positions", DeprecatedFunction, DeprecationMessage = "Get Niagara Emitter Positions is deprecated, use the particle export DI inside your emitter instead."))
-	TArray<FVector> GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName);
+	NIAGARA_API TArray<FVector> GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName);
 
 	/** Debug accessors for getting a float attribute array in blueprints.  The attribute name should be without namespaces. For example for "Particles.Position", send "Position". */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara Emitter Float Attrib", DeprecatedFunction, DeprecationMessage = "Get Niagara Emitter Float Attrib is deprecated, use the particle export DI inside your emitter instead."))
-	TArray<float> GetNiagaraParticleValues_DebugOnly(const FString& InEmitterName, const FString& InValueName);
+	NIAGARA_API TArray<float> GetNiagaraParticleValues_DebugOnly(const FString& InEmitterName, const FString& InValueName);
 
 	/** Debug accessors for getting a FVector attribute array in blueprints. The attribute name should be without namespaces. For example for "Particles.Position", send "Position". */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara Emitter Vec3 Attrib", DeprecatedFunction, DeprecationMessage = "Get Niagara Emitter Vec3 Attrib is deprecated, use the particle export DI inside your emitter instead."))
-	TArray<FVector> GetNiagaraParticleValueVec3_DebugOnly(const FString& InEmitterName, const FString& InValueName);
+	NIAGARA_API TArray<FVector> GetNiagaraParticleValueVec3_DebugOnly(const FString& InEmitterName, const FString& InValueName);
 
 	/** Resets the System to it's initial pre-simulated state. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Reset System"))
-	void ResetSystem();
+	NIAGARA_API void ResetSystem();
 
 	/** Called on when an external object wishes to force this System to reinitialize itself from the System data.*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Reinitialize System"))
-	void ReinitializeSystem();
+	NIAGARA_API void ReinitializeSystem();
 
 	/** Gets whether or not rendering is enabled for this component. */
-	bool GetRenderingEnabled() const;
+	NIAGARA_API bool GetRenderingEnabled() const;
 
 	/** Sets whether or not rendering is enabled for this component. */
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Rendering Enabled"))
-	void SetRenderingEnabled(bool bInRenderingEnabled);
+	NIAGARA_API void SetRenderingEnabled(bool bInRenderingEnabled);
 
 	/** Advances this system's simulation by the specified number of ticks and delta time. */
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void AdvanceSimulation(int32 TickCount, float TickDeltaSeconds);
+	NIAGARA_API void AdvanceSimulation(int32 TickCount, float TickDeltaSeconds);
 
 	/** Advances this system's simulation by the specified time in seconds and delta time. Advancement is done in whole ticks of TickDeltaSeconds so actual simulated time will be the nearest lower multiple of TickDeltaSeconds. */
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void AdvanceSimulationByTime(float SimulateTime, float TickDeltaSeconds);
+	NIAGARA_API void AdvanceSimulationByTime(float SimulateTime, float TickDeltaSeconds);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	void SetPaused(bool bInPaused);
+	NIAGARA_API void SetPaused(bool bInPaused);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	bool IsPaused() const;
+	NIAGARA_API bool IsPaused() const;
 
 	UE_DEPRECATED(4.27, "This method will be removed in a future release. Use the method provided by the Niagara Function Library instead.")
 	UFUNCTION(BlueprintCallable, Category = Niagara)
-	UNiagaraDataInterface* GetDataInterface(const FString &Name);
+	NIAGARA_API UNiagaraDataInterface* GetDataInterface(const FString &Name);
 
 	/**
 		The significant index for this component. i.e. this is the Nth most significant instance of it's system in the scene.
 		Passed to the script to allow us to scale down internally for less significant systems instances.
 	*/
-	void SetSystemSignificanceIndex(int32 InIndex);
+	NIAGARA_API void SetSystemSignificanceIndex(int32 InIndex);
 
 	//~ Begin UObject Interface.
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
-	virtual void PostLoad() override;
+	NIAGARA_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	NIAGARA_API virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static NIAGARA_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	NIAGARA_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	NIAGARA_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/**
 	  * Find the value of an overridden parameter.  The value returned may not be the current value being used by the simulation but
@@ -605,43 +605,43 @@ public:
 	  * blueprint editor.
 	  * Returns null if the parameter isn't overridden by this component.
 	  */
-	FNiagaraVariant FindParameterOverride(const FNiagaraVariableBase& InKey) const;
+	NIAGARA_API FNiagaraVariant FindParameterOverride(const FNiagaraVariableBase& InKey) const;
 
 	/** Gets the current value of a parameter which is being used by the simulation.  This value will reflect runtime changes such as
 	  * those made by sequencer, or in PIE through code or blueprint. */
-	FNiagaraVariant GetCurrentParameterValue(const FNiagaraVariableBase& InKey) const;
+	NIAGARA_API FNiagaraVariant GetCurrentParameterValue(const FNiagaraVariableBase& InKey) const;
 
-	bool HasParameterOverride(const FNiagaraVariableBase& InKey) const;
-	void SetParameterOverride(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
+	NIAGARA_API bool HasParameterOverride(const FNiagaraVariableBase& InKey) const;
+	NIAGARA_API void SetParameterOverride(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
 
 	/** Remove an override for a given parameter if one exists. */
-	void RemoveParameterOverride(const FNiagaraVariableBase& InKey);
+	NIAGARA_API void RemoveParameterOverride(const FNiagaraVariableBase& InKey);
 
-	void UpgradeDeprecatedParameterOverrides();
-	void EnsureOverrideParametersConsistent() const;
+	NIAGARA_API void UpgradeDeprecatedParameterOverrides();
+	NIAGARA_API void EnsureOverrideParametersConsistent() const;
 #endif
 	//~ End UObject Interface
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
-	void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance, float PreviewMaxDistance);
+	NIAGARA_API void SetPreviewLODDistance(bool bEnablePreviewLODDistance, float PreviewLODDistance, float PreviewMaxDistance);
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
-	FORCEINLINE bool GetPreviewLODDistanceEnabled()const;
+	NIAGARA_API FORCEINLINE bool GetPreviewLODDistanceEnabled()const;
 
 	UFUNCTION(BlueprintCallable, Category = Preview, meta = (Keywords = "preview LOD Distance scalability"))
-	FORCEINLINE float GetPreviewLODDistance()const;
+	NIAGARA_API FORCEINLINE float GetPreviewLODDistance()const;
 
 	/**
 	Initializes this component for capturing a performance baseline.
 	This will do things such as disabling distance culling and setting a LODDistance of 0 to ensure the effect is at it's maximum cost.
 	*/
 	UFUNCTION(BlueprintCallable, Category = Performance, meta = (Keywords = "Niagara Performance"))
-	void InitForPerformanceBaseline();
+	NIAGARA_API void InitForPerformanceBaseline();
 
-	void SetLODDistance(float InLODDistance, float InMaxLODDistance);
+	NIAGARA_API void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
 #if WITH_EDITOR
-	void PostLoadNormalizeOverrideNames();
+	NIAGARA_API void PostLoadNormalizeOverrideNames();
 	FOnSystemInstanceChanged& OnSystemInstanceChanged() { return OnSystemInstanceChangedDelegate; }
 
 	FOnSynchronizedWithAssetParameters& OnSynchronizedWithAssetParameters() { return OnSynchronizedWithAssetParametersDelegate; }
@@ -651,7 +651,7 @@ public:
 
 	const FNiagaraParameterStore& GetOverrideParameters() const { return OverrideParameters; }
 
-	bool IsWorldReadyToRun() const;
+	NIAGARA_API bool IsWorldReadyToRun() const;
 
 	//~ End UObject Interface.
 
@@ -660,31 +660,31 @@ public:
 	FOnNiagaraSystemFinished OnSystemFinished;
 
 	/** Removes all local overrides and replaces them with the values from the source System - note: this also removes the editor overrides from the component as it is used by the pooling mechanism to prevent values leaking between different instances. */
-	void SetUserParametersToDefaultValues();
+	NIAGARA_API void SetUserParametersToDefaultValues();
 
 	/** Is this an effect on or linked to the local player. */
-	bool IsLocalPlayerEffect()const;
+	NIAGARA_API bool IsLocalPlayerEffect()const;
 
 private:
 	/** Compare local overrides with the source System. Remove any that have mismatched types or no longer exist on the System.*/
-	void SynchronizeWithSourceSystem();
+	NIAGARA_API void SynchronizeWithSourceSystem();
 
-	void FixInvalidUserParameterOverrideData();
+	NIAGARA_API void FixInvalidUserParameterOverrideData();
 
-	void AssetExposedParametersChanged();
+	NIAGARA_API void AssetExposedParametersChanged();
 
-	void CopyParametersFromAsset(bool bResetExistingOverrideParameters = true);
+	NIAGARA_API void CopyParametersFromAsset(bool bResetExistingOverrideParameters = true);
 
 #if WITH_EDITOR
-	void SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
-	void ApplyOverridesToParameterStore();
+	NIAGARA_API void SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);
+	NIAGARA_API void ApplyOverridesToParameterStore();
 
 	/**
 	 * Ensures that the data interfaces in the template parameter overrides, instance parameter overrides, and in the override parameters
 	 * parameter store have this component as their outer and have their archetype cleared.  This is required to hack around issues with
 	 * subobject handling on components when they're spawned from templates which can cause invalid cross package references.
  	 */
-	void FixDataInterfaceOuters();
+	NIAGARA_API void FixDataInterfaceOuters();
 #endif
 
 public:
@@ -734,7 +734,7 @@ public:
 	 * @param  ScaleRule		Option for how we handle our scale when we attach to Parent.
 	 * @see bAutoManageAttachment, AutoAttachParent, AutoAttachSocketName, AutoAttachLocationRule, AutoAttachRotationRule, AutoAttachScaleRule
 	 */
-	void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) override;
+	NIAGARA_API void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) override;
 
 	virtual void SetUseAutoManageAttachment(bool bAutoManage) override { bAutoManageAttachment = bAutoManage; }
 
@@ -755,13 +755,13 @@ public:
 	simulation due to missing simulation data.
 	*/
 	UFUNCTION(BlueprintCallable, Category = SimCache)
-	void SetSimCache(UNiagaraSimCache* SimCache, bool bResetSystem = false);
+	NIAGARA_API void SetSimCache(UNiagaraSimCache* SimCache, bool bResetSystem = false);
 
 	/**
 	Get the active simulation cache, will return null if we do not have an active one.
 	*/
 	UFUNCTION(BlueprintCallable, Category = SimCache)
-	UNiagaraSimCache* GetSimCache() const;
+	NIAGARA_API UNiagaraSimCache* GetSimCache() const;
 
 	/**
 	Clear any active simulation cache.
@@ -774,16 +774,16 @@ public:
 
 	/** Set whether this component is allowed to perform scalability checks and potentially be culled etc. Occasionally it is useful to disable this for specific components. E.g. Effects on the local player. */
 	UFUNCTION(BlueprintSetter, Category = Scalability, meta = (Keywords = "LOD scalability"))
-	void SetAllowScalability(bool bAllow);
+	NIAGARA_API void SetAllowScalability(bool bAllow);
 	
 	UFUNCTION(BlueprintGetter)
-	bool GetAllowScalability()const;
+	NIAGARA_API bool GetAllowScalability()const;
 	
 	UFUNCTION(BlueprintSetter, Category = Scalability, meta = (Keywords = "LOD scalability"))
-	void SetForceLocalPlayerEffect(bool bIsPlayerEffect);
+	NIAGARA_API void SetForceLocalPlayerEffect(bool bIsPlayerEffect);
 	
 	UFUNCTION(BlueprintGetter)
-	bool GetForceLocalPlayerEffect()const;
+	NIAGARA_API bool GetForceLocalPlayerEffect()const;
 
 	FORCEINLINE bool IsRegisteredWithScalabilityManager()const { return ScalabilityManagerHandle != INDEX_NONE; }
 	FORCEINLINE int32 GetScalabilityManagerHandle()const { return ScalabilityManagerHandle; }
@@ -798,7 +798,7 @@ public:
 
 	FORCEINLINE bool IsUsingCullProxy()const { return CullProxy != nullptr; }
 
-	bool ResolveOwnerAllowsScalability(bool bRegister=true);
+	NIAGARA_API bool ResolveOwnerAllowsScalability(bool bRegister=true);
 
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
@@ -833,7 +833,7 @@ private:
 	uint32 bDesiredPauseState : 1;
 
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
-	void CancelAutoAttachment(bool bDetachFromParent);
+	NIAGARA_API void CancelAutoAttachment(bool bDetachFromParent);
 
 
 	/** Saved relative transform before auto attachment. Used during detachment to restore the transform if we had automatically attached. */
@@ -861,11 +861,11 @@ private:
 	UPROPERTY(transient)
 	TObjectPtr<class UNiagaraCullProxyComponent> CullProxy;
 
-	void CreateCullProxy(bool bForce = false);
-	void DestroyCullProxy();
+	NIAGARA_API void CreateCullProxy(bool bForce = false);
+	NIAGARA_API void DestroyCullProxy();
 
 public:
-	FParticlePerfStatsContext GetPerfStatsContext();
+	NIAGARA_API FParticlePerfStatsContext GetPerfStatsContext();
 };
 
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return bEnablePreviewLODDistance; }

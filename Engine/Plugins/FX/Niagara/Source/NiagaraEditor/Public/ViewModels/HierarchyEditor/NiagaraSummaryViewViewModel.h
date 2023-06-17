@@ -24,16 +24,16 @@ public:
 	TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraHierarchyModule : public UNiagaraHierarchyItem
+UCLASS(MinimalAPI)
+class UNiagaraHierarchyModule : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
 public:
-	void Initialize(const UNiagaraNodeFunctionCall& ModuleNode);
+	NIAGARAEDITOR_API void Initialize(const UNiagaraNodeFunctionCall& ModuleNode);
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraHierarchyModuleInput : public UNiagaraHierarchyItem
+UCLASS(MinimalAPI)
+class UNiagaraHierarchyModuleInput : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
 
@@ -41,7 +41,7 @@ public:
 	UNiagaraHierarchyModuleInput() {}
 	virtual ~UNiagaraHierarchyModuleInput() override {}
 
-	void Initialize(const UNiagaraNodeFunctionCall& FunctionCall, FGuid InputGuid);
+	NIAGARAEDITOR_API void Initialize(const UNiagaraNodeFunctionCall& FunctionCall, FGuid InputGuid);
 
 	void SetDisplayNameOverride(const FText& InText) { DisplayNameOverride = InText; }
 	FText GetDisplayNameOverride() const { return DisplayNameOverride; }
@@ -57,8 +57,8 @@ private:
 	FText TooltipOverride;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraHierarchyAssignmentInput : public UNiagaraHierarchyItem
+UCLASS(MinimalAPI)
+class UNiagaraHierarchyAssignmentInput : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
 
@@ -66,7 +66,7 @@ public:
 	UNiagaraHierarchyAssignmentInput() {}
 	virtual ~UNiagaraHierarchyAssignmentInput() override {}
 
-	void Initialize(const UNiagaraNodeAssignment& AssignmentNode, FName AssignmentTarget);
+	NIAGARAEDITOR_API void Initialize(const UNiagaraNodeAssignment& AssignmentNode, FName AssignmentTarget);
 
 	FText GetTooltipOverride() const { return TooltipOverride; }
 private:
@@ -75,52 +75,52 @@ private:
 	FText TooltipOverride;
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraHierarchyRenderer : public UNiagaraHierarchyItem
+UCLASS(MinimalAPI)
+class UNiagaraHierarchyRenderer : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
 public:
-	void Initialize(const UNiagaraRendererProperties& Renderer);
+	NIAGARAEDITOR_API void Initialize(const UNiagaraRendererProperties& Renderer);
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraHierarchyEventHandler : public UNiagaraHierarchyItem
+UCLASS(MinimalAPI)
+class UNiagaraHierarchyEventHandler : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
 public:
-	void Initialize(const FNiagaraEventScriptProperties& EventHandler);
+	NIAGARAEDITOR_API void Initialize(const FNiagaraEventScriptProperties& EventHandler);
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraHierarchyEventHandlerProperties : public UNiagaraHierarchyItem
+UCLASS(MinimalAPI)
+class UNiagaraHierarchyEventHandlerProperties : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
 public:
-	void Initialize(const FNiagaraEventScriptProperties& EventHandler);
+	NIAGARAEDITOR_API void Initialize(const FNiagaraEventScriptProperties& EventHandler);
 	
-	static FNiagaraHierarchyIdentity MakeIdentity(const FNiagaraEventScriptProperties& EventHandler);
+	static NIAGARAEDITOR_API FNiagaraHierarchyIdentity MakeIdentity(const FNiagaraEventScriptProperties& EventHandler);
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraHierarchySimStage : public UNiagaraHierarchyItem
+UCLASS(MinimalAPI)
+class UNiagaraHierarchySimStage : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
 public:
-	void Initialize(const UNiagaraSimulationStageBase& SimStage);
+	NIAGARAEDITOR_API void Initialize(const UNiagaraSimulationStageBase& SimStage);
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraHierarchySimStageProperties : public UNiagaraHierarchyItem
+UCLASS(MinimalAPI)
+class UNiagaraHierarchySimStageProperties : public UNiagaraHierarchyItem
 {
 	GENERATED_BODY()
 public:
-	void Initialize(const UNiagaraSimulationStageBase& SimStage);
+	NIAGARAEDITOR_API void Initialize(const UNiagaraSimulationStageBase& SimStage);
 	
-	static FNiagaraHierarchyIdentity MakeIdentity(const UNiagaraSimulationStageBase& SimStage);
+	static NIAGARAEDITOR_API FNiagaraHierarchyIdentity MakeIdentity(const UNiagaraSimulationStageBase& SimStage);
 };
 
-UCLASS()
-class NIAGARAEDITOR_API UNiagaraSummaryViewViewModel : public UNiagaraHierarchyViewModelBase
+UCLASS(MinimalAPI)
+class UNiagaraSummaryViewViewModel : public UNiagaraHierarchyViewModelBase
 {
 	GENERATED_BODY()
 public:
@@ -129,33 +129,33 @@ public:
 	{
 	}
 
-	void Initialize(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
-	virtual void FinalizeInternal() override;
+	NIAGARAEDITOR_API void Initialize(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
+	NIAGARAEDITOR_API virtual void FinalizeInternal() override;
 	
-	TSharedRef<FNiagaraEmitterViewModel> GetEmitterViewModel() const;
+	NIAGARAEDITOR_API TSharedRef<FNiagaraEmitterViewModel> GetEmitterViewModel() const;
 	
-	virtual UNiagaraHierarchyRoot* GetHierarchyRoot() const override;
-	virtual TSharedPtr<FNiagaraHierarchyItemViewModelBase> CreateViewModelForData(UNiagaraHierarchyItemBase* ItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Parent) override;
+	NIAGARAEDITOR_API virtual UNiagaraHierarchyRoot* GetHierarchyRoot() const override;
+	NIAGARAEDITOR_API virtual TSharedPtr<FNiagaraHierarchyItemViewModelBase> CreateViewModelForData(UNiagaraHierarchyItemBase* ItemBase, TSharedPtr<FNiagaraHierarchyItemViewModelBase> Parent) override;
 	
-	virtual void PrepareSourceItems(UNiagaraHierarchyRoot* SourceRoot, TSharedPtr<FNiagaraHierarchyRootViewModel>) override;
-	virtual void SetupCommands() override;
+	NIAGARAEDITOR_API virtual void PrepareSourceItems(UNiagaraHierarchyRoot* SourceRoot, TSharedPtr<FNiagaraHierarchyRootViewModel>) override;
+	NIAGARAEDITOR_API virtual void SetupCommands() override;
 	
-	virtual TSharedRef<FNiagaraHierarchyDragDropOp> CreateDragDropOp(TSharedRef<FNiagaraHierarchyItemViewModelBase> Item) override;
+	NIAGARAEDITOR_API virtual TSharedRef<FNiagaraHierarchyDragDropOp> CreateDragDropOp(TSharedRef<FNiagaraHierarchyItemViewModelBase> Item) override;
 	
 	virtual bool SupportsDetailsPanel() override { return true; }
-	virtual TArray<TTuple<UClass*, FOnGetDetailCustomizationInstance>> GetInstanceCustomizations() override;
+	NIAGARAEDITOR_API virtual TArray<TTuple<UClass*, FOnGetDetailCustomizationInstance>> GetInstanceCustomizations() override;
 
-	TMap<FGuid, UObject*> GetObjectsForProperties();
+	NIAGARAEDITOR_API TMap<FGuid, UObject*> GetObjectsForProperties();
 
-	UNiagaraNodeFunctionCall* GetFunctionCallNode(const FGuid& NodeIdentity);
-	void ClearFunctionCallNodeCache(const FGuid& NodeIdentity);
-	TOptional<struct FInputData> GetInputData(const UNiagaraHierarchyModuleInput& Input);
+	NIAGARAEDITOR_API UNiagaraNodeFunctionCall* GetFunctionCallNode(const FGuid& NodeIdentity);
+	NIAGARAEDITOR_API void ClearFunctionCallNodeCache(const FGuid& NodeIdentity);
+	NIAGARAEDITOR_API TOptional<struct FInputData> GetInputData(const UNiagaraHierarchyModuleInput& Input);
 
 private:
-	void OnScriptGraphChanged(const FEdGraphEditAction& Action, const UNiagaraScript& Script);
-	void OnRenderersChanged();
-	void OnSimStagesChanged();
-	void OnEventHandlersChanged();
+	NIAGARAEDITOR_API void OnScriptGraphChanged(const FEdGraphEditAction& Action, const UNiagaraScript& Script);
+	NIAGARAEDITOR_API void OnRenderersChanged();
+	NIAGARAEDITOR_API void OnSimStagesChanged();
+	NIAGARAEDITOR_API void OnEventHandlersChanged();
 protected:
 	// The cache is used to speed up access across different inputs, as the view models for both regular inputs & modules, dynamic inputs & assignment nodes need to 'find' these nodes which is expensive
 	TMap<FGuid, TWeakObjectPtr<UNiagaraNodeFunctionCall>> FunctionCallCache;

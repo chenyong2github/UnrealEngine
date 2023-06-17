@@ -7,14 +7,14 @@
 #include "NiagaraActions.h"
 #include "SNiagaraVersionWidget.h"
 
-class NIAGARAEDITOR_API SNiagaraScriptVersionWidget : public SNiagaraVersionWidget
+class SNiagaraScriptVersionWidget : public SNiagaraVersionWidget
 {
 public:
-	void Construct(const FArguments& InArgs, UNiagaraScript* InScript, UNiagaraVersionMetaData* InMetadata, const FString& BasePackageName);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, UNiagaraScript* InScript, UNiagaraVersionMetaData* InMetadata, const FString& BasePackageName);
 
 protected:
-	virtual FText GetInfoHeaderText() const override;
-	virtual void ExecuteSaveAsAssetAction(FNiagaraAssetVersion AssetVersion) override;
+	NIAGARAEDITOR_API virtual FText GetInfoHeaderText() const override;
+	NIAGARAEDITOR_API virtual void ExecuteSaveAsAssetAction(FNiagaraAssetVersion AssetVersion) override;
 
 private:
 	UNiagaraScript* Script = nullptr;

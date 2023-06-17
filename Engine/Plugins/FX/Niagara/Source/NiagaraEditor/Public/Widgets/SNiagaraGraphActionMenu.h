@@ -32,7 +32,7 @@ struct FNiagaraGraphActionMenuFilter
 	TDelegate<void()> OnFilterChanged;
 };
 
-class NIAGARAEDITOR_API SNiagaraGraphActionMenu : public SBorder
+class SNiagaraGraphActionMenu : public SBorder
 {
 public:
 	SLATE_BEGIN_ARGS( SNiagaraGraphActionMenu )
@@ -48,11 +48,11 @@ public:
 		SLATE_ARGUMENT( bool, AutoExpandActionMenu )
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs );
+	NIAGARAEDITOR_API void Construct( const FArguments& InArgs );
 
-	~SNiagaraGraphActionMenu();
+	NIAGARAEDITOR_API ~SNiagaraGraphActionMenu();
 
-	TSharedRef<SWidget> GetFilterTextBox();
+	NIAGARAEDITOR_API TSharedRef<SWidget> GetFilterTextBox();
 
 protected:
 	UEdGraph* GraphObj;
@@ -66,11 +66,11 @@ protected:
 	TSharedPtr<SNiagaraFilterBox> FilterBox;
 	TSharedPtr<SNiagaraMenuActionSelector> ActionSelector;
 
-	TArray<TSharedPtr<FNiagaraAction_NewNode>> CollectAllActions();
+	NIAGARAEDITOR_API TArray<TSharedPtr<FNiagaraAction_NewNode>> CollectAllActions();
 	
 	UEdGraph* OwnerOfTemporaries = nullptr;
 
-	static bool bLibraryOnly;
+	static NIAGARAEDITOR_API bool bLibraryOnly;
 private:
 	TArray<FString> OnGetCategoriesForItem(const TSharedPtr<FNiagaraAction_NewNode>& Item);
 	TArray<ENiagaraMenuSections> OnGetSectionsForItem(const TSharedPtr<FNiagaraAction_NewNode>& Item);

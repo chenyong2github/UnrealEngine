@@ -89,9 +89,9 @@ typedef TUniformBufferRef<FNiagaraRibbonVFLooseParameters> FNiagaraRibbonVFLoose
 /**
 * Beam/Trail particle vertex factory.
 */
-class NIAGARAVERTEXFACTORIES_API FNiagaraRibbonVertexFactory : public FNiagaraVertexFactoryBase
+class FNiagaraRibbonVertexFactory : public FNiagaraVertexFactoryBase
 {
-	DECLARE_VERTEX_FACTORY_TYPE(FNiagaraRibbonVertexFactory);
+	DECLARE_VERTEX_FACTORY_TYPE_API(FNiagaraRibbonVertexFactory, NIAGARAVERTEXFACTORIES_API);
 
 public:
 
@@ -109,20 +109,20 @@ public:
 	/**
 	* Should we cache the material's shadertype on this platform with this vertex factory?
 	*/
-	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
+	static NIAGARAVERTEXFACTORIES_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 
 	/**
 	* Can be overridden by FVertexFactory subclasses to modify their compile environment just before compilation occurs.
 	*/
-	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
+	static NIAGARAVERTEXFACTORIES_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 
 	/**
 	* Get vertex elements used when during PSO precaching materials using this vertex factory type
 	*/
-	static void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
+	static NIAGARAVERTEXFACTORIES_API void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void InitRHI() override;
 
 	/**
 	* Set the uniform buffer for this vertex factory.
@@ -143,12 +143,12 @@ public:
 	/**
 	* Set the source vertex buffer.
 	*/
-	void SetVertexBuffer(const FVertexBuffer* InBuffer, uint32 StreamOffset, uint32 Stride);
+	NIAGARAVERTEXFACTORIES_API void SetVertexBuffer(const FVertexBuffer* InBuffer, uint32 StreamOffset, uint32 Stride);
 
 	/**
 	* Set the source vertex buffer that contains particle dynamic parameter data.
 	*/
-	void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, int32 ParameterIndex, uint32 StreamOffset, uint32 Stride);
+	NIAGARAVERTEXFACTORIES_API void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, int32 ParameterIndex, uint32 StreamOffset, uint32 Stride);
 
 
 	FUniformBufferRHIRef LooseParameterUniformBuffer;
