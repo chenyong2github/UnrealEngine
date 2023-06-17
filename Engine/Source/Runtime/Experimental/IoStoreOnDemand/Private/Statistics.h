@@ -17,66 +17,29 @@ namespace UE::IO::Private
 {
 
 #if IAS_WITH_STATISTICS
+#	define IAS_STATISTICS_IMPL() ;
+#else
+#	define IAS_STATISTICS_IMPL() {}
+#endif
 
 class FOnDemandIoBackendStats
 {
 public:
-	void OnIoRequestEnqueue();
-	void OnIoRequestComplete(uint64 RequestSize);
-	void OnIoRequestCancel();
-	void OnIoRequestFail();
-	void OnChunkRequestCreate();
-	void OnChunkRequestRelease();
-	void OnCacheHit(uint64 InSize);
-	void OnCachePut(uint64 InSize);
-	void OnCacheReject(uint64 InSize);
-	void OnHttpRequestEnqueue();
-	void OnHttpRequestDequeue();
-	void OnHttpRequestComplete(uint64 InSize);
-	void OnHttpRequestFail();
-
-private:
-	int32 IoRequestsMade = 0;
-	std::atomic<int32> IoRequestsCompleted = 0;
-	int32 IoRequestsCancelled = 0;
-	std::atomic<int32> IoRequestsFailed = 0;
-	int32 ReadRequestsCreated = 0;
-	std::atomic<int32> ReadRequestsRemoved = 0;
-	std::atomic<int32> CacheHits = 0;
-	std::atomic<int32> CachePuts = 0;
-	std::atomic<int32> CacheRejects = 0;
-	int32 HttpRequestsCompleted = 0;
-	int32 HttpRequestsFailed = 0;
-	std::atomic<int32> HttpRequestsPending = 0;
-	int32 HttpRequestsInflight = 0;
-
-	std::atomic<uint64> IoRequestsCompletedSize = 0;
-	std::atomic<uint64> CacheHitsSize = 0;
-	std::atomic<uint64> CachePutsSize = 0;
-	std::atomic<uint64> CacheRejectsSize = 0;
-	uint64 HttpRequestsCompletedSize = 0;
+	void OnIoRequestEnqueue() IAS_STATISTICS_IMPL()
+	void OnIoRequestComplete(uint64 RequestSize) IAS_STATISTICS_IMPL()
+	void OnIoRequestCancel() IAS_STATISTICS_IMPL()
+	void OnIoRequestFail() IAS_STATISTICS_IMPL()
+	void OnChunkRequestCreate() IAS_STATISTICS_IMPL()
+	void OnChunkRequestRelease() IAS_STATISTICS_IMPL()
+	void OnCacheHit(uint64 InSize) IAS_STATISTICS_IMPL()
+	void OnCachePut(uint64 InSize) IAS_STATISTICS_IMPL()
+	void OnCacheReject(uint64 InSize) IAS_STATISTICS_IMPL()
+	void OnHttpRequestEnqueue() IAS_STATISTICS_IMPL()
+	void OnHttpRequestDequeue() IAS_STATISTICS_IMPL()
+	void OnHttpRequestComplete(uint64 InSize) IAS_STATISTICS_IMPL()
+	void OnHttpRequestFail() IAS_STATISTICS_IMPL()
 };
 
-#else // IAS_WITH_STATISTICS
-
-class FOnDemandIoBackendStats
-{
-public:
-	void OnIoRequestEnqueue() {}
-	void OnIoRequestComplete(uint64 RequestSize) {}
-	void OnIoRequestCancel() {}
-	void OnIoRequestFail() {}
-	void OnChunkRequestCreate() {}
-	void OnChunkRequestRelease() {}
-	void OnCacheHit(uint64 InSize) {}
-	void OnCachePut(uint64 InSize) {}
-	void OnCacheReject(uint64 InSize) {}
-	void OnHttpRequestEnqueue() {}
-	void OnHttpRequestDequeue() {}
-	void OnHttpRequestComplete(uint64 InSize) {}
-	void OnHttpRequestFail() {}
-};
-
-#endif // IAS_WITH_STATISTICS
+#undef IAS_STATISTICS_IMPL
 
 } // namespace UE::IO::Private
