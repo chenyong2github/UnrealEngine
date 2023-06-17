@@ -62,6 +62,12 @@ public:
 	virtual bool UnregisterPostProcessFactory(const FString& InPostProcessType) override;
 	virtual TSharedPtr<IDisplayClusterPostProcessFactory> GetPostProcessFactory(const FString& InPostProcessType) override;
 	virtual void GetRegisteredPostProcess(TArray<FString>& OutPostProcessIDs) const override;
+	// Warp policy
+	virtual bool RegisterWarpPolicyFactory(const FString& InWarpPolicyType, TSharedPtr<IDisplayClusterWarpPolicyFactory>& Factory) override;
+	virtual bool UnregisterWarpPolicyFactory(const FString& InWarpPolicyType) override;
+	virtual TSharedPtr<IDisplayClusterWarpPolicyFactory> GetWarpPolicyFactory(const FString& InWarpPolicyType) override;
+	virtual void GetRegisteredWarpPolicies(TArray<FString>& OutWarpPolicyIDs) const override;
+	// Resources
 	virtual TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> CreateMeshComponent() const override;
 	virtual TSharedPtr<IDisplayClusterRender_Texture, ESPMode::ThreadSafe> GetOrCreateCachedTexture(const FString& InUniqueTextureName) const override;
 
@@ -110,6 +116,9 @@ private:
 
 	// Postprocess internals
 	TMap<FString, TSharedPtr<IDisplayClusterPostProcessFactory>> PostProcessFactories;
+
+	// Warp internals
+	TMap<FString, TSharedPtr<IDisplayClusterWarpPolicyFactory>> WarpPolicyFactories;
 
 private:
 	// Internal data access synchronization

@@ -9,6 +9,7 @@
 #include "Render/IDisplayClusterRenderManager.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
+#include "Render/Warp/IDisplayClusterWarpPolicy.h"
 
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
@@ -48,6 +49,82 @@ static FAutoConsoleVariableRef CVarDisplayClusterChromaKeyAllowNanite(
 	TEXT("0 disables Nanite when rendering custom chroma keys. Otherwise uses default showflag."),
 	ECVF_RenderThreadSafe
 );
+
+namespace UE::DisplayCluster::ViewportManager
+{
+	/**
+	 * Container for the warp policy with its associated group of viewports.
+	 */
+	struct FDisplayClusterWarpPolicyViewportsGroup
+	{
+		/** HandleNewFrame() call for the warp policy interface. */
+		inline void HandleNewFrame() const
+		{
+			if (WarpPolicy.IsValid())
+			{
+				WarpPolicy->HandleNewFrame(Viewports);
+			}
+		}
+
+		// Warp polic instance
+		TSharedPtr<IDisplayClusterWarpPolicy, ESPMode::ThreadSafe> WarpPolicy;
+
+		// A group of viewports using the same warp policy
+		TArray<TSharedPtr<IDisplayClusterViewport, ESPMode::ThreadSafe>> Viewports;
+	};
+
+	/**
+	 * A helper class for handling the warp policies.
+	 */
+	struct FDisplayClusterWarpPolicyManager
+	{
+		/** Handle new frame for warp policies. */
+		inline void HandleNewFrame(FDisplayClusterViewportManager& ViewportManager)
+		{
+			// Collect warp policies for the viewports of the entire cluster.
+			// this requires that all viewports in the cluster exist at the moment.
+			for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& Viewport : ViewportManager.ImplGetEntireClusterViewports())
+			{
+				if (IDisplayClusterWarpPolicy* ViewportWarpPolicyPtr = (Viewport.IsValid() && Viewport->GetProjectionPolicy().IsValid()) ? Viewport->GetProjectionPolicy()->GetWarpPolicy() : nullptr)
+				{
+					AddViewportToWarpPolicy(ViewportWarpPolicyPtr->ToSharedPtr(), Viewport);
+				}
+			}
+
+			// Processing a new frame event for all warp policies
+			for (const FDisplayClusterWarpPolicyViewportsGroup& ViewportsGroup : WarpPolicies)
+			{
+				ViewportsGroup.HandleNewFrame();
+			}
+		}
+
+	protected:
+		/** Adds a viewport to containers with warp policies and associated viewport groups. */
+		inline void AddViewportToWarpPolicy(const TSharedPtr<IDisplayClusterWarpPolicy, ESPMode::ThreadSafe>& InWarpPolicy, const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& InViewport)
+		{
+			if (FDisplayClusterWarpPolicyViewportsGroup* ViewportsGroupPtr = WarpPolicies.FindByPredicate([InWarpPolicy](const FDisplayClusterWarpPolicyViewportsGroup& ViewportsGroupIt)
+				{
+					return ViewportsGroupIt.WarpPolicy == InWarpPolicy;
+				}))
+			{
+				ViewportsGroupPtr->Viewports.Add(InViewport);
+			}
+			else
+			{
+				FDisplayClusterWarpPolicyViewportsGroup ViewportsGroup;
+				ViewportsGroup.WarpPolicy = InWarpPolicy;
+				ViewportsGroup.Viewports.Add(InViewport);
+
+				WarpPolicies.Add(ViewportsGroup);
+			}
+		}
+
+	private:
+		// Warp policies viewports groups
+		TArray<FDisplayClusterWarpPolicyViewportsGroup> WarpPolicies;
+	};
+};
+using namespace UE::DisplayCluster::ViewportManager;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewportManager
@@ -665,6 +742,10 @@ void FDisplayClusterViewportManager::InitializeNewFrame()
 			}
 		}
 	}
+
+	// Handle new frame for warp policies
+	FDisplayClusterWarpPolicyManager WarpPolicyManager;
+	WarpPolicyManager.HandleNewFrame(*this);
 
 	// Send render frame settings to rendering thread
 	ViewportManagerProxy->ImplUpdateRenderFrameSettings(GetRenderFrameSettings(), ViewportManagerViewExtension);

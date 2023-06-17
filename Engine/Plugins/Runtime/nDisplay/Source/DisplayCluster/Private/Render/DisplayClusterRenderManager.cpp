@@ -396,6 +396,9 @@ TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderManager::GetCur
 	return SyncPolicy;
 }
 
+//------------------------------------------------------------------------------------------------------------------------------
+// Projection Policy
+//------------------------------------------------------------------------------------------------------------------------------
 bool FDisplayClusterRenderManager::RegisterProjectionPolicyFactory(const FString& InProjectionType, TSharedPtr<IDisplayClusterProjectionPolicyFactory>& InFactory)
 {
 	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registering factory for projection type: %s"), *InProjectionType);
@@ -462,7 +465,9 @@ void FDisplayClusterRenderManager::GetRegisteredProjectionPolicies(TArray<FStrin
 	ProjectionPolicyFactories.GetKeys(OutPolicyIDs);
 }
 
-
+//------------------------------------------------------------------------------------------------------------------------------
+// PostProcess
+//------------------------------------------------------------------------------------------------------------------------------
 bool FDisplayClusterRenderManager::RegisterPostProcessFactory(const FString& InPostProcessType, TSharedPtr<IDisplayClusterPostProcessFactory>& InFactory)
 {
 	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registering factory for postprocess type: %s"), *InPostProcessType);
@@ -529,6 +534,78 @@ void FDisplayClusterRenderManager::GetRegisteredPostProcess(TArray<FString>& Out
 	PostProcessFactories.GetKeys(OutPostProcessIDs);
 }
 
+//------------------------------------------------------------------------------------------------------------------------------
+// Warp Policy
+//------------------------------------------------------------------------------------------------------------------------------
+bool FDisplayClusterRenderManager::RegisterWarpPolicyFactory(const FString& InWarpPolicyType, TSharedPtr<IDisplayClusterWarpPolicyFactory>& InFactory)
+{
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registering factory for warp policy type: %s"), *InWarpPolicyType);
+
+	if (!InFactory.IsValid())
+	{
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Invalid factory object"));
+		return false;
+	}
+
+	{
+		FScopeLock Lock(&CritSecInternals);
+
+		if (WarpPolicyFactories.Contains(InWarpPolicyType))
+		{
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("A new factory for '%s' warp policy was set"), *InWarpPolicyType);
+		}
+
+		WarpPolicyFactories.Emplace(InWarpPolicyType, InFactory);
+	}
+
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Registered factory for warp policy type: %s"), *InWarpPolicyType);
+
+	return true;
+}
+
+bool FDisplayClusterRenderManager::UnregisterWarpPolicyFactory(const FString& InWarpPolicyType)
+{
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistering factory for warp policy: %s"), *InWarpPolicyType);
+
+	{
+		FScopeLock Lock(&CritSecInternals);
+
+		if (!WarpPolicyFactories.Contains(InWarpPolicyType))
+		{
+			UE_LOG(LogDisplayClusterRender, Warning, TEXT("A handler for '%s' warp policy type not found"), *InWarpPolicyType);
+			return false;
+		}
+
+		WarpPolicyFactories.Remove(InWarpPolicyType);
+	}
+
+	UE_LOG(LogDisplayClusterRender, Log, TEXT("Unregistered factory for warp policy: %s"), *InWarpPolicyType);
+
+	return true;
+}
+
+TSharedPtr<IDisplayClusterWarpPolicyFactory> FDisplayClusterRenderManager::GetWarpPolicyFactory(const FString& InWarpPolicyType)
+{
+	FScopeLock Lock(&CritSecInternals);
+
+	TSharedPtr<IDisplayClusterWarpPolicyFactory> Factory;
+	if (!DisplayClusterHelpers::map::template ExtractValue(WarpPolicyFactories, InWarpPolicyType, Factory))
+	{
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("No factory found for warp policy: %s"), *InWarpPolicyType);
+	}
+
+	return Factory;
+}
+
+void FDisplayClusterRenderManager::GetRegisteredWarpPolicies(TArray<FString>& OutWarpPolicyIDs) const
+{
+	FScopeLock Lock(&CritSecInternals);
+	WarpPolicyFactories.GetKeys(OutWarpPolicyIDs);
+}
+
+//------------------------------------------------------------------------------------------------------------------------------
+// Resources
+//------------------------------------------------------------------------------------------------------------------------------
 TSharedPtr<IDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe> FDisplayClusterRenderManager::CreateMeshComponent() const
 {
 	return MakeShared<FDisplayClusterRender_MeshComponent, ESPMode::ThreadSafe>();

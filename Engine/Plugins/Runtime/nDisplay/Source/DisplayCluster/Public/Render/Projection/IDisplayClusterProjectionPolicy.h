@@ -8,6 +8,7 @@ class FRHICommandListImmediate;
 class IDisplayClusterViewport;
 class IDisplayClusterViewportProxy;
 class IDisplayClusterWarpBlend;
+class IDisplayClusterWarpPolicy;
 class UMeshComponent;
 struct FDisplayClusterConfigurationProjection;
 
@@ -69,6 +70,30 @@ public:
 	*/
 	virtual void HandleEndScene(IDisplayClusterViewport* InViewport)
 	{ }
+
+	/**
+	* Set warp policy for this projection
+	*
+	* @param InWarpPolicy - the warp policy instance
+	*/
+	virtual void SetWarpPolicy(IDisplayClusterWarpPolicy* InWarpPolicy)
+	{ }
+
+	/**
+	* Get warp policy
+	*/
+	virtual IDisplayClusterWarpPolicy* GetWarpPolicy() const
+	{
+		return nullptr;
+	}
+
+	/**
+	* Get warp policy on rendering thread
+	*/
+	virtual IDisplayClusterWarpPolicy* GetWarpPolicy_RenderThread() const
+	{
+		return nullptr;
+	}
 
 	// Handle request for additional render targetable resource inside viewport api for projection policy
 	virtual bool ShouldUseAdditionalTargetableResource() const
