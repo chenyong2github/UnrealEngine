@@ -8,7 +8,7 @@
 
 static FAutoConsoleVariable CVarProxyLODMeshReductionModule(
 	TEXT("r.ProxyLODMeshReductionModule"),
-	TEXT("QuadricMeshProxyLODReduction"),
+	TEXT("ProxyLODMeshReduction"),
 	TEXT("Name of the Proxy LOD reduction module to choose. If blank it chooses any that exist.\n"),
 	ECVF_ReadOnly);
 
