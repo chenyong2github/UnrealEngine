@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in Dev-Mobile stream
-struct CORE_API FMobileObjectVersion
+struct FMobileObjectVersion
 {
 	enum Type
 	{
@@ -27,7 +27,7 @@ struct CORE_API FMobileObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FMobileObjectVersion() {}

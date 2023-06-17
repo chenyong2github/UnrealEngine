@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in //UE5/Private-Frosty stream
-struct CORE_API FUE5PrivateFrostyStreamObjectVersion
+struct FUE5PrivateFrostyStreamObjectVersion
 {
 	enum Type
 	{
@@ -42,7 +42,7 @@ struct CORE_API FUE5PrivateFrostyStreamObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 	FUE5PrivateFrostyStreamObjectVersion() = delete;
 };

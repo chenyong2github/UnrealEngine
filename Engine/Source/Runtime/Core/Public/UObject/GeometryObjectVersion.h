@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in Private-Geometry stream
-struct CORE_API FGeometryObjectVersion
+struct FGeometryObjectVersion
 {
 	enum Type
 	{
@@ -23,7 +23,7 @@ struct CORE_API FGeometryObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FGeometryObjectVersion() {}

@@ -5,7 +5,7 @@
 #include "Containers/Map.h"
 
 // Custom serialization version for changes made in the //Fortnite/Dev-Valkyrie stream
-struct CORE_API FFortniteValkyrieBranchObjectVersion
+struct FFortniteValkyrieBranchObjectVersion
 {
 	enum Type
 	{
@@ -21,7 +21,7 @@ struct CORE_API FFortniteValkyrieBranchObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FFortniteValkyrieBranchObjectVersion() {}

@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in Dev-Core stream
-struct CORE_API FCoreObjectVersion
+struct FCoreObjectVersion
 {
 	enum Type
 	{
@@ -22,7 +22,7 @@ struct CORE_API FCoreObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FCoreObjectVersion() {}

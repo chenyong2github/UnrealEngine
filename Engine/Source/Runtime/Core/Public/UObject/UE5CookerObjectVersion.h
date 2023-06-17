@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in the UE5 Dev-Cooker stream
-struct CORE_API FUE5CookerObjectVersion
+struct FUE5CookerObjectVersion
 {
 	enum Type
 	{
@@ -19,7 +19,7 @@ struct CORE_API FUE5CookerObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FUE5CookerObjectVersion() {}

@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for cine camera
-struct CORE_API FCineCameraObjectVersion
+struct FCineCameraObjectVersion
 {
 	enum Type
 	{
@@ -21,7 +21,7 @@ struct CORE_API FCineCameraObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FCineCameraObjectVersion() {}

@@ -6,7 +6,7 @@
 struct FGuid;
 
 // Custom serialization version for changes made in LoadTimes stream
-struct CORE_API FLoadTimesObjectVersion
+struct FLoadTimesObjectVersion
 {
 	enum Type
 	{
@@ -22,7 +22,7 @@ struct CORE_API FLoadTimesObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FLoadTimesObjectVersion() {}

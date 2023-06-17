@@ -6,7 +6,7 @@
 struct FGuid;
 
 // Custom serialization version for changes made for a private stream
-struct CORE_API FReflectionCaptureObjectVersion
+struct FReflectionCaptureObjectVersion
 {
 	enum Type
 	{
@@ -22,7 +22,7 @@ struct CORE_API FReflectionCaptureObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FReflectionCaptureObjectVersion() {}

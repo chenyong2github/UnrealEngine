@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in Dev-VR stream
-struct CORE_API FVRObjectVersion
+struct FVRObjectVersion
 {
 	enum Type
 	{
@@ -27,7 +27,7 @@ struct CORE_API FVRObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FVRObjectVersion() {}

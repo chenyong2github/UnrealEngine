@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in Dev-Online stream
-struct CORE_API FOnlineObjectVersion
+struct FOnlineObjectVersion
 {
 	enum Type
 	{
@@ -19,7 +19,7 @@ struct CORE_API FOnlineObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FOnlineObjectVersion() {}

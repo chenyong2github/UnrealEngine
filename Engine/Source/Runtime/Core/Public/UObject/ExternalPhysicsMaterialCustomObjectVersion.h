@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made to physics materials
-struct CORE_API FExternalPhysicsMaterialCustomObjectVersion
+struct FExternalPhysicsMaterialCustomObjectVersion
 {
 	enum Type
 	{
@@ -21,7 +21,7 @@ struct CORE_API FExternalPhysicsMaterialCustomObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FExternalPhysicsMaterialCustomObjectVersion() {}

@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in Dev-Blueprints stream
-struct CORE_API FBlueprintsObjectVersion
+struct FBlueprintsObjectVersion
 {
 	enum Type
 	{
@@ -28,7 +28,7 @@ struct CORE_API FBlueprintsObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FBlueprintsObjectVersion() {}

@@ -5,9 +5,9 @@
 #include "Containers/Map.h"
 
 // System Guids for changes made in the Fortnite Shaderwork stream
-struct CORE_API FFortniteShaderworkObjectVersion
+struct FFortniteShaderworkObjectVersion
 {
-	static TMap<FGuid, FGuid> GetSystemGuids();
+	static CORE_API TMap<FGuid, FGuid> GetSystemGuids();
 
 private:
 	FFortniteShaderworkObjectVersion() {}

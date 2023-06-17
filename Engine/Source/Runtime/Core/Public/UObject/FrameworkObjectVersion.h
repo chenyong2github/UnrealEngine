@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 
 // Custom serialization version for changes made in Dev-Framework stream
-struct CORE_API FFrameworkObjectVersion
+struct FFrameworkObjectVersion
 {
 	enum Type
 	{
@@ -134,7 +134,7 @@ struct CORE_API FFrameworkObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FFrameworkObjectVersion() {}

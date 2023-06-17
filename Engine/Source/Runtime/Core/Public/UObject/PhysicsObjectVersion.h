@@ -6,7 +6,7 @@
 
 // Custom serialization version for changes made in Release-4.26-Chaos 
 // Previously used for Dev-Physics stream
-struct CORE_API FPhysicsObjectVersion
+struct FPhysicsObjectVersion
 {
 	enum Type
 	{
@@ -75,7 +75,7 @@ struct CORE_API FPhysicsObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FPhysicsObjectVersion() {}

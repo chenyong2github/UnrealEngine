@@ -6,7 +6,7 @@
 
 // Custom serialization version for changes made in Release streams.
 // NOTE: Beware of patch releases - do not bump this except in the latest Release stream!
-struct CORE_API FReleaseObjectVersion
+struct FReleaseObjectVersion
 {
 	enum Type
 	{
@@ -151,7 +151,7 @@ struct CORE_API FReleaseObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
 private:
 	FReleaseObjectVersion() {}

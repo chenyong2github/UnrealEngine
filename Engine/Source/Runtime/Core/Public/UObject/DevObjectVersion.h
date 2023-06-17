@@ -6,18 +6,18 @@
 #include "Misc/Guid.h"
 #include "Serialization/CustomVersion.h"
 
-struct CORE_API FDevSystemGuidRegistration
+struct FDevSystemGuidRegistration
 {
 public:
-	FDevSystemGuidRegistration(const TMap<FGuid, FGuid>& SystemGuids);
+	CORE_API FDevSystemGuidRegistration(const TMap<FGuid, FGuid>& SystemGuids);
 };
 
-struct CORE_API FDevSystemGuids
+struct FDevSystemGuids
 {
-	static const FDevSystemGuids& Get();
-	static FGuid GetSystemGuid(FGuid System);
+	static CORE_API const FDevSystemGuids& Get();
+	static CORE_API FGuid GetSystemGuid(FGuid System);
 	
-	FDevSystemGuids();
+	CORE_API FDevSystemGuids();
 	const FGuid GLOBALSHADERMAP_DERIVEDDATA_VER;
 	const FGuid GROOM_BINDING_DERIVED_DATA_VERSION;
 	const FGuid GROOM_DERIVED_DATA_VERSION;
@@ -31,7 +31,7 @@ struct CORE_API FDevSystemGuids
 	const FGuid STATICMESH_DERIVEDDATA_VER;
 };
 
-class CORE_API FDevVersionRegistration :  public FCustomVersionRegistration
+class FDevVersionRegistration :  public FCustomVersionRegistration
 {
 public:
 	/** @param InFriendlyName must be a string literal */
@@ -43,7 +43,7 @@ public:
 	}
 
 	/** Dumps all registered versions to log */
-	static void DumpVersionsToLog();
+	static CORE_API void DumpVersionsToLog();
 private:
-	static void RecordDevVersion(FGuid Key);
+	static CORE_API void RecordDevVersion(FGuid Key);
 };

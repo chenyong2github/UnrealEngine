@@ -6,7 +6,7 @@
 #include "UObject/DevObjectVersion.h"
 
 // Custom serialization version for changes made in //UE5/Main stream
-struct CORE_API FUE5MainStreamObjectVersion
+struct FUE5MainStreamObjectVersion
 {
 	enum Type
 	{
@@ -376,9 +376,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 	};
 
 	// The GUID for this custom version number
-	const static FGuid GUID;
+	CORE_API const static FGuid GUID;
 
-	static TMap<FGuid, FGuid> GetSystemGuids();
+	static CORE_API TMap<FGuid, FGuid> GetSystemGuids();
 
 	FUE5MainStreamObjectVersion() = delete;
 };
