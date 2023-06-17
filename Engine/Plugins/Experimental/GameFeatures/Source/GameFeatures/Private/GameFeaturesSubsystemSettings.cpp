@@ -2,6 +2,7 @@
 
 #include "GameFeaturesSubsystemSettings.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeaturesSubsystemSettings)
 
@@ -40,7 +41,7 @@ bool UGameFeaturesSubsystemSettings::IsValidGameFeaturePlugin(const FString& Plu
 	// Check to see if the filename is rooted in a game feature plugin folder
 	for (const FString& BuiltInFolder : BuiltInGameFeaturePluginsFolders)
 	{
-		if (PluginDescriptorFilename.StartsWith(BuiltInFolder))
+		if (FPathViews::IsParentPathOf(BuiltInFolder, PluginDescriptorFilename))
 		{
 			return true;
 		}
