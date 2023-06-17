@@ -48,13 +48,10 @@ public:
 	uint32 GetAllocatedSize(void) const { return FPrimitiveSceneProxy::GetAllocatedSize(); }
 	//~ End FPrimitiveSceneProxy Interface.
 
-	virtual const IHeterogeneousVolumeInterface* GetHeterogeneousVolumeInterface() const override { return &HeterogeneousVolumeData; }
-
 private:
 	UMaterialInterface* MaterialInterface;
 	FLocalVertexFactory VertexFactory;
 	FStaticMeshVertexBuffers StaticMeshVertexBuffers;
-
 	FHeterogeneousVolumeData HeterogeneousVolumeData;
 };
 
@@ -66,6 +63,7 @@ FHeterogeneousVolumeSceneProxy::FHeterogeneousVolumeSceneProxy(UHeterogeneousVol
 	: FPrimitiveSceneProxy(InComponent)
 	, MaterialInterface(InComponent->GetMaterial(0))
 	, VertexFactory(GetScene().GetFeatureLevel(), "FHeterogeneousVolumeSceneProxy")
+	, HeterogeneousVolumeData(this)
 {
 	bIsHeterogeneousVolume = true;
 
@@ -186,6 +184,9 @@ void FHeterogeneousVolumeSceneProxy::GetDynamicMeshElements(
 		BatchElement.MaxVertexIndex = 3;
 		BatchElement.NumPrimitives = 2;
 		BatchElement.BaseVertexIndex = 0;
+
+		//FHeterogeneousVolumeData* HeterogeneousVolumeData = &Collector.AllocateOneFrameResource<FHeterogeneousVolumeData>(this);
+		BatchElement.UserData = &HeterogeneousVolumeData;
 
 		Mesh.bCanApplyViewModeOverrides = true;
 		Mesh.bUseWireframeSelectionColoring = IsSelected();

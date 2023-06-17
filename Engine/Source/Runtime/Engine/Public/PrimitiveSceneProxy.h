@@ -831,11 +831,6 @@ public:
 		return bIsHeterogeneousVolume;
 	}
 
-	virtual const IHeterogeneousVolumeInterface* GetHeterogeneousVolumeInterface() const
-	{
-		return nullptr;
-	}
-
 	/**
 	 * Returns true if all meshes drawn by this proxy support GPU scene. 
 	 */

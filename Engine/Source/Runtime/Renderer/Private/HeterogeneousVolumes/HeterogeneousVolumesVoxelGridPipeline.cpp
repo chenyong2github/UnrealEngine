@@ -1197,23 +1197,31 @@ void CalcViewBoundsAndMinimumVoxelSize(
 			continue;
 		}
 
-		// Only incorporate the primitive if it intersects with the canera bounding sphere where radius=MaxTraceDistance
-		const FBoxSphereBounds& PrimitiveBounds = PrimitiveSceneProxy->GetBounds();
-		if (View.ViewFrustum.IntersectBox(PrimitiveBounds.Origin, PrimitiveBounds.BoxExtent))
+		for (int32 VolumeIndex = 0; VolumeIndex < Mesh->Elements.Num(); ++VolumeIndex)
 		{
-			TopLevelGridBounds = Union(TopLevelGridBounds, PrimitiveBounds);
-
-			if (View.ViewFrustum.IntersectBox(TopLevelGridBounds.Origin, TopLevelGridBounds.BoxExtent))
+			IHeterogeneousVolumeInterface* HeterogeneousVolume = (IHeterogeneousVolumeInterface*)Mesh->Elements[VolumeIndex].UserData;
+			//check(HeterogeneousVolume != nullptr);
+			if (HeterogeneousVolume == nullptr)
 			{
-				const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface = HeterogeneousVolumes::GetInterface(PrimitiveSceneProxy);
+				continue;
+			}
 
-				// Bandlimit minimum voxel size request with projected voxel size, based on shading rate
-				FVector VoxelCenter = PrimitiveBounds.Origin;
-				float Distance = FMath::Max(FVector(PrimitiveBounds.Origin - WorldCameraOrigin).Length() - TopLevelGridBounds.BoxExtent.Length(), 0.0);
-				float VoxelWidth = Distance * PixelWidth * HeterogeneousVolumes::GetShadingRateForFrustumGrid();
+			// Only incorporate the primitive if it intersects with the canera bounding sphere where radius=MaxTraceDistance
+			const FBoxSphereBounds& PrimitiveBounds = HeterogeneousVolume->GetBounds();
+			if (View.ViewFrustum.IntersectBox(PrimitiveBounds.Origin, PrimitiveBounds.BoxExtent))
+			{
+				TopLevelGridBounds = Union(TopLevelGridBounds, PrimitiveBounds);
 
-				float PerVolumeMinimumVoxelSize = FMath::Max(VoxelWidth, HeterogeneousVolumeInterface->GetMinimumVoxelSize());
-				MinimumVoxelSize = FMath::Min(PerVolumeMinimumVoxelSize, MinimumVoxelSize);
+				if (View.ViewFrustum.IntersectBox(TopLevelGridBounds.Origin, TopLevelGridBounds.BoxExtent))
+				{
+					// Bandlimit minimum voxel size request with projected voxel size, based on shading rate
+					FVector VoxelCenter = PrimitiveBounds.Origin;
+					float Distance = FMath::Max(FVector(PrimitiveBounds.Origin - WorldCameraOrigin).Length() - TopLevelGridBounds.BoxExtent.Length(), 0.0);
+					float VoxelWidth = Distance * PixelWidth * HeterogeneousVolumes::GetShadingRateForFrustumGrid();
+
+					float PerVolumeMinimumVoxelSize = FMath::Max(VoxelWidth, HeterogeneousVolume->GetMinimumVoxelSize());
+					MinimumVoxelSize = FMath::Min(PerVolumeMinimumVoxelSize, MinimumVoxelSize);
+				}
 			}
 		}
 	}
@@ -1254,27 +1262,34 @@ void CalcGlobalBoundsAndMinimumVoxelSize(
 				continue;
 			}
 
-			// Only incorporate the primitive if it intersects with the canera bounding sphere where radius=MaxTraceDistance
-			const FBoxSphereBounds& PrimitiveBounds = PrimitiveSceneProxy->GetBounds();
-			if (View.ViewFrustum.IntersectBox(PrimitiveBounds.Origin, PrimitiveBounds.BoxExtent))
+			for (int32 VolumeIndex = 0; VolumeIndex < Mesh->Elements.Num(); ++VolumeIndex)
 			{
-				AggregatePrimitiveBounds = Union(AggregatePrimitiveBounds, PrimitiveBounds);
-
-				if (View.ViewFrustum.IntersectBox(AggregatePrimitiveBounds.Origin, AggregatePrimitiveBounds.BoxExtent))
+				IHeterogeneousVolumeInterface* HeterogeneousVolume = (IHeterogeneousVolumeInterface*)Mesh->Elements[VolumeIndex].UserData;
+				//check(HeterogeneousVolume != nullptr);
+				if (HeterogeneousVolume == nullptr)
 				{
-					const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface = HeterogeneousVolumes::GetInterface(PrimitiveSceneProxy);
-
-					// Bandlimit minimum voxel size request with projected voxel size, based on shading rate
-					FVector VoxelCenter = PrimitiveBounds.Origin;
-					float Distance = FMath::Max(FVector(PrimitiveBounds.Origin - WorldCameraOrigin).Length() - AggregatePrimitiveBounds.BoxExtent.Length(), 0.0);
-					float VoxelWidth = Distance * PixelWidth * HeterogeneousVolumes::GetShadingRateForOrthoGrid();
-
-					float PerVolumeMinimumVoxelSize = FMath::Max(VoxelWidth, HeterogeneousVolumeInterface->GetMinimumVoxelSize());
-					ViewMinimumVoxelSize = FMath::Min(PerVolumeMinimumVoxelSize, ViewMinimumVoxelSize);
+					continue;
 				}
+				// Only incorporate the primitive if it intersects with the canera bounding sphere where radius=MaxTraceDistance
+				const FBoxSphereBounds& PrimitiveBounds = HeterogeneousVolume->GetBounds();
+				if (View.ViewFrustum.IntersectBox(PrimitiveBounds.Origin, PrimitiveBounds.BoxExtent))
+				{
+					AggregatePrimitiveBounds = Union(AggregatePrimitiveBounds, PrimitiveBounds);
+
+					if (View.ViewFrustum.IntersectBox(AggregatePrimitiveBounds.Origin, AggregatePrimitiveBounds.BoxExtent))
+					{
+						// Bandlimit minimum voxel size request with projected voxel size, based on shading rate
+						FVector VoxelCenter = PrimitiveBounds.Origin;
+						float Distance = FMath::Max(FVector(PrimitiveBounds.Origin - WorldCameraOrigin).Length() - AggregatePrimitiveBounds.BoxExtent.Length(), 0.0);
+						float VoxelWidth = Distance * PixelWidth * HeterogeneousVolumes::GetShadingRateForOrthoGrid();
+
+						float PerVolumeMinimumVoxelSize = FMath::Max(VoxelWidth, HeterogeneousVolume->GetMinimumVoxelSize());
+						ViewMinimumVoxelSize = FMath::Min(PerVolumeMinimumVoxelSize, ViewMinimumVoxelSize);
+					}
+				}
+				// TODO: Out-of-frustum minimum voxel size per-primitive?
+				// else if (FBoxSphereBounds::BoxesIntersect(WorldCameraBounds, PrimitiveBounds))
 			}
-			// TODO: Out-of-frustum minimum voxel size per-primitive?
-			// else if (FBoxSphereBounds::BoxesIntersect(WorldCameraBounds, PrimitiveBounds))
 		}
 
 		// Clamp per-view minimum voxel-size to in-frustum maximum
@@ -1475,43 +1490,53 @@ void CalculateVoxelSize(
 
 		for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.HeterogeneousVolumesMeshBatches.Num(); ++MeshBatchIndex)
 		{
+			const FMeshBatch* Mesh = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Mesh;
 			const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Proxy;
-			const FBoxSphereBounds& PrimitiveBounds = PrimitiveSceneProxy->GetBounds();
-			const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface = HeterogeneousVolumes::GetInterface(PrimitiveSceneProxy);
 
-			FTopLevelGridCalculateVoxelSize::FParameters* PassParameters = GraphBuilder.AllocParameters<FTopLevelGridCalculateVoxelSize::FParameters>();
+			for (int32 VolumeIndex = 0; VolumeIndex < Mesh->Elements.Num(); ++VolumeIndex)
 			{
-				PassParameters->View = View.ViewUniformBuffer;
+				IHeterogeneousVolumeInterface* HeterogeneousVolume = (IHeterogeneousVolumeInterface*)Mesh->Elements[VolumeIndex].UserData;
+				//check(HeterogeneousVolume != nullptr);
+				if (HeterogeneousVolume == nullptr)
+				{
+					continue;
+				}
 
-				PassParameters->TopLevelGridResolution = TopLevelGridResolution;
-				PassParameters->TopLevelGridWorldBoundsMin = FVector3f(TopLevelGridBounds.Origin - TopLevelGridBounds.BoxExtent);
-				PassParameters->TopLevelGridWorldBoundsMax = FVector3f(TopLevelGridBounds.Origin + TopLevelGridBounds.BoxExtent);
+				const FBoxSphereBounds& PrimitiveBounds = HeterogeneousVolume->GetBounds();
+				FTopLevelGridCalculateVoxelSize::FParameters* PassParameters = GraphBuilder.AllocParameters<FTopLevelGridCalculateVoxelSize::FParameters>();
+				{
+					PassParameters->View = View.ViewUniformBuffer;
 
-				PassParameters->PrimitiveWorldBoundsMin = FVector3f(PrimitiveBounds.Origin - PrimitiveBounds.BoxExtent);
-				PassParameters->PrimitiveWorldBoundsMax = FVector3f(PrimitiveBounds.Origin + PrimitiveBounds.BoxExtent);
+					PassParameters->TopLevelGridResolution = TopLevelGridResolution;
+					PassParameters->TopLevelGridWorldBoundsMin = FVector3f(TopLevelGridBounds.Origin - TopLevelGridBounds.BoxExtent);
+					PassParameters->TopLevelGridWorldBoundsMax = FVector3f(TopLevelGridBounds.Origin + TopLevelGridBounds.BoxExtent);
 
-				PassParameters->ShadingRate = HeterogeneousVolumes::GetShadingRateForOrthoGrid();
-				PassParameters->MinVoxelSizeInFrustum = FMath::Max(HeterogeneousVolumeInterface->GetMinimumVoxelSize(), HeterogeneousVolumes::GetMinimumVoxelSizeInFrustum());
-				PassParameters->MinVoxelSizeOutOfFrustum = HeterogeneousVolumes::GetMinimumVoxelSizeOutsideFrustum();
+					PassParameters->PrimitiveWorldBoundsMin = FVector3f(PrimitiveBounds.Origin - PrimitiveBounds.BoxExtent);
+					PassParameters->PrimitiveWorldBoundsMax = FVector3f(PrimitiveBounds.Origin + PrimitiveBounds.BoxExtent);
 
-				PassParameters->RWTopLevelGridBuffer = GraphBuilder.CreateUAV(TopLevelGridBuffer);
+					PassParameters->ShadingRate = HeterogeneousVolumes::GetShadingRateForOrthoGrid();
+						PassParameters->MinVoxelSizeInFrustum = FMath::Max(HeterogeneousVolume->GetMinimumVoxelSize(), HeterogeneousVolumes::GetMinimumVoxelSizeInFrustum());
+					PassParameters->MinVoxelSizeOutOfFrustum = HeterogeneousVolumes::GetMinimumVoxelSizeOutsideFrustum();
+
+					PassParameters->RWTopLevelGridBuffer = GraphBuilder.CreateUAV(TopLevelGridBuffer);
+				}
+
+				FIntVector GroupCount;
+				GroupCount.X = FMath::DivideAndRoundUp(TopLevelGridResolution.X, FTopLevelGridCalculateVoxelSize::GetThreadGroupSize3D());
+				GroupCount.Y = FMath::DivideAndRoundUp(TopLevelGridResolution.Y, FTopLevelGridCalculateVoxelSize::GetThreadGroupSize3D());
+				GroupCount.Z = FMath::DivideAndRoundUp(TopLevelGridResolution.Z, FTopLevelGridCalculateVoxelSize::GetThreadGroupSize3D());
+
+				FTopLevelGridCalculateVoxelSize::FPermutationDomain PermutationVector;
+				TShaderRef<FTopLevelGridCalculateVoxelSize> ComputeShader = View.ShaderMap->GetShader<FTopLevelGridCalculateVoxelSize>(PermutationVector);
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("TopLevelGridCalculateVoxelSize"),
+					ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+					ComputeShader,
+					PassParameters,
+					GroupCount
+				);
 			}
-
-			FIntVector GroupCount;
-			GroupCount.X = FMath::DivideAndRoundUp(TopLevelGridResolution.X, FTopLevelGridCalculateVoxelSize::GetThreadGroupSize3D());
-			GroupCount.Y = FMath::DivideAndRoundUp(TopLevelGridResolution.Y, FTopLevelGridCalculateVoxelSize::GetThreadGroupSize3D());
-			GroupCount.Z = FMath::DivideAndRoundUp(TopLevelGridResolution.Z, FTopLevelGridCalculateVoxelSize::GetThreadGroupSize3D());
-
-			FTopLevelGridCalculateVoxelSize::FPermutationDomain PermutationVector;
-			TShaderRef<FTopLevelGridCalculateVoxelSize> ComputeShader = View.ShaderMap->GetShader<FTopLevelGridCalculateVoxelSize>(PermutationVector);
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("TopLevelGridCalculateVoxelSize"),
-				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-				ComputeShader,
-				PassParameters,
-				GroupCount
-			);
 		}
 	}
 }
@@ -1694,43 +1719,54 @@ void MarkTopLevelGridVoxelsForFrustumGrid(
 
 	for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.HeterogeneousVolumesMeshBatches.Num(); ++MeshBatchIndex)
 	{
+		const FMeshBatch* Mesh = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Mesh;
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Proxy;
-		const FBoxSphereBounds& PrimitiveBounds = PrimitiveSceneProxy->GetBounds();
-		const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface = HeterogeneousVolumes::GetInterface(PrimitiveSceneProxy);
 
-		FMarkTopLevelGridVoxelsForFrustumGrid::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkTopLevelGridVoxelsForFrustumGrid::FParameters>();
+		for (int32 VolumeIndex = 0; VolumeIndex < Mesh->Elements.Num(); ++VolumeIndex)
 		{
-			PassParameters->View = View.ViewUniformBuffer;
+			IHeterogeneousVolumeInterface* HeterogeneousVolume = (IHeterogeneousVolumeInterface*)Mesh->Elements[VolumeIndex].UserData;
+			//check(HeterogeneousVolume != nullptr);
+			if (HeterogeneousVolume == nullptr)
+			{
+				continue;
+			}
 
-			PassParameters->PrimitiveWorldBoundsMin = FVector3f(PrimitiveBounds.Origin - PrimitiveBounds.BoxExtent);
-			PassParameters->PrimitiveWorldBoundsMax = FVector3f(PrimitiveBounds.Origin + PrimitiveBounds.BoxExtent);
+			const FBoxSphereBounds& PrimitiveBounds = HeterogeneousVolume->GetBounds();
 
-			PassParameters->ViewToWorld = FMatrix44f(ViewToWorld);
-			PassParameters->TanHalfFOV = HeterogeneousVolumes::CalcTanHalfFOV(View.FOV);
-			PassParameters->NearPlaneDepth = NearPlaneDistance;
-			PassParameters->FarPlaneDepth = FarPlaneDistance;
+			FMarkTopLevelGridVoxelsForFrustumGrid::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkTopLevelGridVoxelsForFrustumGrid::FParameters>();
+			{
+				PassParameters->View = View.ViewUniformBuffer;
 
-			PassParameters->VoxelDimensions = TopLevelGridResolution;
-			PassParameters->TopLevelGridResolution = TopLevelGridResolution;
+				PassParameters->PrimitiveWorldBoundsMin = FVector3f(PrimitiveBounds.Origin - PrimitiveBounds.BoxExtent);
+				PassParameters->PrimitiveWorldBoundsMax = FVector3f(PrimitiveBounds.Origin + PrimitiveBounds.BoxExtent);
 
-			PassParameters->RWTopLevelGridBuffer = GraphBuilder.CreateUAV(TopLevelGridBuffer);
+				PassParameters->ViewToWorld = FMatrix44f(ViewToWorld);
+				PassParameters->TanHalfFOV = HeterogeneousVolumes::CalcTanHalfFOV(View.FOV);
+				PassParameters->NearPlaneDepth = NearPlaneDistance;
+				PassParameters->FarPlaneDepth = FarPlaneDistance;
+
+				PassParameters->VoxelDimensions = TopLevelGridResolution;
+				PassParameters->TopLevelGridResolution = TopLevelGridResolution;
+
+				PassParameters->RWTopLevelGridBuffer = GraphBuilder.CreateUAV(TopLevelGridBuffer);
+			}
+
+			FIntVector GroupCount;
+			GroupCount.X = FMath::DivideAndRoundUp(TopLevelGridResolution.X, FMarkTopLevelGridVoxelsForFrustumGrid::GetThreadGroupSize3D());
+			GroupCount.Y = FMath::DivideAndRoundUp(TopLevelGridResolution.Y, FMarkTopLevelGridVoxelsForFrustumGrid::GetThreadGroupSize3D());
+			GroupCount.Z = FMath::DivideAndRoundUp(TopLevelGridResolution.Z, FMarkTopLevelGridVoxelsForFrustumGrid::GetThreadGroupSize3D());
+
+			FMarkTopLevelGridVoxelsForFrustumGrid::FPermutationDomain PermutationVector;
+			TShaderRef<FMarkTopLevelGridVoxelsForFrustumGrid> ComputeShader = View.ShaderMap->GetShader<FMarkTopLevelGridVoxelsForFrustumGrid>(PermutationVector);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("MarkTopLevelGridVoxelsForFrustumGrid"),
+				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+				ComputeShader,
+				PassParameters,
+				GroupCount
+			);
 		}
-
-		FIntVector GroupCount;
-		GroupCount.X = FMath::DivideAndRoundUp(TopLevelGridResolution.X, FMarkTopLevelGridVoxelsForFrustumGrid::GetThreadGroupSize3D());
-		GroupCount.Y = FMath::DivideAndRoundUp(TopLevelGridResolution.Y, FMarkTopLevelGridVoxelsForFrustumGrid::GetThreadGroupSize3D());
-		GroupCount.Z = FMath::DivideAndRoundUp(TopLevelGridResolution.Z, FMarkTopLevelGridVoxelsForFrustumGrid::GetThreadGroupSize3D());
-
-		FMarkTopLevelGridVoxelsForFrustumGrid::FPermutationDomain PermutationVector;
-		TShaderRef<FMarkTopLevelGridVoxelsForFrustumGrid> ComputeShader = View.ShaderMap->GetShader<FMarkTopLevelGridVoxelsForFrustumGrid>(PermutationVector);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("MarkTopLevelGridVoxelsForFrustumGrid"),
-			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			ComputeShader,
-			PassParameters,
-			GroupCount
-		);
 	}
 }
 

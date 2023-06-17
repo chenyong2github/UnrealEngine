@@ -45,6 +45,10 @@ namespace NiagaraRendererVolumesLocal
 		int32					DefaultRendererVisibilityTag = 0;
 		int32					DefaultVolumeResolutionMaxAxis = UNiagaraVolumeRendererProperties::GetDefaultVolumeResolutionMaxAxis();
 		FVector3f				DefaultVolumeWorldSpaceSize = UNiagaraVolumeRendererProperties::GetDefaultVolumeWorldSpaceSize();
+
+		int32					VolumeResolutionMaxAxis = UNiagaraVolumeRendererProperties::GetDefaultVolumeResolutionMaxAxis();
+		FVector3f				VolumeWorldSpaceSize = UNiagaraVolumeRendererProperties::GetDefaultVolumeWorldSpaceSize();
+		float					LightingDownsampleFactor = UNiagaraVolumeRendererProperties::GetDefaultLightingDownsampleFactor();
 	};
 
 	struct FHeterogeneousVolumeInstances
@@ -209,6 +213,15 @@ FNiagaraDynamicDataBase* FNiagaraRendererVolumes::GenerateDynamicData(const FNia
 		ProcessMaterialParameterBindings(Properties->MaterialParameters, Emitter, MakeArrayView(BaseMaterials_GT));
 	}
 
+	const UNiagaraVolumeRendererProperties* RendererProperties = CastChecked<const UNiagaraVolumeRendererProperties>(InProperties);
+	const int32 DefaultVolumeResolutionMaxAxis = UNiagaraVolumeRendererProperties::GetDefaultVolumeResolutionMaxAxis();
+	const FVector3f DefaultVolumeWorldSpaceSize = UNiagaraVolumeRendererProperties::GetDefaultVolumeWorldSpaceSize();
+
+	const FNiagaraParameterStore& ParameterStore = Emitter->GetRendererBoundVariables();
+	VolumeDynamicData->VolumeResolutionMaxAxis = ParameterStore.GetParameterValueOrDefault(RendererProperties->VolumeResolutionMaxAxisBinding.GetParamMapBindableVariable(), DefaultVolumeResolutionMaxAxis);
+	VolumeDynamicData->VolumeWorldSpaceSize = ParameterStore.GetParameterValueOrDefault(RendererProperties->VolumeWorldSpaceSizeBinding.GetParamMapBindableVariable(), DefaultVolumeWorldSpaceSize);
+	VolumeDynamicData->LightingDownsampleFactor = RendererProperties->LightingDownsampleFactor;
+
 	return VolumeDynamicData;
 }
 
@@ -323,7 +336,26 @@ void FNiagaraRendererVolumes::GetDynamicMeshElements(const TArray<const FSceneVi
 			BatchElement.MaxVertexIndex		= 3;
 			BatchElement.NumPrimitives		= 2;
 			BatchElement.BaseVertexIndex	= 0;
-			//-TODO:BatchElement.VertexFactoryUserData = VolumeInstances;
+			
+			FHeterogeneousVolumeData* HeterogeneousVolumeData = &Collector.AllocateOneFrameResource<FHeterogeneousVolumeData>(SceneProxy);
+
+			FVector3f WorldSpaceSize = VolumeDynamicData->VolumeWorldSpaceSize;
+			float WorldSpaceSizeMaxInv = WorldSpaceSize.GetMax() > 0.0 ? 1.0 / WorldSpaceSize.GetMax() : 0.0;
+			FVector3f ResolutionFactor = WorldSpaceSize * WorldSpaceSizeMaxInv;
+
+			FVector3f VolumeResolutionV3f = ResolutionFactor * VolumeDynamicData->VolumeResolutionMaxAxis;
+
+			FIntVector VolumeResolution = FIntVector(
+				FMath::CeilToInt(VolumeResolutionV3f.X),
+				FMath::CeilToInt(VolumeResolutionV3f.Y),
+				FMath::CeilToInt(VolumeResolutionV3f.Z));
+
+			HeterogeneousVolumeData->VoxelResolution = VolumeResolution;
+
+
+			HeterogeneousVolumeData->LightingDownsampleFactor = VolumeDynamicData->LightingDownsampleFactor;
+			BatchElement.UserData = HeterogeneousVolumeData;
+
 			Collector.AddMesh(0, Mesh);
 		}
 	}

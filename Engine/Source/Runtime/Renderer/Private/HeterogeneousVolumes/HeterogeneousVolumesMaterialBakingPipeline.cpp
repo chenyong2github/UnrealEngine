@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HeterogeneousVolumes.h"
+#include "HeterogeneousVolumeInterface.h"
 
 #include "LocalVertexFactory.h"
 #include "PixelShaderUtils.h"
@@ -103,7 +104,7 @@ void ComputeHeterogeneousVolumeBakeMaterial(
 	const FScene* Scene,
 	const FViewInfo& View,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	const int32 PrimitiveId,
 	const FBoxSphereBounds LocalBoxSphereBounds,
@@ -136,7 +137,7 @@ void ComputeHeterogeneousVolumeBakeMaterial(
 		PassParameters->Scene = View.GetSceneUniforms().GetBuffer(GraphBuilder);
 
 		// Object data
-		FMatrix44f LocalToWorld = FMatrix44f(PrimitiveSceneProxy->GetLocalToWorld());
+		FMatrix44f LocalToWorld = FMatrix44f(HeterogeneousVolumeInterface->GetLocalToWorld());
 		PassParameters->LocalToWorld = LocalToWorld;
 		PassParameters->WorldToLocal = LocalToWorld.Inverse();
 		PassParameters->LocalBoundsOrigin = FVector3f(LocalBoxSphereBounds.Origin);

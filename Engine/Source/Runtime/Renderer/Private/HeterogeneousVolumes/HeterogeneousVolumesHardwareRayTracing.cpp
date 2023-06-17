@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HeterogeneousVolumes.h"
+#include "HeterogeneousVolumeInterface.h"
 
 #include "LightRendering.h"
 #include "PixelShaderUtils.h"
@@ -113,7 +114,7 @@ void GenerateRayTracingGeometryInstance(
 	const FScene* Scene,
 	const FViewInfo& View,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	// Volume data
 	// Sparse voxel data
 	FRDGBufferRef NumVoxelsBuffer,
@@ -157,7 +158,7 @@ void GenerateRayTracingGeometryInstance(
 
 	FRayTracingGeometryInitializer GeometryInitializer;
 	// TODO: REMOVE STRING ALLOCATION
-	GeometryInitializer.DebugName = *PrimitiveSceneProxy->GetResourceName().ToString();// +TEXT(" (HeterogeneousVolume)");
+	//GeometryInitializer.DebugName = *PrimitiveSceneProxy->GetResourceName().ToString();// +TEXT(" (HeterogeneousVolume)");
 	//GeometryInitializer.IndexBuffer = EmptyIndexBuffer;
 	GeometryInitializer.GeometryType = RTGT_Procedural;
 	GeometryInitializer.bFastBuild = false;
@@ -171,7 +172,7 @@ void GenerateRayTracingGeometryInstance(
 	GeometryInitializer.Segments.Add(Segment);
 	GeometryInitializer.TotalPrimitiveCount = Segment.NumPrimitives;
 	RayTracingGeometries.Add(RHICreateRayTracingGeometry(GeometryInitializer));
-	RayTracingTransforms.Add(PrimitiveSceneProxy->GetLocalToWorld());
+	RayTracingTransforms.Add(HeterogeneousVolumeInterface->GetLocalToWorld());
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FBuildBLASPassParams, )
@@ -189,8 +190,6 @@ void GenerateRayTracingScene(
 	// Scene data
 	const FScene* Scene,
 	const FViewInfo& View,
-	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Ray tracing data
 	TArray<FRayTracingGeometryRHIRef>& RayTracingGeometries,
 	TArray<FMatrix>& RayTracingTransforms,
@@ -580,7 +579,7 @@ void RenderLightingCacheWithPreshadingHardwareRayTracing(
 	const FVisibleLightInfo* VisibleLightInfo,
 	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	// Sparse voxel data
 	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters> SparseVoxelUniformBuffer,
 	// Ray tracing data
@@ -589,8 +588,6 @@ void RenderLightingCacheWithPreshadingHardwareRayTracing(
 	FRDGTextureRef& LightingCacheTexture
 )
 {
-	const IHeterogeneousVolumeInterface* Interface = HeterogeneousVolumes::GetInterface(PrimitiveSceneProxy);
-
 	// Note must be done in the same scope as we add the pass otherwise the UB lifetime will not be guaranteed
 	FDeferredLightUniformStruct DeferredLightUniform = GetDeferredLightParameters(View, *LightSceneInfo);
 	TUniformBufferRef<FDeferredLightUniformStruct> DeferredLightUB = CreateUniformBufferImmediate(DeferredLightUniform, UniformBuffer_SingleDraw);
@@ -615,7 +612,7 @@ void RenderLightingCacheWithPreshadingHardwareRayTracing(
 		PassParameters->SparseVoxelUniformBuffer = SparseVoxelUniformBuffer;
 
 		// Transmittance volume
-		PassParameters->LightingCache.LightingCacheResolution = HeterogeneousVolumes::GetLightingCacheResolution(Interface);
+		PassParameters->LightingCache.LightingCacheResolution = HeterogeneousVolumes::GetLightingCacheResolution(HeterogeneousVolumeInterface);
 		//PassParameters->LightingCache.LightingCacheTexture = GraphBuilder.CreateSRV(LightingCacheTexture);
 
 		// Ray data
@@ -668,7 +665,7 @@ void RenderLightingCacheWithPreshadingHardwareRayTracing(
 	FRenderLightingCacheWithPreshadingRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRenderLightingCacheWithPreshadingRGS::FLightingCacheMode>(HeterogeneousVolumes::GetLightingCacheMode() - 1);
 	TShaderRef<FRenderLightingCacheWithPreshadingRGS> RayGenerationShader = View.ShaderMap->GetShader<FRenderLightingCacheWithPreshadingRGS>(PermutationVector);
-	FIntVector VolumeResolution = HeterogeneousVolumes::GetLightingCacheResolution(Interface);
+	FIntVector VolumeResolution = HeterogeneousVolumes::GetLightingCacheResolution(HeterogeneousVolumeInterface);
 	FIntPoint DispatchResolution = FIntPoint(VolumeResolution.X, VolumeResolution.Y * VolumeResolution.Z);
 
 	GraphBuilder.AddPass(
@@ -723,7 +720,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	const FVisibleLightInfo* VisibleLightInfo,
 	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	// Sparse voxel data
 	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters> SparseVoxelUniformBuffer,
 	// Ray tracing data
@@ -734,8 +731,6 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	FRDGTextureRef& HeterogeneousVolumeTexture
 )
 {
-	const IHeterogeneousVolumeInterface* Interface = HeterogeneousVolumes::GetInterface(PrimitiveSceneProxy);
-
 	// Note must be done in the same scope as we add the pass otherwise the UB lifetime will not be guaranteed
 	FDeferredLightUniformStruct DeferredLightUniform;
 	if (bApplyDirectLighting && (LightSceneInfo != nullptr))
@@ -798,7 +793,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 		// Transmittance volume
 		if ((HeterogeneousVolumes::UseLightingCacheForTransmittance() && bApplyShadowTransmittance) || HeterogeneousVolumes::UseLightingCacheForInscattering())
 		{
-			PassParameters->LightingCache.LightingCacheResolution = HeterogeneousVolumes::GetLightingCacheResolution(Interface);
+			PassParameters->LightingCache.LightingCacheResolution = HeterogeneousVolumes::GetLightingCacheResolution(HeterogeneousVolumeInterface);
 			PassParameters->LightingCache.LightingCacheTexture = LightingCacheTexture;
 		}
 

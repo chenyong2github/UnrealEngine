@@ -77,6 +77,7 @@ public:
 	static FVector3f GetDefaultVolumeScale() { return FVector3f(1.0f, 1.0f, 1.0f); }
 	static int32 GetDefaultVolumeResolutionMaxAxis() { return 0; }
 	static FVector3f GetDefaultVolumeWorldSpaceSize() { return FVector3f::ZeroVector; }
+	static float GetDefaultLightingDownsampleFactor() { return 2.0f; }
 
 	/** What material to use for the volume. */
 	UPROPERTY(EditAnywhere, Category = "Volume Rendering")
@@ -100,6 +101,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Volume Rendering")
 	int32 RendererVisibility = 0;
 
+	UPROPERTY(EditAnywhere, Category = "Volume Rendering")
+	float LightingDownsampleFactor = 2.0f;
+
 	/** Position binding for the center of the volume. */
 	//-TODO: Unhind when binding is supported
 	//UPROPERTY(EditAnywhere, Category = "Bindings")
@@ -119,14 +123,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RendererVisibilityTagBinding;
 
-	/** TODO */
-	//-TODO: Unhind when binding is supported
-	//UPROPERTY(EditAnywhere, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding VolumeResolutionMaxAxisBinding;
 
-	/** TODO */
-	//-TODO: Unhind when binding is supported
-	//UPROPERTY(EditAnywhere, Category = "Bindings")
+	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding VolumeWorldSpaceSizeBinding;
 
 	/** If this array has entries, we will create a MaterialInstanceDynamic per Emitter instance from Material and set the Material parameters using the Niagara simulation variables listed.*/

@@ -46,4 +46,5 @@ protected:
 	int32							VFBoundOffsetsInParamStore[int32(ENiagaraVolumeVFLayout::Num)];
 
 	FLocalVertexFactory				VertexFactory;
+
 };

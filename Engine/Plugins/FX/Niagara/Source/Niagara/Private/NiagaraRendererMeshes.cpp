@@ -101,6 +101,16 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	bAccurateMotionVectors = Properties->NeedsPreciseMotionVectors();
 	bIsHeterogeneousVolume = Properties->UseHeterogeneousVolumes();
 
+	if (Properties->UseHeterogeneousVolumes())
+	{
+		ResolutionMaxAxisOffset = Emitter->GetRendererBoundVariables().IndexOf(
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), FName("User.ResolutionMaxAxis"))
+		);
+		WorldSpaceSizeOffset = Emitter->GetRendererBoundVariables().IndexOf(
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetVec3Def(), FName("User.WorldSpaceSize"))
+		);
+	}
+
 	if (Properties->bEnableCameraDistanceCulling)
 	{
 		DistanceCullRange = FVector2f(Properties->MinCameraDistance, Properties->MaxCameraDistance);
@@ -304,6 +314,15 @@ void FNiagaraRendererMeshes::PrepareParticleMeshRenderData(FParticleMeshRenderDa
 	{
 		ParticleMeshRenderData.SourceParticleData = nullptr;
 		return;
+	}
+
+	if (ResolutionMaxAxisOffset != INDEX_NONE)
+	{
+		ParticleMeshRenderData.ResolutionMaxAxis = *reinterpret_cast<const int32*>(ParticleMeshRenderData.DynamicDataMesh->ParameterDataBound.GetData() + ResolutionMaxAxisOffset);
+	}
+	if (WorldSpaceSizeOffset != INDEX_NONE)
+	{
+		ParticleMeshRenderData.WorldSpaceSize = *reinterpret_cast<const FVector3f*>(ParticleMeshRenderData.DynamicDataMesh->ParameterDataBound.GetData() + WorldSpaceSizeOffset);
 	}
 
 	// If the visibility tag comes from a parameter map, so we can evaluate it here and just early out if it doesn't match up
@@ -1341,6 +1360,25 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 							bIsInstancedStereo,
 							bNeedsPrevTransform
 						);
+
+						if (SceneProxy->IsHeterogeneousVolume())
+						{
+							FHeterogeneousVolumeData* HeterogeneousVolumeData = &Collector.AllocateOneFrameResource<FHeterogeneousVolumeData>(SceneProxy);
+
+							FVector3f WorldSpaceSize = ParticleMeshRenderData.WorldSpaceSize;
+							float WorldSpaceSizeMaxInv = WorldSpaceSize.GetMax() > 0.0 ? 1.0 / WorldSpaceSize.GetMax() : 0.0;
+							FVector3f ResolutionFactor = WorldSpaceSize * WorldSpaceSizeMaxInv;
+
+							FVector3f VolumeResolutionV3f = ResolutionFactor * ParticleMeshRenderData.ResolutionMaxAxis;
+
+							FIntVector VolumeResolution = FIntVector(
+								FMath::CeilToInt(VolumeResolutionV3f.X),
+								FMath::CeilToInt(VolumeResolutionV3f.Y),
+								FMath::CeilToInt(VolumeResolutionV3f.Z));
+
+							HeterogeneousVolumeData->VoxelResolution = VolumeResolution;
+							MeshBatch.Elements[0].UserData = HeterogeneousVolumeData;
+						}
 
 						Collector.AddMesh(ViewIndex, MeshBatch);
 					}

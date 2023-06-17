@@ -75,8 +75,6 @@ namespace HeterogeneousVolumes
 	bool EnableLinearInterpolation();
 
 	// Convenience Utils
-	const IHeterogeneousVolumeInterface* GetInterface(const FPrimitiveSceneProxy* PrimitiveSceneProxy);
-
 	int GetVoxelCount(FIntVector VolumeResolution);
 	int GetVoxelCount(const FRDGTextureDesc& TextureDesc);
 	FIntVector GetMipVolumeResolution(FIntVector VolumeResolution, uint32 MipLevel);
@@ -291,7 +289,7 @@ void RenderWithLiveShading(
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	const int32 PrimitiveId,
 	const FBoxSphereBounds LocalBoxSphereBounds,
@@ -312,7 +310,7 @@ void RenderWithPreshading(
 	TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	const int32 PrimitiveId,
 	const FBoxSphereBounds LocalBoxSphereBounds,
@@ -342,7 +340,7 @@ void ComputeHeterogeneousVolumeBakeMaterial(
 	const FScene* Scene,
 	const FViewInfo& View,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	const FMaterialRenderProxy* MaterialRenderProxy,
 	const int32 PrimitiveId,
 	const FBoxSphereBounds LocalBoxSphereBounds,
@@ -382,7 +380,7 @@ void GenerateRayTracingGeometryInstance(
 	const FScene* Scene,
 	const FViewInfo& View,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	// Sparse voxel data
 	FRDGBufferRef NumVoxelsBuffer,
 	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters> SparseVoxelUniformBuffer,
@@ -396,8 +394,6 @@ void GenerateRayTracingScene(
 	// Scene data
 	const FScene* Scene,
 	const FViewInfo& View,
-	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	// Ray tracing data
 	TArray<FRayTracingGeometryRHIRef>& RayTracingGeometries,
 	TArray<FMatrix>& RayTracingTransforms,
@@ -421,7 +417,7 @@ void RenderLightingCacheWithPreshadingHardwareRayTracing(
 	const FVisibleLightInfo* VisibleLightInfo,
 	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	// Sparse voxel data
 	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters> SparseVoxelUniformBuffer,
 	// Ray tracing data
@@ -446,7 +442,7 @@ void RenderSingleScatteringWithPreshadingHardwareRayTracing(
 	const FVisibleLightInfo* VisibleLightInfo,
 	const FVirtualShadowMapArray& VirtualShadowMapArray,
 	// Object data
-	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const IHeterogeneousVolumeInterface* HeterogeneousVolumeInterface,
 	// Sparse voxel data
 	TRDGUniformBufferRef<FSparseVoxelUniformBufferParameters> SparseVoxelUniformBuffer,
 	// Ray tracing data

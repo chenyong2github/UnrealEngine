@@ -763,6 +763,20 @@ bool UNiagaraMeshRendererProperties::PopulateRequiredBindings(FNiagaraParameterS
 {
 	bool bAnyAdded = Super::PopulateRequiredBindings(InParameterStore);
 
+
+	if (bUseHeterogeneousVolumes)
+	{
+		InParameterStore.AddParameter(
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetIntDef(), FName("User.ResolutionMaxAxis")),
+			false
+		);
+		InParameterStore.AddParameter(
+			FNiagaraVariableBase(FNiagaraTypeDefinition::GetVec3Def(), FName("User.WorldSpaceSize")),
+			false
+		);
+		bAnyAdded = true;
+	}
+
 	for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
 	{
 		if (Binding && Binding->CanBindToHostParameterMap())

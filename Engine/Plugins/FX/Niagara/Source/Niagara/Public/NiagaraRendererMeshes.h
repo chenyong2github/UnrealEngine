@@ -74,6 +74,9 @@ protected:
 
 		FVector							WorldSpacePivotOffset = FVector::ZeroVector;
 		FSphere							CullingSphere = FSphere(EForceInit::ForceInit);
+
+		int32							ResolutionMaxAxis = 0;
+		FVector3f						WorldSpaceSize = FVector3f::ZeroVector;
 	};
 
 	struct FMeshData
@@ -184,6 +187,9 @@ private:
 	int32 EmitterRendererVisTagOffset = INDEX_NONE;
 	int32 EmitterMeshIndexOffset = INDEX_NONE;
 	uint32 MaterialParamValidMask = 0;
+
+	int32 ResolutionMaxAxisOffset = INDEX_NONE;
+	int32 WorldSpaceSizeOffset = INDEX_NONE;
 
 	int32 VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Num_Max];
 	uint32 bSetAnyBoundVars : 1;

@@ -5,18 +5,3 @@
 =============================================================================*/
 
 #include "HeterogeneousVolumeInterface.h"
-
-IHeterogeneousVolumeInterface::~IHeterogeneousVolumeInterface()
-{
-}
-
-FHeterogeneousVolumeData::FHeterogeneousVolumeData()
-	: VoxelResolution(FIntVector::ZeroValue)
-	, MinimumVoxelSize(0.1)
-	, LightingDownsampleFactor(1.0)
-{
-}
-
-FHeterogeneousVolumeData::~FHeterogeneousVolumeData()
-{
-}
