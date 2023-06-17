@@ -12,7 +12,7 @@
 
 /** A single redirect from a deleted tag to the new tag that should replace it */
 USTRUCT()
-struct GAMEPLAYTAGS_API FGameplayTagRedirect
+struct FGameplayTagRedirect
 {
 	GENERATED_BODY()
 

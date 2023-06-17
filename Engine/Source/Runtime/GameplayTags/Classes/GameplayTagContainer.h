@@ -48,7 +48,7 @@ typedef uint16 FGameplayTagNetIndex;
  * You can filter the gameplay tags displayed in the editor using, meta = (Categories = "Tag1.Tag2.Tag3"))
  */
 USTRUCT(BlueprintType, meta = (HasNativeMake = "/Script/GameplayTags.BlueprintGameplayTagLibrary.MakeLiteralGameplayTag", HasNativeBreak = "/Script/GameplayTags.BlueprintGameplayTagLibrary.GetTagName", DisableSplitPin))
-struct GAMEPLAYTAGS_API FGameplayTag
+struct FGameplayTag
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -64,7 +64,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	 * @param ErrorIfNotfound: ensure() that tag exists.
 	 * @return Will return the corresponding FGameplayTag or an empty one if not found.
 	 */
-	static FGameplayTag RequestGameplayTag(const FName& TagName, bool ErrorIfNotFound=true);
+	static GAMEPLAYTAGS_API FGameplayTag RequestGameplayTag(const FName& TagName, bool ErrorIfNotFound=true);
 
 	/** 
 	 * Returns true if this is a valid gameplay tag string (foo.bar.baz). If false, it will fill 
@@ -73,7 +73,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	 * @param OutFixedString If non-null and string invalid, will attempt to fix. Will be empty if no fix is possible
 	 * @return True if this can be added to the tag dictionary, false if there's a syntax error
 	 */
-	static bool IsValidGameplayTagString(const FString& TagString, FText* OutError = nullptr, FString* OutFixedString = nullptr);
+	static GAMEPLAYTAGS_API bool IsValidGameplayTagString(const FString& TagString, FText* OutError = nullptr, FString* OutFixedString = nullptr);
 
 	/** Operators */
 	FORCEINLINE bool operator==(FGameplayTag const& Other) const
@@ -98,7 +98,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	 * 
 	 * @return True if this tag matches TagToCheck
 	 */
-	bool MatchesTag(const FGameplayTag& TagToCheck) const;
+	GAMEPLAYTAGS_API bool MatchesTag(const FGameplayTag& TagToCheck) const;
 
 	/**
 	 * Determine if TagToCheck is valid and exactly matches this tag
@@ -124,7 +124,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	 *
 	 * @return The depth of the match, higher means they are closer to an exact match
 	 */
-	int32 MatchesTagDepth(const FGameplayTag& TagToCheck) const;
+	GAMEPLAYTAGS_API int32 MatchesTagDepth(const FGameplayTag& TagToCheck) const;
 
 	/**
 	 * Checks if this tag matches ANY of the tags in the specified container, also checks against our parent tags
@@ -133,7 +133,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	 *
 	 * @return True if this tag matches ANY of the tags of in ContainerToCheck
 	 */
-	bool MatchesAny(const FGameplayTagContainer& ContainerToCheck) const;
+	GAMEPLAYTAGS_API bool MatchesAny(const FGameplayTagContainer& ContainerToCheck) const;
 
 	/**
 	 * Checks if this tag matches ANY of the tags in the specified container, only allowing exact matches
@@ -142,7 +142,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	 *
 	 * @return True if this tag matches ANY of the tags of in ContainerToCheck exactly
 	 */
-	bool MatchesAnyExact(const FGameplayTagContainer& ContainerToCheck) const;
+	GAMEPLAYTAGS_API bool MatchesAnyExact(const FGameplayTagContainer& ContainerToCheck) const;
 
 	/** Returns whether the tag is valid or not; Invalid tags are set to NAME_None and do not exist in the game-specific global dictionary */
 	FORCEINLINE bool IsValid() const
@@ -151,13 +151,13 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	}
 
 	/** Returns reference to a GameplayTagContainer containing only this tag */
-	const FGameplayTagContainer& GetSingleTagContainer() const;
+	GAMEPLAYTAGS_API const FGameplayTagContainer& GetSingleTagContainer() const;
 
 	/** Returns direct parent GameplayTag of this GameplayTag, calling on x.y will return x */
-	FGameplayTag RequestDirectParent() const;
+	GAMEPLAYTAGS_API FGameplayTag RequestDirectParent() const;
 
 	/** Returns a new container explicitly containing the tags of this tag */
-	FGameplayTagContainer GetGameplayTagParents() const;
+	GAMEPLAYTAGS_API FGameplayTagContainer GetGameplayTagParents() const;
 
 	/** Used so we can have a TMap of this struct */
 	FORCEINLINE friend uint32 GetTypeHash(const FGameplayTag& Tag)
@@ -183,28 +183,28 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	}
 
 	/** Overridden for fast serialize */
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+	GAMEPLAYTAGS_API bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 	/** Handles fixup and errors. This is only called when not serializing a full FGameplayTagContainer */
-	void PostSerialize(const FArchive& Ar);
-	bool NetSerialize_Packed(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+	GAMEPLAYTAGS_API void PostSerialize(const FArchive& Ar);
+	GAMEPLAYTAGS_API bool NetSerialize_Packed(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 	/** Used to upgrade a Name property to a GameplayTag struct property */
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	GAMEPLAYTAGS_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	/** Sets from a ImportText string, used in asset registry */
-	void FromExportString(const FString& ExportString, int32 PortFlags = 0);
+	GAMEPLAYTAGS_API void FromExportString(const FString& ExportString, int32 PortFlags = 0);
 
 	/** Handles importing tag strings without (TagName=) in it */
-	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
+	GAMEPLAYTAGS_API bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
 
 	/** An empty Gameplay Tag */
-	static const FGameplayTag EmptyTag;
+	static GAMEPLAYTAGS_API const FGameplayTag EmptyTag;
 
 protected:
 
 	/** Intentionally private so only the tag manager can use */
-	explicit FGameplayTag(const FName& InTagName);
+	GAMEPLAYTAGS_API explicit FGameplayTag(const FName& InTagName);
 
 	/** This Tags Name */
 	UPROPERTY(VisibleAnywhere, Category = GameplayTags, SaveGame)
@@ -232,7 +232,7 @@ struct TStructOpsTypeTraits< FGameplayTag > : public TStructOpsTypeTraitsBase2< 
 
 /** A Tag Container holds a collection of FGameplayTags, tags are included explicitly by adding them, and implicitly from adding child tags */
 USTRUCT(BlueprintType, meta = (HasNativeMake = "/Script/GameplayTags.BlueprintGameplayTagLibrary.MakeGameplayTagContainerFromArray", HasNativeBreak = "/Script/GameplayTags.BlueprintGameplayTagLibrary.BreakGameplayTagContainer"))
-struct GAMEPLAYTAGS_API FGameplayTagContainer
+struct FGameplayTagContainer
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -274,10 +274,10 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	}
 
 	/** Assignment/Equality operators */
-	FGameplayTagContainer& operator=(FGameplayTagContainer const& Other);
-	FGameplayTagContainer& operator=(FGameplayTagContainer&& Other);
-	bool operator==(FGameplayTagContainer const& Other) const;
-	bool operator!=(FGameplayTagContainer const& Other) const;
+	GAMEPLAYTAGS_API FGameplayTagContainer& operator=(FGameplayTagContainer const& Other);
+	GAMEPLAYTAGS_API FGameplayTagContainer& operator=(FGameplayTagContainer&& Other);
+	GAMEPLAYTAGS_API bool operator==(FGameplayTagContainer const& Other) const;
+	GAMEPLAYTAGS_API bool operator!=(FGameplayTagContainer const& Other) const;
 
 	/**
 	 * Determine if TagToCheck is present in this container, also checking against parent tags
@@ -424,7 +424,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	}
 
 	/** Returns a new container explicitly containing the tags of this container and all of their parent tags */
-	FGameplayTagContainer GetGameplayTagParents() const;
+	GAMEPLAYTAGS_API FGameplayTagContainer GetGameplayTagParents() const;
 
 	/**
 	 * Returns a filtered version of this container, returns all tags that match against any of the tags in OtherContainer, expanding parents
@@ -433,7 +433,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 *
 	 * @return A FGameplayTagContainer containing the filtered tags
 	 */
-	FGameplayTagContainer Filter(const FGameplayTagContainer& OtherContainer) const;
+	GAMEPLAYTAGS_API FGameplayTagContainer Filter(const FGameplayTagContainer& OtherContainer) const;
 
 	/**
 	 * Returns a filtered version of this container, returns all tags that match exactly one in OtherContainer
@@ -442,7 +442,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 *
 	 * @return A FGameplayTagContainer containing the filtered tags
 	 */
-	FGameplayTagContainer FilterExact(const FGameplayTagContainer& OtherContainer) const;
+	GAMEPLAYTAGS_API FGameplayTagContainer FilterExact(const FGameplayTagContainer& OtherContainer) const;
 
 	/** 
 	 * Checks if this container matches the given query.
@@ -451,7 +451,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 *
 	 * @return True if this container matches the query, false otherwise.
 	 */
-	bool MatchesQuery(const struct FGameplayTagQuery& Query) const;
+	GAMEPLAYTAGS_API bool MatchesQuery(const struct FGameplayTagQuery& Query) const;
 
 	/** 
 	 * Adds all the tags from one container to this container 
@@ -459,7 +459,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 *
 	 * @param Other TagContainer that has the tags you want to add to this container 
 	 */
-	void AppendTags(FGameplayTagContainer const& Other);
+	GAMEPLAYTAGS_API void AppendTags(FGameplayTagContainer const& Other);
 
 	/** 
 	 * Adds all the tags that match between the two specified containers to this container.  WARNING: This matches any
@@ -474,14 +474,14 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 * @param OtherA TagContainer that has the matching tags you want to add to this container, these tags have their parents expanded
 	 * @param OtherB TagContainer used to check for matching tags.  If the tag matches on any parent, it counts as a match.
 	 */
-	void AppendMatchingTags(FGameplayTagContainer const& OtherA, FGameplayTagContainer const& OtherB);
+	GAMEPLAYTAGS_API void AppendMatchingTags(FGameplayTagContainer const& OtherA, FGameplayTagContainer const& OtherB);
 
 	/**
 	 * Add the specified tag to the container
 	 *
 	 * @param TagToAdd Tag to add to the container
 	 */
-	void AddTag(const FGameplayTag& TagToAdd);
+	GAMEPLAYTAGS_API void AddTag(const FGameplayTag& TagToAdd);
 
 	/**
 	 * Add the specified tag to the container without checking for uniqueness
@@ -490,7 +490,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 * 
 	 * Useful when building container from another data struct (TMap for example)
 	 */
-	void AddTagFast(const FGameplayTag& TagToAdd);
+	GAMEPLAYTAGS_API void AddTagFast(const FGameplayTag& TagToAdd);
 
 	/**
 	 * Adds a tag to the container and removes any direct parents, wont add if child already exists
@@ -499,7 +499,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 * 
 	 * @return True if tag was added
 	 */
-	bool AddLeafTag(const FGameplayTag& TagToAdd);
+	GAMEPLAYTAGS_API bool AddLeafTag(const FGameplayTag& TagToAdd);
 
 	/**
 	 * Tag to remove from the container
@@ -507,44 +507,44 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	 * @param TagToRemove		Tag to remove from the container
 	 * @param bDeferParentTags	Skip calling FillParentTags for performance (must be handled by calling code)
 	 */
-	bool RemoveTag(const FGameplayTag& TagToRemove, bool bDeferParentTags=false);
+	GAMEPLAYTAGS_API bool RemoveTag(const FGameplayTag& TagToRemove, bool bDeferParentTags=false);
 
 	/**
 	 * Removes all tags in TagsToRemove from this container
 	 *
 	 * @param TagsToRemove	Tags to remove from the container
 	 */
-	void RemoveTags(const FGameplayTagContainer& TagsToRemove);
+	GAMEPLAYTAGS_API void RemoveTags(const FGameplayTagContainer& TagsToRemove);
 
 	/** Remove all tags from the container. Will maintain slack by default */
-	void Reset(int32 Slack = 0);
+	GAMEPLAYTAGS_API void Reset(int32 Slack = 0);
 	
 	/** Serialize the tag container */
-	bool Serialize(FStructuredArchive::FSlot Slot);
+	GAMEPLAYTAGS_API bool Serialize(FStructuredArchive::FSlot Slot);
 
 	/** Efficient network serialize, takes advantage of the dictionary */
-	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+	GAMEPLAYTAGS_API bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 
 	/** Handles fixup after importing from text */
-	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
+	GAMEPLAYTAGS_API bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
 
 	/** Fill in the ParentTags array and any other transient parameters */
-	void PostScriptConstruct();
+	GAMEPLAYTAGS_API void PostScriptConstruct();
 
 	/** Returns string version of container in ImportText format */
-	FString ToString() const;
+	GAMEPLAYTAGS_API FString ToString() const;
 
 	/** Sets from a ImportText string, used in asset registry */
-	void FromExportString(const FString& ExportString, int32 PortFlags = 0);
+	GAMEPLAYTAGS_API void FromExportString(const FString& ExportString, int32 PortFlags = 0);
 
 	/** Returns abbreviated human readable Tag list without parens or property names. If bQuoted is true it will quote each tag */
-	FString ToStringSimple(bool bQuoted = false) const;
+	GAMEPLAYTAGS_API FString ToStringSimple(bool bQuoted = false) const;
 
 	/** Returns abbreviated human readable Tag list without parens or property names, but will limit each string to specified len.  This is to get around output restrictions*/
-	TArray<FString> ToStringsMaxLen(int32 MaxLen) const;
+	GAMEPLAYTAGS_API TArray<FString> ToStringsMaxLen(int32 MaxLen) const;
 
 	/** Returns human readable description of what match is being looked for on the readable tag list. */
-	FText ToMatchingText(EGameplayContainerMatchType MatchType, bool bInvertCondition) const;
+	GAMEPLAYTAGS_API FText ToMatchingText(EGameplayContainerMatchType MatchType, bool bInvertCondition) const;
 
 	/** Gets the explicit list of gameplay tags */
 	void GetGameplayTagArray(TArray<FGameplayTag>& InOutGameplayTags) const
@@ -553,7 +553,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	}
 
 	/** Gets the explicit list of gameplay tags */
-	const TArray<FGameplayTag>& GetGameplayTagArray() const;
+	GAMEPLAYTAGS_API const TArray<FGameplayTag>& GetGameplayTagArray() const;
 
 	/** Creates a const iterator for the contents of this array */
 	TArray<FGameplayTag>::TConstIterator CreateConstIterator() const
@@ -586,10 +586,10 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	}
 
 	/** Fills in ParentTags from GameplayTags */
-	void FillParentTags();
+	GAMEPLAYTAGS_API void FillParentTags();
 
 	/** An empty Gameplay Tag Container */
-	static const FGameplayTagContainer EmptyContainer;
+	static GAMEPLAYTAGS_API const FGameplayTagContainer EmptyContainer;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
@@ -616,7 +616,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 
 	UE_DEPRECATED(5.0, "Deprecated in favor of HasTag or HasTagExact")
-	bool ComplexHasTag(FGameplayTag const& TagToCheck, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> TagToCheckMatchType) const;
+	GAMEPLAYTAGS_API bool ComplexHasTag(FGameplayTag const& TagToCheck, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> TagToCheckMatchType) const;
 
 	UE_DEPRECATED(5.0, "Deprecated in favor of HasAll and related functions")
 	FORCEINLINE_DEBUGGABLE bool DoesTagContainerMatch(const FGameplayTagContainer& OtherContainer, TEnumAsByte<EGameplayTagMatchType::Type> TagMatchType, TEnumAsByte<EGameplayTagMatchType::Type> OtherTagMatchType, EGameplayContainerMatchType ContainerMatchType) const
@@ -666,7 +666,7 @@ protected:
 	bool RemoveTagByExplicitName(const FName& TagName);
 
 	/** Adds parent tags for a single tag */
-	void AddParentsForTag(const FGameplayTag& Tag);
+	GAMEPLAYTAGS_API void AddParentsForTag(const FGameplayTag& Tag);
 
 	/** Array of gameplay tags */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category=GameplayTags, SaveGame)
@@ -720,9 +720,9 @@ struct TStructOpsTypeTraits<FGameplayTagContainer> : public TStructOpsTypeTraits
 };
 
 /** Class that can be subclassed by a game/plugin to allow easily adding native gameplay tags at startup */
-struct GAMEPLAYTAGS_API FGameplayTagNativeAdder
+struct FGameplayTagNativeAdder
 {
-	FGameplayTagNativeAdder();
+	GAMEPLAYTAGS_API FGameplayTagNativeAdder();
 
 	virtual void AddTags() = 0;
 };
@@ -781,22 +781,22 @@ namespace EGameplayTagQueryStreamVersion
  * Note: these have an extensive details and graph pin customization for editing, so there is no need to expose the internals to Blueprints.
  */
 USTRUCT(BlueprintType, meta=(HasNativeMake="/Script/GameplayTags.BlueprintGameplayTagLibrary.MakeGameplayTagQuery"))
-struct GAMEPLAYTAGS_API FGameplayTagQuery
+struct FGameplayTagQuery
 {
 	GENERATED_BODY();
 
 public:
-	FGameplayTagQuery();
+	GAMEPLAYTAGS_API FGameplayTagQuery();
 
-	FGameplayTagQuery(FGameplayTagQuery const& Other);
-	FGameplayTagQuery(FGameplayTagQuery&& Other);
+	GAMEPLAYTAGS_API FGameplayTagQuery(FGameplayTagQuery const& Other);
+	GAMEPLAYTAGS_API FGameplayTagQuery(FGameplayTagQuery&& Other);
 
 	/** Assignment/Equality operators */
-	FGameplayTagQuery& operator=(FGameplayTagQuery const& Other);
-	FGameplayTagQuery& operator=(FGameplayTagQuery&& Other);
+	GAMEPLAYTAGS_API FGameplayTagQuery& operator=(FGameplayTagQuery const& Other);
+	GAMEPLAYTAGS_API FGameplayTagQuery& operator=(FGameplayTagQuery&& Other);
 
-	bool operator==(const FGameplayTagQuery& Other) const;
-	bool operator!=(const FGameplayTagQuery& Other) const;
+	GAMEPLAYTAGS_API bool operator==(const FGameplayTagQuery& Other) const;
+	GAMEPLAYTAGS_API bool operator!=(const FGameplayTagQuery& Other) const;
 
 private:
 	// Note: Properties need to be editable to allow FComponentPropertyWriter to serialize them, but are hidden in the editor by the customizations mentioned above.
@@ -847,25 +847,25 @@ public:
 	}
 
 	/** Returns true if the given tags match this query, or false otherwise. */
-	bool Matches(FGameplayTagContainer const& Tags) const;
+	GAMEPLAYTAGS_API bool Matches(FGameplayTagContainer const& Tags) const;
 
 	/** Returns true if this query is empty, false otherwise. */
-	bool IsEmpty() const;
+	GAMEPLAYTAGS_API bool IsEmpty() const;
 
 	/** Resets this query to its default empty state. */
-	void Clear();
+	GAMEPLAYTAGS_API void Clear();
 
 	/** Creates this query with the given root expression. */
-	void Build(struct FGameplayTagQueryExpression& RootQueryExpr, FString InUserDescription = FString());
+	GAMEPLAYTAGS_API void Build(struct FGameplayTagQueryExpression& RootQueryExpr, FString InUserDescription = FString());
 
 	/** Static function to assemble and return a query. */
-	static FGameplayTagQuery BuildQuery(struct FGameplayTagQueryExpression& RootQueryExpr, FString InDescription = FString());
+	static GAMEPLAYTAGS_API FGameplayTagQuery BuildQuery(struct FGameplayTagQueryExpression& RootQueryExpr, FString InDescription = FString());
 
 	/** Builds a FGameplayTagQueryExpression from this query. */
-	void GetQueryExpr(struct FGameplayTagQueryExpression& OutExpr) const;
+	GAMEPLAYTAGS_API void GetQueryExpr(struct FGameplayTagQueryExpression& OutExpr) const;
 
 	/** Serialize the tag query */
-	void Serialize(FArchive& Ar);
+	GAMEPLAYTAGS_API void Serialize(FArchive& Ar);
 	
 	/** Returns description string. */
 	const FString& GetDescription() const { return UserDescription.IsEmpty() ? AutoDescription : UserDescription; };
@@ -877,17 +877,17 @@ public:
 	}
 
 	/** Gets the explicit list of all unique gameplay tags referenced by the query. */
-	const TArray<FGameplayTag>& GetGameplayTagArray() const;
+	GAMEPLAYTAGS_API const TArray<FGameplayTag>& GetGameplayTagArray() const;
 
 #if WITH_EDITOR
 	/** Creates this query based on the given EditableQuery object */
-	void BuildFromEditableQuery(class UEditableGameplayTagQuery& EditableQuery); 
+	GAMEPLAYTAGS_API void BuildFromEditableQuery(class UEditableGameplayTagQuery& EditableQuery); 
 
 	/** Creates editable query object tree based on this query */
-	UEditableGameplayTagQuery* CreateEditableQuery() const;
+	GAMEPLAYTAGS_API UEditableGameplayTagQuery* CreateEditableQuery() const;
 #endif // WITH_EDITOR
 
-	static const FGameplayTagQuery EmptyQuery;
+	static GAMEPLAYTAGS_API const FGameplayTagQuery EmptyQuery;
 
 	/**
 	* Shortcuts for easily creating common query types
@@ -895,16 +895,16 @@ public:
 	*/
 
 	/** Creates a tag query that will match if there are any common tags between the given tags and the tags being queries against. */
-	static FGameplayTagQuery MakeQuery_MatchAnyTags(FGameplayTagContainer const& InTags);
-	static FGameplayTagQuery MakeQuery_MatchAllTags(FGameplayTagContainer const& InTags);
-	static FGameplayTagQuery MakeQuery_MatchNoTags(FGameplayTagContainer const& InTags);
+	static GAMEPLAYTAGS_API FGameplayTagQuery MakeQuery_MatchAnyTags(FGameplayTagContainer const& InTags);
+	static GAMEPLAYTAGS_API FGameplayTagQuery MakeQuery_MatchAllTags(FGameplayTagContainer const& InTags);
+	static GAMEPLAYTAGS_API FGameplayTagQuery MakeQuery_MatchNoTags(FGameplayTagContainer const& InTags);
 
-	static FGameplayTagQuery MakeQuery_MatchTag(FGameplayTag const& InTag);
+	static GAMEPLAYTAGS_API FGameplayTagQuery MakeQuery_MatchTag(FGameplayTag const& InTag);
 
 	friend class FQueryEvaluator;
 };
 
-struct GAMEPLAYTAGS_API FGameplayTagQueryExpression
+struct FGameplayTagQueryExpression
 {
 	/** 
 	 * Fluid syntax approach for setting the type of this expression. 
@@ -950,7 +950,7 @@ struct GAMEPLAYTAGS_API FGameplayTagQueryExpression
 	{
 		return AddTag(FName(TagString));
 	}
-	FGameplayTagQueryExpression& AddTag(FName TagName);
+	GAMEPLAYTAGS_API FGameplayTagQueryExpression& AddTag(FName TagName);
 	FGameplayTagQueryExpression& AddTag(FGameplayTag Tag)
 	{
 		ensure(UsesTagSet());
@@ -973,7 +973,7 @@ struct GAMEPLAYTAGS_API FGameplayTagQueryExpression
 	}
 	
 	/** Writes this expression to the given token stream. */
-	void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary) const;
+	GAMEPLAYTAGS_API void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary) const;
 
 	/** Which type of expression this is. */
 	EGameplayTagQueryExprType ExprType;
@@ -996,10 +996,10 @@ struct GAMEPLAYTAGS_API FGameplayTagQueryExpression
 	}
 
 	/** Converts the existing TagQueryExpression into a json object. Returns true on success */
-	bool ConvertToJsonObject(TSharedRef<FJsonObject>& OutObject) const;
+	GAMEPLAYTAGS_API bool ConvertToJsonObject(TSharedRef<FJsonObject>& OutObject) const;
 
 	/** Uses the input json object and fills out the OutQueryExpression with the data. */
-	static bool MakeFromJsonObject(const TSharedRef<FJsonObject>& InObject, FGameplayTagQueryExpression& OutQueryExpression);
+	static GAMEPLAYTAGS_API bool MakeFromJsonObject(const TSharedRef<FJsonObject>& InObject, FGameplayTagQueryExpression& OutQueryExpression);
 };
 
 template<>
@@ -1019,8 +1019,8 @@ struct TStructOpsTypeTraits<FGameplayTagQuery> : public TStructOpsTypeTraitsBase
  * the query struct is rewritten and these UObjects are discarded.
  * This query representation is not intended for runtime use.
  */
-UCLASS(editinlinenew, collapseCategories, Transient) 
-class GAMEPLAYTAGS_API UEditableGameplayTagQuery : public UObject
+UCLASS(editinlinenew, collapseCategories, Transient, MinimalAPI) 
+class UEditableGameplayTagQuery : public UObject
 {
 	GENERATED_BODY()
 
@@ -1038,10 +1038,10 @@ public:
 
 #if WITH_EDITOR
 	/** Converts this editor query construct into the runtime-usable token stream. */
-	void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString=nullptr) const;
+	GAMEPLAYTAGS_API void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString=nullptr) const;
 
 	/** Generates and returns the export text for this query. */
-	FString GetTagQueryExportText(FGameplayTagQuery const& TagQuery);
+	GAMEPLAYTAGS_API FString GetTagQueryExportText(FGameplayTagQuery const& TagQuery);
 #endif  // WITH_EDITOR
 
 private:
@@ -1050,8 +1050,8 @@ private:
 	FGameplayTagQuery TagQueryExportText_Helper;
 };
 
-UCLASS(abstract, editinlinenew, collapseCategories, Transient)
-class GAMEPLAYTAGS_API UEditableGameplayTagQueryExpression : public UObject
+UCLASS(abstract, editinlinenew, collapseCategories, Transient, MinimalAPI)
+class UEditableGameplayTagQueryExpression : public UObject
 {
 	GENERATED_BODY()
 
@@ -1061,8 +1061,8 @@ public:
 	virtual void EmitTokens(TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString=nullptr) const {};
 
 protected:
-	void EmitTagTokens(FGameplayTagContainer const& TagsToEmit, TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString) const;
-	void EmitExprListTokens(TArray<UEditableGameplayTagQueryExpression*> const& ExprList, TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString) const;
+	GAMEPLAYTAGS_API void EmitTagTokens(FGameplayTagContainer const& TagsToEmit, TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString) const;
+	GAMEPLAYTAGS_API void EmitExprListTokens(TArray<UEditableGameplayTagQueryExpression*> const& ExprList, TArray<uint8>& TokenStream, TArray<FGameplayTag>& TagDictionary, FString* DebugString) const;
 #endif  // WITH_EDITOR
 };
 

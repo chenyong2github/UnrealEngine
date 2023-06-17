@@ -86,7 +86,7 @@ enum class EGameplayTagSelectionType : uint8
 
 /** Struct defining where gameplay tags are loaded/saved from. Mostly for the editor */
 USTRUCT()
-struct GAMEPLAYTAGS_API FGameplayTagSource
+struct FGameplayTagSource
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -117,18 +117,18 @@ struct GAMEPLAYTAGS_API FGameplayTagSource
 	}
 
 	/** Returns the config file that created this source, if valid */
-	FString GetConfigFileName() const;
+	GAMEPLAYTAGS_API FString GetConfigFileName() const;
 
-	static FName GetNativeName();
+	static GAMEPLAYTAGS_API FName GetNativeName();
 
-	static FName GetDefaultName();
+	static GAMEPLAYTAGS_API FName GetDefaultName();
 
 #if WITH_EDITOR
-	static FName GetFavoriteName();
+	static GAMEPLAYTAGS_API FName GetFavoriteName();
 
-	static void SetFavoriteName(FName TagSourceToFavorite);
+	static GAMEPLAYTAGS_API void SetFavoriteName(FName TagSourceToFavorite);
 
-	static FName GetTransientEditorName();
+	static GAMEPLAYTAGS_API FName GetTransientEditorName();
 #endif
 };
 
@@ -298,13 +298,13 @@ private:
 };
 
 /** Holds data about the tag dictionary, is in a singleton UObject */
-UCLASS(config=Engine)
-class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
+UCLASS(config=Engine, MinimalAPI)
+class UGameplayTagsManager : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	/** Destructor */
-	~UGameplayTagsManager();
+	GAMEPLAYTAGS_API ~UGameplayTagsManager();
 
 	/** Returns the global UGameplayTagsManager manager */
 	FORCEINLINE static UGameplayTagsManager& Get()
@@ -328,7 +328,7 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	* @param ErrorIfNotfound: ensure() that tags exists.
 	*
 	*/
-	void RequestGameplayTagContainer(const TArray<FString>& TagStrings, FGameplayTagContainer& OutTagsContainer, bool bErrorIfNotFound=true) const;
+	GAMEPLAYTAGS_API void RequestGameplayTagContainer(const TArray<FString>& TagStrings, FGameplayTagContainer& OutTagsContainer, bool bErrorIfNotFound=true) const;
 
 	/**
 	 * Gets the FGameplayTag that corresponds to the TagName
@@ -338,7 +338,7 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	 * 
 	 * @return Will return the corresponding FGameplayTag or an empty one if not found.
 	 */
-	FGameplayTag RequestGameplayTag(FName TagName, bool ErrorIfNotFound=true) const;
+	GAMEPLAYTAGS_API FGameplayTag RequestGameplayTag(FName TagName, bool ErrorIfNotFound=true) const;
 
 	/** 
 	 * Returns true if this is a valid gameplay tag string (foo.bar.baz). If false, it will fill 
@@ -347,13 +347,13 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	 * @param OutFixedString If non-null and string invalid, will attempt to fix. Will be empty if no fix is possible
 	 * @return True if this can be added to the tag dictionary, false if there's a syntax error
 	 */
-	bool IsValidGameplayTagString(const FString& TagString, FText* OutError = nullptr, FString* OutFixedString = nullptr);
+	GAMEPLAYTAGS_API bool IsValidGameplayTagString(const FString& TagString, FText* OutError = nullptr, FString* OutFixedString = nullptr);
 
 	/**
 	 *	Searches for a gameplay tag given a partial string. This is slow and intended mainly for console commands/utilities to make
 	 *	developer life's easier. This will attempt to match as best as it can. If you pass "A.b" it will match on "A.b." before it matches "a.b.c".
 	 */
-	FGameplayTag FindGameplayTagFromPartialString_Slow(FString PartialString) const;
+	GAMEPLAYTAGS_API FGameplayTag FindGameplayTagFromPartialString_Slow(FString PartialString) const;
 
 	/**
 	 * Registers the given name as a gameplay tag, and tracks that it is being directly referenced from code
@@ -364,21 +364,21 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	 * 
 	 * @return Will return the corresponding FGameplayTag
 	 */
-	FGameplayTag AddNativeGameplayTag(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
+	GAMEPLAYTAGS_API FGameplayTag AddNativeGameplayTag(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
 
 private:
 	// Only callable from FNativeGameplayTag, these functions do less error checking and can happen after initial tag loading is done
-	void AddNativeGameplayTag(FNativeGameplayTag* TagSource);
-	void RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource);
+	GAMEPLAYTAGS_API void AddNativeGameplayTag(FNativeGameplayTag* TagSource);
+	GAMEPLAYTAGS_API void RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource);
 
 public:
 	/** Call to flush the list of native tags, once called it is unsafe to add more */
-	void DoneAddingNativeTags();
+	GAMEPLAYTAGS_API void DoneAddingNativeTags();
 
-	static FSimpleMulticastDelegate& OnLastChanceToAddNativeTags();
+	static GAMEPLAYTAGS_API FSimpleMulticastDelegate& OnLastChanceToAddNativeTags();
 
 
-	void CallOrRegister_OnDoneAddingNativeTagsDelegate(FSimpleMulticastDelegate::FDelegate Delegate);
+	GAMEPLAYTAGS_API void CallOrRegister_OnDoneAddingNativeTagsDelegate(FSimpleMulticastDelegate::FDelegate Delegate);
 
 	/**
 	 * Gets a Tag Container containing the supplied tag and all of it's parents as explicit tags
@@ -387,7 +387,7 @@ public:
 	 * 
 	 * @return A Tag Container with the supplied tag and all its parents added explicitly
 	 */
-	FGameplayTagContainer RequestGameplayTagParents(const FGameplayTag& GameplayTag) const;
+	GAMEPLAYTAGS_API FGameplayTagContainer RequestGameplayTagParents(const FGameplayTag& GameplayTag) const;
 
 	/**
 	 * Gets a Tag Container containing the all tags in the hierarchy that are children of this tag. Does not return the original tag
@@ -396,10 +396,10 @@ public:
 	 * 
 	 * @return A Tag Container with the supplied tag and all its parents added explicitly
 	 */
-	FGameplayTagContainer RequestGameplayTagChildren(const FGameplayTag& GameplayTag) const;
+	GAMEPLAYTAGS_API FGameplayTagContainer RequestGameplayTagChildren(const FGameplayTag& GameplayTag) const;
 
 	/** Returns direct parent GameplayTag of this GameplayTag, calling on x.y will return x */
-	FGameplayTag RequestGameplayTagDirectParent(const FGameplayTag& GameplayTag) const;
+	GAMEPLAYTAGS_API FGameplayTag RequestGameplayTagDirectParent(const FGameplayTag& GameplayTag) const;
 
 	/**
 	 * Helper function to get the stored TagContainer containing only this tag, which has searchable ParentTags
@@ -482,45 +482,45 @@ public:
 	}
 
 	/** Loads the tag tables referenced in the GameplayTagSettings object */
-	void LoadGameplayTagTables(bool bAllowAsyncLoad = false);
+	GAMEPLAYTAGS_API void LoadGameplayTagTables(bool bAllowAsyncLoad = false);
 
 	/** Loads tag inis contained in the specified path */
-	void AddTagIniSearchPath(const FString& RootDir);
+	GAMEPLAYTAGS_API void AddTagIniSearchPath(const FString& RootDir);
 
 	/** Tries to remove the specified search path, will return true if anything was removed */
-	bool RemoveTagIniSearchPath(const FString& RootDir);
+	GAMEPLAYTAGS_API bool RemoveTagIniSearchPath(const FString& RootDir);
 
 	/** Gets all the current directories to look for tag sources in */
-	void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
+	GAMEPLAYTAGS_API void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
 
 	/** Gets the number of tag source search paths */
-	int32 GetNumTagSourceSearchPaths();
+	GAMEPLAYTAGS_API int32 GetNumTagSourceSearchPaths();
 
 	/** Helper function to construct the gameplay tag tree */
-	void ConstructGameplayTagTree();
+	GAMEPLAYTAGS_API void ConstructGameplayTagTree();
 
 	/** Helper function to destroy the gameplay tag tree */
-	void DestroyGameplayTagTree();
+	GAMEPLAYTAGS_API void DestroyGameplayTagTree();
 
 	/** Splits a tag such as x.y.z into an array of names {x,y,z} */
-	void SplitGameplayTagFName(const FGameplayTag& Tag, TArray<FName>& OutNames) const;
+	GAMEPLAYTAGS_API void SplitGameplayTagFName(const FGameplayTag& Tag, TArray<FName>& OutNames) const;
 
 	/** Gets the list of all tags in the dictionary */
-	void RequestAllGameplayTags(FGameplayTagContainer& TagContainer, bool OnlyIncludeDictionaryTags) const;
+	GAMEPLAYTAGS_API void RequestAllGameplayTags(FGameplayTagContainer& TagContainer, bool OnlyIncludeDictionaryTags) const;
 
 	/** Returns true if if the passed in name is in the tag dictionary and can be created */
-	bool ValidateTagCreation(FName TagName) const;
+	GAMEPLAYTAGS_API bool ValidateTagCreation(FName TagName) const;
 
 	/** Returns the tag source for a given tag source name and type, or null if not found */
-	const FGameplayTagSource* FindTagSource(FName TagSourceName) const;
+	GAMEPLAYTAGS_API const FGameplayTagSource* FindTagSource(FName TagSourceName) const;
 
 	/** Returns the tag source for a given tag source name and type, or null if not found */
-	FGameplayTagSource* FindTagSource(FName TagSourceName);
+	GAMEPLAYTAGS_API FGameplayTagSource* FindTagSource(FName TagSourceName);
 
 	/** Fills in an array with all tag sources of a specific type */
-	void FindTagSourcesWithType(EGameplayTagSourceType TagSourceType, TArray<const FGameplayTagSource*>& OutArray) const;
+	GAMEPLAYTAGS_API void FindTagSourcesWithType(EGameplayTagSourceType TagSourceType, TArray<const FGameplayTagSource*>& OutArray) const;
 
-	void FindTagsWithSource(FStringView PackageNameOrPath, TArray<FGameplayTag>& OutTags) const;
+	GAMEPLAYTAGS_API void FindTagsWithSource(FStringView PackageNameOrPath, TArray<FGameplayTag>& OutTags) const;
 
 	/**
 	 * Check to see how closely two FGameplayTags match. Higher values indicate more matching terms in the tags.
@@ -530,16 +530,16 @@ public:
 	 *
 	 * @return the length of the longest matching pair
 	 */
-	int32 GameplayTagsMatchDepth(const FGameplayTag& GameplayTagOne, const FGameplayTag& GameplayTagTwo) const;
+	GAMEPLAYTAGS_API int32 GameplayTagsMatchDepth(const FGameplayTag& GameplayTagOne, const FGameplayTag& GameplayTagTwo) const;
 
 	/** Returns the number of parents a particular gameplay tag has.  Useful as a quick way to determine which tags may
 	 * be more "specific" than other tags without comparing whether they are in the same hierarchy or anything else.
 	 * Example: "TagA.SubTagA" has 2 Tag Nodes.  "TagA.SubTagA.LeafTagA" has 3 Tag Nodes.
 	 */ 
-	int32 GetNumberOfTagNodes(const FGameplayTag& GameplayTag) const;
+	GAMEPLAYTAGS_API int32 GetNumberOfTagNodes(const FGameplayTag& GameplayTag) const;
 
 	/** Returns true if we should import tags from UGameplayTagsSettings objects (configured by INI files) */
-	bool ShouldImportTagsFromINI() const;
+	GAMEPLAYTAGS_API bool ShouldImportTagsFromINI() const;
 
 	/** Should we print loading errors when trying to load invalid tags */
 	bool ShouldWarnOnInvalidTags() const
@@ -560,38 +560,38 @@ public:
 	}
 
 	/** If we are allowed to unload tags */
-	bool ShouldUnloadTags() const;
+	GAMEPLAYTAGS_API bool ShouldUnloadTags() const;
 
 	/** Returns the hash of NetworkGameplayTagNodeIndex */
 	uint32 GetNetworkGameplayTagNodeIndexHash() const { VerifyNetworkIndex(); return NetworkGameplayTagNodeIndexHash; }
 
 	/** Returns a list of the ini files that contain restricted tags */
-	void GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const;
+	GAMEPLAYTAGS_API void GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const;
 
 	/** Returns a list of the source files that contain restricted tags */
-	void GetRestrictedTagSources(TArray<const FGameplayTagSource*>& Sources) const;
+	GAMEPLAYTAGS_API void GetRestrictedTagSources(TArray<const FGameplayTagSource*>& Sources) const;
 
 	/** Returns a list of the owners for a restricted tag config file. May be empty */
-	void GetOwnersForTagSource(const FString& SourceName, TArray<FString>& OutOwners) const;
+	GAMEPLAYTAGS_API void GetOwnersForTagSource(const FString& SourceName, TArray<FString>& OutOwners) const;
 
 	/** Notification that a tag container has been loaded via serialize */
-	void GameplayTagContainerLoaded(FGameplayTagContainer& Container, FProperty* SerializingProperty) const;
+	GAMEPLAYTAGS_API void GameplayTagContainerLoaded(FGameplayTagContainer& Container, FProperty* SerializingProperty) const;
 
 	/** Notification that a gameplay tag has been loaded via serialize */
-	void SingleGameplayTagLoaded(FGameplayTag& Tag, FProperty* SerializingProperty) const;
+	GAMEPLAYTAGS_API void SingleGameplayTagLoaded(FGameplayTag& Tag, FProperty* SerializingProperty) const;
 
 	/** Handles redirectors for an entire container, will also error on invalid tags */
-	void RedirectTagsForContainer(FGameplayTagContainer& Container, FProperty* SerializingProperty) const;
+	GAMEPLAYTAGS_API void RedirectTagsForContainer(FGameplayTagContainer& Container, FProperty* SerializingProperty) const;
 
 	/** Handles redirectors for a single tag, will also error on invalid tag. This is only called for when individual tags are serialized on their own */
-	void RedirectSingleGameplayTag(FGameplayTag& Tag, FProperty* SerializingProperty) const;
+	GAMEPLAYTAGS_API void RedirectSingleGameplayTag(FGameplayTag& Tag, FProperty* SerializingProperty) const;
 
 	/** Handles establishing a single tag from an imported tag name (accounts for redirects too). Called when tags are imported via text. */
-	bool ImportSingleGameplayTag(FGameplayTag& Tag, FName ImportedTagName, bool bImportFromSerialize = false) const;
+	GAMEPLAYTAGS_API bool ImportSingleGameplayTag(FGameplayTag& Tag, FName ImportedTagName, bool bImportFromSerialize = false) const;
 
 	/** Gets a tag name from net index and vice versa, used for replication efficiency */
-	FName GetTagNameFromNetIndex(FGameplayTagNetIndex Index) const;
-	FGameplayTagNetIndex GetNetIndexFromTag(const FGameplayTag &InTag) const;
+	GAMEPLAYTAGS_API FName GetTagNameFromNetIndex(FGameplayTagNetIndex Index) const;
+	GAMEPLAYTAGS_API FGameplayTagNetIndex GetNetIndexFromTag(const FGameplayTag &InTag) const;
 
 	/** Cached number of bits we need to replicate tags. That is, Log2(Number of Tags). Will always be <= 16. */
 	int32 GetNetIndexTrueBitNum() const { VerifyNetworkIndex(); return NetIndexTrueBitNum; }
@@ -610,8 +610,8 @@ public:
 	/** Numbers of bits to use for replicating container size. This can be set via config. */
 	int32 NumBitsForContainerSize;
 
-	void PushDeferOnGameplayTagTreeChangedBroadcast();
-	void PopDeferOnGameplayTagTreeChangedBroadcast();
+	GAMEPLAYTAGS_API void PushDeferOnGameplayTagTreeChangedBroadcast();
+	GAMEPLAYTAGS_API void PopDeferOnGameplayTagTreeChangedBroadcast();
 
 private:
 	/** Cached number of bits we need to replicate tags. That is, Log2(Number of Tags). Will always be <= 16. */
@@ -627,13 +627,13 @@ public:
 
 #if WITH_EDITOR
 	/** Gets a Filtered copy of the GameplayRootTags Array based on the comma delimited filter string passed in */
-	void GetFilteredGameplayRootTags(const FString& InFilterString, TArray< TSharedPtr<FGameplayTagNode> >& OutTagArray) const;
+	GAMEPLAYTAGS_API void GetFilteredGameplayRootTags(const FString& InFilterString, TArray< TSharedPtr<FGameplayTagNode> >& OutTagArray) const;
 
 	/** Returns "Categories" meta property from given handle, used for filtering by tag widget */
-	FString GetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle) const;
+	GAMEPLAYTAGS_API FString GetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle) const;
 
 	/** Helper function, made to be called by custom OnGetCategoriesMetaFromPropertyHandle handlers  */
-	static FString StaticGetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle);
+	static GAMEPLAYTAGS_API FString StaticGetCategoriesMetaFromPropertyHandle(TSharedPtr<class IPropertyHandle> PropertyHandle);
 
 	/** Returns "Categories" meta property from given field, used for filtering by tag widget */
 	template <typename TFieldType>
@@ -648,39 +648,39 @@ public:
 	}
 
 	/** Returns "GameplayTagFilter" meta property from given function, used for filtering by tag widget for any parameters of the function that end up as BP pins */
-	FString GetCategoriesMetaFromFunction(const UFunction* Func, FName ParamName = NAME_None) const;
+	GAMEPLAYTAGS_API FString GetCategoriesMetaFromFunction(const UFunction* Func, FName ParamName = NAME_None) const;
 
 	/** Gets a list of all gameplay tag nodes added by the specific source */
-	void GetAllTagsFromSource(FName TagSource, TArray< TSharedPtr<FGameplayTagNode> >& OutTagArray) const;
+	GAMEPLAYTAGS_API void GetAllTagsFromSource(FName TagSource, TArray< TSharedPtr<FGameplayTagNode> >& OutTagArray) const;
 
 	/** Returns true if this tag is directly in the dictionary already */
-	bool IsDictionaryTag(FName TagName) const;
+	GAMEPLAYTAGS_API bool IsDictionaryTag(FName TagName) const;
 
 	/** Returns information about tag. If not found return false */
-	bool GetTagEditorData(FName TagName, FString& OutComment, FName &OutFirstTagSource, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const;
+	GAMEPLAYTAGS_API bool GetTagEditorData(FName TagName, FString& OutComment, FName &OutFirstTagSource, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const;
 	
 	/** Returns information about tag. If not found return false */
-    bool GetTagEditorData(FName TagName, FString& OutComment, TArray<FName>& OutTagSources, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const;
+    GAMEPLAYTAGS_API bool GetTagEditorData(FName TagName, FString& OutComment, TArray<FName>& OutTagSources, bool& bOutIsTagExplicit, bool &bOutIsRestrictedTag, bool &bOutAllowNonRestrictedChildren) const;
 
 #if WITH_EDITOR
 	/** This is called after EditorRefreshGameplayTagTree. Useful if you need to do anything editor related when tags are added or removed */
-	static FSimpleMulticastDelegate OnEditorRefreshGameplayTagTree;
+	static GAMEPLAYTAGS_API FSimpleMulticastDelegate OnEditorRefreshGameplayTagTree;
 
 	/** Refresh the gameplaytag tree due to an editor change */
-	void EditorRefreshGameplayTagTree();
+	GAMEPLAYTAGS_API void EditorRefreshGameplayTagTree();
 
 	/** Suspends EditorRefreshGameplayTagTree requests */
-	void SuspendEditorRefreshGameplayTagTree(FGuid SuspendToken);
+	GAMEPLAYTAGS_API void SuspendEditorRefreshGameplayTagTree(FGuid SuspendToken);
 
 	/** Resumes EditorRefreshGameplayTagTree requests; triggers a refresh if a request was made while it was suspended */
-	void ResumeEditorRefreshGameplayTagTree(FGuid SuspendToken);
+	GAMEPLAYTAGS_API void ResumeEditorRefreshGameplayTagTree(FGuid SuspendToken);
 #endif //if WITH_EDITOR
 
 	/** Gets a Tag Container containing all of the tags in the hierarchy that are children of this tag, and were explicitly added to the dictionary */
-	FGameplayTagContainer RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const;
+	GAMEPLAYTAGS_API FGameplayTagContainer RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const;
 #if WITH_EDITORONLY_DATA
 	/** Gets a Tag Container containing all of the tags in the hierarchy that are children of this tag, were explicitly added to the dictionary, and do not have any explicitly added tags between them and the specified tag */
-	FGameplayTagContainer RequestGameplayTagDirectDescendantsInDictionary(const FGameplayTag& GameplayTag, EGameplayTagSelectionType SelectionType) const;
+	GAMEPLAYTAGS_API FGameplayTagContainer RequestGameplayTagDirectDescendantsInDictionary(const FGameplayTag& GameplayTag, EGameplayTagSelectionType SelectionType) const;
 #endif // WITH_EDITORONLY_DATA
 
 
@@ -713,20 +713,20 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFilterGameplayTag, const FFilterGameplayTagContext& /** InContext */, bool& /* OUT OutShouldHide */)
 	FOnFilterGameplayTag OnFilterGameplayTag;
 	
-	void NotifyGameplayTagDoubleClickedEditor(FString TagName);
+	GAMEPLAYTAGS_API void NotifyGameplayTagDoubleClickedEditor(FString TagName);
 	
-	bool ShowGameplayTagAsHyperLinkEditor(FString TagName);
+	GAMEPLAYTAGS_API bool ShowGameplayTagAsHyperLinkEditor(FString TagName);
 
 
 #endif //WITH_EDITOR
 
-	void PrintReplicationIndices();
+	GAMEPLAYTAGS_API void PrintReplicationIndices();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Mechanism for tracking what tags are frequently replicated */
 
-	void PrintReplicationFrequencyReport();
-	void NotifyTagReplicated(FGameplayTag Tag, bool WasInContainer);
+	GAMEPLAYTAGS_API void PrintReplicationFrequencyReport();
+	GAMEPLAYTAGS_API void NotifyTagReplicated(FGameplayTag Tag, bool WasInContainer);
 
 	TMap<FGameplayTag, int32>	ReplicationCountMap;
 	TMap<FGameplayTag, int32>	ReplicationCountMap_SingleTags;
@@ -736,13 +736,13 @@ public:
 private:
 
 	/** Initializes the manager */
-	static void InitializeManager();
+	static GAMEPLAYTAGS_API void InitializeManager();
 
 	/** finished loading/adding native tags */
-	static FSimpleMulticastDelegate& OnDoneAddingNativeTagsDelegate();
+	static GAMEPLAYTAGS_API FSimpleMulticastDelegate& OnDoneAddingNativeTagsDelegate();
 
 	/** The Tag Manager singleton */
-	static UGameplayTagsManager* SingletonManager;
+	static GAMEPLAYTAGS_API UGameplayTagsManager* SingletonManager;
 
 	friend class FGameplayTagTest;
 	friend class FGameplayEffectsTest;
@@ -767,18 +767,18 @@ private:
 	 *
 	 * @return Index of the node of the tag
 	 */
-	int32 InsertTagIntoNodeArray(FName Tag, FName FullTag, TSharedPtr<FGameplayTagNode> ParentNode, TArray< TSharedPtr<FGameplayTagNode> >& NodeArray, FName SourceName, const FString& DevComment, bool bIsExplicitTag, bool bIsRestrictedTag, bool bAllowNonRestrictedChildren);
+	GAMEPLAYTAGS_API int32 InsertTagIntoNodeArray(FName Tag, FName FullTag, TSharedPtr<FGameplayTagNode> ParentNode, TArray< TSharedPtr<FGameplayTagNode> >& NodeArray, FName SourceName, const FString& DevComment, bool bIsExplicitTag, bool bIsRestrictedTag, bool bAllowNonRestrictedChildren);
 
 	/** Helper function to populate the tag tree from each table */
-	void PopulateTreeFromDataTable(class UDataTable* Table);
+	GAMEPLAYTAGS_API void PopulateTreeFromDataTable(class UDataTable* Table);
 
-	void AddTagTableRow(const FGameplayTagTableRow& TagRow, FName SourceName, bool bIsRestrictedTag = false);
+	GAMEPLAYTAGS_API void AddTagTableRow(const FGameplayTagTableRow& TagRow, FName SourceName, bool bIsRestrictedTag = false);
 
-	void AddChildrenTags(FGameplayTagContainer& TagContainer, TSharedPtr<FGameplayTagNode> GameplayTagNode, bool RecurseAll=true, bool OnlyIncludeDictionaryTags=false) const;
+	GAMEPLAYTAGS_API void AddChildrenTags(FGameplayTagContainer& TagContainer, TSharedPtr<FGameplayTagNode> GameplayTagNode, bool RecurseAll=true, bool OnlyIncludeDictionaryTags=false) const;
 
-	void AddRestrictedGameplayTagSource(const FString& FileName);
+	GAMEPLAYTAGS_API void AddRestrictedGameplayTagSource(const FString& FileName);
 
-	void AddTagsFromAdditionalLooseIniFiles(const TArray<FString>& IniFileList);
+	GAMEPLAYTAGS_API void AddTagsFromAdditionalLooseIniFiles(const TArray<FString>& IniFileList);
 
 	/**
 	 * Helper function for GameplayTagsMatch to get all parents when doing a parent match,
@@ -787,16 +787,16 @@ private:
 	 * @param NameList		The list we are adding all parent complete names too
 	 * @param GameplayTag	The current Tag we are adding to the list
 	 */
-	void GetAllParentNodeNames(TSet<FName>& NamesList, TSharedPtr<FGameplayTagNode> GameplayTag) const;
+	GAMEPLAYTAGS_API void GetAllParentNodeNames(TSet<FName>& NamesList, TSharedPtr<FGameplayTagNode> GameplayTag) const;
 
 	/** Returns the tag source for a given tag source name, or null if not found */
-	FGameplayTagSource* FindOrAddTagSource(FName TagSourceName, EGameplayTagSourceType SourceType, const FString& RootDirToUse = FString());
+	GAMEPLAYTAGS_API FGameplayTagSource* FindOrAddTagSource(FName TagSourceName, EGameplayTagSourceType SourceType, const FString& RootDirToUse = FString());
 
 	/** Constructs the net indices for each tag */
-	void ConstructNetIndex();
+	GAMEPLAYTAGS_API void ConstructNetIndex();
 
 	/** Marks all of the nodes that descend from CurNode as having an ancestor node that has a source conflict. */
-	void MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNode> CurNode);
+	GAMEPLAYTAGS_API void MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNode> CurNode);
 
 	void VerifyNetworkIndex() const
 	{
@@ -809,10 +809,10 @@ private:
 	void InvalidateNetworkIndex() { bNetworkIndexInvalidated = true; }
 
 	/** Called in both editor and game when the tag tree changes during startup or editing */
-	void BroadcastOnGameplayTagTreeChanged();
+	GAMEPLAYTAGS_API void BroadcastOnGameplayTagTreeChanged();
 
 	/** Call after modifying the tag tree nodes, this will either call the full editor refresh or a limited game refresh */
-	void HandleGameplayTagTreeChanged(bool bRecreateTree);
+	GAMEPLAYTAGS_API void HandleGameplayTagTreeChanged(bool bRecreateTree);
 
 	// Tag Sources
 	///////////////////////////////////////////////////////
@@ -886,6 +886,6 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UDataTable>> GameplayTagTables;
 
-	const static FName NAME_Categories;
-	const static FName NAME_GameplayTagFilter;
+	GAMEPLAYTAGS_API const static FName NAME_Categories;
+	GAMEPLAYTAGS_API const static FName NAME_GameplayTagFilter;
 };

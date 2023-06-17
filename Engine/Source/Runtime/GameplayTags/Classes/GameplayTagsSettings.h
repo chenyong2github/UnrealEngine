@@ -13,7 +13,7 @@
 
 /** Category remapping. This allows base engine tag category meta data to remap to multiple project-specific categories. */
 USTRUCT()
-struct GAMEPLAYTAGS_API FGameplayTagCategoryRemap
+struct FGameplayTagCategoryRemap
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -30,8 +30,8 @@ struct GAMEPLAYTAGS_API FGameplayTagCategoryRemap
 };
 
 /** Base class for storing a list of gameplay tags as an ini list. This is used for both the central list and additional lists */
-UCLASS(config = GameplayTagsList)
-class GAMEPLAYTAGS_API UGameplayTagsList : public UObject
+UCLASS(config = GameplayTagsList, MinimalAPI)
+class UGameplayTagsList : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -44,12 +44,12 @@ class GAMEPLAYTAGS_API UGameplayTagsList : public UObject
 	TArray<FGameplayTagTableRow> GameplayTagList;
 
 	/** Sorts tags alphabetically */
-	void SortTags();
+	GAMEPLAYTAGS_API void SortTags();
 };
 
 /** Base class for storing a list of restricted gameplay tags as an ini list. This is used for both the central list and additional lists */
-UCLASS(config = GameplayTags)
-class GAMEPLAYTAGS_API URestrictedGameplayTagsList : public UObject
+UCLASS(config = GameplayTags, MinimalAPI)
+class URestrictedGameplayTagsList : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -62,11 +62,11 @@ class GAMEPLAYTAGS_API URestrictedGameplayTagsList : public UObject
 	TArray<FRestrictedGameplayTagTableRow> RestrictedGameplayTagList;
 
 	/** Sorts tags alphabetically */
-	void SortTags();
+	GAMEPLAYTAGS_API void SortTags();
 };
 
 USTRUCT()
-struct GAMEPLAYTAGS_API FRestrictedConfigInfo
+struct FRestrictedConfigInfo
 {
 	GENERATED_BODY()
 
@@ -77,8 +77,8 @@ struct GAMEPLAYTAGS_API FRestrictedConfigInfo
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = GameplayTags)
 	TArray<FString> Owners;
 
-	bool operator==(const FRestrictedConfigInfo& Other) const;
-	bool operator!=(const FRestrictedConfigInfo& Other) const;
+	GAMEPLAYTAGS_API bool operator==(const FRestrictedConfigInfo& Other) const;
+	GAMEPLAYTAGS_API bool operator!=(const FRestrictedConfigInfo& Other) const;
 };
 
 /**
@@ -95,8 +95,8 @@ struct GAMEPLAYTAGS_API FRestrictedConfigInfo
  *	the user types (e.g, autocomplete 'Damage.Physical' as the user is adding a 'Damage.Physical.Slash' tag).
  *	
  */
-UCLASS(config=GameplayTags, defaultconfig)
-class GAMEPLAYTAGS_API UGameplayTagsSettings : public UGameplayTagsList
+UCLASS(config=GameplayTags, defaultconfig, MinimalAPI)
+class UGameplayTagsSettings : public UGameplayTagsList
 {
 	GENERATED_UCLASS_BODY()
 
@@ -171,8 +171,8 @@ class GAMEPLAYTAGS_API UGameplayTagsSettings : public UGameplayTagsList
 #endif
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	GAMEPLAYTAGS_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	GAMEPLAYTAGS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 private:
 	// temporary copy of RestrictedConfigFiles that we use to identify changes in the list
@@ -181,12 +181,12 @@ private:
 #endif
 };
 
-UCLASS(config=EditorPerProjectUserSettings, meta=(DisplayName="Gameplay Tag Editing"))
-class GAMEPLAYTAGS_API UGameplayTagsDeveloperSettings : public UDeveloperSettings
+UCLASS(config=EditorPerProjectUserSettings, meta=(DisplayName="Gameplay Tag Editing"), MinimalAPI)
+class UGameplayTagsDeveloperSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual FName GetCategoryName() const override;
+	GAMEPLAYTAGS_API virtual FName GetCategoryName() const override;
 
 	/** Allows new tags to be saved into their own INI file. This is make merging easier for non technical developers by setting up their own ini file. */
 	UPROPERTY(config, EditAnywhere, Category=GameplayTags)

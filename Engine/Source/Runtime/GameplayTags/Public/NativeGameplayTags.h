@@ -55,14 +55,14 @@ namespace UE::GameplayTags::Private
  * so even if two modules register the same tag and one is unloaded, the tag will still be registered
  * by the other one.
  */
-class GAMEPLAYTAGS_API FNativeGameplayTag : public FNoncopyable
+class FNativeGameplayTag : public FNoncopyable
 {
 public:
-	static FName NAME_NativeGameplayTag;
+	static GAMEPLAYTAGS_API FName NAME_NativeGameplayTag;
 
 public:
-	FNativeGameplayTag(FName PluginName, FName ModuleName, FName TagName, const FString& TagDevComment, ENativeGameplayTagToken);
-	~FNativeGameplayTag();
+	GAMEPLAYTAGS_API FNativeGameplayTag(FName PluginName, FName ModuleName, FName TagName, const FString& TagDevComment, ENativeGameplayTagToken);
+	GAMEPLAYTAGS_API ~FNativeGameplayTag();
 
 	operator FGameplayTag() const { return InternalTag; }
 
@@ -100,14 +100,14 @@ private:
 	FName ModulePackageName;
 	mutable bool bValidated = false;
 
-	void ValidateTagRegistration() const;
+	GAMEPLAYTAGS_API void ValidateTagRegistration() const;
 #endif
 
 #if WITH_EDITORONLY_DATA
 	FString DeveloperComment;
 #endif
 
-	static TSet<const class FNativeGameplayTag*>& GetRegisteredNativeTags();
+	static GAMEPLAYTAGS_API TSet<const class FNativeGameplayTag*>& GetRegisteredNativeTags();
 
 	friend class UGameplayTagsManager;
 };
