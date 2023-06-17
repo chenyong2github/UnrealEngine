@@ -100,6 +100,14 @@ struct MASSREPRESENTATION_API FMassStaticMeshInstanceVisualizationMeshDesc
 		}
 		return Hash;
 	}
+
+	// convenience function for setting MinLODSinificance and MaxLODSinificance based on EMassLOD values
+	void SetSignificanceRange(const EMassLOD::Type MinLOD, const EMassLOD::Type MaxLOD)
+	{
+		checkSlow(MinLOD <= MaxLOD);
+		MinLODSignificance = float(MinLOD);
+		MaxLODSignificance = float(MaxLOD);
+	}
 };
 
 USTRUCT()
