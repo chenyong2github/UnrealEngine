@@ -2243,16 +2243,16 @@ TArray<UObject*> AUsdStageActor::GetGeneratedAssets(const FString& PrimPath)
 	// Prefer checking the prim directly, but also check its collapsed root if it is collapsed.
 	// This because we have some exception cases like USkeleton/UAnimSequences that can be found by querying the actual
 	// Skeleton/SKelAnimation prims even though they are collapsed into the SkelRoot prim.
-	TSet<TWeakObjectPtr<UObject>> AssetsSet = InfoCache->GetAllAssetsForPrim(UsdPath);
-	if (AssetsSet.Num() == 0 && InfoCache->IsPathCollapsed(UsdPath, ECollapsingType::Assets))
+	TArray<TWeakObjectPtr<UObject>> AssetsPtrs = InfoCache->GetAllAssetsForPrim(UsdPath);
+	if (AssetsPtrs.Num() == 0 && InfoCache->IsPathCollapsed(UsdPath, ECollapsingType::Assets))
 	{
 		UsdPath = InfoCache->UnwindToNonCollapsedPath(UsdPath, ECollapsingType::Assets);
-		AssetsSet = InfoCache->GetAllAssetsForPrim(UsdPath);
+		AssetsPtrs = InfoCache->GetAllAssetsForPrim(UsdPath);
 	}
 
 	TArray<UObject*> Assets;
-	Assets.Reserve(AssetsSet.Num());
-	for (const TWeakObjectPtr<UObject>& Asset : AssetsSet)
+	Assets.Reserve(AssetsPtrs.Num());
+	for (const TWeakObjectPtr<UObject>& Asset : AssetsPtrs)
 	{
 		Assets.Add(Asset.Get());
 	}
@@ -2270,10 +2270,10 @@ FString AUsdStageActor::GetSourcePrimPath(UObject* Object)
 	}
 	else if (InfoCache)
 	{
-		const TSet<UE::FSdfPath> FoundPaths = InfoCache->GetPrimsForAsset(Object);
+		const TArray<UE::FSdfPath> FoundPaths = InfoCache->GetPrimsForAsset(Object);
 		if (FoundPaths.Num() > 0)
 		{
-			return FoundPaths.CreateConstIterator()->GetString();
+			return FoundPaths[0].GetString();
 		}
 	}
 
@@ -3946,6 +3946,12 @@ void AUsdStageActor::OnSkelAnimationBaked(const FString& SkelRootPrimPath)
 
 bool AUsdStageActor::UnloadAssets(const UE::FSdfPath& StartPrimPath, bool bForEntireSubtree)
 {
+	// Note that whenever we change a stage option (like render context, kinds to collapse, etc.) we may generate
+	// new assets for a prim but we won't call this function, which means we will still temporarily keep the old
+	// assets in the asset cache, and they will count as "referenced". That is not great, although they will *still*
+	// be tracked via the info cache asset prim links, so if at any time they resync the old assets will still be
+	// found below when iterating the prim links, and we will discard them either way.
+
 	if (!UsdAssetCache || !InfoCache)
 	{
 		return false;
@@ -3956,7 +3962,7 @@ bool AUsdStageActor::UnloadAssets(const UE::FSdfPath& StartPrimPath, bool bForEn
 	TSet<UE::FSdfPath> PrimPathsToRemove;
 	if (bForEntireSubtree)
 	{
-		for (const TPair<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>>& PrimPathToAssetIt : InfoCache->GetAllAssetPrimLinks())
+		for (const TPair<UE::FSdfPath, TArray<TWeakObjectPtr<UObject>>>& PrimPathToAssetIt : InfoCache->GetAllAssetPrimLinks())
 		{
 			const UE::FSdfPath& LinkPrimPath = PrimPathToAssetIt.Key;
 			if (LinkPrimPath.HasPrefix(StartPrimPath) || LinkPrimPath == StartPrimPath)
@@ -3972,7 +3978,7 @@ bool AUsdStageActor::UnloadAssets(const UE::FSdfPath& StartPrimPath, bool bForEn
 
 	for (const UE::FSdfPath& PrimPathToRemove : PrimPathsToRemove)
 	{
-		TSet<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(PrimPathToRemove);
+		TArray<TWeakObjectPtr<UObject>> OldAssets = InfoCache->RemoveAllAssetPrimLinks(PrimPathToRemove);
 		for (const TWeakObjectPtr<UObject>& OldAsset : OldAssets)
 		{
 			// If there are any other prim paths linked to this asset that we *won't* be removing/reparsing

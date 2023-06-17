@@ -400,17 +400,17 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents(USceneComponent* PointIn
 	// prototype, as we translate these with task pools and some of those prototypes may have generated nullptr.
 	// We always put the prototype path on the asset import data though, so here we use that to figure out where
 	// each mesh should go
-	TSet<UStaticMesh*> PrototypeMeshSet = InfoCache.GetAssetsForPrim<UStaticMesh>(PrimPath);
+	TArray<UStaticMesh*> PrototypeMeshArr = InfoCache.GetAssetsForPrim<UStaticMesh>(PrimPath);
 	std::unordered_map<pxr::SdfPath, UStaticMesh*, pxr::SdfPath::Hash> PrototypeMeshes;
-	PrototypeMeshes.reserve(PrototypeMeshSet.Num());
-	for (UStaticMesh* PrototypeMesh : PrototypeMeshSet)
+	PrototypeMeshes.reserve(PrototypeMeshArr.Num());
+	for (UStaticMesh* PrototypeMesh : PrototypeMeshArr)
 	{
 		if (UUsdAssetUserData* UserData = PrototypeMesh->GetAssetUserData<UUsdAssetUserData>())
 		{
 			for (const FString& SourcePrimPath : UserData->PrimPaths)
 			{
 				pxr::SdfPath PrototypePath = UnrealToUsd::ConvertPath(*SourcePrimPath).Get();
-				PrototypeMeshes.insert({PrototypePath, PrototypeMesh});
+				PrototypeMeshes[PrototypePath] = PrototypeMesh;
 			}
 		}
 	}

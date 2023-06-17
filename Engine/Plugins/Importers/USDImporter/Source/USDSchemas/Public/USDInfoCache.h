@@ -90,17 +90,20 @@ public:
 public:
 	void LinkAssetToPrim(const UE::FSdfPath& Path, UObject* Asset);
 
-	TSet<TWeakObjectPtr<UObject>> RemoveAllAssetPrimLinks(const UE::FSdfPath& Path);
+	TArray<TWeakObjectPtr<UObject>> RemoveAllAssetPrimLinks(const UE::FSdfPath& Path);
 
-	TSet<TWeakObjectPtr<UObject>> GetAllAssetsForPrim(const UE::FSdfPath& Path) const;
+	TArray<TWeakObjectPtr<UObject>> GetAllAssetsForPrim(const UE::FSdfPath& Path) const;
 
 	template<typename T = UObject>
 	T* GetSingleAssetForPrim(const UE::FSdfPath& Path) const
 	{
-		TSet<TWeakObjectPtr<UObject>> Assets = GetAllAssetsForPrim(Path);
-		for (const TWeakObjectPtr<UObject>& Asset : Assets)
+		TArray<TWeakObjectPtr<UObject>> Assets = GetAllAssetsForPrim(Path);
+
+		// Search back to front so that if we generate a new version of an asset type we prefer
+		// returning that
+		for (int32 Index = Assets.Num() - 1; Index >= 0; --Index)
 		{
-			if (T* CastAsset = Cast<T>(Asset.Get()))
+			if (T* CastAsset = Cast<T>(Assets[Index].Get()))
 			{
 				return CastAsset;
 			}
@@ -110,11 +113,11 @@ public:
 	}
 
 	template<typename T>
-	TSet<T*> GetAssetsForPrim(const UE::FSdfPath& Path) const
+	TArray<T*> GetAssetsForPrim(const UE::FSdfPath& Path) const
 	{
-		TSet<TWeakObjectPtr<UObject>> Assets = GetAllAssetsForPrim(Path);
+		TArray<TWeakObjectPtr<UObject>> Assets = GetAllAssetsForPrim(Path);
 
-		TSet<T*> CastAssets;
+		TArray<T*> CastAssets;
 		CastAssets.Reserve(Assets.Num());
 
 		for (const TWeakObjectPtr<UObject>& Asset : Assets)
@@ -128,8 +131,8 @@ public:
 		return CastAssets;
 	}
 
-	TSet<UE::FSdfPath> GetPrimsForAsset(UObject* Asset) const;
-	TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> GetAllAssetPrimLinks() const;
+	TArray<UE::FSdfPath> GetPrimsForAsset(UObject* Asset) const;
+	TMap<UE::FSdfPath, TArray<TWeakObjectPtr<UObject>>> GetAllAssetPrimLinks() const;
 
 private:
 	TUniquePtr<FUsdInfoCacheImpl> Impl;

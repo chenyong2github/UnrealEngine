@@ -495,7 +495,7 @@ TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslation
 
 				UE::FSdfPath MaterialPrimPath{*Slot.MaterialSource};
 
-				TSet<UMaterialInterface*> ExistingMaterials = InfoCache.GetAssetsForPrim<UMaterialInterface>(MaterialPrimPath);
+				TArray<UMaterialInterface*> ExistingMaterials = InfoCache.GetAssetsForPrim<UMaterialInterface>(MaterialPrimPath);
 
 				for (UMaterialInterface* ExistingMaterial : ExistingMaterials)
 				{

@@ -121,8 +121,8 @@ struct FUsdInfoCache::FUsdInfoCacheImpl
 	mutable FRWLock InfoMapLock;
 
 	// Information we may have about a subset of prims
-	TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> PrimPathToAssets;
-	TMap<TWeakObjectPtr<UObject>, TSet<UE::FSdfPath>> AssetToPrimPaths;
+	TMap<UE::FSdfPath, TArray<TWeakObjectPtr<UObject>>> PrimPathToAssets;
+	TMap<TWeakObjectPtr<UObject>, TArray<UE::FSdfPath>> AssetToPrimPaths;
 	mutable FRWLock PrimPathToAssetsLock;
 
 	// Paths to material prims to the mesh prims they are bound to in the scene, given the current settings for
@@ -1449,11 +1449,11 @@ void FUsdInfoCache::LinkAssetToPrim(const UE::FSdfPath& Path, UObject* Asset)
 		*Path.GetString()
 	);
 
-	ImplPtr->PrimPathToAssets.FindOrAdd(Path).Add(Asset);
-	ImplPtr->AssetToPrimPaths.FindOrAdd(Asset).Add(Path);
+	ImplPtr->PrimPathToAssets.FindOrAdd(Path).AddUnique(Asset);
+	ImplPtr->AssetToPrimPaths.FindOrAdd(Asset).AddUnique(Path);
 }
 
-TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::FSdfPath& Path)
+TArray<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::FSdfPath& Path)
 {
 	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
 	if (!ImplPtr)
@@ -1466,12 +1466,12 @@ TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::F
 		*Path.GetString()
 	);
 
-	TSet<TWeakObjectPtr<UObject>> Assets;
+	TArray<TWeakObjectPtr<UObject>> Assets;
 	ImplPtr->PrimPathToAssets.RemoveAndCopyValue(Path, Assets);
 
 	for (const TWeakObjectPtr<UObject>& Asset : Assets)
 	{
-		if (TSet<UE::FSdfPath>* PrimPaths = ImplPtr->AssetToPrimPaths.Find(Asset))
+		if (TArray<UE::FSdfPath>* PrimPaths = ImplPtr->AssetToPrimPaths.Find(Asset))
 		{
 			PrimPaths->Remove(Path);
 		}
@@ -1480,7 +1480,7 @@ TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::RemoveAllAssetPrimLinks(const UE::F
 	return Assets;
 }
 
-TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAllAssetsForPrim(const UE::FSdfPath& Path) const
+TArray<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAllAssetsForPrim(const UE::FSdfPath& Path) const
 {
 	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
 	if (!ImplPtr)
@@ -1489,7 +1489,7 @@ TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAllAssetsForPrim(const UE::FSdfP
 	}
 	FReadScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
 
-	if (const TSet<TWeakObjectPtr<UObject>>* FoundAssets = ImplPtr->PrimPathToAssets.Find(Path))
+	if (const TArray<TWeakObjectPtr<UObject>>* FoundAssets = ImplPtr->PrimPathToAssets.Find(Path))
 	{
 		return *FoundAssets;
 	}
@@ -1497,7 +1497,7 @@ TSet<TWeakObjectPtr<UObject>> FUsdInfoCache::GetAllAssetsForPrim(const UE::FSdfP
 	return {};
 }
 
-TSet<UE::FSdfPath> FUsdInfoCache::GetPrimsForAsset(UObject* Asset) const
+TArray<UE::FSdfPath> FUsdInfoCache::GetPrimsForAsset(UObject* Asset) const
 {
 	if (!Asset)
 	{
@@ -1511,7 +1511,7 @@ TSet<UE::FSdfPath> FUsdInfoCache::GetPrimsForAsset(UObject* Asset) const
 	}
 	FReadScopeLock ScopeLock(ImplPtr->PrimPathToAssetsLock);
 
-	if (const TSet<UE::FSdfPath>* FoundPrims = ImplPtr->AssetToPrimPaths.Find(Asset))
+	if (const TArray<UE::FSdfPath>* FoundPrims = ImplPtr->AssetToPrimPaths.Find(Asset))
 	{
 		return *FoundPrims;
 	}
@@ -1519,7 +1519,7 @@ TSet<UE::FSdfPath> FUsdInfoCache::GetPrimsForAsset(UObject* Asset) const
 	return {};
 }
 
-TMap<UE::FSdfPath, TSet<TWeakObjectPtr<UObject>>> FUsdInfoCache::GetAllAssetPrimLinks() const
+TMap<UE::FSdfPath, TArray<TWeakObjectPtr<UObject>>> FUsdInfoCache::GetAllAssetPrimLinks() const
 {
 	FUsdInfoCacheImpl* ImplPtr = Impl.Get();
 	if (!ImplPtr)
