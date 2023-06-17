@@ -196,12 +196,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-Wno-pragma-once-outside-header");
 		}
 
-		// TODO: REMOVE THIS ONCE c++20 compile fixes have been done
-		protected override void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
-		{
-			Arguments.Add("-std=c++17");
-		}
-
 		// Skip ISPC headers
 		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)
 		{
