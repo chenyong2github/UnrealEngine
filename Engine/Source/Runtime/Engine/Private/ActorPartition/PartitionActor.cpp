@@ -14,6 +14,8 @@
 
 #define LOCTEXT_NAMESPACE "PartitionActor"
 
+DEFINE_LOG_CATEGORY_STATIC(LogPartitionActor, Log, All);
+
 APartitionActor::APartitionActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
@@ -51,6 +53,23 @@ bool APartitionActor::ShouldIncludeGridSizeInName(UWorld* InWorld, const FActorP
 {
 	return InWorld->GetWorldSettings()->bIncludeGridSizeInNameForPartitionedActors;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+uint32 APartitionActor::GetGridSize() const
+{
+	return GridSize;
+} 
+
+void APartitionActor::SetGridSize(uint32 InGridSize)
+{
+	if (InGridSize == 0)
+	{
+		UE_LOG(LogPartitionActor, Error, TEXT("APartitionActor::SetGridSize() called for actor %s with grid size == 0. Grid size must be greater than zero."), *GetName());
+		InGridSize = 1;
+	}
+	GridSize = InGridSize;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FString APartitionActor::GetActorName(UWorld* World, const UClass* Class, const FGuid& GridGuid, const FActorPartitionIdentifier& ActorPartitionId, uint32 GridSize, int32 CellCoordsX, int32 CellCoordsY, int32 CellCoordsZ, uint32 DataLayerEditorContext)
 {

@@ -21,7 +21,7 @@ int32 FLandscapeConfig::NumSectionValues[2] = { 1, 2 };
 int32 FLandscapeConfig::SubsectionSizeQuadsValues[6] = { 7, 15, 31, 63, 127, 255 };
 
 FLandscapeConfig::FLandscapeConfig(ULandscapeInfo* InLandscapeInfo)
-	: FLandscapeConfig(InLandscapeInfo->ComponentNumSubsections, InLandscapeInfo->SubsectionSizeQuads, InLandscapeInfo->LandscapeActor->GridSize / InLandscapeInfo->ComponentSizeQuads)
+	: FLandscapeConfig(InLandscapeInfo->ComponentNumSubsections, InLandscapeInfo->SubsectionSizeQuads, InLandscapeInfo->LandscapeActor->GetGridSize() / InLandscapeInfo->ComponentSizeQuads)
 {
 
 }
@@ -53,7 +53,7 @@ ALandscapeProxy* FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(ULands
 {
 	UWorld* World = InLandscapeInfo->LandscapeActor->GetWorld();
 	UActorPartitionSubsystem* ActorPartitionSubsystem = World->GetSubsystem<UActorPartitionSubsystem>();
-	const uint32 GridSize = InLandscapeInfo->LandscapeActor->GridSize;
+	const uint32 GridSize = InLandscapeInfo->LandscapeActor->GetGridSize();
 
 	UActorPartitionSubsystem::FCellCoord CellCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(InSectionBase, World->PersistentLevel, GridSize);
 	return FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(ActorPartitionSubsystem, InLandscapeInfo, CellCoord);
@@ -66,7 +66,7 @@ ALandscapeProxy* FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(UActor
 
 	auto LandscapeProxyCreated = [InCellCoord, Landscape](APartitionActor* PartitionActor)
 	{
-		const FIntPoint CellLocation(static_cast<int32>(InCellCoord.X) * Landscape->GridSize, static_cast<int32>(InCellCoord.Y) * Landscape->GridSize);
+		const FIntPoint CellLocation(static_cast<int32>(InCellCoord.X) * Landscape->GetGridSize(), static_cast<int32>(InCellCoord.Y) * Landscape->GetGridSize());
 
 		ALandscapeProxy* LandscapeProxy = CastChecked<ALandscapeProxy>(PartitionActor);
 		// copy shared properties to this new proxy
@@ -82,8 +82,8 @@ ALandscapeProxy* FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(UActor
 	const bool bCreate = true;
 	const bool bBoundsSearch = false;
 
-	ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(InActorPartitionSubsystem->GetActor(ALandscapeStreamingProxy::StaticClass(), InCellCoord, bCreate, InLandscapeInfo->LandscapeGuid, Landscape->GridSize, bBoundsSearch, LandscapeProxyCreated));
-	check(!LandscapeProxy || LandscapeProxy->GridSize == Landscape->GridSize);
+	ALandscapeProxy* LandscapeProxy = Cast<ALandscapeProxy>(InActorPartitionSubsystem->GetActor(ALandscapeStreamingProxy::StaticClass(), InCellCoord, bCreate, InLandscapeInfo->LandscapeGuid, Landscape->GetGridSize(), bBoundsSearch, LandscapeProxyCreated));
+	check(!LandscapeProxy || LandscapeProxy->GetGridSize() == Landscape->GetGridSize());
 	return LandscapeProxy;
 }
 
@@ -94,7 +94,7 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 	const uint32 GridSize = InLandscapeInfo->GetGridSize(InNewGridSizeInComponents);
 	
 	InLandscapeInfo->LandscapeActor->Modify();
-	InLandscapeInfo->LandscapeActor->GridSize = GridSize;
+	InLandscapeInfo->LandscapeActor->SetGridSize(GridSize);
 
 	// This needs to be done before moving components
 	InLandscapeInfo->LandscapeActor->InitializeLandscapeLayersWeightmapUsage();
@@ -224,7 +224,7 @@ bool FLandscapeConfigHelper::ChangeGridSize(ULandscapeInfo* InLandscapeInfo, uin
 	{
 		if (ProxyToDelete->LandscapeComponents.Num() > 0 || ProxyToDelete->IsA<ALandscape>())
 		{
-			check(ProxyToDelete->GridSize == GridSize);
+			check(ProxyToDelete->GetGridSize() == GridSize);
 			continue;
 		}
 
@@ -488,7 +488,7 @@ ULandscapeInfo* FLandscapeConfigHelper::ChangeConfiguration(ULandscapeInfo* InLa
 	
 	NewLandscape->CopySharedProperties(OldLandscape);
 	NewLandscape->SetLandscapeGuid(FGuid::NewGuid());
-	NewLandscape->GridSize = InNewConfig.GetGridSizeQuads();
+	NewLandscape->SetGridSize(InNewConfig.GetGridSizeQuads());
 	NewLandscape->ComponentSizeQuads = InNewConfig.GetComponentSizeQuads();
 	NewLandscape->NumSubsections = InNewConfig.ComponentNumSubsections;
 	NewLandscape->SubsectionSizeQuads = InNewConfig.SubsectionSizeQuads;	
@@ -520,7 +520,7 @@ ULandscapeInfo* FLandscapeConfigHelper::ChangeConfiguration(ULandscapeInfo* InLa
 				continue;
 			}
 
-			UActorPartitionSubsystem::FCellCoord CellCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(NewSectionBase, World->PersistentLevel, NewLandscape->GridSize);
+			UActorPartitionSubsystem::FCellCoord CellCoord = UActorPartitionSubsystem::FCellCoord::GetCellCoord(NewSectionBase, World->PersistentLevel, NewLandscape->GetGridSize());
 			ALandscapeProxy* LandscapeProxy = FLandscapeConfigHelper::FindOrAddLandscapeStreamingProxy(ActorPartitionSubsystem, NewLandscapeInfo, CellCoord);
 			check(LandscapeProxy);
 

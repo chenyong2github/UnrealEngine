@@ -222,7 +222,7 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
 		}
 		else
 		{	
-			check(IFA->GridSize != NewGridSize);
+			check(IFA->GetGridSize() != NewGridSize);
 			// Harvest Instances from existing IFA and build up instance bounds
 			UE_LOG(LogWorldPartitionFoliageBuilder, Display, TEXT("Processing existing foliage actor: %s (%s)"), *ActorDesc->GetActorName().ToString(), *ActorDesc->GetActorPackage().ToString());
 		
@@ -280,7 +280,7 @@ bool UWorldPartitionFoliageBuilder::RunInternal(UWorld* World, const FCellInfo& 
 					AInstancedFoliageActor* ModifiedIFA = AInstancedFoliageActor::Get(World, /*bCreateIfNone=*/false, World->PersistentLevel, Instance.Location);
 					check(ModifiedIFA);
 					ModifiedIFAs.Add(ModifiedIFA);
-					check(ModifiedIFA->GridSize == NewGridSize);
+					check(ModifiedIFA->GetGridSize() == NewGridSize);
 					FFoliageInfo* NewFoliageInfo = nullptr;
 					UFoliageType* NewFoliageType = ModifiedIFA->AddFoliageType(InstancesPerFoliageType.Key, &NewFoliageInfo);
 					NewFoliageInfo->AddInstance(NewFoliageType, Instance);

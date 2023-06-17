@@ -421,7 +421,7 @@ AActor* APCGPartitionActor::GetSceneOutlinerParent() const
 
 void APCGPartitionActor::PostCreation(const FGuid& InGridGUID)
 {
-	PCGGridSize = GridSize;
+	PCGGridSize = GetGridSize();
 	PCGGuid = InGridGUID;
 
 	// Put in cache if we use the 2D grid or not.

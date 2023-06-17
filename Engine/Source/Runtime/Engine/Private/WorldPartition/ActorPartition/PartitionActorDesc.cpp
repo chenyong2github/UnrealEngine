@@ -20,7 +20,7 @@ void FPartitionActorDesc::Init(const AActor* InActor)
 
 	const APartitionActor* PartitionActor = CastChecked<APartitionActor>(InActor);
 
-	GridSize = PartitionActor->GridSize;
+	GridSize = PartitionActor->GetGridSize();
 
 	if (!bIsDefaultActorDesc)
 	{

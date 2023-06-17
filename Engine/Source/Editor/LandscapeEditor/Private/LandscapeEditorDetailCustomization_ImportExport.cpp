@@ -723,8 +723,8 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 						if (LandscapeInfo->GetLandscapeExtent(LandscapeProxy, ExportRegion))
 						{
 							const int32 YCoord = LandscapeEdMode->UISettings->bFlipYAxis ? LandscapeExtent.Max.Y - ExportRegion.Max.Y : ExportRegion.Min.Y - LandscapeExtent.Min.Y;
-							FIntPoint FileOffset = FIntPoint((ExportRegion.Min.X - LandscapeExtent.Min.X) / Landscape->GridSize,
-								YCoord / Landscape->GridSize);
+							FIntPoint FileOffset = FIntPoint((ExportRegion.Min.X - LandscapeExtent.Min.X) / Landscape->GetGridSize(),
+								YCoord / Landscape->GetGridSize());
 
 							// Remove the shared line/column that this proxy has with its neighbors because it 
 							// will be included by the neighbor or lost if there is none (that could become an option to avoid that loss)
@@ -748,8 +748,8 @@ FReply FLandscapeEditorDetailCustomization_ImportExport::OnImportExportButtonCli
 					if (LandscapeInfo->GetLandscapeExtent(LandscapeProxy, ExportRegion))
 					{
 						const int32 YCoord = LandscapeEdMode->UISettings->bFlipYAxis ? LandscapeExtent.Max.Y - ExportRegion.Max.Y : ExportRegion.Min.Y - LandscapeExtent.Min.Y;
-						FIntPoint FileOffset = FIntPoint((ExportRegion.Min.X - LandscapeExtent.Min.X) / Landscape->GridSize,
-							YCoord / Landscape->GridSize);
+						FIntPoint FileOffset = FIntPoint((ExportRegion.Min.X - LandscapeExtent.Min.X) / Landscape->GetGridSize(),
+							YCoord / Landscape->GetGridSize());
 
 						// Remove the shared line/column that this proxy has with its neighbors because it 
 						// will be included by the neighbor or lost if there is none (that could become an option to avoid that loss)

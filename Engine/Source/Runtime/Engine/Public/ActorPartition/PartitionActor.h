@@ -21,7 +21,7 @@ public:
 	ENGINE_API APartitionActor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	//~ Begin AActor Interface
-#if WITH_EDITOR	
+#if WITH_EDITOR
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	ENGINE_API virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	ENGINE_API virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
@@ -30,10 +30,14 @@ public:
 	virtual FGuid GetGridGuid() const { return FGuid(); }
 	ENGINE_API virtual bool IsUserManaged() const override;
 #endif
-	//~ End AActor Interface	
+	//~ End AActor Interface
 
 #if WITH_EDITORONLY_DATA
+	ENGINE_API uint32 GetGridSize() const;
+	ENGINE_API void SetGridSize(uint32 InGridSize);
+
 	/** The grid size this actors was generated for */
+	UE_DEPRECATED(5.3, "Use GetGridSize()/SetGridSize() instead.")
 	UPROPERTY()
 	uint32 GridSize;
 
