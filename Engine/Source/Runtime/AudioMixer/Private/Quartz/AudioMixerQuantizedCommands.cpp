@@ -248,6 +248,20 @@ namespace Audio
 	}
 
 
+	FQuantizedNotify::FQuantizedNotify(float InMsOffset)  : OffsetInMs(InMsOffset)
+	{
+	}
+
+	int32 FQuantizedNotify::OverrideFramesUntilExec(int32 NumFramesUntilExec)
+	{
+		constexpr float MsToSec = 1000.f;
+		return FMath::Max(0, NumFramesUntilExec + (OffsetInMs / MsToSec) * SampleRate);
+	}
+
+	void FQuantizedNotify::OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo)
+	{
+		SampleRate = InCommandInitInfo.SampleRate;
+	}
 
 	TSharedPtr<IQuartzQuantizedCommand> FQuantizedNotify::GetDeepCopyOfDerivedObject() const
 	{

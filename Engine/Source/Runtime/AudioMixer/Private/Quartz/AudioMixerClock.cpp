@@ -443,6 +443,7 @@ namespace Audio
 		Metronome.UnsubscribeFromAllTimeDivisions(InSubscriber);
 	}
 
+
 	void FQuartzClock::AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent)
 	{
 		if (!ensure(InNewEvent.IsValid()))
@@ -608,6 +609,18 @@ namespace Audio
 		}
 
 		return nullptr;
+	}
+
+	void FQuartzClock::AddQuantizedCommand(FQuartzQuantizedRequestData& InQuantizedRequestData)
+	{
+		float SampleRate = HeadlessClockSampleRateCvar;
+		if (FMixerDevice* MixerDevice = GetMixerDevice())
+		{
+			SampleRate = MixerDevice->GetSampleRate();
+		}
+
+		FQuartzQuantizedCommandInitInfo Info(InQuantizedRequestData, SampleRate);
+		AddQuantizedCommand(Info);
 	}
 
 	void FQuartzClock::AddQuantizedCommand(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo)

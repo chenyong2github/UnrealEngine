@@ -456,6 +456,7 @@ namespace Audio
 
 	FQuartzQuantizedCommandInitInfo::FQuartzQuantizedCommandInitInfo(
 		const FQuartzQuantizedRequestData& RHS
+		, float InSampleRate
 		, int32 InSourceID
 	)
 		: ClockName(RHS.ClockName)
@@ -465,6 +466,7 @@ namespace Audio
 		, GameThreadSubscribers(RHS.GameThreadSubscribers)
 		, GameThreadDelegateID(RHS.GameThreadDelegateID)
 		, OwningClockPointer(nullptr)
+		, SampleRate(InSampleRate)
 		, SourceID(InSourceID)
 	{
 	}

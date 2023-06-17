@@ -536,7 +536,7 @@ namespace Audio
 {
 	// data that is gathered by the AudioThread to get passed from FActiveSound->FMixerSourceVoice
 	// eventually converted to IQuartzQuantizedCommand for the Quantized Command itself
-	struct FQuartzQuantizedRequestData
+	struct ENGINE_API FQuartzQuantizedRequestData
 	{
 		// shared with FQuartzQuantizedCommandInitInfo:
 		FName ClockName;
@@ -550,12 +550,12 @@ namespace Audio
 
 	// data that is passed into IQuartzQuantizedCommand::OnQueued
 	// info that derived classes need can be added here
-	struct FQuartzQuantizedCommandInitInfo
+	struct ENGINE_API FQuartzQuantizedCommandInitInfo
 	{
 		FQuartzQuantizedCommandInitInfo() {}
 
 		// conversion ctor from FQuartzQuantizedRequestData
-		ENGINE_API FQuartzQuantizedCommandInitInfo(const FQuartzQuantizedRequestData& RHS, int32 InSourceID = INDEX_NONE);
+		FQuartzQuantizedCommandInitInfo(const FQuartzQuantizedRequestData& RHS, float InSampleRate, int32 InSourceID = INDEX_NONE);
 
 		void SetOwningClockPtr(TSharedPtr<Audio::FQuartzClock> InClockPointer)
 		{
@@ -573,6 +573,7 @@ namespace Audio
 
 		// Audio Render thread-specific data:
 		TSharedPtr<Audio::FQuartzClock> OwningClockPointer{ nullptr };
+		float SampleRate;
 		int32 SourceID{ -1 };
 
 		// Number of frames used for any FramesTilExec overrides
@@ -580,7 +581,7 @@ namespace Audio
 	};
 
 	// base class for quantized commands. Virtual methods called by owning clock.
-	class IQuartzQuantizedCommand : public FQuartzCrossThreadMessage
+	class ENGINE_API IQuartzQuantizedCommand : public FQuartzCrossThreadMessage
 	{
 	public:
 
@@ -591,38 +592,38 @@ namespace Audio
 		virtual ~IQuartzQuantizedCommand() {};
 
 		// allocate a copy of the derived class
-		ENGINE_API virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const;
+		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const;
 
-		ENGINE_API void AddSubscriber(FQuartzGameThreadSubscriber InSubscriber);
+		void AddSubscriber(FQuartzGameThreadSubscriber InSubscriber);
 
 		// Command has reached the AudioRenderThread
-		ENGINE_API void OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo);
+		void OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo);
 
 		// scheduled (finalize subscriber offsets) - called by FQuartzClock
-		ENGINE_API void OnScheduled(const FQuartzClockTickRate& InTickRate);
+		void OnScheduled(const FQuartzClockTickRate& InTickRate);
 
 		// called during FQuartzClock::Tick() to let us call AboutToStart
 		// at different times for different subscribers
-		ENGINE_API void Update(int32 NumFramesUntilDeadline);
+		void Update(int32 NumFramesUntilDeadline);
 
 		// Perhaps the associated sound failed concurrency and will not be playing
-		ENGINE_API void FailedToQueue(FQuartzQuantizedRequestData& InGameThreadData);
+		void FailedToQueue(FQuartzQuantizedRequestData& InGameThreadData);
 
 		// Called 2x Assumed thread latency before OnFinalCallback()
-		ENGINE_API void AboutToStart();
+		void AboutToStart();
 
 		// Called on the final callback of this event boundary.
 		// InNumFramesLeft is the number of frames into the callback the exact quantized event should take place
-		ENGINE_API void OnFinalCallback(int32 InNumFramesLeft);
+		void OnFinalCallback(int32 InNumFramesLeft);
 
 		// Called if the owning clock gets stopped
-		ENGINE_API void OnClockPaused();
+		void OnClockPaused();
 
 		// Called if the owning clock gets started
-		ENGINE_API void OnClockStarted();
+		void OnClockStarted();
 
 		// Called if the event is cancelled before OnFinalCallback() is called
-		ENGINE_API void Cancel();
+		void Cancel();
 
 
 		//Called if the event type uses an altered amount of frames
@@ -654,21 +655,21 @@ namespace Audio
 
 	// Audio Render Thread Handle to a queued command
 	// Used by AudioMixerSourceVoices to access a pending associated command
-	struct FQuartzQuantizedCommandHandle
+	struct ENGINE_API FQuartzQuantizedCommandHandle
 	{
 		FName OwningClockName;
 		TSharedPtr<IQuartzQuantizedCommand> CommandPtr{ nullptr };
 		FMixerDevice* MixerDevice{ nullptr };
 
 		// Attempts to cancel the command. Returns true if the cancellation was successful.
-		ENGINE_API bool Cancel();
+		bool Cancel();
 
 		// Resets the handle to initial state.
-		ENGINE_API void Reset();
+		void Reset();
 	};
 } // namespace Audio
 
-struct FAudioComponentCommandInfo
+struct ENGINE_API FAudioComponentCommandInfo
 {
 	FAudioComponentCommandInfo() {}
 

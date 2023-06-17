@@ -181,6 +181,7 @@ namespace Audio
 		void UnsubscribeFromAllTimeDivisions(FQuartzGameThreadSubscriber InSubscriber);
 
 		// Quantized Command Management:
+		void AddQuantizedCommand(FQuartzQuantizedRequestData& InQuantizedRequestData);
 		void AddQuantizedCommand(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo);
 
 		void AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent);

@@ -62,7 +62,7 @@ void UQuartzClockHandle::QueueQuantizedSound(const UObject* WorldContextObject, 
 	QueueCommandPtr->SetQueueCommand(InAudioComponentData);
 
 	//Set up initial command info
-	Audio::FQuartzQuantizedCommandInitInfo CommandInitInfo = UQuartzSubsystem::CreateRequestDataForSchedulePlaySound(InClockHandle, InDelegate, InTargetBoundary);
+	Audio::FQuartzQuantizedRequestData CommandInitInfo = UQuartzSubsystem::CreateRequestDataForSchedulePlaySound(InClockHandle, InDelegate, InTargetBoundary);
 
 	//(Queue's setup is identical to PlaySound except for the command ptr, so fix that here)
 	CommandInitInfo.QuantizedCommandPtr.Reset();
@@ -74,14 +74,14 @@ void UQuartzClockHandle::QueueQuantizedSound(const UObject* WorldContextObject, 
 // deprecated: use ResetTransportQuantized
 void UQuartzClockHandle::ResetTransport(const UObject* WorldContextObject, const FOnQuartzCommandEventBP& InDelegate)
 {
-	Audio::FQuartzQuantizedCommandInitInfo Data(UQuartzSubsystem::CreateRequestDataForTransportReset(this, FQuartzQuantizationBoundary(EQuartzCommandQuantization::Bar), InDelegate));
+	Audio::FQuartzQuantizedRequestData Data(UQuartzSubsystem::CreateRequestDataForTransportReset(this, FQuartzQuantizationBoundary(EQuartzCommandQuantization::Bar), InDelegate));
 	RawHandle.SendCommandToClock([Data](Audio::FQuartzClock* InClock) mutable { InClock->AddQuantizedCommand(Data); });
 }
 
 void UQuartzClockHandle::ResetTransportQuantized(const UObject* WorldContextObject, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, UQuartzClockHandle*& ClockHandle)
 {
 	ClockHandle = this;
-	Audio::FQuartzQuantizedCommandInitInfo Data(UQuartzSubsystem::CreateRequestDataForTransportReset(this, InQuantizationBoundary, InDelegate));
+	Audio::FQuartzQuantizedRequestData Data(UQuartzSubsystem::CreateRequestDataForTransportReset(this, InQuantizationBoundary, InDelegate));
 	RawHandle.SendCommandToClock([Data](Audio::FQuartzClock* InClock) mutable { InClock->AddQuantizedCommand(Data); });
 }
 
@@ -92,9 +92,9 @@ bool UQuartzClockHandle::IsClockRunning(const UObject* WorldContextObject)
 	return RawHandle.IsClockRunning();
 }
 
-void UQuartzClockHandle::NotifyOnQuantizationBoundary(const UObject* WorldContextObject, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+void UQuartzClockHandle::NotifyOnQuantizationBoundary(const UObject* WorldContextObject, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float OffsetInMilliseconds)
 {
-	Audio::FQuartzQuantizedCommandInitInfo Data(UQuartzSubsystem::CreateRequestDataForQuantizedNotify(this, InQuantizationBoundary, InDelegate));
+	Audio::FQuartzQuantizedRequestData Data(UQuartzSubsystem::CreateRequestDataForQuantizedNotify(this, InQuantizationBoundary, InDelegate, OffsetInMilliseconds));
 	RawHandle.SendCommandToClock([Data](Audio::FQuartzClock* InClock) mutable { InClock->AddQuantizedCommand(Data); });
 }
 
@@ -121,7 +121,7 @@ void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FNam
 		return;
 	}
 
-	Audio::FQuartzQuantizedCommandInitInfo Data(UQuartzSubsystem::CreateRequestDataForStartOtherClock(this, OtherClockName, InQuantizationBoundary, InDelegate));
+	Audio::FQuartzQuantizedRequestData Data(UQuartzSubsystem::CreateRequestDataForStartOtherClock(this, OtherClockName, InQuantizationBoundary, InDelegate));
 	RawHandle.SendCommandToClock([Data](Audio::FQuartzClock* InClock) mutable { InClock->AddQuantizedCommand(Data); });
 }
 
@@ -244,7 +244,7 @@ void UQuartzClockHandle::SetBeatsPerMinute(const UObject* WorldContextObject, co
 
 void UQuartzClockHandle::SetTickRateInternal(const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& NewTickRate)
 {
-	Audio::FQuartzQuantizedCommandInitInfo Data(UQuartzSubsystem::CreateRequestDataForTickRateChange(this, InDelegate, NewTickRate, InQuantizationBoundary));
+	Audio::FQuartzQuantizedRequestData Data(UQuartzSubsystem::CreateRequestDataForTickRateChange(this, InDelegate, NewTickRate, InQuantizationBoundary));
 	RawHandle.SendCommandToClock([Data](Audio::FQuartzClock* InClock) mutable { InClock->AddQuantizedCommand(Data); });
 }
 

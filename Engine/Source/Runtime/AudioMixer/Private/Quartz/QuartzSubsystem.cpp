@@ -389,14 +389,14 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateRequestDataForStartOt
 	return CommandInitInfo;
 }
 
-Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateRequestDataForQuantizedNotify(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateRequestDataForQuantizedNotify(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float InMsOffset)
 {
 	if (!ensure(InClockHandle))
 	{
 		return { };
 	}
 
-	const TSharedPtr<Audio::FQuantizedNotify> NotifyCommandPtr = MakeShared<Audio::FQuantizedNotify>();
+	const TSharedPtr<Audio::FQuantizedNotify> NotifyCommandPtr = MakeShared<Audio::FQuantizedNotify>(InMsOffset);
 
 	Audio::FQuartzQuantizedRequestData CommandInitInfo;
 

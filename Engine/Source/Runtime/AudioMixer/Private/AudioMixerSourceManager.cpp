@@ -954,7 +954,7 @@ namespace Audio
 				}
 				else
 				{
-					FQuartzQuantizedCommandInitInfo QuantCommandInitInfo(QuantData, SourceId);
+					FQuartzQuantizedCommandInitInfo QuantCommandInitInfo(QuantData, MixerDevice->GetSampleRate(), SourceId);
 					SourceInfo.QuantizedCommandHandle = MixerDevice->QuantizedEventClockManager.AddCommandToClock(QuantCommandInitInfo);
 				}
 			}

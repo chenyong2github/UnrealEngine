@@ -142,7 +142,7 @@ namespace Audio
 	{
 	public:
 		// ctor
-		FQuantizedNotify() = default;
+		FQuantizedNotify(float InMsOffset = 0.f);
 
 		// dtor
 		virtual ~FQuantizedNotify() override = default;
@@ -155,11 +155,14 @@ namespace Audio
 
 		virtual EQuartzCommandType GetCommandType() const override { return EQuartzCommandType::Notify; };
 
+		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
+
+		virtual int32 OverrideFramesUntilExec(int32 NumFramesUntilExec) override;
+
 	protected:
 		TSharedPtr<FQuartzClock> OwningClockPtr{ nullptr };
-
-		int32 SourceID{ -1 };
-
+		float OffsetInMs = 0.f;
+		float SampleRate = 0.f;
 		bool bIsCanceled = false;
 
 	}; // class FQuantizedNotify
