@@ -813,7 +813,6 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 					UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
 					StaticMesh->AddAssetUserData(UserData);
 				}
-				UserData->PrimPaths.AddUnique(MeshName);
 
 				MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(LODIndexToMaterialInfo, UserData);
 
@@ -1146,7 +1145,7 @@ TSet<UE::FSdfPath> FUsdGeomMeshTranslator::CollectAuxiliaryPrims() const
 bool FUsdGeomMeshTranslator::IsMeshPrim() const
 {
 	UE::FUsdPrim Prim = GetPrim();
-	if(Prim && Prim.IsA(TEXT("Mesh")))
+	if (Prim && (Prim.IsA(TEXT("Mesh")) || (Context->bAllowInterpretingLODs && UsdUtils::DoesPrimContainMeshLODs(Prim))))
 	{
 		return true;
 	}

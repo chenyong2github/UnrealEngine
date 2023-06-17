@@ -733,12 +733,10 @@ bool FUsdGeomXformableTranslator::CanBeCollapsed( ECollapsingType CollapsingType
 		return false;
 	}
 
-	if ( UsdUtils::IsAnimated( UsdPrim ) )
-	{
-		return false;
-	}
-
-	if ( UsdUtils::PrimHasSchema( UsdPrim, UnrealIdentifiers::LiveLinkAPI ) )
+	if (UsdUtils::IsAnimated(UsdPrim) ||
+		UsdUtils::PrimHasSchema(UsdPrim, UnrealIdentifiers::LiveLinkAPI) ||
+		(Context->bAllowInterpretingLODs && UsdUtils::DoesPrimContainMeshLODs(UsdPrim))
+	)
 	{
 		return false;
 	}
