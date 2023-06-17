@@ -376,6 +376,7 @@ public: // FAnimNode_Inertialization
 
 	// Log an error when a node wants to inertialize but no inertialization ancestor node exists
 	//
+	static ENGINE_API void LogRequestError(const FAnimationUpdateContext& Context, const int32 NodePropertyIndex);
 	static ENGINE_API void LogRequestError(const FAnimationUpdateContext& Context, const FPoseLinkBase& RequesterPoseLink);
 
 public: // FAnimNode_Base

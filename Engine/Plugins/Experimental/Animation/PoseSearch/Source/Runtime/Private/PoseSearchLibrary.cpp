@@ -74,6 +74,10 @@ static void RequestInertialBlend(const FAnimationUpdateContext& Context, float B
 
 			InertializationRequester->RequestInertialization(Request);
 		}
+		else
+		{
+			FAnimNode_Inertialization::LogRequestError(Context, Context.GetCurrentNodeId());
+		}
 	}
 }
 
