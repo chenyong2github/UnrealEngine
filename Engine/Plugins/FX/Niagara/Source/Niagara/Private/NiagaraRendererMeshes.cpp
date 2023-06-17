@@ -1408,7 +1408,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 
 		INiagaraRenderableMesh::FLODModelData LODModel;
 		MeshData.RenderableMesh->GetLODModelData(LODModel);
-		if (LODModel.LODIndex == INDEX_NONE)
+		if (LODModel.LODIndex == INDEX_NONE || LODModel.RayTracingGeometry == nullptr)
 		{
 			continue;
 		}
