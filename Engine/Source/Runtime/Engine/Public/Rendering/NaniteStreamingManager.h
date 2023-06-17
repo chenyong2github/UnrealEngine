@@ -7,8 +7,6 @@
 #include "Memory/SharedBuffer.h"
 #include "NaniteResources.h"
 #include "UnifiedBuffer.h"
-#include "RenderGraphBuilder.h"
-#include "RHIGPUReadback.h"
 
 namespace UE
 {
@@ -18,6 +16,9 @@ namespace UE
 		struct FCacheGetChunkRequest;
 	}
 }
+
+class FRDGBuilder;
+class FRHIGPUBufferReadback;
 
 namespace Nanite
 {
@@ -73,39 +74,24 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 
-	void	Add( FResources* Resources );
-	void	Remove( FResources* Resources );
+	void	Add(FResources* Resources);
+	void	Remove(FResources* Resources);
 
 	ENGINE_API void BeginAsyncUpdate(FRDGBuilder& GraphBuilder);			// Called once per frame before any Nanite rendering has occurred. Must be called before EndUpdate.
 	ENGINE_API void EndAsyncUpdate(FRDGBuilder& GraphBuilder);				// Called once per frame before any Nanite rendering has occurred. Must be called after BeginUpdate.
 	ENGINE_API bool IsAsyncUpdateInProgress();
 	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);		// Called once per frame after the last request has been added.
 
-	FRDGBuffer* GetStreamingRequestsBuffer(FRDGBuilder& GraphBuilder) const
-	{
-		return GraphBuilder.RegisterExternalBuffer(StreamingRequestsBuffer);
-	}
+	ENGINE_API FRDGBuffer* GetStreamingRequestsBuffer(FRDGBuilder& GraphBuilder) const;
+	ENGINE_API FRDGBufferSRV* GetHierarchySRV(FRDGBuilder& GraphBuilder) const;
+	ENGINE_API FRDGBufferSRV* GetClusterPageDataSRV(FRDGBuilder& GraphBuilder) const;
+	ENGINE_API FRDGBufferSRV* GetImposterDataSRV(FRDGBuilder& GraphBuilder) const;
 
 	uint32 GetStreamingRequestsBufferVersion() const
 	{
 		return StreamingRequestsBufferVersion;
 	}
-
-	FRDGBufferSRV* GetHierarchySRV(FRDGBuilder& GraphBuilder) const
-	{
-		return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Hierarchy.DataBuffer));
-	}
-
-	FRDGBufferSRV* GetClusterPageDataSRV(FRDGBuilder& GraphBuilder) const
-	{
-		return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ClusterPageData.DataBuffer));
-	}
-
-	FRDGBufferSRV* GetImposterDataSRV(FRDGBuilder& GraphBuilder) const
-	{
-		return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ImposterData.DataBuffer));
-	}
-
+	
 	uint32 GetMaxStreamingPages() const	
 	{
 		return MaxStreamingPages;
@@ -118,7 +104,7 @@ public:
 
 	inline bool HasResourceEntries() const
 	{
-		return !RuntimeResourceMap.IsEmpty();
+		return NumResources > 0u;
 	}
 
 	TMap<uint32, uint32> GetAndClearModifiedResources()
@@ -132,48 +118,22 @@ public:
 	ENGINE_API uint64	GetRequestRecordBuffer(TArray<uint32>& OutRequestData);
 	ENGINE_API void		SetRequestRecordBuffer(uint64 Handle);
 #endif
-	
+
+
 private:
 	friend class FStreamingUpdateTask;
 
-	struct FStreamingPageInfo
-	{
-		FStreamingPageInfo* Next = nullptr;
-		FStreamingPageInfo* Prev = nullptr;
-
-		FPageKey	RegisteredKey;
-		FPageKey	ResidentKey;
-
-		uint32		MaxHierarchyDepth = INDEX_NONE;
-		uint32		GPUPageIndex = INDEX_NONE;
-		uint32		LatestUpdateIndex = INDEX_NONE;
-		uint32		RefCount = 0;
-	};
-
-	struct FPrioritizedStreamingPage
-	{
-		FStreamingPageInfo* Page;
-		uint32 Priority;
-	};
-
-	struct FRootPageInfo
-	{
-		uint32	RuntimeResourceID = INDEX_NONE;
-		uint32	NumClusters = 0u;
-		uint32	MaxHierarchyDepth = INDEX_NONE;
-	};
-
 	struct FGPUStreamingRequest
 	{
-		uint32		RuntimeResourceID_Magic;
-		uint32		PageIndex_NumPages_Magic;
-		uint32		Priority_Magic;
+		uint32	RuntimeResourceID_Magic;
+		uint32	PageIndex_NumPages_Magic;
+		uint32	Priority_Magic;
 	};
 
 	struct FResourcePrefetch
 	{
-		uint32 RuntimeResourceID;
-		uint32 NumFramesUntilRender;
+		uint32	RuntimeResourceID;
+		uint32	NumFramesUntilRender;
 	};
 
 	struct FAsyncState
@@ -205,17 +165,13 @@ private:
 
 		uint32					GPUPageIndex = INDEX_NONE;
 		FPageKey				InstallKey;
-#if !UE_BUILD_SHIPPING
 		uint32					BytesLeftToStream = 0;
-#endif
 	};
 
 	struct FHeapBuffer
 	{
 		int32							TotalUpload = 0;
-
 		FGrowOnlySpanAllocator			Allocator;
-
 		FRDGScatterUploadBuffer			UploadBuffer;
 		TRefCountPtr<FRDGPooledBuffer>	DataBuffer;
 
@@ -238,6 +194,48 @@ private:
 		TArray<uint32> DepthHistogram;
 	};
 
+	struct FVirtualPage
+	{
+		uint32 Priority				= 0u;						// Priority != 0u means referenced this frame
+		uint32 RegisteredPageIndex	= INDEX_NONE;
+
+		FORCEINLINE bool operator==(const FVirtualPage& Other) const
+		{
+			return Priority == Priority && RegisteredPageIndex == Other.RegisteredPageIndex;
+		}
+	};
+
+	struct FNewPageRequest
+	{
+		FPageKey Key;
+		uint32 VirtualPageIndex = INDEX_NONE;
+	};
+
+	struct FRegisteredPage
+	{
+		FPageKey	Key;
+		uint32		VirtualPageIndex = INDEX_NONE;
+		uint8		RefCount = 0;
+	};
+
+	struct FResidentPage
+	{
+		FPageKey	Key;
+		uint8		MaxHierarchyDepth	= 0xFF;
+	};
+
+	struct FRootPageInfo
+	{
+		FResources* Resources = nullptr;
+		uint32		RuntimeResourceID = INDEX_NONE;
+		uint32		VirtualPageRangeStart = INDEX_NONE;
+		uint16		NumClusters = 0u;
+		uint8		NextVersion = 0u;
+		uint8		MaxHierarchyDepth = 0xFF;
+	};
+
+	TArray<FRootPageInfo>	RootPageInfos;
+	
 	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
 	FHeapBuffer				Hierarchy;
 	FHeapBuffer				ImposterData;
@@ -256,9 +254,7 @@ private:
 	uint32					ReadbackBuffersWriteIndex;
 	uint32					ReadbackBuffersNumPending;
 
-	TArray<uint32>			NextRootPageVersion;
-	uint32					NextUpdateIndex;
-	uint32					NumRegisteredStreamingPages;
+	uint32					NumResources;
 	uint32					NumPendingPages;
 	uint32					NextPendingPageIndex;
 
@@ -268,77 +264,87 @@ private:
 	uint32					StatPrevUpdateTime;
 	uint32					StatNumAllocatedRootPages;
 
-	TArray<FRootPageInfo>	RootPageInfos;
-
-#if !UE_BUILD_SHIPPING
 	uint64					PrevUpdateTick;
-#endif
 
-	TArray< FRHIGPUBufferReadback* >		StreamingRequestReadbackBuffers;
-	TArray< FResources* >					PendingAdds;
+	TArray<FRHIGPUBufferReadback*>		StreamingRequestReadbackBuffers;
+	TArray<FResources*>					PendingAdds;
 
-	TMap< uint32, FResources* >				RuntimeResourceMap;
-	TMultiMap< uint32, FResources* >		PersistentHashResourceMap;			// TODO: MultiMap to handle potential collisions and issues with there temporarily being two meshes with the same hash because of unordered add/remove.
-	TMap< FPageKey, FStreamingPageInfo* >	RegisteredStreamingPagesMap;		// This is updated immediately.
-	TMap< FPageKey, FStreamingPageInfo* >	CommittedStreamingPageMap;			// This update is deferred to the point where the page has been loaded and committed to memory.
-	FStreamingPageInfo						StreamingPageLRU;
+	TMultiMap<uint32, FResources*>		PersistentHashResourceMap;			// TODO: MultiMap to handle potential collisions and issues with there temporarily being two meshes with the same hash because of unordered add/remove.
+	
+	TMap<uint32, uint32>				ModifiedResources;					// Key = RuntimeResourceID, Value = NumResidentClusters
 
-	TMap<uint32, uint32>					ModifiedResources;					// Key = RuntimeResourceID, Value = NumResidentClusters
+	FGrowOnlySpanAllocator				VirtualPageAllocator;
+	TArray<FVirtualPage>				RegisteredVirtualPages;
 
-	FStreamingPageInfo*						StreamingPageInfoFreeList;
-	TArray< FStreamingPageInfo >			StreamingPageInfos;
-	TArray< FFixupChunk* >					StreamingPageFixupChunks;			// Fixup information for resident streaming pages. We need to keep this around to be able to uninstall pages.
+	typedef TArray<uint32, TInlineAllocator<16>> FRegisteredPageDependencies;
+	TArray<FRegisteredPage>				RegisteredPages;
+	TArray<FRegisteredPageDependencies>	RegisteredPageDependencies;
 
-	TArray< FPendingPage >					PendingPages;
-	TArray< uint8 >							PendingPageStagingMemory;
+	TArray<uint32>						RegisteredPageIndexToLRU;
+	TArray<uint32>						LRUToRegisteredPageIndex;
 
-	FRequestsHashTable*						RequestsHashTable = nullptr;
-	FStreamingPageUploader*					PageUploader = nullptr;
+	TArray<FResidentPage>				ResidentPages;
+	TArray<FFixupChunk*>				ResidentPageFixupChunks;			// Fixup information for resident streaming pages. We need to keep this around to be able to uninstall pages.
+	TMap<FPageKey, uint32>				ResidentPageMap;					// This update is deferred to the point where the page has been loaded and committed to memory.
 
-	FGraphEventArray						AsyncTaskEvents;
-	FAsyncState								AsyncState;
+	TArray<FNewPageRequest>				RequestedNewPages;
+	TArray<uint32>						RequestedRegisteredPages;
+
+	TArray<FPendingPage>				PendingPages;
+	TArray<uint8>						PendingPageStagingMemory;
+
+	FStreamingPageUploader*				PageUploader = nullptr;
+
+	FGraphEventArray					AsyncTaskEvents;
+	FAsyncState							AsyncState;
 
 #if WITH_EDITOR
-	UE::DerivedData::FRequestOwner*			RequestOwner;
+	UE::DerivedData::FRequestOwner*		RequestOwner;
 
-	uint64									PageRequestRecordHandle = (uint64)-1;
-	TMap<FPageKey, uint32>					PageRequestRecordMap;
+	uint64								PageRequestRecordHandle = (uint64)-1;
+	TMap<FPageKey, uint32>				PageRequestRecordMap;
 #endif
-	TArray<uint32>							PendingExplicitRequests;
-	TArray<FResourcePrefetch>				PendingResourcePrefetches;
+	TArray<uint32>						PendingExplicitRequests;
+	TArray<FResourcePrefetch>			PendingResourcePrefetches;
 
-	// Transient	 lifetime, but persisted to reduce allocations
-	TArray<FStreamingRequest>				PrioritizedRequestsHeap;
-	TArray<uint32>							GPUPageDependencies;
-	TArray<FPageKey>						SelectedPages;
-	TArray<FPrioritizedStreamingPage>		UpdatedPages;
+	// Transient lifetime, but persisted to reduce allocations
+	TArray<FStreamingRequest>			PrioritizedRequestsHeap;
+	TArray<uint32>						GPUPageDependencies;
+	TArray<FPageKey>					SelectedPages;
 
+	bool AddRequest(uint32 RuntimeResourceID, uint32 PageIndex, uint32 VirtualPageIndex, uint32 Priority);
+	bool AddRequest(uint32 RuntimeResourceID, uint32 PageIndex, uint32 Priority);
 	void AddPendingGPURequests();
 	void AddPendingExplicitRequests();
 	void AddPendingResourcePrefetchRequests();
 	void AddParentRequests();
+	void AddParentRegisteredRequestsRecursive(uint32 RegisteredPageIndex, uint32 Priority);
+	void AddParentNewRequestsRecursive(const FResources& Resources, uint32 RuntimeResourceID, uint32 PageIndex, uint32 VirtualPageRangeStart, uint32 Priority);
+
+	FRootPageInfo*	GetRootPage(uint32 RuntimeResourceID);
+	FResources*		GetResources(uint32 RuntimeResourceID);
 
 	void SelectHighestPriorityPagesAndUpdateLRU(uint32 MaxSelectedPages);
 
-	void RegisterStreamingPage( FStreamingPageInfo* Page, const FPageKey& Key );
-	void UnregisterPage( const FPageKey& Key );
-	void MovePageToFreeList( FStreamingPageInfo* Page );
+	void RegisterStreamingPage(uint32 RegisteredPageIndex, const FPageKey& Key);
+	void UnregisterStreamingPage(const FPageKey& Key);
 
-	void ApplyFixups( const FFixupChunk& FixupChunk, const FResources& Resources, bool bIsUninstall );
+	void MoveToEndOfLRUList(uint32 RegisteredPageIndex);
+	void CompactLRU();
+	void VerifyLRU();
+
+	void ApplyFixups(const FFixupChunk& FixupChunk, const FResources& Resources, bool bIsUninstall);
 
 	bool ArePageDependenciesCommitted(uint32 RuntimeResourceID, uint32 DependencyPageStart, uint32 DependencyPageNum);
 
 	uint32 GPUPageIndexToGPUOffset(uint32 PageIndex) const;
 
-	void ProcessNewResources( FRDGBuilder& GraphBuilder);
+	void ProcessNewResources(FRDGBuilder& GraphBuilder);
 	
 	uint32 DetermineReadyPages(uint32& TotalPageSize);
-	void InstallReadyPages( uint32 NumReadyPages );
+	void InstallReadyPages(uint32 NumReadyPages);
 
 	void AsyncUpdate();
-#if DO_CHECK
-	void VerifyPageLRU( FStreamingPageInfo& List, uint32 TargetListLength, bool bCheckUpdateIndex );
-#endif
 
 #if NANITE_SANITY_CHECK_STREAMING_REQUESTS
 	void SanityCheckStreamingRequests(const FGPUStreamingRequest* StreamingRequestsPtr, const uint32 NumStreamingRequests);

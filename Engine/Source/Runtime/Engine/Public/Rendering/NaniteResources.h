@@ -182,8 +182,8 @@ struct FPageStreamingState
 	uint32			PageSize;
 	uint32			DependenciesStart;
 	uint16			DependenciesNum;
-	uint16			MaxHierarchyDepth;
-	uint32			Flags;
+	uint8			MaxHierarchyDepth;
+	uint8			Flags;
 };
 
 class FHierarchyFixup
@@ -250,10 +250,10 @@ class FFixupChunk	//TODO: rename to something else
 public:
 	struct FHeader
 	{
+		uint16 Magic = 0;
 		uint16 NumClusters = 0;
 		uint16 NumHierachyFixups = 0;
 		uint16 NumClusterFixups = 0;
-		uint16 Pad = 0;
 	} Header;
 	
 	uint8 Data[sizeof(FHierarchyFixup) * NANITE_MAX_CLUSTERS_PER_PAGE + sizeof( FClusterFixup ) * NANITE_MAX_CLUSTERS_PER_PAGE];	// One hierarchy fixup per cluster and at most one cluster fixup per cluster.

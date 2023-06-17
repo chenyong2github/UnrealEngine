@@ -1467,18 +1467,23 @@ static TArray<uint32> CalculateClusterGroupPermutation( const TArray< FClusterGr
 		MaxCenter = FVector3f::Max( MaxCenter, Center );
 	}
 
+	const float Scale = 1023.0f / (MaxCenter - MinCenter).GetMax();
 	for( uint32 i = 0; i < NumClusterGroups; i++ )
 	{
 		const FClusterGroup& ClusterGroup = ClusterGroups[ i ];
 		FClusterGroupSortEntry& SortEntry = ClusterGroupSortEntries[ i ];
 		const FVector3f& Center = ClusterGroup.LODBounds.Center;
-		const FVector3f ScaledCenter = ( Center - MinCenter ) / ( MaxCenter - MinCenter ) * 1023.0f + 0.5f;
+		const FVector3f ScaledCenter = ( Center - MinCenter ) * Scale + 0.5f;
 		uint32 X = FMath::Clamp( (int32)ScaledCenter.X, 0, 1023 );
 		uint32 Y = FMath::Clamp( (int32)ScaledCenter.Y, 0, 1023 );
 		uint32 Z = FMath::Clamp( (int32)ScaledCenter.Z, 0, 1023 );
 
 		SortEntry.MipLevel = ClusterGroup.MipLevel;
 		SortEntry.MortonXYZ = ( FMath::MortonCode3(Z) << 2 ) | ( FMath::MortonCode3(Y) << 1 ) | FMath::MortonCode3(X);
+		if ((ClusterGroup.MipLevel & 1) != 0)
+		{
+			SortEntry.MortonXYZ ^= 0xFFFFFFFFu;	// Alternate order so end of one level is near the beginning of the next
+		}
 		SortEntry.OldIndex = i;
 	}
 
@@ -1808,6 +1813,7 @@ static void WritePages(	FResources& Resources,
 	{
 		const FPage& Page = Pages[PageIndex];
 		FFixupChunk& FixupChunk = FixupChunks[PageIndex];
+		FixupChunk.Header.Magic = NANITE_FIXUP_MAGIC;	
 		FixupChunk.Header.NumClusters = uint16(Page.NumClusters);
 
 		uint32 NumHierarchyFixups = 0;
@@ -1861,7 +1867,7 @@ static void WritePages(	FResources& Resources,
 		const FFixupChunk& FixupChunk = FixupChunks[PageIndex];
 		FPageStreamingState& PageStreamingState = Resources.PageStreamingStates[PageIndex];
 		PageStreamingState.DependenciesStart = Resources.PageDependencies.Num();
-		PageStreamingState.MaxHierarchyDepth = uint16(Pages[PageIndex].MaxHierarchyDepth);
+		PageStreamingState.MaxHierarchyDepth = uint8(Pages[PageIndex].MaxHierarchyDepth);
 
 		for (uint32 i = 0; i < FixupChunk.Header.NumClusterFixups; i++)
 		{
