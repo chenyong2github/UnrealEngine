@@ -15,7 +15,7 @@ namespace AVEncoder
 //
 // Wrapper for IMFSample, to make it easier to report errors
 //
-class AVENCODER_API FIMFSampleWrapper
+class FIMFSampleWrapper
 {
 public:
 
@@ -35,19 +35,19 @@ public:
 		return Sample;
 	}
 
-	bool CreateSample();
+	AVENCODER_API bool CreateSample();
 
-	FTimespan GetTime() const;
+	AVENCODER_API FTimespan GetTime() const;
 
-	void SetTime(FTimespan Time);
+	AVENCODER_API void SetTime(FTimespan Time);
 
-	FTimespan GetDuration() const;
+	AVENCODER_API FTimespan GetDuration() const;
 
-	void SetDuration(FTimespan Duration);
+	AVENCODER_API void SetDuration(FTimespan Duration);
 
-	bool IsVideoKeyFrame() const;
+	AVENCODER_API bool IsVideoKeyFrame() const;
 
-	int GetBufferCount() const;
+	AVENCODER_API int GetBufferCount() const;
 
 	/**
 	*
@@ -92,7 +92,7 @@ public:
 		Sample = nullptr;
 	}
 
-	FIMFSampleWrapper Clone() const;
+	AVENCODER_API FIMFSampleWrapper Clone() const;
 
 private:
 	EPacketType MediaType;

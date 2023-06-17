@@ -44,7 +44,7 @@ struct FIrisFastArraySerializer : public FFastArraySerializer
 	IRISCORE_API FIrisFastArraySerializer& operator=(FIrisFastArraySerializer&& Other);
 	
 	/** Override MarkItemDirty in order to mark object as dirty in the DirtyNetObjectTracker */
-	IRISCORE_API void MarkItemDirty(FFastArraySerializerItem & Item)
+	void MarkItemDirty(FFastArraySerializerItem & Item)
 	{ 
 		FFastArraySerializer::MarkItemDirty(Item);
 		if (ReplicationStateHeader.IsBound())
@@ -55,7 +55,7 @@ struct FIrisFastArraySerializer : public FFastArraySerializer
 	}
 	
 	/** Override MarkArrayDirty in order to mark object as dirty in the DirtyNetObjectTracker */
-	IRISCORE_API void MarkArrayDirty()
+	void MarkArrayDirty()
 	{
 		FFastArraySerializer::MarkArrayDirty();
 		if (ReplicationStateHeader.IsBound())

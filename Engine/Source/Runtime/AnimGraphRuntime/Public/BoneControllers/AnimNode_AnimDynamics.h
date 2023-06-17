@@ -283,11 +283,11 @@ struct FAnimConstraintOffsetPair
 
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalControlBase
+struct FAnimNode_AnimDynamics : public FAnimNode_SkeletalControlBase
 {
 	GENERATED_BODY();
 
-	FAnimNode_AnimDynamics();
+	ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics();
 
 	/**
 	* Overridden linear damping value. The default is 0.7. Values below 0.7 won't have an effect.
@@ -474,69 +474,69 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AnimDynamics : public FAnimNode_SkeletalCo
 #endif
 
 	// FAnimNode_SkeletalControlBase interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
-	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
-	virtual bool HasPreUpdate() const override;
-	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual bool HasPreUpdate() const override;
+	ANIMGRAPHRUNTIME_API virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsDynamicReset() const override { return true; }
 	virtual void ResetDynamics(ETeleportType InTeleportType) override { RequestInitialise(InTeleportType); }
-	virtual int32 GetLODThreshold() const override;
+	ANIMGRAPHRUNTIME_API virtual int32 GetLODThreshold() const override;
 	// End of FAnimNode_SkeletalControlBase interface
 
-	void RequestInitialise(ETeleportType InTeleportType);
-	void InitPhysics(FComponentSpacePoseContext& Output);
-	void TermPhysics();
+	ANIMGRAPHRUNTIME_API void RequestInitialise(ETeleportType InTeleportType);
+	ANIMGRAPHRUNTIME_API void InitPhysics(FComponentSpacePoseContext& Output);
+	ANIMGRAPHRUNTIME_API void TermPhysics();
 
-	void UpdateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton);
-	void ValidateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton);
-	void FindChainBoneNames(const FReferenceSkeleton& ReferenceSkeleton, TArray<FName>& ChainBoneNames);
-	void UpdateLimits(FComponentSpacePoseContext& Output);
+	ANIMGRAPHRUNTIME_API void UpdateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton);
+	ANIMGRAPHRUNTIME_API void ValidateChainPhysicsBodyDefinitions(const FReferenceSkeleton& ReferenceSkeleton);
+	ANIMGRAPHRUNTIME_API void FindChainBoneNames(const FReferenceSkeleton& ReferenceSkeleton, TArray<FName>& ChainBoneNames);
+	ANIMGRAPHRUNTIME_API void UpdateLimits(FComponentSpacePoseContext& Output);
 
-	int32 GetNumBodies() const;
-	const FAnimPhysRigidBody& GetPhysBody(int32 BodyIndex) const;
+	ANIMGRAPHRUNTIME_API int32 GetNumBodies() const;
+	ANIMGRAPHRUNTIME_API const FAnimPhysRigidBody& GetPhysBody(int32 BodyIndex) const;
 
-	FTransform GetBodyComponentSpaceTransform(const FAnimPhysRigidBody& Body, const USkeletalMeshComponent* const SkelComp) const;
+	ANIMGRAPHRUNTIME_API FTransform GetBodyComponentSpaceTransform(const FAnimPhysRigidBody& Body, const USkeletalMeshComponent* const SkelComp) const;
 
 #if WITH_EDITOR
 
 	// Accessors for editor code (mainly for visualization functions)
-	FVector GetBodyLocalJointOffset(const int32 BodyIndex) const;
+	ANIMGRAPHRUNTIME_API FVector GetBodyLocalJointOffset(const int32 BodyIndex) const;
 
 	// True by default, if false physics simulation will not update this frame. Used to prevent the rig moving whilst interactively editing parameters with a widget in the viewport.
 	bool bDoPhysicsUpdateInEditor;
 
 #endif
 
-	bool ShouldDoPhysicsUpdate() const;
+	ANIMGRAPHRUNTIME_API bool ShouldDoPhysicsUpdate() const;
 
 protected:
 
 	// FAnimNode_SkeletalControlBase protected interface
-	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
-	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones);
+	ANIMGRAPHRUNTIME_API virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
+	ANIMGRAPHRUNTIME_API virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones);
 	// End of FAnimNode_SkeletalControlBase protected interface
 
 private:
 	// Given a bone index, get it's transform in the currently selected simulation space
-	FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output, const FCompactPoseBoneIndex& BoneIndex) const;
+	ANIMGRAPHRUNTIME_API FTransform GetBoneTransformInSimSpace(FComponentSpacePoseContext& Output, const FCompactPoseBoneIndex& BoneIndex) const;
 
 	// Given a transform in simulation space, convert it back to component space
-	FTransform GetComponentSpaceTransformFromSimSpace(AnimPhysSimSpaceType SimSpace, FComponentSpacePoseContext& Output, const FTransform& InSimTransform) const;
-	FTransform GetComponentSpaceTransformFromSimSpace(AnimPhysSimSpaceType SimSpace, FComponentSpacePoseContext& Output, const FTransform& InSimTransform, const FTransform& InCompWorldSpaceTM, const FTransform& InActorWorldSpaceTM) const;
-	FTransform GetComponentSpaceTransformFromSimSpace(AnimPhysSimSpaceType SimSpace, const USkeletalMeshComponent* const SkelComp, const FTransform& InSimTransform) const;
+	ANIMGRAPHRUNTIME_API FTransform GetComponentSpaceTransformFromSimSpace(AnimPhysSimSpaceType SimSpace, FComponentSpacePoseContext& Output, const FTransform& InSimTransform) const;
+	ANIMGRAPHRUNTIME_API FTransform GetComponentSpaceTransformFromSimSpace(AnimPhysSimSpaceType SimSpace, FComponentSpacePoseContext& Output, const FTransform& InSimTransform, const FTransform& InCompWorldSpaceTM, const FTransform& InActorWorldSpaceTM) const;
+	ANIMGRAPHRUNTIME_API FTransform GetComponentSpaceTransformFromSimSpace(AnimPhysSimSpaceType SimSpace, const USkeletalMeshComponent* const SkelComp, const FTransform& InSimTransform) const;
 
 	// Given a transform in component space, convert it to the current sim space
-	FTransform GetSimSpaceTransformFromComponentSpace(AnimPhysSimSpaceType SimSpace, FComponentSpacePoseContext& Output, const FTransform& InComponentTransform) const;
+	ANIMGRAPHRUNTIME_API FTransform GetSimSpaceTransformFromComponentSpace(AnimPhysSimSpaceType SimSpace, FComponentSpacePoseContext& Output, const FTransform& InComponentTransform) const;
 
 	// Given a world-space vector, convert it into the current simulation space
-	FVector TransformWorldVectorToSimSpace(FComponentSpacePoseContext& Output, const FVector& InVec) const;
+	ANIMGRAPHRUNTIME_API FVector TransformWorldVectorToSimSpace(FComponentSpacePoseContext& Output, const FVector& InVec) const;
 
-	void ConvertSimulationSpace(FComponentSpacePoseContext& Output, AnimPhysSimSpaceType From, AnimPhysSimSpaceType To) const;
+	ANIMGRAPHRUNTIME_API void ConvertSimulationSpace(FComponentSpacePoseContext& Output, AnimPhysSimSpaceType From, AnimPhysSimSpaceType To) const;
 
 	// Maximum time to consider when accumulating time debt to avoid spiraling
-	static const float MaxTimeDebt;
+	static ANIMGRAPHRUNTIME_API const float MaxTimeDebt;
 
 	// Cached timestep from the update phase (needed in evaluate phase)
 	float NextTimeStep;
@@ -590,10 +590,10 @@ private:
 	// Live debug
 	//////////////////////////////////////////////////////////////////////////
 #if ENABLE_ANIM_DRAW_DEBUG
-	void DrawBodies(FComponentSpacePoseContext& InContext, const TArray<FAnimPhysRigidBody*>& InBodies);
+	ANIMGRAPHRUNTIME_API void DrawBodies(FComponentSpacePoseContext& InContext, const TArray<FAnimPhysRigidBody*>& InBodies);
 
 	int32 FilteredBoneIndex;
 #endif
 public: 
-	static bool IsAnimDynamicsSystemEnabledFor(int32 InLOD);
+	static ANIMGRAPHRUNTIME_API bool IsAnimDynamicsSystemEnabledFor(int32 InLOD);
 };

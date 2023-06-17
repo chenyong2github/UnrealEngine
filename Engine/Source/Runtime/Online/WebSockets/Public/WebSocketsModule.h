@@ -18,7 +18,7 @@ class IWebSocketsManager;
 /**
  * Module for web socket implementations
  */
-class WEBSOCKETS_API FWebSocketsModule :
+class FWebSocketsModule :
 	public IModuleInterface
 {
 
@@ -49,7 +49,7 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static FWebSocketsModule& Get();
+	static WEBSOCKETS_API FWebSocketsModule& Get();
 
 #if WITH_WEBSOCKETS
 	/**
@@ -59,7 +59,7 @@ public:
 	 * @param Protocols a list of protocols the client will handle.
 	 * @return new IWebSocket instance
 	 */
-	virtual TSharedRef<IWebSocket> CreateWebSocket(const FString& Url, const TArray<FString>& Protocols, const TMap<FString, FString>& UpgradeHeaders = TMap<FString, FString>());
+	WEBSOCKETS_API virtual TSharedRef<IWebSocket> CreateWebSocket(const FString& Url, const TArray<FString>& Protocols, const TMap<FString, FString>& UpgradeHeaders = TMap<FString, FString>());
 
 
 	/**
@@ -69,11 +69,11 @@ public:
 	 * @param Protocol an optional sub-protocol. If missing, an empty string is assumed.
 	 * @return new IWebSocket instance
 	 */
-	virtual TSharedRef<IWebSocket> CreateWebSocket(const FString& Url, const FString& Protocol = FString(), const TMap<FString, FString>& UpgradeHeaders = TMap<FString, FString>());
+	WEBSOCKETS_API virtual TSharedRef<IWebSocket> CreateWebSocket(const FString& Url, const FString& Protocol = FString(), const TMap<FString, FString>& UpgradeHeaders = TMap<FString, FString>());
 #endif // #if WITH_WEBSOCKETS
 
 private:
-	static FString BuildUpgradeHeader(const TMap<FString, FString>& Headers);
+	static WEBSOCKETS_API FString BuildUpgradeHeader(const TMap<FString, FString>& Headers);
 
 	// IModuleInterface
 
@@ -81,13 +81,13 @@ private:
 	 * Called when WebSockets module is loaded
 	 * Initialize implementation specific parts of WebSockets handling
 	 */
-	virtual void StartupModule() override;
+	WEBSOCKETS_API virtual void StartupModule() override;
 	
 	/**
 	 * Called when WebSockets module is unloaded
 	 * Shutdown implementation specific parts of WebSockets handling
 	 */
-	virtual void ShutdownModule() override;
+	WEBSOCKETS_API virtual void ShutdownModule() override;
 
 #if WITH_WEBSOCKETS
 	/** Manages active web sockets */
@@ -97,5 +97,5 @@ private:
 #endif // #if WITH_WEBSOCKETS
 
 	/** singleton for the module while loaded and available */
-	static FWebSocketsModule* Singleton;
+	static WEBSOCKETS_API FWebSocketsModule* Singleton;
 };

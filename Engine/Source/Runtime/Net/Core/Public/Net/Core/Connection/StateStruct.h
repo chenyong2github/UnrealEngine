@@ -124,7 +124,7 @@ struct FStateConfigParms
  * Base struct used for states, which is subclassed to define/implement custom states.
  */
 USTRUCT()
-struct NETCORE_API FStateStruct
+struct FStateStruct
 {
 	friend class UStatePerObjectConfig;
 
@@ -148,7 +148,7 @@ public:
 	 *
 	 * @return	The name of this state
 	 */
-	FString GetStateName() const;
+	NETCORE_API FString GetStateName() const;
 
 
 private:
@@ -200,8 +200,8 @@ protected:
 /**
  * Base class for loading and initializing state configuration
  */
-UCLASS(config=Engine, PerObjectConfig)
-class NETCORE_API UStatePerObjectConfig : public UObject
+UCLASS(config=Engine, PerObjectConfig, MinimalAPI)
+class UStatePerObjectConfig : public UObject
 {
 	GENERATED_BODY()
 
@@ -212,7 +212,7 @@ public:
 	 * @param ConfigParms	Specifies the parameters for the config section/object to get/create, and how it should be created
 	 * @return				Returns a cached or newly created instance of the config section/object
 	 */
-	static const UStatePerObjectConfig* Get(FStateConfigParms ConfigParms);
+	static NETCORE_API const UStatePerObjectConfig* Get(FStateConfigParms ConfigParms);
 
 	/**
 	 * Applies the specified config state, to an object implementing FStateStruct's.
@@ -221,14 +221,14 @@ public:
 	 * @param ConfigState	The configuration state containing the settings to be applied
 	 * @param TargetState	The object implementing FStateStruct, to apply the config settings to.
 	 */
-	static void ApplyState(const FStructOnScope& ConfigState, FStateStruct* TargetState);
+	static NETCORE_API void ApplyState(const FStructOnScope& ConfigState, FStateStruct* TargetState);
 
 
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Debug function which prints the entire state configuration to the log
 	 */
-	virtual void DebugDump() const;
+	NETCORE_API virtual void DebugDump() const;
 #endif
 
 
@@ -271,9 +271,9 @@ private:
 	}
 
 
-	void RegisterStateConfig(const TArray<FString>& StateNames, TArray<TStructOnScope<FStateStruct>>& OutStates);
+	NETCORE_API void RegisterStateConfig(const TArray<FString>& StateNames, TArray<TStructOnScope<FStateStruct>>& OutStates);
 
-	virtual void OverridePerObjectConfigSection(FString& SectionName) override;
+	NETCORE_API virtual void OverridePerObjectConfigSection(FString& SectionName) override;
 
 
 	/**
@@ -284,7 +284,7 @@ private:
 	 * @param FormattedName		The base formatted object name to use, for unique/singleton object lookup/caching
 	 * @return					Returns a cached or newly created instance of the config section/object archetype
 	 */
-	static UStatePerObjectConfig* GetArchetype(FStateConfigParms ConfigParms, FString FullSection, FString FormattedName);
+	static NETCORE_API UStatePerObjectConfig* GetArchetype(FStateConfigParms ConfigParms, FString FullSection, FString FormattedName);
 
 	/**
 	 * Uses reflection to load all struct config variables from the specified ini section.
@@ -295,7 +295,7 @@ private:
 	 * @param InFilename	The ini filename to read from
 	 * @return				Whether or not the struct config variables were read successfully
 	 */
-	static bool LoadStructConfig(FStructOnScope& OutStruct, const TCHAR* SectionName, const TCHAR* InFilename=nullptr);
+	static NETCORE_API bool LoadStructConfig(FStructOnScope& OutStruct, const TCHAR* SectionName, const TCHAR* InFilename=nullptr);
 
 
 private:

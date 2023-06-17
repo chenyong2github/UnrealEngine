@@ -38,148 +38,148 @@ namespace EBlackboardDescription
 }
 
 
-UCLASS(ClassGroup = AI, meta = (BlueprintSpawnableComponent), hidecategories = (Sockets, Collision))
-class AIMODULE_API UBlackboardComponent : public UActorComponent
+UCLASS(ClassGroup = AI, meta = (BlueprintSpawnableComponent), hidecategories = (Sockets, Collision), MinimalAPI)
+class UBlackboardComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UBlackboardComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UBlackboardComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** BEGIN UActorComponent overrides */
-	virtual void InitializeComponent() override;
-	virtual void UninitializeComponent() override;
+	AIMODULE_API virtual void InitializeComponent() override;
+	AIMODULE_API virtual void UninitializeComponent() override;
 	/** END UActorComponent overrides */
 
 	/** @return name of key */
-	FName GetKeyName(FBlackboard::FKey KeyID) const;
+	AIMODULE_API FName GetKeyName(FBlackboard::FKey KeyID) const;
 
 	/** @return key ID from name */
-	FBlackboard::FKey GetKeyID(const FName& KeyName) const;
+	AIMODULE_API FBlackboard::FKey GetKeyID(const FName& KeyName) const;
 
 	/** @return class of value for given key */
-	TSubclassOf<UBlackboardKeyType> GetKeyType(FBlackboard::FKey KeyID) const;
+	AIMODULE_API TSubclassOf<UBlackboardKeyType> GetKeyType(FBlackboard::FKey KeyID) const;
 
 	/** @return true if the key is marked as instance synced */
-	bool IsKeyInstanceSynced(FBlackboard::FKey KeyID) const;
+	AIMODULE_API bool IsKeyInstanceSynced(FBlackboard::FKey KeyID) const;
 	
 	/** @return number of entries in data asset */
-	int32 GetNumKeys() const;
+	AIMODULE_API int32 GetNumKeys() const;
 
 	/** @return true if blackboard have valid data asset */
-	bool HasValidAsset() const;
+	AIMODULE_API bool HasValidAsset() const;
 
 	/** register observer for blackboard key */
-	FDelegateHandle RegisterObserver(FBlackboard::FKey KeyID, const UObject* NotifyOwner, FOnBlackboardChangeNotification ObserverDelegate);
+	AIMODULE_API FDelegateHandle RegisterObserver(FBlackboard::FKey KeyID, const UObject* NotifyOwner, FOnBlackboardChangeNotification ObserverDelegate);
 
 	/** unregister observer from blackboard key */
-	void UnregisterObserver(FBlackboard::FKey KeyID, FDelegateHandle ObserverHandle);
+	AIMODULE_API void UnregisterObserver(FBlackboard::FKey KeyID, FDelegateHandle ObserverHandle);
 
 	/** unregister all observers associated with given owner */
-	void UnregisterObserversFrom(const UObject* NotifyOwner);
+	AIMODULE_API void UnregisterObserversFrom(const UObject* NotifyOwner);
 
 	/** pause observer change notifications, any new ones will be added to a queue */
-	void PauseObserverNotifications();
+	AIMODULE_API void PauseObserverNotifications();
 
 	/** resume observer change notifications and, optionally, process the queued observation list */
-	void ResumeObserverNotifications(bool bSendQueuedObserverNotifications);
+	AIMODULE_API void ResumeObserverNotifications(bool bSendQueuedObserverNotifications);
 
 	/** @return associated behavior tree component */
-	UBrainComponent* GetBrainComponent() const;
+	AIMODULE_API UBrainComponent* GetBrainComponent() const;
 
 	/** @return blackboard data asset */
-	UBlackboardData* GetBlackboardAsset() const;
+	AIMODULE_API UBlackboardData* GetBlackboardAsset() const;
 
 	/** caches UBrainComponent pointer to be used in communication */
-	void CacheBrainComponent(UBrainComponent& BrainComponent);
+	AIMODULE_API void CacheBrainComponent(UBrainComponent& BrainComponent);
 
 	/** setup component for using given blackboard asset, returns true if blackboard is properly initialized for specified blackboard data */
-	bool InitializeBlackboard(UBlackboardData& NewAsset);
+	AIMODULE_API bool InitializeBlackboard(UBlackboardData& NewAsset);
 	
 	/** @return true if component can be used with specified blackboard asset */
-	virtual bool IsCompatibleWith(const UBlackboardData* TestAsset) const;
+	AIMODULE_API virtual bool IsCompatibleWith(const UBlackboardData* TestAsset) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	UObject* GetValueAsObject(const FName& KeyName) const;
+	AIMODULE_API UObject* GetValueAsObject(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	UClass* GetValueAsClass(const FName& KeyName) const;
+	AIMODULE_API UClass* GetValueAsClass(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	uint8 GetValueAsEnum(const FName& KeyName) const;
+	AIMODULE_API uint8 GetValueAsEnum(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	int32 GetValueAsInt(const FName& KeyName) const;
+	AIMODULE_API int32 GetValueAsInt(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	float GetValueAsFloat(const FName& KeyName) const;
+	AIMODULE_API float GetValueAsFloat(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	bool GetValueAsBool(const FName& KeyName) const;
+	AIMODULE_API bool GetValueAsBool(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	FString GetValueAsString(const FName& KeyName) const;
+	AIMODULE_API FString GetValueAsString(const FName& KeyName) const;
 	
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	FName GetValueAsName(const FName& KeyName) const;
+	AIMODULE_API FName GetValueAsName(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	FVector GetValueAsVector(const FName& KeyName) const;
+	AIMODULE_API FVector GetValueAsVector(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	FRotator GetValueAsRotator(const FName& KeyName) const;
+	AIMODULE_API FRotator GetValueAsRotator(const FName& KeyName) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsObject(const FName& KeyName, UObject* ObjectValue);
+	AIMODULE_API void SetValueAsObject(const FName& KeyName, UObject* ObjectValue);
 	
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsClass(const FName& KeyName, UClass* ClassValue);
+	AIMODULE_API void SetValueAsClass(const FName& KeyName, UClass* ClassValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsEnum(const FName& KeyName, uint8 EnumValue);
+	AIMODULE_API void SetValueAsEnum(const FName& KeyName, uint8 EnumValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsInt(const FName& KeyName, int32 IntValue);
+	AIMODULE_API void SetValueAsInt(const FName& KeyName, int32 IntValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsFloat(const FName& KeyName, float FloatValue);
+	AIMODULE_API void SetValueAsFloat(const FName& KeyName, float FloatValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsBool(const FName& KeyName, bool BoolValue);
+	AIMODULE_API void SetValueAsBool(const FName& KeyName, bool BoolValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsString(const FName& KeyName, FString StringValue);
+	AIMODULE_API void SetValueAsString(const FName& KeyName, FString StringValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsName(const FName& KeyName, FName NameValue);
+	AIMODULE_API void SetValueAsName(const FName& KeyName, FName NameValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	void SetValueAsVector(const FName& KeyName, FVector VectorValue);
+	AIMODULE_API void SetValueAsVector(const FName& KeyName, FVector VectorValue);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Components|Blackboard")
-	void SetValueAsRotator(const FName& KeyName, FRotator VectorValue);
+	AIMODULE_API void SetValueAsRotator(const FName& KeyName, FRotator VectorValue);
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard", Meta=(
 		Tooltip="If the vector value has been set (and not cleared), this function returns true (indicating that the value should be valid).  If it's not set, the vector value is invalid and this function will return false.  (Also returns false if the key specified does not hold a vector.)"))
-	bool IsVectorValueSet(const FName& KeyName) const;
-	bool IsVectorValueSet(FBlackboard::FKey KeyID) const;
+	AIMODULE_API bool IsVectorValueSet(const FName& KeyName) const;
+	AIMODULE_API bool IsVectorValueSet(FBlackboard::FKey KeyID) const;
 		
 	/** return false if call failed (most probably no such entry in BB) */
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	bool GetLocationFromEntry(const FName& KeyName, FVector& ResultLocation) const;
-	bool GetLocationFromEntry(FBlackboard::FKey KeyID, FVector& ResultLocation) const;
+	AIMODULE_API bool GetLocationFromEntry(const FName& KeyName, FVector& ResultLocation) const;
+	AIMODULE_API bool GetLocationFromEntry(FBlackboard::FKey KeyID, FVector& ResultLocation) const;
 
 	/** return false if call failed (most probably no such entry in BB) */
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
-	bool GetRotationFromEntry(const FName& KeyName, FRotator& ResultRotation) const;
-	bool GetRotationFromEntry(FBlackboard::FKey KeyID, FRotator& ResultRotation) const;
+	AIMODULE_API bool GetRotationFromEntry(const FName& KeyName, FRotator& ResultRotation) const;
+	AIMODULE_API bool GetRotationFromEntry(FBlackboard::FKey KeyID, FRotator& ResultRotation) const;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Components|Blackboard")
-	void ClearValue(const FName& KeyName);
-	void ClearValue(FBlackboard::FKey KeyID);
+	AIMODULE_API void ClearValue(const FName& KeyName);
+	AIMODULE_API void ClearValue(FBlackboard::FKey KeyID);
 
 	/** Copy content from SourceKeyID to DestinationID and return true if it worked */
-	bool CopyKeyValue(FBlackboard::FKey SourceKeyID, FBlackboard::FKey DestinationID);
+	AIMODULE_API bool CopyKeyValue(FBlackboard::FKey SourceKeyID, FBlackboard::FKey DestinationID);
 
 	template<class TDataClass>
 	bool IsKeyOfType(FBlackboard::FKey KeyID) const;
@@ -205,20 +205,20 @@ public:
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // re BlackboardAsset
 	FORCEINLINE bool IsValidKey(FBlackboard::FKey KeyID) const { check(BlackboardAsset); return BlackboardAsset->IsValidKey(KeyID); }
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS // re BlackboardAsset
+	AIMODULE_API PRAGMA_ENABLE_DEPRECATION_WARNINGS // re BlackboardAsset
 
 	/** compares blackboard's values under specified keys */
 	EBlackboardCompare::Type CompareKeyValues(TSubclassOf<UBlackboardKeyType> KeyType, FBlackboard::FKey KeyA, FBlackboard::FKey KeyB) const;
 
-	FString GetDebugInfoString(EBlackboardDescription::Type Mode) const;
+	AIMODULE_API FString GetDebugInfoString(EBlackboardDescription::Type Mode) const;
 
 	/** get description of value under given key */
-	FString DescribeKeyValue(const FName& KeyName, EBlackboardDescription::Type Mode) const;
-	FString DescribeKeyValue(FBlackboard::FKey KeyID, EBlackboardDescription::Type Mode) const;
+	AIMODULE_API FString DescribeKeyValue(const FName& KeyName, EBlackboardDescription::Type Mode) const;
+	AIMODULE_API FString DescribeKeyValue(FBlackboard::FKey KeyID, EBlackboardDescription::Type Mode) const;
 
 #if ENABLE_VISUAL_LOG
 	/** prepare blackboard snapshot for logs */
-	virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
+	AIMODULE_API virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
 #endif
 	
 protected:
@@ -288,18 +288,18 @@ protected:
 	uint32 bSynchronizedKeyPopulated : 1;
 
 	/** notifies behavior tree decorators about change in blackboard */
-	void NotifyObservers(FBlackboard::FKey KeyID) const;
+	AIMODULE_API void NotifyObservers(FBlackboard::FKey KeyID) const;
 
 	/** initializes parent chain in asset */
-	void InitializeParentChain(UBlackboardData* NewAsset);
+	AIMODULE_API void InitializeParentChain(UBlackboardData* NewAsset);
 
 	/** destroy allocated values */
-	void DestroyValues();
+	AIMODULE_API void DestroyValues();
 
 	/** populates BB's synchronized entries */
-	void PopulateSynchronizedKeys();
+	AIMODULE_API void PopulateSynchronizedKeys();
 
-	bool ShouldSyncWithBlackboard(UBlackboardComponent& OtherBlackboardComponent) const;
+	AIMODULE_API bool ShouldSyncWithBlackboard(UBlackboardComponent& OtherBlackboardComponent) const;
 
 	friend UBlackboardKeyType;
 };

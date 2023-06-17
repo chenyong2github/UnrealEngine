@@ -13,8 +13,8 @@
 class UObject;
 
 /** Special area that can be generated in spaces with insufficient free height above. Cannot be traversed by anyone. */
-UCLASS(Config = Engine)
-class NAVIGATIONSYSTEM_API UNavArea_LowHeight : public UNavArea
+UCLASS(Config = Engine, MinimalAPI)
+class UNavArea_LowHeight : public UNavArea
 {
 	GENERATED_UCLASS_BODY()
 public:

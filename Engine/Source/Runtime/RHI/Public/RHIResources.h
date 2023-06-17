@@ -4436,7 +4436,7 @@ struct FRHIRenderPassInfo
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	RHI_API void Validate() const;
 #else
-	RHI_API void Validate() const {}
+	void Validate() const {}
 #endif
 	RHI_API void ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& OutRTInfo) const;
 };

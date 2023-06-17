@@ -910,7 +910,7 @@ enum class EProfileSweepQuadSplit : uint8
  * it cannot actually use the utility function from FSweepGeneratorBase, and so it doesn't inherit from 
  * that class.
  */
-class GEOMETRYCORE_API FProfileSweepGenerator : public FMeshShapeGenerator
+class FProfileSweepGenerator : public FMeshShapeGenerator
 {
 public:
 
@@ -975,7 +975,7 @@ public:
 public:
 
 	/** Generate the mesh */
-	virtual FMeshShapeGenerator& Generate() override;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() override;
 
 	/** If the sweep curve is not closed, this will store the vertex ids of the first and last instances
 	 * of the profile curve. Note that even if the profile curve is closed, depending on the welding,
@@ -989,11 +989,11 @@ public:
 	// a case where we would actually use them.
 protected:
 
-	void InitializeUvBuffer(const TArray<int32>& VertPositionOffsets, 
+	GEOMETRYCORE_API void InitializeUvBuffer(const TArray<int32>& VertPositionOffsets, 
 		int32& NumUvRowsOut, int32& NumUvColumnsOut);
-	void AdjustNormalsForTriangle(int32 TriIndex, int32 FirstIndex, int32 SecondIndex, int32 ThirdIndex,
+	GEOMETRYCORE_API void AdjustNormalsForTriangle(int32 TriIndex, int32 FirstIndex, int32 SecondIndex, int32 ThirdIndex,
 		TArray<FVector3d>& WeightedNormals);
-	void AdjustNormalsForTriangle(int32 TriIndex, int32 FirstIndex, int32 SecondIndex, int32 ThirdIndex,
+	GEOMETRYCORE_API void AdjustNormalsForTriangle(int32 TriIndex, int32 FirstIndex, int32 SecondIndex, int32 ThirdIndex,
 		TArray<FVector3d>& WeightedNormals, const FVector3d& AbNormalized);
 };
 

@@ -14,7 +14,7 @@ class FArchive;
 /**
  * Implements a writer for UStruct serialization using Cbor.
  */
-class SERIALIZATION_API FCborStructSerializerBackend
+class FCborStructSerializerBackend
 	: public IStructSerializerBackend
 {
 public:
@@ -26,7 +26,7 @@ public:
 	 * @param InArchive The archive to serialize into.
 	 */
 	UE_DEPRECATED(4.22, "Use the two-parameter constructor with EStructSerializerBackendFlags::Legacy only if you need backwards compatibility with code compiled prior to 4.22; otherwise use EStructSerializerBackendFlags::Default.")
-	FCborStructSerializerBackend(FArchive& InArchive);
+	SERIALIZATION_API FCborStructSerializerBackend(FArchive& InArchive);
 
 	/**
 	 * Creates and initializes a new instance with the given flags.
@@ -34,20 +34,20 @@ public:
 	 * @param InArchive The archive to serialize into.
 	 * @param InFlags The flags that control the serialization behavior (typically EStructSerializerBackendFlags::Default).
 	 */
-	FCborStructSerializerBackend(FArchive& InArchive, const EStructSerializerBackendFlags InFlags);
+	SERIALIZATION_API FCborStructSerializerBackend(FArchive& InArchive, const EStructSerializerBackendFlags InFlags);
 
-	virtual ~FCborStructSerializerBackend();
+	SERIALIZATION_API virtual ~FCborStructSerializerBackend();
 
 public:
 
 	// IStructSerializerBackend interface
-	virtual void BeginArray(const FStructSerializerState& State) override;
-	virtual void BeginStructure(const FStructSerializerState& State) override;
-	virtual void EndArray(const FStructSerializerState& State) override;
-	virtual void EndStructure(const FStructSerializerState& State) override;
-	virtual void WriteComment(const FString& Comment) override;
-	virtual void WriteProperty(const FStructSerializerState& State, int32 ArrayIndex = 0) override;
-	virtual bool WritePODArray(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void BeginArray(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void BeginStructure(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void EndArray(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void EndStructure(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void WriteComment(const FString& Comment) override;
+	SERIALIZATION_API virtual void WriteProperty(const FStructSerializerState& State, int32 ArrayIndex = 0) override;
+	SERIALIZATION_API virtual bool WritePODArray(const FStructSerializerState& State) override;
 
 private:
 	/** Holds the Cbor writer used for the actual serialization. */

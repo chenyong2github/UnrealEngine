@@ -43,7 +43,7 @@ namespace Audio
 	/**
 	 * Class used to generate, contain and apply a DSP window of a given type.
 	 */
-	class SIGNALPROCESSING_API FWindow
+	class FWindow
 	{
 	public:
 		FWindow() = delete;
@@ -57,13 +57,13 @@ namespace Audio
 		 *                     Generally, set this to false if using this window with an STFT, but use true
 		 *                     if this window will be used on an entire, self-contained signal.
 		 */
-		FWindow(EWindowType InType, int32 InNumFrames, int32 InNumChannels, bool bIsPeriodic);
+		SIGNALPROCESSING_API FWindow(EWindowType InType, int32 InNumFrames, int32 InNumChannels, bool bIsPeriodic);
 
 		// Apply this window to InBuffer, which is expected to be an interleaved buffer with the same amount of frames
 		// and channels this window was constructed with.
-		void ApplyToBuffer(float* InBuffer);
+		SIGNALPROCESSING_API void ApplyToBuffer(float* InBuffer);
 
-		EWindowType GetWindowType() const;
+		SIGNALPROCESSING_API EWindowType GetWindowType() const;
 
 	private:
 		EWindowType WindowType;
@@ -71,7 +71,7 @@ namespace Audio
 		int32 NumSamples;
 
 		// Generate the window. Called on constructor.
-		void Generate(int32 NumFrames, int32 NumChannels, bool bIsPeriodic);
+		SIGNALPROCESSING_API void Generate(int32 NumFrames, int32 NumChannels, bool bIsPeriodic);
 	};
 
 	struct FFTTimeDomainData_DEPRECATED
@@ -136,25 +136,25 @@ namespace Audio
 
 	// FFT Algorithm factory for this FFT implementation
 	class UE_DEPRECATED(5.1, "Use FVectorFFTFactory instead.") FAudioFFTAlgorithmFactory;
-	class SIGNALPROCESSING_API FAudioFFTAlgorithmFactory : public IFFTAlgorithmFactory
+	class FAudioFFTAlgorithmFactory : public IFFTAlgorithmFactory
 	{
 		public:
-			virtual ~FAudioFFTAlgorithmFactory();
+			SIGNALPROCESSING_API virtual ~FAudioFFTAlgorithmFactory();
 
 			// Name of this fft algorithm factory. 
-			virtual FName GetFactoryName() const override;
+			SIGNALPROCESSING_API virtual FName GetFactoryName() const override;
 
 			// If true, this implementation uses hardware acceleration.
-			virtual bool IsHardwareAccelerated() const override;
+			SIGNALPROCESSING_API virtual bool IsHardwareAccelerated() const override;
 
 			// If true, this implementation requires input and output arrays to be 128 bit aligned.
-			virtual bool Expects128BitAlignedArrays() const override;
+			SIGNALPROCESSING_API virtual bool Expects128BitAlignedArrays() const override;
 
 			// Returns true if the input settings are supported by this factory.
-			virtual bool AreFFTSettingsSupported(const FFFTSettings& InSettings) const override;
+			SIGNALPROCESSING_API virtual bool AreFFTSettingsSupported(const FFFTSettings& InSettings) const override;
 
 			// Create a new FFT algorithm.
-			virtual TUniquePtr<IFFTAlgorithm> NewFFTAlgorithm(const FFFTSettings& InSettings) override;
+			SIGNALPROCESSING_API virtual TUniquePtr<IFFTAlgorithm> NewFFTAlgorithm(const FFFTSettings& InSettings) override;
 	};
 
 	struct FrequencyBuffer
@@ -206,26 +206,26 @@ namespace Audio
 	SIGNALPROCESSING_API void CrossCorrelate(FrequencyBuffer& FirstBufferFrequencies, FrequencyBuffer& SecondBufferFrequencies, int32 NumSamples, FrequencyBuffer& OutCorrelation);
 
 	// Deprecated in 5.1
-	class SIGNALPROCESSING_API FFFTConvolver_DEPRECATED
+	class FFFTConvolver_DEPRECATED
 	{
 	public:
-		FFFTConvolver_DEPRECATED();
+		SIGNALPROCESSING_API FFFTConvolver_DEPRECATED();
 
 		/*
 		 * Applies the convolver's internal window to InputAudio. Until SetWindow is called, ProcessAudio will not affect InputAudio.
 		 * InputAudio must be a power of two.
 		 */
-		void ProcessAudio(float* InputAudio, int32 NumSamples);
+		SIGNALPROCESSING_API void ProcessAudio(float* InputAudio, int32 NumSamples);
 
 		/**
 		 * Resets the filter window. NOT thread safe to call during ProcessAudio.
 		 * This function can be called with a time domain impulse response, or precomputed frequency values. 
 		 * FilterSize must be a power of two.
 		 */ 
-		void SetFilter(const float* InFilterReal, const float* InFilterImag, int32 FilterSize, int32 FFTSize);
-		void SetFilter(const FrequencyBuffer& InFilterFrequencies, int32 FilterSize);
-		void SetFilter(const float* TimeDomainBuffer, int32 FilterSize);
-		void SetFilter(const FAlignedFloatBuffer& TimeDomainBuffer);
+		SIGNALPROCESSING_API void SetFilter(const float* InFilterReal, const float* InFilterImag, int32 FilterSize, int32 FFTSize);
+		SIGNALPROCESSING_API void SetFilter(const FrequencyBuffer& InFilterFrequencies, int32 FilterSize);
+		SIGNALPROCESSING_API void SetFilter(const float* TimeDomainBuffer, int32 FilterSize);
+		SIGNALPROCESSING_API void SetFilter(const FAlignedFloatBuffer& TimeDomainBuffer);
 
 	private:
 		void ConvolveBlock(float* InputAudio, int32 NumSamples);

@@ -13,8 +13,8 @@ class AAIController;
 /**
  * 
  */
-UCLASS(config = Game)
-class AIMODULE_API UBTTask_RotateToFaceBBEntry : public UBTTask_BlackboardBase
+UCLASS(config = Game, MinimalAPI)
+class UBTTask_RotateToFaceBBEntry : public UBTTask_BlackboardBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -29,19 +29,19 @@ private:
 
 public:
 
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	AIMODULE_API virtual void PostInitProperties() override;
+	AIMODULE_API virtual void PostLoad() override;
 
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
-	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+	AIMODULE_API virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 	
 	virtual uint16 GetInstanceMemorySize() const override { return sizeof(FBTFocusMemory); }
 
 protected:
 
 	float GetPrecisionDot() const { return PrecisionDot; }
-	void CleanUp(AAIController& AIController, uint8* NodeMemory);
+	AIMODULE_API void CleanUp(AAIController& AIController, uint8* NodeMemory);
 };

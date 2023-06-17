@@ -9,19 +9,19 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Interfaces/IAudioFormat.h"
 
-class AUDIOMIXER_API FAudioFileReader
+class FAudioFileReader
 {
 public:
 	// Constructor. Takes a file path and immediately loads info.
 	// Optionally, CallbackSize can be used to indicate the size of chunks
 	// that will be popped off of this instance.
 	// When set to 0, the entire file is decompressed into memory.
-	FAudioFileReader(const FString& InPath);
+	AUDIOMIXER_API FAudioFileReader(const FString& InPath);
 
 	// Returns file information.
-	void GetFileInfo(FSoundQualityInfo& OutInfo);
+	AUDIOMIXER_API void GetFileInfo(FSoundQualityInfo& OutInfo);
 
-	bool PopAudio(float* OutAudio, int32 NumSamples);
+	AUDIOMIXER_API bool PopAudio(float* OutAudio, int32 NumSamples);
 
 private:
 	FAudioFileReader();

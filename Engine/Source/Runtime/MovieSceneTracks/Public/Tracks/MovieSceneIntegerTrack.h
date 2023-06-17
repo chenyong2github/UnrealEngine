@@ -11,13 +11,13 @@
 /**
  * Handles manipulation of integer properties in a movie scene
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneIntegerTrack : public UMovieScenePropertyTrack
+UCLASS(MinimalAPI)
+class UMovieSceneIntegerTrack : public UMovieScenePropertyTrack
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** UMovieSceneTrack interface */
-	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
-	virtual UMovieSceneSection* CreateNewSection() override;
+	MOVIESCENETRACKS_API virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* CreateNewSection() override;
 };

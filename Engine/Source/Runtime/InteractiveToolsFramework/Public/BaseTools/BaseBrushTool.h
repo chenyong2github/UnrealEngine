@@ -15,13 +15,13 @@ class UBrushStampIndicator;
 /**
  * Standard properties for a Brush-type Tool
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UBrushBaseProperties : public UInteractiveToolPropertySet
+UCLASS(MinimalAPI)
+class UBrushBaseProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
 public:
-	UBrushBaseProperties();
+	INTERACTIVETOOLSFRAMEWORK_API UBrushBaseProperties();
 
 	/** Relative size of brush */
 	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Size", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "10.0", DisplayPriority = 1, HideEditConditionToggle, EditCondition = "bSpecifyRadius == false"))
@@ -58,7 +58,7 @@ public:
  * Generic Brush Stamp data
  */
 USTRUCT()
-struct INTERACTIVETOOLSFRAMEWORK_API FBrushStampData
+struct FBrushStampData
 {
 	GENERATED_BODY();
 	/** Radius of brush stamp */
@@ -148,34 +148,34 @@ private:
  *   4) status of brush stroke via .bInBrushStroke FProperty
  *   5) "B" hotkey to adjust brush radius / strength by click-dragging in the viewport
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UBaseBrushTool : public UMeshSurfacePointTool
+UCLASS(MinimalAPI)
+class UBaseBrushTool : public UMeshSurfacePointTool
 {
 	GENERATED_BODY()
 
 public:
-	UBaseBrushTool();
+	INTERACTIVETOOLSFRAMEWORK_API UBaseBrushTool();
 
-	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	// UInteractiveTool
-	virtual void Setup() override;
-	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-	virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI ) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI ) override;
 	
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 	
 	// IClickDragBehaviorTarget implementation
-	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
-	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
-	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
 	
 	// UMeshSurfacePointTool implementation
-	virtual void OnBeginDrag(const FRay& Ray) override;
-	virtual void OnUpdateDrag(const FRay& Ray) override;
-	virtual void OnEndDrag(const FRay& Ray) override;
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnBeginDrag(const FRay& Ray) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnUpdateDrag(const FRay& Ray) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnEndDrag(const FRay& Ray) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
 
 public:
 
@@ -197,19 +197,19 @@ public:
 
 public:
 
-	virtual void IncreaseBrushSizeAction();
-	virtual void DecreaseBrushSizeAction();
-	virtual void IncreaseBrushStrengthAction();
-	virtual void DecreaseBrushStrengthAction();
-	virtual void IncreaseBrushFalloffAction();
-	virtual void DecreaseBrushFalloffAction();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void IncreaseBrushSizeAction();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DecreaseBrushSizeAction();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void IncreaseBrushStrengthAction();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DecreaseBrushStrengthAction();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void IncreaseBrushFalloffAction();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DecreaseBrushFalloffAction();
 
 	virtual bool IsInBrushStroke() const { return bInBrushStroke; }
 
 	virtual double GetCurrentBrushRadius() const { return CurrentBrushRadius; }
 	virtual double GetCurrentBrushRadiusLocal() const { return CurrentBrushRadius * WorldToLocalScale; }
 
-	void SetBrushEnabled(bool bIsEnabled);
+	INTERACTIVETOOLSFRAMEWORK_API void SetBrushEnabled(bool bIsEnabled);
 
 	// return false to disable the hotkey for adjusting the brush radius and strength in the viewport
 	virtual bool SupportsBrushAdjustmentInput() { return true; }; 
@@ -224,7 +224,7 @@ protected:
 protected:
 	TInterval<float> BrushRelativeSizeRange;
 	double CurrentBrushRadius;
-	void RecalculateBrushRadius();
+	INTERACTIVETOOLSFRAMEWORK_API void RecalculateBrushRadius();
 
 	UPROPERTY()
 	TSoftClassPtr<UBrushBaseProperties> PropertyClass;
@@ -237,9 +237,9 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UBrushStampIndicator> BrushStampIndicator;
 
-	virtual void SetupBrushStampIndicator();
-	virtual void UpdateBrushStampIndicator();
-	virtual void ShutdownBrushStampIndicator();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetupBrushStampIndicator();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateBrushStampIndicator();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ShutdownBrushStampIndicator();
 
 	// adjusts size and strength properties while holding hotkey during click/drag
 	TWeakObjectPtr<UBrushAdjusterInputBehavior> BrushAdjusterBehavior;

@@ -17,7 +17,7 @@
 namespace Audio
 {
 	// information about the current state of the wave file we are transforming
-	struct AUDIOEXTENSIONS_API FWaveformTransformationWaveInfo
+	struct FWaveformTransformationWaveInfo
 	{
 		float SampleRate = 0.f;
 		int32 NumChannels = 0;
@@ -32,7 +32,7 @@ namespace Audio
 	 *
 	 * note: WaveTransformation vs WaveformTransformation is to prevent UHT class name conflicts without having to namespace everything - remember this in derived classes!
 	 */
-	class AUDIOEXTENSIONS_API IWaveTransformation
+	class IWaveTransformation
 	{
 	public:
 
@@ -59,8 +59,8 @@ struct FWaveTransformUObjectConfiguration
 };
 
 // Base class to hold editor configurable properties for an arbitrary transformation of audio waveform data
-UCLASS(Abstract, EditInlineNew)
-class AUDIOEXTENSIONS_API UWaveformTransformationBase : public UObject
+UCLASS(Abstract, EditInlineNew, MinimalAPI)
+class UWaveformTransformationBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -70,8 +70,8 @@ public:
 };
 
 // Object that holds an ordered list of transformations to perform on a sound wave
-UCLASS(EditInlineNew)
-class AUDIOEXTENSIONS_API UWaveformTransformationChain : public UObject
+UCLASS(EditInlineNew, MinimalAPI)
+class UWaveformTransformationChain : public UObject
 {
 	GENERATED_BODY()
 	
@@ -79,5 +79,5 @@ public:
 	UPROPERTY(EditAnywhere, Instanced, Category = "Transformations")
 	TArray<TObjectPtr<UWaveformTransformationBase>> Transformations;
 
-	TArray<Audio::FTransformationPtr> CreateTransformations() const;
+	AUDIOEXTENSIONS_API TArray<Audio::FTransformationPtr> CreateTransformations() const;
 };

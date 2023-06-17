@@ -14,8 +14,8 @@
 class UWidget;
 
 /** The Slot for the UWidgetSwitcher, contains the widget that is flowed vertically */
-UCLASS()
-class UMG_API UWidgetSwitcherSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UWidgetSwitcherSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
@@ -44,32 +44,32 @@ public:
 
 public:
 
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Widget Switcher Slot")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	EHorizontalAlignment GetHorizontalAlignment() const;
-
-	UFUNCTION(BlueprintCallable, Category="Layout|Widget Switcher Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
-
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Widget Switcher Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+
+	UFUNCTION(BlueprintCallable, Category="Layout|Widget Switcher Slot")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 public:
 
 	//~ UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
-	void BuildSlot(TSharedRef<SWidgetSwitcher> InWidgetSwitcher);
+	UMG_API void BuildSlot(TSharedRef<SWidgetSwitcher> InWidgetSwitcher);
 
 	/** Sets the content of this slot, removing existing content if needed. */
-	void SetContent(UWidget* NewContent);
+	UMG_API void SetContent(UWidget* NewContent);
 };

@@ -46,8 +46,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioDeviceChangeNative, FString);
 /**
  *  UAudioDeviceNotificationSubsystem
  */
-UCLASS()
-class AUDIOMIXER_API UAudioDeviceNotificationSubsystem : public UEngineSubsystem
+UCLASS(MinimalAPI)
+class UAudioDeviceNotificationSubsystem : public UEngineSubsystem
 													   , public Audio::IAudioMixerDeviceChangedListener
 {
 	GENERATED_BODY()
@@ -59,19 +59,19 @@ public:
 	static UAudioDeviceNotificationSubsystem* Get() { return GEngine->GetEngineSubsystem<UAudioDeviceNotificationSubsystem>(); }
 
 	//~ Begin UEngineSubsystem Interface
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	AUDIOMIXER_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	AUDIOMIXER_API virtual void Deinitialize() override;
 	//~ End UEngineSubsystem Interface
 
 	//~ Begin IAudioMixerDeviceChangedListener Interface
-	virtual void OnDefaultCaptureDeviceChanged(const Audio::EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
-	virtual void OnDefaultRenderDeviceChanged(const Audio::EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
-	virtual void OnDeviceAdded(const FString& DeviceId, bool bIsRenderDevice) override;
-	virtual void OnDeviceRemoved(const FString& DeviceId, bool bIsRenderDevice) override;
-	virtual void OnDeviceStateChanged(const FString& DeviceId, const Audio::EAudioDeviceState InState, bool bIsRenderDevice) override;
+	AUDIOMIXER_API virtual void OnDefaultCaptureDeviceChanged(const Audio::EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
+	AUDIOMIXER_API virtual void OnDefaultRenderDeviceChanged(const Audio::EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
+	AUDIOMIXER_API virtual void OnDeviceAdded(const FString& DeviceId, bool bIsRenderDevice) override;
+	AUDIOMIXER_API virtual void OnDeviceRemoved(const FString& DeviceId, bool bIsRenderDevice) override;
+	AUDIOMIXER_API virtual void OnDeviceStateChanged(const FString& DeviceId, const Audio::EAudioDeviceState InState, bool bIsRenderDevice) override;
 	//~ End IAudioMixerDeviceChangedListener Interface
 
-	virtual void OnDeviceSwitched(const FString& DeviceId);
+	AUDIOMIXER_API virtual void OnDeviceSwitched(const FString& DeviceId);
 
 	/** Multicast delegate triggered when default capture device changes */
 	UPROPERTY(BlueprintAssignable, Category = "Audio Delegates")
@@ -111,7 +111,7 @@ public:
 
 protected:
 
-	EAudioDeviceChangedRole GetDeviceChangedRole(Audio::EAudioDeviceRole InRole) const;
-	EAudioDeviceChangedState GetDeviceChangedState(Audio::EAudioDeviceState InState) const;
+	AUDIOMIXER_API EAudioDeviceChangedRole GetDeviceChangedRole(Audio::EAudioDeviceRole InRole) const;
+	AUDIOMIXER_API EAudioDeviceChangedState GetDeviceChangedState(Audio::EAudioDeviceState InState) const;
 };
 

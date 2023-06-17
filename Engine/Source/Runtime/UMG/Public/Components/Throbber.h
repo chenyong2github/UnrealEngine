@@ -15,8 +15,8 @@ class USlateBrushAsset;
 /**
  * A Throbber widget that shows several zooming circles in a row.
  */
-UCLASS()
-class UMG_API UThrobber : public UWidget
+UCLASS(MinimalAPI)
+class UThrobber : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -51,42 +51,42 @@ public:
 
 	/** Sets how many pieces there are */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetNumberOfPieces(int32 InNumberOfPieces);
-	int32 GetNumberOfPieces() const;
+	UMG_API void SetNumberOfPieces(int32 InNumberOfPieces);
+	UMG_API int32 GetNumberOfPieces() const;
 
 	/** Sets whether the pieces animate horizontally. */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetAnimateHorizontally(bool bInAnimateHorizontally);
-	bool IsAnimateHorizontally() const;
+	UMG_API void SetAnimateHorizontally(bool bInAnimateHorizontally);
+	UMG_API bool IsAnimateHorizontally() const;
 
 	/** Sets whether the pieces animate vertically. */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetAnimateVertically(bool bInAnimateVertically);
-	bool IsAnimateVertically() const;
+	UMG_API void SetAnimateVertically(bool bInAnimateVertically);
+	UMG_API bool IsAnimateVertically() const;
 
 	/** Sets whether the pieces animate their opacity. */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetAnimateOpacity(bool bInAnimateOpacity);
-	bool IsAnimateOpacity() const;
+	UMG_API void SetAnimateOpacity(bool bInAnimateOpacity);
+	UMG_API bool IsAnimateOpacity() const;
 
-	void SetImage(const FSlateBrush& Brush);
-	const FSlateBrush& GetImage() const;
+	UMG_API void SetImage(const FSlateBrush& Brush);
+	UMG_API const FSlateBrush& GetImage() const;
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
 private:

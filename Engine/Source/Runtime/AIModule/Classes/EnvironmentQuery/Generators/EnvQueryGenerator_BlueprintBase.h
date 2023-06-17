@@ -13,8 +13,8 @@
 
 class AActor;
 
-UCLASS(Abstract, Blueprintable)
-class AIMODULE_API UEnvQueryGenerator_BlueprintBase : public UEnvQueryGenerator
+UCLASS(Abstract, Blueprintable, MinimalAPI)
+class UEnvQueryGenerator_BlueprintBase : public UEnvQueryGenerator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -32,28 +32,28 @@ class AIMODULE_API UEnvQueryGenerator_BlueprintBase : public UEnvQueryGenerator
 	UPROPERTY(EditDefaultsOnly, Category = Generator)
 	TSubclassOf<UEnvQueryItemType> GeneratedItemType;
 
-	virtual void PostInitProperties() override;
-	virtual UWorld* GetWorld() const override;
+	AIMODULE_API virtual void PostInitProperties() override;
+	AIMODULE_API virtual UWorld* GetWorld() const override;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Generator)
-	void DoItemGeneration(const TArray<FVector>& ContextLocations) const;
+	AIMODULE_API void DoItemGeneration(const TArray<FVector>& ContextLocations) const;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = Generator)
-	void DoItemGenerationFromActors(const TArray<AActor*>& ContextActors) const;
+	AIMODULE_API void DoItemGenerationFromActors(const TArray<AActor*>& ContextActors) const;
 
-	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
+	AIMODULE_API virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
 
-	virtual FText GetDescriptionTitle() const override;
-	virtual FText GetDescriptionDetails() const override;
+	AIMODULE_API virtual FText GetDescriptionTitle() const override;
+	AIMODULE_API virtual FText GetDescriptionDetails() const override;
 	
 	UFUNCTION(BlueprintCallable, Category = "EQS")
-	void AddGeneratedVector(FVector GeneratedVector) const;
+	AIMODULE_API void AddGeneratedVector(FVector GeneratedVector) const;
 
 	UFUNCTION(BlueprintCallable, Category = "EQS")
-	void AddGeneratedActor(AActor* GeneratedActor) const;
+	AIMODULE_API void AddGeneratedActor(AActor* GeneratedActor) const;
 
 	UFUNCTION(BlueprintCallable, Category = "EQS")
-	UObject* GetQuerier() const;
+	AIMODULE_API UObject* GetQuerier() const;
 
 private:
 	enum class ECallMode

@@ -15,15 +15,15 @@ struct FMovieScenePossessable;
 
 
 /** Interface used in the editor to provide contextual information about movie scene bindings */
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneBindingOwnerInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneBindingOwnerInterface
 	: public UInterface
 {
 public:
 	GENERATED_BODY()
 };
 
-class MOVIESCENE_API IMovieSceneBindingOwnerInterface
+class IMovieSceneBindingOwnerInterface
 {
 public:
 	GENERATED_BODY()

@@ -15,8 +15,8 @@
 #include "NavMeshBoundsVolume.generated.h"
 
 
-UCLASS()
-class NAVIGATIONSYSTEM_API ANavMeshBoundsVolume : public AVolume
+UCLASS(MinimalAPI)
+class ANavMeshBoundsVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
 
@@ -24,16 +24,16 @@ class NAVIGATIONSYSTEM_API ANavMeshBoundsVolume : public AVolume
 	FNavAgentSelector SupportedAgents;
 
 	//~ Begin AActor Interface
-	virtual void PostRegisterAllComponents() override;
-	virtual void PostUnregisterAllComponents() override;
+	NAVIGATIONSYSTEM_API virtual void PostRegisterAllComponents() override;
+	NAVIGATIONSYSTEM_API virtual void PostUnregisterAllComponents() override;
 	//~ End AActor Interface
 #if WITH_EDITOR
 	//~ Begin UObject Interface
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
+	NAVIGATIONSYSTEM_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NAVIGATIONSYSTEM_API virtual void PostEditUndo() override;
 	//~ End UObject Interface
 
-	static void OnPostEngineInit();
+	static NAVIGATIONSYSTEM_API void OnPostEngineInit();
 #endif // WITH_EDITOR
 };
 

@@ -15,8 +15,8 @@ class SInvalidationPanel;
  * * Single Child
  * * Caching / Performance
  */
-UCLASS()
-class UMG_API UInvalidationBox : public UContentWidget
+UCLASS(MinimalAPI)
+class UInvalidationBox : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -27,37 +27,37 @@ public:
 	 */
 	UE_DEPRECATED(4.27, "InvalidationCache is not used.")
 	UFUNCTION(BlueprintCallable, Category="Invalidation Box", meta=(DeprecatedFunction))
-	void InvalidateCache();
+	UMG_API void InvalidateCache();
 
 	/**
 	 * @returns true when the invalidation box cache the widgets.
 	 * The widgets will be updated only if they get invalidated.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Invalidation Box")
-	bool GetCanCache() const;
+	UMG_API bool GetCanCache() const;
 
 	/**
 	 * Tell the InvalidationBox to use the invalidation process.
 	 * @note the other internal flags can disable the option.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Invalidation Box")
-	void SetCanCache(bool CanCache);
+	UMG_API void SetCanCache(bool CanCache);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	//~ Begin UPanelWidget interface
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	//~ End UPanelWidget interface
 
 	//~ Begin UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget interface
 
 protected:

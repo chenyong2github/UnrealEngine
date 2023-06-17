@@ -19,7 +19,7 @@ namespace Geometry
 /**
  * Generate planar triangulation of a Polygon.
  */
-class GEOMETRYCORE_API FPlanarPolygonMeshGenerator : public FMeshShapeGenerator
+class FPlanarPolygonMeshGenerator : public FMeshShapeGenerator
 {
 public:
 	/** Polygon to triangulate. If Polygon has self-intersections or degenerate edges, result is undefined. */
@@ -32,13 +32,13 @@ public:
 	FIndex2i IndicesMap;
 
 public:
-	FPlanarPolygonMeshGenerator();
+	GEOMETRYCORE_API FPlanarPolygonMeshGenerator();
 
 	/** Initialize the polygon from an array of 2D vertices */
-	void SetPolygon(const TArray<FVector2D>& PolygonVerts);
+	GEOMETRYCORE_API void SetPolygon(const TArray<FVector2D>& PolygonVerts);
 
 	/** Generate the triangulation */
-	virtual FMeshShapeGenerator& Generate() override;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() override;
 
 
 	/** Create vertex at position under IndicesMap, shifted to Origin*/

@@ -55,13 +55,13 @@ struct FPhysicalMaterialStrength
 /**
  * Physical materials are used to define the response of a physical object when interacting dynamically with the world.
  */
-UCLASS(BlueprintType, Blueprintable, CollapseCategories, HideCategories = Object)
-class PHYSICSCORE_API UPhysicalMaterial : public UObject
+UCLASS(BlueprintType, Blueprintable, CollapseCategories, HideCategories = Object, MinimalAPI)
+class UPhysicalMaterial : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual ~UPhysicalMaterial();
-	UPhysicalMaterial(FVTableHelper& Helper);
+	PHYSICSCORE_API virtual ~UPhysicalMaterial();
+	PHYSICSCORE_API UPhysicalMaterial(FVTableHelper& Helper);
 	//
 	// Surface properties.
 	//
@@ -147,22 +147,22 @@ public:
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	static void RebuildPhysicalMaterials();
+	PHYSICSCORE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	static PHYSICSCORE_API void RebuildPhysicalMaterials();
 #endif // WITH_EDITOR
-	virtual void PostLoad() override;
-	virtual void FinishDestroy() override;
+	PHYSICSCORE_API virtual void PostLoad() override;
+	PHYSICSCORE_API virtual void FinishDestroy() override;
 	//~ End UObject Interface
 
 	/** Get the physics-interface derived version of this material */
-	FPhysicsMaterialHandle& GetPhysicsMaterial();
+	PHYSICSCORE_API FPhysicsMaterialHandle& GetPhysicsMaterial();
 
-	static void SetEngineDefaultPhysMaterial(UPhysicalMaterial* Material);
+	static PHYSICSCORE_API void SetEngineDefaultPhysMaterial(UPhysicalMaterial* Material);
 
-	static void SetEngineDefaultDestructiblePhysMaterial(UPhysicalMaterial* Material);
+	static PHYSICSCORE_API void SetEngineDefaultDestructiblePhysMaterial(UPhysicalMaterial* Material);
 
 	/** Determine Material Type from input PhysicalMaterial **/
-	static EPhysicalSurface DetermineSurfaceType(UPhysicalMaterial const* PhysicalMaterial);
+	static PHYSICSCORE_API EPhysicalSurface DetermineSurfaceType(UPhysicalMaterial const* PhysicalMaterial);
 };
 
 

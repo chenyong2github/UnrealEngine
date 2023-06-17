@@ -46,7 +46,7 @@ struct FSplineIKCachedBoneData
 };
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_SplineIK : public FAnimNode_SkeletalControlBase
+struct FAnimNode_SplineIK : public FAnimNode_SkeletalControlBase
 {
 	GENERATED_BODY()
 
@@ -101,17 +101,17 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_SplineIK : public FAnimNode_SkeletalContro
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Parameters", meta = (PinHiddenByDefault))
 	float Offset;
 
-	FAnimNode_SplineIK();
+	ANIMGRAPHRUNTIME_API FAnimNode_SplineIK();
 
 	// FAnimNode_Base interface
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_SkeletalControlBase interface
-	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
-	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
+	ANIMGRAPHRUNTIME_API virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
+	ANIMGRAPHRUNTIME_API virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
 
 	/** Read-only access to spline curves */
@@ -121,47 +121,47 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_SplineIK : public FAnimNode_SkeletalContro
 	const FSplineCurves& GetTransformedSplineCurves() const { return TransformedSpline; }
 
 	/** Get transformed spline point (in component space) for the spline */
-	FTransform GetTransformedSplinePoint(int32 TransformIndex) const;
+	ANIMGRAPHRUNTIME_API FTransform GetTransformedSplinePoint(int32 TransformIndex) const;
 
 	/** Get specified handle transform (in component space) for the spline */
-	FTransform GetControlPoint(int32 TransformIndex) const;
+	ANIMGRAPHRUNTIME_API FTransform GetControlPoint(int32 TransformIndex) const;
 
 	/** Set specified handle transform (in component space) for the spline */
-	void SetControlPoint(int32 TransformIndex, const FTransform& InTransform);
+	ANIMGRAPHRUNTIME_API void SetControlPoint(int32 TransformIndex, const FTransform& InTransform);
 
 	/** Set specified handle location (in component space) for the spline */
-	void SetControlPointLocation(int32 TransformIndex, const FVector& InLocation);
+	ANIMGRAPHRUNTIME_API void SetControlPointLocation(int32 TransformIndex, const FVector& InLocation);
 
 	/** Set specified handle rotation (in component space) for the spline */
-	void SetControlPointRotation(int32 TransformIndex, const FQuat& InRotation);
+	ANIMGRAPHRUNTIME_API void SetControlPointRotation(int32 TransformIndex, const FQuat& InRotation);
 
 	/** Set specified handle scale (in component space) for the spline */
-	void SetControlPointScale(int32 TransformIndex, const FVector& InScale);
+	ANIMGRAPHRUNTIME_API void SetControlPointScale(int32 TransformIndex, const FVector& InScale);
 
 	/** Get the number of spline transforms we are using */
 	int32 GetNumControlPoints() const { return ControlPoints.Num(); }
 
 	/** Build bone references & reallocate transforms from the supplied ref skeleton */
-	void GatherBoneReferences(const FReferenceSkeleton& RefSkeleton);
+	ANIMGRAPHRUNTIME_API void GatherBoneReferences(const FReferenceSkeleton& RefSkeleton);
 
 protected:
 	/** Build spline from reference pose */
-	void BuildBoneSpline(const FReferenceSkeleton& RefSkeleton);
+	ANIMGRAPHRUNTIME_API void BuildBoneSpline(const FReferenceSkeleton& RefSkeleton);
 
 protected:
 	/** Transform the spline using our control points */
-	void TransformSpline();
+	ANIMGRAPHRUNTIME_API void TransformSpline();
 
 	/** Use our linear approximation to determine the earliest intersection with a sphere */
-	float FindParamAtFirstSphereIntersection(const FVector& InOrigin, float InRadius, int32& StartingLinearIndex);
+	ANIMGRAPHRUNTIME_API float FindParamAtFirstSphereIntersection(const FVector& InOrigin, float InRadius, int32& StartingLinearIndex);
 
 private:
 	// FAnimNode_SkeletalControlBase interface
-	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
+	ANIMGRAPHRUNTIME_API virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
 
 	/** Get the current twist value at the specified spline alpha */
-	float GetTwist(float InAlpha, float TotalSplineAlpha);
+	ANIMGRAPHRUNTIME_API float GetTwist(float InAlpha, float TotalSplineAlpha);
 
 	/** Transformed spline */
 	FSplineCurves TransformedSpline;

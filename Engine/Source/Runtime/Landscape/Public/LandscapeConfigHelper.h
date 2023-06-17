@@ -25,7 +25,7 @@ struct FLandscapeImportLayerInfo;
 /**
  * 
  */
-struct LANDSCAPE_API FLandscapeConfig
+struct FLandscapeConfig
 {
 	FLandscapeConfig(int32 InComponentNumSubSections, int32 InSubsectionSizeQuads, int32 InGridSizeInComponents)
 		: ComponentNumSubsections(InComponentNumSubSections)
@@ -34,7 +34,7 @@ struct LANDSCAPE_API FLandscapeConfig
 	{
 	}
 
-	FLandscapeConfig(ULandscapeInfo* InLandscapeInfo);
+	LANDSCAPE_API FLandscapeConfig(ULandscapeInfo* InLandscapeInfo);
 
 	int32 GetComponentSizeQuads() const { return SubsectionSizeQuads * ComponentNumSubsections; }
 	int32 GetComponentSizeVerts() const { return (SubsectionSizeQuads + 1) * ComponentNumSubsections; }
@@ -44,11 +44,11 @@ struct LANDSCAPE_API FLandscapeConfig
 	int32 SubsectionSizeQuads;
 	int32 GridSizeInComponents;
 
-	static int32 NumSectionValues[2];
-	static int32 SubsectionSizeQuadsValues[6];
+	static LANDSCAPE_API int32 NumSectionValues[2];
+	static LANDSCAPE_API int32 SubsectionSizeQuadsValues[6];
 };
 
-struct LANDSCAPE_API FLandscapeConfigChange : public FLandscapeConfig
+struct FLandscapeConfigChange : public FLandscapeConfig
 {
 	FLandscapeConfigChange(int32 InComponentNumSubSections, int32 InSubsectionSizeQuads, int32 InGridSize, ELandscapeResizeMode InResizeMode, bool bInZeroBased)
 		: FLandscapeConfig(InComponentNumSubSections, InSubsectionSizeQuads, InGridSize)
@@ -57,7 +57,7 @@ struct LANDSCAPE_API FLandscapeConfigChange : public FLandscapeConfig
 	{
 	}
 
-	bool Validate() const;
+	LANDSCAPE_API bool Validate() const;
 
 	ELandscapeResizeMode ResizeMode;
 	bool bZeroBased;

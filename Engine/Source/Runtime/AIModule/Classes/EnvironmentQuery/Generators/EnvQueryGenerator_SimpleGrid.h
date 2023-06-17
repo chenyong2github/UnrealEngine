@@ -14,8 +14,8 @@
  *  Simple grid, generates points in 2D square around context
  */
 
-UCLASS(meta = (DisplayName = "Points: Grid"))
-class AIMODULE_API UEnvQueryGenerator_SimpleGrid : public UEnvQueryGenerator_ProjectedPoints
+UCLASS(meta = (DisplayName = "Points: Grid"), MinimalAPI)
+class UEnvQueryGenerator_SimpleGrid : public UEnvQueryGenerator_ProjectedPoints
 {
 	GENERATED_UCLASS_BODY()
 
@@ -31,8 +31,8 @@ class AIMODULE_API UEnvQueryGenerator_SimpleGrid : public UEnvQueryGenerator_Pro
 	UPROPERTY(EditDefaultsOnly, Category=Generator)
 	TSubclassOf<UEnvQueryContext> GenerateAround;
 
-	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
+	AIMODULE_API virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
 
-	virtual FText GetDescriptionTitle() const override;
-	virtual FText GetDescriptionDetails() const override;
+	AIMODULE_API virtual FText GetDescriptionTitle() const override;
+	AIMODULE_API virtual FText GetDescriptionDetails() const override;
 };

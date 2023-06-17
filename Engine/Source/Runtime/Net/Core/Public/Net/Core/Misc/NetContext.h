@@ -15,7 +15,7 @@ namespace UE::Net
 {
 
 /** Stateless class that provides misc network context information */
-class NETCORE_API FNetContext
+class FNetContext
 {
 public:
 	
@@ -32,12 +32,12 @@ private:
 	FNetContext() = delete;
 	~FNetContext() = delete;
 
-	static bool bIsInRPCStack;
+	static NETCORE_API bool bIsInRPCStack;
 };
 
 
 /** Used by friendly class to set the right network context */
-class NETCORE_API FScopedNetContextRPC
+class FScopedNetContextRPC
 {
 private:
 
@@ -45,8 +45,8 @@ private:
 	friend UE::Net::Private::FNetRPC;
 	friend FObjectReplicator;
 	
-	FScopedNetContextRPC();
-	~FScopedNetContextRPC();
+	NETCORE_API FScopedNetContextRPC();
+	NETCORE_API ~FScopedNetContextRPC();
 };
 
 } // end namespace UE::Net

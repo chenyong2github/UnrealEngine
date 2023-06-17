@@ -512,7 +512,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayGetAnalyticsAttributes, const clas
  * that delegate upon completion, and indicates success / failure through an appropriate
  * result type passed into the delegate.
  */
-class NETWORKREPLAYSTREAMING_API INetworkReplayStreamer 
+class INetworkReplayStreamer 
 {
 public:
 	virtual ~INetworkReplayStreamer() {}
@@ -625,14 +625,14 @@ public:
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Returns the last error that occurred while streaming replays */
 	UE_DEPRECATED(5.1, "Deprecated in favor of HasError and HandleLastError")
-	virtual ENetworkReplayError::Type GetLastError() const;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	NETWORKREPLAYSTREAMING_API virtual ENetworkReplayError::Type GetLastError() const;
+	NETWORKREPLAYSTREAMING_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual bool HasError() const;
 
-	virtual UE::Net::EHandleNetResult HandleLastError(UE::Net::FNetResultManager& ResultManager);
+	NETWORKREPLAYSTREAMING_API virtual UE::Net::EHandleNetResult HandleLastError(UE::Net::FNetResultManager& ResultManager);
 
-	virtual void SetExtendedError(UE::Net::FNetResult&& Result);
+	NETWORKREPLAYSTREAMING_API virtual void SetExtendedError(UE::Net::FNetResult&& Result);
 
 	/**
 	 * Adds a join-in-progress user to the set of users associated with the currently recording replay (if any)
@@ -667,12 +667,12 @@ public:
 
 	virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider>& InProvider) {}
 
-	virtual TArray<FAnalyticsEventAttribute> AppendCommonReplayAttributes(TArray<FAnalyticsEventAttribute>&& Attrs) const;
+	NETWORKREPLAYSTREAMING_API virtual TArray<FAnalyticsEventAttribute> AppendCommonReplayAttributes(TArray<FAnalyticsEventAttribute>&& Attrs) const;
 
 	virtual void Exec(const TCHAR* Cmd, FOutputDevice& Ar) {}
 
 	/** Called from base streamer interface AppendCommonReplayAttributes to set common attributes */
-	static FOnReplayGetAnalyticsAttributes OnReplayGetAnalyticsAttributes;
+	static NETWORKREPLAYSTREAMING_API FOnReplayGetAnalyticsAttributes OnReplayGetAnalyticsAttributes;
 
 private:
 	TPimplPtr<UE::Net::FNetResult, EPimplPtrMode::DeepCopy> ExtendedError;

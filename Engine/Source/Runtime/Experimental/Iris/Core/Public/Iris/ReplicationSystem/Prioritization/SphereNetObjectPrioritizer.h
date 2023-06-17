@@ -55,7 +55,7 @@ protected:
 		VectorRegister PriorityFactor;
 	};
 
-	struct IRISCORE_API FBatchParams
+	struct FBatchParams
 	{
 		FPriorityCalculationConstants PriorityCalculationConstants;
 		UE::Net::FReplicationView View;

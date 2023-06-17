@@ -14,7 +14,7 @@ enum class EControllerHand : uint8;
  * This exposes management options for a motion tracking system.  Some platforms will not implement it.  
  */
 
-class HEADMOUNTEDDISPLAY_API IMotionTrackingSystemManagement : public IModularFeature
+class IMotionTrackingSystemManagement : public IModularFeature
 {
 public:
 	static FName GetModularFeatureName()

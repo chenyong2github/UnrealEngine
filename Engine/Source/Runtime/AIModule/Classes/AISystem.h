@@ -22,8 +22,8 @@ class UNavLocalGridManager;
 
 #define GET_AI_CONFIG_VAR(a) (GetDefault<UAISystem>()->a)
 
-UCLASS(config=Engine, defaultconfig)
-class AIMODULE_API UAISystem : public UAISystemBase
+UCLASS(config=Engine, defaultconfig, MinimalAPI)
+class UAISystem : public UAISystemBase
 {
 	GENERATED_BODY()
 
@@ -134,22 +134,22 @@ protected:
 	FDelegateHandle PawnBeginPlayDelegateHandle;
 
 	/** random number stream to be used by all things AI. WIP */
-	static FRandomStream RandomStream;
+	static AIMODULE_API FRandomStream RandomStream;
 	
 public:
-	UAISystem(const FObjectInitializer& ObjectInitializer);
+	AIMODULE_API UAISystem(const FObjectInitializer& ObjectInitializer);
 
-	virtual void BeginDestroy() override;
+	AIMODULE_API virtual void BeginDestroy() override;
 	
-	virtual void PostInitProperties() override;
+	AIMODULE_API virtual void PostInitProperties() override;
 
 	// UAISystemBase begin		
-	virtual void InitializeActorsForPlay(bool bTimeGotReset) override;
-	virtual void WorldOriginLocationChanged(FIntVector OldOriginLocation, FIntVector NewOriginLocation) override;
-	virtual void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true) override;
+	AIMODULE_API virtual void InitializeActorsForPlay(bool bTimeGotReset) override;
+	AIMODULE_API virtual void WorldOriginLocationChanged(FIntVector OldOriginLocation, FIntVector NewOriginLocation) override;
+	AIMODULE_API virtual void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true) override;
 	UE_DEPRECATED(5.1, "NewWorld was unused and not always calculated correctly and we expect it is not needed; let us know on UDN if it is necessary.")
-	virtual void CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld) override;
-	virtual void StartPlay() override;
+	AIMODULE_API virtual void CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld) override;
+	AIMODULE_API virtual void StartPlay() override;
 	// UAISystemBase end
 
 	/** Behavior tree manager getter */
@@ -193,13 +193,13 @@ public:
 	// cheats
 	//----------------------------------------------------------------------//
 	UFUNCTION(exec)
-	virtual void AIIgnorePlayers();
+	AIMODULE_API virtual void AIIgnorePlayers();
 
 	UFUNCTION(exec)
-	virtual void AILoggingVerbose();
+	AIMODULE_API virtual void AILoggingVerbose();
 
 	/** insta-runs EQS query for given Target */
-	void RunEQS(const FString& QueryName, UObject* Target);
+	AIMODULE_API void RunEQS(const FString& QueryName, UObject* Target);
 
 	/**
 	* Iterator for traversing all UBlackboardComponent instances associated
@@ -257,30 +257,30 @@ public:
 	* (i.e. InitializeComponent). The user is responsible for calling
 	* UnregisterBlackboardComponent (i.e. UninitializeComponent).
 	*/
-	void RegisterBlackboardComponent(class UBlackboardData& BlackboardAsset, class UBlackboardComponent& BlackboardComp);
+	AIMODULE_API void RegisterBlackboardComponent(class UBlackboardData& BlackboardAsset, class UBlackboardComponent& BlackboardComp);
 
 	/**
 	* Unregisters a UBlackboardComponent instance with this blackboard data
 	* asset. This should be called before the component has been uninitialized
 	* (i.e. UninitializeComponent).
 	*/
-	void UnregisterBlackboardComponent(class UBlackboardData& BlackboardAsset, class UBlackboardComponent& BlackboardComp);
+	AIMODULE_API void UnregisterBlackboardComponent(class UBlackboardData& BlackboardAsset, class UBlackboardComponent& BlackboardComp);
 
 	/**
 	* Creates a forward only iterator for that will iterate all
 	* UBlackboardComponent instances that reference the specified
 	* BlackboardAsset and it's parents.
 	*/
-	FBlackboardDataToComponentsIterator CreateBlackboardDataToComponentsIterator(class UBlackboardData& BlackboardAsset);
+	AIMODULE_API FBlackboardDataToComponentsIterator CreateBlackboardDataToComponentsIterator(class UBlackboardData& BlackboardAsset);
 
-	virtual void ConditionalLoadDebuggerPlugin();
+	AIMODULE_API virtual void ConditionalLoadDebuggerPlugin();
 
 	static const FRandomStream& GetRandomStream() { return RandomStream; }
 	static void SeedRandomStream(const int32 Seed) { return RandomStream.Initialize(Seed); }
 
 protected:
-	virtual void OnActorSpawned(AActor* SpawnedActor);
-	virtual void OnPawnBeginPlay(APawn* Pawn);
+	AIMODULE_API virtual void OnActorSpawned(AActor* SpawnedActor);
+	AIMODULE_API virtual void OnPawnBeginPlay(APawn* Pawn);
 
-	void LoadDebuggerPlugin();
+	AIMODULE_API void LoadDebuggerPlugin();
 };

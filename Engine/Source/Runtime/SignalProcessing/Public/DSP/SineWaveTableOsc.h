@@ -10,41 +10,41 @@ namespace Audio
 
 
 	// A sinusoidal wave table oscillator class
-	class SIGNALPROCESSING_API FSineWaveTableOsc
+	class FSineWaveTableOsc
 	{
 	public:
 		// Constructor
-		FSineWaveTableOsc();
+		SIGNALPROCESSING_API FSineWaveTableOsc();
 
 		// Virtual Destructor
-		virtual ~FSineWaveTableOsc();
+		SIGNALPROCESSING_API virtual ~FSineWaveTableOsc();
 
 		// Initialize the wave table oscillator
-		void Init(const float InSampleRate, const float InFrequencyHz, const float InPhase);
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const float InFrequencyHz, const float InPhase);
 
 		// Sets the sample rate of the oscillator.
-		void SetSampleRate(const float InSampleRate);
+		SIGNALPROCESSING_API void SetSampleRate(const float InSampleRate);
 
 		// Resets the wave table read indices.
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		// Sets the frequency of the wave table oscillator.
-		void SetFrequencyHz(const float InFrequencyHz);
+		SIGNALPROCESSING_API void SetFrequencyHz(const float InFrequencyHz);
 
 		// Returns the frequency of the wave table oscillator.
 		float GetFrequencyHz() const { return FrequencyHz; }
 		
 		// Sets the phase of the wave table oscillator.
-		void SetPhase(const float InPhase);
+		SIGNALPROCESSING_API void SetPhase(const float InPhase);
 
 		// Processes the wave table and fills a buffer
-		void Generate(float* OutBuffer, const int32 NumSamples);
+		SIGNALPROCESSING_API void Generate(float* OutBuffer, const int32 NumSamples);
 
 		// The static sinusoidal wave table 
-		static const TArray<float>& GetWaveTable();
+		static SIGNALPROCESSING_API const TArray<float>& GetWaveTable();
 
 	protected:
-		void UpdatePhaseIncrement();
+		SIGNALPROCESSING_API void UpdatePhaseIncrement();
 
 		// The wave table buffer
 		const TArray<float>& WaveTableBuffer = GetWaveTable();

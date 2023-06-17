@@ -287,8 +287,8 @@ struct FGeometryCollectionISMPool
 * UGeometryCollectionISMPoolComponent.
 * Component that manages a pool of ISM components in order to allow multiple client components that use the same meshes to the share ISMs.
 */
-UCLASS(meta = (BlueprintSpawnableComponent))
-class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionISMPoolComponent: public USceneComponent
+UCLASS(meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UGeometryCollectionISMPoolComponent: public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -297,7 +297,7 @@ public:
 	using FMeshId = int32;
 
 	//~ Begin UActorComponent Interface
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~ End UActorComponent Interface
 
 	/** 
@@ -305,25 +305,25 @@ public:
 	* no resources are created until the meshes are added for this group 
 	* return a mesh group Id used to add and update instances
 	*/
-	FMeshGroupId CreateMeshGroup();
+	GEOMETRYCOLLECTIONENGINE_API FMeshGroupId CreateMeshGroup();
 
 	/** destroy  a mesh group and its associated resources */
-	void DestroyMeshGroup(FMeshGroupId MeshGroupId);
+	GEOMETRYCOLLECTIONENGINE_API void DestroyMeshGroup(FMeshGroupId MeshGroupId);
 
 	/** Add a static mesh for a mesh group */
-	FMeshId AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats);
+	GEOMETRYCOLLECTIONENGINE_API FMeshId AddMeshToGroup(FMeshGroupId MeshGroupId, const FGeometryCollectionStaticMeshInstance& MeshInstance, int32 InstanceCount, TArrayView<const float> CustomDataFloats);
 
 	/** Add a static mesh for a mesh group */
-	bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
+	GEOMETRYCOLLECTIONENGINE_API bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, TArrayView<const FTransform> NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
 	UE_DEPRECATED(5.3, "BatchUpdateInstancesTransforms Array parameter version is deprecated, use the TArrayView version instead")
-	bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
+	GEOMETRYCOLLECTIONENGINE_API bool BatchUpdateInstancesTransforms(FMeshGroupId MeshGroupId, FMeshId MeshId, int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
 
 	/** 
 	 * Preallocate an ISM in the pool. 
 	 * Doing this early for known mesh instance descriptions can reduce the component registration cost of AddMeshToGroup() for newly discovered mesh descriptions.
 	 */
-	void PreallocateMeshInstance(const FGeometryCollectionStaticMeshInstance& MeshInstance);
+	GEOMETRYCOLLECTIONENGINE_API void PreallocateMeshInstance(const FGeometryCollectionStaticMeshInstance& MeshInstance);
 
 private:
 	uint32 NextMeshGroupId = 0;

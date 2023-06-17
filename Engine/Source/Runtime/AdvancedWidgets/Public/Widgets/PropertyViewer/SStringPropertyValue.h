@@ -13,10 +13,10 @@ namespace UE::PropertyViewer
 class INotifyHook;
 
 /** */
-class ADVANCEDWIDGETS_API SStringPropertyValue : public SCompoundWidget
+class SStringPropertyValue : public SCompoundWidget
 {
 public:
-	static TSharedPtr<SWidget> CreateInstance(const FPropertyValueFactory::FGenerateArgs Args);
+	static ADVANCEDWIDGETS_API TSharedPtr<SWidget> CreateInstance(const FPropertyValueFactory::FGenerateArgs Args);
 
 public:
 	SLATE_BEGIN_ARGS(SStringPropertyValue) {}
@@ -24,7 +24,7 @@ public:
 		SLATE_ARGUMENT(INotifyHook*, NotifyHook);
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs);
 
 private:
 	FText GetText() const;

@@ -155,7 +155,7 @@ struct FHasHitAnyQuotaParms
  * NOTE: Subclasses must also implement the TEscalationStateStatics interface.
  */
 USTRUCT()
-struct NETCORE_API FEscalationState : public FStateStruct
+struct FEscalationState : public FStateStruct
 {
 	friend UE::Net::FEscalationManager;
 	friend UEscalationManagerConfig;
@@ -205,25 +205,25 @@ public:
 	/**
 	 * Whether or not this escalation state is a 'dormant' state, which allows the escalation manager to disable ticking
 	 */
-	bool IsDormant() const;
+	NETCORE_API bool IsDormant() const;
 
 	/**
 	 * Gets the highest counter time period specified by escalation state settings (used for limiting 'CountersPerPeriodHistory' size)
 	 *
 	 * @return		The highest counter time period in the state config settings
 	 */
-	int8 GetHighestTimePeriod() const;
+	NETCORE_API int8 GetHighestTimePeriod() const;
 
 	/**
 	 * Gets all counter time periods specified by the escalation state settings
 	 *
 	 * @return		All of the time periods in the state config settings
 	 */
-	const TArray<int8>& GetAllTimePeriods() const;
+	NETCORE_API const TArray<int8>& GetAllTimePeriods() const;
 
 
 protected:
-	virtual void ValidateConfigInternal() override;
+	NETCORE_API virtual void ValidateConfigInternal() override;
 
 	/**
 	 * Validate that the specified escalation time period is within thresholds, and clamp it if necessary
@@ -232,7 +232,7 @@ protected:
 	 * @param PropertyName	The name of the property, for logging
 	 * @param Requirement	Whether the time period value must be set, or is optional
 	 */
-	void ValidateTimePeriod(int8& Value, const TCHAR* PropertyName, EValidateTime Requirement=EValidateTime::Optional);
+	NETCORE_API void ValidateTimePeriod(int8& Value, const TCHAR* PropertyName, EValidateTime Requirement=EValidateTime::Optional);
 
 
 private:
@@ -376,7 +376,7 @@ enum class EEscalateResult : uint8
 /**
  * Manages initialization/application of escalation states, and tracking various counters/timers used to calculate state change quotas/thresholds.
  */
-class NETCORE_API FEscalationManager
+class FEscalationManager
 {
 	template<typename, typename, typename> friend class TEscalationManager;
 	friend UEscalationManagerConfig;
@@ -445,9 +445,9 @@ private:
 
 
 private:
-	FEscalationManager(FEscalationManagerParms Parms);
+	NETCORE_API FEscalationManager(FEscalationManagerParms Parms);
 
-	void InitParms(FEscalationManagerInitParms Parms);
+	NETCORE_API void InitParms(FEscalationManagerInitParms Parms);
 
 	FEscalationManager() = delete;
 
@@ -456,7 +456,7 @@ private:
 	 *
 	 * @param ConfigParms	Specifies the parameters for the config section/object
 	 */
-	void InitConfig(FStateConfigParms ConfigParms);
+	NETCORE_API void InitConfig(FStateConfigParms ConfigParms);
 
 	/**
 	 * Updates the current escalation manager severity state
@@ -466,7 +466,7 @@ private:
 	 * @param ReasonContext		Additional customizable context for the escalation change
 	 * @return					The result of the severity update. Escalation/Deescalation, or NoChange
 	 */
-	EEscalateResult UpdateSeverity(ESeverityUpdate Update, EEscalateReason Reason, FString ReasonContext=TEXT(""));
+	NETCORE_API EEscalateResult UpdateSeverity(ESeverityUpdate Update, EEscalateReason Reason, FString ReasonContext=TEXT(""));
 
 	/**
 	 * Recalculates cached counter history information, after an interval or state change which affects time period tracking.
@@ -475,17 +475,17 @@ private:
 	 * @param OutPerPeriodHistory		Outputs the recalculated counter cache, for the specified time periods (e.g. elements 1 and 7 only).
 	 * @param StartPerSecHistoryIdx		The index in CounterPerSecHistory to start calculating from
 	 */
-	void RecalculatePeriodHistory(const TArray<int8>& InTimePeriods, TArrayView<FEscalationCounter>(&OutPerPeriodHistory)[16],
+	NETCORE_API void RecalculatePeriodHistory(const TArray<int8>& InTimePeriods, TArrayView<FEscalationCounter>(&OutPerPeriodHistory)[16],
 									int32 StartPerSecHistoryIdx=INDEX_NONE);
 
-	int32 GetHighestHistoryRequirement() const;
+	NETCORE_API int32 GetHighestHistoryRequirement() const;
 
 	/**
 	 * Resets all counters - typically when entering dormancy
 	 */
-	void ResetAllCounters();
+	NETCORE_API void ResetAllCounters();
 
-	int32 AddNewCounter_Internal(int32 Count, const TArrayView<FEscalationCounter>& CountersPerPeriodAlloc);
+	NETCORE_API int32 AddNewCounter_Internal(int32 Count, const TArrayView<FEscalationCounter>& CountersPerPeriodAlloc);
 
 public:
 	/**
@@ -504,7 +504,7 @@ public:
 	/**
 	 * Checks if any escalation quota's have been hit, and if so, updates/escalates the severity state
 	 */
-	void CheckQuotas();
+	NETCORE_API void CheckQuotas();
 
 	/**
 	 * Ticks the escalation manager
@@ -512,7 +512,7 @@ public:
 	 *
 	 * @param TimeSeconds	The (can be approximate) current time
 	 */
-	void TickRealtime(double TimeSeconds);
+	NETCORE_API void TickRealtime(double TimeSeconds);
 
 	/**
 	 * Whether or not calls to Tick are presently required
@@ -530,22 +530,22 @@ public:
 	/**
 	 * Whether or not the current state is a dormant state, which does not require ticking
 	 */
-	bool IsDormant() const;
+	NETCORE_API bool IsDormant() const;
 
 	/**
 	 * Returns a reference to the BaseConfig object
 	 */
-	const UEscalationManagerConfig* GetBaseConfig() const;
+	NETCORE_API const UEscalationManagerConfig* GetBaseConfig() const;
 
 	/**
 	 * Sets a new ManagerContext value
 	 */
-	void SetManagerContext(FString InManagerContext);
+	NETCORE_API void SetManagerContext(FString InManagerContext);
 
 	/**
 	 * Sets a new NotifySeverityUpdate value
 	 */
-	void SetNotifySeverityUpdate(FNotifySeverityUpdate&& InNotifySeverityUpdate);
+	NETCORE_API void SetNotifySeverityUpdate(FNotifySeverityUpdate&& InNotifySeverityUpdate);
 
 
 private:
@@ -751,13 +751,13 @@ private:
  *
  * Subclass and override 'InitConfigDefaultsInternal' to initialize EscalationSeverity and bEnabled (and other custom config variables).
  */
-UCLASS(config=Engine, PerObjectConfig)
-class NETCORE_API UEscalationManagerConfig : public UStatePerObjectConfig
+UCLASS(config=Engine, PerObjectConfig, MinimalAPI)
+class UEscalationManagerConfig : public UStatePerObjectConfig
 {
 	GENERATED_BODY()
 
 private:
-	virtual void LoadStateConfig() override;
+	NETCORE_API virtual void LoadStateConfig() override;
 
 
 public:

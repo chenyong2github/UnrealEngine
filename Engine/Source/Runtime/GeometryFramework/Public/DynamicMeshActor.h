@@ -12,8 +12,8 @@
 /**
  * ADynamicMeshActor is an Actor that has a USimpleDynamicMeshComponent as it's RootObject.
  */
-UCLASS(ConversionRoot, ComponentWrapperClass, ClassGroup=DynamicMesh, meta = (ChildCanTick))
-class GEOMETRYFRAMEWORK_API ADynamicMeshActor : public AActor
+UCLASS(ConversionRoot, ComponentWrapperClass, ClassGroup=DynamicMesh, meta = (ChildCanTick), MinimalAPI)
+class ADynamicMeshActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -46,23 +46,23 @@ protected:
 public:
 	/** Access the compute mesh pool */
 	UFUNCTION(BlueprintCallable, Category = DynamicMeshActor)
-	UDynamicMeshPool* GetComputeMeshPool();
+	GEOMETRYFRAMEWORK_API UDynamicMeshPool* GetComputeMeshPool();
 
 	/** Request a compute mesh from the Pool, which will return a previously-allocated mesh or add and return a new one. If the Pool is disabled, a new UDynamicMesh will be allocated and returned. */
 	UFUNCTION(BlueprintCallable, Category = DynamicMeshActor)
-	UDynamicMesh* AllocateComputeMesh();
+	GEOMETRYFRAMEWORK_API UDynamicMesh* AllocateComputeMesh();
 
 	/** Release a compute mesh back to the Pool */
 	UFUNCTION(BlueprintCallable, Category = DynamicMeshActor)
-	bool ReleaseComputeMesh(UDynamicMesh* Mesh);
+	GEOMETRYFRAMEWORK_API bool ReleaseComputeMesh(UDynamicMesh* Mesh);
 
 	/** Release all compute meshes that the Pool has allocated */
 	UFUNCTION(BlueprintCallable, Category = DynamicMeshActor)
-	void ReleaseAllComputeMeshes();
+	GEOMETRYFRAMEWORK_API void ReleaseAllComputeMeshes();
 
 	/** Release all compute meshes that the Pool has allocated, and then release them from the Pool, so that they will be garbage-collected */
 	UFUNCTION(BlueprintCallable, Category = DynamicMeshActor)
-	void FreeAllComputeMeshes();
+	GEOMETRYFRAMEWORK_API void FreeAllComputeMeshes();
 };
 
 

@@ -19,27 +19,27 @@ namespace Audio
 		};
 	}
 
-	class SIGNALPROCESSING_API FChorus
+	class FChorus
 	{
 	public:
-		FChorus();
-		~FChorus();
+		SIGNALPROCESSING_API FChorus();
+		SIGNALPROCESSING_API ~FChorus();
 
-		void Init(const float InSampleRate, const int32 InNumChannels, const float InDelayLengthSec = 2.0f, const int32 InControlSamplePeriod = 256);
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const int32 InNumChannels, const float InDelayLengthSec = 2.0f, const int32 InControlSamplePeriod = 256);
 
 		FORCEINLINE int32 GetNumChannels() const
 		{
 			return NumChannels;
 		}
 
-		void SetDepth(const EChorusDelays::Type InType, const float InDepth);
-		void SetFrequency(const EChorusDelays::Type InType, const float InFrequency);
-		void SetFeedback(const EChorusDelays::Type InType, const float InFeedback);
-		void SetWetLevel(const float InWetLevel);
-		void SetDryLevel(const float InDryLevel);
-		void SetSpread(const float InSpread);
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
-		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
+		SIGNALPROCESSING_API void SetDepth(const EChorusDelays::Type InType, const float InDepth);
+		SIGNALPROCESSING_API void SetFrequency(const EChorusDelays::Type InType, const float InFrequency);
+		SIGNALPROCESSING_API void SetFeedback(const EChorusDelays::Type InType, const float InFeedback);
+		SIGNALPROCESSING_API void SetWetLevel(const float InWetLevel);
+		SIGNALPROCESSING_API void SetDryLevel(const float InDryLevel);
+		SIGNALPROCESSING_API void SetSpread(const float InSpread);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InFrame, float* OutFrame);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
 
 	protected:
 		FDelay Delays[EChorusDelays::NumDelayTypes];

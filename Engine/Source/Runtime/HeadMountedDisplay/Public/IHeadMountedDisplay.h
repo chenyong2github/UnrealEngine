@@ -34,11 +34,11 @@ struct FHeadMountedDisplayPassContext
  * HMD device interface
  */
 
-class HEADMOUNTEDDISPLAY_API IHeadMountedDisplay : public IModuleInterface
+class IHeadMountedDisplay : public IModuleInterface
 {
 
 public:
-	IHeadMountedDisplay();
+	HEADMOUNTEDDISPLAY_API IHeadMountedDisplay();
 
 	/**
 	 * Returns true if HMD is currently connected.  It may or may not be in use.
@@ -255,12 +255,12 @@ public:
 	 * the regular desktop apps. In this case, FCoreDelegates::ApplicationWillEnterBackgroundDelegate and FCoreDelegates::ApplicationHasEnteredForegroundDelegate
 	 * reflect the state of VR focus (either the app should be rendered in HMD or not).
 	 */
-	virtual bool DoesAppUseVRFocus() const;
+	HEADMOUNTEDDISPLAY_API virtual bool DoesAppUseVRFocus() const;
 
 	/**
 	 * Returns true, if the app has VR focus, meaning if it is rendered in the HMD.
 	 */
-	virtual bool DoesAppHaveVRFocus() const;
+	HEADMOUNTEDDISPLAY_API virtual bool DoesAppHaveVRFocus() const;
 
 	/**
 	 * If true, scene rendering should be skipped.

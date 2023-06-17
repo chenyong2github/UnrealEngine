@@ -33,56 +33,56 @@ namespace Audio
 
 	// Dynamic range compressor
 	// https://en.wikipedia.org/wiki/Dynamic_range_compression
-	class SIGNALPROCESSING_API FDynamicsProcessor
+	class FDynamicsProcessor
 	{
 	public:
-		FDynamicsProcessor();
-		~FDynamicsProcessor();
+		SIGNALPROCESSING_API FDynamicsProcessor();
+		SIGNALPROCESSING_API ~FDynamicsProcessor();
 
-		void Init(const float InSampleRate, const int32 InNumChannels = 2);
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const int32 InNumChannels = 2);
 
-		int32 GetNumChannels() const;
-		int32 GetKeyNumChannels() const;
-		float GetMaxLookaheadMsec() const;
+		SIGNALPROCESSING_API int32 GetNumChannels() const;
+		SIGNALPROCESSING_API int32 GetKeyNumChannels() const;
+		SIGNALPROCESSING_API float GetMaxLookaheadMsec() const;
 
-		void SetLookaheadMsec(const float InLookAheadMsec);
-		void SetAttackTime(const float InAttackTimeMsec);
-		void SetReleaseTime(const float InReleaseTimeMsec);
-		void SetThreshold(const float InThresholdDb);
-		void SetRatio(const float InCompressionRatio);
-		void SetKneeBandwidth(const float InKneeBandwidthDb);
-		void SetInputGain(const float InInputGainDb);
-		void SetKeyAudition(const bool InAuditionEnabled);
-		void SetKeyGain(const float InKeyGain);
-		void SetKeyHighshelfCutoffFrequency(const float InCutoffFreq);
-		void SetKeyHighshelfEnabled(const bool bInEnabled);
-		void SetKeyHighshelfGain(const float InGainDb);
-		void SetKeyLowshelfCutoffFrequency(const float InCutoffFreq);
-		void SetKeyLowshelfEnabled(const bool bInEnabled);
-		void SetKeyLowshelfGain(const float InGainDb);
-		void SetKeyNumChannels(const int32 InNumChannels);
-		void SetNumChannels(const int32 InNumChannels);
-		void SetOutputGain(const float InOutputGainDb);
-		void SetChannelLinkMode(const EDynamicsProcessorChannelLinkMode InLinkMode);
-		void SetAnalogMode(const bool bInIsAnalogMode);
-		void SetPeakMode(const EPeakMode::Type InEnvelopeFollowerModeType);
-		void SetProcessingMode(const EDynamicsProcessingMode::Type ProcessingMode);
+		SIGNALPROCESSING_API void SetLookaheadMsec(const float InLookAheadMsec);
+		SIGNALPROCESSING_API void SetAttackTime(const float InAttackTimeMsec);
+		SIGNALPROCESSING_API void SetReleaseTime(const float InReleaseTimeMsec);
+		SIGNALPROCESSING_API void SetThreshold(const float InThresholdDb);
+		SIGNALPROCESSING_API void SetRatio(const float InCompressionRatio);
+		SIGNALPROCESSING_API void SetKneeBandwidth(const float InKneeBandwidthDb);
+		SIGNALPROCESSING_API void SetInputGain(const float InInputGainDb);
+		SIGNALPROCESSING_API void SetKeyAudition(const bool InAuditionEnabled);
+		SIGNALPROCESSING_API void SetKeyGain(const float InKeyGain);
+		SIGNALPROCESSING_API void SetKeyHighshelfCutoffFrequency(const float InCutoffFreq);
+		SIGNALPROCESSING_API void SetKeyHighshelfEnabled(const bool bInEnabled);
+		SIGNALPROCESSING_API void SetKeyHighshelfGain(const float InGainDb);
+		SIGNALPROCESSING_API void SetKeyLowshelfCutoffFrequency(const float InCutoffFreq);
+		SIGNALPROCESSING_API void SetKeyLowshelfEnabled(const bool bInEnabled);
+		SIGNALPROCESSING_API void SetKeyLowshelfGain(const float InGainDb);
+		SIGNALPROCESSING_API void SetKeyNumChannels(const int32 InNumChannels);
+		SIGNALPROCESSING_API void SetNumChannels(const int32 InNumChannels);
+		SIGNALPROCESSING_API void SetOutputGain(const float InOutputGainDb);
+		SIGNALPROCESSING_API void SetChannelLinkMode(const EDynamicsProcessorChannelLinkMode InLinkMode);
+		SIGNALPROCESSING_API void SetAnalogMode(const bool bInIsAnalogMode);
+		SIGNALPROCESSING_API void SetPeakMode(const EPeakMode::Type InEnvelopeFollowerModeType);
+		SIGNALPROCESSING_API void SetProcessingMode(const EDynamicsProcessingMode::Type ProcessingMode);
 
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame);
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame, float* OutGain);
-		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer = nullptr);
-		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer, float* OutEnvelope);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame, float* OutGain);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer = nullptr);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer, const float* InKeyBuffer, float* OutEnvelope);
 		 
 
 	protected:
 
-		float ComputeGain(const float InEnvFollowerDb);
+		SIGNALPROCESSING_API float ComputeGain(const float InEnvFollowerDb);
 
 		// Process key frame, returning true if should continue processing
 		// (Returns false in audition mode and writes straight to output).
-		bool ProcessKeyFrame(const float* InKeyFrame, float* OutFrame, bool bKeyIsInput);
+		SIGNALPROCESSING_API bool ProcessKeyFrame(const float* InKeyFrame, float* OutFrame, bool bKeyIsInput);
 
-		bool IsInProcessingThreshold(const float InEnvFollowerDb) const;
+		SIGNALPROCESSING_API bool IsInProcessingThreshold(const float InEnvFollowerDb) const;
 
 		// (Optional) Low-pass filter for input signal
 		FBiquadFilter InputLowshelfFilter;

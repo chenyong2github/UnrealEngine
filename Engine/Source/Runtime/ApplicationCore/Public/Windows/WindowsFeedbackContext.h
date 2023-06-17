@@ -12,13 +12,13 @@
 /**
  * Feedback context implementation for windows.
  */
-class APPLICATIONCORE_API FWindowsFeedbackContext : public FFeedbackContext
+class FWindowsFeedbackContext : public FFeedbackContext
 {
 	/** Context information for warning and error messages */
 	FContextSupplier* Context = nullptr;
 
 public:
-	bool YesNof(const FText& Question) override;
+	APPLICATIONCORE_API bool YesNof(const FText& Question) override;
 
 	FContextSupplier* GetContext() const { return Context; }
 	void SetContext(FContextSupplier* InContext) { Context = InContext; }

@@ -20,8 +20,8 @@
 class UObject;
 struct FMovieSceneEvaluationTrack;
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneCameraShakeSourceTriggerTrack
+UCLASS(MinimalAPI)
+class UMovieSceneCameraShakeSourceTriggerTrack
 	: public UMovieSceneTrack
 	, public IMovieSceneTrackTemplateProducer
 {
@@ -29,24 +29,24 @@ public:
 
 	GENERATED_BODY()
 
-	UMovieSceneCameraShakeSourceTriggerTrack(const FObjectInitializer& Obj);
+	MOVIESCENETRACKS_API UMovieSceneCameraShakeSourceTriggerTrack(const FObjectInitializer& Obj);
 
 	// UMovieSceneTrack interface
-	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
-	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual bool HasSection(const UMovieSceneSection& Section) const override;
-	virtual void AddSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSectionAt(int32 SectionIndex) override;
-	virtual void RemoveAllAnimationData() override;
-	virtual bool IsEmpty() const override;
-	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
-	virtual void PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const override;
+	MOVIESCENETRACKS_API virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* CreateNewSection() override;
+	MOVIESCENETRACKS_API virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	MOVIESCENETRACKS_API virtual void AddSection(UMovieSceneSection& Section) override;
+	MOVIESCENETRACKS_API virtual void RemoveSection(UMovieSceneSection& Section) override;
+	MOVIESCENETRACKS_API virtual void RemoveSectionAt(int32 SectionIndex) override;
+	MOVIESCENETRACKS_API virtual void RemoveAllAnimationData() override;
+	MOVIESCENETRACKS_API virtual bool IsEmpty() const override;
+	MOVIESCENETRACKS_API virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
+	MOVIESCENETRACKS_API virtual void PostCompile(FMovieSceneEvaluationTrack& Track, const FMovieSceneTrackCompilerArgs& Args) const override;
 
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
+	MOVIESCENETRACKS_API virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 
 #if WITH_EDITORONLY_DATA
-	virtual FText GetDisplayName() const override;
+	MOVIESCENETRACKS_API virtual FText GetDisplayName() const override;
 #endif
 
 protected:

@@ -258,7 +258,7 @@ public:
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxyForLevel(ULevel* Level) const;
 
 	UE_DEPRECATED(5.3, "Use ULandscapeSubsystem::GetDirtyOnlyInMode() instead")
-	LANDSCAPE_API static bool IsDirtyOnlyInModeEnabled() { return false; }
+	static bool IsDirtyOnlyInModeEnabled() { return false; }
 
 	LANDSCAPE_API bool GetDirtyOnlyInMode() const;
 
@@ -328,7 +328,7 @@ public:
 	LANDSCAPE_API void RemoveXYOffsets();
 
 	UE_DEPRECATED(5.3, "Texture Baking is officially deprecated now and nothing updates it anymore")
-	LANDSCAPE_API void PostponeTextureBaking() {}
+	void PostponeTextureBaking() {}
 
 	/** Will tell if the landscape actor can have some content related to the layer system */
 	LANDSCAPE_API bool CanHaveLayersContent() const;

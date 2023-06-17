@@ -24,13 +24,13 @@
 *    render level set actors isn't currently supported very well,
 *    but could be improved in the future
 */
-UCLASS()
-class GEOMETRYCOLLECTIONENGINE_API AGeometryCollectionRenderLevelSetActor : public AActor
+UCLASS(MinimalAPI)
+class AGeometryCollectionRenderLevelSetActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 public:
 
-	static int InstanceCount;
+	static GEOMETRYCOLLECTIONENGINE_API int InstanceCount;
 
 	// Volume texture to fill	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Volume")
@@ -61,20 +61,20 @@ public:
 	bool RenderVolumeBoundingBox;
 
 	// Find/create the level set renderer singleton actor as required. Return whether the found or created actor.
-	static AGeometryCollectionRenderLevelSetActor* FindOrCreate(UWorld* World);
+	static GEOMETRYCOLLECTIONENGINE_API AGeometryCollectionRenderLevelSetActor* FindOrCreate(UWorld* World);
 
 	// Load a new level set to render
-	bool SetLevelSetToRender(const Chaos::FLevelSet &LevelSet, const FTransform &LocalToWorld);
+	GEOMETRYCOLLECTIONENGINE_API bool SetLevelSetToRender(const Chaos::FLevelSet &LevelSet, const FTransform &LocalToWorld);
 
 	// Sync level set transform to the render material
-	void SyncLevelSetTransform(const FTransform &LocalToWorld);
+	GEOMETRYCOLLECTIONENGINE_API void SyncLevelSetTransform(const FTransform &LocalToWorld);
 
 	// Some initialization happens in here 
-	virtual void BeginPlay() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void BeginPlay() override;
 
 #if WITH_EDITOR
 	// Allowed for live updates to parameters from inside the editor when ejected
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& e) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& e) override;
 #endif
 
 	// set and sync enabled
@@ -98,7 +98,7 @@ private:
 	UMaterialInstanceDynamic* DynRayMarchMaterial;
 
 	// Synchronizes the state of this actor class with the post process render material
-	void SyncMaterialParameters();
+	GEOMETRYCOLLECTIONENGINE_API void SyncMaterialParameters();
 
 	// Private for now since step size mult might not be super useful due to the current
 	// rendering algorithms employed in the shaders

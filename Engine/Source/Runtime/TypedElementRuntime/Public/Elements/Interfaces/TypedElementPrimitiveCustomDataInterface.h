@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -17,7 +17,7 @@ class UTypedElementPrimitiveCustomDataInterface : public UInterface
  * An interface for use with the TypedElement Framework which exposes Primitive CustomData
  * for use within Materials.
  */
-class TYPEDELEMENTRUNTIME_API ITypedElementPrimitiveCustomDataInterface
+class ITypedElementPrimitiveCustomDataInterface
 {
 	GENERATED_BODY()
 
@@ -30,11 +30,11 @@ public:
 
 	// Sets all Primitive's CustomData values
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|CustomData")
-	virtual void SetCustomData(const FScriptTypedElementHandle& InElementHandle, const TArray<float>& CustomDataFloats,  bool bMarkRenderStateDirty = false);
+	TYPEDELEMENTRUNTIME_API virtual void SetCustomData(const FScriptTypedElementHandle& InElementHandle, const TArray<float>& CustomDataFloats,  bool bMarkRenderStateDirty = false);
 
 	// Sets a single Primitive's CustomData value
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|CustomData")
-	virtual void SetCustomDataValue(const FScriptTypedElementHandle& InElementHandle, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty = false);
+	TYPEDELEMENTRUNTIME_API virtual void SetCustomDataValue(const FScriptTypedElementHandle& InElementHandle, int32 CustomDataIndex, float CustomDataValue, bool bMarkRenderStateDirty = false);
 };
 
 template <>

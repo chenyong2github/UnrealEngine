@@ -22,7 +22,7 @@ class FDynamicMesh3;
 // Class to support local planar simplification, to reduce excess edges created by plane cuts, edge loop insertions, and similar operations
 // (Note a custom version of this logic also exists on the FMeshBoolean class)
 //
-class GEOMETRYCORE_API FLocalPlanarSimplify
+class FLocalPlanarSimplify
 {
 public:
 	// Simplification settings
@@ -55,7 +55,7 @@ public:
 	 * @param InOutEdges		Edges to simplify along -- will be updated to remove any edges that have been collapsed by simplification
 	 * @param ProcessCollapse	Optional function to be called whenever the simplification collapses an edge
 	 */
-	void SimplifyAlongEdges(FDynamicMesh3& Mesh, TSet<int32>& InOutEdges, TUniqueFunction<void(const DynamicMeshInfo::FEdgeCollapseInfo&)> ProcessCollapse = nullptr) const;
+	GEOMETRYCORE_API void SimplifyAlongEdges(FDynamicMesh3& Mesh, TSet<int32>& InOutEdges, TUniqueFunction<void(const DynamicMeshInfo::FEdgeCollapseInfo&)> ProcessCollapse = nullptr) const;
 
 
 
@@ -72,7 +72,7 @@ public:
 	 * @param The normal of the first triangle attached to the vertex.
 	 * @return Whether all the triangles were coplanar
 	 */
-	static bool IsFlat(const FDynamicMesh3& Mesh, int VID, double DotTolerance, FVector3d& OutFirstNormal);
+	static GEOMETRYCORE_API bool IsFlat(const FDynamicMesh3& Mesh, int VID, double DotTolerance, FVector3d& OutFirstNormal);
 
 	/**
 	 * Test if the triangles connected to a vertex could be flattened by folding along the given edge
@@ -83,7 +83,7 @@ public:
 	 * @param The normal of the first triangle attached to the vertex.
 	 * @return Whether all the triangles were coplanar
 	 */
-	static bool IsDevelopableAlongEdge(const FDynamicMesh3& Mesh, int EID, int VID, double DotTolerance, FVector3d& NormalA, bool& bIsFlat);
+	static GEOMETRYCORE_API bool IsDevelopableAlongEdge(const FDynamicMesh3& Mesh, int EID, int VID, double DotTolerance, FVector3d& NormalA, bool& bIsFlat);
 
 	/**
 	 * Test if a given edge collapse would cause a triangle flip or other unacceptable decrease in mesh quality
@@ -97,7 +97,7 @@ public:
 	 * @param TryToImproveTriQualityThreshold Threshold for triangle quality (see comment for class member, above)
 	 * @param bHasMultipleNormals If false, assume the triangulation is locally flat, so we can use ExpectNormal instead of recomputing the expected normal
 	 */
-	static bool CollapseWouldHurtTriangleQuality(
+	static GEOMETRYCORE_API bool CollapseWouldHurtTriangleQuality(
 		const FDynamicMesh3& Mesh, const FVector3d& RemoveVNormal,
 		int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos,
 		double TryToImproveTriQualityThreshold, bool bHasMultipleNormals = false
@@ -106,7 +106,7 @@ public:
 	/**
 	 * Test if a given edge collapse would change the mesh shape, mesh triangle group shape, or UVs unacceptably
 	 */
-	static bool CollapseWouldChangeShapeOrUVs(
+	static GEOMETRYCORE_API bool CollapseWouldChangeShapeOrUVs(
 		const FDynamicMesh3& Mesh, const TSet<int>& PathEdgeSet, double DotTolerance, int SourceEID,
 		int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos,
 		const FVector3d& EdgeDir, bool bPreserveTriangleGroups, bool bPreserveUVsForMesh,

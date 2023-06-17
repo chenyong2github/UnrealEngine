@@ -39,7 +39,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogAudioEndpoints, Display, All);
  * This interface should be used to provide a non-uclass version of the data described in
  * your implementation of UAudioEndpointSettingsBase.
  */
-class AUDIOEXTENSIONS_API IAudioEndpointSettingsProxy
+class IAudioEndpointSettingsProxy
 {
 public:
 	virtual ~IAudioEndpointSettingsProxy() {}
@@ -49,13 +49,13 @@ public:
  * This opaque class should be used for specifying settings for how audio should be
  * send to an external endpoint.
  */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API UAudioEndpointSettingsBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class UAudioEndpointSettingsBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual TUniquePtr<IAudioEndpointSettingsProxy> GetProxy() const PURE_VIRTUAL(UAudioEndpointSettingsBase::GetProxy, return nullptr;);
+	AUDIOEXTENSIONS_API virtual TUniquePtr<IAudioEndpointSettingsProxy> GetProxy() const PURE_VIRTUAL(UAudioEndpointSettingsBase::GetProxy, return nullptr;);
 };
 
 //A blank class for when unimplemented endpoint types are returned
@@ -77,7 +77,7 @@ class UDummyEndpointSettings : public UAudioEndpointSettingsBase
  * Note that this only for interleaved audio buffers with no metadata for object-based or soundfield-based rendering.
  * For those, see 
  */
-class AUDIOEXTENSIONS_API IAudioEndpoint
+class IAudioEndpoint
 {
 public:
 	virtual ~IAudioEndpoint() {};
@@ -94,34 +94,34 @@ public:
 	 *                             	Audio::DownmixBuffer(NumInputChannels, NumOutputChannels, InputAudio, OutputAudio, MixdownGainsMap.GetData());
 	 * @returns a new Audio::FPatchInput. The FPatchInput may be disconnected if this endpoint's sample rate or channel count changes, in which case you will need to reconnect by calling this again.
 	 */
-	Audio::FPatchInput PatchNewInput(float ExpectedDurationPerRender, float& OutSampleRate, int32& OutNumChannels);
+	AUDIOEXTENSIONS_API Audio::FPatchInput PatchNewInput(float ExpectedDurationPerRender, float& OutSampleRate, int32& OutNumChannels);
 
 	/**
 	 * Post new settings for this endpoint.
 	 * There is no type safety on this call, so make sure that you are using the correct implementation
 	 * of IAudioEndpointSettingsProxy for this implementation of IAudioEndpoint.
 	 */
-	void SetNewSettings(TUniquePtr<IAudioEndpointSettingsProxy>&& InNewSettings);
+	AUDIOEXTENSIONS_API void SetNewSettings(TUniquePtr<IAudioEndpointSettingsProxy>&& InNewSettings);
 
 	/**
 	 * If this audio endpoint hasn't spawned a seperate callback thread but requires a callback, this should be executed somewhere.
 	 */
-	void ProcessAudioIfNeccessary();
+	AUDIOEXTENSIONS_API void ProcessAudioIfNeccessary();
 
 	/**
 	* Whether this endpoint is of an implemented type
 	*/
-	virtual bool IsImplemented();
+	AUDIOEXTENSIONS_API virtual bool IsImplemented();
 
 protected:
 
 	/** REQUIRED OVERRIDES: */
 
 	/** This should return the sample rate we should be sending to this endpoint. If the sample rate changes, please call DisconnectAllInputs(). */
-	virtual float GetSampleRate() const;
+	AUDIOEXTENSIONS_API virtual float GetSampleRate() const;
 
 	/** This should return the number of channels we should be sending to this endpoint. If the number of channels changes, please call DisconnectAllInputs. */
-	virtual int32 GetNumChannels() const;
+	AUDIOEXTENSIONS_API virtual int32 GetNumChannels() const;
 
 	/** OPTIONAL OVERRIDES: */
 
@@ -149,7 +149,7 @@ protected:
 	 * @param [in] NumSamples: The number of samples to fill OutAudio with.
 	 * @returns [out] the number of samples polled from this thing.
 	 */
-	int32 PopAudio(float* OutAudio, int32 NumSamples);
+	AUDIOEXTENSIONS_API int32 PopAudio(float* OutAudio, int32 NumSamples);
 
 	/**
 	 * Use this as a thread safe way to use the current settings posted to this IAudioEndpoint. Locks with IAudioEndpoint::SetSettings.
@@ -157,24 +157,24 @@ protected:
 	 *                                 This lambda is called immediately and synchronously, but is used
 	 *                                 to safely scope usage of the IAudioEndpointSettingsProxy pointer.
 	 */
-	void PollSettings(TFunctionRef<void(const IAudioEndpointSettingsProxy*)> NewSettingsRetrieved);
+	AUDIOEXTENSIONS_API void PollSettings(TFunctionRef<void(const IAudioEndpointSettingsProxy*)> NewSettingsRetrieved);
 
 	/**
 	 * Thread safe function to disconnect everything from this endpoint. 
 	 * Anything that owns an Audio::FPatchInput will be notified and will have to call PatchNewInput() again to reconnect.
 	 */
-	void DisconnectAllInputs();
+	AUDIOEXTENSIONS_API void DisconnectAllInputs();
 
 	/**
 	 * If EndpointRequiresCallback() returns true, this can be used to spawn an async thread and begin calling OnAudioCallback.
 	 */
-	void StartRunningAsyncCallback();
-	void StopRunningAsyncCallback();
+	AUDIOEXTENSIONS_API void StartRunningAsyncCallback();
+	AUDIOEXTENSIONS_API void StopRunningAsyncCallback();
 
 	/**
 	 * If EndpointRequiresCallback() returns true, this can be used to manually run the callback.
 	 */
-	void RunCallbackSynchronously();
+	AUDIOEXTENSIONS_API void RunCallbackSynchronously();
 
 
 private:
@@ -198,7 +198,7 @@ private:
  * Once a factory is constructed and RegisterEndpointType is called, it will be exposed as a type of endpoint
  * That a submix in the submix graph could be constructed with.
  */
-class AUDIOEXTENSIONS_API IAudioEndpointFactory : public IModularFeature
+class IAudioEndpointFactory : public IModularFeature
 {
 public:
 	/** Virtual destructor */
@@ -207,50 +207,50 @@ public:
 	}
 
 	/** Get the name for the endpoint type that this factory produces.  */
-	virtual FName GetEndpointTypeName();
+	AUDIOEXTENSIONS_API virtual FName GetEndpointTypeName();
 
 	/** This is a special cased name for endpoint submixes that render directly to the default audio device in Audio::FMixerDevice::OnProcessAudioStream. */
-	static FName GetTypeNameForDefaultEndpoint();
+	static AUDIOEXTENSIONS_API FName GetTypeNameForDefaultEndpoint();
 
 	/** 
 	 * This is used when calling IModularFeatures::Get().RegisterModularFeature for IAudioEndpointFactory implementations. 
 	 * It's not needed if one uses RegisterEndpointType() to register IAudioEndpointFactory implementations. 
 	 */
-	static FName GetModularFeatureName();
+	static AUDIOEXTENSIONS_API FName GetModularFeatureName();
 
 	/** 
 	 * This needs to be called to make a soundfield format usable by the engine.
 	 * It can be called from a ISoundfieldFactory subclass' constructor
 	*/
-	static void RegisterEndpointType(IAudioEndpointFactory* InFactory);
+	static AUDIOEXTENSIONS_API void RegisterEndpointType(IAudioEndpointFactory* InFactory);
 
 	/**
 	 * This needs to be called it an implementation of ISoundfieldFactory is about to be destroyed.
 	 * It can be called from the destructor of an implementation of ISoundfieldFactory.
 	 */
-	static void UnregisterEndpointType(IAudioEndpointFactory* InFactory);
+	static AUDIOEXTENSIONS_API void UnregisterEndpointType(IAudioEndpointFactory* InFactory);
 
 	/**
 	 * Get a registered endpoint factory by name.
 	 */
-	static IAudioEndpointFactory* Get(const FName& InName);
+	static AUDIOEXTENSIONS_API IAudioEndpointFactory* Get(const FName& InName);
 
-	static TArray<FName> GetAvailableEndpointTypes();
+	static AUDIOEXTENSIONS_API TArray<FName> GetAvailableEndpointTypes();
 
 	/** Called for every new endpoint submix created with this factory's endpoint type. */
-	virtual TUniquePtr<IAudioEndpoint> CreateNewEndpointInstance(const FAudioPluginInitializationParams& InitInfo, const IAudioEndpointSettingsProxy& InitialSettings);
+	AUDIOEXTENSIONS_API virtual TUniquePtr<IAudioEndpoint> CreateNewEndpointInstance(const FAudioPluginInitializationParams& InitInfo, const IAudioEndpointSettingsProxy& InitialSettings);
 
 	/**
 	 * Should return the StaticClass of this factory's implementation of UAudioEndpointSettingsBase.
 	 */
-	virtual UClass* GetCustomSettingsClass() const;
+	AUDIOEXTENSIONS_API virtual UClass* GetCustomSettingsClass() const;
 
 	/**
 	 * return the settings an endpoint should use 
 	 */
-	virtual const UAudioEndpointSettingsBase* GetDefaultSettings() const;
+	AUDIOEXTENSIONS_API virtual const UAudioEndpointSettingsBase* GetDefaultSettings() const;
 
 	bool bIsImplemented = false;
 
-	static IAudioEndpointFactory* GetDummyFactory();
+	static AUDIOEXTENSIONS_API IAudioEndpointFactory* GetDummyFactory();
 };

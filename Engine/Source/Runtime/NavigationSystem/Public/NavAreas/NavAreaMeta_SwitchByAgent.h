@@ -11,8 +11,8 @@
 class AActor;
 
 /** Class containing definition of a navigation area */
-UCLASS(Abstract)
-class NAVIGATIONSYSTEM_API UNavAreaMeta_SwitchByAgent : public UNavAreaMeta
+UCLASS(Abstract, MinimalAPI)
+class UNavAreaMeta_SwitchByAgent : public UNavAreaMeta
 {
 	GENERATED_UCLASS_BODY()
 
@@ -64,10 +64,10 @@ class NAVIGATIONSYSTEM_API UNavAreaMeta_SwitchByAgent : public UNavAreaMeta
 	UPROPERTY(EditAnywhere, Category=AgentTypes)
 	TSubclassOf<UNavArea> Agent15Area;
 
-	virtual TSubclassOf<UNavAreaBase> PickAreaClassForAgent(const AActor& Actor, const FNavAgentProperties& NavAgent) const override;
+	NAVIGATIONSYSTEM_API virtual TSubclassOf<UNavAreaBase> PickAreaClassForAgent(const AActor& Actor, const FNavAgentProperties& NavAgent) const override;
 
 #if WITH_EDITOR
 	/** setup AgentXArea properties */
-	virtual void UpdateAgentConfig();
+	NAVIGATIONSYSTEM_API virtual void UpdateAgentConfig();
 #endif
 };

@@ -14,11 +14,11 @@ enum class EOverlaysFileType
 	SubRipSubtitles,
 };
 
-class OVERLAY_API FOverlaysImporter
+class FOverlaysImporter
 {
 public:
-	FOverlaysImporter();
-	~FOverlaysImporter();
+	OVERLAY_API FOverlaysImporter();
+	OVERLAY_API ~FOverlaysImporter();
 
 	/**
 	 * Opens the file and preparses it for import
@@ -26,7 +26,7 @@ public:
 	 * @param	Filename	The file to open
 	 * @return	True if the file was opened successfully, false if the file could not be opened or is not an overlay file.
 	 */
-	bool OpenFile(const FString& FilePath);
+	OVERLAY_API bool OpenFile(const FString& FilePath);
 
 	/**
 	 * Parses the supplied import file for basic overlay data
@@ -34,12 +34,12 @@ public:
 	 * @param	OutSubtitles	The output array where new overlays are stored. This is emptied when the import begins
 	 * @return	True if the file was parsed successfully
 	 */
-	bool ImportBasic(TArray<FOverlayItem>& OutOverlays) const;
+	OVERLAY_API bool ImportBasic(TArray<FOverlayItem>& OutOverlays) const;
 
 	/**
 	 * Resets the importer to a default state
 	 */
-	void Reset();
+	OVERLAY_API void Reset();
 
 private:
 	bool ParseSubRipSubtitles(TArray<FOverlayItem>& OutSubtitles) const;

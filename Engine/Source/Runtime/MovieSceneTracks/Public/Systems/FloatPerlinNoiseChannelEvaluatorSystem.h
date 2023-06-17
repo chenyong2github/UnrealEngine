@@ -8,14 +8,14 @@
 /**
  * System that is responsible for evaluating double perlin noise channels.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UFloatPerlinNoiseChannelEvaluatorSystem : public UMovieSceneEntitySystem
+UCLASS(MinimalAPI)
+class UFloatPerlinNoiseChannelEvaluatorSystem : public UMovieSceneEntitySystem
 {
 public:
 	GENERATED_BODY()
 
-	UFloatPerlinNoiseChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UFloatPerlinNoiseChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };

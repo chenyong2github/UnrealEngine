@@ -14,12 +14,12 @@ class UInterchangeFactoryBaseNode;
 /*
  * Class to hold all the data required to properly re-import a level
  */
-UCLASS()
-class INTERCHANGEENGINE_API UInterchangeSceneImportAsset : public UObject, public IInterface_AssetUserData
+UCLASS(MinimalAPI)
+class UInterchangeSceneImportAsset : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_BODY()
 
-	virtual ~UInterchangeSceneImportAsset();
+	INTERCHANGEENGINE_API virtual ~UInterchangeSceneImportAsset();
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -33,23 +33,23 @@ public:
 #endif // #if WITH_EDITORONLY_DATA
 
 	//~ Begin UObject Interface
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-	virtual void PostLoad() override;
+	INTERCHANGEENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	INTERCHANGEENGINE_API virtual void PostLoad() override;
 	//~ End UObject Interface
 
 	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData( UAssetUserData* InUserData ) override;
-	virtual void RemoveUserDataOfClass( TSubclassOf<UAssetUserData> InUserDataClass ) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass( TSubclassOf<UAssetUserData> InUserDataClass ) override;
-	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	INTERCHANGEENGINE_API virtual void AddAssetUserData( UAssetUserData* InUserData ) override;
+	INTERCHANGEENGINE_API virtual void RemoveUserDataOfClass( TSubclassOf<UAssetUserData> InUserDataClass ) override;
+	INTERCHANGEENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass( TSubclassOf<UAssetUserData> InUserDataClass ) override;
+	INTERCHANGEENGINE_API virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 #if WITH_EDITOR
-	void RegisterWorldRenameCallbacks();
+	INTERCHANGEENGINE_API void RegisterWorldRenameCallbacks();
 #endif
 
 	/** Updates the SceneObjects cache based on the node container stored in AssetImportData */
-	void UpdateSceneObjects();
+	INTERCHANGEENGINE_API void UpdateSceneObjects();
 
 	/**
 	 * Returns the UObject which asset path is '//PackageName.AssetName[:SubPathString]'.
@@ -59,7 +59,7 @@ public:
 	 * @oaram AssetName: Asset name of the actual object to reimport
 	 * @oaram SubPathString: Optional subobject name
 	 */
-	UObject* GetSceneObject(const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString()) const;
+	INTERCHANGEENGINE_API UObject* GetSceneObject(const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString()) const;
 
 	/**
 	 * Returns the factory node associated with the asset which path is '//PackageName.AssetName[:SubPathString]'.
@@ -69,7 +69,7 @@ public:
 	 * @oaram AssetName: Asset name of the actual object to reimport
 	 * @oaram SubPathString: Optional subobject name
 	 */
-	const UInterchangeFactoryBaseNode* GetFactoryNode(const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString()) const;
+	INTERCHANGEENGINE_API const UInterchangeFactoryBaseNode* GetFactoryNode(const FString& PackageName, const FString& AssetName, const FString& SubPathString = FString()) const;
 
 private:
 

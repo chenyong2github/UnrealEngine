@@ -29,18 +29,18 @@ class IMovieSceneSequenceTickManagerClient;
  * Sequencer data is shared between all instances within the same group, allowing them to blend together.
  * Clients ticking at different intervals do not support blending with each other.
  */
-UCLASS()
-class MOVIESCENE_API UMovieSceneSequenceTickManager : public UObject
+UCLASS(MinimalAPI)
+class UMovieSceneSequenceTickManager : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	UMovieSceneSequenceTickManager(const FObjectInitializer& Init);
+	MOVIESCENE_API UMovieSceneSequenceTickManager(const FObjectInitializer& Init);
 
 	/**
 	 * Retrieve the tick manager for the specified playback context
 	 */
-	static UMovieSceneSequenceTickManager* Get(UObject* PlaybackContext);
+	static MOVIESCENE_API UMovieSceneSequenceTickManager* Get(UObject* PlaybackContext);
 
 	/**
 	 * Register a new client to receive a tick at the specified tick interval.
@@ -49,26 +49,26 @@ public:
 	 * @param TickInterval    The interval at which to tick the client. 
 	 * @param InTickInterface The client that will receieve a tick
 	 */
-	void RegisterTickClient(const FMovieSceneSequenceTickInterval& TickInterval, TScriptInterface<IMovieSceneSequenceTickManagerClient> InTickInterface);
+	MOVIESCENE_API void RegisterTickClient(const FMovieSceneSequenceTickInterval& TickInterval, TScriptInterface<IMovieSceneSequenceTickManagerClient> InTickInterface);
 
 	/**
 	 * Unregister a previously registered client. The client must have been registered or an assertion will fail.
 	 *
 	 * @param InTickInterface The client to unregister
 	 */
-	void UnregisterTickClient(TScriptInterface<IMovieSceneSequenceTickManagerClient> InTickInterface);
+	MOVIESCENE_API void UnregisterTickClient(TScriptInterface<IMovieSceneSequenceTickManagerClient> InTickInterface);
 
 	/**
 	 * Retrieve the linker associated with the specified (resolved) tick interval.
 	 * @return The linker that owns all the data for the specified tick interval, or nullptr if there is none
 	 */
-	UMovieSceneEntitySystemLinker* GetLinker(const FMovieSceneSequenceTickInterval& TickInterval);
+	MOVIESCENE_API UMovieSceneEntitySystemLinker* GetLinker(const FMovieSceneSequenceTickInterval& TickInterval);
 
 	/**
 	 * Retrieve the runner associated with the specified (resolved) tick interval.
 	 * @return The runner that flushes evaluations for the specified tick interval, or nullptr if there is none
 	 */
-	TSharedPtr<FMovieSceneEntitySystemRunner> GetRunner(const FMovieSceneSequenceTickInterval& TickInterval);
+	MOVIESCENE_API TSharedPtr<FMovieSceneEntitySystemRunner> GetRunner(const FMovieSceneSequenceTickInterval& TickInterval);
 
 	/**
 	 * Add an action that will be executed once all the pending evaluations in this tick manager have been flushed.
@@ -76,36 +76,36 @@ public:
 	 *
 	 * @param Delegate A delegate to invoke when all evaluations have been flushed.
 	 */
-	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
+	MOVIESCENE_API void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
 
 	/**
 	 * Execute any pending latent actions
 	 */
-	void RunLatentActions();
+	MOVIESCENE_API void RunLatentActions();
 
 	/**
 	 * Clear latent actions pertaining to the specified object
 	 */
-	void ClearLatentActions(UObject* Object);
+	MOVIESCENE_API void ClearLatentActions(UObject* Object);
 
 public:
 
 	/*~ -------------------------------------------------------------- */
 	/*~ Deprecated functions that previously used 'Actor' nomenclature */
 	UE_DEPRECATED(5.1, "Please use RegisterTickClient")
-	void RegisterSequenceActor(AActor* InActor);
+	MOVIESCENE_API void RegisterSequenceActor(AActor* InActor);
 	UE_DEPRECATED(5.1, "Please use RegisterTickClient")
-	void RegisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceTickManagerClient> InActorInterface);
+	MOVIESCENE_API void RegisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceTickManagerClient> InActorInterface);
 	UE_DEPRECATED(5.1, "Please use UnregisterTickClient")
-	void UnregisterSequenceActor(AActor* InActor);
+	MOVIESCENE_API void UnregisterSequenceActor(AActor* InActor);
 	UE_DEPRECATED(5.1, "Please use UnregisterTickClient")
-	void UnregisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceTickManagerClient> InActorInterface);
+	MOVIESCENE_API void UnregisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceTickManagerClient> InActorInterface);
 	/*~ -------------------------------------------------------------- */
 
 private:
 
 	/*~ UObject interface */
-	virtual void BeginDestroy() override;
+	MOVIESCENE_API virtual void BeginDestroy() override;
 
 private:
 

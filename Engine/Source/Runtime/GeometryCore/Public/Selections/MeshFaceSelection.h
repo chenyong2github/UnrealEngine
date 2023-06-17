@@ -17,7 +17,7 @@ class FMeshVertexSelection;
 class FMeshEdgeSelection;
 
 
-class GEOMETRYCORE_API FMeshFaceSelection
+class FMeshFaceSelection
 {
 private:
 	const FDynamicMesh3* Mesh;
@@ -33,7 +33,7 @@ public:
 
 	// convert vertex selection to face selection. Require at least minCount verts of
 	// tri to be selected (valid values are 1,2,3)
-	FMeshFaceSelection(const FDynamicMesh3* mesh, const FMeshVertexSelection& convertV, int minCount = 3);
+	GEOMETRYCORE_API FMeshFaceSelection(const FDynamicMesh3* mesh, const FMeshVertexSelection& convertV, int minCount = 3);
 
 	// select a group
 	FMeshFaceSelection(const FDynamicMesh3* mesh, int group_id) : Mesh(mesh)
@@ -353,7 +353,7 @@ public:
 	 *  
 	 *  Return false from FilterF to prevent triangles from being included.
 	 */
-	void ExpandToOneRingNeighbours(const TUniqueFunction<bool(int)>& FilterF = nullptr);
+	GEOMETRYCORE_API void ExpandToOneRingNeighbours(const TUniqueFunction<bool(int)>& FilterF = nullptr);
 
 	/**
 	 *  Expand selection by N vertex one-rings. This is *significantly* faster
@@ -362,7 +362,7 @@ public:
 	 *  
 	 *  Return false from FilterF to prevent triangles from being included.
 	 */
-	void ExpandToOneRingNeighbours(int nRings, const TUniqueFunction<bool(int)>& FilterF = nullptr);
+	GEOMETRYCORE_API void ExpandToOneRingNeighbours(int nRings, const TUniqueFunction<bool(int)>& FilterF = nullptr);
 
 	/**
 	 *  remove all triangles in vertex one-rings of current selection to set.
@@ -371,7 +371,7 @@ public:
 	 *  
 	 *  Return false from FilterF to prevent triangles from being deselected.
 	 */
-	void ContractBorderByOneRingNeighbours(int NumRings = 1, bool bContractFromMeshBoundary = false, const TUniqueFunction<bool(int)>& FilterF = nullptr);
+	GEOMETRYCORE_API void ContractBorderByOneRingNeighbours(int NumRings = 1, bool bContractFromMeshBoundary = false, const TUniqueFunction<bool(int)>& FilterF = nullptr);
 
 	/**
 	 *  Grow selection outwards from seed triangle, until it hits boundaries defined by triangle and edge filters.

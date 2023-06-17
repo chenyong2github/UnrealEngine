@@ -9,35 +9,35 @@ namespace Audio
 {
 	// Foldback distortion effect
 	// https://en.wikipedia.org/wiki/Foldback_(power_supply_design)
-	class SIGNALPROCESSING_API FFoldbackDistortion
+	class FFoldbackDistortion
 	{
 	public:
 		// Constructor
-		FFoldbackDistortion();
+		SIGNALPROCESSING_API FFoldbackDistortion();
 
 		// Destructor
-		~FFoldbackDistortion();
+		SIGNALPROCESSING_API ~FFoldbackDistortion();
 
 		// Initialize the equalizer
-		void Init(const float InSampleRate, const int32 InNumChannels);
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const int32 InNumChannels);
 
 		// Sets the foldback distortion threshold
-		void SetThresholdDb(const float InThresholdDb);
+		SIGNALPROCESSING_API void SetThresholdDb(const float InThresholdDb);
 
 		// Sets the input gain
-		void SetInputGainDb(const float InInputGainDb);
+		SIGNALPROCESSING_API void SetInputGainDb(const float InInputGainDb);
 
 		// Sets the output gain
-		void SetOutputGainDb(const float InOutputGainDb);
+		SIGNALPROCESSING_API void SetOutputGainDb(const float InOutputGainDb);
 
 		// Processes a single audio sample
-		float ProcessAudioSample(const float InSample);
+		SIGNALPROCESSING_API float ProcessAudioSample(const float InSample);
 
 		// Processes a mono stream
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InFrame, float* OutFrame);
 
 		// Processes a stereo stream
-		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
 
 	private:
 		// Threshold to check before folding audio back on itself

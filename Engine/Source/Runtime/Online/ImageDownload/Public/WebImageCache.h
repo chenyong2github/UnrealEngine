@@ -14,19 +14,19 @@ struct FSlateBrush;
  *
  * See WebImage.h for example usage.
  */
-class IMAGEDOWNLOAD_API FWebImageCache
+class FWebImageCache
 {
 public:
-	FWebImageCache();
+	IMAGEDOWNLOAD_API FWebImageCache();
 
 	/** Signifies the module is being unloaded and to perform any actions that depend on other modules which may be unloaded as well */
-	void PreUnload();
+	IMAGEDOWNLOAD_API void PreUnload();
 
 	/** Removes all cached images */
-	void Empty();
+	IMAGEDOWNLOAD_API void Empty();
 
 	/** Find or create a WebImage object for this URL (you probably just want to call ->Attr() on this) */
-	TSharedRef<const FWebImage> Download(const FString& Url, const TOptional<FString>& DefaultImageUrl = TOptional<FString>());
+	IMAGEDOWNLOAD_API TSharedRef<const FWebImage> Download(const FString& Url, const TOptional<FString>& DefaultImageUrl = TOptional<FString>());
 
 	/** Set the brush that will be returned until the download completes (only affects future downloads). */
 	FORCEINLINE void SetDefaultStandInBrush(TAttribute<const FSlateBrush*> StandInBrushIn) { DefaultStandInBrush = StandInBrushIn; }
@@ -35,7 +35,7 @@ public:
 	 * once downloaded, an image is cached forever. This allows us to release images that are not currently
 	 * being displayed (those would have Strong pointers existing external to this class) to be released.
 	 */
-	void RelinquishUnusedImages();
+	IMAGEDOWNLOAD_API void RelinquishUnusedImages();
 
 private:
 	/** Map of canonical URL to web images (weak pointer so we don't affect lifetime) */

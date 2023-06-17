@@ -17,7 +17,7 @@ namespace UE::PropertyViewer
 {
 
 /** */
-class ADVANCEDWIDGETS_API IFieldExpander
+class IFieldExpander
 {
 public:
 	/** @return the class that should be expended for this instance. The instance can be null. */
@@ -35,7 +35,7 @@ public:
 	}
 };
 
-class ADVANCEDWIDGETS_API FFieldExpander_Default : public IFieldExpander
+class FFieldExpander_Default : public IFieldExpander
 {
 public:
 	FFieldExpander_Default() = default;

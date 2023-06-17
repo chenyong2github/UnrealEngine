@@ -17,8 +17,8 @@
 /**
  * The combobox allows you to display a list of options to the user in a dropdown menu for them to select one.
  */
-UCLASS(meta=( DisplayName="ComboBox (String)"))
-class UMG_API UComboBoxString : public UWidget
+UCLASS(meta=( DisplayName="ComboBox (String)"), MinimalAPI)
+class UComboBoxString : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -111,139 +111,139 @@ public: // Events
 public:
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	void AddOption(const FString& Option);
+	UMG_API void AddOption(const FString& Option);
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	bool RemoveOption(const FString& Option);
+	UMG_API bool RemoveOption(const FString& Option);
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	int32 FindOptionIndex(const FString& Option) const;
+	UMG_API int32 FindOptionIndex(const FString& Option) const;
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	FString GetOptionAtIndex(int32 Index) const;
+	UMG_API FString GetOptionAtIndex(int32 Index) const;
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	void ClearOptions();
+	UMG_API void ClearOptions();
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	void ClearSelection();
+	UMG_API void ClearSelection();
 
 	/**
 	 * Refreshes the list of options.  If you added new ones, and want to update the list even if it's
 	 * currently being displayed use this.
 	 */
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	void RefreshOptions();
+	UMG_API void RefreshOptions();
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	void SetSelectedOption(FString Option);
+	UMG_API void SetSelectedOption(FString Option);
 
 	UFUNCTION(BlueprintCallable, Category = "ComboBox")
-	void SetSelectedIndex(const int32 Index);
+	UMG_API void SetSelectedIndex(const int32 Index);
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	FString GetSelectedOption() const;
+	UMG_API FString GetSelectedOption() const;
 
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	int32 GetSelectedIndex() const;
+	UMG_API int32 GetSelectedIndex() const;
 
 	/** Returns the number of options */
 	UFUNCTION(BlueprintCallable, Category="ComboBox")
-	int32 GetOptionCount() const;
+	UMG_API int32 GetOptionCount() const;
 	
 	UFUNCTION(BlueprintCallable, Category="ComboBox", Meta = (ReturnDisplayName = "bOpen"))
-	bool IsOpen() const;
+	UMG_API bool IsOpen() const;
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 	/** Set the padding for content. */
-	void SetContentPadding(FMargin InPadding);
+	UMG_API void SetContentPadding(FMargin InPadding);
 
 	/** Get the padding for content. */
-	FMargin GetContentPadding() const;
+	UMG_API FMargin GetContentPadding() const;
 
 	/** Is the combobox navigated by gamepad. */
-	bool IsEnableGamepadNavigationMode() const;
+	UMG_API bool IsEnableGamepadNavigationMode() const;
 
 	/** Set whether the combobox is navigated by gamepad. */
-	void SetEnableGamepadNavigationMode(bool InEnableGamepadNavigationMode);
+	UMG_API void SetEnableGamepadNavigationMode(bool InEnableGamepadNavigationMode);
 
 	/** Is the combobox arrow showing. */
-	bool IsHasDownArrow() const;
+	UMG_API bool IsHasDownArrow() const;
 
 	/** Set whether the combobox arrow is showing. */
-	void SetHasDownArrow(bool InHasDownArrow);
+	UMG_API void SetHasDownArrow(bool InHasDownArrow);
 
 	/** Get the maximum height of the combobox list. */
-	float GetMaxListHeight() const;
+	UMG_API float GetMaxListHeight() const;
 
 	/** Set the maximum height of the combobox list. */
-	void SetMaxListHeight(float InMaxHeight);
+	UMG_API void SetMaxListHeight(float InMaxHeight);
 
 	/** Get the default font for Combobox if no OnGenerateWidgetEvent is specified. */
-	const FSlateFontInfo& GetFont() const;
+	UMG_API const FSlateFontInfo& GetFont() const;
 
 	/** Get the style of the combobox. */
-	const FComboBoxStyle& GetWidgetStyle() const;
+	UMG_API const FComboBoxStyle& GetWidgetStyle() const;
 
 	/** Set the style of the combobox. */
-	void SetWidgetStyle(const FComboBoxStyle& InWidgetStyle);
+	UMG_API void SetWidgetStyle(const FComboBoxStyle& InWidgetStyle);
 
 	/** Get the style of the items. */
-	const FTableRowStyle& GetItemStyle() const;
+	UMG_API const FTableRowStyle& GetItemStyle() const;
 
 	/** Set the style of the items. */
-	void SetItemStyle(const FTableRowStyle& InItemStyle);
+	UMG_API void SetItemStyle(const FTableRowStyle& InItemStyle);
 
 	/** Get the style of the scrollbar. */
-	const FScrollBarStyle& GetScrollBarStyle() const;
+	UMG_API const FScrollBarStyle& GetScrollBarStyle() const;
 
 	/** Is the combobox focusable. */
-	bool IsFocusable() const;
+	UMG_API bool IsFocusable() const;
 
 	/** Get the foreground color of the button. */
-	FSlateColor GetForegroundColor() const;
+	UMG_API FSlateColor GetForegroundColor() const;
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	UMG_API virtual void PostInitProperties() override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual void PostLoad() override;
 	//~ End UObject Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 	/** Refresh ComboBoxContent with the correct widget/data when the selected option changes */
-	void UpdateOrGenerateWidget(TSharedPtr<FString> Item);
+	UMG_API void UpdateOrGenerateWidget(TSharedPtr<FString> Item);
 
 	/** Called by slate when it needs to generate a new item for the combobox */
-	virtual TSharedRef<SWidget> HandleGenerateWidget(TSharedPtr<FString> Item) const;
+	UMG_API virtual TSharedRef<SWidget> HandleGenerateWidget(TSharedPtr<FString> Item) const;
 
 	/** Called by slate when the underlying combobox selection changes */
-	virtual void HandleSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectionType);
+	UMG_API virtual void HandleSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectionType);
 
 	/** Called by slate when the underlying combobox is opening */
-	virtual void HandleOpening();
+	UMG_API virtual void HandleOpening();
 
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
 	/** Initialize the scrollbar style in the constructor before the SWidget is constructed. */
-	void InitScrollBarStyle(const FScrollBarStyle& InScrollBarStyle);
+	UMG_API void InitScrollBarStyle(const FScrollBarStyle& InScrollBarStyle);
 
 	/** Initialize the default font in the constructor before the SWidget is constructed. */
-	void InitFont(FSlateFontInfo InFont);
+	UMG_API void InitFont(FSlateFontInfo InFont);
 
 	/** Initialize IsFocusable in the constructor before the SWidget is constructed. */
-	void InitIsFocusable(bool InIsFocusable);
+	UMG_API void InitIsFocusable(bool InIsFocusable);
 
 	/** Initialize ForegroundColor in the constructor before the SWidget is constructed. */
-	void InitForegroundColor(FSlateColor InForegroundColor);
+	UMG_API void InitForegroundColor(FSlateColor InForegroundColor);
 
 protected:
 	/** The true objects bound to the Slate combobox. */

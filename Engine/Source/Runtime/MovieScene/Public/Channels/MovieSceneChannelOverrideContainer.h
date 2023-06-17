@@ -41,8 +41,8 @@ struct FChannelOverrideEntityImportParams
 /**
  * A wrapper to implement polymorphism for FMovieSceneChannel.
  */
-UCLASS(Abstract)
-class MOVIESCENE_API UMovieSceneChannelOverrideContainer : public UMovieSceneSignedObject
+UCLASS(Abstract, MinimalAPI)
+class UMovieSceneChannelOverrideContainer : public UMovieSceneSignedObject
 {
 	GENERATED_BODY()
 
@@ -79,6 +79,6 @@ public:
 	using FOverrideCandidates = TArray<TSubclassOf<UMovieSceneChannelOverrideContainer>, TInlineAllocator<8>>;
 
 	/** Get a list of channel overrides that can work in the place of the given channel type */
-	static void GetOverrideCandidates(FName InDefaultChannelTypeName, FOverrideCandidates& OutCandidates);
+	static MOVIESCENE_API void GetOverrideCandidates(FName InDefaultChannelTypeName, FOverrideCandidates& OutCandidates);
 };
 

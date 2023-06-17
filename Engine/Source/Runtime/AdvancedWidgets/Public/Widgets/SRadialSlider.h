@@ -22,7 +22,7 @@ class FPaintArgs;
 class FSlateWindowElementList;
 class UCurveFloat;
 
-class ADVANCEDWIDGETS_API SRadialSlider
+class SRadialSlider
 	: public SLeafWidget
 {
 public:
@@ -144,23 +144,23 @@ public:
 
 	SLATE_END_ARGS()
 
-	SRadialSlider();
+	ADVANCEDWIDGETS_API SRadialSlider();
 
 	/**
 	 * Construct the widget.
 	 * 
 	 * @param InDeclaration A declaration from which to construct the widget.
 	 */
-	void Construct( const SRadialSlider::FArguments& InDeclaration );
+	ADVANCEDWIDGETS_API void Construct( const SRadialSlider::FArguments& InDeclaration );
 
 	/** Get the SliderRange attribute */
 	FRuntimeFloatCurve GetSliderRange() const { return SliderRange; }
 
 	/** Get the minumum value in Slider Range */
-	float GetMinValue() const;
+	ADVANCEDWIDGETS_API float GetMinValue() const;
 
 	/** Get the maximum value in Slider Range */
-	float GetMaxValue() const;
+	ADVANCEDWIDGETS_API float GetMaxValue() const;
 
 	/** Get the MinSliderHandleAngle attribute */
 	float GetSliderHandleStartAngle() const { return SliderHandleStartAngle; }
@@ -175,108 +175,108 @@ public:
 	TArray<float> GetValueTags() const { return ValueTags;	}
 
 	/** Get the Value attribute */
-	float GetValue() const;
+	ADVANCEDWIDGETS_API float GetValue() const;
 
 	/** Get the bUseCustomDefaultValue attribute */
-	bool GetUseCustomDefaultValue() const;
+	ADVANCEDWIDGETS_API bool GetUseCustomDefaultValue() const;
 
 	/** Get ths CustomDefaultValue attribute */
-	float GetCustomDefaultValue() const;
+	ADVANCEDWIDGETS_API float GetCustomDefaultValue() const;
 
 	/** Get the Value attribute scaled from 0 to 1 */
-	float GetNormalizedValue(float RawValue) const;
+	ADVANCEDWIDGETS_API float GetNormalizedValue(float RawValue) const;
 
 	/** Get the Slider's Handle position scaled from 0 to 1 */
-	float GetNormalizedSliderHandlePosition() const;
+	ADVANCEDWIDGETS_API float GetNormalizedSliderHandlePosition() const;
 
 	/** Set the Value attribute */
-	void SetValue(const TAttribute<float>& InValueAttribute);
+	ADVANCEDWIDGETS_API void SetValue(const TAttribute<float>& InValueAttribute);
 
 	/** Set the bUseCustomDefaultValue attribute */
-	void SetUseCustomDefaultValue(const TAttribute<bool>& InValueAttribute);
+	ADVANCEDWIDGETS_API void SetUseCustomDefaultValue(const TAttribute<bool>& InValueAttribute);
 
 	/** Set the CustomDefaultValue attribute */
-	void SetCustomDefaultValue(const TAttribute<float>& InValueAttribute);
+	ADVANCEDWIDGETS_API void SetCustomDefaultValue(const TAttribute<float>& InValueAttribute);
 	
 	/** Set the SliderRange attribute */
 	void SetSliderRange(const FRuntimeFloatCurve& InSliderRange) { SliderRange = InSliderRange; }
 
 	/** Set the SliderHandleStartAngle and SliderHandleEndAngle attributes. If the new SliderHandleStartAngle is more than the new SliderHandleEndAngle, SliderHandleEndAngle will be changed to equal SliderHandleStartAngle. */
-	void SetSliderHandleStartAngleAndSliderHandleEndAngle(float InSliderHandleStartAngle, float InSliderHandleEndAngle);
+	ADVANCEDWIDGETS_API void SetSliderHandleStartAngleAndSliderHandleEndAngle(float InSliderHandleStartAngle, float InSliderHandleEndAngle);
 	
 	/** Set the AngularOffset attribute */
 	void SetAngularOffset(float InAngularOffset) { AngularOffset = InAngularOffset; }
 
 	/** Set the HandStartEndRatio. Clamped to 0.0 to 1.0, and if the start ratio is more than the end ratio, end ratio will be set to the start ratio.  */
-	void SetHandStartEndRatio(FVector2D InHandStartEndRatio);
+	ADVANCEDWIDGETS_API void SetHandStartEndRatio(FVector2D InHandStartEndRatio);
 
 	/** Set the ValueTags attribute */
 	void SetValueTags(const TArray<float>& InValueTags) { ValueTags = InValueTags; }
 
 	/** Set the Locked attribute */
-	void SetLocked(const TAttribute<bool>& InLocked);
+	ADVANCEDWIDGETS_API void SetLocked(const TAttribute<bool>& InLocked);
 	
 	/** Set the SliderBarColor attribute */
-	void SetSliderBarColor(FSlateColor InSliderBarColor);
+	ADVANCEDWIDGETS_API void SetSliderBarColor(FSlateColor InSliderBarColor);
 	
 	/** Set the SliderProgressColor attribute */
-	void SetSliderProgressColor(FSlateColor InSliderProgressColor);
+	ADVANCEDWIDGETS_API void SetSliderProgressColor(FSlateColor InSliderProgressColor);
 
 	/** Set the SliderHandleColor attribute */
-	void SetSliderHandleColor(FSlateColor InSliderHandleColor);
+	ADVANCEDWIDGETS_API void SetSliderHandleColor(FSlateColor InSliderHandleColor);
 
 	/** Set the SliderHandleColor attribute */
-	void SetCenterBackgroundColor(FSlateColor InCenterHandleColor);
+	ADVANCEDWIDGETS_API void SetCenterBackgroundColor(FSlateColor InCenterHandleColor);
 
 	/** Set the Thickness attribute. For backward compatibility, Thickness will be used for drawing instead of Style->BarThickness only if it has been set with this method,  */
-	void SetThickness(const float InThickness);
+	ADVANCEDWIDGETS_API void SetThickness(const float InThickness);
 
 	/** Get the StepSize attribute */
-	float GetStepSize() const;
+	ADVANCEDWIDGETS_API float GetStepSize() const;
 
 	/** Set the StepSize attribute */
-	void SetStepSize(const TAttribute<float>& InStepSize);
+	ADVANCEDWIDGETS_API void SetStepSize(const TAttribute<float>& InStepSize);
 
 	/** Set the MouseUsesStep attribute */
-	void SetMouseUsesStep(bool MouseUsesStep);
+	ADVANCEDWIDGETS_API void SetMouseUsesStep(bool MouseUsesStep);
 
 	/** Set the RequiresControllerLock attribute */
-	void SetRequiresControllerLock(bool RequiresControllerLock);
+	ADVANCEDWIDGETS_API void SetRequiresControllerLock(bool RequiresControllerLock);
 
 	/** Set the UseVerticalDrag attribute */
-	void SetUseVerticalDrag(bool UseVerticalDrag);
+	ADVANCEDWIDGETS_API void SetUseVerticalDrag(bool UseVerticalDrag);
 
 	/** Set the ShowSliderHandle attribute */
-	void SetShowSliderHandle(bool ShowSliderHandle);
+	ADVANCEDWIDGETS_API void SetShowSliderHandle(bool ShowSliderHandle);
 
 	/** Set the ShowSliderHand attribute */
-	void SetShowSliderHand(bool ShowSliderHand);
+	ADVANCEDWIDGETS_API void SetShowSliderHand(bool ShowSliderHand);
 
 public:
 
 	// SWidget overrides
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
-	virtual FReply OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
-	virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
-	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
+	ADVANCEDWIDGETS_API virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
+	ADVANCEDWIDGETS_API virtual FVector2D ComputeDesiredSize(float) const override;
+	ADVANCEDWIDGETS_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	ADVANCEDWIDGETS_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	ADVANCEDWIDGETS_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	ADVANCEDWIDGETS_API virtual FReply OnTouchStarted(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+	ADVANCEDWIDGETS_API virtual FReply OnTouchMoved(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+	ADVANCEDWIDGETS_API virtual FReply OnTouchEnded(const FGeometry& MyGeometry, const FPointerEvent& InTouchEvent) override;
+	ADVANCEDWIDGETS_API virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	ADVANCEDWIDGETS_API virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	ADVANCEDWIDGETS_API virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
+	ADVANCEDWIDGETS_API virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
 
-	virtual bool SupportsKeyboardFocus() const override;
-	virtual bool IsInteractable() const override;
+	ADVANCEDWIDGETS_API virtual bool SupportsKeyboardFocus() const override;
+	ADVANCEDWIDGETS_API virtual bool IsInteractable() const override;
 #if WITH_ACCESSIBILITY
-	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	ADVANCEDWIDGETS_API virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
 
 	/** @return Is the handle locked or not? Defaults to false */
-	bool IsLocked() const;
+	ADVANCEDWIDGETS_API bool IsLocked() const;
 
 protected:
 
@@ -285,7 +285,7 @@ protected:
 	 *
 	 * @param NewValue The value to commit.
 	 */
-	virtual void CommitValue(float NewValue);
+	ADVANCEDWIDGETS_API virtual void CommitValue(float NewValue);
 
 	/**
 	 * Calculates the new value based on the given absolute coordinates.
@@ -294,10 +294,10 @@ protected:
 	 * @param AbsolutePosition The absolute position of the slider.
 	 * @return The new value.
 	 */
-	float PositionToValue(const FGeometry& MyGeometry, const FVector2D& AbsolutePosition);
+	ADVANCEDWIDGETS_API float PositionToValue(const FGeometry& MyGeometry, const FVector2D& AbsolutePosition);
 	
-	const FSlateBrush* GetBarImage() const;
-	const FSlateBrush* GetThumbImage() const;
+	ADVANCEDWIDGETS_API const FSlateBrush* GetBarImage() const;
+	ADVANCEDWIDGETS_API const FSlateBrush* GetThumbImage() const;
 
 protected:
 
@@ -386,16 +386,16 @@ protected:
 private:
 
 	// Resets controller input state. Fires delegates.
-	void ResetControllerState();
+	ADVANCEDWIDGETS_API void ResetControllerState();
 
 	// Helper function to convert Absolute Position to Angle
-	float GetAngleFromPosition(const FGeometry& MyGeometry, const FVector2D& AbsolutePosition);
+	ADVANCEDWIDGETS_API float GetAngleFromPosition(const FGeometry& MyGeometry, const FVector2D& AbsolutePosition);
 	
 	// Called on Mouse / Touch input to cache relevant properties
-	void OnInputStarted(const FGeometry& MyGeometry, const FVector2D& InputAbsolutePosition);
+	ADVANCEDWIDGETS_API void OnInputStarted(const FGeometry& MyGeometry, const FVector2D& InputAbsolutePosition);
 
 	// Helper function for adding slider points to a slider points array
-	void AddSliderPointToArray(TArray<FVector2D>& SliderPoints, const bool bIsUnique, const FVector2D& SliderPoint) const;
+	ADVANCEDWIDGETS_API void AddSliderPointToArray(TArray<FVector2D>& SliderPoints, const bool bIsUnique, const FVector2D& SliderPoint) const;
 
 	// Holds a delegate that is executed when the mouse is pressed and a capture begins.
 	FSimpleDelegate OnMouseCaptureBegin;

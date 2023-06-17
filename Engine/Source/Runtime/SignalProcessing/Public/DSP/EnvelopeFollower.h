@@ -28,7 +28,7 @@ namespace Audio
 
 
 	/** Conversion between attack/release time and attack/release sample counts. */
-	class SIGNALPROCESSING_API FAttackRelease
+	class FAttackRelease
 	{
 		// see https://en.wikipedia.org/wiki/RC_time_constant
 		// Time constants indicate how quickly the envelope follower responds to changes in input
@@ -43,11 +43,11 @@ namespace Audio
 		 * @param InReleaseTimeMsec - The desired release time in milliseconds.
 		 * @param bInIsAnalog - Whether to model analog RC circuits or use digital models.
 		 */
-		FAttackRelease(float InSampleRate, float InAttackTimeMsec, float InReleaseTimeMsec, bool bInIsAnalog);
+		SIGNALPROCESSING_API FAttackRelease(float InSampleRate, float InAttackTimeMsec, float InReleaseTimeMsec, bool bInIsAnalog);
 
-		void SetAnalog(bool bInIsAnalog);
-		void SetAttackTime(float InAttackTimeMsec);
-		void SetReleaseTime(float InReleaseTimeMsec);
+		SIGNALPROCESSING_API void SetAnalog(bool bInIsAnalog);
+		SIGNALPROCESSING_API void SetAttackTime(float InAttackTimeMsec);
+		SIGNALPROCESSING_API void SetReleaseTime(float InReleaseTimeMsec);
 
 		/** Get whether set to analog or digital time constant. (True is analog, false is digital) */
 		FORCEINLINE bool GetAnalog() const { return bIsAnalog; }
@@ -69,7 +69,7 @@ namespace Audio
 
 	protected:
 
-		void SetSampleRate(float InSampleRate);
+		SIGNALPROCESSING_API void SetSampleRate(float InSampleRate);
 
 	private:
 
@@ -83,7 +83,7 @@ namespace Audio
 	
 
 	/** Smooths signals using attack and release settings. */
-	class SIGNALPROCESSING_API FAttackReleaseSmoother : public FAttackRelease
+	class FAttackReleaseSmoother : public FAttackRelease
 	{
 	public:
 		/** Construct an FAttackReleaseSmoother.
@@ -94,14 +94,14 @@ namespace Audio
 		 * @param InReleaseTimeMsec - The desired release time in milliseconds.
 		 * @param bInIsAnalog - Whether to model analog RC circuits or use digital models.
 		 */
-		FAttackReleaseSmoother(float InSampleRate, int32 InNumChannels, float InAttackTimeMsec, float InReleaseTimeMsec, bool bInIsAnalog);
+		SIGNALPROCESSING_API FAttackReleaseSmoother(float InSampleRate, int32 InNumChannels, float InAttackTimeMsec, float InReleaseTimeMsec, bool bInIsAnalog);
 
 		/** Process channel interleaved data.
 		 *
 		 * @param InBuffer - Interleaved channel data. 
 		 * @param InNumFrames - Number of frames in InBuffer.
 		 */
-		void ProcessAudio(const float* InBuffer, int32 InNumFrames);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, int32 InNumFrames);
 
 		/** Process channel interleaved data.
 		 *
@@ -109,15 +109,15 @@ namespace Audio
 		 * @param InNumFrames - Number of frames in InBuffer.
 		 * @param OutBuffer - Output interleaved envelope data. Should be same size as InBuffer.
 		 */
-		void ProcessAudio(const float* InBuffer, int32 InNumFrames, float* OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, int32 InNumFrames, float* OutBuffer);
 
 		/** Retrieve the final values of the envelope for each channel. */
-		const TArray<float>& GetEnvelopeValues() const;
+		SIGNALPROCESSING_API const TArray<float>& GetEnvelopeValues() const;
 
 		/** Set the number of input channels */
-		void SetNumChannels(int32 InNumChannels);
+		SIGNALPROCESSING_API void SetNumChannels(int32 InNumChannels);
 
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 	private:
 		int32 NumChannels;
@@ -125,7 +125,7 @@ namespace Audio
 	};
 
 	/** Compute mean squared using FIR method.  */
-	class SIGNALPROCESSING_API FMeanSquaredFIR
+	class FMeanSquaredFIR
 	{
 		static constexpr int32 DefaultHistoryCapacity = 16384;
 
@@ -137,15 +137,15 @@ namespace Audio
 		 * @param InNumChannels - Number of channels per a frame.
 		 * @param InWindowTimeMsec - Number of milliseconds per a mean squared window.
 		 */
-		FMeanSquaredFIR(float InSampleRate, int32 InNumChannels, float InWindowTimeMsec);
+		SIGNALPROCESSING_API FMeanSquaredFIR(float InSampleRate, int32 InNumChannels, float InWindowTimeMsec);
 
 		/** Set the size of the analysis window. */
-		void SetWindowSize(float InWindowTimeMsec);
+		SIGNALPROCESSING_API void SetWindowSize(float InWindowTimeMsec);
 
 		/** Set the number of input channels. */
-		void SetNumChannels(int32 InNumChannels);
+		SIGNALPROCESSING_API void SetNumChannels(int32 InNumChannels);
 
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		/** Calculate mean squared per sample.
 		 *
@@ -153,7 +153,7 @@ namespace Audio
 		 * @param InNumFrames - Number of frames in InBuffer.
 		 * @param OutBuffer - Output interleaved data. Should be same size as InBuffer.
 		 */
-		void ProcessAudio(const float* InBuffer, int32 InNumFrames, float* OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, int32 InNumFrames, float* OutBuffer);
 
 	private:
 		float SampleRate;
@@ -169,7 +169,7 @@ namespace Audio
 	};
 
 	/** Compute mean squared using IIR method.  */
-	class SIGNALPROCESSING_API FMeanSquaredIIR
+	class FMeanSquaredIIR
 	{
 	public:
 		/** Construct an FMeanSquaredIIR
@@ -178,15 +178,15 @@ namespace Audio
 		 * @param InNumChannels - Number of channels per a frame.
 		 * @param InWindowTimeMsec - Number of milliseconds per a mean squared window.
 		 */
-		FMeanSquaredIIR(float InSampleRate, int32 InNumChannels, float InWindowTimeMsec);
+		SIGNALPROCESSING_API FMeanSquaredIIR(float InSampleRate, int32 InNumChannels, float InWindowTimeMsec);
 
 		/** Set the size of the analysis window. */
-		void SetWindowSize(float InWindowTimeMsec);
+		SIGNALPROCESSING_API void SetWindowSize(float InWindowTimeMsec);
 
 		/** Set the number of input channels. */
-		void SetNumChannels(int32 InNumChannels);
+		SIGNALPROCESSING_API void SetNumChannels(int32 InNumChannels);
 
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		/** Calculate mean squared per sample.
 		 *
@@ -194,7 +194,7 @@ namespace Audio
 		 * @param InNumFrames - Number of frames in InBuffer.
 		 * @param OutBuffer - Output interleaved data. Should be same size as InBuffer.
 		 */
-		void ProcessAudio(const float* InBuffer, int32 InNumFrames, float* OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, int32 InNumFrames, float* OutBuffer);
 
 	private:
 		float SampleRate;
@@ -226,50 +226,50 @@ namespace Audio
 	/** A simple utility that returns a smoothed value given audio input using 
 	 * an RC circuit.  Used for following the envelope of an audio stream.
 	 */
-	class SIGNALPROCESSING_API FEnvelopeFollower
+	class FEnvelopeFollower
 	{
 	public:
 		/** Construct an envelope follower. */
-		FEnvelopeFollower();
+		SIGNALPROCESSING_API FEnvelopeFollower();
 
 		/** Construct an envelope follower. */
-		FEnvelopeFollower(const FEnvelopeFollowerInitParams& InParams);
+		SIGNALPROCESSING_API FEnvelopeFollower(const FEnvelopeFollowerInitParams& InParams);
 
 		/** Initialize the envelope follower. */
-		void Init(const FEnvelopeFollowerInitParams& InParams);
+		SIGNALPROCESSING_API void Init(const FEnvelopeFollowerInitParams& InParams);
 
 		/** Returns the number of channels per an input frame */
-		int32 GetNumChannels() const;
+		SIGNALPROCESSING_API int32 GetNumChannels() const;
 
 		/** Returns the number of frames per a second set on initialization */
-		float GetSampleRate() const;
+		SIGNALPROCESSING_API float GetSampleRate() const;
 
 		/** Returns the envelope follower attack time (how fast the envelope responds to input) */
-		float GetAttackTimeMsec() const;
+		SIGNALPROCESSING_API float GetAttackTimeMsec() const;
 
 		/** Returns the envelope follower release time (how slow the envelope dampens from input) */
-		float GetReleaseTimeMsec() const;
+		SIGNALPROCESSING_API float GetReleaseTimeMsec() const;
 
 		/** Returns whether or not to use analog or digital time constants */
-		bool GetAnalog() const;
+		SIGNALPROCESSING_API bool GetAnalog() const;
 
 		/** Returns the input mode of the envelope follower */
-		EPeakMode::Type GetMode() const;
+		SIGNALPROCESSING_API EPeakMode::Type GetMode() const;
 
 		/** Set the number of channels per an input frame. */
-		void SetNumChannels(int32 InNumChannels);
+		SIGNALPROCESSING_API void SetNumChannels(int32 InNumChannels);
 
 		/** Sets whether or not to use analog or digital time constants */
-		void SetAnalog(bool bInIsAnalog);
+		SIGNALPROCESSING_API void SetAnalog(bool bInIsAnalog);
 
 		/** Sets the envelope follower attack time (how fast the envelope responds to input) */
-		void SetAttackTime(float InAttackTimeMsec);
+		SIGNALPROCESSING_API void SetAttackTime(float InAttackTimeMsec);
 
 		/** Sets the envelope follower release time (how slow the envelope dampens from input) */
-		void SetReleaseTime(float InReleaseTimeMsec);
+		SIGNALPROCESSING_API void SetReleaseTime(float InReleaseTimeMsec);
 
 		/** Sets the input mode of the envelope follower */
-		void SetMode(EPeakMode::Type InMode);
+		SIGNALPROCESSING_API void SetMode(EPeakMode::Type InMode);
 
 		/** Calculate envelope per sample.
 		 *
@@ -277,20 +277,20 @@ namespace Audio
 		 * @param InNumFrames - Number of frames in InBuffer.
 		 * @param OutBuffer - Output interleaved data. Should be same size as InBuffer.
 		 */
-		void ProcessAudio(const float* InBuffer, int32 InNumFrames, float* OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, int32 InNumFrames, float* OutBuffer);
 
 		/** Calculate envelope
 		 *
 		 * @param InBuffer - Interleaved input data. 
 		 * @param InNumFrames - Number of frames in InBuffer.
 		 */
-		void ProcessAudio(const float* InBuffer, int32 InNumFrames);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, int32 InNumFrames);
 		
 		/** Retrieve the final values of the envelope for each channel. */
-		const TArray<float>& GetEnvelopeValues() const;
+		SIGNALPROCESSING_API const TArray<float>& GetEnvelopeValues() const;
 
 		/** Resets the state of the envelope follower */
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 	private:
 		void ProcessWorkBuffer(const float* InBuffer, int32 InNumFrames);

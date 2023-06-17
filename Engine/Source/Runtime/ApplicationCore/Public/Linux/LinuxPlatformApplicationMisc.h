@@ -4,37 +4,37 @@
 
 #include "GenericPlatform/GenericPlatformApplicationMisc.h"
 
-struct APPLICATIONCORE_API FLinuxPlatformApplicationMisc : public FGenericPlatformApplicationMisc
+struct FLinuxPlatformApplicationMisc : public FGenericPlatformApplicationMisc
 {
-	static void PreInit();
-	static void Init();
-	static bool InitSDL();
-	static void TearDown();
-	static void LoadPreInitModules();
-	static void LoadStartupModules();
-	static uint32 WindowStyle();
-	static class FOutputDeviceConsole* CreateConsoleOutputDevice();
-	static class FOutputDeviceError* GetErrorOutputDevice();
-	static class FFeedbackContext* GetFeedbackContext();
-	static class GenericApplication* CreateApplication();
-	static bool IsThisApplicationForeground();
-	static void PumpMessages(bool bFromMainLoop);
-	static bool IsScreensaverEnabled();
-	static bool ControlScreensaver(EScreenSaverAction Action);
-	static float GetDPIScaleFactorAtPoint(float X, float Y);
-	static void ClipboardCopy(const TCHAR* Str);
-	static void ClipboardPaste(class FString& Dest);
+	static APPLICATIONCORE_API void PreInit();
+	static APPLICATIONCORE_API void Init();
+	static APPLICATIONCORE_API bool InitSDL();
+	static APPLICATIONCORE_API void TearDown();
+	static APPLICATIONCORE_API void LoadPreInitModules();
+	static APPLICATIONCORE_API void LoadStartupModules();
+	static APPLICATIONCORE_API uint32 WindowStyle();
+	static APPLICATIONCORE_API class FOutputDeviceConsole* CreateConsoleOutputDevice();
+	static APPLICATIONCORE_API class FOutputDeviceError* GetErrorOutputDevice();
+	static APPLICATIONCORE_API class FFeedbackContext* GetFeedbackContext();
+	static APPLICATIONCORE_API class GenericApplication* CreateApplication();
+	static APPLICATIONCORE_API bool IsThisApplicationForeground();
+	static APPLICATIONCORE_API void PumpMessages(bool bFromMainLoop);
+	static APPLICATIONCORE_API bool IsScreensaverEnabled();
+	static APPLICATIONCORE_API bool ControlScreensaver(EScreenSaverAction Action);
+	static APPLICATIONCORE_API float GetDPIScaleFactorAtPoint(float X, float Y);
+	static APPLICATIONCORE_API void ClipboardCopy(const TCHAR* Str);
+	static APPLICATIONCORE_API void ClipboardPaste(class FString& Dest);
 	static bool FullscreenSameAsWindowedFullscreen() { return true; }
 
 	// Unix specific
-	static void EarlyUnixInitialization(class FString& OutCommandLine);
+	static APPLICATIONCORE_API void EarlyUnixInitialization(class FString& OutCommandLine);
 	static bool ShouldIncreaseProcessLimits() { return true; }
 
 	// Linux specific
 	/** Informs ApplicationCore that it needs to create Vulkan-compatible windows (mutually exclusive with OpenGL) */
-	static void UsingVulkan();
+	static APPLICATIONCORE_API void UsingVulkan();
 	/** Informs ApplicationCore that it needs to create OpenGL-compatible windows (mutually exclusive with Vulkan) */
-	static void UsingOpenGL();
+	static APPLICATIONCORE_API void UsingOpenGL();
 };
 
 typedef FLinuxPlatformApplicationMisc FPlatformApplicationMisc;

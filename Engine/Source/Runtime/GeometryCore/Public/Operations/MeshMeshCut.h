@@ -19,7 +19,7 @@ namespace UE
 namespace Geometry
 {
 
-class GEOMETRYCORE_API FMeshSelfCut
+class FMeshSelfCut
 {
 public:
 	//
@@ -68,7 +68,7 @@ public:
 	 * Split mesh along the provided intersections
 	 * @param Intersections A set of mesh intersections, for example as returned by TMeshAABBTree3::FindAllSelfIntersections
 	 */
-	bool Cut(const MeshIntersection::FIntersectionsQueryResult& Intersections);
+	GEOMETRYCORE_API bool Cut(const MeshIntersection::FIntersectionsQueryResult& Intersections);
 
 	void ResetOutputs()
 	{
@@ -82,7 +82,7 @@ public:
 /**
  * Cut a mesh where it crosses a second mesh -- resolving all intersections, but not deleting geometry.  Optionally resolve intersections mutually for both meshes.
  */
-class GEOMETRYCORE_API FMeshMeshCut
+class FMeshMeshCut
 {
 public:
 
@@ -144,7 +144,7 @@ public:
 	 * Split mesh(es) along the provided intersections
 	 * @param Intersections A set of mesh-mesh intersections, for example as returned by TMeshAABBTree3::FindAllIntersections
 	 */
-	bool Cut(const MeshIntersection::FIntersectionsQueryResult& Intersections);
+	GEOMETRYCORE_API bool Cut(const MeshIntersection::FIntersectionsQueryResult& Intersections);
 
 
 	void ResetOutputs()

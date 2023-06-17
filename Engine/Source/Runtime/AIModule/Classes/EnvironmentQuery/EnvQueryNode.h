@@ -10,8 +10,8 @@
 
 struct FPropertyChangedEvent;
 
-UCLASS(Abstract)
-class AIMODULE_API UEnvQueryNode : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UEnvQueryNode : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -19,12 +19,12 @@ class AIMODULE_API UEnvQueryNode : public UObject
 	UPROPERTY()
 	int32 VerNum;
 
-	virtual void UpdateNodeVersion();
+	AIMODULE_API virtual void UpdateNodeVersion();
 
-	virtual FText GetDescriptionTitle() const;
-	virtual FText GetDescriptionDetails() const;
+	AIMODULE_API virtual FText GetDescriptionTitle() const;
+	AIMODULE_API virtual FText GetDescriptionDetails() const;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	AIMODULE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif //WITH_EDITOR
 };

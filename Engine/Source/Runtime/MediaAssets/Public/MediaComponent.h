@@ -9,25 +9,25 @@
 class UMediaPlayer;
 class UMediaTexture;
 
-UCLASS(Category="Media", hideCategories=(Media, Activation))
-class MEDIAASSETS_API UMediaComponent : public UActorComponent
+UCLASS(Category="Media", hideCategories=(Media, Activation), MinimalAPI)
+class UMediaComponent : public UActorComponent
 {
 public:
 	GENERATED_BODY()
 
-	UMediaComponent(const FObjectInitializer& ObjectInitializer);
+	MEDIAASSETS_API UMediaComponent(const FObjectInitializer& ObjectInitializer);
 
 	/** Get the media player that this component owns */
 	UFUNCTION(BlueprintPure, Category="Media")
-	UMediaPlayer* GetMediaPlayer() const;
+	MEDIAASSETS_API UMediaPlayer* GetMediaPlayer() const;
 
 	/** Get the media texture that this component owns, bound to its media player. */
 	UFUNCTION(BlueprintPure, Category="Media")
-	UMediaTexture* GetMediaTexture() const;
+	MEDIAASSETS_API UMediaTexture* GetMediaTexture() const;
 
 private:
 
-	virtual void OnRegister() override;
+	MEDIAASSETS_API virtual void OnRegister() override;
 
 private:
 

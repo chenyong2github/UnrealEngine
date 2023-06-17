@@ -110,7 +110,7 @@ typedef TDynamicMeshAttributeChange<float, 1> FDynamicMeshWeightChange;
 /**
  * FDynamicMeshAttributeChangeSet stores a set of UV and Normal changes for a FDynamicMesh3
  */
-class GEOMETRYCORE_API FDynamicMeshAttributeChangeSet
+class FDynamicMeshAttributeChangeSet
 {
 public:
 	UE_NONCOPYABLE(FDynamicMeshAttributeChangeSet);
@@ -126,7 +126,7 @@ public:
 	TArray<TUniquePtr<FDynamicMeshAttributeChangeBase>> RegisteredAttributeChanges;
 
 	/** call ::Apply() on all the UV and Normal changes */
-	bool Apply(FDynamicMeshAttributeSet* Attributes, bool bRevert) const;
+	GEOMETRYCORE_API bool Apply(FDynamicMeshAttributeSet* Attributes, bool bRevert) const;
 };
 
 
@@ -138,20 +138,20 @@ public:
  * Construction of a well-formed FDynamicMeshChange is quite complex and it is strongly
  * suggested that you do so via FDynamicMeshChangeTracker
  */
-class GEOMETRYCORE_API FDynamicMeshChange
+class FDynamicMeshChange
 {
 public:
-	~FDynamicMeshChange();
+	GEOMETRYCORE_API ~FDynamicMeshChange();
 
 	/** Store the initial state of a vertex */
-	void SaveInitialVertex(const FDynamicMesh3* Mesh, int VertexID);
+	GEOMETRYCORE_API void SaveInitialVertex(const FDynamicMesh3* Mesh, int VertexID);
 	/** Store the initial state of a triangle */
-	void SaveInitialTriangle(const FDynamicMesh3* Mesh, int TriangleID);
+	GEOMETRYCORE_API void SaveInitialTriangle(const FDynamicMesh3* Mesh, int TriangleID);
 
 	/** Store the final state of a vertex */
-	void StoreFinalVertex(const FDynamicMesh3* Mesh, int VertexID);
+	GEOMETRYCORE_API void StoreFinalVertex(const FDynamicMesh3* Mesh, int VertexID);
 	/** Store the final state of a triangle */
-	void StoreFinalTriangle(const FDynamicMesh3* Mesh, int TriangleID);
+	GEOMETRYCORE_API void StoreFinalTriangle(const FDynamicMesh3* Mesh, int TriangleID);
 
 	/** Attach an attribute change set to this mesh change, which will the be applied/reverted automatically */
 	void AttachAttributeChanges(TUniquePtr<FDynamicMeshAttributeChangeSet> AttribChanges)
@@ -160,19 +160,19 @@ public:
 	}
 
 	/** Apply or Revert this change using the given Mesh */
-	bool Apply(FDynamicMesh3* Mesh, bool bRevert) const;
+	GEOMETRYCORE_API bool Apply(FDynamicMesh3* Mesh, bool bRevert) const;
 
 	/** Do (limited) sanity checks on this MeshChange to ensure it is well-formed */
-	void VerifySaveState() const;
+	GEOMETRYCORE_API void VerifySaveState() const;
 
 	/** @return true if this vertex was saved. Uses linear search. */
-	bool HasSavedVertex(int VertexID);
+	GEOMETRYCORE_API bool HasSavedVertex(int VertexID);
 
 	/** store IDs of saved triangles in TrianglesOut. if bInitial=true, old triangles are stored, otherwise new triangles */
-	void GetSavedTriangleList(TArray<int>& TrianglesOut, bool bInitial) const;
+	GEOMETRYCORE_API void GetSavedTriangleList(TArray<int>& TrianglesOut, bool bInitial) const;
 
 	/** run self-validity checks on internal data structures to test if change is well-formed */
-	void CheckValidity(EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
+	GEOMETRYCORE_API void CheckValidity(EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
 
 protected:
 
@@ -198,7 +198,7 @@ protected:
 
 	TUniquePtr<FDynamicMeshAttributeChangeSet> AttributeChanges;
 
-	void ApplyReplaceChange(FDynamicMesh3* Mesh,
+	GEOMETRYCORE_API void ApplyReplaceChange(FDynamicMesh3* Mesh,
 		const TArray<FChangeTriangle>& RemoveTris,
 		const TArray<FChangeVertex>& InsertVerts,
 		const TArray<FChangeTriangle>& InsertTris) const;
@@ -216,27 +216,27 @@ protected:
  * objects (stored in a FDynamicMeshAttributeChangeSet). You should not use this class
  * directly, it is intended to be used via FDynamicMeshChangeTracker
  */
-class GEOMETRYCORE_API FDynamicMeshAttributeSetChangeTracker
+class FDynamicMeshAttributeSetChangeTracker
 {
 public:
-	explicit FDynamicMeshAttributeSetChangeTracker(const FDynamicMeshAttributeSet* Attribs);
+	GEOMETRYCORE_API explicit FDynamicMeshAttributeSetChangeTracker(const FDynamicMeshAttributeSet* Attribs);
 
 	/** Start tracking a change */
-	void BeginChange();
+	GEOMETRYCORE_API void BeginChange();
 	/** End the change transaction and get the resulting change object */
-	TUniquePtr<FDynamicMeshAttributeChangeSet> EndChange();
+	GEOMETRYCORE_API TUniquePtr<FDynamicMeshAttributeChangeSet> EndChange();
 
 	/** Store the initial state of a triangle */
-	void SaveInitialTriangle(int TriangleID);
+	GEOMETRYCORE_API void SaveInitialTriangle(int TriangleID);
 
 	/** store the final state of a set of triangles */
-	void StoreAllFinalTriangles(const TArray<int>& TriangleIDs);
+	GEOMETRYCORE_API void StoreAllFinalTriangles(const TArray<int>& TriangleIDs);
 
 	/** Store the initial state of a vertex */
-	void SaveInitialVertex(int VertexID);
+	GEOMETRYCORE_API void SaveInitialVertex(int VertexID);
 
 	/** store the final state of a set of vertices */
-	void StoreAllFinalVertices(const TArray<int>& VertexIDs);
+	GEOMETRYCORE_API void StoreAllFinalVertices(const TArray<int>& VertexIDs);
 
 
 protected:
@@ -286,19 +286,19 @@ protected:
  * @warning Currently only vertices that are part of saved triangles will be stored in the emitted FMeshChange!
  * 
  */
-class GEOMETRYCORE_API FDynamicMeshChangeTracker
+class FDynamicMeshChangeTracker
 {
 public:
-	explicit FDynamicMeshChangeTracker(const FDynamicMesh3* Mesh);
-	~FDynamicMeshChangeTracker();
+	GEOMETRYCORE_API explicit FDynamicMeshChangeTracker(const FDynamicMesh3* Mesh);
+	GEOMETRYCORE_API ~FDynamicMeshChangeTracker();
 
 	/** Initialize the change-tracking process */
-	void BeginChange();
+	GEOMETRYCORE_API void BeginChange();
 	/** Construct a change object that represents the delta between the Begin and End states */
-	TUniquePtr<FDynamicMeshChange> EndChange();
+	GEOMETRYCORE_API TUniquePtr<FDynamicMeshChange> EndChange();
 
 	/** Save necessary information about a triangle before it is modified */
-	void SaveTriangle(int32 TriangleID, bool bSaveVertices);
+	GEOMETRYCORE_API void SaveTriangle(int32 TriangleID, bool bSaveVertices);
 
 	/** Save necessary information about an edge before it is modified */
 	inline void SaveEdge(int32 EdgeID, bool bVertices);
@@ -319,7 +319,7 @@ public:
 	void SaveVertexOneRingTriangles(EnumerableType VertexIDs, bool bSaveVertices);
 
 	/** Do (limited) sanity checking to make sure that the change is well-formed*/
-	void VerifySaveState();
+	GEOMETRYCORE_API void VerifySaveState();
 
 protected:
 
@@ -330,7 +330,7 @@ protected:
 	//
 
 	/** Save necessary information about a vertex before it is modified */
-	void SaveVertex(int32 VertexID);
+	GEOMETRYCORE_API void SaveVertex(int32 VertexID);
 
 	/** Save necessary information about a set of vertices before they are modified */
 	template<typename EnumerableType>

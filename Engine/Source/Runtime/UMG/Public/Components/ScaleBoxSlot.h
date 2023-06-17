@@ -13,8 +13,8 @@
 class SScaleBox;
 
 /** The Slot for the UScaleBoxSlot, contains the widget displayed in a button's single slot */
-UCLASS()
-class UMG_API UScaleBoxSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UScaleBoxSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
@@ -39,27 +39,27 @@ public:
 public:
 	UE_DEPRECATED(5.1, "SetPadding is deprecated")
 	UFUNCTION(BlueprintCallable, Category="Layout|ScaleBox Slot", meta = (DeprecatedFunction, DeprecatedMessage = "The function is deprecated - There is no padding on ScaleBox."))
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	EHorizontalAlignment GetHorizontalAlignment() const;
-
-	UFUNCTION(BlueprintCallable, Category="Layout|ScaleBox Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
-
-
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|ScaleBox Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+
+	UFUNCTION(BlueprintCallable, Category="Layout|ScaleBox Slot")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 	//~ UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
 	/** Builds the underlying slot for the slate ScaleBox. */
-	void BuildSlot(TSharedRef<SScaleBox> InScaleBox);
+	UMG_API void BuildSlot(TSharedRef<SScaleBox> InScaleBox);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 private:
 	/** A pointer to the button to allow us to adjust the size, padding...etc at runtime. */

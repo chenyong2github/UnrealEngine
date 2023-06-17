@@ -44,11 +44,11 @@ public:
 	ENGINE_API virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	
 	UE_DEPRECATED(5.3, "Use FPackedLevelActorUtils::CreateOrUpdateBlueprint instead")
-	static ENGINE_API bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true) { return false;}
+	static bool CreateOrUpdateBlueprint(ALevelInstance* InLevelInstance, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true) { return false;}
 	UE_DEPRECATED(5.3, "Use FPackedLevelActorUtils::CreateOrUpdateBlueprint instead")
-	static ENGINE_API bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true) { return false;}
+	static bool CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWorldAsset, TSoftObjectPtr<UBlueprint> InBlueprintAsset, bool bCheckoutAndSave = true, bool bPromptForSave = true) { return false;}
 	UE_DEPRECATED(5.3, "Use FPackedLevelActorUtils::UpdateBlueprint instead")
-	static ENGINE_API void UpdateBlueprint(UBlueprint* InBlueprint, bool bCheckoutAndSave = true) {}
+	static void UpdateBlueprint(UBlueprint* InBlueprint, bool bCheckoutAndSave = true) {}
 
 	static ENGINE_API FName GetPackedComponentTag();
 

@@ -39,40 +39,40 @@ namespace MovieScene
 /**
 * This object contains a map of actual channel overrides, where each override is a channel identifier and a channel container.
 */
-UCLASS()
-class MOVIESCENE_API UMovieSceneSectionChannelOverrideRegistry : public UObject
+UCLASS(MinimalAPI)
+class UMovieSceneSectionChannelOverrideRegistry : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UMovieSceneSectionChannelOverrideRegistry();
+	MOVIESCENE_API UMovieSceneSectionChannelOverrideRegistry();
 
 	/** 
 	* Add channel to the registry 
 	* @param ChannelName		The name of the channel to override
 	* @param Data				The container that owns a overriden channel instanse
 	*/
-	void AddChannel(FName ChannelName, UMovieSceneChannelOverrideContainer* ChannelContainer);
+	MOVIESCENE_API void AddChannel(FName ChannelName, UMovieSceneChannelOverrideContainer* ChannelContainer);
 
 	/**
 	* Returns if the channel is overriden
 	* @param ChannelName	Name of the channel
 	* @return	Whether this channel is overriden
 	*/
-	bool ContainsChannel(FName ChannelName) const;
+	MOVIESCENE_API bool ContainsChannel(FName ChannelName) const;
 
 	/**
 	 * Returns the number of override channels in this registry
 	 * @return	The number of override channels
 	 */
-	int32 NumChannels() const;
+	MOVIESCENE_API int32 NumChannels() const;
 
 	/**
 	 * Returns the channel override for a given name, or nullptr if not found
 	 * @param ChannelName	Name of the channel
 	 * @return	The channel override container
 	 */
-	UMovieSceneChannelOverrideContainer* GetChannel(FName ChannelName) const;
+	MOVIESCENE_API UMovieSceneChannelOverrideContainer* GetChannel(FName ChannelName) const;
 
 	/**
 	 * Get all channel containers of a given type.
@@ -94,29 +94,29 @@ public:
 	* Removes a channel from the registry
 	* @param ChannelName		The name of the channel whose override to remove
 	*/
-	void RemoveChannel(FName ChannelName);
+	MOVIESCENE_API void RemoveChannel(FName ChannelName);
 
 	/**
 	* Forward ImportEntityImpl calls to an overriden channel
 	*/
-	void ImportEntityImpl(const UE::MovieScene::FChannelOverrideEntityImportParams& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity);
+	MOVIESCENE_API void ImportEntityImpl(const UE::MovieScene::FChannelOverrideEntityImportParams& OverrideParams, const UE::MovieScene::FEntityImportParams& ImportParams, UE::MovieScene::FImportedEntity* OutImportedEntity);
 
 	/**
 	* Called when overridden channels should populate evaluation field
 	*/
-	void PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSection& OwnerSection);
+	MOVIESCENE_API void PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder, UMovieSceneSection& OwnerSection);
 
 #if WITH_EDITOR
 
 	/**
 	 * Called by the owning section after it has been created for a paste operation.
 	 */
-	void OnPostPaste();
+	MOVIESCENE_API void OnPostPaste();
 
 	/**
 	 * Called when an undo/redo operation has affected this override registry.
 	 */
-	virtual void PostEditUndo() override;
+	MOVIESCENE_API virtual void PostEditUndo() override;
 
 #endif
 

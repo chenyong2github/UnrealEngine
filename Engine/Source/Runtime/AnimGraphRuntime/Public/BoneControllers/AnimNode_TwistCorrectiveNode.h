@@ -33,7 +33,7 @@ struct FReferenceBoneFrame
  * This isn't the twist control node for bone twist
  */
 USTRUCT()
-struct ANIMGRAPHRUNTIME_API FAnimNode_TwistCorrectiveNode : public FAnimNode_SkeletalControlBase
+struct FAnimNode_TwistCorrectiveNode : public FAnimNode_SkeletalControlBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -76,27 +76,27 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_TwistCorrectiveNode : public FAnimNode_Ske
 	FName CurveName;
 
 public:
-	FAnimNode_TwistCorrectiveNode();
+	ANIMGRAPHRUNTIME_API FAnimNode_TwistCorrectiveNode();
 
 	// FAnimNode_Base interface
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)  override;
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)  override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_SkeletalControlBase interface
-	virtual void EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context) override;
-	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
+	ANIMGRAPHRUNTIME_API virtual void EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
 
 	// Type traits support
-	bool Serialize(FArchive& Ar);
-	void PostSerialize(const FArchive& Ar);
+	ANIMGRAPHRUNTIME_API bool Serialize(FArchive& Ar);
+	ANIMGRAPHRUNTIME_API void PostSerialize(const FArchive& Ar);
 
 protected:
 	
 	// FAnimNode_SkeletalControlBase protected interface
-	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
+	ANIMGRAPHRUNTIME_API virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 
 private:
 	// Reference Pose Angle

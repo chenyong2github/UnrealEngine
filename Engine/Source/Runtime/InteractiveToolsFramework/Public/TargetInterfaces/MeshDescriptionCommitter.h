@@ -10,13 +10,13 @@
 
 #include "MeshDescriptionCommitter.generated.h"
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UMeshDescriptionCommitter : public UInterface
+UINTERFACE(MinimalAPI)
+class UMeshDescriptionCommitter : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class INTERACTIVETOOLSFRAMEWORK_API IMeshDescriptionCommitter
+class IMeshDescriptionCommitter
 {
 	GENERATED_BODY()
 

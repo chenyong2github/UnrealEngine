@@ -20,8 +20,8 @@ enum class EAITaskPriority : uint8
 	Ultimate = 254,
 };
 
-UCLASS(Abstract, BlueprintType)
-class AIMODULE_API UAITask : public UGameplayTask
+UCLASS(Abstract, BlueprintType, MinimalAPI)
+class UAITask : public UGameplayTask
 {
 	GENERATED_BODY()
 protected:
@@ -29,19 +29,19 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category="AI|Tasks")
 	TObjectPtr<AAIController> OwnerController;
 
-	virtual void Activate() override;
+	AIMODULE_API virtual void Activate() override;
 
 public:
-	UAITask(const FObjectInitializer& ObjectInitializer);
+	AIMODULE_API UAITask(const FObjectInitializer& ObjectInitializer);
 
-	static AAIController* GetAIControllerForActor(AActor* Actor);
+	static AIMODULE_API AAIController* GetAIControllerForActor(AActor* Actor);
 	AAIController* GetAIController() const { return OwnerController; };
 
-	void InitAITask(AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner, uint8 InPriority);
-	void InitAITask(AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner);
+	AIMODULE_API void InitAITask(AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner, uint8 InPriority);
+	AIMODULE_API void InitAITask(AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner);
 
 	/** effectively adds UAIResource_Logic to the set of Claimed resources */
-	void RequestAILogicLocking();
+	AIMODULE_API void RequestAILogicLocking();
 
 	template <class T>
 	static T* NewAITask(AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner, FName InstanceName = FName())

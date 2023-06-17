@@ -18,7 +18,7 @@ class ISlateStyle;
 
 /** Simple struct for rich text styles */
 USTRUCT(Blueprintable, BlueprintType)
-struct UMG_API FRichImageRow : public FTableRowBase
+struct FRichImageRow : public FTableRowBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -35,21 +35,21 @@ public:
  *
  * Understands the format <img id="NameOfBrushInTable"></>
  */
-UCLASS(Abstract, Blueprintable)
-class UMG_API URichTextBlockImageDecorator : public URichTextBlockDecorator
+UCLASS(Abstract, Blueprintable, MinimalAPI)
+class URichTextBlockImageDecorator : public URichTextBlockDecorator
 {
 	GENERATED_BODY()
 
 public:
-	URichTextBlockImageDecorator(const FObjectInitializer& ObjectInitializer);
+	UMG_API URichTextBlockImageDecorator(const FObjectInitializer& ObjectInitializer);
 
-	virtual TSharedPtr<ITextDecorator> CreateDecorator(URichTextBlock* InOwner) override;
+	UMG_API virtual TSharedPtr<ITextDecorator> CreateDecorator(URichTextBlock* InOwner) override;
 
-	virtual const FSlateBrush* FindImageBrush(FName TagOrId, bool bWarnIfMissing);
+	UMG_API virtual const FSlateBrush* FindImageBrush(FName TagOrId, bool bWarnIfMissing);
 
 protected:
 
-	FRichImageRow* FindImageRow(FName TagOrId, bool bWarnIfMissing);
+	UMG_API FRichImageRow* FindImageRow(FName TagOrId, bool bWarnIfMissing);
 
 	UPROPERTY(EditAnywhere, Category=Appearance, meta = (RequiredAssetDataTags = "RowStructure=/Script/UMG.RichImageRow"))
 	TObjectPtr<class UDataTable> ImageSet;

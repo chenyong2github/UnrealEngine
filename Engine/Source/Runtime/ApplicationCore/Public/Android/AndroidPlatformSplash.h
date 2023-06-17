@@ -10,7 +10,7 @@
 /**
  * Android splash implementation
  */
-struct APPLICATIONCORE_API FAndroidSplash : public FGenericPlatformSplash
+struct FAndroidSplash : public FGenericPlatformSplash
 {
 	// default implementation for now
 };

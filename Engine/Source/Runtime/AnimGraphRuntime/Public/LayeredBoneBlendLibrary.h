@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,15 +21,15 @@ struct FLayeredBoneBlendReference : public FAnimNodeReference
 /**
  * Exposes operations to be performed on a layered bone blend anim node.
  */
-UCLASS()
-class ANIMGRAPHRUNTIME_API ULayeredBoneBlendLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class ULayeredBoneBlendLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
 	/** Get a layered bone blend context from an anim node context. */
 	UFUNCTION(BlueprintCallable, Category = "Layered Bone Blend", meta = (BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
-	static FLayeredBoneBlendReference ConvertToLayeredBoneBlend(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+	static ANIMGRAPHRUNTIME_API FLayeredBoneBlendReference ConvertToLayeredBoneBlend(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
 
 	/** Get a layered bone blend context from an anim node context (pure). */
 	UFUNCTION(BlueprintPure, Category = "Layered Bone Blend", meta = (BlueprintThreadSafe, DisplayName = "Convert to Layered Bone Blend"))
@@ -42,7 +42,7 @@ public:
 
 	/** Get the number of poses that a layered bone blend node has (this does not include the base pose) */
 	UFUNCTION(BlueprintPure, Category = "Layered Bone Blend", meta = (BlueprintThreadSafe))
-	static int32 GetNumPoses(const FLayeredBoneBlendReference& LayeredBoneBlend);
+	static ANIMGRAPHRUNTIME_API int32 GetNumPoses(const FLayeredBoneBlendReference& LayeredBoneBlend);
 	
 	/**
 	 * Sets the currently-used blend mask for a blended input pose by name.
@@ -52,5 +52,5 @@ public:
 	 * @param	BlendMaskName	The name of the blend mask to use 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Layered Bone Blend", meta = (BlueprintThreadSafe))
-	static FLayeredBoneBlendReference SetBlendMask(const FAnimUpdateContext& UpdateContext, const FLayeredBoneBlendReference& LayeredBoneBlend, int32 PoseIndex, FName BlendMaskName);
+	static ANIMGRAPHRUNTIME_API FLayeredBoneBlendReference SetBlendMask(const FAnimUpdateContext& UpdateContext, const FLayeredBoneBlendReference& LayeredBoneBlend, int32 PoseIndex, FName BlendMaskName);
 };

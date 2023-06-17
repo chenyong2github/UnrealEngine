@@ -126,7 +126,7 @@ inline FVector2d GetWhitePoint(EWhitePoint InWhitePoint)
 
 
 /** Color space definition as 4 chromaticity coordinates, in double precision internally. */
-class COLORMANAGEMENT_API FColorSpace
+class FColorSpace
 {
 public:
 	/**
@@ -134,14 +134,14 @@ public:
 	 * 
 	 * @return FColorSpace working color space
 	 */
-	static const FColorSpace& GetWorking();
+	static COLORMANAGEMENT_API const FColorSpace& GetWorking();
 
 	/**
 	 * Set the global engine working color space (as a singleton).
 	 * 
 	 * @param ColorSpace working color space
 	 */
-	static void SetWorking(FColorSpace ColorSpace);
+	static COLORMANAGEMENT_API void SetWorking(FColorSpace ColorSpace);
 
 
 	/** Constructor */
@@ -155,14 +155,14 @@ public:
 	* @param InBlue Chromaticity 2D coordinates for the blue color.
 	* @param InWhite Chromaticity 2D coordinates for the white point.
 	*/
-	explicit FColorSpace(const FVector2d& InRed, const FVector2d& InGreen, const FVector2d& InBlue, const FVector2d& InWhite);
+	COLORMANAGEMENT_API explicit FColorSpace(const FVector2d& InRed, const FVector2d& InGreen, const FVector2d& InBlue, const FVector2d& InWhite);
 
 	/**
 	* Constructor
 	*
 	* @param ColorSpaceType Color space type.
 	*/
-	explicit FColorSpace(UE::Color::EColorSpace ColorSpaceType);
+	COLORMANAGEMENT_API explicit FColorSpace(UE::Color::EColorSpace ColorSpaceType);
 
 	FColorSpace(FColorSpace&&) = default;
 	FColorSpace(const FColorSpace&) = default;
@@ -275,7 +275,7 @@ public:
 	 * @param Tolerance Error tolerance.
 	 * @return true if the color spaces are equal within tolerance limits, false otherwise.
 	 */
-	bool Equals(const FColorSpace& ColorSpace, double Tolerance = 1.e-7) const;
+	COLORMANAGEMENT_API bool Equals(const FColorSpace& ColorSpace, double Tolerance = 1.e-7) const;
 
 
 	/**
@@ -285,19 +285,19 @@ public:
 	 * @param Tolerance Error tolerance.
 	 * @return true if the color spaces are equal within tolerance limits, false otherwise.
 	 */
-	bool Equals(const TStaticArray<FVector2d, 4>& InChromaticities, double Tolerance = 1.e-7) const;
+	COLORMANAGEMENT_API bool Equals(const TStaticArray<FVector2d, 4>& InChromaticities, double Tolerance = 1.e-7) const;
 
 	/**
 	 * Convenience function to verify if the color space matches the engine's default sRGB chromaticities.
 	 *
 	 * @return true if sRGB.
 	 */
-	bool IsSRGB() const;
+	COLORMANAGEMENT_API bool IsSRGB() const;
 
 	/**
 	* Converts temperature in Kelvins of a black body radiator to an RGB color in the current space.
 	*/
-	FLinearColor MakeFromColorTemperature(float Temp) const;
+	COLORMANAGEMENT_API FLinearColor MakeFromColorTemperature(float Temp) const;
 
 	/**
 	 * Calculate the color's luminance value in the current space.
@@ -305,18 +305,18 @@ public:
 	 * @param Color The sampled color.
 	 * @return float Luminance value.
 	 */
-	float GetLuminance(const FLinearColor& Color) const;
+	COLORMANAGEMENT_API float GetLuminance(const FLinearColor& Color) const;
 
 	/**
 	 * Get the luminance factors in the current space.
 	 *
 	 * @return FLinearColor Luminance factors.
 	 */
-	FLinearColor GetLuminanceFactors() const;
+	COLORMANAGEMENT_API FLinearColor GetLuminanceFactors() const;
 
 private:
 
-	FMatrix44d CalcRgbToXYZ() const;
+	COLORMANAGEMENT_API FMatrix44d CalcRgbToXYZ() const;
 
 	/** Red, green, blue, white chromaticities, in order. */
 	TStaticArray<FVector2d, 4> Chromaticities;

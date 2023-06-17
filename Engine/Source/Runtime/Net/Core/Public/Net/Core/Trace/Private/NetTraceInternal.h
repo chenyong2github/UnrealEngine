@@ -161,7 +161,7 @@ struct FNetTrace
 	enum { InvalidEventIndex = ~0U };
 
 	/** Returns if tracing is enabled or not */
-	NETCORE_API static bool IsEnabled() { return GetTraceVerbosity() > 0U; }
+	static bool IsEnabled() { return GetTraceVerbosity() > 0U; }
 
 	/** Sets the runtime trace verbosity level, Verbosity == 0 means that it is disabled */
 	NETCORE_API static void SetTraceVerbosity(uint32 Verbosity);

@@ -89,7 +89,7 @@ namespace Audio
 			}
 
 	*/
-	struct SIGNALPROCESSING_API FVectorLinearResampler
+	struct FVectorLinearResampler
 	{
 		uint32 CurrentFrameFraction;
 
@@ -109,7 +109,7 @@ namespace Audio
 		//
 		// stereo is deinterleaved, with the right channels being specified by Frames+StrideFloats.
 		//
-		uint32 ResampleMono(uint32 OutputFramesNeeded, uint32 FixedPointSampleRate, float const* SourceFrames, float* OutputFrames);
-		uint32 ResampleStereo(uint32 OutputFramesNeeded, uint32 FixedPointSampleRate, float const* SourceFrames, uint32 SourceFramesStrideFloats, float* OutputFrames, uint32 OutputFramesStrideFloats);
+		SIGNALPROCESSING_API uint32 ResampleMono(uint32 OutputFramesNeeded, uint32 FixedPointSampleRate, float const* SourceFrames, float* OutputFrames);
+		SIGNALPROCESSING_API uint32 ResampleStereo(uint32 OutputFramesNeeded, uint32 FixedPointSampleRate, float const* SourceFrames, uint32 SourceFramesStrideFloats, float* OutputFrames, uint32 OutputFramesStrideFloats);
 	};
 }

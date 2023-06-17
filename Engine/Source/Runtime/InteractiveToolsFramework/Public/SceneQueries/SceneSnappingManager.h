@@ -20,7 +20,7 @@ class UInteractiveGizmoManager;
 
 
 
-struct INTERACTIVETOOLSFRAMEWORK_API FSceneQueryVisibilityFilter
+struct FSceneQueryVisibilityFilter
 {
 	/** Optional: components to consider invisible even if they aren't. */
 	const TArray<const UPrimitiveComponent*>* ComponentsToIgnore = nullptr;
@@ -29,14 +29,14 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneQueryVisibilityFilter
 	const TArray<const UPrimitiveComponent*>* InvisibleComponentsToInclude = nullptr;
 
 	/** @return true if the Component is currently configured as visible (does not consider ComponentsToIgnore or InvisibleComponentsToInclude lists) */
-	bool IsVisible(const UPrimitiveComponent* Component) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool IsVisible(const UPrimitiveComponent* Component) const;
 };
 
 
 /**
 * Configuration variables for a USceneSnappingManager hit query request.
 */
-struct INTERACTIVETOOLSFRAMEWORK_API FSceneHitQueryRequest
+struct FSceneHitQueryRequest
 {
 	/** scene query ray */
 	FRay3d WorldRay;
@@ -50,7 +50,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneHitQueryRequest
 /**
 * Computed result of a USceneSnappingManager hit query request
 */
-struct INTERACTIVETOOLSFRAMEWORK_API FSceneHitQueryResult
+struct FSceneHitQueryResult
 {
 	/** Actor that owns hit target */
 	AActor* TargetActor = nullptr;
@@ -69,7 +69,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneHitQueryResult
 
 	FHitResult HitResult;
 
-	void InitializeHitResult(const FSceneHitQueryRequest& FromRequest);
+	INTERACTIVETOOLSFRAMEWORK_API void InitializeHitResult(const FSceneHitQueryRequest& FromRequest);
 };
 
 
@@ -105,7 +105,7 @@ ENUM_CLASS_FLAGS(ESceneSnapQueryTargetType);
 /**
  * Configuration variables for a USceneSnappingManager snap query request.
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
+struct FSceneSnapQueryRequest
 {
 	/** What type of snap query geometry is this */
 	ESceneSnapQueryType RequestType = ESceneSnapQueryType::Position;
@@ -140,7 +140,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryRequest
 /**
  * Computed result of a USceneSnappingManager snap query request
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryResult
+struct FSceneSnapQueryResult
 {
 	/** Actor that owns snap target */
 	AActor* TargetActor = nullptr;
@@ -173,8 +173,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FSceneSnapQueryResult
  * 
  * See UModelingSceneSnappingManager for a sample implementation.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API USceneSnappingManager : public UObject
+UCLASS(MinimalAPI)
+class USceneSnappingManager : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -208,10 +208,10 @@ public:
 	/**
 	 * @return existing USceneSnappingManager registered in context store via the ToolManager, or nullptr if not found
 	 */
-	static USceneSnappingManager* Find(UInteractiveToolManager* ToolManager);
+	static INTERACTIVETOOLSFRAMEWORK_API USceneSnappingManager* Find(UInteractiveToolManager* ToolManager);
 
 	/**
 	 * @return existing USceneSnappingManager registered in context store via the ToolManager, or nullptr if not found
 	 */
-	static USceneSnappingManager* Find(UInteractiveGizmoManager* GizmoManager);
+	static INTERACTIVETOOLSFRAMEWORK_API USceneSnappingManager* Find(UInteractiveGizmoManager* GizmoManager);
 };

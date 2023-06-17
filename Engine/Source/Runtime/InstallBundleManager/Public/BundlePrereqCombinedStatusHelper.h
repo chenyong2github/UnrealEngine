@@ -22,7 +22,7 @@ struct FInstallBundleRequestResultInfo;
 //Handles calculating the bundle status by combining progress from all of its
 //Prerequisites. Allows you to display one progress percent that is weighted based on all
 //bundles' values.
-class INSTALLBUNDLEMANAGER_API FInstallBundleCombinedProgressTracker
+class FInstallBundleCombinedProgressTracker
 {
 public:
 
@@ -50,37 +50,37 @@ public:
 	
 public:
 	/** bAutoTick Whehter this tracker should automatically Tick */
-	FInstallBundleCombinedProgressTracker(bool bAutoTick = true);
-	~FInstallBundleCombinedProgressTracker();
+	INSTALLBUNDLEMANAGER_API FInstallBundleCombinedProgressTracker(bool bAutoTick = true);
+	INSTALLBUNDLEMANAGER_API ~FInstallBundleCombinedProgressTracker();
 	
-	FInstallBundleCombinedProgressTracker(const FInstallBundleCombinedProgressTracker& Other);
-	FInstallBundleCombinedProgressTracker(FInstallBundleCombinedProgressTracker&& Other);
+	INSTALLBUNDLEMANAGER_API FInstallBundleCombinedProgressTracker(const FInstallBundleCombinedProgressTracker& Other);
+	INSTALLBUNDLEMANAGER_API FInstallBundleCombinedProgressTracker(FInstallBundleCombinedProgressTracker&& Other);
 	
-	FInstallBundleCombinedProgressTracker& operator=(const FInstallBundleCombinedProgressTracker& Other);
-	FInstallBundleCombinedProgressTracker& operator=(FInstallBundleCombinedProgressTracker&& Other);
+	INSTALLBUNDLEMANAGER_API FInstallBundleCombinedProgressTracker& operator=(const FInstallBundleCombinedProgressTracker& Other);
+	INSTALLBUNDLEMANAGER_API FInstallBundleCombinedProgressTracker& operator=(FInstallBundleCombinedProgressTracker&& Other);
 	
 	//Setup tracking for all bundles required in the supplied BundleContentState
-	void SetBundlesToTrackFromContentState(const FInstallBundleCombinedContentState& BundleContentState, TArrayView<FName> BundlesToTrack);
+	INSTALLBUNDLEMANAGER_API void SetBundlesToTrackFromContentState(const FInstallBundleCombinedContentState& BundleContentState, TArrayView<FName> BundlesToTrack);
 	
 	//Get current CombinedBundleStatus for everything setup to track
-	const FCombinedProgress& GetCurrentCombinedProgress() const;
+	INSTALLBUNDLEMANAGER_API const FCombinedProgress& GetCurrentCombinedProgress() const;
 	
 	//Useful for resolving tick order issue
 	void ForceTick() { Tick(0); }
 
 private:
-	bool Tick(float dt);
-	void UpdateBundleCache();
-	void UpdateCombinedStatus();
+	INSTALLBUNDLEMANAGER_API bool Tick(float dt);
+	INSTALLBUNDLEMANAGER_API void UpdateBundleCache();
+	INSTALLBUNDLEMANAGER_API void UpdateCombinedStatus();
 	
-	void SetupDelegates(bool bAutoTick);
-	void CleanUpDelegates();
+	INSTALLBUNDLEMANAGER_API void SetupDelegates(bool bAutoTick);
+	INSTALLBUNDLEMANAGER_API void CleanUpDelegates();
 	
 	//Called so we can track when a bundle is finished
-	void OnBundleInstallComplete(FInstallBundleRequestResultInfo CompletedBundleInfo);
-	void OnBundleInstallPauseChanged(FInstallBundlePauseInfo PauseInfo);
+	INSTALLBUNDLEMANAGER_API void OnBundleInstallComplete(FInstallBundleRequestResultInfo CompletedBundleInfo);
+	INSTALLBUNDLEMANAGER_API void OnBundleInstallPauseChanged(FInstallBundlePauseInfo PauseInfo);
 	
-	float GetCombinedProgressPercent() const;
+	INSTALLBUNDLEMANAGER_API float GetCombinedProgressPercent() const;
 	
 private:
 	//All bundles we need including pre-reqs

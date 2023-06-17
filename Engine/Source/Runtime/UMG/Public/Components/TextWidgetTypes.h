@@ -17,11 +17,11 @@ enum class ETextShapingMethod : uint8;
  * Contains the common options that should be exposed for the underlying Slate widget.
  */
 USTRUCT(BlueprintType)
-struct UMG_API FShapedTextOptions
+struct FShapedTextOptions
 {
 	GENERATED_USTRUCT_BODY()
 
-	FShapedTextOptions();
+	UMG_API FShapedTextOptions();
 
 	/** Synchronize the properties with the given widget. A template as the Slate widgets conform to the same API, but don't derive from a common base. */
 	template <typename TWidgetType>
@@ -53,8 +53,8 @@ struct UMG_API FShapedTextOptions
  * Base class for all widgets that use a text layout.
  * Contains the common options that should be exposed for the underlying Slate widget.
  */
-UCLASS(Abstract, BlueprintType)
-class UMG_API UTextLayoutWidget : public UWidget
+UCLASS(Abstract, BlueprintType, MinimalAPI)
+class UTextLayoutWidget : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 

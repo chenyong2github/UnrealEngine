@@ -407,11 +407,11 @@ public:
 	uint32 IsSelected:1;
 #endif
 public:
-	FOLIAGE_API float GetRadius(bool bInSingleInstanceMode) const { return bInSingleInstanceMode && bSingleInstanceModeOverrideRadius ? SingleInstanceModeRadius : Radius; }
+	float GetRadius(bool bInSingleInstanceMode) const { return bInSingleInstanceMode && bSingleInstanceModeOverrideRadius ? SingleInstanceModeRadius : Radius; }
 
 	// PROCEDURAL
 
-	FOLIAGE_API float GetSeedDensitySquared() const { return InitialSeedDensity * InitialSeedDensity; }
+	float GetSeedDensitySquared() const { return InitialSeedDensity * InitialSeedDensity; }
 	FOLIAGE_API float GetMaxRadius() const;
 	FOLIAGE_API float GetScaleForAge(const float Age) const;
 	FOLIAGE_API float GetInitAge(FRandomStream& RandomStream) const;

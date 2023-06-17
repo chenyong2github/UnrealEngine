@@ -29,20 +29,20 @@ enum class ESnapshotSourceMode : uint8
 
 /** Provide a snapshot pose, either from the internal named pose cache or via a supplied snapshot */
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_PoseSnapshot : public FAnimNode_Base
+struct FAnimNode_PoseSnapshot : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
 public:	
 
-	FAnimNode_PoseSnapshot();
+	ANIMGRAPHRUNTIME_API FAnimNode_PoseSnapshot();
 
 	/** FAnimNode_Base interface */
 	virtual bool HasPreUpdate() const override  { return true; }
-	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 
 	/** The name of the snapshot previously stored with SavePoseSnapshot */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Snapshot", meta = (PinShownByDefault))
@@ -72,8 +72,8 @@ private:
 
 private:
 	/** Evaluation helper function - apply a snapshot pose to a pose */
-	void ApplyPose(const FPoseSnapshot& PoseSnapshot, FCompactPose& OutPose);
+	ANIMGRAPHRUNTIME_API void ApplyPose(const FPoseSnapshot& PoseSnapshot, FCompactPose& OutPose);
 
 	/** Evaluation helper function - cache the bone mapping between two skeletal meshes */
-	void CacheBoneMapping(FName SourceMeshName, FName TargetMeshName, const TArray<FName>& InSourceBoneNames, const TArray<FName>& InTargetBoneNames);
+	ANIMGRAPHRUNTIME_API void CacheBoneMapping(FName SourceMeshName, FName TargetMeshName, const TArray<FName>& InSourceBoneNames, const TArray<FName>& InTargetBoneNames);
 };

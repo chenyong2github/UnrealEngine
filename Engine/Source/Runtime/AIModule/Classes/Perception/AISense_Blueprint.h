@@ -14,8 +14,8 @@ class UAIPerceptionComponent;
 class UAISenseEvent;
 class UUserDefinedStruct;
 
-UCLASS(ClassGroup = AI, Abstract, Blueprintable, hidedropdown)
-class AIMODULE_API UAISense_Blueprint : public UAISense
+UCLASS(ClassGroup = AI, Abstract, Blueprintable, hidedropdown, MinimalAPI)
+class UAISense_Blueprint : public UAISense
 {
 	GENERATED_BODY()
 
@@ -30,53 +30,53 @@ protected:
 	TArray<TObjectPtr<UAISenseEvent>> UnprocessedEvents;
 
 public:
-	UAISense_Blueprint(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UAISense_Blueprint(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	//void RegisterEvent(const FAITeamStimulusEvent& Event);	
 
 	/** returns requested amount of time to pass until next frame. 
 	 *	Return 0 to get update every frame (WARNING: hits performance) */
 	UFUNCTION(BlueprintImplementableEvent)
-	float OnUpdate(const TArray<UAISenseEvent*>& EventsToProcess);
+	AIMODULE_API float OnUpdate(const TArray<UAISenseEvent*>& EventsToProcess);
 
 	/**
 	 *	@param PerceptionComponent is ActorListener's AIPerceptionComponent instance
 	 */
 	UFUNCTION(BlueprintImplementableEvent)
-	void OnListenerRegistered(AActor* ActorListener, UAIPerceptionComponent* PerceptionComponent);
+	AIMODULE_API void OnListenerRegistered(AActor* ActorListener, UAIPerceptionComponent* PerceptionComponent);
 
 	/**
 	 *	@param PerceptionComponent is ActorListener's AIPerceptionComponent instance
 	 */
 	UFUNCTION(BlueprintImplementableEvent)
-	void OnListenerUpdated(AActor* ActorListener, UAIPerceptionComponent* PerceptionComponent);
+	AIMODULE_API void OnListenerUpdated(AActor* ActorListener, UAIPerceptionComponent* PerceptionComponent);
 
 	/** called when a listener unregistered from this sense. Most often this is called due to actor's death
 	 *	@param PerceptionComponent is ActorListener's AIPerceptionComponent instance
 	 */
 	UFUNCTION(BlueprintImplementableEvent)
-	void OnListenerUnregistered(AActor* ActorListener, UAIPerceptionComponent* PerceptionComponent);
+	AIMODULE_API void OnListenerUnregistered(AActor* ActorListener, UAIPerceptionComponent* PerceptionComponent);
 	
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void GetAllListenerActors(TArray<AActor*>& ListenerActors) const;
+	AIMODULE_API void GetAllListenerActors(TArray<AActor*>& ListenerActors) const;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void GetAllListenerComponents(TArray<UAIPerceptionComponent*>& ListenerComponents) const;
+	AIMODULE_API void GetAllListenerComponents(TArray<UAIPerceptionComponent*>& ListenerComponents) const;
 
 	/** called when sense's instance gets notified about new pawn that has just been spawned */
 	UFUNCTION(BlueprintImplementableEvent, DisplayName="OnNewPawn", meta=(ScriptName="OnNewPawn"))
-	void K2_OnNewPawn(APawn* NewPawn);
+	AIMODULE_API void K2_OnNewPawn(APawn* NewPawn);
 
-	virtual FAISenseID UpdateSenseID() override;
-	virtual void RegisterWrappedEvent(UAISenseEvent& PerceptionEvent) override;
+	AIMODULE_API virtual FAISenseID UpdateSenseID() override;
+	AIMODULE_API virtual void RegisterWrappedEvent(UAISenseEvent& PerceptionEvent) override;
 
 protected:
-	virtual void OnNewPawn(APawn& NewPawn) override;
-	virtual float Update() override;
+	AIMODULE_API virtual void OnNewPawn(APawn& NewPawn) override;
+	AIMODULE_API virtual float Update() override;
 	
-	void OnNewListenerImpl(const FPerceptionListener& NewListener);
-	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
-	void OnListenerRemovedImpl(const FPerceptionListener& UpdatedListener);
+	AIMODULE_API void OnNewListenerImpl(const FPerceptionListener& NewListener);
+	AIMODULE_API void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
+	AIMODULE_API void OnListenerRemovedImpl(const FPerceptionListener& UpdatedListener);
 
 private:
 	static TMap<FNameEntryId, FAISenseID> BPSenseToSenseID;

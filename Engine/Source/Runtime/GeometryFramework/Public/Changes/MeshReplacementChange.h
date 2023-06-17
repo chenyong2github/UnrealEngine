@@ -22,13 +22,13 @@ class UObject;
  * FMeshReplacementChange represents an undoable *complete* change to a FDynamicMesh3.
  * Currently only valid to call Apply/Revert when the Object is a UDynamicMeshComponent
  */
-class GEOMETRYFRAMEWORK_API FMeshReplacementChange : public FToolCommandChange
+class FMeshReplacementChange : public FToolCommandChange
 {
 	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> Before, After;
 
 public:
-	FMeshReplacementChange();
-	FMeshReplacementChange(TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> Before, TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> After);
+	GEOMETRYFRAMEWORK_API FMeshReplacementChange();
+	GEOMETRYFRAMEWORK_API FMeshReplacementChange(TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> Before, TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> After);
 
 	const TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>& GetMesh(bool bRevert) const
 	{
@@ -39,28 +39,28 @@ public:
 	TFunction<void(FMeshReplacementChange*, UObject*, bool)> OnChangeAppliedFunc;
 
 	/** Makes the change to the object */
-	virtual void Apply(UObject* Object) override;
+	GEOMETRYFRAMEWORK_API virtual void Apply(UObject* Object) override;
 
 	/** Reverts change to the object */
-	virtual void Revert(UObject* Object) override;
+	GEOMETRYFRAMEWORK_API virtual void Revert(UObject* Object) override;
 
 	/** Describes this change (for debugging) */
-	virtual FString ToString() const override;
+	GEOMETRYFRAMEWORK_API virtual FString ToString() const override;
 };
 
 
 
 
 
-UINTERFACE()
-class GEOMETRYFRAMEWORK_API UMeshReplacementCommandChangeTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UMeshReplacementCommandChangeTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IMeshReplacementCommandChangeTarget is an interface which is used to apply a mesh replacement change
  */
-class GEOMETRYFRAMEWORK_API IMeshReplacementCommandChangeTarget
+class IMeshReplacementCommandChangeTarget
 {
 	GENERATED_BODY()
 public:

@@ -28,7 +28,7 @@ namespace Audio
 
 	/** Settings for a mel kernel which transforms an linearly space spectrum (e.g. FFT Magnitude)
 	 * to a mel spectrum */
-	struct SIGNALPROCESSING_API FMelSpectrumKernelSettings
+	struct FMelSpectrumKernelSettings
 	{
 		int32 NumBands;						//< Number of bands in Mel spectrum
 		float KernelMinCenterFreq;			//< Minimum frequency of lowest mel band.

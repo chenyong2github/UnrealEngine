@@ -60,8 +60,8 @@ struct FLayerBlendInput
 	}
 };
 
-UCLASS(collapsecategories, hidecategories=Object)
-class LANDSCAPE_API UMaterialExpressionLandscapeLayerBlend : public UMaterialExpression
+UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
+class UMaterialExpressionLandscapeLayerBlend : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
@@ -69,32 +69,32 @@ class LANDSCAPE_API UMaterialExpressionLandscapeLayerBlend : public UMaterialExp
 	TArray<FLayerBlendInput> Layers;
 
 	//~ Begin UObject Interface
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	LANDSCAPE_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	LANDSCAPE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 
 	//~ Begin UMaterialExpression Interface
-	virtual uint32 GetInputType(int32 InputIndex) override;
+	LANDSCAPE_API virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual uint32 GetOutputType(int32 InputIndex) override { return MCT_Unknown; }
-	virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual TArrayView<FExpressionInput*> GetInputsView() override;
-	virtual FExpressionInput* GetInput(int32 InputIndex) override;
-	virtual FName GetInputName(int32 InputIndex) const override;
+	LANDSCAPE_API virtual bool IsResultMaterialAttributes(int32 OutputIndex) override;
+	LANDSCAPE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	LANDSCAPE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	LANDSCAPE_API virtual TArrayView<FExpressionInput*> GetInputsView() override;
+	LANDSCAPE_API virtual FExpressionInput* GetInput(int32 InputIndex) override;
+	LANDSCAPE_API virtual FName GetInputName(int32 InputIndex) const override;
 
 	/**
 	 * Gets the landscape layer names
 	 */
-	virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const override;
+	LANDSCAPE_API virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const override;
 #endif
-	virtual UObject* GetReferencedTexture() const override;
+	LANDSCAPE_API virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override { return true; }
 	//~ End UMaterialExpression Interface
 
 private:
-	int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex, bool bForPreview);
+	LANDSCAPE_API int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex, bool bForPreview);
 };
 
 

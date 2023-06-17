@@ -70,7 +70,7 @@ struct FMovieSceneSubSequenceData
 	/**
 	* Gets the signature of the sub-section this points to. 
 	*/
-	MOVIESCENE_API FGuid GetSubSectionSignature() const { return SubSectionSignature; }
+	FGuid GetSubSectionSignature() const { return SubSectionSignature; }
 
 	/**
 	 * Re-creates a sub-section parameter struct.

@@ -52,7 +52,7 @@ namespace Audio
 	 *
 	 * Interface for Convolution algorithm.
 	 */
-	class SIGNALPROCESSING_API IConvolutionAlgorithm 
+	class IConvolutionAlgorithm 
 	{
 		public:
 
@@ -111,13 +111,13 @@ namespace Audio
 	 *
 	 * Factory interface for creating convolution algorithms.
 	 */
-	class SIGNALPROCESSING_API IConvolutionAlgorithmFactory : public IModularFeature
+	class IConvolutionAlgorithmFactory : public IModularFeature
 	{
 		public:
-			virtual ~IConvolutionAlgorithmFactory();
+			SIGNALPROCESSING_API virtual ~IConvolutionAlgorithmFactory();
 
 			/** Name of modular feature for Convolution factory.  */
-			static const FName GetModularFeatureName();
+			static SIGNALPROCESSING_API const FName GetModularFeatureName();
 
 			/** Name of this particular factory. */
 			virtual const FName GetFactoryName() const = 0;
@@ -136,11 +136,11 @@ namespace Audio
 	 *
 	 * FConvolutionFactory creates convolution algorithms. It will choose hardware accelerated versions when they are available. 
 	 */
-	class SIGNALPROCESSING_API FConvolutionFactory
+	class FConvolutionFactory
 	{
 		public:
 			/** This denotes that no specific IConvolutionAlgorithmFactory is desired. */
-			static const FName AnyAlgorithmFactory;
+			static SIGNALPROCESSING_API const FName AnyAlgorithmFactory;
 
 			/** NewConvolutionAlgorithm
 			 *
@@ -150,6 +150,6 @@ namespace Audio
 			 * @param InAlgorithmFactoryName - If not equal to FConvolutionFactory::AnyAlgorithmFactory, will only uses Convolution algorithm facotry if IConvolutionAlgorithmFactory::GetFactoryName() equals InAlgorithmFactoryName.
 			 * @return A TUniquePtr<IConvolutionAlgorithm> to the created Convolution. This pointer can be invalid if an error occured or the fft algorithm could not be created.
 			 */
-			static TUniquePtr<IConvolutionAlgorithm> NewConvolutionAlgorithm(const FConvolutionSettings& InSettings, const FName& InAlgorithmFactoryName = AnyAlgorithmFactory);
+			static SIGNALPROCESSING_API TUniquePtr<IConvolutionAlgorithm> NewConvolutionAlgorithm(const FConvolutionSettings& InSettings, const FName& InAlgorithmFactoryName = AnyAlgorithmFactory);
 	};
 }

@@ -28,13 +28,13 @@ class UObject;
  *    
  * If a ForceEndCapture occurs we call Target::OnTerminateDragSequence   
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UClickDragInputBehavior : public UAnyButtonInputBehavior
+UCLASS(MinimalAPI)
+class UClickDragInputBehavior : public UAnyButtonInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	UClickDragInputBehavior();
+	INTERACTIVETOOLSFRAMEWORK_API UClickDragInputBehavior();
 
 	/**
 	 * The modifier set for this behavior
@@ -45,7 +45,7 @@ public:
 	 * Initialize this behavior with the given Target
 	 * @param Target implementor of hit-test and on-clicked functions
 	 */
-	virtual void Initialize(IClickDragBehaviorTarget* Target);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IClickDragBehaviorTarget* Target);
 
 
 	/**
@@ -56,10 +56,10 @@ public:
 
 	// UInputBehavior implementation
 
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide Side) override;
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
-	virtual void ForceEndCapture(const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide Side) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceEndCapture(const FInputCaptureData& Data) override;
 
 	/**
 	 * If true, then we will update Modifier states in UpdateCapture(). This defaults to false because
@@ -79,17 +79,17 @@ protected:
 	/**
 	 * Internal function that forwards click evens to Target::OnClickPress, you can customize behavior here
 	 */
-	virtual void OnClickPressInternal(const FInputDeviceState& Input, EInputCaptureSide Side);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickPressInternal(const FInputDeviceState& Input, EInputCaptureSide Side);
 
 	/**
 	 * Internal function that forwards click evens to Target::OnClickDrag, you can customize behavior here
 	 */
-	virtual void OnClickDragInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickDragInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
 
 	/**
 	 * Internal function that forwards click evens to Target::OnClickRelease, you can customize behavior here
 	 */
-	virtual void OnClickReleaseInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickReleaseInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
 };
 
 
@@ -101,8 +101,8 @@ protected:
  * via a set of local lambda functions. To use/customize this class the client replaces the lambda functions with their own.
  * This avoids having to create a second IClickDragBehaviorTarget implementation for trivial use-cases.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API ULocalClickDragInputBehavior : public UClickDragInputBehavior, public IClickDragBehaviorTarget
+UCLASS(MinimalAPI)
+class ULocalClickDragInputBehavior : public UClickDragInputBehavior, public IClickDragBehaviorTarget
 {
 	GENERATED_BODY()
 protected:

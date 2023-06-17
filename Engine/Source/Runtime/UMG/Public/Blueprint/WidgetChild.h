@@ -15,12 +15,12 @@ class UWidget;
  * Represent a Widget present in the Tree Widget of the UserWidget
  */
 USTRUCT()
-struct UMG_API FWidgetChild
+struct FWidgetChild
 {
 	GENERATED_BODY();
 public:
-	FWidgetChild();
-	FWidgetChild(const class UUserWidget* Outer, FName InChildName);
+	UMG_API FWidgetChild();
+	UMG_API FWidgetChild(const class UUserWidget* Outer, FName InChildName);
 
 	FName GetFName() const
 	{
@@ -33,7 +33,7 @@ public:
 	};
 
 	/** Resolves the Widget ptr using it's name. */
-	UWidget* Resolve(const class UWidgetTree* WidgetTree);
+	UMG_API UWidget* Resolve(const class UWidgetTree* WidgetTree);
 
 private:
 	/** This either the widget to focus, OR the name of the function to call. */

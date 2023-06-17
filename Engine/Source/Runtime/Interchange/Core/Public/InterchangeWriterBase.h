@@ -9,8 +9,8 @@
 
 #include "InterchangeWriterBase.generated.h"
 
-UCLASS(BlueprintType, Blueprintable, Abstract, Experimental)
-class INTERCHANGECORE_API UInterchangeWriterBase : public UObject
+UCLASS(BlueprintType, Blueprintable, Abstract, Experimental, MinimalAPI)
+class UInterchangeWriterBase : public UObject
 {
 	GENERATED_BODY()
 public:

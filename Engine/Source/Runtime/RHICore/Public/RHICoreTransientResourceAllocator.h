@@ -78,7 +78,7 @@ struct FRHITransientResourceStats
 };
 
 /** Tracks all transient memory statistics for the current allocation cycle and reports results to various profilers. */
-struct RHICORE_API FRHITransientMemoryStats
+struct FRHITransientMemoryStats
 {
 public:
 	FRHITransientMemoryStats() = default;
@@ -123,7 +123,7 @@ public:
 		AliasedSize = AliasedSizeCurrent;
 	}
 
-	void Submit(uint64 TotalMemoryCapacity);
+	RHICORE_API void Submit(uint64 TotalMemoryCapacity);
 
 	bool HasDeallocations() const { return Textures.DeallocationCount > 0 || Buffers.DeallocationCount > 0; }
 
@@ -138,11 +138,11 @@ public:
 };
 
 /** Tracks resource allocations on the heap and adds overlap events to transient resources. */
-class RHICORE_API FRHITransientResourceOverlapTracker
+class FRHITransientResourceOverlapTracker
 {
 public:
-	void Track(FRHITransientResource* InResource, uint32 PageOffsetMin, uint32 PageOffsetMax);
-	void Reset();
+	RHICORE_API void Track(FRHITransientResource* InResource, uint32 PageOffsetMin, uint32 PageOffsetMax);
+	RHICORE_API void Reset();
 
 private:
 	struct FResourceRange
@@ -323,14 +323,14 @@ class FRHITransientHeapCache;
 class FRHITransientResourceHeapAllocator;
 
 /** First-fit allocator used for placing resources on a heap. */
-class RHICORE_API FRHITransientHeapAllocator
+class FRHITransientHeapAllocator
 {
 public:
-	FRHITransientHeapAllocator(uint64 Capacity, uint32 Alignment);
+	RHICORE_API FRHITransientHeapAllocator(uint64 Capacity, uint32 Alignment);
 
-	FRHITransientHeapAllocation Allocate(uint64 Size, uint32 Alignment);
+	RHICORE_API FRHITransientHeapAllocation Allocate(uint64 Size, uint32 Alignment);
 
-	void Deallocate(FRHITransientHeapAllocation Allocation);
+	RHICORE_API void Deallocate(FRHITransientHeapAllocation Allocation);
 
 	void SetGpuVirtualAddress(uint64 InGpuVirtualAddress)
 	{
@@ -409,9 +409,9 @@ private:
 		FRangeHandle FoundHandle = InvalidRangeHandle;
 	};
 
-	FFindResult FindFreeRange(uint64 Size, uint32 Alignment);
+	RHICORE_API FFindResult FindFreeRange(uint64 Size, uint32 Alignment);
 
-	void Validate();
+	RHICORE_API void Validate();
 
 	uint64 GpuVirtualAddress = 0;
 	uint64 Capacity = 0;
@@ -448,7 +448,7 @@ ENUM_CLASS_FLAGS(ERHITransientHeapFlags);
  *  byte offsets. Each heap additionally contains a cache of RHI transient resources, each with its own RHI
  *  resource and cache of RHI views. The lifetime of the resource cache is tied to the heap.
  */
-class RHICORE_API FRHITransientHeap
+class FRHITransientHeap
 {
 public:
 	struct FInitializer
@@ -502,7 +502,7 @@ public:
 
 	virtual ~FRHITransientHeap() = default;
 
-	FRHITransientTexture* CreateTexture(
+	RHICORE_API FRHITransientTexture* CreateTexture(
 		const FRHITextureCreateInfo& CreateInfo,
 		const TCHAR* DebugName,
 		uint32 PassIndex,
@@ -511,9 +511,9 @@ public:
 		uint32 TextureAlignment,
 		FCreateTextureFunction CreateTextureFunction);
 
-	void DeallocateMemory(FRHITransientTexture* Texture, uint32 PassIndex);
+	RHICORE_API void DeallocateMemory(FRHITransientTexture* Texture, uint32 PassIndex);
 
-	FRHITransientBuffer* CreateBuffer(
+	RHICORE_API FRHITransientBuffer* CreateBuffer(
 		const FRHIBufferCreateInfo& CreateInfo,
 		const TCHAR* DebugName,
 		uint32 PassIndex,
@@ -522,9 +522,9 @@ public:
 		uint32 BufferAlignment,
 		FCreateBufferFunction CreateBufferFunction);
 
-	void DeallocateMemory(FRHITransientBuffer* Buffer, uint32 PassIndex);
+	RHICORE_API void DeallocateMemory(FRHITransientBuffer* Buffer, uint32 PassIndex);
 
-	void Flush(uint64 CurrentAllocatorCycle, FRHITransientMemoryStats& OutMemoryStats, FRHITransientAllocationStats* OutAllocationStats);
+	RHICORE_API void Flush(uint64 CurrentAllocatorCycle, FRHITransientMemoryStats& OutMemoryStats, FRHITransientAllocationStats* OutAllocationStats);
 
 	const FInitializer& GetInitializer() const { return Initializer; }
 
@@ -554,8 +554,8 @@ protected:
 	}
 
 private:
-	void AllocateMemoryInternal(FRHITransientResource* Resource, const TCHAR* Name, uint32 PassIndex, uint64 CurrentAllocatorCycle, const FRHITransientHeapAllocation& Allocation);
-	void DeallocateMemoryInternal(FRHITransientResource* Resource, uint32 PassIndex);
+	RHICORE_API void AllocateMemoryInternal(FRHITransientResource* Resource, const TCHAR* Name, uint32 PassIndex, uint64 CurrentAllocatorCycle, const FRHITransientHeapAllocation& Allocation);
+	RHICORE_API void DeallocateMemoryInternal(FRHITransientResource* Resource, uint32 PassIndex);
 
 	FInitializer Initializer;
 	FRHITransientHeapAllocator Allocator;
@@ -583,13 +583,13 @@ private:
  *  are destroyed. Additionally, statistics are gathered automatically and reported to the 'rhitransientmemory' stats
  *  group.
  */
-class RHICORE_API FRHITransientHeapCache : public IRHITransientMemoryCache
+class FRHITransientHeapCache : public IRHITransientMemoryCache
 {
 public:
-	struct RHICORE_API FInitializer
+	struct FInitializer
 	{
 		// Creates a default initializer using common RHI CVars.
-		static FInitializer CreateDefault();
+		static RHICORE_API FInitializer CreateDefault();
 
 		static const uint32 kDefaultResourceCacheSize = 256;
 
@@ -619,13 +619,13 @@ public:
 		: Initializer(InInitializer)
 	{}
 
-	virtual ~FRHITransientHeapCache();
+	RHICORE_API virtual ~FRHITransientHeapCache();
 
-	FRHITransientHeap* Acquire(uint64 FirstAllocationSize, ERHITransientHeapFlags FirstAllocationHeapFlags);
+	RHICORE_API FRHITransientHeap* Acquire(uint64 FirstAllocationSize, ERHITransientHeapFlags FirstAllocationHeapFlags);
 
-	void Forfeit(TConstArrayView<FRHITransientHeap*> Heaps);
+	RHICORE_API void Forfeit(TConstArrayView<FRHITransientHeap*> Heaps);
 
-	void GarbageCollect() override;
+	RHICORE_API void GarbageCollect() override;
 
 	const FInitializer& GetInitializer() const { return Initializer; }
 
@@ -659,7 +659,7 @@ private:
 };
 
 /** A base class for implementing IRHITransientResourceAllocator for a virtual aliasing placed resource heap allocation strategy. */
-class RHICORE_API FRHITransientResourceHeapAllocator : public IRHITransientResourceAllocator
+class FRHITransientResourceHeapAllocator : public IRHITransientResourceAllocator
 {
 public:
 	FRHITransientResourceHeapAllocator(FRHITransientHeapCache& InHeapCache)
@@ -667,13 +667,13 @@ public:
 	{}
 
 	// Deallocates a texture from its parent heap. Provide the current platform fence value used to update the heap.
-	void DeallocateMemory(FRHITransientTexture* Texture, uint32 PassIndex) override;
+	RHICORE_API void DeallocateMemory(FRHITransientTexture* Texture, uint32 PassIndex) override;
 
 	// Deallocates a buffer from its parent heap. Provide the current platform fence value used to update the heap.
-	void DeallocateMemory(FRHITransientBuffer* Buffer, uint32 PassIndex) override;
+	RHICORE_API void DeallocateMemory(FRHITransientBuffer* Buffer, uint32 PassIndex) override;
 
 	// Called to flush any active allocations prior to rendering.
-	void Flush(FRHICommandListImmediate& RHICmdList, FRHITransientAllocationStats* OutAllocationStats) override;
+	RHICORE_API void Flush(FRHICommandListImmediate& RHICmdList, FRHITransientAllocationStats* OutAllocationStats) override;
 
 	// Returns the array of heaps used by this allocator, including the required commit size for each.
 	inline TConstArrayView<FRHITransientHeap*> GetHeaps() const { return Heaps; }
@@ -686,7 +686,7 @@ protected:
 	 *  texture create info and passed in, along with a platform-specific texture creation function if no cached resource
 	 *  if found.
 	 */
-	FRHITransientTexture* CreateTextureInternal(
+	RHICORE_API FRHITransientTexture* CreateTextureInternal(
 		const FRHITextureCreateInfo& CreateInfo,
 		const TCHAR* DebugName,
 		uint32 PassIndex,
@@ -699,7 +699,7 @@ protected:
 	 *  buffer create info and passed in, along with a platform-specific buffer creation function if no cached resource
 	 *  if found.
 	 */
-	FRHITransientBuffer* CreateBufferInternal(
+	RHICORE_API FRHITransientBuffer* CreateBufferInternal(
 		const FRHIBufferCreateInfo& CreateInfo,
 		const TCHAR* DebugName,
 		uint32 PassIndex,
@@ -723,7 +723,7 @@ class FRHITransientPagePoolCache;
 class FRHITransientResourcePageAllocator;
 
 /** Allocates page spans for a resource. */
-class RHICORE_API FRHITransientPageSpanAllocator
+class FRHITransientPageSpanAllocator
 {
 public:
 	FRHITransientPageSpanAllocator(uint32 InPageCount, uint32 InPageSize)
@@ -734,11 +734,11 @@ public:
 		Init();
 	}
 
-	void Reset();
+	RHICORE_API void Reset();
 
-	bool Allocate(uint32 PageCount, uint32& NumPagesAllocated, uint32& SpanIndex);
+	RHICORE_API bool Allocate(uint32 PageCount, uint32& NumPagesAllocated, uint32& SpanIndex);
 
-	void Deallocate(uint32 SpanIndex);
+	RHICORE_API void Deallocate(uint32 SpanIndex);
 
 	template <typename SpanArrayType>
 	void GetSpanArray(uint32 SpanIndex, SpanArrayType& OutPageSpans) const
@@ -759,7 +759,7 @@ public:
 
 	uint64 GetFreeSize() const { return FreePageCount * PageSize; }
 
-	uint32 GetAllocationPageCount(uint32 SpanIndex) const;
+	RHICORE_API uint32 GetAllocationPageCount(uint32 SpanIndex) const;
 
 	uint32 GetMaxSpanCount() const { return MaxSpanCount; }
 
@@ -785,22 +785,22 @@ private:
 		bool bAllocated = false;
 	};
 
-	void Init();
+	RHICORE_API void Init();
 
 	// Splits a span into two, so that the original span has PageCount pages and the new span contains the remaining ones
-	void SplitSpan(uint32 SpanIndex, uint32 PageCount);
+	RHICORE_API void SplitSpan(uint32 SpanIndex, uint32 PageCount);
 
 	// Merges two spans. They must be adjacent and in the same list
-	void MergeSpans(uint32 SpanIndex0, uint32 SpanIndex1, const bool bKeepSpan1);
+	RHICORE_API void MergeSpans(uint32 SpanIndex0, uint32 SpanIndex1, const bool bKeepSpan1);
 
 	// Inserts a span after an existing span. The span to insert must be unlinked
-	void InsertAfter(uint32 InsertPosition, uint32 InsertSpanIndex);
+	RHICORE_API void InsertAfter(uint32 InsertPosition, uint32 InsertSpanIndex);
 
 	// Inserts a span after an existing span. The span to insert must be unlinked
-	void InsertBefore(uint32 InsertPosition, uint32 InsertSpanIndex);
+	RHICORE_API void InsertBefore(uint32 InsertPosition, uint32 InsertSpanIndex);
 
 	// Removes a span from its list, reconnecting neighbouring list elements
-	void Unlink(uint32 SpanIndex);
+	RHICORE_API void Unlink(uint32 SpanIndex);
 
 	// Allocates an unused span from the pool
 	int AllocSpan()
@@ -821,9 +821,9 @@ private:
 	}
 
 	// Merges a span with existing neighbours in the free list if they exist
-	bool MergeFreeSpanIfPossible(uint32 SpanIndex);
+	RHICORE_API bool MergeFreeSpanIfPossible(uint32 SpanIndex);
 
-	void Validate();
+	RHICORE_API void Validate();
 
 	int GetFirstSpanIndex() const
 	{
@@ -846,7 +846,7 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class RHICORE_API FRHITransientPagePool
+class FRHITransientPagePool
 {
 public:
 	struct FInitializer
@@ -895,14 +895,14 @@ public:
 		uint32 PagesMapped = 0;
 	};
 
-	void Allocate(FAllocationContext& AllocationContext);
+	RHICORE_API void Allocate(FAllocationContext& AllocationContext);
 
 	void Deallocate(uint32 SpanIndex)
 	{
 		Allocator.Deallocate(SpanIndex);
 	}
 
-	void Flush(FRHICommandListImmediate& RHICmdList);
+	RHICORE_API void Flush(FRHICommandListImmediate& RHICmdList);
 
 	uint64 GetLastUsedGarbageCollectCycle() const { return LastUsedGarbageCollectCycle; }
 
@@ -971,7 +971,7 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class RHICORE_API FRHITransientPagePoolCache : public IRHITransientMemoryCache
+class FRHITransientPagePoolCache : public IRHITransientMemoryCache
 {
 public:
 	struct FInitializer
@@ -1006,18 +1006,18 @@ public:
 
 	FRHITransientPagePoolCache(const FRHITransientPagePoolCache&) = delete;
 
-	virtual ~FRHITransientPagePoolCache();
+	RHICORE_API virtual ~FRHITransientPagePoolCache();
 
 	// Called by the transient allocator to acquire a page pool from the cache.
-	FRHITransientPagePool* Acquire();
+	RHICORE_API FRHITransientPagePool* Acquire();
 
 	// Called by the transient allocator to return the fast page pool if it exists.
-	FRHITransientPagePool* GetFastPagePool();
+	RHICORE_API FRHITransientPagePool* GetFastPagePool();
 
 	// Called by the transient allocator to forfeit all acquired heaps back to the cache.
-	void Forfeit(TConstArrayView<FRHITransientPagePool*> PagePools);
+	RHICORE_API void Forfeit(TConstArrayView<FRHITransientPagePool*> PagePools);
 
-	void GarbageCollect() override;
+	RHICORE_API void GarbageCollect() override;
 
 	const FInitializer Initializer;
 
@@ -1047,7 +1047,7 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class RHICORE_API FRHITransientResourcePageAllocator : public IRHITransientResourceAllocator
+class FRHITransientResourcePageAllocator : public IRHITransientResourceAllocator
 {
 public:
 	FRHITransientResourcePageAllocator(FRHITransientPagePoolCache& InPagePoolCache)
@@ -1059,11 +1059,11 @@ public:
 		FastPagePool = PagePoolCache.GetFastPagePool();
 	}
 
-	FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& CreateInfo, const TCHAR* DebugName, uint32 PassIndex) override;
-	FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& CreateInfo, const TCHAR* DebugName, uint32 PassIndex) override;
-	void DeallocateMemory(FRHITransientTexture* Texture, uint32 PassIndex) override;
-	void DeallocateMemory(FRHITransientBuffer* Buffer, uint32 PassIndex) override;
-	void Flush(FRHICommandListImmediate& RHICmdList, FRHITransientAllocationStats* OutAllocationStats) override;
+	RHICORE_API FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& CreateInfo, const TCHAR* DebugName, uint32 PassIndex) override;
+	RHICORE_API FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& CreateInfo, const TCHAR* DebugName, uint32 PassIndex) override;
+	RHICORE_API void DeallocateMemory(FRHITransientTexture* Texture, uint32 PassIndex) override;
+	RHICORE_API void DeallocateMemory(FRHITransientBuffer* Buffer, uint32 PassIndex) override;
+	RHICORE_API void Flush(FRHICommandListImmediate& RHICmdList, FRHITransientAllocationStats* OutAllocationStats) override;
 
 	uint32 GetPageSize() const { return PageSize; }
 
@@ -1076,8 +1076,8 @@ private:
 	static constexpr uint64 KB = 1024;
 	static constexpr uint64 MB = 1024 * KB;
 
-	void AllocateMemoryInternal(FRHITransientResource* Resource, const TCHAR* DebugName, uint32 PassIndex, bool bFastPoolRequested, float FastPoolPercentageRequested);
-	void DeallocateMemoryInternal(FRHITransientResource* Resource, uint32 PassIndex);
+	RHICORE_API void AllocateMemoryInternal(FRHITransientResource* Resource, const TCHAR* DebugName, uint32 PassIndex, bool bFastPoolRequested, float FastPoolPercentageRequested);
+	RHICORE_API void DeallocateMemoryInternal(FRHITransientResource* Resource, uint32 PassIndex);
 
 	//////////////////////////////////////////////////////////////////////////
 	//! Platform API

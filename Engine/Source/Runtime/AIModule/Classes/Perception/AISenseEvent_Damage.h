@@ -8,8 +8,8 @@
 #include "Perception/AISense_Damage.h"
 #include "AISenseEvent_Damage.generated.h"
 
-UCLASS()
-class AIMODULE_API UAISenseEvent_Damage : public UAISenseEvent
+UCLASS(MinimalAPI)
+class UAISenseEvent_Damage : public UAISenseEvent
 {
 	GENERATED_BODY()
 
@@ -17,7 +17,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Sense")
 	FAIDamageEvent Event;
 	
-	virtual FAISenseID GetSenseID() const override;
+	AIMODULE_API virtual FAISenseID GetSenseID() const override;
 
 	FORCEINLINE FAIDamageEvent GetDamageEvent()
 	{

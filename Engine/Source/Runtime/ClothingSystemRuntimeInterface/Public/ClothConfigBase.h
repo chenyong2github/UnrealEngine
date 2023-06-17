@@ -14,40 +14,40 @@
  * Base class for simulator specific simulation controls.
  * Each cloth instance on a skeletal mesh can have a unique cloth config
  */
-UCLASS(Abstract)
-class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothConfigBase : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UClothConfigBase : public UObject
 {
 	GENERATED_BODY()
 public:
-	UClothConfigBase();
-	virtual ~UClothConfigBase();
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothConfigBase();
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual ~UClothConfigBase();
 
 	/** Return the self collision radius if building self collision indices is required for this config, or 0.f otherwise. */
 	UE_DEPRECATED(5.0, "Use NeedsSelfCollisionData and GetSelfCollisionRadius instead.")
 	virtual float NeedsSelfCollisionIndices() const { return NeedsSelfCollisionData() ? GetSelfCollisionRadius() : 0.f; }
 
 	/** Return wherether to pre-compute self collision data. */
-	virtual bool NeedsSelfCollisionData() const
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual bool NeedsSelfCollisionData() const
 	PURE_VIRTUAL(UClothConfigBase::NeedsSelfCollisionData, return false;);
 
 	/** Return wherether to pre-compute inverse masses. */
-	virtual bool NeedsInverseMasses() const
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual bool NeedsInverseMasses() const
 	PURE_VIRTUAL(UClothConfigBase::NeedsInverseMasses, return false;);
 
 	/** Return wherether to pre-compute the influences. */
-	virtual bool NeedsNumInfluences() const
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual bool NeedsNumInfluences() const
 	PURE_VIRTUAL(UClothConfigBase::NeedsNumInfluences, return false;);
 
 	/** Return wherether to pre-compute the long range attachment tethers. */
-	virtual bool NeedsTethers() const
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual bool NeedsTethers() const
 	PURE_VIRTUAL(UClothConfigBase::NeedsTethers, return false;);
 
 	/** Return the self collision radius to precomute self collision data. */
-	virtual float GetSelfCollisionRadius() const
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual float GetSelfCollisionRadius() const
 	PURE_VIRTUAL(UClothConfigBase::GetSelfCollisionRadius, return 0.f;);
 
 	/** Return whether tethers need to be calculated using geodesic distances instead of eclidean. */
-	virtual bool TethersUseGeodesicDistance() const
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual bool TethersUseGeodesicDistance() const
 	PURE_VIRTUAL(UClothConfigBase::TethersUseGeodesicDistance, return false;);
 };
 
@@ -55,8 +55,8 @@ public:
  * These settings are shared between all instances on a skeletal mesh
  * Deprecated, use UClothConfigBase instead.
  */
-UCLASS(Abstract, Deprecated)
-class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UDEPRECATED_ClothSharedSimConfigBase : public UObject
+UCLASS(Abstract, Deprecated, MinimalAPI)
+class UDEPRECATED_ClothSharedSimConfigBase : public UObject
 {
 	GENERATED_BODY()
 public:

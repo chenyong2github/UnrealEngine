@@ -18,8 +18,8 @@ class USlateBrushAsset;
  * * No Children
  * * Spinner Progress
  */
-UCLASS()
-class UMG_API UCircularThrobber : public UWidget
+UCLASS(MinimalAPI)
+class UCircularThrobber : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -49,34 +49,34 @@ public:
 
 	/** Sets how many pieces there are. */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetNumberOfPieces(int32 InNumberOfPieces);
-	int32 GetNumberOfPieces() const;
+	UMG_API void SetNumberOfPieces(int32 InNumberOfPieces);
+	UMG_API int32 GetNumberOfPieces() const;
 
 	/** Sets the amount of time for a full circle (in seconds). */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetPeriod(float InPeriod);
-	float GetPeriod() const;
+	UMG_API void SetPeriod(float InPeriod);
+	UMG_API float GetPeriod() const;
 
 	/** Sets the radius of the circle. */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetRadius(float InRadius);
-	float GetRadius() const;
+	UMG_API void SetRadius(float InRadius);
+	UMG_API float GetRadius() const;
 
 	/** Sets the throbber image. */
-	void SetImage(const FSlateBrush& InRadius);
-	const FSlateBrush& GetImage() const;
+	UMG_API void SetImage(const FSlateBrush& InRadius);
+	UMG_API const FSlateBrush& GetImage() const;
 
 	//~ Begin UWidget Interface
 public:
-	virtual void SynchronizeProperties() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void SynchronizeProperties() override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
 private:

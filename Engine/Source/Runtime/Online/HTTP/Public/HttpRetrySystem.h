@@ -168,8 +168,8 @@ namespace FHttpRetrySystem
          * @return                true if there are no failures or retries
          */
         HTTP_API bool Update(uint32* FileCount = NULL, uint32* FailingCount = NULL, uint32* FailedCount = NULL, uint32* CompletedCount = NULL);
-		HTTP_API void SetRandomFailureRate(float Value) { RandomFailureRate = FRandomFailureRateSetting(Value); }
-		HTTP_API void SetDefaultRetryLimit(uint32 Value) { RetryLimitCountDefault = FRetryLimitCountSetting(Value); }
+		void SetRandomFailureRate(float Value) { RandomFailureRate = FRandomFailureRateSetting(Value); }
+		void SetDefaultRetryLimit(uint32 Value) { RetryLimitCountDefault = FRetryLimitCountSetting(Value); }
 		
 		// @return Block the current process until all requests are flushed, or timeout has elapsed
 		HTTP_API void BlockUntilFlushed(float TimeoutSec);

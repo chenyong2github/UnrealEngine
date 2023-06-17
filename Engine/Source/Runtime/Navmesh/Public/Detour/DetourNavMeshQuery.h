@@ -46,7 +46,7 @@
 // Special link filter is custom filter run only for offmesh links with assigned UserId
 // Used by smart navlinks in UE
 //
-struct NAVMESH_API dtQuerySpecialLinkFilter
+struct dtQuerySpecialLinkFilter
 {
 	virtual ~dtQuerySpecialLinkFilter() {}
 
@@ -63,7 +63,7 @@ struct NAVMESH_API dtQuerySpecialLinkFilter
 };
 
 // [UE: moved all filter variables to struct, DO NOT mess with virtual functions here!]
-struct NAVMESH_API dtQueryFilterData
+struct dtQueryFilterData
 {
 	dtReal m_areaCost[DT_MAX_AREAS];		///< Cost per area type. (Used by default implementation.)
 #if WITH_FIXED_AREA_ENTERING_COST
@@ -84,15 +84,15 @@ struct NAVMESH_API dtQueryFilterData
 	bool m_shouldIgnoreClosedNodes;
 	//@UE END
 
-	dtQueryFilterData();
+	NAVMESH_API dtQueryFilterData();
 	
-	bool equals(const dtQueryFilterData* other) const;
-	void copyFrom(const dtQueryFilterData* source);
+	NAVMESH_API bool equals(const dtQueryFilterData* other) const;
+	NAVMESH_API void copyFrom(const dtQueryFilterData* source);
 };
 
 /// Defines polygon filtering and traversal costs for navigation mesh query operations.
 /// @ingroup detour
-class NAVMESH_API dtQueryFilter
+class dtQueryFilter
 {
 protected:
 	dtQueryFilterData data;
@@ -309,7 +309,7 @@ struct dtQueryResultPack
 	dtQueryResultPack(dtPolyRef inRef, dtReal inCost, const dtReal* inPos, unsigned int inFlag);
 };
 
-struct NAVMESH_API dtQueryResult
+struct dtQueryResult
 {
 	inline void reserve(int n) { data.resize(n); data.resize(0); }
 	inline int size() const { return data.size(); }
@@ -318,13 +318,13 @@ struct NAVMESH_API dtQueryResult
 	inline dtReal getCost(int idx) const { return data[idx].cost; }
 	inline const dtReal* getPos(int idx) const { return data[idx].pos; }
 	inline unsigned int getFlag(int idx) const { return data[idx].flag; }
-	void getPos(int idx, dtReal* pos);
+	NAVMESH_API void getPos(int idx, dtReal* pos);
 
-	void copyRefs(dtPolyRef* refs, int nmax);
-	void copyCosts(dtReal* costs, int nmax);
-	void copyPos(dtReal* pos, int nmax);
-	void copyFlags(unsigned char* flags, int nmax);
-	void copyFlags(unsigned int* flags, int nmax);
+	NAVMESH_API void copyRefs(dtPolyRef* refs, int nmax);
+	NAVMESH_API void copyCosts(dtReal* costs, int nmax);
+	NAVMESH_API void copyPos(dtReal* pos, int nmax);
+	NAVMESH_API void copyFlags(unsigned char* flags, int nmax);
+	NAVMESH_API void copyFlags(unsigned int* flags, int nmax);
 
 protected:
 	dtChunkArray<dtQueryResultPack> data;
@@ -334,7 +334,7 @@ protected:
 	inline void setRef(int idx, dtPolyRef ref) { data[idx].ref = ref; }
 	inline void setCost(int idx, dtReal cost) { data[idx].cost = cost; }
 	inline void setFlag(int idx, unsigned int flag) { data[idx].flag = flag; }
-	void setPos(int idx, const dtReal* pos);
+	NAVMESH_API void setPos(int idx, const dtReal* pos);
 
 	friend class dtNavMeshQuery;
 };
@@ -342,21 +342,21 @@ protected:
 /// Provides the ability to perform pathfinding related queries against
 /// a navigation mesh.
 /// @ingroup detour
-class NAVMESH_API dtNavMeshQuery
+class dtNavMeshQuery
 {
 public:
-	dtNavMeshQuery();
-	~dtNavMeshQuery();
+	NAVMESH_API dtNavMeshQuery();
+	NAVMESH_API ~dtNavMeshQuery();
 	
 	/// Initializes the query object.
 	///  @param[in]		nav			Pointer to the dtNavMesh object to use for all queries.
 	///  @param[in]		maxNodes	Maximum number of search nodes. [Limits: 0 < value <= 65536]
 	///  @param[in]		linkFilter	Special link filter used for every query
 	/// @returns The status flags for the query.
-	dtStatus init(const dtNavMesh* nav, const int maxNodes, dtQuerySpecialLinkFilter* linkFilter = 0);
+	NAVMESH_API dtStatus init(const dtNavMesh* nav, const int maxNodes, dtQuerySpecialLinkFilter* linkFilter = 0);
 
 	/// UE: updates special link filter for this query
-	void updateLinkFilter(dtQuerySpecialLinkFilter* linkFilter);
+	NAVMESH_API void updateLinkFilter(dtQuerySpecialLinkFilter* linkFilter);
 	
 	/// @name Standard Pathfinding Functions
 	// /@{
@@ -370,7 +370,7 @@ public:
 	///  @param[in]		filter		The polygon filter to apply to the query.
 	///  @param[out]	result		Results for path corridor, fills in refs and costs for each poly from start to end
 	///	 @param[out]	totalCost			If provided will get filled will total cost of path
-	dtStatus findPath(dtPolyRef startRef, dtPolyRef endRef,
+	NAVMESH_API dtStatus findPath(dtPolyRef startRef, dtPolyRef endRef,
 					  const dtReal* startPos, const dtReal* endPos, const dtReal costLimit, //@UE
 					  const dtQueryFilter* filter,
 					  dtQueryResult& result, dtReal* totalCost) const;
@@ -383,7 +383,7 @@ public:
 	///  @param[out]	result				Fills in positions, refs and flags
 	///  @param[in]		options				Query options. (see: #dtStraightPathOptions)
 	/// @returns The status flags for the query.
-	dtStatus findStraightPath(const dtReal* startPos, const dtReal* endPos,
+	NAVMESH_API dtStatus findStraightPath(const dtReal* startPos, const dtReal* endPos,
 							  const dtPolyRef* path, const int pathSize,
 							  dtQueryResult& result, const int options = 0) const;
 
@@ -404,7 +404,7 @@ public:
 	///  @param[in]		requireNavigableEndLocation	Define if the end location is required to be a valid navmesh polygon //@UE
 	///  @param[in]		filter						The polygon filter to apply to the query.
 	/// @returns The status flags for the query.
-	dtStatus initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef,
+	NAVMESH_API dtStatus initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef,
 								const dtReal* startPos, const dtReal* endPos, const dtReal costLimit, const bool requireNavigableEndLocation, //@UE
 								const dtQueryFilter* filter);
 
@@ -412,7 +412,7 @@ public:
 	///  @param[in]		maxIter		The maximum number of iterations to perform.
 	///  @param[out]	doneIters	The actual number of iterations completed. [opt]
 	/// @returns The status flags for the query.
-	dtStatus updateSlicedFindPath(const int maxIter, int* doneIters);
+	NAVMESH_API dtStatus updateSlicedFindPath(const int maxIter, int* doneIters);
 
 	/// Finalizes and returns the results of a sliced path query.
 	///  @param[out]	path		An ordered list of polygon references representing the path. (Start to end.) 
@@ -420,7 +420,7 @@ public:
 	///  @param[out]	pathCount	The number of polygons returned in the @p path array.
 	///  @param[in]		maxPath		The max number of polygons the path array can hold. [Limit: >= 1]
 	/// @returns The status flags for the query.
-	dtStatus finalizeSlicedFindPath(dtPolyRef* path, int* pathCount, const int maxPath);
+	NAVMESH_API dtStatus finalizeSlicedFindPath(dtPolyRef* path, int* pathCount, const int maxPath);
 	
 	/// Finalizes and returns the results of an incomplete sliced path query, returning the path to the furthest
 	/// polygon on the existing path that was visited during the search.
@@ -431,7 +431,7 @@ public:
 	///  @param[out]	pathCount		The number of polygons returned in the @p path array.
 	///  @param[in]		maxPath			The max number of polygons the @p path array can hold. [Limit: >= 1]
 	/// @returns The status flags for the query.
-	dtStatus finalizeSlicedFindPathPartial(const dtPolyRef* existing, const int existingSize,
+	NAVMESH_API dtStatus finalizeSlicedFindPathPartial(const dtPolyRef* existing, const int existingSize,
 										   dtPolyRef* path, int* pathCount, const int maxPath);
 
 	///@}
@@ -450,7 +450,7 @@ public:
 	///  @param[out]	resultCount		The number of polygons found.
 	///  @param[in]		maxResult		The maximum number of polygons the result arrays can hold.
 	/// @returns The status flags for the query.
-	dtStatus findPolysAroundCircle(dtPolyRef startRef, const dtReal* centerPos, const dtReal radius,
+	NAVMESH_API dtStatus findPolysAroundCircle(dtPolyRef startRef, const dtReal* centerPos, const dtReal radius,
 								   const dtQueryFilter* filter,
 								   dtPolyRef* resultRef, dtPolyRef* resultParent, dtReal* resultCost,
 								   int* resultCount, const int maxResult) const;
@@ -468,7 +468,7 @@ public:
 	///  @param[out]	resultCount		The number of polygons found.
 	///  @param[in]		maxResult		The maximum number of polygons the result arrays can hold.
 	/// @returns The status flags for the query.
-	dtStatus findPolysAroundShape(dtPolyRef startRef, const dtReal* verts, const int nverts,
+	NAVMESH_API dtStatus findPolysAroundShape(dtPolyRef startRef, const dtReal* verts, const int nverts,
 								  const dtQueryFilter* filter,
 								  dtPolyRef* resultRef, dtPolyRef* resultParent, dtReal* resultCost,
 								  int* resultCount, const int maxResult) const;
@@ -483,7 +483,7 @@ public:
 	///  @param[out]	resultCount		The number of polygons found. [opt]
 	///  @param[in]		maxResult		The maximum number of polygons the result arrays can hold.
 	/// @returns The status flags for the querydtReal
-	dtStatus findPolysInPathDistance(dtPolyRef startRef, const dtReal* centerPos, const dtReal pathDistance,
+	NAVMESH_API dtStatus findPolysInPathDistance(dtPolyRef startRef, const dtReal* centerPos, const dtReal pathDistance,
 									const dtQueryFilter* filter, dtPolyRef* resultRef,
 									int* resultCount, const int maxResult) const;
 
@@ -499,7 +499,7 @@ public:
 	///  @param[out]	nearestPt	The nearest point on the polygon. [opt] [(x, y, z)]
 	///  @param[in]		referencePt	If supplied replaces @param center in terms of distance measurements. [opt] [(x, y, z)]
 	/// @returns The status flags for the query.
-	dtStatus findNearestPoly(const dtReal* center, const dtReal* extents,
+	NAVMESH_API dtStatus findNearestPoly(const dtReal* center, const dtReal* extents,
 							 const dtQueryFilter* filter,
 							 dtPolyRef* nearestRef, dtReal* nearestPt, const dtReal* referencePt = 0) const;
 
@@ -512,7 +512,7 @@ public:
 	///  @param[in]		referencePt	If supplied replaces @param center in terms of distance measurements. [opt] [(x, y, z)]
 	///  @param[in]		tolerance	Radius around best 2D point for picking vertical match
 	/// @returns The status flags for the query.
-	dtStatus findNearestPoly2D(const dtReal* center, const dtReal* extents,
+	NAVMESH_API dtStatus findNearestPoly2D(const dtReal* center, const dtReal* extents,
 							const dtQueryFilter* filter,
 							dtPolyRef* outProjectedRef, dtReal* outProjectedPt,
 							const dtReal* referencePt = 0, dtReal tolerance = 0) const;
@@ -524,7 +524,7 @@ public:
 	///  @param[out]	nearestRef	The reference id of the nearest polygon.
 	///  @param[out]	nearestPt	The nearest point on the polygon. [opt] [(x, y, z)]
 	/// @returns The status flags for the query.
-	dtStatus findNearestContainingPoly(const dtReal* center, const dtReal* extents,
+	NAVMESH_API dtStatus findNearestContainingPoly(const dtReal* center, const dtReal* extents,
 									   const dtQueryFilter* filter,
 									   dtPolyRef* nearestRef, dtReal* nearestPt) const;
 	//@UE END
@@ -537,7 +537,7 @@ public:
 	///  @param[out]	polyCount	The number of polygons in the search result.
 	///  @param[in]		maxPolys	The maximum number of polygons the search result can hold.
 	/// @returns The status flags for the query.
-	dtStatus queryPolygons(const dtReal* center, const dtReal* extents,
+	NAVMESH_API dtStatus queryPolygons(const dtReal* center, const dtReal* extents,
 						   const dtQueryFilter* filter,
 						   dtPolyRef* polys, int* polyCount, const int maxPolys) const;
 
@@ -552,26 +552,26 @@ public:
 	///  @param[out]	resultCount		The number of polygons found.
 	///  @param[in]		maxResult		The maximum number of polygons the result arrays can hold.
 	/// @returns The status flags for the query.
-	dtStatus findLocalNeighbourhood(dtPolyRef startRef, const dtReal* centerPos, const dtReal radius,
+	NAVMESH_API dtStatus findLocalNeighbourhood(dtPolyRef startRef, const dtReal* centerPos, const dtReal radius,
 									const dtQueryFilter* filter,
 									dtPolyRef* resultRef, dtPolyRef* resultParent,
 									int* resultCount, const int maxResult) const;
 
 	/// [UE] Finds the wall segments in local neighbourhood
-	dtStatus findWallsInNeighbourhood(dtPolyRef startRef, const dtReal* centerPos, const dtReal radius,
+	NAVMESH_API dtStatus findWallsInNeighbourhood(dtPolyRef startRef, const dtReal* centerPos, const dtReal radius,
 									  const dtQueryFilter* filter, 
 									  dtPolyRef* neiRefs, int* neiCount, const int maxNei,
 									  dtReal* resultWalls, dtPolyRef* resultRefs, int* resultCount, const int maxResult) const;
 
 
 	/// [UE] Finds the wall segments that overlap the polygon shape.
-	dtStatus findWallsOverlappingShape(dtPolyRef startRef, const dtReal* verts, const int nverts,
+	NAVMESH_API dtStatus findWallsOverlappingShape(dtPolyRef startRef, const dtReal* verts, const int nverts,
 									   const dtQueryFilter* filter, 
 									   dtPolyRef* neiRefs, int* neiCount, const int maxNei,
 									   dtReal* resultWalls, dtPolyRef* resultRefs, int* resultCount, const int maxResult) const;
 
 	/// [UE] Finds the wall segments that overlap the polygon shape.
-	dtStatus findWallsAroundPath(const dtPolyRef* path, const int pathCount, const dtReal* searchAreaPoly, const int searchAreaPolyCount,
+	NAVMESH_API dtStatus findWallsAroundPath(const dtPolyRef* path, const int pathCount, const dtReal* searchAreaPoly, const int searchAreaPolyCount,
 									   const dtReal maxAreaEnterCost, const dtQueryFilter* filter,
 									   dtPolyRef* neiRefs, int* neiCount, const int maxNei,
 									   dtReal* resultWalls, dtPolyRef* resultRefs, int* resultCount, const int maxResult) const;
@@ -586,7 +586,7 @@ public:
 	///  @param[out]	visitedCount	The number of polygons visited during the move.
 	///  @param[in]		maxVisitedSize	The maximum number of polygons the @p visited array can hold.
 	/// @returns The status flags for the query.
-	dtStatus moveAlongSurface(dtPolyRef startRef, const dtReal* startPos, const dtReal* endPos,
+	NAVMESH_API dtStatus moveAlongSurface(dtPolyRef startRef, const dtReal* startPos, const dtReal* endPos,
 							  const dtQueryFilter* filter,
 							  dtReal* resultPos, dtPolyRef* visited, int* visitedCount, const int maxVisitedSize) const;
 	
@@ -604,7 +604,7 @@ public:
 	///  @param[in]		maxPath		The maximum number of polygons the @p path array can hold.
 	///  @param[in]		walkableArea Specific area that can be visited or 255 to skip it and test all areas.
 	/// @returns The status flags for the query.
-	dtStatus raycast(dtPolyRef startRef, const dtReal* startPos, const dtReal* endPos,
+	NAVMESH_API dtStatus raycast(dtPolyRef startRef, const dtReal* startPos, const dtReal* endPos,
 					 const dtQueryFilter* filter,
 					 dtReal* t, dtReal* hitNormal, dtPolyRef* path, int* pathCount, const int maxPath) const;
 	
@@ -618,7 +618,7 @@ public:
 	///  @param[out]	hitNormal		The normalized ray formed from the wall point to the 
 	///  								source point. [(x, y, z)]
 	/// @returns The status flags for the query.
-	dtStatus findDistanceToWall(dtPolyRef startRef, const dtReal* centerPos, const dtReal maxRadius,
+	NAVMESH_API dtStatus findDistanceToWall(dtPolyRef startRef, const dtReal* centerPos, const dtReal maxRadius,
 								const dtQueryFilter* filter,
 								dtReal* hitDist, dtReal* hitPos, dtReal* hitNormal) const;
 	
@@ -631,7 +631,7 @@ public:
 	///  @param[out]	segmentCount	The number of segments returned.
 	///  @param[in]		maxSegments		The maximum number of segments the result arrays can hold.
 	/// @returns The status flags for the query.
-	dtStatus getPolyWallSegments(dtPolyRef ref, const dtQueryFilter* filter,
+	NAVMESH_API dtStatus getPolyWallSegments(dtPolyRef ref, const dtQueryFilter* filter,
 								 dtReal* segmentVerts, dtPolyRef* segmentRefs, int* segmentCount,
 								 const int maxSegments) const;
 
@@ -642,7 +642,7 @@ public:
 	///  @param[out]	randomRef		The reference id of the random location.
 	///  @param[out]	randomPt		The random location. 
 	/// @returns The status flags for the query.
-	dtStatus findRandomPoint(const dtQueryFilter* filter, float(*frand)(),
+	NAVMESH_API dtStatus findRandomPoint(const dtQueryFilter* filter, float(*frand)(),
 							 dtPolyRef* randomRef, dtReal* randomPt) const;
 
 	/// Returns random location on navmesh within the reach of specified location.
@@ -655,7 +655,7 @@ public:
 	///  @param[out]	randomRef		The reference id of the random location.
 	///  @param[out]	randomPt		The random location. [(x, y, z)]
 	/// @returns The status flags for the query.
-	dtStatus findRandomPointAroundCircle(dtPolyRef startRef, const dtReal* centerPos, const dtReal maxRadius,
+	NAVMESH_API dtStatus findRandomPointAroundCircle(dtPolyRef startRef, const dtReal* centerPos, const dtReal maxRadius,
 										 const dtQueryFilter* filter, float(*frand)(),
 										 dtPolyRef* randomRef, dtReal* randomPt) const;
 
@@ -664,7 +664,7 @@ public:
 	///  @param[in]		frand			Function returning a random number [0..1).
 	///  @param[out]	randomPt		The random location. [(x, y, z)]
 	/// @returns The status flags for the query.
-	dtStatus findRandomPointInPoly(dtPolyRef ref, float(*frand)(), dtReal* randomPt) const;
+	NAVMESH_API dtStatus findRandomPointInPoly(dtPolyRef ref, float(*frand)(), dtReal* randomPt) const;
 
 	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
@@ -672,21 +672,21 @@ public:
 	/// (cheap, does not care about link costs)
 	///  @param[in]		startRef			The reference id of the start polygon.
 	///  @param[in]		endRef				The reference id of the end polygon.
-	dtStatus testClusterPath(dtPolyRef startRef, dtPolyRef endRef) const; 
+	NAVMESH_API dtStatus testClusterPath(dtPolyRef startRef, dtPolyRef endRef) const; 
 
 	/// Returns random location on navmesh within specified cluster.
 	///  @param[in]		frand			Function returning a random number [0..1).
 	///  @param[out]	randomRef		The reference id of the random location.
 	///  @param[out]	randomPt		The random location. 
 	/// @returns The status flags for the query.
-	dtStatus findRandomPointInCluster(dtClusterRef clusterRef, float(*frand)(),
+	NAVMESH_API dtStatus findRandomPointInCluster(dtClusterRef clusterRef, float(*frand)(),
 									  dtPolyRef* randomRef, dtReal* randomPt) const;
 
 	/// Gets the cluster containing given polygon
 	///  @param[in]		polyRef		The reference id of the polygon.
 	///  @param[out]	clusterRef	The reference id of the cluster
 	/// @returns The status flags for the query.
-	dtStatus getPolyCluster(dtPolyRef polyRef, dtClusterRef& clusterRef) const;
+	NAVMESH_API dtStatus getPolyCluster(dtPolyRef polyRef, dtClusterRef& clusterRef) const;
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 //@UE END
 	
@@ -695,7 +695,7 @@ public:
 	///  @param[in]		pos			The position to check. [(x, y, z)]
 	///  @param[out]	closest		The closest point on the polygon. [(x, y, z)]
 	/// @returns The status flags for the query.
-	dtStatus closestPointOnPoly(dtPolyRef ref, const dtReal* pos, dtReal* closest) const;
+	NAVMESH_API dtStatus closestPointOnPoly(dtPolyRef ref, const dtReal* pos, dtReal* closest) const;
 	
 	/// Returns a point on the boundary closest to the source point if the source point is outside the 
 	/// polygon's xz-bounds.
@@ -703,28 +703,28 @@ public:
 	///  @param[in]		pos			The position to check. [(x, y, z)]
 	///  @param[out]	closest		The closest point. [(x, y, z)]
 	/// @returns The status flags for the query.
-	dtStatus closestPointOnPolyBoundary(dtPolyRef ref, const dtReal* pos, dtReal* closest) const;
+	NAVMESH_API dtStatus closestPointOnPolyBoundary(dtPolyRef ref, const dtReal* pos, dtReal* closest) const;
 
 	/// Finds the point's projection on the specified polygon.
 	///  @param[in]		ref			The reference id of the polygon.
 	///  @param[in]		pos			The position to check. [(x, y, z)]
 	///  @param[out]	closest		The projected point on the polygon. [(x, y, z)]
 	/// @returns The status flags for the query.
-	dtStatus projectedPointOnPoly(dtPolyRef ref, const dtReal* pos, dtReal* projected) const;
+	NAVMESH_API dtStatus projectedPointOnPoly(dtPolyRef ref, const dtReal* pos, dtReal* projected) const;
 	
 	/// Checks if specified pos is inside given polygon specified by ref
 	///  @param[in]		ref			The reference id of the polygon.
 	///  @param[in]		pos			The position to check. [(x, y, z)]
 	///  @param[out]	result		The result of the check, whether the point is inside (true) or not (false)
 	/// @returns The status flags for the query.
-	dtStatus isPointInsidePoly(dtPolyRef ref, const dtReal* pos, bool& result) const;
+	NAVMESH_API dtStatus isPointInsidePoly(dtPolyRef ref, const dtReal* pos, bool& result) const;
 
 	/// Gets the height of the polygon at the provided position using the height detail. (Most accurate.)
 	///  @param[in]		ref			The reference id of the polygon.
 	///  @param[in]		pos			A position within the xz-bounds of the polygon. [(x, y, z)]
 	///  @param[out]	height		The height at the surface of the polygon.
 	/// @returns The status flags for the query.
-	dtStatus getPolyHeight(dtPolyRef ref, const dtReal* pos, dtReal* height) const;
+	NAVMESH_API dtStatus getPolyHeight(dtPolyRef ref, const dtReal* pos, dtReal* height) const;
 
 	/// @}
 	/// @name Miscellaneous Functions
@@ -733,18 +733,18 @@ public:
 	/// Returns true if the polygon reference is valid and passes the filter restrictions.
 	///  @param[in]		ref			The polygon reference to check.
 	///  @param[in]		filter		The filter to apply.
-	bool isValidPolyRef(dtPolyRef ref, const dtQueryFilter* filter) const;
+	NAVMESH_API bool isValidPolyRef(dtPolyRef ref, const dtQueryFilter* filter) const;
 
 	/// Returns true if the polygon reference is in the closed list. 
 	///  @param[in]		ref		The reference id of the polygon to check.
 	/// @returns True if the polygon is in closed list.
-	bool isInClosedList(dtPolyRef ref) const;
+	NAVMESH_API bool isInClosedList(dtPolyRef ref) const;
 	
 	/// Returns true if the cluster link was used in previous search. 
 	///  @param[in]		cFrom		The reference id of the start cluster.
 	///  @param[in]		cto			The reference id of the end cluster.
 	/// @returns True if the cluster link was searched.
-	bool wasClusterLinkSearched(dtPolyRef cFrom, dtPolyRef cTo) const;
+	NAVMESH_API bool wasClusterLinkSearched(dtPolyRef cFrom, dtPolyRef cTo) const;
 
 	/// Gets the node pool.
 	/// @returns The node pool.
@@ -763,43 +763,43 @@ public:
 private:
 	
 	/// Returns neighbour tile based on side.
-	dtMeshTile* getNeighbourTileAt(int x, int y, int side) const;
+	NAVMESH_API dtMeshTile* getNeighbourTileAt(int x, int y, int side) const;
 
 	/// Queries polygons within a tile.
-	int queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, const dtReal* qmax, const dtQueryFilter* filter,
+	NAVMESH_API int queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, const dtReal* qmax, const dtQueryFilter* filter,
 							dtPolyRef* polys, const int maxPolys) const;
 	/// Find nearest polygon within a tile.
-	dtPolyRef findNearestPolyInTile(const dtMeshTile* tile, const dtReal* center, const dtReal* extents,
+	NAVMESH_API dtPolyRef findNearestPolyInTile(const dtMeshTile* tile, const dtReal* center, const dtReal* extents,
 									const dtQueryFilter* filter, dtReal* nearestPt) const;
 	/// Returns closest point on polygon.
-	void closestPointOnPolyInTile(const dtMeshTile* tile, const dtPoly* poly, const dtReal* pos, dtReal* closest) const;
+	NAVMESH_API void closestPointOnPolyInTile(const dtMeshTile* tile, const dtPoly* poly, const dtReal* pos, dtReal* closest) const;
 
 	/// Returns projected point on polygon.
-	dtStatus projectedPointOnPolyInTile(const dtMeshTile* tile, const dtPoly* poly, const dtReal* pos, dtReal* projected) const;
+	NAVMESH_API dtStatus projectedPointOnPolyInTile(const dtMeshTile* tile, const dtPoly* poly, const dtReal* pos, dtReal* projected) const;
 	
 	//@UE BEGIN
 	// exposing function to be able to generate navigation corridors as sequence of point pairs
 public:
 	/// Returns portal points between two polygons.
-	dtStatus getPortalPoints(dtPolyRef from, dtPolyRef to, dtReal* left, dtReal* right,
+	NAVMESH_API dtStatus getPortalPoints(dtPolyRef from, dtPolyRef to, dtReal* left, dtReal* right,
 							 unsigned char& fromType, unsigned char& toType) const;
-	dtStatus getPortalPoints(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
+	NAVMESH_API dtStatus getPortalPoints(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
 							 dtPolyRef to, const dtPoly* toPoly, const dtMeshTile* toTile,
 							 dtReal* left, dtReal* right) const;
 	
 	/// Returns edge mid point between two polygons.
-	dtStatus getEdgeMidPoint(dtPolyRef from, dtPolyRef to, dtReal* mid) const;
-	dtStatus getEdgeMidPoint(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
+	NAVMESH_API dtStatus getEdgeMidPoint(dtPolyRef from, dtPolyRef to, dtReal* mid) const;
+	NAVMESH_API dtStatus getEdgeMidPoint(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
 							 dtPolyRef to, const dtPoly* toPoly, const dtMeshTile* toTile,
 							 dtReal* mid) const;
 	//@UE END
 
 	// Appends vertex to a straight path
-	dtStatus appendVertex(const dtReal* pos, const unsigned char flags, const dtPolyRef ref,
+	NAVMESH_API dtStatus appendVertex(const dtReal* pos, const unsigned char flags, const dtPolyRef ref,
 						  dtQueryResult& result, const bool bOverrideIdenticalPosition = true) const;
 
 	// Appends intermediate portal points to a straight path.
-	dtStatus appendPortals(const int startIdx, const int endIdx, const dtReal* endPos, const dtPolyRef* path,
+	NAVMESH_API dtStatus appendPortals(const int startIdx, const int endIdx, const dtReal* endPos, const dtPolyRef* path,
 						   dtQueryResult& result, const int options) const;
 	
 	inline bool passLinkFilterByRef(const dtMeshTile* tile, const dtPolyRef ref) const

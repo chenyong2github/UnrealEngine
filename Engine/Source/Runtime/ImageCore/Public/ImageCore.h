@@ -316,7 +316,7 @@ struct FImageView : public FImageInfo
 	IMAGECORE_API void CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const;
 	
 	// CopyTo same format
-	IMAGECORE_API void CopyTo(FImage& DestImage) const
+	void CopyTo(FImage& DestImage) const
 	{
 		CopyTo(DestImage,Format,GammaSpace);
 	}
@@ -330,7 +330,7 @@ struct FImageView : public FImageInfo
 	}
 
 	// Get one pixel from the image and return in Linear color
-	IMAGECORE_API const FLinearColor GetOnePixelLinear(int32 X,int32 Y,int32 Slice=0) const
+	const FLinearColor GetOnePixelLinear(int32 X,int32 Y,int32 Slice=0) const
 	{
 		void * Ptr = GetPixelPointer(X,Y,Slice);
 		return ERawImageFormat::GetOnePixelLinear(Ptr,Format,GammaSpace);
@@ -479,7 +479,7 @@ public:
 	IMAGECORE_API void CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const;
 	
 	// CopyTo same format
-	IMAGECORE_API void CopyTo(FImage& DestImage) const
+	void CopyTo(FImage& DestImage) const
 	{
 		CopyTo(DestImage,Format,GammaSpace);
 	}
@@ -568,7 +568,7 @@ public:
 	}
 
 	// Get one pixel from the image and return in Linear color
-	IMAGECORE_API const FLinearColor GetOnePixelLinear(int32 X,int32 Y,int32 Slice=0) const
+	const FLinearColor GetOnePixelLinear(int32 X,int32 Y,int32 Slice=0) const
 	{
 		void * Ptr = GetPixelPointer(X,Y,Slice);
 		return ERawImageFormat::GetOnePixelLinear(Ptr,Format,GammaSpace);

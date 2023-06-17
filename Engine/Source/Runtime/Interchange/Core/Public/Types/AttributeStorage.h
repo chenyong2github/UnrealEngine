@@ -425,7 +425,7 @@ namespace UE
 		 * The storage is multi thread safe, it use a mutex to lock the storage for every read/write operation.
 		 * The hash of the storage is deterministic because it sort the attributes before calculating the hash.
 		 */
-		class INTERCHANGECORE_API FAttributeStorage
+		class FAttributeStorage
 		{
 		public:
 			/**
@@ -510,9 +510,9 @@ namespace UE
 
 			FAttributeStorage() = default;
 
-			FAttributeStorage(const FAttributeStorage& Other);
+			INTERCHANGECORE_API FAttributeStorage(const FAttributeStorage& Other);
 
-			FAttributeStorage& operator=(const FAttributeStorage& Other);
+			INTERCHANGECORE_API FAttributeStorage& operator=(const FAttributeStorage& Other);
 
 			/**
 			 * Register an attribute in the storage. Return success if the attribute was properly added, or there is an existing
@@ -579,7 +579,7 @@ namespace UE
 			 * - Key do not exist
 			 * - Internal storage structure remove error
 			 */
-			EAttributeStorageResult UnregisterAttribute(const FAttributeKey& ElementAttributeKey);
+			INTERCHANGECORE_API EAttributeStorageResult UnregisterAttribute(const FAttributeKey& ElementAttributeKey);
 
 			/**
 			 * Return an attribute handle for the specified attribute. This handle is compile type check and is use to Get and Set the attribute value type.
@@ -601,7 +601,7 @@ namespace UE
 			 * @param ElementAttributeKey - is the storage key (the path) of the attribute.
 			 *
 			 */
-			EAttributeTypes GetAttributeType(const FAttributeKey& ElementAttributeKey) const;
+			INTERCHANGECORE_API EAttributeTypes GetAttributeType(const FAttributeKey& ElementAttributeKey) const;
 
 			/**
 			 * Return true if the attribute key point on an existing attribute in the storage. Return false otherwise
@@ -609,13 +609,13 @@ namespace UE
 			 * @param ElementAttributeKey - is the storage key (the path) of the attribute.
 			 *
 			 */
-			bool ContainAttribute(const FAttributeKey& ElementAttributeKey) const;
+			INTERCHANGECORE_API bool ContainAttribute(const FAttributeKey& ElementAttributeKey) const;
 
 			/**
 			 * This function allow the user to retrieve the array of keys to iterate and do reflection on the storage content
 			 *
 			 */
-			void GetAttributeKeys(TArray<FAttributeKey>& AttributeKeys) const;
+			INTERCHANGECORE_API void GetAttributeKeys(TArray<FAttributeKey>& AttributeKeys) const;
 	
 			/**
 			 * Return a FGuid build from the FSHA1 of the specified attribute data. If the Attribute do not exist it return an empty FGUID
@@ -623,7 +623,7 @@ namespace UE
 			 * @param ElementAttributeKey is the storage key (the path) of the attribute.
 			 *
 			 */
-			FGuid GetAttributeHash(const FAttributeKey& ElementAttributeKey) const;
+			INTERCHANGECORE_API FGuid GetAttributeHash(const FAttributeKey& ElementAttributeKey) const;
 	
 			/**
 			 * This function fill the OutGuid with the hash of the specified attribute. Return true if the attribute exist and the OutGuid was assign, return false otherwise without touching the OutGuid.
@@ -632,7 +632,7 @@ namespace UE
 			 * @param OutGuid - is where we put the attribute hash.
 			 *
 			 */
-			bool GetAttributeHash(const FAttributeKey& ElementAttributeKey, FGuid& OutGuid) const;
+			INTERCHANGECORE_API bool GetAttributeHash(const FAttributeKey& ElementAttributeKey, FGuid& OutGuid) const;
 
 			/**
 			 * Return a FGuid build from the FSHA1 of all the attribute data contain in the node.
@@ -641,7 +641,7 @@ namespace UE
 			 * @note the attribute are sorted by key when building the FSHA1 data. The hash will be deterministic for the same data whatever
 			 * the order we add the attributes.
 			 */
-			FGuid GetStorageHash() const;
+			INTERCHANGECORE_API FGuid GetStorageHash() const;
 
 			/**
 			 * Compare two storage to know which properties was modified/added/removed.
@@ -653,7 +653,7 @@ namespace UE
 			 * @param ModifiedAttributes - All attributes that are in both storage base storage but have a different hash (different value)
 			 *
 			 */
-			static void CompareStorage(const FAttributeStorage& BaseStorage, const FAttributeStorage& VersionStorage, TArray<FAttributeKey>& RemovedAttributes, TArray<FAttributeKey>& AddedAttributes, TArray<FAttributeKey>& ModifiedAttributes);
+			static INTERCHANGECORE_API void CompareStorage(const FAttributeStorage& BaseStorage, const FAttributeStorage& VersionStorage, TArray<FAttributeKey>& RemovedAttributes, TArray<FAttributeKey>& AddedAttributes, TArray<FAttributeKey>& ModifiedAttributes);
 
 			/**
 			 * Copy an array of attributes from the source storage to the destination storage. If the attribute already exist in the destination, the value will be updated.
@@ -664,7 +664,7 @@ namespace UE
 			 * @param AttributeKeys - All attributes that must be copy from the source to the destination.
 			 *
 			 */
-			static void CopyStorageAttributes(const FAttributeStorage& SourceStorage, FAttributeStorage& DestinationStorage, const TArray<FAttributeKey>& AttributeKeys);
+			static INTERCHANGECORE_API void CopyStorageAttributes(const FAttributeStorage& SourceStorage, FAttributeStorage& DestinationStorage, const TArray<FAttributeKey>& AttributeKeys);
 
 			/**
 			 * Return the defrag ratio. This ratio is use to know when we need to defrag the storage
@@ -677,7 +677,7 @@ namespace UE
 			}
 	
 			/** Set the defrag ratio. See the GetDefragRatio for the defrag documentation. */
-			void SetDefragRatio(const float InDefragRatio);
+			INTERCHANGECORE_API void SetDefragRatio(const float InDefragRatio);
 	
 			friend FArchive& operator<<(FArchive& Ar, FAttributeStorage& Storage)
 			{
@@ -694,7 +694,7 @@ namespace UE
 			 * @param NewAttributeCount: The number of attribute we want to reserve. Zero value do not reserve attribute count
 			 * @param NewStorageSize: The size on the storage all those new attribute will need. Passing zero value do not reserve storage size
 			 */
-			void Reserve(int64 NewAttributeCount, int64 NewStorageSize);
+			INTERCHANGECORE_API void Reserve(int64 NewAttributeCount, int64 NewStorageSize);
 
 		protected:
 			/** Structure use to hold the attribute information store in the attribute allocation table. */
@@ -774,9 +774,9 @@ namespace UE
 			}
 	
 			/** Defrag the storage by using memmove on the attribute store after a hole in the storage. */
-			void DefragInternal();
+			INTERCHANGECORE_API void DefragInternal();
 
-			static FGuid GetValueHash(const uint8* Value, uint64 ValueSize);
+			static INTERCHANGECORE_API FGuid GetValueHash(const uint8* Value, uint64 ValueSize);
 
 			/** Return the storage size of the value. */
 			template<typename T>
@@ -915,13 +915,13 @@ namespace UE
 				return GenericArrayGetAttribute(ElementAttributeKey, OutValue);
 			}
 	
-			void ExtractFStringAttributeFromStorage(const uint8* StorageData, const FAttributeAllocationInfo* AttributeAllocationInfo, FString& OutValue) const;
+			INTERCHANGECORE_API void ExtractFStringAttributeFromStorage(const uint8* StorageData, const FAttributeAllocationInfo* AttributeAllocationInfo, FString& OutValue) const;
 
-			EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, FString& OutValue, TSpecializeType<FString >) const;
+			INTERCHANGECORE_API EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, FString& OutValue, TSpecializeType<FString >) const;
 
-			EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, FName& OutValue, TSpecializeType<FName >) const;
+			INTERCHANGECORE_API EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, FName& OutValue, TSpecializeType<FName >) const;
 
-			EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, FSoftObjectPath& OutValue, TSpecializeType<FSoftObjectPath >) const;
+			INTERCHANGECORE_API EAttributeStorageResult GetAttribute(const FAttributeKey& ElementAttributeKey, FSoftObjectPath& OutValue, TSpecializeType<FSoftObjectPath >) const;
 
 			template<typename T>
 			static uint64 GetValueSize(const T& Value, TSpecializeType<T>)
@@ -934,7 +934,7 @@ namespace UE
 				return sizeof(T);
 			}
 	
-			static uint64 GetValueSize(const FString& Value, TSpecializeType<FString >);
+			static INTERCHANGECORE_API uint64 GetValueSize(const FString& Value, TSpecializeType<FString >);
 
 			static uint64 GetValueSize(const FName& Value, TSpecializeType<FName>)
 			{
@@ -948,9 +948,9 @@ namespace UE
 				return GetValueSize(ValueStr, TSpecializeType<FString >());
 			}
 
-			static uint64 GetValueSize(const TArray<uint8>& Value, TSpecializeType<TArray<uint8> >);
+			static INTERCHANGECORE_API uint64 GetValueSize(const TArray<uint8>& Value, TSpecializeType<TArray<uint8> >);
 
-			static uint64 GetValueSize(const TArray64<uint8>& Value, TSpecializeType<TArray64<uint8> >);
+			static INTERCHANGECORE_API uint64 GetValueSize(const TArray64<uint8>& Value, TSpecializeType<TArray64<uint8> >);
 	
 			// End specialize templates
 

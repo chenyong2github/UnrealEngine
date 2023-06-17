@@ -101,8 +101,8 @@ struct TStructOpsTypeTraits<FMovieSceneTrackInstanceInput> : public TStructOpsTy
 /**
  * Base class for all track instances. Can also be used for root tracks where AnimatedObject will be nullptr
  */
-UCLASS(transient)
-class MOVIESCENE_API UMovieSceneTrackInstance : public UObject
+UCLASS(transient, MinimalAPI)
+class UMovieSceneTrackInstance : public UObject
 {
 public:
 	GENERATED_BODY()
@@ -113,25 +113,25 @@ public:
 	 * @param InAnimatedObject     (optional) The object that we should animate
 	 * @param InLinker             The entity system linker that owns this animator. Used for retrieving contexts and player information.
 	 */
-	void Initialize(UObject* InAnimatedObject, UMovieSceneEntitySystemLinker* InLinker);
+	MOVIESCENE_API void Initialize(UObject* InAnimatedObject, UMovieSceneEntitySystemLinker* InLinker);
 
 
 	/**
 	 * Run this animator for the current frame
 	 */
-	void Animate();
+	MOVIESCENE_API void Animate();
 
 
 	/**
 	 * Update the inputs that contribute to this animator
 	 */
-	void UpdateInputs(TArray<FMovieSceneTrackInstanceInput>&& InNewInputs);
+	MOVIESCENE_API void UpdateInputs(TArray<FMovieSceneTrackInstanceInput>&& InNewInputs);
 
 
 	/**
 	 * Destroy this animator. The animator may still have inputs when it is destroyed.
 	 */
-	void Destroy();
+	MOVIESCENE_API void Destroy();
 
 
 public:
@@ -163,7 +163,7 @@ public:
 		return Inputs;
 	}
 
-	virtual UWorld* GetWorld() const override;
+	MOVIESCENE_API virtual UWorld* GetWorld() const override;
 #if WITH_EDITOR
 	virtual bool ImplementsGetWorld() const override { return true; }
 #endif

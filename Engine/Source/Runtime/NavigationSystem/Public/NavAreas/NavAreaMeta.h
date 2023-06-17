@@ -16,11 +16,11 @@ class UObject;
 /** A convenience class for an area that has IsMetaArea() == true.
  *	Do not use this class when determining whether an area class is "meta". 
  *	Call IsMetaArea instead. */
-UCLASS(Abstract)
-class NAVIGATIONSYSTEM_API UNavAreaMeta : public UNavArea
+UCLASS(Abstract, MinimalAPI)
+class UNavAreaMeta : public UNavArea
 {
 	GENERATED_BODY()
 
 public:
-	UNavAreaMeta(const FObjectInitializer& ObjectInitializer);
+	NAVIGATIONSYSTEM_API UNavAreaMeta(const FObjectInitializer& ObjectInitializer);
 };

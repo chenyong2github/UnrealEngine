@@ -17,26 +17,26 @@ class UBehaviorTree;
  * Does NOT support subtree's root level decorators!
  */
 
-UCLASS()
-class AIMODULE_API UBTTask_RunBehaviorDynamic : public UBTTaskNode
+UCLASS(MinimalAPI)
+class UBTTask_RunBehaviorDynamic : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual void OnInstanceCreated(UBehaviorTreeComponent& OwnerComp) override;
-	virtual FString GetStaticDescription() const override;
-	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual void OnInstanceCreated(UBehaviorTreeComponent& OwnerComp) override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 
-	bool HasMatchingTag(const FGameplayTag& Tag) const;
-	const FGameplayTag& GetInjectionTag() const;
-	bool SetBehaviorAsset(UBehaviorTree* NewBehaviorAsset);
+	AIMODULE_API bool HasMatchingTag(const FGameplayTag& Tag) const;
+	AIMODULE_API const FGameplayTag& GetInjectionTag() const;
+	AIMODULE_API bool SetBehaviorAsset(UBehaviorTree* NewBehaviorAsset);
 	
 	/** @returns default subtree asset */
-	UBehaviorTree* GetDefaultBehaviorAsset() const;
+	AIMODULE_API UBehaviorTree* GetDefaultBehaviorAsset() const;
 
 protected:
 
@@ -53,7 +53,7 @@ protected:
 	TObjectPtr<UBehaviorTree> BehaviorAsset;
 
 	/** called when subtree is removed from active stack */
-	virtual void OnSubtreeDeactivated(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type NodeResult);
+	AIMODULE_API virtual void OnSubtreeDeactivated(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type NodeResult);
 };
 
 //////////////////////////////////////////////////////////////////////////

@@ -19,12 +19,12 @@ using FEntityAllocationIteratorItem = FEntityAllocationProxy;
 /**
  * Object that iterates all entity allocations that match a specific filter
  */
-struct MOVIESCENE_API FEntityAllocationIterator
+struct FEntityAllocationIterator
 {
 	/**
 	 * End iterator constructor
 	 */
-	explicit FEntityAllocationIterator(const FEntityManager* InManager);
+	MOVIESCENE_API explicit FEntityAllocationIterator(const FEntityManager* InManager);
 
 	/**
 	 * Construction from the entity manager to iterate, and a filter
@@ -32,33 +32,33 @@ struct MOVIESCENE_API FEntityAllocationIterator
 	 * @param InManager        The entity manager to iterate
 	 * @param InFilter         Filter that defines the components to match. Copied into this object.
 	 */
-	explicit FEntityAllocationIterator(const FEntityManager* InManager, const FEntityComponentFilter* InFilter);
+	MOVIESCENE_API explicit FEntityAllocationIterator(const FEntityManager* InManager, const FEntityComponentFilter* InFilter);
 
-	FEntityAllocationIterator(FEntityAllocationIterator&&);
-	FEntityAllocationIterator& operator=(FEntityAllocationIterator&&);
+	MOVIESCENE_API FEntityAllocationIterator(FEntityAllocationIterator&&);
+	MOVIESCENE_API FEntityAllocationIterator& operator=(FEntityAllocationIterator&&);
 
 	/**
 	 * Destructor
 	 */
-	~FEntityAllocationIterator();
+	MOVIESCENE_API ~FEntityAllocationIterator();
 
 
 	/**
 	 * Retrieve the entity allocation that this iterator represents. Only valid if this iterator != end()
 	 */
-	FEntityAllocationIteratorItem operator*() const;
+	MOVIESCENE_API FEntityAllocationIteratorItem operator*() const;
 
 
 	/**
 	 * Increment this iterator to the next matching allocation. Only valid if this iterator != end()
 	 */
-	FEntityAllocationIterator& operator++();
+	MOVIESCENE_API FEntityAllocationIterator& operator++();
 
 
 	/**
 	 * Test whether this iterator is valid (ie not at the end of the iteration)
 	 */
-	bool operator!=(const FEntityAllocationIterator& Other) const;
+	MOVIESCENE_API bool operator!=(const FEntityAllocationIterator& Other) const;
 
 private:
 

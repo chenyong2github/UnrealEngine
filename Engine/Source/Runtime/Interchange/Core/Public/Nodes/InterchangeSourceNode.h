@@ -22,8 +22,8 @@ struct FFrame;
 /**
  * This class allow a translator to add general source data that describe the whole source. Pipeline can use this information.
  */
-UCLASS(BlueprintType, Experimental)
-class INTERCHANGECORE_API UInterchangeSourceNode : public UInterchangeBaseNode
+UCLASS(BlueprintType, Experimental, MinimalAPI)
+class UInterchangeSourceNode : public UInterchangeBaseNode
 {
 	GENERATED_BODY()
 
@@ -37,74 +37,74 @@ public:
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | source")
-	void InitializeSourceNode(const FString& UniqueID, const FString& DisplayLabel);
+	INTERCHANGECORE_API void InitializeSourceNode(const FString& UniqueID, const FString& DisplayLabel);
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */
-	virtual FString GetTypeName() const override;
+	INTERCHANGECORE_API virtual FString GetTypeName() const override;
 
 	/* The translators that want to modify the common data should ensure they create the unique common pipeline node. */
-	static UInterchangeSourceNode* FindOrCreateUniqueInstance(UInterchangeBaseNodeContainer* NodeContainer);
+	static INTERCHANGECORE_API UInterchangeSourceNode* FindOrCreateUniqueInstance(UInterchangeBaseNodeContainer* NodeContainer);
 
 	/* If the unique instance doesn't exist it will return nullptr. This function should be use by the pipelines, to avoid creating a node. */
-	static const UInterchangeSourceNode* GetUniqueInstance(const UInterchangeBaseNodeContainer* NodeContainer);
+	static INTERCHANGECORE_API const UInterchangeSourceNode* GetUniqueInstance(const UInterchangeBaseNodeContainer* NodeContainer);
 
 	/** Query the source frame rate numerator. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool GetCustomSourceFrameRateNumerator(int32& AttributeValue) const;
+	INTERCHANGECORE_API bool GetCustomSourceFrameRateNumerator(int32& AttributeValue) const;
 
 	/** Store the source frame rate numerator. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool SetCustomSourceFrameRateNumerator(const int32& AttributeValue);
+	INTERCHANGECORE_API bool SetCustomSourceFrameRateNumerator(const int32& AttributeValue);
 
 	/** Query the source frame rate denominator. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool GetCustomSourceFrameRateDenominator(int32& AttributeValue) const;
+	INTERCHANGECORE_API bool GetCustomSourceFrameRateDenominator(int32& AttributeValue) const;
 
 	/** Store the source frame rate denominator. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool SetCustomSourceFrameRateDenominator(const int32& AttributeValue);
+	INTERCHANGECORE_API bool SetCustomSourceFrameRateDenominator(const int32& AttributeValue);
 
 	/** Query the source time line start. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool GetCustomSourceTimelineStart(double& AttributeValue) const;
+	INTERCHANGECORE_API bool GetCustomSourceTimelineStart(double& AttributeValue) const;
 
 	/** Store the source time line start. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool SetCustomSourceTimelineStart(const double& AttributeValue);
+	INTERCHANGECORE_API bool SetCustomSourceTimelineStart(const double& AttributeValue);
 
 	/** Query the source time line end. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool GetCustomSourceTimelineEnd(double& AttributeValue) const;
+	INTERCHANGECORE_API bool GetCustomSourceTimelineEnd(double& AttributeValue) const;
 
 	/** Store the source time line end. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool SetCustomSourceTimelineEnd(const double& AttributeValue);
+	INTERCHANGECORE_API bool SetCustomSourceTimelineEnd(const double& AttributeValue);
 
 	/** Query the source animated time start. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool GetCustomAnimatedTimeStart(double& AttributeValue) const;
+	INTERCHANGECORE_API bool GetCustomAnimatedTimeStart(double& AttributeValue) const;
 
 	/** Store the source animated time start. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool SetCustomAnimatedTimeStart(const double& AttributeValue);
+	INTERCHANGECORE_API bool SetCustomAnimatedTimeStart(const double& AttributeValue);
 
 	/** Query the source animated time end. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool GetCustomAnimatedTimeEnd(double& AttributeValue) const;
+	INTERCHANGECORE_API bool GetCustomAnimatedTimeEnd(double& AttributeValue) const;
 
 	/** Store the source animated time end. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool SetCustomAnimatedTimeEnd(const double& AttributeValue);
+	INTERCHANGECORE_API bool SetCustomAnimatedTimeEnd(const double& AttributeValue);
 
 	/** Query the source animated time end. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool GetCustomImportUnusedMaterial(bool& AttributeValue) const;
+	INTERCHANGECORE_API bool GetCustomImportUnusedMaterial(bool& AttributeValue) const;
 
 	/** Store the source animated time end. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Source")
-	bool SetCustomImportUnusedMaterial(const bool& AttributeValue);
+	INTERCHANGECORE_API bool SetCustomImportUnusedMaterial(const bool& AttributeValue);
 
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomSourceFrameRateNumeratorKey = UE::Interchange::FAttributeKey(TEXT("SourceFrameRateNumerator"));

@@ -310,7 +310,7 @@ public:
 	LANDSCAPE_API void SnapFoliageInstances();
 #endif
 
-	LANDSCAPE_API void SetRenderComponent(ULandscapeComponent* InRenderComponent) { RenderComponentRef = InRenderComponent; }
+	void SetRenderComponent(ULandscapeComponent* InRenderComponent) { RenderComponentRef = InRenderComponent; }
 
 public:
 	TOptional<float> GetHeight(float X, float Y, EHeightfieldSource HeightFieldSource);

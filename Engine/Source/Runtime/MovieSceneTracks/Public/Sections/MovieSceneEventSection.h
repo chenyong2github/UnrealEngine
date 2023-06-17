@@ -19,7 +19,7 @@
 struct EventData;
 
 USTRUCT(BlueprintType)
-struct MOVIESCENETRACKS_API FMovieSceneEventParameters
+struct FMovieSceneEventParameters
 {
 	GENERATED_BODY()
 
@@ -62,19 +62,19 @@ struct MOVIESCENETRACKS_API FMovieSceneEventParameters
 	 *
 	 * @param OutStruct Structure to receive the instance
 	 */
-	void GetInstance(FStructOnScope& OutStruct) const;
+	MOVIESCENETRACKS_API void GetInstance(FStructOnScope& OutStruct) const;
 
 	/**
 	 * Overwrite this payload with another instance of the same type.
 	 *
 	 * @param InstancePtr A valid pointer to an instance of the type represented by GetStructType
 	 */
-	void OverwriteWith(uint8* InstancePtr);
+	MOVIESCENETRACKS_API void OverwriteWith(uint8* InstancePtr);
 
 	/**
 	 * Serialization implementation
 	 */
-	bool Serialize(FArchive& Ar);
+	MOVIESCENETRACKS_API bool Serialize(FArchive& Ar);
 
 	friend FArchive& operator<<(FArchive& Ar, FMovieSceneEventParameters& Payload)
 	{
@@ -129,7 +129,7 @@ struct FEventPayload
 
 /** A curve of events */
 USTRUCT()
-struct MOVIESCENETRACKS_API FMovieSceneEventSectionData : public FMovieSceneChannel
+struct FMovieSceneEventSectionData : public FMovieSceneChannel
 {
 	GENERATED_BODY()
 
@@ -137,7 +137,7 @@ struct MOVIESCENETRACKS_API FMovieSceneEventSectionData : public FMovieSceneChan
 		/**
 	 * Called after this section data has been serialized to upgrade old data
 	 */
-	void PostSerialize(const FArchive& Ar);
+	MOVIESCENETRACKS_API void PostSerialize(const FArchive& Ar);
 #endif
 
 	/**
@@ -173,17 +173,17 @@ struct MOVIESCENETRACKS_API FMovieSceneEventSectionData : public FMovieSceneChan
 public:
 
 	// ~ FMovieSceneChannel Interface
-	virtual void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles) override;
-	virtual void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes) override;
-	virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
-	virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
-	virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
-	virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
-	virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
-	virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
-	virtual int32 GetNumKeys() const override;
-	virtual void Reset() override;
-	virtual void Offset(FFrameNumber DeltaPosition) override;
+	MOVIESCENETRACKS_API virtual void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles) override;
+	MOVIESCENETRACKS_API virtual void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes) override;
+	MOVIESCENETRACKS_API virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
+	MOVIESCENETRACKS_API virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
+	MOVIESCENETRACKS_API virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
+	MOVIESCENETRACKS_API virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
+	MOVIESCENETRACKS_API virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
+	MOVIESCENETRACKS_API virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
+	MOVIESCENETRACKS_API virtual int32 GetNumKeys() const override;
+	MOVIESCENETRACKS_API virtual void Reset() override;
+	MOVIESCENETRACKS_API virtual void Offset(FFrameNumber DeltaPosition) override;
 	virtual void Optimize(const FKeyDataOptimizationParams& InParameters) override {}
 	virtual void ClearDefault() override {}
 

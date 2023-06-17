@@ -27,11 +27,11 @@ namespace UE { namespace Geometry { class FDynamicMesh3; } }
  * FMeshChange represents an undoable change to a FDynamicMesh3.
  * Currently only valid to call Apply/Revert when the Object is a one of several components backed by FDynamicMesh: UDynamicMeshComponent, UOctreeDynamicMeshComponent, UPreviewMesh
  */
-class GEOMETRYFRAMEWORK_API FMeshChange : public FToolCommandChange
+class FMeshChange : public FToolCommandChange
 {
 public:
-	FMeshChange();
-	FMeshChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> DynamicMeshChangeIn);
+	GEOMETRYFRAMEWORK_API FMeshChange();
+	GEOMETRYFRAMEWORK_API FMeshChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> DynamicMeshChangeIn);
 
 	TUniquePtr<UE::Geometry::FDynamicMeshChange> DynamicMeshChange;
 
@@ -39,13 +39,13 @@ public:
 	TFunction<void(FMeshChange*, UObject*, bool)> OnChangeAppliedFunc;
 
 	/** Makes the change to the object */
-	virtual void Apply(UObject* Object) override;
+	GEOMETRYFRAMEWORK_API virtual void Apply(UObject* Object) override;
 
 	/** Reverts change to the object */
-	virtual void Revert(UObject* Object) override;
+	GEOMETRYFRAMEWORK_API virtual void Revert(UObject* Object) override;
 
 	/** Describes this change (for debugging) */
-	virtual FString ToString() const override;
+	GEOMETRYFRAMEWORK_API virtual FString ToString() const override;
 
 
 	/** 
@@ -54,22 +54,22 @@ public:
 	 * This allows FMeshChange subclasses to customize the change behavior if necessary.
 	 * The default behavior just forwards the call to DynamicMeshChange->Apply(Mesh, bRevert).
 	 */
-	virtual void ApplyChangeToMesh(UE::Geometry::FDynamicMesh3* Mesh, bool bRevert) const;
+	GEOMETRYFRAMEWORK_API virtual void ApplyChangeToMesh(UE::Geometry::FDynamicMesh3* Mesh, bool bRevert) const;
 };
 
 
 
 
 
-UINTERFACE()
-class GEOMETRYFRAMEWORK_API UMeshCommandChangeTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UMeshCommandChangeTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IMeshCommandChangeTarget is an interface which is used to apply a mesh change
  */
-class GEOMETRYFRAMEWORK_API IMeshCommandChangeTarget
+class IMeshCommandChangeTarget
 {
 	GENERATED_BODY()
 public:

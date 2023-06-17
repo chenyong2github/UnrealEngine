@@ -12,7 +12,7 @@
 class IMediaTextureSample;
 class UMediaTexture;
 
-class MEDIAUTILS_API FMediaDelegates
+class FMediaDelegates
 {
 public:
 	using TSharedMediaTextureSample = TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>;
@@ -28,14 +28,14 @@ public:
 	 * Used to debug the samples queue. Only available in a development build.
 	 * @see UE_MEDIAUTILS_DEVELOPMENT_DELEGATE
 	 */
-	static FOnSampleDiscardedDelegate OnSampleDiscarded_RenderThread;
+	static MEDIAUTILS_API FOnSampleDiscardedDelegate OnSampleDiscarded_RenderThread;
 
 	/**
 	 * Callback when a sample is going to be used to update the MediaTexture.
 	 * Used to debug the samples queue. Only available in a development build.
 	 * @see UE_MEDIAUTILS_DEVELOPMENT_DELEGATE
 	 */
-	static FOnPreSampleRenderDelegate OnPreSampleRender_RenderThread;
+	static MEDIAUTILS_API FOnPreSampleRenderDelegate OnPreSampleRender_RenderThread;
 
 #endif //UE_MEDIAUTILS_DEVELOPMENT_DELEGATE
 };

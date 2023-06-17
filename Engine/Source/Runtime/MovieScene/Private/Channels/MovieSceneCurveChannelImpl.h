@@ -21,7 +21,7 @@ namespace UE::MovieScene::Interpolation
 
 /** Utility class for curve channels */
 template<typename ChannelType>
-struct MOVIESCENE_API TMovieSceneCurveChannelImpl
+struct TMovieSceneCurveChannelImpl
 {
 	/** The type of channel value structs */
 	using ChannelValueType = typename ChannelType::ChannelValueType;

@@ -20,24 +20,24 @@ struct FNavigationPath;
  *  TODO: serialization (with maps?)
  *  TODO: FNavigationPath support?
  */
-struct AIMODULE_API FNavLocalGridData : public TSimpleCellGrid<uint8, MAX_uint8>
+struct FNavLocalGridData : public TSimpleCellGrid<uint8, MAX_uint8>
 {
 	FNavLocalGridData() : GridId(0) {}
-	FNavLocalGridData(const FVector& Center, float Extent2D);
-	FNavLocalGridData(const FVector& Center, const FVector2D& Extent2D);
-	FNavLocalGridData(const TArray<FNavLocalGridData>& SourceGrids);
+	AIMODULE_API FNavLocalGridData(const FVector& Center, float Extent2D);
+	AIMODULE_API FNavLocalGridData(const FVector& Center, const FVector2D& Extent2D);
+	AIMODULE_API FNavLocalGridData(const TArray<FNavLocalGridData>& SourceGrids);
 
 	/** mark single cell as obstacle */
-	void MarkPointObstacle(const FVector& Center);
+	AIMODULE_API void MarkPointObstacle(const FVector& Center);
 
 	/** mark box (AABB or rotated) shape as obstacle */
-	void MarkBoxObstacle(const FVector& Center, const FVector& Extent, const FQuat& Quat = FQuat::Identity);
+	AIMODULE_API void MarkBoxObstacle(const FVector& Center, const FVector& Extent, const FQuat& Quat = FQuat::Identity);
 
 	/** mark capsule shape as obstacle */
-	void MarkCapsuleObstacle(const FVector& Center, float Radius, float HalfHeight);
+	AIMODULE_API void MarkCapsuleObstacle(const FVector& Center, float Radius, float HalfHeight);
 
 	/** set height of bounds, if not set: ProjectCells will use height of default query box */
-	void SetHeight(float ExtentZ);
+	AIMODULE_API void SetHeight(float ExtentZ);
 
 	/** get unique Id of grid */
 	const int32 GetGridId() const
@@ -58,7 +58,7 @@ struct AIMODULE_API FNavLocalGridData : public TSimpleCellGrid<uint8, MAX_uint8>
 	}
 
 	/** convert global world coords to cell index, return -1 if outside */
-	int32 GetCellIndexFromGlobalCoords2D(const FIntVector& WorldCoords) const;
+	AIMODULE_API int32 GetCellIndexFromGlobalCoords2D(const FIntVector& WorldCoords) const;
 
 	/** convert cell index to world location using projected heights */
 	FVector GetProjectedCellCenter(int32 CellIdx) const 
@@ -80,13 +80,13 @@ struct AIMODULE_API FNavLocalGridData : public TSimpleCellGrid<uint8, MAX_uint8>
 	 *  @param PathPointsInside - [out] points inside grid
 	 *  @param NextSegmentStart - [out] next move segment on path after leaving grid or -1 if path ends inside
 	 */
-	void FindPathForMovingAgent(const FNavigationPath& SourcePath, const FVector& EntryLocation, int32 EntrySegmentStart, TArray<FVector>& PathPointsInside, int32& NextSegmentStart) const;
+	AIMODULE_API void FindPathForMovingAgent(const FNavigationPath& SourcePath, const FVector& EntryLocation, int32 EntrySegmentStart, TArray<FVector>& PathPointsInside, int32& NextSegmentStart) const;
 
 	/** create path points from StartCoords to EndCoord, returns false when failed */
-	bool FindPath(const FIntVector& StartCoords, const FIntVector& EndCoords, TArray<FIntVector>& PathCoords) const;
+	AIMODULE_API bool FindPath(const FIntVector& StartCoords, const FIntVector& EndCoords, TArray<FIntVector>& PathCoords) const;
 
 	/** project cells on navigation data and marks failed ones as obstacles */
-	void ProjectCells(const ANavigationData& NavData);
+	AIMODULE_API void ProjectCells(const ANavigationData& NavData);
 
 	//////////////////////////////////////////////////////////////////////////
 	// FGraphAStar: TGraph
@@ -94,7 +94,7 @@ struct AIMODULE_API FNavLocalGridData : public TSimpleCellGrid<uint8, MAX_uint8>
 
 	int32 GetNeighbourCount(FNodeRef NodeRef) const { return 8; }
 	bool IsValidRef(FNodeRef NodeRef) const { return IsValidIndex(NodeRef); }
-	FNodeRef GetNeighbour(const FNodeRef NodeRef, const int32 NeiIndex) const;
+	AIMODULE_API FNodeRef GetNeighbour(const FNodeRef NodeRef, const int32 NeiIndex) const;
 	//////////////////////////////////////////////////////////////////////////
 
 protected:
@@ -103,13 +103,13 @@ protected:
 	double LastAccessTime;
 
 	/** convert PathIndices into pruned PathCoords */
-	void PostProcessPath(const FIntVector& StartCoords, const FIntVector& EndCoords, const TArray<int32>& PathIndices, TArray<FIntVector>& PathCoords) const;
+	AIMODULE_API void PostProcessPath(const FIntVector& StartCoords, const FIntVector& EndCoords, const TArray<int32>& PathIndices, TArray<FIntVector>& PathCoords) const;
 
 	/** check if line trace between local coords on grid hits any obstacles, doesn't validate coords! */
-	bool IsLineObstructed(const FIntVector& StartCoords, const FIntVector& EndCoords) const;
+	AIMODULE_API bool IsLineObstructed(const FIntVector& StartCoords, const FIntVector& EndCoords) const;
 
 	/** set unique Id of grid */
-	void SetGridId(int32 NewId);
+	AIMODULE_API void SetGridId(int32 NewId);
 
 private:
 	int32 GridId;

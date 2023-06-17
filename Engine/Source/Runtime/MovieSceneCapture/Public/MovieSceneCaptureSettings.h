@@ -12,7 +12,7 @@
 
 /** Structure representing a capture resolution */
 USTRUCT(BlueprintType)
-struct MOVIESCENECAPTURE_API FCaptureResolution
+struct FCaptureResolution
 {
 	FCaptureResolution(int32 InX = 0, int32 InY = 0) : ResX(InX), ResY(InY) {}
 	
@@ -27,9 +27,9 @@ struct MOVIESCENECAPTURE_API FCaptureResolution
 
 /** Common movie-scene capture settings */
 USTRUCT(BlueprintType)
-struct MOVIESCENECAPTURE_API FMovieSceneCaptureSettings
+struct FMovieSceneCaptureSettings
 {
-	FMovieSceneCaptureSettings();
+	MOVIESCENECAPTURE_API FMovieSceneCaptureSettings();
 
 	GENERATED_BODY()
 

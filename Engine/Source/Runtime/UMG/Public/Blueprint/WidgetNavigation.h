@@ -18,7 +18,7 @@ DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(UWidget*, FCustomWidgetNavigationDelega
  *
  */
 USTRUCT(BlueprintType)
-struct UMG_API FWidgetNavigationData
+struct FWidgetNavigationData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -36,18 +36,18 @@ public:
 	UPROPERTY()
 	FCustomWidgetNavigationDelegate CustomDelegate;
 
-	void Resolve(class UUserWidget* Outer, class UWidgetTree* WidgetTree);
+	UMG_API void Resolve(class UUserWidget* Outer, class UWidgetTree* WidgetTree);
 
 #if WITH_EDITOR
-	void TryToRenameBinding(FName OldName, FName NewName);
+	UMG_API void TryToRenameBinding(FName OldName, FName NewName);
 #endif
 };
 
 /**
  * 
  */
-UCLASS()
-class UMG_API UWidgetNavigation : public UObject
+UCLASS(MinimalAPI)
+class UWidgetNavigation : public UObject
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -81,24 +81,24 @@ public:
 #if WITH_EDITOR
 
 	/**  */
-	FWidgetNavigationData& GetNavigationData(EUINavigation Nav);
+	UMG_API FWidgetNavigationData& GetNavigationData(EUINavigation Nav);
 
 	/**  */
-	EUINavigationRule GetNavigationRule(EUINavigation Nav);
+	UMG_API EUINavigationRule GetNavigationRule(EUINavigation Nav);
 
 	/** Try to rename any explicit or custom bindings from an old to a new name. This method can be overridden to customize resolving rules. */
-	virtual void TryToRenameBinding(FName OldName, FName NewName);
+	UMG_API virtual void TryToRenameBinding(FName OldName, FName NewName);
 
 #endif
 
 	/** Resolve widget names. This method can be overridden to customize resolving rules. */
-	virtual void ResolveRules(class UUserWidget* Outer, class UWidgetTree* WidgetTree);
+	UMG_API virtual void ResolveRules(class UUserWidget* Outer, class UWidgetTree* WidgetTree);
 
 	/** Updates a slate metadata object to match this configured navigation ruleset. */
-	void UpdateMetaData(TSharedRef<FNavigationMetaData> MetaData);
+	UMG_API void UpdateMetaData(TSharedRef<FNavigationMetaData> MetaData);
 
 	/** @return true if the configured navigation object is the same as an un-customized navigation rule set. */
-	bool IsDefaultNavigation() const;
+	UMG_API bool IsDefaultNavigation() const;
 
 private:
 

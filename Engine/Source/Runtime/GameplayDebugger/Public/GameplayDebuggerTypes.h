@@ -26,7 +26,7 @@ namespace FGameplayDebuggerUtils
 	bool GAMEPLAYDEBUGGER_API IsAuthority(UWorld* World);
 }
 
-class GAMEPLAYDEBUGGER_API FGameplayDebuggerCanvasContext
+class FGameplayDebuggerCanvasContext
 {
 public:
 	/** canvas used for drawing */
@@ -51,15 +51,15 @@ public:
 	float DefaultX, DefaultY;
 
 	FGameplayDebuggerCanvasContext() {}
-	FGameplayDebuggerCanvasContext(UCanvas* InCanvas, UFont* InFont);
+	GAMEPLAYDEBUGGER_API FGameplayDebuggerCanvasContext(UCanvas* InCanvas, UFont* InFont);
 
 	// print string on canvas
-	void Print(const FString& String);
-	void Print(const FColor& Color, const FString& String);
-	void Print(const FColor& Color, const float Alpha, const FString& String);
-	void PrintAt(float PosX, float PosY, const FString& String);
-	void PrintAt(float PosX, float PosY, const FColor& Color, const FString& String);
-	void PrintAt(float PosX, float PosY, const FColor& Color, const float Alpha, const FString& String);
+	GAMEPLAYDEBUGGER_API void Print(const FString& String);
+	GAMEPLAYDEBUGGER_API void Print(const FColor& Color, const FString& String);
+	GAMEPLAYDEBUGGER_API void Print(const FColor& Color, const float Alpha, const FString& String);
+	GAMEPLAYDEBUGGER_API void PrintAt(float PosX, float PosY, const FString& String);
+	GAMEPLAYDEBUGGER_API void PrintAt(float PosX, float PosY, const FColor& Color, const FString& String);
+	GAMEPLAYDEBUGGER_API void PrintAt(float PosX, float PosY, const FColor& Color, const float Alpha, const FString& String);
 
 	// print formatted string on canvas
 	template <typename FmtType, typename... Types>
@@ -117,34 +117,34 @@ public:
 	}
 
 private:
-	void VARARGS PrintfImpl(const FColor& Color, const float Alpha, const TCHAR* Args, ...);
-	void VARARGS PrintfAtImpl(float PosX, float PosY, const FColor& Color, const float Alpha, const TCHAR* Args, ...);
+	GAMEPLAYDEBUGGER_API void VARARGS PrintfImpl(const FColor& Color, const float Alpha, const TCHAR* Args, ...);
+	GAMEPLAYDEBUGGER_API void VARARGS PrintfAtImpl(float PosX, float PosY, const FColor& Color, const float Alpha, const TCHAR* Args, ...);
 
 public:
 	// moves cursor to new line
-	void MoveToNewLine();
+	GAMEPLAYDEBUGGER_API void MoveToNewLine();
 
 	// calculate size of string
-	void MeasureString(const FString& String, float& OutSizeX, float& OutSizeY) const;
+	GAMEPLAYDEBUGGER_API void MeasureString(const FString& String, float& OutSizeX, float& OutSizeY) const;
 
 	// get height of single line text
-	float GetLineHeight() const;
+	GAMEPLAYDEBUGGER_API float GetLineHeight() const;
 
 	// project world location on canvas
-	FVector2D ProjectLocation(const FVector& Location) const;
+	GAMEPLAYDEBUGGER_API FVector2D ProjectLocation(const FVector& Location) const;
 
 	// check if world location is visible in current view
-	bool IsLocationVisible(const FVector& Location) const;
+	GAMEPLAYDEBUGGER_API bool IsLocationVisible(const FVector& Location) const;
 
 	// draw item on canvas
-	void DrawItem(FCanvasItem& Item, float PosX, float PosY);
+	GAMEPLAYDEBUGGER_API void DrawItem(FCanvasItem& Item, float PosX, float PosY);
 
 	// draw icon on canvas
-	void DrawIcon(const FColor& Color, const FCanvasIcon& Icon, float PosX, float PosY, float Scale = 1.f);
+	GAMEPLAYDEBUGGER_API void DrawIcon(const FColor& Color, const FCanvasIcon& Icon, float PosX, float PosY, float Scale = 1.f);
 
 	// fetches the World associated with this context. Will use the World member variable, if set, and 
 	// PlayerController's world otherwise. Note that it can still be null and needs to be tested.
-	UWorld* GetWorld() const;
+	GAMEPLAYDEBUGGER_API UWorld* GetWorld() const;
 };
 
 namespace FGameplayDebuggerCanvasStrings
@@ -177,7 +177,7 @@ enum class EGameplayDebuggerShape : uint8
 };
 
 USTRUCT()
-struct GAMEPLAYDEBUGGER_API FGameplayDebuggerShape
+struct FGameplayDebuggerShape
 {
 	GENERATED_BODY()
 
@@ -204,31 +204,31 @@ struct GAMEPLAYDEBUGGER_API FGameplayDebuggerShape
 		return (Type == Other.Type) && (Color == Other.Color) && (Description == Other.Description) && (ShapeData == Other.ShapeData);
 	}
 
-	static FGameplayDebuggerShape MakePoint(const FVector& Location, const float Radius, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeSegment(const FVector& StartLocation, const FVector& EndLocation, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeSegment(const FVector& StartLocation, const FVector& EndLocation, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeArrow(const FVector& StartLocation, const FVector& EndLocation, const float HeadSize, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeBox(const FVector& Center, const FVector& Extent, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeBox(const FVector& Center, const FVector& Extent, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeBox(const FVector& Center, const FRotator& Rotation, const FVector& Extent, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeBox(const FVector& Center, const FRotator& Rotation, const FVector& Extent, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeCone(const FVector& Location, const FVector& Direction, const float Length, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeCylinder(const FVector& Center, const float Radius, const float HalfHeight, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeCircle(const FVector& Center, const FVector& Up, const float Radius, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeCircle(const FVector& Center, const FVector& Up, const float Radius, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeCircle(const FVector& Center, const FVector& WidthAxis, const FVector& HeightAxis, const float Radius, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeCircle(const FVector& Center, const FVector& WidthAxis, const FVector& HeightAxis, const float Radius, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeRectangle(const FVector& Center, const FVector& WidthAxis, const FVector& HeightAxis, const float Width, const float Height, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeRectangle(const FVector& Center, const FVector& WidthAxis, const FVector& HeightAxis, const float Width, const float Height, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeCapsule(const FVector& Center, const float Radius, const float HalfHeight, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeCapsule(const FVector& Center, const FRotator& Rotation, const float Radius, const float HalfHeight, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakePolygon(TConstArrayView<FVector> Verts, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakePolyline(const TConstArrayView<FVector> Verts, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakePolyline(const TConstArrayView<FVector> Verts, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeSegmentList(const TConstArrayView<FVector> Verts, const float Thickness, const FColor& Color, const FString& Description = FString());
-	static FGameplayDebuggerShape MakeSegmentList(const TConstArrayView<FVector> Verts, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakePoint(const FVector& Location, const float Radius, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeSegment(const FVector& StartLocation, const FVector& EndLocation, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeSegment(const FVector& StartLocation, const FVector& EndLocation, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeArrow(const FVector& StartLocation, const FVector& EndLocation, const float HeadSize, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeBox(const FVector& Center, const FVector& Extent, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeBox(const FVector& Center, const FVector& Extent, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeBox(const FVector& Center, const FRotator& Rotation, const FVector& Extent, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeBox(const FVector& Center, const FRotator& Rotation, const FVector& Extent, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeCone(const FVector& Location, const FVector& Direction, const float Length, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeCylinder(const FVector& Center, const float Radius, const float HalfHeight, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeCircle(const FVector& Center, const FVector& Up, const float Radius, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeCircle(const FVector& Center, const FVector& Up, const float Radius, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeCircle(const FVector& Center, const FVector& WidthAxis, const FVector& HeightAxis, const float Radius, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeCircle(const FVector& Center, const FVector& WidthAxis, const FVector& HeightAxis, const float Radius, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeRectangle(const FVector& Center, const FVector& WidthAxis, const FVector& HeightAxis, const float Width, const float Height, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeRectangle(const FVector& Center, const FVector& WidthAxis, const FVector& HeightAxis, const float Width, const float Height, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeCapsule(const FVector& Center, const float Radius, const float HalfHeight, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeCapsule(const FVector& Center, const FRotator& Rotation, const float Radius, const float HalfHeight, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakePolygon(TConstArrayView<FVector> Verts, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakePolyline(const TConstArrayView<FVector> Verts, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakePolyline(const TConstArrayView<FVector> Verts, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeSegmentList(const TConstArrayView<FVector> Verts, const float Thickness, const FColor& Color, const FString& Description = FString());
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerShape MakeSegmentList(const TConstArrayView<FVector> Verts, const FColor& Color, const FString& Description = FString());
 
-	void Draw(UWorld* World, FGameplayDebuggerCanvasContext& Context);
+	GAMEPLAYDEBUGGER_API void Draw(UWorld* World, FGameplayDebuggerCanvasContext& Context);
 };
 
 FArchive& operator<<(FArchive& Ar, FGameplayDebuggerShape& Shape);
@@ -283,7 +283,7 @@ struct FGameplayDebuggerDataPackHeader
 	}
 };
 
-struct GAMEPLAYDEBUGGER_API FGameplayDebuggerDataPack
+struct FGameplayDebuggerDataPack
 {
 	using FHeader = FGameplayDebuggerDataPackHeader;
 
@@ -322,13 +322,13 @@ struct GAMEPLAYDEBUGGER_API FGameplayDebuggerDataPack
 	FOnReset ResetDelegate;
 	FOnSerialize SerializeDelegate;
 
-	static int32 PacketSize;
+	static GAMEPLAYDEBUGGER_API int32 PacketSize;
 
-	bool CheckDirtyAndUpdate();
-	bool RequestReplication(int16 SyncCounter);
+	GAMEPLAYDEBUGGER_API bool CheckDirtyAndUpdate();
+	GAMEPLAYDEBUGGER_API bool RequestReplication(int16 SyncCounter);
 
-	void OnReplicated();
-	void OnPacketRequest(int16 DataVersion, int32 DataOffset);
+	GAMEPLAYDEBUGGER_API void OnReplicated();
+	GAMEPLAYDEBUGGER_API void OnPacketRequest(int16 DataVersion, int32 DataOffset);
 
 	/** get replication progress in (0..1) range */
 	FORCEINLINE float GetProgress() const
@@ -357,7 +357,7 @@ enum class EGameplayDebuggerInputMode : uint8
 	Replicated,
 };
 
-struct GAMEPLAYDEBUGGER_API FGameplayDebuggerInputModifier
+struct FGameplayDebuggerInputModifier
 {
 	uint32 bShift : 1;
 	uint32 bCtrl : 1;
@@ -374,14 +374,14 @@ struct GAMEPLAYDEBUGGER_API FGameplayDebuggerInputModifier
 		return FGameplayDebuggerInputModifier(bShift || Other.bShift, bCtrl || Other.bCtrl, bAlt || Other.bAlt, bCmd || Other.bCmd);
 	}
 
-	static FGameplayDebuggerInputModifier Shift;
-	static FGameplayDebuggerInputModifier Ctrl;
-	static FGameplayDebuggerInputModifier Alt;
-	static FGameplayDebuggerInputModifier Cmd;
-	static FGameplayDebuggerInputModifier None;
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerInputModifier Shift;
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerInputModifier Ctrl;
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerInputModifier Alt;
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerInputModifier Cmd;
+	static GAMEPLAYDEBUGGER_API FGameplayDebuggerInputModifier None;
 };
 
-struct GAMEPLAYDEBUGGER_API FGameplayDebuggerInputHandler
+struct FGameplayDebuggerInputHandler
 {
 	DECLARE_DELEGATE(FHandler);
 
@@ -392,8 +392,8 @@ struct GAMEPLAYDEBUGGER_API FGameplayDebuggerInputHandler
 
 	FGameplayDebuggerInputHandler() : KeyName(NAME_None), Mode(EGameplayDebuggerInputMode::Local) {}
 
-	bool IsValid() const;
-	FString ToString() const;
+	GAMEPLAYDEBUGGER_API bool IsValid() const;
+	GAMEPLAYDEBUGGER_API FString ToString() const;
 };
 
 /** 
@@ -401,18 +401,18 @@ struct GAMEPLAYDEBUGGER_API FGameplayDebuggerInputHandler
  * Intended to use only from addon's constructor!
  * Check example in FGameplayDebuggerExtension_Spectator::FGameplayDebuggerExtension_Spectator() for details
  */
-struct GAMEPLAYDEBUGGER_API FGameplayDebuggerInputHandlerConfig
+struct FGameplayDebuggerInputHandlerConfig
 {
 	FName KeyName;
 	FGameplayDebuggerInputModifier Modifier;
 
 	FGameplayDebuggerInputHandlerConfig() : KeyName(NAME_None) {}
-	FGameplayDebuggerInputHandlerConfig(const FName ConfigName, const FName DefaultKeyName);
-	FGameplayDebuggerInputHandlerConfig(const FName ConfigName, const FName DefaultKeyName, const FGameplayDebuggerInputModifier& DefaultModifier);
+	GAMEPLAYDEBUGGER_API FGameplayDebuggerInputHandlerConfig(const FName ConfigName, const FName DefaultKeyName);
+	GAMEPLAYDEBUGGER_API FGameplayDebuggerInputHandlerConfig(const FName ConfigName, const FName DefaultKeyName, const FGameplayDebuggerInputModifier& DefaultModifier);
 
-	static FName CurrentCategoryName;
-	static FName CurrentExtensionName;
+	static GAMEPLAYDEBUGGER_API FName CurrentCategoryName;
+	static GAMEPLAYDEBUGGER_API FName CurrentExtensionName;
 
 private:
-	void UpdateConfig(const FName ConfigName);
+	GAMEPLAYDEBUGGER_API void UpdateConfig(const FName ConfigName);
 };

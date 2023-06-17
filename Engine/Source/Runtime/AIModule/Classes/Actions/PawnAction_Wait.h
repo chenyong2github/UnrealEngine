@@ -9,8 +9,8 @@
 #include "PawnAction_Wait.generated.h"
 
 /** uses system timers rather then ticking */
-UCLASS()
-class AIMODULE_API UDEPRECATED_PawnAction_Wait : public UDEPRECATED_PawnAction
+UCLASS(MinimalAPI)
+class UDEPRECATED_PawnAction_Wait : public UDEPRECATED_PawnAction
 {
 	GENERATED_UCLASS_BODY()
 		
@@ -22,12 +22,12 @@ class AIMODULE_API UDEPRECATED_PawnAction_Wait : public UDEPRECATED_PawnAction
 	FTimerHandle TimerHandle;
 
 	/** InTimeToWait < 0 (or just FAISystem::InfiniteInterval) will result in waiting forever */
-	static UDEPRECATED_PawnAction_Wait* CreateAction(UWorld& World, float InTimeToWait = FAISystem::InfiniteInterval);
+	static AIMODULE_API UDEPRECATED_PawnAction_Wait* CreateAction(UWorld& World, float InTimeToWait = FAISystem::InfiniteInterval);
 
-	virtual bool Start() override;
-	virtual bool Pause(const UDEPRECATED_PawnAction* PausedBy) override;
-	virtual bool Resume() override;
-	virtual EPawnActionAbortState::Type PerformAbort(EAIForceParam::Type ShouldForce) override;
+	AIMODULE_API virtual bool Start() override;
+	AIMODULE_API virtual bool Pause(const UDEPRECATED_PawnAction* PausedBy) override;
+	AIMODULE_API virtual bool Resume() override;
+	AIMODULE_API virtual EPawnActionAbortState::Type PerformAbort(EAIForceParam::Type ShouldForce) override;
 
-	void TimerDone();
+	AIMODULE_API void TimerDone();
 };

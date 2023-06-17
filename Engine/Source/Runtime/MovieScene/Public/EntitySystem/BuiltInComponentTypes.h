@@ -329,9 +329,9 @@ private:
 /**
  * Pre-defined built in component types
  */
-struct MOVIESCENE_API FBuiltInComponentTypes
+struct FBuiltInComponentTypes
 {
-	~FBuiltInComponentTypes();
+	MOVIESCENE_API ~FBuiltInComponentTypes();
 
 public:
 
@@ -553,20 +553,20 @@ public:
 
 public:
 
-	static void Destroy();
+	static MOVIESCENE_API void Destroy();
 
-	static FBuiltInComponentTypes* Get();
+	static MOVIESCENE_API FBuiltInComponentTypes* Get();
 
 	FORCEINLINE static bool IsBoundObjectGarbage(UObject* InObject)
 	{
 		return InObject == nullptr || !IsValidChecked(InObject) || InObject->IsUnreachable();
 	}
 
-	FComponentTypeID GetBaseValueComponentType(const FComponentTypeID& InResultComponentType);
+	MOVIESCENE_API FComponentTypeID GetBaseValueComponentType(const FComponentTypeID& InResultComponentType);
 
 private:
 
-	FBuiltInComponentTypes();
+	MOVIESCENE_API FBuiltInComponentTypes();
 
 	TMap<FComponentTypeID, FComponentTypeID> ResultToBase;
 };

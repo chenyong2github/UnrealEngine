@@ -74,9 +74,9 @@ public:
 	LANDSCAPE_API void BuildPhysicalMaterial();
 
 	UE_DEPRECATED(5.3, "BuildGIBakedTextures is officially deprecated nowe")
-	LANDSCAPE_API void BuildGIBakedTextures() {}
+	void BuildGIBakedTextures() {}
 	UE_DEPRECATED(5.3, "GetOutdatedGIBakedTextureComponentsCount is officially deprecated now")
-	LANDSCAPE_API int32 GetOutdatedGIBakedTextureComponentsCount() { return 0; }
+	int32 GetOutdatedGIBakedTextureComponentsCount() { return 0; }
 
 	/**
 	 * Updates the Nanite mesh on all landscape actors whose mesh is not up to date.
@@ -104,7 +104,7 @@ public:
 	LANDSCAPE_API bool GetDirtyOnlyInMode() const;
 	FLandscapeNotificationManager* GetNotificationManager() { return NotificationManager; }
 	FOnHeightmapStreamedDelegate& GetOnHeightmapStreamedDelegate() { return OnHeightmapStreamed; }
-	LANDSCAPE_API bool AnyViewShowCollisions() const { return bAnyViewShowCollisions; }  //! Returns true if any view has view collisions enabled.
+	bool AnyViewShowCollisions() const { return bAnyViewShowCollisions; }  //! Returns true if any view has view collisions enabled.
 	FDateTime GetAppCurrentDateTime();
 	LANDSCAPE_API void AddAsyncEvent(FGraphEventRef GraphEventRef);
 

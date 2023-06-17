@@ -6,11 +6,11 @@
 
 class FGeometryCollection;
 
-class GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCreationParameters
+class FGeometryCollectionCreationParameters
 {
 public:
-	FGeometryCollectionCreationParameters(FGeometryCollection& GeometryCollection, bool ReCalculateNormalsIn = false, bool ReCalculateTangetsIn = false);
-	~FGeometryCollectionCreationParameters();
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCreationParameters(FGeometryCollection& GeometryCollection, bool ReCalculateNormalsIn = false, bool ReCalculateTangetsIn = false);
+	GEOMETRYCOLLECTIONENGINE_API ~FGeometryCollectionCreationParameters();
 
 private:
 	bool ReCalculateNormals;

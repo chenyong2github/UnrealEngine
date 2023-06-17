@@ -17,7 +17,7 @@ namespace Geometry
  * Generate planar rectangular mesh with variable number of subdivisions along width and height.
  * By default, center of rectangle is centered at (0,0,0) origin
  */
-class GEOMETRYCORE_API FRectangleMeshGenerator : public FMeshShapeGenerator
+class FRectangleMeshGenerator : public FMeshShapeGenerator
 {
 public:
 	/** Rectangle will be translated so that center is at this point */
@@ -45,10 +45,10 @@ public:
 	FIndex2i IndicesMap;
 
 public:
-	FRectangleMeshGenerator();
+	GEOMETRYCORE_API FRectangleMeshGenerator();
 
 	/** Generate the mesh */
-	virtual FMeshShapeGenerator& Generate() override;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() override;
 
 	/** Create vertex at position under IndicesMap, shifted to Origin*/
 	virtual FVector3d MakeVertex(int CornerIndex, double x, double y)
@@ -75,7 +75,7 @@ ENUM_CLASS_FLAGS(ERoundedRectangleCorner);
 /**
 * Adds rounded corners to the rectangle mesh
 */
-class GEOMETRYCORE_API FRoundedRectangleMeshGenerator : public FRectangleMeshGenerator
+class FRoundedRectangleMeshGenerator : public FRectangleMeshGenerator
 {
 public:
 	/** Radius of rounded corners */
@@ -106,10 +106,10 @@ public:
 	}
 
 public:
-	FRoundedRectangleMeshGenerator();
+	GEOMETRYCORE_API FRoundedRectangleMeshGenerator();
 
 	/** Generate the mesh */
-	virtual FMeshShapeGenerator& Generate() override;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() override;
 };
 
 

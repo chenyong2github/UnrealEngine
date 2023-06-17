@@ -20,7 +20,7 @@ namespace UE
 namespace MovieScene
 {
 
-class MOVIESCENE_API TimeHelpers
+class TimeHelpers
 {
 public:
 
@@ -28,7 +28,7 @@ public:
  * Migrate the frame times of the movie scene from the source frame rate to the destination frame rate
  */
 
-static void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate, UMovieScene* MovieScene, bool bApplyRecursively = false);
+static MOVIESCENE_API void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate, UMovieScene* MovieScene, bool bApplyRecursively = false);
 
 };
 

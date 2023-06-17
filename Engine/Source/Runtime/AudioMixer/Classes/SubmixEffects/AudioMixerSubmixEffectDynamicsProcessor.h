@@ -137,7 +137,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct AUDIOMIXER_API FSubmixEffectDynamicProcessorFilterSettings
+struct FSubmixEffectDynamicProcessorFilterSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -163,7 +163,7 @@ struct AUDIOMIXER_API FSubmixEffectDynamicProcessorFilterSettings
 
 // Submix dynamics processor settings
 USTRUCT(BlueprintType)
-struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
+struct FSubmixEffectDynamicsProcessorSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -266,35 +266,35 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 };
 
 
-class AUDIOMIXER_API FSubmixEffectDynamicsProcessor : public FSoundEffectSubmix
+class FSubmixEffectDynamicsProcessor : public FSoundEffectSubmix
 {
 public:
-	FSubmixEffectDynamicsProcessor();
+	AUDIOMIXER_API FSubmixEffectDynamicsProcessor();
 
-	virtual ~FSubmixEffectDynamicsProcessor();
+	AUDIOMIXER_API virtual ~FSubmixEffectDynamicsProcessor();
 
 	// Gets the effect's deviceId that owns it
-	Audio::FDeviceId GetDeviceId() const;
+	AUDIOMIXER_API Audio::FDeviceId GetDeviceId() const;
 
 	// Called on an audio effect at initialization on audio thread before audio processing begins.
-	virtual void Init(const FSoundEffectSubmixInitData& InInitData) override;
+	AUDIOMIXER_API virtual void Init(const FSoundEffectSubmixInitData& InInitData) override;
 
 	// Process the input block of audio. Called on audio render thread.
-	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
+	AUDIOMIXER_API virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
 
 	// Called when an audio effect preset is changed
-	virtual void OnPresetChanged() override;
+	AUDIOMIXER_API virtual void OnPresetChanged() override;
 
 
 protected:
-	Audio::FMixerDevice* GetMixerDevice();
+	AUDIOMIXER_API Audio::FMixerDevice* GetMixerDevice();
 
-	void ResetKey();
-	void UpdateKeyFromSettings(const FSubmixEffectDynamicsProcessorSettings& InSettings);
-	bool UpdateKeySourcePatch();
+	AUDIOMIXER_API void ResetKey();
+	AUDIOMIXER_API void UpdateKeyFromSettings(const FSubmixEffectDynamicsProcessorSettings& InSettings);
+	AUDIOMIXER_API bool UpdateKeySourcePatch();
 
-	void OnDeviceCreated(Audio::FDeviceId InDeviceId);
-	void OnDeviceDestroyed(Audio::FDeviceId InDeviceId);
+	AUDIOMIXER_API void OnDeviceCreated(Audio::FDeviceId InDeviceId);
+	AUDIOMIXER_API void OnDeviceDestroyed(Audio::FDeviceId InDeviceId);
 	
 	Audio::FAlignedFloatBuffer AudioExternal;
 
@@ -315,37 +315,37 @@ private:
 	friend class USubmixEffectDynamicsProcessorPreset;
 };
 
-UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent))
-class AUDIOMIXER_API USubmixEffectDynamicsProcessorPreset : public USoundEffectSubmixPreset
+UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class USubmixEffectDynamicsProcessorPreset : public USoundEffectSubmixPreset
 {
 	GENERATED_BODY()
 
 public:
 	EFFECT_PRESET_METHODS(SubmixEffectDynamicsProcessor)
 
-	virtual void OnInit() override;
+	AUDIOMIXER_API virtual void OnInit() override;
 
-	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+	AUDIOMIXER_API virtual void Serialize(FStructuredArchive::FRecord Record) override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& InChainEvent) override;
+	AUDIOMIXER_API virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& InChainEvent) override;
 #endif // WITH_EDITOR
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void ResetKey();
+	AUDIOMIXER_API void ResetKey();
 
 	// Sets the source key input as the provided AudioBus' output.  If no object is provided, key is set
 	// to effect's input.
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetAudioBus(UAudioBus* AudioBus);
+	AUDIOMIXER_API void SetAudioBus(UAudioBus* AudioBus);
 
 	// Sets the source key input as the provided Submix's output.  If no object is provided, key is set
 	// to effect's input.
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetExternalSubmix(USoundSubmix* Submix);
+	AUDIOMIXER_API void SetExternalSubmix(USoundSubmix* Submix);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetSettings(const FSubmixEffectDynamicsProcessorSettings& Settings);
+	AUDIOMIXER_API void SetSettings(const FSubmixEffectDynamicsProcessorSettings& Settings);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset, meta = (ShowOnlyInnerProperties))
 	FSubmixEffectDynamicsProcessorSettings Settings;

@@ -10,8 +10,8 @@
 class UBodySetup;
 class IInterface_CollisionDataProvider;
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UPhysicsDataSource : public UInterface
+UINTERFACE(MinimalAPI)
+class UPhysicsDataSource : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -19,7 +19,7 @@ class INTERACTIVETOOLSFRAMEWORK_API UPhysicsDataSource : public UInterface
 /**
  * IPhysicsDataSource is a ToolTarget Interface that provides read/write access to physics-related data structures.
  */
-class INTERACTIVETOOLSFRAMEWORK_API IPhysicsDataSource
+class IPhysicsDataSource
 {
 	GENERATED_BODY()
 

@@ -18,7 +18,7 @@ class USceneComponent;
  *
  * To reduce duplicated code, implementations should use the FXRCameraBase instead of implementing this interface directly.
  */
-class HEADMOUNTEDDISPLAY_API  IXRCamera : public IIdentifiableXRDevice
+class  IXRCamera : public IIdentifiableXRDevice
 {
 public:
 	IXRCamera() {}

@@ -63,7 +63,7 @@ struct FPoseDriverTransform
 
 /** Information about each target in the PoseDriver */
 USTRUCT()
-struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
+struct FPoseDriverTarget
 {
 	GENERATED_BODY()
 		
@@ -133,7 +133,7 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 
 /** RBF based orientation driver */
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
+struct FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 {
 	GENERATED_BODY()
 
@@ -230,27 +230,27 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver : public FAnimNode_PoseHandler
 	int32 LODThreshold;
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual int32 GetLODThreshold() const override { return LODThreshold; }
 	// End of FAnimNode_Base interface
 
-	FAnimNode_PoseDriver();
+	ANIMGRAPHRUNTIME_API FAnimNode_PoseDriver();
 
 	/** Returns the radius for a given target */
-	float GetRadiusForTarget(const FRBFTarget& Target) const;
+	ANIMGRAPHRUNTIME_API float GetRadiusForTarget(const FRBFTarget& Target) const;
 
 	/** Util for seeing if BoneName is in the list of driven bones (and bFilterDrivenBones is true) */
-	bool IsBoneDriven(FName BoneName) const;
+	ANIMGRAPHRUNTIME_API bool IsBoneDriven(FName BoneName) const;
 
 	/** Return array of FRBFTarget structs, derived from PoseTargets array and DriveSource setting */
-	void GetRBFTargets(TArray<FRBFTarget>& OutTargets, const FBoneContainer* BoneContainer) const;
+	ANIMGRAPHRUNTIME_API void GetRBFTargets(TArray<FRBFTarget>& OutTargets, const FBoneContainer* BoneContainer) const;
 
 	/* Rebuild Pose List*/
-	virtual void RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset) override;
+	ANIMGRAPHRUNTIME_API virtual void RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset) override;
 
 private:
 	TSharedPtr<const FRBFSolverData> SolverData;

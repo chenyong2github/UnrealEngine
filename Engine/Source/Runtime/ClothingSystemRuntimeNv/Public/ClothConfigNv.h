@@ -61,24 +61,24 @@ enum class EClothingWindMethodNv : uint8
 
 /** Holds initial, asset level config for clothing actors. */
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-UCLASS()
-class CLOTHINGSYSTEMRUNTIMENV_API UClothConfigNv : public UClothConfigCommon
+UCLASS(MinimalAPI)
+class UClothConfigNv : public UClothConfigCommon
 {
 	GENERATED_BODY()
 public:
-	UClothConfigNv();
+	CLOTHINGSYSTEMRUNTIMENV_API UClothConfigNv();
 
 	// Set up custom version serialization.
-	virtual void Serialize(FArchive& Ar) override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void Serialize(FArchive& Ar) override;
 
 	// Update the deprecated properties.
-	virtual void PostLoad() override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void PostLoad() override;
 
 	// Migrate from the legacy FClothConfig structure.
-	virtual void MigrateFrom(const FClothConfig_Legacy& ClothConfig) override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void MigrateFrom(const FClothConfig_Legacy& ClothConfig) override;
 
 	// Migrate to the legacy FClothConfig structure.
-	virtual bool MigrateTo(FClothConfig_Legacy& ClothConfig) const override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual bool MigrateTo(FClothConfig_Legacy& ClothConfig) const override;
 
 	/** Return whether to pre-compute self collision data. */
 	virtual bool NeedsSelfCollisionData() const override { return SelfCollisionRadius > 0.0f && SelfCollisionStiffness > 0.0f; }

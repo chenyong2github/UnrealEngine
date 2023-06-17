@@ -37,7 +37,7 @@ static_assert(HCGM_ACEScg == (int32)EDisplayColorGamut::ACEScg_D60, "EHDRCapture
 static_assert(HCGM_MAX == (int32)EDisplayColorGamut::MAX + 1, "EHDRCaptureGamut and EDisplayColorGamut not matching");
 
 USTRUCT(BlueprintType)
-struct MOVIESCENECAPTURE_API FCompositionGraphCapturePasses
+struct FCompositionGraphCapturePasses
 {
 	GENERATED_BODY()
 
@@ -46,8 +46,8 @@ struct MOVIESCENECAPTURE_API FCompositionGraphCapturePasses
 	TArray<FString> Value;
 };
 
-UCLASS(config=EditorPerProjectUserSettings, meta=(DisplayName="Custom Render Passes", CommandLineID="CustomRenderPasses"))
-class MOVIESCENECAPTURE_API UCompositionGraphCaptureProtocol : public UMovieSceneImageCaptureProtocolBase
+UCLASS(config=EditorPerProjectUserSettings, meta=(DisplayName="Custom Render Passes", CommandLineID="CustomRenderPasses"), MinimalAPI)
+class UCompositionGraphCaptureProtocol : public UMovieSceneImageCaptureProtocolBase
 {
 public:
 	GENERATED_BODY()
@@ -84,13 +84,13 @@ public:
 public:
 
 	/**~ UMovieSceneCaptureProtocolBase implementation */
-	virtual bool SetupImpl();
-	virtual void CaptureFrameImpl(const FFrameMetrics& FrameMetrics);
-	virtual void TickImpl() override;
-	virtual void FinalizeImpl() override;
-	virtual bool HasFinishedProcessingImpl() const override;
-	virtual void OnReleaseConfigImpl(FMovieSceneCaptureSettings& InSettings) override;
-	virtual void OnLoadConfigImpl(FMovieSceneCaptureSettings& InSettings) override;
+	MOVIESCENECAPTURE_API virtual bool SetupImpl();
+	MOVIESCENECAPTURE_API virtual void CaptureFrameImpl(const FFrameMetrics& FrameMetrics);
+	MOVIESCENECAPTURE_API virtual void TickImpl() override;
+	MOVIESCENECAPTURE_API virtual void FinalizeImpl() override;
+	MOVIESCENECAPTURE_API virtual bool HasFinishedProcessingImpl() const override;
+	MOVIESCENECAPTURE_API virtual void OnReleaseConfigImpl(FMovieSceneCaptureSettings& InSettings) override;
+	MOVIESCENECAPTURE_API virtual void OnLoadConfigImpl(FMovieSceneCaptureSettings& InSettings) override;
 	/**~ End UMovieSceneCaptureProtocolBase implementation */
 
 private:

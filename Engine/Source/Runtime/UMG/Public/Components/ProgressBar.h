@@ -17,8 +17,8 @@ class USlateBrushAsset;
  *
  * * No Children
  */
-UCLASS()
-class UMG_API UProgressBar : public UWidget
+UCLASS(MinimalAPI)
+class UProgressBar : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -69,64 +69,64 @@ public:
 public:
 	
 	/** */
-	const FProgressBarStyle& GetWidgetStyle() const;
+	UMG_API const FProgressBarStyle& GetWidgetStyle() const;
 
 	/**/
-	void SetWidgetStyle(const FProgressBarStyle& InStyle);
+	UMG_API void SetWidgetStyle(const FProgressBarStyle& InStyle);
 
 	/** */
-	float GetPercent() const;
+	UMG_API float GetPercent() const;
 
 	/** Sets the current value of the ProgressBar. */
 	UFUNCTION(BlueprintCallable, Category="Progress")
-	void SetPercent(float InPercent);
+	UMG_API void SetPercent(float InPercent);
 
 	/** */
-	EProgressBarFillType::Type GetBarFillType() const;
+	UMG_API EProgressBarFillType::Type GetBarFillType() const;
 
 	/** */
-	void SetBarFillType(EProgressBarFillType::Type InBarFillType);
+	UMG_API void SetBarFillType(EProgressBarFillType::Type InBarFillType);
 
 	/** */
-	EProgressBarFillStyle::Type GetBarFillStyle() const;
+	UMG_API EProgressBarFillStyle::Type GetBarFillStyle() const;
 
 	/** */
-	void SetBarFillStyle(EProgressBarFillStyle::Type InBarFillStyle);
+	UMG_API void SetBarFillStyle(EProgressBarFillStyle::Type InBarFillStyle);
 
 	/** */
-	bool UseMarquee() const;
+	UMG_API bool UseMarquee() const;
 
 	/** Sets the progress bar to show as a marquee. */
 	UFUNCTION(BlueprintCallable, Category="Progress")
-	void SetIsMarquee(bool InbIsMarquee);
+	UMG_API void SetIsMarquee(bool InbIsMarquee);
 
 	/** */
-	FVector2D GetBorderPadding() const;
+	UMG_API FVector2D GetBorderPadding() const;
 
 	/** */
-	void SetBorderPadding(FVector2D InBorderPadding);
+	UMG_API void SetBorderPadding(FVector2D InBorderPadding);
 
 	/** */
-	FLinearColor GetFillColorAndOpacity() const;
+	UMG_API FLinearColor GetFillColorAndOpacity() const;
 
 	/** Sets the fill color of the progress bar. */
 	UFUNCTION(BlueprintCallable, Category="Progress")
-	void SetFillColorAndOpacity(FLinearColor InColor);
+	UMG_API void SetFillColorAndOpacity(FLinearColor InColor);
 
 public:
 	
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
 	//~ Begin UWidget Interface
-	virtual const FText GetPaletteCategory() override;
-	virtual void OnCreationFromPalette() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
+	UMG_API virtual void OnCreationFromPalette() override;
 	//~ End UWidget Interface
 #endif
 
@@ -135,7 +135,7 @@ protected:
 	TSharedPtr<SProgressBar> MyProgressBar;
 
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
 	PROPERTY_BINDING_IMPLEMENTATION(FSlateColor, FillColorAndOpacity);

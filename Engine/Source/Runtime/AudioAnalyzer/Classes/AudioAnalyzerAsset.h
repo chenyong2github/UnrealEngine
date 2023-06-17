@@ -13,8 +13,8 @@ DECLARE_MULTICAST_DELEGATE(FAnalyzeAudioDelegate);
  *
  * UAudioAnalyzerAssetBase provides the base interface for controlling asset actions within the editor.
  */
-UCLASS(Abstract, EditInlineNew)
-class AUDIOANALYZER_API UAudioAnalyzerAssetBase : public UObject
+UCLASS(Abstract, EditInlineNew, MinimalAPI)
+class UAudioAnalyzerAssetBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -26,12 +26,12 @@ class AUDIOANALYZER_API UAudioAnalyzerAssetBase : public UObject
 		/**
 		 * GetAssetActionName() returns the FText displayed in the editor.
 		 */ 
-		virtual FText GetAssetActionName() const PURE_VIRTUAL(UAudioAnalyzerAsset::GetAssetActionName, return FText(););
+		AUDIOANALYZER_API virtual FText GetAssetActionName() const PURE_VIRTUAL(UAudioAnalyzerAsset::GetAssetActionName, return FText(););
 
 		/**
 		 * GetSupportedClass() returns the class which should be associated with these asset actions.
 		 */ 
-		virtual UClass* GetSupportedClass() const PURE_VIRTUAL(UAudioAnalyzerAsset::GetSupportedClass, return nullptr;);
+		AUDIOANALYZER_API virtual UClass* GetSupportedClass() const PURE_VIRTUAL(UAudioAnalyzerAsset::GetSupportedClass, return nullptr;);
 
 		/**
 		 * GetTypeColor() returns the color used to display asset icons within the editor.

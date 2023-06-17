@@ -84,23 +84,23 @@ namespace TransformGizmoUtil
  * will look up the UCombinedTransformGizmoContextObject instance in the ContextObjectStore and then
  * call the associated function below.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmoContextObject : public UObject
+UCLASS(Transient, MinimalAPI)
+class UCombinedTransformGizmoContextObject : public UObject
 {
 	GENERATED_BODY()
 public:
 
 public:
 	// builder identifiers for default gizmo types. Perhaps should have an API for this...
-	static const FString DefaultAxisPositionBuilderIdentifier;
-	static const FString DefaultPlanePositionBuilderIdentifier;
-	static const FString DefaultAxisAngleBuilderIdentifier;
-	static const FString DefaultThreeAxisTransformBuilderIdentifier;
-	static const FString CustomThreeAxisTransformBuilderIdentifier;
-	static const FString CustomRepositionableThreeAxisTransformBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API const FString DefaultAxisPositionBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API const FString DefaultPlanePositionBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API const FString DefaultAxisAngleBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API const FString DefaultThreeAxisTransformBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API const FString CustomThreeAxisTransformBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API const FString CustomRepositionableThreeAxisTransformBuilderIdentifier;
 
-	void RegisterGizmosWithManager(UInteractiveToolManager* ToolManager);
-	void DeregisterGizmosWithManager(UInteractiveToolManager* ToolManager);
+	INTERACTIVETOOLSFRAMEWORK_API void RegisterGizmosWithManager(UInteractiveToolManager* ToolManager);
+	INTERACTIVETOOLSFRAMEWORK_API void DeregisterGizmosWithManager(UInteractiveToolManager* ToolManager);
 
 	/**
 	 * Activate a new instance of the default 3-axis transformation Gizmo. RegisterDefaultGizmos() must have been called first.
@@ -108,7 +108,7 @@ public:
 	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UCombinedTransformGizmo* Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API virtual UCombinedTransformGizmo* Create3AxisTransformGizmo(UInteractiveGizmoManager* GizmoManager, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 	/**
 	 * Activate a new customized instance of the default 3-axis transformation Gizmo, with only certain elements included. RegisterDefaultGizmos() must have been called first.
@@ -117,13 +117,13 @@ public:
 	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UCombinedTransformGizmo* CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API virtual UCombinedTransformGizmo* CreateCustomTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 	/**
 	 * Variant of CreateCustomTransformGizmo that creates a URepositionableTransformGizmo, which is an extension to UCombinedTransformGizmo that 
 	 * supports various snapping interactions
 	 */
-	virtual UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API virtual UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(UInteractiveGizmoManager* GizmoManager, ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGizmoCreated, UCombinedTransformGizmo*);
 	FOnGizmoCreated OnGizmoCreated;

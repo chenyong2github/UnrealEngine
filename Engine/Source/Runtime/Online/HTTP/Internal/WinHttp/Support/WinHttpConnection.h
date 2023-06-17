@@ -10,7 +10,7 @@
 using HINTERNET = void*;
 using LPVOID = void*;
 
-class HTTP_API IWinHttpConnection
+class IWinHttpConnection
 	: public TSharedFromThis<IWinHttpConnection, ESPMode::ThreadSafe>
 {
 public:

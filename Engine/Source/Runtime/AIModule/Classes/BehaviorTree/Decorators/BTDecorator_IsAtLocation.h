@@ -13,8 +13,8 @@
  * Is At Location decorator node.
  * A decorator node that checks if AI controlled pawn is at given location.
  */
-UCLASS()
-class AIMODULE_API UBTDecorator_IsAtLocation : public UBTDecorator_BlackboardBase
+UCLASS(MinimalAPI)
+class UBTDecorator_IsAtLocation : public UBTDecorator_BlackboardBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -40,14 +40,14 @@ class AIMODULE_API UBTDecorator_IsAtLocation : public UBTDecorator_BlackboardBas
 	UPROPERTY(EditAnywhere, Category = Condition)
 	uint32 bPathFindingBasedTest : 1;
 
-	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
+	AIMODULE_API virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
 	
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 
 protected:
-	FVector::FReal GetGeometricDistanceSquared(const FVector& A, const FVector& B) const;
+	AIMODULE_API FVector::FReal GetGeometricDistanceSquared(const FVector& A, const FVector& B) const;
 };

@@ -30,25 +30,25 @@ enum class ERHIPoolResourceTypes
 /**
 @brief Pool allocator internal data
 **/
-struct RHICORE_API FRHIPoolAllocationData
+struct FRHIPoolAllocationData
 {
 public:
 
 	// Reset to unknown state
-	void Reset();
+	RHICORE_API void Reset();
 
 	// Initialize options
-	void InitAsHead(int16 InPoolIndex);
-	void InitAsFree(int16 InPoolIndex, uint32 InSize, uint32 InAlignment, uint32 InOffset);
-	void InitAsAllocated(uint32 InSize, uint32 InPoolAlignment, uint32 InAllocationAlignment, FRHIPoolAllocationData* InFree);
-	void MoveFrom(FRHIPoolAllocationData& InAllocated, bool InLocked);
+	RHICORE_API void InitAsHead(int16 InPoolIndex);
+	RHICORE_API void InitAsFree(int16 InPoolIndex, uint32 InSize, uint32 InAlignment, uint32 InOffset);
+	RHICORE_API void InitAsAllocated(uint32 InSize, uint32 InPoolAlignment, uint32 InAllocationAlignment, FRHIPoolAllocationData* InFree);
+	RHICORE_API void MoveFrom(FRHIPoolAllocationData& InAllocated, bool InLocked);
 
 	// Free block operation (TODO: make internal)
-	void MarkFree(uint32 InPoolAlignment, uint32 InAllocationAlignment);
+	RHICORE_API void MarkFree(uint32 InPoolAlignment, uint32 InAllocationAlignment);
 
 	// Alias operations (NOTE: currently not accessed when pool lock is taken, needs to be fixed)
-	void AddAlias(FRHIPoolAllocationData* InOther);
-	void RemoveAlias();
+	RHICORE_API void AddAlias(FRHIPoolAllocationData* InOther);
+	RHICORE_API void RemoveAlias();
 	FRHIPoolAllocationData* GetFirstAlias() const { return AliasAllocation; }
 
 	// Type getters
@@ -81,12 +81,12 @@ private:
 	friend class FRHIPoolAllocator;
 	void Lock() { check(Locked == 0); Locked = 1; }
 
-	void Merge(FRHIPoolAllocationData* InOther);
+	RHICORE_API void Merge(FRHIPoolAllocationData* InOther);
 
 	// Linked list operation
-	void RemoveFromLinkedList();
-	void AddBefore(FRHIPoolAllocationData* InOther);
-	void AddAfter(FRHIPoolAllocationData* InOther);
+	RHICORE_API void RemoveFromLinkedList();
+	RHICORE_API void AddBefore(FRHIPoolAllocationData* InOther);
+	RHICORE_API void AddAfter(FRHIPoolAllocationData* InOther);
 		
 	enum class EAllocationType : uint8
 	{
@@ -126,7 +126,7 @@ private:
 @brief Pool which stores for each allocation the previous and next allocation.
 	   Each block is either free or allocated.
 **/
-class RHICORE_API FRHIMemoryPool
+class FRHIMemoryPool
 {
 public:
 
@@ -137,19 +137,19 @@ public:
 	};
 
 	// Constructor
-	FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, ERHIPoolResourceTypes InSupportedResourceTypes, EFreeListOrder InFreeListOrder);
-	virtual ~FRHIMemoryPool();
+	RHICORE_API FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, ERHIPoolResourceTypes InSupportedResourceTypes, EFreeListOrder InFreeListOrder);
+	RHICORE_API virtual ~FRHIMemoryPool();
 
 	// Setup/Shutdown
-	virtual void Init();
-	virtual void Destroy();
+	RHICORE_API virtual void Init();
+	RHICORE_API virtual void Destroy();
 
 	// AllocationData functions: allocate, free, move, ...
-	bool TryAllocate(uint32 InSizeInBytes, uint32 InAllocationAlignment, ERHIPoolResourceTypes InAllocationResourceType, FRHIPoolAllocationData& AllocationData);
-	void Deallocate(FRHIPoolAllocationData& AllocationData);
+	RHICORE_API bool TryAllocate(uint32 InSizeInBytes, uint32 InAllocationAlignment, ERHIPoolResourceTypes InAllocationResourceType, FRHIPoolAllocationData& AllocationData);
+	RHICORE_API void Deallocate(FRHIPoolAllocationData& AllocationData);
 
 	// Bookkeeping and clearing
-	void TryClear(FRHIPoolAllocator* InAllocator, uint32 InMaxCopySize, uint32& CopySize, const TArray<FRHIMemoryPool*>& InTargetPools);
+	RHICORE_API void TryClear(FRHIPoolAllocator* InAllocator, uint32 InMaxCopySize, uint32& CopySize, const TArray<FRHIMemoryPool*>& InTargetPools);
 
 	// Getters
 	int16 GetPoolIndex() const { return PoolIndex; }
@@ -164,22 +164,22 @@ public:
 	bool IsFull() const { return FreeSize == 0; }
 
 	// Static public helper functions
-	static uint32 GetAlignedSize(uint32 InSizeInBytes, uint32 InPoolAlignment, uint32 InAllocationAlignment);
-	static uint32 GetAlignedOffset(uint32 InOffset, uint32 InPoolAlignment, uint32 InAllocationAlignment);
+	static RHICORE_API uint32 GetAlignedSize(uint32 InSizeInBytes, uint32 InPoolAlignment, uint32 InAllocationAlignment);
+	static RHICORE_API uint32 GetAlignedOffset(uint32 InOffset, uint32 InPoolAlignment, uint32 InAllocationAlignment);
 
 protected:
 		
 	// Free block management helper function
-	int32 FindFreeBlock(uint32 InSizeInBytes, uint32 InAllocationAlignment) const;
-	FRHIPoolAllocationData* AddToFreeBlocks(FRHIPoolAllocationData* InFreeBlock);
-	void RemoveFromFreeBlocks(FRHIPoolAllocationData* InFreeBlock);
+	RHICORE_API int32 FindFreeBlock(uint32 InSizeInBytes, uint32 InAllocationAlignment) const;
+	RHICORE_API FRHIPoolAllocationData* AddToFreeBlocks(FRHIPoolAllocationData* InFreeBlock);
+	RHICORE_API void RemoveFromFreeBlocks(FRHIPoolAllocationData* InFreeBlock);
 
 	// Get/Release allocation data blocks
-	FRHIPoolAllocationData* GetNewAllocationData();
-	void ReleaseAllocationData(FRHIPoolAllocationData* InData);
+	RHICORE_API FRHIPoolAllocationData* GetNewAllocationData();
+	RHICORE_API void ReleaseAllocationData(FRHIPoolAllocationData* InData);
 
 	// Validate the linked list data - slow
-	void Validate();
+	RHICORE_API void Validate();
 
 	// Const creation members
 	int16 PoolIndex;
@@ -211,29 +211,29 @@ protected:
 /**
 @brief Manages an array of FRHIMemoryPool and supports defragmentation between multiple pools
 **/
-class RHICORE_API FRHIPoolAllocator
+class FRHIPoolAllocator
 {
 public:
 
 	// Constructor
-	FRHIPoolAllocator(uint64 InDefaultPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool InDefragEnabled);
-	virtual ~FRHIPoolAllocator();
+	RHICORE_API FRHIPoolAllocator(uint64 InDefaultPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool InDefragEnabled);
+	RHICORE_API virtual ~FRHIPoolAllocator();
 
 	// Setup/Shutdown
-	void Initialize();
-	void Destroy();
+	RHICORE_API void Initialize();
+	RHICORE_API void Destroy();
 
 	// Defrag & cleanup operation
-	void Defrag(uint32 InMaxCopySize, uint32& CurrentCopySize);
+	RHICORE_API void Defrag(uint32 InMaxCopySize, uint32& CurrentCopySize);
 
 	// Stats
-	void UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOMemoryEndFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount);
+	RHICORE_API void UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOMemoryEndFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount);
 
 protected:
 		
 	// Supported allocator operations
-	bool TryAllocateInternal(uint32 InSizeInBytes, uint32 InAllocationAlignment, ERHIPoolResourceTypes InAllocationResourceType, FRHIPoolAllocationData& AllocationData);
-	void DeallocateInternal(FRHIPoolAllocationData& AllocationData);
+	RHICORE_API bool TryAllocateInternal(uint32 InSizeInBytes, uint32 InAllocationAlignment, ERHIPoolResourceTypes InAllocationResourceType, FRHIPoolAllocationData& AllocationData);
+	RHICORE_API void DeallocateInternal(FRHIPoolAllocationData& AllocationData);
 	
 	// Helper function to create a new platform specific pool
 	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType) = 0;

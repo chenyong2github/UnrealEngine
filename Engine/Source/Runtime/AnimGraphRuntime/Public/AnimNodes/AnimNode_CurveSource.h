@@ -14,7 +14,7 @@ class UAnimInstance;
 
 /** Supply curves from some external source (e.g. audio) */
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_CurveSource : public FAnimNode_Base
+struct FAnimNode_CurveSource : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -38,15 +38,15 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_CurveSource : public FAnimNode_Base
 	UPROPERTY(Transient)
 	TScriptInterface<ICurveSourceInterface> CurveSource;
 
-	FAnimNode_CurveSource();
+	ANIMGRAPHRUNTIME_API FAnimNode_CurveSource();
 
 	// FAnimNode_Base interface
 	virtual bool HasPreUpdate() const override { return true; }
-	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 };

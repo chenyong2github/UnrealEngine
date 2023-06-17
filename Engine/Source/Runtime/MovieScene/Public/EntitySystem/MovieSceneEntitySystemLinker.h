@@ -60,10 +60,10 @@ namespace MovieScene
 	MOVIESCENE_API EEntitySystemLinkerRole RegisterCustomEntitySystemLinkerRole();
 
 	/** Utility class for filtering systems */
-	struct MOVIESCENE_API FSystemFilter
+	struct FSystemFilter
 	{
 		/** Constructs a default filter that allows all systems */
-		FSystemFilter();
+		MOVIESCENE_API FSystemFilter();
 
 		/** Checks whether the given system class passes all filters */
 		template<typename SystemClass>
@@ -73,23 +73,23 @@ namespace MovieScene
 		}
 
 		/** Checks whether the given system class passes all filters */
-		bool CheckSystem(TSubclassOf<UMovieSceneEntitySystem> InClass) const;
+		MOVIESCENE_API bool CheckSystem(TSubclassOf<UMovieSceneEntitySystem> InClass) const;
 		/** Checks whether the given system passes all filters */
-		bool CheckSystem(const UMovieSceneEntitySystem* InSystem) const;
+		MOVIESCENE_API bool CheckSystem(const UMovieSceneEntitySystem* InSystem) const;
 
 		/** Sets system categories that are allowed */
-		void SetAllowedCategories(EEntitySystemCategory InCategory);
+		MOVIESCENE_API void SetAllowedCategories(EEntitySystemCategory InCategory);
 		/** Add system categories to be allowed */
-		void AllowCategory(EEntitySystemCategory InCategory);
+		MOVIESCENE_API void AllowCategory(EEntitySystemCategory InCategory);
 		/** Sets system categories that are disallowed */
-		void SetDisallowedCategories(EEntitySystemCategory InCategory);
+		MOVIESCENE_API void SetDisallowedCategories(EEntitySystemCategory InCategory);
 		/** Add system categories to be disallowed */
-		void DisallowCategory(EEntitySystemCategory InCategory);
+		MOVIESCENE_API void DisallowCategory(EEntitySystemCategory InCategory);
 
 		/** Specifically allow the given system type */
-		void AllowSystem(TSubclassOf<UMovieSceneEntitySystem> InClass);
+		MOVIESCENE_API void AllowSystem(TSubclassOf<UMovieSceneEntitySystem> InClass);
 		/** Specifically disallow the given system type */
-		void DisallowSystem(TSubclassOf<UMovieSceneEntitySystem> InClass);
+		MOVIESCENE_API void DisallowSystem(TSubclassOf<UMovieSceneEntitySystem> InClass);
 
 	private:
 		UE::MovieScene::EEntitySystemCategory CategoriesAllowed;
@@ -106,8 +106,8 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneEntitySystemLinkerAROEvent, UMov
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneEntitySystemLinkerWorldEvent, UMovieSceneEntitySystemLinker*, UWorld*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FMovieSceneEntitySystemLinkerPostSpawnEvent, UMovieSceneEntitySystemLinker*);
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneEntitySystemLinker
+UCLASS(MinimalAPI)
+class UMovieSceneEntitySystemLinker
 	: public UObject
 {
 public:
@@ -133,15 +133,15 @@ public:
 	UE::MovieScene::FPreAnimatedStateExtension PreAnimatedState;
 
 	/** Constructs a new linker */
-	UMovieSceneEntitySystemLinker(const FObjectInitializer& ObjInit);
+	MOVIESCENE_API UMovieSceneEntitySystemLinker(const FObjectInitializer& ObjInit);
 
 	/** Gets the global component registry */
-	static FComponentRegistry* GetComponents();
+	static MOVIESCENE_API FComponentRegistry* GetComponents();
 
 	/** Finds or creates a named linker */
-	static UMovieSceneEntitySystemLinker* FindOrCreateLinker(UObject* PreferredOuter, UE::MovieScene::EEntitySystemLinkerRole LinkerRole, const TCHAR* Name = TEXT("DefaultMovieSceneEntitySystemLinker"));
+	static MOVIESCENE_API UMovieSceneEntitySystemLinker* FindOrCreateLinker(UObject* PreferredOuter, UE::MovieScene::EEntitySystemLinkerRole LinkerRole, const TCHAR* Name = TEXT("DefaultMovieSceneEntitySystemLinker"));
 	/** Creates a new linker */
-	static UMovieSceneEntitySystemLinker* CreateLinker(UObject* PreferredOuter, UE::MovieScene::EEntitySystemLinkerRole LinkerRole);
+	static MOVIESCENE_API UMovieSceneEntitySystemLinker* CreateLinker(UObject* PreferredOuter, UE::MovieScene::EEntitySystemLinkerRole LinkerRole);
 
 	/** Gets this linker's instance registry */
 	FInstanceRegistry* GetInstanceRegistry()
@@ -176,12 +176,12 @@ public:
 		return CastChecked<SystemType>(FindSystem(SystemType::StaticClass()), ECastCheckedType::NullAllowed);
 	}
 
-	UMovieSceneEntitySystem* LinkSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType);
-	UMovieSceneEntitySystem* LinkSystemIfAllowed(TSubclassOf<UMovieSceneEntitySystem> InClassType);
+	MOVIESCENE_API UMovieSceneEntitySystem* LinkSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType);
+	MOVIESCENE_API UMovieSceneEntitySystem* LinkSystemIfAllowed(TSubclassOf<UMovieSceneEntitySystem> InClassType);
 
-	UMovieSceneEntitySystem* FindSystem(TSubclassOf<UMovieSceneEntitySystem> Class) const;
+	MOVIESCENE_API UMovieSceneEntitySystem* FindSystem(TSubclassOf<UMovieSceneEntitySystem> Class) const;
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static MOVIESCENE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/**
 	 * Gets this linker's system filter.
@@ -210,7 +210,7 @@ public:
 	/**
 	 * Completely reset this linker back to its default state, abandoning all systems and destroying all entities
 	 */
-	void Reset();
+	MOVIESCENE_API void Reset();
 
 public:
 
@@ -311,44 +311,44 @@ public:
 
 	// Internal API
 	
-	void SystemLinked(UMovieSceneEntitySystem* InSystem);
-	void SystemUnlinked(UMovieSceneEntitySystem* InSystem);
+	MOVIESCENE_API void SystemLinked(UMovieSceneEntitySystem* InSystem);
+	MOVIESCENE_API void SystemUnlinked(UMovieSceneEntitySystem* InSystem);
 
-	bool HasLinkedSystem(const uint16 GlobalDependencyGraphID);
+	MOVIESCENE_API bool HasLinkedSystem(const uint16 GlobalDependencyGraphID);
 
-	void LinkRelevantSystems();
-	void UnlinkIrrelevantSystems();
-	void AutoLinkRelevantSystems();
-	void AutoUnlinkIrrelevantSystems();
+	MOVIESCENE_API void LinkRelevantSystems();
+	MOVIESCENE_API void UnlinkIrrelevantSystems();
+	MOVIESCENE_API void AutoLinkRelevantSystems();
+	MOVIESCENE_API void AutoUnlinkIrrelevantSystems();
 
-	bool HasStructureChangedSinceLastRun() const;
+	MOVIESCENE_API bool HasStructureChangedSinceLastRun() const;
 
-	void InvalidateObjectBinding(const FGuid& ObjectBindingID, FInstanceHandle InstanceHandle);
-	void CleanupInvalidBoundObjects();
+	MOVIESCENE_API void InvalidateObjectBinding(const FGuid& ObjectBindingID, FInstanceHandle InstanceHandle);
+	MOVIESCENE_API void CleanupInvalidBoundObjects();
 
-	bool StartEvaluation(FMovieSceneEntitySystemRunner& InRunner);
-	FMovieSceneEntitySystemRunner* GetActiveRunner() const;
-	void PostInstantation(FMovieSceneEntitySystemRunner& InRunner);
-	void EndEvaluation(FMovieSceneEntitySystemRunner& InRunner);
+	MOVIESCENE_API bool StartEvaluation(FMovieSceneEntitySystemRunner& InRunner);
+	MOVIESCENE_API FMovieSceneEntitySystemRunner* GetActiveRunner() const;
+	MOVIESCENE_API void PostInstantation(FMovieSceneEntitySystemRunner& InRunner);
+	MOVIESCENE_API void EndEvaluation(FMovieSceneEntitySystemRunner& InRunner);
 
-	void ResetActiveRunners();
+	MOVIESCENE_API void ResetActiveRunners();
 
 private:
 
-	UMovieSceneEntitySystem* LinkSystemImpl(TSubclassOf<UMovieSceneEntitySystem> InClassType);
+	MOVIESCENE_API UMovieSceneEntitySystem* LinkSystemImpl(TSubclassOf<UMovieSceneEntitySystem> InClassType);
 
-	void HandlePreGarbageCollection();
-	void HandlePostGarbageCollection();
+	MOVIESCENE_API void HandlePreGarbageCollection();
+	MOVIESCENE_API void HandlePostGarbageCollection();
 
-	void TagInvalidBoundObjects();
-	void CleanGarbage();
+	MOVIESCENE_API void TagInvalidBoundObjects();
+	MOVIESCENE_API void CleanGarbage();
 
-	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
-	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
+	MOVIESCENE_API void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+	MOVIESCENE_API void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
-	virtual void BeginDestroy() override;
+	MOVIESCENE_API virtual void BeginDestroy() override;
 
-	static UE::MovieScene::FEntitySystemLinkerExtensionID RegisterExtension();
+	static MOVIESCENE_API UE::MovieScene::FEntitySystemLinkerExtensionID RegisterExtension();
 
 private:
 

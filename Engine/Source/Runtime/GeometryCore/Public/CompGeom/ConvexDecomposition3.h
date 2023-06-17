@@ -72,7 +72,7 @@ struct FNegativeSpaceSampleSettings
 };
 
 // Define a volume with a set of spheres
-class GEOMETRYCORE_API FSphereCovering
+class FSphereCovering
 {
 public:
 
@@ -93,7 +93,7 @@ public:
 
 	// Add spheres covering the negative space of the given fast winding tree
 	// @return true if any spheres were added
-	bool AddNegativeSpace(const TFastWindingTree<FDynamicMesh3>& Spatial, const FNegativeSpaceSampleSettings& Settings);
+	GEOMETRYCORE_API bool AddNegativeSpace(const TFastWindingTree<FDynamicMesh3>& Spatial, const FNegativeSpaceSampleSettings& Settings);
 
 	void Reset()
 	{
@@ -110,7 +110,7 @@ private:
 
 
 
-class GEOMETRYCORE_API FConvexDecomposition3
+class FConvexDecomposition3
 {
 
 public:
@@ -132,9 +132,9 @@ public:
 	 * @param HullVertices		Function from Hull Index, Vertex Index -> Hull Vertex Position
 	 * @param Proximity			All the local proximities for the hulls. Hulls will not be merged unless they are connected by this proximity graph.
 	 */
-	void InitializeFromHulls(int32 NumHulls, TFunctionRef<double(int32)> HullVolumes, TFunctionRef<int32(int32)> HullNumVertices, TFunctionRef<FVector3d(int32, int32)> HullVertices, TArrayView<const TPair<int32, int32>> Proximity);
+	GEOMETRYCORE_API void InitializeFromHulls(int32 NumHulls, TFunctionRef<double(int32)> HullVolumes, TFunctionRef<int32(int32)> HullNumVertices, TFunctionRef<FVector3d(int32, int32)> HullVertices, TArrayView<const TPair<int32, int32>> Proximity);
 
-	void InitializeFromMesh(const FDynamicMesh3& SourceMesh, bool bMergeEdges);
+	GEOMETRYCORE_API void InitializeFromMesh(const FDynamicMesh3& SourceMesh, bool bMergeEdges);
 
 	/**
 	 * Initialize convex decomposition with a triangle index mesh
@@ -143,7 +143,7 @@ public:
 	 * @param bMergeEdges		Whether to attempt to weld matching edges before computing the convex hull; this can help the convex decomposition find better cutting planes for meshes that have boundaries e.g. due to seams
 	 * @param FaceVertexOffset	Indices from the Faces array are optionally offset by this value.  Useful e.g. to take slices of the multi-geometry vertex and face buffers of FGeometryCollection.
 	 */
-	void InitializeFromIndexMesh(TArrayView<const FVector3f> Vertices, TArrayView<const FIntVector> Faces, bool bMergeEdges, int32 FaceVertexOffset = 0);
+	GEOMETRYCORE_API void InitializeFromIndexMesh(TArrayView<const FVector3f> Vertices, TArrayView<const FIntVector> Faces, bool bMergeEdges, int32 FaceVertexOffset = 0);
 
 	//
 	// Settings
@@ -211,7 +211,7 @@ public:
 	// Split the worst convex part, and return the increase in the total number of convex parts after splitting (can be more than 1 if result has multiple separate connected components)
 	// Note: could return 0 if no splits were possible
 	// @param bCanSkipUnreliableGeoVolumes		if true, don't split hulls where we have questionable geometry volume results, unless there is no hull with good geometry volume results
-	int32 SplitWorst(bool bCanSkipUnreliableGeoVolumes = false, double ErrorTolerance = 0.0);
+	GEOMETRYCORE_API int32 SplitWorst(bool bCanSkipUnreliableGeoVolumes = false, double ErrorTolerance = 0.0);
 
 	// Merge the pairs of convex hulls in the decomposition that will least increase the error.  Intermediate results can be used across merges, so it is best to do all merges in one call.
 	// Note: A future version of this function may replace NumOutputHulls with MaxOutputHulls, but this version keeps both parameters for compatibility / consistent behavior.
@@ -226,7 +226,7 @@ public:
 	// @param OptionalNegativeSpace Optional representation of negative space that should not be covered by merges
 	// @param OptionalNegativeSpaceTransform Optional transform from space of the convex hulls into the space of the sphere covering; if not provided, assume spheres are in the same coordinate space as the hulls
 	// @return						The number of merges performed
-	int32 MergeBest(int32 TargetNumParts, double ErrorTolerance = 0, double MinThicknessTolerance = 0, bool bAllowCompact = true, bool bRequireHullTriangles = false, int MaxOutputHulls = -1,
+	GEOMETRYCORE_API int32 MergeBest(int32 TargetNumParts, double ErrorTolerance = 0, double MinThicknessTolerance = 0, bool bAllowCompact = true, bool bRequireHullTriangles = false, int MaxOutputHulls = -1,
 		const FSphereCovering* OptionalNegativeSpace = nullptr, const FTransform* OptionalTransformIntoNegativeSpace = nullptr);
 
 	// simple helper to convert an error tolerance expressed in world space to a local-space volume tolerance
@@ -474,7 +474,7 @@ public:
 
 	// Helper function to delete a proximity relationship, and fix index references to account for the new array ordering
 	// @param bDeleteMapReferences		If true, also update references in the DecompositionToProximity map
-	void DeleteProximity(int32 ProxIdx, bool bDeleteMapReferences);
+	GEOMETRYCORE_API void DeleteProximity(int32 ProxIdx, bool bDeleteMapReferences);
 
 	// Helper function to update all proximity data after splitting an FConvexPart apart
 	// @param SplitIdx				The index of the FConvexPart that has been split into multiple parts.  Now contains the first new part.
@@ -482,7 +482,7 @@ public:
 	// @param CutPlane				The plane used for the split
 	// @param SecondSideIdxStart	The first index in the Decomposition array of new FConvexParts that were on the opposite side of the plane from SplitIdx.  Will be different from NewIdxStart only if the first part was split into multiple components.
 	// @param OrigHullVolume		The volume of the convex hull *before* the split was performed -- used to precompute the merge cost.
-	void UpdateProximitiesAfterSplit(int32 SplitIdx, int32 NewIdxStart, FPlane3d CutPlane, int32 SecondSideIdxStart, double OrigHullVolume);
+	GEOMETRYCORE_API void UpdateProximitiesAfterSplit(int32 SplitIdx, int32 NewIdxStart, FPlane3d CutPlane, int32 SecondSideIdxStart, double OrigHullVolume);
 };
 
 } // end namespace UE::Geometry

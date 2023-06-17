@@ -147,8 +147,8 @@ private:
 /**
  * Implements a sound component for playing a media player's audio output.
  */
-UCLASS(ClassGroup=Media, editinlinenew, meta=(BlueprintSpawnableComponent))
-class MEDIAASSETS_API UMediaSoundComponent
+UCLASS(ClassGroup=Media, editinlinenew, meta=(BlueprintSpawnableComponent), MinimalAPI)
+class UMediaSoundComponent
 	: public USynthComponent
 {
 	GENERATED_BODY()
@@ -189,10 +189,10 @@ public:
 	 *
 	 * @param ObjectInitializer Initialization parameters.
 	 */
-	UMediaSoundComponent(const FObjectInitializer& ObjectInitializer);
+	MEDIAASSETS_API UMediaSoundComponent(const FObjectInitializer& ObjectInitializer);
 
 	/** Virtual destructor. */
-	~UMediaSoundComponent();
+	MEDIAASSETS_API ~UMediaSoundComponent();
 
 public:
 
@@ -203,7 +203,7 @@ public:
 	 * @return true if attenuation settings were returned, false if attenuation is disabled.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaSoundComponent", meta=(DisplayName="Get Attenuation Settings To Apply", ScriptName="GetAttenuationSettingsToApply"))
-	bool BP_GetAttenuationSettingsToApply(FSoundAttenuationSettings& OutAttenuationSettings);
+	MEDIAASSETS_API bool BP_GetAttenuationSettingsToApply(FSoundAttenuationSettings& OutAttenuationSettings);
 
 	/**
 	 * Get the media player that provides the audio samples.
@@ -212,7 +212,7 @@ public:
 	 * @see SetMediaPlayer
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaSoundComponent")
-	UMediaPlayer* GetMediaPlayer() const;
+	MEDIAASSETS_API UMediaPlayer* GetMediaPlayer() const;
 
 	virtual USoundClass* GetSoundClass() override
 	{
@@ -244,45 +244,45 @@ public:
 	 * @see GetMediaPlayer
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaSoundComponent")
-	void SetMediaPlayer(UMediaPlayer* NewMediaPlayer);
+	MEDIAASSETS_API void SetMediaPlayer(UMediaPlayer* NewMediaPlayer);
 
 	/** Turns on spectral analysis of the audio generated in the media sound component. */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaSoundComponent")
-	void SetEnableSpectralAnalysis(bool bInSpectralAnalysisEnabled);
+	MEDIAASSETS_API void SetEnableSpectralAnalysis(bool bInSpectralAnalysisEnabled);
 	
 	/** Sets the settings to use for spectral analysis. */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaSoundComponent")
-	void SetSpectralAnalysisSettings(TArray<float> InFrequenciesToAnalyze, EMediaSoundComponentFFTSize InFFTSize = EMediaSoundComponentFFTSize::Medium_512);
+	MEDIAASSETS_API void SetSpectralAnalysisSettings(TArray<float> InFrequenciesToAnalyze, EMediaSoundComponentFFTSize InFFTSize = EMediaSoundComponentFFTSize::Medium_512);
 
 	/** Retrieves the spectral data if spectral analysis is enabled. */
 	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
-	TArray<FMediaSoundComponentSpectralData> GetSpectralData();
+	MEDIAASSETS_API TArray<FMediaSoundComponentSpectralData> GetSpectralData();
 
 	/** Retrieves and normalizes the spectral data if spectral analysis is enabled. */
 	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
-	TArray<FMediaSoundComponentSpectralData> GetNormalizedSpectralData();
+	MEDIAASSETS_API TArray<FMediaSoundComponentSpectralData> GetNormalizedSpectralData();
 
 	/** Turns on amplitude envelope following the audio in the media sound component. */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaSoundComponent")
-	void SetEnableEnvelopeFollowing(bool bInEnvelopeFollowing);
+	MEDIAASSETS_API void SetEnableEnvelopeFollowing(bool bInEnvelopeFollowing);
 
 	/** Sets the envelope attack and release times (in ms). */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaSoundComponent")
-	void SetEnvelopeFollowingsettings(int32 AttackTimeMsec, int32 ReleaseTimeMsec);
+	MEDIAASSETS_API void SetEnvelopeFollowingsettings(int32 AttackTimeMsec, int32 ReleaseTimeMsec);
 
 	/** Retrieves the current amplitude envelope. */
 	UFUNCTION(BlueprintCallable, Category = "TimeSynth")
-	float GetEnvelopeValue() const;
+	MEDIAASSETS_API float GetEnvelopeValue() const;
 
 public:
 
 	/** Adds a clock sink so this can be ticked without the world. */
-	void AddClockSink();
+	MEDIAASSETS_API void AddClockSink();
 
 	/** Removes the clock sink. */
-	void RemoveClockSink();
+	MEDIAASSETS_API void RemoveClockSink();
 
-	void UpdatePlayer();
+	MEDIAASSETS_API void UpdatePlayer();
 
 #if WITH_EDITOR
 	/**
@@ -291,37 +291,37 @@ public:
 	 * @param NewMediaPlayer The player to set.
 	 * @see SetMediaPlayer
 	 */
-	void SetDefaultMediaPlayer(UMediaPlayer* NewMediaPlayer);
+	MEDIAASSETS_API void SetDefaultMediaPlayer(UMediaPlayer* NewMediaPlayer);
 #endif
 
 public:
 
 	//~ TAttenuatedComponentVisualizer interface
 
-	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
+	MEDIAASSETS_API void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 
 public:
 
 	//~ UActorComponent interface
 
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	MEDIAASSETS_API virtual void OnRegister() override;
+	MEDIAASSETS_API virtual void OnUnregister() override;
+	MEDIAASSETS_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 public:
 
 	//~ USceneComponent interface
 
-	virtual void Activate(bool bReset = false) override;
-	virtual void Deactivate() override;
+	MEDIAASSETS_API virtual void Activate(bool bReset = false) override;
+	MEDIAASSETS_API virtual void Deactivate() override;
 
 public:
 
 	//~ UObject interface
-	virtual void PostLoad() override;
+	MEDIAASSETS_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	MEDIAASSETS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 protected:
@@ -331,15 +331,15 @@ protected:
 	 *
 	 * @return Attenuation settings, or nullptr if attenuation is disabled.
 	 */
-	const FSoundAttenuationSettings* GetSelectedAttenuationSettings() const;
+	MEDIAASSETS_API const FSoundAttenuationSettings* GetSelectedAttenuationSettings() const;
 
 protected:
 
 	//~ USynthComponent interface
 
-	virtual bool Init(int32& SampleRate) override;
+	MEDIAASSETS_API virtual bool Init(int32& SampleRate) override;
 
-	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
+	MEDIAASSETS_API virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 
 protected:
 

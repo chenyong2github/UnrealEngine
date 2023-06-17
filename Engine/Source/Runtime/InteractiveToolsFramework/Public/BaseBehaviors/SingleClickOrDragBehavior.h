@@ -37,8 +37,8 @@ struct FInputDeviceState;
  * The hit-test and on-clicked functions are provided by a IClickBehaviorTarget instance, while an
  * IClickDragBehaviorTarget provides the can-click-drag/begin-drag/update-drag/end-drag functionality.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API USingleClickOrDragInputBehavior : public UAnyButtonInputBehavior
+UCLASS(MinimalAPI)
+class USingleClickOrDragInputBehavior : public UAnyButtonInputBehavior
 {
 	GENERATED_BODY()
 
@@ -53,12 +53,12 @@ public:
 	/**
 	 * Set the targets for Click and Drag interactions
 	 */
-	virtual void Initialize(IClickBehaviorTarget* ClickTarget, IClickDragBehaviorTarget* DragTarget);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IClickBehaviorTarget* ClickTarget, IClickDragBehaviorTarget* DragTarget);
 
 	/**
 	 * Change the Drag BehaviorTarget
 	 */
-	virtual void SetDragTarget(IClickDragBehaviorTarget* DragTarget);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDragTarget(IClickDragBehaviorTarget* DragTarget);
 
 
 	/**
@@ -69,10 +69,10 @@ public:
 
 	// UInputBehavior implementation
 
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide) override;
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
-	virtual void ForceEndCapture(const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceEndCapture(const FInputCaptureData& Data) override;
 
 
 
@@ -112,22 +112,22 @@ protected:
 	/**
 	 * Internal function that forwards click evens to ClickTarget::OnClicked, you can customize behavior here
 	 */
-	virtual void OnClickedInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickedInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
 
 	/**
 	* Internal function that forwards click evens to DragTarget::OnClickPress, you can customize behavior here
 	*/
-	virtual void OnClickDragPressInternal(const FInputDeviceState& Input, EInputCaptureSide Side);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickDragPressInternal(const FInputDeviceState& Input, EInputCaptureSide Side);
 
 	/**
 	* Internal function that forwards click evens to DragTarget::OnClickDrag, you can customize behavior here
 	*/
-	virtual void OnClickDragInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickDragInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
 
 	/**
 	* Internal function that forwards click evens to DragTarget::OnClickRelease, you can customize behavior here
 	*/
-	virtual void OnClickDragReleaseInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickDragReleaseInternal(const FInputDeviceState& Input, const FInputCaptureData& Data);
 
 
 };

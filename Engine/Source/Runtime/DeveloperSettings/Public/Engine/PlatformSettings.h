@@ -21,11 +21,11 @@ class UPlatformSettings;
 class UPlatformSettingsManager;
 
 USTRUCT()
-struct DEVELOPERSETTINGS_API FPerPlatformSettings
+struct FPerPlatformSettings
 {
 	GENERATED_BODY()
 
-	void Initialize(TSubclassOf<UPlatformSettings> SettingsClass);
+	DEVELOPERSETTINGS_API void Initialize(TSubclassOf<UPlatformSettings> SettingsClass);
 
 private:
 	UPROPERTY(Instanced, Transient, EditAnywhere, EditFixedSize, Category = Layout)
@@ -54,13 +54,13 @@ private:
  *         UMyPerPlatformSettings* MySettings = UPlatformSettingsManager::Get().GetSettingsForPlatform<UMyPerPlatformSettings>()
  *         that will get you the current settings for the active platform, or the simulated platform in the editor.
  */
-UCLASS(Abstract, perObjectConfig)
-class DEVELOPERSETTINGS_API UPlatformSettings : public UObject
+UCLASS(Abstract, perObjectConfig, MinimalAPI)
+class UPlatformSettings : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UPlatformSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	DEVELOPERSETTINGS_API UPlatformSettings(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	virtual void InitializePlatformDefaults() { }
 

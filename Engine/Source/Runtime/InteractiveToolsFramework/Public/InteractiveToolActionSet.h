@@ -36,7 +36,7 @@ enum class EStandardToolActions
  * FInteractiveToolAction is returned by a UInteractiveTool to represent
  * an "Action" the Tool can execute. 
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FInteractiveToolAction
+struct FInteractiveToolAction
 {
 	/** Which type of UInteractiveTool this Action can be applied to*/
 	const UClass* ClassType;
@@ -87,7 +87,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInteractiveToolAction
  * FInteractiveToolActionSet maintains a list of FInteractiveToolAction.
  * Each UInteractiveTool contains an instance of this class.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FInteractiveToolActionSet
+class FInteractiveToolActionSet
 {
 public:
 
@@ -95,7 +95,7 @@ public:
 	 * Register an Action with the ActionSet. This function is intended to be called by
 	 * UInteractiveTool::RegisterActions() implementations
 	 */
-	void RegisterAction(UInteractiveTool* Tool, int32 ActionID,
+	INTERACTIVETOOLSFRAMEWORK_API void RegisterAction(UInteractiveTool* Tool, int32 ActionID,
 		const FString& ActionName, const FText& ShortUIName, const FText& DescriptionText,
 		EModifierKey::Type Modifiers, const FKey& ShortcutKey,
 		TFunction<void()> ActionFunction );
@@ -104,17 +104,17 @@ public:
 	 * Find an existing Action by ID
 	 * @return located Action, or nullptr if not found
 	 */
-	const FInteractiveToolAction* FindActionByID(int32 ActionID) const;
+	INTERACTIVETOOLSFRAMEWORK_API const FInteractiveToolAction* FindActionByID(int32 ActionID) const;
 
 	/**
 	 * Return the internal list of registered Actions by adding to the OutActions array
 	 */
-	void CollectActions(TArray<FInteractiveToolAction>& OutActions) const;
+	INTERACTIVETOOLSFRAMEWORK_API void CollectActions(TArray<FInteractiveToolAction>& OutActions) const;
 
 	/**
 	 * Execute the action identified by ActionID
 	 */
-	void ExecuteAction(int32 ActionID) const;
+	INTERACTIVETOOLSFRAMEWORK_API void ExecuteAction(int32 ActionID) const;
 
 protected:
 	TArray<FInteractiveToolAction> Actions;

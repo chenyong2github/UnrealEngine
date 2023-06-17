@@ -45,12 +45,12 @@ private:
     class FPreLoadScreenSlateSynchMechanism* SyncMechanism;
 };
 
-class PRELOADSCREEN_API FPreLoadSlateWidgetRenderer
+class FPreLoadSlateWidgetRenderer
 {
 public:
-	FPreLoadSlateWidgetRenderer(TSharedPtr<SWindow> InMainWindow, TSharedPtr<SVirtualWindow> InVirtualRenderWindowWindow, FSlateRenderer* InRenderer);
+	PRELOADSCREEN_API FPreLoadSlateWidgetRenderer(TSharedPtr<SWindow> InMainWindow, TSharedPtr<SVirtualWindow> InVirtualRenderWindowWindow, FSlateRenderer* InRenderer);
 
-	void DrawWindow(float DeltaTime);
+	PRELOADSCREEN_API void DrawWindow(float DeltaTime);
 
 	SWindow* GetMainWindow_GameThread() const { return MainWindow; }
 
@@ -74,37 +74,37 @@ private:
  * This class will handle all the nasty bits about running Slate on a separate thread
  * and then trying to sync it up with the game thread and the render thread simultaneously
  */
-class PRELOADSCREEN_API FPreLoadScreenSlateSynchMechanism
+class FPreLoadScreenSlateSynchMechanism
 {
 public:
-    FPreLoadScreenSlateSynchMechanism(TSharedPtr<FPreLoadSlateWidgetRenderer, ESPMode::ThreadSafe> InWidgetRenderer);
-    ~FPreLoadScreenSlateSynchMechanism();
+    PRELOADSCREEN_API FPreLoadScreenSlateSynchMechanism(TSharedPtr<FPreLoadSlateWidgetRenderer, ESPMode::ThreadSafe> InWidgetRenderer);
+    PRELOADSCREEN_API ~FPreLoadScreenSlateSynchMechanism();
 
 	FPreLoadScreenSlateSynchMechanism() = delete;
 	FPreLoadScreenSlateSynchMechanism(const FPreLoadScreenSlateSynchMechanism&) = delete;
 	FPreLoadScreenSlateSynchMechanism& operator=(const FPreLoadScreenSlateSynchMechanism&) = delete;
 
     /** Sets up the locks in their proper initial state for running */
-    void Initialize();
+    PRELOADSCREEN_API void Initialize();
 
     /** Cleans up the slate thread */
-    void DestroySlateThread();
+    PRELOADSCREEN_API void DestroySlateThread();
 
     /** Handles the counter to determine if the slate thread should keep running */
-    bool IsSlateMainLoopRunning_AnyThread() const;
+    PRELOADSCREEN_API bool IsSlateMainLoopRunning_AnyThread() const;
 
 private:
 	/** Notified when a SWindow is being destroyed */
-	void HandleWindowBeingDestroyed(const SWindow& WindowBeingDestroyed);
+	PRELOADSCREEN_API void HandleWindowBeingDestroyed(const SWindow& WindowBeingDestroyed);
 
 	/** The main loop to be run from the Slate thread */
-	void RunMainLoop_SlateThread();
+	PRELOADSCREEN_API void RunMainLoop_SlateThread();
 
     /** This counter handles running the main loop of the slate thread */
     TAtomic<bool> bIsRunningSlateMainLoop;
 
     /** This counter is used to generate a unique id for each new instance of the loading thread */
-    static TAtomic<int32> LoadingThreadInstanceCounter;
+    static PRELOADSCREEN_API TAtomic<int32> LoadingThreadInstanceCounter;
 
     /** The worker thread that will become the Slate thread */
     FRunnableThread* SlateLoadingThread;

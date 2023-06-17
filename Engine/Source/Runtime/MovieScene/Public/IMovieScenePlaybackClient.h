@@ -11,8 +11,8 @@
 struct FMovieSceneEvaluationRange;
 
 /** Movie scene binding overrides interface */
-UINTERFACE()
-class MOVIESCENE_API UMovieScenePlaybackClient
+UINTERFACE(MinimalAPI)
+class UMovieScenePlaybackClient
 	: public UInterface
 {
 public:
@@ -20,7 +20,7 @@ public:
 };
 
 
-class MOVIESCENE_API IMovieScenePlaybackClient
+class IMovieScenePlaybackClient
 {
 public:
 	GENERATED_BODY()

@@ -24,13 +24,13 @@ class UObject;
  * the IModifierToggleBehaviorTarget interface. If you want similar behavior
  * without actually capturing the key, you should use UKeyAsModifierInputBehavior.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API USingleKeyCaptureBehavior : public UInputBehavior
+UCLASS(MinimalAPI)
+class USingleKeyCaptureBehavior : public UInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	USingleKeyCaptureBehavior();
+	INTERACTIVETOOLSFRAMEWORK_API USingleKeyCaptureBehavior();
 
 	virtual EInputDevices GetSupportedDevices() override
 	{
@@ -46,7 +46,7 @@ public:
 	 * @param ModifierID integer ID that identifiers the modifier toggle
 	 * @param ModifierKey the key that will be used as the modifier toggle
 	 */
-	virtual void Initialize(IModifierToggleBehaviorTarget* Target, int ModifierID, const FKey& ModifierKey);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IModifierToggleBehaviorTarget* Target, int ModifierID, const FKey& ModifierKey);
 
 	/**
 	 * WantsCapture() will only return capture request if this function returns true (or is null)
@@ -56,10 +56,10 @@ public:
 
 	// UInputBehavior implementation
 
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide Side) override;
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
-	virtual void ForceEndCapture(const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide Side) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceEndCapture(const FInputCaptureData& Data) override;
 
 
 protected:

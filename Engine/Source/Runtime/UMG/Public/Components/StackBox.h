@@ -17,8 +17,8 @@ class SStackBox;
  * * Many Children
  * * Flows Vertical or Horizontal
  */
-UCLASS(meta = (ShortTooltip = "A layout panel for automatically laying child widgets out vertically or horizontally"))
-class UMG_API UStackBox : public UPanelWidget
+UCLASS(meta = (ShortTooltip = "A layout panel for automatically laying child widgets out vertically or horizontally"), MinimalAPI)
+class UStackBox : public UPanelWidget
 {
 	GENERATED_BODY()
 
@@ -31,34 +31,34 @@ private:
 
 public:
 	/** Get the orientation of the stack box. */
-	EOrientation GetOrientation() const;
+	UMG_API EOrientation GetOrientation() const;
 	/** Set the orientation of the stack box. The existing elements will be rearranged. */
-	void SetOrientation(EOrientation InType);
+	UMG_API void SetOrientation(EOrientation InType);
 
 	/** Adds a new child widget to the container. */
 	UFUNCTION(BlueprintCallable, Category="Panel")
-	UStackBoxSlot* AddChildToStackBox(UWidget* Content);
+	UMG_API UStackBoxSlot* AddChildToStackBox(UWidget* Content);
 
 	/** Replace the widget at the given index it with a different widget. */
 	UFUNCTION(BlueprintCallable, Category = "Panel")
-	bool ReplaceStackBoxChildAt(int32 Index, UWidget* Content);
+	UMG_API bool ReplaceStackBoxChildAt(int32 Index, UWidget* Content);
 
 #if WITH_EDITOR
 	//~ UWidget interface
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 	//~ End UWidget interface
 #endif
 
 protected:
 	//~ UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UPanelWidget
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 private:
 	TSharedPtr<SStackBox> MyBox;

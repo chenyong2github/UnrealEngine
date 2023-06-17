@@ -12,26 +12,26 @@
 class UTexture;
 struct FMaterialParameterInfo;
 
-UCLASS(collapseCategories, hideCategories=Object)
-class LANDSCAPE_API UMaterialExpressionLandscapeVisibilityMask : public UMaterialExpression
+UCLASS(collapseCategories, hideCategories=Object, MinimalAPI)
+class UMaterialExpressionLandscapeVisibilityMask : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	static FName ParameterName;
+	static LANDSCAPE_API FName ParameterName;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	LANDSCAPE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	LANDSCAPE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 
 	/**
 	 * Gets the landscape layer names
 	 */
-	virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const override;
+	LANDSCAPE_API virtual void GetLandscapeLayerNames(TArray<FName>& OutLayers) const override;
 #endif
-	virtual UObject* GetReferencedTexture() const override;
+	LANDSCAPE_API virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override { return true; }
 	//~ End UMaterialExpression Interface
 };

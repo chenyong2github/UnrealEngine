@@ -49,7 +49,7 @@ enum class ENavMeshDetailFlags : uint8
 };
 
 // exported to API for GameplayDebugger module
-struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNavMeshSceneProxyData, ESPMode::ThreadSafe>
+struct FNavMeshSceneProxyData : public TSharedFromThis<FNavMeshSceneProxyData, ESPMode::ThreadSafe>
 {
 	struct FDebugMeshData
 	{
@@ -99,37 +99,37 @@ struct NAVIGATIONSYSTEM_API FNavMeshSceneProxyData : public TSharedFromThis<FNav
 	FNavMeshSceneProxyData() : NavMeshDrawOffset(0, 0, 10.f),
 		bDataGathered(false), bNeedsNewData(true), NavDetailFlags(0) {}
 
-	void Reset();
-	void Serialize(FArchive& Ar);
-	uint32 GetAllocatedSize() const;
+	NAVIGATIONSYSTEM_API void Reset();
+	NAVIGATIONSYSTEM_API void Serialize(FArchive& Ar);
+	NAVIGATIONSYSTEM_API uint32 GetAllocatedSize() const;
 
 #if WITH_RECAST
-	void GatherData(const ARecastNavMesh* NavMesh, int32 InNavDetailFlags, const TArray<int32>& TileSet);
+	NAVIGATIONSYSTEM_API void GatherData(const ARecastNavMesh* NavMesh, int32 InNavDetailFlags, const TArray<int32>& TileSet);
 
 #if RECAST_INTERNAL_DEBUG_DATA
-	void AddMeshForInternalData(const struct FRecastInternalDebugData& InInternalData);
+	NAVIGATIONSYSTEM_API void AddMeshForInternalData(const struct FRecastInternalDebugData& InInternalData);
 #endif //RECAST_INTERNAL_DEBUG_DATA
 
 #endif
 };
 
 // exported to API for GameplayDebugger module
-class NAVIGATIONSYSTEM_API FNavMeshSceneProxy final : public FDebugRenderSceneProxy, public FNoncopyable
+class FNavMeshSceneProxy final : public FDebugRenderSceneProxy, public FNoncopyable
 {
 	friend class FNavMeshDebugDrawDelegateHelper;
 public:
-	virtual SIZE_T GetTypeHash() const override;
+	NAVIGATIONSYSTEM_API virtual SIZE_T GetTypeHash() const override;
 
-	FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, FNavMeshSceneProxyData* InProxyData, bool ForceToRender = false);
-	virtual ~FNavMeshSceneProxy() override;
+	NAVIGATIONSYSTEM_API FNavMeshSceneProxy(const UPrimitiveComponent* InComponent, FNavMeshSceneProxyData* InProxyData, bool ForceToRender = false);
+	NAVIGATIONSYSTEM_API virtual ~FNavMeshSceneProxy() override;
 
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+	NAVIGATIONSYSTEM_API virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
 
 protected:
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+	NAVIGATIONSYSTEM_API virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
 	virtual uint32 GetMemoryFootprint(void) const override { return sizeof(*this) + GetAllocatedSizeInternal(); }
-	uint32 GetAllocatedSizeInternal(void) const;
+	NAVIGATIONSYSTEM_API uint32 GetAllocatedSizeInternal(void) const;
 
 private:			
 	FNavMeshSceneProxyData ProxyData;
@@ -185,8 +185,8 @@ private:
 };
 #endif
 
-UCLASS(editinlinenew, ClassGroup = Debug)
-class NAVIGATIONSYSTEM_API UNavMeshRenderingComponent : public UDebugDrawComponent
+UCLASS(editinlinenew, ClassGroup = Debug, MinimalAPI)
+class UNavMeshRenderingComponent : public UDebugDrawComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -194,24 +194,24 @@ public:
 	void ForceUpdate() { bForceUpdate = true; }
 	bool IsForcingUpdate() const { return bForceUpdate; }
 
-	static bool IsNavigationShowFlagSet(const UWorld* World);
+	static NAVIGATIONSYSTEM_API bool IsNavigationShowFlagSet(const UWorld* World);
 
 protected:
-	virtual void OnRegister()  override;
-	virtual void OnUnregister()  override;
+	NAVIGATIONSYSTEM_API virtual void OnRegister()  override;
+	NAVIGATIONSYSTEM_API virtual void OnUnregister()  override;
 
 #if UE_ENABLE_DEBUG_DRAWING
-  	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
+  	NAVIGATIONSYSTEM_API virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
 	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() override { return NavMeshDebugDrawDelegateManager; }
 #endif
 
-	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
+	NAVIGATIONSYSTEM_API virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
 
 	/** Gathers drawable information from NavMesh and puts it in OutProxyData. 
 	 *	Override to add additional information to OutProxyData.*/
-	virtual void GatherData(const ARecastNavMesh& NavMesh, FNavMeshSceneProxyData& OutProxyData) const;
+	NAVIGATIONSYSTEM_API virtual void GatherData(const ARecastNavMesh& NavMesh, FNavMeshSceneProxyData& OutProxyData) const;
 
-	void TimerFunction();
+	NAVIGATIONSYSTEM_API void TimerFunction();
 
 protected:
 	uint32 bCollectNavigationData : 1;

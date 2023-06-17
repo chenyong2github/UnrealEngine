@@ -16,7 +16,7 @@ enum ERefPoseType : int
 
 // RefPose pose nodes - ref pose or additive RefPose pose
 USTRUCT()
-struct ANIMGRAPHRUNTIME_API FAnimNode_RefPose : public FAnimNode_Base
+struct FAnimNode_RefPose : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -35,18 +35,18 @@ public:
 #endif
 
 	// Get the type of this ref pose
-	ERefPoseType GetRefPoseType() const;
+	ANIMGRAPHRUNTIME_API ERefPoseType GetRefPoseType() const;
 	
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 };
 
 USTRUCT()
-struct ANIMGRAPHRUNTIME_API FAnimNode_MeshSpaceRefPose : public FAnimNode_Base
+struct FAnimNode_MeshSpaceRefPose : public FAnimNode_Base
 {
 	GENERATED_BODY()
 public:	
 	FAnimNode_MeshSpaceRefPose() = default;
 
-	virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output);
+	ANIMGRAPHRUNTIME_API virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output);
 };

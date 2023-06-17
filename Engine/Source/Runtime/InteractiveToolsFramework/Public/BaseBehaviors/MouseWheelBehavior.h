@@ -16,19 +16,19 @@ class IMouseWheelBehaviorTarget;
 class UObject;
 struct FInputDeviceState;
 
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UMouseWheelInputBehavior : public UAnyButtonInputBehavior
+UCLASS(MinimalAPI)
+class UMouseWheelInputBehavior : public UAnyButtonInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	UMouseWheelInputBehavior();
+	INTERACTIVETOOLSFRAMEWORK_API UMouseWheelInputBehavior();
 
 	/**
 	 * Initialize this behavior with the given Target
 	 * @param Target implementor of hit-test and on-clicked functions
 	 */
-	virtual void Initialize(IMouseWheelBehaviorTarget* Target);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IMouseWheelBehaviorTarget* Target);
 
 
 	/**
@@ -38,10 +38,10 @@ public:
 
 
 	// UInputBehavior implementation
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide) override;
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
-	virtual void ForceEndCapture(const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceEndCapture(const FInputCaptureData& Data) override;
 
 	/**
 	 * The modifier set for this behavior

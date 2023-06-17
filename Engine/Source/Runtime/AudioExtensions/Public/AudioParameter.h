@@ -25,15 +25,15 @@ class UObject;
 
 namespace Audio
 {
-	struct AUDIOEXTENSIONS_API FParameterPath
+	struct FParameterPath
 	{
-		static const FString NamespaceDelimiter;
+		static AUDIOEXTENSIONS_API const FString NamespaceDelimiter;
 
 		// Combines names using the namespace delimiter
-		static FName CombineNames(FName InLeft, FName InRight);
+		static AUDIOEXTENSIONS_API FName CombineNames(FName InLeft, FName InRight);
 
 		// Splits name into namespace & parameter name
-		static void SplitName(FName InFullName, FName& OutNamespace, FName& OutParameterName);
+		static AUDIOEXTENSIONS_API void SplitName(FName InFullName, FName& OutNamespace, FName& OutParameterName);
 	};
 }
 
@@ -89,7 +89,7 @@ enum class EAudioParameterType : uint8
 
 
 USTRUCT(BlueprintType)
-struct AUDIOEXTENSIONS_API FAudioParameter
+struct FAudioParameter
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -227,13 +227,13 @@ struct AUDIOEXTENSIONS_API FAudioParameter
 	// bInTakeName = Take the name of the provided parameter.
 	// bInTakeType = Take the type of the provided parameter.
 	// bInMergeArrayTypes - Appends array(s) for specified type if true, else swaps the local value with that of the provided parameter if false.
-	void Merge(const FAudioParameter& InParameter, bool bInTakeName = true, bool bInTakeType = true, bool bInMergeArrayTypes = false);
+	AUDIOEXTENSIONS_API void Merge(const FAudioParameter& InParameter, bool bInTakeName = true, bool bInTakeType = true, bool bInMergeArrayTypes = false);
 
 	// Moves InParams to OutParams that are not already included. For backward compatibility (i.e. SoundCues),
 	// if a param is already in OutParams, attempts to merge param values together, but assigns the param the
 	// incoming param's type. Currently existing OutParam values left if new value of the same type is provided
 	// by InParam.
-	static void Merge(TArray<FAudioParameter>&& InParams, TArray<FAudioParameter>& OutParams);
+	static AUDIOEXTENSIONS_API void Merge(TArray<FAudioParameter>&& InParams, TArray<FAudioParameter>& OutParams);
 
 	FAudioParameter(FAudioParameter&& InParameter) = default;
 	FAudioParameter(const FAudioParameter& InParameter) = default;

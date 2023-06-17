@@ -6,8 +6,8 @@
 
 #include "MovieSceneDecomposerTests.generated.h"
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneDecomposerTestObject : public UObject
+UCLASS(MinimalAPI)
+class UMovieSceneDecomposerTestObject : public UObject
 {
 	GENERATED_BODY()
 

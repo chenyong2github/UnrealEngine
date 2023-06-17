@@ -104,9 +104,9 @@ public:
 	virtual bool OpenLauncher(const FOpenLauncherOptions& Options) = 0;
 };
 
-class LAUNCHERPLATFORM_API FLauncherMisc
+class FLauncherMisc
 {
 public:
 	/** Return url encoded full path of currently running executable. */
-	static FString GetEncodedExePath();
+	static LAUNCHERPLATFORM_API FString GetEncodedExePath();
 };

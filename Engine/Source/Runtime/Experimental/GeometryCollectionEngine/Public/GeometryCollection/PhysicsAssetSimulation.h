@@ -14,8 +14,8 @@ class UPhysicsAsset;
 class USkeletalMeshComponent;
 
 
-struct GEOMETRYCOLLECTIONENGINE_API FPhysicsAssetSimulationUtil
+struct FPhysicsAssetSimulationUtil
 {
-	static void BuildParams(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const UPhysicsAsset* PhysicsAsset, FSkeletalMeshPhysicsProxyParams& OutParams);
-	static bool UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const float Dt, FSkeletalMeshPhysicsProxyParams& OutParams);
+	static GEOMETRYCOLLECTIONENGINE_API void BuildParams(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const UPhysicsAsset* PhysicsAsset, FSkeletalMeshPhysicsProxyParams& OutParams);
+	static GEOMETRYCOLLECTIONENGINE_API bool UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const float Dt, FSkeletalMeshPhysicsProxyParams& OutParams);
 };

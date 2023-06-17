@@ -13,14 +13,14 @@ class UTexture2DDynamic;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FDownloadImageDelegate, UTexture2DDynamic*, Texture);
 
-UCLASS()
-class UMG_API UAsyncTaskDownloadImage : public UBlueprintAsyncActionBase
+UCLASS(MinimalAPI)
+class UAsyncTaskDownloadImage : public UBlueprintAsyncActionBase
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	UFUNCTION(BlueprintCallable, meta=( BlueprintInternalUseOnly="true" ))
-	static UAsyncTaskDownloadImage* DownloadImage(FString URL);
+	static UMG_API UAsyncTaskDownloadImage* DownloadImage(FString URL);
 
 public:
 
@@ -32,7 +32,7 @@ public:
 
 public:
 
-	void Start(FString URL);
+	UMG_API void Start(FString URL);
 
 private:
 

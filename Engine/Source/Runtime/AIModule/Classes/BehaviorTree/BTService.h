@@ -30,22 +30,22 @@
  *  their runtime properties in provided NodeMemory block (allocation size determined by GetInstanceMemorySize() )
  */
  
-UCLASS(Abstract)
-class AIMODULE_API UBTService : public UBTAuxiliaryNode
+UCLASS(Abstract, MinimalAPI)
+class UBTService : public UBTAuxiliaryNode
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
-	void NotifyParentActivation(FBehaviorTreeSearchData& SearchData);
+	AIMODULE_API void NotifyParentActivation(FBehaviorTreeSearchData& SearchData);
 
 protected:
 
 	// Gets the description of our tick interval
-	FString GetStaticTickIntervalDescription() const;
+	AIMODULE_API FString GetStaticTickIntervalDescription() const;
 
 	// Gets the description for our service
-	virtual FString GetStaticServiceDescription() const;
+	AIMODULE_API virtual FString GetStaticServiceDescription() const;
 
 	/** defines time span between subsequent ticks of the service */
 	UPROPERTY(Category=Service, EditAnywhere, meta=(ClampMin="0.001"))
@@ -70,20 +70,20 @@ protected:
 	 * this function should be considered as const (don't modify state of object) if node is not instanced!
 	 * bNotifyTick must be set to true for this function to be called 
 	 * Calling INIT_SERVICE_NODE_NOTIFY_FLAGS in the constructor of the service will set this flag automatically */
-	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+	AIMODULE_API virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 
 	/** called when search enters underlying branch
 	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
 	 * bNotifyOnSearch must be set to true for this function to be called  
 	 * Calling INIT_SERVICE_NODE_NOTIFY_FLAGS in the constructor of the service will set this flag automatically */
-	virtual void OnSearchStart(FBehaviorTreeSearchData& SearchData);
+	AIMODULE_API virtual void OnSearchStart(FBehaviorTreeSearchData& SearchData);
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 
 	/** set next tick time */
-	virtual void ScheduleNextTick(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
+	AIMODULE_API virtual void ScheduleNextTick(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 
 	template<typename TickNode, typename OnBecomeRelevant, typename OnCeaseRelevant, typename OnSearchStart>
 	void InitNotifyFlags(TickNode, OnBecomeRelevant, OnCeaseRelevant, OnSearchStart)

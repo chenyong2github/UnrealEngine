@@ -29,7 +29,7 @@ typedef EMeshLODIdentifier EStaticMeshEditingLOD;
  * FGetMeshParameters is used by ToolTarget Interfaces/Implementations that support returning a mesh, to allow clients
  * to specify various options like a specific LOD of a mesh, which attributes are required, etc.
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FGetMeshParameters
+struct FGetMeshParameters
 {
 	FGetMeshParameters() = default;
 	explicit FGetMeshParameters(bool bHaveRequestLOD, EMeshLODIdentifier RequestLOD)
@@ -53,7 +53,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGetMeshParameters
  * FCommitMeshParameters is used by ToolTarget Interfaces/Implementations that support setting a mesh (eg on a StaticMesh Asset),
  * to allow the client to specify various options
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FCommitMeshParameters
+struct FCommitMeshParameters
 {
 	FCommitMeshParameters() = default;
 	explicit FCommitMeshParameters(bool bHaveTargetLOD, EMeshLODIdentifier TargetLOD) :

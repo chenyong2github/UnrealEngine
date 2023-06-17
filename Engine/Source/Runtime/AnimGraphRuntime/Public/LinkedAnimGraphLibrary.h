@@ -18,15 +18,15 @@ struct FLinkedAnimGraphReference : public FAnimNodeReference
 };
 
 // Exposes operations to be performed on anim node contexts
-UCLASS()
-class ANIMGRAPHRUNTIME_API ULinkedAnimGraphLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class ULinkedAnimGraphLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
 	/** Get a linked anim graph reference from an anim node reference */
 	UFUNCTION(BlueprintCallable, Category = "Animation|Linked Anim Graphs", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
-	static FLinkedAnimGraphReference ConvertToLinkedAnimGraph(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+	static ANIMGRAPHRUNTIME_API FLinkedAnimGraphReference ConvertToLinkedAnimGraph(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
 
 	/** Get a linked anim graph reference from an anim node reference (pure) */
 	UFUNCTION(BlueprintPure, Category = "Animation|Linked Anim Graphs", meta=(BlueprintThreadSafe, DisplayName = "Convert to Linked Anim Graph"))
@@ -39,9 +39,9 @@ public:
 	
 	/** Returns whether the node hosts an instance (e.g. linked anim graph or layer) */
 	UFUNCTION(BlueprintPure, Category = "Animation|Linked Anim Graphs", meta=(BlueprintThreadSafe))
-	static bool HasLinkedAnimInstance(const FLinkedAnimGraphReference& Node);
+	static ANIMGRAPHRUNTIME_API bool HasLinkedAnimInstance(const FLinkedAnimGraphReference& Node);
 
 	/** Get the linked instance is hosted by this node. If the node does not host an instance then HasLinkedAnimInstance will return false */
 	UFUNCTION(BlueprintPure, Category = "Animation|Linked Anim Graphs", meta=(BlueprintThreadSafe))
-	static UAnimInstance* GetLinkedAnimInstance(const FLinkedAnimGraphReference& Node);
+	static ANIMGRAPHRUNTIME_API UAnimInstance* GetLinkedAnimInstance(const FLinkedAnimGraphReference& Node);
 };

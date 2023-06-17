@@ -10,20 +10,20 @@
 
 enum class ECheckBoxState : uint8;
 
-UCLASS()
-class UMG_API UCheckedStateBinding : public UPropertyBinding
+UCLASS(MinimalAPI)
+class UCheckedStateBinding : public UPropertyBinding
 {
 	GENERATED_BODY()
 
 public:
 
-	UCheckedStateBinding();
+	UMG_API UCheckedStateBinding();
 
-	virtual bool IsSupportedSource(FProperty* Property) const override;
-	virtual bool IsSupportedDestination(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedSource(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedDestination(FProperty* Property) const override;
 
 	UFUNCTION()
-	ECheckBoxState GetValue() const;
+	UMG_API ECheckBoxState GetValue() const;
 
 private:
 	enum class EConversion : uint8

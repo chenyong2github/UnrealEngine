@@ -211,8 +211,8 @@ public:
 /**
  * This is the base class for all wrapped Slate controls that are exposed to UObjects.
  */
-UCLASS(Abstract, BlueprintType, Blueprintable, CustomFieldNotify)
-class UMG_API UWidget : public UVisual, public INotifyFieldValueChanged
+UCLASS(Abstract, BlueprintType, Blueprintable, CustomFieldNotify, MinimalAPI)
+class UWidget : public UVisual, public INotifyFieldValueChanged
 {
 	GENERATED_UCLASS_BODY()
 
@@ -483,131 +483,131 @@ public:
 
 public:
 	/** */
-	const FWidgetTransform& GetRenderTransform() const;
+	UMG_API const FWidgetTransform& GetRenderTransform() const;
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderTransform(FWidgetTransform InTransform);
+	UMG_API void SetRenderTransform(FWidgetTransform InTransform);
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderScale(FVector2D Scale);
+	UMG_API void SetRenderScale(FVector2D Scale);
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderShear(FVector2D Shear);
+	UMG_API void SetRenderShear(FVector2D Shear);
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderTransformAngle(float Angle);
+	UMG_API void SetRenderTransformAngle(float Angle);
 	
 	/** */
 	UFUNCTION(BlueprintCallable, Category = "Widget|Transform")
-	float GetRenderTransformAngle() const;
+	UMG_API float GetRenderTransformAngle() const;
 	
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderTranslation(FVector2D Translation);
+	UMG_API void SetRenderTranslation(FVector2D Translation);
 
 	/** */
-	FVector2D GetRenderTransformPivot() const;
+	UMG_API FVector2D GetRenderTransformPivot() const;
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderTransformPivot(FVector2D Pivot);
+	UMG_API void SetRenderTransformPivot(FVector2D Pivot);
 
 	/** Gets the flow direction preference of the widget */
-	EFlowDirectionPreference GetFlowDirectionPreference() const;
+	UMG_API EFlowDirectionPreference GetFlowDirectionPreference() const;
 
 	/** Sets the flow direction preference of the widget */
-	void SetFlowDirectionPreference(EFlowDirectionPreference FlowDirection);
+	UMG_API void SetFlowDirectionPreference(EFlowDirectionPreference FlowDirection);
 
 	/** Gets the current enabled status of the widget */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool GetIsEnabled() const;
+	UMG_API bool GetIsEnabled() const;
 
 	/** Sets the current enabled status of the widget */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	virtual void SetIsEnabled(bool bInIsEnabled);
+	UMG_API virtual void SetIsEnabled(bool bInIsEnabled);
 
 	/* @return true if the widget was added to the viewport using AddToViewport or AddToPlayerScreen. */
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = "Appearance")
-	bool IsInViewport() const;
+	UMG_API bool IsInViewport() const;
 
 	/** @return the tooltip text for the widget. */
-	FText GetToolTipText() const;
+	UMG_API FText GetToolTipText() const;
 
 	/** Sets the tooltip text for the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetToolTipText(const FText& InToolTipText);
+	UMG_API void SetToolTipText(const FText& InToolTipText);
 
 	/** @return the custom widget as the tooltip of the widget. */
-	UWidget* GetToolTip() const;
+	UMG_API UWidget* GetToolTip() const;
 
 	/** Sets a custom widget as the tooltip of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetToolTip(UWidget* Widget);
+	UMG_API void SetToolTip(UWidget* Widget);
 
 	/** Sets the cursor to show over the widget. */
-	EMouseCursor::Type GetCursor() const;
+	UMG_API EMouseCursor::Type GetCursor() const;
 
 	/** Sets the cursor to show over the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetCursor(EMouseCursor::Type InCursor);
+	UMG_API void SetCursor(EMouseCursor::Type InCursor);
 
 	/** Resets the cursor to use on the widget, removing any customization for it. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ResetCursor();
+	UMG_API void ResetCursor();
 	
 	/** Returns true if the widget is Visible, HitTestInvisible or SelfHitTestInvisible and the Render Opacity is greater than 0. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool IsRendered() const;
+	UMG_API bool IsRendered() const;
 
 	/** Returns true if the widget is Visible, HitTestInvisible or SelfHitTestInvisible. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool IsVisible() const;
+	UMG_API bool IsVisible() const;
 
 	/** Gets the current visibility of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	ESlateVisibility GetVisibility() const;
+	UMG_API ESlateVisibility GetVisibility() const;
 
 	/** Sets the visibility of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	virtual void SetVisibility(ESlateVisibility InVisibility);
+	UMG_API virtual void SetVisibility(ESlateVisibility InVisibility);
 
 protected:
-	void SetVisibilityInternal(ESlateVisibility InVisibility);
+	UMG_API void SetVisibilityInternal(ESlateVisibility InVisibility);
 
 public:
 	/** Gets the current visibility of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	float GetRenderOpacity() const;
+	UMG_API float GetRenderOpacity() const;
 
 	/** Sets the visibility of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetRenderOpacity(float InOpacity);
+	UMG_API void SetRenderOpacity(float InOpacity);
 
 	/** Gets the clipping state of this widget. */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	EWidgetClipping GetClipping() const;
+	UMG_API EWidgetClipping GetClipping() const;
 
 	/** Sets the clipping state of this widget. */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetClipping(EWidgetClipping InClipping);
+	UMG_API void SetClipping(EWidgetClipping InClipping);
 	
 	/** Gets the pixel snapping method of this widget. */
-	EWidgetPixelSnapping GetPixelSnapping() const;
+	UMG_API EWidgetPixelSnapping GetPixelSnapping() const;
 
 	/** Sets the pixel snapping method of this widget. */
-	void SetPixelSnapping(EWidgetPixelSnapping InPixelSnapping);
+	UMG_API void SetPixelSnapping(EWidgetPixelSnapping InPixelSnapping);
 
 	/** Sets the forced volatility of the widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ForceVolatile(bool bForce);
+	UMG_API void ForceVolatile(bool bForce);
 
 	/** Returns true if the widget is currently being hovered by a pointer device */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	virtual bool IsHovered() const;
+	UMG_API virtual bool IsHovered() const;
 
 	/**
 	 * Checks to see if this widget currently has the keyboard focus
@@ -615,14 +615,14 @@ public:
 	 * @return  True if this widget has keyboard focus
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool HasKeyboardFocus() const;
+	UMG_API bool HasKeyboardFocus() const;
 
 	/**
 	 * Checks to see if this widget is the current mouse captor
 	 * @return  True if this widget has captured the mouse
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool HasMouseCapture() const;
+	UMG_API bool HasMouseCapture() const;
 
 	/**
 	 * Checks to see if this widget is the current mouse captor
@@ -631,35 +631,35 @@ public:
 	 *	@return  True if this widget has captured the mouse with given user and pointer
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	bool HasMouseCaptureByUser(int32 UserIndex, int32 PointerIndex = -1) const;
+	UMG_API bool HasMouseCaptureByUser(int32 UserIndex, int32 PointerIndex = -1) const;
 
 	/** Sets the focus to this widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetKeyboardFocus();
+	UMG_API void SetKeyboardFocus();
 
 	/** Returns true if this widget is focused by a specific user. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool HasUserFocus(APlayerController* PlayerController) const;
+	UMG_API bool HasUserFocus(APlayerController* PlayerController) const;
 
 	/** Returns true if this widget is focused by any user. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool HasAnyUserFocus() const;
+	UMG_API bool HasAnyUserFocus() const;
 
 	/** Returns true if any descendant widget is focused by any user. */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="HasAnyUserFocusedDescendants"))
-	bool HasFocusedDescendants() const;
+	UMG_API bool HasFocusedDescendants() const;
 
 	/** Returns true if any descendant widget is focused by a specific user. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	bool HasUserFocusedDescendants(APlayerController* PlayerController) const;
+	UMG_API bool HasUserFocusedDescendants(APlayerController* PlayerController) const;
 	
 	/** Sets the focus to this widget for the owning user */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetFocus();
+	UMG_API void SetFocus();
 
 	/** Sets the focus to this widget for a specific user (if setting focus for the owning user, prefer SetFocus()) */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetUserFocus(APlayerController* PlayerController);
+	UMG_API void SetUserFocus(APlayerController* PlayerController);
 
 	/**
 	 * Forces a pre-pass.  A pre-pass caches the desired size of the widget hierarchy owned by this widget.  
@@ -667,14 +667,14 @@ public:
 	 * pre-pass if you are adding child widgets this frame and want them to immediately be visible this frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ForceLayoutPrepass();
+	UMG_API void ForceLayoutPrepass();
 
 	/**
 	 * Invalidates the widget from the view of a layout caching widget that may own this widget.
 	 * will force the owning widget to redraw and cache children on the next paint pass.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void InvalidateLayoutAndVolatility();
+	UMG_API void InvalidateLayoutAndVolatility();
 
 	/**
 	 * Gets the widgets desired size.
@@ -684,7 +684,7 @@ public:
 	 * @return The widget's desired size
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	FVector2D GetDesiredSize() const;
+	UMG_API FVector2D GetDesiredSize() const;
 
 	/**
 	 *	Sets the widget navigation rules for all directions. This can only be called on widgets that are in a widget tree.
@@ -692,7 +692,7 @@ public:
 	 *	@param WidgetToFocus When using the Explicit rule, focus on this widget
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetAllNavigationRules(EUINavigationRule Rule, FName WidgetToFocus);
+	UMG_API void SetAllNavigationRules(EUINavigationRule Rule, FName WidgetToFocus);
 
 	/**
 	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree.
@@ -702,7 +702,7 @@ public:
 	 */
 	UE_DEPRECATED(4.23, "SetNavigationRule is deprecated. Please use either SetNavigationRuleBase or SetNavigationRuleExplicit or SetNavigationRuleCustom or SetNavigationRuleCustomBoundary.")
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DeprecatedFunction, DeprecatedMessage = "Please use either SetNavigationRuleBase or SetNavigationRuleExplicit or SetNavigationRuleCustom or SetNavigationRuleCustomBoundary."))
-	void SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
+	UMG_API void SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
 
 	/**
 	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for non Explicit, non Custom and non CustomBoundary Rules.
@@ -710,7 +710,7 @@ public:
 	 *	@param Rule The rule to use when navigation is taking place
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetNavigationRuleBase(EUINavigation Direction, EUINavigationRule Rule);
+	UMG_API void SetNavigationRuleBase(EUINavigation Direction, EUINavigationRule Rule);
 
 	/**
 	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for Explicit Rule.
@@ -718,7 +718,7 @@ public:
 	 *	@param InWidget Focus on this widget instance
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetNavigationRuleExplicit(EUINavigation Direction, UWidget* InWidget);
+	UMG_API void SetNavigationRuleExplicit(EUINavigation Direction, UWidget* InWidget);
 
 	/**
 	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for Custom Rule.
@@ -726,7 +726,7 @@ public:
 	 *	@param InCustomDelegate Custom Delegate that will be called
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetNavigationRuleCustom(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate);
+	UMG_API void SetNavigationRuleCustom(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate);
 
 	/**
 	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for CustomBoundary Rule.
@@ -734,18 +734,18 @@ public:
 	 *	@param InCustomDelegate Custom Delegate that will be called
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetNavigationRuleCustomBoundary(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate);
+	UMG_API void SetNavigationRuleCustomBoundary(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate);
 
 	/** Gets the parent widget */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	class UPanelWidget* GetParent() const;
+	UMG_API class UPanelWidget* GetParent() const;
 
 	/**
 	 * Removes the widget from its parent widget.  If this widget was added to the player's screen or the viewport
 	 * it will also be removed from those containers.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	virtual void RemoveFromParent();
+	UMG_API virtual void RemoveFromParent();
 
 	/**
 	 * Gets the last geometry used to Tick the widget.  This data may not exist yet if this call happens prior to 
@@ -757,32 +757,32 @@ public:
 	 * being used to advise how to layout a dependent object the current frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	const FGeometry& GetCachedGeometry() const;
+	UMG_API const FGeometry& GetCachedGeometry() const;
 
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	const FGeometry& GetTickSpaceGeometry() const;
+	UMG_API const FGeometry& GetTickSpaceGeometry() const;
 
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	const FGeometry& GetPaintSpaceGeometry() const;
+	UMG_API const FGeometry& GetPaintSpaceGeometry() const;
 
 	//~ Begin INotifyFieldValueChanged Interface
 public:
-	virtual FDelegateHandle AddFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FFieldValueChangedDelegate InNewDelegate) override final;
-	virtual bool RemoveFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FDelegateHandle InHandle) override final;
-	virtual int32 RemoveAllFieldValueChangedDelegates(const void* InUserObject) override final;
-	virtual int32 RemoveAllFieldValueChangedDelegates(UE::FieldNotification::FFieldId InFieldId, const void* InUserObject) override final;
-	virtual void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId) override final;
+	UMG_API virtual FDelegateHandle AddFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FFieldValueChangedDelegate InNewDelegate) override final;
+	UMG_API virtual bool RemoveFieldValueChangedDelegate(UE::FieldNotification::FFieldId InFieldId, FDelegateHandle InHandle) override final;
+	UMG_API virtual int32 RemoveAllFieldValueChangedDelegates(const void* InUserObject) override final;
+	UMG_API virtual int32 RemoveAllFieldValueChangedDelegates(UE::FieldNotification::FFieldId InFieldId, const void* InUserObject) override final;
+	UMG_API virtual void BroadcastFieldValueChanged(UE::FieldNotification::FFieldId InFieldId) override final;
 	//~ End INotifyFieldValueChanged Interface
 
 	UFUNCTION(BlueprintCallable, Category = "FieldNotify", meta = (DisplayName = "Add Field Value Changed Delegate", ScriptName = "AddFieldValueChangedDelegate"))
-	void K2_AddFieldValueChangedDelegate(FFieldNotificationId FieldId, FFieldValueChangedDynamicDelegate Delegate);
+	UMG_API void K2_AddFieldValueChangedDelegate(FFieldNotificationId FieldId, FFieldValueChangedDynamicDelegate Delegate);
 
 	UFUNCTION(BlueprintCallable, Category = "FieldNotify", meta = (DisplayName = "Remove Field Value Changed Delegate", ScriptName="RemoveFieldValueChangedDelegate"))
-	void K2_RemoveFieldValueChangedDelegate(FFieldNotificationId FieldId, FFieldValueChangedDynamicDelegate Delegate);
+	UMG_API void K2_RemoveFieldValueChangedDelegate(FFieldNotificationId FieldId, FFieldValueChangedDynamicDelegate Delegate);
 
 protected:
 	UFUNCTION(BlueprintCallable, Category="FieldNotify", meta = (DisplayName="Broadcast Field Value Changed", ScriptName="BroadcastFieldValueChanged"))
-	void K2_BroadcastFieldValueChanged(FFieldNotificationId FieldId);
+	UMG_API void K2_BroadcastFieldValueChanged(FFieldNotificationId FieldId);
 
 public:
 	/**
@@ -792,7 +792,7 @@ public:
 	 * you must also take care to not call TakeWidget before calling TakeDerivedWidget, as that would put the wrong
 	 * expected wrapper around the resulting widget being constructed.
 	 */
-	TSharedRef<SWidget> TakeWidget();
+	UMG_API TSharedRef<SWidget> TakeWidget();
 
 	/**
 	 * Gets the underlying slate widget or constructs it if it doesn't exist.
@@ -821,22 +821,22 @@ public:
 	}
 	
 private:
-	TSharedRef<SWidget> TakeWidget_Private( ConstructMethodType ConstructMethod );
+	UMG_API TSharedRef<SWidget> TakeWidget_Private( ConstructMethodType ConstructMethod );
 
 public:
 
 	/** Gets the last created widget does not recreate the gc container for the widget if one is needed. */
-	TSharedPtr<SWidget> GetCachedWidget() const;
+	UMG_API TSharedPtr<SWidget> GetCachedWidget() const;
 
 	/** Gets the last created widget does not recreate the gc container for the widget if one is needed. */
-	bool IsConstructed() const;
+	UMG_API bool IsConstructed() const;
 
 	/**
 	 * Gets the game instance associated with this UI.
 	 * @return a pointer to the owning game instance
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Widget")
-	UGameInstance* GetGameInstance() const;
+	UMG_API UGameInstance* GetGameInstance() const;
 
 	/**
 	 * Gets the game instance associated with this UI.
@@ -853,7 +853,7 @@ public:
 	 * @return The player controller that owns the UI.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Widget")
-	virtual APlayerController* GetOwningPlayer() const;
+	UMG_API virtual APlayerController* GetOwningPlayer() const;
 
 	/**
 	 * Gets the player controller associated with this UI cast to the template type.
@@ -870,7 +870,7 @@ public:
 	 * @return The owning local player.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "Widget")
-	virtual ULocalPlayer* GetOwningLocalPlayer() const;
+	UMG_API virtual ULocalPlayer* GetOwningLocalPlayer() const;
 	
 	/**
 	 * Gets the local player associated with this UI cast to the template type.
@@ -888,7 +888,7 @@ public:
 	  * accessibility is dsabled or the underlying accessible widget is invalid.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	FText GetAccessibleText() const;
+	UMG_API FText GetAccessibleText() const;
 
 	/**
 	 * Gets the accessible summary text from the underlying Slate accessible widget.
@@ -896,21 +896,21 @@ public:
 	  * accessibility is dsabled or the underlying accessible widget is invalid.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	FText GetAccessibleSummaryText() const;
+	UMG_API FText GetAccessibleSummaryText() const;
 	
 	/**
 	 * Applies all properties to the native widget if possible.  This is called after a widget is constructed.
 	 * It can also be called by the editor to update modified state, so ensure all initialization to a widgets
 	 * properties are performed here, or the property and visual state may become unsynced.
 	 */
-	virtual void SynchronizeProperties();
+	UMG_API virtual void SynchronizeProperties();
 
 	/**
 	 * Called by the owning user widget after the slate widget has been created.  After the entire widget tree
 	 * has been initialized, any widget reference that was needed to support navigating to another widget will
 	 * now be initialized and ready for usage.
 	 */
-	void BuildNavigation();
+	UMG_API void BuildNavigation();
 
 #if WITH_EDITOR
 	/** Returns if the widget is currently being displayed in the designer, it may want to display different data. */
@@ -920,7 +920,7 @@ public:
 	}
 
 	/** Sets the designer flags on the widget. */
-	virtual void SetDesignerFlags(EWidgetDesignFlags NewFlags);
+	UMG_API virtual void SetDesignerFlags(EWidgetDesignFlags NewFlags);
 
 	/** Gets the designer flags currently set on the widget. */
 	FORCEINLINE EWidgetDesignFlags GetDesignerFlags() const
@@ -946,13 +946,13 @@ public:
 	}
 
 	/** Sets the friendly name of the widget to display in the editor */
-	void SetDisplayLabel(const FString& DisplayLabel);
+	UMG_API void SetDisplayLabel(const FString& DisplayLabel);
 
 	/** Returns the category name of the widget */
-	const FString& GetCategoryName() const;
+	UMG_API const FString& GetCategoryName() const;
 
 	/** Sets the category name of the widget */
-	void SetCategoryName(const FString& InValue);
+	UMG_API void SetCategoryName(const FString& InValue);
 
 	/**
 	 * Called at the end of Widget Blueprint compilation.
@@ -962,7 +962,7 @@ public:
 	virtual void ValidateCompiledDefaults(class IWidgetCompilerLog& CompileLog) const {}
 
 	/** Mark this object as modified, also mark the slot as modified. */
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	UMG_API virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #else
 	FORCEINLINE bool IsDesignTime() const { return false; }
 	FORCEINLINE bool IsPreviewTime() const { return false; }
@@ -972,10 +972,10 @@ public:
 	 * Recurses up the list of parents and returns true if this widget is a descendant of the PossibleParent
 	 * @return true if this widget is a child of the PossibleParent
 	 */
-	bool IsChildOf(UWidget* PossibleParent);
+	UMG_API bool IsChildOf(UWidget* PossibleParent);
 
 	/**  */
-	bool AddBinding(FDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath);
+	UMG_API bool AddBinding(FDelegateProperty* DelegateProperty, UObject* SourceObject, const FDynamicPropertyPath& BindingPath);
 
 	/**
 	 * Add a post-state-changed listener to this widget, will fire after a state changed and all related side effects are resolved.
@@ -985,26 +985,26 @@ public:
 	 * @param ListenerDelegate Delegate to fire when state changes
 	 * @param bBroadcastCurrentState true if we should trigger this delegate once on registration with the current widget state (Does not globally broadcast).
 	 */
-	FDelegateHandle RegisterPostStateListener(const FOnWidgetStateBroadcast::FDelegate& ListenerDelegate, bool bBroadcastCurrentState = true);
+	UMG_API FDelegateHandle RegisterPostStateListener(const FOnWidgetStateBroadcast::FDelegate& ListenerDelegate, bool bBroadcastCurrentState = true);
 
 	/**
 	 * Remove a post-state-changed  listener from this widget, resets state bitfield if no other state listeners exist
 	 *
 	 * @param ListenerDelegate Delegate to remove
 	 */
-	void UnregisterPostStateListener(const FDelegateHandle& ListenerDelegate);
+	UMG_API void UnregisterPostStateListener(const FDelegateHandle& ListenerDelegate);
 
-	static TSubclassOf<UPropertyBinding> FindBinderClassForDestination(FProperty* Property);
+	static UMG_API TSubclassOf<UPropertyBinding> FindBinderClassForDestination(FProperty* Property);
 
 	//~ Begin UObject
-	virtual UWorld* GetWorld() const override;
-	virtual void BeginDestroy() override;
-	virtual void FinishDestroy() override;
-	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
+	UMG_API virtual UWorld* GetWorld() const override;
+	UMG_API virtual void BeginDestroy() override;
+	UMG_API virtual void FinishDestroy() override;
+	UMG_API virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	//~ End UObject
 
 	//~ Begin UVisual
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual
 
 	FORCEINLINE bool CanSafelyRouteEvent()
@@ -1025,22 +1025,22 @@ public:
 #if WITH_EDITOR
 
 	/** Is the label generated or provided by the user? */
-	bool IsGeneratedName() const;
+	UMG_API bool IsGeneratedName() const;
 
 	/** Get Label Metadata, which may be as simple as a bit of string data to help identify an anonymous text block. */
-	virtual FString GetLabelMetadata() const;
+	UMG_API virtual FString GetLabelMetadata() const;
 
 	/** Gets the label to display to the user for this widget. */
-	FText GetLabelText() const;
+	UMG_API FText GetLabelText() const;
 
 	/** Gets the label to display to the user for this widget, including any extra metadata like the text string for text. */
-	FText GetLabelTextWithMetadata() const;
+	UMG_API FText GetLabelTextWithMetadata() const;
 
 	/** Gets the palette category of the widget */
-	virtual const FText GetPaletteCategory();
+	UMG_API virtual const FText GetPaletteCategory();
 
 	/** Called by the palette after constructing a new widget. */
-	void CreatedFromPalette();
+	UMG_API void CreatedFromPalette();
 
 	/**
 	 * Called after constructing a new widget from the palette.
@@ -1052,15 +1052,15 @@ public:
 	virtual void ConnectEditorData() { }
 
 	// UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UMG_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 
 	/** Is the widget visible in the designer?  If this widget is 'hidden in the designer' or a parent is, this widget will also return false here. */
-	bool IsVisibleInDesigner() const;
+	UMG_API bool IsVisibleInDesigner() const;
 
 	// Begin Designer contextual events
-	void SelectByDesigner();
-	void DeselectByDesigner();
+	UMG_API void SelectByDesigner();
+	UMG_API void DeselectByDesigner();
 
 	virtual void OnDesignerChanged(const FDesignerChangedEventArgs& EventArgs) { }
 
@@ -1077,25 +1077,25 @@ public:
 
 	// Utility methods
 	//@TODO UMG: Should move elsewhere
-	static EVisibility ConvertSerializedVisibilityToRuntime(ESlateVisibility Input);
-	static ESlateVisibility ConvertRuntimeToSerializedVisibility(const EVisibility& Input);
+	static UMG_API EVisibility ConvertSerializedVisibilityToRuntime(ESlateVisibility Input);
+	static UMG_API ESlateVisibility ConvertRuntimeToSerializedVisibility(const EVisibility& Input);
 
-	static FSizeParam ConvertSerializedSizeParamToRuntime(const FSlateChildSize& Input);
+	static UMG_API FSizeParam ConvertSerializedSizeParamToRuntime(const FSlateChildSize& Input);
 
-	static UWidget* FindChildContainingDescendant(UWidget* Root, UWidget* Descendant);
+	static UMG_API UWidget* FindChildContainingDescendant(UWidget* Root, UWidget* Descendant);
 
-	static FString GetDefaultFontName();
+	static UMG_API FString GetDefaultFontName();
 
 protected:
 #if WITH_EDITOR
 	// This is an implementation detail that allows us to show and hide the widget in the designer
 	// regardless of the actual visibility state set by the user.
-	EVisibility GetVisibilityInDesigner() const;
+	UMG_API EVisibility GetVisibilityInDesigner() const;
 
-	bool IsEditorWidget() const;
+	UMG_API bool IsEditorWidget() const;
 #endif
 
-	virtual void OnBindingChanged(const FName& Property);
+	UMG_API virtual void OnBindingChanged(const FName& Property);
 
 	/**
 	 * Broadcast a binary state post change
@@ -1103,37 +1103,37 @@ protected:
 	 * @param StateChange bitfield marking states that should be changed
 	 * @param bInValue true if marked states should be enabled, false otherwise
 	 */
-	void BroadcastBinaryPostStateChange(const FWidgetStateBitfield& StateChange, bool bInValue);
+	UMG_API void BroadcastBinaryPostStateChange(const FWidgetStateBitfield& StateChange, bool bInValue);
 
 	/**
 	 * Broadcast an enum state post change
 	 *
 	 * @param StateChange bitfield marking states that should be changed
 	 */
-	void BroadcastEnumPostStateChange(const FWidgetStateBitfield& StateChange);
+	UMG_API void BroadcastEnumPostStateChange(const FWidgetStateBitfield& StateChange);
 
 protected:
-	UObject* GetSourceAssetOrClass() const;
+	UMG_API UObject* GetSourceAssetOrClass() const;
 
 	/** Function implemented by all subclasses of UWidget is called when the underlying SWidget needs to be constructed. */
-	virtual TSharedRef<SWidget> RebuildWidget();
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget();
 
 	/** Function called after the underlying SWidget is constructed. */
-	virtual void OnWidgetRebuilt();
+	UMG_API virtual void OnWidgetRebuilt();
 	
 #if WITH_EDITOR
-	virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content);
+	UMG_API virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content);
 
-	TSharedRef<SWidget> CreateDesignerOutline(TSharedRef<SWidget> Content) const;
+	UMG_API TSharedRef<SWidget> CreateDesignerOutline(TSharedRef<SWidget> Content) const;
 #endif
 
-	void UpdateRenderTransform();
+	UMG_API void UpdateRenderTransform();
 
 	/** Gets the base name used to generate the display label/name of this widget. */
-	FText GetDisplayNameBase() const;
+	UMG_API FText GetDisplayNameBase() const;
 
 	/** Copy all accessible properties to the AccessibleWidgetData object */
-	void SynchronizeAccessibleData();
+	UMG_API void SynchronizeAccessibleData();
 
 protected:
 	//TODO UMG Consider moving conversion functions into another class.
@@ -1154,11 +1154,11 @@ protected:
 		return FSlateColor(InLinearColor.Get());
 	}
 
-	void SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus = NAME_None, UWidget* InWidget = nullptr, FCustomWidgetNavigationDelegate InCustomDelegate = FCustomWidgetNavigationDelegate());
+	UMG_API void SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus = NAME_None, UWidget* InWidget = nullptr, FCustomWidgetNavigationDelegate InCustomDelegate = FCustomWidgetNavigationDelegate());
 
 #if WITH_ACCESSIBILITY
 	/** Gets the widget that accessibility properties should synchronize to. */
-	virtual TSharedPtr<SWidget> GetAccessibleWidget() const;
+	UMG_API virtual TSharedPtr<SWidget> GetAccessibleWidget() const;
 #endif
 
 protected:
@@ -1181,7 +1181,7 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UPropertyBinding>> NativeBindings;
 
-	static TArray<TSubclassOf<UPropertyBinding>> BinderClasses;
+	static UMG_API TArray<TSubclassOf<UPropertyBinding>> BinderClasses;
 
 private:
 	TBitArray<> EnabledFieldNotifications;
@@ -1205,7 +1205,7 @@ private:
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-	void VerifySynchronizeProperties();
+	UMG_API void VerifySynchronizeProperties();
 
 	/** Did we route the synchronize properties call? */
 	bool bRoutedSynchronizeProperties;

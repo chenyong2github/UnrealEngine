@@ -12,8 +12,8 @@
 
 class UObject;
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneBoundSceneComponentInstantiator : public UMovieSceneEntityInstantiatorSystem
+UCLASS(MinimalAPI)
+class UMovieSceneBoundSceneComponentInstantiator : public UMovieSceneEntityInstantiatorSystem
 {
 	GENERATED_BODY()
 
@@ -21,6 +21,6 @@ class MOVIESCENE_API UMovieSceneBoundSceneComponentInstantiator : public UMovieS
 
 private:
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
+	MOVIESCENE_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 };
 

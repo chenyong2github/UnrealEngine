@@ -19,41 +19,41 @@ class FMotionDelayClient;
 /* FMotionDelayService
  *****************************************************************************/
 
-class HEADMOUNTEDDISPLAY_API FMotionDelayService
+class FMotionDelayService
 {
 public:
-	static void SetEnabled(bool bEnable);
-	static bool RegisterDelayTarget(USceneComponent* MotionControlledComponent, const int32 PlayerIndex, const FName SourceId);
-	static void RegisterDelayClient(TSharedRef<FMotionDelayClient, ESPMode::ThreadSafe> DelayClient);
+	static HEADMOUNTEDDISPLAY_API void SetEnabled(bool bEnable);
+	static HEADMOUNTEDDISPLAY_API bool RegisterDelayTarget(USceneComponent* MotionControlledComponent, const int32 PlayerIndex, const FName SourceId);
+	static HEADMOUNTEDDISPLAY_API void RegisterDelayClient(TSharedRef<FMotionDelayClient, ESPMode::ThreadSafe> DelayClient);
 };
 
 /* FMotionDelayClient
  *****************************************************************************/
 
-class HEADMOUNTEDDISPLAY_API FMotionDelayClient : public FSceneViewExtensionBase
+class FMotionDelayClient : public FSceneViewExtensionBase
 {
 public:
-	FMotionDelayClient(const FAutoRegister& AutoRegister);
+	HEADMOUNTEDDISPLAY_API FMotionDelayClient(const FAutoRegister& AutoRegister);
 
 	virtual uint32 GetDesiredDelay() const = 0;
 	virtual void GetExemptTargets(TArray<USceneComponent*>& ExemptTargets) const {}
 
-	void Apply_RenderThread(FSceneInterface* Scene);
-	void Restore_RenderThread(FSceneInterface* Scene);
+	HEADMOUNTEDDISPLAY_API void Apply_RenderThread(FSceneInterface* Scene);
+	HEADMOUNTEDDISPLAY_API void Restore_RenderThread(FSceneInterface* Scene);
 
 public:
 	/** ISceneViewExtension interface */
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
 	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
-	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
+	HEADMOUNTEDDISPLAY_API virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
 	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override {}
 	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override {}
-	virtual void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
-	virtual int32 GetPriority() const override;
-	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
+	HEADMOUNTEDDISPLAY_API virtual void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override;
+	HEADMOUNTEDDISPLAY_API virtual int32 GetPriority() const override;
+	HEADMOUNTEDDISPLAY_API virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 protected:
-	bool FindDelayTransform(USceneComponent* Target, uint32 Delay, FTransform& TransformOut);
+	HEADMOUNTEDDISPLAY_API bool FindDelayTransform(USceneComponent* Target, uint32 Delay, FTransform& TransformOut);
 
 private:
 	struct FTargetTransform

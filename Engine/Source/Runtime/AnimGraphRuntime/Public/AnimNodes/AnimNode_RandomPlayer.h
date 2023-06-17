@@ -93,11 +93,11 @@ struct FRandomAnimPlayData
 };
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_RandomPlayer : public FAnimNode_AssetPlayerRelevancyBase
+struct FAnimNode_RandomPlayer : public FAnimNode_AssetPlayerRelevancyBase
 {
 	GENERATED_BODY()
 
-	FAnimNode_RandomPlayer();
+	ANIMGRAPHRUNTIME_API FAnimNode_RandomPlayer();
 
 public:
 	/** List of sequences to randomly step through */
@@ -105,20 +105,20 @@ public:
 	TArray<FRandomPlayerSequenceEntry> Entries;
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_RelevantAssetPlayerBase
-	virtual UAnimationAsset* GetAnimAsset() const override;
-	virtual float GetAccumulatedTime() const override;
-	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
-	virtual float GetCachedBlendWeight() const override;
-	virtual void ClearCachedBlendWeight() override;
-	virtual const FDeltaTimeRecord* GetDeltaTimeRecord() const override;
+	ANIMGRAPHRUNTIME_API virtual UAnimationAsset* GetAnimAsset() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetAccumulatedTime() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetIgnoreForRelevancyTest() const override;
+	ANIMGRAPHRUNTIME_API virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	ANIMGRAPHRUNTIME_API virtual float GetCachedBlendWeight() const override;
+	ANIMGRAPHRUNTIME_API virtual void ClearCachedBlendWeight() override;
+	ANIMGRAPHRUNTIME_API virtual const FDeltaTimeRecord* GetDeltaTimeRecord() const override;
 	// End of FAnimNode_RelevantAssetPlayerBase
 
 private:

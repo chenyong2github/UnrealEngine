@@ -13,8 +13,8 @@
 #include "VerticalBoxSlot.generated.h"
 
 /** The Slot for the UVerticalBox, contains the widget that is flowed vertically */
-UCLASS()
-class UMG_API UVerticalBoxSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UVerticalBoxSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
@@ -47,39 +47,39 @@ private:
 
 public:
 
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Vertical Box Slot")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	FSlateChildSize GetSize() const;
-
-	UFUNCTION(BlueprintCallable, Category="Layout|Vertical Box Slot")
-	void SetSize(FSlateChildSize InSize);
-
-	EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API FSlateChildSize GetSize() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Vertical Box Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	UMG_API void SetSize(FSlateChildSize InSize);
 
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Vertical Box Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+
+	UFUNCTION(BlueprintCallable, Category="Layout|Vertical Box Slot")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 public:
 
 	// UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UPanelSlot interface
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
-	void BuildSlot(TSharedRef<SVerticalBox> InVerticalBox);
+	UMG_API void BuildSlot(TSharedRef<SVerticalBox> InVerticalBox);
 
 #if WITH_EDITOR
-	virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
-	virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
+	UMG_API virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
+	UMG_API virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
 #endif //WITH_EDITOR
 };

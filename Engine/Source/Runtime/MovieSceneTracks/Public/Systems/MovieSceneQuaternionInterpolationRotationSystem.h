@@ -6,18 +6,18 @@
 #include "MovieSceneQuaternionInterpolationRotationSystem.generated.h"
 
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneQuaternionInterpolationRotationSystem : public UMovieSceneEntitySystem
+UCLASS(MinimalAPI)
+class UMovieSceneQuaternionInterpolationRotationSystem : public UMovieSceneEntitySystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UMovieSceneQuaternionInterpolationRotationSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieSceneQuaternionInterpolationRotationSystem(const FObjectInitializer& ObjInit);
 
 private:
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
-	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
+	MOVIESCENETRACKS_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };
 

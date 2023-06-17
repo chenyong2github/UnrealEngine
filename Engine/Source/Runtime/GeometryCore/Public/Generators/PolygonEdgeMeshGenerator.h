@@ -14,7 +14,7 @@ namespace Geometry
 {
 
 /** Mesh generator that generates a quad for each edge of a closed polygon */
-class GEOMETRYCORE_API FPolygonEdgeMeshGenerator : public FMeshShapeGenerator
+class FPolygonEdgeMeshGenerator : public FMeshShapeGenerator
 {
 
 private:
@@ -57,7 +57,7 @@ public:
 	/** Number of radial subdivisions for rounded corners */
 	int NumArcVertices;
 
-	FPolygonEdgeMeshGenerator(const TArray<FFrame3d>& InPolygon,
+	GEOMETRYCORE_API FPolygonEdgeMeshGenerator(const TArray<FFrame3d>& InPolygon,
 		bool bInClosed,
 		const TArray<double>& InOffsetScaleFactors,
 		double InWidth = 1.0,
@@ -69,7 +69,7 @@ public:
 
 	// Generate triangulation
 	// TODO: Enable more subdivisions along the width and length dimensions if requested
-	virtual FMeshShapeGenerator& Generate() final;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() final;
 
 private:
 

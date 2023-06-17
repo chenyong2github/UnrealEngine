@@ -35,14 +35,14 @@ class UClass;
  * has the interfaces the tools needs. The tools cast the target to those interfaces to use
  * them.
  */
-UCLASS(Transient, Abstract)
-class INTERACTIVETOOLSFRAMEWORK_API UToolTarget : public UObject
+UCLASS(Transient, Abstract, MinimalAPI)
+class UToolTarget : public UObject
 {
 	GENERATED_BODY()
 public:
 
 	/** @return true if target is still valid. May become invalid for various reasons (eg Component was deleted out from under us) */
-	virtual bool IsValid() const PURE_VIRTUAL(UToolTarget::IsValid, return false;);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool IsValid() const PURE_VIRTUAL(UToolTarget::IsValid, return false;);
 };
 
 
@@ -50,7 +50,7 @@ public:
  * A structure used to specify the requirements of a tool for its target. E.g., a tool
  * may need a target that has interfaces x,y,z.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FToolTargetTypeRequirements
+class FToolTargetTypeRequirements
 {
 public:
 
@@ -76,9 +76,9 @@ public:
 		return *this;
 	}
 
-	bool AreSatisfiedBy(UClass* Class) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool AreSatisfiedBy(UClass* Class) const;
 
-	bool AreSatisfiedBy(UToolTarget* ToolTarget) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool AreSatisfiedBy(UToolTarget* ToolTarget) const;
 };
 
 
@@ -87,14 +87,14 @@ public:
  * out of inputs without knowing anything about the inputs itself, as long as it
  * has a factory registered that is able to process the input.
  */
-UCLASS(Transient, Abstract)
-class INTERACTIVETOOLSFRAMEWORK_API UToolTargetFactory : public UObject
+UCLASS(Transient, Abstract, MinimalAPI)
+class UToolTargetFactory : public UObject
 {
 	GENERATED_BODY()
 
 public:
 
-	virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) const PURE_VIRTUAL(UToolTargetFactory::CanBuildTarget, return false;);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) const PURE_VIRTUAL(UToolTargetFactory::CanBuildTarget, return false;);
 
-	virtual UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) PURE_VIRTUAL(UToolTargetFactory::BuildTarget, return nullptr;);
+	INTERACTIVETOOLSFRAMEWORK_API virtual UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetTypeInfo) PURE_VIRTUAL(UToolTargetFactory::BuildTarget, return nullptr;);
 };

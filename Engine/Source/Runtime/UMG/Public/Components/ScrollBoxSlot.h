@@ -13,8 +13,8 @@
 #include "ScrollBoxSlot.generated.h"
 
 /** The Slot for the UScrollBox, contains the widget that are scrollable */
-UCLASS()
-class UMG_API UScrollBoxSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UScrollBoxSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
@@ -43,35 +43,35 @@ public:
 
 public:
 
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|ScrollBox Slot")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	FSlateChildSize GetSize() const;
+	UMG_API FSlateChildSize GetSize() const;
 
-	void SetSize(FSlateChildSize InSize);
+	UMG_API void SetSize(FSlateChildSize InSize);
 
-	EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|ScrollBox Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Layout|ScrollBox Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 public:
 
 	//~ UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
-	void BuildSlot(TSharedRef<SScrollBox> ScrollBox);
+	UMG_API void BuildSlot(TSharedRef<SScrollBox> ScrollBox);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 private:
 

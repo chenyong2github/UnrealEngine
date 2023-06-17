@@ -49,14 +49,14 @@ namespace Audio
 	};
 
 	// Oscillator base class
-	class SIGNALPROCESSING_API IOscBase
+	class IOscBase
 	{
 	public:
-		IOscBase();
-		virtual ~IOscBase();
+		SIGNALPROCESSING_API IOscBase();
+		SIGNALPROCESSING_API virtual ~IOscBase();
 
 		// Initializes the oscillator
-		virtual void Init(const float InSampleRate, const int32 InVoiceId = 0, FModulationMatrix* InMatrix = nullptr, const int32 ModMatrixStage = 1);
+		SIGNALPROCESSING_API virtual void Init(const float InSampleRate, const int32 InVoiceId = 0, FModulationMatrix* InMatrix = nullptr, const int32 ModMatrixStage = 1);
 
 		// Starts the oscillator
 		virtual void Start() = 0;
@@ -68,13 +68,13 @@ namespace Audio
 		virtual float Generate(float* AuxOutput = nullptr) = 0;
 
 		// Updates oscillator state
-		virtual void Update();
+		SIGNALPROCESSING_API virtual void Update();
 
 		// Resets the oscillator
-		virtual void Reset();
+		SIGNALPROCESSING_API virtual void Reset();
 
 		// Resets the phase of this oscillator to 0.0f
-		virtual void ResetPhase();
+		SIGNALPROCESSING_API virtual void ResetPhase();
 
 		// Sets the gain of the oscillator
 		void SetGain(const float InGain) { Gain = InGain; }
@@ -83,13 +83,13 @@ namespace Audio
 		void SetGainMod(const float InGainMod) { ExternalGainMod = InGainMod; }
 
 		// Sets the base frequency of the oscillator
-		void SetFrequency(const float InFreqBase);
+		SIGNALPROCESSING_API void SetFrequency(const float InFreqBase);
 
 		// Sets a frequency modulation value
-		void SetFrequencyMod(const float InFreqMod);
+		SIGNALPROCESSING_API void SetFrequencyMod(const float InFreqMod);
 
 		// Sets the base frequency of the oscillator from the midi note number
-		void SetNote(const float InNote);
+		SIGNALPROCESSING_API void SetNote(const float InNote);
 
 		// Returns the frequency of the oscillator
 		float GetFrequency() const { return BaseFreq; }
@@ -97,16 +97,16 @@ namespace Audio
 		// Returns the frequency of the oscillator
 		float GetGain() const { return Gain; }
 
-		void SetCents(const float InCents);
-		void SetOctave(const float InOctave);
-		void SetSampleRate(const float InSampleRate);
-		void SetSemitones(const float InSemiTone);
-		void SetDetune(const float InDetune);
-		void SetPitchBend(const float InPitchBend);
-		void SetFreqScale(const float InFreqScale);
+		SIGNALPROCESSING_API void SetCents(const float InCents);
+		SIGNALPROCESSING_API void SetOctave(const float InOctave);
+		SIGNALPROCESSING_API void SetSampleRate(const float InSampleRate);
+		SIGNALPROCESSING_API void SetSemitones(const float InSemiTone);
+		SIGNALPROCESSING_API void SetDetune(const float InDetune);
+		SIGNALPROCESSING_API void SetPitchBend(const float InPitchBend);
+		SIGNALPROCESSING_API void SetFreqScale(const float InFreqScale);
 
 		// Sets the LFO pulse width for square-wave type oscillators
-		void SetPulseWidth(const float InPulseWidth);
+		SIGNALPROCESSING_API void SetPulseWidth(const float InPulseWidth);
 
 		// Returns whether or not this oscillator is playing
 		bool IsPlaying() const { return bIsPlaying; }
@@ -119,10 +119,10 @@ namespace Audio
 
 		// Deprecated: use SetFollowerOsc
 		UE_DEPRECATED(5.1, "SetSlaveOsc is deprecated, please use SetFollowerOsc instead.")
-		void SetSlaveOsc(IOscBase* InSlaveOsc);
+		SIGNALPROCESSING_API void SetSlaveOsc(IOscBase* InSlaveOsc);
 
 		// Sets the input oscillator as the follower of this oscillator
-		void SetFollowerOsc(IOscBase* InFollowerOsc);
+		SIGNALPROCESSING_API void SetFollowerOsc(IOscBase* InFollowerOsc);
 
 		// Return patch destinations for various modulatable parameters
 		FPatchDestination GetModDestFrequency() const { return ModFrequencyDest; }
@@ -247,18 +247,18 @@ namespace Audio
 	}
 
 	// Pitched oscillator
-	class SIGNALPROCESSING_API FOsc : public IOscBase
+	class FOsc : public IOscBase
 	{
 	public:
-		FOsc();
-		virtual ~FOsc();
+		SIGNALPROCESSING_API FOsc();
+		SIGNALPROCESSING_API virtual ~FOsc();
 
 		//~ Begin FOscBase
-		virtual void Start() override;
-		virtual void Stop() override;
-		virtual void Reset() override;
-		virtual void Update() override;
-		virtual float Generate(float* AuxOutput = nullptr) override;
+		SIGNALPROCESSING_API virtual void Start() override;
+		SIGNALPROCESSING_API virtual void Stop() override;
+		SIGNALPROCESSING_API virtual void Reset() override;
+		SIGNALPROCESSING_API virtual void Update() override;
+		SIGNALPROCESSING_API virtual float Generate(float* AuxOutput = nullptr) override;
 		//~ End FOscBase
 
 		// Sets the oscillator type
@@ -270,7 +270,7 @@ namespace Audio
 	protected:
 
 		// Smooth out the saw-tooth discontinuities to improve aliasing
-		float PolySmooth(const float InPhase, const float InPhaseInc);
+		SIGNALPROCESSING_API float PolySmooth(const float InPhase, const float InPhaseInc);
 
 		// Current sign of the square mod, used for triangle wave generation
 		float TriangleSign; 

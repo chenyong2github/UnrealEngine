@@ -129,7 +129,7 @@ public:
 
 
 /** Struct of all the attributes a loading screen will have. */
-struct MOVIEPLAYER_API FLoadingScreenAttributes
+struct FLoadingScreenAttributes
 {
 	FLoadingScreenAttributes()
 		: MinimumLoadingScreenDisplayTime(-1.0f)
@@ -168,10 +168,10 @@ struct MOVIEPLAYER_API FLoadingScreenAttributes
 	TEnumAsByte<EMoviePlaybackType> PlaybackType;
 
 	/** True if there is either a standalone widget or any movie paths or both. */
-	bool IsValid() const;
+	MOVIEPLAYER_API bool IsValid() const;
 
 	/** Creates a simple test loading screen widget. */
-	static TSharedRef<class SWidget> NewTestLoadingScreenWidget();
+	static MOVIEPLAYER_API TSharedRef<class SWidget> NewTestLoadingScreenWidget();
 };
 
 

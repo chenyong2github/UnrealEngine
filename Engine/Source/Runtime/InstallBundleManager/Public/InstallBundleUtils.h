@@ -100,22 +100,22 @@ namespace InstallBundleUtil
 	}
 
 	// Keep the engine awake via RAII when running as an embedded app
-	class INSTALLBUNDLEMANAGER_API FInstallBundleManagerKeepAwake : public FEmbeddedKeepAwake
+	class FInstallBundleManagerKeepAwake : public FEmbeddedKeepAwake
 	{
-		static FName Tag;
-		static FName TagWithRendering;
+		static INSTALLBUNDLEMANAGER_API FName Tag;
+		static INSTALLBUNDLEMANAGER_API FName TagWithRendering;
 	public:
 		FInstallBundleManagerKeepAwake(bool bNeedsRendering = false)
 			: FEmbeddedKeepAwake(bNeedsRendering ? TagWithRendering : Tag, bNeedsRendering) {}
 	};
 
-	class INSTALLBUNDLEMANAGER_API FInstallBundleManagerScreenSaverControl
+	class FInstallBundleManagerScreenSaverControl
 	{
-		static bool bDidDisableScreensaver;
-		static int DisableCount;
+		static INSTALLBUNDLEMANAGER_API bool bDidDisableScreensaver;
+		static INSTALLBUNDLEMANAGER_API int DisableCount;
 
-		static void IncDisable();
-		static void DecDisable();
+		static INSTALLBUNDLEMANAGER_API void IncDisable();
+		static INSTALLBUNDLEMANAGER_API void DecDisable();
 
 	public:
 		FInstallBundleManagerScreenSaverControl()
@@ -143,21 +143,21 @@ namespace InstallBundleUtil
 	};
 
 	// Helper to safely suppress installer analytics that will restore previous state when going out of scope
-	struct INSTALLBUNDLEMANAGER_API FInstallBundleSuppressAnalytics : FNoncopyable
+	struct FInstallBundleSuppressAnalytics : FNoncopyable
 	{
-		FInstallBundleSuppressAnalytics();
-		~FInstallBundleSuppressAnalytics();
+		INSTALLBUNDLEMANAGER_API FInstallBundleSuppressAnalytics();
+		INSTALLBUNDLEMANAGER_API ~FInstallBundleSuppressAnalytics();
 
-		void Enable();
-		void Disable();
+		INSTALLBUNDLEMANAGER_API void Enable();
+		INSTALLBUNDLEMANAGER_API void Disable();
 
-		static bool IsEnabled();
+		static INSTALLBUNDLEMANAGER_API bool IsEnabled();
 
 	private:
 		bool bIsEnabled;
 	};
 
-	class INSTALLBUNDLEMANAGER_API FInstallBundleWork : public FNonAbandonableTask
+	class FInstallBundleWork : public FNonAbandonableTask
 	{
 	public:
 		FInstallBundleWork() = default;
@@ -203,7 +203,7 @@ namespace InstallBundleUtil
 
 	INSTALLBUNDLEMANAGER_API void CleanupInstallBundleAsyncIOTasks(TArray<TUniquePtr<FInstallBundleTask>>& Tasks);
 
-	struct INSTALLBUNDLEMANAGER_API FContentRequestStateStats
+	struct FContentRequestStateStats
 	{
 		double StartTime = 0.0;
 		double EndTime = 0.0;
@@ -216,7 +216,7 @@ namespace InstallBundleUtil
 		}
 	};
 
-	struct INSTALLBUNDLEMANAGER_API FContentRequestStats
+	struct FContentRequestStats
 	{
 		double StartTime = 0.0;
 		double EndTime = 0.0;
@@ -229,17 +229,17 @@ namespace InstallBundleUtil
 		}
 	};
 
-	class INSTALLBUNDLEMANAGER_API FContentRequestStatsMap
+	class FContentRequestStatsMap
 	{
 	private:
 		TMap<FName, InstallBundleUtil::FContentRequestStats> StatsMap;
 
 	public:
-		void StatsBegin(FName BundleName);
-		void StatsEnd(FName BundleName);
-		void StatsBegin(FName BundleName, const TCHAR* State);
-		void StatsEnd(FName BundleName, const TCHAR* State, uint64 DataSize = 0);
-		void StatsReset(FName BundleName);
+		INSTALLBUNDLEMANAGER_API void StatsBegin(FName BundleName);
+		INSTALLBUNDLEMANAGER_API void StatsEnd(FName BundleName);
+		INSTALLBUNDLEMANAGER_API void StatsBegin(FName BundleName, const TCHAR* State);
+		INSTALLBUNDLEMANAGER_API void StatsEnd(FName BundleName, const TCHAR* State, uint64 DataSize = 0);
+		INSTALLBUNDLEMANAGER_API void StatsReset(FName BundleName);
 
 		const TMap<FName, InstallBundleUtil::FContentRequestStats>& GetMap() { return StatsMap; }
 	};
@@ -314,11 +314,11 @@ namespace InstallBundleUtil
 
 		//Both ContentRequests and Individual Bundles use this to track data respective to themselves.
 		//Keeps us from having to write serialization / loading data for both cases that would be the same
-		class INSTALLBUNDLEMANAGER_API FPersistentStatsBase : public FJsonSerializable
+		class FPersistentStatsBase : public FJsonSerializable
 		{
 		public:
 			//We should not ever really be serializing this base class. Kept it here for reference.
-			BEGIN_JSON_SERIALIZER
+			INSTALLBUNDLEMANAGER_API BEGIN_JSON_SERIALIZER
 				JSON_SERIALIZE("AnalyticsSessionID", AnalyticsSessionID);
 				JSON_SERIALIZE_MAP("CountStats", CountStatMap);
 				JSON_SERIALIZE_MAP_SERIALIZABLE("TimingStats", TimingStatsMap, FPersistentTimerData);
@@ -328,50 +328,50 @@ namespace InstallBundleUtil
 			virtual ~FPersistentStatsBase() {}
 
 			//Tries to load persistent stats from disk and determine if we need to resume our previous persistent session or start a new one
-			void StatsBegin(const FString& ExpectedAnalyticsID, bool bForceResetData = false);
+			INSTALLBUNDLEMANAGER_API void StatsBegin(const FString& ExpectedAnalyticsID, bool bForceResetData = false);
 
 			//Tries to set this stat pool as "inactive". By default also stop all active timers. 
 			// NOTE: If you don't stop all active timers future calls to UpdateTimingStat will still increment this value and save it off!
-			void StatsEnd(bool bStopAllActiveTimers = true);
+			INSTALLBUNDLEMANAGER_API void StatsEnd(bool bStopAllActiveTimers = true);
 
-			bool IsTimingStatStarted(ETimingStatNames StatToUpdate) const;
-			void StartTimingStat(ETimingStatNames StatToUpdate);
-			void StopTimingStat(ETimingStatNames StatToUpdate, bool UpdateTimerOnStop = true);
-			void UpdateTimingStat(ETimingStatNames StatToUpdate);
+			INSTALLBUNDLEMANAGER_API bool IsTimingStatStarted(ETimingStatNames StatToUpdate) const;
+			INSTALLBUNDLEMANAGER_API void StartTimingStat(ETimingStatNames StatToUpdate);
+			INSTALLBUNDLEMANAGER_API void StopTimingStat(ETimingStatNames StatToUpdate, bool UpdateTimerOnStop = true);
+			INSTALLBUNDLEMANAGER_API void UpdateTimingStat(ETimingStatNames StatToUpdate);
 			
-			void UpdateAllActiveTimers();
-			void StopAllActiveTimers();
+			INSTALLBUNDLEMANAGER_API void UpdateAllActiveTimers();
+			INSTALLBUNDLEMANAGER_API void StopAllActiveTimers();
 			
 			bool IsActive() const { return bIsActive; }
 			bool IsDirty() const { return bIsDirty; }
 
-			void IncrementCountStat(PersistentStats::ECountStatNames StatToUpdate);
+			INSTALLBUNDLEMANAGER_API void IncrementCountStat(PersistentStats::ECountStatNames StatToUpdate);
 
-			bool HasTimingStat(ETimingStatNames StatToCheck) const;
-			bool HasCountStat(ECountStatNames StatToCheck) const;
+			INSTALLBUNDLEMANAGER_API bool HasTimingStat(ETimingStatNames StatToCheck) const;
+			INSTALLBUNDLEMANAGER_API bool HasCountStat(ECountStatNames StatToCheck) const;
 
-			const FPersistentTimerData* GetTimingStatData(ETimingStatNames StatToGet) const;
-			const int* GetCountStatData(ECountStatNames StatToGet) const;
+			INSTALLBUNDLEMANAGER_API const FPersistentTimerData* GetTimingStatData(ETimingStatNames StatToGet) const;
+			INSTALLBUNDLEMANAGER_API const int* GetCountStatData(ECountStatNames StatToGet) const;
 
 			//Saves the persistent stat data to disk in the location returned by GetFullPathForStatFile()
 			//Returns True if that save succeeds and false otherwise.
-			bool SaveStatsToDisk();
+			INSTALLBUNDLEMANAGER_API bool SaveStatsToDisk();
 			
 			//Function that allows you to load stats from disk. Returns true if stats were either loaded from disk now, or previously were loaded from disk.
 			//NOTE: This does not begin stat collection, so you should still call StatsBegin on this before handling any stats!
-			bool LoadStatsFromDisk();
+			INSTALLBUNDLEMANAGER_API bool LoadStatsFromDisk();
 
 		protected:
-			void ResetStats(const FString& NewAnalyticsSessionID);
+			INSTALLBUNDLEMANAGER_API void ResetStats(const FString& NewAnalyticsSessionID);
 			
 			//Called after we load data but before we process any of it.
 			//Useful for fixing up the data loaded from disk before it changes or is acted upon by anything else
 			//NOTE: A call to LoadStatsFromDisk will not necessarily call this! It will only be called when data is actually pulled from
 			//the disk, and its possible to skip pulling data from the disk!
-			void OnLoadingDataFromDisk();
+			INSTALLBUNDLEMANAGER_API void OnLoadingDataFromDisk();
 
 			//Helper to try and reconcile offline and active timers after we load data from disk
-			void HandleTimerStatsAfterDataLoad();
+			INSTALLBUNDLEMANAGER_API void HandleTimerStatsAfterDataLoad();
 
 			//Protected so we can only construct the derived versions of this Base class
 			FPersistentStatsBase()
@@ -399,7 +399,7 @@ namespace InstallBundleUtil
 		//Static Methods
 		public:
 			//Helper function that generates a basic ExpectedAnalyticsID from device and UE information
-			static const FString GetBaseExpectedAnalyticsID();
+			static INSTALLBUNDLEMANAGER_API const FString GetBaseExpectedAnalyticsID();
 		
 		//Pure Virtual Methods
 		public:
@@ -408,10 +408,10 @@ namespace InstallBundleUtil
 		};
 
 		//Each bundles persistent stats
-		class INSTALLBUNDLEMANAGER_API FBundlePersistentStats : public FPersistentStatsBase
+		class FBundlePersistentStats : public FPersistentStatsBase
 		{
 		public:
-			BEGIN_JSON_SERIALIZER
+			INSTALLBUNDLEMANAGER_API BEGIN_JSON_SERIALIZER
 				JSON_SERIALIZE("BundleName", BundleName);
 				JSON_SERIALIZE("AnalyticsSessionID", AnalyticsSessionID);
 				JSON_SERIALIZE_MAP("CountStats", CountStatMap);
@@ -436,14 +436,14 @@ namespace InstallBundleUtil
 
 			//Implementation for FInstallBundleStatsContainerBase
 		public:
-			virtual const FString GetFullPathForStatFile() const override;
+			INSTALLBUNDLEMANAGER_API virtual const FString GetFullPathForStatFile() const override;
 		};
 
 		//Tracks a set of bundles and stats for a named session. This way you can have stats across multiple bundle installs grouped by some naming convention
-		class INSTALLBUNDLEMANAGER_API FSessionPersistentStats : public FPersistentStatsBase
+		class FSessionPersistentStats : public FPersistentStatsBase
 		{
 		public:
-			BEGIN_JSON_SERIALIZER
+			INSTALLBUNDLEMANAGER_API BEGIN_JSON_SERIALIZER
 				JSON_SERIALIZE("SessionName", SessionName);
 				JSON_SERIALIZE_ARRAY("RequiredBundles", RequiredBundles);
 				JSON_SERIALIZE("AnalyticsSessionID", AnalyticsSessionID);
@@ -470,103 +470,103 @@ namespace InstallBundleUtil
 
 			virtual ~FSessionPersistentStats() {}
 
-			void AddRequiredBundles(const TArray<FString>& RequiredBundlesToAdd);
-			void AddRequiredBundles(const TArray<FName>& RequiredBundlesToAdd);
+			INSTALLBUNDLEMANAGER_API void AddRequiredBundles(const TArray<FString>& RequiredBundlesToAdd);
+			INSTALLBUNDLEMANAGER_API void AddRequiredBundles(const TArray<FName>& RequiredBundlesToAdd);
 
 			//Removes all Required Bundle Names except the ones in the NewRequiredBundlesList. If no NewRequiredBundlesList is supplied, just erases all RequiredBundles.
 			//This includes ones loaded from the persistent cache from previous runs. This re-saves the persistent cache file so they will be removed completely.
-			void ResetRequiredBundles(const TArray<FString>& NewRequiredBundles = TArray<FString>());
+			INSTALLBUNDLEMANAGER_API void ResetRequiredBundles(const TArray<FString>& NewRequiredBundles = TArray<FString>());
 
 			//Populates the passed in TArray with all the required bundles' names
-			void GetRequiredBundles(TArray<FString>& OutRequiredBundles) const;
+			INSTALLBUNDLEMANAGER_API void GetRequiredBundles(TArray<FString>& OutRequiredBundles) const;
 			
 			//Implementation for FInstallBundleStatsContainerBase
 		public:
-			virtual const FString GetFullPathForStatFile() const override;
+			INSTALLBUNDLEMANAGER_API virtual const FString GetFullPathForStatFile() const override;
 		};
 
 		//Helper class to handle holding a collection of Bundle and Session stats.
-		class INSTALLBUNDLEMANAGER_API FPersistentStatContainerBase
+		class FPersistentStatContainerBase
 		{
 		public:
-			FPersistentStatContainerBase();
-			virtual ~FPersistentStatContainerBase();
+			INSTALLBUNDLEMANAGER_API FPersistentStatContainerBase();
+			INSTALLBUNDLEMANAGER_API virtual ~FPersistentStatContainerBase();
 
 			//NOTE! These 2 functions are not virtual as we call them in the construct/deconstructor!
-			void InitializeBase();
-			void ShutdownBase();
+			INSTALLBUNDLEMANAGER_API void InitializeBase();
+			INSTALLBUNDLEMANAGER_API void ShutdownBase();
 
 			//Starts Bundle Persistent Stat Tracking for the given BundleName. Will automatically load applicable data from the disk and reset that cache
 			//if the ExpectedAnalyticsID doesn't match the one previously serialized.
 			//Uses FInstallBundleStatsContainerBase::GetBaseExpectedAnalyticsID if an ExpectedAnalyticsID is not passed in or empty
-			virtual void StartBundlePersistentStatTracking(FName BundleName, const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false);
+			INSTALLBUNDLEMANAGER_API virtual void StartBundlePersistentStatTracking(FName BundleName, const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false);
 			
 			//Starts Session Persistent Stat Tracking under the given SessionName. Will automatically load applicable data from the disk and reset that cache
 			//if the ExpectedAnalyticsID doesn't match the one previously serialized. 
 			//Uses FInstallBundleStatsContainerBase::GetBaseExpectedAnalyticsID if an ExpectedAnalyticsID is not passed in or empty
-			virtual void StartSessionPersistentStatTracking(const FString& SessionName, const TArray<FName>& RequiredBundles = TArray<FName>(), const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false);
+			INSTALLBUNDLEMANAGER_API virtual void StartSessionPersistentStatTracking(const FString& SessionName, const TArray<FName>& RequiredBundles = TArray<FName>(), const FString& ExpectedAnalyticsID = FString(), bool bForceResetStatData = false);
 
-			virtual void StopBundlePersistentStatTracking(FName BundleName, bool bStopAllActiveTimers = true);
-			virtual void StopSessionPersistentStatTracking(const FString& SessionName, bool bStopAllActiveTimers = true);
+			INSTALLBUNDLEMANAGER_API virtual void StopBundlePersistentStatTracking(FName BundleName, bool bStopAllActiveTimers = true);
+			INSTALLBUNDLEMANAGER_API virtual void StopSessionPersistentStatTracking(const FString& SessionName, bool bStopAllActiveTimers = true);
 
-			virtual void StartBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToStart);
-			virtual void StartSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToStart);
+			INSTALLBUNDLEMANAGER_API virtual void StartBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToStart);
+			INSTALLBUNDLEMANAGER_API virtual void StartSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToStart);
 
-			virtual void StopBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToStop);
-			virtual void StopSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToStop);
+			INSTALLBUNDLEMANAGER_API virtual void StopBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToStop);
+			INSTALLBUNDLEMANAGER_API virtual void StopSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToStop);
 
-			virtual void UpdateBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToUpdate);
-			virtual void UpdateSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToUpdate);
+			INSTALLBUNDLEMANAGER_API virtual void UpdateBundlePersistentStatTimer(FName BundleName, ETimingStatNames TimerToUpdate);
+			INSTALLBUNDLEMANAGER_API virtual void UpdateSessionPersistentStatTimer(const FString& SessionName, ETimingStatNames TimerToUpdate);
 
-			virtual void IncrementBundlePersistentCounter(FName BundleName, ECountStatNames CounterToUpdate);
-			virtual void IncrementSessionPersistentCounter(const FString& SessionName, ECountStatNames CounterToUpdate);
+			INSTALLBUNDLEMANAGER_API virtual void IncrementBundlePersistentCounter(FName BundleName, ECountStatNames CounterToUpdate);
+			INSTALLBUNDLEMANAGER_API virtual void IncrementSessionPersistentCounter(const FString& SessionName, ECountStatNames CounterToUpdate);
 
-			virtual const FBundlePersistentStats* GetBundleStat(FName BundleName) const;
-			virtual const FSessionPersistentStats* GetSessionStat(const FString& SessionName) const;
+			INSTALLBUNDLEMANAGER_API virtual const FBundlePersistentStats* GetBundleStat(FName BundleName) const;
+			INSTALLBUNDLEMANAGER_API virtual const FSessionPersistentStats* GetSessionStat(const FString& SessionName) const;
 
-			virtual void SaveAllDirtyStatsToDisk();
+			INSTALLBUNDLEMANAGER_API virtual void SaveAllDirtyStatsToDisk();
 			
 			//Deletes persistent stat information from our stats for this Session/Bundle to reduce memory useage
-			virtual void RemoveSessionStats(const FString& SessionName);
-			virtual void RemoveBundleStats(FName BundleName);
+			INSTALLBUNDLEMANAGER_API virtual void RemoveSessionStats(const FString& SessionName);
+			INSTALLBUNDLEMANAGER_API virtual void RemoveBundleStats(FName BundleName);
 			
 		protected:
-			virtual bool Tick(float dt);
-			virtual void ResetTimerUpdate();
-			virtual void ResetDirtyStatUpdate();
+			INSTALLBUNDLEMANAGER_API virtual bool Tick(float dt);
+			INSTALLBUNDLEMANAGER_API virtual void ResetTimerUpdate();
+			INSTALLBUNDLEMANAGER_API virtual void ResetDirtyStatUpdate();
 
-			virtual void UpdateAllBundlesActiveTimers();
-			virtual void UpdateAllSessionActiveTimers();
+			INSTALLBUNDLEMANAGER_API virtual void UpdateAllBundlesActiveTimers();
+			INSTALLBUNDLEMANAGER_API virtual void UpdateAllSessionActiveTimers();
 
-			virtual void OnApp_EnteringBackground();
-			virtual void OnApp_EnteringForeground();
+			INSTALLBUNDLEMANAGER_API virtual void OnApp_EnteringBackground();
+			INSTALLBUNDLEMANAGER_API virtual void OnApp_EnteringForeground();
 
-			virtual void OnBackground_HandleBundleStats();
-			virtual void OnForeground_HandleBundleStats();
-			virtual void OnBackground_HandleSessionStats();
-			virtual void OnForeground_HandleSessionStats();
+			INSTALLBUNDLEMANAGER_API virtual void OnBackground_HandleBundleStats();
+			INSTALLBUNDLEMANAGER_API virtual void OnForeground_HandleBundleStats();
+			INSTALLBUNDLEMANAGER_API virtual void OnBackground_HandleSessionStats();
+			INSTALLBUNDLEMANAGER_API virtual void OnForeground_HandleSessionStats();
 			
 			//Called whenever we start a timer
 			//NOTE: doesn't get called by timer's being Start/Stopped for bShouldAutoHandleFGBGStats
-			virtual void OnTimerStartedForStat(FPersistentStatsBase& BundleStatForTimer, ETimingStatNames TimerStarted);
+			INSTALLBUNDLEMANAGER_API virtual void OnTimerStartedForStat(FPersistentStatsBase& BundleStatForTimer, ETimingStatNames TimerStarted);
 
 			//Called whenever we stop a timer 
 			//NOTE: doesn't get called by timer's being Start/Stopped for bShouldAutoHandleFGBGStats
-			virtual void OnTimerStoppedForStat(FPersistentStatsBase& BundleStatForTimer, ETimingStatNames TimerStarted);
+			INSTALLBUNDLEMANAGER_API virtual void OnTimerStoppedForStat(FPersistentStatsBase& BundleStatForTimer, ETimingStatNames TimerStarted);
 
 			//Stops active foreground timers when going to background and starts applicable background version
 			//Also increments background counters
-			virtual void UpdateStatsForBackground(FPersistentStatsBase& StatToUpdate);
+			INSTALLBUNDLEMANAGER_API virtual void UpdateStatsForBackground(FPersistentStatsBase& StatToUpdate);
 
 			//Stops active background timers and resumes applicable foreground timers
 			//Also increments foreground counters
-			virtual void UpdateStatsForForeground(FPersistentStatsBase& StatToUpdate);
+			INSTALLBUNDLEMANAGER_API virtual void UpdateStatsForForeground(FPersistentStatsBase& StatToUpdate);
 			
 			//Goes through this Session's RequiredBundles and loads data from disk for those bundles. Allows us to make sure we have
 			//full data in memory from disk without having to know the previous runs AnalyticsID to call StatsBegin on that bundle.
 			//NOTE: You should still call StatsBegin on the listed bundles before Starting/Incrementing/ETC any analytics! This just
 			//ensures that the previous run data exists for this given session!
-			virtual void LoadRequiredBundleDataFromDiskForSession(const FString& SessionName);
+			INSTALLBUNDLEMANAGER_API virtual void LoadRequiredBundleDataFromDiskForSession(const FString& SessionName);
 			
 		protected:
 			TMap<FName, FBundlePersistentStats> PerBundlePersistentStatMap;
@@ -618,12 +618,12 @@ namespace InstallBundleUtil
 		};
 	}
 
-	struct INSTALLBUNDLEMANAGER_API IBundleSourceContentRequestSharedContext
+	struct IBundleSourceContentRequestSharedContext
 	{
 		virtual ~IBundleSourceContentRequestSharedContext() {}
 	};
 
-	struct INSTALLBUNDLEMANAGER_API FContentRequestSharedContext
+	struct FContentRequestSharedContext
 	{
 		FContentRequestSharedContext() = default;
 		FContentRequestSharedContext(const FContentRequestSharedContext& Other) = delete;

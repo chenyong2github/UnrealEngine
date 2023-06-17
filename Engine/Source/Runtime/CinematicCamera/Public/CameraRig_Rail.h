@@ -15,17 +15,17 @@ class UStaticMeshComponent;
 /** 
  * 
  */
-UCLASS(Blueprintable)
-class CINEMATICCAMERA_API ACameraRig_Rail : public AActor
+UCLASS(Blueprintable, MinimalAPI)
+class ACameraRig_Rail : public AActor
 {
 	GENERATED_BODY()
 	
 public:
 	// ctor
-	ACameraRig_Rail(const FObjectInitializer& ObjectInitialier);
+	CINEMATICCAMERA_API ACameraRig_Rail(const FObjectInitializer& ObjectInitialier);
 	
-	virtual void Tick(float DeltaTime) override;
-	virtual bool ShouldTickIfViewportsOnly() const override;
+	CINEMATICCAMERA_API virtual void Tick(float DeltaTime) override;
+	CINEMATICCAMERA_API virtual bool ShouldTickIfViewportsOnly() const override;
 
 	/** Defines current position of the mount point along the rail, in terms of normalized distance from the beginning of the rail. */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = "Rail Controls", meta=(ClampMin="0.0", ClampMax = "1.0"))
@@ -45,11 +45,11 @@ public:
 	float PreviewMeshScale;
 #endif
 
-	virtual class USceneComponent* GetDefaultAttachComponent() const override;
+	CINEMATICCAMERA_API virtual class USceneComponent* GetDefaultAttachComponent() const override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
-	virtual void PostEditMove(bool bFinished) override;
+	CINEMATICCAMERA_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CINEMATICCAMERA_API virtual void PostEditUndo() override;
+	CINEMATICCAMERA_API virtual void PostEditMove(bool bFinished) override;
 #endif
 
 	/** Returns the spline component that defines the rail path */
@@ -58,11 +58,11 @@ public:
 	
 protected:
 	/** Makes sure all components are arranged properly. Call when something changes that might affect components. */
-	virtual void UpdateRailComponents();
+	CINEMATICCAMERA_API virtual void UpdateRailComponents();
 #if WITH_EDITORONLY_DATA
-	void UpdatePreviewMeshes();
+	CINEMATICCAMERA_API void UpdatePreviewMeshes();
 #endif
-	USplineMeshComponent* CreateSplinePreviewSegment();
+	CINEMATICCAMERA_API USplineMeshComponent* CreateSplinePreviewSegment();
 
  	/** Root component to give the whole actor a transform. */
 	UPROPERTY(EditDefaultsOnly, Category = "Rail Components")

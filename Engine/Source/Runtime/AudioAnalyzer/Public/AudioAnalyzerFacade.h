@@ -18,18 +18,18 @@ namespace Audio
 	 *
 	 * FAnalyzer provides a simplified interface for performing analysis on audio buffers from the same AudioAnalyzer.
 	 */
-	class AUDIOANALYZER_API FAnalyzerFacade
+	class FAnalyzerFacade
 	{
 		public:
 			/**
 			 * Create an FAnalyzerBatch with the analyzer settings and factory name.
 			 */
-			FAnalyzerFacade(TUniquePtr<IAnalyzerSettings> InSettings, IAnalyzerFactory* InFactory);
+			AUDIOANALYZER_API FAnalyzerFacade(TUniquePtr<IAnalyzerSettings> InSettings, IAnalyzerFactory* InFactory);
 
 			/**
 			 * Analyze the audio buffer.
 			 */
-			TUniquePtr<IAnalyzerResult> AnalyzeAudioBuffer(const TArray<float>& InAudioBuffer, int32 InNumChannels, float InSampleRate);
+			AUDIOANALYZER_API TUniquePtr<IAnalyzerResult> AnalyzeAudioBuffer(const TArray<float>& InAudioBuffer, int32 InNumChannels, float InSampleRate);
 
 		private:
 

@@ -20,8 +20,8 @@ enum class ELandscapeDirtyingMode : uint8
 	InLandscapeModeAndUserTriggeredChanges
 };
 
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Landscape"))
-class LANDSCAPE_API ULandscapeSettings : public UDeveloperSettings
+UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Landscape"), MinimalAPI)
+class ULandscapeSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 

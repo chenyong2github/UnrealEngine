@@ -34,45 +34,45 @@ struct FInputDeviceState;
  * hover events to InputBehaviors that also support it.
  *
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInputRouter : public UObject
+UCLASS(Transient, MinimalAPI)
+class UInputRouter : public UObject
 {
 	GENERATED_BODY()
 
 protected:
 	friend class UInteractiveToolsContext;		// to call Initialize/Shutdown
 
-	UInputRouter();
+	INTERACTIVETOOLSFRAMEWORK_API UInputRouter();
 
 	/** Initialize the InputRouter with the necessary Context-level state. UInteractiveToolsContext calls this, you should not. */
-	virtual void Initialize(IToolsContextTransactionsAPI* TransactionsAPI);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IToolsContextTransactionsAPI* TransactionsAPI);
 
 	/** Shutdown the InputRouter. Called by UInteractiveToolsContext. */
-	virtual void Shutdown();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown();
 
 public:
 	/** Add a new behavior Source. Behaviors from this source will be added to the active behavior set. */
-	virtual void RegisterSource(IInputBehaviorSource* Source);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void RegisterSource(IInputBehaviorSource* Source);
 
 	/** Remove Behaviors from this Source from the active set */
-	virtual void DeregisterSource(IInputBehaviorSource* Source);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DeregisterSource(IInputBehaviorSource* Source);
 
 	/** Insert a new input event which is used to check for new captures, or forwarded to active capture */
-	virtual bool PostInputEvent(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool PostInputEvent(const FInputDeviceState& Input);
 
 	/** Returns true if there is an active mouse capture */
-	virtual bool HasActiveMouseCapture() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasActiveMouseCapture() const;
 
 	// TODO: other capture queries
 
 	/** Insert a new hover input event which is forwarded to all hover-enabled Behaviors */
-	virtual void PostHoverInputEvent(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void PostHoverInputEvent(const FInputDeviceState& Input);
 
 	/** If this Behavior is capturing, call ForceEndCapture() to notify that we are taking capture away */
-	virtual void ForceTerminateSource(IInputBehaviorSource* Source);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceTerminateSource(IInputBehaviorSource* Source);
 
 	/** Terminate any active captures and end all hovers */
-	virtual void ForceTerminateAll();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceTerminateAll();
 
 
 public:
@@ -103,13 +103,13 @@ protected:
 	void* ActiveRightCaptureOwner = nullptr;
 	FInputCaptureData ActiveRightCaptureData;
 
-	virtual void PostInputEvent_Keyboard(const FInputDeviceState& Input);
-	void CheckForKeyboardCaptures(const FInputDeviceState& Input);
-	void HandleCapturedKeyboardInput(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void PostInputEvent_Keyboard(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API void CheckForKeyboardCaptures(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API void HandleCapturedKeyboardInput(const FInputDeviceState& Input);
 
-	virtual void PostInputEvent_Mouse(const FInputDeviceState& Input);
-	void CheckForMouseCaptures(const FInputDeviceState& Input);
-	void HandleCapturedMouseInput(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void PostInputEvent_Mouse(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API void CheckForMouseCaptures(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API void HandleCapturedMouseInput(const FInputDeviceState& Input);
 
 	//
 	// Hover support
@@ -120,6 +120,6 @@ protected:
 
 	FInputDeviceState LastMouseInputState;
 
-	void TerminateHover(EInputCaptureSide Side);
-	bool ProcessMouseHover(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API void TerminateHover(EInputCaptureSide Side);
+	INTERACTIVETOOLSFRAMEWORK_API bool ProcessMouseHover(const FInputDeviceState& Input);
 };

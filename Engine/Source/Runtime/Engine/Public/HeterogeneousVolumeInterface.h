@@ -9,7 +9,7 @@
 class IHeterogeneousVolumeInterface
 {
 public:
-	ENGINE_API virtual ~IHeterogeneousVolumeInterface() {}
+	virtual ~IHeterogeneousVolumeInterface() {}
 	virtual const FPrimitiveSceneProxy* GetPrimitiveSceneProxy() const = 0;
 	
 	// Local-Space
@@ -34,14 +34,14 @@ class FPrimitiveSceneProxy;
 class FHeterogeneousVolumeData : public IHeterogeneousVolumeInterface, FOneFrameResource
 {
 public:
-	ENGINE_API explicit FHeterogeneousVolumeData(const FPrimitiveSceneProxy* SceneProxy)
+	explicit FHeterogeneousVolumeData(const FPrimitiveSceneProxy* SceneProxy)
 		: PrimitiveSceneProxy(SceneProxy)
 		, InstanceToLocal(FMatrix::Identity)
 		, VoxelResolution(FIntVector::ZeroValue)
 		, MinimumVoxelSize(0.1)
 		, LightingDownsampleFactor(1.0)
 	{}
-	ENGINE_API virtual ~FHeterogeneousVolumeData() {}
+	virtual ~FHeterogeneousVolumeData() {}
 
 	virtual const FPrimitiveSceneProxy* GetPrimitiveSceneProxy() const { return PrimitiveSceneProxy; }
 

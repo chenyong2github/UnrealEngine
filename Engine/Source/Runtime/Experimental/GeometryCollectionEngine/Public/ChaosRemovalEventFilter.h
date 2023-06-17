@@ -74,15 +74,15 @@ struct FChaosRemovalEventRequestSettings
 	}
 };
 
-class GEOMETRYCOLLECTIONENGINE_API FChaosRemovalEventFilter
+class FChaosRemovalEventFilter
 	: public IChaosEventFilter<Chaos::FRemovalDataArray, TArray<FChaosRemovalEventData>, EChaosRemovalSortMethod>
 {
 public:
 	FChaosRemovalEventFilter(FChaosRemovalEventRequestSettings* FilterSettingsIn) : RemovalEventRequestSettings(FilterSettingsIn) {}
 
-	virtual void FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FRemovalDataArray& RawRemovalDataArray) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FRemovalDataArray& RawRemovalDataArray) override;
 
-	virtual void SortEvents(TArray<FChaosRemovalEventData>& InOutRemovalEvents, EChaosRemovalSortMethod SortMethod, const FTransform& InTransform) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void SortEvents(TArray<FChaosRemovalEventData>& InOutRemovalEvents, EChaosRemovalSortMethod SortMethod, const FTransform& InTransform) override;
 
 private:
 	FChaosRemovalEventFilter() : RemovalEventRequestSettings(nullptr) {}

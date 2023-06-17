@@ -50,7 +50,7 @@ struct FTextureCopyChannelMapping
 	int8 Mappings[4];
 };
 
-class LANDSCAPE_API FBatchTextureCopy
+class FBatchTextureCopy
 {
 public:
 	/**
@@ -61,10 +61,10 @@ public:
 	* @param	InLayerInfo		The layer info used to retrieve the proper source weightmap and channel.
 	* @return True if the copy has been successfully added.
 	*/
-	bool AddWeightmapCopy(UTexture2D* InDestination, int8 InDestinationChannel, const ULandscapeComponent* InComponent, ULandscapeLayerInfoObject* InLayerInfo);
+	LANDSCAPE_API bool AddWeightmapCopy(UTexture2D* InDestination, int8 InDestinationChannel, const ULandscapeComponent* InComponent, ULandscapeLayerInfoObject* InLayerInfo);
 
 	/** Process pending internal copy requests. */
-	bool ProcessTextureCopies();
+	LANDSCAPE_API bool ProcessTextureCopies();
 
 private:
 	using FTextureCopyChannelMappingMap = TMap<FTextureCopyRequest, FTextureCopyChannelMapping>;

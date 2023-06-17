@@ -22,7 +22,7 @@ class UAIDataProvider;
  */
 
 USTRUCT()
-struct AIMODULE_API FAIDataProviderValue
+struct FAIDataProviderValue
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -40,14 +40,14 @@ public:
 	FName DataField;
 
 	/** describe default data */
-	virtual FString ValueToString() const;
-	FString ToString() const;
+	AIMODULE_API virtual FString ValueToString() const;
+	AIMODULE_API FString ToString() const;
 
 	/** filter for provider's properties */
-	virtual bool IsMatchingType(FProperty* PropType) const;
+	AIMODULE_API virtual bool IsMatchingType(FProperty* PropType) const;
 
 	/** find all properties of provider that are matching filter */
-	void GetMatchingProperties(TArray<FName>& MatchingProperties) const;
+	AIMODULE_API void GetMatchingProperties(TArray<FName>& MatchingProperties) const;
 
 	/** return raw data from provider's property */
 	template<typename T>
@@ -57,7 +57,7 @@ public:
 	}
 
 	/** bind data in provider and cache property for faster access */
-	void BindData(const UObject* Owner, int32 RequestId) const;
+	AIMODULE_API void BindData(const UObject* Owner, int32 RequestId) const;
 
 	FORCEINLINE bool IsDynamic() const { return DataBinding != nullptr; }
 
@@ -71,7 +71,7 @@ public:
 };
 
 USTRUCT()
-struct AIMODULE_API FAIDataProviderTypedValue : public FAIDataProviderValue
+struct FAIDataProviderTypedValue : public FAIDataProviderValue
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -86,10 +86,10 @@ struct AIMODULE_API FAIDataProviderTypedValue : public FAIDataProviderValue
 	FFieldClass* PropertyType;
 
 	/** filter for provider's properties */
-	virtual bool IsMatchingType(FProperty* PropType) const override;
+	AIMODULE_API virtual bool IsMatchingType(FProperty* PropType) const override;
 
 	/** Implementing Serialize to convert UClass to FFieldClass */
-	bool Serialize(FArchive& Ar);
+	AIMODULE_API bool Serialize(FArchive& Ar);
 };
 
 template<>
@@ -102,60 +102,60 @@ struct TStructOpsTypeTraits<FAIDataProviderTypedValue> : public TStructOpsTypeTr
 };
 
 USTRUCT()
-struct AIMODULE_API FAIDataProviderStructValue : public FAIDataProviderValue
+struct FAIDataProviderStructValue : public FAIDataProviderValue
 {
 	GENERATED_USTRUCT_BODY()
 
 	/** name of UStruct type */
 	FString StructName;
 
-	virtual bool IsMatchingType(FProperty* PropType) const override;
+	AIMODULE_API virtual bool IsMatchingType(FProperty* PropType) const override;
 };
 
 USTRUCT()
-struct AIMODULE_API FAIDataProviderIntValue : public FAIDataProviderTypedValue
+struct FAIDataProviderIntValue : public FAIDataProviderTypedValue
 {
 	GENERATED_USTRUCT_BODY()
-	FAIDataProviderIntValue();
+	AIMODULE_API FAIDataProviderIntValue();
 
 	UPROPERTY(EditAnywhere, Category = Value)
 	int32 DefaultValue;
 
-	int32 GetValue() const;
-	virtual FString ValueToString() const override;
+	AIMODULE_API int32 GetValue() const;
+	AIMODULE_API virtual FString ValueToString() const override;
 };
 
 USTRUCT()
-struct AIMODULE_API FAIDataProviderFloatValue : public FAIDataProviderTypedValue
+struct FAIDataProviderFloatValue : public FAIDataProviderTypedValue
 {
 	GENERATED_USTRUCT_BODY()
-	FAIDataProviderFloatValue();
+	AIMODULE_API FAIDataProviderFloatValue();
 
 	UPROPERTY(EditAnywhere, Category = Value)
 	float DefaultValue;
 
-	float GetValue() const;
-	virtual FString ValueToString() const override;
+	AIMODULE_API float GetValue() const;
+	AIMODULE_API virtual FString ValueToString() const override;
 };
 
 USTRUCT()
-struct AIMODULE_API FAIDataProviderBoolValue : public FAIDataProviderTypedValue
+struct FAIDataProviderBoolValue : public FAIDataProviderTypedValue
 {
 	GENERATED_USTRUCT_BODY()
-	FAIDataProviderBoolValue();
+	AIMODULE_API FAIDataProviderBoolValue();
 
 	UPROPERTY(EditAnywhere, Category = Value)
 	bool DefaultValue;
 
-	bool GetValue() const;
-	virtual FString ValueToString() const override;
+	AIMODULE_API bool GetValue() const;
+	AIMODULE_API virtual FString ValueToString() const override;
 };
 
-UCLASS(EditInlineNew, Abstract, CollapseCategories, AutoExpandCategories=(Provider))
-class AIMODULE_API UAIDataProvider : public UObject
+UCLASS(EditInlineNew, Abstract, CollapseCategories, AutoExpandCategories=(Provider), MinimalAPI)
+class UAIDataProvider : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void BindData(const UObject& Owner, int32 RequestId);
-	virtual FString ToString(FName PropName) const;
+	AIMODULE_API virtual void BindData(const UObject& Owner, int32 RequestId);
+	AIMODULE_API virtual FString ToString(FName PropName) const;
 };

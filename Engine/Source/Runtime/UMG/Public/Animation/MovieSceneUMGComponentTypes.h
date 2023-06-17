@@ -54,9 +54,9 @@ UMG_API void ConvertOperationalProperty(const FMargin& In, FIntermediateMargin& 
 using FMarginTraits = TIndirectPropertyTraits<FMargin, FIntermediateMargin>;
 using FWidgetTransformPropertyTraits = TIndirectPropertyTraits<FWidgetTransform, FIntermediateWidgetTransform>;
 
-struct UMG_API FMovieSceneUMGComponentTypes
+struct FMovieSceneUMGComponentTypes
 {
-	~FMovieSceneUMGComponentTypes();
+	UMG_API ~FMovieSceneUMGComponentTypes();
 
 	TPropertyComponents<FMarginTraits> Margin;
 	TPropertyComponents<FWidgetTransformPropertyTraits> WidgetTransform;
@@ -67,9 +67,9 @@ struct UMG_API FMovieSceneUMGComponentTypes
 	TCustomPropertyRegistration<FMarginTraits, 1> CustomMarginAccessors;
 	TCustomPropertyRegistration<FWidgetTransformPropertyTraits, 1> CustomWidgetTransformAccessors;
 
-	static void Destroy();
+	static UMG_API void Destroy();
 
-	static FMovieSceneUMGComponentTypes* Get();
+	static UMG_API FMovieSceneUMGComponentTypes* Get();
 
 private:
 	FMovieSceneUMGComponentTypes();

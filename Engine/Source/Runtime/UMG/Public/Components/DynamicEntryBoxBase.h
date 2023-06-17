@@ -28,8 +28,8 @@ enum class EDynamicBoxType : uint8
  *
  * @see UDynamicEntryBox for a ready-to-use version
  */
-UCLASS(Abstract)
-class UMG_API UDynamicEntryBoxBase : public UWidget
+UCLASS(Abstract, MinimalAPI)
+class UDynamicEntryBoxBase : public UWidget
 {
 	GENERATED_BODY()
 
@@ -80,18 +80,18 @@ protected:
 	FRadialBoxSettings RadialBoxSettings;
 
 public:
-	UDynamicEntryBoxBase(const FObjectInitializer& Initializer);
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API UDynamicEntryBoxBase(const FObjectInitializer& Initializer);
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
-	EDynamicBoxType GetBoxType() const;
-	const FVector2D& GetEntrySpacing() const;
+	UMG_API EDynamicBoxType GetBoxType() const;
+	UMG_API const FVector2D& GetEntrySpacing() const;
 
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox)
-	const TArray<UUserWidget*>& GetAllEntries() const;
+	UMG_API const TArray<UUserWidget*>& GetAllEntries() const;
 
-	const FSlateChildSize& GetEntrySizeRule() const;
+	UMG_API const FSlateChildSize& GetEntrySizeRule() const;
 
-	const FRadialBoxSettings& GetRadialBoxSettings() const;
+	UMG_API const FRadialBoxSettings& GetRadialBoxSettings() const;
 
 	template <typename EntryWidgetT = UUserWidget>
 	TArray<EntryWidgetT*> GetTypedEntries() const
@@ -108,32 +108,32 @@ public:
 	}
 
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox)
-	int32 GetNumEntries() const;
+	UMG_API int32 GetNumEntries() const;
 
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox)
-	void SetEntrySpacing(const FVector2D& InEntrySpacing);
+	UMG_API void SetEntrySpacing(const FVector2D& InEntrySpacing);
 
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox)
-	void SetRadialSettings(const FRadialBoxSettings& InSettings);
+	UMG_API void SetRadialSettings(const FRadialBoxSettings& InSettings);
 
-	EVerticalAlignment GetEntryVerticalAlignment() const;
+	UMG_API EVerticalAlignment GetEntryVerticalAlignment() const;
 
-	EHorizontalAlignment GetEntryHorizontalAlignment() const;
+	UMG_API EHorizontalAlignment GetEntryHorizontalAlignment() const;
 
-	int32 GetMaxElementSize() const;
+	UMG_API int32 GetMaxElementSize() const;
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void SynchronizeProperties() override;
-	virtual void AddEntryChild(UUserWidget& ChildWidget);
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual void SynchronizeProperties() override;
+	UMG_API virtual void AddEntryChild(UUserWidget& ChildWidget);
 
-	bool IsEntryClassValid(TSubclassOf<UUserWidget> InEntryClass) const;
-	UUserWidget* CreateEntryInternal(TSubclassOf<UUserWidget> InEntryClass);
-	void RemoveEntryInternal(UUserWidget* EntryWidget);
-	FMargin BuildEntryPadding(const FVector2D& DesiredSpacing);
+	UMG_API bool IsEntryClassValid(TSubclassOf<UUserWidget> InEntryClass) const;
+	UMG_API UUserWidget* CreateEntryInternal(TSubclassOf<UUserWidget> InEntryClass);
+	UMG_API void RemoveEntryInternal(UUserWidget* EntryWidget);
+	UMG_API FMargin BuildEntryPadding(const FVector2D& DesiredSpacing);
 
 	/** Clear out the box entries, optionally deleting the underlying Slate widgets entirely as well. */
-	void ResetInternal(bool bDeleteWidgets = false);
+	UMG_API void ResetInternal(bool bDeleteWidgets = false);
 
 	/** Clear out the box entries, executing the provided reset function for each and optionally deleting the underlying Slate widgets entirely as well. */
 	template <typename WidgetT = UUserWidget>
@@ -151,24 +151,24 @@ protected:
 	}
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UMG_API virtual const FText GetPaletteCategory() override;
+	UMG_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	// Initialize EntryBoxType in the constructor before the SWidget is constructed.
-	void InitEntryBoxType(EDynamicBoxType InEntryBoxType);
+	UMG_API void InitEntryBoxType(EDynamicBoxType InEntryBoxType);
 
 	// Initialize EntrySizeRule in the constructor before the SWidget is constructed.
-	void InitEntrySizeRule(FSlateChildSize InEntrySizeRule);
+	UMG_API void InitEntrySizeRule(FSlateChildSize InEntrySizeRule);
 
 	// Initialize EntryHorizontalAlignment in the constructor before the SWidget is constructed.
-	void InitEntryHorizontalAlignment(EHorizontalAlignment InEntryHorizontalAlignment);
+	UMG_API void InitEntryHorizontalAlignment(EHorizontalAlignment InEntryHorizontalAlignment);
 
 	// Initialize EntryVerticalAlignment in the constructor before the SWidget is constructed.
-	void InitEntryVerticalAlignment(EVerticalAlignment InEntryVerticalAlignment);
+	UMG_API void InitEntryVerticalAlignment(EVerticalAlignment InEntryVerticalAlignment);
 
 	// Initialize MaxElementSize in the constructor before the SWidget is constructed.
-	void InitMaxElementSize(int32 InMaxElementSize);
+	UMG_API void InitMaxElementSize(int32 InMaxElementSize);
 
 protected:
 	// Can be a horizontal, vertical, wrap box, or overlay

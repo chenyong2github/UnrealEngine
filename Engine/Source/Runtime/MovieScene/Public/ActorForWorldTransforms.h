@@ -8,7 +8,7 @@
 
 //Description of an actor selected parts we can find world transforms on 
 USTRUCT(BlueprintType)
-struct  MOVIESCENE_API FActorForWorldTransforms
+struct  FActorForWorldTransforms
 {
 	GENERATED_BODY()
 

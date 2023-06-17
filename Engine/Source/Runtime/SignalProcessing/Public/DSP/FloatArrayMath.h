@@ -254,7 +254,7 @@ namespace Audio
 	 *  It works with non-sparse and non-contiguous kernels as well, but will be more computationally 
 	 *  expensive than a naive implementation. Also, only takes advantage of sparse contiguous rows, not columns.
 	 */
-	class SIGNALPROCESSING_API FContiguousSparse2DKernelTransform
+	class FContiguousSparse2DKernelTransform
 	{
 		struct FRow
 		{
@@ -271,14 +271,14 @@ namespace Audio
 		 * NumInElements sets the expected number of input array elements as well as the number of elements in a row.
 		 * NumOutElements sets the number of output array elements as well as the number or rows.
 		 */
-		FContiguousSparse2DKernelTransform(const int32 NumInElements, const int32 NumOutElements);
-		virtual ~FContiguousSparse2DKernelTransform();
+		SIGNALPROCESSING_API FContiguousSparse2DKernelTransform(const int32 NumInElements, const int32 NumOutElements);
+		SIGNALPROCESSING_API virtual ~FContiguousSparse2DKernelTransform();
 
 		/** Returns the required size of the input array */
-		int32 GetNumInElements() const;
+		SIGNALPROCESSING_API int32 GetNumInElements() const;
 
 		/** Returns the size of the output array */
-		int32 GetNumOutElements() const;
+		SIGNALPROCESSING_API int32 GetNumOutElements() const;
 	
 		/** Set the kernel values for an individual row.
 		 *
@@ -286,28 +286,28 @@ namespace Audio
 		 *  StartIndex denotes the offset into the row where the OffsetValues will be inserted.
 		 *  OffsetValues contains the contiguous chunk of values which represent all the nonzero elements in the row.
 		 */
-		void SetRow(const int32 RowIndex, const int32 StartIndex, TArrayView<const float> OffsetValues);
+		SIGNALPROCESSING_API void SetRow(const int32 RowIndex, const int32 StartIndex, TArrayView<const float> OffsetValues);
 
 		/** Transforms the input array given the kernel.
 		 *
 		 *  InView is the array to be transformed. It must have `NumInElements` number of elements.
 		 *  OutArray is the transformed array. It will have `NumOutElements` number of elements.
 		 */
-		void TransformArray(TArrayView<const float> InView, TArray<float>& OutArray) const;
+		SIGNALPROCESSING_API void TransformArray(TArrayView<const float> InView, TArray<float>& OutArray) const;
 
 		/** Transforms the input array given the kernel.
 		 *
 		 *  InView is the array to be transformed. It must have `NumInElements` number of elements.
 		 *  OutArray is the transformed array. It will have `NumOutElements` number of elements.
 		 */
-		void TransformArray(TArrayView<const float> InView, FAlignedFloatBuffer& OutArray) const;
+		SIGNALPROCESSING_API void TransformArray(TArrayView<const float> InView, FAlignedFloatBuffer& OutArray) const;
 
 		/** Transforms the input array given the kernel.
 		 *
 		 *  InArray is the array to be transformed. It must have `NumInElements` number of elements.
 		 *  OutArray is the transformed array. It must be allocated to hold at least NumOutElements. 
 		 */
-		void TransformArray(const float* InArray, float* OutArray) const;
+		SIGNALPROCESSING_API void TransformArray(const float* InArray, float* OutArray) const;
 
 	private:
 

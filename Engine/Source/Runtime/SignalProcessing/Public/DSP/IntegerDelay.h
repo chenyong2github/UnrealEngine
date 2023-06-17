@@ -11,32 +11,32 @@ namespace Audio
 {
 
 	// An adjustable delay line. Delays values are limited to integer values. 
-	class SIGNALPROCESSING_API FIntegerDelay
+	class FIntegerDelay
 	{
 	public:
 
 		// InMaxDelaySamples is the maximum supported delay.
 		// InDelaySamples is the initial delay in samples.
-		FIntegerDelay(int32 InMaxNumDelaySamples, int32 InNumDelaySamples, int32 InNumInternalBufferSamples = 256);
+		SIGNALPROCESSING_API FIntegerDelay(int32 InMaxNumDelaySamples, int32 InNumDelaySamples, int32 InNumInternalBufferSamples = 256);
 
 		// Destructor
-		~FIntegerDelay();
+		SIGNALPROCESSING_API ~FIntegerDelay();
 
 		// Sets the current delay in samples. InDelay must be less than or equal to the InMaxDelaySamples set in the constructor.
-		void SetDelayLengthSamples(int32 InNumDelaySamples);
+		SIGNALPROCESSING_API void SetDelayLengthSamples(int32 InNumDelaySamples);
 
 		// Resets the delay line state, flushes buffer and resets read/write pointers.
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		// Returns the current delay length in samples.
-		int32 GetNumDelaySamples() const;
+		SIGNALPROCESSING_API int32 GetNumDelaySamples() const;
 
 		// Process InSamples, placing delayed versions in OutSamples.
-		void ProcessAudio(const Audio::FAlignedFloatBuffer& InSamples, Audio::FAlignedFloatBuffer& OutSamples);
+		SIGNALPROCESSING_API void ProcessAudio(const Audio::FAlignedFloatBuffer& InSamples, Audio::FAlignedFloatBuffer& OutSamples);
 
 		// Retrieve a copy of the internal delay line.
 		// InNum must be less than or equal to InMaxNumDelaySamples.
-		void PeekDelayLine(int32 InNum, Audio::FAlignedFloatBuffer& OutSamples);
+		SIGNALPROCESSING_API void PeekDelayLine(int32 InNum, Audio::FAlignedFloatBuffer& OutSamples);
 
 	private:
 		// Process a block of audio. InNum is always less than or equal to NumInternalBufferSamples.

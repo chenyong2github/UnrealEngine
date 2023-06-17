@@ -24,49 +24,49 @@ class UInteractiveGizmoManager;
  * @todo callback/delegate for if/when .InputBehaviors changes
  * @todo callback/delegate for when Gizmo properties change
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmo : public UObject, public IInputBehaviorSource
+UCLASS(Transient, MinimalAPI)
+class UInteractiveGizmo : public UObject, public IInputBehaviorSource
 {
 	GENERATED_BODY()
 
 public:
-	UInteractiveGizmo();
+	INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmo();
 
 	/**
 	 * Called by GizmoManager to initialize the Gizmo *after* GizmoBuilder::BuildGizmo() has been called
 	 */
-	virtual void Setup();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup();
 
 	/**
 	 * Called by GizmoManager to shut down the Gizmo
 	 */
-	virtual void Shutdown();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown();
 
 	/**
 	 * Allow the Gizmo to do any custom drawing (ie via PDI/RHI)
 	 * @param RenderAPI Abstraction that provides access to Rendering in the current ToolsContext
 	 */
-	virtual void Render(IToolsContextRenderAPI* RenderAPI);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
 	/**
 	 * Allow the Gizmo to do any custom screen space drawing
 	 * @param Canvas the FCanvas to use to do the drawing
 	 * @param RenderAPI Abstraction that provides access to Rendering in the current ToolsContext
 	 */
-	virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
 
 	/**
 	 * Allow the Gizmo to do any necessary processing on Tick
 	 * @param DeltaTime the time delta since last tick
 	 */
-	virtual void Tick(float DeltaTime);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Tick(float DeltaTime);
 
 
 
 	/**
 	 * @return GizmoManager that owns this Gizmo
 	 */
-	virtual UInteractiveGizmoManager* GetGizmoManager() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmoManager* GetGizmoManager() const;
 
 
 
@@ -78,12 +78,12 @@ public:
 	 * Add an input behavior for this Gizmo
 	 * @param Behavior behavior to add
 	 */
-	virtual void AddInputBehavior(UInputBehavior* Behavior);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void AddInputBehavior(UInputBehavior* Behavior);
 
 	/**
 	 * @return Current input behavior set.
 	 */
-	virtual const UInputBehaviorSet* GetInputBehaviors() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual const UInputBehaviorSet* GetInputBehaviors() const;
 
 
 

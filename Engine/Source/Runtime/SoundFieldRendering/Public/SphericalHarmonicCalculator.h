@@ -15,7 +15,7 @@
 	Elevation is 0 horizontal plane, + is above horizontal plane
 */
 
-class SOUNDFIELDRENDERING_API FSphericalHarmonicCalculator
+class FSphericalHarmonicCalculator
 {
 public:
 	enum AmbiChanNumber
@@ -28,10 +28,10 @@ public:
 		/* 5th-Order */	ACN_25, ACN_26, ACN_27, ACN_28, ACN_29, ACN_30, ACN_31, ACN_32, ACN_33, ACN_34, ACN_35
 	};
 
-	static void ComputeSoundfieldChannelGains(const int32 Order, const float Azimuth, const float Elevation, float* OutGains);
+	static SOUNDFIELDRENDERING_API void ComputeSoundfieldChannelGains(const int32 Order, const float Azimuth, const float Elevation, float* OutGains);
 
-	static void GenerateFirstOrderRotationMatrixGivenRadians(const float RotXRadians, const float RotYRadians, const float RotZRadians, FMatrix& OutMatrix);
-	static void GenerateFirstOrderRotationMatrixGivenDegrees(const float RotXDegrees, const float RotYDegrees, const float RotZDegrees, FMatrix& OutMatrix);
+	static SOUNDFIELDRENDERING_API void GenerateFirstOrderRotationMatrixGivenRadians(const float RotXRadians, const float RotYRadians, const float RotZRadians, FMatrix& OutMatrix);
+	static SOUNDFIELDRENDERING_API void GenerateFirstOrderRotationMatrixGivenDegrees(const float RotXDegrees, const float RotYDegrees, const float RotZDegrees, FMatrix& OutMatrix);
 
 	static void AdjustUESphericalCoordinatesForAmbisonics(FVector2D& InOutVector)
 	{

@@ -225,7 +225,7 @@ namespace Audio
 	};
 
 	// Interface for Caching Device Info.
-	class AUDIOMIXERCORE_API IAudioPlatformDeviceInfoCache
+	class IAudioPlatformDeviceInfoCache
 	{
 	public:
 		// Pure Interface. 
@@ -331,7 +331,7 @@ namespace Audio
 	};
 
 	/** Struct used to store render time analysis data. */
-	struct AUDIOMIXERCORE_API FAudioRenderTimeAnalysis
+	struct FAudioRenderTimeAnalysis
 	{
 		double AvgRenderTime;
 		double MaxRenderTime;
@@ -342,13 +342,13 @@ namespace Audio
 		uint64 RenderTimeCount;
 		int32 RenderInstanceId;
 
-		FAudioRenderTimeAnalysis();
-		void Start();
-		void End();
+		AUDIOMIXERCORE_API FAudioRenderTimeAnalysis();
+		AUDIOMIXERCORE_API void Start();
+		AUDIOMIXERCORE_API void End();
 	};
 
 	/** Class which wraps an output float buffer and handles conversion to device stream formats. */
-	class AUDIOMIXERCORE_API FOutputBuffer
+	class FOutputBuffer
 	{
 	public:
 		FOutputBuffer()
@@ -359,16 +359,16 @@ namespace Audio
 		~FOutputBuffer() = default;
  
 		/** Initialize the buffer with the given samples and output format. */
-		void Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const int32 InNumBuffers, const EAudioMixerStreamDataFormat::Type InDataFormat);
+		AUDIOMIXERCORE_API void Init(IAudioMixer* InAudioMixer, const int32 InNumSamples, const int32 InNumBuffers, const EAudioMixerStreamDataFormat::Type InDataFormat);
 
 		/** Gets the next mixed buffer from the audio mixer. Returns false if our buffer is already full. */
-		bool MixNextBuffer();
+		AUDIOMIXERCORE_API bool MixNextBuffer();
 
 		/** Gets the buffer data ptrs. Returns a TArrayView for the full buffer size requested, but in the case of an underrun, OutBytesPopped will be less that the size of the returned TArrayView. */
-		TArrayView<const uint8> PopBufferData(int32& OutBytesPopped) const;
+		AUDIOMIXERCORE_API TArrayView<const uint8> PopBufferData(int32& OutBytesPopped) const;
 
 		/** Gets the number of frames of the buffer. */
-		int32 GetNumSamples() const;
+		AUDIOMIXERCORE_API int32 GetNumSamples() const;
 
 		/** Returns the format of the buffer. */
 		EAudioMixerStreamDataFormat::Type GetFormat() const { return DataFormat; }
@@ -390,12 +390,12 @@ namespace Audio
 		FAlignedByteBuffer FormattedBuffer;
  		EAudioMixerStreamDataFormat::Type DataFormat;
 
-		static size_t GetSizeForDataFormat(EAudioMixerStreamDataFormat::Type InDataFormat);
+		static AUDIOMIXERCORE_API size_t GetSizeForDataFormat(EAudioMixerStreamDataFormat::Type InDataFormat);
 		int32 CallCounterMixNextBuffer{ 0 };
 	};
 
 	/** Abstract interface for receiving audio device changed notifications */
-	class AUDIOMIXERCORE_API IAudioMixerDeviceChangedListener
+	class IAudioMixerDeviceChangedListener
 	{
 	public:
 		virtual ~IAudioMixerDeviceChangedListener() = default;
@@ -666,7 +666,7 @@ namespace Audio
 		AUDIOMIXERCORE_API void ApplyPrimaryAttenuation(TArrayView<const uint8>& InOutPoppedAudio);
 
 		template<typename BufferType>
-		AUDIOMIXERCORE_API void ApplyAttenuationInternal(TArrayView<BufferType>& InOutBuffer);
+		void ApplyAttenuationInternal(TArrayView<BufferType>& InOutBuffer);
 
 		/** When called, spins up a thread to start consuming output when no audio device is available. */
 		AUDIOMIXERCORE_API void StartRunningNullDevice();

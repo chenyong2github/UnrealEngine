@@ -26,8 +26,8 @@ struct FNodeColors
 	FLinearColor NodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f);
 };
 
-UCLASS(config = Editor, defaultconfig, meta = (DisplayName = "Dataflow"))
-class DATAFLOWCORE_API UDataflowSettings : public UDeveloperSettings
+UCLASS(config = Editor, defaultconfig, meta = (DisplayName = "Dataflow"), MinimalAPI)
+class UDataflowSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -51,19 +51,19 @@ class DATAFLOWCORE_API UDataflowSettings : public UDeveloperSettings
 	TMap<FName, FNodeColors> NodeColorsMap;
 
 	// Begin UDeveloperSettings Interface
-	virtual FName GetCategoryName() const override;
+	DATAFLOWCORE_API virtual FName GetCategoryName() const override;
 
-	FNodeColors RegisterColors(const FName& Category, const FNodeColors& Colors);
+	DATAFLOWCORE_API FNodeColors RegisterColors(const FName& Category, const FNodeColors& Colors);
 
 	const TMap<FName, FNodeColors>& GetNodeColorsMap() { return NodeColorsMap; }
 
 #if WITH_EDITOR
-	virtual FText GetSectionText() const override;
+	DATAFLOWCORE_API virtual FText GetSectionText() const override;
 #endif
 	// END UDeveloperSettings Interface
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	DATAFLOWCORE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 public:

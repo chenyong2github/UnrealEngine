@@ -23,20 +23,20 @@ namespace Audio
 	};
 
 	/** Correlation calculator which utilizes FFT to perform fast correlation calculations. */
-	class SIGNALPROCESSING_API FBlockCorrelator
+	class FBlockCorrelator
 	{
 		public:
 			/** Construct a block correlator with FBlockCorrelatorSettings */
-			FBlockCorrelator(const FBlockCorrelatorSettings& InSettings);
+			SIGNALPROCESSING_API FBlockCorrelator(const FBlockCorrelatorSettings& InSettings);
 
 			/** Return settings used to construct block correlator. */
-			const FBlockCorrelatorSettings& GetSettings() const;
+			SIGNALPROCESSING_API const FBlockCorrelatorSettings& GetSettings() const;
 
 			/** Returns the number of input values to use when calling CrossCorrelate(...) or AutoCorrelate(...) */
-			int32 GetNumInputValues() const;
+			SIGNALPROCESSING_API int32 GetNumInputValues() const;
 
 			/** Returns the number of output values to use when calling CrossCorrelate(...) or AutoCorrelate(...) */
-			int32 GetNumOutputValues() const;
+			SIGNALPROCESSING_API int32 GetNumOutputValues() const;
 
 			/** Cross correlate two input signals. 
 			 *
@@ -53,7 +53,7 @@ namespace Audio
 			 * @param InputB - Second input block with `GetNumInputValues()` elements. 
 			 * @param Output - Output block with `GetNumOutputValues()` elements.
 			 */
-			void CrossCorrelate(const FAlignedFloatBuffer& InputA, const FAlignedFloatBuffer& InputB, FAlignedFloatBuffer& Output);
+			SIGNALPROCESSING_API void CrossCorrelate(const FAlignedFloatBuffer& InputA, const FAlignedFloatBuffer& InputB, FAlignedFloatBuffer& Output);
 
 			/** Autocorrelate an input signal. 
 			 *
@@ -68,7 +68,7 @@ namespace Audio
 			 * @param Input - input block with `GetNumInputValues()` elements. 
 			 * @param Output - Output block with `GetNumOutputValues()` elements.
 			 */
-			void AutoCorrelate(const FAlignedFloatBuffer& Input, FAlignedFloatBuffer& Output);
+			SIGNALPROCESSING_API void AutoCorrelate(const FAlignedFloatBuffer& Input, FAlignedFloatBuffer& Output);
 
 
 		private:

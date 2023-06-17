@@ -20,7 +20,7 @@ namespace Audio
 	};
 
 	/** Settings for Pseudo Constant Q Kernel generation. */
-	struct SIGNALPROCESSING_API FPseudoConstantQKernelSettings
+	struct FPseudoConstantQKernelSettings
 	{
 		int32 NumBands;									//< Total number of resulting constant Q bands.
 		float NumBandsPerOctave;							//< Number of bands to space within an octave.
@@ -57,7 +57,7 @@ namespace Audio
 	SIGNALPROCESSING_API TUniquePtr<FContiguousSparse2DKernelTransform> NewPseudoConstantQKernelTransform(const FPseudoConstantQKernelSettings& InSettings, const int32 InFFTSize, const float InSampleRate);
 
 	/** Settings for a single constant q band. */
-	struct SIGNALPROCESSING_API FPseudoConstantQBandSettings
+	struct FPseudoConstantQBandSettings
 	{
 		/** Center frequency of band in Hz. */
 		float CenterFreq;
@@ -75,15 +75,15 @@ namespace Audio
 		EPseudoConstantQNormalization Normalization;
 	};
 
-	struct SIGNALPROCESSING_API FPseudoConstantQ
+	struct FPseudoConstantQ
 	{
 		// Returns the center frequency of a given CQT band.
-		static float GetConstantQCenterFrequency(const int32 InBandIndex, const float InBaseFrequency, const float InBandsPerOctave);
+		static SIGNALPROCESSING_API float GetConstantQCenterFrequency(const int32 InBandIndex, const float InBaseFrequency, const float InBandsPerOctave);
 
 		// Returns the bandwidth for a given CQT band.
-		static float GetConstantQBandWidth(const float InBandCenter, const float InBandsPerOctave, const float InBandWidthStretch);
+		static SIGNALPROCESSING_API float GetConstantQBandWidth(const float InBandCenter, const float InBandsPerOctave, const float InBandWidthStretch);
 
 		// Fills an array with the spectrum weights to apply to an FFT magnitude or power spectrum output.
-		static void FillArrayWithConstantQBand(const FPseudoConstantQBandSettings& InSettings, FAlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex);
+		static SIGNALPROCESSING_API void FillArrayWithConstantQBand(const FPseudoConstantQBandSettings& InSettings, FAlignedFloatBuffer& OutOffsetArray, int32& OutOffsetIndex);
 	};
 }

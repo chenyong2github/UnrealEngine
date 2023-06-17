@@ -19,39 +19,39 @@ class UGizmoViewContext;
  * Currently this does not involve any special functionality, but a set of static functions
  * are provided to create default Components commonly used in Gizmos.
  */
-UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
-class INTERACTIVETOOLSFRAMEWORK_API AGizmoActor : public AInternalToolFrameworkActor
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType, MinimalAPI)
+class AGizmoActor : public AInternalToolFrameworkActor
 {
 	GENERATED_BODY()
 public:
-	AGizmoActor();
+	INTERACTIVETOOLSFRAMEWORK_API AGizmoActor();
 
 	/** Add standard arrow component to Actor, generally used for axis-translation */
-	static UGizmoArrowComponent* AddDefaultArrowComponent(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoArrowComponent* AddDefaultArrowComponent(
 		UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 		const FLinearColor& Color, const FVector& LocalDirection, const float Length = 80.0f
 	);
 	/** Add standard rectangle component to Actor, generally used for plane-translation */
-	static UGizmoRectangleComponent* AddDefaultRectangleComponent(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoRectangleComponent* AddDefaultRectangleComponent(
 		UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 		const FLinearColor& Color, const FVector& PlaneAxis1, const FVector& PlaneAxisx2
 	);
 	/** Add standard circle component to Actor, generally used for axis-rotation */
-	static UGizmoCircleComponent* AddDefaultCircleComponent(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoCircleComponent* AddDefaultCircleComponent(
 		UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 		const FLinearColor& Color, const FVector& PlaneNormal,
 		float Radius = 120.0f
 	);
 
 	/** Add standard 3D box component to Actor. By default the box is axis-aligned, centered at the specified Origin */
-	static UGizmoBoxComponent* AddDefaultBoxComponent(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoBoxComponent* AddDefaultBoxComponent(
 		UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 		const FLinearColor& Color, const FVector& Origin, 
 		const FVector& Dimensions = FVector(20.0f, 20.0f, 20.0f)
 	);
 
 	/** Add standard disk component to Actor, generally used for handles */
-	static UGizmoLineHandleComponent* AddDefaultLineHandleComponent(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoLineHandleComponent* AddDefaultLineHandleComponent(
 		UWorld* World, AActor* Actor, UGizmoViewContext* GizmoViewContext,
 		const FLinearColor& Color, const FVector& PlaneNormal, const FVector& LocalDirection,
 		const float Length = 60.f, const bool bImageScale = false

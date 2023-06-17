@@ -15,7 +15,7 @@ namespace Geometry
 /**
  * Generate planar disc (a circle polygon)
  */
-class GEOMETRYCORE_API FDiscMeshGenerator : public FMeshShapeGenerator
+class FDiscMeshGenerator : public FMeshShapeGenerator
 {
 public:
 	/** Radius */
@@ -43,10 +43,10 @@ public:
 	FIndex2i IndicesMap;
 
 public:
-	FDiscMeshGenerator();
+	GEOMETRYCORE_API FDiscMeshGenerator();
 
 	/** Generate the disc */
-	virtual FMeshShapeGenerator& Generate() override;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() override;
 
 
 	/** Create vertex at position under IndicesMap, shifted to Origin*/
@@ -62,17 +62,17 @@ public:
 /**
 * Generate planar disc with a hole
 */
-class GEOMETRYCORE_API FPuncturedDiscMeshGenerator : public FDiscMeshGenerator
+class FPuncturedDiscMeshGenerator : public FDiscMeshGenerator
 {
 public:
 	/** Hole Radius */
 	float HoleRadius;
 
 public:
-	FPuncturedDiscMeshGenerator();
+	GEOMETRYCORE_API FPuncturedDiscMeshGenerator();
 
 	/** Generate the disc */
-	virtual FMeshShapeGenerator& Generate() override;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() override;
 };
 
 } // end namespace UE::Geometry

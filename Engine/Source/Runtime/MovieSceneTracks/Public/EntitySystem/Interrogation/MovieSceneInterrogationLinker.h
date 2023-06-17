@@ -68,14 +68,14 @@ struct FInterrogationParams
  *        MySystem->Interrogate(FInterogationKey::Default(), OutData);
  *    }
  */
-class MOVIESCENETRACKS_API FInterrogationChannels
+class FInterrogationChannels
 {
 public:
 
-	FInterrogationChannels();
-	~FInterrogationChannels();
+	MOVIESCENETRACKS_API FInterrogationChannels();
+	MOVIESCENETRACKS_API ~FInterrogationChannels();
 
-	void Reset();
+	MOVIESCENETRACKS_API void Reset();
 
 	const FSparseInterrogationChannelInfo& GetSparseChannelInfo() const
 	{
@@ -88,19 +88,19 @@ public:
 	 * @param ParentChannel     The channel that should be considered this channel's parent, or FInterrogationChannel::Invalid if there is none
 	 * @return A new interrogation channel
 	 */
-	FInterrogationChannel AllocateChannel(FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding);
+	MOVIESCENETRACKS_API FInterrogationChannel AllocateChannel(FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding);
 
 
 	/**
 	 * Allocate a new interrogation channel that relates to a specific object
 	 */
-	FInterrogationChannel AllocateChannel(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding);
+	MOVIESCENETRACKS_API FInterrogationChannel AllocateChannel(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding);
 
 
 	/**
 	 * Allocate a new interrogation channel that relates to a specific object
 	 */
-	FInterrogationChannel AllocateChannel(UObject* Object, FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding);
+	MOVIESCENETRACKS_API FInterrogationChannel AllocateChannel(UObject* Object, FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding);
 
 
 	/**
@@ -110,7 +110,7 @@ public:
 	 * @param CurrentValue      A value to use if this channel has now animated data after the interrogation
 	 * @return A new interrogation channel that can be passed to ImportUnboundTrack
 	 */
-	FInterrogationChannel AllocateUnboundChannel(FInterrogationChannel ParentChannel, const FTransform& CurrentValueLocalSpace);
+	MOVIESCENETRACKS_API FInterrogationChannel AllocateUnboundChannel(FInterrogationChannel ParentChannel, const FTransform& CurrentValueLocalSpace);
 
 
 	/**
@@ -121,7 +121,7 @@ public:
 	 * @param SequenceID        The current sequence ID for the interrogation
 	 * @return The channel that was either pre-existing or allocated for SceneComponent
 	 */
-	FInterrogationChannel ImportTransformHierarchy(USceneComponent* SceneComponent);
+	MOVIESCENETRACKS_API FInterrogationChannel ImportTransformHierarchy(USceneComponent* SceneComponent);
 
 
 	/**
@@ -130,7 +130,7 @@ public:
 	 * @param Object    The object to find a channel for
 	 * @return The (potentially invalid) interrogation channel that the specified object is on
 	 */
-	FInterrogationChannel FindChannel(UObject* Object);
+	MOVIESCENETRACKS_API FInterrogationChannel FindChannel(UObject* Object);
 
 
 	/**
@@ -138,14 +138,14 @@ public:
 	 *
 	 * @param InChannel The channel to activate
 	 */
-	void ActivateChannel(FInterrogationChannel InChannel);
+	MOVIESCENETRACKS_API void ActivateChannel(FInterrogationChannel InChannel);
 
 	/**
 	 * Called to deactivate the specified channel. Inactive channels will only ever use their object's current value.
 	 *
 	 * @param InChannel The channel to deactivate
 	 */
-	void DeactivateChannel(FInterrogationChannel InChannel);
+	MOVIESCENETRACKS_API void DeactivateChannel(FInterrogationChannel InChannel);
 
 
 	/**
@@ -154,7 +154,7 @@ public:
 	 * @param Params    The desired time to interrogate at
 	 * @return A unique index identifier for the specified time, or INDEX_NONE if the maximum number have been reached
 	 */
-	int32 AddInterrogation(const FInterrogationParams& Params);
+	MOVIESCENETRACKS_API int32 AddInterrogation(const FInterrogationParams& Params);
 
 public:
 
@@ -184,7 +184,7 @@ public:
 	 * @param SceneComponent    The scene component to query
 	 * @param OutTransforms     Array to output transforms into, one per Interrogation
 	 */
-	void QueryLocalSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, USceneComponent* SceneComponent, TArray<FIntermediate3DTransform>& OutTransforms) const;
+	MOVIESCENETRACKS_API void QueryLocalSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, USceneComponent* SceneComponent, TArray<FIntermediate3DTransform>& OutTransforms) const;
 
 	/**
 	 * Query local space transforms
@@ -192,14 +192,14 @@ public:
 	 * @param InChannel         The channel to query
 	 * @param OutTransforms     Array to output transforms into, one per Interrogation
 	 */
-	void QueryLocalSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, FInterrogationChannel InChannel, TArray<FIntermediate3DTransform>& OutTransforms) const;
+	MOVIESCENETRACKS_API void QueryLocalSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, FInterrogationChannel InChannel, TArray<FIntermediate3DTransform>& OutTransforms) const;
 
 	/**
 	 * Query all local space transforms, even including channels that do not have any variable track data
 	 *
 	 * @param OutTransformsByChannel  Sparse array to receive transforms allocated by their Channel index
 	 */
-	void QueryLocalSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, TSparseArray<TArray<FIntermediate3DTransform>>& OutTransformsByChannel) const;
+	MOVIESCENETRACKS_API void QueryLocalSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, TSparseArray<TArray<FIntermediate3DTransform>>& OutTransformsByChannel) const;
 
 	/**
 	 * Query a specific set of channels for their local space transforms as defined by set bits within ChannelsToQuery
@@ -207,7 +207,7 @@ public:
 	 * @param ChannelsToQuery         Bit array containing set bits for each channel to query
 	 * @param OutTransformsByChannel  Sparse array to receive transforms allocated by their Channel index
 	 */
-	void QueryLocalSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, const TBitArray<>& ChannelsToQuery, TSparseArray<TArray<FIntermediate3DTransform>>& OutTransformsByChannel) const;
+	MOVIESCENETRACKS_API void QueryLocalSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, const TBitArray<>& ChannelsToQuery, TSparseArray<TArray<FIntermediate3DTransform>>& OutTransformsByChannel) const;
 
 public:
 
@@ -217,7 +217,7 @@ public:
 	 * @param SceneComponent    The scene component to query
 	 * @param OutTransforms     Array to output transforms into, one per Interrogation
 	 */
-	void QueryWorldSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, USceneComponent* SceneComponent, TArray<FTransform>& OutTransforms) const;
+	MOVIESCENETRACKS_API void QueryWorldSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, USceneComponent* SceneComponent, TArray<FTransform>& OutTransforms) const;
 
 	/**
 	 * Query world space transforms for a channel
@@ -225,14 +225,14 @@ public:
 	 * @param InChannel         The channel to query
 	 * @param OutTransforms     Array to output transforms into, one per Interrogation
 	 */
-	void QueryWorldSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, FInterrogationChannel InChannel, TArray<FTransform>& OutTransforms) const;
+	MOVIESCENETRACKS_API void QueryWorldSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, FInterrogationChannel InChannel, TArray<FTransform>& OutTransforms) const;
 
 	/**
 	 * Query all world space transforms, even including channels that do not have any variable track data
 	 *
 	 * @param OutTransformsByChannel  Sparse array to receive transforms allocated by their Channel index
 	 */
-	void QueryWorldSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, TSparseArray<TArray<FTransform>>& OutTransformsByChannel) const;
+	MOVIESCENETRACKS_API void QueryWorldSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, TSparseArray<TArray<FTransform>>& OutTransformsByChannel) const;
 
 	/**
 	 * Query a specific set of channels for their world space transforms as defined by set bits within ChannelsToQuery
@@ -240,7 +240,7 @@ public:
 	 * @param ChannelsToQuery         Bit array containing set bits for each channel to query
 	 * @param OutTransformsByChannel  Sparse array to receive transforms allocated by their Channel index
 	 */
-	void QueryWorldSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, const TBitArray<>& ChannelsToQuery, TSparseArray<TArray<FTransform>>& OutTransformsByChannel) const;
+	MOVIESCENETRACKS_API void QueryWorldSpaceTransforms(UMovieSceneEntitySystemLinker* Linker, const TBitArray<>& ChannelsToQuery, TSparseArray<TArray<FTransform>>& OutTransformsByChannel) const;
 
 private:
 
@@ -268,25 +268,25 @@ protected:
 
 
 
-class MOVIESCENETRACKS_API FSystemInterrogator
+class FSystemInterrogator
 	: FGCObject
 	, IInterrogationExtension
 {
 public:
-	FSystemInterrogator();
-	~FSystemInterrogator();
+	MOVIESCENETRACKS_API FSystemInterrogator();
+	MOVIESCENETRACKS_API ~FSystemInterrogator();
 
 
 	/**
 	 * Gets the custom system category for interrogation-specific systems
 	 */
-	static EEntitySystemCategory GetInterrogationCategory();
+	static MOVIESCENETRACKS_API EEntitySystemCategory GetInterrogationCategory();
 
 
 	/**
 	 * Gets the custom system category for systems who should be excluded from interrogation linkers
 	 */
-	static EEntitySystemCategory GetExcludedFromInterrogationCategory();
+	static MOVIESCENETRACKS_API EEntitySystemCategory GetExcludedFromInterrogationCategory();
 
 	
 	/**
@@ -306,7 +306,7 @@ public:
 	 * @param Track      The track to import
 	 * @param InChannel  The channel to import this track onto. FInterrogationChannel::Default() can be used if this interrogator is only being used for a single output.
 	 */
-	void ImportTrack(UMovieSceneTrack* Track, FInterrogationChannel InChannel);
+	MOVIESCENETRACKS_API void ImportTrack(UMovieSceneTrack* Track, FInterrogationChannel InChannel);
 
 
 	/**
@@ -318,7 +318,7 @@ public:
 	 * @param ObjectBindingID  The binding ID for the object binding that this track resides within
 	 * @param InChannel        The channel to import this track onto. FInterrogationChannel::Default() can be used if this interrogator is only being used for a single output.
 	 */
-	void ImportTrack(UMovieSceneTrack* Track, const FGuid& ObjectBindingID, FInterrogationChannel InChannel);
+	MOVIESCENETRACKS_API void ImportTrack(UMovieSceneTrack* Track, const FGuid& ObjectBindingID, FInterrogationChannel InChannel);
 
 
 	/**
@@ -329,7 +329,7 @@ public:
 	 * @param SequenceID        The current sequence ID for the interrogation
 	 * @return The channel that was either pre-existing or allocated for SceneComponent
 	 */
-	FInterrogationChannel ImportTransformHierarchy(USceneComponent* SceneComponent, IMovieScenePlayer* InPlayer, FMovieSceneSequenceID SequenceID);
+	MOVIESCENETRACKS_API FInterrogationChannel ImportTransformHierarchy(USceneComponent* SceneComponent, IMovieScenePlayer* InPlayer, FMovieSceneSequenceID SequenceID);
 
 
 	/**
@@ -340,7 +340,7 @@ public:
 	 * @param SequenceID        The current sequence ID for the interrogation
 	 * @return The channel that was either pre-existing or allocated for SceneComponent
 	 */
-	FInterrogationChannel ImportLocalTransforms(USceneComponent* SceneComponent, IMovieScenePlayer* InPlayer, FMovieSceneSequenceID SequenceID);
+	MOVIESCENETRACKS_API FInterrogationChannel ImportLocalTransforms(USceneComponent* SceneComponent, IMovieScenePlayer* InPlayer, FMovieSceneSequenceID SequenceID);
 
 
 	/**
@@ -373,19 +373,19 @@ public:
 	 * @param Params    The desired time to interrogate at
 	 * @return A unique index identifier for the specified time, or INDEX_NONE if the maximum number have been reached
 	 */
-	int32 AddInterrogation(const FInterrogationParams& Params);
+	MOVIESCENETRACKS_API int32 AddInterrogation(const FInterrogationParams& Params);
 
 
 	/**
 	 * Flush this interrogator by running all the systems relevant to the current data and populating the interrogation outputs.
 	 */
-	void Update();
+	MOVIESCENETRACKS_API void Update();
 
 
 	/**
 	 * Reset this linker back to its original state
 	 */
-	void Reset();
+	MOVIESCENETRACKS_API void Reset();
 
 public:
 
@@ -393,14 +393,14 @@ public:
 	 * Indicate that consumers of this class require a reverse-lookup table for imported entities to be maintained such that the various FindEntity functions can be called.
 	 * (Not enabled by default due to performance cost with high interrogation counts)
 	 */
-	void TrackImportedEntities(bool bInTrackImportedEntities);
+	MOVIESCENETRACKS_API void TrackImportedEntities(bool bInTrackImportedEntities);
 
 
 	/**
 	 * Find an entity given the entity's owner.
 	 * @note: Must call TrackImportedEntities(true) prior to calling ImportTrack for this function to return the correct entity
 	 */
-	FMovieSceneEntityID FindEntityFromOwner(FInterrogationKey InterrogationKey, UObject* Owner, uint32 EntityID) const;
+	MOVIESCENETRACKS_API FMovieSceneEntityID FindEntityFromOwner(FInterrogationKey InterrogationKey, UObject* Owner, uint32 EntityID) const;
 
 
 	/**
@@ -431,7 +431,7 @@ public:
 
 private:
 
-	void FindPropertyOutputEntityIDs(const FPropertyDefinition& PropertyDefinition, FInterrogationChannel Channel, TArray<FMovieSceneEntityID>& OutEntityIDs) const;
+	MOVIESCENETRACKS_API void FindPropertyOutputEntityIDs(const FPropertyDefinition& PropertyDefinition, FInterrogationChannel Channel, TArray<FMovieSceneEntityID>& OutEntityIDs) const;
 
 public:
 
@@ -576,18 +576,18 @@ private:
 	/**
 	 * Import transform tracks from this binding
 	 */
-	void ImportTransformTracks(const FMovieSceneBinding& Binding, FInterrogationChannel Channel);
+	MOVIESCENETRACKS_API void ImportTransformTracks(const FMovieSceneBinding& Binding, FInterrogationChannel Channel);
 
 	/**
 	 * Import an entity for the specified query and index
 	 */
-	void InterrogateEntity(int32 InterrogationIndex, const FMovieSceneEvaluationFieldEntityQuery& Query);
+	MOVIESCENETRACKS_API void InterrogateEntity(int32 InterrogationIndex, const FMovieSceneEvaluationFieldEntityQuery& Query);
 
 
 private:
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector);
-	virtual FString GetReferencerName() const;
+	MOVIESCENETRACKS_API virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	MOVIESCENETRACKS_API virtual FString GetReferencerName() const;
 
 protected:
 

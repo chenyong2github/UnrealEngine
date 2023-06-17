@@ -28,7 +28,7 @@ namespace Geometry
  *
  * @todo support larger search radius than cellsize
  */
-class GEOMETRYCORE_API FPointSetHashtable
+class FPointSetHashtable
 {
 protected:
 	typedef TArray<int> PointList;
@@ -56,7 +56,7 @@ public:
 	 * @param CellSize the size of the cells/voxels in the grid.
 	 * @param Origin World origin of the grid (not strictly necessary since grid is sparse, can set to origin for example)
 	 */
-	void Build(double CellSize, const FVector3d& Origin);
+	GEOMETRYCORE_API void Build(double CellSize, const FVector3d& Origin);
 
 	/**
 	 * Find all points within given query distance from query point.
@@ -67,7 +67,7 @@ public:
 	 * @param ResultOut indices of discovered points are stored in this list
 	 * @return true on success
 	 */
-	bool FindPointsInBall(const FVector3d& QueryPt, double QueryRadius, TArray<int>& ResultOut);
+	GEOMETRYCORE_API bool FindPointsInBall(const FVector3d& QueryPt, double QueryRadius, TArray<int>& ResultOut);
 
 };
 

@@ -12,20 +12,20 @@
 /**
  * Manager of the ssl library
  */
-class SSL_API FSslManager : ISslManager
+class FSslManager : ISslManager
 {
 public:
 
 	//~ Begin ISslManager Interface
-	virtual bool InitializeSsl() override;
-	virtual void ShutdownSsl() override;
-	virtual SSL_CTX* CreateSslContext(const FSslContextCreateOptions& CreateOptions) override;
-	virtual void DestroySslContext(SSL_CTX* SslContext) override;
+	SSL_API virtual bool InitializeSsl() override;
+	SSL_API virtual void ShutdownSsl() override;
+	SSL_API virtual SSL_CTX* CreateSslContext(const FSslContextCreateOptions& CreateOptions) override;
+	SSL_API virtual void DestroySslContext(SSL_CTX* SslContext) override;
 	//~ End ISslManager Interface
 
 protected:
 	/** Default constructor */
-	FSslManager();
+	SSL_API FSslManager();
 	/** Disable copies */
 	UE_NONCOPYABLE(FSslManager)
 	/** SSL ref count */

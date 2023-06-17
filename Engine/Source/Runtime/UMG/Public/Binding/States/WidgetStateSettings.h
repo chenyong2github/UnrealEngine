@@ -22,8 +22,8 @@ class UWidgetEnumStateRegistration;
  * 
  * Note: Currently doesn't really have any meaningful settings, used more as global singleton. May change.
  */
-UCLASS(config = Game, defaultconfig)
-class UMG_API UWidgetStateSettings : public UDeveloperSettings
+UCLASS(config = Game, defaultconfig, MinimalAPI)
+class UWidgetStateSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
@@ -35,34 +35,34 @@ public:
 	}
 
 	//~ Begin UObject Interface.
-	virtual void PostInitProperties() override;
+	UMG_API virtual void PostInitProperties() override;
 	//~ End UObject Interface
 
 public:
 
 	/** Obtain a list of all known States. */
-	void GetAllStateNames(TArray<FName>& OutStateNames) const;
+	UMG_API void GetAllStateNames(TArray<FName>& OutStateNames) const;
 
 	/** Obtain a list of all known Binary States. */
-	void GetBinaryStateNames(TArray<FName>& OutBinaryStateNames) const;
+	UMG_API void GetBinaryStateNames(TArray<FName>& OutBinaryStateNames) const;
 
 	/** Obtain a list of all known Enum States. */
-	void GetEnumStateNames(TArray<FName>& OutEnumStateNames) const;
+	UMG_API void GetEnumStateNames(TArray<FName>& OutEnumStateNames) const;
 
 	/** Get Index corresponding to this binary state, which may dynamically change - but not within a game session. */
-	uint8 GetBinaryStateIndex(const FName InBinaryStateName) const;
+	UMG_API uint8 GetBinaryStateIndex(const FName InBinaryStateName) const;
 
 	/** Get Index corresponding to this enum state, which may dynamically change - but not within a game session. */
-	uint8 GetEnumStateIndex(const FName InEnumStateName) const;
+	UMG_API uint8 GetEnumStateIndex(const FName InEnumStateName) const;
 
 	/** Get Name corresponding to this binary state index, which may dynamically change - but not within a game session. */
-	FName GetBinaryStateName(const uint8 InBinaryStateIndex) const;
+	UMG_API FName GetBinaryStateName(const uint8 InBinaryStateIndex) const;
 
 	/** Get Name corresponding to this enum state index, which may dynamically change - but not within a game session. */
-	FName GetEnumStateName(const uint8 InEnumStateIndex) const;
+	UMG_API FName GetEnumStateName(const uint8 InEnumStateIndex) const;
 
 	/** Gets bitfield of widget based on current state and given on registration state initializers */
-	FWidgetStateBitfield GetInitialRegistrationBitfield(const UWidget* InWidget) const;
+	UMG_API FWidgetStateBitfield GetInitialRegistrationBitfield(const UWidget* InWidget) const;
 
 private:
 	/** Map of Binary State Names to index (In order of addition) */

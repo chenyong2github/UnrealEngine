@@ -35,7 +35,7 @@ struct FCommonFrameRateInfo
 	FText Description;
 };
 
-struct TIMEMANAGEMENT_API FCommonFrameRates
+struct FCommonFrameRates
 {
 	typedef __underlying_type(ECommonFrameRate) NumericType;
 
@@ -55,14 +55,14 @@ struct TIMEMANAGEMENT_API FCommonFrameRates
 	FORCEINLINE static FFrameRate NTSC_30() { return AllFrameRates[(NumericType)ECommonFrameRate::NTSC_30].FrameRate; }
 	FORCEINLINE static FFrameRate NTSC_60() { return AllFrameRates[(NumericType)ECommonFrameRate::NTSC_60].FrameRate; }
 
-	static TArrayView<const FCommonFrameRateInfo> GetAll();
+	static TIMEMANAGEMENT_API TArrayView<const FCommonFrameRateInfo> GetAll();
 
 	static bool Contains(FFrameRate FrameRateToCheck)
 	{
 		return Find(FrameRateToCheck) != nullptr;
 	}
 
-	static const FCommonFrameRateInfo* Find(FFrameRate InFrameRate);
+	static TIMEMANAGEMENT_API const FCommonFrameRateInfo* Find(FFrameRate InFrameRate);
 
 	/** Find a common frame rate that matches the given frame rate as a decimal number of frames per second.
 	 *
@@ -70,8 +70,8 @@ struct TIMEMANAGEMENT_API FCommonFrameRates
 	 *  @param Tolerance: Numerical tolerance to use when searching for a frame rate match.
 	 *  @return: a pointer to the matching common frame rate if a match was found, or nullptr otherwise.
 	 */
-	static const FCommonFrameRateInfo* Find(const double InFrameRateAsDecimal, const double Tolerance = UE_DOUBLE_KINDA_SMALL_NUMBER);
+	static TIMEMANAGEMENT_API const FCommonFrameRateInfo* Find(const double InFrameRateAsDecimal, const double Tolerance = UE_DOUBLE_KINDA_SMALL_NUMBER);
 
 private:
-	static const FCommonFrameRateInfo AllFrameRates[(int32)ECommonFrameRate::Private_Num];
+	static TIMEMANAGEMENT_API const FCommonFrameRateInfo AllFrameRates[(int32)ECommonFrameRate::Private_Num];
 };

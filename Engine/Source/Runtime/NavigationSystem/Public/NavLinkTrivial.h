@@ -7,8 +7,8 @@
 #include "AI/Navigation/NavLinkDefinition.h"
 #include "NavLinkTrivial.generated.h"
 
-UCLASS()
-class NAVIGATIONSYSTEM_API UNavLinkTrivial : public UNavLinkDefinition
+UCLASS(MinimalAPI)
+class UNavLinkTrivial : public UNavLinkDefinition
 {
 	GENERATED_UCLASS_BODY()
 };

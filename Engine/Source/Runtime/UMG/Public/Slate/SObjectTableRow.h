@@ -16,7 +16,7 @@ public:
 	virtual UListViewBase* GetOwningListView() const = 0;
 	virtual UUserWidget* GetUserWidget() const = 0;
 
-	UMG_API static TSharedPtr<const IObjectTableRow> ObjectRowFromUserWidget(const UUserWidget* RowUserWidget)
+	static TSharedPtr<const IObjectTableRow> ObjectRowFromUserWidget(const UUserWidget* RowUserWidget)
 	{
 		TWeakPtr<const IObjectTableRow>* ObjectRow = ObjectRowsByUserWidget.Find(RowUserWidget);
 		if (ObjectRow && ObjectRow->IsValid())

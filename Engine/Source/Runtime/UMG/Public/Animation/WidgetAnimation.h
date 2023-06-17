@@ -33,7 +33,7 @@ public:
 	static UMG_API UWidgetAnimation* GetNullAnimation();
 
 	/** @return The friendly name of the animation */
-	UMG_API const FString& GetDisplayLabel() const
+	const FString& GetDisplayLabel() const
 	{
 		return DisplayLabel;
 	}

@@ -55,8 +55,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHoveredWidgetChanged, UWidgetCom
  * to show as if the mouse were moving on top of it.  You'll then tell the component to simulate key presses, 
  * like Left Mouse, down and up, to simulate a mouse click.
  */
-UCLASS(ClassGroup="UserInterface", meta=(BlueprintSpawnableComponent) )
-class UMG_API UWidgetInteractionComponent : public USceneComponent
+UCLASS(ClassGroup="UserInterface", meta=(BlueprintSpawnableComponent) , MinimalAPI)
+class UWidgetInteractionComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
@@ -69,13 +69,13 @@ public:
 	FOnHoveredWidgetChanged OnHoveredWidgetChanged;
 
 public:
-	UWidgetInteractionComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UMG_API UWidgetInteractionComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// Begin ActorComponent interface
-	virtual void OnComponentCreated() override;
-	virtual void Activate(bool bReset = false) override;
-	virtual void Deactivate() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	UMG_API virtual void OnComponentCreated() override;
+	UMG_API virtual void Activate(bool bReset = false) override;
+	UMG_API virtual void Deactivate() override;
+	UMG_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	// End UActorComponent
 	
 	/**
@@ -84,7 +84,7 @@ public:
 	 * send other keys to signal widgets to take special actions if they're under the cursor.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	virtual void PressPointerKey(FKey Key);
+	UMG_API virtual void PressPointerKey(FKey Key);
 	
 	/**
 	 * Releases a key as if the mouse/pointer were the source of it.  Normally you would just use
@@ -92,7 +92,7 @@ public:
 	 * send other keys to signal widgets to take special actions if they're under the cursor.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	virtual void ReleasePointerKey(FKey Key);
+	UMG_API virtual void ReleasePointerKey(FKey Key);
 
 	/**
 	 * Press a key as if it had come from the keyboard.  Avoid using this for 'a-z|A-Z', things like
@@ -100,88 +100,88 @@ public:
 	 * send to the widget.  So for those cases you should use SendKeyChar.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	virtual bool PressKey(FKey Key, bool bRepeat = false);
+	UMG_API virtual bool PressKey(FKey Key, bool bRepeat = false);
 	
 	/**
 	 * Releases a key as if it had been released by the keyboard.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	virtual bool ReleaseKey(FKey Key);
+	UMG_API virtual bool ReleaseKey(FKey Key);
 
 	/**
 	 * Does both the press and release of a simulated keyboard key.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	virtual bool PressAndReleaseKey(FKey Key);
+	UMG_API virtual bool PressAndReleaseKey(FKey Key);
 
 	/**
 	 * Transmits a list of characters to a widget by simulating a OnKeyChar event for each key listed in
 	 * the string.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	virtual bool SendKeyChar(FString Characters, bool bRepeat = false);
+	UMG_API virtual bool SendKeyChar(FString Characters, bool bRepeat = false);
 	
 	/**
 	 * Sends a scroll wheel event to the widget under the last hit result.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	virtual void ScrollWheel(float ScrollDelta);
+	UMG_API virtual void ScrollWheel(float ScrollDelta);
 	
 	/**
 	 * Get the currently hovered widget component.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	UWidgetComponent* GetHoveredWidgetComponent() const;
+	UMG_API UWidgetComponent* GetHoveredWidgetComponent() const;
 
 	/**
 	 * Returns true if a widget under the hit result is interactive.  e.g. Slate widgets 
 	 * that return true for IsInteractable().
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	bool IsOverInteractableWidget() const;
+	UMG_API bool IsOverInteractableWidget() const;
 
 	/**
 	 * Returns true if a widget under the hit result is focusable.  e.g. Slate widgets that 
 	 * return true for SupportsKeyboardFocus().
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	bool IsOverFocusableWidget() const;
+	UMG_API bool IsOverFocusableWidget() const;
 
 	/**
 	 * Returns true if a widget under the hit result is has a visibility that makes it hit test 
 	 * visible.  e.g. Slate widgets that return true for GetVisibility().IsHitTestVisible().
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	bool IsOverHitTestVisibleWidget() const;
+	UMG_API bool IsOverHitTestVisibleWidget() const;
 
 	/**
 	 * Gets the widget path for the slate widgets under the last hit result.
 	 */
-	const FWeakWidgetPath& GetHoveredWidgetPath() const;
+	UMG_API const FWeakWidgetPath& GetHoveredWidgetPath() const;
 
 	/**
 	 * Gets the last hit result generated by the component.  Returns the custom hit result if that was set.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	const FHitResult& GetLastHitResult() const;
+	UMG_API const FHitResult& GetLastHitResult() const;
 
 	/**
 	 * Gets the last hit location on the widget in 2D, local pixel units of the render target.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	FVector2D Get2DHitLocation() const;
+	UMG_API FVector2D Get2DHitLocation() const;
 
 	/**
 	 * Set custom hit result.  This is only taken into account if InteractionSource is set to EWidgetInteractionSource::Custom.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Interaction")
-	void SetCustomHitResult(const FHitResult& HitResult);
+	UMG_API void SetCustomHitResult(const FHitResult& HitResult);
 
 	/**
 	 * Set the focus target of the virtual user managed by this component
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interaction")
-	void SetFocus(UWidget* FocusWidget);
+	UMG_API void SetFocus(UWidget* FocusWidget);
 
 protected:
 	/**
@@ -270,13 +270,13 @@ public:
 protected:
 
 	// Gets the key and char codes for sending keys for the platform.
-	void GetKeyAndCharCodes(const FKey& Key, bool& bHasKeyCode, uint32& KeyCode, bool& bHasCharCode, uint32& CharCode);
+	UMG_API void GetKeyAndCharCodes(const FKey& Key, bool& bHasKeyCode, uint32& KeyCode, bool& bHasCharCode, uint32& CharCode);
 
 	/** Is it safe for this interaction component to run?  Might not be in a server situation with no slate application. */
-	bool CanSendInput();
+	UMG_API bool CanSendInput();
 
 	/** Performs the simulation of pointer movement.  Does not run if bEnableHitTesting is set to false. */
-	void SimulatePointerMovement();
+	UMG_API void SimulatePointerMovement();
 
 	struct FWidgetTraceResult
 	{
@@ -301,19 +301,19 @@ protected:
 	};
 
 	/** Gets the WidgetPath for the widget being hovered over based on the hit result. */
-	virtual FWidgetPath FindHoveredWidgetPath(const FWidgetTraceResult& TraceResult)  const;
+	UMG_API virtual FWidgetPath FindHoveredWidgetPath(const FWidgetTraceResult& TraceResult)  const;
 
 	/** Performs the trace and gets the hit result under the specified InteractionSource */
-	virtual FWidgetTraceResult PerformTrace() const;
+	UMG_API virtual FWidgetTraceResult PerformTrace() const;
 
 	/**
 	 * Gets the list of components to ignore during hit testing.  Which is everything that is a parent/sibling of this 
 	 * component that's not a Widget Component.  This is so traces don't get blocked by capsules and such around the player.
 	 */
-	void GetRelatedComponentsToIgnoreInAutomaticHitTesting(TArray<UPrimitiveComponent*>& IgnorePrimitives) const;
+	UMG_API void GetRelatedComponentsToIgnoreInAutomaticHitTesting(TArray<UPrimitiveComponent*>& IgnorePrimitives) const;
 
 	/** Returns true if the inteaction component can interact with the supplied widget component */
-	bool CanInteractWithComponent(UWidgetComponent* Component) const;
+	UMG_API bool CanInteractWithComponent(UWidgetComponent* Component) const;
 
 protected:
 

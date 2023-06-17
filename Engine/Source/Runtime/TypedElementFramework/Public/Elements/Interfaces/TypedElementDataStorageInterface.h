@@ -82,7 +82,7 @@ struct TTypedElementColumnTypeList
 	operator TConstArrayView<const UScriptStruct*>() const { return ColumnTypes; }
 };
 
-class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface
+class ITypedElementDataStorageInterface
 {
 	GENERATED_BODY()
 

@@ -12,13 +12,13 @@ class UObject;
 class USoundBase;
 struct FFrame;
 
-UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
-class AUDIOLINKENGINE_API UAudioLinkBlueprintInterface : public UInterface
+UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint), MinimalAPI)
+class UAudioLinkBlueprintInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class AUDIOLINKENGINE_API IAudioLinkBlueprintInterface : public IInterface
+class IAudioLinkBlueprintInterface : public IInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

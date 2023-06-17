@@ -23,7 +23,7 @@
 
 struct FFileIoStoreCompressionContext;
 
-struct PAKFILE_API FFileIoStoreContainerFilePartition
+struct FFileIoStoreContainerFilePartition
 {
 	FFileIoStoreContainerFilePartition() = default;
 	FFileIoStoreContainerFilePartition(FFileIoStoreContainerFilePartition&&) = delete;
@@ -40,7 +40,7 @@ struct PAKFILE_API FFileIoStoreContainerFilePartition
 	std::atomic<int32> StartedReadRequestsCount = 0;
 };
 
-struct PAKFILE_API FFileIoStoreBlockSignatureTable
+struct FFileIoStoreBlockSignatureTable
 {
 	TArray<FSHAHash> Hashes;
 
@@ -61,7 +61,7 @@ private:
 	std::atomic<int64> RefCount = 0;
 };
 
-struct PAKFILE_API FFileIoStoreContainerFile
+struct FFileIoStoreContainerFile
 {
 	FFileIoStoreContainerFile() = default;
 	FFileIoStoreContainerFile(FFileIoStoreContainerFile&&) = default;
@@ -90,13 +90,13 @@ struct PAKFILE_API FFileIoStoreContainerFile
 	}
 };
 
-struct PAKFILE_API FFileIoStoreBuffer
+struct FFileIoStoreBuffer
 {
 	FFileIoStoreBuffer* Next = nullptr;
 	uint8* Memory = nullptr;
 };
 
-struct PAKFILE_API FFileIoStoreBlockKey
+struct FFileIoStoreBlockKey
 {
 	union
 	{
@@ -120,7 +120,7 @@ struct PAKFILE_API FFileIoStoreBlockKey
 	}
 };
 
-struct PAKFILE_API FFileIoStoreBlockScatter
+struct FFileIoStoreBlockScatter
 {
 	struct FFileIoStoreResolvedRequest* Request = nullptr;
 	uint64 DstOffset = 0;
@@ -128,7 +128,7 @@ struct PAKFILE_API FFileIoStoreBlockScatter
 	uint64 Size = 0;
 };
 
-struct PAKFILE_API FFileIoStoreCompressedBlock
+struct FFileIoStoreCompressedBlock
 {
 	FFileIoStoreCompressedBlock* Next = nullptr;
 	FFileIoStoreBlockKey Key;
@@ -150,7 +150,7 @@ struct PAKFILE_API FFileIoStoreCompressedBlock
 	bool bCancelled = false;
 };
 
-struct PAKFILE_API FFileIoStoreReadRequest
+struct FFileIoStoreReadRequest
 {
 	enum EQueueStatus
 	{
@@ -191,7 +191,7 @@ struct PAKFILE_API FFileIoStoreReadRequest
 #endif
 
 private:
-	static uint32 NextSequence;
+	static PAKFILE_API uint32 NextSequence;
 };
 
 #define CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP (DO_CHECK && 0)
@@ -275,7 +275,7 @@ private:
 	FFileIoStoreReadRequest* Next = nullptr;;
 };
 
-class PAKFILE_API FFileIoStoreReadRequestListIterator
+class FFileIoStoreReadRequestListIterator
 {
 public:
 	FFileIoStoreReadRequestListIterator(const FFileIoStoreReadRequestListIterator&) = default;
@@ -337,7 +337,7 @@ private:
 
 // Wrapper for doubly-linked intrusive list of FFileIoStoreReadRequest
 
-class PAKFILE_API FFileIoStoreReadRequestList
+class FFileIoStoreReadRequestList
 {
 public:
 	FFileIoStoreReadRequestList()
@@ -525,7 +525,7 @@ private:
 
 #if CHECK_IO_STORE_READ_REQUEST_LIST_MEMBERSHIP
 	uint32 ListCookie;
-	static uint32 NextListCookie;
+	static PAKFILE_API uint32 NextListCookie;
 #endif
 	
 	void AppendSteal(FFileIoStoreReadRequest* ListHead, FFileIoStoreReadRequest* ListTail)
@@ -561,7 +561,7 @@ private:
 
 class FFileIoStoreStats;
 
-class PAKFILE_API FFileIoStoreBufferAllocator
+class FFileIoStoreBufferAllocator
 {
 public:
 	FFileIoStoreBufferAllocator(FFileIoStoreStats& InStats)
@@ -569,9 +569,9 @@ public:
 	{
 	}
 
-	void Initialize(uint64 MemorySize, uint64 BufferSize, uint32 BufferAlignment);
-	FFileIoStoreBuffer* AllocBuffer();
-	void FreeBuffer(FFileIoStoreBuffer* Buffer);
+	PAKFILE_API void Initialize(uint64 MemorySize, uint64 BufferSize, uint32 BufferAlignment);
+	PAKFILE_API FFileIoStoreBuffer* AllocBuffer();
+	PAKFILE_API void FreeBuffer(FFileIoStoreBuffer* Buffer);
 	uint64 GetBufferSize() const { return BufferSize; }
 
 private:
@@ -582,15 +582,15 @@ private:
 	FFileIoStoreBuffer* FirstFreeBuffer = nullptr;
 };
 
-class PAKFILE_API FFileIoStoreBlockCache
+class FFileIoStoreBlockCache
 {
 public:
-	FFileIoStoreBlockCache(FFileIoStoreStats& Stats);
-	~FFileIoStoreBlockCache();
+	PAKFILE_API FFileIoStoreBlockCache(FFileIoStoreStats& Stats);
+	PAKFILE_API ~FFileIoStoreBlockCache();
 
-	void Initialize(uint64 CacheMemorySize, uint64 ReadBufferSize);
-	bool Read(FFileIoStoreReadRequest* Block);
-	void Store(const FFileIoStoreReadRequest* Block);
+	PAKFILE_API void Initialize(uint64 CacheMemorySize, uint64 ReadBufferSize);
+	PAKFILE_API bool Read(FFileIoStoreReadRequest* Block);
+	PAKFILE_API void Store(const FFileIoStoreReadRequest* Block);
 
 private:
 	struct FCachedBlock
@@ -609,7 +609,7 @@ private:
 	uint64 ReadBufferSize = 0;
 };
 
-struct PAKFILE_API FFileIoStoreReadRequestSortKey
+struct FFileIoStoreReadRequestSortKey
 {
 	uint64 Offset = 0;
 	uint64 Handle = 0;
@@ -623,10 +623,10 @@ struct PAKFILE_API FFileIoStoreReadRequestSortKey
 };
 
 // Stores FFileIoStoreReadRequest sorted by file handle & offset with a parallel list sorted by insertion order 
-class PAKFILE_API FFileIoStoreOffsetSortedRequestQueue
+class FFileIoStoreOffsetSortedRequestQueue
 {
 public:
-	FFileIoStoreOffsetSortedRequestQueue(int32 InPriority);
+	PAKFILE_API FFileIoStoreOffsetSortedRequestQueue(int32 InPriority);
 	FFileIoStoreOffsetSortedRequestQueue(const FFileIoStoreOffsetSortedRequestQueue&) = delete;
 	FFileIoStoreOffsetSortedRequestQueue(FFileIoStoreOffsetSortedRequestQueue&&) = default;
 	FFileIoStoreOffsetSortedRequestQueue& operator=(const FFileIoStoreOffsetSortedRequestQueue&) = delete;
@@ -636,13 +636,13 @@ public:
 	bool IsEmpty() const { return Requests.Num() == 0; }
 	
 	// Remove all requests from this container and return them, for switching to a different queue scheme
-	TArray<FFileIoStoreReadRequest*> StealRequests();
+	PAKFILE_API TArray<FFileIoStoreReadRequest*> StealRequests();
 	// Remove all requests whose priority has been changed to something other than the Priority of this queue
-	TArray<FFileIoStoreReadRequest*> RemoveMisprioritizedRequests();
+	PAKFILE_API TArray<FFileIoStoreReadRequest*> RemoveMisprioritizedRequests();
 
-	FFileIoStoreReadRequest* Pop(FFileIoStoreReadRequestSortKey LastSortKey);
-	void Push(FFileIoStoreReadRequest* Request);
-	int32 HandleContainerUnmounted(const FFileIoStoreContainerFile& ContainerFile);
+	PAKFILE_API FFileIoStoreReadRequest* Pop(FFileIoStoreReadRequestSortKey LastSortKey);
+	PAKFILE_API void Push(FFileIoStoreReadRequest* Request);
+	PAKFILE_API int32 HandleContainerUnmounted(const FFileIoStoreContainerFile& ContainerFile);
 
 private:
 	int32 Priority;
@@ -655,22 +655,22 @@ private:
 	// We store this on the heap in case we get moved, FFileIoStoreReadRequest keeps pointers to FFileIoStoreReadRequestList for debugging
 	FFileIoStoreReadRequestList RequestsBySequence;
 
-	FFileIoStoreReadRequest* GetNextInternal(FFileIoStoreReadRequestSortKey LastSortKey, bool bPop);
+	PAKFILE_API FFileIoStoreReadRequest* GetNextInternal(FFileIoStoreReadRequestSortKey LastSortKey, bool bPop);
 
 	static FFileIoStoreReadRequestSortKey RequestSortProjection(FFileIoStoreReadRequest* Request) { return FFileIoStoreReadRequestSortKey(Request); }
-	static bool RequestSortPredicate(const FFileIoStoreReadRequestSortKey& A, const FFileIoStoreReadRequestSortKey& B);
+	static PAKFILE_API bool RequestSortPredicate(const FFileIoStoreReadRequestSortKey& A, const FFileIoStoreReadRequestSortKey& B);
 };
 
-class PAKFILE_API FFileIoStoreRequestQueue
+class FFileIoStoreRequestQueue
 {
 public:
-	FFileIoStoreReadRequest* Pop();
-	void Push(FFileIoStoreReadRequest& Request);	// Takes ownership of Request and rewrites its intrustive linked list pointers
-	void Push(FFileIoStoreReadRequestList& Requests); // Consumes the request list and overwrites all intrustive linked list pointers
-	void UpdateOrder();
-	void Lock();
-	void Unlock();
-	int32 HandleContainerUnmounted(const FFileIoStoreContainerFile& ContainerFile);
+	PAKFILE_API FFileIoStoreReadRequest* Pop();
+	PAKFILE_API void Push(FFileIoStoreReadRequest& Request);	// Takes ownership of Request and rewrites its intrustive linked list pointers
+	PAKFILE_API void Push(FFileIoStoreReadRequestList& Requests); // Consumes the request list and overwrites all intrustive linked list pointers
+	PAKFILE_API void UpdateOrder();
+	PAKFILE_API void Lock();
+	PAKFILE_API void Unlock();
+	PAKFILE_API int32 HandleContainerUnmounted(const FFileIoStoreContainerFile& ContainerFile);
 
 private:
 	static bool QueueSortFunc(const FFileIoStoreReadRequest& A, const FFileIoStoreReadRequest& B)
@@ -704,7 +704,7 @@ private:
 template <typename T, uint16 SlabSize = 4096>
 using TIoDispatcherSingleThreadedSlabAllocator = TSingleThreadedSlabAllocator<T, SlabSize>;
 
-struct PAKFILE_API FFileIoStoreReadRequestLink
+struct FFileIoStoreReadRequestLink
 {
 	FFileIoStoreReadRequestLink(FFileIoStoreReadRequest& InReadRequest)
 		: ReadRequest(InReadRequest)
@@ -715,7 +715,7 @@ struct PAKFILE_API FFileIoStoreReadRequestLink
 	FFileIoStoreReadRequest& ReadRequest;
 };
 
-class PAKFILE_API FFileIoStoreRequestAllocator
+class FFileIoStoreRequestAllocator
 {
 public:
 	int64 GetLiveReadRequestsCount() const
@@ -789,10 +789,10 @@ private:
 	int64 LiveReadRequestsCount = 0;
 };
 
-struct PAKFILE_API FFileIoStoreResolvedRequest
+struct FFileIoStoreResolvedRequest
 {
 public:
-	FFileIoStoreResolvedRequest(
+	PAKFILE_API FFileIoStoreResolvedRequest(
 		FIoRequestImpl& InDispatcherRequest,
 		FFileIoStoreContainerFile* InContainerFile,
 		uint64 InResolvedOffset,
@@ -842,7 +842,7 @@ public:
 		return DispatcherRequest->GetBuffer();
 	}
 
-	void AddReadRequestLink(FFileIoStoreReadRequestLink* ReadRequestLink);
+	PAKFILE_API void AddReadRequestLink(FFileIoStoreReadRequestLink* ReadRequestLink);
 
 private:
 	FIoRequestImpl* DispatcherRequest = nullptr;
@@ -863,18 +863,18 @@ private:
 
 // Wrapper for sending stats to both insights and csv profiling from any platform-specific dispatcher.
 #if UE_FILEIOSTORE_STATS_ENABLED
-class PAKFILE_API FFileIoStoreStats
+class FFileIoStoreStats
 {
 public:
-	FFileIoStoreStats();
-	~FFileIoStoreStats();
+	PAKFILE_API FFileIoStoreStats();
+	PAKFILE_API ~FFileIoStoreStats();
 
 	// Called by the backend when underlying file system reads start
-	void OnFilesystemReadStarted(const FFileIoStoreReadRequest* Request);
-	void OnFilesystemReadsStarted(const FFileIoStoreReadRequestList& Requests);
+	PAKFILE_API void OnFilesystemReadStarted(const FFileIoStoreReadRequest* Request);
+	PAKFILE_API void OnFilesystemReadsStarted(const FFileIoStoreReadRequestList& Requests);
 	// Called by the backend when underlying filesystem reads complete, possibly already decompressed on some systems
-	void OnFilesystemReadCompleted(const FFileIoStoreReadRequest* Request);
-	void OnFilesystemReadsCompleted(const FFileIoStoreReadRequestList& CompletedRequests);
+	PAKFILE_API void OnFilesystemReadCompleted(const FFileIoStoreReadRequest* Request);
+	PAKFILE_API void OnFilesystemReadsCompleted(const FFileIoStoreReadRequestList& CompletedRequests);
 
 private:
 	friend class FFileIoStore;
@@ -927,35 +927,35 @@ private:
 		return float(double(Bytes) / 1024.0);
 	}
 
-	bool CsvTick(float DeltaTime);
+	PAKFILE_API bool CsvTick(float DeltaTime);
 
-	void OnReadRequestsQueued(const FFileIoStoreReadRequestList& Requests);
-	void OnReadRequestsCompleted(const FFileIoStoreReadRequestList& Requests);
-	void OnDecompressQueued(const FFileIoStoreCompressedBlock* CompressedBlock);
-	void OnDecompressComplete(const FFileIoStoreCompressedBlock* CompressedBlock);
+	PAKFILE_API void OnReadRequestsQueued(const FFileIoStoreReadRequestList& Requests);
+	PAKFILE_API void OnReadRequestsCompleted(const FFileIoStoreReadRequestList& Requests);
+	PAKFILE_API void OnDecompressQueued(const FFileIoStoreCompressedBlock* CompressedBlock);
+	PAKFILE_API void OnDecompressComplete(const FFileIoStoreCompressedBlock* CompressedBlock);
 
 	// Bytes were copied into the buffer provided to users of the io system
-	void OnBytesScattered(int64 BytesScattered);
+	PAKFILE_API void OnBytesScattered(int64 BytesScattered);
 	// Record stats for block cache hit/miss rate & data throughput
-	void OnBlockCacheStore(uint64 NumBytes);
-	void OnBlockCacheHit(uint64 NumBytes);
-	void OnBlockCacheMiss(uint64 NumBytes);
+	PAKFILE_API void OnBlockCacheStore(uint64 NumBytes);
+	PAKFILE_API void OnBlockCacheHit(uint64 NumBytes);
+	PAKFILE_API void OnBlockCacheMiss(uint64 NumBytes);
 
 	// A read was started without seeking
-	void OnSequentialRead();
+	PAKFILE_API void OnSequentialRead();
 	// A read was started and was either a forward or reverse seek
-	void OnSeek(uint64 LastOffset, uint64 NewOffset);
+	PAKFILE_API void OnSeek(uint64 LastOffset, uint64 NewOffset);
 	// A read was started from a different file handle from the last one we used
-	void OnHandleChangeSeek();
+	PAKFILE_API void OnHandleChangeSeek();
 
-	void OnTocMounted(uint64 AllocatedSize);
-	void OnTocUnmounted(uint64 AllocatedSize);
+	PAKFILE_API void OnTocMounted(uint64 AllocatedSize);
+	PAKFILE_API void OnTocUnmounted(uint64 AllocatedSize);
 
-	void OnBufferReleased();
-	void OnBufferAllocated();
+	PAKFILE_API void OnBufferReleased();
+	PAKFILE_API void OnBufferAllocated();
 };
 #else
-class PAKFILE_API FFileIoStoreStats
+class FFileIoStoreStats
 {
 public:
 	void OnFilesystemReadStarted(const FFileIoStoreReadRequest* Request) {}
@@ -984,7 +984,7 @@ private:
 };
 #endif
 
-struct PAKFILE_API FInitializePlatformFileIoStoreParams
+struct FInitializePlatformFileIoStoreParams
 {
 	const FWakeUpIoDispatcherThreadDelegate* WakeUpDispatcherThreadDelegate = nullptr;
 	FFileIoStoreRequestAllocator* RequestAllocator = nullptr;

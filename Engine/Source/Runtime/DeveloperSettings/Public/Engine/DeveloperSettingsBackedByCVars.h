@@ -16,17 +16,17 @@ class UObject;
  * The base class of auto discovered settings object where some or all of the settings
  * are stored in console variables instead of config variables.
  */
-UCLASS(Abstract)
-class DEVELOPERSETTINGS_API UDeveloperSettingsBackedByCVars : public UDeveloperSettings
+UCLASS(Abstract, MinimalAPI)
+class UDeveloperSettingsBackedByCVars : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
-	UDeveloperSettingsBackedByCVars(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	DEVELOPERSETTINGS_API UDeveloperSettingsBackedByCVars(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual void PostInitProperties() override;
+	DEVELOPERSETTINGS_API virtual void PostInitProperties() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	DEVELOPERSETTINGS_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 };

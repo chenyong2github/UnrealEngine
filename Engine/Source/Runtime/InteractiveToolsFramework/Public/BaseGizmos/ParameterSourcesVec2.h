@@ -16,7 +16,7 @@
  * IGizmoVec2ParameterSource implementations use this to track changes and emit delta information.
  */
 USTRUCT()
-struct INTERACTIVETOOLSFRAMEWORK_API FGizmoVec2ParameterChange
+struct FGizmoVec2ParameterChange
 {
 	GENERATED_BODY()
 
@@ -44,8 +44,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGizmoVec2ParameterChange
  * UGizmoBaseVec2ParameterSource is a base implementation of IGizmoVec2ParameterSource,
  * which is not functional but adds an OnParameterChanged delegate for further subclasses.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoBaseVec2ParameterSource : public UObject, public IGizmoVec2ParameterSource
+UCLASS(MinimalAPI)
+class UGizmoBaseVec2ParameterSource : public UObject, public IGizmoVec2ParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -82,8 +82,8 @@ public:
  * (by way of UGizmoBaseVec2ParameterSource) which locally stores the relevant Parameter
  * and emits update events via the OnParameterChanged delegate.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoLocalVec2ParameterSource : public UGizmoBaseVec2ParameterSource
+UCLASS(MinimalAPI)
+class UGizmoLocalVec2ParameterSource : public UGizmoBaseVec2ParameterSource
 {
 	GENERATED_BODY()
 public:

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -53,7 +53,7 @@ enum class EAnimFunctionCallSite
 
 /** Calls specified user-defined events/functions during anim graph execution */
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_CallFunction : public FAnimNode_Base
+struct FAnimNode_CallFunction : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -77,17 +77,17 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_CallFunction : public FAnimNode_Base
 	EAnimFunctionCallSite CallSite = EAnimFunctionCallSite::OnUpdate;
 		
 	// FAnimNode_Base interface
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Context) override;
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	// End of FAnimNode_Base interface
 
 	// Calls the function we hold if the callsite matches the one we have set
-	void CallFunctionFromCallSite(EAnimFunctionCallSite InCallSite, const FAnimationBaseContext& InContext) const;
+	ANIMGRAPHRUNTIME_API void CallFunctionFromCallSite(EAnimFunctionCallSite InCallSite, const FAnimationBaseContext& InContext) const;
 
 	// Get the function held on this node
-	const FAnimNodeFunctionRef& GetFunction() const;
+	ANIMGRAPHRUNTIME_API const FAnimNodeFunctionRef& GetFunction() const;
 };

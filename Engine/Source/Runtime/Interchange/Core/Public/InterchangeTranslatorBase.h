@@ -40,23 +40,23 @@ enum class EInterchangeTranslatorAssetType : uint8
 };
 ENUM_CLASS_FLAGS(EInterchangeTranslatorAssetType);
 
-UCLASS(BlueprintType, Blueprintable, Abstract)
-class INTERCHANGECORE_API UInterchangeTranslatorBase : public UObject
+UCLASS(BlueprintType, Blueprintable, Abstract, MinimalAPI)
+class UInterchangeTranslatorBase : public UObject
 {
 	GENERATED_BODY()
 public:
 
 	/** return true if the translator can translate the given source data. */
-	virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const;
+	INTERCHANGECORE_API virtual bool CanImportSourceData(const UInterchangeSourceData* InSourceData) const;
 
 	/** Specifies the capabilities of a translator. */
 	virtual EInterchangeTranslatorType GetTranslatorType() const { return EInterchangeTranslatorType::Assets; }
 
 	bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const { return EnumHasAllFlags(GetSupportedAssetTypes(), AssetType); }
-	virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const PURE_VIRTUAL(UInterchangeTranslatorBase::GetSupportedAssetTypes, return EInterchangeTranslatorAssetType::None;);
+	INTERCHANGECORE_API virtual EInterchangeTranslatorAssetType GetSupportedAssetTypes() const PURE_VIRTUAL(UInterchangeTranslatorBase::GetSupportedAssetTypes, return EInterchangeTranslatorAssetType::None;);
 
 	/** List of formats supported by the translator. Each entry is of the form "ext;Description" where ext is the file extension. */
-	virtual TArray<FString> GetSupportedFormats() const PURE_VIRTUAL(UInterchangeTranslatorBase::GetSupportedExtensions, return TArray<FString>(););
+	INTERCHANGECORE_API virtual TArray<FString> GetSupportedFormats() const PURE_VIRTUAL(UInterchangeTranslatorBase::GetSupportedExtensions, return TArray<FString>(););
 
 	/**
 	 * Translate the associated source data into node(s) that are hold in the specified nodes container.

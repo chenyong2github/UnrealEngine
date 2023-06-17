@@ -136,7 +136,7 @@ private:
 
 struct FLandscapeComponentDataInterfaceBase
 {
-	LANDSCAPE_API FLandscapeComponentDataInterfaceBase() {}
+	FLandscapeComponentDataInterfaceBase() {}
 	LANDSCAPE_API FLandscapeComponentDataInterfaceBase(ULandscapeComponent* InComponent, int32 InMipLevel, bool InWorkOnEditingLayer = true);
 
 	// Accessors

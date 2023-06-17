@@ -17,13 +17,13 @@ class AActor;
 /**
  * Basic object to control a UObject live link frames
  */
-UCLASS(Abstract)
-class LIVELINKINTERFACE_API ULiveLinkController : public UObject
+UCLASS(Abstract, MinimalAPI)
+class ULiveLinkController : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual TSubclassOf<ULiveLinkRole> GetRole() const PURE_VIRTUAL(ULiveLinkController::GetRole, return TSubclassOf<ULiveLinkRole>(););
+	LIVELINKINTERFACE_API virtual TSubclassOf<ULiveLinkRole> GetRole() const PURE_VIRTUAL(ULiveLinkController::GetRole, return TSubclassOf<ULiveLinkRole>(););
 
 	/** Initialize the controller at the first tick of its owner component. */
 	virtual void OnRegistered() { }

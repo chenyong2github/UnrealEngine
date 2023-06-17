@@ -30,7 +30,7 @@ class dtNavMeshQuery;
 class dtQueryFilter;
 class dtSharedBoundary;
 
-class NAVMESH_API dtLocalBoundary
+class dtLocalBoundary
 {
 	static const int MAX_LOCAL_SEGS = 8;
 	static const int MAX_LOCAL_POLYS = 16;
@@ -48,28 +48,28 @@ class NAVMESH_API dtLocalBoundary
 	int m_nsegs;
 	int m_npolys;
 
-	void addSegment(const dtReal dist, const dtReal* seg, int flags = 0);
+	NAVMESH_API void addSegment(const dtReal dist, const dtReal* seg, int flags = 0);
 	
 public:
-	dtLocalBoundary();
-	~dtLocalBoundary();
+	NAVMESH_API dtLocalBoundary();
+	NAVMESH_API ~dtLocalBoundary();
 	
-	void reset();
+	NAVMESH_API void reset();
 
 	// [UE: new sections: link removal, path corridor, direction]
-	void update(dtPolyRef ref, const dtReal* pos, const dtReal collisionQueryRange,
+	NAVMESH_API void update(dtPolyRef ref, const dtReal* pos, const dtReal collisionQueryRange,
 		const bool bIgnoreAtEnd, const dtReal* endPos,
 		const dtPolyRef* path, const int npath,
 		const dtReal* moveDir,
 		dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 
-	void update(const dtSharedBoundary* sharedData, const int sharedIdx,
+	NAVMESH_API void update(const dtSharedBoundary* sharedData, const int sharedIdx,
 		const dtReal* pos, const dtReal collisionQueryRange,
 		const bool bIgnoreAtEnd, const dtReal* endPos,
 		const dtPolyRef* path, const int npath, const dtReal* moveDir,
 		dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 	
-	bool isValid(dtNavMeshQuery* navquery, const dtQueryFilter* filter);
+	NAVMESH_API bool isValid(dtNavMeshQuery* navquery, const dtQueryFilter* filter);
 	
 	inline const dtReal* getCenter() const { return m_center; }
 	inline int getSegmentCount() const { return m_nsegs; }

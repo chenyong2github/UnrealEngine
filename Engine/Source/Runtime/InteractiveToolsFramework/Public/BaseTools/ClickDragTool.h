@@ -20,14 +20,14 @@ struct FToolBuilderState;
 /**
  * Builder for UClickDragTool
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UClickDragToolBuilder : public UInteractiveToolBuilder
+UCLASS(MinimalAPI)
+class UClickDragToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -37,8 +37,8 @@ public:
  * implement basic click-drag type Tools. If you want to do more advanced things, 
  * like handle modifier buttons/keys, you will need to implement IClickDragBehaviorTarget yourself
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UClickDragTool : public UInteractiveTool, public IClickDragBehaviorTarget
+UCLASS(MinimalAPI)
+class UClickDragTool : public UInteractiveTool, public IClickDragBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -47,7 +47,7 @@ public:
 	/**
 	 * Register default primary-button-click InputBehaviors
 	 */
-	virtual void Setup() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup() override;
 
 
 	//
@@ -59,30 +59,30 @@ public:
 	 * @param ClickPos device position/ray at click point
 	 * @return true if target wants to begin sequence
 	 */
-	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
 
 	/**
 	 * Notify Target that click press ocurred
 	 * @param ClickPos device position/ray at click point
 	 */
-	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
 
 	/**
 	 * Notify Target that input position has changed
 	 * @param ClickPos device position/ray at click point
 	 */
-	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
 
 	/**
 	 * Notify Target that click release occurred
 	 * @param ClickPos device position/ray at click point
 	 */
-	virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClickRelease(const FInputDeviceRay& ReleasePos) override;
 
 	/**
 	 * Notify Target that click-drag sequence has been explicitly terminated (eg by escape key)
 	 */
-	virtual void OnTerminateDragSequence() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnTerminateDragSequence() override;
 
 };
 

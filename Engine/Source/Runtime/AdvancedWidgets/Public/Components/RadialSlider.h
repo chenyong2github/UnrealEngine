@@ -23,8 +23,8 @@ class SRadialSlider;
  * * No Children
  */
 
-UCLASS()
-class ADVANCEDWIDGETS_API URadialSlider : public UWidget
+UCLASS(MinimalAPI)
+class URadialSlider : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -143,94 +143,94 @@ public:
 
 	/** Gets the current value of the slider. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	float GetValue() const;
+	ADVANCEDWIDGETS_API float GetValue() const;
 
 	/** Gets the current custom default value of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	float GetCustomDefaultValue() const;
+	ADVANCEDWIDGETS_API float GetCustomDefaultValue() const;
 
 	/** Get the current raw slider alpha from 0 to 1 */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	float GetNormalizedSliderHandlePosition() const;
+	ADVANCEDWIDGETS_API float GetNormalizedSliderHandlePosition() const;
 
 	/** Sets the current value of the slider. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	void SetValue(float InValue);
+	ADVANCEDWIDGETS_API void SetValue(float InValue);
 
 	/** Sets the current custom default value of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetCustomDefaultValue(float InValue);
+	ADVANCEDWIDGETS_API void SetCustomDefaultValue(float InValue);
 
 	/** Sets the curve for the slider range*/
 	UFUNCTION(BlueprintCallable, Category = "Behaviour")
-	void SetSliderRange(const FRuntimeFloatCurve& InSliderRange);
+	ADVANCEDWIDGETS_API void SetSliderRange(const FRuntimeFloatCurve& InSliderRange);
 
 	/** Adds value tags to the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behaviour")
-	void SetValueTags(const TArray<float>& InValueTags);
+	ADVANCEDWIDGETS_API void SetValueTags(const TArray<float>& InValueTags);
 
 	/** Sets the minimum angle of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetSliderHandleStartAngle(float InValue);
+	ADVANCEDWIDGETS_API void SetSliderHandleStartAngle(float InValue);
 
 	/** Sets the maximum angle of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetSliderHandleEndAngle(float InValue);
+	ADVANCEDWIDGETS_API void SetSliderHandleEndAngle(float InValue);
 
 	/** Sets the Angular Offset for the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behaviour")
-	void SetAngularOffset(float InValue);
+	ADVANCEDWIDGETS_API void SetAngularOffset(float InValue);
 
 	/** Sets the start and end of the hand as a ratio to the slider radius (so 0.0 to 1.0 is from the slider center to the handle). */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetHandStartEndRatio(FVector2D InValue);
+	ADVANCEDWIDGETS_API void SetHandStartEndRatio(FVector2D InValue);
 
 	/** Sets the handle to be interactive or fixed */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	void SetLocked(bool InValue);
+	ADVANCEDWIDGETS_API void SetLocked(bool InValue);
 
 	/** Sets the amount to adjust the value by, when using a controller or keyboard */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	void SetStepSize(float InValue);
+	ADVANCEDWIDGETS_API void SetStepSize(float InValue);
 
 	/** Sets the color of the slider bar */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetSliderBarColor(FLinearColor InValue);
+	ADVANCEDWIDGETS_API void SetSliderBarColor(FLinearColor InValue);
 
 	/** Sets the progress color of the slider bar */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetSliderProgressColor(FLinearColor InValue);
+	ADVANCEDWIDGETS_API void SetSliderProgressColor(FLinearColor InValue);
 
 	/** Sets the color of the handle bar */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetSliderHandleColor(FLinearColor InValue);
+	ADVANCEDWIDGETS_API void SetSliderHandleColor(FLinearColor InValue);
 
 	/** Sets the color of the slider bar */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetCenterBackgroundColor(FLinearColor InValue);
+	ADVANCEDWIDGETS_API void SetCenterBackgroundColor(FLinearColor InValue);
 
 	/** Set whether the value is changed when dragging vertically as opposed to along the radial curve.  */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetUseVerticalDrag(bool InUseVerticalDrag);
+	ADVANCEDWIDGETS_API void SetUseVerticalDrag(bool InUseVerticalDrag);
 
 	/** Whether to show the slider handle (thumb). */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetShowSliderHandle(bool InShowSliderHandle);
+	ADVANCEDWIDGETS_API void SetShowSliderHandle(bool InShowSliderHandle);
 
 	/** Whether to show the slider hand. */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetShowSliderHand(bool InShowSliderHand);
+	ADVANCEDWIDGETS_API void SetShowSliderHand(bool InShowSliderHand);
 	
 	// UWidget interface
-	virtual void SynchronizeProperties() override;
+	ADVANCEDWIDGETS_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
 	// UVisual interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	ADVANCEDWIDGETS_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	// End of UVisual interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	ADVANCEDWIDGETS_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
@@ -238,17 +238,17 @@ protected:
 	TSharedPtr<SRadialSlider> MyRadialSlider;
 
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	ADVANCEDWIDGETS_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
-	void HandleOnValueChanged(float InValue);
-	void HandleOnMouseCaptureBegin();
-	void HandleOnMouseCaptureEnd();
-	void HandleOnControllerCaptureBegin();
-	void HandleOnControllerCaptureEnd();
+	ADVANCEDWIDGETS_API void HandleOnValueChanged(float InValue);
+	ADVANCEDWIDGETS_API void HandleOnMouseCaptureBegin();
+	ADVANCEDWIDGETS_API void HandleOnMouseCaptureEnd();
+	ADVANCEDWIDGETS_API void HandleOnControllerCaptureBegin();
+	ADVANCEDWIDGETS_API void HandleOnControllerCaptureEnd();
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+	ADVANCEDWIDGETS_API virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
 #endif
 
 	PROPERTY_BINDING_IMPLEMENTATION(float, Value);

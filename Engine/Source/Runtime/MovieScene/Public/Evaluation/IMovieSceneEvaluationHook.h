@@ -45,8 +45,8 @@ struct FEvaluationHookParams
 } // namespace UE
 
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneEvaluationHook : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneEvaluationHook : public UInterface
 {
 public:
 	GENERATED_BODY()
@@ -56,7 +56,7 @@ public:
 /**
  * All evaluation hooks are executed at the end of the frame (at a time when re-entrancy is permitted), and cannot have any component dependencies
  */
-class MOVIESCENE_API IMovieSceneEvaluationHook
+class IMovieSceneEvaluationHook
 {
 public:
 

@@ -9,21 +9,21 @@
 /**
  * Windows splash implementation.
  */
-struct APPLICATIONCORE_API FWindowsPlatformSplash
+struct FWindowsPlatformSplash
 	: public FGenericPlatformSplash
 {
 	/** Show the splash screen. */
-	static void Show();
+	static APPLICATIONCORE_API void Show();
 
 	/** Hide the splash screen. */
-	static void Hide();
+	static APPLICATIONCORE_API void Hide();
 
 	/**
 	 * Sets the progress displayed on the application icon (for startup/loading progress).
 	 *
 	 * @param InType Progress value in percent.
 	 */
-	static void SetProgress(int ProgressPercent);
+	static APPLICATIONCORE_API void SetProgress(int ProgressPercent);
 
 	/**
 	 * Sets the text displayed on the splash screen (for startup/loading progress).
@@ -31,12 +31,12 @@ struct APPLICATIONCORE_API FWindowsPlatformSplash
 	 * @param InType Type of text to change.
 	 * @param InText Text to display.
 	 */
-	static void SetSplashText( const SplashTextType::Type InType, const TCHAR* InText );
+	static APPLICATIONCORE_API void SetSplashText( const SplashTextType::Type InType, const TCHAR* InText );
 
 	/**
 	 * Return whether the splash screen is being shown or not
 	 */
-	static bool IsShown();
+	static APPLICATIONCORE_API bool IsShown();
 };
 
 

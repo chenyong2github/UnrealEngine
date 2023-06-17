@@ -6,14 +6,14 @@
 #include "MovieSceneEulerTransformPropertySystem.generated.h"
 
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneEulerTransformPropertySystem : public UMovieScenePropertySystem
+UCLASS(MinimalAPI)
+class UMovieSceneEulerTransformPropertySystem : public UMovieScenePropertySystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UMovieSceneEulerTransformPropertySystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieSceneEulerTransformPropertySystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };

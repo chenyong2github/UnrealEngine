@@ -12,8 +12,8 @@
 struct FNavigationRelevantData;
 class UBodySetup;
 
-UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent), hidecategories = (Activation), config = Engine, defaultconfig)
-class NAVIGATIONSYSTEM_API UNavModifierComponent : public UNavRelevantComponent
+UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent), hidecategories = (Activation), config = Engine, defaultconfig, MinimalAPI)
+class UNavModifierComponent : public UNavRelevantComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -33,26 +33,26 @@ class NAVIGATIONSYSTEM_API UNavModifierComponent : public UNavRelevantComponent
 	UPROPERTY(config, EditAnywhere, Category = Navigation)
 	uint8 bIncludeAgentHeight : 1;
 
-	virtual void CalcAndCacheBounds() const override;
-	virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
+	NAVIGATIONSYSTEM_API virtual void CalcAndCacheBounds() const override;
+	NAVIGATIONSYSTEM_API virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
-	void SetAreaClass(TSubclassOf<UNavArea> NewAreaClass);
+	NAVIGATIONSYSTEM_API void SetAreaClass(TSubclassOf<UNavArea> NewAreaClass);
 
 protected:
-	void OnTransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
+	NAVIGATIONSYSTEM_API void OnTransformUpdated(USceneComponent* RootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
 
 #if WITH_EDITOR
-	void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
-	void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
+	NAVIGATIONSYSTEM_API void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
+	NAVIGATIONSYSTEM_API void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
 #endif // WITH_EDITOR 
 
 	//~ Begin UActorComponent Interface
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
+	NAVIGATIONSYSTEM_API virtual void OnRegister() override;
+	NAVIGATIONSYSTEM_API virtual void OnUnregister() override;
 	//~ End UActorComponent Interface
 
-	void PopulateComponentBounds(FTransform InParentTransform, const UBodySetup& InBodySetup) const;
+	NAVIGATIONSYSTEM_API void PopulateComponentBounds(FTransform InParentTransform, const UBodySetup& InBodySetup) const;
 	
 	struct FRotatedBox
 	{

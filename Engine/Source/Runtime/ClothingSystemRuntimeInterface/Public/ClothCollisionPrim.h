@@ -69,7 +69,7 @@ struct FClothCollisionPrim_ConvexFace
  *	shape created by the planes combined.
  */
 USTRUCT()
-struct CLOTHINGSYSTEMRUNTIMEINTERFACE_API FClothCollisionPrim_Convex
+struct FClothCollisionPrim_Convex
 {
 	GENERATED_BODY()
 

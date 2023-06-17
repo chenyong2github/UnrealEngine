@@ -29,53 +29,53 @@ enum class EGameDelegates_SaveGame : short;
  *
  * TODO: Proper handling of UserIndex.
  */
-class SAVEGAMENETWORKREPLAYSTREAMING_API FSaveGameNetworkReplayStreamer : public FLocalFileNetworkReplayStreamer
+class FSaveGameNetworkReplayStreamer : public FLocalFileNetworkReplayStreamer
 {
 public:
 
-	FSaveGameNetworkReplayStreamer();
-	FSaveGameNetworkReplayStreamer(const FString& DemoSavePath, const FString& PlaybackReplayName);
+	SAVEGAMENETWORKREPLAYSTREAMING_API FSaveGameNetworkReplayStreamer();
+	SAVEGAMENETWORKREPLAYSTREAMING_API FSaveGameNetworkReplayStreamer(const FString& DemoSavePath, const FString& PlaybackReplayName);
 
 	/** INetworkReplayStreamer implementation */
-	virtual void StartStreaming(const FStartStreamingParameters& Params, const FStartStreamingCallback& Delegate) override;
-	virtual void DeleteFinishedStream(const FString& ReplayName, const FDeleteFinishedStreamCallback& Delegate) override;
-	virtual void DeleteFinishedStream(const FString& StreamName, const int32 UserIndex, const FDeleteFinishedStreamCallback& Delegate) override;
-	virtual void EnumerateStreams(const FNetworkReplayVersion& InReplayVersion, const int32 UserIndex, const FString& MetaString, const TArray< FString >& ExtraParms, const FEnumerateStreamsCallback& Delegate) override;
-	virtual void EnumerateRecentStreams(const FNetworkReplayVersion& ReplayVersion, const int32 UserIndex, const FEnumerateStreamsCallback& Delegate) override;
-	virtual void KeepReplay(const FString& ReplayName, const bool bKeep, const FKeepReplayCallback& Delegate) override;
-	virtual void KeepReplay(const FString& ReplayName, const bool bKeep, const int32 UserIndex, const FKeepReplayCallback& Delegate) override;
-	virtual void RenameReplayFriendlyName(const FString& ReplayName, const FString& NewFriendlyName, const FRenameReplayCallback& Delegate) override;
-	virtual void RenameReplayFriendlyName(const FString& ReplayName, const FString& NewFriendlyName, const int32 UserIndex, const FRenameReplayCallback& Delegate) override;
-	virtual void RenameReplay(const FString& ReplayName, const FString& NewName, const FRenameReplayCallback& Delegate) override;
-	virtual void RenameReplay(const FString& ReplayName, const FString& NewName, const int32 UserIndex, const FRenameReplayCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void StartStreaming(const FStartStreamingParameters& Params, const FStartStreamingCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void DeleteFinishedStream(const FString& ReplayName, const FDeleteFinishedStreamCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void DeleteFinishedStream(const FString& StreamName, const int32 UserIndex, const FDeleteFinishedStreamCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void EnumerateStreams(const FNetworkReplayVersion& InReplayVersion, const int32 UserIndex, const FString& MetaString, const TArray< FString >& ExtraParms, const FEnumerateStreamsCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void EnumerateRecentStreams(const FNetworkReplayVersion& ReplayVersion, const int32 UserIndex, const FEnumerateStreamsCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void KeepReplay(const FString& ReplayName, const bool bKeep, const FKeepReplayCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void KeepReplay(const FString& ReplayName, const bool bKeep, const int32 UserIndex, const FKeepReplayCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RenameReplayFriendlyName(const FString& ReplayName, const FString& NewFriendlyName, const FRenameReplayCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RenameReplayFriendlyName(const FString& ReplayName, const FString& NewFriendlyName, const int32 UserIndex, const FRenameReplayCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RenameReplay(const FString& ReplayName, const FString& NewName, const FRenameReplayCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RenameReplay(const FString& ReplayName, const FString& NewName, const int32 UserIndex, const FRenameReplayCallback& Delegate) override;
 
-	virtual void EnumerateEvents(const FString& ReplayName, const FString& Group, const FEnumerateEventsCallback& Delegate) override;
-	virtual void EnumerateEvents( const FString& ReplayName, const FString& Group, const int32 UserIndex, const FEnumerateEventsCallback& Delegate) override;
-	virtual void RequestEventData(const FString& EventID, const FRequestEventDataCallback& Delegate) override;
-	virtual void RequestEventData(const FString& ReplayName, const FString& EventID, const FRequestEventDataCallback& Delegate) override;
-	virtual void RequestEventData(const FString& ReplayName, const FString& EventId, const int32 UserIndex, const FRequestEventDataCallback& Delegate) override;
-	virtual void RequestEventGroupData(const FString& Group, const FRequestEventGroupDataCallback& Delegate) override;
-	virtual void RequestEventGroupData(const FString& ReplayName, const FString& Group, const FRequestEventGroupDataCallback& Delegate) override;
-	virtual void RequestEventGroupData(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void EnumerateEvents(const FString& ReplayName, const FString& Group, const FEnumerateEventsCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void EnumerateEvents( const FString& ReplayName, const FString& Group, const int32 UserIndex, const FEnumerateEventsCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RequestEventData(const FString& EventID, const FRequestEventDataCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RequestEventData(const FString& ReplayName, const FString& EventID, const FRequestEventDataCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RequestEventData(const FString& ReplayName, const FString& EventId, const int32 UserIndex, const FRequestEventDataCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RequestEventGroupData(const FString& Group, const FRequestEventGroupDataCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RequestEventGroupData(const FString& ReplayName, const FString& Group, const FRequestEventGroupDataCallback& Delegate) override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void RequestEventGroupData(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate) override;
 protected:
 
-	void StartStreamingSaved(const FStartStreamingParameters& Params, const FStartStreamingCallback& Delegate);
-	void DeleteFinishedStreamSaved(const FString& ReplayName, const int32 UserIndex, const FDeleteFinishedStreamCallback& Delegate) const;
-	void KeepReplaySaved(const FString& ReplayName, const bool bKeep, const int32 UserIndex, const FKeepReplayCallback& Result);
-	void RenameReplayFriendlyNameSaved(const FString& ReplayName, const FString& NewFriendlyName, const int32 UserIndex, const FRenameReplayCallback& Delegate) const;
-	void RenameReplaySaved(const FString& ReplayName, const FString& NewName, const int32 UserIndex, const FRenameReplayCallback& Delegate);
-	void EnumerateEventsSaved(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FEnumerateEventsCallback& Delegate) const;
-	void RequestEventDataSaved(const FString& ReplayName, const FString& EventID, const int32 UserIndex, const FRequestEventDataCallback& Delegate);
-	void RequestEventGroupDataSaved(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void StartStreamingSaved(const FStartStreamingParameters& Params, const FStartStreamingCallback& Delegate);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void DeleteFinishedStreamSaved(const FString& ReplayName, const int32 UserIndex, const FDeleteFinishedStreamCallback& Delegate) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API void KeepReplaySaved(const FString& ReplayName, const bool bKeep, const int32 UserIndex, const FKeepReplayCallback& Result);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void RenameReplayFriendlyNameSaved(const FString& ReplayName, const FString& NewFriendlyName, const int32 UserIndex, const FRenameReplayCallback& Delegate) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API void RenameReplaySaved(const FString& ReplayName, const FString& NewName, const int32 UserIndex, const FRenameReplayCallback& Delegate);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void EnumerateEventsSaved(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FEnumerateEventsCallback& Delegate) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API void RequestEventDataSaved(const FString& ReplayName, const FString& EventID, const int32 UserIndex, const FRequestEventDataCallback& Delegate);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void RequestEventGroupDataSaved(const FString& ReplayName, const FString& Group, const int32 UserIndex, const FRequestEventGroupDataCallback& Delegate);
 
-	void StartStreaming_Internal(const FStartStreamingParameters& Params, FStartStreamingResult& Result);
-	void DeleteFinishedStream_Internal(const FString& ReplayName, const int32 UserIndex, FDeleteFinishedStreamResult& Result) const;
-	void EnumerateStreams_Internal(const FNetworkReplayVersion& ReplayVersion, const int32 UserIndex, const FString& MetaString, const TArray< FString >& ExtraParms, FEnumerateStreamsResult& Result);
-	void KeepReplay_Internal(const FString& ReplayName, const bool bKeep, const int32 UserIndex, FKeepReplayResult& Result);
-	void RenameReplayFriendlyName_Internal(const FString& ReplayName, const FString& NewFriendlyName, const int32 UserIndex, FRenameReplayResult& Result) const;
-	void EnumerateEvents_Internal(const FString& ReplayName, const FString& Group, const int32 UserIndex, FEnumerateEventsResult& Result) const;
-	void RequestEventData_Internal(const FString& ReplayName, const FString& EventID, const int32 UserIndex, FRequestEventDataResult& Result);
-	void RequestEventGroupData_Internal(const FString& ReplayName, const FString& Group, const int32 UserIndex, FRequestEventGroupDataResult& Result);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void StartStreaming_Internal(const FStartStreamingParameters& Params, FStartStreamingResult& Result);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void DeleteFinishedStream_Internal(const FString& ReplayName, const int32 UserIndex, FDeleteFinishedStreamResult& Result) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API void EnumerateStreams_Internal(const FNetworkReplayVersion& ReplayVersion, const int32 UserIndex, const FString& MetaString, const TArray< FString >& ExtraParms, FEnumerateStreamsResult& Result);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void KeepReplay_Internal(const FString& ReplayName, const bool bKeep, const int32 UserIndex, FKeepReplayResult& Result);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void RenameReplayFriendlyName_Internal(const FString& ReplayName, const FString& NewFriendlyName, const int32 UserIndex, FRenameReplayResult& Result) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API void EnumerateEvents_Internal(const FString& ReplayName, const FString& Group, const int32 UserIndex, FEnumerateEventsResult& Result) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API void RequestEventData_Internal(const FString& ReplayName, const FString& EventID, const int32 UserIndex, FRequestEventDataResult& Result);
+	SAVEGAMENETWORKREPLAYSTREAMING_API void RequestEventGroupData_Internal(const FString& ReplayName, const FString& Group, const int32 UserIndex, FRequestEventGroupDataResult& Result);
 
 	struct FSaveGameReplayVersionedInfo
 	{
@@ -105,25 +105,25 @@ protected:
 		int32 ReplayIndex;
 	};
 
-	bool StreamNameToSanitizedNames(const FString& StreamName, FSaveGameSanitizedNames& OutSanitizedNames) const;
-	void ReplayIndexToSanitizedNames(const int32 ReplayIndex, FSaveGameSanitizedNames& OutSanitizedNames) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API bool StreamNameToSanitizedNames(const FString& StreamName, FSaveGameSanitizedNames& OutSanitizedNames) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API void ReplayIndexToSanitizedNames(const int32 ReplayIndex, FSaveGameSanitizedNames& OutSanitizedNames) const;
 
-	bool ReadMetaDataFromLocalStream(FArchive& Archive, FSaveGameMetaData& OutMetaData) const;
-	bool ReadMetaDataFromSaveGame(class ISaveGameSystem& SaveGameSystem, const FSaveGameSanitizedNames& SanitizedNames, const int32 UserIndex, FSaveGameMetaData& OutMetaData, FStreamingResultBase& OutResult) const;
-	void PopulateStreamInfoFromMetaData(const FSaveGameMetaData& MetaData, FNetworkReplayStreamInfo& OutStreamInfo) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API bool ReadMetaDataFromLocalStream(FArchive& Archive, FSaveGameMetaData& OutMetaData) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API bool ReadMetaDataFromSaveGame(class ISaveGameSystem& SaveGameSystem, const FSaveGameSanitizedNames& SanitizedNames, const int32 UserIndex, FSaveGameMetaData& OutMetaData, FStreamingResultBase& OutResult) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API void PopulateStreamInfoFromMetaData(const FSaveGameMetaData& MetaData, FNetworkReplayStreamInfo& OutStreamInfo) const;
 
-	bool SerializeMetaData(FArchive& Archive, FSaveGameMetaData& MetaData) const;
-	bool SerializeVersionedMetaData(FArchive& Archive, FSaveGameMetaData& MetaData) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API bool SerializeMetaData(FArchive& Archive, FSaveGameMetaData& MetaData) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API bool SerializeVersionedMetaData(FArchive& Archive, FSaveGameMetaData& MetaData) const;
 
 	// Returns whether the input name corresponds to a save game.
-	bool IsSaveGameFileName(const FString& ReplayName) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API bool IsSaveGameFileName(const FString& ReplayName) const;
 
-	int32 GetReplayIndexFromName(const FString& ReplayName) const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API int32 GetReplayIndexFromName(const FString& ReplayName) const;
 
-	FString GetFullPlaybackName() const;
-	FString GetLocalPlaybackName() const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API FString GetFullPlaybackName() const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API FString GetLocalPlaybackName() const;
 
-	virtual TArrayView<const FString> GetAdditionalRelativeDemoPaths() const override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual TArrayView<const FString> GetAdditionalRelativeDemoPaths() const override;
 
 	struct FSaveGameOptionInfo
 	{
@@ -152,13 +152,13 @@ protected:
 	// Special replay name that will be used when copying over SaveGame replays for playback.
 	const FString PlaybackReplayName;
 
-	static const FString& GetDefaultDemoSavePath();
-	static const FString& GetTempDemoRelativeSavePath();
-	static const FString& GetDefaultPlaybackName();
+	static SAVEGAMENETWORKREPLAYSTREAMING_API const FString& GetDefaultDemoSavePath();
+	static SAVEGAMENETWORKREPLAYSTREAMING_API const FString& GetTempDemoRelativeSavePath();
+	static SAVEGAMENETWORKREPLAYSTREAMING_API const FString& GetDefaultPlaybackName();
 
 private:
 
-	TFunction<bool(const TCHAR*, EGameDelegates_SaveGame, FString&)> WrapGetSaveGameOption() const;
+	SAVEGAMENETWORKREPLAYSTREAMING_API TFunction<bool(const TCHAR*, EGameDelegates_SaveGame, FString&)> WrapGetSaveGameOption() const;
 
 	// Although this isn't used on the GameThread, it should only be created / destroyed
 	// from the same thread. Therefore, no need to make it thread safe (for now).
@@ -167,10 +167,10 @@ private:
 	friend class FSaveGameNetworkReplayStreamingFactory;
 };
 
-class SAVEGAMENETWORKREPLAYSTREAMING_API FSaveGameNetworkReplayStreamingFactory : public FLocalFileNetworkReplayStreamingFactory
+class FSaveGameNetworkReplayStreamingFactory : public FLocalFileNetworkReplayStreamingFactory
 {
 public:
-	virtual void StartupModule() override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual void StartupModule() override;
 
-	virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer() override;
+	SAVEGAMENETWORKREPLAYSTREAMING_API virtual TSharedPtr<INetworkReplayStreamer> CreateReplayStreamer() override;
 };

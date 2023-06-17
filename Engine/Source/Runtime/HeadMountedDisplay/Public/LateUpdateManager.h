@@ -10,27 +10,27 @@ class FPrimitiveSceneInfo;
 /**
 * Utility class for applying an offset to a hierarchy of components in the renderer thread.
 */
-class HEADMOUNTEDDISPLAY_API FLateUpdateManager
+class FLateUpdateManager
 {
 public:
-	FLateUpdateManager();
+	HEADMOUNTEDDISPLAY_API FLateUpdateManager();
 	virtual ~FLateUpdateManager() {}
 
 	/** Setup state for applying the render thread late update */
-	void Setup(const FTransform& ParentToWorld, USceneComponent* Component, bool bSkipLateUpdate);
+	HEADMOUNTEDDISPLAY_API void Setup(const FTransform& ParentToWorld, USceneComponent* Component, bool bSkipLateUpdate);
 
 	/** Returns true if the LateUpdateSetup data is stale. */
 	bool GetSkipLateUpdate_RenderThread() const { return UpdateStates[LateUpdateRenderReadIndex].bSkip; }
 
 	/** Apply the late update delta to the cached components */
-	void Apply_RenderThread(FSceneInterface* Scene, const FTransform& OldRelativeTransform, const FTransform& NewRelativeTransform);
+	HEADMOUNTEDDISPLAY_API void Apply_RenderThread(FSceneInterface* Scene, const FTransform& OldRelativeTransform, const FTransform& NewRelativeTransform);
 
 private:
 
 	/** A utility method that calls CacheSceneInfo on ParentComponent and all of its descendants */
-	void GatherLateUpdatePrimitives(USceneComponent* ParentComponent);
+	HEADMOUNTEDDISPLAY_API void GatherLateUpdatePrimitives(USceneComponent* ParentComponent);
 	/** Generates a LateUpdatePrimitiveInfo for the given component if it has a SceneProxy and appends it to the current LateUpdatePrimitives array */
-	void CacheSceneInfo(USceneComponent* Component);
+	HEADMOUNTEDDISPLAY_API void CacheSceneInfo(USceneComponent* Component);
 
 	struct FLateUpdateState
 	{

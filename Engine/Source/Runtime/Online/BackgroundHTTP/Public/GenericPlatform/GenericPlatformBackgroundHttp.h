@@ -15,24 +15,24 @@ class IBackgroundHttpManager;
  * Intended usage is to use FPlatformBackgroundHttp instead of FGenericPlatformHttp
  * On platforms without a specific implementation, you should still use FPlatformBackgroundHttp and it will call into these functions
  */
-class BACKGROUNDHTTP_API FGenericPlatformBackgroundHttp
+class FGenericPlatformBackgroundHttp
 {
 public:
 	/**
 	 * Platform initialization step
 	 */
-	static void Initialize();
+	static BACKGROUNDHTTP_API void Initialize();
 
 	/**
 	 * Platform shutdown step
 	 */
-	static void Shutdown();
+	static BACKGROUNDHTTP_API void Shutdown();
 
 	/**
 	 * Creates a platform-specific Background HTTP manager.
 	 * Un-implemented platforms should create a FGenericPlatformBackgroundHttpManager
 	 */
-	static FBackgroundHttpManagerPtr CreatePlatformBackgroundHttpManager();
+	static BACKGROUNDHTTP_API FBackgroundHttpManagerPtr CreatePlatformBackgroundHttpManager();
 
 	/**
 	 * Creates a new Background Http request instance for the current platform
@@ -40,7 +40,7 @@ public:
 	 *
 	 * @return request object
 	 */
-	static FBackgroundHttpRequestPtr ConstructBackgroundRequest();
+	static BACKGROUNDHTTP_API FBackgroundHttpRequestPtr ConstructBackgroundRequest();
 
 	/**
 	 * Creates a new Background Http Response instance for the current platform
@@ -48,5 +48,5 @@ public:
 	 *
 	 * @return response object
 	 */
-	static FBackgroundHttpResponsePtr ConstructBackgroundResponse(int32 ResponseCode, const FString& TempFilePath);
+	static BACKGROUNDHTTP_API FBackgroundHttpResponsePtr ConstructBackgroundResponse(int32 ResponseCode, const FString& TempFilePath);
 };

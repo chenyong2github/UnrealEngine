@@ -49,58 +49,58 @@ struct FInstallBundleCacheFlushResult
 	TMap<FName, TArray<EInstallBundleSourceType>> BundlesToEvict;
 };
 
-class INSTALLBUNDLEMANAGER_API FInstallBundleCache : public TSharedFromThis<FInstallBundleCache>
+class FInstallBundleCache : public TSharedFromThis<FInstallBundleCache>
 {
 public:
-	virtual ~FInstallBundleCache();
+	INSTALLBUNDLEMANAGER_API virtual ~FInstallBundleCache();
 
-	void Init(FInstallBundleCacheInitInfo InitInfo);
+	INSTALLBUNDLEMANAGER_API void Init(FInstallBundleCacheInitInfo InitInfo);
 
 	FName GetName() const { return CacheName; }
 
 	// Add a bundle to the cache.  
-	void AddOrUpdateBundle(EInstallBundleSourceType Source, const FInstallBundleCacheBundleInfo& AddInfo);
+	INSTALLBUNDLEMANAGER_API void AddOrUpdateBundle(EInstallBundleSourceType Source, const FInstallBundleCacheBundleInfo& AddInfo);
 
-	void RemoveBundle(EInstallBundleSourceType Source, FName BundleName);
+	INSTALLBUNDLEMANAGER_API void RemoveBundle(EInstallBundleSourceType Source, FName BundleName);
 
-	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(FName BundleName) const;
-	TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(EInstallBundleSourceType Source, FName BundleName) const;	
+	INSTALLBUNDLEMANAGER_API TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(FName BundleName) const;
+	INSTALLBUNDLEMANAGER_API TOptional<FInstallBundleCacheBundleInfo> GetBundleInfo(EInstallBundleSourceType Source, FName BundleName) const;	
 
 	// Return the total size of the cache
-	uint64 GetSize() const;
+	INSTALLBUNDLEMANAGER_API uint64 GetSize() const;
 	// Return the amount of space in use.  This could possbly exceed GetSize() if the cache size is changed or more 
 	// bundles are added the to cache.
-	uint64 GetUsedSize() const;
+	INSTALLBUNDLEMANAGER_API uint64 GetUsedSize() const;
 	// Return the amount of free space in the cache, clamped to [0, GetSize()]
-	uint64 GetFreeSpace() const;
+	INSTALLBUNDLEMANAGER_API uint64 GetFreeSpace() const;
 
 	// Called from bundle manager
-	FInstallBundleCacheReserveResult Reserve(FName BundleName);
+	INSTALLBUNDLEMANAGER_API FInstallBundleCacheReserveResult Reserve(FName BundleName);
 
 	// Called from bundle manager, returns all bundles that can be evicted
-	FInstallBundleCacheFlushResult Flush(EInstallBundleSourceType* Source = nullptr);
+	INSTALLBUNDLEMANAGER_API FInstallBundleCacheFlushResult Flush(EInstallBundleSourceType* Source = nullptr);
 
-	bool Contains(FName BundleName) const;
-	bool Contains(EInstallBundleSourceType Source, FName BundleName) const;
+	INSTALLBUNDLEMANAGER_API bool Contains(FName BundleName) const;
+	INSTALLBUNDLEMANAGER_API bool Contains(EInstallBundleSourceType Source, FName BundleName) const;
 
 	// Called from bundle manager to make the files for this bundle eligible for eviction
-	bool Release(FName BundleName);
+	INSTALLBUNDLEMANAGER_API bool Release(FName BundleName);
 
-	bool SetPendingEvict(FName BundleName);
+	INSTALLBUNDLEMANAGER_API bool SetPendingEvict(FName BundleName);
 
-	bool ClearPendingEvict(FName BundleName);
+	INSTALLBUNDLEMANAGER_API bool ClearPendingEvict(FName BundleName);
 
 	// Hint to the cache that this bundle is requested, and we should prefer to evict non-requested bundles if possible
-	void HintRequested(FName BundleName, bool bRequested);
+	INSTALLBUNDLEMANAGER_API void HintRequested(FName BundleName, bool bRequested);
 
-	FInstallBundleCacheStats GetStats(EInstallBundleCacheDumpToLog DumpToLog = EInstallBundleCacheDumpToLog::None, bool bVerbose = false) const;
+	INSTALLBUNDLEMANAGER_API FInstallBundleCacheStats GetStats(EInstallBundleCacheDumpToLog DumpToLog = EInstallBundleCacheDumpToLog::None, bool bVerbose = false) const;
 
 private:
-	uint64 GetFreeSpaceInternal(uint64 UsedSize) const;
+	INSTALLBUNDLEMANAGER_API uint64 GetFreeSpaceInternal(uint64 UsedSize) const;
 
-	void CheckInvariants() const;
+	INSTALLBUNDLEMANAGER_API void CheckInvariants() const;
 	
-	void UpdateCacheInfoFromSourceInfo(FName BundleName);
+	INSTALLBUNDLEMANAGER_API void UpdateCacheInfoFromSourceInfo(FName BundleName);
 
 private:
 	struct FPerSourceBundleCacheInfo

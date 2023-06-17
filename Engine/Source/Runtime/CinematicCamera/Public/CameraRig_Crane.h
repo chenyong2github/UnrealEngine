@@ -14,18 +14,18 @@ class UStaticMeshComponent;
 /** 
  * A simple rig for simulating crane-like camera movements.
  */
-UCLASS(Blueprintable)
-class CINEMATICCAMERA_API ACameraRig_Crane : public AActor
+UCLASS(Blueprintable, MinimalAPI)
+class ACameraRig_Crane : public AActor
 {
 	GENERATED_BODY()
 	
 public:
 
 	// ctor
-	ACameraRig_Crane(const FObjectInitializer& ObjectInitialier);
+	CINEMATICCAMERA_API ACameraRig_Crane(const FObjectInitializer& ObjectInitialier);
 
-	virtual void Tick(float DeltaTime) override;
-	virtual bool ShouldTickIfViewportsOnly() const override;
+	CINEMATICCAMERA_API virtual void Tick(float DeltaTime) override;
+	CINEMATICCAMERA_API virtual bool ShouldTickIfViewportsOnly() const override;
 
 	/** Controls the pitch of the crane arm. */
 	UPROPERTY(Interp, EditAnywhere, BlueprintReadWrite, Category = "Crane Controls", meta = (UIMin = "-360", UIMax = "360", Units = deg))
@@ -48,10 +48,10 @@ public:
 	bool bLockMountYaw;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
+	CINEMATICCAMERA_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CINEMATICCAMERA_API virtual void PostEditUndo() override;
 #endif
-	virtual class USceneComponent* GetDefaultAttachComponent() const override;
+	CINEMATICCAMERA_API virtual class USceneComponent* GetDefaultAttachComponent() const override;
 	
 private:
 #if WITH_EDITORONLY_DATA

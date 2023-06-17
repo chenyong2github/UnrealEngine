@@ -11,7 +11,7 @@
 
 class FTimedDataInputCollection;
 
-class TIMEMANAGEMENT_API ITimeManagementModule : public IModuleInterface
+class ITimeManagementModule : public IModuleInterface
 {
 public:
 	

@@ -26,16 +26,16 @@ struct FBTAuxiliaryMemory : public FBTInstancedNodeMemory
  *
  */
 
-UCLASS(Abstract)
-class AIMODULE_API UBTAuxiliaryNode : public UBTNode
+UCLASS(Abstract, MinimalAPI)
+class UBTAuxiliaryNode : public UBTNode
 {
 	GENERATED_UCLASS_BODY()
 
 	/** wrapper for node instancing: OnBecomeRelevant */
-	void WrappedOnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
+	AIMODULE_API void WrappedOnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
 
 	/** wrapper for node instancing: OnCeaseRelevant */
-	void WrappedOnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
+	AIMODULE_API void WrappedOnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
 
 	/** wrapper for node instancing: TickNode
 	  * @param OwnerComp	The behavior tree owner of this node
@@ -43,25 +43,25 @@ class AIMODULE_API UBTAuxiliaryNode : public UBTNode
 	  * @param DeltaSeconds		DeltaTime since last call
 	  * @param NextNeededDeltaTime		In out parameter, if this node needs a smaller DeltaTime it is the node's responsibility to change it
 	  * @returns	True if it actually done some processing or false if it was skipped because of not ticking or in between time interval */
-	bool WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds, float& NextNeededDeltaTime) const;
+	AIMODULE_API bool WrappedTickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds, float& NextNeededDeltaTime) const;
 
-	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
-	virtual uint16 GetSpecialMemorySize() const override;
+	AIMODULE_API virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
+	AIMODULE_API virtual uint16 GetSpecialMemorySize() const override;
 
 	/** fill in data about tree structure */
-	void InitializeParentLink(uint8 InChildIndex);
+	AIMODULE_API void InitializeParentLink(uint8 InChildIndex);
 
 	/** @return parent task node */
-	const UBTNode* GetMyNode() const;
+	AIMODULE_API const UBTNode* GetMyNode() const;
 
 	/** @return index of child in parent's array or MAX_uint8 */
-	uint8 GetChildIndex() const;
+	AIMODULE_API uint8 GetChildIndex() const;
 
 	/** Get The next needed deltatime for this node
 	  * @param OwnerComp	The behavior tree owner of this node
 	  * @param NodeMemory	The instance memory of the current node
 	  * @return The next needed DeltaTime */
-	float GetNextNeededDeltaTime(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
+	AIMODULE_API float GetNextNeededDeltaTime(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
 
 protected:
 
@@ -84,25 +84,25 @@ protected:
 	 * this function should be considered as const (don't modify state of object) if node is not instanced!  
 	 * bNotifyBecomeRelevant must be set to true for this function to be called 
 	 * Calling INIT_AUXILIARY_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
-	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
+	AIMODULE_API virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 
 	/** called when auxiliary node becomes inactive
 	 * this function should be considered as const (don't modify state of object) if node is not instanced!  
 	 * bNotifyCeaseRelevant must be set to true for this function to be called 
 	 * Calling INIT_AUXILIARY_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
-	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
+	AIMODULE_API virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory);
 
 	/** tick function
 	 * this function should be considered as const (don't modify state of object) if node is not instanced!   
 	 * bNotifyTick must be set to true for this function to be called 
 	 * Calling INIT_AUXILIARY_NODE_NOTIFY_FLAGS in the constructor of the node will set this flag automatically */
-	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds);
+	AIMODULE_API virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds);
 
 	/** sets next tick time */
-	void SetNextTickTime(uint8* NodeMemory, float RemainingTime) const;
+	AIMODULE_API void SetNextTickTime(uint8* NodeMemory, float RemainingTime) const;
 
 	/** gets remaining time for next tick */
-	float GetNextTickRemainingTime(uint8* NodeMemory) const;
+	AIMODULE_API float GetNextTickRemainingTime(uint8* NodeMemory) const;
 	
 	template<typename TickNode,	typename OnBecomeRelevant, typename OnCeaseRelevant>
 	void InitNotifyFlags(TickNode, OnBecomeRelevant, OnCeaseRelevant)

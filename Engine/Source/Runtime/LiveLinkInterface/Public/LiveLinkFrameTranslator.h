@@ -22,10 +22,10 @@ class ULiveLinkRole;
  * Basic object to translate data from one role to another
  * @note It can be called from any thread
  */
-class LIVELINKINTERFACE_API ILiveLinkFrameTranslatorWorker
+class ILiveLinkFrameTranslatorWorker
 {
 public:
-	bool CanTranslate(TSubclassOf<ULiveLinkRole> ToRole) const;
+	LIVELINKINTERFACE_API bool CanTranslate(TSubclassOf<ULiveLinkRole> ToRole) const;
 	virtual TSubclassOf<ULiveLinkRole> GetFromRole() const = 0;
 	virtual TSubclassOf<ULiveLinkRole> GetToRole() const = 0;
 	virtual bool Translate(const FLiveLinkStaticDataStruct& InStaticData, const FLiveLinkFrameDataStruct& InFrameData, FLiveLinkSubjectFrameData& OutTranslatedFrame) const = 0;
@@ -36,17 +36,17 @@ public:
  * Basic object to translate data from one role to another
  * @note It can only be used on the Game Thread. See ILiveLinkFrameTranslatorWorker for the any thread implementation.
  */
-UCLASS(Abstract, editinlinenew, ClassGroup = (LiveLink))
-class LIVELINKINTERFACE_API ULiveLinkFrameTranslator : public UObject
+UCLASS(Abstract, editinlinenew, ClassGroup = (LiveLink), MinimalAPI)
+class ULiveLinkFrameTranslator : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	using FWorkerSharedPtr = TSharedPtr<ILiveLinkFrameTranslatorWorker, ESPMode::ThreadSafe>;
 
-	bool CanTranslate(TSubclassOf<ULiveLinkRole> ToRole) const;
+	LIVELINKINTERFACE_API bool CanTranslate(TSubclassOf<ULiveLinkRole> ToRole) const;
 
-	virtual TSubclassOf<ULiveLinkRole> GetFromRole() const PURE_VIRTUAL(ULiveLinkFrameTranslator::GetFromRole, return TSubclassOf<ULiveLinkRole>(););
-	virtual TSubclassOf<ULiveLinkRole> GetToRole() const PURE_VIRTUAL(ULiveLinkFrameTranslator::GetToRole, return TSubclassOf<ULiveLinkRole>(););
-	virtual FWorkerSharedPtr FetchWorker() PURE_VIRTUAL(ULiveLinkFrameTranslator::FetchWorker, return FWorkerSharedPtr(););
+	LIVELINKINTERFACE_API virtual TSubclassOf<ULiveLinkRole> GetFromRole() const PURE_VIRTUAL(ULiveLinkFrameTranslator::GetFromRole, return TSubclassOf<ULiveLinkRole>(););
+	LIVELINKINTERFACE_API virtual TSubclassOf<ULiveLinkRole> GetToRole() const PURE_VIRTUAL(ULiveLinkFrameTranslator::GetToRole, return TSubclassOf<ULiveLinkRole>(););
+	LIVELINKINTERFACE_API virtual FWorkerSharedPtr FetchWorker() PURE_VIRTUAL(ULiveLinkFrameTranslator::FetchWorker, return FWorkerSharedPtr(););
 };

@@ -10,8 +10,8 @@
 #include "DefaultLevelSequenceInstanceData.generated.h"
 
 /** Default instance data class that level sequences understand. Implements IMovieSceneTransformOrigin. */
-UCLASS(BlueprintType)
-class LEVELSEQUENCE_API UDefaultLevelSequenceInstanceData
+UCLASS(BlueprintType, MinimalAPI)
+class UDefaultLevelSequenceInstanceData
 	: public UObject
 	, public IMovieSceneTransformOrigin
 {

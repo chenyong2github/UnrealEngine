@@ -18,7 +18,7 @@ class UMediaSourceRendererInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class MEDIAASSETS_API IMediaSourceRendererInterface
+class IMediaSourceRendererInterface
 {
 	GENERATED_BODY()
 

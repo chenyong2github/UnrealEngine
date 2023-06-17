@@ -13,15 +13,15 @@ class UObject;
 /**
  * System that is responsible for evaluating byte channels.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UByteChannelEvaluatorSystem : public UMovieSceneEntitySystem
+UCLASS(MinimalAPI)
+class UByteChannelEvaluatorSystem : public UMovieSceneEntitySystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UByteChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UByteChannelEvaluatorSystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };

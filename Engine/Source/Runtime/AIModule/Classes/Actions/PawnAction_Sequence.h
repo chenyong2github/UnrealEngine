@@ -7,8 +7,8 @@
 #include "Actions/PawnAction.h"
 #include "PawnAction_Sequence.generated.h"
 
-UCLASS()
-class AIMODULE_API UDEPRECATED_PawnAction_Sequence : public UDEPRECATED_PawnAction
+UCLASS(MinimalAPI)
+class UDEPRECATED_PawnAction_Sequence : public UDEPRECATED_PawnAction
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,12 +25,12 @@ class AIMODULE_API UDEPRECATED_PawnAction_Sequence : public UDEPRECATED_PawnActi
 
 	EPawnSubActionTriggeringPolicy::Type SubActionTriggeringPolicy;
 
-	static UDEPRECATED_PawnAction_Sequence* CreateAction(UWorld& World, TArray<UDEPRECATED_PawnAction*>& ActionSequence, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy = EPawnSubActionTriggeringPolicy::CopyBeforeTriggering);
+	static AIMODULE_API UDEPRECATED_PawnAction_Sequence* CreateAction(UWorld& World, TArray<UDEPRECATED_PawnAction*>& ActionSequence, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy = EPawnSubActionTriggeringPolicy::CopyBeforeTriggering);
 
 protected:
-	virtual bool Start() override;
-	virtual bool Resume() override;
-	virtual void OnChildFinished(UDEPRECATED_PawnAction& Action, EPawnActionResult::Type WithResult) override;
+	AIMODULE_API virtual bool Start() override;
+	AIMODULE_API virtual bool Resume() override;
+	AIMODULE_API virtual void OnChildFinished(UDEPRECATED_PawnAction& Action, EPawnActionResult::Type WithResult) override;
 
-	bool PushNextActionCopy();
+	AIMODULE_API bool PushNextActionCopy();
 };

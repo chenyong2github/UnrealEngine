@@ -35,21 +35,21 @@ struct FActiveGizmo
  * Gizmos can then be activated via the string identifier.
  * 
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmoManager : public UObject, public IToolContextTransactionProvider
+UCLASS(Transient, MinimalAPI)
+class UInteractiveGizmoManager : public UObject, public IToolContextTransactionProvider
 {
 	GENERATED_BODY()
 
 protected:
 	friend class UInteractiveToolsContext;		// to call Initialize/Shutdown
 
-	UInteractiveGizmoManager();
+	INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmoManager();
 
 	/** Initialize the GizmoManager with the necessary Context-level state. UInteractiveToolsContext calls this, you should not. */
-	virtual void Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI, UInputRouter* InputRouter);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI, UInputRouter* InputRouter);
 
 	/** Shutdown the GizmoManager. Called by UInteractiveToolsContext. */
-	virtual void Shutdown();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown();
 
 public:
 
@@ -62,14 +62,14 @@ public:
 	 * @param BuilderIdentifier string used to identify this Builder
 	 * @param Builder new GizmoBuilder instance
 	 */
-	virtual void RegisterGizmoType(const FString& BuilderIdentifier, UInteractiveGizmoBuilder* Builder);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void RegisterGizmoType(const FString& BuilderIdentifier, UInteractiveGizmoBuilder* Builder);
 
 	/**
 	 * Remove a GizmoBuilder from the set of known GizmoBuilders
 	 * @param BuilderIdentifier identification string that was passed to RegisterGizmoType()
 	 * @return true if Builder was found and deregistered
 	 */
-	virtual bool DeregisterGizmoType(const FString& BuilderIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DeregisterGizmoType(const FString& BuilderIdentifier);
 
 
 
@@ -80,7 +80,7 @@ public:
 	 * @param Owner void pointer to whatever "owns" this Gizmo. Allows Gizmo to later be deleted using DestroyAllGizmosByOwner()
 	 * @return new Gizmo instance that has been created and initialized
 	 */	
-	virtual UInteractiveGizmo* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier = FString(), void* Owner = nullptr);
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* CreateGizmo(const FString& BuilderIdentifier, const FString& InstanceIdentifier = FString(), void* Owner = nullptr);
 
 
 	/**
@@ -103,19 +103,19 @@ public:
 	 * @param Gizmo the Gizmo to shutdown and remove
 	 * @return true if the Gizmo was found and removed
 	 */
-	virtual bool DestroyGizmo(UInteractiveGizmo* Gizmo);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DestroyGizmo(UInteractiveGizmo* Gizmo);
 
 	/**
 	 * Destroy all Gizmos that were created by the identified GizmoBuilder
 	 * @param BuilderIdentifier the Builder string registered with RegisterGizmoType
 	 */
-	virtual void DestroyAllGizmosOfType(const FString& BuilderIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DestroyAllGizmosOfType(const FString& BuilderIdentifier);
 
 	/**
 	 * Destroy all Gizmos that are owned by the given pointer
 	 * @param Owner pointer that was passed to CreateGizmo
 	 */
-	virtual void DestroyAllGizmosByOwner(void* Owner);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DestroyAllGizmosByOwner(void* Owner);
 
 
 	/**
@@ -123,14 +123,14 @@ public:
 	 * @param BuilderIdentifier the Builder string registered with RegisterGizmoType
 	 * @return list of found Gizmos
 	 */
-	virtual TArray<UInteractiveGizmo*> FindAllGizmosOfType(const FString& BuilderIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual TArray<UInteractiveGizmo*> FindAllGizmosOfType(const FString& BuilderIdentifier);
 
 	/**
 	 * Find the Gizmo that was created with the given instance identifier
 	 * @param Identifier the InstanceIdentifier that was passed to CreateGizmo()
 	 * @return the found Gizmo, or null
 	 */
-	virtual UInteractiveGizmo* FindGizmoByInstanceIdentifier(const FString& Identifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* FindGizmoByInstanceIdentifier(const FString& Identifier);
 
 
 
@@ -140,19 +140,19 @@ public:
 	//
 	
 	/** Post a message via the Transactions API */
-	virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DisplayMessage(const FText& Message, EToolMessageLevel Level);
 
 	/** Request an Invalidation via the Transactions API (ie to cause a repaint, etc) */
-	virtual void PostInvalidation();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void PostInvalidation();
 
 	/**
 	 * Request that the Context open a Transaction, whatever that means to the current Context
 	 * @param Description text description of this transaction (this is the string that appears on undo/redo in the UE Editor)
 	 */
-	virtual void BeginUndoTransaction(const FText& Description);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginUndoTransaction(const FText& Description);
 
 	/** Request that the Context close and commit the open Transaction */
-	virtual void EndUndoTransaction();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndUndoTransaction();
 
 	/**
 	 * Forward an FChange object to the Context
@@ -160,7 +160,7 @@ public:
 	 * @param Change the change object that the Context should insert into the transaction history
 	 * @param Description text description of this change (this is the string that appears on undo/redo in the UE Editor)
 	 */
-	virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description );
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EmitObjectChange(UObject* TargetObject, TUniquePtr<FToolCommandChange> Change, const FText& Description );
 
 
 	//
@@ -168,13 +168,13 @@ public:
 	//
 
 	/** Tick any active Gizmos. Called by UInteractiveToolsContext */
-	virtual void Tick(float DeltaTime);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Tick(float DeltaTime);
 
 	/** Render any active Gizmos. Called by UInteractiveToolsContext. */
-	virtual void Render(IToolsContextRenderAPI* RenderAPI);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
 	/** Let active Gizmos do screen space drawing.  Called by UInteractiveToolsContext */
-	virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
 
 	//
 	// access to APIs, etc
@@ -186,7 +186,7 @@ public:
 	/**
 	 * @return the context object store from the owning tools context.
 	 */
-	UContextObjectStore* GetContextObjectStore() const;
+	INTERACTIVETOOLSFRAMEWORK_API UContextObjectStore* GetContextObjectStore() const;
 
 
 
@@ -198,7 +198,7 @@ public:
 	/**
 	 * Register default gizmo types
 	 */
-	virtual void RegisterDefaultGizmos();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void RegisterDefaultGizmos();
 
 	/**
 	 * Activate a new instance of the default 3-axis transformation Gizmo. RegisterDefaultGizmos() must have been called first.
@@ -206,7 +206,7 @@ public:
 	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UCombinedTransformGizmo* Create3AxisTransformGizmo(void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API virtual UCombinedTransformGizmo* Create3AxisTransformGizmo(void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 	/**
 	 * Activate a new customized instance of the default 3-axis transformation Gizmo, with only certain elements included. RegisterDefaultGizmos() must have been called first.
@@ -215,19 +215,19 @@ public:
 	 * @param InstanceIdentifier optional client-defined *unique* string that can be used to locate this instance
 	 * @return new Gizmo instance that has been created and initialized
 	 */
-	virtual UCombinedTransformGizmo* CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API virtual UCombinedTransformGizmo* CreateCustomTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
-	virtual UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
+	INTERACTIVETOOLSFRAMEWORK_API virtual UCombinedTransformGizmo* CreateCustomRepositionableTransformGizmo(ETransformGizmoSubElements Elements, void* Owner = nullptr, const FString& InstanceIdentifier = FString());
 
 public:
 	// builder identifiers for default gizmo types. Perhaps should have an API for this...
-	static FString DefaultAxisPositionBuilderIdentifier;
-	static FString DefaultPlanePositionBuilderIdentifier;
-	static FString DefaultAxisAngleBuilderIdentifier;
-	static FString DefaultThreeAxisTransformBuilderIdentifier;
-	static const FString CustomThreeAxisTransformBuilderIdentifier;
-	static const FString CustomRepositionableThreeAxisTransformBuilderIdentifier;
-	static FString DefaultScalableSphereBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API FString DefaultAxisPositionBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API FString DefaultPlanePositionBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API FString DefaultAxisAngleBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API FString DefaultThreeAxisTransformBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API const FString CustomThreeAxisTransformBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API const FString CustomRepositionableThreeAxisTransformBuilderIdentifier;
+	static INTERACTIVETOOLSFRAMEWORK_API FString DefaultScalableSphereBuilderIdentifier;
 
 protected:
 	/** set of Currently-active Gizmos */

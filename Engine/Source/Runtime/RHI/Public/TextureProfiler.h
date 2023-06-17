@@ -62,7 +62,7 @@ private:
 
 		RHI_API FTextureDetails& operator+=(const FTextureDetails& Other);
 		RHI_API FTextureDetails& operator-=(const FTextureDetails& Other);
-		RHI_API FTextureDetails& operator=(const FTextureDetails& Other) = default;
+		FTextureDetails& operator=(const FTextureDetails& Other) = default;
 
 		size_t Size = 0;
 		size_t PeakSize = 0;

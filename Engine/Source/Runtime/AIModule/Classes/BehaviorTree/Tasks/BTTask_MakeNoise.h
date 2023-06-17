@@ -11,8 +11,8 @@
  * Make Noise task node.
  * A task node that calls MakeNoise() on this Pawn when executed.
  */
-UCLASS()
-class AIMODULE_API UBTTask_MakeNoise : public UBTTaskNode
+UCLASS(MinimalAPI)
+class UBTTask_MakeNoise : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 
@@ -20,9 +20,9 @@ class AIMODULE_API UBTTask_MakeNoise : public UBTTaskNode
 	UPROPERTY(Category=Node, EditAnywhere, meta=(ClampMin = "0", ClampMax = "1", UIMin = "0", UIMax = "1"))
 	float Loudnes;
 
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 };

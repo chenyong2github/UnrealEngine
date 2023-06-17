@@ -26,7 +26,7 @@ class UMaterialInterface;
 class UPhysicalMaterial;
 
 USTRUCT(BlueprintType)
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
+struct FGeometryCollectionSource
 {
 	GENERATED_BODY()
 
@@ -66,7 +66,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 };
 
 USTRUCT(BlueprintType)
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionAutoInstanceMesh
+struct FGeometryCollectionAutoInstanceMesh
 {
 	GENERATED_BODY()
 
@@ -87,13 +87,13 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionAutoInstanceMesh
 	UPROPERTY(VisibleAnywhere, Category = "AutoInstance")
 	TArray<float> CustomData;
 
-	int32 GetNumDataPerInstance() const;
+	GEOMETRYCOLLECTIONENGINE_API int32 GetNumDataPerInstance() const;
 
-	bool operator ==(const FGeometryCollectionAutoInstanceMesh& Other) const;
+	GEOMETRYCOLLECTIONENGINE_API bool operator ==(const FGeometryCollectionAutoInstanceMesh& Other) const;
 };
 
 USTRUCT(BlueprintType)
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEmbeddedExemplar
+struct FGeometryCollectionEmbeddedExemplar
 {
 	GENERATED_BODY()
 
@@ -125,11 +125,11 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEmbeddedExemplar
 };
 
 USTRUCT()
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionLevelSetData
+struct FGeometryCollectionLevelSetData
 {
 	GENERATED_BODY()
 
-	FGeometryCollectionLevelSetData();
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionLevelSetData();
 
 	/*
 	*  Resolution on the smallest axes for the level set. (def: 5)
@@ -158,11 +158,11 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionLevelSetData
 
 
 USTRUCT()
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionParticleData
+struct FGeometryCollectionCollisionParticleData
 {
 	GENERATED_BODY()
 
-	FGeometryCollectionCollisionParticleData();
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionParticleData();
 
 	/**
 	 * Number of particles on the triangulated surface to use for collisions.
@@ -180,11 +180,11 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionParticleData
 
 
 USTRUCT()
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionTypeData
+struct FGeometryCollectionCollisionTypeData
 {
 	GENERATED_BODY()
 
-	FGeometryCollectionCollisionTypeData();
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionTypeData();
 
 	/*
 	*  CollisionType defines how to initialize the rigid collision structures.
@@ -228,11 +228,11 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionCollisionTypeData
 
 
 USTRUCT()
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
+struct FGeometryCollectionSizeSpecificData
 {
 	GENERATED_BODY()
 
-	FGeometryCollectionSizeSpecificData();
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData();
 
 	/** The max size these settings apply to*/
 	UPROPERTY(EditAnywhere, Category = "Collisions")
@@ -306,9 +306,9 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 	UPROPERTY(EditAnywhere, Category = "Collisions")
 	int32 DamageThreshold;
 
-	bool Serialize(FArchive& Ar);
+	GEOMETRYCOLLECTIONENGINE_API bool Serialize(FArchive& Ar);
 #if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
+	GEOMETRYCOLLECTIONENGINE_API void PostSerialize(const FArchive& Ar);
 #endif
 };
 
@@ -328,7 +328,7 @@ struct TStructOpsTypeTraits<FGeometryCollectionSizeSpecificData> : public TStruc
 
 
 USTRUCT(BlueprintType)
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionProxyMeshData
+struct FGeometryCollectionProxyMeshData
 {
 	GENERATED_BODY()
 
@@ -337,7 +337,7 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionProxyMeshData
 };
 
 USTRUCT()
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionRenderResourceSizeInfo
+struct FGeometryCollectionRenderResourceSizeInfo
 {
 	GENERATED_BODY();
 
@@ -356,31 +356,31 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionRenderResourceSizeInfo
 * UObject wrapper for the FGeometryCollection
 *
 */
-UCLASS(BlueprintType, customconstructor)
-class GEOMETRYCOLLECTIONENGINE_API UGeometryCollection : public UObject, public IInterface_AssetUserData
+UCLASS(BlueprintType, customconstructor, MinimalAPI)
+class UGeometryCollection : public UObject, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	UGeometryCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	GEOMETRYCOLLECTIONENGINE_API UGeometryCollection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** UObject Interface */
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #endif
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
-	virtual void BeginDestroy() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void PostInitProperties() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void PostLoad() override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void BeginDestroy() override;
 	/** End UObject Interface */
 
-	void Serialize(FArchive& Ar);
+	GEOMETRYCOLLECTIONENGINE_API void Serialize(FArchive& Ar);
 #if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
+	GEOMETRYCOLLECTIONENGINE_API void PostSerialize(const FArchive& Ar);
 #endif
 
 #if WITH_EDITOR
-	void EnsureDataIsCooked(bool bInitResources, bool bIsTransacting, bool bIsPersistant, bool bAllowCopyFromDDC = true);
+	GEOMETRYCOLLECTIONENGINE_API void EnsureDataIsCooked(bool bInitResources, bool bIsTransacting, bool bIsPersistant, bool bAllowCopyFromDDC = true);
 #endif
 
 	/** Accessors for internal geometry collection */
@@ -389,69 +389,69 @@ public:
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GetGeometryCollection() const { return GeometryCollection; }
 
 	/** Return collection to initial (ie. empty) state. */
-	void Reset();
+	GEOMETRYCOLLECTIONENGINE_API void Reset();
 
 	/** Reset the collection from another set of attributes and materials. */
-	void ResetFrom(const FManagedArrayCollection& InCollection, const TArray<UMaterial*>& InMaterials, bool bHasInternalMaterials);
+	GEOMETRYCOLLECTIONENGINE_API void ResetFrom(const FManagedArrayCollection& InCollection, const TArray<UMaterial*>& InMaterials, bool bHasInternalMaterials);
 	
-	int32 AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials = false, const FTransform& TransformRoot = FTransform::Identity);
-	int32 NumElements(const FName& Group) const;
-	void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
+	GEOMETRYCOLLECTIONENGINE_API int32 AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials = false, const FTransform& TransformRoot = FTransform::Identity);
+	GEOMETRYCOLLECTIONENGINE_API int32 NumElements(const FName& Group) const;
+	GEOMETRYCOLLECTIONENGINE_API void RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList);
 
 	/** Has data for static mesh rendering. */
-	bool HasMeshData() const;
+	GEOMETRYCOLLECTIONENGINE_API bool HasMeshData() const;
 	/** Has data for nanite rendering. */
-	bool HasNaniteData() const;
+	GEOMETRYCOLLECTIONENGINE_API bool HasNaniteData() const;
 
-	uint32 GetNaniteResourceID() const;
-	uint32 GetNaniteHierarchyOffset() const;
-	uint32 GetNaniteHierarchyOffset(int32 GeometryIndex, bool bFlattened = false) const;
+	GEOMETRYCOLLECTIONENGINE_API uint32 GetNaniteResourceID() const;
+	GEOMETRYCOLLECTIONENGINE_API uint32 GetNaniteHierarchyOffset() const;
+	GEOMETRYCOLLECTIONENGINE_API uint32 GetNaniteHierarchyOffset(int32 GeometryIndex, bool bFlattened = false) const;
 
 	/** ReindexMaterialSections */
-	void ReindexMaterialSections();
+	GEOMETRYCOLLECTIONENGINE_API void ReindexMaterialSections();
 
 	/** appends the standard materials to this UObject */
-	void InitializeMaterials(bool bHasLegacyInternalMaterialsPairs = false);
+	GEOMETRYCOLLECTIONENGINE_API void InitializeMaterials(bool bHasLegacyInternalMaterialsPairs = false);
 
 	/** Add a material to the materials array and update the selected bone material to be at the end of the array */
-	int32 AddNewMaterialSlot(bool bCopyLastMaterial = true);
+	GEOMETRYCOLLECTIONENGINE_API int32 AddNewMaterialSlot(bool bCopyLastMaterial = true);
 
 	/** Remove a material from the materials array, keeping the selected bone material at the end of the array. Returns false if materials could not be removed (e.g. because there were too few). */
-	bool RemoveLastMaterialSlot();
+	GEOMETRYCOLLECTIONENGINE_API bool RemoveLastMaterialSlot();
 
 
 	/** Returns true if there is anything to render */
-	bool HasVisibleGeometry() const;
+	GEOMETRYCOLLECTIONENGINE_API bool HasVisibleGeometry() const;
 
 	/** Invalidates this collection signaling a structural change and renders any previously recorded caches unable to play with this collection */
-	void InvalidateCollection();
+	GEOMETRYCOLLECTIONENGINE_API void InvalidateCollection();
 
 	/** Check to see if Simulation Data requires regeneration */
-	bool IsSimulationDataDirty() const;
+	GEOMETRYCOLLECTIONENGINE_API bool IsSimulationDataDirty() const;
 
 	/** Attach a Static Mesh exemplar for embedded geometry, if that mesh has not already been attached. Return the exemplar index. */
-	int32 AttachEmbeddedGeometryExemplar(const UStaticMesh* Exemplar);
+	GEOMETRYCOLLECTIONENGINE_API int32 AttachEmbeddedGeometryExemplar(const UStaticMesh* Exemplar);
 
 	/** Remove embedded geometry exemplars with indices matching the sorted removal list. */
-	void RemoveExemplars(const TArray<int32>& SortedRemovalIndices);
+	GEOMETRYCOLLECTIONENGINE_API void RemoveExemplars(const TArray<int32>& SortedRemovalIndices);
 
 	/** find or add a auto instance mesh and return its index */
-	const FGeometryCollectionAutoInstanceMesh& GetAutoInstanceMesh(int32 AutoInstanceMeshIndex) const;
+	GEOMETRYCOLLECTIONENGINE_API const FGeometryCollectionAutoInstanceMesh& GetAutoInstanceMesh(int32 AutoInstanceMeshIndex) const;
 
 	/**  find or add a auto instance mesh from another one and return its index */
-	int32 FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh);
+	GEOMETRYCOLLECTIONENGINE_API int32 FindOrAddAutoInstanceMesh(const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh);
 
 	/** find or add a auto instance mesh from a mesh and alist of material and return its index */
-	int32 FindOrAddAutoInstanceMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials);
+	GEOMETRYCOLLECTIONENGINE_API int32 FindOrAddAutoInstanceMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials);
 
 	/** Produce a deep copy of GeometryCollection member, stripped of data unecessary for gameplay. */
-	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GenerateMinimalGeometryCollection() const;
+	GEOMETRYCOLLECTIONENGINE_API TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GenerateMinimalGeometryCollection() const;
 
 	/** copy a collection and remove geometry from it */
-	static TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> CopyCollectionAndRemoveGeometry(const TSharedPtr<const FGeometryCollection, ESPMode::ThreadSafe>& CollectionToCopy);
+	static GEOMETRYCOLLECTIONENGINE_API TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> CopyCollectionAndRemoveGeometry(const TSharedPtr<const FGeometryCollection, ESPMode::ThreadSafe>& CollectionToCopy);
 
 	/** get the size of the render data resources associated with this collection */
-	FGeometryCollectionRenderResourceSizeInfo GetRenderResourceSizeInfo() const;
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionRenderResourceSizeInfo GetRenderResourceSizeInfo() const;
 
 #if WITH_EDITOR
 	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
@@ -462,37 +462,37 @@ public:
 	* Note : this does not check if the simulation data is drty or not and will cause a load from the DDC
 	* use CreateSimulationDataIfNeeded() for avoiding extra runtime cost 
 	*/
-	void CreateSimulationData();
+	GEOMETRYCOLLECTIONENGINE_API void CreateSimulationData();
 
 	/** Create the simulation data ( calls CreateSimulationData) only if the simulation data is dirty */
-	void CreateSimulationDataIfNeeded();
+	GEOMETRYCOLLECTIONENGINE_API void CreateSimulationDataIfNeeded();
 
 	/** Rebuild the render data. */
-	void RebuildRenderData();
+	GEOMETRYCOLLECTIONENGINE_API void RebuildRenderData();
 
 	/** Propogate render state dirty to components */
-	void PropagateMarkDirtyToComponents() const;
+	GEOMETRYCOLLECTIONENGINE_API void PropagateMarkDirtyToComponents() const;
 
 	/** Propogate the fact that transform have been updated to all components */
-	void PropagateTransformUpdateToComponents() const;
+	GEOMETRYCOLLECTIONENGINE_API void PropagateTransformUpdateToComponents() const;
 #endif
 
-	void InitResources();
-	void ReleaseResources();
+	GEOMETRYCOLLECTIONENGINE_API void InitResources();
+	GEOMETRYCOLLECTIONENGINE_API void ReleaseResources();
 
 	/** Fills params struct with parameters used for precomputing content. */
-	void GetSharedSimulationParams(FSharedSimulationParameters& OutParams) const;
+	GEOMETRYCOLLECTIONENGINE_API void GetSharedSimulationParams(FSharedSimulationParameters& OutParams) const;
 
 	/**
 	* Get Mass or density as set by the asset 
 	* Mass is return in Kg and Density is returned in Kg/Cm3
 	* @param bOutIsDensity  is set to true by the function if the returned value is to be treated as a density
 	*/
-	float GetMassOrDensity(bool& bOutIsDensity) const;
+	GEOMETRYCOLLECTIONENGINE_API float GetMassOrDensity(bool& bOutIsDensity) const;
 
 	/** Accessors for the two guids used to identify this collection */
-	FGuid GetIdGuid() const;
-	FGuid GetStateGuid() const;
+	GEOMETRYCOLLECTIONENGINE_API FGuid GetIdGuid() const;
+	GEOMETRYCOLLECTIONENGINE_API FGuid GetStateGuid() const;
 
 	/** Get the cached root index */
 	int32 GetRootIndex() const { return RootIndex; }
@@ -582,7 +582,7 @@ public:
 	TArray<FGeometryCollectionAutoInstanceMesh> AutoInstanceMeshes;
 
 	UFUNCTION(BlueprintCallable, Category = "Nanite")
-	void SetEnableNanite(bool bValue);
+	GEOMETRYCOLLECTIONENGINE_API void SetEnableNanite(bool bValue);
 
 	/**
 	 * Enable support for Nanite.
@@ -591,7 +591,7 @@ public:
 	bool EnableNanite;
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetConvertVertexColorsToSRGB(bool bValue);
+	GEOMETRYCOLLECTIONENGINE_API void SetConvertVertexColorsToSRGB(bool bValue);
 
 	/**
 	 * Convert vertex colors to sRGB for rendering. Exposed to avoid changing vertex color rendering for legacy assets; should typically be true for new geometry collections.
@@ -727,10 +727,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Collisions")
 	TArray<FGeometryCollectionSizeSpecificData> SizeSpecificData;
 
-	int GetDefaultSizeSpecificDataIndex() const;
-	FGeometryCollectionSizeSpecificData& GetDefaultSizeSpecificData();
-	const FGeometryCollectionSizeSpecificData& GetDefaultSizeSpecificData() const;
-	static FGeometryCollectionSizeSpecificData GeometryCollectionSizeSpecificDataDefaults();
+	GEOMETRYCOLLECTIONENGINE_API int GetDefaultSizeSpecificDataIndex() const;
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData& GetDefaultSizeSpecificData();
+	GEOMETRYCOLLECTIONENGINE_API const FGeometryCollectionSizeSpecificData& GetDefaultSizeSpecificData() const;
+	static GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData GeometryCollectionSizeSpecificDataDefaults();
 
 	/**
 	* Enable remove pieces on fracture
@@ -752,7 +752,7 @@ public:
 	}
 
 	/** Returns the asset path for the automatically populated selected material. */
-	static const TCHAR* GetSelectedMaterialPath();
+	static GEOMETRYCOLLECTIONENGINE_API const TCHAR* GetSelectedMaterialPath();
 
 #if WITH_EDITORONLY_DATA
 	/** Importing data and options used for this geometry collection */
@@ -767,20 +767,20 @@ public:
 	/*
 	* Update the convex geometry on the collection.
 	*/
-	void UpdateConvexGeometry();
-	void UpdateConvexGeometryIfMissing();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateConvexGeometry();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateConvexGeometryIfMissing();
 	
 	/*
 	 * Update properties that depend on the geometry and clustering: Proximity, Convex Hulls, Volume and Size data.
 	 */
-	void UpdateGeometryDependentProperties();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateGeometryDependentProperties();
 
 
 	//~ Begin IInterface_AssetUserData Interface
-	virtual void AddAssetUserData(UAssetUserData* InUserData) override;
-	virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
-	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void AddAssetUserData(UAssetUserData* InUserData) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
 	//
@@ -797,21 +797,21 @@ public:
 
 private:
 #if WITH_EDITOR
-	void CreateSimulationDataImp(bool bCopyFromDDC);
-	void CreateRenderDataImp(bool bCopyFromDDC);
+	GEOMETRYCOLLECTIONENGINE_API void CreateSimulationDataImp(bool bCopyFromDDC);
+	GEOMETRYCOLLECTIONENGINE_API void CreateRenderDataImp(bool bCopyFromDDC);
 #endif
 
 	/*
 	* Used to transfer deprecated properties to the size specific structures during serialization
 	* and to add back the default size specific data when deleted.
 	*/
-	void ValidateSizeSpecificDataDefaults();
+	GEOMETRYCOLLECTIONENGINE_API void ValidateSizeSpecificDataDefaults();
 
 	// update cached root index using the current hierarchy setup
-	void UpdateRootIndex();
+	GEOMETRYCOLLECTIONENGINE_API void UpdateRootIndex();
 
 	// fill instanced mesh instance count from geometry collection data if not done yet 
-	void FillAutoInstanceMeshesInstancesIfNeeded();
+	GEOMETRYCOLLECTIONENGINE_API void FillAutoInstanceMeshesInstancesIfNeeded();
 
 private:
 	/** Guid created on construction of this collection. It should be used to uniquely identify this collection */

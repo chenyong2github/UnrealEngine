@@ -24,8 +24,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSelectionSetModifiedSignature, USelectionSe
  * For example the UMeshSelectionSet implementation stores information on selected
  * triangles, vertices, etc. 
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API USelectionSet : public UObject
+UCLASS(Transient, MinimalAPI)
+class USelectionSet : public UObject
 {
 	GENERATED_BODY()
 
@@ -66,13 +66,13 @@ enum class EMeshSelectionElementType
  * UMeshSelectionSet is an implementation of USelectionSet that represents selections on indexed meshes.
  * Vertices, Edges, Faces, and Groups can be selected.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UMeshSelectionSet : public USelectionSet
+UCLASS(Transient, MinimalAPI)
+class UMeshSelectionSet : public USelectionSet
 {
 	GENERATED_BODY()
 
 public:
-	UMeshSelectionSet();
+	INTERACTIVETOOLSFRAMEWORK_API UMeshSelectionSet();
 
 	UPROPERTY()
 	TArray<int32> Vertices;
@@ -89,31 +89,31 @@ public:
 
 public:
 	/** @return current selected elements of the given ElementType */
-	TArray<int>& GetElements(EMeshSelectionElementType ElementType);
+	INTERACTIVETOOLSFRAMEWORK_API TArray<int>& GetElements(EMeshSelectionElementType ElementType);
 
 	/** @return current selected elements of the given ElementType */
-	const TArray<int>& GetElements(EMeshSelectionElementType ElementType) const;
+	INTERACTIVETOOLSFRAMEWORK_API const TArray<int>& GetElements(EMeshSelectionElementType ElementType) const;
 
 	/**
 	 * Add list of Indices to the current selection for the given ElementType
 	 * @warning no duplicate detection is currently done
 	 */
-	void AddIndices(EMeshSelectionElementType ElementType, const TArray<int32>& Indices);
+	INTERACTIVETOOLSFRAMEWORK_API void AddIndices(EMeshSelectionElementType ElementType, const TArray<int32>& Indices);
 
 	/**
 	 * Add list of Indices to the current selection for the given ElementType
 	 * @warning no duplicate detection is currently done
 	 */
-	void AddIndices(EMeshSelectionElementType ElementType, const TSet<int32>& Indices);
+	INTERACTIVETOOLSFRAMEWORK_API void AddIndices(EMeshSelectionElementType ElementType, const TSet<int32>& Indices);
 
 
 	/**
 	 * Remove list of Indices from the current selection for the given ElementType
 	 */
-	void RemoveIndices(EMeshSelectionElementType ElementType, const TArray<int32>& Indices);
+	INTERACTIVETOOLSFRAMEWORK_API void RemoveIndices(EMeshSelectionElementType ElementType, const TArray<int32>& Indices);
 
 	/**
 	 * Remove list of Indices from the current selection for the given ElementType
 	 */
-	void RemoveIndices(EMeshSelectionElementType ElementType, const TSet<int32>& Indices);
+	INTERACTIVETOOLSFRAMEWORK_API void RemoveIndices(EMeshSelectionElementType ElementType, const TSet<int32>& Indices);
 };

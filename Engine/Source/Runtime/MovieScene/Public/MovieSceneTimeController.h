@@ -10,7 +10,7 @@
 
 class IMovieScenePlayer;
 
-struct MOVIESCENE_API FMovieSceneTimeController
+struct FMovieSceneTimeController
 {
 public:
 
@@ -19,12 +19,12 @@ public:
 	/**
 	 * Called whenever a sequence starts or resumes playback from a non-playing state
 	 */
-	void StartPlaying(const FQualifiedFrameTime& InStartTime);
+	MOVIESCENE_API void StartPlaying(const FQualifiedFrameTime& InStartTime);
 
 	/**
 	 * Called whenever a sequence stops playback
 	 */
-	void StopPlaying(const FQualifiedFrameTime& InStopTime);
+	MOVIESCENE_API void StopPlaying(const FQualifiedFrameTime& InStopTime);
 
 	/**
 	 * Ticks this controller
@@ -32,7 +32,7 @@ public:
 	 * @param DeltaSeconds     The tick delta in seconds, dilated by the current world settings global dilation
 	 * @param InPlayRate       The current play rate of the sequence
 	 */
-	void Tick(float DeltaSeconds, float InPlayRate);
+	MOVIESCENE_API void Tick(float DeltaSeconds, float InPlayRate);
 
 	/**
 	 * Request the current time based on the specified existing time and play rate.
@@ -41,17 +41,17 @@ public:
 	 * @param InCurrentTime    The current time of the sequence
 	 * @param InPlayRate       The current play rate of the sequence, multiplied by any world actor settings global dilation
 	 */
-	FFrameTime RequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate, FFrameRate InDisplayRate);
+	MOVIESCENE_API FFrameTime RequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate, FFrameRate InDisplayRate);
 
 	/**
 	 * Called when the status of the owning IMovieScenePlayer has changed
 	 */
-	void PlayerStatusChanged(EMovieScenePlayerStatus::Type InStatus, const FQualifiedFrameTime& InCurrentTime);
+	MOVIESCENE_API void PlayerStatusChanged(EMovieScenePlayerStatus::Type InStatus, const FQualifiedFrameTime& InCurrentTime);
 
 	/**
 	 * Called to stop and resume playback from the specified time
 	 */
-	void Reset(const FQualifiedFrameTime& InNewStartTime);
+	MOVIESCENE_API void Reset(const FQualifiedFrameTime& InNewStartTime);
 
 protected:
 
@@ -82,7 +82,7 @@ private:
 /**
  * A timing manager that retrieves its time from an external clock source
  */
-struct MOVIESCENE_API FMovieSceneTimeController_ExternalClock : FMovieSceneTimeController
+struct FMovieSceneTimeController_ExternalClock : FMovieSceneTimeController
 {
 protected:
 
@@ -94,9 +94,9 @@ protected:
 
 protected:
 
-	virtual void OnStartPlaying(const FQualifiedFrameTime& InStartTime) override;
-	virtual void OnStopPlaying(const FQualifiedFrameTime& InStopTime) override;
-	virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
+	MOVIESCENE_API virtual void OnStartPlaying(const FQualifiedFrameTime& InStartTime) override;
+	MOVIESCENE_API virtual void OnStopPlaying(const FQualifiedFrameTime& InStopTime) override;
+	MOVIESCENE_API virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
 
 private:
 
@@ -109,28 +109,28 @@ private:
 /**
  * A timing manager that retrieves its time from the platform clock
  */
-struct MOVIESCENE_API FMovieSceneTimeController_PlatformClock : FMovieSceneTimeController_ExternalClock
+struct FMovieSceneTimeController_PlatformClock : FMovieSceneTimeController_ExternalClock
 {
-	virtual double GetCurrentTime() const override;
+	MOVIESCENE_API virtual double GetCurrentTime() const override;
 };
 
 /**
  * A timing manager that retrieves its time from the audio clock
  */
-struct MOVIESCENE_API FMovieSceneTimeController_AudioClock : FMovieSceneTimeController_ExternalClock
+struct FMovieSceneTimeController_AudioClock : FMovieSceneTimeController_ExternalClock
 {
-	virtual double GetCurrentTime() const override;
+	MOVIESCENE_API virtual double GetCurrentTime() const override;
 };
 
 
 /**
 * A timing manager that retrieves its time relative to the Timecode clock
 */
-struct MOVIESCENE_API FMovieSceneTimeController_RelativeTimecodeClock : FMovieSceneTimeController_ExternalClock
+struct FMovieSceneTimeController_RelativeTimecodeClock : FMovieSceneTimeController_ExternalClock
 {
-	virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
-	virtual double GetCurrentTime() const override;
-	virtual void OnStopPlaying(const FQualifiedFrameTime& InStopTime) override;
+	MOVIESCENE_API virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
+	MOVIESCENE_API virtual double GetCurrentTime() const override;
+	MOVIESCENE_API virtual void OnStopPlaying(const FQualifiedFrameTime& InStopTime) override;
 
 protected:
 
@@ -144,16 +144,16 @@ protected:
 /**
 * A timing manager that retrieves its time from the Timecode clock
 */
-struct MOVIESCENE_API FMovieSceneTimeController_TimecodeClock : FMovieSceneTimeController
+struct FMovieSceneTimeController_TimecodeClock : FMovieSceneTimeController
 {
-	virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
+	MOVIESCENE_API virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
 };
 
 
 /**
  * A timing manager that accumulates delta times from a world
  */
-struct MOVIESCENE_API FMovieSceneTimeController_Tick : FMovieSceneTimeController
+struct FMovieSceneTimeController_Tick : FMovieSceneTimeController
 {
 	FMovieSceneTimeController_Tick()
 		: CurrentOffsetSeconds(0.0)
@@ -161,9 +161,9 @@ struct MOVIESCENE_API FMovieSceneTimeController_Tick : FMovieSceneTimeController
 
 protected:
 
-	virtual void OnTick(float DeltaSeconds, float InPlayRate) override;
-	virtual void OnStartPlaying(const FQualifiedFrameTime& InStartTime) override;
-	virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
+	MOVIESCENE_API virtual void OnTick(float DeltaSeconds, float InPlayRate) override;
+	MOVIESCENE_API virtual void OnStartPlaying(const FQualifiedFrameTime& InStartTime) override;
+	MOVIESCENE_API virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
 
 private:
 	double CurrentOffsetSeconds;
@@ -172,7 +172,7 @@ private:
 /**
  * A timing manager that plays every display frame for a certain number of seconds
  */
-struct MOVIESCENE_API FMovieSceneTimeController_PlayEveryFrame : FMovieSceneTimeController
+struct FMovieSceneTimeController_PlayEveryFrame : FMovieSceneTimeController
 {
 	FMovieSceneTimeController_PlayEveryFrame()
 		: PreviousPlatformTime(0.f)
@@ -180,8 +180,8 @@ struct MOVIESCENE_API FMovieSceneTimeController_PlayEveryFrame : FMovieSceneTime
 
 protected:
 
-	virtual void OnStartPlaying(const FQualifiedFrameTime& InStartTime) override;
-	virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
+	MOVIESCENE_API virtual void OnStartPlaying(const FQualifiedFrameTime& InStartTime) override;
+	MOVIESCENE_API virtual FFrameTime OnRequestCurrentTime(const FQualifiedFrameTime& InCurrentTime, float InPlayRate) override;
 
 private:
 	double PreviousPlatformTime;

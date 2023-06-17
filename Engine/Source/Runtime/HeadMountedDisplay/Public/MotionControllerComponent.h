@@ -15,8 +15,8 @@ class FSceneView;
 class FSceneViewFamily;
 class UXRDeviceVisualizationComponent;
 
-UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), ClassGroup = MotionController)
-class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveComponent
+UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent), ClassGroup = MotionController, MinimalAPI)
+class UMotionControllerComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
 
@@ -46,7 +46,7 @@ class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveCompo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetDisplayModelSource, Category = "Visualization", meta = (editcondition = "bDisplayDeviceModel", DeprecatedProperty, DeprecationMessage = "DisplayModelSource is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead."))
 	FName DisplayModelSource;
 
-	static FName CustomModelSourceId;
+	static HEADMOUNTEDDISPLAY_API FName CustomModelSourceId;
 
 	/** A mesh override that'll be displayed attached to this MotionController. */
 	UE_DEPRECATED(5.2, "CustomDisplayMesh is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead.")
@@ -60,15 +60,15 @@ class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveCompo
 
 	UE_DEPRECATED(5.2, "SetShowDeviceModel is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead.")
 	UFUNCTION(BlueprintSetter, meta = (DeprecatedFunction, DeprecationMessage = "SetShowDeviceModel is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead."))
-	void SetShowDeviceModel(const bool bShowControllerModel);
+	HEADMOUNTEDDISPLAY_API void SetShowDeviceModel(const bool bShowControllerModel);
 
 	UE_DEPRECATED(5.2, "SetDisplayModelSource is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead.")
 	UFUNCTION(BlueprintSetter, meta = (DeprecatedFunction, DeprecationMessage = "SetDisplayModelSource is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead."))
-	void SetDisplayModelSource(const FName NewDisplayModelSource);
+	HEADMOUNTEDDISPLAY_API void SetDisplayModelSource(const FName NewDisplayModelSource);
 
 	UE_DEPRECATED(5.2, "SetCustomDisplayMesh is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead.")
 	UFUNCTION(BlueprintSetter, meta = (DeprecatedFunction, DeprecationMessage = "SetCustomDisplayMesh is deprecated. Please use the XRDeviceVisualizationComponent for rendering instead."))
-	void SetCustomDisplayMesh(UStaticMesh* NewDisplayMesh);
+	HEADMOUNTEDDISPLAY_API void SetCustomDisplayMesh(UStaticMesh* NewDisplayMesh);
 
 	/** Whether or not this component had a valid tracked device this frame */
 	UFUNCTION(BlueprintPure, Category = "MotionController")
@@ -78,28 +78,28 @@ class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveCompo
 	}
 
 	UFUNCTION(BlueprintSetter, meta = (DeprecatedFunction, DeprecationMessage = "Please use the Motion Source property instead of Hand"))
-	void SetTrackingSource(const EControllerHand NewSource);
+	HEADMOUNTEDDISPLAY_API void SetTrackingSource(const EControllerHand NewSource);
 
 	UFUNCTION(BlueprintGetter, meta = (DeprecatedFunction, DeprecationMessage = "Please use the Motion Source property instead of Hand"))
-	EControllerHand GetTrackingSource() const;
+	HEADMOUNTEDDISPLAY_API EControllerHand GetTrackingSource() const;
 
 	UFUNCTION(BlueprintSetter)
-	void SetTrackingMotionSource(const FName NewSource);
+	HEADMOUNTEDDISPLAY_API void SetTrackingMotionSource(const FName NewSource);
 
-	FName GetTrackingMotionSource();
+	HEADMOUNTEDDISPLAY_API FName GetTrackingMotionSource();
 
 	UFUNCTION(BlueprintSetter)
-	void SetAssociatedPlayerIndex(const int32 NewPlayer);
+	HEADMOUNTEDDISPLAY_API void SetAssociatedPlayerIndex(const int32 NewPlayer);
 
-	void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	void BeginDestroy() override;
+	HEADMOUNTEDDISPLAY_API void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	HEADMOUNTEDDISPLAY_API void BeginDestroy() override;
 
 	// The following private properties/members are now deprecated and will be removed in later versions.
-	void RefreshDisplayComponent(const bool bForceDestroy = false);
-	void PostLoad() override;
+	HEADMOUNTEDDISPLAY_API void RefreshDisplayComponent(const bool bForceDestroy = false);
+	HEADMOUNTEDDISPLAY_API void PostLoad() override;
 
 	/** Callback for asynchronous display model loads (to set materials, etc.) */
-	void OnDisplayModelLoaded(UPrimitiveComponent* DisplayComponent);
+	HEADMOUNTEDDISPLAY_API void OnDisplayModelLoaded(UPrimitiveComponent* DisplayComponent);
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = Visualization, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UPrimitiveComponent> DisplayComponent;
@@ -121,26 +121,26 @@ class HEADMOUNTEDDISPLAY_API UMotionControllerComponent : public UPrimitiveCompo
 
 public:
 	//~ UObject interface
-	virtual void Serialize(FArchive& Ar) override;
+	HEADMOUNTEDDISPLAY_API virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	HEADMOUNTEDDISPLAY_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	HEADMOUNTEDDISPLAY_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif 
 
 	//~ UActorComponent interface
-	virtual void OnRegister() override;
-	virtual void InitializeComponent() override;
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	HEADMOUNTEDDISPLAY_API virtual void OnRegister() override;
+	HEADMOUNTEDDISPLAY_API virtual void InitializeComponent() override;
+	HEADMOUNTEDDISPLAY_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 
 	// Delegate for activation of XRDeviceVisualizationComponent
 	DECLARE_MULTICAST_DELEGATE_OneParam(FActivateVisualizationComponent, bool);
-	static FActivateVisualizationComponent OnActivateVisualizationComponent;
+	static HEADMOUNTEDDISPLAY_API FActivateVisualizationComponent OnActivateVisualizationComponent;
 
 protected:
 	//~ Begin UActorComponent Interface.
-	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
-	virtual void SendRenderTransform_Concurrent() override;
+	HEADMOUNTEDDISPLAY_API virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
+	HEADMOUNTEDDISPLAY_API virtual void SendRenderTransform_Concurrent() override;
 	//~ End UActorComponent Interface.
 
 	// Cached Motion Controller that can be read by GetParameterValue. Only valid for the duration of OnMotionControllerUpdated
@@ -148,14 +148,14 @@ protected:
 
 	/** Blueprint Implementable function for responding to updated data from a motion controller (so we can use custom parameter values from it) */
 	UFUNCTION(BlueprintImplementableEvent, Category = "Motion Controller Update")
-	void OnMotionControllerUpdated();
+	HEADMOUNTEDDISPLAY_API void OnMotionControllerUpdated();
 
 	// Returns the value of a custom parameter on the current in use Motion Controller (see member InUseMotionController). Only valid for the duration of OnMotionControllerUpdated 
 	UFUNCTION(BlueprintCallable, Category = "Motion Controller Update")
-	float GetParameterValue(FName InName, bool& bValueFound);
+	HEADMOUNTEDDISPLAY_API float GetParameterValue(FName InName, bool& bValueFound);
 
 	UFUNCTION(BlueprintCallable, Category = "Motion Controller Update")
-	FVector GetHandJointPosition(int jointIndex, bool& bValueFound);
+	HEADMOUNTEDDISPLAY_API FVector GetHandJointPosition(int jointIndex, bool& bValueFound);
 
 private:
 
@@ -166,9 +166,9 @@ private:
 	bool bHasAuthority;
 
 	/** If true, the Position and Orientation args will contain the most recent controller state */
-	bool PollControllerState(FVector& Position, FRotator& Orientation, float WorldToMetersScale);
+	HEADMOUNTEDDISPLAY_API bool PollControllerState(FVector& Position, FRotator& Orientation, float WorldToMetersScale);
 
-	void OnModularFeatureUnregistered(const FName& Type, class IModularFeature* ModularFeature);
+	HEADMOUNTEDDISPLAY_API void OnModularFeatureUnregistered(const FName& Type, class IModularFeature* ModularFeature);
 	IMotionController* PolledMotionController_GameThread;
 	IMotionController* PolledMotionController_RenderThread;
 	FCriticalSection PolledMotionControllerMutex;

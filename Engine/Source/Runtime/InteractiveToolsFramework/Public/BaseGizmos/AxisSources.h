@@ -21,8 +21,8 @@ class USceneComponent;
  * UGizmoConstantAxisSource is an IGizmoAxisSource implementation that
  * internally stores the Origin and Direction constants
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoConstantAxisSource : public UObject, public IGizmoAxisSource
+UCLASS(MinimalAPI)
+class UGizmoConstantAxisSource : public UObject, public IGizmoAxisSource
 {
 	GENERATED_BODY()
 public:
@@ -51,8 +51,8 @@ public:
  * UGizmoConstantFrameAxisSource is an IGizmoAxisSource implementation that
  * internally stores the Origin, Direction, and X/Y Tangent constants.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoConstantFrameAxisSource : public UObject, public IGizmoAxisSource
+UCLASS(MinimalAPI)
+class UGizmoConstantFrameAxisSource : public UObject, public IGizmoAxisSource
 {
 	GENERATED_BODY()
 public:
@@ -94,8 +94,8 @@ public:
  * (ie X/Y/Z axes) based on an integer AxisIndex in range [0,2]. The Orgin is
  * internally stored as a FProperty.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoWorldAxisSource : public UObject, public IGizmoAxisSource
+UCLASS(MinimalAPI)
+class UGizmoWorldAxisSource : public UObject, public IGizmoAxisSource
 {
 	GENERATED_BODY()
 public:
@@ -139,18 +139,18 @@ public:
  * X/Y/Z axes of a Component's local coordinate system, mapped to World, based on an integer AxisIndex in range [0,2].
  * The Axis Origin is the Component's transform origin. Tangent vectors are provided.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoComponentAxisSource : public UObject, public IGizmoAxisSource
+UCLASS(MinimalAPI)
+class UGizmoComponentAxisSource : public UObject, public IGizmoAxisSource
 {
 	GENERATED_BODY()
 public:
-	virtual FVector GetOrigin() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetOrigin() const;
 
-	virtual FVector GetDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetDirection() const;
 
 	virtual bool HasTangentVectors() const { return true; }
 
-	virtual void GetTangentVectors(FVector& TangentXOut, FVector& TangentYOut) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void GetTangentVectors(FVector& TangentXOut, FVector& TangentYOut) const;
 
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Component;

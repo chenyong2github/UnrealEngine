@@ -98,49 +98,49 @@ namespace Audio
 		bool bEnabled;
 	};
 
-	class SIGNALPROCESSING_API FModulationMatrix
+	class FModulationMatrix
 	{
 	public:
-		FModulationMatrix();
-		virtual ~FModulationMatrix();
+		SIGNALPROCESSING_API FModulationMatrix();
+		SIGNALPROCESSING_API virtual ~FModulationMatrix();
 
 		// Initialize the modulation matrix with the desired number of voices
-		void Init(const int32 NumVoices);
+		SIGNALPROCESSING_API void Init(const int32 NumVoices);
 
 		// Returns the number of patch connections
-		int32 GetNumPatches(const int32 VoiceId) const;
+		SIGNALPROCESSING_API int32 GetNumPatches(const int32 VoiceId) const;
 
 		// Creates a new patch source object and returns the patch source id
-		FPatchSource CreatePatchSource(const int32 VoiceId);
+		SIGNALPROCESSING_API FPatchSource CreatePatchSource(const int32 VoiceId);
 
 		// Crates a new patch destination object and returns the patch destination id
-		FPatchDestination CreatePatchDestination(const int32 VoiceId, const int32 Stage, const float DefaultDepth);
+		SIGNALPROCESSING_API FPatchDestination CreatePatchDestination(const int32 VoiceId, const int32 Stage, const float DefaultDepth);
 
 		// Adds a new patch connection between one source and one or more destinations
-		bool AddPatch(const int32 VoiceId, FPatch* Patch);
+		SIGNALPROCESSING_API bool AddPatch(const int32 VoiceId, FPatch* Patch);
 
 		// Removes the given patch connection between a source and one or more destinations
-		bool RemovePatch(const int32 VoiceId, FPatch* Patch);
+		SIGNALPROCESSING_API bool RemovePatch(const int32 VoiceId, FPatch* Patch);
 
 		// Reset all patch state
-		void ResetPatchSourceState();
+		SIGNALPROCESSING_API void ResetPatchSourceState();
 
 		// Clear all patch connections
-		void ClearPatches(const int32 VoiceId);
+		SIGNALPROCESSING_API void ClearPatches(const int32 VoiceId);
 
 		// Set the modulation source value of the given id
-		bool SetSourceValue(const int32 VoiceId, const FPatchSource& Source, const float Value);
+		SIGNALPROCESSING_API bool SetSourceValue(const int32 VoiceId, const FPatchSource& Source, const float Value);
 
 		// Get the modulation destination value of the given destination id
-		bool GetDestinationValue(const int32 VoiceId, const FPatchDestination& Destination, float& OutValue) const;
+		SIGNALPROCESSING_API bool GetDestinationValue(const int32 VoiceId, const FPatchDestination& Destination, float& OutValue) const;
 
 		// Perform the matrix update. Optionally do only a given stage. 
-		void Update(const int32 VoiceId, const int32 Stage = INDEX_NONE);
+		SIGNALPROCESSING_API void Update(const int32 VoiceId, const int32 Stage = INDEX_NONE);
 
 	protected:
 
-		void ResetDestinations(const int32 VoiceId);
-		bool ValidatePatch(const int32 VoiceId, FPatch* Patch);
+		SIGNALPROCESSING_API void ResetDestinations(const int32 VoiceId);
+		SIGNALPROCESSING_API bool ValidatePatch(const int32 VoiceId, FPatch* Patch);
 
 		int32 NumVoices;
 		TArray<TArray<FPatch*>> Patches;

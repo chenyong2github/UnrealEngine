@@ -70,7 +70,7 @@ extern NETCORE_API FPacketAudit* GPacketAuditor;
  *
  * IMPORTANT: Only supports interaction between a single server, and a single client.
  */
-class NETCORE_API FPacketAudit
+class FPacketAudit
 {
 #if !UE_BUILD_SHIPPING
 protected:
@@ -99,23 +99,23 @@ private:
 	/**
 	 * Default constructor
 	 */
-	FPacketAudit(FPlatformProcess::FSemaphore* InGameMutex);
+	NETCORE_API FPacketAudit(FPlatformProcess::FSemaphore* InGameMutex);
 
 	/**
 	 * Default destructor
 	 */
-	~FPacketAudit();
+	NETCORE_API ~FPacketAudit();
 
 public:
 	/**
 	 * Initialize GPacketAudtor
 	 */
-	static void Init();
+	static NETCORE_API void Init();
 
 	/**
 	 * Destroy GPacketAuditor
 	 */
-	static void Destruct();
+	static NETCORE_API void Destruct();
 
 	/**
 	 * On the send side, marks a named stage during packet writing, which should be audited on the receive side.
@@ -211,13 +211,13 @@ public:
 #endif
 
 protected:
-	void AddStage_Internal(FString StageName, FBitWriter& OutPacket, bool bByteAligned);
+	NETCORE_API void AddStage_Internal(FString StageName, FBitWriter& OutPacket, bool bByteAligned);
 
-	void CheckStage_Internal(FString StageName, FBitReader& InPacket, bool bByteAligned);
+	NETCORE_API void CheckStage_Internal(FString StageName, FBitReader& InPacket, bool bByteAligned);
 
-	void NotifyLowLevelSend_Internal(FBitWriter& OutPacket);
+	NETCORE_API void NotifyLowLevelSend_Internal(FBitWriter& OutPacket);
 
-	void NotifyLowLevelReceive_Internal(FBitReader& InPacket);
+	NETCORE_API void NotifyLowLevelReceive_Internal(FBitReader& InPacket);
 
 
 	/**
@@ -227,13 +227,13 @@ protected:
 	 * @param DataLenBits	The length of the data, in bits
 	 * @return				Returns the CRC of the packet
 	 */
-	static uint32 PacketCRC(uint8* Data, uint32 DataLenBits);
+	static NETCORE_API uint32 PacketCRC(uint8* Data, uint32 DataLenBits);
 
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Dumps the collected packet audit data to the log
 	 */
-	void DumpAuditData(FScopedAuditAccess& AuditLock, uint32 InPacketCRC=0);
+	NETCORE_API void DumpAuditData(FScopedAuditAccess& AuditLock, uint32 InPacketCRC=0);
 #endif
 
 

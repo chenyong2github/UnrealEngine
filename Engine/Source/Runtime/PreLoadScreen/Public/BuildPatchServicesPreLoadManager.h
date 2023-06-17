@@ -16,21 +16,21 @@
 class IBuildPatchServicesModule;
 
 //This class is used to help manage a PreLoadScreen based on a BuildPatchServices install.
-class PRELOADSCREEN_API FBuildPatchServicesPreLoadManagerBase : public TSharedFromThis<FBuildPatchServicesPreLoadManagerBase>
+class FBuildPatchServicesPreLoadManagerBase : public TSharedFromThis<FBuildPatchServicesPreLoadManagerBase>
 {
 public:
-    FBuildPatchServicesPreLoadManagerBase();
+    PRELOADSCREEN_API FBuildPatchServicesPreLoadManagerBase();
     virtual ~FBuildPatchServicesPreLoadManagerBase() {}
 
-    virtual void Init();
+    PRELOADSCREEN_API virtual void Init();
     
     //Setup BPT with everything now loaded
-    virtual void StartBuildPatchServices(BuildPatchServices::FBuildInstallerConfiguration Settings);
+    PRELOADSCREEN_API virtual void StartBuildPatchServices(BuildPatchServices::FBuildInstallerConfiguration Settings);
 
     //BPT finished
-    virtual void OnContentBuildInstallerComplete(const IBuildInstallerRef& Installer);
+    PRELOADSCREEN_API virtual void OnContentBuildInstallerComplete(const IBuildInstallerRef& Installer);
 
-    virtual bool IsDone() const;
+    PRELOADSCREEN_API virtual bool IsDone() const;
 
     virtual int64 GetDownloadSize() { return ContentBuildInstaller.IsValid() ? ContentBuildInstaller->GetTotalDownloadRequired() : 0; }
     virtual int64 GetDownloadProgress() { return ContentBuildInstaller.IsValid() ? ContentBuildInstaller->GetTotalDownloaded() : 0; }
@@ -38,13 +38,13 @@ public:
     DECLARE_MULTICAST_DELEGATE_OneParam(FOnBuildPatchCompleted, bool );
     FOnBuildPatchCompleted OnBuildPatchCompletedDelegate;
 
-    virtual void PauseBuildPatchInstall();
-    virtual void ResumeBuildPatchInstall();
-	virtual void CancelBuildPatchInstall();
+    PRELOADSCREEN_API virtual void PauseBuildPatchInstall();
+    PRELOADSCREEN_API virtual void ResumeBuildPatchInstall();
+	PRELOADSCREEN_API virtual void CancelBuildPatchInstall();
 
     float GetProgressPercent() const { return ContentBuildInstaller.IsValid() ? ContentBuildInstaller->GetUpdateProgress() : 0.0f; }
     EBuildPatchDownloadHealth GetDownloadHealth() const { return ContentBuildInstaller.IsValid() ? ContentBuildInstaller->GetDownloadHealth() : EBuildPatchDownloadHealth::NUM_Values; }
-    const FText& GetStatusText() const;
+    PRELOADSCREEN_API const FText& GetStatusText() const;
     BuildPatchServices::EBuildPatchState GetState() const { return ContentBuildInstaller.IsValid() ? ContentBuildInstaller->GetState() : BuildPatchServices::EBuildPatchState::Initializing; }
 
     FText GetErrorMessageBody() const { return ContentBuildInstaller.IsValid() ? ContentBuildInstaller->GetErrorText() : FText(); }

@@ -41,20 +41,20 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSynthEnvelopeValue, const float, 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSynthEnvelopeValueNative, const class UAudioComponent*, const float);
 
 
-UCLASS()
-class AUDIOMIXER_API USynthSound : public USoundWaveProcedural
+UCLASS(MinimalAPI)
+class USynthSound : public USoundWaveProcedural
 {
 	GENERATED_UCLASS_BODY()
 
-	void Init(USynthComponent* InSynthComponent, const int32 InNumChannels, const int32 SampleRate, const int32 InCallbackSize);
-	void StartOnAudioDevice(FAudioDevice* InAudioDevice);
+	AUDIOMIXER_API void Init(USynthComponent* InSynthComponent, const int32 InNumChannels, const int32 SampleRate, const int32 InCallbackSize);
+	AUDIOMIXER_API void StartOnAudioDevice(FAudioDevice* InAudioDevice);
 
 	/** Begin USoundWave */
-	virtual void OnBeginGenerate() override;
-	virtual int32 OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples) override;
-	virtual void OnEndGenerate() override;
-	virtual Audio::EAudioMixerStreamDataFormat::Type GetGeneratedPCMDataFormat() const override;
-	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
+	AUDIOMIXER_API virtual void OnBeginGenerate() override;
+	AUDIOMIXER_API virtual int32 OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSamples) override;
+	AUDIOMIXER_API virtual void OnEndGenerate() override;
+	AUDIOMIXER_API virtual Audio::EAudioMixerStreamDataFormat::Type GetGeneratedPCMDataFormat() const override;
+	AUDIOMIXER_API virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
 	/** End USoundWave */
 
 protected:
@@ -75,85 +75,85 @@ public:
 	}
 };
 
-UCLASS(abstract, ClassGroup = Synth, hidecategories = (Object, ActorComponent, Physics, Rendering, Mobility, LOD))
-class AUDIOMIXER_API USynthComponent : public USceneComponent
+UCLASS(abstract, ClassGroup = Synth, hidecategories = (Object, ActorComponent, Physics, Rendering, Mobility, LOD), MinimalAPI)
+class USynthComponent : public USceneComponent
 {
 	GENERATED_BODY()
 
 public:
-	USynthComponent(const FObjectInitializer& ObjectInitializer);
+	AUDIOMIXER_API USynthComponent(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin USceneComponent Interface
-	virtual void Activate(bool bReset = false) override;
-	virtual void Deactivate() override;
+	AUDIOMIXER_API virtual void Activate(bool bReset = false) override;
+	AUDIOMIXER_API virtual void Deactivate() override;
 	//~ End USceneComponent Interface
 
 	//~ Begin ActorComponent Interface.
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual bool IsReadyForOwnerToAutoDestroy() const override;
-	virtual void EndPlay(const EEndPlayReason::Type Reason) override;
+	AUDIOMIXER_API virtual void OnRegister() override;
+	AUDIOMIXER_API virtual void OnUnregister() override;
+	AUDIOMIXER_API virtual bool IsReadyForOwnerToAutoDestroy() const override;
+	AUDIOMIXER_API virtual void EndPlay(const EEndPlayReason::Type Reason) override;
 	//~ End ActorComponent Interface.
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	AUDIOMIXER_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
-	virtual void PostLoad() override;
+	AUDIOMIXER_API virtual void PostLoad() override;
 #endif //WITH_EDITORONLY_DATA
 
-	virtual void Serialize(FArchive& Ar) override;
+	AUDIOMIXER_API virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 
 	// Starts the synth generating audio.
 	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
-	void Start();
+	AUDIOMIXER_API void Start();
 
 	// Stops the synth generating audio.
 	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
-	void Stop();
+	AUDIOMIXER_API void Stop();
 
 	/** Returns true if this component is currently playing. */
 	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
-	bool IsPlaying() const;
+	AUDIOMIXER_API bool IsPlaying() const;
 
 	/** Set a new volume multiplier */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetVolumeMultiplier(float VolumeMultiplier);
+	AUDIOMIXER_API void SetVolumeMultiplier(float VolumeMultiplier);
 
 	/** Sets how much audio the sound should send to the given submix. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
+	AUDIOMIXER_API void SetSubmixSend(USoundSubmixBase* Submix, float SendLevel);
 
 	/** Sets how much audio the sound should send to the given SourceBus (pre effect). */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+	AUDIOMIXER_API void SetSourceBusSendPreEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
 
 	/** Sets how much audio the sound should send to the given SourceBus (post effect). */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
+	AUDIOMIXER_API void SetSourceBusSendPostEffect(USoundSourceBus* SoundSourceBus, float SourceBusSendLevel);
 
 	/** Sets how much audio the sound should send to the given AudioBus (pre effect). */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
+	AUDIOMIXER_API void SetAudioBusSendPreEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
 
 	/** Sets how much audio the sound should send to the given AudioBus (post effect). */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetAudioBusSendPostEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
+	AUDIOMIXER_API void SetAudioBusSendPostEffect(UAudioBus* AudioBus, float AudioBusSendLevel);
 
 	/** Sets whether or not the low pass filter is enabled on the audio component. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetLowPassFilterEnabled(bool InLowPassFilterEnabled);
+	AUDIOMIXER_API void SetLowPassFilterEnabled(bool InLowPassFilterEnabled);
 
 	/** Sets lowpass filter frequency of the audio component. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	virtual void SetLowPassFilterFrequency(float InLowPassFilterFrequency);
+	AUDIOMIXER_API virtual void SetLowPassFilterFrequency(float InLowPassFilterFrequency);
 
 	/** Sets whether or not the synth component outputs its audio to any source or audio buses. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void SetOutputToBusOnly(bool bInOutputToBusOnly);
+	AUDIOMIXER_API void SetOutputToBusOnly(bool bInOutputToBusOnly);
 
 	/**
 	 * This function allows designers to call Play on an Audio Component instance while applying a volume curve over time. 
@@ -164,7 +164,7 @@ public:
 	 * @param FadeCurve The curve to use when interpolating between the old and new volume
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.0f, float StartTime = 0.0f, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear) const;
+	AUDIOMIXER_API void FadeIn(float FadeInDuration, float FadeVolumeLevel = 1.0f, float StartTime = 0.0f, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear) const;
 
 	/**
 	 * This function allows designers to call a delayed Stop on an Audio Component instance while applying a
@@ -175,7 +175,7 @@ public:
 	 * @param FadeCurve The curve to use when interpolating between the old and new volume
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear) const;
+	AUDIOMIXER_API void FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear) const;
 
 	/** This function allows designers to trigger an adjustment to the sound instance’s playback Volume with options for smoothly applying a curve over time.
      * @param AdjustVolumeDuration The length of time in which to interpolate between the initial volume and the new volume.
@@ -183,7 +183,7 @@ public:
      * @param FadeCurve The curve used when interpolating between the old and new volume.
      */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
-	void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear) const;
+	AUDIOMIXER_API void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear) const;
 
 	/**
 	* Sets the routing for one of the given Synth component's Modulation Destinations.
@@ -192,7 +192,7 @@ public:
 	* @param RoutingMethod The routing method to use for the given modulator.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", DisplayName = "Set Modulation Routing")
-	void SetModulationRouting(const TSet<USoundModulatorBase*>& Modulators, const EModulationDestination Destination, const EModulationRouting RoutingMethod = EModulationRouting::Inherit);
+	AUDIOMIXER_API void SetModulationRouting(const TSet<USoundModulatorBase*>& Modulators, const EModulationDestination Destination, const EModulationRouting RoutingMethod = EModulationRouting::Inherit);
 	
 	/**
 	* Gets the set of currently active modulators for a given Modulation Destination.
@@ -200,7 +200,7 @@ public:
 	* @return The set of of Modulators applied to this component for the given Destination.
 	*/
 	UFUNCTION(BlueprintPure, Category = "Audio|Components|Audio", DisplayName = "Get Modulators")
-	UPARAM(DisplayName = "Modulators") TSet<USoundModulatorBase*> GetModulators(const EModulationDestination Destination);
+	UPARAM(DisplayName = "ModAUDIOMIXER_API ulators") TSet<USoundModulatorBase*> GetModulators(const EModulationDestination Destination);
 
 	/** Auto destroy this component on completion */
 	UPROPERTY()
@@ -293,15 +293,15 @@ public:
 	/** Call if creating this synth component not via an actor component in BP, but in code or some other location. 
 	 *  Optionally override the sample rate of the sound wave, otherwise it uses the audio device's sample rate. 
 	 */
-	void Initialize(int32 SampleRateOverride = INDEX_NONE);
+	AUDIOMIXER_API void Initialize(int32 SampleRateOverride = INDEX_NONE);
 
 	/** Creates the audio component if it hasn't already been created yet. This should only be used when trying to
 	 *  assign explicit settings to the AudioComponent before calling Start(). 
 	 */
-	void CreateAudioComponent();
+	AUDIOMIXER_API void CreateAudioComponent();
 
 	/** Retrieves this synth component's audio component. */
-	UAudioComponent* GetAudioComponent();
+	AUDIOMIXER_API UAudioComponent* GetAudioComponent();
 
 	/** The attack time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the
 	 *  envelope value of sounds played with this audio component. Only used in audio mixer.
@@ -321,20 +321,20 @@ public:
 	/** Shadow delegate for non UObject subscribers */
 	FOnSynthEnvelopeValueNative OnAudioEnvelopeValueNative;
 
-	void OnAudioComponentEnvelopeValue(const UAudioComponent* AudioComponent, const USoundWave* SoundWave, const float EnvelopeValue);
+	AUDIOMIXER_API void OnAudioComponentEnvelopeValue(const UAudioComponent* AudioComponent, const USoundWave* SoundWave, const float EnvelopeValue);
 
 	// Adds and removes audio buffer listener
-	void AddAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
-	void RemoveAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
+	AUDIOMIXER_API void AddAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
+	AUDIOMIXER_API void RemoveAudioBufferListener(IAudioBufferListener* InAudioBufferListener);
 
-	virtual USoundClass* GetSoundClass();
+	AUDIOMIXER_API virtual USoundClass* GetSoundClass();
 
-	virtual void BeginDestroy() override;
+	AUDIOMIXER_API virtual void BeginDestroy() override;
 
 protected:
 
 	// Method to execute parameter changes on game thread in audio render thread
-	void SynthCommand(TFunction<void()> Command);
+	AUDIOMIXER_API void SynthCommand(TFunction<void()> Command);
 
 	// Called when synth is created.
 	virtual bool Init(int32& SampleRate) { return true; }
@@ -361,10 +361,10 @@ protected:
 
 	// Called by procedural sound wave
 	// Returns the number of samples actually generated
-	int32 OnGeneratePCMAudio(float* GeneratedPCMData, int32 NumSamples);
+	AUDIOMIXER_API int32 OnGeneratePCMAudio(float* GeneratedPCMData, int32 NumSamples);
 
 	// Gets the audio device associated with this synth component
-	FAudioDevice* GetAudioDevice() const;
+	AUDIOMIXER_API FAudioDevice* GetAudioDevice() const;
 
 	// Can be set by the derived class, defaults to 2
 	int32 NumChannels;
@@ -374,7 +374,7 @@ protected:
 
 private:
 	// Creates the synth component's sound generator, calls into overridden client code to create the instance.
-	ISoundGeneratorPtr CreateSoundGeneratorInternal(const FSoundGeneratorInitParams& InParams);
+	AUDIOMIXER_API ISoundGeneratorPtr CreateSoundGeneratorInternal(const FSoundGeneratorInitParams& InParams);
 
 	UPROPERTY(Transient)
 	TObjectPtr<USynthSound> Synth;
@@ -382,7 +382,7 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UAudioComponent> AudioComponent;
 
-	void PumpPendingMessages();
+	AUDIOMIXER_API void PumpPendingMessages();
 
 #if SYNTH_GENERATOR_TEST_TONE
 	Audio::FSineOsc TestSineLeft;

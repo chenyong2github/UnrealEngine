@@ -13,8 +13,8 @@
 class SPanel;
 
 /** The Slot for the UStackBox, contains the widget that is flowed vertically or horizontally. */
-UCLASS()
-class UMG_API UStackBoxSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UStackBoxSlot : public UPanelSlot
 {
 	GENERATED_BODY()
 
@@ -40,33 +40,33 @@ private:
 	SStackBox::FSlot* Slot = nullptr;
 
 public:
-	FMargin GetPadding() const;
-	void SetPadding(FMargin InPadding);
+	UMG_API FMargin GetPadding() const;
+	UMG_API void SetPadding(FMargin InPadding);
 
-	FSlateChildSize GetSize() const;
-	void SetSize(FSlateChildSize InSize);
+	UMG_API FSlateChildSize GetSize() const;
+	UMG_API void SetSize(FSlateChildSize InSize);
 
-	EHorizontalAlignment GetHorizontalAlignment() const;
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
-	EVerticalAlignment GetVerticalAlignment() const;
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 public:
 	//~ UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
-	void BuildSlot(TSharedRef<SStackBox> InBox);
+	UMG_API void BuildSlot(TSharedRef<SStackBox> InBox);
 
 	/** Replace the slot content. */
-	void ReplaceContent(UWidget* Content);
+	UMG_API void ReplaceContent(UWidget* Content);
 
 #if WITH_EDITOR
-	virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
-	virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
+	UMG_API virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
+	UMG_API virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
 #endif //WITH_EDITOR
 };

@@ -5,14 +5,14 @@
 #include "Systems/MovieScenePropertySystem.h"
 #include "MovieScene2DTransformPropertySystem.generated.h"
 
-UCLASS()
-class UMG_API UMovieScene2DTransformPropertySystem : public UMovieScenePropertySystem
+UCLASS(MinimalAPI)
+class UMovieScene2DTransformPropertySystem : public UMovieScenePropertySystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UMovieScene2DTransformPropertySystem(const FObjectInitializer& ObjInit);
+	UMG_API UMovieScene2DTransformPropertySystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	UMG_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };

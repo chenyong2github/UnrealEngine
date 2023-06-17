@@ -22,7 +22,7 @@ class UMediaPlayerProxyInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class MEDIAASSETS_API IMediaPlayerProxyInterface
+class IMediaPlayerProxyInterface
 {
 	GENERATED_BODY()
 

@@ -8,25 +8,25 @@
 
 class UBlackboardComponent;
 
-UCLASS(EditInlineNew, meta=(DisplayName="Rotator"))
-class AIMODULE_API UBlackboardKeyType_Rotator : public UBlackboardKeyType
+UCLASS(EditInlineNew, meta=(DisplayName="Rotator"), MinimalAPI)
+class UBlackboardKeyType_Rotator : public UBlackboardKeyType
 {
 	GENERATED_UCLASS_BODY()
 	
 	typedef FRotator FDataType; 
-	static const FDataType InvalidValue;
+	static AIMODULE_API const FDataType InvalidValue;
 
-	static FRotator GetValue(const UBlackboardKeyType_Rotator* KeyOb, const uint8* RawData);
-	static bool SetValue(UBlackboardKeyType_Rotator* KeyOb, uint8* RawData, const FRotator& Value);
+	static AIMODULE_API FRotator GetValue(const UBlackboardKeyType_Rotator* KeyOb, const uint8* RawData);
+	static AIMODULE_API bool SetValue(UBlackboardKeyType_Rotator* KeyOb, uint8* RawData, const FRotator& Value);
 
-	virtual EBlackboardCompare::Type CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
+	AIMODULE_API virtual EBlackboardCompare::Type CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
 		const UBlackboardKeyType* OtherKeyOb, const uint8* OtherMemoryBlock) const override;
 
 protected:
-	virtual void InitializeMemory(UBlackboardComponent& OwnerComp, uint8* RawData) override;
-	virtual FString DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* RawData) const override;
-	virtual bool GetRotation(const UBlackboardComponent& OwnerComp, const uint8* RawData, FRotator& Rotation) const override;
-	virtual bool IsEmpty(const UBlackboardComponent& OwnerComp, const uint8* RawData) const override;
-	virtual void Clear(UBlackboardComponent& OwnerComp, uint8* RawData) override;
-	virtual bool TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const override;
+	AIMODULE_API virtual void InitializeMemory(UBlackboardComponent& OwnerComp, uint8* RawData) override;
+	AIMODULE_API virtual FString DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* RawData) const override;
+	AIMODULE_API virtual bool GetRotation(const UBlackboardComponent& OwnerComp, const uint8* RawData, FRotator& Rotation) const override;
+	AIMODULE_API virtual bool IsEmpty(const UBlackboardComponent& OwnerComp, const uint8* RawData) const override;
+	AIMODULE_API virtual void Clear(UBlackboardComponent& OwnerComp, uint8* RawData) override;
+	AIMODULE_API virtual bool TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const override;
 };

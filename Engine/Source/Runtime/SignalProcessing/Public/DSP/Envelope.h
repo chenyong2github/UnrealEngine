@@ -10,7 +10,7 @@
 namespace Audio
 {
 	// Envelope class generates ADSR style envelope
-	class SIGNALPROCESSING_API FEnvelope
+	class FEnvelope
 	{
 	public:
 		// States for the envelope state machine
@@ -24,14 +24,14 @@ namespace Audio
 			Shutdown
 		};
 		
-		FEnvelope();
-		virtual ~FEnvelope();
+		SIGNALPROCESSING_API FEnvelope();
+		SIGNALPROCESSING_API virtual ~FEnvelope();
 
 		// Initialize the envelope with the given sample rate
-		void Init(const float InSampleRate, const int32 InVoiceId = 0, FModulationMatrix* InModMatrix = nullptr, const bool bInSimulateAnalog = true);
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const int32 InVoiceId = 0, FModulationMatrix* InModMatrix = nullptr, const bool bInSimulateAnalog = true);
 
 		// Sets the envelope mode 
-		void SetSimulateAnalog(const bool bInSimulatingAnalog);
+		SIGNALPROCESSING_API void SetSimulateAnalog(const bool bInSimulatingAnalog);
 
 		// Sets whether the envelope is in legato mode. Legato mode doesn't restart the envelope if it's already playing
 		void SetLegato(const bool bInLegatoMode) { bIsLegatoMode = bInLegatoMode; }
@@ -41,59 +41,59 @@ namespace Audio
 		bool IsRetrigger() const { return bIsRetriggerMode; }
 
 		// Start the envelope, puts envelope in attack state
-		virtual void Start();
+		SIGNALPROCESSING_API virtual void Start();
 
 		// For truly legato envelope logic, we need to know the new sustain gain (if its being changed).
-		virtual void StartLegato(const float InNewDepth);
+		SIGNALPROCESSING_API virtual void StartLegato(const float InNewDepth);
 		virtual void StartLegato() { StartLegato(Depth); }
 
 		// Stop the envelope, puts in the release state. Can optionally force to off state.
-		virtual void Stop();
+		SIGNALPROCESSING_API virtual void Stop();
 
 		// Puts envelope into shutdown mode, which is a much faster cutoff than release, but avoids pops
-		virtual void Shutdown();
+		SIGNALPROCESSING_API virtual void Shutdown();
 
 		// Kills the envelope (will cause discontinuity)
-		virtual void Kill();
+		SIGNALPROCESSING_API virtual void Kill();
 
 		// Queries if the envelope has finished
-		virtual bool IsDone() const;
+		SIGNALPROCESSING_API virtual bool IsDone() const;
 
 		// Resets the envelope
-		virtual void Reset();
+		SIGNALPROCESSING_API virtual void Reset();
 
 		// Update the state of the envelope
-		virtual void Update();
+		SIGNALPROCESSING_API virtual void Update();
 
 		// Generate the next output value of the envelope.
 		// Optionally outputs the bias output (i.e. -1.0 to 1.0)
-		virtual float Generate(float* BiasedOutput = nullptr);
+		SIGNALPROCESSING_API virtual float Generate(float* BiasedOutput = nullptr);
 
-		virtual EEnvelopeState GetState() const;
+		SIGNALPROCESSING_API virtual EEnvelopeState GetState() const;
 
 		// Sets the envelope attack time in msec
-		virtual void SetAttackTime(const float InAttackTimeMsec);
+		SIGNALPROCESSING_API virtual void SetAttackTime(const float InAttackTimeMsec);
 
 		// Sets the envelope decay time in msec
-		virtual void SetDecayTime(const float InDecayTimeMsec);
+		SIGNALPROCESSING_API virtual void SetDecayTime(const float InDecayTimeMsec);
 
 		// Sets the envelope sustain gain in linear gain values
-		virtual void SetSustainGain(const float InSustainGain);
+		SIGNALPROCESSING_API virtual void SetSustainGain(const float InSustainGain);
 
 		// Sets the envelope release time in msec
-		virtual void SetReleaseTime(const float InReleaseTimeMsec);
+		SIGNALPROCESSING_API virtual void SetReleaseTime(const float InReleaseTimeMsec);
 
 		// Inverts the value of envelope output
-		virtual void SetInvert(const bool bInInvert);
+		SIGNALPROCESSING_API virtual void SetInvert(const bool bInInvert);
 
 		// Inverts the value of the biased envelope output
-		virtual void SetBiasInvert(const bool bInBiasInvert);
+		SIGNALPROCESSING_API virtual void SetBiasInvert(const bool bInBiasInvert);
 
 		// Sets the envelope depth.
-		virtual void SetDepth(const float InDepth);
+		SIGNALPROCESSING_API virtual void SetDepth(const float InDepth);
 
 		// Sets the depth of the bias output. 
-		virtual void SetBiasDepth(const float InDepth);
+		SIGNALPROCESSING_API virtual void SetBiasDepth(const float InDepth);
 
 		// Get the envelope's patch nodes
 		const FPatchSource GetModSourceEnv() const { return EnvSource; }
@@ -166,31 +166,31 @@ namespace Audio
 	};
 
 	// sample accurate attack-decay style envelope generator
-	class SIGNALPROCESSING_API FADEnvelope
+	class FADEnvelope
 	{
 	public:
 		FADEnvelope() {}
 		~FADEnvelope() {}
 
-		void Init(int32 InSampleRate);
+		SIGNALPROCESSING_API void Init(int32 InSampleRate);
 
-		void SetAttackTimeSeconds(float InAttackTimeSeconds);
-		void SetDecayTimeSeconds(float InReleaseTimeSeconds);
-		void SetAttackCurveFactor(float InAttackCurve);
-		void SetDecayCurveFactor(float InDecayCurve);
+		SIGNALPROCESSING_API void SetAttackTimeSeconds(float InAttackTimeSeconds);
+		SIGNALPROCESSING_API void SetDecayTimeSeconds(float InReleaseTimeSeconds);
+		SIGNALPROCESSING_API void SetAttackCurveFactor(float InAttackCurve);
+		SIGNALPROCESSING_API void SetDecayCurveFactor(float InDecayCurve);
 
 		void SetLooping(bool bInIsLooping) { bIsLooping = bInIsLooping; }
 		bool IsLooping() const { return bIsLooping; }
 
 		// Call function to trigger a new attack-phase of the envelope generator
-		void Attack();
+		SIGNALPROCESSING_API void Attack();
 
 		// Generates an output audio buffer (used for audio-rate envelopes)
-		void GetNextEnvelopeOut(int32 StartFrame, int32 EndFrame, TArray<int32>& OutFinishedFrames, Audio::AlignedFloatBuffer& OutEnvelope);
+		SIGNALPROCESSING_API void GetNextEnvelopeOut(int32 StartFrame, int32 EndFrame, TArray<int32>& OutFinishedFrames, Audio::AlignedFloatBuffer& OutEnvelope);
 
 		// Generates a single float value (used for control-rate envelopes)
-		void GetNextEnvelopeOut(int32 StartFrame, int32 EndFrame, TArray<int32>& OutFinishedFrames, float& OutEnvelope);
-		bool GetNextEnvelopeOut(float& OutEnvelope);
+		SIGNALPROCESSING_API void GetNextEnvelopeOut(int32 StartFrame, int32 EndFrame, TArray<int32>& OutFinishedFrames, float& OutEnvelope);
+		SIGNALPROCESSING_API bool GetNextEnvelopeOut(float& OutEnvelope);
 
 	private:
 		int32 CurrentSampleIndex = INDEX_NONE;

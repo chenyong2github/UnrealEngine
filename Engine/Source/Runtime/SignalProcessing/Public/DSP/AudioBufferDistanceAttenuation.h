@@ -9,7 +9,7 @@
 namespace Audio
 {
 	// Settings for audio buffer distance attenuation
-	struct SIGNALPROCESSING_API FAudioBufferDistanceAttenuationSettings
+	struct FAudioBufferDistanceAttenuationSettings
 	{
 		FAudioBufferDistanceAttenuationSettings() = default;
 		~FAudioBufferDistanceAttenuationSettings() = default;

@@ -70,7 +70,7 @@ namespace ETaskbarProgressState
  * This class can be used to change the appearance of a window's entry in the windows task bar,
  * such as setting an overlay icon or showing a progress indicator.
  */
-class APPLICATIONCORE_API FTaskbarList
+class FTaskbarList
 {
 public:
 
@@ -79,7 +79,7 @@ public:
 	 *
 	 * @return The new task bar list.
 	 */
-	static TSharedRef<FTaskbarList> Create();
+	static APPLICATIONCORE_API TSharedRef<FTaskbarList> Create();
 
 	/**
 	 * Sets the overlay icon of a task bar entry.
@@ -88,7 +88,7 @@ public:
 	 * @param Icon The overlay icon to set.
 	 * @param Description The overlay icon's description text.
 	 */
-	void SetOverlayIcon(HWND WindowHandle, HICON Icon, FText Description);
+	APPLICATIONCORE_API void SetOverlayIcon(HWND WindowHandle, HICON Icon, FText Description);
 
 	/**
 	 * Sets the progress state of a task bar entry.
@@ -96,7 +96,7 @@ public:
 	 * @param WindowHandle The window handle to change the progress state for.
 	 * @param State The new progress state.
 	 */
-	void SetProgressState(HWND WindowHandle, ETaskbarProgressState::Type State);
+	APPLICATIONCORE_API void SetProgressState(HWND WindowHandle, ETaskbarProgressState::Type State);
 
 	/**
 	 * Sets the progress value of a task bar entry.
@@ -105,10 +105,10 @@ public:
 	 * @param Current The current progress value.
 	 * @param Total The total progress value.
 	 */
-	void SetProgressValue(HWND WindowHandle, uint64 Current, uint64 Total);
+	APPLICATIONCORE_API void SetProgressValue(HWND WindowHandle, uint64 Current, uint64 Total);
 
 	/** Destructor. */
-	~FTaskbarList();
+	APPLICATIONCORE_API ~FTaskbarList();
 
 private:
 
@@ -280,7 +280,7 @@ public:
 /**
  * Windows-specific application implementation.
  */
-class APPLICATIONCORE_API FWindowsApplication
+class FWindowsApplication
 	: public GenericApplication
 	, public IInputInterface
 {
@@ -293,29 +293,29 @@ public:
 	 * @param IconHandle Win32 application icon handle.
 	 * @return New application object.
 	 */
-	static FWindowsApplication* CreateWindowsApplication( const HINSTANCE InstanceHandle, const HICON IconHandle );
+	static APPLICATIONCORE_API FWindowsApplication* CreateWindowsApplication( const HINSTANCE InstanceHandle, const HICON IconHandle );
 
 	/** Virtual destructor. */
-	virtual ~FWindowsApplication();
+	APPLICATIONCORE_API virtual ~FWindowsApplication();
 
 public:	
 
 	/** Called by a window when an OLE Drag and Drop operation occurred on a non-game thread */
-	void DeferDragDropOperation( const FDeferredWindowsDragDropOperation& DeferredDragDropOperation );
+	APPLICATIONCORE_API void DeferDragDropOperation( const FDeferredWindowsDragDropOperation& DeferredDragDropOperation );
 
-	TSharedPtr<FTaskbarList> GetTaskbarList();
+	APPLICATIONCORE_API TSharedPtr<FTaskbarList> GetTaskbarList();
 
 	/** Invoked by a window when an OLE Drag and Drop first enters it. */
-	HRESULT OnOLEDragEnter( const HWND HWnd, const FDragDropOLEData& OLEData, ::DWORD KeyState, POINTL CursorPosition, ::DWORD *CursorEffect);
+	APPLICATIONCORE_API HRESULT OnOLEDragEnter( const HWND HWnd, const FDragDropOLEData& OLEData, ::DWORD KeyState, POINTL CursorPosition, ::DWORD *CursorEffect);
 
 	/** Invoked by a window when an OLE Drag and Drop moves over the window. */
-	HRESULT OnOLEDragOver( const HWND HWnd, ::DWORD KeyState, POINTL CursorPosition, ::DWORD *CursorEffect);
+	APPLICATIONCORE_API HRESULT OnOLEDragOver( const HWND HWnd, ::DWORD KeyState, POINTL CursorPosition, ::DWORD *CursorEffect);
 
 	/** Invoked by a window when an OLE Drag and Drop exits the window. */
-	HRESULT OnOLEDragOut( const HWND HWnd );
+	APPLICATIONCORE_API HRESULT OnOLEDragOut( const HWND HWnd );
 
 	/** Invoked by a window when an OLE Drag and Drop is dropped onto the window. */
-	HRESULT OnOLEDrop( const HWND HWnd, const FDragDropOLEData& OLEData, ::DWORD KeyState, POINTL CursorPosition, ::DWORD *CursorEffect);
+	APPLICATIONCORE_API HRESULT OnOLEDrop( const HWND HWnd, const FDragDropOLEData& OLEData, ::DWORD KeyState, POINTL CursorPosition, ::DWORD *CursorEffect);
 
 	/**
 	 * Adds a Windows message handler with the application instance.
@@ -323,7 +323,7 @@ public:
 	 * @param MessageHandler The message handler to register.
 	 * @see RemoveMessageHandler
 	 */
-	virtual void AddMessageHandler(IWindowsMessageHandler& InMessageHandler);
+	APPLICATIONCORE_API virtual void AddMessageHandler(IWindowsMessageHandler& InMessageHandler);
 
 	/**
 	 * Removes a Windows message handler with the application instance.
@@ -331,35 +331,35 @@ public:
 	 * @param MessageHandler The message handler to register.
 	 * @see AddMessageHandler
 	 */
-	virtual void RemoveMessageHandler(IWindowsMessageHandler& InMessageHandler);
+	APPLICATIONCORE_API virtual void RemoveMessageHandler(IWindowsMessageHandler& InMessageHandler);
 
 public:
 
 	// GenericApplication overrides
 
-	virtual void SetMessageHandler( const TSharedRef< class FGenericApplicationMessageHandler >& InMessageHandler ) override;
+	APPLICATIONCORE_API virtual void SetMessageHandler( const TSharedRef< class FGenericApplicationMessageHandler >& InMessageHandler ) override;
 #if WITH_ACCESSIBILITY
-	virtual void SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler) override;
+	APPLICATIONCORE_API virtual void SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler) override;
 #endif
-	virtual void PollGameDeviceState( const float TimeDelta ) override;
-	virtual void PumpMessages( const float TimeDelta ) override;
-	virtual void ProcessDeferredEvents( const float TimeDelta ) override;
-	virtual TSharedRef< FGenericWindow > MakeWindow() override;
-	virtual void InitializeWindow( const TSharedRef< FGenericWindow >& Window, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FGenericWindow >& InParent, const bool bShowImmediately ) override;
-	virtual void SetCapture( const TSharedPtr< FGenericWindow >& InWindow ) override;
-	virtual void* GetCapture( void ) const override;
+	APPLICATIONCORE_API virtual void PollGameDeviceState( const float TimeDelta ) override;
+	APPLICATIONCORE_API virtual void PumpMessages( const float TimeDelta ) override;
+	APPLICATIONCORE_API virtual void ProcessDeferredEvents( const float TimeDelta ) override;
+	APPLICATIONCORE_API virtual TSharedRef< FGenericWindow > MakeWindow() override;
+	APPLICATIONCORE_API virtual void InitializeWindow( const TSharedRef< FGenericWindow >& Window, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FGenericWindow >& InParent, const bool bShowImmediately ) override;
+	APPLICATIONCORE_API virtual void SetCapture( const TSharedPtr< FGenericWindow >& InWindow ) override;
+	APPLICATIONCORE_API virtual void* GetCapture( void ) const override;
 	virtual bool IsMinimized() const override { return bMinimized; }
-	virtual void SetHighPrecisionMouseMode( const bool Enable, const TSharedPtr< FGenericWindow >& InWindow ) override;
+	APPLICATIONCORE_API virtual void SetHighPrecisionMouseMode( const bool Enable, const TSharedPtr< FGenericWindow >& InWindow ) override;
 	virtual bool IsUsingHighPrecisionMouseMode() const override { return bUsingHighPrecisionMouseInput; }
 	virtual bool IsMouseAttached() const override { return bIsMouseAttached; }
-	virtual bool IsGamepadAttached() const override;
-	virtual FModifierKeysState GetModifierKeys() const override;
-	virtual bool IsCursorDirectlyOverSlateWindow() const override;
-	virtual FPlatformRect GetWorkArea( const FPlatformRect& CurrentWindow ) const override;
-	virtual void GetInitialDisplayMetrics( FDisplayMetrics& OutDisplayMetrics ) const override;
-	virtual EWindowTitleAlignment::Type GetWindowTitleAlignment() const override;
-	virtual EWindowTransparency GetWindowTransparencySupport() const override;
-	virtual void DestroyApplication() override;
+	APPLICATIONCORE_API virtual bool IsGamepadAttached() const override;
+	APPLICATIONCORE_API virtual FModifierKeysState GetModifierKeys() const override;
+	APPLICATIONCORE_API virtual bool IsCursorDirectlyOverSlateWindow() const override;
+	APPLICATIONCORE_API virtual FPlatformRect GetWorkArea( const FPlatformRect& CurrentWindow ) const override;
+	APPLICATIONCORE_API virtual void GetInitialDisplayMetrics( FDisplayMetrics& OutDisplayMetrics ) const override;
+	APPLICATIONCORE_API virtual EWindowTitleAlignment::Type GetWindowTitleAlignment() const override;
+	APPLICATIONCORE_API virtual EWindowTransparency GetWindowTransparencySupport() const override;
+	APPLICATIONCORE_API virtual void DestroyApplication() override;
 
 	virtual IInputInterface* GetInputInterface() override
 	{
@@ -371,42 +371,42 @@ public:
 		return TextInputMethodSystem.Get();
 	}
 
-	virtual void AddExternalInputDevice(TSharedPtr<class IInputDevice> InputDevice);
+	APPLICATIONCORE_API virtual void AddExternalInputDevice(TSharedPtr<class IInputDevice> InputDevice);
 
-	virtual void FinishedInputThisFrame() override;
+	APPLICATIONCORE_API virtual void FinishedInputThisFrame() override;
 public:
 
 	// IInputInterface overrides
 
-	virtual void SetForceFeedbackChannelValue (int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
-	virtual void SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues &Values) override;
-	virtual void SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values) override;
+	APPLICATIONCORE_API virtual void SetForceFeedbackChannelValue (int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
+	APPLICATIONCORE_API virtual void SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues &Values) override;
+	APPLICATIONCORE_API virtual void SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values) override;
 	virtual void SetLightColor(int32 ControllerId, FColor Color) override { }
 	virtual void ResetLightColor(int32 ControllerId) override { }
-	virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) override;
+	APPLICATIONCORE_API virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) override;
 
 protected:
 	friend LRESULT WindowsApplication_WndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam);
 
 	/** Windows callback for message processing (forwards messages to the FWindowsApplication instance). */
-	static LRESULT CALLBACK AppWndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam);
+	static APPLICATIONCORE_API LRESULT CALLBACK AppWndProc(HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam);
 
 	/** Processes a single Windows message. */
-	int32 ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam );
+	APPLICATIONCORE_API int32 ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam, LPARAM lParam );
 
 	/** Processes a deferred Windows message. */
-	int32 ProcessDeferredMessage( const FDeferredWindowsMessage& DeferredMessage );
+	APPLICATIONCORE_API int32 ProcessDeferredMessage( const FDeferredWindowsMessage& DeferredMessage );
 
 	/** Processes deferred drag and drop operations. */
-	void ProcessDeferredDragDropOperation(const FDeferredWindowsDragDropOperation& Op);
+	APPLICATIONCORE_API void ProcessDeferredDragDropOperation(const FDeferredWindowsDragDropOperation& Op);
 
 	/** Hidden constructor. */
-	FWindowsApplication( const HINSTANCE HInstance, const HICON IconHandle );
+	APPLICATIONCORE_API FWindowsApplication( const HINSTANCE HInstance, const HICON IconHandle );
 
-	void ApplyLowLevelMouseFilter();
-	void RemoveLowLevelMouseFilter();
+	APPLICATIONCORE_API void ApplyLowLevelMouseFilter();
+	APPLICATIONCORE_API void RemoveLowLevelMouseFilter();
 
-	static LRESULT CALLBACK HandleLowLevelMouseFilterHook(int nCode, WPARAM wParam, LPARAM lParam);
+	static APPLICATIONCORE_API LRESULT CALLBACK HandleLowLevelMouseFilterHook(int nCode, WPARAM wParam, LPARAM lParam);
 
 	HHOOK LowLevelMouseFilterHook;
 	bool bLowLevelMouseFilterIsApplied = false;
@@ -414,49 +414,49 @@ protected:
 private:
 
 	/** Registers the Windows class for windows and assigns the application instance and icon */
-	static bool RegisterClass( const HINSTANCE HInstance, const HICON HIcon );
+	static APPLICATIONCORE_API bool RegisterClass( const HINSTANCE HInstance, const HICON HIcon );
 
 	/**  @return  True if a windows message is related to user input from the keyboard */
-	static bool IsKeyboardInputMessage( uint32 msg );
+	static APPLICATIONCORE_API bool IsKeyboardInputMessage( uint32 msg );
 
 	/**  @return  True if a windows message is related to user input from the mouse */
-	static bool IsMouseInputMessage( uint32 msg );
+	static APPLICATIONCORE_API bool IsMouseInputMessage( uint32 msg );
 
 	/**  @return  True if a windows message is a fake mouse input message generated after a WM_TOUCH event */
-	static bool IsFakeMouseInputMessage(uint32 msg);
+	static APPLICATIONCORE_API bool IsFakeMouseInputMessage(uint32 msg);
 
 	/**  @return  True if a windows message is related to user input (mouse, keyboard) */
-	static bool IsInputMessage( uint32 msg );
+	static APPLICATIONCORE_API bool IsInputMessage( uint32 msg );
 
 	/** Defers a Windows message for later processing. */
-	void DeferMessage( TSharedPtr<FWindowsWindow>& NativeWindow, HWND InHWnd, uint32 InMessage, WPARAM InWParam, LPARAM InLParam, int32 MouseX = 0, int32 MouseY = 0, uint32 RawInputFlags = 0 );
+	APPLICATIONCORE_API void DeferMessage( TSharedPtr<FWindowsWindow>& NativeWindow, HWND InHWnd, uint32 InMessage, WPARAM InWParam, LPARAM InLParam, int32 MouseX = 0, int32 MouseY = 0, uint32 RawInputFlags = 0 );
 
 	/** Checks a key code for release of the Shift key. */
-	void CheckForShiftUpEvents(const int32 KeyCode);
+	APPLICATIONCORE_API void CheckForShiftUpEvents(const int32 KeyCode);
 
 	/** Shuts down the application (called after an unrecoverable error occurred). */
-	void ShutDownAfterError();
+	APPLICATIONCORE_API void ShutDownAfterError();
 
 	/** Enables or disables Windows accessibility features, such as sticky keys. */
-	void AllowAccessibilityShortcutKeys(const bool bAllowKeys);
+	APPLICATIONCORE_API void AllowAccessibilityShortcutKeys(const bool bAllowKeys);
 
 	/** Queries and caches the number of connected mouse devices. */
-	void QueryConnectedMice();
+	APPLICATIONCORE_API void QueryConnectedMice();
 
 	/** Gets the touch index for a given windows touch ID. */
-	uint32 GetTouchIndexForID(int32 TouchID);
+	APPLICATIONCORE_API uint32 GetTouchIndexForID(int32 TouchID);
 
 	/** Searches for a free touch index. */
-	uint32 GetFirstFreeTouchIndex();
+	APPLICATIONCORE_API uint32 GetFirstFreeTouchIndex();
 
 	/** Helper function to update the cached states of all modifier keys */
-	void UpdateAllModifierKeyStates();
+	APPLICATIONCORE_API void UpdateAllModifierKeyStates();
 
-	FPlatformRect GetWorkAreaFromOS(const FPlatformRect& CurrentWindow) const;
+	APPLICATIONCORE_API FPlatformRect GetWorkAreaFromOS(const FPlatformRect& CurrentWindow) const;
 
 private:
 
-	static const FIntPoint MinimizedWindowPosition;
+	static APPLICATIONCORE_API const FIntPoint MinimizedWindowPosition;
 
 	HINSTANCE InstanceHandle;
 

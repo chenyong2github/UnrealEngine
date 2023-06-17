@@ -15,30 +15,30 @@ namespace Audio
 	};
 
 	// combination of two state-variable filters, the first filtering a key signal, which drives gain in the second
-	class SIGNALPROCESSING_API FDynamicStateVariableFilter
+	class FDynamicStateVariableFilter
 	{
 	public:
-		void Init(const float InSampleRate, const int32 InNumChannels);
-		void Reset();
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const int32 InNumChannels);
+		SIGNALPROCESSING_API void Reset();
 
-		void ProcessAudio(const float* InSamples, float* OutSamples, const int32 InNumSamples);
-		void ProcessAudio(const float* InSamples, float* OutSamples, const float* KeySamples, const int32 InNumSamples);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InSamples, float* OutSamples, const int32 InNumSamples);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InSamples, float* OutSamples, const float* KeySamples, const int32 InNumSamples);
 
-		void SetFrequency(const float InFrequency);
-		void SetQ(const float InQ);
-		void SetGain(const float InGain);
-		void SetFilterType(const EDynamicFilterType InFilterType);
+		SIGNALPROCESSING_API void SetFrequency(const float InFrequency);
+		SIGNALPROCESSING_API void SetQ(const float InQ);
+		SIGNALPROCESSING_API void SetGain(const float InGain);
+		SIGNALPROCESSING_API void SetFilterType(const EDynamicFilterType InFilterType);
 
-		void SetAnalog(const bool bInAnalog);
-		void SetAttackTime(const float InAttackTime);
-		void SetReleaseTime(const float InReleaseTime);
-		void SetThreshold(const float InThresholdDb);
-		void SetEnvMode(const EPeakMode::Type InMode);
-		void SetDynamicRange(const float InDynamicRange);
-		void SetRatio(const float InRatio);
-		void SetKnee(const float InKnee);
+		SIGNALPROCESSING_API void SetAnalog(const bool bInAnalog);
+		SIGNALPROCESSING_API void SetAttackTime(const float InAttackTime);
+		SIGNALPROCESSING_API void SetReleaseTime(const float InReleaseTime);
+		SIGNALPROCESSING_API void SetThreshold(const float InThresholdDb);
+		SIGNALPROCESSING_API void SetEnvMode(const EPeakMode::Type InMode);
+		SIGNALPROCESSING_API void SetDynamicRange(const float InDynamicRange);
+		SIGNALPROCESSING_API void SetRatio(const float InRatio);
+		SIGNALPROCESSING_API void SetKnee(const float InKnee);
 
-		float GetGainReduction();
+		SIGNALPROCESSING_API float GetGainReduction();
 
 	protected:
 		float SampleRate = 48000.f;
@@ -116,16 +116,16 @@ namespace Audio
 		// Points in the knee used for lagrangian interpolation
 		TArray<FVector2D> KneePoints;
 		
-		void ProcessBell(const float* InSamples, float* OutSamples, const float* KeySamples, const int32 InNumSamples);
-		void ProcessLowShelf(const float* InSamples, float* OutSamples, const float* KeySamples, const int32 InNumSamples);
-		void ProcessHighShelf(const float* InSamples, float* OutSamples, const float* KeySamples, const int32 InNumSamples);
+		SIGNALPROCESSING_API void ProcessBell(const float* InSamples, float* OutSamples, const float* KeySamples, const int32 InNumSamples);
+		SIGNALPROCESSING_API void ProcessLowShelf(const float* InSamples, float* OutSamples, const float* KeySamples, const int32 InNumSamples);
+		SIGNALPROCESSING_API void ProcessHighShelf(const float* InSamples, float* OutSamples, const float* KeySamples, const int32 InNumSamples);
 		
-		void UpdateSettings();
-		void UpdatePreFilterVariables();
-		void UpdatePostFilterVariables();
+		SIGNALPROCESSING_API void UpdateSettings();
+		SIGNALPROCESSING_API void UpdatePreFilterVariables();
+		SIGNALPROCESSING_API void UpdatePostFilterVariables();
 		
-		float CalcGain(const float KeySample);
+		SIGNALPROCESSING_API float CalcGain(const float KeySample);
 		
-		void ClearFilterDenormals();
+		SIGNALPROCESSING_API void ClearFilterDenormals();
 	};
 }

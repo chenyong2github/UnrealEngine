@@ -23,8 +23,8 @@
  *
  * This ParameterSource is intended to be used to create 3D Axis Translation Gizmos.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisTranslationParameterSource : public UGizmoBaseFloatParameterSource
+UCLASS(MinimalAPI)
+class UGizmoAxisTranslationParameterSource : public UGizmoBaseFloatParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -50,10 +50,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(float NewValue) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetParameter(float NewValue) override;
 
-	virtual void BeginModify() override;
-	virtual void EndModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndModify() override;
 
 
 public:
@@ -115,8 +115,8 @@ public:
  * 
  * This ParameterSource is intended to be used to create 3D Plane Translation Gizmos.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoPlaneTranslationParameterSource : public UGizmoBaseVec2ParameterSource
+UCLASS(MinimalAPI)
+class UGizmoPlaneTranslationParameterSource : public UGizmoBaseVec2ParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -144,10 +144,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(const FVector2D& NewValue) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetParameter(const FVector2D& NewValue) override;
 
-	virtual void BeginModify() override;
-	virtual void EndModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndModify() override;
 
 
 public:
@@ -217,8 +217,8 @@ public:
  * around an IGizmoAxisSource (ie 3D axis). This rotation is applied to an IGizmoTransformSource.
  * This ParameterSource is intended to be used to create 3D Rotation Gizmos.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisRotationParameterSource : public UGizmoBaseFloatParameterSource
+UCLASS(MinimalAPI)
+class UGizmoAxisRotationParameterSource : public UGizmoBaseFloatParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -242,10 +242,10 @@ public:
 		return Angle;
 	}
 
-	virtual void SetParameter(float NewValue) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetParameter(float NewValue) override;
 
-	virtual void BeginModify() override;
-	virtual void EndModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndModify() override;
 
 
 public:
@@ -316,8 +316,8 @@ public:
   *
   * This ParameterSource is intended to be used to create 3D Uniform Scale Gizmos.
   */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoUniformScaleParameterSource : public UGizmoBaseVec2ParameterSource
+UCLASS(MinimalAPI)
+class UGizmoUniformScaleParameterSource : public UGizmoBaseVec2ParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -336,10 +336,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(const FVector2D& NewValue) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetParameter(const FVector2D& NewValue) override;
 
-	virtual void BeginModify() override;
-	virtual void EndModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndModify() override;
 
 
 public:
@@ -412,8 +412,8 @@ public:
  *
  * This ParameterSource is intended to be used to create 3D Axis Scale Gizmos.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisScaleParameterSource : public UGizmoBaseFloatParameterSource
+UCLASS(MinimalAPI)
+class UGizmoAxisScaleParameterSource : public UGizmoBaseFloatParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -431,10 +431,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(float NewValue) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetParameter(float NewValue) override;
 
-	virtual void BeginModify() override;
-	virtual void EndModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndModify() override;
 
 public:
 	/** The Parameter line-equation value is converted to a 3D Translation along this Axis */
@@ -505,8 +505,8 @@ public:
  *
  * This ParameterSource is intended to be used to create 3D Plane Scale Gizmos.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoPlaneScaleParameterSource : public UGizmoBaseVec2ParameterSource
+UCLASS(MinimalAPI)
+class UGizmoPlaneScaleParameterSource : public UGizmoBaseVec2ParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -525,10 +525,10 @@ public:
 		return Parameter;
 	}
 
-	virtual void SetParameter(const FVector2D& NewValue) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetParameter(const FVector2D& NewValue) override;
 
-	virtual void BeginModify() override;
-	virtual void EndModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginModify() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndModify() override;
 
 
 public:

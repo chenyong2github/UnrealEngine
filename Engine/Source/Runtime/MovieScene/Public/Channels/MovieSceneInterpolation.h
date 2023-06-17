@@ -73,7 +73,7 @@ struct FLinearInterpolation
 /**
  * A cubic bezier interpolation between 2 control points with tangents, represented as 4 control points on a Bezier curve
  */
-struct MOVIESCENE_API FCubicInterpolation
+struct FCubicInterpolation
 {
 	/** The delta value between the two control points in the time-domain */
 	double DX;
@@ -82,7 +82,7 @@ struct MOVIESCENE_API FCubicInterpolation
 	/** The origin time of the first control point */
 	FFrameNumber Origin;
 
-	FCubicInterpolation(
+	MOVIESCENE_API FCubicInterpolation(
 		FFrameNumber InOrigin,
 		double InDX,
 		double InStartValue,
@@ -93,7 +93,7 @@ struct MOVIESCENE_API FCubicInterpolation
 	/**
 	 * Evaluate the expression
 	 */
-	double Evaluate(FFrameTime InTime) const;
+	MOVIESCENE_API double Evaluate(FFrameTime InTime) const;
 };
 
 /**
@@ -136,23 +136,23 @@ struct FWeightedCubicInterpolation
 /**
  * Simple 1 dimensional range based off a FFrameNumber to define the range within which a cached interpolation is valid
  */
-struct MOVIESCENE_API FCachedInterpolationRange
+struct FCachedInterpolationRange
 {
 	/** Make an empty range */
-	static FCachedInterpolationRange Empty();
+	static MOVIESCENE_API FCachedInterpolationRange Empty();
 	/** Make finite range from InStart to InEnd, not including the end frame */
-	static FCachedInterpolationRange Finite(FFrameNumber InStart, FFrameNumber InEnd);
+	static MOVIESCENE_API FCachedInterpolationRange Finite(FFrameNumber InStart, FFrameNumber InEnd);
 	/** Make an infinite range */
-	static FCachedInterpolationRange Infinite();
+	static MOVIESCENE_API FCachedInterpolationRange Infinite();
 
 	/** Make a range that only contains the specified time */
-	static FCachedInterpolationRange Only(FFrameNumber InTime);
+	static MOVIESCENE_API FCachedInterpolationRange Only(FFrameNumber InTime);
 	/** Make a range that covers all times from (and including) the specified start */
-	static FCachedInterpolationRange From(FFrameNumber InStart);
+	static MOVIESCENE_API FCachedInterpolationRange From(FFrameNumber InStart);
 	/** Make a range that covers all times up to (but not including) the specified end */
-	static FCachedInterpolationRange Until(FFrameNumber InEnd);
+	static MOVIESCENE_API FCachedInterpolationRange Until(FFrameNumber InEnd);
 
-	bool Contains(FFrameNumber FrameNumber) const;
+	MOVIESCENE_API bool Contains(FFrameNumber FrameNumber) const;
 
 	/** Inclusive start frame */
 	FFrameNumber Start;
@@ -164,24 +164,24 @@ struct MOVIESCENE_API FCachedInterpolationRange
  * Variant structure that wraps an interpolation and the range within which it is valid.
  * ~96 bytes
  */
-struct MOVIESCENE_API FCachedInterpolation
+struct FCachedInterpolation
 {
 	/** Default construction to an invalid state. Calling Evaluate will always return false */
-	FCachedInterpolation();
+	MOVIESCENE_API FCachedInterpolation();
 	/** Construction as a constant value */
-	FCachedInterpolation(const FCachedInterpolationRange& InRange, const FConstantValue& Constant);
+	MOVIESCENE_API FCachedInterpolation(const FCachedInterpolationRange& InRange, const FConstantValue& Constant);
 	/** Construction as a linear interpolation */
-	FCachedInterpolation(const FCachedInterpolationRange& InRange, const FLinearInterpolation& Linear);
+	MOVIESCENE_API FCachedInterpolation(const FCachedInterpolationRange& InRange, const FLinearInterpolation& Linear);
 	/** Construction as a cubic interpolation */
-	FCachedInterpolation(const FCachedInterpolationRange& InRange, const FCubicInterpolation& Cubic);
+	MOVIESCENE_API FCachedInterpolation(const FCachedInterpolationRange& InRange, const FCubicInterpolation& Cubic);
 	/** Construction as a weighted cubic interpolation */
-	FCachedInterpolation(const FCachedInterpolationRange& InRange, const FWeightedCubicInterpolation& WeightedCubic);
+	MOVIESCENE_API FCachedInterpolation(const FCachedInterpolationRange& InRange, const FWeightedCubicInterpolation& WeightedCubic);
 
 	/**
 	 * Check whether this cache is still valid for the specified frame number.
 	 * @return true if this interpolation is relevant to the frame, or false if it should be re-generated
 	 */
-	bool IsCacheValidForTime(FFrameNumber FrameNumber) const;
+	MOVIESCENE_API bool IsCacheValidForTime(FFrameNumber FrameNumber) const;
 
 	/**
 	 * Evaluate this interpolation for the specified frame time
@@ -190,7 +190,7 @@ struct MOVIESCENE_API FCachedInterpolation
 	 * @param OutResult  Reference to recieve the resulting value. Only written to if this function returns true.
 	 * @return true if this interpolation evaluated successfully (and the result written to OutResult), false otherwise.
 	 */
-	bool Evaluate(FFrameTime FrameTime, double& OutResult) const;
+	MOVIESCENE_API bool Evaluate(FFrameTime FrameTime, double& OutResult) const;
 
 private:
 

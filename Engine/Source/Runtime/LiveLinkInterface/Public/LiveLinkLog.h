@@ -20,7 +20,7 @@ struct FTimespan;
 #define ENABLE_LIVELINK_LOGGING (1 && !NO_LOGGING && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 /** This class represents a log of LiveLink output each of which can be a rich tokenized message */
-class LIVELINKINTERFACE_API FLiveLinkLog
+class FLiveLinkLog
 {
 public:
 	/** Write an error in to the LiveLink log. */
@@ -148,5 +148,5 @@ protected:
 
 protected:
 	/** The instance that will manage the logging */
-	static TUniquePtr<FLiveLinkLog> Instance;
+	static LIVELINKINTERFACE_API TUniquePtr<FLiveLinkLog> Instance;
 };

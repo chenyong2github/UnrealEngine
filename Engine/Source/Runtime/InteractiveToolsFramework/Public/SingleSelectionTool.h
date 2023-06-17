@@ -9,8 +9,8 @@
 
 #include "SingleSelectionTool.generated.h"
 
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API USingleSelectionTool : public UInteractiveTool, public IInteractiveToolCameraFocusAPI
+UCLASS(Transient, MinimalAPI)
+class USingleSelectionTool : public UInteractiveTool, public IInteractiveToolCameraFocusAPI
 {
 GENERATED_BODY()
 public:
@@ -53,9 +53,9 @@ protected:
 
 public:
 	// IInteractiveToolCameraFocusAPI implementation
-	virtual bool SupportsWorldSpaceFocusBox() override;
-	virtual FBox GetWorldSpaceFocusBox() override;
-	virtual bool SupportsWorldSpaceFocusPoint() override;
-	virtual bool GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool SupportsWorldSpaceFocusBox() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FBox GetWorldSpaceFocusBox() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool SupportsWorldSpaceFocusPoint() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetWorldSpaceFocusPoint(const FRay& WorldRay, FVector& PointOut) override;
 
 };

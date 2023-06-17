@@ -27,8 +27,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnButtonHoverEvent);
  * * Single Child
  * * Clickable
  */
-UCLASS()
-class UMG_API UButton : public UContentWidget
+UCLASS(MinimalAPI)
+class UButton : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -92,21 +92,21 @@ public:
 	
 	/** Sets the color multiplier for the button background */
 	UFUNCTION(BlueprintCallable, Category="Button|Appearance")
-	void SetStyle(const FButtonStyle& InStyle);
+	UMG_API void SetStyle(const FButtonStyle& InStyle);
 
-	const FButtonStyle& GetStyle() const;
+	UMG_API const FButtonStyle& GetStyle() const;
 
 	/** Sets the color multiplier for the button content */
 	UFUNCTION(BlueprintCallable, Category="Button|Appearance")
-	void SetColorAndOpacity(FLinearColor InColorAndOpacity);
+	UMG_API void SetColorAndOpacity(FLinearColor InColorAndOpacity);
 
-	FLinearColor GetColorAndOpacity() const;
+	UMG_API FLinearColor GetColorAndOpacity() const;
 
 	/** Sets the color multiplier for the button background */
 	UFUNCTION(BlueprintCallable, Category="Button|Appearance")
-	void SetBackgroundColor(FLinearColor InBackgroundColor);
+	UMG_API void SetBackgroundColor(FLinearColor InBackgroundColor);
 
-	FLinearColor GetBackgroundColor() const;
+	UMG_API FLinearColor GetBackgroundColor() const;
 
 	/**
 	 * Returns true if the user is actively pressing the button.  Do not use this for detecting 'Clicks', use the OnClicked event instead.
@@ -114,71 +114,71 @@ public:
 	 * @return true if the user is actively pressing the button otherwise false.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Button")
-	bool IsPressed() const;
+	UMG_API bool IsPressed() const;
 
 	UFUNCTION(BlueprintCallable, Category="Button")
-	void SetClickMethod(EButtonClickMethod::Type InClickMethod);
+	UMG_API void SetClickMethod(EButtonClickMethod::Type InClickMethod);
 
-	EButtonClickMethod::Type GetClickMethod() const;
-
-	UFUNCTION(BlueprintCallable, Category="Button")
-	void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
-
-	EButtonTouchMethod::Type GetTouchMethod() const;
+	UMG_API EButtonClickMethod::Type GetClickMethod() const;
 
 	UFUNCTION(BlueprintCallable, Category="Button")
-	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
+	UMG_API void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
 
-	EButtonPressMethod::Type GetPressMethod() const;
+	UMG_API EButtonTouchMethod::Type GetTouchMethod() const;
 
-	bool GetIsFocusable() const;
+	UFUNCTION(BlueprintCallable, Category="Button")
+	UMG_API void SetPressMethod(EButtonPressMethod::Type InPressMethod);
+
+	UMG_API EButtonPressMethod::Type GetPressMethod() const;
+
+	UMG_API bool GetIsFocusable() const;
 
 public:
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
+	UMG_API virtual void PostLoad() override;
 	//~ End UObject Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 protected:
 	/** Handle the actual click event from slate and forward it on */
-	FReply SlateHandleClicked();
-	void SlateHandlePressed();
-	void SlateHandleReleased();
-	void SlateHandleHovered();
-	void SlateHandleUnhovered();
+	UMG_API FReply SlateHandleClicked();
+	UMG_API void SlateHandlePressed();
+	UMG_API void SlateHandleReleased();
+	UMG_API void SlateHandleHovered();
+	UMG_API void SlateHandleUnhovered();
 
 	// Initialize IsFocusable in the constructor before the SWidget is constructed.
-	void InitIsFocusable(bool InIsFocusable);
+	UMG_API void InitIsFocusable(bool InIsFocusable);
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 #if WITH_EDITOR
 	virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content) override { return Content; }
 #endif
 	//~ End UWidget Interface
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+	UMG_API virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
 #endif
 
 protected:

@@ -24,10 +24,10 @@ enum class EWindowActivationPolicy;
  * A platform specific implementation of FNativeWindow.
  * Native Windows provide platform-specific backing for and are always owned by an SWindow.
  */
-class APPLICATIONCORE_API FLinuxWindow : public FGenericWindow
+class FLinuxWindow : public FGenericWindow
 {
 public:
-	~FLinuxWindow();
+	APPLICATIONCORE_API ~FLinuxWindow();
 
 	/** Create a new SDLWindow.
 	 *
@@ -37,58 +37,58 @@ public:
 	 * @param InParent			Parent Win32 window; usually NULL.
 	 * @param bShowImmediately	True to show this window as soon as its initialized
 	 */
-	static TSharedRef< FLinuxWindow > Make();
+	static APPLICATIONCORE_API TSharedRef< FLinuxWindow > Make();
 
-	SDL_HWindow GetHWnd() const;
+	APPLICATIONCORE_API SDL_HWindow GetHWnd() const;
 
-	void Initialize( class FLinuxApplication* const Application, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FLinuxWindow >& InParent, const bool bShowImmediately );
-
-	/** TODO: describe */
-	bool IsRegularWindow() const;
+	APPLICATIONCORE_API void Initialize( class FLinuxApplication* const Application, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FLinuxWindow >& InParent, const bool bShowImmediately );
 
 	/** TODO: describe */
-	bool IsPopupMenuWindow() const;
+	APPLICATIONCORE_API bool IsRegularWindow() const;
 
 	/** TODO: describe */
-	bool IsTooltipWindow() const;
+	APPLICATIONCORE_API bool IsPopupMenuWindow() const;
 
 	/** TODO: describe */
-	bool IsNotificationWindow() const;
+	APPLICATIONCORE_API bool IsTooltipWindow() const;
 
 	/** TODO: describe */
-	bool IsTopLevelWindow() const;
+	APPLICATIONCORE_API bool IsNotificationWindow() const;
+
+	/** TODO: describe */
+	APPLICATIONCORE_API bool IsTopLevelWindow() const;
 
 	/** @return true if this is a modal window */
-	bool IsModalWindow() const;
+	APPLICATIONCORE_API bool IsModalWindow() const;
 
 	/** TODO: describe */
-	bool IsDialogWindow() const;
+	APPLICATIONCORE_API bool IsDialogWindow() const;
 
 	/** TODO: describe */
-	bool IsDragAndDropWindow() const;
+	APPLICATIONCORE_API bool IsDragAndDropWindow() const;
 
 	/** TODO: describe */
-	bool IsUtilityWindow() const;
+	APPLICATIONCORE_API bool IsUtilityWindow() const;
 
 	/** @return the window activation policy used when showing the window */
-	EWindowActivationPolicy GetActivationPolicy() const;
+	APPLICATIONCORE_API EWindowActivationPolicy GetActivationPolicy() const;
 
 	/** TODO: describe */
-	bool IsFocusWhenFirstShown() const;
+	APPLICATIONCORE_API bool IsFocusWhenFirstShown() const;
 
 	/** TODO: describe */
-	const TSharedPtr< FLinuxWindow >& GetParent() const;
+	APPLICATIONCORE_API const TSharedPtr< FLinuxWindow >& GetParent() const;
 
 	/** Internal ID using for debugging */
-	uint32 GetID() const;
+	APPLICATIONCORE_API uint32 GetID() const;
 
 	/** Debugging function - dumps window info to log */
-	void LogInfo();
+	APPLICATIONCORE_API void LogInfo();
 
-	bool IsNativeMoving() const;
-	bool BeginNativeMove();
-	void AfterNativeMove();
-	void EndNativeMove();
+	APPLICATIONCORE_API bool IsNativeMoving() const;
+	APPLICATIONCORE_API bool BeginNativeMove();
+	APPLICATIONCORE_API void AfterNativeMove();
+	APPLICATIONCORE_API void EndNativeMove();
 
 	enum NativeResizeDirection 
 	{
@@ -104,67 +104,67 @@ public:
 		InvalidDirection
 	};
 
-	bool IsNativeResizing() const;
-	bool BeginNativeResize( NativeResizeDirection Direction );
-	void AfterNativeResize();
-	void EndNativeResize();
+	APPLICATIONCORE_API bool IsNativeResizing() const;
+	APPLICATIONCORE_API bool BeginNativeResize( NativeResizeDirection Direction );
+	APPLICATIONCORE_API void AfterNativeResize();
+	APPLICATIONCORE_API void EndNativeResize();
 
 public:
-	virtual void ReshapeWindow( int32 X, int32 Y, int32 Width, int32 Height ) override;
+	APPLICATIONCORE_API virtual void ReshapeWindow( int32 X, int32 Y, int32 Width, int32 Height ) override;
 
 	virtual void* GetOSWindowHandle() const  override { return HWnd; }
 
 	//	not finished
-	virtual bool GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const override;
+	APPLICATIONCORE_API virtual bool GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const override;
 
-	virtual void MoveWindowTo ( int32 X, int32 Y ) override;
+	APPLICATIONCORE_API virtual void MoveWindowTo ( int32 X, int32 Y ) override;
 
-	virtual void BringToFront( bool bForce = false ) override;
+	APPLICATIONCORE_API virtual void BringToFront( bool bForce = false ) override;
 
-	virtual void Destroy() override;
+	APPLICATIONCORE_API virtual void Destroy() override;
 
-	virtual void Minimize() override;
+	APPLICATIONCORE_API virtual void Minimize() override;
 
-	virtual void Maximize() override;
+	APPLICATIONCORE_API virtual void Maximize() override;
 
-	virtual void Restore() override;
+	APPLICATIONCORE_API virtual void Restore() override;
 
-	virtual void Show() override;
+	APPLICATIONCORE_API virtual void Show() override;
 
-	virtual void Hide() override;
+	APPLICATIONCORE_API virtual void Hide() override;
 
-	virtual void SetWindowMode( EWindowMode::Type NewWindowMode ) override;
+	APPLICATIONCORE_API virtual void SetWindowMode( EWindowMode::Type NewWindowMode ) override;
 
 	virtual EWindowMode::Type GetWindowMode() const override { return WindowMode; } 
 
-	virtual bool IsMaximized() const override;
+	APPLICATIONCORE_API virtual bool IsMaximized() const override;
 
-	virtual bool IsVisible() const override;
+	APPLICATIONCORE_API virtual bool IsVisible() const override;
 
-	virtual bool IsMinimized() const override;
+	APPLICATIONCORE_API virtual bool IsMinimized() const override;
 
-	virtual bool GetRestoredDimensions(int32& X, int32& Y, int32& Width, int32& Height) override;
+	APPLICATIONCORE_API virtual bool GetRestoredDimensions(int32& X, int32& Y, int32& Width, int32& Height) override;
 
-	virtual void SetWindowFocus() override;
+	APPLICATIONCORE_API virtual void SetWindowFocus() override;
 
-	virtual void SetOpacity( const float InOpacity ) override;
+	APPLICATIONCORE_API virtual void SetOpacity( const float InOpacity ) override;
 
-	virtual void Enable( bool bEnable ) override;
+	APPLICATIONCORE_API virtual void Enable( bool bEnable ) override;
 
-	virtual bool IsPointInWindow( int32 X, int32 Y ) const override;
+	APPLICATIONCORE_API virtual bool IsPointInWindow( int32 X, int32 Y ) const override;
 
-	virtual int32 GetWindowBorderSize() const override;
+	APPLICATIONCORE_API virtual int32 GetWindowBorderSize() const override;
 
-	virtual bool IsForegroundWindow() const override;
+	APPLICATIONCORE_API virtual bool IsForegroundWindow() const override;
 	/**
 	 * Sets the window text - usually the title but can also be text content for things like controls
 	 *
 	 * @param Text	The window's title or content text
 	 */
-	virtual void SetText(const TCHAR* const Text) override;
+	APPLICATIONCORE_API virtual void SetText(const TCHAR* const Text) override;
 
 	/** @return	Gives the native window a chance to adjust our stored window size before we cache it off */
-	virtual void AdjustCachedSize( FVector2D& Size ) const override;
+	APPLICATIONCORE_API virtual void AdjustCachedSize( FVector2D& Size ) const override;
 
 	virtual float GetDPIScaleFactor() const override
 	{
@@ -182,20 +182,20 @@ public:
 	 * @param BorderWidth - width of a vertical border (left side)
 	 * @param BorderHeight - height of a horizontal border (from the top)
 	 */
-	void GetNativeBordersSize(int32& OutLeftBorderWidth, int32& OutTopBorderHeight) const;
+	APPLICATIONCORE_API void GetNativeBordersSize(int32& OutLeftBorderWidth, int32& OutTopBorderHeight) const;
 
 	/**
 	 *  Caches window properties that are too expensive to query all the time.
 	 *  (e.g. border sizes)
 	 */
-	void CacheNativeProperties();
+	APPLICATIONCORE_API void CacheNativeProperties();
 
 private:
 
 	/**
 	 * Protect the constructor; only TSharedRefs of this class can be made.
 	 */
-	FLinuxWindow();
+	APPLICATIONCORE_API FLinuxWindow();
 
 private:
 
@@ -258,7 +258,7 @@ private:
 
 	/** Parent window as given by Slate */
 	TSharedPtr< FLinuxWindow > ParentWindow;
-	static SDL_HitTestResult HitTest( SDL_Window *SDLwin, const SDL_Point *point, void *data );
+	static APPLICATIONCORE_API SDL_HitTestResult HitTest( SDL_Window *SDLwin, const SDL_Point *point, void *data );
 
 	/** Cached width of the left border */
 	int32 LeftBorderWidth;

@@ -366,7 +366,7 @@ struct FFoliageInfo
 	FOLIAGE_API void AddToBaseHash(int32 InstanceIdx);
 	FOLIAGE_API void RemoveFromBaseHash(int32 InstanceIdx);
 	FOLIAGE_API void RecomputeHash();
-	FOLIAGE_API bool ShouldAttachToBaseComponent() const { return Implementation->ShouldAttachToBaseComponent(); }
+	bool ShouldAttachToBaseComponent() const { return Implementation->ShouldAttachToBaseComponent(); }
 
 	// For debugging. Validate state after editing.
 	void CheckValid();
@@ -497,7 +497,7 @@ struct FDesiredFoliageInstance
 
 #if WITH_EDITOR
 // Struct to hold potential instances we've sampled
-struct FOLIAGE_API FPotentialInstance
+struct FPotentialInstance
 {
 	FVector HitLocation;
 	FVector HitNormal;
@@ -505,7 +505,7 @@ struct FOLIAGE_API FPotentialInstance
 	float HitWeight;
 	FDesiredFoliageInstance DesiredInstance;
 
-	FPotentialInstance(FVector InHitLocation, FVector InHitNormal, UPrimitiveComponent* InHitComponent, float InHitWeight, const FDesiredFoliageInstance& InDesiredInstance = FDesiredFoliageInstance());
-	bool PlaceInstance(const UWorld* InWorld, const UFoliageType* Settings, FFoliageInstance& Inst, bool bSkipCollision = false);
+	FOLIAGE_API FPotentialInstance(FVector InHitLocation, FVector InHitNormal, UPrimitiveComponent* InHitComponent, float InHitWeight, const FDesiredFoliageInstance& InDesiredInstance = FDesiredFoliageInstance());
+	FOLIAGE_API bool PlaceInstance(const UWorld* InWorld, const UFoliageType* Settings, FFoliageInstance& Inst, bool bSkipCollision = false);
 };
 #endif

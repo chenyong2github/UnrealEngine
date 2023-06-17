@@ -9,12 +9,12 @@
 
 namespace AVEncoder
 {
-	class AVENCODER_API FCodecPacket
+	class FCodecPacket
 	{
 	public:
 		virtual ~FCodecPacket() = default;
 
-		static FCodecPacket Create(const uint8* InData, uint32 InDataSize);
+		static AVENCODER_API FCodecPacket Create(const uint8* InData, uint32 InDataSize);
 
 		/**
 		 * Encoding/Decoding latency

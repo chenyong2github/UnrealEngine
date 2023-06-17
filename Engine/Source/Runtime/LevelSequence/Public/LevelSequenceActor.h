@@ -24,26 +24,26 @@ class ULevelSequenceBurnIn;
 class ULevelSequencePlayer;
 class UMovieSceneSequenceTickManager;
 
-UCLASS(Blueprintable, DefaultToInstanced)
-class LEVELSEQUENCE_API ULevelSequenceBurnInInitSettings : public UObject
+UCLASS(Blueprintable, DefaultToInstanced, MinimalAPI)
+class ULevelSequenceBurnInInitSettings : public UObject
 {
 	GENERATED_BODY()
 };
 
-UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig, DefaultToInstanced, BlueprintType)
-class LEVELSEQUENCE_API ULevelSequenceBurnInOptions : public UObject
+UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig, DefaultToInstanced, BlueprintType, MinimalAPI)
+class ULevelSequenceBurnInOptions : public UObject
 {
 public:
 
 	GENERATED_BODY()
-	ULevelSequenceBurnInOptions(const FObjectInitializer& Init);
+	LEVELSEQUENCE_API ULevelSequenceBurnInOptions(const FObjectInitializer& Init);
 
 	/** Loads the specified class path and initializes an instance, then stores it in Settings. */
 	UFUNCTION(BlueprintCallable, Category = "General")
-	void SetBurnIn(FSoftClassPath InBurnInClass);
+	LEVELSEQUENCE_API void SetBurnIn(FSoftClassPath InBurnInClass);
 
 	/** Ensure the settings object is up-to-date */
-	void ResetSettings();
+	LEVELSEQUENCE_API void ResetSettings();
 
 public:
 
@@ -59,15 +59,15 @@ public:
 protected:
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	LEVELSEQUENCE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif //WITH_EDITOR
 };
 
 /**
  * Actor responsible for controlling a specific level sequence in the world.
  */
-UCLASS(hideCategories=(Rendering, Physics, HLOD, Activation, Input))
-class LEVELSEQUENCE_API ALevelSequenceActor
+UCLASS(hideCategories=(Rendering, Physics, HLOD, Activation, Input), MinimalAPI)
+class ALevelSequenceActor
 	: public AActor
 	, public IMovieScenePlaybackClient
 	, public IMovieSceneBindingOwnerInterface
@@ -80,7 +80,7 @@ public:
 	GENERATED_BODY()
 
 	/** Create and initialize a new instance. */
-	ALevelSequenceActor(const FObjectInitializer& Init);
+	LEVELSEQUENCE_API ALevelSequenceActor(const FObjectInitializer& Init);
 
 public:
 
@@ -132,7 +132,7 @@ public:
 	 * @see SetSequence
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Player")
-	ULevelSequence* GetSequence() const;
+	LEVELSEQUENCE_API ULevelSequence* GetSequence() const;
 
 	/**
 	 * Set the level sequence being played by this actor.
@@ -141,30 +141,30 @@ public:
 	 * @see GetSequence
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Player")
-	void SetSequence(ULevelSequence* InSequence);
+	LEVELSEQUENCE_API void SetSequence(ULevelSequence* InSequence);
 
 	/**
 	 * Set whether or not to replicate playback for this actor
 	 */
 	UFUNCTION(BlueprintSetter)
-	void SetReplicatePlayback(bool ReplicatePlayback);
+	LEVELSEQUENCE_API void SetReplicatePlayback(bool ReplicatePlayback);
 
 	/**
 	 * Access this actor's sequence player, or None if it is not yet initialized
 	 */
 	UFUNCTION(BlueprintGetter)
-	ULevelSequencePlayer* GetSequencePlayer() const;
+	LEVELSEQUENCE_API ULevelSequencePlayer* GetSequencePlayer() const;
 
 	/* Hide burnin */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void HideBurnin();
+	LEVELSEQUENCE_API void HideBurnin();
 
 	/* Show burnin */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void ShowBurnin();
+	LEVELSEQUENCE_API void ShowBurnin();
 
 	/** Refresh this actor's burn in */
-	void RefreshBurnIn();
+	LEVELSEQUENCE_API void RefreshBurnIn();
 
 public:
 
@@ -178,7 +178,7 @@ public:
 	 *								  set in Sequencer UI. This function will not modify the original asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void SetBinding(FMovieSceneObjectBindingID Binding, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
+	LEVELSEQUENCE_API void SetBinding(FMovieSceneObjectBindingID Binding, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
 
 	/**
 	 * Assigns an set of actors to all the bindings tagged with the specified name in this sequence. Object Bindings can be tagged within the sequence UI by RMB -> Tags... on the object binding in the tree.
@@ -190,7 +190,7 @@ public:
 	 *								  set in Sequencer UI. This function will not modify the original asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void SetBindingByTag(FName BindingTag, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
+	LEVELSEQUENCE_API void SetBindingByTag(FName BindingTag, const TArray<AActor*>& Actors, bool bAllowBindingsFromAsset = false);
 
 	/**
 	 * Adds the specified actor to the overridden bindings for the specified binding ID, optionally still allowing the bindings defined in the Level Sequence asset
@@ -202,7 +202,7 @@ public:
 	 *								  set in Sequencer UI. This function will not modify the original asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void AddBinding(FMovieSceneObjectBindingID Binding, AActor* Actor, bool bAllowBindingsFromAsset = false);
+	LEVELSEQUENCE_API void AddBinding(FMovieSceneObjectBindingID Binding, AActor* Actor, bool bAllowBindingsFromAsset = false);
 
 	/**
 	 * Binds an actor to all the bindings tagged with the specified name in this sequence. Does not remove any exising bindings that have been set up through this API. Object Bindings can be tagged within the sequence UI by RMB -> Tags... on the object binding in the tree.
@@ -214,37 +214,37 @@ public:
 	 *								  set in Sequencer UI. This function will not modify the original asset.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void AddBindingByTag(FName BindingTag, AActor* Actor, bool bAllowBindingsFromAsset = false);
+	LEVELSEQUENCE_API void AddBindingByTag(FName BindingTag, AActor* Actor, bool bAllowBindingsFromAsset = false);
 
 	/**
 	 * Removes the specified actor from the specified binding's actor array
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void RemoveBinding(FMovieSceneObjectBindingID Binding, AActor* Actor);
+	LEVELSEQUENCE_API void RemoveBinding(FMovieSceneObjectBindingID Binding, AActor* Actor);
 
 	/**
 	 * Removes the specified actor from the specified binding's actor array
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void RemoveBindingByTag(FName Tag, AActor* Actor);
+	LEVELSEQUENCE_API void RemoveBindingByTag(FName Tag, AActor* Actor);
 
 	/**
 	 * Resets the specified binding back to the defaults defined by the Level Sequence asset
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void ResetBinding(FMovieSceneObjectBindingID Binding);
+	LEVELSEQUENCE_API void ResetBinding(FMovieSceneObjectBindingID Binding);
 
 	/**
 	 * Resets all overridden bindings back to the defaults defined by the Level Sequence asset
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings")
-	void ResetBindings();
+	LEVELSEQUENCE_API void ResetBindings();
 
 	/**
 	 * Retrieve the first object binding that has been tagged with the specified name
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings", DisplayName="Find Binding by Tag")
-	FMovieSceneObjectBindingID FindNamedBinding(FName Tag) const;
+	LEVELSEQUENCE_API FMovieSceneObjectBindingID FindNamedBinding(FName Tag) const;
 
 	/**
 	 * Retrieve all the bindings that have been tagged with the specified name
@@ -253,35 +253,35 @@ public:
 	 * @return An array containing all the bindings that are tagged with this name, potentially empty.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player|Bindings", DisplayName="Find Bindings by Tag")
-	const TArray<FMovieSceneObjectBindingID>& FindNamedBindings(FName Tag) const;
+	LEVELSEQUENCE_API const TArray<FMovieSceneObjectBindingID>& FindNamedBindings(FName Tag) const;
 
 protected:
 
 	//~ Begin IMovieScenePlaybackClient interface
-	virtual bool RetrieveBindingOverrides(const FGuid& InBindingId, FMovieSceneSequenceID InSequenceID, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
-	virtual UObject* GetInstanceData() const override;
-	virtual TOptional<EAspectRatioAxisConstraint> GetAspectRatioAxisConstraint() const override;
-	virtual bool GetIsReplicatedPlayback() const override;
+	LEVELSEQUENCE_API virtual bool RetrieveBindingOverrides(const FGuid& InBindingId, FMovieSceneSequenceID InSequenceID, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
+	LEVELSEQUENCE_API virtual UObject* GetInstanceData() const override;
+	LEVELSEQUENCE_API virtual TOptional<EAspectRatioAxisConstraint> GetAspectRatioAxisConstraint() const override;
+	LEVELSEQUENCE_API virtual bool GetIsReplicatedPlayback() const override;
 	//~ End IMovieScenePlaybackClient interface
 
 	//~ Begin UObject interface
-	virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags *RepFlags) override;
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	LEVELSEQUENCE_API virtual bool ReplicateSubobjects(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags *RepFlags) override;
+	LEVELSEQUENCE_API virtual void PostInitProperties() override;
+	LEVELSEQUENCE_API virtual void PostLoad() override;
 public:
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static LEVELSEQUENCE_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 protected:
 
 	//~ End UObject interface
 
 	//~ Begin AActor interface
-	virtual void PostInitializeComponents() override;
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void RewindForReplay() override;
-	virtual void PostNetReceive() override;
+	LEVELSEQUENCE_API virtual void PostInitializeComponents() override;
+	LEVELSEQUENCE_API virtual void BeginPlay() override;
+	LEVELSEQUENCE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	LEVELSEQUENCE_API virtual void RewindForReplay() override;
+	LEVELSEQUENCE_API virtual void PostNetReceive() override;
 #if WITH_EDITOR
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 #endif
@@ -299,20 +299,20 @@ public:
 		WorldPartitionResolveData = InWorldPartitionResolveData;
 	}
 
-	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	LEVELSEQUENCE_API virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 #endif //WITH_EDITOR
 
 	/** Initialize the player object by loading the asset, using async loading when necessary */
-	void InitializePlayer();
+	LEVELSEQUENCE_API void InitializePlayer();
 
 	/** Initialize the player object with the specified asset */
-	void InitializePlayerWithSequence(ULevelSequence* LevelSequenceAsset);
-	void OnSequenceLoaded(const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result);
+	LEVELSEQUENCE_API void InitializePlayerWithSequence(ULevelSequence* LevelSequenceAsset);
+	LEVELSEQUENCE_API void OnSequenceLoaded(const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result);
 
 #if WITH_EDITOR
-	virtual TSharedPtr<FStructOnScope> GetObjectPickerProxy(TSharedPtr<IPropertyHandle> PropertyHandle) override;
-	virtual void UpdateObjectFromProxy(FStructOnScope& Proxy, IPropertyHandle& ObjectPropertyHandle) override;
-	virtual UMovieSceneSequence* RetrieveOwnedSequence() const override;
+	LEVELSEQUENCE_API virtual TSharedPtr<FStructOnScope> GetObjectPickerProxy(TSharedPtr<IPropertyHandle> PropertyHandle) override;
+	LEVELSEQUENCE_API virtual void UpdateObjectFromProxy(FStructOnScope& Proxy, IPropertyHandle& ObjectPropertyHandle) override;
+	LEVELSEQUENCE_API virtual UMovieSceneSequence* RetrieveOwnedSequence() const override;
 #endif
 
 private:
@@ -328,7 +328,7 @@ private:
 };
 
 USTRUCT()
-struct LEVELSEQUENCE_API FBoundActorProxy
+struct FBoundActorProxy
 {
 	GENERATED_BODY()
 
@@ -338,9 +338,9 @@ struct LEVELSEQUENCE_API FBoundActorProxy
 	UPROPERTY(EditInstanceOnly, AdvancedDisplay, Category="General")
 	TObjectPtr<AActor> BoundActor = nullptr;
 
-	void Initialize(TSharedPtr<IPropertyHandle> InPropertyHandle);
+	LEVELSEQUENCE_API void Initialize(TSharedPtr<IPropertyHandle> InPropertyHandle);
 
-	void OnReflectedPropertyChanged();
+	LEVELSEQUENCE_API void OnReflectedPropertyChanged();
 
 	TSharedPtr<IPropertyHandle> ReflectedProperty;
 
@@ -350,13 +350,13 @@ struct LEVELSEQUENCE_API FBoundActorProxy
 /**
  * A level sequence actor that is set to always be relevant for networking purposes
  */
-UCLASS()
-class LEVELSEQUENCE_API AReplicatedLevelSequenceActor
+UCLASS(MinimalAPI)
+class AReplicatedLevelSequenceActor
 	: public ALevelSequenceActor
 {
 	GENERATED_BODY()
 
 public:
 	/** Create and initialize a new instance. */
-	AReplicatedLevelSequenceActor(const FObjectInitializer& Init);
+	LEVELSEQUENCE_API AReplicatedLevelSequenceActor(const FObjectInitializer& Init);
 };

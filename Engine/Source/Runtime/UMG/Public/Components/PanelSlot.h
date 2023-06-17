@@ -8,8 +8,8 @@
 #include "PanelSlot.generated.h"
 
 /** The base class for all Slots in UMG. */
-UCLASS(BlueprintType)
-class UMG_API UPanelSlot : public UVisual
+UCLASS(BlueprintType, MinimalAPI)
+class UPanelSlot : public UVisual
 {
 	GENERATED_UCLASS_BODY()
 
@@ -22,12 +22,12 @@ public:
 	TObjectPtr<class UWidget> Content;
 	
 #if WITH_EDITOR
-	bool IsDesignTime() const;
+	UMG_API bool IsDesignTime() const;
 #else
 	FORCEINLINE bool IsDesignTime() const { return false; }
 #endif
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	/** Applies all properties to the live slot if possible. */
 	virtual void SynchronizeProperties()

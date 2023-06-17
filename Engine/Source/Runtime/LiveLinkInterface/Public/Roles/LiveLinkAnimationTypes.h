@@ -10,7 +10,7 @@
  * Static data for Animation purposes. Contains data about bones that shouldn't change every frame.
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkSkeletonStaticData : public FLiveLinkBaseStaticData
+struct FLiveLinkSkeletonStaticData : public FLiveLinkBaseStaticData
 {
 	GENERATED_BODY()
 
@@ -46,7 +46,7 @@ public:
  * Dynamic data for Animation purposes. 
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkAnimationFrameData : public FLiveLinkBaseFrameData
+struct FLiveLinkAnimationFrameData : public FLiveLinkBaseFrameData
 {
 	GENERATED_BODY()
 

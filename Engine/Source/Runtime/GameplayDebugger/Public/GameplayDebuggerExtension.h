@@ -22,28 +22,28 @@
 
 class APlayerController;
 
-class GAMEPLAYDEBUGGER_API FGameplayDebuggerExtension : public FGameplayDebuggerAddonBase
+class FGameplayDebuggerExtension : public FGameplayDebuggerAddonBase
 {
 public:
 
 	virtual ~FGameplayDebuggerExtension() {}
-	virtual void OnGameplayDebuggerActivated() override;
-	virtual void OnGameplayDebuggerDeactivated() override;
+	GAMEPLAYDEBUGGER_API virtual void OnGameplayDebuggerActivated() override;
+	GAMEPLAYDEBUGGER_API virtual void OnGameplayDebuggerDeactivated() override;
 
 	/** [LOCAL] description for gameplay debugger's header row, newline character is ignored */
-	virtual FString GetDescription() const;
+	GAMEPLAYDEBUGGER_API virtual FString GetDescription() const;
 
 	/** [LOCAL] called when added to debugger tool or tool is activated */
-	virtual void OnActivated();
+	GAMEPLAYDEBUGGER_API virtual void OnActivated();
 
 	/** [LOCAL] called when removed from debugger tool or tool is deactivated */
-	virtual void OnDeactivated();
+	GAMEPLAYDEBUGGER_API virtual void OnDeactivated();
 
 	/** check if extension is created for local player */
-	bool IsLocal() const;
+	GAMEPLAYDEBUGGER_API bool IsLocal() const;
 
 protected:
 
 	/** get player controller owning gameplay debugger tool */
-	APlayerController* GetPlayerController() const;
+	GAMEPLAYDEBUGGER_API APlayerController* GetPlayerController() const;
 };

@@ -11,8 +11,8 @@
 class UBlackboardComponent;
 struct FBlackboardKeySelector;
 
-UCLASS(Abstract)
-class AIMODULE_API UEnvQueryItemType : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UEnvQueryItemType : public UObject
 {
 	GENERATED_BODY()
 
@@ -22,22 +22,22 @@ public:
 	  *	not set in a defived class*/
 	typedef void FValueType;
 
-	UEnvQueryItemType(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UEnvQueryItemType(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** get ValueSize */
 	FORCEINLINE uint16 GetValueSize() const { return ValueSize; }
 
 	/** add filters for blackboard key selector */
-	virtual void AddBlackboardFilters(FBlackboardKeySelector& KeySelector, UObject* FilterOwner) const;
+	AIMODULE_API virtual void AddBlackboardFilters(FBlackboardKeySelector& KeySelector, UObject* FilterOwner) const;
 
 	/** store value in blackboard entry */
-	virtual bool StoreInBlackboard(FBlackboardKeySelector& KeySelector, UBlackboardComponent* Blackboard, const uint8* RawData) const;
+	AIMODULE_API virtual bool StoreInBlackboard(FBlackboardKeySelector& KeySelector, UBlackboardComponent* Blackboard, const uint8* RawData) const;
 
 	/** unregister from known types in EnvQueryManager */
-	virtual void FinishDestroy() override;
+	AIMODULE_API virtual void FinishDestroy() override;
 
 	/** describe item */
-	virtual FString GetDescription(const uint8* RawData) const;
+	AIMODULE_API virtual FString GetDescription(const uint8* RawData) const;
 
 	/** helper function for reading typed data from memory block */
 	template<typename T>

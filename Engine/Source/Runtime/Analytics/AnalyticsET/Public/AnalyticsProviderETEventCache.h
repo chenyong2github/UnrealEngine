@@ -22,7 +22,7 @@
  *
  * All public APIs in this class are threadsafe. Implemented via crappy critical sections for now, but they are safe. 
  */
-class ANALYTICSET_API FAnalyticsProviderETEventCache
+class FAnalyticsProviderETEventCache
 {
 public:
 	/** Default ctor.
@@ -32,70 +32,70 @@ public:
 	 *        This ensures that no payload ever gets too large. See AddToCache() and HasFlushesQueued() for details. 
 	 *        If negative, will use INI-configured value: Engine:[AnalyticsProviderETEventCache]MaximumPayloadSize, or 100KB if not configured.
 	 */
-	FAnalyticsProviderETEventCache(int32 MaximumPayloadSize = -1, int32 InPreallocatedPayloadSize = -1);
+	ANALYTICSET_API FAnalyticsProviderETEventCache(int32 MaximumPayloadSize = -1, int32 InPreallocatedPayloadSize = -1);
 
 	/** 
 	 * Adds a new event to the cache.
 	 * If the estimated payload size will increase beyond MaximumPayloadSize then a flush will be queued here. This will make HasFlushesQueued() == true.
 	 */
-	void AddToCache(FString EventName, const TArray<FAnalyticsEventAttribute>& Attributes);
-	void AddToCache(FString EventName);
+	ANALYTICSET_API void AddToCache(FString EventName, const TArray<FAnalyticsEventAttribute>& Attributes);
+	ANALYTICSET_API void AddToCache(FString EventName);
 
 	/**
 	 * Sets an array of attributes that will automatically be appended to any event that is sent.
 	 * Logical effect is like adding them to all events before calling RecordEvent.
 	 * Practically, it is implemented much more efficiently from a storage and allocation perspective.
 	 */
-	void SetDefaultAttributes(TArray<FAnalyticsEventAttribute>&& DefaultAttributes);
+	ANALYTICSET_API void SetDefaultAttributes(TArray<FAnalyticsEventAttribute>&& DefaultAttributes);
 
 	/**
 	 * @return the current array of default attributes.
 	 */
-	TArray<FAnalyticsEventAttribute> GetDefaultAttributes() const;
+	ANALYTICSET_API TArray<FAnalyticsEventAttribute> GetDefaultAttributes() const;
 
 	/**
 	 * @return the number of default attributes are currently being applied.
 	 */
-	int32 GetDefaultAttributeCount() const;
+	ANALYTICSET_API int32 GetDefaultAttributeCount() const;
 
 	/**
 	 * Range checking is not done, similar to TArray. Use GetDefaultAttributeCount() first!
 	 * @return one attribute of the default attributes so we don't have to copy the entire attribute array.
 	 */
-	FAnalyticsEventAttribute GetDefaultAttribute(int32 AttributeIndex) const;
+	ANALYTICSET_API FAnalyticsEventAttribute GetDefaultAttribute(int32 AttributeIndex) const;
 
 	/** Flushes the cache as a string. This method is inefficient because we build up the array directly as UTF8. If nothing is cached, returns an empty string. */
 	UE_DEPRECATED(4.25, "This method has been deprecated, use FlushCacheUTF8() instead.")
-	FString FlushCache(SIZE_T* OutEventCount = nullptr);
+	ANALYTICSET_API FString FlushCache(SIZE_T* OutEventCount = nullptr);
 
 	/** Flushes the cache as a UTF8 char array. Returns a uint8 because that's what IHttpRequest prefers. If nothing is cached, returns an empty array. */
-	TArray<uint8> FlushCacheUTF8();
+	ANALYTICSET_API TArray<uint8> FlushCacheUTF8();
 
 	/**
 	* Determines whether we have anything we need to flush, either a queued flush or existing events in the payload.
 	*/
-	bool CanFlush() const;
+	ANALYTICSET_API bool CanFlush() const;
 
 	/**
 	 * Lets external code know that there are payloads queued for flush.
 	 * This happens when AddCache() calls cause the payload size to exceed MaxPayloadSize. 
 	 * Calling code needs to notice this and flush the queue.
 	 */
-	bool HasFlushesQueued() const;
+	ANALYTICSET_API bool HasFlushesQueued() const;
 
 	/**
 	 * Gets the number of cached events (doesn't include any flushes that are already queued for flush). 
 	 */
-	int GetNumCachedEvents() const;
+	ANALYTICSET_API int GetNumCachedEvents() const;
 
 	/**
 	 * Sets the preallocated payload size
 	 * @param InPreallocatedCacheSize size to preallocate the payload buffer to during init and after flushing. If negative, will match the INI-configured MaximumPayloadSize.
 	 */
-	void SetPreallocatedPayloadSize(int32 InSetPreallocatedPayloadSize);
+	ANALYTICSET_API void SetPreallocatedPayloadSize(int32 InSetPreallocatedPayloadSize);
 
 	/** Gets the preallocated size of the payload buffer. */
-	int32 GetSetPreallocatedPayloadSize() const;
+	ANALYTICSET_API int32 GetSetPreallocatedPayloadSize() const;
 
 	friend class Lock;
 
@@ -111,7 +111,7 @@ public:
 	};
 
 private:
-	void QueueFlush();
+	ANALYTICSET_API void QueueFlush();
 
 	/**
 	* Analytics event entry to be cached

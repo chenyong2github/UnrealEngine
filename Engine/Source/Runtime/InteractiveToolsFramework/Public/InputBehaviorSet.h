@@ -22,7 +22,7 @@
  * This is an internal structure used by UInputBehaviorSet. 
  */
 USTRUCT()
-struct INTERACTIVETOOLSFRAMEWORK_API FBehaviorInfo
+struct FBehaviorInfo
 {
 	GENERATED_BODY()
 	
@@ -54,14 +54,14 @@ struct INTERACTIVETOOLSFRAMEWORK_API FBehaviorInfo
  * behaviors to be managed together. For example one UInputBehaviorSet can be merged into 
  * another and removed later.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInputBehaviorSet : public UObject
+UCLASS(Transient, MinimalAPI)
+class UInputBehaviorSet : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UInputBehaviorSet();
-	virtual ~UInputBehaviorSet();
+	INTERACTIVETOOLSFRAMEWORK_API UInputBehaviorSet();
+	INTERACTIVETOOLSFRAMEWORK_API virtual ~UInputBehaviorSet();
 
 	//
 	// Set Management
@@ -69,7 +69,7 @@ public:
 
 
 	/** @return true if there are no Behaviors in set */
-	virtual bool IsEmpty() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool IsEmpty() const;
 
 	/** 
 	 * Add a Behavior to the set
@@ -77,7 +77,7 @@ public:
 	 * @param Source pointer to owning object, used only to identify Behavior later
 	 * @param GroupName string identifier for this Behavior or group of Behaviors
 	 */
-	virtual void Add(UInputBehavior* Behavior, void* Source = nullptr, const FString& GroupName = "");
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Add(UInputBehavior* Behavior, void* Source = nullptr, const FString& GroupName = "");
 
 	/**
 	 * Merge another BehaviorSet into this Set
@@ -85,30 +85,30 @@ public:
 	 * @param Source pointer to owning object, used only to identify Behavior later. If nullptr, source is copied from other Set.
 	 * @param NewGroupName string identifier for this Behavior or group of Behaviors. If empty string, group is copied from other Set.
 	 */
-	virtual void Add(const UInputBehaviorSet* OtherSet, void* NewSource = nullptr, const FString& NewGroupName = "");
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Add(const UInputBehaviorSet* OtherSet, void* NewSource = nullptr, const FString& NewGroupName = "");
 
 	/**
 	 * Remove a Behavior from the Set
 	 * @param Behavior Behavior to remove
 	 * @return true if Behavior was found and removed
 	 */
-	virtual bool Remove(UInputBehavior* Behavior);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool Remove(UInputBehavior* Behavior);
 	/**
 	 * Remove a group of Behaviors from the Set
 	 * @param GroupName name of group, all Behaviors that were added with this GroupName are removed
 	 * @return true if any Behaviors were found and removed
 	 */
-	virtual bool RemoveByGroup(const FString& GroupName);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool RemoveByGroup(const FString& GroupName);
 	/**
 	 * Remove a group of Behaviors from the Set
 	 * @param Source source object pointer, all Behaviors that were added with this Source pointer are removed.
 	 * @return true if any Behaviors were found and removed
 	 */
-	virtual bool RemoveBySource(void* Source);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool RemoveBySource(void* Source);
 	/**
 	 * Remove all Behaviors from the set
 	 */
-	virtual void RemoveAll();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void RemoveAll();
 
 
 	//
@@ -121,14 +121,14 @@ public:
 	 * @param InputState current input device state information
 	 * @param ResultOut returned set of non-Ignoring FInputCaptureRequests returned by Behaviors
 	 */
-	virtual void CollectWantsCapture(const FInputDeviceState& InputState, TArray<FInputCaptureRequest>& ResultOut);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void CollectWantsCapture(const FInputDeviceState& InputState, TArray<FInputCaptureRequest>& ResultOut);
 
 	/**
 	 * Call UInputBehavior::WantsCapture() on each valid Behavior and collect up the requests that indicated a Capture was desired.
 	 * @param InputState current input device state information
 	 * @param ResultOut returned set of non-Ignoring FInputCaptureRequests returned by Behaviors
 	 */
-	virtual void CollectWantsHoverCapture(const FInputDeviceState& InputState, TArray<FInputCaptureRequest>& ResultOut);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void CollectWantsHoverCapture(const FInputDeviceState& InputState, TArray<FInputCaptureRequest>& ResultOut);
 
 
 
@@ -141,7 +141,7 @@ protected:
 	/**
 	 * called internally when Behaviors list is updated, to re-sort by Priority, etc (@todo: and emit change event)
 	 */
-	virtual void BehaviorsModified();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BehaviorsModified();
 
 
 	/** @return true if Behavior supports InputState.InputDevice */
@@ -186,8 +186,8 @@ public:
  * a tool to supply a behavior source different from the one it is implementing itself. Useful,
  * for instance, when a tool wants to supply different behaviors to separate input routers.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API ULocalInputBehaviorSource : public UObject, public IInputBehaviorSource
+UCLASS(Transient, MinimalAPI)
+class ULocalInputBehaviorSource : public UObject, public IInputBehaviorSource
 {
 	GENERATED_BODY()
 

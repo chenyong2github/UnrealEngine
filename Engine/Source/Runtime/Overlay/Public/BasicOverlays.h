@@ -21,8 +21,8 @@ class UObject;
  * Implements an asset that contains a set of overlay data (which includes timing, text, and position) to be displayed for any
  * given source (including, but not limited to, audio, dialog, and movies)
  */
-UCLASS(BlueprintType, hidecategories = (Object))
-class OVERLAY_API UBasicOverlays
+UCLASS(BlueprintType, hidecategories = (Object), MinimalAPI)
+class UBasicOverlays
 	: public UOverlays
 {
 	GENERATED_BODY()
@@ -45,15 +45,15 @@ public:
 
 	//~ UOverlays interface
 
-	virtual TArray<FOverlayItem> GetAllOverlays() const override;
-	virtual void GetOverlaysForTime(const FTimespan& Time, TArray<FOverlayItem>& OutOverlays) const override;
+	OVERLAY_API virtual TArray<FOverlayItem> GetAllOverlays() const override;
+	OVERLAY_API virtual void GetOverlaysForTime(const FTimespan& Time, TArray<FOverlayItem>& OutOverlays) const override;
 
 public:
 	
 	//~ UObject interface
 	
-	virtual void PostInitProperties() override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	OVERLAY_API virtual void PostInitProperties() override;
+	OVERLAY_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	// End UObject interface
 
 private:

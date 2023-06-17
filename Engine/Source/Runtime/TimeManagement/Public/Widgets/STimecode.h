@@ -12,7 +12,7 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateColor.h"
 
-class TIMEMANAGEMENT_API STimecode : public SLeafWidget
+class STimecode : public SLeafWidget
 {
 public:
 	SLATE_BEGIN_ARGS(STimecode)
@@ -40,20 +40,20 @@ public:
 		SLATE_ATTRIBUTE(FSlateColor, LabelColor)
 	SLATE_END_ARGS()
 
-	STimecode();
+	TIMEMANAGEMENT_API STimecode();
 
 	/**
 	 * Construct this widget
 	 *
 	 * @param	InArgs	The declaration data for this widget
 	 */
-	void Construct(const FArguments& InArgs);
+	TIMEMANAGEMENT_API void Construct(const FArguments& InArgs);
 
 protected:
 	// SWidget overrides
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual bool ComputeVolatility() const override;
+	TIMEMANAGEMENT_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	TIMEMANAGEMENT_API virtual FVector2D ComputeDesiredSize(float) const override;
+	TIMEMANAGEMENT_API virtual bool ComputeVolatility() const override;
 
 private:
 	TAttribute<FTimecode> Timecode;

@@ -6,7 +6,7 @@
 
 typedef TSharedPtr<class IBackgroundHttpManager, ESPMode::ThreadSafe> FBackgroundHttpManagerPtr;
 
-class BACKGROUNDHTTP_API IBackgroundHttpManager : public TSharedFromThis<IBackgroundHttpManager>
+class IBackgroundHttpManager : public TSharedFromThis<IBackgroundHttpManager>
 {
 public:
 

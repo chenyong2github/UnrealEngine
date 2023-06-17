@@ -16,7 +16,7 @@ struct FStandaloneCompositeFont;
 //This is a helper class that we use to hold values we parse from the .ini. Clean way to access things like dynamic image brushes / fonts / etc used in our UI that
 //we want to be somewhat data driven but we can't rely on UObject support to implement(as the PreLoad stuff happens too early for UObject support)
 //This lets us set easy to change values in our .ini that are parsed at runtime and stored in this container
-class PRELOADSCREEN_API FPreLoadSettingsContainerBase : public FDeferredCleanupInterface, public FGCObject
+class FPreLoadSettingsContainerBase : public FDeferredCleanupInterface, public FGCObject
 {
 public:
 
@@ -102,70 +102,70 @@ private:
 		HasCreatedSystemFontFile = false;
     }
 
-    virtual ~FPreLoadSettingsContainerBase();
+    PRELOADSCREEN_API virtual ~FPreLoadSettingsContainerBase();
 
 public:
 
 	//~ Begin FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	PRELOADSCREEN_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override { return TEXT("FPreLoadSettingsContainerBase"); }
 	//~ End FGCObject interface
 
-    virtual const FSlateDynamicImageBrush* GetBrush(const FString& Identifier);
-    virtual FText GetLocalizedText(const FString& Identifier);
-    virtual TSharedPtr<FCompositeFont> GetFont(const FString& Identifier);
-    virtual FScreenGroupingBase* GetScreenGrouping(const FString& Identifier);
+    PRELOADSCREEN_API virtual const FSlateDynamicImageBrush* GetBrush(const FString& Identifier);
+    PRELOADSCREEN_API virtual FText GetLocalizedText(const FString& Identifier);
+    PRELOADSCREEN_API virtual TSharedPtr<FCompositeFont> GetFont(const FString& Identifier);
+    PRELOADSCREEN_API virtual FScreenGroupingBase* GetScreenGrouping(const FString& Identifier);
 
     int GetNumScreenGroupings() const { return ScreenGroupings.Num(); }
 
-	virtual const FScreenGroupingBase* GetScreenAtIndex(int index) const;
-	virtual bool IsValidScreenIndex(int index) const;
+	PRELOADSCREEN_API virtual const FScreenGroupingBase* GetScreenAtIndex(int index) const;
+	PRELOADSCREEN_API virtual bool IsValidScreenIndex(int index) const;
 
-    virtual void CreateCustomSlateImageBrush(const FString& Identifier, const FString& TexturePath, const FVector2D& ImageDimensions);
-    virtual void AddLocalizedText(const FString& Identifier, FText LocalizedText);
-    virtual void AddScreenGrouping(const FString& Identifier, FScreenGroupingBase& ScreenGrouping);
+    PRELOADSCREEN_API virtual void CreateCustomSlateImageBrush(const FString& Identifier, const FString& TexturePath, const FVector2D& ImageDimensions);
+    PRELOADSCREEN_API virtual void AddLocalizedText(const FString& Identifier, FText LocalizedText);
+    PRELOADSCREEN_API virtual void AddScreenGrouping(const FString& Identifier, FScreenGroupingBase& ScreenGrouping);
     
     //Maps the given font file to the given language and stores it under the FontIdentifier.
     //Identifier maps the entire CompositeFont, so if you want to add multiple fonts  for multiple languages, just store them all under the same identifer
-    virtual void BuildCustomFont(const FString& FontIdentifier, const FString& Language, const FString& FilePath);
-	virtual bool BuildSystemFontFile();
-	virtual const FString GetSystemFontFilePath() const;
+    PRELOADSCREEN_API virtual void BuildCustomFont(const FString& FontIdentifier, const FString& Language, const FString& FilePath);
+	PRELOADSCREEN_API virtual bool BuildSystemFontFile();
+	PRELOADSCREEN_API virtual const FString GetSystemFontFilePath() const;
 
     //Helper functions that parse a .ini config entry and call the appropriate create function to 
-    virtual void ParseBrushConfigEntry(const FString& BrushConfigEntry);
-    virtual void ParseFontConfigEntry(const FString&  SplitConfigEntry);
-    virtual void ParseLocalizedTextConfigString(const FString&  SplitConfigEntry);
-    virtual void ParseScreenGroupingConfigString(const FString&  SplitConfigEntry);
+    PRELOADSCREEN_API virtual void ParseBrushConfigEntry(const FString& BrushConfigEntry);
+    PRELOADSCREEN_API virtual void ParseFontConfigEntry(const FString&  SplitConfigEntry);
+    PRELOADSCREEN_API virtual void ParseLocalizedTextConfigString(const FString&  SplitConfigEntry);
+    PRELOADSCREEN_API virtual void ParseScreenGroupingConfigString(const FString&  SplitConfigEntry);
 
 	//Helper function to parse all .ini entries for LoadingGroups and ScreenOrder. Do these together so we can assert if
 	//we don't find a matching LoadingGroup identifier in the config. Should be run after we parse all screen groupings
-	virtual void ParseLoadingGroups(TArray<FString>& LoadingGroupIdentifiers);
-	virtual void ParseAllScreenOrderEntries(TArray<FString>& LoadingGroups, TArray<FString>& ScreenOrderEntries);
-	virtual void ParseScreenOrderConfigString(const FString& ScreenOrderEntry);
+	PRELOADSCREEN_API virtual void ParseLoadingGroups(TArray<FString>& LoadingGroupIdentifiers);
+	PRELOADSCREEN_API virtual void ParseAllScreenOrderEntries(TArray<FString>& LoadingGroups, TArray<FString>& ScreenOrderEntries);
+	PRELOADSCREEN_API virtual void ParseScreenOrderConfigString(const FString& ScreenOrderEntry);
 
     //Sets the PluginContent dir so that when parsing config entries we can accept plugin relative file paths
     virtual void SetPluginContentDir(const FString& PluginContentDirIn) { PluginContentDir = PluginContentDirIn; }
 
 	//Tells the container rather it should actually load image brushes
-	virtual void SetShouldLoadBrushes(bool bInShouldLoadBrushes);
+	PRELOADSCREEN_API virtual void SetShouldLoadBrushes(bool bInShouldLoadBrushes);
 
     float TimeToDisplayEachBackground;
     
 	FName GetCurrentLoadGrouping() const { return CurrentLoadGroup; }
-	void LoadGrouping(FName Identifier);
-	void PerformInitialAssetLoad();
+	PRELOADSCREEN_API void LoadGrouping(FName Identifier);
+	PRELOADSCREEN_API void PerformInitialAssetLoad();
 
     //Helper function that takes in a file path and tries to reconsile it to be Plugin Specific if applicable.
     //Ensures if file is not found in either Plugin's content dir or the original path
-    virtual FString ConvertIfPluginRelativeContentPath(const FString& FilePath);
+    PRELOADSCREEN_API virtual FString ConvertIfPluginRelativeContentPath(const FString& FilePath);
 
 protected:
 
     //Helper functions that verify if the supplied .ini config entry is valid to create a resource out of it
-    virtual bool IsValidBrushConfig(TArray<FString>& SplitConfigEntry);
-    virtual bool IsValidFontConfigString(TArray<FString>& SplitConfigEntry);
-    virtual bool IsValidLocalizedTextConfigString(TArray<FString>& SplitConfigEntry);
-    virtual bool IsValidScreenGrooupingConfigString(TArray<FString>& SplitConfigEntry);
+    PRELOADSCREEN_API virtual bool IsValidBrushConfig(TArray<FString>& SplitConfigEntry);
+    PRELOADSCREEN_API virtual bool IsValidFontConfigString(TArray<FString>& SplitConfigEntry);
+    PRELOADSCREEN_API virtual bool IsValidLocalizedTextConfigString(TArray<FString>& SplitConfigEntry);
+    PRELOADSCREEN_API virtual bool IsValidScreenGrooupingConfigString(TArray<FString>& SplitConfigEntry);
 
 protected:
 	TArray<FString> ParsedLoadingGroupIdentifiers;
@@ -191,12 +191,12 @@ protected:
 	bool HasCreatedSystemFontFile;
 
 	//If our Font filepath is set to this, we use the system font instead of a custom font we load in
-	static FString UseSystemFontOverride;
+	static PRELOADSCREEN_API FString UseSystemFontOverride;
 
 	//If we supply no loading groups, use this identifier by default
-	static FString DefaultInitialLoadingGroupIdentifier;
+	static PRELOADSCREEN_API FString DefaultInitialLoadingGroupIdentifier;
 
     // Singleton Instance -- This is only not a TSharedPtr as it needs to be cleaned up by a deferredcleanup call which directly
     // destroys the underlying object, causing a SharedPtr crash at shutdown.
-    static FPreLoadSettingsContainerBase* Instance;
+    static PRELOADSCREEN_API FPreLoadSettingsContainerBase* Instance;
 };

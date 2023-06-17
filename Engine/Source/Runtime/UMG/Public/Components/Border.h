@@ -25,8 +25,8 @@ class UTexture2D;
  * * Single Child
  * * Image
  */
-UCLASS()
-class UMG_API UBorder : public UContentWidget
+UCLASS(MinimalAPI)
+class UBorder : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -107,64 +107,64 @@ public:
 
 public:
 	/**  */
-	FLinearColor GetContentColorAndOpacity() const;
+	UMG_API FLinearColor GetContentColorAndOpacity() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetContentColorAndOpacity(FLinearColor InContentColorAndOpacity);
+	UMG_API void SetContentColorAndOpacity(FLinearColor InContentColorAndOpacity);
 
-	FMargin GetPadding() const;
-
-	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetPadding(FMargin InPadding);
-
-	EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 	/**  */
-	FLinearColor GetBrushColor() const;
-
-	/**  */
-	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetBrushColor(FLinearColor InBrushColor);
+	UMG_API FLinearColor GetBrushColor() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetBrush(const FSlateBrush& InBrush);
+	UMG_API void SetBrushColor(FLinearColor InBrushColor);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetBrushFromAsset(USlateBrushAsset* Asset);
+	UMG_API void SetBrush(const FSlateBrush& InBrush);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetBrushFromTexture(UTexture2D* Texture);
+	UMG_API void SetBrushFromAsset(USlateBrushAsset* Asset);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetBrushFromMaterial(UMaterialInterface* Material);
-
-	/**  */
-	bool GetShowEffectWhenDisabled() const;
+	UMG_API void SetBrushFromTexture(UTexture2D* Texture);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetShowEffectWhenDisabled(bool bInShowEffectWhenDisabled);
+	UMG_API void SetBrushFromMaterial(UMaterialInterface* Material);
+
+	/**  */
+	UMG_API bool GetShowEffectWhenDisabled() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	UMaterialInstanceDynamic* GetDynamicMaterial();
+	UMG_API void SetShowEffectWhenDisabled(bool bInShowEffectWhenDisabled);
+
+	/**  */
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	UMG_API UMaterialInstanceDynamic* GetDynamicMaterial();
 
 public:
 	/** Gets the DesiredSizeScale of this border. */
-	FVector2D GetDesiredSizeScale() const;
+	UMG_API FVector2D GetDesiredSizeScale() const;
 
 	/**
 	 * Sets the DesiredSizeScale of this border.
@@ -172,36 +172,36 @@ public:
 	 * @param InScale    The X and Y multipliers for the desired size
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetDesiredSizeScale(FVector2D InScale);
+	UMG_API void SetDesiredSizeScale(FVector2D InScale);
 
 public:
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 	//~ Begin UObject Interface
-	virtual void PostLoad() override;
+	UMG_API virtual void PostLoad() override;
 	//~ End UObject Interface
 
 #if WITH_EDITOR
 	//~ Begin UObject Interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UMG_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 protected:
@@ -209,16 +209,16 @@ protected:
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
-	FReply HandleMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
-	FReply HandleMouseButtonUp(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
-	FReply HandleMouseMove(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
-	FReply HandleMouseDoubleClick(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
+	UMG_API FReply HandleMouseButtonDown(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
+	UMG_API FReply HandleMouseButtonUp(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
+	UMG_API FReply HandleMouseMove(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
+	UMG_API FReply HandleMouseDoubleClick(const FGeometry& Geometry, const FPointerEvent& MouseEvent);
 
 	/** Translates the bound brush data and assigns it to the cached brush used by this widget. */
-	const FSlateBrush* ConvertImage(TAttribute<FSlateBrush> InImageAsset) const;
+	UMG_API const FSlateBrush* ConvertImage(TAttribute<FSlateBrush> InImageAsset) const;
 
 	PROPERTY_BINDING_IMPLEMENTATION(FLinearColor, ContentColorAndOpacity)
 };

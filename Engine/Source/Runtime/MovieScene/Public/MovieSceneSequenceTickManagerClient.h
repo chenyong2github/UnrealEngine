@@ -13,15 +13,15 @@ class FMovieSceneEntitySystemRunner;
 /**
  * Interface for objects that are to be ticked by the tick manager.
  */
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneSequenceTickManagerClient
+UINTERFACE(MinimalAPI)
+class UMovieSceneSequenceTickManagerClient
 	: public UInterface
 {
 public:
 	GENERATED_BODY()
 };
 
-class MOVIESCENE_API IMovieSceneSequenceTickManagerClient
+class IMovieSceneSequenceTickManagerClient
 {
 public:
 	GENERATED_BODY()

@@ -42,7 +42,7 @@ struct FLiveLinkInterpolationInfo
  * Inherit from it to do custom blending for your data type
  * @note It can be called from any thread
  */
-class LIVELINKINTERFACE_API ILiveLinkFrameInterpolationProcessorWorker
+class ILiveLinkFrameInterpolationProcessorWorker
 {
 public:
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const = 0;
@@ -57,14 +57,14 @@ public:
  * Inherit from it to do custom blending for your data type
  * @note It can only be used on the Game Thread. See ILiveLinkFrameInterpolationProcessorWorker for the any thread implementation.
  */
-UCLASS(Abstract, editinlinenew, ClassGroup = (LiveLink))
-class LIVELINKINTERFACE_API ULiveLinkFrameInterpolationProcessor : public UObject
+UCLASS(Abstract, editinlinenew, ClassGroup = (LiveLink), MinimalAPI)
+class ULiveLinkFrameInterpolationProcessor : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	using FWorkerSharedPtr = TSharedPtr<ILiveLinkFrameInterpolationProcessorWorker, ESPMode::ThreadSafe>;
 
-	virtual TSubclassOf<ULiveLinkRole> GetRole() const PURE_VIRTUAL(ULiveLinkFrameInterpolationProcessor::GetFromRole, return TSubclassOf<ULiveLinkRole>(););
-	virtual FWorkerSharedPtr FetchWorker() PURE_VIRTUAL(ULiveLinkFrameInterpolationProcessor::FetchWorker, return FWorkerSharedPtr(););
+	LIVELINKINTERFACE_API virtual TSubclassOf<ULiveLinkRole> GetRole() const PURE_VIRTUAL(ULiveLinkFrameInterpolationProcessor::GetFromRole, return TSubclassOf<ULiveLinkRole>(););
+	LIVELINKINTERFACE_API virtual FWorkerSharedPtr FetchWorker() PURE_VIRTUAL(ULiveLinkFrameInterpolationProcessor::FetchWorker, return FWorkerSharedPtr(););
 };

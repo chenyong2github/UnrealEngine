@@ -47,7 +47,7 @@ public:
 	 *
 	 * @return Whether this track can be renamed.
 	 */
-	MOVIESCENE_API virtual bool CanRename() const { return true; }
+	virtual bool CanRename() const { return true; }
 
 	/** 
 	 * Validate the new display name. 

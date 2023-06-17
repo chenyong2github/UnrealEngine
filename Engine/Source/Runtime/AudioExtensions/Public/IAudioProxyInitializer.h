@@ -124,13 +124,13 @@ namespace Audio
 /*
 * This can be subclassed to make a UClass an audio proxy factory.
 */
-class AUDIOEXTENSIONS_API IAudioProxyDataFactory
+class IAudioProxyDataFactory
 {
 public:
 	UE_DEPRECATED(5.2, "Call TSharedPtr<Audio::IProxyData> CreateProxyData(...) instead of a TUniquePtr<Audio::IProxyData> CreateNewProxyData(...).")
-	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams);
+	AUDIOEXTENSIONS_API virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams);
 
-	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams);
+	AUDIOEXTENSIONS_API virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams);
 };
 
 namespace Audio

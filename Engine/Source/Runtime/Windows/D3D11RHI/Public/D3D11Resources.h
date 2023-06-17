@@ -150,10 +150,10 @@ private:
 };
 
 /** Texture base class. */
-class D3D11RHI_API FD3D11Texture final : public FRHITexture, public FD3D11ViewableResource
+class FD3D11Texture final : public FRHITexture, public FD3D11ViewableResource
 {
 public:
-	explicit FD3D11Texture(
+	D3D11RHI_API explicit FD3D11Texture(
 		const FRHITextureCreateDesc& InDesc,
 		ID3D11Resource* InResource,
 		ID3D11ShaderResourceView* InShaderResourceView,
@@ -164,10 +164,10 @@ public:
 	);
 
 	enum EAliasResourceParam { CreateAlias };
-	explicit FD3D11Texture(FD3D11Texture const& Other, const FString& Name, EAliasResourceParam);
-	void AliasResource(FD3D11Texture const& Other);
+	D3D11RHI_API explicit FD3D11Texture(FD3D11Texture const& Other, const FString& Name, EAliasResourceParam);
+	D3D11RHI_API void AliasResource(FD3D11Texture const& Other);
 
-	virtual ~FD3D11Texture();
+	D3D11RHI_API virtual ~FD3D11Texture();
 
 	inline uint64 GetMemorySize() const
 	{
@@ -279,10 +279,10 @@ public:
 	* Locks one of the texture's mip-maps.
 	* @return A pointer to the specified texture data.
 	*/
-	void* Lock(class FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool bForceLockDeferred = false, uint64* OutLockedByteCount = nullptr);
+	D3D11RHI_API void* Lock(class FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode LockMode, uint32& DestStride, bool bForceLockDeferred = false, uint64* OutLockedByteCount = nullptr);
 
 	/** Unlocks a previously locked mip-map. */
-	void Unlock(class FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 ArrayIndex);
+	D3D11RHI_API void Unlock(class FD3D11DynamicRHI* D3DRHI, uint32 MipIndex, uint32 ArrayIndex);
 
 private:
 	//Resource handle for use by IHVs for SLI and other purposes.

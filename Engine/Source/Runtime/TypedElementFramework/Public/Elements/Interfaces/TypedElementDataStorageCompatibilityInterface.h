@@ -24,7 +24,7 @@ class UTypedElementDataStorageCompatibilityInterface : public UInterface
  * Interface to provide compatibility with existing systems that don't directly
  * support the data storage.
  */
-class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageCompatibilityInterface
+class ITypedElementDataStorageCompatibilityInterface
 {
 	GENERATED_BODY()
 

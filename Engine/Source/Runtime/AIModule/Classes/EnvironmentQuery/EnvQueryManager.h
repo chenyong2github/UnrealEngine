@@ -67,7 +67,7 @@ public:
 
 /** wrapper for easy query execution */
 USTRUCT()
-struct AIMODULE_API FEnvQueryRequest
+struct FEnvQueryRequest
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -81,14 +81,14 @@ struct AIMODULE_API FEnvQueryRequest
 
 	// set names param indicated by Param. If Param is configured to read values from a blackboard then BlackboardComponent
 	// is expected to be non-null (the function will fail a check otherwise).
-	FEnvQueryRequest& SetDynamicParam(const FAIDynamicParam& Param, const UBlackboardComponent* BlackboardComponent = nullptr);
+	AIMODULE_API FEnvQueryRequest& SetDynamicParam(const FAIDynamicParam& Param, const UBlackboardComponent* BlackboardComponent = nullptr);
 
 	// set named params
 	FORCEINLINE FEnvQueryRequest& SetFloatParam(FName ParamName, float Value) { NamedParams.Add(ParamName, Value); return *this; }
 	FORCEINLINE FEnvQueryRequest& SetIntParam(FName ParamName, int32 Value) { NamedParams.Add(ParamName, *((float*)&Value)); return *this; }
 	FORCEINLINE FEnvQueryRequest& SetBoolParam(FName ParamName, bool Value) { NamedParams.Add(ParamName, Value ? 1.0f : -1.0f); return *this; }
 	FORCEINLINE FEnvQueryRequest& SetNamedParam(const FEnvNamedValue& ParamData) { NamedParams.Add(ParamData.ParamName, ParamData.Value); return *this; }
-	FEnvQueryRequest& SetNamedParams(const TArray<FEnvNamedValue>& Params);
+	AIMODULE_API FEnvQueryRequest& SetNamedParams(const TArray<FEnvNamedValue>& Params);
 
 	// set world (for accessing query manager) when owner can't provide it
 	FORCEINLINE FEnvQueryRequest& SetWorldOverride(UWorld* InWorld) { World = InWorld; return *this; }
@@ -103,7 +103,7 @@ struct AIMODULE_API FEnvQueryRequest
 	{
 		return Execute(Mode, FQueryFinishedSignature::CreateUObject(InObj, InMethod));
 	}
-	int32 Execute(EEnvQueryRunMode::Type RunMode, FQueryFinishedSignature const& FinishDelegate);
+	AIMODULE_API int32 Execute(EEnvQueryRunMode::Type RunMode, FQueryFinishedSignature const& FinishDelegate);
 
 protected:
 
@@ -143,7 +143,7 @@ struct FEnvQueryInstanceCache
 };
 
 #if USE_EQS_DEBUGGER
-struct AIMODULE_API FEQSDebugger
+struct FEQSDebugger
 {
 	struct FEnvQueryInfo
 	{
@@ -177,14 +177,14 @@ struct AIMODULE_API FEQSDebugger
 		{}
 	};
 
-	void StoreStats(const FEnvQueryInstance& QueryInstance);
-	void StoreTickTime(const FEnvQueryInstance& QueryInstance, double TickTime, double MaxTickTime);
-	void StoreQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
+	AIMODULE_API void StoreStats(const FEnvQueryInstance& QueryInstance);
+	AIMODULE_API void StoreTickTime(const FEnvQueryInstance& QueryInstance, double TickTime, double MaxTickTime);
+	AIMODULE_API void StoreQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
 	
-	static void SaveStats(const FString& FileName);
-	static void LoadStats(const FString& FileName);
+	static AIMODULE_API void SaveStats(const FString& FileName);
+	static AIMODULE_API void LoadStats(const FString& FileName);
 
-	const TArray<FEnvQueryInfo>& GetAllQueriesForOwner(const UObject* Owner);
+	AIMODULE_API const TArray<FEnvQueryInfo>& GetAllQueriesForOwner(const UObject* Owner);
 
 	// map query name with profiler data
 	TMap<FName, FStatsInfo> StoredStats;
@@ -202,25 +202,25 @@ FORCEINLINE bool operator== (const FEQSDebugger::FEnvQueryInfo & Left, const FEQ
 }
 #endif // USE_EQS_DEBUGGER
 
-UCLASS(config = Game, defaultconfig, Transient)
-class AIMODULE_API UEnvQueryManager : public UAISubsystem, public FSelfRegisteringExec
+UCLASS(config = Game, defaultconfig, Transient, MinimalAPI)
+class UEnvQueryManager : public UAISubsystem, public FSelfRegisteringExec
 {
 	GENERATED_UCLASS_BODY()
 
 	// makes sure we don't have any UEnvQueryManager instances serialized in. 
 	// Any loaded instance will get marked as PendingKill
-	virtual void PostLoad() override;
-	virtual void PostInitProperties() override;
+	AIMODULE_API virtual void PostLoad() override;
+	AIMODULE_API virtual void PostInitProperties() override;
 
 	// FTickableGameObject begin
-	virtual void Tick(float DeltaTime) override;
-	virtual TStatId GetStatId() const override;
+	AIMODULE_API virtual void Tick(float DeltaTime) override;
+	AIMODULE_API virtual TStatId GetStatId() const override;
 	virtual bool IsTickableInEditor() const override { return true; }
 	// FTickableGameObject end
 
 	/** execute query */
-	int32 RunQuery(const FEnvQueryRequest& Request, EEnvQueryRunMode::Type RunMode, FQueryFinishedSignature const& FinishDelegate);
-	int32 RunQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance, FQueryFinishedSignature const& FinishDelegate);
+	AIMODULE_API int32 RunQuery(const FEnvQueryRequest& Request, EEnvQueryRunMode::Type RunMode, FQueryFinishedSignature const& FinishDelegate);
+	AIMODULE_API int32 RunQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance, FQueryFinishedSignature const& FinishDelegate);
 
 	/** Removed all active queries asked by Querier. No "on finished" notifications are being sent, call this function when
 	 *	you no longer care about Querier's queries, like when it's "dead" */
@@ -229,74 +229,74 @@ class AIMODULE_API UEnvQueryManager : public UAISubsystem, public FSelfRegisteri
 		RemoveAllQueriesByQuerier(Querier, /*bExecuteFinishDelegate=*/false);
 	}
 
-	void RemoveAllQueriesByQuerier(const UObject& Querier, bool bExecuteFinishDelegate);
+	AIMODULE_API void RemoveAllQueriesByQuerier(const UObject& Querier, bool bExecuteFinishDelegate);
 
 	/** alternative way to run queries. Do not use for anything other than testing
 	*  or when you know exactly what you're doing! Bypasses all EQS perf controlling
 	*  and time slicing mechanics. */
-	TSharedPtr<FEnvQueryResult> RunInstantQuery(const FEnvQueryRequest& Request, EEnvQueryRunMode::Type RunMode);
-	void RunInstantQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
+	AIMODULE_API TSharedPtr<FEnvQueryResult> RunInstantQuery(const FEnvQueryRequest& Request, EEnvQueryRunMode::Type RunMode);
+	AIMODULE_API void RunInstantQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
 
 	/** Creates a query instance configured for execution */
-	TSharedPtr<FEnvQueryInstance> PrepareQueryInstance(const FEnvQueryRequest& Request, EEnvQueryRunMode::Type RunMode);
+	AIMODULE_API TSharedPtr<FEnvQueryInstance> PrepareQueryInstance(const FEnvQueryRequest& Request, EEnvQueryRunMode::Type RunMode);
 
 	/** finds UEnvQuery matching QueryName by first looking at instantiated queries (from InstanceCache)
 	 *	falling back to looking up all UEnvQuery and testing their name */
-	UEnvQuery* FindQueryTemplate(const FString& QueryName) const;
+	AIMODULE_API UEnvQuery* FindQueryTemplate(const FString& QueryName) const;
 
 	/** creates local context object */
-	UEnvQueryContext* PrepareLocalContext(TSubclassOf<UEnvQueryContext> ContextClass);
+	AIMODULE_API UEnvQueryContext* PrepareLocalContext(TSubclassOf<UEnvQueryContext> ContextClass);
 
 	/** find value of named param stored with active query */
-	float FindNamedParam(int32 QueryId, FName ParamName) const;
+	AIMODULE_API float FindNamedParam(int32 QueryId, FName ParamName) const;
 
 	/** aborts specific query */
-	bool AbortQuery(int32 RequestID);
+	AIMODULE_API bool AbortQuery(int32 RequestID);
 
 	/** outputs active queries to log */
-	void PrintActiveQueryInfo() const;
+	AIMODULE_API void PrintActiveQueryInfo() const;
 
 	/** fail all running queries on cleaning the world */
-	virtual void OnWorldCleanup();
+	AIMODULE_API virtual void OnWorldCleanup();
 
 	/** cleanup hooks for map loading */
-	virtual void FinishDestroy() override;
+	AIMODULE_API virtual void FinishDestroy() override;
 
 	/** add information for data providers about query instance run independently */
-	void RegisterExternalQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
+	AIMODULE_API void RegisterExternalQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
 
 	/** clear information about query instance run independently */
-	void UnregisterExternalQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
+	AIMODULE_API void UnregisterExternalQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
 
 	/** list of all known item types */
-	static TArray<TSubclassOf<UEnvQueryItemType> > RegisteredItemTypes;
+	static AIMODULE_API TArray<TSubclassOf<UEnvQueryItemType> > RegisteredItemTypes;
 
-	static UEnvQueryManager* GetCurrent(UWorld* World);
-	static UEnvQueryManager* GetCurrent(const UObject* WorldContextObject);
+	static AIMODULE_API UEnvQueryManager* GetCurrent(UWorld* World);
+	static AIMODULE_API UEnvQueryManager* GetCurrent(const UObject* WorldContextObject);
 	
 	UFUNCTION(BlueprintCallable, Category = "AI|EQS", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "WrapperClass"))
-	static UEnvQueryInstanceBlueprintWrapper* RunEQSQuery(UObject* WorldContextObject, UEnvQuery* QueryTemplate, UObject* Querier, TEnumAsByte<EEnvQueryRunMode::Type> RunMode, TSubclassOf<UEnvQueryInstanceBlueprintWrapper> WrapperClass);
+	static AIMODULE_API UEnvQueryInstanceBlueprintWrapper* RunEQSQuery(UObject* WorldContextObject, UEnvQuery* QueryTemplate, UObject* Querier, TEnumAsByte<EEnvQueryRunMode::Type> RunMode, TSubclassOf<UEnvQueryInstanceBlueprintWrapper> WrapperClass);
 
-	void RegisterActiveWrapper(UEnvQueryInstanceBlueprintWrapper& Wrapper);
-	void UnregisterActiveWrapper(UEnvQueryInstanceBlueprintWrapper& Wrapper);
+	AIMODULE_API void RegisterActiveWrapper(UEnvQueryInstanceBlueprintWrapper& Wrapper);
+	AIMODULE_API void UnregisterActiveWrapper(UEnvQueryInstanceBlueprintWrapper& Wrapper);
 
-	static void SetAllowTimeSlicing(bool bAllowTimeSlicing);
+	static AIMODULE_API void SetAllowTimeSlicing(bool bAllowTimeSlicing);
 
 	/** Configure config variables during runtime */
-	void Configure(const FEnvQueryManagerConfig& NewConfig);
+	AIMODULE_API void Configure(const FEnvQueryManagerConfig& NewConfig);
 
 protected:
 	//~ Begin FExec Interface
-	virtual bool Exec_Dev(UWorld* Inworld,const TCHAR* Cmd,FOutputDevice& Ar) override;
+	AIMODULE_API virtual bool Exec_Dev(UWorld* Inworld,const TCHAR* Cmd,FOutputDevice& Ar) override;
 	//~ End FExec Interface
 
 	friend UEnvQueryInstanceBlueprintWrapper;
-	TSharedPtr<FEnvQueryInstance> FindQueryInstance(const int32 QueryID);
+	AIMODULE_API TSharedPtr<FEnvQueryInstance> FindQueryInstance(const int32 QueryID);
 
 #if USE_EQS_DEBUGGER
 public:
-	static void NotifyAssetUpdate(UEnvQuery* Query);
-	static TMap<FName, FEQSDebugger::FStatsInfo> DebuggerStats;
+	static AIMODULE_API void NotifyAssetUpdate(UEnvQuery* Query);
+	static AIMODULE_API TMap<FName, FEQSDebugger::FStatsInfo> DebuggerStats;
 
 	FEQSDebugger& GetDebugger() { return EQSDebugger; }
 
@@ -333,7 +333,7 @@ protected:
 	int32 NextQueryID;
 
 	/** create new instance, using cached data is possible */
-	TSharedPtr<FEnvQueryInstance> CreateQueryInstance(const UEnvQuery* Template, EEnvQueryRunMode::Type RunMode);
+	AIMODULE_API TSharedPtr<FEnvQueryInstance> CreateQueryInstance(const UEnvQuery* Template, EEnvQueryRunMode::Type RunMode);
 
 	/** how long are we allowed to test per update, in seconds. */
 	UPROPERTY(config)
@@ -367,22 +367,22 @@ protected:
 private:
 
 	/** create and bind delegates in instance */
-	void CreateOptionInstance(UEnvQueryOption* OptionTemplate, int32 SourceOptionIndex, const TArray<UEnvQueryTest*>& SortedTests, FEnvQueryInstance& Instance);
+	AIMODULE_API void CreateOptionInstance(UEnvQueryOption* OptionTemplate, int32 SourceOptionIndex, const TArray<UEnvQueryTest*>& SortedTests, FEnvQueryInstance& Instance);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	static bool bAllowEQSTimeSlicing;
+	static AIMODULE_API bool bAllowEQSTimeSlicing;
 #endif
 #if !(UE_BUILD_SHIPPING)
 	mutable double LastQueryCountWarningThresholdTime;
 
-	void CheckQueryCount() const;
-	void LogQueryInfo(bool bDisplayThresholdWarning) const;
+	AIMODULE_API void CheckQueryCount() const;
+	AIMODULE_API void LogQueryInfo(bool bDisplayThresholdWarning) const;
 #endif
 
 #if WITH_EDITOR
 	FDelegateHandle OnBlueprintCompiledHandle;
 
 	// used to reset LocalContextMap in case we had BP contexts stored
-	void OnBlueprintCompiled();
+	AIMODULE_API void OnBlueprintCompiled();
 #endif // WITH_EDITOR
 };

@@ -31,7 +31,7 @@ public:
 		FColor BackgroundColor = FColor(255, 255, 255, 255)) = 0;
 };
 
-struct WEBBROWSER_API FBrowserContextSettings
+struct FBrowserContextSettings
 {
 	FBrowserContextSettings(const FString& InId)
 		: Id(InId)
@@ -52,7 +52,7 @@ struct WEBBROWSER_API FBrowserContextSettings
 };
 
 
-struct WEBBROWSER_API FCreateBrowserWindowSettings
+struct FCreateBrowserWindowSettings
 {
 
 	FCreateBrowserWindowSettings()
@@ -85,7 +85,7 @@ struct WEBBROWSER_API FCreateBrowserWindowSettings
 /**
  * A singleton class that takes care of general web browser tasks
  */
-class WEBBROWSER_API IWebBrowserSingleton
+class IWebBrowserSingleton
 {
 public:
 	/**

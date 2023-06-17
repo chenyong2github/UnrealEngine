@@ -12,23 +12,23 @@ class AActor;
 struct FEnvQueryContextData;
 struct FWeakObjectPtr;
 
-UCLASS()
-class AIMODULE_API UEnvQueryItemType_Actor : public UEnvQueryItemType_ActorBase
+UCLASS(MinimalAPI)
+class UEnvQueryItemType_Actor : public UEnvQueryItemType_ActorBase
 {
 	GENERATED_BODY()
 public:
 	typedef const FWeakObjectPtr& FValueType;
 
-	UEnvQueryItemType_Actor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UEnvQueryItemType_Actor(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	static AActor* GetValue(const uint8* RawData);
-	static void SetValue(uint8* RawData, const FWeakObjectPtr& Value);
+	static AIMODULE_API AActor* GetValue(const uint8* RawData);
+	static AIMODULE_API void SetValue(uint8* RawData, const FWeakObjectPtr& Value);
 
-	static void SetContextHelper(FEnvQueryContextData& ContextData, const AActor* SingleActor);
-	static void SetContextHelper(FEnvQueryContextData& ContextData, const TArray<const AActor*>& MultipleActors);
-	static void SetContextHelper(FEnvQueryContextData& ContextData, const TArray<AActor*>& MultipleActors);
+	static AIMODULE_API void SetContextHelper(FEnvQueryContextData& ContextData, const AActor* SingleActor);
+	static AIMODULE_API void SetContextHelper(FEnvQueryContextData& ContextData, const TArray<const AActor*>& MultipleActors);
+	static AIMODULE_API void SetContextHelper(FEnvQueryContextData& ContextData, const TArray<AActor*>& MultipleActors);
 
-	virtual FVector GetItemLocation(const uint8* RawData) const override;
-	virtual FRotator GetItemRotation(const uint8* RawData) const override;
-	virtual AActor* GetActor(const uint8* RawData) const override;
+	AIMODULE_API virtual FVector GetItemLocation(const uint8* RawData) const override;
+	AIMODULE_API virtual FRotator GetItemRotation(const uint8* RawData) const override;
+	AIMODULE_API virtual AActor* GetActor(const uint8* RawData) const override;
 };

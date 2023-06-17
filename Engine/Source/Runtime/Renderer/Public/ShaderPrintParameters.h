@@ -156,7 +156,7 @@ namespace ShaderPrint
 	//     InitShaderPrintContext Ctx = InitShaderPrintContext(...);
 	//     PrintMyVariable(Ctx, StringId, FontWhite);
 	//   }
-	struct RENDERER_API FStrings
+	struct FStrings
 	{
 	public:
 		BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
@@ -166,10 +166,10 @@ namespace ShaderPrint
 			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint8>, CharBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
-		FStrings(uint32 InAvgEntryCount=128u, uint32 InAvgStringLength=32u);
-		void Add(const FString& In, uint32 EntryID);
-		void Add(const FString& In);
-		FShaderParameters GetParameters(FRDGBuilder& GraphBuilder);
+		RENDERER_API FStrings(uint32 InAvgEntryCount=128u, uint32 InAvgStringLength=32u);
+		RENDERER_API void Add(const FString& In, uint32 EntryID);
+		RENDERER_API void Add(const FString& In);
+		RENDERER_API FShaderParameters GetParameters(FRDGBuilder& GraphBuilder);
 	private:
 		struct FEntryInfo
 		{

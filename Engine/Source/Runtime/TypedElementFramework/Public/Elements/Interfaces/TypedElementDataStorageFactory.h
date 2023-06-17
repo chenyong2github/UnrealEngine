@@ -11,8 +11,8 @@ class ITypedElementDataStorageUiInterface;
  * Base class that can be used to register various elements, such as queries and widgets, with
  * the Typed Elements Data Storage.
  */
-UCLASS()
-class TYPEDELEMENTFRAMEWORK_API UTypedElementDataStorageFactory : public UObject
+UCLASS(MinimalAPI)
+class UTypedElementDataStorageFactory : public UObject
 {
 	GENERATED_BODY()
 

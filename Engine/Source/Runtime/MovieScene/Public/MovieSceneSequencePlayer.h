@@ -153,8 +153,8 @@ struct FMovieSceneSequencePlayToParams
 /**
  * Abstract class that provides consistent player behaviour for various animation players
  */
-UCLASS(Abstract, BlueprintType)
-class MOVIESCENE_API UMovieSceneSequencePlayer
+UCLASS(Abstract, BlueprintType, MinimalAPI)
+class UMovieSceneSequencePlayer
 	: public UObject
 	, public IMovieScenePlayer
 	, public IMovieSceneSequenceTickManagerClient
@@ -166,47 +166,47 @@ public:
 	UPROPERTY(replicated)
 	TScriptInterface<IMovieSceneSequencePlayerObserver> Observer;
 
-	UMovieSceneSequencePlayer(const FObjectInitializer&);
-	virtual ~UMovieSceneSequencePlayer();
+	MOVIESCENE_API UMovieSceneSequencePlayer(const FObjectInitializer&);
+	MOVIESCENE_API virtual ~UMovieSceneSequencePlayer();
 
 	/** Start playback forwards from the current time cursor position, using the current play rate. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void Play();
+	MOVIESCENE_API void Play();
 
 	/** Reverse playback. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void PlayReverse();
+	MOVIESCENE_API void PlayReverse();
 
 	/** Changes the direction of playback (go in reverse if it was going forward, or vice versa) */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void ChangePlaybackDirection();
+	MOVIESCENE_API void ChangePlaybackDirection();
 
 	/**
 	 * Start playback from the current time cursor position, looping the specified number of times.
 	 * @param NumLoops - The number of loops to play. -1 indicates infinite looping.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void PlayLooping(int32 NumLoops = -1);
+	MOVIESCENE_API void PlayLooping(int32 NumLoops = -1);
 	
 	/** Pause playback. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void Pause();
+	MOVIESCENE_API void Pause();
 	
 	/** Scrub playback. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void Scrub();
+	MOVIESCENE_API void Scrub();
 
 	/** Stop playback and move the cursor to the end (or start, for reversed playback) of the sequence. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void Stop();
+	MOVIESCENE_API void Stop();
 
 	/** Stop playback without moving the cursor. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void StopAtCurrentTime();
+	MOVIESCENE_API void StopAtCurrentTime();
 
 	/** Go to end and stop. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", meta = (ToolTip = "Go to end of the sequence and stop. Adheres to 'When Finished' section rules."))
-	void GoToEndAndStop();
+	MOVIESCENE_API void GoToEndAndStop();
 
 public:
 
@@ -215,19 +215,19 @@ public:
 	 * @return The current playback position
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	FQualifiedFrameTime GetCurrentTime() const;
+	MOVIESCENE_API FQualifiedFrameTime GetCurrentTime() const;
 
 	/**
 	 * Get the total duration of the sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	FQualifiedFrameTime GetDuration() const;
+	MOVIESCENE_API FQualifiedFrameTime GetDuration() const;
 
 	/**
 	 * Get this sequence's duration in frames
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	int32 GetFrameDuration() const;
+	MOVIESCENE_API int32 GetFrameDuration() const;
 
 	/**
 	 * Get this sequence's display rate.
@@ -239,7 +239,7 @@ public:
 	 * Set the frame-rate that this player should play with, making all frame numbers in the specified time-space
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void SetFrameRate(FFrameRate FrameRate);
+	MOVIESCENE_API void SetFrameRate(FFrameRate FrameRate);
 
 	/**
 	 * Get the offset within the level sequence to start playing
@@ -261,13 +261,13 @@ public:
 	 * @param InWeight    The weight to suuply to all elements in this sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void SetWeight(double InWeight);
+	MOVIESCENE_API void SetWeight(double InWeight);
 
 	/**
 	 * Removes a previously assigned weight
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void RemoveWeight();
+	MOVIESCENE_API void RemoveWeight();
 
 	/**
 	 * Set a manual weight to be multiplied with all blendable elements within the specified sequence
@@ -276,12 +276,12 @@ public:
 	 *
 	 * @param InWeight    The weight to suuply to all elements in this sequence
 	 */
-	void SetWeight(double InWeight, FMovieSceneSequenceID SequenceID);
+	MOVIESCENE_API void SetWeight(double InWeight, FMovieSceneSequenceID SequenceID);
 
 	/**
 	 * Removes a previously assigned weight
 	 */
-	void RemoveWeight(FMovieSceneSequenceID SequenceID);
+	MOVIESCENE_API void RemoveWeight(FMovieSceneSequenceID SequenceID);
 
 public:
 
@@ -292,7 +292,7 @@ public:
 	 * @param Duration        The number of frames to play
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", DisplayName="Set Play Range (Frames)")
-	void SetFrameRange( int32 StartFrame, int32 Duration, float SubFrames = 0.f );
+	MOVIESCENE_API void SetFrameRange( int32 StartFrame, int32 Duration, float SubFrames = 0.f );
 
 	/**
 	 * Set the valid play range for this sequence, determined by a starting time  and a duration (in seconds)
@@ -301,7 +301,7 @@ public:
 	 * @param Duration        The length to play for
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player", DisplayName="Set Play Range (Seconds)")
-	void SetTimeRange( float StartTime, float Duration );
+	MOVIESCENE_API void SetTimeRange( float StartTime, float Duration );
 
 public:
 
@@ -313,7 +313,7 @@ public:
 	 * @param PlaybackParams The position settings (ie. the position to play to)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams, FMovieSceneSequencePlayToParams PlayToParams);
+	MOVIESCENE_API void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams, FMovieSceneSequencePlayToParams PlayToParams);
 
 	/**
 	 * Set the current time of the player by evaluating from the current time to the specified time, as if the sequence is playing. 
@@ -322,38 +322,38 @@ public:
 	 * @param PlaybackParams The position settings (ie. the position to set playback to)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void SetPlaybackPosition(FMovieSceneSequencePlaybackParams PlaybackParams);
+	MOVIESCENE_API void SetPlaybackPosition(FMovieSceneSequencePlaybackParams PlaybackParams);
 
 	/**
 	 * Restore any changes made by this player to their original state
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic")
-	void RestoreState();
+	MOVIESCENE_API void RestoreState();
 
 public:
 
 	/** Check whether the sequence is actively playing. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	bool IsPlaying() const;
+	MOVIESCENE_API bool IsPlaying() const;
 
 	/** Check whether the sequence is paused. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	bool IsPaused() const;
+	MOVIESCENE_API bool IsPaused() const;
 
 	/** Check whether playback is reversed. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	bool IsReversed() const;
+	MOVIESCENE_API bool IsReversed() const;
 
 	/** Get the playback rate of this player. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	float GetPlayRate() const;
+	MOVIESCENE_API float GetPlayRate() const;
 
 	/**
 	 * Set the playback rate of this player. Negative values will play the animation in reverse.
 	 * @param PlayRate - The new rate of playback for the animation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	void SetPlayRate(float PlayRate);
+	MOVIESCENE_API void SetPlayRate(float PlayRate);
 
 	/** Set whether to disable camera cuts */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
@@ -392,34 +392,34 @@ public:
 
 	/** Retrieve all objects currently bound to the specified binding identifier */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding);
+	MOVIESCENE_API TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding);
 
 	/** Get the object bindings for the requested object */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	TArray<FMovieSceneObjectBindingID> GetObjectBindings(UObject* InObject);
+	MOVIESCENE_API TArray<FMovieSceneObjectBindingID> GetObjectBindings(UObject* InObject);
 
 public:
 
 	/** Ensure that this player's tick manager is set up correctly for the specified context */
-	void InitializeForTick(UObject* Context);
+	MOVIESCENE_API void InitializeForTick(UObject* Context);
 
 	/** Assign this player's playback settings */
-	void SetPlaybackSettings(const FMovieSceneSequencePlaybackSettings& InSettings);
+	MOVIESCENE_API void SetPlaybackSettings(const FMovieSceneSequencePlaybackSettings& InSettings);
 
 	/** Initialize this player using its existing playback settings */
-	void Initialize(UMovieSceneSequence* InSequence);
+	MOVIESCENE_API void Initialize(UMovieSceneSequence* InSequence);
 
 	/** Initialize this player with a sequence and some settings */
-	void Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings);
+	MOVIESCENE_API void Initialize(UMovieSceneSequence* InSequence, const FMovieSceneSequencePlaybackSettings& InSettings);
 
 	/** Update the sequence for the current time, if playing */
-	void Update(const float DeltaSeconds);
+	MOVIESCENE_API void Update(const float DeltaSeconds);
 
 	/** Update the sequence for the current time, if playing, asynchronously */
-	void UpdateAsync(const float DeltaSeconds);
+	MOVIESCENE_API void UpdateAsync(const float DeltaSeconds);
 
 	/** Perform any tear-down work when this player is no longer (and will never) be needed */
-	void TearDown();
+	MOVIESCENE_API void TearDown();
 
 public:
 
@@ -436,7 +436,7 @@ public:
 	 * @return the name of the sequence, or None if no sequence is set
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
-	FString GetSequenceName(bool bAddClientInfo = false) const;
+	MOVIESCENE_API FString GetSequenceName(bool bAddClientInfo = false) const;
 
 	/**
 	 * Access this player's tick manager
@@ -446,37 +446,37 @@ public:
 	/**
 	 * Assign a playback client interface for this sequence player, defining instance data and binding overrides
 	 */
-	void SetPlaybackClient(TScriptInterface<IMovieScenePlaybackClient> InPlaybackClient);
+	MOVIESCENE_API void SetPlaybackClient(TScriptInterface<IMovieScenePlaybackClient> InPlaybackClient);
 
 	/**
 	 * Retrieve the currently assigned time controller
 	 */
-	TSharedPtr<FMovieSceneTimeController> GetTimeController() const;
+	MOVIESCENE_API TSharedPtr<FMovieSceneTimeController> GetTimeController() const;
 
 	/**
 	 * Assign a time controller for this sequence player allowing custom time management implementations.
 	 * Will reset the supplied time controller to the current time.
 	 */
-	void SetTimeController(TSharedPtr<FMovieSceneTimeController> InTimeController);
+	MOVIESCENE_API void SetTimeController(TSharedPtr<FMovieSceneTimeController> InTimeController);
 	
 
 	/**
 	 * Assign a time controller for this sequence player allowing custom time management implementations.
 	 * Will not reset the supplied time controller in any way, so the sequence will receive its time directly from the controller.
 	 */
-	void SetTimeControllerDirectly(TSharedPtr<FMovieSceneTimeController> InTimeController);
+	MOVIESCENE_API void SetTimeControllerDirectly(TSharedPtr<FMovieSceneTimeController> InTimeController);
 
 	/**
 	 * Sets whether to listen or ignore playback replication events.
 	 * @param bState If true, ignores playback replication.
 	 */
-	void SetIgnorePlaybackReplication(bool bState);
+	MOVIESCENE_API void SetIgnorePlaybackReplication(bool bState);
 
 protected:
 
-	void PlayInternal();
-	void StopInternal(FFrameTime TimeToResetTo);
-	void FinishPlaybackInternal(FFrameTime TimeToFinishAt);
+	MOVIESCENE_API void PlayInternal();
+	MOVIESCENE_API void StopInternal(FFrameTime TimeToResetTo);
+	MOVIESCENE_API void FinishPlaybackInternal(FFrameTime TimeToFinishAt);
 
 	struct FMovieSceneUpdateArgs
 	{
@@ -484,27 +484,27 @@ protected:
 		bool bIsAsync = false;
 	};
 
-	void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped = false);
-	virtual void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args);
+	MOVIESCENE_API void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, bool bHasJumped = false);
+	MOVIESCENE_API virtual void UpdateMovieSceneInstance(FMovieSceneEvaluationRange InRange, EMovieScenePlayerStatus::Type PlayerStatus, const FMovieSceneUpdateArgs& Args);
 
-	void UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride = false);
-	bool ShouldStopOrLoop(FFrameTime NewPosition) const;
+	MOVIESCENE_API void UpdateTimeCursorPosition(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride = false);
+	MOVIESCENE_API bool ShouldStopOrLoop(FFrameTime NewPosition) const;
 	/** 
 	* If the current sequence should pause (due to NewPosition overshooting a previously set ShouldPause) 
 	* then a range of time that should be evaluated to reach there will be returned. If we should not pause
 	* then the TOptional will be unset.
 	* */
-	TOptional<TRange<FFrameTime>> GetPauseRange(const FFrameTime& NewPosition) const;
+	MOVIESCENE_API TOptional<TRange<FFrameTime>> GetPauseRange(const FFrameTime& NewPosition) const;
 
-	UWorld* GetPlaybackWorld() const;
+	MOVIESCENE_API UWorld* GetPlaybackWorld() const;
 
-	FFrameTime GetLastValidTime() const;
+	MOVIESCENE_API FFrameTime GetLastValidTime() const;
 
-	FFrameRate GetDisplayRate() const;
+	MOVIESCENE_API FFrameRate GetDisplayRate() const;
 
-	bool NeedsQueueLatentAction() const;
-	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
-	void RunLatentActions();
+	MOVIESCENE_API bool NeedsQueueLatentAction() const;
+	MOVIESCENE_API void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
+	MOVIESCENE_API void RunLatentActions();
 
 public:
 	//~ IMovieScenePlayer interface
@@ -512,9 +512,9 @@ public:
 
 protected:
 	//~ IMovieScenePlayer interface
-	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
-	virtual EMovieScenePlayerStatus::Type GetPlaybackStatus() const override;
-	virtual FMovieSceneSpawnRegister& GetSpawnRegister() override;
+	MOVIESCENE_API virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
+	MOVIESCENE_API virtual EMovieScenePlayerStatus::Type GetPlaybackStatus() const override;
+	MOVIESCENE_API virtual FMovieSceneSpawnRegister& GetSpawnRegister() override;
 	virtual UObject* AsUObject() override { return this; }
 
 	virtual void SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus) override {}
@@ -522,23 +522,23 @@ protected:
 	virtual void GetViewportSettings(TMap<FViewportClient*, EMovieSceneViewportParams>& ViewportParamsMap) const override {}
 	virtual bool CanUpdateCameraCut() const override { return !PlaybackSettings.bDisableCameraCuts; }
 	virtual void UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams) override {}
-	virtual void ResolveBoundObjects(const FGuid& InBindingId, FMovieSceneSequenceID SequenceID, UMovieSceneSequence& Sequence, UObject* ResolutionContext, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
+	MOVIESCENE_API virtual void ResolveBoundObjects(const FGuid& InBindingId, FMovieSceneSequenceID SequenceID, UMovieSceneSequence& Sequence, UObject* ResolutionContext, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
 	virtual IMovieScenePlaybackClient* GetPlaybackClient() override { return PlaybackClient ? &*PlaybackClient : nullptr; }
-	virtual bool IsDisablingEventTriggers(FFrameTime& DisabledUntilTime) const override;
-	virtual bool HasDynamicWeighting() const override;
-	virtual void PreEvaluation(const FMovieSceneContext& Context) override;
-	virtual void PostEvaluation(const FMovieSceneContext& Context) override;
+	MOVIESCENE_API virtual bool IsDisablingEventTriggers(FFrameTime& DisabledUntilTime) const override;
+	MOVIESCENE_API virtual bool HasDynamicWeighting() const override;
+	MOVIESCENE_API virtual void PreEvaluation(const FMovieSceneContext& Context) override;
+	MOVIESCENE_API virtual void PostEvaluation(const FMovieSceneContext& Context) override;
 
 	/*~ Begin UObject interface */
 	virtual bool IsSupportedForNetworking() const { return true; }
-	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
-	virtual bool CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack) override;
-	virtual void PostNetReceive() override;
-	virtual void BeginDestroy() override;
+	MOVIESCENE_API virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
+	MOVIESCENE_API virtual bool CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack) override;
+	MOVIESCENE_API virtual void PostNetReceive() override;
+	MOVIESCENE_API virtual void BeginDestroy() override;
 	/*~ End UObject interface */
 
 	//~ Begin IMovieSceneSequenceTickManagerClient interface
-	virtual void TickFromSequenceTickManager(float DeltaSeconds, FMovieSceneEntitySystemRunner* Runner) override;
+	MOVIESCENE_API virtual void TickFromSequenceTickManager(float DeltaSeconds, FMovieSceneEntitySystemRunner* Runner) override;
 	//~ End IMovieSceneSequenceTickManagerClient interface
 
 protected:
@@ -551,10 +551,10 @@ protected:
 	
 private:
 
-	void UpdateTimeCursorPosition_Internal(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride);
+	MOVIESCENE_API void UpdateTimeCursorPosition_Internal(FFrameTime NewPosition, EUpdatePositionMethod Method, bool bHasJumpedOverride);
 
-	void RunPreEvaluationCallbacks();
-	void RunPostEvaluationCallbacks();
+	MOVIESCENE_API void RunPreEvaluationCallbacks();
+	MOVIESCENE_API void RunPostEvaluationCallbacks();
 	
 private:
 
@@ -562,46 +562,46 @@ private:
 	 * Called on the server whenever an explicit change in time has occurred through one of the (Play|Jump|Scrub)To methods
 	 */
 	UFUNCTION(netmulticast, reliable)
-	void RPC_ExplicitServerUpdateEvent(EUpdatePositionMethod Method, FFrameTime RelevantTime);
+	MOVIESCENE_API void RPC_ExplicitServerUpdateEvent(EUpdatePositionMethod Method, FFrameTime RelevantTime);
 
 	/**
 	 * Called on the server when Stop() is called in order to differentiate Stops from Pauses.
 	 */
 	UFUNCTION(netmulticast, reliable)
-	void RPC_OnStopEvent(FFrameTime StoppedTime);
+	MOVIESCENE_API void RPC_OnStopEvent(FFrameTime StoppedTime);
 
 	/**
 	 * Called on the server when playback has reached the end. Could lead to stopping or pausing.
 	 */
 	UFUNCTION(netmulticast, reliable)
-	void RPC_OnFinishPlaybackEvent(FFrameTime StoppedTime);
+	MOVIESCENE_API void RPC_OnFinishPlaybackEvent(FFrameTime StoppedTime);
 
 	/**
 	 * Check whether this sequence player is an authority, as determined by its outer Actor
 	 */
-	bool HasAuthority() const;
+	MOVIESCENE_API bool HasAuthority() const;
 
 	/**
 	 * Update the replicated properties required for synchronizing to clients of this sequence player
 	 */
-	void UpdateNetworkSyncProperties();
+	MOVIESCENE_API void UpdateNetworkSyncProperties();
 
 	/**
 	 * Analyse the set of samples we have estimating the server time if we have confidence over the data.
 	 * Should only be called once per frame.
 	 * @return An estimation of the server time, or the current local time if we cannot make a strong estimate
 	 */
-	FFrameTime UpdateServerTimeSamples();
+	MOVIESCENE_API FFrameTime UpdateServerTimeSamples();
 
 	/**
 	 * Check and correct network synchronization for the clients of this sequence player.
 	 */
-	void UpdateNetworkSync();
+	MOVIESCENE_API void UpdateNetworkSync();
 
 	/**
 	 * Compute the latency for the client connection.
 	 */
-	float GetPing() const;
+	MOVIESCENE_API float GetPing() const;
 
 protected:
 

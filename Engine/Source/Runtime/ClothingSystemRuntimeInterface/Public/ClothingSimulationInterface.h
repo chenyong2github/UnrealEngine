@@ -13,19 +13,19 @@ struct FClothCollisionData;
 struct FClothSimulData;
 
 /** Empty interface, derived simulation modules define the contents of the context. */
-class CLOTHINGSYSTEMRUNTIMEINTERFACE_API IClothingSimulationContext
+class IClothingSimulationContext
 {
 public:
-	IClothingSimulationContext();
-	virtual ~IClothingSimulationContext();
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API IClothingSimulationContext();
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual ~IClothingSimulationContext();
 };
 
 /** Base class for clothing simulators. */
-class CLOTHINGSYSTEMRUNTIMEINTERFACE_API IClothingSimulation
+class IClothingSimulation
 {
 public:
-	IClothingSimulation();
-	virtual ~IClothingSimulation();
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API IClothingSimulation();
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual ~IClothingSimulation();
 
 	// The majority of the API for this class is protected. The required objects (skel meshes and the parallel task)
 	// are friends so they can use the functionality. For the most part the simulation is not designed to be used

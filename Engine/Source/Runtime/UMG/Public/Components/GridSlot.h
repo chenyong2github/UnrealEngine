@@ -15,8 +15,8 @@
  * A slot for UGridPanel, these slots all share the same size as the largest slot
  * in the grid.
  */
-UCLASS()
-class UMG_API UGridSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UGridSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
@@ -69,79 +69,79 @@ public:
 
 public:
 
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Border Slot")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
 	/** Gets the row index of the slot */
-	int32 GetRow() const;
+	UMG_API int32 GetRow() const;
 
 	/** Sets the row index of the slot, this determines what cell the slot is in the panel */
 	UFUNCTION(BlueprintCallable, Category="Layout|Grid Slot")
-	void SetRow(int32 InRow);
+	UMG_API void SetRow(int32 InRow);
 
 	/** Gets how many rows this this slot spans over */
-	int32 GetRowSpan() const;
+	UMG_API int32 GetRowSpan() const;
 
 	/** How many rows this this slot spans over */
 	UFUNCTION(BlueprintCallable, Category="Layout|Grid Slot")
-	void SetRowSpan(int32 InRowSpan);
+	UMG_API void SetRowSpan(int32 InRowSpan);
 
 	/** Gets the column index of the slot */
-	int32 GetColumn() const;
+	UMG_API int32 GetColumn() const;
 
 	/** Sets the column index of the slot, this determines what cell the slot is in the panel */
 	UFUNCTION(BlueprintCallable, Category="Layout|Grid Slot")
-	void SetColumn(int32 InColumn);
+	UMG_API void SetColumn(int32 InColumn);
 
 	/** Gets how many columns this slot spans over */
-	int32 GetColumnSpan() const;
+	UMG_API int32 GetColumnSpan() const;
 
 	/** How many columns this slot spans over */
 	UFUNCTION(BlueprintCallable, Category="Layout|Grid Slot")
-	void SetColumnSpan(int32 InColumnSpan);
+	UMG_API void SetColumnSpan(int32 InColumnSpan);
 
 	/** Gets the offset this cell drawn on top of others. */
-	int32 GetLayer() const;
+	UMG_API int32 GetLayer() const;
 
 	/** Sets positive values offset this cell to be hit-tested and drawn on top of others. */
 	UFUNCTION(BlueprintCallable, Category = "Layout|Grid Slot")
-	void SetLayer(int32 InLayer);
+	UMG_API void SetLayer(int32 InLayer);
 
 	/** Gets the offset for this slot's content */
-	FVector2D GetNudge() const;
+	UMG_API FVector2D GetNudge() const;
 
 	/** Sets the offset for this slot's content by some amount; positive values offset to lower right*/
 	UFUNCTION(BlueprintCallable, Category = "Layout|Grid Slot")
-	void SetNudge(FVector2D InNudge);
+	UMG_API void SetNudge(FVector2D InNudge);
 
 	/** */
-	EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Layout|Grid Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
 	/**  */
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Layout|Grid Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 	// UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UPanelSlot interface
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
-	void BuildSlot(TSharedRef<SGridPanel> GridPanel);
+	UMG_API void BuildSlot(TSharedRef<SGridPanel> GridPanel);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
-	virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
+	UMG_API virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
+	UMG_API virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
 #endif //WITH_EDITOR
 
 private:

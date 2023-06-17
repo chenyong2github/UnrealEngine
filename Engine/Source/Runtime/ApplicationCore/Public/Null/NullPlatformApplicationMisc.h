@@ -4,9 +4,9 @@
 
 #include "GenericPlatform/GenericPlatformApplicationMisc.h"
 
-struct APPLICATIONCORE_API FNullPlatformApplicationMisc : public FGenericPlatformApplicationMisc
+struct FNullPlatformApplicationMisc : public FGenericPlatformApplicationMisc
 {
-	static class GenericApplication* CreateApplication();
+	static APPLICATIONCORE_API class GenericApplication* CreateApplication();
 
-	static bool IsUsingNullApplication();
+	static APPLICATIONCORE_API bool IsUsingNullApplication();
 };

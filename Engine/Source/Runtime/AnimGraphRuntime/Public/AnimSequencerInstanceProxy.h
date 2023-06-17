@@ -70,7 +70,7 @@ struct FRootMotionOverride
 	FTransform PreviousTransform;
 };
 
-struct ANIMGRAPHRUNTIME_API FAnimSequencerData
+struct FAnimSequencerData
 {
 	FAnimSequencerData(UAnimSequenceBase* InAnimSequence, int32 InSequenceId, const TOptional<FRootMotionOverride>& InRootMotion, float InFromPosition, float InToPosition, float InWeight, bool bInFireNotifies, ESwapRootBone InSwapRootBone, TOptional<FTransform> InInitialTransform, UMirrorDataTable* InMirrorDataTable)
 		: AnimSequence(InAnimSequence)
@@ -114,7 +114,7 @@ struct FSequencerPlayerAnimSequence : public FSequencerPlayerBase
 
 /** Proxy override for this UAnimInstance-derived class */
 USTRUCT()
-struct ANIMGRAPHRUNTIME_API FAnimSequencerInstanceProxy : public FAnimInstanceProxy
+struct FAnimSequencerInstanceProxy : public FAnimInstanceProxy
 {
 	GENERATED_BODY()
 
@@ -128,38 +128,38 @@ public:
 	{
 	}
 
-	virtual ~FAnimSequencerInstanceProxy();
+	ANIMGRAPHRUNTIME_API virtual ~FAnimSequencerInstanceProxy();
 
 	// FAnimInstanceProxy interface
-	virtual void Initialize(UAnimInstance* InAnimInstance) override;
-	virtual bool Evaluate(FPoseContext& Output) override;
-	virtual void PostEvaluate(UAnimInstance* InAnimInstance) override;
-	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize(UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual bool Evaluate(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void PostEvaluate(UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
 
 	/** Update an animation sequence player in this instance */
-	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, float InPosition, float Weight, bool bFireNotifies);
-	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
+	ANIMGRAPHRUNTIME_API void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, float InPosition, float Weight, bool bFireNotifies);
+	ANIMGRAPHRUNTIME_API void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 	
 	UE_DEPRECATED(5.0, "Please use the UpdateAnimTrackWithRootMotion that takes a MirrorDataTable")
-	void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
+	ANIMGRAPHRUNTIME_API void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 	
 	UE_DEPRECATED(5.1, "Please use the UpdateAnimTrackWithRootMotion that takes FAnimSequencerData")
-	void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable);
+	ANIMGRAPHRUNTIME_API void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable);
 
-	void UpdateAnimTrackWithRootMotion(const FAnimSequencerData& InAnimSequencerData);
+	ANIMGRAPHRUNTIME_API void UpdateAnimTrackWithRootMotion(const FAnimSequencerData& InAnimSequencerData);
 
 	/** Reset all nodes in this instance */
-	virtual void ResetNodes();
+	ANIMGRAPHRUNTIME_API virtual void ResetNodes();
 
 	/** Reset the pose in this instance*/
-	virtual void ResetPose();
+	ANIMGRAPHRUNTIME_API virtual void ResetPose();
 
 	/** Construct and link the base part of the blend tree */
-	virtual void ConstructNodes();
+	ANIMGRAPHRUNTIME_API virtual void ConstructNodes();
 
 protected:
 
-	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, const TOptional<FRootMotionOverride>& RootMomtionOverride, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable);
+	ANIMGRAPHRUNTIME_API void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, const TOptional<FRootMotionOverride>& RootMomtionOverride, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable);
 
 	/** Find a player of a specified type */
 	template<typename Type>
@@ -189,9 +189,9 @@ protected:
 	/** custom root motion override sent in from sequencer */
 	TOptional<FRootMotionOverride> RootMotionOverride;
 
-	void InitAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);
-	void EnsureAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);
-	void ClearSequencePlayerAndMirrorMaps();
+	ANIMGRAPHRUNTIME_API void InitAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);
+	ANIMGRAPHRUNTIME_API void EnsureAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);
+	ANIMGRAPHRUNTIME_API void ClearSequencePlayerAndMirrorMaps();
 
 	ESwapRootBone SwapRootBone = ESwapRootBone::SwapRootBone_None;
 	TOptional<FTransform> InitialTransform;

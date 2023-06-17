@@ -10,18 +10,18 @@
 
 class UWidget;
 
-UCLASS()
-class UMG_API UWidgetBinding : public UPropertyBinding
+UCLASS(MinimalAPI)
+class UWidgetBinding : public UPropertyBinding
 {
 	GENERATED_BODY()
 
 public:
 
-	UWidgetBinding();
+	UMG_API UWidgetBinding();
 
-	virtual bool IsSupportedSource(FProperty* Property) const override;
-	virtual bool IsSupportedDestination(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedSource(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedDestination(FProperty* Property) const override;
 
 	UFUNCTION()
-	UWidget* GetValue() const;
+	UMG_API UWidget* GetValue() const;
 };

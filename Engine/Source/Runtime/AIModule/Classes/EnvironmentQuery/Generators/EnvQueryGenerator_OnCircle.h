@@ -24,8 +24,8 @@ enum class EPointOnCircleSpacingMethod :uint8
 	ByNumberOfPoints
 };
 
-UCLASS(meta = (DisplayName = "Points: Circle"))
-class AIMODULE_API UEnvQueryGenerator_OnCircle : public UEnvQueryGenerator_ProjectedPoints
+UCLASS(meta = (DisplayName = "Points: Circle"), MinimalAPI)
+class UEnvQueryGenerator_OnCircle : public UEnvQueryGenerator_ProjectedPoints
 {
 	GENERATED_UCLASS_BODY()
 
@@ -75,25 +75,25 @@ class AIMODULE_API UEnvQueryGenerator_OnCircle : public UEnvQueryGenerator_Proje
 	UPROPERTY(EditAnywhere, Category=Generator, meta=(InlineEditConditionToggle))
 	uint32 bDefineArc:1;
 
-	virtual void PostLoad() override;
+	AIMODULE_API virtual void PostLoad() override;
 
-	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
+	AIMODULE_API virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
 
-	virtual FText GetDescriptionTitle() const override;
-	virtual FText GetDescriptionDetails() const override;
+	AIMODULE_API virtual FText GetDescriptionTitle() const override;
+	AIMODULE_API virtual FText GetDescriptionDetails() const override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	AIMODULE_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 protected:
-	FVector CalcDirection(FEnvQueryInstance& QueryInstance) const;
+	AIMODULE_API FVector CalcDirection(FEnvQueryInstance& QueryInstance) const;
 
-	void GenerateItemsForCircle(uint8* ContextRawData, UEnvQueryItemType* ContextItemType,
+	AIMODULE_API void GenerateItemsForCircle(uint8* ContextRawData, UEnvQueryItemType* ContextItemType,
 		const FVector& CenterLocation, const FVector& StartDirection,
 		const TArray<AActor*>& IgnoredActors,
 		int32 StepsCount, float AngleStep, FEnvQueryInstance& OutQueryInstance) const;
 
-	virtual void AddItemDataForCircle(uint8* ContextRawData, UEnvQueryItemType* ContextItemType, 
+	AIMODULE_API virtual void AddItemDataForCircle(uint8* ContextRawData, UEnvQueryItemType* ContextItemType, 
 		const TArray<FNavLocation>& Locations, FEnvQueryInstance& OutQueryInstance) const;
 };

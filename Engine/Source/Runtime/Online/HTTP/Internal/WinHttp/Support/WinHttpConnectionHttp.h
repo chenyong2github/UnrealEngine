@@ -25,32 +25,32 @@ DECLARE_DELEGATE_TwoParams(FWinHttpConnectionHttpOnDataTransferred, int32 /*Byte
 DECLARE_DELEGATE_TwoParams(FWinHttpConnectionHttpOnHeaderReceived, const FString& /*HeaderKey*/, const FString& /*HeaderValue*/);
 DECLARE_DELEGATE_OneParam(FWinHttpConnectionHttpOnRequestComplete, EHttpRequestStatus::Type /*CompletionStatus*/);
 
-class HTTP_API FWinHttpConnectionHttp
+class FWinHttpConnectionHttp
 	: public IWinHttpConnection
 {
 public:
-	static TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> CreateHttpConnection(
+	static HTTP_API TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> CreateHttpConnection(
 		FWinHttpSession& Session,
 		const FString& Verb,
 		const FString& Url,
 		const TMap<FString, FString>& Headers,
 		const TSharedPtr<FRequestPayload, ESPMode::ThreadSafe>& Payload);
 
-	virtual ~FWinHttpConnectionHttp();
+	HTTP_API virtual ~FWinHttpConnectionHttp();
 	FWinHttpConnectionHttp(const FWinHttpConnectionHttp& Other) = delete;
 	FWinHttpConnectionHttp(FWinHttpConnectionHttp&& Other) = delete;
 	FWinHttpConnectionHttp& operator=(const FWinHttpConnectionHttp& Other) = delete;
 	FWinHttpConnectionHttp& operator=(FWinHttpConnectionHttp&& Other) = delete;
 
 	//~ Begin IWinHttpConnection Interface
-	virtual bool IsValid() const override;
-	virtual const FString& GetRequestUrl() const override;
-	virtual void* GetHandle() override;
-	virtual bool StartRequest() override;
-	virtual bool CancelRequest() override;
-	virtual bool IsComplete() const override;
-	virtual void PumpMessages() override;
-	virtual void PumpStates() override;
+	HTTP_API virtual bool IsValid() const override;
+	HTTP_API virtual const FString& GetRequestUrl() const override;
+	HTTP_API virtual void* GetHandle() override;
+	HTTP_API virtual bool StartRequest() override;
+	HTTP_API virtual bool CancelRequest() override;
+	HTTP_API virtual bool IsComplete() const override;
+	HTTP_API virtual void PumpMessages() override;
+	HTTP_API virtual void PumpStates() override;
 	//~ End IWinHttpConnection Interface
 
 	/** Provides the current known response code. */
@@ -72,22 +72,22 @@ public:
 	 *
 	 * @param Handler The Handler to call when we receive or send data
 	 */
-	void SetDataTransferredHandler(FWinHttpConnectionHttpOnDataTransferred&& Handler);
+	HTTP_API void SetDataTransferredHandler(FWinHttpConnectionHttpOnDataTransferred&& Handler);
 	/**
 	 * Bind a handler that is called each tick we receive a new header
 	 *
 	 * @param Handler The Handler to call when we receive a new header
 	 */
-	void SetHeaderReceivedHandler(FWinHttpConnectionHttpOnHeaderReceived&& Handler);
+	HTTP_API void SetHeaderReceivedHandler(FWinHttpConnectionHttpOnHeaderReceived&& Handler);
 	/**
 	 * Bind a handler that is called when the request completes
 	 *
 	 * @param Handler The Handler to call when the request completes
 	 */
-	void SetRequestCompletedHandler(FWinHttpConnectionHttpOnRequestComplete&& Handler);
+	HTTP_API void SetRequestCompletedHandler(FWinHttpConnectionHttpOnRequestComplete&& Handler);
 
 protected:
-	FWinHttpConnectionHttp(
+	HTTP_API FWinHttpConnectionHttp(
 		FWinHttpSession& Session,
 		const FString& Url,
 		const FString& Verb,
@@ -107,7 +107,7 @@ protected:
 	 * @param Headers Key/Value Map of headers to add to our request
 	 * @return True if we could set the headers, false otherwise
 	 */
-	bool SetHeaders(const TMap<FString, FString>& Headers);
+	HTTP_API bool SetHeaders(const TMap<FString, FString>& Headers);
 
 	/**
 	 * Add to our request's headers. Theis new header will be added to the existing headers set, and will
@@ -117,14 +117,14 @@ protected:
 	 * @param Value Value of header to set on our request
 	 * @return True if we could set the header, false otherwise
 	 */
-	bool SetHeader(const FString& Key, const FString& Value);
+	HTTP_API bool SetHeader(const FString& Key, const FString& Value);
 	/**
 	 * Set the payload object of our request. This may only be called before StartRequest is called.
 	 *
 	 * @param NewPayload the Payload object to set (it should not be modified during the request!)
 	 * @return True if we were able to set the payload, false otherwise
 	 */
-	bool SetPayload(const TSharedRef<FRequestPayload, ESPMode::ThreadSafe>& NewPayload);
+	HTTP_API bool SetPayload(const TSharedRef<FRequestPayload, ESPMode::ThreadSafe>& NewPayload);
 
 	/// Sending Request
 
@@ -133,31 +133,31 @@ protected:
 	 *
 	 * @return True if we could start the request, or false otherwise
 	 */
-	bool SendRequest();
+	HTTP_API bool SendRequest();
 	/**
 	 * Increment our bytes-sent counters
 	 *
 	 * @param AmountSent The amount of bytes to increment our counters by
 	 */
-	void IncrementSentByteCounts(const uint64 AmountSent);
+	HTTP_API void IncrementSentByteCounts(const uint64 AmountSent);
 	/**
 	 * Increment our bytes-received counters
 	 *
 	 * @param AmountReceived The amount of bytes to increment our counters by
 	 */
-	void IncrementReceivedByteCounts(const uint64 AmountReceived);
+	HTTP_API void IncrementReceivedByteCounts(const uint64 AmountReceived);
 	/** 
 	 * Check if we have more data to send
 	 *
 	 * @return True if we have data to send, or false otherwise
 	 */
-	bool HasRequestBodyToSend() const;
+	HTTP_API bool HasRequestBodyToSend() const;
 	/**
 	 * Gives WinHttp the next check of data.
 	 *
 	 * @param True if we asked WinHttp to send the data, or false if we could not send the next chunk
 	 */
-	bool SendAdditionalRequestBody();
+	HTTP_API bool SendAdditionalRequestBody();
 
 	/// Request Response
 
@@ -166,51 +166,51 @@ protected:
 	 *
 	 * @return True if the action completed successfully, false otherwise
 	 */
-	bool RequestResponse();
+	HTTP_API bool RequestResponse();
 	/**
 	 * Read our HTTP response headers and store the results
 	 *
 	 * @return True if the action completed successfully, false otherwise
 	 */
-	bool ProcessResponseHeaders();
+	HTTP_API bool ProcessResponseHeaders();
 	/**
 	 * Ask WinHttp to asynchronously tell us how large the next chunk will be. If it's 0, we're done.
 	 *
 	 * @return True if the action completed successfully, false otherwise
 	 */
-	bool RequestNextResponseBodyChunkSize();
+	HTTP_API bool RequestNextResponseBodyChunkSize();
 	/**
 	 * Ask WinHttp to asynchronously write the next chunk directly into our response object
 	 *
 	 * @return True if the action completed successfully, false otherwise
 	 */
-	bool RequestNextResponseBodyChunkData();
+	HTTP_API bool RequestNextResponseBodyChunkData();
 
 	/// Request State
 
 	/** Set our request as finished and set state to the specified state. This also releases the WinHttp handles. */
-	virtual bool FinishRequest(const EHttpRequestStatus::Type FinalState);
+	HTTP_API virtual bool FinishRequest(const EHttpRequestStatus::Type FinalState);
 
 	/// Callback handling
 
 	/** Handles storing the server's IP Address if needed */
-	virtual void HandleConnectedToServer(const wchar_t* ServerIP);
+	HTTP_API virtual void HandleConnectedToServer(const wchar_t* ServerIP);
 	/** Handles validating request now that we have server information (certificates, etc) */
-	void HandleSendingRequest();
+	HTTP_API void HandleSendingRequest();
 	/** Handles SOMETHING not sure yet*/
-	void HandleWriteComplete(const uint64 NumBytesSent);
+	HTTP_API void HandleWriteComplete(const uint64 NumBytesSent);
 	/** Handles completing the request so we may read the headers and body of the response */
-	void HandleSendRequestComplete();
+	HTTP_API void HandleSendRequestComplete();
 	/** Handles reading the response headers */
-	virtual void HandleHeadersAvailable();
+	HTTP_API virtual void HandleHeadersAvailable();
 	/** Handles writing the http response body to our response body */
-	void HandleDataAvailable(const uint64 NumBytesAvailable);
+	HTTP_API void HandleDataAvailable(const uint64 NumBytesAvailable);
 	/** Handles querying the next chunk of our http response body */
-	void HandleReadComplete(const uint64 NumBytesRead);
+	HTTP_API void HandleReadComplete(const uint64 NumBytesRead);
 	/** Handles shutting down the request when there was an error */
-	void HandleRequestError(const uint32 ErrorApiId, const uint32 ErrorCode);
+	HTTP_API void HandleRequestError(const uint32 ErrorApiId, const uint32 ErrorCode);
 	/** Handles our request object closing, ending this request */
-	virtual void HandleHandleClosing();
+	HTTP_API virtual void HandleHandleClosing();
 
 private:
 	/**
@@ -221,13 +221,13 @@ private:
 	 * @param StatusInformation Pointer to optional data for this event, if there is any
 	 * @param StatusInformationLength The length of data available to read in StatusInformation or 0 if not used
 	 */
-	void HandleHttpStatusCallback(HINTERNET ResourceHandle, EWinHttpCallbackStatus Status, void* StatusInformation, uint32 StatusInformationLength);
+	HTTP_API void HandleHttpStatusCallback(HINTERNET ResourceHandle, EWinHttpCallbackStatus Status, void* StatusInformation, uint32 StatusInformationLength);
 	
 	/** Mark our callback as a friend so they can call the above status callback function */
 	friend void CALLBACK UE_WinHttpStatusHttpCallback(HINTERNET, DWORD_PTR, DWORD, LPVOID, DWORD);
 
 	/** Reset both PayloadBuffer and Payload when we don't need them anymore, releasing the memory */
-	void ReleasePayloadData();
+	HTTP_API void ReleasePayloadData();
 
 protected:
 	/** Critical section used to synchronize access to the below properties across multiple threads */

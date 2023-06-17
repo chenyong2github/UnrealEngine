@@ -13,37 +13,37 @@
  * Draws a solid 3D cone based on parameters.
  */
 
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementCone : public UGizmoElementBase
+UCLASS(Transient, MinimalAPI)
+class UGizmoElementCone : public UGizmoElementBase
 {
 	GENERATED_BODY()
 
 public:
 
 	//~ Begin UGizmoElementBase Interface.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	//~ End UGizmoElementBase Interface.
 
 	// Cone tip location.
-	virtual void SetOrigin(const FVector& InBase);
-	virtual FVector GetOrigin() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetOrigin(const FVector& InBase);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetOrigin() const;
 
 	// Cone axis direction pointing from tip toward base of cone.
-	virtual void SetDirection(const FVector& InDirection);
-	virtual FVector GetDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDirection(const FVector& InDirection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetDirection() const;
 
 	// Cone height.
-	virtual void SetHeight(float InHeight);
-	virtual float GetHeight() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHeight(float InHeight);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetHeight() const;
 
 	// Cone radius.
-	virtual void SetRadius(float InRadius);
-	virtual float GetRadius() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetRadius(float InRadius);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetRadius() const;
 
 	// Number of sides for tessellating cone.
-	virtual void SetNumSides(int32 InNumSides);
-	virtual int32 GetNumSides() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetNumSides(int32 InNumSides);
+	INTERACTIVETOOLSFRAMEWORK_API virtual int32 GetNumSides() const;
 
 protected:
 

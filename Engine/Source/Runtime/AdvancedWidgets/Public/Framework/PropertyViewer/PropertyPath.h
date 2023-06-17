@@ -23,16 +23,16 @@ class UScriptStruct;
 namespace UE::PropertyViewer
 {
 
-struct ADVANCEDWIDGETS_API FPropertyPath
+struct FPropertyPath
 {
 public:
 	using FPropertyArray = TArray<const FProperty*, TInlineAllocator<1>>;
 
 	FPropertyPath() = default;
-	FPropertyPath(UObject* Object, const FProperty* Property);
-	FPropertyPath(UObject* Object, FPropertyArray Properties);
-	FPropertyPath(const UScriptStruct* ScriptStruct, void* Data, const FProperty* Property);
-	FPropertyPath(const UScriptStruct* ScriptStruct, void* Data, FPropertyArray Properties);
+	ADVANCEDWIDGETS_API FPropertyPath(UObject* Object, const FProperty* Property);
+	ADVANCEDWIDGETS_API FPropertyPath(UObject* Object, FPropertyArray Properties);
+	ADVANCEDWIDGETS_API FPropertyPath(const UScriptStruct* ScriptStruct, void* Data, const FProperty* Property);
+	ADVANCEDWIDGETS_API FPropertyPath(const UScriptStruct* ScriptStruct, void* Data, FPropertyArray Properties);
 
 public:
 	bool HasProperty() const
@@ -50,8 +50,8 @@ public:
 		return MakeArrayView(Properties);
 	}
 
-	void* GetContainerPtr();
-	const void* GetContainerPtr() const;
+	ADVANCEDWIDGETS_API void* GetContainerPtr();
+	ADVANCEDWIDGETS_API const void* GetContainerPtr() const;
 
 private:
 	TWeakObjectPtr<UObject> TopLevelContainer_Object = nullptr;

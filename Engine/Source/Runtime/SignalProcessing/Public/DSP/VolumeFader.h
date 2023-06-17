@@ -26,76 +26,76 @@ namespace Audio
 
 
 	/** Control-rate fader for managing volume fades of various standard shapes. */
-	class SIGNALPROCESSING_API FVolumeFader
+	class FVolumeFader
 	{
 	public:
-		FVolumeFader();
+		SIGNALPROCESSING_API FVolumeFader();
 
 		/**
 		 * Activates the fader if currently deactivated. Sets duration to indefinite (-1.0f)
 		 */
-		void Activate();
+		SIGNALPROCESSING_API void Activate();
 
 		/**
 		 * Deactivates the fader, causing it to remain
 		 * at the current value and disregard update.
 		 */
-		void Deactivate();
+		SIGNALPROCESSING_API void Deactivate();
 
 		/**
 		 * Gets time fader is to remain active (-1.0f if always active).
 		 */
-		float GetActiveDuration() const;
+		SIGNALPROCESSING_API float GetActiveDuration() const;
 
 		/**
 		 * Returns current volume of fader
 		 */
-		float GetVolume() const;
+		SIGNALPROCESSING_API float GetVolume() const;
 
 		/**
 		 * Returns the volume given the delta from the current time
 		 * into the future (Effectively like running to retrieve volume
 		 * but without actually updating internal state).
 		 */
-		float GetVolumeAfterTime(float InDeltaTime) const;
+		SIGNALPROCESSING_API float GetVolumeAfterTime(float InDeltaTime) const;
 
 		/**
 		 * Returns the duration of the fade.
 		 */
-		float GetFadeDuration() const;
+		SIGNALPROCESSING_API float GetFadeDuration() const;
 
 		/**
 		 * Returns the curve type of the fader
 		 */
-		EFaderCurve GetCurve() const;
+		SIGNALPROCESSING_API EFaderCurve GetCurve() const;
 
 		/**
 		 * Returns the target volume of the fader
 		 */
-		float GetTargetVolume() const;
+		SIGNALPROCESSING_API float GetTargetVolume() const;
 
 		/**
 		 * Whether or not the fader is active.
 		 */
-		bool IsActive() const;
+		SIGNALPROCESSING_API bool IsActive() const;
 
 		/**
 		 * Returns whether or not the fader is currently
 		 * fading over time.
 		 */
-		bool IsFading() const;
+		SIGNALPROCESSING_API bool IsFading() const;
 
 		/**
 		 * Returns whether or not the fader is currently
 		 * fading over time and value is increasing.
 		 */
-		bool IsFadingIn() const;
+		SIGNALPROCESSING_API bool IsFadingIn() const;
 
 		/**
 		 * Returns whether or not the fader is currently
 		 * fading over time and value is decreasing.
 		 */
-		bool IsFadingOut() const;
+		SIGNALPROCESSING_API bool IsFadingOut() const;
 
 		/**
 		 * Sets the duration the fader is to be active in the future,
@@ -104,27 +104,27 @@ namespace Audio
 		 * at which point it will continue applying the fade over the
 		 * remainder of the fade duration.
 		 */
-		void SetActiveDuration(float InDuration);
+		SIGNALPROCESSING_API void SetActiveDuration(float InDuration);
 
 		/**
 		 * Sets the volume immediately, interrupting any currently active fade.
 		 */
-		void SetVolume(float InVolume);
+		SIGNALPROCESSING_API void SetVolume(float InVolume);
 
 		/**
 		 * Applies a volume fade over time with the provided parameters.
 		 */
-		void StartFade(float InVolume, float InDuration, EFaderCurve InCurve);
+		SIGNALPROCESSING_API void StartFade(float InVolume, float InDuration, EFaderCurve InCurve);
 
 		/**
 		 * Stops fade, maintaining the current value as the target.
 		 */
-		void StopFade();
+		SIGNALPROCESSING_API void StopFade();
 
 		/**
 		 * Updates the fader's state with the given delta in time since last update.
 		 */
-		void Update(float InDeltaTime);
+		SIGNALPROCESSING_API void Update(float InDeltaTime);
 
 	private:
 		/** Converts value to final resulting volume */

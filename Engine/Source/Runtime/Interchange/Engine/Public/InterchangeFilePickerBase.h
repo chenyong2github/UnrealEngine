@@ -27,8 +27,8 @@ struct FInterchangeFilePickerParameters
 	FString DefaultPath = TEXT("");
 };
 
-UCLASS(Abstract, BlueprintType, Blueprintable)
-class INTERCHANGEENGINE_API UInterchangeFilePickerBase : public UObject
+UCLASS(Abstract, BlueprintType, Blueprintable, MinimalAPI)
+class UInterchangeFilePickerBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -38,7 +38,7 @@ public:
 	 * Non virtual helper to allow blueprint to implement event base function to implement the function FilePickerForTranslatorAssetType,
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Utilities")
-	bool ScriptedFilePickerForTranslatorAssetType(const EInterchangeTranslatorAssetType TranslatorAssetType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames);
+	INTERCHANGEENGINE_API bool ScriptedFilePickerForTranslatorAssetType(const EInterchangeTranslatorAssetType TranslatorAssetType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual FilePickerForTranslatorAssetType */
 	bool ScriptedFilePickerForTranslatorAssetType_Implementation(const EInterchangeTranslatorAssetType TranslatorAssetType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames)
@@ -51,7 +51,7 @@ public:
 	 * Non virtual helper to allow blueprint to implement event base function to implement the function FilePickerForTranslatorType,
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Utilities")
-	bool ScriptedFilePickerForTranslatorType(const EInterchangeTranslatorType TranslatorType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames);
+	INTERCHANGEENGINE_API bool ScriptedFilePickerForTranslatorType(const EInterchangeTranslatorType TranslatorType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames);
 
 	/** The default implementation (call if the blueprint do not have any implementation) will call the virtual FilePickerForTranslatorType */
 	bool ScriptedFilePickerForTranslatorType_Implementation(const EInterchangeTranslatorType TranslatorAssetType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames)

@@ -9,7 +9,7 @@
  * Facility structure to handle base data in blueprint
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkBasicBlueprintData : public FLiveLinkBaseBlueprintData
+struct FLiveLinkBasicBlueprintData : public FLiveLinkBaseBlueprintData
 {
 	GENERATED_BODY()
 

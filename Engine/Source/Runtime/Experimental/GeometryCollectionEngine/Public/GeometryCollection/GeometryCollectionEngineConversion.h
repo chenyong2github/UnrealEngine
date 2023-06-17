@@ -23,7 +23,7 @@ typedef TTuple<const USkeletalMesh *, const USkeletalMeshComponent *, FTransform
 /**
  * The public interface to this module
  */
-class GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEngineConversion
+class FGeometryCollectionEngineConversion
 {
 public:
 
@@ -32,7 +32,7 @@ public:
 	 * @param Materials : Materials fetched from the StaticMeshComponent used to configure this geometry
 	 * @param GeometryCollection  : Collection to append the mesh into.
 	 */
-	static int32 AppendMaterials(const TArray<UMaterialInterface*>& Materials, UGeometryCollection* GeometryCollectionObject, bool bAddInteriorCopy);
+	static GEOMETRYCOLLECTIONENGINE_API int32 AppendMaterials(const TArray<UMaterialInterface*>& Materials, UGeometryCollection* GeometryCollectionObject, bool bAddInteriorCopy);
 
 	/**
 	 * Appends instanced mesh indices 
@@ -41,7 +41,7 @@ public:
 	 * @param StaticMesh  static mesh to add reference to 
 	 * @param Materials materials corresponding to the static mesh instance to get the index from 
 	 */
-	static void AppendAutoInstanceMeshIndices(UGeometryCollection* GeometryCollectionObject, int32 FromTransformIndex, const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials);
+	static GEOMETRYCOLLECTIONENGINE_API void AppendAutoInstanceMeshIndices(UGeometryCollection* GeometryCollectionObject, int32 FromTransformIndex, const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials);
 
 	/**
 	 * Appends a MeshDescription to a GeometryCollection.
@@ -53,14 +53,14 @@ public:
 	 * @param BodySetup : Optional collision setup to transfer to the geometry collection
 	 * @param bReindexMaterials	: Whether to reindex materials -- if appending multiple meshes, pass false and call ReindexMaterials afterwards
 	 */
-	static void AppendMeshDescription(const FMeshDescription* MeshDescription, const FString& Name, int32 StartMaterialIndex, const FTransform& StaticMeshTransform,
+	static GEOMETRYCOLLECTIONENGINE_API void AppendMeshDescription(const FMeshDescription* MeshDescription, const FString& Name, int32 StartMaterialIndex, const FTransform& StaticMeshTransform,
 		FGeometryCollection* GeometryCollection, UBodySetup* BodySetup = nullptr, bool bReindexMaterials = true, bool bAddInternalMaterials = true, bool bSetInternalFromMaterialIndex = false);
 
 	/**
 	 * Get a HiRes (or LOD 0 if no HiRes available) MeshDescription for the given static mesh, and make sure it includes normals and tangents.
 	 * (i.e., to pass to AppendMeshDescription)
 	 */
-	static FMeshDescription* GetMaxResMeshDescriptionWithNormalsAndTangents(const UStaticMesh* StaticMesh);
+	static GEOMETRYCOLLECTIONENGINE_API FMeshDescription* GetMaxResMeshDescriptionWithNormalsAndTangents(const UStaticMesh* StaticMesh);
 
 	/**
 	 * Appends a static mesh to a GeometryCollectionComponent.
@@ -71,7 +71,7 @@ public:
 	 * @param bReindexMaterials	: Whether to reindex materials -- if appending multiple meshes, pass false and call ReindexMaterials afterwards
 	 * @return true if succeeded in appending a mesh
 	 */
-	static bool AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials, const FTransform& StaticMeshTransform, 
+	static GEOMETRYCOLLECTIONENGINE_API bool AppendStaticMesh(const UStaticMesh* StaticMesh, const TArray<UMaterialInterface*>& Materials, const FTransform& StaticMeshTransform, 
 		UGeometryCollection* GeometryCollectionObject, bool bReindexMaterials = true, bool bAddInternalMaterials = true, bool bSplitComponents = false, bool bSetInternalFromMaterialIndex = false);
 
 	// TODO: consider having the below fn return bool, and have a helper that returns the StartMaterialIndex from UGeometryCollection
@@ -88,7 +88,7 @@ public:
 	 * @param bReindexMaterials	: Whether to reindex materials -- if appending multiple meshes, pass false and call ReindexMaterials afterwards
 	 * @return true if succeeded in appending a mesh
 	 */
-	static bool AppendStaticMesh(const UStaticMesh* StaticMesh, int32 StartMaterialIndex, const FTransform& StaticMeshTransform, 
+	static GEOMETRYCOLLECTIONENGINE_API bool AppendStaticMesh(const UStaticMesh* StaticMesh, int32 StartMaterialIndex, const FTransform& StaticMeshTransform, 
 		FGeometryCollection* GeometryCollection, bool bReindexMaterials = true, bool bAddInternalMaterials = true, bool bSplitComponents = false, bool bSetInternalFromMaterialIndex = false);
 
 	/**
@@ -97,7 +97,7 @@ public:
 	*  @param StaticMeshTransform : Mesh transform.
 	*  @param GeometryCollection  : Collection to append the mesh into.
 	*/
-	static void AppendStaticMesh(const UStaticMesh* StaticMesh, const UStaticMeshComponent *StaticMeshComponent, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollection,
+	static GEOMETRYCOLLECTIONENGINE_API void AppendStaticMesh(const UStaticMesh* StaticMesh, const UStaticMeshComponent *StaticMeshComponent, const FTransform& StaticMeshTransform, UGeometryCollection* GeometryCollection,
 		bool bReindexMaterials = true, bool bAddInternalMaterials = true, bool bSplitComponents = false, bool bSetInternalFromMaterialIndex = false);
 
 	/**
@@ -106,7 +106,7 @@ public:
 	*  @param SkeletalMeshTransform : Mesh transform.
 	*  @param GeometryCollection    : Collection to append the mesh into.
 	*/
-	static void AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent *SkeletalMeshComponent, const FTransform& SkeletalMeshTransform, UGeometryCollection* GeometryCollection, bool bReindexMaterials = true);
+	static GEOMETRYCOLLECTIONENGINE_API void AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent *SkeletalMeshComponent, const FTransform& SkeletalMeshTransform, UGeometryCollection* GeometryCollection, bool bReindexMaterials = true);
 
 	/**
 	*  Appends a skeletal mesh to a GeometryCollection.
@@ -115,7 +115,7 @@ public:
 	*  @param SkeletalMeshTransform : Mesh transform.
 	*  @param GeometryCollection    : Collection to append the mesh into.
 	*/
-	static bool AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, int32 MaterialStartIndex, const FTransform& SkeletalMeshTransform, FManagedArrayCollection* InCollection, bool bReindexMaterials = true);
+	static GEOMETRYCOLLECTIONENGINE_API bool AppendSkeletalMesh(const USkeletalMesh* SkeletalMesh, int32 MaterialStartIndex, const FTransform& SkeletalMeshTransform, FManagedArrayCollection* InCollection, bool bReindexMaterials = true);
 
 	/**
 	*  Appends a skeleton mesh to a GeometryCollection.
@@ -123,7 +123,7 @@ public:
 	*  @param SkeletalMeshTransform : Mesh transform.
 	*  @param GeometryCollection    : Collection to append the mesh into.
 	*/
-	static void AppendSkeleton(const USkeleton* Skeleton, const FTransform& SkeletalMeshTransform, FManagedArrayCollection* InCollection);
+	static GEOMETRYCOLLECTIONENGINE_API void AppendSkeleton(const USkeleton* Skeleton, const FTransform& SkeletalMeshTransform, FManagedArrayCollection* InCollection);
 
 	/**
 	*  Appends a skeletal mesh to a GeometryCollectionComponent.
@@ -131,13 +131,13 @@ public:
 	*  @param SkeletalMeshTransform : Mesh transform.
 	*  @param GeometryCollection    : Collection to append the mesh into.
 	*/
-	static int32 AppendSkeletalMeshMaterials(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, UGeometryCollection* GeometryCollectionObject);
+	static GEOMETRYCOLLECTIONENGINE_API int32 AppendSkeletalMeshMaterials(const USkeletalMesh* SkeletalMesh, const USkeletalMeshComponent* SkeletalMeshComponent, UGeometryCollection* GeometryCollectionObject);
 
-	static const FSkeletalMeshLODRenderData* GetSkeletalMeshLOD(const USkeletalMesh* SkeletalMesh, int32 LOD);
+	static GEOMETRYCOLLECTIONENGINE_API const FSkeletalMeshLODRenderData* GetSkeletalMeshLOD(const USkeletalMesh* SkeletalMesh, int32 LOD);
 
-	static int32 AppendGeometryCollectionMaterials(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, UGeometryCollection* TargetGeometryCollectionObject);
+	static GEOMETRYCOLLECTIONENGINE_API int32 AppendGeometryCollectionMaterials(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, UGeometryCollection* TargetGeometryCollectionObject);
 
-	static void AppendGeometryCollectionInstancedMeshes(const UGeometryCollection* SourceGeometryCollectionObject, UGeometryCollection* TargetGeometryCollectionObject, int32 TargetTransformStartIndex);
+	static GEOMETRYCOLLECTIONENGINE_API void AppendGeometryCollectionInstancedMeshes(const UGeometryCollection* SourceGeometryCollectionObject, UGeometryCollection* TargetGeometryCollectionObject, int32 TargetTransformStartIndex);
 
 	/**
 	 * Appends a GeometryCollection to another GeometryCollection.
@@ -148,7 +148,7 @@ public:
 	 * @param bReindexMaterials	: Whether to reindex materials -- if appending multiple meshes, pass false and call ReindexMaterials afterwards
 	 * @return true if succeeded in appending a geometry collection
 	 */
-	static bool AppendGeometryCollection(const FGeometryCollection* SourceGeometryCollection, int32 MaterialStartIndex, const FTransform& GeometryCollectionTransform, FGeometryCollection* TargetGeometryCollection, bool bReindexMaterials = true);
+	static GEOMETRYCOLLECTIONENGINE_API bool AppendGeometryCollection(const FGeometryCollection* SourceGeometryCollection, int32 MaterialStartIndex, const FTransform& GeometryCollectionTransform, FGeometryCollection* TargetGeometryCollection, bool bReindexMaterials = true);
 
 	/**
 	*  Appends a GeometryCollection to a GeometryCollectionComponent.
@@ -157,7 +157,7 @@ public:
 	*  @param GeometryCollectionTransform : GeometryCollection transform.
 	*  @param TargetGeometryCollection  : Collection to append the GeometryCollection into.
 	*/
-	static void AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const TArray<UMaterialInterface*>& Materials, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials = true);
+	static GEOMETRYCOLLECTIONENGINE_API void AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const TArray<UMaterialInterface*>& Materials, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials = true);
 
 	/**
 	*  Appends a GeometryCollection to a GeometryCollectionComponent.
@@ -165,7 +165,7 @@ public:
 	*  @param GeometryCollectionTransform : GeometryCollection transform.
 	*  @param TargetGeometryCollection  : Collection to append the GeometryCollection into.
 	*/
-	static void AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials = true);
+	static GEOMETRYCOLLECTIONENGINE_API void AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials = true);
 
 	/**
 	*  Appends a GeometryCollectionSource to a GeometryCollection
@@ -173,5 +173,5 @@ public:
 	*  @param GeometryCollectionInOut : GeometryCollection to append to 
 	*  @param MaterialsInOut  : array of materials to append to
 	*/
-	static void AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut, bool ReindexMaterials = true);
+	static GEOMETRYCOLLECTIONENGINE_API void AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut, bool ReindexMaterials = true);
 };

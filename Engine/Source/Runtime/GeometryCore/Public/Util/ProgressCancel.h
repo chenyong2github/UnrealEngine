@@ -183,7 +183,7 @@ struct FGeometryResult
  * 1) provide progress info back to caller
  * 2) allow caller to cancel the computation
  */
-class GEOMETRYCORE_API FProgressCancel
+class FProgressCancel
 {
 private:
 	bool WasCancelled = false;  // will be set to true if CancelF() ever returns true
@@ -220,9 +220,9 @@ private:
 	// critical section for accesses to the Progress Message
 	mutable FCriticalSection MessageCS;
 
-	void StartWorkScope(FProgressData& SaveProgressFrameOut, float StepSize, const FText& Message);
+	GEOMETRYCORE_API void StartWorkScope(FProgressData& SaveProgressFrameOut, float StepSize, const FText& Message);
 
-	void EndWorkScope(const FProgressData& SavedProgressFrame);
+	GEOMETRYCORE_API void EndWorkScope(const FProgressData& SavedProgressFrame);
 
 public:
 	TFunction<bool()> CancelF = []() { return false; };
@@ -254,7 +254,7 @@ public:
 
 	// Simple helper to track progress in a local scope on an optional FProgressCancel
 	// Will still work if the ProgressCancel is null (just does nothing in that case)
-	class GEOMETRYCORE_API FProgressScope
+	class FProgressScope
 	{
 		FProgressCancel* ProgressCancel;
 		FProgressData SavedProgressData;
@@ -266,7 +266,7 @@ public:
 		 * @param ProgressCancel		Progress will be tracked on this. If null, the FProgressScope will do nothing.
 		 * @param ProgressAmount		Amount to increase progress w/in this scope (as a fraction of the current outer-scope active progress range)
 		 */
-		FProgressScope(FProgressCancel* ProgressCancel, float ProgressAmount, const FText& Message = FText());
+		GEOMETRYCORE_API FProgressScope(FProgressCancel* ProgressCancel, float ProgressAmount, const FText& Message = FText());
 
 		/**
 		 * Create a dummy/inactive FProgressScope
@@ -305,7 +305,7 @@ public:
 		/**
 		 * Advance to the end of the scope's progress range and close the scope
 		 */
-		void Done();
+		GEOMETRYCORE_API void Done();
 
 		/**
 		 * @param Amount	Amount to increase the progress fraction, as a fraction of the current active progress range
@@ -378,7 +378,7 @@ public:
 	 * @param Message				Optional message describing the work to be done
 	 * @return						A new FProgressScope that covers work from the current progress to the target progress value (relative to the current scope)
 	 */
-	static FProgressScope CreateScopeTo(FProgressCancel* ProgressCancel, float ProgressTo, const FText& Message = FText());
+	static GEOMETRYCORE_API FProgressScope CreateScopeTo(FProgressCancel* ProgressCancel, float ProgressTo, const FText& Message = FText());
 
 	float GetProgress() const
 	{

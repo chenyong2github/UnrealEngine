@@ -100,53 +100,53 @@ enum class EBTBranchAction : uint16
 };
 ENUM_CLASS_FLAGS(EBTBranchAction);
 
-UCLASS(ClassGroup = AI, meta = (BlueprintSpawnableComponent))
-class AIMODULE_API UBehaviorTreeComponent : public UBrainComponent
+UCLASS(ClassGroup = AI, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UBehaviorTreeComponent : public UBrainComponent
 {
 	GENERATED_UCLASS_BODY()
 
 	// UActorComponent overrides
-	virtual void RegisterComponentTickFunctions(bool bRegister) override;
-	virtual void SetComponentTickEnabled(bool bEnabled) override;
+	AIMODULE_API virtual void RegisterComponentTickFunctions(bool bRegister) override;
+	AIMODULE_API virtual void SetComponentTickEnabled(bool bEnabled) override;
 
 	// Begin UBrainComponent overrides
-	virtual void StartLogic() override;
-	virtual void RestartLogic() override;
-	virtual void StopLogic(const FString& Reason) override;
-	virtual void PauseLogic(const FString& Reason) override;
-	virtual EAILogicResuming::Type ResumeLogic(const FString& Reason) override;
+	AIMODULE_API virtual void StartLogic() override;
+	AIMODULE_API virtual void RestartLogic() override;
+	AIMODULE_API virtual void StopLogic(const FString& Reason) override;
+	AIMODULE_API virtual void PauseLogic(const FString& Reason) override;
+	AIMODULE_API virtual EAILogicResuming::Type ResumeLogic(const FString& Reason) override;
 
 	/** indicates instance has been initialized to work with specific BT asset */
-	bool TreeHasBeenStarted() const;
+	AIMODULE_API bool TreeHasBeenStarted() const;
 
 public:
 	/** DO NOT USE. This constructor is for internal usage only for hot-reload purposes. */
-	UBehaviorTreeComponent(FVTableHelper& Helper);
+	AIMODULE_API UBehaviorTreeComponent(FVTableHelper& Helper);
 
-	virtual bool IsRunning() const override;
-	virtual bool IsPaused() const override;
-	virtual void Cleanup() override;
-	virtual void HandleMessage(const FAIMessage& Message) override;
+	AIMODULE_API virtual bool IsRunning() const override;
+	AIMODULE_API virtual bool IsPaused() const override;
+	AIMODULE_API virtual void Cleanup() override;
+	AIMODULE_API virtual void HandleMessage(const FAIMessage& Message) override;
 	// End UBrainComponent overrides
 
 	// Begin UActorComponent overrides
-	virtual void UninitializeComponent() override;
+	AIMODULE_API virtual void UninitializeComponent() override;
 	// End UActorComponent overrides
 
 	/** starts execution from root */
-	void StartTree(UBehaviorTree& Asset, EBTExecutionMode::Type ExecuteMode = EBTExecutionMode::Looped);
+	AIMODULE_API void StartTree(UBehaviorTree& Asset, EBTExecutionMode::Type ExecuteMode = EBTExecutionMode::Looped);
 
 	/** stops execution */
-	void StopTree(EBTStopMode::Type StopMode = EBTStopMode::Safe);
+	AIMODULE_API void StopTree(EBTStopMode::Type StopMode = EBTStopMode::Safe);
 
 	/** restarts execution from root
 	 * @param RestartMode to force the reevaluation of the root node, which could skip active nodes that are removed and then readded (default)
 	 *        or a complete restart from scratch of the tree (equivalent of StopTree then StartTree)
 	 */
-	void RestartTree(EBTRestartMode RestartMode = EBTRestartMode::ForceReevaluateRootNode);
+	AIMODULE_API void RestartTree(EBTRestartMode RestartMode = EBTRestartMode::ForceReevaluateRootNode);
 
 	/** request execution change */
-	void RequestExecution(const UBTCompositeNode* RequestedOn, const int32 InstanceIdx, 
+	AIMODULE_API void RequestExecution(const UBTCompositeNode* RequestedOn, const int32 InstanceIdx, 
 		const UBTNode* RequestedBy, const int32 RequestedByChildIndex,
 		const EBTNodeResult::Type ContinueWithResult, bool bStoreForDebugger = true);
 
@@ -158,122 +158,122 @@ public:
 
 	/** request unregistration of aux nodes in the specified branch */
 	UE_DEPRECATED(5.0, "This function is deprecated. Please use RequestBranchDeactivation instead.")
-	void RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node);
+	AIMODULE_API void RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node);
 
 	/** request branch evaluation: helper for active node (ex: tasks) */
-	void RequestBranchEvaluation(EBTNodeResult::Type ContinueWithResult);
+	AIMODULE_API void RequestBranchEvaluation(EBTNodeResult::Type ContinueWithResult);
 
 	/** request branch evaluation: helper for decorator */
-	void RequestBranchEvaluation(const UBTDecorator& RequestedBy);
+	AIMODULE_API void RequestBranchEvaluation(const UBTDecorator& RequestedBy);
 
 	/** request branch activation: helper for decorator */
-	void RequestBranchActivation(const UBTDecorator& RequestedBy, const bool bRequestEvenIfExecuting);
+	AIMODULE_API void RequestBranchActivation(const UBTDecorator& RequestedBy, const bool bRequestEvenIfExecuting);
 
 	/** request branch deactivation: helper for decorator */
-	void RequestBranchDeactivation(const UBTDecorator& RequestedBy);
+	AIMODULE_API void RequestBranchDeactivation(const UBTDecorator& RequestedBy);
 
 	/** finish latent execution or abort */
-	void OnTaskFinished(const UBTTaskNode* TaskNode, EBTNodeResult::Type TaskResult);
+	AIMODULE_API void OnTaskFinished(const UBTTaskNode* TaskNode, EBTNodeResult::Type TaskResult);
 
 	/** setup message observer for given task */
-	void RegisterMessageObserver(const UBTTaskNode* TaskNode, FName MessageType);
-	void RegisterMessageObserver(const UBTTaskNode* TaskNode, FName MessageType, FAIRequestID MessageID);
+	AIMODULE_API void RegisterMessageObserver(const UBTTaskNode* TaskNode, FName MessageType);
+	AIMODULE_API void RegisterMessageObserver(const UBTTaskNode* TaskNode, FName MessageType, FAIRequestID MessageID);
 	
 	/** remove message observers registered with task */
-	void UnregisterMessageObserversFrom(const UBTTaskNode* TaskNode);
-	void UnregisterMessageObserversFrom(const FBTNodeIndex& TaskIdx);
+	AIMODULE_API void UnregisterMessageObserversFrom(const UBTTaskNode* TaskNode);
+	AIMODULE_API void UnregisterMessageObserversFrom(const FBTNodeIndex& TaskIdx);
 
 	/** add active parallel task */
-	void RegisterParallelTask(const UBTTaskNode* TaskNode);
+	AIMODULE_API void RegisterParallelTask(const UBTTaskNode* TaskNode);
 
 	/** remove parallel task */
-	void UnregisterParallelTask(const UBTTaskNode* TaskNode, uint16 InstanceIdx);
+	AIMODULE_API void UnregisterParallelTask(const UBTTaskNode* TaskNode, uint16 InstanceIdx);
 
 	/** unregister all aux nodes less important than given index */
-	void UnregisterAuxNodesUpTo(const FBTNodeIndex& Index);
+	AIMODULE_API void UnregisterAuxNodesUpTo(const FBTNodeIndex& Index);
 
 	/** unregister all aux nodes between given execution index range: FromIndex < AuxIndex < ToIndex */
-	void UnregisterAuxNodesInRange(const FBTNodeIndex& FromIndex, const FBTNodeIndex& ToIndex);
+	AIMODULE_API void UnregisterAuxNodesInRange(const FBTNodeIndex& FromIndex, const FBTNodeIndex& ToIndex);
 
 	/** unregister all aux nodes in branch of tree */
-	void UnregisterAuxNodesInBranch(const UBTCompositeNode* Node, bool bApplyImmediately = true);
+	AIMODULE_API void UnregisterAuxNodesInBranch(const UBTCompositeNode* Node, bool bApplyImmediately = true);
 
 	/** BEGIN UActorComponent overrides */
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	AIMODULE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	/** END UActorComponent overrides */
 
 	/** Schedule when will be the next tick, 0.0f means next frame, FLT_MAX means never */
-	void ScheduleNextTick(float NextDeltaTime);
+	AIMODULE_API void ScheduleNextTick(float NextDeltaTime);
 
 	/** process execution flow */
-	void ProcessExecutionRequest();
+	AIMODULE_API void ProcessExecutionRequest();
 
 	/** schedule execution flow update in next tick */
-	void ScheduleExecutionUpdate();
+	AIMODULE_API void ScheduleExecutionUpdate();
 
 	/** tries to find behavior tree instance in context */
-	int32 FindInstanceContainingNode(const UBTNode* Node) const;
+	AIMODULE_API int32 FindInstanceContainingNode(const UBTNode* Node) const;
 
 	/** tries to find template node for given instanced node */
-	UBTNode* FindTemplateNode(const UBTNode* Node) const;
+	AIMODULE_API UBTNode* FindTemplateNode(const UBTNode* Node) const;
 
 	/** @return current tree */
-	UBehaviorTree* GetCurrentTree() const;
+	AIMODULE_API UBehaviorTree* GetCurrentTree() const;
 
 	/** @return tree from top of instance stack */
-	UBehaviorTree* GetRootTree() const;
+	AIMODULE_API UBehaviorTree* GetRootTree() const;
 
 	/** @return active node */
-	const UBTNode* GetActiveNode() const;
+	AIMODULE_API const UBTNode* GetActiveNode() const;
 	
 	/** get index of active instance on stack */
-	uint16 GetActiveInstanceIdx() const;
+	AIMODULE_API uint16 GetActiveInstanceIdx() const;
 
 	/** @return node memory */
-	uint8* GetNodeMemory(UBTNode* Node, int32 InstanceIdx) const;
+	AIMODULE_API uint8* GetNodeMemory(UBTNode* Node, int32 InstanceIdx) const;
 
 	/** @return true if ExecutionRequest is switching to higher priority node */
-	bool IsRestartPending() const;
+	AIMODULE_API bool IsRestartPending() const;
 
 	/** @return true if waiting for abort to finish */
-	bool IsAbortPending() const;
+	AIMODULE_API bool IsAbortPending() const;
 
 	/** @return true if active node is one of child nodes of given one */
-	bool IsExecutingBranch(const UBTNode* Node, int32 ChildIndex = -1) const;
+	AIMODULE_API bool IsExecutingBranch(const UBTNode* Node, int32 ChildIndex = -1) const;
 
 	/** @return true if aux node is currently active */
-	bool IsAuxNodeActive(const UBTAuxiliaryNode* AuxNode) const;
-	bool IsAuxNodeActive(const UBTAuxiliaryNode* AuxNodeTemplate, int32 InstanceIdx) const;
+	AIMODULE_API bool IsAuxNodeActive(const UBTAuxiliaryNode* AuxNode) const;
+	AIMODULE_API bool IsAuxNodeActive(const UBTAuxiliaryNode* AuxNodeTemplate, int32 InstanceIdx) const;
 
 	/** Returns true if InstanceStack contains any BT runtime instances */
 	bool IsInstanceStackEmpty() const { return (InstanceStack.Num() == 0); }
 
 	/** @return status of speficied task */
-	EBTTaskStatus::Type GetTaskStatus(const UBTTaskNode* TaskNode) const;
+	AIMODULE_API EBTTaskStatus::Type GetTaskStatus(const UBTTaskNode* TaskNode) const;
 
-	virtual FString GetDebugInfoString() const override;
-	virtual FString DescribeActiveTasks() const;
-	virtual FString DescribeActiveTrees() const;
+	AIMODULE_API virtual FString GetDebugInfoString() const override;
+	AIMODULE_API virtual FString DescribeActiveTasks() const;
+	AIMODULE_API virtual FString DescribeActiveTrees() const;
 
 	/** @return the cooldown tag end time, 0.0f if CooldownTag is not found */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
-	double GetTagCooldownEndTime(FGameplayTag CooldownTag) const;
+	AIMODULE_API double GetTagCooldownEndTime(FGameplayTag CooldownTag) const;
 
 	/** add to the cooldown tag's duration */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
-	void AddCooldownTagDuration(FGameplayTag CooldownTag, float CooldownDuration, bool bAddToExistingDuration);
+	AIMODULE_API void AddCooldownTagDuration(FGameplayTag CooldownTag, float CooldownDuration, bool bAddToExistingDuration);
 
 	/** assign subtree to RunBehaviorDynamic task specified by tag */
 	UFUNCTION(BlueprintCallable, Category="AI|Logic")
-	virtual void SetDynamicSubtree(FGameplayTag InjectTag, UBehaviorTree* BehaviorAsset);
+	AIMODULE_API virtual void SetDynamicSubtree(FGameplayTag InjectTag, UBehaviorTree* BehaviorAsset);
 
 // Code for timing BT Search for FramePro
 #if !UE_BUILD_SHIPPING
-	static void EndFrame();
+	static AIMODULE_API void EndFrame();
 #endif
 
 #if ENABLE_VISUAL_LOG
-	virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const override;
+	AIMODULE_API virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const override;
 #endif
 
 #if CSV_PROFILER
@@ -346,14 +346,14 @@ protected:
 	mutable TArray<FBehaviorTreeExecutionStep> DebuggerSteps;
 
 	/** set when at least one debugger window is opened */
-	static int32 ActiveDebuggerCounter;
+	static AIMODULE_API int32 ActiveDebuggerCounter;
 #endif
 
 	// Code for timing BT Search for FramePro
 #if !UE_BUILD_SHIPPING
-	static bool bAddedEndFrameCallback;
-	static double FrameSearchTime;
-	static int32 NumSearchTimeCalls;
+	static AIMODULE_API bool bAddedEndFrameCallback;
+	static AIMODULE_API double FrameSearchTime;
+	static AIMODULE_API int32 NumSearchTimeCalls;
 #endif
 
 	/** index of last active instance on stack */
@@ -379,105 +379,105 @@ protected:
 
 	/** push behavior tree instance on execution stack
 	 *	@NOTE: should never be called out-side of BT execution, meaning only BT tasks can push another BT instance! */
-	bool PushInstance(UBehaviorTree& TreeAsset);
+	AIMODULE_API bool PushInstance(UBehaviorTree& TreeAsset);
 
 	/** add unique Id of newly created subtree to KnownInstances list and return its index */
-	uint8 UpdateInstanceId(UBehaviorTree* TreeAsset, const UBTNode* OriginNode, int32 OriginInstanceIdx);
+	AIMODULE_API uint8 UpdateInstanceId(UBehaviorTree* TreeAsset, const UBTNode* OriginNode, int32 OriginInstanceIdx);
 
 	/** remove instanced nodes, known subtree instances and safely clears their persistent memory */
-	void RemoveAllInstances();
+	AIMODULE_API void RemoveAllInstances();
 
 	/** copy memory block from running instances to persistent memory */
-	void CopyInstanceMemoryToPersistent();
+	AIMODULE_API void CopyInstanceMemoryToPersistent();
 
 	/** copy memory block from persistent memory to running instances (rollback) */
-	void CopyInstanceMemoryFromPersistent();
+	AIMODULE_API void CopyInstanceMemoryFromPersistent();
 
 	/** called when tree runs out of nodes to execute */
-	virtual void OnTreeFinished();
+	AIMODULE_API virtual void OnTreeFinished();
 
 	/** apply pending node updates from SearchData */
-	void ApplySearchData(UBTNode* NewActiveNode);
+	AIMODULE_API void ApplySearchData(UBTNode* NewActiveNode);
 
 	/** apply pending node updates required for discarded search */
-	void ApplyDiscardedSearch();
+	AIMODULE_API void ApplyDiscardedSearch();
 
 	/** apply updates from specific list */
-	void ApplySearchUpdates(const TArray<FBehaviorTreeSearchUpdate>& UpdateList, int32 NewNodeExecutionIndex, bool bPostUpdate = false);
+	AIMODULE_API void ApplySearchUpdates(const TArray<FBehaviorTreeSearchUpdate>& UpdateList, int32 NewNodeExecutionIndex, bool bPostUpdate = false);
 
 	/** abort currently executed task */
-	void AbortCurrentTask();
+	AIMODULE_API void AbortCurrentTask();
 
 	/** execute new task */
-	void ExecuteTask(UBTTaskNode* TaskNode);
+	AIMODULE_API void ExecuteTask(UBTTaskNode* TaskNode);
 
 	/** deactivate all nodes up to requested one */
-	bool DeactivateUpTo(const UBTCompositeNode* Node, uint16 NodeInstanceIdx, EBTNodeResult::Type& NodeResult, int32& OutLastDeactivatedChildIndex);
+	AIMODULE_API bool DeactivateUpTo(const UBTCompositeNode* Node, uint16 NodeInstanceIdx, EBTNodeResult::Type& NodeResult, int32& OutLastDeactivatedChildIndex);
 
 	/** returns true if execution was waiting on latent aborts and they are all finished;  */
-	bool TrackPendingLatentAborts();
+	AIMODULE_API bool TrackPendingLatentAborts();
 
 	/** tracks if there are new tasks using latent abort in progress */
-	void TrackNewLatentAborts();
+	AIMODULE_API void TrackNewLatentAborts();
 
 	/** return true if the current or any parallel task has a latent abort in progress */
-	bool HasActiveLatentAborts() const;
+	AIMODULE_API bool HasActiveLatentAborts() const;
 
 	/** apply pending execution from last task search */
-	void ProcessPendingExecution();
+	AIMODULE_API void ProcessPendingExecution();
 
 	/** apply pending tree initialization */
-	void ProcessPendingInitialize();
+	AIMODULE_API void ProcessPendingInitialize();
 
 	/** restore state of tree to state before search */
-	void RollbackSearchChanges();
+	AIMODULE_API void RollbackSearchChanges();
 
 	/** make a snapshot for debugger */
-	void StoreDebuggerExecutionStep(EBTExecutionSnap::Type SnapType);
+	AIMODULE_API void StoreDebuggerExecutionStep(EBTExecutionSnap::Type SnapType);
 
 	/** make a snapshot for debugger from given subtree instance */
-	void StoreDebuggerInstance(FBehaviorTreeDebuggerInstance& InstanceInfo, uint16 InstanceIdx, EBTExecutionSnap::Type SnapType) const;
-	void StoreDebuggerRemovedInstance(uint16 InstanceIdx) const;
+	AIMODULE_API void StoreDebuggerInstance(FBehaviorTreeDebuggerInstance& InstanceInfo, uint16 InstanceIdx, EBTExecutionSnap::Type SnapType) const;
+	AIMODULE_API void StoreDebuggerRemovedInstance(uint16 InstanceIdx) const;
 
 	/** store search step for debugger */
-	void StoreDebuggerSearchStep(const UBTNode* Node, uint16 InstanceIdx, EBTNodeResult::Type NodeResult) const;
-	void StoreDebuggerSearchStep(const UBTNode* Node, uint16 InstanceIdx, bool bPassed) const;
+	AIMODULE_API void StoreDebuggerSearchStep(const UBTNode* Node, uint16 InstanceIdx, EBTNodeResult::Type NodeResult) const;
+	AIMODULE_API void StoreDebuggerSearchStep(const UBTNode* Node, uint16 InstanceIdx, bool bPassed) const;
 
 	/** store restarting node for debugger */
-	void StoreDebuggerRestart(const UBTNode* Node, uint16 InstanceIdx, bool bAllowed);
+	AIMODULE_API void StoreDebuggerRestart(const UBTNode* Node, uint16 InstanceIdx, bool bAllowed);
 
 	/** describe blackboard's key values */
-	void StoreDebuggerBlackboard(TMap<FName, FString>& BlackboardValueDesc) const;
+	AIMODULE_API void StoreDebuggerBlackboard(TMap<FName, FString>& BlackboardValueDesc) const;
 
 	/** gather nodes runtime descriptions */
-	void StoreDebuggerRuntimeValues(TArray<FString>& RuntimeDescriptions, UBTNode* RootNode, uint16 InstanceIdx) const;
+	AIMODULE_API void StoreDebuggerRuntimeValues(TArray<FString>& RuntimeDescriptions, UBTNode* RootNode, uint16 InstanceIdx) const;
 
 	/** update runtime description of given task node in latest debugger's snapshot */
-	void UpdateDebuggerAfterExecution(const UBTTaskNode* TaskNode, uint16 InstanceIdx) const;
+	AIMODULE_API void UpdateDebuggerAfterExecution(const UBTTaskNode* TaskNode, uint16 InstanceIdx) const;
 
 	/** check if debugger is currently running and can gather data */
-	static bool IsDebuggerActive();
+	static AIMODULE_API bool IsDebuggerActive();
 
 	/** Return NodeA's relative priority in regards to NodeB */
-	EBTNodeRelativePriority CalculateRelativePriority(const UBTNode* NodeA, const UBTNode* NodeB) const;
+	AIMODULE_API EBTNodeRelativePriority CalculateRelativePriority(const UBTNode* NodeA, const UBTNode* NodeB) const;
 
 	/** Evaluate a branch as current active node is finished */
-	void EvaluateBranch(EBTNodeResult::Type LastResult);
+	AIMODULE_API void EvaluateBranch(EBTNodeResult::Type LastResult);
 
 	/** Evaluate a branch as the decorator conditions have changed */
-	void EvaluateBranch(const UBTDecorator& RequestedBy);
+	AIMODULE_API void EvaluateBranch(const UBTDecorator& RequestedBy);
 
 	/** Activate a branch as the decorator conditions are now passing */
-	void ActivateBranch(const UBTDecorator& RequestedBy, bool bRequestEvenIfNotExecuting);
+	AIMODULE_API void ActivateBranch(const UBTDecorator& RequestedBy, bool bRequestEvenIfNotExecuting);
 
 	/** Deactivate a branch as the decorator conditions are not passing anymore */
-	void DeactivateBranch(const UBTDecorator& RequestedBy);
+	AIMODULE_API void DeactivateBranch(const UBTDecorator& RequestedBy);
 
 	/** Suspend any branch actions and queue them to be processed later by ResumeBranchActions() */
-	void SuspendBranchActions(EBTBranchAction BranchActions = EBTBranchAction::All);
+	AIMODULE_API void SuspendBranchActions(EBTBranchAction BranchActions = EBTBranchAction::All);
 
 	/** Resume branch actions and execute all the queued up ones */
-	void ResumeBranchActions();
+	AIMODULE_API void ResumeBranchActions();
 
 	UE_DEPRECATED(5.1, "This function is deprecated. Please use SuspendBranchActions instead.")
 	void SuspendBranchDeactivation() { SuspendBranchActions(); }

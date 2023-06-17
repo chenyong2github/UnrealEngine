@@ -8,17 +8,17 @@
 #include "Visual.generated.h"
 
 /** The base class for elements in UMG: slots and widgets. */
-UCLASS(DefaultToInstanced)
-class UMG_API UVisual : public UObject
+UCLASS(DefaultToInstanced, MinimalAPI)
+class UVisual : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void ReleaseSlateResources(bool bReleaseChildren);
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren);
 
 	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
-	virtual bool NeedsLoadForServer() const override;
+	UMG_API virtual void BeginDestroy() override;
+	UMG_API virtual bool NeedsLoadForServer() const override;
 	//~ End UObject Interface
 
 private:

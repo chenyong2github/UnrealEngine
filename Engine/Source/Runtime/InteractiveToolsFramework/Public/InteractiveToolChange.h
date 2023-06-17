@@ -14,7 +14,7 @@ class UInteractiveGizmoManager;
 /**
  * FToolCommandChange is a base class for command changes used by the Tools Framework.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FToolCommandChange : public FCommandChange
+class FToolCommandChange : public FCommandChange
 {
 public:
 
@@ -25,8 +25,8 @@ public:
 
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UToolContextTransactionProvider : public UInterface
+UINTERFACE(MinimalAPI)
+class UToolContextTransactionProvider : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -35,7 +35,7 @@ class INTERACTIVETOOLSFRAMEWORK_API UToolContextTransactionProvider : public UIn
  * uses to interface with the higher-level transaction system. UInteractiveToolManager and UInteractiveGizmoManager
  * both implement this interface.
  */
-class INTERACTIVETOOLSFRAMEWORK_API IToolContextTransactionProvider
+class IToolContextTransactionProvider
 {
 	GENERATED_BODY()
 public:
@@ -64,7 +64,7 @@ public:
  * IToolCommandChangeSource is a generic interface for generating a change object.
  * This is useful to 
  */
-class INTERACTIVETOOLSFRAMEWORK_API IToolCommandChangeSource
+class IToolCommandChangeSource
 {
 public:
 	virtual ~IToolCommandChangeSource() {}

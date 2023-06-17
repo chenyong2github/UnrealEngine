@@ -6,7 +6,7 @@
 
 // Base implementation of the IPreLoadScreen that handles all the logic for controlling / updating the UI for PreLoadScreens.
 // Designed to be overriden by a game specific Plugin that calls FPreloadScreenManager::RegisterPreLoadScreen so that functions are called by the PreLoadScreenManager correctly.
-class PRELOADSCREEN_API FPreLoadScreenBase : public IPreLoadScreen 
+class FPreLoadScreenBase : public IPreLoadScreen 
 {
 
     /**** IPreLoadScreen implementation ****/
@@ -37,10 +37,10 @@ public:
 	// PreLoadScreens not using this functionality should return NAME_None
 	virtual FName GetPreLoadScreenTag() const override { return NAME_None; }
 
-    virtual void CleanUp() override;
+    PRELOADSCREEN_API virtual void CleanUp() override;
 
     //Default behavior is just to see if we have an active widget. Should really overload with our own behavior to see if we are done displaying
-    virtual bool IsDone() const override;
+    PRELOADSCREEN_API virtual bool IsDone() const override;
 
 public:
     FPreLoadScreenBase()
@@ -50,7 +50,7 @@ public:
     virtual ~FPreLoadScreenBase() override {};
 
     //Handles constructing a FPreLoadSettingsContainerBase with the 
-    virtual void InitSettingsFromConfig(const FString& ConfigFileName);
+    PRELOADSCREEN_API virtual void InitSettingsFromConfig(const FString& ConfigFileName);
 
     //Set what plugin is creating this PreLoadScreenBase. Used to make file paths relative to that plugin as well as
     //determining . Used for converting locations for content to be relative to the plugin calling us

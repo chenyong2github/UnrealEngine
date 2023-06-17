@@ -21,45 +21,45 @@ enum class EMovieSceneTransformChannel : uint32;
  * UTickableTransformConstraint
  **/
 
-UCLASS(Abstract, Blueprintable)
-class CONSTRAINTS_API UTickableTransformConstraint : public UTickableConstraint
+UCLASS(Abstract, Blueprintable, MinimalAPI)
+class UTickableTransformConstraint : public UTickableConstraint
 {
 	GENERATED_BODY()
 
 public:
 
 	/** Sets up the constraint so that the initial offset is set and dependencies and handles managed. */
-	void Setup();
+	CONSTRAINTS_API void Setup();
 	
 	/** UObjects overrides. */
-	virtual void PostLoad() override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	CONSTRAINTS_API virtual void PostLoad() override;
+	CONSTRAINTS_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 
 	/** Returns the target hash value (i.e. the child handle's hash). */
-	virtual uint32 GetTargetHash() const override;
+	CONSTRAINTS_API virtual uint32 GetTargetHash() const override;
 	
 	/** Test whether an InObject is referenced by that constraint. (i.e. is it's parent or child). */
-	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const override;
+	CONSTRAINTS_API virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const override;
 	/** If true it contains objects bound to an external system, like sequencer so we don't do certain things, like remove constraints when they don't resolve*/
-	virtual bool HasBoundObjects() const override;
+	CONSTRAINTS_API virtual bool HasBoundObjects() const override;
 	
 	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
-	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player,UObject* SubObject) override;
+	CONSTRAINTS_API virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player,UObject* SubObject) override;
 
 	/** If Active and the handles and targets are valid*/
-	virtual bool IsFullyActive() const override;
+	CONSTRAINTS_API virtual bool IsFullyActive() const override;
 
 	/** If that constraint needs to be handled by the compensation system. */
-	virtual bool NeedsCompensation() const;
+	CONSTRAINTS_API virtual bool NeedsCompensation() const;
 
 	/** Create duplicate with new Outer*/
-	virtual UTickableConstraint* Duplicate(UObject* NewOuter) const override;
+	CONSTRAINTS_API virtual UTickableConstraint* Duplicate(UObject* NewOuter) const override;
 
 	/** Override the evaluate so we can tick our handles*/
-	virtual void Evaluate(bool bTickHandlesAlso = false) const override;
+	CONSTRAINTS_API virtual void Evaluate(bool bTickHandlesAlso = false) const override;
 
 	/** Sets the Active value and enable/disable the tick function. */
-	virtual void SetActive(const bool bIsActive) override;
+	CONSTRAINTS_API virtual void SetActive(const bool bIsActive) override;
 	
 	/** The transformable handle representing the parent of that constraint. */
 	UPROPERTY(BlueprintReadWrite, Category = "Handle")
@@ -84,88 +84,88 @@ public:
 	bool bDynamicOffset = false;
 
 	/** Returns the constraint type (Position, Parent, Aim...). */
-	int64 GetType() const;
+	CONSTRAINTS_API int64 GetType() const;
 
 	/** Get the current child's global transform. */
-	FTransform GetChildGlobalTransform() const;
+	CONSTRAINTS_API FTransform GetChildGlobalTransform() const;
 	
 	/** Get the current child's local transform. */
-	FTransform GetChildLocalTransform() const;
+	CONSTRAINTS_API FTransform GetChildLocalTransform() const;
 
 	/** Get the current parent's global transform. */
-	FTransform GetParentGlobalTransform() const;
+	CONSTRAINTS_API FTransform GetParentGlobalTransform() const;
 	
 	/** Get the current parent's local transform. */
-	FTransform GetParentLocalTransform() const;
+	CONSTRAINTS_API FTransform GetParentLocalTransform() const;
 
 	/** Returns the channels to key based on the constraint's type. */
-	EMovieSceneTransformChannel GetChannelsToKey() const;
+	CONSTRAINTS_API EMovieSceneTransformChannel GetChannelsToKey() const;
 
 	/**
 	 * Manages changes on the child/parent transformable handle. This can be used to update internal data (i.e. offset)
 	 * when transform changes outside of that system and need to trigger changes within the constraint itself.   
 	*/
-	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent);
+	CONSTRAINTS_API virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent);
 
 	/** Returns the handles tick function (ensuring it lives in the same world). */
-	FTickFunction* GetChildHandleTickFunction() const;
-	FTickFunction* GetParentHandleTickFunction() const;
+	CONSTRAINTS_API FTickFunction* GetChildHandleTickFunction() const;
+	CONSTRAINTS_API FTickFunction* GetParentHandleTickFunction() const;
 
 	/**
 	* Sets up dependencies with the first primary prerequisite available if the parent does not tick.   
 	*/
-	void EnsurePrimaryDependency();
+	CONSTRAINTS_API void EnsurePrimaryDependency();
 	
 protected:
 
 	/** Registers/Unregisters useful delegates for both child and parent handles. */
-	void UnregisterDelegates() const;
-	void RegisterDelegates();
+	CONSTRAINTS_API void UnregisterDelegates() const;
+	CONSTRAINTS_API void RegisterDelegates();
 
 	
 	/**
 	 * Computes the initial offset that is needed to keep the child's global transform unchanged when creating the
 	 * constraint. This can be called whenever necessary to update the current offset.
 	*/
-	virtual void ComputeOffset() PURE_VIRTUAL(ComputeOffset, return;);
+	CONSTRAINTS_API virtual void ComputeOffset() PURE_VIRTUAL(ComputeOffset, return;);
 	
 	/**
 	 * Sets up dependencies between the parent, the constraint and the child using their respective tick functions.
 	 * It creates a dependency graph between them so that they tick in the right order when evaluated.   
 	*/
-	void SetupDependencies();
+	CONSTRAINTS_API void SetupDependencies();
 
 	/** Set the current child's global transform. */
-	void SetChildGlobalTransform(const FTransform& InGlobal) const;
+	CONSTRAINTS_API void SetChildGlobalTransform(const FTransform& InGlobal) const;
 	
 	/** Set the current child's local transform. */
-	void SetChildLocalTransform(const FTransform& InLocal) const;
+	CONSTRAINTS_API void SetChildLocalTransform(const FTransform& InLocal) const;
 
 	/** Defines the constraint's type (Position, Parent, Aim...). */
 	UPROPERTY()
 	ETransformConstraintType Type = ETransformConstraintType::Parent;
 
 	/** Handle active state modification if needed. */
-	void OnActiveStateChanged() const;
+	CONSTRAINTS_API void OnActiveStateChanged() const;
 
 	/** Returns the handle's tick function (ensuring it lives in the same world). */
-	FTickFunction* GetHandleTickFunction(const TObjectPtr<UTransformableHandle>& InHandle) const;
+	CONSTRAINTS_API FTickFunction* GetHandleTickFunction(const TObjectPtr<UTransformableHandle>& InHandle) const;
 
 	/** (Re-)Registers the constraint function and (re-)binds the required delegates*/
-	void InitConstraint();
+	CONSTRAINTS_API void InitConstraint();
 
 #if WITH_EDITOR
 public:
 	/** Returns the constraint's label used for UI. */
-	virtual FString GetLabel() const override;
-	virtual FString GetFullLabel() const override;
+	CONSTRAINTS_API virtual FString GetLabel() const override;
+	CONSTRAINTS_API virtual FString GetFullLabel() const override;
 
 	/** Returns the constraint's type label used for UI. */
-	virtual FString GetTypeLabel() const override;
+	CONSTRAINTS_API virtual FString GetTypeLabel() const override;
 
 	// UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
+	CONSTRAINTS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CONSTRAINTS_API virtual void PostEditUndo() override;
 	// End of UObject interface
 
 	/** Returns a delegate that can be used to monitor for property changes. This can be used to monitor constraints changes
@@ -173,10 +173,10 @@ public:
 	 * Note that bScaling is currently the only property change we monitor but this can be used for other properties.
 	 */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConstraintChanged, UTickableTransformConstraint*, const FPropertyChangedEvent&);
-	static FOnConstraintChanged& GetOnConstraintChanged();
+	static CONSTRAINTS_API FOnConstraintChanged& GetOnConstraintChanged();
 
 protected:
-	static FOnConstraintChanged OnConstraintChanged;
+	static CONSTRAINTS_API FOnConstraintChanged OnConstraintChanged;
 #endif
 };
 
@@ -184,19 +184,19 @@ protected:
  * UTickableTranslationConstraint
  **/
 
-UCLASS(Blueprintable)
-class CONSTRAINTS_API UTickableTranslationConstraint : public UTickableTransformConstraint
+UCLASS(Blueprintable, MinimalAPI)
+class UTickableTranslationConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
 
 public:
-	UTickableTranslationConstraint();
+	CONSTRAINTS_API UTickableTranslationConstraint();
 
 	/** Returns the position constraint function that the tick function will evaluate. */
-	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
+	CONSTRAINTS_API virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
 	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
+	CONSTRAINTS_API virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
 
 protected:
 
@@ -206,10 +206,10 @@ protected:
 		uint32 CachedInputHash = 0;
 	};
 	mutable FDynamicCache Cache;
-	uint32 CalculateInputHash() const;
+	CONSTRAINTS_API uint32 CalculateInputHash() const;
 	
 	/** Computes the child's local translation offset in the parent space. */
-	virtual void ComputeOffset() override;
+	CONSTRAINTS_API virtual void ComputeOffset() override;
 
 public:
 	/** Defines the local child's translation offset in the parent space. */
@@ -224,7 +224,7 @@ protected:
 #if WITH_EDITOR
 public:
 	// UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CONSTRAINTS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 #endif
 };
@@ -233,19 +233,19 @@ public:
  * UTickableRotationConstraint
  **/
 
-UCLASS(Blueprintable)
-class CONSTRAINTS_API UTickableRotationConstraint : public UTickableTransformConstraint
+UCLASS(Blueprintable, MinimalAPI)
+class UTickableRotationConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
 
 public:
-	UTickableRotationConstraint();
+	CONSTRAINTS_API UTickableRotationConstraint();
 
 	/** Returns the rotation constraint function that the tick function will evaluate. */
-	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
+	CONSTRAINTS_API virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
 	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
+	CONSTRAINTS_API virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
 
 protected:
 
@@ -255,10 +255,10 @@ protected:
 		uint32 CachedInputHash = 0;
 	};
 	mutable FDynamicCache Cache;
-	uint32 CalculateInputHash() const;
+	CONSTRAINTS_API uint32 CalculateInputHash() const;
 	
 	/** Computes the child's local rotation offset in the parent space. */
-	virtual void ComputeOffset() override;
+	CONSTRAINTS_API virtual void ComputeOffset() override;
 
 public:
 	/** Defines the local child's rotation offset in the parent space. */
@@ -273,7 +273,7 @@ protected:
 #if WITH_EDITOR
 public:
 	// UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CONSTRAINTS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 #endif
 };
@@ -282,23 +282,23 @@ public:
  * UTickableScaleConstraint
  **/
 
-UCLASS(Blueprintable)
-class CONSTRAINTS_API UTickableScaleConstraint : public UTickableTransformConstraint
+UCLASS(Blueprintable, MinimalAPI)
+class UTickableScaleConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
 
 public:
-	UTickableScaleConstraint();
+	CONSTRAINTS_API UTickableScaleConstraint();
 	
 	/** Returns the scale constraint function that the tick function will evaluate. */
-	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
+	CONSTRAINTS_API virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
 	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
+	CONSTRAINTS_API virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
 	
 protected:
 	/** Computes the child's local scale offset in the parent space. */
-	virtual void ComputeOffset() override;
+	CONSTRAINTS_API virtual void ComputeOffset() override;
 
 	/** Cache data structure to store last child local/global transform. */
 	struct FDynamicCache
@@ -306,7 +306,7 @@ protected:
 		uint32 CachedInputHash = 0;
 	};
 	mutable FDynamicCache Cache;
-	uint32 CalculateInputHash() const;
+	CONSTRAINTS_API uint32 CalculateInputHash() const;
 
 public:
 	/** Defines the local child's scale offset in the parent space. */
@@ -321,7 +321,7 @@ protected:
 #if WITH_EDITOR
 public:
 	// UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CONSTRAINTS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 #endif
 };
@@ -330,16 +330,16 @@ public:
  * UTickableParentConstraint
  **/
 
-UCLASS(Blueprintable)
-class CONSTRAINTS_API UTickableParentConstraint : public UTickableTransformConstraint
+UCLASS(Blueprintable, MinimalAPI)
+class UTickableParentConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
 
 public:
-	UTickableParentConstraint();
+	CONSTRAINTS_API UTickableParentConstraint();
 	
 	/** Returns the transform constraint function that the tick function will evaluate. */
-	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
+	CONSTRAINTS_API virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
 	bool IsScalingEnabled() const
 	{
@@ -354,7 +354,7 @@ public:
 	static FName GetScalingPropertyName() { return GET_MEMBER_NAME_CHECKED(UTickableParentConstraint, bScaling); }
 
 	/** Updates the dynamic offset based on external child's transform changes. */
-	virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
+	CONSTRAINTS_API virtual void OnHandleModified(UTransformableHandle* InHandle, EHandleEvent InEvent) override;
 
 protected:
 	/** Cache data structure to store last child local/global transform. */
@@ -363,10 +363,10 @@ protected:
 		uint32 CachedInputHash = 0;
 	};
 	mutable FDynamicCache Cache;
-	uint32 CalculateInputHash() const;
+	CONSTRAINTS_API uint32 CalculateInputHash() const;
 
 	/** Computes the child's local transform offset in the parent space. */
-	virtual void ComputeOffset() override;
+	CONSTRAINTS_API virtual void ComputeOffset() override;
 
 public:
 	/** Defines the local child's transform offset in the parent space. */
@@ -385,7 +385,7 @@ protected:
 #if WITH_EDITOR
 public:
 	// UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CONSTRAINTS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 #endif
 };
@@ -394,25 +394,25 @@ public:
  * UTickableLookAtConstraint
  **/
 
-UCLASS(Blueprintable)
-class CONSTRAINTS_API UTickableLookAtConstraint : public UTickableTransformConstraint
+UCLASS(Blueprintable, MinimalAPI)
+class UTickableLookAtConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
 
 public:
-	UTickableLookAtConstraint();
+	CONSTRAINTS_API UTickableLookAtConstraint();
 	
 	/** Returns the look at constraint function that the tick function will evaluate. */
-	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
+	CONSTRAINTS_API virtual FConstraintTickFunction::ConstraintFunction GetFunction() const override;
 
 	/** If that constraint needs to be handled by the compensation system. */
-	virtual bool NeedsCompensation() const override;
+	CONSTRAINTS_API virtual bool NeedsCompensation() const override;
 
 protected:
 	/**
      * Computes the initial axis that is needed to keep the child's orientation unchanged when creating the constraint.
     */
-	virtual void ComputeOffset() override;
+	CONSTRAINTS_API virtual void ComputeOffset() override;
 
 	/** Defines the aiming axis. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Axis")
@@ -426,7 +426,7 @@ private:
 #if WITH_EDITOR
 public:
 	// UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CONSTRAINTS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 #endif
 };
@@ -435,27 +435,27 @@ public:
  * TransformConstraintUtils
  **/
 
-struct CONSTRAINTS_API FTransformConstraintUtils
+struct FTransformConstraintUtils
 {
 	/** Fills a sorted constraint array that InChild actor is the child of. */
-	static void GetParentConstraints(
+	static CONSTRAINTS_API void GetParentConstraints(
 		UWorld* World,
 		const AActor* InChild,
 		TArray< TObjectPtr<UTickableConstraint> >& OutConstraints);
 
 	/** Create a handle for the scene component.*/
-	static UTransformableComponentHandle* CreateHandleForSceneComponent(
+	static CONSTRAINTS_API UTransformableComponentHandle* CreateHandleForSceneComponent(
 		USceneComponent* InSceneComponent,
 		const FName& InSocketName,
 		UObject* Outer);
 
 	/** Creates a new transform constraint based on the InType. */
-	static UTickableTransformConstraint* CreateFromType(
+	static CONSTRAINTS_API UTickableTransformConstraint* CreateFromType(
 		UWorld* InWorld,
 		const ETransformConstraintType InType);
 
 	/** Creates respective handles and creates a new InType transform constraint. */	
-	static UTickableTransformConstraint* CreateAndAddFromObjects(
+	static CONSTRAINTS_API UTickableTransformConstraint* CreateAndAddFromObjects(
 		UWorld* InWorld,
 		UObject* InParent, const FName& InParentSocketName,
 		UObject* InChild, const FName& InChildSocketName,
@@ -463,7 +463,7 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 		const bool bMaintainOffset = true);
 
 	/** Registers a new transform constraint within the constraints manager. */	
-	static bool AddConstraint(
+	static CONSTRAINTS_API bool AddConstraint(
 		UWorld* InWorld,
 		UTransformableHandle* InParentHandle,
 		UTransformableHandle* InChildHandle,
@@ -471,23 +471,23 @@ struct CONSTRAINTS_API FTransformConstraintUtils
 		const bool bMaintainOffset = true);
 
 	/** Computes the relative transform between both transform based on the constraint's InType. */
-	static FTransform ComputeRelativeTransform(
+	static CONSTRAINTS_API FTransform ComputeRelativeTransform(
 		const FTransform& InChildLocal,
 		const FTransform& InChildWorld,
 		const FTransform& InSpaceWorld,
 		const UTickableTransformConstraint* InConstraint);
 
 	/** Computes the current constraint space local transform. */
-	static TOptional<FTransform> GetRelativeTransform(UWorld* InWorld, const uint32 InHandleHash);
-	static TOptional<FTransform> GetConstraintsRelativeTransform(
+	static CONSTRAINTS_API TOptional<FTransform> GetRelativeTransform(UWorld* InWorld, const uint32 InHandleHash);
+	static CONSTRAINTS_API TOptional<FTransform> GetConstraintsRelativeTransform(
 		const TArray< TObjectPtr<UTickableConstraint> >& InConstraints,
 		const FTransform& InChildLocal, const FTransform& InChildWorld);
 
 	/** Get the last active constraint that has dynamic offset. */
-	static int32 GetLastActiveConstraintIndex(const TArray< TObjectPtr<UTickableConstraint> >& InConstraints);
+	static CONSTRAINTS_API int32 GetLastActiveConstraintIndex(const TArray< TObjectPtr<UTickableConstraint> >& InConstraints);
 
 	/** Fills a constraint array that InParentHandle is the parent of. */
-	static void GetChildrenConstraints(
+	static CONSTRAINTS_API void GetChildrenConstraints(
 		UWorld* World,
 		const UTransformableHandle* InParentHandle,
 		TArray< TObjectPtr<UTickableConstraint> >& OutConstraints);

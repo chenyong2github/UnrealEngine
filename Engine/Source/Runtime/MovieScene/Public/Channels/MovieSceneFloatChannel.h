@@ -112,7 +112,7 @@ struct TStructOpsTypeTraits<FMovieSceneFloatValue>
 
 
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneFloatChannel : public FMovieSceneChannel
+struct FMovieSceneFloatChannel : public FMovieSceneChannel
 {
 	GENERATED_BODY()
 
@@ -173,39 +173,39 @@ struct MOVIESCENE_API FMovieSceneFloatChannel : public FMovieSceneChannel
 	* @param OutValue   A value to receive the result
 	* @return true if the channel was evaluated successfully, false otherwise
 	*/
-	bool Evaluate(FFrameTime InTime, float& OutValue) const;
+	MOVIESCENE_API bool Evaluate(FFrameTime InTime, float& OutValue) const;
 
 	/**
 	 * Retrieve a cached interpolation from this channel for the specified time
 	 */
-	UE::MovieScene::Interpolation::FCachedInterpolation GetInterpolationForTime(FFrameTime InTime) const;
+	MOVIESCENE_API UE::MovieScene::Interpolation::FCachedInterpolation GetInterpolationForTime(FFrameTime InTime) const;
 
 	/**
 	 * Set the channel's times and values to the requested values
 	 */
-	void Set(TArray<FFrameNumber> InTimes, TArray<FMovieSceneFloatValue> InValues);
+	MOVIESCENE_API void Set(TArray<FFrameNumber> InTimes, TArray<FMovieSceneFloatValue> InValues);
 
 	/**
 	 * Set the channel's times and values to the requested values, but does not allocate key handles
 	 */
-	void SetKeysOnly(TArrayView<FFrameNumber> InTimes, TArrayView<FMovieSceneFloatValue> InValues);
+	MOVIESCENE_API void SetKeysOnly(TArrayView<FFrameNumber> InTimes, TArrayView<FMovieSceneFloatValue> InValues);
 public:
 
 	// ~ FMovieSceneChannel Interface
-	virtual void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles) override;
-	virtual void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes) override;
-	virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
-	virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
-	virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
-	virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
-	virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
-	virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
-	virtual int32 GetNumKeys() const override;
-	virtual void Reset() override;
-	virtual void Offset(FFrameNumber DeltaPosition) override;
-	virtual void Optimize(const FKeyDataOptimizationParams& InParameters) override;
-	virtual void ClearDefault() override;
-	virtual void PostEditChange() override;
+	MOVIESCENE_API virtual void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles) override;
+	MOVIESCENE_API virtual void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes) override;
+	MOVIESCENE_API virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
+	MOVIESCENE_API virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
+	MOVIESCENE_API virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
+	MOVIESCENE_API virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
+	MOVIESCENE_API virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
+	MOVIESCENE_API virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
+	MOVIESCENE_API virtual int32 GetNumKeys() const override;
+	MOVIESCENE_API virtual void Reset() override;
+	MOVIESCENE_API virtual void Offset(FFrameNumber DeltaPosition) override;
+	MOVIESCENE_API virtual void Optimize(const FKeyDataOptimizationParams& InParameters) override;
+	MOVIESCENE_API virtual void ClearDefault() override;
+	MOVIESCENE_API virtual void PostEditChange() override;
 
 public:
 
@@ -248,9 +248,9 @@ public:
 
 public:
 
-	bool Serialize(FArchive& Ar);
+	MOVIESCENE_API bool Serialize(FArchive& Ar);
 #if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
+	MOVIESCENE_API void PostSerialize(const FArchive& Ar);
 #endif
 	friend FArchive& operator<<(FArchive& Ar, FMovieSceneFloatChannel& Me)
 	{
@@ -259,15 +259,15 @@ public:
 	}
 
 	/** Serialize this float function from a mismatching property tag (FRichCurve) */
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	MOVIESCENE_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
-	int32 AddConstantKey(FFrameNumber InTime, float InValue);
+	MOVIESCENE_API int32 AddConstantKey(FFrameNumber InTime, float InValue);
 
-	int32 AddLinearKey(FFrameNumber InTime, float InValue);
+	MOVIESCENE_API int32 AddLinearKey(FFrameNumber InTime, float InValue);
 
-	int32 AddCubicKey(FFrameNumber InTime, float InValue, ERichCurveTangentMode TangentMode = RCTM_Auto, const FMovieSceneTangentData& Tangent = FMovieSceneTangentData());
+	MOVIESCENE_API int32 AddCubicKey(FFrameNumber InTime, float InValue, ERichCurveTangentMode TangentMode = RCTM_Auto, const FMovieSceneTangentData& Tangent = FMovieSceneTangentData());
 
-	void AutoSetTangents(float Tension = 0.f);
+	MOVIESCENE_API void AutoSetTangents(float Tension = 0.f);
 
 	/** Get the channel's frame resolution */
 	FFrameRate GetTickResolution() const { return TickResolution; }
@@ -284,7 +284,7 @@ public:
 	 * @param TickResolution        The tick resolution with which to interpret this channel's times
 	 * @param InOutPoints           An array to populate with the evaluated points
 	 */
-	void PopulateCurvePoints(double StartTimeSeconds, double EndTimeSeconds, double TimeThreshold, float ValueThreshold, FFrameRate TickResolution, TArray<TTuple<double, double>>& InOutPoints) const;	
+	MOVIESCENE_API void PopulateCurvePoints(double StartTimeSeconds, double EndTimeSeconds, double TimeThreshold, float ValueThreshold, FFrameRate TickResolution, TArray<TTuple<double, double>>& InOutPoints) const;	
 
 	/**
 	* Add keys with these times to channel. The number of elements in both arrays much match or nothing is added.
@@ -292,13 +292,13 @@ public:
 	* @param InTimes Times to add
 	* @param InValues Values to add
 	*/
-	void AddKeys(const TArray<FFrameNumber>& InTimes, const TArray<FMovieSceneFloatValue>& InValues);
+	MOVIESCENE_API void AddKeys(const TArray<FFrameNumber>& InTimes, const TArray<FMovieSceneFloatValue>& InValues);
 
 #if WITH_EDITORONLY_DATA
 	/* Get whether to show this curve in the UI */
-	bool GetShowCurve() const;
+	MOVIESCENE_API bool GetShowCurve() const;
 	/* Set whether to show this curve in the UI */
-	void SetShowCurve(bool bInShowCurve);
+	MOVIESCENE_API void SetShowCurve(bool bInShowCurve);
 #endif
 
 public:

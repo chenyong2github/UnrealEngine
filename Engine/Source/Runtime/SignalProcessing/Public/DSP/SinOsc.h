@@ -13,35 +13,35 @@ namespace Audio
 	* Setting frequency uses current filter state to compute initial conditions to avoid pops when changing frequency.
 	* Extremely cheap to run but expensive to set new frequencies. Good for test tones.
 	*/
-	class SIGNALPROCESSING_API FSineOsc
+	class FSineOsc
 	{
 	public:
 		/** Constructor */
-		FSineOsc();
+		SIGNALPROCESSING_API FSineOsc();
 
 		/** Non-default constructor */
-		FSineOsc(const int32 InSampleRate, const float InFrequencyHz, const float Scale = 1.0f, const float Add = 0.0f);
+		SIGNALPROCESSING_API FSineOsc(const int32 InSampleRate, const float InFrequencyHz, const float Scale = 1.0f, const float Add = 0.0f);
 
 		/** Virtual destructor */
-		virtual ~FSineOsc();
+		SIGNALPROCESSING_API virtual ~FSineOsc();
 
 		/** Initialize the oscillator with a sample rate and new frequency. Must be called before playing oscillator. */
-		void Init(const int32 InSampleRate, const float InFrequencyHz, const float Scale = 1.0f, const float Add = 0.0f);
+		SIGNALPROCESSING_API void Init(const int32 InSampleRate, const float InFrequencyHz, const float Scale = 1.0f, const float Add = 0.0f);
 
 		/** Sets the scale of the oscillator. */
-		void SetScale(const float InScale);
+		SIGNALPROCESSING_API void SetScale(const float InScale);
 
 		/** Sets the scale of the oscillator. */
-		void SetAdd(const float InAdd);
+		SIGNALPROCESSING_API void SetAdd(const float InAdd);
 
 		/** Sets the frequency of the oscillator in Hz (based on sample rate). Performs initial condition calculation to avoid pops. */
-		void SetFrequency(const float InFrequencyHz);
+		SIGNALPROCESSING_API void SetFrequency(const float InFrequencyHz);
 
 		/** Returns the current frequency. */
-		float GetFrequency() const;
+		SIGNALPROCESSING_API float GetFrequency() const;
 
 		/** Generates the next sample of the oscillator. */
-		float ProcessAudio();
+		SIGNALPROCESSING_API float ProcessAudio();
 
 	protected:
 		int32 SampleRate;

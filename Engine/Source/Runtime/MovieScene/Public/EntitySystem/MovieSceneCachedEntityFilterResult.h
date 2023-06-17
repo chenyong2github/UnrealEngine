@@ -64,13 +64,13 @@ private:
 /**
  * Simple cached filter results that stores whether its filter passes or not
  */
-struct MOVIESCENE_API FCachedEntityFilterResult_Match
+struct FCachedEntityFilterResult_Match
 {
 	FEntityComponentFilter Filter;
 
-	bool Matches(const FEntityManager& InEntityManager);
+	MOVIESCENE_API bool Matches(const FEntityManager& InEntityManager);
 
-	void Invalidate();
+	MOVIESCENE_API void Invalidate();
 
 private:
 
@@ -84,13 +84,13 @@ private:
 /**
  * Cached filter result that caches pointers to allocations matching the specified filter
  */
-struct MOVIESCENE_API FCachedEntityFilterResult_Allocations
+struct FCachedEntityFilterResult_Allocations
 {
 	FEntityComponentFilter Filter;
 
-	TArrayView<FEntityAllocation* const> GetMatchingAllocations(const FEntityManager& InEntityManager);
+	MOVIESCENE_API TArrayView<FEntityAllocation* const> GetMatchingAllocations(const FEntityManager& InEntityManager);
 
-	void Invalidate();
+	MOVIESCENE_API void Invalidate();
 
 private:
 

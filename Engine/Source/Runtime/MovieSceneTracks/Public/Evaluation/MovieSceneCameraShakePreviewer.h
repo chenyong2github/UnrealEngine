@@ -38,24 +38,24 @@ public:
 /**
  * A class that owns a gameplay camera shake manager, so that we can us it to preview shakes in editor.
  */
-class MOVIESCENETRACKS_API FCameraShakePreviewer : public FGCObject
+class FCameraShakePreviewer : public FGCObject
 {
 public:
-	FCameraShakePreviewer();
-	~FCameraShakePreviewer();
+	MOVIESCENETRACKS_API FCameraShakePreviewer();
+	MOVIESCENETRACKS_API ~FCameraShakePreviewer();
 
-	void Initialize(UWorld* InWorld);
+	MOVIESCENETRACKS_API void Initialize(UWorld* InWorld);
 	bool IsInitialized() const { return PreviewCameraShake != nullptr; }
-	void Teardown();
+	MOVIESCENETRACKS_API void Teardown();
 
 	APlayerCameraManager* GetCameraManager() const { return PreviewCamera; }
 	UCameraModifier_CameraShake* GetCameraModifier() const { return PreviewCameraShake; }
 
-	void ModifyView(FEditorViewportViewModifierParams& Params);
+	MOVIESCENETRACKS_API void ModifyView(FEditorViewportViewModifierParams& Params);
 
-	void RegisterViewModifier();
-	void UnRegisterViewModifier();
-	void Update(float DeltaTime, bool bIsPlaying);
+	MOVIESCENETRACKS_API void RegisterViewModifier();
+	MOVIESCENETRACKS_API void UnRegisterViewModifier();
+	MOVIESCENETRACKS_API void Update(float DeltaTime, bool bIsPlaying);
 
 private:
 	// FGCObject interface
@@ -63,8 +63,8 @@ private:
 	virtual FString GetReferencerName() const override { return TEXT("SCameraShakePreviewer"); }
 
 private:
-	void OnModifyView(FEditorViewportViewModifierParams& Params);
-	void OnLevelViewportClientListChanged();
+	MOVIESCENETRACKS_API void OnModifyView(FEditorViewportViewModifierParams& Params);
+	MOVIESCENETRACKS_API void OnLevelViewportClientListChanged();
 
 private:
 	APreviewPlayerCameraManager* PreviewCamera;

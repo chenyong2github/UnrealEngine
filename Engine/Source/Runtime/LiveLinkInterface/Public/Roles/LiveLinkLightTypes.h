@@ -9,7 +9,7 @@
  * Static data for Light data. 
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkLightStaticData : public FLiveLinkTransformStaticData
+struct FLiveLinkLightStaticData : public FLiveLinkTransformStaticData
 {
 	GENERATED_BODY()
 
@@ -56,7 +56,7 @@ public:
  * Dynamic data for light. 
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkLightFrameData : public FLiveLinkTransformFrameData
+struct FLiveLinkLightFrameData : public FLiveLinkTransformFrameData
 {
 	GENERATED_BODY()
 
@@ -101,7 +101,7 @@ struct LIVELINKINTERFACE_API FLiveLinkLightFrameData : public FLiveLinkTransform
  * Facility structure to handle light data in blueprint
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkLightBlueprintData : public FLiveLinkBaseBlueprintData
+struct FLiveLinkLightBlueprintData : public FLiveLinkBaseBlueprintData
 {
 	GENERATED_BODY()
 	

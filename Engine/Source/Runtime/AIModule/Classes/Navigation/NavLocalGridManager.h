@@ -23,32 +23,32 @@ struct FCombinedNavGridData : public FNavLocalGridData
  *  Check also: UGridPathFollowingComponent, FNavLocalGridData
  */
 
-UCLASS(Experimental)
-class AIMODULE_API UNavLocalGridManager : public UObject
+UCLASS(Experimental, MinimalAPI)
+class UNavLocalGridManager : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
 
 	/** adds new grid */
-	int32 AddGridData(const FNavLocalGridData& GridData, bool bUpdate = true);
+	AIMODULE_API int32 AddGridData(const FNavLocalGridData& GridData, bool bUpdate = true);
 
 	/** removes grid */
-	void RemoveGridData(int32 GridId, bool bUpdate = true);
+	AIMODULE_API void RemoveGridData(int32 GridId, bool bUpdate = true);
 
 	/** rebuild overlapping grids if needed */
-	void RebuildGrids();
+	AIMODULE_API void RebuildGrids();
 
 	/** tries to find a path using grids, returns false when start and end locations are not on the same grid */
-	bool FindPath(const FVector& Start, const FVector& End, TArray<FVector>& PathPoints) const;
+	AIMODULE_API bool FindPath(const FVector& Start, const FVector& End, TArray<FVector>& PathPoints) const;
 
 	/** set shared size of grid cell, allowed only when there's no grid added */
-	bool SetCellSize(float CellSize);
+	AIMODULE_API bool SetCellSize(float CellSize);
 
 	/** get shared size of grid cell, static but there's only one active manager */
 	static float GetCellSize() { return GridCellSize; }
 
 	/** set limit of source grids, 0 or negative means unlimited */
-	void SetMaxActiveSources(int32 NumActiveSources);
+	AIMODULE_API void SetMaxActiveSources(int32 NumActiveSources);
 
 	/** get limit of source grids */
 	int32 GetMaxActiveSources() const { return MaxActiveSourceGrids; }
@@ -57,7 +57,7 @@ public:
 	bool HasSourceGridLimit() const { return MaxActiveSourceGrids > 0; }
 
 	/** updates LastAccessTime in all source grids */
-	void UpdateAccessTime(int32 CombinedGridIdx);
+	AIMODULE_API void UpdateAccessTime(int32 CombinedGridIdx);
 
 	/** get number of known source grids */
 	int32 GetNumSources() const { return SourceGrids.Num(); }
@@ -72,42 +72,42 @@ public:
 	const FNavLocalGridData& GetGridData(int32 GridIdx) const { return CombinedGrids[GridIdx]; }
 
 	/** find combined grid value at world location */
-	uint8 GetGridValueAt(const FVector& WorldLocation) const;
+	AIMODULE_API uint8 GetGridValueAt(const FVector& WorldLocation) const;
 
 	/** find combined grid at location */
-	int32 GetGridIndex(const FVector& WorldLocation) const;
+	AIMODULE_API int32 GetGridIndex(const FVector& WorldLocation) const;
 
 	/** get version of grid data, incremented with each rebuild */
 	int32 GetVersion() const { return VersionNum; }
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject"))
-	static bool SetLocalNavigationGridDensity(UObject* WorldContextObject, float CellSize);
+	static AIMODULE_API bool SetLocalNavigationGridDensity(UObject* WorldContextObject, float CellSize);
 
 	/** creates new grid data for single point */
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject"))
-	static int32 AddLocalNavigationGridForPoint(UObject* WorldContextObject, const FVector& Location, const int32 Radius2D = 5, const float Height = 100.0f, bool bRebuildGrids = true);
+	static AIMODULE_API int32 AddLocalNavigationGridForPoint(UObject* WorldContextObject, const FVector& Location, const int32 Radius2D = 5, const float Height = 100.0f, bool bRebuildGrids = true);
 
 	/** creates single grid data for set of points */
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject"))
-	static int32 AddLocalNavigationGridForPoints(UObject* WorldContextObject, const TArray<FVector>& Locations, const int32 Radius2D = 5, const float Height = 100.0f, bool bRebuildGrids = true);
+	static AIMODULE_API int32 AddLocalNavigationGridForPoints(UObject* WorldContextObject, const TArray<FVector>& Locations, const int32 Radius2D = 5, const float Height = 100.0f, bool bRebuildGrids = true);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject"))
-	static int32 AddLocalNavigationGridForBox(UObject* WorldContextObject, const FVector& Location, FVector Extent = FVector(1,1,1), FRotator Rotation = FRotator::ZeroRotator, const int32 Radius2D = 5, const float Height = 100.0f, bool bRebuildGrids = true);
+	static AIMODULE_API int32 AddLocalNavigationGridForBox(UObject* WorldContextObject, const FVector& Location, FVector Extent = FVector(1,1,1), FRotator Rotation = FRotator::ZeroRotator, const int32 Radius2D = 5, const float Height = 100.0f, bool bRebuildGrids = true);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject"))
-	static int32 AddLocalNavigationGridForCapsule(UObject* WorldContextObject, const FVector& Location, float CapsuleRadius, float CapsuleHalfHeight, const int32 Radius2D = 5, const float Height = 100.0f, bool bRebuildGrids = true);
+	static AIMODULE_API int32 AddLocalNavigationGridForCapsule(UObject* WorldContextObject, const FVector& Location, float CapsuleRadius, float CapsuleHalfHeight, const int32 Radius2D = 5, const float Height = 100.0f, bool bRebuildGrids = true);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject"))
-	static void RemoveLocalNavigationGrid(UObject* WorldContextObject, int32 GridId, bool bRebuildGrids = true);
+	static AIMODULE_API void RemoveLocalNavigationGrid(UObject* WorldContextObject, int32 GridId, bool bRebuildGrids = true);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject"))
-	static bool FindLocalNavigationGridPath(UObject* WorldContextObject, const FVector& Start, const FVector& End, TArray<FVector>& PathPoints);
+	static AIMODULE_API bool FindLocalNavigationGridPath(UObject* WorldContextObject, const FVector& Start, const FVector& End, TArray<FVector>& PathPoints);
 
-	static UNavLocalGridManager* GetCurrent(UWorld* World);
-	static UNavLocalGridManager* GetCurrent(const UObject* WorldContextObject);
+	static AIMODULE_API UNavLocalGridManager* GetCurrent(UWorld* World);
+	static AIMODULE_API UNavLocalGridManager* GetCurrent(const UObject* WorldContextObject);
 
 #if WITH_ENGINE
-	virtual UWorld* GetWorld() const override;
+	AIMODULE_API virtual UWorld* GetWorld() const override;
 #endif
 
 protected:
@@ -115,7 +115,7 @@ protected:
 	TArray<FCombinedNavGridData> CombinedGrids;
 	TArray<FNavLocalGridData> SourceGrids;
 	
-	static float GridCellSize;
+	static AIMODULE_API float GridCellSize;
 
 	int32 VersionNum;
 	int32 NextGridId;
@@ -123,8 +123,8 @@ protected:
 	uint32 bNeedsRebuilds : 1;
 
 	/** projects combined grids to navigation data */
-	virtual void ProjectGrids(const TArray<int32>& GridIndices);
+	AIMODULE_API virtual void ProjectGrids(const TArray<int32>& GridIndices);
 
 	/** ensures limit of source grids, removing oldest entries (LastAccessTime) */
-	bool UpdateSourceGrids();
+	AIMODULE_API bool UpdateSourceGrids();
 };

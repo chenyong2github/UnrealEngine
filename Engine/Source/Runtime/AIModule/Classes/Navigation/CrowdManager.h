@@ -64,7 +64,7 @@ class dtObstacleAvoidanceDebugData;
  */
 
 USTRUCT()
-struct AIMODULE_API FCrowdAvoidanceConfig
+struct FCrowdAvoidanceConfig
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -110,7 +110,7 @@ struct AIMODULE_API FCrowdAvoidanceConfig
 };
 
 USTRUCT()
-struct AIMODULE_API FCrowdAvoidanceSamplingPattern
+struct FCrowdAvoidanceSamplingPattern
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -120,11 +120,11 @@ struct AIMODULE_API FCrowdAvoidanceSamplingPattern
 	UPROPERTY(EditAnywhere, Category = Crowd)
 	TArray<float> Radii;
 
-	void AddSample(float AngleInDegrees, float NormalizedRadius);
-	void AddSampleWithMirror(float AngleInDegrees, float NormalizedRadius);
+	AIMODULE_API void AddSample(float AngleInDegrees, float NormalizedRadius);
+	AIMODULE_API void AddSampleWithMirror(float AngleInDegrees, float NormalizedRadius);
 };
 
-struct AIMODULE_API FCrowdAgentData
+struct FCrowdAgentData
 {
 #if WITH_RECAST
 	/** special filter for checking offmesh links */
@@ -149,7 +149,7 @@ struct AIMODULE_API FCrowdAgentData
 	FCrowdAgentData() :	PrevPoly(0), AgentIndex(-1), PathOptRemainingTime(0), bIsSimulated(false), bWantsPathOptimization(false) {}
 
 	bool IsValid() const { return AgentIndex >= 0; }
-	void ClearFilter();
+	AIMODULE_API void ClearFilter();
 };
 
 struct FCrowdTickHelper : FTickableGameObject
@@ -164,106 +164,106 @@ struct FCrowdTickHelper : FTickableGameObject
 	virtual TStatId GetStatId() const;
 };
 
-UCLASS(config = Engine, defaultconfig)
-class AIMODULE_API UCrowdManager : public UCrowdManagerBase
+UCLASS(config = Engine, defaultconfig, MinimalAPI)
+class UCrowdManager : public UCrowdManagerBase
 {
 	GENERATED_BODY()
 
 public:
-	UCrowdManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UCrowdManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual void Tick(float DeltaTime) override;
-	virtual void BeginDestroy() override;
+	AIMODULE_API virtual void Tick(float DeltaTime) override;
+	AIMODULE_API virtual void BeginDestroy() override;
 
 	/** adds new agent to crowd */
-	void RegisterAgent(ICrowdAgentInterface* Agent);
+	AIMODULE_API void RegisterAgent(ICrowdAgentInterface* Agent);
 
 	/** removes agent from crowd */
-	void UnregisterAgent(const ICrowdAgentInterface* Agent);
+	AIMODULE_API void UnregisterAgent(const ICrowdAgentInterface* Agent);
 
 	/** updates agent data */
-	void UpdateAgentParams(const ICrowdAgentInterface* Agent) const;
+	AIMODULE_API void UpdateAgentParams(const ICrowdAgentInterface* Agent) const;
 
 	/** refresh agent state */
-	void UpdateAgentState(const ICrowdAgentInterface* Agent) const;
+	AIMODULE_API void UpdateAgentState(const ICrowdAgentInterface* Agent) const;
 
 	/** update agent after using custom link */
-	void OnAgentFinishedCustomLink(const ICrowdAgentInterface* Agent) const;
+	AIMODULE_API void OnAgentFinishedCustomLink(const ICrowdAgentInterface* Agent) const;
 
 	/** sets move target for crowd agent (only for fully simulated) */
-	bool SetAgentMoveTarget(const UCrowdFollowingComponent* AgentComponent, const FVector& MoveTarget, FSharedConstNavQueryFilter Filter) const;
+	AIMODULE_API bool SetAgentMoveTarget(const UCrowdFollowingComponent* AgentComponent, const FVector& MoveTarget, FSharedConstNavQueryFilter Filter) const;
 
 	/** sets move direction for crowd agent (only for fully simulated) */
-	bool SetAgentMoveDirection(const UCrowdFollowingComponent* AgentComponent, const FVector& MoveDirection) const;
+	AIMODULE_API bool SetAgentMoveDirection(const UCrowdFollowingComponent* AgentComponent, const FVector& MoveDirection) const;
 
 	/** sets move target using path (only for fully simulated) */
-	bool SetAgentMovePath(const UCrowdFollowingComponent* AgentComponent, const FNavMeshPath* Path, int32 PathSectionStart, int32 PathSectionEnd, const FVector& PathSectionEndLocation) const;
+	AIMODULE_API bool SetAgentMovePath(const UCrowdFollowingComponent* AgentComponent, const FNavMeshPath* Path, int32 PathSectionStart, int32 PathSectionEnd, const FVector& PathSectionEndLocation) const;
 
 	/** clears move target for crowd agent (only for fully simulated) */
-	void ClearAgentMoveTarget(const UCrowdFollowingComponent* AgentComponent) const;
+	AIMODULE_API void ClearAgentMoveTarget(const UCrowdFollowingComponent* AgentComponent) const;
 
 	/** switch agent to waiting state */
-	void PauseAgent(const UCrowdFollowingComponent* AgentComponent) const;
+	AIMODULE_API void PauseAgent(const UCrowdFollowingComponent* AgentComponent) const;
 
 	/** resumes agent movement */
-	void ResumeAgent(const UCrowdFollowingComponent* AgentComponent, bool bForceReplanPath = true) const;
+	AIMODULE_API void ResumeAgent(const UCrowdFollowingComponent* AgentComponent, bool bForceReplanPath = true) const;
 
 	/** check if object is a valid crowd agent */
-	bool IsAgentValid(const UCrowdFollowingComponent* AgentComponent) const;
-	bool IsAgentValid(const ICrowdAgentInterface* Agent) const;
+	AIMODULE_API bool IsAgentValid(const UCrowdFollowingComponent* AgentComponent) const;
+	AIMODULE_API bool IsAgentValid(const ICrowdAgentInterface* Agent) const;
 
 	/** returns number of nearby agents */
-	int32 GetNumNearbyAgents(const ICrowdAgentInterface* Agent) const;
+	AIMODULE_API int32 GetNumNearbyAgents(const ICrowdAgentInterface* Agent) const;
 
 	/** returns a list of locations of nearby agents */
-	int32 GetNearbyAgentLocations(const ICrowdAgentInterface* Agent, TArray<FVector>& OutLocations) const;
+	AIMODULE_API int32 GetNearbyAgentLocations(const ICrowdAgentInterface* Agent, TArray<FVector>& OutLocations) const;
 
 	/** reads existing avoidance config or returns false */
-	bool GetAvoidanceConfig(int32 Idx, FCrowdAvoidanceConfig& Data) const;
+	AIMODULE_API bool GetAvoidanceConfig(int32 Idx, FCrowdAvoidanceConfig& Data) const;
 
 	/** updates existing avoidance config or returns false */
-	bool SetAvoidanceConfig(int32 Idx, const FCrowdAvoidanceConfig& Data);
+	AIMODULE_API bool SetAvoidanceConfig(int32 Idx, const FCrowdAvoidanceConfig& Data);
 
 	/** remove started offmesh connections from corridor */
-	void SetOffmeshConnectionPruning(bool bRemoveFromCorridor);
+	AIMODULE_API void SetOffmeshConnectionPruning(bool bRemoveFromCorridor);
 
 	/** block path visibility raycasts when crossing different nav areas */
-	void SetSingleAreaVisibilityOptimization(bool bEnable);
+	AIMODULE_API void SetSingleAreaVisibilityOptimization(bool bEnable);
 
 	/** adjust current position in path's corridor, starting test from PathStartIdx */
-	void AdjustAgentPathStart(const UCrowdFollowingComponent* AgentComponent, const FNavMeshPath* Path, int32& PathStartIdx) const;
+	AIMODULE_API void AdjustAgentPathStart(const UCrowdFollowingComponent* AgentComponent, const FNavMeshPath* Path, int32& PathStartIdx) const;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	AIMODULE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
-	void DebugTick() const;
+	AIMODULE_API void DebugTick() const;
 #endif
 
 	/** notify called when detour navmesh is changed */
-	void OnNavMeshUpdate();
+	AIMODULE_API void OnNavMeshUpdate();
 
 	/** Tests if NavData is a suitable nav data type to be used by this CrowdManager
 	 *	instance. */
-	virtual bool IsSuitableNavData(const ANavigationData& NavData) const;
+	AIMODULE_API virtual bool IsSuitableNavData(const ANavigationData& NavData) const;
 
 	/** Called by the nav system when a new navigation data instance is registered. 
 	 *	If the CrowdManager instance had no nav data cached it will consider this
 	 *	NavDataInstance and update if necesary. */
-	virtual void OnNavDataRegistered(ANavigationData& NavData) override;
+	AIMODULE_API virtual void OnNavDataRegistered(ANavigationData& NavData) override;
 
 	/** Called by the nav system when a navigation data instance is removed. The 
 	 *	crowd manager will see if it's the nav data being used by it an if so try
 	 *	to find another one. If there's none the crowd manager will stop working. */
-	virtual void OnNavDataUnregistered(ANavigationData& NavData) override;
+	AIMODULE_API virtual void OnNavDataUnregistered(ANavigationData& NavData) override;
 
 	virtual void CleanUp(float DeltaTime) override {};
 
 	const ANavigationData* GetNavData() const { return MyNavData; }
 
-	UWorld* GetWorld() const override;
+	AIMODULE_API UWorld* GetWorld() const override;
 
-	static UCrowdManager* GetCurrent(UObject* WorldContextObject);
-	static UCrowdManager* GetCurrent(UWorld* World);
+	static AIMODULE_API UCrowdManager* GetCurrent(UObject* WorldContextObject);
+	static AIMODULE_API UCrowdManager* GetCurrent(UWorld* World);
 
 protected:
 
@@ -339,51 +339,51 @@ protected:
 #endif // WITH_EDITOR
 
 	/** try to initialize nav data from already existing ones */
-	virtual void UpdateNavData();
+	AIMODULE_API virtual void UpdateNavData();
 
 	/** setup params of crowd avoidance */
-	virtual void UpdateAvoidanceConfig();
+	AIMODULE_API virtual void UpdateAvoidanceConfig();
 
 	/** called from tick, just after updating agents proximity data */
-	virtual void PostProximityUpdate();
+	AIMODULE_API virtual void PostProximityUpdate();
 
 	/** called from tick, after move points were updated, before any steering/avoidance */
-	virtual void PostMovePointUpdate();
+	AIMODULE_API virtual void PostMovePointUpdate();
 
 	/** Sets NavData as MyNavData. If Null and bFindNewNavDataIfNull is true then
 	 *	the manager will search for a new NavData instance that meets the 
 	 *	IsSuitableNavData() condition. */
-	void SetNavData(ANavigationData* NavData, const bool bFindNewNavDataIfNull = true);
+	AIMODULE_API void SetNavData(ANavigationData* NavData, const bool bFindNewNavDataIfNull = true);
 
 #if WITH_RECAST
-	void AddAgent(const ICrowdAgentInterface* Agent, FCrowdAgentData& AgentData) const;
-	void RemoveAgent(const ICrowdAgentInterface* Agent, FCrowdAgentData* AgentData) const;
-	void GetAgentParams(const ICrowdAgentInterface* Agent, dtCrowdAgentParams& AgentParams) const;
+	AIMODULE_API void AddAgent(const ICrowdAgentInterface* Agent, FCrowdAgentData& AgentData) const;
+	AIMODULE_API void RemoveAgent(const ICrowdAgentInterface* Agent, FCrowdAgentData* AgentData) const;
+	AIMODULE_API void GetAgentParams(const ICrowdAgentInterface* Agent, dtCrowdAgentParams& AgentParams) const;
 
 	/** prepare agent for next step of simulation */
-	void PrepareAgentStep(const ICrowdAgentInterface* Agent, FCrowdAgentData& AgentData, float DeltaTime) const;
+	AIMODULE_API void PrepareAgentStep(const ICrowdAgentInterface* Agent, FCrowdAgentData& AgentData, float DeltaTime) const;
 
 	/** pass new velocity to movement components */
-	virtual void ApplyVelocity(UCrowdFollowingComponent* AgentComponent, int32 AgentIndex) const;
+	AIMODULE_API virtual void ApplyVelocity(UCrowdFollowingComponent* AgentComponent, int32 AgentIndex) const;
 
 	/** check changes in crowd simulation and adjust UE specific properties (smart links, poly updates) */
-	void UpdateAgentPaths();
+	AIMODULE_API void UpdateAgentPaths();
 
 	/** switch debugger to object selected in PIE */
-	void UpdateSelectedDebug(const ICrowdAgentInterface* Agent, int32 AgentIndex) const;
+	AIMODULE_API void UpdateSelectedDebug(const ICrowdAgentInterface* Agent, int32 AgentIndex) const;
 
-	void CreateCrowdManager();
-	void DestroyCrowdManager();
+	AIMODULE_API void CreateCrowdManager();
+	AIMODULE_API void DestroyCrowdManager();
 
 #if ENABLE_DRAW_DEBUG
-	UWorld* GetDebugDrawingWorld() const;
-	void DrawDebugCorners(const dtCrowdAgent* CrowdAgent) const;
-	void DrawDebugCollisionSegments(const dtCrowdAgent* CrowdAgent) const;
-	void DrawDebugPath(const dtCrowdAgent* CrowdAgent) const;
-	void DrawDebugVelocityObstacles(const dtCrowdAgent* CrowdAgent) const;
-	void DrawDebugPathOptimization(const dtCrowdAgent* CrowdAgent) const;
-	void DrawDebugNeighbors(const dtCrowdAgent* CrowdAgent) const;
-	void DrawDebugSharedBoundary() const;
+	AIMODULE_API UWorld* GetDebugDrawingWorld() const;
+	AIMODULE_API void DrawDebugCorners(const dtCrowdAgent* CrowdAgent) const;
+	AIMODULE_API void DrawDebugCollisionSegments(const dtCrowdAgent* CrowdAgent) const;
+	AIMODULE_API void DrawDebugPath(const dtCrowdAgent* CrowdAgent) const;
+	AIMODULE_API void DrawDebugVelocityObstacles(const dtCrowdAgent* CrowdAgent) const;
+	AIMODULE_API void DrawDebugPathOptimization(const dtCrowdAgent* CrowdAgent) const;
+	AIMODULE_API void DrawDebugNeighbors(const dtCrowdAgent* CrowdAgent) const;
+	AIMODULE_API void DrawDebugSharedBoundary() const;
 #endif // ENABLE_DRAW_DEBUG
 
 #endif

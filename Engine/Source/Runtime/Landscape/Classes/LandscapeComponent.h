@@ -739,7 +739,7 @@ public:
 	LANDSCAPE_API void ForEachLayer(TFunctionRef<void(const FGuid&, struct FLandscapeLayerComponentData&)> Fn);
 
 	UE_DEPRECATED(5.1, "SetEditingLayer has been deprecated, use GetLandscapeActor()->SetEditingLayer() instead.")
-	LANDSCAPE_API void SetEditingLayer(const FGuid& InEditingLayer) {}
+	void SetEditingLayer(const FGuid& InEditingLayer) {}
 
 	/** Get the Landscape Actor's editing layer data */
 	FLandscapeLayerComponentData* GetEditingLayer();
@@ -869,13 +869,13 @@ public:
 	LANDSCAPE_API ALandscapeProxy* GetLandscapeProxy() const;
 
 	/** @return Component section base as FIntPoint */
-	LANDSCAPE_API FIntPoint GetSectionBase() const
+	FIntPoint GetSectionBase() const
 	{
 		return FIntPoint(SectionBaseX, SectionBaseY);
 	}
 
 	/** @param InSectionBase new section base for a component */
-	LANDSCAPE_API void SetSectionBase(FIntPoint InSectionBase)
+	void SetSectionBase(FIntPoint InSectionBase)
 	{
 		SectionBaseX = InSectionBase.X;
 		SectionBaseY = InSectionBase.Y;
@@ -1076,7 +1076,7 @@ public:
 	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true, bool bInUserTriggered = false);
 	LANDSCAPE_API void RequestEditingClientUpdate(bool bInUserTriggered = false);
 	LANDSCAPE_API void RequestDeferredClientUpdate();
-	LANDSCAPE_API uint32 GetLayerUpdateFlagPerMode() const { return LayerUpdateFlagPerMode; }
+	uint32 GetLayerUpdateFlagPerMode() const { return LayerUpdateFlagPerMode; }
 	LANDSCAPE_API uint32 ComputeWeightmapsHash();
 
 	void GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const;
@@ -1113,8 +1113,8 @@ public:
 		return bNaniteActive;
 	}
 
-	LANDSCAPE_API ULandscapeHeightfieldCollisionComponent* GetCollisionComponent() const { return CollisionComponentRef.Get(); }
-	LANDSCAPE_API void SetCollisionComponent(ULandscapeHeightfieldCollisionComponent* InCollisionComponent) { CollisionComponentRef = InCollisionComponent; }
+	ULandscapeHeightfieldCollisionComponent* GetCollisionComponent() const { return CollisionComponentRef.Get(); }
+	void SetCollisionComponent(ULandscapeHeightfieldCollisionComponent* InCollisionComponent) { CollisionComponentRef = InCollisionComponent; }
 
 	void SetUserTriggeredChangeRequested(bool bInUserTriggeredChangeRequested)
 	{

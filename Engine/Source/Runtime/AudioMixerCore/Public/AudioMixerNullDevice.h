@@ -21,7 +21,7 @@ namespace Audio
 	 * This class, when started, spawns a new high priority thread that exists to query an FAudioMixerPlatformInterface
 	 * and immediately throw out whatever buffers it receives.
 	 */
-	class AUDIOMIXERCORE_API FMixerNullCallback : protected FRunnable
+	class FMixerNullCallback : protected FRunnable
 	{
 	public:
 
@@ -29,7 +29,7 @@ namespace Audio
 		 * Constructing the FMixerNullCallback immediately begins calling
 		 * InCallback every BufferDuration seconds.
 		 */
-		FMixerNullCallback(float BufferDuration, TFunction<void()> InCallback, EThreadPriority ThreadPriority = TPri_TimeCritical, bool bStartedPaused = false);
+		AUDIOMIXERCORE_API FMixerNullCallback(float BufferDuration, TFunction<void()> InCallback, EThreadPriority ThreadPriority = TPri_TimeCritical, bool bStartedPaused = false);
 
 		/**
 		 * The destructor waits on Callback to be completed before stopping the thread.
@@ -37,14 +37,14 @@ namespace Audio
 		virtual ~FMixerNullCallback() = default;
 
 		// FRunnable override:
-		virtual uint32 Run() override;
-		virtual void Stop() override;
+		AUDIOMIXERCORE_API virtual uint32 Run() override;
+		AUDIOMIXERCORE_API virtual void Stop() override;
 
 		// Resume a paused null renderer. 
-		void Resume(const TFunction<void()>& InCallback, float InBufferDuration);
+		AUDIOMIXERCORE_API void Resume(const TFunction<void()>& InCallback, float InBufferDuration);
 
 		// Pause the thread, making it sleep until woken, not consuming cycles or buffers.
-		void Pause();
+		AUDIOMIXERCORE_API void Pause();
 
 	private:
 

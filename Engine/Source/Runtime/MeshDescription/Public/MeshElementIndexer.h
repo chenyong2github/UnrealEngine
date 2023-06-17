@@ -44,11 +44,11 @@ struct FElementID;
  * there are generally few polygon groups compared to many triangles. Chunking can be turned off for such indexers,
  * resulting in a more simple array representation which can be arbitrarily grown without requiring elements to be inserted.
  */
-class MESHDESCRIPTION_API FMeshElementIndexer
+class FMeshElementIndexer
 {
 public:
 	FMeshElementIndexer() = default;
-	FMeshElementIndexer(const FMeshElementChannels* Key, const FMeshElementChannels* Referencer, FName AttributeName, int32 ReferencerChannelIndex = 0);
+	MESHDESCRIPTION_API FMeshElementIndexer(const FMeshElementChannels* Key, const FMeshElementChannels* Referencer, FName AttributeName, int32 ReferencerChannelIndex = 0);
 
 	// Copying not allowed as they reference elements of a MeshDescription of which they are normally a part
 	FMeshElementIndexer(const FMeshElementIndexer&) = delete;
@@ -61,7 +61,7 @@ public:
 	/**
 	 * Set the parameters of this mesh element indexer
 	 */
-	void Set(const FMeshElementChannels* Key, const FMeshElementChannels* Referencer, FName AttributeName, int32 ReferencerChannelIndex = 0);
+	MESHDESCRIPTION_API void Set(const FMeshElementChannels* Key, const FMeshElementChannels* Referencer, FName AttributeName, int32 ReferencerChannelIndex = 0);
 
 	/**
 	 * Sets the initial/expected number of references per key
@@ -92,7 +92,7 @@ public:
 	/**
 	 * Resets the indexer
 	 */
-	void Reset();
+	MESHDESCRIPTION_API void Reset();
 
 	/**
 	 * Retrieve all referencer indices whose named attribute refers to KeyIndex.
@@ -135,20 +135,20 @@ public:
 	/**
 	 * Remove the specified key from the indexer
 	 */
-	void RemoveKey(int32 KeyIndex, int32 KeyChannelIndex = 0);
+	MESHDESCRIPTION_API void RemoveKey(int32 KeyIndex, int32 KeyChannelIndex = 0);
 
 	/**
 	 * Remove reference from key.
 	 * This will take immediate effect.
 	 */
-	void RemoveReferenceFromKey(int32 KeyIndex, int32 ReferenceIndex, int32 KeyChannelIndex = 0);
+	MESHDESCRIPTION_API void RemoveReferenceFromKey(int32 KeyIndex, int32 ReferenceIndex, int32 KeyChannelIndex = 0);
 
 	/**
 	 * Add a reference to a key.
 	 * This will be queued and take effect in batch when an affected key is looked up.
 	 * This is preferable to regenerating the index entirely.
 	 */
-	void AddReferenceToKey(int32 KeyIndex, int32 ReferenceIndex, int32 KeyChannelIndex = 0);
+	MESHDESCRIPTION_API void AddReferenceToKey(int32 KeyIndex, int32 ReferenceIndex, int32 KeyChannelIndex = 0);
 
 	/**
 	 * Suspend indexing until the next rebuild
@@ -167,28 +167,28 @@ public:
 	/**
 	 * Force the indexer to be completely rebuilt.
 	 */
-	void ForceRebuild();
+	MESHDESCRIPTION_API void ForceRebuild();
 
 	/**
 	 * Build any stale indices
 	 */
-	void Build();
+	MESHDESCRIPTION_API void Build();
 
 private:
 	// Ensure that the right number of per channel indices are allocated
-	void UpdatePerChannelIndices();
+	MESHDESCRIPTION_API void UpdatePerChannelIndices();
 
 	// Incrementally builds the index based on the lists of stale keys and referencers
-	void BuildIndex(int32 Index);
+	MESHDESCRIPTION_API void BuildIndex(int32 Index);
 
 	// Does a full rebuild of the index from scratch, directly from referencing attributes
-	void RebuildIndex(int32 Index);
+	MESHDESCRIPTION_API void RebuildIndex(int32 Index);
 
 	// Performs an incremental build if the specified key is stale
-	void ConditionalBuild(int32 KeyIndex, int32 KeyChannelIndex);
+	MESHDESCRIPTION_API void ConditionalBuild(int32 KeyIndex, int32 KeyChannelIndex);
 
 	// Add a reference to a key in unchunked mode
-	void AddUnchunked(int32 KeyIndex, int32 ReferenceIndex, int32 KeyChannelIndex = 0);
+	MESHDESCRIPTION_API void AddUnchunked(int32 KeyIndex, int32 ReferenceIndex, int32 KeyChannelIndex = 0);
 
 	// Return the chunk index relating to this key index
 	int32 GetChunkForKey(int32 ElementIndex) const

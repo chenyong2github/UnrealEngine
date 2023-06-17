@@ -7,8 +7,8 @@
 #include "IMovieSceneBoundObjectProxy.generated.h"
 
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneBoundObjectProxy
+UINTERFACE(MinimalAPI)
+class UMovieSceneBoundObjectProxy
 	: public UInterface
 {
 public:
@@ -16,7 +16,7 @@ public:
 };
 
 
-class MOVIESCENE_API IMovieSceneBoundObjectProxy
+class IMovieSceneBoundObjectProxy
 {
 public:
 	GENERATED_BODY()
@@ -27,6 +27,6 @@ public:
 	 * @return Pointer to the object that should be animated, or nullptr if it's not valid.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "Sequencer", DisplayName = "GetBoundObjectForSequencer", meta=(CallInEditor="true"))
-	UObject* BP_GetBoundObjectForSequencer(UObject* ResolvedObject);
+	MOVIESCENE_API UObject* BP_GetBoundObjectForSequencer(UObject* ResolvedObject);
 	virtual UObject* NativeGetBoundObjectForSequencer(UObject* ResolvedObject) { return ResolvedObject; }
 };

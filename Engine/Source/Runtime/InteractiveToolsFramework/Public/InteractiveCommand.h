@@ -14,8 +14,8 @@ class IToolsContextTransactionsAPI;
  * The base UInteractiveCommandArguments provides support for transactions via 
  * a IToolsContextTransactionsAPI
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveCommandArguments : public UObject
+UCLASS(MinimalAPI)
+class UInteractiveCommandArguments : public UObject
 {
 	GENERATED_BODY()
 
@@ -34,8 +34,8 @@ protected:
  * UInteractiveCommandResult subclasses are returned from UInteractiveCommands, to allow
  * commands to return custom information.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveCommandResult : public UObject
+UCLASS(MinimalAPI)
+class UInteractiveCommandResult : public UObject
 {
 	GENERATED_BODY()
 
@@ -48,8 +48,8 @@ class INTERACTIVETOOLSFRAMEWORK_API UInteractiveCommandResult : public UObject
  * This differs from an Interactive Tool in that there is no ongoing user interaction once the
  * command has been initiated. 
  */
-UCLASS(Abstract)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveCommand : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UInteractiveCommand : public UObject
 {
 	GENERATED_BODY()
 

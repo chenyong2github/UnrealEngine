@@ -15,7 +15,7 @@ namespace Audio
 		EightPole,
 	};
 
-	class SIGNALPROCESSING_API FVariablePoleFilter
+	class FVariablePoleFilter
 	{
 	public:
 		int32 NumFilters = 0;
@@ -25,7 +25,7 @@ namespace Audio
 		EBiquadFilter::Type Type = EBiquadFilter::Lowpass;
 		FVariablePoleFilter() {};
 
-		void Init(EFilterOrder InOrder
+		SIGNALPROCESSING_API void Init(EFilterOrder InOrder
 				  , const float InSampleRate
 				  , const int32 InNumChannels
 				  , const float InFrequency
@@ -33,12 +33,12 @@ namespace Audio
 				  , const float InBandwidth = 2.f
 				  , const float InGain = 0.f);
 
-		void SetParams(const EBiquadFilter::Type InFilterType, const float InCutoffFrequency, const float InBandwidth = 2.f, const float InGain = 0.f);
+		SIGNALPROCESSING_API void SetParams(const EBiquadFilter::Type InFilterType, const float InCutoffFrequency, const float InBandwidth = 2.f, const float InGain = 0.f);
 
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
-		void ProcessAudioBuffer(const float* InFrame, float* OutFrame, const int32 NumSamples);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InFrame, float* OutFrame);
+		SIGNALPROCESSING_API void ProcessAudioBuffer(const float* InFrame, float* OutFrame, const int32 NumSamples);
 
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		const TArray<FBiquadFilter>& GetFilters() const { return Filters; }
 

@@ -114,13 +114,13 @@ ENUM_CLASS_FLAGS(EClothingCachedDataFlagsCommon);
  * \c CustomData, as well as override the \c AddNewLod() factory to build their 
  * own implementation of \c UClothLODDataBase.
  */
-UCLASS(hidecategories = Object, BlueprintType)
-class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothingAssetCommon : public UClothingAssetBase
+UCLASS(hidecategories = Object, BlueprintType, MinimalAPI)
+class UClothingAssetCommon : public UClothingAssetBase
 {
 	GENERATED_BODY()
 public:
 
-	UClothingAssetCommon(const FObjectInitializer& ObjectInitializer);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API UClothingAssetCommon(const FObjectInitializer& ObjectInitializer);
 
 #if WITH_EDITOR
 
@@ -128,45 +128,45 @@ public:
 	 * Create weights for skinning the render mesh to our simulation mesh, and 
 	 * weights to drive our sim mesh from the skeleton.
 	 */
-	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex) override;
 
 	/**
 	 * Helper that invokes \c UnbindFromSkeletalMesh() for each avilable entry in 
 	 * \p InSkelMesh->GetImportedModel()'s LODModel.
 	 */
-	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh) override;
-	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex) override;
 
 	/**
 	 * Update all extra LOD deformer mappings.
 	 * This should be called whenever the raytracing LOD bias has changed.
 	 */
-	virtual void UpdateAllLODBiasMappings(USkeletalMesh* SkeletalMesh) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void UpdateAllLODBiasMappings(USkeletalMesh* SkeletalMesh) override;
 
 	/** 
 	 * Callback envoked after weights have been edited.
 	 * Calls \c PushWeightsToMesh() on each \c ClothLodData, and invalidates cached data. 
 	 * Optionaly recalculate the owner's sections fixed vertex data based on this asset masks, and invalidate the DDC for this asset.
 	 */
-	void ApplyParameterMasks(bool bUpdateFixedVertData = false, bool bInvalidateDerivedDataCache = true);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void ApplyParameterMasks(bool bUpdateFixedVertData = false, bool bInvalidateDerivedDataCache = true);
 
 	/**
 	 * Builds the LOD transition data.
 	 * When we transition between LODs we skin the incoming mesh to the outgoing mesh
 	 * in exactly the same way the render mesh is skinned to create a smooth swap
 	 */
-	void BuildLodTransitionData();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void BuildLodTransitionData();
 
 	//~ Begin UObject interface
 	/**
 	 * Stop any simulation from using this asset.
 	 */
-	virtual void PreEditUndo() override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void PreEditUndo() override;
 
 	/**
 	 * Restart simulation using this asset after undo change.
 	 */
-	virtual void PostEditUndo() override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void PostEditUndo() override;
 	//~ End UObject interface
 #endif // WITH_EDITOR
 
@@ -174,16 +174,16 @@ public:
 	 * Rebuilds the \c UsedBoneIndices array from looking up the entries in the
 	 * \c UsedBoneNames array, in the \p InSkelMesh's reference skeleton.
 	 */
-	virtual void RefreshBoneMapping(USkeletalMesh* InSkelMesh) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void RefreshBoneMapping(USkeletalMesh* InSkelMesh) override;
 
 	/** Calculates the preferred root bone for the simulation. */
-	void CalculateReferenceBoneIndex();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void CalculateReferenceBoneIndex();
 
 	/** Returns \c true if \p InLodIndex is a valid LOD id (index into \c ClothLodData). */
-	virtual bool IsValidLod(int32 InLodIndex) const override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual bool IsValidLod(int32 InLodIndex) const override;
 
 	/** Returns the number of valid LOD's (length of the \c ClothLodData array). */
-	virtual int32 GetNumLods() const override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual int32 GetNumLods() const override;
 
 #if WITH_EDITORONLY_DATA
 	/**
@@ -196,15 +196,15 @@ public:
 	 * Called on the clothing asset when the base data (physical mesh, config etc.)
 	 * has changed, so any intermediate generated data can be regenerated.
 	 */
-	void InvalidateFlaggedCachedData(EClothingCachedDataFlagsCommon Flags);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void InvalidateFlaggedCachedData(EClothingCachedDataFlagsCommon Flags);
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	/** * Add a new LOD class instance. */
-	virtual int32 AddNewLod() override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual int32 AddNewLod() override;
 
 	/* Called after changes in any of the asset properties. */
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
 #endif // WITH_EDITOR
 
 	/**
@@ -240,16 +240,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/** Migrate deprecated objects. */
-	virtual void PostLoad() override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void PostLoad() override;
 #if WITH_EDITORONLY_DATA
-	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
+	static CLOTHINGSYSTEMRUNTIMECOMMON_API void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
 	/** Serialize deprecated objects. */
-	virtual void Serialize(FArchive& Ar) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void Serialize(FArchive& Ar) override;
 
 	/** Propagate the shared simulation configs between assets. Called after all cloth assets sharing the same simulation are loaded. */
-	virtual void PostUpdateAllAssets() override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void PostUpdateAllAssets() override;
 
 	// The physics asset to extract collisions from when building a simulation.
 	UPROPERTY(EditAnywhere, Category = Config)
@@ -333,12 +333,12 @@ private:
 	// If a config from a different factory exists already, the newly
 	// created config will attempt to initialize its parameters from it.
 	// Return true when at least one config has been added, false otherwise.
-	bool AddClothConfigs();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API bool AddClothConfigs();
 
 	// Propagate the shared simulation configs between assets.
 	// Also migrate all deprecated shared parameters which have been moved to the per cloth configs if required.
 	// Called after a cloth asset is created or loaded.
-	void PropagateSharedConfigs(bool bMigrateSharedConfigToConfig=false);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void PropagateSharedConfigs(bool bMigrateSharedConfigToConfig=false);
 
 	// Return true when any one of the cloth configs fullfill the predicate.
 	// Used to select which type of data to cache.
@@ -353,13 +353,13 @@ private:
 
 #if WITH_EDITOR
 	// Add extra cloth deformer mappings to cope with a different raytracing LOD than the one currently rendered.
-	void UpdateLODBiasMappings(const USkeletalMesh* SkeletalMesh, int32 UpdatedLODIndex, int32 SectionIndex);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void UpdateLODBiasMappings(const USkeletalMesh* SkeletalMesh, int32 UpdatedLODIndex, int32 SectionIndex);
 
 	// Clear all defomer section that relies on the specified cloth sim data bound to the specified LOD section 
-	void ClearLODBiasMappings(const USkeletalMesh* SkeletalMesh, int32 UpdatedLODIndex, int32 SectionIndex);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void ClearLODBiasMappings(const USkeletalMesh* SkeletalMesh, int32 UpdatedLODIndex, int32 SectionIndex);
 
 	// Helper functions used in PostPropertyChangeCb
-	void ReregisterComponentsUsingClothing();
-	void ForEachInteractorUsingClothing(TFunction<void (UClothingSimulationInteractor*)> Func);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void ReregisterComponentsUsingClothing();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void ForEachInteractorUsingClothing(TFunction<void (UClothingSimulationInteractor*)> Func);
 #endif // WITH_EDITOR
 };

@@ -23,14 +23,14 @@ struct FComponentTransformPreAnimatedTraits : FComponentTransformPropertyTraits
 	static void SetObjectPropertyValue(UObject* InObject, FTrackInstancePropertyBindings* PropertyBindings, const FIntermediate3DTransform& CachedTransform);
 };
 
-struct MOVIESCENETRACKS_API FPreAnimatedComponentTransformStorage
+struct FPreAnimatedComponentTransformStorage
 	: TPreAnimatedPropertyStorage<FComponentTransformPreAnimatedTraits>
 {
-	FPreAnimatedComponentTransformStorage();
+	MOVIESCENETRACKS_API FPreAnimatedComponentTransformStorage();
 
-	static TAutoRegisterPreAnimatedStorageID<FPreAnimatedComponentTransformStorage> StorageID;
+	static MOVIESCENETRACKS_API TAutoRegisterPreAnimatedStorageID<FPreAnimatedComponentTransformStorage> StorageID;
 
-	void CachePreAnimatedTransforms(const FCachePreAnimatedValueParams& Params, TArrayView<UObject* const> BoundObjects, TOptional<TFunctionRef<bool(int32)>> Predicate = TOptional<TFunctionRef<bool(int32)>>());
+	MOVIESCENETRACKS_API void CachePreAnimatedTransforms(const FCachePreAnimatedValueParams& Params, TArrayView<UObject* const> BoundObjects, TOptional<TFunctionRef<bool(int32)>> Predicate = TOptional<TFunctionRef<bool(int32)>>());
 };
 
 

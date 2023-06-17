@@ -11,51 +11,51 @@ namespace Audio
 	// for audio applications by ensuring memory allocations only occur in the constructor or when capacity 
 	// is altered, memory freeing only happens in the destructor or when capacity is altered. All assignments 
 	// are performed using block memory copies.
-	class SIGNALPROCESSING_API FAlignedBlockBuffer
+	class FAlignedBlockBuffer
 	{
 	public:
 		
 		// Constructor
-		FAlignedBlockBuffer(int32 InSampleCapacity=8192, int32 InMaxNumInspectSamples=1024, uint32 InByteAlignment=AUDIO_SIMD_BYTE_ALIGNMENT, uint32 InAllocByteAlignment=AUDIO_BUFFER_ALIGNMENT);
+		SIGNALPROCESSING_API FAlignedBlockBuffer(int32 InSampleCapacity=8192, int32 InMaxNumInspectSamples=1024, uint32 InByteAlignment=AUDIO_SIMD_BYTE_ALIGNMENT, uint32 InAllocByteAlignment=AUDIO_BUFFER_ALIGNMENT);
 
 		// Destructor
-		~FAlignedBlockBuffer() throw();
+		SIGNALPROCESSING_API ~FAlignedBlockBuffer() throw();
 		
 		// Maximum size of buffer
-		int32 GetSampleCapacity() const;
+		SIGNALPROCESSING_API int32 GetSampleCapacity() const;
 		
 		// Amount of samples left over in buffer
-		int32 GetNumAvailable() const;
+		SIGNALPROCESSING_API int32 GetNumAvailable() const;
 
 		// Add zeros to the buffer
-		void AddZeros(int32 InNum);
+		SIGNALPROCESSING_API void AddZeros(int32 InNum);
 		
 		// Add samples to the buffer.
-		void AddSamples(const float* InSamples, int32 InNum);
+		SIGNALPROCESSING_API void AddSamples(const float* InSamples, int32 InNum);
 		
 		// Remove samples from the buffer
-		void RemoveSamples(int32 InNum);
+		SIGNALPROCESSING_API void RemoveSamples(int32 InNum);
 
 		// Clear entire buffer
-		void ClearSamples();
+		SIGNALPROCESSING_API void ClearSamples();
 
 		// Inspect samples in the buffer. Returned samples abide by the memory alignment specified during construction.
 		// Warning: Not thread safe. The returned pointer is only valid as long as this object exists 
 		// and before any mutating operations are made to this object.
-		const float* InspectSamples(int32 InNum, int32 InOffset=0);
+		SIGNALPROCESSING_API const float* InspectSamples(int32 InNum, int32 InOffset=0);
 		
 		// Maximum number of elements that can be inspected
-		int32 GetMaxNumInspectSamples() const;
+		SIGNALPROCESSING_API int32 GetMaxNumInspectSamples() const;
 		
 	protected:
 
 		// Set the maximum number of elements that can be inspected
-		void SetMaxNumInspectSamples(int32 InMax);
+		SIGNALPROCESSING_API void SetMaxNumInspectSamples(int32 InMax);
 
-		float* AllocateAlignedFloatArray(int32 InNum) const;
-		void FreeFloatArray(float*& Array) const;
-		void ZeroFloatArray(float* InArray, int32 InNum) const;
-		void CopyFloatArray(float* ToArray, const float* FromArray, int32 InNum) const;
+		SIGNALPROCESSING_API float* AllocateAlignedFloatArray(int32 InNum) const;
+		SIGNALPROCESSING_API void FreeFloatArray(float*& Array) const;
+		SIGNALPROCESSING_API void ZeroFloatArray(float* InArray, int32 InNum) const;
+		SIGNALPROCESSING_API void CopyFloatArray(float* ToArray, const float* FromArray, int32 InNum) const;
 
 	private:
 

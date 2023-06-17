@@ -135,8 +135,8 @@ struct TNamedChannelOverrideProviderTraits : FChannelOverrideProviderTraits
 }  // namespace MovieScene
 }  // namespace UE
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneChannelOverrideProvider : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneChannelOverrideProvider : public UInterface
 {
 public:
 
@@ -146,7 +146,7 @@ public:
 /**
  * Interface to be added to UMovieSceneSection types when they contain entity data
  */
-class MOVIESCENE_API IMovieSceneChannelOverrideProvider
+class IMovieSceneChannelOverrideProvider
 {
 public:
 

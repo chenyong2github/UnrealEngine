@@ -211,14 +211,14 @@ namespace Audio
 
 	typedef TSharedPtr<FDecodingSoundSource> FDecodingSoundSourcePtr;
 	
-	class AUDIOMIXER_API FSoundSourceDecoder : public FGCObject
+	class FSoundSourceDecoder : public FGCObject
 	{
 	public:
-		FSoundSourceDecoder();
-		virtual ~FSoundSourceDecoder();
+		AUDIOMIXER_API FSoundSourceDecoder();
+		AUDIOMIXER_API virtual ~FSoundSourceDecoder();
 
 		//~ Begin FGCObject
-		virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
+		AUDIOMIXER_API virtual void AddReferencedObjects(FReferenceCollector & Collector) override;
 		virtual FString GetReferencerName() const override
 		{
 			return TEXT("Audio::FSoundSourceDecoder");
@@ -227,45 +227,45 @@ namespace Audio
 
 		// Initialize the source decoder at the given output sample rate
 		// Sources will automatically sample rate convert to match this output
-		void Init(FAudioDevice* InAudioDevice, int32 SampleRate);
+		AUDIOMIXER_API void Init(FAudioDevice* InAudioDevice, int32 SampleRate);
 
 		// Creates a new decoding sound source handle
-		FDecodingSoundSourceHandle CreateSourceHandle(USoundWave* InSoundWave);
+		AUDIOMIXER_API FDecodingSoundSourceHandle CreateSourceHandle(USoundWave* InSoundWave);
 
 		// Called from the audio thread
-		void Update();
+		AUDIOMIXER_API void Update();
 
 		// Called from the audio render thread
-		void UpdateRenderThread();
+		AUDIOMIXER_API void UpdateRenderThread();
 
 		// Initialize a decoding instance of this sound wave object. Call only from game thread.
-		bool InitDecodingSource(const FSourceDecodeInit& InitData);
+		AUDIOMIXER_API bool InitDecodingSource(const FSourceDecodeInit& InitData);
 
 		// Removes the decoding source from the decoder
-		void RemoveDecodingSource(const FDecodingSoundSourceHandle& Handle);
+		AUDIOMIXER_API void RemoveDecodingSource(const FDecodingSoundSourceHandle& Handle);
 
 		// Resets internal state of decoder
-		void Reset();
+		AUDIOMIXER_API void Reset();
 
 		// Sets the source pitch scale
-		void SetSourcePitchScale(const FDecodingSoundSourceHandle& Handle, float InPitchScale);
+		AUDIOMIXER_API void SetSourcePitchScale(const FDecodingSoundSourceHandle& Handle, float InPitchScale);
 
 		// Sets the source volume scale
-		void SetSourceVolumeScale(const FDecodingSoundSourceHandle& Handle, float InVolumeScale);
+		AUDIOMIXER_API void SetSourceVolumeScale(const FDecodingSoundSourceHandle& Handle, float InVolumeScale);
 
 		// Get a decoded buffer for the given decoding sound wave handle. Call only from audio render thread or audio render thread task.
-		bool GetSourceBuffer(const FDecodingSoundSourceHandle& InHandle, const int32 NumOutFrames, const int32 NumOutChannels, FAlignedFloatBuffer& OutAudioBuffer);
+		AUDIOMIXER_API bool GetSourceBuffer(const FDecodingSoundSourceHandle& InHandle, const int32 NumOutFrames, const int32 NumOutChannels, FAlignedFloatBuffer& OutAudioBuffer);
 
 		// Queries if the decoding source is finished
-		bool IsFinished(const FDecodingSoundSourceHandle& InHandle) const;
+		AUDIOMIXER_API bool IsFinished(const FDecodingSoundSourceHandle& InHandle) const;
 
-		bool IsInitialized(const FDecodingSoundSourceHandle& InHandle) const;
+		AUDIOMIXER_API bool IsInitialized(const FDecodingSoundSourceHandle& InHandle) const;
 
 	private:
 		// Sends a command to the audio render thread from audio thread
-		void EnqueueDecoderCommand(TFunction<void()> Command);
-		void PumpDecoderCommandQueue();
-		bool InitDecodingSourceInternal(const FSourceDecodeInit& InitData);
+		AUDIOMIXER_API void EnqueueDecoderCommand(TFunction<void()> Command);
+		AUDIOMIXER_API void PumpDecoderCommandQueue();
+		AUDIOMIXER_API bool InitDecodingSourceInternal(const FSourceDecodeInit& InitData);
 
 		int32 AudioThreadId;
 		FAudioDevice* AudioDevice;

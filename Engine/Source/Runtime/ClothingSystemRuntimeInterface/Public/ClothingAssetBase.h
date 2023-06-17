@@ -12,8 +12,8 @@ class USkeletalMesh;
  * An interface object for any clothing asset the engine can use.
  * Any clothing asset concrete object should derive from this.
  */
-UCLASS(Abstract)
-class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingAssetBase : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UClothingAssetBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -26,14 +26,14 @@ public:
 	* @param InSubmeshIdx Submesh in this asset to replace section with
 	* @param InAssetLodIndex Internal clothing LOD to use
 	*/
-	virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual bool BindToSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex, const int32 InSectionIndex, const int32 InAssetLodIndex)
 	PURE_VIRTUAL(UClothingAssetBase::BindToSkeletalMesh, return false;);
 
 	/**
 	* Unbinds this clothing asset from the provided skeletal mesh, will remove all LODs
 	* @param InSkelMesh skeletal mesh to remove from
 	*/
-	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh)
 	PURE_VIRTUAL(UClothingAssetBase::UnbindFromSkeletalMesh, );
 
 	/**
@@ -41,14 +41,14 @@ public:
 	* @param InSkelMesh skeletal mesh to remove from
 	* @param InMeshLodIndex Mesh LOD to remove this asset from (could still be bound to other LODs)
 	*/
-	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex)
 	PURE_VIRTUAL(UClothingAssetBase::UnbindFromSkeletalMesh,);
 
 	/**
 	 * Update all extra LOD deformer mappings.
 	 * This should be called whenever the raytracing LOD bias is changed.
 	 */
-	virtual void UpdateAllLODBiasMappings(USkeletalMesh* SkeletalMesh)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void UpdateAllLODBiasMappings(USkeletalMesh* SkeletalMesh)
 	PURE_VIRTUAL(UClothingAssetBase::UpdateAllLODBiasMappings,);
 
 	/**
@@ -64,7 +64,7 @@ public:
 	}
 
 	/** Add a new LOD class instance. */
-	virtual int32 AddNewLod()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual int32 AddNewLod()
 	PURE_VIRTUAL(UClothingAssetBase::AddNewLod(), return INDEX_NONE;);
 
 	/**
@@ -72,7 +72,7 @@ public:
 	*	When we transition between LODs we skin the incoming mesh to the outgoing mesh
 	*	in exactly the same way the render mesh is skinned to create a smooth swap
 	*/
-	virtual void BuildLodTransitionData()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void BuildLodTransitionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildLodTransitionData(), );
 #endif
 
@@ -81,7 +81,7 @@ public:
 	 * Called on the clothing asset when the base data (physical mesh, config etc.)
 	 * has changed, so any intermediate generated data can be regenerated.
 	 */
-	virtual void InvalidateAllCachedData()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void InvalidateAllCachedData()
 	PURE_VIRTUAL(UClothingAssetBase::InvalidateCachedData(),);
 #endif // WITH_EDITORONLY_DATA
 
@@ -91,24 +91,24 @@ public:
 	 * data.
 	 * @param InSkelMesh - The mesh to use to remap the bones
 	 */
-	virtual void RefreshBoneMapping(USkeletalMesh* InSkelMesh)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void RefreshBoneMapping(USkeletalMesh* InSkelMesh)
 	PURE_VIRTUAL(UClothingAssetBase::RefreshBoneMapping, );
 
 	/** Check the validity of a LOD index */
-	virtual bool IsValidLod(int32 InLodIndex) const
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual bool IsValidLod(int32 InLodIndex) const
 	PURE_VIRTUAL(UClothingAssetBase::IsValidLod(), return false;);
 
 	/** Get the number of LODs defined in the clothing asset */
-	virtual int32 GetNumLods() const
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual int32 GetNumLods() const
 	PURE_VIRTUAL(UClothingAssetBase::GetNumLods(), return 0;);
 
 	/** Builds self collision data */
 	UE_DEPRECATED(5.0, "Cached data are now all rebuilt by calling InvalidateCachedData()")
-	virtual void BuildSelfCollisionData()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void BuildSelfCollisionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildSelfCollisionData(), );
 
 	/** Called after all cloth assets sharing the same simulation are added or loaded */
-	virtual void PostUpdateAllAssets()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void PostUpdateAllAssets()
 	PURE_VIRTUAL(UClothingAssetBase::PostUpdateAllAssets(), );
 
 	/** Get the guid identifying this asset */

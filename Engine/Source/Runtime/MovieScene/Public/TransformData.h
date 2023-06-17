@@ -8,7 +8,7 @@
 /**
 * Stores information about a transform for the purpose of adding keys to a transform section
 */
-struct MOVIESCENE_API FTransformData
+struct FTransformData
 {
 	/** Translation component */
 	FVector Translation;

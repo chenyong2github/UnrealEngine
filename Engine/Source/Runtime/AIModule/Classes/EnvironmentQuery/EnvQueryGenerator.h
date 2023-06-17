@@ -17,8 +17,8 @@ namespace EnvQueryGeneratorVersion
 	inline const int32 Latest = DataProviders;
 }
 
-UCLASS(EditInlineNew, Abstract, meta = (Category = "Generators"))
-class AIMODULE_API UEnvQueryGenerator : public UEnvQueryNode
+UCLASS(EditInlineNew, Abstract, meta = (Category = "Generators"), MinimalAPI)
+class UEnvQueryGenerator : public UEnvQueryNode
 {
 	GENERATED_UCLASS_BODY()
 
@@ -36,6 +36,6 @@ class AIMODULE_API UEnvQueryGenerator : public UEnvQueryNode
 	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const { checkNoEntry(); }
 	virtual bool IsValidGenerator() const { return ItemType != nullptr; }
 
-	virtual void PostLoad() override;
-	void UpdateNodeVersion() override;
+	AIMODULE_API virtual void PostLoad() override;
+	AIMODULE_API void UpdateNodeVersion() override;
 };

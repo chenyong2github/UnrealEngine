@@ -37,8 +37,8 @@ struct FGrassInput
 	{}
 };
 
-UCLASS(collapsecategories, hidecategories=Object)
-class LANDSCAPE_API UMaterialExpressionLandscapeGrassOutput : public UMaterialExpressionCustomOutput
+UCLASS(collapsecategories, hidecategories=Object, MinimalAPI)
+class UMaterialExpressionLandscapeGrassOutput : public UMaterialExpressionCustomOutput
 {
 	GENERATED_UCLASS_BODY()
 
@@ -46,17 +46,17 @@ class LANDSCAPE_API UMaterialExpressionLandscapeGrassOutput : public UMaterialEx
 	static constexpr int32 MaxGrassTypes = 32;
 
 #if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual TArrayView<FExpressionInput*> GetInputsView() override;
-	virtual FExpressionInput* GetInput(int32 InputIndex) override;
-	virtual FName GetInputName(int32 InputIndex) const override;
-	void ValidateInputName(FGrassInput& Input) const;
+	LANDSCAPE_API virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
+	LANDSCAPE_API virtual void GetCaption(TArray<FString>& OutCaptions) const override;
+	LANDSCAPE_API virtual TArrayView<FExpressionInput*> GetInputsView() override;
+	LANDSCAPE_API virtual FExpressionInput* GetInput(int32 InputIndex) override;
+	LANDSCAPE_API virtual FName GetInputName(int32 InputIndex) const override;
+	LANDSCAPE_API void ValidateInputName(FGrassInput& Input) const;
 #endif
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	LANDSCAPE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End UObject Interface
 
 	virtual uint32 GetInputType(int32 InputIndex) override { return MCT_Float; }
@@ -70,7 +70,7 @@ class LANDSCAPE_API UMaterialExpressionLandscapeGrassOutput : public UMaterialEx
 	TArray<FGrassInput> GrassTypes;
 
 private:
-	static FName PinDefaultName;
+	static LANDSCAPE_API FName PinDefaultName;
 };
 
 

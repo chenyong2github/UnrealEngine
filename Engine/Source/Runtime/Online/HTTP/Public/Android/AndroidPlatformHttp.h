@@ -6,40 +6,40 @@
 /**
  * Platform specific Http implementations
  */
-class HTTP_API FAndroidPlatformHttp : public FGenericPlatformHttp
+class FAndroidPlatformHttp : public FGenericPlatformHttp
 {
 public:
 
 	/**
 	 * Platform initialization step
 	 */
-	static void Init();
+	static HTTP_API void Init();
 
 	/**
 	 * Creates a platform-specific HTTP manager.
 	 *
 	 * @return NULL if default implementation is to be used
 	 */
-	static FHttpManager* CreatePlatformHttpManager();
+	static HTTP_API FHttpManager* CreatePlatformHttpManager();
 
 	/**
 	 * Platform shutdown step
 	 */
-	static void Shutdown();
+	static HTTP_API void Shutdown();
 
 	/**
 	 * Creates a new Http request instance for the current platform
 	 *
 	 * @return request object
 	 */
-	static IHttpRequest* ConstructRequest();
+	static HTTP_API IHttpRequest* ConstructRequest();
 
 	/**
 	 * Get the proxy address specified by the operating system
 	 *
 	 * @return optional FString: If unset: we are unable to get information from the operating system. If set: the proxy address set by the operating system (may be blank)
 	 */
-	static TOptional<FString> GetOperatingSystemProxyAddress();
+	static HTTP_API TOptional<FString> GetOperatingSystemProxyAddress();
 
 	/**
 	 * Check if getting proxy information from the current operating system is supported
@@ -48,7 +48,7 @@ public:
 	 * 
 	 * @return true if we are able to get proxy information from the current operating system, false if not
 	 */
-	static bool IsOperatingSystemProxyInformationSupported();
+	static HTTP_API bool IsOperatingSystemProxyInformationSupported();
 };
 
 

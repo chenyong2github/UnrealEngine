@@ -191,8 +191,8 @@ private:
 /**
 * This object contains information needed for constraint channels on the transform section
 */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieScene3DTransformSectionConstraints : public UObject
+UCLASS(MinimalAPI)
+class UMovieScene3DTransformSectionConstraints : public UObject
 {
 	GENERATED_BODY()
 
@@ -204,7 +204,7 @@ public:
 
 	/** When undo/redoing we need to recreate channel proxies after we are done*/
 #if WITH_EDITOR
-	virtual void PostEditUndo() override;
+	MOVIESCENETRACKS_API virtual void PostEditUndo() override;
 #endif
 };
 
@@ -370,12 +370,12 @@ public:
 	/**
 	 * Return the trajectory visibility
 	 */
-	MOVIESCENETRACKS_API EShow3DTrajectory GetShow3DTrajectory() const { return Show3DTrajectory; }
+	EShow3DTrajectory GetShow3DTrajectory() const { return Show3DTrajectory; }
 
 	/**
 	 * Return the trajectory visibility
 	 */
-	MOVIESCENETRACKS_API void SetShow3DTrajectory(EShow3DTrajectory InShow3DTrajectory) { Show3DTrajectory = InShow3DTrajectory; }
+	void SetShow3DTrajectory(EShow3DTrajectory InShow3DTrajectory) { Show3DTrajectory = InShow3DTrajectory; }
 
 private:
 

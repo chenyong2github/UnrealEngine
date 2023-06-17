@@ -14,31 +14,31 @@ class UOverlaySlot;
 /**
  * Allows widgets to be stacked on top of each other, uses simple flow layout for content on each layer.
  */
-UCLASS()
-class UMG_API UOverlay : public UPanelWidget
+UCLASS(MinimalAPI)
+class UOverlay : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	UOverlaySlot* AddChildToOverlay(UWidget* Content);
+	UMG_API UOverlaySlot* AddChildToOverlay(UWidget* Content);
 
 	/** Replace the widget at the given index it with a different widget. */
 	UFUNCTION(BlueprintCallable, Category = "Panel")
-	bool ReplaceOverlayChildAt(int32 Index, UWidget* Content);
+	UMG_API bool ReplaceOverlayChildAt(int32 Index, UWidget* Content);
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 protected:
@@ -47,6 +47,6 @@ protected:
 
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 };

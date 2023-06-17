@@ -53,14 +53,14 @@ private:
  * A typical process for capture consits of the following process:
  *     Setup -> [ Warm up -> [ Capture Frame ] ] -> Begin Finalize -> [ HasFinishedProcessing ] -> Finalize
  */
-UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig, Abstract)
-class MOVIESCENECAPTURE_API UMovieSceneCaptureProtocolBase : public UObject
+UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig, Abstract, MinimalAPI)
+class UMovieSceneCaptureProtocolBase : public UObject
 {
 public:
 
 	GENERATED_BODY()
 
-	UMovieSceneCaptureProtocolBase(const FObjectInitializer& ObjInit);
+	MOVIESCENECAPTURE_API UMovieSceneCaptureProtocolBase(const FObjectInitializer& ObjInit);
 
 public:
 
@@ -82,37 +82,37 @@ public:
 	 * @param InSettings		The initial initialization settings to use for the capture
 	 * @param Host				The client that is initializing this protocol
 	 */
-	bool Setup(const FCaptureProtocolInitSettings& InSettings, const ICaptureProtocolHost* Host);
+	MOVIESCENECAPTURE_API bool Setup(const FCaptureProtocolInitSettings& InSettings, const ICaptureProtocolHost* Host);
 
 	/**
 	 * Get the UWorld associated with this Capture Protocol. This is not valid until
 	 * Setup has been called with a valid Slate viewport. Will return nullptr when
 	 * the protocol has been created but the game world is not running (ie: in UI).
 	 */
-	virtual class UWorld* GetWorld() const override;
+	MOVIESCENECAPTURE_API virtual class UWorld* GetWorld() const override;
 public:
 
 	/**
 	 * Called on the main thread before the movie capture itself is updated to reset per-frame state
 	 */
-	void PreTick();
+	MOVIESCENECAPTURE_API void PreTick();
 
 	/**
 	 * Called on the main thread to do any additional processing
 	 */
-	void Tick();
+	MOVIESCENECAPTURE_API void Tick();
 
 	/**
 	 * Start warming up this capture protocol - called any time the process enters a warming-up state
 	 */
-	void WarmUp();
+	MOVIESCENECAPTURE_API void WarmUp();
 
 	/**
 	 * Called when this protocol should start capturing
 	 *
 	 * @return true if the operation was successful, false otherwise
 	 */
-	bool StartCapture();
+	MOVIESCENECAPTURE_API bool StartCapture();
 
 	/**
 	 * Instruct this protocol to capture a frame relating to the specified metrics
@@ -120,40 +120,40 @@ public:
 	 * @param FrameMetrics		Frame metrics relating to the current frame
 	 * @param Host				The client that is initializing this protocol
 	 */
-	void CaptureFrame(const FFrameMetrics& FrameMetrics);
+	MOVIESCENECAPTURE_API void CaptureFrame(const FFrameMetrics& FrameMetrics);
 
 	/**
 	 * Called when we have finished capturing and we should start finalizing the capture
 	 */
-	void BeginFinalize();
+	MOVIESCENECAPTURE_API void BeginFinalize();
 
 	/**
 	 * Check whether this protocol has any processing left to do, or whether it should be finalized.
 	 * Only called when the capture has been asked to end.
 	 */
-	bool HasFinishedProcessing() const;
+	MOVIESCENECAPTURE_API bool HasFinishedProcessing() const;
 
 	/**
 	 * Called when this protocol should tear down and finalize all its processing. Only called if HasFinishedProcessing is true.
 	 */
-	void Finalize();
+	MOVIESCENECAPTURE_API void Finalize();
 
 	/**
 	 * Called when generating formatting filename to add any additional format mappings
 	 *
 	 * @param FormatMappings	Map to add additional format rules to
 	 */
-	void AddFormatMappings(TMap<FString, FStringFormatArg>& FormatMappings) const;
+	MOVIESCENECAPTURE_API void AddFormatMappings(TMap<FString, FStringFormatArg>& FormatMappings) const;
 
 	/**
 	 * Called when this protocol has been released
 	 */
-	void OnReleaseConfig(FMovieSceneCaptureSettings& InSettings);
+	MOVIESCENECAPTURE_API void OnReleaseConfig(FMovieSceneCaptureSettings& InSettings);
 
 	/**
 	 * Called when this protocol has been loaded
 	 */
-	void OnLoadConfig(FMovieSceneCaptureSettings& InSettings);
+	MOVIESCENECAPTURE_API void OnLoadConfig(FMovieSceneCaptureSettings& InSettings);
 
 	/**
 	 * Test whether this capture protocol thinks the file should be written to. Only called when we're not overwriting existing files.
@@ -163,7 +163,7 @@ public:
 	 * @param bOverwriteExisting	Whether we are allowed to overwrite existing files
 	 * @return Whether we should deem this file writable or not
 	 */
-	bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting) const;
+	MOVIESCENECAPTURE_API bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting) const;
 
 protected:
 
@@ -253,9 +253,9 @@ protected:
 	 * @param bOverwriteExisting	Whether we are allowed to overwrite existing files
 	 * @return Whether we should deem this file writable or not
 	 */
-	virtual bool CanWriteToFileImpl(const TCHAR* InFilename, bool bOverwriteExisting) const;
-	virtual FString GenerateFilenameImpl(const FFrameMetrics& FrameMetrics, const TCHAR* Extension, const FString* NameFormatString = nullptr) const;
-	void EnsureFileWritableImpl(const FString& File) const;
+	MOVIESCENECAPTURE_API virtual bool CanWriteToFileImpl(const TCHAR* InFilename, bool bOverwriteExisting) const;
+	MOVIESCENECAPTURE_API virtual FString GenerateFilenameImpl(const FFrameMetrics& FrameMetrics, const TCHAR* Extension, const FString* NameFormatString = nullptr) const;
+	MOVIESCENECAPTURE_API void EnsureFileWritableImpl(const FString& File) const;
 
 protected:
 
@@ -278,8 +278,8 @@ private:
 /**
 * A class to inherit from for image capture protocols. Used to filter the UI for protocols used on the image capture pass.
 */
-UCLASS(config = EditorPerProjectUserSettings, PerObjectConfig, Abstract)
-class MOVIESCENECAPTURE_API  UMovieSceneImageCaptureProtocolBase : public UMovieSceneCaptureProtocolBase
+UCLASS(config = EditorPerProjectUserSettings, PerObjectConfig, Abstract, MinimalAPI)
+class  UMovieSceneImageCaptureProtocolBase : public UMovieSceneCaptureProtocolBase
 {
 	GENERATED_BODY()
 
@@ -293,8 +293,8 @@ public:
 /**
 * A class to inherit from for audio capture protocols. Used to filter the UI for protocols used on the audio capture pass.
 */
-UCLASS(config = EditorPerProjectUserSettings, PerObjectConfig, Abstract)
-class MOVIESCENECAPTURE_API UMovieSceneAudioCaptureProtocolBase : public UMovieSceneCaptureProtocolBase
+UCLASS(config = EditorPerProjectUserSettings, PerObjectConfig, Abstract, MinimalAPI)
+class UMovieSceneAudioCaptureProtocolBase : public UMovieSceneCaptureProtocolBase
 {
 	GENERATED_BODY()
 

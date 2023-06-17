@@ -14,7 +14,7 @@
 /**
  * Generic implementation for most platforms
  **/
-struct APPLICATIONCORE_API FGenericPlatformRHIFramePacer
+struct FGenericPlatformRHIFramePacer
 {
 	/**
 	 * The pace we are running at (30 = 30fps, 0 = unpaced)
@@ -39,18 +39,18 @@ struct APPLICATIONCORE_API FGenericPlatformRHIFramePacer
 	/**
 	 * Returns whether the hardware is able to frame pace at the specified frame rate
 	 */
-	static bool SupportsFramePace(int32 QueryFramePace);
+	static APPLICATIONCORE_API bool SupportsFramePace(int32 QueryFramePace);
 
 protected:
 	/**
 	 * The generic implementation returns a result based on rhi.SyncInterval and FPlatformMisc::GetMaxRefreshRate().
 	 */
-	static int32 GetFramePaceFromSyncInterval();
+	static APPLICATIONCORE_API int32 GetFramePaceFromSyncInterval();
 
 	/**
 	 * The generic implementation sets rhi.SyncInterval based on FPlatformMisc::GetMaxRefreshRate().
 	 *
 	 * @return the pace we will run at.
 	 */
-	static int32 SetFramePaceToSyncInterval(int32 FramePace);
+	static APPLICATIONCORE_API int32 SetFramePaceToSyncInterval(int32 FramePace);
 };

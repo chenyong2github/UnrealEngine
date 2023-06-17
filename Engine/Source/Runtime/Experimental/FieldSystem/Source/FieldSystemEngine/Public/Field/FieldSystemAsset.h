@@ -16,8 +16,8 @@
 class FArchive;
 
 
-UCLASS()
-class FIELDSYSTEMENGINE_API UFieldSystem : public UObject
+UCLASS(MinimalAPI)
+class UFieldSystem : public UObject
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ public:
 
 	void Reset() { Commands.Empty(); }
 
-	void Serialize(FArchive& Ar);
+	FIELDSYSTEMENGINE_API void Serialize(FArchive& Ar);
 
 	TArray< FFieldSystemCommand > Commands;
 

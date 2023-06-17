@@ -13,15 +13,15 @@ class UBehaviorTree;
  * Move Directly Toward task node.
  * Moves the AI pawn toward the specified Actor or Location (Vector) blackboard entry in a straight line, without regard to any navigation system. If you need the AI to navigate, use the "Move To" node instead.
  */
-UCLASS(config=Game)
-class AIMODULE_API UBTTask_MoveDirectlyToward : public UBTTask_MoveTo
+UCLASS(config=Game, MinimalAPI)
+class UBTTask_MoveDirectlyToward : public UBTTask_MoveTo
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void PostLoad() override;
-	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	AIMODULE_API virtual void PostLoad() override;
+	AIMODULE_API virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 
 	UE_DEPRECATED_FORGAME(4.12, "This property is now deprecated, use UBTTask_MoveTo::bTrackMovingGoal instead.")

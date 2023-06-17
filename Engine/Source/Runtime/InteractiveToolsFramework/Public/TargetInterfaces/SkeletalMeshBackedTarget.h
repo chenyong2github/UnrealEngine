@@ -9,13 +9,13 @@
 
 #include "SkeletalMeshBackedTarget.generated.h"
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API USkeletalMeshBackedTarget : public UAssetBackedTarget
+UINTERFACE(MinimalAPI)
+class USkeletalMeshBackedTarget : public UAssetBackedTarget
 {
 	GENERATED_BODY()
 };
 
-class INTERACTIVETOOLSFRAMEWORK_API ISkeletalMeshBackedTarget : public IAssetBackedTarget
+class ISkeletalMeshBackedTarget : public IAssetBackedTarget
 {
 	GENERATED_BODY()
 

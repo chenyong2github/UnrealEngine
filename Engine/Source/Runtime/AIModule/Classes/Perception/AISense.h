@@ -16,12 +16,12 @@ class UAISenseEvent;
 
 DECLARE_DELEGATE_OneParam(FOnPerceptionListenerUpdateDelegate, const FPerceptionListener&);
 
-UCLASS(ClassGroup = AI, abstract, config = Engine)
-class AIMODULE_API UAISense : public UObject
+UCLASS(ClassGroup = AI, abstract, config = Engine, MinimalAPI)
+class UAISense : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	static const float SuspendNextUpdate;
+	static AIMODULE_API const float SuspendNextUpdate;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AI Perception", config)
@@ -61,10 +61,10 @@ protected:
 				
 public:
 
-	virtual UWorld* GetWorld() const override;
+	AIMODULE_API virtual UWorld* GetWorld() const override;
 
 	/** use with caution! Needs to be called before any senses get instantiated or listeners registered. DOES NOT update any perceptions system instances */
-	static void HardcodeSenseID(TSubclassOf<UAISense> SenseClass, FAISenseID HardcodedID);
+	static AIMODULE_API void HardcodeSenseID(TSubclassOf<UAISense> SenseClass, FAISenseID HardcodedID);
 
 	static FAISenseID GetSenseID(const TSubclassOf<UAISense> SenseClass) { return SenseClass ? ((const UAISense*)SenseClass->GetDefaultObject())->SenseID : FAISenseID::InvalidID(); }
 	template<typename TSense>
@@ -76,7 +76,7 @@ public:
 
 	FORCEINLINE bool WantsUpdateOnlyOnPerceptionValueChange() const { return (NotifyType == EAISenseNotifyType::OnPerceptionChange); }
 
-	virtual void PostInitProperties() override;
+	AIMODULE_API virtual void PostInitProperties() override;
 
 	/** 
 	 *	@return should this sense be ticked now
@@ -99,8 +99,8 @@ public:
 	virtual void RegisterSource(AActor& SourceActors){}
 	virtual void UnregisterSource(AActor& SourceActors){}
 
-	virtual void RegisterWrappedEvent(UAISenseEvent& PerceptionEvent);
-	virtual FAISenseID UpdateSenseID();
+	AIMODULE_API virtual void RegisterWrappedEvent(UAISenseEvent& PerceptionEvent);
+	AIMODULE_API virtual FAISenseID UpdateSenseID();
 
 	bool NeedsNotificationOnForgetting() const { return bNeedsForgettingNotification; }
 	virtual void OnListenerForgetsActor(const FPerceptionListener& Listener, AActor& ActorToForget) {}
@@ -115,14 +115,14 @@ public:
 	bool ShouldAutoRegisterAllPawnsAsSources() const { return bAutoRegisterAllPawnsAsSources; }
 
 #if WITH_GAMEPLAY_DEBUGGER_MENU
-	virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionSystem& PerceptionSystem, FGameplayDebuggerCategory& DebuggerCategory) const;
+	AIMODULE_API virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionSystem& PerceptionSystem, FGameplayDebuggerCategory& DebuggerCategory) const;
 #endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 protected:
 	friend UAIPerceptionSystem;
 	/** gets called when perception system gets notified about new spawned pawn. 
 	 *	@Note: do not call super implementation. It's used to detect when subclasses don't override it */
-	virtual void OnNewPawn(APawn& NewPawn);
+	AIMODULE_API virtual void OnNewPawn(APawn& NewPawn);
 
 	/** @return time until next update */
 	virtual float Update() { return FLT_MAX; }
@@ -135,12 +135,12 @@ protected:
 
 	FORCEINLINE UAIPerceptionSystem* GetPerceptionSystem() { return PerceptionSystemInstance; }
 
-	void SetSenseID(FAISenseID Index);
+	AIMODULE_API void SetSenseID(FAISenseID Index);
 
 	/** returning pointer rather then a reference to prevent users from
 	 *	accidentally creating copies by creating non-reference local vars */
-	AIPerception::FListenerMap* GetListeners();
+	AIMODULE_API AIPerception::FListenerMap* GetListeners();
 
 	/** To be called only for BP-generated classes */
-	void ForceSenseID(FAISenseID SenseID);
+	AIMODULE_API void ForceSenseID(FAISenseID SenseID);
 };

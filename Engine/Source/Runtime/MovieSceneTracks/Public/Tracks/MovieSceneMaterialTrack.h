@@ -12,30 +12,30 @@
 /**
  * Handles manipulation of material parameters in a movie scene.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneMaterialTrack
+UCLASS(MinimalAPI)
+class UMovieSceneMaterialTrack
 	: public UMovieSceneNameableTrack
 {
 	GENERATED_BODY()
 
 public:
 
-	UMovieSceneMaterialTrack(const FObjectInitializer& ObjectInitializer);
+	MOVIESCENETRACKS_API UMovieSceneMaterialTrack(const FObjectInitializer& ObjectInitializer);
 
 	// UMovieSceneTrack interface
 
-	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
-	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual void RemoveAllAnimationData() override;
-	virtual bool HasSection(const UMovieSceneSection& Section) const override;
-	virtual void AddSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSectionAt(int32 SectionIndex) override;
-	virtual bool IsEmpty() const override;
-	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;	
-	virtual bool SupportsMultipleRows() const override;
-	virtual void SetSectionToKey(UMovieSceneSection* Section) override;
-	virtual UMovieSceneSection* GetSectionToKey() const override;
+	MOVIESCENETRACKS_API virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* CreateNewSection() override;
+	MOVIESCENETRACKS_API virtual void RemoveAllAnimationData() override;
+	MOVIESCENETRACKS_API virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	MOVIESCENETRACKS_API virtual void AddSection(UMovieSceneSection& Section) override;
+	MOVIESCENETRACKS_API virtual void RemoveSection(UMovieSceneSection& Section) override;
+	MOVIESCENETRACKS_API virtual void RemoveSectionAt(int32 SectionIndex) override;
+	MOVIESCENETRACKS_API virtual bool IsEmpty() const override;
+	MOVIESCENETRACKS_API virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;	
+	MOVIESCENETRACKS_API virtual bool SupportsMultipleRows() const override;
+	MOVIESCENETRACKS_API virtual void SetSectionToKey(UMovieSceneSection* Section) override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* GetSectionToKey() const override;
 
 public:
 
@@ -45,7 +45,7 @@ public:
 	 * @param Time The time to add the new key.
 	 * @param The value for the new key.
 	 */
-	void AddScalarParameterKey(FName ParameterName, FFrameNumber Position, float Value);
+	MOVIESCENETRACKS_API void AddScalarParameterKey(FName ParameterName, FFrameNumber Position, float Value);
 
 	/**
 	 * Adds a scalar parameter key to the track. 
@@ -54,7 +54,7 @@ public:
 	 * @param RowIndex The preferred row index on which to look for sections.
 	 * @param The value for the new key.
 	 */
-	void AddScalarParameterKey(FName ParameterName, FFrameNumber Position, int32 RowIndex, float Value);
+	MOVIESCENETRACKS_API void AddScalarParameterKey(FName ParameterName, FFrameNumber Position, int32 RowIndex, float Value);
 
 	/**
 	 * Adds a color parameter key to the track.
@@ -62,7 +62,7 @@ public:
 	 * @param Time The time to add the new key.
 	 * @param The value for the new key.
 	 */
-	void AddColorParameterKey(FName ParameterName, FFrameNumber Position, FLinearColor Value);
+	MOVIESCENETRACKS_API void AddColorParameterKey(FName ParameterName, FFrameNumber Position, FLinearColor Value);
 
 	/**
 	 * Adds a color parameter key to the track.
@@ -71,7 +71,7 @@ public:
 	 * @param RowIndex The preferred row index on which to look for sections.
 	 * @param The value for the new key.
 	 */
-	void AddColorParameterKey(FName ParameterName, FFrameNumber Position, int32 RowIndex, FLinearColor Value);
+	MOVIESCENETRACKS_API void AddColorParameterKey(FName ParameterName, FFrameNumber Position, int32 RowIndex, FLinearColor Value);
 
 private:
 

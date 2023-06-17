@@ -15,16 +15,16 @@ namespace UE::PropertyViewer
 {
 
 /** */
-class ADVANCEDWIDGETS_API IFieldIterator
+class IFieldIterator
 {
 public:
 	virtual TArray<FFieldVariant> GetFields(const UStruct*) const = 0;
 	virtual ~IFieldIterator() = default;
 };
 
-class ADVANCEDWIDGETS_API FFieldIterator_BlueprintVisible : public IFieldIterator
+class FFieldIterator_BlueprintVisible : public IFieldIterator
 {
-	virtual TArray<FFieldVariant> GetFields(const UStruct*) const override;
+	ADVANCEDWIDGETS_API virtual TArray<FFieldVariant> GetFields(const UStruct*) const override;
 };
 
 } //namespace

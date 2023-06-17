@@ -138,7 +138,7 @@ struct TStructOpsTypeTraits<FKey> : public TStructOpsTypeTraitsBase2<FKey>
 
 DECLARE_DELEGATE_RetVal_OneParam(FText, FGetKeyDisplayNameSignature, const FKey);
 
-struct INPUTCORE_API FKeyDetails
+struct FKeyDetails
 {
 	enum EKeyFlags
 	{
@@ -168,8 +168,8 @@ struct INPUTCORE_API FKeyDetails
 		NoFlags                  = 0,
 	};
 
-	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const uint32 InKeyFlags = 0, const FName InMenuCategory = NAME_None, const TAttribute<FText>& InShortDisplayName = TAttribute<FText>() );
-	FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const TAttribute<FText>& InShortDisplayName, const uint32 InKeyFlags = 0, const FName InMenuCategory = NAME_None);
+	INPUTCORE_API FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const uint32 InKeyFlags = 0, const FName InMenuCategory = NAME_None, const TAttribute<FText>& InShortDisplayName = TAttribute<FText>() );
+	INPUTCORE_API FKeyDetails(const FKey InKey, const TAttribute<FText>& InLongDisplayName, const TAttribute<FText>& InShortDisplayName, const uint32 InKeyFlags = 0, const FName InMenuCategory = NAME_None);
 
 	FORCEINLINE bool IsModifierKey() const { return bIsModifierKey != 0; }
 	FORCEINLINE bool IsGamepadKey() const { return bIsGamepadKey != 0; }
@@ -191,7 +191,7 @@ struct INPUTCORE_API FKeyDetails
 	FORCEINLINE bool IsGesture() const { return bIsGesture != 0; }
 	FORCEINLINE bool IsDeprecated() const { return bIsDeprecated != 0; }
 	FORCEINLINE FName GetMenuCategory() const { return MenuCategory; }
-	FText GetDisplayName(const bool bLongDisplayName = true) const;
+	INPUTCORE_API FText GetDisplayName(const bool bLongDisplayName = true) const;
 	FORCEINLINE const FKey& GetKey() const { return Key; }
 
 	// Key pairing
@@ -201,7 +201,7 @@ struct INPUTCORE_API FKeyDetails
 private:
 	friend struct EKeys;
 
-	void CommonInit(const uint32 InKeyFlags);
+	INPUTCORE_API void CommonInit(const uint32 InKeyFlags);
 
 	enum class EInputAxisType : uint8
 	{
@@ -271,441 +271,441 @@ namespace EConsoleForGamepadLabels
 	};
 }
 
-struct INPUTCORE_API EKeys
+struct EKeys
 {
-	static const FKey AnyKey;
+	static INPUTCORE_API const FKey AnyKey;
 
-	static const FKey MouseX;
-	static const FKey MouseY;
-	static const FKey Mouse2D;
-	static const FKey MouseScrollUp;
-	static const FKey MouseScrollDown;
-	static const FKey MouseWheelAxis;
+	static INPUTCORE_API const FKey MouseX;
+	static INPUTCORE_API const FKey MouseY;
+	static INPUTCORE_API const FKey Mouse2D;
+	static INPUTCORE_API const FKey MouseScrollUp;
+	static INPUTCORE_API const FKey MouseScrollDown;
+	static INPUTCORE_API const FKey MouseWheelAxis;
 
-	static const FKey LeftMouseButton;
-	static const FKey RightMouseButton;
-	static const FKey MiddleMouseButton;
-	static const FKey ThumbMouseButton;
-	static const FKey ThumbMouseButton2;
+	static INPUTCORE_API const FKey LeftMouseButton;
+	static INPUTCORE_API const FKey RightMouseButton;
+	static INPUTCORE_API const FKey MiddleMouseButton;
+	static INPUTCORE_API const FKey ThumbMouseButton;
+	static INPUTCORE_API const FKey ThumbMouseButton2;
 
-	static const FKey BackSpace;
-	static const FKey Tab;
-	static const FKey Enter;
-	static const FKey Pause;
+	static INPUTCORE_API const FKey BackSpace;
+	static INPUTCORE_API const FKey Tab;
+	static INPUTCORE_API const FKey Enter;
+	static INPUTCORE_API const FKey Pause;
 
-	static const FKey CapsLock;
-	static const FKey Escape;
-	static const FKey SpaceBar;
-	static const FKey PageUp;
-	static const FKey PageDown;
-	static const FKey End;
-	static const FKey Home;
+	static INPUTCORE_API const FKey CapsLock;
+	static INPUTCORE_API const FKey Escape;
+	static INPUTCORE_API const FKey SpaceBar;
+	static INPUTCORE_API const FKey PageUp;
+	static INPUTCORE_API const FKey PageDown;
+	static INPUTCORE_API const FKey End;
+	static INPUTCORE_API const FKey Home;
 
-	static const FKey Left;
-	static const FKey Up;
-	static const FKey Right;
-	static const FKey Down;
+	static INPUTCORE_API const FKey Left;
+	static INPUTCORE_API const FKey Up;
+	static INPUTCORE_API const FKey Right;
+	static INPUTCORE_API const FKey Down;
 
-	static const FKey Insert;
-	static const FKey Delete;
+	static INPUTCORE_API const FKey Insert;
+	static INPUTCORE_API const FKey Delete;
 
-	static const FKey Zero;
-	static const FKey One;
-	static const FKey Two;
-	static const FKey Three;
-	static const FKey Four;
-	static const FKey Five;
-	static const FKey Six;
-	static const FKey Seven;
-	static const FKey Eight;
-	static const FKey Nine;
+	static INPUTCORE_API const FKey Zero;
+	static INPUTCORE_API const FKey One;
+	static INPUTCORE_API const FKey Two;
+	static INPUTCORE_API const FKey Three;
+	static INPUTCORE_API const FKey Four;
+	static INPUTCORE_API const FKey Five;
+	static INPUTCORE_API const FKey Six;
+	static INPUTCORE_API const FKey Seven;
+	static INPUTCORE_API const FKey Eight;
+	static INPUTCORE_API const FKey Nine;
 
-	static const FKey A;
-	static const FKey B;
-	static const FKey C;
-	static const FKey D;
-	static const FKey E;
-	static const FKey F;
-	static const FKey G;
-	static const FKey H;
-	static const FKey I;
-	static const FKey J;
-	static const FKey K;
-	static const FKey L;
-	static const FKey M;
-	static const FKey N;
-	static const FKey O;
-	static const FKey P;
-	static const FKey Q;
-	static const FKey R;
-	static const FKey S;
-	static const FKey T;
-	static const FKey U;
-	static const FKey V;
-	static const FKey W;
-	static const FKey X;
-	static const FKey Y;
-	static const FKey Z;
+	static INPUTCORE_API const FKey A;
+	static INPUTCORE_API const FKey B;
+	static INPUTCORE_API const FKey C;
+	static INPUTCORE_API const FKey D;
+	static INPUTCORE_API const FKey E;
+	static INPUTCORE_API const FKey F;
+	static INPUTCORE_API const FKey G;
+	static INPUTCORE_API const FKey H;
+	static INPUTCORE_API const FKey I;
+	static INPUTCORE_API const FKey J;
+	static INPUTCORE_API const FKey K;
+	static INPUTCORE_API const FKey L;
+	static INPUTCORE_API const FKey M;
+	static INPUTCORE_API const FKey N;
+	static INPUTCORE_API const FKey O;
+	static INPUTCORE_API const FKey P;
+	static INPUTCORE_API const FKey Q;
+	static INPUTCORE_API const FKey R;
+	static INPUTCORE_API const FKey S;
+	static INPUTCORE_API const FKey T;
+	static INPUTCORE_API const FKey U;
+	static INPUTCORE_API const FKey V;
+	static INPUTCORE_API const FKey W;
+	static INPUTCORE_API const FKey X;
+	static INPUTCORE_API const FKey Y;
+	static INPUTCORE_API const FKey Z;
 
-	static const FKey NumPadZero;
-	static const FKey NumPadOne;
-	static const FKey NumPadTwo;
-	static const FKey NumPadThree;
-	static const FKey NumPadFour;
-	static const FKey NumPadFive;
-	static const FKey NumPadSix;
-	static const FKey NumPadSeven;
-	static const FKey NumPadEight;
-	static const FKey NumPadNine;
+	static INPUTCORE_API const FKey NumPadZero;
+	static INPUTCORE_API const FKey NumPadOne;
+	static INPUTCORE_API const FKey NumPadTwo;
+	static INPUTCORE_API const FKey NumPadThree;
+	static INPUTCORE_API const FKey NumPadFour;
+	static INPUTCORE_API const FKey NumPadFive;
+	static INPUTCORE_API const FKey NumPadSix;
+	static INPUTCORE_API const FKey NumPadSeven;
+	static INPUTCORE_API const FKey NumPadEight;
+	static INPUTCORE_API const FKey NumPadNine;
 
-	static const FKey Multiply;
-	static const FKey Add;
-	static const FKey Subtract;
-	static const FKey Decimal;
-	static const FKey Divide;
+	static INPUTCORE_API const FKey Multiply;
+	static INPUTCORE_API const FKey Add;
+	static INPUTCORE_API const FKey Subtract;
+	static INPUTCORE_API const FKey Decimal;
+	static INPUTCORE_API const FKey Divide;
 
-	static const FKey F1;
-	static const FKey F2;
-	static const FKey F3;
-	static const FKey F4;
-	static const FKey F5;
-	static const FKey F6;
-	static const FKey F7;
-	static const FKey F8;
-	static const FKey F9;
-	static const FKey F10;
-	static const FKey F11;
-	static const FKey F12;
+	static INPUTCORE_API const FKey F1;
+	static INPUTCORE_API const FKey F2;
+	static INPUTCORE_API const FKey F3;
+	static INPUTCORE_API const FKey F4;
+	static INPUTCORE_API const FKey F5;
+	static INPUTCORE_API const FKey F6;
+	static INPUTCORE_API const FKey F7;
+	static INPUTCORE_API const FKey F8;
+	static INPUTCORE_API const FKey F9;
+	static INPUTCORE_API const FKey F10;
+	static INPUTCORE_API const FKey F11;
+	static INPUTCORE_API const FKey F12;
 
-	static const FKey NumLock;
+	static INPUTCORE_API const FKey NumLock;
 
-	static const FKey ScrollLock;
+	static INPUTCORE_API const FKey ScrollLock;
 
-	static const FKey LeftShift;
-	static const FKey RightShift;
-	static const FKey LeftControl;
-	static const FKey RightControl;
-	static const FKey LeftAlt;
-	static const FKey RightAlt;
-	static const FKey LeftCommand;
-	static const FKey RightCommand;
+	static INPUTCORE_API const FKey LeftShift;
+	static INPUTCORE_API const FKey RightShift;
+	static INPUTCORE_API const FKey LeftControl;
+	static INPUTCORE_API const FKey RightControl;
+	static INPUTCORE_API const FKey LeftAlt;
+	static INPUTCORE_API const FKey RightAlt;
+	static INPUTCORE_API const FKey LeftCommand;
+	static INPUTCORE_API const FKey RightCommand;
 
-	static const FKey Semicolon;
-	static const FKey Equals;
-	static const FKey Comma;
-	static const FKey Underscore;
-	static const FKey Hyphen;
-	static const FKey Period;
-	static const FKey Slash;
-	static const FKey Tilde;
-	static const FKey LeftBracket;
-	static const FKey Backslash;
-	static const FKey RightBracket;
-	static const FKey Apostrophe;
+	static INPUTCORE_API const FKey Semicolon;
+	static INPUTCORE_API const FKey Equals;
+	static INPUTCORE_API const FKey Comma;
+	static INPUTCORE_API const FKey Underscore;
+	static INPUTCORE_API const FKey Hyphen;
+	static INPUTCORE_API const FKey Period;
+	static INPUTCORE_API const FKey Slash;
+	static INPUTCORE_API const FKey Tilde;
+	static INPUTCORE_API const FKey LeftBracket;
+	static INPUTCORE_API const FKey Backslash;
+	static INPUTCORE_API const FKey RightBracket;
+	static INPUTCORE_API const FKey Apostrophe;
 
-	static const FKey Ampersand;
-	static const FKey Asterix;
-	static const FKey Caret;
-	static const FKey Colon;
-	static const FKey Dollar;
-	static const FKey Exclamation;
-	static const FKey LeftParantheses;
-	static const FKey RightParantheses;
-	static const FKey Quote;
+	static INPUTCORE_API const FKey Ampersand;
+	static INPUTCORE_API const FKey Asterix;
+	static INPUTCORE_API const FKey Caret;
+	static INPUTCORE_API const FKey Colon;
+	static INPUTCORE_API const FKey Dollar;
+	static INPUTCORE_API const FKey Exclamation;
+	static INPUTCORE_API const FKey LeftParantheses;
+	static INPUTCORE_API const FKey RightParantheses;
+	static INPUTCORE_API const FKey Quote;
 
-	static const FKey A_AccentGrave;
-	static const FKey E_AccentGrave;
-	static const FKey E_AccentAigu;
-	static const FKey C_Cedille;
-	static const FKey Section;
+	static INPUTCORE_API const FKey A_AccentGrave;
+	static INPUTCORE_API const FKey E_AccentGrave;
+	static INPUTCORE_API const FKey E_AccentAigu;
+	static INPUTCORE_API const FKey C_Cedille;
+	static INPUTCORE_API const FKey Section;
 
 	// Platform Keys
 	// These keys platform specific versions of keys that go by different names.
 	// The delete key is a good example, on Windows Delete is the virtual key for Delete.
 	// On Macs, the Delete key is the virtual key for BackSpace.
-	static const FKey Platform_Delete;
+	static INPUTCORE_API const FKey Platform_Delete;
 
 	// Gamepad Keys
-	static const FKey Gamepad_Left2D;
-	static const FKey Gamepad_LeftX;
-	static const FKey Gamepad_LeftY;
-	static const FKey Gamepad_Right2D;
-	static const FKey Gamepad_RightX;
-	static const FKey Gamepad_RightY;
-	static const FKey Gamepad_LeftTriggerAxis;
-	static const FKey Gamepad_RightTriggerAxis;
+	static INPUTCORE_API const FKey Gamepad_Left2D;
+	static INPUTCORE_API const FKey Gamepad_LeftX;
+	static INPUTCORE_API const FKey Gamepad_LeftY;
+	static INPUTCORE_API const FKey Gamepad_Right2D;
+	static INPUTCORE_API const FKey Gamepad_RightX;
+	static INPUTCORE_API const FKey Gamepad_RightY;
+	static INPUTCORE_API const FKey Gamepad_LeftTriggerAxis;
+	static INPUTCORE_API const FKey Gamepad_RightTriggerAxis;
 
-	static const FKey Gamepad_LeftThumbstick;
-	static const FKey Gamepad_RightThumbstick;
-	static const FKey Gamepad_Special_Left;
-	static const FKey Gamepad_Special_Left_X;
-	static const FKey Gamepad_Special_Left_Y;
-	static const FKey Gamepad_Special_Right;
-	static const FKey Gamepad_FaceButton_Bottom;
-	static const FKey Gamepad_FaceButton_Right;
-	static const FKey Gamepad_FaceButton_Left;
-	static const FKey Gamepad_FaceButton_Top;
-	static const FKey Gamepad_LeftShoulder;
-	static const FKey Gamepad_RightShoulder;
-	static const FKey Gamepad_LeftTrigger;
-	static const FKey Gamepad_RightTrigger;
-	static const FKey Gamepad_DPad_Up;
-	static const FKey Gamepad_DPad_Down;
-	static const FKey Gamepad_DPad_Right;
-	static const FKey Gamepad_DPad_Left;
+	static INPUTCORE_API const FKey Gamepad_LeftThumbstick;
+	static INPUTCORE_API const FKey Gamepad_RightThumbstick;
+	static INPUTCORE_API const FKey Gamepad_Special_Left;
+	static INPUTCORE_API const FKey Gamepad_Special_Left_X;
+	static INPUTCORE_API const FKey Gamepad_Special_Left_Y;
+	static INPUTCORE_API const FKey Gamepad_Special_Right;
+	static INPUTCORE_API const FKey Gamepad_FaceButton_Bottom;
+	static INPUTCORE_API const FKey Gamepad_FaceButton_Right;
+	static INPUTCORE_API const FKey Gamepad_FaceButton_Left;
+	static INPUTCORE_API const FKey Gamepad_FaceButton_Top;
+	static INPUTCORE_API const FKey Gamepad_LeftShoulder;
+	static INPUTCORE_API const FKey Gamepad_RightShoulder;
+	static INPUTCORE_API const FKey Gamepad_LeftTrigger;
+	static INPUTCORE_API const FKey Gamepad_RightTrigger;
+	static INPUTCORE_API const FKey Gamepad_DPad_Up;
+	static INPUTCORE_API const FKey Gamepad_DPad_Down;
+	static INPUTCORE_API const FKey Gamepad_DPad_Right;
+	static INPUTCORE_API const FKey Gamepad_DPad_Left;
 
 	// Virtual key codes used for input axis button press/release emulation
-	static const FKey Gamepad_LeftStick_Up;
-	static const FKey Gamepad_LeftStick_Down;
-	static const FKey Gamepad_LeftStick_Right;
-	static const FKey Gamepad_LeftStick_Left;
+	static INPUTCORE_API const FKey Gamepad_LeftStick_Up;
+	static INPUTCORE_API const FKey Gamepad_LeftStick_Down;
+	static INPUTCORE_API const FKey Gamepad_LeftStick_Right;
+	static INPUTCORE_API const FKey Gamepad_LeftStick_Left;
 
-	static const FKey Gamepad_RightStick_Up;
-	static const FKey Gamepad_RightStick_Down;
-	static const FKey Gamepad_RightStick_Right;
-	static const FKey Gamepad_RightStick_Left;
+	static INPUTCORE_API const FKey Gamepad_RightStick_Up;
+	static INPUTCORE_API const FKey Gamepad_RightStick_Down;
+	static INPUTCORE_API const FKey Gamepad_RightStick_Right;
+	static INPUTCORE_API const FKey Gamepad_RightStick_Left;
 
 	// static const FKey Vector axes (FVector; not float)
-	static const FKey Tilt;
-	static const FKey RotationRate;
-	static const FKey Gravity;
-	static const FKey Acceleration;
+	static INPUTCORE_API const FKey Tilt;
+	static INPUTCORE_API const FKey RotationRate;
+	static INPUTCORE_API const FKey Gravity;
+	static INPUTCORE_API const FKey Acceleration;
 
 	// Gestures
-	static const FKey Gesture_Pinch;
-	static const FKey Gesture_Flick;
-	static const FKey Gesture_Rotate;
+	static INPUTCORE_API const FKey Gesture_Pinch;
+	static INPUTCORE_API const FKey Gesture_Flick;
+	static INPUTCORE_API const FKey Gesture_Rotate;
 
 	// PS4-specific
 	UE_DEPRECATED(5.0, "This key has deprecated and will be removed. Use GamePad_Special_Left/Right instead.")
-	static const FKey PS4_Special;
+	static INPUTCORE_API const FKey PS4_Special;
 
 	// Steam Controller Specific
-	static const FKey Steam_Touch_0;
-	static const FKey Steam_Touch_1;
-	static const FKey Steam_Touch_2;
-	static const FKey Steam_Touch_3;
-	static const FKey Steam_Back_Left;
-	static const FKey Steam_Back_Right;
+	static INPUTCORE_API const FKey Steam_Touch_0;
+	static INPUTCORE_API const FKey Steam_Touch_1;
+	static INPUTCORE_API const FKey Steam_Touch_2;
+	static INPUTCORE_API const FKey Steam_Touch_3;
+	static INPUTCORE_API const FKey Steam_Back_Left;
+	static INPUTCORE_API const FKey Steam_Back_Right;
 
 	// Xbox One global speech commands
-	static const FKey Global_Menu;
-	static const FKey Global_View;
-	static const FKey Global_Pause;
-	static const FKey Global_Play;
-	static const FKey Global_Back;
+	static INPUTCORE_API const FKey Global_Menu;
+	static INPUTCORE_API const FKey Global_View;
+	static INPUTCORE_API const FKey Global_Pause;
+	static INPUTCORE_API const FKey Global_Play;
+	static INPUTCORE_API const FKey Global_Back;
 
 	// Android-specific
-	static const FKey Android_Back;
-	static const FKey Android_Volume_Up;
-	static const FKey Android_Volume_Down;
-	static const FKey Android_Menu;
+	static INPUTCORE_API const FKey Android_Back;
+	static INPUTCORE_API const FKey Android_Volume_Up;
+	static INPUTCORE_API const FKey Android_Volume_Down;
+	static INPUTCORE_API const FKey Android_Menu;
 
 	// HTC Vive Controller
 	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
-	static const FKey Vive_Left_System_Click;
-	static const FKey Vive_Left_Grip_Click;
-	static const FKey Vive_Left_Menu_Click;
-	static const FKey Vive_Left_Trigger_Click;
-	static const FKey Vive_Left_Trigger_Axis;
-	static const FKey Vive_Left_Trackpad_2D;
-	static const FKey Vive_Left_Trackpad_X;
-	static const FKey Vive_Left_Trackpad_Y;
-	static const FKey Vive_Left_Trackpad_Click;
-	static const FKey Vive_Left_Trackpad_Touch;
-	static const FKey Vive_Left_Trackpad_Up;
-	static const FKey Vive_Left_Trackpad_Down;
-	static const FKey Vive_Left_Trackpad_Left;
-	static const FKey Vive_Left_Trackpad_Right;
+	static INPUTCORE_API const FKey Vive_Left_System_Click;
+	static INPUTCORE_API const FKey Vive_Left_Grip_Click;
+	static INPUTCORE_API const FKey Vive_Left_Menu_Click;
+	static INPUTCORE_API const FKey Vive_Left_Trigger_Click;
+	static INPUTCORE_API const FKey Vive_Left_Trigger_Axis;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_2D;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_X;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_Y;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_Click;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_Touch;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_Up;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_Down;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_Left;
+	static INPUTCORE_API const FKey Vive_Left_Trackpad_Right;
 	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
-	static const FKey Vive_Right_System_Click;
-	static const FKey Vive_Right_Grip_Click;
-	static const FKey Vive_Right_Menu_Click;
-	static const FKey Vive_Right_Trigger_Click;
-	static const FKey Vive_Right_Trigger_Axis;
-	static const FKey Vive_Right_Trackpad_2D;
-	static const FKey Vive_Right_Trackpad_X;
-	static const FKey Vive_Right_Trackpad_Y;
-	static const FKey Vive_Right_Trackpad_Click;
-	static const FKey Vive_Right_Trackpad_Touch;
-	static const FKey Vive_Right_Trackpad_Up;
-	static const FKey Vive_Right_Trackpad_Down;
-	static const FKey Vive_Right_Trackpad_Left;
-	static const FKey Vive_Right_Trackpad_Right;
+	static INPUTCORE_API const FKey Vive_Right_System_Click;
+	static INPUTCORE_API const FKey Vive_Right_Grip_Click;
+	static INPUTCORE_API const FKey Vive_Right_Menu_Click;
+	static INPUTCORE_API const FKey Vive_Right_Trigger_Click;
+	static INPUTCORE_API const FKey Vive_Right_Trigger_Axis;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_2D;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_X;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_Y;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_Click;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_Touch;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_Up;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_Down;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_Left;
+	static INPUTCORE_API const FKey Vive_Right_Trackpad_Right;
 
 	// Microsoft Mixed Reality Motion Controller
-	static const FKey MixedReality_Left_Menu_Click;
-	static const FKey MixedReality_Left_Grip_Click;
-	static const FKey MixedReality_Left_Trigger_Click;
-	static const FKey MixedReality_Left_Trigger_Axis;
-	static const FKey MixedReality_Left_Thumbstick_2D;
-	static const FKey MixedReality_Left_Thumbstick_X;
-	static const FKey MixedReality_Left_Thumbstick_Y;
-	static const FKey MixedReality_Left_Thumbstick_Click;
-	static const FKey MixedReality_Left_Thumbstick_Up;
-	static const FKey MixedReality_Left_Thumbstick_Down;
-	static const FKey MixedReality_Left_Thumbstick_Left;
-	static const FKey MixedReality_Left_Thumbstick_Right;
-	static const FKey MixedReality_Left_Trackpad_2D;
-	static const FKey MixedReality_Left_Trackpad_X;
-	static const FKey MixedReality_Left_Trackpad_Y;
-	static const FKey MixedReality_Left_Trackpad_Click;
-	static const FKey MixedReality_Left_Trackpad_Touch;
-	static const FKey MixedReality_Left_Trackpad_Up;
-	static const FKey MixedReality_Left_Trackpad_Down;
-	static const FKey MixedReality_Left_Trackpad_Left;
-	static const FKey MixedReality_Left_Trackpad_Right;
-	static const FKey MixedReality_Right_Menu_Click;
-	static const FKey MixedReality_Right_Grip_Click;
-	static const FKey MixedReality_Right_Trigger_Click;
-	static const FKey MixedReality_Right_Trigger_Axis;
-	static const FKey MixedReality_Right_Thumbstick_2D;
-	static const FKey MixedReality_Right_Thumbstick_X;
-	static const FKey MixedReality_Right_Thumbstick_Y;
-	static const FKey MixedReality_Right_Thumbstick_Click;
-	static const FKey MixedReality_Right_Thumbstick_Up;
-	static const FKey MixedReality_Right_Thumbstick_Down;
-	static const FKey MixedReality_Right_Thumbstick_Left;
-	static const FKey MixedReality_Right_Thumbstick_Right;
-	static const FKey MixedReality_Right_Trackpad_2D;
-	static const FKey MixedReality_Right_Trackpad_X;
-	static const FKey MixedReality_Right_Trackpad_Y;
-	static const FKey MixedReality_Right_Trackpad_Click;
-	static const FKey MixedReality_Right_Trackpad_Touch;
-	static const FKey MixedReality_Right_Trackpad_Up;
-	static const FKey MixedReality_Right_Trackpad_Down;
-	static const FKey MixedReality_Right_Trackpad_Left;
-	static const FKey MixedReality_Right_Trackpad_Right;
+	static INPUTCORE_API const FKey MixedReality_Left_Menu_Click;
+	static INPUTCORE_API const FKey MixedReality_Left_Grip_Click;
+	static INPUTCORE_API const FKey MixedReality_Left_Trigger_Click;
+	static INPUTCORE_API const FKey MixedReality_Left_Trigger_Axis;
+	static INPUTCORE_API const FKey MixedReality_Left_Thumbstick_2D;
+	static INPUTCORE_API const FKey MixedReality_Left_Thumbstick_X;
+	static INPUTCORE_API const FKey MixedReality_Left_Thumbstick_Y;
+	static INPUTCORE_API const FKey MixedReality_Left_Thumbstick_Click;
+	static INPUTCORE_API const FKey MixedReality_Left_Thumbstick_Up;
+	static INPUTCORE_API const FKey MixedReality_Left_Thumbstick_Down;
+	static INPUTCORE_API const FKey MixedReality_Left_Thumbstick_Left;
+	static INPUTCORE_API const FKey MixedReality_Left_Thumbstick_Right;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_2D;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_X;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_Y;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_Click;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_Touch;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_Up;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_Down;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_Left;
+	static INPUTCORE_API const FKey MixedReality_Left_Trackpad_Right;
+	static INPUTCORE_API const FKey MixedReality_Right_Menu_Click;
+	static INPUTCORE_API const FKey MixedReality_Right_Grip_Click;
+	static INPUTCORE_API const FKey MixedReality_Right_Trigger_Click;
+	static INPUTCORE_API const FKey MixedReality_Right_Trigger_Axis;
+	static INPUTCORE_API const FKey MixedReality_Right_Thumbstick_2D;
+	static INPUTCORE_API const FKey MixedReality_Right_Thumbstick_X;
+	static INPUTCORE_API const FKey MixedReality_Right_Thumbstick_Y;
+	static INPUTCORE_API const FKey MixedReality_Right_Thumbstick_Click;
+	static INPUTCORE_API const FKey MixedReality_Right_Thumbstick_Up;
+	static INPUTCORE_API const FKey MixedReality_Right_Thumbstick_Down;
+	static INPUTCORE_API const FKey MixedReality_Right_Thumbstick_Left;
+	static INPUTCORE_API const FKey MixedReality_Right_Thumbstick_Right;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_2D;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_X;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_Y;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_Click;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_Touch;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_Up;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_Down;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_Left;
+	static INPUTCORE_API const FKey MixedReality_Right_Trackpad_Right;
 
 	// Oculus Touch Controller
-	static const FKey OculusTouch_Left_X_Click;
-	static const FKey OculusTouch_Left_Y_Click;
-	static const FKey OculusTouch_Left_X_Touch;
-	static const FKey OculusTouch_Left_Y_Touch;
-	static const FKey OculusTouch_Left_Menu_Click;
-	static const FKey OculusTouch_Left_Grip_Click;
-	static const FKey OculusTouch_Left_Grip_Axis;
-	static const FKey OculusTouch_Left_Trigger_Click;
-	static const FKey OculusTouch_Left_Trigger_Axis;
-	static const FKey OculusTouch_Left_Trigger_Touch;
-	static const FKey OculusTouch_Left_Thumbstick_2D;
-	static const FKey OculusTouch_Left_Thumbstick_X;
-	static const FKey OculusTouch_Left_Thumbstick_Y;
-	static const FKey OculusTouch_Left_Thumbstick_Click;
-	static const FKey OculusTouch_Left_Thumbstick_Touch;
-	static const FKey OculusTouch_Left_Thumbstick_Up;
-	static const FKey OculusTouch_Left_Thumbstick_Down;
-	static const FKey OculusTouch_Left_Thumbstick_Left;
-	static const FKey OculusTouch_Left_Thumbstick_Right;
-	static const FKey OculusTouch_Right_A_Click;
-	static const FKey OculusTouch_Right_B_Click;
-	static const FKey OculusTouch_Right_A_Touch;
-	static const FKey OculusTouch_Right_B_Touch;
+	static INPUTCORE_API const FKey OculusTouch_Left_X_Click;
+	static INPUTCORE_API const FKey OculusTouch_Left_Y_Click;
+	static INPUTCORE_API const FKey OculusTouch_Left_X_Touch;
+	static INPUTCORE_API const FKey OculusTouch_Left_Y_Touch;
+	static INPUTCORE_API const FKey OculusTouch_Left_Menu_Click;
+	static INPUTCORE_API const FKey OculusTouch_Left_Grip_Click;
+	static INPUTCORE_API const FKey OculusTouch_Left_Grip_Axis;
+	static INPUTCORE_API const FKey OculusTouch_Left_Trigger_Click;
+	static INPUTCORE_API const FKey OculusTouch_Left_Trigger_Axis;
+	static INPUTCORE_API const FKey OculusTouch_Left_Trigger_Touch;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_2D;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_X;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_Y;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_Click;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_Touch;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_Up;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_Down;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_Left;
+	static INPUTCORE_API const FKey OculusTouch_Left_Thumbstick_Right;
+	static INPUTCORE_API const FKey OculusTouch_Right_A_Click;
+	static INPUTCORE_API const FKey OculusTouch_Right_B_Click;
+	static INPUTCORE_API const FKey OculusTouch_Right_A_Touch;
+	static INPUTCORE_API const FKey OculusTouch_Right_B_Touch;
 	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
-	static const FKey OculusTouch_Right_System_Click;
-	static const FKey OculusTouch_Right_Grip_Click;
-	static const FKey OculusTouch_Right_Grip_Axis;
-	static const FKey OculusTouch_Right_Trigger_Click;
-	static const FKey OculusTouch_Right_Trigger_Axis;
-	static const FKey OculusTouch_Right_Trigger_Touch;
-	static const FKey OculusTouch_Right_Thumbstick_2D;
-	static const FKey OculusTouch_Right_Thumbstick_X;
-	static const FKey OculusTouch_Right_Thumbstick_Y;
-	static const FKey OculusTouch_Right_Thumbstick_Click;
-	static const FKey OculusTouch_Right_Thumbstick_Touch;
-	static const FKey OculusTouch_Right_Thumbstick_Up;
-	static const FKey OculusTouch_Right_Thumbstick_Down;
-	static const FKey OculusTouch_Right_Thumbstick_Left;
-	static const FKey OculusTouch_Right_Thumbstick_Right;
+	static INPUTCORE_API const FKey OculusTouch_Right_System_Click;
+	static INPUTCORE_API const FKey OculusTouch_Right_Grip_Click;
+	static INPUTCORE_API const FKey OculusTouch_Right_Grip_Axis;
+	static INPUTCORE_API const FKey OculusTouch_Right_Trigger_Click;
+	static INPUTCORE_API const FKey OculusTouch_Right_Trigger_Axis;
+	static INPUTCORE_API const FKey OculusTouch_Right_Trigger_Touch;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_2D;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_X;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_Y;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_Click;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_Touch;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_Up;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_Down;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_Left;
+	static INPUTCORE_API const FKey OculusTouch_Right_Thumbstick_Right;
 
 	// Valve Index Controller
-	static const FKey ValveIndex_Left_A_Click;
-	static const FKey ValveIndex_Left_B_Click;
-	static const FKey ValveIndex_Left_A_Touch;
-	static const FKey ValveIndex_Left_B_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Left_A_Click;
+	static INPUTCORE_API const FKey ValveIndex_Left_B_Click;
+	static INPUTCORE_API const FKey ValveIndex_Left_A_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Left_B_Touch;
 	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
-	static const FKey ValveIndex_Left_System_Click;
+	static INPUTCORE_API const FKey ValveIndex_Left_System_Click;
 	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
-	static const FKey ValveIndex_Left_System_Touch;
-	static const FKey ValveIndex_Left_Grip_Axis;
-	static const FKey ValveIndex_Left_Grip_Force;
-	static const FKey ValveIndex_Left_Trigger_Click;
-	static const FKey ValveIndex_Left_Trigger_Axis;
-	static const FKey ValveIndex_Left_Trigger_Touch;
-	static const FKey ValveIndex_Left_Thumbstick_2D;
-	static const FKey ValveIndex_Left_Thumbstick_X;
-	static const FKey ValveIndex_Left_Thumbstick_Y;
-	static const FKey ValveIndex_Left_Thumbstick_Click;
-	static const FKey ValveIndex_Left_Thumbstick_Touch;
-	static const FKey ValveIndex_Left_Thumbstick_Up;
-	static const FKey ValveIndex_Left_Thumbstick_Down;
-	static const FKey ValveIndex_Left_Thumbstick_Left;
-	static const FKey ValveIndex_Left_Thumbstick_Right;
-	static const FKey ValveIndex_Left_Trackpad_2D;
-	static const FKey ValveIndex_Left_Trackpad_X;
-	static const FKey ValveIndex_Left_Trackpad_Y;
-	static const FKey ValveIndex_Left_Trackpad_Force;
-	static const FKey ValveIndex_Left_Trackpad_Touch;
-	static const FKey ValveIndex_Left_Trackpad_Up;
-	static const FKey ValveIndex_Left_Trackpad_Down;
-	static const FKey ValveIndex_Left_Trackpad_Left;
-	static const FKey ValveIndex_Left_Trackpad_Right;
-	static const FKey ValveIndex_Right_A_Click;
-	static const FKey ValveIndex_Right_B_Click;
-	static const FKey ValveIndex_Right_A_Touch;
-	static const FKey ValveIndex_Right_B_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Left_System_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Left_Grip_Axis;
+	static INPUTCORE_API const FKey ValveIndex_Left_Grip_Force;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trigger_Click;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trigger_Axis;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trigger_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_2D;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_X;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_Y;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_Click;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_Up;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_Down;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_Left;
+	static INPUTCORE_API const FKey ValveIndex_Left_Thumbstick_Right;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_2D;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_X;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_Y;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_Force;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_Up;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_Down;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_Left;
+	static INPUTCORE_API const FKey ValveIndex_Left_Trackpad_Right;
+	static INPUTCORE_API const FKey ValveIndex_Right_A_Click;
+	static INPUTCORE_API const FKey ValveIndex_Right_B_Click;
+	static INPUTCORE_API const FKey ValveIndex_Right_A_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Right_B_Touch;
 	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
-	static const FKey ValveIndex_Right_System_Click;
+	static INPUTCORE_API const FKey ValveIndex_Right_System_Click;
 	UE_DEPRECATED(5.1, "This key has been deprecated and will be removed.")
-	static const FKey ValveIndex_Right_System_Touch;
-	static const FKey ValveIndex_Right_Grip_Axis;
-	static const FKey ValveIndex_Right_Grip_Force;
-	static const FKey ValveIndex_Right_Trigger_Click;
-	static const FKey ValveIndex_Right_Trigger_Axis;
-	static const FKey ValveIndex_Right_Trigger_Touch;
-	static const FKey ValveIndex_Right_Thumbstick_2D;
-	static const FKey ValveIndex_Right_Thumbstick_X;
-	static const FKey ValveIndex_Right_Thumbstick_Y;
-	static const FKey ValveIndex_Right_Thumbstick_Click;
-	static const FKey ValveIndex_Right_Thumbstick_Touch;
-	static const FKey ValveIndex_Right_Thumbstick_Up;
-	static const FKey ValveIndex_Right_Thumbstick_Down;
-	static const FKey ValveIndex_Right_Thumbstick_Left;
-	static const FKey ValveIndex_Right_Thumbstick_Right;
-	static const FKey ValveIndex_Right_Trackpad_2D;
-	static const FKey ValveIndex_Right_Trackpad_X;
-	static const FKey ValveIndex_Right_Trackpad_Y;
-	static const FKey ValveIndex_Right_Trackpad_Force;
-	static const FKey ValveIndex_Right_Trackpad_Touch;
-	static const FKey ValveIndex_Right_Trackpad_Up;
-	static const FKey ValveIndex_Right_Trackpad_Down;
-	static const FKey ValveIndex_Right_Trackpad_Left;
-	static const FKey ValveIndex_Right_Trackpad_Right;
+	static INPUTCORE_API const FKey ValveIndex_Right_System_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Right_Grip_Axis;
+	static INPUTCORE_API const FKey ValveIndex_Right_Grip_Force;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trigger_Click;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trigger_Axis;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trigger_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_2D;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_X;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_Y;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_Click;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_Up;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_Down;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_Left;
+	static INPUTCORE_API const FKey ValveIndex_Right_Thumbstick_Right;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_2D;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_X;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_Y;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_Force;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_Touch;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_Up;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_Down;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_Left;
+	static INPUTCORE_API const FKey ValveIndex_Right_Trackpad_Right;
 
 	// Virtual buttons that use other buttons depending on the platform
-	static const FKey Virtual_Accept;
-	static const FKey Virtual_Back;
+	static INPUTCORE_API const FKey Virtual_Accept;
+	static INPUTCORE_API const FKey Virtual_Back;
 
-	static const FKey Invalid;
+	static INPUTCORE_API const FKey Invalid;
 
 	static const int32 NUM_TOUCH_KEYS = 11;
-	static const FKey TouchKeys[NUM_TOUCH_KEYS];
+	static INPUTCORE_API const FKey TouchKeys[NUM_TOUCH_KEYS];
 
 	// XR key names are parseable into exactly 4 tokens
 	static const int32 NUM_XR_KEY_TOKENS = 4;
 
-	static EConsoleForGamepadLabels::Type ConsoleForGamepadLabels;
+	static INPUTCORE_API EConsoleForGamepadLabels::Type ConsoleForGamepadLabels;
 
-	static const FName NAME_KeyboardCategory;
-	static const FName NAME_GamepadCategory;
-	static const FName NAME_MouseCategory;
+	static INPUTCORE_API const FName NAME_KeyboardCategory;
+	static INPUTCORE_API const FName NAME_GamepadCategory;
+	static INPUTCORE_API const FName NAME_MouseCategory;
 
-	static void Initialize();
-	static void AddKey(const FKeyDetails& KeyDetails);
-	static void AddPairedKey(const FKeyDetails& PairedKeyDetails, FKey KeyX, FKey KeyY);	// Map the two provided keys to the X and Z axes of the paired key
-	static void GetAllKeys(TArray<FKey>& OutKeys);
-	static TSharedPtr<FKeyDetails> GetKeyDetails(const FKey Key);
-	static void RemoveKeysWithCategory(const FName InCategory);
+	static INPUTCORE_API void Initialize();
+	static INPUTCORE_API void AddKey(const FKeyDetails& KeyDetails);
+	static INPUTCORE_API void AddPairedKey(const FKeyDetails& PairedKeyDetails, FKey KeyX, FKey KeyY);	// Map the two provided keys to the X and Z axes of the paired key
+	static INPUTCORE_API void GetAllKeys(TArray<FKey>& OutKeys);
+	static INPUTCORE_API TSharedPtr<FKeyDetails> GetKeyDetails(const FKey Key);
+	static INPUTCORE_API void RemoveKeysWithCategory(const FName InCategory);
 
 	// These exist for backwards compatibility reasons only
 	static bool IsModifierKey(FKey Key) { return Key.IsModifierKey(); }
@@ -715,11 +715,11 @@ struct INPUTCORE_API EKeys
 	static void SetConsoleForGamepadLabels(const EConsoleForGamepadLabels::Type Console) { ConsoleForGamepadLabels = Console; }
 
 	// Function that provides remapping for some gamepad keys in display windows
-	static FText GetGamepadDisplayName(const FKey Key);
+	static INPUTCORE_API FText GetGamepadDisplayName(const FKey Key);
 
-	static void AddMenuCategoryDisplayInfo(const FName CategoryName, const FText DisplayName, const FName PaletteIcon);
-	static FText GetMenuCategoryDisplayName(const FName CategoryName);
-	static FName GetMenuCategoryPaletteIcon(const FName CategoryName);
+	static INPUTCORE_API void AddMenuCategoryDisplayInfo(const FName CategoryName, const FText DisplayName, const FName PaletteIcon);
+	static INPUTCORE_API FText GetMenuCategoryDisplayName(const FName CategoryName);
+	static INPUTCORE_API FName GetMenuCategoryPaletteIcon(const FName CategoryName);
 
 private:
 
@@ -729,9 +729,9 @@ private:
 		FName PaletteIcon;
 	};
 
-	static TMap<FKey, TSharedPtr<FKeyDetails> > InputKeys;
-	static TMap<FName, FCategoryDisplayInfo> MenuCategoryDisplayInfo;
-	static bool bInitialized;
+	static INPUTCORE_API TMap<FKey, TSharedPtr<FKeyDetails> > InputKeys;
+	static INPUTCORE_API TMap<FName, FCategoryDisplayInfo> MenuCategoryDisplayInfo;
+	static INPUTCORE_API bool bInitialized;
 
 };
 
@@ -753,19 +753,19 @@ namespace ETouchType
 }
 
 
-struct INPUTCORE_API FInputKeyManager
+struct FInputKeyManager
 {
 public:
-	static FInputKeyManager& Get();
+	static INPUTCORE_API FInputKeyManager& Get();
 
-	void GetCodesFromKey(const FKey Key, const uint32*& KeyCode, const uint32*& CharCode) const;
+	INPUTCORE_API void GetCodesFromKey(const FKey Key, const uint32*& KeyCode, const uint32*& CharCode) const;
 
 	/**
 	 * Retrieves the key mapped to the specified character code.
 	 * @param KeyCode	The key code to get the name for.
 	 */
-	FKey GetKeyFromCodes( const uint32 KeyCode, const uint32 CharCode ) const;
-	void InitKeyMappings();
+	INPUTCORE_API FKey GetKeyFromCodes( const uint32 KeyCode, const uint32 CharCode ) const;
+	INPUTCORE_API void InitKeyMappings();
 private:
 	FInputKeyManager()
 	{

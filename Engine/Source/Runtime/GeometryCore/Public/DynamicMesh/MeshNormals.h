@@ -22,7 +22,7 @@ namespace Geometry
  * FMeshNormals is a utility class that can calculate and store various types of
  * normal vectors for a FDynamicMesh. 
  */
-class GEOMETRYCORE_API FMeshNormals
+class FMeshNormals
 {
 protected:
 	/** Target Mesh */
@@ -56,7 +56,7 @@ public:
 	/**
 	 * Set the size of the Normals array to Count, and optionally clear all values to (0,0,0)
 	 */
-	void SetCount(int Count, bool bClearToZero);
+	GEOMETRYCORE_API void SetCount(int Count, bool bClearToZero);
 
 	/**
 	 * Compute standard per-vertex normals by averaging one-ring face normals
@@ -84,7 +84,7 @@ public:
 	 * This won't help if a whole mesh componenent is entirely made of such degenerate triangles
 	 * (which is usually ok).
 	 */
-	void SetDegenerateTriangleNormalsToNeighborNormal();
+	GEOMETRYCORE_API void SetDegenerateTriangleNormalsToNeighborNormal();
 
 	/**
 	 * Recompute the per-element normals of the given overlay by averaging one-ring face normals
@@ -101,27 +101,27 @@ public:
 	 * @warning assumes that the computed normals are vertex normals
 	 * @param bInvert if true, normals are flipped
 	 */
-	void CopyToVertexNormals(FDynamicMesh3* SetMesh, bool bInvert = false) const;
+	GEOMETRYCORE_API void CopyToVertexNormals(FDynamicMesh3* SetMesh, bool bInvert = false) const;
 
 	/**
 	 * Copy the current set of normals to the NormalOverlay attribute layer
 	 * @warning assumes that the computed normals are attribute normals
 	 * @param bInvert if true, normals are flipped
 	 */
-	void CopyToOverlay(FDynamicMeshNormalOverlay* NormalOverlay, bool bInvert = false) const;
+	GEOMETRYCORE_API void CopyToOverlay(FDynamicMeshNormalOverlay* NormalOverlay, bool bInvert = false) const;
 
 
 	/**
 	 * Compute per-vertex normals for the given Mesh
 	 * @param bInvert if true, normals are flipped
 	 */
-	static void QuickComputeVertexNormals(FDynamicMesh3& Mesh, bool bInvert = false);
+	static GEOMETRYCORE_API void QuickComputeVertexNormals(FDynamicMesh3& Mesh, bool bInvert = false);
 
 
 	/**
 	 * Apply rounds of explicit uniform-weighted normal smoothing to the VertexNormals attribute of the given Mesh.
 	 */
-	static void SmoothVertexNormals(FDynamicMesh3& Mesh, int32 SmoothingRounds, double SmoothingAlpha);
+	static GEOMETRYCORE_API void SmoothVertexNormals(FDynamicMesh3& Mesh, int32 SmoothingRounds, double SmoothingAlpha);
 
 
 	/**
@@ -130,7 +130,7 @@ public:
 	 * @param bWeightByAngle weight neighbor triangles by angle
 	 * @param bInvert if true, normals are flipped
 	 */
-	static void QuickComputeVertexNormalsForTriangles(FDynamicMesh3& Mesh, const TArray<int32>& Triangles, bool bWeightByArea = true, bool bWeightByAngle = true, bool bInvert = false);
+	static GEOMETRYCORE_API void QuickComputeVertexNormalsForTriangles(FDynamicMesh3& Mesh, const TArray<int32>& Triangles, bool bWeightByArea = true, bool bWeightByAngle = true, bool bInvert = false);
 
 
 	/**
@@ -139,7 +139,7 @@ public:
 	 * @param bWeightByAngle weight neighbor triangles by angle
 	 * @return the vertex normal at vertex VertIdx of Mesh.
 	 */
-	static FVector3d ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertIdx, bool bWeightByArea = true, bool bWeightByAngle = true);
+	static GEOMETRYCORE_API FVector3d ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertIdx, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 	/**
 	 * Compute normal at mesh vertex by weighted sum of subset of one-ring triangle normals. Can optionally weight by area, angle, or both (averaged)
@@ -148,7 +148,7 @@ public:
 	 * @param bWeightByAngle weight neighbor triangles by angle
 	 * @return the vertex normal at vertex VertIdx of Mesh.
 	 */
-	static FVector3d ComputeVertexNormal(const FDynamicMesh3& Mesh, int32 VertIdx, TFunctionRef<bool(int32)> TriangleFilterFunc, bool bWeightByArea = true, bool bWeightByAngle = true);
+	static GEOMETRYCORE_API FVector3d ComputeVertexNormal(const FDynamicMesh3& Mesh, int32 VertIdx, TFunctionRef<bool(int32)> TriangleFilterFunc, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 
 	/**
@@ -156,54 +156,54 @@ public:
 	 * @param bWeightByArea weight neighbor triangles by area
 	 * @param bWeightByAngle weight neighbor triangles by angle
 	 */
-	static FVector3d ComputeOverlayNormal(const FDynamicMesh3& Mesh, const FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx, bool bWeightByArea = true, bool bWeightByAngle = true);
+	static GEOMETRYCORE_API FVector3d ComputeOverlayNormal(const FDynamicMesh3& Mesh, const FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 	/**
 	 * Initialize the given NormalOverlay with per-vertex normals, ie single overlay element for each mesh vertex.
 	 * @param bUseMeshVertexNormalsIfAvailable if true and the parent mesh has per-vertex normals, use them instead of calculating new ones
 	 */
-	static void InitializeOverlayToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, bool bUseMeshVertexNormalsIfAvailable = true);
+	static GEOMETRYCORE_API void InitializeOverlayToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, bool bUseMeshVertexNormalsIfAvailable = true);
 
 
 	/**
 	 * Initialize the given NormalOverlay with per-face normals, ie separate overlay element for each vertex of each triangle.
 	 */
-	static void InitializeOverlayToPerTriangleNormals(FDynamicMeshNormalOverlay* NormalOverlay);
+	static GEOMETRYCORE_API void InitializeOverlayToPerTriangleNormals(FDynamicMeshNormalOverlay* NormalOverlay);
 
 
-	static void InitializeOverlayTopologyFromOpeningAngle(const FDynamicMesh3* Mesh, FDynamicMeshNormalOverlay* NormalOverlay, 
+	static GEOMETRYCORE_API void InitializeOverlayTopologyFromOpeningAngle(const FDynamicMesh3* Mesh, FDynamicMeshNormalOverlay* NormalOverlay, 
 		double AngleThresholdDeg);
 
-	static void InitializeOverlayTopologyFromFaceGroups(const FDynamicMesh3* Mesh, FDynamicMeshNormalOverlay* NormalOverlay);
+	static GEOMETRYCORE_API void InitializeOverlayTopologyFromFaceGroups(const FDynamicMesh3* Mesh, FDynamicMeshNormalOverlay* NormalOverlay);
 
 
 	/**
 	 * Initialize the given Mesh with per-face normals, ie separate overlay element for each vertex of each triangle.
 	 */
-	static void InitializeMeshToPerTriangleNormals(FDynamicMesh3* Mesh);
+	static GEOMETRYCORE_API void InitializeMeshToPerTriangleNormals(FDynamicMesh3* Mesh);
 
 
 	/**
 	 * Initialize the given triangles of NormalOverlay with per-vertex normals, ie single overlay element for each mesh vertex.
 	 * Only the triangles included in the region are considered when calculating per-vertex normals.
 	 */
-	static void InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, const TArray<int32>& Triangles);
+	static GEOMETRYCORE_API void InitializeOverlayRegionToPerVertexNormals(FDynamicMeshNormalOverlay* NormalOverlay, const TArray<int32>& Triangles);
 
 	/**
 	 * Compute overlay normals for the given mesh
 	 * @param bInvert if true, normals are flipped
 	 */
-	static bool QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert = false, bool bWeightByArea = true, bool bWeightByAngle = true);
+	static GEOMETRYCORE_API bool QuickRecomputeOverlayNormals(FDynamicMesh3& Mesh, bool bInvert = false, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 	/**
 	 * Compute overlay normals for the given mesh, for the given set of triangles
 	 */
-	static bool RecomputeOverlayTriNormals(FDynamicMesh3& Mesh, const TArray<int32>& Triangles, bool bWeightByArea = true, bool bWeightByAngle = true);
+	static GEOMETRYCORE_API bool RecomputeOverlayTriNormals(FDynamicMesh3& Mesh, const TArray<int32>& Triangles, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 	/**
 	 * Compute overlay normals for the given mesh, for the given set of element IDs
 	 */
-	static bool RecomputeOverlayElementNormals(FDynamicMesh3& Mesh, const TArray<int32>& ElementIDs, bool bWeightByArea = true, bool bWeightByAngle = true);
+	static GEOMETRYCORE_API bool RecomputeOverlayElementNormals(FDynamicMesh3& Mesh, const TArray<int32>& ElementIDs, bool bWeightByArea = true, bool bWeightByAngle = true);
 
 	/**
 	 * Retrieve the area and/or angle weights for each vertex of a triangle
@@ -213,21 +213,21 @@ public:
 	 * @param bWeightByArea if true, include weighting by the area of the triangle
 	 * @param bWeightByAngle if true, include weighting by the interior angles of the triangle
 	 */
-	static FVector3d GetVertexWeightsOnTriangle(const FDynamicMesh3* Mesh, int TriID, double TriArea, bool bWeightByArea, bool bWeightByAngle);
+	static GEOMETRYCORE_API FVector3d GetVertexWeightsOnTriangle(const FDynamicMesh3* Mesh, int TriID, double TriArea, bool bWeightByArea, bool bWeightByAngle);
 
 protected:
 	/** Compute per-vertex normals using area-weighted averaging of one-ring triangle normals */
-	void Compute_FaceAvg_AreaWeighted();
+	GEOMETRYCORE_API void Compute_FaceAvg_AreaWeighted();
 	/** Compute per-vertex normals using a custom combination of area-weighted and angle-weighted averaging of one-ring triangle normals */
-	void Compute_FaceAvg(bool bWeightByArea, bool bWeightByAngle);
+	GEOMETRYCORE_API void Compute_FaceAvg(bool bWeightByArea, bool bWeightByAngle);
 
 	/** Compute per-triangle normals */
-	void Compute_Triangle();
+	GEOMETRYCORE_API void Compute_Triangle();
 
 	/** Recompute the element Normals of the given attribute overlay using area-weighted averaging of one-ring triangle normals */
-	void Compute_Overlay_FaceAvg_AreaWeighted(const FDynamicMeshNormalOverlay* NormalOverlay);
+	GEOMETRYCORE_API void Compute_Overlay_FaceAvg_AreaWeighted(const FDynamicMeshNormalOverlay* NormalOverlay);
 	/** Recompute the element Normals of the given attribute overlay using a custom combination of area-weighted and angle-weighted averaging of one-ring triangle normals */
-	void Compute_Overlay_FaceAvg(const FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea, bool bWeightByAngle);
+	GEOMETRYCORE_API void Compute_Overlay_FaceAvg(const FDynamicMeshNormalOverlay* NormalOverlay, bool bWeightByArea, bool bWeightByAngle);
 
 };
 

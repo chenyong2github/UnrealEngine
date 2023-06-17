@@ -36,23 +36,23 @@ namespace Audio
 	};
 
 	// Basic implementation of a 4x4 Feedback Delay Network
-	class SIGNALPROCESSING_API FEarlyReflections
+	class FEarlyReflections
 	{
 	public:
-		FEarlyReflections();
-		virtual ~FEarlyReflections();
+		SIGNALPROCESSING_API FEarlyReflections();
+		SIGNALPROCESSING_API virtual ~FEarlyReflections();
 
-		void Init(const int32 InSampleRate);
+		SIGNALPROCESSING_API void Init(const int32 InSampleRate);
 
 		// Sets the reverb settings, applies, and updates
-		void SetSettings(const FEarlyReflectionsSettings& InSettings);
+		SIGNALPROCESSING_API void SetSettings(const FEarlyReflectionsSettings& InSettings);
 
 		// Process the single audio frame
-		void ProcessAudioFrame(const float* InBuffer, const int32 InChannels, float* OutBuffer, const int32 OutChannels);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InBuffer, const int32 InChannels, float* OutBuffer, const int32 OutChannels);
 
 	protected:
-		void ApplySettings();
-		float ProcessDelayLine(const float InSample, FDelayAPF& InAPF, FOnePoleLPF& InLPF);
+		SIGNALPROCESSING_API void ApplySettings();
+		SIGNALPROCESSING_API float ProcessDelayLine(const float InSample, FDelayAPF& InAPF, FOnePoleLPF& InLPF);
 
 		FEarlyReflectionsSettings Settings;
 
@@ -119,30 +119,30 @@ namespace Audio
 		{}
 	};
 
-	class SIGNALPROCESSING_API FPlateReverb
+	class FPlateReverb
 	{
 	public:
-		FPlateReverb();
-		~FPlateReverb();
+		SIGNALPROCESSING_API FPlateReverb();
+		SIGNALPROCESSING_API ~FPlateReverb();
 
 		// Initialize the reverb with the given sample rate
-		void Init(const int32 InSampleRate);
+		SIGNALPROCESSING_API void Init(const int32 InSampleRate);
 
 		// Whether or not to enable late reflections
-		void EnableLateReflections(const bool bInEnableLateReflections);
+		SIGNALPROCESSING_API void EnableLateReflections(const bool bInEnableLateReflections);
 
 		// Whether or not to enable late reflections
-		void EnableEarlyReflections(const bool bInEnableEarlyReflections);
+		SIGNALPROCESSING_API void EnableEarlyReflections(const bool bInEnableEarlyReflections);
 
 		// Sets the reverb settings, applies, and updates
-		void SetSettings(const FPlateReverbSettings& InSettings);
+		SIGNALPROCESSING_API void SetSettings(const FPlateReverbSettings& InSettings);
 
 		// Process the single audio frame
-		void ProcessAudioFrame(const float* InBuffer, const int32 InChannels, float* OutBuffer, const int32 OutChannels);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InBuffer, const int32 InChannels, float* OutBuffer, const int32 OutChannels);
 
 	protected:
 
-		void ApplySettings();
+		SIGNALPROCESSING_API void ApplySettings();
 
 		// Current parameter settings of reverb
 		FPlateReverbSettings Settings;

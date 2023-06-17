@@ -24,8 +24,8 @@ template <typename T> struct TObjectPtr;
  * Abstract class to control clothing specific interaction.
  * Must be cast to the end used clothing simulation object before use.
  */
-UCLASS(Abstract, BlueprintType)
-class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingInteractor : public UObject
+UCLASS(Abstract, BlueprintType, MinimalAPI)
+class UClothingInteractor : public UObject
 {
 	GENERATED_BODY()
 
@@ -45,17 +45,17 @@ protected:
  * Only write to the simulation and context during the call to Sync, as that is
  * guaranteed to be a safe place to access this data.
  */
-UCLASS(Abstract, BlueprintType)
-class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingSimulationInteractor : public UObject
+UCLASS(Abstract, BlueprintType, MinimalAPI)
+class UClothingSimulationInteractor : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	/** Create a cloth specific interactor. */
-	void CreateClothingInteractor(const UClothingAssetBase* ClothingAsset, int32 ClothingId);
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API void CreateClothingInteractor(const UClothingAssetBase* ClothingAsset, int32 ClothingId);
 
 	/** Destroy all interactors. */
-	void DestroyClothingInteractors();
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API void DestroyClothingInteractors();
 
 	// Basic interface that clothing simulations are required to support
 
@@ -66,46 +66,46 @@ public:
 	 * written in a way to pick up these changes on the next update.
 	 * Any inherited class must call this function to also Sync the ClothingInteractors.
 	 */
-	virtual void Sync(IClothingSimulation* Simulation, IClothingSimulationContext* Context);
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void Sync(IClothingSimulation* Simulation, IClothingSimulationContext* Context);
 
 	/** Called to update collision status without restarting the simulation. */
 	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
-	virtual void PhysicsAssetUpdated()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void PhysicsAssetUpdated()
 	PURE_VIRTUAL(UClothingSimulationInteractor::PhysicsAssetUpdated, );
 
 	/** Called to update the cloth config without restarting the simulation. */
 	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
-	virtual void ClothConfigUpdated()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void ClothConfigUpdated()
 	PURE_VIRTUAL(UClothingSimulationInteractor::ClothConfigUpdated, );
 
 	/** Set the stiffness of the spring force for the animation drive. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual void SetAnimDriveSpringStiffness(float InStiffness)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void SetAnimDriveSpringStiffness(float InStiffness)
 	PURE_VIRTUAL(UClothingSimulationInteractor::SetAnimDriveSpringStiffness, );
 
 	/** Set a new gravity override and enable the override. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual void EnableGravityOverride(const FVector& InVector)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void EnableGravityOverride(const FVector& InVector)
 	PURE_VIRTUAL(UClothingSimulationInteractor::EnableGravityOverride, );
 
 	/** Disable any currently set gravity override. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual void DisableGravityOverride()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void DisableGravityOverride()
 	PURE_VIRTUAL(UClothingSimulationInteractor::DisableGravityOverride, );
 
 	/** Set the number of time dependent solver iterations. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual void SetNumIterations(int32 NumIterations = 1)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void SetNumIterations(int32 NumIterations = 1)
 	PURE_VIRTUAL(UClothingSimulationInteractor::SetNumIterations, );
 
 	/** Set the maximum number of solver iterations. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual void SetMaxNumIterations(int32 MaxNumIterations = 10)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void SetMaxNumIterations(int32 MaxNumIterations = 10)
 	PURE_VIRTUAL(UClothingSimulationInteractor::SetMaxNumIterations, );
 
 	/** Set the number of substeps or subdivisions. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation, Meta = (Keywords = "Subdivisions"))
-	virtual void SetNumSubsteps(int32 NumSubsteps = 1)
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual void SetNumSubsteps(int32 NumSubsteps = 1)
 	PURE_VIRTUAL(UClothingSimulationInteractor::SetNumSubsteps, );
 
 	// Base clothing simulations interface
@@ -142,14 +142,14 @@ public:
 
 	/**Return a cloth interactor for this simulation. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	UClothingInteractor* GetClothingInteractor(const FString& ClothingAssetName) const;
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingInteractor* GetClothingInteractor(const FString& ClothingAssetName) const;
 
 	/** Cloth interactors currently created. */
 	UPROPERTY()
 	TMap<FName, TObjectPtr<UClothingInteractor>> ClothingInteractors;
 
 protected:
-	virtual UClothingInteractor* CreateClothingInteractor()
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API virtual UClothingInteractor* CreateClothingInteractor()
 	PURE_VIRTUAL(UClothingSimulationInteractor::CreateClothingInteractor, return nullptr;);
 
 private:

@@ -20,7 +20,7 @@ struct FSlateBrush;
  * The Mesh's material is used.
  * Hardware instancing is supported.
  */
-class UMG_API SMeshWidget : public SLeafWidget, public FGCObject
+class SMeshWidget : public SLeafWidget, public FGCObject
 {
 public:
 	SLATE_BEGIN_ARGS(SMeshWidget)
@@ -30,17 +30,17 @@ public:
 		SLATE_ARGUMENT(USlateVectorArtData*, MeshData)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& Args);
+	UMG_API void Construct(const FArguments& Args);
 
 	/**
 	 * Draw the InStaticMesh when this widget paints.
 	 *
 	 * @return the Index of the mesh data that was added; cache this value for use with @see FRenderRun.
 	 */
-	uint32 AddMesh(USlateVectorArtData& InMeshData);
+	UMG_API uint32 AddMesh(USlateVectorArtData& InMeshData);
 
 	/** Much like AddMesh, but also enables instancing support for this MeshId. */
-	uint32 AddMeshWithInstancing(USlateVectorArtData& InMeshData, int32 InitialBufferSize = 1);
+	UMG_API uint32 AddMeshWithInstancing(USlateVectorArtData& InMeshData, int32 InitialBufferSize = 1);
 
 	/**
 	 * Switch from static material to material instance dynamic.
@@ -49,10 +49,10 @@ public:
 	 * 
 	 * @return The MID for this Asset on which parameters can be set.
 	 */
-	UMaterialInstanceDynamic* ConvertToMID( uint32 MeshId );
+	UMG_API UMaterialInstanceDynamic* ConvertToMID( uint32 MeshId );
 
 	/** Discard any previous runs and reserve space for new render runs if needed. */
-	void ClearRuns(int32 NumRuns);
+	UMG_API void ClearRuns(int32 NumRuns);
 
 	/**
 	 * Tell the widget to draw instances of a mesh a given number of times starting at
@@ -68,25 +68,25 @@ public:
 	}
 
 	/** Enable hardware instancing */
-	void EnableInstancing(uint32 MeshId, int32 InitialSize);
+	UMG_API void EnableInstancing(uint32 MeshId, int32 InitialSize);
 
 	/** Updates the per instance buffer. Automatically enables hardware instancing. */
-	void UpdatePerInstanceBuffer(uint32 MeshId, FSlateInstanceBufferData& Data);
+	UMG_API void UpdatePerInstanceBuffer(uint32 MeshId, FSlateInstanceBufferData& Data);
 
 protected:
 	// BEGIN SLeafWidget interface
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	UMG_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	UMG_API virtual FVector2D ComputeDesiredSize(float) const override;
 	// END SLeafWidget interface
 
 	// ~ FGCObject
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override;
+	UMG_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	UMG_API virtual FString GetReferencerName() const override;
 	// ~ FGCObject
 
 protected:
-	static void PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVector2D& Position, float Scale, uint32 BaseAddress);
-	static void PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVector2D& Position, float Scale, float OptionalFloat = 0);
+	static UMG_API void PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVector2D& Position, float Scale, uint32 BaseAddress);
+	static UMG_API void PushUpdate(uint32 VectorArtId, SMeshWidget& Widget, const FVector2D& Position, float Scale, float OptionalFloat = 0);
 
 	struct FRenderData
 	{

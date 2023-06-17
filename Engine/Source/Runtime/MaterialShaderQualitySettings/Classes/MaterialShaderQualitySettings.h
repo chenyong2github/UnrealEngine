@@ -15,27 +15,27 @@ class UShaderPlatformQualitySettings;
 enum EShaderPlatform : uint16;
 
 //UCLASS(config = Engine, defaultconfig)
-UCLASS()
-class MATERIALSHADERQUALITYSETTINGS_API UMaterialShaderQualitySettings : public UObject
+UCLASS(MinimalAPI)
+class UMaterialShaderQualitySettings : public UObject
 {
 public:
 	GENERATED_UCLASS_BODY()
 
-	UShaderPlatformQualitySettings* GetShaderPlatformQualitySettings(FName PlatformName);
+	MATERIALSHADERQUALITYSETTINGS_API UShaderPlatformQualitySettings* GetShaderPlatformQualitySettings(FName PlatformName);
 
-	const UShaderPlatformQualitySettings* GetShaderPlatformQualitySettings(EShaderPlatform ShaderPlatform);
+	MATERIALSHADERQUALITYSETTINGS_API const UShaderPlatformQualitySettings* GetShaderPlatformQualitySettings(EShaderPlatform ShaderPlatform);
 
-	bool HasPlatformQualitySettings(EShaderPlatform ShaderPlatform, EMaterialQualityLevel::Type QualityLevel);
+	MATERIALSHADERQUALITYSETTINGS_API bool HasPlatformQualitySettings(EShaderPlatform ShaderPlatform, EMaterialQualityLevel::Type QualityLevel);
 
 #if WITH_EDITOR
 	// Override GetShaderPlatformQualitySettings() return value with the specified platform's settings.
 	// An empty PlatformName or otherwise non existent platform will cause GetShaderPlatformQualitySettings() 
 	// to revert to its default behaviour.
-	void SetPreviewPlatform(FName PlatformName);
-	const FName& GetPreviewPlatform();
+	MATERIALSHADERQUALITYSETTINGS_API void SetPreviewPlatform(FName PlatformName);
+	MATERIALSHADERQUALITYSETTINGS_API const FName& GetPreviewPlatform();
 #endif
 
-	static UMaterialShaderQualitySettings* Get();
+	static MATERIALSHADERQUALITYSETTINGS_API UMaterialShaderQualitySettings* Get();
 
 private:
 	UShaderPlatformQualitySettings* GetOrCreatePlatformSettings(FName ShaderPlatformName);

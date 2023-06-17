@@ -10,10 +10,10 @@
 struct FEnvQueryContextData;
 struct FEnvQueryInstance;
 
-UCLASS(Abstract, EditInlineNew)
-class AIMODULE_API UEnvQueryContext : public UObject
+UCLASS(Abstract, EditInlineNew, MinimalAPI)
+class UEnvQueryContext : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const;
+	AIMODULE_API virtual void ProvideContext(FEnvQueryInstance& QueryInstance, FEnvQueryContextData& ContextData) const;
 };

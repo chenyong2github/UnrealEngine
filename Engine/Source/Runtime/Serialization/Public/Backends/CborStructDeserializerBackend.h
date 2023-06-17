@@ -16,7 +16,7 @@ class FProperty;
 /**
  * Implements a reader for UStruct deserialization using Cbor.
  */
-class SERIALIZATION_API FCborStructDeserializerBackend
+class FCborStructDeserializerBackend
 	: public IStructDeserializerBackend
 {
 public:
@@ -27,20 +27,20 @@ public:
 	 * @param CborDataEndianness The CBOR data endianness stored in the archive.
 	 * @note For backward compatibility and performance, the implementation default to the the platform endianness rather than the CBOR standard one (big endian).
 	 */
-	FCborStructDeserializerBackend(FArchive& Archive, ECborEndianness CborDataEndianness = ECborEndianness::Platform, bool bInIsLWCCompatibilityMode = false);
-	virtual ~FCborStructDeserializerBackend();
+	SERIALIZATION_API FCborStructDeserializerBackend(FArchive& Archive, ECborEndianness CborDataEndianness = ECborEndianness::Platform, bool bInIsLWCCompatibilityMode = false);
+	SERIALIZATION_API virtual ~FCborStructDeserializerBackend();
 
 public:
 
 	// IStructDeserializerBackend interface
-	virtual const FString& GetCurrentPropertyName() const override;
-	virtual FString GetDebugString() const override;
-	virtual const FString& GetLastErrorMessage() const override;
-	virtual bool GetNextToken(EStructDeserializerBackendTokens& OutToken) override;
-	virtual bool ReadProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex) override;
-	virtual bool ReadPODArray(FArrayProperty* ArrayProperty, void* Data) override;
-	virtual void SkipArray() override;
-	virtual void SkipStructure() override;
+	SERIALIZATION_API virtual const FString& GetCurrentPropertyName() const override;
+	SERIALIZATION_API virtual FString GetDebugString() const override;
+	SERIALIZATION_API virtual const FString& GetLastErrorMessage() const override;
+	SERIALIZATION_API virtual bool GetNextToken(EStructDeserializerBackendTokens& OutToken) override;
+	SERIALIZATION_API virtual bool ReadProperty(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex) override;
+	SERIALIZATION_API virtual bool ReadPODArray(FArrayProperty* ArrayProperty, void* Data) override;
+	SERIALIZATION_API virtual void SkipArray() override;
+	SERIALIZATION_API virtual void SkipStructure() override;
 
 private:
 	/** Holds the Cbor reader used for the actual reading of the archive. */

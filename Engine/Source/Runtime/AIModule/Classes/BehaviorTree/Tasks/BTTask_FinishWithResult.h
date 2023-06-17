@@ -7,16 +7,16 @@
 /**
  * Instantly finishes with given result
  */
-UCLASS()
-class AIMODULE_API UBTTask_FinishWithResult : public UBTTaskNode
+UCLASS(MinimalAPI)
+class UBTTask_FinishWithResult : public UBTTaskNode
 {
 	GENERATED_BODY()
 
 public:
-	UBTTask_FinishWithResult(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UBTTask_FinishWithResult(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 	
 protected:
 	/** allows adding random time to wait time */

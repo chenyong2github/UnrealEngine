@@ -19,8 +19,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMenuOpenChangedEvent, bool, bIsOp
  * * Single Child
  * * Popup
  */
-UCLASS()
-class UMG_API UMenuAnchor : public UContentWidget
+UCLASS(MinimalAPI)
+class UMenuAnchor : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -73,18 +73,18 @@ public:
 	//TODO UMG Add Set MenuClass
 
 	UFUNCTION(BlueprintCallable, Category = "Menu Anchor")
-	void SetPlacement(EMenuPlacement InPlacement);
+	UMG_API void SetPlacement(EMenuPlacement InPlacement);
 
-	EMenuPlacement GetPlacement() const;
+	UMG_API EMenuPlacement GetPlacement() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Menu Anchor")
-	void FitInWindow(bool bFit);
+	UMG_API void FitInWindow(bool bFit);
 
-	bool IsFitInWindow() const;
+	UMG_API bool IsFitInWindow() const;
 
-	bool IsDeferPaintingAfterWindowContent() const;
+	UMG_API bool IsDeferPaintingAfterWindowContent() const;
 
-	bool IsUseApplicationMenuStack() const;
+	UMG_API bool IsUseApplicationMenuStack() const;
 
 public:
 
@@ -94,19 +94,19 @@ public:
 	 * @param bFocusOnOpen  Should we focus the popup as soon as it opens?
 	 */
 	UFUNCTION(BlueprintCallable, Category="Menu Anchor")
-	void ToggleOpen(bool bFocusOnOpen);
+	UMG_API void ToggleOpen(bool bFocusOnOpen);
 
 	/** Opens the menu if it is not already open */
 	UFUNCTION(BlueprintCallable, Category="Menu Anchor")
-	void Open(bool bFocusMenu);
+	UMG_API void Open(bool bFocusMenu);
 
 	/** Closes the menu if it is currently open. */
 	UFUNCTION(BlueprintCallable, Category="Menu Anchor")
-	void Close();
+	UMG_API void Close();
 
 	/** Returns true if the popup is open; false otherwise. */
 	UFUNCTION(BlueprintCallable, Category="Menu Anchor")
-	bool IsOpen() const;
+	UMG_API bool IsOpen() const;
 
 	/**
 	 * Returns true if we should open the menu due to a click. Sometimes we should not, if
@@ -114,43 +114,43 @@ public:
 	 * happens to land on the button.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Menu Anchor")
-	bool ShouldOpenDueToClick() const;
+	UMG_API bool ShouldOpenDueToClick() const;
 
 	/** Returns the current menu position */
 	UFUNCTION(BlueprintCallable, Category="Menu Anchor")
-	FVector2D GetMenuPosition() const;
+	UMG_API FVector2D GetMenuPosition() const;
 
 	/** Returns whether this menu has open submenus */
 	UFUNCTION(BlueprintCallable, Category="Menu Anchor")
-	bool HasOpenSubMenus() const;
+	UMG_API bool HasOpenSubMenus() const;
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
 	// Initialize ShouldDeferPaintingAfterWindowContent in the constructor before the SWidget is constructed.
-	void InitShouldDeferPaintingAfterWindowContent(bool InShouldDeferPaintingAfterWindowContent);
+	UMG_API void InitShouldDeferPaintingAfterWindowContent(bool InShouldDeferPaintingAfterWindowContent);
 
 	// Initialize UseApplicationMenuStack in the constructor before the SWidget is constructed.
-	void InitUseApplicationMenuStack(bool InUseApplicationMenuStack);
+	UMG_API void InitUseApplicationMenuStack(bool InUseApplicationMenuStack);
 
 
 protected:
-	TSharedRef<SWidget> HandleGetMenuContent();
-	void HandleMenuOpenChanged(bool bIsOpen);
+	UMG_API TSharedRef<SWidget> HandleGetMenuContent();
+	UMG_API void HandleMenuOpenChanged(bool bIsOpen);
 
 protected:
 	TSharedPtr<SMenuAnchor> MyMenuAnchor;

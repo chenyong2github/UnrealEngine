@@ -44,7 +44,7 @@ struct FTypedElementHandle;
  * to construct a Tool. This information comes from a level above the Tools framework,
  * and depends on the context we are in (Editor vs Runtime, for example).
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
+struct FToolBuilderState
 {
 	/** The current UWorld */
 	UWorld* World = nullptr;
@@ -77,7 +77,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
  * FViewCameraState is a bucket of state information that a Tool might
  * need to implement interactions that depend on the current scene view.
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FViewCameraState
+struct FViewCameraState
 {
 	/** Current camera/head position */
 	FVector Position;
@@ -156,7 +156,7 @@ enum class EToolContextTransformGizmoMode : uint8
 /**
  * Snapping configuration settings/state
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FToolContextSnappingConfiguration
+struct FToolContextSnappingConfiguration
 {
 	/** Specify whether position snapping should be applied */
 	bool bEnablePositionGridSnapping = false;

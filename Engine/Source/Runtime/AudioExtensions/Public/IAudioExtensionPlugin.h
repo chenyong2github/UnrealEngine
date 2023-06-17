@@ -180,8 +180,8 @@ struct FAudioPluginSourceOutputData
 };
 
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API USpatializationPluginSourceSettingsBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USpatializationPluginSourceSettingsBase : public UObject
 {
 	GENERATED_BODY()
 };
@@ -380,8 +380,8 @@ public:
 
 
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API USourceDataOverridePluginSourceSettingsBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USourceDataOverridePluginSourceSettingsBase : public UObject
 {
 	GENERATED_BODY()
 };
@@ -465,8 +465,8 @@ public:
 };
 
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API UOcclusionPluginSourceSettingsBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class UOcclusionPluginSourceSettingsBase : public UObject
 {
 	GENERATED_BODY()
 };
@@ -580,8 +580,8 @@ public:
 
 
 /** This is a class which should be overridden to provide users with settings to use for individual sounds */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API UReverbPluginSourceSettingsBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class UReverbPluginSourceSettingsBase : public UObject
 {
 	GENERATED_BODY()
 };

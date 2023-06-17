@@ -30,8 +30,8 @@ class UTransformProxy;
  * UGizmoBaseTransformSource is a base implementation of IGizmoTransformSource that 
  * adds an OnTransformChanged delegate. This class cannot be used directly and must be subclassed.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoBaseTransformSource : public UObject, public IGizmoTransformSource
+UCLASS(MinimalAPI)
+class UGizmoBaseTransformSource : public UObject, public IGizmoTransformSource
 {
 	GENERATED_BODY()
 public:
@@ -57,15 +57,15 @@ public:
  * UGizmoComponentWorldTransformSource implements IGizmoTransformSource (via UGizmoBaseTransformSource)
  * based on the internal transform of a USceneComponent.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoComponentWorldTransformSource : public UGizmoBaseTransformSource
+UCLASS(MinimalAPI)
+class UGizmoComponentWorldTransformSource : public UGizmoBaseTransformSource
 {
 	GENERATED_BODY()
 public:
 
-	virtual FTransform GetTransform() const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FTransform GetTransform() const override;
 
-	virtual void SetTransform(const FTransform& NewTransform) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetTransform(const FTransform& NewTransform) override;
 
 	UPROPERTY()
 	TObjectPtr<USceneComponent> Component;
@@ -116,8 +116,8 @@ struct FSeparateScaleProvider
  * an external source via FSeparateScaleProvider, and in GetTransform/SetTransform rewrites the
  * Transform from the child IGizmoTransformSource with the new scale.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoScaledTransformSource : public UGizmoBaseTransformSource
+UCLASS(MinimalAPI)
+class UGizmoScaledTransformSource : public UGizmoBaseTransformSource
 {
 	GENERATED_BODY()
 public:
@@ -125,12 +125,12 @@ public:
 	/**
 	 * IGizmoTransformSource implementation, returns child transform with local sclae
 	 */
-	virtual FTransform GetTransform() const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FTransform GetTransform() const override;
 
 	/**
 	 * IGizmoTransformSource implementation, removes scale and sends to ScaleProvider, then forwards remaining rotate+translate transform to child
 	 */
-	virtual void SetTransform(const FTransform& NewTransform) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetTransform(const FTransform& NewTransform) override;
 
 	/**
 	 * Child transform source
@@ -146,7 +146,7 @@ public:
 	/**
 	 * Return the child transform with combined scale
 	 */
-	FTransform GetScaledTransform() const;
+	INTERACTIVETOOLSFRAMEWORK_API FTransform GetScaledTransform() const;
 
 public:
 	/**
@@ -173,15 +173,15 @@ public:
  * UGizmoTransformProxyTransformSource implements IGizmoTransformSource (via UGizmoBaseTransformSource)
  * based on the internal transform of a UTransformProxy.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoTransformProxyTransformSource : public UGizmoBaseTransformSource
+UCLASS(MinimalAPI)
+class UGizmoTransformProxyTransformSource : public UGizmoBaseTransformSource
 {
 	GENERATED_BODY()
 public:
 
-	virtual FTransform GetTransform() const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FTransform GetTransform() const override;
 
-	virtual void SetTransform(const FTransform& NewTransform) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetTransform(const FTransform& NewTransform) override;
 
 	UPROPERTY()
 	TObjectPtr<UTransformProxy> Proxy;
@@ -218,17 +218,17 @@ public:
  * the unscaled transform to a gizmo component (since we don't want to scale the gizmo component but do want to 
  * rotate/translate it).
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoScaledAndUnscaledTransformSources : public UGizmoBaseTransformSource
+UCLASS(MinimalAPI)
+class UGizmoScaledAndUnscaledTransformSources : public UGizmoBaseTransformSource
 {
 	GENERATED_BODY()
 public:
 
 	/** Gets the transform from ScaledTransformSource. */
-	virtual FTransform GetTransform() const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FTransform GetTransform() const override;
 
 	/** Calls SetTransform on ScaledTransformSource and passes the unscaled version to UnscaledTransformSource. */
-	virtual void SetTransform(const FTransform& NewTransform) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetTransform(const FTransform& NewTransform) override;
 
 	UPROPERTY()
 	TScriptInterface<IGizmoTransformSource> ScaledTransformSource;

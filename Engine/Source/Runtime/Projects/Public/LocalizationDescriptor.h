@@ -54,7 +54,7 @@ namespace ELocalizationTargetDescriptorLoadingPolicy
 /**
  * Description of a localization target.
  */
-struct PROJECTS_API FLocalizationTargetDescriptor
+struct FLocalizationTargetDescriptor
 {
 	/** Name of this target */
 	FString Name;
@@ -63,32 +63,32 @@ struct PROJECTS_API FLocalizationTargetDescriptor
 	ELocalizationTargetDescriptorLoadingPolicy::Type LoadingPolicy;
 
 	/** Normal constructor */
-	FLocalizationTargetDescriptor(FString InName = FString(), ELocalizationTargetDescriptorLoadingPolicy::Type InLoadingPolicy = ELocalizationTargetDescriptorLoadingPolicy::Never);
+	PROJECTS_API FLocalizationTargetDescriptor(FString InName = FString(), ELocalizationTargetDescriptorLoadingPolicy::Type InLoadingPolicy = ELocalizationTargetDescriptorLoadingPolicy::Never);
 
 	/** Reads a descriptor from the given JSON object */
-	bool Read(const FJsonObject& InObject, FText* OutFailReason = nullptr);
+	PROJECTS_API bool Read(const FJsonObject& InObject, FText* OutFailReason = nullptr);
 
 	/** Reads a descriptor from the given JSON object */
-	bool Read(const FJsonObject& InObject, FText& OutFailReason);
+	PROJECTS_API bool Read(const FJsonObject& InObject, FText& OutFailReason);
 
 	/** Reads an array of targets from the given JSON object */
-	static bool ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText* OutFailReason = nullptr);
+	static PROJECTS_API bool ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText* OutFailReason = nullptr);
 
 	/** Reads an array of targets from the given JSON object */
-	static bool ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText& OutFailReason);
+	static PROJECTS_API bool ReadArray(const FJsonObject& InObject, const TCHAR* InName, TArray<FLocalizationTargetDescriptor>& OutTargets, FText& OutFailReason);
 
 	/** Writes a descriptor to JSON */
-	void Write(TJsonWriter<>& Writer) const;
+	PROJECTS_API void Write(TJsonWriter<>& Writer) const;
 
 	/** Updates the given json object with values in this descriptor */
-	void UpdateJson(FJsonObject& JsonObject) const;
+	PROJECTS_API void UpdateJson(FJsonObject& JsonObject) const;
 
 	/** Writes an array of targets to JSON */
-	static void WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FLocalizationTargetDescriptor>& Descriptors);
+	static PROJECTS_API void WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FLocalizationTargetDescriptor>& Descriptors);
 
 	/** Updates an array of descriptors in the specified JSON field (indexed by name) */
-	static void UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FLocalizationTargetDescriptor>& Descriptors);
+	static PROJECTS_API void UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FLocalizationTargetDescriptor>& Descriptors);
 
 	/** Returns true if we should load this localization target based upon the current runtime environment */
-	bool ShouldLoadLocalizationTarget() const;
+	PROJECTS_API bool ShouldLoadLocalizationTarget() const;
 };

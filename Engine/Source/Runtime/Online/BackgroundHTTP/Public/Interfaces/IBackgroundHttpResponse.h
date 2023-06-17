@@ -7,7 +7,7 @@
 /**
  * Interface for Http Background Responses
  */
-class BACKGROUNDHTTP_API IBackgroundHttpResponse
+class IBackgroundHttpResponse
 {
 public:
 	/**

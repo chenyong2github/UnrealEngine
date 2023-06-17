@@ -5,8 +5,8 @@
 #include "Engine/UserDefinedStruct.h"
 #include "AISenseBlueprintListener.generated.h"
 
-UCLASS(ClassGroup=AI)
-class AIMODULE_API UAISenseBlueprintListener : public UUserDefinedStruct
+UCLASS(ClassGroup=AI, MinimalAPI)
+class UAISenseBlueprintListener : public UUserDefinedStruct
 {
 	GENERATED_BODY()
 };

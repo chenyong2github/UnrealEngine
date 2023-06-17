@@ -25,27 +25,27 @@
  *   1: Display the overlay for the title safe zone.
  *   2: Display the overlay for the action safe zone.
  */
-UCLASS()
-class UMG_API USafeZone : public UContentWidget
+UCLASS(MinimalAPI)
+class USafeZone : public UContentWidget
 {
 	GENERATED_BODY()
 public:
-	USafeZone();
+	UMG_API USafeZone();
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 
-	virtual void OnDesignerChanged(const FDesignerChangedEventArgs& EventArgs) override;
+	UMG_API virtual void OnDesignerChanged(const FDesignerChangedEventArgs& EventArgs) override;
 #endif
 
-	virtual void OnSlotAdded( UPanelSlot* Slot ) override;
-	virtual void OnSlotRemoved( UPanelSlot* Slot ) override;
-	virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded( UPanelSlot* Slot ) override;
+	UMG_API virtual void OnSlotRemoved( UPanelSlot* Slot ) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
 
-	void UpdateWidgetProperties();
+	UMG_API void UpdateWidgetProperties();
 
 	UFUNCTION(BlueprintCallable, Category = "SafeZone")
-	void SetSidesToPad(bool InPadLeft, bool InPadRight, bool InPadTop, bool InPadBottom);
+	UMG_API void SetSidesToPad(bool InPadLeft, bool InPadRight, bool InPadTop, bool InPadBottom);
 
 public:
 
@@ -71,22 +71,22 @@ public:
 
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
-	void SetPadLeft(bool InPadLeft);
-	bool GetPadLeft() const;
+	UMG_API void SetPadLeft(bool InPadLeft);
+	UMG_API bool GetPadLeft() const;
 
-	void SetPadRight(bool InPadRight);
-	bool GetPadRight() const;
+	UMG_API void SetPadRight(bool InPadRight);
+	UMG_API bool GetPadRight() const;
 
-	void SetPadTop(bool InPadTop);
-	bool GetPadTop() const;
+	UMG_API void SetPadTop(bool InPadTop);
+	UMG_API bool GetPadTop() const;
 
-	void SetPadBottom(bool InPadBottom);
-	bool GetPadBottom() const;
+	UMG_API void SetPadBottom(bool InPadBottom);
+	UMG_API bool GetPadBottom() const;
 
 	TSharedPtr< class SSafeZone > MySafeZone;
 

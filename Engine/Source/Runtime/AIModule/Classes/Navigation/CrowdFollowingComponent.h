@@ -34,75 +34,75 @@ enum class ECrowdSimulationState : uint8
 	Disabled		UMETA(DisplayName="Disabled, ignored by others"),
 };
 
-UCLASS(BlueprintType)
-class AIMODULE_API UCrowdFollowingComponent : public UPathFollowingComponent, public ICrowdAgentInterface
+UCLASS(BlueprintType, MinimalAPI)
+class UCrowdFollowingComponent : public UPathFollowingComponent, public ICrowdAgentInterface
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void BeginDestroy() override;
+	AIMODULE_API virtual void BeginDestroy() override;
 
 	// ICrowdAgentInterface BEGIN
-	virtual FVector GetCrowdAgentLocation() const override;
-	virtual FVector GetCrowdAgentVelocity() const override;
-	virtual void GetCrowdAgentCollisions(float& CylinderRadius, float& CylinderHalfHeight) const override;
-	virtual float GetCrowdAgentMaxSpeed() const override;
-	virtual int32 GetCrowdAgentAvoidanceGroup() const override;
-	virtual int32 GetCrowdAgentGroupsToAvoid() const override;
-	virtual int32 GetCrowdAgentGroupsToIgnore() const override;
+	AIMODULE_API virtual FVector GetCrowdAgentLocation() const override;
+	AIMODULE_API virtual FVector GetCrowdAgentVelocity() const override;
+	AIMODULE_API virtual void GetCrowdAgentCollisions(float& CylinderRadius, float& CylinderHalfHeight) const override;
+	AIMODULE_API virtual float GetCrowdAgentMaxSpeed() const override;
+	AIMODULE_API virtual int32 GetCrowdAgentAvoidanceGroup() const override;
+	AIMODULE_API virtual int32 GetCrowdAgentGroupsToAvoid() const override;
+	AIMODULE_API virtual int32 GetCrowdAgentGroupsToIgnore() const override;
 	// ICrowdAgentInterface END
 
 	// PathFollowingComponent BEGIN
-	virtual void Initialize() override;
-	virtual void Cleanup() override;
-	virtual void AbortMove(const UObject& Instigator, FPathFollowingResultFlags::Type AbortFlags, FAIRequestID RequestID = FAIRequestID::CurrentRequest, EPathFollowingVelocityMode VelocityMode = EPathFollowingVelocityMode::Reset) override;
-	virtual void PauseMove(FAIRequestID RequestID = FAIRequestID::CurrentRequest, EPathFollowingVelocityMode VelocityMode = EPathFollowingVelocityMode::Reset) override;
-	virtual void ResumeMove(FAIRequestID RequestID = FAIRequestID::CurrentRequest) override;
-	virtual FVector GetMoveFocus(bool bAllowStrafe) const override;
-	virtual void OnLanded() override;
-	virtual void FinishUsingCustomLink(INavLinkCustomInterface* CustomNavLink) override;
-	virtual void OnPathFinished(const FPathFollowingResult& Result) override;
-	virtual void OnPathUpdated() override;
-	virtual void OnPathfindingQuery(FPathFindingQuery& Query) override;
+	AIMODULE_API virtual void Initialize() override;
+	AIMODULE_API virtual void Cleanup() override;
+	AIMODULE_API virtual void AbortMove(const UObject& Instigator, FPathFollowingResultFlags::Type AbortFlags, FAIRequestID RequestID = FAIRequestID::CurrentRequest, EPathFollowingVelocityMode VelocityMode = EPathFollowingVelocityMode::Reset) override;
+	AIMODULE_API virtual void PauseMove(FAIRequestID RequestID = FAIRequestID::CurrentRequest, EPathFollowingVelocityMode VelocityMode = EPathFollowingVelocityMode::Reset) override;
+	AIMODULE_API virtual void ResumeMove(FAIRequestID RequestID = FAIRequestID::CurrentRequest) override;
+	AIMODULE_API virtual FVector GetMoveFocus(bool bAllowStrafe) const override;
+	AIMODULE_API virtual void OnLanded() override;
+	AIMODULE_API virtual void FinishUsingCustomLink(INavLinkCustomInterface* CustomNavLink) override;
+	AIMODULE_API virtual void OnPathFinished(const FPathFollowingResult& Result) override;
+	AIMODULE_API virtual void OnPathUpdated() override;
+	AIMODULE_API virtual void OnPathfindingQuery(FPathFindingQuery& Query) override;
 	virtual int32 GetCurrentPathElement() const override { return LastPathPolyIndex; }
-	virtual void OnNavigationInitDone() override;
+	AIMODULE_API virtual void OnNavigationInitDone() override;
 	// PathFollowingComponent END
 
 	/** update params in crowd manager */
-	void UpdateCrowdAgentParams() const;
+	AIMODULE_API void UpdateCrowdAgentParams() const;
 
 	/** pass agent velocity to movement component */
-	virtual void ApplyCrowdAgentVelocity(const FVector& NewVelocity, const FVector& DestPathCorner, bool bTraversingLink, bool bIsNearEndOfPath);
+	AIMODULE_API virtual void ApplyCrowdAgentVelocity(const FVector& NewVelocity, const FVector& DestPathCorner, bool bTraversingLink, bool bIsNearEndOfPath);
 	
 	/** pass desired position to movement component (after resolving collisions between crowd agents) */
-	virtual void ApplyCrowdAgentPosition(const FVector& NewPosition);
+	AIMODULE_API virtual void ApplyCrowdAgentPosition(const FVector& NewPosition);
 
 	/** main switch for crowd steering & avoidance */
 	UFUNCTION(BlueprintCallable, Category = "Crowd")
-	virtual void SuspendCrowdSteering(bool bSuspend);
+	AIMODULE_API virtual void SuspendCrowdSteering(bool bSuspend);
 
 	/** switch between crowd simulation and parent implementation (following path segments) */
-	virtual void SetCrowdSimulationState(ECrowdSimulationState NewState);
+	AIMODULE_API virtual void SetCrowdSimulationState(ECrowdSimulationState NewState);
 
 	/** called when agent moved to next nav node (poly) */
-	virtual void OnNavNodeChanged(NavNodeRef NewPolyRef, NavNodeRef PrevPolyRef, int32 CorridorSize);
+	AIMODULE_API virtual void OnNavNodeChanged(NavNodeRef NewPolyRef, NavNodeRef PrevPolyRef, int32 CorridorSize);
 
-	void SetCrowdAnticipateTurns(bool bEnable, bool bUpdateAgent = true);
-	void SetCrowdObstacleAvoidance(bool bEnable, bool bUpdateAgent = true);
-	void SetCrowdSeparation(bool bEnable, bool bUpdateAgent = true);
-	void SetCrowdOptimizeVisibility(bool bEnable, bool bUpdateAgent = true);
-	void SetCrowdOptimizeTopology(bool bEnable, bool bUpdateAgent = true);
-	void SetCrowdPathOffset(bool bEnable, bool bUpdateAgent = true);
-	void SetCrowdSlowdownAtGoal(bool bEnable, bool bUpdateAgent = true);
-	void SetCrowdSeparationWeight(float Weight, bool bUpdateAgent = true);
-	void SetCrowdCollisionQueryRange(float Range, bool bUpdateAgent = true);
-	void SetCrowdPathOptimizationRange(float Range, bool bUpdateAgent = true);
-	void SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::Type Quality, bool bUpdateAgent = true);
-	void SetCrowdAvoidanceRangeMultiplier(float Multiplier, bool bUpdateAgent = true);
-	void SetCrowdAffectFallingVelocity(bool bEnable);
-	void SetCrowdRotateToVelocity(bool bEnable);
-	void SetAvoidanceGroup(int32 GroupFlags, bool bUpdateAgent = true);
-	void SetGroupsToAvoid(int32 GroupFlags, bool bUpdateAgent = true);
-	void SetGroupsToIgnore(int32 GroupFlags, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdAnticipateTurns(bool bEnable, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdObstacleAvoidance(bool bEnable, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdSeparation(bool bEnable, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdOptimizeVisibility(bool bEnable, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdOptimizeTopology(bool bEnable, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdPathOffset(bool bEnable, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdSlowdownAtGoal(bool bEnable, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdSeparationWeight(float Weight, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdCollisionQueryRange(float Range, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdPathOptimizationRange(float Range, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::Type Quality, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdAvoidanceRangeMultiplier(float Multiplier, bool bUpdateAgent = true);
+	AIMODULE_API void SetCrowdAffectFallingVelocity(bool bEnable);
+	AIMODULE_API void SetCrowdRotateToVelocity(bool bEnable);
+	AIMODULE_API void SetAvoidanceGroup(int32 GroupFlags, bool bUpdateAgent = true);
+	AIMODULE_API void SetGroupsToAvoid(int32 GroupFlags, bool bUpdateAgent = true);
+	AIMODULE_API void SetGroupsToIgnore(int32 GroupFlags, bool bUpdateAgent = true);
 
 	FORCEINLINE bool IsCrowdSimulationEnabled() const { return SimulationState == ECrowdSimulationState::Enabled; }
 	FORCEINLINE bool IsCrowdSimulatioSuspended() const { return bSuspendCrowdSimulation; }
@@ -132,19 +132,19 @@ class AIMODULE_API UCrowdFollowingComponent : public UPathFollowingComponent, pu
 	FORCEINLINE float GetCrowdPathOptimizationRange() const { return PathOptimizationRange; }
 	FORCEINLINE ECrowdAvoidanceQuality::Type GetCrowdAvoidanceQuality() const { return AvoidanceQuality; }
 	FORCEINLINE float GetCrowdAvoidanceRangeMultiplier() const { return AvoidanceRangeMultiplier; }
-	int32 GetAvoidanceGroup() const;
-	int32 GetGroupsToAvoid() const;
-	int32 GetGroupsToIgnore() const;
+	AIMODULE_API int32 GetAvoidanceGroup() const;
+	AIMODULE_API int32 GetGroupsToAvoid() const;
+	AIMODULE_API int32 GetGroupsToIgnore() const;
 
-	virtual void GetDebugStringTokens(TArray<FString>& Tokens, TArray<EPathFollowingDebugTokens::Type>& Flags) const override;
+	AIMODULE_API virtual void GetDebugStringTokens(TArray<FString>& Tokens, TArray<EPathFollowingDebugTokens::Type>& Flags) const override;
 #if ENABLE_VISUAL_LOG
-	virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const override;
+	AIMODULE_API virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const override;
 #endif // ENABLE_VISUAL_LOG
 
 	UE_DEPRECATED_FORGAME(4.16, "Use ApplyCrowdAgentVelocity function with bIsNearEndOfPath param instead.")
 	virtual void ApplyCrowdAgentVelocity(const FVector& NewVelocity, const FVector& DestPathCorner, bool bTraversingLink) {}
 
-	void UpdateDestinationForMovingGoal(const FVector& NewDestination);
+	AIMODULE_API void UpdateDestinationForMovingGoal(const FVector& NewDestination);
 
 protected:
 
@@ -223,24 +223,24 @@ protected:
 	int32 LastPathPolyIndex;
 
 	// PathFollowingComponent BEGIN
-	virtual int32 DetermineStartingPathPoint(const FNavigationPath* ConsideredPath) const override;
-	virtual void SetMoveSegment(int32 SegmentStartIndex) override;
-	virtual void UpdatePathSegment() override;
-	virtual void FollowPathSegment(float DeltaTime) override;
-	virtual bool ShouldCheckPathOnResume() const override;
-	virtual bool IsOnPath() const override;
-	virtual bool UpdateMovementComponent(bool bForce) override;
-	virtual void Reset() override;
+	AIMODULE_API virtual int32 DetermineStartingPathPoint(const FNavigationPath* ConsideredPath) const override;
+	AIMODULE_API virtual void SetMoveSegment(int32 SegmentStartIndex) override;
+	AIMODULE_API virtual void UpdatePathSegment() override;
+	AIMODULE_API virtual void FollowPathSegment(float DeltaTime) override;
+	AIMODULE_API virtual bool ShouldCheckPathOnResume() const override;
+	AIMODULE_API virtual bool IsOnPath() const override;
+	AIMODULE_API virtual bool UpdateMovementComponent(bool bForce) override;
+	AIMODULE_API virtual void Reset() override;
 	// PathFollowingComponent END
 
-	void SwitchToNextPathPart();
-	bool ShouldSwitchPathPart(int32 CorridorSize) const;
-	bool HasMovedDuringPause() const;
-	void UpdateCachedDirections(const FVector& NewVelocity, const FVector& NextPathCorner, bool bTraversingLink);
+	AIMODULE_API void SwitchToNextPathPart();
+	AIMODULE_API bool ShouldSwitchPathPart(int32 CorridorSize) const;
+	AIMODULE_API bool HasMovedDuringPause() const;
+	AIMODULE_API void UpdateCachedDirections(const FVector& NewVelocity, const FVector& NextPathCorner, bool bTraversingLink);
 
-	virtual bool ShouldTrackMovingGoal(FVector& OutGoalLocation) const;
+	AIMODULE_API virtual bool ShouldTrackMovingGoal(FVector& OutGoalLocation) const;
 	
-	void RegisterCrowdAgent();
+	AIMODULE_API void RegisterCrowdAgent();
 
 	friend UCrowdManager;
 };

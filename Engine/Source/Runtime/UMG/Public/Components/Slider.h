@@ -22,8 +22,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFloatValueChangedEvent, float, Va
  *
  * * No Children
  */
-UCLASS()
-class UMG_API USlider : public UWidget
+UCLASS(MinimalAPI)
+class USlider : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -119,87 +119,87 @@ public:
 
 	/** Gets the current value of the slider. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	float GetValue() const;
+	UMG_API float GetValue() const;
 
 	/** Get the current value scaled from 0 to 1 */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	float GetNormalizedValue() const;
+	UMG_API float GetNormalizedValue() const;
 
 	/** Sets the current value of the slider. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	void SetValue(float InValue);
+	UMG_API void SetValue(float InValue);
 
 	/** Gets the minimum value of the slider. */
-	float GetMinValue() const;
+	UMG_API float GetMinValue() const;
 
 	/** Sets the minimum value of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetMinValue(float InValue);
+	UMG_API void SetMinValue(float InValue);
 
 	/** Gets the maximum value of the slider. */
-	float GetMaxValue() const;
+	UMG_API float GetMaxValue() const;
 
 	/** Sets the maximum value of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetMaxValue(float InValue);
+	UMG_API void SetMaxValue(float InValue);
 
 	/** Get the style used by the widget. */
-	const FSliderStyle& GetWidgetStyle() const;
+	UMG_API const FSliderStyle& GetWidgetStyle() const;
 
 	/** Set the style used by the widget. */
-	void SetWidgetStyle(const FSliderStyle& InStyle);
+	UMG_API void SetWidgetStyle(const FSliderStyle& InStyle);
 
 	/** Getg the slider's orientation. */
-	EOrientation GetOrientation() const;
+	UMG_API EOrientation GetOrientation() const;
 
 	/** Sets the slider's orientation. */
-	void SetOrientation(EOrientation InOrientation);
+	UMG_API void SetOrientation(EOrientation InOrientation);
 
 	/** Gets if the slidable area should be indented to fit the handle. */
-	bool HasIndentHandle() const;
+	UMG_API bool HasIndentHandle() const;
 
 	/** Sets if the slidable area should be indented to fit the handle. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	void SetIndentHandle(bool InValue);
+	UMG_API void SetIndentHandle(bool InValue);
 
 	/** Returns true when the handle is fixed. */
-	bool IsLocked() const;
+	UMG_API bool IsLocked() const;
 
 	/** Sets the handle to be interactive or fixed. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	void SetLocked(bool InValue);
+	UMG_API void SetLocked(bool InValue);
 
 	/** Gets the amount to adjust the value by. */
-	float GetStepSize() const;
+	UMG_API float GetStepSize() const;
 
 	/** Sets the amount to adjust the value by, when using a controller or keyboard. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	void SetStepSize(float InValue);
+	UMG_API void SetStepSize(float InValue);
 
 	/** Gets the color of the slider bar. */
-	FLinearColor GetSliderBarColor() const;
+	UMG_API FLinearColor GetSliderBarColor() const;
 
 	/** Sets the color of the slider bar. */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetSliderBarColor(FLinearColor InValue);
+	UMG_API void SetSliderBarColor(FLinearColor InValue);
 
 	/** Gets the color of the handle bar */
-	FLinearColor GetSliderHandleColor() const;
+	UMG_API FLinearColor GetSliderHandleColor() const;
 
 	/** Sets the color of the handle bar */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetSliderHandleColor(FLinearColor InValue);
+	UMG_API void SetSliderHandleColor(FLinearColor InValue);
 	
 	// UWidget interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
 	// UVisual interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	// End of UVisual interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
@@ -207,17 +207,17 @@ protected:
 	TSharedPtr<SSlider> MySlider;
 
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
-	void HandleOnValueChanged(float InValue);
-	void HandleOnMouseCaptureBegin();
-	void HandleOnMouseCaptureEnd();
-	void HandleOnControllerCaptureBegin();
-	void HandleOnControllerCaptureEnd();
+	UMG_API void HandleOnValueChanged(float InValue);
+	UMG_API void HandleOnMouseCaptureBegin();
+	UMG_API void HandleOnMouseCaptureEnd();
+	UMG_API void HandleOnControllerCaptureBegin();
+	UMG_API void HandleOnControllerCaptureEnd();
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+	UMG_API virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
 #endif
 
 	PROPERTY_BINDING_IMPLEMENTATION(float, Value);

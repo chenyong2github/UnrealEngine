@@ -10,7 +10,7 @@
 // Evaluates a point in a blendspace, using a specific time input rather than advancing time internally.
 // Typically the playback position of the animation for this node will represent something other than time, like jump height.
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceEvaluator : public FAnimNode_BlendSpacePlayer
+struct FAnimNode_BlendSpaceEvaluator : public FAnimNode_BlendSpacePlayer
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -25,15 +25,15 @@ public:
 	bool bTeleportToNormalizedTime = true;
 
 public:	
-	FAnimNode_BlendSpaceEvaluator();
+	ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceEvaluator();
 
 	// FAnimNode_Base interface
-	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_BlendSpacePlayer interface
-	virtual float GetPlayRate() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetPlayRate() const override;
 	virtual bool ShouldTeleportToTime() const override { return bTeleportToNormalizedTime; }
 	virtual bool IsEvaluator() const override { return true; }
 	// End of FAnimNode_BlendSpacePlayer

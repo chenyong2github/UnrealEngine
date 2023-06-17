@@ -42,8 +42,8 @@ protected:
 };
 #endif //ENABLE_VISUAL_LOG
 
-UCLASS(Abstract)
-class AIMODULE_API UVisualLoggerExtension : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UVisualLoggerExtension : public UObject
 {
 	GENERATED_BODY()
 };

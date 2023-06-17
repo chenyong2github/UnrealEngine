@@ -13,14 +13,14 @@ class FMeshElementCollector;
 class FPrimitiveDrawInterface;
 class UPrimitiveComponent;
 
-class NAVIGATIONSYSTEM_API FNavLinkRenderingProxy : public FPrimitiveSceneProxy
+class FNavLinkRenderingProxy : public FPrimitiveSceneProxy
 {
 private:
 	AActor* LinkOwnerActor;
 	class INavLinkHostInterface* LinkOwnerHost;
 
 public:
-	SIZE_T GetTypeHash() const override;
+	NAVIGATIONSYSTEM_API SIZE_T GetTypeHash() const override;
 
 	struct FNavLinkDrawing
 	{
@@ -73,16 +73,16 @@ private:
 
 public:
 	/** Initialization constructor. */
-	FNavLinkRenderingProxy(const UPrimitiveComponent* InComponent);
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
-	virtual uint32 GetMemoryFootprint( void ) const override;
-	uint32 GetAllocatedSize( void ) const;
-	void StorePointLinks(const FTransform& LocalToWorld, const TArray<FNavigationLink>& LinksArray);
-	void StoreSegmentLinks(const FTransform& LocalToWorld, const TArray<FNavigationSegmentLink>& LinksArray);
+	NAVIGATIONSYSTEM_API FNavLinkRenderingProxy(const UPrimitiveComponent* InComponent);
+	NAVIGATIONSYSTEM_API virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+	NAVIGATIONSYSTEM_API virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+	NAVIGATIONSYSTEM_API virtual uint32 GetMemoryFootprint( void ) const override;
+	NAVIGATIONSYSTEM_API uint32 GetAllocatedSize( void ) const;
+	NAVIGATIONSYSTEM_API void StorePointLinks(const FTransform& LocalToWorld, const TArray<FNavigationLink>& LinksArray);
+	NAVIGATIONSYSTEM_API void StoreSegmentLinks(const FTransform& LocalToWorld, const TArray<FNavigationSegmentLink>& LinksArray);
 
-	static void GetLinkMeshes(const TArray<FNavLinkDrawing>& OffMeshPointLinks, const TArray<FNavLinkSegmentDrawing>& OffMeshSegmentLinks, TArray<float>& StepHeights, FMaterialRenderProxy* const MeshColorInstance, int32 ViewIndex, FMeshElementCollector& Collector, uint32 AgentMask);
+	static NAVIGATIONSYSTEM_API void GetLinkMeshes(const TArray<FNavLinkDrawing>& OffMeshPointLinks, const TArray<FNavLinkSegmentDrawing>& OffMeshSegmentLinks, TArray<float>& StepHeights, FMaterialRenderProxy* const MeshColorInstance, int32 ViewIndex, FMeshElementCollector& Collector, uint32 AgentMask);
 
 	/** made static to allow consistent navlinks drawing even if something is drawing links without FNavLinkRenderingProxy */
-	static void DrawLinks(FPrimitiveDrawInterface* PDI, TArray<FNavLinkDrawing>& OffMeshPointLinks, TArray<FNavLinkSegmentDrawing>& OffMeshSegmentLinks, TArray<float>& StepHeights, FMaterialRenderProxy* const MeshColorInstance, uint32 AgentMask);
+	static NAVIGATIONSYSTEM_API void DrawLinks(FPrimitiveDrawInterface* PDI, TArray<FNavLinkDrawing>& OffMeshPointLinks, TArray<FNavLinkSegmentDrawing>& OffMeshSegmentLinks, TArray<float>& StepHeights, FMaterialRenderProxy* const MeshColorInstance, uint32 AgentMask);
 };

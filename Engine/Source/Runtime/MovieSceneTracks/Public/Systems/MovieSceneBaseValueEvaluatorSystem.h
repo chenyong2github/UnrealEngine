@@ -13,15 +13,15 @@ class UObject;
 /**
  * System that is responsible for evaluating base values, for "additive from base" blending.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneBaseValueEvaluatorSystem : public UMovieSceneEntitySystem
+UCLASS(MinimalAPI)
+class UMovieSceneBaseValueEvaluatorSystem : public UMovieSceneEntitySystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UMovieSceneBaseValueEvaluatorSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieSceneBaseValueEvaluatorSystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };
 

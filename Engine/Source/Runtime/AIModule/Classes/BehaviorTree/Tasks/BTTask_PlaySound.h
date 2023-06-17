@@ -13,8 +13,8 @@ class USoundCue;
  * Play Sound task node.
  * Plays the specified sound when executed.
  */
-UCLASS()
-class AIMODULE_API UBTTask_PlaySound : public UBTTaskNode
+UCLASS(MinimalAPI)
+class UBTTask_PlaySound : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 
@@ -22,10 +22,10 @@ class AIMODULE_API UBTTask_PlaySound : public UBTTaskNode
 	UPROPERTY(Category=Node, EditAnywhere)
 	TObjectPtr<USoundCue> SoundToPlay;
 
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 };

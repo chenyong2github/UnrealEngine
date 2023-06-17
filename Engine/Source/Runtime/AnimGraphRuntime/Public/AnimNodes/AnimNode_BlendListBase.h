@@ -21,7 +21,7 @@ enum class EBlendListTransitionType : uint8
 
 // Blend list node; has many children
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendListBase : public FAnimNode_Base
+struct FAnimNode_BlendListBase : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -74,11 +74,11 @@ public:
 	FAnimNode_BlendListBase() = default;
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 #if WITH_EDITOR
@@ -97,28 +97,28 @@ public:
 
 public:
 	// Get the array of blend times to apply to our input poses
-	const TArray<float>& GetBlendTimes() const;
+	ANIMGRAPHRUNTIME_API const TArray<float>& GetBlendTimes() const;
 
 	// Get the type of transition that this blend list will make
-	EBlendListTransitionType GetTransitionType() const;
+	ANIMGRAPHRUNTIME_API EBlendListTransitionType GetTransitionType() const;
 
 	// Get the blend type we will use when blending
-	EAlphaBlendOption GetBlendType() const;
+	ANIMGRAPHRUNTIME_API EAlphaBlendOption GetBlendType() const;
 	
 	/** Get whether to reinitialize the child pose when re-activated. For example, when active child changes */
-	bool GetResetChildOnActivation() const;
+	ANIMGRAPHRUNTIME_API bool GetResetChildOnActivation() const;
 
 	// Get the custom blend curve to apply when blending, if any
-	UCurveFloat* GetCustomBlendCurve() const;
+	ANIMGRAPHRUNTIME_API UCurveFloat* GetCustomBlendCurve() const;
 
 	// Get the blend profile to use when blending, if any
-	UBlendProfile* GetBlendProfile() const;
+	ANIMGRAPHRUNTIME_API UBlendProfile* GetBlendProfile() const;
 	
 protected:
 	virtual int32 GetActiveChildIndex() { return 0; }
 	virtual FString GetNodeName(FNodeDebugData& DebugData) { return DebugData.GetNodeName(this); }
 
-	void Initialize();
+	ANIMGRAPHRUNTIME_API void Initialize();
 
 	friend class UBlendListBaseLibrary;
 };

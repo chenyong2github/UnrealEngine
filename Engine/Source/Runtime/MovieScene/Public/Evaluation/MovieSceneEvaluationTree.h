@@ -325,7 +325,7 @@ struct FMovieSceneEvaluationTreeNode
  *	----------------------------------------------------------------------------------------------------------------------------------------
  *		Unique Ranges		[ 		3			| 0,2,3 |  0,2,3,5   | 0,2,3 |		1,2		|		1,2,4		|			4				]
  */
-struct MOVIESCENE_API FMovieSceneEvaluationTree
+struct FMovieSceneEvaluationTree
 {
 	FMovieSceneEvaluationTree()
 		: RootNode(FMovieSceneEvaluationTreeNode(TRange<FFrameNumber>::All(), FMovieSceneEvaluationTreeNodeHandle::Invalid()))
@@ -358,7 +358,7 @@ struct MOVIESCENE_API FMovieSceneEvaluationTree
 	 * @param Time The time at which we should start iterating
 	 * @return A bi-directional iterator that is set to the unique range that overlaps the current time
 	 */
-	FMovieSceneEvaluationTreeRangeIterator IterateFromTime(FFrameNumber Time) const;
+	MOVIESCENE_API FMovieSceneEvaluationTreeRangeIterator IterateFromTime(FFrameNumber Time) const;
 
 	/**
 	 * Start iterating this tree from the specified lower boundary
@@ -366,7 +366,7 @@ struct MOVIESCENE_API FMovieSceneEvaluationTree
 	 * @param InStartingLowerBound The lowerbound at which we should start iterating
 	 * @return A bi-directional iterator that is set to the unique range that overlaps the specified lowerbound
 	 */
-	FMovieSceneEvaluationTreeRangeIterator IterateFromLowerBound(TRangeBound<FFrameNumber> InStartingLowerBound) const;
+	MOVIESCENE_API FMovieSceneEvaluationTreeRangeIterator IterateFromLowerBound(TRangeBound<FFrameNumber> InStartingLowerBound) const;
 
 	/**
 	 * Access this tree's root node (infinite range)
@@ -404,7 +404,7 @@ struct MOVIESCENE_API FMovieSceneEvaluationTree
 	 * @param InNode		The node to get children for
 	 * @return Array view of the node's children
 	 */
-	TArrayView<const FMovieSceneEvaluationTreeNode> GetChildren(const FMovieSceneEvaluationTreeNode& InNode) const;
+	MOVIESCENE_API TArrayView<const FMovieSceneEvaluationTreeNode> GetChildren(const FMovieSceneEvaluationTreeNode& InNode) const;
 
 	/**
 	 * Get the children associated with the specified node
@@ -412,7 +412,7 @@ struct MOVIESCENE_API FMovieSceneEvaluationTree
 	 * @param InNode		The node to get children for
 	 * @return Array view of the node's children
 	 */
-	TArrayView< FMovieSceneEvaluationTreeNode> GetChildren(const FMovieSceneEvaluationTreeNode& InNode);
+	MOVIESCENE_API TArrayView< FMovieSceneEvaluationTreeNode> GetChildren(const FMovieSceneEvaluationTreeNode& InNode);
 
 	/**
 	 * Check whether the specified handle corresponds to a node within this tree
@@ -436,7 +436,7 @@ struct MOVIESCENE_API FMovieSceneEvaluationTree
 	 *
 	 * @param InTimeRange 		The time range to add to the tree
 	 */
-	void AddTimeRange(TRange<FFrameNumber> InTimeRange);
+	MOVIESCENE_API void AddTimeRange(TRange<FFrameNumber> InTimeRange);
 
 	/**
 	 * Serialize this evaluation tree
@@ -474,7 +474,7 @@ protected:
 	 * @param InParent 			The current parent node
 	 * @param InPredicate 		(Optional) Predicate that determines whether the time should be added for a particular point
 	 */
-	void AddTimeRange(TRange<FFrameNumber> InTimeRange, const IMovieSceneEvaluationTreeNodeOperator& InOperator, FMovieSceneEvaluationTreeNodeHandle InParent, const TFunctionRef<bool(FMovieSceneEvaluationTreeNodeHandle)>* Predicate);
+	MOVIESCENE_API void AddTimeRange(TRange<FFrameNumber> InTimeRange, const IMovieSceneEvaluationTreeNodeOperator& InOperator, FMovieSceneEvaluationTreeNodeHandle InParent, const TFunctionRef<bool(FMovieSceneEvaluationTreeNodeHandle)>* Predicate);
 
 	/**
 	 * Helper function that creates a new child for the specified parent node
@@ -484,7 +484,7 @@ protected:
 	 * @param InsertIndex		The index at which to insert the new child (children must be sorted)
 	 * @param InParent 			The node to add the child to
 	 */
-	void InsertNewChild(TRange<FFrameNumber> InEffectiveRange, const IMovieSceneEvaluationTreeNodeOperator& InOperator, int32 InsertIndex, FMovieSceneEvaluationTreeNodeHandle InParent);
+	MOVIESCENE_API void InsertNewChild(TRange<FFrameNumber> InEffectiveRange, const IMovieSceneEvaluationTreeNodeOperator& InOperator, int32 InsertIndex, FMovieSceneEvaluationTreeNodeHandle InParent);
 
 	/** This tree's root node */
 	FMovieSceneEvaluationTreeNode RootNode;
@@ -496,13 +496,13 @@ protected:
 /**
  * Type that iterates contiguous range/data combinations sequentially (including empty space between time ranges)
  */
-struct MOVIESCENE_API FMovieSceneEvaluationTreeRangeIterator
+struct FMovieSceneEvaluationTreeRangeIterator
 {
 	/** Iterate the tree from -infinity */
-	FMovieSceneEvaluationTreeRangeIterator(const FMovieSceneEvaluationTree& InTree);
+	MOVIESCENE_API FMovieSceneEvaluationTreeRangeIterator(const FMovieSceneEvaluationTree& InTree);
 
 	/** Iterate the tree ranges starting at the range that overlaps the specified lower bound */
-	FMovieSceneEvaluationTreeRangeIterator(const FMovieSceneEvaluationTree& InTree, TRangeBound<FFrameNumber> StartingBound);
+	MOVIESCENE_API FMovieSceneEvaluationTreeRangeIterator(const FMovieSceneEvaluationTree& InTree, TRangeBound<FFrameNumber> StartingBound);
 
 	/** Move onto the next time range */
 	FMovieSceneEvaluationTreeRangeIterator& operator++()
@@ -581,10 +581,10 @@ private:
 	}
 
 	/** Iterate onto the next range based on whether we're going forwards or backwards */
-	void Iter(bool bForwards);
+	MOVIESCENE_API void Iter(bool bForwards);
 
 	/** Find the next child within the given parent that is >= the specified bound based on whether we're going forwards or backwards */
-	FMovieSceneEvaluationTreeNodeHandle FindNextChild(FMovieSceneEvaluationTreeNodeHandle ParentNodeHandle, TRangeBound<FFrameNumber> PredicateBound, bool bForwards);
+	MOVIESCENE_API FMovieSceneEvaluationTreeNodeHandle FindNextChild(FMovieSceneEvaluationTreeNodeHandle ParentNodeHandle, TRangeBound<FFrameNumber> PredicateBound, bool bForwards);
 
 private:
 	/** The unique time range that we're currently at */

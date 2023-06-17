@@ -34,13 +34,13 @@ class UToolTargetManager;
  * desirable to subclass and extend the ToolsContext. For example, UEdModeInteractiveToolsContext allows
  * a ToolsContext to live within a UEdMode.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolsContext : public UObject
+UCLASS(Transient, MinimalAPI)
+class UInteractiveToolsContext : public UObject
 {
 	GENERATED_BODY()
 	
 public:
-	UInteractiveToolsContext();
+	INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolsContext();
 
 	// FContextInitInfo is used by Initialize() to pass information to the various creator functions below.
 	// See ::UInteractiveToolsContext() and ::Initialize() for how these fields are used/initialized.
@@ -58,46 +58,46 @@ public:
 	// By doing this, clients of the ITF can provide their own subclass implementations, or do other
 	// custom setup/teardown as necessary. See comments above CreateInputRouterFunc below
 	//
-	virtual void SetCreateInputRouterFunc(TUniqueFunction<UInputRouter* (const FContextInitInfo&)> Func);
-	virtual void SetCreateToolManagerFunc(TUniqueFunction<UInteractiveToolManager* (const FContextInitInfo&)> Func);
-	virtual void SetCreateToolTargetManagerFunc(TUniqueFunction<UToolTargetManager* (const FContextInitInfo&)> Func);
-	virtual void SetCreateGizmoManagerFunc(TUniqueFunction<UInteractiveGizmoManager* (const FContextInitInfo&)> Func);
-	virtual void SetCreateContextStoreFunc(TUniqueFunction<UContextObjectStore* (const FContextInitInfo&)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetCreateInputRouterFunc(TUniqueFunction<UInputRouter* (const FContextInitInfo&)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetCreateToolManagerFunc(TUniqueFunction<UInteractiveToolManager* (const FContextInitInfo&)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetCreateToolTargetManagerFunc(TUniqueFunction<UToolTargetManager* (const FContextInitInfo&)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetCreateGizmoManagerFunc(TUniqueFunction<UInteractiveGizmoManager* (const FContextInitInfo&)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetCreateContextStoreFunc(TUniqueFunction<UContextObjectStore* (const FContextInitInfo&)> Func);
 
-	virtual void SetShutdownInputRouterFunc(TUniqueFunction<void(UInputRouter*)> Func);
-	virtual void SetShutdownToolManagerFunc(TUniqueFunction<void(UInteractiveToolManager*)> Func);
-	virtual void SetShutdownToolTargetManagerFunc(TUniqueFunction<void(UToolTargetManager*)> Func);
-	virtual void SetShutdownGizmoManagerFunc(TUniqueFunction<void(UInteractiveGizmoManager*)> Func);
-	virtual void SetShutdownContextStoreFunc(TUniqueFunction<void(UContextObjectStore*)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetShutdownInputRouterFunc(TUniqueFunction<void(UInputRouter*)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetShutdownToolManagerFunc(TUniqueFunction<void(UInteractiveToolManager*)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetShutdownToolTargetManagerFunc(TUniqueFunction<void(UToolTargetManager*)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetShutdownGizmoManagerFunc(TUniqueFunction<void(UInteractiveGizmoManager*)> Func);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetShutdownContextStoreFunc(TUniqueFunction<void(UContextObjectStore*)> Func);
 
 	/** 
 	 * Initialize the Context. This creates the InputRouter, ToolManager, GizmoManager, TargetManager, and ContextStore
 	 * @param QueriesAPI client-provided implementation of the API for querying the higher-evel scene state
 	 * @param TransactionsAPI client-provided implementation of the API for publishing events and transactions
 	 */
-	virtual void Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IToolsContextQueriesAPI* QueriesAPI, IToolsContextTransactionsAPI* TransactionsAPI);
 
 	/** Shutdown Context by destroying InputRouter and ToolManager */
-	virtual void Shutdown();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown();
 
-	virtual void DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
-	virtual void DeactivateAllActiveTools(EToolShutdownType ShutdownType);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DeactivateActiveTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DeactivateAllActiveTools(EToolShutdownType ShutdownType);
 
-	bool CanStartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier) const;
-	bool HasActiveTool(EToolSide WhichSide) const;
-	FString GetActiveToolName(EToolSide WhichSide) const;
-	bool ActiveToolHasAccept(EToolSide WhichSide) const;
-	bool CanAcceptActiveTool(EToolSide WhichSide) const;
-	bool CanCancelActiveTool(EToolSide WhichSide) const;
-	bool CanCompleteActiveTool(EToolSide WhichSide) const;
-	bool StartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier);
-	void EndTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
-	bool IsToolActive(EToolSide WhichSide, const FString ToolIdentifier) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool CanStartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool HasActiveTool(EToolSide WhichSide) const;
+	INTERACTIVETOOLSFRAMEWORK_API FString GetActiveToolName(EToolSide WhichSide) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool ActiveToolHasAccept(EToolSide WhichSide) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool CanAcceptActiveTool(EToolSide WhichSide) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool CanCancelActiveTool(EToolSide WhichSide) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool CanCompleteActiveTool(EToolSide WhichSide) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool StartTool(EToolSide WhichSide, const FString& ToolTypeIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API void EndTool(EToolSide WhichSide, EToolShutdownType ShutdownType);
+	INTERACTIVETOOLSFRAMEWORK_API bool IsToolActive(EToolSide WhichSide, const FString ToolIdentifier) const;
 
 public:
 	// forwards message to OnToolNotificationMessage delegate
-	virtual void PostToolNotificationMessage(const FText& Message);
-	virtual void PostToolWarningMessage(const FText& Message);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void PostToolNotificationMessage(const FText& Message);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void PostToolWarningMessage(const FText& Message);
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FToolsContextToolNotification, const FText&);
 	FToolsContextToolNotification OnToolNotificationMessage;

@@ -25,7 +25,7 @@ class UWorld;
  * Module for Xmpp connections
  * Use CreateConnection to create a new Xmpp connection
  */
-class XMPP_API FXmppModule :
+class FXmppModule :
 	public IModuleInterface, public FSelfRegisteringExec, public FTSTickerObjectBase
 {
 
@@ -42,14 +42,14 @@ protected:
 	 *
 	 * @return true if the handler consumed the input, false to continue searching handlers
 	 */
-	virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	XMPP_API virtual bool Exec_Runtime(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 public:
 
 	/** 
 	 * Exec command handlers
 	 */
-	bool HandleXmppCommand( const TCHAR* Cmd, FOutputDevice& Ar );
+	XMPP_API bool HandleXmppCommand( const TCHAR* Cmd, FOutputDevice& Ar );
 
 	// FXmppModule
 
@@ -59,47 +59,47 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static FXmppModule& Get();
+	static XMPP_API FXmppModule& Get();
 
 	/**
 	 * Checks to see if this module is loaded and ready.
 	 *
 	 * @return True if the module is loaded and ready to use
 	 */
-	static bool IsAvailable();
+	static XMPP_API bool IsAvailable();
 
 	/**
 	 * Creates a new Xmpp connection for the current platform and associated it with the user
 	 *
 	 * @return new Xmpp connection instance
 	 */
-	TSharedRef<class IXmppConnection> CreateConnection(const FString& UserId);
+	XMPP_API TSharedRef<class IXmppConnection> CreateConnection(const FString& UserId);
 
 	/**
 	 * Return an existing Xmpp connection associated with a user
 	 *
 	 * @return new Xmpp connection instance
 	 */
-	TSharedPtr<class IXmppConnection> GetConnection(const FString& UserId) const;
+	XMPP_API TSharedPtr<class IXmppConnection> GetConnection(const FString& UserId) const;
 
 	/**
 	 * Remove an existing Xmpp connection associated with a user
 	 *
 	 * @param UserId user to find connection for
 	 */
-	void RemoveConnection(const FString& UserId);
+	XMPP_API void RemoveConnection(const FString& UserId);
 
 	/**
 	 * Clean up any pending connection removals
 	 */
-	void ProcessPendingRemovals();
+	XMPP_API void ProcessPendingRemovals();
 
 	/**
 	 * Remove an existing Xmpp connection
 	 *
 	 * @param Connection reference to find/remove
 	 */
-	void RemoveConnection(const TSharedRef<class IXmppConnection>& Connection);
+	XMPP_API void RemoveConnection(const TSharedRef<class IXmppConnection>& Connection);
 
 	/**
 	 * @return true if Xmpp requests are globally enabled
@@ -110,7 +110,7 @@ public:
 	}
 
 	// FTSTickerObjectBase
-	virtual bool Tick(float DeltaTime) override;
+	XMPP_API virtual bool Tick(float DeltaTime) override;
 
 	/**
 	 * Delegate callback when a system acquires ownership over an XMPP connection
@@ -144,30 +144,30 @@ private:
 
 	// IModuleInterface
 
-	void OnXmppRoomCreated(const TSharedRef<IXmppConnection>& Connection, bool bSuccess, const FXmppRoomId& RoomId, const FString& Error);
-	void OnXmppRoomConfigured(const TSharedRef<IXmppConnection>& Connection, bool bSuccess, const FXmppRoomId& RoomId, const FString& Error);
+	XMPP_API void OnXmppRoomCreated(const TSharedRef<IXmppConnection>& Connection, bool bSuccess, const FXmppRoomId& RoomId, const FString& Error);
+	XMPP_API void OnXmppRoomConfigured(const TSharedRef<IXmppConnection>& Connection, bool bSuccess, const FXmppRoomId& RoomId, const FString& Error);
 
 	/**
 	 * Called when Xmpp module is loaded
 	 * Initialize platform specific parts of Xmpp handling
 	 */
-	virtual void StartupModule() override;
+	XMPP_API virtual void StartupModule() override;
 	
 	/**
 	 * Called when Xmpp module is unloaded
 	 * Shutdown platform specific parts of Xmpp handling
 	 */
-	virtual void ShutdownModule() override;
+	XMPP_API virtual void ShutdownModule() override;
 
 	/**
 	 * Connection cleanup before removal
 	 */
-	void CleanupConnection(const TSharedRef<class IXmppConnection>& Connection);
+	XMPP_API void CleanupConnection(const TSharedRef<class IXmppConnection>& Connection);
 
 	/** toggles Xmpp requests */
 	bool bEnabled;
 	/** singleton for the module while loaded and available */
-	static FXmppModule* Singleton;
+	static XMPP_API FXmppModule* Singleton;
 
 	/** Active Xmpp server connections mapped by user id */
 	TMap<FString, TSharedRef<class IXmppConnection>> ActiveConnections;

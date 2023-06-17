@@ -23,8 +23,8 @@ namespace EPawnActionMoveMode
 	};
 }
 
-UCLASS()
-class AIMODULE_API UDEPRECATED_PawnAction_Move : public UDEPRECATED_PawnAction
+UCLASS(MinimalAPI)
+class UDEPRECATED_PawnAction_Move : public UDEPRECATED_PawnAction
 {
 	GENERATED_UCLASS_BODY()
 protected:
@@ -69,18 +69,18 @@ protected:
 	uint32 bAbortSubActionOnPathChange : 1;
 
 public:
-	virtual void BeginDestroy() override;
+	AIMODULE_API virtual void BeginDestroy() override;
 
-	static UDEPRECATED_PawnAction_Move* CreateAction(UWorld& World, AActor* GoalActor, EPawnActionMoveMode::Type Mode);
-	static UDEPRECATED_PawnAction_Move* CreateAction(UWorld& World, const FVector& GoalLocation, EPawnActionMoveMode::Type Mode);
+	static AIMODULE_API UDEPRECATED_PawnAction_Move* CreateAction(UWorld& World, AActor* GoalActor, EPawnActionMoveMode::Type Mode);
+	static AIMODULE_API UDEPRECATED_PawnAction_Move* CreateAction(UWorld& World, const FVector& GoalLocation, EPawnActionMoveMode::Type Mode);
 
-	static bool CheckAlreadyAtGoal(AAIController& Controller, const FVector& TestLocation, float Radius);
-	static bool CheckAlreadyAtGoal(AAIController& Controller, const AActor& TestGoal, float Radius);
+	static AIMODULE_API bool CheckAlreadyAtGoal(AAIController& Controller, const FVector& TestLocation, float Radius);
+	static AIMODULE_API bool CheckAlreadyAtGoal(AAIController& Controller, const AActor& TestGoal, float Radius);
 
-	virtual void HandleAIMessage(UBrainComponent*, const FAIMessage&) override;
+	AIMODULE_API virtual void HandleAIMessage(UBrainComponent*, const FAIMessage&) override;
 
-	void SetPath(FNavPathSharedRef InPath);
-	virtual void OnPathUpdated(FNavigationPath* UpdatedPath, ENavPathEvent::Type Event);
+	AIMODULE_API void SetPath(FNavPathSharedRef InPath);
+	AIMODULE_API virtual void OnPathUpdated(FNavigationPath* UpdatedPath, ENavPathEvent::Type Event);
 
 	void SetAcceptableRadius(float NewAcceptableRadius) { AcceptableRadius = NewAcceptableRadius; }
 	void SetFinishOnOverlap(bool bNewFinishOnOverlap) { bFinishOnOverlap = bNewFinishOnOverlap; }
@@ -106,20 +106,20 @@ protected:
 	/** Handle for efficient management of TryToRepath timer */
 	FTimerHandle TimerHandle_TryToRepath;
 
-	void ClearPath();
-	virtual bool Start() override;
-	virtual bool Pause(const UDEPRECATED_PawnAction* PausedBy) override;
-	virtual bool Resume() override;
-	virtual void OnFinished(EPawnActionResult::Type WithResult) override;
-	virtual EPawnActionAbortState::Type PerformAbort(EAIForceParam::Type ShouldForce) override;
-	virtual bool IsPartialPathAllowed() const;
+	AIMODULE_API void ClearPath();
+	AIMODULE_API virtual bool Start() override;
+	AIMODULE_API virtual bool Pause(const UDEPRECATED_PawnAction* PausedBy) override;
+	AIMODULE_API virtual bool Resume() override;
+	AIMODULE_API virtual void OnFinished(EPawnActionResult::Type WithResult) override;
+	AIMODULE_API virtual EPawnActionAbortState::Type PerformAbort(EAIForceParam::Type ShouldForce) override;
+	AIMODULE_API virtual bool IsPartialPathAllowed() const;
 
-	virtual EPathFollowingRequestResult::Type RequestMove(AAIController& Controller);
+	AIMODULE_API virtual EPathFollowingRequestResult::Type RequestMove(AAIController& Controller);
 	
-	bool PerformMoveAction();
-	void DeferredPerformMoveAction();
+	AIMODULE_API bool PerformMoveAction();
+	AIMODULE_API void DeferredPerformMoveAction();
 
-	void TryToRepath();
-	void ClearPendingRepath();
-	void ClearTimers();
+	AIMODULE_API void TryToRepath();
+	AIMODULE_API void ClearPendingRepath();
+	AIMODULE_API void ClearTimers();
 };

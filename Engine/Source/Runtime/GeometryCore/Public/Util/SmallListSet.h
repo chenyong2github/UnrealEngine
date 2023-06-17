@@ -32,11 +32,11 @@ namespace Geometry
  * 
  * @todo look at usage of TFunction, are we making unnecessary copies?
  */
-class GEOMETRYCORE_API FSmallListSet
+class FSmallListSet
 {
 protected:
 	/** This value is used to indicate Null in internal pointers */
-	static const int32 NullValue; // = -1;		// note: cannot be constexpr because we pass as reference to several functions, requires C++17
+	static GEOMETRYCORE_API const int32 NullValue; // = -1;		// note: cannot be constexpr because we pass as reference to several functions, requires C++17
 
 	/** size of initial linear-memory portion of lists */
 	static constexpr int32 BLOCKSIZE = 8;
@@ -80,7 +80,7 @@ public:
 	/**
 	 * set new number of lists
 	 */
-	void Resize(int32 NewSize);
+	GEOMETRYCORE_API void Resize(int32 NewSize);
 
 	/**
 	 * Reset to initial state
@@ -107,13 +107,13 @@ public:
 	/**
 	 * Create a list at the given ListIndex
 	 */
-	void AllocateAt(int32 ListIndex);
+	GEOMETRYCORE_API void AllocateAt(int32 ListIndex);
 
 
 	/**
 	 * Insert Value into list at ListIndex
 	 */
-	void Insert(int32 ListIndex, int32 Value);
+	GEOMETRYCORE_API void Insert(int32 ListIndex, int32 Value);
 
 
 
@@ -121,21 +121,21 @@ public:
 	 * remove Value from the list at ListIndex
 	 * @return false if Value was not in this list
 	 */
-	bool Remove(int32 ListIndex, int32 Value);
+	GEOMETRYCORE_API bool Remove(int32 ListIndex, int32 Value);
 
 
 
 	/**
 	 * Move list at FromIndex to ToIndex
 	 */
-	void Move(int32 FromIndex, int32 ToIndex);
+	GEOMETRYCORE_API void Move(int32 FromIndex, int32 ToIndex);
 
 
 
 	/**
 	 * Remove all elements from the list at ListIndex
 	 */
-	void Clear(int32 ListIndex);
+	GEOMETRYCORE_API void Clear(int32 ListIndex);
 
 
 	/**
@@ -165,14 +165,14 @@ public:
 	 * Search for the given Value in list at ListIndex
 	 * @return true if found
 	 */
-	bool Contains(int32 ListIndex, int32 Value) const;
+	GEOMETRYCORE_API bool Contains(int32 ListIndex, int32 Value) const;
 
 
 	/**
 	 * Search the list at ListIndex for a value where PredicateFunc(value) returns true
 	 * @return the found value, or the InvalidValue argument if not found
 	 */
-	int32 Find(int32 ListIndex, const TFunction<bool(int32)>& PredicateFunc, int32 InvalidValue = -1) const;
+	GEOMETRYCORE_API int32 Find(int32 ListIndex, const TFunction<bool(int32)>& PredicateFunc, int32 InvalidValue = -1) const;
 
 
 
@@ -180,13 +180,13 @@ public:
 	 * Search the list at ListIndex for a value where PredicateFunc(value) returns true, and replace it with NewValue
 	 * @return true if the value was found and replaced
 	 */
-	bool Replace(int32 ListIndex, const TFunction<bool(int32)>& PredicateFunc, int32 NewValue);
+	GEOMETRYCORE_API bool Replace(int32 ListIndex, const TFunction<bool(int32)>& PredicateFunc, int32 NewValue);
 
 
 	/**
 	 * Call ApplyFunc on each element of the list at ListIndex
 	 */
-	void Enumerate(int32 ListIndex, TFunctionRef<void(int32)> ApplyFunc) const;
+	GEOMETRYCORE_API void Enumerate(int32 ListIndex, TFunctionRef<void(int32)> ApplyFunc) const;
 
 	/**
 	 * Serialization operator for FSmallListSet.
@@ -207,7 +207,7 @@ public:
 	* @param bCompactData Only serialize unique data and/or recompute redundant data when loading.
 	* @param bUseCompression Use compression to serialize data; the resulting size will likely be smaller but serialization will take significantly longer.
 	*/
-	void Serialize(FArchive& Ar, bool bCompactData, bool bUseCompression);
+	GEOMETRYCORE_API void Serialize(FArchive& Ar, bool bCompactData, bool bUseCompression);
 
 	friend bool operator==(const FSmallListSet& Lhs, const FSmallListSet& Rhs)
 	{
@@ -524,7 +524,7 @@ protected:
 
 
 	// grab a block from the free list, or allocate a new one
-	int32 AllocateBlock();
+	GEOMETRYCORE_API int32 AllocateBlock();
 
 	// push a link-node onto the free list
 	inline void AddFreeLink(int32 ptr)
@@ -535,7 +535,7 @@ protected:
 
 
 	// remove val from the linked-list attached to block_ptr
-	bool RemoveFromLinkedList(int32 block_ptr, int32 val);
+	GEOMETRYCORE_API bool RemoveFromLinkedList(int32 block_ptr, int32 val);
 
 
 public:

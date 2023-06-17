@@ -34,7 +34,7 @@ enum class EInputCaptureSide
  * is capturing for Left and Right separately). So FInputCaptureUpdate can optionally
  * return this structure, and we will pass it to the next UpdateCapture() call
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FInputCaptureData
+struct FInputCaptureData
 {
 	/** Which side do we want to capture on */
 	EInputCaptureSide WhichSide;
@@ -69,7 +69,7 @@ class UInputBehavior;
  * UInputBehavior returns an FInputCaptureRequest from WantsCapture() to indicate
  * whether it wants to capture or ignore an input event
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FInputCaptureRequest
+struct FInputCaptureRequest
 {
 	/** Which input behavior generated this request */
 	UInputBehavior* Source;
@@ -133,7 +133,7 @@ enum class EInputCaptureState
  * IInputBehavior returns an FInputCaptureUpdate from BeginCapture() and UpdateCapture(),
  * which indicates to the InputRouter what the Behavior would like to have happen.
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FInputCaptureUpdate
+struct FInputCaptureUpdate
 {
 	/** Indicates what capture state the Behavior wants to transition to */
 	EInputCaptureState State;
@@ -190,7 +190,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputCaptureUpdate
  * Each UInputBehavior provides a priority that is used to help resolve situations
  * when multiple Behaviors want to capture based on the same input event
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FInputCapturePriority
+struct FInputCapturePriority
 {
 	static constexpr int DEFAULT_GIZMO_PRIORITY = 50;
 	static constexpr int DEFAULT_TOOL_PRIORITY = 100;
@@ -251,38 +251,38 @@ struct INTERACTIVETOOLSFRAMEWORK_API FInputCapturePriority
  *
  * Implementing interactions in this way allows the input handling to be separated from functionality.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInputBehavior : public UObject
+UCLASS(Transient, MinimalAPI)
+class UInputBehavior : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UInputBehavior();
+	INTERACTIVETOOLSFRAMEWORK_API UInputBehavior();
 
 	/** The priority is used to resolve situations where multiple behaviors want the same capture */
-	virtual FInputCapturePriority GetPriority();
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCapturePriority GetPriority();
 
 	/** Configure the default priority of an instance of this behavior */
-	virtual void SetDefaultPriority(const FInputCapturePriority& Priority);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDefaultPriority(const FInputCapturePriority& Priority);
 
 
 	/** Which device types does this Behavior support */
-	virtual EInputDevices GetSupportedDevices();
+	INTERACTIVETOOLSFRAMEWORK_API virtual EInputDevices GetSupportedDevices();
 
 	/** Given the input state, does this Behavior want to begin capturing some input devices? */
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& InputState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& InputState);
 
 	/** Called after WantsCapture() returns a capture request that was accepted */
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide);
 
 	/** 
 	 * Called for each new input event during a capture sequence. Return Continue to keep
 	 * capturing, or End to finish capturing.
 	 */
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& InputState, const FInputCaptureData& CaptureData);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& InputState, const FInputCaptureData& CaptureData);
 
 	/** If this is called, the Behavior has forcibly lost capture (eg due to app losing focus for example) and needs to clean up accordingly */
-	virtual void ForceEndCapture(const FInputCaptureData& CaptureData);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceEndCapture(const FInputCaptureData& CaptureData);
 
 
 	//
@@ -290,19 +290,19 @@ public:
 	//
 
 	/** return true if this Behavior supports hover (ie passive input events) */
-	virtual bool WantsHoverEvents();
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool WantsHoverEvents();
 
 	/** Given the input state, does this Behavior want to begin capturing some input devices for hover */
-	virtual FInputCaptureRequest WantsHoverCapture(const FInputDeviceState& InputState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsHoverCapture(const FInputDeviceState& InputState);
 
 	/** Called after WantsHoverCapture() returns a capture request that was accepted */
-	virtual FInputCaptureUpdate BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide);
 
 	/** Called on each new hover input event, ie if no other behavior is actively capturing input */
-	virtual FInputCaptureUpdate UpdateHoverCapture(const FInputDeviceState& InputState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateHoverCapture(const FInputDeviceState& InputState);
 
 	/** If a different hover capture begins, focus is lost, a tool starts, etc, any active hover visualization needs to terminate */
-	virtual void EndHoverCapture();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndHoverCapture();
 
 
 protected:

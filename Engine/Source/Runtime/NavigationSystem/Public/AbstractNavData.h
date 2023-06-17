@@ -23,16 +23,16 @@ class UClass;
 class UObject;
 struct FPathFindingQuery;
 
-struct NAVIGATIONSYSTEM_API FAbstractNavigationPath : public FNavigationPath
+struct FAbstractNavigationPath : public FNavigationPath
 {
 	typedef FNavigationPath Super;
 
-	FAbstractNavigationPath();
+	NAVIGATIONSYSTEM_API FAbstractNavigationPath();
 
-	static const FNavPathType Type;
+	static NAVIGATIONSYSTEM_API const FNavPathType Type;
 };
 
-class NAVIGATIONSYSTEM_API FAbstractQueryFilter : public INavigationQueryFilterInterface
+class FAbstractQueryFilter : public INavigationQueryFilterInterface
 {
 public:
 	virtual void Reset() override {}
@@ -50,18 +50,18 @@ public:
 	virtual void SetExcludeFlags(uint16 Flags) override {}
 	virtual uint16 GetExcludeFlags() const override { return 0; }
 	virtual FVector GetAdjustedEndLocation(const FVector& EndLocation) const override { return EndLocation; }
-	virtual INavigationQueryFilterInterface* CreateCopy() const override;
+	NAVIGATIONSYSTEM_API virtual INavigationQueryFilterInterface* CreateCopy() const override;
 };
 
-UCLASS()
-class NAVIGATIONSYSTEM_API AAbstractNavData : public ANavigationData
+UCLASS(MinimalAPI)
+class AAbstractNavData : public ANavigationData
 {
 	GENERATED_BODY()
 
 public:
-	AAbstractNavData(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	NAVIGATIONSYSTEM_API AAbstractNavData(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual void PostLoad() override;
+	NAVIGATIONSYSTEM_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
 	// Begin AActor overrides
@@ -90,7 +90,7 @@ public:
 	virtual bool IsNodeRefValid(NavNodeRef NodeRef) const override { return true; };
 	// End ANavigationData overrides
 
-	static FPathFindingResult FindPathAbstract(const FNavAgentProperties& AgentProperties, const FPathFindingQuery& Query);
-	static bool TestPathAbstract(const FNavAgentProperties& AgentProperties, const FPathFindingQuery& Query, int32* NumVisitedNodes);
-	static bool RaycastAbstract(const ANavigationData* NavDataInstance, const FVector& RayStart, const FVector& RayEnd, FVector& HitLocation, FSharedConstNavQueryFilter QueryFilter, const UObject* Querier);
+	static NAVIGATIONSYSTEM_API FPathFindingResult FindPathAbstract(const FNavAgentProperties& AgentProperties, const FPathFindingQuery& Query);
+	static NAVIGATIONSYSTEM_API bool TestPathAbstract(const FNavAgentProperties& AgentProperties, const FPathFindingQuery& Query, int32* NumVisitedNodes);
+	static NAVIGATIONSYSTEM_API bool RaycastAbstract(const ANavigationData* NavDataInstance, const FVector& RayStart, const FVector& RayEnd, FVector& HitLocation, FSharedConstNavQueryFilter QueryFilter, const UObject* Querier);
 };

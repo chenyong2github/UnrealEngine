@@ -21,38 +21,38 @@ enum class EWindowTransparency;
  *
  * Native Windows provide platform-specific backing for and are always owned by an SWindow.
  */
-class APPLICATIONCORE_API FWindowsWindow
+class FWindowsWindow
 	: public FGenericWindow
 	, public IDropTarget
 {
 public:
 
 	/** Win32 requirement: see CreateWindowEx and RegisterClassEx. */
-	static const TCHAR AppWindowClass[];
+	static APPLICATIONCORE_API const TCHAR AppWindowClass[];
 
 public:
 
 	/** Destructor. */
-	~FWindowsWindow();
+	APPLICATIONCORE_API ~FWindowsWindow();
 
 	/** Create a new FWin32Window. */
-	static TSharedRef<FWindowsWindow> Make();
+	static APPLICATIONCORE_API TSharedRef<FWindowsWindow> Make();
 
 	/**
 	 * Gets the Window's handle.
 	 *
 	 * @return The window's HWND handle.
 	 */
-	HWND GetHWnd() const;
+	APPLICATIONCORE_API HWND GetHWnd() const;
 
-	void Initialize( class FWindowsApplication* const Application, const TSharedRef<FGenericWindowDefinition>& InDefinition, HINSTANCE InHInstance, const TSharedPtr<FWindowsWindow>& InParent, const bool bShowImmediately );
+	APPLICATIONCORE_API void Initialize( class FWindowsApplication* const Application, const TSharedRef<FGenericWindowDefinition>& InDefinition, HINSTANCE InHInstance, const TSharedPtr<FWindowsWindow>& InParent, const bool bShowImmediately );
 
 	/**
 	* Sets the window text (usually the title but can also be text content for things like controls).
 	*
 	* @param Text The window's title or content text
 	*/
-	bool IsRegularWindow() const;
+	APPLICATIONCORE_API bool IsRegularWindow() const;
 
 	/**
      * Sets the window region to specified dimensions.
@@ -60,10 +60,10 @@ public:
 	 * @param Width The width of the window region (in pixels).
 	 * @param Height The height of the window region (in pixels).
 	 */
-	void AdjustWindowRegion(int32 Width, int32 Height);
+	APPLICATIONCORE_API void AdjustWindowRegion(int32 Width, int32 Height);
 
 	/** @return	Gives the native window a chance to adjust our stored window size before we cache it off. */
-	virtual void AdjustCachedSize(FVector2D& Size) const override;
+	APPLICATIONCORE_API virtual void AdjustCachedSize(FVector2D& Size) const override;
 
 	virtual float GetDPIScaleFactor() const override
 	{
@@ -76,87 +76,87 @@ public:
 	}
 
 	/** determines whether or not this window does its own DPI management */
-	virtual bool IsManualManageDPIChanges() const override;
+	APPLICATIONCORE_API virtual bool IsManualManageDPIChanges() const override;
 
 	/** call with a true argument if this window need to do its custom size management in response to DPI variations */
-	virtual void SetManualManageDPIChanges(const bool bManualDPIChanges) override;
+	APPLICATIONCORE_API virtual void SetManualManageDPIChanges(const bool bManualDPIChanges) override;
 
 	/** Called when our parent window is minimized (which will in turn cause us to become minimized). */
-	void OnParentWindowMinimized();
+	APPLICATIONCORE_API void OnParentWindowMinimized();
 
 	/** Called when our parent window is restored (which will in turn cause us to become restored). */
-	void OnParentWindowRestored();
+	APPLICATIONCORE_API void OnParentWindowRestored();
 
 	/** Called by the owning application when the level of transparency support has changed */
-	void OnTransparencySupportChanged(EWindowTransparency NewTransparency);
+	APPLICATIONCORE_API void OnTransparencySupportChanged(EWindowTransparency NewTransparency);
 
 	float GetAspectRatio() const { return AspectRatio; }
 
 	/** @return True if the window is enabled */
-	bool IsEnabled();
+	APPLICATIONCORE_API bool IsEnabled();
 
 public:
 
 	// FGenericWindow interface
 
-	virtual void ReshapeWindow( int32 X, int32 Y, int32 Width, int32 Height ) override;
-	virtual bool GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const override;
-	virtual void MoveWindowTo ( int32 X, int32 Y ) override;
-	virtual void BringToFront( bool bForce = false ) override;
-	virtual void HACK_ForceToFront() override;
-	virtual void Destroy() override;
-	virtual void Minimize() override;
-	virtual void Maximize() override;
-	virtual void Restore() override;
-	virtual void Show() override;
-	virtual void Hide() override;
-	virtual void SetWindowMode( EWindowMode::Type NewWindowMode ) override;
+	APPLICATIONCORE_API virtual void ReshapeWindow( int32 X, int32 Y, int32 Width, int32 Height ) override;
+	APPLICATIONCORE_API virtual bool GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const override;
+	APPLICATIONCORE_API virtual void MoveWindowTo ( int32 X, int32 Y ) override;
+	APPLICATIONCORE_API virtual void BringToFront( bool bForce = false ) override;
+	APPLICATIONCORE_API virtual void HACK_ForceToFront() override;
+	APPLICATIONCORE_API virtual void Destroy() override;
+	APPLICATIONCORE_API virtual void Minimize() override;
+	APPLICATIONCORE_API virtual void Maximize() override;
+	APPLICATIONCORE_API virtual void Restore() override;
+	APPLICATIONCORE_API virtual void Show() override;
+	APPLICATIONCORE_API virtual void Hide() override;
+	APPLICATIONCORE_API virtual void SetWindowMode( EWindowMode::Type NewWindowMode ) override;
 	virtual EWindowMode::Type GetWindowMode() const override { return WindowMode; } 
-	virtual bool IsMaximized() const override;
-	virtual bool IsMinimized() const override;
-	virtual bool IsVisible() const override;
-	virtual bool GetRestoredDimensions(int32& X, int32& Y, int32& Width, int32& Height) override;
-	virtual void SetWindowFocus() override;
-	virtual void SetOpacity( const float InOpacity ) override;
-	virtual void Enable( bool bEnable ) override;
-	virtual bool IsPointInWindow( int32 X, int32 Y ) const override;
-	virtual int32 GetWindowBorderSize() const override;
-	virtual int32 GetWindowTitleBarSize() const override;
+	APPLICATIONCORE_API virtual bool IsMaximized() const override;
+	APPLICATIONCORE_API virtual bool IsMinimized() const override;
+	APPLICATIONCORE_API virtual bool IsVisible() const override;
+	APPLICATIONCORE_API virtual bool GetRestoredDimensions(int32& X, int32& Y, int32& Width, int32& Height) override;
+	APPLICATIONCORE_API virtual void SetWindowFocus() override;
+	APPLICATIONCORE_API virtual void SetOpacity( const float InOpacity ) override;
+	APPLICATIONCORE_API virtual void Enable( bool bEnable ) override;
+	APPLICATIONCORE_API virtual bool IsPointInWindow( int32 X, int32 Y ) const override;
+	APPLICATIONCORE_API virtual int32 GetWindowBorderSize() const override;
+	APPLICATIONCORE_API virtual int32 GetWindowTitleBarSize() const override;
 	virtual void* GetOSWindowHandle() const  override { return HWnd; }
-	virtual bool IsForegroundWindow() const override;
-	virtual bool IsFullscreenSupported() const override;
-	virtual void SetText(const TCHAR* const Text) override;
-	virtual void DrawAttention(const FWindowDrawAttentionParameters& Parameters) override;
+	APPLICATIONCORE_API virtual bool IsForegroundWindow() const override;
+	APPLICATIONCORE_API virtual bool IsFullscreenSupported() const override;
+	APPLICATIONCORE_API virtual void SetText(const TCHAR* const Text) override;
+	APPLICATIONCORE_API virtual void DrawAttention(const FWindowDrawAttentionParameters& Parameters) override;
 
 public:
 
 	// IUnknown interface
 
-	HRESULT STDCALL QueryInterface(REFIID iid, void ** ppvObject) override;
-	ULONG STDCALL AddRef(void) override;
-	ULONG STDCALL Release(void) override;
+	APPLICATIONCORE_API HRESULT STDCALL QueryInterface(REFIID iid, void ** ppvObject) override;
+	APPLICATIONCORE_API ULONG STDCALL AddRef(void) override;
+	APPLICATIONCORE_API ULONG STDCALL Release(void) override;
 
 public:
 
 	// IDropTarget interface
 
-	virtual HRESULT STDCALL DragEnter( __RPC__in_opt IDataObject *DataObjectPointer, ::DWORD KeyState, POINTL CursorPosition, __RPC__inout ::DWORD *CursorEffect) override;
-	virtual HRESULT STDCALL DragOver( ::DWORD KeyState, POINTL CursorPosition, __RPC__inout ::DWORD *CursorEffect) override;
-	virtual HRESULT STDCALL DragLeave( void ) override;
-	virtual HRESULT STDCALL Drop( __RPC__in_opt IDataObject *DataObjectPointer, ::DWORD KeyState, POINTL CursorPosition, __RPC__inout ::DWORD *CursorEffect) override;
+	APPLICATIONCORE_API virtual HRESULT STDCALL DragEnter( __RPC__in_opt IDataObject *DataObjectPointer, ::DWORD KeyState, POINTL CursorPosition, __RPC__inout ::DWORD *CursorEffect) override;
+	APPLICATIONCORE_API virtual HRESULT STDCALL DragOver( ::DWORD KeyState, POINTL CursorPosition, __RPC__inout ::DWORD *CursorEffect) override;
+	APPLICATIONCORE_API virtual HRESULT STDCALL DragLeave( void ) override;
+	APPLICATIONCORE_API virtual HRESULT STDCALL Drop( __RPC__in_opt IDataObject *DataObjectPointer, ::DWORD KeyState, POINTL CursorPosition, __RPC__inout ::DWORD *CursorEffect) override;
 
 private:
 
 	/** Protect the constructor; only TSharedRefs of this class can be made. */
-	FWindowsWindow();
+	APPLICATIONCORE_API FWindowsWindow();
 
-	void UpdateVisibility();
+	APPLICATIONCORE_API void UpdateVisibility();
 
 	/** Creates an HRGN for the window's current region.  Remember to delete this when you're done with it using
 	   ::DeleteObject, unless you're passing it to SetWindowRgn(), which will absorb the reference itself. */
-	HRGN MakeWindowRegionObject(bool bIncludeBorderWhenMaximized) const;
+	APPLICATIONCORE_API HRGN MakeWindowRegionObject(bool bIncludeBorderWhenMaximized) const;
 
-	void DisableTouchFeedback();
+	APPLICATIONCORE_API void DisableTouchFeedback();
 
 private:
 

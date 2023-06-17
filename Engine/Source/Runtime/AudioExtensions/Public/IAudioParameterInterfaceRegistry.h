@@ -26,17 +26,17 @@ namespace Audio
 	// Can be used generically for processing either logically at a control or Game Thread
 	// tick rate (ex. SoundCues), or by an underlying DSP operation via the Audio Render
 	// Thread or delegated task (ex. MetaSounds, custom SoundGenerator, etc.)
-	struct AUDIOEXTENSIONS_API FParameterInterface
+	struct FParameterInterface
 	{
 		// Version of interface (higher numbers are more recent)
-		struct AUDIOEXTENSIONS_API FVersion
+		struct FVersion
 		{
 			const int32 Major = 1;
 			const int32 Minor = 0;
 		};
 
 		// Input of interface
-		struct AUDIOEXTENSIONS_API FInput
+		struct FInput
 		{
 			// Name to be displayed in editor or tools
 			const FText DisplayName;
@@ -66,7 +66,7 @@ namespace Audio
 		};
 
 		// Output of interface
-		struct AUDIOEXTENSIONS_API FOutput
+		struct FOutput
 		{
 			// Name to be displayed in editor or tools
 			const FText DisplayName;
@@ -98,7 +98,7 @@ namespace Audio
 
 		// Read-only variable that cannot be modified by the sound instance,
 		// and maybe shared amongst instances.
-		struct AUDIOEXTENSIONS_API FEnvironmentVariable
+		struct FEnvironmentVariable
 		{
 			// Name to be displayed in editor or tools
 			const FText DisplayName;
@@ -120,7 +120,7 @@ namespace Audio
 		};
 
 		// Options used to restrict a corresponding UClass that interface may be applied to.
-		struct AUDIOEXTENSIONS_API FClassOptions
+		struct FClassOptions
 		{
 			// Path to restricted UClass
 			const FTopLevelAssetPath ClassPath;
@@ -137,34 +137,34 @@ namespace Audio
 		FParameterInterface() = default;
 
 		// Constructor used for parameter interface not limited to any particular UClass types
-		FParameterInterface(FName InName, const FVersion& InVersion);
+		AUDIOEXTENSIONS_API FParameterInterface(FName InName, const FVersion& InVersion);
 
 		UE_DEPRECATED(5.3, "Set UClassOptions to determine what options apply for a given UClass (if any).")
-		FParameterInterface(FName InName, const FVersion& InVersion, const UClass& InClass);
+		AUDIOEXTENSIONS_API FParameterInterface(FName InName, const FVersion& InVersion, const UClass& InClass);
 
 		// Returns name of interface
-		FName GetName() const;
+		AUDIOEXTENSIONS_API FName GetName() const;
 
 		// Returns version of interface
-		const FVersion& GetVersion() const;
+		AUDIOEXTENSIONS_API const FVersion& GetVersion() const;
 
 		UE_DEPRECATED(5.3, "Use FParameterInterface::FindSupportedUClasses instead")
-		const UClass& GetType() const;
+		AUDIOEXTENSIONS_API const UClass& GetType() const;
 
-		TArray<const UClass*> FindSupportedUClasses() const;
+		AUDIOEXTENSIONS_API TArray<const UClass*> FindSupportedUClasses() const;
 
 		// If specified, options used to restrict a corresponding UClass that interface may be
 		// applied to.  If unspecified, interface is assumed to be applicable to any arbitrary UClass.
-		const TArray<FClassOptions>& GetUClassOptions() const;
+		AUDIOEXTENSIONS_API const TArray<FClassOptions>& GetUClassOptions() const;
 
 		// Returns read-only array of inputs
-		const TArray<FInput>& GetInputs() const;
+		AUDIOEXTENSIONS_API const TArray<FInput>& GetInputs() const;
 
 		// Returns read-only array of outputs
-		const TArray<FOutput>& GetOutputs() const;
+		AUDIOEXTENSIONS_API const TArray<FOutput>& GetOutputs() const;
 
 		// Returns read-only array of environment variables
-		const TArray<FEnvironmentVariable>& GetEnvironment() const;
+		AUDIOEXTENSIONS_API const TArray<FEnvironmentVariable>& GetEnvironment() const;
 
 	private:
 		FName NamePrivate;
@@ -181,12 +181,12 @@ namespace Audio
 	// Registry of engine-defined audio parameter interfaces, used to parameterize data provided
 	// to or coming from an executable audio unit (ex. Sound like a MetaSoundSource, arbitrary DSP
 	// graph like a MetaSoundPatch, etc.).
-	class AUDIOEXTENSIONS_API IAudioParameterInterfaceRegistry
+	class IAudioParameterInterfaceRegistry
 	{
-		static TUniquePtr<IAudioParameterInterfaceRegistry> Instance;
+		static AUDIOEXTENSIONS_API TUniquePtr<IAudioParameterInterfaceRegistry> Instance;
 
 	public:
-		static IAudioParameterInterfaceRegistry& Get();
+		static AUDIOEXTENSIONS_API IAudioParameterInterfaceRegistry& Get();
 
 		virtual ~IAudioParameterInterfaceRegistry() = default;
 

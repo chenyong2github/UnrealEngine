@@ -15,8 +15,8 @@
 /**
  * Implements the settings for the Windows target platform.
  */
-UCLASS(config=Game, defaultconfig)
-class MOVIEPLAYER_API UMoviePlayerSettings
+UCLASS(config=Game, defaultconfig, MinimalAPI)
+class UMoviePlayerSettings
 	: public UObject
 {
 public:

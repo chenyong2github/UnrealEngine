@@ -62,7 +62,7 @@ struct FTimedDataChannelSampleTime
 
 
 USTRUCT(BlueprintType)
-struct TIMEMANAGEMENT_API FTimedDataInputEvaluationData
+struct FTimedDataInputEvaluationData
 {
 	GENERATED_BODY()
 
@@ -83,13 +83,13 @@ struct TIMEMANAGEMENT_API FTimedDataInputEvaluationData
 /**
  * Interface for data sources that can be synchronized with time
  */
-class TIMEMANAGEMENT_API ITimedDataInput
+class ITimedDataInput
 {
 public:
-	static FFrameRate UnknownFrameRate;
+	static TIMEMANAGEMENT_API FFrameRate UnknownFrameRate;
 	
-	static double ConvertSecondOffsetInFrameOffset(double Seconds, FFrameRate Rate);
-	static double ConvertFrameOffsetInSecondOffset(double Frames, FFrameRate Rate);
+	static TIMEMANAGEMENT_API double ConvertSecondOffsetInFrameOffset(double Seconds, FFrameRate Rate);
+	static TIMEMANAGEMENT_API double ConvertFrameOffsetInSecondOffset(double Frames, FFrameRate Rate);
 	
 public:
 	virtual ~ITimedDataInput() {}
@@ -137,10 +137,10 @@ public:
 	}
 
 	/** Convert second offset to frame offset using this input's framerate. */
-	double ConvertSecondOffsetInFrameOffset(double Seconds) const;
+	TIMEMANAGEMENT_API double ConvertSecondOffsetInFrameOffset(double Seconds) const;
 
 	/** Convert frame offset to second offset using this input's framerate. */
-	double ConvertFrameOffsetInSecondOffset(double Frames) const;
+	TIMEMANAGEMENT_API double ConvertFrameOffsetInSecondOffset(double Frames) const;
 
 #if WITH_EDITOR
 	/** Get the icon that represent the input. */
@@ -152,7 +152,7 @@ public:
 /**
  * Interface for data tracked produced by an input.
  */
-class TIMEMANAGEMENT_API ITimedDataInputChannel
+class ITimedDataInputChannel
 {
 public:
 	/** Get the channel's display name. */

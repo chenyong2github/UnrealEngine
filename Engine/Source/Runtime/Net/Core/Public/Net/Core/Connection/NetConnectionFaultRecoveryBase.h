@@ -36,7 +36,7 @@ namespace UE
  * Fault handlers may have their own separate escalation tracking.
  */
 USTRUCT()
-struct NETCORE_API FNetFaultState : public FEscalationState
+struct FNetFaultState : public FEscalationState
 {
 	GENERATED_BODY()
 
@@ -72,17 +72,17 @@ public:
 
 
 public:
-	static const TCHAR* GetConfigSection();
-	static UClass* GetBaseConfigClass();
+	static NETCORE_API const TCHAR* GetConfigSection();
+	static NETCORE_API UClass* GetBaseConfigClass();
 
 
 protected:
-	virtual EInitStateDefaultsResult InitConfigDefaultsInternal() override;
-	virtual void ApplyImpliedValuesInternal() override;
-	virtual void ValidateConfigInternal() override;
+	NETCORE_API virtual EInitStateDefaultsResult InitConfigDefaultsInternal() override;
+	NETCORE_API virtual void ApplyImpliedValuesInternal() override;
+	NETCORE_API virtual void ValidateConfigInternal() override;
 
 private:
-	virtual bool HasHitAnyQuota(FHasHitAnyQuotaParms Parms) const override;
+	NETCORE_API virtual bool HasHitAnyQuota(FHasHitAnyQuotaParms Parms) const override;
 };
 
 
@@ -147,7 +147,7 @@ inline uint8 ToInt(ENetFaultCounterCategory CategoryVal)
 /**
  * Implements the base/public interface for FNetConnectionFaultRecovery - defined here, to eliminate the need for Engine dependencies.
  */
-class NETCORE_API FNetConnectionFaultRecoveryBase
+class FNetConnectionFaultRecoveryBase
 {
 public:
 	using FNetFaultEscalationHandler = TEscalationManager<ENetFaultCounters, FNetFaultState, ENetFaultCounterCategory>;
@@ -162,7 +162,7 @@ public:
 	 * @param InResult	The successfully handled result, passed on to fault recovery
 	 * @return			Returns whether or not fault recovery handled the fault (this value should be returned by the calling HandleNetResult)
 	 */
-	EHandleNetResult NotifyHandledFault(FNetResult&& InResult);
+	NETCORE_API EHandleNetResult NotifyHandledFault(FNetResult&& InResult);
 
 
 	/** Accessors */
@@ -178,22 +178,22 @@ public:
 	/**
 	 * Convenience Forwarding function for FNetResultManager.HandleNetResult, taking FNetCloseResult/ENetCloseResult
 	 */
-	EHandleNetResult HandleNetResult(FNetCloseResult&& InResult);
+	NETCORE_API EHandleNetResult HandleNetResult(FNetCloseResult&& InResult);
 
 	/**
 	 * Passthrough for TEscalationManager.AddNewCounter (with caching, NetFaultEscalationManager has not been initialized yet)
 	 */
-	int32 AddNewCounter(int32 Count=1);
+	NETCORE_API int32 AddNewCounter(int32 Count=1);
 
 	/**
 	 * Passthrough for FEscalationManager.GetFrameCounter
 	 */
-	FEscalationCounter& GetFrameCounter(int32 CounterIndex);
+	NETCORE_API FEscalationCounter& GetFrameCounter(int32 CounterIndex);
 
 	/**
 	 * Passthrough for TEscalationManager.RegisterCounterCategory (with caching, NetFaultEscalationManager has not been initialized yet)
 	 */
-	void RegisterCounterCategory(ENetFaultCounterCategory Category, int32 CounterIndex);
+	NETCORE_API void RegisterCounterCategory(ENetFaultCounterCategory Category, int32 CounterIndex);
 
 
 private:

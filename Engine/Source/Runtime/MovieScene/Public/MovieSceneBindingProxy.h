@@ -19,7 +19,7 @@ class UMovieSceneSequence;
 // managing multiple bindings with their corresponding sequences is necessary.
 //
 USTRUCT(BlueprintType)
-struct MOVIESCENE_API FMovieSceneBindingProxy
+struct FMovieSceneBindingProxy
 {
 	GENERATED_BODY()
 
@@ -47,7 +47,7 @@ struct MOVIESCENE_API FMovieSceneBindingProxy
 		return HashCombine(GetTypeHash(In.BindingID), GetTypeHash(In.Sequence));
 	}
 
-	UMovieScene* GetMovieScene() const;
+	MOVIESCENE_API UMovieScene* GetMovieScene() const;
 
 	UPROPERTY(BlueprintReadOnly, Category=Binding)
 	FGuid BindingID;

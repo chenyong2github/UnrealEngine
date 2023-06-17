@@ -62,7 +62,7 @@ struct FFieldColorSettings
 
 
 /** */
-class ADVANCEDWIDGETS_API FFieldIconFinder
+class FFieldIconFinder
 {
 public:
 	/** */
@@ -75,15 +75,15 @@ public:
 	using FFieldIconArray = TArray<FFieldIcon, TInlineAllocator<2>>;
 
 	/** */
-	static const FSlateBrush* GetIcon(const UObject* Object);
+	static ADVANCEDWIDGETS_API const FSlateBrush* GetIcon(const UObject* Object);
 
 	/** */
-	static FFieldIconArray GetFunctionIcon(const UFunction* Function);
-	static FFieldIconArray GetFunctionIcon(const UFunction* Function, const FFieldColorSettings& Settings);
+	static ADVANCEDWIDGETS_API FFieldIconArray GetFunctionIcon(const UFunction* Function);
+	static ADVANCEDWIDGETS_API FFieldIconArray GetFunctionIcon(const UFunction* Function, const FFieldColorSettings& Settings);
 
 	/** */
-	static FFieldIconArray GetPropertyIcon(const FProperty* Property);
-	static FFieldIconArray GetPropertyIcon(const FProperty* Property, const FFieldColorSettings& Settings);
+	static ADVANCEDWIDGETS_API FFieldIconArray GetPropertyIcon(const FProperty* Property);
+	static ADVANCEDWIDGETS_API FFieldIconArray GetPropertyIcon(const FProperty* Property, const FFieldColorSettings& Settings);
 };
 
 } //namespace

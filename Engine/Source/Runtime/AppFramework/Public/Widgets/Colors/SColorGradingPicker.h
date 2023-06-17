@@ -33,7 +33,7 @@ enum class EColorGradingModes
  * use the functions OpenColorGradingWheel and DestroyColorGradingWheel, since they hold a static
  * instance of the color picker.
  */
-class APPFRAMEWORK_API SColorGradingPicker
+class SColorGradingPicker
 	: public SCompoundWidget
 {
 public:
@@ -93,7 +93,7 @@ public:
 	SLATE_END_ARGS()
 
 	/**	Destructor. */
-	~SColorGradingPicker();
+	APPFRAMEWORK_API ~SColorGradingPicker();
 
 public:
 
@@ -102,38 +102,38 @@ public:
 	 *
 	 * @param InArgs Declaration from which to construct the widget.
 	 */
-	void Construct(const FArguments& InArgs );
+	APPFRAMEWORK_API void Construct(const FArguments& InArgs );
 
 	FOnNumericEntryBoxDynamicSliderMinMaxValueChanged& GetOnNumericEntryBoxDynamicSliderMaxValueChangedDelegate() { return OnNumericEntryBoxDynamicSliderMaxValueChanged; }
 	FOnNumericEntryBoxDynamicSliderMinMaxValueChanged& GetOnNumericEntryBoxDynamicSliderMinValueChangedDelegate() { return OnNumericEntryBoxDynamicSliderMinValueChanged; }
 
 	/** Callback when the max/min spinner value are changed (only apply if SupportDynamicSliderMaxValue or SupportDynamicSliderMinValue are true) */
-	void OnDynamicSliderMaxValueChanged(float NewMaxSliderValue, TWeakPtr<SWidget> InValueChangedSourceWidget, bool IsOriginator, bool UpdateOnlyIfHigher);
-	void OnDynamicSliderMinValueChanged(float NewMinSliderValue, TWeakPtr<SWidget> InValueChangedSourceWidget, bool IsOriginator, bool UpdateOnlyIfLower);
+	APPFRAMEWORK_API void OnDynamicSliderMaxValueChanged(float NewMaxSliderValue, TWeakPtr<SWidget> InValueChangedSourceWidget, bool IsOriginator, bool UpdateOnlyIfHigher);
+	APPFRAMEWORK_API void OnDynamicSliderMinValueChanged(float NewMinSliderValue, TWeakPtr<SWidget> InValueChangedSourceWidget, bool IsOriginator, bool UpdateOnlyIfLower);
 
 protected:
 
-	void TransformLinearColorRangeToColorGradingRange(FVector4 &VectorValue) const;
-	void TransformColorGradingRangeToLinearColorRange(FVector4 &VectorValue) const;
-	void TransformColorGradingRangeToLinearColorRange(float &FloatValue);
+	APPFRAMEWORK_API void TransformLinearColorRangeToColorGradingRange(FVector4 &VectorValue) const;
+	APPFRAMEWORK_API void TransformColorGradingRangeToLinearColorRange(FVector4 &VectorValue) const;
+	APPFRAMEWORK_API void TransformColorGradingRangeToLinearColorRange(float &FloatValue);
 
-	TOptional<float> OnGetMainValue() const;
-	void OnMainValueChanged(float InValue, bool ShouldCommitValueChanges);
-	void OnMainValueCommitted(float InValue, ETextCommit::Type CommitType);
+	APPFRAMEWORK_API TOptional<float> OnGetMainValue() const;
+	APPFRAMEWORK_API void OnMainValueChanged(float InValue, bool ShouldCommitValueChanges);
+	APPFRAMEWORK_API void OnMainValueCommitted(float InValue, ETextCommit::Type CommitType);
 
-	FLinearColor GetCurrentLinearColor();
+	APPFRAMEWORK_API FLinearColor GetCurrentLinearColor();
 
-	bool IsEntryBoxEnabled() const;
+	APPFRAMEWORK_API bool IsEntryBoxEnabled() const;
 
 	// Callback for value changes in the color spectrum picker.
-	void HandleCurrentColorValueChanged(const FLinearColor& NewValue, bool ShouldCommitValueChanges);
+	APPFRAMEWORK_API void HandleCurrentColorValueChanged(const FLinearColor& NewValue, bool ShouldCommitValueChanges);
 
-	void HandleColorWheelMouseCaptureBegin(const FLinearColor& InValue);
-	void HandleColorWheelMouseCaptureEnd(const FLinearColor& InValue);
+	APPFRAMEWORK_API void HandleColorWheelMouseCaptureBegin(const FLinearColor& InValue);
+	APPFRAMEWORK_API void HandleColorWheelMouseCaptureEnd(const FLinearColor& InValue);
 
-	void OnBeginSliderMovement();
-	void OnEndSliderMovement(float NewValue);
-	void AdjustRatioValue(FVector4 &NewValue);
+	APPFRAMEWORK_API void OnBeginSliderMovement();
+	APPFRAMEWORK_API void OnEndSliderMovement(float NewValue);
+	APPFRAMEWORK_API void AdjustRatioValue(FVector4 &NewValue);
 
 	bool bIsMouseDragging;
 	FVector4 StartDragRatio;

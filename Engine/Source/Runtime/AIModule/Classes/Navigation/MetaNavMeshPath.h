@@ -43,31 +43,31 @@ struct FMetaPathWayPoint : public FVector
  *
  * Since path updates itself for moving agent it really shouldn't be reused by others.
  */
-struct AIMODULE_API FMetaNavMeshPath : public FNavMeshPath
+struct FMetaNavMeshPath : public FNavMeshPath
 {
 	typedef FNavMeshPath Super;
-	static const FNavPathType Type;
+	static AIMODULE_API const FNavPathType Type;
 
-	FMetaNavMeshPath();
-	FMetaNavMeshPath(const TArray<FMetaPathWayPoint>& InWaypoints, const ANavigationData& NavData);
-	FMetaNavMeshPath(const TArray<FMetaPathWayPoint>& InWaypoints, const AController& Owner);
-	FMetaNavMeshPath(const TArray<FVector>& InWaypoints, const ANavigationData& NavData);
-	FMetaNavMeshPath(const TArray<FVector>& InWaypoints, const AController& Owner);
+	AIMODULE_API FMetaNavMeshPath();
+	AIMODULE_API FMetaNavMeshPath(const TArray<FMetaPathWayPoint>& InWaypoints, const ANavigationData& NavData);
+	AIMODULE_API FMetaNavMeshPath(const TArray<FMetaPathWayPoint>& InWaypoints, const AController& Owner);
+	AIMODULE_API FMetaNavMeshPath(const TArray<FVector>& InWaypoints, const ANavigationData& NavData);
+	AIMODULE_API FMetaNavMeshPath(const TArray<FVector>& InWaypoints, const AController& Owner);
 
 	/** initialize path for path following */
-	virtual void Initialize(const FVector& AgentLocation);
+	AIMODULE_API virtual void Initialize(const FVector& AgentLocation);
 
 	/** try switching to next waypoint, depends on WaypointSwitchRadius */
-	virtual bool ConditionalMoveToNextSection(const FVector& AgentLocation, EMetaPathUpdateReason Reason);
+	AIMODULE_API virtual bool ConditionalMoveToNextSection(const FVector& AgentLocation, EMetaPathUpdateReason Reason);
 
 	/** force switching to next waypoint */
-	bool ForceMoveToNextSection(const FVector& AgentLocation);
+	AIMODULE_API bool ForceMoveToNextSection(const FVector& AgentLocation);
 
 	/** updates underlying navmesh path for current target waypoint */
-	virtual bool UpdatePath(const FVector& AgentLocation);
+	AIMODULE_API virtual bool UpdatePath(const FVector& AgentLocation);
 
 	/** copy properties of other meta path */
-	virtual void CopyFrom(const FMetaNavMeshPath& Other);
+	AIMODULE_API virtual void CopyFrom(const FMetaNavMeshPath& Other);
 
 	/** returns true if path at last waypoint */
 	bool IsLastSection() const { return (TargetWaypointIdx == (Waypoints.Num() - 1)) && (Waypoints.Num() > 0); }
@@ -85,10 +85,10 @@ struct AIMODULE_API FMetaNavMeshPath : public FNavMeshPath
 	AActor* GetMetaPathGoal() const { return PathGoal.Get(); }
 
 	/** tries to set waypoints, fails when path is ready being followed */
-	bool SetWaypoints(const TArray<FMetaPathWayPoint>& InWaypoints);
+	AIMODULE_API bool SetWaypoints(const TArray<FMetaPathWayPoint>& InWaypoints);
 
 	/** tries to set waypoints, fails when path is ready being followed */
-	bool SetWaypoints(const TArray<FVector>& InWaypoints);
+	AIMODULE_API bool SetWaypoints(const TArray<FVector>& InWaypoints);
 	
 	/** returns radius for switching to next waypoint during path following */
 	float GetWaypointSwitchRadius() const { return WaypointSwitchRadius; }
@@ -97,15 +97,15 @@ struct AIMODULE_API FMetaNavMeshPath : public FNavMeshPath
 	void SetWaypointSwitchRadius(float InSwitchRadius) { WaypointSwitchRadius = InSwitchRadius; }
 
 	/** returns approximate length of path, ignores parameters */
-	virtual FVector::FReal GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const override;
+	AIMODULE_API virtual FVector::FReal GetLengthFromPosition(FVector SegmentStart, uint32 NextPathPointIndex) const override;
 	
 	/** returns approximate cost of path, ignores parameter */
-	virtual FVector::FReal GetCostFromIndex(int32 PathPointIndex) const override;
+	AIMODULE_API virtual FVector::FReal GetCostFromIndex(int32 PathPointIndex) const override;
 
 #if ENABLE_VISUAL_LOG
-	virtual void DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const override;
+	AIMODULE_API virtual void DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const override;
 #endif
-	virtual void DebugDraw(const ANavigationData* NavData, const FColor PathColor, UCanvas* Canvas, const bool bPersistent, const float LifeTime, const uint32 NextPathPointIndex = 0) const override;
+	AIMODULE_API virtual void DebugDraw(const ANavigationData* NavData, const FColor PathColor, UCanvas* Canvas, const bool bPersistent, const float LifeTime, const uint32 NextPathPointIndex = 0) const override;
 
 protected:
 
@@ -128,5 +128,5 @@ protected:
 	float PathGoalTetherDistance;
 
 	/** switch to next waypoint  */
-	bool MoveToNextSection(const FVector& AgentLocation);
+	AIMODULE_API bool MoveToNextSection(const FVector& AgentLocation);
 };

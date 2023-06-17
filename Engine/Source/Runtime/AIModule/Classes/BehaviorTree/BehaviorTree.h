@@ -11,8 +11,8 @@
 class UBlackboardData;
 class UBTDecorator;
 
-UCLASS(BlueprintType)
-class AIMODULE_API UBehaviorTree : public UObject, public IBlackboardAssetProvider
+UCLASS(BlueprintType, MinimalAPI)
+class UBehaviorTree : public UObject, public IBlackboardAssetProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,7 +34,7 @@ class AIMODULE_API UBehaviorTree : public UObject, public IBlackboardAssetProvid
 
 	// BEGIN IBlackboardAssetProvider
 	/** @return blackboard asset */
-	virtual UBlackboardData* GetBlackboardAsset() const override;
+	AIMODULE_API virtual UBlackboardData* GetBlackboardAsset() const override;
 	// END IBlackboardAssetProvider
 
 	/** blackboard asset for this tree */

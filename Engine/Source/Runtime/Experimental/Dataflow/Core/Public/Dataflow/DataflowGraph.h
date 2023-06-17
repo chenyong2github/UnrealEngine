@@ -45,7 +45,7 @@ namespace Dataflow
 	//
 	//
 	//
-	class DATAFLOWCORE_API FGraph
+	class FGraph
 	{
 
 		FGuid  Guid;
@@ -54,7 +54,7 @@ namespace Dataflow
 		TArray< FLink > Connections;
 		TSet< FName > DisabledNodes;
 	public:
-		FGraph(FGuid InGuid = FGuid::NewGuid());
+		DATAFLOWCORE_API FGraph(FGuid InGuid = FGuid::NewGuid());
 		virtual ~FGraph() {}
 
 		const TArray< TSharedPtr<FDataflowNode> >& GetTerminalNodes() const { return TerminalNodes; }
@@ -144,16 +144,16 @@ namespace Dataflow
 			return TSharedPtr<FDataflowNode>(nullptr);
 		}
 
-		void RemoveNode(TSharedPtr<FDataflowNode> Node);
+		DATAFLOWCORE_API void RemoveNode(TSharedPtr<FDataflowNode> Node);
 
-		void ClearConnections(FDataflowConnection* ConnectionBase);
-		void ClearConnections(FDataflowInput* Input);
-		void ClearConnections(FDataflowOutput* Output);
+		DATAFLOWCORE_API void ClearConnections(FDataflowConnection* ConnectionBase);
+		DATAFLOWCORE_API void ClearConnections(FDataflowInput* Input);
+		DATAFLOWCORE_API void ClearConnections(FDataflowOutput* Output);
 
-		void Connect(FDataflowOutput* OutputConnection, FDataflowInput* InputConnection);
-		void Disconnect(FDataflowOutput* OutputConnection, FDataflowInput* InputConnection);
+		DATAFLOWCORE_API void Connect(FDataflowOutput* OutputConnection, FDataflowInput* InputConnection);
+		DATAFLOWCORE_API void Disconnect(FDataflowOutput* OutputConnection, FDataflowInput* InputConnection);
 
-		virtual void Serialize(FArchive& Ar);
+		DATAFLOWCORE_API virtual void Serialize(FArchive& Ar);
 		const TSet<FName>& GetDisabledNodes() const { return DisabledNodes; }
 
 	};

@@ -9,7 +9,7 @@
 #include "DataflowEngineTypes.generated.h"
 
 USTRUCT(BlueprintType)
-struct DATAFLOWENGINE_API FStringValuePair
+struct FStringValuePair
 {
 	GENERATED_BODY()
 

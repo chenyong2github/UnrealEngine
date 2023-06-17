@@ -9,18 +9,18 @@
 #include "Binding/PropertyBinding.h"
 #include "MouseCursorBinding.generated.h"
 
-UCLASS()
-class UMG_API UMouseCursorBinding : public UPropertyBinding
+UCLASS(MinimalAPI)
+class UMouseCursorBinding : public UPropertyBinding
 {
 	GENERATED_BODY()
 
 public:
 
-	UMouseCursorBinding();
+	UMG_API UMouseCursorBinding();
 
-	virtual bool IsSupportedSource(FProperty* Property) const override;
-	virtual bool IsSupportedDestination(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedSource(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedDestination(FProperty* Property) const override;
 
 	UFUNCTION()
-	EMouseCursor::Type GetValue() const;
+	UMG_API EMouseCursor::Type GetValue() const;
 };

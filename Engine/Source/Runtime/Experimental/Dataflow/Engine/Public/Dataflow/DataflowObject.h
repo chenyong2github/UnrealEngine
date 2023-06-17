@@ -29,7 +29,7 @@ namespace Dataflow { class FGraph; }
 *     dynamic collection
 *
 */
-class DATAFLOWENGINE_API FDataflowAssetEdit
+class FDataflowAssetEdit
 {
 public:
 	typedef TFunctionRef<void()> FPostEditFunctionCallback;
@@ -38,10 +38,10 @@ public:
 	/**
 	 * @param UDataflow				The "FAsset" to edit
 	 */
-	FDataflowAssetEdit(UDataflow *InAsset, FPostEditFunctionCallback InCallable);
-	~FDataflowAssetEdit();
+	DATAFLOWENGINE_API FDataflowAssetEdit(UDataflow *InAsset, FPostEditFunctionCallback InCallable);
+	DATAFLOWENGINE_API ~FDataflowAssetEdit();
 
-	Dataflow::FGraph* GetGraph();
+	DATAFLOWENGINE_API Dataflow::FGraph* GetGraph();
 
 private:
 	FPostEditFunctionCallback PostEditCallback;
@@ -54,24 +54,24 @@ private:
 * UObject wrapper for the Dataflow::FGraph
 *
 */
-UCLASS(BlueprintType, customconstructor)
-class DATAFLOWENGINE_API UDataflow : public UEdGraph
+UCLASS(BlueprintType, customconstructor, MinimalAPI)
+class UDataflow : public UEdGraph
 {
 	GENERATED_UCLASS_BODY()
 
 	Dataflow::FTimestamp LastModifiedRenderTarget = Dataflow::FTimestamp::Invalid; 
 	TArray<const UDataflowEdNode*> RenderTargets; // Not Serialized
 	TSharedPtr<Dataflow::FGraph, ESPMode::ThreadSafe> Dataflow;
-	void PostEditCallback();
+	DATAFLOWENGINE_API void PostEditCallback();
 
 public:
-	UDataflow(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	DATAFLOWENGINE_API UDataflow(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** 
 	* Find all the node of a speific type and evaluate them using a specific UObject
 	*/
 	UE_DEPRECATED(5.1, "Use Blueprint library version of the function")
-	void EvaluateTerminalNodeByName(FName NodeName, UObject* Asset);
+	DATAFLOWENGINE_API void EvaluateTerminalNodeByName(FName NodeName, UObject* Asset);
 
 	virtual bool IsEditorOnly() const { return true; }
 
@@ -90,12 +90,12 @@ public:
 public:
 	/** UObject Interface */
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	DATAFLOWENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	virtual void PostLoad() override;
+	DATAFLOWENGINE_API virtual void PostLoad() override;
 	/** End UObject Interface */
 
-	void Serialize(FArchive& Ar);
+	DATAFLOWENGINE_API void Serialize(FArchive& Ar);
 
 	/** Accessors for internal geometry collection */
 	TSharedPtr<const Dataflow::FGraph, ESPMode::ThreadSafe> GetDataflow() const { return Dataflow; }
@@ -111,8 +111,8 @@ public:
 	//
 	// Render Targets
 	//
-	void AddRenderTarget(UDataflowEdNode*);
-	void RemoveRenderTarget(UDataflowEdNode*);
+	DATAFLOWENGINE_API void AddRenderTarget(UDataflowEdNode*);
+	DATAFLOWENGINE_API void RemoveRenderTarget(UDataflowEdNode*);
 	const TArray<const UDataflowEdNode*>& GetRenderTargets() const { return RenderTargets; }
 	const Dataflow::FTimestamp& GetRenderingTimestamp() const { return LastModifiedRenderTarget; }
 

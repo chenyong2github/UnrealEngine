@@ -17,50 +17,50 @@
 
 
 // Class that handles storing all registered PreLoadScreens and Playing/Stopping them
-class PRELOADSCREEN_API FPreLoadScreenManager
+class FPreLoadScreenManager
 {
 public:
     //Gets the single instance of this settings object. Also creates it if needed
-    static FPreLoadScreenManager* Get();
-    static void Create();
-    static void Destroy();
+    static PRELOADSCREEN_API FPreLoadScreenManager* Get();
+    static PRELOADSCREEN_API void Create();
+    static PRELOADSCREEN_API void Destroy();
 
-    void Initialize(FSlateRenderer& InSlateRenderer);
+    PRELOADSCREEN_API void Initialize(FSlateRenderer& InSlateRenderer);
 
-    void RegisterPreLoadScreen(const TSharedPtr<IPreLoadScreen>& PreLoadScreen);
-    void UnRegisterPreLoadScreen(const TSharedPtr<IPreLoadScreen>& PreLoadScreen);
+    PRELOADSCREEN_API void RegisterPreLoadScreen(const TSharedPtr<IPreLoadScreen>& PreLoadScreen);
+    PRELOADSCREEN_API void UnRegisterPreLoadScreen(const TSharedPtr<IPreLoadScreen>& PreLoadScreen);
 
     /**
 	 * Plays the first found PreLoadScreen that matches the bEarlyPreLoadScreen setting passed in.
 	 * @returns false if no PreLoadScreen with that type has been registered.
 	 */
-    bool PlayFirstPreLoadScreen(EPreLoadScreenTypes PreLoadScreenTypeToPlay);
+    PRELOADSCREEN_API bool PlayFirstPreLoadScreen(EPreLoadScreenTypes PreLoadScreenTypeToPlay);
 
 	/**
 	 * Plays the PreLoadScreen with a tag that matches InTag
 	 * @returns false if no PreLoadScreen with that tag has been registered.
 	 */
-	bool PlayPreLoadScreenWithTag(FName InTag);
+	PRELOADSCREEN_API bool PlayPreLoadScreenWithTag(FName InTag);
     
-	void StopPreLoadScreen();
-	void WaitForEngineLoadingScreenToFinish();
+	PRELOADSCREEN_API void StopPreLoadScreen();
+	PRELOADSCREEN_API void WaitForEngineLoadingScreenToFinish();
 
-    void PassPreLoadScreenWindowBackToGame() const;
+    PRELOADSCREEN_API void PassPreLoadScreenWindowBackToGame() const;
 
-    bool IsUsingMainWindow() const;
+    PRELOADSCREEN_API bool IsUsingMainWindow() const;
 
-    TSharedPtr<SWindow> GetRenderWindow();
+    PRELOADSCREEN_API TSharedPtr<SWindow> GetRenderWindow();
 
-    bool HasRegisteredPreLoadScreenType(EPreLoadScreenTypes PreLoadScreenTypeToCheck) const;
-    bool HasActivePreLoadScreenType(EPreLoadScreenTypes PreLoadScreenTypeToCheck) const;
-    bool HasValidActivePreLoadScreen() const;
+    PRELOADSCREEN_API bool HasRegisteredPreLoadScreenType(EPreLoadScreenTypes PreLoadScreenTypeToCheck) const;
+    PRELOADSCREEN_API bool HasActivePreLoadScreenType(EPreLoadScreenTypes PreLoadScreenTypeToCheck) const;
+    PRELOADSCREEN_API bool HasValidActivePreLoadScreen() const;
 
 
-    void SetEngineLoadingComplete(bool IsEngineLoadingFinished = true);
+    PRELOADSCREEN_API void SetEngineLoadingComplete(bool IsEngineLoadingFinished = true);
     bool IsEngineLoadingComplete() const { return bIsEngineLoadingComplete; }
 
-    static void EnableRendering(bool bEnabled);
-    static bool ArePreLoadScreensEnabled();
+    static PRELOADSCREEN_API void EnableRendering(bool bEnabled);
+    static PRELOADSCREEN_API bool ArePreLoadScreensEnabled();
     
     // Callback for handling cleaning up any resources you would like to remove after the PreLoadScreenManager cleans up
     // Not needed for PreLoadScreens as those have a separate CleanUp method called.
@@ -72,46 +72,46 @@ public:
 
 protected:
     //Default constructor. We don't want other classes to make these. Should just rely on Get()
-    FPreLoadScreenManager();
+    PRELOADSCREEN_API FPreLoadScreenManager();
 
 	~FPreLoadScreenManager() = default;
 
-	void PlayPreLoadScreenAtIndex(int32 Index);
+	PRELOADSCREEN_API void PlayPreLoadScreenAtIndex(int32 Index);
 
-    void BeginPlay();
+    PRELOADSCREEN_API void BeginPlay();
 
     /*** These functions describe the flow for an EarlyPreLoadScreen where everything is blocking waiting on a call to StopPreLoadScreen ***/
-    void HandleEarlyStartupPlay();
+    PRELOADSCREEN_API void HandleEarlyStartupPlay();
     //Separate tick that handles 
-    void EarlyPlayFrameTick();
-    void GameLogicFrameTick();
-    void EarlyPlayRenderFrameTick();
-	bool HasActivePreLoadScreenTypeForEarlyStartup() const;
+    PRELOADSCREEN_API void EarlyPlayFrameTick();
+    PRELOADSCREEN_API void GameLogicFrameTick();
+    PRELOADSCREEN_API void EarlyPlayRenderFrameTick();
+	PRELOADSCREEN_API bool HasActivePreLoadScreenTypeForEarlyStartup() const;
 
-	void PlatformSpecificGameLogicFrameTick();
+	PRELOADSCREEN_API void PlatformSpecificGameLogicFrameTick();
 
 	//Creates a tick on the Render Thread that we run every
-	static void StaticRenderTick_RenderThread();
-	void RenderTick_RenderThread();
+	static PRELOADSCREEN_API void StaticRenderTick_RenderThread();
+	PRELOADSCREEN_API void RenderTick_RenderThread();
 
     /*** These functions describe how everything is handled during an non-Early PreLoadPlay. Everything is handled asynchronously in this case with a standalone renderer ***/
-	void HandleEngineLoadingPlay();
+	PRELOADSCREEN_API void HandleEngineLoadingPlay();
 
 	/*** These functions describe the flow for showing an CustomSplashScreen ***/
-	void HandleCustomSplashScreenPlay();
+	PRELOADSCREEN_API void HandleCustomSplashScreenPlay();
 
-    IPreLoadScreen* GetActivePreLoadScreen();
-    const IPreLoadScreen* GetActivePreLoadScreen() const;
+    PRELOADSCREEN_API IPreLoadScreen* GetActivePreLoadScreen();
+    PRELOADSCREEN_API const IPreLoadScreen* GetActivePreLoadScreen() const;
 
-	void HandleStopPreLoadScreen();
-	void CleanUpResources();
+	PRELOADSCREEN_API void HandleStopPreLoadScreen();
+	PRELOADSCREEN_API void CleanUpResources();
 
 	//Helpers that setup and clean-up delegates that only need to be active while we are playing an EarlyStartup PreLoadScreen
-	void RegisterDelegatesForEarlyStartupPlay();
-	void CleanUpDelegatesForEarlyStartupPlay();
+	PRELOADSCREEN_API void RegisterDelegatesForEarlyStartupPlay();
+	PRELOADSCREEN_API void CleanUpDelegatesForEarlyStartupPlay();
 
-	void HandleFlushRenderingCommandsStart();
-	void HandleFlushRenderingCommandsEnd();
+	PRELOADSCREEN_API void HandleFlushRenderingCommandsStart();
+	PRELOADSCREEN_API void HandleFlushRenderingCommandsEnd();
 
 	//Singleton Instance
 	struct FPreLoadScreenManagerDelete
@@ -121,10 +121,10 @@ protected:
 			delete Ptr;
 		}
 	};
-	static TUniquePtr<FPreLoadScreenManager, FPreLoadScreenManagerDelete> Instance;
+	static PRELOADSCREEN_API TUniquePtr<FPreLoadScreenManager, FPreLoadScreenManagerDelete> Instance;
 
-	static FCriticalSection AcquireCriticalSection;
-	static TAtomic<bool> bRenderingEnabled;
+	static PRELOADSCREEN_API FCriticalSection AcquireCriticalSection;
+	static PRELOADSCREEN_API TAtomic<bool> bRenderingEnabled;
 
 	TArray<TSharedPtr<IPreLoadScreen>> PreLoadScreens;
 
@@ -156,10 +156,10 @@ protected:
 
 private:
 #if PLATFORM_ANDROID
-	void Android_PlatformSpecificGameLogicFrameTick();
+	PRELOADSCREEN_API void Android_PlatformSpecificGameLogicFrameTick();
 #endif //PLATFORM_ANDROID
 
 #if PLATFORM_IOS
-	void IOS_PlatformSpecificGameLogicFrameTick();
+	PRELOADSCREEN_API void IOS_PlatformSpecificGameLogicFrameTick();
 #endif //PLATFORM_IOS
 };

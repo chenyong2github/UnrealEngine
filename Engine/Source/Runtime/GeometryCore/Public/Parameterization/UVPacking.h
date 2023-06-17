@@ -21,7 +21,7 @@ namespace Geometry
  * generic mesh class.  The UV islands must already be identified, this
  * class simply scales/rotates/translates the islands to fit.
  */
-class GEOMETRYCORE_API FUVPacker
+class FUVPacker
 {
 public:
 
@@ -54,7 +54,7 @@ public:
 	 * All UV islands are packed into standard positive-unit-square.
 	 * Only supports single-pixel border size.
 	 */
-	bool StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland);
+	GEOMETRYCORE_API bool StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland);
 
 	/// Version of StandardPack that takes an array of arrays instead of a TFunctionRef, for convenience
 	bool StandardPack(IUVMeshView* Mesh, const TArray<TArray<int>>& UVIslands)
@@ -70,7 +70,7 @@ public:
 	 * and translate each islands separately so that it's bbox-min is at the origin.
 	 * So the islands are "stacked" and all fit in the unit box.
 	 */
-	bool StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland);
+	GEOMETRYCORE_API bool StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland);
 
 	/// Version of StackPack that takes an array of arrays instead of a TFunctionRef, for convenience
 	bool StackPack(IUVMeshView* Mesh, const TArray<TArray<int>>& UVIslands)
@@ -86,7 +86,7 @@ protected:
 	/**
 	 * Compute common stats used by the packing algorithms to transform UV islands
 	 */
-	void GetIslandStats(IUVMeshView* Mesh, const TArray<int32>& Island, FAxisAlignedBox2d& IslandBoundsOut, double& IslandScaleFactorOut, double& UVAreaOut);
+	GEOMETRYCORE_API void GetIslandStats(IUVMeshView* Mesh, const TArray<int32>& Island, FAxisAlignedBox2d& IslandBoundsOut, double& IslandScaleFactorOut, double& UVAreaOut);
 
 };
 

@@ -15,8 +15,8 @@ class SSpacer;
  *
  * * No Children
  */
-UCLASS()
-class UMG_API USpacer : public UWidget
+UCLASS(MinimalAPI)
+class USpacer : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -30,24 +30,24 @@ public:
 public:
 
 	/** */
-	FVector2D GetSize() const;
+	UMG_API FVector2D GetSize() const;
 
 	/** Sets the size of the spacer */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetSize(FVector2D InSize);
+	UMG_API void SetSize(FVector2D InSize);
 	
 	//~ UWidget interface
-	virtual void SynchronizeProperties() override;
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void SynchronizeProperties() override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End of UVisual interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 	//~ UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End of UWidget interface
 
 protected:

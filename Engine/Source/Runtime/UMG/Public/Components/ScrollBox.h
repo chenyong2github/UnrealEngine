@@ -16,8 +16,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUserScrolledEvent, float, Current
 /**
  * An arbitrary scrollable collection of widgets.  Great for presenting 10-100 widgets in a list.  Doesn't support virtualization.
  */
-UCLASS()
-class UMG_API UScrollBox : public UPanelWidget
+UCLASS(MinimalAPI)
+class UScrollBox : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -116,86 +116,86 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetWheelScrollMultiplier", Category = "Scroll")
 	float WheelScrollMultiplier = 1.f;
 
-	void SetWidgetStyle(const FScrollBoxStyle& NewWidgetStyle);
+	UMG_API void SetWidgetStyle(const FScrollBoxStyle& NewWidgetStyle);
 
-	const FScrollBoxStyle& GetWidgetStyle() const;
+	UMG_API const FScrollBoxStyle& GetWidgetStyle() const;
 
-	void SetWidgetBarStyle(const FScrollBarStyle& NewWidgetBarStyle);
+	UMG_API void SetWidgetBarStyle(const FScrollBarStyle& NewWidgetBarStyle);
 
-	const FScrollBarStyle& GetWidgetBarStyle() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel);
-
-	EConsumeMouseWheel GetConsumeMouseWheel() const;
+	UMG_API const FScrollBarStyle& GetWidgetBarStyle() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetOrientation(EOrientation NewOrientation);
+	UMG_API void SetConsumeMouseWheel(EConsumeMouseWheel NewConsumeMouseWheel);
 
-	EOrientation GetOrientation() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetScrollBarVisibility(ESlateVisibility NewScrollBarVisibility);
-
-	ESlateVisibility GetScrollBarVisibility() const;
+	UMG_API EConsumeMouseWheel GetConsumeMouseWheel() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetScrollbarThickness(const FVector2D& NewScrollbarThickness);
+	UMG_API void SetOrientation(EOrientation NewOrientation);
 
-	FVector2D GetScrollbarThickness() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetScrollbarPadding(const FMargin& NewScrollbarPadding);
-
-	FMargin GetScrollbarPadding() const;
+	UMG_API EOrientation GetOrientation() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetAlwaysShowScrollbar(bool NewAlwaysShowScrollbar);
+	UMG_API void SetScrollBarVisibility(ESlateVisibility NewScrollBarVisibility);
+
+	UMG_API ESlateVisibility GetScrollBarVisibility() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	UMG_API void SetScrollbarThickness(const FVector2D& NewScrollbarThickness);
+
+	UMG_API FVector2D GetScrollbarThickness() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	UMG_API void SetScrollbarPadding(const FMargin& NewScrollbarPadding);
+
+	UMG_API FMargin GetScrollbarPadding() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	UMG_API void SetAlwaysShowScrollbar(bool NewAlwaysShowScrollbar);
 	
-	bool IsAlwaysShowScrollbar() const;
+	UMG_API bool IsAlwaysShowScrollbar() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetAllowOverscroll(bool NewAllowOverscroll);
+	UMG_API void SetAllowOverscroll(bool NewAllowOverscroll);
 
-	bool IsAllowOverscroll() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetAnimateWheelScrolling(bool bShouldAnimateWheelScrolling);
-
-	bool IsAnimateWheelScrolling() const;
+	UMG_API bool IsAllowOverscroll() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
+	UMG_API void SetAnimateWheelScrolling(bool bShouldAnimateWheelScrolling);
 
-	float GetWheelScrollMultiplier() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges);
-
-	EScrollWhenFocusChanges GetScrollWhenFocusChanges() const;
+	UMG_API bool IsAnimateWheelScrolling() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination);
+	UMG_API void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
 
-	EDescendantScrollDestination GetNavigationDestination() const;
+	UMG_API float GetWheelScrollMultiplier() const;
 
-	void SetAlwaysShowScrollbarTrack(bool NewAlwaysShowScrollbarTrack);
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	UMG_API void SetScrollWhenFocusChanges(EScrollWhenFocusChanges NewScrollWhenFocusChanges);
 
-	bool IsAlwaysShowScrollbarTrack() const;
+	UMG_API EScrollWhenFocusChanges GetScrollWhenFocusChanges() const;
 
-	float GetNavigationScrollPadding() const;
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	UMG_API void SetNavigationDestination(const EDescendantScrollDestination NewNavigationDestination);
 
-	void SetAllowRightClickDragScrolling(bool bShouldAllowRightClickDragScrolling);
+	UMG_API EDescendantScrollDestination GetNavigationDestination() const;
 
-	bool IsAllowRightClickDragScrolling() const;
+	UMG_API void SetAlwaysShowScrollbarTrack(bool NewAlwaysShowScrollbarTrack);
 
-	bool IsFrontPadScrolling() const;
+	UMG_API bool IsAlwaysShowScrollbarTrack() const;
 
-	bool IsBackPadScrolling() const;
+	UMG_API float GetNavigationScrollPadding() const;
+
+	UMG_API void SetAllowRightClickDragScrolling(bool bShouldAllowRightClickDragScrolling);
+
+	UMG_API bool IsAllowRightClickDragScrolling() const;
+
+	UMG_API bool IsFrontPadScrolling() const;
+
+	UMG_API bool IsBackPadScrolling() const;
 
 	/** Instantly stops any inertial scrolling that is currently in progress */
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
-	void EndInertialScrolling();
+	UMG_API void EndInertialScrolling();
 
 public:
 
@@ -208,75 +208,75 @@ public:
 	 * @param NewScrollOffset is in Slate Units.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void SetScrollOffset(float NewScrollOffset);
+	UMG_API void SetScrollOffset(float NewScrollOffset);
 	
 	/**
 	 * Gets the scroll offset of the scrollbox in Slate Units.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	float GetScrollOffset() const;
+	UMG_API float GetScrollOffset() const;
 
 	/** Gets the scroll offset of the bottom of the ScrollBox in Slate Units. */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	float GetScrollOffsetOfEnd() const;
+	UMG_API float GetScrollOffsetOfEnd() const;
 
 	/** Gets the fraction currently visible in the scrollbox */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	float GetViewFraction() const;
+	UMG_API float GetViewFraction() const;
 
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	float GetViewOffsetFraction() const;
+	UMG_API float GetViewOffsetFraction() const;
 
 	/** Scrolls the ScrollBox to the top instantly */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ScrollToStart();
+	UMG_API void ScrollToStart();
 
 	/** Scrolls the ScrollBox to the bottom instantly during the next layout pass. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ScrollToEnd();
+	UMG_API void ScrollToEnd();
 
 	/** Scrolls the ScrollBox to the widget during the next layout pass. */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll = true, EDescendantScrollDestination ScrollDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
+	UMG_API void ScrollWidgetIntoView(UWidget* WidgetToFind, bool AnimateScroll = true, EDescendantScrollDestination ScrollDestination = EDescendantScrollDestination::IntoView, float Padding = 0);
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 	//~ Begin UObject Interface
 #if WITH_EDITORONLY_DATA
-	virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
 #endif // if WITH_EDITORONLY_DATA
 	//~ End UObject Interface
 
 #if WITH_EDITOR
 	//~ Begin UWidget Interface
-	virtual const FText GetPaletteCategory() override;
-	virtual void OnDescendantSelectedByDesigner( UWidget* DescendantWidget ) override;
-	virtual void OnDescendantDeselectedByDesigner( UWidget* DescendantWidget ) override;
+	UMG_API virtual const FText GetPaletteCategory() override;
+	UMG_API virtual void OnDescendantSelectedByDesigner( UWidget* DescendantWidget ) override;
+	UMG_API virtual void OnDescendantDeselectedByDesigner( UWidget* DescendantWidget ) override;
 	//~ End UWidget Interface
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
-	void SlateHandleUserScrolled(float CurrentOffset);
+	UMG_API void SlateHandleUserScrolled(float CurrentOffset);
 
 	// Initialize IsFocusable in the constructor before the SWidget is constructed.
-	void InitBackPadScrolling(bool InBackPadScrolling);
+	UMG_API void InitBackPadScrolling(bool InBackPadScrolling);
 	// Initialize IsFocusable in the constructor before the SWidget is constructed.
-	void InitFrontPadScrolling(bool InFrontPadScrolling);
+	UMG_API void InitFrontPadScrolling(bool InFrontPadScrolling);
 	// Initialize IsFocusable in the constructor before the SWidget is constructed.
-	void InitNavigationScrollPadding(float InNavigationScrollPadding);
+	UMG_API void InitNavigationScrollPadding(float InNavigationScrollPadding);
 
 protected:
 	/** The desired scroll offset for the underlying scrollbox.  This is a cache so that it can be set before the widget is constructed. */
@@ -286,7 +286,7 @@ protected:
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
 #if WITH_EDITOR

@@ -15,7 +15,7 @@ namespace Geometry
 class FMeshFaceSelection;
 class FMeshEdgeSelection;
 
-class GEOMETRYCORE_API FMeshVertexSelection
+class FMeshVertexSelection
 {
 private:
 	const FDynamicMesh3* Mesh;
@@ -29,10 +29,10 @@ public:
 	}
 
 	// convert face selection to vertex selection. 
-	FMeshVertexSelection(const FDynamicMesh3* mesh, const FMeshFaceSelection& convertT);
+	GEOMETRYCORE_API FMeshVertexSelection(const FDynamicMesh3* mesh, const FMeshFaceSelection& convertT);
 
 	// convert edge selection to vertex selection. 
-	FMeshVertexSelection(const FDynamicMesh3* mesh, const FMeshEdgeSelection& convertE);
+	GEOMETRYCORE_API FMeshVertexSelection(const FDynamicMesh3* mesh, const FMeshEdgeSelection& convertE);
 
 
 	TSet<int> AsSet() const
@@ -146,14 +146,14 @@ public:
 			add(tri.A); add(tri.B); add(tri.C);
 		}
 	}
-	void SelectTriangleVertices(const FMeshFaceSelection& Triangles);
+	GEOMETRYCORE_API void SelectTriangleVertices(const FMeshFaceSelection& Triangles);
 
 
 	/**
 	 *  for each vertex of input triangle set, select vertex if all
 	 *  one-ring triangles are contained in triangle set (ie vertex is not on boundary of triangle set).
 	 */
-	void SelectInteriorVertices(const FMeshFaceSelection& triangles);
+	GEOMETRYCORE_API void SelectInteriorVertices(const FMeshFaceSelection& triangles);
 
 
 	/**

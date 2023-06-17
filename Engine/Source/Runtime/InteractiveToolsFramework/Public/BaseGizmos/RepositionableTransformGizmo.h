@@ -13,22 +13,22 @@
 class IToolContextTransactionProvider;
 class UTransformProxy;
 
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API URepositionableTransformGizmoBuilder : public UCombinedTransformGizmoBuilder
+UCLASS(MinimalAPI)
+class URepositionableTransformGizmoBuilder : public UCombinedTransformGizmoBuilder
 {
 	GENERATED_BODY()
 
 public:
 
-	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 };
 
 
 /**
  * A transform gizmo that also allows the user to reposition it by middle-clicking rotation/translation components.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API URepositionableTransformGizmo : public UCombinedTransformGizmo
+UCLASS(MinimalAPI)
+class URepositionableTransformGizmo : public UCombinedTransformGizmo
 {
 	GENERATED_BODY()
 
@@ -39,13 +39,13 @@ public:
 	 * @param Target active target
 	 * @param TransactionProvider optional IToolContextTransactionProvider implementation to use - by default uses GizmoManager
 	 */
-	virtual void SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider = nullptr) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider = nullptr) override;
 
 	/**
 	 * Allows the user to provide functions to use for aligning the gizmo destination to items in the scene. Note that this affects
 	 * both the movement and repositioning.
 	 */
-	virtual void SetWorldAlignmentFunctions(
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetWorldAlignmentFunctions(
 		TUniqueFunction<bool()>&& ShouldAlignTranslationIn,
 		TUniqueFunction<bool(const FRay&, FVector&)>&& TranslationAlignmentRayCasterIn) override;
 
@@ -54,7 +54,7 @@ public:
 	 * This is because the repositining is likely to want different raycasts that don't ignore the 
 	 * moved components themselves, so that the gizmo can be aligned to a target component.
 	 */
-	virtual void SetPivotAlignmentFunctions(
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetPivotAlignmentFunctions(
 		TUniqueFunction<bool()>&& ShouldAlignPivotIn,
 		TUniqueFunction<bool(const FRay&, FVector&)>&& PivotAlignmentRayCasterIn);
 protected:
@@ -69,7 +69,7 @@ protected:
 	TObjectPtr<UGizmoTransformChangeStateTarget> RepositionStateTarget;
 
 	// Helper functions
-	void ModifyPivotAxisGizmo(UInteractiveGizmo* SubGizmoIn);
-	void ModifyPivotPlaneGizmo(UInteractiveGizmo* SubGizmoIn);
-	void ModifyPivotRotateGizmo(UInteractiveGizmo* SubGizmoIn);
+	INTERACTIVETOOLSFRAMEWORK_API void ModifyPivotAxisGizmo(UInteractiveGizmo* SubGizmoIn);
+	INTERACTIVETOOLSFRAMEWORK_API void ModifyPivotPlaneGizmo(UInteractiveGizmo* SubGizmoIn);
+	INTERACTIVETOOLSFRAMEWORK_API void ModifyPivotRotateGizmo(UInteractiveGizmo* SubGizmoIn);
 };

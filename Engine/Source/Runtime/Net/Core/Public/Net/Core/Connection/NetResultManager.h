@@ -44,7 +44,7 @@ enum class EAddResultHandlerPos : uint8
  *
  * Handles arbitrary net results, which may attempt recovery from errors instead of e.g. immediately closing the NetConnection
  */
-class NETCORE_API FNetResultManager final
+class FNetResultManager final
 {
 public:
 	/**
@@ -69,7 +69,7 @@ public:
 	 * @param InResultHandler	The new result handler to be added
 	 * @param Position			The position/precedence in the result handler list, to place the new handler
 	 */
-	void AddResultHandler(TUniquePtr<FNetResultHandler>&& InResultHandler, EAddResultHandlerPos Position=EAddResultHandlerPos::Last);
+	NETCORE_API void AddResultHandler(TUniquePtr<FNetResultHandler>&& InResultHandler, EAddResultHandlerPos Position=EAddResultHandlerPos::Last);
 
 	/**
 	 * Adds a new result handler pointer to the result manager (not owned by the result manager)
@@ -77,7 +77,7 @@ public:
 	 * @param InResultHandler	The new result handler to be added
 	 * @param Position			The position/precedence in the result handler list, to place the new handler
 	 */
-	void AddResultHandlerPtr(FNetResultHandler* InResultHandler, EAddResultHandlerPos Position=EAddResultHandlerPos::Last);
+	NETCORE_API void AddResultHandlerPtr(FNetResultHandler* InResultHandler, EAddResultHandlerPos Position=EAddResultHandlerPos::Last);
 
 	/**
 	 * Takes a net result and passes it around to the result handlers and callbacks until it is handled, or returns 'EHandleNetResult::NotHandled'.
@@ -87,14 +87,14 @@ public:
 	 * @param InResult		Specifies the result
 	 * @return				Whether or not the result has handled or resulted in a close, or went unhandled
 	 */
-	EHandleNetResult HandleNetResult(FNetResult&& InResult);
+	NETCORE_API EHandleNetResult HandleNetResult(FNetResult&& InResult);
 
 	/**
 	 * Sets a callback for handling net results which no result handlers have dealt with
 	 *
 	 * @param InCallback	The callback to use for unhandled results
 	 */
-	void SetUnhandledResultCallback(FUnhandledResultFunc InCallback);
+	NETCORE_API void SetUnhandledResultCallback(FUnhandledResultFunc InCallback);
 
 private:
 	/** The list of result handlers, for attempting to handle results with */

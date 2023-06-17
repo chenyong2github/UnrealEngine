@@ -150,16 +150,16 @@ namespace UE::Interchange
 		* Node that derive from UInterchangeBaseNode can also add a struct that derive from this one to add there static data
 		* @note: The static data are mainly for holding Attribute keys. All attributes that are always available for a node should be in this class or a derived class.
 		*/
-	struct INTERCHANGECORE_API FBaseNodeStaticData
+	struct FBaseNodeStaticData
 	{
-		static const FAttributeKey& UniqueIDKey();
-		static const FAttributeKey& DisplayLabelKey();
-		static const FAttributeKey& ParentIDKey();
-		static const FAttributeKey& IsEnabledKey();
-		static const FAttributeKey& TargetAssetIDsKey();
-		static const FAttributeKey& ClassTypeAttributeKey();
-		static const FAttributeKey& AssetNameKey();
-		static const FAttributeKey& NodeContainerTypeKey();
+		static INTERCHANGECORE_API const FAttributeKey& UniqueIDKey();
+		static INTERCHANGECORE_API const FAttributeKey& DisplayLabelKey();
+		static INTERCHANGECORE_API const FAttributeKey& ParentIDKey();
+		static INTERCHANGECORE_API const FAttributeKey& IsEnabledKey();
+		static INTERCHANGECORE_API const FAttributeKey& TargetAssetIDsKey();
+		static INTERCHANGECORE_API const FAttributeKey& ClassTypeAttributeKey();
+		static INTERCHANGECORE_API const FAttributeKey& AssetNameKey();
+		static INTERCHANGECORE_API const FAttributeKey& NodeContainerTypeKey();
 	};
 
 } //ns UE::Interchange
@@ -178,15 +178,15 @@ enum class EInterchangeNodeContainerType : uint8
  * See UE::Interchange::EAttributeTypes to know the supported template types
  * This is an abstract class. This is the base class of the interchange node graph format, all class in this format should derive from this class
  */
-UCLASS(BlueprintType)
-class INTERCHANGECORE_API UInterchangeBaseNode : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class UInterchangeBaseNode : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	static constexpr const TCHAR* HierarchySeparator = TEXT("\\");
 
-	UInterchangeBaseNode();
+	INTERCHANGECORE_API UInterchangeBaseNode();
 
 	/**
 	 * Initialize the base data of the node
@@ -195,32 +195,32 @@ public:
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void InitializeNode(const FString& UniqueID, const FString& DisplayLabel, const EInterchangeNodeContainerType NodeContainerType);
+	INTERCHANGECORE_API void InitializeNode(const FString& UniqueID, const FString& DisplayLabel, const EInterchangeNodeContainerType NodeContainerType);
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */
-	virtual FString GetTypeName() const;
+	INTERCHANGECORE_API virtual FString GetTypeName() const;
 
 	/**
 	 * Icon name, use to retrieve the brush when we display the node in any UI
 	 */
-	virtual FName GetIconName() const;
+	INTERCHANGECORE_API virtual FName GetIconName() const;
 
 	/**
 	 * UI that inspect node attribute call this to give a readable name to attribute key
 	 */
-	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
+	INTERCHANGECORE_API virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
 
 	/**
 	 * UI that inspect node attribute call this to display or hide an attribute
 	 */
-	virtual bool ShouldHideAttribute(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
+	INTERCHANGECORE_API virtual bool ShouldHideAttribute(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
 
 	/**
 	 * UI that inspect node attribute call this to display the attribute under the returned category
 	 */
-	virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
+	INTERCHANGECORE_API virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
 
 	/**
 	 * Add an attribute to the node
@@ -246,14 +246,14 @@ public:
 	 * @param nodeAttributeKey - The key of the searched attribute
 	 *
 	 */
-	virtual bool HasAttribute(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
+	INTERCHANGECORE_API virtual bool HasAttribute(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
 
 	/**
 	 * This function return an attribute type for the specified Key. Return type None if the key is invalid
 	 *
 	 * @param NodeAttributeKey - The key of the attribute
 	 */
-	virtual UE::Interchange::EAttributeTypes GetAttributeType(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
+	INTERCHANGECORE_API virtual UE::Interchange::EAttributeTypes GetAttributeType(const UE::Interchange::FAttributeKey& NodeAttributeKey) const;
 
 	/**
 	 * This function return an  attribute handle for the specified Key.
@@ -270,109 +270,109 @@ public:
 	/**
 	 * Use this function to query all the node attribute keys
 	 */
-	void GetAttributeKeys(TArray<UE::Interchange::FAttributeKey>& AttributeKeys) const;
+	INTERCHANGECORE_API void GetAttributeKeys(TArray<UE::Interchange::FAttributeKey>& AttributeKeys) const;
 
 	/**
 	 * Remove any attribute from this node. Return false if we cannot remove it. If the attribute do not exist it will return true.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool RemoveAttribute(const FString& NodeAttributeKey);
+	INTERCHANGECORE_API bool RemoveAttribute(const FString& NodeAttributeKey);
 
 	/**
 	 * Add a boolean attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddBooleanAttribute(const FString& NodeAttributeKey, const bool& Value);
+	INTERCHANGECORE_API bool AddBooleanAttribute(const FString& NodeAttributeKey, const bool& Value);
 	
 	/**
 	 * Get a boolean attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue) const;
+	INTERCHANGECORE_API bool GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue) const;
 
 	/**
 	 * Add a int32 attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddInt32Attribute(const FString& NodeAttributeKey, const int32& Value);
+	INTERCHANGECORE_API bool AddInt32Attribute(const FString& NodeAttributeKey, const int32& Value);
 	
 	/**
 	 * Get a int32 attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue) const;
+	INTERCHANGECORE_API bool GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue) const;
 
 	/**
 	 * Add a float attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddFloatAttribute(const FString& NodeAttributeKey, const float& Value);
+	INTERCHANGECORE_API bool AddFloatAttribute(const FString& NodeAttributeKey, const float& Value);
 	
 	/**
 	 * Get a float attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue) const;
+	INTERCHANGECORE_API bool GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue) const;
 
 	/**
 	 * Add a double attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddDoubleAttribute(const FString& NodeAttributeKey, const double& Value);
+	INTERCHANGECORE_API bool AddDoubleAttribute(const FString& NodeAttributeKey, const double& Value);
 	
 	/**
 	 * Get a double attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetDoubleAttribute(const FString& NodeAttributeKey, double& OutValue) const;
+	INTERCHANGECORE_API bool GetDoubleAttribute(const FString& NodeAttributeKey, double& OutValue) const;
 
 	/**
 	 * Add a string attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddStringAttribute(const FString& NodeAttributeKey, const FString& Value);
+	INTERCHANGECORE_API bool AddStringAttribute(const FString& NodeAttributeKey, const FString& Value);
 	
 	/**
 	 * Get a string attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue) const;
+	INTERCHANGECORE_API bool GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue) const;
 
 	/**
 	 * Add a guid attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddGuidAttribute(const FString& NodeAttributeKey, const FGuid& Value);
+	INTERCHANGECORE_API bool AddGuidAttribute(const FString& NodeAttributeKey, const FGuid& Value);
 
 	/**
 	 * Get a guid attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetGuidAttribute(const FString& NodeAttributeKey, FGuid& OutValue) const;
+	INTERCHANGECORE_API bool GetGuidAttribute(const FString& NodeAttributeKey, FGuid& OutValue) const;
 
 	/**
 	 * Add a FLinearColor attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddLinearColorAttribute(const FString& NodeAttributeKey, const FLinearColor& Value);
+	INTERCHANGECORE_API bool AddLinearColorAttribute(const FString& NodeAttributeKey, const FLinearColor& Value);
 	
 	/**
 	 * Get a FLinearColor attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetLinearColorAttribute(const FString& NodeAttributeKey, FLinearColor& OutValue) const;
+	INTERCHANGECORE_API bool GetLinearColorAttribute(const FString& NodeAttributeKey, FLinearColor& OutValue) const;
 
 	/**
 	 * Add a Vector2 attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddVector2Attribute(const FString& NodeAttributeKey, const FVector2f& Value);
+	INTERCHANGECORE_API bool AddVector2Attribute(const FString& NodeAttributeKey, const FVector2f& Value);
 
 	/**
 	 * Get a Vector2 attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetVector2Attribute(const FString& NodeAttributeKey, FVector2f& OutValue) const;
+	INTERCHANGECORE_API bool GetVector2Attribute(const FString& NodeAttributeKey, FVector2f& OutValue) const;
 
 	template<typename AttributeType>
 	AttributeType GetAttributeChecked(const FString& NodeAttributeKey) const
@@ -400,63 +400,63 @@ public:
 	 * Return the unique id pass in the constructor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	FString GetUniqueID() const;
+	INTERCHANGECORE_API FString GetUniqueID() const;
 
 	/**
 	 * Return the display label.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	FString GetDisplayLabel() const;
+	INTERCHANGECORE_API FString GetDisplayLabel() const;
 
 	/**
 	 * Change the display label.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetDisplayLabel(const FString& DisplayName);
+	INTERCHANGECORE_API bool SetDisplayLabel(const FString& DisplayName);
 
 	/**
 	 * Return the parent unique id. In case the attribute does not exist it will return InvalidNodeUid()
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	FString GetParentUid() const;
+	INTERCHANGECORE_API FString GetParentUid() const;
 
 	/**
 	 * Set the parent unique id.
 	 */
 	UE_DEPRECATED(5.1, "This function should not be use - Use UInterchangeBaseNodeContainer::SetNodeParentUid function to create a parent hierarchy. This will ensure the container cache is always in sync")
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetParentUid(const FString& ParentUid);
+	INTERCHANGECORE_API bool SetParentUid(const FString& ParentUid);
 
 	/**
 	 * Get number of target assets relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	int32 GetTargetNodeCount() const;
+	INTERCHANGECORE_API int32 GetTargetNodeCount() const;
 
 	/**
 	 * Get target assets relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void GetTargetNodeUids(TArray<FString>& OutTargetAssets) const;
+	INTERCHANGECORE_API void GetTargetNodeUids(TArray<FString>& OutTargetAssets) const;
 
 	/**
 	 * Add asset node UID relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddTargetNodeUid(const FString& AssetUid) const;
+	INTERCHANGECORE_API bool AddTargetNodeUid(const FString& AssetUid) const;
 
 	/**
 	 * Remove asset node UID relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool RemoveTargetNodeUid(const FString& AssetUid) const;
+	INTERCHANGECORE_API bool RemoveTargetNodeUid(const FString& AssetUid) const;
 
 	/**
 	 * IsEnable true mean that the node will be import/export, if false it will be discarded.
 	 * Return false if this node was disabled. Return true if the attribute is not there or if it was enabled.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool IsEnabled() const;
+	INTERCHANGECORE_API bool IsEnabled() const;
 
 	/**
 	 * Set the IsEnable attribute to determine if this node should be part of the import/export process
@@ -464,13 +464,13 @@ public:
 	 * @return true if it was able to set the attribute, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetEnabled(const bool bIsEnabled);
+	INTERCHANGECORE_API bool SetEnabled(const bool bIsEnabled);
 
 	/**
 	 * Return the node container type which define the purpose of the node (Factory node, translated scene node or translated asset node).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	EInterchangeNodeContainerType GetNodeContainerType() const;
+	INTERCHANGECORE_API EInterchangeNodeContainerType GetNodeContainerType() const;
 
 	/**
 	 * Return a FGuid build from the FSHA1 of all the attribute data contain in the node.
@@ -479,34 +479,34 @@ public:
 	 * the order we add the attributes.
 	 * This function interface is pure virtual
 	 */
-	virtual FGuid GetHash() const;
+	INTERCHANGECORE_API virtual FGuid GetHash() const;
 
 	/**
 	 * Optional, Any node that can import/export an asset should set the proper name we will give to the asset.
 	 * If the attribute was never set, it will return GetDisplayLabel.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	virtual FString GetAssetName() const;
+	INTERCHANGECORE_API virtual FString GetAssetName() const;
 
 	/**
 	 * Set the name we want for the imported asset this node represent. The asset factory will call GetAssetName()
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	virtual bool SetAssetName(const FString& AssetName);
+	INTERCHANGECORE_API virtual bool SetAssetName(const FString& AssetName);
 
 	/** Return the invalid unique ID */
-	static FString InvalidNodeUid();
+	static INTERCHANGECORE_API FString InvalidNodeUid();
 
 	/**
 	 * Serialize the node, by default only the attribute storage is serialize for a node
 	 */
-	virtual void Serialize(FArchive& Ar) override;
+	INTERCHANGECORE_API virtual void Serialize(FArchive& Ar) override;
 
-	static void CompareNodeStorage(const UInterchangeBaseNode* NodeA, const UInterchangeBaseNode* NodeB, TArray<UE::Interchange::FAttributeKey>& RemovedAttributes, TArray<UE::Interchange::FAttributeKey>& AddedAttributes, TArray<UE::Interchange::FAttributeKey>& ModifiedAttributes);
+	static INTERCHANGECORE_API void CompareNodeStorage(const UInterchangeBaseNode* NodeA, const UInterchangeBaseNode* NodeB, TArray<UE::Interchange::FAttributeKey>& RemovedAttributes, TArray<UE::Interchange::FAttributeKey>& AddedAttributes, TArray<UE::Interchange::FAttributeKey>& ModifiedAttributes);
 	
-	static void CopyStorageAttributes(const UInterchangeBaseNode* SourceNode, UInterchangeBaseNode* DestinationNode, TArray<UE::Interchange::FAttributeKey>& AttributeKeys);
+	static INTERCHANGECORE_API void CopyStorageAttributes(const UInterchangeBaseNode* SourceNode, UInterchangeBaseNode* DestinationNode, TArray<UE::Interchange::FAttributeKey>& AttributeKeys);
 
-	static void CopyStorage(const UInterchangeBaseNode* SourceNode, UInterchangeBaseNode* DestinationNode);
+	static INTERCHANGECORE_API void CopyStorage(const UInterchangeBaseNode* SourceNode, UInterchangeBaseNode* DestinationNode);
 	
 	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	{

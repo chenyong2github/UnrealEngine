@@ -58,12 +58,12 @@ struct FAudioStreamCachingSettings
 /* This struct is used for settings used during the cook to a target    */
 /* platform (platform-specific compression quality and resampling, etc.)*/
 /************************************************************************/
-struct AUDIOPLATFORMCONFIGURATION_API FPlatformAudioCookOverrides
+struct FPlatformAudioCookOverrides
 {
 	// Increment this return value to force a recook on all Stream Caching assets.
 	// For testing, it's useful to set this to either a negative number or
 	// absurdly large number, to ensure you do not pollute the DDC.
-	static int32 GetStreamCachingVersion();
+	static AUDIOPLATFORMCONFIGURATION_API int32 GetStreamCachingVersion();
 
 	bool bResampleForDevice;
 
@@ -100,11 +100,11 @@ struct AUDIOPLATFORMCONFIGURATION_API FPlatformAudioCookOverrides
 	}
 
 	// This is used to invalidate compressed audio for a specific platform.
-	static void GetHashSuffix(const FPlatformAudioCookOverrides* InOverrides, FString& OutSuffix);
+	static AUDIOPLATFORMCONFIGURATION_API void GetHashSuffix(const FPlatformAudioCookOverrides* InOverrides, FString& OutSuffix);
 };
 
 USTRUCT()
-struct AUDIOPLATFORMCONFIGURATION_API FPlatformRuntimeAudioCompressionOverrides
+struct FPlatformRuntimeAudioCompressionOverrides
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -127,7 +127,7 @@ struct AUDIOPLATFORMCONFIGURATION_API FPlatformRuntimeAudioCompressionOverrides
 	UPROPERTY(EditAnywhere, Category = "SoundCueLoading", meta = (DisplayName = "Quality Index for Sound Cues", ClampMin = "0", ClampMax = "50"))
 	int32 SoundCueQualityIndex = 1;
 
-	FPlatformRuntimeAudioCompressionOverrides();
+	AUDIOPLATFORMCONFIGURATION_API FPlatformRuntimeAudioCompressionOverrides();
 
 	// Get singleton containing default settings for compression.
 	static FPlatformRuntimeAudioCompressionOverrides* GetDefaultCompressionOverrides()
@@ -141,5 +141,5 @@ struct AUDIOPLATFORMCONFIGURATION_API FPlatformRuntimeAudioCompressionOverrides
 	}
 
 private:
-	static FPlatformRuntimeAudioCompressionOverrides* DefaultCompressionOverrides;
+	static AUDIOPLATFORMCONFIGURATION_API FPlatformRuntimeAudioCompressionOverrides* DefaultCompressionOverrides;
 };

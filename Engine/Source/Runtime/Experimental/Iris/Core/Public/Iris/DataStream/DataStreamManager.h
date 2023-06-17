@@ -107,7 +107,7 @@ public:
 	UE::Net::Private::FNetExports& GetNetExports();
 
 private:
-	IRISCORE_API UDataStreamManager();
+	UDataStreamManager();
 
 	static void AddReferencedObjects(UObject* Object, FReferenceCollector& Collector);
 

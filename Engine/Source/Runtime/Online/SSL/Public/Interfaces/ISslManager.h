@@ -50,7 +50,7 @@ struct FSslContextCreateOptions
 /**
  * Manager of the ssl library
  */
-class SSL_API ISslManager
+class ISslManager
 {
 public:
 	/** Destructor */

@@ -22,8 +22,8 @@ class USoundBase;
 /**
  * Audio section, for use in the audio track, or by attached audio objects
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneAudioSection
+UCLASS(MinimalAPI)
+class UMovieSceneAudioSection
 	: public UMovieSceneSection
 	, public IMovieSceneEntityProvider
 {
@@ -33,7 +33,7 @@ public:
 
 	/** Sets this section's sound */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Section")
-	void SetSound(class USoundBase* InSound);
+	MOVIESCENETRACKS_API void SetSound(class USoundBase* InSound);
 
 	/** Gets the sound for this section */
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
@@ -135,10 +135,10 @@ public:
 	/*
 	 * @return The attach component given the bound actor and the actor attach key with the component and socket names
 	 */
-	USceneComponent* GetAttachComponent(const AActor* InParentActor, const FMovieSceneActorReferenceKey& Key) const;
+	MOVIESCENETRACKS_API USceneComponent* GetAttachComponent(const AActor* InParentActor, const FMovieSceneActorReferenceKey& Key) const;
 
 	/** ~UObject interface */
-	virtual void PostLoad() override;
+	MOVIESCENETRACKS_API virtual void PostLoad() override;
 
 	/** Called when subtitles are sent to the SubtitleManager.  Set this delegate if you want to hijack the subtitles for other purposes */
 	void SetOnQueueSubtitles(const FOnQueueSubtitles& InOnQueueSubtitles)
@@ -184,21 +184,21 @@ public:
 public:
 
 	//~ UMovieSceneSection interface
-	virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const override;
-	virtual void TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys) override;
-	virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys) override;
-	virtual TOptional<FFrameTime> GetOffsetTime() const override;
-	virtual void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate) override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostEditImport() override;
-	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
+	MOVIESCENETRACKS_API virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const override;
+	MOVIESCENETRACKS_API virtual void TrimSection(FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys) override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* SplitSection(FQualifiedFrameTime SplitTime, bool bDeleteKeys) override;
+	MOVIESCENETRACKS_API virtual TOptional<FFrameTime> GetOffsetTime() const override;
+	MOVIESCENETRACKS_API virtual void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate) override;
+	MOVIESCENETRACKS_API virtual void Serialize(FArchive& Ar) override;
+	MOVIESCENETRACKS_API virtual void PostEditImport() override;
+	MOVIESCENETRACKS_API virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
 
 	//~ IMovieSceneEntityProvider interface
-	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
-	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	MOVIESCENETRACKS_API virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+	MOVIESCENETRACKS_API virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	MOVIESCENETRACKS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 private:
@@ -212,7 +212,7 @@ private:
 		}	
 	}
 
-	void SetupSoundInputParameters(const USoundBase* InSoundBase);
+	MOVIESCENETRACKS_API void SetupSoundInputParameters(const USoundBase* InSoundBase);
 
 	/** The sound cue or wave that this section plays */
 	UPROPERTY(EditAnywhere, Category="Audio", BlueprintGetter=GetSound, BlueprintSetter=SetSound)

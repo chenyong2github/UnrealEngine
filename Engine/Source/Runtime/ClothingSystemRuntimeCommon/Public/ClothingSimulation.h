@@ -18,33 +18,33 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Skin Physics Mesh"), STAT_ClothSkinPhysMesh, STA
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Fill Context"), STAT_ClothFillContext, STATGROUP_Physics, CLOTHINGSYSTEMRUNTIMECOMMON_API);
 
 /** Base simulation data that just about every simulation would need. */
-class CLOTHINGSYSTEMRUNTIMECOMMON_API FClothingSimulationContextCommon : public IClothingSimulationContext
+class FClothingSimulationContextCommon : public IClothingSimulationContext
 {
 public:
-	FClothingSimulationContextCommon();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API FClothingSimulationContextCommon();
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FClothingSimulationContextCommon(const FClothingSimulationContextCommon&) = default;
 	FClothingSimulationContextCommon& operator=(const FClothingSimulationContextCommon&) = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	CLOTHINGSYSTEMRUNTIMECOMMON_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual ~FClothingSimulationContextCommon() override;
 
 	UE_DEPRECATED(4.27, "Use the version with bIsInitialization instead.")
-	virtual void Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta);
 
 	// Fill this context using the given skeletal mesh component
-	virtual void Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta, bool bIsInitialization);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void Fill(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta, bool bIsInitialization);
 
 protected:
 	// Default fill behavior as expected to be used by every simulation
-	virtual void FillBoneTransforms(const USkeletalMeshComponent* InComponent);
-	virtual void FillRefToLocals(const USkeletalMeshComponent* InComponent, bool bIsInitialization);
-	virtual void FillComponentToWorld(const USkeletalMeshComponent* InComponent);
-	virtual void FillWorldGravity(const USkeletalMeshComponent* InComponent);
-	virtual void FillWindVelocity(const USkeletalMeshComponent* InComponent);
-	virtual void FillDeltaSeconds(float InDeltaSeconds, float InMaxPhysicsDelta);
-	virtual void FillTeleportMode(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta);
-	virtual void FillMaxDistanceScale(const USkeletalMeshComponent* InComponent);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillBoneTransforms(const USkeletalMeshComponent* InComponent);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillRefToLocals(const USkeletalMeshComponent* InComponent, bool bIsInitialization);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillComponentToWorld(const USkeletalMeshComponent* InComponent);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillWorldGravity(const USkeletalMeshComponent* InComponent);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillWindVelocity(const USkeletalMeshComponent* InComponent);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillDeltaSeconds(float InDeltaSeconds, float InMaxPhysicsDelta);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillTeleportMode(const USkeletalMeshComponent* InComponent, float InDeltaSeconds, float InMaxPhysicsDelta);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillMaxDistanceScale(const USkeletalMeshComponent* InComponent);
 
 public:
 	// Component space bone transforms of the owning component
@@ -94,18 +94,18 @@ public:
 };
 
 // Base simulation to fill in common data for the base context
-class CLOTHINGSYSTEMRUNTIMECOMMON_API FClothingSimulationCommon : public IClothingSimulation
+class FClothingSimulationCommon : public IClothingSimulation
 {
 public:
-	FClothingSimulationCommon();
-	virtual ~FClothingSimulationCommon();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API FClothingSimulationCommon();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual ~FClothingSimulationCommon();
 
 protected:
 	/** Fills in the base data for a clothing simulation */
-	virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext) override;
 
 	/** Fills in the base data for a clothing simulation */
-	virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext, bool bIsInitialization) override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual void FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext, bool bIsInitialization) override;
 
 protected:
 	/** Maximum physics time, incoming deltas will be clamped down to this value on long frames */

@@ -7,8 +7,8 @@
 #include "AITask_LockLogic.generated.h"
 
 /** Locks AI logic until removed by external trigger */
-UCLASS()
-class AIMODULE_API UAITask_LockLogic : public UAITask
+UCLASS(MinimalAPI)
+class UAITask_LockLogic : public UAITask
 {
 	GENERATED_UCLASS_BODY()
 };

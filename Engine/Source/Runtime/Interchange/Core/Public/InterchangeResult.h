@@ -28,8 +28,8 @@ enum class EInterchangeResultType
 /**
  * Base class for the result from an Interchange operation.
  */
-UCLASS(Experimental)
-class INTERCHANGECORE_API UInterchangeResult : public UObject
+UCLASS(Experimental, MinimalAPI)
+class UInterchangeResult : public UObject
 {
 	GENERATED_BODY()
 
@@ -48,12 +48,12 @@ public:
 	/**
 	 * Serialize this UInterchangeResult object to Json.
 	 */
-	FString ToJson();
+	INTERCHANGECORE_API FString ToJson();
 
 	/**
 	 * Create a new UInterchangeResult-derived object from a Json representation.
 	 */
-	static UInterchangeResult* FromJson(const FString& JsonString);
+	static INTERCHANGECORE_API UInterchangeResult* FromJson(const FString& JsonString);
 
 
 	UPROPERTY()
@@ -73,8 +73,8 @@ public:
 /**
  * Class representing a succesful result.
  */
-UCLASS()
-class INTERCHANGECORE_API UInterchangeResultSuccess : public UInterchangeResult
+UCLASS(MinimalAPI)
+class UInterchangeResultSuccess : public UInterchangeResult
 {
 	GENERATED_BODY()
 
@@ -88,8 +88,8 @@ public:
 /**
  * Base class representing a warning result.
  */
-UCLASS()
-class INTERCHANGECORE_API UInterchangeResultWarning : public UInterchangeResult
+UCLASS(MinimalAPI)
+class UInterchangeResultWarning : public UInterchangeResult
 {
 	GENERATED_BODY()
 
@@ -102,8 +102,8 @@ public:
 /**
  * Base class representing a error result.
  */
-UCLASS()
-class INTERCHANGECORE_API UInterchangeResultError : public UInterchangeResult
+UCLASS(MinimalAPI)
+class UInterchangeResultError : public UInterchangeResult
 {
 	GENERATED_BODY()
 
@@ -113,8 +113,8 @@ public:
 };
 
 
-UCLASS()
-class INTERCHANGECORE_API UInterchangeResultWarning_Generic : public UInterchangeResultWarning
+UCLASS(MinimalAPI)
+class UInterchangeResultWarning_Generic : public UInterchangeResultWarning
 {
 	GENERATED_BODY()
 
@@ -127,8 +127,8 @@ public:
 };
 
 
-UCLASS()
-class INTERCHANGECORE_API UInterchangeResultError_Generic : public UInterchangeResultError
+UCLASS(MinimalAPI)
+class UInterchangeResultError_Generic : public UInterchangeResultError
 {
 	GENERATED_BODY()
 
@@ -140,8 +140,8 @@ public:
 	FText Text;
 };
 
-UCLASS()
-class INTERCHANGECORE_API UInterchangeResultError_ReimportFail : public UInterchangeResultError
+UCLASS(MinimalAPI)
+class UInterchangeResultError_ReimportFail : public UInterchangeResultError
 {
 	GENERATED_BODY()
 

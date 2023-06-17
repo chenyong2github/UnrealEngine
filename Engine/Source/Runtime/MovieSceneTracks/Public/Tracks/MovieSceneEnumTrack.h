@@ -12,20 +12,20 @@ class UEnum;
 /**
  * Handles manipulation of byte properties in a movie scene
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneEnumTrack : public UMovieScenePropertyTrack
+UCLASS(MinimalAPI)
+class UMovieSceneEnumTrack : public UMovieScenePropertyTrack
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** UMovieSceneTrack interface */
-	virtual void PostLoad() override;
-	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
-	virtual UMovieSceneSection* CreateNewSection() override;
+	MOVIESCENETRACKS_API virtual void PostLoad() override;
+	MOVIESCENETRACKS_API virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* CreateNewSection() override;
 
-	void SetEnum(UEnum* Enum);
+	MOVIESCENETRACKS_API void SetEnum(UEnum* Enum);
 
-	class UEnum* GetEnum() const;
+	MOVIESCENETRACKS_API class UEnum* GetEnum() const;
 
 protected:
 	UPROPERTY()

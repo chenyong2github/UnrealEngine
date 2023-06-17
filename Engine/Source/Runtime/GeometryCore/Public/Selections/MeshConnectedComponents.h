@@ -19,7 +19,7 @@ namespace Geometry
  * By default the actual mesh connectivity is used, but an optional connectivity predicate
  * can be provided to specify when two elements should be considered connected.
  */
-class GEOMETRYCORE_API FMeshConnectedComponents
+class FMeshConnectedComponents
 {
 public:
 	const FDynamicMesh3* Mesh;
@@ -54,7 +54,7 @@ public:
 	 * Triangle connectivity is based on edge connectivity, ie bowtie-vertices are not connections between triangles.
 	 * @param TrisConnectedPredicate optional function that specifies whether two edge-connected triangles should be considered connected by the search
 	 */
-	void FindConnectedTriangles(TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
+	GEOMETRYCORE_API void FindConnectedTriangles(TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
 
 	/**
 	 * Find all connected triangle components of a subset of triangles of the Mesh and store in Components array.
@@ -62,7 +62,7 @@ public:
 	 * @param TriangleROI list of triangles to search across
 	 * @param TrisConnectedPredicate optional function that specifies whether two edge-connected triangles should be considered connected by the search
 	 */
-	void FindConnectedTriangles(const TArray<int>& TriangleROI, TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
+	GEOMETRYCORE_API void FindConnectedTriangles(const TArray<int>& TriangleROI, TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
 
 	/**
 	 * Find all connected triangle components of a subset of triangles of the Mesh and store in Components array.
@@ -70,7 +70,7 @@ public:
 	 * @param IndexFilterFunc defines set of triangles to search across, return true for triangle IDs that are to be considered
 	 * @param TrisConnectedPredicate optional function that specifies whether two edge-connected triangles should be considered connected by the search
 	 */
-	void FindConnectedTriangles(TFunctionRef<bool(int)> IndexFilterFunc, TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
+	GEOMETRYCORE_API void FindConnectedTriangles(TFunctionRef<bool(int)> IndexFilterFunc, TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
 
 	/**
 	 * Find all connected triangle components that contain one or more Seed Triangles and store in Components array.
@@ -79,14 +79,14 @@ public:
 	 * @param SeedTriangles list of start triangles, each component contains at least one of these triangles
 	 * @param TrisConnectedPredicate optional function that specifies whether two edge-connected triangles should be considered connected by the search
 	 */
-	void FindTrianglesConnectedToSeeds(const TArray<int>& SeedTriangles, TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
+	GEOMETRYCORE_API void FindTrianglesConnectedToSeeds(const TArray<int>& SeedTriangles, TFunction<bool(int32, int32)> TrisConnectedPredicate = nullptr);
 
 	/**
 	 * Initialize the internal FComponent list from the input ComponentLists, skipping any empty input lists
 	 * @param bValidateIDs if true, test that each value corresponds to a valid triangle ID on the Mesh
 	 * @return true if all IDs are valid, or if check was skipped
 	 */
-	bool InitializeFromTriangleComponents(const TArray<TArray<int32>>& ComponentLists, bool bValidateIDs);
+	GEOMETRYCORE_API bool InitializeFromTriangleComponents(const TArray<TArray<int32>>& ComponentLists, bool bValidateIDs);
 
 	/**
 	* Initialize the internal FComponent list from the input ComponentLists, skipping any empty input lists
@@ -94,27 +94,27 @@ public:
 	* @param bValidateIDs if true, test that each value corresponds to a valid triangle ID on the Mesh
 	* @return true if all IDs are valid, or if check was skipped
 	*/
-	bool InitializeFromTriangleComponents(TArray<TArray<int32>>& ComponentLists, bool bMoveSubLists, bool bValidateIDs);
+	GEOMETRYCORE_API bool InitializeFromTriangleComponents(TArray<TArray<int32>>& ComponentLists, bool bMoveSubLists, bool bValidateIDs);
 
 	/**
 	* Find all connected vertex components of the Mesh and store in Components array.
 	* @param VertsConnectedPredicate optional function that specifies whether two edge-connected vertices should be considered connected by the search
 	*/
-	void FindConnectedVertices(TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
+	GEOMETRYCORE_API void FindConnectedVertices(TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
 
 	/**
 	* Find all connected vertex components of a subset of vertices of the Mesh and store in Components array.
 	* @param VertexROI list of vertices to search across
 	* @param VertsConnectedPredicate optional function that specifies whether two edge-connected vertices should be considered connected by the search
 	*/
-	void FindConnectedVertices(const TArray<int>& VertexROI, TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
+	GEOMETRYCORE_API void FindConnectedVertices(const TArray<int>& VertexROI, TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
 
 	/**
 	* Find all connected vertex components of a subset of vertices of the Mesh and store in Components array.
 	* @param IndexFilterFunc defines set of vertices to search across, return true for vertex IDs that are to be considered
 	* @param VertsConnectedPredicate optional function that specifies whether two edge-connected vertices should be considered connected by the search
 	*/
-	void FindConnectedVertices(TFunctionRef<bool(int)> IndexFilterFunc, TFunction<bool(int32, int32)>VertsConnectedPredicate = nullptr);
+	GEOMETRYCORE_API void FindConnectedVertices(TFunctionRef<bool(int)> IndexFilterFunc, TFunction<bool(int32, int32)>VertsConnectedPredicate = nullptr);
 
 	/**
 	* Find all connected vertex components that contain one or more Seed Vertices and store in Components array.
@@ -122,14 +122,14 @@ public:
 	* @param SeedVertices list of start vertices, each component contains at least one of these vertices
 	* @param VertsConnectedPredicate optional function that specifies whether two edge-connected vertices should be considered connected by the search
 	*/
-	void FindVerticesConnectedToSeeds(const TArray<int>& SeedVertices, TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
+	GEOMETRYCORE_API void FindVerticesConnectedToSeeds(const TArray<int>& SeedVertices, TFunction<bool(int32, int32)> VertsConnectedPredicate = nullptr);
 
 	/**
 	 * Initialize the internal FComponent list from the input ComponentLists, skipping any empty input lists
 	 * @param bValidateIDs if true, test that each value corresponds to a valid vertex ID on the Mesh
 	 * @return true if all IDs are valid, or if check was skipped
 	 */
-	bool InitializeFromVertexComponents(const TArray<TArray<int32>>& ComponentLists, bool bValidateIDs);
+	GEOMETRYCORE_API bool InitializeFromVertexComponents(const TArray<TArray<int32>>& ComponentLists, bool bValidateIDs);
 
 	/**
 	* Initialize the internal FComponent list from the input ComponentLists, skipping any empty input lists
@@ -137,7 +137,7 @@ public:
 	* @param bValidateIDs if true, test that each value corresponds to a valid vertex ID on the Mesh
 	* @return true if all IDs are valid, or if check was skipped
 	*/
-	bool InitializeFromVertexComponents(TArray<TArray<int32>>& ComponentLists, bool bMoveSubLists, bool bValidateIDs);
+	GEOMETRYCORE_API bool InitializeFromVertexComponents(TArray<TArray<int32>>& ComponentLists, bool bMoveSubLists, bool bValidateIDs);
 
 	//
 	// Query functions. Only valid to call after a Calculation function has been called.
@@ -164,13 +164,13 @@ public:
 	/** 
 	 * @return index of largest component by element count 
 	 */
-	int32 GetLargestIndexByCount() const;
+	GEOMETRYCORE_API int32 GetLargestIndexByCount() const;
 
 	/**
 	 * Sort the Components array by component element count
 	 * @param bLargestFirst if true, sort by decreasing count, otherwise by increasing count
 	 */
-	void SortByCount(bool bLargestFirst = true);
+	GEOMETRYCORE_API void SortByCount(bool bLargestFirst = true);
 
 
 
@@ -190,16 +190,16 @@ protected:
 	//
 	// Internal functions to calculate ROI
 	//
-	void FindTriComponents(FInterval1i ActiveRange, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TriConnectedPredicate);
-	void FindTriComponents(const TArray<int32>& SeedList, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TriConnectedPredicate);
-	void FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet);
-	void FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet, TFunctionRef<bool(int32, int32)> TriConnectedPredicate);
-	void RemoveFromActiveSet(const FComponent* Component, TArray<uint8>& ActiveSet);
+	GEOMETRYCORE_API void FindTriComponents(FInterval1i ActiveRange, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TriConnectedPredicate);
+	GEOMETRYCORE_API void FindTriComponents(const TArray<int32>& SeedList, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> TriConnectedPredicate);
+	GEOMETRYCORE_API void FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet);
+	GEOMETRYCORE_API void FindTriComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet, TFunctionRef<bool(int32, int32)> TriConnectedPredicate);
+	GEOMETRYCORE_API void RemoveFromActiveSet(const FComponent* Component, TArray<uint8>& ActiveSet);
 
-	void FindVertComponents(FInterval1i ActiveRange, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> VertsConnectedPredicate);
-	void FindVertComponents(const TArray<int32>& SeedList, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> VertsConnectedPredicate);
-	void FindVertComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet);
-	void FindVertComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet, TFunctionRef<bool(int32, int32)> VertsConnectedPredicate);
+	GEOMETRYCORE_API void FindVertComponents(FInterval1i ActiveRange, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> VertsConnectedPredicate);
+	GEOMETRYCORE_API void FindVertComponents(const TArray<int32>& SeedList, TArray<uint8>& ActiveSet, TFunction<bool(int32, int32)> VertsConnectedPredicate);
+	GEOMETRYCORE_API void FindVertComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet);
+	GEOMETRYCORE_API void FindVertComponent(FComponent* Component, TArray<int32>& ComponentQueue, TArray<uint8>& ActiveSet, TFunctionRef<bool(int32, int32)> VertsConnectedPredicate);
 
 public:
 	/**
@@ -212,7 +212,7 @@ public:
 	 * @param DoneBuffer optional set used to track which triangles have already been processed. If passed as nullptr, an TSet will be locally allocated
 	 * @param CanGrowPredicate determines whether two connected mesh triangles should be considered connected while growing
 	 */
-	static void GrowToConnectedTriangles(const FDynamicMesh3* Mesh, 
+	static GEOMETRYCORE_API void GrowToConnectedTriangles(const FDynamicMesh3* Mesh, 
 		const TArray<int>& InputROI, 
 		TArray<int>& ResultROI,
 		TArray<int32>* QueueBuffer = nullptr, 
@@ -231,7 +231,7 @@ public:
 	 * @param QueueBuffer optional buffer used as internal Queue. If passed as nullptr, a TArray will be locally allocated
 	 * @param CanGrowPredicate determines whether two connected mesh triangles should be considered connected while growing
 	 */
-	static void GrowToConnectedTriangles(const FDynamicMesh3* Mesh,
+	static GEOMETRYCORE_API void GrowToConnectedTriangles(const FDynamicMesh3* Mesh,
 		const TArray<int>& InputROI,
 		TSet<int>& ResultROI,
 		TArray<int32>* QueueBuffer = nullptr,
@@ -247,7 +247,7 @@ public:
 	 * @param QueueBuffer optional buffer used as internal Queue. If passed as nullptr, a TArray will be locally allocated
 	 * @param CanGrowPredicate determines whether two connected mesh vertices should be considered connected while growing
 	 */
-	static void GrowToConnectedVertices(
+	static GEOMETRYCORE_API void GrowToConnectedVertices(
 		const FDynamicMesh3& Mesh,
 		const TArray<int>& InputROI,
 		TSet<int>& ResultROI,
@@ -264,7 +264,7 @@ public:
 	 * @param QueueBuffer optional buffer used as internal Queue. If passed as nullptr, a TArray will be locally allocated
 	 * @param CanGrowPredicate determines whether two connected mesh edges should be considered connected while growing
 	 */
-	static void GrowToConnectedEdges(
+	static GEOMETRYCORE_API void GrowToConnectedEdges(
 		const FDynamicMesh3& Mesh,
 		const TArray<int>& InputROI,
 		TSet<int>& ResultROI,

@@ -17,7 +17,7 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
  * @todo support optionally storing old/new normals and tangents
  * @todo support applying to a StaticMeshComponent/MeshDescription ?
  */
-class GEOMETRYFRAMEWORK_API FMeshVertexChange : public FToolCommandChange
+class FMeshVertexChange : public FToolCommandChange
 {
 public:
 	bool bHaveVertexPositions = true;
@@ -34,13 +34,13 @@ public:
 	TArray<FVector3f> NewNormals;
 
 	/** Makes the change to the object */
-	virtual void Apply(UObject* Object) override;
+	GEOMETRYFRAMEWORK_API virtual void Apply(UObject* Object) override;
 
 	/** Reverts change to the object */
-	virtual void Revert(UObject* Object) override;
+	GEOMETRYFRAMEWORK_API virtual void Revert(UObject* Object) override;
 
 	/** Describes this change (for debugging) */
-	virtual FString ToString() const override;
+	GEOMETRYFRAMEWORK_API virtual FString ToString() const override;
 };
 
 
@@ -57,7 +57,7 @@ ENUM_CLASS_FLAGS(EMeshVertexChangeComponents);
 /**
  * FMeshVertexChangeBuilder can be used to construct a FMeshVertexChange.
  */
-class GEOMETRYFRAMEWORK_API FMeshVertexChangeBuilder
+class FMeshVertexChangeBuilder
 {
 public:
 	TUniquePtr<FMeshVertexChange> Change;
@@ -71,44 +71,44 @@ public:
 	/** If set, this function is called whenever a newly-seen VertexID is saved, parameters are (VertexID, Index) into saved-vertices array */
 	TUniqueFunction<void(int32, int32)> OnNewVertexSaved = nullptr;
 
-	FMeshVertexChangeBuilder();
-	explicit FMeshVertexChangeBuilder(EMeshVertexChangeComponents Components);
+	GEOMETRYFRAMEWORK_API FMeshVertexChangeBuilder();
+	GEOMETRYFRAMEWORK_API explicit FMeshVertexChangeBuilder(EMeshVertexChangeComponents Components);
 
-	void SaveVertexInitial(const FDynamicMesh3* Mesh, int32 VertexID);
-	void SaveVertexFinal(const FDynamicMesh3* Mesh, int32 VertexID);
+	GEOMETRYFRAMEWORK_API void SaveVertexInitial(const FDynamicMesh3* Mesh, int32 VertexID);
+	GEOMETRYFRAMEWORK_API void SaveVertexFinal(const FDynamicMesh3* Mesh, int32 VertexID);
 
 	template<typename Enumerable>
 	void SaveVertices(const FDynamicMesh3* Mesh, Enumerable Enum, bool bInitial);
 
-	void SaveOverlayNormals(const FDynamicMesh3* Mesh, const TArray<int32>& ElementIDs, bool bInitial);
-	void SaveOverlayNormals(const FDynamicMesh3* Mesh, const TSet<int32>& ElementIDs, bool bInitial);
+	GEOMETRYFRAMEWORK_API void SaveOverlayNormals(const FDynamicMesh3* Mesh, const TArray<int32>& ElementIDs, bool bInitial);
+	GEOMETRYFRAMEWORK_API void SaveOverlayNormals(const FDynamicMesh3* Mesh, const TSet<int32>& ElementIDs, bool bInitial);
 
 
 public:
 	// currently only used in vertex sculpt tool. cannot be used if bSaveColors = true
-	void UpdateVertex(int32 VertexID, const FVector3d& OldPosition, const FVector3d& NewPosition);
+	GEOMETRYFRAMEWORK_API void UpdateVertex(int32 VertexID, const FVector3d& OldPosition, const FVector3d& NewPosition);
 
 	// currently only used in element paint tool. Can only be used if bSaveColors=true and bSavePositions=false
-	void UpdateVertexColor(int32 VertexID, const FVector3f& OldColor, const FVector3f& NewColor);
+	GEOMETRYFRAMEWORK_API void UpdateVertexColor(int32 VertexID, const FVector3f& OldColor, const FVector3f& NewColor);
 
 protected:
-	void UpdateVertexFinal(int32 VertexID, const FVector3d& NewPosition);
+	GEOMETRYFRAMEWORK_API void UpdateVertexFinal(int32 VertexID, const FVector3d& NewPosition);
 
-	void UpdateOverlayNormal(int32 ElementID, const FVector3f& OldNormal, const FVector3f& NewNormal);
-	void UpdateOverlayNormalFinal(int32 ElementID, const FVector3f& NewNormal);
+	GEOMETRYFRAMEWORK_API void UpdateOverlayNormal(int32 ElementID, const FVector3f& OldNormal, const FVector3f& NewNormal);
+	GEOMETRYFRAMEWORK_API void UpdateOverlayNormalFinal(int32 ElementID, const FVector3f& NewNormal);
 };
 
 
 
-UINTERFACE()
-class GEOMETRYFRAMEWORK_API UMeshVertexCommandChangeTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UMeshVertexCommandChangeTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IMeshVertexCommandChangeTarget is an interface which is used to apply a FMeshVertexChange
  */
-class GEOMETRYFRAMEWORK_API IMeshVertexCommandChangeTarget
+class IMeshVertexCommandChangeTarget
 {
 	GENERATED_BODY()
 public:

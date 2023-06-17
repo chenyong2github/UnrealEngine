@@ -24,43 +24,43 @@ template <typename FuncType> class TFunctionRef;
 
 /** Base class for cached property path segments */
 USTRUCT()
-struct PROPERTYPATH_API FPropertyPathSegment
+struct FPropertyPathSegment
 {
 	GENERATED_BODY()
 
 	friend struct FCachedPropertyPath;
 
 	/** UStruct boilerplate constructor - do not use */
-	FPropertyPathSegment();
+	PROPERTYPATH_API FPropertyPathSegment();
 
 	/** Construct from char count and storage */
-	FPropertyPathSegment(int32 InCount, const TCHAR* InString);
+	PROPERTYPATH_API FPropertyPathSegment(int32 InCount, const TCHAR* InString);
 
 	/**
 	 * Called after this event has been serialized in order to cache the field pointer if necessary
 	 */
-	void PostSerialize(const FArchive& Ar);
+	PROPERTYPATH_API void PostSerialize(const FArchive& Ar);
 
 	/** Make a copy which is unresolved */
-	static FPropertyPathSegment MakeUnresolvedCopy(const FPropertyPathSegment& ToCopy);
+	static PROPERTYPATH_API FPropertyPathSegment MakeUnresolvedCopy(const FPropertyPathSegment& ToCopy);
 
 	/**
 	 * Resolves the name on the given Struct.  Can be used to cache the resulting property so that future calls can be processed quickly.
 	 * @param InStruct the ScriptStruct or Class to look for the property on.
 	 */
-	FFieldVariant Resolve(UStruct* InStruct) const;
+	PROPERTYPATH_API FFieldVariant Resolve(UStruct* InStruct) const;
 
 	/** @return the name of this segment */
-	FName GetName() const;
+	PROPERTYPATH_API FName GetName() const;
 
 	/** @return the array index of this segment */
-	int32 GetArrayIndex() const;
+	PROPERTYPATH_API int32 GetArrayIndex() const;
 
 	/** @return the resolved field */
-	FFieldVariant GetField() const;
+	PROPERTYPATH_API FFieldVariant GetField() const;
 
 	/** @return the resolved struct */
-	UStruct* GetStruct() const;
+	PROPERTYPATH_API UStruct* GetStruct() const;
 
 public:
 
@@ -93,123 +93,123 @@ struct TStructOpsTypeTraits<FPropertyPathSegment> : TStructOpsTypeTraitsBase2<FP
 
 /** Base class for cached property paths */
 USTRUCT()
-struct PROPERTYPATH_API FCachedPropertyPath
+struct FCachedPropertyPath
 {
 	GENERATED_BODY()
 
 	/** UStruct boilerplate constructor - do not use */
-	FCachedPropertyPath();
+	PROPERTYPATH_API FCachedPropertyPath();
 
 	/** */
-	FCachedPropertyPath(const FString& Path);
+	PROPERTYPATH_API FCachedPropertyPath(const FString& Path);
 
 	/** */
-	FCachedPropertyPath(const FPropertyPathSegment& Segment);
+	PROPERTYPATH_API FCachedPropertyPath(const FPropertyPathSegment& Segment);
 
 	/** */
-	FCachedPropertyPath(const TArray<FString>& PathSegments);
+	PROPERTYPATH_API FCachedPropertyPath(const TArray<FString>& PathSegments);
 
 	/** */
-	~FCachedPropertyPath();
+	PROPERTYPATH_API ~FCachedPropertyPath();
 
 	/** Check whether this property path is non-empty */
 	bool IsValid() const { return Segments.Num() > 0; }
 
 	/** Make a new property path from a string */
-	void MakeFromString(const FString& InPropertyPath);
+	PROPERTYPATH_API void MakeFromString(const FString& InPropertyPath);
 
 	/** Make a copy which is unresolved */
-	static FCachedPropertyPath MakeUnresolvedCopy(const FCachedPropertyPath& ToCopy);
+	static PROPERTYPATH_API FCachedPropertyPath MakeUnresolvedCopy(const FCachedPropertyPath& ToCopy);
 
 	/** @return Get the number of segments in this path */
-	int32 GetNumSegments() const;
+	PROPERTYPATH_API int32 GetNumSegments() const;
 
 	/** 
 	 * Get the path segment at the specified index
 	 * @param	InSegmentIndex	The index of the segment
 	 * @return the segment at the specified index 
 	 */
-	const FPropertyPathSegment& GetSegment(int32 InSegmentIndex) const;
+	PROPERTYPATH_API const FPropertyPathSegment& GetSegment(int32 InSegmentIndex) const;
 
 	/** 
 	 * Get the path segment at the end of the path
 	 * @return the segment at the specified index 
 	 */
-	const FPropertyPathSegment& GetLastSegment() const;
+	PROPERTYPATH_API const FPropertyPathSegment& GetLastSegment() const;
 
 	/** 
 	 * Resolve this property path against the specified object.
 	 * @return true if the path could be resolved
 	 */
-	bool Resolve(UObject* InContainer) const;
+	PROPERTYPATH_API bool Resolve(UObject* InContainer) const;
 
 	/** Set whether this path resolves over object or dynamic array boundaries, making it unsafe for general direct cached access */
-	void SetCanSafelyUsedCachedAddress(bool bInCanSafelyUsedCachedAddress) const;
+	PROPERTYPATH_API void SetCanSafelyUsedCachedAddress(bool bInCanSafelyUsedCachedAddress) const;
 
 	/** Update cached last container property in path & correspondng index, invalidates 'bCanSafelyUsedCachedAddress' */
-	void SetCachedLastContainer(void* InContainer, int32 InIndex) const;
+	PROPERTYPATH_API void SetCachedLastContainer(void* InContainer, int32 InIndex) const;
 
 	/** Get cached last container property in path */
-	void* GetCachedLastContainerInPath() const;
+	PROPERTYPATH_API void* GetCachedLastContainerInPath() const;
 
 	/** Get cached index of last container property in path, INDEX_NONE if last container is not in path */
-	int32 GetCachedLastContainerInPathIndex() const;
+	PROPERTYPATH_API int32 GetCachedLastContainerInPathIndex() const;
 
 	/** Cache a resolved address for faster subsequent access */
-	void ResolveLeaf(void* InAddress) const;
+	PROPERTYPATH_API void ResolveLeaf(void* InAddress) const;
 
 	/** Cache a resolved function for faster subsequent access */
-	void ResolveLeaf(UFunction* InFunction) const;
+	PROPERTYPATH_API void ResolveLeaf(UFunction* InFunction) const;
 
 	/** 
 	 * Check whether a path is resolved. This means that it has a cached address, but may
 	 * resolve over an object boundary or a dynamic array.
 	 * @return true if the path is resolved
 	 */
-	bool IsResolved() const;
+	PROPERTYPATH_API bool IsResolved() const;
 
 	/** 
 	 * Check whether a path is fully resolved. This means that it has a cached address and
 	 * does not resolve over an object boundary or a dynamic array.
 	 * @return true if the path is fully resolved
 	 */
-	bool IsFullyResolved() const;
+	PROPERTYPATH_API bool IsFullyResolved() const;
 
 	/** Get the cached address for this property path, if any */
-	void* GetCachedAddress() const;
+	PROPERTYPATH_API void* GetCachedAddress() const;
 
 	/** Get the cached function for this property path, if any */
-	UFunction* GetCachedFunction() const;
+	PROPERTYPATH_API UFunction* GetCachedFunction() const;
 
 	/** Convert this property path to a FPropertyChangedEvent. Note that the path must be resolved. */
-	FPropertyChangedEvent ToPropertyChangedEvent(EPropertyChangeType::Type InChangeType) const;
+	PROPERTYPATH_API FPropertyChangedEvent ToPropertyChangedEvent(EPropertyChangeType::Type InChangeType) const;
 
 	/** Convert this property path to a FEditPropertyChain. Note that the path must be resolved. */
-	void ToEditPropertyChain(FEditPropertyChain& OutPropertyChain) const;
+	PROPERTYPATH_API void ToEditPropertyChain(FEditPropertyChain& OutPropertyChain) const;
 
 	/** Make a string representation of this property path */
-	FString ToString() const;
+	PROPERTYPATH_API FString ToString() const;
 
 	/** Compares this property path to a string */
-	bool operator==(const FString& Other) const;
+	PROPERTYPATH_API bool operator==(const FString& Other) const;
 
 	/** Compares this property path to a string */
-	bool Equals(const FString& Other) const;
+	PROPERTYPATH_API bool Equals(const FString& Other) const;
 
 	/** Get the cached container for this property path, for checking purposes */
-	void* GetCachedContainer() const;
+	PROPERTYPATH_API void* GetCachedContainer() const;
 
 	/** Set the cached container for this property path, for checking purposes */
-	void SetCachedContainer(void* InContainer) const;
+	PROPERTYPATH_API void SetCachedContainer(void* InContainer) const;
 
 	/** Trims this property path at the end */
-	void RemoveFromEnd(int32 InNumSegments = 1);
+	PROPERTYPATH_API void RemoveFromEnd(int32 InNumSegments = 1);
 
 	/** Trims this property path at the start */
-	void RemoveFromStart(int32 InNumSegments = 1);
+	PROPERTYPATH_API void RemoveFromStart(int32 InNumSegments = 1);
 
 	/** Returns FProperty if valid. This can be UFunction */
-	FProperty* GetFProperty() const;
+	PROPERTYPATH_API FProperty* GetFProperty() const;
 private:
 	/** Path segments for this path */
 	UPROPERTY()

@@ -95,7 +95,7 @@ struct TPreAnimatedStateTaskParams
  * (optional, if SupportsReplaceObject is true)
  *   void ReplaceObject(KeyType&, const FObjectKey&);
  */
-struct MOVIESCENE_API FPreAnimatedStateTraits
+struct FPreAnimatedStateTraits
 {
 	enum
 	{

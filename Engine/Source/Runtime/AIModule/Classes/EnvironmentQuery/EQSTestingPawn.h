@@ -21,8 +21,8 @@ enum class EEnvQueryHightlightMode : uint8
 	Best25Pct UMETA(DisplayName = "Best 25%"),
 };
 
-UCLASS(hidedropdown, hidecategories=(Advanced, Attachment, Mesh, Animation, Clothing, Physics, Rendering, Lighting, Activation, CharacterMovement, AgentPhysics, Avoidance, MovementComponent, Velocity, Shape, Camera, Input, Layers, SkeletalMesh, Optimization, Pawn, Replication, Actor))
-class AIMODULE_API AEQSTestingPawn : public ACharacter, public IEQSQueryResultSourceInterface
+UCLASS(hidedropdown, hidecategories=(Advanced, Attachment, Mesh, Animation, Clothing, Physics, Rendering, Lighting, Activation, CharacterMovement, AgentPhysics, Avoidance, MovementComponent, Velocity, Shape, Camera, Input, Layers, SkeletalMesh, Optimization, Pawn, Replication, Actor), MinimalAPI)
+class AEQSTestingPawn : public ACharacter, public IEQSQueryResultSourceInterface
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -81,39 +81,39 @@ protected:
 
 public:
 	/** This pawn class spawns its controller in PostInitProperties to have it available in editor mode*/
-	virtual void TickActor( float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction ) override;
-	virtual void PostLoad() override;
+	AIMODULE_API virtual void TickActor( float DeltaTime, enum ELevelTick TickType, FActorTickFunction& ThisTickFunction ) override;
+	AIMODULE_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditMove(bool bFinished) override;
-	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
-	void OnPropertyChanged(const FName PropName);
+	AIMODULE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	AIMODULE_API virtual void PostEditMove(bool bFinished) override;
+	AIMODULE_API virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
+	AIMODULE_API void OnPropertyChanged(const FName PropName);
 #endif // WITH_EDITOR
 
 	// IEQSQueryResultSourceInterface start
-	virtual const FEnvQueryResult* GetQueryResult() const override;
-	virtual const FEnvQueryInstance* GetQueryInstance() const  override;
+	AIMODULE_API virtual const FEnvQueryResult* GetQueryResult() const override;
+	AIMODULE_API virtual const FEnvQueryInstance* GetQueryInstance() const  override;
 
 	virtual bool GetShouldDebugDrawLabels() const override { return bDrawLabels; }
 	virtual bool GetShouldDrawFailedItems() const override{ return bDrawFailedItems; }
-	virtual float GetHighlightRangePct() const override;
+	AIMODULE_API virtual float GetHighlightRangePct() const override;
 	// IEQSQueryResultSourceInterface end
 
 	// INavAgentInterface begin
-	virtual const FNavAgentProperties& GetNavAgentPropertiesRef() const override;
+	AIMODULE_API virtual const FNavAgentProperties& GetNavAgentPropertiesRef() const override;
 	// INavAgentInterface end
 
-	void RunEQSQuery();
+	AIMODULE_API void RunEQSQuery();
 
 protected:	
-	void Reset() override;
-	void MakeOneStep();
+	AIMODULE_API void Reset() override;
+	AIMODULE_API void MakeOneStep();
 
-	void UpdateDrawing();
+	AIMODULE_API void UpdateDrawing();
 
 #if WITH_EDITOR
-	static void OnEditorSelectionChanged(UObject* NewSelection);
+	static AIMODULE_API void OnEditorSelectionChanged(UObject* NewSelection);
 #endif // WITH_EDITOR
 
 public:

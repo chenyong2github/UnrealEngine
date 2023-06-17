@@ -29,88 +29,88 @@ struct FNullPlatformDisplayMetrics : public FDisplayMetrics
  * An implementation of GenericApplication specifically for use when rendering off screen.
  * This application has no platform backing so instead keeps track of its associated NullWindows itself.
  */
-class APPLICATIONCORE_API FNullApplication : public GenericApplication, public FSelfRegisteringExec, public IInputInterface
+class FNullApplication : public GenericApplication, public FSelfRegisteringExec, public IInputInterface
 {
 public:
-	static FNullApplication* CreateNullApplication();
+	static APPLICATIONCORE_API FNullApplication* CreateNullApplication();
 
-	static void MoveWindowTo(FGenericWindow* Window, const int32 X, const int32 Y);
+	static APPLICATIONCORE_API void MoveWindowTo(FGenericWindow* Window, const int32 X, const int32 Y);
 
-	static void OnSizeChanged(FGenericWindow* Window, const int32 Width, const int32 Height);
+	static APPLICATIONCORE_API void OnSizeChanged(FGenericWindow* Window, const int32 Width, const int32 Height);
 
-	static void GetFullscreenInfo(int32& X, int32& Y, int32& Width, int32& Height);
+	static APPLICATIONCORE_API void GetFullscreenInfo(int32& X, int32& Y, int32& Width, int32& Height);
 
-	static void ShowWindow(FGenericWindow* Window);
+	static APPLICATIONCORE_API void ShowWindow(FGenericWindow* Window);
 
-	static void HideWindow(FGenericWindow* Window);
+	static APPLICATIONCORE_API void HideWindow(FGenericWindow* Window);
 
-	static void DestroyWindow(FGenericWindow* Window);
+	static APPLICATIONCORE_API void DestroyWindow(FGenericWindow* Window);
 
 public:
-	virtual ~FNullApplication();
+	APPLICATIONCORE_API virtual ~FNullApplication();
 
-	virtual void DestroyApplication() override;
+	APPLICATIONCORE_API virtual void DestroyApplication() override;
 
 	// FSelfRegisteringExec
-	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
+	APPLICATIONCORE_API virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
-	TSharedPtr<FNullWindow> FindWindowByPtr(FGenericWindow* WindowToFind);
+	APPLICATIONCORE_API TSharedPtr<FNullWindow> FindWindowByPtr(FGenericWindow* WindowToFind);
 
-	void ActivateWindow(const TSharedPtr<FNullWindow>& Window);
+	APPLICATIONCORE_API void ActivateWindow(const TSharedPtr<FNullWindow>& Window);
 
 public:
-	virtual void SetMessageHandler(const TSharedRef<class FGenericApplicationMessageHandler>& InMessageHandler) override;
+	APPLICATIONCORE_API virtual void SetMessageHandler(const TSharedRef<class FGenericApplicationMessageHandler>& InMessageHandler) override;
 
-	virtual void PollGameDeviceState(const float TimeDelta) override;
+	APPLICATIONCORE_API virtual void PollGameDeviceState(const float TimeDelta) override;
 
-	virtual void PumpMessages(const float TimeDelta) override;
+	APPLICATIONCORE_API virtual void PumpMessages(const float TimeDelta) override;
 
-	virtual void ProcessDeferredEvents(const float TimeDelta) override;
+	APPLICATIONCORE_API virtual void ProcessDeferredEvents(const float TimeDelta) override;
 
-	virtual TSharedRef<FGenericWindow> MakeWindow() override;
+	APPLICATIONCORE_API virtual TSharedRef<FGenericWindow> MakeWindow() override;
 
-	virtual void InitializeWindow(const TSharedRef<FGenericWindow>& Window, const TSharedRef<FGenericWindowDefinition>& InDefinition, const TSharedPtr<FGenericWindow>& InParent, const bool bShowImmediately) override;
+	APPLICATIONCORE_API virtual void InitializeWindow(const TSharedRef<FGenericWindow>& Window, const TSharedRef<FGenericWindowDefinition>& InDefinition, const TSharedPtr<FGenericWindow>& InParent, const bool bShowImmediately) override;
 
-	void DestroyWindow(TSharedRef<FNullWindow> WindowToRemove);
+	APPLICATIONCORE_API void DestroyWindow(TSharedRef<FNullWindow> WindowToRemove);
 
-	virtual void SetCapture(const TSharedPtr<FGenericWindow>& InWindow) override;
+	APPLICATIONCORE_API virtual void SetCapture(const TSharedPtr<FGenericWindow>& InWindow) override;
 
-	virtual void* GetCapture(void) const override;
+	APPLICATIONCORE_API virtual void* GetCapture(void) const override;
 
-	virtual void SetHighPrecisionMouseMode(const bool Enable, const TSharedPtr<FGenericWindow>& InWindow) override;
+	APPLICATIONCORE_API virtual void SetHighPrecisionMouseMode(const bool Enable, const TSharedPtr<FGenericWindow>& InWindow) override;
 
 	virtual bool IsUsingHighPrecisionMouseMode() const override { return bUsingHighPrecisionMouseInput; }
 
-	virtual bool IsGamepadAttached() const override;
+	APPLICATIONCORE_API virtual bool IsGamepadAttached() const override;
 
-	virtual FModifierKeysState GetModifierKeys() const override;
+	APPLICATIONCORE_API virtual FModifierKeysState GetModifierKeys() const override;
 
-	virtual FPlatformRect GetWorkArea(const FPlatformRect& CurrentWindow) const override;
+	APPLICATIONCORE_API virtual FPlatformRect GetWorkArea(const FPlatformRect& CurrentWindow) const override;
 
-	void SetWorkArea(const FPlatformRect& NewWorkArea);
+	APPLICATIONCORE_API void SetWorkArea(const FPlatformRect& NewWorkArea);
 
 	virtual EWindowTransparency GetWindowTransparencySupport() const override
 	{
 		return EWindowTransparency::PerWindow;
 	}
 
-	virtual bool IsCursorDirectlyOverSlateWindow() const override;
+	APPLICATIONCORE_API virtual bool IsCursorDirectlyOverSlateWindow() const override;
 
-	virtual TSharedPtr<FGenericWindow> GetWindowUnderCursor() override;
+	APPLICATIONCORE_API virtual TSharedPtr<FGenericWindow> GetWindowUnderCursor() override;
 
 	virtual bool IsMouseAttached() const override { return true; }
 
 private:
-	FNullApplication();
+	APPLICATIONCORE_API FNullApplication();
 
 	/** Handles "Cursor" exec commands" */
-	bool HandleCursorCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	APPLICATIONCORE_API bool HandleCursorCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 
 	/** Handles "Window" exec commands" */
-	bool HandleWindowCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	APPLICATIONCORE_API bool HandleWindowCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 
 	/** Handles parsing the work area resolution from the command line */
-	bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY);
+	APPLICATIONCORE_API bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY);
 
 public:
 	virtual IInputInterface* GetInputInterface() override
@@ -119,9 +119,9 @@ public:
 	}
 
 	// IInputInterface overrides
-	virtual void SetForceFeedbackChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
-	virtual void SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues& Values) override;
-	virtual void SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values) override;
+	APPLICATIONCORE_API virtual void SetForceFeedbackChannelValue(int32 ControllerId, FForceFeedbackChannelType ChannelType, float Value) override;
+	APPLICATIONCORE_API virtual void SetForceFeedbackChannelValues(int32 ControllerId, const FForceFeedbackValues& Values) override;
+	APPLICATIONCORE_API virtual void SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values) override;
 	virtual void SetLightColor(int32 ControllerId, FColor Color) override {}
 	virtual void ResetLightColor(int32 ControllerId) override {}
 

@@ -269,7 +269,7 @@ namespace EEnvQueryTestClamping
 }
 
 USTRUCT(BlueprintType)
-struct AIMODULE_API FEnvNamedValue
+struct FEnvNamedValue
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -288,7 +288,7 @@ struct AIMODULE_API FEnvNamedValue
 };
 
 USTRUCT()
-struct AIMODULE_API FEnvDirection
+struct FEnvDirection
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -308,11 +308,11 @@ struct AIMODULE_API FEnvDirection
 	UPROPERTY(EditDefaultsOnly, Category=Direction, meta=(DisplayName="Mode"))
 	TEnumAsByte<EEnvDirection::Type> DirMode = EEnvDirection::Type::TwoPoints;
 
-	FText ToText() const;
+	AIMODULE_API FText ToText() const;
 };
 
 USTRUCT()
-struct AIMODULE_API FEnvTraceData
+struct FEnvTraceData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -411,16 +411,16 @@ struct AIMODULE_API FEnvTraceData
 	UPROPERTY(EditDefaultsOnly, Category=Trace)
 	uint32 bCanProjectDown : 1;
 
-	FText ToText(EDescriptionMode DescMode) const;
+	AIMODULE_API FText ToText(EDescriptionMode DescMode) const;
 
-	void SetGeometryOnly();
-	void SetNavmeshOnly();
+	AIMODULE_API void SetGeometryOnly();
+	AIMODULE_API void SetNavmeshOnly();
 	
-	void OnPostLoad();
+	AIMODULE_API void OnPostLoad();
 };
 
 USTRUCT()
-struct AIMODULE_API FEnvOverlapData
+struct FEnvOverlapData
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -477,7 +477,7 @@ struct AIMODULE_API FEnvOverlapData
 //////////////////////////////////////////////////////////////////////////
 // Returned results
 
-struct AIMODULE_API FEnvQueryItem
+struct FEnvQueryItem
 {
 	/** total score of item */
 	float Score;
@@ -511,7 +511,7 @@ struct AIMODULE_API FEnvQueryItem
 template <> struct TIsZeroConstructType<FEnvQueryItem> { enum { Value = true }; };
 
 USTRUCT(BlueprintType)
-struct AIMODULE_API FEnvQueryResult
+struct FEnvQueryResult
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -543,8 +543,8 @@ public:
 	FORCEINLINE float GetItemScore(int32 Index) const { return Items.IsValidIndex(Index) ? Items[Index].Score : 0.0f; }
 
 	/** item accessors for basic types */
-	AActor* GetItemAsActor(int32 Index) const;
-	FVector GetItemAsLocation(int32 Index) const;
+	AIMODULE_API AActor* GetItemAsActor(int32 Index) const;
+	AIMODULE_API FVector GetItemAsLocation(int32 Index) const;
 
 	template<typename TItemType>
 	const typename TItemType::FValueType& GetItemAsTypeChecked(const int32 Index) const
@@ -557,8 +557,8 @@ public:
 	}
 
 	/** note that this function does not strip out the null-actors to not mess up results of GetItemScore(Index) calls*/
-	void GetAllAsActors(TArray<AActor*>& OutActors) const;
-	void GetAllAsLocations(TArray<FVector>& OutLocations) const;
+	AIMODULE_API void GetAllAsActors(TArray<AActor*>& OutActors) const;
+	AIMODULE_API void GetAllAsLocations(TArray<FVector>& OutLocations) const;
 
 	const uint8* GetItemRawMemory(const int32 Index) const
 	{
@@ -590,14 +590,14 @@ public:
 
 DECLARE_DELEGATE_OneParam(FQueryFinishedSignature, TSharedPtr<FEnvQueryResult>);
 
-struct AIMODULE_API FEnvQuerySpatialData
+struct FEnvQuerySpatialData
 {
 	FVector Location;
 	FRotator Rotation;
 };
 
 /** Detailed information about item, used by tests */
-struct AIMODULE_API FEnvQueryItemDetails
+struct FEnvQueryItemDetails
 {
 	/** Results assigned by option's tests, before any modifications */
 	TArray<float> TestResults;
@@ -632,7 +632,7 @@ struct AIMODULE_API FEnvQueryItemDetails
 	}
 };
 
-struct AIMODULE_API FEnvQueryContextData
+struct FEnvQueryContextData
 {
 	/** type of context values */
 	TSubclassOf<UEnvQueryItemType> ValueType;
@@ -650,7 +650,7 @@ struct AIMODULE_API FEnvQueryContextData
 	FORCEINLINE uint32 GetAllocatedSize() const { return sizeof(*this) + RawData.GetAllocatedSize(); }
 };
 
-struct AIMODULE_API FEnvQueryOptionInstance
+struct FEnvQueryOptionInstance
 {
 	/** generator object, raw pointer can be used safely because it will be always referenced by EnvQueryManager */
 	UEnvQueryGenerator* Generator;
@@ -742,23 +742,23 @@ struct FEQSQueryDebugData : public FEnvQueryDebugData
 {
 };
 
-UCLASS(Abstract)
-class AIMODULE_API UEnvQueryTypes : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UEnvQueryTypes : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	/** special test value assigned to items skipped by condition check */
-	static const float SkippedItemValue;
+	static AIMODULE_API const float SkippedItemValue;
 
 	/** special value used for executing query steps to prevent them from being time sliced */
-	static float UnlimitedStepTime;
+	static AIMODULE_API float UnlimitedStepTime;
 
-	static FText GetShortTypeName(const UObject* Ob);
-	static FText DescribeContext(TSubclassOf<UEnvQueryContext> ContextClass);
+	static AIMODULE_API FText GetShortTypeName(const UObject* Ob);
+	static AIMODULE_API FText DescribeContext(TSubclassOf<UEnvQueryContext> ContextClass);
 };
 
-struct AIMODULE_API FEnvQueryInstance : public FEnvQueryResult
+struct FEnvQueryInstance : public FEnvQueryResult
 {
 	typedef float FNamedParamValueType;
 
@@ -839,29 +839,29 @@ struct AIMODULE_API FEnvQueryInstance : public FEnvQueryResult
 	/** item type's CDO for actor tests */
 	UEnvQueryItemType_ActorBase* ItemTypeActorCDO;
 
-	FEnvQueryInstance();
-	FEnvQueryInstance(const FEnvQueryInstance& Other);
-	~FEnvQueryInstance();
+	AIMODULE_API FEnvQueryInstance();
+	AIMODULE_API FEnvQueryInstance(const FEnvQueryInstance& Other);
+	AIMODULE_API ~FEnvQueryInstance();
 
 	/** execute single step of query */
-	void ExecuteOneStep(double TimeLimit);
+	AIMODULE_API void ExecuteOneStep(double TimeLimit);
 
 	/** update context cache */
-	bool PrepareContext(UClass* Context, FEnvQueryContextData& ContextData);
+	AIMODULE_API bool PrepareContext(UClass* Context, FEnvQueryContextData& ContextData);
 
 	/** helpers for reading spatial data from context */
-	bool PrepareContext(UClass* Context, TArray<FEnvQuerySpatialData>& Data);
-	bool PrepareContext(UClass* Context, TArray<FVector>& Data);
-	bool PrepareContext(UClass* Context, TArray<FRotator>& Data);
+	AIMODULE_API bool PrepareContext(UClass* Context, TArray<FEnvQuerySpatialData>& Data);
+	AIMODULE_API bool PrepareContext(UClass* Context, TArray<FVector>& Data);
+	AIMODULE_API bool PrepareContext(UClass* Context, TArray<FRotator>& Data);
 	/** helpers for reading actor data from context */
-	bool PrepareContext(UClass* Context, TArray<AActor*>& Data);
+	AIMODULE_API bool PrepareContext(UClass* Context, TArray<AActor*>& Data);
 	
 	bool IsInSingleItemFinalSearch() const { return !!bPassOnSingleResult; }
 	/** check if current test can batch its calculations */
 	bool CanBatchTest() const { return !IsInSingleItemFinalSearch(); }
 
 	/** raw data operations */
-	void ReserveItemData(int32 NumAdditionalItems);
+	AIMODULE_API void ReserveItemData(int32 NumAdditionalItems);
 
 	template<typename TypeItem>
 	void AddItemData(typename TypeItem::FValueType ItemValue)
@@ -925,30 +925,30 @@ struct AIMODULE_API FEnvQueryInstance : public FEnvQueryResult
 protected:
 
 	/** prepare item data after generator has finished */
-	void FinalizeGeneration();
+	AIMODULE_API void FinalizeGeneration();
 
 	/** update costs and flags after test has finished */
-	void FinalizeTest();
+	AIMODULE_API void FinalizeTest();
 	
 	/** final pass on items of finished query */
-	void FinalizeQuery();
+	AIMODULE_API void FinalizeQuery();
 
 	/** normalize total score in range 0..1 */
-	void NormalizeScores();
+	AIMODULE_API void NormalizeScores();
 
 	/** sort all scores, from highest to lowest */
-	void SortScores();
+	AIMODULE_API void SortScores();
 
 	/** pick one of items with score equal or higher than specified */
-	void PickRandomItemOfScoreAtLeast(float MinScore);
+	AIMODULE_API void PickRandomItemOfScoreAtLeast(float MinScore);
 
 	/** discard all items but one */
-	void PickSingleItem(int32 ItemIndex);
+	AIMODULE_API void PickSingleItem(int32 ItemIndex);
 
 public:
 
 	/** removes all runtime data that can be used for debugging (not a part of actual query result) */
-	void StripRedundantData();
+	AIMODULE_API void StripRedundantData();
 
 #if STATS
 	FORCEINLINE void IncStats()
@@ -963,8 +963,8 @@ public:
 		DEC_DWORD_STAT_BY(STAT_AI_EQS_NumItems, Items.Num());
 	}
 
-	uint32 GetAllocatedSize() const;
-	uint32 GetContextAllocatedSize() const;
+	AIMODULE_API uint32 GetAllocatedSize() const;
+	AIMODULE_API uint32 GetContextAllocatedSize() const;
 #else
 	FORCEINLINE uint32 GetAllocatedSize() const { return 0; }
 	FORCEINLINE uint32 GetContextAllocatedSize() const { return 0; }
@@ -973,7 +973,7 @@ public:
 #endif // STATS
 
 #if !NO_LOGGING
-	void Log(const FString Msg) const;
+	AIMODULE_API void Log(const FString Msg) const;
 #endif // #if !NO_LOGGING
 
 #if USE_EQS_DEBUGGER
@@ -992,12 +992,12 @@ public:
 #endif
 
 	/** describe for logging purposes what the query spent time on */
-	FString GetExecutionTimeDescription() const;
+	AIMODULE_API FString GetExecutionTimeDescription() const;
 
 #if CPP || UE_BUILD_DOCS
 	/** Note that this iterator is for read-only purposes. Please use FItemIterator for regular item iteration 
 	 *	while performing EQS testing and scoring */
-	struct AIMODULE_API FConstItemIterator
+	struct FConstItemIterator
 	{
 		FConstItemIterator(FEnvQueryInstance& QueryInstance, int32 StartingItemIndex = INDEX_NONE)
 			: Instance(QueryInstance)
@@ -1274,10 +1274,10 @@ public:
 
 #if USE_EQS_DEBUGGER
 	FEnvQueryDebugData DebugData;
-	static bool bDebuggingInfoEnabled;
+	static AIMODULE_API bool bDebuggingInfoEnabled;
 #endif // USE_EQS_DEBUGGER
 
-	FBox GetBoundingBox() const;
+	AIMODULE_API FBox GetBoundingBox() const;
 };
 
 namespace FEQSHelpers
@@ -1286,7 +1286,7 @@ namespace FEQSHelpers
 }
 
 USTRUCT(BlueprintType)
-struct AIMODULE_API FAIDynamicParam
+struct FAIDynamicParam
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -1309,17 +1309,17 @@ struct AIMODULE_API FAIDynamicParam
 		BBKey.AllowNoneAsValue(true);
 	}
 
-	void ConfigureBBKey(UObject &QueryOwner);
+	AIMODULE_API void ConfigureBBKey(UObject &QueryOwner);
 
-	static void GenerateConfigurableParamsFromNamedValues(UObject &QueryOwner, TArray<FAIDynamicParam>& OutQueryConfig, TArray<FEnvNamedValue>& InQueryParams);
+	static AIMODULE_API void GenerateConfigurableParamsFromNamedValues(UObject &QueryOwner, TArray<FAIDynamicParam>& OutQueryConfig, TArray<FEnvNamedValue>& InQueryParams);
 };
 
 USTRUCT()
-struct AIMODULE_API FEQSParametrizedQueryExecutionRequest
+struct FEQSParametrizedQueryExecutionRequest
 {
 	GENERATED_USTRUCT_BODY()
 
-	FEQSParametrizedQueryExecutionRequest();
+	AIMODULE_API FEQSParametrizedQueryExecutionRequest();
 
 	UPROPERTY(Category = Node, EditAnywhere, meta = (EditCondition = "!bUseBBKeyForQueryTemplate"))
 	TObjectPtr<UEnvQuery> QueryTemplate;
@@ -1340,13 +1340,13 @@ struct AIMODULE_API FEQSParametrizedQueryExecutionRequest
 
 	uint32 bInitialized : 1;
 
-	void InitForOwnerAndBlackboard(UObject& Owner, UBlackboardData* BBAsset);
+	AIMODULE_API void InitForOwnerAndBlackboard(UObject& Owner, UBlackboardData* BBAsset);
 
 	bool IsValid() const { return bInitialized; }
 
-	int32 Execute(UObject& QueryOwner, const UBlackboardComponent* BlackboardComponent, FQueryFinishedSignature& QueryFinishedDelegate);
+	AIMODULE_API int32 Execute(UObject& QueryOwner, const UBlackboardComponent* BlackboardComponent, FQueryFinishedSignature& QueryFinishedDelegate);
 
 #if WITH_EDITOR
-	void PostEditChangeProperty(UObject& Owner, struct FPropertyChangedEvent& PropertyChangedEvent);
+	AIMODULE_API void PostEditChangeProperty(UObject& Owner, struct FPropertyChangedEvent& PropertyChangedEvent);
 #endif // WITH_EDITOR
 };

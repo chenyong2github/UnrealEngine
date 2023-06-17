@@ -10,38 +10,38 @@ namespace Audio
 {
 	namespace GrainDelay
 	{
-		class SIGNALPROCESSING_API FGrainDelay
+		class FGrainDelay
 		{
 		public:
-			FGrainDelay(const float InSampleRate);
-			~FGrainDelay();
+			SIGNALPROCESSING_API FGrainDelay(const float InSampleRate);
+			SIGNALPROCESSING_API ~FGrainDelay();
 
-			void Reset();
+			SIGNALPROCESSING_API void Reset();
 
 			// Helpers to clamp audio
-			float GetGrainDelayClamped(const float InDelay) const;
-			float GetGrainDurationClamped(const float InDuration) const;
-			float GetGrainDelayRatioClamped(const float InGrainDelayRatio) const;
-			float GetGrainPitchShiftClamped(const float InPitchShift) const;
-			float GetGrainPitchShiftFrameRatio(const float InPitchShift) const;
+			SIGNALPROCESSING_API float GetGrainDelayClamped(const float InDelay) const;
+			SIGNALPROCESSING_API float GetGrainDurationClamped(const float InDuration) const;
+			SIGNALPROCESSING_API float GetGrainDelayRatioClamped(const float InGrainDelayRatio) const;
+			SIGNALPROCESSING_API float GetGrainPitchShiftClamped(const float InPitchShift) const;
+			SIGNALPROCESSING_API float GetGrainPitchShiftFrameRatio(const float InPitchShift) const;
 
 			// Dynamically sets the max grains 
-			void SetMaxGrains(const int32 InMaxGrains); 
+			SIGNALPROCESSING_API void SetMaxGrains(const int32 InMaxGrains); 
 			
 			// Sets the grain envelope 
-			void SetGrainEnvelope(const Audio::Grain::EEnvelope InGrainEnvelope);
+			SIGNALPROCESSING_API void SetGrainEnvelope(const Audio::Grain::EEnvelope InGrainEnvelope);
 
 			// Sets the feedback amount (how much output grain audio feeds into the delay line)
-			void SetFeedbackAmount(float InFeedbackAmount);
+			SIGNALPROCESSING_API void SetFeedbackAmount(float InFeedbackAmount);
 
 			// Sets the base pitch shift ratio of all grains 
-			void SetGrainBasePitchShiftRatio(const float InPitchRatioBase);
+			SIGNALPROCESSING_API void SetGrainBasePitchShiftRatio(const float InPitchRatioBase);
 
 			// Spawns a new grain with the given parameters
-			void SpawnGrain(const float InDelay, const float InDuration, const float InPitchShiftRatioOffset);
+			SIGNALPROCESSING_API void SpawnGrain(const float InDelay, const float InDuration, const float InPitchShiftRatioOffset);
 
 			// Synthesize audio in the given frame range from input audio. Writes to OutAudioBuffer
-			void SynthesizeAudio(const int32 StartFrame, const int32 EndFrame, const float* InAudioBuffer, float* OutAudioBuffer);
+			SIGNALPROCESSING_API void SynthesizeAudio(const int32 StartFrame, const int32 EndFrame, const float* InAudioBuffer, float* OutAudioBuffer);
 			
 		private:
 			// Synthesize a single frame of audio

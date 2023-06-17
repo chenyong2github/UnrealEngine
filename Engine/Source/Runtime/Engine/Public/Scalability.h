@@ -155,7 +155,7 @@ namespace Scalability
 	ENGINE_API extern FOnScalabilitySettingsChanged OnScalabilitySettingsChanged;
 
 	/** Structure holding the details of a preset. */
-	struct ENGINE_API FResolutionPreset
+	struct FResolutionPreset
 	{
 		FString Name;
 		int32 Id = 0;

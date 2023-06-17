@@ -11,8 +11,8 @@
 
 class UMovieSceneBlenderSystem;
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneBlenderSystemSupport : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneBlenderSystemSupport : public UInterface
 {
 public:
 	GENERATED_BODY()
@@ -22,7 +22,7 @@ public:
 /**
  * Interface that can be added to UMovieSceneTracks to enable user-selection of blender systems
  */
-class MOVIESCENE_API IMovieSceneBlenderSystemSupport
+class IMovieSceneBlenderSystemSupport
 {
 public:
 	GENERATED_BODY()

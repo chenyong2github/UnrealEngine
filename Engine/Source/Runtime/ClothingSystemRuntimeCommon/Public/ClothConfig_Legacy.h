@@ -63,7 +63,7 @@ struct FClothConstraintSetup_Legacy
  * Redirected from the now defunct ClothingSystemRuntime module.
  */
 USTRUCT()
-struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothConfig_Legacy
+struct FClothConfig_Legacy
 {
 	GENERATED_BODY()
 

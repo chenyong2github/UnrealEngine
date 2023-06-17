@@ -36,35 +36,35 @@ struct FMovieSceneTrackInstanceEntry
 };
 
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneTrackInstanceInstantiator : public UMovieSceneEntityInstantiatorSystem
+UCLASS(MinimalAPI)
+class UMovieSceneTrackInstanceInstantiator : public UMovieSceneEntityInstantiatorSystem
 {
 	GENERATED_BODY()
 
 public:
 
-	UMovieSceneTrackInstanceInstantiator(const FObjectInitializer& ObjInit);
+	MOVIESCENE_API UMovieSceneTrackInstanceInstantiator(const FObjectInitializer& ObjInit);
 
-	int32 MakeOutput(UObject* BoundObject, UClass* TrackInstanceClass);
+	MOVIESCENE_API int32 MakeOutput(UObject* BoundObject, UClass* TrackInstanceClass);
 
-	int32 FindOutput(UObject* BoundObject, UClass* TrackInstanceClass) const;
+	MOVIESCENE_API int32 FindOutput(UObject* BoundObject, UClass* TrackInstanceClass) const;
 
 	const TSparseArray<FMovieSceneTrackInstanceEntry>& GetTrackInstances() const
 	{
 		return TrackInstances;
 	}
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	static MOVIESCENE_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 private:
 
-	virtual void OnLink() override final;
-	virtual void OnUnlink() override final;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
+	MOVIESCENE_API virtual void OnLink() override final;
+	MOVIESCENE_API virtual void OnUnlink() override final;
+	MOVIESCENE_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 
-	virtual void OnTagGarbage() override;
+	MOVIESCENE_API virtual void OnTagGarbage() override;
 
-	virtual void Serialize(FArchive& Ar) override;
+	MOVIESCENE_API virtual void Serialize(FArchive& Ar) override;
 
 	TSparseArray<FMovieSceneTrackInstanceEntry> TrackInstances;
 	TMultiMap<TObjectPtr<UObject>, int32> BoundObjectToInstances;
@@ -75,8 +75,8 @@ private:
 };
 
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneTrackInstanceSystem : public UMovieSceneEntitySystem
+UCLASS(MinimalAPI)
+class UMovieSceneTrackInstanceSystem : public UMovieSceneEntitySystem
 {
 	GENERATED_BODY()
 
@@ -84,9 +84,9 @@ class MOVIESCENE_API UMovieSceneTrackInstanceSystem : public UMovieSceneEntitySy
 
 private:
 
-	virtual void OnLink() override final;
-	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override final;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
+	MOVIESCENE_API virtual void OnLink() override final;
+	MOVIESCENE_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override final;
+	MOVIESCENE_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 
 	void EvaluateAllInstances();
 

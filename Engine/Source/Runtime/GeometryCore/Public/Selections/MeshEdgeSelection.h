@@ -18,7 +18,7 @@ namespace Geometry
 /**
  * Currently a thin wrapper of a TSet<int> of Edge IDs paired with a Mesh; the backing storage will likely change as we need to optimize in the future
  */
-class GEOMETRYCORE_API FMeshEdgeSelection
+class FMeshEdgeSelection
 {
 private:
 	const FDynamicMesh3* Mesh;
@@ -34,10 +34,10 @@ public:
 
 
 	// convert vertex selection to edge selection. Require at least minCount verts of edge to be selected
-	FMeshEdgeSelection(const FDynamicMesh3* mesh, const FMeshVertexSelection& convertV, int minCount = 2);
+	GEOMETRYCORE_API FMeshEdgeSelection(const FDynamicMesh3* mesh, const FMeshVertexSelection& convertV, int minCount = 2);
 
 	// convert face selection to edge selection. Require at least minCount tris of edge to be selected
-	FMeshEdgeSelection(const FDynamicMesh3* mesh, const FMeshFaceSelection& convertT, int minCount = 1);
+	GEOMETRYCORE_API FMeshEdgeSelection(const FDynamicMesh3* mesh, const FMeshFaceSelection& convertT, int minCount = 1);
 
 
 
@@ -155,7 +155,7 @@ public:
 	}
 
 
-	void SelectBoundaryTriEdges(const FMeshFaceSelection& Triangles);
+	GEOMETRYCORE_API void SelectBoundaryTriEdges(const FMeshFaceSelection& Triangles);
 
 	void Deselect(int tid) {
 		remove(tid);

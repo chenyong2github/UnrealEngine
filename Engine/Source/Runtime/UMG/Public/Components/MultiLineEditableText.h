@@ -17,8 +17,8 @@ class SMultiLineEditableText;
 /**
  * Editable text box widget
  */
-UCLASS(meta=( DisplayName="Editable Text (Multi-Line)" ))
-class UMG_API UMultiLineEditableText : public UTextLayoutWidget
+UCLASS(meta=( DisplayName="Editable Text (Multi-Line)" ), MinimalAPI)
+class UMultiLineEditableText : public UTextLayoutWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -99,95 +99,95 @@ public:
 	* @return The widget text
 	*/
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="GetText (Multi-Line Editable Text)"))
-	FText GetText() const;
+	UMG_API FText GetText() const;
 
 	/**
 	* Directly sets the widget text.
 	* @param InText The text to assign to the widget
 	*/
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetText (Multi-Line Editable Text)"))
-	void SetText(FText InText);
+	UMG_API void SetText(FText InText);
 
 	/** Returns the Hint text that appears when there is no text in the text box */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="GetHintText (Multi-Line Editable Text)"))
-	FText GetHintText() const;
+	UMG_API FText GetHintText() const;
 
 	/** 
 	* Sets the Hint text that appears when there is no text in the text box 
 	* @param InHintText The text that appears when there is no text in the text box 
 	*/
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetHintText (Multi-Line Editable Text)"))
-	void SetHintText(FText InHintText);
+	UMG_API void SetHintText(FText InHintText);
 
 	/** Set to true to select all text when the user clicks to give focus on the widget */
-	void SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused);
+	UMG_API void SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused);
 
 	/** Whether to select all text when the user clicks to give focus on the widget */
-	bool GetSelectAllTextWhenFocused() const;
+	UMG_API bool GetSelectAllTextWhenFocused() const;
 
 	/** Set to true to clear text selection when focus is lost */
-	void SetClearTextSelectionOnFocusLoss(bool bClearTextSelectionOnFocusLoss);
+	UMG_API void SetClearTextSelectionOnFocusLoss(bool bClearTextSelectionOnFocusLoss);
 
 	/** Whether to clear text selection when focus is lost */
-	bool GetClearTextSelectionOnFocusLoss() const;
+	UMG_API bool GetClearTextSelectionOnFocusLoss() const;
 
 	/** Set to true to allow the user to back out of changes when they press the escape key */
-	void SetRevertTextOnEscape(bool bRevertTextOnEscape);
+	UMG_API void SetRevertTextOnEscape(bool bRevertTextOnEscape);
 
 	/** Whether to allow the user to back out of changes when they press the escape key  */
-	bool GetRevertTextOnEscape() const;
+	UMG_API bool GetRevertTextOnEscape() const;
 
 	/** Set to true to clear keyboard focus when pressing enter to commit changes */
-	void SetClearKeyboardFocusOnCommit(bool bClearKeyboardFocusOnCommit);
+	UMG_API void SetClearKeyboardFocusOnCommit(bool bClearKeyboardFocusOnCommit);
 
 	/** Whether to clear keyboard focus when pressing enter to commit changes */
-	bool GetClearKeyboardFocusOnCommit() const;	
+	UMG_API bool GetClearKeyboardFocusOnCommit() const;	
 
 	/** Return true when this text cannot be modified interactively by the user */
-	bool GetIsReadOnly() const;
+	UMG_API bool GetIsReadOnly() const;
 
 	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetIsReadOnly (Multi-Line Editable Text"))
-	void SetIsReadOnly(bool bReadOnly);
+	UMG_API void SetIsReadOnly(bool bReadOnly);
 
 	UFUNCTION(BlueprintSetter)
-	void SetWidgetStyle(const FTextBlockStyle& InWidgetStyle);
+	UMG_API void SetWidgetStyle(const FTextBlockStyle& InWidgetStyle);
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	const FSlateFontInfo& GetFont() const;
+	UMG_API const FSlateFontInfo& GetFont() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetFont(FSlateFontInfo InFontInfo);
+	UMG_API void SetFont(FSlateFontInfo InFontInfo);
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetFontMaterial(UMaterialInterface* InMaterial);
+	UMG_API void SetFontMaterial(UMaterialInterface* InMaterial);
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
+	UMG_API void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
 
 	//~ Begin UTextLayoutWidget Interface
-	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	UMG_API virtual void SetJustification(ETextJustify::Type InJustification) override;
 	//~ End UTextLayoutWidget Interface
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget
 
-	void HandleOnTextChanged(const FText& Text);
-	void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	UMG_API void HandleOnTextChanged(const FText& Text);
+	UMG_API void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 protected:
 	TSharedPtr<SMultiLineEditableText> MyMultiLineEditableText;

@@ -107,7 +107,7 @@ typedef int32 FAccessibleUserIndex;
  * All accessible users must be registered with an FGenericAccessibleUserRegistry for the users to be retrieved and interacted with.
  * @see FGenericAccessibleUserRegistry
  */
-class APPLICATIONCORE_API FGenericAccessibleUser
+class FGenericAccessibleUser
 {
 	friend class FGenericAccessibleUserRegistry;
 public:
@@ -177,7 +177,7 @@ private:
  * Users can subclass this class to provide additional functionality for their custom use cases.
  * @see FGenericAccessibleUser, FGenericAccessibleMessageHandler
  */
-class APPLICATIONCORE_API FGenericAccessibleUserRegistry
+class FGenericAccessibleUserRegistry
 {
 public:
 	virtual ~FGenericAccessibleUserRegistry() = default;
@@ -190,7 +190,7 @@ public:
 	 * @param User An accessible user you want to register with the accessible user registry.
 	 * @return True if the passed in user was successfully registered. Else, returns false.
 	 */
-	bool RegisterUser(const TSharedRef<FGenericAccessibleUser>& User);
+	APPLICATIONCORE_API bool RegisterUser(const TSharedRef<FGenericAccessibleUser>& User);
 	/**
 	 * Unregisters an accessible user from the accessible registry.
 	 * If the passed in user index is not associated with a registered accessible user, nothing will happen.
@@ -199,20 +199,20 @@ public:
 	 * @param UserIndex The index of the accessible user you want to unregister.
 	 * @return True if the accessible user with the associated user index is successfully unregistered. Else, returns false.
 	 */
-	bool UnregisterUser(const FAccessibleUserIndex UserIndex);
+	APPLICATIONCORE_API bool UnregisterUser(const FAccessibleUserIndex UserIndex);
 	/**
 	 * Unregisters all accessible users from the accessible registry.
 	 * This function calls FGenericAccessibleUser::OnUnregistered when each registered user is successfully unregistered.
 	 */
-	void UnregisterAllUsers();
+	APPLICATIONCORE_API void UnregisterAllUsers();
 	/** Returns true if the passed in user index is associated with a registered accessible user. Else, returns false. */
-	bool IsUserRegistered(const FAccessibleUserIndex UserIndex) const;
+	APPLICATIONCORE_API bool IsUserRegistered(const FAccessibleUserIndex UserIndex) const;
 	/** Returns the accessible user associated with the passed in user index. If the passed in user index is not associated with any accessible user, nullptr is returned. */
-	TSharedPtr<FGenericAccessibleUser> GetUser(const FAccessibleUserIndex UserIndex) const;
+	APPLICATIONCORE_API TSharedPtr<FGenericAccessibleUser> GetUser(const FAccessibleUserIndex UserIndex) const;
 	/** Returns the number of accessible users registered with the accessible user registry. */
-	int32 GetNumberofUsers() const;
+	APPLICATIONCORE_API int32 GetNumberofUsers() const;
 	/** Returns an array of all accessible users that are currently registered with the accessible registry. */
-	TArray<TSharedRef<FGenericAccessibleUser>> GetAllUsers() const;
+	APPLICATIONCORE_API TArray<TSharedRef<FGenericAccessibleUser>> GetAllUsers() const;
 	/**
 	 * Returns the index of the primary accessible user.
 	 * The primary accessible user should correspond to the default input source that every application should have. This user should also be the primary cursor user.
@@ -830,7 +830,7 @@ public:
  * It is up to the client to create an instance of this struct and fill in the appropriate data members.
  * @see FGenericAccessibleMessageHandler::RaiseEvent
  */
-struct APPLICATIONCORE_API FAccessibleEventArgs
+struct FAccessibleEventArgs
 {
 	FAccessibleEventArgs(TSharedRef<IAccessibleWidget> InWidget, EAccessibleEvent InEvent, FVariant InOldValue = FVariant(), FVariant InNewValue = FVariant(), FAccessibleUserIndex InUserIndex = 0)
 		: Widget(InWidget)
@@ -867,7 +867,7 @@ struct APPLICATIONCORE_API FAccessibleEventArgs
  * Callers should also use GetAccessibleUserRegistry() to register and interact with accessible users. Accessible users must be registered
  * with the set accessible user registry for the rest of the application to be able to retrieve and interact with the accessible users.
  */
-class APPLICATIONCORE_API FGenericAccessibleMessageHandler
+class FGenericAccessibleMessageHandler
 {
 public:
 	/**
@@ -876,7 +876,7 @@ public:
 	 */
 	DECLARE_DELEGATE_OneParam(FAccessibleEvent, const FAccessibleEventArgs&);
 
-	FGenericAccessibleMessageHandler();
+	APPLICATIONCORE_API FGenericAccessibleMessageHandler();
 	virtual ~FGenericAccessibleMessageHandler()
 	{
 		UnbindAccessibleEventDelegate();
@@ -887,7 +887,7 @@ public:
 	 *
 	 * @return true if the application intends to return valid accessible widgets when queried.
 	 */
-	bool ApplicationIsAccessible() const;
+	APPLICATIONCORE_API bool ApplicationIsAccessible() const;
 
 	/**
 	 * Checks if accessibility is enabled in the application. Usually this happens when screen-reading software is turned on.
@@ -902,7 +902,7 @@ public:
 	 *
 	 * @param bActive Whether to enable to disable the message handler.
 	 */
-	void SetActive(bool bActive);
+	APPLICATIONCORE_API void SetActive(bool bActive);
 
 	/**
 	 * Creates or retrieves an accessible object for a native OS window.

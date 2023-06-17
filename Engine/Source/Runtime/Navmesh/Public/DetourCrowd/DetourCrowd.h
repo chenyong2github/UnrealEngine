@@ -137,7 +137,7 @@ enum MoveRequestState
 
 /// Represents an agent managed by a #dtCrowd object.
 /// @ingroup crowd
-struct NAVMESH_API dtCrowdAgent
+struct dtCrowdAgent
 {
 	/// The path corridor the agent is using.
 	dtPathCorridor corridor;
@@ -193,7 +193,7 @@ struct NAVMESH_API dtCrowdAgent
 	unsigned char state;
 };
 
-struct NAVMESH_API dtCrowdAgentAnimation
+struct dtCrowdAgentAnimation
 {
 	dtReal initPos[3], startPos[3], endPos[3];
 	dtPolyRef polyRef;
@@ -222,7 +222,7 @@ enum CrowdBoundaryFlags
 	DT_CROWD_BOUNDARY_IGNORE = 1 << 0,
 };
 
-struct NAVMESH_API dtCrowdAgentDebugInfo
+struct dtCrowdAgentDebugInfo
 {
 	int idx;
 	dtReal optStart[3], optEnd[3];
@@ -232,7 +232,7 @@ struct NAVMESH_API dtCrowdAgentDebugInfo
 
 /// Provides local steering behaviors for a group of agents. 
 /// @ingroup crowd
-class NAVMESH_API dtCrowd
+class dtCrowd
 {
 	int m_maxAgents;
 	int m_numActiveAgents;
@@ -278,49 +278,49 @@ class NAVMESH_API dtCrowd
 	// [UE] if set, crowd agents will use early reach test
 	bool m_earlyReachTest;
 
-	void updateTopologyOptimization(dtCrowdAgent** agents, const int nagents, const dtReal dt);
-	void updateMoveRequest(const dtReal dt);
-	void checkPathValidity(dtCrowdAgent** agents, const int nagents, const dtReal dt);
+	NAVMESH_API void updateTopologyOptimization(dtCrowdAgent** agents, const int nagents, const dtReal dt);
+	NAVMESH_API void updateMoveRequest(const dtReal dt);
+	NAVMESH_API void checkPathValidity(dtCrowdAgent** agents, const int nagents, const dtReal dt);
 
-	bool requestMoveTargetReplan(const int idx, dtPolyRef ref, const dtReal* pos);
+	NAVMESH_API bool requestMoveTargetReplan(const int idx, dtPolyRef ref, const dtReal* pos);
 
-	void purge();
+	NAVMESH_API void purge();
 	
 public:
-	dtCrowd();
-	~dtCrowd();
+	NAVMESH_API dtCrowd();
+	NAVMESH_API ~dtCrowd();
 	
 	/// Initializes the crowd.  
 	///  @param[in]		maxAgents		The maximum number of agents the crowd can manage. [Limit: >= 1]
 	///  @param[in]		maxAgentRadius	The maximum radius of any agent that will be added to the crowd. [Limit: > 0]
 	///  @param[in]		nav				The navigation mesh to use for planning.
 	/// @return True if the initialization succeeded.
-	bool init(const int maxAgents, const dtReal maxAgentRadius, dtNavMesh* nav);
+	NAVMESH_API bool init(const int maxAgents, const dtReal maxAgentRadius, dtNavMesh* nav);
 
 	/// [UE] Initializes the avoidance query.  
 	///  @param[in]		maxNeighbors		The maximum number of processed neighbors
 	///  @param[in]		maxWalls			The maximum number of processed wall segments
 	///  @param[in]		maxCustomPatterns	The maximum number of custom sampling patterns
 	/// @return True if the initialization succeeded.
-	bool initAvoidance(const int maxNeighbors, const int maxWalls, const int maxCustomPatterns);
+	NAVMESH_API bool initAvoidance(const int maxNeighbors, const int maxWalls, const int maxCustomPatterns);
 	
 	/// Sets the shared avoidance configuration for the specified index.
 	///  @param[in]		idx		The index. [Limits: 0 <= value < #DT_CROWD_MAX_OBSTAVOIDANCE_PARAMS]
 	///  @param[in]		params	The new configuration.
-	void setObstacleAvoidanceParams(const int idx, const dtObstacleAvoidanceParams* params);
+	NAVMESH_API void setObstacleAvoidanceParams(const int idx, const dtObstacleAvoidanceParams* params);
 
 	/// Gets the shared avoidance configuration for the specified index.
 	///  @param[in]		idx		The index of the configuration to retreive. 
 	///							[Limits:  0 <= value < #DT_CROWD_MAX_OBSTAVOIDANCE_PARAMS]
 	/// @return The requested configuration.
-	const dtObstacleAvoidanceParams* getObstacleAvoidanceParams(const int idx) const;
+	NAVMESH_API const dtObstacleAvoidanceParams* getObstacleAvoidanceParams(const int idx) const;
 	
 	/// [UE] Sets the shared avoidance sampling pattern for the specified index.
 	///  @param[in]		idx			The index.
 	///  @param[in]		angles		radians from direction of desired velocity [Count: nsamples]
 	///  @param[in]		radii		normalized radii (0..1) for each sample [Count: nsamples]
 	///  @param[in]		nsamples	The number of samples
-	void setObstacleAvoidancePattern(int idx, const dtReal* angles, const dtReal* radii, int nsamples);
+	NAVMESH_API void setObstacleAvoidancePattern(int idx, const dtReal* angles, const dtReal* radii, int nsamples);
 
 	/// [UE] Gets the shared avoidance sampling pattern for the specified index.
 	///  @param[in]		idx			The index.
@@ -328,137 +328,137 @@ public:
 	///  @param[in]		radii		normalized radii (0..1) for each sample [Count: nsamples]
 	///  @param[in]		nsamples	The number of samples
 	/// @return true if pattern was found
-	bool getObstacleAvoidancePattern(int idx, dtReal* angles, dtReal* radii, int* nsamples);
+	NAVMESH_API bool getObstacleAvoidancePattern(int idx, dtReal* angles, dtReal* radii, int* nsamples);
 
 	/// Gets the specified agent from the pool.
 	///	 @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	/// @return The requested agent.
-	const dtCrowdAgent* getAgent(const int idx);
+	NAVMESH_API const dtCrowdAgent* getAgent(const int idx);
 
 	/// The maximum number of agents that can be managed by the object.
 	/// @return The maximum number of agents.
-	const int getAgentCount() const;
+	NAVMESH_API const int getAgentCount() const;
 	
 	/// Adds a new agent to the crowd.
 	///  @param[in]		pos		The requested position of the agent. [(x, y, z)]
 	///  @param[in]		params	The configutation of the agent.
 	///  @param[in]		filter	[UE] query filter used by agent
 	/// @return The index of the agent in the agent pool. Or -1 if the agent could not be added.
-	int addAgent(const dtReal* pos, const dtCrowdAgentParams& params, const dtQueryFilter* filter);
+	NAVMESH_API int addAgent(const dtReal* pos, const dtCrowdAgentParams& params, const dtQueryFilter* filter);
 
 	/// Updates the specified agent's configuration.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	///  @param[in]		params	The new agent configuration.
-	void updateAgentParameters(const int idx, const dtCrowdAgentParams& params);
+	NAVMESH_API void updateAgentParameters(const int idx, const dtCrowdAgentParams& params);
 
 	/// [UE] Updates the specified agent's query filter.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	///  @param[in]		filter	The new filter.
 	/// @return True if the request was successfully submitted.
-	bool updateAgentFilter(const int idx, const dtQueryFilter* filter);
+	NAVMESH_API bool updateAgentFilter(const int idx, const dtQueryFilter* filter);
 
 	/// [UE] Refresh state of agent, used after completing movement through offmesh links
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	///  @param[in]		repath	If set, agent will invalidate its path
-	void updateAgentState(const int idx, bool repath);
+	NAVMESH_API void updateAgentState(const int idx, bool repath);
 
 	/// Removes the agent from the crowd.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
-	void removeAgent(const int idx);
+	NAVMESH_API void removeAgent(const int idx);
 	
 	/// Submits a new move request for the specified agent.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	///  @param[in]		ref		The position's polygon reference.
 	///  @param[in]		pos		The position within the polygon. [(x, y, z)]
 	/// @return True if the request was successfully submitted.
-	bool requestMoveTarget(const int idx, dtPolyRef ref, const dtReal* pos);
+	NAVMESH_API bool requestMoveTarget(const int idx, dtPolyRef ref, const dtReal* pos);
 
 	/// Submits a new move request for the specified agent.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	///  @param[in]		vel		The movement velocity. [(x, y, z)]
 	/// @return True if the request was successfully submitted.
-	bool requestMoveVelocity(const int idx, const dtReal* vel);
+	NAVMESH_API bool requestMoveVelocity(const int idx, const dtReal* vel);
 
 	/// Resets any request for the specified agent.
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	/// @return True if the request was successfully reseted.
-	bool resetMoveTarget(const int idx);
+	NAVMESH_API bool resetMoveTarget(const int idx);
 
 	/// [UE] Switch to waiting state
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
-	bool setAgentWaiting(const int idx);
+	NAVMESH_API bool setAgentWaiting(const int idx);
 
 	/// [UE] Switch to offmesh link state
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
-	bool setAgentBackOnLink(const int idx);
+	NAVMESH_API bool setAgentBackOnLink(const int idx);
 
 	/// [UE] Resets agent's velocity
 	///  @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
-	bool resetAgentVelocity(const int idx);
+	NAVMESH_API bool resetAgentVelocity(const int idx);
 
 	/// Gets the active agents int the agent pool.
 	///  @param[out]	agents		An array of agent pointers. [(#dtCrowdAgent *) * maxAgents]
 	///  @param[in]		maxAgents	The size of the crowd agent array.
 	/// @return The number of agents returned in @p agents.
-	int getActiveAgents(dtCrowdAgent** agents, const int maxAgents);
+	NAVMESH_API int getActiveAgents(dtCrowdAgent** agents, const int maxAgents);
 
 	/// Cache list of active agents
 	/// @return The number of active agents
-	int cacheActiveAgents();
+	NAVMESH_API int cacheActiveAgents();
 
 	/// Updates the steering and positions of all agents.
 	///  @param[in]		dt		The time, in seconds, to update the simulation. [Limit: > 0]
 	///  @param[out]	debug	A debug object to load with debug information. [Opt]
-	void update(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void update(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 	
 	/// [UE] Split update into several smaller components: path validity, path cache and path optimizations
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepPaths(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepPaths(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Split update into several smaller components: neighbors and boundaries
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepProximityData(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepProximityData(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Split update into several smaller components: next corner for move, trigger offmesh links
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepNextMovePoint(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepNextMovePoint(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Split update into several smaller components: steering
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepSteering(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepSteering(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Split update into several smaller components: avoidance
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepAvoidance(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepAvoidance(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Split update into several smaller components: integrate velocities and handle collisions
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepMove(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepMove(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Split update into several smaller components: corridor updates at new position
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepCorridor(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepCorridor(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Split update into several smaller components: offmesh anims
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepOffMeshAnim(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepOffMeshAnim(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Split update into several smaller components: offmesh link velocity (instead of playing animation)
 	/// @param[in]		dt		Delta time in seconds
 	/// @param[in]		nagents	Number of active agents
-	void updateStepOffMeshVelocity(const dtReal dt, dtCrowdAgentDebugInfo* debug);
+	NAVMESH_API void updateStepOffMeshVelocity(const dtReal dt, dtCrowdAgentDebugInfo* debug);
 
 	/// [UE] Set time between attempts to restore agents state
 	/// @param[in]		t		Time in seconds
-	void setAgentCheckInterval(const dtReal t);
+	NAVMESH_API void setAgentCheckInterval(const dtReal t);
 
 	/// [UE] Set agent corridor, works only just after requesting move target
 	/// when agent didn't start any pathfinding operations yet
@@ -466,40 +466,40 @@ public:
 	/// @param[in]		idx		The agent index. [Limits: 0 <= value < #getAgentCount()]
 	/// @param[in]		path	The path corridor. [(polyRef) * @p npolys]
 	/// @param[in]		npath	The number of polygons in the path.
-	bool setAgentCorridor(const int idx, const dtPolyRef* path, const int npath);
+	NAVMESH_API bool setAgentCorridor(const int idx, const dtPolyRef* path, const int npath);
 
 	/// [UE] Set visibility optimization to use single area raycasts
 	/// This will prevent from cutting through polys marked as different area
 	/// which could have been avoided in corridor's path
 	/// @param[in]		bEnable	New state of single area raycast mode
-	void setSingleAreaVisibilityOptimization(bool bEnable);
+	NAVMESH_API void setSingleAreaVisibilityOptimization(bool bEnable);
 
 	/// [UE] Set offmesh connection pruning
 	/// This will allow removing offmesh connection poly ref from corridor
 	/// as soon as offmesh connection anim is triggered (default behavior)
-	void setPruneStartedOffmeshConnections(bool bRemoveFromCorridor);
+	NAVMESH_API void setPruneStartedOffmeshConnections(bool bRemoveFromCorridor);
 
 	/// [UE]
-	void setEarlyReachTestOptimization(bool bEnable);
+	NAVMESH_API void setEarlyReachTestOptimization(bool bEnable);
 
 	/// [UE] Set agent radius multiplier for offseting path from corners
-	void setPathOffsetRadiusMultiplier(dtReal RadiusMultiplier);
+	NAVMESH_API void setPathOffsetRadiusMultiplier(dtReal RadiusMultiplier);
 
 	/// [UE] Set separation filter param
-	void setSeparationFilter(dtReal InFilter);
+	NAVMESH_API void setSeparationFilter(dtReal InFilter);
 
 	/// [UE] Check if agent moved away from its path corridor
-	bool isOutsideCorridor(const int idx) const;
+	NAVMESH_API bool isOutsideCorridor(const int idx) const;
 
 	/// Gets the filter used by the crowd.
 	///  @param[in]		idx		[UE] The agent index. [Limits: 0 <= value < #getAgentCount()]
 	/// @return The filter used by the crowd.
-	const dtQueryFilter* getFilter(const int idx) const;
+	NAVMESH_API const dtQueryFilter* getFilter(const int idx) const;
 
 	/// Gets the filter used by the crowd.
 	///  @param[in]		idx		[UE] The agent index. [Limits: 0 <= value < #getAgentCount()]
 	/// @return The filter used by the crowd.
-	dtQueryFilter* getEditableFilter(const int idx);
+	NAVMESH_API dtQueryFilter* getEditableFilter(const int idx);
 
 	/// Gets the search extents [(x, y, z)] used by the crowd for query operations. 
 	/// @return The search extents used by the crowd. [(x, y, z)]

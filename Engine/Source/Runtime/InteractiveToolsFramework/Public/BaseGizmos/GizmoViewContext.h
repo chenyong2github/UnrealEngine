@@ -14,8 +14,8 @@
  * FSceneView so that functions could be written in a templated way to use either FSceneView
  * or UGizmoViewContext, though UGizmoViewContext only keeps the needed data.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoViewContext : public UObject
+UCLASS(MinimalAPI)
+class UGizmoViewContext : public UObject
 {
 	GENERATED_BODY()
 public:

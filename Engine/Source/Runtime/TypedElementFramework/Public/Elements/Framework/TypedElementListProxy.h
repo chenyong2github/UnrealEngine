@@ -14,7 +14,7 @@
  * The weak model for the handles come with an additional cost to the runtime performance and the memory usage.
  */
 USTRUCT(BlueprintType, DisplayName="Typed Element List", meta=(ScriptName="TypedElementList"))
-struct TYPEDELEMENTFRAMEWORK_API FScriptTypedElementListProxy
+struct FScriptTypedElementListProxy
 {
 	GENERATED_BODY()
 

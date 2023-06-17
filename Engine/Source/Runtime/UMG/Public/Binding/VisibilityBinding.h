@@ -11,18 +11,18 @@
 
 enum class ESlateVisibility : uint8;
 
-UCLASS()
-class UMG_API UVisibilityBinding : public UPropertyBinding
+UCLASS(MinimalAPI)
+class UVisibilityBinding : public UPropertyBinding
 {
 	GENERATED_BODY()
 
 public:
 
-	UVisibilityBinding();
+	UMG_API UVisibilityBinding();
 
-	virtual bool IsSupportedSource(FProperty* Property) const override;
-	virtual bool IsSupportedDestination(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedSource(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedDestination(FProperty* Property) const override;
 
 	UFUNCTION()
-	ESlateVisibility GetValue() const;
+	UMG_API ESlateVisibility GetValue() const;
 };

@@ -76,19 +76,19 @@ using FDynamicMeshBonePoseAttribute = TDynamicBoneAttributeBase<FDynamicMesh3, F
  * 
  * @todo current internal structure is a work-in-progress
  */
-class GEOMETRYCORE_API FDynamicMeshAttributeSet : public FDynamicMeshAttributeSetBase
+class FDynamicMeshAttributeSet : public FDynamicMeshAttributeSetBase
 {
 public:
-	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh);
+	GEOMETRYCORE_API FDynamicMeshAttributeSet(FDynamicMesh3* Mesh);
 
-	FDynamicMeshAttributeSet(FDynamicMesh3* Mesh, int32 NumUVLayers, int32 NumNormalLayers);
+	GEOMETRYCORE_API FDynamicMeshAttributeSet(FDynamicMesh3* Mesh, int32 NumUVLayers, int32 NumNormalLayers);
 
-	virtual ~FDynamicMeshAttributeSet() override;
+	GEOMETRYCORE_API virtual ~FDynamicMeshAttributeSet() override;
 
-	void Copy(const FDynamicMeshAttributeSet& Copy);
+	GEOMETRYCORE_API void Copy(const FDynamicMeshAttributeSet& Copy);
 
 	/** returns true if the attached overlays/attributes are compact */
-	bool IsCompact();
+	GEOMETRYCORE_API bool IsCompact();
 
 	/**
 	 * Performs a CompactCopy of the attached overlays/attributes.
@@ -97,7 +97,7 @@ public:
 	 * @param CompactMaps Maps indicating how vertices and triangles were changes in the parent
 	 * @param Copy The attribute set to be copied
 	 */
-	void CompactCopy(const FCompactMaps& CompactMaps, const FDynamicMeshAttributeSet& Copy);
+	GEOMETRYCORE_API void CompactCopy(const FCompactMaps& CompactMaps, const FDynamicMeshAttributeSet& Copy);
 
 	/**
 	 * Compacts the attribute set in place
@@ -105,14 +105,14 @@ public:
 	 *
 	 * @param CompactMaps Maps of how the vertices and triangles were compacted in the parent
 	 */
-	void CompactInPlace(const FCompactMaps& CompactMaps);
+	GEOMETRYCORE_API void CompactInPlace(const FCompactMaps& CompactMaps);
 
 
 	/**
 	 * Split all bowtie vertices in all layers
 	 * @param bParallel if true, layers are processed in parallel
 	 */
-	void SplitAllBowties(bool bParallel = true);
+	GEOMETRYCORE_API void SplitAllBowties(bool bParallel = true);
 
 
 	/**
@@ -122,7 +122,7 @@ public:
 	 * If bClearExisting=false, new attributes are added, but existing attributes and data are preserved
 	 * If bDiscardExtraAttributes=true and bClearExisting=false, then attributes in the current set but not in ToMatch are discarded, but existing attributes are not cleared/reset
 	 */
-	void EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting = true, bool bDiscardExtraAttributes = false);
+	GEOMETRYCORE_API void EnableMatchingAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting = true, bool bDiscardExtraAttributes = false);
 
 	/** @return the parent mesh for this overlay */
 	const FDynamicMesh3* GetParentMesh() const { return ParentMesh; }
@@ -131,28 +131,28 @@ public:
 
 private:
 	/** @set the parent mesh for this overlay.  Only safe for use during FDynamicMesh move */
-	void Reparent(FDynamicMesh3* NewParent);
+	GEOMETRYCORE_API void Reparent(FDynamicMesh3* NewParent);
 
 public:
 
 	/** @return true if the given edge is a seam edge in any overlay */
-	virtual bool IsSeamEdge(int EdgeID) const;
+	GEOMETRYCORE_API virtual bool IsSeamEdge(int EdgeID) const;
 
 	/** @return true if the given edge is the termination of a seam in any overlay*/
-	virtual bool IsSeamEndEdge(int EdgeID) const;
+	GEOMETRYCORE_API virtual bool IsSeamEndEdge(int EdgeID) const;
 
 	/** @return true if the given edge is a seam edge in any overlay. This version considers tangent seams as a type of normal seam; to consider tangent seams separately, call the 4-argument IsSeamEdge instead.  */
 	UE_DEPRECATED(5.3, "Please instead call the 4 argument version of IsSeamEdge, which distinguishes between tangent and normal seam edges.")
-	virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut) const;
+	GEOMETRYCORE_API virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut) const;
 
 	/** @return true if the given edge is a seam edge in any overlay */
-	virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut, bool& bIsTangentSeamOut) const;
+	GEOMETRYCORE_API virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut, bool& bIsTangentSeamOut) const;
 
 	/** @return true if the given vertex is a seam vertex in any overlay */
-	virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
+	GEOMETRYCORE_API virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
 
 	/** @return true if the given edge is a material ID boundary */
-	virtual bool IsMaterialBoundaryEdge(int EdgeID) const;
+	GEOMETRYCORE_API virtual bool IsMaterialBoundaryEdge(int EdgeID) const;
 
 	//
 	// UV Layers 
@@ -165,7 +165,7 @@ public:
 	}
 
 	/** Set number of UV (2-vector float overlay) layers */
-	virtual void SetNumUVLayers(int Num);
+	GEOMETRYCORE_API virtual void SetNumUVLayers(int Num);
 
 	/** @return the UV layer at the given Index  if exists, else nullptr*/
 	FDynamicMeshUVOverlay* GetUVLayer(int Index)
@@ -210,13 +210,13 @@ public:
 	}
 
 	/** Set number of Normals (3-vector float overlay) layers */
-	virtual void SetNumNormalLayers(int Num);
+	GEOMETRYCORE_API virtual void SetNumNormalLayers(int Num);
 
 	/** Enable Tangents overlays (Tangent = Normal layer 1, Bitangent = Normal layer 2) */
-	void EnableTangents();
+	GEOMETRYCORE_API void EnableTangents();
 
 	/** Disable Tangents overlays */
-	void DisableTangents();
+	GEOMETRYCORE_API void DisableTangents();
 
 	/** @return the Normal layer at the given Index if exists, else nullptr */
 	FDynamicMeshNormalOverlay* GetNormalLayer(int Index)
@@ -291,44 +291,44 @@ public:
 		return ColorLayer.Get();
 	}
 
-	void EnablePrimaryColors();
+	GEOMETRYCORE_API void EnablePrimaryColors();
 	
-	void DisablePrimaryColors();
+	GEOMETRYCORE_API void DisablePrimaryColors();
 
 	//
 	// Polygroup layers
 	//
 
 	/** @return number of Polygroup layers */
-	virtual int32 NumPolygroupLayers() const;
+	GEOMETRYCORE_API virtual int32 NumPolygroupLayers() const;
 
 	/** Set the number of Polygroup layers */
-	virtual void SetNumPolygroupLayers(int32 Num);
+	GEOMETRYCORE_API virtual void SetNumPolygroupLayers(int32 Num);
 
 	/** @return the Polygroup layer at the given Index */
-	FDynamicMeshPolygroupAttribute* GetPolygroupLayer(int Index);
+	GEOMETRYCORE_API FDynamicMeshPolygroupAttribute* GetPolygroupLayer(int Index);
 
 	/** @return the Polygroup layer at the given Index */
-	const FDynamicMeshPolygroupAttribute* GetPolygroupLayer(int Index) const;
+	GEOMETRYCORE_API const FDynamicMeshPolygroupAttribute* GetPolygroupLayer(int Index) const;
 
 	//
 	// Weight layers
 	//
 
 	/** @return number of weight layers */
-	virtual int32 NumWeightLayers() const;
+	GEOMETRYCORE_API virtual int32 NumWeightLayers() const;
 
 	/** Set the number of weight layers */
-	virtual void SetNumWeightLayers(int32 Num);
+	GEOMETRYCORE_API virtual void SetNumWeightLayers(int32 Num);
 
 	/** Remove a weight layer at the specified index */
-	virtual void RemoveWeightLayer(int32 Index);
+	GEOMETRYCORE_API virtual void RemoveWeightLayer(int32 Index);
 
 	/** @return the weight layer at the given Index */
-	FDynamicMeshWeightAttribute* GetWeightLayer(int Index);
+	GEOMETRYCORE_API FDynamicMeshWeightAttribute* GetWeightLayer(int Index);
 
 	/** @return the weight layer at the given Index */
-	const FDynamicMeshWeightAttribute* GetWeightLayer(int Index) const;
+	GEOMETRYCORE_API const FDynamicMeshWeightAttribute* GetWeightLayer(int Index) const;
 
 
 
@@ -342,9 +342,9 @@ public:
 	}
 
 
-	void EnableMaterialID();
+	GEOMETRYCORE_API void EnableMaterialID();
 
-	void DisableMaterialID();
+	GEOMETRYCORE_API void DisableMaterialID();
 
 	FDynamicMeshMaterialAttribute* GetMaterialID()
 	{
@@ -360,10 +360,10 @@ public:
 
 	/// Create a new skin weights attribute with a given skin weights profile name. If an attribute already exists with
 	/// that name, that existing attribute will be deleted.
-	void AttachSkinWeightsAttribute(FName InProfileName, FDynamicMeshVertexSkinWeightsAttribute* InAttribute);
+	GEOMETRYCORE_API void AttachSkinWeightsAttribute(FName InProfileName, FDynamicMeshVertexSkinWeightsAttribute* InAttribute);
 
 	/// Remove a skin weights attribute matching the given profile name.
-	void RemoveSkinWeightsAttribute(FName InProfileName);
+	GEOMETRYCORE_API void RemoveSkinWeightsAttribute(FName InProfileName);
 
 	/// Returns true if the list of skin weight attributes includes the given profile name.
 	bool HasSkinWeightsAttribute(FName InProfileName) const
@@ -397,18 +397,18 @@ public:
 	// Bone Attributes
 	//
 
-	void CopyBoneAttributes(const FDynamicMeshAttributeSet& Copy);
+	GEOMETRYCORE_API void CopyBoneAttributes(const FDynamicMeshAttributeSet& Copy);
 	
-	void EnableMatchingBoneAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting, bool bDiscardExtraAttributes);
+	GEOMETRYCORE_API void EnableMatchingBoneAttributes(const FDynamicMeshAttributeSet& ToMatch, bool bClearExisting, bool bDiscardExtraAttributes);
 
 	/** @note Only compares bone names and parent indices. */
-	bool IsSameBoneAttributesAs(const FDynamicMeshAttributeSet& Other) const;
+	GEOMETRYCORE_API bool IsSameBoneAttributesAs(const FDynamicMeshAttributeSet& Other) const;
 
 	/**
 	 * The attribute is valid if either all attributes are empty or if the bone name attribute is not empty then all the other
 	 * attributes must be either empty or their size is equal to the bone name attribute size.
 	 */
-	bool CheckBoneValidity(EValidityCheckFailMode FailMode) const;
+	GEOMETRYCORE_API bool CheckBoneValidity(EValidityCheckFailMode FailMode) const;
 
 	
 	/** 
@@ -418,16 +418,16 @@ public:
 	 * 
 	 * @return true, if append was successful
 	 */
-	bool AppendBonesUnique(const FDynamicMeshAttributeSet& Other);
+	GEOMETRYCORE_API bool AppendBonesUnique(const FDynamicMeshAttributeSet& Other);
 
 	/** Enable all bone attributes and intialize their size to the given bone number. */
-	void EnableBones(const int InBonesNum);
+	GEOMETRYCORE_API void EnableBones(const int InBonesNum);
 
 	/** Disable all bone attributes. */
-	void DisableBones();
+	GEOMETRYCORE_API void DisableBones();
 	
 	/** Get number of bones. */
-	int32 GetNumBones() const;
+	GEOMETRYCORE_API int32 GetNumBones() const;
 
 	bool HasBones() const 
 	{ 
@@ -521,7 +521,7 @@ public:
 	/**
 	 * Returns true if this AttributeSet is the same as Other.
 	 */
-	bool IsSameAs(const FDynamicMeshAttributeSet& Other, bool bIgnoreDataLayout) const;
+	GEOMETRYCORE_API bool IsSameAs(const FDynamicMeshAttributeSet& Other, bool bIgnoreDataLayout) const;
 
 	/**
 	 * Serialization operator for FDynamicMeshAttributeSet.
@@ -543,7 +543,7 @@ public:
 	* @param CompactMaps If this is not a null pointer, the mesh serialization compacted the vertex and/or triangle data using the provided mapping. 
 	* @param bUseCompression Use compression for serializing bulk data.
 	*/
-	void Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression);
+	GEOMETRYCORE_API void Serialize(FArchive& Ar, const FCompactMaps* CompactMaps, bool bUseCompression);
 
 protected:
 	/** Parent mesh of this attribute set */
@@ -592,17 +592,17 @@ protected:
 	// These functions are called by the FDynamicMesh3 to update the various
 	// attributes when the parent mesh topology has been modified.
 	// TODO: would it be better to register all the overlays and attributes with the base set and not overload these?  maybe!
-	virtual void OnNewTriangle(int TriangleID, bool bInserted);
-	virtual void OnNewVertex(int VertexID, bool bInserted);
-	virtual void OnRemoveTriangle(int TriangleID);
-	virtual void OnRemoveVertex(int VertexID);
-	virtual void OnReverseTriOrientation(int TriangleID);
-	virtual void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo & splitInfo);
-	virtual void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo & flipInfo);
-	virtual void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo & collapseInfo);
-	virtual void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo & pokeInfo);
-	virtual void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo & mergeInfo);
-	virtual void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate);
+	GEOMETRYCORE_API virtual void OnNewTriangle(int TriangleID, bool bInserted);
+	GEOMETRYCORE_API virtual void OnNewVertex(int VertexID, bool bInserted);
+	GEOMETRYCORE_API virtual void OnRemoveTriangle(int TriangleID);
+	GEOMETRYCORE_API virtual void OnRemoveVertex(int VertexID);
+	GEOMETRYCORE_API virtual void OnReverseTriOrientation(int TriangleID);
+	GEOMETRYCORE_API virtual void OnSplitEdge(const DynamicMeshInfo::FEdgeSplitInfo & splitInfo);
+	GEOMETRYCORE_API virtual void OnFlipEdge(const DynamicMeshInfo::FEdgeFlipInfo & flipInfo);
+	GEOMETRYCORE_API virtual void OnCollapseEdge(const DynamicMeshInfo::FEdgeCollapseInfo & collapseInfo);
+	GEOMETRYCORE_API virtual void OnPokeTriangle(const DynamicMeshInfo::FPokeTriangleInfo & pokeInfo);
+	GEOMETRYCORE_API virtual void OnMergeEdges(const DynamicMeshInfo::FMergeEdgesInfo & mergeInfo);
+	GEOMETRYCORE_API virtual void OnSplitVertex(const DynamicMeshInfo::FVertexSplitInfo& SplitInfo, const TArrayView<const int>& TrianglesToUpdate);
 
 	/**
 	 * Check validity of attributes
@@ -610,7 +610,7 @@ protected:
 	 * @param bAllowNonmanifold Accept non-manifold topology as valid. Note that this should almost always be true for attributes; non-manifold overlays are generally valid.
 	 * @param FailMode Desired behavior if mesh is found invalid
 	 */
-	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const;
+	GEOMETRYCORE_API virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const;
 };
 
 

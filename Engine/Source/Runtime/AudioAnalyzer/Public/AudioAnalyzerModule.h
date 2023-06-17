@@ -17,10 +17,10 @@ LLM_DECLARE_TAG_API(Audio_Analysis, AUDIOANALYZER_API);
 // Convenience macro for Audio_Analysis LLM scope to avoid misspells.
 #define AUDIO_ANALYSIS_LLM_SCOPE LLM_SCOPE_BYTAG(Audio_Analysis);
 
-class AUDIOANALYZER_API FAudioAnalyzerModule : public IModuleInterface
+class FAudioAnalyzerModule : public IModuleInterface
 {
 	public:
 	/** IModuleInterface implementation */
-	void StartupModule();
-	void ShutdownModule();
+	AUDIOANALYZER_API void StartupModule();
+	AUDIOANALYZER_API void ShutdownModule();
 };

@@ -25,13 +25,13 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all build patch services initialization settings, can be used to override default init behaviors.
 	 */
-	struct BUILDPATCHSERVICES_API FBuildPatchServicesInitSettings
+	struct FBuildPatchServicesInitSettings
 	{
 	public:
 		/**
 		 * Default constructor. Initializes all members with default behavior values.
 		 */
-		FBuildPatchServicesInitSettings();
+		BUILDPATCHSERVICES_API FBuildPatchServicesInitSettings();
 
 	public:
 		// The application settings directory.
@@ -42,7 +42,7 @@ namespace BuildPatchServices
 		FString LocalMachineConfigFileName;
 	};
 
-	struct BUILDPATCHSERVICES_API FInstallerAction
+	struct FInstallerAction
 	{
 	public:
 
@@ -52,7 +52,7 @@ namespace BuildPatchServices
 		 * @param InstallTags       The install tags to use if selectively installing files. If empty set, all files will be installed.
 		 * @return the action setup for performing an installation.
 		 */
-		static FInstallerAction MakeInstall(const IBuildManifestRef& Manifest, TSet<FString> InstallTags = TSet<FString>());
+		static BUILDPATCHSERVICES_API FInstallerAction MakeInstall(const IBuildManifestRef& Manifest, TSet<FString> InstallTags = TSet<FString>());
 
 		/**
 		 * Creates an update action.
@@ -61,7 +61,7 @@ namespace BuildPatchServices
 		 * @param InstallTags       The install tags to use if selectively installing files. If empty set, all files will be updated, or added if missing.
 		 * @return the action setup for performing an update.
 		 */
-		static FInstallerAction MakeUpdate(const IBuildManifestRef& CurrentManifest, const IBuildManifestRef& InstallManifest, TSet<FString> InstallTags = TSet<FString>());
+		static BUILDPATCHSERVICES_API FInstallerAction MakeUpdate(const IBuildManifestRef& CurrentManifest, const IBuildManifestRef& InstallManifest, TSet<FString> InstallTags = TSet<FString>());
 
 		/**
 		 * Creates an install action.
@@ -69,7 +69,7 @@ namespace BuildPatchServices
 		 * @param InstallTags       The install tags to use if selectively installing files. If empty set, all files will be repaired.
 		 * @return the action setup forcing an SHA check, and repair of all tagged files.
 		 */
-		static FInstallerAction MakeRepair(const IBuildManifestRef& Manifest, TSet<FString> InstallTags = TSet<FString>());
+		static BUILDPATCHSERVICES_API FInstallerAction MakeRepair(const IBuildManifestRef& Manifest, TSet<FString> InstallTags = TSet<FString>());
 
 
 		/**
@@ -77,7 +77,7 @@ namespace BuildPatchServices
 		 * @param Manifest          The manifest for the build currently installed.
 		 * @return the action setup for performing an uninstall, deleting all files referenced by the manifest.
 		 */
-		static FInstallerAction MakeUninstall(const IBuildManifestRef& Manifest);
+		static BUILDPATCHSERVICES_API FInstallerAction MakeUninstall(const IBuildManifestRef& Manifest);
 
 		/**
 		 * Helper for creating an install action or update action based on validity of CurrentManifest.
@@ -101,48 +101,48 @@ namespace BuildPatchServices
 		/**
 		 * Copy constructor.
 		 */
-		FInstallerAction(const FInstallerAction& CopyFrom);
+		BUILDPATCHSERVICES_API FInstallerAction(const FInstallerAction& CopyFrom);
 
 		/**
 		 * RValue constructor to allow move semantics.
 		 */
-		FInstallerAction(FInstallerAction&& MoveFrom);
+		BUILDPATCHSERVICES_API FInstallerAction(FInstallerAction&& MoveFrom);
 
 	public:
 		/**
 		 * @return true if this action intent is to perform a fresh installation.
 		 */
-		bool IsInstall() const;
+		BUILDPATCHSERVICES_API bool IsInstall() const;
 
 		/**
 		 * @return true if this action intent is to update an existing installation.
 		 */
-		bool IsUpdate() const;
+		BUILDPATCHSERVICES_API bool IsUpdate() const;
 
 		/**
 		 * @return true if this action intent is to repair an existing installation.
 		 */
-		bool IsRepair() const;
+		BUILDPATCHSERVICES_API bool IsRepair() const;
 
 		/**
 		 * @return true if this action intent is to uninstall an installation.
 		 */
-		bool IsUninstall() const;
+		BUILDPATCHSERVICES_API bool IsUninstall() const;
 
 		/**
 		 * @return the install tags for the action.
 		 */
-		const TSet<FString>& GetInstallTags() const;
+		BUILDPATCHSERVICES_API const TSet<FString>& GetInstallTags() const;
 
 		/**
 		 * @return the manifest for the current installation, this will runtime assert if called invalidly (see TryGetCurrentManifest).
 		 */
-		IBuildManifestRef GetCurrentManifest() const;
+		BUILDPATCHSERVICES_API IBuildManifestRef GetCurrentManifest() const;
 
 		/**
 		 * @return the manifest for the desired installation, this will runtime assert if called invalidly (see TryGetInstallManifest).
 		 */
-		IBuildManifestRef GetInstallManifest() const;
+		BUILDPATCHSERVICES_API IBuildManifestRef GetInstallManifest() const;
 
 	public:
 		/**
@@ -190,7 +190,7 @@ namespace BuildPatchServices
 		}
 
 	private:
-		FInstallerAction();
+		BUILDPATCHSERVICES_API FInstallerAction();
 		IBuildManifestPtr CurrentManifest;
 		IBuildManifestPtr InstallManifest;
 		TSet<FString> InstallTags;
@@ -200,11 +200,11 @@ namespace BuildPatchServices
 	/**
 	 * DEPRECATED STRUCT. Please use FBuildInstallerConfiguration.
 	 */
-	struct BUILDPATCHSERVICES_API FInstallerConfiguration
+	struct FInstallerConfiguration
 	{
-		FInstallerConfiguration(const IBuildManifestRef& InInstallManifest);
-		FInstallerConfiguration(const FInstallerConfiguration& CopyFrom);
-		FInstallerConfiguration(FInstallerConfiguration&& MoveFrom);
+		BUILDPATCHSERVICES_API FInstallerConfiguration(const IBuildManifestRef& InInstallManifest);
+		BUILDPATCHSERVICES_API FInstallerConfiguration(const FInstallerConfiguration& CopyFrom);
+		BUILDPATCHSERVICES_API FInstallerConfiguration(FInstallerConfiguration&& MoveFrom);
 
 	public:
 		IBuildManifestPtr CurrentManifest;
@@ -226,22 +226,22 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all the options of an installation task.
 	 */
-	struct BUILDPATCHSERVICES_API FBuildInstallerConfiguration
+	struct FBuildInstallerConfiguration
 	{
 		/**
 		 * Construct with an array of action objects
 		 */
-		FBuildInstallerConfiguration(TArray<FInstallerAction> InstallerActions);
+		BUILDPATCHSERVICES_API FBuildInstallerConfiguration(TArray<FInstallerAction> InstallerActions);
 
 		/**
 		 * Copy constructor.
 		 */
-		FBuildInstallerConfiguration(const FBuildInstallerConfiguration& CopyFrom);
+		BUILDPATCHSERVICES_API FBuildInstallerConfiguration(const FBuildInstallerConfiguration& CopyFrom);
 
 		/**
 		 * RValue constructor to allow move semantics.
 		 */
-		FBuildInstallerConfiguration(FBuildInstallerConfiguration&& MoveFrom);
+		BUILDPATCHSERVICES_API FBuildInstallerConfiguration(FBuildInstallerConfiguration&& MoveFrom);
 
 	public:
 		// The array of intended actions to perform.
@@ -271,7 +271,7 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all the options of a build streamer class.
 	 */
-	struct BUILDPATCHSERVICES_API FBuildInstallStreamerConfiguration
+	struct FBuildInstallStreamerConfiguration
 	{
 	public:
 		IBuildManifestPtr Manifest;
@@ -288,7 +288,7 @@ namespace BuildPatchServices
 	/**
 	 * The collection of statistics gathered by the build streamer class.
 	 */
-	struct BUILDPATCHSERVICES_API FBuildInstallStreamerStats
+	struct FBuildInstallStreamerStats
 	{
 		//float FileMegaBytesDownloaded;
 		uint64 FileRequestsCompleted;
@@ -313,13 +313,13 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all options for the build chunking task.
 	 */
-	struct BUILDPATCHSERVICES_API FChunkBuildConfiguration
+	struct FChunkBuildConfiguration
 	{
 	public:
 		/**
 		 * Default constructor
 		 */
-		FChunkBuildConfiguration();
+		BUILDPATCHSERVICES_API FChunkBuildConfiguration();
 
 	public:
 		// The client feature level to output data for.
@@ -374,13 +374,13 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all options for the chunk delta optimisation task.
 	 */
-	struct BUILDPATCHSERVICES_API FChunkDeltaOptimiserConfiguration
+	struct FChunkDeltaOptimiserConfiguration
 	{
 	public:
 		/**
 		 * Default constructor
 		 */
-		FChunkDeltaOptimiserConfiguration();
+		BUILDPATCHSERVICES_API FChunkDeltaOptimiserConfiguration();
 
 	public:
 		// A full file or http path for the manifest to be used as the source build.
@@ -400,13 +400,13 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all options for the patch data enumeration task.
 	 */
-	struct BUILDPATCHSERVICES_API FPatchDataEnumerationConfiguration
+	struct FPatchDataEnumerationConfiguration
 	{
 	public:
 		/**
 		 * Default constructor
 		 */
-		FPatchDataEnumerationConfiguration();
+		BUILDPATCHSERVICES_API FPatchDataEnumerationConfiguration();
 
 	public:
 		// A full file path for the manifest or chunkdb to enumerate referenced data for.
@@ -420,13 +420,13 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all options for the diff manifests task.
 	 */
-	struct BUILDPATCHSERVICES_API FDiffManifestsConfiguration
+	struct FDiffManifestsConfiguration
 	{
 	public:
 		/**
 		 * Default constructor
 		 */
-		FDiffManifestsConfiguration();
+		BUILDPATCHSERVICES_API FDiffManifestsConfiguration();
 
 	public:
 		// A full file or http path for the manifest to be used as the source build.
@@ -447,13 +447,13 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all options for the cloud directory compactifier task.
 	 */
-	struct BUILDPATCHSERVICES_API FCompactifyConfiguration
+	struct FCompactifyConfiguration
 	{
 	public:
 		/**
 		 * Default constructor
 		 */
-		FCompactifyConfiguration();
+		BUILDPATCHSERVICES_API FCompactifyConfiguration();
 
 	public:
 		// The path to the directory to compactify.
@@ -469,13 +469,13 @@ namespace BuildPatchServices
 	/**
 	 * Defines a list of all options for the chunk packaging task.
 	 */
-	struct BUILDPATCHSERVICES_API FPackageChunksConfiguration
+	struct FPackageChunksConfiguration
 	{
 	public:
 		/**
 		 * Default constructor
 		 */
-		FPackageChunksConfiguration();
+		BUILDPATCHSERVICES_API FPackageChunksConfiguration();
 
 	public:
 		// The client feature level to output data for.

@@ -18,7 +18,7 @@ namespace Geometry
 /**
  * Base Stair mesh generator class.
  */
-class GEOMETRYCORE_API FStairGenerator : public FMeshShapeGenerator
+class FStairGenerator : public FMeshShapeGenerator
 {
 public:
 	/** If true (default), UVs are scaled so that there is no stretching. If false, UVs are scaled to fill unit square */
@@ -52,14 +52,14 @@ public:
 	}
 
 	/** Generate the mesh */
-	virtual FMeshShapeGenerator& Generate() override;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() override;
 
 private:
 	/** Generate solid style stairs */
-	FMeshShapeGenerator& GenerateSolidStairs();
+	GEOMETRYCORE_API FMeshShapeGenerator& GenerateSolidStairs();
 
 	/** Generate floating style stairs */
-	FMeshShapeGenerator& GenerateFloatingStairs();
+	GEOMETRYCORE_API FMeshShapeGenerator& GenerateFloatingStairs();
 
 	/**
 	 * Helper to identify the side based on the face index.
@@ -67,7 +67,7 @@ private:
 	 * This method is only valid after the face description array has been
 	 * initialized.
 	 */
-	ESide FaceToSide(int FaceId);
+	GEOMETRYCORE_API ESide FaceToSide(int FaceId);
 
 protected:
 	enum class EStairStyle
@@ -107,7 +107,7 @@ protected:
 
 protected:
 	/** Reset state data on the generator */
-	virtual void ResetData();
+	GEOMETRYCORE_API virtual void ResetData();
 
 	/**
 	 * Returns a vertex position.
@@ -167,7 +167,7 @@ protected:
 /**
  * Generate an oriented Linear Stair mesh.
  */
-class GEOMETRYCORE_API FLinearStairGenerator : public FStairGenerator
+class FLinearStairGenerator : public FStairGenerator
 {
 public:
 	/** The depth of each step. */
@@ -186,16 +186,16 @@ protected:
 	typedef FStairGenerator Super;
 
 protected:
-	virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
-	virtual FVector3f GenerateNormal(ESide Side, int VertexId) override;
-	virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
-	virtual float GetMaxDimension() override;
+	GEOMETRYCORE_API virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
+	GEOMETRYCORE_API virtual FVector3f GenerateNormal(ESide Side, int VertexId) override;
+	GEOMETRYCORE_API virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
+	GEOMETRYCORE_API virtual float GetMaxDimension() override;
 };
 
 /**
  * Generate an oriented Floating Stair mesh.
  */
-class GEOMETRYCORE_API FFloatingStairGenerator : public FLinearStairGenerator
+class FFloatingStairGenerator : public FLinearStairGenerator
 {
 public:
 	FFloatingStairGenerator()
@@ -210,14 +210,14 @@ protected:
 	typedef FLinearStairGenerator Super;
 
 protected:
-	virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
-	virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
+	GEOMETRYCORE_API virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
+	GEOMETRYCORE_API virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
 };
 
 /**
  * Generate an oriented Curved Stair mesh.
  */
-class GEOMETRYCORE_API FCurvedStairGenerator : public FStairGenerator
+class FCurvedStairGenerator : public FStairGenerator
 {
 public:
 	/** Inner radius of the curved staircase */
@@ -247,18 +247,18 @@ protected:
 	FVector3f BackNormal = FVector3f::Zero();
 
 protected:
-	virtual void ResetData() override;
-	virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
-	virtual FVector3f GenerateNormal(ESide Side, int VertexId) override;
-	virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
-	virtual float GetMaxDimension() override;
+	GEOMETRYCORE_API virtual void ResetData() override;
+	GEOMETRYCORE_API virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
+	GEOMETRYCORE_API virtual FVector3f GenerateNormal(ESide Side, int VertexId) override;
+	GEOMETRYCORE_API virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
+	GEOMETRYCORE_API virtual float GetMaxDimension() override;
 };
 
 
 /**
  * Generate an oriented Curved Stair mesh.
  */
-class GEOMETRYCORE_API FSpiralStairGenerator : public FCurvedStairGenerator
+class FSpiralStairGenerator : public FCurvedStairGenerator
 {
 public:
 	FSpiralStairGenerator()
@@ -273,8 +273,8 @@ protected:
 	typedef FCurvedStairGenerator Super;
 
 protected:
-	virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
-	virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
+	GEOMETRYCORE_API virtual FVector3d GenerateVertex(ESide Side, int VertexColumn, int VertexRow) override;
+	GEOMETRYCORE_API virtual FVector2f GenerateUV(ESide Side, int Step, int VertexId, float UVScale) override;
 };
 
 } // end namespace UE::Geometry

@@ -13,7 +13,7 @@ namespace UE
 namespace Geometry
 {
 
-struct GEOMETRYCORE_API FDynamicSubmesh3
+struct FDynamicSubmesh3
 {
 protected:
 	const FDynamicMesh3* BaseMesh;

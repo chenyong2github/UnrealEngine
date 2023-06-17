@@ -58,7 +58,7 @@ namespace Audio {
 	inline FName NAME_OPUS(TEXT("OPUS"));
 }
 
-struct AUDIOMIXERCORE_API FAudioPlatformSettings
+struct FAudioPlatformSettings
 {
 	/** Sample rate to use on the platform for the mixing engine. Higher sample rates will incur more CPU cost. */
 	int32 SampleRate;
@@ -75,7 +75,7 @@ struct AUDIOMIXERCORE_API FAudioPlatformSettings
 	/** The number of workers to use to compute source audio. Will only use up to the max number of sources. Will evenly divide sources to each source worker. */
 	int32 NumSourceWorkers;
 
-	static FAudioPlatformSettings GetPlatformSettings(const TCHAR* PlatformSettingsConfigFile);
+	static AUDIOMIXERCORE_API FAudioPlatformSettings GetPlatformSettings(const TCHAR* PlatformSettingsConfigFile);
 
 	FAudioPlatformSettings()
 		: SampleRate(48000)

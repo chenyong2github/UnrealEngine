@@ -150,7 +150,7 @@ namespace EHostType
 /**
  * Description of a loadable module.
  */
-struct PROJECTS_API FModuleDescriptor
+struct FModuleDescriptor
 {
 	/** Name of this module */
 	FName Name;
@@ -193,47 +193,47 @@ struct PROJECTS_API FModuleDescriptor
 
 
 	/** Normal constructor */
-	FModuleDescriptor(const FName InName = NAME_None, EHostType::Type InType = EHostType::Runtime, ELoadingPhase::Type InLoadingPhase = ELoadingPhase::Default);
+	PROJECTS_API FModuleDescriptor(const FName InName = NAME_None, EHostType::Type InType = EHostType::Runtime, ELoadingPhase::Type InLoadingPhase = ELoadingPhase::Default);
 
 	/** Reads a descriptor from the given JSON object */
-	bool Read(const FJsonObject& Object, FText* OutFailReason = nullptr);
+	PROJECTS_API bool Read(const FJsonObject& Object, FText* OutFailReason = nullptr);
 
 	/** Reads a descriptor from the given JSON object */
-	bool Read(const FJsonObject& Object, FText& OutFailReason);
+	PROJECTS_API bool Read(const FJsonObject& Object, FText& OutFailReason);
 
 	/** Reads an array of modules from the given JSON object */
-	static bool ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText* OutFailReason = nullptr);
+	static PROJECTS_API bool ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText* OutFailReason = nullptr);
 
 	/** Reads an array of modules from the given JSON object */
-	static bool ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText& OutFailReason);
+	static PROJECTS_API bool ReadArray(const FJsonObject& Object, const TCHAR* Name, TArray<FModuleDescriptor>& OutModules, FText& OutFailReason);
 
 	/** Writes a descriptor to JSON */
-	void Write(TJsonWriter<>& Writer) const;
+	PROJECTS_API void Write(TJsonWriter<>& Writer) const;
 
 	/** Updates the given json object with values in this descriptor */
-	void UpdateJson(FJsonObject& JsonObject) const;
+	PROJECTS_API void UpdateJson(FJsonObject& JsonObject) const;
 
 	/** Writes an array of modules to JSON */
-	static void WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules);
+	static PROJECTS_API void WriteArray(TJsonWriter<>& Writer, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules);
 
 	/** Updates an array of module descriptors in the specified JSON field (indexed by module name) */
-	static void UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules);
+	static PROJECTS_API void UpdateArray(FJsonObject& JsonObject, const TCHAR* ArrayName, const TArray<FModuleDescriptor>& Modules);
 
 	/** Tests whether the module should be built for the given target */
-	bool IsCompiledInConfiguration(const FString& Platform, EBuildConfiguration Configuration, const FString& TargetName, EBuildTargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData) const;
+	PROJECTS_API bool IsCompiledInConfiguration(const FString& Platform, EBuildConfiguration Configuration, const FString& TargetName, EBuildTargetType TargetType, bool bBuildDeveloperTools, bool bBuildRequiresCookedData) const;
 
 	/** Tests whether the module should be built for the current engine configuration */
-	bool IsCompiledInCurrentConfiguration() const;
+	PROJECTS_API bool IsCompiledInCurrentConfiguration() const;
 
 	/** Tests whether the module should be loaded for the current engine configuration */
-	bool IsLoadedInCurrentConfiguration() const;
+	PROJECTS_API bool IsLoadedInCurrentConfiguration() const;
 
 	/** Loads all the modules for a given loading phase. Returns a map of module names to load errors */
-	static void LoadModulesForPhase(ELoadingPhase::Type LoadingPhase, const TArray<FModuleDescriptor>& Modules, TMap<FName, EModuleLoadResult>& ModuleLoadErrors);
+	static PROJECTS_API void LoadModulesForPhase(ELoadingPhase::Type LoadingPhase, const TArray<FModuleDescriptor>& Modules, TMap<FName, EModuleLoadResult>& ModuleLoadErrors);
 
 #if !IS_MONOLITHIC
 	/** Checks that all modules are compatible with the current engine version. Returns false and appends a list of names to OutIncompatibleFiles if not. */
-	static bool CheckModuleCompatibility(const TArray<FModuleDescriptor>& Modules, TArray<FString>& OutIncompatibleFiles);
+	static PROJECTS_API bool CheckModuleCompatibility(const TArray<FModuleDescriptor>& Modules, TArray<FString>& OutIncompatibleFiles);
 #endif
 };
 

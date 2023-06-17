@@ -9,11 +9,11 @@
 	FBufferedSourceListener: Concrete implementation of both a buffer listener and buffered output.
 	Contains a circular buffer.
 */
-class AUDIOLINKENGINE_API FBufferedSourceListener : public ISourceBufferListener, public FBufferedListenerBase
+class FBufferedSourceListener : public ISourceBufferListener, public FBufferedListenerBase
 {
 public:
-	FBufferedSourceListener(int32 InDefaultCircularBufferSize);
-	virtual ~FBufferedSourceListener();
+	AUDIOLINKENGINE_API FBufferedSourceListener(int32 InDefaultCircularBufferSize);
+	AUDIOLINKENGINE_API virtual ~FBufferedSourceListener();
 
 	/**
 	 * @param  InDevice Audio Device to register this listener with.
@@ -21,19 +21,19 @@ public:
 	 *
 	 * @return  success true, false otherwise.
 	 */
-	bool Start(FAudioDevice* InDevice) override;
+	AUDIOLINKENGINE_API bool Start(FAudioDevice* InDevice) override;
 
 	/** Stop the buffer by unregistering the buffer listener */
-	void Stop(FAudioDevice* InDevice) override;
+	AUDIOLINKENGINE_API void Stop(FAudioDevice* InDevice) override;
 	
 private:
 	//~ Begin ISourceBufferListener
-	void OnNewBuffer(const ISourceBufferListener::FOnNewBufferParams& InParams) override;
-	void OnSourceReleased(const int32 SourceId) override;
+	AUDIOLINKENGINE_API void OnNewBuffer(const ISourceBufferListener::FOnNewBufferParams& InParams) override;
+	AUDIOLINKENGINE_API void OnSourceReleased(const int32 SourceId) override;
 	//~ End ISourceBufferListener
 
 	//~ Begin IBufferedAudioOutput
-	void SetBufferStreamEndDelegate(FOnBufferStreamEnd InBufferStreamEndDelegate) override;
+	AUDIOLINKENGINE_API void SetBufferStreamEndDelegate(FOnBufferStreamEnd InBufferStreamEndDelegate) override;
 	//~ End IBufferedAudioOutput
 
 	std::atomic<int32> CurrentSourceId	= INDEX_NONE;		// r/w AudioMixer thread.	

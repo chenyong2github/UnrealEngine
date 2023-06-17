@@ -12,17 +12,17 @@ class UBehaviorTree;
  * Wait task node.
  * Wait for the time specified by a Blackboard key when executed.
  */
-UCLASS(hidecategories=Wait)
-class AIMODULE_API UBTTask_WaitBlackboardTime : public UBTTask_Wait
+UCLASS(hidecategories=Wait, MinimalAPI)
+class UBTTask_WaitBlackboardTime : public UBTTask_Wait
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 	/** get name of selected blackboard key */
-	FName GetSelectedBlackboardKey() const;
+	AIMODULE_API FName GetSelectedBlackboardKey() const;
 
 
 protected:

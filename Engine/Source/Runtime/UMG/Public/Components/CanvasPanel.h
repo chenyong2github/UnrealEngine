@@ -21,8 +21,8 @@ class UCanvasPanelSlot;
  * * Absolute Layout
  * * Anchors
  */
-UCLASS(meta = (ShortTooltip = "A designer-friendly panel useful for laying out top-level widgets. Use sparingly."))
-class UMG_API UCanvasPanel : public UPanelWidget
+UCLASS(meta = (ShortTooltip = "A designer-friendly panel useful for laying out top-level widgets. Use sparingly."), MinimalAPI)
+class UCanvasPanel : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -30,22 +30,22 @@ public:
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Canvas Panel")
-	UCanvasPanelSlot* AddChildToCanvas(UWidget* Content);
+	UMG_API UCanvasPanelSlot* AddChildToCanvas(UWidget* Content);
 
 	/** Gets the underlying native canvas widget if it has been constructed */
-	TSharedPtr<class SConstraintCanvas> GetCanvasWidget() const;
+	UMG_API TSharedPtr<class SConstraintCanvas> GetCanvasWidget() const;
 
 	/** Computes the geometry for a particular slot based on the current geometry of the canvas. */
-	bool GetGeometryForSlot(int32 SlotIndex, FGeometry& ArrangedGeometry) const;
+	UMG_API bool GetGeometryForSlot(int32 SlotIndex, FGeometry& ArrangedGeometry) const;
 
 	/** Computes the geometry for a particular slot based on the current geometry of the canvas. */
-	bool GetGeometryForSlot(UCanvasPanelSlot* Slot, FGeometry& ArrangedGeometry) const;
+	UMG_API bool GetGeometryForSlot(UCanvasPanelSlot* Slot, FGeometry& ArrangedGeometry) const;
 
-	void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
 	// UWidget interface
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 	// End UWidget interface
 
 	// UWidget interface
@@ -59,9 +59,9 @@ public:
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 protected:
@@ -70,6 +70,6 @@ protected:
 
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 };

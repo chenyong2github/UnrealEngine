@@ -15,7 +15,7 @@ namespace Geometry
 /**
  * Sequential lists of vertices/edges in a mesh that form a closed loop
  */
-class GEOMETRYCORE_API FEdgeLoop
+class FEdgeLoop
 {
 public:
 	/** The Mesh that contains this EdgeLoop */
@@ -56,13 +56,13 @@ public:
 	/**
 	 * Initialize the loop data
 	 */
-	void Initialize(const FDynamicMesh3* mesh, const TArray<int>& vertices, const TArray<int> & edges, const TArray<int>* BowtieVerticesIn = nullptr);
+	GEOMETRYCORE_API void Initialize(const FDynamicMesh3* mesh, const TArray<int>& vertices, const TArray<int> & edges, const TArray<int>* BowtieVerticesIn = nullptr);
 
 	/**
 	 * Construct an FEdgeLoop from a list of edges of the mesh
 	 * @param EdgesIn list of sequential connected edges
 	 */
-	void InitializeFromEdges(const TArray<int>& EdgesIn);
+	GEOMETRYCORE_API void InitializeFromEdges(const TArray<int>& EdgesIn);
 
 	/**
 	 * Construct an FEdgeLoop from a list of edges of the mesh
@@ -83,7 +83,7 @@ public:
 	 * @param bAutoOrient if true, and any of the edges are boundary edges, we will re-orient the loop to be consistent with boundary edges
 	 * @return false if we found any parts of vertices that are not connected by an edge
 	 */
-	bool InitializeFromVertices(const TArray<int>& VerticesIn, bool bAutoOrient = true);
+	GEOMETRYCORE_API bool InitializeFromVertices(const TArray<int>& VerticesIn, bool bAutoOrient = true);
 
 	/**
 	 * Construct EdgeLoop from list of vertices of mesh
@@ -112,7 +112,7 @@ public:
 	/**
 	 * Populate the BowtieVertices member
 	 */
-	void CalculateBowtieVertices();
+	GEOMETRYCORE_API void CalculateBowtieVertices();
 
 	/**
 	 * @return number of vertices in the loop
@@ -159,7 +159,7 @@ public:
 	/**
 	 * @return bounding box of the vertices of the EdgeLoop
 	 */
-	FAxisAlignedBox3d GetBounds() const;
+	GEOMETRYCORE_API FAxisAlignedBox3d GetBounds() const;
 
 	/**
 	 * Add the vertices of the loop to the Vertices array
@@ -181,7 +181,7 @@ public:
 	 * oriented such that it corresponds with the boundary edges, and if not, reverse it.
 	 * @return true if the loop was reversed
 	 */
-	bool SetCorrectOrientation();
+	GEOMETRYCORE_API bool SetCorrectOrientation();
 
 
 	/**
@@ -197,26 +197,26 @@ public:
 	/**
 	 * @return true if all edges of this loop are internal edges, ie not on the mesh boundary
 	 */
-	bool IsInternalLoop() const;
+	GEOMETRYCORE_API bool IsInternalLoop() const;
 
 
 	/**
 	 * @param TestMesh use this mesh instead of the internal Mesh pointer
 	 * @return true if all edges of this loop are boundary edges
 	 */
-	bool IsBoundaryLoop(const FDynamicMesh3* TestMesh = nullptr) const;
+	GEOMETRYCORE_API bool IsBoundaryLoop(const FDynamicMesh3* TestMesh = nullptr) const;
 
 
 	/**
 	 * @return index of VertexID in the Vertices list, or -1 if not found
 	 */
-	int FindVertexIndex(int VertexID) const;
+	GEOMETRYCORE_API int FindVertexIndex(int VertexID) const;
 
 
 	/**
 	 * @return index of vertex in the Vertices list that is closest to QueryPoint
 	 */
-	int FindNearestVertexIndex(const FVector3d& QueryPoint) const;
+	GEOMETRYCORE_API int FindNearestVertexIndex(const FVector3d& QueryPoint) const;
 
 
 
@@ -224,7 +224,7 @@ public:
 	 * Exhaustively check that verts and edges of this EdgeLoop are consistent. This is quite expensive.
 	 * @return true if loop is consistent/valid
 	 */
-	bool CheckValidity(EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
+	GEOMETRYCORE_API bool CheckValidity(EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
 
 
 
@@ -235,7 +235,7 @@ public:
 	 * @param VertexLoop ordered list of vertices
 	 * @param OutEdgeLoop computed list of sequential connected vertices
 	 */
-	static void VertexLoopToEdgeLoop(const FDynamicMesh3* Mesh, const TArray<int>& VertexLoop, TArray<int>& OutEdgeLoop);
+	static GEOMETRYCORE_API void VertexLoopToEdgeLoop(const FDynamicMesh3* Mesh, const TArray<int>& VertexLoop, TArray<int>& OutEdgeLoop);
 
 };
 

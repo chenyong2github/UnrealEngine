@@ -10,26 +10,26 @@
 
 struct FEnvQueryContextData;
 
-UCLASS()
-class AIMODULE_API UEnvQueryItemType_Direction : public UEnvQueryItemType_VectorBase
+UCLASS(MinimalAPI)
+class UEnvQueryItemType_Direction : public UEnvQueryItemType_VectorBase
 {
 	GENERATED_BODY()
 public:
 	typedef FVector FValueType;
 
-	UEnvQueryItemType_Direction(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UEnvQueryItemType_Direction(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	static FVector GetValue(const uint8* RawData);
-	static void SetValue(uint8* RawData, const FVector& Value);
+	static AIMODULE_API FVector GetValue(const uint8* RawData);
+	static AIMODULE_API void SetValue(uint8* RawData, const FVector& Value);
 
-	static FRotator GetValueRot(const uint8* RawData);
-	static void SetValueRot(uint8* RawData, const FRotator& Value);
+	static AIMODULE_API FRotator GetValueRot(const uint8* RawData);
+	static AIMODULE_API void SetValueRot(uint8* RawData, const FRotator& Value);
 
-	static void SetContextHelper(FEnvQueryContextData& ContextData, const FVector& SingleDirection);
-	static void SetContextHelper(FEnvQueryContextData& ContextData, const FRotator& SingleRotation);
-	static void SetContextHelper(FEnvQueryContextData& ContextData, const TArray<FVector>& MultipleDirections);
-	static void SetContextHelper(FEnvQueryContextData& ContextData, const TArray<FRotator>& MultipleRotations);
+	static AIMODULE_API void SetContextHelper(FEnvQueryContextData& ContextData, const FVector& SingleDirection);
+	static AIMODULE_API void SetContextHelper(FEnvQueryContextData& ContextData, const FRotator& SingleRotation);
+	static AIMODULE_API void SetContextHelper(FEnvQueryContextData& ContextData, const TArray<FVector>& MultipleDirections);
+	static AIMODULE_API void SetContextHelper(FEnvQueryContextData& ContextData, const TArray<FRotator>& MultipleRotations);
 
-	virtual FRotator GetItemRotation(const uint8* RawData) const override;
-	virtual FString GetDescription(const uint8* RawData) const override;
+	AIMODULE_API virtual FRotator GetItemRotation(const uint8* RawData) const override;
+	AIMODULE_API virtual FString GetDescription(const uint8* RawData) const override;
 };

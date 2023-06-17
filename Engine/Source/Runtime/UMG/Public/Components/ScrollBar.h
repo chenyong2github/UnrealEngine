@@ -11,8 +11,8 @@
 #include "ScrollBar.generated.h"
 
 /** */
-UCLASS(Experimental)
-class UMG_API UScrollBar : public UWidget
+UCLASS(Experimental, MinimalAPI)
+class UScrollBar : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -59,55 +59,55 @@ public:
 	* @param InThumbSizeFraction  Size of thumbnail as a fraction of the total available scroll space.
 	*/
 	UFUNCTION(BlueprintCallable, Category="Scrolling")
-	void SetState(float InOffsetFraction, float InThumbSizeFraction);
+	UMG_API void SetState(float InOffsetFraction, float InThumbSizeFraction);
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 	//~ Begin UObject Interface
 #if WITH_EDITORONLY_DATA
-	virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
 #endif // if WITH_EDITORONLY_DATA
 	//~ End UObject Interface
 
 #if WITH_EDITOR
 	//~ Begin UWidget Interface
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 	//~ End UWidget Interface
 #endif
 
 	/** @return the style of scrollbar. */
-	const FScrollBarStyle& GetWidgetStyle() const;
+	UMG_API const FScrollBarStyle& GetWidgetStyle() const;
 	/** Sets the style of scrollbar. */
-	void SetWidgetStyle(const FScrollBarStyle& InWidgetStyle);
+	UMG_API void SetWidgetStyle(const FScrollBarStyle& InWidgetStyle);
 
 	/** @return True if the scrollbar should always show. */
-	bool IsAlwaysShowScrollbar() const;
+	UMG_API bool IsAlwaysShowScrollbar() const;
 	/** Sets whether the scrollbar should always show. */
-	void SetAlwaysShowScrollbar(bool bNewValue);
+	UMG_API void SetAlwaysShowScrollbar(bool bNewValue);
 
 	/** @return True if the scrollbar track should always show. */
-	bool IsAlwaysShowScrollbarTrack() const;
+	UMG_API bool IsAlwaysShowScrollbarTrack() const;
 	/** Sets whether the scrollbar track should always show */
-	void SetAlwaysShowScrollbarTrack(bool bNewValue);
+	UMG_API void SetAlwaysShowScrollbarTrack(bool bNewValue);
 
 	/** @return the orientation of the scrollbar. */
-	EOrientation GetOrientation() const;
+	UMG_API EOrientation GetOrientation() const;
 
 	/** @return the thickness of the scrollbar. */
-	FVector2D GetThickness() const;
+	UMG_API FVector2D GetThickness() const;
 	/** Sets the thickness of the scrollbar. */
-	void SetThickness(const FVector2D& InThickness);
+	UMG_API void SetThickness(const FVector2D& InThickness);
 
 	/** Sets the padding of the scrollbar. */
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 	/** @return the padding of the scrollbar. */
-	void SetPadding(const FMargin& InPadding);
+	UMG_API void SetPadding(const FMargin& InPadding);
 
 protected:
 
@@ -115,9 +115,9 @@ protected:
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
 	/** Initialize the orientation of the scrollbar in the constructor before the SWidget is constructed. */
-	void InitOrientation(EOrientation InOrientation);
+	UMG_API void InitOrientation(EOrientation InOrientation);
 };

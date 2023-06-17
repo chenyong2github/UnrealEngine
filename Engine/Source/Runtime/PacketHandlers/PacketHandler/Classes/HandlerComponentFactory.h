@@ -13,12 +13,12 @@ class HandlerComponent;
 /**
  * A UObject alternative for loading HandlerComponents without strict module dependency
  */
-UCLASS(abstract)
-class PACKETHANDLER_API UHandlerComponentFactory : public UObject
+UCLASS(abstract, MinimalAPI)
+class UHandlerComponentFactory : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual TSharedPtr<HandlerComponent> CreateComponentInstance(FString& Options)
+	PACKETHANDLER_API virtual TSharedPtr<HandlerComponent> CreateComponentInstance(FString& Options)
 		PURE_VIRTUAL(UHandlerComponentFactory::CreateComponentInstance, return nullptr;);
 };

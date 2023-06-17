@@ -25,15 +25,15 @@ struct FFrame;
 
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoTransformSource : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoTransformSource : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IGizmoTransformSource is an interface which is used to Get/Set an FTransform.
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoTransformSource
+class IGizmoTransformSource
 {
 	GENERATED_BODY()
 public:
@@ -48,8 +48,8 @@ public:
 
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisSource : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoAxisSource : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -60,7 +60,7 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisSource : public UInterface
  * assumed to be mutually-orthogonal and perpendicular to the Axis Direction
  * (ie that's the normal and the 3 vectors form a coordinate frame).
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoAxisSource
+class IGizmoAxisSource
 {
 	GENERATED_BODY()
 public:
@@ -87,7 +87,7 @@ public:
 	 * Utility function that always returns a 3D coordinate system (ie plane normal and perpendicular axes).
 	 * Internally calls GetTangentVectors() if available, otherwise constructs arbitrary mutually perpendicular vectors. 
 	 */
-	void GetAxisFrame(
+	INTERACTIVETOOLSFRAMEWORK_API void GetAxisFrame(
 		FVector& PlaneNormalOut, FVector& PlaneAxis1Out, FVector& PlaneAxis2Out) const;
 };
 
@@ -96,15 +96,15 @@ public:
 
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoClickTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoClickTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IGizmoClickTarget is an interface used to provide a ray-object hit test.
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoClickTarget
+class IGizmoClickTarget
 {
 	GENERATED_BODY()
 public:
@@ -129,8 +129,8 @@ public:
 	virtual void UpdateInteractingState(bool bInteracting) = 0;
 };
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoClickMultiTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoClickMultiTarget : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -143,7 +143,7 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoClickMultiTarget : public UInterface
  * be defined in the gizmo. Identifier 0 is reserved for the default ID which should be assigned to 
  * elements that do not correspond to any gizmo part, such as non-hittable decorative elements.
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoClickMultiTarget
+class IGizmoClickMultiTarget
 {
 	GENERATED_BODY()
 public:
@@ -179,8 +179,8 @@ public:
 
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoRenderTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoRenderTarget : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -188,7 +188,7 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoRenderTarget : public UInterface
 /**
  * UGizmoRenderTarget is an interface used to provide rendering of a target
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoRenderTarget
+class IGizmoRenderTarget
 {
 	GENERATED_BODY()
 public:
@@ -201,8 +201,8 @@ public:
 
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoRenderMultiTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoRenderMultiTarget : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -216,7 +216,7 @@ class INTERACTIVETOOLSFRAMEWORK_API UGizmoRenderMultiTarget : public UInterface
  * be defined in the gizmo. Identifier 0 is reserved for the default ID which should be assigned to 
  * elements that do not correspond to any gizmo part, such as non-hittable decorative elements.
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoRenderMultiTarget
+class IGizmoRenderMultiTarget
 {
 	GENERATED_BODY()
 public:
@@ -233,15 +233,15 @@ public:
 };
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoStateTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoStateTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IGizmoStateTarget is an interface that is used to pass notifications about significant gizmo state updates
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoStateTarget
+class IGizmoStateTarget
 {
 	GENERATED_BODY()
 public:
@@ -262,15 +262,15 @@ public:
 
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoFloatParameterSource : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoFloatParameterSource : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IGizmoFloatParameterSource provides Get and Set for an arbitrary float-valued parameter.
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoFloatParameterSource
+class IGizmoFloatParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -295,15 +295,15 @@ public:
 
 
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoVec2ParameterSource : public UInterface
+UINTERFACE(MinimalAPI)
+class UGizmoVec2ParameterSource : public UInterface
 {
 	GENERATED_BODY()
 };
 /**
  * IGizmoVec2ParameterSource provides Get and Set for an arbitrary 2D-vector-valued parameter.
  */
-class INTERACTIVETOOLSFRAMEWORK_API IGizmoVec2ParameterSource
+class IGizmoVec2ParameterSource
 {
 	GENERATED_BODY()
 public:

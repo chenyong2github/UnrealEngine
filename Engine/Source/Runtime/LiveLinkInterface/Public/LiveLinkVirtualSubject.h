@@ -23,24 +23,24 @@ class ULiveLinkRole;
 
 
 // A Virtual subject is made up of one or more real subjects from a source
-UCLASS(Abstract)
-class LIVELINKINTERFACE_API ULiveLinkVirtualSubject : public UObject, public ILiveLinkSubject
+UCLASS(Abstract, MinimalAPI)
+class ULiveLinkVirtualSubject : public UObject, public ILiveLinkSubject
 {
 	GENERATED_BODY()
 
 	//~ Begin ILiveLinkSubject Interface
 public:
-	virtual void Initialize(FLiveLinkSubjectKey SubjectKey, TSubclassOf<ULiveLinkRole> Role, ILiveLinkClient* LiveLinkClient) override;
-	virtual void Update() override;
-	virtual bool EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
-	virtual void ClearFrames() override;
+	LIVELINKINTERFACE_API virtual void Initialize(FLiveLinkSubjectKey SubjectKey, TSubclassOf<ULiveLinkRole> Role, ILiveLinkClient* LiveLinkClient) override;
+	LIVELINKINTERFACE_API virtual void Update() override;
+	LIVELINKINTERFACE_API virtual bool EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame) override;
+	LIVELINKINTERFACE_API virtual void ClearFrames() override;
 	virtual FLiveLinkSubjectKey GetSubjectKey() const override { return SubjectKey; }
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const override { return Role; }
-	virtual bool HasValidFrameSnapshot() const override;
+	LIVELINKINTERFACE_API virtual bool HasValidFrameSnapshot() const override;
 	virtual FLiveLinkStaticDataStruct& GetStaticData() override { return CurrentFrameSnapshot.StaticData; }
 	virtual const FLiveLinkStaticDataStruct& GetStaticData() const override { return CurrentFrameSnapshot.StaticData; }
 	virtual const TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> GetFrameTranslators() const override { return CurrentFrameTranslators; }
-	virtual TArray<FLiveLinkTime> GetFrameTimes() const override;
+	LIVELINKINTERFACE_API virtual TArray<FLiveLinkTime> GetFrameTimes() const override;
 	virtual bool IsRebroadcasted() const override { return bRebroadcastSubject; }
 	virtual bool HasStaticDataBeenRebroadcasted() const override { return bHasStaticDataBeenRebroadcast; }
 	virtual void SetStaticDataAsRebroadcasted(const bool bInSent) override { bHasStaticDataBeenRebroadcast = bInSent; }
@@ -49,10 +49,10 @@ protected:
 	//~ End ILiveLinkSubject Interface
 
 	/** Whether snapshot has valid static data */
-	bool HasValidStaticData() const;
+	LIVELINKINTERFACE_API bool HasValidStaticData() const;
 
 	/** Whether snapshot has valid frame data */
-	bool HasValidFrameData() const;
+	LIVELINKINTERFACE_API bool HasValidFrameData() const;
 
 public:
 	ILiveLinkClient* GetClient() const { return LiveLinkClient; }
@@ -67,24 +67,24 @@ public:
 	const FLiveLinkFrameDataStruct& GetFrameData() const { return CurrentFrameSnapshot.FrameData; }
 
 	/** Returns true whether this virtual subject depends on the Subject named SubjectName */
-	virtual bool DependsOnSubject(FName SubjectName) const;
+	LIVELINKINTERFACE_API virtual bool DependsOnSubject(FName SubjectName) const;
 	
 protected:
 
 	/** Updates the list of translators valid for this frame */
-	void UpdateTranslatorsForThisFrame();
+	LIVELINKINTERFACE_API void UpdateTranslatorsForThisFrame();
 
 	/** Updates our snapshot's static data */
-	void UpdateStaticDataSnapshot(FLiveLinkStaticDataStruct&& NewStaticData);
+	LIVELINKINTERFACE_API void UpdateStaticDataSnapshot(FLiveLinkStaticDataStruct&& NewStaticData);
 
 	/** Updates our snapshot's frame data */
-	void UpdateFrameDataSnapshot(FLiveLinkFrameDataStruct&& NewFrameData);
+	LIVELINKINTERFACE_API void UpdateFrameDataSnapshot(FLiveLinkFrameDataStruct&& NewFrameData);
 
 	/** Invalidates our snapshot's static data */
-	void InvalidateStaticData();
+	LIVELINKINTERFACE_API void InvalidateStaticData();
 
 	/** Invalidates our snapshot's frame data */
-	void InvalidateFrameData();
+	LIVELINKINTERFACE_API void InvalidateFrameData();
 
 protected:
 	/** The role the subject was build with. */

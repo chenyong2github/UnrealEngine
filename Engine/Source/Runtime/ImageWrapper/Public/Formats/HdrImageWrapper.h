@@ -14,33 +14,33 @@
 
 /** To load the HDR file image format. Does not support all possible types HDR formats (e.g. xyze is not supported) */
 //  does not use ImageWrapperBase , unlike all other imagewrappers
-class IMAGEWRAPPER_API FHdrImageWrapper : public IImageWrapper
+class FHdrImageWrapper : public IImageWrapper
 {
 public:
 
 	// Todo we should have this for all image wrapper.
-	bool SetCompressedFromView(TArrayView64<const uint8> Data);
+	IMAGEWRAPPER_API bool SetCompressedFromView(TArrayView64<const uint8> Data);
 
 	// IIMageWrapper Interface begin
-	virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
-	virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow) override;
-	virtual TArray64<uint8> GetCompressed(int32 Quality = 0) override;
-	virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData) override;
+	IMAGEWRAPPER_API virtual bool SetCompressed(const void* InCompressedData, int64 InCompressedSize) override;
+	IMAGEWRAPPER_API virtual bool SetRaw(const void* InRawData, int64 InRawSize, const int32 InWidth, const int32 InHeight, const ERGBFormat InFormat, const int32 InBitDepth, const int32 InBytesPerRow) override;
+	IMAGEWRAPPER_API virtual TArray64<uint8> GetCompressed(int32 Quality = 0) override;
+	IMAGEWRAPPER_API virtual bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray64<uint8>& OutRawData) override;
 	
-	virtual bool CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const override;
-	virtual ERawImageFormat::Type GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const override;
+	IMAGEWRAPPER_API virtual bool CanSetRawFormat(const ERGBFormat InFormat, const int32 InBitDepth) const override;
+	IMAGEWRAPPER_API virtual ERawImageFormat::Type GetSupportedRawFormat(const ERawImageFormat::Type InFormat) const override;
 
-	virtual int64 GetWidth() const override;
-	virtual int64 GetHeight() const override;
-	virtual int32 GetBitDepth() const override;
-	virtual ERGBFormat GetFormat() const override;
+	IMAGEWRAPPER_API virtual int64 GetWidth() const override;
+	IMAGEWRAPPER_API virtual int64 GetHeight() const override;
+	IMAGEWRAPPER_API virtual int32 GetBitDepth() const override;
+	IMAGEWRAPPER_API virtual ERGBFormat GetFormat() const override;
 
 	// IImageWrapper Interface end
 
 	// GetErrorMessage : nice idea, but not virtual, never called by the standard import path
-	const FText& GetErrorMessage() const;
+	IMAGEWRAPPER_API const FText& GetErrorMessage() const;
 
-	void FreeCompressedData();
+	IMAGEWRAPPER_API void FreeCompressedData();
 
 	using IImageWrapper::GetRaw;
 private:

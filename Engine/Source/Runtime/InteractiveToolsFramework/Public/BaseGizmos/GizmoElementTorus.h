@@ -18,34 +18,34 @@ class FMaterialRenderProxy;
  * Note: the LineTrace method does not perform a true ray-torus intersection!
  * See comment above LineTrace method below for details of how this intersection is approximated.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementTorus : public UGizmoElementCircleBase
+UCLASS(Transient, MinimalAPI)
+class UGizmoElementTorus : public UGizmoElementCircleBase
 {
 	GENERATED_BODY()
 
 public:
 
 	//~ Begin UGizmoElementBase Interface.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
 
 	// LineTrace approximates ray-torus intersection by intersecting the ray with the plane in which the torus 
 	// lies, then determining a hit point closest to the linear circle defined by torus center and torus outer radius.
 	// If the torus lies at a glancing angle, the ray-torus intersection is performed against cylinders approximating
 	// the shape of the torus.
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	//~ End UGizmoElementBase Interface.
 
 	// Inner circles radius.
-	virtual void SetInnerRadius(double InInnerRadius);
-	virtual double GetInnerRadius() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetInnerRadius(double InInnerRadius);
+	INTERACTIVETOOLSFRAMEWORK_API virtual double GetInnerRadius() const;
 
 	// Number of inner slices for rendering torus.
-	virtual void SetNumInnerSlices(int32 InNumInnerSlices);
-	virtual int32 GetNumInnerSlices() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetNumInnerSlices(int32 InNumInnerSlices);
+	INTERACTIVETOOLSFRAMEWORK_API virtual int32 GetNumInnerSlices() const;
 
 	// If partial, renders end caps when true.
-	virtual void SetEndCaps(bool InEndCaps);
-	virtual bool GetEndCaps() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetEndCaps(bool InEndCaps);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEndCaps() const;
 
 protected:
 
@@ -63,6 +63,6 @@ protected:
 
 protected:
 
-	bool IsGlancingAngle(const UGizmoViewContext* View, const FVector& InWorldCenter, const FVector& InWorldNormal);
+	INTERACTIVETOOLSFRAMEWORK_API bool IsGlancingAngle(const UGizmoViewContext* View, const FVector& InWorldCenter, const FVector& InWorldNormal);
 
 };

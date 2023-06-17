@@ -63,9 +63,9 @@ namespace UE
 namespace MovieScene
 {
 
-struct MOVIESCENE_API FSubSequenceSpace
+struct FSubSequenceSpace
 {
-	FSubSequenceSpace();
+	MOVIESCENE_API FSubSequenceSpace();
 
 	/** Transform from the root time-space to the current sequence's time-space */
 	FMovieSceneSequenceTransform RootToSequenceTransform;
@@ -79,7 +79,7 @@ struct MOVIESCENE_API FSubSequenceSpace
 	int16 HierarchicalBias;
 };
 
-struct MOVIESCENE_API ISequenceVisitor
+struct ISequenceVisitor
 {
 	virtual ~ISequenceVisitor() {}
 

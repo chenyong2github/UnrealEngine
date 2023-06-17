@@ -17,20 +17,20 @@ namespace Dataflow
 	//
 	//
 	//
-	class DATAFLOWCORE_API FNodeColorsRegistry
+	class FNodeColorsRegistry
 	{
 	public:
-		static FNodeColorsRegistry& Get();
-		static void TearDown();
+		static DATAFLOWCORE_API FNodeColorsRegistry& Get();
+		static DATAFLOWCORE_API void TearDown();
 
-		void RegisterNodeColors(const FName& Category, const FNodeColors& NodeColors);
-		FLinearColor GetNodeTitleColor(const FName& Category);
-		FLinearColor GetNodeBodyTintColor(const FName& Category);
-		void NodeColorsChangedInSettings(const FNodeColorsMap& NodeColorsMap);
+		DATAFLOWCORE_API void RegisterNodeColors(const FName& Category, const FNodeColors& NodeColors);
+		DATAFLOWCORE_API FLinearColor GetNodeTitleColor(const FName& Category);
+		DATAFLOWCORE_API FLinearColor GetNodeBodyTintColor(const FName& Category);
+		DATAFLOWCORE_API void NodeColorsChangedInSettings(const FNodeColorsMap& NodeColorsMap);
 
 	private:
-		FNodeColorsRegistry();
-		~FNodeColorsRegistry();
+		DATAFLOWCORE_API FNodeColorsRegistry();
+		DATAFLOWCORE_API ~FNodeColorsRegistry();
 
 		TMap<FName, FNodeColors > ColorsMap;					// [Category] -> Colors
 		FDelegateHandle DataflowSettingsChangedDelegateHandle;

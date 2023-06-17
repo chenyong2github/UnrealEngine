@@ -12,7 +12,7 @@ namespace UE::PropertyViewer
 {
 
 /** */
-class ADVANCEDWIDGETS_API SFieldName : public SCompoundWidget
+class SFieldName : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SFieldName)
@@ -27,12 +27,12 @@ public:
 		SLATE_ATTRIBUTE(FText, HighlightText)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const UClass* Class);
-	void Construct(const FArguments& InArgs, const UScriptStruct* Struct);
-	void Construct(const FArguments& InArgs, const FProperty* Property);
-	void Construct(const FArguments& InArgs, const UFunction* FunctionToDisplay);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs, const UClass* Class);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs, const UScriptStruct* Struct);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs, const FProperty* Property);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs, const UFunction* FunctionToDisplay);
 
-	void SetHighlightText(TAttribute<FText> InHighlightText);
+	ADVANCEDWIDGETS_API void SetHighlightText(TAttribute<FText> InHighlightText);
 
 private:
 	FText GetToolTipText() const;

@@ -10,24 +10,24 @@
 class SWindow;
 
 /** A single, managed surface used as a render target resolution destination  */
-struct MOVIESCENECAPTURE_API FViewportSurfaceReader
+struct FViewportSurfaceReader
 {
 	/** Constructor */
-	FViewportSurfaceReader(EPixelFormat InPixelFormat, FIntPoint InBufferSize);
+	MOVIESCENECAPTURE_API FViewportSurfaceReader(EPixelFormat InPixelFormat, FIntPoint InBufferSize);
 
 	/** Destructor */
-	~FViewportSurfaceReader();
+	MOVIESCENECAPTURE_API ~FViewportSurfaceReader();
 
 	/** Initialize this reader so that it can be waited on. */
-	void Initialize();
+	MOVIESCENECAPTURE_API void Initialize();
 
 	/** Wait for this reader to become available, if it's currently in use */
-	void BlockUntilAvailable();
+	MOVIESCENECAPTURE_API void BlockUntilAvailable();
 
 	/** Safely resets the state of the wait event. When doing latent surface reading sometimes we may want to just bail on reading a given frame.
 	  * Should only be performed after flushing rendering commands.
 	  */
-	void Reset();
+	MOVIESCENECAPTURE_API void Reset();
 
 	/**
 	 * Resolve the specified viewport RHI, calling the specified callback with the result.
@@ -35,10 +35,10 @@ struct MOVIESCENECAPTURE_API FViewportSurfaceReader
 	 * @param	BackBuffer		The backbuffer to resolve
 	 * @param	Callback 		Callback to call with the locked texture data. This will be called on an undefined thread.
 	 */
-	void ResolveRenderTarget(FViewportSurfaceReader* RenderToReadback, const FTexture2DRHIRef& BackBuffer, TFunction<void(FColor*, int32, int32)> Callback);
+	MOVIESCENECAPTURE_API void ResolveRenderTarget(FViewportSurfaceReader* RenderToReadback, const FTexture2DRHIRef& BackBuffer, TFunction<void(FColor*, int32, int32)> Callback);
 
 	/** Get the current size of the texture */
-	FIntPoint GetCurrentSize() const;
+	MOVIESCENECAPTURE_API FIntPoint GetCurrentSize() const;
 
 	/** Set the rectangle within which to read pixels */
 	void SetCaptureRect(FIntRect InCaptureRect) { CaptureRect = InCaptureRect; }
@@ -51,7 +51,7 @@ struct MOVIESCENECAPTURE_API FViewportSurfaceReader
 protected:
 
 	/** Set up this surface to the specified width/height */
-	void Resize(uint32 Width, uint32 Height);
+	MOVIESCENECAPTURE_API void Resize(uint32 Width, uint32 Height);
 
 	/** Whether this surface reader is enabled or not */
 	FThreadSafeBool bEnabled;
@@ -121,7 +121,7 @@ private:
  * to resolve the viewport render target into a specific index into this array. This means we can
  * resolve the render target data without having to wait, or flush rendering commands.
  */
-class MOVIESCENECAPTURE_API FFrameGrabber
+class FFrameGrabber
 {
 public:
 	/**
@@ -132,43 +132,43 @@ public:
 	 * @param InPixelFormat			The desired pixel format to store captured frames as
 	 * @param InNumSurfaces			The number of destination surfaces contained in our buffer 
 	 */
-	FFrameGrabber(TSharedRef<FSceneViewport> Viewport, FIntPoint DesiredBufferSize, EPixelFormat InPixelFormat = PF_B8G8R8A8, uint32 NumSurfaces = 3);
+	MOVIESCENECAPTURE_API FFrameGrabber(TSharedRef<FSceneViewport> Viewport, FIntPoint DesiredBufferSize, EPixelFormat InPixelFormat = PF_B8G8R8A8, uint32 NumSurfaces = 3);
 
 	/** Destructor */
-	~FFrameGrabber();
+	MOVIESCENECAPTURE_API ~FFrameGrabber();
 
 public:
 
 	/** Instruct the frame grabber to start capturing frames */
-	void StartCapturingFrames();
+	MOVIESCENECAPTURE_API void StartCapturingFrames();
 
 	/** Check whether we're capturing frames or not */
-	bool IsCapturingFrames() const;
+	MOVIESCENECAPTURE_API bool IsCapturingFrames() const;
 
 	/** Instruct the frame grabber capture this frame, when it receives an event from slate */
-	void CaptureThisFrame(FFramePayloadPtr Payload);
+	MOVIESCENECAPTURE_API void CaptureThisFrame(FFramePayloadPtr Payload);
 
 	/** Stop capturing frames */
-	void StopCapturingFrames();
+	MOVIESCENECAPTURE_API void StopCapturingFrames();
 
 	/** Shut down this grabber, ensuring that any threaded operations are finished */
-	void Shutdown();
+	MOVIESCENECAPTURE_API void Shutdown();
 
 public:
 
 	/** Check whether we have any outstanding frames or not */
-	bool HasOutstandingFrames() const;
+	MOVIESCENECAPTURE_API bool HasOutstandingFrames() const;
 
 	/** Retrieve any frames we may have captured */
-	TArray<FCapturedFrameData> GetCapturedFrames();
+	MOVIESCENECAPTURE_API TArray<FCapturedFrameData> GetCapturedFrames();
 
 protected:
 	
 	/** Callback for when a backbuffer is ready for reading (called on render thread) */
-	void OnBackBufferReadyToPresentCallback(SWindow& SlateWindow, const FTexture2DRHIRef& BackBuffer);
+	MOVIESCENECAPTURE_API void OnBackBufferReadyToPresentCallback(SWindow& SlateWindow, const FTexture2DRHIRef& BackBuffer);
 
 	/** Called when the specified surface index has been locked for reading with the render target data (called on render thread)  */
-	void OnFrameReady(int32 SurfaceIndex, FColor* ColorBuffer, int32 Width, int32 Height);
+	MOVIESCENECAPTURE_API void OnFrameReady(int32 SurfaceIndex, FColor* ColorBuffer, int32 Width, int32 Height);
 
 private:
 

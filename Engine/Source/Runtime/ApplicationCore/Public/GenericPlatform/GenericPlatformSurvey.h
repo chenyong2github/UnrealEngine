@@ -224,7 +224,7 @@ struct FHardwareSurveyResults
 /**
 * Generic implementation for most platforms, these tend to be unused and unimplemented
 **/
-struct APPLICATIONCORE_API FGenericPlatformSurvey
+struct FGenericPlatformSurvey
 {
 	/**
 	 * Attempt to get hardware survey results now.

@@ -17,8 +17,8 @@ class SBox;
  * * Single Child
  * * Fixed Size
  */
-UCLASS()
-class UMG_API USizeBox : public UContentWidget
+UCLASS(MinimalAPI)
+class USizeBox : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -111,105 +111,105 @@ public:
 public:
 
 	/** */
-	float GetWidthOverride() const;
+	UMG_API float GetWidthOverride() const;
 
 	/** When specified, ignore the content's desired size and report the WidthOverride as the Box's desired width. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void SetWidthOverride(float InWidthOverride);
+	UMG_API void SetWidthOverride(float InWidthOverride);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void ClearWidthOverride();
+	UMG_API void ClearWidthOverride();
 
 	/** */
-	float GetHeightOverride() const;
+	UMG_API float GetHeightOverride() const;
 
 	/** When specified, ignore the content's desired size and report the HeightOverride as the Box's desired height. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void SetHeightOverride(float InHeightOverride);
+	UMG_API void SetHeightOverride(float InHeightOverride);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void ClearHeightOverride();
+	UMG_API void ClearHeightOverride();
 
 	/** */
-	float GetMinDesiredWidth() const;
+	UMG_API float GetMinDesiredWidth() const;
 
 	/** When specified, will report the MinDesiredWidth if larger than the content's desired width. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void SetMinDesiredWidth(float InMinDesiredWidth);
+	UMG_API void SetMinDesiredWidth(float InMinDesiredWidth);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void ClearMinDesiredWidth();
+	UMG_API void ClearMinDesiredWidth();
 
 	/** */
-	float GetMinDesiredHeight() const;
+	UMG_API float GetMinDesiredHeight() const;
 
 	/** When specified, will report the MinDesiredHeight if larger than the content's desired height. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void SetMinDesiredHeight(float InMinDesiredHeight);
+	UMG_API void SetMinDesiredHeight(float InMinDesiredHeight);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void ClearMinDesiredHeight();
+	UMG_API void ClearMinDesiredHeight();
 
 	/** */
-	float GetMaxDesiredWidth() const;
+	UMG_API float GetMaxDesiredWidth() const;
 
 	/** When specified, will report the MaxDesiredWidth if smaller than the content's desired width. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void SetMaxDesiredWidth(float InMaxDesiredWidth);
+	UMG_API void SetMaxDesiredWidth(float InMaxDesiredWidth);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void ClearMaxDesiredWidth();
+	UMG_API void ClearMaxDesiredWidth();
 
 	/** */
-	float GetMaxDesiredHeight() const;
+	UMG_API float GetMaxDesiredHeight() const;
 
 	/** When specified, will report the MaxDesiredHeight if smaller than the content's desired height. */
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void SetMaxDesiredHeight(float InMaxDesiredHeight);
+	UMG_API void SetMaxDesiredHeight(float InMaxDesiredHeight);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void ClearMaxDesiredHeight();
+	UMG_API void ClearMaxDesiredHeight();
 
 	/** */
-	float GetMinAspectRatio() const;
+	UMG_API float GetMinAspectRatio() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void SetMinAspectRatio(float InMinAspectRatio);
+	UMG_API void SetMinAspectRatio(float InMinAspectRatio);
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void ClearMinAspectRatio();
+	UMG_API void ClearMinAspectRatio();
 
 	/** */
-	float GetMaxAspectRatio() const;
+	UMG_API float GetMaxAspectRatio() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Size Box")
-	void SetMaxAspectRatio(float InMaxAspectRatio);
+	UMG_API void SetMaxAspectRatio(float InMaxAspectRatio);
 
 	UFUNCTION(BlueprintCallable, Category = "Layout|Size Box")
-	void ClearMaxAspectRatio();
+	UMG_API void ClearMaxAspectRatio();
 
 
 	// UWidget interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
 	// UVisual interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	// End of UVisual interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 };

@@ -26,14 +26,14 @@ namespace TimeSynchronizableMedia
 /**
  * Base class for media sources that can be synchronized with the engine's timecode.
  */
-UCLASS(Abstract)
-class MEDIAASSETS_API UTimeSynchronizableMediaSource : public UBaseMediaSource
+UCLASS(Abstract, MinimalAPI)
+class UTimeSynchronizableMediaSource : public UBaseMediaSource
 {
 	GENERATED_BODY()
 	
 public:
 	/** Default constructor. */
-	UTimeSynchronizableMediaSource();
+	MEDIAASSETS_API UTimeSynchronizableMediaSource();
 
 public:
 
@@ -60,11 +60,11 @@ public:
 public:
 	//~ IMediaOptions interface
 	using Super::GetMediaOption;
-	virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
-	virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
-	virtual double GetMediaOption(const FName& Key, double DefaultValue) const override;
-	virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
-	virtual bool HasMediaOption(const FName& Key) const override;
+	MEDIAASSETS_API virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
+	MEDIAASSETS_API virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
+	MEDIAASSETS_API virtual double GetMediaOption(const FName& Key, double DefaultValue) const override;
+	MEDIAASSETS_API virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
+	MEDIAASSETS_API virtual bool HasMediaOption(const FName& Key) const override;
 
 	virtual bool SupportsFormatAutoDetection() const { return false; }
 };

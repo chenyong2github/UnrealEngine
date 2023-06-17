@@ -25,65 +25,65 @@ enum class EGizmoElementArrowHeadType
 };
 
 
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementArrow : public UGizmoElementBase
+UCLASS(Transient, MinimalAPI)
+class UGizmoElementArrow : public UGizmoElementBase
 {
 	GENERATED_BODY()
 
 public:
-	UGizmoElementArrow();
+	INTERACTIVETOOLSFRAMEWORK_API UGizmoElementArrow();
 
 	//~ Begin UGizmoElementBase Interface.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	//~ End UGizmoElementBase Interface.
 
 	// Location of base of arrow cylinder
-	virtual void SetBase(const FVector& InBase);
-	virtual FVector GetBase() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetBase(const FVector& InBase);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetBase() const;
 
 	// Arrow direction.
-	virtual void SetDirection(const FVector& InDirection);
-	virtual FVector GetDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDirection(const FVector& InDirection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetDirection() const;
 
 	// Arrow side direction for box head.
-	virtual void SetSideDirection(const FVector& InSideDirection);
-	virtual FVector GetSideDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetSideDirection(const FVector& InSideDirection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetSideDirection() const;
 
 	// Arrow body length.
-	virtual void SetBodyLength(float InBodyLength);
-	virtual float GetBodyLength() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetBodyLength(float InBodyLength);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetBodyLength() const;
 
 	// Arrow body cylinder radius.
-	virtual void SetBodyRadius(float InBodyRadius);
-	virtual float GetBodyRadius() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetBodyRadius(float InBodyRadius);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetBodyRadius() const;
 
 	// Arrow head length, used for both cone and cube head.
-	virtual void SetHeadLength(float InHeadLength);
-	virtual float GetHeadLength() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHeadLength(float InHeadLength);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetHeadLength() const;
 
 	// Arrow head radius, if cone.
-	virtual void SetHeadRadius(float InHeadRadius);
-	virtual float GetHeadRadius() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHeadRadius(float InHeadRadius);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetHeadRadius() const;
 
 	// Number of sides for cylinder and cone, if relevant.
-	virtual void SetNumSides(int32 InNumSides);
-	virtual int32 GetNumSides() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetNumSides(int32 InNumSides);
+	INTERACTIVETOOLSFRAMEWORK_API virtual int32 GetNumSides() const;
 
 	// Head type cone or cube.
-	virtual void SetHeadType(EGizmoElementArrowHeadType InHeadType);
-	virtual EGizmoElementArrowHeadType GetHeadType() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHeadType(EGizmoElementArrowHeadType InHeadType);
+	INTERACTIVETOOLSFRAMEWORK_API virtual EGizmoElementArrowHeadType GetHeadType() const;
 
 	// Pixel hit distance threshold, element will be scaled enough to add this threshold when line-tracing.
-	virtual void SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold) override;
 
 protected:
 
 	// Update arrow cylinder based on parameters
-	virtual void UpdateArrowBody();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateArrowBody();
 
 	// Update arrow cone or box based on parameters
-	virtual void UpdateArrowHead();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateArrowHead();
 
 	// Flag indicating body properties need to be updated prior to render
 	bool bUpdateArrowBody = true;

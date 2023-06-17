@@ -93,8 +93,8 @@ enum class EDynamicMeshVertexColorTransformMode : uint8
 /**
  * UBaseDynamicMeshComponent is a base interface for a UMeshComponent based on a UDynamicMesh.
  */
-UCLASS(Abstract, hidecategories = (LOD), ClassGroup = Rendering)
-class GEOMETRYFRAMEWORK_API UBaseDynamicMeshComponent : 
+UCLASS(Abstract, hidecategories = (LOD), ClassGroup = Rendering, MinimalAPI)
+class UBaseDynamicMeshComponent : 
 	public UMeshComponent, 
 	public IToolFrameworkComponent, 
 	public IMeshVertexCommandChangeTarget, 
@@ -260,7 +260,7 @@ public:
 	 * Configure the active Color Override
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
-	virtual void SetColorOverrideMode(EDynamicMeshComponentColorOverrideMode NewMode);
+	GEOMETRYFRAMEWORK_API virtual void SetColorOverrideMode(EDynamicMeshComponentColorOverrideMode NewMode);
 
 	/**
 	 * @return active Color Override mode
@@ -278,7 +278,7 @@ public:
 	 * Configure the Color used with Constant Color Override Mode
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
-	virtual void SetConstantOverrideColor(FColor NewColor);
+	GEOMETRYFRAMEWORK_API virtual void SetConstantOverrideColor(FColor NewColor);
 
 	/**
 	 * @return active Color used for Constant Color Override Mode
@@ -300,7 +300,7 @@ public:
 	 * Configure the active Color Space Transform Mode
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
-	virtual void SetVertexColorSpaceTransformMode(EDynamicMeshVertexColorTransformMode NewMode);
+	GEOMETRYFRAMEWORK_API virtual void SetVertexColorSpaceTransformMode(EDynamicMeshVertexColorTransformMode NewMode);
 
 	/**
 	 * @return active Color Override mode
@@ -325,7 +325,7 @@ public:
 	 * Configure the Color used with Constant Color Override Mode
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component|Rendering")
-	virtual void SetEnableFlatShading(bool bEnable);
+	GEOMETRYFRAMEWORK_API virtual void SetEnableFlatShading(bool bEnable);
 
 	/**
 	 * @return active Color used for Constant Color Override Mode
@@ -343,13 +343,13 @@ public:
 public:
 
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual void SetShadowsEnabled(bool bEnabled);
+	GEOMETRYFRAMEWORK_API virtual void SetShadowsEnabled(bool bEnabled);
 
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual bool GetShadowsEnabled() const { return CastShadow; }
 
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual void SetViewModeOverridesEnabled(bool bEnabled);
+	GEOMETRYFRAMEWORK_API virtual void SetViewModeOverridesEnabled(bool bEnabled);
 
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
 	virtual bool GetViewModeOverridesEnabled() const { return bEnableViewModeOverrides; }
@@ -373,13 +373,13 @@ public:
 	 * Set an active override render material. This should replace all materials during rendering.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual void SetOverrideRenderMaterial(UMaterialInterface* Material);
+	GEOMETRYFRAMEWORK_API virtual void SetOverrideRenderMaterial(UMaterialInterface* Material);
 
 	/**
 	 * Clear any active override render material
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual void ClearOverrideRenderMaterial();
+	GEOMETRYFRAMEWORK_API virtual void ClearOverrideRenderMaterial();
 	
 	/**
 	 * @return true if an override render material is currently enabled for the given MaterialIndex
@@ -417,13 +417,13 @@ public:
 	 * Set an active secondary render material. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual void SetSecondaryRenderMaterial(UMaterialInterface* Material);
+	GEOMETRYFRAMEWORK_API virtual void SetSecondaryRenderMaterial(UMaterialInterface* Material);
 
 	/**
 	 * Clear any active secondary render material
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual void ClearSecondaryRenderMaterial();
+	GEOMETRYFRAMEWORK_API virtual void ClearSecondaryRenderMaterial();
 
 	/**
 	 * @return true if a secondary render material is set
@@ -446,13 +446,13 @@ public:
 	 * Show/Hide the secondary triangle buffers. Does not invalidate SceneProxy.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual void SetSecondaryBuffersVisibility(bool bSetVisible);
+	GEOMETRYFRAMEWORK_API virtual void SetSecondaryBuffersVisibility(bool bSetVisible);
 
 	/**
 	 * @return true if secondary buffers are currently set to be visible
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual bool GetSecondaryBuffersVisibility() const;
+	GEOMETRYFRAMEWORK_API virtual bool GetSecondaryBuffersVisibility() const;
 
 protected:
 	UPROPERTY()
@@ -482,16 +482,16 @@ public:
 	 * the rendering queue and forces an immediate rebuild of the SceneProxy.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual void SetEnableRaytracing(bool bSetEnabled);
+	GEOMETRYFRAMEWORK_API virtual void SetEnableRaytracing(bool bSetEnabled);
 
 	/**
 	 * @return true if raytracing support is currently enabled
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dynamic Mesh Component")
-	virtual bool GetEnableRaytracing() const;
+	GEOMETRYFRAMEWORK_API virtual bool GetEnableRaytracing() const;
 
 protected:
-	virtual void OnRenderingStateChanged(bool bForceImmedateRebuild);
+	GEOMETRYFRAMEWORK_API virtual void OnRenderingStateChanged(bool bForceImmedateRebuild);
 
 
 
@@ -501,17 +501,17 @@ protected:
 public:
 
 	// UMeshComponent Interface.
-	virtual int32 GetNumMaterials() const override;
-	virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
-	virtual FMaterialRelevance GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const override;
-	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	GEOMETRYFRAMEWORK_API virtual int32 GetNumMaterials() const override;
+	GEOMETRYFRAMEWORK_API virtual UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
+	GEOMETRYFRAMEWORK_API virtual FMaterialRelevance GetMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const override;
+	GEOMETRYFRAMEWORK_API virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
+	GEOMETRYFRAMEWORK_API virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 
-	virtual void SetNumMaterials(int32 NumMaterials);
+	GEOMETRYFRAMEWORK_API virtual void SetNumMaterials(int32 NumMaterials);
 
 	//~ UObject Interface.
 #if WITH_EDITOR
-	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	GEOMETRYFRAMEWORK_API void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	UPROPERTY()
@@ -532,24 +532,24 @@ public:
 	/**
 	 * Set the wireframe material used for all BaseDynamicMeshComponent-derived Components
 	 */
-	static void SetDefaultWireframeMaterial(UMaterialInterface* Material);
+	static GEOMETRYFRAMEWORK_API void SetDefaultWireframeMaterial(UMaterialInterface* Material);
 
 	/**
 	 * Set the vertex color material used for all BaseDynamicMeshComponent-derived Components
 	 */
-	static void SetDefaultVertexColorMaterial(UMaterialInterface* Material);
+	static GEOMETRYFRAMEWORK_API void SetDefaultVertexColorMaterial(UMaterialInterface* Material);
 
 protected:
-	static void InitializeDefaultMaterials();
+	static GEOMETRYFRAMEWORK_API void InitializeDefaultMaterials();
 	friend class FGeometryFrameworkModule;			// FGeometryFrameworkModule needs to call the above function
 
-	static UMaterialInterface* GetDefaultWireframeMaterial_RenderThread();
-	static UMaterialInterface* GetDefaultVertexColorMaterial_RenderThread();
+	static GEOMETRYFRAMEWORK_API UMaterialInterface* GetDefaultWireframeMaterial_RenderThread();
+	static GEOMETRYFRAMEWORK_API UMaterialInterface* GetDefaultVertexColorMaterial_RenderThread();
 	friend class FBaseDynamicMeshSceneProxy;		// FBaseDynamicMeshSceneProxy needs to call these functions...
 
 private:
 	// these Materials are used by the render thread. Once the engine is running they should not be modified without 
 	// using SetDefaultWireframeMaterial/SetDefaultVertexColorMaterial
-	static UMaterialInterface* DefaultWireframeMaterial;
-	static UMaterialInterface* DefaultVertexColorMaterial;
+	static GEOMETRYFRAMEWORK_API UMaterialInterface* DefaultWireframeMaterial;
+	static GEOMETRYFRAMEWORK_API UMaterialInterface* DefaultVertexColorMaterial;
 };

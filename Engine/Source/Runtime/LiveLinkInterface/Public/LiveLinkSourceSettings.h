@@ -142,8 +142,8 @@ struct FLiveLinkSourceDebugInfo
 };
 
 /** Base class for live link source settings (can be replaced by sources themselves) */
-UCLASS()
-class LIVELINKINTERFACE_API ULiveLinkSourceSettings : public UObject
+UCLASS(MinimalAPI)
+class ULiveLinkSourceSettings : public UObject
 {
 public:
 	GENERATED_BODY()
@@ -172,10 +172,10 @@ public:
 	TArray<FLiveLinkSourceDebugInfo> SourceDebugInfos_DEPRECATED;
 #endif
 
-	virtual void Serialize(FArchive& Ar) override;
+	LIVELINKINTERFACE_API virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	LIVELINKINTERFACE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 };
 

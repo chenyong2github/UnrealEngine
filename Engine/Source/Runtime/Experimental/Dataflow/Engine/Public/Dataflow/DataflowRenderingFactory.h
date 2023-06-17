@@ -13,7 +13,7 @@ namespace Dataflow
 {
 	class FContext;
 
-	struct DATAFLOWENGINE_API FGraphRenderingState {
+	struct FGraphRenderingState {
 		FGraphRenderingState(const FDataflowNode* InNode, const FRenderingParameter& InParameters, Dataflow::FContext& InContext)
 			: Node(InNode)
 			, RenderType(InParameters.Type)

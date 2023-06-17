@@ -13,8 +13,8 @@ class UPrimitiveComponent;
  * UGizmoLambdaHitTarget is an IGizmoClickTarget implementation that
  * forwards the hit-test function to a TFunction
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoLambdaHitTarget : public UObject, public IGizmoClickTarget
+UCLASS(MinimalAPI)
+class UGizmoLambdaHitTarget : public UObject, public IGizmoClickTarget
 {
 	GENERATED_BODY()
 public:
@@ -29,11 +29,11 @@ public:
 
 
 public:
-	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
 
-	virtual void UpdateHoverState(bool bHovering);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateHoverState(bool bHovering);
 
-	virtual void UpdateInteractingState(bool bHovering);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateInteractingState(bool bHovering);
 };
 
 
@@ -42,8 +42,8 @@ public:
  * UGizmoComponentHitTarget is an IGizmoClickTarget implementation that
  * hit-tests a UPrimitiveComponent
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoComponentHitTarget : public UObject, public IGizmoClickTarget
+UCLASS(MinimalAPI)
+class UGizmoComponentHitTarget : public UObject, public IGizmoClickTarget
 {
 	GENERATED_BODY()
 public:
@@ -69,14 +69,14 @@ public:
 	TFunction<void(bool)> UpdateInteractingFunction;
 
 public:
-	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
 
-	virtual void UpdateHoverState(bool bHovering);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateHoverState(bool bHovering);
 
-	virtual void UpdateInteractingState(bool bHovering);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateInteractingState(bool bHovering);
 
 public:
-	static UGizmoComponentHitTarget* Construct(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoComponentHitTarget* Construct(
 		UPrimitiveComponent* Component,
 		UObject* Outer = (UObject*)GetTransientPackage());
 };

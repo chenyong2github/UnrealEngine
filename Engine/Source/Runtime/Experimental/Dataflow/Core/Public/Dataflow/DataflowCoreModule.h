@@ -11,16 +11,16 @@
 /**
  * The public interface to this module
  */
-class DATAFLOWCORE_API IDataflowCoreModule : public IModuleInterface
+class IDataflowCoreModule : public IModuleInterface
 {
 
 public:
 
 	// IModuleInterface interface
 
-	virtual void StartupModule() override;
+	DATAFLOWCORE_API virtual void StartupModule() override;
 
-	virtual void ShutdownModule() override;
+	DATAFLOWCORE_API virtual void ShutdownModule() override;
 
 	virtual bool SupportsDynamicReloading() override
 	{

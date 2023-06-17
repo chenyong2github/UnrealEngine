@@ -9,13 +9,13 @@
 
 #include "AssetBackedTarget.generated.h"
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UAssetBackedTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UAssetBackedTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class INTERACTIVETOOLSFRAMEWORK_API IAssetBackedTarget
+class IAssetBackedTarget
 {
 	GENERATED_BODY()
 

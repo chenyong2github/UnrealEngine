@@ -30,15 +30,15 @@ struct FAnimationStateMachineReference : public FAnimNodeReference
 };
 
 // Exposes operations to be performed on anim state machine node contexts
-UCLASS(Experimental)
-class ANIMGRAPHRUNTIME_API UAnimationStateMachineLibrary : public UBlueprintFunctionLibrary
+UCLASS(Experimental, MinimalAPI)
+class UAnimationStateMachineLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
 	/** Get an anim state reference from an anim node reference */
 	UFUNCTION(BlueprintCallable, Category = "State Machine", meta=(BlueprintThreadSafe, DisplayName = "Convert to Animation State", ExpandEnumAsExecs = "Result"))
-	static void ConvertToAnimationStateResult(const FAnimNodeReference& Node, FAnimationStateResultReference& AnimationState, EAnimNodeReferenceConversionResult& Result);
+	static ANIMGRAPHRUNTIME_API void ConvertToAnimationStateResult(const FAnimNodeReference& Node, FAnimationStateResultReference& AnimationState, EAnimNodeReferenceConversionResult& Result);
 
 	/** Get an anim state reference from an anim node reference (pure) */
 	UFUNCTION(BlueprintPure, Category = "State Machine", meta=(BlueprintThreadSafe, DisplayName = "Convert to Animation State"))
@@ -51,7 +51,7 @@ public:
 
 	/** Get an anim state machine from an anim node reference */
 	UFUNCTION(BlueprintCallable, Category = "State Machine", meta=(BlueprintThreadSafe, DisplayName = "Convert to Animation State Machine", ExpandEnumAsExecs = "Result"))
-	static void ConvertToAnimationStateMachine(const FAnimNodeReference& Node, FAnimationStateMachineReference& AnimationState, EAnimNodeReferenceConversionResult& Result);
+	static ANIMGRAPHRUNTIME_API void ConvertToAnimationStateMachine(const FAnimNodeReference& Node, FAnimationStateMachineReference& AnimationState, EAnimNodeReferenceConversionResult& Result);
 
 
 	/** Get an anim state machine from an anim node reference (pure) */
@@ -65,27 +65,27 @@ public:
 	
 	/** Returns whether the state the node belongs to is blending in */
 	UFUNCTION(BlueprintPure, Category = "State Machine", meta=(BlueprintThreadSafe))
-	static bool IsStateBlendingIn(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
+	static ANIMGRAPHRUNTIME_API bool IsStateBlendingIn(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
 
 	/** Returns whether the state the node belongs to is blending out */
 	UFUNCTION(BlueprintPure, Category = "State Machine", meta=(BlueprintThreadSafe))
-	static bool IsStateBlendingOut(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
+	static ANIMGRAPHRUNTIME_API bool IsStateBlendingOut(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
 
 	/** Manually set the current state of the state machine
 		NOTE: Custom blend type is not supported */
 	UFUNCTION(BlueprintCallable, Category = "State Machine", meta=(BlueprintThreadSafe, AdvancedDisplay = "4"))
-	static void SetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node, FName TargetState, float Duration
+	static ANIMGRAPHRUNTIME_API void SetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node, FName TargetState, float Duration
 		, TEnumAsByte<ETransitionLogicType::Type> BlendType, UBlendProfile* BlendProfile, EAlphaBlendOption AlphaBlendOption, UCurveFloat* CustomBlendCurve);
 
 	/** Returns the name of the current state of this state machine */
 	UFUNCTION(BlueprintPure, Category = "State Machine", meta=(BlueprintThreadSafe))
-	static FName GetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node);
+	static ANIMGRAPHRUNTIME_API FName GetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node);
 
 	/** Returns the remaining animation time of the state's most relevant asset player */
 	UFUNCTION(BlueprintPure, Category = "State Machine", meta = (BlueprintThreadSafe))
-	static float GetRelevantAnimTimeRemaining(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
+	static ANIMGRAPHRUNTIME_API float GetRelevantAnimTimeRemaining(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
 
 	/** Returns the remaining animation time as a fraction of the duration for the state's most relevant asset player */
 	UFUNCTION(BlueprintPure, Category = "State Machine", meta = (BlueprintThreadSafe))
-	static float GetRelevantAnimTimeRemainingFraction(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
+	static ANIMGRAPHRUNTIME_API float GetRelevantAnimTimeRemainingFraction(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
 };

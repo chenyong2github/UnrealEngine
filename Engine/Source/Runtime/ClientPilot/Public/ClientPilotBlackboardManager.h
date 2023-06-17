@@ -12,15 +12,15 @@
 class UClientPilotBlackboard;
 
 
-UCLASS()
-class CLIENTPILOT_API UClientPilotBlackboardManager : public UObject
+UCLASS(MinimalAPI)
+class UClientPilotBlackboardManager : public UObject
 {
 GENERATED_BODY()
 protected:
-	static UClientPilotBlackboardManager * ObjectInstance;
+	static CLIENTPILOT_API UClientPilotBlackboardManager * ObjectInstance;
 
 public:
-	static UClientPilotBlackboardManager * GetInstance();
+	static CLIENTPILOT_API UClientPilotBlackboardManager * GetInstance();
 	UPROPERTY()
 	TObjectPtr<UClientPilotBlackboard> PilotBlackboard;
 };

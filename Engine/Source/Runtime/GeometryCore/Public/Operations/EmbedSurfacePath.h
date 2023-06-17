@@ -27,7 +27,7 @@ enum class ESurfacePointType
 	Triangle = 2
 };
 
-struct GEOMETRYCORE_API FMeshSurfacePoint
+struct FMeshSurfacePoint
 {
 	int ElementID;
 	FVector3d BaryCoord;
@@ -46,7 +46,7 @@ struct GEOMETRYCORE_API FMeshSurfacePoint
 	{
 	}
 
-	FVector3d Pos(const FDynamicMesh3 *Mesh) const;
+	GEOMETRYCORE_API FVector3d Pos(const FDynamicMesh3 *Mesh) const;
 };
 
 /**
@@ -61,7 +61,7 @@ struct GEOMETRYCORE_API FMeshSurfacePoint
 /**
  * Represent a path on the surface of a mesh via barycentric coordinates and triangle references
  */
-class GEOMETRYCORE_API FMeshSurfacePath
+class FMeshSurfacePath
 {
 public:
 	FDynamicMesh3 *Mesh;
@@ -84,7 +84,7 @@ public:
 	/**
 	 * @return True if the Path exactly sticks to the mesh surface, and never jumps to disconnected elements
 	 */
-	bool IsConnected() const;
+	GEOMETRYCORE_API bool IsConnected() const;
 
 	bool IsClosed() const
 	{
@@ -97,7 +97,7 @@ public:
 		bIsClosed = false;
 	}
 
-	bool AddViaPlanarWalk(int StartTri, int StartVID, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt,
+	GEOMETRYCORE_API bool AddViaPlanarWalk(int StartTri, int StartVID, FVector3d StartPt, int EndTri, int EndVertID, FVector3d EndPt,
 		FVector3d WalkPlaneNormal, TFunction<FVector3d(const FDynamicMesh3*, int)> VertexToPosnFn = nullptr,
 		bool bAllowBackwardsSearch = true, double AcceptEndPtOutsideDist = FMathd::ZeroTolerance, 
 		double PtOnPlaneThresholdSq = FMathf::ZeroTolerance*100, double BackwardsTolerance = FMathd::ZeroTolerance*10);
@@ -108,7 +108,7 @@ public:
 	 *
 	 * @return true if succeeded
 	 */
-	bool ClosePath();
+	GEOMETRYCORE_API bool ClosePath();
 
 	/**
 	* @return EOperationValidationResult::Ok if we can apply operation, or error code if we cannot
@@ -141,7 +141,7 @@ public:
 	 * @param PathVertices Indices of the vertices on the path after embedding succeeds; NOTE these will not be 1:1 with the input Path
 	 * @return true if embedding succeeded.
 	 */
-	bool EmbedSimplePath(bool bUpdatePath, TArray<int>& PathVertices, bool bDoNotDuplicateFirstVertexID = true, double SnapElementThresholdSq = FMathf::ZeroTolerance*100);
+	GEOMETRYCORE_API bool EmbedSimplePath(bool bUpdatePath, TArray<int>& PathVertices, bool bDoNotDuplicateFirstVertexID = true, double SnapElementThresholdSq = FMathf::ZeroTolerance*100);
 
 	// TODO: add functionality to delete 'inside' of path -- but how do we determine what is inside?  ref MeshFacesFromLoop.cs in geometry3sharp
 };

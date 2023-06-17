@@ -9,13 +9,13 @@
 class AController;
 
 
-UCLASS()
-class AIMODULE_API UPathFollowingManager : public UObject, public IPathFollowingManagerInterface
+UCLASS(MinimalAPI)
+class UPathFollowingManager : public UObject, public IPathFollowingManagerInterface
 {
 	GENERATED_BODY()
 public:
-	UPathFollowingManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UPathFollowingManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	static void StopMovement(const AController& Controller);
-	static bool IsFollowingAPath(const AController& Controller);
+	static AIMODULE_API void StopMovement(const AController& Controller);
+	static AIMODULE_API bool IsFollowingAPath(const AController& Controller);
 };

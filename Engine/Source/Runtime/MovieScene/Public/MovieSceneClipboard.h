@@ -43,7 +43,7 @@ class UMovieSceneTrack;
  * In general, keys are stored relaative to the minumum key-time in the clipboard, or some arbitrary time.
  * This cardinal time is stored with the clipboard environment.
  */
-class MOVIESCENE_API FMovieSceneClipboardKey
+class FMovieSceneClipboardKey
 {
 public:
 	/** Templated constructor accepting a specific value type */
@@ -55,14 +55,14 @@ public:
 	}
 
 	/** Copy construction/assignment */
-	FMovieSceneClipboardKey(const FMovieSceneClipboardKey& In);
-	FMovieSceneClipboardKey& operator=(const FMovieSceneClipboardKey& In);
+	MOVIESCENE_API FMovieSceneClipboardKey(const FMovieSceneClipboardKey& In);
+	MOVIESCENE_API FMovieSceneClipboardKey& operator=(const FMovieSceneClipboardKey& In);
 
 	/** Get the time at which this key is defined */
-	FFrameNumber GetTime() const;
+	MOVIESCENE_API FFrameNumber GetTime() const;
 
 	/** Set the time at which this key is defined */
-	void SetTime(FFrameNumber InTime);
+	MOVIESCENE_API void SetTime(FFrameNumber InTime);
 
 	/**
 	 * Get the value of this key as the specified type.
@@ -181,11 +181,11 @@ public:
 
 private:
 	/** Static map of conversions between types */
-	static TMap<FName, TMap<FName, FConversionFunction>> ConversionMap;
+	static MOVIESCENE_API TMap<FName, TMap<FName, FConversionFunction>> ConversionMap;
 };
 
 /** Container for a collection of keys arranged in a track. */
-class MOVIESCENE_API FMovieSceneClipboardKeyTrack
+class FMovieSceneClipboardKeyTrack
 {
 public:
 
@@ -202,12 +202,12 @@ public:
 public:
 
 	/** Move construction/assignment */
-	FMovieSceneClipboardKeyTrack(FMovieSceneClipboardKeyTrack&& In);
-	FMovieSceneClipboardKeyTrack& operator=(FMovieSceneClipboardKeyTrack&& In);
+	MOVIESCENE_API FMovieSceneClipboardKeyTrack(FMovieSceneClipboardKeyTrack&& In);
+	MOVIESCENE_API FMovieSceneClipboardKeyTrack& operator=(FMovieSceneClipboardKeyTrack&& In);
 
 	/** Copy construction/assignment */
-	FMovieSceneClipboardKeyTrack(const FMovieSceneClipboardKeyTrack& In);
-	FMovieSceneClipboardKeyTrack& operator=(const FMovieSceneClipboardKeyTrack& In);
+	MOVIESCENE_API FMovieSceneClipboardKeyTrack(const FMovieSceneClipboardKeyTrack& In);
+	MOVIESCENE_API FMovieSceneClipboardKeyTrack& operator=(const FMovieSceneClipboardKeyTrack& In);
 
 	/** Check the type of the keys contained within this track */
 	template<typename KeyType>
@@ -253,7 +253,7 @@ public:
 	}
 
 	/** Get the name of this track */
-	const FName& GetName() const;
+	MOVIESCENE_API const FName& GetName() const;
 
 private:
 
@@ -289,31 +289,31 @@ struct FMovieSceneClipboardEnvironment
 };
 
 /** A clipboard representing serializable copied data for a movie scene */
-class MOVIESCENE_API FMovieSceneClipboard
+class FMovieSceneClipboard
 {
 public:
 	/** Default Constructor */
-	FMovieSceneClipboard();
+	MOVIESCENE_API FMovieSceneClipboard();
 
 	/** Move construction/assignment */
-	FMovieSceneClipboard(FMovieSceneClipboard&& In);
-	FMovieSceneClipboard& operator=(FMovieSceneClipboard&& In);
+	MOVIESCENE_API FMovieSceneClipboard(FMovieSceneClipboard&& In);
+	MOVIESCENE_API FMovieSceneClipboard& operator=(FMovieSceneClipboard&& In);
 
 	/** Copy construction/assignment */
-	FMovieSceneClipboard(const FMovieSceneClipboard& In);
-	FMovieSceneClipboard& operator=(const FMovieSceneClipboard& In);
+	MOVIESCENE_API FMovieSceneClipboard(const FMovieSceneClipboard& In);
+	MOVIESCENE_API FMovieSceneClipboard& operator=(const FMovieSceneClipboard& In);
 
 	/** Get the key track groups that were copied */
-	const TArray<TArray<FMovieSceneClipboardKeyTrack>>& GetKeyTrackGroups() const;
+	MOVIESCENE_API const TArray<TArray<FMovieSceneClipboardKeyTrack>>& GetKeyTrackGroups() const;
 
 	/** Get a text description of this clipboard for display on UI */
-	FText GetDisplayText() const;
+	MOVIESCENE_API FText GetDisplayText() const;
 
 	/** Get the environment to which this clipboard relates */
-	const FMovieSceneClipboardEnvironment& GetEnvironment() const;
+	MOVIESCENE_API const FMovieSceneClipboardEnvironment& GetEnvironment() const;
 
 	/** Get the environment to which this clipboard relates */
-	FMovieSceneClipboardEnvironment& GetEnvironment();
+	MOVIESCENE_API FMovieSceneClipboardEnvironment& GetEnvironment();
 
 private:
 	friend class FMovieSceneClipboardBuilder;
@@ -326,12 +326,12 @@ private:
 };
 
 /** Class responsible for building a clipboard for a movie scene */
-class MOVIESCENE_API FMovieSceneClipboardBuilder
+class FMovieSceneClipboardBuilder
 {
 public:
 
 	/** Generate a clipboard for the current state of this builder, resetting the builder back to its default state */
-	FMovieSceneClipboard Commit(TOptional<FFrameNumber> CopyRelativeTo);
+	MOVIESCENE_API FMovieSceneClipboard Commit(TOptional<FFrameNumber> CopyRelativeTo);
 
 	/**
 	 * Find or add a key track. Key tracks are group primarily by MovieSceneTrack instance, then by name

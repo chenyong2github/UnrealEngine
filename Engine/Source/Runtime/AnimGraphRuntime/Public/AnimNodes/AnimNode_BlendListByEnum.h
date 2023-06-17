@@ -9,7 +9,7 @@
 
 // Blend List by Enum, it changes based on enum input that enters
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendListByEnum : public FAnimNode_BlendListBase
+struct FAnimNode_BlendListByEnum : public FAnimNode_BlendListBase
 {
 	GENERATED_BODY()
 	
@@ -29,16 +29,16 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	// Set the mapping from enum value to BlendPose index. Called during compilation.
-	void SetEnumToPoseIndex(const TArray<int32>& InEnumToPoseIndex);
+	ANIMGRAPHRUNTIME_API void SetEnumToPoseIndex(const TArray<int32>& InEnumToPoseIndex);
 #endif
 	
 	// Get the mapping from enum value to BlendPose index; there will be one entry per entry in the enum; entries out of range always map to pose index 0
-	const TArray<int32>& GetEnumToPoseIndex() const;
+	ANIMGRAPHRUNTIME_API const TArray<int32>& GetEnumToPoseIndex() const;
 	
 	// Get the currently selected pose (as an enum value)
-	uint8 GetActiveEnumValue() const;
+	ANIMGRAPHRUNTIME_API uint8 GetActiveEnumValue() const;
 	
 protected:
-	virtual int32 GetActiveChildIndex() override;
+	ANIMGRAPHRUNTIME_API virtual int32 GetActiveChildIndex() override;
 	virtual FString GetNodeName(FNodeDebugData& DebugData) override { return DebugData.GetNodeName(this); }
 };

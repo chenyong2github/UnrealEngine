@@ -125,10 +125,10 @@ public:
 	static ASSETREGISTRY_API void FindReferencersOfAssetOfClass(const FAssetIdentifier& InAssetIdentifier, TConstArrayView<UClass*> InMatchClasses, TArray<FAssetData>& OutAssetDatas);
 	
 	/** Enable/disable asset registry caching mode for the duration of the scope */
-	struct ASSETREGISTRY_API FTemporaryCachingModeScope
+	struct FTemporaryCachingModeScope
 	{
-		FTemporaryCachingModeScope(bool InTempCachingMode);
-		~FTemporaryCachingModeScope();
+		ASSETREGISTRY_API FTemporaryCachingModeScope(bool InTempCachingMode);
+		ASSETREGISTRY_API ~FTemporaryCachingModeScope();
 
 	private:
 		bool PreviousCachingMode;

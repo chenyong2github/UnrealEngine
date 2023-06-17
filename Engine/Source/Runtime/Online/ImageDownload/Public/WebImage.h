@@ -39,12 +39,12 @@ typedef TSharedPtr<class IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
  *   SNew(SImage)
  *   .Image(ImageCache.Download(Url)->Attr())
  */
-class IMAGEDOWNLOAD_API FWebImage 
+class FWebImage 
 	: public TSharedFromThis<FWebImage>
 {
 public:
-	FWebImage();
-	~FWebImage();
+	IMAGEDOWNLOAD_API FWebImage();
+	IMAGEDOWNLOAD_API ~FWebImage();
 
 	/**
 	 * Fired when the image finishes downloading or is canceled.
@@ -59,7 +59,7 @@ public:
 	void SetRGBFormat(const ERGBFormat InRGBFormat) { RGBFormat = InRGBFormat; }
 
 	/** Begin downloading an image. This will automatically set the current brush to the downloaded image when it completes (if successful) */
-	bool BeginDownload(const FString& InUrl, const TOptional<FString>& StandInETag = TOptional<FString>(), const FOnImageDownloaded& DownloadCallback = FOnImageDownloaded());
+	IMAGEDOWNLOAD_API bool BeginDownload(const FString& InUrl, const TOptional<FString>& StandInETag = TOptional<FString>(), const FOnImageDownloaded& DownloadCallback = FOnImageDownloaded());
 
 	/** Begin downloading an image. */
 	FORCEINLINE bool BeginDownload(const FString& InUrl, const FOnImageDownloaded& DownloadCallback)
@@ -68,12 +68,12 @@ public:
 	}
 
 	/** Cancel any download in progress */
-	void CancelDownload();
+	IMAGEDOWNLOAD_API void CancelDownload();
 
 public:
 
 	/** Use .Attr() to pass this brush into a slate attribute */
-	TAttribute< const FSlateBrush* > Attr() const;
+	IMAGEDOWNLOAD_API TAttribute< const FSlateBrush* > Attr() const;
 
 	/** Get the current brush displayed (will automatically change when download completes) */
 	FORCEINLINE const FSlateBrush* GetBrush() const { return DownloadedBrush.IsValid() ? DownloadedBrush.Get() : StandInBrush.Get(); }
@@ -98,8 +98,8 @@ public:
 
 private:
 	/** request complete callback */
-	void HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
-	bool ProcessHttpResponse(const FString& RequestUrl, FHttpResponsePtr HttpResponse);
+	IMAGEDOWNLOAD_API void HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded);
+	IMAGEDOWNLOAD_API bool ProcessHttpResponse(const FString& RequestUrl, FHttpResponsePtr HttpResponse);
 
 private:
 	/** The Url being downloaded */

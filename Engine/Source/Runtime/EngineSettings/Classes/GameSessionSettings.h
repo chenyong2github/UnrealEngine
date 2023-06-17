@@ -8,8 +8,8 @@
 #include "GameSessionSettings.generated.h"
 
 
-UCLASS(config=Game)
-class ENGINESETTINGS_API UGameSessionSettings
+UCLASS(config=Game, MinimalAPI)
+class UGameSessionSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

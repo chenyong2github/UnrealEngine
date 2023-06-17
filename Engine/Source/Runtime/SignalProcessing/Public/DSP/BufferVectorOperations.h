@@ -303,24 +303,24 @@ namespace Audio
 	SIGNALPROCESSING_API void BufferSum2ChannelToMonoFast(const float* RESTRICT InSamples, float* RESTRICT OutSamples, const int32 InNumFrames);
 
 	/** Class which handles a vectorized interpolation of an entire buffer to the values of a target buffer */
-	class SIGNALPROCESSING_API FBufferLinearEase
+	class FBufferLinearEase
 	{
 	public:
-		FBufferLinearEase();
-		FBufferLinearEase(const FAlignedFloatBuffer& InSourceValues, const FAlignedFloatBuffer& InTargetValues, int32 InLerpLength);
-		~FBufferLinearEase();
+		SIGNALPROCESSING_API FBufferLinearEase();
+		SIGNALPROCESSING_API FBufferLinearEase(const FAlignedFloatBuffer& InSourceValues, const FAlignedFloatBuffer& InTargetValues, int32 InLerpLength);
+		SIGNALPROCESSING_API ~FBufferLinearEase();
 
 		/** will cache SourceValues ptr and manually update SourceValues on Update() */
-		void Init(const FAlignedFloatBuffer& InSourceValues, const FAlignedFloatBuffer& InTargetValues, int32 InLerpLength);
+		SIGNALPROCESSING_API void Init(const FAlignedFloatBuffer& InSourceValues, const FAlignedFloatBuffer& InTargetValues, int32 InLerpLength);
 
 		/** Performs Vectorized update of SourceValues float buffer. Returns true if interpolation is complete */
-		bool Update(FAlignedFloatBuffer& InSourceValues);
+		SIGNALPROCESSING_API bool Update(FAlignedFloatBuffer& InSourceValues);
 
 		/** Update overloaded to let you jump forward more than a single time-step */
-		bool Update(uint32 StepsToJumpForward, FAlignedFloatBuffer& InSourceValues);
+		SIGNALPROCESSING_API bool Update(uint32 StepsToJumpForward, FAlignedFloatBuffer& InSourceValues);
 
 		/** returns const reference to the deltas buffer for doing interpolation elsewhere */
-		const FAlignedFloatBuffer& GetDeltaBuffer();
+		SIGNALPROCESSING_API const FAlignedFloatBuffer& GetDeltaBuffer();
 
 	private:
 		int32 BufferLength {0};

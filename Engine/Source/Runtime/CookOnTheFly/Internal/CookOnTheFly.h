@@ -138,7 +138,7 @@ class FCookOnTheFlyMessage
 {
 public:
 	/** Creates a new instance of a cook-on-the-fly message. */
-	COOKONTHEFLY_API FCookOnTheFlyMessage() = default;
+	FCookOnTheFlyMessage() = default;
 
 	/** Creates a new instance of a cook-on-the-fly message with the specified message type. */
 	explicit FCookOnTheFlyMessage(ECookOnTheFlyMessage MessageType)
@@ -251,7 +251,7 @@ class FCookOnTheFlyRequest
 {
 public:
 	/** Creates a new instance of a cook-on-the-fly request. */
-	COOKONTHEFLY_API FCookOnTheFlyRequest() = default;
+	FCookOnTheFlyRequest() = default;
 
 	/** Creates a new instance of a cook-on-the-fly request with the specified request type. */
 	explicit FCookOnTheFlyRequest(ECookOnTheFlyMessage MessageType)
@@ -268,7 +268,7 @@ class FCookOnTheFlyResponse
 {
 public:
 	/** Creates a new instance of a cook-on-the-fly response. */
-	COOKONTHEFLY_API FCookOnTheFlyResponse() = default;
+	FCookOnTheFlyResponse() = default;
 
 	/** Creates a new instance of a cook-on-the-fly response with the specified response type. */
 	explicit FCookOnTheFlyResponse(ECookOnTheFlyMessage MessageType)

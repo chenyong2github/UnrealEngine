@@ -11,25 +11,25 @@
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_ProjectedPoints.h"
 #include "EnvQueryGenerator_Cone.generated.h"
 
-UCLASS(meta = (DisplayName = "Points: Cone"))
-class AIMODULE_API UEnvQueryGenerator_Cone : public UEnvQueryGenerator_ProjectedPoints
+UCLASS(meta = (DisplayName = "Points: Cone"), MinimalAPI)
+class UEnvQueryGenerator_Cone : public UEnvQueryGenerator_ProjectedPoints
 {
 	GENERATED_BODY()
 public:
-	UEnvQueryGenerator_Cone(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UEnvQueryGenerator_Cone(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	/** Binds data to data providers 
 	 *  @param QueryInstance - the instance of the query
 	 */
-	void BindDataToDataProviders(FEnvQueryInstance& QueryInstance) const;
+	AIMODULE_API void BindDataToDataProviders(FEnvQueryInstance& QueryInstance) const;
 	
-	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
+	AIMODULE_API virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
 
 	/** Returns the title of the generator on the corresponding node in the EQS Editor window */
-	virtual FText GetDescriptionTitle() const override;
+	AIMODULE_API virtual FText GetDescriptionTitle() const override;
 
 	/** Returns the details of the generator on the corresponding node in the EQS Editor window */
-	virtual FText GetDescriptionDetails() const override;
+	AIMODULE_API virtual FText GetDescriptionDetails() const override;
 
 protected:
 	/** Distance between each point of the same angle */

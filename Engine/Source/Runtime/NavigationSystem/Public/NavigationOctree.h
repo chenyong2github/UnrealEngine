@@ -19,7 +19,7 @@ typedef FNavigationRelevantDataFilter FNavigationOctreeFilter;
 
 LLM_DECLARE_TAG(NavigationOctree);
 
-struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
+struct FNavigationOctreeElement
 {
 	FBoxSphereBounds Bounds;
 	TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe> Data;
@@ -139,7 +139,7 @@ struct FNavigationOctreeSemantics
 	static void SetElementId(FOctree& OctreeOwner, const FNavigationOctreeElement& Element, FOctreeElementId2 Id);
 };
 
-class NAVIGATIONSYSTEM_API FNavigationOctree : public TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
+class FNavigationOctree : public TOctree2<FNavigationOctreeElement, FNavigationOctreeSemantics>, public TSharedFromThis<FNavigationOctree, ESPMode::ThreadSafe>
 {
 public:
 	DECLARE_DELEGATE_TwoParams(FNavigableGeometryComponentExportDelegate, UActorComponent*, FNavigationRelevantData&);
@@ -180,49 +180,49 @@ public:
 		INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
 	}
 
-	FNavigationOctree(const FVector& Origin, FVector::FReal Radius);
-	virtual ~FNavigationOctree();
+	NAVIGATIONSYSTEM_API FNavigationOctree(const FVector& Origin, FVector::FReal Radius);
+	NAVIGATIONSYSTEM_API virtual ~FNavigationOctree();
 
 	/** Add new node and fill it with navigation export data */
-	void AddNode(UObject* ElementOb, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Data);
+	NAVIGATIONSYSTEM_API void AddNode(UObject* ElementOb, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Data);
 
 	/** Append new data to existing node */
-	void AppendToNode(const FOctreeElementId2& Id, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Data);
+	NAVIGATIONSYSTEM_API void AppendToNode(const FOctreeElementId2& Id, INavRelevantInterface* NavElement, const FBox& Bounds, FNavigationOctreeElement& Data);
 
 	/** Updates element bounds remove/add operation */
-	void UpdateNode(const FOctreeElementId2& Id, const FBox& NewBounds);
+	NAVIGATIONSYSTEM_API void UpdateNode(const FOctreeElementId2& Id, const FBox& NewBounds);
 
 	/** Remove node */
-	void RemoveNode(const FOctreeElementId2& Id);
+	NAVIGATIONSYSTEM_API void RemoveNode(const FOctreeElementId2& Id);
 
-	void SetNavigableGeometryStoringMode(ENavGeometryStoringMode NavGeometryMode);
+	NAVIGATIONSYSTEM_API void SetNavigableGeometryStoringMode(ENavGeometryStoringMode NavGeometryMode);
 
-	const FNavigationRelevantData* GetDataForID(const FOctreeElementId2& Id) const;
+	NAVIGATIONSYSTEM_API const FNavigationRelevantData* GetDataForID(const FOctreeElementId2& Id) const;
 
 	ENavGeometryStoringMode GetNavGeometryStoringMode() const
 	{
 		return bGatherGeometry ? StoreNavGeometry : SkipNavGeometry;
 	}
 
-	void SetDataGatheringMode(ENavDataGatheringModeConfig Mode);
+	NAVIGATIONSYSTEM_API void SetDataGatheringMode(ENavDataGatheringModeConfig Mode);
 	
 	// Lazy data gathering methods
-	bool IsLazyGathering(const INavRelevantInterface& ChildNavInterface) const;
-	void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
-	void DemandChildLazyDataGathering(FNavigationRelevantData& ElementData, INavRelevantInterface& ChildNavInterface);
+	NAVIGATIONSYSTEM_API bool IsLazyGathering(const INavRelevantInterface& ChildNavInterface) const;
+	NAVIGATIONSYSTEM_API void DemandLazyDataGathering(FNavigationRelevantData& ElementData);
+	NAVIGATIONSYSTEM_API void DemandChildLazyDataGathering(FNavigationRelevantData& ElementData, INavRelevantInterface& ChildNavInterface);
 
 	FORCEINLINE static uint32 HashObject(const UObject& Object)
 	{
 		return Object.GetUniqueID();
 	}
 #if !UE_BUILD_SHIPPING	
-	void SetGatheringNavModifiersTimeLimitWarning(const float Threshold);
+	NAVIGATIONSYSTEM_API void SetGatheringNavModifiersTimeLimitWarning(const float Threshold);
 #endif // !UE_BUILD_SHIPPING	
 protected:
 	friend struct FNavigationOctreeController;
 	friend struct FNavigationOctreeSemantics;
 
-	void SetElementIdImpl(const uint32 OwnerUniqueId, FOctreeElementId2 Id);
+	NAVIGATIONSYSTEM_API void SetElementIdImpl(const uint32 OwnerUniqueId, FOctreeElementId2 Id);
 
 	TMap<uint32, FOctreeElementId2> ObjectToOctreeId;
 	ENavDataGatheringMode DefaultGeometryGatheringMode;

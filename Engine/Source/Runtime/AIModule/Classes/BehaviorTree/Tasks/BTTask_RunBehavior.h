@@ -19,23 +19,23 @@
  * Use RunBehaviorDynamic task for subtrees that need to be changed in runtime.
  */
 
-UCLASS()
-class AIMODULE_API UBTTask_RunBehavior : public UBTTaskNode
+UCLASS(MinimalAPI)
+class UBTTask_RunBehavior : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 
 	/** @returns number of injected nodes */
-	int32 GetInjectedNodesCount() const;
+	AIMODULE_API int32 GetInjectedNodesCount() const;
 
 	/** @returns subtree asset */
-	UBehaviorTree* GetSubtreeAsset() const;
+	AIMODULE_API UBehaviorTree* GetSubtreeAsset() const;
 
 protected:
 
@@ -44,7 +44,7 @@ protected:
 	TObjectPtr<UBehaviorTree> BehaviorAsset;
 
 	/** called when subtree is removed from active stack */
-	virtual void OnSubtreeDeactivated(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type NodeResult);
+	AIMODULE_API virtual void OnSubtreeDeactivated(UBehaviorTreeComponent& OwnerComp, EBTNodeResult::Type NodeResult);
 };
 
 //////////////////////////////////////////////////////////////////////////

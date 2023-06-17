@@ -15,7 +15,7 @@ enum class ESpatialInputGestureAxis : uint8
 
 
 USTRUCT(BlueprintType, meta = (Deprecated = "5.3"))
-struct HEADMOUNTEDDISPLAY_API FXRGestureConfig
+struct FXRGestureConfig
 {
 	GENERATED_BODY()
 

@@ -24,7 +24,7 @@ struct FDataflowOutput;
 *       evaluation graph. 
 */
 USTRUCT()
-struct DATAFLOWCORE_API FDataflowTerminalNode : public FDataflowNode
+struct FDataflowTerminalNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 

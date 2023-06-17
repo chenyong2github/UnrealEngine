@@ -4,25 +4,25 @@
 
 #include "GenericPlatform/GenericPlatformApplicationMisc.h"
 
-struct APPLICATIONCORE_API FAndroidApplicationMisc : public FGenericPlatformApplicationMisc
+struct FAndroidApplicationMisc : public FGenericPlatformApplicationMisc
 {
-	static void LoadPreInitModules();
-	static class FFeedbackContext* GetFeedbackContext();
-	static class FOutputDeviceError* GetErrorOutputDevice();
-	static class GenericApplication* CreateApplication();
-	static void RequestMinimize();
-	static bool IsScreensaverEnabled();
-	static bool ControlScreensaver(EScreenSaverAction Action);
-	static void SetGamepadsAllowed(bool bAllowed);
-	static void SetGamepadsBlockDeviceFeedback(bool bBlock);
-	static void ResetGamepadAssignments();
-	static void ResetGamepadAssignmentToController(int32 ControllerId);
-	static bool IsControllerAssignedToGamepad(int32 ControllerId);
-	static FString GetGamepadControllerName(int32 ControllerId);
-	static void ClipboardCopy(const TCHAR* Str);
-	static void ClipboardPaste(class FString& Dest);
-	static EScreenPhysicalAccuracy ComputePhysicalScreenDensity(int32& OutScreenDensity);
-	static void EnableMotionData(bool bEnable);
+	static APPLICATIONCORE_API void LoadPreInitModules();
+	static APPLICATIONCORE_API class FFeedbackContext* GetFeedbackContext();
+	static APPLICATIONCORE_API class FOutputDeviceError* GetErrorOutputDevice();
+	static APPLICATIONCORE_API class GenericApplication* CreateApplication();
+	static APPLICATIONCORE_API void RequestMinimize();
+	static APPLICATIONCORE_API bool IsScreensaverEnabled();
+	static APPLICATIONCORE_API bool ControlScreensaver(EScreenSaverAction Action);
+	static APPLICATIONCORE_API void SetGamepadsAllowed(bool bAllowed);
+	static APPLICATIONCORE_API void SetGamepadsBlockDeviceFeedback(bool bBlock);
+	static APPLICATIONCORE_API void ResetGamepadAssignments();
+	static APPLICATIONCORE_API void ResetGamepadAssignmentToController(int32 ControllerId);
+	static APPLICATIONCORE_API bool IsControllerAssignedToGamepad(int32 ControllerId);
+	static APPLICATIONCORE_API FString GetGamepadControllerName(int32 ControllerId);
+	static APPLICATIONCORE_API void ClipboardCopy(const TCHAR* Str);
+	static APPLICATIONCORE_API void ClipboardPaste(class FString& Dest);
+	static APPLICATIONCORE_API EScreenPhysicalAccuracy ComputePhysicalScreenDensity(int32& OutScreenDensity);
+	static APPLICATIONCORE_API void EnableMotionData(bool bEnable);
 };
 
 typedef FAndroidApplicationMisc FPlatformApplicationMisc;

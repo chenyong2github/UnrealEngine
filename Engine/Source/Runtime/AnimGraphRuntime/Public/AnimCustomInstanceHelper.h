@@ -31,7 +31,7 @@
 #include "Engine/World.h"
 #include "SequencerAnimationSupport.h"
 
-class ANIMGRAPHRUNTIME_API FAnimCustomInstanceHelper
+class FAnimCustomInstanceHelper
 {
 public:
 	/** 
@@ -286,5 +286,5 @@ public:
 
 private:
 	/** Helper function for BindToSkeletalMeshComponent */
-	static bool ShouldCreateCustomInstancePlayer(const USkeletalMeshComponent* SkeletalMeshComponent);
+	static ANIMGRAPHRUNTIME_API bool ShouldCreateCustomInstancePlayer(const USkeletalMeshComponent* SkeletalMeshComponent);
 };

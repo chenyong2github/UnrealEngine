@@ -13,7 +13,7 @@ class UObject;
 namespace Dataflow
 {
 	template<class Base = FContextSingle>
-	class DATAFLOWENGINE_API TEngineContext : public Base
+	class TEngineContext : public Base
 	{
 	public:
 		DATAFLOW_CONTEXT_INTERNAL(Base, TEngineContext);

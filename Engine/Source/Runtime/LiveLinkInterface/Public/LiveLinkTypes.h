@@ -36,7 +36,7 @@
 
 
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkSubjectName
+struct FLiveLinkSubjectName
 {
 public:
 	GENERATED_BODY()
@@ -74,7 +74,7 @@ public:
 
 // Structure that identifies an individual subject
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkSubjectKey
+struct FLiveLinkSubjectKey
 {
 	GENERATED_BODY()
 
@@ -169,7 +169,7 @@ private:
 
 
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkTime
+struct FLiveLinkTime
 {
 	GENERATED_BODY()
 
@@ -194,7 +194,7 @@ struct LIVELINKINTERFACE_API FLiveLinkTime
 
 
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkMetaData
+struct FLiveLinkMetaData
 {
 	GENERATED_BODY()
 
@@ -213,7 +213,7 @@ using FLiveLinkFrameIdentifier = int32;
  * @note subclass can't contains reference to UObject
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkBaseFrameData
+struct FLiveLinkBaseFrameData
 {
 	GENERATED_BODY();
 
@@ -246,7 +246,7 @@ struct LIVELINKINTERFACE_API FLiveLinkBaseFrameData
  * @note subclass can't contains reference to UObject
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkBaseStaticData
+struct FLiveLinkBaseStaticData
 {
 	GENERATED_BODY()
 
@@ -276,7 +276,7 @@ struct LIVELINKINTERFACE_API FLiveLinkBaseStaticData
  * Can be used to do blueprint facilitator per role
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkBaseBlueprintData
+struct FLiveLinkBaseBlueprintData
 {
 	GENERATED_BODY();
 

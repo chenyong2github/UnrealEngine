@@ -29,19 +29,19 @@ class UObject;
  *    
  * The hit-test and on-clicked functions are provided by a IClickBehaviorTarget instance.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API USingleClickInputBehavior : public UAnyButtonInputBehavior
+UCLASS(MinimalAPI)
+class USingleClickInputBehavior : public UAnyButtonInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	USingleClickInputBehavior();
+	INTERACTIVETOOLSFRAMEWORK_API USingleClickInputBehavior();
 
 	/**
 	 * Initialize this behavior with the given Target
 	 * @param Target implementor of hit-test and on-clicked functions
 	 */
-	virtual void Initialize(IClickBehaviorTarget* Target);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IClickBehaviorTarget* Target);
 
 
 	/**
@@ -52,10 +52,10 @@ public:
 
 	// UInputBehavior implementation
 
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide) override;
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
-	virtual void ForceEndCapture(const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceEndCapture(const FInputCaptureData& Data) override;
 
 
 public:
@@ -76,7 +76,7 @@ protected:
 	/**
 	 * Internal function that forwards click evens to Target::OnClicked, you can customize behavior here
 	 */
-	virtual void Clicked(const FInputDeviceState& Input, const FInputCaptureData& Data);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Clicked(const FInputDeviceState& Input, const FInputCaptureData& Data);
 };
 
 /**
@@ -84,8 +84,8 @@ protected:
  * of local lambda functions. To use/customize this class, the client replaces the lambda functions with their own.
  * This avoids having to create a separate IClickBehaviorTarget implementation for trivial use-cases.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API ULocalSingleClickInputBehavior : public USingleClickInputBehavior, public IClickBehaviorTarget
+UCLASS(MinimalAPI)
+class ULocalSingleClickInputBehavior : public USingleClickInputBehavior, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
 protected:

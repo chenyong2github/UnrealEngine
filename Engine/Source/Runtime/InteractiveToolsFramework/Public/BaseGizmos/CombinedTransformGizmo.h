@@ -35,13 +35,13 @@ class FTransformGizmoTransformChange;
  * The static factory method ::ConstructDefault3AxisGizmo() creates and initializes an 
  * Actor suitable for use in a standard 3-axis Transformation Gizmo.
  */
-UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
-class INTERACTIVETOOLSFRAMEWORK_API ACombinedTransformGizmoActor : public AGizmoActor
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType, MinimalAPI)
+class ACombinedTransformGizmoActor : public AGizmoActor
 {
 	GENERATED_BODY()
 public:
 
-	ACombinedTransformGizmoActor();
+	INTERACTIVETOOLSFRAMEWORK_API ACombinedTransformGizmoActor();
 
 public:
 	//
@@ -134,7 +134,7 @@ public:
 	 * Create a new instance of ACombinedTransformGizmoActor and populate the various
 	 * sub-components with standard GizmoXComponent instances suitable for a 3-axis transformer Gizmo
 	 */
-	static ACombinedTransformGizmoActor* ConstructDefault3AxisGizmo(
+	static INTERACTIVETOOLSFRAMEWORK_API ACombinedTransformGizmoActor* ConstructDefault3AxisGizmo(
 		UWorld* World, UGizmoViewContext* GizmoViewContext
 	);
 
@@ -142,7 +142,7 @@ public:
 	 * Create a new instance of ACombinedTransformGizmoActor. Populate the sub-components 
 	 * specified by Elements with standard GizmoXComponent instances suitable for a 3-axis transformer Gizmo
 	 */
-	static ACombinedTransformGizmoActor* ConstructCustom3AxisGizmo(
+	static INTERACTIVETOOLSFRAMEWORK_API ACombinedTransformGizmoActor* ConstructCustom3AxisGizmo(
 		UWorld* World, UGizmoViewContext* GizmoViewContext,
 		ETransformGizmoSubElements Elements
 	);
@@ -163,7 +163,7 @@ public:
  * a three-axis transformation Gizmo, override this function to customize
  * the Actor sub-elements.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FCombinedTransformGizmoActorFactory
+class FCombinedTransformGizmoActorFactory
 {
 public:
 	FCombinedTransformGizmoActorFactory(UGizmoViewContext* GizmoViewContextIn)
@@ -184,7 +184,7 @@ public:
 	 * @param World the UWorld to create the new Actor in
 	 * @return new ACombinedTransformGizmoActor instance with members initialized with Components suitable for a transformation Gizmo
 	 */
-	virtual ACombinedTransformGizmoActor* CreateNewGizmoActor(UWorld* World) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual ACombinedTransformGizmoActor* CreateNewGizmoActor(UWorld* World) const;
 
 protected:
 	/**
@@ -200,8 +200,8 @@ protected:
 
 
 
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmoBuilder : public UInteractiveGizmoBuilder
+UCLASS(MinimalAPI)
+class UCombinedTransformGizmoBuilder : public UInteractiveGizmoBuilder
 {
 	GENERATED_BODY()
 
@@ -242,7 +242,7 @@ public:
 	TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> UpdateCoordSystemFunction;
 
 
-	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -252,7 +252,7 @@ public:
  * This struct does not directly do anything, it just wraps up the multiple flags/states
  * needed to provide such functionality
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FToolContextOptionalToggle
+struct FToolContextOptionalToggle
 {
 	bool bEnabledDirectly = false;
 	bool bEnabledInContext = false;
@@ -288,18 +288,18 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolContextOptionalToggle
  * a suitably-configured GizmoActor and everything else will be handled automatically.
  * 
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UCombinedTransformGizmo : public UInteractiveGizmo
+UCLASS(MinimalAPI)
+class UCombinedTransformGizmo : public UInteractiveGizmo
 {
 	GENERATED_BODY()
 
 public:
 
-	virtual void SetWorld(UWorld* World);
-	virtual void SetGizmoActorBuilder(TSharedPtr<FCombinedTransformGizmoActorFactory> Builder);
-	virtual void SetSubGizmoBuilderIdentifiers(FString AxisPositionBuilderIdentifier, FString PlanePositionBuilderIdentifier, FString AxisAngleBuilderIdentifier);
-	virtual void SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction);
-	virtual void SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetWorld(UWorld* World);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetGizmoActorBuilder(TSharedPtr<FCombinedTransformGizmoActorFactory> Builder);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetSubGizmoBuilderIdentifiers(FString AxisPositionBuilderIdentifier, FString PlanePositionBuilderIdentifier, FString AxisAngleBuilderIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction);
 	
 	/**
 	 * If used, binds alignment functions to the sub gizmos that they can use to align to geometry in the scene. 
@@ -309,7 +309,7 @@ public:
 	 * Subgizmos align to the point in different ways, usually by projecting onto the axis or plane that they
 	 * operate in.
 	 */
-	virtual void SetWorldAlignmentFunctions(
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetWorldAlignmentFunctions(
 		TUniqueFunction<bool()>&& ShouldAlignDestination,
 		TUniqueFunction<bool(const FRay&, FVector&)>&& DestinationAlignmentRayCaster
 		);
@@ -320,7 +320,7 @@ public:
 	 * locally scaled. However, this can be changed to a custom check here, perhaps to hide them in extra
 	 * conditions or to always show them (if the gizmo is not scaling a component).
 	 */
-	virtual void SetIsNonUniformScaleAllowedFunction(
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetIsNonUniformScaleAllowedFunction(
 		TUniqueFunction<bool()>&& IsNonUniformScaleAllowed
 	);
 
@@ -336,24 +336,24 @@ public:
 	 *
 	 * TODO: Should this affect uniform scaling too?
 	 */
-	virtual void SetDisallowNegativeScaling(bool bDisallow);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDisallowNegativeScaling(bool bDisallow);
 
 	// UInteractiveGizmo overrides
-	virtual void Setup() override;
-	virtual void Shutdown() override;
-	virtual void Tick(float DeltaTime) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Tick(float DeltaTime) override;
 
 	/**
 	 * Set the active target object for the Gizmo
 	 * @param Target active target
 	 * @param TransactionProvider optional IToolContextTransactionProvider implementation to use - by default uses GizmoManager
 	 */
-	virtual void SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider = nullptr);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetActiveTarget(UTransformProxy* Target, IToolContextTransactionProvider* TransactionProvider = nullptr);
 
 	/**
 	 * Clear the active target object for the Gizmo
 	 */
-	virtual void ClearActiveTarget();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearActiveTarget();
 
 	/** The active target object for the Gizmo */
 	UPROPERTY()
@@ -367,7 +367,7 @@ public:
 	/**
 	 * @return current transform of Gizmo
 	 */
-	FTransform GetGizmoTransform() const;
+	INTERACTIVETOOLSFRAMEWORK_API FTransform GetGizmoTransform() const;
 
 	/**
 	 * Repositions the gizmo without issuing undo/redo changes, triggering callbacks, 
@@ -375,41 +375,41 @@ public:
 	 * it being viewed as a gizmo manipulation.
 	 * @param bKeepGizmoUnscaled If true, the scale component of NewTransform is passed through to the target but gizmo scale is set to 1
 	 */
-	void ReinitializeGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
+	INTERACTIVETOOLSFRAMEWORK_API void ReinitializeGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
 
 	/**
 	 * Set a new position for the Gizmo. This is done via the same mechanisms as the sub-gizmos,
 	 * so it generates the same Change/Modify() events, and hence works with Undo/Redo
 	 * @param bKeepGizmoUnscaled If true, the scale component of NewTransform is passed through to the target but gizmo scale is set to 1
 	 */
-	virtual void SetNewGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetNewGizmoTransform(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
 
 	/**
 	 * Called at the start of a sequence of gizmo transform edits, for instance while dragging or
 	 * manipulating the gizmo numerical UI.
 	 */
-	virtual void BeginTransformEditSequence();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginTransformEditSequence();
 
 	/**
 	 * Called at the end of a sequence of gizmo transform edits.
 	 */
-	virtual void EndTransformEditSequence();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndTransformEditSequence();
 
 	/**
 	 * Updates the gizmo transform between Begin/EndTransformeditSequence calls.
 	 */
-	void UpdateTransformDuringEditSequence(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
+	INTERACTIVETOOLSFRAMEWORK_API void UpdateTransformDuringEditSequence(const FTransform& NewTransform, bool bKeepGizmoUnscaled = true);
 
 	/**
 	 * Explicitly set the child scale. Mainly useful to "reset" the child scale to (1,1,1) when re-using Gizmo across multiple transform actions.
 	 * @warning does not generate change/modify events!!
 	 */
-	virtual void SetNewChildScale(const FVector& NewChildScale);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetNewChildScale(const FVector& NewChildScale);
 
 	/**
 	 * Set visibility for this Gizmo
 	 */
-	virtual void SetVisibility(bool bVisible);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetVisibility(bool bVisible);
 
 	/**
 	 * @return true if Gizmo is visible
@@ -489,7 +489,7 @@ public:
 	 * Gets the elements that this gizmo was initialized with. Note that this may not account for individual
 	 * element visibility- for instance the scaling component may not be visible if IsNonUniformScaleAllowed() is false.
 	 */
-	ETransformGizmoSubElements GetGizmoElements();
+	INTERACTIVETOOLSFRAMEWORK_API ETransformGizmoSubElements GetGizmoElements();
 
 
 	/**
@@ -503,7 +503,7 @@ public:
 	 * Note that this is an optional feature, as it would require tools to keep this transform up to date if they
 	 * want the UI to use it, so tools could just leave it unset.
 	 */
-	void SetDisplaySpaceTransform(TOptional<FTransform> TransformIn);
+	INTERACTIVETOOLSFRAMEWORK_API void SetDisplaySpaceTransform(TOptional<FTransform> TransformIn);
 	const TOptional<FTransform>& GetDisplaySpaceTransform() { return DisplaySpaceTransform; }
 
 	/**
@@ -587,7 +587,7 @@ protected:
 	TObjectPtr<UGizmoConstantFrameAxisSource> CameraAxisSource;
 
 	// internal function that updates CameraAxisSource by getting current view state from GizmoManager
-	void UpdateCameraAxisSource();
+	INTERACTIVETOOLSFRAMEWORK_API void UpdateCameraAxisSource();
 
 
 	/** X-axis source is shared across Gizmos, and created internally during SetActiveTarget() */
@@ -650,7 +650,7 @@ protected:
 
 
 	/** @return a new instance of the standard axis-translation Gizmo */
-	virtual UInteractiveGizmo* AddAxisTranslationGizmo(
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* AddAxisTranslationGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource, 
@@ -658,7 +658,7 @@ protected:
 		int AxisIndex);
 
 	/** @return a new instance of the standard plane-translation Gizmo */
-	virtual UInteractiveGizmo* AddPlaneTranslationGizmo(
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* AddPlaneTranslationGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource,
@@ -666,37 +666,37 @@ protected:
 		int XAxisIndex, int YAxisIndex);
 
 	/** @return a new instance of the standard axis-rotation Gizmo */
-	virtual UInteractiveGizmo* AddAxisRotationGizmo(
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* AddAxisRotationGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 		IGizmoAxisSource* AxisSource,
 		IGizmoTransformSource* TransformSource,
 		IGizmoStateTarget* StateTarget);
 
 	/** @return a new instance of the standard axis-scaling Gizmo */
-	virtual UInteractiveGizmo* AddAxisScaleGizmo(
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* AddAxisScaleGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 		IGizmoAxisSource* GizmoAxisSource, IGizmoAxisSource* ParameterAxisSource,
 		IGizmoTransformSource* TransformSource,
 		IGizmoStateTarget* StateTarget);
 
 	/** @return a new instance of the standard plane-scaling Gizmo */
-	virtual UInteractiveGizmo* AddPlaneScaleGizmo(
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* AddPlaneScaleGizmo(
 		UPrimitiveComponent* AxisComponent, USceneComponent* RootComponent,
 		IGizmoAxisSource* GizmoAxisSource, IGizmoAxisSource* ParameterAxisSource,
 		IGizmoTransformSource* TransformSource,
 		IGizmoStateTarget* StateTarget);
 
 	/** @return a new instance of the standard plane-scaling Gizmo */
-	virtual UInteractiveGizmo* AddUniformScaleGizmo(
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* AddUniformScaleGizmo(
 		UPrimitiveComponent* ScaleComponent, USceneComponent* RootComponent,
 		IGizmoAxisSource* GizmoAxisSource, IGizmoAxisSource* ParameterAxisSource,
 		IGizmoTransformSource* TransformSource,
 		IGizmoStateTarget* StateTarget);
 
 	// Axis and Plane TransformSources use these function to execute snapping queries
-	bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
-	bool PositionAxisDeltaSnapFunction(double AxisDelta, double& SnappedDeltaOut, int AxisIndex) const;
-	FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
-	bool RotationAxisAngleSnapFunction(double AxisAngleDelta, double& SnappedAxisAngleDeltaOut, int AxisIndex) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool PositionSnapFunction(const FVector& WorldPosition, FVector& SnappedPositionOut) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool PositionAxisDeltaSnapFunction(double AxisDelta, double& SnappedDeltaOut, int AxisIndex) const;
+	INTERACTIVETOOLSFRAMEWORK_API FQuat RotationSnapFunction(const FQuat& DeltaRotation) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool RotationAxisAngleSnapFunction(double AxisAngleDelta, double& SnappedAxisAngleDeltaOut, int AxisIndex) const;
 
 };

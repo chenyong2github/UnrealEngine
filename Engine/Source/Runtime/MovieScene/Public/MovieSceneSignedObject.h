@@ -44,10 +44,10 @@ struct IDeferredSignedObjectChangeHandler
 	virtual void ResetImplicitScopedModifyDefer() = 0;
 };
 
-struct MOVIESCENE_API FScopedSignedObjectModifyDefer
+struct FScopedSignedObjectModifyDefer
 {
-	FScopedSignedObjectModifyDefer(bool bInForceFlush = false);
-	~FScopedSignedObjectModifyDefer();
+	MOVIESCENE_API FScopedSignedObjectModifyDefer(bool bInForceFlush = false);
+	MOVIESCENE_API ~FScopedSignedObjectModifyDefer();
 
 private:
 	bool bForceFlush;
@@ -59,24 +59,24 @@ private:
 
 
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneSignedObject : public UObject
+UCLASS(MinimalAPI)
+class UMovieSceneSignedObject : public UObject
 {
 public:
 	GENERATED_BODY()
 
-	UMovieSceneSignedObject(const FObjectInitializer& Init);
+	MOVIESCENE_API UMovieSceneSignedObject(const FObjectInitializer& Init);
 
-	static TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler> GetDeferredHandler();
-	static void SetDeferredHandler(TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler>&& InHandler);
-	static void AddFlushSignal(TWeakPtr<UE::MovieScene::IDeferredSignedObjectFlushSignal> Signal);
-	static void ResetImplicitScopedModifyDefer();
+	static MOVIESCENE_API TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler> GetDeferredHandler();
+	static MOVIESCENE_API void SetDeferredHandler(TWeakPtr<UE::MovieScene::IDeferredSignedObjectChangeHandler>&& InHandler);
+	static MOVIESCENE_API void AddFlushSignal(TWeakPtr<UE::MovieScene::IDeferredSignedObjectFlushSignal> Signal);
+	static MOVIESCENE_API void ResetImplicitScopedModifyDefer();
 
 	/**
 	 * Mark this object as having been changed in any way. Will regenerate this object's Signature
 	 * and schedule an event to be broadcast to notify subscribers of the change
 	 */
-	void MarkAsChanged();
+	MOVIESCENE_API void MarkAsChanged();
 
 	/**
 	 * Retrieve this object's signature that uniquely identifies its current state.
@@ -91,7 +91,7 @@ public:
 	/**
 	 * Immediately broadcast events for this object being changed
 	 */
-	void BroadcastChanged();
+	MOVIESCENE_API void BroadcastChanged();
 
 	/** Event that is triggered whenever this object's signature has changed */
 	DECLARE_EVENT(UMovieSceneSignedObject, FOnSignatureChanged)
@@ -102,14 +102,14 @@ public:
 
 public:
 
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	MOVIESCENE_API virtual void PostInitProperties() override;
+	MOVIESCENE_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
-	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
+	MOVIESCENE_API virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	MOVIESCENE_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	MOVIESCENE_API virtual void PostEditUndo() override;
+	MOVIESCENE_API virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
 #endif
 
 private:

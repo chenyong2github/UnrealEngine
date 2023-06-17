@@ -28,7 +28,7 @@ enum class EEulerRotationOrder : uint8
 };
 
 USTRUCT(BlueprintType)
-struct ANIMATIONCORE_API FEulerTransform
+struct FEulerTransform
 {
 	GENERATED_BODY()
 
@@ -37,7 +37,7 @@ struct ANIMATIONCORE_API FEulerTransform
 	/**
 	 * The identity transformation (Rotation = FRotator::ZeroRotator, Translation = FVector::ZeroVector, Scale = (1,1,1)).
 	 */
-	static const FEulerTransform Identity;
+	static ANIMATIONCORE_API const FEulerTransform Identity;
 
 	FORCEINLINE FEulerTransform()
 		: Location(ForceInitToZero)
@@ -115,5 +115,5 @@ struct ANIMATIONCORE_API FEulerTransform
 
 template<> struct TBaseStructure<FEulerTransform>
 {
-	ANIMATIONCORE_API static UScriptStruct* Get() { return FEulerTransform::StaticStruct(); }
+	static UScriptStruct* Get() { return FEulerTransform::StaticStruct(); }
 };

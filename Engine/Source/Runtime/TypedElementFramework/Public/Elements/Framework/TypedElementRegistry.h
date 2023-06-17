@@ -50,47 +50,47 @@
 /**
  * Registry of element types and their associated interfaces, along with the elements that represent their instances.
  */
-UCLASS(Transient)
-class TYPEDELEMENTFRAMEWORK_API UTypedElementRegistry : public UObject
+UCLASS(Transient, MinimalAPI)
+class UTypedElementRegistry : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UTypedElementRegistry();
+	TYPEDELEMENTFRAMEWORK_API UTypedElementRegistry();
 
 	//~ UObject interface
-	virtual void FinishDestroy() override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	TYPEDELEMENTFRAMEWORK_API virtual void FinishDestroy() override;
+	static TYPEDELEMENTFRAMEWORK_API void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/**
 	 * Initialize the singleton instance of the registry used in most cases.
 	 */
-	static void Private_InitializeInstance();
+	static TYPEDELEMENTFRAMEWORK_API void Private_InitializeInstance();
 
 	/**
 	 * Shutdown the singleton instance of the registry used in most cases.
 	 */
-	static void Private_ShutdownInstance();
+	static TYPEDELEMENTFRAMEWORK_API void Private_ShutdownInstance();
 
 	/**
 	 * Get the singleton instance of the registry used in most cases.
 	 */
 	UFUNCTION(BlueprintPure, DisplayName="Get Default Typed Element Registry", Category = "TypedElementFramework|Registry", meta=(ScriptName="GetDefaultTypedElementRegistry"))
-	static UTypedElementRegistry* GetInstance();
+	static TYPEDELEMENTFRAMEWORK_API UTypedElementRegistry* GetInstance();
 
-	ITypedElementDataStorageInterface* GetMutableDataStorage();
-	const ITypedElementDataStorageInterface* GetDataStorage() const;
-	void SetDataStorage(ITypedElementDataStorageInterface* Storage);
+	TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface* GetMutableDataStorage();
+	TYPEDELEMENTFRAMEWORK_API const ITypedElementDataStorageInterface* GetDataStorage() const;
+	TYPEDELEMENTFRAMEWORK_API void SetDataStorage(ITypedElementDataStorageInterface* Storage);
 
-	ITypedElementDataStorageCompatibilityInterface* GetMutableDataStorageCompatibility();
-	const ITypedElementDataStorageCompatibilityInterface* GetDataStorageCompatibility() const;
-	void SetDataStorageCompatibility(ITypedElementDataStorageCompatibilityInterface* Storage);
+	TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageCompatibilityInterface* GetMutableDataStorageCompatibility();
+	TYPEDELEMENTFRAMEWORK_API const ITypedElementDataStorageCompatibilityInterface* GetDataStorageCompatibility() const;
+	TYPEDELEMENTFRAMEWORK_API void SetDataStorageCompatibility(ITypedElementDataStorageCompatibilityInterface* Storage);
 
-	ITypedElementDataStorageUiInterface* GetMutableDataStorageUi();
-	const ITypedElementDataStorageUiInterface* GetDataStorageUi() const;
-	void SetDataStorageUi(ITypedElementDataStorageUiInterface* Storage);
+	TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageUiInterface* GetMutableDataStorageUi();
+	TYPEDELEMENTFRAMEWORK_API const ITypedElementDataStorageUiInterface* GetDataStorageUi() const;
+	TYPEDELEMENTFRAMEWORK_API void SetDataStorageUi(ITypedElementDataStorageUiInterface* Storage);
 
-	bool AreDataStorageInterfacesSet() const;
+	TYPEDELEMENTFRAMEWORK_API bool AreDataStorageInterfacesSet() const;
 
 	/**
 	 * Event fired when all Data Storage Interfaces have been set. 
@@ -263,17 +263,17 @@ public:
 	 * @note This is automatically called at the end of each frame, but may also be called manually.
 	 * @note This is automatically called post-GC, unless auto-GC destruction has been disabled (@see FDisableElementDestructionOnGC).
 	 */
-	void ProcessDeferredElementsToDestroy();
+	TYPEDELEMENTFRAMEWORK_API void ProcessDeferredElementsToDestroy();
 
 	/**
 	 * Release an element ID that was previously acquired from an existing handle.
 	 */
-	void ReleaseElementId(FTypedElementId& InOutElementId);
+	TYPEDELEMENTFRAMEWORK_API void ReleaseElementId(FTypedElementId& InOutElementId);
 
 	/**
 	 * Get an element handle from its minimal ID.
 	 */
-	FTypedElementHandle GetElementHandle(const FTypedElementId& InElementId) const;
+	TYPEDELEMENTFRAMEWORK_API FTypedElementHandle GetElementHandle(const FTypedElementId& InElementId) const;
 
 	/**
 	 * Get an element that implements the given interface from its minimal ID.
@@ -336,12 +336,12 @@ public:
 	/**
 	 * Create an empty list of elements associated with this registry, populated from the given minimal IDs that are valid.
 	 */
-	FTypedElementListRef CreateElementList(TArrayView<const FTypedElementId> InElementIds);
+	TYPEDELEMENTFRAMEWORK_API FTypedElementListRef CreateElementList(TArrayView<const FTypedElementId> InElementIds);
 
 	/**
 	 * Create an empty list of elements associated with this registry, populated from the given handles that are valid.
 	 */
-	FTypedElementListRef CreateElementList(TArrayView<const FTypedElementHandle> InElementHandles);
+	TYPEDELEMENTFRAMEWORK_API FTypedElementListRef CreateElementList(TArrayView<const FTypedElementHandle> InElementHandles);
 
 	/**
 	 * Create an empty list of elements associated with this registry, populated from the given owners that are valid.
@@ -367,7 +367,7 @@ public:
 	 * Extract a string that contains name of the type elements registered.
 	 * For each type it also says what interface are registered and the path of the class that implement them
 	 */
-	FString RegistredElementTypesAndInterfacesToString() const;
+	TYPEDELEMENTFRAMEWORK_API FString RegistredElementTypesAndInterfacesToString() const;
 
 	/**
 	 * Create a script handle. This should only be use for the script exposure apis.
@@ -548,9 +548,9 @@ private:
 		TArray<FDeferredElementToRemove> DeferredElementsToRemove;
 	};
 
-	void RegisterElementTypeImpl(const FName InElementTypeName, TUniquePtr<FRegisteredElementType>&& InRegisteredElementType);
-	void RegisterElementInterfaceImpl(const FName InElementTypeName, UObject* InElementInterface, const TSubclassOf<UInterface>& InBaseInterfaceType, const bool InAllowOverride);
-	UObject* GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UInterface>& InBaseInterfaceType) const;
+	TYPEDELEMENTFRAMEWORK_API void RegisterElementTypeImpl(const FName InElementTypeName, TUniquePtr<FRegisteredElementType>&& InRegisteredElementType);
+	TYPEDELEMENTFRAMEWORK_API void RegisterElementInterfaceImpl(const FName InElementTypeName, UObject* InElementInterface, const TSubclassOf<UInterface>& InBaseInterfaceType, const bool InAllowOverride);
+	TYPEDELEMENTFRAMEWORK_API UObject* GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UInterface>& InBaseInterfaceType) const;
 
 	template <typename ElementDataType>
 	TTypedElementOwner<ElementDataType> CreateElementImpl(const FName InElementTypeName, const FTypedHandleElementId InElementId)
@@ -665,11 +665,11 @@ private:
 		return nullptr;
 	}
 
-	void NotifyElementListPendingChanges();
+	TYPEDELEMENTFRAMEWORK_API void NotifyElementListPendingChanges();
 
-	void OnBeginFrame();
-	void OnEndFrame();
-	void OnPostGarbageCollect();
+	TYPEDELEMENTFRAMEWORK_API void OnBeginFrame();
+	TYPEDELEMENTFRAMEWORK_API void OnEndFrame();
+	TYPEDELEMENTFRAMEWORK_API void OnPostGarbageCollect();
 
 	FORCEINLINE void IncrementDisableElementDestructionOnGCCount()
 	{
@@ -683,7 +683,7 @@ private:
 		--DisableElementDestructionOnGCCount;
 	}
 
-	void CallDataStorageInterfacesSetDelegateIfNeeded();
+	TYPEDELEMENTFRAMEWORK_API void CallDataStorageInterfacesSetDelegateIfNeeded();
 
 	mutable FRWLock RegisteredElementTypesRW;
 	TUniquePtr<FRegisteredElementType> RegisteredElementTypes[TypedHandleMaxTypeId - 1];

@@ -11,7 +11,7 @@
 class UAISense_Team;
 
 USTRUCT()
-struct AIMODULE_API FAITeamStimulusEvent
+struct FAITeamStimulusEvent
 {	
 	GENERATED_USTRUCT_BODY()
 
@@ -33,7 +33,7 @@ public:
 	TObjectPtr<AActor> Enemy;
 		
 	FAITeamStimulusEvent() : Broadcaster(nullptr), Enemy(nullptr) {}
-	FAITeamStimulusEvent(AActor* InBroadcaster, AActor* InEnemy, const FVector& InLastKnowLocation, float EventRange, float PassedInfoAge = 0.f, float InStrength = 1.f);
+	AIMODULE_API FAITeamStimulusEvent(AActor* InBroadcaster, AActor* InEnemy, const FVector& InLastKnowLocation, float EventRange, float PassedInfoAge = 0.f, float InStrength = 1.f);
 
 	FORCEINLINE void CacheBroadcastLocation()
 	{
@@ -46,8 +46,8 @@ public:
 	}
 };
 
-UCLASS(ClassGroup=AI)
-class AIMODULE_API UAISense_Team : public UAISense
+UCLASS(ClassGroup=AI, MinimalAPI)
+class UAISense_Team : public UAISense
 {
 	GENERATED_UCLASS_BODY()
 
@@ -55,8 +55,8 @@ class AIMODULE_API UAISense_Team : public UAISense
 	TArray<FAITeamStimulusEvent> RegisteredEvents;
 
 public:		
-	void RegisterEvent(const FAITeamStimulusEvent& Event);	
+	AIMODULE_API void RegisterEvent(const FAITeamStimulusEvent& Event);	
 
 protected:
-	virtual float Update() override;
+	AIMODULE_API virtual float Update() override;
 };

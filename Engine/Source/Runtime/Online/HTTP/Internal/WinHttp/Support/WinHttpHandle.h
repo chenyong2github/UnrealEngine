@@ -8,7 +8,7 @@
 
 using HINTERNET = void*;
 
-class HTTP_API FWinHttpHandle
+class FWinHttpHandle
 {
 public:
 	/**
@@ -19,18 +19,18 @@ public:
 	/**
 	 * Wrap a new HINTERNET Handle
 	 */
-	explicit FWinHttpHandle(HINTERNET NewHandle);
+	HTTP_API explicit FWinHttpHandle(HINTERNET NewHandle);
 
 	/**
 	 * Destroy any currently held object
 	 */
-	~FWinHttpHandle();
+	HTTP_API ~FWinHttpHandle();
 
 	// Copy/Move constructors
 	FWinHttpHandle(const FWinHttpHandle& Other) = delete;
-	FWinHttpHandle(FWinHttpHandle&& Other);
+	HTTP_API FWinHttpHandle(FWinHttpHandle&& Other);
 	FWinHttpHandle& operator=(const FWinHttpHandle& Other) = delete;
-	FWinHttpHandle& operator=(FWinHttpHandle&& Other);
+	HTTP_API FWinHttpHandle& operator=(FWinHttpHandle&& Other);
 
 	/**
 	 * Wrap a new handle (destroying any previously held object)
@@ -38,33 +38,33 @@ public:
 	 * @param NewHandle The new handle to wrap (must not be wrapped by anything else)
 	 * @return A reference to this object that now wraps NewHandle
 	 */
-	FWinHttpHandle& operator=(HINTERNET NewHandle);
+	HTTP_API FWinHttpHandle& operator=(HINTERNET NewHandle);
 
 	/**
 	 * Destroy our current handle and reset our state to holding nothing
 	 */
-	void Reset();
+	HTTP_API void Reset();
 
 	/**
 	 * Do we contain a valid handle?
 	 *
 	 * @return True if we have a valid handle, false otherwise
 	 */
-	explicit operator bool() const;
+	HTTP_API explicit operator bool() const;
 
 	/**
 	 * Do we contain a valid handle?
 	 *
 	 * @return True if we have a valid handle, false otherwise
 	 */
-	bool IsValid() const;
+	HTTP_API bool IsValid() const;
 
 	/**
 	 * Get the underlying handle for use
 	 *
 	 * @return The HINTERNET handle we're wrapping
 	 */
-	HINTERNET Get() const;
+	HTTP_API HINTERNET Get() const;
 
 protected:
 	/**

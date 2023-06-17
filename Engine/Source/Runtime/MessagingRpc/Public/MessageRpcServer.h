@@ -26,30 +26,30 @@ struct FMessageRpcCancel;
 /**
  * Implements an RPC server.
  */
-class MESSAGINGRPC_API FMessageRpcServer
+class FMessageRpcServer
 	: public IMessageRpcServer
 {
 public:
 	/** Default constructor. */
-	FMessageRpcServer();
-	FMessageRpcServer(const FString& InDebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& InMessageBus);
+	MESSAGINGRPC_API FMessageRpcServer();
+	MESSAGINGRPC_API FMessageRpcServer(const FString& InDebugName, const TSharedRef<IMessageBus, ESPMode::ThreadSafe>& InMessageBus);
 
 	/** Virtual destructor. */
-	virtual ~FMessageRpcServer();
+	MESSAGINGRPC_API virtual ~FMessageRpcServer();
 
 public:
 
 	//~ IMessageRpcServer interface
 
-	virtual void AddHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler) override;
-	virtual const FMessageAddress& GetAddress() const override;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	MESSAGINGRPC_API virtual void AddHandler(const FTopLevelAssetPath& RequestMessageType, const TSharedRef<IMessageRpcHandler>& Handler) override;
+	MESSAGINGRPC_API virtual const FMessageAddress& GetAddress() const override;
+MESSAGINGRPC_API PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual FOnMessageRpcNoHandler& OnNoHandler() override;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+MESSAGINGRPC_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual FOnMessagePathNameRpcNoHandler& OnNoHandlerWithPathName() override;
-	virtual void SetSendProgressUpdate(bool InSendProgress) override;
+	MESSAGINGRPC_API virtual void SetSendProgressUpdate(bool InSendProgress) override;
 protected:
-	explicit FMessageRpcServer(FMessageEndpointBuilder&& InEndpointBuilder);
+	MESSAGINGRPC_API explicit FMessageRpcServer(FMessageEndpointBuilder&& InEndpointBuilder);
 
 	struct FReturnInfo
 	{
@@ -60,19 +60,19 @@ protected:
 		TSharedPtr<IAsyncTask> Task;
 	};
 
-	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> GetEndpoint() const;
+	MESSAGINGRPC_API TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> GetEndpoint() const;
 
 	/** Processes an FMessageRpcCancel message. */
-	void ProcessCancelation(const FMessageRpcCancel& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+	MESSAGINGRPC_API void ProcessCancelation(const FMessageRpcCancel& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 	/** Processes an RPC request message. */
-	void ProcessRequest(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+	MESSAGINGRPC_API void ProcessRequest(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 	/** Send a progress message to the RPC client that made the RPC call. */
-	void SendProgress(const FGuid& CallId, const FReturnInfo& ReturnInfo);
+	MESSAGINGRPC_API void SendProgress(const FGuid& CallId, const FReturnInfo& ReturnInfo);
 
 	/** Send a result message to the RPC client that made the RPC call. */
-	void SendResult(const FGuid& CallId, const FReturnInfo& ReturnInfo);
+	MESSAGINGRPC_API void SendResult(const FGuid& CallId, const FReturnInfo& ReturnInfo);
 
 protected:
 

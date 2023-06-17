@@ -17,8 +17,8 @@ struct FFrame;
 struct FPropertyChangedEvent;
 
 
-UCLASS(BlueprintType)
-class MEDIAASSETS_API UFileMediaSource
+UCLASS(BlueprintType, MinimalAPI)
+class UFileMediaSource
 	: public UBaseMediaSource
 {
 	GENERATED_BODY()
@@ -57,7 +57,7 @@ public:
 	 * @return The full file path.
 	 * @return GetFilePath
 	 */
-	FString GetFullPath() const;
+	MEDIAASSETS_API FString GetFullPath() const;
 
 	/**
 	 * Set the path to the media file that this source represents.
@@ -69,33 +69,33 @@ public:
 	 * @see FilePath, GetFilePath
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|FileMediaSource")
-	void SetFilePath(const FString& Path);
+	MEDIAASSETS_API void SetFilePath(const FString& Path);
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	MEDIAASSETS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 public:
 
 	//~ IMediaOptions interface
 
-	virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
-	virtual bool HasMediaOption(const FName& Key) const override;
+	MEDIAASSETS_API virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
+	MEDIAASSETS_API virtual bool HasMediaOption(const FName& Key) const override;
 
 public:
 
 	//~ UMediaSource interface
 
-	virtual FString GetUrl() const override;
-	virtual bool Validate() const override;
+	MEDIAASSETS_API virtual FString GetUrl() const override;
+	MEDIAASSETS_API virtual bool Validate() const override;
 
 public:
 
 	/** Name of the PrecacheFile media option. */
-	static FName PrecacheFileOption;
+	static MEDIAASSETS_API FName PrecacheFileOption;
 
 private:
-	void ResolveFullPath() const;
-	void ClearResolvedFullPath() const;
+	MEDIAASSETS_API void ResolveFullPath() const;
+	MEDIAASSETS_API void ClearResolvedFullPath() const;
 	mutable FString ResolvedFullPath; // this is a cached variable updated in ResolveFullPath hence mutable
 };

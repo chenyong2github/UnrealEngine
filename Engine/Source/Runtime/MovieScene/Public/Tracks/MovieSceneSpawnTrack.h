@@ -26,13 +26,13 @@ template <typename ElementType> class TRange;
 /**
  * Handles when a spawnable should be spawned and destroyed
  */
-UCLASS()
-class MOVIESCENE_API UMovieSceneSpawnTrack
+UCLASS(MinimalAPI)
+class UMovieSceneSpawnTrack
 	: public UMovieSceneTrack
 {
 public:
 
-	UMovieSceneSpawnTrack(const FObjectInitializer& Obj);
+	MOVIESCENE_API UMovieSceneSpawnTrack(const FObjectInitializer& Obj);
 	GENERATED_BODY()
 
 public:
@@ -51,30 +51,30 @@ public:
 
 	static uint16 GetEvaluationPriority() { return uint16(0xFFF); }
 
-	void PopulateSpawnedRangeMask(const TRange<FFrameNumber>& InOverlap, TArray<TRange<FFrameNumber>, TInlineAllocator<1>>& OutRanges) const;
+	MOVIESCENE_API void PopulateSpawnedRangeMask(const TRange<FFrameNumber>& InOverlap, TArray<TRange<FFrameNumber>, TInlineAllocator<1>>& OutRanges) const;
 
 public:
 
 	// UMovieSceneTrack interface
-	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
-	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual bool HasSection(const UMovieSceneSection& Section) const override;
-	virtual void AddSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSectionAt(int32 SectionIndex) override;
-	virtual void RemoveAllAnimationData() override;
-	virtual bool IsEmpty() const override;
-	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
+	MOVIESCENE_API virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	MOVIESCENE_API virtual UMovieSceneSection* CreateNewSection() override;
+	MOVIESCENE_API virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	MOVIESCENE_API virtual void AddSection(UMovieSceneSection& Section) override;
+	MOVIESCENE_API virtual void RemoveSection(UMovieSceneSection& Section) override;
+	MOVIESCENE_API virtual void RemoveSectionAt(int32 SectionIndex) override;
+	MOVIESCENE_API virtual void RemoveAllAnimationData() override;
+	MOVIESCENE_API virtual bool IsEmpty() const override;
+	MOVIESCENE_API virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 
 	//~ UObject interface
-	virtual void PostLoad() override;
+	MOVIESCENE_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual ECookOptimizationFlags GetCookOptimizationFlags() const override;
+	MOVIESCENE_API virtual ECookOptimizationFlags GetCookOptimizationFlags() const override;
 #endif
 
 #if WITH_EDITORONLY_DATA
-	virtual FText GetDisplayName() const override;
+	MOVIESCENE_API virtual FText GetDisplayName() const override;
 #endif
 
 protected:

@@ -11,7 +11,7 @@
 class UUserWidget;
 
 USTRUCT()
-struct UMG_API FBlueprintWidgetAnimationDelegateBinding
+struct FBlueprintWidgetAnimationDelegateBinding
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -36,13 +36,13 @@ struct UMG_API FBlueprintWidgetAnimationDelegateBinding
 	}
 };
 
-UCLASS()
-class UMG_API UWidgetAnimationDelegateBinding : public UDynamicBlueprintBinding
+UCLASS(MinimalAPI)
+class UWidgetAnimationDelegateBinding : public UDynamicBlueprintBinding
 {
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY()
 	TArray<FBlueprintWidgetAnimationDelegateBinding> WidgetAnimationDelegateBindings;
 
-	virtual void BindDynamicDelegates(UObject* InInstance) const override;
+	UMG_API virtual void BindDynamicDelegates(UObject* InInstance) const override;
 };

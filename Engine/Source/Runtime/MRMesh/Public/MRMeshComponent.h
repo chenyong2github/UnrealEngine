@@ -107,16 +107,16 @@ public:
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMRMeshBrickDataUpdatedDelegate, const UMRMeshComponent*, const IMRMesh::FSendBrickDataArgs&);
 
-UCLASS(hideCategories=(Physics), meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
-class MRMESH_API UMRMeshComponent : public UPrimitiveComponent, public IMRMesh
+UCLASS(hideCategories=(Physics), meta = (BlueprintSpawnableComponent), ClassGroup = Rendering, MinimalAPI)
+class UMRMeshComponent : public UPrimitiveComponent, public IMRMesh
 {
 public:
 	friend class FMRMeshProxy;
 
 	GENERATED_UCLASS_BODY()
 
-	virtual void BeginPlay() override;
-	void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	MRMESH_API virtual void BeginPlay() override;
+	MRMESH_API void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UFUNCTION(BlueprintPure, Category = "Mesh Reconstruction")
 	bool IsConnected() const override { return bConnected; }
@@ -128,67 +128,67 @@ public:
 	* Force navmesh generation to run using the current collision data.  This will run even if the collision data has not been udpated! Unless you are changing navmesh settings or similar RequestNavMeshUpdate is reccomended.
 	*/	
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	void ForceNavMeshUpdate();
+	MRMESH_API void ForceNavMeshUpdate();
 
 	/**
 	* Generate nav mesh if collision data has changed since the last nav mesh generation.  
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	void RequestNavMeshUpdate();
+	MRMESH_API void RequestNavMeshUpdate();
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	void Clear() override;
+	MRMESH_API void Clear() override;
 
 	// UPrimitiveComponent.. public BP function needs to stay public to avoid nativization errors. (RR)
-	virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial) override;
-	virtual class UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
+	MRMESH_API virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial) override;
+	MRMESH_API virtual class UMaterialInterface* GetMaterial(int32 ElementIndex) const override;
 
 	// Set the wireframe material.
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	virtual void SetWireframeMaterial(class UMaterialInterface* InMaterial);
+	MRMESH_API virtual void SetWireframeMaterial(class UMaterialInterface* InMaterial);
 
 	/** Updates from HoloLens or iOS */
-	void UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FVector2D> UVData = {}, TArray<FPackedNormal> TangentXZData = {}, TArray<FColor> ColorData = {});
-	void UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector3f>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FVector2D> UVData = {}, TArray<FPackedNormal> TangentXZData = {}, TArray<FColor> ColorData = {});
+	MRMESH_API void UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FVector2D> UVData = {}, TArray<FPackedNormal> TangentXZData = {}, TArray<FColor> ColorData = {});
+	MRMESH_API void UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector3f>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices, TArray<FVector2D> UVData = {}, TArray<FPackedNormal> TangentXZData = {}, TArray<FColor> ColorData = {});
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	void SetEnableMeshOcclusion(bool bEnable);
+	MRMESH_API void SetEnableMeshOcclusion(bool bEnable);
 	
 	UFUNCTION(BlueprintPure, Category = "Mesh Reconstruction")
 	bool GetEnableMeshOcclusion() const { return bEnableOcclusion; }
 	
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	void SetUseWireframe(bool bUseWireframe);
+	MRMESH_API void SetUseWireframe(bool bUseWireframe);
 	
 	UFUNCTION(BlueprintPure, Category = "Mesh Reconstruction")
 	bool GetUseWireframe() const { return bUseWireframe; }
 	
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	void SetWireframeColor(const FLinearColor& InColor);
+	MRMESH_API void SetWireframeColor(const FLinearColor& InColor);
 	
 	UFUNCTION(BlueprintPure, Category = "Mesh Reconstruction")
 	const FLinearColor& GetWireframeColor() const { return WireframeColor; }
 	
-	UMaterialInterface* GetMaterialToUse() const;
+	MRMESH_API UMaterialInterface* GetMaterialToUse() const;
 	
 	FOnMRMeshBrickDataUpdatedDelegate& OnBrickDataUpdated() { return OnBrickDataUpdatedDelegate; }
 
 protected:
-	virtual void OnActorEnableCollisionChanged() override;
-	virtual void UpdatePhysicsToRBChannels() override;
+	MRMESH_API virtual void OnActorEnableCollisionChanged() override;
+	MRMESH_API virtual void UpdatePhysicsToRBChannels() override;
 public:
-	virtual void SetCollisionObjectType(ECollisionChannel Channel) override;
-	virtual void SetCollisionResponseToChannel(ECollisionChannel Channel, ECollisionResponse NewResponse) override;
-	virtual void SetCollisionResponseToAllChannels(ECollisionResponse NewResponse) override;
-	virtual void SetCollisionResponseToChannels(const FCollisionResponseContainer& NewResponses) override;
-	virtual void SetCollisionEnabled(ECollisionEnabled::Type NewType) override;
-	virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true) override;
+	MRMESH_API virtual void SetCollisionObjectType(ECollisionChannel Channel) override;
+	MRMESH_API virtual void SetCollisionResponseToChannel(ECollisionChannel Channel, ECollisionResponse NewResponse) override;
+	MRMESH_API virtual void SetCollisionResponseToAllChannels(ECollisionResponse NewResponse) override;
+	MRMESH_API virtual void SetCollisionResponseToChannels(const FCollisionResponseContainer& NewResponses) override;
+	MRMESH_API virtual void SetCollisionEnabled(ECollisionEnabled::Type NewType) override;
+	MRMESH_API virtual void SetCollisionProfileName(FName InCollisionProfileName, bool bUpdateOverlaps=true) override;
 
-	virtual void SetWalkableSlopeOverride(const FWalkableSlopeOverride& NewOverride) override;
+	MRMESH_API virtual void SetWalkableSlopeOverride(const FWalkableSlopeOverride& NewOverride) override;
 
 	void SetNeverCreateCollisionMesh(bool bNeverCreate) { bNeverCreateCollisionMesh = bNeverCreate; }
 	void SetEnableNavMesh(bool bEnable) { bUpdateNavMeshOnMeshUpdate = bEnable;  }
-	void SuggestNavMeshUpdate();
+	MRMESH_API void SuggestNavMeshUpdate();
 
 	/** Trackers feeding mesh data to this component may want to know when we clear our mesh data */
 	DECLARE_EVENT(UMRMeshComponent, FOnClear);
@@ -196,29 +196,29 @@ public:
 
 private:
 	//~ UPrimitiveComponent
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
-	virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
+	MRMESH_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	MRMESH_API virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	MRMESH_API virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	MRMESH_API virtual bool DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const override;
 
 	//~ UPrimitiveComponent
 	//~ UActorComponent
-	virtual bool ShouldCreatePhysicsState() const override;
-	virtual void SendRenderDynamicData_Concurrent() override;
+	MRMESH_API virtual bool ShouldCreatePhysicsState() const override;
+	MRMESH_API virtual void SendRenderDynamicData_Concurrent() override;
 	//~ UActorComponent
 
 	//~ IMRMesh
-	virtual void SendBrickData(FSendBrickDataArgs Args) override;
-	virtual void ClearAllBrickData() override;
+	MRMESH_API virtual void SendBrickData(FSendBrickDataArgs Args) override;
+	MRMESH_API virtual void ClearAllBrickData() override;
 	//~ IMRMesh
 
 private:
-	void SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args);
+	MRMESH_API void SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args);
 
-	void RemoveBodyInstance(int32 BodyIndex);
-	void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
+	MRMESH_API void RemoveBodyInstance(int32 BodyIndex);
+	MRMESH_API void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 
-	void ClearAllBrickData_Internal();
+	MRMESH_API void ClearAllBrickData_Internal();
 
 	UPROPERTY(EditAnywhere, Category = Appearance)
 	TObjectPtr<UMaterialInterface> Material;

@@ -42,27 +42,27 @@ namespace AVEncoder
 	};
 #endif
 
-	class AVENCODER_API FVideoEncoderInput
+	class FVideoEncoderInput
 	{
 	public:
 		// --- construct video encoder input based on expected input frame format
-		static TSharedPtr<FVideoEncoderInput> CreateDummy(bool isResizable = false);
-		static TSharedPtr<FVideoEncoderInput> CreateForYUV420P(uint32 InWidth, uint32 InHeight, bool isResizable = false);
+		static AVENCODER_API TSharedPtr<FVideoEncoderInput> CreateDummy(bool isResizable = false);
+		static AVENCODER_API TSharedPtr<FVideoEncoderInput> CreateForYUV420P(uint32 InWidth, uint32 InHeight, bool isResizable = false);
 
 		// create input for an encoder that encodes a D3D11 texture 
-		static TSharedPtr<FVideoEncoderInput> CreateForD3D11(void* InApplicationD3D11Device, bool IsResizable = false, bool IsShared = false);
+		static AVENCODER_API TSharedPtr<FVideoEncoderInput> CreateForD3D11(void* InApplicationD3D11Device, bool IsResizable = false, bool IsShared = false);
 
 		// create input for an encoder that encodes a D3D12 texture
-		static TSharedPtr<FVideoEncoderInput> CreateForD3D12(void* InApplicationD3D12Device, bool IsResizable = false, bool IsShared = false);
+		static AVENCODER_API TSharedPtr<FVideoEncoderInput> CreateForD3D12(void* InApplicationD3D12Device, bool IsResizable = false, bool IsShared = false);
 
 		// create input for an encoder that encodes a CUarray
-		static TSharedPtr<FVideoEncoderInput> CreateForCUDA(void* InApplicationCudaContext, bool IsResizable = false);
+		static AVENCODER_API TSharedPtr<FVideoEncoderInput> CreateForCUDA(void* InApplicationCudaContext, bool IsResizable = false);
 
 		// create input for an encoder that encodes a VkImage
-		static TSharedPtr<FVideoEncoderInput> CreateForVulkan(void* InApplicationVulkanData, bool IsResizable = false);
+		static AVENCODER_API TSharedPtr<FVideoEncoderInput> CreateForVulkan(void* InApplicationVulkanData, bool IsResizable = false);
 
 		// --- properties
-		virtual void SetMaxNumBuffers(uint32 InMaxNumBuffers);
+		AVENCODER_API virtual void SetMaxNumBuffers(uint32 InMaxNumBuffers);
 
 		EVideoFrameFormat GetFrameFormat() const { return FrameFormat; }
 
@@ -123,7 +123,7 @@ namespace AVEncoder
 
 
 	// TODO this should go elsewhere and be made cross platform
-	class AVENCODER_API FVideoEncoderInputFrame
+	class FVideoEncoderInputFrame
 	{
 	public:
 		// Obtain (increase reference count) of this input frame
@@ -167,7 +167,7 @@ namespace AVEncoder
 			uint32				StrideV = 0;
 		};
 
-		void AllocateYUV420P();
+		AVENCODER_API void AllocateYUV420P();
 		const FYUV420P& GetYUV420P() const 
 		{	
 			return YUV420P; 
@@ -175,7 +175,7 @@ namespace AVEncoder
 		
 		FYUV420P& GetYUV420P() { return YUV420P; }
 
-		void SetYUV420P(const uint8* InDataY, const uint8* InDataU, const uint8* InDataV, uint32 InStrideY, uint32 InStrideU, uint32 InStrideV);
+		AVENCODER_API void SetYUV420P(const uint8* InDataY, const uint8* InDataU, const uint8* InDataV, uint32 InStrideY, uint32 InStrideU, uint32 InStrideV);
 
 #if PLATFORM_WINDOWS
 		// --- D3D11
@@ -194,7 +194,7 @@ namespace AVEncoder
 		// the callback type used to create a registered encoder
 		using FReleaseD3D11TextureCallback = TFunction<void(ID3D11Texture2D*)>;
 
-		void SetTexture(ID3D11Texture2D* InTexture, FReleaseD3D11TextureCallback InOnReleaseD3D11Texture);
+		AVENCODER_API void SetTexture(ID3D11Texture2D* InTexture, FReleaseD3D11TextureCallback InOnReleaseD3D11Texture);
 
 		// --- D3D12
 
@@ -211,7 +211,7 @@ namespace AVEncoder
 		// the callback type used to create a registered encoder
 		using FReleaseD3D12TextureCallback = TFunction<void(ID3D12Resource*)>;
 
-		void SetTexture(ID3D12Resource* InTexture, FReleaseD3D12TextureCallback InOnReleaseD3D11Texture);
+		AVENCODER_API void SetTexture(ID3D12Resource* InTexture, FReleaseD3D12TextureCallback InOnReleaseD3D11Texture);
 
 #endif // PLATFORM_WINDOWS
 
@@ -238,7 +238,7 @@ namespace AVEncoder
 		// the callback type used to create a registered encoder
 		using FReleaseCUDATextureCallback = TFunction<void(CUarray)>;
 
-		void SetTexture(CUarray InTexture, EUnderlyingRHI UnderlyingRHI, void* SharedHandle, FReleaseCUDATextureCallback InOnReleaseTexture);
+		AVENCODER_API void SetTexture(CUarray InTexture, EUnderlyingRHI UnderlyingRHI, void* SharedHandle, FReleaseCUDATextureCallback InOnReleaseTexture);
 
 #if PLATFORM_DESKTOP && !PLATFORM_APPLE
 		// --- Vulkan
@@ -259,14 +259,14 @@ namespace AVEncoder
 		using FReleaseVulkanSurfaceCallback = TFunction<void(void*)>;
 		mutable FReleaseVulkanSurfaceCallback OnReleaseVulkanSurface;
 
-		void SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
-		void SetTexture(VkImage InTexture, VkDeviceMemory InTextureDeviceMemory, uint64 InTextureSize, FReleaseVulkanTextureCallback InOnReleaseTexture);
+		AVENCODER_API void SetTexture(VkImage InTexture, FReleaseVulkanTextureCallback InOnReleaseTexture);
+		AVENCODER_API void SetTexture(VkImage InTexture, VkDeviceMemory InTextureDeviceMemory, uint64 InTextureSize, FReleaseVulkanTextureCallback InOnReleaseTexture);
 #endif
 
-		virtual ~FVideoEncoderInputFrame();
+		AVENCODER_API virtual ~FVideoEncoderInputFrame();
 	protected:
-		FVideoEncoderInputFrame();
-		explicit FVideoEncoderInputFrame(const FVideoEncoderInputFrame& CloneFrom);
+		AVENCODER_API FVideoEncoderInputFrame();
+		AVENCODER_API explicit FVideoEncoderInputFrame(const FVideoEncoderInputFrame& CloneFrom);
 		
 
 		uint32									FrameID;

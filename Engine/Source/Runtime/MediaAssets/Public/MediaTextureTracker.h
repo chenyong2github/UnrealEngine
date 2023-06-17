@@ -80,7 +80,7 @@ public:
 	 *
 	 * @ return List of textures.
 	 */
-	MEDIAASSETS_API const TArray<TWeakObjectPtr<UMediaTexture>>& GetTextures() { return MediaTextures; }
+	const TArray<TWeakObjectPtr<UMediaTexture>>& GetTextures() { return MediaTextures; }
 
 protected:
 	/** Maps a media texture to an array of playback components. */

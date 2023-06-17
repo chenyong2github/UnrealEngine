@@ -37,8 +37,8 @@ struct FInterchangeUserDefinedAttributeInfo
  * Any user defined attribute have: name, value and a optional AnimationPayloadKey (FRichCurve which is a float curve).
  * Value type must be supported by the UE::Interchange::EAttributeTypes enumeration.
  */
-UCLASS(BlueprintType, Experimental)
-class INTERCHANGECORE_API UInterchangeUserDefinedAttributesAPI : public UObject
+UCLASS(BlueprintType, Experimental, MinimalAPI)
+class UInterchangeUserDefinedAttributesAPI : public UObject
 {
 	GENERATED_BODY()
  
@@ -56,19 +56,19 @@ public:
 	static bool CreateUserDefinedAttribute(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const ValueType& Value, const TOptional<FString>& PayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool CreateUserDefinedAttribute_Boolean(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const bool& Value, const FString& PayloadKey);
+	static INTERCHANGECORE_API bool CreateUserDefinedAttribute_Boolean(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const bool& Value, const FString& PayloadKey);
 	
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool CreateUserDefinedAttribute_Float(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const float& Value, const FString& PayloadKey);
+	static INTERCHANGECORE_API bool CreateUserDefinedAttribute_Float(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const float& Value, const FString& PayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool CreateUserDefinedAttribute_Double(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const double& Value, const FString& PayloadKey);
+	static INTERCHANGECORE_API bool CreateUserDefinedAttribute_Double(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const double& Value, const FString& PayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool CreateUserDefinedAttribute_Int32(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const int32& Value, const FString& PayloadKey);
+	static INTERCHANGECORE_API bool CreateUserDefinedAttribute_Int32(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const int32& Value, const FString& PayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool CreateUserDefinedAttribute_FString(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const FString& Value, const FString& PayloadKey);
+	static INTERCHANGECORE_API bool CreateUserDefinedAttribute_FString(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, const FString& Value, const FString& PayloadKey);
 
 	/**
 	 * Remove the specified user defined attribute
@@ -78,7 +78,7 @@ public:
 	 *        Payload key will point on a FRichCurve payload.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool RemoveUserDefinedAttribute(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName);
+	static INTERCHANGECORE_API bool RemoveUserDefinedAttribute(UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName);
 
 	/**
 	 * Get user defined attribute value and optional payload key
@@ -92,32 +92,32 @@ public:
 	static bool GetUserDefinedAttribute(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, ValueType& OutValue, TOptional<FString>& OutPayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool GetUserDefinedAttribute_Boolean(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, bool& OutValue, FString& OutPayloadKey);
+	static INTERCHANGECORE_API bool GetUserDefinedAttribute_Boolean(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, bool& OutValue, FString& OutPayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool GetUserDefinedAttribute_Float(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, float& OutValue, FString& OutPayloadKey);
+	static INTERCHANGECORE_API bool GetUserDefinedAttribute_Float(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, float& OutValue, FString& OutPayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool GetUserDefinedAttribute_Double(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, double& OutValue, FString& OutPayloadKey);
+	static INTERCHANGECORE_API bool GetUserDefinedAttribute_Double(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, double& OutValue, FString& OutPayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool GetUserDefinedAttribute_Int32(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, int32& OutValue, FString& OutPayloadKey);
+	static INTERCHANGECORE_API bool GetUserDefinedAttribute_Int32(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, int32& OutValue, FString& OutPayloadKey);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static bool GetUserDefinedAttribute_FString(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, FString& OutValue, FString& OutPayloadKey);
+	static INTERCHANGECORE_API bool GetUserDefinedAttribute_FString(const UInterchangeBaseNode* InterchangeNode, const FString& UserDefinedAttributeName, FString& OutValue, FString& OutPayloadKey);
 
-	static TArray<FInterchangeUserDefinedAttributeInfo> GetUserDefinedAttributeInfos(const UInterchangeBaseNode* InterchangeNode);
+	static INTERCHANGECORE_API TArray<FInterchangeUserDefinedAttributeInfo> GetUserDefinedAttributeInfos(const UInterchangeBaseNode* InterchangeNode);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static void GetUserDefinedAttributeInfos(const UInterchangeBaseNode* InterchangeNode, TArray<FInterchangeUserDefinedAttributeInfo>& UserDefinedAttributeInfos);
+	static INTERCHANGECORE_API void GetUserDefinedAttributeInfos(const UInterchangeBaseNode* InterchangeNode, TArray<FInterchangeUserDefinedAttributeInfo>& UserDefinedAttributeInfos);
  
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | UserDefinedAttribute")
-	static void DuplicateAllUserDefinedAttribute(const UInterchangeBaseNode* InterchangeSourceNode, UInterchangeBaseNode* InterchangeDestinationNode, bool bAddSourceNodeName);
+	static INTERCHANGECORE_API void DuplicateAllUserDefinedAttribute(const UInterchangeBaseNode* InterchangeSourceNode, UInterchangeBaseNode* InterchangeDestinationNode, bool bAddSourceNodeName);
 
 private:
-	static const FString UserDefinedAttributeBaseKey;
-	static const FString UserDefinedAttributeValuePostKey;
-	static const FString UserDefinedAttributePayLoadPostKey;
+	static INTERCHANGECORE_API const FString UserDefinedAttributeBaseKey;
+	static INTERCHANGECORE_API const FString UserDefinedAttributeValuePostKey;
+	static INTERCHANGECORE_API const FString UserDefinedAttributePayLoadPostKey;
 };
 
 template<typename ValueType>

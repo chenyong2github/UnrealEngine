@@ -11,8 +11,8 @@
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "MovieSceneKeyProxy.generated.h"
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneKeyProxy : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneKeyProxy : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -23,7 +23,7 @@ class MOVIESCENE_API UMovieSceneKeyProxy : public UInterface
  * When used, UpdateValuesFromRawData should be called every frame to optionally retrieve the current values
  * of the key for this proxy.
  */
-class MOVIESCENE_API IMovieSceneKeyProxy
+class IMovieSceneKeyProxy
 {
 public:
 

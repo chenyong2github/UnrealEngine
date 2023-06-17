@@ -17,7 +17,7 @@ namespace Audio
 	using DeviceID = uint32;
 
 	/** Data passed to CreateParameterTransmitter. */
-	struct AUDIOEXTENSIONS_API FParameterTransmitterInitParams
+	struct FParameterTransmitterInitParams
 	{
 		// Unique ID for this audio instance.
 		uint64 InstanceID = INDEX_NONE;
@@ -38,22 +38,22 @@ namespace Audio
 	// as object pointers within parameters should NOT be cached on threads
 	// other than the GameThread, utilizing a proxy methodology like MetaSounds
 	// that copies UObject data when and where necessary.
-	class AUDIOEXTENSIONS_API ILegacyParameterTransmitter
+	class ILegacyParameterTransmitter
 	{
 		public:
 			virtual ~ILegacyParameterTransmitter() = default;
 
-			virtual TArray<const TObjectPtr<UObject>*> GetReferencedObjects() const;
+			AUDIOEXTENSIONS_API virtual TArray<const TObjectPtr<UObject>*> GetReferencedObjects() const;
 	};
 
 	/** Interface for a audio instance transmitter.
 	 *
 	 * An audio instance transmitter ushers control parameters to a single audio object instance.
 	 */
-	class AUDIOEXTENSIONS_API IParameterTransmitter : public ILegacyParameterTransmitter
+	class IParameterTransmitter : public ILegacyParameterTransmitter
 	{
 		public:
-			static const FName RouterName;
+			static AUDIOEXTENSIONS_API const FName RouterName;
 
 			virtual ~IParameterTransmitter() = default;
 
@@ -81,18 +81,18 @@ namespace Audio
 	/** Base implementation for the parameter transmitter, which caches parameters
 	  * and provides implementer to add additional logic to route parameter data accordingly.
 	  */
-	class AUDIOEXTENSIONS_API FParameterTransmitterBase : public IParameterTransmitter
+	class FParameterTransmitterBase : public IParameterTransmitter
 	{
 	public:
-		FParameterTransmitterBase(TArray<FAudioParameter>&& InDefaultParams);
+		AUDIOEXTENSIONS_API FParameterTransmitterBase(TArray<FAudioParameter>&& InDefaultParams);
 		virtual ~FParameterTransmitterBase() = default;
 
-		virtual bool GetParameter(FName InName, FAudioParameter& OutParam) const override;
-		virtual void ResetParameters() override;
-		virtual const TArray<FAudioParameter>& GetParameters() const override;
+		AUDIOEXTENSIONS_API virtual bool GetParameter(FName InName, FAudioParameter& OutParam) const override;
+		AUDIOEXTENSIONS_API virtual void ResetParameters() override;
+		AUDIOEXTENSIONS_API virtual const TArray<FAudioParameter>& GetParameters() const override;
 		UE_DEPRECATED(5.2, "Use ResetParameters() or OnDeleteActiveSound() instead depending on use case.")
-		virtual bool Reset() override;
-		virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) override;
+		AUDIOEXTENSIONS_API virtual bool Reset() override;
+		AUDIOEXTENSIONS_API virtual bool SetParameters(TArray<FAudioParameter>&& InParameters) override;
 
 	protected:
 		TArray<FAudioParameter> AudioParameters;

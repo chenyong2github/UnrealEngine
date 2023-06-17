@@ -17,7 +17,7 @@ namespace Geometry
 /**
  * Generate planar triangulation of a Polygon.
  */
-class GEOMETRYCORE_API FFlatTriangulationMeshGenerator : public FMeshShapeGenerator
+class FFlatTriangulationMeshGenerator : public FMeshShapeGenerator
 {
 public:
 	/** Vertices of 2D triangulation. */
@@ -36,10 +36,10 @@ public:
 	FIndex2i IndicesMap;
 
 public:
-	FFlatTriangulationMeshGenerator();
+	GEOMETRYCORE_API FFlatTriangulationMeshGenerator();
 
 	/** Generate the triangulation */
-	virtual FMeshShapeGenerator& Generate() override;
+	GEOMETRYCORE_API virtual FMeshShapeGenerator& Generate() override;
 
 
 	/** Create vertex at position under IndicesMap, shifted to Origin*/

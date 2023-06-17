@@ -57,8 +57,8 @@ struct FEnvQueryTestScoringPreview
 };
 #endif
 
-UCLASS(Abstract)
-class AIMODULE_API UEnvQueryTest : public UEnvQueryNode
+UCLASS(Abstract, MinimalAPI)
+class UEnvQueryTest : public UEnvQueryNode
 {
 	GENERATED_UCLASS_BODY()
 
@@ -150,7 +150,7 @@ class AIMODULE_API UEnvQueryTest : public UEnvQueryNode
 	FEnvQueryTestScoringPreview PreviewData;
 #endif
 
-	void SetWorkOnFloatValues(bool bWorkOnFloats);
+	AIMODULE_API void SetWorkOnFloatValues(bool bWorkOnFloats);
 	FORCEINLINE bool GetWorkOnFloatValues() const { return bWorkOnFloatValues; }
 
 	FORCEINLINE bool CanRunAsFinalCondition() const 
@@ -172,13 +172,13 @@ public:
 	virtual void RunTest(FEnvQueryInstance& QueryInstance) const { checkNoEntry(); }
 
 	/** check if test supports item type */
-	bool IsSupportedItem(TSubclassOf<UEnvQueryItemType> ItemType) const;
+	AIMODULE_API bool IsSupportedItem(TSubclassOf<UEnvQueryItemType> ItemType) const;
 
 	/** check if context needs to be updated for every item */
-	bool IsContextPerItem(TSubclassOf<UEnvQueryContext> CheckContext) const;
+	AIMODULE_API bool IsContextPerItem(TSubclassOf<UEnvQueryContext> CheckContext) const;
 
 	/** helper: get location of item */
-	FVector GetItemLocation(FEnvQueryInstance& QueryInstance, int32 ItemIndex) const;
+	AIMODULE_API FVector GetItemLocation(FEnvQueryInstance& QueryInstance, int32 ItemIndex) const;
 
 	/** helper: get location of item */
 	FORCEINLINE FVector GetItemLocation(FEnvQueryInstance& QueryInstance, const FEnvQueryInstance::ItemIterator& Iterator) const
@@ -187,7 +187,7 @@ public:
 	}
 
 	/** helper: get location of item */
-	FRotator GetItemRotation(FEnvQueryInstance& QueryInstance, int32 ItemIndex) const;
+	AIMODULE_API FRotator GetItemRotation(FEnvQueryInstance& QueryInstance, int32 ItemIndex) const;
 
 	/** helper: get location of item */
 	FORCEINLINE FRotator GetItemRotation(FEnvQueryInstance& QueryInstance, const FEnvQueryInstance::ItemIterator& Iterator) const
@@ -196,7 +196,7 @@ public:
 	}
 
 	/** helper: get actor from item */
-	AActor* GetItemActor(FEnvQueryInstance& QueryInstance, int32 ItemIndex) const;
+	AIMODULE_API AActor* GetItemActor(FEnvQueryInstance& QueryInstance, int32 ItemIndex) const;
 		
 	/** helper: get actor from item */
 	FORCEINLINE AActor* GetItemActor(FEnvQueryInstance& QueryInstance, const FEnvQueryInstance::ItemIterator& Iterator) const
@@ -205,25 +205,25 @@ public:
 	}
 
 	/** normalize scores in range */
-	void NormalizeItemScores(FEnvQueryInstance& QueryInstance);
+	AIMODULE_API void NormalizeItemScores(FEnvQueryInstance& QueryInstance);
 
 	FORCEINLINE bool IsScoring() const { return (TestPurpose != EEnvTestPurpose::Filter); } 
 	FORCEINLINE bool IsFiltering() const { return (TestPurpose != EEnvTestPurpose::Score); }
 
-	FText DescribeFloatTestParams() const;
-	FText DescribeBoolTestParams(const FString& ConditionDesc) const;
+	AIMODULE_API FText DescribeFloatTestParams() const;
+	AIMODULE_API FText DescribeBoolTestParams(const FString& ConditionDesc) const;
 
-	virtual void PostLoad() override;
+	AIMODULE_API virtual void PostLoad() override;
 
 	/** update to latest version after spawning */
-	virtual void UpdateNodeVersion() override;
+	AIMODULE_API virtual void UpdateNodeVersion() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	AIMODULE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	/** update preview list */
-	void UpdatePreviewData();
+	AIMODULE_API void UpdatePreviewData();
 };
 
 //////////////////////////////////////////////////////////////////////////

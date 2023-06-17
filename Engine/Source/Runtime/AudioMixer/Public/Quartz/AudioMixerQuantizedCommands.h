@@ -6,26 +6,26 @@
 namespace Audio
 {
 	// QuartzQuantizedCommand that plays a sound on a sample-accurate boundary
-	class AUDIOMIXER_API FQuantizedPlayCommand : public IQuartzQuantizedCommand
+	class FQuantizedPlayCommand : public IQuartzQuantizedCommand
 	{
 	public:
 		// ctor
-		FQuantizedPlayCommand();
+		AUDIOMIXER_API FQuantizedPlayCommand();
 
 		// dtor
 		~FQuantizedPlayCommand() {}
 
-		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
+		AUDIOMIXER_API virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
 
-		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
+		AUDIOMIXER_API virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
 
-		virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
+		AUDIOMIXER_API virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
 
-		virtual void CancelCustom() override;
+		AUDIOMIXER_API virtual void CancelCustom() override;
 
 		virtual bool RequiresAudioDevice() const override { return true; }
 
-		virtual FName GetCommandName() const override;
+		AUDIOMIXER_API virtual FName GetCommandName() const override;
 		
 		// for your implementation, a new EQuartzCommandType needs to be defined in QuartzQuantizationUtilities.h
 		virtual EQuartzCommandType GetCommandType() const { return EQuartzCommandType::PlaySound; };
@@ -40,23 +40,23 @@ namespace Audio
 	}; // class FQuantizedPlayCommand 
 
 
-	class AUDIOMIXER_API FQuantizedQueueCommand : public IQuartzQuantizedCommand
+	class FQuantizedQueueCommand : public IQuartzQuantizedCommand
 	{
 	public:
-		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
+		AUDIOMIXER_API virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
 
-		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
+		AUDIOMIXER_API virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
 
-		virtual int32 OverrideFramesUntilExec(int32 NumFramesUntilExec) override;
+		AUDIOMIXER_API virtual int32 OverrideFramesUntilExec(int32 NumFramesUntilExec) override;
 
-		virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
+		AUDIOMIXER_API virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
 
 		virtual bool RequiresAudioDevice() const override { return true; }
 
-		virtual FName GetCommandName() const override;
+		AUDIOMIXER_API virtual FName GetCommandName() const override;
 		virtual EQuartzCommandType GetCommandType() const { return EQuartzCommandType::QueueSoundToPlay; };
 
-		void SetQueueCommand(const FAudioComponentCommandInfo& InAudioCommandData);
+		AUDIOMIXER_API void SetQueueCommand(const FAudioComponentCommandInfo& InAudioCommandData);
 
 		FQuantizedQueueCommand() {}
 
@@ -68,7 +68,7 @@ namespace Audio
 	}; // class FQuantizedQueueCommand 
 	
 	// QuartzQuantizedCommand that changes the TickRate of a clock on a sample-accurate boundary (i.e. BPM changes)
-	class AUDIOMIXER_API FQuantizedTickRateChange : public IQuartzQuantizedCommand
+	class FQuantizedTickRateChange : public IQuartzQuantizedCommand
 	{
 	public:
 		void SetTickRate(const FQuartzClockTickRate& InTickRate)
@@ -76,15 +76,15 @@ namespace Audio
 			TickRate = InTickRate;
 		}
 
-		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
+		AUDIOMIXER_API virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
 
-		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
+		AUDIOMIXER_API virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
 
-		virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
+		AUDIOMIXER_API virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
 
 		virtual bool IsClockAltering() override { return true; }
 
-		virtual FName GetCommandName() const override;
+		AUDIOMIXER_API virtual FName GetCommandName() const override;
 		virtual EQuartzCommandType GetCommandType() const { return EQuartzCommandType::TickRateChange; };
 
 	private:
@@ -95,18 +95,18 @@ namespace Audio
 
 
 	// QuartzQuantizedCommand that resets the transport of a clock's metronome on a sample-accurate boundary
-	class AUDIOMIXER_API FQuantizedTransportReset : public IQuartzQuantizedCommand
+	class FQuantizedTransportReset : public IQuartzQuantizedCommand
 	{
 	public:
-		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
+		AUDIOMIXER_API virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
 
-		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
+		AUDIOMIXER_API virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
 
-		virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
+		AUDIOMIXER_API virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
 
 		virtual bool IsClockAltering() override { return false; }
 
-		virtual FName GetCommandName() const override;
+		AUDIOMIXER_API virtual FName GetCommandName() const override;
 		virtual EQuartzCommandType GetCommandType() const { return EQuartzCommandType::TransportReset; };
 
 	private:
@@ -116,18 +116,18 @@ namespace Audio
 
 
 	// QuartzQuantizedCommand that starts a second clock on a sample-accurate boundary
-	class AUDIOMIXER_API FQuantizedOtherClockStart : public IQuartzQuantizedCommand
+	class FQuantizedOtherClockStart : public IQuartzQuantizedCommand
 	{
 	public:
-		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
+		AUDIOMIXER_API virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
 
-		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
+		AUDIOMIXER_API virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
 
-		virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
+		AUDIOMIXER_API virtual void OnFinalCallbackCustom(int32 InNumFramesLeft) override;
 
 		virtual bool IsClockAltering() override { return true; }
 
-		virtual FName GetCommandName() const override;
+		AUDIOMIXER_API virtual FName GetCommandName() const override;
 		virtual EQuartzCommandType GetCommandType() const { return EQuartzCommandType::StartOtherClock; };
 
 	private:
@@ -138,26 +138,26 @@ namespace Audio
 
 
 	// QuartzQuantizedCommand that basically no-ops, so the game thread can get notified on a musical boundary
-	class AUDIOMIXER_API FQuantizedNotify : public IQuartzQuantizedCommand
+	class FQuantizedNotify : public IQuartzQuantizedCommand
 	{
 	public:
 		// ctor
-		FQuantizedNotify(float InMsOffset = 0.f);
+		AUDIOMIXER_API FQuantizedNotify(float InMsOffset = 0.f);
 
 		// dtor
 		virtual ~FQuantizedNotify() override = default;
 
-		virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
+		AUDIOMIXER_API virtual TSharedPtr<IQuartzQuantizedCommand> GetDeepCopyOfDerivedObject() const override;
 
 		virtual bool RequiresAudioDevice() const override { return true; }
 
-		virtual FName GetCommandName() const override;
+		AUDIOMIXER_API virtual FName GetCommandName() const override;
 
 		virtual EQuartzCommandType GetCommandType() const override { return EQuartzCommandType::Notify; };
 
-		virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
+		AUDIOMIXER_API virtual void OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo) override;
 
-		virtual int32 OverrideFramesUntilExec(int32 NumFramesUntilExec) override;
+		AUDIOMIXER_API virtual int32 OverrideFramesUntilExec(int32 NumFramesUntilExec) override;
 
 	protected:
 		TSharedPtr<FQuartzClock> OwningClockPtr{ nullptr };

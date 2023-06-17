@@ -54,7 +54,7 @@ private:
 
 /**  */
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneSequenceInstanceDataPtr
+struct FMovieSceneSequenceInstanceDataPtr
 #if CPP
 	: TInlineValue<FMovieSceneSequenceInstanceData, 16>
 #endif
@@ -88,15 +88,15 @@ struct MOVIESCENE_API FMovieSceneSequenceInstanceDataPtr
 	}
 	
 	/** Copy construction/assignment */
-	FMovieSceneSequenceInstanceDataPtr(const FMovieSceneSequenceInstanceDataPtr& RHS);
-	FMovieSceneSequenceInstanceDataPtr& operator=(const FMovieSceneSequenceInstanceDataPtr& RHS);
+	MOVIESCENE_API FMovieSceneSequenceInstanceDataPtr(const FMovieSceneSequenceInstanceDataPtr& RHS);
+	MOVIESCENE_API FMovieSceneSequenceInstanceDataPtr& operator=(const FMovieSceneSequenceInstanceDataPtr& RHS);
 
 	/** Templates are moveable */
 	FMovieSceneSequenceInstanceDataPtr(FMovieSceneSequenceInstanceDataPtr&&) = default;
 	FMovieSceneSequenceInstanceDataPtr& operator=(FMovieSceneSequenceInstanceDataPtr&&) = default;
 
 	/** Serialize the template */
-	bool Serialize(FArchive& Ar);
+	MOVIESCENE_API bool Serialize(FArchive& Ar);
 };
 
 template<> struct TStructOpsTypeTraits<FMovieSceneSequenceInstanceDataPtr> : public TStructOpsTypeTraitsBase2<FMovieSceneSequenceInstanceDataPtr>

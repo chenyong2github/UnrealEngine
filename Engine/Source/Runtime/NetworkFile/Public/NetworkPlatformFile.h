@@ -35,7 +35,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogNetworkPlatformFile, Log, All);
 /**
  * Wrapper to redirect the low level file system to a server
  */
-class NETWORKFILE_API FNetworkPlatformFile : public IPlatformFile, public FSelfRegisteringExec
+class FNetworkPlatformFile : public IPlatformFile, public FSelfRegisteringExec
 {
 	friend class FAsyncFileSync;
 	friend void ReadUnsolicitedFile(int32 InNumUnsolictedFiles, FNetworkPlatformFile& InNetworkFile, IPlatformFile& InInnerPlatformFile,  FString& InServerEngineDir, FString& InServerProjectDir);
@@ -48,9 +48,9 @@ protected:
 	 * @param HostIP host IP address
 	 * @return true if the initialization succeeded, false otherwise
 	 */
-	virtual bool InitializeInternal(IPlatformFile* Inner, const TCHAR* HostIP);
+	NETWORKFILE_API virtual bool InitializeInternal(IPlatformFile* Inner, const TCHAR* HostIP);
 
-	virtual void OnFileUpdated(const FString& LocalFilename);
+	NETWORKFILE_API virtual void OnFileUpdated(const FString& LocalFilename);
 
 public:
 	
@@ -61,14 +61,14 @@ public:
 	}
 
 	/** Constructor */
-	FNetworkPlatformFile();
+	NETWORKFILE_API FNetworkPlatformFile();
 
 	/** Destructor */
-	virtual ~FNetworkPlatformFile();
+	NETWORKFILE_API virtual ~FNetworkPlatformFile();
 
-	virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
-	virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CmdLine) override;
-	virtual void InitializeAfterSetActive() override;
+	NETWORKFILE_API virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
+	NETWORKFILE_API virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CmdLine) override;
+	NETWORKFILE_API virtual void InitializeAfterSetActive() override;
 
 	virtual IPlatformFile* GetLowerLevel() override
 	{
@@ -111,22 +111,22 @@ public:
 		GetFileInfo(Filename, Info);
 		return Info.Size;
 	}
-	virtual bool		DeleteFile(const TCHAR* Filename) override;
+	NETWORKFILE_API virtual bool		DeleteFile(const TCHAR* Filename) override;
 	virtual bool		IsReadOnly(const TCHAR* Filename) override
 	{
 		FFileInfo Info;
 		GetFileInfo(Filename, Info);
 		return Info.ReadOnly;
 	}
-	virtual bool		MoveFile(const TCHAR* To, const TCHAR* From) override;
-	virtual bool		SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyValue) override;
+	NETWORKFILE_API virtual bool		MoveFile(const TCHAR* To, const TCHAR* From) override;
+	NETWORKFILE_API virtual bool		SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyValue) override;
 	virtual FDateTime	GetTimeStamp(const TCHAR* Filename) override
 	{
 		FFileInfo Info;
 		GetFileInfo(Filename, Info);
 		return Info.TimeStamp;
 	}
-	virtual void		SetTimeStamp(const TCHAR* Filename, FDateTime DateTime) override;
+	NETWORKFILE_API virtual void		SetTimeStamp(const TCHAR* Filename, FDateTime DateTime) override;
 	virtual FDateTime	GetAccessTimeStamp(const TCHAR* Filename) override
 	{
 		FFileInfo Info;
@@ -137,59 +137,59 @@ public:
 	{
 		return Filename;
 	}
-	virtual IFileHandle*	OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
-	virtual IFileHandle*	OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override;
-	virtual bool		DirectoryExists(const TCHAR* Directory) override;
-	virtual bool		CreateDirectoryTree(const TCHAR* Directory) override;
-	virtual bool		CreateDirectory(const TCHAR* Directory) override;
-	virtual bool		DeleteDirectory(const TCHAR* Directory) override;
+	NETWORKFILE_API virtual IFileHandle*	OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
+	NETWORKFILE_API virtual IFileHandle*	OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override;
+	NETWORKFILE_API virtual bool		DirectoryExists(const TCHAR* Directory) override;
+	NETWORKFILE_API virtual bool		CreateDirectoryTree(const TCHAR* Directory) override;
+	NETWORKFILE_API virtual bool		CreateDirectory(const TCHAR* Directory) override;
+	NETWORKFILE_API virtual bool		DeleteDirectory(const TCHAR* Directory) override;
 
-	virtual FFileStatData GetStatData(const TCHAR* FilenameOrDirectory) override;
+	NETWORKFILE_API virtual FFileStatData GetStatData(const TCHAR* FilenameOrDirectory) override;
 
-	virtual bool		IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
-	virtual bool		IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
+	NETWORKFILE_API virtual bool		IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
+	NETWORKFILE_API virtual bool		IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
 
-	virtual bool		IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
-	virtual bool		IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
+	NETWORKFILE_API virtual bool		IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
+	NETWORKFILE_API virtual bool		IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
 
-	virtual bool		DeleteDirectoryRecursively(const TCHAR* Directory) override;
-	virtual bool		CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override;
+	NETWORKFILE_API virtual bool		DeleteDirectoryRecursively(const TCHAR* Directory) override;
+	NETWORKFILE_API virtual bool		CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override;
 
-	virtual FString ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename ) override;
-	virtual FString ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename ) override;
+	NETWORKFILE_API virtual FString ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename ) override;
+	NETWORKFILE_API virtual FString ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename ) override;
 
-	virtual bool SendMessageToServer(const TCHAR* Message, IPlatformFile::IFileServerMessageHandler* Handler) override;
+	NETWORKFILE_API virtual bool SendMessageToServer(const TCHAR* Message, IPlatformFile::IFileServerMessageHandler* Handler) override;
 
 
-	virtual void Tick() override;
+	NETWORKFILE_API virtual void Tick() override;
 
 
 	
-	virtual bool SendPayloadAndReceiveResponse(TArray<uint8>& In, TArray<uint8>& Out);
-	virtual bool ReceiveResponse(TArray<uint8>& Out);
+	NETWORKFILE_API virtual bool SendPayloadAndReceiveResponse(TArray<uint8>& In, TArray<uint8>& Out);
+	NETWORKFILE_API virtual bool ReceiveResponse(TArray<uint8>& Out);
 
-	bool SendReadMessage(uint8* Destination, int64 BytesToRead);
-	bool SendWriteMessage(const uint8* Source, int64 BytesToWrite);
+	NETWORKFILE_API bool SendReadMessage(uint8* Destination, int64 BytesToRead);
+	NETWORKFILE_API bool SendWriteMessage(const uint8* Source, int64 BytesToWrite);
 
-	static void ConvertServerFilenameToClientFilename(FString& FilenameToConvert, const FString& InServerEngineDir, const FString& InServerProjectDir, const FString& InServerEnginePlatformExtensionsDir, const FString& InServerProjectPlatformExtensionsDir);
+	static NETWORKFILE_API void ConvertServerFilenameToClientFilename(FString& FilenameToConvert, const FString& InServerEngineDir, const FString& InServerProjectDir, const FString& InServerEnginePlatformExtensionsDir, const FString& InServerProjectPlatformExtensionsDir);
 
 
-	virtual FString GetVersionInfo() const;
+	NETWORKFILE_API virtual FString GetVersionInfo() const;
 
 protected:
 
 	//////////////////////////////////////////////////////////////////////////
 	// FSelfRegisteringExec interface
-	virtual bool Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
+	NETWORKFILE_API virtual bool Exec_Runtime(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override;
 
 
 	/**
 	 * Send a heartbeat message to the file server. This will tell it we are alive, as well as
 	 * get back a list of files that have been updated on the server (so we can toss our copy)
 	 */
-	virtual void PerformHeartbeat();
+	NETWORKFILE_API virtual void PerformHeartbeat();
 
-	virtual void GetFileInfo(const TCHAR* Filename, FFileInfo& Info);
+	NETWORKFILE_API virtual void GetFileInfo(const TCHAR* Filename, FFileInfo& Info);
 
 	/**
 	 *	Convert the given filename from the server to the client version of it
@@ -197,12 +197,12 @@ protected:
 	 *
 	 *	@param	FilenameToConvert		Upon input, the server version of the filename. After the call, the client version
 	 */
-	virtual void ConvertServerFilenameToClientFilename(FString& FilenameToConvert);
+	NETWORKFILE_API virtual void ConvertServerFilenameToClientFilename(FString& FilenameToConvert);
 
-	virtual void FillGetFileList(FNetworkFileArchive& Payload);
+	NETWORKFILE_API virtual void FillGetFileList(FNetworkFileArchive& Payload);
 
-	virtual void ProcessServerInitialResponse(FArrayReader& InResponse, FPackageFileVersion& OutServerPackageVersion, int32& OutServerPackageLicenseeVersion);
-	virtual void ProcessServerCachedFilesResponse(FArrayReader& InReponse, const FPackageFileVersion& ServerPackageVersion, const int32 ServerPackageLicenseeVersion );
+	NETWORKFILE_API virtual void ProcessServerInitialResponse(FArrayReader& InResponse, FPackageFileVersion& OutServerPackageVersion, int32& OutServerPackageLicenseeVersion);
+	NETWORKFILE_API virtual void ProcessServerCachedFilesResponse(FArrayReader& InReponse, const FPackageFileVersion& ServerPackageVersion, const int32 ServerPackageLicenseeVersion );
 
 private:
 
@@ -213,7 +213,7 @@ private:
 	 * @param	Extension to test.
 	 * @return	True if Ext is a video extension.  e.g. .mp4
 	 */
-	static bool IsMediaExtension(const TCHAR* Ext);
+	static NETWORKFILE_API bool IsMediaExtension(const TCHAR* Ext);
 
 	/**
 	 * Returns whether the passed in extension is a an additional (but non asset) cooked file.
@@ -221,32 +221,32 @@ private:
 	 * @param	Extension to test.
 	 * @return	True if Ext is a additional cooked file.  e.g. .ubulk, .ufont
 	 */
-	static bool IsAdditionalCookedFileExtension(const TCHAR* Ext);
+	static NETWORKFILE_API bool IsAdditionalCookedFileExtension(const TCHAR* Ext);
 
 	/**
 	 * @return true if the path exists in a directory that should always use the local filesystem
 	 * This version does not worry about initialization or thread safety, do not call directly
 	 */
-	bool IsInLocalDirectoryUnGuarded(const FString& Filename);
+	NETWORKFILE_API bool IsInLocalDirectoryUnGuarded(const FString& Filename);
 
 	/**
 	 * @return true if the path exists in a directory that should always use the local filesystem
 	 */
-	bool IsInLocalDirectory(const FString& Filename);
+	NETWORKFILE_API bool IsInLocalDirectory(const FString& Filename);
 
 	/**
 	 * Given a filename, make sure the file exists on the local filesystem
 	 */
-	void EnsureFileIsLocal(const FString& Filename);
+	NETWORKFILE_API void EnsureFileIsLocal(const FString& Filename);
 
-	void OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message);
+	NETWORKFILE_API void OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message);
 
 protected:
 	/**
 	* Does normal path standardization, and also any extra modifications to make string comparisons against
 	* the internal directory list work properly.
 	*/
-	void MakeStandardNetworkFilename(FString& Filename);
+	NETWORKFILE_API void MakeStandardNetworkFilename(FString& Filename);
 
 protected:
 
@@ -312,10 +312,10 @@ private:
 	TSpscQueue<TArray<uint8>> PendingPayloads;
 	FEventRef NewPayloadEvent;
 
-	static FString MP4Extension;
-	static FString BulkFileExtension;
-	static FString ExpFileExtension;
-	static FString FontFileExtension;
+	static NETWORKFILE_API FString MP4Extension;
+	static NETWORKFILE_API FString BulkFileExtension;
+	static NETWORKFILE_API FString ExpFileExtension;
+	static NETWORKFILE_API FString FontFileExtension;
 };
 
 class SOCKETS_API FNetworkFileHandle : public IFileHandle

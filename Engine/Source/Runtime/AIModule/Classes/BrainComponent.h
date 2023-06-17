@@ -23,7 +23,7 @@ DECLARE_DELEGATE_TwoParams(FOnAIMessage, UBrainComponent*, const FAIMessage&);
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBrain, Warning, All);
 
-struct AIMODULE_API FAIMessage
+struct FAIMessage
 {
 	enum EStatus
 	{
@@ -58,33 +58,33 @@ struct AIMODULE_API FAIMessage
 	void ClearFlag(uint8 Flag) { MessageFlags &= ~Flag; }
 	bool HasFlag(uint8 Flag) const { return (MessageFlags & Flag) != 0; }
 
-	static void Send(AController* Controller, const FAIMessage& Message);
-	static void Send(APawn* Pawn, const FAIMessage& Message);
-	static void Send(UBrainComponent* BrainComp, const FAIMessage& Message);
+	static AIMODULE_API void Send(AController* Controller, const FAIMessage& Message);
+	static AIMODULE_API void Send(APawn* Pawn, const FAIMessage& Message);
+	static AIMODULE_API void Send(UBrainComponent* BrainComp, const FAIMessage& Message);
 
-	static void Broadcast(UObject* WorldContextObject, const FAIMessage& Message);
+	static AIMODULE_API void Broadcast(UObject* WorldContextObject, const FAIMessage& Message);
 };
 
 typedef TSharedPtr<struct FAIMessageObserver> FAIMessageObserverHandle;
 
-struct AIMODULE_API FAIMessageObserver : public TSharedFromThis<FAIMessageObserver>
+struct FAIMessageObserver : public TSharedFromThis<FAIMessageObserver>
 {
 public:
-	FAIMessageObserver();
+	AIMODULE_API FAIMessageObserver();
 
-	static FAIMessageObserverHandle Create(AController* Controller, FName MessageType, FOnAIMessage const& Delegate);
-	static FAIMessageObserverHandle Create(AController* Controller, FName MessageType, FAIRequestID MessageID, FOnAIMessage const& Delegate);
+	static AIMODULE_API FAIMessageObserverHandle Create(AController* Controller, FName MessageType, FOnAIMessage const& Delegate);
+	static AIMODULE_API FAIMessageObserverHandle Create(AController* Controller, FName MessageType, FAIRequestID MessageID, FOnAIMessage const& Delegate);
 
-	static FAIMessageObserverHandle Create(APawn* Pawn, FName MessageType, FOnAIMessage const& Delegate);
-	static FAIMessageObserverHandle Create(APawn* Pawn, FName MessageType, FAIRequestID MessageID, FOnAIMessage const& Delegate);
+	static AIMODULE_API FAIMessageObserverHandle Create(APawn* Pawn, FName MessageType, FOnAIMessage const& Delegate);
+	static AIMODULE_API FAIMessageObserverHandle Create(APawn* Pawn, FName MessageType, FAIRequestID MessageID, FOnAIMessage const& Delegate);
 
-	static FAIMessageObserverHandle Create(UBrainComponent* BrainComp, FName MessageType, FOnAIMessage const& Delegate);
-	static FAIMessageObserverHandle Create(UBrainComponent* BrainComp, FName MessageType, FAIRequestID MessageID, FOnAIMessage const& Delegate);
+	static AIMODULE_API FAIMessageObserverHandle Create(UBrainComponent* BrainComp, FName MessageType, FOnAIMessage const& Delegate);
+	static AIMODULE_API FAIMessageObserverHandle Create(UBrainComponent* BrainComp, FName MessageType, FAIRequestID MessageID, FOnAIMessage const& Delegate);
 
-	~FAIMessageObserver();
+	AIMODULE_API ~FAIMessageObserver();
 
-	void OnMessage(const FAIMessage& Message);
-	FString DescribeObservedMessage() const;
+	AIMODULE_API void OnMessage(const FAIMessage& Message);
+	AIMODULE_API FString DescribeObservedMessage() const;
 	
 	FORCEINLINE FName GetObservedMessageType() const { return MessageType; }
 	FORCEINLINE FAIRequestID GetObservedMessageID() const { return MessageID; }
@@ -92,8 +92,8 @@ public:
 
 private:
 
-	void Register(UBrainComponent* OwnerComp);
-	void Unregister();
+	AIMODULE_API void Register(UBrainComponent* OwnerComp);
+	AIMODULE_API void Unregister();
 
 	/** observed message type */
 	FName MessageType;
@@ -109,12 +109,12 @@ private:
 	TWeakObjectPtr<UBrainComponent> Owner;
 
 	// Non-copyable
-	FAIMessageObserver(const FAIMessageObserver&);
-	FAIMessageObserver& operator=(const FAIMessageObserver&);
+	AIMODULE_API FAIMessageObserver(const FAIMessageObserver&);
+	AIMODULE_API FAIMessageObserver& operator=(const FAIMessageObserver&);
 };
 
-UCLASS(ClassGroup = AI, BlueprintType, hidecategories = (Sockets, Collision))
-class AIMODULE_API UBrainComponent : public UActorComponent, public IAIResourceInterface
+UCLASS(ClassGroup = AI, BlueprintType, hidecategories = (Sockets, Collision), MinimalAPI)
+class UBrainComponent : public UActorComponent, public IAIResourceInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -136,19 +136,19 @@ public:
 	/** To be called in case we want to restart AI logic while it's still being locked.
 	 *	On subsequent ResumeLogic instead RestartLogic will be called. 
 	 *	@note this call does nothing if logic is not locked at the moment of call */
-	void RequestLogicRestartOnUnlock();
+	AIMODULE_API void RequestLogicRestartOnUnlock();
 
 	/** Starts brain logic. If brain is already running, will not do anything. */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
-	virtual void StartLogic();
+	AIMODULE_API virtual void StartLogic();
 
 	/** Restarts currently running or previously ran brain logic. */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
-	virtual void RestartLogic();
+	AIMODULE_API virtual void RestartLogic();
 
 	/** Stops currently running brain logic. */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
-	virtual void StopLogic(const FString& Reason);
+	AIMODULE_API virtual void StopLogic(const FString& Reason);
 
 	/** AI logic won't be needed anymore, stop all activity and run cleanup */
 	virtual void Cleanup() {}
@@ -160,42 +160,42 @@ public:
 	 *  MUST be called by child implementations!
 	 *	@return indicates whether child class' ResumeLogic should be called (true) or has it been 
 	 *	handled in a different way and no other actions are required (false)*/
-	virtual EAILogicResuming::Type ResumeLogic(const FString& Reason);
+	AIMODULE_API virtual EAILogicResuming::Type ResumeLogic(const FString& Reason);
 public:
 
 	UFUNCTION(BlueprintPure, Category = "AI|Logic")
-	virtual bool IsRunning() const;
+	AIMODULE_API virtual bool IsRunning() const;
 
 	UFUNCTION(BlueprintPure, Category = "AI|Logic")
-	virtual bool IsPaused() const;
+	AIMODULE_API virtual bool IsPaused() const;
 
 #if ENABLE_VISUAL_LOG
-	virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
+	AIMODULE_API virtual void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
 #endif // ENABLE_VISUAL_LOG
 	
 	// IAIResourceInterface begin
-	virtual void LockResource(EAIRequestPriority::Type LockSource) override;
-	virtual void ClearResourceLock(EAIRequestPriority::Type LockSource) override;
-	virtual void ForceUnlockResource() override;
-	virtual bool IsResourceLocked() const override;
+	AIMODULE_API virtual void LockResource(EAIRequestPriority::Type LockSource) override;
+	AIMODULE_API virtual void ClearResourceLock(EAIRequestPriority::Type LockSource) override;
+	AIMODULE_API virtual void ForceUnlockResource() override;
+	AIMODULE_API virtual bool IsResourceLocked() const override;
 	// IAIResourceInterface end
 	
-	virtual void HandleMessage(const FAIMessage& Message);
+	AIMODULE_API virtual void HandleMessage(const FAIMessage& Message);
 	
 	/** BEGIN UActorComponent overrides */
-	virtual void InitializeComponent() override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	virtual void OnRegister() override;
+	AIMODULE_API virtual void InitializeComponent() override;
+	AIMODULE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	AIMODULE_API virtual void OnRegister() override;
 	/** END UActorComponent overrides */
 
 	/** caches BlackboardComponent's pointer to be used with this brain component */
-	void CacheBlackboardComponent(UBlackboardComponent* BBComp);
+	AIMODULE_API void CacheBlackboardComponent(UBlackboardComponent* BBComp);
 
 	/** @return blackboard used with this component */
-	UBlackboardComponent* GetBlackboardComponent();
+	AIMODULE_API UBlackboardComponent* GetBlackboardComponent();
 
 	/** @return blackboard used with this component */
-	const UBlackboardComponent* GetBlackboardComponent() const;
+	AIMODULE_API const UBlackboardComponent* GetBlackboardComponent() const;
 
 	FORCEINLINE AAIController* GetAIOwner() const { return AIOwner; }
 
@@ -216,9 +216,9 @@ private:
 public:
 	// static names to be used with SendMessage. Fell free to define game-specific
 	// messages anywhere you want
-	static const FName AIMessage_MoveFinished;
-	static const FName AIMessage_RepathFailed;
-	static const FName AIMessage_QueryFinished;
+	static AIMODULE_API const FName AIMessage_MoveFinished;
+	static AIMODULE_API const FName AIMessage_RepathFailed;
+	static AIMODULE_API const FName AIMessage_QueryFinished;
 };
 
 //////////////////////////////////////////////////////////////////////////

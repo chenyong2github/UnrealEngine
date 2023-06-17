@@ -13,37 +13,37 @@
  * Draws a solid 3D cylinder based on parameters.
  */
 
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementCylinder : public UGizmoElementBase
+UCLASS(Transient, MinimalAPI)
+class UGizmoElementCylinder : public UGizmoElementBase
 {
 	GENERATED_BODY()
 
 public:
 
 	//~ Begin UGizmoElementBase Interface.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	//~ End UGizmoElementBase Interface.
 
 	// Location of center of cylinder's base circle.
-	virtual void SetBase(const FVector& InBase);
-	virtual FVector GetBase() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetBase(const FVector& InBase);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetBase() const;
 
 	// Cylinder axis direction.
-	virtual void SetDirection(const FVector& InDirection);
-	virtual FVector GetDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDirection(const FVector& InDirection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetDirection() const;
 
 	// Cylinder height.
-	virtual void SetHeight(float InHeight);
-	virtual float GetHeight() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHeight(float InHeight);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetHeight() const;
 
 	// Cylinder radius.
-	virtual void SetRadius(float InRadius);
-	virtual float GetRadius() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetRadius(float InRadius);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetRadius() const;
 
 	// Number of sides for tessellating cylinder.
-	virtual void SetNumSides(int32 InNumSides);
-	virtual int32 GetNumSides() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetNumSides(int32 InNumSides);
+	INTERACTIVETOOLSFRAMEWORK_API virtual int32 GetNumSides() const;
 
 protected:
 

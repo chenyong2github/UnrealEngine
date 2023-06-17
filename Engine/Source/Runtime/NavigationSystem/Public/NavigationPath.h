@@ -18,8 +18,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnNavigationPathUpdated, UNavigati
  *	UObject wrapper for FNavigationPath
  */
 
-UCLASS(BlueprintType)
-class NAVIGATIONSYSTEM_API UNavigationPath : public UObject
+UCLASS(BlueprintType, MinimalAPI)
+class UNavigationPath : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -48,40 +48,40 @@ protected:
 public:
 
 	// UObject begin
-	virtual void BeginDestroy() override;
+	NAVIGATIONSYSTEM_API virtual void BeginDestroy() override;
 	// UObject end
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Debug")
-	FString GetDebugString() const;
+	NAVIGATIONSYSTEM_API FString GetDebugString() const;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Debug")
-	void EnableDebugDrawing(bool bShouldDrawDebugData, FLinearColor PathColor = FLinearColor::White);
+	NAVIGATIONSYSTEM_API void EnableDebugDrawing(bool bShouldDrawDebugData, FLinearColor PathColor = FLinearColor::White);
 
 	/** if enabled path will request recalculation if it gets invalidated due to a change to underlying navigation */
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
-	void EnableRecalculationOnInvalidation(TEnumAsByte<ENavigationOptionFlag::Type> DoRecalculation);
+	NAVIGATIONSYSTEM_API void EnableRecalculationOnInvalidation(TEnumAsByte<ENavigationOptionFlag::Type> DoRecalculation);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
-	double GetPathLength() const;
+	NAVIGATIONSYSTEM_API double GetPathLength() const;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
-	double GetPathCost() const;
+	NAVIGATIONSYSTEM_API double GetPathCost() const;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
-	bool IsPartial() const;
+	NAVIGATIONSYSTEM_API bool IsPartial() const;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
-	bool IsValid() const;
+	NAVIGATIONSYSTEM_API bool IsValid() const;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
-	bool IsStringPulled() const;
+	NAVIGATIONSYSTEM_API bool IsStringPulled() const;
 		
-	void SetPath(FNavPathSharedPtr NewSharedPath);
+	NAVIGATIONSYSTEM_API void SetPath(FNavPathSharedPtr NewSharedPath);
 	FNavPathSharedPtr GetPath() { return SharedPath; }
 
 protected:
-	void DrawDebug(UCanvas* Canvas, APlayerController*);
-	void OnPathEvent(FNavigationPath* Path, ENavPathEvent::Type PathEvent);
+	NAVIGATIONSYSTEM_API void DrawDebug(UCanvas* Canvas, APlayerController*);
+	NAVIGATIONSYSTEM_API void OnPathEvent(FNavigationPath* Path, ENavPathEvent::Type PathEvent);
 
-	void SetPathPointsFromPath(FNavigationPath& NativePath);
+	NAVIGATIONSYSTEM_API void SetPathPointsFromPath(FNavigationPath& NativePath);
 };

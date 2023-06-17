@@ -148,7 +148,7 @@ template<typename PropertyTraits> struct TPropertyDefinitionBuilder;
  * Central registry of all property types animatable by sequencer.
  * Once registered, properties cannot be de-registered. This vastly simplifies the lifetime and ID management of the class
  */
-class MOVIESCENE_API FPropertyRegistry
+class FPropertyRegistry
 {
 public:
 
@@ -165,7 +165,7 @@ public:
 	 * @param CustomAccessors A view to an array of custom accessors (as retrieved from ICustomPropertyRegistration::GetAccessors)
 	 * @return An optional variant specifying the resolved property if it resolved successfully
 	 */
-	static TOptional< FResolvedFastProperty > ResolveFastProperty(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, FCustomAccessorView CustomAccessors);
+	static MOVIESCENE_API TOptional< FResolvedFastProperty > ResolveFastProperty(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, FCustomAccessorView CustomAccessors);
 
 	/**
 	 * Resolve a property to either a fast ptr offset, or a custom property accessor based on the specified array falling back to a slow instance binding if possible
@@ -175,7 +175,7 @@ public:
 	 * @param CustomAccessors A view to an array of custom accessors (as retrieved from ICustomPropertyRegistration::GetAccessors)
 	 * @return An optional variant specifying the resolved property if it resolved successfully
 	 */
-	static TOptional< FResolvedProperty > ResolveProperty(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, FCustomAccessorView CustomAccessors);
+	static MOVIESCENE_API TOptional< FResolvedProperty > ResolveProperty(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, FCustomAccessorView CustomAccessors);
 
 	/**
 	 * Define a new animatable composite property type from its components.

@@ -46,24 +46,24 @@ namespace UE::Net
 * Groups are inclusive and non-binding so subobject's can be part of multiple groups at the same time.
 * As long as a player is a member of one of the subobject's group, that subobject will be replicated to that connection.
 */
-class NETCORE_API FNetConditionGroupManager
+class FNetConditionGroupManager
 {
 public:
 
 	/** Add a subobject into a netcondition group */
-	void RegisterSubObjectInGroup(UObject* SubObject, FName NetConditionGroup);
+	NETCORE_API void RegisterSubObjectInGroup(UObject* SubObject, FName NetConditionGroup);
 
 	/** Add a subobject to many netcondition groups */
-	void RegisterSubObjectInMultipleGroups(UObject* SubObject, TArrayView<FName> NetConditionGroups);
+	NETCORE_API void RegisterSubObjectInMultipleGroups(UObject* SubObject, TArrayView<FName> NetConditionGroups);
 
 	/** Remove a subobject from a netcondition group */
-	void UnregisterSubObjectFromGroup(UObject* SubObject, FName NetConditionGroup);
+	NETCORE_API void UnregisterSubObjectFromGroup(UObject* SubObject, FName NetConditionGroup);
 
 	/** Remove a subobject from many netcondition groups */
-	void UnregisterSubObjectFromMultipleGroups(UObject* SubObject, TArrayView<FName> NetConditionGroups);
+	NETCORE_API void UnregisterSubObjectFromMultipleGroups(UObject* SubObject, TArrayView<FName> NetConditionGroups);
 
 	/** Remove the subobject from all groups it was included into */
-	void UnregisterSubObjectFromAllGroups(UObject* SubObject);
+	NETCORE_API void UnregisterSubObjectFromAllGroups(UObject* SubObject);
 
 	/** Return the groups the subobject is a part of. Will be empty if it wasn't added to any. */
 	TArrayView<const FName> GetSubObjectNetConditionGroups(FObjectKey SubObjectKey) const
@@ -72,7 +72,7 @@ public:
 		return GroupInfo ? TArrayView<const FName>(GroupInfo->NetGroups) : TArrayView<const FName>();
 	}
 
-	void CountBytes(FArchive& Ar) const;
+	NETCORE_API void CountBytes(FArchive& Ar) const;
 
 private:
 

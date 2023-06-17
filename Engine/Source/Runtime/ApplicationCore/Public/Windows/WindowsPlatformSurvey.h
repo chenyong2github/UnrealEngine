@@ -9,11 +9,11 @@
 /**
  * Windows implementation of FGenericPlatformSurvey.
  */
-struct APPLICATIONCORE_API FWindowsPlatformSurvey
+struct FWindowsPlatformSurvey
 	: public FGenericPlatformSurvey
 {
 	/** Start, or check on, the hardware survey */
-	static bool GetSurveyResults( FHardwareSurveyResults& OutResults, bool bWait = false );
+	static APPLICATIONCORE_API bool GetSurveyResults( FHardwareSurveyResults& OutResults, bool bWait = false );
 
 private:
 	/**

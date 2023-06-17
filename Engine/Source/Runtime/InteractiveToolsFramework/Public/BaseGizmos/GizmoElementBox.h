@@ -13,33 +13,33 @@
  * Draws a solid 3D cylinder based on parameters.
  */
 
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementBox : public UGizmoElementBase
+UCLASS(Transient, MinimalAPI)
+class UGizmoElementBox : public UGizmoElementBase
 {
 	GENERATED_BODY()
 
 public:
 
 	//~ Begin UGizmoElementBase Interface.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	//~ End UGizmoElementBase Interface.
 
 	// Location of center of box's base circle.
-	virtual void SetCenter(const FVector& InCenter);
-	virtual FVector GetCenter() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetCenter(const FVector& InCenter);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetCenter() const;
 
 	// Box axis up direction.
-	virtual void SetUpDirection(const FVector& InUpDirection);
-	virtual FVector GetUpDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUpDirection(const FVector& InUpDirection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetUpDirection() const;
 
 	// Box axis side direction.
-	virtual void SetSideDirection(const FVector& InSideDirection);
-	virtual FVector GetSideDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetSideDirection(const FVector& InSideDirection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetSideDirection() const;
 
 	// Box dimensions.
-	virtual void SetDimensions(const FVector& InDimensions);
-	virtual FVector GetDimensions() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDimensions(const FVector& InDimensions);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetDimensions() const;
 
 protected:
 

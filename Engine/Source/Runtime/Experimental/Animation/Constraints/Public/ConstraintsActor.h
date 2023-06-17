@@ -12,32 +12,32 @@
 class UConstraintsManager;
 class UObject;
 
-UCLASS(NotPlaceable)
-class CONSTRAINTS_API AConstraintsActor : public AActor
+UCLASS(NotPlaceable, MinimalAPI)
+class AConstraintsActor : public AActor
 {
 	GENERATED_BODY()
 
 public:
 	// Sets default values for this actor's properties
-	AConstraintsActor(const FObjectInitializer& ObjectInitializer);
-	virtual ~AConstraintsActor();
+	CONSTRAINTS_API AConstraintsActor(const FObjectInitializer& ObjectInitializer);
+	CONSTRAINTS_API virtual ~AConstraintsActor();
 
-	virtual void BeginDestroy() override;
-	virtual void Destroyed() override;
+	CONSTRAINTS_API virtual void BeginDestroy() override;
+	CONSTRAINTS_API virtual void Destroyed() override;
 
-	virtual void PostRegisterAllComponents() override;
+	CONSTRAINTS_API virtual void PostRegisterAllComponents() override;
 
 #if WITH_EDITOR
-	virtual void PostEditUndo() override;
+	CONSTRAINTS_API virtual void PostEditUndo() override;
 #endif
 	
 protected:
 	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	CONSTRAINTS_API virtual void BeginPlay() override;
 
 public:
 	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	CONSTRAINTS_API virtual void Tick(float DeltaTime) override;
 
 	UPROPERTY()
 	TObjectPtr<UConstraintsManager> ConstraintsManager = nullptr;

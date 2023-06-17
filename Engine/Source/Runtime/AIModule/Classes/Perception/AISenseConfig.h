@@ -14,8 +14,8 @@
 class FGameplayDebuggerCategory;
 class UAIPerceptionComponent;
 
-UCLASS(ClassGroup = AI, abstract, EditInlineNew, config=Game)
-class AIMODULE_API UAISenseConfig : public UObject
+UCLASS(ClassGroup = AI, abstract, EditInlineNew, config=Game, MinimalAPI)
+class UAISenseConfig : public UObject
 {
 	GENERATED_BODY()
 
@@ -35,18 +35,18 @@ protected:
 	mutable FString CachedSenseName;
 
 public:
-	UAISenseConfig(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UAISenseConfig(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual TSubclassOf<UAISense> GetSenseImplementation() const;
+	AIMODULE_API virtual TSubclassOf<UAISense> GetSenseImplementation() const;
 
-	FAISenseID GetSenseID() const;
-	FString GetSenseName() const;
+	AIMODULE_API FAISenseID GetSenseID() const;
+	AIMODULE_API FString GetSenseName() const;
 	FColor GetDebugColor() const { return DebugColor; }
 	void SetMaxAge(const float NewMaxAge) { MaxAge = NewMaxAge; }
 	float GetMaxAge() const { return MaxAge == 0.f ? FAIStimulus::NeverHappenedAge : MaxAge; }	
 	bool IsEnabled() const { return bStartsEnabled; }
 
 #if WITH_GAMEPLAY_DEBUGGER_MENU
-	virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionComponent* PerceptionComponent, FGameplayDebuggerCategory* DebuggerCategory) const;
+	AIMODULE_API virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionComponent* PerceptionComponent, FGameplayDebuggerCategory* DebuggerCategory) const;
 #endif // WITH_GAMEPLAY_DEBUGGER_MENU
 };

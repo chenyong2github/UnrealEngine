@@ -26,7 +26,7 @@ namespace ESequenceEvalReinit
 // Typically the playback position of the animation for this node will represent something other than time, like jump height.
 // This node will not trigger any notifies present in the associated sequence.
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_SequenceEvaluatorBase : public FAnimNode_AssetPlayerBase
+struct FAnimNode_SequenceEvaluatorBase : public FAnimNode_AssetPlayerBase
 {
 	GENERATED_BODY()
 
@@ -35,16 +35,16 @@ private:
 
 public:
 	// FAnimNode_AssetPlayerBase interface
-	virtual float GetCurrentAssetTime() const override;
-	virtual float GetCurrentAssetLength() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetCurrentAssetTime() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetCurrentAssetLength() const override;
 	// End of FAnimNode_AssetPlayerBase interface
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_AssetPlayerBase Interface
@@ -56,7 +56,7 @@ public:
 	void SetExplicitPreviousTime(float PreviousTime) { InternalTimeAccumulator = PreviousTime; }
 
 	// Get the effective delta time between the previous and current frame internal time
-	virtual float GetEffectiveDeltaTime(float ExplicitTime, float PrevExplicitTime) const;
+	ANIMGRAPHRUNTIME_API virtual float GetEffectiveDeltaTime(float ExplicitTime, float PrevExplicitTime) const;
 
 	// Set the animation sequence asset to evaluate
 	virtual bool SetSequence(UAnimSequenceBase* InSequence) { return false; }
@@ -97,7 +97,7 @@ public:
 
 // Sequence evaluator node that can be used with constant folding
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_SequenceEvaluator : public FAnimNode_SequenceEvaluatorBase
+struct FAnimNode_SequenceEvaluator : public FAnimNode_SequenceEvaluatorBase
 {
 	GENERATED_BODY()
 
@@ -150,30 +150,30 @@ private:
 
 public:
 	// FAnimNode_SequenceEvaluatorBase interface
-	virtual bool SetSequence(UAnimSequenceBase* InSequence) override;
-	virtual UAnimSequenceBase* GetSequence() const override;
-	virtual float GetExplicitTime() const override;
-	virtual bool SetExplicitTime(float InTime) override;
-	virtual bool SetShouldLoop(bool bInShouldLoop) override;
-	virtual bool GetTeleportToExplicitTime() const override;
-	virtual TEnumAsByte<ESequenceEvalReinit::Type> GetReinitializationBehavior() const override;
-	virtual float GetStartPosition() const override;
+	ANIMGRAPHRUNTIME_API virtual bool SetSequence(UAnimSequenceBase* InSequence) override;
+	ANIMGRAPHRUNTIME_API virtual UAnimSequenceBase* GetSequence() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetExplicitTime() const override;
+	ANIMGRAPHRUNTIME_API virtual bool SetExplicitTime(float InTime) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetShouldLoop(bool bInShouldLoop) override;
+	ANIMGRAPHRUNTIME_API virtual bool GetTeleportToExplicitTime() const override;
+	ANIMGRAPHRUNTIME_API virtual TEnumAsByte<ESequenceEvalReinit::Type> GetReinitializationBehavior() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetStartPosition() const override;
 
 	// FAnimNode_AssetPlayerBase interface
-	virtual FName GetGroupName() const override;
-	virtual EAnimGroupRole::Type GetGroupRole() const override;
-	virtual EAnimSyncMethod GetGroupMethod() const override;
-	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual bool IsLooping() const override;
-	virtual bool SetGroupName(FName InGroupName) override;
-	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
-	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
-	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	ANIMGRAPHRUNTIME_API virtual FName GetGroupName() const override;
+	ANIMGRAPHRUNTIME_API virtual EAnimGroupRole::Type GetGroupRole() const override;
+	ANIMGRAPHRUNTIME_API virtual EAnimSyncMethod GetGroupMethod() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetIgnoreForRelevancyTest() const override;
+	ANIMGRAPHRUNTIME_API virtual bool IsLooping() const override;
+	ANIMGRAPHRUNTIME_API virtual bool SetGroupName(FName InGroupName) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 };
 
 // Sequence evaluator node that can be used standalone (without constant folding)
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_SequenceEvaluator_Standalone : public FAnimNode_SequenceEvaluatorBase
+struct FAnimNode_SequenceEvaluator_Standalone : public FAnimNode_SequenceEvaluatorBase
 {
 	GENERATED_BODY()
 

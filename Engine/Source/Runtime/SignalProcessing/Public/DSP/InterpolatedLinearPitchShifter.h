@@ -8,19 +8,19 @@
 
 namespace Audio
 {
-	class SIGNALPROCESSING_API FLinearPitchShifter
+	class FLinearPitchShifter
 	{
 	public:
 		// ctor
-		FLinearPitchShifter(int32 InNumChannels = 0);
+		SIGNALPROCESSING_API FLinearPitchShifter(int32 InNumChannels = 0);
 
-		void Reset(int32 InNumChannels, float InInitialPitchShiftSemitones = 0.0f, int32 InInterpLengthFrames = 100);
+		SIGNALPROCESSING_API void Reset(int32 InNumChannels, float InInitialPitchShiftSemitones = 0.0f, int32 InInterpLengthFrames = 100);
 
 		// Sample rate converts the input audio buffer and pushes converted audio to the output circular buffer.
 		// (Returns the number of output frames generated.)
-		int32 ProcessAudio(const TArrayView<float> InputBuffer, Audio::TCircularAudioBuffer<float>& OutputBuffer);
+		SIGNALPROCESSING_API int32 ProcessAudio(const TArrayView<float> InputBuffer, Audio::TCircularAudioBuffer<float>& OutputBuffer);
 
-		void UpdatePitchShift(float InNewPitchSemitones);
+		SIGNALPROCESSING_API void UpdatePitchShift(float InNewPitchSemitones);
 
 	private:
 		// returns next fractional index increment

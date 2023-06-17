@@ -21,31 +21,31 @@ struct FMRMeshConfiguration
 	bool bSendVertexColors = false;
 };
 
-UCLASS(meta=(Experimental))
-class MRMESH_API UMeshReconstructorBase : public UObject
+UCLASS(meta=(Experimental), MinimalAPI)
+class UMeshReconstructorBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	virtual void StartReconstruction();
+	MRMESH_API virtual void StartReconstruction();
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	virtual void StopReconstruction();
+	MRMESH_API virtual void StopReconstruction();
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	virtual void PauseReconstruction();
+	MRMESH_API virtual void PauseReconstruction();
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	virtual bool IsReconstructionStarted() const;
+	MRMESH_API virtual bool IsReconstructionStarted() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	virtual bool IsReconstructionPaused() const;
+	MRMESH_API virtual bool IsReconstructionPaused() const;
 
 	UFUNCTION()
-	virtual void ConnectMRMesh(UMRMeshComponent* Mesh);
+	MRMESH_API virtual void ConnectMRMesh(UMRMeshComponent* Mesh);
 
 	UFUNCTION()
-	virtual void DisconnectMRMesh();
+	MRMESH_API virtual void DisconnectMRMesh();
 
 };

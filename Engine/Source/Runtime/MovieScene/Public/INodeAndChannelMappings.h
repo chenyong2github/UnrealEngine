@@ -99,13 +99,13 @@ struct FControlRigFbxCurveData
 };
 
 
-UINTERFACE(meta = (CannotImplementInterfaceInBlueprint))
-class MOVIESCENE_API UNodeAndChannelMappings : public UInterface
+UINTERFACE(meta = (CannotImplementInterfaceInBlueprint), MinimalAPI)
+class UNodeAndChannelMappings : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class MOVIESCENE_API INodeAndChannelMappings
+class INodeAndChannelMappings
 {
 	GENERATED_IINTERFACE_BODY()
 

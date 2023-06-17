@@ -16,10 +16,10 @@ class ISlateStyle;
 class URichTextBlockDecorator;
 class URichTextBlock;
 
-class UMG_API FRichTextDecorator : public ITextDecorator
+class FRichTextDecorator : public ITextDecorator
 {
 public:
-	FRichTextDecorator(URichTextBlock* InOwner);
+	UMG_API FRichTextDecorator(URichTextBlock* InOwner);
 
 	virtual ~FRichTextDecorator() {}
 
@@ -29,25 +29,25 @@ public:
 		return false;
 	}
 
-	virtual TSharedRef<ISlateRun> Create(const TSharedRef<class FTextLayout>& TextLayout, const FTextRunParseResults& RunParseResult, const FString& OriginalText, const TSharedRef< FString >& InOutModelText, const ISlateStyle* Style) override final;
+	UMG_API virtual TSharedRef<ISlateRun> Create(const TSharedRef<class FTextLayout>& TextLayout, const FTextRunParseResults& RunParseResult, const FString& OriginalText, const TSharedRef< FString >& InOutModelText, const ISlateStyle* Style) override final;
 
 protected:
 	/** Override this function if you want to create a unique widget like an image */
-	virtual TSharedPtr<SWidget> CreateDecoratorWidget(const FTextRunInfo& RunInfo, const FTextBlockStyle& DefaultTextStyle) const;
+	UMG_API virtual TSharedPtr<SWidget> CreateDecoratorWidget(const FTextRunInfo& RunInfo, const FTextBlockStyle& DefaultTextStyle) const;
 
 	/** Override this function if you want to dynamically generate text, optionally changing the style. InOutString will start as the content between tags */
-	virtual void CreateDecoratorText(const FTextRunInfo& RunInfo, FTextBlockStyle& InOutTextStyle, FString& InOutString) const;
+	UMG_API virtual void CreateDecoratorText(const FTextRunInfo& RunInfo, FTextBlockStyle& InOutTextStyle, FString& InOutString) const;
 
 	URichTextBlock* Owner;
 };
 
-UCLASS(Abstract, Blueprintable)
-class UMG_API URichTextBlockDecorator : public UObject
+UCLASS(Abstract, Blueprintable, MinimalAPI)
+class URichTextBlockDecorator : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	URichTextBlockDecorator(const FObjectInitializer& ObjectInitializer);
+	UMG_API URichTextBlockDecorator(const FObjectInitializer& ObjectInitializer);
 
-	virtual TSharedPtr<ITextDecorator> CreateDecorator(URichTextBlock* InOwner);
+	UMG_API virtual TSharedPtr<ITextDecorator> CreateDecorator(URichTextBlock* InOwner);
 };

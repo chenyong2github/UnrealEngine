@@ -22,45 +22,45 @@ template <typename T> struct TObjectPtr;
 
 /** Spatial simulation data for a mesh. */
 USTRUCT()
-struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothPhysicalMeshData
+struct FClothPhysicalMeshData
 {
 	GENERATED_BODY()
 
 	/** Construct an empty cloth physical mesh with default common targets. */
-	FClothPhysicalMeshData();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API FClothPhysicalMeshData();
 
 	/** Migrate from same, used to migrate LOD data from the UClothLODDataCommon_Legacy. */
-	void MigrateFrom(FClothPhysicalMeshData& ClothPhysicalMeshData);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void MigrateFrom(FClothPhysicalMeshData& ClothPhysicalMeshData);
 
 	/** Migrate from the legacy physical mesh data class, used to migrate LOD data from the UClothLODDataCommon_Legacy. */
-	void MigrateFrom(UClothPhysicalMeshDataBase_Legacy* ClothPhysicalMeshDataBase);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void MigrateFrom(UClothPhysicalMeshDataBase_Legacy* ClothPhysicalMeshDataBase);
 
 	/** Reset the default common targets for this cloth physical mesh. */
-	void Reset(const int32 InNumVerts, const int32 InNumIndices);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void Reset(const int32 InNumVerts, const int32 InNumIndices);
 
 	/** Clear out any default weight maps and delete any other ones. */
-	void ClearWeightMaps();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void ClearWeightMaps();
 
 	/** Build the self collision indices for the relevant config. */
 	UE_DEPRECATED(5.0, "Use BuildSelfCollisionData(float SelfCollisionRadius) instead.")
-	void BuildSelfCollisionData(const TMap<FName, TObjectPtr<UClothConfigBase>>& ClothConfigs);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void BuildSelfCollisionData(const TMap<FName, TObjectPtr<UClothConfigBase>>& ClothConfigs);
 
 	/** Build the self collision indices with the specified radius. */
-	void BuildSelfCollisionData(float SelfCollisionRadius);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void BuildSelfCollisionData(float SelfCollisionRadius);
 
 	/** Recalculate the node inverse masses. */
-	void CalculateInverseMasses();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void CalculateInverseMasses();
 
 	/** Recalculate the number of influences for the bone data. */
-	void CalculateNumInfluences();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void CalculateNumInfluences();
 
 	/** Recalculate the long range attachment tethers. */
-	void CalculateTethers(bool bUseEuclideanDistance, bool bUseGeodesicDistance);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void CalculateTethers(bool bUseEuclideanDistance, bool bUseGeodesicDistance);
 
 	/** Compute vertex normals as unweighted average of incident face normals. If all incident triangles are degenerate,
 	    the vertex normal is assigned a value of FVector3f::XAxisVector. */
 	UE_DEPRECATED(5.0, "This function is no longer part of this API and will soon be removed.")
-	void ComputeFaceAveragedVertexNormals(TArray<FVector3f>& OutNormals) const;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void ComputeFaceAveragedVertexNormals(TArray<FVector3f>& OutNormals) const;
 
 	/** Retrieve whether a vertex weight array has already been registered. */
 	template<typename T>

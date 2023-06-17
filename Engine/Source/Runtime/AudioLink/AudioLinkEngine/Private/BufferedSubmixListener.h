@@ -7,7 +7,7 @@
 
 /** Concrete Submix Buffer Listener  
 */
-class AUDIOLINKENGINE_API FBufferedSubmixListener : public ISubmixBufferListener, 
+class FBufferedSubmixListener : public ISubmixBufferListener, 
 													public FBufferedListenerBase
 {
 public:
@@ -15,9 +15,9 @@ public:
 	 * @param  InDefaultCircularBufferSize: Size of the circular buffer in samples by default.
 	 * @param  bInZeroInputBuffer: The passed in buffer will be set zerod after we've buffered it. Not 
 	 */
-	FBufferedSubmixListener(int32 InDefaultCircularBufferSize, bool bInZeroInputBuffer);
+	AUDIOLINKENGINE_API FBufferedSubmixListener(int32 InDefaultCircularBufferSize, bool bInZeroInputBuffer);
 
-	virtual ~FBufferedSubmixListener();
+	AUDIOLINKENGINE_API virtual ~FBufferedSubmixListener();
 
 	/**
 	 * Starts the Submix buffer listener by registering it with the passed in Audio Device.
@@ -26,15 +26,15 @@ public:
 	 *
 	 * @return  success true, false otherwise.
 	 */
-	bool Start(FAudioDevice* InDevice) override;
-	void Stop(FAudioDevice* InDevice) override;
+	AUDIOLINKENGINE_API bool Start(FAudioDevice* InDevice) override;
+	AUDIOLINKENGINE_API void Stop(FAudioDevice* InDevice) override;
 
 private:
 	void RegisterWithAudioDevice(FAudioDevice* InDevice);
 	void UnregsiterWithAudioDevice(FAudioDevice* InDevice);
 	
 	//~ Begin ISubmixBufferListener
-	void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 InNumSamples, int32 InNumChannels, const int32 InSampleRate, double) override;
+	AUDIOLINKENGINE_API void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 InNumSamples, int32 InNumChannels, const int32 InSampleRate, double) override;
 	//~ End ISubmixBufferListener
 
 	Audio::FDeviceId DeviceId;

@@ -18,8 +18,8 @@ struct FFrame;
 /**
  * Implements a cinematic shot section.
  */
-UCLASS(BlueprintType)
-class MOVIESCENETRACKS_API UMovieSceneCinematicShotSection
+UCLASS(BlueprintType, MinimalAPI)
+class UMovieSceneCinematicShotSection
 	: public UMovieSceneSubSection
 {
 	GENERATED_BODY()
@@ -27,18 +27,18 @@ class MOVIESCENETRACKS_API UMovieSceneCinematicShotSection
 public:
 
 	/** Object constructor. */
-	UMovieSceneCinematicShotSection(const FObjectInitializer& ObjInitializer);
+	MOVIESCENETRACKS_API UMovieSceneCinematicShotSection(const FObjectInitializer& ObjInitializer);
 
 private:
 
 	/** ~UObject interface */
-	virtual void PostLoad() override;
+	MOVIESCENETRACKS_API virtual void PostLoad() override;
 
 public:
 
 	/** @return The shot display name. if empty, returns the sequence's name*/
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
-	FString GetShotDisplayName() const;
+	MOVIESCENETRACKS_API FString GetShotDisplayName() const;
 
 	/** Set the shot display name */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")

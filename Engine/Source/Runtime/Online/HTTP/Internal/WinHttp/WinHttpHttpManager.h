@@ -13,14 +13,14 @@ DECLARE_DELEGATE_OneParam(FWinHttpQuerySessionComplete, FWinHttpSession* /*HttpS
 
 class IWinHttpConnection;
 
-class HTTP_API FWinHttpHttpManager
+class FWinHttpHttpManager
 	: public FHttpManager
 {
 public:
-	static FWinHttpHttpManager* GetManager();
+	static HTTP_API FWinHttpHttpManager* GetManager();
 
-	FWinHttpHttpManager();
-	virtual ~FWinHttpHttpManager();
+	HTTP_API FWinHttpHttpManager();
+	HTTP_API virtual ~FWinHttpHttpManager();
 
 	/**
 	 * Asynchronously finds an existing WinHttp session for the provided URL, or creates a new one for it.
@@ -28,7 +28,7 @@ public:
 	 * @param Url The URL to find or create a WinHttp session for
 	 * @param Delegate The delegate that is called with the WinHttp session pointer if successful, or null otherwise
 	 */
-	virtual void QuerySessionForUrl(const FString& Url, FWinHttpQuerySessionComplete&& Delegate);
+	HTTP_API virtual void QuerySessionForUrl(const FString& Url, FWinHttpQuerySessionComplete&& Delegate);
 
 	/**
 	 * Validate the provided connection before we start sending our request.
@@ -38,7 +38,7 @@ public:
 	 * @param Connection the connection to validate
 	 * @return True if the request validated successfully, false if not
 	 */
-	virtual bool ValidateRequestCertificates(IWinHttpConnection& Connection);
+	HTTP_API virtual bool ValidateRequestCertificates(IWinHttpConnection& Connection);
 
 	/**
 	 * Release any resources that were pinned for this request.
@@ -47,24 +47,24 @@ public:
 	 *
 	 * @param Connection The connection to release resources for
 	 */
-	virtual void ReleaseRequestResources(IWinHttpConnection& Connection);
+	HTTP_API virtual void ReleaseRequestResources(IWinHttpConnection& Connection);
 
 	//~ Begin FHttpManager Interface
-	virtual void OnBeforeFork() override;
+	HTTP_API virtual void OnBeforeFork() override;
 	//~ End FHttpManager Interface
 
 	/**
 	 * Handle the application preparing to suspend
 	 */
-	virtual void HandleApplicationSuspending();
+	HTTP_API virtual void HandleApplicationSuspending();
 
 	/**
 	 * Handle the application preparing to suspend
 	 */
-	virtual void HandleApplicationResuming();
+	HTTP_API virtual void HandleApplicationResuming();
 
 protected:
-	FWinHttpSession* FindOrCreateSession(const uint32 SecurityProtocols);
+	HTTP_API FWinHttpSession* FindOrCreateSession(const uint32 SecurityProtocols);
 
 protected:
 	bool bPlatformForcesSecureConnections = false;

@@ -12,8 +12,8 @@
 class UObject;
 
 /** Regular navigation area, applied to entire navigation data by default */
-UCLASS(Config=Engine)
-class NAVIGATIONSYSTEM_API UNavArea_Default : public UNavArea
+UCLASS(Config=Engine, MinimalAPI)
+class UNavArea_Default : public UNavArea
 {
 	GENERATED_UCLASS_BODY()
 };

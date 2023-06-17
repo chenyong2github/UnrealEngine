@@ -13,32 +13,32 @@
 class FPrimitiveSceneProxy;
 struct FNavigationRelevantData;
 
-UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent), hidecategories = (Activation))
-class NAVIGATIONSYSTEM_API UNavLinkComponent : public UPrimitiveComponent, public INavLinkHostInterface
+UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent), hidecategories = (Activation), MinimalAPI)
+class UNavLinkComponent : public UPrimitiveComponent, public INavLinkHostInterface
 {
 	GENERATED_UCLASS_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Navigation)
 	TArray<FNavigationLink> Links;
 
-	virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
-	virtual bool IsNavigationRelevant() const override;
+	NAVIGATIONSYSTEM_API virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
+	NAVIGATIONSYSTEM_API virtual bool IsNavigationRelevant() const override;
 
 	virtual bool GetNavigationLinksClasses(TArray<TSubclassOf<class UNavLinkDefinition> >& OutClasses) const override { return false; }
-	virtual bool GetNavigationLinksArray(TArray<FNavigationLink>& OutLink, TArray<FNavigationSegmentLink>& OutSegments) const override;
+	NAVIGATIONSYSTEM_API virtual bool GetNavigationLinksArray(TArray<FNavigationLink>& OutLink, TArray<FNavigationSegmentLink>& OutSegments) const override;
 
-	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	NAVIGATIONSYSTEM_API virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
+	NAVIGATIONSYSTEM_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual bool ShouldRecreateProxyOnUpdateTransform() const override { return true; }
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
-	virtual void PostEditImport() override;
+	NAVIGATIONSYSTEM_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	NAVIGATIONSYSTEM_API virtual void PostEditUndo() override;
+	NAVIGATIONSYSTEM_API virtual void PostEditImport() override;
 #endif // WITH_EDITOR
 
-	virtual void OnRegister() override;
+	NAVIGATIONSYSTEM_API virtual void OnRegister() override;
 
 protected:
-	void InitializeLinksAreaClasses();
+	NAVIGATIONSYSTEM_API void InitializeLinksAreaClasses();
 };

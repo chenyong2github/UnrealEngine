@@ -11,7 +11,7 @@
 /**
  * Helper struct to hold and quickly access server TOC.
  */
-struct SOCKETS_API FServerTOC
+struct FServerTOC
 {
 	/** List of files in a directory. */
 	typedef TMap<FString, FDateTime> FDirectory;
@@ -20,7 +20,7 @@ struct SOCKETS_API FServerTOC
 	TMap<FString, FDirectory*> Directories;
 
 	/** Destructor. Destroys directories. */
-	~FServerTOC();
+	SOCKETS_API ~FServerTOC();
 
 	/**
 	 * Adds a file or directory to TOC.
@@ -28,7 +28,7 @@ struct SOCKETS_API FServerTOC
 	 * @param Filename File name or directory name to add.
 	 * @param Timestamp File timestamp. Directories should have this set to 0.
 	 */
-	void AddFileOrDirectory(const FString& Filename, const FDateTime& Timestamp);
+	SOCKETS_API void AddFileOrDirectory(const FString& Filename, const FDateTime& Timestamp);
 
 	/**
 	 * Finds a file in TOC.
@@ -36,7 +36,7 @@ struct SOCKETS_API FServerTOC
 	 * @param Filename File name to find.
 	 * @return Pointer to a timestamp if the file was found, NULL otherwise.
 	 */
-	const FDateTime* FindFile(const FString& Filename) const;
+	SOCKETS_API const FDateTime* FindFile(const FString& Filename) const;
 
 	/**
 	 * Finds a directory in TOC.
@@ -44,7 +44,7 @@ struct SOCKETS_API FServerTOC
 	 * @param Directory Directory to find.
 	 * @return Pointer to a FDirectory if the directory was found, NULL otherwise.
 	 */
-	const FDirectory* FindDirectory(const FString& Directory) const;
+	SOCKETS_API const FDirectory* FindDirectory(const FString& Directory) const;
 
 	/**
 	 * Finds a directory in TOC non const version used internally 
@@ -53,8 +53,8 @@ struct SOCKETS_API FServerTOC
 	 * @param Directory Directory to find
 	 * @return pointer to a FDirectory if the directory was found, null otherwise
 	 */
-	FDirectory* FindDirectory(const FString& Directory);
+	SOCKETS_API FDirectory* FindDirectory(const FString& Directory);
 
 
-	int32 RemoveFileOrDirectory(const FString& Filename);
+	SOCKETS_API int32 RemoveFileOrDirectory(const FString& Filename);
 };

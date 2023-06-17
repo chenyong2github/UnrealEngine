@@ -18,8 +18,8 @@ class UWrapBoxSlot;
  * * Flows
  * * Wraps
  */
-UCLASS()
-class UMG_API UWrapBox : public UPanelWidget
+UCLASS(MinimalAPI)
+class UWrapBox : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -51,61 +51,61 @@ public:
 
 public:
 	/** Gets the inner slot padding goes between slots sharing borders */
-	FVector2D GetInnerSlotPadding() const;
+	UMG_API FVector2D GetInnerSlotPadding() const;
 
 	/** Sets the inner slot padding goes between slots sharing borders */
 	UFUNCTION(BlueprintCallable, Category="Content Layout")
-	void SetInnerSlotPadding(FVector2D InPadding);
+	UMG_API void SetInnerSlotPadding(FVector2D InPadding);
 
 	/** */
-	float GetWrapSize() const;
+	UMG_API float GetWrapSize() const;
 
 	/** */
-	void SetWrapSize(float InWrapSize);
+	UMG_API void SetWrapSize(float InWrapSize);
 
 	/** */
-	bool UseExplicitWrapSize() const;
+	UMG_API bool UseExplicitWrapSize() const;
 
 	/** */
-	void SetExplicitWrapSize(bool bInExplicitWrapSize);
+	UMG_API void SetExplicitWrapSize(bool bInExplicitWrapSize);
 
 	/** */
-	EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Content Layout")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
 	/** */
-	EOrientation GetOrientation() const;
+	UMG_API EOrientation GetOrientation() const;
 
 	/** */
-	void SetOrientation(EOrientation InOrientation);
+	UMG_API void SetOrientation(EOrientation InOrientation);
 
 public:
 	UFUNCTION(BlueprintCallable, Category="Panel")
-	UWrapBoxSlot* AddChildToWrapBox(UWidget* Content);
+	UMG_API UWrapBoxSlot* AddChildToWrapBox(UWidget* Content);
 
 #if WITH_EDITOR
 	//~ UWidget interface
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 	//~ End UWidget interface
 #endif
 
 protected:
 
 	//~ UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	//~ End UPanelWidget
 
 	//~ UWidget interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UWidget interface
 
 	//~ UVisual interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End of UVisual interface
 
 protected:
@@ -114,6 +114,6 @@ protected:
 
 protected:
 	//~ UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End of UWidget interface
 };

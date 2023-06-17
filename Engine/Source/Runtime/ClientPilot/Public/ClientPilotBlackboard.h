@@ -10,22 +10,22 @@
 
 #include "ClientPilotBlackboard.generated.h"
 
-UCLASS()
-class CLIENTPILOT_API UClientPilotBlackboard : public UObject
+UCLASS(MinimalAPI)
+class UClientPilotBlackboard : public UObject
 {
 GENERATED_BODY()
 public:
-	virtual void InitializeFromProfile(FString CategoryToUse);
+	CLIENTPILOT_API virtual void InitializeFromProfile(FString CategoryToUse);
 
-	void AddOrUpdateValue(FString KeyName, float Value);
-	void AddOrUpdateValue(FString KeyName, int Value);
-	void AddOrUpdateValue(FString KeyName, FString Value);
-	void AddOrUpdateValue(FString KeyName, FVector Value);
+	CLIENTPILOT_API void AddOrUpdateValue(FString KeyName, float Value);
+	CLIENTPILOT_API void AddOrUpdateValue(FString KeyName, int Value);
+	CLIENTPILOT_API void AddOrUpdateValue(FString KeyName, FString Value);
+	CLIENTPILOT_API void AddOrUpdateValue(FString KeyName, FVector Value);
 
-	FString GetStringValue(FString KeyName);
-	int GetIntValue(FString KeyName);
-	float GetFloatValue(FString KeyName);
-	FVector GetVectorValue(FString KeyName);
+	CLIENTPILOT_API FString GetStringValue(FString KeyName);
+	CLIENTPILOT_API int GetIntValue(FString KeyName);
+	CLIENTPILOT_API float GetFloatValue(FString KeyName);
+	CLIENTPILOT_API FVector GetVectorValue(FString KeyName);
 
 	void RemoveKey(FString Key) 
 	{ 

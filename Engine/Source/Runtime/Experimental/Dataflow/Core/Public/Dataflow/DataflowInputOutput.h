@@ -20,7 +20,7 @@ struct FDataflowOutput;
 //
 namespace Dataflow
 {
-	struct DATAFLOWCORE_API FInputParameters {
+	struct FInputParameters {
 		FInputParameters(FName InType = FName(""), FName InName = FName(""), FDataflowNode * InOwner = nullptr, FProperty * InProperty = nullptr)
 			: Type(InType)
 			, Name(InName)
@@ -69,7 +69,7 @@ public:
 //
 namespace Dataflow
 {
-	struct DATAFLOWCORE_API FOutputParameters
+	struct FOutputParameters
 	{
 		FOutputParameters(FName InType = FName(""), FName InName = FName(""), FDataflowNode* InOwner = nullptr, FProperty* InProperty = nullptr)
 			: Type(InType)
@@ -84,7 +84,7 @@ namespace Dataflow
 	};
 }
 USTRUCT()
-struct DATAFLOWCORE_API FDataflowOutput : public FDataflowConnection
+struct FDataflowOutput : public FDataflowConnection
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -95,21 +95,21 @@ struct DATAFLOWCORE_API FDataflowOutput : public FDataflowConnection
 	size_t PassthroughOffsetAddress = INDEX_NONE;
 
 public:
-	static FDataflowOutput NoOpOutput;
+	static DATAFLOWCORE_API FDataflowOutput NoOpOutput;
 	
 	mutable TSharedPtr<FCriticalSection> OutputLock;
 	
-	FDataflowOutput(const Dataflow::FOutputParameters& Param = {}, FGuid InGuid = FGuid::NewGuid());
+	DATAFLOWCORE_API FDataflowOutput(const Dataflow::FOutputParameters& Param = {}, FGuid InGuid = FGuid::NewGuid());
 
-	TArray<FDataflowInput*>& GetConnections();
-	const TArray<FDataflowInput*>& GetConnections() const;
+	DATAFLOWCORE_API TArray<FDataflowInput*>& GetConnections();
+	DATAFLOWCORE_API const TArray<FDataflowInput*>& GetConnections() const;
 
-	virtual TArray<FDataflowInput*> GetConnectedInputs();
-	virtual const TArray<const FDataflowInput*> GetConnectedInputs() const;
+	DATAFLOWCORE_API virtual TArray<FDataflowInput*> GetConnectedInputs();
+	DATAFLOWCORE_API virtual const TArray<const FDataflowInput*> GetConnectedInputs() const;
 
-	virtual bool AddConnection(FDataflowConnection* InOutput) override;
+	DATAFLOWCORE_API virtual bool AddConnection(FDataflowConnection* InOutput) override;
 
-	virtual bool RemoveConnection(FDataflowConnection* InInput) override;
+	DATAFLOWCORE_API virtual bool RemoveConnection(FDataflowConnection* InInput) override;
 
 	virtual FORCEINLINE void SetPassthroughOffsetAddress(const size_t InPassthroughOffsetAddress)
 	{
@@ -149,7 +149,7 @@ public:
 		return Default;
 	}
 
-	bool EvaluateImpl(Dataflow::FContext& Context) const;
+	DATAFLOWCORE_API bool EvaluateImpl(Dataflow::FContext& Context) const;
 	
 	template<class T>
 	bool Evaluate(Dataflow::FContext& Context) const;
@@ -157,7 +157,7 @@ public:
 	template<class T>
 	TFuture<bool> EvaluateParallel(Dataflow::FContext& Context) const;
 
-	virtual void Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp = Dataflow::FTimestamp::Current()) override;
+	DATAFLOWCORE_API virtual void Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp = Dataflow::FTimestamp::Current()) override;
 
 };
  

@@ -5,18 +5,18 @@
 #include "CoreMinimal.h"
 #include "PlatformFeatures.h"
 
-class WINDOWSPLATFORMFEATURES_API FWindowsPlatformFeaturesModule : public IPlatformFeaturesModule
+class FWindowsPlatformFeaturesModule : public IPlatformFeaturesModule
 {
 public:
 
 	/** Creates a new instance of the audio device implemented by the module. */
-	FWindowsPlatformFeaturesModule();
+	WINDOWSPLATFORMFEATURES_API FWindowsPlatformFeaturesModule();
 
-	virtual IVideoRecordingSystem* GetVideoRecordingSystem() override;
-	virtual class ISaveGameSystem* GetSaveGameSystem() override;
+	WINDOWSPLATFORMFEATURES_API virtual IVideoRecordingSystem* GetVideoRecordingSystem() override;
+	WINDOWSPLATFORMFEATURES_API virtual class ISaveGameSystem* GetSaveGameSystem() override;
 
 private:
-	void StartupModule() override;
+	WINDOWSPLATFORMFEATURES_API void StartupModule() override;
 
 };
 

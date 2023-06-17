@@ -12,8 +12,8 @@
 #include "WrapBoxSlot.generated.h"
 
 /** The Slot for the UWrapBox, contains the widget that is flowed vertically */
-UCLASS()
-class UMG_API UWrapBoxSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UWrapBoxSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
@@ -54,46 +54,46 @@ public:
 
 public:
 
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	bool DoesFillEmptySpace() const;
-
-	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
-	void SetFillEmptySpace(bool InbFillEmptySpace);
-
-	float GetFillSpanWhenLessThan() const;
+	UMG_API bool DoesFillEmptySpace() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
-	void SetFillSpanWhenLessThan(float InFillSpanWhenLessThan);
+	UMG_API void SetFillEmptySpace(bool InbFillEmptySpace);
 
-	EHorizontalAlignment  GetHorizontalAlignment() const;
-
-	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
-
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API float GetFillSpanWhenLessThan() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetFillSpanWhenLessThan(float InFillSpanWhenLessThan);
 
-	bool DoesForceNewLine() const;
+	UMG_API EHorizontalAlignment  GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
-	void SetNewLine(bool InForceNewLine);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+
+	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+
+	UMG_API bool DoesForceNewLine() const;
+
+	UFUNCTION(BlueprintCallable, Category="Layout|Wrap Box Slot")
+	UMG_API void SetNewLine(bool InForceNewLine);
 
 public:
 
 	// UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UPanelSlot interface
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
-	void BuildSlot(TSharedRef<SWrapBox> InWrapBox);
+	UMG_API void BuildSlot(TSharedRef<SWrapBox> InWrapBox);
 
 private:
 	//TODO UMG Slots should hold weak or shared refs to slots.

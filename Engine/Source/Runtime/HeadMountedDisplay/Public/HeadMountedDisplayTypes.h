@@ -30,7 +30,7 @@ class UObject;
 struct FFilterVertex;
 struct FFrame;
 
-class HEADMOUNTEDDISPLAY_API FHMDViewMesh
+class FHMDViewMesh
 {
 public:
 
@@ -40,15 +40,15 @@ public:
 		MT_VisibleArea
 	};
 
-	FHMDViewMesh();
-	~FHMDViewMesh();
+	HEADMOUNTEDDISPLAY_API FHMDViewMesh();
+	HEADMOUNTEDDISPLAY_API ~FHMDViewMesh();
 
 	bool IsValid() const
 	{
 		return NumTriangles > 0;
 	}
 
-	void BuildMesh(const FVector2D Positions[], uint32 VertexCount, EHMDMeshType MeshType);
+	HEADMOUNTEDDISPLAY_API void BuildMesh(const FVector2D Positions[], uint32 VertexCount, EHMDMeshType MeshType);
 
 	FBufferRHIRef VertexBufferRHI;
 	FBufferRHIRef IndexBufferRHI;
@@ -287,8 +287,8 @@ enum class EHandKeypoint : uint8
 
 const int32 EHandKeypointCount = static_cast<int32>(EHandKeypoint::LittleTip) + 1;
 
-UCLASS()
-class HEADMOUNTEDDISPLAY_API UHandKeypointConversion : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UHandKeypointConversion : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -311,7 +311,7 @@ enum class EXRVisualType : uint8
 };
 
 USTRUCT(BlueprintType)
-struct HEADMOUNTEDDISPLAY_API FXRHMDData
+struct FXRHMDData
 {
 	GENERATED_USTRUCT_BODY();
 
@@ -332,7 +332,7 @@ struct HEADMOUNTEDDISPLAY_API FXRHMDData
 };
 
 USTRUCT(BlueprintType)
-struct HEADMOUNTEDDISPLAY_API FXRMotionControllerData
+struct FXRMotionControllerData
 {
 	GENERATED_USTRUCT_BODY();
 

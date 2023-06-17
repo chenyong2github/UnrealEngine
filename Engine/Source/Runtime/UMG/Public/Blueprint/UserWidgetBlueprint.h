@@ -5,8 +5,8 @@
 #include "Engine/Blueprint.h"
 #include "UserWidgetBlueprint.generated.h"
 
-UCLASS(Abstract)
-class UMG_API UUserWidgetBlueprint : public UBlueprint
+UCLASS(Abstract, MinimalAPI)
+class UUserWidgetBlueprint : public UBlueprint
 {
 	GENERATED_BODY()
 

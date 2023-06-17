@@ -112,42 +112,42 @@ private:
 
 /** Common base class of Buffered Listener objects.
 */
-class AUDIOLINKENGINE_API FBufferedListenerBase : public IBufferedAudioOutput
+class FBufferedListenerBase : public IBufferedAudioOutput
 {
 protected:
-	FBufferedListenerBase(int32 InDefaultCircularBufferSize);
+	AUDIOLINKENGINE_API FBufferedListenerBase(int32 InDefaultCircularBufferSize);
 	virtual ~FBufferedListenerBase() = default;
 
 	//~ Begin IBufferedAudioOutput
-	bool PopBuffer(float* InBuffer, int32 InBufferSizeInSamples, int32& OutSamplesWritten) override;
-	bool GetFormat(IBufferedAudioOutput::FBufferFormat& OutFormat) const override;
-	void Reserve(int32 InNumSamplesToReserve, int32 InNumSamplesOfSilence) override;
-	void SetFormatKnownDelegate(FOnFormatKnown InFormatKnownDelegate) override;
+	AUDIOLINKENGINE_API bool PopBuffer(float* InBuffer, int32 InBufferSizeInSamples, int32& OutSamplesWritten) override;
+	AUDIOLINKENGINE_API bool GetFormat(IBufferedAudioOutput::FBufferFormat& OutFormat) const override;
+	AUDIOLINKENGINE_API void Reserve(int32 InNumSamplesToReserve, int32 InNumSamplesOfSilence) override;
+	AUDIOLINKENGINE_API void SetFormatKnownDelegate(FOnFormatKnown InFormatKnownDelegate) override;
 	void SetBufferStreamEndDelegate(FOnBufferStreamEnd) override {}
 	//~ End IBufferedAudioOutput
 
 	//* Common path to receive a new buffer, call from derived classes */
-	void OnBufferReceived(const FBufferFormat& InFormat, TArrayView<const float> InBuffer);
+	AUDIOLINKENGINE_API void OnBufferReceived(const FBufferFormat& InFormat, TArrayView<const float> InBuffer);
 
 	//* Reset the format of the buffer */
-	void ResetFormat();
+	AUDIOLINKENGINE_API void ResetFormat();
 
 	//* Set the format of the buffer */
-	void SetFormat(const FBufferFormat& InFormat);
+	AUDIOLINKENGINE_API void SetFormat(const FBufferFormat& InFormat);
 	
 	//* Ask if the started flag has been set. Note this is non-atomic, as it could change during the call */	
-	bool IsStartedNonAtomic() const;
+	AUDIOLINKENGINE_API bool IsStartedNonAtomic() const;
 		
 	//* Attempt to set our state to started. Not this can fail if we're already started. */	
-	bool TrySetStartedFlag(); 
+	AUDIOLINKENGINE_API bool TrySetStartedFlag(); 
 	
 	//* Attempt to set started to false. This can fail if we're already stopped. */	
-	bool TryUnsetStartedFlag();
+	AUDIOLINKENGINE_API bool TryUnsetStartedFlag();
 
-	bool TrySetStoppingFlag();
+	AUDIOLINKENGINE_API bool TrySetStoppingFlag();
 
 private:	
-	void PushSilence(int32 InNumSamplesOfSilence);
+	AUDIOLINKENGINE_API void PushSilence(int32 InNumSamplesOfSilence);
 
 	/** Buffer to hold the data for the single source we're listening to, interleaved. */
 	FLockingCircularSampleBuffer CircularBuffer;

@@ -29,8 +29,8 @@ struct FInterchangeStackInfo
 	TArray<TObjectPtr<UInterchangePipelineBase>> Pipelines;
 };
 
-UCLASS(BlueprintType, Blueprintable, Experimental)
-class INTERCHANGEENGINE_API UInterchangePipelineConfigurationBase : public UObject
+UCLASS(BlueprintType, Blueprintable, Experimental, MinimalAPI)
+class UInterchangePipelineConfigurationBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -40,7 +40,7 @@ public:
 	 * Non virtual helper to allow blueprint to implement event base function to implement the ShowPipelineConfigurationDialog,
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	EInterchangePipelineConfigurationDialogResult ScriptedShowPipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+	INTERCHANGEENGINE_API EInterchangePipelineConfigurationDialogResult ScriptedShowPipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
 		, TArray<UInterchangePipelineBase*>& OutPipelines
 		, UInterchangeSourceData* SourceData);
 
@@ -57,7 +57,7 @@ public:
 	 * Non virtual helper to allow blueprint to implement event base function to implement the ShowPipelineConfigurationDialog,
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	EInterchangePipelineConfigurationDialogResult ScriptedShowScenePipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+	INTERCHANGEENGINE_API EInterchangePipelineConfigurationDialogResult ScriptedShowScenePipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
 		, TArray<UInterchangePipelineBase*>& OutPipelines
 		, UInterchangeSourceData* SourceData);
 
@@ -74,7 +74,7 @@ public:
 	 * Non virtual helper to allow blueprint to implement event base function to implement the ShowPipelineConfigurationDialog,
 	 */
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Interchange | Translator")
-	EInterchangePipelineConfigurationDialogResult ScriptedShowReimportPipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
+	INTERCHANGEENGINE_API EInterchangePipelineConfigurationDialogResult ScriptedShowReimportPipelineConfigurationDialog(TArray<FInterchangeStackInfo>& PipelineStacks
 		, TArray<UInterchangePipelineBase*>& OutPipelines
 		, UInterchangeSourceData* SourceData);
 

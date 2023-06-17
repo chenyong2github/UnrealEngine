@@ -13,26 +13,26 @@
 /**
  * Basic object to extend the meaning of incoming live link frames.
  */
-UCLASS(Abstract)
-class LIVELINKINTERFACE_API ULiveLinkRole : public UObject
+UCLASS(Abstract, MinimalAPI)
+class ULiveLinkRole : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual UScriptStruct* GetStaticDataStruct() const PURE_VIRTUAL(ULiveLinkRole::GetStaticDataStruct, return nullptr;);
-	virtual UScriptStruct* GetFrameDataStruct() const PURE_VIRTUAL(ULiveLinkRole::GetFrameDataStruct, return nullptr;);
-	virtual UScriptStruct* GetBlueprintDataStruct() const PURE_VIRTUAL(ULiveLinkRole::GetBlueprintDataStruct, return nullptr;);
+	LIVELINKINTERFACE_API virtual UScriptStruct* GetStaticDataStruct() const PURE_VIRTUAL(ULiveLinkRole::GetStaticDataStruct, return nullptr;);
+	LIVELINKINTERFACE_API virtual UScriptStruct* GetFrameDataStruct() const PURE_VIRTUAL(ULiveLinkRole::GetFrameDataStruct, return nullptr;);
+	LIVELINKINTERFACE_API virtual UScriptStruct* GetBlueprintDataStruct() const PURE_VIRTUAL(ULiveLinkRole::GetBlueprintDataStruct, return nullptr;);
 
-	virtual bool InitializeBlueprintData(const FLiveLinkSubjectFrameData& InSourceData, FLiveLinkBlueprintDataStruct& OutBlueprintData) const PURE_VIRTUAL(ULiveLinkRole::InitializeBlueprintData, return false;);
+	LIVELINKINTERFACE_API virtual bool InitializeBlueprintData(const FLiveLinkSubjectFrameData& InSourceData, FLiveLinkBlueprintDataStruct& OutBlueprintData) const PURE_VIRTUAL(ULiveLinkRole::InitializeBlueprintData, return false;);
 
-	virtual FText GetDisplayName() const;
+	LIVELINKINTERFACE_API virtual FText GetDisplayName() const;
 	virtual bool IsStaticDataValid(const FLiveLinkStaticDataStruct& InStaticData, bool& bOutShouldLogWarning) const { return true; }
 	virtual bool IsFrameDataValid(const FLiveLinkStaticDataStruct& InStaticData, const FLiveLinkFrameDataStruct& InFrameData, bool& bOutShouldLogWarning) const { return true; }
 };
 
 
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkSubjectRepresentation
+struct FLiveLinkSubjectRepresentation
 {
 	GENERATED_BODY()
 

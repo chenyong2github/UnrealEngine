@@ -7,7 +7,7 @@
 
 namespace Audio
 {
-	struct SIGNALPROCESSING_API FWetDry
+	struct FWetDry
 	{
 		// Level of wet signal
 		float WetLevel;
@@ -23,58 +23,58 @@ namespace Audio
 	};
 
 	// Class which manages scaling audio input and performing panning operations
-	class SIGNALPROCESSING_API FAmp
+	class FAmp
 	{
 	public:
-		FAmp();
-		~FAmp();
+		SIGNALPROCESSING_API FAmp();
+		SIGNALPROCESSING_API ~FAmp();
 
 		// Initializes the amp with the mod matrix
-		void Init(const int32 InVoiceId = INDEX_NONE, FModulationMatrix* ModMatrix = nullptr);
+		SIGNALPROCESSING_API void Init(const int32 InVoiceId = INDEX_NONE, FModulationMatrix* ModMatrix = nullptr);
 
 		// Sets the direct gain in decibel
-		void SetGainDb(const float InGainDB);
+		SIGNALPROCESSING_API void SetGainDb(const float InGainDB);
 
 		// Sets the gain modulation in decibel
-		void SetGainModDb(const float InGainModDb);
+		SIGNALPROCESSING_API void SetGainModDb(const float InGainModDb);
 
 		// Sets the direct gain in linear
-		void SetGain(const float InGainLinear);
+		SIGNALPROCESSING_API void SetGain(const float InGainLinear);
 
 		// Sets the gain modulation in linear. Expects modulation value to be bipolar (for AM synth, etc)
-		void SetGainMod(const float InBipolarGainModLinear);
+		SIGNALPROCESSING_API void SetGainMod(const float InBipolarGainModLinear);
 
 		// Sets the gain based on an envelope value
-		void SetGainEnv(const float InGainEnv);
+		SIGNALPROCESSING_API void SetGainEnv(const float InGainEnv);
 
 		// Sets the gain based on an envelope value
-		void SetGainEnvDb(const float InGainEnvDb);
+		SIGNALPROCESSING_API void SetGainEnvDb(const float InGainEnvDb);
 
 		// Change the allowed range of the gain output
-		void SetGainRange(const float InMin, const float InMax);
+		SIGNALPROCESSING_API void SetGainRange(const float InMin, const float InMax);
 		
 		// Sets the gain using a midi velocity value
-		void SetVelocity(const float InVelocity);
+		SIGNALPROCESSING_API void SetVelocity(const float InVelocity);
 
 		// Sets the pan
-		void SetPan(const float InPan);
+		SIGNALPROCESSING_API void SetPan(const float InPan);
 
 		// Sets the pan modulator
-		void SetPanModulator(const float InPanMod);
+		SIGNALPROCESSING_API void SetPanModulator(const float InPanMod);
 
 		// Takes mono input and generates stereo output
-		void ProcessAudio(const float LeftIn, float* LeftOutput, float* RightOutput);
+		SIGNALPROCESSING_API void ProcessAudio(const float LeftIn, float* LeftOutput, float* RightOutput);
 
 		// Takes stereo input and generates stereo output
-		void ProcessAudio(const float LeftIn, const float RightIn, float* LeftOutput, float* RightOutput);
+		SIGNALPROCESSING_API void ProcessAudio(const float LeftIn, const float RightIn, float* LeftOutput, float* RightOutput);
 
 		// Generates a new gain value for left and right outputs. 
-		void Generate(float& OutGainLeft, float& OutGainRight);
+		SIGNALPROCESSING_API void Generate(float& OutGainLeft, float& OutGainRight);
 
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		// Updates the final output left and right gain based on current settings
-		void Update();
+		SIGNALPROCESSING_API void Update();
 
 		const FPatchDestination GetModDestGainScale() const { return GainScaleDest; }
 		const FPatchDestination GetModDestGainEnv() const { return GainEnvDest; }

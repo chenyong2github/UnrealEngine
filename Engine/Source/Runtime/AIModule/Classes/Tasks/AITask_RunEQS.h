@@ -11,24 +11,24 @@
 class AAIController;
 class UEnvQuery;
 
-UCLASS()
-class AIMODULE_API UAITask_RunEQS : public UAITask
+UCLASS(MinimalAPI)
+class UAITask_RunEQS : public UAITask
 {
 	GENERATED_BODY()
 		
 public:
-	UAITask_RunEQS(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UAITask_RunEQS(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Tasks", meta = (DefaultToSelf = "Controller", BlueprintInternalUseOnly = "TRUE"))
-	static UAITask_RunEQS* RunEQS(AAIController* Controller, UEnvQuery* QueryTemplate);
+	static AIMODULE_API UAITask_RunEQS* RunEQS(AAIController* Controller, UEnvQuery* QueryTemplate);
 
 	void SetQueryTemplate(UEnvQuery& InQueryTemplate) { EQSRequest.QueryTemplate = &InQueryTemplate; }
 	void SetNotificationDelegate(const FQueryFinishedSignature& InNotificationDelegate) { NotificationDelegate = InNotificationDelegate; }
 		
 protected:
-	virtual void Activate() override;
+	AIMODULE_API virtual void Activate() override;
 
-	void OnEQSRequestFinished(TSharedPtr<FEnvQueryResult> Result);
+	AIMODULE_API void OnEQSRequestFinished(TSharedPtr<FEnvQueryResult> Result);
 
 	FEQSParametrizedQueryExecutionRequest EQSRequest;
 	FQueryFinishedSignature EQSFinishedDelegate;

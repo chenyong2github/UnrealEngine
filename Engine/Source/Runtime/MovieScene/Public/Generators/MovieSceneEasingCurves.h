@@ -41,15 +41,15 @@ enum class EMovieSceneBuiltInEasing : uint8
 };
 
 
-UCLASS(BlueprintType, meta=(DisplayName = "Built-In Function"))
-class MOVIESCENE_API UMovieSceneBuiltInEasingFunction : public UObject, public IMovieSceneEasingFunction
+UCLASS(BlueprintType, meta=(DisplayName = "Built-In Function"), MinimalAPI)
+class UMovieSceneBuiltInEasingFunction : public UObject, public IMovieSceneEasingFunction
 {
 public:
 	GENERATED_BODY()
 
-	UMovieSceneBuiltInEasingFunction(const FObjectInitializer& Initiailizer);
+	MOVIESCENE_API UMovieSceneBuiltInEasingFunction(const FObjectInitializer& Initiailizer);
 
-	virtual float Evaluate(float InTime) const override;
+	MOVIESCENE_API virtual float Evaluate(float InTime) const override;
 
 #if WITH_EDITOR
 	virtual FText GetDisplayName() const override { return StaticEnum<EMovieSceneBuiltInEasing>()->GetDisplayNameTextByValue((int64)Type); }
@@ -60,13 +60,13 @@ public:
 };
 
 
-UCLASS(meta=(DisplayName="Curve Asset"))
-class MOVIESCENE_API UMovieSceneEasingExternalCurve : public UObject, public IMovieSceneEasingFunction
+UCLASS(meta=(DisplayName="Curve Asset"), MinimalAPI)
+class UMovieSceneEasingExternalCurve : public UObject, public IMovieSceneEasingFunction
 {
 public:
 	GENERATED_BODY()
 
-	virtual float Evaluate(float InTime) const override;
+	MOVIESCENE_API virtual float Evaluate(float InTime) const override;
 
 #if WITH_EDITOR
 	virtual FText GetDisplayName() const override { return StaticClass()->GetDisplayNameText(); }

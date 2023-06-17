@@ -8,8 +8,8 @@
 #include "IMovieSceneSequencePlayerObserver.generated.h"
 
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneSequencePlayerObserver : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneSequencePlayerObserver : public UInterface
 {
 public:
 	GENERATED_BODY()

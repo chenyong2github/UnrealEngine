@@ -48,7 +48,7 @@ ENUM_CLASS_FLAGS(EInputDevices);
  * Generally this is intended to be returned as the result of a hit-test with a FInputDeviceRay 
  */
 USTRUCT(BlueprintType)
-struct INTERACTIVETOOLSFRAMEWORK_API FInputRayHit
+struct FInputRayHit
 {
 	GENERATED_BODY()
 
@@ -323,7 +323,7 @@ struct FInputDeviceState
  * have an associated 2D screen position.
  */
 USTRUCT(BlueprintType)
-struct INTERACTIVETOOLSFRAMEWORK_API FInputDeviceRay
+struct FInputDeviceRay
 {
 	GENERATED_BODY()
 

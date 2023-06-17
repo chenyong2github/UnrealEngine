@@ -17,7 +17,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogSkeletalMeshOperations, Log, All);
 
 
 
-class SKELETALMESHDESCRIPTION_API FSkeletalMeshOperations : public FStaticMeshOperations
+class FSkeletalMeshOperations : public FStaticMeshOperations
 {
 public:
 	struct FSkeletalMeshAppendSettings
@@ -30,5 +30,5 @@ public:
 		TArray<FBoneIndexType> SourceRemapBoneIndex;
 	};
 	
-	static void AppendSkinWeight(const FMeshDescription& SourceMesh, FMeshDescription& TargetMesh, FSkeletalMeshAppendSettings& AppendSettings);
+	static SKELETALMESHDESCRIPTION_API void AppendSkinWeight(const FMeshDescription& SourceMesh, FMeshDescription& TargetMesh, FSkeletalMeshAppendSettings& AppendSettings);
 };

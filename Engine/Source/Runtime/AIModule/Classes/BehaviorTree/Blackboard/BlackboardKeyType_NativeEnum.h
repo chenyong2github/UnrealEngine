@@ -9,13 +9,13 @@
 
 // DEPRECATED, please use UBlackboardKeyType_Enum instead
 
-UCLASS(NotEditInlineNew, HideDropDown)
-class AIMODULE_API UBlackboardKeyType_NativeEnum : public UBlackboardKeyType
+UCLASS(NotEditInlineNew, HideDropDown, MinimalAPI)
+class UBlackboardKeyType_NativeEnum : public UBlackboardKeyType
 {
 	GENERATED_UCLASS_BODY()
 
 	typedef uint8 FDataType;
-	static const FDataType InvalidValue;
+	static AIMODULE_API const FDataType InvalidValue;
 
 	UPROPERTY(Category=Blackboard, EditDefaultsOnly)
 	FString EnumName;
@@ -23,8 +23,8 @@ class AIMODULE_API UBlackboardKeyType_NativeEnum : public UBlackboardKeyType
 	UPROPERTY()
 	TObjectPtr<UEnum> EnumType;
 
-	virtual UBlackboardKeyType* UpdateDeprecatedKey() override;
+	AIMODULE_API virtual UBlackboardKeyType* UpdateDeprecatedKey() override;
 
-	static uint8 GetValue(const UBlackboardKeyType_NativeEnum* KeyOb, const uint8* RawData);
-	static bool SetValue(UBlackboardKeyType_NativeEnum* KeyOb, uint8* RawData, uint8 Value);
+	static AIMODULE_API uint8 GetValue(const UBlackboardKeyType_NativeEnum* KeyOb, const uint8* RawData);
+	static AIMODULE_API bool SetValue(UBlackboardKeyType_NativeEnum* KeyOb, uint8* RawData, uint8 Value);
 };

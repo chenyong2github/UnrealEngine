@@ -294,20 +294,20 @@ struct FRecastTileTimeSliceSettings
 /**
  * Class handling generation of a single tile, caching data that can speed up subsequent tile generations
  */
-class NAVIGATIONSYSTEM_API FRecastTileGenerator : public FNoncopyable, public FGCObject
+class FRecastTileGenerator : public FNoncopyable, public FGCObject
 {
 	friend FRecastNavMeshGenerator;
 
 public:
-	FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenerator, const FIntPoint& Location, const double PendingTileCreationTime);
-	virtual ~FRecastTileGenerator();
+	NAVIGATIONSYSTEM_API FRecastTileGenerator(FRecastNavMeshGenerator& ParentGenerator, const FIntPoint& Location, const double PendingTileCreationTime);
+	NAVIGATIONSYSTEM_API virtual ~FRecastTileGenerator();
 		
 	/** Does the work involved with regenerating this tile using time slicing.
 	 *  The return value determines the result of the time slicing
 	 */
-	ETimeSliceWorkResult DoWorkTimeSliced();
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult DoWorkTimeSliced();
 	/** Does the work involved with regenerating this tile */
-	bool DoWork();
+	NAVIGATIONSYSTEM_API bool DoWork();
 
 	FORCEINLINE int32 GetTileX() const { return TileX; }
 	FORCEINLINE int32 GetTileY() const { return TileY; }
@@ -318,25 +318,25 @@ public:
 	/** Whether tile data was fully regenerated */
 	FORCEINLINE bool IsFullyRegenerated() const { return bRegenerateCompressedLayers; }
 	/** Whether tile task has anything to build */
-	bool HasDataToBuild() const;
+	NAVIGATIONSYSTEM_API bool HasDataToBuild() const;
 
 	const TArray<FNavMeshTileData>& GetCompressedLayers() const { return CompressedLayers; }
 
-	static FBox CalculateTileBounds(int32 X, int32 Y, const FVector& RcNavMeshOrigin, const FBox& TotalNavBounds, FVector::FReal TileSizeInWorldUnits);
+	static NAVIGATIONSYSTEM_API FBox CalculateTileBounds(int32 X, int32 Y, const FVector& RcNavMeshOrigin, const FBox& TotalNavBounds, FVector::FReal TileSizeInWorldUnits);
 
 protected:
 	// to be used solely by FRecastNavMeshGenerator
 	TArray<FNavMeshTileData>& GetNavigationData() { return NavigationData; }
 	
 public:
-	uint32 GetUsedMemCount() const;
+	NAVIGATIONSYSTEM_API uint32 GetUsedMemCount() const;
 
 	// Memory amount used to construct generator 
 	uint32 UsedMemoryOnStartup;
 
 	// FGCObject begin
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override;
+	NAVIGATIONSYSTEM_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	NAVIGATIONSYSTEM_API virtual FString GetReferencerName() const override;
 	// FGCObject end
 
 #if RECAST_INTERNAL_DEBUG_DATA
@@ -354,99 +354,99 @@ protected:
 	 *	@return Failed if failed or no need to generate (still valid).
 	 *  @return CallAgainNextTimeSlice, time slice is finished this frame but we need to call this function again next frame
 	 */
-	ETimeSliceWorkResult GenerateTileTimeSliced();
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult GenerateTileTimeSliced();
 	/** Does the actual tile generation.
 	 *	@note always trigger tile generation only via DoWorkTime(). This is a worker function
 	 *  The return value determines the result of the time slicing
 	 *	@return true if new tile navigation data has been generated and is ready to be added to navmesh instance,
 	 *	@return false if failed or no need to generate (still valid).
 	 */
-	bool GenerateTile();
+	NAVIGATIONSYSTEM_API bool GenerateTile();
 
-	void Setup(const FRecastNavMeshGenerator& ParentGenerator, const TArray<FBox>& DirtyAreas);
+	NAVIGATIONSYSTEM_API void Setup(const FRecastNavMeshGenerator& ParentGenerator, const TArray<FBox>& DirtyAreas);
 	
 	/** Gather geometry */
-	virtual void GatherGeometry(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
+	NAVIGATIONSYSTEM_API virtual void GatherGeometry(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
 	/** Gather geometry sources to be processed later by the GatherGeometryFromSources */
-	virtual void PrepareGeometrySources(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
+	NAVIGATIONSYSTEM_API virtual void PrepareGeometrySources(const FRecastNavMeshGenerator& ParentGenerator, bool bGeometryChanged);
 	/** Gather geometry from the prefetched sources */
-	void GatherGeometryFromSources();
+	NAVIGATIONSYSTEM_API void GatherGeometryFromSources();
 	/** Gather geometry from the prefetched sources time sliced version */
-	ETimeSliceWorkResult GatherGeometryFromSourcesTimeSliced();
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult GatherGeometryFromSourcesTimeSliced();
 	/** Gather geometry from a specified Navigation Data */
-	void GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, UNavigationSystemV1& NavSys, const FNavDataConfig& OwnerNavDataConfig, bool bGeometryChanged);
+	NAVIGATIONSYSTEM_API void GatherNavigationDataGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, UNavigationSystemV1& NavSys, const FNavDataConfig& OwnerNavDataConfig, bool bGeometryChanged);
 
 	/** Start functions used by GenerateCompressedLayersTimeSliced / GenerateCompressedLayers */
-	bool CreateHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	ETimeSliceWorkResult RasterizeTrianglesTimeSliced(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	void RasterizeTriangles(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	ETimeSliceWorkResult RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API bool CreateHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult RasterizeTrianglesTimeSliced(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API void RasterizeTriangles(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
 	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
-	ETimeSliceWorkResult RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
-	void RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult RasterizeGeometryRecastTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API void RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
 	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
-	void RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
-	void RasterizeGeometryTransformCoords(const TArray<FVector::FReal>& Coords, const FTransform& LocalToWorld);
+	NAVIGATIONSYSTEM_API void RasterizeGeometryRecast(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API void RasterizeGeometryTransformCoords(const TArray<FVector::FReal>& Coords, const FTransform& LocalToWorld);
 	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
-	void RasterizeGeometryTransformCoords(const TArray<float>& Coords, const FTransform& LocalToWorld);
-	ETimeSliceWorkResult RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API void RasterizeGeometryTransformCoords(const TArray<float>& Coords, const FTransform& LocalToWorld);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
 	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
-	ETimeSliceWorkResult RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
-	void RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult RasterizeGeometryTimeSliced(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API void RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<FVector::FReal>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
 	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
-	void RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
-	void GenerateRecastFilter(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	ETimeSliceWorkResult GenerateRecastFilterTimeSliced(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	bool BuildCompactHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	bool RecastErodeWalkable(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	bool RecastBuildLayers(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	bool RecastBuildTileCache(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API void RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API void GenerateRecastFilter(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult GenerateRecastFilterTimeSliced(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API bool BuildCompactHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API bool RecastErodeWalkable(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API bool RecastBuildLayers(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API bool RecastBuildTileCache(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
 	/** End functions used by GenerateCompressedLayersTimeSliced / GenerateCompressedLayers */
 
 	/** builds CompressedLayers array (geometry + modifiers) time sliced*/
-	virtual ETimeSliceWorkResult GenerateCompressedLayersTimeSliced(FNavMeshBuildContext& BuildContext);
+	NAVIGATIONSYSTEM_API virtual ETimeSliceWorkResult GenerateCompressedLayersTimeSliced(FNavMeshBuildContext& BuildContext);
 	/** builds CompressedLayers array (geometry + modifiers) */
-	virtual bool GenerateCompressedLayers(FNavMeshBuildContext& BuildContext);
+	NAVIGATIONSYSTEM_API virtual bool GenerateCompressedLayers(FNavMeshBuildContext& BuildContext);
 
 	/** Builds a navigation data layer */
-	bool GenerateNavigationDataLayer(FNavMeshBuildContext& BuildContext, FTileCacheCompressor& TileCompressor, FTileCacheAllocator& GenNavAllocator, FTileGenerationContext& GenerationContext, int32 LayerIdx);
+	NAVIGATIONSYSTEM_API bool GenerateNavigationDataLayer(FNavMeshBuildContext& BuildContext, FTileCacheCompressor& TileCompressor, FTileCacheAllocator& GenNavAllocator, FTileGenerationContext& GenerationContext, int32 LayerIdx);
 
 	/** builds NavigationData array (layers + obstacles) time sliced */
-	ETimeSliceWorkResult GenerateNavigationDataTimeSliced(FNavMeshBuildContext& BuildContext);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult GenerateNavigationDataTimeSliced(FNavMeshBuildContext& BuildContext);
 
 	/** builds NavigationData array (layers + obstacles) */
-	bool GenerateNavigationData(FNavMeshBuildContext& BuildContext);
+	NAVIGATIONSYSTEM_API bool GenerateNavigationData(FNavMeshBuildContext& BuildContext);
 
-	virtual void ApplyVoxelFilter(struct rcHeightfield* SolidHF, FVector::FReal WalkableRadius);
+	NAVIGATIONSYSTEM_API virtual void ApplyVoxelFilter(struct rcHeightfield* SolidHF, FVector::FReal WalkableRadius);
 
 	/** Compute rasterization mask */
-	void InitRasterizationMaskArray(const rcHeightfield* SolidHF, TInlineMaskArray& OutRasterizationMasks);
-	void ComputeRasterizationMasks(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
-	void MarkRasterizationMask(rcContext* /*BuildContext*/, rcHeightfield* SolidHF,
+	NAVIGATIONSYSTEM_API void InitRasterizationMaskArray(const rcHeightfield* SolidHF, TInlineMaskArray& OutRasterizationMasks);
+	NAVIGATIONSYSTEM_API void ComputeRasterizationMasks(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	NAVIGATIONSYSTEM_API void MarkRasterizationMask(rcContext* /*BuildContext*/, rcHeightfield* SolidHF,
 		const FAreaNavModifier& Modifier, const FTransform& LocalToWorld, const int32 Mask, TInlineMaskArray& OutMaskArray);
 
 	/** apply areas from DynamicAreas to layer */
-	void MarkDynamicAreas(dtTileCacheLayer& Layer);
-	void MarkDynamicArea(const FAreaNavModifier& Modifier, const FTransform& LocalToWorld, dtTileCacheLayer& Layer);
-	void MarkDynamicArea(const FAreaNavModifier& Modifier, const FTransform& LocalToWorld, dtTileCacheLayer& Layer, const int32 AreaId, const int32* ReplaceAreaIdPtr);
+	NAVIGATIONSYSTEM_API void MarkDynamicAreas(dtTileCacheLayer& Layer);
+	NAVIGATIONSYSTEM_API void MarkDynamicArea(const FAreaNavModifier& Modifier, const FTransform& LocalToWorld, dtTileCacheLayer& Layer);
+	NAVIGATIONSYSTEM_API void MarkDynamicArea(const FAreaNavModifier& Modifier, const FTransform& LocalToWorld, dtTileCacheLayer& Layer, const int32 AreaId, const int32* ReplaceAreaIdPtr);
 
-	void AppendModifier(const FCompositeNavModifier& Modifier, const FNavDataPerInstanceTransformDelegate& InTransformsDelegate);
+	NAVIGATIONSYSTEM_API void AppendModifier(const FCompositeNavModifier& Modifier, const FNavDataPerInstanceTransformDelegate& InTransformsDelegate);
 	/** Appends specified geometry to tile's geometry */
-	void ValidateAndAppendGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, const FCompositeNavModifier& InModifier);
-	void AppendGeometry(const FNavigationRelevantData& DataRef, const FCompositeNavModifier& InModifier, const FNavDataPerInstanceTransformDelegate& InTransformsDelegate);
-	void AppendVoxels(rcSpanCache* SpanData, int32 NumSpans);
+	NAVIGATIONSYSTEM_API void ValidateAndAppendGeometry(const TSharedRef<FNavigationRelevantData, ESPMode::ThreadSafe>& ElementData, const FCompositeNavModifier& InModifier);
+	NAVIGATIONSYSTEM_API void AppendGeometry(const FNavigationRelevantData& DataRef, const FCompositeNavModifier& InModifier, const FNavDataPerInstanceTransformDelegate& InTransformsDelegate);
+	NAVIGATIONSYSTEM_API void AppendVoxels(rcSpanCache* SpanData, int32 NumSpans);
 	
 	/** prepare voxel cache from collision data */
-	void PrepareVoxelCache(const TNavStatArray<uint8>& RawCollisionCache, const FCompositeNavModifier& InModifier, TNavStatArray<rcSpanCache>& SpanData);
-	bool HasVoxelCache(const TNavStatArray<uint8>& RawVoxelCache, rcSpanCache*& CachedVoxels, int32& NumCachedVoxels) const;
-	void AddVoxelCache(TNavStatArray<uint8>& RawVoxelCache, const rcSpanCache* CachedVoxels, const int32 NumCachedVoxels) const;
+	NAVIGATIONSYSTEM_API void PrepareVoxelCache(const TNavStatArray<uint8>& RawCollisionCache, const FCompositeNavModifier& InModifier, TNavStatArray<rcSpanCache>& SpanData);
+	NAVIGATIONSYSTEM_API bool HasVoxelCache(const TNavStatArray<uint8>& RawVoxelCache, rcSpanCache*& CachedVoxels, int32& NumCachedVoxels) const;
+	NAVIGATIONSYSTEM_API void AddVoxelCache(TNavStatArray<uint8>& RawVoxelCache, const rcSpanCache* CachedVoxels, const int32 NumCachedVoxels) const;
 
-	void DumpAsyncData();
-	void DumpSyncData();
+	NAVIGATIONSYSTEM_API void DumpAsyncData();
+	NAVIGATIONSYSTEM_API void DumpSyncData();
 
 #if RECAST_INTERNAL_DEBUG_DATA
-	bool IsTileDebugActive() const;
-	bool IsTileDebugAllowingGeneration() const;
+	NAVIGATIONSYSTEM_API bool IsTileDebugActive() const;
+	NAVIGATIONSYSTEM_API bool IsTileDebugAllowingGeneration() const;
 #endif
 
 protected:
@@ -530,7 +530,7 @@ protected:
 #endif
 };
 
-struct NAVIGATIONSYSTEM_API FRecastTileGeneratorWrapper : public FNonAbandonableTask
+struct FRecastTileGeneratorWrapper : public FNonAbandonableTask
 {
 	TSharedRef<FRecastTileGenerator> TileGenerator;
 
@@ -672,11 +672,11 @@ enum class EAddGeneratedTilesTimeSlicedState : uint8
 /**
  * Class that handles generation of the whole Recast-based navmesh.
  */
-class NAVIGATIONSYSTEM_API FRecastNavMeshGenerator : public FNavDataGenerator
+class FRecastNavMeshGenerator : public FNavDataGenerator
 {
 public:
-	FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh);
-	virtual ~FRecastNavMeshGenerator();
+	NAVIGATIONSYSTEM_API FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh);
+	NAVIGATIONSYSTEM_API virtual ~FRecastNavMeshGenerator();
 
 private:
 	/** Prevent copying. */
@@ -684,41 +684,41 @@ private:
 	FRecastNavMeshGenerator& operator=(FRecastNavMeshGenerator const& NoCopy) { check(0); return *this; }
 
 public:
-	virtual bool RebuildAll() override;
-	virtual void EnsureBuildCompletion() override;
-	virtual void CancelBuild() override;
-	virtual void TickAsyncBuild(float DeltaSeconds) override;
-	virtual void OnNavigationBoundsChanged() override;
+	NAVIGATIONSYSTEM_API virtual bool RebuildAll() override;
+	NAVIGATIONSYSTEM_API virtual void EnsureBuildCompletion() override;
+	NAVIGATIONSYSTEM_API virtual void CancelBuild() override;
+	NAVIGATIONSYSTEM_API virtual void TickAsyncBuild(float DeltaSeconds) override;
+	NAVIGATIONSYSTEM_API virtual void OnNavigationBoundsChanged() override;
 
 	/** Asks generator to update navigation affected by DirtyAreas */
-	virtual void RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas) override;
+	NAVIGATIONSYSTEM_API virtual void RebuildDirtyAreas(const TArray<FNavigationDirtyArea>& DirtyAreas) override;
 
 	/** determines whether this generator is performing navigation building actions at the moment, dirty areas are also checked */
-	virtual bool IsBuildInProgressCheckDirty() const override;
+	NAVIGATIONSYSTEM_API virtual bool IsBuildInProgressCheckDirty() const override;
 
 #if !RECAST_ASYNC_REBUILDING
 	/** returns true if we are time slicing and the data is valid to use false otherwise*/
-	virtual bool GetTimeSliceData(int32& OutNumRemainingBuildTasks, double& OutCurrentBuildTaskDuration) const override;
+	NAVIGATIONSYSTEM_API virtual bool GetTimeSliceData(int32& OutNumRemainingBuildTasks, double& OutCurrentBuildTaskDuration) const override;
 #endif
 
 	int32 GetNumRemaningBuildTasksHelper() const { return RunningDirtyTiles.Num() + PendingDirtyTiles.Num() + static_cast<int32>(SyncTimeSlicedData.TileGeneratorSync.IsValid()); }
-	virtual int32 GetNumRemaningBuildTasks() const override;
-	virtual int32 GetNumRunningBuildTasks() const override;
+	NAVIGATIONSYSTEM_API virtual int32 GetNumRemaningBuildTasks() const override;
+	NAVIGATIONSYSTEM_API virtual int32 GetNumRunningBuildTasks() const override;
 
 	/** Checks if a given tile is being build or has just finished building */
 	UE_DEPRECATED(5.1, "Use new version with FNavTileRef")
-	bool IsTileChanged(int32 TileIdx) const;
+	NAVIGATIONSYSTEM_API bool IsTileChanged(int32 TileIdx) const;
 
 	/** Checks if a given tile is being build or has just finished building */
-	bool IsTileChanged(const FNavTileRef InTileRef) const;
+	NAVIGATIONSYSTEM_API bool IsTileChanged(const FNavTileRef InTileRef) const;
 		
 	FORCEINLINE uint32 GetVersion() const { return Version; }
 
 	const ARecastNavMesh* GetOwner() const { return DestNavMesh; }
 
 	/** update area data */
-	void OnAreaAdded(const UClass* AreaClass, int32 AreaID);
-	void OnAreaRemoved(const UClass* AreaClass);
+	NAVIGATIONSYSTEM_API void OnAreaAdded(const UClass* AreaClass, int32 AreaID);
+	NAVIGATIONSYSTEM_API void OnAreaRemoved(const UClass* AreaClass);
 		
 	//--- accessors --- //
 	FORCEINLINE class UWorld* GetWorld() const { return DestNavMesh->GetWorld(); }
@@ -733,43 +733,43 @@ public:
 
 	/** checks if any on InclusionBounds encapsulates given box.
 	 *	@return index to first item in InclusionBounds that meets expectations */
-	int32 FindInclusionBoundEncapsulatingBox(const FBox& Box) const;
+	NAVIGATIONSYSTEM_API int32 FindInclusionBoundEncapsulatingBox(const FBox& Box) const;
 
 	/** Total navigable area box, sum of all navigation volumes bounding boxes */
 	FBox GetTotalBounds() const { return TotalNavBounds; }
 
 	const FRecastNavMeshCachedData& GetAdditionalCachedData() const { return AdditionalCachedData; }
 
-	bool HasDirtyTiles() const;
-	bool HasDirtyTiles(const FBox& AreaBounds) const;
-	int32 GetDirtyTilesCount(const FBox& AreaBounds) const;
+	NAVIGATIONSYSTEM_API bool HasDirtyTiles() const;
+	NAVIGATIONSYSTEM_API bool HasDirtyTiles(const FBox& AreaBounds) const;
+	NAVIGATIONSYSTEM_API int32 GetDirtyTilesCount(const FBox& AreaBounds) const;
 
-	bool GatherGeometryOnGameThread() const;
-	bool IsTimeSliceRegenActive() const;
+	NAVIGATIONSYSTEM_API bool GatherGeometryOnGameThread() const;
+	NAVIGATIONSYSTEM_API bool IsTimeSliceRegenActive() const;
 
-	FBox GrowBoundingBox(const FBox& BBox, bool bIncludeAgentHeight) const;
+	NAVIGATIONSYSTEM_API FBox GrowBoundingBox(const FBox& BBox, bool bIncludeAgentHeight) const;
 	
 	/** Returns if the provided Octree Element should generate geometry on the provided NavDataConfig. Can be used to extend the logic to decide what geometry is generated on what Navmesh */
-	virtual bool ShouldGenerateGeometryForOctreeElement(const FNavigationOctreeElement& Element, const FNavDataConfig& NavDataConfig) const;
+	NAVIGATIONSYSTEM_API virtual bool ShouldGenerateGeometryForOctreeElement(const FNavigationOctreeElement& Element, const FNavDataConfig& NavDataConfig) const;
 	
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && ENABLE_VISUAL_LOG
-	virtual void ExportNavigationData(const FString& FileName) const override;
-	virtual void GrabDebugSnapshot(struct FVisualLogEntry* Snapshot, const FBox& BoundingBox, const FName& CategoryName, ELogVerbosity::Type Verbosity) const override;
+	NAVIGATIONSYSTEM_API virtual void ExportNavigationData(const FString& FileName) const override;
+	NAVIGATIONSYSTEM_API virtual void GrabDebugSnapshot(struct FVisualLogEntry* Snapshot, const FBox& BoundingBox, const FName& CategoryName, ELogVerbosity::Type Verbosity) const override;
 #endif
 
 	/** 
 	 *	@param Actor is a reference to make callee responsible for assuring it's valid
 	 */
-	static void ExportComponentGeometry(UActorComponent* Component, FNavigationRelevantData& Data);
-	static void ExportVertexSoupGeometry(const TArray<FVector>& Verts, FNavigationRelevantData& Data);
+	static NAVIGATIONSYSTEM_API void ExportComponentGeometry(UActorComponent* Component, FNavigationRelevantData& Data);
+	static NAVIGATIONSYSTEM_API void ExportVertexSoupGeometry(const TArray<FVector>& Verts, FNavigationRelevantData& Data);
 
-	static void ExportRigidBodyGeometry(UBodySetup& BodySetup, TNavStatArray<FVector>& OutVertexBuffer, TNavStatArray<int32>& OutIndexBuffer, const FTransform& LocalToWorld = FTransform::Identity);
-	static void ExportRigidBodyGeometry(UBodySetup& BodySetup, TNavStatArray<FVector>& OutTriMeshVertexBuffer, TNavStatArray<int32>& OutTriMeshIndexBuffer, TNavStatArray<FVector>& OutConvexVertexBuffer, TNavStatArray<int32>& OutConvexIndexBuffer, TNavStatArray<int32>& OutShapeBuffer, const FTransform& LocalToWorld = FTransform::Identity);
-	static void ExportAggregatedGeometry(const FKAggregateGeom& AggGeom, TNavStatArray<FVector>& OutConvexVertexBuffer, TNavStatArray<int32>& OutConvexIndexBuffer, TNavStatArray<int32>& OutShapeBuffer, const FTransform& LocalToWorld = FTransform::Identity);
+	static NAVIGATIONSYSTEM_API void ExportRigidBodyGeometry(UBodySetup& BodySetup, TNavStatArray<FVector>& OutVertexBuffer, TNavStatArray<int32>& OutIndexBuffer, const FTransform& LocalToWorld = FTransform::Identity);
+	static NAVIGATIONSYSTEM_API void ExportRigidBodyGeometry(UBodySetup& BodySetup, TNavStatArray<FVector>& OutTriMeshVertexBuffer, TNavStatArray<int32>& OutTriMeshIndexBuffer, TNavStatArray<FVector>& OutConvexVertexBuffer, TNavStatArray<int32>& OutConvexIndexBuffer, TNavStatArray<int32>& OutShapeBuffer, const FTransform& LocalToWorld = FTransform::Identity);
+	static NAVIGATIONSYSTEM_API void ExportAggregatedGeometry(const FKAggregateGeom& AggGeom, TNavStatArray<FVector>& OutConvexVertexBuffer, TNavStatArray<int32>& OutConvexIndexBuffer, TNavStatArray<int32>& OutShapeBuffer, const FTransform& LocalToWorld = FTransform::Identity);
 
 #if UE_ENABLE_DEBUG_DRAWING
 	/** Converts data encoded in EncodedData.CollisionData to FNavDebugMeshData format */
-	static void GetDebugGeometry(const FNavigationRelevantData& EncodedData, FNavDebugMeshData& DebugMeshData);
+	static NAVIGATIONSYSTEM_API void GetDebugGeometry(const FNavigationRelevantData& EncodedData, FNavDebugMeshData& DebugMeshData);
 #endif  // UE_ENABLE_DEBUG_DRAWING
 
 	const FNavRegenTimeSliceManager* GetTimeSliceManager() const { return SyncTimeSlicedData.TimeSliceManager; }
@@ -777,114 +777,114 @@ public:
 	void SetNextTimeSliceRegenActive(bool bRegenState) { SyncTimeSlicedData.bNextTimeSliceRegenActive = bRegenState; }
 
 	/** Update the config according to the resolution */
-	virtual void SetupTileConfig(const ENavigationDataResolution TileResolution, FRecastBuildConfig& OutConfig) const;
+	NAVIGATIONSYSTEM_API virtual void SetupTileConfig(const ENavigationDataResolution TileResolution, FRecastBuildConfig& OutConfig) const;
 
 protected:
 	// Performs initial setup of member variables so that generator is ready to
 	// do its thing from this point on. Called just after construction by ARecastNavMesh
-	virtual void Init();
+	NAVIGATIONSYSTEM_API virtual void Init();
 
 	// Used to configure Config. Override to influence build properties
-	virtual void ConfigureBuildProperties(FRecastBuildConfig& OutConfig);
+	NAVIGATIONSYSTEM_API virtual void ConfigureBuildProperties(FRecastBuildConfig& OutConfig);
 
 	// Updates cached list of navigation bounds
-	void UpdateNavigationBounds();
+	NAVIGATIONSYSTEM_API void UpdateNavigationBounds();
 		
 	// Sorts pending build tiles by proximity to player, so tiles closer to player will get generated first
-	virtual void SortPendingBuildTiles();
+	NAVIGATIONSYSTEM_API virtual void SortPendingBuildTiles();
 
 	// Get seed locations used for sorting pending build tiles. Tiles closer to these locations will be prioritized first.
-	virtual void GetSeedLocations(UWorld& World, TArray<FVector2D>& OutSeedLocations) const;
+	NAVIGATIONSYSTEM_API virtual void GetSeedLocations(UWorld& World, TArray<FVector2D>& OutSeedLocations) const;
 
 	/** Instantiates dtNavMesh and configures it for tiles generation. Returns false if failed */
-	bool ConstructTiledNavMesh();
+	NAVIGATIONSYSTEM_API bool ConstructTiledNavMesh();
 
 	/** Determine bit masks for poly address */
-	void CalcNavMeshProperties(int32& MaxTiles, int32& MaxPolys);
+	NAVIGATIONSYSTEM_API void CalcNavMeshProperties(int32& MaxTiles, int32& MaxPolys);
 	
 	/** Marks grid tiles affected by specified areas as dirty */
-	virtual void MarkDirtyTiles(const TArray<FNavigationDirtyArea>& DirtyAreas);
+	NAVIGATIONSYSTEM_API virtual void MarkDirtyTiles(const TArray<FNavigationDirtyArea>& DirtyAreas);
 
 	/** Returns if the provided UObject that requested a navmesh dirtying should dirty this Navmesh. Useful to avoid tiles regeneration from objects that are excluded from the provided NavDataConfig */
-	virtual bool ShouldDirtyTilesRequestedByObject(const UNavigationSystemV1& NavSys, const FNavigationOctree& NavOctreeInstance, const UObject& SourceObject, const FNavDataConfig& NavDataConfig) const;
+	NAVIGATIONSYSTEM_API virtual bool ShouldDirtyTilesRequestedByObject(const UNavigationSystemV1& NavSys, const FNavigationOctree& NavOctreeInstance, const UObject& SourceObject, const FNavDataConfig& NavDataConfig) const;
 
 	/** Marks all tiles overlapping with InclusionBounds dirty (via MarkDirtyTiles). */
-	bool MarkNavBoundsDirty();
+	NAVIGATIONSYSTEM_API bool MarkNavBoundsDirty();
 
 	UE_DEPRECATED(5.1, "Use new version with FNavTileRef")
-	void RemoveLayers(const FIntPoint& Tile, TArray<uint32>& UpdatedTiles);
+	NAVIGATIONSYSTEM_API void RemoveLayers(const FIntPoint& Tile, TArray<uint32>& UpdatedTiles);
 
-	void RemoveLayers(const FIntPoint& Tile, TArray<FNavTileRef>& UpdatedTiles);
+	NAVIGATIONSYSTEM_API void RemoveLayers(const FIntPoint& Tile, TArray<FNavTileRef>& UpdatedTiles);
 	
-	void StoreCompressedTileCacheLayers(const FRecastTileGenerator& TileGenerator, int32 TileX, int32 TileY);
+	NAVIGATIONSYSTEM_API void StoreCompressedTileCacheLayers(const FRecastTileGenerator& TileGenerator, int32 TileX, int32 TileY);
 
 #if RECAST_INTERNAL_DEBUG_DATA
-	void StoreDebugData(const FRecastTileGenerator& TileGenerator, int32 TileX, int32 TileY);
+	NAVIGATIONSYSTEM_API void StoreDebugData(const FRecastTileGenerator& TileGenerator, int32 TileX, int32 TileY);
 #endif
 
 #if RECAST_ASYNC_REBUILDING
 	/** Processes pending tile generation tasks Async*/
 	UE_DEPRECATED(5.1, "Use ProcessTileTasksAsyncAndGetUpdatedTiles instead")
-	TArray<uint32> ProcessTileTasksAsync(const int32 NumTasksToProcess);
+	NAVIGATIONSYSTEM_API TArray<uint32> ProcessTileTasksAsync(const int32 NumTasksToProcess);
 
 	/** Processes pending tile generation tasks Async*/
-	TArray<FNavTileRef> ProcessTileTasksAsyncAndGetUpdatedTiles(const int32 NumTasksToProcess);
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> ProcessTileTasksAsyncAndGetUpdatedTiles(const int32 NumTasksToProcess);
 #else
-	TSharedRef<FRecastTileGenerator> CreateTileGeneratorFromPendingElement(FIntPoint &OutTileLocation, const int32 ForcedPendingTileIdx = INDEX_NONE);
+	NAVIGATIONSYSTEM_API TSharedRef<FRecastTileGenerator> CreateTileGeneratorFromPendingElement(FIntPoint &OutTileLocation, const int32 ForcedPendingTileIdx = INDEX_NONE);
 
 	/** Processes pending tile generation tasks Sync with option for time slicing currently an experimental feature. */
 	UE_DEPRECATED(5.1, "Use ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles instead")
-	virtual TArray<uint32> ProcessTileTasksSyncTimeSliced();
+	NAVIGATIONSYSTEM_API virtual TArray<uint32> ProcessTileTasksSyncTimeSliced();
 	UE_DEPRECATED(5.1, "Use ProcessTileTasksSyncAndGetUpdatedTiles instead")
-	TArray<uint32> ProcessTileTasksSync(const int32 NumTasksToProcess);
+	NAVIGATIONSYSTEM_API TArray<uint32> ProcessTileTasksSync(const int32 NumTasksToProcess);
 
 	/** Processes pending tile generation tasks Sync with option for time slicing currently an experimental feature. */
-	virtual TArray<FNavTileRef> ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles();
-	TArray<FNavTileRef> ProcessTileTasksSyncAndGetUpdatedTiles(const int32 NumTasksToProcess);
+	NAVIGATIONSYSTEM_API virtual TArray<FNavTileRef> ProcessTileTasksSyncTimeSlicedAndGetUpdatedTiles();
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> ProcessTileTasksSyncAndGetUpdatedTiles(const int32 NumTasksToProcess);
 
-	virtual int32 GetNextPendingDirtyTileToBuild() const;
+	NAVIGATIONSYSTEM_API virtual int32 GetNextPendingDirtyTileToBuild() const;
 #endif
 	/** Processes pending tile generation tasks */
 	UE_DEPRECATED(5.1, "Use ProcessTileTasksAndGetUpdatedTiles instead")
-	TArray<uint32> ProcessTileTasks(const int32 NumTasksToProcess);
+	NAVIGATIONSYSTEM_API TArray<uint32> ProcessTileTasks(const int32 NumTasksToProcess);
 
 	/** Processes pending tile generation tasks */
-	TArray<FNavTileRef> ProcessTileTasksAndGetUpdatedTiles(const int32 NumTasksToProcess);
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> ProcessTileTasksAndGetUpdatedTiles(const int32 NumTasksToProcess);
 
-	void ResetTimeSlicedTileGeneratorSync();
+	NAVIGATIONSYSTEM_API void ResetTimeSlicedTileGeneratorSync();
 
 public:
 	/** Adds generated tiles to NavMesh, replacing old ones, uses time slicing returns Failed if any layer failed */
 	UE_DEPRECATED(5.1, "Use new version with FNavTileRef")
-	ETimeSliceWorkResult AddGeneratedTilesTimeSliced(FRecastTileGenerator& TileGenerator, TArray<uint32>& OutResultTileIndices);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult AddGeneratedTilesTimeSliced(FRecastTileGenerator& TileGenerator, TArray<uint32>& OutResultTileIndices);
 
 	/** Adds generated tiles to NavMesh, replacing old ones, uses time slicing returns Failed if any layer failed */
-	ETimeSliceWorkResult AddGeneratedTilesTimeSliced(FRecastTileGenerator& TileGenerator, TArray<FNavTileRef>& OutResultTileRefs);
+	NAVIGATIONSYSTEM_API ETimeSliceWorkResult AddGeneratedTilesTimeSliced(FRecastTileGenerator& TileGenerator, TArray<FNavTileRef>& OutResultTileRefs);
 
 	/** Adds generated tiles to NavMesh, replacing old ones */
 	UE_DEPRECATED(5.1, "Use AddGeneratedTilesAndGetUpdatedTiles instead")
-	TArray<uint32> AddGeneratedTiles(FRecastTileGenerator& TileGenerator);
+	NAVIGATIONSYSTEM_API TArray<uint32> AddGeneratedTiles(FRecastTileGenerator& TileGenerator);
 
 	/** Adds generated tiles to NavMesh, replacing old ones */
-	TArray<FNavTileRef> AddGeneratedTilesAndGetUpdatedTiles(FRecastTileGenerator& TileGenerator);
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> AddGeneratedTilesAndGetUpdatedTiles(FRecastTileGenerator& TileGenerator);
 
 public:
 	/** Removes all tiles at specified grid location */
 	UE_DEPRECATED(5.1, "Use RemoveTileLayersAndGetUpdatedTiles instead")
-	TArray<uint32> RemoveTileLayers(const int32 TileX, const int32 TileY, TMap<int32, dtPolyRef>* OldLayerTileIdMap = nullptr);
+	NAVIGATIONSYSTEM_API TArray<uint32> RemoveTileLayers(const int32 TileX, const int32 TileY, TMap<int32, dtPolyRef>* OldLayerTileIdMap = nullptr);
 
 	/** Removes all tiles at specified grid location */
-	TArray<FNavTileRef> RemoveTileLayersAndGetUpdatedTiles(const int32 TileX, const int32 TileY, TMap<int32, dtPolyRef>* OldLayerTileIdMap = nullptr);
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> RemoveTileLayersAndGetUpdatedTiles(const int32 TileX, const int32 TileY, TMap<int32, dtPolyRef>* OldLayerTileIdMap = nullptr);
 
-	void RemoveTiles(const TArray<FIntPoint>& Tiles);
+	NAVIGATIONSYSTEM_API void RemoveTiles(const TArray<FIntPoint>& Tiles);
 
 	UE_DEPRECATED(5.3, "Use overload with FNavMeshDirtyTileElement instead.")
-	void ReAddTiles(const TArray<FIntPoint>& Tiles);
+	NAVIGATIONSYSTEM_API void ReAddTiles(const TArray<FIntPoint>& Tiles);
 
-	void ReAddTiles(const TArray<FNavMeshDirtyTileElement>& Tiles);
+	NAVIGATIONSYSTEM_API void ReAddTiles(const TArray<FNavMeshDirtyTileElement>& Tiles);
 
 	bool IsBuildingRestrictedToActiveTiles() const { return bRestrictBuildingToActiveTiles; }
-	bool IsInActiveSet(const FIntPoint& Tile) const;
+	NAVIGATIONSYSTEM_API bool IsInActiveSet(const FIntPoint& Tile) const;
 
 	/** sets a limit to number of asynchronous tile generators running at one time
 	 *	@note if used at runtime will not result in killing tasks above limit count
@@ -893,15 +893,15 @@ public:
 
 	void SetSortPendingTileMethod(const ENavigationSortPendingTilesMethod InMethod) { SortPendingTilesMethod = InMethod; }
 
-	static void CalcPolyRefBits(ARecastNavMesh* NavMeshOwner, int32& MaxTileBits, int32& MaxPolyBits);
+	static NAVIGATIONSYSTEM_API void CalcPolyRefBits(ARecastNavMesh* NavMeshOwner, int32& MaxTileBits, int32& MaxPolyBits);
 
 protected:
-	virtual void RestrictBuildingToActiveTiles(bool InRestrictBuildingToActiveTiles);
+	NAVIGATIONSYSTEM_API virtual void RestrictBuildingToActiveTiles(bool InRestrictBuildingToActiveTiles);
 	
 	/** Blocks until build for specified list of tiles is complete and discard results */
-	void DiscardCurrentBuildingTasks();
+	NAVIGATIONSYSTEM_API void DiscardCurrentBuildingTasks();
 
-	virtual TSharedRef<FRecastTileGenerator> CreateTileGenerator(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas, const double PendingTileCreationTime = 0.);
+	NAVIGATIONSYSTEM_API virtual TSharedRef<FRecastTileGenerator> CreateTileGenerator(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas, const double PendingTileCreationTime = 0.);
 
 	template <typename T>
 	UE_DEPRECATED(5.3, "Use ConstructTileGeneratorImpl instead.")
@@ -923,13 +923,13 @@ protected:
 	//----------------------------------------------------------------------//
 	// debug
 	//----------------------------------------------------------------------//
-	virtual uint32 LogMemUsed() const override;
+	NAVIGATIONSYSTEM_API virtual uint32 LogMemUsed() const override;
 
 	UE_DEPRECATED(5.1, "Use new version with FNavTileRef")
-	void AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<uint32>& OutResultTileIndices);
+	NAVIGATIONSYSTEM_API void AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<uint32>& OutResultTileIndices);
 
-	bool IsAllowedToAddTileLayers(const FIntPoint Tile) const;
-	void AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<FNavTileRef>& OutResultTileRefs);
+	NAVIGATIONSYSTEM_API bool IsAllowedToAddTileLayers(const FIntPoint Tile) const;
+	NAVIGATIONSYSTEM_API void AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<FNavTileRef>& OutResultTileRefs);
 
 #if !UE_BUILD_SHIPPING
 	/** Data struct used by 'LogDirtyAreas' that contains all the information regarding the areas that are being dirtied, per dirtied tile. */
@@ -940,7 +940,7 @@ protected:
 	};
 
 	/** Used internally, when LogNavigationDirtyArea is VeryVerbose, to log the number of tiles a dirty area is requesting. */
-	void LogDirtyAreas(const TMap<FPendingTileElement, TArray<FNavigationDirtyAreaPerTileDebugInformation>>& DirtyAreasDebuggingInformation) const; 
+	NAVIGATIONSYSTEM_API void LogDirtyAreas(const TMap<FPendingTileElement, TArray<FNavigationDirtyAreaPerTileDebugInformation>>& DirtyAreasDebuggingInformation) const; 
 #endif
 	
 protected:

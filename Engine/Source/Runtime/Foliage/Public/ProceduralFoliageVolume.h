@@ -11,8 +11,8 @@
 class UProceduralFoliageComponent;
 class FLoaderAdapterActor;
 
-UCLASS()
-class FOLIAGE_API AProceduralFoliageVolume: public AVolume, public IWorldPartitionActorLoaderInterface
+UCLASS(MinimalAPI)
+class AProceduralFoliageVolume: public AVolume, public IWorldPartitionActorLoaderInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -21,18 +21,18 @@ class FOLIAGE_API AProceduralFoliageVolume: public AVolume, public IWorldPartiti
 
 #if WITH_EDITOR
 	//~ Begin AActor Interface
-	virtual void PostRegisterAllComponents();
+	FOLIAGE_API virtual void PostRegisterAllComponents();
 	//~ End AActor Interface
 
 	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
-	virtual void PostEditImport() override;
+	FOLIAGE_API virtual void BeginDestroy() override;
+	FOLIAGE_API virtual void PostEditImport() override;
 	//~ End UObject Interface
 
-	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	FOLIAGE_API virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 
 	//~ Begin IWorldPartitionActorLoaderInterface interface
-	virtual ILoaderAdapter* GetLoaderAdapter() override;
+	FOLIAGE_API virtual ILoaderAdapter* GetLoaderAdapter() override;
 	//~ End IWorldPartitionActorLoaderInterface interface
 
 private:

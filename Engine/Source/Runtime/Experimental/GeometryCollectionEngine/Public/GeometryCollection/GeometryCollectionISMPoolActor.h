@@ -7,8 +7,8 @@
 class UGeometryCollectionISMPoolComponent;
 class UGeometryCollectionISMPoolDebugDrawComponent;
 
-UCLASS(ConversionRoot, ComponentWrapperClass)
-class GEOMETRYCOLLECTIONENGINE_API AGeometryCollectionISMPoolActor : public AActor
+UCLASS(ConversionRoot, ComponentWrapperClass, MinimalAPI)
+class AGeometryCollectionISMPoolActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 

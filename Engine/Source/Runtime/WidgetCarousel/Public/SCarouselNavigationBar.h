@@ -16,7 +16,7 @@ class SHorizontalBox;
 /**
 * A horizontal bar of buttons for navigating to a specific item in the widget carousel.
 */
-class WIDGETCAROUSEL_API SCarouselNavigationBar : public SCompoundWidget
+class SCarouselNavigationBar : public SCompoundWidget
 {
 	DECLARE_DELEGATE_OneParam(FOnSelectedIndexChanged, int32)
 
@@ -46,11 +46,11 @@ public:
 
 	SLATE_END_ARGS()
 
-	int32 GetItemCount();
+	WIDGETCAROUSEL_API int32 GetItemCount();
 
-	void SetItemCount(int32 InItemCount);
+	WIDGETCAROUSEL_API void SetItemCount(int32 InItemCount);
 
-	void Construct(const FArguments& InArgs);
+	WIDGETCAROUSEL_API void Construct(const FArguments& InArgs);
 
 private:
 	void BuildScrollBar();

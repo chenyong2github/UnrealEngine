@@ -11,7 +11,7 @@
 #include "BoneControllerSolvers.generated.h"
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FIKFootPelvisPullDownSolver
+struct FIKFootPelvisPullDownSolver
 {
 	GENERATED_BODY()
 
@@ -44,5 +44,5 @@ struct ANIMGRAPHRUNTIME_API FIKFootPelvisPullDownSolver
 	int32 PelvisAdjustmentMaxIter = 3;
 
 	// Iteratively pulls the character pelvis towards the ground based on the relationship of driven IK foot targets versus FK foot limits
-	FTransform Solve(FTransform PelvisTransform, TArrayView<const float> FKFootDistancesToPelvis, TArrayView<const FVector> IKFootLocations, float DeltaTime);
+	ANIMGRAPHRUNTIME_API FTransform Solve(FTransform PelvisTransform, TArrayView<const float> FKFootDistancesToPelvis, TArrayView<const FVector> IKFootLocations, float DeltaTime);
 };

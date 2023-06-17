@@ -20,7 +20,7 @@ class TDynamicMeshVectorOverlay;
 * FSplitAttributeWelder can be used to weld split-attributes that share the same vertex in the parent mesh (e.g. split normals)
 *
 */
-class GEOMETRYCORE_API FSplitAttributeWelder
+class FSplitAttributeWelder
 {
 
 	typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
@@ -60,13 +60,13 @@ public:
 	/**
 	* Weld split-elements at the ParentVID in each overlay that are "close enough" as defined by the appropriate threshold. 
 	*/
-	void WeldSplitElements(FDynamicMesh3& ParentMesh, const int32 ParentVID);
+	GEOMETRYCORE_API void WeldSplitElements(FDynamicMesh3& ParentMesh, const int32 ParentVID);
 	
 
 	/**
 	*  Weld split-elements across the entire mesh. 
 	*/
-	void WeldSplitElements(FDynamicMesh3& ParentMesh);
+	GEOMETRYCORE_API void WeldSplitElements(FDynamicMesh3& ParentMesh);
 	
 
 	/**
@@ -76,7 +76,7 @@ public:
 	* @param UVOverlay contains potentially split UVs associated with the ParentVID. Assumed to be an overlay of the ParentMesh.
 	* @param UVDistSqrdThreshold  provides a threshold in distance squared UV space between split UVs that should be welded. 
 	*/
-	static void WeldSplitUVs(const int32 ParentVID, FDynamicMeshUVOverlay& UVOverlay, float UVDistSqrdThreshold);
+	static GEOMETRYCORE_API void WeldSplitUVs(const int32 ParentVID, FDynamicMeshUVOverlay& UVOverlay, float UVDistSqrdThreshold);
 	
 
 	/**
@@ -87,7 +87,7 @@ public:
 	* @param DotThreshold  provides a threshold for the dot product between two vectors that should be welded.
 	* @param bMergeZeroVectors will weld vectors that are too small to normalize.
 	*/
-	static void WeldSplitUnitVectors(const int32 ParentVID, FDynamicMeshNormalOverlay& NormalOverlay, float DotThreshold, bool bMergeZeroVectors = true);
+	static GEOMETRYCORE_API void WeldSplitUnitVectors(const int32 ParentVID, FDynamicMeshNormalOverlay& NormalOverlay, float DotThreshold, bool bMergeZeroVectors = true);
 	
 	/**
 	* Welds split colors shared by the ParentVID vertex in the ParentMesh.  
@@ -96,7 +96,7 @@ public:
 	* @param ColorOverlay contains potentially split colors associated with the ParentVID. Assumed to be an overlay of the ParentMesh.
 	* @param ColorDistSqrdThreshold  provides a threshold applied to the sum of the square differences between to colors.  Used to determine if a weld should be preformed.
 	*/
-	static void WeldSplitColors(const int32 ParentVID, FDynamicMeshColorOverlay& ColorOverlay, float ColorDistSqrdThreshold);
+	static GEOMETRYCORE_API void WeldSplitColors(const int32 ParentVID, FDynamicMeshColorOverlay& ColorOverlay, float ColorDistSqrdThreshold);
 
 };
 

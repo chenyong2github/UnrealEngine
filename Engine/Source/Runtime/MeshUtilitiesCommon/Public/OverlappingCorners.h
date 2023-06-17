@@ -12,24 +12,24 @@
 /**
 * Container to hold overlapping corners. For a vertex, lists all the overlapping vertices
 */
-struct MESHUTILITIESCOMMON_API FOverlappingCorners
+struct FOverlappingCorners
 {
 	FOverlappingCorners() {}
 
-	FOverlappingCorners(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold);
-	FOverlappingCorners(const FLayoutUV::IMeshView& MeshView, float ComparisonThreshold);
+	MESHUTILITIESCOMMON_API FOverlappingCorners(const TArray<FVector3f>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold);
+	MESHUTILITIESCOMMON_API FOverlappingCorners(const FLayoutUV::IMeshView& MeshView, float ComparisonThreshold);
 
 	/* Resets, pre-allocates memory, marks all indices as not overlapping in preperation for calls to Add() */
-	void Init(int32 NumIndices);
+	MESHUTILITIESCOMMON_API void Init(int32 NumIndices);
 
 	/* Add overlapping indices pair */
-	void Add(int32 Key, int32 Value);
+	MESHUTILITIESCOMMON_API void Add(int32 Key, int32 Value);
 
 	/* Sorts arrays, converts sets to arrays for sorting and to allow simple iterating code, prevents additional adding */
-	void FinishAdding();
+	MESHUTILITIESCOMMON_API void FinishAdding();
 
 	/* Estimate memory allocated */
-	uint32 GetAllocatedSize(void) const;
+	MESHUTILITIESCOMMON_API uint32 GetAllocatedSize(void) const;
 
 	/**
 	* @return array of sorted overlapping indices including input 'Key', empty array for indices that have no overlaps.

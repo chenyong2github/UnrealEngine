@@ -49,8 +49,8 @@ struct FTimeSynchronizationStartData
  *
  * Currently, Synchronization does not work on the subframe level.
  */
-UCLASS(Abstract)
-class TIMEMANAGEMENT_API UTimeSynchronizationSource : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UTimeSynchronizationSource : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -72,38 +72,38 @@ public:
 
 #if WITH_EDITOR
 	/** Get Visual Widget of this source to display in UI */
-	virtual TSharedRef<SWidget> GetVisualWidget() const;
+	TIMEMANAGEMENT_API virtual TSharedRef<SWidget> GetVisualWidget() const;
 #endif
 
 	/**
 	 * Get the time of the newest available sample (relative to this source's frame rate).
 	 * Note, in cases where Rollover is allowed and has occurred, this may have a lower value than GetOldestSampleTime. 
 	 */
-	virtual FFrameTime GetNewestSampleTime() const PURE_VIRTUAL(UTimeSynchronizationSource::GetNewestSampleTime, return FFrameTime();)
+	TIMEMANAGEMENT_API virtual FFrameTime GetNewestSampleTime() const PURE_VIRTUAL(UTimeSynchronizationSource::GetNewestSampleTime, return FFrameTime();)
 
 	/**
 	 * Get the time of the oldest available sample (relative to this source's frame rate).
 	 * Note, in cases where Rollover is allowed and has occurred, this may have a higher value than GetNewestSampleTime.
 	 */
-	virtual FFrameTime GetOldestSampleTime() const PURE_VIRTUAL(UTimeSynchronizationSource::GetOldestSampleTime, return FFrameTime();)
+	TIMEMANAGEMENT_API virtual FFrameTime GetOldestSampleTime() const PURE_VIRTUAL(UTimeSynchronizationSource::GetOldestSampleTime, return FFrameTime();)
 
 	/** Get the source actual FrameRate */
-	virtual FFrameRate GetFrameRate() const PURE_VIRTUAL(UTimeSynchronizationSource::GetFrameRate, return FFrameRate();)
+	TIMEMANAGEMENT_API virtual FFrameRate GetFrameRate() const PURE_VIRTUAL(UTimeSynchronizationSource::GetFrameRate, return FFrameRate();)
 
 	/** Used to know if the source is ready to be used for synchronization. */
-	virtual bool IsReady() const PURE_VIRTUAL(UTimeSynchronizationSource::IsReady, return false;)
+	TIMEMANAGEMENT_API virtual bool IsReady() const PURE_VIRTUAL(UTimeSynchronizationSource::IsReady, return false;)
 
 	/** Called when synchronization is started to notify this source to begin buffering frames. */
-	virtual bool Open(const FTimeSynchronizationOpenData& OpenData) PURE_VIRTUAL(UTimeSynchronizationSource::Open, return false;)
+	TIMEMANAGEMENT_API virtual bool Open(const FTimeSynchronizationOpenData& OpenData) PURE_VIRTUAL(UTimeSynchronizationSource::Open, return false;)
 
 	/** Start playing samples. */
-	virtual void Start(const FTimeSynchronizationStartData& StartData) PURE_VIRTUAL(UTimeSynchronizationSource::Start, return;)
+	TIMEMANAGEMENT_API virtual void Start(const FTimeSynchronizationStartData& StartData) PURE_VIRTUAL(UTimeSynchronizationSource::Start, return;)
 
 	/** Called when synchronization has been completed. The source may discard any unnecessary frames. */
-	virtual void Close() PURE_VIRTUAL(UTimeSynchronizationSource::Close, return;)
+	TIMEMANAGEMENT_API virtual void Close() PURE_VIRTUAL(UTimeSynchronizationSource::Close, return;)
 
 	/** Name to used when displaying an error message or to used in UI. */
-	virtual FString GetDisplayName() const PURE_VIRTUAL(UTimeSynchronizationSource::GetDisplayName, return FString();)
+	TIMEMANAGEMENT_API virtual FString GetDisplayName() const PURE_VIRTUAL(UTimeSynchronizationSource::GetDisplayName, return FString();)
 
 public:
 

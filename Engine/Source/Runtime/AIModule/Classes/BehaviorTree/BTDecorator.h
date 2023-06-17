@@ -33,36 +33,36 @@ enum class EBTDecoratorAbortRequest : uint8
  *
  */
 
-UCLASS(Abstract)
-class AIMODULE_API UBTDecorator : public UBTAuxiliaryNode
+UCLASS(Abstract, MinimalAPI)
+class UBTDecorator : public UBTAuxiliaryNode
 {
 	GENERATED_UCLASS_BODY()
 
 	/** wrapper for node instancing: CalculateRawConditionValue */
-	bool WrappedCanExecute(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
+	AIMODULE_API bool WrappedCanExecute(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
 
 	/** wrapper for node instancing: OnNodeActivation  */
-	void WrappedOnNodeActivation(FBehaviorTreeSearchData& SearchData) const;
+	AIMODULE_API void WrappedOnNodeActivation(FBehaviorTreeSearchData& SearchData) const;
 	
 	/** wrapper for node instancing: OnNodeDeactivation */
-	void WrappedOnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult) const;
+	AIMODULE_API void WrappedOnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult) const;
 
 	/** wrapper for node instancing: OnNodeProcessed */
-	void WrappedOnNodeProcessed(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult) const;
+	AIMODULE_API void WrappedOnNodeProcessed(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult) const;
 
 	/** @return flow controller's abort mode */
-	EBTFlowAbortMode::Type GetFlowAbortMode() const;
+	AIMODULE_API EBTFlowAbortMode::Type GetFlowAbortMode() const;
 
 	/** @return true if condition should be inversed */
-	bool IsInversed() const;
+	AIMODULE_API bool IsInversed() const;
 
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 	/** modify current flow abort mode, so it can be used with parent composite */
-	void UpdateFlowAbortMode();
+	AIMODULE_API void UpdateFlowAbortMode();
 
 	/** @return true if current abort mode can be used with parent composite */
-	bool IsFlowAbortModeValid() const;
+	AIMODULE_API bool IsFlowAbortModeValid() const;
 
 protected:
 
@@ -97,32 +97,32 @@ protected:
 	UPROPERTY(Category=FlowControl, EditAnywhere)
 	TEnumAsByte<EBTFlowAbortMode::Type> FlowAbortMode;
 
-	void SetIsInversed(bool bShouldBeInversed);
+	AIMODULE_API void SetIsInversed(bool bShouldBeInversed);
 
 	/** called when underlying node is activated
 	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
 	 * bNotifyActivation must be set to true for this function to be called
 	 * Calling INIT_DECORATOR_NODE_NOTIFY_FLAGS in the constructor of the decorator will set this flag automatically */
-	virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData);
+	AIMODULE_API virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData);
 
 	/** called when underlying node has finished
 	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
 	 * bNotifyDeactivation must be set to true for this function to be called
 	 * Calling INIT_DECORATOR_NODE_NOTIFY_FLAGS in the constructor of the decorator will set this flag automatically */
-	virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult);
+	AIMODULE_API virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult);
 
 	/** called when underlying node was processed (deactivated or failed to activate)
 	 * this function should be considered as const (don't modify state of object) if node is not instanced! 
 	 * bNotifyProcessed must be set to true for this function to be called 
 	 * Calling INIT_DECORATOR_NODE_NOTIFY_FLAGS in the constructor of the decorator will set this flag automatically */
-	virtual void OnNodeProcessed(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult);
+	AIMODULE_API virtual void OnNodeProcessed(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult);
 
 	/** calculates raw, core value of decorator's condition. Should not include calling IsInversed */
-	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
+	AIMODULE_API virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const;
 
 	/** more "flow aware" version of calling RequestExecution(this) on owning behavior tree component
 	 *  should be used in external events that may change result of CalculateRawConditionValue */
-	void ConditionalFlowAbort(UBehaviorTreeComponent& OwnerComp, EBTDecoratorAbortRequest RequestMode) const;
+	AIMODULE_API void ConditionalFlowAbort(UBehaviorTreeComponent& OwnerComp, EBTDecoratorAbortRequest RequestMode) const;
 
 	friend FBehaviorDecoratorDetails;
 

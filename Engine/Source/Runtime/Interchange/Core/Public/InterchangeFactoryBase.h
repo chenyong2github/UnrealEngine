@@ -49,8 +49,8 @@ enum class EInterchangeFactoryAssetType : uint8
  * 1. ImportSceneObject_GameThread - Create an actor in a level.
  */
 
-UCLASS(BlueprintType, Blueprintable, Abstract)
-class INTERCHANGECORE_API UInterchangeFactoryBase : public UObject
+UCLASS(BlueprintType, Blueprintable, Abstract, MinimalAPI)
+class UInterchangeFactoryBase : public UObject
 {
 	GENERATED_BODY()
 public:

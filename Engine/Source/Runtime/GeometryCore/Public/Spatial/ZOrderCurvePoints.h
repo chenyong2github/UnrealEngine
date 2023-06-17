@@ -21,7 +21,7 @@ using namespace UE::Math;
  * Generate a "z-order curve" ordering for a point set by distributing the points to a quad- or octree and then reading the points indices back in tree traversal order
  * This is useful for giving the points spatial locality -- so points that are close together in the ordering tend to be close together spatially, also
  */
-struct GEOMETRYCORE_API FZOrderCurvePoints
+struct FZOrderCurvePoints
 {
 	/// Inputs
 
@@ -46,10 +46,10 @@ public:
 	 * @param Points				Points to re-order
 	 * @param Bounds				Optional bounding box of the points; if an empty box is passed in, it will be computed for you
 	 */
-	void Compute(TArrayView<const FVector2d> Points, const FAxisAlignedBox2d& Bounds = FAxisAlignedBox2d::Empty());
-	void Compute(TArrayView<const FVector2f> Points, const FAxisAlignedBox2f& Bounds = FAxisAlignedBox2f::Empty());
-	void Compute(TArrayView<const FVector3d> Points, const FAxisAlignedBox3d& Bounds = FAxisAlignedBox3d::Empty());
-	void Compute(TArrayView<const FVector3f> Points, const FAxisAlignedBox3f& Bounds = FAxisAlignedBox3f::Empty());
+	GEOMETRYCORE_API void Compute(TArrayView<const FVector2d> Points, const FAxisAlignedBox2d& Bounds = FAxisAlignedBox2d::Empty());
+	GEOMETRYCORE_API void Compute(TArrayView<const FVector2f> Points, const FAxisAlignedBox2f& Bounds = FAxisAlignedBox2f::Empty());
+	GEOMETRYCORE_API void Compute(TArrayView<const FVector3d> Points, const FAxisAlignedBox3d& Bounds = FAxisAlignedBox3d::Empty());
+	GEOMETRYCORE_API void Compute(TArrayView<const FVector3f> Points, const FAxisAlignedBox3f& Bounds = FAxisAlignedBox3f::Empty());
 
 };
 
@@ -57,7 +57,7 @@ public:
  * Generate a "Biased Randomized Insertion Order" (BRIO) ordering for a point set by randomly bucketing the points, then applying Z-Order-Curve sorting (above) to each bucket
  * This gives an ordering with point locality but enough randomization to typically avoid worst case behavior if using the ordering for Delaunay meshing
  */
-struct GEOMETRYCORE_API FBRIOPoints
+struct FBRIOPoints
 {
 	/// Inputs
 
@@ -82,10 +82,10 @@ public:
 	 * @param Points				Points to re-order
 	 * @param Bounds				Optional bounding box of the points; if an empty box is passed in, it will be computed for you
 	 */
-	void Compute(TArrayView<const FVector2d> Points, const FAxisAlignedBox2d& Bounds = FAxisAlignedBox2d::Empty(), const FRandomStream& Random = FRandomStream());
-	void Compute(TArrayView<const FVector2f> Points, const FAxisAlignedBox2f& Bounds = FAxisAlignedBox2f::Empty(), const FRandomStream& Random = FRandomStream());
-	void Compute(TArrayView<const FVector3d> Points, const FAxisAlignedBox3d& Bounds = FAxisAlignedBox3d::Empty(), const FRandomStream& Random = FRandomStream());
-	void Compute(TArrayView<const FVector3f> Points, const FAxisAlignedBox3f& Bounds = FAxisAlignedBox3f::Empty(), const FRandomStream& Random = FRandomStream());
+	GEOMETRYCORE_API void Compute(TArrayView<const FVector2d> Points, const FAxisAlignedBox2d& Bounds = FAxisAlignedBox2d::Empty(), const FRandomStream& Random = FRandomStream());
+	GEOMETRYCORE_API void Compute(TArrayView<const FVector2f> Points, const FAxisAlignedBox2f& Bounds = FAxisAlignedBox2f::Empty(), const FRandomStream& Random = FRandomStream());
+	GEOMETRYCORE_API void Compute(TArrayView<const FVector3d> Points, const FAxisAlignedBox3d& Bounds = FAxisAlignedBox3d::Empty(), const FRandomStream& Random = FRandomStream());
+	GEOMETRYCORE_API void Compute(TArrayView<const FVector3f> Points, const FAxisAlignedBox3f& Bounds = FAxisAlignedBox3f::Empty(), const FRandomStream& Random = FRandomStream());
 
 };
 

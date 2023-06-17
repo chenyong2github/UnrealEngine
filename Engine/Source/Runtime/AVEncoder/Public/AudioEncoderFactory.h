@@ -11,7 +11,7 @@ namespace AVEncoder
 {
 	class FAudioEncoder;
 
-	class AVENCODER_API FAudioEncoderFactory
+	class FAudioEncoderFactory
 	{
 	public:
 		virtual ~FAudioEncoderFactory() {}
@@ -19,12 +19,12 @@ namespace AVEncoder
 		virtual TArray<FString> GetSupportedCodecs() const = 0;
 		virtual TUniquePtr<FAudioEncoder> CreateEncoder(const FString& Codec) = 0;
 
-		static void RegisterFactory(FAudioEncoderFactory& Factory);
-		static void UnregisterFactory(FAudioEncoderFactory& Factory);
-		static FAudioEncoderFactory* FindFactory(const FString& Codec);
-		static const TArray<FAudioEncoderFactory*> GetAllFactories();
+		static AVENCODER_API void RegisterFactory(FAudioEncoderFactory& Factory);
+		static AVENCODER_API void UnregisterFactory(FAudioEncoderFactory& Factory);
+		static AVENCODER_API FAudioEncoderFactory* FindFactory(const FString& Codec);
+		static AVENCODER_API const TArray<FAudioEncoderFactory*> GetAllFactories();
 
 	private:
-		static TArray<FAudioEncoderFactory*> Factories;
+		static AVENCODER_API TArray<FAudioEncoderFactory*> Factories;
 	};
 }

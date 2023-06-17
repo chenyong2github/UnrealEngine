@@ -12,7 +12,7 @@ class UBlendSpace;
 
 // Allows multiple animations to be blended between based on input parameters
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceGraphBase : public FAnimNode_Base
+struct FAnimNode_BlendSpaceGraphBase : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -29,11 +29,11 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceGraphBase : public FAnimNode_Bas
 
 #if WITH_EDITORONLY_DATA
 	// Set the node to preview a supplied sample value
-	void SetPreviewPosition(FVector InVector);
+	ANIMGRAPHRUNTIME_API void SetPreviewPosition(FVector InVector);
 #endif
 
 	// Forces the Position to the specified value
-	void SnapToPosition(const FVector& NewPosition);
+	ANIMGRAPHRUNTIME_API void SnapToPosition(const FVector& NewPosition);
 
 protected:
 	// The X coordinate to sample in the blendspace
@@ -79,14 +79,14 @@ protected:
 #endif
 
 	// Internal update handler, skipping evaluation of exposed inputs
-	void UpdateInternal(const FAnimationUpdateContext& Context);
+	ANIMGRAPHRUNTIME_API void UpdateInternal(const FAnimationUpdateContext& Context);
 
 protected:
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 };

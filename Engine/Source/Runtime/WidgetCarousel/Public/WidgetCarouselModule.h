@@ -7,12 +7,12 @@
 /**
  * Implements the WidgetCarousel module.
  */
-class WIDGETCAROUSEL_API FWidgetCarouselModule
+class FWidgetCarouselModule
 	: public IModuleInterface
 {
 public:
 
-	virtual void StartupModule( ) override;
+	WIDGETCAROUSEL_API virtual void StartupModule( ) override;
 
-	virtual void ShutdownModule( ) override;
+	WIDGETCAROUSEL_API virtual void ShutdownModule( ) override;
 };

@@ -66,15 +66,15 @@ enum class EPlatformUserSelectorFlags : uint8
 ENUM_CLASS_FLAGS(EPlatformUserSelectorFlags);
 
 
-struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
+struct FGenericPlatformApplicationMisc
 {
-	static void PreInit();
+	static APPLICATIONCORE_API void PreInit();
 
-	static void Init();
+	static APPLICATIONCORE_API void Init();
 
-	static void PostInit();
+	static APPLICATIONCORE_API void PostInit();
 
-	static void TearDown();
+	static APPLICATIONCORE_API void TearDown();
 
 	/**
 	 * Load the preinit modules required by this platform, typically they are the renderer modules
@@ -93,38 +93,38 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	/**
 	 * Creates a console output device for this platform. Should only be called once.
 	 */
-	static FOutputDeviceConsole* CreateConsoleOutputDevice();
+	static APPLICATIONCORE_API FOutputDeviceConsole* CreateConsoleOutputDevice();
 
 	/**
 	 * Gets a pointer to the platform error output device singleton.
 	 */
-	static FOutputDeviceError* GetErrorOutputDevice();
+	static APPLICATIONCORE_API FOutputDeviceError* GetErrorOutputDevice();
 
 	/**
 	 * Gets a pointer to the default platform feedback context implementation.
 	 */
-	static FFeedbackContext* GetFeedbackContext();
+	static APPLICATIONCORE_API FFeedbackContext* GetFeedbackContext();
 
 	/**
 	 * Gets a pointer to the default platform input device manager.
 	 */
-	static IPlatformInputDeviceMapper* CreatePlatformInputDeviceManager();
+	static APPLICATIONCORE_API IPlatformInputDeviceMapper* CreatePlatformInputDeviceManager();
 
 	/**
 	 * Creates an application instance.
 	 */
-	static class GenericApplication* CreateApplication();
+	static APPLICATIONCORE_API class GenericApplication* CreateApplication();
 
 	/** Request application to minimize (goto background). **/
-	static void RequestMinimize();
+	static APPLICATIONCORE_API void RequestMinimize();
 
 	/** Returns true if the specified application has a visible window, and that window is active/has focus/is selected */
-	static bool IsThisApplicationForeground();	
+	static APPLICATIONCORE_API bool IsThisApplicationForeground();	
 
 	/**
 	* Returns whether the platform wants to use a touch screen for a virtual keyboard.
 	*/
-	static bool RequiresVirtualKeyboard();
+	static APPLICATIONCORE_API bool RequiresVirtualKeyboard();
 
 	/**
 	 *	Pumps Windows messages.
@@ -177,7 +177,7 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	 * @param	InGamma			Optional gamma correction to apply to the screen color
 	 * @return					The color of the pixel displayed at the chosen location
 	 */
-	static struct FLinearColor GetScreenPixelColor(const FVector2D& InScreenPos, float InGamma = 1.0f);
+	static APPLICATIONCORE_API struct FLinearColor GetScreenPixelColor(const FVector2D& InScreenPos, float InGamma = 1.0f);
 
 	/**
 	 * Searches for a window that matches the window name or the title starts with a particular text. When
@@ -213,7 +213,7 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 
 	/** @return true if the application is high dpi aware */
 
-	static bool IsHighDPIAwarenessEnabled();
+	static APPLICATIONCORE_API bool IsHighDPIAwarenessEnabled();
 
 	/*
 	 * UE expects mouse coordinates in screen space. Some platforms provides in client space. 
@@ -292,20 +292,20 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	}
 				
 	/** Copies text to the operating system clipboard. */
-	static void ClipboardCopy(const TCHAR* Str);
+	static APPLICATIONCORE_API void ClipboardCopy(const TCHAR* Str);
 
 	/** Pastes in text from the operating system clipboard. */
-	static void ClipboardPaste(class FString& Dest);
+	static APPLICATIONCORE_API void ClipboardPaste(class FString& Dest);
 
 	/**
 	 * Gets the physical size of the screen if possible.  Some platforms lie, some platforms don't know.
 	 */
-	static EScreenPhysicalAccuracy GetPhysicalScreenDensity(int32& OutScreenDensity);
+	static APPLICATIONCORE_API EScreenPhysicalAccuracy GetPhysicalScreenDensity(int32& OutScreenDensity);
 
 	/**
 	 * Gets the physical size of the screen if possible.  Some platforms lie, some platforms don't know.
 	 */
-	static EScreenPhysicalAccuracy ComputePhysicalScreenDensity(int32& OutScreenDensity);
+	static APPLICATIONCORE_API EScreenPhysicalAccuracy ComputePhysicalScreenDensity(int32& OutScreenDensity);
 
 	/**
 	 * If we know or can approximate the pixel density of the screen we will convert the incoming inches
@@ -382,10 +382,10 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 
 
 protected:
-	static bool CachedPhysicalScreenData;
-	static EScreenPhysicalAccuracy CachedPhysicalScreenAccuracy;
-	static int32 CachedPhysicalScreenDensity;
-	static FAutoConsoleVariableRef CVarEnableHighDPIAwareness;
-	static FAutoConsoleVariableRef CVarAllowVirtualKeyboard;
+	static APPLICATIONCORE_API bool CachedPhysicalScreenData;
+	static APPLICATIONCORE_API EScreenPhysicalAccuracy CachedPhysicalScreenAccuracy;
+	static APPLICATIONCORE_API int32 CachedPhysicalScreenDensity;
+	static APPLICATIONCORE_API FAutoConsoleVariableRef CVarEnableHighDPIAwareness;
+	static APPLICATIONCORE_API FAutoConsoleVariableRef CVarAllowVirtualKeyboard;
 
 };

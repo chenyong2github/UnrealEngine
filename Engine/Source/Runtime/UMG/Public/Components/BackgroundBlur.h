@@ -12,8 +12,8 @@
  * * Single Child
  * * Blur Effect
  */
-UCLASS()
-class UMG_API UBackgroundBlur : public UContentWidget
+UCLASS(MinimalAPI)
+class UBackgroundBlur : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -76,70 +76,70 @@ public:
 	FSlateBrush LowQualityFallbackBrush;
 
 public:
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	FMargin GetPadding() const;
-
-	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
-
-	EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetApplyAlphaToBlur(bool bInApplyAlphaToBlur);
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
-	bool GetApplyAlphaToBlur() const;
-
-	void SetOverrideAutoRadiusCalculation(bool InOverrideAutoRadiusCalculation);
-
-	bool GetOverrideAutoRadiusCalculation() const;
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetBlurRadius(int32 InBlurRadius);
+	UMG_API void SetApplyAlphaToBlur(bool bInApplyAlphaToBlur);
 
-	int32 GetBlurRadius() const;
+	UMG_API bool GetApplyAlphaToBlur() const;
+
+	UMG_API void SetOverrideAutoRadiusCalculation(bool InOverrideAutoRadiusCalculation);
+
+	UMG_API bool GetOverrideAutoRadiusCalculation() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	virtual void SetBlurStrength(float InStrength);
+	UMG_API void SetBlurRadius(int32 InBlurRadius);
 
-	float GetBlurStrength() const;
+	UMG_API int32 GetBlurRadius() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	virtual void SetCornerRadius(FVector4 InCornerRadius);
+	UMG_API virtual void SetBlurStrength(float InStrength);
+
+	UMG_API float GetBlurStrength() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	UMG_API virtual void SetCornerRadius(FVector4 InCornerRadius);
 	
-	FVector4 GetCornerRadius() const;
+	UMG_API FVector4 GetCornerRadius() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetLowQualityFallbackBrush(const FSlateBrush& InBrush);
+	UMG_API void SetLowQualityFallbackBrush(const FSlateBrush& InBrush);
 
-	FSlateBrush GetLowQualityFallbackBrush() const;
+	UMG_API FSlateBrush GetLowQualityFallbackBrush() const;
 
 	/** UObject interface */
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual void PostLoad() override;
 
 protected:
 	/** UWidget interface */
-	virtual UClass* GetSlotClass() const override;
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual void SynchronizeProperties() override;
 
 	/** UPanelWidget interface */
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 
 protected:
 	TSharedPtr<class SBackgroundBlur> MyBackgroundBlur;

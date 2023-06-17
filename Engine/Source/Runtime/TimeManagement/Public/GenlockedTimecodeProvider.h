@@ -11,8 +11,8 @@ class UGenlockedCustomTimeStep;
 /**
  * This timecode provider base class will try to use the engine genlock sync to adjust its count.
  */
-UCLASS(Abstract)
-class TIMEMANAGEMENT_API UGenlockedTimecodeProvider : public UTimecodeProvider
+UCLASS(Abstract, MinimalAPI)
+class UGenlockedTimecodeProvider : public UTimecodeProvider
 {
 	GENERATED_BODY()
 
@@ -23,14 +23,14 @@ public:
 	bool bUseGenlockToCount = true;
 
 	//~ Begin UTimecodeProvider interface
-	virtual void FetchAndUpdate() override;
-	virtual FQualifiedFrameTime GetQualifiedFrameTime() const override;
+	TIMEMANAGEMENT_API virtual void FetchAndUpdate() override;
+	TIMEMANAGEMENT_API virtual FQualifiedFrameTime GetQualifiedFrameTime() const override;
 	//~ End UTimecodeProvider interface
 
 protected:
 
 	/** Corrects given timecode with Genlock provider */
-	virtual FQualifiedFrameTime CorrectFromGenlock(FQualifiedFrameTime& InFrameTime, const UGenlockedCustomTimeStep* Genlock);
+	TIMEMANAGEMENT_API virtual FQualifiedFrameTime CorrectFromGenlock(FQualifiedFrameTime& InFrameTime, const UGenlockedCustomTimeStep* Genlock);
 
 	/** Cache current frame time */
 	FQualifiedFrameTime LastFrameTime;

@@ -409,7 +409,7 @@ protected:
  * for a UBaseDynamicMeshComponent, where the assumption is that mesh data
  * will be stored in FMeshRenderBufferSet instances
  */
-class GEOMETRYFRAMEWORK_API FBaseDynamicMeshSceneProxy : public FPrimitiveSceneProxy
+class FBaseDynamicMeshSceneProxy : public FPrimitiveSceneProxy
 {
 	using FIndex2i = UE::Geometry::FIndex2i;
 	using FIndex3i = UE::Geometry::FIndex3i;
@@ -483,9 +483,9 @@ protected:
 	bool bEnableViewModeOverrides = true;
 
 public:
-	FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent* Component);
+	GEOMETRYFRAMEWORK_API FBaseDynamicMeshSceneProxy(UBaseDynamicMeshComponent* Component);
 
-	virtual ~FBaseDynamicMeshSceneProxy();
+	GEOMETRYFRAMEWORK_API virtual ~FBaseDynamicMeshSceneProxy();
 
 
 	//
@@ -510,12 +510,12 @@ public:
 	 * Allocates a set of render buffers. FPrimitiveSceneProxy will keep track of these
 	 * buffers and destroy them on destruction.
 	 */
-	virtual FMeshRenderBufferSet* AllocateNewRenderBufferSet();
+	GEOMETRYFRAMEWORK_API virtual FMeshRenderBufferSet* AllocateNewRenderBufferSet();
 
 	/**
 	 * Explicitly release a set of RenderBuffers
 	 */
-	virtual void ReleaseRenderBufferSet(FMeshRenderBufferSet* BufferSet);
+	GEOMETRYFRAMEWORK_API virtual void ReleaseRenderBufferSet(FMeshRenderBufferSet* BufferSet);
 
 
 	/**
@@ -918,12 +918,12 @@ public:
 	/**
 	 * @return number of active materials
 	 */
-	virtual int32 GetNumMaterials() const;
+	GEOMETRYFRAMEWORK_API virtual int32 GetNumMaterials() const;
 
 	/**
 	 * Safe GetMaterial function that will never return nullptr
 	 */
-	virtual UMaterialInterface* GetMaterial(int32 k) const;
+	GEOMETRYFRAMEWORK_API virtual UMaterialInterface* GetMaterial(int32 k) const;
 
 	/**
 	 * Set whether or not to validate mesh batch materials against the component materials.
@@ -939,7 +939,7 @@ public:
 	 * the check in FPrimitiveSceneProxy::VerifyUsedMaterial() will fail if an override
 	 * material is set, if materials change, etc, etc
 	 */
-	virtual void UpdatedReferencedMaterials();
+	GEOMETRYFRAMEWORK_API virtual void UpdatedReferencedMaterials();
 
 
 	//
@@ -950,7 +950,7 @@ public:
 	/**
 	 * Render set of active RenderBuffers returned by GetActiveRenderBufferSets
 	 */
-	virtual void GetDynamicMeshElements(
+	GEOMETRYFRAMEWORK_API virtual void GetDynamicMeshElements(
 		const TArray<const FSceneView*>& Views, 
 		const FSceneViewFamily& ViewFamily, 
 		uint32 VisibilityMap, 
@@ -960,7 +960,7 @@ public:
 	/**
 	 * Draw a single-frame FMeshBatch for a FMeshRenderBufferSet
 	 */
-	virtual void DrawBatch(FMeshElementCollector& Collector,
+	GEOMETRYFRAMEWORK_API virtual void DrawBatch(FMeshElementCollector& Collector,
 		const FMeshRenderBufferSet& RenderBuffers,
 		const FDynamicMeshIndexBuffer32& IndexBuffer,
 		FMaterialRenderProxy* UseMaterial,
@@ -971,16 +971,16 @@ public:
 
 #if RHI_RAYTRACING
 
-	virtual bool IsRayTracingRelevant() const override;
-	virtual bool HasRayTracingRepresentation() const override;
+	GEOMETRYFRAMEWORK_API virtual bool IsRayTracingRelevant() const override;
+	GEOMETRYFRAMEWORK_API virtual bool HasRayTracingRepresentation() const override;
 
-	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
+	GEOMETRYFRAMEWORK_API virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
 
 
 	/**
 	* Draw a single-frame raytracing FMeshBatch for a FMeshRenderBufferSet
 	*/
-	virtual void DrawRayTracingBatch(
+	GEOMETRYFRAMEWORK_API virtual void DrawRayTracingBatch(
 		FRayTracingMaterialGatheringContext& Context,
 		const FMeshRenderBufferSet& RenderBuffers,
 		const FDynamicMeshIndexBuffer32& IndexBuffer,

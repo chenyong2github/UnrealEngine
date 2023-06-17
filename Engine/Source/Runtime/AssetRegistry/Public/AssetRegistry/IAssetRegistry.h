@@ -844,29 +844,29 @@ namespace AssetRegistry
 		InvalidTag = 3,
 	};
 
-	struct ASSETREGISTRY_API FDeserializePackageData
+	struct FDeserializePackageData
 	{
 		int64 DependencyDataOffset = INDEX_NONE;
 		int32 ObjectCount = 0;
 
-		bool DoSerialize(FArchive& BinaryArchive, const FPackageFileSummary& PackageFileSummary, EReadPackageDataMainErrorCode& OutError);
+		ASSETREGISTRY_API bool DoSerialize(FArchive& BinaryArchive, const FPackageFileSummary& PackageFileSummary, EReadPackageDataMainErrorCode& OutError);
 	};
 
-	struct ASSETREGISTRY_API FDeserializeObjectPackageData
+	struct FDeserializeObjectPackageData
 	{
 		FString ObjectPath;
 		FString ObjectClassName;
 		int32 TagCount = 0;
 
-		bool DoSerialize(FArchive& BinaryArchive, EReadPackageDataMainErrorCode& OutError);
+		ASSETREGISTRY_API bool DoSerialize(FArchive& BinaryArchive, EReadPackageDataMainErrorCode& OutError);
 	};
 
-	struct ASSETREGISTRY_API FDeserializeTagData
+	struct FDeserializeTagData
 	{
 		FString Key;
 		FString Value;
 
-		bool DoSerialize(FArchive& BinaryArchive, EReadPackageDataMainErrorCode& OutError);
+		ASSETREGISTRY_API bool DoSerialize(FArchive& BinaryArchive, EReadPackageDataMainErrorCode& OutError);
 	};
 
 	// Functions to read and write the data used by the AssetRegistry in each package; the format of this data is separate from the format of the data in the asset registry

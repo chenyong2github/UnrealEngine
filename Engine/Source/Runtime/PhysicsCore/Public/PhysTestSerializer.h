@@ -33,20 +33,20 @@ namespace Chaos
 	class FChaosArchive;
 }
 
-class PHYSICSCORE_API FPhysTestSerializer
+class FPhysTestSerializer
 {
 public:
-	FPhysTestSerializer();
+	PHYSICSCORE_API FPhysTestSerializer();
 	FPhysTestSerializer(const FPhysTestSerializer& Other) = delete;
 	FPhysTestSerializer(FPhysTestSerializer&& Other) = delete;
 	FPhysTestSerializer& operator=(const FPhysTestSerializer&) = delete;
 	FPhysTestSerializer& operator=(FPhysTestSerializer&&) = delete;
 
-	void Serialize(Chaos::FChaosArchive& Ar);
-	void Serialize(const TCHAR* FilePrefix);
+	PHYSICSCORE_API void Serialize(Chaos::FChaosArchive& Ar);
+	PHYSICSCORE_API void Serialize(const TCHAR* FilePrefix);
 
 	//Set the data from an external source. This will obliterate any existing data. Make sure you are not holding on to old internal data as it will go away
-	void SetPhysicsData(Chaos::FPBDRigidsEvolution& ChaosEvolution);
+	PHYSICSCORE_API void SetPhysicsData(Chaos::FPBDRigidsEvolution& ChaosEvolution);
 
 	const Chaos::FChaosArchiveContext* GetChaosContext() const
 	{
@@ -89,7 +89,7 @@ public:
 private:
 
 #if 0
-	void CreateChaosData();
+	PHYSICSCORE_API void CreateChaosData();
 #endif 
 
 private:

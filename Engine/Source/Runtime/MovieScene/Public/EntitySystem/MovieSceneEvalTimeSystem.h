@@ -24,18 +24,18 @@ namespace UE::MovieScene
 	};
 }
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneEvalTimeSystem : public UMovieSceneEntitySystem
+UCLASS(MinimalAPI)
+class UMovieSceneEvalTimeSystem : public UMovieSceneEntitySystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UMovieSceneEvalTimeSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENE_API UMovieSceneEvalTimeSystem(const FObjectInitializer& ObjInit);
 
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
-	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENE_API virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
+	MOVIESCENE_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
+	MOVIESCENE_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 private:
 

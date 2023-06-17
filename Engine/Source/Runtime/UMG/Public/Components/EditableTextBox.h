@@ -22,8 +22,8 @@ class USlateWidgetStyleAsset;
  * * No Children
  * * Text Entry
  */
-UCLASS(meta=(DisplayName="Text Box"))
-class UMG_API UEditableTextBox : public UWidget
+UCLASS(meta=(DisplayName="Text Box"), MinimalAPI)
+class UEditableTextBox : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -152,7 +152,7 @@ public:
 	* @return The widget text
 	*/
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="GetText (Text Box)"))
-	FText GetText() const;
+	UMG_API FText GetText() const;
 
 	/**
 	* Directly sets the widget text.
@@ -160,86 +160,86 @@ public:
 	* @param InText The text to assign to the widget
 	*/
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetText (Text Box)"))
-	void SetText(FText InText);
+	UMG_API void SetText(FText InText);
 	
 	/** Gets the Hint text that appears when there is no text in the text box */
-	FText GetHintText() const;
+	UMG_API FText GetHintText() const;
 
 	/**
 	* Sets the Hint text that appears when there is no text in the text box
 	* @param InHintText The text that appears when there is no text in the text box
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "Set Hint Text (Text Box)"))
-	void SetHintText(FText InText);
+	UMG_API void SetHintText(FText InText);
 
 	/** @return the minimum desired width for this text box */
-	float GetMinimumDesiredWidth() const;
+	UMG_API float GetMinimumDesiredWidth() const;
 
 	/**
 	*  Set the minimum desired width for this text box
 	*
 	*  @param InMinDesiredWidth new minimum desired width
 	*/
-	void SetMinDesiredWidth(float InMinDesiredWidth);
+	UMG_API void SetMinDesiredWidth(float InMinDesiredWidth);
 	
 	/** When set to true the caret is moved when gaining focus */
-	void SetIsCaretMovedWhenGainFocus(bool bIsCaretMovedWhenGainFocus);
+	UMG_API void SetIsCaretMovedWhenGainFocus(bool bIsCaretMovedWhenGainFocus);
 
 	/** Return true when the caret is moved when gaining focus */
-	bool GetIsCaretMovedWhenGainFocus() const;
+	UMG_API bool GetIsCaretMovedWhenGainFocus() const;
 
 	/** Set to true to select all text when the user clicks to give focus on the widget */
-	void SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused);
+	UMG_API void SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused);
 
 	/** Whether to select all text when the user clicks to give focus on the widget */
-	bool GetSelectAllTextWhenFocused() const;
+	UMG_API bool GetSelectAllTextWhenFocused() const;
 
 	/** Set to true to allow the user to back out of changes when they press the escape key */
-	void SetRevertTextOnEscape(bool bRevertTextOnEscape);
+	UMG_API void SetRevertTextOnEscape(bool bRevertTextOnEscape);
 
 	/** Whether to allow the user to back out of changes when they press the escape key  */
-	bool GetRevertTextOnEscape() const;
+	UMG_API bool GetRevertTextOnEscape() const;
 
 	/** Set to true to clear keyboard focus when pressing enter to commit changes */
-	void SetClearKeyboardFocusOnCommit(bool bClearKeyboardFocusOnCommit);
+	UMG_API void SetClearKeyboardFocusOnCommit(bool bClearKeyboardFocusOnCommit);
 
 	/** Whether to clear keyboard focus when pressing enter to commit changes */
-	bool GetClearKeyboardFocusOnCommit() const;
+	UMG_API bool GetClearKeyboardFocusOnCommit() const;
 
 	/** Set to true to select all text when pressing enter to commit changes */
-	void SetSelectAllTextOnCommit(bool bSelectAllTextOnCommit);
+	UMG_API void SetSelectAllTextOnCommit(bool bSelectAllTextOnCommit);
 
 	/** Whether to select all text when pressing enter to commit changes */
-	bool GetSelectAllTextOnCommit() const;
+	UMG_API bool GetSelectAllTextOnCommit() const;
 
 	UFUNCTION(BlueprintCallable, Category="Widget",  meta=(DisplayName="SetError (Text Box)"))
-	void SetError(FText InError);
+	UMG_API void SetError(FText InError);
 
 	/** Return true when this text cannot be modified interactively by the user */
-	bool GetIsReadOnly() const;
+	UMG_API bool GetIsReadOnly() const;
 
 	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "SetIsReadOnly (Editable Text)"))
-	void SetIsReadOnly(UPARAM(DisplayName = "ReadyOnly") bool bReadOnly);
+	UMG_API void SetIsReadOnly(UPARAM(DisplayName = "ReadyOnly") bool bReadOnly);
 
-	bool GetIsPassword() const;
+	UMG_API bool GetIsPassword() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "IsPassword"))
-	void SetIsPassword(bool bIsPassword);
+	UMG_API void SetIsPassword(bool bIsPassword);
 
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	void ClearError();
+	UMG_API void ClearError();
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	bool HasError() const;
+	UMG_API bool HasError() const;
 
-	ETextJustify::Type GetJustification() const;
+	UMG_API ETextJustify::Type GetJustification() const;
 
 	UFUNCTION(BlueprintSetter)
-	void SetJustification(ETextJustify::Type InJustification);
+	UMG_API void SetJustification(ETextJustify::Type InJustification);
 
 	/** @return the text overflow policy for this text block. */
-	ETextOverflowPolicy GetTextOverflowPolicy() const;
+	UMG_API ETextOverflowPolicy GetTextOverflowPolicy() const;
 
 	/**
 	 * Set the text overflow policy for this text box.
@@ -247,34 +247,34 @@ public:
 	 * @param InOverflowPolicy the new text overflow policy.
 	 */
 	UFUNCTION(BlueprintSetter)
-	void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
+	UMG_API void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetForegroundColor (Text Box)"))
-	void SetForegroundColor(FLinearColor color);
+	UMG_API void SetForegroundColor(FLinearColor color);
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
-	virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget
 
-	virtual void HandleOnTextChanged(const FText& Text);
-	virtual void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	UMG_API virtual void HandleOnTextChanged(const FText& Text);
+	UMG_API virtual void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+	UMG_API virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
 #endif
 
 protected:

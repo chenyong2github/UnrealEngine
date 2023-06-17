@@ -91,8 +91,8 @@ struct FTemplateMapInfoOverride
 };
 
 
-UCLASS(config=Engine, defaultconfig)
-class ENGINESETTINGS_API UGameMapsSettings
+UCLASS(config=Engine, defaultconfig, MinimalAPI)
+class UGameMapsSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -103,7 +103,7 @@ class ENGINESETTINGS_API UGameMapsSettings
 	 *
 	 * @return the default map specified in the settings
 	 */
-	static FString GetGameDefaultMap( );
+	static ENGINESETTINGS_API FString GetGameDefaultMap( );
 
 	/**
 	 * Get the global default game type specified in the configuration
@@ -111,38 +111,38 @@ class ENGINESETTINGS_API UGameMapsSettings
 	 * 
 	 * @return the proper global default game type
 	 */
-	static FString GetGlobalDefaultGameMode( );
+	static ENGINESETTINGS_API FString GetGlobalDefaultGameMode( );
 
 	/**
 	 * Searches the GameModeClassAliases list for a named game mode, if not found will return passed in string
 	 * 
 	 * @return the proper game type class path to load
 	 */
-	static FString GetGameModeForName( const FString& GameModeName );
+	static ENGINESETTINGS_API FString GetGameModeForName( const FString& GameModeName );
 
 	/**
 	 * Searches the GameModeMapPrefixes list for a named game mode, if not found will return passed in string
 	 * 
 	 * @return the proper game type class path to load, or empty if not found
 	 */
-	static FString GetGameModeForMapName( const FString& MapName );
+	static ENGINESETTINGS_API FString GetGameModeForMapName( const FString& MapName );
 
 	/**
 	 * Set the default map to use (see GameDefaultMap below)
 	 *
 	 * @param NewMap name of valid map to use
 	 */
-	static void SetGameDefaultMap( const FString& NewMap );
+	static ENGINESETTINGS_API void SetGameDefaultMap( const FString& NewMap );
 
 	/**
 	 * Set the default game type (see GlobalDefaultGameMode below)
 	 *
 	 * @param NewGameMode name of valid map to use
 	 */
-	static void SetGlobalDefaultGameMode( const FString& NewGameMode );
+	static ENGINESETTINGS_API void SetGlobalDefaultGameMode( const FString& NewGameMode );
 
-	virtual void PostInitProperties() override;
-	virtual void PostReloadConfig( class FProperty* PropertyThatWasLoaded ) override;
+	ENGINESETTINGS_API virtual void PostInitProperties() override;
+	ENGINESETTINGS_API virtual void PostReloadConfig( class FProperty* PropertyThatWasLoaded ) override;
 
 public:
 
@@ -224,7 +224,7 @@ public:
 
 	/** Returns the game local maps settings */
 	UFUNCTION(BlueprintPure, Category = Settings, meta=(DisplayName="Get Game Maps and Modes Settings"))
-	static UGameMapsSettings* GetGameMapsSettings();
+	static ENGINESETTINGS_API UGameMapsSettings* GetGameMapsSettings();
 
 	/**
 	 * Modify "Skip Assigning Gamepad to Player 1" GameMapsSettings option
@@ -232,9 +232,9 @@ public:
 	 * @note This value is saved to local config when changed.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Utilities")
-	void SetSkipAssigningGamepadToPlayer1(bool bSkipFirstPlayer = true);
+	ENGINESETTINGS_API void SetSkipAssigningGamepadToPlayer1(bool bSkipFirstPlayer = true);
 
 	UFUNCTION(BlueprintPure, Category = "Utilities")
-	bool GetSkipAssigningGamepadToPlayer1() const;
+	ENGINESETTINGS_API bool GetSkipAssigningGamepadToPlayer1() const;
 
 };

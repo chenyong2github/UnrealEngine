@@ -7,7 +7,7 @@
 
 /** A chain of nodes in a hierarchy */
 USTRUCT()
-struct ANIMATIONCORE_API FNodeChain
+struct FNodeChain
 {
 	GENERATED_BODY()
 

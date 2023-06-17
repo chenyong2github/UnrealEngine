@@ -15,8 +15,8 @@
 /**
  * Default physics settings.
  */
-UCLASS(config=Engine,defaultconfig,meta=(DisplayName="Physics"))
-class PHYSICSCORE_API UPhysicsSettingsCore: public UDeveloperSettings
+UCLASS(config=Engine,defaultconfig,meta=(DisplayName="Physics"), MinimalAPI)
+class UPhysicsSettingsCore: public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 
@@ -122,12 +122,12 @@ class PHYSICSCORE_API UPhysicsSettingsCore: public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = ChaosPhysics)
 	FChaosSolverConfiguration SolverOptions;
 
-	static UPhysicsSettingsCore* Get();
+	static PHYSICSCORE_API UPhysicsSettingsCore* Get();
 
-	virtual void PostInitProperties() override;
+	PHYSICSCORE_API virtual void PostInitProperties() override;
 
 protected:
-	static void SetDefaultSettings(UPhysicsSettingsCore* InSettings);
+	static PHYSICSCORE_API void SetDefaultSettings(UPhysicsSettingsCore* InSettings);
 
 private:
 	// Override default settings.

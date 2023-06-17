@@ -12,7 +12,7 @@ class UAudioLinkSettingsAbstract;
   * This interface should be used to provide a non-uclass version of the data described in
   * your implementation of UAudioLinkSettingsAbstract
   */
-class AUDIOLINKCORE_API IAudioLinkSettingsProxy
+class IAudioLinkSettingsProxy
 {
 public:
 	virtual ~IAudioLinkSettingsProxy() = default;
@@ -27,15 +27,15 @@ protected:
   * This opaque class should be used for specifying settings for how audio should be
   * send to an external audio link.
   */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOLINKCORE_API UAudioLinkSettingsAbstract : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class UAudioLinkSettingsAbstract : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	using FSharedSettingsProxyPtr = TSharedPtr<IAudioLinkSettingsProxy, ESPMode::ThreadSafe>;
 
-	virtual FName GetFactoryName() const PURE_VIRTUAL(UAudioLinkSettingsAbstract::GetFactoryName, return {};);
+	AUDIOLINKCORE_API virtual FName GetFactoryName() const PURE_VIRTUAL(UAudioLinkSettingsAbstract::GetFactoryName, return {};);
 	
 	virtual const FSharedSettingsProxyPtr& GetProxy() const
 	{
@@ -60,7 +60,7 @@ protected:
 	}
 #endif //WITH_EDITOR
 
-	virtual FSharedSettingsProxyPtr MakeProxy() const PURE_VIRTUAL(UAudioLinkSettingsAbstract::MakeProxy, return {};);
+	AUDIOLINKCORE_API virtual FSharedSettingsProxyPtr MakeProxy() const PURE_VIRTUAL(UAudioLinkSettingsAbstract::MakeProxy, return {};);
 	mutable FSharedSettingsProxyPtr ProxyInstance;
 };
 

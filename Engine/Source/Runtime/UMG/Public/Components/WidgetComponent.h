@@ -90,67 +90,67 @@ enum class ETickMode : uint8
  * TintColorAndOpacity [Vector]
  * OpacityFromTexture [Scalar]
  */
-UCLASS(Blueprintable, ClassGroup="UserInterface", hidecategories=(Object,Activation,"Components|Activation",Sockets,Base,Lighting,LOD,Mesh), editinlinenew, meta=(BlueprintSpawnableComponent) )
-class UMG_API UWidgetComponent : public UMeshComponent
+UCLASS(Blueprintable, ClassGroup="UserInterface", hidecategories=(Object,Activation,"Components|Activation",Sockets,Base,Lighting,LOD,Mesh), editinlinenew, meta=(BlueprintSpawnableComponent) , MinimalAPI)
+class UWidgetComponent : public UMeshComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	//UObject interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual bool CanBeInCluster() const override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual bool CanBeInCluster() const override;
 	//~ End UObject Interface
 
 	/** UActorComponent Interface */
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	UMG_API virtual void BeginPlay() override;
+	UMG_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	/* UPrimitiveComponent Interface */
-	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
-	virtual FBoxSphereBounds CalcBounds(const FTransform & LocalToWorld) const override;
-	virtual UBodySetup* GetBodySetup() override;
-	virtual FCollisionShape GetCollisionShape(float Inflation) const override;
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
-	virtual void DestroyComponent(bool bPromoteChildren = false) override;
-	UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
-	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
-	int32 GetNumMaterials() const override;
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	UMG_API virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
+	UMG_API virtual FBoxSphereBounds CalcBounds(const FTransform & LocalToWorld) const override;
+	UMG_API virtual UBodySetup* GetBodySetup() override;
+	UMG_API virtual FCollisionShape GetCollisionShape(float Inflation) const override;
+	UMG_API virtual void OnRegister() override;
+	UMG_API virtual void OnUnregister() override;
+	UMG_API virtual void DestroyComponent(bool bPromoteChildren = false) override;
+	UMG_API UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
+	UMG_API virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
+	UMG_API int32 GetNumMaterials() const override;
+	UMG_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
-	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
-	void ApplyComponentInstanceData(struct FWidgetComponentInstanceData* ComponentInstanceData);
-	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
+	UMG_API virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	UMG_API void ApplyComponentInstanceData(struct FWidgetComponentInstanceData* ComponentInstanceData);
+	UMG_API virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	UMG_API virtual bool CanEditChange(const FProperty* InProperty) const override;
+	UMG_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	/** Ensures the user widget is initialized */
-	virtual void InitWidget();
+	UMG_API virtual void InitWidget();
 
 	/** Release resources associated with the widget. */
-	virtual void ReleaseResources();
+	UMG_API virtual void ReleaseResources();
 
 	/** Ensures the 3d window is created its size and content. */
-	virtual void UpdateWidget();
+	UMG_API virtual void UpdateWidget();
 
 	/** Ensure the render target is initialized and updates it if needed. */
-	virtual void UpdateRenderTarget(FIntPoint DesiredRenderTargetSize);
+	UMG_API virtual void UpdateRenderTarget(FIntPoint DesiredRenderTargetSize);
 
 	/** 
 	* Ensures the body setup is initialized and updates it if needed.
 	* @param bDrawSizeChanged Whether the draw size of this component has changed since the last update call.
 	*/
-	void UpdateBodySetup( bool bDrawSizeChanged = false );
+	UMG_API void UpdateBodySetup( bool bDrawSizeChanged = false );
 
 	/**
 	 * Converts a world-space hit result to a hit location on the widget
 	 * @param HitResult The hit on this widget in the world
 	 * @param (Out) The transformed 2D hit location on the widget
 	 */
-	virtual void GetLocalHitLocation(FVector WorldHitLocation, FVector2D& OutLocalHitLocation) const;
+	UMG_API virtual void GetLocalHitLocation(FVector WorldHitLocation, FVector2D& OutLocalHitLocation) const;
 
 	/**
 	 * When using EWidgetGeometryMode::Cylinder, continues the trace from the front face
@@ -158,7 +158,7 @@ public:
 	 * 
 	 * @returns two hit locations FVector is in world space and a FVector2D is in widget-space.
 	 */
-	TTuple<FVector, FVector2D> GetCylinderHitLocation(FVector WorldHitLocation, FVector WorldHitDirection) const;
+	UMG_API TTuple<FVector, FVector2D> GetCylinderHitLocation(FVector WorldHitLocation, FVector WorldHitDirection) const;
 
 	/** Gets the last local location that was hit */
 	FVector2D GetLastLocalHitLocation() const
@@ -171,46 +171,46 @@ public:
 
 	/** Returns the user widget object displayed by this component */
 	UFUNCTION(BlueprintCallable, Category=UserInterface, meta=(UnsafeDuringActorConstruction=true))
-	UUserWidget* GetUserWidgetObject() const;
+	UMG_API UUserWidget* GetUserWidgetObject() const;
 
 	/** Returns the Slate widget that was assigned to this component, if any */
-	const TSharedPtr<SWidget>& GetSlateWidget() const;
+	UMG_API const TSharedPtr<SWidget>& GetSlateWidget() const;
 
 	/** Returns the list of widgets with their geometry and the cursor position transformed into this Widget component's space. */
-	TArray<FWidgetAndPointer> GetHitWidgetPath(FVector WorldHitLocation, bool bIgnoreEnabledStatus, float CursorRadius = 0.0f);
+	UMG_API TArray<FWidgetAndPointer> GetHitWidgetPath(FVector WorldHitLocation, bool bIgnoreEnabledStatus, float CursorRadius = 0.0f);
 
 	/** Returns the list of widgets with their geometry and the cursor position transformed into this Widget space. The widget space is expressed as a Vector2D. */
-	TArray<FWidgetAndPointer> GetHitWidgetPath(FVector2D WidgetSpaceHitCoordinate, bool bIgnoreEnabledStatus, float CursorRadius = 0.0f);
+	UMG_API TArray<FWidgetAndPointer> GetHitWidgetPath(FVector2D WidgetSpaceHitCoordinate, bool bIgnoreEnabledStatus, float CursorRadius = 0.0f);
 
 	/** Returns the render target to which the user widget is rendered */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	UTextureRenderTarget2D* GetRenderTarget() const;
+	UMG_API UTextureRenderTarget2D* GetRenderTarget() const;
 
 	/** Returns the dynamic material instance used to render the user widget */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	UMaterialInstanceDynamic* GetMaterialInstance() const;
+	UMG_API UMaterialInstanceDynamic* GetMaterialInstance() const;
 
 	/** Returns the window containing the user widget content */
-	TSharedPtr<SWindow> GetSlateWindow() const;
+	UMG_API TSharedPtr<SWindow> GetSlateWindow() const;
 
 	/**  
 	 *  Gets the widget that is used by this Widget Component. It will be null if a Slate Widget was set using SetSlateWidget function.
 	 */ 
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	virtual UUserWidget* GetWidget() const;
+	UMG_API virtual UUserWidget* GetWidget() const;
 
 	/**  
 	 *  Sets the widget to use directly. This function will keep track of the widget till the next time it's called
 	 *	with either a newer widget or a nullptr
 	 */ 
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	virtual void SetWidget(UUserWidget* Widget);
+	UMG_API virtual void SetWidget(UUserWidget* Widget);
 
 	/**  
 	 *  Sets a Slate widget to be rendered.  You can use this to draw native Slate widgets using a WidgetComponent, instead
 	 *  of drawing user widgets.
 	 */ 
-	virtual void SetSlateWidget( const TSharedPtr<SWidget>& InSlateWidget);
+	UMG_API virtual void SetSlateWidget( const TSharedPtr<SWidget>& InSlateWidget);
 
 	/**
 	 * Sets the local player that owns this widget component.  Setting the owning player controls
@@ -218,7 +218,7 @@ public:
 	 * forwards the owning player to the actual UserWidget that is spawned.
 	 */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	void SetOwnerPlayer(ULocalPlayer* LocalPlayer);
+	UMG_API void SetOwnerPlayer(ULocalPlayer* LocalPlayer);
 
 	/** @see bManuallyRedraw */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
@@ -229,37 +229,37 @@ public:
 
 	/** @see bManuallyRedraw */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	void SetManuallyRedraw(bool bUseManualRedraw);
+	UMG_API void SetManuallyRedraw(bool bUseManualRedraw);
 
 	/** Gets the local player that owns this widget component. */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	ULocalPlayer* GetOwnerPlayer() const;
+	UMG_API ULocalPlayer* GetOwnerPlayer() const;
 
 	/** Returns the "specified" draw size of the quad in the world */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	FVector2D GetDrawSize() const;
+	UMG_API FVector2D GetDrawSize() const;
 
 	/** Returns the "actual" draw size of the quad in the world */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
-	FVector2D GetCurrentDrawSize() const;
+	UMG_API FVector2D GetCurrentDrawSize() const;
 
 	/** Sets the draw size of the quad in the world */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	void SetDrawSize(FVector2D Size);
+	UMG_API void SetDrawSize(FVector2D Size);
 
 	/** Requests that the widget be redrawn.  */
 	UFUNCTION(BlueprintCallable, Category=UserInterface, meta = (DeprecatedFunction, DeprecationMessage = "Use RequestRenderUpdate instead"))
-	virtual void RequestRedraw();
+	UMG_API virtual void RequestRedraw();
 
 	/** Requests that the widget have it's render target updated, if TickMode is disabled, this will force a tick to happen to update the render target. */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
-	virtual void RequestRenderUpdate();
+	UMG_API virtual void RequestRenderUpdate();
 
 	/** Gets the blend mode for the widget. */
 	EWidgetBlendMode GetBlendMode() const { return BlendMode; }
 
 	/** Sets the blend mode to use for this widget */
-	void SetBlendMode( const EWidgetBlendMode NewBlendMode );
+	UMG_API void SetBlendMode( const EWidgetBlendMode NewBlendMode );
 
 	/** Gets whether the widget is two-sided or not */
 	UFUNCTION(BlueprintCallable, Category = Rendering)
@@ -270,7 +270,7 @@ public:
 
 	/** Sets whether the widget is two-sided or not */
 	UFUNCTION(BlueprintCallable, Category = Rendering)
-	void SetTwoSided( const bool bWantTwoSided );
+	UMG_API void SetTwoSided( const bool bWantTwoSided );
 
 	/** Gets whether the widget ticks when offscreen or not */
 	UFUNCTION(BlueprintCallable, Category = Animation)
@@ -288,14 +288,14 @@ public:
 
 	/** Sets the background color and opacityscale for this widget */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	void SetBackgroundColor( const FLinearColor NewBackgroundColor );
+	UMG_API void SetBackgroundColor( const FLinearColor NewBackgroundColor );
 
 	/** Sets the tint color and opacity scale for this widget */
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
-	void SetTintColorAndOpacity( const FLinearColor NewTintColorAndOpacity );
+	UMG_API void SetTintColorAndOpacity( const FLinearColor NewTintColorAndOpacity );
 
 	/** Sets how much opacity from the UI widget's texture alpha is used when rendering to the viewport (0.0-1.0) */
-	void SetOpacityFromTexture( const float NewOpacityFromTexture );
+	UMG_API void SetOpacityFromTexture( const float NewOpacityFromTexture );
 
 	/** Returns the pivot point where the UI is rendered about the origin. */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
@@ -322,13 +322,13 @@ public:
 	void SetRedrawTime(float InRedrawTime) { RedrawTime = InRedrawTime; }
 
 	/** Get the fake window we create for widgets displayed in the world. */
-	TSharedPtr< SWindow > GetVirtualWindow() const;
+	UMG_API TSharedPtr< SWindow > GetVirtualWindow() const;
 	
 	/** Updates the dynamic parameters on the material instance, without re-creating it */
-	void UpdateMaterialInstanceParameters();
+	UMG_API void UpdateMaterialInstanceParameters();
 
 	/** Sets the widget class used to generate the widget for this component */
-	void SetWidgetClass(TSubclassOf<UUserWidget> InWidgetClass);
+	UMG_API void SetWidgetClass(TSubclassOf<UUserWidget> InWidgetClass);
 
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
 	EWidgetSpace GetWidgetSpace() const { return Space; }
@@ -382,7 +382,7 @@ public:
 
 	/** @see bWindowFocusable */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
-	void SetWindowFocusable(bool bInWindowFocusable);
+	UMG_API void SetWindowFocusable(bool bInWindowFocusable);
 
 	/** Gets the visibility of the virtual window created to host the widget focusable. */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
@@ -393,44 +393,44 @@ public:
 
 	/** Sets the visibility of the virtual window created to host the widget focusable. */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
-	void SetWindowVisibility(EWindowVisibility InVisibility);
+	UMG_API void SetWindowVisibility(EWindowVisibility InVisibility);
 
 	/** Sets the Tick mode of the Widget Component.*/
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
-	void SetTickMode(ETickMode InTickMode);
+	UMG_API void SetTickMode(ETickMode InTickMode);
 
 	/** Returns true if the the Slate window is visible and that the widget is also visible, false otherwise. */
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
-	bool IsWidgetVisible() const;
+	UMG_API bool IsWidgetVisible() const;
 
 	/** Hook to allow this component modify the local position of the widget after it has been projected from world space to screen space. */
 	virtual FVector2D ModifyProjectedLocalPosition(const FGeometry& ViewportGeometry, const FVector2D& LocalPosition) { return LocalPosition; }
 
 protected:
-	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
+	UMG_API void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
 
 	/** Just because the user attempts to receive hardware input does not mean it's possible. */
-	bool CanReceiveHardwareInput() const;
+	UMG_API bool CanReceiveHardwareInput() const;
 
-	void RegisterHitTesterWithViewport(TSharedPtr<SViewport> ViewportWidget);
-	void UnregisterHitTesterWithViewport(TSharedPtr<SViewport> ViewportWidget);
+	UMG_API void RegisterHitTesterWithViewport(TSharedPtr<SViewport> ViewportWidget);
+	UMG_API void UnregisterHitTesterWithViewport(TSharedPtr<SViewport> ViewportWidget);
 
-	void RegisterWindow();
-	void UnregisterWindow();
-	void RemoveWidgetFromScreen();
+	UMG_API void RegisterWindow();
+	UMG_API void UnregisterWindow();
+	UMG_API void RemoveWidgetFromScreen();
 
 	/** Allows subclasses to control if the widget should be drawn.  Called right before we draw the widget. */
-	virtual bool ShouldDrawWidget() const;
+	UMG_API virtual bool ShouldDrawWidget() const;
 
 	/** Draws the current widget to the render target if possible. */
-	virtual void DrawWidgetToRenderTarget(float DeltaTime);
+	UMG_API virtual void DrawWidgetToRenderTarget(float DeltaTime);
 
 	/** Returns the width of the widget component taking GeometryMode into account. */
-	float ComputeComponentWidth() const;
+	UMG_API float ComputeComponentWidth() const;
 
-	void UpdateMaterialInstance();
+	UMG_API void UpdateMaterialInstance();
 
-	virtual void OnHiddenInGameChanged() override;
+	UMG_API virtual void OnHiddenInGameChanged() override;
 
 protected:
 	/** The coordinate space in which to render the widget */
@@ -469,7 +469,7 @@ protected:
 	double LastWidgetRenderTime;
 
 	/** Returns current absolute time, respecting TimingPolicy. */
-	double GetCurrentTime() const;
+	UMG_API double GetCurrentTime() const;
 
 	/**
 	 * The actual draw size, this changes based on DrawSize - or the desired size of the widget if
@@ -624,13 +624,13 @@ protected:
 	FVector2D LastLocalHitLocation;
 
 	/** The hit tester to use for this component */
-	static TSharedPtr<class FWidget3DHitTester> WidgetHitTester;
+	static UMG_API TSharedPtr<class FWidget3DHitTester> WidgetHitTester;
 
 	/** Helper class for drawing widgets to a render target. */
 	class FWidgetRenderer* WidgetRenderer;
 
 private: 
-	bool ShouldReenableComponentTickWhenWidgetBecomesVisible() const;
+	UMG_API bool ShouldReenableComponentTickWhenWidgetBecomesVisible() const;
 
 	/** The User Widget object displayed and managed by this component */
 	UPROPERTY(Transient, DuplicateTransient)
@@ -642,15 +642,15 @@ private:
 	/** The slate widget currently being drawn. */
 	TWeakPtr<SWidget> CurrentSlateWidget;
 
-	static EVisibility ConvertWindowVisibilityToVisibility(EWindowVisibility visibility);
+	static UMG_API EVisibility ConvertWindowVisibilityToVisibility(EWindowVisibility visibility);
 
-	void OnWidgetVisibilityChanged(ESlateVisibility InVisibility);
+	UMG_API void OnWidgetVisibilityChanged(ESlateVisibility InVisibility);
 
 	/** When using Screen space, this will update the Widget on Screen. **/
-	void UpdateWidgetOnScreen();
+	UMG_API void UpdateWidgetOnScreen();
 
 	/** When using Screen space, this code will add the widget to the screen. **/
-	void AddWidgetToScreen(ULocalPlayer* TargetPlayer);
+	UMG_API void AddWidgetToScreen(ULocalPlayer* TargetPlayer);
 
 	/** Set to true after a draw of an empty component.*/
 	bool bRenderCleared;

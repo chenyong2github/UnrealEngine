@@ -35,8 +35,8 @@ class USceneComponent;
  * Otherwise the main transform is centered at the average origin and
  * has no rotation.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UTransformProxy : public UObject
+UCLASS(Transient, MinimalAPI)
+class UTransformProxy : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -46,7 +46,7 @@ public:
 	 * @param bModifyComponentOnTransform if true, Component->Modify() is called before the Component transform is updated
 	 * @warning The internal shared transform is regenerated each time a component is added
 	 */
-	virtual void AddComponent(USceneComponent* Component, bool bModifyComponentOnTransform = true);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void AddComponent(USceneComponent* Component, bool bModifyComponentOnTransform = true);
 
 	/**
 	 * Add a component sub-object to the proxy set with custom transform access functions. This can be used
@@ -57,7 +57,7 @@ public:
 	 * @param bModifyComponentOnTransform if true, Component->Modify() is called before the Component transform is updated
 	 * @warning The internal shared transform is regenerated each time a component is added
 	 */
-	virtual void AddComponentCustom(
+	INTERACTIVETOOLSFRAMEWORK_API virtual void AddComponentCustom(
 		USceneComponent* Component, 
 		TUniqueFunction<FTransform(void)> GetTransformFunc,
 		TUniqueFunction<void(const FTransform&)> SetTransformFunc,
@@ -68,12 +68,12 @@ public:
 	/**
 	 * @return the shared transform for all the sub-objects
 	 */
-	virtual FTransform GetTransform() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FTransform GetTransform() const;
 
 	/**
 	 * Update the main transform and then update the sub-objects based on their relative transformations
 	 */
-	virtual void SetTransform(const FTransform& Transform);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetTransform(const FTransform& Transform);
 
 
 	/**
@@ -83,24 +83,24 @@ public:
 	 * as the TransformProxy doesn't know about this external state. 
 	 * @note FTransformProxyChangeSource will call these functions on Begin/End
 	 */
-	virtual void BeginTransformEditSequence();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginTransformEditSequence();
 
 	/**
 	 * External clients should call this when done a sequence of SetTransform calls (see BeginTransformEditSequence)
 	 */
-	virtual void EndTransformEditSequence();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndTransformEditSequence();
 
 	/**
 	 * Clients should call this before a sequence of SetTransform calls that have bSetPivotMode as true
 	 * (see comment in BeginTransformEditSequence).
 	 */
-	virtual void BeginPivotEditSequence();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginPivotEditSequence();
 
 	/**
 	 * Clients should call this when done with a sequence of SetTransform that have bSetPivotMode as true 
 	 * (see comment in BeginTransformEditSequence).
 	 */
-	virtual void EndPivotEditSequence();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndPivotEditSequence();
 
 public:
 	/**
@@ -182,13 +182,13 @@ protected:
 	FTransform InitialSharedTransform;
 
 	/** Recalculate main SharedTransform when object set changes*/
-	virtual void UpdateSharedTransform();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateSharedTransform();
 
 	/** Recalculate per-object relative transforms */
-	virtual void UpdateObjectTransforms();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateObjectTransforms();
 
 	/** Propagate a transform update to the sub-objects */
-	virtual void UpdateObjects();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateObjects();
 };
 
 
@@ -196,15 +196,15 @@ protected:
 /**
  * FTransformProxyChange tracks a change to the base transform for a TransformProxy
  */
-class INTERACTIVETOOLSFRAMEWORK_API FTransformProxyChange : public FToolCommandChange
+class FTransformProxyChange : public FToolCommandChange
 {
 public:
 	FTransform From;
 	FTransform To;
 	bool bSetPivotMode = false;
 
-	virtual void Apply(UObject* Object) override;
-	virtual void Revert(UObject* Object) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Apply(UObject* Object) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Revert(UObject* Object) override;
 
 	virtual FString ToString() const override { return TEXT("FTransformProxyChange"); }
 };
@@ -213,7 +213,7 @@ public:
  * FTransformProxyChangeSource generates FTransformProxyChange instances on Begin/End.
  * Instances of this class can (for example) be attached to a UGizmoTransformChangeStateTarget for use TransformGizmo change tracking.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FTransformProxyChangeSource : public IToolCommandChangeSource
+class FTransformProxyChangeSource : public IToolCommandChangeSource
 {
 public:
 	FTransformProxyChangeSource(UTransformProxy* ProxyIn)
@@ -226,10 +226,10 @@ public:
 	TWeakObjectPtr<UTransformProxy> Proxy;
 	TUniquePtr<FTransformProxyChange> ActiveChange;
 
-	virtual void BeginChange() override;
-	virtual TUniquePtr<FToolCommandChange> EndChange() override;
-	virtual UObject* GetChangeTarget() override;
-	virtual FText GetChangeDescription() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginChange() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual TUniquePtr<FToolCommandChange> EndChange() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UObject* GetChangeTarget() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FText GetChangeDescription() override;
 
 	/**
 	 * If true, the emitted changes will always have bSetPivotMode set to true, regardless of

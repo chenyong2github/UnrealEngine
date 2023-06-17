@@ -12,8 +12,8 @@
 class UObject;
 
 /** In general represents an empty area, that cannot be traversed by anyone. Ever.*/
-UCLASS(Config=Engine)
-class NAVIGATIONSYSTEM_API UNavArea_Null : public UNavArea
+UCLASS(Config=Engine, MinimalAPI)
+class UNavArea_Null : public UNavArea
 {
 	GENERATED_UCLASS_BODY()
 };

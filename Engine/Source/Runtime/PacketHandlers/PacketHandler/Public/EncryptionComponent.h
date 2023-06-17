@@ -10,7 +10,7 @@
 /**
  * IEncryptionComponentInterface
  */
-class PACKETHANDLER_API FEncryptionComponent : public HandlerComponent
+class FEncryptionComponent : public HandlerComponent
 {
 public:
 	/**

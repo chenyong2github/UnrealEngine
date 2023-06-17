@@ -36,7 +36,7 @@ enum class EWarpingVectorMode : uint8
 
 // Vector values which may be specified in a configured space
 USTRUCT(BlueprintType)
-struct ANIMGRAPHRUNTIME_API FWarpingVectorValue
+struct FWarpingVectorValue
 {
 	GENERATED_BODY()
 
@@ -49,5 +49,5 @@ struct ANIMGRAPHRUNTIME_API FWarpingVectorValue
 	FVector Value = FVector::ZeroVector;
 
 	// Retrieves a normalized Component-space direction from the specified DirectionMode and Direction value
-	FVector AsComponentSpaceDirection(const FAnimInstanceProxy* AnimInstanceProxy, const FTransform& IKFootRootTransform) const;
+	ANIMGRAPHRUNTIME_API FVector AsComponentSpaceDirection(const FAnimInstanceProxy* AnimInstanceProxy, const FTransform& IKFootRootTransform) const;
 };

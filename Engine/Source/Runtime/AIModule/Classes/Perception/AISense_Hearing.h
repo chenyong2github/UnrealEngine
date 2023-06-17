@@ -12,7 +12,7 @@ class UAISenseConfig_Hearing;
 class UAISenseEvent;
 
 USTRUCT(BlueprintType)
-struct AIMODULE_API FAINoiseEvent
+struct FAINoiseEvent
 {	
 	GENERATED_USTRUCT_BODY()
 
@@ -53,15 +53,15 @@ struct AIMODULE_API FAINoiseEvent
 
 	FGenericTeamId TeamIdentifier;
 		
-	FAINoiseEvent();
-	FAINoiseEvent(AActor* InInstigator, const FVector& InNoiseLocation, float InLoudness = 1.f, float InMaxRange = 0.f, FName Tag = NAME_None);
+	AIMODULE_API FAINoiseEvent();
+	AIMODULE_API FAINoiseEvent(AActor* InInstigator, const FVector& InNoiseLocation, float InLoudness = 1.f, float InMaxRange = 0.f, FName Tag = NAME_None);
 
 	/** Verifies and calculates derived data */
-	void Compile();
+	AIMODULE_API void Compile();
 };
 
-UCLASS(ClassGroup=AI, Config=Game)
-class AIMODULE_API UAISense_Hearing : public UAISense
+UCLASS(ClassGroup=AI, Config=Game, MinimalAPI)
+class UAISense_Hearing : public UAISense
 {
 	GENERATED_UCLASS_BODY()
 		
@@ -85,13 +85,13 @@ protected:
 	TMap<FPerceptionListenerID, FDigestedHearingProperties> DigestedProperties;
 
 public:	
-	void RegisterEvent(const FAINoiseEvent& Event);	
-	void RegisterEventsBatch(const TArray<FAINoiseEvent>& Events);
+	AIMODULE_API void RegisterEvent(const FAINoiseEvent& Event);	
+	AIMODULE_API void RegisterEventsBatch(const TArray<FAINoiseEvent>& Events);
 
-	virtual void PostInitProperties() override;
+	AIMODULE_API virtual void PostInitProperties() override;
 
 	// part of BP interface. Translates PerceptionEvent to FAINoiseEvent and call RegisterEvent(const FAINoiseEvent& Event)
-	virtual void RegisterWrappedEvent(UAISenseEvent& PerceptionEvent) override;
+	AIMODULE_API virtual void RegisterWrappedEvent(UAISenseEvent& PerceptionEvent) override;
 
 	/**
 	 * Report a noise event.
@@ -103,13 +103,13 @@ public:
 	 * @param Tag Identifier for the event.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception", meta = (WorldContext="WorldContextObject"))
-	static void ReportNoiseEvent(UObject* WorldContextObject, FVector NoiseLocation, float Loudness = 1.f, AActor* Instigator = nullptr, float MaxRange = 0.f, FName Tag = NAME_None);
+	static AIMODULE_API void ReportNoiseEvent(UObject* WorldContextObject, FVector NoiseLocation, float Loudness = 1.f, AActor* Instigator = nullptr, float MaxRange = 0.f, FName Tag = NAME_None);
 
 protected:
-	virtual float Update() override;
-	virtual void RegisterMakeNoiseDelegate();
+	AIMODULE_API virtual float Update() override;
+	AIMODULE_API virtual void RegisterMakeNoiseDelegate();
 
-	void OnNewListenerImpl(const FPerceptionListener& NewListener);
-	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
-	void OnListenerRemovedImpl(const FPerceptionListener& UpdatedListener);
+	AIMODULE_API void OnNewListenerImpl(const FPerceptionListener& NewListener);
+	AIMODULE_API void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
+	AIMODULE_API void OnListenerRemovedImpl(const FPerceptionListener& UpdatedListener);
 };

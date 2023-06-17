@@ -19,7 +19,7 @@ class UTypedElementHierarchyInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class TYPEDELEMENTRUNTIME_API ITypedElementHierarchyInterface
+class ITypedElementHierarchyInterface
 {
 	GENERATED_BODY()
 
@@ -47,7 +47,7 @@ public:
 	 * eg) A component might return its actor, or a static mesh instance might return its ISM component.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Hierarchy")
-	virtual FScriptTypedElementHandle GetParentElement(const FScriptTypedElementHandle& InElementHandle, const bool bAllowCreate = true);
+	TYPEDELEMENTRUNTIME_API virtual FScriptTypedElementHandle GetParentElement(const FScriptTypedElementHandle& InElementHandle, const bool bAllowCreate = true);
 
 	/**
 	 * Get the logical children of this element, if any.
@@ -56,14 +56,14 @@ public:
 	 * @note Appends to OutElementHandles.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Hierarchy")
-	virtual void GetChildElements(const FScriptTypedElementHandle& InElementHandle, TArray<FScriptTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true);
+	TYPEDELEMENTRUNTIME_API virtual void GetChildElements(const FScriptTypedElementHandle& InElementHandle, TArray<FScriptTypedElementHandle>& OutElementHandles, const bool bAllowCreate = true);
 
 private:
 	
 	/**
 	 * Return the registry used when creating new elements.
 	 */
-	virtual class UTypedElementRegistry& GetRegistry() const;
+	TYPEDELEMENTRUNTIME_API virtual class UTypedElementRegistry& GetRegistry() const;
 };
 
 template <>

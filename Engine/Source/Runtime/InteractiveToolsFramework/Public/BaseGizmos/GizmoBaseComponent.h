@@ -14,8 +14,8 @@ class UGizmoViewContext;
  * Contains common properties and utility functions.
  * This class does nothing by itself, use subclasses like UGizmoCircleComponent
  */
-UCLASS(ClassGroup = Utility, HideCategories = (Physics, Collision, Mobile))
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoBaseComponent : public UPrimitiveComponent
+UCLASS(ClassGroup = Utility, HideCategories = (Physics, Collision, Mobile), MinimalAPI)
+class UGizmoBaseComponent : public UPrimitiveComponent
 {
 	GENERATED_BODY()
 

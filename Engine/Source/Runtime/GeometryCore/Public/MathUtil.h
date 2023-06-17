@@ -18,76 +18,76 @@ template<>
 struct TMathUtilConstants<float>
 {
 	/** Machine Epsilon - float approx 1e-7, double approx 2e-16 */
-	GEOMETRYCORE_API static constexpr float Epsilon = FLT_EPSILON;
+	static constexpr float Epsilon = FLT_EPSILON;
 	/** Zero tolerance for math operations (eg like parallel tests) - float 1e-6, double 1e-8 */
-	GEOMETRYCORE_API static constexpr float ZeroTolerance = 1e-06f;
+	static constexpr float ZeroTolerance = 1e-06f;
 
 	/** largest possible number for type */
-	GEOMETRYCORE_API static constexpr float MaxReal = FLT_MAX;
+	static constexpr float MaxReal = FLT_MAX;
 
 	/** 3.14159... */
-	GEOMETRYCORE_API static constexpr float Pi = 3.1415926535897932384626433832795f;
-	GEOMETRYCORE_API static constexpr float FourPi = 4.0f * Pi;
-	GEOMETRYCORE_API static constexpr float TwoPi = 2.0f*Pi;
-	GEOMETRYCORE_API static constexpr float HalfPi = 0.5f*Pi;
+	static constexpr float Pi = 3.1415926535897932384626433832795f;
+	static constexpr float FourPi = 4.0f * Pi;
+	static constexpr float TwoPi = 2.0f*Pi;
+	static constexpr float HalfPi = 0.5f*Pi;
 
 	/** 1.0 / Pi */
-	GEOMETRYCORE_API static constexpr float InvPi = 1.0f / Pi;
+	static constexpr float InvPi = 1.0f / Pi;
 	/** 1.0 / (2*Pi) */
-	GEOMETRYCORE_API static constexpr float InvTwoPi = 1.0f / TwoPi;
+	static constexpr float InvTwoPi = 1.0f / TwoPi;
 
 	/** pi / 180 */
-	GEOMETRYCORE_API static constexpr float DegToRad = Pi / 180.0f;
+	static constexpr float DegToRad = Pi / 180.0f;
 	/** 180 / pi */
-	GEOMETRYCORE_API static constexpr float RadToDeg = 180.0f / Pi;
+	static constexpr float RadToDeg = 180.0f / Pi;
 
 	//static constexpr float LN_2;
 	//static constexpr float LN_10;
 	//static constexpr float INV_LN_2;
 	//static constexpr float INV_LN_10;
 
-	GEOMETRYCORE_API static constexpr float Sqrt2 = 1.4142135623730950488016887242097f;
-	GEOMETRYCORE_API static constexpr float InvSqrt2 = 1.0f / Sqrt2;
-	GEOMETRYCORE_API static constexpr float Sqrt3 = 1.7320508075688772935274463415059f;
-	GEOMETRYCORE_API static constexpr float InvSqrt3 = 1.0f / Sqrt3;
+	static constexpr float Sqrt2 = 1.4142135623730950488016887242097f;
+	static constexpr float InvSqrt2 = 1.0f / Sqrt2;
+	static constexpr float Sqrt3 = 1.7320508075688772935274463415059f;
+	static constexpr float InvSqrt3 = 1.0f / Sqrt3;
 };
 
 template<>
 struct TMathUtilConstants<double>
 {
 	/** Machine Epsilon - float approx 1e-7, double approx 2e-16 */
-	GEOMETRYCORE_API static constexpr double Epsilon = DBL_EPSILON;
+	static constexpr double Epsilon = DBL_EPSILON;
 	/** Zero tolerance for math operations (eg like parallel tests) - float 1e-6, double 1e-8 */
-	GEOMETRYCORE_API static constexpr double ZeroTolerance = 1e-08;
+	static constexpr double ZeroTolerance = 1e-08;
 
 	/** largest possible number for type */
-	GEOMETRYCORE_API static constexpr double MaxReal = DBL_MAX;
+	static constexpr double MaxReal = DBL_MAX;
 
 	/** 3.14159... */
-	GEOMETRYCORE_API static constexpr double Pi = 3.1415926535897932384626433832795;
-	GEOMETRYCORE_API static constexpr double FourPi = 4.0 * Pi;
-	GEOMETRYCORE_API static constexpr double TwoPi = 2.0 * Pi;
-	GEOMETRYCORE_API static constexpr double HalfPi = 0.5 * Pi;
+	static constexpr double Pi = 3.1415926535897932384626433832795;
+	static constexpr double FourPi = 4.0 * Pi;
+	static constexpr double TwoPi = 2.0 * Pi;
+	static constexpr double HalfPi = 0.5 * Pi;
 
 	/** 1.0 / Pi */
-	GEOMETRYCORE_API static constexpr double InvPi = 1.0 / Pi;
+	static constexpr double InvPi = 1.0 / Pi;
 	/** 1.0 / (2*Pi) */
-	GEOMETRYCORE_API static constexpr double InvTwoPi = 1.0 / TwoPi;
+	static constexpr double InvTwoPi = 1.0 / TwoPi;
 
 	/** pi / 180 */
-	GEOMETRYCORE_API static constexpr double DegToRad = Pi / 180.0;
+	static constexpr double DegToRad = Pi / 180.0;
 	/** 180 / pi */
-	GEOMETRYCORE_API static constexpr double RadToDeg = 180.0 / Pi;
+	static constexpr double RadToDeg = 180.0 / Pi;
 
 	//static constexpr double LN_2;
 	//static constexpr double LN_10;
 	//static constexpr double INV_LN_2;
 	//static constexpr double INV_LN_10;
 
-	GEOMETRYCORE_API static constexpr double Sqrt2 = 1.4142135623730950488016887242097;
-	GEOMETRYCORE_API static constexpr double InvSqrt2 = 1.0 / Sqrt2;
-	GEOMETRYCORE_API static constexpr double Sqrt3 = 1.7320508075688772935274463415059;
-	GEOMETRYCORE_API static constexpr double InvSqrt3 = 1.0 / Sqrt3;
+	static constexpr double Sqrt2 = 1.4142135623730950488016887242097;
+	static constexpr double InvSqrt2 = 1.0 / Sqrt2;
+	static constexpr double Sqrt3 = 1.7320508075688772935274463415059;
+	static constexpr double InvSqrt3 = 1.0 / Sqrt3;
 };
 
 
@@ -95,21 +95,21 @@ struct TMathUtilConstants<double>
 template<>
 struct TMathUtilConstants<int32>
 {
-	GEOMETRYCORE_API static constexpr int32 Epsilon = 0;
-	GEOMETRYCORE_API static constexpr int32 ZeroTolerance = 0;
-	GEOMETRYCORE_API static constexpr int32 MaxReal = ((int32)0x7fffffff);
-	GEOMETRYCORE_API static constexpr int32 Pi = 3;
-	GEOMETRYCORE_API static constexpr int32 FourPi = 4 * Pi;
-	GEOMETRYCORE_API static constexpr int32 TwoPi = 2 * Pi;
-	GEOMETRYCORE_API static constexpr int32 HalfPi = 1;
-	GEOMETRYCORE_API static constexpr int32 InvPi = 1;
-	GEOMETRYCORE_API static constexpr int32 InvTwoPi = 1;
-	GEOMETRYCORE_API static constexpr int32 DegToRad = 1;
-	GEOMETRYCORE_API static constexpr int32 RadToDeg = 1;
-	GEOMETRYCORE_API static constexpr int32 Sqrt2 = 1;
-	GEOMETRYCORE_API static constexpr int32 InvSqrt2 = 1;
-	GEOMETRYCORE_API static constexpr int32 Sqrt3 = 2;
-	GEOMETRYCORE_API static constexpr int32 InvSqrt3 = 1;
+	static constexpr int32 Epsilon = 0;
+	static constexpr int32 ZeroTolerance = 0;
+	static constexpr int32 MaxReal = ((int32)0x7fffffff);
+	static constexpr int32 Pi = 3;
+	static constexpr int32 FourPi = 4 * Pi;
+	static constexpr int32 TwoPi = 2 * Pi;
+	static constexpr int32 HalfPi = 1;
+	static constexpr int32 InvPi = 1;
+	static constexpr int32 InvTwoPi = 1;
+	static constexpr int32 DegToRad = 1;
+	static constexpr int32 RadToDeg = 1;
+	static constexpr int32 Sqrt2 = 1;
+	static constexpr int32 InvSqrt2 = 1;
+	static constexpr int32 Sqrt3 = 2;
+	static constexpr int32 InvSqrt3 = 1;
 };
 
 
@@ -117,21 +117,21 @@ struct TMathUtilConstants<int32>
 template<>
 struct TMathUtilConstants<int64>
 {
-	GEOMETRYCORE_API static constexpr int64 Epsilon = 0;
-	GEOMETRYCORE_API static constexpr int64 ZeroTolerance = 0;
-	GEOMETRYCORE_API static constexpr int64 MaxReal = ((int64)0x7fffffffffffffff);
-	GEOMETRYCORE_API static constexpr int64 Pi = 3;
-	GEOMETRYCORE_API static constexpr int64 FourPi = 4 * Pi;
-	GEOMETRYCORE_API static constexpr int64 TwoPi = 2 * Pi;
-	GEOMETRYCORE_API static constexpr int64 HalfPi = 1;
-	GEOMETRYCORE_API static constexpr int64 InvPi = 1;
-	GEOMETRYCORE_API static constexpr int64 InvTwoPi = 1;
-	GEOMETRYCORE_API static constexpr int64 DegToRad = 1;
-	GEOMETRYCORE_API static constexpr int64 RadToDeg = 1;
-	GEOMETRYCORE_API static constexpr int64 Sqrt2 = 1;
-	GEOMETRYCORE_API static constexpr int64 InvSqrt2 = 1;
-	GEOMETRYCORE_API static constexpr int64 Sqrt3 = 2;
-	GEOMETRYCORE_API static constexpr int64 InvSqrt3 = 1;
+	static constexpr int64 Epsilon = 0;
+	static constexpr int64 ZeroTolerance = 0;
+	static constexpr int64 MaxReal = ((int64)0x7fffffffffffffff);
+	static constexpr int64 Pi = 3;
+	static constexpr int64 FourPi = 4 * Pi;
+	static constexpr int64 TwoPi = 2 * Pi;
+	static constexpr int64 HalfPi = 1;
+	static constexpr int64 InvPi = 1;
+	static constexpr int64 InvTwoPi = 1;
+	static constexpr int64 DegToRad = 1;
+	static constexpr int64 RadToDeg = 1;
+	static constexpr int64 Sqrt2 = 1;
+	static constexpr int64 InvSqrt2 = 1;
+	static constexpr int64 Sqrt3 = 2;
+	static constexpr int64 InvSqrt3 = 1;
 };
 
 

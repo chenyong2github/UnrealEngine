@@ -8,18 +8,18 @@
 #include "Binding/PropertyBinding.h"
 #include "FloatBinding.generated.h"
 
-UCLASS()
-class UMG_API UFloatBinding : public UPropertyBinding
+UCLASS(MinimalAPI)
+class UFloatBinding : public UPropertyBinding
 {
 	GENERATED_BODY()
 
 public:
 
-	UFloatBinding();
+	UMG_API UFloatBinding();
 
-	virtual bool IsSupportedSource(FProperty* Property) const override;
-	virtual bool IsSupportedDestination(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedSource(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedDestination(FProperty* Property) const override;
 
 	UFUNCTION()
-	float GetValue() const;
+	UMG_API float GetValue() const;
 };

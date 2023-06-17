@@ -4,29 +4,29 @@
 
 #include "GenericPlatform/GenericPlatformApplicationMisc.h"
 
-struct APPLICATIONCORE_API FWindowsPlatformApplicationMisc : public FGenericPlatformApplicationMisc
+struct FWindowsPlatformApplicationMisc : public FGenericPlatformApplicationMisc
 {
-	static void PreInit();
-	static void LoadStartupModules();
-	static class FOutputDeviceConsole* CreateConsoleOutputDevice();
-	static class FOutputDeviceError* GetErrorOutputDevice();
-	static class FFeedbackContext* GetFeedbackContext();
-	static class GenericApplication* CreateApplication();
-	static void RequestMinimize();
-	static bool IsThisApplicationForeground();
-	static int32 GetAppIcon();
-	static void PumpMessages(bool bFromMainLoop);
-	static void PreventScreenSaver();
-	static struct FLinearColor GetScreenPixelColor(const FVector2D& InScreenPos, float InGamma = 1.0f);
-	static void SetHighDPIMode();
-	static bool GetWindowTitleMatchingText(const TCHAR* TitleStartsWith, FString& OutTitle);
-	static float GetDPIScaleFactorAtPoint(float X, float Y);
-	static void ClipboardCopy(const TCHAR* Str);
-	static void ClipboardPaste(class FString& Dest);
+	static APPLICATIONCORE_API void PreInit();
+	static APPLICATIONCORE_API void LoadStartupModules();
+	static APPLICATIONCORE_API class FOutputDeviceConsole* CreateConsoleOutputDevice();
+	static APPLICATIONCORE_API class FOutputDeviceError* GetErrorOutputDevice();
+	static APPLICATIONCORE_API class FFeedbackContext* GetFeedbackContext();
+	static APPLICATIONCORE_API class GenericApplication* CreateApplication();
+	static APPLICATIONCORE_API void RequestMinimize();
+	static APPLICATIONCORE_API bool IsThisApplicationForeground();
+	static APPLICATIONCORE_API int32 GetAppIcon();
+	static APPLICATIONCORE_API void PumpMessages(bool bFromMainLoop);
+	static APPLICATIONCORE_API void PreventScreenSaver();
+	static APPLICATIONCORE_API struct FLinearColor GetScreenPixelColor(const FVector2D& InScreenPos, float InGamma = 1.0f);
+	static APPLICATIONCORE_API void SetHighDPIMode();
+	static APPLICATIONCORE_API bool GetWindowTitleMatchingText(const TCHAR* TitleStartsWith, FString& OutTitle);
+	static APPLICATIONCORE_API float GetDPIScaleFactorAtPoint(float X, float Y);
+	static APPLICATIONCORE_API void ClipboardCopy(const TCHAR* Str);
+	static APPLICATIONCORE_API void ClipboardPaste(class FString& Dest);
 
 	/** Windows platform only */
 	/** Function should retrieve the DPI value for the provided monitor information structure */
-	static int32 GetMonitorDPI(const FMonitorInfo& MonitorInfo);
+	static APPLICATIONCORE_API int32 GetMonitorDPI(const FMonitorInfo& MonitorInfo);
 
 	struct FGPUInfo
 	{
@@ -35,7 +35,7 @@ struct APPLICATIONCORE_API FWindowsPlatformApplicationMisc : public FGenericPlat
 		uint64 DedicatedVideoMemory = 0;
 	};
 
-	static FGPUInfo GetBestGPUInfo();
+	static APPLICATIONCORE_API FGPUInfo GetBestGPUInfo();
 	/** End Windows platform only */
 };
 

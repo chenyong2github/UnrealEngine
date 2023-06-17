@@ -17,18 +17,18 @@ class UStaticMeshComponent;
 /**
  * A specialized version of a camera component, geared toward cinematic usage.
  */
-UCLASS(HideCategories = (CameraSettings), HideFunctions = (SetFieldOfView, SetAspectRatio), Blueprintable, ClassGroup = Camera, meta = (BlueprintSpawnableComponent), Config = Engine)
-class CINEMATICCAMERA_API UCineCameraComponent : public UCameraComponent
+UCLASS(HideCategories = (CameraSettings), HideFunctions = (SetFieldOfView, SetAspectRatio), Blueprintable, ClassGroup = Camera, meta = (BlueprintSpawnableComponent), Config = Engine, MinimalAPI)
+class UCineCameraComponent : public UCameraComponent
 {
 	GENERATED_BODY()
 
 public:
 	/** Default constuctor. */
-	UCineCameraComponent();
+	CINEMATICCAMERA_API UCineCameraComponent();
 
-	virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView) override;
+	CINEMATICCAMERA_API virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView) override;
 #if WITH_EDITOR
-	virtual FText GetFilmbackText() const override;
+	CINEMATICCAMERA_API virtual FText GetFilmbackText() const override;
 #endif
 	UPROPERTY()
 	FCameraFilmbackSettings FilmbackSettings_DEPRECATED;
@@ -38,28 +38,28 @@ public:
 	FCameraFilmbackSettings Filmback;
 
 	UFUNCTION(BlueprintSetter)
-	void SetFilmback(const FCameraFilmbackSettings& NewFilmback);
+	CINEMATICCAMERA_API void SetFilmback(const FCameraFilmbackSettings& NewFilmback);
 
 	/** Controls the camera's lens. */
 	UPROPERTY(EditAnywhere, BlueprintSetter = SetLensSettings, BlueprintReadWrite, Category = "Current Camera Settings")
 	FCameraLensSettings LensSettings;
 
 	UFUNCTION(BlueprintSetter)
-	void SetLensSettings(const FCameraLensSettings& NewLensSettings);
+	CINEMATICCAMERA_API void SetLensSettings(const FCameraLensSettings& NewLensSettings);
 
 	/** Controls the camera's focus. */
 	UPROPERTY(EditAnywhere, BlueprintSetter = SetFocusSettings, BlueprintReadWrite, Category = "Current Camera Settings")
 	FCameraFocusSettings FocusSettings;
 
 	UFUNCTION(BlueprintSetter)
-	void SetFocusSettings(const FCameraFocusSettings& NewFocusSettings);
+	CINEMATICCAMERA_API void SetFocusSettings(const FCameraFocusSettings& NewFocusSettings);
 	
 	/** Controls the crop settings. */
 	UPROPERTY(EditAnywhere, BlueprintSetter = SetCropSettings, BlueprintReadWrite, Category = "Current Camera Settings")
 	FPlateCropSettings CropSettings;
 
 	UFUNCTION(BlueprintSetter)
-	void SetCropSettings(const FPlateCropSettings& NewCropSettings);
+	CINEMATICCAMERA_API void SetCropSettings(const FPlateCropSettings& NewCropSettings);
 
 	/** Current focal length of the camera (i.e. controls FoV, zoom) */
 	UPROPERTY(Interp, BlueprintSetter = SetCurrentFocalLength, EditAnywhere, BlueprintReadWrite, Category = "Current Camera Settings")
@@ -70,7 +70,7 @@ public:
 	float CurrentAperture;
 
 	UFUNCTION(BlueprintSetter)
-	void SetCurrentAperture(const float NewCurrentAperture);
+	CINEMATICCAMERA_API void SetCurrentAperture(const float NewCurrentAperture);
 	
 	/** Read-only. Control this value via FocusSettings. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Current Camera Settings")
@@ -90,77 +90,77 @@ public:
 #endif
 
 	/** Override setting FOV to manipulate Focal Length. */
-	virtual void SetFieldOfView(float InFieldOfView) override;
+	CINEMATICCAMERA_API virtual void SetFieldOfView(float InFieldOfView) override;
 	
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Cine Camera")
-	void SetCurrentFocalLength(float InFocalLength);
+	CINEMATICCAMERA_API void SetCurrentFocalLength(float InFocalLength);
 
 	/** Sets near clipping plane of the cine camera. */
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Cine Camera")
-	void SetCustomNearClippingPlane(const float NewCustomNearClippingPlane);
+	CINEMATICCAMERA_API void SetCustomNearClippingPlane(const float NewCustomNearClippingPlane);
 
 	/** Returns the horizonal FOV of the camera with current settings. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	float GetHorizontalFieldOfView() const;
+	CINEMATICCAMERA_API float GetHorizontalFieldOfView() const;
 	
 	/** Returns the vertical FOV of the camera with current settings. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	float GetVerticalFieldOfView() const;
+	CINEMATICCAMERA_API float GetVerticalFieldOfView() const;
 
 	/** Returns the filmback name of the camera with the current settings. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	FString GetFilmbackPresetName() const;
+	CINEMATICCAMERA_API FString GetFilmbackPresetName() const;
 
 	/** Returns the name of the default filmback preset. */
 	UE_DEPRECATED(5.1, "This function has been deprecated, please access the presets via the CineCameraSettings object.")
 	UFUNCTION(BlueprintPure, Category = "Cine Camera")
-	FString GetDefaultFilmbackPresetName() const;
+	CINEMATICCAMERA_API FString GetDefaultFilmbackPresetName() const;
 
 	/** Set the current preset settings by preset name. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	void SetFilmbackPresetByName(const FString& InPresetName);
+	CINEMATICCAMERA_API void SetFilmbackPresetByName(const FString& InPresetName);
 
 	/** Returns the lens name of the camera with the current settings. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	FString GetLensPresetName() const;
+	CINEMATICCAMERA_API FString GetLensPresetName() const;
 
 	/** Set the current lens settings by preset name. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	void SetLensPresetByName(const FString& InPresetName);
+	CINEMATICCAMERA_API void SetLensPresetByName(const FString& InPresetName);
 	
 	/** Returns the lens name of the camera with the current settings. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	FString GetCropPresetName() const;
+	CINEMATICCAMERA_API FString GetCropPresetName() const;
 
 	/** Set the current lens settings by preset name. */
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	void SetCropPresetByName(const FString& InPresetName);
+	CINEMATICCAMERA_API void SetCropPresetByName(const FString& InPresetName);
 
 	/** Returns a copy of the list of available filmback presets. */
 	UE_DEPRECATED(5.1, "This function has been deprecated, please access the presets via the CineCameraSettings object.")
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	static TArray<FNamedFilmbackPreset> GetFilmbackPresetsCopy();
+	static CINEMATICCAMERA_API TArray<FNamedFilmbackPreset> GetFilmbackPresetsCopy();
 
 	/** Returns a copy of the list of available lens presets. */
 	UE_DEPRECATED(5.1, "This function has been deprecated, please access the presets via the CineCameraSettings object.")
 	UFUNCTION(BlueprintCallable, Category = "Cine Camera")
-	static TArray<FNamedLensPreset> GetLensPresetsCopy();
+	static CINEMATICCAMERA_API TArray<FNamedLensPreset> GetLensPresetsCopy();
 
 	/** Returns a list of available filmback presets. */
 	UE_DEPRECATED(5.1, "This function has been deprecated, please access the presets via the CineCameraSettings object.")
-	static TArray<FNamedFilmbackPreset> const& GetFilmbackPresets();
+	static CINEMATICCAMERA_API TArray<FNamedFilmbackPreset> const& GetFilmbackPresets();
 	
 	/** Returns a list of available lens presets. */
 	UE_DEPRECATED(5.1, "This function has been deprecated, please access the presets via the CineCameraSettings object.")
-	static TArray<FNamedLensPreset> const& GetLensPresets();
+	static CINEMATICCAMERA_API TArray<FNamedLensPreset> const& GetLensPresets();
 
 #if WITH_EDITOR
 	/** Update the debug focus plane position and orientation. */
-	void UpdateDebugFocusPlane();
+	CINEMATICCAMERA_API void UpdateDebugFocusPlane();
 #endif
 
 	/** Returns the world to meters scale for the current UWorld */
-	float GetWorldToMetersScale() const;
+	CINEMATICCAMERA_API float GetWorldToMetersScale() const;
 
 protected:
 
@@ -172,17 +172,17 @@ protected:
 
 	/// @cond DOXYGEN_WARNINGS
 	
-	virtual void PostLoad() override;
+	CINEMATICCAMERA_API virtual void PostLoad() override;
 	
 	/// @endcond
 	
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostInitProperties() override;
-	virtual void OnRegister() override;
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	CINEMATICCAMERA_API virtual void Serialize(FArchive& Ar) override;
+	CINEMATICCAMERA_API virtual void PostInitProperties() override;
+	CINEMATICCAMERA_API virtual void OnRegister() override;
+	CINEMATICCAMERA_API virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 #if WITH_EDITOR
-	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	CINEMATICCAMERA_API virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -202,8 +202,8 @@ protected:
 	UPROPERTY(transient)
 	TObjectPtr<UMaterialInstanceDynamic> DebugFocusPlaneMID;
 
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void ResetProxyMeshTransform() override;
+	CINEMATICCAMERA_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CINEMATICCAMERA_API virtual void ResetProxyMeshTransform() override;
 #endif
 
 	/** List of available filmback presets */
@@ -241,11 +241,11 @@ protected:
 	UPROPERTY(config)
 	float DefaultLensFStop;
 
-	virtual void UpdateCameraLens(float DeltaTime, FMinimalViewInfo& DesiredView);
+	CINEMATICCAMERA_API virtual void UpdateCameraLens(float DeltaTime, FMinimalViewInfo& DesiredView);
 
-	virtual void NotifyCameraCut() override;
+	CINEMATICCAMERA_API virtual void NotifyCameraCut() override;
 	
-	void RecalcDerivedData();
+	CINEMATICCAMERA_API void RecalcDerivedData();
 
 private:
 	float GetDesiredFocusDistance(const FVector& InLocation) const;

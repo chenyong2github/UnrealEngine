@@ -16,11 +16,11 @@ namespace UE::MovieScene
 /**
  * Container class for keeping track of externally created entities for providing dynamic sequence weights
  */
-class MOVIESCENE_API FSequenceWeights
+class FSequenceWeights
 {
 public:
-	FSequenceWeights(UMovieSceneEntitySystemLinker* InLinker, FRootInstanceHandle InRootInstanceHandle);
-	~FSequenceWeights();
+	MOVIESCENE_API FSequenceWeights(UMovieSceneEntitySystemLinker* InLinker, FRootInstanceHandle InRootInstanceHandle);
+	MOVIESCENE_API ~FSequenceWeights();
 
 	/**
 	 * Set the weight of the specifieid sequence ID by creating a new HierarchicalEasingProvider entity and assigning its weight
@@ -28,7 +28,7 @@ public:
 	 * @param InSequenceID    The sequence ID to assign a weight to
 	 * @param Weight          The weight to assign. This is multiplied with all other weights contributing to this sequence
 	 */
-	void SetWeight(FMovieSceneSequenceID InSequenceID, double Weight = 1.0);
+	MOVIESCENE_API void SetWeight(FMovieSceneSequenceID InSequenceID, double Weight = 1.0);
 
 
 	/**
@@ -36,13 +36,13 @@ public:
 	 *
 	 * @param Weights         Map containing all desired sequence weights organized by their sequence ID
 	 */
-	void SetWeights(const TSortedMap<FMovieSceneSequenceID, double>& Weights);
+	MOVIESCENE_API void SetWeights(const TSortedMap<FMovieSceneSequenceID, double>& Weights);
 
 
 	/**
 	 * Remove a previously allocated weight for the specified sequence ID
 	 */
-	void RemoveWeight(FMovieSceneSequenceID InSequenceID);
+	MOVIESCENE_API void RemoveWeight(FMovieSceneSequenceID InSequenceID);
 
 private:
 

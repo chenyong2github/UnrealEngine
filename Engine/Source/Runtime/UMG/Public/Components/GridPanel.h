@@ -17,8 +17,8 @@ class UGridSlot;
  * 
  * * Many Children
  */
-UCLASS()
-class UMG_API UGridPanel : public UPanelWidget
+UCLASS(MinimalAPI)
+class UGridPanel : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -36,32 +36,32 @@ public:
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Widget")
-	UGridSlot* AddChildToGrid(UWidget* Content, int32 InRow = 0, int32 InColumn = 0);
+	UMG_API UGridSlot* AddChildToGrid(UWidget* Content, int32 InRow = 0, int32 InColumn = 0);
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetColumnFill(int32 ColumnIndex, float Coefficient);
+	UMG_API void SetColumnFill(int32 ColumnIndex, float Coefficient);
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetRowFill(int32 RowIndex, float Coefficient);
+	UMG_API void SetRowFill(int32 RowIndex, float Coefficient);
 
 public:
 
 	// UWidget interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 protected:
@@ -70,6 +70,6 @@ protected:
 
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 };

@@ -11,33 +11,33 @@ class IHttpRequest;
 /**
  * Platform specific Http implementations
  */
-class HTTP_API FUnixPlatformHttp : public FGenericPlatformHttp
+class FUnixPlatformHttp : public FGenericPlatformHttp
 {
 public:
 
 	/**
 	 * Platform initialization step
 	 */
-	static void Init();
+	static HTTP_API void Init();
 
 	/**
 	 * Creates a platform-specific HTTP manager.
 	 *
 	 * @return NULL if default implementation is to be used
 	 */
-	static FHttpManager* CreatePlatformHttpManager();
+	static HTTP_API FHttpManager* CreatePlatformHttpManager();
 
 	/**
 	 * Platform shutdown step
 	 */
-	static void Shutdown();
+	static HTTP_API void Shutdown();
 
 	/**
 	 * Creates a new Http request instance for the current platform
 	 *
 	 * @return request object
 	 */
-	static IHttpRequest* ConstructRequest();
+	static HTTP_API IHttpRequest* ConstructRequest();
 };
 
 

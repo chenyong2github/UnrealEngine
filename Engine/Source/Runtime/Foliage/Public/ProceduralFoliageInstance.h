@@ -55,21 +55,21 @@ struct FProceduralFoliageOverlap
 };
 
 USTRUCT(BlueprintType)
-struct FOLIAGE_API FProceduralFoliageInstance
+struct FProceduralFoliageInstance
 {
 public:
 	GENERATED_USTRUCT_BODY()
-	FProceduralFoliageInstance();
+	FOLIAGE_API FProceduralFoliageInstance();
 
-	static FProceduralFoliageInstance* Domination(FProceduralFoliageInstance* A, FProceduralFoliageInstance* B, ESimulationOverlap::Type OverlapType);
+	static FOLIAGE_API FProceduralFoliageInstance* Domination(FProceduralFoliageInstance* A, FProceduralFoliageInstance* B, ESimulationOverlap::Type OverlapType);
 
-	float GetMaxRadius() const;
-	float GetShadeRadius() const;
-	float GetCollisionRadius() const;
+	FOLIAGE_API float GetMaxRadius() const;
+	FOLIAGE_API float GetShadeRadius() const;
+	FOLIAGE_API float GetCollisionRadius() const;
 
 	bool IsAlive() const { return bAlive; }
 
-	void TerminateInstance();
+	FOLIAGE_API void TerminateInstance();
 
 public:
 	UPROPERTY()

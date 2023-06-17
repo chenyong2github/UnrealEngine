@@ -12,8 +12,8 @@
  *
  * @see UControlPointMeshComponent
  */
-UCLASS(NotPlaceable, hideCategories = (Input), showCategories = ("Input|MouseInput", "Input|TouchInput"), ConversionRoot, ComponentWrapperClass, meta = (ChildCanTick))
-class LANDSCAPE_API AControlPointMeshActor : public AActor
+UCLASS(NotPlaceable, hideCategories = (Input), showCategories = ("Input|MouseInput", "Input|TouchInput"), ConversionRoot, ComponentWrapperClass, meta = (ChildCanTick), MinimalAPI)
+class AControlPointMeshActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -24,23 +24,23 @@ private:
 public:
 
 	/** Function to change mobility type */
-	void SetMobility(EComponentMobility::Type InMobility);
+	LANDSCAPE_API void SetMobility(EComponentMobility::Type InMobility);
 
 #if WITH_EDITOR
 	//~ Begin AActor Interface
-	virtual void CheckForErrors() override;
-	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	LANDSCAPE_API virtual void CheckForErrors() override;
+	LANDSCAPE_API virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 	//~ End AActor Interface
 #endif // WITH_EDITOR	
 
 protected:
 	//~ Begin UObject Interface.
-	virtual FString GetDetailedInfoInternal() const override;
+	LANDSCAPE_API virtual FString GetDetailedInfoInternal() const override;
 	//~ End UObject Interface.
 
 public:
 	/** Returns ControlPointMeshComponent subobject **/
-	class UControlPointMeshComponent* GetControlPointMeshComponent() const;
+	LANDSCAPE_API class UControlPointMeshComponent* GetControlPointMeshComponent() const;
 };
 
 

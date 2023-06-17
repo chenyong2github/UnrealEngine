@@ -9,7 +9,7 @@
 
 // Blend list node; has many children
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendListByInt : public FAnimNode_BlendListBase
+struct FAnimNode_BlendListByInt : public FAnimNode_BlendListBase
 {
 	GENERATED_BODY()
 private:
@@ -22,7 +22,7 @@ public:
 	FAnimNode_BlendListByInt() = default;
 
 	// Get the currently active child index
-	virtual int32 GetActiveChildIndex() override;
+	ANIMGRAPHRUNTIME_API virtual int32 GetActiveChildIndex() override;
 	
 protected:
 	virtual FString GetNodeName(FNodeDebugData& DebugData) override { return DebugData.GetNodeName(this); }

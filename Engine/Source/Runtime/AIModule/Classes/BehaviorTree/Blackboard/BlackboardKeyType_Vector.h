@@ -8,25 +8,25 @@
 
 class UBlackboardComponent;
 
-UCLASS(EditInlineNew, meta=(DisplayName="Vector"))
-class AIMODULE_API UBlackboardKeyType_Vector : public UBlackboardKeyType
+UCLASS(EditInlineNew, meta=(DisplayName="Vector"), MinimalAPI)
+class UBlackboardKeyType_Vector : public UBlackboardKeyType
 {
 	GENERATED_UCLASS_BODY()
 
 	typedef FVector FDataType; 
-	static const FDataType InvalidValue;
+	static AIMODULE_API const FDataType InvalidValue;
 	
-	static FVector GetValue(const UBlackboardKeyType_Vector* KeyOb, const uint8* RawData);
-	static bool SetValue(UBlackboardKeyType_Vector* KeyOb, uint8* RawData, const FVector& Value);
+	static AIMODULE_API FVector GetValue(const UBlackboardKeyType_Vector* KeyOb, const uint8* RawData);
+	static AIMODULE_API bool SetValue(UBlackboardKeyType_Vector* KeyOb, uint8* RawData, const FVector& Value);
 
-	virtual EBlackboardCompare::Type CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
+	AIMODULE_API virtual EBlackboardCompare::Type CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
 		const UBlackboardKeyType* OtherKeyOb, const uint8* OtherMemoryBlock) const override;
 
 protected:
-	virtual void InitializeMemory(UBlackboardComponent& OwnerComp, uint8* RawData) override;
-	virtual FString DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* RawData) const override;
-	virtual bool GetLocation(const UBlackboardComponent& OwnerComp, const uint8* RawData, FVector& Location) const override;
-	virtual bool IsEmpty(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const override;
-	virtual void Clear(UBlackboardComponent& OwnerComp, uint8* MemoryBlock) override;
-	virtual bool TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const override;
+	AIMODULE_API virtual void InitializeMemory(UBlackboardComponent& OwnerComp, uint8* RawData) override;
+	AIMODULE_API virtual FString DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* RawData) const override;
+	AIMODULE_API virtual bool GetLocation(const UBlackboardComponent& OwnerComp, const uint8* RawData, FVector& Location) const override;
+	AIMODULE_API virtual bool IsEmpty(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const override;
+	AIMODULE_API virtual void Clear(UBlackboardComponent& OwnerComp, uint8* MemoryBlock) override;
+	AIMODULE_API virtual bool TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const override;
 };

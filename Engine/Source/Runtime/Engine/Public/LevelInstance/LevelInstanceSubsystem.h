@@ -69,9 +69,9 @@ public:
 	ENGINE_API bool OnExitEditorModeInternal(bool bForceExit);
 
 	UE_DEPRECATED(5.3, "Use FPackedLevelActorUtils::PackAllLoadedActors")
-	ENGINE_API void PackAllLoadedActors() {}
+	void PackAllLoadedActors() {}
 	UE_DEPRECATED(5.3, "Use FPackedLevelActorUtils::CanPackAllLoadedActors")
-	ENGINE_API bool CanPackAllLoadedActors() const { return false;}
+	bool CanPackAllLoadedActors() const { return false;}
 
 	ENGINE_API ILevelInstanceInterface* GetEditingLevelInstance() const;
 	ENGINE_API bool CanEditLevelInstance(const ILevelInstanceInterface* LevelInstance, FText* OutReason = nullptr) const;
@@ -124,7 +124,7 @@ public:
 	static ENGINE_API bool CanUseWorldAsset(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, FString* OutReason);
 	
 	UE_DEPRECATED(5.3, "CanUsePackage is deprecated.")
-	static ENGINE_API bool CanUsePackage(FName InPackageName) { return true;  }
+	static bool CanUsePackage(FName InPackageName) { return true;  }
 
 	/** Editor-only event triggered when level instance is committed with changes */
 	DECLARE_EVENT_OneParam(ULevelInstanceSubsystem, FLevelInstanceChanged, FName);

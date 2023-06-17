@@ -139,7 +139,7 @@ public:
 
 	/** Uses a hash as the GUID, useful to prevent creating new GUIDs on load for legacy assets. */
 	RAWMESH_API void UseHashAsGuid(class UObject* Owner);
-	RAWMESH_API bool UsesHashAsGuid() const { return bGuidIsHash; }
+	bool UsesHashAsGuid() const { return bGuidIsHash; }
 
 	RAWMESH_API const FByteBulkData& GetBulkData() const;
 

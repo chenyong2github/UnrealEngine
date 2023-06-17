@@ -42,14 +42,14 @@ namespace Audio
 	};
 
 	// Simple class that generates an envelope and lets you retrieve interpolated values at any given fraction
-	class SIGNALPROCESSING_API FGrainEnvelope
+	class FGrainEnvelope
 	{
 	public:
-		FGrainEnvelope();
-		~FGrainEnvelope();
+		SIGNALPROCESSING_API FGrainEnvelope();
+		SIGNALPROCESSING_API ~FGrainEnvelope();
 
-		void GenerateEnvelope(const EGrainEnvelopeType EnvelopeType, const int32 NumFrames);
-		float GetValue(const float Fraction) const;
+		SIGNALPROCESSING_API void GenerateEnvelope(const EGrainEnvelopeType EnvelopeType, const int32 NumFrames);
+		SIGNALPROCESSING_API float GetValue(const float Fraction) const;
 
 	private:
 		EGrainEnvelopeType CurrentType;
@@ -83,44 +83,44 @@ namespace Audio
 	class FGranularSynth;
 
 	// Class representing a grain of audio
-	class SIGNALPROCESSING_API FGrain
+	class FGrain
 	{
 	public:
-		FGrain(const int32 InGrainId, FGranularSynth* InParent);
-		~FGrain();
+		SIGNALPROCESSING_API FGrain(const int32 InGrainId, FGranularSynth* InParent);
+		SIGNALPROCESSING_API ~FGrain();
 
 		// Plays the grain with the supplied grain data
-		void Play(const FGrainData& InGrainData);
+		SIGNALPROCESSING_API void Play(const FGrainData& InGrainData);
 
 		// Changes the oscillator type for the grain (if the grain is in synth mode)
-		void SetOscType(const EOsc::Type InType);
+		SIGNALPROCESSING_API void SetOscType(const EOsc::Type InType);
 
 		// Sets the oscillator frequency
-		void SetOscFrequency(const float InFrequency);
+		SIGNALPROCESSING_API void SetOscFrequency(const float InFrequency);
 
 		// Sets the oscillator frequency modulation
-		void SetOscFrequencyModuation(const float InFrequencyModulation);
+		SIGNALPROCESSING_API void SetOscFrequencyModuation(const float InFrequencyModulation);
 
 		// Sets the grain pitch modulation 
-		void SetPitchModulation(const float InPitchModulation);
+		SIGNALPROCESSING_API void SetPitchModulation(const float InPitchModulation);
 
 		// Sets the grain modulation
-		void SetVolumeModulation(const float InVolumeModulation);
+		SIGNALPROCESSING_API void SetVolumeModulation(const float InVolumeModulation);
 
 		// Sets the pan modulation angle
-		void SetPanModulation(const float InPanModulation);
+		SIGNALPROCESSING_API void SetPanModulation(const float InPanModulation);
 
 		// Changes how quickly the grain reads through envelope
-		void SetDurationScale(const float InDurationScale);
+		SIGNALPROCESSING_API void SetDurationScale(const float InDurationScale);
 
 		// Queries if this grain is finished playing and needs to be reaped
-		bool IsDone() const;
+		SIGNALPROCESSING_API bool IsDone() const;
 
 		// Generates the next frame from the grain
-		bool GenerateFrame(float* OutStereoFrame);
+		SIGNALPROCESSING_API bool GenerateFrame(float* OutStereoFrame);
 
 	protected:
-		float GetEnvelopeValue();
+		SIGNALPROCESSING_API float GetEnvelopeValue();
 
 		// Grain id
 		int32 GrainId;
@@ -166,104 +166,104 @@ namespace Audio
 	};
 
 	// A stereo granulator 
-	class SIGNALPROCESSING_API FGranularSynth
+	class FGranularSynth
 	{
 	public:
-		FGranularSynth();
-		~FGranularSynth();
+		SIGNALPROCESSING_API FGranularSynth();
+		SIGNALPROCESSING_API ~FGranularSynth();
 
-		void Init(const int32 InSampleRate, const int32 InNumInitialGrains);
+		SIGNALPROCESSING_API void Init(const int32 InSampleRate, const int32 InNumInitialGrains);
 		
 		// Loads a sound wave to use for granular synth mode
-		void LoadSampleBuffer(const TSampleBuffer<int16>& InSampleBuffer);
+		SIGNALPROCESSING_API void LoadSampleBuffer(const TSampleBuffer<int16>& InSampleBuffer);
 
 		// Plays a granular synthesis "Note"
-		void NoteOn(const uint32 InMidiNote, const float InVelocity, const float InDurationSec = INDEX_NONE);
+		SIGNALPROCESSING_API void NoteOn(const uint32 InMidiNote, const float InVelocity, const float InDurationSec = INDEX_NONE);
 
 		// Note off, triggers release envelope
-		void NoteOff(const uint32 InMidiNote, const bool bKill);
+		SIGNALPROCESSING_API void NoteOff(const uint32 InMidiNote, const bool bKill);
 
 		// Sets the granular synth attack time
-		void SetAttackTime(const float InAttackTimeMSec);
+		SIGNALPROCESSING_API void SetAttackTime(const float InAttackTimeMSec);
 
 		// Sets the granular synth decay time
-		void SetDecayTime(const float InDecayTimeMSec);
+		SIGNALPROCESSING_API void SetDecayTime(const float InDecayTimeMSec);
 
 		// Sets the granular synth sustain gain
-		void SetSustainGain(const float InSustainGain);
+		SIGNALPROCESSING_API void SetSustainGain(const float InSustainGain);
 
 		// Sets the granular synth releas etime
-		void SetReleaseTime(const float InReleaseTimeMSec);
+		SIGNALPROCESSING_API void SetReleaseTime(const float InReleaseTimeMSec);
 
 		// Seeks the loaded buffer used for granulation. Grains will spawn from this location
-		void SeekTime(const float InTimeSec, const float LerpTimeSec = 0.0f, const ESeekType::Type InSeekType = ESeekType::FromBeginning);
+		SIGNALPROCESSING_API void SeekTime(const float InTimeSec, const float LerpTimeSec = 0.0f, const ESeekType::Type InSeekType = ESeekType::FromBeginning);
 
 		// Sets whether or not the buffer playback advances on its own or if it just sits in one place
-		void SetScrubMode(const bool bIsScrubMode);
+		SIGNALPROCESSING_API void SetScrubMode(const bool bIsScrubMode);
 
 		// Sets how fast the granular play head for granulation is is played (and in what direction)
-		void SetPlaybackSpeed(const float InPlaybackSpeed);
+		SIGNALPROCESSING_API void SetPlaybackSpeed(const float InPlaybackSpeed);
 
 		// The rate at which new grains are attempted to be spawned
-		void SetGrainsPerSecond(const float InNumberOfGrainsPerSecond);
+		SIGNALPROCESSING_API void SetGrainsPerSecond(const float InNumberOfGrainsPerSecond);
 
 		// The probability at which a grain will occur when a grain tries to spawn. Allows for sporatic grain generation.
-		void SetGrainProbability(const float InGrainProbability);
+		SIGNALPROCESSING_API void SetGrainProbability(const float InGrainProbability);
 
 		// Sets the envelope type to use for new grains. Will instantly switch all grains to this envelope type so may cause discontinuities if switched while playing.
-		void SetGrainEnvelopeType(const EGrainEnvelopeType InGrainEnvelopeType);
+		SIGNALPROCESSING_API void SetGrainEnvelopeType(const EGrainEnvelopeType InGrainEnvelopeType);
 
 		// Sets the grain oscillator type (for use with granular synthesis mode)
-		void SetGrainOscType(const EOsc::Type InGrainOscType);
+		SIGNALPROCESSING_API void SetGrainOscType(const EOsc::Type InGrainOscType);
 
 		// Sets the base grain volume and randomization range
-		void SetGrainVolume(const float InBaseVolume, const FVector2D InVolumeRange = FVector2D::ZeroVector);
+		SIGNALPROCESSING_API void SetGrainVolume(const float InBaseVolume, const FVector2D InVolumeRange = FVector2D::ZeroVector);
 
 		// Sets the grain modulation -- allows modulating actively playing grain volumes
-		void SetGrainVolumeModulation(const float InVolumeModulation);
+		SIGNALPROCESSING_API void SetGrainVolumeModulation(const float InVolumeModulation);
 
 		// Sets the base grain pitch and randomization range
-		void SetGrainPitch(const float InBasePitch, const FVector2D InPitchRange = FVector2D::ZeroVector);
+		SIGNALPROCESSING_API void SetGrainPitch(const float InBasePitch, const FVector2D InPitchRange = FVector2D::ZeroVector);
 
 		// Sets the grain frequency
-		void SetGrainFrequency(const float InFrequency, const FVector2D InPitchRange = FVector2D::ZeroVector);
+		SIGNALPROCESSING_API void SetGrainFrequency(const float InFrequency, const FVector2D InPitchRange = FVector2D::ZeroVector);
 
 		// Sets the grain frequency modulation
-		void SetGrainFrequencyModulation(const float InFrequencyModulation);
+		SIGNALPROCESSING_API void SetGrainFrequencyModulation(const float InFrequencyModulation);
 
 		// Sets the grain pitch modulation -- allows modulating actively playing grain pitches
-		void SetGrainPitchModulation(const float InPitchModulation);
+		SIGNALPROCESSING_API void SetGrainPitchModulation(const float InPitchModulation);
 
 		// Sets the grain azimuth (pan) and randomization range
-		void SetGrainPan(const float InBasePan, const FVector2D InPanRange = FVector2D::ZeroVector);
+		SIGNALPROCESSING_API void SetGrainPan(const float InBasePan, const FVector2D InPanRange = FVector2D::ZeroVector);
 
 		// Sets the grain azimuth modulation - allows modulating actively playing grain azimuths
-		void SetGrainPanModulation(const float InPanModulation);
+		SIGNALPROCESSING_API void SetGrainPanModulation(const float InPanModulation);
 
 		// Sets the grain duration. 
-		void SetGrainDuration(const float InBaseDuration, const FVector2D InDurationRange = FVector2D::ZeroVector);
+		SIGNALPROCESSING_API void SetGrainDuration(const float InBaseDuration, const FVector2D InDurationRange = FVector2D::ZeroVector);
 
 		// Sets the grain duration modulation.
-		void SetGrainDurationScale(const float InDurationScale);
+		SIGNALPROCESSING_API void SetGrainDurationScale(const float InDurationScale);
 
 		// Return the number of currently active grains
-		int32 GetNumActiveGrains() const;
+		SIGNALPROCESSING_API int32 GetNumActiveGrains() const;
 
 		// Get current playback time (in granular mode)
-		float GetCurrentPlayheadTime() const;
+		SIGNALPROCESSING_API float GetCurrentPlayheadTime() const;
 
 		// Returns the duration of the internal loaded sample buffer
-		float GetSampleDuration() const;
+		SIGNALPROCESSING_API float GetSampleDuration() const;
 
 		// Generate the next audio buffer
-		void Generate(float* OutAudiobuffer, const int32 NumFrames);
+		SIGNALPROCESSING_API void Generate(float* OutAudiobuffer, const int32 NumFrames);
 
 	protected:
 		// Spawns grains
-		void SpawnGrain();
+		SIGNALPROCESSING_API void SpawnGrain();
 
 		// Return wrapped playhead position
-		float GetWrappedPlayheadPosition(float PlayheadFrame);
+		SIGNALPROCESSING_API float GetWrappedPlayheadPosition(float PlayheadFrame);
 
 
 		// Current grain azimuth modulation

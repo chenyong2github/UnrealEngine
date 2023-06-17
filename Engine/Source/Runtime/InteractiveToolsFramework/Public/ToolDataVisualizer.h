@@ -14,7 +14,7 @@ class IToolsContextRenderAPI;
  * 
  * Currently uses PDI drawing but may use different back-ends in the future
  */
-class INTERACTIVETOOLSFRAMEWORK_API FToolDataVisualizer
+class FToolDataVisualizer
 {
 public:
 	/** Default color used for drawing lines */
@@ -33,7 +33,7 @@ public:
 	bool bDepthTested = true;
 
 public:
-	FToolDataVisualizer();
+	INTERACTIVETOOLSFRAMEWORK_API FToolDataVisualizer();
 	virtual ~FToolDataVisualizer() {}
 
 
@@ -43,13 +43,13 @@ public:
 
 
 	/** This must be called every frame to allow Visualizer to extract necessary rendering data/objects */
-	void BeginFrame(IToolsContextRenderAPI* RenderAPI, const FViewCameraState& CameraState);
+	INTERACTIVETOOLSFRAMEWORK_API void BeginFrame(IToolsContextRenderAPI* RenderAPI, const FViewCameraState& CameraState);
 
 	/** This must be called every frame to allow Visualizer to extract necessary rendering data/objects */
-	void BeginFrame(IToolsContextRenderAPI* RenderAPI);
+	INTERACTIVETOOLSFRAMEWORK_API void BeginFrame(IToolsContextRenderAPI* RenderAPI);
 
 	/** this should be called at the end of every frame to allow for necessary cleanup */
-	void EndFrame();
+	INTERACTIVETOOLSFRAMEWORK_API void EndFrame();
 
 
 	//
@@ -57,13 +57,13 @@ public:
 	// 
 
 	/** Clear transform stack and push the given Transform */
-	void SetTransform(const FTransform& Transform);
+	INTERACTIVETOOLSFRAMEWORK_API void SetTransform(const FTransform& Transform);
 	/** Push a Transform onto the transform stack */
-	void PushTransform(const FTransform& Transform);
+	INTERACTIVETOOLSFRAMEWORK_API void PushTransform(const FTransform& Transform);
 	/** Pop a transform from the transform stack */
-	void PopTransform();
+	INTERACTIVETOOLSFRAMEWORK_API void PopTransform();
 	/** Clear the transform stack to identity */
-	void PopAllTransforms();
+	INTERACTIVETOOLSFRAMEWORK_API void PopAllTransforms();
 
 	/** @return input Point transformed by transform stack */
 	FVector TransformP(const FVector& Point)
@@ -246,22 +246,22 @@ protected:
 	FTransform TotalTransform;
 
 	// actually does the line drawing; assumes A and B are already transformed
-	virtual void InternalDrawTransformedLine(const FVector& A, const FVector& B, const FLinearColor& Color, float LineThickness, bool bDepthTested);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void InternalDrawTransformedLine(const FVector& A, const FVector& B, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 	// actually does the point drawing; assumes Position is already transformed
-	virtual void InternalDrawTransformedPoint(const FVector& Position, const FLinearColor& Color, float PointSize, bool bDepthTested);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void InternalDrawTransformedPoint(const FVector& Position, const FLinearColor& Color, float PointSize, bool bDepthTested);
 
 
 	// actually does the circle drawing
-	virtual void InternalDrawCircle(const FVector& Position, const FVector& Normal, float Radius, int Steps, const FLinearColor& Color, float LineThickness, bool bDepthTested);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void InternalDrawCircle(const FVector& Position, const FVector& Normal, float Radius, int Steps, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 	// actually does the circle drawing
-	virtual void InternalDrawViewFacingCircle(const FVector& Position, float Radius, int Steps, const FLinearColor& Color, float LineThickness, bool bDepthTested);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void InternalDrawViewFacingCircle(const FVector& Position, float Radius, int Steps, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 	// actually does the cylinder drawing
-	virtual void InternalDrawWireCylinder(const FVector& Position, const FVector& Normal, float Radius, float Height, int Steps, const FLinearColor& Color, float LineThickness, bool bDepthTested);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void InternalDrawWireCylinder(const FVector& Position, const FVector& Normal, float Radius, float Height, int Steps, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 	// actually does the box drawing
-	virtual void InternalDrawWireBox(const FBox& Box, const FLinearColor& Color, float LineThickness, bool bDepthTested);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void InternalDrawWireBox(const FBox& Box, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 	// actually does the square drawing
-	virtual void InternalDrawSquare(const FVector& Center, const FVector& SideA, const FVector& SideB, const FLinearColor& Color, float LineThickness, bool bDepthTested);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void InternalDrawSquare(const FVector& Center, const FVector& SideA, const FVector& SideB, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 	// actually does the X drawing
-	virtual void InternalDrawViewFacingX(const FVector& Position, float Width, const FLinearColor& Color, float LineThickness, bool bDepthTested);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void InternalDrawViewFacingX(const FVector& Position, float Width, const FLinearColor& Color, float LineThickness, bool bDepthTested);
 
 };

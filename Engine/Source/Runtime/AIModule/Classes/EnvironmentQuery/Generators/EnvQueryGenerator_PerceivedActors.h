@@ -9,8 +9,8 @@
 
 
 /** Gathers actors perceived by context */
-UCLASS(meta = (DisplayName = "Perceived Actors"))
-class AIMODULE_API UEnvQueryGenerator_PerceivedActors : public UEnvQueryGenerator
+UCLASS(meta = (DisplayName = "Perceived Actors"), MinimalAPI)
+class UEnvQueryGenerator_PerceivedActors : public UEnvQueryGenerator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -39,8 +39,8 @@ protected:
 	UPROPERTY(EditAnywhere, Category=Generator)
 	bool bIncludeKnownActors = true;
 
-	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
+	AIMODULE_API virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
 
-	virtual FText GetDescriptionTitle() const override;
-	virtual FText GetDescriptionDetails() const override;
+	AIMODULE_API virtual FText GetDescriptionTitle() const override;
+	AIMODULE_API virtual FText GetDescriptionDetails() const override;
 };

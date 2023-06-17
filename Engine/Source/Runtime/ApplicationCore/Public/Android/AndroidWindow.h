@@ -15,59 +15,59 @@
  * Native windows provide platform-specific backing for and are always owned by an SWindow.
  */
  
-class APPLICATIONCORE_API FAndroidWindow : public FGenericWindow
+class FAndroidWindow : public FGenericWindow
 {
 public:
-	~FAndroidWindow();
+	APPLICATIONCORE_API ~FAndroidWindow();
 
 	/** Create a new FAndroidWindow.
 	 *
 	 * @param OwnerWindow		The SlateWindow for which we are crating a backing AndroidWindow
 	 * @param InParent			Parent iOS window; usually NULL.
 	 */
-	static TSharedRef<FAndroidWindow> Make();
+	static APPLICATIONCORE_API TSharedRef<FAndroidWindow> Make();
 
 	
 	virtual void* GetOSWindowHandle() const override { return nullptr; }
 
-	void Initialize( class FAndroidApplication* const Application, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FAndroidWindow >& InParent, const bool bShowImmediately );
+	APPLICATIONCORE_API void Initialize( class FAndroidApplication* const Application, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FAndroidWindow >& InParent, const bool bShowImmediately );
 
 	/** Returns the rectangle of the screen the window is associated with */
-	virtual bool GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const override;
+	APPLICATIONCORE_API virtual bool GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const override;
 
-	virtual void SetOSWindowHandle(void*);
+	APPLICATIONCORE_API virtual void SetOSWindowHandle(void*);
 
-	static FPlatformRect GetScreenRect(bool bUseEventThreadWindow = false);
-	static void InvalidateCachedScreenRect();
+	static APPLICATIONCORE_API FPlatformRect GetScreenRect(bool bUseEventThreadWindow = false);
+	static APPLICATIONCORE_API void InvalidateCachedScreenRect();
 
 	// When bUseEventThreadWindow == false this uses dimensions cached when the game thread processes android events.
 	// When bUseEventThreadWindow == true this uses dimensions directly from the android event thread, unless called from event thread this requires acquiring GAndroidWindowLock to use.
-	static void CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& SurfaceHeight, bool bUseEventThreadWindow = false);
-	static bool OnWindowOrientationChanged(int Orientation);
+	static APPLICATIONCORE_API void CalculateSurfaceSize(int32_t& SurfaceWidth, int32_t& SurfaceHeight, bool bUseEventThreadWindow = false);
+	static APPLICATIONCORE_API bool OnWindowOrientationChanged(int Orientation);
 
-	static int32 GetDepthBufferPreference();
+	static APPLICATIONCORE_API int32 GetDepthBufferPreference();
 	
-	static void AcquireWindowRef(ANativeWindow* InWindow);
-	static void ReleaseWindowRef(ANativeWindow* InWindow);
+	static APPLICATIONCORE_API void AcquireWindowRef(ANativeWindow* InWindow);
+	static APPLICATIONCORE_API void ReleaseWindowRef(ANativeWindow* InWindow);
 
 	// This returns the current hardware window as set from the event thread.
-	static void* GetHardwareWindow_EventThread();
-	static void SetHardwareWindow_EventThread(void* InWindow);
+	static APPLICATIONCORE_API void* GetHardwareWindow_EventThread();
+	static APPLICATIONCORE_API void SetHardwareWindow_EventThread(void* InWindow);
 
 	/** Waits on the current thread for a hardware window and returns it. 
 	 *  May return nullptr if the application is shutting down.
 	 */
-	static void* WaitForHardwareWindow();
+	static APPLICATIONCORE_API void* WaitForHardwareWindow();
 
-	static bool IsPortraitOrientation();
-	static FVector4 GetSafezone(bool bPortrait);
-	static bool SafezoneUpdated();
+	static APPLICATIONCORE_API bool IsPortraitOrientation();
+	static APPLICATIONCORE_API FVector4 GetSafezone(bool bPortrait);
+	static APPLICATIONCORE_API bool SafezoneUpdated();
 
 	// called by the Android event thread to initially set the current window dimensions.
-	static void SetWindowDimensions_EventThread(ANativeWindow* DimensionWindow);
+	static APPLICATIONCORE_API void SetWindowDimensions_EventThread(ANativeWindow* DimensionWindow);
 
 	// Called by the event manager to update the cached window dimensions to match the event it is processing.
-	static void EventManagerUpdateWindowDimensions(int32 Width, int32 Height);
+	static APPLICATIONCORE_API void EventManagerUpdateWindowDimensions(int32 Width, int32 Height);
 
 protected:
 	/** @return true if the native window is currently in fullscreen mode, false otherwise */
@@ -77,7 +77,7 @@ private:
 	/**
 	 * Protect the constructor; only TSharedRefs of this class can be made.
 	 */
-	FAndroidWindow();
+	APPLICATIONCORE_API FAndroidWindow();
 
 	FAndroidApplication* OwningApplication;
 
@@ -85,12 +85,12 @@ private:
 	int32 RegionX;
 	int32 RegionY;
 
-	static void* NativeWindow;
+	static APPLICATIONCORE_API void* NativeWindow;
 
 	// Waits for the event thread to report an initial window size.
-	static bool WaitForWindowDimensions();
+	static APPLICATIONCORE_API bool WaitForWindowDimensions();
 
-	static bool bAreCachedNativeDimensionsValid;
-	static int32 CachedNativeWindowWidth;
-	static int32 CachedNativeWindowHeight;
+	static APPLICATIONCORE_API bool bAreCachedNativeDimensionsValid;
+	static APPLICATIONCORE_API int32 CachedNativeWindowWidth;
+	static APPLICATIONCORE_API int32 CachedNativeWindowHeight;
 };

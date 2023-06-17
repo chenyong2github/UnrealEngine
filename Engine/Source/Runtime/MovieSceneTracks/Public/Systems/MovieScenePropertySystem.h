@@ -12,15 +12,15 @@ class UMovieScenePropertyInstantiatorSystem;
 
 
 /** Abstract base class for any property system that deals with a property registered with FBuiltInComponentTypes::PropertyRegistry */
-UCLASS(Abstract)
-class MOVIESCENETRACKS_API UMovieScenePropertySystem
+UCLASS(Abstract, MinimalAPI)
+class UMovieScenePropertySystem
 	: public UMovieSceneEntitySystem
 	, public IMovieScenePreAnimatedStateSystemInterface
 {
 public:
 	GENERATED_BODY()
 
-	UMovieScenePropertySystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieScenePropertySystem(const FObjectInitializer& ObjInit);
 
 	/**
 	 * Must be called on construction of derived classes to initialize the members necessary for this system to animate its property
@@ -36,12 +36,12 @@ public:
 
 protected:
 
-	virtual void OnLink() override;
-	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnLink() override;
+	MOVIESCENETRACKS_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
-	virtual void SavePreAnimatedState(const FPreAnimationParameters& InParameters) override;
-	virtual void RestorePreAnimatedState(const FPreAnimationParameters& InParameters) override;
+	MOVIESCENETRACKS_API virtual void SavePreAnimatedState(const FPreAnimationParameters& InParameters) override;
+	MOVIESCENETRACKS_API virtual void RestorePreAnimatedState(const FPreAnimationParameters& InParameters) override;
 
 	/** Pointer to the property instantiator system for retrieving property stats */
 	UPROPERTY()

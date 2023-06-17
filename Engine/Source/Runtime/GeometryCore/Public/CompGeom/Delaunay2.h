@@ -32,7 +32,7 @@ using namespace UE::Math;
 // Internal representation of mesh connectivity; not exposed to interface
 struct FDelaunay2Connectivity;
 
-class GEOMETRYCORE_API FDelaunay2
+class FDelaunay2
 {
 public:
 
@@ -78,8 +78,8 @@ public:
 	 *
 	 * @return false if triangulation failed
 	 */
-	bool Triangulate(TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges = TArrayView<const FIndex2i>());
-	bool Triangulate(TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges = TArrayView<const FIndex2i>());
+	GEOMETRYCORE_API bool Triangulate(TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges = TArrayView<const FIndex2i>());
+	GEOMETRYCORE_API bool Triangulate(TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges = TArrayView<const FIndex2i>());
 
 	// Triangulate a polygon, and optionally pass back the resulting triangles
 	// Uses the 'solid' fill mode, and fills the polygon regardless of the edge orientation
@@ -162,8 +162,8 @@ public:
 	 * @return true if edges were successfully inserted.
 	 * Note: Will not detect failure due to intersection of constrained edges unless member bValidateEdges == true.
 	 */
-	bool ConstrainEdges(TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges);
-	bool ConstrainEdges(TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges);
+	GEOMETRYCORE_API bool ConstrainEdges(TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges);
+	GEOMETRYCORE_API bool ConstrainEdges(TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges);
 
 	// TODO: Support incremental vertex insertion
 	// Update the triangulation incrementally, assuming Vertices are unchanged before FirstNewIndex, and nothing after FirstNewIndex has been inserted yet
@@ -172,10 +172,10 @@ public:
 
 	// Get the triangulation as an array of triangles
 	// Note: This creates a new array each call, because the internal data structure does not have a triangle array
-	TArray<FIndex3i> GetTriangles() const;
+	GEOMETRYCORE_API TArray<FIndex3i> GetTriangles() const;
 
 	// Get the triangulation as an array with a corresponding adjacency array, indicating the adjacent triangle on each triangle edge (-1 if no adjacent triangle)
-	void GetTrianglesAndAdjacency(TArray<FIndex3i>& Triangles, TArray<FIndex3i>& Adjacency) const;
+	GEOMETRYCORE_API void GetTrianglesAndAdjacency(TArray<FIndex3i>& Triangles, TArray<FIndex3i>& Adjacency) const;
 
 	/**
 	 * Return the triangles that are inside the given edges, removing the outer boundary triangles
@@ -202,7 +202,7 @@ public:
 	 * @return							true if the result was well defined and consistent; false otherwise. Solid fill mode always has a well defined result; Winding-number-based fills do not if the edges have open spans.
 	 *									Note the triangulation will still be filled by best-effort even if the function returns false.
 	 */
-	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
+	GEOMETRYCORE_API bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
 
 	/**
 	 * Get (by reference) the triangles that are inside the given edges, using a generalized winding number method to determine which triangles are inside
@@ -218,8 +218,8 @@ public:
 	 * @return							true if the result was well defined and consistent; false otherwise. Solid fill mode always has a well defined result; Winding-number-based fills do not if the edges have open spans.
 	 *									Note the triangulation will still be filled by best-effort even if the function returns false.
 	 */
-	bool GetFilledTrianglesGeneralizedWinding(TArray<FIndex3i>& TrianglesOut, TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
-	bool GetFilledTrianglesGeneralizedWinding(TArray<FIndex3i>& TrianglesOut, TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
+	GEOMETRYCORE_API bool GetFilledTrianglesGeneralizedWinding(TArray<FIndex3i>& TrianglesOut, TArrayView<const TVector2<double>> Vertices, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
+	GEOMETRYCORE_API bool GetFilledTrianglesGeneralizedWinding(TArray<FIndex3i>& TrianglesOut, TArrayView<const TVector2<float>> Vertices, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
 
 	/**
 	 * Get (by reference) the triangles that are inside the given edges, removing the outside-boundary triangles and the inside-hole triangles
@@ -230,7 +230,7 @@ public:
 	 * @return								true if any result was successfully computed (including an empty result).
 	 *										Currently only returns false if Triangulate() has not been called yet.
 	 */
-	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> BoundaryEdges, TArrayView<const FIndex2i> HoleEdges) const;
+	GEOMETRYCORE_API bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> BoundaryEdges, TArrayView<const FIndex2i> HoleEdges) const;
 
 	// @return true if this is a constrained Delaunay triangulation
 	bool IsConstrained() const
@@ -239,23 +239,23 @@ public:
 	}
 
 	// @return true if triangulation is Delaunay, useful for validating results (note: likely to be false if edges are constrained)
-	bool IsDelaunay(TArrayView<const FVector2f> Vertices, TArrayView<const FIndex2i> SkipEdges = TArrayView<const FIndex2i>()) const;
-	bool IsDelaunay(TArrayView<const FVector2d> Vertices, TArrayView<const FIndex2i> SkipEdges = TArrayView<const FIndex2i>()) const;
+	GEOMETRYCORE_API bool IsDelaunay(TArrayView<const FVector2f> Vertices, TArrayView<const FIndex2i> SkipEdges = TArrayView<const FIndex2i>()) const;
+	GEOMETRYCORE_API bool IsDelaunay(TArrayView<const FVector2d> Vertices, TArrayView<const FIndex2i> SkipEdges = TArrayView<const FIndex2i>()) const;
 
 	// @return true if triangulation has the given edges, useful for validating results
-	bool HasEdges(TArrayView<const FIndex2i> Edges) const;
+	GEOMETRYCORE_API bool HasEdges(TArrayView<const FIndex2i> Edges) const;
 
 	// Remap any references to duplicate vertices to only reference the vertices used in the triangulation
-	void FixDuplicatesOnEdge(FIndex2i& Edge);
+	GEOMETRYCORE_API void FixDuplicatesOnEdge(FIndex2i& Edge);
 
 	// @return true if the edge is in the triangulation
-	bool HasEdge(const FIndex2i& Edge, bool bRemapDuplicates);
+	GEOMETRYCORE_API bool HasEdge(const FIndex2i& Edge, bool bRemapDuplicates);
 
 	// @return true if the input had duplicate vertices, and so not all vertices could be used in the triangulation.
-	bool HasDuplicates() const;
+	GEOMETRYCORE_API bool HasDuplicates() const;
 
 	// @return if bAutomaticallyFixEdgesToDuplicateVertices was set during triangulation, will return the remapped vertex index for any duplicate vertices, or Index if the vertex was not remapped.
-	int32 RemapIfDuplicate(int32 Index) const;
+	GEOMETRYCORE_API int32 RemapIfDuplicate(int32 Index) const;
 
 
 
@@ -267,8 +267,8 @@ public:
 	 * @param ExpandBounds		Amount to expand the clipping bounds beyond the Bounds argument (or the bounding box of non-boundary Voronoi cells, if Bounds was empty)
 	 * @return					The cells of each Voronoi site, or an empty array if the Triangulation was not yet computed
 	 */
-	TArray<TArray<FVector2d>> GetVoronoiCells(TArrayView<const FVector2d> Vertices, bool bIncludeBoundary = false, FAxisAlignedBox2d ClipBounds = FAxisAlignedBox2d::Empty(), double ExpandBounds = 0.0) const;
-	TArray<TArray<FVector2f>> GetVoronoiCells(TArrayView<const FVector2f> Vertices, bool bIncludeBoundary = false, FAxisAlignedBox2f ClipBounds = FAxisAlignedBox2f::Empty(), float ExpandBounds = 0.0f) const;
+	GEOMETRYCORE_API TArray<TArray<FVector2d>> GetVoronoiCells(TArrayView<const FVector2d> Vertices, bool bIncludeBoundary = false, FAxisAlignedBox2d ClipBounds = FAxisAlignedBox2d::Empty(), double ExpandBounds = 0.0) const;
+	GEOMETRYCORE_API TArray<TArray<FVector2f>> GetVoronoiCells(TArrayView<const FVector2f> Vertices, bool bIncludeBoundary = false, FAxisAlignedBox2f ClipBounds = FAxisAlignedBox2f::Empty(), float ExpandBounds = 0.0f) const;
 
 	/**
 	 * Compute Voronoi diagram cells

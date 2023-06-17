@@ -33,23 +33,23 @@ struct FCachedMetrics
 };
 
 /** Class responsible for capturing scene data */
-UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig, BlueprintType)
-class MOVIESCENECAPTURE_API UMovieSceneCapture : public UObject, public IMovieSceneCaptureInterface, public ICaptureProtocolHost
+UCLASS(config=EditorPerProjectUserSettings, PerObjectConfig, BlueprintType, MinimalAPI)
+class UMovieSceneCapture : public UObject, public IMovieSceneCaptureInterface, public ICaptureProtocolHost
 {
 public:
-	UMovieSceneCapture(const FObjectInitializer& Initializer);
+	MOVIESCENECAPTURE_API UMovieSceneCapture(const FObjectInitializer& Initializer);
 
 	GENERATED_BODY()
 
 	/** This name is used by the UI to save/load a specific instance of the settings from config that doesn't affect the CDO which would affect scripting environments. */
-	static const FName MovieSceneCaptureUIName;
+	static MOVIESCENECAPTURE_API const FName MovieSceneCaptureUIName;
 
-	virtual void PostInitProperties() override;
+	MOVIESCENECAPTURE_API virtual void PostInitProperties() override;
 
 public:
 
 	// Begin IMovieSceneCaptureInterface
-	virtual void Initialize(TSharedPtr<FSceneViewport> InSceneViewport, int32 PIEInstance = -1) override;
+	MOVIESCENECAPTURE_API virtual void Initialize(TSharedPtr<FSceneViewport> InSceneViewport, int32 PIEInstance = -1) override;
 	virtual void StartCapturing() { StartCapture(); }
 	virtual void Close() override { Finalize(); }
 	virtual FMovieSceneCaptureHandle GetHandle() const override { return Handle; }
@@ -58,14 +58,14 @@ public:
 	// End IMovieSceneCaptureInterface
 
 	/** Load save from config helpers */
-	virtual void LoadFromConfig();
-	virtual void SaveToConfig();
+	MOVIESCENECAPTURE_API virtual void LoadFromConfig();
+	MOVIESCENECAPTURE_API virtual void SaveToConfig();
 
 	/** Serialize additional json data for this capture */
-	void SerializeJson(FJsonObject& Object);
+	MOVIESCENECAPTURE_API void SerializeJson(FJsonObject& Object);
 
 	/** Deserialize additional json data for this capture */
-	void DeserializeJson(const FJsonObject& Object);
+	MOVIESCENECAPTURE_API void DeserializeJson(const FJsonObject& Object);
 
 protected:
 
@@ -76,7 +76,7 @@ protected:
 	virtual void DeserializeAdditionalJson(const FJsonObject& Object){}
 
 	/** Returns true if this is currently the audio pass, or if an audio pass is not needed. Shorthand for checking if we're in a state where we should finish capture. */
-	virtual bool IsAudioPassIfNeeded() const;
+	MOVIESCENECAPTURE_API virtual bool IsAudioPassIfNeeded() const;
 public:
 
 	/** The type of capture protocol to use for image data */
@@ -131,39 +131,39 @@ public:
 	
 	
 	UFUNCTION(BlueprintCallable, Category=Capture)
-	void SetImageCaptureProtocolType(TSubclassOf<UMovieSceneCaptureProtocolBase> ProtocolType);
+	MOVIESCENECAPTURE_API void SetImageCaptureProtocolType(TSubclassOf<UMovieSceneCaptureProtocolBase> ProtocolType);
 	UFUNCTION(BlueprintCallable, Category=Capture)
-	void SetAudioCaptureProtocolType(TSubclassOf<UMovieSceneCaptureProtocolBase> ProtocolType);
+	MOVIESCENECAPTURE_API void SetAudioCaptureProtocolType(TSubclassOf<UMovieSceneCaptureProtocolBase> ProtocolType);
 
 public:
 
 	/** Starts warming up.  May be optionally called before StartCapture().  This can be used to start rendering frames early, before
 	    any files are captured or written out */
-	void StartWarmup();
+	MOVIESCENECAPTURE_API void StartWarmup();
 
 	/** Initialize the capture so that it is able to start capturing frames */
-	void StartCapture();
+	MOVIESCENECAPTURE_API void StartCapture();
 
 	/** Indicate that this frame should be captured - must be called before the movie scene capture is ticked */
-	void CaptureThisFrame(float DeltaSeconds);
+	MOVIESCENECAPTURE_API void CaptureThisFrame(float DeltaSeconds);
 
 	/** Automatically finalizes the capture when all currently pending frames are dealt with */
-	void FinalizeWhenReady();
+	MOVIESCENECAPTURE_API void FinalizeWhenReady();
 
 	/** Check whether we should automatically finalize this capture */
-	bool ShouldFinalize() const;
+	MOVIESCENECAPTURE_API bool ShouldFinalize() const;
 
 	/** Finalize the capturing process, assumes all frames have been processed. */
-	void Finalize();
+	MOVIESCENECAPTURE_API void Finalize();
 
 public:
 
 	/** Called at the end of a frame, before a frame is presented by slate */
-	void Tick(float DeltaSeconds);
+	MOVIESCENECAPTURE_API void Tick(float DeltaSeconds);
 
 	// ICaptureProtocolHost interface
 	/** Resolve the specified format using the user supplied formatting rules. */
-	FString ResolveFileFormat(const FString& Format, const FFrameMetrics& FrameMetrics) const;
+	MOVIESCENECAPTURE_API FString ResolveFileFormat(const FString& Format, const FFrameMetrics& FrameMetrics) const;
 
 	/** Estimate how long our duration is going to be for pre-allocation purposes. */
 	double GetEstimatedCaptureDurationSeconds() const { return 0.0; }
@@ -179,16 +179,16 @@ protected:
 
 
 	/** Initialize the settings structure for the current capture type */
-	void InitializeCaptureProtocols();
+	MOVIESCENECAPTURE_API void InitializeCaptureProtocols();
 	
-	void ForciblyReinitializeCaptureProtocols();
+	MOVIESCENECAPTURE_API void ForciblyReinitializeCaptureProtocols();
 
 	/** Called at the end of a frame, before a frame is presented by slate */
 	virtual void OnTick(float DeltaSeconds) { CaptureThisFrame(DeltaSeconds); }
 protected:
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	MOVIESCENECAPTURE_API virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 protected:
@@ -219,29 +219,29 @@ protected:
 };
 
 /** A strategy that employs a fixed frame time-step, and as such never drops a frame. Potentially accelerated. */
-struct MOVIESCENECAPTURE_API FFixedTimeStepCaptureStrategy : ICaptureStrategy
+struct FFixedTimeStepCaptureStrategy : ICaptureStrategy
 {
-	FFixedTimeStepCaptureStrategy(FFrameRate InFrameRate);
+	MOVIESCENECAPTURE_API FFixedTimeStepCaptureStrategy(FFrameRate InFrameRate);
 
-	virtual void OnInitialize() override;
-	virtual void OnStop() override;
-	virtual bool ShouldPresent(double CurrentTimeSeconds, uint32 FrameIndex) const override;
-	virtual int32 GetDroppedFrames(double CurrentTimeSeconds, uint32 FrameIndex) const override;
+	MOVIESCENECAPTURE_API virtual void OnInitialize() override;
+	MOVIESCENECAPTURE_API virtual void OnStop() override;
+	MOVIESCENECAPTURE_API virtual bool ShouldPresent(double CurrentTimeSeconds, uint32 FrameIndex) const override;
+	MOVIESCENECAPTURE_API virtual int32 GetDroppedFrames(double CurrentTimeSeconds, uint32 FrameIndex) const override;
 
 private:
 	FFrameRate FrameRate;
 };
 
 /** A capture strategy that captures in real-time, potentially dropping frames to maintain a stable constant framerate video. */
-struct MOVIESCENECAPTURE_API FRealTimeCaptureStrategy : ICaptureStrategy
+struct FRealTimeCaptureStrategy : ICaptureStrategy
 {
-	FRealTimeCaptureStrategy(FFrameRate InFrameRate);
+	MOVIESCENECAPTURE_API FRealTimeCaptureStrategy(FFrameRate InFrameRate);
 
-	virtual void OnInitialize() override;
-	virtual void OnStop() override;
+	MOVIESCENECAPTURE_API virtual void OnInitialize() override;
+	MOVIESCENECAPTURE_API virtual void OnStop() override;
 	virtual bool ShouldSynchronizeFrames() const override { return false; }
-	virtual bool ShouldPresent(double CurrentTimeSeconds, uint32 FrameIndex) const override;
-	virtual int32 GetDroppedFrames(double CurrentTimeSeconds, uint32 FrameIndex) const override;
+	MOVIESCENECAPTURE_API virtual bool ShouldPresent(double CurrentTimeSeconds, uint32 FrameIndex) const override;
+	MOVIESCENECAPTURE_API virtual int32 GetDroppedFrames(double CurrentTimeSeconds, uint32 FrameIndex) const override;
 
 private:
 	double NextPresentTimeS, FrameLength;

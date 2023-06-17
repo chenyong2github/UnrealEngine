@@ -16,7 +16,7 @@ struct FSpectatorScreenModeTexturePlusEyeLayout;
  * This is the interface to control the spectator screen, on platforms that support it.
  */
 
-class HEADMOUNTEDDISPLAY_API ISpectatorScreenController : public IModularFeature
+class ISpectatorScreenController : public IModularFeature
 {
 public:
 	virtual ~ISpectatorScreenController() {}

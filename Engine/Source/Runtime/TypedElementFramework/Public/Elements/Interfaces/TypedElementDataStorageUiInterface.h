@@ -24,21 +24,21 @@ class SWidget;
  * arguments can be safely applied.
  */
 USTRUCT()
-struct TYPEDELEMENTFRAMEWORK_API FTypedElementWidgetConstructor
+struct FTypedElementWidgetConstructor
 {
 	GENERATED_BODY()
 
 public:
-	explicit FTypedElementWidgetConstructor(const UScriptStruct* InTypeInfo);
+	TYPEDELEMENTFRAMEWORK_API explicit FTypedElementWidgetConstructor(const UScriptStruct* InTypeInfo);
 	explicit FTypedElementWidgetConstructor(EForceInit) {} //< For compatibility and shouldn't be directly used.
 
 	virtual ~FTypedElementWidgetConstructor() = default;
 
 	/** Retrieves the type information for the constructor type. */
-	virtual const UScriptStruct* GetTypeInfo() const;
+	TYPEDELEMENTFRAMEWORK_API virtual const UScriptStruct* GetTypeInfo() const;
 
 	/** Returns a list of additional columns the widget requires. */
-	virtual TConstArrayView<const UScriptStruct*> GetAdditionalColumnsList() const;
+	TYPEDELEMENTFRAMEWORK_API virtual TConstArrayView<const UScriptStruct*> GetAdditionalColumnsList() const;
 
 	/** 
 	 * Whether or not an instance of this constructor can be reused. Setting this to true means that the Data Storage will
@@ -46,7 +46,7 @@ public:
 	 * 'false'. Override this function and set it to true if there's no internal state that could interfere with creating
 	 * multiple widgets from the same constructor, e.g. data stored from passed in arguments.
 	 */
-	virtual bool CanBeReused() const;
+	TYPEDELEMENTFRAMEWORK_API virtual bool CanBeReused() const;
 
 	/**
 	 * Constructs the widget according to the provided information. Information is collected by calling
@@ -54,7 +54,7 @@ public:
 	 * functions to build widgets according to a standard recipe and to reduce the amount of code needed.
 	 * If a complexer situation is called for this function can also be directly overwritten.
 	 */
-	virtual TSharedPtr<SWidget> Construct(
+	TYPEDELEMENTFRAMEWORK_API virtual TSharedPtr<SWidget> Construct(
 		TypedElementRowHandle Row, /** The row the widget will be stored in. */
 		ITypedElementDataStorageInterface* DataStorage,
 		ITypedElementDataStorageUiInterface* DataStorageUi,
@@ -66,16 +66,16 @@ protected:
 	 * function if there are non-properties that can be configured through the arguments or if the configuration
 	 * contains arguments that are too complex to initialize (fully) through the type system.
 	 */
-	virtual bool ApplyArguments(TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments);
+	TYPEDELEMENTFRAMEWORK_API virtual bool ApplyArguments(TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments);
 	/** Create a new instance of the target widget. This is a required function. */
-	virtual TSharedPtr<SWidget> CreateWidget() PURE_VIRTUAL(FTypedElementWidgetConstructor::CreateWidget, return nullptr; );
+	TYPEDELEMENTFRAMEWORK_API virtual TSharedPtr<SWidget> CreateWidget() PURE_VIRTUAL(FTypedElementWidgetConstructor::CreateWidget, return nullptr; );
 	/** Set any values in columns if needed. The columns provided through GetAdditionalColumnsList() will have already been created. */
-	virtual bool SetColumns(ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row);
+	TYPEDELEMENTFRAMEWORK_API virtual bool SetColumns(ITypedElementDataStorageInterface* DataStorage, TypedElementRowHandle Row);
 	/** 
 	 * Last opportunity to configure anything in the widget or the row. This step can be needed to initialize widgets with data stored
 	 * in columns.
 	 */
-	virtual bool FinalizeWidget(
+	TYPEDELEMENTFRAMEWORK_API virtual bool FinalizeWidget(
 		ITypedElementDataStorageInterface* DataStorage,
 		ITypedElementDataStorageUiInterface* DataStorageUi,
 		TypedElementRowHandle Row,
@@ -100,7 +100,7 @@ class UTypedElementDataStorageUiInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageUiInterface
+class ITypedElementDataStorageUiInterface
 {
 	GENERATED_BODY()
 

@@ -5,8 +5,8 @@
 #include "UObject/Interface.h"
 #include "IMovieSceneMetaData.generated.h"
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneMetaDataInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneMetaDataInterface : public UInterface
 {
 	GENERATED_BODY()
 };

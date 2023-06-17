@@ -59,8 +59,8 @@ struct FSubSequenceInstanceDataParams
 /**
  * Implements a section in sub-sequence tracks.
  */
-UCLASS(BlueprintType, config = EditorPerProjectUserSettings)
-class MOVIESCENE_API UMovieSceneSubSection
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, MinimalAPI)
+class UMovieSceneSubSection
 	: public UMovieSceneSection
 	, public IMovieSceneEntityProvider
 {
@@ -69,7 +69,7 @@ class MOVIESCENE_API UMovieSceneSubSection
 public:
 
 	/** Object constructor. */
-	UMovieSceneSubSection(const FObjectInitializer& ObjInitializer);
+	MOVIESCENE_API UMovieSceneSubSection(const FObjectInitializer& ObjInitializer);
 
 	/**
 	 * Get the sequence that is assigned to this section.
@@ -78,39 +78,39 @@ public:
 	 * @see SetSequence
 	 */
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
-	UMovieSceneSequence* GetSequence() const;
+	MOVIESCENE_API UMovieSceneSequence* GetSequence() const;
 
 	/**
 	 * Get the path name to this sub section from the outer moviescene
 	 */
-	FString GetPathNameInMovieScene() const;
+	MOVIESCENE_API FString GetPathNameInMovieScene() const;
 
 	/**
 	 * Get this sub section's sequence ID
 	 */
-	FMovieSceneSequenceID GetSequenceID() const;
+	MOVIESCENE_API FMovieSceneSequenceID GetSequenceID() const;
 
 	/** Generate subsequence data */
-	virtual FMovieSceneSubSequenceData GenerateSubSequenceData(const FSubSequenceInstanceDataParams& Params) const;
+	MOVIESCENE_API virtual FMovieSceneSubSequenceData GenerateSubSequenceData(const FSubSequenceInstanceDataParams& Params) const;
 
 public:
 
 	/**
 	 * Gets the transform that converts time from this section's time-base to its inner sequence's
 	 */
-	FMovieSceneSequenceTransform OuterToInnerTransform() const;
+	MOVIESCENE_API FMovieSceneSequenceTransform OuterToInnerTransform() const;
 
 	/**
 	 * Gets the playrange of the inner sequence, in the inner sequence's time space, trimmed with any start/end offsets,
 	 * and validated to make sure we get at least a 1-frame long playback range (e.g. in the case where excessive
 	 * trimming results in an invalid range).
 	 */
-	bool GetValidatedInnerPlaybackRange(TRange<FFrameNumber>& OutInnerPlaybackRange) const;
+	MOVIESCENE_API bool GetValidatedInnerPlaybackRange(TRange<FFrameNumber>& OutInnerPlaybackRange) const;
 
 	/**
 	 * Helper function used by the above method, but accessible for other uses like track editors.
 	 */
-	static TRange<FFrameNumber> GetValidatedInnerPlaybackRange(const FMovieSceneSectionParameters& SubSectionParameters, const UMovieScene& InnerMovieScene);
+	static MOVIESCENE_API TRange<FFrameNumber> GetValidatedInnerPlaybackRange(const FMovieSceneSectionParameters& SubSectionParameters, const UMovieScene& InnerMovieScene);
 
 	/**
 	 * Sets the sequence played by this section.
@@ -119,19 +119,19 @@ public:
 	 * @see GetSequence
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void SetSequence(UMovieSceneSequence* Sequence);
+	MOVIESCENE_API void SetSequence(UMovieSceneSequence* Sequence);
 
-	virtual void PostLoad() override;
+	MOVIESCENE_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	MOVIESCENE_API virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	MOVIESCENE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	/** Delegate to fire when our sequence is changed in the property editor */
 	FOnSequenceChanged& OnSequenceChanged() { return OnSequenceChangedDelegate; }
 #endif
 
-	FFrameNumber MapTimeToSectionFrame(FFrameTime InPosition) const;
+	MOVIESCENE_API FFrameNumber MapTimeToSectionFrame(FFrameTime InPosition) const;
 
 	EMovieSceneServerClientMask GetNetworkMask() const
 	{
@@ -146,19 +146,19 @@ public:
 public:
 
 	//~ UMovieSceneSection interface
-	virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const override;
-	virtual UMovieSceneSection* SplitSection( FQualifiedFrameTime SplitTime, bool bDeleteKeys ) override;
-	virtual void TrimSection( FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys) override;
+	MOVIESCENE_API virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const override;
+	MOVIESCENE_API virtual UMovieSceneSection* SplitSection( FQualifiedFrameTime SplitTime, bool bDeleteKeys ) override;
+	MOVIESCENE_API virtual void TrimSection( FQualifiedFrameTime TrimTime, bool bTrimLeft, bool bDeleteKeys) override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override { return TOptional<FFrameTime>(FFrameTime(Parameters.StartFrameOffset)); }
-	virtual void GetSnapTimes(TArray<FFrameNumber>& OutSnapTimes, bool bGetSectionBorders) const override;
-	virtual void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate) override;
+	MOVIESCENE_API virtual void GetSnapTimes(TArray<FFrameNumber>& OutSnapTimes, bool bGetSectionBorders) const override;
+	MOVIESCENE_API virtual void MigrateFrameTimes(FFrameRate SourceRate, FFrameRate DestinationRate) override;
 
 protected:
 
-	void BuildDefaultSubSectionComponents(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) const;
+	MOVIESCENE_API void BuildDefaultSubSectionComponents(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) const;
 
-	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
-	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	MOVIESCENE_API virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+	MOVIESCENE_API virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 public:
 

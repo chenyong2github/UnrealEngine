@@ -9,7 +9,7 @@
 /**
  * Windows implementation of console log window, utilizing the Win32 console API
  */
-class APPLICATIONCORE_API FWindowsConsoleOutputDevice2 final : public FOutputDeviceConsole
+class FWindowsConsoleOutputDevice2 final : public FOutputDeviceConsole
 {
 private:
 	uint16 TextAttribute;
@@ -66,26 +66,26 @@ public:
 	/** 
 	 * Constructor, setting console control handler.
 	 */
-	FWindowsConsoleOutputDevice2();
-	~FWindowsConsoleOutputDevice2();
+	APPLICATIONCORE_API FWindowsConsoleOutputDevice2();
+	APPLICATIONCORE_API ~FWindowsConsoleOutputDevice2();
 
 	/**
 	 * Shows or hides the console window. 
 	 *
 	 * @param ShowWindow	Whether to show (true) or hide (false) the console window.
 	 */
-	virtual void Show( bool ShowWindow );
+	APPLICATIONCORE_API virtual void Show( bool ShowWindow );
 
 	/** 
 	 * Returns whether console is currently shown or not
 	 *
 	 * @return true if console is shown, false otherwise
 	 */
-	virtual bool IsShown();
+	APPLICATIONCORE_API virtual bool IsShown();
 
-	virtual bool IsAttached();
+	APPLICATIONCORE_API virtual bool IsAttached();
 
-	virtual bool CanBeUsedOnAnyThread() const override;
+	APPLICATIONCORE_API virtual bool CanBeUsedOnAnyThread() const override;
 
 	/**
 	 * Displays text on the console and scrolls if necessary.
@@ -93,10 +93,10 @@ public:
 	 * @param Data	Text to display
 	 * @param Event	Event type, used for filtering/ suppression
 	 */
-	virtual void Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category, const double Time ) override;
-	virtual void Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
+	APPLICATIONCORE_API virtual void Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category, const double Time ) override;
+	APPLICATIONCORE_API virtual void Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
 
-	void SetColor( const TCHAR* Color );
+	APPLICATIONCORE_API void SetColor( const TCHAR* Color );
 
 private:
 	FWindowsConsoleOutputDevice2(const FWindowsConsoleOutputDevice2&) = delete;

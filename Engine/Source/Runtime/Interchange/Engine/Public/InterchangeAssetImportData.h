@@ -14,8 +14,8 @@
 
 class UInterchangePipelineBase;
 
-UCLASS(BlueprintType)
-class INTERCHANGEENGINE_API UInterchangeAssetImportData : public UAssetImportData
+UCLASS(BlueprintType, MinimalAPI)
+class UInterchangeAssetImportData : public UAssetImportData
 {
 	GENERATED_BODY()
 public:

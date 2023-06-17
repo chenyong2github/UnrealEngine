@@ -72,22 +72,22 @@ enum class EInstallBundleInstallState : int
 };
 INSTALLBUNDLEMANAGER_API const TCHAR* LexToString(EInstallBundleInstallState State);
 
-struct INSTALLBUNDLEMANAGER_API FInstallBundleCombinedInstallState
+struct FInstallBundleCombinedInstallState
 {
 	TMap<FName, EInstallBundleInstallState> IndividualBundleStates;
 
-	bool GetAllBundlesHaveState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
-	bool GetAnyBundleHasState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
+	INSTALLBUNDLEMANAGER_API bool GetAllBundlesHaveState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
+	INSTALLBUNDLEMANAGER_API bool GetAnyBundleHasState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
 };
 
-struct INSTALLBUNDLEMANAGER_API FInstallBundleContentState
+struct FInstallBundleContentState
 {
 	EInstallBundleInstallState State = EInstallBundleInstallState::NotInstalled;
 	float Weight = 0.0f;
 	TMap<EInstallBundleSourceType, FString> Version;
 };
 
-struct INSTALLBUNDLEMANAGER_API FInstallBundleCombinedContentState
+struct FInstallBundleCombinedContentState
 {
 	TMap<FName, FInstallBundleContentState> IndividualBundleStates;
 	TMap<EInstallBundleSourceType, FString> CurrentVersion;
@@ -96,8 +96,8 @@ struct INSTALLBUNDLEMANAGER_API FInstallBundleCombinedContentState
 	uint64 InstallOverheadSize = 0;
 	uint64 FreeSpace = 0;
 
-	bool GetAllBundlesHaveState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;	
-	bool GetAnyBundleHasState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
+	INSTALLBUNDLEMANAGER_API bool GetAllBundlesHaveState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;	
+	INSTALLBUNDLEMANAGER_API bool GetAnyBundleHasState(EInstallBundleInstallState State, TArrayView<const FName> ExcludedBundles = TArrayView<const FName>()) const;
 };
 
 enum class EInstallBundleGetContentStateFlags : uint32

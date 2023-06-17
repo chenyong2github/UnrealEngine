@@ -9,8 +9,8 @@
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvQueryGenerator_CurrentLocation.generated.h"
 
-UCLASS(meta = (DisplayName = "Current Location"))
-class AIMODULE_API UEnvQueryGenerator_CurrentLocation : public UEnvQueryGenerator
+UCLASS(meta = (DisplayName = "Current Location"), MinimalAPI)
+class UEnvQueryGenerator_CurrentLocation : public UEnvQueryGenerator
 {
 	GENERATED_BODY()
 
@@ -21,10 +21,10 @@ protected:
 
 public:
 
-	UEnvQueryGenerator_CurrentLocation(const FObjectInitializer& ObjectInitializer);
+	AIMODULE_API UEnvQueryGenerator_CurrentLocation(const FObjectInitializer& ObjectInitializer);
 	
-	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
+	AIMODULE_API virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
 
-	virtual FText GetDescriptionTitle() const override;
-	virtual FText GetDescriptionDetails() const override;
+	AIMODULE_API virtual FText GetDescriptionTitle() const override;
+	AIMODULE_API virtual FText GetDescriptionDetails() const override;
 };

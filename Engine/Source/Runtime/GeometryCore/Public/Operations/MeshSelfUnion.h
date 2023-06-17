@@ -25,7 +25,7 @@ namespace Geometry
 /**
  * MeshSelfUnion -- perform a "Mesh Boolean" style union of a mesh on itself, resolving any self intersections and welding the new boundaries as needed
  */
-class GEOMETRYCORE_API FMeshSelfUnion
+class FMeshSelfUnion
 {
 public:
 
@@ -128,7 +128,7 @@ public:
 	 * on the positive side of the cutting plane.
 	 * @return true if operation succeeds
 	 */
-	bool Compute();
+	GEOMETRYCORE_API bool Compute();
 
 protected:
 	/** If this returns true, abort computation.  */
@@ -139,11 +139,11 @@ protected:
 
 private:
 
-	int FindNearestEdge(const TArray<int>& EIDs, const TArray<int>& BoundaryNbrEdges, FVector3d Pos);
+	GEOMETRYCORE_API int FindNearestEdge(const TArray<int>& EIDs, const TArray<int>& BoundaryNbrEdges, FVector3d Pos);
 
-	bool MergeEdges(const TArray<int>& CutBoundaryEdges, const TMap<int, int>& AllVIDMatches);
+	GEOMETRYCORE_API bool MergeEdges(const TArray<int>& CutBoundaryEdges, const TMap<int, int>& AllVIDMatches);
 
-	void SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<int, int>& FoundMatches);
+	GEOMETRYCORE_API void SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<int, int>& FoundMatches);
 
 };
 

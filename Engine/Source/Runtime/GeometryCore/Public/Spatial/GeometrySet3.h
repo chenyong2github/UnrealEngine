@@ -24,34 +24,34 @@ namespace Geometry
  * 
  * Since Points and Curves have no area to hit, hit-tests are done via nearest-point-on-ray.
  */
-class GEOMETRYCORE_API FGeometrySet3
+class FGeometrySet3
 {
 public:
 	/**
 	 * @param bPoints if true, discard all points
 	 * @param bCurves if true, discard all polycurves
 	 */
-	void Reset(bool bPoints = true, bool bCurves = true);
+	GEOMETRYCORE_API void Reset(bool bPoints = true, bool bCurves = true);
 
 	/** Add a point with given PointID at the given Position*/
-	void AddPoint(int PointID, const FVector3d& Position);
+	GEOMETRYCORE_API void AddPoint(int PointID, const FVector3d& Position);
 	/** Add a polycurve with given CurveID and the give Polyline */
-	void AddCurve(int CurveID, const FPolyline3d& Polyline);
+	GEOMETRYCORE_API void AddCurve(int CurveID, const FPolyline3d& Polyline);
 
 	/** Remove a point with given PointID. */
-	void RemovePoint(int PointID);
+	GEOMETRYCORE_API void RemovePoint(int PointID);
 	/** Remove a curve with given CurveID. */
-	void RemoveCurve(int CurveID);
+	GEOMETRYCORE_API void RemoveCurve(int CurveID);
 
 	/** Update the Position of previously-added PointID */
-	void UpdatePoint(int PointID, const FVector3d& Position);
+	GEOMETRYCORE_API void UpdatePoint(int PointID, const FVector3d& Position);
 	/** Update the Polyline of previously-added CurveID */
-	void UpdateCurve(int CurveID, const FPolyline3d& Polyline);
+	GEOMETRYCORE_API void UpdateCurve(int CurveID, const FPolyline3d& Polyline);
 
 	/**
 	 * FNearest is returned by nearest-point queries
 	 */
-	struct GEOMETRYCORE_API FNearest
+	struct FNearest
 	{
 		/** ID of point or curve */
 		int ID;
@@ -80,7 +80,7 @@ public:
 	 * @return true if the nearest point on Ray to some point in the set passed the PointWithinToleranceTest.
 	 * @warning PointWithinToleranceTest is called in parallel and hence must be thread-safe/re-entrant!
 	 */
-	bool FindNearestPointToRay(const FRay3d& Ray, FNearest& ResultOut,
+	GEOMETRYCORE_API bool FindNearestPointToRay(const FRay3d& Ray, FNearest& ResultOut,
 		TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const;
 
 	/**
@@ -92,7 +92,7 @@ public:
 	 * @return true if at least one result was added (ie, passed PointWithinToleranceTest).
 	 * @warning PointWithinToleranceTest is called in parallel and hence must be thread-safe/re-entrant!
 	 */
-	bool CollectPointsNearRay(const FRay3d& Ray, TArray<FNearest>& ResultsOut,
+	GEOMETRYCORE_API bool CollectPointsNearRay(const FRay3d& Ray, TArray<FNearest>& ResultsOut,
 		TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const;
 
 	/**
@@ -102,7 +102,7 @@ public:
 	 * @return true if the nearest point on Ray to some curve in the set passed the PointWithinToleranceTest.
 	 * @warning PointWithinToleranceTest is called in parallel and hence must be thread-safe/re-entrant!
 	 */
-	bool FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut,
+	GEOMETRYCORE_API bool FindNearestCurveToRay(const FRay3d& Ray, FNearest& ResultOut,
 		TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const;
 
 	/**
@@ -114,7 +114,7 @@ public:
 	 * @return true if at least one result was added (ie, passed PointWithinToleranceTest).
 	 * @warning PointWithinToleranceTest is called in parallel and hence must be thread-safe/re-entrant!
 	 */
-	bool CollectCurvesNearRay(const FRay3d& Ray, TArray<FNearest>& ResultsOut,
+	GEOMETRYCORE_API bool CollectCurvesNearRay(const FRay3d& Ray, TArray<FNearest>& ResultsOut,
 		TFunction<bool(const FVector3d&, const FVector3d&)> PointWithinToleranceTest) const;
 
 	/**

@@ -104,8 +104,8 @@ struct FHierarchicalEasingChannelBuffer
 /**
  * System that creates hierarchical easing channels for any newly introduced HierarchicalEasingProvider components
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneHierarchicalEasingInstantiatorSystem : public UMovieSceneEntityInstantiatorSystem
+UCLASS(MinimalAPI)
+class UMovieSceneHierarchicalEasingInstantiatorSystem : public UMovieSceneEntityInstantiatorSystem
 {
 public:
 
@@ -118,16 +118,16 @@ public:
 
 	GENERATED_BODY()
 
-	UMovieSceneHierarchicalEasingInstantiatorSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieSceneHierarchicalEasingInstantiatorSystem(const FObjectInitializer& ObjInit);
 
-	void FinalizeBlendTargets();
+	MOVIESCENETRACKS_API void FinalizeBlendTargets();
 
 private:
 
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const;
-	virtual void OnLink() override;
-	virtual void OnUnlink() override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const;
+	MOVIESCENETRACKS_API virtual void OnLink() override;
+	MOVIESCENETRACKS_API virtual void OnUnlink() override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 private:
 
@@ -170,27 +170,27 @@ private:
 /**
  * System that combines manual weights and easings and propagates them to entities with matching EasingChannelID components
  */
-UCLASS()
-class MOVIESCENETRACKS_API UWeightAndEasingEvaluatorSystem : public UMovieSceneEntitySystem
+UCLASS(MinimalAPI)
+class UWeightAndEasingEvaluatorSystem : public UMovieSceneEntitySystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UWeightAndEasingEvaluatorSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UWeightAndEasingEvaluatorSystem(const FObjectInitializer& ObjInit);
 
 	/**
 	 * Called from the instantiator system once channel IDs have been calculated
 	 */
-	UE::MovieScene::FHierarchicalEasingChannelBuffer& GetComputationBuffer();
+	MOVIESCENETRACKS_API UE::MovieScene::FHierarchicalEasingChannelBuffer& GetComputationBuffer();
 
 private:
 
-	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
-	virtual void OnLink() override final;
-	virtual void OnUnlink() override final;
+	MOVIESCENETRACKS_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
+	MOVIESCENETRACKS_API virtual void OnLink() override final;
+	MOVIESCENETRACKS_API virtual void OnUnlink() override final;
 
 private:
 

@@ -15,13 +15,13 @@ class AActor;
 
 struct FHitResult;
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UPrimitiveComponentBackedTarget : public UInterface
+UINTERFACE(MinimalAPI)
+class UPrimitiveComponentBackedTarget : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class INTERACTIVETOOLSFRAMEWORK_API IPrimitiveComponentBackedTarget
+class IPrimitiveComponentBackedTarget
 {
 	GENERATED_BODY()
 

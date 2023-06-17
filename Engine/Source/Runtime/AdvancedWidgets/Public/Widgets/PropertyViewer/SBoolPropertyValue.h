@@ -14,10 +14,10 @@ namespace UE::PropertyViewer
 class INotifyHook;
 
 /** */
-class ADVANCEDWIDGETS_API SBoolPropertyValue : public SCompoundWidget
+class SBoolPropertyValue : public SCompoundWidget
 {
 public:
-	static TSharedPtr<SWidget> CreateInstance(const FPropertyValueFactory::FGenerateArgs Args);
+	static ADVANCEDWIDGETS_API TSharedPtr<SWidget> CreateInstance(const FPropertyValueFactory::FGenerateArgs Args);
 
 public:
 	SLATE_BEGIN_ARGS(SBoolPropertyValue) {}
@@ -25,7 +25,7 @@ public:
 		SLATE_ARGUMENT(INotifyHook*, NotifyHook);
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs);
 
 private:
 	ECheckBoxState HandleIsChecked() const;

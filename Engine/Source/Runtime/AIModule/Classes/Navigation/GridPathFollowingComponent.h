@@ -17,17 +17,17 @@ class UNavLocalGridManager;
  *
  *  Does not replace proper avoidance for dynamic obstacles!
  */
-UCLASS(BlueprintType, Experimental)
-class AIMODULE_API UGridPathFollowingComponent : public UPathFollowingComponent
+UCLASS(BlueprintType, Experimental, MinimalAPI)
+class UGridPathFollowingComponent : public UPathFollowingComponent
 {
 	GENERATED_UCLASS_BODY()
 public:
 
-	virtual void Initialize() override;
-	virtual void UpdatePathSegment() override;
-	virtual void Reset() override;
-	virtual void ResumeMove(FAIRequestID RequestID = FAIRequestID::CurrentRequest) override;
-	virtual void OnPathUpdated();
+	AIMODULE_API virtual void Initialize() override;
+	AIMODULE_API virtual void UpdatePathSegment() override;
+	AIMODULE_API virtual void Reset() override;
+	AIMODULE_API virtual void ResumeMove(FAIRequestID RequestID = FAIRequestID::CurrentRequest) override;
+	AIMODULE_API virtual void OnPathUpdated();
 
 	bool HasActiveGrid() const { return ActiveGridIdx != INDEX_NONE; }
 	int32 GetActiveGridIdx() const { return ActiveGridIdx; }
@@ -37,7 +37,7 @@ public:
 
 protected:
 
-	void UpdateActiveGrid(const FVector& CurrentLocation);
+	AIMODULE_API void UpdateActiveGrid(const FVector& CurrentLocation);
 
 	UPROPERTY(Transient)
 	TObjectPtr<UNavLocalGridManager> GridManager;

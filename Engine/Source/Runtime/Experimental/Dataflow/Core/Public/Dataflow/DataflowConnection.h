@@ -39,7 +39,7 @@ namespace Dataflow
 // Input Output Base
 //
 USTRUCT()
-struct DATAFLOWCORE_API FDataflowConnection
+struct FDataflowConnection
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -55,14 +55,14 @@ protected:
 
 public:
 	FDataflowConnection() {};
-	FDataflowConnection(Dataflow::FPin::EDirection Direction, FName InType, FName InName, FDataflowNode* OwningNode = nullptr, FProperty* InProperty = nullptr, FGuid InGuid = FGuid::NewGuid());
+	DATAFLOWCORE_API FDataflowConnection(Dataflow::FPin::EDirection Direction, FName InType, FName InName, FDataflowNode* OwningNode = nullptr, FProperty* InProperty = nullptr, FGuid InGuid = FGuid::NewGuid());
 	virtual ~FDataflowConnection() {};
 
 	FDataflowNode* GetOwningNode() { return OwningNode; }
 	const FDataflowNode* GetOwningNode() const { return OwningNode; }
 
 	Dataflow::FPin::EDirection GetDirection() const { return Direction; }
-	int32 GetOffset( ) const;
+	DATAFLOWCORE_API int32 GetOffset( ) const;
 
 	FName GetType() const { return Type; }
 

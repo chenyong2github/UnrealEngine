@@ -14,32 +14,32 @@
  * 
  * The circle element does not yet support partial circles.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementCircle : public UGizmoElementCircleBase
+UCLASS(Transient, MinimalAPI)
+class UGizmoElementCircle : public UGizmoElementCircleBase
 {
 	GENERATED_BODY()
 
 public:
 	//~ Begin UGizmoElementBase Interface.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	//~ End UGizmoElementBase Interface.
 
 	// Draw mesh
-	virtual void SetDrawMesh(bool InDrawMesh);
-	virtual bool GetDrawMesh() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDrawMesh(bool InDrawMesh);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetDrawMesh() const;
 
 	// Draw line
-	virtual void SetDrawLine(bool InDrawLine);
-	virtual bool GetDrawLine() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDrawLine(bool InDrawLine);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetDrawLine() const;
 
 	// Hit mesh
-	virtual void SetHitMesh(bool InHitMesh);
-	virtual bool GetHitMesh() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHitMesh(bool InHitMesh);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetHitMesh() const;
 
 	// Hit line
-	virtual void SetHitLine(bool InHitLine);
-	virtual bool GetHitLine() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHitLine(bool InHitLine);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetHitLine() const;
 
 protected:
 

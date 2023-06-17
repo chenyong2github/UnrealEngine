@@ -28,29 +28,29 @@ enum class EMeshTrackerVertexColorMode : uint8
 	on a separate thread.  Once a mesh data request has been processed the calling system will be notified via an
 	FOnMeshTrackerUpdated broadcast.
 */
-UCLASS(ClassGroup = Rendering, BlueprintType, Blueprintable, EditInlineNew, meta = (BlueprintSpawnableComponent))
-class MRMESH_API UMockDataMeshTrackerComponent
+UCLASS(ClassGroup = Rendering, BlueprintType, Blueprintable, EditInlineNew, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UMockDataMeshTrackerComponent
 	: public USceneComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** Destroys the FMeshTrackerImpl instance.*/
-	~UMockDataMeshTrackerComponent();
+	MRMESH_API ~UMockDataMeshTrackerComponent();
 
 	/**
 		Sets the procedural mesh component that will store and display the environmental mesh results.
 		@param InMRMeshPtr The procedural mesh component to store the query result in.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	void ConnectMRMesh(class UMRMeshComponent* InMRMeshPtr);
+	MRMESH_API void ConnectMRMesh(class UMRMeshComponent* InMRMeshPtr);
 
 	/**
 		Unlinks the current procedural mesh component from the mesh tracking system.
 		@param InMRMeshPtr The procedural mesh component to unlink from the mesh tracking system.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
-	void DisconnectMRMesh(class UMRMeshComponent* InMRMeshPtr);
+	MRMESH_API void DisconnectMRMesh(class UMRMeshComponent* InMRMeshPtr);
 
 	/**
 	Delegate used by OnMeshUpdated().
@@ -118,16 +118,16 @@ public:
 	*/
 
 	/** Polls for and handles the results of the environmental mesh queries. */
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	MRMESH_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 	/** Unlinks the current procedural mesh component from the mesh tracking system. */
-	virtual void BeginDestroy() override;
+	MRMESH_API virtual void BeginDestroy() override;
 
 	/** Destroys the interface object to the mesh tracking api*/
-	virtual void FinishDestroy() override;
+	MRMESH_API virtual void FinishDestroy() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& e) override;
+	MRMESH_API virtual void PostEditChangeProperty(FPropertyChangedEvent& e) override;
 #endif
 
 private:

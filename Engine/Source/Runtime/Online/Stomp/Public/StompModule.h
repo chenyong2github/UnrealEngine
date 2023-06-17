@@ -12,7 +12,7 @@ class IStompClient;
 /**
  * Module for Stomp over WebSockets
  */
-class STOMP_API FStompModule :
+class FStompModule :
 	public IModuleInterface
 {
 
@@ -26,7 +26,7 @@ public:
 	 *
 	 * @return Returns singleton instance
 	 */
-	static FStompModule& Get();
+	static STOMP_API FStompModule& Get();
 
 #if WITH_STOMP
 	/**
@@ -35,7 +35,7 @@ public:
 	 * @param Url The URL to which to connect; this should be the URL to which the WebSocket server will respond with Stomp protocol data.
 	 * @return new IStompClient instance
 	 */
-	TSharedRef<IStompClient> CreateClient(const FString& Url, const FString& OptAuthToken = FString());
+	STOMP_API TSharedRef<IStompClient> CreateClient(const FString& Url, const FString& OptAuthToken = FString());
 #endif // #if WITH_STOMP
 
 private:
@@ -46,13 +46,13 @@ private:
 	 * Called when Stomp module is loaded
 	 * Initialize implementation specific parts of Stomp handling
 	 */
-	virtual void StartupModule() override;
+	STOMP_API virtual void StartupModule() override;
 
 	/**
 	 * Called when Stomp module is unloaded
 	 * Shutdown implementation specific parts of Stomp handling
 	 */
-	virtual void ShutdownModule() override;
+	STOMP_API virtual void ShutdownModule() override;
 
 
 	/** singleton for the module while loaded and available */

@@ -8,7 +8,7 @@
 
 // Allows multiple animations to be blended between based on input parameters
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceGraph : public FAnimNode_BlendSpaceGraphBase
+struct FAnimNode_BlendSpaceGraph : public FAnimNode_BlendSpaceGraphBase
 {
 	GENERATED_BODY()
 

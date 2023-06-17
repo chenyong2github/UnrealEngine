@@ -21,7 +21,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogStreamingPlatformFile, Log, All);
 /**
  * Visitor to gather local files with their timestamps
  */
-class STREAMINGFILE_API FStreamingLocalTimestampVisitor : public IPlatformFile::FDirectoryVisitor
+class FStreamingLocalTimestampVisitor : public IPlatformFile::FDirectoryVisitor
 {
 private:
 
@@ -126,13 +126,13 @@ public:
 /**
  * Wrapper to redirect the low level file system to a server
  */
-class STREAMINGFILE_API FStreamingNetworkPlatformFile
+class FStreamingNetworkPlatformFile
 	: public FNetworkPlatformFile
 {
 	friend class FAsyncFileSync;
 
 	// FNetworkPlatformFile interface
-	virtual bool InitializeInternal(IPlatformFile* Inner, const TCHAR* HostIP) override;
+	STREAMINGFILE_API virtual bool InitializeInternal(IPlatformFile* Inner, const TCHAR* HostIP) override;
 
 public:
 
@@ -144,7 +144,7 @@ public:
 	}
 
 	/** Virtual destructor */
-	virtual ~FStreamingNetworkPlatformFile();
+	STREAMINGFILE_API virtual ~FStreamingNetworkPlatformFile();
 
 public:
 
@@ -154,19 +154,19 @@ public:
 	}
 
 	/** Sends Open message to the server and creates a new file handle if successful. */
-	class FStreamingNetworkFileHandle* SendOpenMessage(const FString& Filename, bool bIsWriting, bool bAppend, bool bAllowRead);
+	STREAMINGFILE_API class FStreamingNetworkFileHandle* SendOpenMessage(const FString& Filename, bool bIsWriting, bool bAppend, bool bAllowRead);
 
 	/** Sends Read message to the server. */
-	bool SendReadMessage(uint64 HandleId, uint8* Destination, int64 BytesToRead);
+	STREAMINGFILE_API bool SendReadMessage(uint64 HandleId, uint8* Destination, int64 BytesToRead);
 
 	/** Sends Write message to the server. */
-	bool SendWriteMessage(uint64 HandleId, const uint8* Source, int64 BytesToWrite);	
+	STREAMINGFILE_API bool SendWriteMessage(uint64 HandleId, const uint8* Source, int64 BytesToWrite);	
 
 	/** Sends Seek message to the server. */
-	bool SendSeekMessage(uint64 HandleId, int64 NewPosition);	
+	STREAMINGFILE_API bool SendSeekMessage(uint64 HandleId, int64 NewPosition);	
 
 	/** Sends Close message to the server. */
-	bool SendCloseMessage(uint64 HandleId);
+	STREAMINGFILE_API bool SendCloseMessage(uint64 HandleId);
 
 public:
 
@@ -175,7 +175,7 @@ public:
 
 	// IPlatformFile interface
 
-	virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
+	STREAMINGFILE_API virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
 
 	virtual IPlatformFile* GetLowerLevel() override
 	{
@@ -191,32 +191,32 @@ public:
 		return FStreamingNetworkPlatformFile::GetTypeName();
 	}
 
-	virtual bool DeleteFile(const TCHAR* Filename) override;
-	virtual bool IsReadOnly(const TCHAR* Filename) override;
-	virtual bool MoveFile(const TCHAR* To, const TCHAR* From) override;
-	virtual bool SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyValue) override;
-	virtual FDateTime GetTimeStamp(const TCHAR* Filename) override;
-	virtual void SetTimeStamp(const TCHAR* Filename, FDateTime DateTime) override;
-	virtual FDateTime GetAccessTimeStamp(const TCHAR* Filename) override;
-	virtual IFileHandle* OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
-	virtual IFileHandle* OpenWrite(const TCHAR* Filename, bool bAppend, bool bAllowRead) override;
-	virtual bool DirectoryExists(const TCHAR* Directory) override;
-	virtual bool CreateDirectoryTree(const TCHAR* Directory) override;
-	virtual bool CreateDirectory(const TCHAR* Directory) override;
-	virtual bool DeleteDirectory(const TCHAR* Directory) override;
-	virtual bool IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
-	virtual bool IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
-	virtual bool DeleteDirectoryRecursively(const TCHAR* Directory) override;
-	virtual bool CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override;
-	virtual FString ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename ) override;
-	virtual FString ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename ) override;
+	STREAMINGFILE_API virtual bool DeleteFile(const TCHAR* Filename) override;
+	STREAMINGFILE_API virtual bool IsReadOnly(const TCHAR* Filename) override;
+	STREAMINGFILE_API virtual bool MoveFile(const TCHAR* To, const TCHAR* From) override;
+	STREAMINGFILE_API virtual bool SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyValue) override;
+	STREAMINGFILE_API virtual FDateTime GetTimeStamp(const TCHAR* Filename) override;
+	STREAMINGFILE_API virtual void SetTimeStamp(const TCHAR* Filename, FDateTime DateTime) override;
+	STREAMINGFILE_API virtual FDateTime GetAccessTimeStamp(const TCHAR* Filename) override;
+	STREAMINGFILE_API virtual IFileHandle* OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
+	STREAMINGFILE_API virtual IFileHandle* OpenWrite(const TCHAR* Filename, bool bAppend, bool bAllowRead) override;
+	STREAMINGFILE_API virtual bool DirectoryExists(const TCHAR* Directory) override;
+	STREAMINGFILE_API virtual bool CreateDirectoryTree(const TCHAR* Directory) override;
+	STREAMINGFILE_API virtual bool CreateDirectory(const TCHAR* Directory) override;
+	STREAMINGFILE_API virtual bool DeleteDirectory(const TCHAR* Directory) override;
+	STREAMINGFILE_API virtual bool IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
+	STREAMINGFILE_API virtual bool IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
+	STREAMINGFILE_API virtual bool DeleteDirectoryRecursively(const TCHAR* Directory) override;
+	STREAMINGFILE_API virtual bool CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override;
+	STREAMINGFILE_API virtual FString ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename ) override;
+	STREAMINGFILE_API virtual FString ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename ) override;
 
 private:
 
 	// FNetworkPlatformFile interface
 
-	virtual void PerformHeartbeat() override;
-	virtual void GetFileInfo(const TCHAR* Filename, FFileInfo& Info) override;
+	STREAMINGFILE_API virtual void PerformHeartbeat() override;
+	STREAMINGFILE_API virtual void GetFileInfo(const TCHAR* Filename, FFileInfo& Info) override;
 
 private:
 

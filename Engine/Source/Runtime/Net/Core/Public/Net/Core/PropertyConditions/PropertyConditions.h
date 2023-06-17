@@ -16,25 +16,25 @@ class FRepChangedPropertyTracker;
 namespace UE::Net::Private
 {
 
-class NETCORE_API FNetPropertyConditionManager
+class FNetPropertyConditionManager
 {
 public:
-	FNetPropertyConditionManager();
-	~FNetPropertyConditionManager();
+	NETCORE_API FNetPropertyConditionManager();
+	NETCORE_API ~FNetPropertyConditionManager();
 
-	static FNetPropertyConditionManager& Get();
+	static NETCORE_API FNetPropertyConditionManager& Get();
 
-	void SetPropertyActive(const FObjectKey ObjectKey, const uint16 RepIndex, const bool bActive);
-	void SetPropertyDynamicCondition(const FObjectKey ObjectKey, const uint16 RepIndex, const ELifetimeCondition Condition);
+	NETCORE_API void SetPropertyActive(const FObjectKey ObjectKey, const uint16 RepIndex, const bool bActive);
+	NETCORE_API void SetPropertyDynamicCondition(const FObjectKey ObjectKey, const uint16 RepIndex, const ELifetimeCondition Condition);
 
-	void NotifyObjectDestroyed(const FObjectKey ObjectKey);
+	NETCORE_API void NotifyObjectDestroyed(const FObjectKey ObjectKey);
 
-	TSharedPtr<FRepChangedPropertyTracker> FindOrCreatePropertyTracker(const FObjectKey ObjectKey);
-	TSharedPtr<FRepChangedPropertyTracker> FindPropertyTracker(const FObjectKey ObjectKey) const;
+	NETCORE_API TSharedPtr<FRepChangedPropertyTracker> FindOrCreatePropertyTracker(const FObjectKey ObjectKey);
+	NETCORE_API TSharedPtr<FRepChangedPropertyTracker> FindPropertyTracker(const FObjectKey ObjectKey) const;
 
-	void LogMemory(FOutputDevice& Ar);
+	NETCORE_API void LogMemory(FOutputDevice& Ar);
 
-	static void SetPropertyActiveOverride(IRepChangedPropertyTracker& Tracker, UObject* OwningObject, const uint16 RepIndex, const bool bIsActive);
+	static NETCORE_API void SetPropertyActiveOverride(IRepChangedPropertyTracker& Tracker, UObject* OwningObject, const uint16 RepIndex, const bool bIsActive);
 
 private:
 	void PostGarbageCollect();

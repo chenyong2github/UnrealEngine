@@ -19,7 +19,7 @@ namespace AVEncoder
 	class FVideoEncoderInput;
 	class FVideoEncoderInputFrame;
 
-    class AVENCODER_API FVideoEncoder
+    class FVideoEncoder
     {
     public:
         enum class RateControlMode { UNKNOWN, CONSTQP, VBR, CBR };
@@ -61,17 +61,17 @@ namespace AVEncoder
 			}
         };
 
-        virtual ~FVideoEncoder();
+        AVENCODER_API virtual ~FVideoEncoder();
 
 		virtual bool Setup(TSharedRef<FVideoEncoderInput> input, FLayerConfig const& config) { return false; }
 		virtual void Shutdown() {}
 
-        virtual bool AddLayer(FLayerConfig const& config);
+        AVENCODER_API virtual bool AddLayer(FLayerConfig const& config);
         uint32 GetNumLayers() const { return static_cast<uint32>(Layers.Num()); }
         virtual uint32 GetMaxLayers() const { return 1; }
 
-		FLayerConfig GetLayerConfig(uint32 layerIdx) const;
-        void UpdateLayerConfig(uint32 layerIdx, FLayerConfig const& config);
+		AVENCODER_API FLayerConfig GetLayerConfig(uint32 layerIdx) const;
+        AVENCODER_API void UpdateLayerConfig(uint32 layerIdx, FLayerConfig const& config);
 
         using OnFrameEncodedCallback = TFunction<void(const TSharedPtr<FVideoEncoderInputFrame> /* InCompletedFrame */)>;
         using OnEncodedPacketCallback = TFunction<void(uint32 /* LayerIndex */, const TSharedPtr<FVideoEncoderInputFrame> /* Frame */, const FCodecPacket& /* Packet */)>;

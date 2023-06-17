@@ -9,16 +9,16 @@
 
 class UBehaviorTree;
 
-UCLASS(Abstract)
-class AIMODULE_API UBTTask_BlackboardBase : public UBTTaskNode
+UCLASS(Abstract, MinimalAPI)
+class UBTTask_BlackboardBase : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 
 	/** initialize any asset related data */
-	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	AIMODULE_API virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 
 	/** get name of selected blackboard key */
-	FName GetSelectedBlackboardKey() const;
+	AIMODULE_API FName GetSelectedBlackboardKey() const;
 
 protected:
 

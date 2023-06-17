@@ -46,13 +46,13 @@ inline FName GetTypedElementCounterKeyName()
  * Tracks various categories of counters for the typed elements (eg, the number of elements of a given type).
  * The categories counted may be expanded by element types that implement the UTypedElementCounterInterface API.
  */
-class TYPEDELEMENTFRAMEWORK_API FTypedElementCounter
+class FTypedElementCounter
 {
 public:
 	using FCounterValue = int32;
 
 	FTypedElementCounter() = default;
-	explicit FTypedElementCounter(UTypedElementRegistry* InRegistry);
+	TYPEDELEMENTFRAMEWORK_API explicit FTypedElementCounter(UTypedElementRegistry* InRegistry);
 
 	FTypedElementCounter(const FTypedElementCounter&) = delete;
 	FTypedElementCounter& operator=(const FTypedElementCounter&) = delete;
@@ -63,17 +63,17 @@ public:
 	/**
 	 * Explicitly initialize this instance, if it was previously default constructed.
 	 */
-	void Initialize(UTypedElementRegistry* InRegistry);
+	TYPEDELEMENTFRAMEWORK_API void Initialize(UTypedElementRegistry* InRegistry);
 
 	/**
 	 * Update the counter categories to include the given element.
 	 */
-	void AddElement(const FTypedElementHandle& InElementHandle);
+	TYPEDELEMENTFRAMEWORK_API void AddElement(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Update the counter categories to remove the given element.
 	 */
-	void RemoveElement(const FTypedElementHandle& InElementHandle);
+	TYPEDELEMENTFRAMEWORK_API void RemoveElement(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Increment the counter for the given category and key.
@@ -143,17 +143,17 @@ public:
 	/**
 	 * Clear the value of the counters for the given category.
 	 */
-	void ClearCounters(const FName InCategory);
+	TYPEDELEMENTFRAMEWORK_API void ClearCounters(const FName InCategory);
 
 	/**
 	 * Clear all counters.
 	 */
-	void ClearCounters();
+	TYPEDELEMENTFRAMEWORK_API void ClearCounters();
 
 	/**
 	 * Get the category name used to count element types (by type ID).
 	 */
-	static FName GetElementTypeCategoryName();
+	static TYPEDELEMENTFRAMEWORK_API FName GetElementTypeCategoryName();
 
 private:
 	class ICounterCategory
@@ -296,7 +296,7 @@ class UTypedElementCounterInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class TYPEDELEMENTFRAMEWORK_API ITypedElementCounterInterface
+class ITypedElementCounterInterface
 {
 	GENERATED_BODY()
 

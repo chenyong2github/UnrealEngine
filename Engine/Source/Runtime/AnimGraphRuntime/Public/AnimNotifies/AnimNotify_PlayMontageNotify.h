@@ -9,19 +9,19 @@
 // UAnimNotify_PlayMontageNotify
 //////////////////////////////////////////////////////////////////////////
 
-UCLASS(editinlinenew, const, hidecategories = Object, collapsecategories, meta = (DisplayName = "Montage Notify"))
-class ANIMGRAPHRUNTIME_API UAnimNotify_PlayMontageNotify : public UAnimNotify
+UCLASS(editinlinenew, const, hidecategories = Object, collapsecategories, meta = (DisplayName = "Montage Notify"), MinimalAPI)
+class UAnimNotify_PlayMontageNotify : public UAnimNotify
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	virtual void BranchingPointNotify(FBranchingPointNotifyPayload& BranchingPointPayload) override;
+	ANIMGRAPHRUNTIME_API virtual void BranchingPointNotify(FBranchingPointNotifyPayload& BranchingPointPayload) override;
 	
-	virtual FString GetNotifyName_Implementation() const override;
+	ANIMGRAPHRUNTIME_API virtual FString GetNotifyName_Implementation() const override;
 
 #if WITH_EDITOR
-	virtual bool CanBePlaced(UAnimSequenceBase* Animation) const override;
+	ANIMGRAPHRUNTIME_API virtual bool CanBePlaced(UAnimSequenceBase* Animation) const override;
 #endif
 protected:
 
@@ -35,19 +35,19 @@ protected:
 // UAnimNotify_PlayMontageNotifyWindow
 //////////////////////////////////////////////////////////////////////////
 
-UCLASS(editinlinenew, const, hidecategories = Object, collapsecategories, meta = (DisplayName = "Montage Notify Window"))
-class ANIMGRAPHRUNTIME_API UAnimNotify_PlayMontageNotifyWindow : public UAnimNotifyState
+UCLASS(editinlinenew, const, hidecategories = Object, collapsecategories, meta = (DisplayName = "Montage Notify Window"), MinimalAPI)
+class UAnimNotify_PlayMontageNotifyWindow : public UAnimNotifyState
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	virtual void BranchingPointNotifyBegin(FBranchingPointNotifyPayload& BranchingPointPayload) override;
-	virtual void BranchingPointNotifyEnd(FBranchingPointNotifyPayload& BranchingPointPayload) override;
+	ANIMGRAPHRUNTIME_API virtual void BranchingPointNotifyBegin(FBranchingPointNotifyPayload& BranchingPointPayload) override;
+	ANIMGRAPHRUNTIME_API virtual void BranchingPointNotifyEnd(FBranchingPointNotifyPayload& BranchingPointPayload) override;
 
-	virtual FString GetNotifyName_Implementation() const override;
+	ANIMGRAPHRUNTIME_API virtual FString GetNotifyName_Implementation() const override;
 
 #if WITH_EDITOR
-	virtual bool CanBePlaced(UAnimSequenceBase* Animation) const override;
+	ANIMGRAPHRUNTIME_API virtual bool CanBePlaced(UAnimSequenceBase* Animation) const override;
 #endif
 protected:
 

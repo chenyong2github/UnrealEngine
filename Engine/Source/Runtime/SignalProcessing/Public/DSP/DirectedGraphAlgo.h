@@ -34,14 +34,14 @@ namespace Audio
 	typedef TMap<int32, FDirectedTreeElement> FDirectedTree;
 
 
-	struct SIGNALPROCESSING_API FDirectedGraphAlgo
+	struct FDirectedGraphAlgo
 	{
 		/** Build a directed tree from an array of edges.
 		 *
 		 * @parma InEdges - An array of directed eges.
 		 * @param OutTree - A tree structure built from the edges.
 		 */
-		static void BuildDirectedTree(TArrayView<const FDirectedEdge> InEdges, FDirectedTree& OutTree);
+		static SIGNALPROCESSING_API void BuildDirectedTree(TArrayView<const FDirectedEdge> InEdges, FDirectedTree& OutTree);
 
 		/** Build a transpose directed tree from an array of edges. 
 		 *
@@ -50,7 +50,7 @@ namespace Audio
 		 * @parma InEdges - An array of directed eges.
 		 * @param OutTree - A tree structure built from the reversed edges.
 		 */
-		static void BuildTransposeDirectedTree(TArrayView<const FDirectedEdge> InEdges, FDirectedTree& OutTree);
+		static SIGNALPROCESSING_API void BuildTransposeDirectedTree(TArrayView<const FDirectedEdge> InEdges, FDirectedTree& OutTree);
 
 		/** Traverse a tree in a depth first ordering.
 		 *
@@ -62,7 +62,7 @@ namespace Audio
 		 *                          manner. If this function returns false, the 
 		 *                          children of the current vertex are not visited.
 		 */
-		static void DepthFirstTraversal(int32 InInitialVertex, const FDirectedTree& InTree, TFunctionRef<bool (int32)> InVisitFunc);
+		static SIGNALPROCESSING_API void DepthFirstTraversal(int32 InInitialVertex, const FDirectedTree& InTree, TFunctionRef<bool (int32)> InVisitFunc);
 
 		/** Traverse a tree in a breadth first ordering.
 		 *
@@ -75,7 +75,7 @@ namespace Audio
 		 *                          then the children of the current vertex will 
 		 *                          not be visited.
 		 */
-		static void BreadthFirstTraversal(int32 InInitialVertex, const FDirectedTree& InTree, TFunctionRef<bool (int32)> InVisitFunc);
+		static SIGNALPROCESSING_API void BreadthFirstTraversal(int32 InInitialVertex, const FDirectedTree& InTree, TFunctionRef<bool (int32)> InVisitFunc);
 
 		/** Sort vertices topologically using a depth first sorting algorithm.
 		 *
@@ -85,7 +85,7 @@ namespace Audio
 		 *
 		 * @return True if sorting was successful. False otherwise.
 		 */
-		static bool DepthFirstTopologicalSort(TArrayView<const int32> InUniqueVertices, TArrayView<const FDirectedEdge> InUniqueEdges, TArray<int32>& OutVertexOrder);
+		static SIGNALPROCESSING_API bool DepthFirstTopologicalSort(TArrayView<const int32> InUniqueVertices, TArrayView<const FDirectedEdge> InUniqueEdges, TArray<int32>& OutVertexOrder);
 
 		/** Sort vertices topologically using a Kahn's sorting algorithm.
 		 *
@@ -95,7 +95,7 @@ namespace Audio
 		 *
 		 * @return True if sorting was successful. False otherwise.
 		 */
-		static bool KahnTopologicalSort(TArrayView<const int32> InUniqueVertices, TArrayView<const FDirectedEdge> InUniqueEdges, TArray<int32>& OutVertexOrder);
+		static SIGNALPROCESSING_API bool KahnTopologicalSort(TArrayView<const int32> InUniqueVertices, TArrayView<const FDirectedEdge> InUniqueEdges, TArray<int32>& OutVertexOrder);
 
 
 		/** Find strongly connected components given a set of edges using Tarjan
@@ -107,6 +107,6 @@ namespace Audio
 		 *
 		 * @return True if one or more strongly connected components are added to OutComponents. False otherwise. 
 		 */
-		static bool TarjanStronglyConnectedComponents(const TSet<FDirectedEdge>& InEdges, TArray<FStronglyConnectedComponent>& OutComponents, bool bExcludeSingleVertex = true);
+		static SIGNALPROCESSING_API bool TarjanStronglyConnectedComponents(const TSet<FDirectedEdge>& InEdges, TArray<FStronglyConnectedComponent>& OutComponents, bool bExcludeSingleVertex = true);
 	};
 }

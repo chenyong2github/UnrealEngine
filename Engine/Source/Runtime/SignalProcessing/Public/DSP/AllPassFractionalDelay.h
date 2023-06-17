@@ -9,21 +9,21 @@
 namespace Audio
 {
 	// Performs a fractional delay utilzing a single order all pass filter.
-	class SIGNALPROCESSING_API FAllPassFractionalDelay
+	class FAllPassFractionalDelay
 	{
 	public:
 		// InMaxDelay sets the maximum allowable delay that this object can support. The minimum delay is 0.5
 		// InNumInternalBufferSamples sets the maximum block processing size.
-		FAllPassFractionalDelay(int32 InMaxDelay, int32 InNumInternalBufferSamples);
+		SIGNALPROCESSING_API FAllPassFractionalDelay(int32 InMaxDelay, int32 InNumInternalBufferSamples);
 
-		~FAllPassFractionalDelay();
+		SIGNALPROCESSING_API ~FAllPassFractionalDelay();
 
 		// Apply delay to InSamples. Fill OutSamples with data from the delay line at a delay of InDelay.
 		// InDelay must be equal length to InSamples. 
-		void ProcessAudio(const FAlignedFloatBuffer& InSamples, const FAlignedFloatBuffer& InDelays, FAlignedFloatBuffer& OutSamples);
+		SIGNALPROCESSING_API void ProcessAudio(const FAlignedFloatBuffer& InSamples, const FAlignedFloatBuffer& InDelays, FAlignedFloatBuffer& OutSamples);
 
 		// Set all values in internal delay line to zero. 
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 	private:
 		void ProcessAudioBlock(const float* InSamples, const float* InDelays, const int32 InNum, float* OutSamples);

@@ -20,32 +20,32 @@ struct FMeshDescriptionBulkData;
 /**
  * UObject wrapper for FMeshDescriptionBulkData
  */
-UCLASS()
-class MESHDESCRIPTION_API UMeshDescriptionBaseBulkData : public UObject
+UCLASS(MinimalAPI)
+class UMeshDescriptionBaseBulkData : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UMeshDescriptionBaseBulkData();
-	virtual void Serialize(FArchive& Ar) override;
-	virtual bool IsEditorOnly() const override;
-	virtual bool NeedsLoadForClient() const override;
-	virtual bool NeedsLoadForServer() const override;
-	virtual bool NeedsLoadForEditorGame() const override;
+	MESHDESCRIPTION_API UMeshDescriptionBaseBulkData();
+	MESHDESCRIPTION_API virtual void Serialize(FArchive& Ar) override;
+	MESHDESCRIPTION_API virtual bool IsEditorOnly() const override;
+	MESHDESCRIPTION_API virtual bool NeedsLoadForClient() const override;
+	MESHDESCRIPTION_API virtual bool NeedsLoadForServer() const override;
+	MESHDESCRIPTION_API virtual bool NeedsLoadForEditorGame() const override;
 
 #if WITH_EDITORONLY_DATA
 
-	void Empty();
-	UMeshDescriptionBase* CreateMeshDescription();
-	UMeshDescriptionBase* GetMeshDescription() const;
-	bool HasCachedMeshDescription() const;
-	bool CacheMeshDescription();
-	void CommitMeshDescription(bool bUseHashAsGuid);
-	void RemoveMeshDescription();
-	bool IsBulkDataValid() const;
+	MESHDESCRIPTION_API void Empty();
+	MESHDESCRIPTION_API UMeshDescriptionBase* CreateMeshDescription();
+	MESHDESCRIPTION_API UMeshDescriptionBase* GetMeshDescription() const;
+	MESHDESCRIPTION_API bool HasCachedMeshDescription() const;
+	MESHDESCRIPTION_API bool CacheMeshDescription();
+	MESHDESCRIPTION_API void CommitMeshDescription(bool bUseHashAsGuid);
+	MESHDESCRIPTION_API void RemoveMeshDescription();
+	MESHDESCRIPTION_API bool IsBulkDataValid() const;
 
-	const FMeshDescriptionBulkData& GetBulkData() const;
-	FMeshDescriptionBulkData& GetBulkData();
+	MESHDESCRIPTION_API const FMeshDescriptionBulkData& GetBulkData() const;
+	MESHDESCRIPTION_API FMeshDescriptionBulkData& GetBulkData();
 
 protected:
 	TPimplPtr<FMeshDescriptionBulkData> BulkData;

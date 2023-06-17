@@ -17,7 +17,7 @@ enum class ELiveLinkCameraProjectionMode : uint8
  * Static data for Camera data. 
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkCameraStaticData : public FLiveLinkTransformStaticData
+struct FLiveLinkCameraStaticData : public FLiveLinkTransformStaticData
 {
 	GENERATED_BODY()
 
@@ -64,7 +64,7 @@ public:
  * Dynamic data for camera 
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkCameraFrameData : public FLiveLinkTransformFrameData
+struct FLiveLinkCameraFrameData : public FLiveLinkTransformFrameData
 {
 	GENERATED_BODY()
 
@@ -97,7 +97,7 @@ struct LIVELINKINTERFACE_API FLiveLinkCameraFrameData : public FLiveLinkTransfor
  * Facility structure to handle camera data in blueprint
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkCameraBlueprintData : public FLiveLinkBaseBlueprintData
+struct FLiveLinkCameraBlueprintData : public FLiveLinkBaseBlueprintData
 {
 	GENERATED_BODY()
 	

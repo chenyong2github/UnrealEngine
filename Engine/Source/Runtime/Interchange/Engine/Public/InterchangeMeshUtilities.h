@@ -10,8 +10,8 @@
 
 class UInterchangeSourceData;
 
-UCLASS(Experimental)
-class INTERCHANGEENGINE_API UInterchangeMeshUtilities : public UObject
+UCLASS(Experimental, MinimalAPI)
+class UInterchangeMeshUtilities : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -24,7 +24,7 @@ public:
 	 *
 	 * @Note - This function will sort out the SourceData and call ImportCustomLodAsync and wait until the result is available.
 	 */
-	static TFuture<bool> ImportCustomLodAsync(UObject* MeshObject, const int32 LodIndex);
+	static INTERCHANGEENGINE_API TFuture<bool> ImportCustomLodAsync(UObject* MeshObject, const int32 LodIndex);
 
 
 	/**
@@ -38,7 +38,7 @@ public:
 	 * @Note - Since this is the async version, the SourceData parameter is required.
 	 * @Note - This function will search for an available interchange asset factory that can do the job for the MeshObject class
 	 */
-	static TFuture<bool> ImportCustomLodAsync(UObject* MeshObject, const int32 LodIndex, const UInterchangeSourceData* SourceData);
+	static INTERCHANGEENGINE_API TFuture<bool> ImportCustomLodAsync(UObject* MeshObject, const int32 LodIndex, const UInterchangeSourceData* SourceData);
 
 private:
 

@@ -95,15 +95,15 @@ struct FChaosTrailingEventRequestSettings
 	}
 };
 
-class GEOMETRYCOLLECTIONENGINE_API FChaosTrailingEventFilter 
+class FChaosTrailingEventFilter 
 	: public IChaosEventFilter<Chaos::FTrailingDataArray, TArray<FChaosTrailingEventData>, EChaosTrailingSortMethod>
 {
 public:
 	FChaosTrailingEventFilter(FChaosTrailingEventRequestSettings* FilterSettingsIn) : TrailingEventRequestSettings(FilterSettingsIn) {}
 
-	virtual void FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FTrailingDataArray& RawTrailingDataArray) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FTrailingDataArray& RawTrailingDataArray) override;
 
-	virtual void SortEvents(TArray<FChaosTrailingEventData>& InOutTrailingEvents, EChaosTrailingSortMethod SortMethod, const FTransform& InTransform) override;
+	GEOMETRYCOLLECTIONENGINE_API virtual void SortEvents(TArray<FChaosTrailingEventData>& InOutTrailingEvents, EChaosTrailingSortMethod SortMethod, const FTransform& InTransform) override;
 
 private:
 	FChaosTrailingEventFilter() : TrailingEventRequestSettings(nullptr) {}

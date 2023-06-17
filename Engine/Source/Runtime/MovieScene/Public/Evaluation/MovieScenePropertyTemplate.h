@@ -227,29 +227,29 @@ struct FMovieScenePropertySectionData
 };
 
 USTRUCT()
-struct MOVIESCENE_API FMovieScenePropertySectionTemplate : public FMovieSceneEvalTemplate
+struct FMovieScenePropertySectionTemplate : public FMovieSceneEvalTemplate
 {
 	GENERATED_BODY()
 	
 	FMovieScenePropertySectionTemplate(){}
-	FMovieScenePropertySectionTemplate(FName PropertyName, const FString& InPropertyPath);
+	MOVIESCENE_API FMovieScenePropertySectionTemplate(FName PropertyName, const FString& InPropertyPath);
 public:
 	//use thse keys for setting and iterating the correct types.
-	const static FMovieSceneInterrogationKey GetFloatInterrogationKey();
-	const static FMovieSceneInterrogationKey GetInt32InterrogationKey();
-	const static FMovieSceneInterrogationKey GetVector4InterrogationKey();
-	const static FMovieSceneInterrogationKey GetVectorInterrogationKey();
-	const static FMovieSceneInterrogationKey GetVector2DInterrogationKey();
-	const static FMovieSceneInterrogationKey GetColorInterrogationKey();
+	MOVIESCENE_API const static FMovieSceneInterrogationKey GetFloatInterrogationKey();
+	MOVIESCENE_API const static FMovieSceneInterrogationKey GetInt32InterrogationKey();
+	MOVIESCENE_API const static FMovieSceneInterrogationKey GetVector4InterrogationKey();
+	MOVIESCENE_API const static FMovieSceneInterrogationKey GetVectorInterrogationKey();
+	MOVIESCENE_API const static FMovieSceneInterrogationKey GetVector2DInterrogationKey();
+	MOVIESCENE_API const static FMovieSceneInterrogationKey GetColorInterrogationKey();
 
 protected:
 
 	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
 	/** Setup is only called if derived classes enable RequiresSetupFlag */
-	virtual void Setup(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;
+	MOVIESCENE_API virtual void Setup(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) const override;
 
 	/** Access an animation type identifier that uniquely represents the property this section animates */
-	FMovieSceneAnimTypeID GetPropertyTypeID() const;
+	MOVIESCENE_API FMovieSceneAnimTypeID GetPropertyTypeID() const;
 
 	/** Ensure that an actutor for this property type exists */
 	template<typename PropertyType> FMovieSceneBlendingActuatorID EnsureActuator(FMovieSceneBlendingAccumulator& Accumulator) const

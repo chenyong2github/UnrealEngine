@@ -16,7 +16,7 @@ struct FComponentMaterialSet;
  * FMeshRenderDecomposition represents a decomposition of a mesh into "chunks" of triangles, with associated materials.
  * This is passed to the rendering components to split a mesh into multiple RenderBuffers, for more efficient updating.
  */
-class GEOMETRYFRAMEWORK_API FMeshRenderDecomposition
+class FMeshRenderDecomposition
 {
 public:
 
@@ -84,17 +84,17 @@ public:
 	/**
 	 * Construct mappings between mesh and groups (eg TriangleToGroupMap)
 	 */
-	void BuildAssociations(const FDynamicMesh3* Mesh);
+	GEOMETRYFRAMEWORK_API void BuildAssociations(const FDynamicMesh3* Mesh);
 
 
 	/**
 	 * Build decomposition with one group for each MaterialID of mesh
 	 */
-	static void BuildMaterialDecomposition(const FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp);
+	static GEOMETRYFRAMEWORK_API void BuildMaterialDecomposition(const FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp);
 
 	/**
 	 * Build per-material decomposition, and then split each of those into chunks of at most MaxChunkSize
 	 * (actual chunk sizes will be highly variable and some may be very small...)
 	 */
-	static void BuildChunkedDecomposition(const FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp, int32 MaxChunkSize = 1 << 14 /* 16k */ );
+	static GEOMETRYFRAMEWORK_API void BuildChunkedDecomposition(const FDynamicMesh3* Mesh, const FComponentMaterialSet* MaterialSet, FMeshRenderDecomposition& Decomp, int32 MaxChunkSize = 1 << 14 /* 16k */ );
 };

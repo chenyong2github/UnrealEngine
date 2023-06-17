@@ -42,7 +42,7 @@ struct FNewComponentTypeParams
 	EComponentTypeFlags Flags;
 };
 
-struct MOVIESCENE_API FComponentRegistry
+struct FComponentRegistry
 {
 public:
 	FEntityFactories Factories;
@@ -65,7 +65,7 @@ public:
 	 * @param Flags          Flags relating to the new component type
 	 * @return A new component type identifier for the tag
 	 */
-	FComponentTypeID NewTag(const TCHAR* const DebugName, EComponentTypeFlags Flags = EComponentTypeFlags::None);
+	MOVIESCENE_API FComponentTypeID NewTag(const TCHAR* const DebugName, EComponentTypeFlags Flags = EComponentTypeFlags::None);
 
 
 	/**
@@ -111,7 +111,7 @@ public:
 #endif
 	}
 
-	const FComponentTypeInfo& GetComponentTypeChecked(FComponentTypeID ComponentTypeID) const;
+	MOVIESCENE_API const FComponentTypeInfo& GetComponentTypeChecked(FComponentTypeID ComponentTypeID) const;
 
 public:
 
@@ -122,7 +122,7 @@ public:
 	 *
 	 * @param ComponentTypeID The component type to destroy
 	 */
-	void DestroyComponentTypeSafe(FComponentTypeID ComponentTypeID);
+	MOVIESCENE_API void DestroyComponentTypeSafe(FComponentTypeID ComponentTypeID);
 
 
 	/**
@@ -131,7 +131,7 @@ public:
 	 *
 	 * @param ComponentTypeID The component type to destroy
 	 */
-	void DestroyComponentUnsafeFast(FComponentTypeID ComponentTypeID);
+	MOVIESCENE_API void DestroyComponentUnsafeFast(FComponentTypeID ComponentTypeID);
 
 public:
 
@@ -169,7 +169,7 @@ public:
 
 private:
 
-	FComponentTypeID NewComponentTypeInternal(FComponentTypeInfo&& TypeInfo);
+	MOVIESCENE_API FComponentTypeID NewComponentTypeInternal(FComponentTypeInfo&& TypeInfo);
 
 	template<typename T>
 	FComponentTypeInfo MakeComponentTypeInfoWithoutComponentOps(const TCHAR* const DebugName, const FNewComponentTypeParams& Params);

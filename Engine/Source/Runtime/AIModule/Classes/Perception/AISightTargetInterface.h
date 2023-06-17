@@ -10,13 +10,13 @@
 
 class AActor;
 
-UINTERFACE()
-class AIMODULE_API UAISightTargetInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UAISightTargetInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-struct AIMODULE_API FCanBeSeenFromContext
+struct FCanBeSeenFromContext
 {
 	/** The query identifier used by the delegate call to find the appropriate query */
 	FAISightQueryID SightQueryID;
@@ -28,7 +28,7 @@ struct AIMODULE_API FCanBeSeenFromContext
 	const bool* bWasVisible = nullptr;
 };
 
-class AIMODULE_API IAISightTargetInterface
+class IAISightTargetInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

@@ -24,13 +24,13 @@ class SAutoRefreshViewport;
 /**
 * Stores the transformation data for the viewport camera
 */
-struct UMG_API FUMGViewportCameraTransform
+struct FUMGViewportCameraTransform
 {
 public:
-	FUMGViewportCameraTransform();
+	UMG_API FUMGViewportCameraTransform();
 
 	/** Sets the transform's location */
-	void SetLocation(const FVector& Position);
+	UMG_API void SetLocation(const FVector& Position);
 
 	/** Sets the transform's rotation */
 	void SetRotation(const FRotator& Rotation)
@@ -69,19 +69,19 @@ public:
 	* @param InDesiredLocation	The location to transition to
 	* @param bInstant			If the desired location should be set instantly rather than transitioned to over time
 	*/
-	void TransitionToLocation(const FVector& InDesiredLocation, bool bInstant);
+	UMG_API void TransitionToLocation(const FVector& InDesiredLocation, bool bInstant);
 
 	/**
 	* Updates any current location transitions
 	*
 	* @return true if there is currently a transition
 	*/
-	bool UpdateTransition();
+	UMG_API bool UpdateTransition();
 
 	/**
 	* Computes a matrix to use for viewport location and rotation when orbiting
 	*/
-	FMatrix ComputeOrbitMatrix() const;
+	UMG_API FMatrix ComputeOrbitMatrix() const;
 private:
 	/** The time when a transition to the desired location began */
 	double TransitionStartTime;
@@ -100,35 +100,35 @@ private:
 };
 
 
-class UMG_API FUMGViewportClient : public FCommonViewportClient, public FViewElementDrawer
+class FUMGViewportClient : public FCommonViewportClient, public FViewElementDrawer
 {
 public:
-	FUMGViewportClient(FPreviewScene* InPreviewScene = nullptr);
-	virtual ~FUMGViewportClient();
+	UMG_API FUMGViewportClient(FPreviewScene* InPreviewScene = nullptr);
+	UMG_API virtual ~FUMGViewportClient();
 
 	using FViewElementDrawer::Draw;
 
 	// FViewportClient interface
-	virtual UWorld* GetWorld() const override;
-	virtual void Draw(FViewport* InViewport, FCanvas* Canvas) override;
+	UMG_API virtual UWorld* GetWorld() const override;
+	UMG_API virtual void Draw(FViewport* InViewport, FCanvas* Canvas) override;
 
 	// FUMGViewportClient
 
-	virtual void Tick(float InDeltaTime);
+	UMG_API virtual void Tick(float InDeltaTime);
 
-	virtual FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily);
+	UMG_API virtual FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily);
 
 
 	/**
 	 * @return The scene being rendered in this viewport
 	 */
-	virtual FSceneInterface* GetScene() const;
+	UMG_API virtual FSceneInterface* GetScene() const;
 
 
-	bool IsAspectRatioConstrained() const;
+	UMG_API bool IsAspectRatioConstrained() const;
 
-	void SetBackgroundColor(FLinearColor InBackgroundColor);
-	FLinearColor GetBackgroundColor() const;
+	UMG_API void SetBackgroundColor(FLinearColor InBackgroundColor);
+	UMG_API FLinearColor GetBackgroundColor() const;
 
 	/** Sets the location of the viewport's camera */
 	void SetViewLocation(const FVector& NewLocation)
@@ -195,7 +195,7 @@ public:
 	}
 
 	/** @return The number of units per pixel displayed in this viewport */
-	float GetOrthoUnitsPerPixel(const FViewport* Viewport) const;
+	UMG_API float GetOrthoUnitsPerPixel(const FViewport* Viewport) const;
 
 	void SetEngineShowFlags(FEngineShowFlags InEngineShowFlags)
 	{
@@ -226,8 +226,8 @@ protected:
 /**
  * 
  */
-UCLASS(Experimental)
-class UMG_API UViewport : public UContentWidget
+UCLASS(Experimental, MinimalAPI)
+class UViewport : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -236,42 +236,42 @@ class UMG_API UViewport : public UContentWidget
 	FLinearColor BackgroundColor;
 
 	UFUNCTION(BlueprintCallable, Category="Viewport")
-	UWorld* GetViewportWorld() const;
+	UMG_API UWorld* GetViewportWorld() const;
 
 	UFUNCTION(BlueprintCallable, Category="Camera")
-	FVector GetViewLocation() const;
+	UMG_API FVector GetViewLocation() const;
 
 	UFUNCTION(BlueprintCallable, Category="Camera")
-	void SetViewLocation(FVector Location);
+	UMG_API void SetViewLocation(FVector Location);
 
 	UFUNCTION(BlueprintCallable, Category="Camera")
-	FRotator GetViewRotation() const;
+	UMG_API FRotator GetViewRotation() const;
 
 	UFUNCTION(BlueprintCallable, Category="Camera")
-	void SetViewRotation(FRotator Rotation);
+	UMG_API void SetViewRotation(FRotator Rotation);
 
 	UFUNCTION(BlueprintCallable, Category="Viewport")
-	AActor* Spawn(TSubclassOf<AActor> ActorClass);
+	UMG_API AActor* Spawn(TSubclassOf<AActor> ActorClass);
 
-	void SetBackgroundColor(const FLinearColor& InColor);
+	UMG_API void SetBackgroundColor(const FLinearColor& InColor);
 
-	const FLinearColor& GetBackgroundColor() const;
+	UMG_API const FLinearColor& GetBackgroundColor() const;
 
 	// UWidget interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
 protected:
@@ -279,7 +279,7 @@ protected:
 
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
 	/** Show flags for the engine for this viewport */

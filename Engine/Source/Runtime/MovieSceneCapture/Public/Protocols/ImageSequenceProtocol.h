@@ -13,30 +13,30 @@
 struct FMovieSceneCaptureSettings;
 class IImageWriteQueue;
 
-UCLASS(Abstract, config=EditorPerProjectUserSettings)
-class MOVIESCENECAPTURE_API UImageSequenceProtocol : public UFrameGrabberProtocol
+UCLASS(Abstract, config=EditorPerProjectUserSettings, MinimalAPI)
+class UImageSequenceProtocol : public UFrameGrabberProtocol
 {
 public:
 
 	GENERATED_BODY()
 
-	UImageSequenceProtocol(const FObjectInitializer& ObjInit);
+	MOVIESCENECAPTURE_API UImageSequenceProtocol(const FObjectInitializer& ObjInit);
 
 public:
 
 	/** ~UFrameGrabberProtocol implementation */
-	virtual FFramePayloadPtr GetFramePayload(const FFrameMetrics& FrameMetrics);
-	virtual void ProcessFrame(FCapturedFrameData Frame);
+	MOVIESCENECAPTURE_API virtual FFramePayloadPtr GetFramePayload(const FFrameMetrics& FrameMetrics);
+	MOVIESCENECAPTURE_API virtual void ProcessFrame(FCapturedFrameData Frame);
 	/** ~End UFrameGrabberProtocol implementation */
 
 	/** ~ UMovieSceneCaptureProtocol implementation */
-	virtual bool SetupImpl() override;
-	virtual void AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const override;
-	virtual void BeginFinalizeImpl() override;
-	virtual void FinalizeImpl() override;
-	virtual bool HasFinishedProcessingImpl() const override;
-	virtual void OnReleaseConfigImpl(FMovieSceneCaptureSettings& InSettings) override;
-	virtual void OnLoadConfigImpl(FMovieSceneCaptureSettings& InSettings) override;
+	MOVIESCENECAPTURE_API virtual bool SetupImpl() override;
+	MOVIESCENECAPTURE_API virtual void AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const override;
+	MOVIESCENECAPTURE_API virtual void BeginFinalizeImpl() override;
+	MOVIESCENECAPTURE_API virtual void FinalizeImpl() override;
+	MOVIESCENECAPTURE_API virtual bool HasFinishedProcessingImpl() const override;
+	MOVIESCENECAPTURE_API virtual void OnReleaseConfigImpl(FMovieSceneCaptureSettings& InSettings) override;
+	MOVIESCENECAPTURE_API virtual void OnLoadConfigImpl(FMovieSceneCaptureSettings& InSettings) override;
 	/** ~End UMovieSceneCaptureProtocol implementation */
 
 protected:
@@ -59,8 +59,8 @@ private:
 	TFuture<void> FinalizeFence;
 };
 
-UCLASS(config=EditorPerProjectUserSettings, Abstract)
-class MOVIESCENECAPTURE_API UCompressedImageSequenceProtocol : public UImageSequenceProtocol
+UCLASS(config=EditorPerProjectUserSettings, Abstract, MinimalAPI)
+class UCompressedImageSequenceProtocol : public UImageSequenceProtocol
 {
 public:
 
@@ -79,12 +79,12 @@ public:
 protected:
 
 	virtual int32 GetCompressionQuality() const override { return CompressionQuality; }
-	virtual bool SetupImpl() override;
-	virtual void AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const override;
+	MOVIESCENECAPTURE_API virtual bool SetupImpl() override;
+	MOVIESCENECAPTURE_API virtual void AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const override;
 };
 
-UCLASS(meta=(DisplayName="Image Sequence (bmp)", CommandLineID="BMP"))
-class MOVIESCENECAPTURE_API UImageSequenceProtocol_BMP : public UImageSequenceProtocol
+UCLASS(meta=(DisplayName="Image Sequence (bmp)", CommandLineID="BMP"), MinimalAPI)
+class UImageSequenceProtocol_BMP : public UImageSequenceProtocol
 {
 public:
 
@@ -97,8 +97,8 @@ public:
 	}
 };
 
-UCLASS(meta=(DisplayName="Image Sequence (png)", CommandLineID="PNG"))
-class MOVIESCENECAPTURE_API UImageSequenceProtocol_PNG : public UCompressedImageSequenceProtocol
+UCLASS(meta=(DisplayName="Image Sequence (png)", CommandLineID="PNG"), MinimalAPI)
+class UImageSequenceProtocol_PNG : public UCompressedImageSequenceProtocol
 {
 public:
 
@@ -111,8 +111,8 @@ public:
 	}
 };
 
-UCLASS(meta=(DisplayName="Image Sequence (jpg)", CommandLineID="JPG"))
-class MOVIESCENECAPTURE_API UImageSequenceProtocol_JPG : public UCompressedImageSequenceProtocol
+UCLASS(meta=(DisplayName="Image Sequence (jpg)", CommandLineID="JPG"), MinimalAPI)
+class UImageSequenceProtocol_JPG : public UCompressedImageSequenceProtocol
 {
 public:
 
@@ -125,8 +125,8 @@ public:
 	}
 };
 
-UCLASS(meta=(DisplayName="Image Sequence (exr)", CommandLineID="EXR"))
-class MOVIESCENECAPTURE_API UImageSequenceProtocol_EXR : public UImageSequenceProtocol
+UCLASS(meta=(DisplayName="Image Sequence (exr)", CommandLineID="EXR"), MinimalAPI)
+class UImageSequenceProtocol_EXR : public UImageSequenceProtocol
 {
 public:
 
@@ -140,13 +140,13 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=ImageSettings)
 	TEnumAsByte<EHDRCaptureGamut> CaptureGamut;
 
-	UImageSequenceProtocol_EXR(const FObjectInitializer& ObjInit);
+	MOVIESCENECAPTURE_API UImageSequenceProtocol_EXR(const FObjectInitializer& ObjInit);
 
 private:
 	virtual int32 GetCompressionQuality() const override { return bCompressed ? (int32)EImageCompressionQuality::Default : (int32)EImageCompressionQuality::Uncompressed; }
-	virtual bool SetupImpl() override;
-	virtual void FinalizeImpl() override;
-	virtual void AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const override;
+	MOVIESCENECAPTURE_API virtual bool SetupImpl() override;
+	MOVIESCENECAPTURE_API virtual void FinalizeImpl() override;
+	MOVIESCENECAPTURE_API virtual void AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const override;
 
 	EDisplayColorGamut RestoreColorGamut;
 	EDisplayOutputFormat RestoreOutputDevice;

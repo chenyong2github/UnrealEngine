@@ -18,7 +18,7 @@ class FDynamicMesh3;
  * This is a convenient object to have, to avoid passing around large numbers of separate maps.
  * The individual maps are not necessarily all filled by every operation.
  */
-struct GEOMETRYCORE_API FMeshIndexMappings
+struct FMeshIndexMappings
 {
 protected:
 	FIndexMapi VertexMap;
@@ -31,7 +31,7 @@ protected:
 
 public:
 	/** Size internal arrays-of-maps to be suitable for this Mesh */
-	void Initialize(FDynamicMesh3* Mesh);
+	GEOMETRYCORE_API void Initialize(FDynamicMesh3* Mesh);
 
 	/** @return the value used to indicate "invalid" in the mapping */
 	constexpr int InvalidID() const { return VertexMap.UnmappedID(); }

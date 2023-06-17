@@ -22,30 +22,30 @@ class UObject;
  * Trivial InputBehavior that forwards InputBehavior hover events to a Target object via
  * the IHoverBehaviorTarget interface.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UMouseHoverBehavior : public UInputBehavior
+UCLASS(MinimalAPI)
+class UMouseHoverBehavior : public UInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	UMouseHoverBehavior();
+	INTERACTIVETOOLSFRAMEWORK_API UMouseHoverBehavior();
 
 	/**
 	 * The modifier set for this behavior
 	 */
 	FInputBehaviorModifierStates Modifiers;
 
-	virtual void Initialize(IHoverBehaviorTarget* Target);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IHoverBehaviorTarget* Target);
 
 	// UInputBehavior hover implementation
 
-	virtual EInputDevices GetSupportedDevices() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual EInputDevices GetSupportedDevices() override;
 
-	virtual bool WantsHoverEvents() override;
-	virtual FInputCaptureRequest WantsHoverCapture(const FInputDeviceState& InputState) override;
-	virtual FInputCaptureUpdate BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide) override;
-	virtual FInputCaptureUpdate UpdateHoverCapture(const FInputDeviceState& InputState) override;
-	virtual void EndHoverCapture() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool WantsHoverEvents() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsHoverCapture(const FInputDeviceState& InputState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateHoverCapture(const FInputDeviceState& InputState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndHoverCapture() override;
 
 protected:
 	IHoverBehaviorTarget* Target;
@@ -57,8 +57,8 @@ protected:
  * of local lambda functions. To use/customize this class, the client replaces the lambda functions with their own.
  * This avoids having to create a separate IHoverBehaviorTarget implementation for trivial use-cases.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API ULocalMouseHoverBehavior : public UMouseHoverBehavior, public IHoverBehaviorTarget
+UCLASS(MinimalAPI)
+class ULocalMouseHoverBehavior : public UMouseHoverBehavior, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 protected:

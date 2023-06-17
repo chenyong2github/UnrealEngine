@@ -96,7 +96,7 @@ namespace MovieScene
  * Base class channel data utility that provides a consistent interface to a sorted array of times and handles.
  * Complete access should be through TMovieSceneChannelData that allows mutation of the data
  */
-struct MOVIESCENE_API FMovieSceneChannelData
+struct FMovieSceneChannelData
 {
 	/**
 	 * Read-only access to this channel's key times.
@@ -121,7 +121,7 @@ struct MOVIESCENE_API FMovieSceneChannelData
 	 * @param Index          The index to retrieve
 	 * @return A key handle that identifies the key at the specified index, regardless of re-ordering
 	 */
-	FKeyHandle GetHandle(int32 Index);
+	MOVIESCENE_API FKeyHandle GetHandle(int32 Index);
 
 	/**
 	 * Attempt to retrieve the index of key from its handle
@@ -129,7 +129,7 @@ struct MOVIESCENE_API FMovieSceneChannelData
 	 * @param Handle         The handle to retrieve
 	 * @return The index of the key, or INDEX_NONE
 	 */
-	int32 GetIndex(FKeyHandle Handle);
+	MOVIESCENE_API int32 GetIndex(FKeyHandle Handle);
 
 	/**
 	 * Attempt to find a key at a given time and tolerance
@@ -138,7 +138,7 @@ struct MOVIESCENE_API FMovieSceneChannelData
 	 * @param InTolerance    A tolerance of frame numbers to allow either side of the specified time
 	 * @return The index of the key closest to InTime and within InTolerance, or INDEX_NONE
 	 */
-	int32 FindKey(FFrameNumber InTime, FFrameNumber InTolerance = 0);
+	MOVIESCENE_API int32 FindKey(FFrameNumber InTime, FFrameNumber InTolerance = 0);
 
 	/**
 	 * Find the range of keys that fall around InTime +/- InTolerance up to a maximum
@@ -149,14 +149,14 @@ struct MOVIESCENE_API FMovieSceneChannelData
 	 * @param OutMax         The latest index that met the conditions of the search
 	 * @param InTolerance    The tolerance range to search around PredicateTime with
 	 */
-	void FindKeys(FFrameNumber InTime, int32 MaxNum, int32& OutMinIndex, int32& OutMaxIndex, int32 InTolerance);
+	MOVIESCENE_API void FindKeys(FFrameNumber InTime, int32 MaxNum, int32& OutMinIndex, int32& OutMaxIndex, int32 InTolerance);
 
 	/**
 	 * Compute the total time range of the channel data.
 	 *
 	 * @return The range of this channel data
 	 */
-	TRange<FFrameNumber> GetTotalRange() const;
+	MOVIESCENE_API TRange<FFrameNumber> GetTotalRange() const;
 
 	/**
 	 * Convert the frame resolution of a movie scene channel by moving the key times to the equivalent frame time
@@ -164,7 +164,7 @@ struct MOVIESCENE_API FMovieSceneChannelData
 	 * @param SourceRate      The frame rate the channel is currently in
 	 * @param DestinationRate The new frame rate to convert the channel to
 	 */
-	void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate);
+	MOVIESCENE_API void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate);
 
 	/**
 	 * Get all the keys in the given range. Resulting arrays must be the same size where indices correspond to both arrays.
@@ -173,7 +173,7 @@ struct MOVIESCENE_API FMovieSceneChannelData
 	 * @param OutKeyTimes        Array to receive all key times within the given range
 	 * @param OutKeyHandles      Array to receive all key handles within the given range
 	 */
-	void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles);
+	MOVIESCENE_API void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles);
 
 	/**
 	 * Get key times for a number of keys in the channel data
@@ -181,14 +181,14 @@ struct MOVIESCENE_API FMovieSceneChannelData
 	 * @param InHandles          Array of key handles that should have their times set
 	 * @param OutKeyTimes        Array of times that should be set for each key handle. Must be exactly the size of InHandles
 	 */
-	void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes);
+	MOVIESCENE_API void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes);
 
 	/**
 	 * Offset the channel data by a given delta time
 	 *
 	 * @param DeltaTime     The time to offset by
 	 */
-	void Offset(FFrameNumber DeltaTime);
+	MOVIESCENE_API void Offset(FFrameNumber DeltaTime);
 
 protected:
 
@@ -199,21 +199,21 @@ protected:
 	 * @param InKeyHandles   A key handle map used for persistent, order independent identification of keys
 	 * @param InChannel      A optional pointer to the owning channel.
 	 */
-	FMovieSceneChannelData(TArray<FFrameNumber>* InTimes, FKeyHandleLookupTable* InKeyHandles, FMovieSceneChannel* InChannel = nullptr);
+	MOVIESCENE_API FMovieSceneChannelData(TArray<FFrameNumber>* InTimes, FKeyHandleLookupTable* InKeyHandles, FMovieSceneChannel* InChannel = nullptr);
 
 	/**
 	 * Move the key at index KeyIndex to a new time
 	 *
 	 * @return The index of the key in its new position
 	 */
-	int32 MoveKeyInternal(int32 KeyIndex, FFrameNumber InNewTime);
+	MOVIESCENE_API int32 MoveKeyInternal(int32 KeyIndex, FFrameNumber InNewTime);
 
 	/**
 	 * Add a new key at the specified time
 	 *
 	 * @return The index of the key in its new position
 	 */
-	int32 AddKeyInternal(FFrameNumber InTime);
+	MOVIESCENE_API int32 AddKeyInternal(FFrameNumber InTime);
 
 
 protected:

@@ -13,8 +13,8 @@
 
 class UProceduralFoliageTile;
 
-UCLASS(BlueprintType, Blueprintable)
-class FOLIAGE_API UProceduralFoliageSpawner : public UObject
+UCLASS(BlueprintType, Blueprintable, MinimalAPI)
+class UProceduralFoliageSpawner : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -54,10 +54,10 @@ private:
 
 public:
 	UFUNCTION(BlueprintCallable, Category = ProceduralFoliageSimulation)
-	void Simulate(int32 NumSteps = -1);
-	void Empty();
+	FOLIAGE_API void Simulate(int32 NumSteps = -1);
+	FOLIAGE_API void Empty();
 
-	int32 GetRandomNumber();
+	FOLIAGE_API int32 GetRandomNumber();
 
 	const TArray<FFoliageTypeObject>& GetFoliageTypes() const { return FoliageTypes; }
 
@@ -66,20 +66,20 @@ public:
 	const TArray<TSoftObjectPtr<UMaterialInterface>>& GetFoliageTerrainMaterials() const { return OverrideFoliageTerrainMaterials; }
 
 	/** Returns the instances that need to spawn for a given min,max region */
-	void GetInstancesToSpawn(TArray<FProceduralFoliageInstance>& OutInstances, const FVector& Min = FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX), const FVector& Max = FVector(FLT_MAX, FLT_MAX, FLT_MAX) ) const;
+	FOLIAGE_API void GetInstancesToSpawn(TArray<FProceduralFoliageInstance>& OutInstances, const FVector& Min = FVector(-FLT_MAX, -FLT_MAX, -FLT_MAX), const FVector& Max = FVector(FLT_MAX, FLT_MAX, FLT_MAX) ) const;
 
-	virtual void Serialize(FArchive& Ar);
+	FOLIAGE_API virtual void Serialize(FArchive& Ar);
 
 	/** Takes a tile index and returns a random tile associated with that index. */
-	const UProceduralFoliageTile* GetRandomTile(int32 X, int32 Y);
+	FOLIAGE_API const UProceduralFoliageTile* GetRandomTile(int32 X, int32 Y);
 
 	/** Creates a temporary empty tile with the appropriate settings created for it. */
-	UProceduralFoliageTile* CreateTempTile();
+	FOLIAGE_API UProceduralFoliageTile* CreateTempTile();
 
 private:
-	void CreateProceduralFoliageInstances();
+	FOLIAGE_API void CreateProceduralFoliageInstances();
 
-	void SetClean();
+	FOLIAGE_API void SetClean();
 private:
 	TArray<TWeakObjectPtr<UProceduralFoliageTile>> PrecomputedTiles;
 

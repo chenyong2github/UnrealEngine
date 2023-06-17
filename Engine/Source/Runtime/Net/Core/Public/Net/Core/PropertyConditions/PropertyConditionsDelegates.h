@@ -15,7 +15,7 @@ enum ELifetimeCondition : int;
 namespace UE::Net::Private
 {
 
-class NETCORE_API FPropertyConditionDelegates
+class FPropertyConditionDelegates
 {
 public:
 	using FOnPropertyCustomConditionChanged = TMulticastDelegate<void(const UObject* OwningObject, const uint16 RepIndex, const bool bActive)>;
@@ -25,8 +25,8 @@ public:
 	static FOnPropertyDynamicConditionChanged& GetOnPropertyDynamicConditionChangedDelegate() { return OnPropertyDynamicConditionChangedDelegate; }
 
 private:
-	static FOnPropertyCustomConditionChanged OnPropertyCustomConditionChangedDelegate;
-	static FOnPropertyDynamicConditionChanged OnPropertyDynamicConditionChangedDelegate;
+	static NETCORE_API FOnPropertyCustomConditionChanged OnPropertyCustomConditionChangedDelegate;
+	static NETCORE_API FOnPropertyDynamicConditionChanged OnPropertyDynamicConditionChangedDelegate;
 };
 
 } // UE::Net::Private

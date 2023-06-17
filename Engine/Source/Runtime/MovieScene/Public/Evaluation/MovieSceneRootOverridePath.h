@@ -20,12 +20,12 @@ namespace MovieScene
  * A path of unaccumulated sequence IDs ordered from child->parent->grandparent that is used to generate unique sequenceIDs for inner sequences
  * Optimized for Remap rather than Push/Pop by keeping sequence IDs child-parent order (the order they are required for remapping)
  */
-struct MOVIESCENE_API FSubSequencePath
+struct FSubSequencePath
 {
 	/**
 	 * Default construction to a root path
 	 */
-	FSubSequencePath();
+	MOVIESCENE_API FSubSequencePath();
 
 	/**
 	 * Set up this path from a specific sequence ID that points to a particular sequence in the specified hierarchy
@@ -33,7 +33,7 @@ struct MOVIESCENE_API FSubSequencePath
 	 * @param LeafID 			ID of the child-most sequence to include in this path
 	 * @param Player 			Player from which to retrieve the hierarchy
 	 */
-	explicit FSubSequencePath(FMovieSceneSequenceID LeafID, IMovieScenePlayer& Player);
+	MOVIESCENE_API explicit FSubSequencePath(FMovieSceneSequenceID LeafID, IMovieScenePlayer& Player);
 
 	/**
 	 * Set up this path from a specific sequence ID that points to a particular sequence in the specified hierarchy
@@ -41,7 +41,7 @@ struct MOVIESCENE_API FSubSequencePath
 	 * @param LeafID 			ID of the child-most sequence to include in this path
 	 * @param RootHierarchy 	Hierarchy to get sequence IDs from
 	 */
-	explicit FSubSequencePath(FMovieSceneSequenceID LeafID, const FMovieSceneSequenceHierarchy* RootHierarchy);
+	MOVIESCENE_API explicit FSubSequencePath(FMovieSceneSequenceID LeafID, const FMovieSceneSequenceHierarchy* RootHierarchy);
 
 
 	/**
@@ -51,7 +51,7 @@ struct MOVIESCENE_API FSubSequencePath
 	 * @param B					The second sequence path
 	 * @return The leaf-most parent common to both paths, or MovieSceneSequenceID::Root
 	 */
-	static FMovieSceneSequenceID FindCommonParent(const FSubSequencePath& A, const FSubSequencePath& B);
+	static MOVIESCENE_API FMovieSceneSequenceID FindCommonParent(const FSubSequencePath& A, const FSubSequencePath& B);
 
 
 	/**
@@ -77,7 +77,7 @@ struct MOVIESCENE_API FSubSequencePath
 	/**
 	 * Reset this path to its default state (pointing to the root sequence)
 	 */
-	void Reset();
+	MOVIESCENE_API void Reset();
 
 
 	/**
@@ -86,7 +86,7 @@ struct MOVIESCENE_API FSubSequencePath
 	 * @param LeafID 			ID of the child-most sequence to include in this path
 	 * @param RootHierarchy 	Hierarchy to get sequence IDs from
 	 */
-	void Reset(FMovieSceneSequenceID LeafID, const FMovieSceneSequenceHierarchy* RootHierarchy);
+	MOVIESCENE_API void Reset(FMovieSceneSequenceID LeafID, const FMovieSceneSequenceHierarchy* RootHierarchy);
 
 
 	/**
@@ -95,7 +95,7 @@ struct MOVIESCENE_API FSubSequencePath
 	 * @param SequenceID		ID of the sequence to check for
 	 * @return true if this path contains the sequence ID (or SequenceID == MovieSceneSequenceID::Root), false otherwise
 	 */
-	bool Contains(FMovieSceneSequenceID SequenceID) const;
+	MOVIESCENE_API bool Contains(FMovieSceneSequenceID SequenceID) const;
 
 
 	/**
@@ -104,7 +104,7 @@ struct MOVIESCENE_API FSubSequencePath
 	 * @param SequenceID		ID of the parent sequence to count generations to
 	 * @return The number of generations between the two nodes. (ie, 0 where SequenceID == Leaf, 1 for Immediate parents, 2 for grandparents etc)
 	 */
-	int32 NumGenerationsFromLeaf(FMovieSceneSequenceID SequenceID) const;
+	MOVIESCENE_API int32 NumGenerationsFromLeaf(FMovieSceneSequenceID SequenceID) const;
 
 
 	/**
@@ -113,7 +113,7 @@ struct MOVIESCENE_API FSubSequencePath
 	 * @param SequenceID		ID of the child sequence to count generations to
 	 * @return The number of generations between the two nodes. (ie, 0 where SequenceID == Root, 1 for Immediate children, 2 for grandchildren)
 	 */
-	int32 NumGenerationsFromRoot(FMovieSceneSequenceID SequenceID) const;
+	MOVIESCENE_API int32 NumGenerationsFromRoot(FMovieSceneSequenceID SequenceID) const;
 
 	/**
 	 * 
@@ -121,15 +121,15 @@ struct MOVIESCENE_API FSubSequencePath
 	 * @param 
 	 * @return
 	 */
-	FMovieSceneSequenceID MakeLocalSequenceID(FMovieSceneSequenceID ParentSequenceID) const;
+	MOVIESCENE_API FMovieSceneSequenceID MakeLocalSequenceID(FMovieSceneSequenceID ParentSequenceID) const;
 
-	FMovieSceneSequenceID MakeLocalSequenceID(FMovieSceneSequenceID ParentSequenceID, FMovieSceneSequenceID TargetSequenceID) const;
+	MOVIESCENE_API FMovieSceneSequenceID MakeLocalSequenceID(FMovieSceneSequenceID ParentSequenceID, FMovieSceneSequenceID TargetSequenceID) const;
 
-	void PushGeneration(FMovieSceneSequenceID AccumulatedSequenceID, FMovieSceneSequenceID UnaccumulatedSequenceID);
+	MOVIESCENE_API void PushGeneration(FMovieSceneSequenceID AccumulatedSequenceID, FMovieSceneSequenceID UnaccumulatedSequenceID);
 
-	void PopTo(FMovieSceneSequenceID ParentSequenceID);
+	MOVIESCENE_API void PopTo(FMovieSceneSequenceID ParentSequenceID);
 
-	void PopGenerations(int32 NumGenerations);
+	MOVIESCENE_API void PopGenerations(int32 NumGenerations);
 
 private:
 

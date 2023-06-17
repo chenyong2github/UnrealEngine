@@ -33,22 +33,22 @@ public:
 	virtual void OnMediaSample(const AVEncoder::FMediaPacket& Sample) = 0;
 };
 
-class GAMEPLAYMEDIAENCODER_API FGameplayMediaEncoder final : private ISubmixBufferListener, public AVEncoder::IAudioEncoderListener
+class FGameplayMediaEncoder final : private ISubmixBufferListener, public AVEncoder::IAudioEncoderListener
 {
 public:
 
 	/**
 	 * Get the singleton
 	 */
-	static FGameplayMediaEncoder* Get();
+	static GAMEPLAYMEDIAENCODER_API FGameplayMediaEncoder* Get();
 
-	~FGameplayMediaEncoder();
+	GAMEPLAYMEDIAENCODER_API ~FGameplayMediaEncoder();
 
-	bool RegisterListener(IGameplayMediaEncoderListener* Listener);
-	void UnregisterListener(IGameplayMediaEncoderListener* Listener);
+	GAMEPLAYMEDIAENCODER_API bool RegisterListener(IGameplayMediaEncoderListener* Listener);
+	GAMEPLAYMEDIAENCODER_API void UnregisterListener(IGameplayMediaEncoderListener* Listener);
 
-	void SetVideoBitrate(uint32 Bitrate);
-	void SetVideoFramerate(uint32 Framerate);
+	GAMEPLAYMEDIAENCODER_API void SetVideoBitrate(uint32 Bitrate);
+	GAMEPLAYMEDIAENCODER_API void SetVideoFramerate(uint32 Framerate);
 
 	///**
 	// * Returns the audio codec name and configuration
@@ -56,10 +56,10 @@ public:
 	//TPair<FString, AVEncoder::FAudioConfig> GetAudioConfig() const;
 	//TPair<FString, AVEncoder::FVideoConfig> GetVideoConfig() const;
 
-	bool Initialize();
-	void Shutdown();
-	bool Start();
-	void Stop();
+	GAMEPLAYMEDIAENCODER_API bool Initialize();
+	GAMEPLAYMEDIAENCODER_API void Shutdown();
+	GAMEPLAYMEDIAENCODER_API bool Start();
+	GAMEPLAYMEDIAENCODER_API void Stop();
 
 	static void InitializeCmd()
 	{
@@ -85,34 +85,34 @@ public:
 		Get()->Stop();
 	}
 
-	AVEncoder::FAudioConfig GetAudioConfig() const;
+	GAMEPLAYMEDIAENCODER_API AVEncoder::FAudioConfig GetAudioConfig() const;
 	AVEncoder::FVideoConfig GetVideoConfig() const { return VideoConfig; }
 
 private:
 
 	// Private to control how our single instance is created
-	FGameplayMediaEncoder();
+	GAMEPLAYMEDIAENCODER_API FGameplayMediaEncoder();
 
 	// Returns how long it has been recording for.
-	FTimespan GetMediaTimestamp() const;
+	GAMEPLAYMEDIAENCODER_API FTimespan GetMediaTimestamp() const;
 
 	// Back buffer capture
-	void OnFrameBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer);
+	GAMEPLAYMEDIAENCODER_API void OnFrameBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer);
 	// ISubmixBufferListener interface
-	void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
+	GAMEPLAYMEDIAENCODER_API void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
 
-	void ProcessAudioFrame(const float* AudioData, int32 NumSamples, int32 NumChannels, int32 SampleRate);
-	void ProcessVideoFrame(const FTexture2DRHIRef& FrameBuffer);
+	GAMEPLAYMEDIAENCODER_API void ProcessAudioFrame(const float* AudioData, int32 NumSamples, int32 NumChannels, int32 SampleRate);
+	GAMEPLAYMEDIAENCODER_API void ProcessVideoFrame(const FTexture2DRHIRef& FrameBuffer);
 
-	void UpdateVideoConfig();
+	GAMEPLAYMEDIAENCODER_API void UpdateVideoConfig();
 
-	void OnEncodedAudioFrame(const AVEncoder::FMediaPacket& Packet) override;
-	void OnEncodedVideoFrame(uint32 LayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> Frame, const AVEncoder::FCodecPacket& Packet);
+	GAMEPLAYMEDIAENCODER_API void OnEncodedAudioFrame(const AVEncoder::FMediaPacket& Packet) override;
+	GAMEPLAYMEDIAENCODER_API void OnEncodedVideoFrame(uint32 LayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> Frame, const AVEncoder::FCodecPacket& Packet);
 
-	TSharedPtr<AVEncoder::FVideoEncoderInputFrame> ObtainInputFrame();
-	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture) const;
+	GAMEPLAYMEDIAENCODER_API TSharedPtr<AVEncoder::FVideoEncoderInputFrame> ObtainInputFrame();
+	GAMEPLAYMEDIAENCODER_API void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture) const;
 
-	void FloatToPCM16(float const* floatSamples, int32 numSamples, TArray<int16>& out) const;
+	GAMEPLAYMEDIAENCODER_API void FloatToPCM16(float const* floatSamples, int32 numSamples, TArray<int16>& out) const;
 
 	FCriticalSection ListenersCS;
 	TArray<IGameplayMediaEncoderListener*> Listeners;
@@ -141,7 +141,7 @@ private:
 	bool bDoFrameSkipping = false;
 
 	friend class FGameplayMediaEncoderModule;
-	static FGameplayMediaEncoder* Singleton;
+	static GAMEPLAYMEDIAENCODER_API FGameplayMediaEncoder* Singleton;
 
 	// live streaming: quality adaptation to available uplink b/w
 	TAtomic<uint32> NewVideoBitrate{ 0 };

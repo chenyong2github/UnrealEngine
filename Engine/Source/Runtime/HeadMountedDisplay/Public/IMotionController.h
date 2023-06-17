@@ -44,7 +44,7 @@ struct FMotionControllerSource
  *			to be both piggy-backed off HMD devices which support them, as well as standing alone.
  */
 
-class HEADMOUNTEDDISPLAY_API IMotionController : public IModularFeature
+class IMotionController : public IModularFeature
 {
 public:
 	virtual ~IMotionController() {}
@@ -136,9 +136,9 @@ public:
 	virtual bool SetPlayerMappableInputConfig(TObjectPtr<class UPlayerMappableInputConfig> InputConfig = nullptr) { return true; };
 
 	// explicit source names
-	static FName LeftHandSourceId;
-	static FName RightHandSourceId;
-	static FName HMDSourceId;
+	static HEADMOUNTEDDISPLAY_API FName LeftHandSourceId;
+	static HEADMOUNTEDDISPLAY_API FName RightHandSourceId;
+	static HEADMOUNTEDDISPLAY_API FName HMDSourceId;
 
-	static bool GetHandEnumForSourceName(const FName Source, EControllerHand& OutHand);
+	static HEADMOUNTEDDISPLAY_API bool GetHandEnumForSourceName(const FName Source, EControllerHand& OutHand);
 };

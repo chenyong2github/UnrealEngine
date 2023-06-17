@@ -11,11 +11,11 @@
 class AActor;
 class FSceneViewport;
 
-UCLASS()
-class MOVIESCENECAPTURE_API ULevelCapture : public UMovieSceneCapture
+UCLASS(MinimalAPI)
+class ULevelCapture : public UMovieSceneCapture
 {
 public:
-	ULevelCapture(const FObjectInitializer&);
+	MOVIESCENECAPTURE_API ULevelCapture(const FObjectInitializer&);
 
 	GENERATED_BODY()
 
@@ -24,10 +24,10 @@ public:
 	bool bAutoStartCapture;
 
 	/** Specify a prerequisite actor that must be set up before we start capturing */
-	void SetPrerequisiteActor(AActor* Prereq);
+	MOVIESCENECAPTURE_API void SetPrerequisiteActor(AActor* Prereq);
 
-	virtual void Initialize(TSharedPtr<FSceneViewport> InViewport, int32 PIEInstance = -1) override;
-	virtual void OnTick(float DeltaSeconds) override;
+	MOVIESCENECAPTURE_API virtual void Initialize(TSharedPtr<FSceneViewport> InViewport, int32 PIEInstance = -1) override;
+	MOVIESCENECAPTURE_API virtual void OnTick(float DeltaSeconds) override;
 	
 private:
 

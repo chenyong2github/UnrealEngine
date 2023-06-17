@@ -20,24 +20,24 @@ class UBehaviorTree;
  *  Please use them safely (unregister at abort) and call IsTaskExecuting() when in doubt.
  */
 
-UCLASS(Abstract, Blueprintable)
-class AIMODULE_API UBTTask_BlueprintBase : public UBTTaskNode
+UCLASS(Abstract, Blueprintable, MinimalAPI)
+class UBTTask_BlueprintBase : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 	
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
-	virtual FString GetStaticDescription() const override;
-	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
-	virtual void OnInstanceDestroyed(UBehaviorTreeComponent& OwnerComp) override;
-	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
-	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
+	AIMODULE_API virtual void OnInstanceDestroyed(UBehaviorTreeComponent& OwnerComp) override;
+	AIMODULE_API virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
+	AIMODULE_API virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 
-	virtual void SetOwner(AActor* ActorOwner) override;
+	AIMODULE_API virtual void SetOwner(AActor* ActorOwner) override;
 
 #if WITH_EDITOR
-	virtual bool UsesBlueprint() const override;
+	AIMODULE_API virtual bool UsesBlueprint() const override;
 #endif
 
 protected:
@@ -89,65 +89,65 @@ protected:
 	 *	@Note that if both generic and AI event versions are implemented only the more 
 	 *	suitable one will be called, meaning the AI version if called for AI, generic one otherwise */
 	UFUNCTION(BlueprintImplementableEvent)
-	void ReceiveExecute(AActor* OwnerActor);
+	AIMODULE_API void ReceiveExecute(AActor* OwnerActor);
 
 	/** if blueprint graph contains this event, task will stay active until FinishAbort is called
 	 *	@Note that if both generic and AI event versions are implemented only the more
 	 *	suitable one will be called, meaning the AI version if called for AI, generic one otherwise */
 	UFUNCTION(BlueprintImplementableEvent)
-	void ReceiveAbort(AActor* OwnerActor);
+	AIMODULE_API void ReceiveAbort(AActor* OwnerActor);
 
 	/** tick function
 	 *	@Note that if both generic and AI event versions are implemented only the more
 	 *	suitable one will be called, meaning the AI version if called for AI, generic one otherwise */
 	UFUNCTION(BlueprintImplementableEvent)
-	void ReceiveTick(AActor* OwnerActor, float DeltaSeconds);
+	AIMODULE_API void ReceiveTick(AActor* OwnerActor, float DeltaSeconds);
 
 	/** Alternative AI version of ReceiveExecute
 	*	@see ReceiveExecute for more details
 	 *	@Note that if both generic and AI event versions are implemented only the more
 	 *	suitable one will be called, meaning the AI version if called for AI, generic one otherwise */
 	UFUNCTION(BlueprintImplementableEvent, Category = AI)
-	void ReceiveExecuteAI(AAIController* OwnerController, APawn* ControlledPawn);
+	AIMODULE_API void ReceiveExecuteAI(AAIController* OwnerController, APawn* ControlledPawn);
 
 	/** Alternative AI version of ReceiveAbort
 	 *	@see ReceiveAbort for more details
 	 *	@Note that if both generic and AI event versions are implemented only the more
 	 *	suitable one will be called, meaning the AI version if called for AI, generic one otherwise */
 	UFUNCTION(BlueprintImplementableEvent, Category = AI)
-	void ReceiveAbortAI(AAIController* OwnerController, APawn* ControlledPawn);
+	AIMODULE_API void ReceiveAbortAI(AAIController* OwnerController, APawn* ControlledPawn);
 
 	/** Alternative AI version of tick function.
 	 *	@see ReceiveTick for more details
 	 *	@Note that if both generic and AI event versions are implemented only the more
 	 *	suitable one will be called, meaning the AI version if called for AI, generic one otherwise */
 	UFUNCTION(BlueprintImplementableEvent, Category = AI)
-	void ReceiveTickAI(AAIController* OwnerController, APawn* ControlledPawn, float DeltaSeconds);
+	AIMODULE_API void ReceiveTickAI(AAIController* OwnerController, APawn* ControlledPawn, float DeltaSeconds);
 
 	/** finishes task execution with Success or Fail result */
 	UFUNCTION(BlueprintCallable, Category="AI|BehaviorTree")
-	void FinishExecute(bool bSuccess);
+	AIMODULE_API void FinishExecute(bool bSuccess);
 
 	/** aborts task execution */
 	UFUNCTION(BlueprintCallable, Category="AI|BehaviorTree")
-	void FinishAbort();
+	AIMODULE_API void FinishAbort();
 
 	/** task execution will be finished (with result 'Success') after receiving specified message */
 	UFUNCTION(BlueprintCallable, Category="AI|BehaviorTree")
-	void SetFinishOnMessage(FName MessageName);
+	AIMODULE_API void SetFinishOnMessage(FName MessageName);
 
 	/** task execution will be finished (with result 'Success') after receiving specified message with indicated ID */
 	UFUNCTION(BlueprintCallable, Category="AI|BehaviorTree")
-	void SetFinishOnMessageWithId(FName MessageName, int32 RequestID = -1);
+	AIMODULE_API void SetFinishOnMessageWithId(FName MessageName, int32 RequestID = -1);
 
 	/** check if task is currently being executed */
 	UFUNCTION(BlueprintCallable, Category="AI|BehaviorTree")
-	bool IsTaskExecuting() const;
+	AIMODULE_API bool IsTaskExecuting() const;
 	
 	/** check if task is currently being aborted */
 	UFUNCTION(BlueprintCallable, Category = "AI|BehaviorTree")
-	bool IsTaskAborting() const;
+	AIMODULE_API bool IsTaskAborting() const;
 
 	/** ticks this task */
-	virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+	AIMODULE_API virtual void TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 };

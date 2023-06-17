@@ -13,18 +13,18 @@
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("UMG Binding"), STAT_UMGBinding, STATGROUP_Slate,);
 
-UCLASS()
-class UMG_API UPropertyBinding : public UObject
+UCLASS(MinimalAPI)
+class UPropertyBinding : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UPropertyBinding();
+	UMG_API UPropertyBinding();
 
-	virtual bool IsSupportedSource(FProperty* Property) const;
-	virtual bool IsSupportedDestination(FProperty* Property) const;
+	UMG_API virtual bool IsSupportedSource(FProperty* Property) const;
+	UMG_API virtual bool IsSupportedDestination(FProperty* Property) const;
 
-	virtual void Bind(FProperty* Property, FScriptDelegate* Delegate);
+	UMG_API virtual void Bind(FProperty* Property, FScriptDelegate* Delegate);
 
 public:
 	/** The source object to use as the initial container to resolve the Source Property Path on. */

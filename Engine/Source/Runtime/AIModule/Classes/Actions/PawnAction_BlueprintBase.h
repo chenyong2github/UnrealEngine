@@ -9,8 +9,8 @@
 
 class APawn;
 
-UCLASS(abstract, Blueprintable)
-class AIMODULE_API UDEPRECATED_PawnAction_BlueprintBase : public UDEPRECATED_PawnAction
+UCLASS(abstract, Blueprintable, MinimalAPI)
+class UDEPRECATED_PawnAction_BlueprintBase : public UDEPRECATED_PawnAction
 {
 	GENERATED_UCLASS_BODY()
 
@@ -21,20 +21,20 @@ public:
 	//----------------------------------------------------------------------//
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI|PawnActions")
-	void ActionStart(APawn* ControlledPawn);
+	AIMODULE_API void ActionStart(APawn* ControlledPawn);
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI|PawnActions")
-	void ActionTick(APawn* ControlledPawn, float DeltaSeconds);
+	AIMODULE_API void ActionTick(APawn* ControlledPawn, float DeltaSeconds);
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI|PawnActions")
-	void ActionPause(APawn* ControlledPawn);
+	AIMODULE_API void ActionPause(APawn* ControlledPawn);
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI|PawnActions")
-	void ActionResume(APawn* ControlledPawn);
+	AIMODULE_API void ActionResume(APawn* ControlledPawn);
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI|PawnActions")
-	void ActionFinished(APawn* ControlledPawn, EPawnActionResult::Type WithResult);
+	AIMODULE_API void ActionFinished(APawn* ControlledPawn, EPawnActionResult::Type WithResult);
 
 protected:
-	virtual void Tick(float DeltaTime) override;
-	virtual bool Start() override;
-	virtual bool Pause(const UDEPRECATED_PawnAction* PausedBy) override;
-	virtual bool Resume() override;
-	virtual void OnFinished(EPawnActionResult::Type WithResult) override;
+	AIMODULE_API virtual void Tick(float DeltaTime) override;
+	AIMODULE_API virtual bool Start() override;
+	AIMODULE_API virtual bool Pause(const UDEPRECATED_PawnAction* PausedBy) override;
+	AIMODULE_API virtual bool Resume() override;
+	AIMODULE_API virtual void OnFinished(EPawnActionResult::Type WithResult) override;
 };

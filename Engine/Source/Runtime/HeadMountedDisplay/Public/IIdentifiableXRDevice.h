@@ -10,7 +10,7 @@
 
 #include "IIdentifiableXRDevice.generated.h"
 
-class HEADMOUNTEDDISPLAY_API IXRSystemIdentifier
+class IXRSystemIdentifier
 {
 public:
 	/**
@@ -33,7 +33,7 @@ public:
  * interfaces which both reference the same devices, then this base class gives 
  * you a way to communicate between the two.
  */
-class HEADMOUNTEDDISPLAY_API IIdentifiableXRDevice : public IXRSystemIdentifier
+class IIdentifiableXRDevice : public IXRSystemIdentifier
 {
 public:
 	/**
@@ -54,17 +54,17 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct HEADMOUNTEDDISPLAY_API FXRDeviceId
+struct FXRDeviceId
 {
 	GENERATED_USTRUCT_BODY()
 
 public:
-	FXRDeviceId();
-	FXRDeviceId(IIdentifiableXRDevice* DeviceId);
-	FXRDeviceId(IXRSystemIdentifier* OwningSystem, const int32 DeviceId);
+	HEADMOUNTEDDISPLAY_API FXRDeviceId();
+	HEADMOUNTEDDISPLAY_API FXRDeviceId(IIdentifiableXRDevice* DeviceId);
+	HEADMOUNTEDDISPLAY_API FXRDeviceId(IXRSystemIdentifier* OwningSystem, const int32 DeviceId);
 
-	bool IsOwnedBy(IXRSystemIdentifier* XRSystem) const;
-	void Clear();
+	HEADMOUNTEDDISPLAY_API bool IsOwnedBy(IXRSystemIdentifier* XRSystem) const;
+	HEADMOUNTEDDISPLAY_API void Clear();
 	
 	bool IsSet() const 
 	{ 
@@ -73,8 +73,8 @@ public:
 		return !SystemName.IsNone(); 
 	}
 
-	bool operator==(const FXRDeviceId& Rhs) const;
-	bool operator==(const IIdentifiableXRDevice* Rhs) const;
+	HEADMOUNTEDDISPLAY_API bool operator==(const FXRDeviceId& Rhs) const;
+	HEADMOUNTEDDISPLAY_API bool operator==(const IIdentifiableXRDevice* Rhs) const;
 
 public:
 	UPROPERTY(BlueprintReadOnly, Category="XRDevice")

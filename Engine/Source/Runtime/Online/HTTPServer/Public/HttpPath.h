@@ -64,7 +64,7 @@ public:
 	HTTPSERVER_API void MakeRelative(const FString& OtherPath);
 
 	// TMap<> Comparer
-	HTTPSERVER_API bool operator==(const FHttpPath& Other) const
+	bool operator==(const FHttpPath& Other) const
 	{
 		bool bEqual = (0 == Path.Compare(Other.Path, ESearchCase::CaseSensitive));
 		return bEqual;

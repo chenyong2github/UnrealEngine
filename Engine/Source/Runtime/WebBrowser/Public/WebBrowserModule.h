@@ -11,13 +11,13 @@ class IWebBrowserSingleton;
 /**
  * WebBrowser initialization settings, can be used to override default init behaviors.
  */
-struct WEBBROWSER_API FWebBrowserInitSettings
+struct FWebBrowserInitSettings
 {
 public:
 	/**
 	 * Default constructor. Initializes all members with default behavior values.
 	 */
-	FWebBrowserInitSettings();
+	WEBBROWSER_API FWebBrowserInitSettings();
 
 	// The string which is appended to the browser's user-agent value.
 	FString ProductVersion;

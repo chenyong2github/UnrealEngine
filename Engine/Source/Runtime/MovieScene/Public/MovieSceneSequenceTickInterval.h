@@ -15,7 +15,7 @@ class UObject;
  * Structure defining a concrete tick interval for a Sequencer based evaluation
  */
 USTRUCT(BlueprintType)
-struct MOVIESCENE_API FMovieSceneSequenceTickInterval
+struct FMovieSceneSequenceTickInterval
 {
 	GENERATED_BODY()
 
@@ -24,12 +24,12 @@ struct MOVIESCENE_API FMovieSceneSequenceTickInterval
 	/**
 	 * Generate a tick interval from an actor's primary tick function
 	 */
-	FMovieSceneSequenceTickInterval(const AActor* InActor);
+	MOVIESCENE_API FMovieSceneSequenceTickInterval(const AActor* InActor);
 
 	/**
 	 * Generate a tick interval from an component's primary tick function
 	 */
-	FMovieSceneSequenceTickInterval(const UActorComponent* InActorComponent);
+	MOVIESCENE_API FMovieSceneSequenceTickInterval(const UActorComponent* InActorComponent);
 
 public:
 
@@ -54,13 +54,13 @@ public:
 	/**
 	 * Round this interval to the nearest Sequencer.TickIntervalGroupingResolutionMs milliseconds
 	 */
-	int32 RoundTickIntervalMs() const;
+	MOVIESCENE_API int32 RoundTickIntervalMs() const;
 
 	/**
 	 * Resolve this tick interval within the specified context object (usually a movie scene player)
 	 * inheriting properties from the first valid parent if possible
 	 */
-	static FMovieSceneSequenceTickInterval GetInheritedInterval(UObject* ContextObject);
+	static MOVIESCENE_API FMovieSceneSequenceTickInterval GetInheritedInterval(UObject* ContextObject);
 
 	/**
 	 * Equality comparison operator

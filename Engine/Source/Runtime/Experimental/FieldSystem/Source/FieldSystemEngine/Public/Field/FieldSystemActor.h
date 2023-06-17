@@ -17,8 +17,8 @@
 
 class UFieldSystemComponent;
 
-UCLASS(meta=(ChildCanTick))
-class FIELDSYSTEMENGINE_API AFieldSystemActor: public AActor
+UCLASS(meta=(ChildCanTick), MinimalAPI)
+class AFieldSystemActor: public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,5 +28,5 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Field, meta = (ExposeFunctionCategories = "Components|FieldSystem", AllowPrivateAccess = "true"))
 	TObjectPtr<UFieldSystemComponent> FieldSystemComponent;
 	UFieldSystemComponent* GetFieldSystemComponent() const { return FieldSystemComponent; }
-	virtual void OnConstruction(const FTransform& Transform) override;
+	FIELDSYSTEMENGINE_API virtual void OnConstruction(const FTransform& Transform) override;
 };

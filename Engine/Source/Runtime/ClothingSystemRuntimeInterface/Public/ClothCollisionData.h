@@ -8,13 +8,13 @@
 #include "ClothCollisionData.generated.h"
 
 USTRUCT()
-struct CLOTHINGSYSTEMRUNTIMEINTERFACE_API FClothCollisionData
+struct FClothCollisionData
 {
 	GENERATED_BODY()
 
-	void Reset();
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API void Reset();
 
-	void Append(const FClothCollisionData& InOther);
+	CLOTHINGSYSTEMRUNTIMEINTERFACE_API void Append(const FClothCollisionData& InOther);
 
 	// Sphere data
 	UPROPERTY(EditAnywhere, Category = Collison)

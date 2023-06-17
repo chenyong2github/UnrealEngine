@@ -16,27 +16,27 @@ class UBorder;
 /**
  * The Slot for the UBorderSlot, contains the widget displayed in a border's single slot
  */
-UCLASS()
-class UMG_API UBorderSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UBorderSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Border Slot")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	EHorizontalAlignment GetHorizontalAlignment() const;
-
-	UFUNCTION(BlueprintCallable, Category="Layout|Border Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
-
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|Border Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+
+	UFUNCTION(BlueprintCallable, Category="Layout|Border Slot")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 protected:
 	UE_DEPRECATED(5.1, "Direct access to Padding is deprecated. Please use the getter or setter.")
@@ -57,20 +57,20 @@ protected:
 public:
 
 	//~ Begin UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
 	/** Builds the underlying slot for the slate border. */
-	void BuildSlot(TSharedRef<SBorder> InBorder);
+	UMG_API void BuildSlot(TSharedRef<SBorder> InBorder);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 public:
 
 #if WITH_EDITOR
 
 	//~ Begin UObject interface
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	UMG_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	//~ End of UObject interface
 
 #endif

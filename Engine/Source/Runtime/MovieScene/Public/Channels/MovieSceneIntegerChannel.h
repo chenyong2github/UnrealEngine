@@ -28,7 +28,7 @@ struct FPropertyTag;
 
 
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneIntegerChannel : public FMovieSceneChannel
+struct FMovieSceneIntegerChannel : public FMovieSceneChannel
 {
 	GENERATED_BODY()
 
@@ -39,7 +39,7 @@ struct MOVIESCENE_API FMovieSceneIntegerChannel : public FMovieSceneChannel
 	/**
 	 * Serialize this type from another
 	 */
-	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
+	MOVIESCENE_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	/**
 	 * Access a mutable interface for this channel's data
@@ -92,7 +92,7 @@ struct MOVIESCENE_API FMovieSceneIntegerChannel : public FMovieSceneChannel
 	 * @param OutValue   A value to receive the result
 	 * @return true if the channel was evaluated successfully, false otherwise
 	 */
-	bool Evaluate(FFrameTime InTime, int32& OutValue) const;
+	MOVIESCENE_API bool Evaluate(FFrameTime InTime, int32& OutValue) const;
 
 	/**
 	 * Set the channel's times and values to the requested values
@@ -131,19 +131,19 @@ struct MOVIESCENE_API FMovieSceneIntegerChannel : public FMovieSceneChannel
 public:
 
 	// ~ FMovieSceneChannel Interface
-	virtual void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles) override;
-	virtual void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes) override;
-	virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
-	virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
-	virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
-	virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
-	virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
-	virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
-	virtual int32 GetNumKeys() const override;
-	virtual void Reset() override;
-	virtual void Offset(FFrameNumber DeltaPosition) override;
-	virtual void Optimize(const FKeyDataOptimizationParams& InParameters) override;
-	virtual void ClearDefault() override;
+	MOVIESCENE_API virtual void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles) override;
+	MOVIESCENE_API virtual void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes) override;
+	MOVIESCENE_API virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
+	MOVIESCENE_API virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
+	MOVIESCENE_API virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
+	MOVIESCENE_API virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
+	MOVIESCENE_API virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
+	MOVIESCENE_API virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
+	MOVIESCENE_API virtual int32 GetNumKeys() const override;
+	MOVIESCENE_API virtual void Reset() override;
+	MOVIESCENE_API virtual void Offset(FFrameNumber DeltaPosition) override;
+	MOVIESCENE_API virtual void Optimize(const FKeyDataOptimizationParams& InParameters) override;
+	MOVIESCENE_API virtual void ClearDefault() override;
 
 public:
 

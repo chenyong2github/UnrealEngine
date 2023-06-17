@@ -12,7 +12,7 @@
 class UTextureRenderTarget2D;
 
 USTRUCT(BlueprintType)
-struct LANDSCAPE_API FLandscapeBrushParameters
+struct FLandscapeBrushParameters
 {
 	GENERATED_BODY()
 
@@ -39,8 +39,8 @@ struct LANDSCAPE_API FLandscapeBrushParameters
 };
 
 
-UCLASS(Abstract, NotBlueprintable)
-class LANDSCAPE_API ALandscapeBlueprintBrushBase : public AActor
+UCLASS(Abstract, NotBlueprintable, MinimalAPI)
+class ALandscapeBlueprintBrushBase : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -77,40 +77,40 @@ public:
 	virtual void Initialize_Native(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize) {}
 
 	UFUNCTION(BlueprintNativeEvent, meta = (DeprecatedFunction, DeprecationMessage = "Please use RenderLayer instead."))
-	UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, const FName& InWeightmapLayerName);
+	LANDSCAPE_API UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult, const FName& InWeightmapLayerName);
 
 	UFUNCTION(BlueprintNativeEvent)
-	UTextureRenderTarget2D* RenderLayer(const FLandscapeBrushParameters& InParameters);
+	LANDSCAPE_API UTextureRenderTarget2D* RenderLayer(const FLandscapeBrushParameters& InParameters);
 
-	virtual UTextureRenderTarget2D* RenderLayer_Native(const FLandscapeBrushParameters& InParameters);
+	LANDSCAPE_API virtual UTextureRenderTarget2D* RenderLayer_Native(const FLandscapeBrushParameters& InParameters);
 
 	UFUNCTION(BlueprintNativeEvent)
-	void Initialize(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
+	LANDSCAPE_API void Initialize(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
 
 	UFUNCTION(BlueprintCallable, Category = "Landscape")
-	void RequestLandscapeUpdate(bool bInUserTriggered = false);
+	LANDSCAPE_API void RequestLandscapeUpdate(bool bInUserTriggered = false);
 
 	UFUNCTION(BlueprintImplementableEvent, CallInEditor)
-	void GetBlueprintRenderDependencies(TArray<UObject*>& OutStreamableAssets);
+	LANDSCAPE_API void GetBlueprintRenderDependencies(TArray<UObject*>& OutStreamableAssets);
 
-	void SetCanAffectHeightmap(bool bInCanAffectHeightmap);
-	void SetCanAffectWeightmap(bool bInCanAffectWeightmap);
-	void SetCanAffectVisibilityLayer(bool bInCanAffectVisibilityLayer);
+	LANDSCAPE_API void SetCanAffectHeightmap(bool bInCanAffectHeightmap);
+	LANDSCAPE_API void SetCanAffectWeightmap(bool bInCanAffectWeightmap);
+	LANDSCAPE_API void SetCanAffectVisibilityLayer(bool bInCanAffectVisibilityLayer);
 
 #if WITH_EDITOR
-	virtual void CheckForErrors() override;
+	LANDSCAPE_API virtual void CheckForErrors() override;
 
-	virtual void GetRenderDependencies(TSet<UObject*>& OutDependencies);
+	LANDSCAPE_API virtual void GetRenderDependencies(TSet<UObject*>& OutDependencies);
 
-	virtual void SetOwningLandscape(class ALandscape* InOwningLandscape);
-	class ALandscape* GetOwningLandscape() const;
+	LANDSCAPE_API virtual void SetOwningLandscape(class ALandscape* InOwningLandscape);
+	LANDSCAPE_API class ALandscape* GetOwningLandscape() const;
 
 	UE_DEPRECATED(5.3, "Renamed CanAffectHeightmap")
 	bool IsAffectingHeightmap() const { return AffectHeightmap; }
 	UE_DEPRECATED(5.3, "Renamed CanAffectWeightmap")
 	bool IsAffectingWeightmap() const { return AffectWeightmap; }
 	UE_DEPRECATED(5.3, "Renamed AffectsVisibilityLayer")
-	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
+	LANDSCAPE_API virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
 	UE_DEPRECATED(5.3, "Renamed CanAffectVisibilityLayer")
 	bool IsAffectingVisibilityLayer() const { return AffectVisibilityLayer; }
 
@@ -120,28 +120,28 @@ public:
 
 	virtual bool AffectsHeightmap() const { return CanAffectHeightmap(); }
 	virtual bool AffectsWeightmap() const { return CanAffectWeightmap(); }
-	virtual bool AffectsWeightmapLayer(const FName& InLayerName) const;
+	LANDSCAPE_API virtual bool AffectsWeightmapLayer(const FName& InLayerName) const;
 	virtual bool AffectsVisibilityLayer() const { return CanAffectVisibilityLayer(); }
 
 	bool IsVisible() const { return bIsVisible; }
-	bool IsLayerUpdatePending() const;
+	LANDSCAPE_API bool IsLayerUpdatePending() const;
 
-	void SetIsVisible(bool bInIsVisible);
+	LANDSCAPE_API void SetIsVisible(bool bInIsVisible);
 
 	UE_DEPRECATED(5.3, "Renamed SetCanAffectHeightmap")
-	void SetAffectsHeightmap(bool bInAffectsHeightmap);
+	LANDSCAPE_API void SetAffectsHeightmap(bool bInAffectsHeightmap);
 	UE_DEPRECATED(5.3, "Renamed SetCanAffectWeightmap")
-	void SetAffectsWeightmap(bool bInAffectsWeightmap);
+	LANDSCAPE_API void SetAffectsWeightmap(bool bInAffectsWeightmap);
 	UE_DEPRECATED(5.3, "Renamed SetCanAffectVisibilityLayer")
-	void SetAffectsVisibilityLayer(bool bInAffectsVisibilityLayer);
+	LANDSCAPE_API void SetAffectsVisibilityLayer(bool bInAffectsVisibilityLayer);
 
-	virtual bool ShouldTickIfViewportsOnly() const override;
-	virtual void Tick(float DeltaSeconds) override;
-	virtual void PostEditMove(bool bFinished) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void Destroyed() override;
+	LANDSCAPE_API virtual bool ShouldTickIfViewportsOnly() const override;
+	LANDSCAPE_API virtual void Tick(float DeltaSeconds) override;
+	LANDSCAPE_API virtual void PostEditMove(bool bFinished) override;
+	LANDSCAPE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	LANDSCAPE_API virtual void Destroyed() override;
 
-	virtual void PushDeferredLayersContentUpdate();
+	LANDSCAPE_API virtual void PushDeferredLayersContentUpdate();
 
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 #endif

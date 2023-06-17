@@ -43,7 +43,7 @@ class FDynamicFlagArray
 public:
 	TBitArray<> BitArray;
 	uint32 MaxIndex = 0;
-	GEOMETRYCORE_API static constexpr int32 GrowChunkSize = 0xFFF;
+	static constexpr int32 GrowChunkSize = 0xFFF;
 
 	FDynamicFlagArray()
 	{
@@ -81,8 +81,8 @@ public:
  */
 struct FSparseOctreeCell
 {
-	GEOMETRYCORE_API static constexpr uint32 InvalidID = TNumericLimits<uint32>::Max();;
-	GEOMETRYCORE_API static constexpr uint8 InvalidLevel = TNumericLimits<uint8>::Max();
+	static constexpr uint32 InvalidID = TNumericLimits<uint32>::Max();;
+	static constexpr uint8 InvalidLevel = TNumericLimits<uint8>::Max();
 
 	/** ID of cell (index into cell list) */
 	uint32 CellID;
@@ -161,7 +161,7 @@ struct FSparseOctreeCell
  * The octree is dynamic. Objects can be removed and re-inserted.
  * 
  */
-class GEOMETRYCORE_API FSparseDynamicOctree3
+class FSparseDynamicOctree3
 {
 	// potential optimizations/improvements
 	//    - Cell sizes are known at each level...can keep a lookup table? will this improve performance?
@@ -223,7 +223,7 @@ public:
 	 * @param ObjectID ID of the object
 	 * @return true if ObjectID is stored in this octree
 	 */
-	bool ContainsObject(int32 ObjectID) const;
+	GEOMETRYCORE_API bool ContainsObject(int32 ObjectID) const;
 
 	/**
 	 * Insert ObjectID into the Octree
@@ -231,14 +231,14 @@ public:
 	 * @param Bounds bounding box of the object
 	 *
 	 */
-	void InsertObject(int32 ObjectID, const FAxisAlignedBox3d& Bounds);
+	GEOMETRYCORE_API void InsertObject(int32 ObjectID, const FAxisAlignedBox3d& Bounds);
 
 	/**
 	 * Remove an object from the octree
 	 * @param ObjectID ID of the object
 	 * @return true if the object was in the tree and removed
 	 */
-	bool RemoveObject(int32 ObjectID);
+	GEOMETRYCORE_API bool RemoveObject(int32 ObjectID);
 
 	/**
 	 * Update the position of an object in the octree. This is more efficient than doing a remove+insert
@@ -246,7 +246,7 @@ public:
 	 * @param NewBounds new bounding box of the object
 	 * @return true if object was reinserted, false if the object was fine in it's existing cell
 	 */
-	bool ReinsertObject(int32 ObjectID, const FAxisAlignedBox3d& NewBounds, uint32 CellIDHint = InvalidCellID);
+	GEOMETRYCORE_API bool ReinsertObject(int32 ObjectID, const FAxisAlignedBox3d& NewBounds, uint32 CellIDHint = InvalidCellID);
 
 	/**
 	 * Check if the object needs to be reinserted, if it has NewBounds. 
@@ -255,7 +255,7 @@ public:
 	 * @param CellIDOut returned CellID of the object, if it is in the tree. This can be passed to ReinsertObject() to save some computation.
 	 * @return false if ObjectID is already in the tree, and NewBounds fits within the cell that currently contains ObjectID
 	 */
-	bool CheckIfObjectNeedsReinsert(int32 ObjectID, const FAxisAlignedBox3d& NewBounds, uint32& CellIDOut) const;
+	GEOMETRYCORE_API bool CheckIfObjectNeedsReinsert(int32 ObjectID, const FAxisAlignedBox3d& NewBounds, uint32& CellIDOut) const;
 
 
 	/**
@@ -266,7 +266,7 @@ public:
 	 * @param MaxDistance maximum hit distance
 	 * @return ObjectID of hit object, or -1 on miss
 	 */
-	int32 FindNearestHitObject(const FRay3d& Ray,
+	GEOMETRYCORE_API int32 FindNearestHitObject(const FRay3d& Ray,
 		TFunctionRef<FAxisAlignedBox3d(int)> GetObjectBoundsFunc,
 		TFunctionRef<double(int, const FRay3d&)> HitObjectDistFunc,
 		double MaxDistance = TNumericLimits<double>::Max()) const;
@@ -276,7 +276,7 @@ public:
 	 * @param Point query point
 	 * @param ObjectIDFunc this function is called for each ObjectID
 	 */
-	void ContainmentQuery(const FVector3d& Point,
+	GEOMETRYCORE_API void ContainmentQuery(const FVector3d& Point,
 		TFunctionRef<void(int)> ObjectIDFunc) const;
 
 	/**
@@ -285,7 +285,7 @@ public:
 	 * @param ObjectIDFunc this function is called for each ObjectID. Returns true to continue query and false to abort
 	 * @return true if query finished, false if it exited
 	 */
-	bool ContainmentQueryCancellable(const FVector3d& Point,
+	GEOMETRYCORE_API bool ContainmentQueryCancellable(const FVector3d& Point,
 		TFunctionRef<bool(int)> ObjectIDFunc) const;
 
 	/**
@@ -293,7 +293,7 @@ public:
 	 * @param Bounds query box
 	 * @param ObjectIDFunc this function is called for each ObjectID
 	 */
-	void RangeQuery(const FAxisAlignedBox3d& Bounds,
+	GEOMETRYCORE_API void RangeQuery(const FAxisAlignedBox3d& Bounds,
 		TFunctionRef<void(int)> ObjectIDFunc) const;
 
 	/**
@@ -301,7 +301,7 @@ public:
 	 * @param Bounds query box
 	 * @param ObjectIDsOut collected ObjectIDs are stored here 
 	 */
-	void RangeQuery(const FAxisAlignedBox3d& Bounds,
+	GEOMETRYCORE_API void RangeQuery(const FAxisAlignedBox3d& Bounds,
 		TArray<int>& ObjectIDsOut ) const;
 
 	/**
@@ -310,7 +310,7 @@ public:
 	 * @param Bounds query box
 	 * @param ObjectIDsOut collected ObjectIDs are stored here
 	 */
-	void ParallelRangeQuery(const FAxisAlignedBox3d& Bounds,
+	GEOMETRYCORE_API void ParallelRangeQuery(const FAxisAlignedBox3d& Bounds,
 		TArray<int>& ObjectIDsOut) const;
 
 
@@ -322,7 +322,7 @@ public:
 	 * @param bVerbose if true, print some debug info via UE_LOG
 	 * @param bFailOnMissingObjects if true, assume ObjectIDs are dense and that all ObjectIDs must be in the tree
 	 */
-	void CheckValidity(
+	GEOMETRYCORE_API void CheckValidity(
 		TFunctionRef<bool(int)> IsValidObjectIDFunc,
 		TFunctionRef<FAxisAlignedBox3d(int)> GetObjectBoundsFunc,
 		EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check,
@@ -344,7 +344,7 @@ public:
 	/**
 	 * Populate given FStatistics with info about the octree
 	 */
-	void ComputeStatistics(FStatistics& StatsOut) const;
+	GEOMETRYCORE_API void ComputeStatistics(FStatistics& StatsOut) const;
 
 protected:
 	// this identifier is used for unknown cells
@@ -445,18 +445,18 @@ protected:
 		return InvalidCellID;
 	}
 
-	FSparseOctreeCell FindCurrentContainingCell(const FAxisAlignedBox3d& Bounds) const;
+	GEOMETRYCORE_API FSparseOctreeCell FindCurrentContainingCell(const FAxisAlignedBox3d& Bounds) const;
 
 
-	void Insert_Spill(int32 ObjectID, const FAxisAlignedBox3d& Bounds);
-	void Insert_NewRoot(int32 ObjectID, const FAxisAlignedBox3d& Bounds, FSparseOctreeCell NewRootCell);
-	void Insert_ToCell(int32 ObjectID, const FAxisAlignedBox3d& Bounds, const FSparseOctreeCell& ExistingCell);
-	void Insert_NewChildCell(int32 ObjectID, const FAxisAlignedBox3d& Bounds, int ParentCellID, FSparseOctreeCell NewChildCell, int ChildIdx);
+	GEOMETRYCORE_API void Insert_Spill(int32 ObjectID, const FAxisAlignedBox3d& Bounds);
+	GEOMETRYCORE_API void Insert_NewRoot(int32 ObjectID, const FAxisAlignedBox3d& Bounds, FSparseOctreeCell NewRootCell);
+	GEOMETRYCORE_API void Insert_ToCell(int32 ObjectID, const FAxisAlignedBox3d& Bounds, const FSparseOctreeCell& ExistingCell);
+	GEOMETRYCORE_API void Insert_NewChildCell(int32 ObjectID, const FAxisAlignedBox3d& Bounds, int ParentCellID, FSparseOctreeCell NewChildCell, int ChildIdx);
 
-	double FindNearestRayCellIntersection(const FSparseOctreeCell& Cell, const FRay3d& Ray) const;
+	GEOMETRYCORE_API double FindNearestRayCellIntersection(const FSparseOctreeCell& Cell, const FRay3d& Ray) const;
 
 
-	void BranchRangeQuery(const FSparseOctreeCell* ParentCell,
+	GEOMETRYCORE_API void BranchRangeQuery(const FSparseOctreeCell* ParentCell,
 		const FAxisAlignedBox3d& Bounds,
 		TArray<int>& ObjectIDs) const;
 

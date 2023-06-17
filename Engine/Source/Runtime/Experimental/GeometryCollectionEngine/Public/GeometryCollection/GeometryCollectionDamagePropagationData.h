@@ -5,7 +5,7 @@
 #include "GeometryCollectionDamagePropagationData.generated.h"
 
 USTRUCT(BlueprintType)
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionDamagePropagationData
+struct FGeometryCollectionDamagePropagationData
 {
 public:
 	GENERATED_BODY()

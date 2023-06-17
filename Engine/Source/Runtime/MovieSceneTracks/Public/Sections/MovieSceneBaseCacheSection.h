@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -9,12 +9,12 @@
  * Base class for the cache parameters that will be used in all the cache sections
  */
 USTRUCT()
-struct MOVIESCENETRACKS_API FMovieSceneBaseCacheParams
+struct FMovieSceneBaseCacheParams
 {
 	GENERATED_BODY()
 
 	/** Constructor/Destructor */
-	FMovieSceneBaseCacheParams();
+	MOVIESCENETRACKS_API FMovieSceneBaseCacheParams();
 	virtual ~FMovieSceneBaseCacheParams() {}
 
 	/** Gets the animation sequence length, not modified by play rate */

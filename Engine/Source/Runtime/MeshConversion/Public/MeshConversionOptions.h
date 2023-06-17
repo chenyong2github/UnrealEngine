@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 
 
-struct MESHCONVERSION_API FConversionToMeshDescriptionOptions
+struct FConversionToMeshDescriptionOptions
 {
 public:
 	/** Should triangle groups be transfered to MeshDescription via custom PolyTriGroups attribute */

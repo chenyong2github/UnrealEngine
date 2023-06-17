@@ -111,255 +111,255 @@ namespace Audio
 		}
 	};
 
-	class AUDIOMIXER_API FMixerSubmix
+	class FMixerSubmix
 	{
 	public:
-		FMixerSubmix(FMixerDevice* InMixerDevice);
-		virtual ~FMixerSubmix();
+		AUDIOMIXER_API FMixerSubmix(FMixerDevice* InMixerDevice);
+		AUDIOMIXER_API virtual ~FMixerSubmix();
 
 		// Initialize the submix object with the USoundSubmix ptr. Sets up child and parent connects.
-		void Init(const USoundSubmixBase* InSoundSubmix, bool bAllowReInit = true);
+		AUDIOMIXER_API void Init(const USoundSubmixBase* InSoundSubmix, bool bAllowReInit = true);
 
 		// Returns the mixer submix Id
 		uint32 GetId() const { return Id; }
 
 		// Sets the parent submix to the given submix
-		void SetParentSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> Submix);
+		AUDIOMIXER_API void SetParentSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> Submix);
 
 		// Adds the given submix to this submix's children
-		void AddChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> Submix);
+		AUDIOMIXER_API void AddChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> Submix);
 
 		// Removes the given submix from this submix's children
-		void RemoveChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr);
+		AUDIOMIXER_API void RemoveChildSubmix(TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> SubmixWeakPtr);
 
 		// Sets the output level of the submix in linear gain
-		void SetOutputVolume(float InOutputLevel);
+		AUDIOMIXER_API void SetOutputVolume(float InOutputLevel);
 
 		// Sets the static output volume of the submix in linear gain
-		void SetDryLevel(float InDryLevel);
+		AUDIOMIXER_API void SetDryLevel(float InDryLevel);
 
 		// Sets the wet level of the submix in linear gain
-		void SetWetLevel(float InWetLevel);
+		AUDIOMIXER_API void SetWetLevel(float InWetLevel);
 
 		// Update modulation settings of the submix
-		void UpdateModulationSettings(const TSet<TObjectPtr<USoundModulatorBase>>& InOutputModulators, const TSet<TObjectPtr<USoundModulatorBase>>& InWetLevelModulators, const TSet<TObjectPtr<USoundModulatorBase>>& InDryLevelModulators);
+		AUDIOMIXER_API void UpdateModulationSettings(const TSet<TObjectPtr<USoundModulatorBase>>& InOutputModulators, const TSet<TObjectPtr<USoundModulatorBase>>& InWetLevelModulators, const TSet<TObjectPtr<USoundModulatorBase>>& InDryLevelModulators);
 
 		// Update modulation settings of the submix with Decibel values
-		void SetModulationBaseLevels(float InVolumeModBaseDb, float InWetModeBaseDb, float InDryModBaseDb);
+		AUDIOMIXER_API void SetModulationBaseLevels(float InVolumeModBaseDb, float InWetModeBaseDb, float InDryModBaseDb);
 
 		// Gets the submix channels channels
-		int32 GetSubmixChannels() const;
+		AUDIOMIXER_API int32 GetSubmixChannels() const;
 
 		// Gets this submix's parent submix
-		TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> GetParentSubmix();
+		AUDIOMIXER_API TWeakPtr<FMixerSubmix, ESPMode::ThreadSafe> GetParentSubmix();
 
 		// Returns the number of source voices currently a part of this submix.
-		int32 GetNumSourceVoices() const;
+		AUDIOMIXER_API int32 GetNumSourceVoices() const;
 
 		// Returns the number of wet effects in this submix.
-		int32 GetNumEffects() const;
+		AUDIOMIXER_API int32 GetNumEffects() const;
 
 		// Returns the size of the submix chain. 
-		int32 GetSizeOfSubmixChain() const;
+		AUDIOMIXER_API int32 GetSizeOfSubmixChain() const;
 
 		// Add (if not already added) or sets the amount of the source voice's send amount
-		void AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage);
+		AUDIOMIXER_API void AddOrSetSourceVoice(FMixerSourceVoice* InSourceVoice, const float SendLevel, EMixerSourceSubmixSendStage InSubmixSendStage);
 
-		FPatchOutputStrongPtr AddPatch(float InGain);
+		AUDIOMIXER_API FPatchOutputStrongPtr AddPatch(float InGain);
 
 		/** Removes the given source voice from the submix. */
-		void RemoveSourceVoice(FMixerSourceVoice* InSourceVoice);
+		AUDIOMIXER_API void RemoveSourceVoice(FMixerSourceVoice* InSourceVoice);
 
 		/** Appends the effect submix to the effect submix chain. */
-		void AddSoundEffectSubmix(FSoundEffectSubmixPtr InSoundEffectSubmix);
+		AUDIOMIXER_API void AddSoundEffectSubmix(FSoundEffectSubmixPtr InSoundEffectSubmix);
 
 		/** Removes the submix effect from the effect submix chain. */
-		void RemoveSoundEffectSubmix(uint32 SubmixPresetId);
+		AUDIOMIXER_API void RemoveSoundEffectSubmix(uint32 SubmixPresetId);
 
 		/** Removes the submix effect from the effect submix chain at the given submix index. */
-		void RemoveSoundEffectSubmixAtIndex(int32 InIndex);
+		AUDIOMIXER_API void RemoveSoundEffectSubmixAtIndex(int32 InIndex);
 
 		/** Clears all submix effects from the effect submix chain. */
-		void ClearSoundEffectSubmixes();
+		AUDIOMIXER_API void ClearSoundEffectSubmixes();
 
 		/** Sets a submix effect chain override with the given fade time in seconds. */
-		void SetSubmixEffectChainOverride(const TArray<FSoundEffectSubmixPtr>& InSubmixEffectPresetChain, float InFadeTimeSec);
+		AUDIOMIXER_API void SetSubmixEffectChainOverride(const TArray<FSoundEffectSubmixPtr>& InSubmixEffectPresetChain, float InFadeTimeSec);
 
 		/** Clears any submix effect chain overrides in the given fade time in seconds. */
-		void ClearSubmixEffectChainOverride(float InFadeTimeSec);
+		AUDIOMIXER_API void ClearSubmixEffectChainOverride(float InFadeTimeSec);
 
 		/** Swaps effect for provided submix at the given index.  Fails if effect at index doesn't exist */
-		void ReplaceSoundEffectSubmix(int32 InIndex, FSoundEffectSubmixPtr InEffectInstance);
+		AUDIOMIXER_API void ReplaceSoundEffectSubmix(int32 InIndex, FSoundEffectSubmixPtr InEffectInstance);
 
 		/** Whether or not this submix instance is muted. */
-		void SetBackgroundMuted(bool bInMuted);
+		AUDIOMIXER_API void SetBackgroundMuted(bool bInMuted);
 
 		/** Checks to see if submix is valid.  Submix can be considered invalid if the OwningSubmix
 		  * pointer is stale.
 		  */
-		bool IsValid() const;
+		AUDIOMIXER_API bool IsValid() const;
 
 		// Function which processes audio.
-		void ProcessAudio(FAlignedFloatBuffer& OutAudio);
-		void ProcessAudio(ISoundfieldAudioPacket& OutputAudio);
+		AUDIOMIXER_API void ProcessAudio(FAlignedFloatBuffer& OutAudio);
+		AUDIOMIXER_API void ProcessAudio(ISoundfieldAudioPacket& OutputAudio);
 
-		void SendAudioToSubmixBufferListeners(FAlignedFloatBuffer& OutAudioBuffer);
+		AUDIOMIXER_API void SendAudioToSubmixBufferListeners(FAlignedFloatBuffer& OutAudioBuffer);
 
 		// This should be called if this submix doesn't send it's audio to a parent submix,
 		// but rather an external endpoint.
-		void ProcessAudioAndSendToEndpoint();
+		AUDIOMIXER_API void ProcessAudioAndSendToEndpoint();
 
 		// Returns the device sample rate this submix is rendering to
-		int32 GetSampleRate() const;
+		AUDIOMIXER_API int32 GetSampleRate() const;
 
 		// Returns the output channels this submix is rendering to
-		int32 GetNumOutputChannels() const;
+		AUDIOMIXER_API int32 GetNumOutputChannels() const;
 
 		// Returns the number of effects in this submix's effect chain
-		int32 GetNumChainEffects();
+		AUDIOMIXER_API int32 GetNumChainEffects();
 
 		// Returns the submix effect at the given effect chain index
-		FSoundEffectSubmixPtr GetSubmixEffect(const int32 InIndex);
+		AUDIOMIXER_API FSoundEffectSubmixPtr GetSubmixEffect(const int32 InIndex);
 
 		// This must be called on the entire submix graph before calling SetupSoundfieldStreams.
-		void SetSoundfieldFactory(ISoundfieldFactory* InSoundfieldFactory);
+		AUDIOMIXER_API void SetSoundfieldFactory(ISoundfieldFactory* InSoundfieldFactory);
 
 		// updates settings, potentially creating or removing ambisonics streams based on what types of submixes this submix is connected to.
-		void SetupSoundfieldStreams(const USoundfieldEncodingSettingsBase* SoundfieldSettings, TArray<USoundfieldEffectBase*>& Processors, ISoundfieldFactory* InSoundfieldFactory);
-		void TeardownSoundfieldStreams();
+		AUDIOMIXER_API void SetupSoundfieldStreams(const USoundfieldEncodingSettingsBase* SoundfieldSettings, TArray<USoundfieldEffectBase*>& Processors, ISoundfieldFactory* InSoundfieldFactory);
+		AUDIOMIXER_API void TeardownSoundfieldStreams();
 
-		void SetupEndpoint(IAudioEndpointFactory* InFactory, const UAudioEndpointSettingsBase* InSettings);
-		void SetupEndpoint(ISoundfieldEndpointFactory* InFactory, const USoundfieldEndpointSettingsBase* InSettings);
+		AUDIOMIXER_API void SetupEndpoint(IAudioEndpointFactory* InFactory, const UAudioEndpointSettingsBase* InSettings);
+		AUDIOMIXER_API void SetupEndpoint(ISoundfieldEndpointFactory* InFactory, const USoundfieldEndpointSettingsBase* InSettings);
 
-		void UpdateEndpointSettings(TUniquePtr<IAudioEndpointSettingsProxy>&& InSettings);
-		void UpdateEndpointSettings(TUniquePtr<ISoundfieldEndpointSettingsProxy>&& InSettings);
+		AUDIOMIXER_API void UpdateEndpointSettings(TUniquePtr<IAudioEndpointSettingsProxy>&& InSettings);
+		AUDIOMIXER_API void UpdateEndpointSettings(TUniquePtr<ISoundfieldEndpointSettingsProxy>&& InSettings);
 
 		// This is called by the corresponding USoundSubmix when StartRecordingOutput is called.
-		void OnStartRecordingOutput(float ExpectedDuration);
+		AUDIOMIXER_API void OnStartRecordingOutput(float ExpectedDuration);
 
 		// This is called by the corresponding USoundSubmix when StopRecordingOutput is called.
-		FAlignedFloatBuffer& OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate);
+		AUDIOMIXER_API FAlignedFloatBuffer& OnStopRecordingOutput(float& OutNumChannels, float& OutSampleRate);
 
 		// This is called by the corresponding USoundSubmix when PauseRecording is called.
-		void PauseRecordingOutput();
+		AUDIOMIXER_API void PauseRecordingOutput();
 
 		// This is called by the corresponding USoundSubmix when ResumeRecording is called.
-		void ResumeRecordingOutput();
+		AUDIOMIXER_API void ResumeRecordingOutput();
 
 		// Register buffer listener with this submix
-		void RegisterBufferListener(ISubmixBufferListener* BufferListener);
+		AUDIOMIXER_API void RegisterBufferListener(ISubmixBufferListener* BufferListener);
 		
 		// Unregister buffer listener with this submix
-		void UnregisterBufferListener(ISubmixBufferListener* BufferListener);
+		AUDIOMIXER_API void UnregisterBufferListener(ISubmixBufferListener* BufferListener);
 
 		// Starts envelope following with the given attack time and release time
-		void StartEnvelopeFollowing(int32 AttackTime, int32 ReleaseTime);
+		AUDIOMIXER_API void StartEnvelopeFollowing(int32 AttackTime, int32 ReleaseTime);
 
 		// Stops envelope following the submix
-		void StopEnvelopeFollowing();
+		AUDIOMIXER_API void StopEnvelopeFollowing();
 
 		// Adds an envelope follower delegate
-		void AddEnvelopeFollowerDelegate(const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
+		AUDIOMIXER_API void AddEnvelopeFollowerDelegate(const FOnSubmixEnvelopeBP& OnSubmixEnvelopeBP);
 
 		// Initializes a new FFT analyzer for this submix and immediately begins feeding audio to it.
-		void StartSpectrumAnalysis(const FSoundSpectrumAnalyzerSettings& InSettings);
+		AUDIOMIXER_API void StartSpectrumAnalysis(const FSoundSpectrumAnalyzerSettings& InSettings);
 
 		// Terminates whatever FFT Analyzer is being used for this submix.
-		void StopSpectrumAnalysis();
+		AUDIOMIXER_API void StopSpectrumAnalysis();
 
 		// Adds an spectral analysis delegate
-		void AddSpectralAnalysisDelegate(const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
+		AUDIOMIXER_API void AddSpectralAnalysisDelegate(const FSoundSpectrumAnalyzerDelegateSettings& InDelegateSettings, const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
 
 		// Removes an existing spectral analysis delegate
-		void RemoveSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
+		AUDIOMIXER_API void RemoveSpectralAnalysisDelegate(const FOnSubmixSpectralAnalysisBP& OnSubmixSpectralAnalysisBP);
 
 		// Gets the most recent magnitude values for each corresponding value in InFrequencies (in Hz).
 		// This requires StartSpectrumAnalysis to be called first.
-		void GetMagnitudeForFrequencies(const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes);
+		AUDIOMIXER_API void GetMagnitudeForFrequencies(const TArray<float>& InFrequencies, TArray<float>& OutMagnitudes);
 
 		// Gets the most recent phase values for each corresponding value in InFrequencies (in Hz).
 		// This requires StartSpectrumAnalysis to be called first.
-		void GetPhaseForFrequencies(const TArray<float>& InFrequencies, TArray<float>& OutPhases);
+		AUDIOMIXER_API void GetPhaseForFrequencies(const TArray<float>& InFrequencies, TArray<float>& OutPhases);
 
 		// Broadcast the envelope and submix delegates on the game thread
-		void BroadcastDelegates();
+		AUDIOMIXER_API void BroadcastDelegates();
 
 		// returns true if this submix is encoded to a soundfield.
-		bool IsSoundfieldSubmix() const;
+		AUDIOMIXER_API bool IsSoundfieldSubmix() const;
 
 		// returns true if this submix sends it's audio to the default endpoint.
-		bool IsDefaultEndpointSubmix() const;
+		AUDIOMIXER_API bool IsDefaultEndpointSubmix() const;
 
 		// Returns true if this submix sends its audio to an IAudioEndpoint.
-		bool IsExternalEndpointSubmix() const;
+		AUDIOMIXER_API bool IsExternalEndpointSubmix() const;
 
 		// returns true if this submix sends its audio to an ISoundfieldEndpoint.
-		bool IsSoundfieldEndpointSubmix() const;
+		AUDIOMIXER_API bool IsSoundfieldEndpointSubmix() const;
 
 		//Returns true if this is an endpoint type that should no-op for this platform
-		bool IsDummyEndpointSubmix() const;
+		AUDIOMIXER_API bool IsDummyEndpointSubmix() const;
 
 		// Returns true if the submix is currently rendering audio. The current rendering time is passed in.
-		bool IsRenderingAudio() const;
+		AUDIOMIXER_API bool IsRenderingAudio() const;
 
 		// Set whether or not this submix is told to auto disable. 
-		void SetAutoDisable(bool bInAutoDisable);
+		AUDIOMIXER_API void SetAutoDisable(bool bInAutoDisable);
 
 		// Sets the auto-disable time
-		void SetAutoDisableTime(float InAutoDisableTime);
+		AUDIOMIXER_API void SetAutoDisableTime(float InAutoDisableTime);
 
 		// Get a unique key for this submix's format and settings.
 		// If another submix has an identical format and settings it will have an equivalent key.
-		FSoundfieldEncodingKey GetKeyForSubmixEncoding();
+		AUDIOMIXER_API FSoundfieldEncodingKey GetKeyForSubmixEncoding();
 
-		ISoundfieldFactory* GetSoundfieldFactory();
+		AUDIOMIXER_API ISoundfieldFactory* GetSoundfieldFactory();
 
-		ISoundfieldEncodingSettingsProxy& GetSoundfieldSettings();
+		AUDIOMIXER_API ISoundfieldEncodingSettingsProxy& GetSoundfieldSettings();
 
-		FAudioPluginInitializationParams GetInitializationParamsForSoundfieldStream();
+		AUDIOMIXER_API FAudioPluginInitializationParams GetInitializationParamsForSoundfieldStream();
 
-		FSoundfieldSpeakerPositionalData GetDefaultPositionalDataForAudioDevice();
+		AUDIOMIXER_API FSoundfieldSpeakerPositionalData GetDefaultPositionalDataForAudioDevice();
 
 	protected:
 		// Initialize the submix internal
-		void InitInternal();
+		AUDIOMIXER_API void InitInternal();
 
 		// Down mix the given buffer to the desired down mix channel count
-		static void DownmixBuffer(const int32 InChannels, const FAlignedFloatBuffer& InBuffer, const int32 OutChannels, FAlignedFloatBuffer& OutNewBuffer);
+		static AUDIOMIXER_API void DownmixBuffer(const int32 InChannels, const FAlignedFloatBuffer& InBuffer, const int32 OutChannels, FAlignedFloatBuffer& OutNewBuffer);
 
-		void MixBufferDownToMono(const FAlignedFloatBuffer& InBuffer, int32 NumInputChannels, FAlignedFloatBuffer& OutBuffer);
+		AUDIOMIXER_API void MixBufferDownToMono(const FAlignedFloatBuffer& InBuffer, int32 NumInputChannels, FAlignedFloatBuffer& OutBuffer);
 
-		void SetupSoundfieldEncodersForChildren();
-		void SetupSoundfieldEncodingForChild(FChildSubmixInfo& InChild);
+		AUDIOMIXER_API void SetupSoundfieldEncodersForChildren();
+		AUDIOMIXER_API void SetupSoundfieldEncodingForChild(FChildSubmixInfo& InChild);
 
 		// Check to see if we need to decode from ambisonics for parent
-		void SetupSoundfieldStreamForParent();
+		AUDIOMIXER_API void SetupSoundfieldStreamForParent();
 
 		// This sets up the ambisonics positional data for speakers, based on what new format we need to convert to.
-		void SetUpSoundfieldPositionalData(const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>& InParentSubmix);
+		AUDIOMIXER_API void SetUpSoundfieldPositionalData(const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>& InParentSubmix);
 
 		// Encode a source and sum it into the mixed soundfield.
-		void MixInSource(const ISoundfieldAudioPacket& InAudio, const ISoundfieldEncodingSettingsProxy& InSettings, ISoundfieldAudioPacket& PacketToSumTo);
+		AUDIOMIXER_API void MixInSource(const ISoundfieldAudioPacket& InAudio, const ISoundfieldEncodingSettingsProxy& InSettings, ISoundfieldAudioPacket& PacketToSumTo);
 
-		void UpdateListenerRotation(const FQuat& InRotation);
+		AUDIOMIXER_API void UpdateListenerRotation(const FQuat& InRotation);
 
 		// Calls ProcessAudio on the child submix, performs all necessary conversions and mixes in it's resulting audio.
-		void MixInChildSubmix(FChildSubmixInfo& Child, ISoundfieldAudioPacket& PacketToSumTo);
+		AUDIOMIXER_API void MixInChildSubmix(FChildSubmixInfo& Child, ISoundfieldAudioPacket& PacketToSumTo);
 
-		FName GetSoundfieldFormat() const;
+		AUDIOMIXER_API FName GetSoundfieldFormat() const;
 
-		TUniquePtr<ISoundfieldTranscodeStream> GetTranscoderForChildSubmix(const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>& InChildSubmix);
+		AUDIOMIXER_API TUniquePtr<ISoundfieldTranscodeStream> GetTranscoderForChildSubmix(const TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>& InChildSubmix);
 
 	protected:
 
 		// Pump command queue
-		void PumpCommandQueue();
+		AUDIOMIXER_API void PumpCommandQueue();
 
 		// Add command to the command queue
-		void SubmixCommand(TFunction<void()> Command);
+		AUDIOMIXER_API void SubmixCommand(TFunction<void()> Command);
 
 		// Generates audio from the given effect chain into the given buffer
-		bool GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, const FAlignedFloatBuffer& InAudioBuffer, TArray<FSoundEffectSubmixPtr>& InEffectChain, FAlignedFloatBuffer& OutBuffer);
+		AUDIOMIXER_API bool GenerateEffectChainAudio(FSoundEffectSubmixInputData& InputData, const FAlignedFloatBuffer& InAudioBuffer, TArray<FSoundEffectSubmixPtr>& InEffectChain, FAlignedFloatBuffer& OutBuffer);
 
 		// This mixer submix's Id
 		uint32 Id;

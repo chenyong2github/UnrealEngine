@@ -11,7 +11,7 @@ class IAIPerceptionListenerInterface;
 class UAISense_Touch;
 
 USTRUCT()
-struct AIMODULE_API FAITouchEvent
+struct FAITouchEvent
 {	
 	GENERATED_USTRUCT_BODY()
 
@@ -32,11 +32,11 @@ struct AIMODULE_API FAITouchEvent
 	{
 	}
 
-	IAIPerceptionListenerInterface* GetTouchedActorAsPerceptionListener() const;
+	AIMODULE_API IAIPerceptionListenerInterface* GetTouchedActorAsPerceptionListener() const;
 };
 
-UCLASS(ClassGroup=AI)
-class AIMODULE_API UAISense_Touch : public UAISense
+UCLASS(ClassGroup=AI, MinimalAPI)
+class UAISense_Touch : public UAISense
 {
 	GENERATED_UCLASS_BODY()
 
@@ -44,11 +44,11 @@ class AIMODULE_API UAISense_Touch : public UAISense
 	TArray<FAITouchEvent> RegisteredEvents;
 
 public:		
-	void RegisterEvent(const FAITouchEvent& Event);	
+	AIMODULE_API void RegisterEvent(const FAITouchEvent& Event);	
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception", meta = (WorldContext = "WorldContextObject"))
-	static void ReportTouchEvent(UObject* WorldContextObject, AActor* TouchReceiver, AActor* OtherActor, FVector Location);
+	static AIMODULE_API void ReportTouchEvent(UObject* WorldContextObject, AActor* TouchReceiver, AActor* OtherActor, FVector Location);
 
 protected:
-	virtual float Update() override;
+	AIMODULE_API virtual float Update() override;
 };

@@ -13,14 +13,14 @@
  * This class represent a python pipeline. It is use by the TSoftClassPtr of the PythonPipeline asset.
  *
  */
-UCLASS(BlueprintType, Abstract, Experimental)
-class INTERCHANGEENGINE_API UInterchangePythonPipelineBase : public UInterchangePipelineBase
+UCLASS(BlueprintType, Abstract, Experimental, MinimalAPI)
+class UInterchangePythonPipelineBase : public UInterchangePipelineBase
 {
 	GENERATED_BODY()
 public:
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	INTERCHANGEENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };
 
@@ -43,20 +43,20 @@ struct FPropertyData
  * This restriction exist because python class are transient, so any assets create from a python class cannot be save.
  * 
  */
-UCLASS(BlueprintType, Experimental)
-class INTERCHANGEENGINE_API UInterchangePythonPipelineAsset : public UObject
+UCLASS(BlueprintType, Experimental, MinimalAPI)
+class UInterchangePythonPipelineAsset : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual void PostLoad() override;
+	INTERCHANGEENGINE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	INTERCHANGEENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	void GeneratePipeline();
+	INTERCHANGEENGINE_API void GeneratePipeline();
 
-	void SetupFromPipeline(const UInterchangePythonPipelineBase* PythonPipeline, const bool bRegeneratePipeline = true);
+	INTERCHANGEENGINE_API void SetupFromPipeline(const UInterchangePythonPipelineBase* PythonPipeline, const bool bRegeneratePipeline = true);
 
 	/** The python class we want to use has a pipeline */
 	UPROPERTY(EditAnywhere, Category = "Interchange|Python")

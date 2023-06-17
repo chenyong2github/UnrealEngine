@@ -12,7 +12,7 @@ class ULiveLinkRetargetAsset;
 
 /** Proxy override for this UAnimInstance-derived class */
 USTRUCT()
-struct LIVELINKANIMATIONCORE_API FLiveLinkInstanceProxy : public FAnimInstanceProxy
+struct FLiveLinkInstanceProxy : public FAnimInstanceProxy
 {
 public:
 	friend struct FAnimNode_LiveLinkPose;
@@ -28,17 +28,17 @@ public:
 	{
 	}
 
-	virtual void Initialize(UAnimInstance* InAnimInstance) override;
-	virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds) override;
-	virtual bool Evaluate(FPoseContext& Output) override;
-	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
+	LIVELINKANIMATIONCORE_API virtual void Initialize(UAnimInstance* InAnimInstance) override;
+	LIVELINKANIMATIONCORE_API virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds) override;
+	LIVELINKANIMATIONCORE_API virtual bool Evaluate(FPoseContext& Output) override;
+	LIVELINKANIMATIONCORE_API virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FAnimNode_LiveLinkPose PoseNode;
 };
 
-UCLASS(transient, NotBlueprintable)
-class LIVELINKANIMATIONCORE_API ULiveLinkInstance : public UAnimInstance
+UCLASS(transient, NotBlueprintable, MinimalAPI)
+class ULiveLinkInstance : public UAnimInstance
 {
 	GENERATED_BODY()
 
@@ -57,8 +57,8 @@ public:
 	}
 
 protected:
-	virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
-	virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
+	LIVELINKANIMATIONCORE_API virtual FAnimInstanceProxy* CreateAnimInstanceProxy() override;
+	LIVELINKANIMATIONCORE_API virtual void DestroyAnimInstanceProxy(FAnimInstanceProxy* InProxy) override;
 
 	// Cache for GC
 	UPROPERTY(transient)

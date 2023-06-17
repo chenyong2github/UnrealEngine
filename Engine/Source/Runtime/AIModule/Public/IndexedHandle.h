@@ -19,7 +19,7 @@
  * For fast access in to index based data structures when we don't expect handles to be able to be stale
  */
 USTRUCT()
-struct AIMODULE_API FSimpleIndexedHandleBase
+struct FSimpleIndexedHandleBase
 {
 	GENERATED_BODY()
 
@@ -73,7 +73,7 @@ protected:
 
 /** Index based handle that has a serial number to verify stale handles. For fast safe access in to index based data structures */
 USTRUCT()
-struct AIMODULE_API FIndexedHandleBase : public FSimpleIndexedHandleBase
+struct FIndexedHandleBase : public FSimpleIndexedHandleBase
 {
 	GENERATED_BODY()
 
@@ -113,7 +113,7 @@ public:
 
 /** Compact Index based handle that has a serial number to verify stale handles. For fast safe access in to index based data structures. */
 USTRUCT()
-struct AIMODULE_API FCompactIndexedHandleBase
+struct FCompactIndexedHandleBase
 {
 	GENERATED_BODY()
 

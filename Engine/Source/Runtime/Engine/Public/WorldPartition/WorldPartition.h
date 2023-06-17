@@ -125,9 +125,9 @@ public:
 	ENGINE_API void SetEnableStreaming(bool bInEnableStreaming);
 
 	UE_DEPRECATED(5.3, "CanBeUsedByLevelInstance is deprecated.")
-	ENGINE_API bool CanBeUsedByLevelInstance() const { return true; }
+	bool CanBeUsedByLevelInstance() const { return true; }
 	UE_DEPRECATED(5.3, "SetCanBeUsedByLevelInstance is deprecated.")
-	ENGINE_API void SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance) {}
+	void SetCanBeUsedByLevelInstance(bool bInCanBeUsedByLevelInstance) {}
 
 	ENGINE_API void OnEnableStreamingChanged();
 

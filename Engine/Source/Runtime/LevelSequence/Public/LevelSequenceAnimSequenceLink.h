@@ -17,7 +17,7 @@ class UObject;
 
 /** Link To Anim Sequence that we are linked too.*/
 USTRUCT(BlueprintType)
-struct LEVELSEQUENCE_API FLevelSequenceAnimSequenceLinkItem
+struct FLevelSequenceAnimSequenceLinkItem
 {
 	GENERATED_BODY()
 
@@ -46,14 +46,14 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bEvaluateAllSkeletalMeshComponents = true;
 
-	void SetAnimSequence(UAnimSequence* InAnimSequence);
-	UAnimSequence* ResolveAnimSequence();
+	LEVELSEQUENCE_API void SetAnimSequence(UAnimSequence* InAnimSequence);
+	LEVELSEQUENCE_API UAnimSequence* ResolveAnimSequence();
 
 };
 
 /** Link To Set of Anim Sequences that we may be linked to.*/
-UCLASS(BlueprintType)
-class LEVELSEQUENCE_API ULevelSequenceAnimSequenceLink : public UAssetUserData
+UCLASS(BlueprintType, MinimalAPI)
+class ULevelSequenceAnimSequenceLink : public UAssetUserData
 {
 	GENERATED_UCLASS_BODY()
 

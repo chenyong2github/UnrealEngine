@@ -52,11 +52,11 @@ namespace Audio
 	 *
 	 * Interface for FFT algorithm.
 	 */
-	class SIGNALPROCESSING_API IFFTAlgorithm 
+	class IFFTAlgorithm 
 	{
 		public:
 			/** virtual destructor for inheritance. */
-			virtual ~IFFTAlgorithm();
+			SIGNALPROCESSING_API virtual ~IFFTAlgorithm();
 
 			/** Number of elements in FFT */
 			virtual int32 Size() const = 0;
@@ -117,14 +117,14 @@ namespace Audio
 	 *
 	 * Factory interface for creating fft algorithms.
 	 */
-	class SIGNALPROCESSING_API IFFTAlgorithmFactory : public IModularFeature
+	class IFFTAlgorithmFactory : public IModularFeature
 	{
 		public:
 			virtual ~IFFTAlgorithmFactory()
 			{}
 
 			/** Name of modular feature for FFT factory.  */
-			static const FName GetModularFeatureName();
+			static SIGNALPROCESSING_API const FName GetModularFeatureName();
 
 			/** Name of this particular factory. */
 			virtual FName GetFactoryName() const = 0;
@@ -146,11 +146,11 @@ namespace Audio
 	 *
 	 * FFFTFactory creates fft algorithms. It will choose hardware accelerated versions of the FFT when they are available. 
 	 */
-	class SIGNALPROCESSING_API FFFTFactory
+	class FFFTFactory
 	{
 		public:
 			/** This denotes that no specific IFFTAlgorithmFactory is desired. */
-			static const FName AnyAlgorithmFactory;
+			static SIGNALPROCESSING_API const FName AnyAlgorithmFactory;
 
 			/** NewFFTAlgorithm
 			 *
@@ -160,7 +160,7 @@ namespace Audio
 			 * @param InAlgorithmFactoryName - If not equal to FFFTFactory::AnyAlgorithmFactory, will only uses FFT algorithm facotry if IFFTAlgorithmFactory::GetFactoryName() equals InAlgorithmFactoryName.
 			 * @return A TUniquePtr<IFFTAlgorithm> to the created FFT. This pointer can be invalid if an error occured or the fft algorithm could not be created.
 			 */
-			static TUniquePtr<IFFTAlgorithm> NewFFTAlgorithm(const FFFTSettings& InSettings, const FName& InAlgorithmFactoryName = AnyAlgorithmFactory);
+			static SIGNALPROCESSING_API TUniquePtr<IFFTAlgorithm> NewFFTAlgorithm(const FFFTSettings& InSettings, const FName& InAlgorithmFactoryName = AnyAlgorithmFactory);
 
 			/** AreFFTSettingsSupported
 			 *
@@ -170,6 +170,6 @@ namespace Audio
 			 * @param InAlgorithmFactoryName - If not equal to FFFTFactory::AnyAlgorithmFactory, will only uses FFT algorithm facotry if IFFTAlgorithmFactory::GetFactoryName() equals InAlgorithmFactoryName.
 			 * @return True if settings are supported. Otherwise false.
 			 */
-			static bool AreFFTSettingsSupported(const FFFTSettings& InSettings, const FName& InAlgorithmFactoryName = AnyAlgorithmFactory);
+			static SIGNALPROCESSING_API bool AreFFTSettingsSupported(const FFFTSettings& InSettings, const FName& InAlgorithmFactoryName = AnyAlgorithmFactory);
 	};
 }

@@ -31,7 +31,7 @@ public:
 	 * Reads a bool from the stream and returns the value,
 	 * A failed read will always return false and stream will be marked as overflown
 	 */
-	IRISCORE_API bool ReadBool() { return ReadBits(1) & 1U; }
+	bool ReadBool() { return ReadBits(1) & 1U; }
 
 	/**
 	 * Reads BitCount bits and stores them in Dst, starting from bit offset 0. The bits will be stored

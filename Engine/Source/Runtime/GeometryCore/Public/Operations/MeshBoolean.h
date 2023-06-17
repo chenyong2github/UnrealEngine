@@ -26,7 +26,7 @@ namespace Geometry
 /**
  * MeshBoolean -- perform a boolean operation on two input meshes.
  */
-class GEOMETRYCORE_API FMeshBoolean
+class FMeshBoolean
 {
 public:
 
@@ -178,7 +178,7 @@ public:
 	 * Compute the Boolean operation
 	 * @return true if operation succeeds
 	 */
-	bool Compute();
+	GEOMETRYCORE_API bool Compute();
 
 protected:
 	/** If this returns true, abort computation.  */
@@ -189,11 +189,11 @@ protected:
 
 private:
 
-	int FindNearestEdge(const FDynamicMesh3& OnMesh, const TArray<int>& EIDs, FVector3d Pos);
+	GEOMETRYCORE_API int FindNearestEdge(const FDynamicMesh3& OnMesh, const TArray<int>& EIDs, FVector3d Pos);
 
-	bool MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3* CutMesh[2], const TArray<int> CutBoundaryEdges[2], const TMap<int, int>& AllVIDMatches);
+	GEOMETRYCORE_API bool MergeEdges(const FMeshIndexMappings& IndexMaps, FDynamicMesh3* CutMesh[2], const TArray<int> CutBoundaryEdges[2], const TMap<int, int>& AllVIDMatches);
 
-	void SimplifyAlongNewEdges(int NumMeshesToProcess, FDynamicMesh3* CutMesh[2], TArray<int> CutBoundaryEdges[2], TMap<int, int>& AllVIDMatches);
+	GEOMETRYCORE_API void SimplifyAlongNewEdges(int NumMeshesToProcess, FDynamicMesh3* CutMesh[2], TArray<int> CutBoundaryEdges[2], TMap<int, int>& AllVIDMatches);
 
 };
 

@@ -60,7 +60,7 @@ enum class EWindowActivationPolicy
 };
 
 
-struct APPLICATIONCORE_API FGenericWindowDefinition
+struct FGenericWindowDefinition
 {
 	/** Window type */
 	EWindowType Type;

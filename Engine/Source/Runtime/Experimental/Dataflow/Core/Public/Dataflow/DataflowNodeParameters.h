@@ -17,7 +17,7 @@ struct FDataflowConnection;
 
 namespace Dataflow
 {
-	struct DATAFLOWCORE_API FTimestamp
+	struct FTimestamp
 	{
 		typedef uint64 Type;
 		Type Value = Type(0);
@@ -27,11 +27,11 @@ namespace Dataflow
 		bool operator<(const FTimestamp& InTimestamp) const { return Value < InTimestamp.Value; }
 		bool IsInvalid() { return Value == Invalid; }
 
-		static Type Current();
-		static Type Invalid; // 0
+		static DATAFLOWCORE_API Type Current();
+		static DATAFLOWCORE_API Type Invalid; // 0
 	};
 
-	struct DATAFLOWCORE_API FRenderingParameter {
+	struct FRenderingParameter {
 		FRenderingParameter() {}
 		FRenderingParameter(FName InTypeName, const TArray<FName>& InOutputs)
 			: Type(InTypeName), Outputs(InOutputs) {}
@@ -83,7 +83,7 @@ namespace Dataflow
 		// @todo(dataflow) make an API for FContextCache
 	};
 
-	class DATAFLOWCORE_API FContext
+	class FContext
 	{
 	protected:
 		FContext(FContext&&) = default;
@@ -163,9 +163,9 @@ namespace Dataflow
 		virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) = 0;
 		virtual bool Evaluate(const FDataflowOutput& Connection) = 0;
 
-		void PushToCallstack(const FDataflowConnection* Connection);
-		void PopFromCallstack(const FDataflowConnection* Connection);
-		bool IsInCallstack(const FDataflowConnection* Connection) const;
+		DATAFLOWCORE_API void PushToCallstack(const FDataflowConnection* Connection);
+		DATAFLOWCORE_API void PopFromCallstack(const FDataflowConnection* Connection);
+		DATAFLOWCORE_API bool IsInCallstack(const FDataflowConnection* Connection) const;
 
 	private:
 #if DATAFLOW_EDITOR_EVALUATION
@@ -173,11 +173,11 @@ namespace Dataflow
 #endif
 	};
 
-	struct DATAFLOWCORE_API FContextScopedCallstack
+	struct FContextScopedCallstack
 	{
 	public:
-		FContextScopedCallstack(FContext& InContext, const FDataflowConnection* InConnection);
-		~FContextScopedCallstack();
+		DATAFLOWCORE_API FContextScopedCallstack(FContext& InContext, const FDataflowConnection* InConnection);
+		DATAFLOWCORE_API ~FContextScopedCallstack();
 
 		bool IsLoopDetected() const { return bLoopDetected; }
 
@@ -193,7 +193,7 @@ namespace Dataflow
 	virtual bool IsA(FName InType) const override { return InType==StaticType() || Super::IsA(InType); }	\
 	virtual FName GetType() const override { return StaticType(); }
 
-	class DATAFLOWCORE_API FContextSingle : public FContext
+	class FContextSingle : public FContext
 	{
 		FContextCache DataStore;
 
@@ -224,11 +224,11 @@ namespace Dataflow
 			return DataStore.IsEmpty();
 		}
 
-		virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) override;
-		virtual bool Evaluate(const FDataflowOutput& Connection) override;
+		DATAFLOWCORE_API virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) override;
+		DATAFLOWCORE_API virtual bool Evaluate(const FDataflowOutput& Connection) override;
 	};
 	
-	class DATAFLOWCORE_API FContextThreaded : public FContext
+	class FContextThreaded : public FContext
 	{
 		FContextCache DataStore;
 		TSharedPtr<FCriticalSection> CacheLock;
@@ -269,8 +269,8 @@ namespace Dataflow
 			return DataStore.IsEmpty();
 		}
 
-		virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) override;
-		virtual bool Evaluate(const FDataflowOutput& Connection) override;
+		DATAFLOWCORE_API virtual void Evaluate(const FDataflowNode* Node, const FDataflowOutput* Output) override;
+		DATAFLOWCORE_API virtual bool Evaluate(const FDataflowOutput& Connection) override;
 	};
 
 }

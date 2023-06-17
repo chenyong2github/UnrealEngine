@@ -13,7 +13,7 @@ class IWebBrowserWindow;
 /**
  * A Slate viewport to display a Web Browser Window
  */
-class WEBBROWSER_API FWebBrowserViewport : public ISlateViewport
+class FWebBrowserViewport : public ISlateViewport
 {
 public:
 	/**
@@ -36,24 +36,24 @@ public:
 	}
 
 	// ISlateViewport interface
-	virtual FIntPoint GetSize() const override;
-	virtual FSlateShaderResource* GetViewportRenderTargetTexture() const override;
-	virtual void Tick( const FGeometry& AllottedGeometry, double InCurrentTime, float DeltaTime ) override;
-	virtual bool RequiresVsync() const override;
-	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) override;
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnTouchGesture( const FGeometry& MyGeometry, const FPointerEvent& GestureEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
-	virtual FReply OnKeyChar( const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent ) override;
-	virtual FReply OnFocusReceived( const FFocusEvent& InFocusEvent ) override;
-	virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
+	WEBBROWSER_API virtual FIntPoint GetSize() const override;
+	WEBBROWSER_API virtual FSlateShaderResource* GetViewportRenderTargetTexture() const override;
+	WEBBROWSER_API virtual void Tick( const FGeometry& AllottedGeometry, double InCurrentTime, float DeltaTime ) override;
+	WEBBROWSER_API virtual bool RequiresVsync() const override;
+	WEBBROWSER_API virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) override;
+	WEBBROWSER_API virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	WEBBROWSER_API virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	WEBBROWSER_API virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	WEBBROWSER_API virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
+	WEBBROWSER_API virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	WEBBROWSER_API virtual FReply OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+	WEBBROWSER_API virtual FReply OnTouchGesture( const FGeometry& MyGeometry, const FPointerEvent& GestureEvent ) override;
+	WEBBROWSER_API virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
+	WEBBROWSER_API virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	WEBBROWSER_API virtual FReply OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
+	WEBBROWSER_API virtual FReply OnKeyChar( const FGeometry& MyGeometry, const FCharacterEvent& InCharacterEvent ) override;
+	WEBBROWSER_API virtual FReply OnFocusReceived( const FFocusEvent& InFocusEvent ) override;
+	WEBBROWSER_API virtual void OnFocusLost( const FFocusEvent& InFocusEvent ) override;
 
 private:
 	/** The web browser this viewport will display */

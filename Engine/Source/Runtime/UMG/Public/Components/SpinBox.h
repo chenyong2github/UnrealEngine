@@ -15,8 +15,8 @@
 /**
  * A numerical entry box that allows for direct entry of the number or allows the user to click and slide the number.
  */
-UCLASS()
-class UMG_API USpinBox : public UWidget
+UCLASS(MinimalAPI)
+class USpinBox : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -126,173 +126,173 @@ public:
 
 	/** Get the current value of the spin box. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	float GetValue() const;
+	UMG_API float GetValue() const;
 
 	/** Set the value of the spin box. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	void SetValue(float NewValue);
+	UMG_API void SetValue(float NewValue);
 
 public:
 
 	/** Set the style for the spin box. */
-	const FSpinBoxStyle& GetWidgetStyle() const;
+	UMG_API const FSpinBoxStyle& GetWidgetStyle() const;
 
 	/** Get the style for the spin box. */
-	void SetWidgetStyle(const FSpinBoxStyle& InWidgetStyle);
+	UMG_API void SetWidgetStyle(const FSpinBoxStyle& InWidgetStyle);
 
 	/** Get the current Min Fractional Digits for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
-	int32 GetMinFractionalDigits() const;
+	UMG_API int32 GetMinFractionalDigits() const;
 
 	/** Set the Min Fractional Digits for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
-	void SetMinFractionalDigits(int32 NewValue);
+	UMG_API void SetMinFractionalDigits(int32 NewValue);
 
 	/** Get the current Max Fractional Digits for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
-	int32 GetMaxFractionalDigits() const;
+	UMG_API int32 GetMaxFractionalDigits() const;
 
 	/** Set the Max Fractional Digits for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
-	void SetMaxFractionalDigits(int32 NewValue);
+	UMG_API void SetMaxFractionalDigits(int32 NewValue);
 
 	/** Get whether the spin box uses delta snap on type. */
 	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
-	bool GetAlwaysUsesDeltaSnap() const;
+	UMG_API bool GetAlwaysUsesDeltaSnap() const;
 
 	/** Set whether the spin box uses delta snap on type. */
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
-	void SetAlwaysUsesDeltaSnap(bool bNewValue);
+	UMG_API void SetAlwaysUsesDeltaSnap(bool bNewValue);
 
 	/** Get whether the spin box uses the slider feature. */
-	bool GetEnableSlider() const;
+	UMG_API bool GetEnableSlider() const;
 
 	/** Set whether the spin box uses the slider feature. */
-	void SetEnableSlider(bool bNewValue);
+	UMG_API void SetEnableSlider(bool bNewValue);
 
 	/** Get the current delta for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
-	float GetDelta() const;
+	UMG_API float GetDelta() const;
 
 	/** Set the delta for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
-	void SetDelta(float NewValue);
+	UMG_API void SetDelta(float NewValue);
 
 	/** Get the current slider exponent for the spin box. */
-	float GetSliderExponent() const;
+	UMG_API float GetSliderExponent() const;
 
 	/** Set the slider exponent for the spin box. */
-	void SetSliderExponent(float NewValue);
+	UMG_API void SetSliderExponent(float NewValue);
 
 	/**  Get the font color and opacity that overrides the style font. */
-	const FSlateFontInfo& GetFont() const;
+	UMG_API const FSlateFontInfo& GetFont() const;
 
 	/** Set the font color and opacity that overrides the style font. */
-	void SetFont(const FSlateFontInfo& InFont);
+	UMG_API void SetFont(const FSlateFontInfo& InFont);
 
 	/** Get the justification for value text. */
-	const ETextJustify::Type GetJustification() const;
+	UMG_API const ETextJustify::Type GetJustification() const;
 
 	/** Set the justification for value text. */
-	void SetJustification(ETextJustify::Type InJustification);
+	UMG_API void SetJustification(ETextJustify::Type InJustification);
 
 	/** Get the minimum width of the spin box. */
-	float GetMinDesiredWidth() const;
+	UMG_API float GetMinDesiredWidth() const;
 
 	/** Set the minimum width of the spin box. */
-	void SetMinDesiredWidth(float NewValue);
+	UMG_API void SetMinDesiredWidth(float NewValue);
 
 	/** Get whether the keyboard focus is removed from the spin box when the value is committed. */
-	bool GetClearKeyboardFocusOnCommit() const;
+	UMG_API bool GetClearKeyboardFocusOnCommit() const;
 
 	/** Set whether the keyboard focus is removed from the spin box when the value is committed. */
-	void SetClearKeyboardFocusOnCommit(bool bNewValue);
+	UMG_API void SetClearKeyboardFocusOnCommit(bool bNewValue);
 
 	/** Get whether to select the text in the spin box when the value is committed. */
-	bool GetSelectAllTextOnCommit() const;
+	UMG_API bool GetSelectAllTextOnCommit() const;
 
 	/** Set whether to select the text in the spin box when the value is committed. */
-	void SetSelectAllTextOnCommit(bool bNewValue);
+	UMG_API void SetSelectAllTextOnCommit(bool bNewValue);
 
 	/** Get the current minimum value that can be manually set in the spin box. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
-	float GetMinValue() const;
+	UMG_API float GetMinValue() const;
 
 	/** Set the minimum value that can be manually set in the spin box. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetMinValue(float NewValue);
+	UMG_API void SetMinValue(float NewValue);
 
 	/** Clear the minimum value that can be manually set in the spin box. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void ClearMinValue();
+	UMG_API void ClearMinValue();
 
 	/** Get the current maximum value that can be manually set in the spin box. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	float GetMaxValue() const;
+	UMG_API float GetMaxValue() const;
 
 	/** Set the maximum value that can be manually set in the spin box. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetMaxValue(float NewValue);
+	UMG_API void SetMaxValue(float NewValue);
 
 	/** Clear the maximum value that can be manually set in the spin box. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void ClearMaxValue();
+	UMG_API void ClearMaxValue();
 
 	/** Get the current minimum value that can be specified using the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	float GetMinSliderValue() const;
+	UMG_API float GetMinSliderValue() const;
 
 	/** Set the minimum value that can be specified using the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetMinSliderValue(float NewValue);
+	UMG_API void SetMinSliderValue(float NewValue);
 
 	/** Clear the minimum value that can be specified using the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void ClearMinSliderValue();
+	UMG_API void ClearMinSliderValue();
 
 	/** Get the current maximum value that can be specified using the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	float GetMaxSliderValue() const;
+	UMG_API float GetMaxSliderValue() const;
 
 	/** Set the maximum value that can be specified using the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void SetMaxSliderValue(float NewValue);
+	UMG_API void SetMaxSliderValue(float NewValue);
 
 	/** Clear the maximum value that can be specified using the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
-	void ClearMaxSliderValue();
+	UMG_API void ClearMaxSliderValue();
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetForegroundColor(FSlateColor InForegroundColor);
+	UMG_API void SetForegroundColor(FSlateColor InForegroundColor);
 
 	/** Get the foreground color of the spin box. */
-	FSlateColor GetForegroundColor() const;
+	UMG_API FSlateColor GetForegroundColor() const;
 
 public:
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 	//~ End UWidget Interface
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget
 
-	void HandleOnValueChanged(float InValue);
-	void HandleOnValueCommitted(float InValue, ETextCommit::Type CommitMethod);
-	void HandleOnBeginSliderMovement();
-	void HandleOnEndSliderMovement(float InValue);
+	UMG_API void HandleOnValueChanged(float InValue);
+	UMG_API void HandleOnValueCommitted(float InValue, ETextCommit::Type CommitMethod);
+	UMG_API void HandleOnBeginSliderMovement();
+	UMG_API void HandleOnEndSliderMovement(float InValue);
 
 protected:
 	/** Whether the optional MinValue attribute of the widget is set */

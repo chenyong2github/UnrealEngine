@@ -30,7 +30,7 @@ DECLARE_DELEGATE_RetVal_OneParam(int32, FOnGetPageIndex, int32)
 /**
  * Implements a wizard widget.
  */
-class APPFRAMEWORK_API SWizard
+class SWizard
 	: public SCompoundWidget
 {
 public:
@@ -38,7 +38,7 @@ public:
 	/**
 	 * Implements a wizard page.
 	 */
-	class APPFRAMEWORK_API FWizardPage
+	class FWizardPage
 	{
 	public:
 
@@ -263,27 +263,27 @@ public:
 	 * @param PageIndex The index of the page to check.
 	 * @return true if the page can be shown, false otherwise.
 	 */
-	bool CanShowPage( int32 PageIndex ) const;
+	APPFRAMEWORK_API bool CanShowPage( int32 PageIndex ) const;
 
 	/**
 	 * Construct this widget.
 	 *
 	 * @param InArgs The declaration data for this widget.
 	 */
-	void Construct( const FArguments& InArgs );
+	APPFRAMEWORK_API void Construct( const FArguments& InArgs );
 
 	/**
 	 * Gets the number of pages that this wizard contains.
 	 *
 	 * @return The number of pages.
 	 */
-	int32 GetNumPages() const;
+	APPFRAMEWORK_API int32 GetNumPages() const;
 
 	/**
 	 * Get the index of the current page.
 	 * @return The index of the current page.
 	 */
-	int32 GetCurrentPageIndex() const;
+	APPFRAMEWORK_API int32 GetCurrentPageIndex() const;
 
 	/**
 	 * Gets the index of the specified wizard page widget.
@@ -291,23 +291,23 @@ public:
 	 * @param PageWidget The page widget to get the index for.
 	 * @return The index of the page, or INDEX_NONE if not found.
 	 */
-	int32 GetPageIndex( const TSharedPtr<SWidget>& PageWidget ) const;
+	APPFRAMEWORK_API int32 GetPageIndex( const TSharedPtr<SWidget>& PageWidget ) const;
 
 	/**
 	 * Attempts to show the page with the specified index.
 	 *
 	 * @param PageIndex The index of the page to show.
 	 */
-	void ShowPage( int32 PageIndex );
+	APPFRAMEWORK_API void ShowPage( int32 PageIndex );
 
 	/** Shows the page with the specified index, but preserves page history. */
-	void AdvanceToPage( int32 PageIndex );
+	APPFRAMEWORK_API void AdvanceToPage( int32 PageIndex );
 
 public:
 
 	// SCompoundWidget interface
 
-	virtual FVector2D ComputeDesiredSize(float) const override;
+	APPFRAMEWORK_API virtual FVector2D ComputeDesiredSize(float) const override;
 
 public:
 
@@ -326,49 +326,49 @@ public:
 private:
 
 	// Callback for clicking the 'Cancel' button.
-	FReply HandleCancelButtonClicked();
+	APPFRAMEWORK_API FReply HandleCancelButtonClicked();
 
 	// Callback for clicking the 'Launch' button.
-	FReply HandleFinishButtonClicked();
+	APPFRAMEWORK_API FReply HandleFinishButtonClicked();
 
 	// Callback for clicking the 'Next' button.
-	FReply HandleNextButtonClicked();
+	APPFRAMEWORK_API FReply HandleNextButtonClicked();
 
 	// Callback for getting the enabled state of the 'Next' button.
-	bool HandleNextButtonIsEnabled() const;
+	APPFRAMEWORK_API bool HandleNextButtonIsEnabled() const;
 
 	// Callback for getting the visibility of the 'Next' button.
-	EVisibility HandleNextButtonVisibility() const;
+	APPFRAMEWORK_API EVisibility HandleNextButtonVisibility() const;
 
 	// Callback for getting the checked state of a page button.
-	void HandlePageButtonCheckStateChanged( ECheckBoxState NewState, int32 PageIndex );
+	APPFRAMEWORK_API void HandlePageButtonCheckStateChanged( ECheckBoxState NewState, int32 PageIndex );
 
 	// Callback for clicking a page button.
-	ECheckBoxState HandlePageButtonIsChecked( int32 PageIndex ) const;
+	APPFRAMEWORK_API ECheckBoxState HandlePageButtonIsChecked( int32 PageIndex ) const;
 
 	// Callback for getting the enabled state of a page button.
-	bool HandlePageButtonIsEnabled( int32 PageIndex ) const;
+	APPFRAMEWORK_API bool HandlePageButtonIsEnabled( int32 PageIndex ) const;
 
 	// Callback for clicking the 'Previous' button.
-	FReply HandlePrevButtonClicked();
+	APPFRAMEWORK_API FReply HandlePrevButtonClicked();
 
 	// Callback for getting the enabled state of the 'Previous' button.
-	bool HandlePrevButtonIsEnabled() const;
+	APPFRAMEWORK_API bool HandlePrevButtonIsEnabled() const;
 
 	// Callback for getting the visibility of the 'Previous' button.
-	EVisibility HandlePrevButtonVisibility() const;
+	APPFRAMEWORK_API EVisibility HandlePrevButtonVisibility() const;
 
 	// Callback for when a breadcrumb is clicked.
-	void HandleBreadcrumbClicked(const int32& PageIndex);
+	APPFRAMEWORK_API void HandleBreadcrumbClicked(const int32& PageIndex);
 
 	// Get the next page index to display.
-	int32 GetNextPageIndex() const;
+	APPFRAMEWORK_API int32 GetNextPageIndex() const;
 
 	// Get the previous page index to display.
-	int32 GetPrevPageIndex() const;
+	APPFRAMEWORK_API int32 GetPrevPageIndex() const;
 
 	// Get the page title to display for the current page.
-	FText HandleGetPageTitle() const;
+	APPFRAMEWORK_API FText HandleGetPageTitle() const;
 
 private:
 

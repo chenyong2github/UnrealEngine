@@ -12,8 +12,8 @@
 class UNavigationSystemV1;
 enum class ENavigationInvokerPriority : uint8;
 
-UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent))
-class NAVIGATIONSYSTEM_API UNavigationInvokerComponent : public UActorComponent
+UCLASS(ClassGroup = (Navigation), meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UNavigationInvokerComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
@@ -34,18 +34,18 @@ protected:
 	ENavigationInvokerPriority Priority;
 
 public:
-	UNavigationInvokerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	NAVIGATIONSYSTEM_API UNavigationInvokerComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	void RegisterWithNavigationSystem(UNavigationSystemV1& NavSys);
+	NAVIGATIONSYSTEM_API void RegisterWithNavigationSystem(UNavigationSystemV1& NavSys);
 
 	/** Sets generation/removal ranges. Doesn't force navigation system's update.
 	 *	Will get picked up the next time NavigationSystem::UpdateInvokers gets called */
-	void SetGenerationRadii(const float GenerationRadius, const float RemovalRadius);
+	NAVIGATIONSYSTEM_API void SetGenerationRadii(const float GenerationRadius, const float RemovalRadius);
 
 	float GetGenerationRadius() const { return TileGenerationRadius; }
 	float GetRemovalRadius() const { return TileRemovalRadius; }
 
-	virtual void Activate(bool bReset = false) override;
-	virtual void Deactivate() override;
-	virtual void PostInitProperties() override;
+	NAVIGATIONSYSTEM_API virtual void Activate(bool bReset = false) override;
+	NAVIGATIONSYSTEM_API virtual void Deactivate() override;
+	NAVIGATIONSYSTEM_API virtual void PostInitProperties() override;
 };

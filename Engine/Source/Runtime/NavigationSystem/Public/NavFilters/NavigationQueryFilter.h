@@ -13,7 +13,7 @@
 class ANavigationData;
 
 USTRUCT()
-struct NAVIGATIONSYSTEM_API FNavigationFilterArea
+struct FNavigationFilterArea
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -50,7 +50,7 @@ struct NAVIGATIONSYSTEM_API FNavigationFilterArea
 // Use UNavigationSystemV1.DescribeFilterFlags() to setup user friendly names of flags
 // 
 USTRUCT()
-struct NAVIGATIONSYSTEM_API FNavigationFilterFlags
+struct FNavigationFilterFlags
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -100,8 +100,8 @@ struct NAVIGATIONSYSTEM_API FNavigationFilterFlags
 };
 
 /** Class containing definition of a navigation query filter */
-UCLASS(Abstract, Blueprintable)
-class NAVIGATIONSYSTEM_API UNavigationQueryFilter : public UObject
+UCLASS(Abstract, Blueprintable, MinimalAPI)
+class UNavigationQueryFilter : public UObject
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -118,11 +118,11 @@ class NAVIGATIONSYSTEM_API UNavigationQueryFilter : public UObject
 	FNavigationFilterFlags ExcludeFlags;
 
 	/** get filter for given navigation data and initialize on first access */
-	FSharedConstNavQueryFilter GetQueryFilter(const ANavigationData& NavData, const UObject* Querier) const;
+	NAVIGATIONSYSTEM_API FSharedConstNavQueryFilter GetQueryFilter(const ANavigationData& NavData, const UObject* Querier) const;
 	
 	/** helper functions for accessing filter */
-	static FSharedConstNavQueryFilter GetQueryFilter(const ANavigationData& NavData, TSubclassOf<UNavigationQueryFilter> FilterClass);
-	static FSharedConstNavQueryFilter GetQueryFilter(const ANavigationData& NavData, const UObject* Querier, TSubclassOf<UNavigationQueryFilter> FilterClass);
+	static NAVIGATIONSYSTEM_API FSharedConstNavQueryFilter GetQueryFilter(const ANavigationData& NavData, TSubclassOf<UNavigationQueryFilter> FilterClass);
+	static NAVIGATIONSYSTEM_API FSharedConstNavQueryFilter GetQueryFilter(const ANavigationData& NavData, const UObject* Querier, TSubclassOf<UNavigationQueryFilter> FilterClass);
 
 	template<class T>
 	static FSharedConstNavQueryFilter GetQueryFilter(const ANavigationData& NavData, TSubclassOf<UNavigationQueryFilter> FilterClass = T::StaticClass())
@@ -131,7 +131,7 @@ class NAVIGATIONSYSTEM_API UNavigationQueryFilter : public UObject
 	}
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	NAVIGATIONSYSTEM_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 protected:
@@ -143,15 +143,15 @@ protected:
 	uint32 bIsMetaFilter : 1;
 
 	/** helper functions for adding area overrides */
-	void AddTravelCostOverride(TSubclassOf<UNavArea> AreaClass, float TravelCost);
-	void AddEnteringCostOverride(TSubclassOf<UNavArea> AreaClass, float EnteringCost);
-	void AddExcludedArea(TSubclassOf<UNavArea> AreaClass);
+	NAVIGATIONSYSTEM_API void AddTravelCostOverride(TSubclassOf<UNavArea> AreaClass, float TravelCost);
+	NAVIGATIONSYSTEM_API void AddEnteringCostOverride(TSubclassOf<UNavArea> AreaClass, float EnteringCost);
+	NAVIGATIONSYSTEM_API void AddExcludedArea(TSubclassOf<UNavArea> AreaClass);
 
 	/** find index of area data */
-	int32 FindAreaOverride(TSubclassOf<UNavArea> AreaClass) const;
+	NAVIGATIONSYSTEM_API int32 FindAreaOverride(TSubclassOf<UNavArea> AreaClass) const;
 	
 	/** setup filter for given navigation data, use to create custom filters */
-	virtual void InitializeFilter(const ANavigationData& NavData, const UObject* Querier, FNavigationQueryFilter& Filter) const;
+	NAVIGATIONSYSTEM_API virtual void InitializeFilter(const ANavigationData& NavData, const UObject* Querier, FNavigationQueryFilter& Filter) const;
 
 	virtual TSubclassOf<UNavigationQueryFilter> GetSimpleFilterForAgent(const UObject& Querier) const { return nullptr; }
 };

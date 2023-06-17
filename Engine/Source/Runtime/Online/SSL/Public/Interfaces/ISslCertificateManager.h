@@ -76,7 +76,7 @@ public:
 	virtual bool VerifySslCertificates(TArray<TArray<uint8, TFixedAllocator<PUBLIC_KEY_DIGEST_SIZE>>>& Digests, const FString& Domain) const = 0;
 };
 
-class SSL_API FSslCertificateDelegates
+class FSslCertificateDelegates
 {
 public:
 	struct FCertInfo
@@ -90,5 +90,5 @@ public:
 	};
 
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FVerifySslCertificates, const FString&, const TArray<FCertInfo>&);
-	static FVerifySslCertificates VerifySslCertificates;
+	static SSL_API FVerifySslCertificates VerifySslCertificates;
 };

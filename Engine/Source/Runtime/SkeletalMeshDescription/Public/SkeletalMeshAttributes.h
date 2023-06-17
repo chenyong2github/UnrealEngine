@@ -34,7 +34,7 @@ namespace MeshAttribute
 }
 
 
-class SKELETALMESHDESCRIPTION_API FSkeletalMeshAttributesShared
+class FSkeletalMeshAttributesShared
 {
 public:
 	using FBoneArray = TMeshElementContainer<FBoneID>;
@@ -58,51 +58,51 @@ public:
 	 * added to the  mesh description to represent Bones (similar to the Vertex/Polygons/Edges elements). 
 	 * MeshAttribute::Bone::Name is just one of the attributes of the Bones element.
 	 */
-	static FName BonesElementName;
+	static SKELETALMESHDESCRIPTION_API FName BonesElementName;
 
 	// The name of the default skin weight profile.
-	static FName DefaultSkinWeightProfileName;
+	static SKELETALMESHDESCRIPTION_API FName DefaultSkinWeightProfileName;
 	
-	FSkeletalMeshAttributesShared(const FMeshDescription& InMeshDescription);
+	SKELETALMESHDESCRIPTION_API FSkeletalMeshAttributesShared(const FMeshDescription& InMeshDescription);
 
 	//
 	// Skin Weights Methods
 	//
 
 	/// Returns the list of all registered skin weight profile names on this mesh.
-	TArray<FName> GetSkinWeightProfileNames() const;
+	SKELETALMESHDESCRIPTION_API TArray<FName> GetSkinWeightProfileNames() const;
 	
 	/// Returns \c true if the given identifier is a valid profile name. If the name is empty, or matches the default profile,
 	/// then the profile name is considered invalid. 
-	static bool IsValidSkinWeightProfileName(const FName& InProfileName);
+	static SKELETALMESHDESCRIPTION_API bool IsValidSkinWeightProfileName(const FName& InProfileName);
 
 	/// Helper function that indicates whether an attribute name represents a skin weight attribute.
-	static bool IsSkinWeightAttribute(const FName& InAttributeName);
+	static SKELETALMESHDESCRIPTION_API bool IsSkinWeightAttribute(const FName& InAttributeName);
 
 	/// Returns a skin profile name from the attribute name, if the attribute name is a valid skin weights
 	/// attribute.
-	static FName GetProfileNameFromAttribute(const FName& InAttributeName);
+	static SKELETALMESHDESCRIPTION_API FName GetProfileNameFromAttribute(const FName& InAttributeName);
 
-	FSkinWeightsVertexAttributesConstRef GetVertexSkinWeights(const FName& InProfileName = NAME_None) const;
+	SKELETALMESHDESCRIPTION_API FSkinWeightsVertexAttributesConstRef GetVertexSkinWeights(const FName& InProfileName = NAME_None) const;
 	
-	FSkinWeightsVertexAttributesConstRef GetVertexSkinWeightsFromAttributeName(const FName& InAttributeName = NAME_None) const;
+	SKELETALMESHDESCRIPTION_API FSkinWeightsVertexAttributesConstRef GetVertexSkinWeightsFromAttributeName(const FName& InAttributeName = NAME_None) const;
 
 
 	//
 	// Bones Methods
 	//
 
-	bool HasBoneColorAttribute() const;
+	SKELETALMESHDESCRIPTION_API bool HasBoneColorAttribute() const;
 
-	bool HasBoneNameAttribute() const;
+	SKELETALMESHDESCRIPTION_API bool HasBoneNameAttribute() const;
 
-	bool HasBonePoseAttribute() const;
+	SKELETALMESHDESCRIPTION_API bool HasBonePoseAttribute() const;
 
-	bool HasBoneParentIndexAttribute() const;
+	SKELETALMESHDESCRIPTION_API bool HasBoneParentIndexAttribute() const;
 
-	const FBoneArray& Bones() const;
+	SKELETALMESHDESCRIPTION_API const FBoneArray& Bones() const;
 
-	const TAttributesSet<FBoneID>& BoneAttributes() const;
+	SKELETALMESHDESCRIPTION_API const TAttributesSet<FBoneID>& BoneAttributes() const;
 
 	/**  @return true, if bone element was added to the MeshDescription. */
 	bool HasBones() const
@@ -111,24 +111,24 @@ public:
 	}
 
 	/**  @return the number of the bones. 0 if bone element does not exist in the MeshDescripion. */
-	int32 GetNumBones() const;
+	SKELETALMESHDESCRIPTION_API int32 GetNumBones() const;
 
 	/** @return true, if the passed bone ID is valid */
-	bool IsBoneValid(const FBoneID BoneID) const;
+	SKELETALMESHDESCRIPTION_API bool IsBoneValid(const FBoneID BoneID) const;
 
-	FBoneNameAttributesConstRef GetBoneNames() const;
+	SKELETALMESHDESCRIPTION_API FBoneNameAttributesConstRef GetBoneNames() const;
 
-	FBoneParentIndexAttributesConstRef GetBoneParentIndices() const;
+	SKELETALMESHDESCRIPTION_API FBoneParentIndexAttributesConstRef GetBoneParentIndices() const;
 
-	FBonePoseAttributesConstRef GetBonePoses() const;
+	SKELETALMESHDESCRIPTION_API FBonePoseAttributesConstRef GetBonePoses() const;
 
-	FBoneColorAttributesConstRef GetBoneColors() const;
+	SKELETALMESHDESCRIPTION_API FBoneColorAttributesConstRef GetBoneColors() const;
 
 protected:
 	/// Construct a name for a skin weight attribute with the given skin weight profile name.
 	/// Each mesh description can hold different skin weight profiles, although the default
 	/// is always present.
-	static FName CreateSkinWeightAttributeName(const FName& InProfileName);
+	static SKELETALMESHDESCRIPTION_API FName CreateSkinWeightAttributeName(const FName& InProfileName);
 
 private:
 	const FMeshElementChannels* BoneElementsShared = nullptr;
@@ -137,15 +137,15 @@ private:
 };
 
 
-class SKELETALMESHDESCRIPTION_API FSkeletalMeshAttributes :
+class FSkeletalMeshAttributes :
 	public FStaticMeshAttributes,
 	public FSkeletalMeshAttributesShared
 {
 public:
 
-	explicit FSkeletalMeshAttributes(FMeshDescription& InMeshDescription);
+	SKELETALMESHDESCRIPTION_API explicit FSkeletalMeshAttributes(FMeshDescription& InMeshDescription);
 
-	virtual void Register(bool bKeepExistingAttribute = false) override;
+	SKELETALMESHDESCRIPTION_API virtual void Register(bool bKeepExistingAttribute = false) override;
 	
 	//
 	// Skin Weights Methods
@@ -154,7 +154,7 @@ public:
 	/// Register a new skin weight profile with the given name. The attribute name will encode the profile name and
 	/// it will be listed in GetSkinWeightProfileNames(). Returns \c true if the profile was successfully registered.
 	/// Returns \c false if the attribute was already registered or if IsValidSkinWeightProfileName() returned false.
-	bool RegisterSkinWeightAttribute(const FName& InProfileName);
+	SKELETALMESHDESCRIPTION_API bool RegisterSkinWeightAttribute(const FName& InProfileName);
 
 	static bool IsReservedAttributeName(const FName& InAttributeName)
 	{
@@ -167,40 +167,40 @@ public:
 	}
 	
 	/// Returns the skin weight profile given by its name. NAME_None corresponds to the default profile.
-	FSkinWeightsVertexAttributesRef GetVertexSkinWeights(const FName& InProfileName = NAME_None);
+	SKELETALMESHDESCRIPTION_API FSkinWeightsVertexAttributesRef GetVertexSkinWeights(const FName& InProfileName = NAME_None);
 
-	FSkinWeightsVertexAttributesRef GetVertexSkinWeightsFromAttributeName(const FName& InAttributeName = NAME_None);
+	SKELETALMESHDESCRIPTION_API FSkinWeightsVertexAttributesRef GetVertexSkinWeightsFromAttributeName(const FName& InAttributeName = NAME_None);
 
 	//
 	// Bones Methods
 	//
 
 	/** Register an optional color attribute for bones */
-	void RegisterColorAttribute();
+	SKELETALMESHDESCRIPTION_API void RegisterColorAttribute();
 
-	FBoneArray& Bones();
+	SKELETALMESHDESCRIPTION_API FBoneArray& Bones();
 
-	TAttributesSet<FBoneID>& BoneAttributes();
+	SKELETALMESHDESCRIPTION_API TAttributesSet<FBoneID>& BoneAttributes();
 
 	/** Reserves space for this number of new bones */
-	void ReserveNewBones(const int InNumBones);
+	SKELETALMESHDESCRIPTION_API void ReserveNewBones(const int InNumBones);
 
 	/** Adds a new bone and returns its ID */
-	FBoneID CreateBone();
+	SKELETALMESHDESCRIPTION_API FBoneID CreateBone();
 
 	/** Adds a new bone  with the given ID */
-	void CreateBone(const FBoneID BoneID);
+	SKELETALMESHDESCRIPTION_API void CreateBone(const FBoneID BoneID);
 
 	/** Deletes a bone with the given ID */
-	void DeleteBone(const FBoneID BoneID);
+	SKELETALMESHDESCRIPTION_API void DeleteBone(const FBoneID BoneID);
 
-	FBoneNameAttributesRef GetBoneNames();
+	SKELETALMESHDESCRIPTION_API FBoneNameAttributesRef GetBoneNames();
 	
-	FBoneParentIndexAttributesRef GetBoneParentIndices();
+	SKELETALMESHDESCRIPTION_API FBoneParentIndexAttributesRef GetBoneParentIndices();
 
-	FBonePoseAttributesRef GetBonePoses();
+	SKELETALMESHDESCRIPTION_API FBonePoseAttributesRef GetBonePoses();
 
-	FBoneColorAttributesRef GetBoneColors();
+	SKELETALMESHDESCRIPTION_API FBoneColorAttributesRef GetBoneColors();
 
 private:
 	FMeshElementChannels* BoneElements = nullptr;

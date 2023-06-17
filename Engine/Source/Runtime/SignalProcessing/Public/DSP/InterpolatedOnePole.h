@@ -7,18 +7,18 @@
 
 namespace Audio
 {
-	class SIGNALPROCESSING_API FInterpolatedLPF
+	class FInterpolatedLPF
 	{
 	public:
 		// ctor
-		FInterpolatedLPF();
+		SIGNALPROCESSING_API FInterpolatedLPF();
 
 		FORCEINLINE float GetCutoffFrequency() const
 		{
 			return CutoffFrequency;
 		}
 
-		void Init(float InSampleRate, int32 InNumChannels);
+		SIGNALPROCESSING_API void Init(float InSampleRate, int32 InNumChannels);
 
 		/*
 			StartFrequencyInterpolation():
@@ -29,13 +29,13 @@ namespace Audio
 				Failing to call StopFrequencyInterpolation() after more than InterpLength calls to ProcessAudioFrame
 				will cause the filter to become unstable and blow up to +/- inf!
 		*/
-		void StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength = 1);
+		SIGNALPROCESSING_API void StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength = 1);
 
 		// interpolates coefficient and processes a sample
-		void ProcessAudioFrame(const float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
 
 		// interpolates coefficient and processes a buffer
-		void ProcessAudioBuffer(const float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
+		SIGNALPROCESSING_API void ProcessAudioBuffer(const float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
 
 		/*
 			StopFrequencyInterpolation() needs to be called manually when the interpolation should be done.
@@ -49,11 +49,11 @@ namespace Audio
 		}
 
 		// Resets the sample delay to 0
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		// Clears memory without reevaluating coefficients.
 		// This function is useful when there is a break between ProcessAudio calls.
-		void ClearMemory();
+		SIGNALPROCESSING_API void ClearMemory();
 
 	private:
 		float CutoffFrequency{ -1.0f };
@@ -72,18 +72,18 @@ namespace Audio
 
 
 
-	class SIGNALPROCESSING_API FInterpolatedHPF
+	class FInterpolatedHPF
 	{
 	public:
 		// ctor
-		FInterpolatedHPF();
+		SIGNALPROCESSING_API FInterpolatedHPF();
 
 		FORCEINLINE float GetCutoffFrequency() const
 		{
 			return CutoffFrequency;
 		}
 
-		void Init(float InSampleRate, int32 InNumChannels);
+		SIGNALPROCESSING_API void Init(float InSampleRate, int32 InNumChannels);
 
 		/*
 			StartFrequencyInterpolation():
@@ -94,13 +94,13 @@ namespace Audio
 				Failing to call StopFrequencyInterpolation() after more than InterpLength calls to ProcessAudioFrame
 				will cause the filter to become unstable and blow up to +/- inf!
 		*/
-		void StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength = 1);
+		SIGNALPROCESSING_API void StartFrequencyInterpolation(const float InTargetFrequency, const int32 InterpLength = 1);
 
 		// interpolates coefficient and processes a sample
-		void ProcessAudioFrame(const float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
 
 		// interpolates coefficient and processes a buffer
-		void ProcessAudioBuffer(const float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
+		SIGNALPROCESSING_API void ProcessAudioBuffer(const float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
 
 		/*
 			StopFrequencyInterpolation() needs to be called manually when the interpolation should be done.
@@ -114,11 +114,11 @@ namespace Audio
 		}
 
 		// Resets the sample delay to 0
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		// Clears memory without reevaluating coefficients.
 		// This function is useful when there is a break between ProcessAudio calls.
-		void ClearMemory();
+		SIGNALPROCESSING_API void ClearMemory();
 		
 	private:
 		float CutoffFrequency{ -1.0f };

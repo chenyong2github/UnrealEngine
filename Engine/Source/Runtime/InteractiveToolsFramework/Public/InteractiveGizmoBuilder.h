@@ -14,8 +14,8 @@
  * These are registered with the InteractiveGizmoManager, which calls BuildGizmo().
  * This is an abstract base class, you must subclass it in order to create your particular Gizmo instance
  */
-UCLASS(Transient, Abstract)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveGizmoBuilder : public UObject
+UCLASS(Transient, Abstract, MinimalAPI)
+class UInteractiveGizmoBuilder : public UObject
 {
 	GENERATED_BODY()
 

@@ -33,7 +33,7 @@ public:
 	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const Chaos::FGeometryParticleHandle& Actor) = 0;
 };
 
-class PHYSICSCORE_API FBlockAllQueryCallback : public ICollisionQueryFilterCallbackBase
+class FBlockAllQueryCallback : public ICollisionQueryFilterCallbackBase
 {
 public:
 	virtual ~FBlockAllQueryCallback() {}
@@ -44,7 +44,7 @@ public:
 	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::FPerShapeData& Shape, const Chaos::FGeometryParticleHandle& Actor) override { return ECollisionQueryHitType::Block; }
 };
 
-class PHYSICSCORE_API FOverlapAllQueryCallback : public ICollisionQueryFilterCallbackBase
+class FOverlapAllQueryCallback : public ICollisionQueryFilterCallbackBase
 {
 public:
 	virtual ~FOverlapAllQueryCallback() {}

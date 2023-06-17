@@ -13,26 +13,26 @@ class UWorld;
 /** 
 * Class manages querying analysis results from various audio analyzers.
 */
-UCLASS()
-class AUDIOANALYZER_API UAudioAnalyzerSubsystem : public UEngineSubsystem
+UCLASS(MinimalAPI)
+class UAudioAnalyzerSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UAudioAnalyzerSubsystem();
-	~UAudioAnalyzerSubsystem();
+	AUDIOANALYZER_API UAudioAnalyzerSubsystem();
+	AUDIOANALYZER_API ~UAudioAnalyzerSubsystem();
 
-	bool Tick(float DeltaTime);
+	AUDIOANALYZER_API bool Tick(float DeltaTime);
 
 	//~ Begin USubsystem
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	AUDIOANALYZER_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	AUDIOANALYZER_API virtual void Deinitialize() override;
 	//~ End USubsystem
 
-	void RegisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer);
-	void UnregisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer);
+	AUDIOANALYZER_API void RegisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer);
+	AUDIOANALYZER_API void UnregisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer);
 
-	static UAudioAnalyzerSubsystem* Get();
+	static AUDIOANALYZER_API UAudioAnalyzerSubsystem* Get();
 
 private:
 

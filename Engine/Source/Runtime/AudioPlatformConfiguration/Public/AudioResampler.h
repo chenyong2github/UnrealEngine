@@ -68,15 +68,15 @@ namespace Audio
 
 	class FResamplerImpl;
 
-	class AUDIOPLATFORMCONFIGURATION_API FResampler
+	class FResampler
 	{
 	public:
-		FResampler();
-		~FResampler();
+		AUDIOPLATFORMCONFIGURATION_API FResampler();
+		AUDIOPLATFORMCONFIGURATION_API ~FResampler();
 
-		void Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels);
-		void SetSampleRateRatio(float InRatio);
-		int32 ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames);
+		AUDIOPLATFORMCONFIGURATION_API void Init(EResamplingMethod ResamplingMethod, float StartingSampleRateRatio, int32 InNumChannels);
+		AUDIOPLATFORMCONFIGURATION_API void SetSampleRateRatio(float InRatio);
+		AUDIOPLATFORMCONFIGURATION_API int32 ProcessAudio(float* InAudioBuffer, int32 InSamples, bool bEndOfInput, float* OutAudioBuffer, int32 MaxOutputFrames, int32& OutNumFrames);
 
 	private:
 		TUniquePtr<FResamplerImpl> CreateImpl();

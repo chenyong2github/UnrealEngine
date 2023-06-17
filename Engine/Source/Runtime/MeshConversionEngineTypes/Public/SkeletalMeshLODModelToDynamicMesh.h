@@ -14,7 +14,7 @@ using UE::Geometry::FDynamicMesh3;
  * Convert FSkeletalMeshLODModel to FDynamicMesh3
  *
  */
-class MESHCONVERSIONENGINETYPES_API FSkeletalMeshLODModelToDynamicMesh
+class FSkeletalMeshLODModelToDynamicMesh
 {
 public:
 	/** If true, will print some possibly-helpful debugging spew to output log */
@@ -47,6 +47,6 @@ public:
 	 * @param bCopyTangents  - if bDisableAttributes is false, this requests the tangent plane vectors (tangent and bitangent)
 	 *                          be stored as overlays in the MeshOut DynamicAttributeSet, provided they exist on the MeshIn
 	 */
-	void Convert(const  FSkeletalMeshLODModel* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents = false);
+	MESHCONVERSIONENGINETYPES_API void Convert(const  FSkeletalMeshLODModel* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents = false);
 
 };

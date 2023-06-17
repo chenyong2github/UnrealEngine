@@ -19,7 +19,7 @@
 #include "ConstraintChannel.generated.h"
 
 USTRUCT()
-struct CONSTRAINTS_API FMovieSceneConstraintChannel : public FMovieSceneBoolChannel
+struct FMovieSceneConstraintChannel : public FMovieSceneBoolChannel
 {
 	GENERATED_BODY()
 
@@ -52,7 +52,7 @@ struct CONSTRAINTS_API FMovieSceneConstraintChannel : public FMovieSceneBoolChan
 	 * @param OutValue   A value to receive the result
 	 * @return true if the channel was evaluated successfully, false otherwise
 	 */
-	virtual bool Evaluate(FFrameTime InTime, bool& OutValue) const override;
+	CONSTRAINTS_API virtual bool Evaluate(FFrameTime InTime, bool& OutValue) const override;
 
 #if WITH_EDITOR
 	using ExtraLabelFunction = TFunction< FString() >;
@@ -93,7 +93,7 @@ struct TMovieSceneChannelTraits<FMovieSceneConstraintChannel> : TMovieSceneChann
 
 
 USTRUCT()
-struct CONSTRAINTS_API FConstraintAndActiveChannel
+struct FConstraintAndActiveChannel
 {
 	GENERATED_USTRUCT_BODY()
 

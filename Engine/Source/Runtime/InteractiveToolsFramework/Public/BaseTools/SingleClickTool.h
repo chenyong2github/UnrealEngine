@@ -21,14 +21,14 @@ struct FToolBuilderState;
 /**
  * Builder for USingleClickTool
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API USingleClickToolBuilder : public UInteractiveToolBuilder
+UCLASS(MinimalAPI)
+class USingleClickToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -44,8 +44,8 @@ public:
  * The function ::OnClicked() implements the action that will occur when a click happens.
  * You must override this to implement any kind of useful behavior.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API USingleClickTool : public UInteractiveTool, public IClickBehaviorTarget
+UCLASS(MinimalAPI)
+class USingleClickTool : public UInteractiveTool, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -54,17 +54,17 @@ public:
 	/**
 	 * Register default primary-button-click InputBehaviors
 	 */
-	virtual void Setup() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup() override;
 
 	/**
 	 * Test if the Target is hit at this 2D position / 3D ray
 	 */
-	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos);
 
 	/**
 	 * Click the Target at this 2D position / 3D ray. Default behavior is to print debug string.
 	 */
-	virtual void OnClicked(const FInputDeviceRay& ClickPos);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnClicked(const FInputDeviceRay& ClickPos);
 
 };
 

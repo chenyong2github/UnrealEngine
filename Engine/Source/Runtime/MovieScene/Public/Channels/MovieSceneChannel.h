@@ -53,7 +53,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneChannelDataKeyDeletedEvent, FMov
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneChannelDataKeyMovedEvent, FMovieSceneChannel*, const TArray<FKeyMoveEventItem>& Items);
 
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneChannel
+struct FMovieSceneChannel
 {
 	GENERATED_BODY()
 
@@ -66,7 +66,7 @@ struct MOVIESCENE_API FMovieSceneChannel
 	 * @param InHandle              The handle of the key to get the time for
 	 * @param OutKeyTime            Out parameter to receive the key's time
 	 */
-	void GetKeyTime(const FKeyHandle InHandle, FFrameNumber& OutKeyTime);
+	MOVIESCENE_API void GetKeyTime(const FKeyHandle InHandle, FFrameNumber& OutKeyTime);
 
 	/**
 	 * Set the time for the specified key handle
@@ -74,7 +74,7 @@ struct MOVIESCENE_API FMovieSceneChannel
 	 * @param InHandle              The handle of the key to get the time for
 	 * @param InKeyTime             The new time for the key
 	 */
-	void SetKeyTime(const FKeyHandle InHandle, const FFrameNumber InKeyTime);
+	MOVIESCENE_API void SetKeyTime(const FKeyHandle InHandle, const FFrameNumber InKeyTime);
 
 	/**
 	 * Get key information pertaining to all keys that exist within the specified range

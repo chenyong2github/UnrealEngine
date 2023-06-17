@@ -56,7 +56,7 @@ struct FMovieSceneEventPtrs
 };
 
 USTRUCT(BlueprintType)
-struct MOVIESCENETRACKS_API FMovieSceneEvent
+struct FMovieSceneEvent
 {
 	GENERATED_BODY()
 
@@ -70,7 +70,7 @@ struct MOVIESCENETRACKS_API FMovieSceneEvent
 public:
 
 	/** Return the class of the bound object property */
-	UClass* GetBoundObjectPropertyClass() const;
+	MOVIESCENETRACKS_API UClass* GetBoundObjectPropertyClass() const;
 
 #if WITH_EDITORONLY_DATA
 

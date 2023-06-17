@@ -21,8 +21,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnExpandableAreaExpansionChanged, 
 /**
  * 
  */
-UCLASS()
-class UMG_API UExpandableArea : public UWidget, public INamedSlotInterface
+UCLASS(MinimalAPI)
+class UExpandableArea : public UWidget, public INamedSlotInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -66,65 +66,65 @@ public:
 public:
 
 	UFUNCTION(BlueprintCallable, Category="Expansion")
-	bool GetIsExpanded() const;
+	UMG_API bool GetIsExpanded() const;
 
 	UFUNCTION(BlueprintCallable, Category="Expansion")
-	void SetIsExpanded(bool IsExpanded);
+	UMG_API void SetIsExpanded(bool IsExpanded);
 
 	UFUNCTION(BlueprintCallable, Category = "Expansion")
-	void SetIsExpanded_Animated(bool IsExpanded);
+	UMG_API void SetIsExpanded_Animated(bool IsExpanded);
 	
-	const FExpandableAreaStyle& GetStyle() const;
+	UMG_API const FExpandableAreaStyle& GetStyle() const;
 
-	void SetStyle(const FExpandableAreaStyle& InStyle);
+	UMG_API void SetStyle(const FExpandableAreaStyle& InStyle);
 
-	const FSlateBrush& GetBorderBrush() const;
+	UMG_API const FSlateBrush& GetBorderBrush() const;
 
-	void SetBorderBrush(const FSlateBrush& InBorderBrush);
+	UMG_API void SetBorderBrush(const FSlateBrush& InBorderBrush);
 
-	const FSlateColor& GetBorderColor() const;
+	UMG_API const FSlateColor& GetBorderColor() const;
 
-	void SetBorderColor(const FSlateColor& InBorderColor);
+	UMG_API void SetBorderColor(const FSlateColor& InBorderColor);
 
-	float GetMaxHeight() const;
+	UMG_API float GetMaxHeight() const;
 
-	void SetMaxHeight(float InMaxHeight);
+	UMG_API void SetMaxHeight(float InMaxHeight);
 
-	FMargin GetHeaderPadding() const;
+	UMG_API FMargin GetHeaderPadding() const;
 
-	void SetHeaderPadding(FMargin InHeaderPadding);
+	UMG_API void SetHeaderPadding(FMargin InHeaderPadding);
 
-	FMargin GetAreaPadding() const;
-	void SetAreaPadding(FMargin InAreaPadding);
+	UMG_API FMargin GetAreaPadding() const;
+	UMG_API void SetAreaPadding(FMargin InAreaPadding);
 
 	// Begin INamedSlotInterface
-	virtual void GetSlotNames(TArray<FName>& SlotNames) const override;
-	virtual UWidget* GetContentForSlot(FName SlotName) const override;
-	virtual void SetContentForSlot(FName SlotName, UWidget* Content) override;
+	UMG_API virtual void GetSlotNames(TArray<FName>& SlotNames) const override;
+	UMG_API virtual UWidget* GetContentForSlot(FName SlotName) const override;
+	UMG_API virtual void SetContentForSlot(FName SlotName, UWidget* Content) override;
 	// End INamedSlotInterface
 
 public:
 	
 	// UWidget interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
 	// UVisual interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	// End of UVisual interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
-	virtual void OnDescendantSelectedByDesigner(UWidget* DescendantWidget) override;
-	virtual void OnDescendantDeselectedByDesigner(UWidget* DescendantWidget) override;
+	UMG_API virtual const FText GetPaletteCategory() override;
+	UMG_API virtual void OnDescendantSelectedByDesigner(UWidget* DescendantWidget) override;
+	UMG_API virtual void OnDescendantDeselectedByDesigner(UWidget* DescendantWidget) override;
 #endif
 
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
-	void SlateExpansionChanged(bool NewState);
+	UMG_API void SlateExpansionChanged(bool NewState);
 
 protected:
 	UPROPERTY()

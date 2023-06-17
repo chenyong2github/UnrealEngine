@@ -44,37 +44,37 @@ namespace Audio
 	 *		FQuartzClock itself when it pumps the command queue.
 	 *
 	 */
-	class AUDIOMIXER_API FQuartzClockProxy
+	class FQuartzClockProxy
 	{
 	public:
 		// ctor
 		FQuartzClockProxy() {}
 		FQuartzClockProxy(const FName& Name) : ClockId(Name){ } // conv ctor from FName
-		FQuartzClockProxy(TSharedPtr<FQuartzClock, ESPMode::ThreadSafe> InClock);
+		AUDIOMIXER_API FQuartzClockProxy(TSharedPtr<FQuartzClock, ESPMode::ThreadSafe> InClock);
 
 		FName GetClockName() const { return ClockId; }
 
-		bool IsValid() const;
+		AUDIOMIXER_API bool IsValid() const;
 		operator bool() const { return IsValid(); }
 
 		bool operator==(const FName& Name) const { return ClockId == Name; }
 
-		bool DoesClockExist() const;
+		AUDIOMIXER_API bool DoesClockExist() const;
 
-		bool IsClockRunning() const;
+		AUDIOMIXER_API bool IsClockRunning() const;
 
-		Audio::FQuartzClockTickRate GetTickRate() const;
+		AUDIOMIXER_API Audio::FQuartzClockTickRate GetTickRate() const;
 
-		float GetEstimatedClockRunTimeSeconds() const;
+		AUDIOMIXER_API float GetEstimatedClockRunTimeSeconds() const;
 
-		FQuartzTransportTimeStamp GetCurrentClockTimestamp() const;
+		AUDIOMIXER_API FQuartzTransportTimeStamp GetCurrentClockTimestamp() const;
 
-		float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier) const;
+		AUDIOMIXER_API float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier) const;
 
-		float GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const;
+		AUDIOMIXER_API float GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const;
 
 		// returns false if the clock is not valid or has shut down
-		bool SendCommandToClock(TFunction<void(FQuartzClock*)> InCommand);
+		AUDIOMIXER_API bool SendCommandToClock(TFunction<void(FQuartzClock*)> InCommand);
 
 		// implicit cast to underlying ID (FName)
 		operator const FName&() const { return ClockId; }
@@ -104,7 +104,7 @@ namespace Audio
 	 *		UpdateCachedState() updates a game-thread copy of data accessed via FQuartzClockProxy
 	 *		(see FQuartzClockState)
 	 */
-	class AUDIOMIXER_API FQuartzClock
+	class FQuartzClock
 	{
 	public:
 
@@ -112,88 +112,88 @@ namespace Audio
 		FQuartzClock(const FName& InName, const FQuartzClockSettings& InClockSettings, FQuartzClockManager* InOwningClockManagerPtr = nullptr);
 
 		// dtor
-		~FQuartzClock();
+		AUDIOMIXER_API ~FQuartzClock();
 
 		// Transport Control:
 		// alter the tick rate (take by-value to make sample-rate adjustments in-place)
-		void ChangeTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft = 0);
+		AUDIOMIXER_API void ChangeTickRate(FQuartzClockTickRate InNewTickRate, int32 NumFramesLeft = 0);
 
-		void ChangeTimeSignature(const FQuartzTimeSignature& InNewTimeSignature);
+		AUDIOMIXER_API void ChangeTimeSignature(const FQuartzTimeSignature& InNewTimeSignature);
 
-		void Resume();
+		AUDIOMIXER_API void Resume();
 
-		void Pause();
+		AUDIOMIXER_API void Pause();
 
-		void Restart(bool bPause = true);
+		AUDIOMIXER_API void Restart(bool bPause = true);
 
-		void Stop(bool CancelPendingEvents); // Pause + Restart
+		AUDIOMIXER_API void Stop(bool CancelPendingEvents); // Pause + Restart
 
-		void SetSampleRate(float InNewSampleRate);
+		AUDIOMIXER_API void SetSampleRate(float InNewSampleRate);
 
-		void ResetTransport();
-
-		// (used for StartOtherClock command to handle the sub-tick as the target clock)
-		void AddToTickDelay(int32 NumFramesOfDelayToAdd);
+		AUDIOMIXER_API void ResetTransport();
 
 		// (used for StartOtherClock command to handle the sub-tick as the target clock)
-		void SetTickDelay(int32 NumFramesOfDelay);
+		AUDIOMIXER_API void AddToTickDelay(int32 NumFramesOfDelayToAdd);
 
-		void Shutdown();
+		// (used for StartOtherClock command to handle the sub-tick as the target clock)
+		AUDIOMIXER_API void SetTickDelay(int32 NumFramesOfDelay);
+
+		AUDIOMIXER_API void Shutdown();
 
 		// Getters:
-		FQuartzClockTickRate GetTickRate();
+		AUDIOMIXER_API FQuartzClockTickRate GetTickRate();
 
-		FName GetName() const;
+		AUDIOMIXER_API FName GetName() const;
 
-		bool IgnoresFlush() const;
+		AUDIOMIXER_API bool IgnoresFlush() const;
 
-		bool DoesMatchSettings(const FQuartzClockSettings& InClockSettings) const;
+		AUDIOMIXER_API bool DoesMatchSettings(const FQuartzClockSettings& InClockSettings) const;
 
-		bool HasPendingEvents() const;
+		AUDIOMIXER_API bool HasPendingEvents() const;
 
-		int32 NumPendingEvents() const;
+		AUDIOMIXER_API int32 NumPendingEvents() const;
 
-		bool IsRunning() const;
+		AUDIOMIXER_API bool IsRunning() const;
 
-		float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier);
+		AUDIOMIXER_API float GetDurationOfQuantizationTypeInSeconds(const EQuartzCommandQuantization& QuantizationType, float Multiplier);
 
-		float GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const;
+		AUDIOMIXER_API float GetBeatProgressPercent(const EQuartzCommandQuantization& QuantizationType) const;
 
-		FQuartzTransportTimeStamp GetCurrentTimestamp();
+		AUDIOMIXER_API FQuartzTransportTimeStamp GetCurrentTimestamp();
 
-		float GetEstimatedRunTime();
+		AUDIOMIXER_API float GetEstimatedRunTime();
 
-		FMixerDevice* GetMixerDevice();
+		AUDIOMIXER_API FMixerDevice* GetMixerDevice();
 
-		FMixerSourceManager* GetSourceManager();
+		AUDIOMIXER_API FMixerSourceManager* GetSourceManager();
 
-		FQuartzClockManager* GetClockManager();
+		AUDIOMIXER_API FQuartzClockManager* GetClockManager();
 
-		FQuartzClockCommandQueueWeakPtr GetCommandQueue() const;
+		AUDIOMIXER_API FQuartzClockCommandQueueWeakPtr GetCommandQueue() const;
 
 		// Metronome Event Subscription:
-		void SubscribeToTimeDivision(FQuartzGameThreadSubscriber InSubscriber, EQuartzCommandQuantization InQuantizationBoundary);
+		AUDIOMIXER_API void SubscribeToTimeDivision(FQuartzGameThreadSubscriber InSubscriber, EQuartzCommandQuantization InQuantizationBoundary);
 
-		void SubscribeToAllTimeDivisions(FQuartzGameThreadSubscriber InSubscriber);
+		AUDIOMIXER_API void SubscribeToAllTimeDivisions(FQuartzGameThreadSubscriber InSubscriber);
 
-		void UnsubscribeFromTimeDivision(FQuartzGameThreadSubscriber InSubscriber, EQuartzCommandQuantization InQuantizationBoundary);
+		AUDIOMIXER_API void UnsubscribeFromTimeDivision(FQuartzGameThreadSubscriber InSubscriber, EQuartzCommandQuantization InQuantizationBoundary);
 
-		void UnsubscribeFromAllTimeDivisions(FQuartzGameThreadSubscriber InSubscriber);
+		AUDIOMIXER_API void UnsubscribeFromAllTimeDivisions(FQuartzGameThreadSubscriber InSubscriber);
 
 		// Quantized Command Management:
-		void AddQuantizedCommand(FQuartzQuantizedRequestData& InQuantizedRequestData);
-		void AddQuantizedCommand(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo);
+		AUDIOMIXER_API void AddQuantizedCommand(FQuartzQuantizedRequestData& InQuantizedRequestData);
+		AUDIOMIXER_API void AddQuantizedCommand(FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo);
 
-		void AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent);
+		AUDIOMIXER_API void AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent);
 
-		bool CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr);
+		AUDIOMIXER_API bool CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr);
 		
 		// low-resolution clock update
 		// (not sample-accurate!, useful when running without an Audio Device)
-		void LowResolutionTick(float InDeltaTimeSeconds);
+		AUDIOMIXER_API void LowResolutionTick(float InDeltaTimeSeconds);
 
 		// sample accurate clock update
-		void Tick(int32 InNumFramesUntilNextTick);
+		AUDIOMIXER_API void Tick(int32 InNumFramesUntilNextTick);
 
 	private:
 		// Contains the pending command and the number of frames it has to wait to fire
@@ -215,7 +215,7 @@ namespace Audio
 
 		// mutex-protected update at the end of Tick()
 		FCriticalSection CachedClockStateCritSec;
-		void UpdateCachedState();
+		AUDIOMIXER_API void UpdateCachedState();
 
 		// data is cached when an FQuartzClock is ticked
 		struct FQuartzClockState
@@ -230,9 +230,9 @@ namespace Audio
 			
 		} CachedClockState;
 
-		void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0, int32 FramesOfDelay = 0);
+		AUDIOMIXER_API void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0, int32 FramesOfDelay = 0);
 
-		bool CancelQuantizedCommandInternal(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr, TArray<PendingCommand>& CommandsToTick);
+		AUDIOMIXER_API bool CancelQuantizedCommandInternal(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr, TArray<PendingCommand>& CommandsToTick);
 
 		// don't allow default ctor, a clock needs to be ready to be used
 		// by the clock manager / FMixerDevice once constructed

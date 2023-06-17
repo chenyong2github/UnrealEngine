@@ -11,24 +11,24 @@
 class UBehaviorTree;
 class UBlackboardComponent;
 
-UCLASS(Abstract)
-class AIMODULE_API UBTDecorator_BlackboardBase : public UBTDecorator
+UCLASS(Abstract, MinimalAPI)
+class UBTDecorator_BlackboardBase : public UBTDecorator
 {
 	GENERATED_UCLASS_BODY()
 
 	/** initialize any asset related data */
-	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	AIMODULE_API virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 
 	/** notify about change in blackboard keys */
-	virtual EBlackboardNotificationResult OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID);
+	AIMODULE_API virtual EBlackboardNotificationResult OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID);
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif
 
 public:
 	/** get name of selected blackboard key */
-	FName GetSelectedBlackboardKey() const;
+	AIMODULE_API FName GetSelectedBlackboardKey() const;
 
 protected:
 
@@ -37,10 +37,10 @@ protected:
 	FBlackboardKeySelector BlackboardKey;
 
 	/** called when execution flow controller becomes active */
-	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 	/** called when execution flow controller becomes inactive */
-	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 };
 
 //////////////////////////////////////////////////////////////////////////

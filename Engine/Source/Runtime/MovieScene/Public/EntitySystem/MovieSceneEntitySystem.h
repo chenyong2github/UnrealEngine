@@ -61,8 +61,8 @@ namespace MovieScene
 } // namespace UE
 
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneEntitySystem : public UObject
+UCLASS(MinimalAPI)
+class UMovieSceneEntitySystem : public UObject
 {
 public:
 	GENERATED_BODY()
@@ -76,8 +76,8 @@ public:
 	using FSystemTaskPrerequisites = UE::MovieScene::FSystemTaskPrerequisites;
 	using FSystemSubsequentTasks   = UE::MovieScene::FSystemSubsequentTasks;
 
-	UMovieSceneEntitySystem(const FObjectInitializer& ObjInit);
-	~UMovieSceneEntitySystem();
+	MOVIESCENE_API UMovieSceneEntitySystem(const FObjectInitializer& ObjInit);
+	MOVIESCENE_API ~UMovieSceneEntitySystem();
 
 	/**
 	 * Creates a relationship between the two system types that ensures any systems of type UpstreamSystemType always execute before DownstreamSystemType if they are both present
@@ -85,7 +85,7 @@ public:
 	 * @param UpstreamSystemType     The UClass of the system that should always be a prerequisite of DownstreamSystemType (ie, runs first)
 	 * @param DownstreamSystemType   The UClass of the system that should always run after UpstreamSystemType
 	 */
-	static void DefineImplicitPrerequisite(TSubclassOf<UMovieSceneEntitySystem> UpstreamSystemType, TSubclassOf<UMovieSceneEntitySystem> DownstreamSystemType);
+	static MOVIESCENE_API void DefineImplicitPrerequisite(TSubclassOf<UMovieSceneEntitySystem> UpstreamSystemType, TSubclassOf<UMovieSceneEntitySystem> DownstreamSystemType);
 
 	/**
 	 * Informs the dependency graph that the specified class type produces components of the specified type.
@@ -94,7 +94,7 @@ public:
 	 * @param ClassType         The UClass of the system that produces the component type
 	 * @param ComponentType     The type of the component produced by the system
 	 */
-	static void DefineComponentProducer(TSubclassOf<UMovieSceneEntitySystem> ClassType, FComponentTypeID ComponentType);
+	static MOVIESCENE_API void DefineComponentProducer(TSubclassOf<UMovieSceneEntitySystem> ClassType, FComponentTypeID ComponentType);
 
 	/**
 	 * Informs the dependency graph that the specified class type consumes components of the specified type, and as such should always execute after any producers of that component type.
@@ -102,42 +102,42 @@ public:
 	 * @param ClassType         The UClass of the system that consumes the component type
 	 * @param ComponentType     The type of the component consumed by the system
 	 */
-	static void DefineComponentConsumer(TSubclassOf<UMovieSceneEntitySystem> ClassType, FComponentTypeID ComponentType);
+	static MOVIESCENE_API void DefineComponentConsumer(TSubclassOf<UMovieSceneEntitySystem> ClassType, FComponentTypeID ComponentType);
 
 	/**
 	 * Ensure that any systems relevant to the specified linker's entity manager are linked
 	 */
-	static void LinkRelevantSystems(UMovieSceneEntitySystemLinker* InLinker);
+	static MOVIESCENE_API void LinkRelevantSystems(UMovieSceneEntitySystemLinker* InLinker);
 
 	/**
 	 * Link all systems in a given category
 	 */
-	static void LinkCategorySystems(UMovieSceneEntitySystemLinker* InLinker, UE::MovieScene::EEntitySystemCategory InCategory);
+	static MOVIESCENE_API void LinkCategorySystems(UMovieSceneEntitySystemLinker* InLinker, UE::MovieScene::EEntitySystemCategory InCategory);
 
 	/**
 	 * Link all systems that pass the given linker's filter
 	 */
-	static void LinkAllSystems(UMovieSceneEntitySystemLinker* InLinker);
+	static MOVIESCENE_API void LinkAllSystems(UMovieSceneEntitySystemLinker* InLinker);
 
 	/**
 	 * Create a new system category
 	 */
-	static UE::MovieScene::EEntitySystemCategory RegisterCustomSystemCategory();
+	static MOVIESCENE_API UE::MovieScene::EEntitySystemCategory RegisterCustomSystemCategory();
 
 	/**
 	 * Sort the given systems by their flow order, suitable for execution
 	 */
-	static void SortByFlowOrder(TArray<uint16>& InOutGlobalNodeIDs);
+	static MOVIESCENE_API void SortByFlowOrder(TArray<uint16>& InOutGlobalNodeIDs);
 
 	/**
 	 * Get the global IDs of all subsequent systems of the given system
 	 */
-	static void GetSubsequentSystems(uint16 FromGlobalNodeID, TArray<uint16>& OutSubsequentGlobalNodeIDs);
+	static MOVIESCENE_API void GetSubsequentSystems(uint16 FromGlobalNodeID, TArray<uint16>& OutSubsequentGlobalNodeIDs);
 
 	/**
 	 * Prints a graphviz markup for the global system dependency graph
 	 */
-	static void DebugPrintGlobalDependencyGraph(bool bUpdateCache = true);
+	static MOVIESCENE_API void DebugPrintGlobalDependencyGraph(bool bUpdateCache = true);
 
 public:
 
@@ -177,44 +177,44 @@ public:
 	}
 
 	/** Called when the system is removed from the linker */
-	void Unlink();
+	MOVIESCENE_API void Unlink();
 
 	/** Called when the linker is being destroyed */
-	void Abandon();
+	MOVIESCENE_API void Abandon();
 
 	/** Called when the system is added to a linker */
-	void Link(UMovieSceneEntitySystemLinker* InLinker);
+	MOVIESCENE_API void Link(UMovieSceneEntitySystemLinker* InLinker);
 
 	/** Called to schedule work */
-	void SchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* Scheduler);
+	MOVIESCENE_API void SchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* Scheduler);
 
 	/** Called when the system should run its logic */
-	void Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
+	MOVIESCENE_API void Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 	/** Called to know if the system is still relevant and should be kept around */
-	bool IsRelevant(UMovieSceneEntitySystemLinker* InLinker) const;
+	MOVIESCENE_API bool IsRelevant(UMovieSceneEntitySystemLinker* InLinker) const;
 
-	void ConditionalLinkSystem(UMovieSceneEntitySystemLinker* InLinker) const;
+	MOVIESCENE_API void ConditionalLinkSystem(UMovieSceneEntitySystemLinker* InLinker) const;
 
-	void TagGarbage();
+	MOVIESCENE_API void TagGarbage();
 
-	void CleanTaggedGarbage();
+	MOVIESCENE_API void CleanTaggedGarbage();
 
 	/**
 	 * Enable this system if it is not already.
 	 */
-	void Enable();
+	MOVIESCENE_API void Enable();
 
 	/**
 	 * Disable this system if it is not already.
 	 * Disabled systems will remain in the system graph, and will stay alive as long as they are relevant, but will not be Run.
 	 */
-	void Disable();
+	MOVIESCENE_API void Disable();
 
 protected:
 
-	virtual bool IsReadyForFinishDestroy() override;
-	virtual void FinishDestroy() override;
+	MOVIESCENE_API virtual bool IsReadyForFinishDestroy() override;
+	MOVIESCENE_API virtual void FinishDestroy() override;
 
 private:
 
@@ -226,9 +226,9 @@ private:
 
 	virtual void OnUnlink() {}
 
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const;
+	MOVIESCENE_API virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const;
 
-	virtual void ConditionalLinkSystemImpl(UMovieSceneEntitySystemLinker* InLinker) const;
+	MOVIESCENE_API virtual void ConditionalLinkSystemImpl(UMovieSceneEntitySystemLinker* InLinker) const;
 
 	virtual void OnTagGarbage() {}
 

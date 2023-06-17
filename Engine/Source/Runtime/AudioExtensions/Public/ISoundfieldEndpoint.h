@@ -37,7 +37,7 @@ template <typename FuncType> class TFunctionRef;
  * This interface should be used to provide a non-uclass version of the data described in
  * your implementation of USoundfieldEndpointSettingsBase.
  */
-class AUDIOEXTENSIONS_API ISoundfieldEndpointSettingsProxy
+class ISoundfieldEndpointSettingsProxy
 {
 public:
 	virtual ~ISoundfieldEndpointSettingsProxy() {};
@@ -47,51 +47,51 @@ public:
  * This opaque class should be used for specifying settings for how audio should be
  * send to an external endpoint.
  */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API USoundfieldEndpointSettingsBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USoundfieldEndpointSettingsBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual TUniquePtr<ISoundfieldEndpointSettingsProxy> GetProxy() const PURE_VIRTUAL(USoundfieldEndpointSettingsBase::GetProxy, return nullptr;);
+	AUDIOEXTENSIONS_API virtual TUniquePtr<ISoundfieldEndpointSettingsProxy> GetProxy() const PURE_VIRTUAL(USoundfieldEndpointSettingsBase::GetProxy, return nullptr;);
 };
 
 /**
  * Class that allows soundfield-encoded audio to be sent to an arbitrary locale.
  * For endpoint types that support receiving our downmixed interleaved audio data directly, implement IAudioEndpoint instead.
  */
-class AUDIOEXTENSIONS_API ISoundfieldEndpoint
+class ISoundfieldEndpoint
 {
 public:
 	/**
 	 * @param [NumRenderCallbacksToBuffer] Maximum number of ISoundfieldPackets that should be buffered.
 	 */
-	ISoundfieldEndpoint(int32 NumRenderCallbacksToBuffer);
+	AUDIOEXTENSIONS_API ISoundfieldEndpoint(int32 NumRenderCallbacksToBuffer);
 
 	virtual ~ISoundfieldEndpoint() {};
 
 	/**
 	 * Push a soundfield packet to the buffer.
 	 */
-	bool PushAudio(TUniquePtr<ISoundfieldAudioPacket>&& InPacket);
+	AUDIOEXTENSIONS_API bool PushAudio(TUniquePtr<ISoundfieldAudioPacket>&& InPacket);
 
 	/**
 	 * Post new settings for this endpoint.
 	 * There is no type safety on this call, so make sure that you are using the correct implementation
 	 * of IAudioEndpointSettingsProxy for this implementation of IAudioEndpoint.
 	 */
-	void SetNewSettings(TUniquePtr<ISoundfieldEndpointSettingsProxy>&& InNewSettings);
+	AUDIOEXTENSIONS_API void SetNewSettings(TUniquePtr<ISoundfieldEndpointSettingsProxy>&& InNewSettings);
 
 	// Returns the amount of ISoundfieldAudioPackets currently buffered for this endpoint.
-	int32 GetNumPacketsBuffer();
+	AUDIOEXTENSIONS_API int32 GetNumPacketsBuffer();
 
 	// Returns the amount of ISoundfieldAudioPackets that can be buffered for this endpoint before reaching capacity.
-	int32 GetRemainderInPacketBuffer();
+	AUDIOEXTENSIONS_API int32 GetRemainderInPacketBuffer();
 
 	/**
 	 * If this endpoint hasn't created it's own async callback thread but still requires an explicit callback, this should be called.
 	 */
-	void ProcessAudioIfNecessary();
+	AUDIOEXTENSIONS_API void ProcessAudioIfNecessary();
 
 protected:
 
@@ -124,7 +124,7 @@ protected:
 	 * 
 	 * 
 	 */
-	TUniquePtr<ISoundfieldAudioPacket> PopAudio();
+	AUDIOEXTENSIONS_API TUniquePtr<ISoundfieldAudioPacket> PopAudio();
 
 	/**
 	 * Use this as a thread safe way to use the current settings posted to this IAudioEndpoint. Locks with IAudioEndpoint::SetSettings.
@@ -133,15 +133,15 @@ protected:
 	 *                                 to safely scope usage of the IAudioEndpointSettingsProxy pointer.
 	 *                                 Note that the resulting ISoundfieldEndpointSettingsProxy can be null.
 	 */
-	void PollSettings(TFunctionRef<void(const ISoundfieldEndpointSettingsProxy*)> SettingsCallback);
+	AUDIOEXTENSIONS_API void PollSettings(TFunctionRef<void(const ISoundfieldEndpointSettingsProxy*)> SettingsCallback);
 
 	/**
 	 * If EndpointRequiresCallback() returns true, this will be used to spawn an async thread and begin calling OnAudioCallback.
 	 */
-	void StartRunningCallback();
-	void StopRunningCallback();
+	AUDIOEXTENSIONS_API void StartRunningCallback();
+	AUDIOEXTENSIONS_API void StopRunningCallback();
 
-	void RunCallbackSynchronously();
+	AUDIOEXTENSIONS_API void RunCallbackSynchronously();
 
 private:
 	// Owns a scoped thread and runs OnAudioCallback when StartRunningCallback() is called.
@@ -164,7 +164,7 @@ private:
  * Also note that an implementation of ISoundfieldDecoder is not necessary for soundfield formats that are only used for
  * soundfield endpoints.
  */
-class AUDIOEXTENSIONS_API ISoundfieldEndpointFactory : public ISoundfieldFactory
+class ISoundfieldEndpointFactory : public ISoundfieldFactory
 {
 public:
 	/** Virtual destructor */
@@ -203,19 +203,19 @@ public:
 	/**
 	 * Get a registered endpoint factory by name.
 	 */
-	static ISoundfieldEndpointFactory* Get(const FName& InName);
+	static AUDIOEXTENSIONS_API ISoundfieldEndpointFactory* Get(const FName& InName);
 
-	static TArray<FName> GetAllSoundfieldEndpointTypes();
+	static AUDIOEXTENSIONS_API TArray<FName> GetAllSoundfieldEndpointTypes();
 
 	/**
 	 * This is the default name used when a user creates a soundfield endpoint submix.
 	 * Soundfied Endpoint submixes with this type will send their audio to the default output
 	 * with no encoding.
 	 */
-	static FName DefaultSoundfieldEndpointName();
+	static AUDIOEXTENSIONS_API FName DefaultSoundfieldEndpointName();
 
 	/** This function is not necessary to override, since audio sent to an endpoint does not need to be decoded to interleaved audio buffers. */
-	TUniquePtr<ISoundfieldDecoderStream> CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings) override;
+	AUDIOEXTENSIONS_API TUniquePtr<ISoundfieldDecoderStream> CreateDecoderStream(const FAudioPluginInitializationParams& InitInfo, const ISoundfieldEncodingSettingsProxy& InitialSettings) override;
 
 	/** REQUIRED OVERRIDES: */
 
@@ -249,6 +249,6 @@ public:
 
 	bool IsEndpointFormat() override { return true; }
 
-	virtual FName GetSoundfieldFormatName() override;
-	virtual bool CanTranscodeToSoundfieldFormat(FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& DestinationEncodingSettings) override;
+	AUDIOEXTENSIONS_API virtual FName GetSoundfieldFormatName() override;
+	AUDIOEXTENSIONS_API virtual bool CanTranscodeToSoundfieldFormat(FName DestinationFormat, const ISoundfieldEncodingSettingsProxy& DestinationEncodingSettings) override;
 };

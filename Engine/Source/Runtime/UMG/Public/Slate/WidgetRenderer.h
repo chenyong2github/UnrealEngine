@@ -28,11 +28,11 @@ class FRenderTarget;
 /**
  * 
  */
-class UMG_API FWidgetRenderer : public FDeferredCleanupInterface
+class FWidgetRenderer : public FDeferredCleanupInterface
 {
 public:
-	FWidgetRenderer(bool bUseGammaCorrection = false, bool bInClearTarget = true);
-	~FWidgetRenderer();
+	UMG_API FWidgetRenderer(bool bUseGammaCorrection = false, bool bInClearTarget = true);
+	UMG_API ~FWidgetRenderer();
 
 	bool GetIsPrepassNeeded() const { return bPrepassNeeded; }
 	void SetIsPrepassNeeded(bool bInPrepassNeeded) { bPrepassNeeded = bInPrepassNeeded; }
@@ -43,31 +43,31 @@ public:
 	void SetShouldClearTarget(bool bShouldClear) { bClearTarget = bShouldClear; }
 
 	bool GetUseGammaCorrection() const { return bUseGammaSpace; }
-	void SetUseGammaCorrection(bool bInUseGammaSpace);
+	UMG_API void SetUseGammaCorrection(bool bInUseGammaSpace);
 
-	void SetApplyColorDeficiencyCorrection(bool bInApplyColorCorrection);
+	UMG_API void SetApplyColorDeficiencyCorrection(bool bInApplyColorCorrection);
 
-	ISlate3DRenderer* GetSlateRenderer();
+	UMG_API ISlate3DRenderer* GetSlateRenderer();
 
-	static UTextureRenderTarget2D* CreateTargetFor(FVector2D DrawSize, TextureFilter InFilter, bool bUseGammaCorrection);
+	static UMG_API UTextureRenderTarget2D* CreateTargetFor(FVector2D DrawSize, TextureFilter InFilter, bool bUseGammaCorrection);
 
-	UTextureRenderTarget2D* DrawWidget(const TSharedRef<SWidget>& Widget, FVector2D DrawSize);
+	UMG_API UTextureRenderTarget2D* DrawWidget(const TSharedRef<SWidget>& Widget, FVector2D DrawSize);
 
-	void DrawWidget(
+	UMG_API void DrawWidget(
 		FRenderTarget* RenderTarget,
 		const TSharedRef<SWidget>& Widget,
 		FVector2D DrawSize,
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
-	void DrawWidget(
+	UMG_API void DrawWidget(
 		UTextureRenderTarget2D* RenderTarget,
 		const TSharedRef<SWidget>& Widget,
 		FVector2D DrawSize,
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
-	void DrawWidget(
+	UMG_API void DrawWidget(
 		FRenderTarget* RenderTarget,
 		const TSharedRef<SWidget>& Widget,
 		float Scale,
@@ -75,7 +75,7 @@ public:
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
-	void DrawWidget(
+	UMG_API void DrawWidget(
 		UTextureRenderTarget2D* RenderTarget,
 		const TSharedRef<SWidget>& Widget,
 		float Scale,
@@ -83,8 +83,17 @@ public:
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
-	void DrawWindow(
+	UMG_API void DrawWindow(
 		FRenderTarget* RenderTarget,
+		FHittestGrid& HitTestGrid,
+		TSharedRef<SWindow> Window,
+		float Scale,
+		FVector2D DrawSize,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	UMG_API void DrawWindow(
+		UTextureRenderTarget2D* RenderTarget,
 		FHittestGrid& HitTestGrid,
 		TSharedRef<SWindow> Window,
 		float Scale,
@@ -92,26 +101,8 @@ public:
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
-	void DrawWindow(
-		UTextureRenderTarget2D* RenderTarget,
-		FHittestGrid& HitTestGrid,
-		TSharedRef<SWindow> Window,
-		float Scale,
-		FVector2D DrawSize,
-		float DeltaTime,
-		bool bDeferRenderTargetUpdate = false);
-
-	void DrawWindow(
+	UMG_API void DrawWindow(
 		FRenderTarget* RenderTarget,
-		FHittestGrid& HitTestGrid,
-		TSharedRef<SWindow> Window,
-		FGeometry WindowGeometry,
-		FSlateRect WindowClipRect,
-		float DeltaTime,
-		bool bDeferRenderTargetUpdate = false);
-
-	void DrawWindow(
-		UTextureRenderTarget2D* RenderTarget,
 		FHittestGrid& HitTestGrid,
 		TSharedRef<SWindow> Window,
 		FGeometry WindowGeometry,
@@ -119,7 +110,16 @@ public:
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
-	void DrawWindow(
+	UMG_API void DrawWindow(
+		UTextureRenderTarget2D* RenderTarget,
+		FHittestGrid& HitTestGrid,
+		TSharedRef<SWindow> Window,
+		FGeometry WindowGeometry,
+		FSlateRect WindowClipRect,
+		float DeltaTime,
+		bool bDeferRenderTargetUpdate = false);
+
+	UMG_API void DrawWindow(
 		const FPaintArgs& PaintArgs,
 		FRenderTarget* RenderTarget,
 		TSharedRef<SWindow> Window,
@@ -128,7 +128,7 @@ public:
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
-	void DrawWindow(
+	UMG_API void DrawWindow(
 		const FPaintArgs& PaintArgs,
 		UTextureRenderTarget2D* RenderTarget,
 		TSharedRef<SWindow> Window,
@@ -137,7 +137,7 @@ public:
 		float DeltaTime,
 		bool bDeferRenderTargetUpdate = false);
 
-	bool DrawInvalidationRoot(
+	UMG_API bool DrawInvalidationRoot(
 		TSharedRef<SVirtualWindow>& VirtualWindow,
 		UTextureRenderTarget2D* RenderTarget,
 		FSlateInvalidationRoot& Root,

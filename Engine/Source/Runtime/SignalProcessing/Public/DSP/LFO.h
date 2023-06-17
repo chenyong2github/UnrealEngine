@@ -41,57 +41,57 @@ namespace Audio
 	}
 
 	// Low frequency oscillator
-	class SIGNALPROCESSING_API FLFO : public IOscBase
+	class FLFO : public IOscBase
 	{
 	public:
-		FLFO();
+		SIGNALPROCESSING_API FLFO();
 		virtual ~FLFO() = default;
 
 		//~ Begin FOscBase
-		virtual void Init(const float InSampleRate, const int32 InVoiceId = 0, FModulationMatrix* InMatrix = nullptr, const int32 ModMatrixStage = 0) override;
-		virtual void Start() override;
-		virtual void Stop() override;
-		virtual void Reset() override;
-		virtual float Generate(float* QuadPhaseOutput = nullptr) override;
+		SIGNALPROCESSING_API virtual void Init(const float InSampleRate, const int32 InVoiceId = 0, FModulationMatrix* InMatrix = nullptr, const int32 ModMatrixStage = 0) override;
+		SIGNALPROCESSING_API virtual void Start() override;
+		SIGNALPROCESSING_API virtual void Stop() override;
+		SIGNALPROCESSING_API virtual void Reset() override;
+		SIGNALPROCESSING_API virtual float Generate(float* QuadPhaseOutput = nullptr) override;
 		//~ End FOscBase
 
 		// Set whether or not LFO outputs in bipolar domain or unipolar (false) domain. Defaults to bipolar.
-		void SetBipolar(const bool bInBipolar);
+		SIGNALPROCESSING_API void SetBipolar(const bool bInBipolar);
 
 		// Set the waveform type of LFO generator
-		void SetType(const ELFO::Type InLFOType);
+		SIGNALPROCESSING_API void SetType(const ELFO::Type InLFOType);
 
 		// Returns current waveform type of LFO generator
-		ELFO::Type GetType() const;
+		SIGNALPROCESSING_API ELFO::Type GetType() const;
 
 		// Sets mode of LFO (Looping or one-shot.  Free not supported)
-		void SetMode(const ELFOMode::Type InLFOMode);
+		SIGNALPROCESSING_API void SetMode(const ELFOMode::Type InLFOMode);
 
 		// Returns current mode of LFO
-		ELFOMode::Type GetMode() const;
+		SIGNALPROCESSING_API ELFOMode::Type GetMode() const;
 
 		// Sets a phase offset for the LFO.  Clamped to positive values only
-		void SetPhaseOffset(const float InOffset);
+		SIGNALPROCESSING_API void SetPhaseOffset(const float InOffset);
 
 		// Sets the exponential factor of LFO if type is "exponential". Clamped to positive, non-zero values.
-		void SetExponentialFactor(const float InExpFactor);
+		SIGNALPROCESSING_API void SetExponentialFactor(const float InExpFactor);
 
 		// Returns mod source's normal phase patch source
-		FPatchSource GetModSourceNormalPhase() const;
+		SIGNALPROCESSING_API FPatchSource GetModSourceNormalPhase() const;
 
 		// Returns mod source's quad phase patch source
-		FPatchSource GetModSourceQuadPhase() const;
+		SIGNALPROCESSING_API FPatchSource GetModSourceQuadPhase() const;
 
 	protected:
-		float ComputeLFO(float InputPhase, float* OutQuad = nullptr);
+		SIGNALPROCESSING_API float ComputeLFO(float InputPhase, float* OutQuad = nullptr);
 
 		// Returns initial phase, which differs between generators
 		// ensuring certain LFO shapes start on rising edge from zero-
 		// crossing by default (assuming user's provided phase offset is 0).
-		float GetInitPhase() const;
+		SIGNALPROCESSING_API float GetInitPhase() const;
 
 		// Resets generator to initial phase
-		virtual void ResetPhase() override;
+		SIGNALPROCESSING_API virtual void ResetPhase() override;
 
 		ELFO::Type LFOType;
 		ELFOMode::Type LFOMode;

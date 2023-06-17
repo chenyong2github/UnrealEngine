@@ -58,7 +58,7 @@ FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const UTypedElementRegis
  * Provides high-level access to groups of elements, including accessing elements that implement specific interfaces.
  */
 template<class HandleType>
-class TYPEDELEMENTFRAMEWORK_API TTypedElementList final : public TSharedFromThis<TTypedElementList<HandleType>>
+class TTypedElementList final : public TSharedFromThis<TTypedElementList<HandleType>>
 {
 public:
 
@@ -564,18 +564,18 @@ public:
 	 * A utility struct that help to cancel any new pending notification that happened in a scope.
 	 * Note: it won't cancel a notification if there is a legacy batch operation ongoing
 	 */
-	struct TYPEDELEMENTFRAMEWORK_API FScopedClearNewPendingChange
+	struct FScopedClearNewPendingChange
 	{
 		FScopedClearNewPendingChange() = default;
-		FScopedClearNewPendingChange(TTypedElementList& InTypeElementList);
+		TYPEDELEMENTFRAMEWORK_API FScopedClearNewPendingChange(TTypedElementList& InTypeElementList);
 
 		FScopedClearNewPendingChange(const FScopedClearNewPendingChange&) = delete;
 		FScopedClearNewPendingChange& operator=(const FScopedClearNewPendingChange&) = delete;
 
-		FScopedClearNewPendingChange(FScopedClearNewPendingChange&& Other);
-		FScopedClearNewPendingChange& operator=(FScopedClearNewPendingChange&& Other);
+		TYPEDELEMENTFRAMEWORK_API FScopedClearNewPendingChange(FScopedClearNewPendingChange&& Other);
+		TYPEDELEMENTFRAMEWORK_API FScopedClearNewPendingChange& operator=(FScopedClearNewPendingChange&& Other);
 
-		~FScopedClearNewPendingChange();
+		TYPEDELEMENTFRAMEWORK_API ~FScopedClearNewPendingChange();
 
 	private:
 		TTypedElementList* TypedElementList = nullptr;
@@ -585,7 +585,7 @@ public:
 	 * Interface to allow external systems (such as USelection) to receive immediate sync notifications as an element list is changed.
 	 * This exists purely as a bridging mechanism and shouldn't be relied on for new code. It is lazily created as needed.
 	 */
-	class TYPEDELEMENTFRAMEWORK_API FLegacySync
+	class FLegacySync
 	{
 	public:
 		enum class ESyncType : uint8
@@ -623,18 +623,18 @@ public:
 			BatchComplete,
 		};
 	
-		FLegacySync(const TTypedElementList& InElementList);
+		TYPEDELEMENTFRAMEWORK_API FLegacySync(const TTypedElementList& InElementList);
 
-		void Private_EmitSyncEvent(const ESyncType InSyncType, const HandleType& InElementHandle = HandleType());
+		TYPEDELEMENTFRAMEWORK_API void Private_EmitSyncEvent(const ESyncType InSyncType, const HandleType& InElementHandle = HandleType());
 
 		DECLARE_EVENT_FourParams(FLegacySync, FOnSyncEvent, const TTypedElementList& /*InElementList*/, ESyncType /*InSyncType*/, const HandleType& /*InElementHandle*/, bool /*bIsWithinBatchOperation*/);
-		FOnSyncEvent& OnSyncEvent();
+		TYPEDELEMENTFRAMEWORK_API FOnSyncEvent& OnSyncEvent();
 
-		bool IsRunningBatchOperation() const;
-		void BeginBatchOperation();
-		void EndBatchOperation(const bool InNotify = true);
-		bool IsBatchOperationDirty() const;
-		void ForceBatchOperationDirty();
+		TYPEDELEMENTFRAMEWORK_API bool IsRunningBatchOperation() const;
+		TYPEDELEMENTFRAMEWORK_API void BeginBatchOperation();
+		TYPEDELEMENTFRAMEWORK_API void EndBatchOperation(const bool InNotify = true);
+		TYPEDELEMENTFRAMEWORK_API bool IsBatchOperationDirty() const;
+		TYPEDELEMENTFRAMEWORK_API void ForceBatchOperationDirty();
 
 	private:
 		const TTypedElementList& ElementList;
@@ -649,11 +649,11 @@ public:
 	 * Helper to batch immediate sync notifications for legacy code.
 	 * Does nothing if no legacy sync has been created for the given instance.
 	 */
-	class TYPEDELEMENTFRAMEWORK_API FLegacySyncScopedBatch
+	class FLegacySyncScopedBatch
 	{
 	public:
-		explicit FLegacySyncScopedBatch(const TTypedElementList& InElementList, const bool InNotify = true);
-		~FLegacySyncScopedBatch();
+		TYPEDELEMENTFRAMEWORK_API explicit FLegacySyncScopedBatch(const TTypedElementList& InElementList, const bool InNotify = true);
+		TYPEDELEMENTFRAMEWORK_API ~FLegacySyncScopedBatch();
 
 		FLegacySyncScopedBatch(const FLegacySyncScopedBatch&) = delete;
 		FLegacySyncScopedBatch& operator=(const FLegacySyncScopedBatch&) = delete;
@@ -661,8 +661,8 @@ public:
 		FLegacySyncScopedBatch(FLegacySyncScopedBatch&&) = delete;
 		FLegacySyncScopedBatch& operator=(FLegacySyncScopedBatch&&) = delete;
 
-		bool IsDirty() const;
-		void ForceDirty();
+		TYPEDELEMENTFRAMEWORK_API bool IsDirty() const;
+		TYPEDELEMENTFRAMEWORK_API void ForceDirty();
 
 	private:
 		FLegacySync* ElementListLegacySync = nullptr;

@@ -15,16 +15,16 @@
 class UObject;
 
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieScenePiecewiseByteBlenderSystem : public UMovieSceneBlenderSystem
+UCLASS(MinimalAPI)
+class UMovieScenePiecewiseByteBlenderSystem : public UMovieSceneBlenderSystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UMovieScenePiecewiseByteBlenderSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieScenePiecewiseByteBlenderSystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 private:
 

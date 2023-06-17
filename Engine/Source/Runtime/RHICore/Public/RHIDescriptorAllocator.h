@@ -8,21 +8,21 @@
 
 struct FRHIDescriptorAllocatorRange;
 
-class RHICORE_API FRHIDescriptorAllocator
+class FRHIDescriptorAllocator
 {
 public:
-	FRHIDescriptorAllocator();
-	FRHIDescriptorAllocator(uint32 InNumDescriptors, TConstArrayView<TStatId> InStats);
-	~FRHIDescriptorAllocator();
+	RHICORE_API FRHIDescriptorAllocator();
+	RHICORE_API FRHIDescriptorAllocator(uint32 InNumDescriptors, TConstArrayView<TStatId> InStats);
+	RHICORE_API ~FRHIDescriptorAllocator();
 
-	void Init(uint32 InNumDescriptors, TConstArrayView<TStatId> InStats);
-	void Shutdown();
+	RHICORE_API void Init(uint32 InNumDescriptors, TConstArrayView<TStatId> InStats);
+	RHICORE_API void Shutdown();
 
-	FRHIDescriptorHandle Allocate(ERHIDescriptorHeapType InType);
-	void Free(FRHIDescriptorHandle InHandle);
+	RHICORE_API FRHIDescriptorHandle Allocate(ERHIDescriptorHeapType InType);
+	RHICORE_API void Free(FRHIDescriptorHandle InHandle);
 
-	bool Allocate(uint32 NumDescriptors, uint32& OutSlot);
-	void Free(uint32 Slot, uint32 NumDescriptors);
+	RHICORE_API bool Allocate(uint32 NumDescriptors, uint32& OutSlot);
+	RHICORE_API void Free(uint32 Slot, uint32 NumDescriptors);
 
 	inline uint32 GetCapacity() const { return Capacity; }
 
@@ -57,17 +57,17 @@ private:
 #endif
 };
 
-class RHICORE_API FRHIHeapDescriptorAllocator : protected FRHIDescriptorAllocator
+class FRHIHeapDescriptorAllocator : protected FRHIDescriptorAllocator
 {
 public:
 	FRHIHeapDescriptorAllocator() = delete;
-	FRHIHeapDescriptorAllocator(ERHIDescriptorHeapType InType, uint32 InDescriptorCount, TConstArrayView<TStatId> InStats);
+	RHICORE_API FRHIHeapDescriptorAllocator(ERHIDescriptorHeapType InType, uint32 InDescriptorCount, TConstArrayView<TStatId> InStats);
 
-	FRHIDescriptorHandle Allocate();
-	void Free(FRHIDescriptorHandle InHandle);
+	RHICORE_API FRHIDescriptorHandle Allocate();
+	RHICORE_API void Free(FRHIDescriptorHandle InHandle);
 
-	bool Allocate(uint32 NumDescriptors, uint32& OutSlot);
-	void Free(uint32 Slot, uint32 NumDescriptors);
+	RHICORE_API bool Allocate(uint32 NumDescriptors, uint32& OutSlot);
+	RHICORE_API void Free(uint32 Slot, uint32 NumDescriptors);
 
 	using FRHIDescriptorAllocator::GetCapacity;
 	inline ERHIDescriptorHeapType GetType() const { return Type; }
@@ -78,14 +78,14 @@ private:
 	ERHIDescriptorHeapType Type;
 };
 
-class RHICORE_API FRHIOffsetHeapDescriptorAllocator : protected FRHIHeapDescriptorAllocator
+class FRHIOffsetHeapDescriptorAllocator : protected FRHIHeapDescriptorAllocator
 {
 public:
 	FRHIOffsetHeapDescriptorAllocator() = delete;
-	FRHIOffsetHeapDescriptorAllocator(ERHIDescriptorHeapType InType, uint32 InDescriptorCount, uint32 InHeapOffset, TConstArrayView<TStatId> InStats);
+	RHICORE_API FRHIOffsetHeapDescriptorAllocator(ERHIDescriptorHeapType InType, uint32 InDescriptorCount, uint32 InHeapOffset, TConstArrayView<TStatId> InStats);
 
-	FRHIDescriptorHandle Allocate();
-	void Free(FRHIDescriptorHandle InHandle);
+	RHICORE_API FRHIDescriptorHandle Allocate();
+	RHICORE_API void Free(FRHIDescriptorHandle InHandle);
 
 	using FRHIHeapDescriptorAllocator::GetCapacity;
 	using FRHIHeapDescriptorAllocator::GetType;

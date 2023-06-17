@@ -7,7 +7,7 @@
  * This is the interface that needs to be implemented to handle a request made via a custom scheme.
  * It will be created by implementing an IWebBrowserSchemeHandlerFactory, given to the web browser singleton.
  */
-class WEBBROWSER_API IWebBrowserSchemeHandler
+class IWebBrowserSchemeHandler
 {
 public:
 	/**
@@ -88,7 +88,7 @@ public:
 /**
  * This is the interface that needs to be implemented to instantiate a scheme request handler.
  */
-class WEBBROWSER_API IWebBrowserSchemeHandlerFactory
+class IWebBrowserSchemeHandlerFactory
 {
 public:
 	virtual ~IWebBrowserSchemeHandlerFactory() {}

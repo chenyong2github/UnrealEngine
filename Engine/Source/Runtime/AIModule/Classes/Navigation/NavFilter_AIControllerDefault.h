@@ -9,12 +9,12 @@
 #include "NavFilters/NavigationQueryFilter.h"
 #include "NavFilter_AIControllerDefault.generated.h"
 
-UCLASS()
-class AIMODULE_API UNavFilter_AIControllerDefault : public UNavigationQueryFilter
+UCLASS(MinimalAPI)
+class UNavFilter_AIControllerDefault : public UNavigationQueryFilter
 {
 	GENERATED_BODY()
 public:
-	UNavFilter_AIControllerDefault(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API UNavFilter_AIControllerDefault(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual TSubclassOf<UNavigationQueryFilter> GetSimpleFilterForAgent(const UObject& Querier) const;
+	AIMODULE_API virtual TSubclassOf<UNavigationQueryFilter> GetSimpleFilterForAgent(const UObject& Querier) const;
 };

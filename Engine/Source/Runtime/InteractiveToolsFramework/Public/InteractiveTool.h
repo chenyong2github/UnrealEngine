@@ -53,14 +53,14 @@ enum class EToolShutdownType : uint8
 /**
  * FInteractiveToolInfo provides information about a tool (name, tooltip, etc)
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FInteractiveToolInfo
+struct FInteractiveToolInfo
 {
 	/** Name of Tool. May be FText::Empty(), but will default to Tool->GetClass()->GetDisplayNameText() in InteractiveTool constructor */
 	FText ToolDisplayName = FText::GetEmpty();
 };
 
 
-class INTERACTIVETOOLSFRAMEWORK_API FWatchablePropertySet
+class FWatchablePropertySet
 {
 public:
 	//
@@ -238,8 +238,8 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FInteractiveToolPropertySetModifiedSignatur
  * when the Tool Properties are changed *in the Editor*, the parent Tool will be automatically notified.
  * You can override UInteractiveTool::OnPropertyModified() to act on these notifications
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolPropertySet : public UObject, public FWatchablePropertySet
+UCLASS(Transient, MinimalAPI)
+class UInteractiveToolPropertySet : public UObject, public FWatchablePropertySet
 {
 	GENERATED_BODY()
 
@@ -282,17 +282,17 @@ public:
 	 * Save the values of this PropertySet with the given CacheIdentifier.
 	 * The Tool parameter is currently ignored.
 	 */
-	virtual void SaveProperties(UInteractiveTool* SaveFromTool, const FString& CacheIdentifier = TEXT(""));
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SaveProperties(UInteractiveTool* SaveFromTool, const FString& CacheIdentifier = TEXT(""));
 
 	/**
 	 * Restore the values of the Property Set with the given CacheIdentifier.
 	 * The Tool parameter is currently ignored.
 	 */
-	virtual void RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier = TEXT(""));
+	INTERACTIVETOOLSFRAMEWORK_API virtual void RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier = TEXT(""));
 
 protected:
 	// Utility func used to implement the default Save/RestoreProperties funcs
-	virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier, bool bSaving);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SaveRestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier, bool bSaving);
 
 	/**
 	 * GetDynamicPropertyCache return class-internal objects that subclasses can use to save/restore properties.
@@ -300,7 +300,7 @@ protected:
 	 * @param bWasCreatedOut true is returned here if this is the first time the object was seen
 	 * @return instance of the current subclass that can be used to save/restore values
 	 */
-	TObjectPtr<UInteractiveToolPropertySet> GetDynamicPropertyCache(const FString& CacheIdentifier, bool& bWasCreatedOut);
+	INTERACTIVETOOLSFRAMEWORK_API TObjectPtr<UInteractiveToolPropertySet> GetDynamicPropertyCache(const FString& CacheIdentifier, bool& bWasCreatedOut);
 
 public:
 #if WITH_EDITOR
@@ -309,7 +309,7 @@ public:
 	  * @warning Please consider listening to OnModified instead of overriding this function
 	  * @warning this function is currently only called in Editor (not at runtime)
 	  */
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
 #endif
 
 protected:
@@ -345,64 +345,64 @@ protected:
  * @todo callback/delegate for if/when .InputBehaviors changes
  * @todo callback/delegate for when tool properties change
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveTool : public UObject, public IInputBehaviorSource
+UCLASS(Transient, MinimalAPI)
+class UInteractiveTool : public UObject, public IInputBehaviorSource
 {
 	GENERATED_BODY()
 
 public:
-	UInteractiveTool();
+	INTERACTIVETOOLSFRAMEWORK_API UInteractiveTool();
 
 	/**
 	 * Called by ToolManager to initialize the Tool *after* ToolBuilder::BuildTool() has been called
 	 */
-	virtual void Setup();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup();
 
 	/**
 	 * Called by ToolManager to shut down the Tool
 	 * @param ShutdownType indicates how the tool should shutdown (ie Accept or Cancel current preview, etc)
 	 */
-	virtual void Shutdown(EToolShutdownType ShutdownType);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown(EToolShutdownType ShutdownType);
 
 	/**
 	 * Allow the Tool to do any custom drawing (ie via PDI/RHI)
 	 * @param RenderAPI Abstraction that provides access to Rendering in the current ToolsContext
 	 */
-	virtual void Render(IToolsContextRenderAPI* RenderAPI);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
 	/**
 	 * Allow the Tool to do any custom screen space drawing
 	 * @param Canvas the FCanvas to use to do the drawing
 	 * @param RenderAPI Abstraction that provides access to Rendering in the current ToolsContext
 	 */
-	virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
+	INTERACTIVETOOLSFRAMEWORK_API virtual void DrawHUD( FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI );
 
 	/**
 	 * Non overrideable func which does processing and calls the tool's OnTick
 	 * @param DeltaTime the time delta since last tick
 	 */
-	virtual void Tick(float DeltaTime) final;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Tick(float DeltaTime) final;
 
 	/**
 	 * @return ToolManager that owns this Tool
 	 */
-	virtual UInteractiveToolManager* GetToolManager() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveToolManager* GetToolManager() const;
 
 
 	/**
 	 * @return true if this Tool support being Cancelled, ie calling Shutdown(EToolShutdownType::Cancel)
 	 */
-	virtual bool HasCancel() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasCancel() const;
 
 	/**
 	 * @return true if this Tool support being Accepted, ie calling Shutdown(EToolShutdownType::Accept)
 	 */
-	virtual bool HasAccept() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasAccept() const;
 
 	/**
 	 * @return true if this Tool is currently in a state where it can be Accepted. This may be false if for example there was an error in the Tool.
 	 */
-	virtual bool CanAccept() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool CanAccept() const;
 
 
 
@@ -416,7 +416,7 @@ public:
 	 * @param Behavior behavior to add
 	 * @param Source Optional pointer that could be used to identify the behavior for removal later.
 	 */
-	virtual void AddInputBehavior(UInputBehavior* Behavior, void* Source = nullptr);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void AddInputBehavior(UInputBehavior* Behavior, void* Source = nullptr);
 
 	/**
 	 * Remove all input behaviors that had the given source pointer set during their addition.
@@ -424,12 +424,12 @@ public:
 	 * to the input router after that call.
 	 * @param Source Identifying pointer
 	 */
-	virtual void RemoveInputBehaviorsBySource(void* Source);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void RemoveInputBehaviorsBySource(void* Source);
 
 	/**
 	 * @return Current input behavior set.
 	 */
-	virtual const UInputBehaviorSet* GetInputBehaviors() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual const UInputBehaviorSet* GetInputBehaviors() const;
 
 
 	//
@@ -439,7 +439,7 @@ public:
 	/**
 	 * @return list of property UObjects for this tool (ie to add to a DetailsViewPanel, for example)
 	 */
-	virtual TArray<UObject*> GetToolProperties(bool bEnabledOnly = true) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual TArray<UObject*> GetToolProperties(bool bEnabledOnly = true) const;
 
 	/**
 	 * OnPropertySetsModified is broadcast whenever the contents of the ToolPropertyObjects array is modified
@@ -483,20 +483,20 @@ protected:
 	 * Add a Property object for this Tool
 	 * @param Property object to add
 	 */
-	virtual void AddToolPropertySource(UObject* PropertyObject);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void AddToolPropertySource(UObject* PropertyObject);
 
 	/**
 	 * Add a PropertySet object for this Tool
 	 * @param PropertySet Property Set object to add
 	 */
-	virtual void AddToolPropertySource(UInteractiveToolPropertySet* PropertySet);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void AddToolPropertySource(UInteractiveToolPropertySet* PropertySet);
 
 	/**
 	 * Remove a PropertySet object from this Tool. If found, will broadcast OnPropertySetsModified
 	 * @param PropertySet property set to remove.
 	 * @return true if PropertySet is found and removed
 	 */
-	virtual bool RemoveToolPropertySource(UInteractiveToolPropertySet* PropertySet);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool RemoveToolPropertySource(UInteractiveToolPropertySet* PropertySet);
 
 	/**
 	 * Replace a PropertySet object on this Tool with another property set. If replaced, will broadcast OnPropertySetsModified
@@ -505,7 +505,7 @@ protected:
 	 * @param bSetToEnabled if true, ReplaceWith property set is explicitly enabled (otherwise enable/disable state is unmodified)
 	 * @return true if CurPropertySet is found and replaced
 	 */
-	virtual bool ReplaceToolPropertySource(UInteractiveToolPropertySet* CurPropertySet, UInteractiveToolPropertySet* ReplaceWith, bool bSetToEnabled = true);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool ReplaceToolPropertySource(UInteractiveToolPropertySet* CurPropertySet, UInteractiveToolPropertySet* ReplaceWith, bool bSetToEnabled = true);
 
 	/**
 	 * Enable/Disable a PropertySet object for this Tool. If found and state was modified, will broadcast OnPropertySetsModified
@@ -513,7 +513,7 @@ protected:
 	 * @param bEnabled whether to enable or disable
 	 * @return true if PropertySet was found
 	 */
-	virtual bool SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled);
 
 	/**
 	 * Call after changing a propertyset internally in the tool to allow external views of the property
@@ -521,7 +521,7 @@ protected:
 	 * pass along notifications, so don't call this if the property is changed externally (i.e., this
 	 * should not usually be called from OnPropertyModified unless the tool adds changes of its own).
 	 */
-	virtual void NotifyOfPropertyChangeByTool(UInteractiveToolPropertySet* PropertySet) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void NotifyOfPropertyChangeByTool(UInteractiveToolPropertySet* PropertySet) const;
 
 	enum EAcceptWarning
 	{
@@ -536,7 +536,7 @@ protected:
 	 *
 	 * @param Warning Reason that tool cannot be accepted (or EAcceptWarning::NoWarning if no warning need be displayed)
 	 */
-	virtual void UpdateAcceptWarnings(EAcceptWarning Warning);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateAcceptWarnings(EAcceptWarning Warning);
 
 private:
 	// Tracks whether the UpdateAcceptWarnings function showed a warning the last time it was called.
@@ -566,13 +566,13 @@ public:
 	 * Get the internal Action Set for this Tool. The action set is created and registered on-demand.
 	 * @return pointer to initialized Action set
 	 */
-	virtual FInteractiveToolActionSet* GetActionSet();
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInteractiveToolActionSet* GetActionSet();
 
 	/**
 	 * Request that the Action identified by ActionID be executed.
 	 * Default implementation forwards these requests to internal ToolActionSet.
 	 */
-	virtual void ExecuteAction(int32 ActionID);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ExecuteAction(int32 ActionID);
 
 
 protected:
@@ -581,7 +581,7 @@ protected:
 	 * Note that for the actions to be triggered, you will also need to add corresponding registration per tool
 	 *  -- see Engine\Plugins\Editor\ModelingToolsEditorMode\Source\ModelingToolsEditorMode\Public\ModelingToolsActions.h for examples
 	 */
-	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void RegisterActions(FInteractiveToolActionSet& ActionSet);
 
 
 private:

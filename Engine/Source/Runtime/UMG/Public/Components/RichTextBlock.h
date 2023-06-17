@@ -35,8 +35,8 @@ public:
  * * Fancy Text
  * * No Children
  */
-UCLASS()
-class UMG_API URichTextBlock : public UTextLayoutWidget
+UCLASS(MinimalAPI)
+class URichTextBlock : public UTextLayoutWidget
 {
 	GENERATED_BODY()
 protected:
@@ -84,7 +84,7 @@ public:
 	 * @param InColorAndOpacity		The new text color and opacity
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetDefaultColorAndOpacity(FSlateColor InColorAndOpacity);
+	UMG_API void SetDefaultColorAndOpacity(FSlateColor InColorAndOpacity);
 
 	/**  
 	 * Sets the color and opacity of the default text drop shadow
@@ -92,104 +92,104 @@ public:
 	 * @param InShadowColorAndOpacity		The new drop shadow color and opacity
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetDefaultShadowColorAndOpacity(FLinearColor InShadowColorAndOpacity);
+	UMG_API void SetDefaultShadowColorAndOpacity(FLinearColor InShadowColorAndOpacity);
 
 	/**  
 	 * Sets the offset that the default text drop shadow should be drawn at
 	 * @param InShadowOffset		The new offset
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetDefaultShadowOffset(FVector2D InShadowOffset);
+	UMG_API void SetDefaultShadowOffset(FVector2D InShadowOffset);
 
 	/**
 	 * Dynamically set the default font info for this rich text block
 	 * @param InFontInfo The new font info
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetDefaultFont(FSlateFontInfo InFontInfo);
+	UMG_API void SetDefaultFont(FSlateFontInfo InFontInfo);
 
 	/**
 	 * Dynamically set the default strike brush for this rich text block
 	 * @param InStrikeBrush The new brush to use to strike through text
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetDefaultStrikeBrush(const FSlateBrush& InStrikeBrush);
+	UMG_API void SetDefaultStrikeBrush(const FSlateBrush& InStrikeBrush);
 
 	/**
 	 *  Set the minimum desired width for this rich text block
 	 *  @param InMinDesiredWidth new minimum desired width
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetMinDesiredWidth(float InMinDesiredWidth);
+	UMG_API void SetMinDesiredWidth(float InMinDesiredWidth);
 	
 	/**
 	 * Set the auto wrap for this rich text block
 	 * @param InAutoTextWrap to turn wrap on or off
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetAutoWrapText(bool InAutoTextWrap);
+	UMG_API void SetAutoWrapText(bool InAutoTextWrap);
 
 	/**
 	 * Set the text transformation policy for this text block.
 	 * @param InTransformPolicy the new text transformation policy.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy);
+	UMG_API void SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy);
 
 	/**
 	* Set the text overflow policy for this text block.
 	* @param InOverflowPolicy the new text overflow policy.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
+	UMG_API void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
 
 	/** 
 	 * Wholesale override of the currently established default text style
 	 * @param InDefaultTextStyle The new text style to apply to all default (i.e. undecorated) text in the block
 	 */
 	UFUNCTION(BlueprintCallable, Category = Appearance)
-	void SetDefaultTextStyle(const FTextBlockStyle& InDefaultTextStyle);
+	UMG_API void SetDefaultTextStyle(const FTextBlockStyle& InDefaultTextStyle);
 
 	UFUNCTION(BlueprintCallable, Category = Appearance)
-	void SetDefaultMaterial(UMaterialInterface* InMaterial);
+	UMG_API void SetDefaultMaterial(UMaterialInterface* InMaterial);
 
 	/** Remove all overrides made to the default text style and return to the style specified in the style set data table */
 	UFUNCTION(BlueprintCallable, Category = Appearance)
-	void ClearAllDefaultStyleOverrides();
+	UMG_API void ClearAllDefaultStyleOverrides();
 
 	/**
 	 * Creates a dynamic material for the default font or returns it if it already
 	 * exists
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	UMaterialInstanceDynamic* GetDefaultDynamicMaterial();
+	UMG_API UMaterialInstanceDynamic* GetDefaultDynamicMaterial();
 
 	/**
 	 * Replaces the existing decorators with the list provided
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetDecorators(const TArray<TSubclassOf<URichTextBlockDecorator>>& InDecoratorClasses);
+	UMG_API void SetDecorators(const TArray<TSubclassOf<URichTextBlockDecorator>>& InDecoratorClasses);
 
 public:
-	URichTextBlock(const FObjectInitializer& ObjectInitializer);
+	UMG_API URichTextBlock(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin UTextLayoutWidget Interface
-	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	UMG_API virtual void SetJustification(ETextJustify::Type InJustification) override;
 	//~ End UTextLayoutWidget Interface
 
 	// UWidget interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	// End of UWidget interface
 
 	// UVisual interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	// End of UVisual interface
 
 #if WITH_EDITOR
 	// UWidget interface
-	virtual const FText GetPaletteCategory() override;
-	virtual void OnCreationFromPalette() override;
-	virtual void ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const override;
+	UMG_API virtual const FText GetPaletteCategory() override;
+	UMG_API virtual void OnCreationFromPalette() override;
+	UMG_API virtual void ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) const override;
 	// End UWidget interface
 #endif
 
@@ -197,7 +197,7 @@ public:
 	 * Returns widgets text.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	FText GetText() const;
+	UMG_API FText GetText() const;
 	
 	/**
 	 * Directly sets the widget text.
@@ -205,43 +205,43 @@ public:
 	 * @param InText The text to assign to the widget
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	virtual void SetText(const FText& InText);
+	UMG_API virtual void SetText(const FText& InText);
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	UDataTable* GetTextStyleSet() const;
+	UMG_API UDataTable* GetTextStyleSet() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetTextStyleSet(UDataTable* NewTextStyleSet);
+	UMG_API void SetTextStyleSet(UDataTable* NewTextStyleSet);
 
-	const FTextBlockStyle& GetDefaultTextStyle() const;
-	const FTextBlockStyle& GetCurrentDefaultTextStyle() const;
+	UMG_API const FTextBlockStyle& GetDefaultTextStyle() const;
+	UMG_API const FTextBlockStyle& GetCurrentDefaultTextStyle() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	URichTextBlockDecorator* GetDecoratorByClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass);
+	UMG_API URichTextBlockDecorator* GetDecoratorByClass(TSubclassOf<URichTextBlockDecorator> DecoratorClass);
 
 	/**
 	 * Causes the text to reflow it's layout and re-evaluate any decorators
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void RefreshTextLayout();
+	UMG_API void RefreshTextLayout();
 
 protected:
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	
-	virtual void UpdateStyleData();
-	void RebuildStyleInstance();
-	virtual void CreateDecorators(TArray< TSharedRef< class ITextDecorator > >& OutDecorators);
-	virtual TSharedPtr< class IRichTextMarkupParser > CreateMarkupParser();
-	virtual TSharedPtr< class IRichTextMarkupWriter > CreateMarkupWriter();
+	UMG_API virtual void UpdateStyleData();
+	UMG_API void RebuildStyleInstance();
+	UMG_API virtual void CreateDecorators(TArray< TSharedRef< class ITextDecorator > >& OutDecorators);
+	UMG_API virtual TSharedPtr< class IRichTextMarkupParser > CreateMarkupParser();
+	UMG_API virtual TSharedPtr< class IRichTextMarkupWriter > CreateMarkupWriter();
 
-	void BeginDefaultStyleOverride();
-	virtual void ApplyUpdatedDefaultTextStyle();
+	UMG_API void BeginDefaultStyleOverride();
+	UMG_API virtual void ApplyUpdatedDefaultTextStyle();
 
-	const FTextBlockStyle& GetDefaultTextStyleOverride() const;
-	float GetMinDesiredWidth() const;
-	ETextTransformPolicy GetTransformPolicy() const;
-	ETextOverflowPolicy GetOverflowPolicy() const;
+	UMG_API const FTextBlockStyle& GetDefaultTextStyleOverride() const;
+	UMG_API float GetMinDesiredWidth() const;
+	UMG_API ETextTransformPolicy GetTransformPolicy() const;
+	UMG_API ETextOverflowPolicy GetOverflowPolicy() const;
 
 protected:
 	UPROPERTY(Transient)

@@ -9,8 +9,8 @@
 #include "EnvironmentQuery/EnvQueryGenerator.h"
 #include "EnvQueryGenerator_ProjectedPoints.generated.h"
 
-UCLASS(Abstract)
-class AIMODULE_API UEnvQueryGenerator_ProjectedPoints : public UEnvQueryGenerator
+UCLASS(Abstract, MinimalAPI)
+class UEnvQueryGenerator_ProjectedPoints : public UEnvQueryGenerator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -31,10 +31,10 @@ class AIMODULE_API UEnvQueryGenerator_ProjectedPoints : public UEnvQueryGenerato
 	};
 
 	/** project all points in array and remove those outside navmesh */
-	virtual void ProjectAndFilterNavPoints(TArray<FNavLocation>& Points, FEnvQueryInstance& QueryInstance) const;
+	AIMODULE_API virtual void ProjectAndFilterNavPoints(TArray<FNavLocation>& Points, FEnvQueryInstance& QueryInstance) const;
 
 	/** store points as generator's result */
-	virtual void StoreNavPoints(const TArray<FNavLocation>& Points, FEnvQueryInstance& QueryInstance) const;
+	AIMODULE_API virtual void StoreNavPoints(const TArray<FNavLocation>& Points, FEnvQueryInstance& QueryInstance) const;
 
-	virtual void PostLoad() override;
+	AIMODULE_API virtual void PostLoad() override;
 };

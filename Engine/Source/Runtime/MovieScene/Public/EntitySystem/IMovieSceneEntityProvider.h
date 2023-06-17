@@ -108,8 +108,8 @@ struct FEntityImportParams
 } // namespace UE
 
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneEntityProvider : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneEntityProvider : public UInterface
 {
 public:
 	GENERATED_BODY()
@@ -118,7 +118,7 @@ public:
 /**
  * Interface to be added to UMovieSceneSection types when they contain entity data
  */
-class MOVIESCENE_API IMovieSceneEntityProvider
+class IMovieSceneEntityProvider
 {
 public:
 
@@ -138,8 +138,8 @@ public:
 	}
 
 
-	void ImportEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
-	void InterrogateEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
+	MOVIESCENE_API void ImportEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
+	MOVIESCENE_API void InterrogateEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity);
 
 private:
 

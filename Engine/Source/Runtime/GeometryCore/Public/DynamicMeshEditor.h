@@ -22,7 +22,7 @@ struct FDynamicSubmesh3;
  * FDynamicMeshEditResult is used to return information about new mesh elements
  * created by mesh changes, primarily in FDynamicMeshEditor
  */
-struct GEOMETRYCORE_API FDynamicMeshEditResult
+struct FDynamicMeshEditResult
 {
 	/** New vertices created by an edit */
 	TArray<int> NewVertices;
@@ -56,7 +56,7 @@ struct GEOMETRYCORE_API FDynamicMeshEditResult
 	}
 
 	/** Flatten the triangle/quad/polygon lists into a single list of all triangles */
-	void GetAllTriangles(TArray<int>& TrianglesOut) const;
+	GEOMETRYCORE_API void GetAllTriangles(TArray<int>& TrianglesOut) const;
 };
 
 
@@ -67,7 +67,7 @@ struct GEOMETRYCORE_API FDynamicMeshEditResult
  * can be used to construct higher-level operations. For example an Extrude operation
  * could be implemented via DuplicateTriangles() and StitchLoopMinimal().
  */
-class GEOMETRYCORE_API FDynamicMeshEditor
+class FDynamicMeshEditor
 {
 public:
 	/** The mesh we will be editing */
@@ -81,7 +81,7 @@ public:
 	/**
 	 * Remove any vertices that are not used by any triangles
 	 */
-	bool RemoveIsolatedVertices();
+	GEOMETRYCORE_API bool RemoveIsolatedVertices();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Create and Remove Triangle Functions
@@ -96,7 +96,7 @@ public:
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 * @return true if operation succeeded. If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
-	bool StitchVertexLoopsMinimal(const TArray<int>& VertexLoop1, const TArray<int>& VertexLoop2, FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API bool StitchVertexLoopsMinimal(const TArray<int>& VertexLoop1, const TArray<int>& VertexLoop2, FDynamicMeshEditResult& ResultOut);
 
 
 	/**
@@ -118,7 +118,7 @@ public:
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 * @return true if operation succeeded. If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
-	bool StitchVertexLoopToTriVidPairSequence(
+	GEOMETRYCORE_API bool StitchVertexLoopToTriVidPairSequence(
 		const TArray<TPair<int32, TPair<int8, int8>>>& TriVidPairs1,
 		const TArray<int>& VertexLoop2, FDynamicMeshEditResult& ResultOut);
 
@@ -134,7 +134,7 @@ public:
 	 * @param TriVertPairsOut Output
 	 * @return false if not successful (usually due to a mismatch between VidLoop and EdgeLoop).
 	 */
-	static bool ConvertLoopToTriVidPairSequence(const FDynamicMesh3& Mesh,
+	static GEOMETRYCORE_API bool ConvertLoopToTriVidPairSequence(const FDynamicMesh3& Mesh,
 		const TArray<int32>& VidLoop, const TArray<int32>& EdgeLoop,
 		TArray<TPair<int32, TPair<int8, int8>>>& TriVertPairsOut);
 
@@ -147,7 +147,7 @@ public:
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 * @return true if operation succeeded.  If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
-	bool StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut, bool bReverseOrientation = false);
+	GEOMETRYCORE_API bool StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut, bool bReverseOrientation = false);
 
 
 	/**
@@ -156,7 +156,7 @@ public:
 	 * @param Loop2 second loop of sequential vertices. These vertices and their edges will not exist after the operation.
 	 * @return true if operation succeeded, false if any errors ocurred
 	 */
-	bool WeldVertexLoops(const TArray<int32>& VertexLoop1, const TArray<int32>& VertexLoop2);
+	GEOMETRYCORE_API bool WeldVertexLoops(const TArray<int32>& VertexLoop1, const TArray<int32>& VertexLoop2);
 
 
 	/**
@@ -167,7 +167,7 @@ public:
 	 * @param ResultOut lists of newly created triangles
 	 * @return true if operation succeeded.  If a failure occurs, any added triangles are removed via RemoveTriangles.
 	 */
-	bool AddTriangleFan_OrderedVertexLoop(int CenterVertex, const TArray<int>& VertexLoop, int GroupID, FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API bool AddTriangleFan_OrderedVertexLoop(int CenterVertex, const TArray<int>& VertexLoop, int GroupID, FDynamicMeshEditResult& ResultOut);
 
 
 	/**
@@ -176,7 +176,7 @@ public:
 	 * @param IndexMaps returned mappings from old to new triangles/vertices/etc (you may initialize to optimize memory usage, etc)
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 */
-	void DuplicateTriangles(const TArray<int>& Triangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API void DuplicateTriangles(const TArray<int>& Triangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
 
 
 	/**
@@ -210,7 +210,7 @@ public:
 	 * @param bHandleBoundaryVertices if true, boundary vertices are handled as described above, otherwise function aborts and returns false if a boundary vertex is encountered
 	 * @return true on success
 	 */
-	bool DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut, bool bHandleBoundaryVertices);
+	GEOMETRYCORE_API bool DisconnectTriangles(const TArray<int>& Triangles, TArray<FLoopPairSet>& LoopSetOut, bool bHandleBoundaryVertices);
 
 	/**
 	 * Variant of DisconnectTriangles that takes a precomputed set of BoundaryLoops of the triangles, and a TSet of Triangles.
@@ -221,7 +221,7 @@ public:
 	 * @param LoopSetOut returned set of boundary loops. LoopA is original loop which remains with "outer" triangles previously connected to TriangleSet, and LoopB is new boundary loop of TriangleSet
 	 * @param bAllowBoundaryVertices if true, mesh boundary vertices are duplicated and left on the 'outer' loop, otherwise function aborts and returns false if a boundary vertex is encountered
 	 */
-	bool DisconnectTriangles(const TSet<int>& TriangleSet, const TArray<FEdgeLoop>& BoundaryLoops, TArray<FLoopPairSet>& LoopSetOut, bool bAllowBoundaryVertices);
+	GEOMETRYCORE_API bool DisconnectTriangles(const TSet<int>& TriangleSet, const TArray<FEdgeLoop>& BoundaryLoops, TArray<FLoopPairSet>& LoopSetOut, bool bAllowBoundaryVertices);
 
 
 
@@ -230,23 +230,23 @@ public:
 	* @param Triangles set of triangles
 	* @param bPreventBowties do some additional processing and vertex splitting as needed to prevent the creation of any new bowties
 	*/
-	void DisconnectTriangles(const TArray<int>& Triangles, bool bPreventBowties = true);
+	GEOMETRYCORE_API void DisconnectTriangles(const TArray<int>& Triangles, bool bPreventBowties = true);
 
 
 	/**
 	 * Splits all bowties across the whole mesh
 	 */
-	void SplitBowties(FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API void SplitBowties(FDynamicMeshEditResult& ResultOut);
 
 	/**
 	 * Splits any bowties specifically on the given vertex, and updates (does not reset!) ResultOut with any added vertices
 	 */
-	void SplitBowties(int VertexID, FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API void SplitBowties(int VertexID, FDynamicMeshEditResult& ResultOut);
 
 	/**
 	 * Splits bowties attached to any of the given triangles, and updates (does not reset!) ResultOut with any added vertices
 	 */
-	void SplitBowtiesAtTriangles(const TArray<int32>& TriangleIDs, FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API void SplitBowtiesAtTriangles(const TArray<int32>& TriangleIDs, FDynamicMeshEditResult& ResultOut);
 
 	/**
 	 * In ReinsertSubmesh, a problem can arise where the mesh we are 
@@ -278,7 +278,7 @@ public:
 	 * @param DuplicateBehavior Choice of what to do if inserting a triangle from the submesh would duplicate a triangle in the base mesh
 	 * @return true if submesh successfully inserted, false if any triangles failed (which happens if triangle would result in non-manifold mesh)
 	 */
-	bool ReinsertSubmesh(const FDynamicSubmesh3& Submesh, FOptionallySparseIndexMap& SubToNewV, TArray<int>* NewTris = nullptr,
+	GEOMETRYCORE_API bool ReinsertSubmesh(const FDynamicSubmesh3& Submesh, FOptionallySparseIndexMap& SubToNewV, TArray<int>* NewTris = nullptr,
 						 EDuplicateTriBehavior DuplicateBehavior = EDuplicateTriBehavior::EnsureAbort);
 
 	/**
@@ -287,7 +287,7 @@ public:
 	 * @param bRemoveIsolatedVerts if true, remove vertices that end up with no triangles
 	 * @return true if all removes succeeded
 	 */
-	bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts);
+	GEOMETRYCORE_API bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts);
 
 
 	/**
@@ -296,7 +296,7 @@ public:
 	 * @param MinArea Remove components with less area than this
 	 * @return number of components removed
 	 */
-	int RemoveSmallComponents(double MinVolume, double MinArea = 0.0, int MinTriangleCount = 0);
+	GEOMETRYCORE_API int RemoveSmallComponents(double MinVolume, double MinArea = 0.0, int MinTriangleCount = 0);
 
 
 	/**
@@ -306,7 +306,7 @@ public:
 	 * @param OnRemoveTriFunc called for each triangle to be removed
 	 * @return true if all removes succeeded
 	 */
-	bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts, TFunctionRef<void(int)> OnRemoveTriFunc);
+	GEOMETRYCORE_API bool RemoveTriangles(const TArray<int>& Triangles, bool bRemoveIsolatedVerts, TFunctionRef<void(int)> OnRemoveTriFunc);
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -318,14 +318,14 @@ public:
 	 * @param Triangles the triangles to modify
 	 * @param bInvertNormals if ture we call InvertTriangleNormals()
 	 */
-	void ReverseTriangleOrientations(const TArray<int>& Triangles, bool bInvertNormals);
+	GEOMETRYCORE_API void ReverseTriangleOrientations(const TArray<int>& Triangles, bool bInvertNormals);
 
 	/**
 	 * Flip the normals of the given triangles. This includes their vertex normals, if they
 	 * exist, as well as any per-triangle attribute normals. @todo currently creates full-mesh bit arrays, could be more efficient on subsets
 	 * @param Triangles the triangles to modify
 	 */
-	void InvertTriangleNormals(const TArray<int>& Triangles);
+	GEOMETRYCORE_API void InvertTriangleNormals(const TArray<int>& Triangles);
 
 
 	/**
@@ -335,7 +335,7 @@ public:
 	 * @param bIsPlanar if the quad is known to be planar, operation is more efficient
 	 * @return the normal vector that was set
 	 */
-	FVector3f ComputeAndSetQuadNormal(const FIndex2i& QuadTris, bool bIsPlanar = false);
+	GEOMETRYCORE_API FVector3f ComputeAndSetQuadNormal(const FIndex2i& QuadTris, bool bIsPlanar = false);
 
 
 	/**
@@ -343,26 +343,26 @@ public:
 	 * @param QuadTris pair of triangle IDs. If second ID is invalid, it is ignored
 	 * @param Normal normal vector to set
 	 */
-	void SetQuadNormals(const FIndex2i& QuadTris, const FVector3f& Normal);
+	GEOMETRYCORE_API void SetQuadNormals(const FIndex2i& QuadTris, const FVector3f& Normal);
 
 	/**
 	 * Create and set new shared per-triangle normals for a list of triangles
 	 * @param Triangles list of triangle IDs
 	 * @param Normal normal vector to set
 	 */
-	void SetTriangleNormals(const TArray<int>& Triangles, const FVector3f& Normal);
+	GEOMETRYCORE_API void SetTriangleNormals(const TArray<int>& Triangles, const FVector3f& Normal);
 
 	/**
 	 * Create and set new shared per-triangle normals for a list of triangles. 
 	 * Normal at each vertex is calculated based only on average of triangles in set
 	 * @param Triangles list of triangle IDs
 	 */
-	void SetTriangleNormals(const TArray<int>& Triangles);
+	GEOMETRYCORE_API void SetTriangleNormals(const TArray<int>& Triangles);
 
 	/**
 	 * For a 'tube' of triangles connecting loops of corresponded vertices, set smooth normals such that corresponding vertices have corresponding normals
 	 */
-	void SetTubeNormals(const TArray<int>& Triangles, const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2);
+	GEOMETRYCORE_API void SetTubeNormals(const TArray<int>& Triangles, const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2);
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -379,7 +379,7 @@ public:
 	 * @param UVTranslation UVs are translated after scaling
 	 * @param UVLayerIndex which UV layer to operate on (must exist)
 	 */
-	void SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
+	GEOMETRYCORE_API void SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
 
 	/**
 	* Project triangles onto a plane defined by the ProjectionFrame and use that to create/set new shared per-triangle UVs.
@@ -393,7 +393,7 @@ public:
 	* @param bShiftToOrigin Whether to translate the UV coordinates to make their bounding box min corner be (0,0) before applying UVTranslation
 	* @param UVLayerIndex which UV layer to operate on (must exist)
 	*/
-	void SetTriangleUVsFromProjection(const TArray<int32>& Triangles, const FFrame3d& ProjectionFrame, 
+	GEOMETRYCORE_API void SetTriangleUVsFromProjection(const TArray<int32>& Triangles, const FFrame3d& ProjectionFrame, 
 		float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), bool bShiftToOrigin = true, int32 UVLayerIndex = 0);
 
 	/**
@@ -407,7 +407,7 @@ public:
 	* @param bShiftToOrigin Whether to translate the UV coordinates to make their bounding box min corner be (0,0) before applying UVTranslation
 	* @param bNormalizeBeforeScaling Whether to place the UV coordinates into the range [0,1] before applying UVScaleFactor and UVTranslation
 	*/
-	void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, 
+	GEOMETRYCORE_API void SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, 
 		const FVector2f& UVScale = FVector2f::One(), const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0,
 		bool bShiftToOrigin = true, bool bNormalizeBeforeScaling = false);
 
@@ -415,7 +415,7 @@ public:
 	 * For triangles connecting loops of corresponded vertices, set UVs in a cylindrical pattern so that the U coordinate starts at 0 for the first corresponded pair of vertices, and cycles around to 1
 	 * Assumes Triangles array stores indices of triangles in progressively filling the tube, starting with VertexIDs*[0].  (This is used to set the UVs correctly at the seam joining the start & end of the loop)
 	 */
-	void SetGeneralTubeUVs(const TArray<int>& Triangles, const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, const TArray<float>& UValues, const FVector3f& VDir, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
+	GEOMETRYCORE_API void SetGeneralTubeUVs(const TArray<int>& Triangles, const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, const TArray<float>& UValues, const FVector3f& VDir, float UVScaleFactor = 1.0f, const FVector2f& UVTranslation = FVector2f::Zero(), int UVLayerIndex = 0);
 
 	/**
 	 * Rescale UVs for the whole mesh, for the given UV attribute layer
@@ -424,7 +424,7 @@ public:
 	 * @param UVLayerIndex which UV layer to operate on (must exist)
 	 * @param ToWorld Optionally transform vertices for world space scaling
 	 */
-	void RescaleAttributeUVs(float UVScale = 1.0f, bool bWorldSpace = false, int UVLayerIndex = 0, TOptional<FTransformSRT3d> ToWorld = TOptional<FTransformSRT3d>());
+	GEOMETRYCORE_API void RescaleAttributeUVs(float UVScale = 1.0f, bool bWorldSpace = false, int UVLayerIndex = 0, TOptional<FTransformSRT3d> ToWorld = TOptional<FTransformSRT3d>());
 
 
 	//////////////////////////////////////////////////////////////////////////
@@ -439,7 +439,7 @@ public:
 	 * @param ResultOut newly-created vertices are stored here
 	 * @return index of duplicate vertex
 	 */	
-	int FindOrCreateDuplicateVertex(int VertexID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API int FindOrCreateDuplicateVertex(int VertexID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
 
 	/**
 	 * Find "new" group for input group under Index mapping, or create new if missing
@@ -448,7 +448,7 @@ public:
 	 * @param ResultOut newly-created groups are stored here
 	 * @return index of duplicate group
 	 */
-	int FindOrCreateDuplicateGroup(int TriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API int FindOrCreateDuplicateGroup(int TriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
 
 	/**
 	 * Find "new" UV for input UV element under Index mapping, or create new if missing
@@ -457,7 +457,7 @@ public:
 	 * @param IndexMaps source/destination mapping of already-duplicated UVs
 	 * @return index of duplicate UV in given UV layer
 	 */
-	int FindOrCreateDuplicateUV(int ElementID, int UVLayerIndex, FMeshIndexMappings& IndexMaps);
+	GEOMETRYCORE_API int FindOrCreateDuplicateUV(int ElementID, int UVLayerIndex, FMeshIndexMappings& IndexMaps);
 
 	/**
 	 * Find "new" normal for input normal element under Index mapping, or create new if missing
@@ -468,7 +468,7 @@ public:
 	 *   NewNormalOverlayElements must have size > NormalLayerIndex.
 	 * @return index of duplicate normal in given normal layer
 	 */
-	int FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut = nullptr);
+	GEOMETRYCORE_API int FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut = nullptr);
 
 	/**
 	 * Find "new" color for input color element under Index mapping, or create new if missing
@@ -477,7 +477,7 @@ public:
 	 * @param ResultOut any newly created element indices are stored in NewColorOverlayElements here. 
 	 * @return index of duplicate color in given color layer
 	 */
-	int FindOrCreateDuplicateColor(int ElementID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut);
+	GEOMETRYCORE_API int FindOrCreateDuplicateColor(int ElementID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut);
 	
 	/**
 	 * Copy all attribute-layer values from one triangle to another, using the IndexMaps to track and re-use shared attribute values.
@@ -486,7 +486,7 @@ public:
 	 * @param IndexMaps mappings passed to FindOrCreateDuplicateX functions to track already-created attributes
 	 * @param ResultOut information about new attributes is stored here (@todo finish populating this, at time of writing only normal overlay elements get tracked)
 	 */
-	void CopyAttributes(int FromTriangleID, int ToTriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
+	GEOMETRYCORE_API void CopyAttributes(int FromTriangleID, int ToTriangleID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut);
 
 
 
@@ -498,7 +498,7 @@ public:
 	 * @param PositionTransform optional transformation function applied to mesh vertex positions
 	 * @param NormalTransform optional transformation function applied to mesh normals
 	 */
-	void AppendMesh(const FDynamicMesh3* AppendMesh, FMeshIndexMappings& IndexMapsOut, 
+	GEOMETRYCORE_API void AppendMesh(const FDynamicMesh3* AppendMesh, FMeshIndexMappings& IndexMapsOut, 
 		TFunction<FVector3d(int, const FVector3d&)> PositionTransform = nullptr,
 		TFunction<FVector3d(int, const FVector3d&)> NormalTransform = nullptr);
 
@@ -509,7 +509,7 @@ public:
 	 * @param IndexMapsOut mesh element index mappings generated in this append operation
 	 * @param PositionTransform optional transformation function applied to mesh vertex positions
 	 */
-	void AppendMesh(const TTriangleMeshAdapter<double>* AppendMesh, FMeshIndexMappings& IndexMapsOut,
+	GEOMETRYCORE_API void AppendMesh(const TTriangleMeshAdapter<double>* AppendMesh, FMeshIndexMappings& IndexMapsOut,
 		TFunction<FVector3d(int, const FVector3d&)> PositionTransform = nullptr);
 
 
@@ -525,7 +525,7 @@ public:
 	 * @param NormalTransform optional transformation function applied to mesh normals
 	 * @param NormalMapOut Mapping from element IDs of FromNormals to new element IDs in ToNormals
 	 */
-	void AppendNormals(const FDynamicMesh3* AppendMesh,
+	GEOMETRYCORE_API void AppendNormals(const FDynamicMesh3* AppendMesh,
 		const FDynamicMeshNormalOverlay* FromNormals, FDynamicMeshNormalOverlay* ToNormals,
 		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
 		TFunction<FVector3d(int, const FVector3d&)> NormalTransform,
@@ -543,7 +543,7 @@ public:
 	 * @param TriangleMap map from AppendMesh triangle IDs to triangle IDs applicable to ToUVs (ie of .Mesh)
 	 * @param UVMapOut Mapping from element IDs of FromUVs to new element IDs in ToUVs
 	 */
-	void AppendUVs(const FDynamicMesh3* AppendMesh,
+	GEOMETRYCORE_API void AppendUVs(const FDynamicMesh3* AppendMesh,
 		const FDynamicMeshUVOverlay* FromUVs, FDynamicMeshUVOverlay* ToUVs,
 		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
 		FIndexMapi& UVMapOut);
@@ -559,7 +559,7 @@ public:
 	* @param TriangleMap map from AppendMesh triangle IDs to triangle IDs applicable to ToOverlay (ie of .Mesh)
 	* @param ColorMapOut Mapping from element IDs of FromUVs to new element IDs in ToOverlay
 	*/
-	void AppendColors(const FDynamicMesh3* AppendMesh,
+	GEOMETRYCORE_API void AppendColors(const FDynamicMesh3* AppendMesh,
 		const FDynamicMeshColorOverlay* FromOverlay, FDynamicMeshColorOverlay* ToOverlay,
 		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
 		FIndexMapi& ColorMapOut);
@@ -573,7 +573,7 @@ public:
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 * @param bComputeTriangleMap if true, computes the triangle map section of IndexMaps (which is not needed for the append to work, so is optional)
 	 */
-	void AppendTriangles(const FDynamicMesh3* SourceMesh, const TArrayView<const int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut, bool bComputeTriangleMap = true);
+	GEOMETRYCORE_API void AppendTriangles(const FDynamicMesh3* SourceMesh, const TArrayView<const int>& SourceTriangles, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut, bool bComputeTriangleMap = true);
 
 	/**
 	 * Create multiple meshes out of the source mesh by splitting triangles out.
@@ -584,7 +584,7 @@ public:
 	 * @param TriIDToMeshID
 	 * @return true if needed split, false if there were not multiple mesh ids so no split was needed
 	 */
-	static bool SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDynamicMesh3>& SplitMeshes, TFunctionRef<int(int)> TriIDToMeshID, int DeleteMeshID = -1);
+	static GEOMETRYCORE_API bool SplitMesh(const FDynamicMesh3* SourceMesh, TArray<FDynamicMesh3>& SplitMeshes, TFunctionRef<int(int)> TriIDToMeshID, int DeleteMeshID = -1);
 
 };
 

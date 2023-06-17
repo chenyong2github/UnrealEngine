@@ -22,37 +22,37 @@ struct FLiveLinkBaseStaticData;
 struct FLiveLinkSkeletonStaticData;
 
 // Remap asset for data coming from Live Link. Allows simple application of bone transforms into current pose based on name remapping only
-UCLASS(Blueprintable)
-class LIVELINKANIMATIONCORE_API ULiveLinkRemapAsset : public ULiveLinkRetargetAsset
+UCLASS(Blueprintable, MinimalAPI)
+class ULiveLinkRemapAsset : public ULiveLinkRetargetAsset
 {
 	GENERATED_UCLASS_BODY()
 
 	virtual ~ULiveLinkRemapAsset() {}
 
 	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
+	LIVELINKANIMATIONCORE_API virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
 	//~ Begin ULiveLinkRetargetAsset interface
-	virtual void BuildPoseFromAnimationData(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose) override;
-	virtual void BuildPoseAndCurveFromBaseData(float DeltaTime, const FLiveLinkBaseStaticData* InBaseStaticData, const FLiveLinkBaseFrameData* InBaseFrameData, FCompactPose& OutPose, FBlendedCurve& OutCurve) override;
+	LIVELINKANIMATIONCORE_API virtual void BuildPoseFromAnimationData(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose) override;
+	LIVELINKANIMATIONCORE_API virtual void BuildPoseAndCurveFromBaseData(float DeltaTime, const FLiveLinkBaseStaticData* InBaseStaticData, const FLiveLinkBaseFrameData* InBaseFrameData, FCompactPose& OutPose, FBlendedCurve& OutCurve) override;
 	//~ End ULiveLinkRetargetAsset interface
 
 	/** Blueprint Implementable function for getting a remapped bone name from the original */
 	UFUNCTION(BlueprintNativeEvent, Category = "Live Link Remap")
-	FName GetRemappedBoneName(FName BoneName) const;
+	LIVELINKANIMATIONCORE_API FName GetRemappedBoneName(FName BoneName) const;
 
 	/** Blueprint Implementable function for getting a remapped curve name from the original */
 	UFUNCTION(BlueprintNativeEvent, Category = "Live Link Remap")
-	FName GetRemappedCurveName(FName CurveName) const;
+	LIVELINKANIMATIONCORE_API FName GetRemappedCurveName(FName CurveName) const;
 
 	/** Blueprint Implementable function for remapping, adding or otherwise modifying the curve element data from Live Link. This is run after GetRemappedCurveName */
 	UFUNCTION(BlueprintNativeEvent, Category = "Live Link Remap")
-	void RemapCurveElements(UPARAM(ref)TMap<FName, float>& CurveItems) const;
+	LIVELINKANIMATIONCORE_API void RemapCurveElements(UPARAM(ref)TMap<FName, float>& CurveItems) const;
 
 private:
 
-	void OnBlueprintClassCompiled(UBlueprint* TargetBlueprint);
+	LIVELINKANIMATIONCORE_API void OnBlueprintClassCompiled(UBlueprint* TargetBlueprint);
 
 	// Name mapping between source bone name and transformed bone name
 	// (returned from GetRemappedBoneName)

@@ -109,7 +109,7 @@ namespace TypedElementQueryBuilder
 	TYPEDELEMENTFRAMEWORK_API const UScriptStruct* operator""_Type(const char* Name, std::size_t NameSize);
 	TYPEDELEMENTFRAMEWORK_API const UScriptStruct* operator""_TypeOptional(const char* Name, std::size_t NameSize);
 
-	class TYPEDELEMENTFRAMEWORK_API FDependency final
+	class FDependency final
 	{
 		friend class Count;
 		friend class Select;
@@ -117,62 +117,62 @@ namespace TypedElementQueryBuilder
 	public:
 		template<typename... TargetTypes>
 		FDependency& ReadOnly();
-		FDependency& ReadOnly(const UClass* Target);
-		FDependency& ReadOnly(TConstArrayView<const UClass*> Targets);
+		TYPEDELEMENTFRAMEWORK_API FDependency& ReadOnly(const UClass* Target);
+		TYPEDELEMENTFRAMEWORK_API FDependency& ReadOnly(TConstArrayView<const UClass*> Targets);
 		template<typename... TargetTypes>
 		FDependency& ReadWrite();
-		FDependency& ReadWrite(const UClass* Target);
-		FDependency& ReadWrite(TConstArrayView<const UClass*> Targets);
+		TYPEDELEMENTFRAMEWORK_API FDependency& ReadWrite(const UClass* Target);
+		TYPEDELEMENTFRAMEWORK_API FDependency& ReadWrite(TConstArrayView<const UClass*> Targets);
 
-		FDependency& SubQuery(TypedElementQueryHandle Handle);
-		FDependency& SubQuery(TConstArrayView<TypedElementQueryHandle> Handles);
+		TYPEDELEMENTFRAMEWORK_API FDependency& SubQuery(TypedElementQueryHandle Handle);
+		TYPEDELEMENTFRAMEWORK_API FDependency& SubQuery(TConstArrayView<TypedElementQueryHandle> Handles);
 
-		ITypedElementDataStorageInterface::FQueryDescription&& Compile();
+		TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface::FQueryDescription&& Compile();
 
 	private:
-		explicit FDependency(ITypedElementDataStorageInterface::FQueryDescription* Query);
+		TYPEDELEMENTFRAMEWORK_API explicit FDependency(ITypedElementDataStorageInterface::FQueryDescription* Query);
 
 		ITypedElementDataStorageInterface::FQueryDescription* Query;
 	};
 
-	class TYPEDELEMENTFRAMEWORK_API FSimpleQuery final
+	class FSimpleQuery final
 	{
 	public:
 		friend class Count;
 		friend class Select;
 
-		FDependency DependsOn();
-		ITypedElementDataStorageInterface::FQueryDescription&& Compile();
+		TYPEDELEMENTFRAMEWORK_API FDependency DependsOn();
+		TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface::FQueryDescription&& Compile();
 
 		template<typename... TargetTypes>
 		FSimpleQuery& All();
-		FSimpleQuery& All(const UScriptStruct* Target);
-		FSimpleQuery& All(TConstArrayView<const UScriptStruct*> Targets);
+		TYPEDELEMENTFRAMEWORK_API FSimpleQuery& All(const UScriptStruct* Target);
+		TYPEDELEMENTFRAMEWORK_API FSimpleQuery& All(TConstArrayView<const UScriptStruct*> Targets);
 		template<typename... TargetTypes>
 		FSimpleQuery& Any();
-		FSimpleQuery& Any(const UScriptStruct* Target);
-		FSimpleQuery& Any(TConstArrayView<const UScriptStruct*> Targets);
+		TYPEDELEMENTFRAMEWORK_API FSimpleQuery& Any(const UScriptStruct* Target);
+		TYPEDELEMENTFRAMEWORK_API FSimpleQuery& Any(TConstArrayView<const UScriptStruct*> Targets);
 		template<typename... TargetTypes>
 		FSimpleQuery& None();
-		FSimpleQuery& None(const UScriptStruct* Target);
-		FSimpleQuery& None(TConstArrayView<const UScriptStruct*> Targets);
+		TYPEDELEMENTFRAMEWORK_API FSimpleQuery& None(const UScriptStruct* Target);
+		TYPEDELEMENTFRAMEWORK_API FSimpleQuery& None(TConstArrayView<const UScriptStruct*> Targets);
 
 	private:
-		explicit FSimpleQuery(ITypedElementDataStorageInterface::FQueryDescription* Query);
+		TYPEDELEMENTFRAMEWORK_API explicit FSimpleQuery(ITypedElementDataStorageInterface::FQueryDescription* Query);
 
 		ITypedElementDataStorageInterface::FQueryDescription* Query;
 	};
 
-	struct TYPEDELEMENTFRAMEWORK_API FQueryCallbackType{};
+	struct FQueryCallbackType{};
 
-	struct TYPEDELEMENTFRAMEWORK_API FProcessor final : public FQueryCallbackType
+	struct FProcessor final : public FQueryCallbackType
 	{
-		FProcessor(ITypedElementDataStorageInterface::EQueryTickPhase Phase, FName Group);
-		FProcessor& SetPhase(ITypedElementDataStorageInterface::EQueryTickPhase NewPhase);
-		FProcessor& SetGroup(FName GroupName);
-		FProcessor& SetBeforeGroup(FName GroupName);
-		FProcessor& SetAfterGroup(FName GroupName);
-		FProcessor& ForceToGameThread(bool bForce);
+		TYPEDELEMENTFRAMEWORK_API FProcessor(ITypedElementDataStorageInterface::EQueryTickPhase Phase, FName Group);
+		TYPEDELEMENTFRAMEWORK_API FProcessor& SetPhase(ITypedElementDataStorageInterface::EQueryTickPhase NewPhase);
+		TYPEDELEMENTFRAMEWORK_API FProcessor& SetGroup(FName GroupName);
+		TYPEDELEMENTFRAMEWORK_API FProcessor& SetBeforeGroup(FName GroupName);
+		TYPEDELEMENTFRAMEWORK_API FProcessor& SetAfterGroup(FName GroupName);
+		TYPEDELEMENTFRAMEWORK_API FProcessor& ForceToGameThread(bool bForce);
 		
 		ITypedElementDataStorageInterface::EQueryTickPhase Phase;
 		FName Group;
@@ -181,7 +181,7 @@ namespace TypedElementQueryBuilder
 		bool bForceToGameThread{ false };
 	};
 
-	struct TYPEDELEMENTFRAMEWORK_API FObserver final : public FQueryCallbackType
+	struct FObserver final : public FQueryCallbackType
 	{
 		enum class EEvent : uint8
 		{
@@ -191,20 +191,20 @@ namespace TypedElementQueryBuilder
 
 		template<typename ColumnType>
 		explicit FObserver(EEvent MonitorForEvent);
-		FObserver(EEvent MonitorForEvent, const UScriptStruct* MonitoredColumn);
+		TYPEDELEMENTFRAMEWORK_API FObserver(EEvent MonitorForEvent, const UScriptStruct* MonitoredColumn);
 
-		FObserver& SetEvent(EEvent MonitorForEvent);
-		FObserver& SetMonitoredColumn(const UScriptStruct* MonitoredColumn);
+		TYPEDELEMENTFRAMEWORK_API FObserver& SetEvent(EEvent MonitorForEvent);
+		TYPEDELEMENTFRAMEWORK_API FObserver& SetMonitoredColumn(const UScriptStruct* MonitoredColumn);
 		template<typename ColumnType>
 		FObserver& SetMonitoredColumn();
-		FObserver& ForceToGameThread(bool bForce);
+		TYPEDELEMENTFRAMEWORK_API FObserver& ForceToGameThread(bool bForce);
 
 		const UScriptStruct* Monitor;
 		EEvent Event;
 		bool bForceToGameThread{ false };
 	};
 
-	struct TYPEDELEMENTFRAMEWORK_API FPhaseAmble final : public FQueryCallbackType
+	struct FPhaseAmble final : public FQueryCallbackType
 	{
 		enum class ELocation : uint8
 		{
@@ -212,10 +212,10 @@ namespace TypedElementQueryBuilder
 			Postamble
 		};
 
-		FPhaseAmble(ELocation InLocation, ITypedElementDataStorageInterface::EQueryTickPhase InPhase);
-		FPhaseAmble& SetLocation(ELocation NewLocation);
-		FPhaseAmble& SetPhase(ITypedElementDataStorageInterface::EQueryTickPhase NewPhase);
-		FPhaseAmble& ForceToGameThread(bool bForce);
+		TYPEDELEMENTFRAMEWORK_API FPhaseAmble(ELocation InLocation, ITypedElementDataStorageInterface::EQueryTickPhase InPhase);
+		TYPEDELEMENTFRAMEWORK_API FPhaseAmble& SetLocation(ELocation NewLocation);
+		TYPEDELEMENTFRAMEWORK_API FPhaseAmble& SetPhase(ITypedElementDataStorageInterface::EQueryTickPhase NewPhase);
+		TYPEDELEMENTFRAMEWORK_API FPhaseAmble& ForceToGameThread(bool bForce);
 
 		ITypedElementDataStorageInterface::EQueryTickPhase Phase;
 		ELocation Location;
@@ -276,10 +276,10 @@ namespace TypedElementQueryBuilder
 	};
 
 	// Explicitly not following the naming convention in order to present this as a query that can be read as such.
-	class TYPEDELEMENTFRAMEWORK_API Select final
+	class Select final
 	{
 	public:
-		Select();
+		TYPEDELEMENTFRAMEWORK_API Select();
 
 		template<typename CallbackType, typename Function>
 		Select(FName Name, const CallbackType& Type, Function&& Callback);
@@ -288,29 +288,29 @@ namespace TypedElementQueryBuilder
 
 		template<typename... TargetTypes>
 		Select& ReadOnly();
-		Select& ReadOnly(const UScriptStruct* Target);
-		Select& ReadOnly(std::initializer_list<const UScriptStruct*> Targets);
+		TYPEDELEMENTFRAMEWORK_API Select& ReadOnly(const UScriptStruct* Target);
+		TYPEDELEMENTFRAMEWORK_API Select& ReadOnly(std::initializer_list<const UScriptStruct*> Targets);
 		template<typename... TargetTypes>
 		Select& ReadWrite();
-		Select& ReadWrite(const UScriptStruct* Target);
-		Select& ReadWrite(std::initializer_list<const UScriptStruct*> Targets);
+		TYPEDELEMENTFRAMEWORK_API Select& ReadWrite(const UScriptStruct* Target);
+		TYPEDELEMENTFRAMEWORK_API Select& ReadWrite(std::initializer_list<const UScriptStruct*> Targets);
 
-		ITypedElementDataStorageInterface::FQueryDescription&& Compile();
-		FSimpleQuery Where();
-		FDependency DependsOn();
+		TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface::FQueryDescription&& Compile();
+		TYPEDELEMENTFRAMEWORK_API FSimpleQuery Where();
+		TYPEDELEMENTFRAMEWORK_API FDependency DependsOn();
 
 	private:
 		ITypedElementDataStorageInterface::FQueryDescription Query;
 	};
 
 	// Explicitly not following the naming convention in order to keep readability consistent. It now reads like a query sentence.
-	class TYPEDELEMENTFRAMEWORK_API Count final
+	class Count final
 	{
 	public:
-		Count();
+		TYPEDELEMENTFRAMEWORK_API Count();
 
-		FSimpleQuery Where();
-		FDependency DependsOn();
+		TYPEDELEMENTFRAMEWORK_API FSimpleQuery Where();
+		TYPEDELEMENTFRAMEWORK_API FDependency DependsOn();
 
 	private:
 		ITypedElementDataStorageInterface::FQueryDescription Query;

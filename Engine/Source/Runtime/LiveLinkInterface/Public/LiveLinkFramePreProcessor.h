@@ -18,7 +18,7 @@
  * Inherit from it to add specific operations / options for a certain type of data
  * @note It can be called from any thread
  */
-class LIVELINKINTERFACE_API ILiveLinkFramePreProcessorWorker
+class ILiveLinkFramePreProcessorWorker
 {
 public:
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const = 0;
@@ -31,14 +31,14 @@ public:
  * Inherit from it to add specific operations / options for a certain type of data
  * @note It can only be used on the Game Thread. See ILiveLinkFramePreProcessorWorker for the any thread implementation.
  */
-UCLASS(Abstract, Blueprintable, editinlinenew, ClassGroup = (LiveLink))
-class LIVELINKINTERFACE_API ULiveLinkFramePreProcessor : public UObject
+UCLASS(Abstract, Blueprintable, editinlinenew, ClassGroup = (LiveLink), MinimalAPI)
+class ULiveLinkFramePreProcessor : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	using FWorkerSharedPtr = TSharedPtr<ILiveLinkFramePreProcessorWorker, ESPMode::ThreadSafe>;
 
-	virtual TSubclassOf<ULiveLinkRole> GetRole() const PURE_VIRTUAL(ULiveLinkFramePreProcessor::GetFromRole, return TSubclassOf<ULiveLinkRole>(););
-	virtual FWorkerSharedPtr FetchWorker() PURE_VIRTUAL(ULiveLinkFramePreProcessor::FetchWorker, return FWorkerSharedPtr(););
+	LIVELINKINTERFACE_API virtual TSubclassOf<ULiveLinkRole> GetRole() const PURE_VIRTUAL(ULiveLinkFramePreProcessor::GetFromRole, return TSubclassOf<ULiveLinkRole>(););
+	LIVELINKINTERFACE_API virtual FWorkerSharedPtr FetchWorker() PURE_VIRTUAL(ULiveLinkFramePreProcessor::FetchWorker, return FWorkerSharedPtr(););
 };

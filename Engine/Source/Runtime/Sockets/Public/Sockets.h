@@ -15,7 +15,7 @@ class FInternetAddr;
 /**
  * This is our abstract base class that hides the platform specific socket implementation
  */
-class SOCKETS_API FSocket
+class FSocket
 {
 protected:
 
@@ -179,7 +179,7 @@ public:
 	 * @param BytesSent Will indicate how much was sent.
 	 * @param Destination The network byte ordered address to send to.
 	 */
-	virtual bool SendTo(const uint8* Data, int32 Count, int32& BytesSent, const FInternetAddr& Destination);
+	SOCKETS_API virtual bool SendTo(const uint8* Data, int32 Count, int32& BytesSent, const FInternetAddr& Destination);
 
 	/**
 	 * Sends a buffer on a connected socket.
@@ -188,7 +188,7 @@ public:
 	 * @param Count The size of the data to send.
 	 * @param BytesSent Will indicate how much was sent.
 	 */
-	virtual bool Send(const uint8* Data, int32 Count, int32& BytesSent);
+	SOCKETS_API virtual bool Send(const uint8* Data, int32 Count, int32& BytesSent);
 
 	/**
 	 * Reads a chunk of data from the socket and gathers the source address.
@@ -204,7 +204,7 @@ public:
 	 * @param Flags The receive flags.
 	 * @return true on success, false in case of a closed socket or an unrecoverable error.
 	 */
-	virtual bool RecvFrom(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None);
+	SOCKETS_API virtual bool RecvFrom(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None);
 
 	/**
 	 * Reads a chunk of data from a connected socket
@@ -219,7 +219,7 @@ public:
 	 * @param Flags the receive flags
 	 * @return true on success, false in case of a closed socket or an unrecoverable error.
 	 */
-	virtual bool Recv(uint8* Data, int32 BufferSize, int32& BytesRead, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None);
+	SOCKETS_API virtual bool Recv(uint8* Data, int32 BufferSize, int32& BytesRead, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None);
 
 	/**
 	 * Reads multiple packets from the socket at once, gathering the source address and other optional platform specific data.
@@ -230,7 +230,7 @@ public:
 	 * @param Flags			The receive flags.
 	 * @return				Whether or not data was successfully received
 	 */
-	virtual bool RecvMulti(FRecvMulti& MultiData, ESocketReceiveFlags::Type Flags=ESocketReceiveFlags::None);
+	SOCKETS_API virtual bool RecvMulti(FRecvMulti& MultiData, ESocketReceiveFlags::Type Flags=ESocketReceiveFlags::None);
 
 	/**
 	 * Blocks until the specified condition is met.
@@ -415,7 +415,7 @@ public:
 	 * @param bRetrieveTimestamp	Whether to retrieve the timestamp upon receive
 	 * @return						True if the call succeeded, false otherwise.
 	 */
-	virtual bool SetRetrieveTimestamp(bool bRetrieveTimestamp=true);
+	SOCKETS_API virtual bool SetRetrieveTimestamp(bool bRetrieveTimestamp=true);
 
 	/**
 	 * Reads the port this socket is bound to.
@@ -431,7 +431,7 @@ public:
 	 * @param bEnable	Whether to enable/disable
 	 * @return True if the call succeeded, false otherwise.
 	 */
-	virtual bool SetIpPktInfo(bool bEnable);
+	SOCKETS_API virtual bool SetIpPktInfo(bool bEnable);
 
 	/**
 	 * Reads a chunk of data from the socket and gathers the source address and the destination using IP_PKTINFO
@@ -448,7 +448,7 @@ public:
 	 * @param Flags The receive flags.
 	 * @return true on success, false in case of a closed socket or an unrecoverable error.
 	 */
-	virtual bool RecvFromWithPktInfo(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, FInternetAddr& Destination, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None);
+	SOCKETS_API virtual bool RecvFromWithPktInfo(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, FInternetAddr& Destination, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None);
 
 	/**
 	 * Get the type of protocol the socket is bound to

@@ -11,13 +11,13 @@ class IWinHttpConnection;
 
 using HINTERNET = void*;
 
-class HTTP_API FWinHttpSession
+class FWinHttpSession
 {
 public:
 	/**
 	 * Construct a new WinHttp session with the specified security protocols flags
 	 */
-	FWinHttpSession(const uint32 SecurityProtocolFlags, const bool bForceSecureConnections);
+	HTTP_API FWinHttpSession(const uint32 SecurityProtocolFlags, const bool bForceSecureConnections);
 
 	/**
 	 * FWinHttpSession is move-only
@@ -30,21 +30,21 @@ public:
 	/**
 	 * Did this session initialize successfully?
 	 */
-	bool IsValid() const;
+	HTTP_API bool IsValid() const;
 
 	/**
 	 * Get the underlying session handle
 	 *
 	 * @return the HINTERNET for this session
 	 */
-	HINTERNET Get() const;
+	HTTP_API HINTERNET Get() const;
 
 	/**
 	 * Are we only allowed to make secure connection requests (HTTPS, etc)
 	 *
 	 * @return True if the platform does not allow for insecure messages
 	 */
-	bool AreOnlySecureConnectionsAllowed() const;
+	HTTP_API bool AreOnlySecureConnectionsAllowed() const;
 
 private:
 	/** The handle for our session that we are wrapping */

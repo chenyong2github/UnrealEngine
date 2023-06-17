@@ -38,7 +38,7 @@ namespace EProjectDescriptorVersion
 /**
  * Descriptor for projects. Contains all the information contained within a .uproject file.
  */
-struct PROJECTS_API FProjectDescriptor
+struct FProjectDescriptor
 {
 	/** Descriptor version number. */
 	EProjectDescriptorVersion::Type FileVersion;
@@ -105,34 +105,34 @@ struct PROJECTS_API FProjectDescriptor
 	bool bDisableEnginePluginsByDefault;
 
 	/** Constructor. */
-	FProjectDescriptor();
+	PROJECTS_API FProjectDescriptor();
 
 	/** Signs the project given for the given filename */
-	void Sign(const FString& FilePath);
+	PROJECTS_API void Sign(const FString& FilePath);
 
 	/** Checks whether the descriptor is signed */
-	bool IsSigned(const FString& FilePath) const;
+	PROJECTS_API bool IsSigned(const FString& FilePath) const;
 
 	/** Finds the index of a plugin in the references array */
-	int32 FindPluginReferenceIndex(const FString& PluginName) const;
+	PROJECTS_API int32 FindPluginReferenceIndex(const FString& PluginName) const;
 
 	/** Updates the supported target platforms list */
-	void UpdateSupportedTargetPlatforms(const FName& InPlatformName, bool bIsSupported);
+	PROJECTS_API void UpdateSupportedTargetPlatforms(const FName& InPlatformName, bool bIsSupported);
 
 	/** Loads the descriptor from the given file. */
-	bool Load(const FString& FileName, FText& OutFailReason);
+	PROJECTS_API bool Load(const FString& FileName, FText& OutFailReason);
 
 	/** Reads the descriptor from the given JSON object */
-	bool Read(const FJsonObject& Object, const FString& PathToProject, FText& OutFailReason);
+	PROJECTS_API bool Read(const FJsonObject& Object, const FString& PathToProject, FText& OutFailReason);
 
 	/** Saves the descriptor to the given file. */
-	bool Save(const FString& FileName, FText& OutFailReason);
+	PROJECTS_API bool Save(const FString& FileName, FText& OutFailReason);
 
 	/** Writes the descriptor to the given JSON object */
-	void Write(TJsonWriter<>& Writer, const FString& PathToProject) const;
+	PROJECTS_API void Write(TJsonWriter<>& Writer, const FString& PathToProject) const;
 
 	/** Returns the extension used for project descriptors (uproject) */
-	static FString GetExtension();
+	static PROJECTS_API FString GetExtension();
 
 	/** @return - Access to the additional plugin directories */
 	const TArray<FString>& GetAdditionalPluginDirectories() const
@@ -146,14 +146,14 @@ struct PROJECTS_API FProjectDescriptor
 	 * @param Dir - the new directory to add (must be a full path)
 	 * @return whether the plugin directory list was changed
 	 */
-	bool AddPluginDirectory(const FString& Dir);
+	PROJECTS_API bool AddPluginDirectory(const FString& Dir);
 	/**
 	 * Removes the directory from the list to scan
 	 *
 	 * @param Dir the directory to remove (must be a full path)
 	 * @return whether the plugin directory list was changed
 	 */
-	bool RemovePluginDirectory(const FString& Dir);
+	PROJECTS_API bool RemovePluginDirectory(const FString& Dir);
 
 	/** @return - Access to the additional root directories */
 	const TArray<FString>& GetAdditionalRootDirectories() const
@@ -167,23 +167,23 @@ struct PROJECTS_API FProjectDescriptor
 	 * @param Dir - the new directory to add (must be a full path)
 	 * @return whether the root directory list was changed
 	 */
-	bool AddRootDirectory(const FString& Dir);
+	PROJECTS_API bool AddRootDirectory(const FString& Dir);
 	/**
 	 * Removes the directory from the list to scan
 	 *
 	 * @param Dir the directory to remove (must be a full path)
 	 * @return whether the root directory list was changed
 	 */
-	bool RemoveRootDirectory(const FString& Dir);
+	PROJECTS_API bool RemoveRootDirectory(const FString& Dir);
 
 #if WITH_EDITOR
 	/** Returns whether the project has a module of the given name */
-	bool HasModule(FName ModuleName) const;
+	PROJECTS_API bool HasModule(FName ModuleName) const;
 #endif //if WITH_EDITOR
 
 private:
 	/** @return the path relative to this project if possible */
-	const FString MakePathRelativeToProject(const FString& Dir, const FString& PathToProject) const;
+	PROJECTS_API const FString MakePathRelativeToProject(const FString& Dir, const FString& PathToProject) const;
 
 	/**
 	 * List of additional directories to scan for plugins.

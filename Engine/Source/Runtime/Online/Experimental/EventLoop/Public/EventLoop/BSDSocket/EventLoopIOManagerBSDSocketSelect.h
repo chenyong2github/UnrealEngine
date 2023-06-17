@@ -14,7 +14,7 @@
 
 namespace UE::EventLoop {
 
-class EVENTLOOP_API FIOManagerBSDSocketSelect final : public IIOManager
+class FIOManagerBSDSocketSelect final : public IIOManager
 {
 public:
 	using FIOAccess = FIOAccessBSDSocket;
@@ -27,14 +27,14 @@ public:
 	{
 	};
 
-	FIOManagerBSDSocketSelect(IEventLoop& EventLoop, FParams&& Params);
+	EVENTLOOP_API FIOManagerBSDSocketSelect(IEventLoop& EventLoop, FParams&& Params);
 	virtual ~FIOManagerBSDSocketSelect() = default;
-	virtual bool Init() override;
-	virtual void Shutdown() override;
-	virtual void Notify() override;
-	virtual void Poll(FTimespan WaitTime) override;
+	EVENTLOOP_API virtual bool Init() override;
+	EVENTLOOP_API virtual void Shutdown() override;
+	EVENTLOOP_API virtual void Notify() override;
+	EVENTLOOP_API virtual void Poll(FTimespan WaitTime) override;
 
-	FIOAccess& GetIOAccess();
+	EVENTLOOP_API FIOAccess& GetIOAccess();
 
 private:
 	TSharedRef<class FIOManagerBSDSocketSelectImpl> Impl;

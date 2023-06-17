@@ -11,8 +11,8 @@
 #include "VideoCaptureProtocol.generated.h"
 
 
-UCLASS(meta=(DisplayName="Video Sequence (avi)", CommandLineID="Video"))
-class MOVIESCENECAPTURE_API UVideoCaptureProtocol : public UFrameGrabberProtocol
+UCLASS(meta=(DisplayName="Video Sequence (avi)", CommandLineID="Video"), MinimalAPI)
+class UVideoCaptureProtocol : public UFrameGrabberProtocol
 {
 public:
 	GENERATED_BODY()
@@ -32,15 +32,15 @@ public:
 	float CompressionQuality;
 
 public:
-	virtual bool SetupImpl() override;
-	virtual void FinalizeImpl() override;
-	virtual FFramePayloadPtr GetFramePayload(const FFrameMetrics& FrameMetrics);
-	virtual void ProcessFrame(FCapturedFrameData Frame);
-	virtual bool CanWriteToFileImpl(const TCHAR* InFilename, bool bOverwriteExisting) const override;
+	MOVIESCENECAPTURE_API virtual bool SetupImpl() override;
+	MOVIESCENECAPTURE_API virtual void FinalizeImpl() override;
+	MOVIESCENECAPTURE_API virtual FFramePayloadPtr GetFramePayload(const FFrameMetrics& FrameMetrics);
+	MOVIESCENECAPTURE_API virtual void ProcessFrame(FCapturedFrameData Frame);
+	MOVIESCENECAPTURE_API virtual bool CanWriteToFileImpl(const TCHAR* InFilename, bool bOverwriteExisting) const override;
 
 protected:
 
-	void ConditionallyCreateWriter();
+	MOVIESCENECAPTURE_API void ConditionallyCreateWriter();
 private:
 
 	TArray<TUniquePtr<FAVIWriter>> AVIWriters;

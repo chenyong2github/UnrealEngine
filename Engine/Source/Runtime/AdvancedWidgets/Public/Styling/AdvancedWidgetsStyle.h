@@ -13,12 +13,12 @@ namespace UE::AdvancedWidgets
 /**
  * Style for advanced widgets
  */
-class ADVANCEDWIDGETS_API FAdvancedWidgetsStyle
+class FAdvancedWidgetsStyle
 {
 public:
-	static void Create();
-	static void Destroy();
-	static const ISlateStyle& Get();
+	static ADVANCEDWIDGETS_API void Create();
+	static ADVANCEDWIDGETS_API void Destroy();
+	static ADVANCEDWIDGETS_API const ISlateStyle& Get();
 
 	static const ::UE::PropertyViewer::FFieldColorSettings& GetColorSettings()
 	{
@@ -27,7 +27,7 @@ public:
 
 private:
 	/** Singleton instances of this style. */
-	static TUniquePtr<FSlateStyleSet> Instance;
+	static ADVANCEDWIDGETS_API TUniquePtr<FSlateStyleSet> Instance;
 
 	/**  */
 	static ::UE::PropertyViewer::FFieldColorSettings ColorSettings;

@@ -294,7 +294,7 @@ struct FInterrogationInstance
 };
 
 
-struct MOVIESCENE_API FEntityComponentFilter
+struct FEntityComponentFilter
 {
 
 	void Reset()
@@ -304,9 +304,9 @@ struct MOVIESCENE_API FEntityComponentFilter
 		ComplexMasks.Reset();
 	}
 
-	bool Match(const FComponentMask& Input) const;
+	MOVIESCENE_API bool Match(const FComponentMask& Input) const;
 
-	bool IsValid() const;
+	MOVIESCENE_API bool IsValid() const;
 
 	FEntityComponentFilter& All(const FComponentMask& InComponentMask)
 	{

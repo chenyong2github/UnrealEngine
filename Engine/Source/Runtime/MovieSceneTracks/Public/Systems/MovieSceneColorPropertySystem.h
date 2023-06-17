@@ -6,13 +6,13 @@
 #include "Systems/MovieScenePropertySystem.h"
 #include "MovieSceneColorPropertySystem.generated.h"
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneColorPropertySystem : public UMovieScenePropertySystem
+UCLASS(MinimalAPI)
+class UMovieSceneColorPropertySystem : public UMovieScenePropertySystem
 {
 	GENERATED_BODY()
 
 private:
 	UMovieSceneColorPropertySystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };

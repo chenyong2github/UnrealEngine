@@ -13,7 +13,7 @@
  * @note This is ref-counted like handles themselves are, so as long as an ID is available, the handle will be too.
  * @note IDs lack the information needed to auto-release on destruction, so must be manually released, either via the corresponding handle or their owner element registry.
  */
-struct TYPEDELEMENTFRAMEWORK_API FTypedElementId
+struct FTypedElementId
 {
 public:
 	FTypedElementId()
@@ -113,7 +113,7 @@ public:
 	}
 
 	/** An unset element ID */
-	static const FTypedElementId Unset;
+	static TYPEDELEMENTFRAMEWORK_API const FTypedElementId Unset;
 
 private:
 	union

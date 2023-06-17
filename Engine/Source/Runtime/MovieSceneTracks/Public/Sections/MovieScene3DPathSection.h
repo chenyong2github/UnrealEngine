@@ -51,11 +51,11 @@ public:
 	 */
 	void SetPathBindingID(const FMovieSceneObjectBindingID& InPathBindingID);
 
-	MOVIESCENETRACKS_API MovieScene3DPathSection_Axis GetFrontAxisEnum() const { return FrontAxisEnum; }
-	MOVIESCENETRACKS_API MovieScene3DPathSection_Axis GetUpAxisEnum() const { return UpAxisEnum; }
-	MOVIESCENETRACKS_API bool GetFollow() const { return bFollow; }
-	MOVIESCENETRACKS_API bool GetReverse() const { return bReverse; }
-	MOVIESCENETRACKS_API bool GetForceUpright() const { return bForceUpright; }
+	MovieScene3DPathSection_Axis GetFrontAxisEnum() const { return FrontAxisEnum; }
+	MovieScene3DPathSection_Axis GetUpAxisEnum() const { return UpAxisEnum; }
+	bool GetFollow() const { return bFollow; }
+	bool GetReverse() const { return bReverse; }
+	bool GetForceUpright() const { return bForceUpright; }
 
 public:
 

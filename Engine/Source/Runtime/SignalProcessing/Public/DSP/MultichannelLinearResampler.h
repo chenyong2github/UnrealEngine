@@ -9,7 +9,7 @@
 namespace Audio
 {
 	/** Linear resampler working on multichannel buffers */
-	class SIGNALPROCESSING_API FMultichannelLinearResampler
+	class FMultichannelLinearResampler
 	{
 		static constexpr float MinFrameRatioFrameDelta = 0.001f;
 	public:
@@ -17,7 +17,7 @@ namespace Audio
 		 *
 		 * @param InNumChannel - Number of audio channels in input and output buffers.
 		 */
-		FMultichannelLinearResampler(int32 InNumChannels);
+		SIGNALPROCESSING_API FMultichannelLinearResampler(int32 InNumChannels);
 
 		/** Sets the number of input frames to read per an output frame. 0.5 is 
 		 * half speed, 1.f is normal speed, 2.0 is double speed.
@@ -26,7 +26,7 @@ namespace Audio
 		 * @param InNumFramesToInterpolate - Number of output frames over which 
 		 *                                   to interpolate the frame ratio.
 		 */
-		void SetFrameRatio(float InRatio, int32 InNumFramesToInterpolate=0);
+		SIGNALPROCESSING_API void SetFrameRatio(float InRatio, int32 InNumFramesToInterpolate=0);
 
 		/** Translates an input frame index to an output frame index given the
 		 * state of the resampler. 
@@ -37,7 +37,7 @@ namespace Audio
 		 * @param InInputFrameIndex - Index of input frame.
 		 * @return Index of output frame. 
 		 */
-		float MapInputFrameToOutputFrame(float InInputFrameIndex) const;
+		SIGNALPROCESSING_API float MapInputFrameToOutputFrame(float InInputFrameIndex) const;
 
 		/** Translates an output frame index to an input frame index given the
 		 * state of the resampler. 
@@ -48,7 +48,7 @@ namespace Audio
 		 * @param InOutputFrameIndex - Index of output frame.
 		 * @return Index of input frame. 
 		 */
-		float MapOutputFrameToInputFrame(float InOutputFrameIndex) const;
+		SIGNALPROCESSING_API float MapOutputFrameToInputFrame(float InOutputFrameIndex) const;
 
 		/** Returns the minimum number of input frames needed to produce the desired
 		 * number of output frames given the current state of the resampler. 
@@ -56,7 +56,7 @@ namespace Audio
 		 * @param InNumOutputFrames - The desired number of output frames.
 		 * @return The minimum number of input frames. 
 		 */
-		int32 GetNumInputFramesNeededToProduceOutputFrames(int32 InNumOutputFrames) const;
+		SIGNALPROCESSING_API int32 GetNumInputFramesNeededToProduceOutputFrames(int32 InNumOutputFrames) const;
 
 		/** Consumes audio from the input buffer and produces audio in the output buffer.
 		 * The desired number of frames to produce is determined by the output audio buffer
@@ -69,8 +69,8 @@ namespace Audio
 		 *
 		 * @return Actual number of frames produced. 
 		 */
-		int32 ProcessAndConsumeAudio(FMultichannelCircularBuffer& InAudio, FMultichannelBuffer& OutAudio);
-		int32 ProcessAndConsumeAudio(FMultichannelCircularBuffer& InAudio, FMultichannelBufferView& OutAudio);
+		SIGNALPROCESSING_API int32 ProcessAndConsumeAudio(FMultichannelCircularBuffer& InAudio, FMultichannelBuffer& OutAudio);
+		SIGNALPROCESSING_API int32 ProcessAndConsumeAudio(FMultichannelCircularBuffer& InAudio, FMultichannelBufferView& OutAudio);
 
 	private:
 

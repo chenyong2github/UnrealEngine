@@ -8,13 +8,13 @@
 #include "MovieSceneDoublePerlinNoiseChannel.generated.h"
 
 USTRUCT()
-struct MOVIESCENETRACKS_API FMovieSceneDoublePerlinNoiseChannel : public FMovieSceneChannel
+struct FMovieSceneDoublePerlinNoiseChannel : public FMovieSceneChannel
 {
 	GENERATED_BODY()
 
 	using CurveValueType = double;
 
-	FMovieSceneDoublePerlinNoiseChannel();
+	MOVIESCENETRACKS_API FMovieSceneDoublePerlinNoiseChannel();
 
 	/**
 	 * Evaluate this channel at the given time
@@ -22,7 +22,7 @@ struct MOVIESCENETRACKS_API FMovieSceneDoublePerlinNoiseChannel : public FMovieS
 	 * @param InSeconds		The time, in seconds, to evaluate at
 	 * @return				The evaluated noise value
 	 */
-	double Evaluate(double InSeconds) const;
+	MOVIESCENETRACKS_API double Evaluate(double InSeconds) const;
 
 	/**
 	 * Evaluate this channel at the given time
@@ -32,7 +32,7 @@ struct MOVIESCENETRACKS_API FMovieSceneDoublePerlinNoiseChannel : public FMovieS
 	 * @param OutValue		The evaluated noise value
 	 * @return				Whether the noise was successfully evaluated
 	 */
-	bool Evaluate(const UMovieSceneSection* InSection, FFrameTime InTime, double& OutValue) const;
+	MOVIESCENETRACKS_API bool Evaluate(const UMovieSceneSection* InSection, FFrameTime InTime, double& OutValue) const;
 
 	/** The noise parameters */
 	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
@@ -46,7 +46,7 @@ struct MOVIESCENETRACKS_API FMovieSceneDoublePerlinNoiseChannel : public FMovieS
 	 * @params InSeconds		The time at which to evaluate the noise
 	 * @return					The evaluated noise value
 	 */
-	static double Evaluate(const FPerlinNoiseParams& InParams, double InSeconds);
+	static MOVIESCENETRACKS_API double Evaluate(const FPerlinNoiseParams& InParams, double InSeconds);
 };
 
 template<>

@@ -16,7 +16,7 @@ enum class EHandKeypoint : uint8;
 /**
  */
 
-class HEADMOUNTEDDISPLAY_API IHandTracker : public IModularFeature
+class IHandTracker : public IModularFeature
 {
 public:
 	static FName GetModularFeatureName()

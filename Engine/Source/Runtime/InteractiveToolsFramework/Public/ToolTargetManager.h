@@ -32,8 +32,8 @@
  * 
  * See the class comment for UToolTarget for more info.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UToolTargetManager : public UObject
+UCLASS(Transient, MinimalAPI)
+class UToolTargetManager : public UObject
 {
 	GENERATED_BODY()
 
@@ -46,12 +46,12 @@ public:
 	/**
 	 * Add a new ToolTargetFactory
 	 */
-	virtual void AddTargetFactory(UToolTargetFactory* Factory);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void AddTargetFactory(UToolTargetFactory* Factory);
 
 	/**
 	 * Find the first ToolTargetFactory that passes the Predicate function
 	 */
-	virtual UToolTargetFactory* FindFirstFactoryByPredicate(TFunctionRef<bool(UToolTargetFactory*)> Predicate);
+	INTERACTIVETOOLSFRAMEWORK_API virtual UToolTargetFactory* FindFirstFactoryByPredicate(TFunctionRef<bool(UToolTargetFactory*)> Predicate);
 
 	/**
 	 * Find the first ToolTargetFactory of a given type
@@ -66,7 +66,7 @@ public:
 
 
 	/** Examines stored target factories to see if one can build the requested type of target. */
-	virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetRequirements) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetRequirements) const;
 
 	/** 
 	 * Uses one of the stored factories to build a tool target out of the given input object
@@ -76,7 +76,7 @@ public:
 	 * 
 	 * @return Tool target that staisfies given requirements, or nullptr if none could be created.
 	 */
-	virtual UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetRequirements);
+	INTERACTIVETOOLSFRAMEWORK_API virtual UToolTarget* BuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetRequirements);
 
 	/** Much like BuildTarget, but casts the target to the template argument before returning. */
 	template<typename CastToType>
@@ -90,14 +90,14 @@ public:
 	 * Looks through the currently selected components and actors and counts the number of
 	 * inputs that could be used to create qualifying tool targets.
 	 */
-	virtual int32 CountSelectedAndTargetable(const FToolBuilderState& SceneState,
+	INTERACTIVETOOLSFRAMEWORK_API virtual int32 CountSelectedAndTargetable(const FToolBuilderState& SceneState,
 		const FToolTargetTypeRequirements& TargetRequirements) const;
 
 	/**
 	 * Looks through the currently selected components and actors and counts the number of
 	 * inputs that could be used to create qualifying tool targets.
 	 */
-	virtual void EnumerateSelectedAndTargetableComponents(const FToolBuilderState& SceneState,
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EnumerateSelectedAndTargetableComponents(const FToolBuilderState& SceneState,
 		const FToolTargetTypeRequirements& TargetRequirements,
 		TFunctionRef<void(UActorComponent*)> ComponentFunc) const;
 
@@ -105,7 +105,7 @@ public:
 	 * Looks through the currently selected components and actors and counts the number of
 	 * inputs that could be used to create qualifying tool targets with an additional test predicate.
 	 */
-	virtual int32 CountSelectedAndTargetableWithPredicate(const FToolBuilderState& SceneState,
+	INTERACTIVETOOLSFRAMEWORK_API virtual int32 CountSelectedAndTargetableWithPredicate(const FToolBuilderState& SceneState,
 		const FToolTargetTypeRequirements& TargetRequirements,
 		TFunctionRef<bool(UActorComponent&)> ComponentPred) const;
 
@@ -114,21 +114,21 @@ public:
 	 * Looks through the currently selected components and actors and builds a target out of
 	 * the first encountered element that satisfies the requirements. 
 	 */
-	virtual UToolTarget* BuildFirstSelectedTargetable(const FToolBuilderState& SceneState,
+	INTERACTIVETOOLSFRAMEWORK_API virtual UToolTarget* BuildFirstSelectedTargetable(const FToolBuilderState& SceneState,
 		const FToolTargetTypeRequirements& TargetRequirements);
 
 	/**
 	 * Looks through the current selected components and actors and builds all targets that
 	 * satisfy the requirements.
 	 */
-	virtual TArray<TObjectPtr<UToolTarget>> BuildAllSelectedTargetable(const FToolBuilderState& SceneState,
+	INTERACTIVETOOLSFRAMEWORK_API virtual TArray<TObjectPtr<UToolTarget>> BuildAllSelectedTargetable(const FToolBuilderState& SceneState,
 		const FToolTargetTypeRequirements& TargetRequirements);
 
 	/** Initialize the ToolTargetManager. UInteractiveToolsContext calls this, you should not. */
-	virtual void Initialize();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize();
 
 	/** Shutdown the ToolTargetManager. Called by UInteractiveToolsContext. */
-	virtual void Shutdown();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown();
 
 protected:
 

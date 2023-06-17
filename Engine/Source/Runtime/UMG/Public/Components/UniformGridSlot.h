@@ -14,8 +14,8 @@
  * A slot for UUniformGridPanel, these slots all share the same size as the largest slot
  * in the grid.
  */
-UCLASS()
-class UMG_API UUniformGridSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UUniformGridSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
@@ -44,47 +44,47 @@ public:
 public:
 
 	/** Gets the row index of the slot */
-	int32 GetRow() const;
+	UMG_API int32 GetRow() const;
 
 	/** Sets the row index of the slot, this determines what cell the slot is in the panel */
 	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
-	void SetRow(int32 InRow);
+	UMG_API void SetRow(int32 InRow);
 
 	/** Gets the column index of the slot. */
-	int32 GetColumn() const;
+	UMG_API int32 GetColumn() const;
 
 	/** Sets the column index of the slot, this determines what cell the slot is in the panel */
 	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
-	void SetColumn(int32 InColumn);
+	UMG_API void SetColumn(int32 InColumn);
 
 	/**  */
-	EHorizontalAlignment GetHorizontalAlignment() const;
-
-	/**  */
-	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
-
-	/**  */
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	/**  */
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+
+	/**  */
+	UFUNCTION(BlueprintCallable, Category="Layout|Uniform Grid Slot")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 public:
 
 	//~ UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
-	void BuildSlot(TSharedRef<SUniformGridPanel> GridPanel);
+	UMG_API void BuildSlot(TSharedRef<SUniformGridPanel> GridPanel);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
-	virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
+	UMG_API virtual bool NudgeByDesigner(const FVector2D& NudgeDirection, const TOptional<int32>& GridSnapSize) override;
+	UMG_API virtual void SynchronizeFromTemplate(const UPanelSlot* const TemplateSlot) override;
 #endif //WITH_EDITOR
 
 private:

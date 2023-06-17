@@ -32,16 +32,16 @@ struct FPreAnimatedRootTokenTraits : FPreAnimatedStateTraits
 	}
 };
 
-struct MOVIESCENE_API FAnimTypePreAnimatedStateRootStorage : TPreAnimatedStateStorage<FPreAnimatedRootTokenTraits>
+struct FAnimTypePreAnimatedStateRootStorage : TPreAnimatedStateStorage<FPreAnimatedRootTokenTraits>
 {
-	static TAutoRegisterPreAnimatedStorageID<FAnimTypePreAnimatedStateRootStorage> StorageID;
+	static MOVIESCENE_API TAutoRegisterPreAnimatedStorageID<FAnimTypePreAnimatedStateRootStorage> StorageID;
 
-	FPreAnimatedStateEntry MakeEntry(FMovieSceneAnimTypeID AnimTypeID);
+	MOVIESCENE_API FPreAnimatedStateEntry MakeEntry(FMovieSceneAnimTypeID AnimTypeID);
 
 public:
 
 	FPreAnimatedStorageID GetStorageType() const override { return StorageID; }
-	void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* ParentExtension) override;
+	MOVIESCENE_API void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* ParentExtension) override;
 };
 
 } // namespace MovieScene

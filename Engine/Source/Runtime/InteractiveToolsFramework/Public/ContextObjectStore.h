@@ -20,8 +20,8 @@ class UClass;
   *   - A tool may allow extra actions if it has access to a particular API object in the context store.
   *   - A tool may choose to initialize itself differently based on the presence of a selection-holding data object in the context store.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UContextObjectStore : public UObject
+UCLASS(Transient, MinimalAPI)
+class UContextObjectStore : public UObject
 {
 	GENERATED_BODY()
 
@@ -53,25 +53,25 @@ public:
 	 * Finds the first context object that derives from the given class.
 	 * @returns the found context object, or nullptr if none matches.
 	 */
-	UObject* FindContextByClass(UClass* InClass) const;
+	INTERACTIVETOOLSFRAMEWORK_API UObject* FindContextByClass(UClass* InClass) const;
 
 	/**
 	 * Adds a data object to the tool manager's set of shared data objects.
 	 * @returns true if the addition is successful.
 	 */
-	bool AddContextObject(UObject* InContextObject);
+	INTERACTIVETOOLSFRAMEWORK_API bool AddContextObject(UObject* InContextObject);
 
 	/**
 	 * Removes a data object from the tool manager's set of shared data objects.
 	 * @returns true if the removal is successful.
 	 */
-	bool RemoveContextObject(UObject* InContextObject);
+	INTERACTIVETOOLSFRAMEWORK_API bool RemoveContextObject(UObject* InContextObject);
 
 	/**
 	 * Removes any data objects from the tool manager's set of shared data objects that are of type @param InClass
 	 * @returns true if any objects are removed.
 	 */
-	bool RemoveContextObjectsOfType(const UClass* InClass);
+	INTERACTIVETOOLSFRAMEWORK_API bool RemoveContextObjectsOfType(const UClass* InClass);
 
 	template <class TObjectType>
 	bool RemoveContextObjectsOfType()
@@ -82,7 +82,7 @@ public:
 	/**
 	 * Shuts down the context object store, releasing hold on any stored content objects.
 	 */
-	void Shutdown();
+	INTERACTIVETOOLSFRAMEWORK_API void Shutdown();
 
 protected:
 	UPROPERTY()

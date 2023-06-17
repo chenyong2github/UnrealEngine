@@ -50,11 +50,11 @@ enum class ESimulationTiming : uint8
 template <> struct TIsPODType<FSimSpaceSettings> { enum { Value = true }; };
 
 USTRUCT(BlueprintType)
-struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
+struct FSimSpaceSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSimSpaceSettings();
+	ANIMGRAPHRUNTIME_API FSimSpaceSettings();
 
 	// Disable deprecation errors by providing defaults wrapped with pragma disable
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -127,7 +127,7 @@ struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FVector ExternalAngularVelocity;
 
-	void PostSerialize(const FArchive& Ar);
+	ANIMGRAPHRUNTIME_API void PostSerialize(const FArchive& Ar);
 };
 
 #if WITH_EDITORONLY_DATA
@@ -146,34 +146,34 @@ struct TStructOpsTypeTraits<FSimSpaceSettings> : public TStructOpsTypeTraitsBase
  *	Controller that simulates physics based on the physics asset of the skeletal mesh component
  */
 USTRUCT()
-struct ANIMGRAPHRUNTIME_API FAnimNode_RigidBody : public FAnimNode_SkeletalControlBase
+struct FAnimNode_RigidBody : public FAnimNode_SkeletalControlBase
 {
 	GENERATED_USTRUCT_BODY()
 
-	FAnimNode_RigidBody();
-	~FAnimNode_RigidBody();
+	ANIMGRAPHRUNTIME_API FAnimNode_RigidBody();
+	ANIMGRAPHRUNTIME_API ~FAnimNode_RigidBody();
 
 	// FAnimNode_Base interface
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_SkeletalControlBase interface
-	virtual void UpdateComponentPose_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void EvaluateComponentPose_AnyThread(FComponentSpacePoseContext& Output) override;
-	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateComponentPose_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void EvaluateComponentPose_AnyThread(FComponentSpacePoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms) override;
+	ANIMGRAPHRUNTIME_API virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
-	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
-	virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateInternal(const FAnimationUpdateContext& Context) override;
 	virtual bool HasPreUpdate() const override { return true; }
-	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
-	virtual bool NeedsDynamicReset() const override;
-	virtual void ResetDynamics(ETeleportType InTeleportType) override;
-	virtual int32 GetLODThreshold() const override;
+	ANIMGRAPHRUNTIME_API virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) override;
+	ANIMGRAPHRUNTIME_API virtual bool NeedsDynamicReset() const override;
+	ANIMGRAPHRUNTIME_API virtual void ResetDynamics(ETeleportType InTeleportType) override;
+	ANIMGRAPHRUNTIME_API virtual int32 GetLODThreshold() const override;
 	// End of FAnimNode_SkeletalControlBase interface
 
-	virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None);
+	ANIMGRAPHRUNTIME_API virtual void AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName = NAME_None);
 
 	// TEMP: Exposed for use in PhAt as a quick way to get drag handles working with Chaos
 	virtual ImmediatePhysics::FSimulation* GetSimulation() { return PhysicsSimulation; }
@@ -305,7 +305,7 @@ private:
 	uint8 bCheckForBodyTransformInit : 1;
 
 public:
-	void PostSerialize(const FArchive& Ar);
+	ANIMGRAPHRUNTIME_API void PostSerialize(const FArchive& Ar);
 
 private:
 
@@ -315,21 +315,21 @@ private:
 #endif
 
 	// FAnimNode_SkeletalControlBase interface
-	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
+	ANIMGRAPHRUNTIME_API virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 	// End of FAnimNode_SkeletalControlBase interface
 
-	void InitPhysics(const UAnimInstance* InAnimInstance);
-	void UpdateWorldGeometry(const UWorld& World, const USkeletalMeshComponent& SKC);
-	void UpdateWorldForces(const FTransform& ComponentToWorld, const FTransform& RootBoneTM, const float DeltaSeconds);
+	ANIMGRAPHRUNTIME_API void InitPhysics(const UAnimInstance* InAnimInstance);
+	ANIMGRAPHRUNTIME_API void UpdateWorldGeometry(const UWorld& World, const USkeletalMeshComponent& SKC);
+	ANIMGRAPHRUNTIME_API void UpdateWorldForces(const FTransform& ComponentToWorld, const FTransform& RootBoneTM, const float DeltaSeconds);
 
-	void InitializeNewBodyTransformsDuringSimulation(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform, const FTransform& BaseBoneTM);
+	ANIMGRAPHRUNTIME_API void InitializeNewBodyTransformsDuringSimulation(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform, const FTransform& BaseBoneTM);
 
-	void InitSimulationSpace(
+	ANIMGRAPHRUNTIME_API void InitSimulationSpace(
 		const FTransform& ComponentToWorld,
 		const FTransform& BoneToComponent);
 
 	// Calculate simulation space transform, velocity etc to pass into the solver
-	void CalculateSimulationSpace(
+	ANIMGRAPHRUNTIME_API void CalculateSimulationSpace(
 		ESimulationSpace Space,
 		const FTransform& ComponentToWorld,
 		const FTransform& BoneToComponent,
@@ -342,34 +342,34 @@ private:
 		FVector& SpaceAngularAcc);
 
 	// Gather cloth collision sources from the supplied Skeltal Mesh and add a kinematic actor representing each one of them to the sim.
-	void CollectClothColliderObjects(const USkeletalMeshComponent* SkeletalMeshComp);
+	ANIMGRAPHRUNTIME_API void CollectClothColliderObjects(const USkeletalMeshComponent* SkeletalMeshComp);
 	
 	// Remove all cloth collider objects from the sim.
-	void RemoveClothColliderObjects();
+	ANIMGRAPHRUNTIME_API void RemoveClothColliderObjects();
 
 	// Update the sim-space transforms of all cloth collider objects.
-	void UpdateClothColliderObjects(const FTransform& SpaceTransform);
+	ANIMGRAPHRUNTIME_API void UpdateClothColliderObjects(const FTransform& SpaceTransform);
 
 	// Gather nearby world objects and add them to the sim
-	void CollectWorldObjects();
+	ANIMGRAPHRUNTIME_API void CollectWorldObjects();
 
 	// Flag invalid world objects to be removed from the sim
-	void ExpireWorldObjects();
+	ANIMGRAPHRUNTIME_API void ExpireWorldObjects();
 
 	// Remove simulation objects that are flagged as expired
-	void PurgeExpiredWorldObjects();
+	ANIMGRAPHRUNTIME_API void PurgeExpiredWorldObjects();
 
 	// Update sim-space transforms of world objects
-	void UpdateWorldObjects(const FTransform& SpaceTransform);
+	ANIMGRAPHRUNTIME_API void UpdateWorldObjects(const FTransform& SpaceTransform);
 
 	// Advances the simulation by a given timestep
-	void RunPhysicsSimulation(float DeltaSeconds, const FVector& SimSpaceGravity);
+	ANIMGRAPHRUNTIME_API void RunPhysicsSimulation(float DeltaSeconds, const FVector& SimSpaceGravity);
 
 	// Waits for the deferred simulation task to complete if it's not already finished
-	void FlushDeferredSimulationTask();
+	ANIMGRAPHRUNTIME_API void FlushDeferredSimulationTask();
 
 	// Destroy the simulation and free related structures
-	void DestroyPhysicsSimulation();
+	ANIMGRAPHRUNTIME_API void DestroyPhysicsSimulation();
 
 public:
 

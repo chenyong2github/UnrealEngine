@@ -10,8 +10,8 @@
 #include "Perception/AISense_Team.h"
 #include "AISenseConfig_Team.generated.h"
 
-UCLASS(meta = (DisplayName = "AI Team sense config"))
-class AIMODULE_API UAISenseConfig_Team : public UAISenseConfig
+UCLASS(meta = (DisplayName = "AI Team sense config"), MinimalAPI)
+class UAISenseConfig_Team : public UAISenseConfig
 {
 	GENERATED_UCLASS_BODY()
 public:	

@@ -14,7 +14,7 @@
 namespace Audio
 {
 	// Settings for plate reverb
-	struct SIGNALPROCESSING_API FPlateReverbFastSettings
+	struct FPlateReverbFastSettings
 	{
 		// EQuadBehavior describes how reverb is generated when there are 5 or more output channels.
 		enum class EQuadBehavior : uint8
@@ -27,11 +27,11 @@ namespace Audio
 			QuadFlipped
 		};
 
-		FPlateReverbFastSettings();
+		SIGNALPROCESSING_API FPlateReverbFastSettings();
 
-		bool operator==(const FPlateReverbFastSettings& Other) const;
+		SIGNALPROCESSING_API bool operator==(const FPlateReverbFastSettings& Other) const;
 
-		bool operator!=(const FPlateReverbFastSettings& Other) const;
+		SIGNALPROCESSING_API bool operator!=(const FPlateReverbFastSettings& Other) const;
 
 		// EarlyReflectionSettings controls the initial perceived echoes from a sound, modeling the first few
 		// orders of reflections from a sound source to the listener's ears. 
@@ -54,29 +54,29 @@ namespace Audio
 	// The Plate Reverb emulates the interactions between a sound, the listener and the space they share. Early reflections
 	// are modeled using a feedback delay network while late reflections are modeled using a plate reverb. This 
 	// class aims to support a flexible and pleasant sounding reverb balanced with computational efficiency. 
-	class SIGNALPROCESSING_API FPlateReverbFast {
+	class FPlateReverbFast {
 		public:
-			static const FPlateReverbFastSettings DefaultSettings;
+			static SIGNALPROCESSING_API const FPlateReverbFastSettings DefaultSettings;
 			
 			// InMaxInternalBufferSamples sets the maximum number of samples used in internal buffers.
-			FPlateReverbFast(float InSampleRate, int32 InMaxInternalBufferSamples = 512, const FPlateReverbFastSettings& InSettings=DefaultSettings);
+			SIGNALPROCESSING_API FPlateReverbFast(float InSampleRate, int32 InMaxInternalBufferSamples = 512, const FPlateReverbFastSettings& InSettings=DefaultSettings);
 
-			~FPlateReverbFast();
+			SIGNALPROCESSING_API ~FPlateReverbFast();
 
 			// Copies, clamps and applies settings.
-			void SetSettings(const FPlateReverbFastSettings& InSettings);
+			SIGNALPROCESSING_API void SetSettings(const FPlateReverbFastSettings& InSettings);
 
-			const FPlateReverbFastSettings& GetSettings() const;
+			SIGNALPROCESSING_API const FPlateReverbFastSettings& GetSettings() const;
 
 			// Creates reverberated audio in OutSamples based upon InSamples
 			// InNumChannels can be 1 or 2 channels.
 			// OutSamples must be greater or equal to 2.
-			void ProcessAudio(const FAlignedFloatBuffer& InSamples, const int32 InNumChannels, FAlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
+			SIGNALPROCESSING_API void ProcessAudio(const FAlignedFloatBuffer& InSamples, const int32 InNumChannels, FAlignedFloatBuffer& OutSamples, const int32 OutNumChannels);
 
-			void FlushAudio();
+			SIGNALPROCESSING_API void FlushAudio();
 
 			// Clamp individual settings to values supported by this class.
-			static void ClampSettings(FPlateReverbFastSettings& InOutSettings);
+			static SIGNALPROCESSING_API void ClampSettings(FPlateReverbFastSettings& InOutSettings);
 
 		private:
 			// Copy reverberated samples to interleaved output samples. Map channels according to internal settings.

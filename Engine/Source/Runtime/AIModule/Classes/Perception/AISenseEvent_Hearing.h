@@ -9,8 +9,8 @@
 #include "Perception/AISenseEvent.h"
 #include "AISenseEvent_Hearing.generated.h"
 
-UCLASS()
-class AIMODULE_API UAISenseEvent_Hearing : public UAISenseEvent
+UCLASS(MinimalAPI)
+class UAISenseEvent_Hearing : public UAISenseEvent
 {
 	GENERATED_BODY()
 
@@ -19,8 +19,8 @@ protected:
 	FAINoiseEvent Event;
 
 public:
-	UAISenseEvent_Hearing(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	virtual FAISenseID GetSenseID() const override;
+	AIMODULE_API UAISenseEvent_Hearing(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	AIMODULE_API virtual FAISenseID GetSenseID() const override;
 	
 	FORCEINLINE FAINoiseEvent GetNoiseEvent()
 	{

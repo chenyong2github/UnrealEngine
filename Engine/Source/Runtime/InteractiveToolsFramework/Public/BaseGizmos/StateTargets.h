@@ -30,8 +30,8 @@
 /**
  * UGizmoNilStateTarget is an implementation of IGizmoStateTarget that does nothing
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoNilStateTarget : public UObject, public IGizmoStateTarget
+UCLASS(MinimalAPI)
+class UGizmoNilStateTarget : public UObject, public IGizmoStateTarget
 {
 	GENERATED_BODY()
 public:
@@ -51,8 +51,8 @@ public:
  * UGizmoLambdaStateTarget is an implementation of IGizmoStateTarget that forwards
  * calls to its interface functions to external TFunctions
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoLambdaStateTarget : public UObject, public IGizmoStateTarget
+UCLASS(MinimalAPI)
+class UGizmoLambdaStateTarget : public UObject, public IGizmoStateTarget
 {
 	GENERATED_BODY()
 public:
@@ -82,8 +82,8 @@ public:
  * UGizmoObjectModifyStateTarget is an implementation of IGizmoStateTarget that 
  * opens and closes change transactions on a target UObject via a GizmoManager.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoObjectModifyStateTarget : public UObject, public IGizmoStateTarget
+UCLASS(MinimalAPI)
+class UGizmoObjectModifyStateTarget : public UObject, public IGizmoStateTarget
 {
 	GENERATED_BODY()
 public:
@@ -163,8 +163,8 @@ public:
  * The DependentChangeSources and ExternalDependentChangeSources lists allow additional
  * FChange objects to be inserted into the transaction, provided by IToolCommandChangeSource implementations.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoTransformChangeStateTarget : public UObject, public IGizmoStateTarget
+UCLASS(MinimalAPI)
+class UGizmoTransformChangeStateTarget : public UObject, public IGizmoStateTarget
 {
 	GENERATED_BODY()
 public:

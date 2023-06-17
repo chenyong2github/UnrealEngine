@@ -15,24 +15,24 @@ class FPropertyValueFactory;
 /**
  * Advanced Widgets module
  */
-class ADVANCEDWIDGETS_API FAdvancedWidgetsModule : public IModuleInterface
+class FAdvancedWidgetsModule : public IModuleInterface
 {
 public:
-	static FAdvancedWidgetsModule& GetModule();
-	static FAdvancedWidgetsModule* GetModulePtr();
+	static ADVANCEDWIDGETS_API FAdvancedWidgetsModule& GetModule();
+	static ADVANCEDWIDGETS_API FAdvancedWidgetsModule* GetModulePtr();
 
 	/**
 	 * Called right after the plugin DLL has been loaded and the plugin object has been created
 	 */
-	virtual void StartupModule();
+	ADVANCEDWIDGETS_API virtual void StartupModule();
 
 	/**
 	 * Called before the plugin is unloaded, right before the plugin object is destroyed.
 	 */
-	virtual void ShutdownModule();
+	ADVANCEDWIDGETS_API virtual void ShutdownModule();
 
 public:
-	UE::PropertyViewer::FPropertyValueFactory& GetPropertyValueFactory() const;
+	ADVANCEDWIDGETS_API UE::PropertyViewer::FPropertyValueFactory& GetPropertyValueFactory() const;
 
 private:
 	TUniquePtr<UE::PropertyViewer::FPropertyValueFactory> PropertyValueFactory;

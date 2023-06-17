@@ -8,24 +8,24 @@
 
 namespace Audio
 {
-	class SIGNALPROCESSING_API FFlanger
+	class FFlanger
 	{
 	public: 
-		FFlanger();
-		~FFlanger();
+		SIGNALPROCESSING_API FFlanger();
+		SIGNALPROCESSING_API ~FFlanger();
 
-		void Init(const float InSampleRate);
+		SIGNALPROCESSING_API void Init(const float InSampleRate);
 
-		void SetModulationRate(const float InModulationRate);
-		void SetModulationDepth(const float InModulationDepth);
-		void SetCenterDelay(const float InCenterDelay);
-		void SetMixLevel(const float InMixLevel);
+		SIGNALPROCESSING_API void SetModulationRate(const float InModulationRate);
+		SIGNALPROCESSING_API void SetModulationDepth(const float InModulationDepth);
+		SIGNALPROCESSING_API void SetCenterDelay(const float InCenterDelay);
+		SIGNALPROCESSING_API void SetMixLevel(const float InMixLevel);
 
-		void ProcessAudio(const FAlignedFloatBuffer& InBuffer, const int32 InNumSamples, FAlignedFloatBuffer& OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const FAlignedFloatBuffer& InBuffer, const int32 InNumSamples, FAlignedFloatBuffer& OutBuffer);
 	protected: 
-		static const float MaxDelaySec;
-		static const float MaxModulationRate;
-		static const float MaxCenterDelay;
+		static SIGNALPROCESSING_API const float MaxDelaySec;
+		static SIGNALPROCESSING_API const float MaxModulationRate;
+		static SIGNALPROCESSING_API const float MaxCenterDelay;
 
 		// LFO parameters
 		// LFO frequency 

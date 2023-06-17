@@ -15,8 +15,8 @@ class UUserWidget;
 /**
  * UserWidgetExtension is the base class for components that define reusable behavior that can be added to different types of Widgets.
  */
-UCLASS(Abstract, DefaultToInstanced, Within=UserWidget)
-class UMG_API UUserWidgetExtension : public UObject
+UCLASS(Abstract, DefaultToInstanced, Within=UserWidget, MinimalAPI)
+class UUserWidgetExtension : public UObject
 {
 	GENERATED_BODY()
 	

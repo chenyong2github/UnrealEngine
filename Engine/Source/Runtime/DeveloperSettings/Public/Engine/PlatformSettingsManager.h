@@ -36,13 +36,13 @@ struct FPlatformSettingsInstances
 };
 
 // The manager for all platform-specific settings
-UCLASS()
-class DEVELOPERSETTINGS_API UPlatformSettingsManager : public UObject
+UCLASS(MinimalAPI)
+class UPlatformSettingsManager : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UPlatformSettingsManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	DEVELOPERSETTINGS_API UPlatformSettingsManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	static const UPlatformSettingsManager& Get()
 	{
@@ -50,10 +50,10 @@ public:
 	}
 
 	// Returns the platform settings for the specified class for the current platform
-	UPlatformSettings* GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass) const;
+	DEVELOPERSETTINGS_API UPlatformSettings* GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass) const;
 
 	// Returns the platform settings for the specified class for the specified platform
-	UPlatformSettings* GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass, FName DesiredPlatformIniName) const;
+	DEVELOPERSETTINGS_API UPlatformSettings* GetSettingsForPlatform(TSubclassOf<UPlatformSettings> SettingsClass, FName DesiredPlatformIniName) const;
 
 #if WITH_EDITOR
 	// Gets the simulated platform
@@ -72,7 +72,7 @@ public:
 	}
 
 #if WITH_EDITOR
-	static TArray<FName> GetKnownAndEnablePlatformIniNames();
+	static DEVELOPERSETTINGS_API TArray<FName> GetKnownAndEnablePlatformIniNames();
 
 	template <typename TPlatformSettingsClass>
 	FORCEINLINE TArray<UPlatformSettings*> GetAllPlatformSettings() const
@@ -80,7 +80,7 @@ public:
 		return GetAllPlatformSettings(TPlatformSettingsClass::StaticClass());
 	}
 
-	TArray<UPlatformSettings*> GetAllPlatformSettings(TSubclassOf<UPlatformSettings> SettingsClass) const;
+	DEVELOPERSETTINGS_API TArray<UPlatformSettings*> GetAllPlatformSettings(TSubclassOf<UPlatformSettings> SettingsClass) const;
 
 	template <typename TPlatformSettingsClass>
 	FORCEINLINE TPlatformSettingsClass* GetSettingsForPlatform(FName TargetIniPlatformName) const
@@ -92,7 +92,7 @@ public:
 
 private:
 	// Creates a settings object for the specified class and platform
-	UPlatformSettings* CreateSettingsObjectForPlatform(TSubclassOf<UPlatformSettings> SettingsClass, FName TargetIniPlatformName) const;
+	DEVELOPERSETTINGS_API UPlatformSettings* CreateSettingsObjectForPlatform(TSubclassOf<UPlatformSettings> SettingsClass, FName TargetIniPlatformName) const;
 
 
 private:
@@ -105,6 +105,6 @@ private:
 
 #if WITH_EDITOR
 	// Current simulated platform
-	static FName SimulatedEditorPlatform;
+	static DEVELOPERSETTINGS_API FName SimulatedEditorPlatform;
 #endif
 };

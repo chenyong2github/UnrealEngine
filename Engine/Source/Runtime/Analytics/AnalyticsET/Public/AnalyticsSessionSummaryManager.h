@@ -47,14 +47,14 @@ ANALYTICSET_API const TCHAR* LexToString(EAnalyticsSessionShutdownType ShutdownT
  * with the left over is put on the principal process. The principal process is responsible to clean up the left over from its
  * previous execution(s) and possibly salvage and send reports delayed.
  */
-class ANALYTICSET_API FAnalyticsSessionSummaryManager
+class FAnalyticsSessionSummaryManager
 {
 public:
 	/** Special key handled by the manager for the analytics backend. Its value must be one of EAnalyticsSessionShutdownType enum value. */
-	static const TAnalyticsProperty<int32> ShutdownTypeCodeProperty;
+	static ANALYTICSET_API const TAnalyticsProperty<int32> ShutdownTypeCodeProperty;
 
 	/** Special key handled in CRC to decide if an abnormal shutdown crash report should be generated. */
-	static const TAnalyticsProperty<bool> IsUserLoggingOutProperty;
+	static ANALYTICSET_API const TAnalyticsProperty<bool> IsUserLoggingOutProperty;
 
 public:
 	/**
@@ -67,7 +67,7 @@ public:
 	 * @param SessionId the current session ID assigned by the analytics. @see IAnalyticsProviderET
 	 * @param SavedDir The directory where files will be persisted. Should be the same for the principal and the subsidiary processes. If unspecified, the manager uses its internal default.
 	 */
-	FAnalyticsSessionSummaryManager(const FString& ProcessName, const FString& ProcessGroupId, const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const FString& SavedDir = TEXT(""));
+	ANALYTICSET_API FAnalyticsSessionSummaryManager(const FString& ProcessName, const FString& ProcessGroupId, const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const FString& SavedDir = TEXT(""));
 
 	/**
 	 * Constructs a manager for a subsidiary process, usually a companion process that collects extra information on the behalf of the principal process.
@@ -76,17 +76,17 @@ public:
 	 * @param PrincipalProcessId The principal process ID to which this subsidiary process is associated.
 	 * @param SavedDir The directory where files will be persisted. Should be the same for the principal and the subsidiary processes. If unspecified, the manager uses its internal default.
 	 */
-	FAnalyticsSessionSummaryManager(const FString& ProcessName, const FString& ProcessGroupId, uint32 PrincipalProcessId, const FString& SavedDir = TEXT(""));
+	ANALYTICSET_API FAnalyticsSessionSummaryManager(const FString& ProcessName, const FString& ProcessGroupId, uint32 PrincipalProcessId, const FString& SavedDir = TEXT(""));
 
 	/**
 	 * Destructor.
 	 */
-	~FAnalyticsSessionSummaryManager();
+	ANALYTICSET_API ~FAnalyticsSessionSummaryManager();
 
 	/**
 	 * Discovers and salvages/sends/cleans up left over from previous execution(s), if any. Only the principal process can send left over sessions.
 	 */
-	void Tick();
+	ANALYTICSET_API void Tick();
 
 	/**
 	 * Creates a new property store associated to this manager process group. The manager only sends an analytics session summary when all
@@ -94,7 +94,7 @@ public:
 	 * ensure the session is sent as soon a possible. Subsequent calls to MakeStore will increment an internal counter in the store's filename.
 	 * @param InitialCapacity The amount of space to reserve in the file.
 	 */
-	TSharedPtr<IAnalyticsPropertyStore> MakeStore(uint32 InitialCapacity);
+	ANALYTICSET_API TSharedPtr<IAnalyticsPropertyStore> MakeStore(uint32 InitialCapacity);
 
 	/**
 	 * Sets a summary sender to enable the manager to send sessions. If the sender is null, the sessions are not sent. If the
@@ -103,13 +103,13 @@ public:
 	 * and a subsidiary process only sends the current sessions summary if it is the last process of the group to exit. The manager
 	 * deletes the session data while sending.
 	 */
-	void SetSender(TSharedPtr<IAnalyticsSessionSummarySender> Sender);
+	ANALYTICSET_API void SetSender(TSharedPtr<IAnalyticsSessionSummarySender> Sender);
 
 	/**
 	 * Sets a the user id used for reporting analytics. Allows for changing the application user after startup. Will set the user id on
 	 * all existing stores created from this session summary manager.
 	 */
-	void SetUserId(const FString& UserId);
+	ANALYTICSET_API void SetUserId(const FString& UserId);
 
 	/**
 	 * Shuts down and sends the session summaries that can be sent, if a sender is set. Remember to flush and discard the
@@ -118,14 +118,14 @@ public:
 	 * @see SetSender()
 	 * @see MakeStore()
 	 */
-	void Shutdown(bool bDiscard = false);
+	ANALYTICSET_API void Shutdown(bool bDiscard = false);
 
 	/**
 	 * Cleans up all expired files that match the analytics session filename pattern. The manager automaticallly clean up if
 	 * it runs, but if the analytics is off and the manager is not instantiated anymore, some dead files can be left over.
 	 * @param SavedDir The directory used to save the analytic files. If unspecified, use the internal default.
 	 */
-	static void CleanupExpiredFiles(const FString& SavedDir = TEXT(""));
+	static ANALYTICSET_API void CleanupExpiredFiles(const FString& SavedDir = TEXT(""));
 
 	/**
 	 * Returns the age at which a session is considered expired and shouldn't be sent anymore.
@@ -162,28 +162,28 @@ private:
 
 private:
 	/** Delegate constructor. */
-	FAnalyticsSessionSummaryManager(const FString& ProcessName, const FString& ProcessGroupId, uint32 InCurrentProcessId, uint32 PrincipalProcessId, const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const FString& SessionRootDir);
+	ANALYTICSET_API FAnalyticsSessionSummaryManager(const FString& ProcessName, const FString& ProcessGroupId, uint32 InCurrentProcessId, uint32 PrincipalProcessId, const FString& UserId, const FString& AppId, const FString& AppVersion, const FString& SessionId, const FString& SessionRootDir);
 
 	/** Returns all processes group (key is process group id) for which files exists. */
-	TMap<FString, FProcessGroup> GetSessionFiles() const;
+	ANALYTICSET_API TMap<FString, FProcessGroup> GetSessionFiles() const;
 
 	/** Processes the information collected by the principal and its subsidiary processes and decides if a summmary can be aggregated and sent. */
-	void ProcessSummary(const FString& ProcessGroupId, const FProcessGroup& ProcessGroup);
+	ANALYTICSET_API void ProcessSummary(const FString& ProcessGroupId, const FProcessGroup& ProcessGroup);
 
 	/** Loads the summaries created for the application and its subsidiary processes (like Editor/CRC combo) and aggregates summary properties. */
-	bool AggregateSummaries(const FString& ProcessGroupId, const FProcessGroup& ProcessGroup, TArray<FAnalyticsEventAttribute>& OutSummaryProperties, TArray<FAnalyticsEventAttribute>& OutInternalProperties);
+	ANALYTICSET_API bool AggregateSummaries(const FString& ProcessGroupId, const FProcessGroup& ProcessGroup, TArray<FAnalyticsEventAttribute>& OutSummaryProperties, TArray<FAnalyticsEventAttribute>& OutInternalProperties);
 
 	/** Deletes the files used to record and perist the properties. */
-	bool CleanupFiles(const TArray<FPropertyFileInfo>& PropertyFiles, bool bOnSuccess);
+	ANALYTICSET_API bool CleanupFiles(const TArray<FPropertyFileInfo>& PropertyFiles, bool bOnSuccess);
 
 	/** Checks if this process is allowed to process and send orphan files. */
 	bool IsOrphanGroupsOwner() const { return bOrphanGroupOwner; }
 
 	/** Returns whether this manager instance represents the principal process of a group. */
-	bool IsPrincipalProcess() const;
+	ANALYTICSET_API bool IsPrincipalProcess() const;
 
 	/** Prune the list of property stores for invalid entries. */
-	void PruneTrackedPropertyStores();
+	ANALYTICSET_API void PruneTrackedPropertyStores();
 
 private:
 	TArray<TWeakPtr<IAnalyticsPropertyStore>> WeakPropertyStores;

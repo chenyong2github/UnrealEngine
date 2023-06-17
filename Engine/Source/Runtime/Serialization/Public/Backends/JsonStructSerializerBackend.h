@@ -22,7 +22,7 @@ class FArchive;
  * all based on templates. At some point we will refactor the low-level Json API to provide more
  * flexibility for serialization.
  */
-class SERIALIZATION_API FJsonStructSerializerBackend
+class FJsonStructSerializerBackend
 	: public IStructSerializerBackend
 {
 public:
@@ -54,12 +54,12 @@ public:
 
 	// IStructSerializerBackend interface
 
-	virtual void BeginArray(const FStructSerializerState& State) override;
-	virtual void BeginStructure(const FStructSerializerState& State) override;
-	virtual void EndArray(const FStructSerializerState& State) override;
-	virtual void EndStructure(const FStructSerializerState& State) override;
-	virtual void WriteComment(const FString& Comment) override;
-	virtual void WriteProperty(const FStructSerializerState& State, int32 ArrayIndex = 0) override;
+	SERIALIZATION_API virtual void BeginArray(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void BeginStructure(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void EndArray(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void EndStructure(const FStructSerializerState& State) override;
+	SERIALIZATION_API virtual void WriteComment(const FString& Comment) override;
+	SERIALIZATION_API virtual void WriteProperty(const FStructSerializerState& State, int32 ArrayIndex = 0) override;
 
 protected:
 

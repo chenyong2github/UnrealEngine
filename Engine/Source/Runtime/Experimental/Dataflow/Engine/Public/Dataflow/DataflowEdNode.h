@@ -23,8 +23,8 @@ class UObject;
 namespace Dataflow { class FGraph; class FRenderingParameters; }
 namespace GeometryCollection::Facades { class FRenderingFacade; }
 
-UCLASS()
-class DATAFLOWENGINE_API UDataflowEdNode : public UEdGraphNode
+UCLASS(MinimalAPI)
+class UDataflowEdNode : public UEdGraphNode
 {
 	GENERATED_UCLASS_BODY()
 
@@ -34,23 +34,23 @@ class DATAFLOWENGINE_API UDataflowEdNode : public UEdGraphNode
 public:
 
 	// UEdGraphNode interface
-	virtual void AllocateDefaultPins();
-	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const;
+	DATAFLOWENGINE_API virtual void AllocateDefaultPins();
+	DATAFLOWENGINE_API virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const;
 #if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
+	DATAFLOWENGINE_API virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 #endif // WITH_EDITOR && !UE_BUILD_SHIPPING
 #if WITH_EDITOR
-	virtual FLinearColor GetNodeTitleColor() const override;
-	virtual FLinearColor GetNodeBodyTintColor() const override;
-	virtual FText GetTooltipText() const override;
-	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
-	virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const override;
-	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
+	DATAFLOWENGINE_API virtual FLinearColor GetNodeTitleColor() const override;
+	DATAFLOWENGINE_API virtual FLinearColor GetNodeBodyTintColor() const override;
+	DATAFLOWENGINE_API virtual FText GetTooltipText() const override;
+	DATAFLOWENGINE_API virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
+	DATAFLOWENGINE_API virtual FText GetPinDisplayName(const UEdGraphPin* Pin) const override;
+	DATAFLOWENGINE_API virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 #endif // WITH_EDITOR
 	// End of UEdGraphNode interface
 
 	// UObject interface
-	void Serialize(FArchive& Ar);
+	DATAFLOWENGINE_API void Serialize(FArchive& Ar);
 	// End UObject interface
 
 	bool IsBound() { return DataflowGraph && DataflowNodeGuid.IsValid(); }
@@ -59,26 +59,26 @@ public:
 	TSharedPtr<const Dataflow::FGraph> GetDataflowGraph() const { return DataflowGraph; }
 	void SetDataflowGraph(TSharedPtr<Dataflow::FGraph> InDataflowGraph) { DataflowGraph = InDataflowGraph; }
 
-	void UpdatePinsFromDataflowNode();
+	DATAFLOWENGINE_API void UpdatePinsFromDataflowNode();
 
 	FGuid GetDataflowNodeGuid() const { return DataflowNodeGuid; }
 	void SetDataflowNodeGuid(FGuid InGuid) { DataflowNodeGuid = InGuid; }
 
-	TSharedPtr<FDataflowNode> GetDataflowNode();
-	TSharedPtr<const FDataflowNode> GetDataflowNode() const;
+	DATAFLOWENGINE_API TSharedPtr<FDataflowNode> GetDataflowNode();
+	DATAFLOWENGINE_API TSharedPtr<const FDataflowNode> GetDataflowNode() const;
 
 	/** Add a new option pin if the underlying Dataflow node AddPin member is overriden. */
-	void AddOptionPin();
+	DATAFLOWENGINE_API void AddOptionPin();
 	/** Remove an option pin if the underlying Dataflow node RemovePin member is overriden. */
-	void RemoveOptionPin();
+	DATAFLOWENGINE_API void RemoveOptionPin();
 
 	//
 	// Node Rendering
 	//
-	void SetAssetRender(bool bInRender);
+	DATAFLOWENGINE_API void SetAssetRender(bool bInRender);
 	bool DoAssetRender() { return bRenderInAssetEditor; }
-	TArray<Dataflow::FRenderingParameter> GetRenderParameters() const;
-	virtual bool Render(GeometryCollection::Facades::FRenderingFacade& RenderData, TSharedPtr<Dataflow::FContext> Context) const;
+	DATAFLOWENGINE_API TArray<Dataflow::FRenderingParameter> GetRenderParameters() const;
+	DATAFLOWENGINE_API virtual bool Render(GeometryCollection::Facades::FRenderingFacade& RenderData, TSharedPtr<Dataflow::FContext> Context) const;
 
 	UPROPERTY()
 	bool bRenderInAssetEditor = false;

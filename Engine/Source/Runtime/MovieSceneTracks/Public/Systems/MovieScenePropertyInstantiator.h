@@ -33,8 +33,8 @@ class FEntityManager;
 class UMovieSceneBlenderSystem;
 
 /** Class responsible for resolving all property types registered with FBuiltInComponentTypes::PropertyRegistry */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieScenePropertyInstantiatorSystem
+UCLASS(MinimalAPI)
+class UMovieScenePropertyInstantiatorSystem
 	: public UMovieSceneEntityInstantiatorSystem
 {
 public:
@@ -43,12 +43,12 @@ public:
 
 	GENERATED_BODY()
 
-	UMovieScenePropertyInstantiatorSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieScenePropertyInstantiatorSystem(const FObjectInitializer& ObjInit);
 
 	/**
 	 * Retrieve the stats for a specific property
 	 */
-	UE::MovieScene::FPropertyStats GetStatsForProperty(UE::MovieScene::FCompositePropertyTypeID PropertyID) const;
+	MOVIESCENETRACKS_API UE::MovieScene::FPropertyStats GetStatsForProperty(UE::MovieScene::FCompositePropertyTypeID PropertyID) const;
 
 
 	/**
@@ -96,10 +96,10 @@ public:
 
 private:
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
-	virtual void OnLink() override;
-	virtual void OnUnlink() override;
-	virtual void OnCleanTaggedGarbage() override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnLink() override;
+	MOVIESCENETRACKS_API virtual void OnUnlink() override;
+	MOVIESCENETRACKS_API virtual void OnCleanTaggedGarbage() override;
 
 private:
 
@@ -226,20 +226,20 @@ private:
 			TArrayView<const UE::MovieScene::FPropertyCompositeDefinition> Composites,
 			UE::MovieScene::FComponentMask& OutComponentType) const;
 	};
-	void DiscoverInvalidatedProperties(TBitArray<>& OutInvalidatedProperties);
-	void UpgradeFloatToDoubleProperties(const TBitArray<>& InvalidatedProperties);
-	void ProcessInvalidatedProperties(const TBitArray<>& InvalidatedProperties);
-	void UpdatePropertyInfo(const FPropertyParameters& Params);
-	void InitializeFastPath(const FPropertyParameters& Params);
-	void InitializeBlendPath(const FPropertyParameters& Params);
+	MOVIESCENETRACKS_API void DiscoverInvalidatedProperties(TBitArray<>& OutInvalidatedProperties);
+	MOVIESCENETRACKS_API void UpgradeFloatToDoubleProperties(const TBitArray<>& InvalidatedProperties);
+	MOVIESCENETRACKS_API void ProcessInvalidatedProperties(const TBitArray<>& InvalidatedProperties);
+	MOVIESCENETRACKS_API void UpdatePropertyInfo(const FPropertyParameters& Params);
+	MOVIESCENETRACKS_API void InitializeFastPath(const FPropertyParameters& Params);
+	MOVIESCENETRACKS_API void InitializeBlendPath(const FPropertyParameters& Params);
 
-	FSetupBlenderSystemResult SetupBlenderSystem(const FPropertyParameters& Params);
+	MOVIESCENETRACKS_API FSetupBlenderSystemResult SetupBlenderSystem(const FPropertyParameters& Params);
 
-	int32 ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, int32 PropertyDefinitionIndex);
+	MOVIESCENETRACKS_API int32 ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, int32 PropertyDefinitionIndex);
 
-	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
+	MOVIESCENETRACKS_API UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
 
-	void InitializePropertyMetaData(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
+	MOVIESCENETRACKS_API void InitializePropertyMetaData(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 private:
 

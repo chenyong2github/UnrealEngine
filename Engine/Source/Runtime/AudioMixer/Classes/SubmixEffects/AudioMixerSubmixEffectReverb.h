@@ -20,7 +20,7 @@ struct FAudioEffectParameters;
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Reverb"), STAT_AudioMixerSubmixReverb, STATGROUP_AudioMixer, AUDIOMIXER_API);
 
 USTRUCT(BlueprintType)
-struct AUDIOMIXER_API FSubmixEffectReverbSettings
+struct FSubmixEffectReverbSettings
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -111,25 +111,25 @@ struct AUDIOMIXER_API FSubmixEffectReverbSettings
 	}
 };
 
-class AUDIOMIXER_API FSubmixEffectReverb : public FSoundEffectSubmix
+class FSubmixEffectReverb : public FSoundEffectSubmix
 {
 public:
-	FSubmixEffectReverb();
+	AUDIOMIXER_API FSubmixEffectReverb();
 
 	// Called on an audio effect at initialization on main thread before audio processing begins.
-	virtual void Init(const FSoundEffectSubmixInitData& InSampleRate) override;
+	AUDIOMIXER_API virtual void Init(const FSoundEffectSubmixInitData& InSampleRate) override;
 	
 	// Called when an audio effect preset is changed
-	virtual void OnPresetChanged() override;
+	AUDIOMIXER_API virtual void OnPresetChanged() override;
 
 	// Forces receiving downmixed submix audio to stereo input for the reverb effect
 	virtual uint32 GetDesiredInputChannelCountOverride() const override { return 2; }
 
 	// Process the input block of audio. Called on audio thread.
-	virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
+	AUDIOMIXER_API virtual void OnProcessAudio(const FSoundEffectSubmixInputData& InData, FSoundEffectSubmixOutputData& OutData) override;
 
 	// Sets the reverb effect parameters based from audio thread code
-	virtual bool SetParameters(const FAudioEffectParameters& InParameters) override;
+	AUDIOMIXER_API virtual bool SetParameters(const FAudioEffectParameters& InParameters) override;
 
 	// Whether this effect supports the default reverb system
 	virtual bool SupportsDefaultReverb() const override
@@ -142,10 +142,10 @@ public:
 
 private:
 
-	static const float MinWetness;
-	static const float MaxWetness;
+	static AUDIOMIXER_API const float MinWetness;
+	static AUDIOMIXER_API const float MaxWetness;
 
-	void UpdateParameters();
+	AUDIOMIXER_API void UpdateParameters();
 
 	// The reverb effect
 	TUniquePtr<Audio::FPlateReverbFast> PlateReverb;
@@ -165,8 +165,8 @@ private:
 	FRichCurve DecayCurve;
 };
 
-UCLASS()
-class AUDIOMIXER_API USubmixEffectReverbPreset : public USoundEffectSubmixPreset
+UCLASS(MinimalAPI)
+class USubmixEffectReverbPreset : public USoundEffectSubmixPreset
 {
 	GENERATED_BODY()
 
@@ -174,10 +174,10 @@ public:
 	EFFECT_PRESET_METHODS(SubmixEffectReverb)
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetSettings(const FSubmixEffectReverbSettings& InSettings);
+	AUDIOMIXER_API void SetSettings(const FSubmixEffectReverbSettings& InSettings);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
-	void SetSettingsWithReverbEffect(const UReverbEffect* InReverbEffect, const float WetLevel, const float DryLevel = 0.0f);
+	AUDIOMIXER_API void SetSettingsWithReverbEffect(const UReverbEffect* InReverbEffect, const float WetLevel, const float DryLevel = 0.0f);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SubmixEffectPreset)
 	FSubmixEffectReverbSettings Settings;

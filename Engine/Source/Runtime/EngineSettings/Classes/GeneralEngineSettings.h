@@ -8,8 +8,8 @@
 #include "GeneralEngineSettings.generated.h"
 
 
-UCLASS(config=Engine)
-class ENGINESETTINGS_API UGeneralEngineSettings
+UCLASS(config=Engine, MinimalAPI)
+class UGeneralEngineSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

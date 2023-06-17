@@ -22,8 +22,8 @@ class UMaterialInterface;
  * * Single Child
  * * Caching / Performance
  */
-UCLASS()
-class UMG_API URetainerBox : public UContentWidget
+UCLASS(MinimalAPI)
+class URetainerBox : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -77,70 +77,70 @@ public:
 	 * Requests the retainer redrawn the contents it has.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer")
-	void SetRenderingPhase(int32 RenderPhase, int32 TotalPhases);
+	UMG_API void SetRenderingPhase(int32 RenderPhase, int32 TotalPhases);
 
 	/**
 	 * Requests the retainer redrawn the contents it has.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer")
-	void RequestRender();
+	UMG_API void RequestRender();
 
 	/**
 	 * Get the current dynamic effect material applied to the retainer box.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer|Effect")
-	UMaterialInstanceDynamic* GetEffectMaterial() const;
+	UMG_API UMaterialInstanceDynamic* GetEffectMaterial() const;
 
 	/**
 	 * Set a new effect material to the retainer widget.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer|Effect")
-	void SetEffectMaterial(UMaterialInterface* EffectMaterial);
+	UMG_API void SetEffectMaterial(UMaterialInterface* EffectMaterial);
 
 	/**
 	 * Sets the name of the texture parameter to set the render target to on the material.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Retainer|Effect")
-	void SetTextureParameter(FName TextureParameter);
+	UMG_API void SetTextureParameter(FName TextureParameter);
 
 	/**
 	* Set the flag for if we retain the render or pass-through
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Retainer")
-	void SetRetainRendering(bool bInRetainRendering);
+	UMG_API void SetRetainRendering(bool bInRetainRendering);
 
 	/**
 	 * Get the flag for if we retain the render or pass-through.
 	 */
-	bool IsRetainRendering() const;
+	UMG_API bool IsRetainRendering() const;
 
 	/**
 	 * Get the phase to render on.
 	 */
-	int32 GetPhase() const;
+	UMG_API int32 GetPhase() const;
 
 	/**
 	 * Get the total number of phases.
 	 */
-	int32 GetPhaseCount() const;
+	UMG_API int32 GetPhaseCount() const;
 
 	/**
 	 * Get whether this widget should redraw the contents it has every time it receives an invalidation request.
 	 */
-	bool IsRenderOnInvalidation() const;
+	UMG_API bool IsRenderOnInvalidation() const;
 
 	/**
 	 * Get whether this widget should redraw the contents it has every time the phase occurs.
 	 */
-	bool IsRenderOnPhase() const;
+	UMG_API bool IsRenderOnPhase() const;
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
-	FGeometry GetCachedAllottedGeometry() const;
+	UMG_API FGeometry GetCachedAllottedGeometry() const;
 
 protected:
 
@@ -172,42 +172,42 @@ protected:
 #endif
 
 	//~ Begin UPanelWidget interface
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	//~ End UPanelWidget interface
 
 	//~ Begin UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UWidget interface
 
 	//~ Begin UObject interface
 #if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	UMG_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	//~ End UObject interface
 
 	// Initialize RenderOnInvalidation in the constructor before the SWidget is constructed.
-	void InitRenderOnInvalidation(bool InRenderOnInvalidation);
+	UMG_API void InitRenderOnInvalidation(bool InRenderOnInvalidation);
 
 	// Initialize RenderOnPhase in the constructor before the SWidget is constructed.
-	void InitRenderOnPhase(bool InRenderOnPhase);
+	UMG_API void InitRenderOnPhase(bool InRenderOnPhase);
 
 	// Initialize Phase in the constructor before the SWidget is constructed.
-	void InitPhase(int32 InPhase);
+	UMG_API void InitPhase(int32 InPhase);
 
 	// Initialize PhaseCount in the constructor before the SWidget is constructed.
-	void InitPhaseCount(int32 InPhaseCount);
+	UMG_API void InitPhaseCount(int32 InPhaseCount);
 public:
 	/**
 	* Gets the name of the texture parameter to set the render target to on the material.
 	*/
-	const FName& GetTextureParameter() const;
+	UMG_API const FName& GetTextureParameter() const;
 
 	/**
 	* Gets the current dynamic effect material applied to the retainer box.
 	*/
-	const UMaterialInterface* GetEffectMaterialInterface() const;
+	UMG_API const UMaterialInterface* GetEffectMaterialInterface() const;
 
 protected:
 	TSharedPtr<class SRetainerWidget> MyRetainerWidget;

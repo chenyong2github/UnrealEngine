@@ -9,13 +9,13 @@
 class UGeometryCollection;
 class UGeometryCollectionComponent;
 
-UINTERFACE()
-class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionExternalRenderInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UGeometryCollectionExternalRenderInterface : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class GEOMETRYCOLLECTIONENGINE_API IGeometryCollectionExternalRenderInterface
+class IGeometryCollectionExternalRenderInterface
 {
 	GENERATED_BODY()
 

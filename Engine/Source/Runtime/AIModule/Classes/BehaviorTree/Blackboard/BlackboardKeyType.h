@@ -19,71 +19,71 @@ struct FBlackboardInstancedKeyMemory
 	int32 KeyIdx;
 };
 
-UCLASS(EditInlineNew, Abstract, CollapseCategories, AutoExpandCategories=(Blackboard))
-class AIMODULE_API UBlackboardKeyType : public UObject
+UCLASS(EditInlineNew, Abstract, CollapseCategories, AutoExpandCategories=(Blackboard), MinimalAPI)
+class UBlackboardKeyType : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	/** handle dynamic data size */
-	virtual void PreInitialize(UBlackboardComponent& OwnerComp);
+	AIMODULE_API virtual void PreInitialize(UBlackboardComponent& OwnerComp);
 
 	/** handle instancing if needed */
-	void InitializeKey(UBlackboardComponent& OwnerComp, FBlackboard::FKey KeyID);
+	AIMODULE_API void InitializeKey(UBlackboardComponent& OwnerComp, FBlackboard::FKey KeyID);
 
 	/** does it match settings in filter? */
-	virtual bool IsAllowedByFilter(UBlackboardKeyType* FilterOb) const;
+	AIMODULE_API virtual bool IsAllowedByFilter(UBlackboardKeyType* FilterOb) const;
 
 	/** extract location from entry, supports instanced keys */
-	bool WrappedGetLocation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, FVector& Location) const;
+	AIMODULE_API bool WrappedGetLocation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, FVector& Location) const;
 
 	/** extract rotation from entry, supports instanced keys */
-	bool WrappedGetRotation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, FRotator& Rotation) const;
+	AIMODULE_API bool WrappedGetRotation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, FRotator& Rotation) const;
 
 	/** free value before removing from blackboard, supports instanced keys */
-	void WrappedFree(UBlackboardComponent& OwnerComp, uint8* MemoryBlock);
+	AIMODULE_API void WrappedFree(UBlackboardComponent& OwnerComp, uint8* MemoryBlock);
 
 	/** sets value to the default, supports instanced keys */
-	void WrappedClear(const UBlackboardComponent& OwnerComp, uint8* MemoryBlock) const;
+	AIMODULE_API void WrappedClear(const UBlackboardComponent& OwnerComp, uint8* MemoryBlock) const;
 
 	/** check if key has stored value, supports instanced keys */
-	bool WrappedIsEmpty(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
+	AIMODULE_API bool WrappedIsEmpty(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
 
 	/** various value testing, used by decorators, supports instanced keys */
-	bool WrappedTestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const;
-	bool WrappedTestArithmeticOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EArithmeticKeyOperation::Type Op, int32 OtherIntValue, float OtherFloatValue) const;
-	bool WrappedTestTextOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, ETextKeyOperation::Type Op, const FString& OtherString) const;
+	AIMODULE_API bool WrappedTestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const;
+	AIMODULE_API bool WrappedTestArithmeticOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EArithmeticKeyOperation::Type Op, int32 OtherIntValue, float OtherFloatValue) const;
+	AIMODULE_API bool WrappedTestTextOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, ETextKeyOperation::Type Op, const FString& OtherString) const;
 
 	/** describe params of arithmetic test */
-	virtual FString DescribeArithmeticParam(int32 IntValue, float FloatValue) const;
+	AIMODULE_API virtual FString DescribeArithmeticParam(int32 IntValue, float FloatValue) const;
 
 	/** convert value to text, supports instanced keys */
-	FString WrappedDescribeValue(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
+	AIMODULE_API FString WrappedDescribeValue(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
 
 	/** description of params for property view */
-	virtual FString DescribeSelf() const;
+	AIMODULE_API virtual FString DescribeSelf() const;
 
 	/** create replacement key for deprecated data */
-	virtual UBlackboardKeyType* UpdateDeprecatedKey();
+	AIMODULE_API virtual UBlackboardKeyType* UpdateDeprecatedKey();
 
 	/** @return key instance if bCreateKeyInstance was set */
-	const UBlackboardKeyType* GetKeyInstance(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
-	UBlackboardKeyType* GetKeyInstance(UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
+	AIMODULE_API const UBlackboardKeyType* GetKeyInstance(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
+	AIMODULE_API UBlackboardKeyType* GetKeyInstance(UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
 
 	/** compares two values */
-	virtual EBlackboardCompare::Type CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
+	AIMODULE_API virtual EBlackboardCompare::Type CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
 		const UBlackboardKeyType* OtherKeyOb, const uint8* OtherMemoryBlock) const;
 
 	/** @return true if key wants to be instanced */
-	bool HasInstance() const;
+	AIMODULE_API bool HasInstance() const;
 
 	/** @return true if this object is instanced key */
-	bool IsInstanced() const;
+	AIMODULE_API bool IsInstanced() const;
 
 	/** get ValueSize */
-	uint16 GetValueSize() const;
+	AIMODULE_API uint16 GetValueSize() const;
 
 	/** get test supported by this type */
-	EBlackboardKeyOperation::Type GetTestOperation() const;
+	AIMODULE_API EBlackboardKeyOperation::Type GetTestOperation() const;
 
 protected:
 
@@ -134,33 +134,33 @@ protected:
 	friend UBlackboardComponent;
 	
 	/** copy value from other key, works directly on provided memory/properties */
-	virtual void CopyValues(UBlackboardComponent& OwnerComp, uint8* MemoryBlock, const UBlackboardKeyType* SourceKeyOb, const uint8* SourceBlock);
+	AIMODULE_API virtual void CopyValues(UBlackboardComponent& OwnerComp, uint8* MemoryBlock, const UBlackboardKeyType* SourceKeyOb, const uint8* SourceBlock);
 
 	/** initialize memory, works directly on provided memory/properties */
-	virtual void InitializeMemory(UBlackboardComponent& OwnerComp, uint8* MemoryBlock);
+	AIMODULE_API virtual void InitializeMemory(UBlackboardComponent& OwnerComp, uint8* MemoryBlock);
 
 	/** free value before removing from blackboard, works directly on provided memory/properties */
-	virtual void FreeMemory(UBlackboardComponent& OwnerComp, uint8* MemoryBlock);
+	AIMODULE_API virtual void FreeMemory(UBlackboardComponent& OwnerComp, uint8* MemoryBlock);
 
 	/** extract location from entry, works directly on provided memory/properties */
-	virtual bool GetLocation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, FVector& Location) const;
+	AIMODULE_API virtual bool GetLocation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, FVector& Location) const;
 	
 	/** extract rotation from entry, works directly on provided memory/properties */
-	virtual bool GetRotation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, FRotator& Rotation) const;
+	AIMODULE_API virtual bool GetRotation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, FRotator& Rotation) const;
 
 	/** sets value to the default, works directly on provided memory/properties */
-	virtual void Clear(UBlackboardComponent& OwnerComp, uint8* MemoryBlock);
+	AIMODULE_API virtual void Clear(UBlackboardComponent& OwnerComp, uint8* MemoryBlock);
 
 	/** check if key has stored value, works directly on provided memory/properties */
-	virtual bool IsEmpty(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
+	AIMODULE_API virtual bool IsEmpty(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
 
 	/** various value testing, works directly on provided memory/properties */
-	virtual bool TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const;
-	virtual bool TestArithmeticOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EArithmeticKeyOperation::Type Op, int32 OtherIntValue, float OtherFloatValue) const;
-	virtual bool TestTextOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, ETextKeyOperation::Type Op, const FString& OtherString) const;
+	AIMODULE_API virtual bool TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const;
+	AIMODULE_API virtual bool TestArithmeticOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EArithmeticKeyOperation::Type Op, int32 OtherIntValue, float OtherFloatValue) const;
+	AIMODULE_API virtual bool TestTextOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, ETextKeyOperation::Type Op, const FString& OtherString) const;
 
 	/** convert value to text, works directly on provided memory/properties */
-	virtual FString DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
+	AIMODULE_API virtual FString DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock) const;
 };
 
 //////////////////////////////////////////////////////////////////////////

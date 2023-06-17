@@ -19,13 +19,13 @@ namespace MovieScene
 struct FPreAnimatedStorageGroupHandle;
 template <typename StorageType> struct TAutoRegisterPreAnimatedStorageID;
 
-struct MOVIESCENE_API FPreAnimatedObjectGroupManager : TPreAnimatedStateGroupManager<FObjectKey>
+struct FPreAnimatedObjectGroupManager : TPreAnimatedStateGroupManager<FObjectKey>
 {
-	static TAutoRegisterPreAnimatedStorageID<FPreAnimatedObjectGroupManager> GroupManagerID;
+	static MOVIESCENE_API TAutoRegisterPreAnimatedStorageID<FPreAnimatedObjectGroupManager> GroupManagerID;
 
-	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
+	MOVIESCENE_API void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
-	void GetGroupsByClass(UClass* GeneratedClass, TArray<FPreAnimatedStorageGroupHandle>& OutGroupHandles);
+	MOVIESCENE_API void GetGroupsByClass(UClass* GeneratedClass, TArray<FPreAnimatedStorageGroupHandle>& OutGroupHandles);
 };
 
 

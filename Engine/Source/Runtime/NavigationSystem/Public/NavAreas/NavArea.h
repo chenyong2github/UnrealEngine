@@ -11,8 +11,8 @@
 #include "NavArea.generated.h"
 
 /** Class containing definition of a navigation area */
-UCLASS(DefaultToInstanced, abstract, Config=Engine, Blueprintable)
-class NAVIGATIONSYSTEM_API UNavArea : public UNavAreaBase
+UCLASS(DefaultToInstanced, abstract, Config=Engine, Blueprintable, MinimalAPI)
+class UNavArea : public UNavAreaBase
 {
 	GENERATED_BODY()
 
@@ -80,14 +80,14 @@ public:
 	};
 #endif
 
-	UNavArea(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	NAVIGATIONSYSTEM_API UNavArea(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	virtual void FinishDestroy() override;
-	virtual void PostLoad() override;
-	virtual void PostInitProperties() override;
-	virtual void Serialize(FArchive& Ar) override;
+	NAVIGATIONSYSTEM_API virtual void FinishDestroy() override;
+	NAVIGATIONSYSTEM_API virtual void PostLoad() override;
+	NAVIGATIONSYSTEM_API virtual void PostInitProperties() override;
+	NAVIGATIONSYSTEM_API virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
+	NAVIGATIONSYSTEM_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent);
 #endif // WITH_EDITOR
 
 	FORCEINLINE uint16 GetAreaFlags() const { return AreaFlags; }
@@ -102,15 +102,15 @@ public:
 	virtual float GetFixedAreaEnteringCost() { return FixedAreaEnteringCost; }
 
 	/** Retrieved color declared for AreaDefinitionClass */
-	static FColor GetColor(UClass* AreaDefinitionClass);
+	static NAVIGATIONSYSTEM_API FColor GetColor(UClass* AreaDefinitionClass);
 
 	/** copy properties from other area */
-	virtual void CopyFrom(TSubclassOf<UNavArea> AreaClass);
+	NAVIGATIONSYSTEM_API virtual void CopyFrom(TSubclassOf<UNavArea> AreaClass);
 
 protected:
 
 	/** these flags will be applied to navigation data along with AreaID */
 	uint16 AreaFlags;
 	
-	void RegisterArea();
+	NAVIGATIONSYSTEM_API void RegisterArea();
 };

@@ -14,8 +14,8 @@
 class UMovieSceneBlenderSystem;
 
 /** Class responsible for resolving all property types registered with FBuiltInComponentTypes::PropertyRegistry */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneInterrogatedPropertyInstantiatorSystem
+UCLASS(MinimalAPI)
+class UMovieSceneInterrogatedPropertyInstantiatorSystem
 	: public UMovieSceneEntityInstantiatorSystem
 {
 public:
@@ -25,7 +25,7 @@ public:
 
 	GENERATED_BODY()
 
-	UMovieSceneInterrogatedPropertyInstantiatorSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieSceneInterrogatedPropertyInstantiatorSystem(const FObjectInitializer& ObjInit);
 
 	/**
 	 * Recompose a value from the constituent parts specified in InQuery, taking into accounts the wieghtings of the specific channel defined by ChannelCompositeIndex.
@@ -36,7 +36,7 @@ public:
 	 * @param InCurrentValue The value of the property to recompose
 	 * @return A result containing the recomposed value for each of the entities specified in InQuery
 	 */
-	FValueRecompositionResult RecomposeBlendChannel(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, int32 ChannelCompositeIndex, const UE::MovieScene::FDecompositionQuery& InQuery, double InCurrentValue);
+	MOVIESCENETRACKS_API FValueRecompositionResult RecomposeBlendChannel(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, int32 ChannelCompositeIndex, const UE::MovieScene::FDecompositionQuery& InQuery, double InCurrentValue);
 
 	/**
 	 * Recompose a value from the constituent parts specified in InQuery, taking into account the weightings of each channel.
@@ -90,9 +90,9 @@ public:
 	};
 
 	// TOverlappingEntityTracker handler interface
-	void InitializeOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
-	void UpdateOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
-	void DestroyOutput(UE::MovieScene::FInterrogationKey Key, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
+	MOVIESCENETRACKS_API void InitializeOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
+	MOVIESCENETRACKS_API void UpdateOutput(UE::MovieScene::FInterrogationKey Key, TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
+	MOVIESCENETRACKS_API void DestroyOutput(UE::MovieScene::FInterrogationKey Key, FPropertyInfo* Output, UE::MovieScene::FEntityOutputAggregate Aggregate);
 
 	const FPropertyInfo* FindPropertyInfo(UE::MovieScene::FInterrogationKey Key) const
 	{
@@ -106,12 +106,12 @@ public:
 
 private:
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 
-	bool PropertySupportsFastPath(TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output) const;
-	UClass* ResolveBlenderClass(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, TArrayView<const FMovieSceneEntityID> Inputs) const;
-	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
+	MOVIESCENETRACKS_API bool PropertySupportsFastPath(TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output) const;
+	MOVIESCENETRACKS_API UClass* ResolveBlenderClass(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, TArrayView<const FMovieSceneEntityID> Inputs) const;
+	MOVIESCENETRACKS_API UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
 
 private:
 

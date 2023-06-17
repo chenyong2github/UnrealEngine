@@ -127,21 +127,21 @@ struct TMovieSceneExternalValue
 /**
  * Commonly used channel display names and colors
  */
-struct MOVIESCENE_API FCommonChannelData
+struct FCommonChannelData
 {
-	static const FText ChannelX;
-	static const FText ChannelY;
-	static const FText ChannelZ;
-	static const FText ChannelW;
+	static MOVIESCENE_API const FText ChannelX;
+	static MOVIESCENE_API const FText ChannelY;
+	static MOVIESCENE_API const FText ChannelZ;
+	static MOVIESCENE_API const FText ChannelW;
 
-	static const FText ChannelR;
-	static const FText ChannelG;
-	static const FText ChannelB;
-	static const FText ChannelA;
+	static MOVIESCENE_API const FText ChannelR;
+	static MOVIESCENE_API const FText ChannelG;
+	static MOVIESCENE_API const FText ChannelB;
+	static MOVIESCENE_API const FText ChannelA;
 
-	static const FLinearColor RedChannelColor;
-	static const FLinearColor GreenChannelColor;
-	static const FLinearColor BlueChannelColor;
+	static MOVIESCENE_API const FLinearColor RedChannelColor;
+	static MOVIESCENE_API const FLinearColor GreenChannelColor;
+	static MOVIESCENE_API const FLinearColor BlueChannelColor;
 };
 
 

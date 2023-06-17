@@ -9,7 +9,7 @@
 /**
  * Tile coordinate of a tiled media source/texture.
  */
-struct MEDIA_API FMediaTileCoordinate
+struct FMediaTileCoordinate
 {
 	uint16 X, Y;
 

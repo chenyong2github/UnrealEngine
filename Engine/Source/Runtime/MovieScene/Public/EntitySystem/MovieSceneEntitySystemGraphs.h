@@ -84,24 +84,24 @@ struct TStructOpsTypeTraits<FMovieSceneEntitySystemGraphNodes> : public TStructO
 
 
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneEntitySystemGraph
+struct FMovieSceneEntitySystemGraph
 {
 	using FDirectionalEdge = UE::MovieScene::FDirectedGraph::FDirectionalEdge;
 
 	GENERATED_BODY()
 
-	FMovieSceneEntitySystemGraph();
-	~FMovieSceneEntitySystemGraph();
+	MOVIESCENE_API FMovieSceneEntitySystemGraph();
+	MOVIESCENE_API ~FMovieSceneEntitySystemGraph();
 
 	FMovieSceneEntitySystemGraph(const FMovieSceneEntitySystemGraph&) = delete;
 	void operator=(const FMovieSceneEntitySystemGraph&) = delete;
 
-	FMovieSceneEntitySystemGraph(FMovieSceneEntitySystemGraph&&);
-	FMovieSceneEntitySystemGraph& operator=(FMovieSceneEntitySystemGraph&&);
+	MOVIESCENE_API FMovieSceneEntitySystemGraph(FMovieSceneEntitySystemGraph&&);
+	MOVIESCENE_API FMovieSceneEntitySystemGraph& operator=(FMovieSceneEntitySystemGraph&&);
 
-	void AddReference(UMovieSceneEntitySystem* FromReference, UMovieSceneEntitySystem* ToReference);
+	MOVIESCENE_API void AddReference(UMovieSceneEntitySystem* FromReference, UMovieSceneEntitySystem* ToReference);
 
-	void RemoveReference(UMovieSceneEntitySystem* FromReference, UMovieSceneEntitySystem* ToReference);
+	MOVIESCENE_API void RemoveReference(UMovieSceneEntitySystem* FromReference, UMovieSceneEntitySystem* ToReference);
 
 	/** Olog(n) time */
 	template<typename Allocator>
@@ -155,24 +155,24 @@ struct MOVIESCENE_API FMovieSceneEntitySystemGraph
 		return ReferenceGraph.HasEdgeFrom(GetGraphID(FromReference));
 	}
 
-	void AddSystem(UMovieSceneEntitySystem* InSystem);
+	MOVIESCENE_API void AddSystem(UMovieSceneEntitySystem* InSystem);
 
-	void RemoveSystem(UMovieSceneEntitySystem* InSystem);
+	MOVIESCENE_API void RemoveSystem(UMovieSceneEntitySystem* InSystem);
 
-	int32 RemoveIrrelevantSystems(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API int32 RemoveIrrelevantSystems(UMovieSceneEntitySystemLinker* Linker);
 
-	void Shutdown();
+	MOVIESCENE_API void Shutdown();
 
-	int32 NumInPhase(UE::MovieScene::ESystemPhase Phase) const;
+	MOVIESCENE_API int32 NumInPhase(UE::MovieScene::ESystemPhase Phase) const;
 
-	void ExecutePhase(UE::MovieScene::ESystemPhase Phase, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
+	MOVIESCENE_API void ExecutePhase(UE::MovieScene::ESystemPhase Phase, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
 
-	void IteratePhase(UE::MovieScene::ESystemPhase Phase, TFunctionRef<void(UMovieSceneEntitySystem*)> InIter);
+	MOVIESCENE_API void IteratePhase(UE::MovieScene::ESystemPhase Phase, TFunctionRef<void(UMovieSceneEntitySystem*)> InIter);
 
-	void ReconstructTaskSchedule(UE::MovieScene::FEntityManager* EntityManager);
-	void ScheduleTasks(UE::MovieScene::FEntityManager* EntityManager);
+	MOVIESCENE_API void ReconstructTaskSchedule(UE::MovieScene::FEntityManager* EntityManager);
+	MOVIESCENE_API void ScheduleTasks(UE::MovieScene::FEntityManager* EntityManager);
 
-	TArray<UMovieSceneEntitySystem*> GetSystems() const;
+	MOVIESCENE_API TArray<UMovieSceneEntitySystem*> GetSystems() const;
 
 	template<typename SystemType>
 	SystemType* FindSystemOfType() const
@@ -180,18 +180,18 @@ struct MOVIESCENE_API FMovieSceneEntitySystemGraph
 		return CastChecked<SystemType>(FindSystemOfType(SystemType::StaticClass()), ECastCheckedType::NullAllowed);
 	}
 
-	UMovieSceneEntitySystem* FindSystemOfType(TSubclassOf<UMovieSceneEntitySystem> InClassType) const;
+	MOVIESCENE_API UMovieSceneEntitySystem* FindSystemOfType(TSubclassOf<UMovieSceneEntitySystem> InClassType) const;
 
-	void DebugPrint() const;
+	MOVIESCENE_API void DebugPrint() const;
 
-	FString ToString() const;
+	MOVIESCENE_API FString ToString() const;
 
 private:
 
 	// Implementation function that means we don't need to #include the entity system
-	static uint16 GetGraphID(const UMovieSceneEntitySystem* InSystem);
+	static MOVIESCENE_API uint16 GetGraphID(const UMovieSceneEntitySystem* InSystem);
 
-	void UpdateCache();
+	MOVIESCENE_API void UpdateCache();
 
 	template<typename ArrayType>
 	void ExecutePhase(UE::MovieScene::ESystemPhase Phase, const ArrayType& RetrieveEntries, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);

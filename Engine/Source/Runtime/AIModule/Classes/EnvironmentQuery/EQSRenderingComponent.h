@@ -14,19 +14,19 @@ class APlayerController;
 class IEQSQueryResultSourceInterface;
 class UCanvas;
 
-class AIMODULE_API FEQSSceneProxy final : public FDebugRenderSceneProxy
+class FEQSSceneProxy final : public FDebugRenderSceneProxy
 {
 	friend class FEQSRenderingDebugDrawDelegateHelper;
 public:
-	virtual SIZE_T GetTypeHash() const override;
+	AIMODULE_API virtual SIZE_T GetTypeHash() const override;
 
-	explicit FEQSSceneProxy(const UPrimitiveComponent& InComponent, const FString& ViewFlagName = TEXT("DebugAI"), const TArray<FSphere>& Spheres = TArray<FSphere>(), const TArray<FText3d>& Texts = TArray<FText3d>());
+	AIMODULE_API explicit FEQSSceneProxy(const UPrimitiveComponent& InComponent, const FString& ViewFlagName = TEXT("DebugAI"), const TArray<FSphere>& Spheres = TArray<FSphere>(), const TArray<FText3d>& Texts = TArray<FText3d>());
 	
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+	AIMODULE_API virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
 #if  USE_EQS_DEBUGGER 
-	static void CollectEQSData(const UPrimitiveComponent* InComponent, const IEQSQueryResultSourceInterface* QueryDataSource, TArray<FSphere>& Spheres, TArray<FText3d>& Texts, TArray<EQSDebug::FDebugHelper>& DebugItems);
-	static void CollectEQSData(const FEnvQueryResult* ResultItems, const FEnvQueryInstance* QueryInstance, float HighlightRangePct, bool ShouldDrawFailedItems, TArray<FSphere>& Spheres, TArray<FText3d>& Texts, TArray<EQSDebug::FDebugHelper>& DebugItems);
+	static AIMODULE_API void CollectEQSData(const UPrimitiveComponent* InComponent, const IEQSQueryResultSourceInterface* QueryDataSource, TArray<FSphere>& Spheres, TArray<FText3d>& Texts, TArray<EQSDebug::FDebugHelper>& DebugItems);
+	static AIMODULE_API void CollectEQSData(const FEnvQueryResult* ResultItems, const FEnvQueryInstance* QueryInstance, float HighlightRangePct, bool ShouldDrawFailedItems, TArray<FSphere>& Spheres, TArray<FText3d>& Texts, TArray<EQSDebug::FDebugHelper>& DebugItems);
 #endif
 private:
 	FEnvQueryResult QueryResult;	
@@ -35,9 +35,9 @@ private:
 	const IEQSQueryResultSourceInterface* QueryDataSource;
 	uint32 bDrawOnlyWhenSelected : 1;
 
-	static const FVector3f ItemDrawRadius;
+	static AIMODULE_API const FVector3f ItemDrawRadius;
 
-	bool SafeIsActorSelected() const;
+	AIMODULE_API bool SafeIsActorSelected() const;
 };
 
 #if  USE_EQS_DEBUGGER
@@ -76,24 +76,24 @@ private:
 };
 #endif
 
-UCLASS(ClassGroup = Debug)
-class AIMODULE_API UEQSRenderingComponent : public UDebugDrawComponent
+UCLASS(ClassGroup = Debug, MinimalAPI)
+class UEQSRenderingComponent : public UDebugDrawComponent
 {
 	GENERATED_UCLASS_BODY()
 
 	FString DrawFlagName;
 	uint32 bDrawOnlyWhenSelected : 1;
 
-	void ClearStoredDebugData();
+	AIMODULE_API void ClearStoredDebugData();
 #if  USE_EQS_DEBUGGER || ENABLE_VISUAL_LOG
-	void StoreDebugData(const EQSDebug::FQueryData& DebugData);
+	AIMODULE_API void StoreDebugData(const EQSDebug::FQueryData& DebugData);
 #endif
 
 protected:
-	virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
+	AIMODULE_API virtual FBoxSphereBounds CalcBounds(const FTransform &LocalToWorld) const override;
 
 #if UE_ENABLE_DEBUG_DRAWING && USE_EQS_DEBUGGER
-	virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
+	AIMODULE_API virtual FDebugRenderSceneProxy* CreateDebugSceneProxy() override;
 	virtual FDebugDrawDelegateHelper& GetDebugDrawDelegateHelper() override { return EQSRenderingDebugDrawDelegateHelper; }
 	FEQSRenderingDebugDrawDelegateHelper EQSRenderingDebugDrawDelegateHelper;
 #endif

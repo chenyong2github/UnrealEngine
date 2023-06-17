@@ -17,14 +17,14 @@ namespace UE { namespace MovieScene { template <typename T> struct TComponentTyp
 struct FGuid;
 struct FMovieSceneObjectBindingID;
 
-UCLASS(Abstract)
-class MOVIESCENE_API UMovieSceneEntityInstantiatorSystem : public UMovieSceneEntitySystem
+UCLASS(Abstract, MinimalAPI)
+class UMovieSceneEntityInstantiatorSystem : public UMovieSceneEntitySystem
 {
 public:
 	GENERATED_BODY()
 
-	UMovieSceneEntityInstantiatorSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENE_API UMovieSceneEntityInstantiatorSystem(const FObjectInitializer& ObjInit);
 
-	void UnlinkStaleObjectBindings(UE::MovieScene::TComponentTypeID<FGuid> BindingType);
-	void UnlinkStaleObjectBindings(UE::MovieScene::TComponentTypeID<FMovieSceneObjectBindingID> BindingType);
+	MOVIESCENE_API void UnlinkStaleObjectBindings(UE::MovieScene::TComponentTypeID<FGuid> BindingType);
+	MOVIESCENE_API void UnlinkStaleObjectBindings(UE::MovieScene::TComponentTypeID<FMovieSceneObjectBindingID> BindingType);
 };

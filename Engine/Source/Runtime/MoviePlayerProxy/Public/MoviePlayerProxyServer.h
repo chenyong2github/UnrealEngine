@@ -8,7 +8,7 @@
  * Implement this interface if you want to handle what happens when the engine interacts
  * with the MoviePlayer, etc when the game thread is blocked.
  */
-class MOVIEPLAYERPROXY_API IMoviePlayerProxyServer
+class IMoviePlayerProxyServer
 {
 public:
 	/** Called before doing a blocking operation on the game thread occurs so that the movie player can activate. */

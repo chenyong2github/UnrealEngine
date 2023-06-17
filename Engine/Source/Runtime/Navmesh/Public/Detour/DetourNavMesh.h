@@ -493,11 +493,11 @@ struct dtNavMeshParams
 
 /// A navigation mesh based on tiles of convex polygons.
 /// @ingroup detour
-class NAVMESH_API dtNavMesh
+class dtNavMesh
 {
 public:
-	dtNavMesh();
-	~dtNavMesh();
+	NAVMESH_API dtNavMesh();
+	NAVMESH_API ~dtNavMesh();
 
 	/// @{
 	/// @name Initialization and Tile Management
@@ -505,7 +505,7 @@ public:
 	/// Initializes the navigation mesh for tiled use.
 	///  @param[in]	params		Initialization parameters.
 	/// @return The status flags for the operation.
-	dtStatus init(const dtNavMeshParams* params);
+	NAVMESH_API dtStatus init(const dtNavMeshParams* params);
 
 	/// Initializes the navigation mesh for single tile use.
 	///  @param[in]	data		Data of the new tile. (See: #dtCreateNavMeshData)
@@ -513,10 +513,10 @@ public:
 	///  @param[in]	flags		The tile flags. (See: #dtTileFlags)
 	/// @return The status flags for the operation.
 	///  @see dtCreateNavMeshData
-	dtStatus init(unsigned char* data, const int dataSize, const int flags);
+	NAVMESH_API dtStatus init(unsigned char* data, const int dataSize, const int flags);
 	
 	/// The navigation mesh initialization params.
-	const dtNavMeshParams* getParams() const;
+	NAVMESH_API const dtNavMeshParams* getParams() const;
 
 	/// Adds a tile to the navigation mesh.
 	///  @param[in]		data		Data for the new tile mesh. (See: #dtCreateNavMeshData)
@@ -525,14 +525,14 @@ public:
 	///  @param[in]		lastRef		The desired reference for the tile. (When reloading a tile.) [opt] [Default: 0]
 	///  @param[out]	result		The tile reference. (If the tile was succesfully added.) [opt]
 	/// @return The status flags for the operation.
-	dtStatus addTile(unsigned char* data, int dataSize, int flags, dtTileRef lastRef, dtTileRef* result);
+	NAVMESH_API dtStatus addTile(unsigned char* data, int dataSize, int flags, dtTileRef lastRef, dtTileRef* result);
 	
 	/// Removes the specified tile from the navigation mesh.
 	///  @param[in]		ref			The reference of the tile to remove.
 	///  @param[out]	data		Data associated with deleted tile.
 	///  @param[out]	dataSize	Size of the data associated with deleted tile.
 	/// @return The status flags for the operation.
-	dtStatus removeTile(dtTileRef ref, unsigned char** data, int* dataSize);
+	NAVMESH_API dtStatus removeTile(dtTileRef ref, unsigned char** data, int* dataSize);
 
 	/// @}
 
@@ -543,27 +543,27 @@ public:
 	///  @param[in]	pos  The world position for the query. [(x, y, z)]
 	///  @param[out]	tx		The tile's x-location. (x, y)
 	///  @param[out]	ty		The tile's y-location. (x, y)
-	void calcTileLoc(const dtReal* pos, int* tx, int* ty) const;
+	NAVMESH_API void calcTileLoc(const dtReal* pos, int* tx, int* ty) const;
 
 
 	/// Calculates whether the tile grid location for the specified world position
 	/// can fit in the tile indices type (currently an int)
 	///  @param[in]	pos			The world position for the query. [(x, y, z)]
-	bool isTileLocInValidRange(const dtReal* pos) const;
+	NAVMESH_API bool isTileLocInValidRange(const dtReal* pos) const;
 
 	/// Gets the tile at the specified grid location.
 	///  @param[in]	x		The tile's x-location. (x, y, layer)
 	///  @param[in]	y		The tile's y-location. (x, y, layer)
 	///  @param[in]	layer	The tile's layer. (x, y, layer)
 	/// @return The tile, or null if the tile does not exist.
-	const dtMeshTile* getTileAt(const int x, const int y, const int layer) const;
+	NAVMESH_API const dtMeshTile* getTileAt(const int x, const int y, const int layer) const;
 
 // @UE BEGIN
 	/// Gets number of tiles at the specified grid location. (All layers.)
 	///  @param[in]		x			The tile's x-location. (x, y)
 	///  @param[in]		y			The tile's y-location. (x, y)
 	/// @return The number of tiles in grid.
-	int getTileCountAt(const int x, const int y) const;
+	NAVMESH_API int getTileCountAt(const int x, const int y) const;
 // @UE END
 
 	/// Gets all tiles at the specified grid location. (All layers.)
@@ -572,7 +572,7 @@ public:
 	///  @param[out]	tiles		A pointer to an array of tiles that will hold the result.
 	///  @param[in]		maxTiles	The maximum tiles the tiles parameter can hold.
 	/// @return The number of tiles returned in the tiles array.
-	int getTilesAt(const int x, const int y,
+	NAVMESH_API int getTilesAt(const int x, const int y,
 				   dtMeshTile const** tiles, const int maxTiles) const;
 	
 	/// Gets the tile reference for the tile at specified grid location.
@@ -580,55 +580,55 @@ public:
 	///  @param[in]	y		The tile's y-location. (x, y, layer)
 	///  @param[in]	layer	The tile's layer. (x, y, layer)
 	/// @return The tile reference of the tile, or 0 if there is none.
-	dtTileRef getTileRefAt(int x, int y, int layer) const;
+	NAVMESH_API dtTileRef getTileRefAt(int x, int y, int layer) const;
 
 	/// Gets the tile reference for the specified tile.
 	///  @param[in]	tile	The tile.
 	/// @return The tile reference of the tile.
-	dtTileRef getTileRef(const dtMeshTile* tile) const;
+	NAVMESH_API dtTileRef getTileRef(const dtMeshTile* tile) const;
 
 	/// Gets the tile for the specified tile reference.
 	///  @param[in]	ref		The tile reference of the tile to retrieve.
 	/// @return The tile for the specified reference, or null if the 
 	///		reference is invalid.
-	const dtMeshTile* getTileByRef(dtTileRef ref) const;
+	NAVMESH_API const dtMeshTile* getTileByRef(dtTileRef ref) const;
 	
 	/// The maximum number of tiles supported by the navigation mesh.
 	/// @return The maximum number of tiles supported by the navigation mesh.
-	int getMaxTiles() const;
+	NAVMESH_API int getMaxTiles() const;
 	
 	/// Gets the tile at the specified index.
 	///  @param[in]	i		The tile index. [Limit: 0 >= index < #getMaxTiles()]
 	/// @return The tile at the specified index.
-	const dtMeshTile* getTile(int i) const;
+	NAVMESH_API const dtMeshTile* getTile(int i) const;
 
 	/// Gets the tile and polygon for the specified polygon reference.
 	///  @param[in]		ref		The reference for the a polygon.
 	///  @param[out]	tile	The tile containing the polygon.
 	///  @param[out]	poly	The polygon.
 	/// @return The status flags for the operation.
-	dtStatus getTileAndPolyByRef(const dtPolyRef ref, const dtMeshTile** tile, const dtPoly** poly) const;
+	NAVMESH_API dtStatus getTileAndPolyByRef(const dtPolyRef ref, const dtMeshTile** tile, const dtPoly** poly) const;
 	
 	/// Returns the tile and polygon for the specified polygon reference.
 	///  @param[in]		ref		A known valid reference for a polygon.
 	///  @param[out]	tile	The tile containing the polygon.
 	///  @param[out]	poly	The polygon.
-	void getTileAndPolyByRefUnsafe(const dtPolyRef ref, const dtMeshTile** tile, const dtPoly** poly) const;
+	NAVMESH_API void getTileAndPolyByRefUnsafe(const dtPolyRef ref, const dtMeshTile** tile, const dtPoly** poly) const;
 
 	/// Checks the validity of a polygon reference.
 	///  @param[in]	ref		The polygon reference to check.
 	/// @return True if polygon reference is valid for the navigation mesh.
-	bool isValidPolyRef(dtPolyRef ref) const;
+	NAVMESH_API bool isValidPolyRef(dtPolyRef ref) const;
 	
 	/// Gets the polygon reference for the tile's base polygon.
 	///  @param[in]	tile		The tile.
 	/// @return The polygon reference for the base polygon in the specified tile.
-	dtPolyRef getPolyRefBase(const dtMeshTile* tile) const;
+	NAVMESH_API dtPolyRef getPolyRefBase(const dtMeshTile* tile) const;
 	
 	/// Gets the cluster reference for the tile's base cluster.
 	///  @param[in]	tile		The tile.
 	/// @return The cluster reference for the base cluster in the specified tile.
-	dtClusterRef getClusterRefBase(const dtMeshTile* tile) const;
+	NAVMESH_API dtClusterRef getClusterRefBase(const dtMeshTile* tile) const;
 
 	/// Gets the endpoints for an off-mesh connection, ordered by "direction of travel".
 	///  @param[in]		prevRef		The reference of the polygon before the connection.
@@ -637,29 +637,29 @@ public:
 	///  @param[out]	startPos	The start position of the off-mesh connection. [(x, y, z)]
 	///  @param[out]	endPos		The end position of the off-mesh connection. [(x, y, z)]
 	/// @return The status flags for the operation.
-	dtStatus getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyRef polyRef, const dtReal* currentPos, dtReal* startPos, dtReal* endPos) const;
+	NAVMESH_API dtStatus getOffMeshConnectionPolyEndPoints(dtPolyRef prevRef, dtPolyRef polyRef, const dtReal* currentPos, dtReal* startPos, dtReal* endPos) const;
 
 	/// Gets the specified off-mesh connection: point type.
 	///  @param[in]	ref		The polygon reference of the off-mesh connection.
 	/// @return The specified off-mesh connection, or null if the polygon reference is not valid.
-	const dtOffMeshConnection* getOffMeshConnectionByRef(dtPolyRef ref) const;
+	NAVMESH_API const dtOffMeshConnection* getOffMeshConnectionByRef(dtPolyRef ref) const;
 
 	/// Updates area and flags for specified off-mesh connection: point type
 	///  @param[in] userId	User Id of connection
 	///	 @param[in] newArea	Area code to apply
-	void updateOffMeshConnectionByUserId(unsigned long long int userId, unsigned char newArea, unsigned short newFlags);
+	NAVMESH_API void updateOffMeshConnectionByUserId(unsigned long long int userId, unsigned char newArea, unsigned short newFlags);
 
 	//@UE BEGIN
 #if WITH_NAVMESH_SEGMENT_LINKS
 	/// Gets the specified off-mesh connection: segment type
 	///  @param[in]	ref		The polygon reference of the off-mesh connection.
 	/// @return The specified off-mesh connection, or null if the polygon reference is not valid.
-	const dtOffMeshSegmentConnection* getOffMeshSegmentConnectionByRef(dtPolyRef ref) const;
+	NAVMESH_API const dtOffMeshSegmentConnection* getOffMeshSegmentConnectionByRef(dtPolyRef ref) const;
 
 	/// Updates area and flags for specified off-mesh connection: segment type
 	///  @param[in] userId	User Id of connection
 	///	 @param[in] newArea	Area code to apply
-	void updateOffMeshSegmentConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags);
+	NAVMESH_API void updateOffMeshSegmentConnectionByUserId(unsigned int userId, unsigned char newArea, unsigned short newFlags);
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 	//@UE END
 
@@ -673,44 +673,44 @@ public:
 	///  @param[in]	ref		The polygon reference.
 	///  @param[in]	flags	The new flags for the polygon.
 	/// @return The status flags for the operation.
-	dtStatus setPolyFlags(dtPolyRef ref, unsigned short flags);
+	NAVMESH_API dtStatus setPolyFlags(dtPolyRef ref, unsigned short flags);
 
 	/// Gets the user defined flags for the specified polygon.
 	///  @param[in]		ref				The polygon reference.
 	///  @param[out]	resultFlags		The polygon flags.
 	/// @return The status flags for the operation.
-	dtStatus getPolyFlags(dtPolyRef ref, unsigned short* resultFlags) const;
+	NAVMESH_API dtStatus getPolyFlags(dtPolyRef ref, unsigned short* resultFlags) const;
 
 	/// Sets the user defined area for the specified polygon.
 	///  @param[in]	ref		The polygon reference.
 	///  @param[in]	area	The new area id for the polygon. [Limit: < #DT_MAX_AREAS]
 	/// @return The status flags for the operation.
-	dtStatus setPolyArea(dtPolyRef ref, unsigned char area);
+	NAVMESH_API dtStatus setPolyArea(dtPolyRef ref, unsigned char area);
 
 	/// Gets the user defined area for the specified polygon.
 	///  @param[in]		ref			The polygon reference.
 	///  @param[out]	resultArea	The area id for the polygon.
 	/// @return The status flags for the operation.
-	dtStatus getPolyArea(dtPolyRef ref, unsigned char* resultArea) const;
+	NAVMESH_API dtStatus getPolyArea(dtPolyRef ref, unsigned char* resultArea) const;
 
 	/// Gets the size of the buffer required by #storeTileState to store the specified tile's state.
 	///  @param[in]	tile	The tile.
 	/// @return The size of the buffer required to store the state.
-	int getTileStateSize(const dtMeshTile* tile) const;
+	NAVMESH_API int getTileStateSize(const dtMeshTile* tile) const;
 	
 	/// Stores the non-structural state of the tile in the specified buffer. (Flags, area ids, etc.)
 	///  @param[in]		tile			The tile.
 	///  @param[out]	data			The buffer to store the tile's state in.
 	///  @param[in]		maxDataSize		The size of the data buffer. [Limit: >= #getTileStateSize]
 	/// @return The status flags for the operation.
-	dtStatus storeTileState(const dtMeshTile* tile, unsigned char* data, const int maxDataSize) const;
+	NAVMESH_API dtStatus storeTileState(const dtMeshTile* tile, unsigned char* data, const int maxDataSize) const;
 	
 	/// Restores the state of the tile.
 	///  @param[in]	tile			The tile.
 	///  @param[in]	data			The new state. (Obtained from #storeTileState.)
 	///  @param[in]	maxDataSize		The size of the state within the data buffer.
 	/// @return The status flags for the operation.
-	dtStatus restoreTileState(dtMeshTile* tile, const unsigned char* data, const int maxDataSize);
+	NAVMESH_API dtStatus restoreTileState(dtMeshTile* tile, const unsigned char* data, const int maxDataSize);
 	
 	/// @}
 
@@ -795,7 +795,7 @@ public:
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	/// Shift navigation mesh by provided offset
-	void applyWorldOffset(const dtReal* offset);
+	NAVMESH_API void applyWorldOffset(const dtReal* offset);
 
 	/// Helper for accessing links
 	inline dtLink& getLink(dtMeshTile* tile, unsigned int linkIdx)
@@ -822,7 +822,7 @@ public:
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
 	/// Helper for creating links in off-mesh connections
-	void linkOffMeshHelper(dtMeshTile* tile0, unsigned int polyIdx0, dtMeshTile* tile1, unsigned int polyIdx1, unsigned char side, unsigned char edge);
+	NAVMESH_API void linkOffMeshHelper(dtMeshTile* tile0, unsigned int polyIdx0, dtMeshTile* tile1, unsigned int polyIdx1, unsigned char side, unsigned char edge);
 
 	inline bool isEmpty() const
 	{
@@ -835,10 +835,10 @@ public:
 		return m_saltBits;
 	}
 
-	void applyAreaCostOrder(unsigned char* costOrder);
+	NAVMESH_API void applyAreaCostOrder(unsigned char* costOrder);
 	
 	/// Returns neighbour tile count based on side of given tile.
-	int getNeighbourTilesCountAt(const int x, const int y, const int side) const;
+	NAVMESH_API int getNeighbourTilesCountAt(const int x, const int y, const int side) const;
 
 	bool getNeighbourCoords(const int x, const int y, const int side, int& outX, int& outY) const
 	{
@@ -884,67 +884,67 @@ private:
 	};
 
 	/// Returns pointer to tile in the tile array.
-	dtMeshTile* getTile(int i);
+	NAVMESH_API dtMeshTile* getTile(int i);
 
 	/// Returns neighbour tile based on side.
-	int getTilesAt(const int x, const int y,
+	NAVMESH_API int getTilesAt(const int x, const int y,
 				   dtMeshTile** tiles, const int maxTiles) const;
 
 	/// Returns neighbour tile based on side.
-	int getNeighbourTilesAt(const int x, const int y, const int side,
+	NAVMESH_API int getNeighbourTilesAt(const int x, const int y, const int side,
 							dtMeshTile** tiles, const int maxTiles) const;
 	
 	/// [UE] Returns all polygons in neighbour tile based on portal defined by the segment.
-	int findConnectingPolys(const dtReal* va, const dtReal* vb,
+	NAVMESH_API int findConnectingPolys(const dtReal* va, const dtReal* vb,
 		const dtMeshTile* fromTile, int fromPolyIdx,
 		const dtMeshTile* tile, int side,
 		dtChunkArray<FConnectingPolyData>& cons) const;
 
 	/// Builds internal polygons links for a tile.
-	void connectIntLinks(dtMeshTile* tile);
+	NAVMESH_API void connectIntLinks(dtMeshTile* tile);
 	/// Builds internal polygons links for a tile.
-	void baseOffMeshLinks(dtMeshTile* tile);
+	NAVMESH_API void baseOffMeshLinks(dtMeshTile* tile);
 
 	/// Builds external polygon links for a tile.
-	void connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side, bool updateCLinks);
+	NAVMESH_API void connectExtLinks(dtMeshTile* tile, dtMeshTile* target, int side, bool updateCLinks);
 	/// Builds external polygon links for a tile.
-	void connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int side, bool updateCLinks);
+	NAVMESH_API void connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int side, bool updateCLinks);
 	
 	/// Removes external links at specified side.
-	void unconnectExtLinks(dtMeshTile* tile, dtMeshTile* target);
+	NAVMESH_API void unconnectExtLinks(dtMeshTile* tile, dtMeshTile* target);
 	
 	//@UE BEGIN
 #if WITH_NAVMESH_CLUSTER_LINKS
 	/// Try to connect clusters
-	void connectClusterLink(dtMeshTile* tile0, unsigned int cluster0,
+	NAVMESH_API void connectClusterLink(dtMeshTile* tile0, unsigned int cluster0,
 							dtMeshTile* tile1, unsigned int cluster1,
 							unsigned char flags, bool bCheckExisting = true);
 	
 	/// Removes cluster links at specified side.
-	void unconnectClusterLinks(dtMeshTile* tile, dtMeshTile* target);
+	NAVMESH_API void unconnectClusterLinks(dtMeshTile* tile, dtMeshTile* target);
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 	//@UE END
 
 	// TODO: These methods are duplicates from dtNavMeshQuery, but are needed for off-mesh connection finding.
 	
 	/// Queries polygons within a tile.
-	int queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, const dtReal* qmax,
+	NAVMESH_API int queryPolygonsInTile(const dtMeshTile* tile, const dtReal* qmin, const dtReal* qmax,
 							dtPolyRef* polys, const int maxPolys, bool bExcludeUnwalkable = false) const;
 	/// Find nearest polygon within a tile.
-	dtPolyRef findNearestPolyInTile(const dtMeshTile* tile, const dtReal* center,
+	NAVMESH_API dtPolyRef findNearestPolyInTile(const dtMeshTile* tile, const dtReal* center,
 									const dtReal* extents, dtReal* nearestPt, bool bExcludeUnwalkable = false) const;
-	dtPolyRef findCheapestNearPolyInTile(const dtMeshTile* tile, const dtReal* center,
+	NAVMESH_API dtPolyRef findCheapestNearPolyInTile(const dtMeshTile* tile, const dtReal* center,
 										 const dtReal* extents, dtReal* nearestPt) const;
 	/// Returns closest point on polygon.
-	void closestPointOnPolyInTile(const dtMeshTile* tile, unsigned int ip,
+	NAVMESH_API void closestPointOnPolyInTile(const dtMeshTile* tile, unsigned int ip,
 								  const dtReal* pos, dtReal* closest) const;
 
 private:
 	/// Calculates whether the tile grid location can fit in the tile indices type (currently an int)
 	///  @param[in]	tx			Tile X coord
 	///  @param[in]	ty			Tile Y coord
-	bool isTileLocInValidRange(const dtReal tx, const dtReal ty) const;
-	void calcTileLoc(const dtReal* pos, dtReal* tx, dtReal* ty) const;
+	NAVMESH_API bool isTileLocInValidRange(const dtReal tx, const dtReal ty) const;
+	NAVMESH_API void calcTileLoc(const dtReal* pos, dtReal* tx, dtReal* ty) const;
 
 public:
 	dtNavMeshParams m_params;			///< Current initialization params.

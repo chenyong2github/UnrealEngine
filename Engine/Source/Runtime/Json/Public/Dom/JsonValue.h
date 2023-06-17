@@ -16,54 +16,54 @@ class FJsonObject;
  * A Json Value is a structure that can be any of the Json Types.
  * It should never be used on its, only its derived types should be used.
  */
-class JSON_API FJsonValue
+class FJsonValue
 {
 public:
 
 	/** Returns this value as a double, logging an error and returning zero if this is not an Json Number */
-	double AsNumber() const;
+	JSON_API double AsNumber() const;
 
 	/** Returns this value as a string, logging an error and returning an empty string if not possible */
-	FString AsString() const;
+	JSON_API FString AsString() const;
 
 	/** Returns this value as a boolean, logging an error and returning false if not possible */
-	bool AsBool() const;
+	JSON_API bool AsBool() const;
 
 	/** Returns this value as an array, logging an error and returning an empty array reference if not possible */
-	const TArray< TSharedPtr<FJsonValue> >& AsArray() const;
+	JSON_API const TArray< TSharedPtr<FJsonValue> >& AsArray() const;
 
 	/** Returns this value as an object, throwing an error if this is not an Json Object */
-	virtual const TSharedPtr<FJsonObject>& AsObject() const;
+	JSON_API virtual const TSharedPtr<FJsonObject>& AsObject() const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
 	virtual bool TryGetNumber(double& OutNumber) const { return false; }
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(float& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(float& OutNumber) const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(int8& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(int8& OutNumber) const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(int16& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(int16& OutNumber) const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(int32& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(int32& OutNumber) const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(int64& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(int64& OutNumber) const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(uint8& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(uint8& OutNumber) const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(uint16& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(uint16& OutNumber) const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(uint32& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(uint32& OutNumber) const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(uint64& OutNumber) const;
+	JSON_API virtual bool TryGetNumber(uint64& OutNumber) const;
 
 	/** Tries to convert this value to a string, returning false if not possible */
 	virtual bool TryGetString(FString& OutString) const { return false; }
@@ -98,9 +98,9 @@ public:
 
 	EJson Type;
 
-	static TSharedPtr<FJsonValue> Duplicate(const TSharedPtr<FJsonValue>& Src);
+	static JSON_API TSharedPtr<FJsonValue> Duplicate(const TSharedPtr<FJsonValue>& Src);
 
-	static bool CompareEqual(const FJsonValue& Lhs, const FJsonValue& Rhs);
+	static JSON_API bool CompareEqual(const FJsonValue& Lhs, const FJsonValue& Rhs);
 
 protected:
 
@@ -109,7 +109,7 @@ protected:
 
 	virtual FString GetType() const = 0;
 
-	void ErrorMessage(const FString& InType) const;
+	JSON_API void ErrorMessage(const FString& InType) const;
 
 	friend inline bool operator==(const FJsonValue& Lhs, const FJsonValue& Rhs)
 	{
@@ -124,7 +124,7 @@ protected:
 
 
 /** A Json String Value. */
-class JSON_API FJsonValueString : public FJsonValue
+class FJsonValueString : public FJsonValue
 {
 public:
 	FJsonValueString(const FString& InString) : Value(InString) {Type = EJson::String;}
@@ -149,7 +149,7 @@ protected:
 
 
 /** A Json Number Value. */
-class JSON_API FJsonValueNumber : public FJsonValue
+class FJsonValueNumber : public FJsonValue
 {
 public:
 	FJsonValueNumber(double InNumber) : Value(InNumber) {Type = EJson::Number;}
@@ -166,7 +166,7 @@ protected:
 
 
 /** A Json Number Value, stored internally as a string so as not to lose precision */
-class JSON_API FJsonValueNumberString : public FJsonValue
+class FJsonValueNumberString : public FJsonValue
 {
 public:
 	FJsonValueNumberString(const FString& InString) : Value(InString) { Type = EJson::Number; }
@@ -194,7 +194,7 @@ protected:
 
 
 /** A Json Boolean Value. */
-class JSON_API FJsonValueBoolean : public FJsonValue
+class FJsonValueBoolean : public FJsonValue
 {
 public:
 	FJsonValueBoolean(bool InBool) : Value(InBool) {Type = EJson::Boolean;}
@@ -210,7 +210,7 @@ protected:
 
 
 /** A Json Array Value. */
-class JSON_API FJsonValueArray : public FJsonValue
+class FJsonValueArray : public FJsonValue
 {
 public:
 	FJsonValueArray(const TArray< TSharedPtr<FJsonValue> >& InArray) : Value(InArray) {Type = EJson::Array;}
@@ -226,7 +226,7 @@ protected:
 
 
 /** A Json Object Value. */
-class JSON_API FJsonValueObject : public FJsonValue
+class FJsonValueObject : public FJsonValue
 {
 public:
 	FJsonValueObject(TSharedPtr<FJsonObject> InObject) : Value(MoveTemp(InObject)) {Type = EJson::Object;}
@@ -241,7 +241,7 @@ protected:
 
 
 /** A Json Null Value. */
-class JSON_API FJsonValueNull : public FJsonValue
+class FJsonValueNull : public FJsonValue
 {
 public:
 	FJsonValueNull() {Type = EJson::Null;}

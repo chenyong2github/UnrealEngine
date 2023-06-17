@@ -11,8 +11,8 @@
  * Cooldown task node.
  * Sets a cooldown tag value.  Use with cooldown tag decorators to prevent behavior tree execution.
  */
-UCLASS()
-class AIMODULE_API UBTTask_SetTagCooldown : public UBTTaskNode
+UCLASS(MinimalAPI)
+class UBTTask_SetTagCooldown : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,10 +28,10 @@ class AIMODULE_API UBTTask_SetTagCooldown : public UBTTaskNode
 	UPROPERTY(Category = Cooldown, EditAnywhere)
 	float CooldownDuration;
 
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 };

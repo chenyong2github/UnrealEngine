@@ -37,7 +37,7 @@ using FGuidReferencesMap = TMap<int32, FGuidReferences>;
  * Guid References may also be nested in properties (like dynamic arrays), so we'll recursively track
  * those as well.
  */
-class NETCORE_API FGuidReferences
+class FGuidReferences
 {
 public:
 	FGuidReferences():
@@ -74,7 +74,7 @@ public:
 		Array(InArray)
 	{}
 
-	~FGuidReferences();
+	NETCORE_API ~FGuidReferences();
 
 	FGuidReferences& operator=(const FGuidReferences& Other) = delete;
 

@@ -267,16 +267,16 @@ struct FCameraFocusSettings
 	{}
 };
 
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Cinematic Camera"))
-class CINEMATICCAMERA_API UCineCameraSettings : public UDeveloperSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Cinematic Camera"), MinimalAPI)
+class UCineCameraSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 
 public:
-	virtual void PostInitProperties() override;
+	CINEMATICCAMERA_API virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CINEMATICCAMERA_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	/** Name of the default lens preset */
@@ -311,24 +311,24 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetCropPresets, Category=Crop, meta=(TitleProperty=Name))
 	TArray<FNamedPlateCropPreset> CropPresets;
 
-	static TArray<FNamedLensPreset> const& GetLensPresets();
-	static TArray<FNamedFilmbackPreset> const& GetFilmbackPresets();
-	static TArray<FNamedPlateCropPreset> const& GetCropPresets();
+	static CINEMATICCAMERA_API TArray<FNamedLensPreset> const& GetLensPresets();
+	static CINEMATICCAMERA_API TArray<FNamedFilmbackPreset> const& GetFilmbackPresets();
+	static CINEMATICCAMERA_API TArray<FNamedPlateCropPreset> const& GetCropPresets();
 
 	// Gets the Lens settings associated with a given preset name
 	// Returns true if a preset with the given name was found
 	UFUNCTION(BlueprintCallable, Category=Cinematics, meta=(ReturnDisplayName = "Success"))
-	bool GetLensPresetByName(const FString PresetName, FCameraLensSettings& LensSettings);
+	CINEMATICCAMERA_API bool GetLensPresetByName(const FString PresetName, FCameraLensSettings& LensSettings);
 
 	// Gets the Filmback settings associated with a given preset name
 	// Returns true if a preset with the given name was found
 	UFUNCTION(BlueprintCallable, Category=Cinematics, meta=(ReturnDisplayName = "Success"))
-	bool GetFilmbackPresetByName(const FString PresetName, FCameraFilmbackSettings& FilmbackSettings);
+	CINEMATICCAMERA_API bool GetFilmbackPresetByName(const FString PresetName, FCameraFilmbackSettings& FilmbackSettings);
 
 	// Gets the Crop settings associated with a given preset name
 	// Returns true if a preset with the given name was found
 	UFUNCTION(BlueprintCallable, Category=Cinematics, meta=(ReturnDisplayName = "Success"))
-	bool GetCropPresetByName(const FString PresetName, FPlateCropSettings& CropSettings);
+	CINEMATICCAMERA_API bool GetCropPresetByName(const FString PresetName, FPlateCropSettings& CropSettings);
 
 private:
 	UFUNCTION(BlueprintCallable, Category=Cinematics)

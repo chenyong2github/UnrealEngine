@@ -8,26 +8,26 @@
 
 namespace Audio
 {
-	class SIGNALPROCESSING_API FAudioFileWriter
+	class FAudioFileWriter
 	{
 	public:
 		// Constructor. Takes an absolute file path and metadata about the audio in question.
 		// Immediately allocates all data necessary.
-		FAudioFileWriter(const FString& InPath, const FSoundQualityInfo& InInfo);
+		SIGNALPROCESSING_API FAudioFileWriter(const FString& InPath, const FSoundQualityInfo& InInfo);
 
 		// Calling the destructor on this class finalizes and closes out the file.
-		~FAudioFileWriter();
+		SIGNALPROCESSING_API ~FAudioFileWriter();
 
 		// Returns file information.
-		void GetFileInfo(FSoundQualityInfo& OutInfo);
+		SIGNALPROCESSING_API void GetFileInfo(FSoundQualityInfo& OutInfo);
 
 		// Use this to push audio to the file writer.
 		// If you'd like to move encoding and file writing to a separate thread from PushAudio,
 		// Call this with bEncodeIfPossible = false.
-		bool PushAudio(const float* InAudio, int32 NumSamples, bool bEncodeIfPossible = true);
+		SIGNALPROCESSING_API bool PushAudio(const float* InAudio, int32 NumSamples, bool bEncodeIfPossible = true);
 
 		// If PushAudio is called with bEncodeIfPossible set to false, this will need to be called.
-		bool EncodeIfPossible();
+		SIGNALPROCESSING_API bool EncodeIfPossible();
 
 	private:
 		FAudioFileWriter();

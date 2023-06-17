@@ -32,15 +32,15 @@ namespace EBTBlackboardRestart
  * Blackboard decorator node.
  * A decorator node that bases its condition on a Blackboard key.
  */
-UCLASS(HideCategories=(Condition))
-class AIMODULE_API UBTDecorator_Blackboard : public UBTDecorator_BlackboardBase
+UCLASS(HideCategories=(Condition), MinimalAPI)
+class UBTDecorator_Blackboard : public UBTDecorator_BlackboardBase
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
-	virtual EBlackboardNotificationResult OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID) override;
-	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
+	AIMODULE_API virtual EBlackboardNotificationResult OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID) override;
+	AIMODULE_API virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 protected:
 
@@ -84,22 +84,22 @@ protected:
 #if WITH_EDITOR
 public:
 	/** describe decorator and cache it */
-	virtual void BuildDescription();
+	AIMODULE_API virtual void BuildDescription();
 protected:
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	AIMODULE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	AIMODULE_API virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 
 	/**
 	 * decorator using enum based key requires to synchronize 'StringValue' used for storage with 'IntValue' used for runtime evaluation.
 	 * @note using custom serialization version was not possible since we require blackboard and used types (e.g. UserDefinedEnumerations)
 	 * to be loaded and keys to be resolved (i.e. InitializeFromAsset).
 	 */
-	void RefreshEnumBasedDecorator(const FBlackboardEntry& Entry);
+	AIMODULE_API void RefreshEnumBasedDecorator(const FBlackboardEntry& Entry);
 
 	/** take blackboard value and evaluate decorator's condition */
-	bool EvaluateOnBlackboard(const UBlackboardComponent& BlackboardComp) const;
+	AIMODULE_API bool EvaluateOnBlackboard(const UBlackboardComponent& BlackboardComp) const;
 
 	friend FBlackboardDecoratorDetails;
 };

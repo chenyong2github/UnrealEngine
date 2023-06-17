@@ -25,14 +25,14 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /**
 * A wrapper for MeshDescription, customized for static meshes
 */
-UCLASS(BlueprintType)
-class STATICMESHDESCRIPTION_API UStaticMeshDescription : public UMeshDescriptionBase
+UCLASS(BlueprintType, MinimalAPI)
+class UStaticMeshDescription : public UMeshDescriptionBase
 {
 public:
 	GENERATED_BODY()
 
 	/** Register attributes required by static mesh description */
-	virtual void RegisterAttributes() override;
+	STATICMESHDESCRIPTION_API virtual void RegisterAttributes() override;
 
 	virtual FStaticMeshAttributes& GetRequiredAttributes() override
 	{ 
@@ -45,13 +45,13 @@ public:
 	}
 
 	UFUNCTION(BlueprintPure, Category="MeshDescription")
-	FVector2D GetVertexInstanceUV(FVertexInstanceID VertexInstanceID, int32 UVIndex = 0) const;
+	STATICMESHDESCRIPTION_API FVector2D GetVertexInstanceUV(FVertexInstanceID VertexInstanceID, int32 UVIndex = 0) const;
 
 	UFUNCTION(BlueprintCallable, Category="MeshDescription")
-	void SetVertexInstanceUV(FVertexInstanceID VertexInstanceID, FVector2D UV, int32 UVIndex = 0);
+	STATICMESHDESCRIPTION_API void SetVertexInstanceUV(FVertexInstanceID VertexInstanceID, FVector2D UV, int32 UVIndex = 0);
 
 	UFUNCTION(BlueprintCallable, Category="MeshDescription")
-	void CreateCube(FVector Center, FVector HalfExtents, FPolygonGroupID PolygonGroup,
+	STATICMESHDESCRIPTION_API void CreateCube(FVector Center, FVector HalfExtents, FPolygonGroupID PolygonGroup,
 					FPolygonID& PolygonID_PlusX,
 					FPolygonID& PolygonID_MinusX,
 					FPolygonID& PolygonID_PlusY,
@@ -60,7 +60,7 @@ public:
 					FPolygonID& PolygonID_MinusZ);
 
 	UFUNCTION(BlueprintCallable, Category="MeshDescription")
-	void SetPolygonGroupMaterialSlotName(FPolygonGroupID PolygonGroupID, const FName& SlotName);
+	STATICMESHDESCRIPTION_API void SetPolygonGroupMaterialSlotName(FPolygonGroupID PolygonGroupID, const FName& SlotName);
 
 public:
 

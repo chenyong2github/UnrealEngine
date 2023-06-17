@@ -14,7 +14,7 @@ struct FVideoDecoderAllocFrameBufferResult;
 namespace AVEncoder
 {
 
-	class AVENCODER_API FVideoDecoderInput
+	class FVideoDecoderInput
 	{
 	public:
 
@@ -32,7 +32,7 @@ namespace AVEncoder
 			bool		bMissingFrames = false;
 		};
 
-		static TSharedPtr<FVideoDecoderInput> Create(const FInputData& InInputData);
+		static AVENCODER_API TSharedPtr<FVideoDecoderInput> Create(const FInputData& InInputData);
 
 		virtual int32 GetWidth() const = 0;
 		virtual int32 GetHeight() const = 0;
@@ -54,7 +54,7 @@ namespace AVEncoder
 
 
 
-	class AVENCODER_API FVideoDecoderOutput
+	class FVideoDecoderOutput
 	{
 	public:
 		virtual int32 AddRef() = 0;

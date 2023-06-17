@@ -13,7 +13,7 @@
  * Yaw and Pitch directions for a referenced aim offset given a point in the world to look at.
  */
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_AimOffsetLookAt : public FAnimNode_BlendSpacePlayer
+struct FAnimNode_AimOffsetLookAt : public FAnimNode_BlendSpacePlayer
 {
 	GENERATED_BODY()
 
@@ -72,21 +72,21 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AimOffsetLookAt : public FAnimNode_BlendSp
 	bool bIsLODEnabled;
 
 public:
-	FAnimNode_AimOffsetLookAt();
+	ANIMGRAPHRUNTIME_API FAnimNode_AimOffsetLookAt();
 
 	// FAnimNode_Base interface
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	ANIMGRAPHRUNTIME_API virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual int32 GetLODThreshold() const override { return LODThreshold; }
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_BlendSpacePlayer interface
-	virtual FVector GetPosition() const override;
+	ANIMGRAPHRUNTIME_API virtual FVector GetPosition() const override;
 
-	void UpdateFromLookAtTarget(FPoseContext& LocalPoseContext);
+	ANIMGRAPHRUNTIME_API void UpdateFromLookAtTarget(FPoseContext& LocalPoseContext);
 };

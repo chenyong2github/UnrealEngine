@@ -10,8 +10,8 @@
 #include "PanelWidget.generated.h"
 
 /** The base class for all UMG panel widgets.  Panel widgets layout a collection of child widgets. */
-UCLASS(Abstract)
-class UMG_API UPanelWidget : public UWidget
+UCLASS(Abstract, MinimalAPI)
+class UPanelWidget : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,7 +25,7 @@ public:
 
 	/** Gets number of child widgets in the container. */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	int32 GetChildrenCount() const;
+	UMG_API int32 GetChildrenCount() const;
 
 	/**
 	 * Gets the widget at an index.
@@ -33,30 +33,30 @@ public:
 	 * @return The widget at the given index, or nothing if there is no widget there.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	UWidget* GetChildAt(int32 Index) const;
+	UMG_API UWidget* GetChildAt(int32 Index) const;
 	
 	/** Gets all widgets in the container */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	TArray<UWidget*> GetAllChildren() const;
+	UMG_API TArray<UWidget*> GetAllChildren() const;
 
 	/** Gets the index of a specific child widget */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	int32 GetChildIndex(const UWidget* Content) const;
+	UMG_API int32 GetChildIndex(const UWidget* Content) const;
 
 	/** Returns true if panel contains this widget */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	bool HasChild(UWidget* Content) const;
+	UMG_API bool HasChild(UWidget* Content) const;
 
 	/** Removes a child by it's index. */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	bool RemoveChildAt(int32 Index);
+	UMG_API bool RemoveChildAt(int32 Index);
 
 	/**
 	 * Adds a new child widget to the container.  Returns the base slot type, 
 	 * requires casting to turn it into the type specific to the container.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	UPanelSlot* AddChild(UWidget* Content);
+	UMG_API UPanelSlot* AddChild(UWidget* Content);
 
 #if WITH_EDITOR
 
@@ -67,7 +67,7 @@ public:
 	 * @param Content The content to replace the child with.
 	 * @return true if the index existed and the child could be replaced.
 	 */
-	bool ReplaceChildAt(int32 Index, UWidget* Content);
+	UMG_API bool ReplaceChildAt(int32 Index, UWidget* Content);
 
 	/**
 	 * Swaps the child widget out of the slot, and replaces it with the new child widget.
@@ -75,20 +75,20 @@ public:
 	 * @param NewChild The new child widget being inserted.
 	 * @return true if the CurrentChild was found and the swap occurred, otherwise false.
 	 */
-	virtual bool ReplaceChild(UWidget* CurrentChild, UWidget* NewChild);
+	UMG_API virtual bool ReplaceChild(UWidget* CurrentChild, UWidget* NewChild);
 
 	/**
 	 * Inserts a widget at a specific index.  This does not update the live slate version, it requires
 	 * a rebuild of the whole UI to see a change.
 	 */
-	UPanelSlot* InsertChildAt(int32 Index, UWidget* Content);
+	UMG_API UPanelSlot* InsertChildAt(int32 Index, UWidget* Content);
 
 	/**
 	 * Moves the child widget from its current index to the new index provided.
 	 */
-	void ShiftChild(int32 Index, UWidget* Child);
+	UMG_API void ShiftChild(int32 Index, UWidget* Child);
 
-	virtual void SetDesignerFlags(EWidgetDesignFlags NewFlags) override;
+	UMG_API virtual void SetDesignerFlags(EWidgetDesignFlags NewFlags) override;
 
 #endif
 
@@ -97,18 +97,18 @@ public:
 	 * @return true if the widget was found and removed.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	bool RemoveChild(UWidget* Content);
+	UMG_API bool RemoveChild(UWidget* Content);
 
 	/** Returns true if there are any child widgets in the panel */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	bool HasAnyChildren() const;
+	UMG_API bool HasAnyChildren() const;
 
 	/** Remove all child widgets from the panel widget. */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	virtual void ClearChildren();
+	UMG_API virtual void ClearChildren();
 
 	/** The slots in the widget holding the child widgets of this panel. */
-	const TArray<UPanelSlot*>& GetSlots() const;
+	UMG_API const TArray<UPanelSlot*>& GetSlots() const;
 
 	/** Returns true if the panel supports more than one child. */
 	bool CanHaveMultipleChildren() const
@@ -122,7 +122,7 @@ public:
 		return CanHaveMultipleChildren() || GetChildrenCount() == 0;
 	}
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
 	virtual bool LockToPanelOnDrag() const
@@ -144,13 +144,13 @@ public:
 #endif
 
 	// Begin UObject
-	virtual void PostLoad() override;
+	UMG_API virtual void PostLoad() override;
 	// End UObject
 
 protected:
 
 #if WITH_EDITOR
-	virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content) override;
+	UMG_API virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content) override;
 #endif
 
 	virtual UClass* GetSlotClass() const

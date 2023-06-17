@@ -28,13 +28,13 @@ using MetronomeCommandQueuePtr = TSharedPtr<Audio::TQuartzShareableCommandQueue<
 
 
 
-struct AUDIOMIXER_API FQuartzTickableObjectsManager : public FQuartLatencyTracker
+struct FQuartzTickableObjectsManager : public FQuartLatencyTracker
 {
 public:
-	void Tick(float DeltaTime);
-	bool IsTickable() const;
-	void SubscribeToQuartzTick(FQuartzTickableObject* InObjectToTick);
-	void UnsubscribeFromQuartzTick(FQuartzTickableObject* InObjectToTick);
+	AUDIOMIXER_API void Tick(float DeltaTime);
+	AUDIOMIXER_API bool IsTickable() const;
+	AUDIOMIXER_API void SubscribeToQuartzTick(FQuartzTickableObject* InObjectToTick);
+	AUDIOMIXER_API void UnsubscribeFromQuartzTick(FQuartzTickableObject* InObjectToTick);
 
 private:
 	// list of objects needing to be ticked by Quartz
@@ -45,8 +45,8 @@ private:
 };
 
 
-UCLASS(DisplayName = "Quartz")
-class AUDIOMIXER_API UQuartzSubsystem : public UTickableWorldSubsystem
+UCLASS(DisplayName = "Quartz", MinimalAPI)
+class UQuartzSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -56,131 +56,131 @@ public:
 	virtual ~UQuartzSubsystem() override = default;
 
 	//~ Begin UWorldSubsystem Interface
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
-	virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
-	void virtual BeginDestroy() override;
+	AUDIOMIXER_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	AUDIOMIXER_API virtual void Deinitialize() override;
+	AUDIOMIXER_API virtual bool DoesSupportWorldType(EWorldType::Type WorldType) const override;
+	AUDIOMIXER_API void virtual BeginDestroy() override;
 	//~ End UWorldSubsystem Interface
 
 	//~ Begin FTickableGameObject Interface
-	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const override;
-	virtual TStatId GetStatId() const override;
+	AUDIOMIXER_API virtual void Tick(float DeltaTime) override;
+	AUDIOMIXER_API virtual bool IsTickable() const override;
+	AUDIOMIXER_API virtual TStatId GetStatId() const override;
 	//~ End FTickableGameObject Interface
 
 	// these calls are forwarded to the internal FQuartzTickableObjectsManager
-	void SubscribeToQuartzTick(FQuartzTickableObject* InObjectToTick);
-	void UnsubscribeFromQuartzTick(FQuartzTickableObject* InObjectToTick);
+	AUDIOMIXER_API void SubscribeToQuartzTick(FQuartzTickableObject* InObjectToTick);
+	AUDIOMIXER_API void UnsubscribeFromQuartzTick(FQuartzTickableObject* InObjectToTick);
 
 	// get C++ handle (proxy) to a clock if it exists
-	Audio::FQuartzClockProxy GetProxyForClock(FName ClockName) const;
+	AUDIOMIXER_API Audio::FQuartzClockProxy GetProxyForClock(FName ClockName) const;
 
 	// allow an external clock (not ticked by the Audio Mixer or QuartzSubsystem) to be accessible via this subsystem
-	void AddProxyForExternalClock(const Audio::FQuartzClockProxy& InProxy);
+	AUDIOMIXER_API void AddProxyForExternalClock(const Audio::FQuartzClockProxy& InProxy);
 
 	// static methods
-	static UQuartzSubsystem* Get(const UWorld* const World);
+	static AUDIOMIXER_API UQuartzSubsystem* Get(const UWorld* const World);
 
 	// Helper functions for initializing quantized command initialization struct (to consolidate eyesore)
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForTickRateChange(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& InNewTickRate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForTransportReset(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForStartOtherClock(UQuartzClockHandle* InClockHandle, FName InClockToStart, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForSchedulePlaySound(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
-	static Audio::FQuartzQuantizedRequestData CreateRequestDataForQuantizedNotify(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float InMsOffset = 0.f);
+	static AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateRequestDataForTickRateChange(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& InNewTickRate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
+	static AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateRequestDataForTransportReset(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
+	static AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateRequestDataForStartOtherClock(UQuartzClockHandle* InClockHandle, FName InClockToStart, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
+	static AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateRequestDataForSchedulePlaySound(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
+	static AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateRequestDataForQuantizedNotify(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate, float InMsOffset = 0.f);
 
 	// DEPRECATED HELPERS: non-static versions of the above CreateDataFor...() functions
 	UE_DEPRECATED(5.1, "Use the static (CreateRequestDataFor) version of this function instead")
-	Audio::FQuartzQuantizedRequestData CreateDataForTickRateChange(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& InNewTickRate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
+	AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateDataForTickRateChange(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const Audio::FQuartzClockTickRate& InNewTickRate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
 
 	UE_DEPRECATED(5.1, "Use the static (CreateRequestDataFor) version of this function instead")
-	Audio::FQuartzQuantizedRequestData CreateDataForTransportReset(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
+	AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateDataForTransportReset(UQuartzClockHandle* InClockHandle, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
 	
 	UE_DEPRECATED(5.1, "Use the static (CreateRequestDataFor) version of this function instead")
-	Audio::FQuartzQuantizedRequestData CreateDataForStartOtherClock(UQuartzClockHandle* InClockHandle, FName InClockToStart, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
+	AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateDataForStartOtherClock(UQuartzClockHandle* InClockHandle, FName InClockToStart, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate);
 
 	UE_DEPRECATED(5.1, "Use the static (CreateRequestDataFor) version of this function instead")
-	Audio::FQuartzQuantizedRequestData CreateDataDataForSchedulePlaySound(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
+	AUDIOMIXER_API Audio::FQuartzQuantizedRequestData CreateDataDataForSchedulePlaySound(UQuartzClockHandle* InClockHandle, const FOnQuartzCommandEventBP& InDelegate, const FQuartzQuantizationBoundary& InQuantizationBoundary);
 
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle")
-	bool IsQuartzEnabled();
+	AUDIOMIXER_API bool IsQuartzEnabled();
 
 	// Clock Creation
 	// create a new clock (or return handle if clock already exists)
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "bUseAudioEngineClockManager"))
-	UQuartzClockHandle* CreateNewClock(const UObject* WorldContextObject, FName ClockName, FQuartzClockSettings InSettings, bool bOverrideSettingsIfClockExists = false, bool bUseAudioEngineClockManager = true);
+	AUDIOMIXER_API UQuartzClockHandle* CreateNewClock(const UObject* WorldContextObject, FName ClockName, FQuartzClockSettings InSettings, bool bOverrideSettingsIfClockExists = false, bool bUseAudioEngineClockManager = true);
 
 	// delete an existing clock given its name
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
-	void DeleteClockByName(const UObject* WorldContextObject, FName ClockName);
+	AUDIOMIXER_API void DeleteClockByName(const UObject* WorldContextObject, FName ClockName);
 
 	// delete an existing clock given its clock handle
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
-	void DeleteClockByHandle(const UObject* WorldContextObject, UPARAM(ref) UQuartzClockHandle*& InClockHandle);
+	AUDIOMIXER_API void DeleteClockByHandle(const UObject* WorldContextObject, UPARAM(ref) UQuartzClockHandle*& InClockHandle);
 
 	// get handle for existing clock
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
-	UQuartzClockHandle* GetHandleForClock(const UObject* WorldContextObject, FName ClockName);
+	AUDIOMIXER_API UQuartzClockHandle* GetHandleForClock(const UObject* WorldContextObject, FName ClockName);
 
 	// returns true if the clock exists
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
-	bool DoesClockExist(const UObject* WorldContextObject, FName ClockName);
+	AUDIOMIXER_API bool DoesClockExist(const UObject* WorldContextObject, FName ClockName);
 
 	// returns true if the clock is running
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
-	bool IsClockRunning(const UObject* WorldContextObject, FName ClockName);
+	AUDIOMIXER_API bool IsClockRunning(const UObject* WorldContextObject, FName ClockName);
 
 	// Returns the duration in seconds of the given Quantization Type
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
-	float GetDurationOfQuantizationTypeInSeconds(const UObject* WorldContextObject, FName ClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier = 1.0f);
+	AUDIOMIXER_API float GetDurationOfQuantizationTypeInSeconds(const UObject* WorldContextObject, FName ClockName, const EQuartzCommandQuantization& QuantizationType, float Multiplier = 1.0f);
 
 	// Retrieves a timestamp for the clock
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
-	FQuartzTransportTimeStamp GetCurrentClockTimestamp(const UObject* WorldContextObject, const FName& InClockName);
+	AUDIOMIXER_API FQuartzTransportTimeStamp GetCurrentClockTimestamp(const UObject* WorldContextObject, const FName& InClockName);
 
 	// Returns the amount of time, in seconds, the clock has been running. Caution: due to latency, this will not be perfectly accurate
 	UFUNCTION(BlueprintCallable, Category = "Quartz Clock Handle", meta = (WorldContext = "WorldContextObject"))
-	float GetEstimatedClockRunTime(const UObject* WorldContextObject, const FName& InClockName);
+	AUDIOMIXER_API float GetEstimatedClockRunTime(const UObject* WorldContextObject, const FName& InClockName);
 
 	// latency data (Game thread -> Audio Render Thread)
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
-	float GetGameThreadToAudioRenderThreadAverageLatency(const UObject* WorldContextObject);
+	AUDIOMIXER_API float GetGameThreadToAudioRenderThreadAverageLatency(const UObject* WorldContextObject);
 
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
-	float GetGameThreadToAudioRenderThreadMinLatency(const UObject* WorldContextObject);
+	AUDIOMIXER_API float GetGameThreadToAudioRenderThreadMinLatency(const UObject* WorldContextObject);
 
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
-	float GetGameThreadToAudioRenderThreadMaxLatency(const UObject* WorldContextObject);
+	AUDIOMIXER_API float GetGameThreadToAudioRenderThreadMaxLatency(const UObject* WorldContextObject);
 
 	// latency data (Audio Render Thread -> Game thread)
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem")
-	float GetAudioRenderThreadToGameThreadAverageLatency();
+	AUDIOMIXER_API float GetAudioRenderThreadToGameThreadAverageLatency();
 
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem")
-	float GetAudioRenderThreadToGameThreadMinLatency();
+	AUDIOMIXER_API float GetAudioRenderThreadToGameThreadMinLatency();
 
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem")
-	float GetAudioRenderThreadToGameThreadMaxLatency();
+	AUDIOMIXER_API float GetAudioRenderThreadToGameThreadMaxLatency();
 
 	// latency data (Round trip)
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
-	float GetRoundTripAverageLatency(const UObject* WorldContextObject);
+	AUDIOMIXER_API float GetRoundTripAverageLatency(const UObject* WorldContextObject);
 
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
-	float GetRoundTripMinLatency(const UObject* WorldContextObject);
+	AUDIOMIXER_API float GetRoundTripMinLatency(const UObject* WorldContextObject);
 
 	UFUNCTION(BlueprintCallable, Category = "Quartz Subsystem", meta = (WorldContext = "WorldContextObject"))
-	float GetRoundTripMaxLatency(const UObject* WorldContextObject);
+	AUDIOMIXER_API float GetRoundTripMaxLatency(const UObject* WorldContextObject);
 
 	UE_DEPRECATED(5.1, "Obtain and use a UQuartzClockHandle / FQuartzClockProxy instead")
-	void AddCommandToClock(const UObject* WorldContextObject, Audio::FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo, FName ClockName);
+	AUDIOMIXER_API void AddCommandToClock(const UObject* WorldContextObject, Audio::FQuartzQuantizedCommandInitInfo& InQuantizationCommandInitInfo, FName ClockName);
 
 	// sharable to allow non-UObjects to un-subscribe if the Subsystem is going to outlive them
-	TWeakPtr<FQuartzTickableObjectsManager> GetTickableObjectManager() const;
+	AUDIOMIXER_API TWeakPtr<FQuartzTickableObjectsManager> GetTickableObjectManager() const;
 
 private:
 	// deletes proxies to clocks that no longer exists
-	void PruneStaleProxies();
-	static void PruneStaleProxiesInternal(TArray<Audio::FQuartzClockProxy>& ContainerToPrune);
+	AUDIOMIXER_API void PruneStaleProxies();
+	static AUDIOMIXER_API void PruneStaleProxiesInternal(TArray<Audio::FQuartzClockProxy>& ContainerToPrune);
 
 
 	// sharable tickable object manager to allow for non-UObject subscription / un-subscription
@@ -190,8 +190,8 @@ private:
 	TSharedPtr<Audio::FPersistentQuartzSubsystemData> ClockManagerDataPtr { nullptr };
 
 	// helpers
-	Audio::FQuartzClockProxy* FindProxyByName(const FName& ClockName);
-	Audio::FQuartzClockProxy const* FindProxyByName(const FName& ClockName) const;
-	Audio::FQuartzClockManager* GetClockManager(const UObject* WorldContextObject, bool bUseAudioEngineClockManager = true);
+	AUDIOMIXER_API Audio::FQuartzClockProxy* FindProxyByName(const FName& ClockName);
+	AUDIOMIXER_API Audio::FQuartzClockProxy const* FindProxyByName(const FName& ClockName) const;
+	AUDIOMIXER_API Audio::FQuartzClockManager* GetClockManager(const UObject* WorldContextObject, bool bUseAudioEngineClockManager = true);
 
 }; // class UQuartzGameSubsystem

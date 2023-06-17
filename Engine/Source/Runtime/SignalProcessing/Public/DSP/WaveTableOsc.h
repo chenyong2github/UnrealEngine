@@ -27,48 +27,48 @@ namespace Audio
 
 
 	// A wave table oscillator class
-	class SIGNALPROCESSING_API FWaveTableOsc
+	class FWaveTableOsc
 	{
 	public:
 		// Constructor
-		FWaveTableOsc();
+		SIGNALPROCESSING_API FWaveTableOsc();
 
 		// Virtual Destructor
-		virtual ~FWaveTableOsc();
+		SIGNALPROCESSING_API virtual ~FWaveTableOsc();
 
 		// Initialize the wave table oscillator
-		void Init(const float InSampleRate, const float InFrequencyHz);
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const float InFrequencyHz);
 
 		// Sets the sample rate of the oscillator.
-		void SetSampleRate(const float InSampleRate);
+		SIGNALPROCESSING_API void SetSampleRate(const float InSampleRate);
 
 		// Resets the wave table read indices.
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		// Sets the amount to scale and add to the output of the wave table
-		void SetScaleAdd(const float InScale, const float InAdd);
+		SIGNALPROCESSING_API void SetScaleAdd(const float InScale, const float InAdd);
 
 		// Returns the type of the wave table oscillator.
 		EWaveTable::Type GetType() const { return WaveTableType; }
 
 		// Sets the frequency of the wave table oscillator.
-		void SetFrequencyHz(const float InFrequencyHz);
+		SIGNALPROCESSING_API void SetFrequencyHz(const float InFrequencyHz);
 
 		// Returns the frequency of the wave table oscillator.
 		float GetFrequencyHz() const { return FrequencyHz; }
 
 		// Returns the internal table used in the wave table.
-		TArray<float>& GetTable();
-		const TArray<float>& GetTable() const;
+		SIGNALPROCESSING_API TArray<float>& GetTable();
+		SIGNALPROCESSING_API const TArray<float>& GetTable() const;
 
 		// Processes the wave table, outputs the normal and quad phase (optional) values 
-		void Generate(float* OutputNormalPhase, float* OutputQuadPhase = nullptr);
+		SIGNALPROCESSING_API void Generate(float* OutputNormalPhase, float* OutputQuadPhase = nullptr);
 
 		// Creates a wave table using internal factories for standard wave tables or uses custom wave table factor if it exists.
-		static TSharedPtr<FWaveTableOsc> CreateWaveTable(const EWaveTable::Type WaveTableType, const int32 WaveTableSize = 1024);
+		static SIGNALPROCESSING_API TSharedPtr<FWaveTableOsc> CreateWaveTable(const EWaveTable::Type WaveTableType, const int32 WaveTableSize = 1024);
 
 	protected:
-		void UpdateFrequency();
+		SIGNALPROCESSING_API void UpdateFrequency();
 
 		// The wave table buffer
 		TArray<float> WaveTableBuffer;

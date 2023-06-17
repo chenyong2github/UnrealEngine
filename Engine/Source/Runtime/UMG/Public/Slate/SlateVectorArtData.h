@@ -80,39 +80,39 @@ struct FSlateMeshVertex
 /**
  * Turn static mesh data into Slate's simple vector art format.
  */
-UCLASS()
-class UMG_API USlateVectorArtData : public UObject
+UCLASS(MinimalAPI)
+class USlateVectorArtData : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/** Access the slate vertexes. */
-	const TArray<FSlateMeshVertex>& GetVertexData() const;
+	UMG_API const TArray<FSlateMeshVertex>& GetVertexData() const;
 	
 	/** Access the indexes for the order in which to draw the vertexes. */
-	const TArray<uint32>& GetIndexData() const;
+	UMG_API const TArray<uint32>& GetIndexData() const;
 	
 	/** Material to be used with the specified vector art data. */
-	UMaterialInterface* GetMaterial() const;
+	UMG_API UMaterialInterface* GetMaterial() const;
 	
 	/** Convert the material into an MID and get a pointer to the MID so that parameters can be set on it. */
-	UMaterialInstanceDynamic* ConvertToMaterialInstanceDynamic();
+	UMG_API UMaterialInstanceDynamic* ConvertToMaterialInstanceDynamic();
 
 	/** Convert the static mesh data into slate vector art on demand. Does nothing in a cooked build. */
-	void EnsureValidData();
+	UMG_API void EnsureValidData();
 
-	FVector2D GetDesiredSize() const;
+	UMG_API FVector2D GetDesiredSize() const;
 
-	FVector2D GetExtentMin() const;
+	UMG_API FVector2D GetExtentMin() const;
 
-	FVector2D GetExtentMax() const;
+	UMG_API FVector2D GetExtentMax() const;
 
 private:
 	// ~ UObject Interface
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	UMG_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+	UMG_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	// ~ UObject Interface
 

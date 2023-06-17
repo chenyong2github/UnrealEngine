@@ -16,7 +16,7 @@ struct FDataflowOutput;
 class UScriptStruct;
 
 namespace Dataflow {
-	struct DATAFLOWCORE_API FNodeParameters {
+	struct FNodeParameters {
 		FName Name;
 	};
 	class FGraph;
@@ -32,7 +32,7 @@ namespace Dataflow {
 *        evaluation. 
 */
 USTRUCT()
-struct DATAFLOWCORE_API FDataflowNode
+struct FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -75,19 +75,19 @@ struct DATAFLOWCORE_API FDataflowNode
 	virtual FName GetDisplayName() const { return ""; }
 	virtual FName GetCategory() const { return ""; }
 	virtual FString GetTags() const { return ""; }
-	virtual FString GetToolTip();
-	FString GetPinToolTip(const FName& PropertyName);
-	FText GetPinDisplayName(const FName& PropertyName);
-	TArray<FString> GetPinMetaData(const FName& PropertyName);
+	DATAFLOWCORE_API virtual FString GetToolTip();
+	DATAFLOWCORE_API FString GetPinToolTip(const FName& PropertyName);
+	DATAFLOWCORE_API FText GetPinDisplayName(const FName& PropertyName);
+	DATAFLOWCORE_API TArray<FString> GetPinMetaData(const FName& PropertyName);
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParameters() const { return GetRenderParametersImpl(); }
 	// Copy node property values from another node
-	void CopyNodeProperties(const TSharedPtr<FDataflowNode> CopyFromDataflowNode);
+	DATAFLOWCORE_API void CopyNodeProperties(const TSharedPtr<FDataflowNode> CopyFromDataflowNode);
 
 	//
 	// Connections
 	//
 
-	TArray<Dataflow::FPin> GetPins() const;
+	DATAFLOWCORE_API TArray<Dataflow::FPin> GetPins() const;
 
 	/** Override this function to add the AddOptionPin functionality to the node's context menu. */
 	virtual Dataflow::FPin AddPin() { return { Dataflow::FPin::EDirection::NONE, NAME_None, NAME_None }; }
@@ -98,32 +98,32 @@ struct DATAFLOWCORE_API FDataflowNode
 	/** Override this function to add the RemoveOPtionPin functionality to the node's context menu. */
 	virtual bool CanRemovePin() const { return false; }
 
-	virtual void AddInput(FDataflowInput* InPtr);
-	TArray< FDataflowInput* > GetInputs() const;
-	void ClearInputs();
+	DATAFLOWCORE_API virtual void AddInput(FDataflowInput* InPtr);
+	DATAFLOWCORE_API TArray< FDataflowInput* > GetInputs() const;
+	DATAFLOWCORE_API void ClearInputs();
 
-	FDataflowInput* FindInput(FName Name);
-	FDataflowInput* FindInput(void* Reference);
-	const FDataflowInput* FindInput(const void* Reference) const;
+	DATAFLOWCORE_API FDataflowInput* FindInput(FName Name);
+	DATAFLOWCORE_API FDataflowInput* FindInput(void* Reference);
+	DATAFLOWCORE_API const FDataflowInput* FindInput(const void* Reference) const;
 
 
-	virtual void AddOutput(FDataflowOutput* InPtr);
-	int NumOutputs() const;
-	TArray< FDataflowOutput* > GetOutputs() const;
-	void ClearOutputs();
+	DATAFLOWCORE_API virtual void AddOutput(FDataflowOutput* InPtr);
+	DATAFLOWCORE_API int NumOutputs() const;
+	DATAFLOWCORE_API TArray< FDataflowOutput* > GetOutputs() const;
+	DATAFLOWCORE_API void ClearOutputs();
 
-	FDataflowOutput* FindOutput(FName Name);
-	FDataflowOutput* FindOutput(void* Reference);
-	const FDataflowOutput* FindOutput(FName Name) const;
-	const FDataflowOutput* FindOutput(const void* Reference) const;
+	DATAFLOWCORE_API FDataflowOutput* FindOutput(FName Name);
+	DATAFLOWCORE_API FDataflowOutput* FindOutput(void* Reference);
+	DATAFLOWCORE_API const FDataflowOutput* FindOutput(FName Name) const;
+	DATAFLOWCORE_API const FDataflowOutput* FindOutput(const void* Reference) const;
 
-	static const FName DataflowInput;
-	static const FName DataflowOutput;
-	static const FName DataflowPassthrough;
-	static const FName DataflowIntrinsic;
+	static DATAFLOWCORE_API const FName DataflowInput;
+	static DATAFLOWCORE_API const FName DataflowOutput;
+	static DATAFLOWCORE_API const FName DataflowPassthrough;
+	static DATAFLOWCORE_API const FName DataflowIntrinsic;
 
-	static const FLinearColor DefaultNodeTitleColor;
-	static const FLinearColor DefaultNodeBodyTintColor;
+	static DATAFLOWCORE_API const FLinearColor DefaultNodeTitleColor;
+	static DATAFLOWCORE_API const FLinearColor DefaultNodeBodyTintColor;
 
 	/** Override this method to provide custom serialization for this node. */
 	virtual void Serialize(FArchive& Ar) {}
@@ -137,10 +137,10 @@ struct DATAFLOWCORE_API FDataflowNode
 	virtual const UScriptStruct* TypedScriptStruct() const { return nullptr; }
 
 	/** Register the Input and Outputs after the creation in the factory */
-	void RegisterInputConnection(const void* Property);
-	void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
+	DATAFLOWCORE_API void RegisterInputConnection(const void* Property);
+	DATAFLOWCORE_API void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
 	/** Unregister the input connection if one exists matching this property, and then invalidate the graph. */
-	void UnregisterInputConnection(const void* Property);
+	DATAFLOWCORE_API void UnregisterInputConnection(const void* Property);
 
 	//
 	// Evaluation
@@ -220,11 +220,11 @@ struct DATAFLOWCORE_API FDataflowNode
 		return (FindInput(Reference)->GetConnection() != nullptr);
 	}
 
-	void Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp = Dataflow::FTimestamp::Current());
+	DATAFLOWCORE_API void Invalidate(const Dataflow::FTimestamp& ModifiedTimestamp = Dataflow::FTimestamp::Current());
 
 	virtual void OnInvalidate() {}
 
-	virtual bool ValidateConnections();
+	DATAFLOWCORE_API virtual bool ValidateConnections();
 
 	bool HasValidConnections() const { return bHasValidConnections; }
 

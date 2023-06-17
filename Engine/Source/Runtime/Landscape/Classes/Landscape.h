@@ -271,9 +271,9 @@ public:
 #if WITH_EDITOR
 	/** Computes & returns bounds containing all landscape proxies (if any) or this landscape's bounds otherwise. Note that in non-WP worlds this will call GetLoadedBounds(). */
 	LANDSCAPE_API FBox GetCompleteBounds() const;
-	LANDSCAPE_API void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
-	LANDSCAPE_API void UnregisterLandscapeEdMode() { LandscapeEdMode = nullptr; }
-	LANDSCAPE_API bool HasLandscapeEdMode() const { return LandscapeEdMode != nullptr; }
+	void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
+	void UnregisterLandscapeEdMode() { LandscapeEdMode = nullptr; }
+	bool HasLandscapeEdMode() const { return LandscapeEdMode != nullptr; }
 	LANDSCAPE_API virtual bool HasLayersContent() const override;
 	LANDSCAPE_API virtual void UpdateCachedHasLayersContent(bool bInCheckComponentDataIntegrity) override;
 	LANDSCAPE_API void RequestSplineLayerUpdate();
@@ -355,7 +355,7 @@ public:
 	LANDSCAPE_API bool GetUseGeneratedLandscapeSplineMeshesActors() const;
 	LANDSCAPE_API bool PrepareTextureResources(bool bInWaitForStreaming);
 
-	LANDSCAPE_API bool GetVisibilityLayerAllocationIndex() const { return 0; }
+	bool GetVisibilityLayerAllocationIndex() const { return 0; }
 
 protected:
 	FName GenerateUniqueLayerName(FName InName = NAME_None) const;
@@ -565,11 +565,11 @@ private:
 };
 
 #if WITH_EDITOR
-class LANDSCAPE_API FScopedSetLandscapeEditingLayer
+class FScopedSetLandscapeEditingLayer
 {
 public:
-	FScopedSetLandscapeEditingLayer(ALandscape* InLandscape, const FGuid& InLayerGUID, TFunction<void()> InCompletionCallback = TFunction<void()>());
-	~FScopedSetLandscapeEditingLayer();
+	LANDSCAPE_API FScopedSetLandscapeEditingLayer(ALandscape* InLandscape, const FGuid& InLayerGUID, TFunction<void()> InCompletionCallback = TFunction<void()>());
+	LANDSCAPE_API ~FScopedSetLandscapeEditingLayer();
 
 private:
 	TWeakObjectPtr<ALandscape> Landscape;

@@ -22,7 +22,7 @@ class UObject;
 namespace UE::FieldNotification
 {
 	
-class FIELDNOTIFICATION_API FFieldMulticastDelegate
+class FFieldMulticastDelegate
 {
 public:
 	using FDelegate = INotifyFieldValueChanged::FFieldValueChangedDelegate;
@@ -70,8 +70,8 @@ private:
 	using InvocationListType = TArray<FInvocationElement>;
 
 public:
-	FDelegateHandle Add(const UObject* InObject, FFieldId InFieldId, FDelegate InNewDelegate);
-	FDelegateHandle Add(const UObject* InObject, FFieldId InFieldId, const FDynamicDelegate& InDynamicDelegate);
+	FIELDNOTIFICATION_API FDelegateHandle Add(const UObject* InObject, FFieldId InFieldId, FDelegate InNewDelegate);
+	FIELDNOTIFICATION_API FDelegateHandle Add(const UObject* InObject, FFieldId InFieldId, const FDynamicDelegate& InDynamicDelegate);
 
 	struct FRemoveResult
 	{
@@ -80,28 +80,28 @@ public:
 		const UObject* Object = nullptr;
 		FFieldId FieldId;
 	};
-	FRemoveResult Remove(FDelegateHandle InDelegate);
-	FRemoveResult Remove(const FDynamicDelegate& InDynamicDelegate);
+	FIELDNOTIFICATION_API FRemoveResult Remove(FDelegateHandle InDelegate);
+	FIELDNOTIFICATION_API FRemoveResult Remove(const FDynamicDelegate& InDynamicDelegate);
 
 	struct FRemoveFromResult
 	{
 		bool bRemoved = false;
 		bool bHasOtherBoundDelegates = false;
 	};
-	FRemoveFromResult RemoveFrom(const UObject* InObject, FFieldId InFieldId, FDelegateHandle InDelegate);
-	FRemoveFromResult RemoveFrom(const UObject* InObject, FFieldId InFieldId, const FDynamicDelegate& InDynamicDelegate);
+	FIELDNOTIFICATION_API FRemoveFromResult RemoveFrom(const UObject* InObject, FFieldId InFieldId, FDelegateHandle InDelegate);
+	FIELDNOTIFICATION_API FRemoveFromResult RemoveFrom(const UObject* InObject, FFieldId InFieldId, const FDynamicDelegate& InDynamicDelegate);
 
 	struct FRemoveAllResult
 	{
 		int32 RemoveCount = 0;
 		TBitArray<> HasFields;
 	};
-	FRemoveAllResult RemoveAll(const UObject* InObject, const void* InUserObject);
-	FRemoveAllResult RemoveAll(const UObject* InObject, FFieldId InFieldId, const void* InUserObject);
+	FIELDNOTIFICATION_API FRemoveAllResult RemoveAll(const UObject* InObject, const void* InUserObject);
+	FIELDNOTIFICATION_API FRemoveAllResult RemoveAll(const UObject* InObject, FFieldId InFieldId, const void* InUserObject);
 
-	void Broadcast(UObject* InObject, FFieldId InFieldId);
+	FIELDNOTIFICATION_API void Broadcast(UObject* InObject, FFieldId InFieldId);
 
-	void Reset();
+	FIELDNOTIFICATION_API void Reset();
 
 	struct FDelegateView
 	{
@@ -113,7 +113,7 @@ public:
 		const UObject* BindingObject;
 		FName BindingFunctionName;
 	};
-	TArray<FDelegateView> GetView() const;
+	FIELDNOTIFICATION_API TArray<FDelegateView> GetView() const;
 
 private:
 	int32 LowerBound(FFieldId InFieldId) const

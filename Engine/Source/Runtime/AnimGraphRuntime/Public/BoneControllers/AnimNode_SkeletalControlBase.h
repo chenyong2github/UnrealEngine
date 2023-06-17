@@ -18,7 +18,7 @@
 class USkeletalMeshComponent;
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_SkeletalControlBase : public FAnimNode_Base
+struct FAnimNode_SkeletalControlBase : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -78,53 +78,53 @@ public:
 #endif //#if WITH_EDITORONLY_DATA
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)  override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) final;
-	virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output) final;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)  override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) final;
+	ANIMGRAPHRUNTIME_API virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output) final;
 	virtual int32 GetLODThreshold() const override { return LODThreshold; }
 	// End of FAnimNode_Base interface
 
 	// Set the alpha of this node
-	void SetAlpha(float InAlpha);
+	ANIMGRAPHRUNTIME_API void SetAlpha(float InAlpha);
 
 	// Get the alpha of this node
-	float GetAlpha() const;
+	ANIMGRAPHRUNTIME_API float GetAlpha() const;
 
-	void InitializeAndValidateBoneRef(FBoneReference& BoneRef, const FBoneContainer& RequiredBones);
+	ANIMGRAPHRUNTIME_API void InitializeAndValidateBoneRef(FBoneReference& BoneRef, const FBoneContainer& RequiredBones);
 
 	// Visual warnings are shown on the node but not logged as an error for build system, use with care
 	// The warnigns are cleared at CacheBones_AnyThread and should be added during InitializeBoneReferences
 #if WITH_EDITOR
-	void AddBoneRefMissingVisualWarning(const FString& BoneName, const FString& SkeletalMeshName);
-	void AddValidationVisualWarning(FText ValidationVisualWarning);
-	bool HasValidationVisualWarnings() const;
-	void ClearValidationVisualWarnings();
-	FText GetValidationVisualWarningMessage() const;
+	ANIMGRAPHRUNTIME_API void AddBoneRefMissingVisualWarning(const FString& BoneName, const FString& SkeletalMeshName);
+	ANIMGRAPHRUNTIME_API void AddValidationVisualWarning(FText ValidationVisualWarning);
+	ANIMGRAPHRUNTIME_API bool HasValidationVisualWarnings() const;
+	ANIMGRAPHRUNTIME_API void ClearValidationVisualWarnings();
+	ANIMGRAPHRUNTIME_API FText GetValidationVisualWarningMessage() const;
 #endif
 
 protected:
 	// Interface for derived skeletal controls to implement
 	// use this function to update for skeletal control base
-	virtual void UpdateInternal(const FAnimationUpdateContext& Context);
+	ANIMGRAPHRUNTIME_API virtual void UpdateInternal(const FAnimationUpdateContext& Context);
 
 	// Update incoming component pose.
-	virtual void UpdateComponentPose_AnyThread(const FAnimationUpdateContext& Context);
+	ANIMGRAPHRUNTIME_API virtual void UpdateComponentPose_AnyThread(const FAnimationUpdateContext& Context);
 
 	// Evaluate incoming component pose.
-	virtual void EvaluateComponentPose_AnyThread(FComponentSpacePoseContext& Output);
+	ANIMGRAPHRUNTIME_API virtual void EvaluateComponentPose_AnyThread(FComponentSpacePoseContext& Output);
 
 	// use this function to evaluate for skeletal control base
-	virtual void EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context);
+	ANIMGRAPHRUNTIME_API virtual void EvaluateComponentSpaceInternal(FComponentSpacePoseContext& Context);
 	// Evaluate the new component-space transforms for the affected bones.
-	virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms);
+	ANIMGRAPHRUNTIME_API virtual void EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms);
 	// return true if it is valid to Evaluate
 	virtual bool IsValidToEvaluate(const USkeleton* Skeleton, const FBoneContainer& RequiredBones) { return false; }
 	// initialize any bone references you have
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones){};
 
 	/** Allow base to add info to the node debug output */
-	void AddDebugNodeData(FString& OutDebugData);
+	ANIMGRAPHRUNTIME_API void AddDebugNodeData(FString& OutDebugData);
 
 private:
 	// Resused bone transform array to avoid reallocating in skeletal controls

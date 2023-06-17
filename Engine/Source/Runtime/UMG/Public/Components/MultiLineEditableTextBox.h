@@ -17,8 +17,8 @@ class USlateWidgetStyleAsset;
 /**
  * Allows a user to enter multiple lines of text
  */
-UCLASS(meta=(DisplayName="Text Box (Multi-Line)"))
-class UMG_API UMultiLineEditableTextBox : public UTextLayoutWidget
+UCLASS(meta=(DisplayName="Text Box (Multi-Line)"), MinimalAPI)
+class UMultiLineEditableTextBox : public UTextLayoutWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -90,7 +90,7 @@ public:
 	 * @return The widget text
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="GetText (Multi-Line Text Box)"))
-	FText GetText() const;
+	UMG_API FText GetText() const;
 
 	/**
 	 * Directly sets the widget text.
@@ -98,34 +98,34 @@ public:
 	 * @param InText The text to assign to the widget
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetText (Multi-Line Text Box)"))
-	void SetText(FText InText);
+	UMG_API void SetText(FText InText);
 
 	/** Returns the Hint text that appears when there is no text in the text box */
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "GetHintText (Multi-Line Text Box)"))
-	FText GetHintText() const;
+	UMG_API FText GetHintText() const;
 
 	/**
 	* Sets the Hint text that appears when there is no text in the text box
 	* @param InHintText The text that appears when there is no text in the text box
 	*/
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetHintText (Multi-Line Text Box)"))
-	void SetHintText(FText InHintText);
+	UMG_API void SetHintText(FText InHintText);
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetError (Multi-Line Text Box)"))
-	void SetError(FText InError);
+	UMG_API void SetError(FText InError);
 
 	/** Return true when this text cannot be modified interactively by the user */
-	bool GetIsReadOnly() const;
+	UMG_API bool GetIsReadOnly() const;
 
 	/** Sets the Text as Readonly to prevent it from being modified interactively by the user */
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "SetIsReadOnly (Multi-Line Text Box)"))
-	void SetIsReadOnly(UPARAM(DisplayName = "ReadyOnly") bool bReadOnly);
+	UMG_API void SetIsReadOnly(UPARAM(DisplayName = "ReadyOnly") bool bReadOnly);
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetTextStyle (Multi-Line Text Box)"))
-	void SetTextStyle(const FTextBlockStyle& InTextStyle);
+	UMG_API void SetTextStyle(const FTextBlockStyle& InTextStyle);
 
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetForegroundColor (Multi-Line Text Box)"))
-	void SetForegroundColor(FLinearColor color);
+	UMG_API void SetForegroundColor(FLinearColor color);
 
 	//TODO UMG Add Set ReadOnlyForegroundColor
 	//TODO UMG Add Set BackgroundColor
@@ -133,29 +133,29 @@ public:
 
 public:
 	//~ Begin UTextLayoutWidget Interface
-	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	UMG_API virtual void SetJustification(ETextJustify::Type InJustification) override;
 	//~ End UTextLayoutWidget Interface
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
-	virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget
 
-	void HandleOnTextChanged(const FText& Text);
-	void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	UMG_API void HandleOnTextChanged(const FText& Text);
+	UMG_API void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 protected:
 	TSharedPtr<SMultiLineEditableTextBox> MyEditableTextBlock;

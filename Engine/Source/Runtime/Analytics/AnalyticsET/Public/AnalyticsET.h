@@ -19,7 +19,7 @@ class IAnalyticsProviderET;
 /**
  *  Public implementation of EpicGames.MCP.AnalyticsProvider
  */
-class ANALYTICSET_API FAnalyticsET : public IAnalyticsProviderModule
+class FAnalyticsET : public IAnalyticsProviderModule
 {
 	//--------------------------------------------------------------------------
 	// Module functionality
@@ -119,14 +119,14 @@ public:
 	 * Creates the analytics provider given a configuration delegate.
 	 * The keys required exactly match the field names in the Config object. 
 	 */
-	virtual TSharedPtr<IAnalyticsProvider> CreateAnalyticsProvider(const FAnalyticsProviderConfigurationDelegate& GetConfigValue) const override;
+	ANALYTICSET_API virtual TSharedPtr<IAnalyticsProvider> CreateAnalyticsProvider(const FAnalyticsProviderConfigurationDelegate& GetConfigValue) const override;
 	
 	/** 
 	 * Construct an ET analytics provider directly from a config object.
 	 */
-	virtual TSharedPtr<IAnalyticsProviderET> CreateAnalyticsProvider(const Config& ConfigValues) const;
+	ANALYTICSET_API virtual TSharedPtr<IAnalyticsProviderET> CreateAnalyticsProvider(const Config& ConfigValues) const;
 
 private:
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	ANALYTICSET_API virtual void StartupModule() override;
+	ANALYTICSET_API virtual void ShutdownModule() override;
 };

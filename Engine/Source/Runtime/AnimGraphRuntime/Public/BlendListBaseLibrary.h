@@ -18,8 +18,8 @@ struct FBlendListBaseReference : public FAnimNodeReference
 };
 
 // Exposes operations to be performed on anim state machine node contexts
-UCLASS(Experimental)
-class ANIMGRAPHRUNTIME_API UBlendListBaseLibrary : public UBlueprintFunctionLibrary
+UCLASS(Experimental, MinimalAPI)
+class UBlendListBaseLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -27,11 +27,11 @@ public:
 
 	/** Get a blend list base context from an anim node context. */
 	UFUNCTION(BlueprintCallable, Category = "Blend List Base", meta = (BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
-	static FBlendListBaseReference ConvertToBlendListBase(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
+	static ANIMGRAPHRUNTIME_API FBlendListBaseReference ConvertToBlendListBase(const FAnimNodeReference& Node, EAnimNodeReferenceConversionResult& Result);
 
 	/** Reset target blend list node to that the next blend is executed from a blank state */
 	UFUNCTION(BlueprintCallable, Category = "Blend List Base", meta = (BlueprintThreadSafe))
-	static void ResetNode(const FBlendListBaseReference& BlendListBase);
+	static ANIMGRAPHRUNTIME_API void ResetNode(const FBlendListBaseReference& BlendListBase);
 
 
 };

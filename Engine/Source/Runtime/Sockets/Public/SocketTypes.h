@@ -162,7 +162,7 @@ ENUM_CLASS_FLAGS(ERecvMultiFlags);
  * Stores the persistent state and packet buffers/data, for receiving packets with FSocket::RecvMulti.
  * To optimize performance, use only once instance of this struct, for the lifetime of the socket.
  */
-struct SOCKETS_API FRecvMulti : public FNoncopyable, public FVirtualDestructor
+struct FRecvMulti : public FNoncopyable, public FVirtualDestructor
 {
 	friend struct FUnixRecvMulti;
 	friend class FSocketUnix;
@@ -216,7 +216,7 @@ private:
 	 * @param InMaxPacketSize		The maximum supported packet size
 	 * @param bRetrieveTimestamps	Whether or not to support retrieving timestamps
 	 */
-	FRecvMulti(ISocketSubsystem* SocketSubsystem, int32 InMaxNumPackets, int32 InMaxPacketSize,
+	SOCKETS_API FRecvMulti(ISocketSubsystem* SocketSubsystem, int32 InMaxNumPackets, int32 InMaxPacketSize,
 				ERecvMultiFlags InitFlags=ERecvMultiFlags::None);
 
 
@@ -262,5 +262,5 @@ public:
 	 *
 	 * @param Ar	The archive being used to count the memory consumption
 	 */
-	virtual void CountBytes(FArchive& Ar) const;
+	SOCKETS_API virtual void CountBytes(FArchive& Ar) const;
 };

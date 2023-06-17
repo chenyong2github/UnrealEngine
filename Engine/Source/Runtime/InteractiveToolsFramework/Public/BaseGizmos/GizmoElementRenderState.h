@@ -20,7 +20,7 @@
 // Stores color state value, whether state is set and whether it overrides child state. 
 //
 USTRUCT()
-struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementColorAttribute
+struct FGizmoElementColorAttribute
 {
 	GENERATED_BODY()
 
@@ -39,16 +39,16 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementColorAttribute
 	bool bOverridesChildState = false;
 
 	// Return the color value. This returns the default color value if no value has been set.
-	FLinearColor GetColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API FLinearColor GetColor() const;
 
 	// Set color value and override flag
-	void SetColor(FLinearColor InColor, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API void SetColor(FLinearColor InColor, bool InOverridesChildState = false);
 
 	// Reset attribute to default values.
-	void Reset();
+	INTERACTIVETOOLSFRAMEWORK_API void Reset();
 
 	// Update this state based on a child state attribute.
-	void UpdateState(const FGizmoElementColorAttribute& InChildColorAttribute);
+	INTERACTIVETOOLSFRAMEWORK_API void UpdateState(const FGizmoElementColorAttribute& InChildColorAttribute);
 };
 
 //
@@ -57,7 +57,7 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementColorAttribute
 // Stores material state value, whether state is set and whether it overrides child state.
 //
 USTRUCT()
-struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementMaterialAttribute 
+struct FGizmoElementMaterialAttribute 
 {
 	GENERATED_BODY()
 
@@ -70,23 +70,23 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementMaterialAttribute
 	bool bOverridesChildState = false;
 
 	// Return the material value.
-	const UMaterialInterface* GetMaterial() const;
+	INTERACTIVETOOLSFRAMEWORK_API const UMaterialInterface* GetMaterial() const;
 
 	// Set material value and override flag
-	void SetMaterial(TWeakObjectPtr<UMaterialInterface> InColor, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API void SetMaterial(TWeakObjectPtr<UMaterialInterface> InColor, bool InOverridesChildState = false);
 
 	// Reset attribute to default values.
-	void Reset();
+	INTERACTIVETOOLSFRAMEWORK_API void Reset();
 
 	// Update this state based on a child state attribute.
-	void UpdateState(const FGizmoElementMaterialAttribute& InChildMaterialAttribute);
+	INTERACTIVETOOLSFRAMEWORK_API void UpdateState(const FGizmoElementMaterialAttribute& InChildMaterialAttribute);
 };
 
 //
 // Mesh render state structure.
 //
 USTRUCT()
-struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementMeshRenderStateAttributes
+struct FGizmoElementMeshRenderStateAttributes
 {
 	GENERATED_BODY()
 
@@ -115,20 +115,20 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementMeshRenderStateAttributes
 	FGizmoElementColorAttribute InteractVertexColor;
 
 	// Returns the material corresponding to the input interaction state
-	const UMaterialInterface* GetMaterial(EGizmoElementInteractionState InteractionState);
+	INTERACTIVETOOLSFRAMEWORK_API const UMaterialInterface* GetMaterial(EGizmoElementInteractionState InteractionState);
 
 	// Returns mesh vertex color
-	FLinearColor GetVertexColor(EGizmoElementInteractionState InteractionState);
+	INTERACTIVETOOLSFRAMEWORK_API FLinearColor GetVertexColor(EGizmoElementInteractionState InteractionState);
 
 	// Update this mesh render state based on a child mesh render state attribute.
-	void Update(FGizmoElementMeshRenderStateAttributes& InChildAttributes);
+	INTERACTIVETOOLSFRAMEWORK_API void Update(FGizmoElementMeshRenderStateAttributes& InChildAttributes);
 };
 
 //
 // Line render state structure.
 //
 USTRUCT()
-struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementLineRenderStateAttributes
+struct FGizmoElementLineRenderStateAttributes
 {
 	GENERATED_BODY()
 
@@ -145,9 +145,9 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGizmoElementLineRenderStateAttributes
 	FGizmoElementColorAttribute InteractLineColor;
 
 	// Returns the line color corresponding to the input interaction state
-	FLinearColor GetLineColor(EGizmoElementInteractionState InteractionState);
+	INTERACTIVETOOLSFRAMEWORK_API FLinearColor GetLineColor(EGizmoElementInteractionState InteractionState);
 
 	// Update this line render state based on a child mesh render state attribute.
-	void Update(FGizmoElementLineRenderStateAttributes& InChildAttributes);
+	INTERACTIVETOOLSFRAMEWORK_API void Update(FGizmoElementLineRenderStateAttributes& InChildAttributes);
 };
 

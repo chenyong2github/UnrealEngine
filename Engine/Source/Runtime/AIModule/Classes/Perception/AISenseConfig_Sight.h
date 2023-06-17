@@ -14,8 +14,8 @@
 class FGameplayDebuggerCategory;
 class UAIPerceptionComponent;
 
-UCLASS(meta = (DisplayName = "AI Sight config"))
-class AIMODULE_API UAISenseConfig_Sight : public UAISenseConfig
+UCLASS(meta = (DisplayName = "AI Sight config"), MinimalAPI)
+class UAISenseConfig_Sight : public UAISenseConfig
 {
 	GENERATED_UCLASS_BODY()
 
@@ -52,13 +52,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", config, meta = (UIMin = 0.0, ClampMin = 0.0))
 	float NearClippingRadius;
 
-	virtual TSubclassOf<UAISense> GetSenseImplementation() const override;
+	AIMODULE_API virtual TSubclassOf<UAISense> GetSenseImplementation() const override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	AIMODULE_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 
 #if WITH_GAMEPLAY_DEBUGGER_MENU
-	virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionComponent* PerceptionComponent, FGameplayDebuggerCategory* DebuggerCategory) const;
+	AIMODULE_API virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionComponent* PerceptionComponent, FGameplayDebuggerCategory* DebuggerCategory) const;
 #endif // WITH_GAMEPLAY_DEBUGGER_MENU
 };

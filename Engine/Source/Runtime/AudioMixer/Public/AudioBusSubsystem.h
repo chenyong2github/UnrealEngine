@@ -19,7 +19,7 @@ namespace Audio
 	struct FPatchOutput;
 	typedef TSharedPtr<FPatchOutput, ESPMode::ThreadSafe> FPatchOutputStrongPtr;
 
-	struct AUDIOMIXER_API FAudioBusKey
+	struct FAudioBusKey
 	{
 		uint32 ObjectId = INDEX_NONE; // from a corresponding UObject (UAudioBus) if applicable
 		uint32 InstanceId = INDEX_NONE;
@@ -57,38 +57,38 @@ namespace Audio
 		
 
 	private:
-		static std::atomic<uint32> InstanceIdCounter;
+		static AUDIOMIXER_API std::atomic<uint32> InstanceIdCounter;
 	};
 }
 
 /**
 *  UAudioBusSubsystem
 */
-UCLASS()
-class AUDIOMIXER_API UAudioBusSubsystem : public UAudioEngineSubsystem
+UCLASS(MinimalAPI)
+class UAudioBusSubsystem : public UAudioEngineSubsystem
 {
 	GENERATED_BODY()
 
 public:
-	UAudioBusSubsystem();
+	AUDIOMIXER_API UAudioBusSubsystem();
 	virtual ~UAudioBusSubsystem() = default;
 
 	//~ Begin USubsystem interface
-	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	AUDIOMIXER_API virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	AUDIOMIXER_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	AUDIOMIXER_API virtual void Deinitialize() override;
 	//~ End USubsystem interface
 
 	// Audio bus API from FMixerDevice
-	void StartAudioBus(Audio::FAudioBusKey InAudioBusKey, int32 InNumChannels, bool bInIsAutomatic);
-	void StopAudioBus(Audio::FAudioBusKey InAudioBusKey);
-	bool IsAudioBusActive(Audio::FAudioBusKey InAudioBusKey) const;
+	AUDIOMIXER_API void StartAudioBus(Audio::FAudioBusKey InAudioBusKey, int32 InNumChannels, bool bInIsAutomatic);
+	AUDIOMIXER_API void StopAudioBus(Audio::FAudioBusKey InAudioBusKey);
+	AUDIOMIXER_API bool IsAudioBusActive(Audio::FAudioBusKey InAudioBusKey) const;
 	
-	Audio::FPatchInput AddPatchInputForAudioBus(Audio::FAudioBusKey InAudioBusKey, int32 InFrames, int32 InChannels, float InGain = 1.f);
-	Audio::FPatchOutputStrongPtr AddPatchOutputForAudioBus(Audio::FAudioBusKey InAudioBusKey, int32 InFrames, int32 InChannels, float InGain = 1.f);
+	AUDIOMIXER_API Audio::FPatchInput AddPatchInputForAudioBus(Audio::FAudioBusKey InAudioBusKey, int32 InFrames, int32 InChannels, float InGain = 1.f);
+	AUDIOMIXER_API Audio::FPatchOutputStrongPtr AddPatchOutputForAudioBus(Audio::FAudioBusKey InAudioBusKey, int32 InFrames, int32 InChannels, float InGain = 1.f);
 
-	void InitDefaultAudioBuses();
-	void ShutdownDefaultAudioBuses();
+	AUDIOMIXER_API void InitDefaultAudioBuses();
+	AUDIOMIXER_API void ShutdownDefaultAudioBuses();
 
 private:
 	struct FActiveBusData

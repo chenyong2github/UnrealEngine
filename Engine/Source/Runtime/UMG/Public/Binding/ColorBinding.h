@@ -9,25 +9,25 @@
 #include "Binding/PropertyBinding.h"
 #include "ColorBinding.generated.h"
 
-UCLASS()
-class UMG_API UColorBinding : public UPropertyBinding
+UCLASS(MinimalAPI)
+class UColorBinding : public UPropertyBinding
 {
 	GENERATED_BODY()
 
 public:
 
-	UColorBinding();
+	UMG_API UColorBinding();
 
-	virtual bool IsSupportedSource(FProperty* Property) const override;
-	virtual bool IsSupportedDestination(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedSource(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedDestination(FProperty* Property) const override;
 
-	virtual void Bind(FProperty* Property, FScriptDelegate* Delegate) override;
-
-	UFUNCTION()
-	FSlateColor GetSlateValue() const;
+	UMG_API virtual void Bind(FProperty* Property, FScriptDelegate* Delegate) override;
 
 	UFUNCTION()
-	FLinearColor GetLinearValue() const;
+	UMG_API FSlateColor GetSlateValue() const;
+
+	UFUNCTION()
+	UMG_API FLinearColor GetLinearValue() const;
 
 private:
 	mutable TOptional<bool> bNeedsConversion;

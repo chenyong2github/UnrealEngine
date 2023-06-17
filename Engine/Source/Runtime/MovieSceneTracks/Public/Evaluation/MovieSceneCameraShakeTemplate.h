@@ -18,8 +18,8 @@ struct FMovieSceneContext;
  * Factory methods for these evaluators are registered on the FMovieSceneCameraShakeEvaluatorRegistry. An evaluator is created for
  * each camera shake running in a sequence.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneCameraShakeEvaluator : public UObject
+UCLASS(MinimalAPI)
+class UMovieSceneCameraShakeEvaluator : public UObject
 {
 	GENERATED_BODY()
 
@@ -33,7 +33,7 @@ public:
 DECLARE_DELEGATE_RetVal_OneParam(UMovieSceneCameraShakeEvaluator*, FMovieSceneBuildShakeEvaluator, UCameraShakeBase*);
 
 /** Registry for factories of shake evaluators */
-struct MOVIESCENETRACKS_API FMovieSceneCameraShakeEvaluatorRegistry
+struct FMovieSceneCameraShakeEvaluatorRegistry
 {
 public:
 	/** Registers a new shake evaluator factory */
@@ -63,7 +63,7 @@ public:
 
 private:
 	/** List of registered factory methods */
-	static TArray<FMovieSceneBuildShakeEvaluator> ShakeEvaluatorBuilders;
+	static MOVIESCENETRACKS_API TArray<FMovieSceneBuildShakeEvaluator> ShakeEvaluatorBuilders;
 };
 
 /** Section template for a camera anim */

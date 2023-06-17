@@ -18,8 +18,8 @@ class UVerticalBoxSlot;
  * * Many Children
  * * Flows Vertical
  */
-UCLASS(meta = (ShortTooltip = "A layout panel for automatically laying child widgets out vertically"))
-class UMG_API UVerticalBox : public UPanelWidget
+UCLASS(meta = (ShortTooltip = "A layout panel for automatically laying child widgets out vertically"), MinimalAPI)
+class UVerticalBox : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -27,23 +27,23 @@ public:
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Panel")
-	UVerticalBoxSlot* AddChildToVerticalBox(UWidget* Content);
+	UMG_API UVerticalBoxSlot* AddChildToVerticalBox(UWidget* Content);
 
 #if WITH_EDITOR
 	// UWidget interface
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 	// End UWidget interface
 #endif
 
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual UClass* GetSlotClass() const override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End UPanelWidget
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 protected:
 
@@ -51,6 +51,6 @@ protected:
 
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 };

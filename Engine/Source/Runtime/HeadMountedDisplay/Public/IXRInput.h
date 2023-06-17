@@ -10,7 +10,7 @@
 /** 
  * Optional interface returned from IXRTrackingSystem if the plugin requires being able to grab touch or keyboard input events.
  */
-class HEADMOUNTEDDISPLAY_API IXRInput
+class IXRInput
 {
 public:
 	/**

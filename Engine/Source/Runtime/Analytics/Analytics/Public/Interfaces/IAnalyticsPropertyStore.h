@@ -10,7 +10,7 @@
 /**
  * Implements a fast type safe key/value database to store analytics properties collected during a session.
  */
-class ANALYTICS_API IAnalyticsPropertyStore
+class IAnalyticsPropertyStore
 {
 public:
 	/** The list of store operation outcome. */

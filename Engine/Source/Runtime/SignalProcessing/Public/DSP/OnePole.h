@@ -8,7 +8,7 @@
 namespace Audio
 {
 	// Simple 1-pole lowpass filter
-	class SIGNALPROCESSING_API FOnePoleLPF
+	class FOnePoleLPF
 	{
 	public:
 

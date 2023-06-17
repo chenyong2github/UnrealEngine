@@ -82,8 +82,8 @@ struct UE_DEPRECATED(5.0, "Deprecated. Use normal debug draw Chaos Physics comma
 *   spawned by any GeometryDebugDrawComponent that needs it.
 */
 class UE_DEPRECATED(5.0, "Deprecated. Use normal debug draw Chaos Physics commands") AGeometryCollectionDebugDrawActor;
-UCLASS(HideCategories = ("Rendering", "Replication", "Input", "Actor", "Collision", "LOD", "Cooking"))
-class GEOMETRYCOLLECTIONENGINE_API AGeometryCollectionDebugDrawActor : public AActor
+UCLASS(HideCategories = ("Rendering", "Replication", "Input", "Actor", "Collision", "LOD", "Cooking"), MinimalAPI)
+class AGeometryCollectionDebugDrawActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 public:

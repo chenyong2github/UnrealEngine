@@ -41,18 +41,18 @@ struct dtObstacleSegment
 	unsigned char canIgnore : 1;
 };
 
-class NAVMESH_API dtObstacleAvoidanceDebugData
+class dtObstacleAvoidanceDebugData
 {
 public:
-	dtObstacleAvoidanceDebugData();
-	~dtObstacleAvoidanceDebugData();
+	NAVMESH_API dtObstacleAvoidanceDebugData();
+	NAVMESH_API ~dtObstacleAvoidanceDebugData();
 	
-	bool init(const int maxSamples);
-	void reset();
-	void addSample(const dtReal* vel, const dtReal ssize, const dtReal pen,
+	NAVMESH_API bool init(const int maxSamples);
+	NAVMESH_API void reset();
+	NAVMESH_API void addSample(const dtReal* vel, const dtReal ssize, const dtReal pen,
 				   const dtReal vpen, const dtReal vcpen, const dtReal spen, const dtReal tpen);
 	
-	void normalizeSamples();
+	NAVMESH_API void normalizeSamples();
 	
 	inline int getSampleCount() const { return m_nsamples; }
 	inline const dtReal* getSampleVelocity(const int i) const { return &m_vel[i*3]; }
@@ -83,7 +83,7 @@ static const int DT_MAX_PATTERN_DIVS = 32;		///< Max numver of adaptive divs.
 static const int DT_MAX_PATTERN_RINGS = 4;		///< Max number of adaptive rings.
 static const int DT_MAX_CUSTOM_SAMPLES = 16;	///< Max number of custom samples in single pattern
 
-struct NAVMESH_API dtObstacleAvoidanceParams
+struct dtObstacleAvoidanceParams
 {
 	dtReal velBias;
 	dtReal weightDesVel;
@@ -105,35 +105,35 @@ struct dtObstacleAvoidancePattern
 	int nsamples;							///< Number of samples
 };
 
-class NAVMESH_API dtObstacleAvoidanceQuery
+class dtObstacleAvoidanceQuery
 {
 public:
-	dtObstacleAvoidanceQuery();
-	~dtObstacleAvoidanceQuery();
+	NAVMESH_API dtObstacleAvoidanceQuery();
+	NAVMESH_API ~dtObstacleAvoidanceQuery();
 	
-	bool init(const int maxCircles, const int maxSegments, const int maxCustomPatterns);
+	NAVMESH_API bool init(const int maxCircles, const int maxSegments, const int maxCustomPatterns);
 	
-	void reset();
+	NAVMESH_API void reset();
 
-	void addCircle(const dtReal* pos, const dtReal rad,
+	NAVMESH_API void addCircle(const dtReal* pos, const dtReal rad,
 				   const dtReal* vel, const dtReal* dvel);
 				   
-	void addSegment(const dtReal* p, const dtReal* q, int flags = 0);
+	NAVMESH_API void addSegment(const dtReal* p, const dtReal* q, int flags = 0);
 
 	// [UE] store new sampling pattern
-	bool setCustomSamplingPattern(int idx, const dtReal* angles, const dtReal* radii, int nsamples);
+	NAVMESH_API bool setCustomSamplingPattern(int idx, const dtReal* angles, const dtReal* radii, int nsamples);
 
 	// [UE] get custom sampling pattern
-	bool getCustomSamplingPattern(int idx, dtReal* angles, dtReal* radii, int* nsamples);
+	NAVMESH_API bool getCustomSamplingPattern(int idx, dtReal* angles, dtReal* radii, int* nsamples);
 
 	// [UE] sample velocity using custom patterns
-	int sampleVelocityCustom(const dtReal* pos, const dtReal rad,
+	NAVMESH_API int sampleVelocityCustom(const dtReal* pos, const dtReal rad,
 					 		 const dtReal vmax, const dtReal vmult,
 							 const dtReal* vel, const dtReal* dvel, dtReal* nvel,
 							 const dtObstacleAvoidanceParams* params,
 							 dtObstacleAvoidanceDebugData* debug = 0);
 
-	int sampleVelocityAdaptive(const dtReal* pos, const dtReal rad,
+	NAVMESH_API int sampleVelocityAdaptive(const dtReal* pos, const dtReal rad,
 							   const dtReal vmax, const dtReal vmult,
 							   const dtReal* vel, const dtReal* dvel, dtReal* nvel,
 							   const dtObstacleAvoidanceParams* params, 
@@ -162,15 +162,15 @@ public:
 
 private:
 
-	void prepare(const dtReal* pos, const dtReal* dvel);
+	NAVMESH_API void prepare(const dtReal* pos, const dtReal* dvel);
 
-	dtReal processSample(const dtReal* vcand, const dtReal cs,
+	NAVMESH_API dtReal processSample(const dtReal* vcand, const dtReal cs,
 						const dtReal* pos, const dtReal rad,
 						const dtReal* vel, const dtReal* dvel,
 						dtObstacleAvoidanceDebugData* debug);
 
-	dtObstacleCircle* insertCircle(const dtReal dist);
-	dtObstacleSegment* insertSegment(const dtReal dist);
+	NAVMESH_API dtObstacleCircle* insertCircle(const dtReal dist);
+	NAVMESH_API dtObstacleSegment* insertSegment(const dtReal dist);
 
 	dtObstacleAvoidanceParams m_params;
 	dtReal m_invHorizTime;

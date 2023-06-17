@@ -23,30 +23,30 @@ class APlayerController;
  * @see UDynamicEntryBox
  */
 USTRUCT()
-struct UMG_API FUserWidgetPool
+struct FUserWidgetPool
 {
 	GENERATED_BODY();
 
 public:
 	FUserWidgetPool() = default;
-	FUserWidgetPool(UWidget& InOwningWidget);
-	~FUserWidgetPool();
+	UMG_API FUserWidgetPool(UWidget& InOwningWidget);
+	UMG_API ~FUserWidgetPool();
 
 	/** In the case that you don't have an owner widget, you should set a world to your pool, or it won't be able to construct widgets. */
-	void SetWorld(UWorld* OwningWorld);
+	UMG_API void SetWorld(UWorld* OwningWorld);
 
 	/**
 	 * In the case a pool has no owner widget, a default player controller can optionally be specified allowing greater control  
 	 * in split screen scenarios. The following priority rules are applied when determining the controller which should own created widgets:
 	 * Controller of owning widget (if set) > Default player controller (if set) > First local player controller from world.
 	 */
-	void SetDefaultPlayerController(APlayerController* InDefaultPlayerController);
+	UMG_API void SetDefaultPlayerController(APlayerController* InDefaultPlayerController);
 
 	/** Triggers RebuildWidget on all currently active UserWidget instances */
-	void RebuildWidgets();
+	UMG_API void RebuildWidgets();
 
 	/** Report any references to UObjects to the reference collector (only necessary if this is not already a UPROPERTY) */
-	void AddReferencedObjects(FReferenceCollector& Collector);
+	UMG_API void AddReferencedObjects(FReferenceCollector& Collector);
 
 	bool IsInitialized() const { return OwningWidget.IsValid() || OwningWorld.IsValid(); }
 	const TArray<UUserWidget*>& GetActiveWidgets() const { return ActiveWidgets; }
@@ -76,25 +76,25 @@ public:
 	}
 
 	/** Return a widget object to the pool, allowing it to be reused in the future */
-	void Release(UUserWidget* Widget, bool bReleaseSlate = false);
+	UMG_API void Release(UUserWidget* Widget, bool bReleaseSlate = false);
 
 	/** Return a widget object to the pool, allowing it to be reused in the future */
-	void Release(TArray<UUserWidget*> Widgets, bool bReleaseSlate = false);
+	UMG_API void Release(TArray<UUserWidget*> Widgets, bool bReleaseSlate = false);
 
 	/** Returns all active widget objects to the inactive pool and optionally destroys all cached underlying slate widgets. */
-	void ReleaseAll(bool bReleaseSlate = false);
+	UMG_API void ReleaseAll(bool bReleaseSlate = false);
 
 	/** Full reset of all created widget objects (and any cached underlying slate) */
-	void ResetPool();
+	UMG_API void ResetPool();
 
 	/** Reset of all cached underlying Slate widgets, only for inactive widgets in the pool. */
-	void ReleaseInactiveSlateResources();
+	UMG_API void ReleaseInactiveSlateResources();
 
 	UE_DEPRECATED(4.24, "Use ReleaseAllSlateResources instead.")
 	void ReleaseSlateResources() { ReleaseAllSlateResources(); }
 
 	/** Reset of all cached underlying Slate widgets, but not the active UUserWidget objects */
-	void ReleaseAllSlateResources();
+	UMG_API void ReleaseAllSlateResources();
 
 private:
 	template <typename UserWidgetT = UUserWidget>

@@ -14,7 +14,7 @@
  * C++ code may choose to use TTypedElement instead, which is a combination of an element handle and its associated element interface.
  * @note Handles auto-release on destruction.
  */
-struct TYPEDELEMENTFRAMEWORK_API FTypedElementHandle
+struct FTypedElementHandle
 {
 public:
 	FTypedElementHandle() = default;
@@ -621,7 +621,7 @@ using FTypedElementOwner = TTypedElementOwner<void>;
  * Note: This type shouldn't be used in the engine code as it come with a performance and memory overhead that we want to avoid when compare to the native handles (FTypedElementHandle).
  */
 USTRUCT(BlueprintType)
-struct TYPEDELEMENTFRAMEWORK_API FScriptTypedElementHandle
+struct FScriptTypedElementHandle
 {
 	GENERATED_BODY()
 public:

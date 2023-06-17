@@ -16,14 +16,14 @@ using FMovieSceneSequenceLatentActionDelegate = TDelegate<void(), FNotThreadSafe
 /**
  * Utility class for running latent actions created from sequence players.
  */
-class MOVIESCENE_API FMovieSceneLatentActionManager
+class FMovieSceneLatentActionManager
 {
 public:
-	void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
-	void ClearLatentActions(UObject* Object);
-	void ClearLatentActions();
+	MOVIESCENE_API void AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
+	MOVIESCENE_API void ClearLatentActions(UObject* Object);
+	MOVIESCENE_API void ClearLatentActions();
 
-	void RunLatentActions(TFunctionRef<void()> FlushCallback);
+	MOVIESCENE_API void RunLatentActions(TFunctionRef<void()> FlushCallback);
 
 	bool IsEmpty() const { return LatentActions.Num() == 0; }
 

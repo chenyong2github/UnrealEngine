@@ -10,7 +10,7 @@ class UWidget;
 /**
  * Handle to a widget material for easy getting and setting of the material.  Not designed to be stored
  */
-class UMG_API FWidgetMaterialHandle
+class FWidgetMaterialHandle
 {
 public:
 	FWidgetMaterialHandle()
@@ -40,10 +40,10 @@ public:
 	bool IsValid() const { return TypeName != NAME_None && Data != nullptr; }
 
 	/** Gets the currently bound material */
-	UMaterialInterface* GetMaterial() const;
+	UMG_API UMaterialInterface* GetMaterial() const;
 
 	/** Sets the new bound material */
-	void SetMaterial(UMaterialInterface* InMaterial, UWidget* OwnerWidget);
+	UMG_API void SetMaterial(UMaterialInterface* InMaterial, UWidget* OwnerWidget);
 
 private:
 	/** Struct typename for that the data is pointing to */

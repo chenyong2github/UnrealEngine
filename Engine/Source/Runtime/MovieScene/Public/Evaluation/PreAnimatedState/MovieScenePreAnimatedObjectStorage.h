@@ -26,11 +26,11 @@ namespace MovieScene
  *	 StorageType CachePreAnimatedValue(const FObjectKey& Object);
  *	 void RestorePreAnimatedValue(const FObjectKey& Object, StorageType& InOutCachedValue, const FRestoreStateParams& Params);
  */
-struct MOVIESCENE_API FBoundObjectPreAnimatedStateTraits : FPreAnimatedStateTraits
+struct FBoundObjectPreAnimatedStateTraits : FPreAnimatedStateTraits
 {
 	enum { NeedsInitialize = true, SupportsGrouping = true, SupportsReplaceObject = true };
 
-	void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* InParentExtension);
+	MOVIESCENE_API void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* InParentExtension);
 
 	/* Defined as a template rather than a variadic function to prevent error C4840 */
 	template<typename... T>
@@ -44,8 +44,8 @@ struct MOVIESCENE_API FBoundObjectPreAnimatedStateTraits : FPreAnimatedStateTrai
 		return MakeGroupImpl(BoundObject);
 	}
 
-	FPreAnimatedStorageGroupHandle MakeGroupImpl(UObject* BoundObject);
-	FPreAnimatedStorageGroupHandle MakeGroupImpl(const FObjectComponent& BoundObject);
+	MOVIESCENE_API FPreAnimatedStorageGroupHandle MakeGroupImpl(UObject* BoundObject);
+	MOVIESCENE_API FPreAnimatedStorageGroupHandle MakeGroupImpl(const FObjectComponent& BoundObject);
 
 	template<typename ...T>
 	void ReplaceObject(TTuple<FObjectKey, T...>& InOutKey, const FObjectKey& NewObject)

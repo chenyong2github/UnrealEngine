@@ -10,8 +10,8 @@
 
 #include "InterchangeBlueprintPipelineBase.generated.h"
 
-UCLASS(BlueprintType)
-class INTERCHANGEENGINE_API UInterchangeBlueprintPipelineBase : public UBlueprint
+UCLASS(BlueprintType, MinimalAPI)
+class UInterchangeBlueprintPipelineBase : public UBlueprint
 {
 	GENERATED_BODY()
 

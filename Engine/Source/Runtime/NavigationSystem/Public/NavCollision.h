@@ -43,8 +43,8 @@ struct FNavCollisionBox
 	FVector Extent = FVector::ZeroVector;
 };
 
-UCLASS(config=Engine)
-class NAVIGATIONSYSTEM_API UNavCollision : public UNavCollisionBase
+UCLASS(config=Engine, MinimalAPI)
+class UNavCollision : public UNavCollisionBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -82,44 +82,44 @@ class NAVIGATIONSYSTEM_API UNavCollision : public UNavCollisionBase
 	FFormatContainer CookedFormatData;
 
 	//~ Begin UObject Interface.
-	virtual void PostInitProperties() override;
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const override;
+	NAVIGATIONSYSTEM_API virtual void PostInitProperties() override;
+	NAVIGATIONSYSTEM_API virtual void Serialize(FArchive& Ar) override;
+	NAVIGATIONSYSTEM_API virtual void PostLoad() override;
+	NAVIGATIONSYSTEM_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	NAVIGATIONSYSTEM_API virtual bool NeedsLoadForTargetPlatform(const class ITargetPlatform* TargetPlatform) const override;
 	virtual bool NeedsLoadForClient() const override { return bCreateOnClient; }
 	//~ End UObject Interface.
 
-	FGuid GetGuid() const;
+	NAVIGATIONSYSTEM_API FGuid GetGuid() const;
 
 	/** Tries to read data from DDC, and if that fails gathers navigation
 	 *	collision data, stores it and uploads to DDC */
-	virtual void Setup(class UBodySetup* BodySetup) override;
+	NAVIGATIONSYSTEM_API virtual void Setup(class UBodySetup* BodySetup) override;
 
 	/** copy user settings from other nav collision data */
-	void CopyUserSettings(const UNavCollision& OtherData);
+	NAVIGATIONSYSTEM_API void CopyUserSettings(const UNavCollision& OtherData);
 
 	/** show cylinder and box collisions */
-	virtual void DrawSimpleGeom(FPrimitiveDrawInterface* PDI, const FTransform& Transform, const FColor Color) override;
+	NAVIGATIONSYSTEM_API virtual void DrawSimpleGeom(FPrimitiveDrawInterface* PDI, const FTransform& Transform, const FColor Color) override;
 
 	/** Get data for dynamic obstacle */
-	virtual void GetNavigationModifier(FCompositeNavModifier& Modifier, const FTransform& LocalToWorld) override;
+	NAVIGATIONSYSTEM_API virtual void GetNavigationModifier(FCompositeNavModifier& Modifier, const FTransform& LocalToWorld) override;
 
 	/** Export collision data */
-	virtual bool ExportGeometry(const FTransform& LocalToWorld, FNavigableGeometryExport& GeoExport) const override;
+	NAVIGATIONSYSTEM_API virtual bool ExportGeometry(const FTransform& LocalToWorld, FNavigableGeometryExport& GeoExport) const override;
 
 	/** Read collisions data */
-	void GatherCollision();
+	NAVIGATIONSYSTEM_API void GatherCollision();
 
 #if WITH_EDITOR
-	virtual void InvalidateCollision() override;
+	NAVIGATIONSYSTEM_API virtual void InvalidateCollision() override;
 #endif // WITH_EDITOR
 
 protected:
-	void ClearCollision();
+	NAVIGATIONSYSTEM_API void ClearCollision();
 
 #if WITH_EDITOR
-	void InvalidatePhysicsData();
+	NAVIGATIONSYSTEM_API void InvalidatePhysicsData();
 #endif // WITH_EDITOR
-	FByteBulkData* GetCookedData(FName Format);
+	NAVIGATIONSYSTEM_API FByteBulkData* GetCookedData(FName Format);
 };

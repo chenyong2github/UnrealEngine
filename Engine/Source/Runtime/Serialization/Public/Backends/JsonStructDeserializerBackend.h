@@ -21,7 +21,7 @@ class FProperty;
  * all based on templates. At some point we will refactor the low-level Json API to provide more
  * flexibility for serialization.
  */
-class SERIALIZATION_API FJsonStructDeserializerBackend
+class FJsonStructDeserializerBackend
 	: public IStructDeserializerBackend
 {
 public:
@@ -39,13 +39,13 @@ public:
 
 	// IStructDeserializerBackend interface
 
-	virtual const FString& GetCurrentPropertyName() const override;
-	virtual FString GetDebugString() const override;
-	virtual const FString& GetLastErrorMessage() const override;
-	virtual bool GetNextToken( EStructDeserializerBackendTokens& OutToken ) override;
-	virtual bool ReadProperty( FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex ) override;
-	virtual void SkipArray() override;
-	virtual void SkipStructure() override;
+	SERIALIZATION_API virtual const FString& GetCurrentPropertyName() const override;
+	SERIALIZATION_API virtual FString GetDebugString() const override;
+	SERIALIZATION_API virtual const FString& GetLastErrorMessage() const override;
+	SERIALIZATION_API virtual bool GetNextToken( EStructDeserializerBackendTokens& OutToken ) override;
+	SERIALIZATION_API virtual bool ReadProperty( FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex ) override;
+	SERIALIZATION_API virtual void SkipArray() override;
+	SERIALIZATION_API virtual void SkipStructure() override;
 
 protected:
 	FString& GetLastIdentifier()

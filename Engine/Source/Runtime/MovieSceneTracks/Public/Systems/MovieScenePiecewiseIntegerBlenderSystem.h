@@ -39,20 +39,20 @@ namespace MovieScene
 } // namespace UE
 
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieScenePiecewiseIntegerBlenderSystem : public UMovieSceneBlenderSystem
+UCLASS(MinimalAPI)
+class UMovieScenePiecewiseIntegerBlenderSystem : public UMovieSceneBlenderSystem
 {
 public:
 	GENERATED_BODY()
 
-	UMovieScenePiecewiseIntegerBlenderSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieScenePiecewiseIntegerBlenderSystem(const FObjectInitializer& ObjInit);
 
 	using FMovieSceneEntityID  = UE::MovieScene::FMovieSceneEntityID;
 	using FComponentTypeID     = UE::MovieScene::FComponentTypeID;
 
-	virtual void OnLink() override;
-	virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnLink() override;
+	MOVIESCENETRACKS_API virtual void OnSchedulePersistentTasks(UE::MovieScene::IEntitySystemScheduler* TaskScheduler) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 
 private:
 

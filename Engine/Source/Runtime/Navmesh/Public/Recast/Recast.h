@@ -161,7 +161,7 @@ NAVMESH_API DECLARE_LOG_CATEGORY_EXTERN(LogRecast, Log, All);
 /// Provides an interface for optional logging and performance tracking of the Recast 
 /// build process.
 /// @ingroup recast
-class NAVMESH_API rcContext
+class rcContext
 {
 public:
 
@@ -180,7 +180,7 @@ public:
 	/// Logs a message.
 	///  @param[in]		category	The category of the message.
 	///  @param[in]		format		The message.
-	void log(const rcLogCategory category, const char* format, ...);
+	NAVMESH_API void log(const rcLogCategory category, const char* format, ...);
 
 	/// Enables or disables the performance timers.
 	///  @param[in]		state	TRUE if timers should be enabled.

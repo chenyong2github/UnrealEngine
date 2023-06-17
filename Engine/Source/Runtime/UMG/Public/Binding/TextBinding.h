@@ -8,23 +8,23 @@
 #include "Binding/PropertyBinding.h"
 #include "TextBinding.generated.h"
 
-UCLASS()
-class UMG_API UTextBinding : public UPropertyBinding
+UCLASS(MinimalAPI)
+class UTextBinding : public UPropertyBinding
 {
 	GENERATED_BODY()
 
 public:
 
-	virtual bool IsSupportedSource(FProperty* Property) const override;
-	virtual bool IsSupportedDestination(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedSource(FProperty* Property) const override;
+	UMG_API virtual bool IsSupportedDestination(FProperty* Property) const override;
 
-	virtual void Bind(FProperty* Property, FScriptDelegate* Delegate) override;
-
-	UFUNCTION()
-	FText GetTextValue() const;
+	UMG_API virtual void Bind(FProperty* Property, FScriptDelegate* Delegate) override;
 
 	UFUNCTION()
-	FString GetStringValue() const;
+	UMG_API FText GetTextValue() const;
+
+	UFUNCTION()
+	UMG_API FString GetStringValue() const;
 
 private:
 

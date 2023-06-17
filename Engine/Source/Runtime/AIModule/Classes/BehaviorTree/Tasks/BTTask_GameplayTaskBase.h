@@ -22,15 +22,15 @@ struct FBTGameplayTaskMemory
  * - initialize task with values if needed
  * - use StartGameplayTask() helper to execute and get node result
  */
-UCLASS(Abstract)
-class AIMODULE_API UBTTask_GameplayTaskBase : public UBTTaskNode
+UCLASS(Abstract, MinimalAPI)
+class UBTTask_GameplayTaskBase : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
-	virtual void OnGameplayTaskDeactivated(UGameplayTask& Task) override;
-	virtual uint16 GetInstanceMemorySize() const override;
+	AIMODULE_API virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
+	AIMODULE_API virtual void OnGameplayTaskDeactivated(UGameplayTask& Task) override;
+	AIMODULE_API virtual uint16 GetInstanceMemorySize() const override;
 
 protected:
 
@@ -39,8 +39,8 @@ protected:
 	uint32 bWaitForGameplayTask : 1;
 
 	/** start task and initialize FBTGameplayTaskMemory memory block */
-	EBTNodeResult::Type StartGameplayTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, UAITask& Task);
+	AIMODULE_API EBTNodeResult::Type StartGameplayTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, UAITask& Task);
 
 	/** get finish result from task */
-	virtual EBTNodeResult::Type DetermineGameplayTaskResult(UAITask& Task) const;
+	AIMODULE_API virtual EBTNodeResult::Type DetermineGameplayTaskResult(UAITask& Task) const;
 };

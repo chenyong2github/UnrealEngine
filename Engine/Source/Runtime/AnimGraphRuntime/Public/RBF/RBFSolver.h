@@ -108,7 +108,7 @@ enum class ERBFNormalizeMethod : uint8
 
 /** Struct storing a particular entry within the RBF */
 USTRUCT()
-struct ANIMGRAPHRUNTIME_API FRBFEntry
+struct FRBFEntry
 {
 	GENERATED_BODY()
 
@@ -117,18 +117,18 @@ struct ANIMGRAPHRUNTIME_API FRBFEntry
 	TArray<float> Values;
 
 	/** Return a target as an rotator, assuming Values is a sequence of Euler entries. Index is which Euler to convert.*/
-	FRotator AsRotator(int32 Index) const;
+	ANIMGRAPHRUNTIME_API FRotator AsRotator(int32 Index) const;
 
 	/** Return a target as a quaternion, assuming Values is a sequence of Euler entries. Index is which Euler to convert. */
-	FQuat AsQuat(int32 Index) const;
+	ANIMGRAPHRUNTIME_API FQuat AsQuat(int32 Index) const;
 
-	FVector AsVector(int32 Index) const;
+	ANIMGRAPHRUNTIME_API FVector AsVector(int32 Index) const;
 
 
 	/** Set this entry to 3 floats from supplied rotator */
-	void AddFromRotator(const FRotator& InRot);
+	ANIMGRAPHRUNTIME_API void AddFromRotator(const FRotator& InRot);
 	/** Set this entry to 3 floats from supplied vector */
-	void AddFromVector(const FVector& InVector);
+	ANIMGRAPHRUNTIME_API void AddFromVector(const FVector& InVector);
 
 	/** Return dimensionality of this target */
 	int32 GetDimensions() const
@@ -139,7 +139,7 @@ struct ANIMGRAPHRUNTIME_API FRBFEntry
 
 /** Data about a particular target in the RBF, including scaling factor */
 USTRUCT()
-struct ANIMGRAPHRUNTIME_API FRBFTarget : public FRBFEntry
+struct FRBFTarget : public FRBFEntry
 {
 	GENERATED_BODY()
 
@@ -177,7 +177,7 @@ struct ANIMGRAPHRUNTIME_API FRBFTarget : public FRBFEntry
 };
 
 /** Struct for storing RBF results - target index and corresponding weight */
-struct ANIMGRAPHRUNTIME_API FRBFOutputWeight
+struct FRBFOutputWeight
 {
 	/** Index of target */
 	int32 TargetIndex;
@@ -197,7 +197,7 @@ struct ANIMGRAPHRUNTIME_API FRBFOutputWeight
 
 /** Parameters used by RBF solver */
 USTRUCT(BlueprintType)
-struct ANIMGRAPHRUNTIME_API FRBFParams
+struct FRBFParams
 {
 	GENERATED_BODY()
 
@@ -252,38 +252,38 @@ struct ANIMGRAPHRUNTIME_API FRBFParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = RBFData, meta = (UIMin = "0", UIMax = "90", EditCondition = "NormalizeMethod == ERBFNormalizeMethod::NormalizeWithinMedian"))
 	float MedianMax;
 
-	FRBFParams();
+	ANIMGRAPHRUNTIME_API FRBFParams();
 
 	/** Util for returning unit direction vector for swing axis */
-	FVector GetTwistAxisVector() const;
+	ANIMGRAPHRUNTIME_API FVector GetTwistAxisVector() const;
 };
 
 struct ANIMGRAPHRUNTIME_API FRBFSolverData;
 
 /** Library of Radial Basis Function solver functions */
-struct ANIMGRAPHRUNTIME_API FRBFSolver
+struct FRBFSolver
 {
 	/** Given a list of targets, verify which ones are valid for solving the RBF setup. This is mostly about removing identical targets
 		which invalidates the interpolative solver. Returns true if all targets are valid. */
-	static bool ValidateTargets(const FRBFParams& Params, const TArray<FRBFTarget>& Targets, TArray<int>& InvalidTargets);
+	static ANIMGRAPHRUNTIME_API bool ValidateTargets(const FRBFParams& Params, const TArray<FRBFTarget>& Targets, TArray<int>& InvalidTargets);
 
 	/** Given a set of targets and new input entry, give list of activated targets with weights */
-	static TSharedPtr<const FRBFSolverData> InitSolver(const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
+	static ANIMGRAPHRUNTIME_API TSharedPtr<const FRBFSolverData> InitSolver(const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
 
-	static bool IsSolverDataValid(const FRBFSolverData& SolverData, const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
+	static ANIMGRAPHRUNTIME_API bool IsSolverDataValid(const FRBFSolverData& SolverData, const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
 
 	/** Given a set of targets and new input entry, give list of activated targets with weights */
-	static void Solve(const FRBFSolverData& SolverData, const FRBFParams& Params, const TArray<FRBFTarget>& Targets, const FRBFEntry& Input, TArray<FRBFOutputWeight>& OutputWeights);
+	static ANIMGRAPHRUNTIME_API void Solve(const FRBFSolverData& SolverData, const FRBFParams& Params, const TArray<FRBFTarget>& Targets, const FRBFEntry& Input, TArray<FRBFOutputWeight>& OutputWeights);
 
 	/** Util to find distance to nearest neighbour target for each target */
-	static bool FindTargetNeighbourDistances(const FRBFParams& Params, const TArray<FRBFTarget>& Targets, TArray<float>& NeighbourDists);
+	static ANIMGRAPHRUNTIME_API bool FindTargetNeighbourDistances(const FRBFParams& Params, const TArray<FRBFTarget>& Targets, TArray<float>& NeighbourDists);
 
 	/** Util to find distance between two entries, using provided params */
-	static float FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry& B, const FRBFParams& Params, ERBFDistanceMethod OverrideMethod = ERBFDistanceMethod::DefaultMethod);
+	static ANIMGRAPHRUNTIME_API float FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry& B, const FRBFParams& Params, ERBFDistanceMethod OverrideMethod = ERBFDistanceMethod::DefaultMethod);
 
 	/** Returns the radius for a given target */
-	static float GetRadiusForTarget(const FRBFTarget& Target, const FRBFParams& Params);
+	static ANIMGRAPHRUNTIME_API float GetRadiusForTarget(const FRBFTarget& Target, const FRBFParams& Params);
 
 	/** Compute the optimal radius for the given targets. Returns the radius */
-	static float GetOptimalRadiusForTargets(const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
+	static ANIMGRAPHRUNTIME_API float GetOptimalRadiusForTargets(const FRBFParams& Params, const TArray<FRBFTarget>& Targets);
 };

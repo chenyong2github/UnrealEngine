@@ -23,21 +23,21 @@ struct FFrame;
 DECLARE_DELEGATE_TwoParams(NvInteractorCommand, FClothingSimulationNv*, FClothingSimulationContextNv*)
 
 class UE_DEPRECATED(5.1, "NvCloth is no longer a supported clothing simlation provider, prefer the Chaos simulation moving forward.") UClothingSimulationInteractorNv;
-UCLASS(BlueprintType)
-class CLOTHINGSYSTEMRUNTIMENV_API UClothingSimulationInteractorNv : public UClothingSimulationInteractor
+UCLASS(BlueprintType, MinimalAPI)
+class UClothingSimulationInteractorNv : public UClothingSimulationInteractor
 {
 	GENERATED_BODY()
 
 public:
 
 	// UClothingSimulationInteractor Interface
-	virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext) override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext) override;
 
-	virtual void PhysicsAssetUpdated() override;
-	virtual void ClothConfigUpdated() override;
-	virtual void SetAnimDriveSpringStiffness(float InStiffness) override;
-	virtual void EnableGravityOverride(const FVector& InVector) override;
-	virtual void DisableGravityOverride() override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void PhysicsAssetUpdated() override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void ClothConfigUpdated() override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void SetAnimDriveSpringStiffness(float InStiffness) override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void EnableGravityOverride(const FVector& InVector) override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void DisableGravityOverride() override;
 
 	// TODO: These new functions are currently unimplemented
 	virtual void SetNumIterations(int32 /*NumIterations*/) override {}
@@ -47,7 +47,7 @@ public:
 
 	// Set the stiffness of the resistive damping force for anim drive
 	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
-	void SetAnimDriveDamperStiffness(float InStiffness);
+	CLOTHINGSYSTEMRUNTIMENV_API void SetAnimDriveDamperStiffness(float InStiffness);
 
 protected:
 

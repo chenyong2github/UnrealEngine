@@ -338,7 +338,7 @@ struct FBehaviorTreeInstance
 	AIMODULE_API FBehaviorTreeInstance(const FBehaviorTreeInstance& Other);
 
 	UE_DEPRECATED(5.2, "Copying FBehaviorTreeInstance assignement operator has been deprecated in favor of move assignement operator")
-	AIMODULE_API FBehaviorTreeInstance& operator=(const FBehaviorTreeInstance& Other) = default;
+	FBehaviorTreeInstance& operator=(const FBehaviorTreeInstance& Other) = default;
 
 	AIMODULE_API FBehaviorTreeInstance(FBehaviorTreeInstance&& Other);
 	AIMODULE_API FBehaviorTreeInstance& operator=(FBehaviorTreeInstance&& Other);
@@ -600,7 +600,7 @@ struct FBehaviorTreePropertyMemory
 /** helper struct for defining types of allowed blackboard entries
  *  (e.g. only entries holding points and objects derived form actor class) */
 USTRUCT(BlueprintType)
-struct AIMODULE_API FBlackboardKeySelector
+struct FBlackboardKeySelector
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -630,28 +630,28 @@ protected:
 	uint32 bNoneIsAllowedValue:1;
 
 	/** find initial selection. Called when None is not a valid option for this key selector */
-	void InitSelection(const UBlackboardData& BlackboardAsset);
+	AIMODULE_API void InitSelection(const UBlackboardData& BlackboardAsset);
 
 public:
 	/** find ID and class of selected key */
-	void ResolveSelectedKey(const UBlackboardData& BlackboardAsset);
+	AIMODULE_API void ResolveSelectedKey(const UBlackboardData& BlackboardAsset);
 		
 	void AllowNoneAsValue(bool bAllow) { bNoneIsAllowedValue = bAllow; }
 
 	FORCEINLINE FBlackboard::FKey GetSelectedKeyID() const { return FBlackboard::FKey(IntCastChecked<uint16>(SelectedKeyID)); }
 
 	/** helper functions for setting basic filters */
-	void AddObjectFilter(UObject* Owner, FName PropertyName, TSubclassOf<UObject> AllowedClass);
-	void AddClassFilter(UObject* Owner, FName PropertyName, TSubclassOf<UObject> AllowedClass);
-	void AddEnumFilter(UObject* Owner, FName PropertyName, UEnum* AllowedEnum);
-	void AddNativeEnumFilter(UObject* Owner, FName PropertyName, const FString& AllowedEnumName);
-	void AddIntFilter(UObject* Owner, FName PropertyName);
-	void AddFloatFilter(UObject* Owner, FName PropertyName);
-	void AddBoolFilter(UObject* Owner, FName PropertyName);
-	void AddVectorFilter(UObject* Owner, FName PropertyName);
-	void AddRotatorFilter(UObject* Owner, FName PropertyName);
-	void AddStringFilter(UObject* Owner, FName PropertyName);
-	void AddNameFilter(UObject* Owner, FName PropertyName);
+	AIMODULE_API void AddObjectFilter(UObject* Owner, FName PropertyName, TSubclassOf<UObject> AllowedClass);
+	AIMODULE_API void AddClassFilter(UObject* Owner, FName PropertyName, TSubclassOf<UObject> AllowedClass);
+	AIMODULE_API void AddEnumFilter(UObject* Owner, FName PropertyName, UEnum* AllowedEnum);
+	AIMODULE_API void AddNativeEnumFilter(UObject* Owner, FName PropertyName, const FString& AllowedEnumName);
+	AIMODULE_API void AddIntFilter(UObject* Owner, FName PropertyName);
+	AIMODULE_API void AddFloatFilter(UObject* Owner, FName PropertyName);
+	AIMODULE_API void AddBoolFilter(UObject* Owner, FName PropertyName);
+	AIMODULE_API void AddVectorFilter(UObject* Owner, FName PropertyName);
+	AIMODULE_API void AddRotatorFilter(UObject* Owner, FName PropertyName);
+	AIMODULE_API void AddStringFilter(UObject* Owner, FName PropertyName);
+	AIMODULE_API void AddNameFilter(UObject* Owner, FName PropertyName);
 
 	FORCEINLINE bool IsNone() const { return bNoneIsAllowedValue && GetSelectedKeyID() == FBlackboard::InvalidKey; }
 	FORCEINLINE bool IsSet() const { return GetSelectedKeyID() != FBlackboard::InvalidKey; }
@@ -661,31 +661,31 @@ public:
 	friend FBlackboardDecoratorDetails;
 };
 
-UCLASS(Abstract)
-class AIMODULE_API UBehaviorTreeTypes : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UBehaviorTreeTypes : public UObject
 {
 	GENERATED_BODY()
 
-	static FString BTLoggingContext;
+	static AIMODULE_API FString BTLoggingContext;
 
 public:
 
-	static FString DescribeNodeHelper(const UBTNode* Node);
+	static AIMODULE_API FString DescribeNodeHelper(const UBTNode* Node);
 
-	static FString DescribeNodeResult(EBTNodeResult::Type NodeResult);
-	static FString DescribeFlowAbortMode(EBTFlowAbortMode::Type FlowAbortMode);
-	static FString DescribeActiveNode(EBTActiveNode::Type ActiveNodeType);
-	static FString DescribeTaskStatus(EBTTaskStatus::Type TaskStatus);
-	static FString DescribeNodeUpdateMode(EBTNodeUpdateMode::Type UpdateMode);
+	static AIMODULE_API FString DescribeNodeResult(EBTNodeResult::Type NodeResult);
+	static AIMODULE_API FString DescribeFlowAbortMode(EBTFlowAbortMode::Type FlowAbortMode);
+	static AIMODULE_API FString DescribeActiveNode(EBTActiveNode::Type ActiveNodeType);
+	static AIMODULE_API FString DescribeTaskStatus(EBTTaskStatus::Type TaskStatus);
+	static AIMODULE_API FString DescribeNodeUpdateMode(EBTNodeUpdateMode::Type UpdateMode);
 
 	/** returns short name of object's class (BTTaskNode_Wait -> Wait) */
-	static FString GetShortTypeName(const UObject* Ob);
+	static AIMODULE_API FString GetShortTypeName(const UObject* Ob);
 	
 	static FString GetBTLoggingContext() { return BTLoggingContext; }
 	
 	// @param NewBTLoggingContext the object which name's will be added to some of the BT logging
 	// 	pass nullptr to clear
-	static void SetBTLoggingContext(const UBTNode* NewBTLoggingContext);
+	static AIMODULE_API void SetBTLoggingContext(const UBTNode* NewBTLoggingContext);
 };
 
 /** Helper struct to push a node as the new logging context and automatically reset the context on destruction. */

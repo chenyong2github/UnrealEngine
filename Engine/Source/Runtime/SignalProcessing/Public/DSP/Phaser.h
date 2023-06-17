@@ -10,37 +10,37 @@
 namespace Audio
 {
 
-	class SIGNALPROCESSING_API FPhaser
+	class FPhaser
 	{
 	public:
-		FPhaser();
-		~FPhaser();
+		SIGNALPROCESSING_API FPhaser();
+		SIGNALPROCESSING_API ~FPhaser();
 
-		void Init(const float SampleRate, const int32 InNumChannels);
+		SIGNALPROCESSING_API void Init(const float SampleRate, const int32 InNumChannels);
 
 		// Sets the phaser LFO rate
-		void SetFrequency(const float InFreqHz);
+		SIGNALPROCESSING_API void SetFrequency(const float InFreqHz);
 
 		// Sets the wet level of the phaser
-		void SetWetLevel(const float InWetLevel);
+		SIGNALPROCESSING_API void SetWetLevel(const float InWetLevel);
 
 		// Sets the feedback of the phaser
-		void SetFeedback(const float InFeedback);
+		SIGNALPROCESSING_API void SetFeedback(const float InFeedback);
 
 		// Sets the phaser LFO type
-		void SetLFOType(const ELFO::Type LFOType);
+		SIGNALPROCESSING_API void SetLFOType(const ELFO::Type LFOType);
 
 		// Sets whether or not to put the phaser in quadrature mode
-		void SetQuadPhase(const bool bQuadPhase);
+		SIGNALPROCESSING_API void SetQuadPhase(const bool bQuadPhase);
 
 		// Process an audio frame
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InFrame, float* OutFrame);
 
 		// Process an audio buffer.
-		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
 
 	protected:
-		void ComputeNewCoefficients(const int32 ChannelIndex, const float LFOValue);
+		SIGNALPROCESSING_API void ComputeNewCoefficients(const int32 ChannelIndex, const float LFOValue);
 
 		// First-order all-pass filters in series
 		static const int32 NumApfs = 6;

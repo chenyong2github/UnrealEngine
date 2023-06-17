@@ -25,7 +25,7 @@ namespace ESightPerceptionEventName
 }
 
 USTRUCT()
-struct AIMODULE_API FAISightEvent
+struct FAISightEvent
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -48,17 +48,17 @@ struct AIMODULE_API FAISightEvent
 	}
 };
 
-struct AIMODULE_API FAISightTarget
+struct FAISightTarget
 {
 	typedef uint32 FTargetId;
-	static const FTargetId InvalidTargetId;
+	static AIMODULE_API const FTargetId InvalidTargetId;
 
 	TWeakObjectPtr<AActor> Target;
 	IAISightTargetInterface* SightTargetInterface;
 	FGenericTeamId TeamId;
 	FTargetId TargetId;
 
-	FAISightTarget(AActor* InTarget = NULL, FGenericTeamId InTeamId = FGenericTeamId::NoTeam);
+	AIMODULE_API FAISightTarget(AActor* InTarget = NULL, FGenericTeamId InTeamId = FGenericTeamId::NoTeam);
 
 	FORCEINLINE FVector GetLocationSimple() const
 	{
@@ -179,7 +179,7 @@ struct FAISightQuery
 	};
 };
 
-struct AIMODULE_API FAISightQueryID
+struct FAISightQueryID
 {
 	FPerceptionListenerID ObserverId;
 	FAISightTarget::FTargetId TargetId;
@@ -197,8 +197,8 @@ struct AIMODULE_API FAISightQueryID
 
 DECLARE_DELEGATE_FiveParams(FOnPendingVisibilityQueryProcessedDelegate, const FAISightQueryID&, const bool, const float, const FVector&, const TOptional<int32>&);
 
-UCLASS(ClassGroup=AI, config=Game)
-class AIMODULE_API UAISense_Sight : public UAISense
+UCLASS(ClassGroup=AI, config=Game, MinimalAPI)
+class UAISense_Sight : public UAISense
 {
 	GENERATED_UCLASS_BODY()
 
@@ -282,49 +282,49 @@ protected:
 
 public:
 
-	virtual void PostInitProperties() override;
+	AIMODULE_API virtual void PostInitProperties() override;
 	
-	void RegisterEvent(const FAISightEvent& Event);	
+	AIMODULE_API void RegisterEvent(const FAISightEvent& Event);	
 
-	virtual void RegisterSource(AActor& SourceActors) override;
-	virtual void UnregisterSource(AActor& SourceActor) override;
+	AIMODULE_API virtual void RegisterSource(AActor& SourceActors) override;
+	AIMODULE_API virtual void UnregisterSource(AActor& SourceActor) override;
 	
-	virtual void OnListenerForgetsActor(const FPerceptionListener& Listener, AActor& ActorToForget) override;
-	virtual void OnListenerForgetsAll(const FPerceptionListener& Listener) override;
+	AIMODULE_API virtual void OnListenerForgetsActor(const FPerceptionListener& Listener, AActor& ActorToForget) override;
+	AIMODULE_API virtual void OnListenerForgetsAll(const FPerceptionListener& Listener) override;
 
 #if WITH_GAMEPLAY_DEBUGGER_MENU
-	virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionSystem& PerceptionSystem, FGameplayDebuggerCategory& DebuggerCategory) const override;
+	AIMODULE_API virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionSystem& PerceptionSystem, FGameplayDebuggerCategory& DebuggerCategory) const override;
 #endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 protected:
-	virtual float Update() override;
+	AIMODULE_API virtual float Update() override;
 
-	EVisibilityResult ComputeVisibility(UWorld* World, FAISightQuery& SightQuery, FPerceptionListener& Listener, const AActor* ListenerActor, FAISightTarget& Target, AActor* TargetActor, const FDigestedSightProperties& PropDigest, float& OutStimulusStrength, FVector& OutSeenLocation, int32& OutNumberOfLoSChecksPerformed, int32& OutNumberOfAsyncLosCheckRequested) const;
-	virtual bool ShouldAutomaticallySeeTarget(const FDigestedSightProperties& PropDigest, FAISightQuery* SightQuery, FPerceptionListener& Listener, AActor* TargetActor, float& OutStimulusStrength) const;
+	AIMODULE_API EVisibilityResult ComputeVisibility(UWorld* World, FAISightQuery& SightQuery, FPerceptionListener& Listener, const AActor* ListenerActor, FAISightTarget& Target, AActor* TargetActor, const FDigestedSightProperties& PropDigest, float& OutStimulusStrength, FVector& OutSeenLocation, int32& OutNumberOfLoSChecksPerformed, int32& OutNumberOfAsyncLosCheckRequested) const;
+	AIMODULE_API virtual bool ShouldAutomaticallySeeTarget(const FDigestedSightProperties& PropDigest, FAISightQuery* SightQuery, FPerceptionListener& Listener, AActor* TargetActor, float& OutStimulusStrength) const;
 	
 	UE_DEPRECATED(5.3, "Please use the UpdateQueryVisibilityStatus version which takes an Actor& instead.")
-	void UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPerceptionListener& Listener, const bool bIsVisible, const FVector& SeenLocation, const float StimulusStrength, AActor* TargetActor, const FVector& TargetLocation) const;
-	void UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPerceptionListener& Listener, const bool bIsVisible, const FVector& SeenLocation, const float StimulusStrength, AActor& TargetActor, const FVector& TargetLocation) const;
+	AIMODULE_API void UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPerceptionListener& Listener, const bool bIsVisible, const FVector& SeenLocation, const float StimulusStrength, AActor* TargetActor, const FVector& TargetLocation) const;
+	AIMODULE_API void UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPerceptionListener& Listener, const bool bIsVisible, const FVector& SeenLocation, const float StimulusStrength, AActor& TargetActor, const FVector& TargetLocation) const;
 
-	void OnPendingCanBeSeenQueryProcessed(const FAISightQueryID& QueryID, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData);
-	void OnPendingTraceQueryProcessed(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
-	void OnPendingQueryProcessed(const int32 SightQueryIndex, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData, const TOptional<AActor*> InTargetActor = NullOpt);
+	AIMODULE_API void OnPendingCanBeSeenQueryProcessed(const FAISightQueryID& QueryID, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData);
+	AIMODULE_API void OnPendingTraceQueryProcessed(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
+	AIMODULE_API void OnPendingQueryProcessed(const int32 SightQueryIndex, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData, const TOptional<AActor*> InTargetActor = NullOpt);
 
-	void OnNewListenerImpl(const FPerceptionListener& NewListener);
-	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
-	void OnListenerRemovedImpl(const FPerceptionListener& RemovedListener);
-	virtual void OnListenerConfigUpdated(const FPerceptionListener& UpdatedListener) override;
+	AIMODULE_API void OnNewListenerImpl(const FPerceptionListener& NewListener);
+	AIMODULE_API void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
+	AIMODULE_API void OnListenerRemovedImpl(const FPerceptionListener& RemovedListener);
+	AIMODULE_API virtual void OnListenerConfigUpdated(const FPerceptionListener& UpdatedListener) override;
 	
-	void GenerateQueriesForListener(const FPerceptionListener& Listener, const FDigestedSightProperties& PropertyDigest, const TFunction<void(FAISightQuery&)>& OnAddedFunc = nullptr);
+	AIMODULE_API void GenerateQueriesForListener(const FPerceptionListener& Listener, const FDigestedSightProperties& PropertyDigest, const TFunction<void(FAISightQuery&)>& OnAddedFunc = nullptr);
 
-	void RemoveAllQueriesByListener(const FPerceptionListener& Listener, const TFunction<void(const FAISightQuery&)>& OnRemoveFunc = nullptr);
-	void RemoveAllQueriesToTarget(const FAISightTarget::FTargetId& TargetId, const TFunction<void(const FAISightQuery&)>& OnRemoveFunc = nullptr);
+	AIMODULE_API void RemoveAllQueriesByListener(const FPerceptionListener& Listener, const TFunction<void(const FAISightQuery&)>& OnRemoveFunc = nullptr);
+	AIMODULE_API void RemoveAllQueriesToTarget(const FAISightTarget::FTargetId& TargetId, const TFunction<void(const FAISightQuery&)>& OnRemoveFunc = nullptr);
 
 	/** returns information whether new LoS queries have been added */
-	bool RegisterTarget(AActor& TargetActor, const TFunction<void(FAISightQuery&)>& OnAddedFunc = nullptr);
+	AIMODULE_API bool RegisterTarget(AActor& TargetActor, const TFunction<void(FAISightQuery&)>& OnAddedFunc = nullptr);
 
-	float CalcQueryImportance(const FPerceptionListener& Listener, const FVector& TargetLocation, const float SightRadiusSq) const;
-	bool RegisterNewQuery(const FPerceptionListener& Listener, const IGenericTeamAgentInterface* ListenersTeamAgent, const AActor& TargetActor, const FAISightTarget::FTargetId& TargetId, const FVector& TargetLocation, const FDigestedSightProperties& PropDigest, const TFunction<void(FAISightQuery&)>& OnAddedFunc);
+	AIMODULE_API float CalcQueryImportance(const FPerceptionListener& Listener, const FVector& TargetLocation, const float SightRadiusSq) const;
+	AIMODULE_API bool RegisterNewQuery(const FPerceptionListener& Listener, const IGenericTeamAgentInterface* ListenersTeamAgent, const AActor& TargetActor, const FAISightTarget::FTargetId& TargetId, const FVector& TargetLocation, const FDigestedSightProperties& PropDigest, const TFunction<void(FAISightQuery&)>& OnAddedFunc);
 
 protected:
 	enum FQueriesOperationPostProcess

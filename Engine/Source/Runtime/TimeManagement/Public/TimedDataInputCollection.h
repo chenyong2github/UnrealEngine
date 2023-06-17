@@ -11,7 +11,7 @@ class ITimedDataInputChannel;
 /**
  * A list of all the timed data input.
  */
-class TIMEMANAGEMENT_API FTimedDataInputCollection
+class FTimedDataInputCollection
 {
 public:
 

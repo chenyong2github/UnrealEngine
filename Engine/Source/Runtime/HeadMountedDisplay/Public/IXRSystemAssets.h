@@ -13,7 +13,7 @@ enum class EControllerHand : uint8;
 
 DECLARE_DELEGATE_OneParam(FXRComponentLoadComplete, UPrimitiveComponent*);
 
-class HEADMOUNTEDDISPLAY_API IXRSystemAssets : public IModularFeature, public IXRSystemIdentifier
+class IXRSystemAssets : public IModularFeature, public IXRSystemIdentifier
 {
 public:
 	static FName GetModularFeatureName()

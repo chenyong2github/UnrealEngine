@@ -22,23 +22,23 @@ class SWidget;
 /**
  * Base class of factory that creates Source. A source can be created in the editor via the Live Link panel or at runtime via a connection string.
  */
-UCLASS(Abstract)
-class LIVELINKINTERFACE_API ULiveLinkSourceFactory : public UObject
+UCLASS(Abstract, MinimalAPI)
+class ULiveLinkSourceFactory : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	/** The name of the menu item (of any EMenuType) */
-	virtual FText GetSourceDisplayName() const PURE_VIRTUAL( ULiveLinkSourceFactory::GetSourceDisplayName, return FText(); );
+	LIVELINKINTERFACE_API virtual FText GetSourceDisplayName() const PURE_VIRTUAL( ULiveLinkSourceFactory::GetSourceDisplayName, return FText(); );
 
 	/** The tooltip of the menu item (of any EMenyType) */
-	virtual FText GetSourceTooltip() const PURE_VIRTUAL(ULiveLinkSourceFactory::GetSourceTooltip, return FText(); );
+	LIVELINKINTERFACE_API virtual FText GetSourceTooltip() const PURE_VIRTUAL(ULiveLinkSourceFactory::GetSourceTooltip, return FText(); );
 
 	UE_DEPRECATED(4.23, "CreateSourceCreationPanel is deprecated. LiveLinkSourceFactory can now be used at runtime. This factory won't work until it's been updated.")
-	virtual TSharedPtr<SWidget> CreateSourceCreationPanel();
+	LIVELINKINTERFACE_API virtual TSharedPtr<SWidget> CreateSourceCreationPanel();
 
 	UE_DEPRECATED(4.23, "OnSourceCreationPanelClosed is deprecated. LiveLinkSourceFactory can now be used at runtime. The factory won't work until it's been updated.")
-	virtual TSharedPtr<ILiveLinkSource> OnSourceCreationPanelClosed(bool bMakeSource);
+	LIVELINKINTERFACE_API virtual TSharedPtr<ILiveLinkSource> OnSourceCreationPanelClosed(bool bMakeSource);
 
 	enum class EMenuType
 	{
@@ -60,8 +60,8 @@ public:
 	 * @param OnLiveLinkSourceCreated Callback to call when the source has been created by the custom UI.
 	 * @return The subpanel UI created by the factory.
 	 */
-	virtual TSharedPtr<SWidget> BuildCreationPanel(FOnLiveLinkSourceCreated OnLiveLinkSourceCreated) const;
+	LIVELINKINTERFACE_API virtual TSharedPtr<SWidget> BuildCreationPanel(FOnLiveLinkSourceCreated OnLiveLinkSourceCreated) const;
 
 	/** Create a new source from a ConnectionString */
-	virtual TSharedPtr<ILiveLinkSource> CreateSource(const FString& ConnectionString) const PURE_VIRTUAL(ULiveLinkSourceFactory::CreateSource, return TSharedPtr<ILiveLinkSource>(); );
+	LIVELINKINTERFACE_API virtual TSharedPtr<ILiveLinkSource> CreateSource(const FString& ConnectionString) const PURE_VIRTUAL(ULiveLinkSourceFactory::CreateSource, return TSharedPtr<ILiveLinkSource>(); );
 };

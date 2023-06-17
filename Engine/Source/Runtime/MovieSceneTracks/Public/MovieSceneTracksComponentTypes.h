@@ -27,7 +27,7 @@ struct FMovieSceneObjectBindingID;
 
 /** Component data for Perlin Noise channels */
 USTRUCT()
-struct MOVIESCENETRACKS_API FPerlinNoiseParams
+struct FPerlinNoiseParams
 {
 	GENERATED_BODY()
 
@@ -43,11 +43,11 @@ struct MOVIESCENETRACKS_API FPerlinNoiseParams
 	UPROPERTY(EditAnywhere, Category = "Perlin Noise")
 	float Offset;
 
-	FPerlinNoiseParams();
-	FPerlinNoiseParams(float InFrequency, double InAmplitude);
+	MOVIESCENETRACKS_API FPerlinNoiseParams();
+	MOVIESCENETRACKS_API FPerlinNoiseParams(float InFrequency, double InAmplitude);
 
 	/** Generates a new random offset between [0, InMaxOffset] and sets it */
-	void RandomizeOffset(float InMaxOffset = 100.f);
+	MOVIESCENETRACKS_API void RandomizeOffset(float InMaxOffset = 100.f);
 };
 
 /** Component data for the level visibility system */
@@ -523,9 +523,9 @@ using FStringPropertyTraits			    = TDirectPropertyTraits<FString>;
 using FFloatParameterTraits             = TIndirectPropertyTraits<float, double, false>;
 using FColorParameterTraits             = TIndirectPropertyTraits<FLinearColor, FIntermediateColor>;
 
-struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
+struct FMovieSceneTracksComponentTypes
 {
-	~FMovieSceneTracksComponentTypes();
+	MOVIESCENETRACKS_API ~FMovieSceneTracksComponentTypes();
 
 	TPropertyComponents<FBoolPropertyTraits> Bool;
 	TPropertyComponents<FBytePropertyTraits> Byte;
@@ -596,9 +596,9 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TComponentTypeID<FLevelVisibilityComponentData> LevelVisibility;
 	TComponentTypeID<FMovieSceneDataLayerComponentData> DataLayer;
 
-	static void Destroy();
+	static MOVIESCENETRACKS_API void Destroy();
 
-	static FMovieSceneTracksComponentTypes* Get();
+	static MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes* Get();
 
 private:
 	FMovieSceneTracksComponentTypes();

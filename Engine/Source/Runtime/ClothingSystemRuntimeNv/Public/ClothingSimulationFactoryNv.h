@@ -20,19 +20,19 @@ template <class TClass> class TSubclassOf;
 
 class UE_DEPRECATED(5.1, "NvCloth simulation is no longer supported, UChaosClothingSimulationFactory should be used going forward.") UClothingSimulationFactoryNv;
 
-UCLASS()
-class CLOTHINGSYSTEMRUNTIMENV_API UClothingSimulationFactoryNv final : public UClothingSimulationFactory
+UCLASS(MinimalAPI)
+class UClothingSimulationFactoryNv final : public UClothingSimulationFactory
 {
 	GENERATED_BODY()
 public:
 
-	virtual IClothingSimulation* CreateSimulation() override;
-	virtual void DestroySimulation(IClothingSimulation* InSimulation) override;
-	virtual bool SupportsAsset(UClothingAssetBase* InAsset) override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual IClothingSimulation* CreateSimulation() override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual void DestroySimulation(IClothingSimulation* InSimulation) override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual bool SupportsAsset(UClothingAssetBase* InAsset) override;
 
-	virtual bool SupportsRuntimeInteraction() override;
-	virtual UClothingSimulationInteractor* CreateInteractor() override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual bool SupportsRuntimeInteraction() override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual UClothingSimulationInteractor* CreateInteractor() override;
 
-	virtual TArrayView<const TSubclassOf<UClothConfigBase>> GetClothConfigClasses() const override;
-	virtual const UEnum* GetWeightMapTargetEnum() const override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual TArrayView<const TSubclassOf<UClothConfigBase>> GetClothConfigClasses() const override;
+	CLOTHINGSYSTEMRUNTIMENV_API virtual const UEnum* GetWeightMapTargetEnum() const override;
 };

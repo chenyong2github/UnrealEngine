@@ -11,49 +11,49 @@
 
 #include "ScalableSphereGizmo.generated.h"
 
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UScalableSphereGizmoBuilder : public UInteractiveGizmoBuilder
+UCLASS(MinimalAPI)
+class UScalableSphereGizmoBuilder : public UInteractiveGizmoBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 };
 
 /**
  * UScalableSphereGizmo provides a sphere that can be scaled in all directions by dragging
  * anywhere on the three axial circles that represent it
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UScalableSphereGizmo : public UInteractiveGizmo, public IHoverBehaviorTarget
+UCLASS(MinimalAPI)
+class UScalableSphereGizmo : public UInteractiveGizmo, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
 public:
 	// UInteractiveGizmo interface
-	virtual void Setup() override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	// IHoverBehaviorTarget interface
-	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
 	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override { }
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos);
-	virtual void OnEndHover();
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnEndHover();
 	
 	/**
 	 * Set the Target to which the gizmo will be attached
 	 */
-	virtual void SetTarget(UTransformProxy* InTarget);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetTarget(UTransformProxy* InTarget);
 
-	virtual void OnBeginDrag(const FInputDeviceRay& Ray);
-	virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
-	virtual void OnEndDrag(const FInputDeviceRay& Ray);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnBeginDrag(const FInputDeviceRay& Ray);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void OnEndDrag(const FInputDeviceRay& Ray);
 
 	/** Check if the input Ray hit any of the components of the internal actor */
-	bool HitTest(const FRay& Ray, FHitResult& OutHit, FVector& OutAxis, FTransform& OutTransform);
+	INTERACTIVETOOLSFRAMEWORK_API bool HitTest(const FRay& Ray, FHitResult& OutHit, FVector& OutAxis, FTransform& OutTransform);
 
 	/* Set the Radius of the Sphere*/
-	void SetRadius(float InRadius);
+	INTERACTIVETOOLSFRAMEWORK_API void SetRadius(float InRadius);
 
 	/** Called when the radius is chaged (by dragging or setting). Sends new radius as parameter. */
 	TFunction<void(const float)> UpdateRadiusFunc = nullptr;
@@ -69,7 +69,7 @@ public:
 private:
 
 	// Check if the Circle represented by CircleNormal centered at the gizmos location has been hit by the Ray
-	bool CheckCircleIntersection(const FRay& Ray, FVector CircleNormal, FVector& OutHitLocation, FVector& OutHitAxis);
+	INTERACTIVETOOLSFRAMEWORK_API bool CheckCircleIntersection(const FRay& Ray, FVector CircleNormal, FVector& OutHitLocation, FVector& OutHitAxis);
 	
 	// The radius of the sphere
 	UPROPERTY()
@@ -107,20 +107,20 @@ private:
 /**
  * A behavior that forwards clicking and dragging to the gizmo.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UScalableSphereGizmoInputBehavior : public UAnyButtonInputBehavior
+UCLASS(MinimalAPI)
+class UScalableSphereGizmoInputBehavior : public UAnyButtonInputBehavior
 {
 	GENERATED_BODY()
 
 public:
 	virtual FInputCapturePriority GetPriority() override { return FInputCapturePriority(FInputCapturePriority::DEFAULT_GIZMO_PRIORITY); }
 
-	virtual void Initialize(UScalableSphereGizmo* Gizmo);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(UScalableSphereGizmo* Gizmo);
 
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& input) override;
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide) override;
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& input, const FInputCaptureData& data) override;
-	virtual void ForceEndCapture(const FInputCaptureData& data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& input) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& input, EInputCaptureSide eSide) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& input, const FInputCaptureData& data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceEndCapture(const FInputCaptureData& data) override;
 
 protected:
 	UScalableSphereGizmo* Gizmo;

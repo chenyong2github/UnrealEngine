@@ -9,13 +9,13 @@
 
 class UAIPerceptionComponent;
 
-UINTERFACE()
-class AIMODULE_API UAIPerceptionListenerInterface : public UInterface
+UINTERFACE(MinimalAPI)
+class UAIPerceptionListenerInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class AIMODULE_API IAIPerceptionListenerInterface
+class IAIPerceptionListenerInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

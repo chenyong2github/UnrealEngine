@@ -10,7 +10,7 @@
 // Root node of a blend space sample (sink node).
 // We dont use AnimNode_Root to let us distinguish these nodes in the property list at link time.
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceSampleResult : public FAnimNode_Root
+struct FAnimNode_BlendSpaceSampleResult : public FAnimNode_Root
 {
 	GENERATED_BODY()
 };

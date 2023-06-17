@@ -100,7 +100,7 @@ ToType& DowncastSoundfieldRef(FromType& InRef)
  * your implementation of USoundfieldEncodingSettingsBase. We will then pass this proxy 
  * object to the soundfield stream classes.
  */
-class AUDIOEXTENSIONS_API ISoundfieldEncodingSettingsProxy
+class ISoundfieldEncodingSettingsProxy
 {
 public:
 	virtual ~ISoundfieldEncodingSettingsProxy() {};
@@ -119,13 +119,13 @@ public:
  * This opaque class should be used for specifying settings for how audio should be encoded
  * to your soundfield format for a given submix or file.
  */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API USoundfieldEncodingSettingsBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USoundfieldEncodingSettingsBase : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	virtual TUniquePtr<ISoundfieldEncodingSettingsProxy> GetProxy() const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::GetProxy, return nullptr;);
+	AUDIOEXTENSIONS_API virtual TUniquePtr<ISoundfieldEncodingSettingsProxy> GetProxy() const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::GetProxy, return nullptr;);
 };
 
 struct FAudioPluginInitializationParams;
@@ -133,7 +133,7 @@ struct FAudioPluginInitializationParams;
 /**
  * This interface represents all encoded soundfield audio from a single render callback.
  */
-class AUDIOEXTENSIONS_API ISoundfieldAudioPacket
+class ISoundfieldAudioPacket
 {
 public:
 	virtual ~ISoundfieldAudioPacket() {};
@@ -214,7 +214,7 @@ struct FSoundfieldDecoderOutputData
 	Audio::FAlignedFloatBuffer& AudioBuffer;
 };
 
-class AUDIOEXTENSIONS_API ISoundfieldDecoderStream
+class ISoundfieldDecoderStream
 {
 public:
 	virtual ~ISoundfieldDecoderStream() {};
@@ -223,7 +223,7 @@ public:
 	virtual void DecodeAndMixIn(const FSoundfieldDecoderInputData& InputData, FSoundfieldDecoderOutputData& OutputData) = 0;
 };
 
-class AUDIOEXTENSIONS_API ISoundfieldTranscodeStream
+class ISoundfieldTranscodeStream
 {
 public:
 	virtual ~ISoundfieldTranscodeStream() {};
@@ -242,7 +242,7 @@ struct FSoundfieldMixerInputData
 	float SendLevel;
 };
 
-class AUDIOEXTENSIONS_API ISoundfieldMixerStream
+class ISoundfieldMixerStream
 {
 public:
 	virtual ~ISoundfieldMixerStream() {};
@@ -250,7 +250,7 @@ public:
 	virtual void MixTogether(const FSoundfieldMixerInputData& InputData, ISoundfieldAudioPacket& PacketToMixInto) = 0;
 };
 
-class AUDIOEXTENSIONS_API ISoundfieldFactory : public IModularFeature
+class ISoundfieldFactory : public IModularFeature
 {
 public:
 	/** Virtual destructor */
@@ -259,32 +259,32 @@ public:
 	}
 
 	/** When a submix has this format name, it is using interleaved, floating point audio with no metadata. */
-	static FName GetFormatNameForNoEncoding();
+	static AUDIOEXTENSIONS_API FName GetFormatNameForNoEncoding();
 
 	/** When a submix has this format name, it derives its format from the submix it sends audio to. */
-	static FName GetFormatNameForInheritedEncoding();
+	static AUDIOEXTENSIONS_API FName GetFormatNameForInheritedEncoding();
 
 	/** This is the FName used to register Soundfield Format factories with the modular feature system. */
-	static FName GetModularFeatureName();
+	static AUDIOEXTENSIONS_API FName GetModularFeatureName();
 
 	/** 
 	 * This needs to be called to make a soundfield format usable by the engine.
 	 * It can be called from a ISoundfieldFactory subclass' constructor
 	*/
-	static void RegisterSoundfieldFormat(ISoundfieldFactory* InFactory);
+	static AUDIOEXTENSIONS_API void RegisterSoundfieldFormat(ISoundfieldFactory* InFactory);
 
 	/**
 	 * This needs to be called it an implementation of ISoundfieldFactory is about to be destroyed.
 	 * It can be called from the destructor of an implementation of ISoundfieldFactory.
 	 */
-	static void UnregisterSoundfieldFormat(ISoundfieldFactory* InFactory);
+	static AUDIOEXTENSIONS_API void UnregisterSoundfieldFormat(ISoundfieldFactory* InFactory);
 
 	/**
 	 * Get a registered soundfield format factory by name.
 	 */
-	static ISoundfieldFactory* Get(const FName& InName);
+	static AUDIOEXTENSIONS_API ISoundfieldFactory* Get(const FName& InName);
 
-	static TArray<FName> GetAvailableSoundfieldFormats();
+	static AUDIOEXTENSIONS_API TArray<FName> GetAvailableSoundfieldFormats();
 
 	/** Get soundfield format name  */
 	virtual FName GetSoundfieldFormatName() = 0;
@@ -347,13 +347,13 @@ public:
 	virtual ~ISoundfieldEffectSettingsProxy() {};
 };
 
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API USoundfieldEffectSettingsBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USoundfieldEffectSettingsBase : public UObject
 {
 	GENERATED_BODY()
 
 protected:
-	virtual TUniquePtr<ISoundfieldEffectSettingsProxy> GetNewProxy() const PURE_VIRTUAL(USoundfieldEffectSettingsBase::GetProxy, return nullptr;);
+	AUDIOEXTENSIONS_API virtual TUniquePtr<ISoundfieldEffectSettingsProxy> GetNewProxy() const PURE_VIRTUAL(USoundfieldEffectSettingsBase::GetProxy, return nullptr;);
 
 private:
 	// This is called by any engine system that is explicitly marked as a friend.
@@ -379,8 +379,8 @@ public:
  * This opaque class should be used for specifying settings for how audio should be encoded
  * to your soundfield format for a given submix or file.
  */
-UCLASS(config = Engine, abstract, editinlinenew, BlueprintType)
-class AUDIOEXTENSIONS_API USoundfieldEffectBase : public UObject
+UCLASS(config = Engine, abstract, editinlinenew, BlueprintType, MinimalAPI)
+class USoundfieldEffectBase : public UObject
 {
 	GENERATED_BODY()
 
@@ -396,22 +396,22 @@ protected:
 	/*
 	 * Get the implementation of USoundfieldProcessorSettingsBase that is used for this processor's settings. Will always be called on the CDO.
 	 */
-	virtual bool SupportsFormat(const FName& InFormat) const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::SupportsFormat, return false;);
+	AUDIOEXTENSIONS_API virtual bool SupportsFormat(const FName& InFormat) const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::SupportsFormat, return false;);
 
 	/*
 	 * Get the implementation of USoundfieldProcessorSettingsBase that is used for this processor's settings. Will always be called on the CDO.
 	 */
-	virtual const UClass* GetSettingsClass() const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::GetSettingsClass, return nullptr;);
+	AUDIOEXTENSIONS_API virtual const UClass* GetSettingsClass() const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::GetSettingsClass, return nullptr;);
 	
 	/**
 	 * return the default processor settings we should use when none is provided. Will always be called on the CDO.
 	 */
-	virtual const USoundfieldEffectSettingsBase* GetDefaultSettings() const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::GetDefaultSettings, return nullptr;);
+	AUDIOEXTENSIONS_API virtual const USoundfieldEffectSettingsBase* GetDefaultSettings() const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::GetDefaultSettings, return nullptr;);
 
 	/**
 	 * Spawn a new instance of this processor.
 	 */
-	virtual TUniquePtr<ISoundfieldEffectInstance> GetNewProcessor(const ISoundfieldEncodingSettingsProxy& EncodingSettings) const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::GetProxy, return nullptr;);
+	AUDIOEXTENSIONS_API virtual TUniquePtr<ISoundfieldEffectInstance> GetNewProcessor(const ISoundfieldEncodingSettingsProxy& EncodingSettings) const PURE_VIRTUAL(USoundfieldEncodingSettingsBase::GetProxy, return nullptr;);
 
 private:
 

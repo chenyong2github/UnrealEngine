@@ -14,7 +14,7 @@ namespace Audio
 	class IFFTAlgorithm;
 	class FSpectrumAnalyzer;
 
-	struct SIGNALPROCESSING_API FSpectrumAnalyzerSettings
+	struct FSpectrumAnalyzerSettings
 	{
 		// Actual FFT size used. For FSpectrumAnalyzer, we never zero pad the input buffer.
 		enum class EFFTSize : uint16
@@ -49,7 +49,7 @@ namespace Audio
 
 
 	/** Settings for band extractor. */
-	struct SIGNALPROCESSING_API FSpectrumBandExtractorSettings
+	struct FSpectrumBandExtractorSettings
 	{
 		/** Metric for output band values. */
 		enum class EMetric : uint8
@@ -94,7 +94,7 @@ namespace Audio
 	};
 
 	/** Settings describing the spectrum used for in the band extractor. */
-	struct SIGNALPROCESSING_API FSpectrumBandExtractorSpectrumSettings
+	struct FSpectrumBandExtractorSpectrumSettings
 	{
 		/** Sample rate of audio */
 		float SampleRate; 
@@ -139,7 +139,7 @@ namespace Audio
 	 *  By maintaining band information across multiple calls, some intermediate 
 	 *  values can be cached to speed up the operation.
 	 */
-	class SIGNALPROCESSING_API ISpectrumBandExtractor
+	class ISpectrumBandExtractor
 	{
 		public:
 
@@ -200,7 +200,7 @@ namespace Audio
 			virtual void ExtractBands(const FAlignedFloatBuffer& InComplexBuffer, double InTimestamp, TArray<float>& OutValues) = 0;
 
 			/** Creates a ISpectrumBandExtractor. */
-			static TUniquePtr<ISpectrumBandExtractor> CreateSpectrumBandExtractor(const FSpectrumBandExtractorSettings& InSettings);
+			static SIGNALPROCESSING_API TUniquePtr<ISpectrumBandExtractor> CreateSpectrumBandExtractor(const FSpectrumBandExtractorSettings& InSettings);
 	};
 
 	/**
@@ -287,7 +287,7 @@ namespace Audio
 	 * Typical usage is to either call PushAudio() and then PerformAnalysisIfPossible immediately afterwards,
 	 * or have a seperate thread call PerformAnalysisIfPossible().
 	 */
-	class SIGNALPROCESSING_API FSpectrumAnalyzer 
+	class FSpectrumAnalyzer 
 	{
 
 	public:
@@ -301,62 +301,62 @@ namespace Audio
 		};
 
 		// If an instance is created using the default constructor, Init() must be called before it is used.
-		FSpectrumAnalyzer();
+		SIGNALPROCESSING_API FSpectrumAnalyzer();
 
 		// If an instance is created using either of these constructors, Init() is not neccessary.
-		FSpectrumAnalyzer(float InSampleRate);
-		FSpectrumAnalyzer(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
+		SIGNALPROCESSING_API FSpectrumAnalyzer(float InSampleRate);
+		SIGNALPROCESSING_API FSpectrumAnalyzer(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
 
 		virtual ~FSpectrumAnalyzer() = default;
 
 		// Initialize sample rate of analyzer if not known at time of construction
-		void Init(float InSampleRate);
-		void Init(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
+		SIGNALPROCESSING_API void Init(float InSampleRate);
+		SIGNALPROCESSING_API void Init(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
 
 		// Update the settings used by this Spectrum Analyzer. Safe to call on any thread, but should not be called every tick.
-		void SetSettings(const FSpectrumAnalyzerSettings& InSettings);
+		SIGNALPROCESSING_API void SetSettings(const FSpectrumAnalyzerSettings& InSettings);
 
 		// Get the current settings used by this Spectrum Analyzer.
-		void GetSettings(FSpectrumAnalyzerSettings& OutSettings);
+		SIGNALPROCESSING_API void GetSettings(FSpectrumAnalyzerSettings& OutSettings);
 
 		// Samples magnitude (linearly) for a given frequency, in Hz.
-		float GetMagnitudeForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
-		float GetNormalizedMagnitudeForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
+		SIGNALPROCESSING_API float GetMagnitudeForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
+		SIGNALPROCESSING_API float GetNormalizedMagnitudeForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
 
 		// Samples phase for a given frequency, in Hz.
-		float GetPhaseForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
+		SIGNALPROCESSING_API float GetPhaseForFrequency(float InFrequency, EPeakInterpolationMethod InMethod = EPeakInterpolationMethod::Linear);
 
 		// Return array of bands using spectrum band extractor.
-		void GetBands(ISpectrumBandExtractor& InExtractor, TArray<float>& OutValues);
+		SIGNALPROCESSING_API void GetBands(ISpectrumBandExtractor& InExtractor, TArray<float>& OutValues);
 
 		// You can call this function to ensure that you're sampling the same window of frequency data,
 		// Then call UnlockOutputBuffer when you're done.
 		// Otherwise, GetMagnitudeForFrequency and GetPhaseForFrequency will always use the latest window
 		// of frequency data.
-		void LockOutputBuffer();
-		void UnlockOutputBuffer();
+		SIGNALPROCESSING_API void LockOutputBuffer();
+		SIGNALPROCESSING_API void UnlockOutputBuffer();
 		
 		// Push audio to queue. Returns false if the queue is already full.
-		bool PushAudio(const TSampleBuffer<float>& InBuffer);
-		bool PushAudio(const float* InBuffer, int32 NumSamples);
+		SIGNALPROCESSING_API bool PushAudio(const TSampleBuffer<float>& InBuffer);
+		SIGNALPROCESSING_API bool PushAudio(const float* InBuffer, int32 NumSamples);
 
 		// Thread safe call to perform actual FFT. Returns true if it performed the FFT, false otherwise.
 		// If bUseLatestAudio is set to true, this function will flush the entire input buffer, potentially losing data.
 		// Otherwise it will only consume enough samples necessary to perform a single FFT.
-		bool PerformAnalysisIfPossible(bool bUseLatestAudio = false);
+		SIGNALPROCESSING_API bool PerformAnalysisIfPossible(bool bUseLatestAudio = false);
 
 		// Returns false if this instance of FSpectrumAnalyzer was constructed with the default constructor 
 		// and Init() has not been called yet.
-		bool IsInitialized();
+		SIGNALPROCESSING_API bool IsInitialized();
 	
 	private:
 
 
 		// Called on analysis thread.
-		void ResetSettings();
+		SIGNALPROCESSING_API void ResetSettings();
 
 		// Called in GetMagnitudeForFrequency and GetPhaseForFrequency.
-		void PerformInterpolation(const FAlignedFloatBuffer& InComplexBuffer, EPeakInterpolationMethod InMethod, const float InFreq, float& OutReal, float& OutImag);
+		SIGNALPROCESSING_API void PerformInterpolation(const FAlignedFloatBuffer& InComplexBuffer, EPeakInterpolationMethod InMethod, const float InFreq, float& OutReal, float& OutImag);
 
 		// Cached current settings. Only actually used in ResetSettings().
 		FSpectrumAnalyzerSettings CurrentSettings;
@@ -385,7 +385,7 @@ namespace Audio
 		TUniquePtr<IFFTAlgorithm> FFT;
 	};
 
-	class SIGNALPROCESSING_API FSpectrumAnalyzerScopeLock
+	class FSpectrumAnalyzerScopeLock
 	{
 	public:
 		FSpectrumAnalyzerScopeLock(FSpectrumAnalyzer* InAnalyzer)
@@ -404,7 +404,7 @@ namespace Audio
 	};
 
 	// SpectrumAnalyzer for computing spectrum in async task. 
-	class SIGNALPROCESSING_API FAsyncSpectrumAnalyzer 
+	class FAsyncSpectrumAnalyzer 
 	{
 
 		FAsyncSpectrumAnalyzer(const FSpectrumAnalyzer&) = delete;
@@ -415,58 +415,58 @@ namespace Audio
 
 
 	public:
-		FAsyncSpectrumAnalyzer();
+		SIGNALPROCESSING_API FAsyncSpectrumAnalyzer();
 		// If an instance is created using either of these constructors, Init() is not neccessary.
-		FAsyncSpectrumAnalyzer(float InSampleRate);
-		FAsyncSpectrumAnalyzer(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
+		SIGNALPROCESSING_API FAsyncSpectrumAnalyzer(float InSampleRate);
+		SIGNALPROCESSING_API FAsyncSpectrumAnalyzer(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
 
-		virtual ~FAsyncSpectrumAnalyzer();
+		SIGNALPROCESSING_API virtual ~FAsyncSpectrumAnalyzer();
 
 		// Initialize sample rate of analyzer if not known at time of construction
-		void Init(float InSampleRate);
-		void Init(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
+		SIGNALPROCESSING_API void Init(float InSampleRate);
+		SIGNALPROCESSING_API void Init(const FSpectrumAnalyzerSettings& InSettings, float InSampleRate);
 
 		// Returns false if this instance of FSpectrumAnalyzer was constructed with the default constructor 
 		// and Init() has not been called yet.
-		bool IsInitialized();
+		SIGNALPROCESSING_API bool IsInitialized();
 
 		// Update the settings used by this Spectrum Analyzer. Safe to call on any thread, but should not be called every tick.
-		void SetSettings(const FSpectrumAnalyzerSettings& InSettings);
+		SIGNALPROCESSING_API void SetSettings(const FSpectrumAnalyzerSettings& InSettings);
 
 		// Get the current settings used by this Spectrum Analyzer.
-		void GetSettings(FSpectrumAnalyzerSettings& OutSettings);
+		SIGNALPROCESSING_API void GetSettings(FSpectrumAnalyzerSettings& OutSettings);
 
 		// Samples magnitude (linearly) for a given frequency, in Hz.
-		float GetMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
-		float GetNormalizedMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
+		SIGNALPROCESSING_API float GetMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
+		SIGNALPROCESSING_API float GetNormalizedMagnitudeForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
 
 		// Samples phase for a given frequency, in Hz.
-		float GetPhaseForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
+		SIGNALPROCESSING_API float GetPhaseForFrequency(float InFrequency, FSpectrumAnalyzer::EPeakInterpolationMethod InMethod = FSpectrumAnalyzer::EPeakInterpolationMethod::Linear);
 
 		// Return array of bands using spectrum band extractor.
-		void GetBands(ISpectrumBandExtractor& InExtractor, TArray<float>& OutValues);
+		SIGNALPROCESSING_API void GetBands(ISpectrumBandExtractor& InExtractor, TArray<float>& OutValues);
 
 		// You can call this function to ensure that you're sampling the same window of frequency data,
 		// Then call UnlockOutputBuffer when you're done.
 		// Otherwise, GetMagnitudeForFrequency and GetPhaseForFrequency will always use the latest window
 		// of frequency data.
-		void LockOutputBuffer();
-		void UnlockOutputBuffer();
+		SIGNALPROCESSING_API void LockOutputBuffer();
+		SIGNALPROCESSING_API void UnlockOutputBuffer();
 		
 		// Push audio to queue. Returns false if the queue is already full.
-		bool PushAudio(const TSampleBuffer<float>& InBuffer);
-		bool PushAudio(const float* InBuffer, int32 NumSamples);
+		SIGNALPROCESSING_API bool PushAudio(const TSampleBuffer<float>& InBuffer);
+		SIGNALPROCESSING_API bool PushAudio(const float* InBuffer, int32 NumSamples);
 
 		// Thread safe call to perform actual FFT. Returns true if it performed the FFT, false otherwise.
 		// If bUseLatestAudio is set to true, this function will flush the entire input buffer, potentially losing data.
 		// Otherwise it will only consume enough samples necessary to perform a single FFT.
-		bool PerformAnalysisIfPossible(bool bUseLatestAudio = false);
+		SIGNALPROCESSING_API bool PerformAnalysisIfPossible(bool bUseLatestAudio = false);
 
 
 		// Thread safe call to perform actual FFT. Returns true if it performed the FFT, false otherwise.
 		// If bUseLatestAudio is set to true, this function will flush the entire input buffer, potentially losing data.
 		// Otherwise it will only consume enough samples necessary to perform a single FFT.
-		bool PerformAsyncAnalysisIfPossible(bool bUseLatestAudio = false);
+		SIGNALPROCESSING_API bool PerformAsyncAnalysisIfPossible(bool bUseLatestAudio = false);
 	
 
 	private:
@@ -477,7 +477,7 @@ namespace Audio
 		TUniquePtr<FSpectrumAnalyzerTask> AsyncAnalysisTask;
 	};
 
-	class SIGNALPROCESSING_API FAsyncSpectrumAnalyzerScopeLock
+	class FAsyncSpectrumAnalyzerScopeLock
 	{
 	public:
 		FAsyncSpectrumAnalyzerScopeLock(FAsyncSpectrumAnalyzer* InAnalyzer)

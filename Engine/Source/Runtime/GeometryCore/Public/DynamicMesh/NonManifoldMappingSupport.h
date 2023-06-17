@@ -35,22 +35,22 @@ typedef  TDynamicVertexAttribute<int32, 1, FDynamicMesh3> FDynamicMeshVertexInt3
 * to the DynamicMesh (e.g. edge splits, collapses etc).
 *  
 */
-class GEOMETRYCORE_API FNonManifoldMappingSupport
+class FNonManifoldMappingSupport
 {
 public:
 
-	FNonManifoldMappingSupport(const FDynamicMesh3& Mesh);
+	GEOMETRYCORE_API FNonManifoldMappingSupport(const FDynamicMesh3& Mesh);
 
 
 	/**
 	* Update the support for a new DynamicMesh.
 	*/ 
-	void Reset(const FDynamicMesh3& Mesh);
+	GEOMETRYCORE_API void Reset(const FDynamicMesh3& Mesh);
 
 	/*
 	* Return true if attribute data indicates that the source data that was converted to this DynamicMesh contained non-manifold vertices.
 	*/
-	bool IsNonManifoldVertexInSource() const;
+	GEOMETRYCORE_API bool IsNonManifoldVertexInSource() const;
 
 	/*
 	* Return true if the provided DynamicMesh vertex id resulted from a non-manifold vertex in the source data.
@@ -70,7 +70,7 @@ public:
 	* 
 	* Note: the code assumes but does not check that vid is a valid vertex vid.
 	*/
-	int32 GetOriginalNonManifoldVertexID(const int32 vid) const;
+	GEOMETRYCORE_API int32 GetOriginalNonManifoldVertexID(const int32 vid) const;
 
 
 	// --- helper functions.
@@ -82,7 +82,7 @@ public:
 	* 
 	* Note: Failure occurs if the DynamicMesh does not have attributes enabled or if the provided array is not long enough to provide a mapping value for each DynamicMesh vertex id.
 	*/
-	static bool AttachNonManifoldVertexMappingData(const TArray<int32>& VertexToNonManifoldVertexIDMap, FDynamicMesh3& MeshInOut);
+	static GEOMETRYCORE_API bool AttachNonManifoldVertexMappingData(const TArray<int32>& VertexToNonManifoldVertexIDMap, FDynamicMesh3& MeshInOut);
 
 	/*
 	*  Removes vertex mapping data related to the non-manifold nature of the source data the produced this DynamicMesh.
@@ -90,7 +90,7 @@ public:
 	*  Note: this will invalidate any NonManifoldMappingSupport object associated with this DynamicMesh, 
 	*  and subsequent use of such object will produce unexpected results.
 	*/
-	static void RemoveNonManifoldVertexMappingData(FDynamicMesh3& MeshInOut);
+	static GEOMETRYCORE_API void RemoveNonManifoldVertexMappingData(FDynamicMesh3& MeshInOut);
 
 
 
@@ -108,7 +108,7 @@ public:
 	/*
 	* Name used to identify vertex attribute data generated during conversion to a DynamicMesh in the case that the source was non-manifold.
 	*/
-	static FName NonManifoldMeshVIDsAttrName;
+	static GEOMETRYCORE_API FName NonManifoldMeshVIDsAttrName;
 
 
 protected:

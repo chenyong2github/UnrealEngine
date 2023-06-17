@@ -19,31 +19,31 @@ class ULevel;
  **/
 
 USTRUCT()
-struct CONSTRAINTS_API FConstraintTickFunction : public FTickFunction
+struct FConstraintTickFunction : public FTickFunction
 {
 	GENERATED_USTRUCT_BODY()
 public:
-	FConstraintTickFunction();
-	~FConstraintTickFunction();
+	CONSTRAINTS_API FConstraintTickFunction();
+	CONSTRAINTS_API ~FConstraintTickFunction();
 
 	/* Begin FTickFunction Interface */
-	virtual void ExecuteTick(
+	CONSTRAINTS_API virtual void ExecuteTick(
 		float DeltaTime,
 		ELevelTick TickType,
 		ENamedThreads::Type CurrentThread,
 		const FGraphEventRef& MyCompletionGraphEvent) override;
 	
-	virtual FString DiagnosticMessage() override;
+	CONSTRAINTS_API virtual FString DiagnosticMessage() override;
 	/* End FTickFunction Interface */
 
 	/** Callable function that represents the actual constraint. **/
 	using ConstraintFunction = TFunction<void()>;
 	
 	/** Register a callable function. **/
-	void RegisterFunction(ConstraintFunction InConstraint);
+	CONSTRAINTS_API void RegisterFunction(ConstraintFunction InConstraint);
 	
 	/** Register a callable function. **/
-	void EvaluateFunctions() const;
+	CONSTRAINTS_API void EvaluateFunctions() const;
 
 	/** Weak ptr to the Constraint holding this tick function. **/
 	TWeakObjectPtr<UTickableConstraint> Constraint;
@@ -66,8 +66,8 @@ struct TStructOpsTypeTraits<FConstraintTickFunction> : public TStructOpsTypeTrai
  * Represents the basic interface of constraint within the constraints manager.
  **/
 
-UCLASS(Abstract, Blueprintable)
-class CONSTRAINTS_API UTickableConstraint : public UObject
+UCLASS(Abstract, Blueprintable, MinimalAPI)
+class UTickableConstraint : public UObject
 {
 	GENERATED_BODY()
 	
@@ -76,43 +76,43 @@ public:
 	virtual ~UTickableConstraint() {}
 
 	/** Returns the actual function that the tick function needs to evaluate. */
-	virtual FConstraintTickFunction::ConstraintFunction GetFunction() const PURE_VIRTUAL(GetFunction, return {};);
+	CONSTRAINTS_API virtual FConstraintTickFunction::ConstraintFunction GetFunction() const PURE_VIRTUAL(GetFunction, return {};);
 
 	/** Evaluates the constraint in a context where it's mot done thru the ConstraintTick's tick function. */
-	virtual void Evaluate(bool bTickHandlesAlso = false) const;
+	CONSTRAINTS_API virtual void Evaluate(bool bTickHandlesAlso = false) const;
 
 	/** Tick function that will be registered and evaluated. */
 	UPROPERTY()
 	FConstraintTickFunction ConstraintTick;
 
 	/** Sets the Active value and enable/disable the tick function. */
-	virtual void SetActive(const bool bIsActive);
+	CONSTRAINTS_API virtual void SetActive(const bool bIsActive);
 	
 	/** Get whether or not it's fully active, it's set to active and all pieces are set up,e.g. objects really exist that are being constrainted*/
-	virtual bool IsFullyActive() const;
+	CONSTRAINTS_API virtual bool IsFullyActive() const;
 	/** If true it contains objects bound to an external system, like sequencer so we don't do certain things, like remove constraints when they don't resolve*/
-	virtual bool HasBoundObjects() const PURE_VIRTUAL(HasBoundObjects, return false;);
+	CONSTRAINTS_API virtual bool HasBoundObjects() const PURE_VIRTUAL(HasBoundObjects, return false;);
 	/** Resolve the bound objects so that any object it references are resovled and correctly set up*/
-	virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject = nullptr)  PURE_VIRTUAL(ResolveBoundObjects);
+	CONSTRAINTS_API virtual void ResolveBoundObjects(FMovieSceneSequenceID LocalSequenceID, IMovieScenePlayer& Player, UObject* SubObject = nullptr)  PURE_VIRTUAL(ResolveBoundObjects);
 
 	/** @todo document */
-	virtual uint32 GetTargetHash() const PURE_VIRTUAL(GetTargetHash, return 0;);
+	CONSTRAINTS_API virtual uint32 GetTargetHash() const PURE_VIRTUAL(GetTargetHash, return 0;);
 	/** Whether or not this object references this object. If it HasBoundObjects you should ResolveBoundObjects if you expect this to be up to date */
-	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const PURE_VIRTUAL(ReferencesObject, return false;);
+	CONSTRAINTS_API virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const PURE_VIRTUAL(ReferencesObject, return false;);
 	/** Create duplicate with new Outer*/
-	virtual UTickableConstraint* Duplicate(UObject* NewOuter) const;
+	CONSTRAINTS_API virtual UTickableConstraint* Duplicate(UObject* NewOuter) const;
 
 #if WITH_EDITOR
 	/** Returns the constraint's label used for UI. */
-	virtual FString GetLabel() const;
-	virtual FString GetFullLabel() const;
+	CONSTRAINTS_API virtual FString GetLabel() const;
+	CONSTRAINTS_API virtual FString GetFullLabel() const;
 
 	/** Returns the constraint's type label used for UI. */
-	virtual FString GetTypeLabel() const;
+	CONSTRAINTS_API virtual FString GetTypeLabel() const;
 
 	// UObject interface
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditUndo() override;
+	CONSTRAINTS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CONSTRAINTS_API virtual void PostEditUndo() override;
 	// End of UObject interface
 #endif
 	/** @todo documentation. */
@@ -126,8 +126,8 @@ public:
  * This object gathers the different constraints of the level and is held by the ConstraintsActor (unique in the level)
  **/
 
-UCLASS(BLUEPRINTABLE)
-class CONSTRAINTS_API UConstraintsManager : public UObject
+UCLASS(BLUEPRINTABLE, MinimalAPI)
+class UConstraintsManager : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -139,27 +139,27 @@ public:
 	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_ThreeParams(FOnConstraintRemoved, UConstraintsManager, OnConstraintRemoved_BP, UConstraintsManager*, Mananger, UTickableConstraint*, Constraint, bool, bDoNotCompensate);
 
 	
-	UConstraintsManager();
-	virtual ~UConstraintsManager();
+	CONSTRAINTS_API UConstraintsManager();
+	CONSTRAINTS_API virtual ~UConstraintsManager();
 	
 	//UObjects
-	virtual void PostLoad() override;
+	CONSTRAINTS_API virtual void PostLoad() override;
 	/** Get the existing Constraints Manager if existing or create a new one. */
-	static UConstraintsManager* Get(UWorld* InWorld);
+	static CONSTRAINTS_API UConstraintsManager* Get(UWorld* InWorld);
 
 	/** Find the existing Constraints Manager. */
-	static UConstraintsManager* Find(const UWorld* InWorld);
+	static CONSTRAINTS_API UConstraintsManager* Find(const UWorld* InWorld);
 
 	/** @todo document */
-	void Init(UWorld* InWorld);
+	CONSTRAINTS_API void Init(UWorld* InWorld);
 	
 	/* Set tick dependencies between two constraints. */
-	void SetConstraintDependencies(
+	CONSTRAINTS_API void SetConstraintDependencies(
 		FConstraintTickFunction* InFunctionToTickBefore,
 		FConstraintTickFunction* InFunctionToTickAfter);
 
 	/** @todo document */
-	void Clear(UWorld* World);
+	CONSTRAINTS_API void Clear(UWorld* World);
 
 
 	/** BP Delegate fired when constraints are added*/
@@ -175,13 +175,13 @@ private:
 	/** @todo document */
 	FDelegateHandle OnActorDestroyedHandle;
 	
-	void OnActorDestroyed(AActor* InActor);
+	CONSTRAINTS_API void OnActorDestroyed(AActor* InActor);
 
-	void RegisterDelegates(UWorld* World);
-	void UnregisterDelegates(UWorld* World);
+	CONSTRAINTS_API void RegisterDelegates(UWorld* World);
+	CONSTRAINTS_API void UnregisterDelegates(UWorld* World);
 	
 	/** @todo document */
-	void Dump() const;
+	CONSTRAINTS_API void Dump() const;
 
 	/** All of the constraints*/
 	UPROPERTY()
@@ -206,68 +206,68 @@ enum class EConstraintsManagerNotifyType
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FConstraintsManagerNotifyDelegate, EConstraintsManagerNotifyType /* type */, UObject* /* subject */);
 
-class CONSTRAINTS_API FConstraintsManagerController
+class FConstraintsManagerController
 {
 public:
 	/** Static to control if we should remove constraints or not, may not want to do some when
 	compensating since we may be deleting spawnables while doing so*/
-	static bool bDoNotRemoveConstraint;
+	static CONSTRAINTS_API bool bDoNotRemoveConstraint;
 	/** Get and Set Controller acive in this world*/
-	static FConstraintsManagerController& Get(UWorld* InWorld);
+	static CONSTRAINTS_API FConstraintsManagerController& Get(UWorld* InWorld);
 
 	/** Allocates a new constraint with the constraints manager as the owner. */
 	template< typename TConstraint >
 	TConstraint* AllocateConstraintT(const FName& InBaseName) const;
 
 	/** Add this constraint to the manager */
-	bool AddConstraint(UTickableConstraint* InConstraint) const;
+	CONSTRAINTS_API bool AddConstraint(UTickableConstraint* InConstraint) const;
 	
 	/** Make a copy of this constraint and add it to the manager, returns the copy mode if it was added*/
-	UTickableConstraint* AddConstraintFromCopy(UTickableConstraint* CopyOfConstraint) const;
+	CONSTRAINTS_API UTickableConstraint* AddConstraintFromCopy(UTickableConstraint* CopyOfConstraint) const;
 
 	/** Get the index of the given constraint's name. */
-	int32 GetConstraintIndex(const FName& InConstraintName) const;
+	CONSTRAINTS_API int32 GetConstraintIndex(const FName& InConstraintName) const;
 	
 	/** Remove the constraint by name. */
-	bool RemoveConstraint(const FName& InConstraintName, bool bDoNotCompensate = false) const;
+	CONSTRAINTS_API bool RemoveConstraint(const FName& InConstraintName, bool bDoNotCompensate = false) const;
 
 	/** Remove the constraint at the given index. */
-	bool RemoveConstraint(const int32 InConstraintIndex, bool bDoNotCompensate = false) const;
+	CONSTRAINTS_API bool RemoveConstraint(const int32 InConstraintIndex, bool bDoNotCompensate = false) const;
 
 	/** Remove constraint by ptr*/
-	bool RemoveConstraint(UTickableConstraint* InConstraint, bool bDoNotCompensate = false) const;
+	CONSTRAINTS_API bool RemoveConstraint(UTickableConstraint* InConstraint, bool bDoNotCompensate = false) const;
 
 	/** Returns the constraint based on it's name within the manager's constraints array. */
-	UTickableConstraint* GetConstraint(const FName& InConstraintName) const;
+	CONSTRAINTS_API UTickableConstraint* GetConstraint(const FName& InConstraintName) const;
 
 	/** Returns the constraint based on it's index within the manager's constraints array. */
-	UTickableConstraint* GetConstraint(const int32 InConstraintIndex) const;
+	CONSTRAINTS_API UTickableConstraint* GetConstraint(const int32 InConstraintIndex) const;
 	
 	/** Get read-only access to the array of constraints. */
-	const TArray< TObjectPtr<UTickableConstraint> >& GetConstraintsArray() const;
+	CONSTRAINTS_API const TArray< TObjectPtr<UTickableConstraint> >& GetConstraintsArray() const;
 
 	/** Returns manager's constraints array (sorted if needed). */
-	TArray< TObjectPtr<UTickableConstraint> > GetAllConstraints(const bool bSorted = false) const;
+	CONSTRAINTS_API TArray< TObjectPtr<UTickableConstraint> > GetAllConstraints(const bool bSorted = false) const;
 
 	/** Returns a filtered constraints array checking if the predicate for each element is true. */
 	template <typename Predicate>
 	TArray< TObjectPtr<UTickableConstraint> > GetConstraintsByPredicate(Predicate Pred, const bool bSorted = false) const;
 
 	/** Get parent constraints of the specified child. If bSorted is true, then the constraints will be sorted by dependency. */
-	TArray< TObjectPtr<UTickableConstraint> > GetParentConstraints(
+	CONSTRAINTS_API TArray< TObjectPtr<UTickableConstraint> > GetParentConstraints(
 		const uint32 InTargetHash,
 		const bool bSorted = false) const;
 
 	/** Set dependencies between two constraints. */
-	void SetConstraintsDependencies(
+	CONSTRAINTS_API void SetConstraintsDependencies(
 		const FName& InNameToTickBefore,
 		const FName& InNameToTickAfter) const;
 
 	/** Go through each constraint in order and evaluate and tick them*/
-	void EvaluateAllConstraints() const;
+	CONSTRAINTS_API void EvaluateAllConstraints() const;
 
 	/** when PIEing/Simulating it's possible that the constraint isn't in the active manager but still lives*/
-	bool DoesExistInAnyWorld(UTickableConstraint* InConstraint);
+	CONSTRAINTS_API bool DoesExistInAnyWorld(UTickableConstraint* InConstraint);
 
 private:
 	/** Delegeate that's fired when a scene component is constrained, this is needed to make sure things like gizmo's get updated after the constraint tick happens*/
@@ -278,13 +278,13 @@ private:
 	FConstraintsManagerNotifyDelegate NotifyDelegate;
 	
 	/** Find the existing Constraints Manager in World or create a new one. */
-	UConstraintsManager* GetManager() const;
+	CONSTRAINTS_API UConstraintsManager* GetManager() const;
 	
 	/** Find the existing Constraints Manager in World. */
-	UConstraintsManager* FindManager() const;
+	CONSTRAINTS_API UConstraintsManager* FindManager() const;
 
 	/** Destroy the ConstraintsManager from the World. */
-	void DestroyManager() const;
+	CONSTRAINTS_API void DestroyManager() const;
 
 	/** The World that holds the ConstraintsManagerActor. */
 	UWorld* World = nullptr;
@@ -297,5 +297,5 @@ public:
 	FConstraintsManagerNotifyDelegate& GetNotifyDelegate() { return NotifyDelegate; }
 
 	/** Notify from changes in the constraints manager. */
-	void Notify(EConstraintsManagerNotifyType InNotifyType, UObject* InObject) const;
+	CONSTRAINTS_API void Notify(EConstraintsManagerNotifyType InNotifyType, UObject* InObject) const;
 };

@@ -13,7 +13,7 @@
 /**
  * Non-templated base class for the interface customization registry.
  */
-class TYPEDELEMENTRUNTIME_API FTypedElementInterfaceCustomizationRegistryBase
+class FTypedElementInterfaceCustomizationRegistryBase
 {
 public:
 	virtual ~FTypedElementInterfaceCustomizationRegistryBase() = default;
@@ -23,13 +23,13 @@ protected:
 	 * Given an element name, attempt to get its registered type ID from the global registry.
 	 * @return The registered type ID, or 0 if the element name is not registered.
 	 */
-	FTypedHandleTypeId GetElementTypeIdFromName(const FName InElementTypeName) const;
+	TYPEDELEMENTRUNTIME_API FTypedHandleTypeId GetElementTypeIdFromName(const FName InElementTypeName) const;
 
 	/**
 	 * Given an element name, attempt to get its registered type ID from the global registry.
 	 * @return The registered type ID, or asserts if the element name is not registered.
 	 */
-	FTypedHandleTypeId GetElementTypeIdFromNameChecked(const FName InElementTypeName) const;
+	TYPEDELEMENTRUNTIME_API FTypedHandleTypeId GetElementTypeIdFromNameChecked(const FName InElementTypeName) const;
 };
 
 /**

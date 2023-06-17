@@ -10,13 +10,13 @@
 
 #include "StaticMeshBackedTarget.generated.h"
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UStaticMeshBackedTarget : public UAssetBackedTarget
+UINTERFACE(MinimalAPI)
+class UStaticMeshBackedTarget : public UAssetBackedTarget
 {
 	GENERATED_BODY()
 };
 
-class INTERACTIVETOOLSFRAMEWORK_API IStaticMeshBackedTarget : public IAssetBackedTarget
+class IStaticMeshBackedTarget : public IAssetBackedTarget
 {
 	GENERATED_BODY()
 

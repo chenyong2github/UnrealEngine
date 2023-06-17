@@ -11,20 +11,20 @@
 #include "WidgetCarouselStyle.generated.h"
 
 USTRUCT()
-struct WIDGETCAROUSEL_API FWidgetCarouselNavigationButtonStyle : public FSlateWidgetStyle
+struct FWidgetCarouselNavigationButtonStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FWidgetCarouselNavigationButtonStyle();
+	WIDGETCAROUSEL_API FWidgetCarouselNavigationButtonStyle();
 
 	virtual ~FWidgetCarouselNavigationButtonStyle() {}
 
-	virtual void GetResources(TArray<const FSlateBrush*> & OutBrushes) const override;
+	WIDGETCAROUSEL_API virtual void GetResources(TArray<const FSlateBrush*> & OutBrushes) const override;
 
-	static const FName TypeName;
+	static WIDGETCAROUSEL_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FWidgetCarouselNavigationButtonStyle& GetDefault();
+	static WIDGETCAROUSEL_API const FWidgetCarouselNavigationButtonStyle& GetDefault();
 
 	UPROPERTY()
 	FButtonStyle InnerButtonStyle;
@@ -40,20 +40,20 @@ struct WIDGETCAROUSEL_API FWidgetCarouselNavigationButtonStyle : public FSlateWi
 };
 
 USTRUCT(BlueprintType)
-struct WIDGETCAROUSEL_API FWidgetCarouselNavigationBarStyle : public FSlateWidgetStyle
+struct FWidgetCarouselNavigationBarStyle : public FSlateWidgetStyle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FWidgetCarouselNavigationBarStyle();
+	WIDGETCAROUSEL_API FWidgetCarouselNavigationBarStyle();
 
 	virtual ~FWidgetCarouselNavigationBarStyle() {}
 
-	virtual void GetResources(TArray<const FSlateBrush*> & OutBrushes) const override;
+	WIDGETCAROUSEL_API virtual void GetResources(TArray<const FSlateBrush*> & OutBrushes) const override;
 
-	static const FName TypeName;
+	static WIDGETCAROUSEL_API const FName TypeName;
 	virtual const FName GetTypeName() const override { return TypeName; };
 
-	static const FWidgetCarouselNavigationBarStyle& GetDefault();
+	static WIDGETCAROUSEL_API const FWidgetCarouselNavigationBarStyle& GetDefault();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush HighlightBrush;
@@ -73,21 +73,21 @@ struct WIDGETCAROUSEL_API FWidgetCarouselNavigationBarStyle : public FSlateWidge
 };
 
 /** Manages the style which provides resources for the add content dialog. */
-class WIDGETCAROUSEL_API FWidgetCarouselModuleStyle
+class FWidgetCarouselModuleStyle
 {
 public:
 
-	static void Initialize();
+	static WIDGETCAROUSEL_API void Initialize();
 
-	static void Shutdown();
+	static WIDGETCAROUSEL_API void Shutdown();
 
 	/** reloads textures used by slate renderer */
-	static void ReloadTextures();
+	static WIDGETCAROUSEL_API void ReloadTextures();
 
 	/** @return The Slate style set for the widget carousel */
-	static const ISlateStyle& Get();
+	static WIDGETCAROUSEL_API const ISlateStyle& Get();
 
-	static FName GetStyleSetName();
+	static WIDGETCAROUSEL_API FName GetStyleSetName();
 
 private:
 

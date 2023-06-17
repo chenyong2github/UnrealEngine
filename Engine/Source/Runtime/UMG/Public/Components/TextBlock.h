@@ -19,8 +19,8 @@ class UMaterialInterface;
  * * No Children
  * * Text
  */
-UCLASS(meta=(DisplayName="Text"))
-class UMG_API UTextBlock : public UTextLayoutWidget
+UCLASS(meta=(DisplayName="Text"), MinimalAPI)
+class UTextBlock : public UTextLayoutWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -92,7 +92,7 @@ public:
 	 * @return The widget text
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="GetText (Text)"))
-	FText GetText() const;
+	UMG_API FText GetText() const;
 
 	/**
 	 * Directly sets the widget text.
@@ -100,10 +100,10 @@ public:
 	 * @param InText The text to assign to the widget
 	 */
 	UFUNCTION(BlueprintCallable, Category="Widget", meta=(DisplayName="SetText (Text)"))
-	virtual void SetText(FText InText);
+	UMG_API virtual void SetText(FText InText);
 
 	/** @return the color and opacity of the text in this text block. */
-	FSlateColor GetColorAndOpacity() const;
+	UMG_API FSlateColor GetColorAndOpacity() const;
 
 	/**  
 	 * Sets the color and opacity of the text in this text block
@@ -111,7 +111,7 @@ public:
 	 * @param InColorAndOpacity		The new text color and opacity
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetColorAndOpacity(FSlateColor InColorAndOpacity);
+	UMG_API void SetColorAndOpacity(FSlateColor InColorAndOpacity);
 
 	/**
 	* Sets the opacity of the text in this text block
@@ -119,10 +119,10 @@ public:
 	* @param InOpacity		The new text opacity
 	*/
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetOpacity(float InOpacity);
+	UMG_API void SetOpacity(float InOpacity);
 
 	/** @return the color and opacity of the text drop shadow. */
-	FLinearColor GetShadowColorAndOpacity() const;
+	UMG_API FLinearColor GetShadowColorAndOpacity() const;
 
 	/**  
 	 * Sets the color and opacity of the text drop shadow
@@ -131,10 +131,10 @@ public:
 	 * @param InShadowColorAndOpacity		The new drop shadow color and opacity
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetShadowColorAndOpacity(FLinearColor InShadowColorAndOpacity);
+	UMG_API void SetShadowColorAndOpacity(FLinearColor InShadowColorAndOpacity);
 
 	/** @return the offset that the text drop shadow should be drawn at. */
-	FVector2D GetShadowOffset() const;
+	UMG_API FVector2D GetShadowOffset() const;
 
 	/**  
 	 * Sets the offset that the text drop shadow should be drawn at
@@ -142,10 +142,10 @@ public:
 	 * @param InShadowOffset		The new offset
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetShadowOffset(FVector2D InShadowOffset);
+	UMG_API void SetShadowOffset(FVector2D InShadowOffset);
 
 	/** @return the font info for this text block. */
-	const FSlateFontInfo& GetFont() const;
+	UMG_API const FSlateFontInfo& GetFont() const;
 
 	/**
 	 * Dynamically set the font info for this text block
@@ -153,10 +153,10 @@ public:
 	 * @param InFontInfo The new font info
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetFont(FSlateFontInfo InFontInfo);
+	UMG_API void SetFont(FSlateFontInfo InFontInfo);
 
 	/** @return the brush to use to strike through text.  */
-	const FSlateBrush& GetStrikeBrush() const;
+	UMG_API const FSlateBrush& GetStrikeBrush() const;
 
 	/**
 	 * Dynamically set the strike brush for this text block
@@ -164,10 +164,10 @@ public:
 	 * @param InStrikeBrush The new brush to use to strike through text
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetStrikeBrush(FSlateBrush InStrikeBrush);
+	UMG_API void SetStrikeBrush(FSlateBrush InStrikeBrush);
 
 	/** @return the minimum desired width for this text block */
-	float GetMinDesiredWidth() const;
+	UMG_API float GetMinDesiredWidth() const;
 
 	/**
 	 *  Set the minimum desired width for this text block
@@ -175,7 +175,7 @@ public:
 	 *  @param InMinDesiredWidth new minimum desired width
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetMinDesiredWidth(float InMinDesiredWidth);
+	UMG_API void SetMinDesiredWidth(float InMinDesiredWidth);
 	
 	/**
 	 * Set the auto wrap for this text block.
@@ -183,10 +183,10 @@ public:
 	 * @param InAutoTextWrap to turn wrap on or off.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetAutoWrapText(bool InAutoTextWrap);
+	UMG_API void SetAutoWrapText(bool InAutoTextWrap);
 
 	/** @return the text transformation policy for this text block. */
-	ETextTransformPolicy GetTextTransformPolicy() const;
+	UMG_API ETextTransformPolicy GetTextTransformPolicy() const;
 
 	/**
 	 * Set the text transformation policy for this text block.
@@ -194,10 +194,10 @@ public:
 	 * @param InTransformPolicy the new text transformation policy.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy);
+	UMG_API void SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy);
 
 	/** @return the text overflow policy for this text block. */
-	ETextOverflowPolicy GetTextOverflowPolicy() const;
+	UMG_API ETextOverflowPolicy GetTextOverflowPolicy() const;
 
 	/**
 	 * Set the text overflow policy for this text block.
@@ -205,21 +205,21 @@ public:
 	 * @param InOverflowPolicy the new text overflow policy.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
+	UMG_API void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetFontMaterial(UMaterialInterface* InMaterial);
+	UMG_API void SetFontMaterial(UMaterialInterface* InMaterial);
 
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
-
-	/**  */
-	UFUNCTION(BlueprintCallable, Category="Appearance")
-	UMaterialInstanceDynamic* GetDynamicFontMaterial();
+	UMG_API void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
-	UMaterialInstanceDynamic* GetDynamicOutlineMaterial();
+	UMG_API UMaterialInstanceDynamic* GetDynamicFontMaterial();
+
+	/**  */
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	UMG_API UMaterialInstanceDynamic* GetDynamicOutlineMaterial();
 
 protected:
 	virtual void OnTextChanged()
@@ -232,27 +232,27 @@ protected:
 
 public:
 	//~ Begin UTextLayoutWidget Interface
-	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	UMG_API virtual void SetJustification(ETextJustify::Type InJustification) override;
 	//~ End UTextLayoutWidget Interface
 
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
 	//~ Begin UWidget Interface
-	virtual const FText GetPaletteCategory() override;
-	virtual void OnCreationFromPalette() override;
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	UMG_API virtual const FText GetPaletteCategory() override;
+	UMG_API virtual void OnCreationFromPalette() override;
+	UMG_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 	//~ End UWidget Interface
 
-	virtual FString GetLabelMetadata() const override;
+	UMG_API virtual FString GetLabelMetadata() const override;
 
-	void HandleTextCommitted(const FText& InText, ETextCommit::Type CommitteType);
+	UMG_API void HandleTextCommitted(const FText& InText, ETextCommit::Type CommitteType);
 #endif
 
 protected:
@@ -265,17 +265,17 @@ protected:
 	bool bSimpleTextMode;
 
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
-	virtual void OnBindingChanged(const FName& Property) override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual void OnBindingChanged(const FName& Property) override;
 	//~ End UWidget Interface
 
 	/** Get the text that should be displayed in the internal Slate widget (allows flags to mutate the display text without modifying the persistent designer property data) */
-	virtual TAttribute<FText> GetDisplayText();
+	UMG_API virtual TAttribute<FText> GetDisplayText();
 
-	EVisibility GetTextWarningImageVisibility() const;
+	UMG_API EVisibility GetTextWarningImageVisibility() const;
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+	UMG_API virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
 #endif
 
 protected:

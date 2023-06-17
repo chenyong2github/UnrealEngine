@@ -7,9 +7,9 @@
 class UPhysicalMaterial;
 
 /** Set of delegates to allowing hooking different parts of the physics engine */
-class PHYSICSCORE_API FPhysicsDelegatesCore
+class FPhysicsDelegatesCore
 {
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUpdatePhysXMaterial, UPhysicalMaterial*);
-	static FOnUpdatePhysXMaterial OnUpdatePhysXMaterial;
+	static PHYSICSCORE_API FOnUpdatePhysXMaterial OnUpdatePhysXMaterial;
 };

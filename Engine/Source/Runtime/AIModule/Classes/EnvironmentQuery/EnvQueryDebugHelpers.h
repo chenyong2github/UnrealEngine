@@ -154,21 +154,21 @@ FArchive& operator<<(FArchive& Ar, EQSDebug::FQueryData& Data)
 #	define UE_VLOG_EQS(Query, CategoryName, Verbosity)
 #endif //ENABLE_VISUAL_LOG && USE_EQS_DEBUGGER
 
-UCLASS(Abstract)
-class AIMODULE_API UEnvQueryDebugHelpers : public UObject
+UCLASS(Abstract, MinimalAPI)
+class UEnvQueryDebugHelpers : public UObject
 {
 	GENERATED_BODY()
 public:
 #if USE_EQS_DEBUGGER
-	static void QueryToDebugData(FEnvQueryInstance& Query, EQSDebug::FQueryData& EQSLocalData, int32 MaxItemsToStore = 10);
-	static void QueryToBlobArray(FEnvQueryInstance& Query, TArray<uint8>& BlobArray, bool bUseCompression = false);
-	static void DebugDataToBlobArray(EQSDebug::FQueryData& QueryData, TArray<uint8>& BlobArray, bool bUseCompression = false);
-	static void BlobArrayToDebugData(const TArray<uint8>& BlobArray, EQSDebug::FQueryData& EQSLocalData, bool bUseCompression = false);
+	static AIMODULE_API void QueryToDebugData(FEnvQueryInstance& Query, EQSDebug::FQueryData& EQSLocalData, int32 MaxItemsToStore = 10);
+	static AIMODULE_API void QueryToBlobArray(FEnvQueryInstance& Query, TArray<uint8>& BlobArray, bool bUseCompression = false);
+	static AIMODULE_API void DebugDataToBlobArray(EQSDebug::FQueryData& QueryData, TArray<uint8>& BlobArray, bool bUseCompression = false);
+	static AIMODULE_API void BlobArrayToDebugData(const TArray<uint8>& BlobArray, EQSDebug::FQueryData& EQSLocalData, bool bUseCompression = false);
 #endif
 
 #if ENABLE_VISUAL_LOG && USE_EQS_DEBUGGER
-	static void LogQuery(FEnvQueryInstance& Query, const FLogCategoryBase& Category, ELogVerbosity::Type Verbosity);
-	static void LogQuery(FEnvQueryInstance& Query, const FName& CategoryName, ELogVerbosity::Type Verbosity);
+	static AIMODULE_API void LogQuery(FEnvQueryInstance& Query, const FLogCategoryBase& Category, ELogVerbosity::Type Verbosity);
+	static AIMODULE_API void LogQuery(FEnvQueryInstance& Query, const FName& CategoryName, ELogVerbosity::Type Verbosity);
 
 private:
 	static void LogQueryInternal(FEnvQueryInstance& Query, const FName& CategoryName, ELogVerbosity::Type Verbosity, double TimeSeconds, FVisualLogEntry *CurrentEntry);

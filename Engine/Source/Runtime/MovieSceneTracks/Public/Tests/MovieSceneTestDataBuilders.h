@@ -24,8 +24,8 @@
  * Bound objects are specified manually on the sequence and will be simply returned when
  * bindings are resolved.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneTestSequence : public UMovieSceneSequence
+UCLASS(MinimalAPI)
+class UMovieSceneTestSequence : public UMovieSceneSequence
 {
 	GENERATED_BODY()
 
@@ -36,7 +36,7 @@ public:
 
 public:
 	/** Initialize this test sequence */
-	void Initialize();
+	MOVIESCENETRACKS_API void Initialize();
 
 	/**
 	 * Add an object binding to the sequnce
@@ -44,13 +44,13 @@ public:
 	 * @param InObject The object that will be returned when the binding is resolved
 	 * @return The ID of the new object binding
 	 */
-	FGuid AddObjectBinding(TObjectPtr<UObject> InObject);
+	MOVIESCENETRACKS_API FGuid AddObjectBinding(TObjectPtr<UObject> InObject);
 
 public:
 	/** UMovieSceneSequence interface */
 	virtual void BindPossessableObject(const FGuid& ObjectId, UObject& PossessedObject, UObject* Context) override {}
 	virtual bool CanPossessObject(UObject& Object, UObject* InPlaybackContext) const override { return true; }
-	virtual void LocateBoundObjects(const FGuid& ObjectId, UObject* Context, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
+	MOVIESCENETRACKS_API virtual void LocateBoundObjects(const FGuid& ObjectId, UObject* Context, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
 	virtual UMovieScene* GetMovieScene() const override { return MovieScene; }
 	virtual UObject* GetParentObject(UObject* Object) const override { return nullptr; }
 	virtual void UnbindPossessableObjects(const FGuid& ObjectId) override {}

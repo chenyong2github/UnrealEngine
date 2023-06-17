@@ -37,7 +37,7 @@ struct FMeshChart
 
 struct FOverlappingCorners;
 
-class MESHUTILITIESCOMMON_API FLayoutUV
+class FLayoutUV
 {
 public:
 
@@ -61,14 +61,14 @@ public:
 		virtual void        SetOutputTexcoord(uint32 Index, const FVector2f& Value) = 0;
 	};
 
-	FLayoutUV( IMeshView& InMeshView );
+	MESHUTILITIESCOMMON_API FLayoutUV( IMeshView& InMeshView );
 	void SetVersion( ELightmapUVVersion Version ) { LayoutVersion = Version; }
-	int32 FindCharts( const FOverlappingCorners& OverlappingCorners );
-	bool FindBestPacking( uint32 InTextureResolution );
-	void CommitPackedUVs();
+	MESHUTILITIESCOMMON_API int32 FindCharts( const FOverlappingCorners& OverlappingCorners );
+	MESHUTILITIESCOMMON_API bool FindBestPacking( uint32 InTextureResolution );
+	MESHUTILITIESCOMMON_API void CommitPackedUVs();
 
-	static void LogStats();
-	static void ResetStats();
+	static MESHUTILITIESCOMMON_API void LogStats();
+	static MESHUTILITIESCOMMON_API void ResetStats();
 private:
 	IMeshView& MeshView;
 	ELightmapUVVersion LayoutVersion;
@@ -81,7 +81,7 @@ private:
 	struct FChartFinder;
 	struct FChartPacker;
 
-	static TAtomic<uint64> FindBestPackingCount;
-	static TAtomic<uint64> FindBestPackingCycles;
-	static TAtomic<uint64> FindBestPackingEfficiency;
+	static MESHUTILITIESCOMMON_API TAtomic<uint64> FindBestPackingCount;
+	static MESHUTILITIESCOMMON_API TAtomic<uint64> FindBestPackingCycles;
+	static MESHUTILITIESCOMMON_API TAtomic<uint64> FindBestPackingEfficiency;
 };

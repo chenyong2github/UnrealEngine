@@ -33,12 +33,12 @@ template <typename T> struct TObjectPtr;
  *
  * Translators are filling this container and the Import/Export managers are reading it to execute the import/export process
  */
- UCLASS(BlueprintType)
-class INTERCHANGECORE_API UInterchangeBaseNodeContainer : public UObject
+ UCLASS(BlueprintType, MinimalAPI)
+class UInterchangeBaseNodeContainer : public UObject
 {
 	GENERATED_BODY()
 public:
-	UInterchangeBaseNodeContainer();
+	INTERCHANGECORE_API UInterchangeBaseNodeContainer();
 
 	/**
 	 * Add a node in the container, the node will be add into a TMap.
@@ -48,17 +48,17 @@ public:
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	FString AddNode(UInterchangeBaseNode* Node);
+	INTERCHANGECORE_API FString AddNode(UInterchangeBaseNode* Node);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void ReplaceNode(const FString& NodeUniqueID, UInterchangeFactoryBaseNode* NewNode);
+	INTERCHANGECORE_API void ReplaceNode(const FString& NodeUniqueID, UInterchangeFactoryBaseNode* NewNode);
 
 	/** Return true if the node unique ID exist in the container */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	bool IsNodeUidValid(const FString& NodeUniqueID) const;
+	INTERCHANGECORE_API bool IsNodeUidValid(const FString& NodeUniqueID) const;
 
 	/** Unordered iteration of the all nodes */
-	void IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
+	INTERCHANGECORE_API void IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
 
 	template <typename T>
 	void IterateNodesOfType(TFunctionRef<void(const FString&, T*)> IterationLambda) const
@@ -117,7 +117,7 @@ public:
 	}
 
 	/** Unordered iteration of the all nodes, but I can be stop early by returning true */
-	void BreakableIterateNodes(TFunctionRef<bool(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
+	INTERCHANGECORE_API void BreakableIterateNodes(TFunctionRef<bool(const FString&, UInterchangeBaseNode*)> IterationLambda) const;
 
 	template <typename T>
 	void BreakableIterateNodesOfType(TFunctionRef<bool(const FString&, T*)> IterationLambda) const
@@ -136,57 +136,57 @@ public:
 
 	/** Return all nodes that do not have any parent */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void GetRoots(TArray<FString>& RootNodes) const;
+	INTERCHANGECORE_API void GetRoots(TArray<FString>& RootNodes) const;
 
 	/** Return all nodes that are of the ClassNode type*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void GetNodes(const UClass* ClassNode, TArray<FString>& OutNodes) const;
+	INTERCHANGECORE_API void GetNodes(const UClass* ClassNode, TArray<FString>& OutNodes) const;
 
 	/** Get a node pointer. Once added to the container, nodes are considered const */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	const UInterchangeBaseNode* GetNode(const FString& NodeUniqueID) const;
+	INTERCHANGECORE_API const UInterchangeBaseNode* GetNode(const FString& NodeUniqueID) const;
 
 	/** Get a factory node pointer */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	UInterchangeFactoryBaseNode* GetFactoryNode(const FString& NodeUniqueID) const;
+	INTERCHANGECORE_API UInterchangeFactoryBaseNode* GetFactoryNode(const FString& NodeUniqueID) const;
 
 	/** Set node ParentUid */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	bool SetNodeParentUid(const FString& NodeUniqueID, const FString& NewParentNodeUid);
+	INTERCHANGECORE_API bool SetNodeParentUid(const FString& NodeUniqueID, const FString& NewParentNodeUid);
 
 	/** Get the node children count */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	int32 GetNodeChildrenCount(const FString& NodeUniqueID) const;
+	INTERCHANGECORE_API int32 GetNodeChildrenCount(const FString& NodeUniqueID) const;
 
 	/** Get all children Uid */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	TArray<FString> GetNodeChildrenUids(const FString& NodeUniqueID) const;
+	INTERCHANGECORE_API TArray<FString> GetNodeChildrenUids(const FString& NodeUniqueID) const;
 
 	/** Get the node nth const children */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	UInterchangeBaseNode* GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex);
+	INTERCHANGECORE_API UInterchangeBaseNode* GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex);
 
 	/** Get the node nth const children. Const version */
-	const UInterchangeBaseNode* GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex) const;
+	INTERCHANGECORE_API const UInterchangeBaseNode* GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex) const;
 
 	/**
 	 * This function serialize the node container and all node sub-objects point by it.
 	 * Out of process translator like fbx will dump a file containing this data and the editor
 	 * will read the file and regenerate the container from the saved data.
 	 */
-	void SerializeNodeContainerData(FArchive& Ar);
+	INTERCHANGECORE_API void SerializeNodeContainerData(FArchive& Ar);
 
 	/* Serialize the node container into the specified file.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void SaveToFile(const FString& Filename);
+	INTERCHANGECORE_API void SaveToFile(const FString& Filename);
 
 	/* Serialize the node container from the specified file.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void LoadFromFile(const FString& Filename);
+	INTERCHANGECORE_API void LoadFromFile(const FString& Filename);
 
 	/* Fill the children uids cache to optimize the GetNodeChildrenUids call.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void ComputeChildrenCache();
+	INTERCHANGECORE_API void ComputeChildrenCache();
 
 	/* Reset the children uids cache. */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
@@ -197,7 +197,7 @@ public:
 
 private:
 
-	UInterchangeBaseNode* GetNodeChildrenInternal(const FString& NodeUniqueID, int32 ChildIndex);
+	INTERCHANGECORE_API UInterchangeBaseNode* GetNodeChildrenInternal(const FString& NodeUniqueID, int32 ChildIndex);
 
 	/** Flat List of the nodes. Since the nodes are variable size, we store a pointer. */
 	UPROPERTY(VisibleAnywhere, Category = "Interchange | Node Container")

@@ -17,7 +17,7 @@
  * IGizmoFloatParameterSource implementations use this to track changes and emit delta information.
  */
 USTRUCT()
-struct INTERACTIVETOOLSFRAMEWORK_API FGizmoFloatParameterChange
+struct FGizmoFloatParameterChange
 {
 	GENERATED_BODY()
 
@@ -44,8 +44,8 @@ struct INTERACTIVETOOLSFRAMEWORK_API FGizmoFloatParameterChange
  * UGizmoBaseFloatParameterSource is a base implementation of IGizmoFloatParameterSource,
  * which is not functional but adds an OnParameterChanged delegate for further subclasses.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoBaseFloatParameterSource : public UObject, public IGizmoFloatParameterSource
+UCLASS(MinimalAPI)
+class UGizmoBaseFloatParameterSource : public UObject, public IGizmoFloatParameterSource
 {
 	GENERATED_BODY()
 public:
@@ -82,8 +82,8 @@ public:
  * (by way of UGizmoBaseFloatParameterSource) which locally stores the relevant Parameter
  * and emits update events via the OnParameterChanged delegate.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoLocalFloatParameterSource : public UGizmoBaseFloatParameterSource
+UCLASS(MinimalAPI)
+class UGizmoLocalFloatParameterSource : public UGizmoBaseFloatParameterSource
 {
 	GENERATED_BODY()
 public:

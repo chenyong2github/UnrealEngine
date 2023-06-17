@@ -9,10 +9,10 @@
 #include "Perception/AISenseConfig.h"
 #include "AISenseConfig_Prediction.generated.h"
 
-UCLASS(meta = (DisplayName = "AI Prediction sense config"))
-class AIMODULE_API UAISenseConfig_Prediction : public UAISenseConfig
+UCLASS(meta = (DisplayName = "AI Prediction sense config"), MinimalAPI)
+class UAISenseConfig_Prediction : public UAISenseConfig
 {
 	GENERATED_UCLASS_BODY()
 public:	
-	virtual TSubclassOf<UAISense> GetSenseImplementation() const override;
+	AIMODULE_API virtual TSubclassOf<UAISense> GetSenseImplementation() const override;
 };

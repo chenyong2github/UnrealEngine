@@ -10,7 +10,7 @@
 
 /** UV map generation settings that are exposed to the user for scripting and through the editor */
 USTRUCT(BlueprintType)
-struct STATICMESHDESCRIPTION_API FUVMapSettings
+struct FUVMapSettings
 {
 	GENERATED_BODY()
 
@@ -45,7 +45,7 @@ struct STATICMESHDESCRIPTION_API FUVMapSettings
 	}
 };
 
-struct STATICMESHDESCRIPTION_API FUVMapParameters
+struct FUVMapParameters
 {
 	/** Length, width, height of the UV mapping gizmo */
 	FVector Size;

@@ -28,7 +28,7 @@ enum class EModifyCurveApplyMode : uint8
 
 /** Easy way to modify curve values on a pose */
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
+struct FAnimNode_ModifyCurve : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -61,28 +61,28 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = ModifyCurve)
 	EModifyCurveApplyMode ApplyMode;
 
-	FAnimNode_ModifyCurve();
+	ANIMGRAPHRUNTIME_API FAnimNode_ModifyCurve();
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FAnimNode_ModifyCurve(const FAnimNode_ModifyCurve&) = default;
 	FAnimNode_ModifyCurve& operator=(const FAnimNode_ModifyCurve&) = default;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ANIMGRAPHRUNTIME_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	// End of FAnimNode_Base interface
 
 #if WITH_EDITOR
 	/** Add new curve being modified */
-	void AddCurve(const FName& InName, float InValue);
+	ANIMGRAPHRUNTIME_API void AddCurve(const FName& InName, float InValue);
 	/** Remove a curve from being modified */
-	void RemoveCurve(int32 PoseIndex);
+	ANIMGRAPHRUNTIME_API void RemoveCurve(int32 PoseIndex);
 #endif // WITH_EDITOR
 
 private:
-	float ProcessCurveOperation(float CurrentValue, float NewValue) const;
-	float ProcessCurveWMAOperation(float CurrentValue, float LastValue) const;
+	ANIMGRAPHRUNTIME_API float ProcessCurveOperation(float CurrentValue, float NewValue) const;
+	ANIMGRAPHRUNTIME_API float ProcessCurveWMAOperation(float CurrentValue, float LastValue) const;
 };

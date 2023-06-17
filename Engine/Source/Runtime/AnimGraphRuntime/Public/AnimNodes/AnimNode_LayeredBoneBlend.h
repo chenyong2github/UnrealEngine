@@ -18,7 +18,7 @@ enum class ELayeredBoneBlendMode : uint8
 
 // Layered blend (per bone); has dynamic number of blendposes that can blend per different bone sets
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_LayeredBoneBlend : public FAnimNode_Base
+struct FAnimNode_LayeredBoneBlend : public FAnimNode_Base
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -120,11 +120,11 @@ public:
 	}
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual int32 GetLODThreshold() const override { return LODThreshold; }
 	// End of FAnimNode_Base interface
 
@@ -160,7 +160,7 @@ public:
 	}
 
 	// Set the blend mask for the specified input pose
-	void SetBlendMask(int32 InPoseIndex, UBlendProfile* InBlendMask);
+	ANIMGRAPHRUNTIME_API void SetBlendMask(int32 InPoseIndex, UBlendProfile* InBlendMask);
 	
 	// Invalidate the cached per-bone blend weights from the skeleton
 	void InvalidatePerBoneBlendWeights() { RequiredBonesSerialNumber = 0; SkeletonGuid = FGuid(); VirtualBoneGuid = FGuid(); }
@@ -170,13 +170,13 @@ public:
 	
 private:
 	// Rebuild cache per bone blend weights from the skeleton
-	void RebuildPerBoneBlendWeights(const USkeleton* InSkeleton);
+	ANIMGRAPHRUNTIME_API void RebuildPerBoneBlendWeights(const USkeleton* InSkeleton);
 
 	// Check whether per-bone blend weights are valid according to the skeleton (GUID check)
-	bool ArePerBoneBlendWeightsValid(const USkeleton* InSkeleton) const;
+	ANIMGRAPHRUNTIME_API bool ArePerBoneBlendWeightsValid(const USkeleton* InSkeleton) const;
 
 	// Update cached data if required
-	void UpdateCachedBoneData(const FBoneContainer& RequiredBones, const USkeleton* Skeleton);
+	ANIMGRAPHRUNTIME_API void UpdateCachedBoneData(const FBoneContainer& RequiredBones, const USkeleton* Skeleton);
 
 	friend class UAnimGraphNode_LayeredBoneBlend;
 };

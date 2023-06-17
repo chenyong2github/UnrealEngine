@@ -10,7 +10,7 @@ class AActor;
 class APlayerController;
 class AGameplayDebuggerCategoryReplicator;
 
-class GAMEPLAYDEBUGGER_API FGameplayDebuggerAddonBase : public TSharedFromThis<FGameplayDebuggerAddonBase>
+class FGameplayDebuggerAddonBase : public TSharedFromThis<FGameplayDebuggerAddonBase>
 {
 public:
 
@@ -18,27 +18,27 @@ public:
 
 	int32 GetNumInputHandlers() const { return InputHandlers.Num(); }
 	FGameplayDebuggerInputHandler& GetInputHandler(int32 HandlerId) { return InputHandlers[HandlerId]; }
-	FString GetInputHandlerDescription(int32 HandlerId) const;
-	UWorld* GetWorldFromReplicator() const;
+	GAMEPLAYDEBUGGER_API FString GetInputHandlerDescription(int32 HandlerId) const;
+	GAMEPLAYDEBUGGER_API UWorld* GetWorldFromReplicator() const;
 	/** Returns the first non-null world associated with, in order: OwnerPC, DebugActor, AGameplayDebuggerCategoryReplicator owner */
-	UWorld* GetDataWorld(const APlayerController* OwnerPC, const AActor* DebugActor) const;
+	GAMEPLAYDEBUGGER_API UWorld* GetDataWorld(const APlayerController* OwnerPC, const AActor* DebugActor) const;
 
 	/** [ALL] called when gameplay debugger is activated */
-	virtual void OnGameplayDebuggerActivated();
+	GAMEPLAYDEBUGGER_API virtual void OnGameplayDebuggerActivated();
 
 	/** [ALL] called when gameplay debugger is deactivated */
-	virtual void OnGameplayDebuggerDeactivated();
+	GAMEPLAYDEBUGGER_API virtual void OnGameplayDebuggerDeactivated();
 
 	/** check if simulate in editor mode is active */
-	static bool IsSimulateInEditor();
+	static GAMEPLAYDEBUGGER_API bool IsSimulateInEditor();
 
 protected:
 
 	/** tries to find selected actor in local world */
-	AActor* FindLocalDebugActor() const;
+	GAMEPLAYDEBUGGER_API AActor* FindLocalDebugActor() const;
 
 	/** returns replicator actor */
-	AGameplayDebuggerCategoryReplicator* GetReplicator() const;
+	GAMEPLAYDEBUGGER_API AGameplayDebuggerCategoryReplicator* GetReplicator() const;
 
 	/** creates new key binding handler: single key press */
 	template<class UserClass>

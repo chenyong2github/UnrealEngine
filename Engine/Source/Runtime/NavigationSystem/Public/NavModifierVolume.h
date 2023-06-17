@@ -16,8 +16,8 @@ struct FNavigationRelevantData;
 /** 
  *	Allows applying selected AreaClass to navmesh, using Volume's shape
  */
-UCLASS(hidecategories=(Navigation))
-class NAVIGATIONSYSTEM_API ANavModifierVolume : public AVolume, public INavRelevantInterface
+UCLASS(hidecategories=(Navigation), MinimalAPI)
+class ANavModifierVolume : public AVolume, public INavRelevantInterface
 {
 	GENERATED_BODY()
 
@@ -40,28 +40,28 @@ protected:
 #endif
 
 public:
-	ANavModifierVolume(const FObjectInitializer& ObjectInitializer);
+	NAVIGATIONSYSTEM_API ANavModifierVolume(const FObjectInitializer& ObjectInitializer);
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Navigation")
-	void SetAreaClass(TSubclassOf<UNavArea> NewAreaClass = nullptr);
+	NAVIGATIONSYSTEM_API void SetAreaClass(TSubclassOf<UNavArea> NewAreaClass = nullptr);
 
 	TSubclassOf<UNavArea> GetAreaClass() const { return AreaClass; }
 
-	virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
-	virtual FBox GetNavigationBounds() const override;
-	virtual void RebuildNavigationData() override;
+	NAVIGATIONSYSTEM_API virtual void GetNavigationData(FNavigationRelevantData& Data) const override;
+	NAVIGATIONSYSTEM_API virtual FBox GetNavigationBounds() const override;
+	NAVIGATIONSYSTEM_API virtual void RebuildNavigationData() override;
 
 #if WITH_EDITOR
-	virtual void PostEditUndo() override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	NAVIGATIONSYSTEM_API virtual void PostEditUndo() override;
+	NAVIGATIONSYSTEM_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 protected:
-	virtual void PostInitProperties() override;
-	virtual void BeginDestroy() override;
+	NAVIGATIONSYSTEM_API virtual void PostInitProperties() override;
+	NAVIGATIONSYSTEM_API virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
-	void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
-	void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
+	NAVIGATIONSYSTEM_API void OnNavAreaRegistered(const UWorld& World, const UClass* NavAreaClass);
+	NAVIGATIONSYSTEM_API void OnNavAreaUnregistered(const UWorld& World, const UClass* NavAreaClass);
 #endif
 };

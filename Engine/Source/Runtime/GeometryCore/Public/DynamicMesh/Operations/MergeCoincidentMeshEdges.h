@@ -25,11 +25,11 @@ class FDynamicMesh3;
  * they cannot be merged. 
  *
  */
-class GEOMETRYCORE_API FMergeCoincidentMeshEdges
+class FMergeCoincidentMeshEdges
 {
 public:
 	/** default tolerance is float ZeroTolerance */
-	static const double DEFAULT_TOLERANCE;  // = FMathf::ZeroTolerance;
+	static GEOMETRYCORE_API const double DEFAULT_TOLERANCE;  // = FMathf::ZeroTolerance;
 
 	/** The mesh that we are modifying */
 	FDynamicMesh3* Mesh;
@@ -69,7 +69,7 @@ public:
 	 * Run the merge operation and modify .Mesh
 	 * @return true if the algorithm succeeds
 	 */
-	virtual bool Apply();
+	GEOMETRYCORE_API virtual bool Apply();
 
 
 protected:

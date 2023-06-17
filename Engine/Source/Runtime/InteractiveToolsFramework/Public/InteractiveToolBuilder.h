@@ -23,8 +23,8 @@ struct FToolBuilderState;
  * In addition CanBuildTool() will be queried to (for example) enable/disable UI buttons, etc.
  * This is an abstract base class, you must subclass it in order to create your particular Tool instance
  */
-UCLASS(Transient, Abstract)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolBuilder : public UObject
+UCLASS(Transient, Abstract, MinimalAPI)
+class UInteractiveToolBuilder : public UObject
 {
 	GENERATED_BODY()
 
@@ -82,8 +82,8 @@ public:
  * interface(s) for defining the tool target requirements of the tool it builds.
  * This is an abstract base class, you must subclass it in order to create your particular Tool instance.
  */
-UCLASS(Transient, Abstract)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractiveToolWithToolTargetsBuilder : public UInteractiveToolBuilder
+UCLASS(Transient, Abstract, MinimalAPI)
+class UInteractiveToolWithToolTargetsBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 

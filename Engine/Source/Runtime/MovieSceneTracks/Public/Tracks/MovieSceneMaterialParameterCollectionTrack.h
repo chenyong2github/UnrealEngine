@@ -13,8 +13,8 @@ class UMaterialParameterCollection;
 /**
  * Handles manipulation of material parameter collections in a movie scene.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneMaterialParameterCollectionTrack
+UCLASS(MinimalAPI)
+class UMovieSceneMaterialParameterCollectionTrack
 	: public UMovieSceneMaterialTrack
 	, public IMovieSceneEntityProvider
 	, public IMovieSceneParameterSectionExtender
@@ -27,19 +27,19 @@ public:
 	UPROPERTY(EditAnywhere, Category=General, DisplayName="Material Parameter Collection")
 	TObjectPtr<UMaterialParameterCollection> MPC;
 
-	UMovieSceneMaterialParameterCollectionTrack(const FObjectInitializer& ObjectInitializer);
+	MOVIESCENETRACKS_API UMovieSceneMaterialParameterCollectionTrack(const FObjectInitializer& ObjectInitializer);
 
-	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
-	virtual UMovieSceneSection* CreateNewSection() override;
+	MOVIESCENETRACKS_API virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* CreateNewSection() override;
 
 	/*~ IMovieSceneEntityProvider */
-	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
-	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+	MOVIESCENETRACKS_API virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	MOVIESCENETRACKS_API virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 
 	/*~ IMovieSceneParameterSectionExtender */
-	virtual void ExtendEntityImpl(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
+	MOVIESCENETRACKS_API virtual void ExtendEntityImpl(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
 
 #if WITH_EDITORONLY_DATA
-	virtual FText GetDefaultDisplayName() const override;
+	MOVIESCENETRACKS_API virtual FText GetDefaultDisplayName() const override;
 #endif
 };

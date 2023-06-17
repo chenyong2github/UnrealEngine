@@ -77,8 +77,8 @@ public:
 };
 
 
-UCLASS(config = Engine, defaultconfig, perObjectConfig)
-class MATERIALSHADERQUALITYSETTINGS_API UShaderPlatformQualitySettings : public UObject
+UCLASS(config = Engine, defaultconfig, perObjectConfig, MinimalAPI)
+class UShaderPlatformQualitySettings : public UObject
 {
 public:
 	GENERATED_UCLASS_BODY()
@@ -92,9 +92,9 @@ public:
 		return QualityOverrides[(int32)QualityLevel];
 	}
 
-	const FMaterialQualityOverrides& GetQualityOverrides(EMaterialQualityLevel::Type QualityLevel) const;
-	void BuildHash(EMaterialQualityLevel::Type QualityLevel, class FSHAHash& OutHash) const;
-	void AppendToHashState(EMaterialQualityLevel::Type QualityLevel, class FSHA1& HashState) const;
+	MATERIALSHADERQUALITYSETTINGS_API const FMaterialQualityOverrides& GetQualityOverrides(EMaterialQualityLevel::Type QualityLevel) const;
+	MATERIALSHADERQUALITYSETTINGS_API void BuildHash(EMaterialQualityLevel::Type QualityLevel, class FSHAHash& OutHash) const;
+	MATERIALSHADERQUALITYSETTINGS_API void AppendToHashState(EMaterialQualityLevel::Type QualityLevel, class FSHA1& HashState) const;
 	
 	virtual const TCHAR* GetConfigOverridePlatform() const override
 	{

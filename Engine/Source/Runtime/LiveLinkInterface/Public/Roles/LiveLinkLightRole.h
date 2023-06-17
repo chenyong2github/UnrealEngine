@@ -16,19 +16,19 @@ class UScriptStruct;
 /**
  * Role associated for Light data.
  */
-UCLASS(BlueprintType, meta = (DisplayName = "Light Role"))
-class LIVELINKINTERFACE_API ULiveLinkLightRole : public ULiveLinkTransformRole
+UCLASS(BlueprintType, meta = (DisplayName = "Light Role"), MinimalAPI)
+class ULiveLinkLightRole : public ULiveLinkTransformRole
 {
 	GENERATED_BODY()
 
 public:
 	//~ Begin ULiveLinkRole interface
-	virtual UScriptStruct* GetStaticDataStruct() const override;
-	virtual UScriptStruct* GetFrameDataStruct() const override;
-	virtual UScriptStruct* GetBlueprintDataStruct() const override;
+	LIVELINKINTERFACE_API virtual UScriptStruct* GetStaticDataStruct() const override;
+	LIVELINKINTERFACE_API virtual UScriptStruct* GetFrameDataStruct() const override;
+	LIVELINKINTERFACE_API virtual UScriptStruct* GetBlueprintDataStruct() const override;
 
-	bool InitializeBlueprintData(const FLiveLinkSubjectFrameData& InSourceData, FLiveLinkBlueprintDataStruct& OutBlueprintData) const override;
+	LIVELINKINTERFACE_API bool InitializeBlueprintData(const FLiveLinkSubjectFrameData& InSourceData, FLiveLinkBlueprintDataStruct& OutBlueprintData) const override;
 
-	virtual FText GetDisplayName() const override;
+	LIVELINKINTERFACE_API virtual FText GetDisplayName() const override;
 	//~ End ULiveLinkRole interface
 };

@@ -205,33 +205,33 @@ struct FAutomationTestExcludelistEntry
 };
 
 
-UCLASS(config = Engine, defaultconfig)
-class AUTOMATIONTEST_API UAutomationTestExcludelist : public UObject
+UCLASS(config = Engine, defaultconfig, MinimalAPI)
+class UAutomationTestExcludelist : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	UAutomationTestExcludelist() {}
 
-	static UAutomationTestExcludelist* Get();
+	static AUTOMATIONTEST_API UAutomationTestExcludelist* Get();
 
-	void AddToExcludeTest(const FString& TestName, const FAutomationTestExcludelistEntry& ExcludelistEntry);
-	void RemoveFromExcludeTest(const FString& TestName);
-	bool IsTestExcluded(const FString& TestName, const TSet<FName>& = TSet<FName>(), FName* OutReason = nullptr, bool* OutWarn = nullptr);
-	FAutomationTestExcludelistEntry* GetExcludeTestEntry(const FString& TestName, const TSet<FName>& = TSet<FName>());
+	AUTOMATIONTEST_API void AddToExcludeTest(const FString& TestName, const FAutomationTestExcludelistEntry& ExcludelistEntry);
+	AUTOMATIONTEST_API void RemoveFromExcludeTest(const FString& TestName);
+	AUTOMATIONTEST_API bool IsTestExcluded(const FString& TestName, const TSet<FName>& = TSet<FName>(), FName* OutReason = nullptr, bool* OutWarn = nullptr);
+	AUTOMATIONTEST_API FAutomationTestExcludelistEntry* GetExcludeTestEntry(const FString& TestName, const TSet<FName>& = TSet<FName>());
 
-	void SaveConfig();
+	AUTOMATIONTEST_API void SaveConfig();
 	FString GetConfigFilename() { return UObject::GetDefaultConfigFilename(); } const
 	// It is called automatically when CDO is created, usually you don't need to call LoadConfig manually
 	void LoadConfig() { UObject::LoadConfig(GetClass()); }
 
-	virtual void OverrideConfigSection(FString& SectionName) override;
+	AUTOMATIONTEST_API virtual void OverrideConfigSection(FString& SectionName) override;
 
 protected:
-	virtual void PostInitProperties() override;
+	AUTOMATIONTEST_API virtual void PostInitProperties() override;
 
 private:
-	FString GetFullTestName(const FAutomationTestExcludelistEntry& ExcludelistEntry);
+	AUTOMATIONTEST_API FString GetFullTestName(const FAutomationTestExcludelistEntry& ExcludelistEntry);
 
 	UPROPERTY(EditDefaultsOnly, globalconfig, Category = AutomationTestExcludelist)
 	TArray<FAutomationTestExcludelistEntry> ExcludeTest;

@@ -4,7 +4,7 @@
 #include "NavigationOctree.h"
 #include "AI/Navigation/NavigationDirtyElement.h"
 
-struct NAVIGATIONSYSTEM_API FNavigationOctreeController
+struct FNavigationOctreeController
 {
 	enum EOctreeUpdateMode
 	{
@@ -22,28 +22,28 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeController
 	/** if set, navoctree updates are ignored, use with caution! */
 	uint8 bNavOctreeLock : 1;
 
-	void SetNavigationOctreeLock(bool bLock);
-	bool HasPendingObjectNavOctreeId(UObject& Object) const;
-	void RemoveObjectsNavOctreeId(const UObject& Object);
-	void SetNavigableGeometryStoringMode(FNavigationOctree::ENavGeometryStoringMode NavGeometryMode);
+	NAVIGATIONSYSTEM_API void SetNavigationOctreeLock(bool bLock);
+	NAVIGATIONSYSTEM_API bool HasPendingObjectNavOctreeId(UObject& Object) const;
+	NAVIGATIONSYSTEM_API void RemoveObjectsNavOctreeId(const UObject& Object);
+	NAVIGATIONSYSTEM_API void SetNavigableGeometryStoringMode(FNavigationOctree::ENavGeometryStoringMode NavGeometryMode);
 
-	void Reset();
+	NAVIGATIONSYSTEM_API void Reset();
 
-	const FNavigationOctree* GetOctree() const;
-	FNavigationOctree* GetMutableOctree();
-	const FOctreeElementId2* GetObjectsNavOctreeId(const UObject& Object) const;
-	bool GetNavOctreeElementData(const UObject& NodeOwner, int32& DirtyFlags, FBox& DirtyBounds);
-	const FNavigationRelevantData* GetDataForObject(const UObject& Object) const;
-	FNavigationRelevantData* GetMutableDataForObject(const UObject& Object);
-	bool HasObjectsNavOctreeId(const UObject& Object) const;
-	bool IsNavigationOctreeLocked() const;
+	NAVIGATIONSYSTEM_API const FNavigationOctree* GetOctree() const;
+	NAVIGATIONSYSTEM_API FNavigationOctree* GetMutableOctree();
+	NAVIGATIONSYSTEM_API const FOctreeElementId2* GetObjectsNavOctreeId(const UObject& Object) const;
+	NAVIGATIONSYSTEM_API bool GetNavOctreeElementData(const UObject& NodeOwner, int32& DirtyFlags, FBox& DirtyBounds);
+	NAVIGATIONSYSTEM_API const FNavigationRelevantData* GetDataForObject(const UObject& Object) const;
+	NAVIGATIONSYSTEM_API FNavigationRelevantData* GetMutableDataForObject(const UObject& Object);
+	NAVIGATIONSYSTEM_API bool HasObjectsNavOctreeId(const UObject& Object) const;
+	NAVIGATIONSYSTEM_API bool IsNavigationOctreeLocked() const;
 	/** basically says if navoctree has been created already */
 	bool IsValid() const { return NavOctree.IsValid(); }
-	bool IsValidElement(const FOctreeElementId2& ElementId) const;
+	NAVIGATIONSYSTEM_API bool IsValidElement(const FOctreeElementId2& ElementId) const;
 	bool IsEmpty() const { return (IsValid() == false) || NavOctree->GetSizeBytes() == 0; }
 
 private:
-	static uint32 HashObject(const UObject& Object);
+	static NAVIGATIONSYSTEM_API uint32 HashObject(const UObject& Object);
 };
 
 //----------------------------------------------------------------------//

@@ -34,13 +34,13 @@ struct FInputDeviceState;
  * @todo it may be better to implement this as multiple captures, and use hover callbacks to 
  * do the between-capture previews. holding capture across mouse release is not ideal.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UMultiClickSequenceInputBehavior : public UAnyButtonInputBehavior
+UCLASS(MinimalAPI)
+class UMultiClickSequenceInputBehavior : public UAnyButtonInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	UMultiClickSequenceInputBehavior();
+	INTERACTIVETOOLSFRAMEWORK_API UMultiClickSequenceInputBehavior();
 
 	/**
 	 * The modifier set for this behavior
@@ -51,7 +51,7 @@ public:
 	 * Initialize this behavior with the given Target
 	 * @param Target implementor of hit-test and on-clicked functions
 	 */
-	virtual void Initialize(IClickSequenceBehaviorTarget* Target);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Initialize(IClickSequenceBehaviorTarget* Target);
 
 
 	/**
@@ -62,16 +62,16 @@ public:
 
 	// UInputBehavior implementation
 
-	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
-	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide) override;
-	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
-	virtual void ForceEndCapture(const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide eSide) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ForceEndCapture(const FInputCaptureData& Data) override;
 
-	virtual bool WantsHoverEvents() override;
-	virtual FInputCaptureRequest WantsHoverCapture(const FInputDeviceState& InputState) override;
-	virtual FInputCaptureUpdate BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide) override;
-	virtual FInputCaptureUpdate UpdateHoverCapture(const FInputDeviceState& InputState) override;
-	virtual void EndHoverCapture() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool WantsHoverEvents() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureRequest WantsHoverCapture(const FInputDeviceState& InputState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate BeginHoverCapture(const FInputDeviceState& InputState, EInputCaptureSide eSide) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputCaptureUpdate UpdateHoverCapture(const FInputDeviceState& InputState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndHoverCapture() override;
 
 
 public:

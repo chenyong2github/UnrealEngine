@@ -40,8 +40,8 @@ class UObject;
  * into the index of its blend channel input component. A final combination pass walks over blend channel outputs
  * a writes the results into the result component from the accumulation buffer.
  */
-UCLASS(Abstract)
-class MOVIESCENE_API UMovieSceneBlenderSystem : public UMovieSceneEntitySystem
+UCLASS(Abstract, MinimalAPI)
+class UMovieSceneBlenderSystem : public UMovieSceneEntitySystem
 {
 public:
 
@@ -53,7 +53,7 @@ public:
 	/**
 	 * Get a blender system class, given a blender system ID.
 	 */
-	static TSubclassOf<UMovieSceneBlenderSystem> GetBlenderSystemClass(FMovieSceneBlenderSystemID InSystemID);
+	static MOVIESCENE_API TSubclassOf<UMovieSceneBlenderSystem> GetBlenderSystemClass(FMovieSceneBlenderSystemID InSystemID);
 
 	/**
 	 * Get the unique ID for a given blender system type.
@@ -69,18 +69,18 @@ public:
 	/**
 	 * Get the unique ID for this blender system's underlying type.
 	 */
-	FMovieSceneBlenderSystemID GetBlenderSystemID() const;
+	MOVIESCENE_API FMovieSceneBlenderSystemID GetBlenderSystemID() const;
 
 	/**
 	 * Allocate a new blend channel.
 	 * @note Must be released when it is no longer needed in order to prevent leaking channels.
 	 */
-	FMovieSceneBlendChannelID AllocateBlendChannel();
+	MOVIESCENE_API FMovieSceneBlendChannelID AllocateBlendChannel();
 
 	/**
 	 * Release a previously allocated blend channel.
 	 */
-	void ReleaseBlendChannel(FMovieSceneBlendChannelID BlendChannelID);
+	MOVIESCENE_API void ReleaseBlendChannel(FMovieSceneBlendChannelID BlendChannelID);
 
 	/**
 	 * Retrieve the selection priority to use when choosing a blender system. Highest wins.
@@ -100,11 +100,11 @@ public:
 
 protected:
 
-	UMovieSceneBlenderSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENE_API UMovieSceneBlenderSystem(const FObjectInitializer& ObjInit);
 
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
+	MOVIESCENE_API virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 
-	void CompactBlendChannels();
+	MOVIESCENE_API void CompactBlendChannels();
 
 	/** Bit array specifying currently allocated blend channels */
 	TBitArray<> AllocatedBlendChannels;

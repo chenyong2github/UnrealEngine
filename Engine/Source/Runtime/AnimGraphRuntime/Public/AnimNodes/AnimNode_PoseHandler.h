@@ -13,7 +13,7 @@
 // Typically the playback position of the animation for this node will represent something other than time, like jump height.
 // This node will not trigger any notifies present in the associated sequence.
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_PoseHandler : public FAnimNode_AssetPlayerBase
+struct FAnimNode_PoseHandler : public FAnimNode_AssetPlayerBase
 {
 	GENERATED_USTRUCT_BODY()
 public:
@@ -33,10 +33,10 @@ public:
 	// End of FAnimNode_AssetPlayerBase interface
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_AssetPlayerBase Interface
@@ -47,7 +47,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	// Set the pose asset to use for this node 
-	void SetPoseAsset(UPoseAsset* InPoseAsset);
+	ANIMGRAPHRUNTIME_API void SetPoseAsset(UPoseAsset* InPoseAsset);
 #endif
 	
 protected:
@@ -61,12 +61,12 @@ protected:
 	TArray<float> BoneBlendWeights;
 
 	/* Rebuild pose list */
-	virtual void RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset);
+	ANIMGRAPHRUNTIME_API virtual void RebuildPoseList(const FBoneContainer& InBoneContainer, const UPoseAsset* InPoseAsset);
 
 	/** Cache bone blend weights - called when pose asset changes */
-	void CacheBoneBlendWeights(FAnimInstanceProxy* InstanceProxy);
+	ANIMGRAPHRUNTIME_API void CacheBoneBlendWeights(FAnimInstanceProxy* InstanceProxy);
 	
 private:
-	void UpdatePoseAssetProperty(struct FAnimInstanceProxy* InstanceProxy);
+	ANIMGRAPHRUNTIME_API void UpdatePoseAssetProperty(struct FAnimInstanceProxy* InstanceProxy);
 };
 

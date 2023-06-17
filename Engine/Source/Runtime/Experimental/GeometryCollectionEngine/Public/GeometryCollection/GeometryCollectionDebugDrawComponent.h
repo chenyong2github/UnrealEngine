@@ -23,8 +23,8 @@ namespace Chaos { template<class T, int d> class TPBDRigidParticles; }
 *   This component is automatically added to every GeometryCollectionActor.
 */
 class UE_DEPRECATED(5.0, "Deprecated. Use normal debug draw Chaos Physics commands") UGeometryCollectionDebugDrawComponent;
-UCLASS(meta = (BlueprintSpawnableComponent), HideCategories = ("Tags", "Activation", "Cooking", "AssetUserData", "Collision"))
-class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionDebugDrawComponent : public UActorComponent
+UCLASS(meta = (BlueprintSpawnableComponent), HideCategories = ("Tags", "Activation", "Cooking", "AssetUserData", "Collision"), MinimalAPI)
+class UGeometryCollectionDebugDrawComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 

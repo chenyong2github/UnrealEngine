@@ -11,8 +11,8 @@
 /**
  * WidgetExtension is the base class for components that define reusable behavior that can be added to different types of Widgets.
  */
-UCLASS(Abstract, DefaultToInstanced)
-class UMG_API UWidgetBlueprintGeneratedClassExtension : public UObject
+UCLASS(Abstract, DefaultToInstanced, MinimalAPI)
+class UWidgetBlueprintGeneratedClassExtension : public UObject
 {
 	GENERATED_BODY()
 	

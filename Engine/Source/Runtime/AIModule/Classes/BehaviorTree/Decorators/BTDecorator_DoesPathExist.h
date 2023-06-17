@@ -27,8 +27,8 @@ namespace EPathExistanceQueryType
  * Cooldown decorator node.
  * A decorator node that bases its condition on whether a path exists between two points from the Blackboard.
  */
-UCLASS()
-class AIMODULE_API UBTDecorator_DoesPathExist : public UBTDecorator
+UCLASS(MinimalAPI)
+class UBTDecorator_DoesPathExist : public UBTDecorator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -55,11 +55,11 @@ public:
 	UPROPERTY(Category=Node, EditAnywhere)
 	TSubclassOf<UNavigationQueryFilter> FilterClass;
 
-	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
-	virtual FString GetStaticDescription() const override;
-	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+	AIMODULE_API virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 };

@@ -29,23 +29,23 @@ class UObject;
  *       - Corresponds to platform time minus any fractional FrameTime.
  * 
  */
-UCLASS(Blueprintable, editinlinenew, meta = (DisplayName = "Genlocked Fixed Rate"))
-class TIMEMANAGEMENT_API UGenlockedFixedRateCustomTimeStep : public UGenlockedCustomTimeStep
+UCLASS(Blueprintable, editinlinenew, meta = (DisplayName = "Genlocked Fixed Rate"), MinimalAPI)
+class UGenlockedFixedRateCustomTimeStep : public UGenlockedCustomTimeStep
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	//~ UFixedFrameRateCustomTimeStep interface
-	virtual bool Initialize(UEngine* InEngine) override;
-	virtual void Shutdown(UEngine* InEngine) override;
-	virtual bool UpdateTimeStep(UEngine* InEngine) override;
-	virtual ECustomTimeStepSynchronizationState GetSynchronizationState() const override;
-	virtual FFrameRate GetFixedFrameRate() const override;
+	TIMEMANAGEMENT_API virtual bool Initialize(UEngine* InEngine) override;
+	TIMEMANAGEMENT_API virtual void Shutdown(UEngine* InEngine) override;
+	TIMEMANAGEMENT_API virtual bool UpdateTimeStep(UEngine* InEngine) override;
+	TIMEMANAGEMENT_API virtual ECustomTimeStepSynchronizationState GetSynchronizationState() const override;
+	TIMEMANAGEMENT_API virtual FFrameRate GetFixedFrameRate() const override;
 
 	//~ UGenlockedCustomTimeStep interface
-	virtual uint32 GetLastSyncCountDelta() const override;
-	virtual bool IsLastSyncDataValid() const override;
-	virtual bool WaitForSync() override;
+	TIMEMANAGEMENT_API virtual uint32 GetLastSyncCountDelta() const override;
+	TIMEMANAGEMENT_API virtual bool IsLastSyncDataValid() const override;
+	TIMEMANAGEMENT_API virtual bool WaitForSync() override;
 
 public:
 

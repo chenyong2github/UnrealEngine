@@ -54,19 +54,19 @@ using FUniqueSocket = TUniquePtr<FSocket, FSocketDeleter>;
  * This is the base interface to abstract platform specific sockets API
  * differences.
  */
-class SOCKETS_API ISocketSubsystem
+class ISocketSubsystem
 {
 public:
 
 	/**
 	 * Get the singleton socket subsystem for the given named subsystem
 	 */
-	static ISocketSubsystem* Get(const FName& SubsystemName=NAME_None);
+	static SOCKETS_API ISocketSubsystem* Get(const FName& SubsystemName=NAME_None);
 
 	/**
 	 * Shutdown all registered subsystems
 	 */
-	static void ShutdownAllSystems();
+	static SOCKETS_API void ShutdownAllSystems();
 
 
 	virtual ~ISocketSubsystem() { }
@@ -136,7 +136,7 @@ public:
 	 *
 	 * @return the new socket or NULL if failed
 	 */
-	FUniqueSocket CreateUniqueSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false);
+	SOCKETS_API FUniqueSocket CreateUniqueSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false);
 
 	/**
 	 * Creates a socket using the given protocol name,  wrapped in a unique pointer that will call DestroySocket automatically - do not call it explicitly!
@@ -148,7 +148,7 @@ public:
 	 *
 	 * @return the new socket or NULL if failed
 	 */
-	FUniqueSocket CreateUniqueSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolName);
+	SOCKETS_API FUniqueSocket CreateUniqueSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolName);
 
 	/**
 	 * Creates a resolve info cached struct to hold the resolved address
@@ -157,7 +157,7 @@ public:
 	 *
 	 * @return the new resolved address or NULL if failed
 	 */
-	virtual class FResolveInfoCached* CreateResolveInfoCached(TSharedPtr<FInternetAddr> Addr) const;
+	SOCKETS_API virtual class FResolveInfoCached* CreateResolveInfoCached(TSharedPtr<FInternetAddr> Addr) const;
 
 	/**
 	 * Cleans up a socket class
@@ -238,7 +238,7 @@ public:
 	 *                   formatting results and can be safely left to the default value.
 	 *
 	 */
-	virtual void GetAddressInfoAsync(FAsyncGetAddressInfoCallback Callback, const TCHAR* HostName,
+	SOCKETS_API virtual void GetAddressInfoAsync(FAsyncGetAddressInfoCallback Callback, const TCHAR* HostName,
 		const TCHAR* ServiceName = nullptr, EAddressInfoFlags QueryFlags = EAddressInfoFlags::Default,
 		const FName ProtocolTypeName = NAME_None,
 		ESocketType SocketType = ESocketType::SOCKTYPE_Unknown);
@@ -283,7 +283,7 @@ public:
 	 *
 	 * @return the resolve info to query for the address
 	 */
-	virtual class FResolveInfo* GetHostByName(const ANSICHAR* HostName);
+	SOCKETS_API virtual class FResolveInfo* GetHostByName(const ANSICHAR* HostName);
 
 	/**
 	 * Some platforms require chat data (voice, text, etc.) to be placed into
@@ -345,7 +345,7 @@ public:
 	 * @param Flags					Flags for specifying how FRecvMulti should be initialized (for e.g. retrieving timestamps)
 	 * @return						Returns the platform specific FRecvMulti instance
 	 */
-	virtual TUniquePtr<FRecvMulti> CreateRecvMulti(int32 MaxNumPackets, int32 MaxPacketSize,
+	SOCKETS_API virtual TUniquePtr<FRecvMulti> CreateRecvMulti(int32 MaxNumPackets, int32 MaxPacketSize,
 													ERecvMultiFlags Flags=ERecvMultiFlags::None);
 
 	/**
@@ -377,7 +377,7 @@ public:
 	 *
 	 * @param Code the error code to check
 	 */
-	const TCHAR* GetSocketError(ESocketErrors Code = SE_GET_LAST_ERROR_CODE);
+	SOCKETS_API const TCHAR* GetSocketError(ESocketErrors Code = SE_GET_LAST_ERROR_CODE);
 
 	/**
 	 * Gets the list of addresses associated with the adapters on the local computer.
@@ -388,7 +388,7 @@ public:
 	 *
 	 * @return true on success, false otherwise.
 	 */
-	virtual bool GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses);
+	SOCKETS_API virtual bool GetLocalAdapterAddresses(TArray<TSharedPtr<FInternetAddr>>& OutAddresses);
 
 	/**
 	 * Get a local IP to bind to.
@@ -396,7 +396,7 @@ public:
 	 * Typically, it is better to use GetLocalBindAddresses as it better supports hybrid network functionality
 	 * and less chances for connections to fail due to mismatched protocols.
 	 */
-	virtual TSharedRef<FInternetAddr> GetLocalBindAddr(FOutputDevice& Out);
+	SOCKETS_API virtual TSharedRef<FInternetAddr> GetLocalBindAddr(FOutputDevice& Out);
 
 	/**
 	 * Get bindable addresses that this machine can use as reported by GetAddressInfo with the BindableAddress flag.
@@ -405,7 +405,7 @@ public:
 	 *
 	 * @return If GetAddressInfo succeeded or multihome is specified, an array of addresses that can be binded on. Failure returns an empty array.
 	 */
-	virtual TArray<TSharedRef<FInternetAddr>> GetLocalBindAddresses();
+	SOCKETS_API virtual TArray<TSharedRef<FInternetAddr>> GetLocalBindAddresses();
 
 	/**
 	 * Bind to next available port.
@@ -417,7 +417,7 @@ public:
 	 *
 	 * @return The bound port number, or 0 on failure
 	 */
-	int32 BindNextPort(FSocket* Socket, FInternetAddr& Addr, int32 PortCount, int32 PortIncrement);
+	SOCKETS_API int32 BindNextPort(FSocket* Socket, FInternetAddr& Addr, int32 PortCount, int32 PortIncrement);
 
 	/**
 	 * Uses the platform specific look up to determine the host address
@@ -431,7 +431,7 @@ public:
 	 *
 	 * @return The local host address
 	 */
-	virtual TSharedRef<FInternetAddr> GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll);
+	SOCKETS_API virtual TSharedRef<FInternetAddr> GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll);
 
 	/**
 	 * Returns the multihome address if the flag is present and valid. For ease of use, 
@@ -441,7 +441,7 @@ public:
 	 *
 	 * @return If the multihome address was set and valid
 	 */
-	virtual bool GetMultihomeAddress(TSharedRef<FInternetAddr>& Addr);
+	SOCKETS_API virtual bool GetMultihomeAddress(TSharedRef<FInternetAddr>& Addr);
 
 	/**
 	 * Checks the host name cache for an existing entry (faster than resolving again)
@@ -451,7 +451,7 @@ public:
 	 *
 	 * @return true if the host was found, false otherwise
 	 */
-	bool GetHostByNameFromCache(const ANSICHAR* HostName, TSharedPtr<class FInternetAddr>& Addr);
+	SOCKETS_API bool GetHostByNameFromCache(const ANSICHAR* HostName, TSharedPtr<class FInternetAddr>& Addr);
 
 	/**
 	 * Stores the ip address with the matching host name
@@ -459,19 +459,19 @@ public:
 	 * @param HostName the host name to search for
 	 * @param Addr the IP that will be copied from
 	 */
-	void AddHostNameToCache(const ANSICHAR* HostName, TSharedPtr<class FInternetAddr> Addr);
+	SOCKETS_API void AddHostNameToCache(const ANSICHAR* HostName, TSharedPtr<class FInternetAddr> Addr);
 
 	/**
 	 * Removes the host name to ip mapping from the cache
 	 *
 	 * @param HostName the host name to search for
 	 */
-	void RemoveHostNameFromCache(const ANSICHAR* HostName);
+	SOCKETS_API void RemoveHostNameFromCache(const ANSICHAR* HostName);
 
 	/**
 	 * Returns true if FSocket::RecvMulti is supported by this socket subsystem
 	 */
-	virtual bool IsSocketRecvMultiSupported() const;
+	SOCKETS_API virtual bool IsSocketRecvMultiSupported() const;
 
 
 	/**
@@ -487,13 +487,13 @@ public:
 	 * @param Translation	The type of translation to perform on the timestamp (time delta is usually faster than local timestamp)
 	 * @return				Returns the translated timestamp or delta
 	 */
-	virtual double TranslatePacketTimestamp(const FPacketTimestamp& Timestamp,
+	SOCKETS_API virtual double TranslatePacketTimestamp(const FPacketTimestamp& Timestamp,
 											ETimestampTranslation Translation=ETimestampTranslation::LocalTimestamp);
 
 	/**
 	 * Returns true if FSocket::RecvFromWithPktInfo is supported by this socket subsystem.
 	 */
-	virtual bool IsRecvFromWithPktInfoSupported() const;
+	SOCKETS_API virtual bool IsRecvFromWithPktInfoSupported() const;
 
 protected:
 
@@ -501,8 +501,8 @@ protected:
 	 * Conversion functions from the SocketProtocolFamily enum to the new FName system.
 	 * For now, both are supported, but it's better to use the FName when possible.
 	 */
-	virtual ESocketProtocolFamily GetProtocolFamilyFromName(const FName& InProtocolName) const;
-	virtual FName GetProtocolNameFromFamily(ESocketProtocolFamily InProtocolFamily) const;
+	SOCKETS_API virtual ESocketProtocolFamily GetProtocolFamilyFromName(const FName& InProtocolName) const;
+	SOCKETS_API virtual FName GetProtocolNameFromFamily(ESocketProtocolFamily InProtocolFamily) const;
 
 private:
 

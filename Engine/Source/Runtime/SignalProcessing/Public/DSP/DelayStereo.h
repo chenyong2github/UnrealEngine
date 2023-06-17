@@ -21,54 +21,54 @@ namespace Audio
 		};
 	}
 
-	class SIGNALPROCESSING_API FDelayStereo
+	class FDelayStereo
 	{
 	public:
-		FDelayStereo();
-		~FDelayStereo();
+		SIGNALPROCESSING_API FDelayStereo();
+		SIGNALPROCESSING_API ~FDelayStereo();
 
 		// Initializes the stereo delay with given sample rate and default max delay length
-		void Init(const float InSampleRate, const int32 InNumChannels, const float InDelayLengthSec = 2.0f);
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const int32 InNumChannels, const float InDelayLengthSec = 2.0f);
 
 		// Resets the stereo delay state
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		// Process a single frame of audio
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InFrame, float* OutFrame);
 
 		// Process a buffer of audio
-		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
 
 		// Sets which delay stereo mode to use
-		void SetMode(const EStereoDelayMode::Type InMode);
+		SIGNALPROCESSING_API void SetMode(const EStereoDelayMode::Type InMode);
 
 		// Gets the current stereo dealy mode
 		EStereoDelayMode::Type GetMode() const { return DelayMode; }
 
 		// Sets the delay time in msec. 
-		void SetDelayTimeMsec(const float InDelayTimeMsec);
+		SIGNALPROCESSING_API void SetDelayTimeMsec(const float InDelayTimeMsec);
 
 		// Sets the feedback amount
-		void SetFeedback(const float InFeedback);
+		SIGNALPROCESSING_API void SetFeedback(const float InFeedback);
 
 		// Sets the delay ratio (scales difference between left and right stereo delays)
-		void SetDelayRatio(const float InDelayRatio);
+		SIGNALPROCESSING_API void SetDelayRatio(const float InDelayRatio);
 
 		// Sets the amount of the effect to mix in the output
-		void SetWetLevel(const float InWetLevel);
+		SIGNALPROCESSING_API void SetWetLevel(const float InWetLevel);
 
 		// Sets the amount of the effect to mix in the output
-		void SetDryLevel(const float InDryLevel);
+		SIGNALPROCESSING_API void SetDryLevel(const float InDryLevel);
 
 		// Sets whether or not the filter is enabled
-		void SetFilterEnabled(bool bInEnabled);
+		SIGNALPROCESSING_API void SetFilterEnabled(bool bInEnabled);
 
 		// Sets the filter settings
-		void SetFilterSettings(EBiquadFilter::Type InFilterType, const float InCutoffFrequency, const float InQ);
+		SIGNALPROCESSING_API void SetFilterSettings(EBiquadFilter::Type InFilterType, const float InCutoffFrequency, const float InQ);
 
 	protected:
 		// Updates the delays based on recent parameters
-		void UpdateDelays();
+		SIGNALPROCESSING_API void UpdateDelays();
 
 		// Delay lines per channel
 		TArray<FDelay> Delays;

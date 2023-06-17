@@ -7,12 +7,12 @@
 
 
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneDoublePropertySystem : public UMovieScenePropertySystem
+UCLASS(MinimalAPI)
+class UMovieSceneDoublePropertySystem : public UMovieScenePropertySystem
 {
 	GENERATED_BODY()
 
 	UMovieSceneDoublePropertySystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };

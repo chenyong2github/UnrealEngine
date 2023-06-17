@@ -51,25 +51,25 @@ public:
 
 namespace UE::AssetDependencyGatherer::Private
 {
-	class ASSETREGISTRY_API FRegisteredAssetDependencyGatherer
+	class FRegisteredAssetDependencyGatherer
 	{
 	public:
 		DECLARE_MULTICAST_DELEGATE(FOnAssetDependencyGathererRegistered);
-		static FOnAssetDependencyGathererRegistered OnAssetDependencyGathererRegistered;
+		static ASSETREGISTRY_API FOnAssetDependencyGathererRegistered OnAssetDependencyGathererRegistered;
 
-		FRegisteredAssetDependencyGatherer();
-		virtual ~FRegisteredAssetDependencyGatherer();
+		ASSETREGISTRY_API FRegisteredAssetDependencyGatherer();
+		ASSETREGISTRY_API virtual ~FRegisteredAssetDependencyGatherer();
 
 		virtual UClass* GetAssetClass() const = 0;
 		virtual void GatherDependencies(const FAssetData& AssetData, const FAssetRegistryState& AssetRegistryState, 
 			TFunctionRef<FARCompiledFilter(const FARFilter&)> CompileFilterFunc, TArray<IAssetDependencyGatherer::FGathereredDependency>& OutDependencies, 
 			TArray<FString>& OutDependencyDirectories) const = 0;
 
-		static void ForEach(TFunctionRef<void(FRegisteredAssetDependencyGatherer*)> Func);
+		static ASSETREGISTRY_API void ForEach(TFunctionRef<void(FRegisteredAssetDependencyGatherer*)> Func);
 		static bool IsEmpty() { return !GetRegisteredList(); }
 	private:
 
-		static TLinkedList<FRegisteredAssetDependencyGatherer*>*& GetRegisteredList();
+		static ASSETREGISTRY_API TLinkedList<FRegisteredAssetDependencyGatherer*>*& GetRegisteredList();
 		TLinkedList<FRegisteredAssetDependencyGatherer*> GlobalListLink;
 	};
 }

@@ -10,8 +10,8 @@
 #include "Perception/AISense_Damage.h"
 #include "AISenseConfig_Damage.generated.h"
 
-UCLASS(meta = (DisplayName = "AI Damage sense config"))
-class AIMODULE_API UAISenseConfig_Damage : public UAISenseConfig
+UCLASS(meta = (DisplayName = "AI Damage sense config"), MinimalAPI)
+class UAISenseConfig_Damage : public UAISenseConfig
 {
 	GENERATED_UCLASS_BODY()
 
@@ -19,5 +19,5 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", NoClear, config)
 	TSubclassOf<UAISense_Damage> Implementation;
 
-	virtual TSubclassOf<UAISense> GetSenseImplementation() const override;
+	AIMODULE_API virtual TSubclassOf<UAISense> GetSenseImplementation() const override;
 };

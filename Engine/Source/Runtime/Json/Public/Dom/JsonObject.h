@@ -19,7 +19,7 @@
  * A Json Object is a structure holding an unordered set of name/value pairs.
  * In a Json file, it is represented by everything between curly braces {}.
  */
-class JSON_API FJsonObject
+class FJsonObject
 {
 public:
 
@@ -102,14 +102,14 @@ public:
 	 * @param FieldName The name of the field to set.
 	 * @param Value The value to set.
 	 */
-	void SetField( const FString& FieldName, const TSharedPtr<FJsonValue>& Value );
+	JSON_API void SetField( const FString& FieldName, const TSharedPtr<FJsonValue>& Value );
 
 	/**
 	 * Removes the field with the specified name.
 	 *
 	 * @param FieldName The name of the field to remove.
 	 */
-	void RemoveField(const FString& FieldName);
+	JSON_API void RemoveField(const FString& FieldName);
 
 	/**
 	 * Gets the field with the specified name as a number.
@@ -119,7 +119,7 @@ public:
 	 * @param FieldName The name of the field to get.
 	 * @return The field's value as a number.
 	 */
-	double GetNumberField(const FString& FieldName) const;
+	JSON_API double GetNumberField(const FString& FieldName) const;
 
 	/**
 	 * Gets a numeric field and casts to an int32
@@ -130,46 +130,46 @@ public:
 	}
 
 	/** Get the field named FieldName as a number. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, float& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, float& OutNumber) const;
 
 	/** Get the field named FieldName as a number. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, double& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, double& OutNumber) const;
 
 	/** Get the field named FieldName as a number, and makes sure it's within int8 range. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, int8& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, int8& OutNumber) const;
 
 	/** Get the field named FieldName as a number, and makes sure it's within int16 range. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, int16& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, int16& OutNumber) const;
 
 	/** Get the field named FieldName as a number, and makes sure it's within int32 range. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, int32& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, int32& OutNumber) const;
 
 	/** Get the field named FieldName as a number. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, int64& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, int64& OutNumber) const;
 
 	/** Get the field named FieldName as a number, and makes sure it's within uint8 range. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, uint8& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, uint8& OutNumber) const;
 
 	/** Get the field named FieldName as a number, and makes sure it's within uint16 range. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetNumberField(const FString& FieldName, uint16& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, uint16& OutNumber) const;
 
 	/** Get the field named FieldName as a number, and makes sure it's within uint32 range. Returns false if it doesn't exist or cannot be converted.  */
-	bool TryGetNumberField(const FString& FieldName, uint32& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, uint32& OutNumber) const;
 
 	/** Get the field named FieldName as a number, and makes sure it's within uint64 range. Returns false if it doesn't exist or cannot be converted.  */
-	bool TryGetNumberField(const FString& FieldName, uint64& OutNumber) const;
+	JSON_API bool TryGetNumberField(const FString& FieldName, uint64& OutNumber) const;
 
 	/** Add a field named FieldName with Number as value */
-	void SetNumberField( const FString& FieldName, double Number );
+	JSON_API void SetNumberField( const FString& FieldName, double Number );
 
 	/** Get the field named FieldName as a string. */
-	FString GetStringField(const FString& FieldName) const;
+	JSON_API FString GetStringField(const FString& FieldName) const;
 
 	/** Get the field named FieldName as a string. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetStringField(const FString& FieldName, FString& OutString) const;
+	JSON_API bool TryGetStringField(const FString& FieldName, FString& OutString) const;
 
 	/** Get the field named FieldName as an array of strings. Returns false if it doesn't exist or any member cannot be converted. */
-	bool TryGetStringArrayField(const FString& FieldName, TArray<FString>& OutArray) const;
+	JSON_API bool TryGetStringArrayField(const FString& FieldName, TArray<FString>& OutArray) const;
 
 	/** Get the field named FieldName as an array of enums. Returns false if it doesn't exist or any member is not a string. */
 	template<typename TEnum>
@@ -194,7 +194,7 @@ public:
 	}
 
 	/** Add a field named FieldName with value of StringValue */
-	void SetStringField( const FString& FieldName, const FString& StringValue );
+	JSON_API void SetStringField( const FString& FieldName, const FString& StringValue );
 
 	/**
 	 * Gets the field with the specified name as a boolean.
@@ -204,22 +204,22 @@ public:
 	 * @param FieldName The name of the field to get.
 	 * @return The field's value as a boolean.
 	 */
-	bool GetBoolField(const FString& FieldName) const;
+	JSON_API bool GetBoolField(const FString& FieldName) const;
 
 	/** Get the field named FieldName as a string. Returns false if it doesn't exist or cannot be converted. */
-	bool TryGetBoolField(const FString& FieldName, bool& OutBool) const;
+	JSON_API bool TryGetBoolField(const FString& FieldName, bool& OutBool) const;
 
 	/** Set a boolean field named FieldName and value of InValue */
-	void SetBoolField( const FString& FieldName, bool InValue );
+	JSON_API void SetBoolField( const FString& FieldName, bool InValue );
 
 	/** Get the field named FieldName as an array. */
-	const TArray< TSharedPtr<FJsonValue> >& GetArrayField(const FString& FieldName) const;
+	JSON_API const TArray< TSharedPtr<FJsonValue> >& GetArrayField(const FString& FieldName) const;
 
 	/** Try to get the field named FieldName as an array, or return false if it's another type */
-	bool TryGetArrayField(const FString& FieldName, const TArray< TSharedPtr<FJsonValue> >*& OutArray) const;
+	JSON_API bool TryGetArrayField(const FString& FieldName, const TArray< TSharedPtr<FJsonValue> >*& OutArray) const;
 
 	/** Set an array field named FieldName and value of Array */
-	void SetArrayField( const FString& FieldName, const TArray< TSharedPtr<FJsonValue> >& Array );
+	JSON_API void SetArrayField( const FString& FieldName, const TArray< TSharedPtr<FJsonValue> >& Array );
 
 	/**
 	 * Gets the field with the specified name as a Json object.
@@ -229,14 +229,14 @@ public:
 	 * @param FieldName The name of the field to get.
 	 * @return The field's value as a Json object.
 	 */
-	const TSharedPtr<FJsonObject>& GetObjectField(const FString& FieldName) const;
+	JSON_API const TSharedPtr<FJsonObject>& GetObjectField(const FString& FieldName) const;
 
 	/** Try to get the field named FieldName as an object, or return false if it's another type */
-	bool TryGetObjectField(const FString& FieldName, const TSharedPtr<FJsonObject>*& OutObject) const;
+	JSON_API bool TryGetObjectField(const FString& FieldName, const TSharedPtr<FJsonObject>*& OutObject) const;
 
 	/** Set an ObjectField named FieldName and value of JsonObject */
-	void SetObjectField( const FString& FieldName, const TSharedPtr<FJsonObject>& JsonObject );
+	JSON_API void SetObjectField( const FString& FieldName, const TSharedPtr<FJsonObject>& JsonObject );
 
-	static void Duplicate(const TSharedPtr<const FJsonObject>& Source, const TSharedPtr<FJsonObject>& Dest);
-	static void Duplicate(const TSharedPtr<FJsonObject>& Source, TSharedPtr<FJsonObject>& Dest);
+	static JSON_API void Duplicate(const TSharedPtr<const FJsonObject>& Source, const TSharedPtr<FJsonObject>& Dest);
+	static JSON_API void Duplicate(const TSharedPtr<FJsonObject>& Source, TSharedPtr<FJsonObject>& Dest);
 };

@@ -19,8 +19,8 @@ namespace AudioTrackConstants
 /**
  * Handles manipulation of audio.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneAudioTrack
+UCLASS(MinimalAPI)
+class UMovieSceneAudioTrack
 	: public UMovieSceneNameableTrack
 {
 	GENERATED_UCLASS_BODY()
@@ -28,7 +28,7 @@ class MOVIESCENETRACKS_API UMovieSceneAudioTrack
 public:
 
 	/** Adds a new sound cue to the audio */
-	virtual UMovieSceneSection* AddNewSoundOnRow(USoundBase* Sound, FFrameNumber Time, int32 RowIndex);
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* AddNewSoundOnRow(USoundBase* Sound, FFrameNumber Time, int32 RowIndex);
 
 	/** Adds a new sound cue on the next available/non-overlapping row */
 	virtual UMovieSceneSection* AddNewSound(USoundBase* Sound, FFrameNumber Time) { return AddNewSoundOnRow(Sound, Time, INDEX_NONE); }
@@ -40,25 +40,25 @@ public:
 	}
 
 	UE_DEPRECATED(5.2, "IsAMasterTrack is deprecated. Please use Cast<UMovieScene>(GetOuter())->ContainsTrack instead")
-	bool IsAMasterTrack() const;
+	MOVIESCENETRACKS_API bool IsAMasterTrack() const;
 
 public:
 
 	// UMovieSceneTrack interface
 
-	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
-	virtual void RemoveAllAnimationData() override;
-	virtual bool HasSection(const UMovieSceneSection& Section) const override;
-	virtual void AddSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSectionAt(int32 SectionIndex) override;
-	virtual bool IsEmpty() const override;
-	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
-	virtual bool SupportsMultipleRows() const override;
-	virtual UMovieSceneSection* CreateNewSection() override;
+	MOVIESCENETRACKS_API virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	MOVIESCENETRACKS_API virtual void RemoveAllAnimationData() override;
+	MOVIESCENETRACKS_API virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	MOVIESCENETRACKS_API virtual void AddSection(UMovieSceneSection& Section) override;
+	MOVIESCENETRACKS_API virtual void RemoveSection(UMovieSceneSection& Section) override;
+	MOVIESCENETRACKS_API virtual void RemoveSectionAt(int32 SectionIndex) override;
+	MOVIESCENETRACKS_API virtual bool IsEmpty() const override;
+	MOVIESCENETRACKS_API virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
+	MOVIESCENETRACKS_API virtual bool SupportsMultipleRows() const override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* CreateNewSection() override;
 
 	// ~UObject interface
-	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	MOVIESCENETRACKS_API virtual void PostRename(UObject* OldOuter, const FName OldName) override;
 
 private:
 

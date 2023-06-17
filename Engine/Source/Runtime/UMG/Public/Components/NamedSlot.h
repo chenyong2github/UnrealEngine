@@ -14,25 +14,25 @@ class SBox;
  * Allows you to expose an external slot for your user widget.  When others reuse your user control, 
  * they can put whatever they want in this named slot.
  */
-UCLASS()
-class UMG_API UNamedSlot : public UContentWidget
+UCLASS(MinimalAPI)
+class UNamedSlot : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
 	// UPanelWidget interface
-	virtual void OnSlotAdded(UPanelSlot* Slot) override;
-	virtual void OnSlotRemoved(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotAdded(UPanelSlot* Slot) override;
+	UMG_API virtual void OnSlotRemoved(UPanelSlot* Slot) override;
 	// End of UPanelWidget interface
 
 	// UVisual interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	// End of UVisual interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
-	FGuid GetSlotGUID() const;
+	UMG_API virtual const FText GetPaletteCategory() override;
+	UMG_API FGuid GetSlotGUID() const;
 #endif
 
 public:
@@ -47,12 +47,12 @@ public:
 	bool bExposeOnInstanceOnly = false;
 #endif
 	
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual void PostLoad() override;
 	
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
 protected:

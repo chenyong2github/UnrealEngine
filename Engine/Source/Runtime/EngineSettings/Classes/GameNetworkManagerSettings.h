@@ -11,8 +11,8 @@
 /**
  * Holds the settings for the AGameNetworkManager class.
  */
-UCLASS(config=Game)
-class ENGINESETTINGS_API UGameNetworkManagerSettings
+UCLASS(config=Game, MinimalAPI)
+class UGameNetworkManagerSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

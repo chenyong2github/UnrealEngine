@@ -22,7 +22,7 @@ namespace Geometry
  * This is faster for construction than a TSet, but does require allocating and/or clearing the bit-array.
  * Still generally quite a bit more efficient, particularly for large sets.
  */
-class GEOMETRYCORE_API FUniqueIndexSet
+class FUniqueIndexSet
 {
 	// TODO: second bit set that tracks which blocks of ints have been set.
 	// This would allow for clears to be much quicker for subsets.
@@ -37,7 +37,7 @@ class GEOMETRYCORE_API FUniqueIndexSet
 	// TODO: support growing bit set
 
 public:
-	~FUniqueIndexSet();
+	GEOMETRYCORE_API ~FUniqueIndexSet();
 
 	/**
 	 * Initialize the set with maximum index. 

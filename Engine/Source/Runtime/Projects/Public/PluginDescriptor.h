@@ -32,7 +32,7 @@ enum class EPluginEnabledByDefault : uint8
 /**
  * Descriptor for plugins. Contains all the information contained within a .uplugin file.
  */
-struct PROJECTS_API FPluginDescriptor
+struct FPluginDescriptor
 {
 	/** Version number for the plugin.  The version number must increase with every version of the plugin, so that the system 
 	    can determine whether one version of a plugin is newer than another, or to enforce other requirements.  This version
@@ -158,57 +158,57 @@ struct PROJECTS_API FPluginDescriptor
 #endif
 
 	/** Return the .uplugin extension (with dot) */
-	static const FString& GetFileExtension();
+	static PROJECTS_API const FString& GetFileExtension();
 
 	/** Constructor. */
-	FPluginDescriptor();
+	PROJECTS_API FPluginDescriptor();
 
 	/** Loads the descriptor from the given file. */
-	bool Load(const FString& FileName, FText* OutFailReason = nullptr);
+	PROJECTS_API bool Load(const FString& FileName, FText* OutFailReason = nullptr);
 
 	/** Loads the descriptor from the given file. */
-	bool Load(const FString& FileName, FText& OutFailReason);
+	PROJECTS_API bool Load(const FString& FileName, FText& OutFailReason);
 
 	/** Reads the descriptor from the given string */
-	bool Read(const FString& Text, FText* OutFailReason = nullptr);
+	PROJECTS_API bool Read(const FString& Text, FText* OutFailReason = nullptr);
 
 	/** Reads the descriptor from the given string */
-	bool Read(const FString& Text, FText& OutFailReason);
+	PROJECTS_API bool Read(const FString& Text, FText& OutFailReason);
 
 	/** Reads the descriptor from the given JSON object */
-	bool Read(const FJsonObject& Object, FText* OutFailReason = nullptr);
+	PROJECTS_API bool Read(const FJsonObject& Object, FText* OutFailReason = nullptr);
 
 	/** Reads the descriptor from the given JSON object */
-	bool Read(const FJsonObject& Object, FText& OutFailReason);
+	PROJECTS_API bool Read(const FJsonObject& Object, FText& OutFailReason);
 
 	/** Saves the descriptor from the given file. */
-	bool Save(const FString& FileName, FText* OutFailReason = nullptr) const;
+	PROJECTS_API bool Save(const FString& FileName, FText* OutFailReason = nullptr) const;
 
 	/** Saves the descriptor from the given file. */
-	bool Save(const FString& FileName, FText& OutFailReason) const;
+	PROJECTS_API bool Save(const FString& FileName, FText& OutFailReason) const;
 
 	/** Writes a descriptor to JSON */
-	void Write(FString& Text) const;
+	PROJECTS_API void Write(FString& Text) const;
 
 	/** Writes a descriptor to JSON */
-	void Write(TJsonWriter<>& Writer) const;
+	PROJECTS_API void Write(TJsonWriter<>& Writer) const;
 
 	/** Updates the given json object with values in this descriptor */
-	void UpdateJson(FJsonObject& JsonObject) const;
+	PROJECTS_API void UpdateJson(FJsonObject& JsonObject) const;
 
 	/**
 	 * Updates the content of the specified plugin file with values in this descriptor
 	 * (hence preserving json fields that the plugin descriptor doesn't know about)
 	 */
-	bool UpdatePluginFile(const FString& FileName, FText* OutFailReason = nullptr) const;
+	PROJECTS_API bool UpdatePluginFile(const FString& FileName, FText* OutFailReason = nullptr) const;
 
 	/**
 	 * Updates the content of the specified plugin file with values in this descriptor
 	 * (hence preserving json fields that the plugin descriptor doesn't know about)
 	 */
-	bool UpdatePluginFile(const FString& FileName, FText& OutFailReason) const;
+	PROJECTS_API bool UpdatePluginFile(const FString& FileName, FText& OutFailReason) const;
 
 	/** Determines whether the plugin supports the given platform */
-	bool SupportsTargetPlatform(const FString& Platform) const;
+	PROJECTS_API bool SupportsTargetPlatform(const FString& Platform) const;
 };
 

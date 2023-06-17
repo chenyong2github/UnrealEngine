@@ -9,8 +9,8 @@
 #include "GeneralProjectSettings.generated.h"
 
 
-UCLASS(config=Game, defaultconfig)
-class ENGINESETTINGS_API UGeneralProjectSettings
+UCLASS(config=Game, defaultconfig, MinimalAPI)
+class UGeneralProjectSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

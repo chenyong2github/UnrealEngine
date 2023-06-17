@@ -21,7 +21,7 @@ class UTypedElementObjectInterface : public UInterface
 	GENERATED_BODY()
 };
 
-class TYPEDELEMENTRUNTIME_API ITypedElementObjectInterface
+class ITypedElementObjectInterface
 {
 	GENERATED_BODY()
 
@@ -29,12 +29,12 @@ public:
 	/**
 	 * Get the object instance that this handle represents, if any.
 	 */
-	virtual UObject* GetObject(const FTypedElementHandle& InElementHandle);
+	TYPEDELEMENTRUNTIME_API virtual UObject* GetObject(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Gets the object instance's class that the handle represents, if any. 
 	 */
-	virtual UClass* GetObjectClass(const FTypedElementHandle& InElementHandle);
+	TYPEDELEMENTRUNTIME_API virtual UClass* GetObjectClass(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Attempts to cast the given handle to another class.
@@ -79,13 +79,13 @@ public:
 	 * Get the object instance that this handle represents, if any.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Object")
-	virtual UObject* GetObject(const FScriptTypedElementHandle& InElementHandle);
+	TYPEDELEMENTRUNTIME_API virtual UObject* GetObject(const FScriptTypedElementHandle& InElementHandle);
 
 	/**
 	 * Gets the object instance's class that the handle represents, if any. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|Object")
-	virtual UClass* GetObjectClass(const FScriptTypedElementHandle& InElementHandle);
+	TYPEDELEMENTRUNTIME_API virtual UClass* GetObjectClass(const FScriptTypedElementHandle& InElementHandle);
 };
 
 template <>

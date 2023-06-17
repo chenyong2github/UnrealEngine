@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -21,22 +21,22 @@ namespace UE::Json
 	* @see https://datatracker.ietf.org/doc/html/rfc6901
 	* @note Array append ("-") is currently unsupported.
 	*/
-	class JSON_API FJsonPointer
+	class FJsonPointer
 	{
 	public:
 		FJsonPointer() = default;
-		FJsonPointer(FStringView Path);
-		FJsonPointer(const FJsonPointer& Other);
-		FJsonPointer(FJsonPointer&& Other) noexcept;
+		JSON_API FJsonPointer(FStringView Path);
+		JSON_API FJsonPointer(const FJsonPointer& Other);
+		JSON_API FJsonPointer(FJsonPointer&& Other) noexcept;
 
 		/** Attempt to retrieve the value specified by this Json Pointer from the provided Json Value. */
-		bool TryGet(const TSharedPtr<FJsonObject>& RootObject, TSharedPtr<FJsonValue>& OutValue) const;
+		JSON_API bool TryGet(const TSharedPtr<FJsonObject>& RootObject, TSharedPtr<FJsonValue>& OutValue) const;
 
 		/** Attempt to retrieve the value specified by this Json Pointer from the provided Json Object. */
-		bool TryGet(const TSharedPtr<FJsonValue>& RootValue, TSharedPtr<FJsonValue>& OutValue) const;
+		JSON_API bool TryGet(const TSharedPtr<FJsonValue>& RootValue, TSharedPtr<FJsonValue>& OutValue) const;
 
 		/** Attempt to retrieve the value specified by this Json Pointer from the provided Json Array. */
-		bool TryGet(const TArray<TSharedPtr<FJsonValue>>& RootValues, TSharedPtr<FJsonValue>& OutValue) const;
+		JSON_API bool TryGet(const TArray<TSharedPtr<FJsonValue>>& RootValues, TSharedPtr<FJsonValue>& OutValue) const;
 
 		/** Checks that the path has one or more parts. */
 		FORCEINLINE bool IsValid() const
@@ -51,16 +51,16 @@ namespace UE::Json
 		}
 
 		/** Appends the given part to the path */
-		void Append(FStringView Part);
+		JSON_API void Append(FStringView Part);
 
 		/** Sets the last path part to the given array index.  */
-		void SetArrayIndex(int32 Index);
+		JSON_API void SetArrayIndex(int32 Index);
 
 		/** Gets the sub-path up to the given part length. */
-		FJsonPointer GetSubPath(int32 NumParts) const;
+		JSON_API FJsonPointer GetSubPath(int32 NumParts) const;
 
 		/** Get the JsonPointer's string representation. */
-		FString ToString() const;
+		JSON_API FString ToString() const;
 
 		/** Get the path part at the given index. */
 		FORCEINLINE const FString& operator[](int32 Idx) const
@@ -75,14 +75,14 @@ namespace UE::Json
 		}
 
 		/** Substitutes characters in the provided Part with their escaped counterparts (as per the spec). */
-		static FString EscapePart(const FString& Part);
+		static JSON_API FString EscapePart(const FString& Part);
 		
 		/** Substitutes escaped characters in the Provided path with their original character (as per the spec). */
-		static FString UnescapePart(const FString& Part);
+		static JSON_API FString UnescapePart(const FString& Part);
 
 	private:
 		/** Parses the provided path, populating PathParts and validating the result. */
-		bool ParsePath(const FString& InPath);
+		JSON_API bool ParsePath(const FString& InPath);
 
 	private:
 		TArray<FString> PathParts;

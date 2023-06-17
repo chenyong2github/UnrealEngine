@@ -46,7 +46,7 @@ struct FActorPerceptionUpdateInfo
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FActorPerceptionInfoUpdatedDelegate, const FActorPerceptionUpdateInfo&, UpdateInfo);
 
-struct AIMODULE_API FActorPerceptionInfo
+struct FActorPerceptionInfo
 {
 	TWeakObjectPtr<AActor> Target;
 
@@ -172,7 +172,7 @@ struct AIMODULE_API FActorPerceptionInfo
 	}
 	
 	/** takes all "newer" info from Other and absorbs it */
-	void Merge(const FActorPerceptionInfo& Other);
+	AIMODULE_API void Merge(const FActorPerceptionInfo& Other);
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName = "Sensed Actor's Data"))
@@ -198,12 +198,12 @@ struct FActorPerceptionBlueprintInfo
  *	AIPerceptionComponent is used to register as stimuli listener in AIPerceptionSystem
  *	and gathers registered stimuli. UpdatePerception is called when component gets new stimuli (batched)
  */
-UCLASS(ClassGroup=AI, HideCategories=(Activation, Collision), meta=(BlueprintSpawnableComponent), config=Game)
-class AIMODULE_API UAIPerceptionComponent : public UActorComponent
+UCLASS(ClassGroup=AI, HideCategories=(Activation, Collision), meta=(BlueprintSpawnableComponent), config=Game, MinimalAPI)
+class UAIPerceptionComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 	
-	static const int32 InitialStimuliToProcessArraySize;
+	static AIMODULE_API const int32 InitialStimuliToProcessArraySize;
 
 	typedef TMap<TObjectKey<AActor>, FActorPerceptionInfo> TActorPerceptionContainer;
 	typedef TActorPerceptionContainer FActorPerceptionContainer;
@@ -257,56 +257,56 @@ private:
 
 public:
 
-	virtual void PostInitProperties() override;
-	virtual void BeginDestroy() override;
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
+	AIMODULE_API virtual void PostInitProperties() override;
+	AIMODULE_API virtual void BeginDestroy() override;
+	AIMODULE_API virtual void OnRegister() override;
+	AIMODULE_API virtual void OnUnregister() override;
 
 	UFUNCTION()
-	void OnOwnerEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason);
+	AIMODULE_API void OnOwnerEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason);
 	
-	void GetLocationAndDirection(FVector& Location, FVector& Direction) const;
-	const AActor* GetBodyActor() const;
-	AActor* GetMutableBodyActor();
+	AIMODULE_API void GetLocationAndDirection(FVector& Location, FVector& Direction) const;
+	AIMODULE_API const AActor* GetBodyActor() const;
+	AIMODULE_API AActor* GetMutableBodyActor();
 
 	FORCEINLINE const FPerceptionChannelAllowList GetPerceptionFilter() const { return PerceptionFilter; }
 
-	FGenericTeamId GetTeamIdentifier() const;
+	AIMODULE_API FGenericTeamId GetTeamIdentifier() const;
 	FORCEINLINE FPerceptionListenerID GetListenerId() const { return PerceptionListenerId; }
 
-	FVector GetActorLocation(const AActor& Actor) const;
+	AIMODULE_API FVector GetActorLocation(const AActor& Actor) const;
 	FORCEINLINE const FActorPerceptionInfo* GetActorInfo(const AActor& Actor) const { return PerceptualData.Find(&Actor); }
 	FORCEINLINE FActorPerceptionContainer::TIterator GetPerceptualDataIterator() { return FActorPerceptionContainer::TIterator(PerceptualData); }
 	FORCEINLINE FActorPerceptionContainer::TConstIterator GetPerceptualDataConstIterator() const { return FActorPerceptionContainer::TConstIterator(PerceptualData); }
 
-	virtual void GetHostileActors(TArray<AActor*>& OutActors) const;
+	AIMODULE_API virtual void GetHostileActors(TArray<AActor*>& OutActors) const;
 	
-	void GetHostileActorsBySense(TSubclassOf<UAISense> SenseToFilterBy, TArray<AActor*>& OutActors) const;
+	AIMODULE_API void GetHostileActorsBySense(TSubclassOf<UAISense> SenseToFilterBy, TArray<AActor*>& OutActors) const;
 
 	/**	Retrieves all actors in PerceptualData matching the predicate.
 	 *	@return whether dead data (invalid actors) have been found while iterating over PerceptualData
 	 */
-	bool GetFilteredActors(TFunctionRef<bool(const FActorPerceptionInfo&)> Predicate, TArray<AActor*>& OutActors) const;
+	AIMODULE_API bool GetFilteredActors(TFunctionRef<bool(const FActorPerceptionInfo&)> Predicate, TArray<AActor*>& OutActors) const;
 
 	// @note Will stop on first age 0 stimulus
-	const FActorPerceptionInfo* GetFreshestTrace(const FAISenseID Sense) const;
+	AIMODULE_API const FActorPerceptionInfo* GetFreshestTrace(const FAISenseID Sense) const;
 	
-	void SetDominantSense(TSubclassOf<UAISense> InDominantSense);
+	AIMODULE_API void SetDominantSense(TSubclassOf<UAISense> InDominantSense);
 	FORCEINLINE FAISenseID GetDominantSenseID() const { return DominantSenseID; }
 	FORCEINLINE TSubclassOf<UAISense> GetDominantSense() const { return DominantSense; }
-	UAISenseConfig* GetSenseConfig(const FAISenseID& SenseID);
-	const UAISenseConfig* GetSenseConfig(const FAISenseID& SenseID) const;
-	void ConfigureSense(UAISenseConfig& SenseConfig);
+	AIMODULE_API UAISenseConfig* GetSenseConfig(const FAISenseID& SenseID);
+	AIMODULE_API const UAISenseConfig* GetSenseConfig(const FAISenseID& SenseID) const;
+	AIMODULE_API void ConfigureSense(UAISenseConfig& SenseConfig);
 
 	typedef TArray<UAISenseConfig*>::TConstIterator TAISenseConfigConstIterator;
-	TAISenseConfigConstIterator GetSensesConfigIterator() const;
+	AIMODULE_API TAISenseConfigConstIterator GetSensesConfigIterator() const;
 
 	/** Notifies AIPerceptionSystem to update properties for this "stimuli listener" */
 	UFUNCTION(BlueprintCallable, Category="AI|Perception")
-	void RequestStimuliListenerUpdate();
+	AIMODULE_API void RequestStimuliListenerUpdate();
 
 	/** Allows toggling senses on and off */
-	void UpdatePerceptionAllowList(const FAISenseID Channel, const bool bNewValue);
+	AIMODULE_API void UpdatePerceptionAllowList(const FAISenseID Channel, const bool bNewValue);
 
 	UE_DEPRECATED(5.0, "Use UpdatePerceptionAllowList instead")
 	void UpdatePerceptionWhitelist(const FAISenseID Channel, const bool bNewValue)
@@ -315,54 +315,54 @@ public:
 	}
 	
 
-	void RegisterStimulus(AActor* Source, const FAIStimulus& Stimulus);
-	void ProcessStimuli();
+	AIMODULE_API void RegisterStimulus(AActor* Source, const FAIStimulus& Stimulus);
+	AIMODULE_API void ProcessStimuli();
 	/** Returns true if, as result of stimuli aging, this listener needs an update (like if some stimuli expired) */
-	bool AgeStimuli(const float ConstPerceptionAgingRate);
-	void ForgetActor(AActor* ActorToForget);
+	AIMODULE_API bool AgeStimuli(const float ConstPerceptionAgingRate);
+	AIMODULE_API void ForgetActor(AActor* ActorToForget);
 
 	/** basically cleans up PerceptualData, resulting in loss of all previous perception */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void ForgetAll();
+	AIMODULE_API void ForgetAll();
 
-	float GetYoungestStimulusAge(const AActor& Source) const;
-	bool HasAnyActiveStimulus(const AActor& Source) const;
-	bool HasAnyCurrentStimulus(const AActor& Source) const;
-	bool HasActiveStimulus(const AActor& Source, FAISenseID Sense) const;
+	AIMODULE_API float GetYoungestStimulusAge(const AActor& Source) const;
+	AIMODULE_API bool HasAnyActiveStimulus(const AActor& Source) const;
+	AIMODULE_API bool HasAnyCurrentStimulus(const AActor& Source) const;
+	AIMODULE_API bool HasActiveStimulus(const AActor& Source, FAISenseID Sense) const;
 
 #if WITH_GAMEPLAY_DEBUGGER_MENU
-	virtual void DescribeSelfToGameplayDebugger(FGameplayDebuggerCategory* DebuggerCategory) const;
+	AIMODULE_API virtual void DescribeSelfToGameplayDebugger(FGameplayDebuggerCategory* DebuggerCategory) const;
 #endif // WITH_GAMEPLAY_DEBUGGER_MENU
 
 #if ENABLE_VISUAL_LOG
-	virtual void DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const;
+	AIMODULE_API virtual void DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const;
 #endif // ENABLE_VISUAL_LOG
 
 	//----------------------------------------------------------------------//
 	// blueprint interface
 	//----------------------------------------------------------------------//
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void GetPerceivedHostileActors(TArray<AActor*>& OutActors) const;
+	AIMODULE_API void GetPerceivedHostileActors(TArray<AActor*>& OutActors) const;
 
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void GetPerceivedHostileActorsBySense(const TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
+	AIMODULE_API void GetPerceivedHostileActorsBySense(const TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
 
 	/** If SenseToUse is none all actors currently perceived in any way will get fetched */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void GetCurrentlyPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
+	AIMODULE_API void GetCurrentlyPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
 
 	/** If SenseToUse is none all actors ever perceived in any way (and not forgotten yet) will get fetched */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void GetKnownPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
+	AIMODULE_API void GetKnownPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
 
 	/** Retrieves whatever has been sensed about given actor */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	bool GetActorsPerception(AActor* Actor, FActorPerceptionBlueprintInfo& Info);
+	AIMODULE_API bool GetActorsPerception(AActor* Actor, FActorPerceptionBlueprintInfo& Info);
 
 	/** Note that this works only if given sense has been already configured for
 	 *	this component instance */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
-	void SetSenseEnabled(TSubclassOf<UAISense> SenseClass, const bool bEnable);
+	AIMODULE_API void SetSenseEnabled(TSubclassOf<UAISense> SenseClass, const bool bEnable);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Might want to move these to special "BP_AIPerceptionComponent"
@@ -414,21 +414,21 @@ protected:
 	const FActorPerceptionContainer& GetPerceptualData() const { return PerceptualData; }
 
 	/** called to clean up on owner's end play or destruction */
-	virtual void CleanUp();
+	AIMODULE_API virtual void CleanUp();
 
-	void RemoveDeadData();
+	AIMODULE_API void RemoveDeadData();
 
 	/** Updates the stimulus entry in StimulusStore, if NewStimulus is more recent or stronger */
-	virtual void RefreshStimulus(FAIStimulus& StimulusStore, const FAIStimulus& NewStimulus);
+	AIMODULE_API virtual void RefreshStimulus(FAIStimulus& StimulusStore, const FAIStimulus& NewStimulus);
 
 	/** @note no need to call super implementation, it's there just for some validity checking */
-	virtual void HandleExpiredStimulus(FAIStimulus& StimulusStore);
+	AIMODULE_API virtual void HandleExpiredStimulus(FAIStimulus& StimulusStore);
 	
 private:
 	friend UAIPerceptionSystem;
 
-	void RegisterSenseConfig(UAISenseConfig& SenseConfig, UAIPerceptionSystem& AIPerceptionSys);
+	AIMODULE_API void RegisterSenseConfig(UAISenseConfig& SenseConfig, UAIPerceptionSystem& AIPerceptionSys);
 	void StoreListenerId(FPerceptionListenerID InListenerId) { PerceptionListenerId = InListenerId; }
-	void SetMaxStimulusAge(FAISenseID SenseId, float MaxAge);
+	AIMODULE_API void SetMaxStimulusAge(FAISenseID SenseId, float MaxAge);
 };
 

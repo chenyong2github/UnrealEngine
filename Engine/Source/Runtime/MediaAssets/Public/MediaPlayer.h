@@ -74,8 +74,8 @@ enum class EMediaPlayerTrack : uint8
 };
 
 
-UCLASS(BlueprintType, hidecategories = (Object))
-class MEDIAASSETS_API UMediaTimeStampInfo
+UCLASS(BlueprintType, hidecategories = (Object), MinimalAPI)
+class UMediaTimeStampInfo
 	: public UObject
 {
 	GENERATED_BODY()
@@ -91,7 +91,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct MEDIAASSETS_API FMediaMetadataItemBPT
+struct FMediaMetadataItemBPT
 {
 	GENERATED_BODY()
 
@@ -110,7 +110,7 @@ public:
 };
 
 USTRUCT(BlueprintType)
-struct MEDIAASSETS_API FMediaMetadataItemsBPT
+struct FMediaMetadataItemsBPT
 {
 	GENERATED_BODY()
 public:
@@ -121,16 +121,16 @@ public:
 /**
  * Proxy implementation for Metasound integration
  */
-class MEDIAASSETS_API FMediaPlayerProxy : public Audio::TProxyData<FMediaPlayerProxy>
+class FMediaPlayerProxy : public Audio::TProxyData<FMediaPlayerProxy>
 {
 public:
 	IMPL_AUDIOPROXY_CLASS(FMediaPlayerProxy);
 
-	explicit FMediaPlayerProxy(UMediaPlayer* Player);
+	MEDIAASSETS_API explicit FMediaPlayerProxy(UMediaPlayer* Player);
 
 	FMediaPlayerProxy(const FMediaPlayerProxy& Other) = default;
 
-	~FMediaPlayerProxy();
+	MEDIAASSETS_API ~FMediaPlayerProxy();
 
 	TSharedPtr<FMediaPlayerFacade, ESPMode::ThreadSafe> GetPlayerFacade() const
 	{
@@ -146,8 +146,8 @@ using FMediaPlayerProxyPtr = TSharedPtr<FMediaPlayerProxy, ESPMode::ThreadSafe>;
 /**
  * Implements a media player asset that can play movies and other media sources.
  */
-UCLASS(BlueprintType, hidecategories=(Object))
-class MEDIAASSETS_API UMediaPlayer
+UCLASS(BlueprintType, hidecategories=(Object), MinimalAPI)
+class UMediaPlayer
 	: public UObject
 	, public IAudioProxyDataFactory
 {
@@ -164,7 +164,7 @@ public:
 	 * @see CanPlay, Pause
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool CanPause() const;
+	MEDIAASSETS_API bool CanPause() const;
 
 	/**
 	 * Check whether the specified media source can be played by this player.
@@ -177,7 +177,7 @@ public:
 	 * @see CanPlayUrl, SetDesiredPlayerName
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	bool CanPlaySource(UMediaSource* MediaSource);
+	MEDIAASSETS_API bool CanPlaySource(UMediaSource* MediaSource);
 
 	/**
 	 * Check whether the specified URL can be played by this player.
@@ -189,7 +189,7 @@ public:
 	 * @see CanPlaySource, SetDesiredPlayerName
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool CanPlayUrl(const FString& Url);
+	MEDIAASSETS_API bool CanPlayUrl(const FString& Url);
 
 	/**
 	 * Close the currently open media, if any.
@@ -197,7 +197,7 @@ public:
 	 * @see OnMediaClosed, OpenPlaylist, OpenPlaylistIndex, OpenSource, OpenUrl, Pause, Play
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	void Close();
+	MEDIAASSETS_API void Close();
 
 	/**
 	 * Get the number of channels in the specified audio track.
@@ -208,7 +208,7 @@ public:
 	 * @see GetAudioTrackSampleRate, GetAudioTrackType
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	int32 GetAudioTrackChannels(int32 TrackIndex, int32 FormatIndex) const;
+	MEDIAASSETS_API int32 GetAudioTrackChannels(int32 TrackIndex, int32 FormatIndex) const;
 
 	/**
 	 * Get the sample rate of the specified audio track.
@@ -219,7 +219,7 @@ public:
 	 * @see GetAudioTrackChannels, GetAudioTrackType
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	int32 GetAudioTrackSampleRate(int32 TrackIndex, int32 FormatIndex) const;
+	MEDIAASSETS_API int32 GetAudioTrackSampleRate(int32 TrackIndex, int32 FormatIndex) const;
 
 	/**
 	 * Get the type of the specified audio track format.
@@ -230,7 +230,7 @@ public:
 	 * @see GetAudioTrackSampleRate, GetAudioTrackSampleRate
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FString GetAudioTrackType(int32 TrackIndex, int32 FormatIndex) const;
+	MEDIAASSETS_API FString GetAudioTrackType(int32 TrackIndex, int32 FormatIndex) const;
 
 	/**
 	 * Get the name of the current desired native player.
@@ -239,7 +239,7 @@ public:
 	 * @see SetDesiredPlayerName
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	FName GetDesiredPlayerName() const;
+	MEDIAASSETS_API FName GetDesiredPlayerName() const;
 
 	/**
 	 * Get the media's duration.
@@ -248,7 +248,7 @@ public:
 	 * @see GetTime, Seek
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FTimespan GetDuration() const;
+	MEDIAASSETS_API FTimespan GetDuration() const;
 
 	/**
 	 * Get the current horizontal field of view (only for 360 videos).
@@ -257,7 +257,7 @@ public:
 	 * @see GetVerticalFieldOfView, GetViewRotation, SetHorizontalFieldOfView
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	float GetHorizontalFieldOfView() const;
+	MEDIAASSETS_API float GetHorizontalFieldOfView() const;
 
 	/**
 	 * Get the human readable name of the currently loaded media source.
@@ -266,7 +266,7 @@ public:
 	 * @see GetPlayerName, GetUrl
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	virtual FText GetMediaName() const;
+	MEDIAASSETS_API virtual FText GetMediaName() const;
 
 	/**
 	 * Get the number of tracks of the given type.
@@ -276,7 +276,7 @@ public:
 	 * @see GetNumTrackFormats, GetSelectedTrack, SelectTrack
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	int32 GetNumTracks(EMediaPlayerTrack TrackType) const;
+	MEDIAASSETS_API int32 GetNumTracks(EMediaPlayerTrack TrackType) const;
 
 	/**
 	 * Get the number of formats of the specified track.
@@ -287,7 +287,7 @@ public:
 	 * @see GetNumTracks, GetSelectedTrack, SelectTrack
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	int32 GetNumTrackFormats(EMediaPlayerTrack TrackType, int32 TrackIndex) const;
+	MEDIAASSETS_API int32 GetNumTrackFormats(EMediaPlayerTrack TrackType, int32 TrackIndex) const;
 
 	/**
 	 * Get the name of the current native media player.
@@ -296,7 +296,7 @@ public:
 	 * @see GetMediaName
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FName GetPlayerName() const;
+	MEDIAASSETS_API FName GetPlayerName() const;
 
 	/**
 	 * Get the current play list.
@@ -333,7 +333,7 @@ public:
 	 * @see SetRate, SupportsRate
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	float GetRate() const;
+	MEDIAASSETS_API float GetRate() const;
 
 	/**
 	 * Get the index of the currently selected track of the given type.
@@ -343,7 +343,7 @@ public:
 	 * @see GetNumTracks, GetTrackFormat, SelectTrack
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	int32 GetSelectedTrack(EMediaPlayerTrack TrackType) const;
+	MEDIAASSETS_API int32 GetSelectedTrack(EMediaPlayerTrack TrackType) const;
 
 	/**
 	 * Get the supported playback rates.
@@ -353,7 +353,7 @@ public:
 	 * @see SetRate, SupportsRate
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	void GetSupportedRates(TArray<FFloatRange>& OutRates, bool Unthinned) const;
+	MEDIAASSETS_API void GetSupportedRates(TArray<FFloatRange>& OutRates, bool Unthinned) const;
 
 	/**
 	 * Get the media's current playback time.
@@ -362,7 +362,7 @@ public:
 	 * @see GetDuration, Seek
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FTimespan GetTime() const;
+	MEDIAASSETS_API FTimespan GetTime() const;
 
 	/**
 	 * Get the media's current playback time as appropriate for display.
@@ -371,7 +371,7 @@ public:
 	 * @see GetDuration, Seek
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	FTimespan GetDisplayTime() const;
+	MEDIAASSETS_API FTimespan GetDisplayTime() const;
 
 	/**
 	 * Get the media's current playback timestamp.
@@ -380,7 +380,7 @@ public:
 	 * @see GetDuration, Seek
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	UMediaTimeStampInfo* GetTimeStamp() const;
+	MEDIAASSETS_API UMediaTimeStampInfo* GetTimeStamp() const;
 
 	/**
 	 * Get the media's current playback timestamp as appropriate for display.
@@ -389,7 +389,7 @@ public:
 	 * @see GetDuration, Seek
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	UMediaTimeStampInfo* GetDisplayTimeStamp() const;
+	MEDIAASSETS_API UMediaTimeStampInfo* GetDisplayTimeStamp() const;
 
 	/**
 	 * Get the human readable name of the specified track.
@@ -400,7 +400,7 @@ public:
 	 * @see GetNumTracks, GetTrackLanguage
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	FText GetTrackDisplayName(EMediaPlayerTrack TrackType, int32 TrackIndex) const;
+	MEDIAASSETS_API FText GetTrackDisplayName(EMediaPlayerTrack TrackType, int32 TrackIndex) const;
 
 	/**
 	 * Get the index of the active format of the specified track type.
@@ -411,7 +411,7 @@ public:
 	 * @see GetNumTrackFormats, GetSelectedTrack, SetTrackFormat
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	int32 GetTrackFormat(EMediaPlayerTrack TrackType, int32 TrackIndex) const;
+	MEDIAASSETS_API int32 GetTrackFormat(EMediaPlayerTrack TrackType, int32 TrackIndex) const;
 
 	/**
 	 * Get the language tag of the specified track.
@@ -422,7 +422,7 @@ public:
 	 * @see GetNumTracks, GetTrackDisplayName
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FString GetTrackLanguage(EMediaPlayerTrack TrackType, int32 TrackIndex) const;
+	MEDIAASSETS_API FString GetTrackLanguage(EMediaPlayerTrack TrackType, int32 TrackIndex) const;
 
 	/**
 	 * Get the URL of the currently loaded media, if any.
@@ -431,7 +431,7 @@ public:
 	 * @see OpenUrl
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	const FString& GetUrl() const;
+	MEDIAASSETS_API const FString& GetUrl() const;
 
 	/**
 	 * Get the current vertical field of view (only for 360 videos).
@@ -440,7 +440,7 @@ public:
 	 * @see GetHorizontalFieldOfView, GetViewRotation, SetVerticalFieldOfView
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	float GetVerticalFieldOfView() const;
+	MEDIAASSETS_API float GetVerticalFieldOfView() const;
 
 	/**
 	 * Get the aspect ratio of the specified video track.
@@ -451,7 +451,7 @@ public:
 	 * @see GetVideoTrackDimensions, GetVideoTrackFrameRate, GetVideoTrackFrameRates, GetVideoTrackType
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	float GetVideoTrackAspectRatio(int32 TrackIndex, int32 FormatIndex) const;
+	MEDIAASSETS_API float GetVideoTrackAspectRatio(int32 TrackIndex, int32 FormatIndex) const;
 
 	/**
 	 * Get the current dimensions of the specified video track.
@@ -462,7 +462,7 @@ public:
 	 * @see GetVideoTrackAspectRatio, GetVideoTrackFrameRate, GetVideoTrackFrameRates, GetVideoTrackType
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FIntPoint GetVideoTrackDimensions(int32 TrackIndex, int32 FormatIndex) const;
+	MEDIAASSETS_API FIntPoint GetVideoTrackDimensions(int32 TrackIndex, int32 FormatIndex) const;
 
 	/**
 	 * Get the frame rate of the specified video track.
@@ -473,7 +473,7 @@ public:
 	 * @see GetVideoTrackAspectRatio, GetVideoTrackDimensions, GetVideoTrackFrameRates, GetVideoTrackType, SetVideoTrackFrameRate
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	float GetVideoTrackFrameRate(int32 TrackIndex, int32 FormatIndex) const;
+	MEDIAASSETS_API float GetVideoTrackFrameRate(int32 TrackIndex, int32 FormatIndex) const;
 
 	/**
 	 * Get the supported range of frame rates of the specified video track.
@@ -484,7 +484,7 @@ public:
 	 * @see GetVideoTrackAspectRatio, GetVideoTrackDimensions, GetVideoTrackFrameRate, GetVideoTrackType
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FFloatRange GetVideoTrackFrameRates(int32 TrackIndex, int32 FormatIndex) const;
+	MEDIAASSETS_API FFloatRange GetVideoTrackFrameRates(int32 TrackIndex, int32 FormatIndex) const;
 
 	/**
 	 * Get the type of the specified video track format.
@@ -495,7 +495,7 @@ public:
 	 * @see GetVideoTrackAspectRatio, GetVideoTrackDimensions, GetVideoTrackFrameRate, GetVideoTrackFrameRates
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FString GetVideoTrackType(int32 TrackIndex, int32 FormatIndex) const;
+	MEDIAASSETS_API FString GetVideoTrackType(int32 TrackIndex, int32 FormatIndex) const;
 
 	/**
 	 * Get the current view rotation (only for 360 videos).
@@ -504,7 +504,7 @@ public:
 	 * @see GetHorizontalFieldOfView, GetVerticalFieldOfView, SetViewRotation
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FRotator GetViewRotation() const;
+	MEDIAASSETS_API FRotator GetViewRotation() const;
 
 	/**
 	 * Delay of the player's time.
@@ -513,7 +513,7 @@ public:
 	 * @see SetTimeDelay
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	FTimespan GetTimeDelay() const;
+	MEDIAASSETS_API FTimespan GetTimeDelay() const;
 
 	/**
 	 * Check whether the player is in an error state.
@@ -526,7 +526,7 @@ public:
 	 * @see IsReady
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool HasError() const;
+	MEDIAASSETS_API bool HasError() const;
 
 	/**
 	 * Check whether playback is buffering data.
@@ -535,7 +535,7 @@ public:
 	 * @see IsConnecting, IsLooping, IsPaused, IsPlaying, IsPreparing, IsReady
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool IsBuffering() const;
+	MEDIAASSETS_API bool IsBuffering() const;
 
 	/**
 	 * Check whether the player is currently connecting to a media source.
@@ -544,7 +544,7 @@ public:
 	 * @see IsBuffering, IsLooping, IsPaused, IsPlaying, IsPreparing, IsReady
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool IsConnecting() const;
+	MEDIAASSETS_API bool IsConnecting() const;
 
 	/**
 	 * Check whether playback is looping.
@@ -553,7 +553,7 @@ public:
 	 * @see IsBuffering, IsConnecting, IsPaused, IsPlaying, IsPreparing, IsReady, SetLooping
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool IsLooping() const;
+	MEDIAASSETS_API bool IsLooping() const;
 
 	/**
 	 * Check whether playback is currently paused.
@@ -562,7 +562,7 @@ public:
 	 * @see CanPause, IsBuffering, IsConnecting, IsLooping, IsPaused, IsPlaying, IsPreparing, IsReady, Pause
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool IsPaused() const;
+	MEDIAASSETS_API bool IsPaused() const;
 
 	/**
 	 * Check whether playback has started.
@@ -571,7 +571,7 @@ public:
 	 * @see CanPlay, IsBuffering, IsConnecting, IsLooping, IsPaused, IsPlaying, IsPreparing, IsReady, Play
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool IsPlaying() const;
+	MEDIAASSETS_API bool IsPlaying() const;
 
 	/**
 	 * Check whether the media is currently opening or buffering.
@@ -580,7 +580,7 @@ public:
 	 * @see CanPlay, IsBuffering, IsConnecting, IsLooping, IsPaused, IsPlaying, IsReady, Play
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool IsPreparing() const;
+	MEDIAASSETS_API bool IsPreparing() const;
 
 	/**
 	 * Whether media is currently closed.
@@ -588,7 +588,7 @@ public:
 	 * @return true if media is closed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool IsClosed() const;
+	MEDIAASSETS_API bool IsClosed() const;
 
 	/**
 	 * Check whether media is ready for playback.
@@ -600,7 +600,7 @@ public:
 	 * @see HasError, IsBuffering, IsConnecting, IsLooping, IsPaused, IsPlaying, IsPreparing
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool IsReady() const;
+	MEDIAASSETS_API bool IsReady() const;
 
 	/**
 	 * Open the next item in the current play list.
@@ -612,7 +612,7 @@ public:
 	 * @see Close, OpenUrl, OpenSource, Play, Previous, SetPlaylist
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool Next();
+	MEDIAASSETS_API bool Next();
 
 	/**
 	 * Opens the specified media file path.
@@ -627,7 +627,7 @@ public:
 	 * @see GetUrl, Close, OpenPlaylist, OpenPlaylistIndex, OpenSource, OpenUrl, Reopen
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool OpenFile(const FString& FilePath);
+	MEDIAASSETS_API bool OpenFile(const FString& FilePath);
 
 	/**
 	 * Open the first media source in the specified play list.
@@ -651,7 +651,7 @@ public:
 	 * @see Close, OpenFile, OpenPlaylist, OpenSource, OpenUrl, Reopen
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool OpenPlaylistIndex(UMediaPlaylist* InPlaylist, int32 Index);
+	MEDIAASSETS_API bool OpenPlaylistIndex(UMediaPlaylist* InPlaylist, int32 Index);
 
 	/**
 	 * Open the specified media source.
@@ -666,7 +666,7 @@ public:
 	 * @see Close, OpenFile, OpenPlaylist, OpenPlaylistIndex, OpenUrl, Reopen
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool OpenSource(UMediaSource* MediaSource);
+	MEDIAASSETS_API bool OpenSource(UMediaSource* MediaSource);
 
 	/**
 	 * Open the specified media source with supplied options applied.
@@ -682,7 +682,7 @@ public:
 	 * @see Close, OpenFile, OpenPlaylist, OpenPlaylistIndex, OpenUrl, Reopen
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool OpenSourceWithOptions(UMediaSource* MediaSource, const FMediaPlayerOptions& Options);
+	MEDIAASSETS_API bool OpenSourceWithOptions(UMediaSource* MediaSource, const FMediaPlayerOptions& Options);
 
 	/**
 	 * Open the specified media source with options using a latent action.
@@ -695,7 +695,7 @@ public:
 	 * @see Close, OpenFile, OpenPlaylist, OpenPlaylistIndex, OpenUrl, Reopen
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer", meta = (Latent, LatentInfo = "LatentInfo", WorldContext = "WorldContextObject"))
-	void OpenSourceLatent(const UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UMediaSource* MediaSource, const FMediaPlayerOptions& Options, bool& bSuccess);
+	MEDIAASSETS_API void OpenSourceLatent(const UObject* WorldContextObject, struct FLatentActionInfo LatentInfo, UMediaSource* MediaSource, const FMediaPlayerOptions& Options, bool& bSuccess);
 
 	/**
 	 * Opens the specified media URL.
@@ -710,7 +710,7 @@ public:
 	 * @see GetUrl, Close, OpenFile, OpenPlaylist, OpenPlaylistIndex, OpenSource, Reopen
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool OpenUrl(const FString& Url);
+	MEDIAASSETS_API bool OpenUrl(const FString& Url);
 
 	/**
 	 * Pauses media playback.
@@ -721,7 +721,7 @@ public:
 	 * @see CanPause, Close, Next, Play, Previous, Rewind, Seek
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool Pause();
+	MEDIAASSETS_API bool Pause();
 
 	/**
 	 * Starts media playback.
@@ -732,13 +732,13 @@ public:
 	 * @see CanPlay, GetRate, Next, Pause, Previous, SetRate
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool Play();
+	MEDIAASSETS_API bool Play();
 
 	/**
 	 * Starts playback from the media opened event, but can be used elsewhere.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	void PlayAndSeek();
+	MEDIAASSETS_API void PlayAndSeek();
 
 	/**
 	 * Open the previous item in the current play list.
@@ -750,7 +750,7 @@ public:
 	 * @see Close, Next, OpenUrl, OpenSource, Play, SetPlaylist
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool Previous();
+	MEDIAASSETS_API bool Previous();
 
 	/**
 	 * Reopens the currently opened media or play list.
@@ -759,7 +759,7 @@ public:
 	 * @see Close, Open, OpenFile, OpenPlaylist, OpenPlaylistIndex, OpenSource, OpenUrl
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool Reopen();
+	MEDIAASSETS_API bool Reopen();
 
 	/**
 	 * Rewinds the media to the beginning.
@@ -770,7 +770,7 @@ public:
 	 * @see GetTime, Seek
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool Rewind();
+	MEDIAASSETS_API bool Rewind();
 
 	/**
 	 * Seeks to the specified playback time.
@@ -780,7 +780,7 @@ public:
 	 * @see GetTime, Rewind
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool Seek(const FTimespan& Time);
+	MEDIAASSETS_API bool Seek(const FTimespan& Time);
 
 	/**
 	 * Select the active track of the given type.
@@ -795,7 +795,7 @@ public:
 	 * @see GetNumTracks, GetSelectedTrack, SetTrackFormat
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool SelectTrack(EMediaPlayerTrack TrackType, int32 TrackIndex);
+	MEDIAASSETS_API bool SelectTrack(EMediaPlayerTrack TrackType, int32 TrackIndex);
 
 	/**
 	 * Set the time on which to block.
@@ -806,7 +806,7 @@ public:
 	 * @param Time The time to block on, or FTimespan::MinValue to disable.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	void SetBlockOnTime(const FTimespan& Time);
+	MEDIAASSETS_API void SetBlockOnTime(const FTimespan& Time);
 
 	/**
 	 * Set the time range on which to block.
@@ -816,7 +816,7 @@ public:
 	 *
 	 * @param TimeRange The time range to block on, or empty range to disable.
 	 */
-	void SetBlockOnTimeRange(const TRange<FTimespan>& TimeRange);
+	MEDIAASSETS_API void SetBlockOnTimeRange(const TRange<FTimespan>& TimeRange);
 
 	/**
 	 * Set the name of the desired native player.
@@ -825,7 +825,7 @@ public:
 	 * @see GetDesiredPlayerName
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	void SetDesiredPlayerName(FName PlayerName);
+	MEDIAASSETS_API void SetDesiredPlayerName(FName PlayerName);
 
 	/**
 	 * Enables or disables playback looping.
@@ -835,7 +835,7 @@ public:
 	 * @see IsLooping
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool SetLooping(bool Looping);
+	MEDIAASSETS_API bool SetLooping(bool Looping);
 
 	/**
 	 * Sets the media options used by the player.
@@ -843,7 +843,7 @@ public:
 	 * @param Options Options to pass to the player.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	void SetMediaOptions(const UMediaSource* Options);
+	MEDIAASSETS_API void SetMediaOptions(const UMediaSource* Options);
 
 	/**
 	 * Changes the media's playback rate.
@@ -853,7 +853,7 @@ public:
 	 * @see GetRate, SupportsRate
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool SetRate(float Rate);
+	MEDIAASSETS_API bool SetRate(float Rate);
 
 
 	/**
@@ -867,7 +867,7 @@ public:
 	 * @see NativeAudioOut
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	bool SetNativeVolume(float Volume);
+	MEDIAASSETS_API bool SetNativeVolume(float Volume);
 
 	/**
 	 * Set the format on the specified track.
@@ -883,7 +883,7 @@ public:
 	 * @see GetNumTrackFormats, GetNumTracks, GetTrackFormat, SelectTrack
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool SetTrackFormat(EMediaPlayerTrack TrackType, int32 TrackIndex, int32 FormatIndex);
+	MEDIAASSETS_API bool SetTrackFormat(EMediaPlayerTrack TrackType, int32 TrackIndex, int32 FormatIndex);
 
 	/**
 	 * Set the frame rate of the specified video track.
@@ -895,7 +895,7 @@ public:
 	 * @see GetVideoTrackAspectRatio, GetVideoTrackDimensions, GetVideoTrackFrameRate, GetVideoTrackFrameRates, GetVideoTrackType
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool SetVideoTrackFrameRate(int32 TrackIndex, int32 FormatIndex, float FrameRate);
+	MEDIAASSETS_API bool SetVideoTrackFrameRate(int32 TrackIndex, int32 FormatIndex, float FrameRate);
 
 	/**
 	 * Set the field of view (only for 360 videos).
@@ -907,7 +907,7 @@ public:
 	 * @see GetHorizontalFieldOfView, GetVerticalFieldOfView, SetViewRotation
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	bool SetViewField(float Horizontal, float Vertical, bool Absolute);
+	MEDIAASSETS_API bool SetViewField(float Horizontal, float Vertical, bool Absolute);
 
 	/**
 	 * Set the view's rotation (only for 360 videos).
@@ -918,7 +918,7 @@ public:
 	 * @see GetViewRotation, SetViewField
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	bool SetViewRotation(const FRotator& Rotation, bool Absolute);
+	MEDIAASSETS_API bool SetViewRotation(const FRotator& Rotation, bool Absolute);
 
 	/**
 	 * Delay of the player's time.
@@ -930,7 +930,7 @@ public:
 	 * @see GetTimeDelay
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
-	void SetTimeDelay(FTimespan TimeDelay);
+	MEDIAASSETS_API void SetTimeDelay(FTimespan TimeDelay);
 
 	/**
 	 * Check whether the specified playback rate is supported.
@@ -940,7 +940,7 @@ public:
 	 * @see SupportsScrubbing, SupportsSeeking
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool SupportsRate(float Rate, bool Unthinned) const;
+	MEDIAASSETS_API bool SupportsRate(float Rate, bool Unthinned) const;
 
 	/**
 	 * Check whether the currently loaded media supports scrubbing.
@@ -949,7 +949,7 @@ public:
 	 * @see SupportsRate, SupportsSeeking
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool SupportsScrubbing() const;
+	MEDIAASSETS_API bool SupportsScrubbing() const;
 
 	/**
 	 * Check whether the currently loaded media can jump to a certain position.
@@ -958,7 +958,7 @@ public:
 	 * @see SupportsRate, SupportsScrubbing
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
-	bool SupportsSeeking() const;
+	MEDIAASSETS_API bool SupportsSeeking() const;
 
 public:
 
@@ -1042,7 +1042,7 @@ public:
 	 * but if you want to clean up resources before garbage collection (e.g. you are in the editor)
 	 * then this could be helpful.
 	 */
-	void CleanUpBeforeDestroy();
+	MEDIAASSETS_API void CleanUpBeforeDestroy();
 
 	/**
 	 * Get the Guid associated with this media player
@@ -1063,7 +1063,7 @@ public:
 	 * @param	InfoName		Name of the information we want.
 	 * @returns					Requested information, or empty if not available.
 	 */
-	FVariant GetMediaInfo(FName InfoName) const;
+	MEDIAASSETS_API FVariant GetMediaInfo(FName InfoName) const;
 
 	/**
 	 * Templated version of GetMediaInfo.
@@ -1094,7 +1094,7 @@ public:
 	 * @return Map with arrays of IMediaMetaDataItem entries describing any metadata found in the current stream
 	 * @note Listen to EMediaEvent::MetadataChanged to catch updates to this data
 	 */
-	TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const;
+	MEDIAASSETS_API TSharedPtr<TMap<FString, TArray<TUniquePtr<IMediaMetadataItem>>>, ESPMode::ThreadSafe> GetMediaMetadata() const;
 
 	/**
 	 * This is the blueprint accessible version of the GetMediaMetadata.
@@ -1102,25 +1102,25 @@ public:
 	 * @note Listen to EMediaEvent::MetadataChanged to catch updates to this data
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|Metadata")
-	TMap<FString, FMediaMetadataItemsBPT> GetMediaMetadataItems() const;
+	MEDIAASSETS_API TMap<FString, FMediaMetadataItemsBPT> GetMediaMetadataItems() const;
 	
 	/**
 	 * Get the media player facade that manages low-level media players
 	 *
 	 * @return The media player facade.
 	 */
-	TSharedRef<FMediaPlayerFacade, ESPMode::ThreadSafe> GetPlayerFacade() const;
+	MEDIAASSETS_API TSharedRef<FMediaPlayerFacade, ESPMode::ThreadSafe> GetPlayerFacade() const;
 
 	/**
 	 * Register player with media module to be ticked
 	 *
 	 */
-	void RegisterWithMediaModule();
+	MEDIAASSETS_API void RegisterWithMediaModule();
 
 	/** 
 	 * When the player goes out of scope, make sure to clean up the clock sink
 	 */
-	void UnregisterWithMediaModule();
+	MEDIAASSETS_API void UnregisterWithMediaModule();
 
 	/**
 	 * Get the current play list.
@@ -1151,29 +1151,29 @@ public:
 	 *
 	 * @see ResumePIE
 	 */
-	void PausePIE();
+	MEDIAASSETS_API void PausePIE();
 
 	/**
 	 * Called when PIE has been resumed.
 	 *
 	 * @see PausePIE
 	 */
-	void ResumePIE();
+	MEDIAASSETS_API void ResumePIE();
 #endif
 
 public:
 
 	//~ UObject interface
 
-	virtual void BeginDestroy() override;
+	MEDIAASSETS_API virtual void BeginDestroy() override;
 
-	virtual FString GetDesc() override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
-	virtual void PostInitProperties() override;
-	virtual void PostLoad() override;
+	MEDIAASSETS_API virtual FString GetDesc() override;
+	MEDIAASSETS_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	MEDIAASSETS_API virtual void PostInitProperties() override;
+	MEDIAASSETS_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	MEDIAASSETS_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 public:
@@ -1182,9 +1182,9 @@ public:
 	 * They also decsribe the type of data that will be needed to retrieve the information.
 	 */
 	 /** Number of mip map levels in the source. Int32.*/
-	static FLazyName MediaInfoNameSourceNumMips;
+	static MEDIAASSETS_API FLazyName MediaInfoNameSourceNumMips;
 	/** Number of tiles (X and Y) in the source. IntPoint.*/
-	static FLazyName MediaInfoNameSourceNumTiles;
+	static MEDIAASSETS_API FLazyName MediaInfoNameSourceNumTiles;
 
 	/**
 	 * Duration of samples to cache ahead of the play head.
@@ -1250,7 +1250,7 @@ public:
 	// IAudioProxyDataFactory interface (for Meta Sound support)
 	//
 
-	virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
+	MEDIAASSETS_API virtual TSharedPtr<Audio::IProxyData> CreateProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 
 protected:
 
@@ -1339,16 +1339,16 @@ private:
 	virtual bool CanBeInCluster() const override { return false; }
 
 	/** Callback for when a media event occurred in the player. */
-	void HandlePlayerMediaEvent(EMediaEvent Event);
+	MEDIAASSETS_API void HandlePlayerMediaEvent(EMediaEvent Event);
 
 	/** Sets the playlist and properly handles cases when this MediaPlayer object is in disregard for GC set */
-	void SetPlaylistInternal(UMediaPlaylist* InPlaylist) const;
+	MEDIAASSETS_API void SetPlaylistInternal(UMediaPlaylist* InPlaylist) const;
 
 	/** Open media source with the given options. */
-	bool OpenSourceInternal(UMediaSource* MediaSource, const FMediaPlayerOptions* Options);
+	MEDIAASSETS_API bool OpenSourceInternal(UMediaSource* MediaSource, const FMediaPlayerOptions* Options);
 
 	/** Ensure internal playlist is created */
-	void EnsurePlaylist() const;
+	MEDIAASSETS_API void EnsurePlaylist() const;
 
 private:
 

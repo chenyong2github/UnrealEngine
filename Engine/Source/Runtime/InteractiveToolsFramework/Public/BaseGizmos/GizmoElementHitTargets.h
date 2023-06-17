@@ -17,8 +17,8 @@ class UGizmoElementBase;
  * This hit target should be used for hitting a whole gizmo element hierarchy.
  * Use UGizmoElementHitMultiTarget, for hit targets that support hitting parts within a gizmo element hierarchy.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementHitTarget : public UObject, public IGizmoClickTarget
+UCLASS(MinimalAPI)
+class UGizmoElementHitTarget : public UObject, public IGizmoClickTarget
 {
 	GENERATED_BODY()
 public:
@@ -44,14 +44,14 @@ public:
 	TFunction<bool(const FInputDeviceRay&)> Condition = nullptr;
 
 public:
-	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
 
-	virtual void UpdateHoverState(bool bHovering);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateHoverState(bool bHovering);
 
-	virtual void UpdateInteractingState(bool bInteracting);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateInteractingState(bool bInteracting);
 
 public:
-	static UGizmoElementHitTarget* Construct(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoElementHitTarget* Construct(
 		UGizmoElementBase* InGizmoElement,
 		UGizmoViewContext* InGizmoViewContext,
 		UObject* Outer = (UObject*)GetTransientPackage());
@@ -67,8 +67,8 @@ public:
  * be defined in the gizmo. Identifier 0 is reserved for the default ID which should be assigned to 
  * elements that do not correspond to any gizmo part, such as non-hittable decorative elements.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementHitMultiTarget : public UObject, public IGizmoClickMultiTarget
+UCLASS(MinimalAPI)
+class UGizmoElementHitMultiTarget : public UObject, public IGizmoClickMultiTarget
 {
 	GENERATED_BODY()
 public:
@@ -94,16 +94,16 @@ public:
 	TFunction<bool(const FInputDeviceRay&)> Condition = nullptr;
 
 public:
-	virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit IsHit(const FInputDeviceRay& ClickPos) const;
 
-	virtual void UpdateHoverState(bool bHovering, uint32 PartIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateHoverState(bool bHovering, uint32 PartIdentifier);
 
-	virtual void UpdateInteractingState(bool bInteracting, uint32 PartIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateInteractingState(bool bInteracting, uint32 PartIdentifier);
 
-	virtual void UpdateHittableState(bool bHittable, uint32 PartIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void UpdateHittableState(bool bHittable, uint32 PartIdentifier);
 
 public:
-	static UGizmoElementHitMultiTarget* Construct(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoElementHitMultiTarget* Construct(
 		UGizmoElementBase* InGizmoElement,
 		UGizmoViewContext* InGizmoViewContext,
 		UObject* Outer = (UObject*)GetTransientPackage());

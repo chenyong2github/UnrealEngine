@@ -11,8 +11,8 @@
 
 class SSafeZone;
 
-UCLASS()
-class UMG_API USafeZoneSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class USafeZoneSlot : public UPanelSlot
 {
 	GENERATED_BODY()
 public:
@@ -37,31 +37,31 @@ public:
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = SafeZone )
 	FMargin Padding;
 
-	USafeZoneSlot();
+	UMG_API USafeZoneSlot();
 
-	void SetIsTitleSafe(bool InIsTitleSafe);
-	bool IsTitleSafe() const;
+	UMG_API void SetIsTitleSafe(bool InIsTitleSafe);
+	UMG_API bool IsTitleSafe() const;
 
-	void SetSafeAreaScale(const FMargin& InSafeAreaScale);
-	const FMargin& GetSafeAreaScale() const;
+	UMG_API void SetSafeAreaScale(const FMargin& InSafeAreaScale);
+	UMG_API const FMargin& GetSafeAreaScale() const;
 
-	void SetHorizontalAlignment(EHorizontalAlignment InHAlign);
-	const EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHAlign);
+	UMG_API const EHorizontalAlignment GetHorizontalAlignment() const;
 
-	void SetVerticalAlignment(EVerticalAlignment InVAlign);
-	const EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVAlign);
+	UMG_API const EVerticalAlignment GetVerticalAlignment() const;
 
-	void SetPadding(const FMargin& InPadding);
-	const FMargin& GetPadding() const;
+	UMG_API void SetPadding(const FMargin& InPadding);
+	UMG_API const FMargin& GetPadding() const;
 
 	//~ UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
 	/** Builds the underlying slot for the slate button. */
-	void BuildSlot(TSharedRef<SSafeZone> InSafeZone);
+	UMG_API void BuildSlot(TSharedRef<SSafeZone> InSafeZone);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 private:
 

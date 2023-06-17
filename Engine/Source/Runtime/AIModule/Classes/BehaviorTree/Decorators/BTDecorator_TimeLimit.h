@@ -10,8 +10,8 @@
  * Time Limit decorator node.
  * A decorator node that bases its condition on whether a timer has exceeded a specified value. The timer is reset each time the node becomes relevant.
  */
-UCLASS(HideCategories=(Condition))
-class AIMODULE_API UBTDecorator_TimeLimit : public UBTDecorator
+UCLASS(HideCategories=(Condition), MinimalAPI)
+class UBTDecorator_TimeLimit : public UBTDecorator
 {
 	GENERATED_UCLASS_BODY()
 		
@@ -19,14 +19,14 @@ class AIMODULE_API UBTDecorator_TimeLimit : public UBTDecorator
 	UPROPERTY(Category=Decorator, EditAnywhere)
 	float TimeLimit;
 
-	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 
 protected:
-	virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData) override;
-	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+	AIMODULE_API virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData) override;
+	AIMODULE_API virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 };

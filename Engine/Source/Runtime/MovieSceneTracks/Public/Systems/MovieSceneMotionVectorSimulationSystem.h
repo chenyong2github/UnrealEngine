@@ -24,46 +24,46 @@ FFrameTime GetSimulatedMotionVectorTime(const FMovieSceneContext& Context);
 } // namespace MovieScene
 } // namespace UE
 
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneMotionVectorSimulationSystem : public UMovieSceneEntitySystem
+UCLASS(MinimalAPI)
+class UMovieSceneMotionVectorSimulationSystem : public UMovieSceneEntitySystem
 {
 public:
 
 	GENERATED_BODY()
 
-	UMovieSceneMotionVectorSimulationSystem(const FObjectInitializer& ObjInit);
+	MOVIESCENETRACKS_API UMovieSceneMotionVectorSimulationSystem(const FObjectInitializer& ObjInit);
 
-	void EnableThisFrame();
-	void SimulateAllTransforms();
+	MOVIESCENETRACKS_API void EnableThisFrame();
+	MOVIESCENETRACKS_API void SimulateAllTransforms();
 	bool IsSimulationEnabled() const
 	{
 		return bSimulationEnabled;
 	}
 
-	void PreserveSimulatedMotion(bool bShouldPreserveTransforms);
+	MOVIESCENETRACKS_API void PreserveSimulatedMotion(bool bShouldPreserveTransforms);
 
-	void AddSimulatedTransform(USceneComponent* Component, const FTransform& SimulatedTransform, FName SocketName);
-
-private:
-
-	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
-
-	void OnPostEvaluation();
-
-	void ComputeSimulatedMotion();
+	MOVIESCENETRACKS_API void AddSimulatedTransform(USceneComponent* Component, const FTransform& SimulatedTransform, FName SocketName);
 
 private:
 
-	void PropagateMotionToComponents();
+	MOVIESCENETRACKS_API virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
+	MOVIESCENETRACKS_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
 
-	FTransform GetTransform(USceneComponent* Component);
+	MOVIESCENETRACKS_API void OnPostEvaluation();
 
-	FTransform GetSocketTransform(USceneComponent* Component, FName SocketName);
+	MOVIESCENETRACKS_API void ComputeSimulatedMotion();
 
-	bool HavePreviousTransformForParent(USceneComponent* InComponent) const;
+private:
 
-	void ApplySimulatedTransforms(USceneComponent* InComponent, const FTransform& InPreviousTransform);
+	MOVIESCENETRACKS_API void PropagateMotionToComponents();
+
+	MOVIESCENETRACKS_API FTransform GetTransform(USceneComponent* Component);
+
+	MOVIESCENETRACKS_API FTransform GetSocketTransform(USceneComponent* Component, FName SocketName);
+
+	MOVIESCENETRACKS_API bool HavePreviousTransformForParent(USceneComponent* InComponent) const;
+
+	MOVIESCENETRACKS_API void ApplySimulatedTransforms(USceneComponent* InComponent, const FTransform& InPreviousTransform);
 
 private:
 

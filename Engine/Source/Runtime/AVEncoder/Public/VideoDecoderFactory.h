@@ -15,11 +15,11 @@ namespace AVEncoder
 {
 	struct FVideoDecoderInfo;
 
-	class AVENCODER_API FVideoDecoderFactory
+	class FVideoDecoderFactory
 	{
 	public:
-		static FVideoDecoderFactory& Get();
-		static void Debug_SetDontRegisterDefaultCodecs();
+		static AVENCODER_API FVideoDecoderFactory& Get();
+		static AVENCODER_API void Debug_SetDontRegisterDefaultCodecs();
 
 		// --- decoder registry
 
@@ -27,26 +27,26 @@ namespace AVEncoder
 		using CreateDecoderCallback = TFunction<FVideoDecoder*()>;
 
 		// register a decoder so that it can be iterated and created
-		void Register(const FVideoDecoderInfo& InInfo, const CreateDecoderCallback& InCreateDecoder);
+		AVENCODER_API void Register(const FVideoDecoderInfo& InInfo, const CreateDecoderCallback& InCreateDecoder);
 
 		// get a list of registered decoders
 		const TArray<FVideoDecoderInfo>& GetAvailable() const { return AvailableDecoders; }
-		bool GetInfo(uint32 InID, FVideoDecoderInfo& OutInfo) const;
+		AVENCODER_API bool GetInfo(uint32 InID, FVideoDecoderInfo& OutInfo) const;
 
 		// --- decoder creation
 		// create a decoder instance. If not nullptr it must be destroyed through invoking its Shutdown() method!
-		FVideoDecoder* Create(uint32 InID, const FVideoDecoder::FInit& InInit);
+		AVENCODER_API FVideoDecoder* Create(uint32 InID, const FVideoDecoder::FInit& InInit);
 
 	private:
-		FVideoDecoderFactory();
-		~FVideoDecoderFactory();
+		AVENCODER_API FVideoDecoderFactory();
+		AVENCODER_API ~FVideoDecoderFactory();
 		FVideoDecoderFactory(const FVideoDecoderFactory&) = delete;
 		FVideoDecoderFactory& operator=(const FVideoDecoderFactory&) = delete;
 
-		void RegisterDefaultCodecs();
+		AVENCODER_API void RegisterDefaultCodecs();
 
-		static FThreadSafeCounter		NextID;
-		static bool						bDebugDontRegisterDefaultCodecs;
+		static AVENCODER_API FThreadSafeCounter		NextID;
+		static AVENCODER_API bool						bDebugDontRegisterDefaultCodecs;
 
 		TArray<FVideoDecoderInfo>		AvailableDecoders;
 		TArray<CreateDecoderCallback>	CreateDecoders;

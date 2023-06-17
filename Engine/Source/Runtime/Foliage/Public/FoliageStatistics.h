@@ -9,8 +9,8 @@
 
 class UStaticMesh;
 
-UCLASS()
-class FOLIAGE_API UFoliageStatistics : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UFoliageStatistics : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 
@@ -24,7 +24,7 @@ class FOLIAGE_API UFoliageStatistics : public UBlueprintFunctionLibrary
 	* return number of foliage instances with their mesh set to Mesh that overlap the sphere
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Foliage", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static int32 FoliageOverlappingSphereCount(UObject* WorldContextObject, const UStaticMesh* StaticMesh, FVector CenterPosition, float Radius);
+	static FOLIAGE_API int32 FoliageOverlappingSphereCount(UObject* WorldContextObject, const UStaticMesh* StaticMesh, FVector CenterPosition, float Radius);
 
 	/** 
 	 *	Gets the number of instances overlapping a provided box
@@ -32,7 +32,7 @@ class FOLIAGE_API UFoliageStatistics : public UBlueprintFunctionLibrary
 	 *	@param Box Box to overlap
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Foliage", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static int32 FoliageOverlappingBoxCount(UObject* WorldContextObject, const UStaticMesh* StaticMesh, FBox Box);
+	static FOLIAGE_API int32 FoliageOverlappingBoxCount(UObject* WorldContextObject, const UStaticMesh* StaticMesh, FBox Box);
 
 	/** 
 	 *  Get the transform of every instance overlapping the provided FBox
@@ -41,7 +41,7 @@ class FOLIAGE_API UFoliageStatistics : public UBlueprintFunctionLibrary
 	 *	@param OutTransforms Array to populate with transforms
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Foliage", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static void FoliageOverlappingBoxTransforms(UObject* WorldContextObject, const UStaticMesh* StaticMesh, FBox Box, TArray<FTransform>& OutTransforms);
+	static FOLIAGE_API void FoliageOverlappingBoxTransforms(UObject* WorldContextObject, const UStaticMesh* StaticMesh, FBox Box, TArray<FTransform>& OutTransforms);
 
 	/** 
 	 *  DEBUG FUNCTION: This is not fast, use only for debug/development.
@@ -50,6 +50,6 @@ class FOLIAGE_API UFoliageStatistics : public UBlueprintFunctionLibrary
 	 *  @param	Radius			The radius of the sphere.
 	 *	@param OutMeshCounts	Map of Meshes to instance counts
 	 */
-	static void FoliageOverlappingMeshCounts_Debug(UObject* WorldContextObject, FVector CenterPosition, float Radius, TMap<UStaticMesh*, int32>& OutMeshCounts);
+	static FOLIAGE_API void FoliageOverlappingMeshCounts_Debug(UObject* WorldContextObject, FVector CenterPosition, float Radius, TMap<UStaticMesh*, int32>& OutMeshCounts);
 };
 

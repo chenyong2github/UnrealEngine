@@ -12,7 +12,7 @@
  * Key value type for object path channels that stores references to objects as both a hard and soft reference, to ensure compatability with both sub objects and async loading
  */
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneObjectPathChannelKeyValue
+struct FMovieSceneObjectPathChannelKeyValue
 {
 	GENERATED_BODY()
 
@@ -22,19 +22,19 @@ struct MOVIESCENE_API FMovieSceneObjectPathChannelKeyValue
 	{}
 
 	/** Construction from an object pointer */
-	FMovieSceneObjectPathChannelKeyValue(UObject* InObject);
+	MOVIESCENE_API FMovieSceneObjectPathChannelKeyValue(UObject* InObject);
 
 	/**
 	 * Assignment from a raw object pointer
 	 */
-	FMovieSceneObjectPathChannelKeyValue& operator=(UObject* NewObject);
+	MOVIESCENE_API FMovieSceneObjectPathChannelKeyValue& operator=(UObject* NewObject);
 
 public:
 
 	/**
 	 * Legacy conversion from a TSoftObjectPtr<>
 	 */
-	bool SerializeFromMismatchedTag(FPropertyTag const& Tag, FStructuredArchive::FSlot Slot);
+	MOVIESCENE_API bool SerializeFromMismatchedTag(FPropertyTag const& Tag, FStructuredArchive::FSlot Slot);
 	
 	/**
 	 * Access the soft object pointer that this key should load
@@ -47,7 +47,7 @@ public:
 	/**
 	 * Attempt to find this object either by returning the internally kept raw pointer, or by resolving (but not loading) the soft object path
 	 */
-	UObject* Get() const;
+	MOVIESCENE_API UObject* Get() const;
 
 private:
 
@@ -67,7 +67,7 @@ struct TStructOpsTypeTraits<FMovieSceneObjectPathChannelKeyValue> : public TStru
 };
 
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneObjectPathChannel : public FMovieSceneChannel
+struct FMovieSceneObjectPathChannel : public FMovieSceneChannel
 {
 	GENERATED_BODY()
 
@@ -113,24 +113,24 @@ struct MOVIESCENE_API FMovieSceneObjectPathChannel : public FMovieSceneChannel
 	 * @param OutValue   A value to receive the result
 	 * @return true if the channel was evaluated successfully, false otherwise
 	 */
-	bool Evaluate(FFrameTime InTime, UObject*& OutValue) const;
+	MOVIESCENE_API bool Evaluate(FFrameTime InTime, UObject*& OutValue) const;
 
 public:
 
 	//~ FMovieSceneChannel Interface
-	virtual void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles) override;
-	virtual void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes) override;
-	virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
-	virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
-	virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
-	virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
-	virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
-	virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
-	virtual int32 GetNumKeys() const override;
-	virtual void Reset() override;
-	virtual void Offset(FFrameNumber DeltaPosition) override;
-	virtual void Optimize(const FKeyDataOptimizationParams& InParameters) override;
-	virtual void ClearDefault() override;
+	MOVIESCENE_API virtual void GetKeys(const TRange<FFrameNumber>& WithinRange, TArray<FFrameNumber>* OutKeyTimes, TArray<FKeyHandle>* OutKeyHandles) override;
+	MOVIESCENE_API virtual void GetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<FFrameNumber> OutKeyTimes) override;
+	MOVIESCENE_API virtual void SetKeyTimes(TArrayView<const FKeyHandle> InHandles, TArrayView<const FFrameNumber> InKeyTimes) override;
+	MOVIESCENE_API virtual void DuplicateKeys(TArrayView<const FKeyHandle> InHandles, TArrayView<FKeyHandle> OutNewHandles) override;
+	MOVIESCENE_API virtual void DeleteKeys(TArrayView<const FKeyHandle> InHandles) override;
+	MOVIESCENE_API virtual void DeleteKeysFrom(FFrameNumber InTime, bool bDeleteKeysBefore) override;
+	MOVIESCENE_API virtual void ChangeFrameResolution(FFrameRate SourceRate, FFrameRate DestinationRate) override;
+	MOVIESCENE_API virtual TRange<FFrameNumber> ComputeEffectiveRange() const override;
+	MOVIESCENE_API virtual int32 GetNumKeys() const override;
+	MOVIESCENE_API virtual void Reset() override;
+	MOVIESCENE_API virtual void Offset(FFrameNumber DeltaPosition) override;
+	MOVIESCENE_API virtual void Optimize(const FKeyDataOptimizationParams& InParameters) override;
+	MOVIESCENE_API virtual void ClearDefault() override;
 
 public:
 

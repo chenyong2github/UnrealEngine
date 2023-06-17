@@ -12,7 +12,7 @@ class UMaterialInterface;
 /**
  * FComponentMaterialSet is the set of materials assigned to a component (ie Material Slots on a StaticMesh)
  */
-struct INTERACTIVETOOLSFRAMEWORK_API FComponentMaterialSet
+struct FComponentMaterialSet
 {
 	TArray<UMaterialInterface*> Materials;
 
@@ -22,13 +22,13 @@ struct INTERACTIVETOOLSFRAMEWORK_API FComponentMaterialSet
 	}
 };
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UMaterialProvider : public UInterface
+UINTERFACE(MinimalAPI)
+class UMaterialProvider : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class INTERACTIVETOOLSFRAMEWORK_API IMaterialProvider
+class IMaterialProvider
 {
 	GENERATED_BODY()
 

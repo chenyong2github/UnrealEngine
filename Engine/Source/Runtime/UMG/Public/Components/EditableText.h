@@ -21,8 +21,8 @@ class USlateWidgetStyleAsset;
 /**
  * Editable text box widget
  */
-UCLASS()
-class UMG_API UEditableText : public UWidget
+UCLASS(MinimalAPI)
+class UEditableText : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -144,7 +144,7 @@ public:
 	 * @return The widget text
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta=(DisplayName="GetText (Editable Text)"))
-	FText GetText() const;
+	UMG_API FText GetText() const;
 
 	/**
 	 * Directly sets the widget text.
@@ -152,22 +152,22 @@ public:
 	 * @param InText The text to assign to the widget
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta=(DisplayName="SetText (Editable Text)"))
-	void SetText(FText InText);
+	UMG_API void SetText(FText InText);
 
-	bool GetIsPassword() const;
+	UMG_API bool GetIsPassword() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetIsPassword(UPARAM(DisplayName="IsPassword") bool InbIsPassword);
+	UMG_API void SetIsPassword(UPARAM(DisplayName="IsPassword") bool InbIsPassword);
 
 	/** Gets the Hint text that appears when there is no text in the text box */
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta = (DisplayName = "GetHintText (Editable Text)"))
-	FText GetHintText() const;
+	UMG_API FText GetHintText() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	void SetHintText(FText InHintText);
+	UMG_API void SetHintText(FText InHintText);
 
 	/** @return the minimum desired width for this text box */
-	float GetMinimumDesiredWidth() const;
+	UMG_API float GetMinimumDesiredWidth() const;
 
 	/**
 	 *  Set the minimum desired width for this text box
@@ -175,97 +175,97 @@ public:
 	 *  @param InMinDesiredWidth new minimum desired width
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetMinimumDesiredWidth(float InMinDesiredWidth);
+	UMG_API void SetMinimumDesiredWidth(float InMinDesiredWidth);
 
 	/** When set to true the caret is moved when gaining focus */
-	void SetIsCaretMovedWhenGainFocus(bool bIsCaretMovedWhenGainFocus);
+	UMG_API void SetIsCaretMovedWhenGainFocus(bool bIsCaretMovedWhenGainFocus);
 
 	/** Return true when the caret is moved when gaining focus */
-	bool GetIsCaretMovedWhenGainFocus() const;
+	UMG_API bool GetIsCaretMovedWhenGainFocus() const;
 
 	/** Set to true to select all text when the user clicks to give focus on the widget */
-	void SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused);
+	UMG_API void SetSelectAllTextWhenFocused(bool bSelectAllTextWhenFocused);
 
 	/** Whether to select all text when the user clicks to give focus on the widget */
-	bool GetSelectAllTextWhenFocused() const;
+	UMG_API bool GetSelectAllTextWhenFocused() const;
 
 	/** Set to true to allow the user to back out of changes when they press the escape key */
-	void SetRevertTextOnEscape(bool bRevertTextOnEscape);
+	UMG_API void SetRevertTextOnEscape(bool bRevertTextOnEscape);
 
 	/** Whether to allow the user to back out of changes when they press the escape key  */
-	bool GetRevertTextOnEscape() const;
+	UMG_API bool GetRevertTextOnEscape() const;
 
 	/** Whether to clear keyboard focus when pressing enter to commit changes */
-	bool GetClearKeyboardFocusOnCommit() const;
+	UMG_API bool GetClearKeyboardFocusOnCommit() const;
 
 	/** Set to true to select all text when pressing enter to commit changes */
-	void SetSelectAllTextOnCommit(bool bSelectAllTextOnCommit);
+	UMG_API void SetSelectAllTextOnCommit(bool bSelectAllTextOnCommit);
 
 	/** Whether to select all text when pressing enter to commit changes */
-	bool GetSelectAllTextOnCommit() const;
+	UMG_API bool GetSelectAllTextOnCommit() const;
 
 	/** Set the style and ensure the visual will be updated accordingly */
-	void SetWidgetStyle(const FEditableTextStyle& InEditableTextStyle);
+	UMG_API void SetWidgetStyle(const FEditableTextStyle& InEditableTextStyle);
 
-	bool GetIsReadOnly() const;
+	UMG_API bool GetIsReadOnly() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Widget", meta=(DisplayName="SetIsReadOnly (Editable Text)"))
-	void SetIsReadOnly(UPARAM(DisplayName="ReadyOnly") bool InbIsReadyOnly);
+	UMG_API void SetIsReadOnly(UPARAM(DisplayName="ReadyOnly") bool InbIsReadyOnly);
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
-	ETextJustify::Type GetJustification() const;
+	UMG_API ETextJustify::Type GetJustification() const;
 
 	UFUNCTION(BlueprintSetter)
-	void SetJustification(ETextJustify::Type InJustification);
+	UMG_API void SetJustification(ETextJustify::Type InJustification);
 
 	/** @return the text overflow policy for this text block. */
-	ETextOverflowPolicy GetTextOverflowPolicy() const;
+	UMG_API ETextOverflowPolicy GetTextOverflowPolicy() const;
 
 	UFUNCTION(BlueprintSetter)
-	void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
+	UMG_API void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
 
 	/** Set to true to clear keyboard focus when pressing enter to commit changes */
-	void SetClearKeyboardFocusOnCommit(bool bInClearKeyboardFocusOnCommit);
+	UMG_API void SetClearKeyboardFocusOnCommit(bool bInClearKeyboardFocusOnCommit);
 
-	void SetKeyboardType(EVirtualKeyboardType::Type Type);
-
-	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	const FSlateFontInfo& GetFont() const;
+	UMG_API void SetKeyboardType(EVirtualKeyboardType::Type Type);
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetFont(FSlateFontInfo InFontInfo);
+	UMG_API const FSlateFontInfo& GetFont() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetFontMaterial(UMaterialInterface* InMaterial);
+	UMG_API void SetFont(FSlateFontInfo InFontInfo);
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
-	void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
+	UMG_API void SetFontMaterial(UMaterialInterface* InMaterial);
+
+	UFUNCTION(BlueprintCallable, Category = "Appearance")
+	UMG_API void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
 
 public:
 	
 	//~ Begin UWidget Interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
 	//~ Begin UVisual Interface
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 	//~ End UWidget Interface
 
 protected:
 	//~ Begin UWidget Interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget
 
-	void HandleOnTextChanged(const FText& Text);
-	void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	UMG_API void HandleOnTextChanged(const FText& Text);
+	UMG_API void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+	UMG_API virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
 #endif
 
 protected:

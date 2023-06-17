@@ -9,7 +9,7 @@
  * Static data for Transform data. 
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkTransformStaticData : public FLiveLinkBaseStaticData
+struct FLiveLinkTransformStaticData : public FLiveLinkBaseStaticData
 {
 	GENERATED_BODY()
 	
@@ -30,7 +30,7 @@ struct LIVELINKINTERFACE_API FLiveLinkTransformStaticData : public FLiveLinkBase
  * Dynamic data for Transform 
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkTransformFrameData : public FLiveLinkBaseFrameData
+struct FLiveLinkTransformFrameData : public FLiveLinkBaseFrameData
 {
 	GENERATED_BODY()
 
@@ -43,7 +43,7 @@ struct LIVELINKINTERFACE_API FLiveLinkTransformFrameData : public FLiveLinkBaseF
  * Facility structure to handle transform data in blueprint
  */
 USTRUCT(BlueprintType)
-struct LIVELINKINTERFACE_API FLiveLinkTransformBlueprintData : public FLiveLinkBaseBlueprintData
+struct FLiveLinkTransformBlueprintData : public FLiveLinkBaseBlueprintData
 {
 	GENERATED_BODY()
 

@@ -21,15 +21,15 @@ DEFINE_EXPRESSION_OPERATOR_NODE(TIMEMANAGEMENT_API, FDropcodeDelimiter, 0x80AF2C
 DEFINE_EXPRESSION_OPERATOR_NODE(TIMEMANAGEMENT_API, FBracketStart, 0xA7358BD1, 0xB4EF466D, 0xA336CD84, 0x14C93D2E);
 DEFINE_EXPRESSION_OPERATOR_NODE(TIMEMANAGEMENT_API, FBracketEnd, 0xE49500E9, 0x03E64440, 0x87802630, 0xF1C1DDDF);
 
-struct TIMEMANAGEMENT_API FFrameNumberTimeEvaluator
+struct FFrameNumberTimeEvaluator
 {
 	/** Constructor that sets up the parser's lexer and compiler */
-	FFrameNumberTimeEvaluator();
+	TIMEMANAGEMENT_API FFrameNumberTimeEvaluator();
 
 	/** Evaluate the given expression, resulting in either a double value, or an error */
-	TValueOrError<FFrameTime, FExpressionError> EvaluateTimecode(const TCHAR* InExpression, const FFrameRate& InDisplayFrameRate, const FFrameRate& InTickResolution, bool& OutDirectlyParsed) const;
-	TValueOrError<FFrameTime, FExpressionError> EvaluateFrame(const TCHAR* InExpression, const FFrameRate& InDisplayFrameRate, const FFrameRate& InTickResolution, bool& OutDirectlyParsed) const;
-	TValueOrError<FFrameTime, FExpressionError> EvaluateTime(const TCHAR* InExpression, FFrameRate InFrameRate, bool& OutDirectlyParsed) const;
+	TIMEMANAGEMENT_API TValueOrError<FFrameTime, FExpressionError> EvaluateTimecode(const TCHAR* InExpression, const FFrameRate& InDisplayFrameRate, const FFrameRate& InTickResolution, bool& OutDirectlyParsed) const;
+	TIMEMANAGEMENT_API TValueOrError<FFrameTime, FExpressionError> EvaluateFrame(const TCHAR* InExpression, const FFrameRate& InDisplayFrameRate, const FFrameRate& InTickResolution, bool& OutDirectlyParsed) const;
+	TIMEMANAGEMENT_API TValueOrError<FFrameTime, FExpressionError> EvaluateTime(const TCHAR* InExpression, FFrameRate InFrameRate, bool& OutDirectlyParsed) const;
 
 	FTokenDefinitions TimecodeTokenDefinitions;
 	FTokenDefinitions FrameTokenDefinitions;

@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "IImageWrapper.h"
 
-class IMAGEWRAPPER_API ImageWrapperHelper
+class ImageWrapperHelper
 {
 public:
-	 static FStringView GetFormatExtension(EImageFormat InImageFormat, bool bIncludeDot=false);
-	 static EImageFormat GetImageFormat(FStringView StringExtention);
-	 static const FStringView GetImageFilesFilterString(bool bIncludeAllFiles);
+	 static IMAGEWRAPPER_API FStringView GetFormatExtension(EImageFormat InImageFormat, bool bIncludeDot=false);
+	 static IMAGEWRAPPER_API EImageFormat GetImageFormat(FStringView StringExtention);
+	 static IMAGEWRAPPER_API const FStringView GetImageFilesFilterString(bool bIncludeAllFiles);
 };

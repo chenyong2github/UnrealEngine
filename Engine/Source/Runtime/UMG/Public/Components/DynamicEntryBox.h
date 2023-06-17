@@ -13,8 +13,8 @@
  *
  * No children can be manually added in the designer - all are auto-generated based on the given entry class.
  */
-UCLASS()
-class UMG_API UDynamicEntryBox : public UDynamicEntryBoxBase
+UCLASS(MinimalAPI)
+class UDynamicEntryBox : public UDynamicEntryBoxBase
 {
 	GENERATED_BODY()
 
@@ -48,14 +48,14 @@ public:
 
 	/** Clear out the box entries, optionally deleting the underlying Slate widgets entirely as well. */
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox)
-	void Reset(bool bDeleteWidgets = false);
+	UMG_API void Reset(bool bDeleteWidgets = false);
 
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox)
-	void RemoveEntry(UUserWidget* EntryWidget);
+	UMG_API void RemoveEntry(UUserWidget* EntryWidget);
 
 	//~ Begin UWidget Interface
 #if WITH_EDITOR	
-	virtual void ValidateCompiledDefaults(class IWidgetCompilerLog& CompileLog) const override;
+	UMG_API virtual void ValidateCompiledDefaults(class IWidgetCompilerLog& CompileLog) const override;
 #endif
 	//~ End UWidget Interface
 
@@ -70,16 +70,16 @@ public:
 	TFunction<void(UUserWidget*)> OnPreviewEntryCreatedFunc;
 #endif
 
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 
 private:
 	/** Creates and establishes a new dynamic entry in the box */
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox, meta = (DisplayName = "Create Entry", AllowPrivateAccess = true))
-	UUserWidget* BP_CreateEntry();
+	UMG_API UUserWidget* BP_CreateEntry();
 
 	/** Creates and establishes a new dynamic entry in the box using the specified class instead of the default. */
 	UFUNCTION(BlueprintCallable, Category = DynamicEntryBox, meta = (DisplayName = "Create Entry of Class", AllowPrivateAccess = true, DeterminesOutputType = "EntryClass"))
-	UUserWidget* BP_CreateEntryOfClass(TSubclassOf<UUserWidget> EntryClass);
+	UMG_API UUserWidget* BP_CreateEntryOfClass(TSubclassOf<UUserWidget> EntryClass);
 
 	/**
 	 * The class of widget to create entries of.

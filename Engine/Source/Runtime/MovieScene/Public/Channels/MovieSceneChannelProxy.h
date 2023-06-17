@@ -194,7 +194,7 @@ private:
  * Proxy type stored inside UMovieSceneSection for access to all its channels. Construction via either a single channel, or a FMovieSceneChannelProxyData structure
  * This proxy exists as a generic accessor to any channel data existing in derived types
  */
-struct MOVIESCENE_API FMovieSceneChannelProxy : TSharedFromThis<FMovieSceneChannelProxy>
+struct FMovieSceneChannelProxy : TSharedFromThis<FMovieSceneChannelProxy>
 {
 public:
 
@@ -239,7 +239,7 @@ public:
 	 *
 	 * @return A pointer to the channel, or nullptr
 	 */
-	const FMovieSceneChannelEntry* FindEntry(FName ChannelTypeName) const;
+	MOVIESCENE_API const FMovieSceneChannelEntry* FindEntry(FName ChannelTypeName) const;
 
 	/**
 	 * Find the index of the specified channel ptr in this proxy
@@ -248,7 +248,7 @@ public:
 	 * @param ChannelPtr       The channel pointer to find
 	 * @return The index of the channel if found, else INDEX_NONE
 	 */
-	int32 FindIndex(FName ChannelTypeName, const FMovieSceneChannel* ChannelPtr) const;
+	MOVIESCENE_API int32 FindIndex(FName ChannelTypeName, const FMovieSceneChannel* ChannelPtr) const;
 
 	/**
 	 * Get all channels of the specified type
@@ -271,20 +271,20 @@ public:
 	 *
 	 * @return A pointer to the channel, or nullptr if the index was invalid, or the type was not present
 	 */
-	FMovieSceneChannel* GetChannel(FName ChannelTypeName, int32 ChannelIndex) const;
+	MOVIESCENE_API FMovieSceneChannel* GetChannel(FName ChannelTypeName, int32 ChannelIndex) const;
 
 	/**
 	 * Returns the total number of channels
 	 * @return The total number of channels
 	 */
-	int32 NumChannels() const;
+	MOVIESCENE_API int32 NumChannels() const;
 
 	/**
 	 * Make a channel handle out for the specified index and channel type name
 	 *
 	 * @return A handle to the supplied channel that will become nullptr when the proxy is reallocated, or nullptr if the index or channel type name are invalid.
 	 */
-	FMovieSceneChannelHandle MakeHandle(FName ChannelTypeName, int32 Index);
+	MOVIESCENE_API FMovieSceneChannelHandle MakeHandle(FName ChannelTypeName, int32 Index);
 
 	/**
 	 * Make a channel handle out for the specified index and templated channel type
@@ -345,7 +345,7 @@ public:
 	 *
 	 * @return A handle to the channel, or an invalid handle if no channel of that name was found
 	 */
-	FMovieSceneChannelHandle GetChannelByName(FName ChannelName) const;
+	MOVIESCENE_API FMovieSceneChannelHandle GetChannelByName(FName ChannelName) const;
 
 	/**
 	 * Access all the extended data for the templated channel type
@@ -368,7 +368,7 @@ private:
 #if WITH_EDITOR
 
 	/** Populate the named channel table */
-	void EnsureHandlesByNamePopulated() const;
+	MOVIESCENE_API void EnsureHandlesByNamePopulated() const;
 
 	/** Lazy-created lookup table between a channel name and a channel handle */
 	mutable TMap<FName, FMovieSceneChannelHandle> HandlesByName;

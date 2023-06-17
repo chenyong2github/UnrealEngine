@@ -325,12 +325,12 @@ public:
 };
 
 //////////////////////////////////////////////////////////////////////////
-struct AIMODULE_API FAIResCounter : FAIBasicCounter<uint8>
+struct FAIResCounter : FAIBasicCounter<uint8>
 {};
 typedef FAINamedID<FAIResCounter> FAIResourceID;
 
 //////////////////////////////////////////////////////////////////////////
-struct AIMODULE_API FAIResourcesSet
+struct FAIResourcesSet
 {
 	static const uint32 NoResources = 0;
 	static const uint32 AllResources = uint32(-1);
@@ -357,21 +357,21 @@ public:
 };
 
 /** structure used to define which subsystem requested locking of a specific AI resource (like movement, logic, etc.) */
-struct AIMODULE_API FAIResourceLock
+struct FAIResourceLock
 {
 	/** @note feel free to change the type if you need to support more then 16 lock sources */
 	typedef uint16 FLockFlags;
 	
-	FAIResourceLock();
+	AIMODULE_API FAIResourceLock();
 	
-	void SetLock(EAIRequestPriority::Type LockPriority);
-	void ClearLock(EAIRequestPriority::Type LockPriority);
+	AIMODULE_API void SetLock(EAIRequestPriority::Type LockPriority);
+	AIMODULE_API void ClearLock(EAIRequestPriority::Type LockPriority);
 
 	/** set whether we should use resource lock count.  clears all existing locks. */
-	void SetUseResourceLockCount(bool inUseResourceLockCount);
+	AIMODULE_API void SetUseResourceLockCount(bool inUseResourceLockCount);
 
 	/** force-clears all locks */
-	void ForceClearAllLocks();
+	AIMODULE_API void ForceClearAllLocks();
 
 	FORCEINLINE bool IsLocked() const
 	{
@@ -398,7 +398,7 @@ struct AIMODULE_API FAIResourceLock
 		return true;
 	}
 
-	FString GetLockPriorityName() const;
+	AIMODULE_API FString GetLockPriorityName() const;
 
 	void operator+=(const FAIResourceLock& Other)
 	{
@@ -431,7 +431,7 @@ namespace FAIResources
 
 
 USTRUCT(BlueprintType)
-struct AIMODULE_API FAIRequestID
+struct FAIRequestID
 {
 	GENERATED_USTRUCT_BODY()
 		
@@ -480,9 +480,9 @@ public:
 		return FString::FromInt(int32(RequestID));
 	}
 
-	static const FAIRequestID AnyRequest;
-	static const FAIRequestID CurrentRequest;
-	static const FAIRequestID InvalidRequest;
+	static AIMODULE_API const FAIRequestID AnyRequest;
+	static AIMODULE_API const FAIRequestID CurrentRequest;
+	static AIMODULE_API const FAIRequestID InvalidRequest;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -490,13 +490,13 @@ public:
 class UNavigationQueryFilter;
 
 USTRUCT()
-struct AIMODULE_API FAIMoveRequest
+struct FAIMoveRequest
 {
 	GENERATED_USTRUCT_BODY()
 
-	FAIMoveRequest();
-	FAIMoveRequest(const AActor* InGoalActor);
-	FAIMoveRequest(const FVector& InGoalLocation);
+	AIMODULE_API FAIMoveRequest();
+	AIMODULE_API FAIMoveRequest(const AActor* InGoalActor);
+	AIMODULE_API FAIMoveRequest(const FVector& InGoalLocation);
 
 	FAIMoveRequest& SetNavigationFilter(TSubclassOf<UNavigationQueryFilter> Filter) { FilterClass = Filter; return *this; }
 	FAIMoveRequest& SetUsePathfinding(bool bPathfinding) { bUsePathfinding = bPathfinding; return *this; }
@@ -543,11 +543,11 @@ struct AIMODULE_API FAIMoveRequest
 	const FCustomMoveSharedPtr& GetUserData() const { return UserData; }
 	int32 GetUserFlags() const { return UserFlags; }
 
-	void SetGoalActor(const AActor* InGoalActor);
-	void SetGoalLocation(const FVector& InGoalLocation);
+	AIMODULE_API void SetGoalActor(const AActor* InGoalActor);
+	AIMODULE_API void SetGoalLocation(const FVector& InGoalLocation);
 
-	bool UpdateGoalLocation(const FVector& NewLocation) const;
-	FString ToString() const;
+	AIMODULE_API bool UpdateGoalLocation(const FVector& NewLocation) const;
+	AIMODULE_API FString ToString() const;
 
 protected:
 

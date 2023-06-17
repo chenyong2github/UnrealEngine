@@ -57,42 +57,42 @@ enum EGatherTilesCopyMode
 /** 
  * 
  */
-UCLASS()
-class NAVIGATIONSYSTEM_API URecastNavMeshDataChunk : public UNavigationDataChunk
+UCLASS(MinimalAPI)
+class URecastNavMeshDataChunk : public UNavigationDataChunk
 {
 	GENERATED_UCLASS_BODY()
 
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
+	NAVIGATIONSYSTEM_API virtual void Serialize(FArchive& Ar) override;
 	//~ End UObject Interface
 
 	/** Attaches tiles to specified navmesh, transferring tile ownership to navmesh */
 	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
-	TArray<uint32> AttachTiles(FPImplRecastNavMesh& NavMeshImpl);
+	NAVIGATIONSYSTEM_API TArray<uint32> AttachTiles(FPImplRecastNavMesh& NavMeshImpl);
 
 	/** Attaches tiles to specified navmesh */
 	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
-	TArray<uint32> AttachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData);
+	NAVIGATIONSYSTEM_API TArray<uint32> AttachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData);
 
 	/** Detaches tiles from specified navmesh, taking tile ownership */
 	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
-	TArray<uint32> DetachTiles(FPImplRecastNavMesh& NavMeshImpl);
+	NAVIGATIONSYSTEM_API TArray<uint32> DetachTiles(FPImplRecastNavMesh& NavMeshImpl);
 
 	/** Detaches tiles from specified navmesh */
 	UE_DEPRECATED(5.1, "Use overload using ARecastNavMesh& instead")
-	TArray<uint32> DetachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
+	NAVIGATIONSYSTEM_API TArray<uint32> DetachTiles(FPImplRecastNavMesh& NavMeshImpl, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
 
 	/** Attaches tiles to specified navmesh, transferring tile ownership to navmesh */
-	TArray<FNavTileRef> AttachTiles(ARecastNavMesh& NavMesh);
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> AttachTiles(ARecastNavMesh& NavMesh);
 
 	/** Attaches tiles to specified navmesh */
-	TArray<FNavTileRef> AttachTiles(ARecastNavMesh& NavMesh, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData);
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> AttachTiles(ARecastNavMesh& NavMesh, const bool bKeepCopyOfData, const bool bKeepCopyOfCacheData);
 
 	/** Detaches tiles from specified navmesh, taking tile ownership */
-	TArray<FNavTileRef> DetachTiles(ARecastNavMesh& NavMesh);
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> DetachTiles(ARecastNavMesh& NavMesh);
 
 	/** Detaches tiles from specified navmesh */
-	TArray<FNavTileRef> DetachTiles(ARecastNavMesh& NavMesh, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
+	NAVIGATIONSYSTEM_API TArray<FNavTileRef> DetachTiles(ARecastNavMesh& NavMesh, const bool bTakeDataOwnership, const bool bTakeCacheDataOwnership);
 
 	/** 
 	 * Experimental: Moves tiles data on the xy plane by the offset (in tile coordinates) and rotation (in degree).
@@ -101,29 +101,29 @@ class NAVIGATIONSYSTEM_API URecastNavMeshDataChunk : public UNavigationDataChunk
 	 * @param RotationDeg		Rotation in degrees.
 	 * @param RotationCenter	World position
 	 */
-	void MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const FIntPoint& Offset, const FVector::FReal RotationDeg, const FVector2D& RotationCenter);
+	NAVIGATIONSYSTEM_API void MoveTiles(FPImplRecastNavMesh& NavMeshImpl, const FIntPoint& Offset, const FVector::FReal RotationDeg, const FVector2D& RotationCenter);
 	
 	/** Number of tiles in this chunk */
-	int32 GetNumTiles() const;
+	NAVIGATIONSYSTEM_API int32 GetNumTiles() const;
 
 	/** Const accessor to the list of tiles in the data chunk. */
 	const TArray<FRecastTileData>& GetTiles() const { return Tiles; }
 
 	/** Returns the AABB for the given tiles. */
-	void GetTilesBounds(const FPImplRecastNavMesh& NavMeshImpl, const TArray<int32>& TileIndices, FBox& OutBounds) const;
+	NAVIGATIONSYSTEM_API void GetTilesBounds(const FPImplRecastNavMesh& NavMeshImpl, const TArray<int32>& TileIndices, FBox& OutBounds) const;
 
 	/** Mutable accessor to the list of tiles in the data chunk. */
 	TArray<FRecastTileData>& GetMutableTiles() { return Tiles; }
 
 	/** Releases all tiles that this chunk holds */
-	void ReleaseTiles();
+	NAVIGATIONSYSTEM_API void ReleaseTiles();
 
 	/** Collect tiles with data and/or cache data from the provided TileIndices. */
-	void GetTiles(const FPImplRecastNavMesh* NavMeshImpl, const TArray<int32>& TileIndices, const EGatherTilesCopyMode CopyMode, const bool bMarkAsAttached = true);
+	NAVIGATIONSYSTEM_API void GetTiles(const FPImplRecastNavMesh* NavMeshImpl, const TArray<int32>& TileIndices, const EGatherTilesCopyMode CopyMode, const bool bMarkAsAttached = true);
 
 private:
 #if WITH_RECAST
-	void SerializeRecastData(FArchive& Ar, int32 NavMeshVersion);
+	NAVIGATIONSYSTEM_API void SerializeRecastData(FArchive& Ar, int32 NavMeshVersion);
 #endif//WITH_RECAST
 
 private:

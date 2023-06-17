@@ -8,8 +8,8 @@
 #include "HudSettings.generated.h"
 
 
-UCLASS(config=Game)
-class ENGINESETTINGS_API UHudSettings
+UCLASS(config=Game, MinimalAPI)
+class UHudSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

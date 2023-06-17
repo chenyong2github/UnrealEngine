@@ -93,7 +93,7 @@ ENUM_CLASS_FLAGS(EMediaWebcamCaptureDeviceFilter)
  * Information about a capture device.
  */
 USTRUCT(BlueprintType)
-struct MEDIAASSETS_API FMediaCaptureDevice
+struct FMediaCaptureDevice
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -119,8 +119,8 @@ struct MEDIAASSETS_API FMediaCaptureDevice
 /**
  * Blueprint library for Media related functions.
  */
-UCLASS(meta=(ScriptName="MediaLibrary"))
-class MEDIAASSETS_API UMediaBlueprintFunctionLibrary
+UCLASS(meta=(ScriptName="MediaLibrary"), MinimalAPI)
+class UMediaBlueprintFunctionLibrary
 	: public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
@@ -137,7 +137,7 @@ public:
 	 * @param Filter The types of capture devices to return (-1 = all).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|Capture")
-	static void EnumerateAudioCaptureDevices(TArray<FMediaCaptureDevice>& OutDevices, int32 Filter = -1);
+	static MEDIAASSETS_API void EnumerateAudioCaptureDevices(TArray<FMediaCaptureDevice>& OutDevices, int32 Filter = -1);
 
 	/**
 	 * Enumerate available audio capture devices.
@@ -149,7 +149,7 @@ public:
 	 * @param Filter The types of capture devices to return (-1 = all).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|Capture")
-	static void EnumerateVideoCaptureDevices(TArray<FMediaCaptureDevice>& OutDevices, int32 Filter = -1);
+	static MEDIAASSETS_API void EnumerateVideoCaptureDevices(TArray<FMediaCaptureDevice>& OutDevices, int32 Filter = -1);
 
 	/**
 	 * Enumerate available audio capture devices.
@@ -161,5 +161,5 @@ public:
 	 * @param Filter The types of capture devices to return (-1 = all).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Media|Capture")
-	static void EnumerateWebcamCaptureDevices(TArray<FMediaCaptureDevice>& OutDevices, int32 Filter = -1);
+	static MEDIAASSETS_API void EnumerateWebcamCaptureDevices(TArray<FMediaCaptureDevice>& OutDevices, int32 Filter = -1);
 };

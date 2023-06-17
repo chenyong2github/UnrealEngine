@@ -211,40 +211,40 @@ struct FMovieSceneCompiledDataEntry
 	FMovieSceneCompiledSequenceFlagStruct CompiledFlags;
 };
 
-UCLASS()
-class MOVIESCENE_API UMovieSceneCompiledDataManager
+UCLASS(MinimalAPI)
+class UMovieSceneCompiledDataManager
 	: public UObject
 {
 public:
 	GENERATED_BODY()
 
-	UMovieSceneCompiledDataManager();
+	MOVIESCENE_API UMovieSceneCompiledDataManager();
 
 #if WITH_EDITOR
-	static UMovieSceneCompiledDataManager* GetPrecompiledData(EMovieSceneServerClientMask EmulatedMask = EMovieSceneServerClientMask::All);
+	static MOVIESCENE_API UMovieSceneCompiledDataManager* GetPrecompiledData(EMovieSceneServerClientMask EmulatedMask = EMovieSceneServerClientMask::All);
 #else
-	static UMovieSceneCompiledDataManager* GetPrecompiledData();
+	static MOVIESCENE_API UMovieSceneCompiledDataManager* GetPrecompiledData();
 #endif
 
-	UMovieSceneCompiledData* MakeCompiledData(UMovieSceneSequence* Sequence) const;
+	MOVIESCENE_API UMovieSceneCompiledData* MakeCompiledData(UMovieSceneSequence* Sequence) const;
 
-	void SetEmulatedNetworkMask(EMovieSceneServerClientMask NewMask);
+	MOVIESCENE_API void SetEmulatedNetworkMask(EMovieSceneServerClientMask NewMask);
 
-	void Reset(UMovieSceneSequence* Sequence);
+	MOVIESCENE_API void Reset(UMovieSceneSequence* Sequence);
 
-	void DestroyAllData();
+	MOVIESCENE_API void DestroyAllData();
 
-	FMovieSceneCompiledDataID GetDataID(UMovieSceneSequence* Sequence);
+	MOVIESCENE_API FMovieSceneCompiledDataID GetDataID(UMovieSceneSequence* Sequence);
 
-	FMovieSceneCompiledDataID FindDataID(UMovieSceneSequence* Sequence) const;
+	MOVIESCENE_API FMovieSceneCompiledDataID FindDataID(UMovieSceneSequence* Sequence) const;
 
-	void DestroyTemplate(FMovieSceneCompiledDataID DataID);
+	MOVIESCENE_API void DestroyTemplate(FMovieSceneCompiledDataID DataID);
 
-	bool IsDirty(UMovieSceneSequence* Sequence) const;
+	MOVIESCENE_API bool IsDirty(UMovieSceneSequence* Sequence) const;
 
-	bool IsDirty(FMovieSceneCompiledDataID CompiledDataID) const;
+	MOVIESCENE_API bool IsDirty(FMovieSceneCompiledDataID CompiledDataID) const;
 
-	bool IsDirty(const FMovieSceneCompiledDataEntry& Entry) const;
+	MOVIESCENE_API bool IsDirty(const FMovieSceneCompiledDataEntry& Entry) const;
 
 	/**
 	 * Return a reference to a compiled data entry.
@@ -256,7 +256,7 @@ public:
 		return CompiledDataEntries[DataID.Value];
 	}
 
-	FMovieSceneCompiledDataID GetSubDataID(FMovieSceneCompiledDataID DataID, FMovieSceneSequenceID SubSequenceID);
+	MOVIESCENE_API FMovieSceneCompiledDataID GetSubDataID(FMovieSceneCompiledDataID DataID, FMovieSceneSequenceID SubSequenceID);
 
 	uint32 GetReallocationVersion() const
 	{
@@ -273,50 +273,50 @@ public:
 	const FMovieSceneEvaluationField&      GetTrackTemplateFieldChecked(FMovieSceneCompiledDataID DataID) const { return TrackTemplateFields.FindChecked(DataID.Value);   }
 	const FMovieSceneEntityComponentField& GetEntityComponentFieldChecked(FMovieSceneCompiledDataID DataID) const { return EntityComponentFields.FindChecked(DataID.Value); }
 
-	void Compile(FMovieSceneCompiledDataID DataID);
+	MOVIESCENE_API void Compile(FMovieSceneCompiledDataID DataID);
 
-	FMovieSceneCompiledDataID Compile(UMovieSceneSequence* Sequence);
+	MOVIESCENE_API FMovieSceneCompiledDataID Compile(UMovieSceneSequence* Sequence);
 
-	void Compile(FMovieSceneCompiledDataID DataID, UMovieSceneSequence* Sequence);
+	MOVIESCENE_API void Compile(FMovieSceneCompiledDataID DataID, UMovieSceneSequence* Sequence);
 
-	static bool CompileHierarchy(UMovieSceneSequence* Sequence, FMovieSceneSequenceHierarchy* InOutHierarchy, EMovieSceneServerClientMask NetworkMask);
+	static MOVIESCENE_API bool CompileHierarchy(UMovieSceneSequence* Sequence, FMovieSceneSequenceHierarchy* InOutHierarchy, EMovieSceneServerClientMask NetworkMask);
 
-	void CopyCompiledData(UMovieSceneSequence* Sequence);
-	void LoadCompiledData(UMovieSceneSequence* Sequence);
+	MOVIESCENE_API void CopyCompiledData(UMovieSceneSequence* Sequence);
+	MOVIESCENE_API void LoadCompiledData(UMovieSceneSequence* Sequence);
 
 private:
 
-	void Gather(const FMovieSceneCompiledDataEntry& Entry, UMovieSceneSequence* Sequence, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData) const;
+	MOVIESCENE_API void Gather(const FMovieSceneCompiledDataEntry& Entry, UMovieSceneSequence* Sequence, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData) const;
 
-	void CompileTrack(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneBinding* ObjectBinding, UMovieSceneTrack* Track, const FTrackGatherParameters& Params, TSet<FGuid>* OutCompiledSignatures, FMovieSceneGatheredCompilerData* OutCompilerData);
+	MOVIESCENE_API void CompileTrack(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneBinding* ObjectBinding, UMovieSceneTrack* Track, const FTrackGatherParameters& Params, TSet<FGuid>* OutCompiledSignatures, FMovieSceneGatheredCompilerData* OutCompilerData);
 
-	void GatherTrack(const FMovieSceneBinding* ObjectBinding, UMovieSceneTrack* Track, const FTrackGatherParameters& Params, const FMovieSceneEvaluationTemplate* TrackTemplate, FMovieSceneGatheredCompilerData* OutCompilerData) const;
+	MOVIESCENE_API void GatherTrack(const FMovieSceneBinding* ObjectBinding, UMovieSceneTrack* Track, const FTrackGatherParameters& Params, const FMovieSceneEvaluationTemplate* TrackTemplate, FMovieSceneGatheredCompilerData* OutCompilerData) const;
 
-	void CompileSubSequences(const FMovieSceneSequenceHierarchy& Hierarchy, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData);
+	MOVIESCENE_API void CompileSubSequences(const FMovieSceneSequenceHierarchy& Hierarchy, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData);
 
-	static bool CompileHierarchy(UMovieSceneSequence* Sequence, const FGatherParameters& Params, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static MOVIESCENE_API bool CompileHierarchy(UMovieSceneSequence* Sequence, const FGatherParameters& Params, FMovieSceneSequenceHierarchy* InOutHierarchy);
 
-	static bool CompileHierarchyImpl(UMovieSceneSequence* Sequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static MOVIESCENE_API bool CompileHierarchyImpl(UMovieSceneSequence* Sequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
 
-	static bool GenerateSubSequenceData(UMovieSceneSequence* SubSequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
-	static bool GenerateSubSequenceData(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static MOVIESCENE_API bool GenerateSubSequenceData(UMovieSceneSequence* SubSequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static MOVIESCENE_API bool GenerateSubSequenceData(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
 
-	static void PopulateSubSequenceTree(UMovieSceneSequence* SubSequence, const FGatherParameters& Params, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
-	static void PopulateSubSequenceTree(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static MOVIESCENE_API void PopulateSubSequenceTree(UMovieSceneSequence* SubSequence, const FGatherParameters& Params, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static MOVIESCENE_API void PopulateSubSequenceTree(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, UE::MovieScene::FSubSequencePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
 
-	static TOptional<FFrameNumber> GetLoopingSubSectionEndTime(const UMovieSceneSequence* InRootSequence, const UMovieSceneSubSection* SubSection, const FGatherParameters& Params);
+	static MOVIESCENE_API TOptional<FFrameNumber> GetLoopingSubSectionEndTime(const UMovieSceneSequence* InRootSequence, const UMovieSceneSubSection* SubSection, const FGatherParameters& Params);
 
-	void CompileTrackTemplateField(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneSequenceHierarchy& Hierarchy, FMovieSceneGatheredCompilerData* InCompilerData);
+	MOVIESCENE_API void CompileTrackTemplateField(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneSequenceHierarchy& Hierarchy, FMovieSceneGatheredCompilerData* InCompilerData);
 
-	void PopulateEvaluationGroup(const TArray<FCompileOnTheFlyData>& SortedCompileData, FMovieSceneEvaluationGroup* OutGroup);
+	MOVIESCENE_API void PopulateEvaluationGroup(const TArray<FCompileOnTheFlyData>& SortedCompileData, FMovieSceneEvaluationGroup* OutGroup);
 
-	void PopulateMetaData(const FMovieSceneSequenceHierarchy& RootHierarchy, const TArray<FCompileOnTheFlyData>& SortedCompileData, TMovieSceneEvaluationTreeDataIterator<FMovieSceneSubSequenceTreeEntry> SubSequences, FMovieSceneEvaluationMetaData* OutMetaData);
+	MOVIESCENE_API void PopulateMetaData(const FMovieSceneSequenceHierarchy& RootHierarchy, const TArray<FCompileOnTheFlyData>& SortedCompileData, TMovieSceneEvaluationTreeDataIterator<FMovieSceneSubSequenceTreeEntry> SubSequences, FMovieSceneEvaluationMetaData* OutMetaData);
 
-	void ProcessTrack(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneBinding* ObjectBinding, UMovieSceneTrack* Track, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData, TSet<FGuid>* OutCompiledSignatures);
+	MOVIESCENE_API void ProcessTrack(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneBinding* ObjectBinding, UMovieSceneTrack* Track, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData, TSet<FGuid>* OutCompiledSignatures);
 
-	void ProcessSubTrack(FMovieSceneCompiledDataEntry* OutEntry, UMovieSceneSubTrack* SubTrack, const FGuid& ObjectBindingId, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData);
+	MOVIESCENE_API void ProcessSubTrack(FMovieSceneCompiledDataEntry* OutEntry, UMovieSceneSubTrack* SubTrack, const FGuid& ObjectBindingId, const FTrackGatherParameters& Params, FMovieSceneGatheredCompilerData* OutCompilerData);
 
-	void DestroyData(FMovieSceneCompiledDataID DataID);
+	MOVIESCENE_API void DestroyData(FMovieSceneCompiledDataID DataID);
 
 private:
 
@@ -326,7 +326,7 @@ private:
 		return &CompiledDataEntries[DataID.Value];
 	}
 
-	void ConsoleVariableSink();
+	MOVIESCENE_API void ConsoleVariableSink();
 
 private:
 

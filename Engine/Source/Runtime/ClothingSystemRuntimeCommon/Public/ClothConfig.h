@@ -25,13 +25,13 @@ enum class EClothMassMode : uint8
 };
 
 /** Common configuration base class. */
-UCLASS(Abstract)
-class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothConfigCommon : public UClothConfigBase
+UCLASS(Abstract, MinimalAPI)
+class UClothConfigCommon : public UClothConfigBase
 {
 	GENERATED_BODY()
 public:
-	UClothConfigCommon();
-	virtual ~UClothConfigCommon() override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API UClothConfigCommon();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual ~UClothConfigCommon() override;
 
 	/** Migrate from the legacy FClothConfig structure. */
 	virtual void MigrateFrom(const FClothConfig_Legacy&) {}
@@ -68,11 +68,11 @@ public:
 };
 
 /** Common shared configuration base class. */
-UCLASS(Abstract)
-class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothSharedConfigCommon : public UClothConfigCommon
+UCLASS(Abstract, MinimalAPI)
+class UClothSharedConfigCommon : public UClothConfigCommon
 {
 	GENERATED_BODY()
 public:
-	UClothSharedConfigCommon();
-	virtual ~UClothSharedConfigCommon() override;
+	CLOTHINGSYSTEMRUNTIMECOMMON_API UClothSharedConfigCommon();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API virtual ~UClothSharedConfigCommon() override;
 };

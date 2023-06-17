@@ -9,12 +9,12 @@
 class UPrimitiveComponent;
 class UPreviewMesh;
 
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UBrushStampIndicatorBuilder : public UInteractiveGizmoBuilder
+UCLASS(MinimalAPI)
+class UBrushStampIndicatorBuilder : public UInteractiveGizmoBuilder
 {
 	GENERATED_BODY()
 public:
-	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -22,8 +22,8 @@ public:
 /*
  * UBrushStampIndicator is a simple 3D brush indicator. 
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UBrushStampIndicator : public UInteractiveGizmo
+UCLASS(Transient, MinimalAPI)
+class UBrushStampIndicator : public UInteractiveGizmo
 {
 	GENERATED_BODY()
 
@@ -31,21 +31,21 @@ public:
 
 	// UInteractiveGizmo interface/implementation
 
-	virtual void Setup() override;
-	virtual void Shutdown() override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
-	virtual void Tick(float DeltaTime) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Tick(float DeltaTime) override;
 
 
 	/**
 	 * Update the Radius, Position, and Normal of the stamp indicator
 	 */
-	virtual void Update(float Radius, const FVector& Position, const FVector& Normal, float Falloff);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Update(float Radius, const FVector& Position, const FVector& Normal, float Falloff);
 
 	/**
 	* Update the Radius, Transform and Falloff of the Stamp Indicator
 	*/
-	virtual void Update(float Radius, const FTransform& WorldTransform, float Falloff);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Update(float Radius, const FTransform& WorldTransform, float Falloff);
 
 public:
 

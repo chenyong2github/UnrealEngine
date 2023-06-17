@@ -25,7 +25,7 @@ namespace UE::Net
 /**
 * Stores the SubObjects to replicate and the network condition dictating to which connection they can replicate to.
 */
-struct NETCORE_API FSubObjectRegistry
+struct FSubObjectRegistry
 {
 public:
 
@@ -40,10 +40,10 @@ public:
 	};
 
 	/** Adds a subobject and returns if it's a new entry or existing entry */
-	FSubObjectRegistry::EResult AddSubObjectUnique(UObject* InSubObject, ELifetimeCondition InNetCondition);
+	NETCORE_API FSubObjectRegistry::EResult AddSubObjectUnique(UObject* InSubObject, ELifetimeCondition InNetCondition);
 
 	/** Remove the subobject from the replicated list. Returns true if the subobject had been registered. */
-	bool RemoveSubObject(UObject* InSubObject);
+	NETCORE_API bool RemoveSubObject(UObject* InSubObject);
 
 	bool IsEmpty() const { return Registry.Num() == 0; }
 
@@ -51,10 +51,10 @@ public:
 	* Remove all the indexes specified by the passed array
 	* @param IndexesToClean Array of indexes sorted from smallest to biggest. The sorted order is assumed to have been done by the caller
 	*/
-	void CleanRegistryIndexes(const TArrayView<int32>& IndexesToClean);
+	NETCORE_API void CleanRegistryIndexes(const TArrayView<int32>& IndexesToClean);
 
 	/** Find the NetCondition of a SubObject. Returns COND_MAX if not registered */
-	ELifetimeCondition GetNetCondition(UObject* SubObject) const;
+	NETCORE_API ELifetimeCondition GetNetCondition(UObject* SubObject) const;
 
 	struct FEntry
 	{
@@ -114,7 +114,7 @@ public:
 	const TArray<FSubObjectRegistry::FEntry>& GetRegistryList() const { return Registry; }
 
 	/** Returns true if the subobject is contained in this list */
-	bool IsSubObjectInRegistry(const UObject* SubObject) const;
+	NETCORE_API bool IsSubObjectInRegistry(const UObject* SubObject) const;
 
 private:
 

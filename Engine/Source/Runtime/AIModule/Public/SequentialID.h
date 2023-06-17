@@ -5,7 +5,7 @@
 #include "SequentialID.generated.h"
 
 USTRUCT()
-struct AIMODULE_API FSequentialIDBase
+struct FSequentialIDBase
 {
 	GENERATED_BODY()
 

@@ -25,8 +25,8 @@ class UObject;
  * Implements an asset that contains a set of Basic Overlays that will be displayed in accordance with
  * the current locale, or a default set if an appropriate locale is not found
  */
-UCLASS(BlueprintType, hidecategories = (Object))
-class OVERLAY_API ULocalizedOverlays
+UCLASS(BlueprintType, hidecategories = (Object), MinimalAPI)
+class ULocalizedOverlays
 	: public UOverlays
 {
 	GENERATED_BODY()
@@ -59,16 +59,16 @@ public:
 
 	//~ UOverlays interface
 
-	virtual TArray<FOverlayItem> GetAllOverlays() const override;
-	virtual void GetOverlaysForTime(const FTimespan& Time, TArray<FOverlayItem>& OutOverlays) const override;
+	OVERLAY_API virtual TArray<FOverlayItem> GetAllOverlays() const override;
+	OVERLAY_API virtual void GetOverlaysForTime(const FTimespan& Time, TArray<FOverlayItem>& OutOverlays) const override;
 
 
 public:
 
 	//~ UObject interface
 
-	virtual void PostInitProperties() override;
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	OVERLAY_API virtual void PostInitProperties() override;
+	OVERLAY_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 
 private:
 	

@@ -26,27 +26,27 @@ enum class EPawnActionTaskResult : uint8
  * Please use result returned by PushAction for ExecuteTask function.
  */
 
-UCLASS(Abstract)
-class AIMODULE_API UBTTask_PawnActionBase : public UBTTaskNode
+UCLASS(Abstract, MinimalAPI)
+class UBTTask_PawnActionBase : public UBTTaskNode
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	AIMODULE_API virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 protected:
 
 	/** starts executing pawn action */
-	EBTNodeResult::Type PushAction(UBehaviorTreeComponent& OwnerComp, UDEPRECATED_PawnAction& Action);
+	AIMODULE_API EBTNodeResult::Type PushAction(UBehaviorTreeComponent& OwnerComp, UDEPRECATED_PawnAction& Action);
 
 	/** action observer, updates state of task */
-	virtual void OnActionEvent(UDEPRECATED_PawnAction& Action, EPawnActionEventType::Type Event);
+	AIMODULE_API virtual void OnActionEvent(UDEPRECATED_PawnAction& Action, EPawnActionEventType::Type Event);
 
 	/** called when action is removed from stack (FinishedAborting) by some external event
 	 *  default behavior: finish task as failed */
-	virtual void OnActionLost(UDEPRECATED_PawnAction& Action);
+	AIMODULE_API virtual void OnActionLost(UDEPRECATED_PawnAction& Action);
 
 public:
 
 	/** helper functions, should be used when behavior tree task deals with pawn actions, but can't derive from this class */
-	static EPawnActionTaskResult ActionEventHandler(UBTTaskNode* TaskNode, UDEPRECATED_PawnAction& Action, EPawnActionEventType::Type Event);
+	static AIMODULE_API EPawnActionTaskResult ActionEventHandler(UBTTaskNode* TaskNode, UDEPRECATED_PawnAction& Action, EPawnActionEventType::Type Event);
 };

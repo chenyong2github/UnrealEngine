@@ -27,7 +27,7 @@ template <typename ElementType> class TRangeSet;
 /**
  * Implements a cache for media samples.
  */
-class MEDIAUTILS_API FMediaSampleCache
+class FMediaSampleCache
 {
 	/** Key functions template for the sample cache sets. */
 	template<typename SampleType>
@@ -57,7 +57,7 @@ class MEDIAUTILS_API FMediaSampleCache
 public:
 
 	/** Default constructor. */
-	FMediaSampleCache();
+	MEDIAUTILS_API FMediaSampleCache();
 
 public:
 
@@ -66,7 +66,7 @@ public:
 	 *
 	 * @see Update
 	 */
-	void Empty();
+	MEDIAUTILS_API void Empty();
 
 	/**
 	 * Get the audio sample for the specified play time.
@@ -77,7 +77,7 @@ public:
 	 * @return The sample, or nullptr if no sample available.
 	 * @see GetAudioSamples, GetCachedVideoSampleRanges, GetOverlaySamples
 	 */
-	TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe> GetAudioSample(FTimespan Time);
+	MEDIAUTILS_API TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe> GetAudioSample(FTimespan Time);
 
 	/**
 	 * Get the time ranges of audio samples currently in the cache.
@@ -85,7 +85,7 @@ public:
 	 * @param OutTimeRanges Will contain the set of cached sample time ranges.
 	 * @see GetAudioSample, GetCachedVideoSampleRanges
 	 */
-	void GetCachedAudioSampleRanges(TRangeSet<FTimespan>& OutTimeRanges) const;
+	MEDIAUTILS_API void GetCachedAudioSampleRanges(TRangeSet<FTimespan>& OutTimeRanges) const;
 
 	/**
 	 * Get the time ranges of video samples currently in the cache.
@@ -93,7 +93,7 @@ public:
 	 * @param OutTimeRanges Will contain the set of cached sample time ranges.
 	 * @see GetCachedAudioSampleRanges, GetVideoSample
 	 */
-	void GetCachedVideoSampleRanges(TRangeSet<FTimespan>& OutTimeRanges) const;
+	MEDIAUTILS_API void GetCachedVideoSampleRanges(TRangeSet<FTimespan>& OutTimeRanges) const;
 
 	/**
 	 * Get the text overlay samples for the specified time.
@@ -102,7 +102,7 @@ public:
 	 * @param OutSamples Will contain the overlay samples.
 	 * @see GetAudioSample, GetVideoSample
 	 */
-	void GetOverlaySamples(FTimespan Time, TArray<TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>>& OutSamples);
+	MEDIAUTILS_API void GetOverlaySamples(FTimespan Time, TArray<TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>>& OutSamples);
 
 	/**
 	 * Get the video sample for the specified play time.
@@ -116,7 +116,7 @@ public:
 	 * @return The sample, or nullptr if no sample available.
 	 * @see GetAudioSample, GetCachedVideoSampleRanges, GetOverlaySamples
 	 */
-	TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> GetVideoSample(FTimespan Time, bool Forward);
+	MEDIAUTILS_API TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> GetVideoSample(FTimespan Time, bool Forward);
 
 	/**
 	 * Set the time window of samples to cache.
@@ -141,7 +141,7 @@ public:
 	 * @param Time The current play time.
 	 * @see Initialize, Shutdown
 	 */
-	void Tick(FTimespan DeltaTime, float Rate, FTimespan Time);
+	MEDIAUTILS_API void Tick(FTimespan DeltaTime, float Rate, FTimespan Time);
 
 private:
 

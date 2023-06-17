@@ -18,7 +18,7 @@ enum class EWebBrowserDialogEventResponse;
 
 DECLARE_DELEGATE_RetVal(bool, FOnSuppressContextMenu);
 
-class WEBBROWSER_API SWebBrowser
+class SWebBrowser
 	: public SCompoundWidget
 {
 public:
@@ -128,9 +128,9 @@ public:
 
 
 	/** Default constructor. */
-	SWebBrowser();
+	WEBBROWSER_API SWebBrowser();
 
-	~SWebBrowser();
+	WEBBROWSER_API ~SWebBrowser();
 
 	virtual bool SupportsKeyboardFocus() const override {return true;}
 
@@ -139,14 +139,14 @@ public:
 	 *
 	 * @param InArgs  Declaration from which to construct the widget.
 	 */
-	void Construct(const FArguments& InArgs, const TSharedPtr<IWebBrowserWindow>& InWebBrowserWindow = nullptr);
+	WEBBROWSER_API void Construct(const FArguments& InArgs, const TSharedPtr<IWebBrowserWindow>& InWebBrowserWindow = nullptr);
 
 	/**
 	 * Load the specified URL.
 	 *
 	 * @param NewURL New URL to load.
 	 */
-	void LoadURL(FString NewURL);
+	WEBBROWSER_API void LoadURL(FString NewURL);
 
 	/**
 	* Load a string as data to create a web page.
@@ -154,39 +154,39 @@ public:
 	* @param Contents String to load.
 	* @param DummyURL Dummy URL for the page.
 	*/
-	void LoadString(FString Contents, FString DummyURL);
+	WEBBROWSER_API void LoadString(FString Contents, FString DummyURL);
 
 	/** Reload the current page. */
-	void Reload();
+	WEBBROWSER_API void Reload();
 
 	/** Stop loading the page. */
-	void StopLoad();
+	WEBBROWSER_API void StopLoad();
 
 	/** Get the current title of the web page. */
-	FText GetTitleText() const;
+	WEBBROWSER_API FText GetTitleText() const;
 
 	/**
 	 * Gets the currently loaded URL.
 	 *
 	 * @return The URL, or empty string if no document is loaded.
 	 */
-	FString GetUrl() const;
+	WEBBROWSER_API FString GetUrl() const;
 
 	/**
 	 * Gets the URL that appears in the address bar, this may not be the URL that is currently loaded in the frame.
 	 *
 	 * @return The address bar URL.
 	 */
-	FText GetAddressBarUrlText() const;
+	WEBBROWSER_API FText GetAddressBarUrlText() const;
 
 	/** Whether the document finished loading. */
-	bool IsLoaded() const;
+	WEBBROWSER_API bool IsLoaded() const;
 
 	/** Whether the document is currently being loaded. */
-	bool IsLoading() const;
+	WEBBROWSER_API bool IsLoading() const;
 
 	/** Execute javascript on the current window */
-	void ExecuteJavascript(const FString& ScriptText);
+	WEBBROWSER_API void ExecuteJavascript(const FString& ScriptText);
 
 	/**
 	 * Gets the source of the main frame as raw HTML.
@@ -195,7 +195,7 @@ public:
 	 * result is ready.
 	 * @param	Callback	A callable that takes a single string reference for handling the result.
 	 */
-	void GetSource(TFunction<void (const FString&)> Callback) const;
+	WEBBROWSER_API void GetSource(TFunction<void (const FString&)> Callback) const;
 
 	/**
 	 * Expose a UObject instance to the browser runtime.
@@ -206,7 +206,7 @@ public:
 	 * @param Object The object instance.
 	 * @param bIsPermanent If true, the object will be visible to all pages loaded through this browser widget, otherwise, it will be deleted when navigating away from the current page. Non-permanent bindings should be registered from inside an OnLoadStarted event handler in order to be available before JS code starts loading.
 	 */
-	void BindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true);
+	WEBBROWSER_API void BindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true);
 
 	/**
 	 * Remove an existing script binding registered by BindUObject.
@@ -215,53 +215,53 @@ public:
 	 * @param Object The object will only be removed if it is the same object as the one passed in.
 	 * @param bIsPermanent Must match the bIsPermanent argument passed to BindUObject.
 	 */
-	void UnbindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true);
+	WEBBROWSER_API void UnbindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true);
 
-	void BindAdapter(const TSharedRef<IWebBrowserAdapter>& Adapter);
+	WEBBROWSER_API void BindAdapter(const TSharedRef<IWebBrowserAdapter>& Adapter);
 
-	void UnbindAdapter(const TSharedRef<IWebBrowserAdapter>& Adapter);
+	WEBBROWSER_API void UnbindAdapter(const TSharedRef<IWebBrowserAdapter>& Adapter);
 
-	void BindInputMethodSystem(ITextInputMethodSystem* TextInputMethodSystem);
+	WEBBROWSER_API void BindInputMethodSystem(ITextInputMethodSystem* TextInputMethodSystem);
 
-	void UnbindInputMethodSystem();
+	WEBBROWSER_API void UnbindInputMethodSystem();
 
 	/** Returns true if the browser can navigate backwards. */
-	bool CanGoBack() const;
+	WEBBROWSER_API bool CanGoBack() const;
 
 	/** Navigate backwards. */
-	void GoBack();
+	WEBBROWSER_API void GoBack();
 
 	/** Returns true if the browser can navigate forwards. */
-	bool CanGoForward() const;
+	WEBBROWSER_API bool CanGoForward() const;
 
 	/** Navigate forwards. */
-	void GoForward();
+	WEBBROWSER_API void GoForward();
 
 	/** Set parent SWindow for this browser. */
-	void SetParentWindow(TSharedPtr<SWindow> Window);
+	WEBBROWSER_API void SetParentWindow(TSharedPtr<SWindow> Window);
 
 private:
 
 	/** Navigate backwards. */
-	FReply OnBackClicked();
+	WEBBROWSER_API FReply OnBackClicked();
 
 	/** Navigate forwards. */
-	FReply OnForwardClicked();
+	WEBBROWSER_API FReply OnForwardClicked();
 
 	/** Get text for reload button depending on status */
-	FText GetReloadButtonText() const;
+	WEBBROWSER_API FText GetReloadButtonText() const;
 
 	/** Reload or stop loading */
-	FReply OnReloadClicked();
+	WEBBROWSER_API FReply OnReloadClicked();
 
 	/** Invoked whenever text is committed in the address bar. */
-	void OnUrlTextCommitted( const FText& NewText, ETextCommit::Type CommitType );
+	WEBBROWSER_API void OnUrlTextCommitted( const FText& NewText, ETextCommit::Type CommitType );
 
 	/** Get whether the page viewport should be visible */
-	EVisibility GetViewportVisibility() const;
+	WEBBROWSER_API EVisibility GetViewportVisibility() const;
 
 	/** Get whether loading throbber should be visible */
-	EVisibility GetLoadingThrobberVisibility() const;
+	WEBBROWSER_API EVisibility GetLoadingThrobberVisibility() const;
 
 private:
 

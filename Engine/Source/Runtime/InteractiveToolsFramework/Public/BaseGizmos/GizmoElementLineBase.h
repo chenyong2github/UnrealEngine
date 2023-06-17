@@ -13,30 +13,30 @@
  * Base class for 2d and 3d primitive objects which support line drawing,
  * intended to be used as part of 3D Gizmos.
  */
-UCLASS(Transient, Abstract)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementLineBase : public UGizmoElementBase
+UCLASS(Transient, Abstract, MinimalAPI)
+class UGizmoElementLineBase : public UGizmoElementBase
 {
 	GENERATED_BODY()
 public:
 
 	// Get line thickness for based on current element interaction state and view
-	virtual float GetCurrentLineThickness(bool bPerspectiveView, float InViewFOV) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetCurrentLineThickness(bool bPerspectiveView, float InViewFOV) const;
 
 	// Line thickness when rendering lines, 0.0 is valid and will render thinnest line 
-	virtual void SetLineThickness(float InLineThickness);
-	virtual float GetLineThickness() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetLineThickness(float InLineThickness);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetLineThickness() const;
 
 	// Multiplier applied to line thickness when hovering
-	virtual void SetHoverLineThicknessMultiplier(float InHoverLineThicknessMultiplier);
-	virtual float GetHoverLineThicknessMultiplier() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHoverLineThicknessMultiplier(float InHoverLineThicknessMultiplier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetHoverLineThicknessMultiplier() const;
 
 	// Multiplier applied to line thickness when interacting
-	virtual void SetInteractLineThicknessMultiplier(float InInteractLineThicknessMultiplier);
-	virtual float GetInteractLineThicknessMultiplier() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetInteractLineThicknessMultiplier(float InInteractLineThicknessMultiplier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetInteractLineThicknessMultiplier() const;
 
 	// Whether line thickness is in screen space 
-	virtual void SetScreenSpaceLine(bool bInScreenSpaceLine);
-	virtual bool GetScreenSpaceLine() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetScreenSpaceLine(bool bInScreenSpaceLine);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetScreenSpaceLine() const;
 
 	//
 	// Methods for managing line state attributes: LineColor, HoverLineColor, InteractLineColor
@@ -50,53 +50,53 @@ public:
 	// Set line render state line color attribute. 
 	//  @param InMaterial - line color to be set
 	//  @param InOverridesChildState - when true, this line color will override the line color of all child elements.
-	virtual void SetLineColor(FLinearColor InColor, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetLineColor(FLinearColor InColor, bool InOverridesChildState = false);
 
 	// Get line render state line color attribute's value.
-	virtual FLinearColor GetLineColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FLinearColor GetLineColor() const;
 
 	// Returns true if line render state line color attribute has been set.
-	virtual bool HasLineColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasLineColor() const;
 
 	// Get line render state line color attribute's override setting. 
-	virtual bool DoesLineColorOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesLineColorOverrideChildState() const;
 
 	// Clear line render state line color attribute.
-	virtual void ClearLineColor();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearLineColor();
 
 	// Set line render state hover line color attribute. 
 	//  @param InMaterial - hover line color to be set
 	//  @param InOverridesChildState - when true, this hover line color will override the line color of all child elements.
-	virtual void SetHoverLineColor(FLinearColor InColor, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHoverLineColor(FLinearColor InColor, bool InOverridesChildState = false);
 
 	// Get line render state hover line color attribute's value.
-	virtual FLinearColor GetHoverLineColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FLinearColor GetHoverLineColor() const;
 
 	// Returns true if line render state hover line color attribute has been set. 
-	virtual bool HasHoverLineColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasHoverLineColor() const;
 
 	// Get line render state hover line color attribute's override setting.
-	virtual bool DoesHoverLineColorOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesHoverLineColorOverrideChildState() const;
 
 	// Clear line render state hover line color attribute. 
-	virtual void ClearHoverLineColor();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearHoverLineColor();
 
 	// Set line render state interact line color attribute. 
 	//  @param InMaterial - interact line color to be set
 	//  @param InOverridesChildState - when true, this interact line color will override the line color of all child elements.
-	virtual void SetInteractLineColor(FLinearColor InColor, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetInteractLineColor(FLinearColor InColor, bool InOverridesChildState = false);
 
 	// Get line render state interact line color attribute's value. 
-	virtual FLinearColor GetInteractLineColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FLinearColor GetInteractLineColor() const;
 
 	// Returns true if line render state interact line color attribute has been set. 
-	virtual bool HasInteractLineColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasInteractLineColor() const;
 
 	// Get line render state interact line color attribute's override setting. 
-	virtual bool DoesInteractLineColorOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesInteractLineColorOverrideChildState() const;
 
 	// Clear line render state interact line color attribute.
-	virtual void ClearInteractLineColor();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearInteractLineColor();
 
 protected:
 
@@ -122,5 +122,5 @@ protected:
 
 	// Update render state during render traversal, determines the current render state for this element
 	// @return view dependent visibility, true if this element is visible in the current view.
-	virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalOrigin, FRenderTraversalState& InOutRenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalOrigin, FRenderTraversalState& InOutRenderState) override;
 };

@@ -18,7 +18,7 @@
 /**
  * Represents an internet address. All data is in network byte order
  */
-class SOCKETS_API FInternetAddr
+class FInternetAddr
 {
 protected:
 	/** Hidden on purpose */
@@ -183,7 +183,7 @@ public:
 		return NAME_None;
 	}
 
-	virtual void DumpAddrData() const;
+	SOCKETS_API virtual void DumpAddrData() const;
 
 	friend inline uint32 GetTypeHash(const FInternetAddr& InAddr)
 	{

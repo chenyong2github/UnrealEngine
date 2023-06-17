@@ -10,10 +10,10 @@
   *	Abstract interface for AudioLink instances. 
   *	Purely opaque.
   */
-class AUDIOLINKENGINE_API IAudioLink
+class IAudioLink
 {
 protected:
-	IAudioLink();
+	AUDIOLINKENGINE_API IAudioLink();
 public:
 	virtual ~IAudioLink() = default;
 };
@@ -21,7 +21,7 @@ public:
 /** IAudioLinkSourcePushed
   *	Where the owning object needs to push it's state
   */
-class AUDIOLINKENGINE_API IAudioLinkSourcePushed : public IAudioLink
+class IAudioLinkSourcePushed : public IAudioLink
 {
 protected:
 	IAudioLinkSourcePushed() = default;

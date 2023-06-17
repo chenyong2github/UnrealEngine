@@ -19,8 +19,8 @@
 /**
  * Base class for tracks that animate an object property
  */
-UCLASS(abstract)
-class MOVIESCENETRACKS_API UMovieScenePropertyTrack
+UCLASS(abstract, MinimalAPI)
+class UMovieScenePropertyTrack
 	: public UMovieSceneNameableTrack
 {
 	GENERATED_UCLASS_BODY()
@@ -29,23 +29,23 @@ public:
 
 	// UMovieSceneTrack interface
 
-	virtual void RemoveAllAnimationData() override;
-	virtual bool HasSection(const UMovieSceneSection& Section) const override;
-	virtual void AddSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSection(UMovieSceneSection& Section) override;
-	virtual void RemoveSectionAt(int32 SectionIndex) override;
-	virtual bool IsEmpty() const override;
-	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
+	MOVIESCENETRACKS_API virtual void RemoveAllAnimationData() override;
+	MOVIESCENETRACKS_API virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	MOVIESCENETRACKS_API virtual void AddSection(UMovieSceneSection& Section) override;
+	MOVIESCENETRACKS_API virtual void RemoveSection(UMovieSceneSection& Section) override;
+	MOVIESCENETRACKS_API virtual void RemoveSectionAt(int32 SectionIndex) override;
+	MOVIESCENETRACKS_API virtual bool IsEmpty() const override;
+	MOVIESCENETRACKS_API virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
 
 #if WITH_EDITORONLY_DATA
-	virtual FText GetDefaultDisplayName() const override;
-	virtual FText GetDisplayNameToolTipText() const override;
+	MOVIESCENETRACKS_API virtual FText GetDefaultDisplayName() const override;
+	MOVIESCENETRACKS_API virtual FText GetDisplayNameToolTipText() const override;
 	virtual bool CanRename() const override { return false; }
-	virtual FName GetTrackName() const override;
+	MOVIESCENETRACKS_API virtual FName GetTrackName() const override;
 #endif
 
-	virtual void PostLoad() override;
-	virtual void Serialize(FArchive& Ar) override;
+	MOVIESCENETRACKS_API virtual void PostLoad() override;
+	MOVIESCENETRACKS_API virtual void Serialize(FArchive& Ar) override;
 
 public:
 
@@ -54,7 +54,7 @@ public:
 	 *
 	 * @param InPropertyName The property being animated
 	 */
-	void SetPropertyNameAndPath(FName InPropertyName, const FString& InPropertyPath);
+	MOVIESCENETRACKS_API void SetPropertyNameAndPath(FName InPropertyName, const FString& InPropertyPath);
 
 	/** @return the name of the property being animated by this track */
 	FName GetPropertyName() const { return PropertyBinding.PropertyName; }
@@ -77,7 +77,7 @@ public:
 	*@param Time  The Time relative to the owning movie scene where the section should be
 	*@Return All sections at that time
 	*/
-	TArray<UMovieSceneSection*, TInlineAllocator<4>> FindAllSections(FFrameNumber Time);
+	MOVIESCENETRACKS_API TArray<UMovieSceneSection*, TInlineAllocator<4>> FindAllSections(FFrameNumber Time);
 
 	/**
 	 * Finds a section at the current time.
@@ -85,7 +85,7 @@ public:
 	 * @param Time The time relative to the owning movie scene where the section should be
 	 * @return The found section.
 	 */
-	class UMovieSceneSection* FindSection(FFrameNumber Time);
+	MOVIESCENETRACKS_API class UMovieSceneSection* FindSection(FFrameNumber Time);
 
 	/**
 	 * Finds a section at the current time or extends an existing one
@@ -94,7 +94,7 @@ public:
 	 * @param OutWeight The weight of the section if found
 	 * @return The found section.
 	 */
-	class UMovieSceneSection* FindOrExtendSection(FFrameNumber Time, float& OutWeight);
+	MOVIESCENETRACKS_API class UMovieSceneSection* FindOrExtendSection(FFrameNumber Time, float& OutWeight);
 
 	/**
 	 * Finds a section at the current time.
@@ -103,20 +103,20 @@ public:
 	 * @param bSectionAdded Whether a section was added or not
 	 * @return The found section, or the new section.
 	 */
-	class UMovieSceneSection* FindOrAddSection(FFrameNumber Time, bool& bSectionAdded);
+	MOVIESCENETRACKS_API class UMovieSceneSection* FindOrAddSection(FFrameNumber Time, bool& bSectionAdded);
 
 	/**
 	 * Set the section we want to key and recieve globally changed values.
 	 *
 	 * @param Section The section that changes.
 	 */
-	virtual void SetSectionToKey(UMovieSceneSection* Section) override;
+	MOVIESCENETRACKS_API virtual void SetSectionToKey(UMovieSceneSection* Section) override;
 
 	/**
 	 * Finds a section we want to key and recieve globally changed values.
 	 * @return The Section that changes.
 	 */
-	virtual UMovieSceneSection* GetSectionToKey() const override;
+	MOVIESCENETRACKS_API virtual UMovieSceneSection* GetSectionToKey() const override;
 
 #if WITH_EDITORONLY_DATA
 public:
@@ -151,18 +151,18 @@ protected:
 };
 
 
-struct MOVIESCENETRACKS_API FMovieScenePropertyTrackEntityImportHelper
+struct FMovieScenePropertyTrackEntityImportHelper
 {
-	static const int32 SectionPropertyValueImportingID;
-	static const int32 SectionEditConditionToggleImportingID;
+	static MOVIESCENETRACKS_API const int32 SectionPropertyValueImportingID;
+	static MOVIESCENETRACKS_API const int32 SectionEditConditionToggleImportingID;
 
-	static void PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
+	static MOVIESCENETRACKS_API void PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
 
-	static bool IsPropertyValueID(const UE::MovieScene::FEntityImportParams& Params);
-	static bool IsEditConditionToggleID(const UE::MovieScene::FEntityImportParams& Params);
-	static void ImportEditConditionToggleEntity(const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity);
+	static MOVIESCENETRACKS_API bool IsPropertyValueID(const UE::MovieScene::FEntityImportParams& Params);
+	static MOVIESCENETRACKS_API bool IsEditConditionToggleID(const UE::MovieScene::FEntityImportParams& Params);
+	static MOVIESCENETRACKS_API void ImportEditConditionToggleEntity(const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity);
 
-	static FName SanitizeBoolPropertyName(FName InPropertyName);
+	static MOVIESCENETRACKS_API FName SanitizeBoolPropertyName(FName InPropertyName);
 };
 
 
@@ -263,7 +263,7 @@ protected:
 	FComponentTypeID PropertyTag;
 };
 
-struct MOVIESCENETRACKS_API FPropertyTrackEntityImportHelper : TPropertyTrackEntityImportHelperImpl<>
+struct FPropertyTrackEntityImportHelper : TPropertyTrackEntityImportHelperImpl<>
 {
 	template<typename PropertyTraits>
 	FPropertyTrackEntityImportHelper(const TPropertyComponents<PropertyTraits>& PropertyComponents)
@@ -426,7 +426,7 @@ protected:
 	FComponentTypeID PropertyTag;
 };
 
-struct MOVIESCENETRACKS_API FPropertyTrackWithOverridableChannelsEntityImportHelper : TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<>
+struct FPropertyTrackWithOverridableChannelsEntityImportHelper : TPropertyTrackWithOverridableChannelsEntityImportHelperImpl<>
 {
 	template<typename PropertyTraits>
 	FPropertyTrackWithOverridableChannelsEntityImportHelper(const TPropertyComponents<PropertyTraits>& PropertyComponents, TScriptInterface<IMovieSceneChannelOverrideProvider> InRegistryProvider)

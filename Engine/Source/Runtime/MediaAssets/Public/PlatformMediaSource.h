@@ -25,8 +25,8 @@ struct FGuid;
  *
  * Use this asset to override media sources on a per-platform basis.
  */
-UCLASS(BlueprintType)
-class MEDIAASSETS_API UPlatformMediaSource
+UCLASS(BlueprintType, MinimalAPI)
+class UPlatformMediaSource
 	: public UMediaSource
 {
 	GENERATED_BODY()
@@ -49,27 +49,27 @@ public:
 	//~ UObject interface
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
 	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	MEDIAASSETS_API virtual void PreSave(const class ITargetPlatform* TargetPlatform);
+	MEDIAASSETS_API PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext);
-	virtual void Serialize(FArchive& Ar) override;
+	MEDIAASSETS_API virtual void Serialize(FArchive& Ar) override;
 
 	//~ UMediaSource interface
 
-	virtual FString GetUrl() const override;
-	virtual bool Validate() const override;
+	MEDIAASSETS_API virtual FString GetUrl() const override;
+	MEDIAASSETS_API virtual bool Validate() const override;
 
 public:
 
 	//~ IMediaOptions interface
 
-	virtual FName GetDesiredPlayerName() const override;
-	virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
-	virtual double GetMediaOption(const FName& Key, double DefaultValue) const override;
-	virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
-	virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
-	virtual FText GetMediaOption(const FName& Key, const FText& DefaultValue) const override;
-	virtual bool HasMediaOption(const FName& Key) const override;
+	MEDIAASSETS_API virtual FName GetDesiredPlayerName() const override;
+	MEDIAASSETS_API virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
+	MEDIAASSETS_API virtual double GetMediaOption(const FName& Key, double DefaultValue) const override;
+	MEDIAASSETS_API virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
+	MEDIAASSETS_API virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
+	MEDIAASSETS_API virtual FText GetMediaOption(const FName& Key, const FText& DefaultValue) const override;
+	MEDIAASSETS_API virtual bool HasMediaOption(const FName& Key) const override;
 
 private:
 

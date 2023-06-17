@@ -16,17 +16,17 @@ template<typename> struct TMovieSceneChannelTraits;
 /**
  * Handle to a specific channel in a UMovieSceneSection. Will become nullptr when the FMovieSceneChannelProxy it was created with is reallocated.
  */
-struct MOVIESCENE_API FMovieSceneChannelHandle
+struct FMovieSceneChannelHandle
 {
 	/**
 	 * Default constructor
 	 */
-	FMovieSceneChannelHandle();
+	MOVIESCENE_API FMovieSceneChannelHandle();
 
 	/**
 	 * Construction from a weak channel proxy, the channel's type, and its index
 	 */
-	FMovieSceneChannelHandle(TWeakPtr<FMovieSceneChannelProxy> InWeakChannelProxy, FName InChannelTypeName, int32 InChannelIndex);
+	MOVIESCENE_API FMovieSceneChannelHandle(TWeakPtr<FMovieSceneChannelProxy> InWeakChannelProxy, FName InChannelTypeName, int32 InChannelIndex);
 
 public:
 
@@ -65,19 +65,19 @@ public:
 	/**
 	 * Access this channel's type identifier
 	 */
-	FName GetChannelTypeName() const;
+	MOVIESCENE_API FName GetChannelTypeName() const;
 
 	/**
 	 * Access this channel's index
 	 */
-	int32 GetChannelIndex() const;
+	MOVIESCENE_API int32 GetChannelIndex() const;
 
 	/**
 	 * Get the channel pointer this handle represents.
 	 *
 	 * @return the channel's pointer, or nullptr if the proxy it was created with is no longer alive.
 	 */
-	FMovieSceneChannel* Get() const;
+	MOVIESCENE_API FMovieSceneChannel* Get() const;
 
 	/**
 	 * Attempt to access the proxy for this channel. Will return nullptr if it is no longer valid.
@@ -94,14 +94,14 @@ public:
 	 *
 	 * @return the channel's meta data, or nullptr if the proxy it was created with is no longer alive.
 	 */
-	const FMovieSceneChannelMetaData* GetMetaData() const;
+	MOVIESCENE_API const FMovieSceneChannelMetaData* GetMetaData() const;
 
 	/**
 	 * Get the extended editor data associated with this channel
 	 *
 	 * @return the channel's extended editor data, or nullptr if the proxy it was created with is no longer alive.
 	 */
-	const void* GetExtendedEditorData() const;
+	MOVIESCENE_API const void* GetExtendedEditorData() const;
 
 #endif // WITH_EDITOR
 

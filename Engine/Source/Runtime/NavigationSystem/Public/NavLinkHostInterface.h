@@ -15,14 +15,14 @@ class UNavLinkHostInterface : public UInterface
 	GENERATED_UINTERFACE_BODY()
 };
 
-class NAVIGATIONSYSTEM_API INavLinkHostInterface
+class INavLinkHostInterface
 {
 	GENERATED_IINTERFACE_BODY()
 		
 	/**
 	 *	Retrieves UNavLinkDefinition derived UClasses hosted by this interface implementer
 	 */
-	virtual bool GetNavigationLinksClasses(TArray<TSubclassOf<class UNavLinkDefinition> >& OutClasses) const PURE_VIRTUAL(INavLinkHostInterface::GetNavigationLinksClasses,return false;);
+	NAVIGATIONSYSTEM_API virtual bool GetNavigationLinksClasses(TArray<TSubclassOf<class UNavLinkDefinition> >& OutClasses) const PURE_VIRTUAL(INavLinkHostInterface::GetNavigationLinksClasses,return false;);
 
 	/** 
 	 *	_Optional_ way of retrieving navigation link data - if INavLinkHostInterface 

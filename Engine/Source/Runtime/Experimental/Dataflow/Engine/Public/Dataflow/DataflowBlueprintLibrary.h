@@ -7,8 +7,8 @@
 
 #include "DataflowBlueprintLibrary.generated.h"
 
-UCLASS()
-class DATAFLOWENGINE_API UDataflowBlueprintLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UDataflowBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -17,5 +17,5 @@ public:
 	* Find a specific terminal node by name evaluate it using a specific UObject
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Dataflow", meta = (Keywords = "Dataflow graph"))
-	static void EvaluateTerminalNodeByName(UDataflow* Dataflow, FName TerminalNodeName, UObject* ResultAsset);
+	static DATAFLOWENGINE_API void EvaluateTerminalNodeByName(UDataflow* Dataflow, FName TerminalNodeName, UObject* ResultAsset);
 };

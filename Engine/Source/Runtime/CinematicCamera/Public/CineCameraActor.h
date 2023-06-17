@@ -65,18 +65,18 @@ struct FCameraLookatTrackingSettings
 /** 
  * A CineCameraActor is a CameraActor specialized to work like a cinematic camera.
  */
-UCLASS(ClassGroup = Common, hideCategories = (Input, Rendering, AutoPlayerActivation), showcategories = ("Input|MouseInput", "Input|TouchInput"), Blueprintable)
-class CINEMATICCAMERA_API ACineCameraActor : public ACameraActor
+UCLASS(ClassGroup = Common, hideCategories = (Input, Rendering, AutoPlayerActivation), showcategories = ("Input|MouseInput", "Input|TouchInput"), Blueprintable, MinimalAPI)
+class ACineCameraActor : public ACameraActor
 {
 	GENERATED_BODY()
 
 public:
 	// Ctor
-	ACineCameraActor(const FObjectInitializer& ObjectInitializer);
+	CINEMATICCAMERA_API ACineCameraActor(const FObjectInitializer& ObjectInitializer);
 
-	virtual void Tick(float DeltaTime) override;
-	virtual bool ShouldTickIfViewportsOnly() const override;
-	virtual void PostInitializeComponents() override;
+	CINEMATICCAMERA_API virtual void Tick(float DeltaTime) override;
+	CINEMATICCAMERA_API virtual bool ShouldTickIfViewportsOnly() const override;
+	CINEMATICCAMERA_API virtual void PostInitializeComponents() override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Current Camera Settings")
 	FCameraLookatTrackingSettings LookatTrackingSettings;
@@ -89,11 +89,11 @@ protected:
 	/** Set to true to skip any interpolations on the next update. Resets to false automatically. */
 	uint8 bResetInterplation : 1;
 
-	FVector GetLookatLocation() const;
+	CINEMATICCAMERA_API FVector GetLookatLocation() const;
 
-	virtual void NotifyCameraCut() override;
+	CINEMATICCAMERA_API virtual void NotifyCameraCut() override;
 
-	bool ShouldTickForTracking() const;
+	CINEMATICCAMERA_API bool ShouldTickForTracking() const;
 
 private:
 	/** Returns CineCameraComponent subobject **/

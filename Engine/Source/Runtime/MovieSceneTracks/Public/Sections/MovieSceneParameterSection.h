@@ -17,20 +17,20 @@ struct FMovieSceneParameterPropertyInterface;
 struct FMovieSceneConstParameterPropertyInterface;
 
 
-UINTERFACE()
-class MOVIESCENETRACKS_API UMovieSceneParameterSectionExtender : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneParameterSectionExtender : public UInterface
 {
 public:
 	GENERATED_BODY()
 };
 
-class MOVIESCENETRACKS_API IMovieSceneParameterSectionExtender
+class IMovieSceneParameterSectionExtender
 {
 public:
 
 	GENERATED_BODY()
 
-	void ExtendEntity(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity);
+	MOVIESCENETRACKS_API void ExtendEntity(UMovieSceneParameterSection* Section, UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity);
 
 private:
 
@@ -158,7 +158,7 @@ struct FTransformParameterNameAndValue
  * Structure representing an bool  parameter and it's associated animation curve.
  */
 USTRUCT()
-struct MOVIESCENETRACKS_API FBoolParameterNameAndCurve
+struct FBoolParameterNameAndCurve
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -166,7 +166,7 @@ struct MOVIESCENETRACKS_API FBoolParameterNameAndCurve
 	{}
 
 	/** Creates a new FScalarParameterNameAndCurve for a specific scalar parameter. */
-	FBoolParameterNameAndCurve(FName InParameterName);
+	MOVIESCENETRACKS_API FBoolParameterNameAndCurve(FName InParameterName);
 
 	/** The name of the scalar parameter which is being animated. */
 	UPROPERTY()
@@ -181,7 +181,7 @@ struct MOVIESCENETRACKS_API FBoolParameterNameAndCurve
  * Structure representing an animated scalar parameter and it's associated animation curve.
  */
 USTRUCT()
-struct MOVIESCENETRACKS_API FScalarParameterNameAndCurve
+struct FScalarParameterNameAndCurve
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -189,7 +189,7 @@ struct MOVIESCENETRACKS_API FScalarParameterNameAndCurve
 	{}
 
 	/** Creates a new FScalarParameterNameAndCurve for a specific scalar parameter. */
-	FScalarParameterNameAndCurve(FName InParameterName);
+	MOVIESCENETRACKS_API FScalarParameterNameAndCurve(FName InParameterName);
 
 	/** The name of the scalar parameter which is being animated. */
 	UPROPERTY()
@@ -204,7 +204,7 @@ struct MOVIESCENETRACKS_API FScalarParameterNameAndCurve
  * Structure representing an animated vector2D parameter and it's associated animation curve.
  */
 USTRUCT()
-struct MOVIESCENETRACKS_API FVector2DParameterNameAndCurves
+struct FVector2DParameterNameAndCurves
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -212,7 +212,7 @@ struct MOVIESCENETRACKS_API FVector2DParameterNameAndCurves
 	{}
 
 	/** Creates a new FVectorParameterNameAndCurve for a specific vector parameter. */
-	FVector2DParameterNameAndCurves(FName InParameterName);
+	MOVIESCENETRACKS_API FVector2DParameterNameAndCurves(FName InParameterName);
 
 	/** The name of the vector parameter which is being animated. */
 	UPROPERTY()
@@ -233,7 +233,7 @@ struct MOVIESCENETRACKS_API FVector2DParameterNameAndCurves
  * Structure representing an animated vector parameter and it's associated animation curve.
  */
 USTRUCT()
-struct MOVIESCENETRACKS_API FVectorParameterNameAndCurves
+struct FVectorParameterNameAndCurves
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -241,7 +241,7 @@ struct MOVIESCENETRACKS_API FVectorParameterNameAndCurves
 	{}
 
 	/** Creates a new FVectorParameterNameAndCurve for a specific vector parameter. */
-	FVectorParameterNameAndCurves(FName InParameterName);
+	MOVIESCENETRACKS_API FVectorParameterNameAndCurves(FName InParameterName);
 
 	/** The name of the vector parameter which is being animated. */
 	UPROPERTY()
@@ -265,7 +265,7 @@ struct MOVIESCENETRACKS_API FVectorParameterNameAndCurves
 * Structure representing an animated color parameter and it's associated animation curve.
 */
 USTRUCT()
-struct MOVIESCENETRACKS_API FColorParameterNameAndCurves
+struct FColorParameterNameAndCurves
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -273,7 +273,7 @@ struct MOVIESCENETRACKS_API FColorParameterNameAndCurves
 	{}
 
 	/** Creates a new FVectorParameterNameAndCurve for a specific color parameter. */
-	FColorParameterNameAndCurves(FName InParameterName);
+	MOVIESCENETRACKS_API FColorParameterNameAndCurves(FName InParameterName);
 
 	/** The name of the color parameter which is being animated. */
 	UPROPERTY()
@@ -300,7 +300,7 @@ struct MOVIESCENETRACKS_API FColorParameterNameAndCurves
 * Structure representing an animated transform parameter and it's associated animation curve.
 */
 USTRUCT()
-struct MOVIESCENETRACKS_API FTransformParameterNameAndCurves
+struct FTransformParameterNameAndCurves
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -308,7 +308,7 @@ struct MOVIESCENETRACKS_API FTransformParameterNameAndCurves
 	{}
 
 	/** Creates a new FVectorParameterNameAndCurve for a specific color parameter. */
-	FTransformParameterNameAndCurves(FName InParameterName);
+	MOVIESCENETRACKS_API FTransformParameterNameAndCurves(FName InParameterName);
 
 	/** The name of the transform  parameter which is being animated. */
 	UPROPERTY()
@@ -329,8 +329,8 @@ struct MOVIESCENETRACKS_API FTransformParameterNameAndCurves
 /**
  * A single movie scene section which can contain data for multiple named parameters.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneParameterSection
+UCLASS(MinimalAPI)
+class UMovieSceneParameterSection
 	: public UMovieSceneSection
 	, public IMovieSceneEntityProvider
 {
@@ -339,27 +339,27 @@ class MOVIESCENETRACKS_API UMovieSceneParameterSection
 public:
 	/** Adds a a key for a specific scalar parameter at the specified time with the specified value. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void AddScalarParameterKey(FName InParameterName, FFrameNumber InTime, float InValue);
+	MOVIESCENETRACKS_API void AddScalarParameterKey(FName InParameterName, FFrameNumber InTime, float InValue);
 
 	/** Adds a a key for a specific bool parameter at the specified time with the specified value. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void AddBoolParameterKey(FName InParameterName, FFrameNumber InTime, bool InValue);
+	MOVIESCENETRACKS_API void AddBoolParameterKey(FName InParameterName, FFrameNumber InTime, bool InValue);
 
 	/** Adds a a key for a specific vector2D parameter at the specified time with the specified value. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void AddVector2DParameterKey(FName InParameterName, FFrameNumber InTime, FVector2D InValue);
+	MOVIESCENETRACKS_API void AddVector2DParameterKey(FName InParameterName, FFrameNumber InTime, FVector2D InValue);
 
 	/** Adds a a key for a specific vector parameter at the specified time with the specified value. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void AddVectorParameterKey(FName InParameterName, FFrameNumber InTime, FVector InValue);
+	MOVIESCENETRACKS_API void AddVectorParameterKey(FName InParameterName, FFrameNumber InTime, FVector InValue);
 
 	/** Adds a a key for a specific color parameter at the specified time with the specified value. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void AddColorParameterKey(FName InParameterName, FFrameNumber InTime, FLinearColor InValue);
+	MOVIESCENETRACKS_API void AddColorParameterKey(FName InParameterName, FFrameNumber InTime, FLinearColor InValue);
 
 	/** Adds a a key for a specific color parameter at the specified time with the specified value. */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void AddTransformParameterKey(FName InParameterName, FFrameNumber InTime, const FTransform& InValue);
+	MOVIESCENETRACKS_API void AddTransformParameterKey(FName InParameterName, FFrameNumber InTime, const FTransform& InValue);
 
 	/** 
 	 * Removes a scalar parameter from this section. 
@@ -368,7 +368,7 @@ public:
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	bool RemoveScalarParameter(FName InParameterName);
+	MOVIESCENETRACKS_API bool RemoveScalarParameter(FName InParameterName);
 
 	/**
 	 * Removes a bool parameter from this section.
@@ -377,7 +377,7 @@ public:
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	bool RemoveBoolParameter(FName InParameterName);
+	MOVIESCENETRACKS_API bool RemoveBoolParameter(FName InParameterName);
 
 	/**
 	 * Removes a vector2D parameter from this section.
@@ -386,7 +386,7 @@ public:
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	bool RemoveVector2DParameter(FName InParameterName);
+	MOVIESCENETRACKS_API bool RemoveVector2DParameter(FName InParameterName);
 
 	/**
      * Removes a vector parameter from this section.
@@ -395,7 +395,7 @@ public:
     * @returns True if a parameter with that name was found and removed, otherwise false.
     */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	bool RemoveVectorParameter(FName InParameterName);
+	MOVIESCENETRACKS_API bool RemoveVectorParameter(FName InParameterName);
 
 	/**
 	 * Removes a color parameter from this section.
@@ -404,7 +404,7 @@ public:
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	bool RemoveColorParameter(FName InParameterName);
+	MOVIESCENETRACKS_API bool RemoveColorParameter(FName InParameterName);
 
 	/**
 	 * Removes a transform parameter from this section.
@@ -413,47 +413,47 @@ public:
 	 * @returns True if a parameter with that name was found and removed, otherwise false.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	bool RemoveTransformParameter(FName InParameterName);
+	MOVIESCENETRACKS_API bool RemoveTransformParameter(FName InParameterName);
 
 	/** Gets the animated scalar parameters and their associated curves. */
-	TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves();
-	const TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves() const;
+	MOVIESCENETRACKS_API TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves();
+	MOVIESCENETRACKS_API const TArray<FScalarParameterNameAndCurve>& GetScalarParameterNamesAndCurves() const;
 
 	/** Gets the animated bool parameters and their associated curves. */
-	TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves();
-	const TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves() const;
+	MOVIESCENETRACKS_API TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves();
+	MOVIESCENETRACKS_API const TArray<FBoolParameterNameAndCurve>& GetBoolParameterNamesAndCurves() const;
 
 	/** Gets the animated vector2D parameters and their associated curves. */
-	TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves();
-	const TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves() const;
+	MOVIESCENETRACKS_API TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves();
+	MOVIESCENETRACKS_API const TArray<FVector2DParameterNameAndCurves>& GetVector2DParameterNamesAndCurves() const;
 
 	/** Gets the animated vector parameters and their associated curves. */
-	TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves();
-	const TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves() const;
+	MOVIESCENETRACKS_API TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves();
+	MOVIESCENETRACKS_API const TArray<FVectorParameterNameAndCurves>& GetVectorParameterNamesAndCurves() const;
 
 	/** Gets the animated color parameters and their associated curves. */
-	TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves();
-	const TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves() const;
+	MOVIESCENETRACKS_API TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves();
+	MOVIESCENETRACKS_API const TArray<FColorParameterNameAndCurves>& GetColorParameterNamesAndCurves() const;
 
 	/** Gets the animated transform parameters and their associated curves. */
-	TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves();
-    const TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves() const;
+	MOVIESCENETRACKS_API TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves();
+    MOVIESCENETRACKS_API const TArray<FTransformParameterNameAndCurves>& GetTransformParameterNamesAndCurves() const;
 
 	/** Gets the set of all parameter names used by this section. */
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
-	void GetParameterNames(TSet<FName>& ParameterNames) const;
+	MOVIESCENETRACKS_API void GetParameterNames(TSet<FName>& ParameterNames) const;
 
-	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
-	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+	MOVIESCENETRACKS_API virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	MOVIESCENETRACKS_API virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 
-	void ExternalPopulateEvaluationField(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
+	MOVIESCENETRACKS_API void ExternalPopulateEvaluationField(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
 
 protected:
 
 	//~ UMovieSceneSection interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostEditImport() override;
-	virtual void ReconstructChannelProxy();
+	MOVIESCENETRACKS_API virtual void Serialize(FArchive& Ar) override;
+	MOVIESCENETRACKS_API virtual void PostEditImport() override;
+	MOVIESCENETRACKS_API virtual void ReconstructChannelProxy();
 
 protected:
 	/** The bool parameter names and their associated curves. */

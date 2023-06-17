@@ -13,27 +13,27 @@
 class SWindowTitleBarArea;
 
 /** The Slot for the UWindowTitleBarArea */
-UCLASS()
-class UMG_API UWindowTitleBarAreaSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class UWindowTitleBarAreaSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|WindowTitleBarArea Slot")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	EHorizontalAlignment GetHorizontalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|WindowTitleBarArea Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
 
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Layout|WindowTitleBarArea Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 protected:
 
@@ -55,13 +55,13 @@ protected:
 public:
 
 	//~ UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
 	/** Builds the underlying FSlot for the Slate layout panel. */
-	void BuildSlot(TSharedRef<SWindowTitleBarArea> WindowTitleBarArea);
+	UMG_API void BuildSlot(TSharedRef<SWindowTitleBarArea> WindowTitleBarArea);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 private:
 

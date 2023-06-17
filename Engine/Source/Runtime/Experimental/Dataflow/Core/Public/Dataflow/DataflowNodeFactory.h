@@ -13,13 +13,13 @@ struct FDataflowConnection;
 namespace Dataflow
 {
 
-	struct DATAFLOWCORE_API FNewNodeParameters {
+	struct FNewNodeParameters {
 		FGuid Guid;
 		FName Type;
 		FName Name;
 	};
 
-	struct DATAFLOWCORE_API FFactoryParameters {
+	struct FFactoryParameters {
 		FFactoryParameters() {}
 		FFactoryParameters(FName InTypeName, FName InDisplayName, FName InCategory, FString InTags, FString InToolTip)
 		: TypeName(InTypeName), DisplayName(InDisplayName), Category(InCategory), Tags(InTags), ToolTip(InToolTip) {}

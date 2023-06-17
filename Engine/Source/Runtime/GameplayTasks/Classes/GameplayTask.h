@@ -42,7 +42,7 @@ enum class ETaskResourceOverlapPolicy : uint8
 };
 	
 USTRUCT(BlueprintType)
-struct GAMEPLAYTASKS_API FGameplayResourceSet
+struct FGameplayResourceSet
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -138,11 +138,11 @@ public:
 		return FGameplayResourceSet(FFlagContainer(0));
 	}
 
-	FString GetDebugDescription() const;
+	GAMEPLAYTASKS_API FString GetDebugDescription() const;
 };
 
-UCLASS(Abstract, BlueprintType, meta = (ExposedAsyncProxy=AsyncTask), config = Game)
-class GAMEPLAYTASKS_API UGameplayTask : public UObject, public IGameplayTaskOwnerInterface
+UCLASS(Abstract, BlueprintType, meta = (ExposedAsyncProxy=AsyncTask), config = Game, MinimalAPI)
+class UGameplayTask : public UObject, public IGameplayTaskOwnerInterface
 {
 	GENERATED_BODY()
 
@@ -150,46 +150,46 @@ public:
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FGenericGameplayTaskDelegate);
 
-	UGameplayTask(const FObjectInitializer& ObjectInitializer);
+	GAMEPLAYTASKS_API UGameplayTask(const FObjectInitializer& ObjectInitializer);
 	
 	/** Called to trigger the actual task once the delegates have been set up */
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true"), Category = "Gameplay Tasks")
-	void ReadyForActivation();
+	GAMEPLAYTASKS_API void ReadyForActivation();
 
 protected:
 	/** Called to trigger the actual task once the delegates have been set up
 	 *	Note that the default implementation does nothing and you don't have to call it */
-	virtual void Activate();
+	GAMEPLAYTASKS_API virtual void Activate();
 
 	/** Initializes the task with the task owner interface instance but does not activate until Activate() is called */
-	void InitTask(IGameplayTaskOwnerInterface& InTaskOwner, uint8 InPriority);
+	GAMEPLAYTASKS_API void InitTask(IGameplayTaskOwnerInterface& InTaskOwner, uint8 InPriority);
 
 public:
-	virtual void InitSimulatedTask(UGameplayTasksComponent& InGameplayTasksComponent);
+	GAMEPLAYTASKS_API virtual void InitSimulatedTask(UGameplayTasksComponent& InGameplayTasksComponent);
 
 	/** Tick function for this task, if bTickingTask == true */
 	virtual void TickTask(float DeltaTime) {}
 
 	/** Called when the task is asked to confirm from an outside node. What this means depends on the individual task. By default, this does nothing other than ending if bEndTask is true. */
-	virtual void ExternalConfirm(bool bEndTask);
+	GAMEPLAYTASKS_API virtual void ExternalConfirm(bool bEndTask);
 
 	/** Called when the task is asked to cancel from an outside node. What this means depends on the individual task. By default, this does nothing other than ending the task. */
-	virtual void ExternalCancel();
+	GAMEPLAYTASKS_API virtual void ExternalCancel();
 
 	/** Called when a task owner wants to inform the task that it's done and don't want to get notified on task deactivation (i.e. OnGameplayTaskDeactivated). */
 	void MarkOwnerFinished() { bOwnerFinished = true; }
 
 	/** Return debug string describing task */
-	virtual FString GetDebugString() const;
+	GAMEPLAYTASKS_API virtual FString GetDebugString() const;
 
 	/** Helper function for getting UWorld off a task */
-	virtual UWorld* GetWorld() const override;
+	GAMEPLAYTASKS_API virtual UWorld* GetWorld() const override;
 
 	/** Proper way to get the owning actor of task owner. This can be the owner itself since the owner is given as a interface */
-	AActor* GetOwnerActor() const;
+	GAMEPLAYTASKS_API AActor* GetOwnerActor() const;
 
 	/** Proper way to get the avatar actor associated with the task owner (usually a pawn, tower, etc) */
-	AActor* GetAvatarActor() const;
+	GAMEPLAYTASKS_API AActor* GetAvatarActor() const;
 
 	/** Helper function for instantiating and initializing a new task */
 	template <class T>
@@ -219,14 +219,14 @@ public:
 	}
 
 	/** Called when task owner has "ended" (before the task ends) kills the task. Calls OnDestroy. */
-	void TaskOwnerEnded();
+	GAMEPLAYTASKS_API void TaskOwnerEnded();
 
 	/** Called explicitly to end the task (usually by the task itself). Calls OnDestroy. 
 	 *	@NOTE: you need to call EndTask before sending out any "on completed" delegates. 
 	 *	If you don't the task will still be in an "active" state while the event receivers may
 	 *	assume it's already "finished" */
 	UFUNCTION(BlueprintCallable, Category="GameplayTasks")
-	void EndTask();
+	GAMEPLAYTASKS_API void EndTask();
 	
 	virtual bool IsSupportedForNetworking() const override { return bSimulatedTask; }
 
@@ -270,15 +270,15 @@ public:
 	 *	@note: Calling this function makes sense only until the task is being passed over to the GameplayTasksComponent.
 	 *	Once that's that resources data is consumed and further changes won't get applied 
 	 */
-	void AddRequiredResource(TSubclassOf<UGameplayTaskResource> RequiredResource);
-	void AddRequiredResourceSet(const TArray<TSubclassOf<UGameplayTaskResource> >& RequiredResourceSet);
-	void AddRequiredResourceSet(FGameplayResourceSet RequiredResourceSet);
+	GAMEPLAYTASKS_API void AddRequiredResource(TSubclassOf<UGameplayTaskResource> RequiredResource);
+	GAMEPLAYTASKS_API void AddRequiredResourceSet(const TArray<TSubclassOf<UGameplayTaskResource> >& RequiredResourceSet);
+	GAMEPLAYTASKS_API void AddRequiredResourceSet(FGameplayResourceSet RequiredResourceSet);
 
 	/** 
 	 */
-	void AddClaimedResource(TSubclassOf<UGameplayTaskResource> ClaimedResource);
-	void AddClaimedResourceSet(const TArray<TSubclassOf<UGameplayTaskResource> >& AdditionalResourcesToClaim);
-	void AddClaimedResourceSet(FGameplayResourceSet AdditionalResourcesToClaim);
+	GAMEPLAYTASKS_API void AddClaimedResource(TSubclassOf<UGameplayTaskResource> ClaimedResource);
+	GAMEPLAYTASKS_API void AddClaimedResourceSet(const TArray<TSubclassOf<UGameplayTaskResource> >& AdditionalResourcesToClaim);
+	GAMEPLAYTASKS_API void AddClaimedResourceSet(FGameplayResourceSet AdditionalResourcesToClaim);
 
 	ETaskResourceOverlapPolicy GetResourceOverlapPolicy() const { return ResourceOverlapPolicy; }
 
@@ -292,36 +292,36 @@ protected:
 	 *	IMPORTANT! When overriding this function make sure to call Super::OnDestroy(bOwnerFinished) as the last thing,
 	 *		since the function internally marks the task as "Pending Kill", and this may interfere with internal BP mechanics
 	 */
-	virtual void OnDestroy(bool bInOwnerFinished);
+	GAMEPLAYTASKS_API virtual void OnDestroy(bool bInOwnerFinished);
 
-	static IGameplayTaskOwnerInterface* ConvertToTaskOwner(UObject& OwnerObject);
-	static IGameplayTaskOwnerInterface* ConvertToTaskOwner(AActor& OwnerActor);
+	static GAMEPLAYTASKS_API IGameplayTaskOwnerInterface* ConvertToTaskOwner(UObject& OwnerObject);
+	static GAMEPLAYTASKS_API IGameplayTaskOwnerInterface* ConvertToTaskOwner(AActor& OwnerActor);
 
 	// protected by design. Not meant to be called outside from GameplayTaskComponent mechanics
-	virtual void Pause();
-	virtual void Resume();
+	GAMEPLAYTASKS_API virtual void Pause();
+	GAMEPLAYTASKS_API virtual void Resume();
 
 	// IGameplayTaskOwnerInterface BEGIN
-	virtual UGameplayTasksComponent* GetGameplayTasksComponent(const UGameplayTask& Task) const override;
-	virtual AActor* GetGameplayTaskOwner(const UGameplayTask* Task) const override;
-	virtual AActor* GetGameplayTaskAvatar(const UGameplayTask* Task) const override;
-	virtual uint8 GetGameplayTaskDefaultPriority() const override;
-	virtual void OnGameplayTaskInitialized(UGameplayTask& Task) override;
-	virtual void OnGameplayTaskDeactivated(UGameplayTask& Task) override;
+	GAMEPLAYTASKS_API virtual UGameplayTasksComponent* GetGameplayTasksComponent(const UGameplayTask& Task) const override;
+	GAMEPLAYTASKS_API virtual AActor* GetGameplayTaskOwner(const UGameplayTask* Task) const override;
+	GAMEPLAYTASKS_API virtual AActor* GetGameplayTaskAvatar(const UGameplayTask* Task) const override;
+	GAMEPLAYTASKS_API virtual uint8 GetGameplayTaskDefaultPriority() const override;
+	GAMEPLAYTASKS_API virtual void OnGameplayTaskInitialized(UGameplayTask& Task) override;
+	GAMEPLAYTASKS_API virtual void OnGameplayTaskDeactivated(UGameplayTask& Task) override;
 	// IGameplayTaskOwnerInterface END
 
 #if UE_WITH_IRIS
 	/** Register all replication fragments */
-	virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
+	GAMEPLAYTASKS_API virtual void RegisterReplicationFragments(UE::Net::FFragmentRegistrationContext& Context, UE::Net::EFragmentRegistrationFlags RegistrationFlags) override;
 #endif // UE_WITH_IRIS
 
 private:
 	friend UGameplayTasksComponent;
 
-	void ActivateInTaskQueue();
-	void PauseInTaskQueue();
+	GAMEPLAYTASKS_API void ActivateInTaskQueue();
+	GAMEPLAYTASKS_API void PauseInTaskQueue();
 	
-	void PerformActivation();
+	GAMEPLAYTASKS_API void PerformActivation();
 	
 protected:
 
@@ -388,8 +388,8 @@ public:
 		}
 		return DebugDescription;
 	}
-	virtual FString GenerateDebugDescription() const;
-	FString GetTaskStateName() const;
+	GAMEPLAYTASKS_API virtual FString GenerateDebugDescription() const;
+	GAMEPLAYTASKS_API FString GetTaskStateName() const;
 #endif // WITH_GAMEPLAYTASK_DEBUG
 };
 

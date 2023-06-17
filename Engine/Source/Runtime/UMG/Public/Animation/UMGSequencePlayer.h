@@ -14,31 +14,31 @@
 
 class UWidgetAnimation;
 
-UCLASS(Transient, BlueprintType)
-class UMG_API UUMGSequencePlayer : public UObject, public IMovieScenePlayer
+UCLASS(Transient, BlueprintType, MinimalAPI)
+class UUMGSequencePlayer : public UObject, public IMovieScenePlayer
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	void InitSequencePlayer(UWidgetAnimation& InAnimation, UUserWidget& InUserWidget);
+	UMG_API void InitSequencePlayer(UWidgetAnimation& InAnimation, UUserWidget& InUserWidget);
 
 	/** Updates the running movie */
-	void Tick( float DeltaTime );
+	UMG_API void Tick( float DeltaTime );
 
 	/** Begins playing or restarts an animation */
-	void Play(float StartAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
+	UMG_API void Play(float StartAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
 
 	/** Begins playing or restarts an animation  and plays to the specified end time */
-	void PlayTo(float StartAtTime, float EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
+	UMG_API void PlayTo(float StartAtTime, float EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
 
 	/** Stops a running animation and resets time */
-	void Stop();
+	UMG_API void Stop();
 
 	/** Pauses a running animation */
-	void Pause();
+	UMG_API void Pause();
 
 	/** Reverses a running animation */
-	void Reverse();
+	UMG_API void Reverse();
 
 	void SetCurrentTime(float InTime) { TimeCursorPosition = AnimationResolution.AsFrameTime(InTime); }
 	FQualifiedFrameTime GetCurrentTime() const { return FQualifiedFrameTime(TimeCursorPosition, AnimationResolution); }
@@ -57,10 +57,10 @@ public:
 	}
 
 	/** Sets the number of loops to play */
-	void SetNumLoopsToPlay(int32 InNumLoopsToPlay);
+	UMG_API void SetNumLoopsToPlay(int32 InNumLoopsToPlay);
 
 	/** Sets the animation playback rate */
-	void SetPlaybackSpeed(float PlaybackSpeed);
+	UMG_API void SetPlaybackSpeed(float PlaybackSpeed);
 
 	/** Gets the current time position in the player (in seconds). */
 	bool IsPlayingForward() const { return bIsPlayingForward; }
@@ -70,40 +70,40 @@ public:
 
 	/** IMovieScenePlayer interface */
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootTemplateInstance; }
-	virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
+	UMG_API virtual UMovieSceneEntitySystemLinker* ConstructEntitySystemLinker() override;
 	virtual UObject* AsUObject() override { return this; }
 	virtual void UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams) override {}
 	virtual void SetViewportSettings(const TMap<FViewportClient*, EMovieSceneViewportParams>& ViewportParamsMap) override {}
 	virtual void GetViewportSettings(TMap<FViewportClient*, EMovieSceneViewportParams>& ViewportParamsMap) const override {}
-	virtual EMovieScenePlayerStatus::Type GetPlaybackStatus() const override;
-	virtual UObject* GetPlaybackContext() const override;
-	virtual TArray<UObject*> GetEventContexts() const override;
-	virtual void SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus) override;
-	virtual void PopulateUpdateFlags(UE::MovieScene::ESequenceInstanceUpdateFlags& OutFlags) override;
+	UMG_API virtual EMovieScenePlayerStatus::Type GetPlaybackStatus() const override;
+	UMG_API virtual UObject* GetPlaybackContext() const override;
+	UMG_API virtual TArray<UObject*> GetEventContexts() const override;
+	UMG_API virtual void SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatus) override;
+	UMG_API virtual void PopulateUpdateFlags(UE::MovieScene::ESequenceInstanceUpdateFlags& OutFlags) override;
 
 	/** UObject interface */
-	virtual void BeginDestroy() override;
+	UMG_API virtual void BeginDestroy() override;
 
 	/** Disable this sequence player by removing any of its animation data from the entity manager */
-	void RemoveEvaluationData();
+	UMG_API void RemoveEvaluationData();
 
-	void TearDown();
+	UMG_API void TearDown();
 
 	DECLARE_EVENT_OneParam(UUMGSequencePlayer, FOnSequenceFinishedPlaying, UUMGSequencePlayer&);
 	FOnSequenceFinishedPlaying& OnSequenceFinishedPlaying() { return OnSequenceFinishedPlayingEvent; }
 
 private:
 	/** Internal play function with a verbose parameter set */
-	void PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
+	UMG_API void PlayInternal(double StartAtTime, double EndAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode, float InPlaybackSpeed, bool bRestoreState);
 
 	/** Internal update function */
-	void UpdateInternal(FFrameTime LastTimePosition, FFrameTime NextTimePosition, bool bHasJumped);
+	UMG_API void UpdateInternal(FFrameTime LastTimePosition, FFrameTime NextTimePosition, bool bHasJumped);
 
-	bool NeedsQueueLatentAction() const;
-	void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
-	void ApplyLatentActions();
+	UMG_API bool NeedsQueueLatentAction() const;
+	UMG_API void QueueLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate);
+	UMG_API void ApplyLatentActions();
 
-	void HandleLatentStop();
+	UMG_API void HandleLatentStop();
 
 	/** Animation being played */
 	UPROPERTY()

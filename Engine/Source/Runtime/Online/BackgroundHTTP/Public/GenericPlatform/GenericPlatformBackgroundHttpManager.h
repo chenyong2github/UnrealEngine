@@ -10,10 +10,10 @@
 /**
  * Manages Background Http request that are currently being processed if no platform specific implementation has been made. 
  */
-class BACKGROUNDHTTP_API FGenericPlatformBackgroundHttpManager
+class FGenericPlatformBackgroundHttpManager
 	: public FBackgroundHttpManagerImpl
 {
 public:
 	virtual bool IsGenericImplementation() const override { return true; }
-	virtual ~FGenericPlatformBackgroundHttpManager();
+	BACKGROUNDHTTP_API virtual ~FGenericPlatformBackgroundHttpManager();
 };

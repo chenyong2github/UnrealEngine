@@ -17,7 +17,7 @@ class ILiveLinkClient;
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 USTRUCT(BlueprintInternalUseOnly)
-struct LIVELINKANIMATIONCORE_API FAnimNode_LiveLinkPose : public FAnimNode_Base
+struct FAnimNode_LiveLinkPose : public FAnimNode_Base
 {
 	GENERATED_BODY()
 
@@ -41,22 +41,22 @@ public:
 	TObjectPtr<ULiveLinkRetargetAsset> CurrentRetargetAsset;
 
 public:
-	FAnimNode_LiveLinkPose();
+	LIVELINKANIMATIONCORE_API FAnimNode_LiveLinkPose();
 
 	//~ FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext & Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	LIVELINKANIMATIONCORE_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	LIVELINKANIMATIONCORE_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext & Context) override;
+	LIVELINKANIMATIONCORE_API virtual void Update_AnyThread(const FAnimationUpdateContext & Context) override;
+	LIVELINKANIMATIONCORE_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	virtual bool HasPreUpdate() const { return true; }
-	virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	LIVELINKANIMATIONCORE_API virtual void PreUpdate(const UAnimInstance* InAnimInstance) override;
+	LIVELINKANIMATIONCORE_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	//~ End of FAnimNode_Base interface
 
-	bool Serialize(FArchive& Ar);
+	LIVELINKANIMATIONCORE_API bool Serialize(FArchive& Ar);
 
 protected:
-	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
+	LIVELINKANIMATIONCORE_API virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 
 private:
 

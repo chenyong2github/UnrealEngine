@@ -105,61 +105,61 @@ public:
  * This class is designed to be a singleton that handles registry, maintenance, and cleanup of any REST endpoints exposed on the process 
  * for use in communicating with the process externally. 
  */
-UCLASS()
-class EXTERNALRPCREGISTRY_API UExternalRpcRegistry : public UObject
+UCLASS(MinimalAPI)
+class UExternalRpcRegistry : public UObject
 {
 	GENERATED_BODY()
 protected:
-	static UExternalRpcRegistry * ObjectInstance;
+	static EXTERNALRPCREGISTRY_API UExternalRpcRegistry * ObjectInstance;
 	TMap<FName, FExternalRouteDesc> RegisteredRoutes;
 	TArray<FString> ActiveRpcCategories;
 public:
-	static UExternalRpcRegistry * GetInstance();
+	static EXTERNALRPCREGISTRY_API UExternalRpcRegistry * GetInstance();
 
-	~UExternalRpcRegistry();
+	EXTERNALRPCREGISTRY_API ~UExternalRpcRegistry();
 
 	int PortToUse = 11223;
 
 	/**
 	* Check if this Rpc is from a category that is meant to be enabled.
 	*/
-	bool IsActiveRpcCategory(FString InCategory);
+	EXTERNALRPCREGISTRY_API bool IsActiveRpcCategory(FString InCategory);
 
 	/**
 	 * Try to get a route registered under given friendly name. Returns false if could not be found.
 	 */
-	bool GetRegisteredRoute(FName RouteName, FExternalRouteInfo& OutRouteInfo);
+	EXTERNALRPCREGISTRY_API bool GetRegisteredRoute(FName RouteName, FExternalRouteInfo& OutRouteInfo);
 
-	void RegisterNewRoute(FExternalRouteInfo InRouteInfo, const FHttpRequestHandler& Handler, bool bOverrideIfBound = false);
+	EXTERNALRPCREGISTRY_API void RegisterNewRoute(FExternalRouteInfo InRouteInfo, const FHttpRequestHandler& Handler, bool bOverrideIfBound = false);
 
 	/**
 	 * Register a new route.
 	 * Will override existing routes if option is set, otherwise will error and fail to bind.
 	 */
-	void RegisterNewRouteWithArguments(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, TArray<FExternalRpcArgumentDesc*> InArguments, bool bOverrideIfBound = false, bool bIsAlwaysOn = false, FString OptionalCategory = TEXT("Unknown"), FString OptionalContentType = TEXT(""));
+	EXTERNALRPCREGISTRY_API void RegisterNewRouteWithArguments(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, TArray<FExternalRpcArgumentDesc*> InArguments, bool bOverrideIfBound = false, bool bIsAlwaysOn = false, FString OptionalCategory = TEXT("Unknown"), FString OptionalContentType = TEXT(""));
 
 	/**
 	* Deprecated way to register a new route.
 	* Will override existing routes if option is set, otherwise will error and fail to bind.
 	 */
 	UE_DEPRECATED(5.0, "RegisterNewRoute is deprecated when needing to add arguments, please use RegisterNewRouteWithArguments instead.")
-	void RegisterNewRoute(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, bool bOverrideIfBound = false, bool bIsAlwaysOn = false, FString OptionalCategory = TEXT("Unknown"), FString OptionalContentType = TEXT(""), FString OptionalExpectedFormat = TEXT(""));
+	EXTERNALRPCREGISTRY_API void RegisterNewRoute(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, bool bOverrideIfBound = false, bool bIsAlwaysOn = false, FString OptionalCategory = TEXT("Unknown"), FString OptionalContentType = TEXT(""), FString OptionalExpectedFormat = TEXT(""));
 
 	/**
 	 * Clean up all routes - generally called as part of the destructor to make sure we don't have any function pointers dangling around.
 	 */
-	void CleanUpAllRoutes();
+	EXTERNALRPCREGISTRY_API void CleanUpAllRoutes();
 
 	/**
 	 * Clean up a route.
 	 * Can be set to fail if trying to unbind an unbound route.
 	 */
-	void CleanUpRoute(FName RouteName, bool bFailIfUnbound = false);
+	EXTERNALRPCREGISTRY_API void CleanUpRoute(FName RouteName, bool bFailIfUnbound = false);
 
 	/**
 	 * Default Route Listing http call. Spits out all registered routes and describes them via a REST API call.
 	 * Always registered at /listrpcs GET by default
 	 */
-	bool HttpListOpenRoutes(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	EXTERNALRPCREGISTRY_API bool HttpListOpenRoutes(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 
 };

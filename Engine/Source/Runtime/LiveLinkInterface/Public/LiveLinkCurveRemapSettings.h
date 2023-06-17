@@ -24,8 +24,8 @@ struct FLiveLinkCurveConversionSettings
 	TMap<FString, FSoftObjectPath> CurveConversionAssetMap;
 };
 
-UCLASS(config=Engine, defaultconfig, meta=(DisplayName="LiveLink"))
-class LIVELINKINTERFACE_API ULiveLinkCurveRemapSettings : public ULiveLinkSourceSettings
+UCLASS(config=Engine, defaultconfig, meta=(DisplayName="LiveLink"), MinimalAPI)
+class ULiveLinkCurveRemapSettings : public ULiveLinkSourceSettings
 {
 public:
 	GENERATED_BODY()
@@ -36,7 +36,7 @@ public:
 #if WITH_EDITOR
 
 	//UObject override so we can change this setting when changed in editor
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	LIVELINKINTERFACE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 
 #endif // WITH_EDITOR
 };

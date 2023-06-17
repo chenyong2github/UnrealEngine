@@ -11,23 +11,23 @@
  *
  * To make a widget usable as an entry in a TileView, it must inherit from the IUserObjectListEntry interface.
  */
-UCLASS()
-class UMG_API UTileView : public UListView
+UCLASS(MinimalAPI)
+class UTileView : public UListView
 {
 	GENERATED_BODY()
 
 public:
-	UTileView(const FObjectInitializer& ObjectInitializer);
+	UMG_API UTileView(const FObjectInitializer& ObjectInitializer);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 	/** Sets the height of every tile entry */
 	UFUNCTION(BlueprintCallable, Category = TileView)
-	void SetEntryHeight(float NewHeight);
+	UMG_API void SetEntryHeight(float NewHeight);
 
 	/** Sets the width of every tile entry */
 	UFUNCTION(BlueprintCallable, Category = TileView)
-	void SetEntryWidth(float NewWidth);
+	UMG_API void SetEntryWidth(float NewWidth);
 
 	/** Gets the height of tile entries */
 	UFUNCTION(BlueprintPure, Category = TileView)
@@ -38,11 +38,11 @@ public:
 	float GetEntryWidth() const { return EntryWidth; }
 
 protected:
-	virtual TSharedRef<STableViewBase> RebuildListWidget() override;
-	virtual FMargin GetDesiredEntryPadding(UObject* Item) const override;
+	UMG_API virtual TSharedRef<STableViewBase> RebuildListWidget() override;
+	UMG_API virtual FMargin GetDesiredEntryPadding(UObject* Item) const override;
 
-	float GetTotalEntryHeight() const;
-	float GetTotalEntryWidth() const;
+	UMG_API float GetTotalEntryHeight() const;
+	UMG_API float GetTotalEntryWidth() const;
 
 	/** STileView construction helper - useful if using a custom STileView subclass */
 	template <template<typename> class TileViewT = STileView>
@@ -82,7 +82,7 @@ protected:
 private:
 	/** Returns whether the TileView is left, right or center aligned. */
 	UFUNCTION()
-	bool IsAligned() const;
+	UMG_API bool IsAligned() const;
 
 protected:
 	/** The height of each tile */

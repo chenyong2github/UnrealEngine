@@ -188,8 +188,8 @@ namespace MovieScene
 } // namespace UE
 
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneValueDecomposer : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneValueDecomposer : public UInterface
 {
 public:
 	GENERATED_BODY()

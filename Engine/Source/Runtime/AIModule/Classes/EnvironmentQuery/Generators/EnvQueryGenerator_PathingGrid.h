@@ -16,8 +16,8 @@
  *  with paths to/from context no further than given limit
  */
 
-UCLASS(meta = (DisplayName = "Points: Pathing Grid"))
-class AIMODULE_API UEnvQueryGenerator_PathingGrid : public UEnvQueryGenerator_SimpleGrid
+UCLASS(meta = (DisplayName = "Points: Pathing Grid"), MinimalAPI)
+class UEnvQueryGenerator_PathingGrid : public UEnvQueryGenerator_SimpleGrid
 {
 	GENERATED_UCLASS_BODY()
 
@@ -33,5 +33,5 @@ class AIMODULE_API UEnvQueryGenerator_PathingGrid : public UEnvQueryGenerator_Si
 	UPROPERTY(EditDefaultsOnly, Category = Pathfinding, AdvancedDisplay)
 	FAIDataProviderFloatValue ScanRangeMultiplier;
 
-	virtual void ProjectAndFilterNavPoints(TArray<FNavLocation>& Points, FEnvQueryInstance& QueryInstance) const override;
+	AIMODULE_API virtual void ProjectAndFilterNavPoints(TArray<FNavLocation>& Points, FEnvQueryInstance& QueryInstance) const override;
 };

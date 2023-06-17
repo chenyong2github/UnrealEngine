@@ -10,8 +10,8 @@
 #include "FrameGrabberProtocol.generated.h"
 
 
-UCLASS(Abstract, config=EditorPerProjectUserSettings)
-class MOVIESCENECAPTURE_API UFrameGrabberProtocol : public UMovieSceneImageCaptureProtocolBase
+UCLASS(Abstract, config=EditorPerProjectUserSettings, MinimalAPI)
+class UFrameGrabberProtocol : public UMovieSceneImageCaptureProtocolBase
 {
 public:
 
@@ -32,12 +32,12 @@ public:
 protected:
 
 	/**~ UMovieSceneCaptureProtocolBase Implementation */
-	virtual bool HasFinishedProcessingImpl() const override;
-	virtual bool SetupImpl() override;
-	virtual void CaptureFrameImpl(const FFrameMetrics& FrameMetrics);
-	virtual void TickImpl() override;
-	virtual void BeginFinalizeImpl() override;
-	virtual void FinalizeImpl() override;
+	MOVIESCENECAPTURE_API virtual bool HasFinishedProcessingImpl() const override;
+	MOVIESCENECAPTURE_API virtual bool SetupImpl() override;
+	MOVIESCENECAPTURE_API virtual void CaptureFrameImpl(const FFrameMetrics& FrameMetrics);
+	MOVIESCENECAPTURE_API virtual void TickImpl() override;
+	MOVIESCENECAPTURE_API virtual void BeginFinalizeImpl() override;
+	MOVIESCENECAPTURE_API virtual void FinalizeImpl() override;
 	/**~ End UMovieSceneCaptureProtocolBase Implementation */
 
 protected:
@@ -51,14 +51,14 @@ protected:
 
 	 * @return Shared pointer to a payload to associate with the frame, or nullptr
 	 */
-	virtual FFramePayloadPtr GetFramePayload(const FFrameMetrics& FrameMetrics) PURE_VIRTUAL(UFrameGrabberProtocol::GetFramePayload, return nullptr;)
+	MOVIESCENECAPTURE_API virtual FFramePayloadPtr GetFramePayload(const FFrameMetrics& FrameMetrics) PURE_VIRTUAL(UFrameGrabberProtocol::GetFramePayload, return nullptr;)
 
 	/**
 	 * Process a captured frame. This may be called on any thread.
 	 *
 	 * @param Frame			The captured frame data, including any payload retrieved from GetFramePayload
 	 */
-	virtual void ProcessFrame(FCapturedFrameData Frame) PURE_VIRTUAL(UFrameGrabberProtocol::ProcessFrame,)
+	MOVIESCENECAPTURE_API virtual void ProcessFrame(FCapturedFrameData Frame) PURE_VIRTUAL(UFrameGrabberProtocol::ProcessFrame,)
 
 private:
 

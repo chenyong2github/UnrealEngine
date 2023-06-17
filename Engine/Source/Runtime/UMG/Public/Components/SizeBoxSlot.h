@@ -13,8 +13,8 @@
 class SBox;
 
 /** The Slot for the USizeBoxSlot, contains the widget displayed in a button's single slot */
-UCLASS()
-class UMG_API USizeBoxSlot : public UPanelSlot
+UCLASS(MinimalAPI)
+class USizeBoxSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
 
@@ -41,29 +41,29 @@ public:
 
 public:
 
-	FMargin GetPadding() const;
+	UMG_API FMargin GetPadding() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|SizeBox Slot")
-	void SetPadding(FMargin InPadding);
+	UMG_API void SetPadding(FMargin InPadding);
 
-	EHorizontalAlignment GetHorizontalAlignment() const;
-
-	UFUNCTION(BlueprintCallable, Category="Layout|SizeBox Slot")
-	void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
-
-	EVerticalAlignment GetVerticalAlignment() const;
+	UMG_API EHorizontalAlignment GetHorizontalAlignment() const;
 
 	UFUNCTION(BlueprintCallable, Category="Layout|SizeBox Slot")
-	void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
+	UMG_API void SetHorizontalAlignment(EHorizontalAlignment InHorizontalAlignment);
+
+	UMG_API EVerticalAlignment GetVerticalAlignment() const;
+
+	UFUNCTION(BlueprintCallable, Category="Layout|SizeBox Slot")
+	UMG_API void SetVerticalAlignment(EVerticalAlignment InVerticalAlignment);
 
 public:
 
 	//~ UPanelSlot interface
-	virtual void SynchronizeProperties() override;
+	UMG_API virtual void SynchronizeProperties() override;
 	//~ End of UPanelSlot interface
 
 	/** Builds the underlying slot for the slate SizeBox. */
-	void BuildSlot(TSharedRef<SBox> InSizeBox);
+	UMG_API void BuildSlot(TSharedRef<SBox> InSizeBox);
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 };

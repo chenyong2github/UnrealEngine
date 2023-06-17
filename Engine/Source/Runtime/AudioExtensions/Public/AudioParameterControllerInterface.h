@@ -21,14 +21,14 @@ struct FAudioParameter;
 struct FFrame;
 
 
-UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
-class AUDIOEXTENSIONS_API UAudioParameterControllerInterface : public UInterface
+UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint), MinimalAPI)
+class UAudioParameterControllerInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
 // Base interface for any object implementing parameter control for a given sound instance controller.
-class AUDIOEXTENSIONS_API IAudioParameterControllerInterface : public IInterface
+class IAudioParameterControllerInterface : public IInterface
 {
 	GENERATED_IINTERFACE_BODY()
 

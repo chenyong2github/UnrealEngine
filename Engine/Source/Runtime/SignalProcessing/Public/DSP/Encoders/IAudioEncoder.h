@@ -12,7 +12,7 @@ namespace Audio
 	* IAudioEncoder
 	* Interface used to implement a runtime audio encoder.
 	*/
-	class SIGNALPROCESSING_API IAudioEncoder
+	class IAudioEncoder
 	{
 	public:
 		/**
@@ -20,8 +20,8 @@ namespace Audio
 		 * Optionally, DataBufferSlack can be called with a different value
 		 * depending on how often PushAudio, EncodeIfPossible, or PopData will be called.
 		 */
-		IAudioEncoder(uint32 AudioBufferSlack, uint32 DataBufferSlack = 4096);
-		virtual ~IAudioEncoder();
+		SIGNALPROCESSING_API IAudioEncoder(uint32 AudioBufferSlack, uint32 DataBufferSlack = 4096);
+		SIGNALPROCESSING_API virtual ~IAudioEncoder();
 
 		/**
 		 * Call this function when audio is available. 
@@ -29,14 +29,14 @@ namespace Audio
 		 * Call this function with bEncodeIfPossible set to false.
 		 * Returns true if audio was successfully pushed, false, if the internal buffer is full.
 		 */
-		bool PushAudio(const float* InBuffer, int32 NumSamples, bool bEncodeIfPossible = true);
+		SIGNALPROCESSING_API bool PushAudio(const float* InBuffer, int32 NumSamples, bool bEncodeIfPossible = true);
 
 		/**
 		 * Pop compressed data. If you are using this encoder for streaming over network,
 		 * use the size returned by GetCompressedPacketSize().
 		 * Returns number of bytes written.
 		 */
-		int32 PopData(uint8* OutData, int32 DataSize);
+		SIGNALPROCESSING_API int32 PopData(uint8* OutData, int32 DataSize);
 
 		/**
 		 * Used for internet streaming. Should return the amount of bytes required for a self contained packet.
@@ -47,20 +47,20 @@ namespace Audio
 		 * If you'd like to run audio encoding on a separate thread, use this call.
 		 * Otherwise, ensure that bEncodeIfPossible is set to true when you call PushAudio.
 		 */
-		bool EncodeIfPossible();
+		SIGNALPROCESSING_API bool EncodeIfPossible();
 
 		/**
 		 * Call this once you are finished pushing audio.
 		 * Returns the amount of bytes left to pop if positive, and if negative indicates a failiure.
 		 */
-		int64 Finalize();
+		SIGNALPROCESSING_API int64 Finalize();
 
 	protected:
 		/**
 		 * Should be called in the constructor of any implementation of IAudioEncoder.
 		 * Calls StartFile if necessary.
 		 */
-		void Init(const FSoundQualityInfo& InQualityInfo);
+		SIGNALPROCESSING_API void Init(const FSoundQualityInfo& InQualityInfo);
 
 		/**
 		 * How many samples of decoded audio that are required for a single compression operation.
@@ -87,7 +87,7 @@ namespace Audio
 		virtual bool EndFile(TArray<uint8>& OutBytes) = 0;
 
 	private:
-		IAudioEncoder();
+		SIGNALPROCESSING_API IAudioEncoder();
 
 		TArray<float> CurrentAudioBuffer;
 		TArray<uint8> CurrentCompressedBuffer;

@@ -15,21 +15,21 @@ class FMaterialRenderProxy;
  * Simple object intended to be used as part of 3D Gizmos.
  * Draws a thick arc based on parameters.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementArc : public UGizmoElementCircleBase
+UCLASS(Transient, MinimalAPI)
+class UGizmoElementArc : public UGizmoElementCircleBase
 {
 	GENERATED_BODY()
 
 public:
 
 	//~ Begin UGizmoElementBase Interface.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	//~ End UGizmoElementBase Interface.
 
 	// Inner circle radius.
-	virtual void SetInnerRadius(double InInnerRadius);
-	virtual double GetInnerRadius() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetInnerRadius(double InInnerRadius);
+	INTERACTIVETOOLSFRAMEWORK_API virtual double GetInnerRadius() const;
 
 protected:
 

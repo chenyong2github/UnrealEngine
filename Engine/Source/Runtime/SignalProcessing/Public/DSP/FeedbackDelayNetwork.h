@@ -11,7 +11,7 @@
 namespace Audio
 {
 	// Delay settings of 4 channel feedback delay network
-	struct SIGNALPROCESSING_API FFDNDelaySettings
+	struct FFDNDelaySettings
 	{
 		// Number of samples for delay line 0
 		int32 APF0DelayNumSamples;
@@ -23,13 +23,13 @@ namespace Audio
 		int32 APF3DelayNumSamples;
 		
 		// Default delay line settings for left channel.
-		static FFDNDelaySettings DefaultLeftDelays(float InSampleRate);
+		static SIGNALPROCESSING_API FFDNDelaySettings DefaultLeftDelays(float InSampleRate);
 		// Default delay line settings for right channel. 
-		static FFDNDelaySettings DefaultRightDelays(float InSampleRate);
+		static SIGNALPROCESSING_API FFDNDelaySettings DefaultRightDelays(float InSampleRate);
 	};
 
 	// Filter coefficients of 4 channel feedback delay network.
-	struct SIGNALPROCESSING_API FFDNCoefficients
+	struct FFDNCoefficients
 	{
 		// Sample multiplier of input samples before they enter the delay line.
 		float InputScale;
@@ -44,26 +44,26 @@ namespace Audio
 	};
 
 	// 4 channel feedback delay network (FDN) for artificial reverberation.
-	class SIGNALPROCESSING_API FFeedbackDelayNetwork
+	class FFeedbackDelayNetwork
 	{
 	public:
 		// InMaxNumInternalBufferSamples controls the internal buffer size used for vector operations. 
 		// InSettings controls the delay line lengths.
-		FFeedbackDelayNetwork(int32 InMaxNumInternalBufferSamples, const FFDNDelaySettings& InSettings);
+		SIGNALPROCESSING_API FFeedbackDelayNetwork(int32 InMaxNumInternalBufferSamples, const FFDNDelaySettings& InSettings);
 
-		~FFeedbackDelayNetwork();
+		SIGNALPROCESSING_API ~FFeedbackDelayNetwork();
 
 		// Sets the coefficient values of the all pass filters, low pass filters, input scalers and feedback scalers.
-		void SetCoefficients(const FFDNCoefficients& InCoefficients);
+		SIGNALPROCESSING_API void SetCoefficients(const FFDNCoefficients& InCoefficients);
 
 		// Generates artificial reverberation for InSamples and places results in OutSamples.
-		void ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples);
+		SIGNALPROCESSING_API void ProcessAudio(const FAlignedFloatBuffer& InSamples, FAlignedFloatBuffer& OutSamples);
 
 		// Sets internal audio samples to silence. 
-		void FlushAudio();
+		SIGNALPROCESSING_API void FlushAudio();
 
 		// Returns the actual number of samples in an internal buffer.
-		int32 GetNumInternalBufferSamples() const;
+		SIGNALPROCESSING_API int32 GetNumInternalBufferSamples() const;
 
 
 	private:

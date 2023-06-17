@@ -18,11 +18,11 @@ public:
 
 };
 
-class WEBBROWSER_API FWebBrowserAdapterFactory 
+class FWebBrowserAdapterFactory 
 { 
 public: 
 
-	static TSharedRef<IWebBrowserAdapter> Create(const FString& Name, UObject* JSBridge, bool IsPermanent); 
+	static WEBBROWSER_API TSharedRef<IWebBrowserAdapter> Create(const FString& Name, UObject* JSBridge, bool IsPermanent); 
 
-	static TSharedRef<IWebBrowserAdapter> Create(const FString& Name, UObject* JSBridge, bool IsPermanent, const FString& ConnectScriptText, const FString& DisconnectScriptText);
+	static WEBBROWSER_API TSharedRef<IWebBrowserAdapter> Create(const FString& Name, UObject* JSBridge, bool IsPermanent, const FString& ConnectScriptText, const FString& DisconnectScriptText);
 }; 

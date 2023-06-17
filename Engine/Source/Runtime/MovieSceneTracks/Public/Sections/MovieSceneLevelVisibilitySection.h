@@ -27,8 +27,8 @@ enum class ELevelVisibility : uint8
 /**
  * A section for use with the movie scene level visibility track, which controls streamed level visibility.
  */
-UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneLevelVisibilitySection
+UCLASS(MinimalAPI)
+class UMovieSceneLevelVisibilitySection
 	: public UMovieSceneSection
 	, public IMovieSceneEntityProvider
 {
@@ -37,10 +37,10 @@ class MOVIESCENETRACKS_API UMovieSceneLevelVisibilitySection
 public:
 
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
-	ELevelVisibility GetVisibility() const;
+	MOVIESCENETRACKS_API ELevelVisibility GetVisibility() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void SetVisibility(ELevelVisibility InVisibility);
+	MOVIESCENETRACKS_API void SetVisibility(ELevelVisibility InVisibility);
 
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	const TArray<FName>& GetLevelNames() const { return LevelNames; }
@@ -50,7 +50,7 @@ public:
 
 private:
 
-	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	MOVIESCENETRACKS_API virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 private:
 

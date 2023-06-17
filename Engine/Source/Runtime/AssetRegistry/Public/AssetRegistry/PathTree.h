@@ -13,29 +13,29 @@
 
 template <typename FuncType> class TFunctionRef;
 
-class ASSETREGISTRY_API FPathTree
+class FPathTree
 {
 public:
 	/** Adds the specified path to the tree, creating nodes as needed and calling OnPathAdded for any new paths added. Returns true if the specified path was actually added (as opposed to already existed) */
-	bool CachePath(FName Path, TFunctionRef<void(FName)> OnPathAdded);
+	ASSETREGISTRY_API bool CachePath(FName Path, TFunctionRef<void(FName)> OnPathAdded);
 
 	/** Removes the specified path from the tree, calling OnPathRemoved for any existing paths removed. Returns true if the path was found and removed. */
-	bool RemovePath(FName Path, TFunctionRef<void(FName)> OnPathRemoved);
+	ASSETREGISTRY_API bool RemovePath(FName Path, TFunctionRef<void(FName)> OnPathRemoved);
 
 	/** Checks whether the given path is one that we know about */
-	bool PathExists(FName Path) const;
+	ASSETREGISTRY_API bool PathExists(FName Path) const;
 
 	/** Get all of the paths we know about */
-	bool GetAllPaths(TSet<FName>& OutPaths) const;
+	ASSETREGISTRY_API bool GetAllPaths(TSet<FName>& OutPaths) const;
 
 	/** Enumerate all of the paths we know about */
-	void EnumerateAllPaths(TFunctionRef<bool(FName)> Callback) const;
+	ASSETREGISTRY_API void EnumerateAllPaths(TFunctionRef<bool(FName)> Callback) const;
 
 	/** Recursively gathers all child paths from the specified base path relative to this node */
-	bool GetSubPaths(FName BasePath, TSet<FName>& OutPaths, bool bRecurse = true) const;
+	ASSETREGISTRY_API bool GetSubPaths(FName BasePath, TSet<FName>& OutPaths, bool bRecurse = true) const;
 
 	/** Recursively enumerates all child paths from the specified base path relative to this node */
-	bool EnumerateSubPaths(FName BasePath, TFunctionRef<bool(FName)> Callback, bool bRecurse = true) const;
+	ASSETREGISTRY_API bool EnumerateSubPaths(FName BasePath, TFunctionRef<bool(FName)> Callback, bool bRecurse = true) const;
 
 	int32 NumPaths() const
 	{
@@ -55,7 +55,7 @@ public:
 	}
 
 	/** Normalize the given PackagePath (/Game/SubDir) by removing a trailing slash if it exists. */
-	static FName NormalizePackagePath(FName In);
+	static ASSETREGISTRY_API FName NormalizePackagePath(FName In);
 
 private:
 	/** A one-to-many mapping between a parent path and its child paths. */

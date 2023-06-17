@@ -6,7 +6,7 @@
 
 namespace Audio
 {
-	class SIGNALPROCESSING_API ISampleRateConverter
+	class ISampleRateConverter
 	{
 	public:
 		virtual ~ISampleRateConverter() {}
@@ -39,7 +39,7 @@ namespace Audio
 		virtual int32 ProcessChunk(const float* BufferChunk, const int32 NumInputSamples, const int32 RequestedFrames, TArray<float>& OutBuffer) = 0;
 
 		// Creates a new instance
-		static ISampleRateConverter* CreateSampleRateConverter();
+		static SIGNALPROCESSING_API ISampleRateConverter* CreateSampleRateConverter();
 	};
 
 }

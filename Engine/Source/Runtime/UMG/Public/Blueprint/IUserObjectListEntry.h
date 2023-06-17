@@ -9,13 +9,13 @@
  * Required interface for any UUserWidget class to be usable as entry widget in a stock UMG list view - ListView, TileView, and TreeView
  * Provides a change event and getter for the object item the entry is assigned to represent by the owning list view (in addition to functionality from IUserListEntry)
  */
-UINTERFACE()
-class UMG_API UUserObjectListEntry : public UUserListEntry
+UINTERFACE(MinimalAPI)
+class UUserObjectListEntry : public UUserListEntry
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class UMG_API IUserObjectListEntry : public IUserListEntry
+class IUserObjectListEntry : public IUserListEntry
 {
 	GENERATED_IINTERFACE_BODY()
 
@@ -30,22 +30,22 @@ public:
 
 protected:
 	/** Follows the same pattern as the NativeOn[X] methods in UUserWidget - super calls are expected in order to route the event to BP. */
-	virtual void NativeOnListItemObjectSet(UObject* ListItemObject);
+	UMG_API virtual void NativeOnListItemObjectSet(UObject* ListItemObject);
 	
 	/** Called when this entry is assigned a new item object to represent by the owning list view */
 	UFUNCTION(BlueprintImplementableEvent, Category = ObjectListEntry)
-	void OnListItemObjectSet(UObject* ListItemObject);
+	UMG_API void OnListItemObjectSet(UObject* ListItemObject);
 
 private:
-	UObject* GetListItemObjectInternal() const;
+	UMG_API UObject* GetListItemObjectInternal() const;
 	
 	template <typename> friend class SObjectTableRow;
-	static void SetListItemObject(UUserWidget& ListEntryWidget, UObject* ListItemObject);
+	static UMG_API void SetListItemObject(UUserWidget& ListEntryWidget, UObject* ListItemObject);
 };
 
 /** Static library to supply "for free" functionality to widgets that implement IUserListEntry */
-UCLASS()
-class UMG_API UUserObjectListEntryLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UUserObjectListEntryLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -55,5 +55,5 @@ public:
 	 * @param UserObjectListEntry Note: Visually not transmitted, but this defaults to "self". No need to hook up if calling internally.
 	 */
 	UFUNCTION(BlueprintPure, Category = UserObjectListEntry, meta = (DefaultToSelf = UserObjectListEntry))
-	static UObject* GetListItemObject(TScriptInterface<IUserObjectListEntry> UserObjectListEntry);
+	static UMG_API UObject* GetListItemObject(TScriptInterface<IUserObjectListEntry> UserObjectListEntry);
 };

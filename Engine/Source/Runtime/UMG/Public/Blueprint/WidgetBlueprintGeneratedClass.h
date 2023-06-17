@@ -52,14 +52,14 @@ struct FDelegateRuntimeBinding
 
 
 #if WITH_EDITOR
-class UMG_API FWidgetBlueprintGeneratedClassDelegates
+class FWidgetBlueprintGeneratedClassDelegates
 {
 public:
 	// delegate for generating widget asset registry tags.
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FGetAssetTags, const UWidgetBlueprintGeneratedClass*, TArray<UObject::FAssetRegistryTag>&);
 
 	// called by UWidgetBlueprintGeneratedClass::GetAssetRegistryTags()
-	static FGetAssetTags GetAssetTags;
+	static UMG_API FGetAssetTags GetAssetTags;
 };
 #endif
 
@@ -69,14 +69,14 @@ public:
  * to give themselves many of the same capabilities as AActor blueprints, like dynamic delegate binding for
  * widgets.
  */
-UCLASS()
-class UMG_API UWidgetBlueprintGeneratedClass : public UBlueprintGeneratedClass
+UCLASS(MinimalAPI)
+class UWidgetBlueprintGeneratedClass : public UBlueprintGeneratedClass
 {
 	GENERATED_BODY()
 	friend class FWidgetBlueprintCompilerContext;
 
 public:
-	UWidgetBlueprintGeneratedClass();
+	UMG_API UWidgetBlueprintGeneratedClass();
 
 private:
 
@@ -136,32 +136,32 @@ public:
 	
 public:
 	UWidgetTree* GetWidgetTreeArchetype() const { return WidgetTree; }
-	void SetWidgetTreeArchetype(UWidgetTree* InWidgetTree);
+	UMG_API void SetWidgetTreeArchetype(UWidgetTree* InWidgetTree);
 
-	void GetNamedSlotArchetypeContent(TFunctionRef<void(FName /*SlotName*/, UWidget* /*Content*/)> Predicate) const;
+	UMG_API void GetNamedSlotArchetypeContent(TFunctionRef<void(FName /*SlotName*/, UWidget* /*Content*/)> Predicate) const;
 
 	// Walks up the hierarchy looking for a valid widget tree.
-	UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass() const;
+	UMG_API UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass() const;
 
 	//~ Begin UObject interface
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
-	virtual bool NeedsLoadForServer() const override;
+	UMG_API virtual void Serialize(FArchive& Ar) override;
+	UMG_API virtual void PostLoad() override;
+	UMG_API virtual bool NeedsLoadForServer() const override;
 #if WITH_EDITOR
-	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+	UMG_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
 	//~ End UObject interface
 
-	virtual void PurgeClass(bool bRecompilingOnLoad) override;
+	UMG_API virtual void PurgeClass(bool bRecompilingOnLoad) override;
 
 	/**
 	 * This is the function that makes UMG work.  Once a user widget is constructed, it will post load
 	 * call into its generated class and ask to be initialized.  The class will perform all the delegate
 	 * binding and wiring necessary to have the user's widget perform as desired.
 	 */
-	void InitializeWidget(UUserWidget* UserWidget) const;
+	UMG_API void InitializeWidget(UUserWidget* UserWidget) const;
 
-	static void InitializeWidgetStatic(UUserWidget* UserWidget
+	static UMG_API void InitializeWidgetStatic(UUserWidget* UserWidget
 		, const UClass* InClass
 		, UWidgetTree* InWidgetTree
 		, const UClass* InWidgetTreeWidgetClass
@@ -171,7 +171,7 @@ public:
 	bool ClassRequiresNativeTick() const { return bClassRequiresNativeTick; }
 
 #if WITH_EDITOR
-	void SetClassRequiresNativeTick(bool InClassRequiresNativeTick);
+	UMG_API void SetClassRequiresNativeTick(bool InClassRequiresNativeTick);
 #endif
 
 	/** Find the first extension of the requested type. */
@@ -182,10 +182,10 @@ public:
 	}
 
 	/** Find the first extension of the requested type. */
-	UWidgetBlueprintGeneratedClassExtension* GetExtension(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper = true);
+	UMG_API UWidgetBlueprintGeneratedClassExtension* GetExtension(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper = true);
 
 	/** Find the extensions of the requested type. */
-	TArray<UWidgetBlueprintGeneratedClassExtension*> GetExtensions(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper = true);
+	UMG_API TArray<UWidgetBlueprintGeneratedClassExtension*> GetExtensions(TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper = true);
 
 	template<typename Predicate>
 	void ForEachExtension(Predicate Pred, bool bIncludeSuper = true) const
@@ -205,8 +205,8 @@ public:
 	}
 
 private:
-	static void InitializeBindingsStatic(UUserWidget* UserWidget, const TArrayView<const FDelegateRuntimeBinding> InBindings, const TMap<FName, FObjectPropertyBase*>& InPropertyMap);
-	static void BindAnimationsStatic(UUserWidget* Instance, const TArrayView<UWidgetAnimation*> InAnimations, const TMap<FName, FObjectPropertyBase*>& InPropertyMap);
+	static UMG_API void InitializeBindingsStatic(UUserWidget* UserWidget, const TArrayView<const FDelegateRuntimeBinding> InBindings, const TMap<FName, FObjectPropertyBase*>& InPropertyMap);
+	static UMG_API void BindAnimationsStatic(UUserWidget* Instance, const TArrayView<UWidgetAnimation*> InAnimations, const TMap<FName, FObjectPropertyBase*>& InPropertyMap);
 
-	void GetExtensions(TArray<UWidgetBlueprintGeneratedClassExtension*>& OutExtensions, TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper);
+	UMG_API void GetExtensions(TArray<UWidgetBlueprintGeneratedClassExtension*>& OutExtensions, TSubclassOf<UWidgetBlueprintGeneratedClassExtension> InExtensionType, bool bIncludeSuper);
 };

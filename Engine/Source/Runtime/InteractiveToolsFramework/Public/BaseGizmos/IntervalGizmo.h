@@ -31,13 +31,13 @@ class UGizmoViewContext;
  * If a particular sub-Gizmo is not required, simply set that UProperty to null.
 
  */
-UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType)
-class INTERACTIVETOOLSFRAMEWORK_API AIntervalGizmoActor : public AGizmoActor
+UCLASS(Transient, NotPlaceable, Hidden, NotBlueprintable, NotBlueprintType, MinimalAPI)
+class AIntervalGizmoActor : public AGizmoActor
 {
 	GENERATED_BODY()
 public:
 
-	AIntervalGizmoActor();
+	INTERACTIVETOOLSFRAMEWORK_API AIntervalGizmoActor();
 	
 public:
 
@@ -56,7 +56,7 @@ public:
 	 * Create a new instance of AIntervalGizmoActor and populate the various
 	 * sub-components with standard GizmoXComponent instances suitable for a 3-interval Gizmo
 	 */
-	static AIntervalGizmoActor* ConstructDefaultIntervalGizmo(UWorld* World, 
+	static INTERACTIVETOOLSFRAMEWORK_API AIntervalGizmoActor* ConstructDefaultIntervalGizmo(UWorld* World, 
 		UGizmoViewContext* GizmoViewContext);
 
 };
@@ -73,7 +73,7 @@ public:
  * a three-axis Interval Gizmo, override this function to customize
  * the Actor sub-elements.
  */
-class INTERACTIVETOOLSFRAMEWORK_API FIntervalGizmoActorFactory
+class FIntervalGizmoActorFactory
 {
 public:
 	FIntervalGizmoActorFactory(UGizmoViewContext* GizmoViewContextIn)
@@ -100,8 +100,8 @@ protected:
 
 
 
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UIntervalGizmoBuilder : public UInteractiveGizmoBuilder
+UCLASS(MinimalAPI)
+class UIntervalGizmoBuilder : public UInteractiveGizmoBuilder
 {
 	GENERATED_BODY()
 
@@ -133,35 +133,35 @@ public:
 	TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> UpdateCoordSystemFunction;
 
 
-	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 };
 
 
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UIntervalGizmo : public UInteractiveGizmo
+UCLASS(MinimalAPI)
+class UIntervalGizmo : public UInteractiveGizmo
 {
 	GENERATED_BODY()
 
 public:
 
-	static FString GizmoName;
+	static INTERACTIVETOOLSFRAMEWORK_API FString GizmoName;
 
-	virtual void SetWorld(UWorld* WorldIn);
-	virtual void SetGizmoActorBuilder(TSharedPtr<FIntervalGizmoActorFactory> Builder);
-	virtual void SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction);
-	virtual void SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetWorld(UWorld* WorldIn);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetGizmoActorBuilder(TSharedPtr<FIntervalGizmoActorFactory> Builder);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUpdateHoverFunction(TFunction<void(UPrimitiveComponent*, bool)> HoverFunction);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUpdateCoordSystemFunction(TFunction<void(UPrimitiveComponent*, EToolContextCoordinateSystem)> CoordSysFunction);
 
 	// UInteractiveGizmo overrides
-	virtual void Setup() override;
-	virtual void Shutdown() override;
-	virtual void Tick(float DeltaTime) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Tick(float DeltaTime) override;
 
 
-	virtual void SetActiveTarget(UTransformProxy* TransformTargetIn, UGizmoLocalFloatParameterSource* UpInterval, UGizmoLocalFloatParameterSource* DownInterval, UGizmoLocalFloatParameterSource* ForwardInterval,
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetActiveTarget(UTransformProxy* TransformTargetIn, UGizmoLocalFloatParameterSource* UpInterval, UGizmoLocalFloatParameterSource* DownInterval, UGizmoLocalFloatParameterSource* ForwardInterval,
 		                         IToolContextTransactionProvider* TransactionProvider = nullptr);
 
 	/** Sets functions that allow the endpoints of the intervals to be snapped to world geometry when ShouldAlignDestination is true */
-	virtual void SetWorldAlignmentFunctions(
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetWorldAlignmentFunctions(
 		TUniqueFunction<bool()>&& ShouldAlignDestination,
 		TUniqueFunction<bool(const FRay&, FVector&)>&& DestinationAlignmentRayCaster
 	);
@@ -173,17 +173,17 @@ public:
 	/**
 	* Clear the parameter sources for this gizmo
 	*/
-	virtual void ClearSources();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearSources();
 
 	/**
 	 * Clear the active target object for the Gizmo
 	 */
-	virtual void ClearActiveTarget();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearActiveTarget();
 
 	/**
 	 * Gets the location and orientation of the interval gizmo.
 	 */
-	virtual FTransform GetGizmoTransform() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FTransform GetGizmoTransform() const;
 
 	/** State target is shared across gizmos, and created internally during SetActiveTarget() */
 	UPROPERTY()
@@ -253,7 +253,7 @@ protected:
 protected:
 
 	/** @return a new instance of the standard axis-handle Gizmo */
-	virtual UInteractiveGizmo* AddIntervalHandleGizmo(
+	INTERACTIVETOOLSFRAMEWORK_API virtual UInteractiveGizmo* AddIntervalHandleGizmo(
 		USceneComponent* RootComponent,
 		UPrimitiveComponent* HandleComponent, 
 		IGizmoAxisSource* AxisSource,
@@ -271,18 +271,18 @@ protected:
  *
  * This ParameterSource is intended to be used to create 3D Axis Interval Gizmos.
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisIntervalParameterSource : public UGizmoBaseFloatParameterSource
+UCLASS(MinimalAPI)
+class UGizmoAxisIntervalParameterSource : public UGizmoBaseFloatParameterSource
 {
 	GENERATED_BODY()
 public:
-	virtual float GetParameter() const override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetParameter() const override;
 
-	virtual void SetParameter(float NewValue) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetParameter(float NewValue) override;
 
-	virtual void BeginModify();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void BeginModify();
 	
-	virtual void EndModify();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void EndModify();
 
 
 public:
@@ -303,7 +303,7 @@ public:
 	/**
 	 * Create a standard instance of this ParameterSource, with the given AxisSource and TransformSource
 	 */
-	static UGizmoAxisIntervalParameterSource* Construct(
+	static INTERACTIVETOOLSFRAMEWORK_API UGizmoAxisIntervalParameterSource* Construct(
 		IGizmoFloatParameterSource* FloatSourceIn,
 		float ParameterMin = -FLT_MAX,
 		float ParameterMax = FLT_MAX,

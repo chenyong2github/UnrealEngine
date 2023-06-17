@@ -16,6 +16,6 @@ class ILandscapeModule : public IModuleInterface
 public:
 	virtual TSharedPtr<FLandscapeSceneViewExtension, ESPMode::ThreadSafe> GetLandscapeSceneViewExtension() const = 0;
 	
-	virtual LANDSCAPE_API void SetLandscapeEditorServices(ILandscapeEditorServices* InLandscapeEditorServices) = 0;
-	virtual LANDSCAPE_API ILandscapeEditorServices* GetLandscapeEditorServices() const = 0;
+	virtual void SetLandscapeEditorServices(ILandscapeEditorServices* InLandscapeEditorServices) = 0;
+	virtual ILandscapeEditorServices* GetLandscapeEditorServices() const = 0;
 };

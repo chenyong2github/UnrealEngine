@@ -7,7 +7,7 @@
 
 /** Common Cloth LOD representation for all clothing assets. */
 USTRUCT()
-struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothLODDataCommon
+struct FClothLODDataCommon
 {
 	GENERATED_BODY()
 
@@ -50,11 +50,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<FPointWeightMap> PointWeightMaps;
 
 	// Get all available parameter masks for the specified target
-	void GetParameterMasksForTarget(const uint8 InTarget, TArray<FPointWeightMap*>& OutMasks);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void GetParameterMasksForTarget(const uint8 InTarget, TArray<FPointWeightMap*>& OutMasks);
 #endif // WITH_EDITORONLY_DATA
 #if WITH_EDITOR
 	/** Copy \c ParameterMasks to corresponding targets in \c ClothPhysicalMeshData. */
-	void PushWeightsToMesh();
+	CLOTHINGSYSTEMRUNTIMECOMMON_API void PushWeightsToMesh();
 #endif
 
 	// Skinning data for transitioning from a higher detail LOD to this one
@@ -64,7 +64,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<FMeshToMeshVertData> TransitionDownSkinData;
 
 	// Custom serialize for transition
-	bool Serialize(FArchive& Ar);
+	CLOTHINGSYSTEMRUNTIMECOMMON_API bool Serialize(FArchive& Ar);
 };
 
 template<>

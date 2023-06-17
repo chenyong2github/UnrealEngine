@@ -678,22 +678,22 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, FPakEntryLocation& PakEntryLocati
 class FPakFile;
 
 // Wrapper for a pointer to a shared pak reader archive that has been temporarily acquired. 
-class PAKFILE_API FSharedPakReader final 
+class FSharedPakReader final 
 {
 	friend class FPakFile;
 
 	FArchive* Archive = nullptr;
 	FPakFile* PakFile = nullptr; // Pak file to return ownership to on destruction
 
-	FSharedPakReader(FArchive* InArchive, FPakFile* InPakFile);
+	PAKFILE_API FSharedPakReader(FArchive* InArchive, FPakFile* InPakFile);
 
 public:
-	~FSharedPakReader();
+	PAKFILE_API ~FSharedPakReader();
 
 	FSharedPakReader(const FSharedPakReader& Other) = delete;
 	FSharedPakReader& operator=(const FSharedPakReader& Other) = delete;
-	FSharedPakReader(FSharedPakReader&& Other);
-	FSharedPakReader& operator=(FSharedPakReader&& Other);
+	PAKFILE_API FSharedPakReader(FSharedPakReader&& Other);
+	PAKFILE_API FSharedPakReader& operator=(FSharedPakReader&& Other);
 
 	explicit operator bool() const { return Archive != nullptr; }
 	bool operator==(nullptr_t) { return Archive == nullptr; }
@@ -719,7 +719,7 @@ struct FPakEntryPair
 /**
  * Pak file.
  */
-class PAKFILE_API FPakFile : FNoncopyable, public FRefCountBase, public IPakFile
+class FPakFile : FNoncopyable, public FRefCountBase, public IPakFile
 {
 public:
 	/** Index data that provides a map from the hash of a Filename to an FPakEntryLocation */
@@ -764,7 +764,7 @@ public:
 	};
 
 	/** Recreates the pak reader for each thread */
-	bool RecreatePakReaders(IPlatformFile* LowerLevel);
+	PAKFILE_API bool RecreatePakReaders(IPlatformFile* LowerLevel);
 
 	struct FArchiveAndLastAccessTime 
 	{
@@ -863,8 +863,8 @@ private:
 		return 0;
 	}
 
-	FArchive* CreatePakReader(IPlatformFile* LowerLevel, const TCHAR* Filename);
-	FArchive* SetupSignedPakReader(FArchive* Reader, const TCHAR* Filename);
+	PAKFILE_API FArchive* CreatePakReader(IPlatformFile* LowerLevel, const TCHAR* Filename);
+	PAKFILE_API FArchive* SetupSignedPakReader(FArchive* Reader, const TCHAR* Filename);
 
 
 public:
@@ -914,7 +914,7 @@ public:
 	* @param Filename Pak filename.
 	* @param bIsSigned true if the pak is signed
 	*/
-	FPakFile(const TCHAR* Filename, bool bIsSigned);
+	PAKFILE_API FPakFile(const TCHAR* Filename, bool bIsSigned);
 #endif
 
 	/**
@@ -924,7 +924,7 @@ public:
 	 * @param Filename Filename.
 	 * @param bIsSigned = true if the pak is signed.
 	 */
-	FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSigned, bool bLoadIndex = true);
+	PAKFILE_API FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSigned, bool bLoadIndex = true);
 
 	/**
 	 * Creates a pak file using the supplied archive.
@@ -932,12 +932,12 @@ public:
 	 * @param Archive	Pointer to the archive which contains the pak file data.
 	 */
 #if WITH_EDITOR
-	FPakFile(FArchive* Archive);
+	PAKFILE_API FPakFile(FArchive* Archive);
 #endif
 
 private:
 	/** Private destructor, use AddRef/Release instead */
-	virtual ~FPakFile();
+	PAKFILE_API virtual ~FPakFile();
 	friend class FRefCountBase;
 
 public:
@@ -957,7 +957,7 @@ public:
 	 *
 	 * @return true if this pak file has passed the initial signature checking phase
 	 */
-	bool PassedSignatureChecks() const;
+	PAKFILE_API bool PassedSignatureChecks() const;
 
 	/**
 	 * Gets pak filename.
@@ -987,23 +987,23 @@ public:
 	}
 
 	/** Returns the FullPath (includes Mount) Filename found in Pruned DirectoryIndex */
-	void GetPrunedFilenames(TArray<FString>& OutFileList) const;
+	PAKFILE_API void GetPrunedFilenames(TArray<FString>& OutFileList) const;
 
 	/** Returns the RelativePathFromMount Filename for every Filename found in the Pruned DirectoryIndex that points to a PakEntry in the given Chunk */
-	void GetPrunedFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList) const;
+	PAKFILE_API void GetPrunedFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList) const;
 
 	/**
 	 * Gets shared pak file archive for given thread.
 	 *
 	 * @return Pointer to pak file archive used to read data from pak.
 	 */
-	FSharedPakReader GetSharedReader(IPlatformFile* LowerLevel);
+	PAKFILE_API FSharedPakReader GetSharedReader(IPlatformFile* LowerLevel);
 
 	// Return a shared pak reader. Should only be called from the FSharedPakReader's destructor.
-	void ReturnSharedReader(FArchive* SharedReader);
+	PAKFILE_API void ReturnSharedReader(FArchive* SharedReader);
 
 	// Delete all readers that haven't been used in MaxAgeSeconds.
-	void ReleaseOldReaders(double MaxAgeSeconds);
+	PAKFILE_API void ReleaseOldReaders(double MaxAgeSeconds);
 
 	/**
 	 * Finds an entry in the pak file matching the given filename.
@@ -1018,7 +1018,7 @@ public:
 		Found,
 		FoundDeleted,
 	};
-	EFindResult Find(const FString& FullPath, FPakEntry* OutEntry) const;
+	PAKFILE_API EFindResult Find(const FString& FullPath, FPakEntry* OutEntry) const;
 
 	/**
 	 * Sets the pak file mount point.
@@ -1130,7 +1130,7 @@ public:
 	 *
 	 * @return true if the pak file is valid
 	 */
-	bool Check();
+	PAKFILE_API bool Check();
 
 	/** Base functionality for iterating over the DirectoryIndex. */
 	class FBaseIterator
@@ -1423,7 +1423,7 @@ public:
 	}
 
 	/** Hash the given full-path filename using the hash function used by FPakFiles, with the given FPakFile-specific seed, with version provided for legacy pak files that used different hash function */
-	static uint64 HashPath(const TCHAR* RelativePathFromMount, uint64 Seed, int32 PakFileVersion);
+	static PAKFILE_API uint64 HashPath(const TCHAR* RelativePathFromMount, uint64 Seed, int32 PakFileVersion);
 
 	/** Read a list of (Filename, FPakEntry) pairs from a provided enumeration, attempt to encode each one,
 	  * store each one in the appropriate given encoded and/or unencoded array, and populate the given
@@ -1445,16 +1445,16 @@ public:
 	  * @param PakFileVersion Version of the pakfile containing the index, to support legacy formats
 	  */
 	typedef TFunction<FPakEntryPair & ()> ReadNextEntryFunction;
-	static void EncodePakEntriesIntoIndex(int32 InNumEntries, const ReadNextEntryFunction& InReadNextEntry, const TCHAR* InPakFilename, const FPakInfo& InPakInfo, const FString& MountPoint,
+	static PAKFILE_API void EncodePakEntriesIntoIndex(int32 InNumEntries, const ReadNextEntryFunction& InReadNextEntry, const TCHAR* InPakFilename, const FPakInfo& InPakInfo, const FString& MountPoint,
 		int32& OutNumEncodedEntries, int32& OutNumDeletedEntries, uint64* OutPathHashSeed,
 		FDirectoryIndex* OutDirectoryIndex, FPathHashIndex* OutPathHashIndex, TArray<uint8>& OutEncodedPakEntries, TArray<FPakEntry>& OutNonEncodableEntries, TMap<uint64, FString>* InOutCollisionDetection,
 		int32 PakFileVersion);
 
 	/** Lookup the FPakEntryLocation stored in the given PathHashIndex, return nullptr if not found */
-	static const FPakEntryLocation* FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FPathHashIndex& PathHashIndex, uint64 PathHashSeed, int32 PakFileVersion);
+	static PAKFILE_API const FPakEntryLocation* FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FPathHashIndex& PathHashIndex, uint64 PathHashSeed, int32 PakFileVersion);
 
 	/** Lookup the FPakEntryLocation stored in the given DirectoryIndex, return nullptr if not found */
-	static const FPakEntryLocation* FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FDirectoryIndex& DirectoryIndex);
+	static PAKFILE_API const FPakEntryLocation* FindLocationFromIndex(const FString& FullPath, const FString& MountPoint, const FDirectoryIndex& DirectoryIndex);
 
 	/**
 	  * Returns the FPakEntry pointed to by the given FPakEntryLocation inside the given EncodedPakEntries or Files
@@ -1462,7 +1462,7 @@ public:
 	  * If OutEntry is non-null, populates it with a copy of the FPakEntry found, or sets it to
 	  * an FPakEntry with SetDeleteRecord(true) if not found
 	  */
-	static EFindResult GetPakEntry(const FPakEntryLocation& FPakEntryLocation, FPakEntry* OutEntry, const TArray<uint8>& EncodedPakEntries, const TArray<FPakEntry>& Files, const FPakInfo& Info);
+	static PAKFILE_API EFindResult GetPakEntry(const FPakEntryLocation& FPakEntryLocation, FPakEntry* OutEntry, const TArray<uint8>& EncodedPakEntries, const TArray<FPakEntry>& Files, const FPakInfo& Info);
 
 	/**
 	 * Given a directory index, remove entries from it that are directed by ini to not have filenames kept at runtime.
@@ -1471,7 +1471,7 @@ public:
 	 * OutDirectoryIndex - If null, InOutDirectoryIndex will have pruned entries removed.  If non-null, InOutDirectoryIndex will not be modified, and PrunedDirectoryIndex will have kept values added.
 	 * MountPoint The mount point for the pak containing the index, used to provide the fullpath for filenames in the DirectoryIndex for comparison against paths in ini
 	 */
-	static void PruneDirectoryIndex(FDirectoryIndex& InOutDirectoryIndex, FDirectoryIndex* PrunedDirectoryIndex, const FString& MountPoint);
+	static PAKFILE_API void PruneDirectoryIndex(FDirectoryIndex& InOutDirectoryIndex, FDirectoryIndex* PrunedDirectoryIndex, const FString& MountPoint);
 
 	/* Helper function to modify the given string to append '/' at the end of path to normalize directory names for hash and string compares */
 	static void MakeDirectoryFromPath(FString& Path)
@@ -1599,64 +1599,64 @@ public:
 	}
 
 	/* Returns the global,const flag for whether the current process is allowing PakFiles to keep their entire DirectoryIndex (if it exists in the PakFile on disk) rather than pruning it */
-	static bool IsPakKeepFullDirectory();
+	static PAKFILE_API bool IsPakKeepFullDirectory();
 
 	/* Returns the global,const flag for whether UnrealPak should write a copy of the full PathHashIndex and Pruned DirectoryIndex to the PakFile */
-	static bool IsPakWritePathHashIndex();
+	static PAKFILE_API bool IsPakWritePathHashIndex();
 
 	/* Returns the global,const flag for whether UnrealPak should write a copy of the full DirectoryIndex to the PakFile */
-	static bool IsPakWriteFullDirectoryIndex();
+	static PAKFILE_API bool IsPakWriteFullDirectoryIndex();
 
 private:
 
 	/**
 	 * Initializes the pak file.
 	 */
-	void Initialize(FArchive& Reader, bool bLoadIndex = true);
+	PAKFILE_API void Initialize(FArchive& Reader, bool bLoadIndex = true);
 
 	/**
 	 * Loads and initializes pak file index.
 	 */
-	void LoadIndex(FArchive& Reader);
+	PAKFILE_API void LoadIndex(FArchive& Reader);
 
 	/**
 	  * Returns the FPakEntry pointed to by the given FPakEntryLocation, forwards to the static GetPakEntry with data from *this
 	  */
-	EFindResult GetPakEntry(const FPakEntryLocation& FPakEntryLocation, FPakEntry* OutEntry) const;
+	PAKFILE_API EFindResult GetPakEntry(const FPakEntryLocation& FPakEntryLocation, FPakEntry* OutEntry) const;
 
 	/** Helper class to read IndexSettings from project delegate and commandline */
 	struct FIndexSettings;
 
-	static FIndexSettings& GetIndexSettings();
+	static PAKFILE_API FIndexSettings& GetIndexSettings();
 
 	/**
 	  * Returns the global,const flag for whether the current process should run directory queries on both the DirectoryIndex and the Pruned DirectoryIndex and log an error if they don't match.
 	  * Validation only occurs until the first call to OptimizeMemoryUsageForMountedPaks, after which the Full DirectoryIndex is dropped and there is nothing left to Validate
 	  * Has the same effect as IsPakDelayPruning, plus the addition of the error for any mismatches.
 	  */
-	static bool IsPakValidatePruning();
+	static PAKFILE_API bool IsPakValidatePruning();
 	/**
 	 * Returns the global,const flag for whether the current process should keep a copy of the Full DirectoryIndex around until OptimizeMemoryUsageForMountedPaks is called, so that systems can run
 	 * directory queries against the full index until then.
 	 * Note that validation will still occur if IsPakValidatePruning is true.
 	 */
-	static bool IsPakDelayPruning();
+	static PAKFILE_API bool IsPakDelayPruning();
 
 #if ENABLE_PAKFILE_RUNTIME_PRUNING
 	/** Global flag for whether a Pak has indicated it needs Pruning */
-	static bool bSomePakNeedsPruning;
+	static PAKFILE_API bool bSomePakNeedsPruning;
 #endif
 
 	/**
 	  * Returns whether read accesses against the DirectoryIndex need to be guarded using this->DirectoryIndexLock.
 	  * Locking is not required if the pak is not going to be pruned or already has been; the DirectoryIndex is immutable after that point, and we can get a performance benefit by skipping the lock.
 	  */
-	bool RequiresDirectoryIndexLock() const;
+	PAKFILE_API bool RequiresDirectoryIndexLock() const;
 
 	/**
 	 * Returns whether the current Process IsPakValidatePruning and this PakFile has a Full DirectoryIndex and Pruned DirectoryIndex to validate.
 	 */
-	bool ShouldValidatePrunedDirectory() const;
+	PAKFILE_API bool ShouldValidatePrunedDirectory() const;
 
 	/**
 	  * Add the given (Filename,FPakEntryLocation) value into the provided indexes
@@ -1670,26 +1670,26 @@ private:
 	  * @param InOutCollisionDetection Optional parameter to detect hash collisions.  If present, the hashed filename will be check()'d for a collision against a different filename in InOutCollisionDetection, and will be added into InOutCollisionDetection
 	  * @param PakFileVersion Version of the pakfile containing the index, to support legacy formats
 	  */
-	static void AddEntryToIndex(const FString& Filename, const FPakEntryLocation& EntryLocation, const FString& MountPoint, uint64 PathHashSeed,
+	static PAKFILE_API void AddEntryToIndex(const FString& Filename, const FPakEntryLocation& EntryLocation, const FString& MountPoint, uint64 PathHashSeed,
 		FDirectoryIndex* DirectoryIndex, FPathHashIndex* PathHashIndex, TMap<uint64, FString>* CollisionDetection, int32 PakFileVersion);
 
 	/* Encodes a pak entry as an array of bytes into the given archive.  Returns true if encoding succeeded.  If encoding did not succeed, caller will need to store the InPakEntry in an unencoded list */
-	static bool EncodePakEntry(FArchive& Ar, const FPakEntry& InPakEntry, const FPakInfo& InInfo);
+	static PAKFILE_API bool EncodePakEntry(FArchive& Ar, const FPakEntry& InPakEntry, const FPakInfo& InInfo);
 
 	/* Decodes a bit-encoded pak entry from a pointer to the start of its encoded bytes into the given OutEntry */
-	static void DecodePakEntry(const uint8* SourcePtr, FPakEntry& OutEntry, const FPakInfo& InInfo);
+	static PAKFILE_API void DecodePakEntry(const uint8* SourcePtr, FPakEntry& OutEntry, const FPakInfo& InInfo);
 
 	/* Internal index loading function that returns false if index loading fails due to an intermittent IO error. Allows LoadIndex to retry or throw a fatal as required */
-	bool LoadIndexInternal(FArchive& Reader);
+	PAKFILE_API bool LoadIndexInternal(FArchive& Reader);
 
 	/* Legacy index loading function for PakFiles saved before FPakInfo::PakFile_Version_PathHashIndex */
-	bool LoadLegacyIndex(FArchive& Reader);
+	PAKFILE_API bool LoadLegacyIndex(FArchive& Reader);
 
 	/* Helper function for LoadIndexInternal; each array of Index bytes read from the file needs to be independently decrypted and checked for corruption */
-	bool DecryptAndValidateIndex(FArchive& Reader, TArray<uint8>& IndexData, FSHAHash& InExpectedHash, FSHAHash& OutActualHash);
+	PAKFILE_API bool DecryptAndValidateIndex(FArchive& Reader, TArray<uint8>& IndexData, FSHAHash& InExpectedHash, FSHAHash& OutActualHash);
 
 	/* Manually add a file to a pak file */
-	void AddSpecialFile(const FPakEntry& Entry, const FString& Filename);
+	PAKFILE_API void AddSpecialFile(const FPakEntry& Entry, const FString& Filename);
 
 	/**
 	 * Search the given FDirectoryIndex for all files under the given Directory.  Helper for FindFilesAtPath, called separately on the DirectoryIndex or Pruned DirectoryIndex. Does not use
@@ -1755,24 +1755,24 @@ private:
 	}
 
 	/** Converts the path to a RelativePathFromMount and normalizes it to the expected format for Pak Directories.  Returns false if Path is not under the MountDir and hence can not be in this PakFile. */
-	bool NormalizeDirectoryQuery(const TCHAR* InPath, FString& OutRelativePathFromMount) const;
+	PAKFILE_API bool NormalizeDirectoryQuery(const TCHAR* InPath, FString& OutRelativePathFromMount) const;
 
 	/**
 	 * Looks up the given Normalized RelativePath in the Pruned DirectoryIndex and returns the directory if found.
 	 * Validates the result if IsPakValidatePruning. Does not use a critical section; caller is responsible for calling from within an FScopedPakDirectoryIndexAccess
 	 */
-	const FPakDirectory* FindPrunedDirectoryInternal(const FString& RelativePathFromMount) const;
+	PAKFILE_API const FPakDirectory* FindPrunedDirectoryInternal(const FString& RelativePathFromMount) const;
 
 #if ENABLE_PAKFILE_RUNTIME_PRUNING_VALIDATE
 	/* Logs an error if the two sets are not identical after removing all config-specified ignore paths */
-	void ValidateDirectorySearch(const TSet<FString>& FoundFullFiles, const TSet<FString>& PrunedFoundFiles, const TCHAR* InPath) const;
+	PAKFILE_API void ValidateDirectorySearch(const TSet<FString>& FoundFullFiles, const TSet<FString>& PrunedFoundFiles, const TCHAR* InPath) const;
 #endif
 };
 
 /**
  * Placeholder Class
  */
-class PAKFILE_API FPakNoEncryption
+class FPakNoEncryption
 {
 public:
 	enum 
@@ -1797,7 +1797,7 @@ public:
 typedef TFunction<FSharedPakReader()> TAcquirePakReaderFunction;
 
 template< typename EncryptionPolicy = FPakNoEncryption >
-class PAKFILE_API FPakReaderPolicy
+class FPakReaderPolicy
 {
 public:
 	/** Pak file that own this file data */
@@ -1867,7 +1867,7 @@ public:
  * File handle to read from pak file.
  */
 template< typename ReaderPolicy = FPakReaderPolicy<> >
-class PAKFILE_API FPakFileHandle : public IFileHandle
+class FPakFileHandle : public IFileHandle
 {
 	/** Current read position. */
 	int64 ReadPos;

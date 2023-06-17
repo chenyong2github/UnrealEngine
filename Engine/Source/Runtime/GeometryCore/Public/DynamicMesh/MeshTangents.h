@@ -21,7 +21,7 @@ using namespace UE::Math;
 /**
  * FDynamicMeshTangents is a helper object for accessing tangents stored in the AttributeSet of a FDynamicMesh3.
  */
-class GEOMETRYCORE_API FDynamicMeshTangents
+class FDynamicMeshTangents
 {
 public:
 	const FDynamicMesh3* Mesh = nullptr;
@@ -29,7 +29,7 @@ public:
 	const FDynamicMeshNormalOverlay* Tangents = nullptr;
 	const FDynamicMeshNormalOverlay* Bitangents = nullptr;
 
-	FDynamicMeshTangents(const FDynamicMesh3* MeshIn);
+	GEOMETRYCORE_API FDynamicMeshTangents(const FDynamicMesh3* MeshIn);
 
 	/**
 	 * Checks the mesh for valid tangents. When bCheckValues == true,
@@ -38,27 +38,27 @@ public:
 	 * @param bCheckValues inspect tangent values for zero/NaN
 	 * @return true if the mesh has valid tangents
 	 */
-	bool HasValidTangents(bool bCheckValues=false) const;
+	GEOMETRYCORE_API bool HasValidTangents(bool bCheckValues=false) const;
 
 	/**
 	 * If tangents are available in the overlays, returns them. If only Normal is available, computes orthogonal basis. Falls back to unit axes if no overlays are available.
 	 */
-	void GetTangentFrame(int32 TriangleID, int32 TriVertexIndex, FVector3f& NormalOut, FVector3f& TangentOut, FVector3f& BitangentOut) const;
+	GEOMETRYCORE_API void GetTangentFrame(int32 TriangleID, int32 TriVertexIndex, FVector3f& NormalOut, FVector3f& TangentOut, FVector3f& BitangentOut) const;
 	/**
 	 * If tangents are available in the overlays, returns them. Otherwise computes orthogonal basis to Normal argument.
 	 */
-	void GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, const FVector3f& Normal, FVector3f& TangentOut, FVector3f& BitangentOut) const;
+	GEOMETRYCORE_API void GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, const FVector3f& Normal, FVector3f& TangentOut, FVector3f& BitangentOut) const;
 	/**
 	 * If tangents are available in the overlays, returns them, otherwise falls back to unit X/Y axes.
 	 */
-	void GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, FVector3f& TangentOut, FVector3f& BitangentOut) const;
+	GEOMETRYCORE_API void GetTangentVectors(int32 TriangleID, int32 TriVertexIndex, FVector3f& TangentOut, FVector3f& BitangentOut) const;
 };
 
 
 /**
  * Options used by TMeshTangents for tangents computation
  */
-struct GEOMETRYCORE_API FComputeTangentsOptions
+struct FComputeTangentsOptions
 {
 	/** if true, per-face tangents are blended to create triange-vertex tangents */
 	bool bAveraged = true;		

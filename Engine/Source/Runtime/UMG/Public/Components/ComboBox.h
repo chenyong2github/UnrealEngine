@@ -12,8 +12,8 @@
 /**
  * The combobox allows you to display a list of options to the user in a dropdown menu for them to select one.
  */
-UCLASS(Experimental, meta=( DisplayName="ComboBox (Object)" ))
-class UMG_API UComboBox : public UWidget
+UCLASS(Experimental, meta=( DisplayName="ComboBox (Object)" ), MinimalAPI)
+class UComboBox : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
@@ -30,20 +30,20 @@ public:
 	UPROPERTY(EditAnywhere, Category=Events, meta=( IsBindableEvent="True" ))
 	FGenerateWidgetForObject OnGenerateWidgetEvent;
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Interaction)
 	bool bIsFocusable;
 
 protected:
-	TSharedRef<SWidget> HandleGenerateWidget(UObject* Item) const;
+	UMG_API TSharedRef<SWidget> HandleGenerateWidget(UObject* Item) const;
 
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
 protected:

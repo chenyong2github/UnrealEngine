@@ -36,7 +36,7 @@ class FString;
 /**
  * Generic implementation for most platforms
  */
-struct APPLICATIONCORE_API FGenericPlatformSplash
+struct FGenericPlatformSplash
 {
 	/** Show the splash screen. */
 	FORCEINLINE static void Show() { }
@@ -49,7 +49,7 @@ struct APPLICATIONCORE_API FGenericPlatformSplash
 	 * 
 	 * @param SplashFilename Full path to the splash image to display
 	 */
-	static void SetCustomSplashImage(const TCHAR* SplashFilename);
+	static APPLICATIONCORE_API void SetCustomSplashImage(const TCHAR* SplashFilename);
 
 
 	/**
@@ -92,6 +92,6 @@ protected:
 	*
 	* @return true if a splash screen was found
 	*/
-	static bool GetSplashPath(const TCHAR* SplashFilename, FString& OutPath, bool& OutIsCustom);
-	static bool GetSplashPath(const TCHAR* SplashFilename, const TCHAR* IconFilename, FString& OutPath, FString& OutIconPath, bool& OutIsCustom);
+	static APPLICATIONCORE_API bool GetSplashPath(const TCHAR* SplashFilename, FString& OutPath, bool& OutIsCustom);
+	static APPLICATIONCORE_API bool GetSplashPath(const TCHAR* SplashFilename, const TCHAR* IconFilename, FString& OutPath, FString& OutIconPath, bool& OutIsCustom);
 };

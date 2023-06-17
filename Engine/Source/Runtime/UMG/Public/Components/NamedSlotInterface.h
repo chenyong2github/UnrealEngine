@@ -13,13 +13,13 @@ class UWidget;
 /**
  * 
  */
-UINTERFACE(meta=( CannotImplementInterfaceInBlueprint ))
-class UMG_API UNamedSlotInterface : public UInterface
+UINTERFACE(meta=( CannotImplementInterfaceInBlueprint ), MinimalAPI)
+class UNamedSlotInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class UMG_API INamedSlotInterface
+class INamedSlotInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
@@ -35,16 +35,16 @@ public:
 	virtual void SetContentForSlot(FName SlotName, UWidget* Content) = 0;
 
 	/** Determines if any slot holds the given widget. */
-	bool ContainsContent(UWidget* Content) const;
+	UMG_API bool ContainsContent(UWidget* Content) const;
 
 	/** Determines if any slot holds the given widget and the name of that slot. */
-	FName FindSlotForContent(UWidget* Content) const;
+	UMG_API FName FindSlotForContent(UWidget* Content) const;
 
 	/** Releases named slot related resources. */
-	void ReleaseNamedSlotSlateResources(bool bReleaseChildren);
+	UMG_API void ReleaseNamedSlotSlateResources(bool bReleaseChildren);
 
 #if WITH_EDITOR
 	/** Applies the designer flags to the all of the content in all the slots. */
-	void SetNamedSlotDesignerFlags(EWidgetDesignFlags NewFlags);
+	UMG_API void SetNamedSlotDesignerFlags(EWidgetDesignFlags NewFlags);
 #endif
 };

@@ -94,21 +94,21 @@ private:
 
 
 
-struct MOVIESCENE_API FSystemSubsequentTasks
+struct FSystemSubsequentTasks
 {
 	using FComponentTypeID = UE::MovieScene::FComponentTypeID;
 
-	void AddRootTask(FGraphEventRef RootTask);
+	MOVIESCENE_API void AddRootTask(FGraphEventRef RootTask);
 
-	void AddComponentTask(FComponentTypeID ComponentType, FGraphEventRef ComponentTask);
+	MOVIESCENE_API void AddComponentTask(FComponentTypeID ComponentType, FGraphEventRef ComponentTask);
 
 private:
 
 	friend FMovieSceneEntitySystemGraph;
 
-	FSystemSubsequentTasks(FMovieSceneEntitySystemGraph* InGraph, FGraphEventArray* InAllTasks, EEntityThreadingModel InThreadingModel);
+	MOVIESCENE_API FSystemSubsequentTasks(FMovieSceneEntitySystemGraph* InGraph, FGraphEventArray* InAllTasks, EEntityThreadingModel InThreadingModel);
 
-	void ResetNode(uint16 InNodeID);
+	MOVIESCENE_API void ResetNode(uint16 InNodeID);
 
 	TSharedPtr<UE::MovieScene::FSystemTaskPrerequisites> Subsequents;
 	FMovieSceneEntitySystemGraph* Graph;

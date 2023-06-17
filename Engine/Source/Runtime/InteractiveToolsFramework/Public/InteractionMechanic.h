@@ -25,47 +25,47 @@ class UInteractiveToolPropertySet;
  * 
  * (This class is still a work in progress)
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UInteractionMechanic : public UObject
+UCLASS(Transient, MinimalAPI)
+class UInteractionMechanic : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UInteractionMechanic();
+	INTERACTIVETOOLSFRAMEWORK_API UInteractionMechanic();
 
 	/**
 	 * Called to initialize the InteractionMechanic
 	 */
-	virtual void Setup(UInteractiveTool* ParentTool);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Setup(UInteractiveTool* ParentTool);
 
 	/**
 	 * Called to clean up the InteractionMechanic
 	 */
-	virtual void Shutdown();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Shutdown();
 
 	/**
 	 * Allow the Mechanic to do any custom drawing (ie via PDI/RHI)
 	 * @param RenderAPI Abstraction that provides access to Rendering in the current ToolsContext
 	 */
-	virtual void Render(IToolsContextRenderAPI* RenderAPI);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
 	/**
 	 * ALlow the Mechanic to Tick
 	 */
-	virtual void Tick(float DeltaTime);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Tick(float DeltaTime);
 
 protected:
 	TWeakObjectPtr<UInteractiveTool> ParentTool;
 
-	UInteractiveTool* GetParentTool() const;
+	INTERACTIVETOOLSFRAMEWORK_API UInteractiveTool* GetParentTool() const;
 
 	/**
 	 * Add a PropertySet object for this Mechanic to parent Tool
 	 * @param PropertySet Property Set object to add
 	 */
-	virtual void AddToolPropertySource(UInteractiveToolPropertySet* PropertySet);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void AddToolPropertySource(UInteractiveToolPropertySet* PropertySet);
 
 	/** Enable/Disable a PropertySet object for the parent tool. */
-	virtual bool SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled);
 };
 

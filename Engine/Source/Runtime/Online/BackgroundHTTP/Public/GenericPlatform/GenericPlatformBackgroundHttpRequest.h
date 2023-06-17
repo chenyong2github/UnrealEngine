@@ -14,18 +14,18 @@
 /**
  * Contains implementation of some common functions that don't vary between implementation
  */
-class BACKGROUNDHTTP_API FGenericPlatformBackgroundHttpRequest 
+class FGenericPlatformBackgroundHttpRequest 
 	: public FBackgroundHttpRequestImpl
 {
 public:
 
-	FGenericPlatformBackgroundHttpRequest();
-	virtual ~FGenericPlatformBackgroundHttpRequest();
+	BACKGROUNDHTTP_API FGenericPlatformBackgroundHttpRequest();
+	BACKGROUNDHTTP_API virtual ~FGenericPlatformBackgroundHttpRequest();
 
 	//IHttpBackgroundHttpRequest
-	virtual bool HandleDelayedProcess() override;
-	virtual void CompleteWithExistingResponseData(FBackgroundHttpResponsePtr BackgroundResponse) override;
-	virtual void CancelRequest() override;
+	BACKGROUNDHTTP_API virtual bool HandleDelayedProcess() override;
+	BACKGROUNDHTTP_API virtual void CompleteWithExistingResponseData(FBackgroundHttpResponsePtr BackgroundResponse) override;
+	BACKGROUNDHTTP_API virtual void CancelRequest() override;
 
 protected:
 	//In the default implementation we actually use HTTPRequests instead of HttpBackgroundRequests.

@@ -15,8 +15,8 @@ class UEnvQueryOption;
 class UEdGraph;
 #endif // WITH_EDITORONLY_DATA
 
-UCLASS(BlueprintType)
-class AIMODULE_API UEnvQuery : public UDataAsset
+UCLASS(BlueprintType, MinimalAPI)
+class UEnvQuery : public UDataAsset
 {
 	GENERATED_UCLASS_BODY()
 
@@ -37,15 +37,15 @@ protected:
 
 public:
 	/** Gather all required named params */
-	void CollectQueryParams(UObject& QueryOwner, TArray<FAIDynamicParam>& NamedValues) const;
+	AIMODULE_API void CollectQueryParams(UObject& QueryOwner, TArray<FAIDynamicParam>& NamedValues) const;
 
-	virtual  void PostInitProperties() override;
+	AIMODULE_API virtual  void PostInitProperties() override;
 
 	/** QueryName patching up */
-	virtual void PostLoad() override;
+	AIMODULE_API virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+	AIMODULE_API virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	AIMODULE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;
 #endif // WITH_EDITOR
 
 	FName GetQueryName() const { return QueryName; }

@@ -21,7 +21,7 @@ class IMappedFileHandle;
 **/
 DECLARE_LOG_CATEGORY_EXTERN(SandboxFile, Log, All);
 
-class SANDBOXFILE_API FSandboxPlatformFile : public IPlatformFile
+class FSandboxPlatformFile : public IPlatformFile
 {
 	/** Wrapped file */
 	IPlatformFile*		LowerLevel;
@@ -72,7 +72,7 @@ class SANDBOXFILE_API FSandboxPlatformFile : public IPlatformFile
 	 * @param AbsolutePath Absolute path to the folder to wipe
 	 * @return true if the folder's contents could be deleted, false otherwise
 	 */
-	bool WipeSandboxFolder( const TCHAR* AbsolutePath );	
+	SANDBOXFILE_API bool WipeSandboxFolder( const TCHAR* AbsolutePath );	
 
 	/**
 	 * Finds all files or folders in the given directory.
@@ -84,7 +84,7 @@ class SANDBOXFILE_API FSandboxPlatformFile : public IPlatformFile
 	 * @param Files true to include files in the Result
 	 * @param Files true to include directories in the Result
 	 */
-	void FindFiles( TArray<FString>& Result, const TCHAR* InFilename, bool Files, bool Directories );
+	SANDBOXFILE_API void FindFiles( TArray<FString>& Result, const TCHAR* InFilename, bool Files, bool Directories );
 	
 	/** Allow IPlatformFile::FindFiles */
 	using IPlatformFile::FindFiles;
@@ -98,7 +98,7 @@ class SANDBOXFILE_API FSandboxPlatformFile : public IPlatformFile
 	 * @param Tree true to recursively delete the directory and its contents
 	 * @return true if the operaton was successful.
 	 */
-	bool DeleteDirectory( const TCHAR* Path, bool Tree );
+	SANDBOXFILE_API bool DeleteDirectory( const TCHAR* Path, bool Tree );
 
 	/**
 	 * Check if a file or directory has been filtered, and hence is unavailable to the outside world
@@ -107,7 +107,7 @@ class SANDBOXFILE_API FSandboxPlatformFile : public IPlatformFile
 	 * @param bIsDirectory if true, this is a directory
 	 * @return true if it is ok to access the non-sandboxed files here
 	 */
-	bool OkForInnerAccess(const TCHAR* InFilenameOrDirectoryName, bool bIsDirectory = false) const;
+	SANDBOXFILE_API bool OkForInnerAccess(const TCHAR* InFilenameOrDirectoryName, bool bIsDirectory = false) const;
 
 	static const TCHAR* GetTypeName()
 	{
@@ -118,12 +118,12 @@ class SANDBOXFILE_API FSandboxPlatformFile : public IPlatformFile
 	 * Converts passed in filename to use a sandbox path.
 	 * @param	bEntireEngineWillUseThisSandbox		If true, the we set up the engine so that subprocesses also use this subdirectory
 	 */
-	FSandboxPlatformFile(bool bInEntireEngineWillUseThisSandbox);
+	SANDBOXFILE_API FSandboxPlatformFile(bool bInEntireEngineWillUseThisSandbox);
 
 public:
-	static TUniquePtr<FSandboxPlatformFile> Create(bool bInEntireEngineWillUseThisSandbox);
+	static SANDBOXFILE_API TUniquePtr<FSandboxPlatformFile> Create(bool bInEntireEngineWillUseThisSandbox);
 
-	virtual ~FSandboxPlatformFile();
+	SANDBOXFILE_API virtual ~FSandboxPlatformFile();
 
 	//~ For visibility of overloads we don't override
 	using IPlatformFile::IterateDirectory;
@@ -136,21 +136,21 @@ public:
 	 *
 	 *	@param	bInEnabled		true to enable the sandbox, false to disable it
 	 */
-	virtual void SetSandboxEnabled(bool bInEnabled) override;
+	SANDBOXFILE_API virtual void SetSandboxEnabled(bool bInEnabled) override;
 
 	/**
 	 *	Returns whether the sandbox is enabled or not
 	 *
 	 *	@return	bool			true if enabled, false if not
 	 */
-	virtual bool			IsSandboxEnabled() const override;
+	SANDBOXFILE_API virtual bool			IsSandboxEnabled() const override;
 
-	virtual bool			ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
-	virtual bool			Initialize(IPlatformFile* Inner, const TCHAR* CmdLine) override;
+	SANDBOXFILE_API virtual bool			ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
+	SANDBOXFILE_API virtual bool			Initialize(IPlatformFile* Inner, const TCHAR* CmdLine) override;
 
-	virtual IPlatformFile*	GetLowerLevel() override;
-	virtual void			SetLowerLevel(IPlatformFile* NewLowerLevel) override;
-	virtual const TCHAR*	GetName() const override;
+	SANDBOXFILE_API virtual IPlatformFile*	GetLowerLevel() override;
+	SANDBOXFILE_API virtual void			SetLowerLevel(IPlatformFile* NewLowerLevel) override;
+	SANDBOXFILE_API virtual const TCHAR*	GetName() const override;
 
 	/**
 	 * Converts passed in filename to use a sandbox path.
@@ -159,23 +159,23 @@ public:
 	 * 
 	 * @return	filename using sandbox path
 	 */
-	FString ConvertToSandboxPath(const TCHAR* Filename) const;
-	FString ConvertFromSandboxPath(const TCHAR* Filename) const;
+	SANDBOXFILE_API FString ConvertToSandboxPath(const TCHAR* Filename) const;
+	SANDBOXFILE_API FString ConvertFromSandboxPath(const TCHAR* Filename) const;
 
 	/** Returns sandbox directory */
-	const FString& GetSandboxDirectory() const;
+	SANDBOXFILE_API const FString& GetSandboxDirectory() const;
 
 	/** Returns the name of the sandbox directory for the game's content */
-	const FString& GetGameSandboxDirectoryName();
+	SANDBOXFILE_API const FString& GetGameSandboxDirectoryName();
 
 	/** Returns absolute root directory */
-	const FString& GetAbsoluteRootDirectory() const;
+	SANDBOXFILE_API const FString& GetAbsoluteRootDirectory() const;
 
 	/** Returns absolute game directory */
-	const FString& GetAbsoluteGameDirectory();
+	SANDBOXFILE_API const FString& GetAbsoluteGameDirectory();
 
 	/** Returns absolute path to game directory (without the game directory itself) */
-	const FString& GetAbsolutePathToGameDirectory();
+	SANDBOXFILE_API const FString& GetAbsolutePathToGameDirectory();
 
 	/** 
 	 * Add exclusion. These files and / or directories pretend not to exist so that they cannot be accessed at all (except in the sandbox) 
@@ -183,47 +183,47 @@ public:
 	 * @param bIsDirectory if true, this is a directory
 	 * @Caution, these have a performance cost
 	*/
-	void AddExclusion(const TCHAR* Wildcard, bool bIsDirectory = false);
-	void RemoveExclusion(const TCHAR* Wildcard, bool bIsDirectory = false);
+	SANDBOXFILE_API void AddExclusion(const TCHAR* Wildcard, bool bIsDirectory = false);
+	SANDBOXFILE_API void RemoveExclusion(const TCHAR* Wildcard, bool bIsDirectory = false);
 
 	/** Whether access is restricted the the sandbox or not. */
-	void SetSandboxOnly(bool bInSandboxOnly);
+	SANDBOXFILE_API void SetSandboxOnly(bool bInSandboxOnly);
 
 	// IPlatformFile Interface
 
-	virtual bool					FileExists(const TCHAR* Filename) override;
-	virtual int64					FileSize(const TCHAR* Filename) override;
-	virtual bool					DeleteFile(const TCHAR* Filename) override;
-	virtual bool					IsReadOnly(const TCHAR* Filename) override;
-	virtual bool					MoveFile(const TCHAR* To, const TCHAR* From) override;
-	virtual bool					SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyValue) override;
-	virtual FDateTime				GetTimeStamp(const TCHAR* Filename) override;
-	virtual void 					SetTimeStamp(const TCHAR* Filename, FDateTime DateTime) override;
-	virtual FDateTime				GetAccessTimeStamp(const TCHAR* Filename) override;
-	virtual FString					GetFilenameOnDisk(const TCHAR* Filename) override;
-	virtual IFileHandle*			OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
-	virtual IFileHandle*			OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override;
-	virtual bool					DirectoryExists(const TCHAR* Directory) override;
-	virtual bool					CreateDirectory(const TCHAR* Directory) override;
-	virtual bool					DeleteDirectory(const TCHAR* Directory) override;
-	virtual FFileStatData			GetStatData(const TCHAR* FilenameOrDirectory) override;
+	SANDBOXFILE_API virtual bool					FileExists(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual int64					FileSize(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual bool					DeleteFile(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual bool					IsReadOnly(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual bool					MoveFile(const TCHAR* To, const TCHAR* From) override;
+	SANDBOXFILE_API virtual bool					SetReadOnly(const TCHAR* Filename, bool bNewReadOnlyValue) override;
+	SANDBOXFILE_API virtual FDateTime				GetTimeStamp(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual void 					SetTimeStamp(const TCHAR* Filename, FDateTime DateTime) override;
+	SANDBOXFILE_API virtual FDateTime				GetAccessTimeStamp(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual FString					GetFilenameOnDisk(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual IFileHandle*			OpenRead(const TCHAR* Filename, bool bAllowWrite = false) override;
+	SANDBOXFILE_API virtual IFileHandle*			OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override;
+	SANDBOXFILE_API virtual bool					DirectoryExists(const TCHAR* Directory) override;
+	SANDBOXFILE_API virtual bool					CreateDirectory(const TCHAR* Directory) override;
+	SANDBOXFILE_API virtual bool					DeleteDirectory(const TCHAR* Directory) override;
+	SANDBOXFILE_API virtual FFileStatData			GetStatData(const TCHAR* FilenameOrDirectory) override;
 
-	virtual bool					IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
-	virtual bool					IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
+	SANDBOXFILE_API virtual bool					IterateDirectory(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
+	SANDBOXFILE_API virtual bool					IterateDirectoryRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryVisitor& Visitor) override;
 
-	virtual bool					IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
-	virtual bool					IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
+	SANDBOXFILE_API virtual bool					IterateDirectoryStat(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
+	SANDBOXFILE_API virtual bool					IterateDirectoryStatRecursively(const TCHAR* Directory, IPlatformFile::FDirectoryStatVisitor& Visitor) override;
 
-	virtual bool					DeleteDirectoryRecursively(const TCHAR* Directory) override;
-	virtual bool					CreateDirectoryTree(const TCHAR* Directory) override;
+	SANDBOXFILE_API virtual bool					DeleteDirectoryRecursively(const TCHAR* Directory) override;
+	SANDBOXFILE_API virtual bool					CreateDirectoryTree(const TCHAR* Directory) override;
 
-	virtual bool					CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override;
-	virtual FString					ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename ) override;
-	virtual FString					ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename ) override;
+	SANDBOXFILE_API virtual bool					CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override;
+	SANDBOXFILE_API virtual FString					ConvertToAbsolutePathForExternalAppForRead( const TCHAR* Filename ) override;
+	SANDBOXFILE_API virtual FString					ConvertToAbsolutePathForExternalAppForWrite( const TCHAR* Filename ) override;
 
-	virtual IAsyncReadFileHandle*	OpenAsyncRead(const TCHAR* Filename) override;
-	virtual void					SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority) override;
-	virtual IMappedFileHandle*		OpenMapped(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual IAsyncReadFileHandle*	OpenAsyncRead(const TCHAR* Filename) override;
+	SANDBOXFILE_API virtual void					SetAsyncMinimumPriority(EAsyncIOPriorityAndFlags Priority) override;
+	SANDBOXFILE_API virtual IMappedFileHandle*		OpenMapped(const TCHAR* Filename) override;
 
 	friend class FSandboxVisitor;
 	friend class FSandboxStatVisitor;

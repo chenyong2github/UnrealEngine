@@ -109,8 +109,8 @@ struct FGameplayDebuggerExtensionConfig
 	FGameplayDebuggerExtensionConfig() : UseExtension(EGameplayDebuggerOverrideMode::UseDefault) {}
 };
 
-UCLASS(config = Engine, defaultconfig)
-class GAMEPLAYDEBUGGER_API UGameplayDebuggerConfig : public UObject
+UCLASS(config = Engine, defaultconfig, MinimalAPI)
+class UGameplayDebuggerConfig : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -193,23 +193,23 @@ class GAMEPLAYDEBUGGER_API UGameplayDebuggerConfig : public UObject
 	TArray<FGameplayDebuggerExtensionConfig> Extensions;
 
 	/** updates entry in Categories array and modifies category creation params */
-	void UpdateCategoryConfig(const FName CategoryName, int32& SlotIdx, uint8& CategoryState);
+	GAMEPLAYDEBUGGER_API void UpdateCategoryConfig(const FName CategoryName, int32& SlotIdx, uint8& CategoryState);
 
 	/** updates entry in Categories array and modifies input binding params */
-	void UpdateCategoryInputConfig(const FName CategoryName, const FName InputName, FName& KeyName, FGameplayDebuggerInputModifier& KeyModifier);
+	GAMEPLAYDEBUGGER_API void UpdateCategoryInputConfig(const FName CategoryName, const FName InputName, FName& KeyName, FGameplayDebuggerInputModifier& KeyModifier);
 
 	/** updates entry in Extensions array and modifies extension creation params */
-	void UpdateExtensionConfig(const FName ExtensionName, uint8& UseExtension);
+	GAMEPLAYDEBUGGER_API void UpdateExtensionConfig(const FName ExtensionName, uint8& UseExtension);
 
 	/** updates entry in Categories array and modifies input binding params */
-	void UpdateExtensionInputConfig(const FName ExtensionName, const FName InputName, FName& KeyName, FGameplayDebuggerInputModifier& KeyModifier);
+	GAMEPLAYDEBUGGER_API void UpdateExtensionInputConfig(const FName ExtensionName, const FName InputName, FName& KeyName, FGameplayDebuggerInputModifier& KeyModifier);
 
 	/** remove all category and extension data from unknown sources (outdated entries) */
-	void RemoveUnknownConfigs();
+	GAMEPLAYDEBUGGER_API void RemoveUnknownConfigs();
 
-	virtual void Serialize(FArchive& Ar) override;
+	GAMEPLAYDEBUGGER_API virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	GAMEPLAYDEBUGGER_API virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
 private:
@@ -222,8 +222,8 @@ private:
 };
 
 
-UCLASS(config = EditorPerProjectUserSettings, meta = (DisplayName = "Gameplay Debugger"))
-class GAMEPLAYDEBUGGER_API UGameplayDebuggerUserSettings : public UDeveloperSettings
+UCLASS(config = EditorPerProjectUserSettings, meta = (DisplayName = "Gameplay Debugger"), MinimalAPI)
+class UGameplayDebuggerUserSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 protected:
@@ -231,7 +231,7 @@ protected:
 
 public:
 	static int32 GetFontSize() { return GetDefault<UGameplayDebuggerUserSettings>()->FontSize; }
-	static void SetFontSize(const int32 InFontSize);
+	static GAMEPLAYDEBUGGER_API void SetFontSize(const int32 InFontSize);
 
 	/** Controls whether GameplayDebugger will be available in pure editor mode.
 	 *  @Note that you need to reload the map for the changes to this property to take effect */

@@ -60,8 +60,8 @@ struct FAutoCompleteCommand
 /**
  * Implements the settings for the UConsole class.
  */
-UCLASS(config=Input, defaultconfig)
-class ENGINESETTINGS_API UConsoleSettings
+UCLASS(config=Input, defaultconfig, MinimalAPI)
+class UConsoleSettings
 	: public UObject
 {
 	GENERATED_UCLASS_BODY()

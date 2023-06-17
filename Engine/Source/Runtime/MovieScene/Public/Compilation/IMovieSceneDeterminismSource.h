@@ -30,8 +30,8 @@ struct FMovieSceneDeterminismData
 };
 
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneDeterminismSource : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneDeterminismSource : public UInterface
 {
 public:
 	GENERATED_BODY()

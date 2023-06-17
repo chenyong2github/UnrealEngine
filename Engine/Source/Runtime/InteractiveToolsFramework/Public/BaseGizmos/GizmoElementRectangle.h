@@ -15,53 +15,53 @@ class FMaterialRenderProxy;
  * Simple object intended to be used as part of 3D Gizmos.
  * Draws a rectangle based on parameters.
  */
-UCLASS(Transient)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementRectangle : public UGizmoElementLineBase
+UCLASS(Transient, MinimalAPI)
+class UGizmoElementRectangle : public UGizmoElementLineBase
 {
 	GENERATED_BODY()
 
 public:
 
 	//~ Begin UGizmoElementBase Interface.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	//~ End UGizmoElementBase Interface.
 
 	// Location of rectangle center
-	virtual void SetCenter(FVector InCenter);
-	virtual FVector GetCenter() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetCenter(FVector InCenter);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetCenter() const;
 
 	// Width
-	virtual void SetWidth(float InWidth);
-	virtual float GetWidth() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetWidth(float InWidth);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetWidth() const;
 
 	// Height
-	virtual void SetHeight(float InHeight);
-	virtual float GetHeight() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHeight(float InHeight);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetHeight() const;
 
 	// Up direction
-	virtual void SetUpDirection(const FVector& InUpDirection);
-	virtual FVector GetUpDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUpDirection(const FVector& InUpDirection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetUpDirection() const;
 
 	// Side direction
-	virtual void SetSideDirection(const FVector& InSideDirection);
-	virtual FVector GetSideDirection() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetSideDirection(const FVector& InSideDirection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetSideDirection() const;
 
 	// Draw mesh
-	virtual void SetDrawMesh(bool InDrawMesh);
-	virtual bool GetDrawMesh() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDrawMesh(bool InDrawMesh);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetDrawMesh() const;
 
 	// Draw line
-	virtual void SetDrawLine(bool InDrawLine);
-	virtual bool GetDrawLine() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetDrawLine(bool InDrawLine);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetDrawLine() const;
 
 	// Hit mesh
-	virtual void SetHitMesh(bool InHitMesh);
-	virtual bool GetHitMesh() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHitMesh(bool InHitMesh);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetHitMesh() const;
 
 	// Hit line
-	virtual void SetHitLine(bool InHitLine);
-	virtual bool GetHitLine() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHitLine(bool InHitLine);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetHitLine() const;
 
 protected:
 

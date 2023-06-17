@@ -21,7 +21,7 @@ class FDynamicMesh3;
  * FMeshSurfacePointSampling computes oriented point samples on the surface of
  * a Mesh using various sampling strategies.
  */
-class GEOMETRYCORE_API FMeshSurfacePointSampling
+class FMeshSurfacePointSampling
 {
 public:
 	// 
@@ -142,7 +142,7 @@ public:
 	 * also introduces various biases to increase performance. Generally increasing SubSampleDensity will result in 
 	 * more tightly-packed results, but at increasingly expensive computation time.
 	 */
-	void ComputePoissonSampling(const FDynamicMesh3& Mesh, FProgressCancel* Progress = nullptr);
+	GEOMETRYCORE_API void ComputePoissonSampling(const FDynamicMesh3& Mesh, FProgressCancel* Progress = nullptr);
 
 
 	// ability to incrementally increase existing sample sizes to more tightly pack them?

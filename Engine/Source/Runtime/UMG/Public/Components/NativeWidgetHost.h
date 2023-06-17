@@ -12,26 +12,26 @@
  * A NativeWidgetHost is a container widget that can contain one child slate widget.  This should
  * be used when all you need is to nest a native widget inside a UMG widget.
  */
-UCLASS()
-class UMG_API UNativeWidgetHost : public UWidget
+UCLASS(MinimalAPI)
+class UNativeWidgetHost : public UWidget
 {
 	GENERATED_UCLASS_BODY()
 
-	void SetContent(TSharedRef<SWidget> InContent);
+	UMG_API void SetContent(TSharedRef<SWidget> InContent);
 	TSharedPtr< SWidget > GetContent() const { return NativeWidget; }
 
-	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
+	UMG_API virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 
 #if WITH_EDITOR
-	virtual const FText GetPaletteCategory() override;
+	UMG_API virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
 	// UWidget interface
-	virtual TSharedRef<SWidget> RebuildWidget() override;
+	UMG_API virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget interface
 
-	TSharedRef<SWidget> GetDefaultContent();
+	UMG_API TSharedRef<SWidget> GetDefaultContent();
 
 protected:
 	TSharedPtr<SWidget> NativeWidget;

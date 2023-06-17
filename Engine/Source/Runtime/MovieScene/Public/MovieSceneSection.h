@@ -251,7 +251,7 @@ class UMovieSceneSection
 {
 	GENERATED_UCLASS_BODY()
 
-	MOVIESCENE_API ~UMovieSceneSection() {};
+	~UMovieSceneSection() {};
 
 public:
 
@@ -319,7 +319,7 @@ public:
 	 * 
 	 * @param NewRange	The new range of times
 	 */
-	MOVIESCENE_API virtual void SetRange(const TRange<FFrameNumber>& NewRange)
+	virtual void SetRange(const TRange<FFrameNumber>& NewRange)
 	{
 		
 		// Skip TryModify for objects that still need initialization (i.e. we're in the object's constructor), because modifying objects in their constructor can lead to non-deterministic cook issues.
@@ -440,7 +440,7 @@ public:
 	 * Sets this section's blend type
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	MOVIESCENE_API virtual void SetBlendType(EMovieSceneBlendType InBlendType)
+	virtual void SetBlendType(EMovieSceneBlendType InBlendType)
 	{
 		if (GetSupportedBlendTypes().Contains(InBlendType))
 		{
@@ -612,7 +612,7 @@ public:
 	virtual void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player) {}
 
 	/** Get the referenced bindings for this section */
-	MOVIESCENE_API virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) {}
+	virtual void GetReferencedBindings(TArray<FGuid>& OutBindings) {}
 
 	/**
 	 * Gets a list of all overlapping sections
@@ -642,19 +642,19 @@ public:
 	MOVIESCENE_API FMovieSceneChannelProxy& GetChannelProxy() const;
 
 	/** Does this movie section support infinite ranges for evaluation */
-	MOVIESCENE_API bool GetSupportsInfiniteRange() const { return bSupportsInfiniteRange; }
+	bool GetSupportsInfiniteRange() const { return bSupportsInfiniteRange; }
 
 	/**
 	*  Whether or not we draw a curve for a particular channel owned by this section.
 	*  Defaults to true.
 	*/
-	MOVIESCENE_API virtual bool ShowCurveForChannel(const void *Channel) const  { return true; }
+	virtual bool ShowCurveForChannel(const void *Channel) const  { return true; }
 
 	/** 
 	*  Get The Total Weight Value for this Section
 	*  For Most Sections it's just the Ease Value, but for some Sections also have an extra Weight Curve
 	*/
-	MOVIESCENE_API virtual float GetTotalWeightValue(FFrameTime InTime) const { return EvaluateEasing(InTime); }
+	virtual float GetTotalWeightValue(FFrameTime InTime) const { return EvaluateEasing(InTime); }
 
 
 	/**

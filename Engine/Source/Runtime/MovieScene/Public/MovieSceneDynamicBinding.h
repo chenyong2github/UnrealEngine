@@ -17,7 +17,7 @@ class UMovieSceneEntitySystemLinker;
 
 /** Value definition for any type-agnostic variable (exported as text) */
 USTRUCT(BlueprintType)
-struct MOVIESCENE_API FMovieSceneDynamicBindingPayloadVariable
+struct FMovieSceneDynamicBindingPayloadVariable
 {
 	GENERATED_BODY()
 
@@ -29,7 +29,7 @@ struct MOVIESCENE_API FMovieSceneDynamicBindingPayloadVariable
  * Data for a dynamic binding endpoint call.
  */
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneDynamicBinding
+struct FMovieSceneDynamicBinding
 {
 	GENERATED_BODY()
 
@@ -66,7 +66,7 @@ struct MOVIESCENE_API FMovieSceneDynamicBinding
  * Optional parameter struct for dynamic binding resolver functions.
  */
 USTRUCT(BlueprintType)
-struct MOVIESCENE_API FMovieSceneDynamicBindingResolveParams
+struct FMovieSceneDynamicBindingResolveParams
 {
 	GENERATED_BODY()
 
@@ -84,7 +84,7 @@ struct MOVIESCENE_API FMovieSceneDynamicBindingResolveParams
 };
 
 USTRUCT(BlueprintType)
-struct MOVIESCENE_API FMovieSceneDynamicBindingResolveResult
+struct FMovieSceneDynamicBindingResolveResult
 {
 	GENERATED_BODY()
 
@@ -109,7 +109,7 @@ struct MOVIESCENE_API FMovieSceneDynamicBindingResolveResult
  * blueprint function graphs.
  */
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneDynamicBindingContainer
+struct FMovieSceneDynamicBindingContainer
 {
 	GENERATED_BODY()
 
@@ -120,8 +120,8 @@ struct MOVIESCENE_API FMovieSceneDynamicBindingContainer
 /**
  * Default dynamic binding resolver library, with several basic resolver functions.
  */
-UCLASS(meta=(SequencerBindingResolverLibrary))
-class MOVIESCENE_API UBuiltInDynamicBindingResolverLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta=(SequencerBindingResolverLibrary), MinimalAPI)
+class UBuiltInDynamicBindingResolverLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
@@ -129,6 +129,6 @@ public:
 
 	/** Resolve the bound object to the player's pawn */
 	UFUNCTION(BlueprintPure, Category="Sequencer|Dynamic Binding", meta=(WorldContext="WorldContextObject"))
-	static FMovieSceneDynamicBindingResolveResult ResolveToPlayerPawn(UObject* WorldContextObject, int32 PlayerControllerIndex = 0);
+	static MOVIESCENE_API FMovieSceneDynamicBindingResolveResult ResolveToPlayerPawn(UObject* WorldContextObject, int32 PlayerControllerIndex = 0);
 };
 

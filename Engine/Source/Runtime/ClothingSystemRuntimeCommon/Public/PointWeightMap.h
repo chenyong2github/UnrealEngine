@@ -22,7 +22,7 @@ enum class EWeightMapTargetCommon : uint8
  * is then later applied to a phys mesh
  */
 USTRUCT()
-struct CLOTHINGSYSTEMRUNTIMECOMMON_API FPointWeightMap
+struct FPointWeightMap
 {
 	GENERATED_BODY();
 

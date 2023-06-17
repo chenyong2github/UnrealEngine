@@ -71,49 +71,49 @@ namespace Audio
 	};
 
 	// Class which handles the details of event quantization.
-	class SIGNALPROCESSING_API FEventQuantizer
+	class FEventQuantizer
 	{
 	public:
-		FEventQuantizer();
-		~FEventQuantizer();
+		SIGNALPROCESSING_API FEventQuantizer();
+		SIGNALPROCESSING_API ~FEventQuantizer();
 
 		// Sets the quantization settings for the event quantizer
-		void SetQuantizationSettings(const FEventQuantizationSettings& QuantizationSettings);
+		SIGNALPROCESSING_API void SetQuantizationSettings(const FEventQuantizationSettings& QuantizationSettings);
 		const FEventQuantizationSettings& GetQuantizationSettings() const { return QuantizationSettings; }
 
 		// Allows continuous control over BPM for the event quantizer
-		void SetBPM(const float InBPM);
+		SIGNALPROCESSING_API void SetBPM(const float InBPM);
 		float GetBPM() const { return QuantizationSettings.BeatsPerMinute; }
 
 		// Set the beat division
-		void SetBeatDivision(const uint16 InBeatDivision);
+		SIGNALPROCESSING_API void SetBeatDivision(const uint16 InBeatDivision);
 		uint16 GetBeatDivision() const { return QuantizationSettings.BeatDivision; }
 
-		float GetPlaybacktimeSeconds() const;
+		SIGNALPROCESSING_API float GetPlaybacktimeSeconds() const;
 
-		uint32 GetDurationInFrames(int32 NumBars, float NumBeats) const;
+		SIGNALPROCESSING_API uint32 GetDurationInFrames(int32 NumBars, float NumBeats) const;
 
 		// Called to perform notifications for any events which happen in the next given number of frames.
 		// This function should be called in an audio buffer render callback.
-		void NotifyEvents(int32 NumFrames);
+		SIGNALPROCESSING_API void NotifyEvents(int32 NumFrames);
 
 		// Enqueues a quantized event
-		void EnqueueEvent(EEventQuantization InQuantization, TFunction<void(uint32 NumFramesOffset)> Lambda);
+		SIGNALPROCESSING_API void EnqueueEvent(EEventQuantization InQuantization, TFunction<void(uint32 NumFramesOffset)> Lambda);
 
 		// Register event listener for specific events
-		void RegisterListenerForEvent(IQuantizedEventListener* InListener, EEventQuantization InQuantization);
+		SIGNALPROCESSING_API void RegisterListenerForEvent(IQuantizedEventListener* InListener, EEventQuantization InQuantization);
 
 		// Unregisters the event listener for all quantization events
-		void UnregisterListenerForEvent(IQuantizedEventListener* InListener);
+		SIGNALPROCESSING_API void UnregisterListenerForEvent(IQuantizedEventListener* InListener);
 
 		// Unregister the event listener for specific quantization event
-		void UnregisterListenerForEvent(IQuantizedEventListener* InListener, EEventQuantization InQuantization);
+		SIGNALPROCESSING_API void UnregisterListenerForEvent(IQuantizedEventListener* InListener, EEventQuantization InQuantization);
 
 	private:
 
-		void SetQuantizationSettingsInternal(const FEventQuantizationSettings& QuantizationSettings);
-		void SetBPMInternal(const float InBPM);
-		void ResetEventState();
+		SIGNALPROCESSING_API void SetQuantizationSettingsInternal(const FEventQuantizationSettings& QuantizationSettings);
+		SIGNALPROCESSING_API void SetBPMInternal(const float InBPM);
+		SIGNALPROCESSING_API void ResetEventState();
 
 		// Struct for defining and hold quantization timing state
 		struct FEventQuantizationState
@@ -136,7 +136,7 @@ namespace Audio
 			{}
 		};
 
-		void NotifyEventForState(FEventQuantizationState& State, EEventQuantization Type, bool bIsQuantizationEvent, int32 NumFrames);
+		SIGNALPROCESSING_API void NotifyEventForState(FEventQuantizationState& State, EEventQuantization Type, bool bIsQuantizationEvent, int32 NumFrames);
 
 		// The frame count of the whole event quantizer since it started. Passed to listeners.
 		uint32 FrameCount;

@@ -56,7 +56,7 @@ private:
  * Customization type used to allow asset editors (such as the level editor) to override the base behavior of element selection,
  * by injecting extra pre/post selection logic around the call into the selection interface for an element type.
  */
-class TYPEDELEMENTRUNTIME_API FTypedElementSelectionCustomization
+class FTypedElementSelectionCustomization
 {
 public:
 	virtual ~FTypedElementSelectionCustomization() = default;
@@ -69,13 +69,13 @@ public:
 	virtual bool DeselectElement(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListRef InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions); }
 	virtual bool AllowSelectionModifiers(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet) { return InElementSelectionHandle.AllowSelectionModifiers(InSelectionSet); }
 	virtual FTypedElementHandle GetSelectionElement(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) { return InElementSelectionHandle.GetSelectionElement(InCurrentSelection, InSelectionMethod); }
-	virtual void GetNormalizedElements(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements);
+	TYPEDELEMENTRUNTIME_API virtual void GetNormalizedElements(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements);
 };
 
 /**
  * Utility to hold a typed element handle and its associated selection interface and selection customization.
  */
-struct TYPEDELEMENTRUNTIME_API FTypedElementSelectionSetElement
+struct FTypedElementSelectionSetElement
 {
 public:
 	FTypedElementSelectionSetElement() = default;
@@ -169,105 +169,105 @@ private:
  * A wrapper around an element list that ensures mutation goes via the selection 
  * interfaces, as well as providing some utilities for batching operations.
  */
-UCLASS(Transient, BlueprintType, meta=(DontUseGenericSpawnObject="True"))
-class TYPEDELEMENTRUNTIME_API UTypedElementSelectionSet : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementSelectionCustomization>
+UCLASS(Transient, BlueprintType, meta=(DontUseGenericSpawnObject="True"), MinimalAPI)
+class UTypedElementSelectionSet : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementSelectionCustomization>
 {
 	GENERATED_BODY()
 
 public:
-	UTypedElementSelectionSet();
+	TYPEDELEMENTRUNTIME_API UTypedElementSelectionSet();
 
 	//~ UObject interface
 #if WITH_EDITOR
-	virtual void PreEditUndo() override;
-	virtual void PostEditUndo() override;
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	TYPEDELEMENTRUNTIME_API virtual void PreEditUndo() override;
+	TYPEDELEMENTRUNTIME_API virtual void PostEditUndo() override;
+	TYPEDELEMENTRUNTIME_API virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #endif	// WITH_EDITOR
-	virtual void BeginDestroy() override;
-	virtual void Serialize(FArchive& Ar) override;
+	TYPEDELEMENTRUNTIME_API virtual void BeginDestroy() override;
+	TYPEDELEMENTRUNTIME_API virtual void Serialize(FArchive& Ar) override;
 
 	/**
 	 * Test to see whether the given element is currently considered selected.
 	 */
-	bool IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementIsSelectedOptions InSelectionOptions) const;
+	TYPEDELEMENTRUNTIME_API bool IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementIsSelectedOptions InSelectionOptions) const;
 
 	/**
 	 * Test to see whether the given element can be selected.
 	 */
-	bool CanSelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
+	TYPEDELEMENTRUNTIME_API bool CanSelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
 
 	/**
 	 * Test to see whether the given element can be deselected.
 	 */
-	bool CanDeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
+	TYPEDELEMENTRUNTIME_API bool CanDeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
 
 	/**
 	 * Attempt to select the given element.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	bool SelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to select the given elements.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	bool SelectElements(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
-	bool SelectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
-	bool SelectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SelectElements(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SelectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SelectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to deselect the given element.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	bool DeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool DeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to deselect the given elements.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	bool DeselectElements(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
-	bool DeselectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
-	bool DeselectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool DeselectElements(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool DeselectElements(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool DeselectElements(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Clear the current selection.
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
-	bool ClearSelection(const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool ClearSelection(const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to make the selection the given elements.
 	 * @note Equivalent to calling ClearSelection then SelectElements, but happens in a single batch.
 	 * @return True if the selection was changed, false otherwise.
 	 */
-	bool SetSelection(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
-	bool SetSelection(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
-	bool SetSelection(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SetSelection(const TArray<FTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SetSelection(TArrayView<const FTypedElementHandle> InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SetSelection(FTypedElementListConstRef InElementList, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Test to see whether selection modifiers (Ctrl or Shift) are allowed while selecting this element.
 	 */
-	bool AllowSelectionModifiers(const FTypedElementHandle& InElementHandle) const;
+	TYPEDELEMENTRUNTIME_API bool AllowSelectionModifiers(const FTypedElementHandle& InElementHandle) const;
 
 	/**
 	 * Given an element, return the element that should actually perform a selection operation.
 	 */
-	FTypedElementHandle GetSelectionElement(const FTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const;
+	TYPEDELEMENTRUNTIME_API FTypedElementHandle GetSelectionElement(const FTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const;
 
 	/**
 	 * Get a normalized version of this selection set that can be used to perform operations like gizmo manipulation, deletion, copying, etc.
 	 * This will do things like expand out groups, and resolve any parent<->child elements so that duplication operations aren't performed on both the parent and the child.
 	 */
-	FTypedElementListRef GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const;
-	void GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements) const;
+	TYPEDELEMENTRUNTIME_API FTypedElementListRef GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const;
+	TYPEDELEMENTRUNTIME_API void GetNormalizedSelection(const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements) const;
 
 	/**
 	 * Get a normalized version of the given element list that can be used to perform operations like gizmo manipulation, deletion, copying, etc.
 	 * This will do things like expand out groups, and resolve any parent<->child elements so that duplication operations aren't performed on both the parent and the child.
 	 */
-	FTypedElementListRef GetNormalizedElementList(FTypedElementListConstRef InElementList, const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const;
-	void GetNormalizedElementList(FTypedElementListConstRef InElementList, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements) const;
+	TYPEDELEMENTRUNTIME_API FTypedElementListRef GetNormalizedElementList(FTypedElementListConstRef InElementList, const FTypedElementSelectionNormalizationOptions InNormalizationOptions) const;
+	TYPEDELEMENTRUNTIME_API void GetNormalizedElementList(FTypedElementListConstRef InElementList, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements) const;
 
 	/**
 	 * Get the number of selected elements.
@@ -548,14 +548,14 @@ public:
 	 * @returns the current state of the selection set.
 	 */
 	UFUNCTION(BlueprintPure, Category = "TypedElementFramework|Selection")
-	FTypedElementSelectionSetState GetCurrentSelectionState() const;
+	TYPEDELEMENTRUNTIME_API FTypedElementSelectionSetState GetCurrentSelectionState() const;
 
 	/**
 	 * Restores the selection set from the given state.
 	 * The calling code is responsible for managing any undo state.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "TypedElementFramework|Selection")
-	void RestoreSelectionState(const FTypedElementSelectionSetState& InSelectionState);
+	TYPEDELEMENTRUNTIME_API void RestoreSelectionState(const FTypedElementSelectionSetState& InSelectionState);
 
 
 	/*
@@ -566,47 +566,47 @@ public:
 	 * Test to see whether the given element is currently considered selected.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
-	bool IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FTypedElementIsSelectedOptions InSelectionOptions) const;
+	TYPEDELEMENTRUNTIME_API bool IsElementSelected(const FScriptTypedElementHandle& InElementHandle, const FTypedElementIsSelectedOptions InSelectionOptions) const;
 
 	/**
 	 * Test to see whether the given element can be selected.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
-	bool CanSelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
+	TYPEDELEMENTRUNTIME_API bool CanSelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
 
 	/**
 	 * Test to see whether the given element can be deselected.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
-	bool CanDeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
+	TYPEDELEMENTRUNTIME_API bool CanDeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions) const;
 
 	/**
 	 * Attempt to select the given element.
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
-	bool SelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SelectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to select the given elements.
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
-	bool SelectElements(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SelectElements(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to deselect the given element.
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
-	bool DeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool DeselectElement(const FScriptTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to deselect the given elements.
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
-	bool DeselectElements(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool DeselectElements(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Attempt to make the selection the given elements.
@@ -614,26 +614,26 @@ public:
 	 * @return True if the selection was changed, false otherwise.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementFramework|Selection")
-	bool SetSelection(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
+	TYPEDELEMENTRUNTIME_API bool SetSelection(const TArray<FScriptTypedElementHandle>& InElementHandles, const FTypedElementSelectionOptions InSelectionOptions);
 
 	/**
 	 * Test to see whether selection modifiers (Ctrl or Shift) are allowed while selecting this element.
 	 */
 	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Selection")
-	bool AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle) const;
+	TYPEDELEMENTRUNTIME_API bool AllowSelectionModifiers(const FScriptTypedElementHandle& InElementHandle) const;
 
 	/**
 	 * Given an element, return the element that should actually perform a selection operation.
 	 */
 	UFUNCTION(BlueprintPure, Category = "TypedElementFramework|Selection")
-	FScriptTypedElementHandle GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const;
+	TYPEDELEMENTRUNTIME_API FScriptTypedElementHandle GetSelectionElement(const FScriptTypedElementHandle& InElementHandle, const ETypedElementSelectionMethod InSelectionMethod) const;
 
 
 	/**
 	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, DisplayName="Get Selected Element Handles", Category="TypedElementFramework|Selection", meta=(ScriptName="GetSelectedElementHandles"))
-	TArray<FScriptTypedElementHandle> K2_GetSelectedElementHandles(const TSubclassOf<UInterface> InBaseInterfaceType = nullptr) const;
+	TYPEDELEMENTRUNTIME_API TArray<FScriptTypedElementHandle> K2_GetSelectedElementHandles(const TSubclassOf<UInterface> InBaseInterfaceType = nullptr) const;
 
 	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPreChangeDynamic, const UTypedElementSelectionSet*, SelectionSet);
 
@@ -651,27 +651,27 @@ private:
 	/**
 	 * Attempt to resolve the selection interface and selection customization for the given element, if any.
 	 */
-	FTypedElementSelectionSetElement ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const;
+	TYPEDELEMENTRUNTIME_API FTypedElementSelectionSetElement ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const;
 
 	/**
 	 * Update the selection from a replacement request.
 	 */
-	void OnElementReplaced(TArrayView<const TTuple<FTypedElementHandle, FTypedElementHandle>> InReplacedElements);
+	TYPEDELEMENTRUNTIME_API void OnElementReplaced(TArrayView<const TTuple<FTypedElementHandle, FTypedElementHandle>> InReplacedElements);
 
 	/**
 	 * Force a selection update if an element internal state changes.
 	 */
-	void OnElementUpdated(TArrayView<const FTypedElementHandle> InUpdatedElements);
+	TYPEDELEMENTRUNTIME_API void OnElementUpdated(TArrayView<const FTypedElementHandle> InUpdatedElements);
 
 	/**
 	 * Proxy the internal OnPreChange event from the underlying element list.
 	 */
-	void OnElementListPreChange(const FTypedElementList& InElementList);
+	TYPEDELEMENTRUNTIME_API void OnElementListPreChange(const FTypedElementList& InElementList);
 
 	/**
 	 * Proxy the internal OnChanged event from the underlying element list.
 	 */
-	void OnElementListChanged(const FTypedElementList& InElementList);
+	TYPEDELEMENTRUNTIME_API void OnElementListChanged(const FTypedElementList& InElementList);
 
 	/** Underlying element list holding the selection state. */
 	FTypedElementListPtr ElementList;

@@ -16,8 +16,8 @@
 
 class UClass;
 
-UCLASS()
-class ANIMATIONCORE_API UAnimationDataSourceRegistry : public UObject
+UCLASS(MinimalAPI)
+class UAnimationDataSourceRegistry : public UObject
 {
 	GENERATED_BODY()
 
@@ -31,7 +31,7 @@ public:
 	 * @param InDataSource   The data source to register
 	 * @return true if succeeded
 	 */
-	bool RegisterDataSource(const FName& InName, UObject* InDataSource);
+	ANIMATIONCORE_API bool RegisterDataSource(const FName& InName, UObject* InDataSource);
 
 	/**
 	 * Unregisters / removes an existing data source under a given name.
@@ -40,7 +40,7 @@ public:
 	 * @param InName The name of the data source to remove
 	 * @return true if succeeded
 	 */
-	bool UnregisterDataSource(const FName& InName);
+	ANIMATIONCORE_API bool UnregisterDataSource(const FName& InName);
 
 	/**
 	 * Returns true if this registry contains a source with the given name
@@ -48,7 +48,7 @@ public:
 	 * @param InName The name of the data source to look up.
 	 * @return true if a source with the given name exists
 	 */
-	bool ContainsSource(const FName& InName) const;
+	ANIMATIONCORE_API bool ContainsSource(const FName& InName) const;
 
 	/**
 	 * Returns a given data source and cast it to the expected class.
@@ -57,7 +57,7 @@ public:
 	 * @param InExpectedClass The class expected from the data source
 	 * @return The requested data source
 	 */
-	UObject* RequestSource(const FName& InName, UClass* InExpectedClass) const;
+	ANIMATIONCORE_API UObject* RequestSource(const FName& InName, UClass* InExpectedClass) const;
 
 	/**
 	 * Returns a given data source and cast it to the expected class.
@@ -82,5 +82,5 @@ private:
 	TMap<FName, TWeakObjectPtr<UObject>> DataSources;
 
 	/** Clear Invalid Data Sources that are GC-ed */
-	void ClearInvalidDataSource();
+	ANIMATIONCORE_API void ClearInvalidDataSource();
 };

@@ -16,7 +16,7 @@ template <typename FuncType> class TFunctionRef;
 
 #define DEBUG_LAYOUT_STATS 0
 
-class MESHUTILITIESCOMMON_API FAllocator2D
+class FAllocator2D
 {
 public:
 	enum class EMode
@@ -61,58 +61,58 @@ public:
 	};
 
 public:
-	FAllocator2D( EMode Mode, uint32 Width, uint32 Height, ELightmapUVVersion LayoutVersion );
+	MESHUTILITIESCOMMON_API FAllocator2D( EMode Mode, uint32 Width, uint32 Height, ELightmapUVVersion LayoutVersion );
 
 	// Must clear before using
-	void       Clear();
+	MESHUTILITIESCOMMON_API void       Clear();
 
-	bool       Find( FRect& Rect );
-	bool       Test( FRect Rect );
-	void       Alloc( FRect Rect );
+	MESHUTILITIESCOMMON_API bool       Find( FRect& Rect );
+	MESHUTILITIESCOMMON_API bool       Test( FRect Rect );
+	MESHUTILITIESCOMMON_API void       Alloc( FRect Rect );
 
-	bool       FindBitByBit( FRect& Rect, const FAllocator2D& Other );
-	bool       FindWithSegments( FRect& Rect, const FAllocator2D& Other, TFunctionRef<bool (const FAllocator2D::FRect&)> IsBestRect ) const;
-	bool       Test( FRect Rect, const FAllocator2D& Other );
-	void       Alloc( FRect Rect, const FAllocator2D& Other );
+	MESHUTILITIESCOMMON_API bool       FindBitByBit( FRect& Rect, const FAllocator2D& Other );
+	MESHUTILITIESCOMMON_API bool       FindWithSegments( FRect& Rect, const FAllocator2D& Other, TFunctionRef<bool (const FAllocator2D::FRect&)> IsBestRect ) const;
+	MESHUTILITIESCOMMON_API bool       Test( FRect Rect, const FAllocator2D& Other );
+	MESHUTILITIESCOMMON_API void       Alloc( FRect Rect, const FAllocator2D& Other );
 
-	uint64     GetBit( uint32 x, uint32 y ) const;
-	void       SetBit( uint32 x, uint32 y );
-	void       ClearBit( uint32 x, uint32 y );
+	MESHUTILITIESCOMMON_API uint64     GetBit( uint32 x, uint32 y ) const;
+	MESHUTILITIESCOMMON_API void       SetBit( uint32 x, uint32 y );
+	MESHUTILITIESCOMMON_API void       ClearBit( uint32 x, uint32 y );
 
-	void       CreateUsedSegments();
-	void       MergeRun( FRun& Run, const FRun& OtherRun, uint32 RectOffset, uint32 RectLength, uint32 PrimaryResolution /* Resolution along the axis the run belongs to */, uint32 PerpendicularResolution );
-	void       MergeSegments( const FRect& Rect, const FAllocator2D& Other );
+	MESHUTILITIESCOMMON_API void       CreateUsedSegments();
+	MESHUTILITIESCOMMON_API void       MergeRun( FRun& Run, const FRun& OtherRun, uint32 RectOffset, uint32 RectLength, uint32 PrimaryResolution /* Resolution along the axis the run belongs to */, uint32 PerpendicularResolution );
+	MESHUTILITIESCOMMON_API void       MergeSegments( const FRect& Rect, const FAllocator2D& Other );
 
-	void       FlipX( const FRect& Rect );
-	void       FlipY( const FRect& Rect );
+	MESHUTILITIESCOMMON_API void       FlipX( const FRect& Rect );
+	MESHUTILITIESCOMMON_API void       FlipY( const FRect& Rect );
 
-	uint32     GetUsedTexels() const;
+	MESHUTILITIESCOMMON_API uint32     GetUsedTexels() const;
 
-	void       CopyRuns( TArray<FRun>& Runs, const TArray<FRun>& OtherRuns, int32 MaxSize );
+	MESHUTILITIESCOMMON_API void       CopyRuns( TArray<FRun>& Runs, const TArray<FRun>& OtherRuns, int32 MaxSize );
 
 	// Take control of the copy assignment to reduce the amount of data movement to the strict minimum
 	FAllocator2D(const FAllocator2D& Other) = default;
-	FAllocator2D& operator = (const FAllocator2D& Other);
+	MESHUTILITIESCOMMON_API FAllocator2D& operator = (const FAllocator2D& Other);
 
 	// Allow to visualize the content in ascii for debugging purpose. (i.e Watch or Immediate window).
-	FString    ToString() const;
+	MESHUTILITIESCOMMON_API FString    ToString() const;
 
 	// Get the MD5 hash of the rasterized content
-	FMD5Hash   GetRasterMD5() const;
+	MESHUTILITIESCOMMON_API FMD5Hash   GetRasterMD5() const;
 
 	uint32     GetRasterWidth()  const { return RasterWidth; }
 	uint32     GetRasterHeight() const { return RasterHeight; }
 
-	void       ResetStats();
-	void       PublishStats( int32 ChartIndex, int32 Orientation, bool bFound, const FRect& Rect, const FRect& BestRect, const FMD5Hash& ChartMD5, TFunctionRef<bool (const FAllocator2D::FRect&)> IsBestRect );
+	MESHUTILITIESCOMMON_API void       ResetStats();
+	MESHUTILITIESCOMMON_API void       PublishStats( int32 ChartIndex, int32 Orientation, bool bFound, const FRect& Rect, const FRect& BestRect, const FMD5Hash& ChartMD5, TFunctionRef<bool (const FAllocator2D::FRect&)> IsBestRect );
 
 protected:
-	bool       TestOneRun( const FRun& Run, const FRun& OtherRun, uint32 RectOffset, uint32 RectLength, uint32 PrimaryResolution, uint32& OutFailedLength ) const;
-	bool       TestAllRows( const FRect& Rect, const FAllocator2D& Other, uint32& FailedLength ) const;
-	bool       TestAllColumns( const FRect& Rect, const FAllocator2D& Other, uint32& FailedLength ) const;
-	void       InitRuns( TArray<FRun>& Runs, uint32 PrimaryResolution, uint32 PerpendicularRasterSize);
-	void       InitSegments();
-	void       AddUsedSegment( FRun& Run, uint32 StartPos, uint32 Length );
+	MESHUTILITIESCOMMON_API bool       TestOneRun( const FRun& Run, const FRun& OtherRun, uint32 RectOffset, uint32 RectLength, uint32 PrimaryResolution, uint32& OutFailedLength ) const;
+	MESHUTILITIESCOMMON_API bool       TestAllRows( const FRect& Rect, const FAllocator2D& Other, uint32& FailedLength ) const;
+	MESHUTILITIESCOMMON_API bool       TestAllColumns( const FRect& Rect, const FAllocator2D& Other, uint32& FailedLength ) const;
+	MESHUTILITIESCOMMON_API void       InitRuns( TArray<FRun>& Runs, uint32 PrimaryResolution, uint32 PerpendicularRasterSize);
+	MESHUTILITIESCOMMON_API void       InitSegments();
+	MESHUTILITIESCOMMON_API void       AddUsedSegment( FRun& Run, uint32 StartPos, uint32 Length );
 
 	// Enforce that those cannot be changed in flight
 	const EMode              Mode;

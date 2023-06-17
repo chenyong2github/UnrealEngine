@@ -9,21 +9,21 @@
 
 struct FOggVorbisEncoderPrivateState;
 
-class SIGNALPROCESSING_API FOggVorbisEncoder : public Audio::IAudioEncoder
+class FOggVorbisEncoder : public Audio::IAudioEncoder
 {
 public:
-	FOggVorbisEncoder(const FSoundQualityInfo& InInfo, int32 AverageBufferCallbackSize);
+	SIGNALPROCESSING_API FOggVorbisEncoder(const FSoundQualityInfo& InInfo, int32 AverageBufferCallbackSize);
 
 	// From IAudioEncoder: returns 0, since Ogg Vorbis is not built for networked streaming.
-	virtual int32 GetCompressedPacketSize() const override;
+	SIGNALPROCESSING_API virtual int32 GetCompressedPacketSize() const override;
 
 protected:
 
 	// From IAudioEncoder:
-	virtual int64 SamplesRequiredPerEncode() const override;
-	virtual bool StartFile(const FSoundQualityInfo& InQualityInfo, TArray<uint8>& OutFileStart) override;
-	virtual bool EncodeChunk(const TArray<float>& InAudio, TArray<uint8>& OutBytes) override;
-	virtual bool EndFile(TArray<uint8>& OutBytes) override;
+	SIGNALPROCESSING_API virtual int64 SamplesRequiredPerEncode() const override;
+	SIGNALPROCESSING_API virtual bool StartFile(const FSoundQualityInfo& InQualityInfo, TArray<uint8>& OutFileStart) override;
+	SIGNALPROCESSING_API virtual bool EncodeChunk(const TArray<float>& InAudio, TArray<uint8>& OutBytes) override;
+	SIGNALPROCESSING_API virtual bool EndFile(TArray<uint8>& OutBytes) override;
 
 private:
 	FOggVorbisEncoder();

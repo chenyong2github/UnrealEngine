@@ -18,13 +18,13 @@ namespace Chaos
  * Physical materials are used to define the response of a physical object when 
  * interacting dynamically with the world.
  */
-UCLASS(BlueprintType, Blueprintable, CollapseCategories, HideCategories = Object)
-class PHYSICSCORE_API UChaosPhysicalMaterial : public UObject
+UCLASS(BlueprintType, Blueprintable, CollapseCategories, HideCategories = Object, MinimalAPI)
+class UChaosPhysicalMaterial : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 	/** Update the values in \p Mat to reflect the values in this \c UObject. */
-	void CopyTo(Chaos::FChaosPhysicsMaterial& Mat) const;
+	PHYSICSCORE_API void CopyTo(Chaos::FChaosPhysicsMaterial& Mat) const;
 
 	//
 	// Surface properties.

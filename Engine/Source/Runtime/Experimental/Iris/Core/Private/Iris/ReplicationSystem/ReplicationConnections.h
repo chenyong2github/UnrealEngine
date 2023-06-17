@@ -66,7 +66,7 @@ public:
 		return ConnectionId < GetMaxConnectionCount() && ValidConnections.GetBit(ConnectionId);
 	}
 
-	IRISCORE_API void AddConnection(uint32 ConnectionId)
+	void AddConnection(uint32 ConnectionId)
 	{
 		check(ValidConnections.GetBit(ConnectionId) == false);
 		ValidConnections.SetBit(ConnectionId);

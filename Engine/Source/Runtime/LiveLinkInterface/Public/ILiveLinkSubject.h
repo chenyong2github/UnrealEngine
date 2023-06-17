@@ -20,18 +20,18 @@ class ULiveLinkRole;
  * Subjects are individual streams of data within the client.
  * An animating character could be a subject for instance.
  */
-class LIVELINKINTERFACE_API ILiveLinkSubject
+class ILiveLinkSubject
 {
 public:
 	virtual ~ILiveLinkSubject() {}
 	virtual void Initialize(FLiveLinkSubjectKey SubjectKey, TSubclassOf<ULiveLinkRole> Role, ILiveLinkClient* LiveLinkClient) = 0;
 	virtual void Update() = 0;
-	virtual bool EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame);
+	LIVELINKINTERFACE_API virtual bool EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame);
 	virtual void ClearFrames() = 0;
 
 	virtual FLiveLinkSubjectKey GetSubjectKey() const = 0;
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const = 0;
-	virtual bool SupportsRole(TSubclassOf<ULiveLinkRole> InDesiredRole) const;
+	LIVELINKINTERFACE_API virtual bool SupportsRole(TSubclassOf<ULiveLinkRole> InDesiredRole) const;
 
 	virtual bool HasValidFrameSnapshot() const = 0;
 	virtual FLiveLinkStaticDataStruct& GetStaticData() = 0;
@@ -55,5 +55,5 @@ protected:
 	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const = 0;
 
 protected:
-	static bool Translate(const ILiveLinkSubject* LinkSubject, TSubclassOf<ULiveLinkRole> DesiredRole, const FLiveLinkStaticDataStruct& StaticData, const FLiveLinkFrameDataStruct& FrameData, FLiveLinkSubjectFrameData& OutFrame);
+	static LIVELINKINTERFACE_API bool Translate(const ILiveLinkSubject* LinkSubject, TSubclassOf<ULiveLinkRole> DesiredRole, const FLiveLinkStaticDataStruct& StaticData, const FLiveLinkFrameDataStruct& FrameData, FLiveLinkSubjectFrameData& OutFrame);
 };

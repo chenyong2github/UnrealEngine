@@ -12,7 +12,7 @@ struct FPointWeightMap;
 
 namespace ClothingMeshUtils
 {
-	class CLOTHINGSYSTEMRUNTIMECOMMON_API ClothMeshDesc
+	class ClothMeshDesc
 	{
 	public:
 		ClothMeshDesc(TConstArrayView<FVector3f> InPositions, TConstArrayView<FVector3f> InNormals, TConstArrayView<uint32> InIndices)
@@ -57,19 +57,19 @@ namespace ClothingMeshUtils
 		bool HasAveragedNormals() const { return Normals.Num() == AveragedNormals.Num(); }
 
 		/** Find the distance to the specified triangle from a point. */
-		float DistanceToTriangle(const FVector& Position, int32 TriangleBaseIndex) const;
+		CLOTHINGSYSTEMRUNTIMECOMMON_API float DistanceToTriangle(const FVector& Position, int32 TriangleBaseIndex) const;
 
 		/** Find the closest triangles from the specified point. */
-		TArray<int32> FindCandidateTriangles(const FVector& InPoint, float InTolerance = KINDA_SMALL_NUMBER) const;
+		CLOTHINGSYSTEMRUNTIMECOMMON_API TArray<int32> FindCandidateTriangles(const FVector& InPoint, float InTolerance = KINDA_SMALL_NUMBER) const;
 
 		/**
 		 * Return the max edge length for each edge coming out of a mesh vertex.
 		 * Useful for guiding the search radius when searching for nearest triangles.
 		 */
-		TConstArrayView<float> GetMaxEdgeLengths() const;
+		CLOTHINGSYSTEMRUNTIMECOMMON_API TConstArrayView<float> GetMaxEdgeLengths() const;
 
 	private:
-		void ComputeAveragedNormals();
+		CLOTHINGSYSTEMRUNTIMECOMMON_API void ComputeAveragedNormals();
 
 		struct FClothBvEntry;
 
@@ -252,7 +252,7 @@ namespace ClothingMeshUtils
 	 * Object used to map vertex parameters between two meshes using the
 	 * same barycentric mesh to mesh mapping data we use for clothing
 	 */
-	class CLOTHINGSYSTEMRUNTIMECOMMON_API FVertexParameterMapper
+	class FVertexParameterMapper
 	{
 	public:
 		UE_NONCOPYABLE(FVertexParameterMapper)
@@ -340,7 +340,7 @@ namespace ClothingMeshUtils
 		 * This transfers the values from source to dest by matching the mesh topologies using
 		 * barycentric coordinates of the dest mesh (Mesh0) positions over the source mesh (Mesh1).
 		 */
-		void Map(TConstArrayView<float> Source, TArray<float>& Dest);
+		CLOTHINGSYSTEMRUNTIMECOMMON_API void Map(TConstArrayView<float> Source, TArray<float>& Dest);
 
 	private:
 
@@ -349,7 +349,7 @@ namespace ClothingMeshUtils
 		 * @param OutEmbeddedPositions Embedded version of the original positions, a barycentric coordinate and distance along the normal of the triangle
 		 * @param OutSourceIndices Source index list for the embedded positions, 3 per position to denote the source triangle
 		 */
-		void GenerateEmbeddedPositions(TArray<FVector4>& OutEmbeddedPositions, TArray<int32>& OutSourceIndices);
+		CLOTHINGSYSTEMRUNTIMECOMMON_API void GenerateEmbeddedPositions(TArray<FVector4>& OutEmbeddedPositions, TArray<int32>& OutSourceIndices);
 
 		TConstArrayView<FVector3f> Mesh0Positions;
 		TConstArrayView<FVector3f> Mesh0Normals;

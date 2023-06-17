@@ -28,48 +28,48 @@ class UObject;
  *  @todo support tablet fingers
  *  @todo support gamepad?
  */
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UAnyButtonInputBehavior : public UInputBehavior
+UCLASS(MinimalAPI)
+class UAnyButtonInputBehavior : public UInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	UAnyButtonInputBehavior();
+	INTERACTIVETOOLSFRAMEWORK_API UAnyButtonInputBehavior();
 
 	/** Return set of devices supported by this behavior */
-	virtual EInputDevices GetSupportedDevices() override;
+	INTERACTIVETOOLSFRAMEWORK_API virtual EInputDevices GetSupportedDevices() override;
 
 	/** @return true if Target Button has been pressed this frame */
-	virtual bool IsPressed(const FInputDeviceState& input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool IsPressed(const FInputDeviceState& input);
 
 	/** @return true if Target Button is currently held down */
-	virtual bool IsDown(const FInputDeviceState& input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool IsDown(const FInputDeviceState& input);
 
 	/** @return true if Target Button was released this frame */
-	virtual bool IsReleased(const FInputDeviceState& input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool IsReleased(const FInputDeviceState& input);
 	
 	/** @return current 2D position of Target Device, or zero if device does not have 2D position */
-	virtual FVector2D GetClickPoint(const FInputDeviceState& input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector2D GetClickPoint(const FInputDeviceState& input);
 
 	/** @return current 3D world ray for Target Device position */
-	virtual FRay GetWorldRay(const FInputDeviceState& input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FRay GetWorldRay(const FInputDeviceState& input);
 	
 	/** @return current 3D world ray and optional 2D position for Target Device */
-	virtual FInputDeviceRay GetDeviceRay(const FInputDeviceState& input);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputDeviceRay GetDeviceRay(const FInputDeviceState& input);
 
 	/** @return last-active supported Device */
-	EInputDevices GetActiveDevice() const;
+	INTERACTIVETOOLSFRAMEWORK_API EInputDevices GetActiveDevice() const;
 
 
 public:
 	/** Configure the target Mouse button to be the left button */
-	virtual void SetUseLeftMouseButton();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUseLeftMouseButton();
 	/** Configure the target Mouse button to be the middle button */
-	virtual void SetUseMiddleMouseButton();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUseMiddleMouseButton();
 	/** Configure the target Mouse button to be the right button */
-	virtual void SetUseRightMouseButton();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUseRightMouseButton();
 	/** Configure a custom target mouse button */
-	virtual void SetUseCustomMouseButton(TUniqueFunction<FDeviceButtonState(const FInputDeviceState& Input)>);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetUseCustomMouseButton(TUniqueFunction<FDeviceButtonState(const FInputDeviceState& Input)>);
 
 
 protected:
@@ -80,5 +80,5 @@ protected:
 	TUniqueFunction<FDeviceButtonState(const FInputDeviceState& Input)> GetMouseButtonStateFunc;
 
 	/** Returns FDeviceButtonState for target active device button */
-	FDeviceButtonState GetButtonStateFunc(const FInputDeviceState& Input);
+	INTERACTIVETOOLSFRAMEWORK_API FDeviceButtonState GetButtonStateFunc(const FInputDeviceState& Input);
 };

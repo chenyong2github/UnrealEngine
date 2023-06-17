@@ -33,7 +33,7 @@ typedef SViewport SWebBrowserWidget;
 typedef SWidget SWebBrowserWidget;
 #endif
 
-class WEBBROWSER_API SWebBrowserView
+class SWebBrowserView
 	: public SCompoundWidget
 {
 public:
@@ -161,9 +161,9 @@ public:
 
 
 	/** Default constructor. */
-	SWebBrowserView();
+	WEBBROWSER_API SWebBrowserView();
 
-	~SWebBrowserView();
+	WEBBROWSER_API ~SWebBrowserView();
 
 	virtual bool SupportsKeyboardFocus() const override {return true;}
 
@@ -172,16 +172,16 @@ public:
 	 *
 	 * @param InArgs  Declaration from which to construct the widget.
 	 */
-	void Construct(const FArguments& InArgs, const TSharedPtr<IWebBrowserWindow>& InWebBrowserWindow = nullptr);
+	WEBBROWSER_API void Construct(const FArguments& InArgs, const TSharedPtr<IWebBrowserWindow>& InWebBrowserWindow = nullptr);
 
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	WEBBROWSER_API virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 	/**
 	 * Load the specified URL.
 	 *
 	 * @param NewURL New URL to load.
 	 */
-	void LoadURL(FString NewURL);
+	WEBBROWSER_API void LoadURL(FString NewURL);
 
 	/**
 	* Load a string as data to create a web page.
@@ -189,42 +189,42 @@ public:
 	* @param Contents String to load.
 	* @param DummyURL Dummy URL for the page.
 	*/
-	void LoadString(FString Contents, FString DummyURL);
+	WEBBROWSER_API void LoadString(FString Contents, FString DummyURL);
 
 	/** Reload the current page. */
-	void Reload();
+	WEBBROWSER_API void Reload();
 
 	/** Stop loading the page. */
-	void StopLoad();
+	WEBBROWSER_API void StopLoad();
 
 	/** Get the current title of the web page. */
-	FText GetTitleText() const;
+	WEBBROWSER_API FText GetTitleText() const;
 
 	/**
 	 * Gets the currently loaded URL.
 	 *
 	 * @return The URL, or empty string if no document is loaded.
 	 */
-	FString GetUrl() const;
+	WEBBROWSER_API FString GetUrl() const;
 
 	/**
 	 * Gets the URL that appears in the address bar, this may not be the URL that is currently loaded in the frame.
 	 *
 	 * @return The address bar URL.
 	 */
-	FText GetAddressBarUrlText() const;
+	WEBBROWSER_API FText GetAddressBarUrlText() const;
 
 	/** Whether the document finished loading. */
-	bool IsLoaded() const;
+	WEBBROWSER_API bool IsLoaded() const;
 
 	/** Whether the document is currently being loaded. */
-	bool IsLoading() const;
+	WEBBROWSER_API bool IsLoading() const;
 
 	/** Whether the browser widget is done initializing. */
-	bool IsInitialized() const;
+	WEBBROWSER_API bool IsInitialized() const;
 
 	/** Execute javascript on the current window */
-	void ExecuteJavascript(const FString& ScriptText);
+	WEBBROWSER_API void ExecuteJavascript(const FString& ScriptText);
 
 	/**
 	 * Gets the source of the main frame as raw HTML.
@@ -233,7 +233,7 @@ public:
 	 * result is ready.
 	 * @param	Callback	A callable that takes a single string reference for handling the result.
 	 */
-	void GetSource(TFunction<void (const FString&)> Callback) const ;
+	WEBBROWSER_API void GetSource(TFunction<void (const FString&)> Callback) const ;
 
 	/**
 	 * Expose a UObject instance to the browser runtime.
@@ -244,7 +244,7 @@ public:
 	 * @param Object The object instance.
 	 * @param bIsPermanent If true, the object will be visible to all pages loaded through this browser widget, otherwise, it will be deleted when navigating away from the current page. Non-permanent bindings should be registered from inside an OnLoadStarted event handler in order to be available before JS code starts loading.
 	 */
-	void BindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true);
+	WEBBROWSER_API void BindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true);
 
 	/**
 	 * Remove an existing script binding registered by BindUObject.
@@ -253,99 +253,99 @@ public:
 	 * @param Object The object will only be removed if it is the same object as the one passed in.
 	 * @param bIsPermanent Must match the bIsPermanent argument passed to BindUObject.
 	 */
-	void UnbindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true);
+	WEBBROWSER_API void UnbindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true);
 
-	void BindAdapter(const TSharedRef<IWebBrowserAdapter>& Adapter);
+	WEBBROWSER_API void BindAdapter(const TSharedRef<IWebBrowserAdapter>& Adapter);
 
-	void UnbindAdapter(const TSharedRef<IWebBrowserAdapter>& Adapter);
+	WEBBROWSER_API void UnbindAdapter(const TSharedRef<IWebBrowserAdapter>& Adapter);
 
-	void BindInputMethodSystem(ITextInputMethodSystem* TextInputMethodSystem);
+	WEBBROWSER_API void BindInputMethodSystem(ITextInputMethodSystem* TextInputMethodSystem);
 
-	void UnbindInputMethodSystem();
+	WEBBROWSER_API void UnbindInputMethodSystem();
 
 	/** Returns true if the browser can navigate backwards. */
-	bool CanGoBack() const;
+	WEBBROWSER_API bool CanGoBack() const;
 
 	/** Navigate backwards. */
-	void GoBack();
+	WEBBROWSER_API void GoBack();
 
 	/** Returns true if the browser can navigate forwards. */
-	bool CanGoForward() const;
+	WEBBROWSER_API bool CanGoForward() const;
 
 	/** Navigate forwards. */
-	void GoForward();
+	WEBBROWSER_API void GoForward();
 
 	/** Set parent SWindow for this browser. */
-	void SetParentWindow(TSharedPtr<SWindow> Window);
+	WEBBROWSER_API void SetParentWindow(TSharedPtr<SWindow> Window);
 
 	/** Update the underlying browser widget to match the KB focus in slate.
 		This is used to work around a CEF bug that loses focus state on navigations*/
-	void SetBrowserKeyboardFocus();
+	WEBBROWSER_API void SetBrowserKeyboardFocus();
 
 	/** Close the underlying browser object before we destruct this view. 
 	    This will block until that object is fully destroyed.
 		Calling this is optional, CEF has object lifetime requirements that mean on shutdown you must destroy browsers before exit.*/
-	void CloseBrowser();
+	WEBBROWSER_API void CloseBrowser();
 
 private:
 
-	void SetupParentWindowHandlers();
+	WEBBROWSER_API void SetupParentWindowHandlers();
 
 	/** Callback for document loading state changes. */
-	void HandleBrowserWindowDocumentStateChanged(EWebBrowserDocumentState NewState);
+	WEBBROWSER_API void HandleBrowserWindowDocumentStateChanged(EWebBrowserDocumentState NewState);
 
 	/** Callback to tell slate we want to update the contents of the web view based on changes inside the view. */
-	void HandleBrowserWindowNeedsRedraw();
+	WEBBROWSER_API void HandleBrowserWindowNeedsRedraw();
 
 	/** Callback for document title changes. */
-	void HandleTitleChanged(FString NewTitle);
+	WEBBROWSER_API void HandleTitleChanged(FString NewTitle);
 
 	/** Callback for loaded url changes. */
-	void HandleUrlChanged(FString NewUrl);
+	WEBBROWSER_API void HandleUrlChanged(FString NewUrl);
 
 	/** Callback for showing browser tool tips. */
-	void HandleToolTip(FString ToolTipText);
+	WEBBROWSER_API void HandleToolTip(FString ToolTipText);
 
 	/**
 	 * A delegate that is executed prior to browser navigation.
 	 *
 	 * @return true if the navigation was handled an no further action should be taken by the browser, false if the browser should handle.
 	 */
-	bool HandleBeforeNavigation(const FString& Url, const FWebNavigationRequest& Request);
+	WEBBROWSER_API bool HandleBeforeNavigation(const FString& Url, const FWebNavigationRequest& Request);
 
-	bool HandleLoadUrl(const FString& Method, const FString& Url, FString& OutResponse);
+	WEBBROWSER_API bool HandleLoadUrl(const FString& Method, const FString& Url, FString& OutResponse);
 
 	/**
 	 * A delegate that is executed when the browser requests window creation.
 	 *
 	 * @return true if if the window request was handled, false if the browser requesting the new window should be closed.
 	 */
-	bool HandleCreateWindow(const TWeakPtr<IWebBrowserWindow>& NewBrowserWindow, const TWeakPtr<IWebBrowserPopupFeatures>& PopupFeatures);
+	WEBBROWSER_API bool HandleCreateWindow(const TWeakPtr<IWebBrowserWindow>& NewBrowserWindow, const TWeakPtr<IWebBrowserPopupFeatures>& PopupFeatures);
 
 	/**
 	 * A delegate that is executed when closing the browser window.
 	 *
 	 * @return true if if the window close was handled, false otherwise.
 	 */
-	bool HandleCloseWindow(const TWeakPtr<IWebBrowserWindow>& BrowserWindow);
+	WEBBROWSER_API bool HandleCloseWindow(const TWeakPtr<IWebBrowserWindow>& BrowserWindow);
 
 	/** Callback for showing dialogs to the user */
-	EWebBrowserDialogEventResponse HandleShowDialog(const TWeakPtr<IWebBrowserDialog>& DialogParams);
+	WEBBROWSER_API EWebBrowserDialogEventResponse HandleShowDialog(const TWeakPtr<IWebBrowserDialog>& DialogParams);
 
 	/** Callback for dismissing any dialogs previously shown  */
-	void HandleDismissAllDialogs();
+	WEBBROWSER_API void HandleDismissAllDialogs();
 
 	/** Callback for popup window permission */
-	bool HandleBeforePopup(FString URL, FString Target);
+	WEBBROWSER_API bool HandleBeforePopup(FString URL, FString Target);
 
 	/** Callback for showing a popup menu */
-	void HandleShowPopup(const FIntRect& PopupSize);
+	WEBBROWSER_API void HandleShowPopup(const FIntRect& PopupSize);
 
 	/** Callback for hiding the popup menu */
-	void HandleDismissPopup();
+	WEBBROWSER_API void HandleDismissPopup();
 
 	/** Callback from the popup menu notifiying it has been dismissed */
-	void HandleMenuDismissed(TSharedRef<IMenu>);
+	WEBBROWSER_API void HandleMenuDismissed(TSharedRef<IMenu>);
 
 	virtual FPopupMethodReply OnQueryPopupMethod() const override
 	{
@@ -354,16 +354,16 @@ private:
 			: FPopupMethodReply::Unhandled();
 	}
 
-	void HandleWindowDeactivated();
-	void HandleWindowActivated();
-	bool UnhandledKeyDown(const FKeyEvent& KeyEvent);
-	bool UnhandledKeyUp(const FKeyEvent& KeyEvent);
-	bool UnhandledKeyChar(const FCharacterEvent& CharacterEvent);
+	WEBBROWSER_API void HandleWindowDeactivated();
+	WEBBROWSER_API void HandleWindowActivated();
+	WEBBROWSER_API bool UnhandledKeyDown(const FKeyEvent& KeyEvent);
+	WEBBROWSER_API bool UnhandledKeyUp(const FKeyEvent& KeyEvent);
+	WEBBROWSER_API bool UnhandledKeyChar(const FCharacterEvent& CharacterEvent);
 
-	bool HandleDrag(const FPointerEvent& MouseEvent);
-	void HandleConsoleMessage(const FString& Message, const FString& Source, int32 Line, EWebBrowserConsoleLogSeverity Serverity);
+	WEBBROWSER_API bool HandleDrag(const FPointerEvent& MouseEvent);
+	WEBBROWSER_API void HandleConsoleMessage(const FString& Message, const FString& Source, int32 Line, EWebBrowserConsoleLogSeverity Serverity);
 
-	TOptional<FSlateRenderTransform> GetPopupRenderTransform() const;
+	WEBBROWSER_API TOptional<FSlateRenderTransform> GetPopupRenderTransform() const;
 private:
 
 	/** Interface for dealing with a web browser window. */
@@ -448,6 +448,6 @@ private:
 	FOnConsoleMessageDelegate OnConsoleMessage;
 
 protected:
-	bool HandleSuppressContextMenu();
+	WEBBROWSER_API bool HandleSuppressContextMenu();
 
 };

@@ -39,7 +39,7 @@ class FDynamicMesh3;
  * FColliderMesh (effectively) implements the TTriangleMeshAdapter interface, and so can be used 
  * anywhere a TTriangleMeshAdapter could be used (eg with TMeshQueries functions). 
  */
-class GEOMETRYCORE_API FColliderMesh
+class FColliderMesh
 {
 public:
 	struct FBuildOptions
@@ -60,12 +60,12 @@ public:
 	};
 
 public:
-	FColliderMesh();
-	FColliderMesh(const FDynamicMesh3& SourceMesh, const FBuildOptions& BuildOptions = FBuildOptions());
+	GEOMETRYCORE_API FColliderMesh();
+	GEOMETRYCORE_API FColliderMesh(const FDynamicMesh3& SourceMesh, const FBuildOptions& BuildOptions = FBuildOptions());
 
-	void Initialize(const FDynamicMesh3& SourceMesh, const FBuildOptions& BuildOptions = FBuildOptions());
+	GEOMETRYCORE_API void Initialize(const FDynamicMesh3& SourceMesh, const FBuildOptions& BuildOptions = FBuildOptions());
 
-	void Reset(bool bReleaseMemory);
+	GEOMETRYCORE_API void Reset(bool bReleaseMemory);
 
 	// mesh API required for TMeshAABBTree3
 	bool IsTriangle(int32 TriangleID) const { return TriangleID >= 0 && TriangleID < Triangles.Num(); }
@@ -94,10 +94,10 @@ public:
 
 	bool SourceWasCompactV() const { return bSourceWasCompactV; }
 	bool HasVertexIDMap() const { return SourceVertexIDs.Num() > 0 && SourceVertexIDs.Num() == Vertices.Num(); }
-	int32 GetSourceVertexID(int32 VertexID) const;
+	GEOMETRYCORE_API int32 GetSourceVertexID(int32 VertexID) const;
 	bool SourceWasCompactT() const { return bSourceWasCompactT; }
 	bool HasTriangleIDMap() const { return SourceTriangleIDs.Num() > 0 && SourceTriangleIDs.Num() == Triangles.Num(); }
-	int32 GetSourceTriangleID(int32 TriangleID) const;
+	GEOMETRYCORE_API int32 GetSourceTriangleID(int32 TriangleID) const;
 
 	// spatial APIs
 
@@ -105,21 +105,21 @@ public:
 	 * @param HitTriangleIDOut TriangleID on collider mesh - use GetSourceTriangleID() to map back to source mesh
 	 * @return true if a triangle was hit and Out parameters are initialized
 	 */
-	bool FindNearestHitTriangle( const FRay3d& Ray, double& RayParameterOut, int& HitTriangleIDOut, FVector3d& BaryCoordsOut ) const;
+	GEOMETRYCORE_API bool FindNearestHitTriangle( const FRay3d& Ray, double& RayParameterOut, int& HitTriangleIDOut, FVector3d& BaryCoordsOut ) const;
 
 	/**
 	 * Find the TriangleID closest to P on the collider mesh, and distance to it, within distance MaxDist, or return InvalidID.
 	 * Use GetSourceTriangleID() to map the TriangleID back to the source mesh.
 	 * Use MeshQueries.TriangleDistance() to get more information.
 	 */
-	int FindNearestTriangle( const FVector3d& Point, double& NearestDistSqrOut, const IMeshSpatial::FQueryOptions& Options = IMeshSpatial::FQueryOptions() ) const;
+	GEOMETRYCORE_API int FindNearestTriangle( const FVector3d& Point, double& NearestDistSqrOut, const IMeshSpatial::FQueryOptions& Options = IMeshSpatial::FQueryOptions() ) const;
 
 
 	/**
 	 * Direct access to the AABBTree pointer inside the ColliderMesh. 
 	 * @warning this function should be avoided if possible, and may be removed in the future. 
 	 */
-	TMeshAABBTree3<FColliderMesh>* GetRawAABBTreeUnsafe();
+	GEOMETRYCORE_API TMeshAABBTree3<FColliderMesh>* GetRawAABBTreeUnsafe();
 
 
 
@@ -143,7 +143,7 @@ protected:
 /**
  * Projection target API wrapper for an FColliderMesh
  */
-class GEOMETRYCORE_API FColliderMeshProjectionTarget : public IOrientedProjectionTarget
+class FColliderMeshProjectionTarget : public IOrientedProjectionTarget
 {
 public:
 	FColliderMesh* ColliderMesh = nullptr;
@@ -161,8 +161,8 @@ public:
 
 	virtual ~FColliderMeshProjectionTarget() {}
 
-	virtual FVector3d Project(const FVector3d& Point, int Identifier = -1) override;
-	virtual FVector3d Project(const FVector3d& Point, FVector3d& ProjectNormalOut, int Identifier = -1) override;
+	GEOMETRYCORE_API virtual FVector3d Project(const FVector3d& Point, int Identifier = -1) override;
+	GEOMETRYCORE_API virtual FVector3d Project(const FVector3d& Point, FVector3d& ProjectNormalOut, int Identifier = -1) override;
 };
 
 

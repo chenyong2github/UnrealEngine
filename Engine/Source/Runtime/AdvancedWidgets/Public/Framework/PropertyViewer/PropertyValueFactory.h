@@ -24,7 +24,7 @@ class FPropertyValueFactoryImpl;
 
 
 /** */
-class ADVANCEDWIDGETS_API FPropertyValueFactory
+class FPropertyValueFactory
 {
 public:
 	struct FHandle
@@ -58,22 +58,22 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<SWidget>, FOnGenerate, FGenerateArgs);
 
 public:
-	FPropertyValueFactory();
+	ADVANCEDWIDGETS_API FPropertyValueFactory();
 	FPropertyValueFactory(const FPropertyValueFactory&) = delete;
 	FPropertyValueFactory& operator=(const FPropertyValueFactory&) = delete;
 
-	TSharedPtr<SWidget> Generate(FGenerateArgs Args) const;
-	TSharedPtr<SWidget> GenerateDefault(FGenerateArgs Args) const;
+	ADVANCEDWIDGETS_API TSharedPtr<SWidget> Generate(FGenerateArgs Args) const;
+	ADVANCEDWIDGETS_API TSharedPtr<SWidget> GenerateDefault(FGenerateArgs Args) const;
 
-	bool HasCustomPropertyValue(const FFieldClass* Property) const;
-	bool HasCustomPropertyValue(const UStruct* Struct) const;
+	ADVANCEDWIDGETS_API bool HasCustomPropertyValue(const FFieldClass* Property) const;
+	ADVANCEDWIDGETS_API bool HasCustomPropertyValue(const UStruct* Struct) const;
 
-	FHandle Register(const FFieldClass* Field, FOnGenerate OnGenerate);
-	FHandle Register(const UStruct* Struct, FOnGenerate OnGenerate);
-	void Unregister(FHandle Handle);
+	ADVANCEDWIDGETS_API FHandle Register(const FFieldClass* Field, FOnGenerate OnGenerate);
+	ADVANCEDWIDGETS_API FHandle Register(const UStruct* Struct, FOnGenerate OnGenerate);
+	ADVANCEDWIDGETS_API void Unregister(FHandle Handle);
 
 private:
-	static FHandle MakeHandle();
+	static ADVANCEDWIDGETS_API FHandle MakeHandle();
 	TPimplPtr<Private::FPropertyValueFactoryImpl> Impl;
 };
 

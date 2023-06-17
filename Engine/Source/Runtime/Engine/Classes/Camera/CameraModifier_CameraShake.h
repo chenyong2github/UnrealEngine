@@ -225,7 +225,7 @@ protected:
 #endif
 
 private:
-	ENGINE_API void OnPreGarbageCollect();
-	ENGINE_API void RemoveInvalidObjectsFromExpiredPool();
+	void OnPreGarbageCollect();
+	void RemoveInvalidObjectsFromExpiredPool();
 };
 

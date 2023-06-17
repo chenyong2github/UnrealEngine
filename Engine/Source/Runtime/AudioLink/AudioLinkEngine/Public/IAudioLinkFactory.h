@@ -17,14 +17,14 @@ class UAudioLinkComponent;
 	IAudioLinkFactory
 	Abstract interface for AudioLink factory objects. 
 */
-class AUDIOLINKENGINE_API IAudioLinkFactory : public IModularFeature
+class IAudioLinkFactory : public IModularFeature
 {
 protected:
 	/** Constructor will auto register this instance. */
-	IAudioLinkFactory();
+	AUDIOLINKENGINE_API IAudioLinkFactory();
 public:
 	/** Destructor will auto unregister this instance. */
-	virtual ~IAudioLinkFactory();
+	AUDIOLINKENGINE_API virtual ~IAudioLinkFactory();
 
 	/** 
 	 * Gets the name of this factory type. This will uniquely identity itself, so it can be found by the FindFactory call below
@@ -46,21 +46,21 @@ public:
 		TWeakObjectPtr<UAudioComponent> AudioComponent;
 		TWeakObjectPtr<USceneComponent> OwningComponent;
 	};
-	virtual FSharedBufferedOutputPtr CreateSourceBufferListener(const FSourceBufferListenerCreateParams&);
+	AUDIOLINKENGINE_API virtual FSharedBufferedOutputPtr CreateSourceBufferListener(const FSourceBufferListenerCreateParams&);
 
 	struct FPushedBufferListenerCreateParams
 	{
 		int32 SizeOfBufferInFrames = INDEX_NONE;
 		bool bShouldZeroBuffer = false;
 	};
-	virtual FSharedBufferedOutputPtr CreatePushableBufferListener(const FPushedBufferListenerCreateParams&);
+	AUDIOLINKENGINE_API virtual FSharedBufferedOutputPtr CreatePushableBufferListener(const FPushedBufferListenerCreateParams&);
 
 	struct FSubmixBufferListenerCreateParams
 	{
 		int32 SizeOfBufferInFrames = 0;
 		bool bShouldZeroBuffer = false;
 	};
-	virtual FSharedBufferedOutputPtr CreateSubmixBufferListener(const FSubmixBufferListenerCreateParams&);
+	AUDIOLINKENGINE_API virtual FSharedBufferedOutputPtr CreateSubmixBufferListener(const FSubmixBufferListenerCreateParams&);
 			
 	/**
 	 * Parameters use when creating a Submix Audio Link 
@@ -130,19 +130,19 @@ public:
 	 * Gets all registered factory instances.
 	 * @return Array of all factories.
 	 */
-	static TArray<IAudioLinkFactory*> GetAllRegisteredFactories();
+	static AUDIOLINKENGINE_API TArray<IAudioLinkFactory*> GetAllRegisteredFactories();
 
 	/**
 	 * Gets all registered factory names
 	 * @return Array of all factory names
 	 */
-	static TArray<FName> GetAllRegisteredFactoryNames();
+	static AUDIOLINKENGINE_API TArray<FName> GetAllRegisteredFactoryNames();
 	
 	/**
 	 * Gets all registered factory names
 	 * @return Array of all factory names
 	 */
-	static IAudioLinkFactory* FindFactory(const FName InFactoryName);
+	static AUDIOLINKENGINE_API IAudioLinkFactory* FindFactory(const FName InFactoryName);
 
 protected:	
 };

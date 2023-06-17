@@ -8,27 +8,27 @@
 #include "ContentWidget.generated.h"
 
 /**  */
-UCLASS(Abstract)
-class UMG_API UContentWidget : public UPanelWidget
+UCLASS(Abstract, MinimalAPI)
+class UContentWidget : public UPanelWidget
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	UPanelSlot* GetContentSlot() const;
+	UMG_API UPanelSlot* GetContentSlot() const;
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	UPanelSlot* SetContent(UWidget* Content);
+	UMG_API UPanelSlot* SetContent(UWidget* Content);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Widget|Panel")
-	UWidget* GetContent() const;
+	UMG_API UWidget* GetContent() const;
 
 protected:
 
 	// UPanelWidget
-	virtual UClass* GetSlotClass() const override;
+	UMG_API virtual UClass* GetSlotClass() const override;
 	// End UPanelWidget
 };

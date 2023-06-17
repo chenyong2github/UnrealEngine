@@ -26,7 +26,7 @@ struct FComponentMaterialSet;
  *
  * (Conceivably this doesn't have to be backed by a Component, but most usage will assume there is an Actor)
  */
-class INTERACTIVETOOLSFRAMEWORK_API FPrimitiveComponentTarget
+class FPrimitiveComponentTarget
 {
 public:
 	virtual ~FPrimitiveComponentTarget(){}
@@ -37,36 +37,36 @@ public:
 	FPrimitiveComponentTarget( UPrimitiveComponent* Component ): Component( Component ){}
 
 	/** @return true if component target is still valid. May become invalid for various reasons (eg Component was deleted out from under us) */
-	virtual bool IsValid() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool IsValid() const;
 
 	/** @return the Actor that owns this Component */
-	AActor* GetOwnerActor() const;
+	INTERACTIVETOOLSFRAMEWORK_API AActor* GetOwnerActor() const;
 
 	/** @return the Component this is a Source for */
-	UPrimitiveComponent* GetOwnerComponent() const;
+	INTERACTIVETOOLSFRAMEWORK_API UPrimitiveComponent* GetOwnerComponent() const;
 
 	/** @return number of material indices in use by this Component */
-	int32 GetNumMaterials() const;
+	INTERACTIVETOOLSFRAMEWORK_API int32 GetNumMaterials() const;
 
 	/**
 	 * Get pointer to a Material provided by this Source
 	 * @param MaterialIndex index of the material
 	 * @return MaterialInterface pointer, or null if MaterialIndex is invalid
 	 */
-	UMaterialInterface* GetMaterial(int32 MaterialIndex) const;
+	INTERACTIVETOOLSFRAMEWORK_API UMaterialInterface* GetMaterial(int32 MaterialIndex) const;
 
 	/**
 	 * Get material set provided by this source
 	 * @param MaterialSetOut returned material set
 	 * @param bAssetMaterials if an underlying asset exists, return the Asset-level material assignment instead of the component materials
 	 */
-	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials = false) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bAssetMaterials = false) const;
 
 	/**
 	 * @return the transform on this component
 	 * @todo Do we need to return a list of transforms here?
 	 */
-	FTransform GetWorldTransform() const;
+	INTERACTIVETOOLSFRAMEWORK_API FTransform GetWorldTransform() const;
 
 	/**
 	 * Compute ray intersection with the MeshDescription this Source is providing
@@ -74,13 +74,13 @@ public:
 	 * @param OutHit hit test data
 	 * @return true if ray intersected Component
 	 */
-	bool HitTest(const FRay& WorldRay, FHitResult& OutHit) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool HitTest(const FRay& WorldRay, FHitResult& OutHit) const;
 
 	/**
 	 * Set the visibility of the Component associated with this Source (ie to hide during Tool usage)
 	 * @param bVisible desired visibility
 	 */
-	void SetOwnerVisibility(bool bVisible) const;
+	INTERACTIVETOOLSFRAMEWORK_API void SetOwnerVisibility(bool bVisible) const;
 
 
 	/**
@@ -95,7 +95,7 @@ public:
 	 * @param MaterialSet new list of materials
 	 * @param bApplyToAsset if true, materials of Asset are updated (if Asset exists), rather than Component
 	 */
-	virtual void CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset);
 
 
 	struct FCommitParams
@@ -110,7 +110,7 @@ public:
 };
 
 /** @deprecated Use tool target factories instead. */
-class INTERACTIVETOOLSFRAMEWORK_API FComponentTargetFactory
+class FComponentTargetFactory
 {
 public:
 	virtual ~FComponentTargetFactory(){}

@@ -63,7 +63,7 @@ ENUM_CLASS_FLAGS(ERunnerUpdateFlags)
 
 DECLARE_MULTICAST_DELEGATE(FMovieSceneEntitySystemEventTriggers);
 
-class MOVIESCENE_API FMovieSceneEntitySystemRunner : public TSharedFromThis<FMovieSceneEntitySystemRunner>
+class FMovieSceneEntitySystemRunner : public TSharedFromThis<FMovieSceneEntitySystemRunner>
 {
 public:
 
@@ -73,38 +73,38 @@ public:
 
 public:
 	/** Creates an unbound runner */
-	FMovieSceneEntitySystemRunner();
+	MOVIESCENE_API FMovieSceneEntitySystemRunner();
 	/** Destructor */
-	~FMovieSceneEntitySystemRunner();
+	MOVIESCENE_API ~FMovieSceneEntitySystemRunner();
 
 	/** Attach this runner to a linker */
-	void AttachToLinker(UMovieSceneEntitySystemLinker* InLinker);
+	MOVIESCENE_API void AttachToLinker(UMovieSceneEntitySystemLinker* InLinker);
 	/** Returns whether this runner is attached to a linker */
-	bool IsAttachedToLinker() const;
+	MOVIESCENE_API bool IsAttachedToLinker() const;
 	/** Detaches this runner from a linker */
-	void DetachFromLinker();
+	MOVIESCENE_API void DetachFromLinker();
 
-	int32 GetQueuedUpdateCount() const;
+	MOVIESCENE_API int32 GetQueuedUpdateCount() const;
 	/** Returns whether this runner has any outstanding updates. */
-	bool HasQueuedUpdates() const;
+	MOVIESCENE_API bool HasQueuedUpdates() const;
 	/** Returns whether the given instance is queued for any updates. */
-	bool HasQueuedUpdates(FInstanceHandle Instance) const;
+	MOVIESCENE_API bool HasQueuedUpdates(FInstanceHandle Instance) const;
 	/** Queue the given instance for an update with the given context. */
-	void QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle Instance, UE::MovieScene::ERunnerUpdateFlags UpdateFlags = UE::MovieScene::ERunnerUpdateFlags::None);
-	void QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle Instance, FSimpleDelegate&& InOnFlushedDelegate, UE::MovieScene::ERunnerUpdateFlags UpdateFlags = UE::MovieScene::ERunnerUpdateFlags::None);
+	MOVIESCENE_API void QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle Instance, UE::MovieScene::ERunnerUpdateFlags UpdateFlags = UE::MovieScene::ERunnerUpdateFlags::None);
+	MOVIESCENE_API void QueueUpdate(const FMovieSceneContext& Context, FInstanceHandle Instance, FSimpleDelegate&& InOnFlushedDelegate, UE::MovieScene::ERunnerUpdateFlags UpdateFlags = UE::MovieScene::ERunnerUpdateFlags::None);
 
 	/**
 	 * Queue a final update for the specified instance, optionally destroying it after finishing it
 	 * @return true if the update requires a flush, or false if it was finished and/or destroyed immediately without requiring a flush
 	 */
-	bool QueueFinalUpdate(FInstanceHandle Instance);
-	bool QueueFinalUpdate(FInstanceHandle Instance, FSimpleDelegate&& InOnLastFlushDelegate);
-	bool QueueFinalUpdateAndDestroy(FInstanceHandle Instance);
+	MOVIESCENE_API bool QueueFinalUpdate(FInstanceHandle Instance);
+	MOVIESCENE_API bool QueueFinalUpdate(FInstanceHandle Instance, FSimpleDelegate&& InOnLastFlushDelegate);
+	MOVIESCENE_API bool QueueFinalUpdateAndDestroy(FInstanceHandle Instance);
 
 	/**
 	 * Abandon the specified instance handle and destroy it immediately. May flush this runner if necessary
 	 */
-	void AbandonAndDestroyInstance(FInstanceHandle Instance);
+	MOVIESCENE_API void AbandonAndDestroyInstance(FInstanceHandle Instance);
 
 	/**
 	 * Flushes the update queue and applies any outstanding evaluation logic
@@ -113,7 +113,7 @@ public:
 	 *                      and will process the outstanding work on the next call to Flush. A value of 0.0 signifies no budget - the queue
 	 *                      will be fully processed without leaving any outstanding work
 	 */
-	void Flush(double BudgetMs = 0.f);
+	MOVIESCENE_API void Flush(double BudgetMs = 0.f);
 
 	/**
 	 * Flushes any outstanding update tasks in the current evaluation scope with a given budget. Only performs work if this runner is part-way through an evaluation
@@ -123,18 +123,18 @@ public:
 	 *                      will be fully processed without leaving any outstanding work
 	 * @param TargetState   The desired state to reach. The runner will stop flushing as soon as all the states specified in TargetState have been flushed.
 	 */
-	void FlushOutstanding(double BudgetMs = 0.f, UE::MovieScene::ERunnerFlushState TargetState = UE::MovieScene::ERunnerFlushState::None);
+	MOVIESCENE_API void FlushOutstanding(double BudgetMs = 0.f, UE::MovieScene::ERunnerFlushState TargetState = UE::MovieScene::ERunnerFlushState::None);
 
 	/**
 	 * Called in the event that the structure of the entity manager has been unexpectedly changed while this runner is active.
 	 * This allows the runner to be reset so it runs from the start of its evaluation loop next time it is evaluated, rather than half-way through
 	 */
-	void ResetFlushState();
+	MOVIESCENE_API void ResetFlushState();
 
 	/**
 	 * Discard any queued updates for the specified sequence instance.
 	 */
-	void DiscardQueuedUpdates(FInstanceHandle Instance);
+	MOVIESCENE_API void DiscardQueuedUpdates(FInstanceHandle Instance);
 
 	/** Access this runner's currently executing phase */
 	UE::MovieScene::ESystemPhase GetCurrentPhase() const
@@ -145,38 +145,38 @@ public:
 	/**
 	 * Check whether this runner is currently inside an active evaluation loop
 	 */
-	bool IsCurrentlyEvaluating() const;
+	MOVIESCENE_API bool IsCurrentlyEvaluating() const;
 
 	/**
 	 * Run a single evaluation phase
 	 *
 	 * @return Whether the phase was run
 	 */
-	bool FlushSingleEvaluationPhase();
+	MOVIESCENE_API bool FlushSingleEvaluationPhase();
 
 public:
 
-	UMovieSceneEntitySystemLinker* GetLinker() const;
-	FEntityManager* GetEntityManager() const;
-	FInstanceRegistry* GetInstanceRegistry() const;
+	MOVIESCENE_API UMovieSceneEntitySystemLinker* GetLinker() const;
+	MOVIESCENE_API FEntityManager* GetEntityManager() const;
+	MOVIESCENE_API FInstanceRegistry* GetInstanceRegistry() const;
 
 public:
 	
 	// Internal API
 
-	void MarkForUpdate(FInstanceHandle InInstanceHandle, UE::MovieScene::ERunnerUpdateFlags UpdateFlags);
-	FMovieSceneEntitySystemEventTriggers& GetQueuedEventTriggers();
+	MOVIESCENE_API void MarkForUpdate(FInstanceHandle InInstanceHandle, UE::MovieScene::ERunnerUpdateFlags UpdateFlags);
+	MOVIESCENE_API FMovieSceneEntitySystemEventTriggers& GetQueuedEventTriggers();
 
 private:
 
-	void OnLinkerAbandon(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void OnLinkerAbandon(UMovieSceneEntitySystemLinker* Linker);
 
 private:
 
 	/**
 	 * Queue the final update of a given instance, optionally destroying it after is finishes
 	 */
-	bool QueueFinalUpdateImpl(FInstanceHandle Instance, FSimpleDelegate&& InOnLastFlushDelegate, bool bDestroyInstance);
+	MOVIESCENE_API bool QueueFinalUpdateImpl(FInstanceHandle Instance, FSimpleDelegate&& InOnLastFlushDelegate, bool bDestroyInstance);
 
 	/**
 	 * Flush the next item in our update loop based off the contents of FlushState
@@ -184,42 +184,42 @@ private:
 	 * @param  Linker   The linker we are arrached to
 	 * @return True if the loop is allowed to continue, or false if we should not flush any more
 	 */
-	bool FlushNext(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API bool FlushNext(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Set up initial state before any evaluation runs. Only called once regardless of the number of pending updates we have to process
 	 * Primarily used for setting up external 'is evaluating' flags for re-entrancy and async checks.
 	 */
-	bool StartEvaluation(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API bool StartEvaluation(UMovieSceneEntitySystemLinker* Linker);
 
 	/** Update sequence instances based on currently queued update requests, or outstanding dissected updates */
-	bool GameThread_UpdateSequenceInstances(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API bool GameThread_UpdateSequenceInstances(UMovieSceneEntitySystemLinker* Linker);
 	/** Execute the spawn phase of the entity system graph, if there is anything to do */
-	bool GameThread_SpawnPhase(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API bool GameThread_SpawnPhase(UMovieSceneEntitySystemLinker* Linker);
 	/** Execute the instantiation phase of the entity system graph, if there is anything to do */
-	bool GameThread_InstantiationPhase(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API bool GameThread_InstantiationPhase(UMovieSceneEntitySystemLinker* Linker);
 	/** Called immediately after instantiation to execute cleanup and bookkeeping tasks. Skipped if instantiation is skipped.*/
-	bool GameThread_PostInstantiation(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API bool GameThread_PostInstantiation(UMovieSceneEntitySystemLinker* Linker);
 	/** Main entity-system evaluation phase. Blocks this thread until completion. */
-	bool GameThread_EvaluationPhase(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API bool GameThread_EvaluationPhase(UMovieSceneEntitySystemLinker* Linker);
 	/** Finalization phase for triggering external events and other behavior. */
-	void GameThread_EvaluationFinalizationPhase(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void GameThread_EvaluationFinalizationPhase(UMovieSceneEntitySystemLinker* Linker);
 	/** Post-evaluation phase for triggering events. */
-	void GameThread_EventTriggerPhase(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void GameThread_EventTriggerPhase(UMovieSceneEntitySystemLinker* Linker);
 	/** Post-evaluation phase for clean up. */
-	void GameThread_PostEvaluationPhase(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void GameThread_PostEvaluationPhase(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Counterpart for StartEvaluation.
 	 * Called only when our UpdateQueue and DissectedUpdates have been fully processed and there is nothing left to do.
 	 */
-	void EndEvaluation(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void EndEvaluation(UMovieSceneEntitySystemLinker* Linker);
 
 	/** Called to set/unset the necessary flags to enter a new flush state and progress to the next */
-	void EnterFlushState(UE::MovieScene::ERunnerFlushState EnteredFlushState);
+	MOVIESCENE_API void EnterFlushState(UE::MovieScene::ERunnerFlushState EnteredFlushState);
 
 	/** Skip the specified flush states if they are currently pending */
-	void SkipFlushState(UE::MovieScene::ERunnerFlushState FlushStateToSkip);
+	MOVIESCENE_API void SkipFlushState(UE::MovieScene::ERunnerFlushState FlushStateToSkip);
 
 private:
 

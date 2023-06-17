@@ -6,8 +6,8 @@
 #include "UObject/Interface.h"
 #include "MovieSceneCachedTrack.generated.h"
 
-UINTERFACE()
-class MOVIESCENE_API UMovieSceneCachedTrack : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneCachedTrack : public UInterface
 {
 	GENERATED_BODY()
 };
@@ -15,7 +15,7 @@ class MOVIESCENE_API UMovieSceneCachedTrack : public UInterface
 /**
  * Can be implemented by tracks that hold cached data. Used by the take recorder plugin to regenerate the cache when recording. 
  */
-class MOVIESCENE_API IMovieSceneCachedTrack
+class IMovieSceneCachedTrack
 {
 	GENERATED_BODY()
 

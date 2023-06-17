@@ -9,69 +9,69 @@
 #include "AnimNode_Mirror.generated.h"
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_MirrorBase : public FAnimNode_Base
+struct FAnimNode_MirrorBase : public FAnimNode_Base
 {
 	GENERATED_BODY()
 public:
-	FAnimNode_MirrorBase(); 
+	ANIMGRAPHRUNTIME_API FAnimNode_MirrorBase(); 
 
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 
 	// Get the MirrorDataTable
-	virtual UMirrorDataTable* GetMirrorDataTable() const;
+	ANIMGRAPHRUNTIME_API virtual UMirrorDataTable* GetMirrorDataTable() const;
 
 	// Set the MirrorDataTable
-	virtual bool SetMirrorDataTable(UMirrorDataTable* MirrorTable);
+	ANIMGRAPHRUNTIME_API virtual bool SetMirrorDataTable(UMirrorDataTable* MirrorTable);
 
 	// Get Mirror State
-	virtual bool GetMirror() const;
+	ANIMGRAPHRUNTIME_API virtual bool GetMirror() const;
 	// How long to blend using inertialization when switching  mirrored state
-	virtual float GetBlendTimeOnMirrorStateChange() const;
+	ANIMGRAPHRUNTIME_API virtual float GetBlendTimeOnMirrorStateChange() const;
 
 	// Should bones mirror
-	virtual bool GetBoneMirroring() const;
+	ANIMGRAPHRUNTIME_API virtual bool GetBoneMirroring() const;
 
 	// Should the curves mirror
-	virtual bool GetCurveMirroring() const;
+	ANIMGRAPHRUNTIME_API virtual bool GetCurveMirroring() const;
 
 	// Should attributes mirror (based on the bone mirroring data in the mirror data table) 
-	virtual bool GetAttributeMirroring() const;
+	ANIMGRAPHRUNTIME_API virtual bool GetAttributeMirroring() const;
 
 	// Whether to reset (reinitialize) the child (source) pose when the mirror state changes
-	virtual bool GetResetChildOnMirrorStateChange() const;
+	ANIMGRAPHRUNTIME_API virtual bool GetResetChildOnMirrorStateChange() const;
 
 	// Set Mirror State
-	virtual bool SetMirror(bool bInMirror);
+	ANIMGRAPHRUNTIME_API virtual bool SetMirror(bool bInMirror);
 
 	// Set how long to blend using inertialization when switching  mirrored state
 	// @return true if the value was set (it is dynamic), or false if it could not (it is not dynamic or pin exposed)
-	virtual bool SetBlendTimeOnMirrorStateChange(float InBlendTime);
+	ANIMGRAPHRUNTIME_API virtual bool SetBlendTimeOnMirrorStateChange(float InBlendTime);
 
 	// Set if bones mirror
 	// @return true if the value was set (it is dynamic), or false if it could not (it is not dynamic or pin exposed)
-	virtual bool SetBoneMirroring(bool bInBoneMirroring);
+	ANIMGRAPHRUNTIME_API virtual bool SetBoneMirroring(bool bInBoneMirroring);
 
 	// Set if curves mirror
 	// @return true if the value was set (it is dynamic), or false if it could not (it is not dynamic or pin exposed)
-	virtual bool SetCurveMirroring(bool bInCurveMirroring);
+	ANIMGRAPHRUNTIME_API virtual bool SetCurveMirroring(bool bInCurveMirroring);
 
 	// Set if attributes mirror
 	// @return true if the value was set (it is dynamic), or false if it could not (it is not dynamic or pin exposed)
-	virtual bool SetAttributeMirroring(bool bInAttributeMirroring);
+	ANIMGRAPHRUNTIME_API virtual bool SetAttributeMirroring(bool bInAttributeMirroring);
 
 	// Set whether to reset (reinitialize) the child (source) pose when the mirror state changes
 	// @return true if the value was set (it is dynamic), or false if it could not (it is not dynamic or pin exposed)
-	virtual bool SetResetChildOnMirrorStateChange(bool bInResetChildOnMirrorStateChange);
+	ANIMGRAPHRUNTIME_API virtual bool SetResetChildOnMirrorStateChange(bool bInResetChildOnMirrorStateChange);
 
 	/** This only used by custom handlers, and it is advanced feature. */
-	virtual void SetSourceLinkNode(FAnimNode_Base* NewLinkNode);
+	ANIMGRAPHRUNTIME_API virtual void SetSourceLinkNode(FAnimNode_Base* NewLinkNode);
 
 	/** This only used by custom handlers, and it is advanced feature. */
-	virtual FAnimNode_Base* GetSourceLinkNode();
+	ANIMGRAPHRUNTIME_API virtual FAnimNode_Base* GetSourceLinkNode();
 protected:
 	UPROPERTY(EditAnywhere, Category = Links)
 	FPoseLink Source;
@@ -90,31 +90,31 @@ private:
 
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_Mirror : public FAnimNode_MirrorBase
+struct FAnimNode_Mirror : public FAnimNode_MirrorBase
 {
 	GENERATED_BODY()
 
 	friend class UAnimGraphNode_Mirror;
 
 public:
-	FAnimNode_Mirror();
+	ANIMGRAPHRUNTIME_API FAnimNode_Mirror();
 
-	virtual UMirrorDataTable* GetMirrorDataTable() const override;
-	virtual bool SetMirrorDataTable(UMirrorDataTable* MirrorTable) override;
+	ANIMGRAPHRUNTIME_API virtual UMirrorDataTable* GetMirrorDataTable() const override;
+	ANIMGRAPHRUNTIME_API virtual bool SetMirrorDataTable(UMirrorDataTable* MirrorTable) override;
 
-	virtual bool GetMirror() const override;
-	virtual float GetBlendTimeOnMirrorStateChange() const override;
-	virtual bool GetBoneMirroring() const override;
-	virtual bool GetCurveMirroring() const override;
-	virtual bool GetAttributeMirroring() const override;
-	virtual bool GetResetChildOnMirrorStateChange() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetMirror() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetBlendTimeOnMirrorStateChange() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetBoneMirroring() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetCurveMirroring() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetAttributeMirroring() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetResetChildOnMirrorStateChange() const override;
 
-	virtual bool SetMirror(bool bInMirror) override;
-	virtual bool SetBlendTimeOnMirrorStateChange(float InBlendTime) override;
-	virtual bool SetBoneMirroring(bool bInBoneMirroring) override;
-	virtual bool SetCurveMirroring(bool bInCurveMirroring) override;
-	virtual bool SetAttributeMirroring(bool bInAttributeMirroring) override;
-	virtual bool SetResetChildOnMirrorStateChange(bool bInResetChildOnMirrorStateChange) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetMirror(bool bInMirror) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetBlendTimeOnMirrorStateChange(float InBlendTime) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetBoneMirroring(bool bInBoneMirroring) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetCurveMirroring(bool bInCurveMirroring) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetAttributeMirroring(bool bInAttributeMirroring) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetResetChildOnMirrorStateChange(bool bInResetChildOnMirrorStateChange) override;
 
 protected:
 
@@ -145,31 +145,31 @@ protected:
 
 
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_Mirror_Standalone : public FAnimNode_MirrorBase
+struct FAnimNode_Mirror_Standalone : public FAnimNode_MirrorBase
 {
 	GENERATED_BODY()
 
 	friend class UAnimGraphNode_Mirror;
 
 public:
-	FAnimNode_Mirror_Standalone();
+	ANIMGRAPHRUNTIME_API FAnimNode_Mirror_Standalone();
 
-	virtual UMirrorDataTable* GetMirrorDataTable() const override;
-	virtual bool SetMirrorDataTable(UMirrorDataTable* MirrorTable) override;
+	ANIMGRAPHRUNTIME_API virtual UMirrorDataTable* GetMirrorDataTable() const override;
+	ANIMGRAPHRUNTIME_API virtual bool SetMirrorDataTable(UMirrorDataTable* MirrorTable) override;
 
-	virtual bool GetMirror() const override;
-	virtual float GetBlendTimeOnMirrorStateChange() const override;
-	virtual bool GetBoneMirroring() const override;
-	virtual bool GetCurveMirroring() const override;
-	virtual bool GetAttributeMirroring() const override;
-	virtual bool GetResetChildOnMirrorStateChange() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetMirror() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetBlendTimeOnMirrorStateChange() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetBoneMirroring() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetCurveMirroring() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetAttributeMirroring() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetResetChildOnMirrorStateChange() const override;
 
-	virtual bool SetMirror(bool bInMirror) override;
-	virtual bool SetBlendTimeOnMirrorStateChange(float InBlendTime) override;
-	virtual bool SetBoneMirroring(bool bInBoneMirroring) override;
-	virtual bool SetCurveMirroring(bool bInCurveMirroring) override;
-	virtual bool SetAttributeMirroring(bool bInAttributeMirroring) override;
-	virtual bool SetResetChildOnMirrorStateChange(bool bInResetChildOnMirrorStateChange) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetMirror(bool bInMirror) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetBlendTimeOnMirrorStateChange(float InBlendTime) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetBoneMirroring(bool bInBoneMirroring) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetCurveMirroring(bool bInCurveMirroring) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetAttributeMirroring(bool bInAttributeMirroring) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetResetChildOnMirrorStateChange(bool bInResetChildOnMirrorStateChange) override;
 
 protected:
 

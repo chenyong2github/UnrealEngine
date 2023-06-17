@@ -10,13 +10,13 @@
 
 class UClientPilotBlackboard;
 
-UCLASS()
-class CLIENTPILOT_API UClientPilotComponent : public UObject
+UCLASS(MinimalAPI)
+class UClientPilotComponent : public UObject
 {
 	GENERATED_BODY()
 public:
-	UClientPilotComponent();
-	UClientPilotBlackboard* GetBlackboardInstance();
-	virtual void ThinkAndAct();
+	CLIENTPILOT_API UClientPilotComponent();
+	CLIENTPILOT_API UClientPilotBlackboard* GetBlackboardInstance();
+	CLIENTPILOT_API virtual void ThinkAndAct();
 
 };

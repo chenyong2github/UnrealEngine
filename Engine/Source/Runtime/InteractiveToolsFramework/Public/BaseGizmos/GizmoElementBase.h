@@ -21,8 +21,8 @@ class UMaterialInterface;
  * Contains common properties and utility functions.
  * This class does nothing by itself, use subclasses like UGizmoElementCylinder
  */
-UCLASS(Transient, Abstract)
-class INTERACTIVETOOLSFRAMEWORK_API UGizmoElementBase : public UObject
+UCLASS(Transient, Abstract, MinimalAPI)
+class UGizmoElementBase : public UObject
 {
 	GENERATED_BODY()
 public:
@@ -114,118 +114,118 @@ public:
 public:
 
 	// Render enabled visible element.
-	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) PURE_VIRTUAL(UGizmoElementBase::Render);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) PURE_VIRTUAL(UGizmoElementBase::Render);
 
 	// Line trace enabled hittable element.
-	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) PURE_VIRTUAL(UGizmoElementBase::LineTrace, return FInputRayHit(););
+	INTERACTIVETOOLSFRAMEWORK_API virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) PURE_VIRTUAL(UGizmoElementBase::LineTrace, return FInputRayHit(););
 
 	// Set/get the visible bit in element state.
-	virtual void SetVisibleState(bool bVisible);
-	virtual bool GetVisibleState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetVisibleState(bool bVisible);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetVisibleState() const;
 
 	// Set/get the hittable bit in element state.
-	virtual void SetHittableState(bool bHittable);
-	virtual bool GetHittableState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHittableState(bool bHittable);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetHittableState() const;
 
 	// Element enabled flag. Render and LineTrace only occur when bEnabled is true.
 	// This flag is useful for turning on and off an element globally while retaining its specific settings.
-	virtual void SetEnabled(bool bInEnabled);
-	virtual bool GetEnabled() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetEnabled(bool bInEnabled);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEnabled() const;
 
 	// Whether element is enabled for perspective projections.
-	virtual void SetEnabledForPerspectiveProjection(bool bInEnabledForPerspectiveProjection);
-	virtual bool GetEnabledForPerspectiveProjection();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetEnabledForPerspectiveProjection(bool bInEnabledForPerspectiveProjection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEnabledForPerspectiveProjection();
 
 	// Whether element is enabled for orthographic projections.
-	virtual void SetEnabledInOrthographicProjection(bool bInEnabledForOrthographicProjection);
-	virtual bool GetEnabledInOrthographicProjection();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetEnabledInOrthographicProjection(bool bInEnabledForOrthographicProjection);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEnabledInOrthographicProjection();
 
 	// Whether element is enabled when element state is default.
-	virtual void SetEnabledForDefaultState(bool bInEnabledForDefaultState);
-	virtual bool GetEnabledForDefaultState();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetEnabledForDefaultState(bool bInEnabledForDefaultState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEnabledForDefaultState();
 
 	// Whether element is enabled when element state is hovering.
-	virtual void SetEnabledForHoveringState(bool bInEnabledForHoveringState);
-	virtual bool GetEnabledForHoveringState();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetEnabledForHoveringState(bool bInEnabledForHoveringState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEnabledForHoveringState();
 
 	// Whether element is enabled when element state is interacting.
-	virtual void SetEnabledForInteractingState(bool bInEnabledForInteractingState);
-	virtual bool GetEnabledForInteractingState();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetEnabledForInteractingState(bool bInEnabledForInteractingState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEnabledForInteractingState();
 
 	// For an element hierarchy representing multiple parts of a single gizmo, the part identifier establishes 
 	// a correspondence between a gizmo part and the elements that represent that part. The recognized
 	// part identifier values should be defined in the gizmo. Gizmo part identifiers must be greater than or 
 	// equal to one. Identifier 0 is reserved for the default ID which should be assigned to elements
 	// that do not correspond to any gizmo part, such as non-hittable decorative elements.
-	virtual void SetPartIdentifier(uint32 InPartId);
-	virtual uint32 GetPartIdentifier();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetPartIdentifier(uint32 InPartId);
+	INTERACTIVETOOLSFRAMEWORK_API virtual uint32 GetPartIdentifier();
 
 	// Object type bitmask indicating whether this object is visible or hittable or both
-	virtual void SetElementState(EGizmoElementState InElementState);
-	virtual EGizmoElementState GetElementState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetElementState(EGizmoElementState InElementState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual EGizmoElementState GetElementState() const;
 
 	// Object interaction state - None, Hovering or Interacting
-	virtual void SetElementInteractionState(EGizmoElementInteractionState InInteractionState);
-	virtual EGizmoElementInteractionState GetElementInteractionState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetElementInteractionState(EGizmoElementInteractionState InInteractionState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual EGizmoElementInteractionState GetElementInteractionState() const;
 
 	// Update element's visibility state if element is associated with the specified gizmo part, return true if part was found.
-	virtual bool UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool UpdatePartVisibleState(bool bVisible, uint32 InPartIdentifier);
 
 	// Get element's visible state for element associated with the specified gizmo part, if part id was found.
-	virtual TOptional<bool> GetPartVisibleState(uint32 InPartIdentifier) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual TOptional<bool> GetPartVisibleState(uint32 InPartIdentifier) const;
 
 	// Update element's hittable state if element is associated with the specified gizmo part, return true if part id was found.
-	virtual bool UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool UpdatePartHittableState(bool bHittable, uint32 InPartIdentifier);
 
 	// Get element's hittable state for element associated with the specified gizmo part, if part id was found.
-	virtual TOptional<bool> GetPartHittableState(uint32 InPartIdentifier) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual TOptional<bool> GetPartHittableState(uint32 InPartIdentifier) const;
 
 	// Update element's interaction state if element is associated with the specified gizmo part, return true if part id was found.
-	virtual bool UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
 
 	// Get element's interaction state for element associated with the specified gizmo part, if part id was found.
-	virtual TOptional<EGizmoElementInteractionState> GetPartInteractionState(uint32 InPartIdentifier) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual TOptional<EGizmoElementInteractionState> GetPartInteractionState(uint32 InPartIdentifier) const;
 
 	// View-dependent type - None, Axis or Plane. 
-	virtual void SetViewDependentType(EGizmoElementViewDependentType ViewDependentType);
-	virtual EGizmoElementViewDependentType GetViewDependentType() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetViewDependentType(EGizmoElementViewDependentType ViewDependentType);
+	INTERACTIVETOOLSFRAMEWORK_API virtual EGizmoElementViewDependentType GetViewDependentType() const;
 
 	// View-dependent angle tolerance in radians 
 	//   For Axis, object is culled when angle between view dependent axis and view direction is less than tolerance angle.
 	//   For Planar, cos of angle between view dependent axis (plane normal) and view direction. 
 	// When the view direction is within this tolerance from the plane or axis, this object will be culled.
-	virtual void SetViewDependentAngleTol(float InMaxAngleTol);
-	virtual float GetViewDependentAngleTol() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetViewDependentAngleTol(float InMaxAngleTol);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetViewDependentAngleTol() const;
 
 	// View-dependent axis or plane normal, based on the view-dependent type.
-	virtual void SetViewDependentAxis(FVector InAxis);
-	virtual FVector GetViewDependentAxis() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetViewDependentAxis(FVector InAxis);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetViewDependentAxis() const;
 
 	// View align type: None, PointEye, PointOnly, or Axial.
-	virtual void SetViewAlignType(EGizmoElementViewAlignType InViewAlignType);
-	virtual EGizmoElementViewAlignType GetViewAlignType() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetViewAlignType(EGizmoElementViewAlignType InViewAlignType);
+	INTERACTIVETOOLSFRAMEWORK_API virtual EGizmoElementViewAlignType GetViewAlignType() const;
 
 	// View align axis. 
 	// PointEye, PointScreen and PointOnly rotate this axis to align with view up.
 	// Axial rotates about this axis.
-	virtual void SetViewAlignAxis(FVector InAxis);
-	virtual FVector GetViewAlignAxis() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetViewAlignAxis(FVector InAxis);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetViewAlignAxis() const;
 
 	// View align normal.
 	// PointEye rotates the normal to align with camera view direction.
 	// PointScreen rotates the normal to align with screen forward direction.
 	// Axial rotates the normal around the axis to align as closely as possible with the view direction.
-	virtual void SetViewAlignNormal(FVector InAxis);
-	virtual FVector GetViewAlignNormal() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetViewAlignNormal(FVector InAxis);
+	INTERACTIVETOOLSFRAMEWORK_API virtual FVector GetViewAlignNormal() const;
 
 	// View-align angle tolerance in radians.
 	// Viewer alignment will not occur when the viewing angle is within this angle of view align axis.
-	virtual void SetViewAlignAxialAngleTol(float InMaxAngleTol);
-	virtual float GetViewAlignAxialAngleTol() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetViewAlignAxialAngleTol(float InMaxAngleTol);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetViewAlignAxialAngleTol() const;
 
 	// Pixel hit distance threshold, element will be scaled enough to add this threshold when line-tracing. */
-	virtual void SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold);
-	virtual float GetPixelHitDistanceThreshold() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetPixelHitDistanceThreshold(float InPixelHitDistanceThreshold);
+	INTERACTIVETOOLSFRAMEWORK_API virtual float GetPixelHitDistanceThreshold() const;
 
 	//
 	// Methods for managing render state attributes: Material, HoverMaterial, InteractMaterial, VertexColor 
@@ -239,95 +239,95 @@ public:
 	// Set mesh render state material attribute. 
 	//  @param InMaterial - material to be set
 	//  @param InOverridesChildState - when true, this material will override the material of all child elements.
-	virtual void SetMaterial(TWeakObjectPtr<UMaterialInterface> InMaterial, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetMaterial(TWeakObjectPtr<UMaterialInterface> InMaterial, bool InOverridesChildState = false);
 
 	// Get mesh render state material attribute's value. 
-	virtual const UMaterialInterface* GetMaterial() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual const UMaterialInterface* GetMaterial() const;
 
 	// Get mesh render state material attribute's override setting. 
-	virtual bool DoesMaterialOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesMaterialOverrideChildState() const;
 
 	// Clear mesh render state material attribute. 
-	virtual void ClearMaterial();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearMaterial();
 
 	// Set mesh render state hover material attribute. 
 	//  @param InHoverMaterial - hover material to be set
 	//  @param InOverridesChildState - when true, this hover material will override the material of all child elements.
-	virtual void SetHoverMaterial(TWeakObjectPtr<UMaterialInterface> InHoverMaterial, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHoverMaterial(TWeakObjectPtr<UMaterialInterface> InHoverMaterial, bool InOverridesChildState = false);
 
 	// Get mesh render state hover material attribute's value.
-	virtual const UMaterialInterface* GetHoverMaterial() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual const UMaterialInterface* GetHoverMaterial() const;
 
 	// Get mesh render state hover material attribute's override setting.
-	virtual bool DoesHoverMaterialOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesHoverMaterialOverrideChildState() const;
 
 	// Clear mesh render state hover material attribute. 
-	virtual void ClearHoverMaterial();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearHoverMaterial();
 
 	// Set mesh render state interact material attribute. 
 	//  @param InHoverMaterial - interact material to be set
 	//  @param InOverridesChildState - when true, this interact material will override the material of all child elements.
-	virtual void SetInteractMaterial(TWeakObjectPtr<UMaterialInterface> InInteractMaterial, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetInteractMaterial(TWeakObjectPtr<UMaterialInterface> InInteractMaterial, bool InOverridesChildState = false);
 
 	// Get mesh render state interact material attribute's value. 
-	virtual const UMaterialInterface* GetInteractMaterial() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual const UMaterialInterface* GetInteractMaterial() const;
 
 	// Get mesh render state interact material attribute's override setting. 
-	virtual bool DoesInteractMaterialOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesInteractMaterialOverrideChildState() const;
 
 	// Clear mesh render interact state material attribute. 
-	virtual void ClearInteractMaterial();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearInteractMaterial();
 
 	// Set mesh render state vertex color attribute. 
 	//  @param InVertexColor - vertex color to be set
 	//  @param InOverridesChildState - when true, this vertex color will override the material of all child elements.
-	virtual void SetVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
 
 	// Get mesh render state vertex color attribute's value. 
-	virtual FLinearColor GetVertexColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FLinearColor GetVertexColor() const;
 
 	// Returns true, if mesh render state vertex color attribute has been set. 
-	virtual bool HasVertexColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasVertexColor() const;
 
 	// Get mesh render state vertex color attribute's override setting. 
-	virtual bool DoesVertexColorOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesVertexColorOverrideChildState() const;
 
 	// Clear mesh render state vertex color attribute.
-	virtual void ClearVertexColor();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearVertexColor();
 
 	// Set mesh render state vertex color attribute. 
 	//  @param InVertexColor - vertex color to be set
 	//  @param InOverridesChildState - when true, this vertex color will override the material of all child elements.
-	virtual void SetHoverVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetHoverVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
 
 	// Get mesh render state vertex color attribute's value. 
-	virtual FLinearColor GetHoverVertexColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FLinearColor GetHoverVertexColor() const;
 
 	// Returns true, if mesh render state vertex color attribute has been set. 
-	virtual bool HasHoverVertexColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasHoverVertexColor() const;
 
 	// Get mesh render state vertex color attribute's override setting. 
-	virtual bool DoesHoverVertexColorOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesHoverVertexColorOverrideChildState() const;
 
 	// Clear mesh render state vertex color attribute.
-	virtual void ClearHoverVertexColor();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearHoverVertexColor();
 
 	// Set mesh render state vertex color attribute. 
 	//  @param InVertexColor - vertex color to be set
 	//  @param InOverridesChildState - when true, this vertex color will override the material of all child elements.
-	virtual void SetInteractVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
+	INTERACTIVETOOLSFRAMEWORK_API virtual void SetInteractVertexColor(FLinearColor InVertexColor, bool InOverridesChildState = false);
 
 	// Get mesh render state vertex color attribute's value. 
-	virtual FLinearColor GetInteractVertexColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual FLinearColor GetInteractVertexColor() const;
 
 	// Returns true, if mesh render state vertex color attribute has been set. 
-	virtual bool HasInteractVertexColor() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool HasInteractVertexColor() const;
 
 	// Get mesh render state vertex color attribute's override setting. 
-	virtual bool DoesInteractVertexColorOverrideChildState() const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool DoesInteractVertexColorOverrideChildState() const;
 
 	// Clear mesh render state vertex color attribute.
-	virtual void ClearInteractVertexColor();
+	INTERACTIVETOOLSFRAMEWORK_API virtual void ClearInteractVertexColor();
 
 protected:
 
@@ -430,73 +430,73 @@ protected:
 protected:
 
 	// Return whether element is currently visible.
-	virtual bool IsVisible(const FSceneView* View, EGizmoElementInteractionState InCurrentInteractionState, 
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool IsVisible(const FSceneView* View, EGizmoElementInteractionState InCurrentInteractionState, 
 		const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
 	// Return whether element is currently hittable.
-	virtual bool IsHittable(const UGizmoViewContext* ViewContext, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool IsHittable(const UGizmoViewContext* ViewContext, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
 	// Returns whether object is visible in input FSceneView based on view-dependent visibility settings.
-	virtual bool GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
 	// Returns whether object is visible in input gizmo view context based on view-dependent visibility settings
-	virtual bool GetViewDependentVisibility(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetViewDependentVisibility(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
 	// Returns whether object is visible based on view-dependent visibility settings.
-	virtual bool GetViewDependentVisibility(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetViewDependentVisibility(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
 	// Returns whether element is enabled for given interaction state.
-	virtual bool GetEnabledForInteractionState(EGizmoElementInteractionState InInteractionState) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEnabledForInteractionState(EGizmoElementInteractionState InInteractionState) const;
 
 	// Returns whether element is enabled for given view projection type.
-	virtual bool GetEnabledForViewProjection(bool bIsPerspectiveProjection) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetEnabledForViewProjection(bool bIsPerspectiveProjection) const;
 
 	// Return whether this element has a view alignment rotation based on input FSceneView and view-dependent alignment settings.
 	// @param OutAlignRot the rotation to align this element in local space, should be prepended to the local-to-world transform.
-	virtual bool GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
 
 	// Return whether this element has a view alignment rotation based on input gizmo view context and view-dependent alignment settings.
 	// @param OutAlignRot the rotation to align this element in local space, should be prepended to the local-to-world transform.
-	virtual bool GetViewAlignRot(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetViewAlignRot(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
 
 	// Return whether this element has a view alignment rotation based on input view parameters and view-dependent alignment settings.
 	// @param OutAlignRot the rotation to align this element in local space, should be prepended to the local-to-world transform.
-	virtual bool GetViewAlignRot(const FVector& InViewLocation, const FVector& InViewDirection, const FVector& InViewUp, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool GetViewAlignRot(const FVector& InViewLocation, const FVector& InViewDirection, const FVector& InViewUp, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
 
 	// Update render state during render traversal, determines the current render state for this element 
 	// @param RenderAPI - tools render context
 	// @param InLocalCenter - local element center position
 	// @param InOutRenderState - render state's local to world transform will be updated with translation to center and view-dependent alignment rotation, if applicable.
 	// @return view dependent visibility, true if this element is visible in the current view. 
-	virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState);
 
 	// Update render state during render traversal, determines the current render state for this element
 	// Same parameters as UpdateRenderState above plus two output parameters:
 	// @param bOutHasAlignRot - whether alignment rotation was applied to output state
 	// @param OutAlignRot - alignment rotation applied to output state, if applicable.
-	virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot);
 
 	// Update line trace state during line trace traversal, determines the current state for this element 
 	// @param ViewContext - current gizmo view context
 	// @param InLocalCenter - local element center position, this will update InOutLineTraceState's LocalToWorldTransform with a translation to LocalCenter
 	// @param InOutLineTraceState - line trace state's local to world transform will be updated with translation to center and view-dependent alignment rotation, if applicable.
 	// @return view dependent visibility, true if this element is visible in the current view. 
-	virtual bool UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutLineTraceState);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutLineTraceState);
 
 	// Update line trace state during line trace traversal, determines the current state for this element 
 	// Same parameters as UpdateLineTraceState above plus two output parameters:
 	// @param bOutHasAlignRot - whether alignment rotation was applied to output state
 	// @param OutAlignRot - alignment rotation applied to output state, if applicable.
-	virtual bool UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot);
+	INTERACTIVETOOLSFRAMEWORK_API virtual bool UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot);
 
 protected:
 
 	// Helper method to verify scale is uniform. If it is non-uniform, a one-time warning log is issued.
 	// Returns true if scale is uniform.
-	bool VerifyUniformScale(const FVector& Scale) const;
+	INTERACTIVETOOLSFRAMEWORK_API bool VerifyUniformScale(const FVector& Scale) const;
 
 	// Helper method for view alignment.
 	// Returns rotation between source and target input coordinate spaces.
-	FQuat GetAlignRotBetweenCoordSpaces(FVector SourceForward, FVector SourceRight, FVector SourceUp, FVector TargetForward, FVector TargetRight, FVector TargetUp) const;
+	INTERACTIVETOOLSFRAMEWORK_API FQuat GetAlignRotBetweenCoordSpaces(FVector SourceForward, FVector SourceRight, FVector SourceUp, FVector TargetForward, FVector TargetRight, FVector TargetUp) const;
 };
 

@@ -40,8 +40,8 @@ namespace ENavCostDisplay
 	};
 }
 
-UCLASS(hidecategories=(Object, Actor, Input, Rendering, Replication, HLOD, Cooking), showcategories=("Input|MouseInput", "Input|TouchInput"), Blueprintable)
-class NAVIGATIONSYSTEM_API ANavigationTestingActor : public AActor, public INavAgentInterface, public INavPathObserverInterface
+UCLASS(hidecategories=(Object, Actor, Input, Rendering, Replication, HLOD, Cooking), showcategories=("Input|MouseInput", "Input|TouchInput"), Blueprintable, MinimalAPI)
+class ANavigationTestingActor : public AActor, public INavAgentInterface, public INavPathObserverInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -182,22 +182,22 @@ public:
 	FNavigationPath::FPathObserverDelegate::FDelegate PathObserver;
 
 	/** Dtor */
-	virtual ~ANavigationTestingActor();
+	NAVIGATIONSYSTEM_API virtual ~ANavigationTestingActor();
 
-	virtual void BeginDestroy() override;
+	NAVIGATIONSYSTEM_API virtual void BeginDestroy() override;
 
 #if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditMove(bool bFinished) override;
+	NAVIGATIONSYSTEM_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+	NAVIGATIONSYSTEM_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	NAVIGATIONSYSTEM_API virtual void PostEditMove(bool bFinished) override;
 	
-	virtual void PostLoad() override;
-	void TickMe();
+	NAVIGATIONSYSTEM_API virtual void PostLoad() override;
+	NAVIGATIONSYSTEM_API void TickMe();
 #endif // WITH_EDITOR
 
 	//~ Begin INavAgentInterface Interface
 	virtual const FNavAgentProperties& GetNavAgentPropertiesRef() const override { return NavAgentProps; }
-	virtual FVector GetNavAgentLocation() const override;
+	NAVIGATIONSYSTEM_API virtual FVector GetNavAgentLocation() const override;
 	virtual void GetMoveGoalReachTest(const AActor* MovingActor, const FVector& MoveOffset, FVector& GoalOffset, float& GoalRadius, float& GoalHalfHeight) const override {}
 	//~ End INavAgentInterface Interface
 
@@ -207,20 +207,20 @@ public:
 	virtual void OnPathFailed(class INavigationPathGenerator* PathGenerator) override {};
 	//~ End INavPathObserverInterface Interface	
 
-	void UpdateNavData();
-	void UpdatePathfinding();
-	void GatherDetailedData(ANavigationTestingActor* Goal);
-	virtual void SearchPathTo(ANavigationTestingActor* Goal);
+	NAVIGATIONSYSTEM_API void UpdateNavData();
+	NAVIGATIONSYSTEM_API void UpdatePathfinding();
+	NAVIGATIONSYSTEM_API void GatherDetailedData(ANavigationTestingActor* Goal);
+	NAVIGATIONSYSTEM_API virtual void SearchPathTo(ANavigationTestingActor* Goal);
 
 	/*	Called when given path becomes invalid (via @see PathObserverDelegate)
 	 *	NOTE: InvalidatedPath doesn't have to be instance's current Path
 	 */
-	void OnPathEvent(FNavigationPath* InvalidatedPath, ENavPathEvent::Type Event);
+	NAVIGATIONSYSTEM_API void OnPathEvent(FNavigationPath* InvalidatedPath, ENavPathEvent::Type Event);
 
 	// Virtual method to override if you want to customize the query being 
 	// constructed for the path find (e.g. change the filter or add 
 	// constraints/goal evaluators).
-	virtual FPathFindingQuery BuildPathFindingQuery(const ANavigationTestingActor* Goal) const;
+	NAVIGATIONSYSTEM_API virtual FPathFindingQuery BuildPathFindingQuery(const ANavigationTestingActor* Goal) const;
 
 	/** Returns CapsuleComponent subobject **/
 	class UCapsuleComponent* GetCapsuleComponent() const { return CapsuleComponent; }
@@ -230,5 +230,5 @@ public:
 #endif
 
 protected:
-	FVector FindClosestWallLocation() const;
+	NAVIGATIONSYSTEM_API FVector FindClosestWallLocation() const;
 };

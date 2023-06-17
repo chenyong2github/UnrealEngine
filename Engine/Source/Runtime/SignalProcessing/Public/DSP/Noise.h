@@ -11,11 +11,11 @@ namespace Audio
 	* White noise generator 
 	* Flat spectrum
 	*/
-	class SIGNALPROCESSING_API FWhiteNoise
+	class FWhiteNoise
 	{
 	public:
-		FWhiteNoise();
-		FWhiteNoise(int32 InRandomSeed);
+		SIGNALPROCESSING_API FWhiteNoise();
+		SIGNALPROCESSING_API FWhiteNoise(int32 InRandomSeed);
 
 		/** Generate next sample of white noise */
 		FORCEINLINE float Generate()
@@ -36,17 +36,17 @@ namespace Audio
 	* Pink noise generator
 	* 1/Frequency noise spectrum
 	*/
-	class SIGNALPROCESSING_API FPinkNoise
+	class FPinkNoise
 	{
 	public:
 		/** Constructor. Without seed argument, uses Cpu cycles to chose one at "random" */
-		FPinkNoise();
+		SIGNALPROCESSING_API FPinkNoise();
 
 		/** Constructor with seed input */
-		FPinkNoise(int32 InRandomSeed);
+		SIGNALPROCESSING_API FPinkNoise(int32 InRandomSeed);
 
 		/** Generate next sample of pink noise. */
-		float Generate();
+		SIGNALPROCESSING_API float Generate();
 
 		/** Set Pink Noise Filter Gain (default -3db) */
 		void SetFilterGain(float InFilterGain) 

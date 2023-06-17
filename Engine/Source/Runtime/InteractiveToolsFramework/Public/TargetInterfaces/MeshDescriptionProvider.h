@@ -9,13 +9,13 @@
 
 #include "MeshDescriptionProvider.generated.h"
 
-UINTERFACE()
-class INTERACTIVETOOLSFRAMEWORK_API UMeshDescriptionProvider : public UInterface
+UINTERFACE(MinimalAPI)
+class UMeshDescriptionProvider : public UInterface
 {
 	GENERATED_BODY()
 };
 
-class INTERACTIVETOOLSFRAMEWORK_API IMeshDescriptionProvider
+class IMeshDescriptionProvider
 {
 	GENERATED_BODY()
 

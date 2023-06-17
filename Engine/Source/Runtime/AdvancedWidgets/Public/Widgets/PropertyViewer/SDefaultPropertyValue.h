@@ -11,17 +11,17 @@ namespace UE::PropertyViewer
 {
 
 /** */
-class ADVANCEDWIDGETS_API SDefaultPropertyValue : public SCompoundWidget
+class SDefaultPropertyValue : public SCompoundWidget
 {
 public:
-	static TSharedPtr<SWidget> CreateInstance(const FPropertyValueFactory::FGenerateArgs Args);
+	static ADVANCEDWIDGETS_API TSharedPtr<SWidget> CreateInstance(const FPropertyValueFactory::FGenerateArgs Args);
 
 public:
 	SLATE_BEGIN_ARGS(SDefaultPropertyValue) {}
 		SLATE_ARGUMENT(FPropertyPath, Path);
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs);
 
 private:
 	FText GetText() const;

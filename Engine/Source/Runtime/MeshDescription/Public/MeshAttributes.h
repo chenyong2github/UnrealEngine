@@ -55,7 +55,7 @@ namespace MeshAttribute
 }
 
 
-class MESHDESCRIPTION_API FMeshAttributes
+class FMeshAttributes
 {
 public:
 	explicit FMeshAttributes(FMeshDescription& InMeshDescription)
@@ -64,7 +64,7 @@ public:
 
 	virtual ~FMeshAttributes() = default;
 
-	virtual void Register(bool bKeepExistingAttribute = false);
+	MESHDESCRIPTION_API virtual void Register(bool bKeepExistingAttribute = false);
 
 	static bool IsReservedAttributeName(const FName InAttributeName)
 	{

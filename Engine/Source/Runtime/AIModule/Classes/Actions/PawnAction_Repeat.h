@@ -7,8 +7,8 @@
 #include "Actions/PawnAction.h"
 #include "PawnAction_Repeat.generated.h"
 
-UCLASS()
-class AIMODULE_API UDEPRECATED_PawnAction_Repeat : public UDEPRECATED_PawnAction
+UCLASS(MinimalAPI)
+class UDEPRECATED_PawnAction_Repeat : public UDEPRECATED_PawnAction
 {
 	GENERATED_UCLASS_BODY()
 
@@ -32,12 +32,12 @@ class AIMODULE_API UDEPRECATED_PawnAction_Repeat : public UDEPRECATED_PawnAction
 	EPawnSubActionTriggeringPolicy::Type SubActionTriggeringPolicy;
 
 	/** @param NumberOfRepeats number of times to repeat action. UDEPRECATED_PawnAction_Repeat::LoopForever loops forever */
-	static UDEPRECATED_PawnAction_Repeat* CreateAction(UWorld& World, UDEPRECATED_PawnAction* ActionToRepeat, int32 NumberOfRepeats, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy = EPawnSubActionTriggeringPolicy::CopyBeforeTriggering);
+	static AIMODULE_API UDEPRECATED_PawnAction_Repeat* CreateAction(UWorld& World, UDEPRECATED_PawnAction* ActionToRepeat, int32 NumberOfRepeats, EPawnSubActionTriggeringPolicy::Type InSubActionTriggeringPolicy = EPawnSubActionTriggeringPolicy::CopyBeforeTriggering);
 
 protected:
-	virtual bool Start() override;
-	virtual bool Resume() override;
-	virtual void OnChildFinished(UDEPRECATED_PawnAction& Action, EPawnActionResult::Type WithResult) override;
+	AIMODULE_API virtual bool Start() override;
+	AIMODULE_API virtual bool Resume() override;
+	AIMODULE_API virtual void OnChildFinished(UDEPRECATED_PawnAction& Action, EPawnActionResult::Type WithResult) override;
 
-	bool PushSubAction();
+	AIMODULE_API bool PushSubAction();
 };

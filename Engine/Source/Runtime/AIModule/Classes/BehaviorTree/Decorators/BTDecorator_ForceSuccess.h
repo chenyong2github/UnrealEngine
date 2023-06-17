@@ -16,16 +16,16 @@
  * - selector = would allow executing multiple nodes, turning it into a sequence...
  */
 
-UCLASS(HideCategories=(Condition))
-class AIMODULE_API UBTDecorator_ForceSuccess : public UBTDecorator
+UCLASS(HideCategories=(Condition), MinimalAPI)
+class UBTDecorator_ForceSuccess : public UBTDecorator
 {
 	GENERATED_UCLASS_BODY()
 
 protected:
 
-	virtual void OnNodeProcessed(struct FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult) override;
+	AIMODULE_API virtual void OnNodeProcessed(struct FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type& NodeResult) override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 };

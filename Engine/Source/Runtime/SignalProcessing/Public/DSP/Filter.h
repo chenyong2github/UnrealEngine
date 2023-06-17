@@ -29,54 +29,54 @@ namespace Audio
 
 	// Biquad filter class which wraps a biquad filter struct
 	// Handles multi-channel audio to avoid calculating filter coefficients for multiple channels of audio.
-	class SIGNALPROCESSING_API FBiquadFilter
+	class FBiquadFilter
 	{
 	public:
 		// Constructor
-		FBiquadFilter();
+		SIGNALPROCESSING_API FBiquadFilter();
 		// Destructor
-		virtual ~FBiquadFilter();
+		SIGNALPROCESSING_API virtual ~FBiquadFilter();
 
 		// Initialize the filter
-		void Init(const float InSampleRate, const int32 InNumChannels, const EBiquadFilter::Type InType, const float InCutoffFrequency = 20000.0f, const float InBandwidth = 2.0f, const float InGain = 0.0f);
+		SIGNALPROCESSING_API void Init(const float InSampleRate, const int32 InNumChannels, const EBiquadFilter::Type InType, const float InCutoffFrequency = 20000.0f, const float InBandwidth = 2.0f, const float InGain = 0.0f);
 
 		// Returns number of channels initialized with
-		int32 GetNumChannels() const;
+		SIGNALPROCESSING_API int32 GetNumChannels() const;
 
 		// Resets the filter state
-		void Reset();
+		SIGNALPROCESSING_API void Reset();
 
 		// Processes a single frame of audio
-		void ProcessAudioFrame(const float* InFrame, float* OutFrame);
+		SIGNALPROCESSING_API void ProcessAudioFrame(const float* InFrame, float* OutFrame);
 
 		// Process a buffer of audio
-		void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
+		SIGNALPROCESSING_API void ProcessAudio(const float* InBuffer, const int32 InNumSamples, float* OutBuffer);
 
 		// Sets all filter parameters with one function
-		void SetParams(const EBiquadFilter::Type InFilterType, const float InCutoffFrequency, const float InBandwidth, const float InGainDB);
+		SIGNALPROCESSING_API void SetParams(const EBiquadFilter::Type InFilterType, const float InCutoffFrequency, const float InBandwidth, const float InGainDB);
 
 		// Sets the type of the filter to use
-		void SetType(const EBiquadFilter::Type InType);
+		SIGNALPROCESSING_API void SetType(const EBiquadFilter::Type InType);
 
 		// Sets the filter frequency
-		void SetFrequency(const float InCutoffFrequency);
+		SIGNALPROCESSING_API void SetFrequency(const float InCutoffFrequency);
 
 		// Sets the bandwidth (octaves) of the filter
-		void SetBandwidth(const float InBandwidth);
+		SIGNALPROCESSING_API void SetBandwidth(const float InBandwidth);
 
 		// Sets the gain of the filter in decibels
-		void SetGainDB(const float InGainDB);
+		SIGNALPROCESSING_API void SetGainDB(const float InGainDB);
 
 		// Sets whether or no this filter is enabled (if disabled audio is passed through)
-		void SetEnabled(const bool bInEnabled);
+		SIGNALPROCESSING_API void SetEnabled(const bool bInEnabled);
 
 	protected:
 
 		// Function computes biquad coefficients based on current filter settings
-		void CalculateBiquadCoefficients();
+		SIGNALPROCESSING_API void CalculateBiquadCoefficients();
 
 		// Function used to clamp the cutoff frequency.
-		float ClampCutoffFrequency(float InCutoffFrequency);
+		SIGNALPROCESSING_API float ClampCutoffFrequency(float InCutoffFrequency);
 
 		// What kind of filter to use when computing coefficients
 		EBiquadFilter::Type FilterType;
@@ -119,26 +119,26 @@ namespace Audio
 	static const int32 MaxFilterChannels = 8;
 
 	// Base class for filters usable in synthesis
-	class SIGNALPROCESSING_API IFilter
+	class IFilter
 	{
 	public:
-		IFilter();
-		virtual ~IFilter();
+		SIGNALPROCESSING_API IFilter();
+		SIGNALPROCESSING_API virtual ~IFilter();
 
 		// Initialize the filter
-		virtual void Init(const float InSampleRate, const int32 InNumChannels, const int32 InVoiceId, FModulationMatrix* InModMatrix = nullptr);
+		SIGNALPROCESSING_API virtual void Init(const float InSampleRate, const int32 InNumChannels, const int32 InVoiceId, FModulationMatrix* InModMatrix = nullptr);
 
 		// Sets the cutoff frequency of the filter.
-		virtual void SetFrequency(const float InCutoffFrequency);
+		SIGNALPROCESSING_API virtual void SetFrequency(const float InCutoffFrequency);
 
 		// Sets an external modulated frequency
-		virtual void SetFrequencyMod(const float InModFrequency);
+		SIGNALPROCESSING_API virtual void SetFrequencyMod(const float InModFrequency);
 
 		// Sets the quality/resonance of the filter
-		virtual void SetQ(const float InQ);
+		SIGNALPROCESSING_API virtual void SetQ(const float InQ);
 
 		// Sets an external modulated quality/resonance of the filter
-		virtual void SetQMod(const float InModQ);
+		SIGNALPROCESSING_API virtual void SetQMod(const float InModQ);
 
 		// Sets the filter saturation (not used on all filters)
 		virtual void SetSaturation(const float InSaturation) {}
@@ -150,13 +150,13 @@ namespace Audio
 		virtual void SetPassBandGainCompensation(const float InPassBandGainCompensation) {}
 
 		// Sets the filter type
-		virtual void SetFilterType(const EFilter::Type InFilterType);
+		SIGNALPROCESSING_API virtual void SetFilterType(const EFilter::Type InFilterType);
 
 		// Reset the filter
-		virtual void Reset();
+		SIGNALPROCESSING_API virtual void Reset();
 
 		// Updates the filter
-		virtual void Update();
+		SIGNALPROCESSING_API virtual void Update();
 
 		// Processes a single frame of audio. Number of channels MUST be what was used during filter initialization.
 		virtual void ProcessAudioFrame(const float* InFrame, float* OutFrame)
@@ -228,17 +228,17 @@ namespace Audio
 
 	// A virtual analog one-pole filter.
 	// Defaults to a low-pass mode, but can be switched to high-pass
-	class SIGNALPROCESSING_API FOnePoleFilter : public IFilter
+	class FOnePoleFilter : public IFilter
 	{
 	public:
-		FOnePoleFilter();
-		virtual ~FOnePoleFilter();
+		SIGNALPROCESSING_API FOnePoleFilter();
+		SIGNALPROCESSING_API virtual ~FOnePoleFilter();
 
-		virtual void Init(const float InSampleRate, const int32 InNumChannels, const int32 InVoiceId = 0, FModulationMatrix* InModMatrix = nullptr) override;
-		virtual void Reset() override;
-		virtual void Update() override;
-		virtual void ProcessAudioFrame(const float* InFrame, float* OutFrame) override;
-		virtual void ProcessAudio(const float* InSamples, const int32 InNumSamples, float* OutSamples) override;
+		SIGNALPROCESSING_API virtual void Init(const float InSampleRate, const int32 InNumChannels, const int32 InVoiceId = 0, FModulationMatrix* InModMatrix = nullptr) override;
+		SIGNALPROCESSING_API virtual void Reset() override;
+		SIGNALPROCESSING_API virtual void Update() override;
+		SIGNALPROCESSING_API virtual void ProcessAudioFrame(const float* InFrame, float* OutFrame) override;
+		SIGNALPROCESSING_API virtual void ProcessAudio(const float* InSamples, const int32 InNumSamples, float* OutSamples) override;
 
 		void SetCoefficient(const float InCoefficient) { A0 = InCoefficient; }
 		float GetCoefficient() const { return A0; }
@@ -250,19 +250,19 @@ namespace Audio
 		float* Z1;
 	};
 
-	class SIGNALPROCESSING_API FStateVariableFilter : public IFilter
+	class FStateVariableFilter : public IFilter
 	{
 	public:
-		FStateVariableFilter();
-		virtual ~FStateVariableFilter();
+		SIGNALPROCESSING_API FStateVariableFilter();
+		SIGNALPROCESSING_API virtual ~FStateVariableFilter();
 
-		virtual void Init(const float InSampleRate, const int32 InNumChannels, const int32 InVoiceId = 0, FModulationMatrix* InModMatrix = nullptr) override;
-		virtual void SetBandStopControl(const float InBandStop) override;
-		virtual void Reset() override;
-		virtual void Update() override;
-		virtual void ProcessAudio(const float* InSamples, const int32 InNumSamples, float* OutSamples) override;
+		SIGNALPROCESSING_API virtual void Init(const float InSampleRate, const int32 InNumChannels, const int32 InVoiceId = 0, FModulationMatrix* InModMatrix = nullptr) override;
+		SIGNALPROCESSING_API virtual void SetBandStopControl(const float InBandStop) override;
+		SIGNALPROCESSING_API virtual void Reset() override;
+		SIGNALPROCESSING_API virtual void Update() override;
+		SIGNALPROCESSING_API virtual void ProcessAudio(const float* InSamples, const int32 InNumSamples, float* OutSamples) override;
 
-		void ProcessAudio(const float* InSamples, const int32 InNumSamples
+		SIGNALPROCESSING_API void ProcessAudio(const float* InSamples, const int32 InNumSamples
 			, float* LpfOutput, float* HpfOutput, float* BpfOutput, float* BsfOutput);
 
 	protected:
@@ -285,19 +285,19 @@ namespace Audio
 		TArray<FFilterState> FilterState;
 	};
 
-	class SIGNALPROCESSING_API FLadderFilter : public IFilter
+	class FLadderFilter : public IFilter
 	{
 	public:
-		FLadderFilter();
-		virtual ~FLadderFilter();
+		SIGNALPROCESSING_API FLadderFilter();
+		SIGNALPROCESSING_API virtual ~FLadderFilter();
 
-		virtual void Init(const float InSampleRate, const int32 InNumChannels, const int32 InVoiceId = 0, FModulationMatrix* InModMatrix = nullptr) override;
-		virtual void Reset() override;
-		virtual void Update() override;
-		virtual void SetQ(const float InQ) override;
-		virtual void SetPassBandGainCompensation(const float InPassBandGainCompensation) override;
+		SIGNALPROCESSING_API virtual void Init(const float InSampleRate, const int32 InNumChannels, const int32 InVoiceId = 0, FModulationMatrix* InModMatrix = nullptr) override;
+		SIGNALPROCESSING_API virtual void Reset() override;
+		SIGNALPROCESSING_API virtual void Update() override;
+		SIGNALPROCESSING_API virtual void SetQ(const float InQ) override;
+		SIGNALPROCESSING_API virtual void SetPassBandGainCompensation(const float InPassBandGainCompensation) override;
 
-		virtual void ProcessAudio(const float* InSamples, const int32 InNumSamples, float* OutSamples) override;
+		SIGNALPROCESSING_API virtual void ProcessAudio(const float* InSamples, const int32 InNumSamples, float* OutSamples) override;
 
 
 	protected:

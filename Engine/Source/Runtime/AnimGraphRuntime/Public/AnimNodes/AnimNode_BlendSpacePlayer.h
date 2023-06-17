@@ -12,7 +12,7 @@ class UBlendSpace;
 
 //@TODO: Comment
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpacePlayerBase : public FAnimNode_AssetPlayerBase
+struct FAnimNode_BlendSpacePlayerBase : public FAnimNode_AssetPlayerBase
 {
 	GENERATED_BODY()
 
@@ -32,52 +32,52 @@ protected:
 public:	
 
 	// FAnimNode_AssetPlayerBase interface
-	virtual float GetCurrentAssetTime() const override;
-	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
-	virtual float GetCurrentAssetLength() const override;
-	virtual UAnimationAsset* GetAnimAsset() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetCurrentAssetTime() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetCurrentAssetLength() const override;
+	ANIMGRAPHRUNTIME_API virtual UAnimationAsset* GetAnimAsset() const override;
 	// End of FAnimNode_AssetPlayerBase interface
 
 	// FAnimNode_Base interface
-	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
-	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
-	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
-	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
-	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+	ANIMGRAPHRUNTIME_API virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	ANIMGRAPHRUNTIME_API virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	ANIMGRAPHRUNTIME_API virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 	// Get the amount of time from the end
-	float GetTimeFromEnd(float CurrentTime) const;
+	ANIMGRAPHRUNTIME_API float GetTimeFromEnd(float CurrentTime) const;
 
 	// @return the current sample coordinates after going through the filtering
 	FVector GetFilteredPosition() const { return BlendFilter.GetFilterLastOutput(); }
 
 	// Forces the Position to the specified value
-	void SnapToPosition(const FVector& NewPosition);
+	ANIMGRAPHRUNTIME_API void SnapToPosition(const FVector& NewPosition);
 
 public:
 
 	// Get the blendspace asset to play
-	virtual UBlendSpace* GetBlendSpace() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetBlendSpace, return nullptr;);
+	ANIMGRAPHRUNTIME_API virtual UBlendSpace* GetBlendSpace() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetBlendSpace, return nullptr;);
 
 	// Get the coordinates that are currently being sampled by the blendspace
-	virtual FVector GetPosition() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetPosition, return FVector::Zero(););
+	ANIMGRAPHRUNTIME_API virtual FVector GetPosition() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetPosition, return FVector::Zero(););
 
 	// The start position in [0, 1] to use when initializing. When looping, play will still jump back to the beginning when reaching the end.
-	virtual float GetStartPosition() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetStartPosition, return 0.0f;);
+	ANIMGRAPHRUNTIME_API virtual float GetStartPosition() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetStartPosition, return 0.0f;);
 
 	// Get the play rate multiplier. Can be negative, which will cause the animation to play in reverse.
-	virtual float GetPlayRate() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetPlayRate, return 1.0f;);
+	ANIMGRAPHRUNTIME_API virtual float GetPlayRate() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::GetPlayRate, return 1.0f;);
 
 	// Should the animation loop back to the start when it reaches the end?
 	UE_DEPRECATED(5.3, "Please use IsLooping instead.")
 	virtual bool GetLoop() const final { return IsLooping(); }
 
 	// Get whether we should reset the current play time when the blend space changes
-	virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::ShouldResetPlayTimeWhenBlendSpaceChanges, return true;);
+	ANIMGRAPHRUNTIME_API virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::ShouldResetPlayTimeWhenBlendSpaceChanges, return true;);
 
 	// Set whether we should reset the current play time when the blend space changes
-	virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetResetPlayTimeWhenBlendSpaceChanges, return false;);
+	ANIMGRAPHRUNTIME_API virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetResetPlayTimeWhenBlendSpaceChanges, return false;);
 
 	// An evaluator will be setting the play rate to zero and setting the time explicitly. ShouldTeleportToTime indicates whether we should jump to that time, or move to it playing out root motion and events etc.
 	virtual bool ShouldTeleportToTime() const { return false; }
@@ -86,24 +86,24 @@ public:
 	virtual bool IsEvaluator() const { return false; }
 
 	// Set the blendspace asset to play
-	virtual bool SetBlendSpace(UBlendSpace* InBlendSpace) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetBlendSpace, return false;);
+	ANIMGRAPHRUNTIME_API virtual bool SetBlendSpace(UBlendSpace* InBlendSpace) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetBlendSpace, return false;);
 
 	// Set the coordinates that are currently being sampled by the blendspace
-	virtual bool SetPosition(FVector InPosition) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetPosition, return false;);
+	ANIMGRAPHRUNTIME_API virtual bool SetPosition(FVector InPosition) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetPosition, return false;);
 
 	// Set the play rate multiplier. Can be negative, which will cause the animation to play in reverse.
-	virtual bool SetPlayRate(float InPlayRate) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetPlayRate, return false;);
+	ANIMGRAPHRUNTIME_API virtual bool SetPlayRate(float InPlayRate) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetPlayRate, return false;);
 
 	// Set if the animation should loop back to the start when it reaches the end?
-	virtual bool SetLoop(bool bInLoop) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetLoop, return false;);
+	ANIMGRAPHRUNTIME_API virtual bool SetLoop(bool bInLoop) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetLoop, return false;);
 
 protected:
-	void UpdateInternal(const FAnimationUpdateContext& Context);
+	ANIMGRAPHRUNTIME_API void UpdateInternal(const FAnimationUpdateContext& Context);
 
 private:
-	void Reinitialize(bool bResetTime = true);
+	ANIMGRAPHRUNTIME_API void Reinitialize(bool bResetTime = true);
 
-	const FBlendSampleData* GetHighestWeightedSample() const;
+	ANIMGRAPHRUNTIME_API const FBlendSampleData* GetHighestWeightedSample() const;
 };
 
 template<>
@@ -118,7 +118,7 @@ struct TStructOpsTypeTraits<FAnimNode_BlendSpacePlayerBase> : public TStructOpsT
 
 //@TODO: Comment
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpacePlayer : public FAnimNode_BlendSpacePlayerBase
+struct FAnimNode_BlendSpacePlayer : public FAnimNode_BlendSpacePlayerBase
 {
 	GENERATED_BODY()
 
@@ -179,34 +179,34 @@ private:
 public:
 
 	// FAnimNode_AssetPlayerBase interface
-	virtual FName GetGroupName() const override;
-	virtual EAnimGroupRole::Type GetGroupRole() const override;
-	virtual EAnimSyncMethod GetGroupMethod() const override;
-	virtual bool GetIgnoreForRelevancyTest() const override;
-	virtual bool IsLooping() const override;
-	virtual bool SetGroupName(FName InGroupName) override;
-	virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
-	virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
-	virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
+	ANIMGRAPHRUNTIME_API virtual FName GetGroupName() const override;
+	ANIMGRAPHRUNTIME_API virtual EAnimGroupRole::Type GetGroupRole() const override;
+	ANIMGRAPHRUNTIME_API virtual EAnimSyncMethod GetGroupMethod() const override;
+	ANIMGRAPHRUNTIME_API virtual bool GetIgnoreForRelevancyTest() const override;
+	ANIMGRAPHRUNTIME_API virtual bool IsLooping() const override;
+	ANIMGRAPHRUNTIME_API virtual bool SetGroupName(FName InGroupName) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetGroupRole(EAnimGroupRole::Type InRole) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetGroupMethod(EAnimSyncMethod InMethod) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 	// End of FAnimNode_AssetPlayerBase interface
 
 	// FAnimNode_BlendSpacePlayerBase interface
-	virtual UBlendSpace* GetBlendSpace() const override;
-	virtual FVector GetPosition() const override;
-	virtual float GetStartPosition() const override;
-	virtual float GetPlayRate() const override;
-	virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const override;
-	virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) override;
-	virtual bool SetBlendSpace(UBlendSpace* InBlendSpace) override;
-	virtual bool SetPosition(FVector InPosition) override;
-	virtual bool SetPlayRate(float InPlayRate) override;
-	virtual bool SetLoop(bool bInLoop) override;
+	ANIMGRAPHRUNTIME_API virtual UBlendSpace* GetBlendSpace() const override;
+	ANIMGRAPHRUNTIME_API virtual FVector GetPosition() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetStartPosition() const override;
+	ANIMGRAPHRUNTIME_API virtual float GetPlayRate() const override;
+	ANIMGRAPHRUNTIME_API virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const override;
+	ANIMGRAPHRUNTIME_API virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetBlendSpace(UBlendSpace* InBlendSpace) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetPosition(FVector InPosition) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetPlayRate(float InPlayRate) override;
+	ANIMGRAPHRUNTIME_API virtual bool SetLoop(bool bInLoop) override;
 	// End of FAnimNode_BlendSpacePlayerBase interface
 };
 
 //@TODO: Comment
 USTRUCT(BlueprintInternalUseOnly)
-struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpacePlayer_Standalone : public FAnimNode_BlendSpacePlayerBase
+struct FAnimNode_BlendSpacePlayer_Standalone : public FAnimNode_BlendSpacePlayerBase
 {
 	GENERATED_BODY()
 

@@ -37,8 +37,8 @@ enum class EDragPivot : uint8
 /**
  * This class is the base drag drop operation for UMG, extend it to add additional data and add new functionality.
  */
-UCLASS(BlueprintType, Blueprintable, meta=( DontUseGenericSpawnObject="True" ))
-class UMG_API UDragDropOperation : public UObject
+UCLASS(BlueprintType, Blueprintable, meta=( DontUseGenericSpawnObject="True" ), MinimalAPI)
+class UDragDropOperation : public UObject
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -86,13 +86,13 @@ public:
 
 	/**  */
 	UFUNCTION(BlueprintNativeEvent, Category="Drag and Drop")
-	void Drop(const FPointerEvent& PointerEvent);
+	UMG_API void Drop(const FPointerEvent& PointerEvent);
 
 	/**  */
 	UFUNCTION(BlueprintNativeEvent, Category="Drag and Drop")
-	void DragCancelled(const FPointerEvent& PointerEvent);
+	UMG_API void DragCancelled(const FPointerEvent& PointerEvent);
 
 	/**  */
 	UFUNCTION(BlueprintNativeEvent, Category="Drag and Drop")
-	void Dragged(const FPointerEvent& PointerEvent);
+	UMG_API void Dragged(const FPointerEvent& PointerEvent);
 };

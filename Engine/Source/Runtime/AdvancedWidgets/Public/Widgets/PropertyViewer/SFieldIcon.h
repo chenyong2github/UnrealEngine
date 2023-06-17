@@ -10,17 +10,17 @@ namespace UE::PropertyViewer
 {
 
 /** */
-class ADVANCEDWIDGETS_API SFieldIcon : public SCompoundWidget
+class SFieldIcon : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SFieldIcon) {}
 		SLATE_ARGUMENT(TOptional<const FFieldColorSettings>, OverrideColorSettings);
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const UClass* Class);
-	void Construct(const FArguments& InArgs, const UScriptStruct* Struct);
-	void Construct(const FArguments& InArgs, const FProperty* Property);
-	void Construct(const FArguments& InArgs, const UFunction* FunctionToDisplay);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs, const UClass* Class);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs, const UScriptStruct* Struct);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs, const FProperty* Property);
+	ADVANCEDWIDGETS_API void Construct(const FArguments& InArgs, const UFunction* FunctionToDisplay);
 };
 
 } //namespace

@@ -17,38 +17,38 @@ namespace Audio
 
 	// A digital wave shaping effect to cause audio distortion
 	// https://en.wikipedia.org/wiki/Waveshaper
-	class SIGNALPROCESSING_API FWaveShaper
+	class FWaveShaper
 	{
 	public:
 		// Constructor
-		FWaveShaper();
+		SIGNALPROCESSING_API FWaveShaper();
 
 		// Destructor
-		~FWaveShaper();
+		SIGNALPROCESSING_API ~FWaveShaper();
 
 		// Initialize the equalizer
-		void Init(const float InSampleRate);
+		SIGNALPROCESSING_API void Init(const float InSampleRate);
 
 		// Sets the amount of wave shapping. 0.0 is no effect.
-		void SetAmount(const float InAmount);
+		SIGNALPROCESSING_API void SetAmount(const float InAmount);
 
 		// Set DC offset before processing
-		void SetBias(const float InBias);
+		SIGNALPROCESSING_API void SetBias(const float InBias);
 
 		// Sets the output gain of the waveshaper
-		void SetOutputGainDb(const float InGainDb);
+		SIGNALPROCESSING_API void SetOutputGainDb(const float InGainDb);
 
 		// Sets the output gain of the waveshaper
-		void SetOutputGainLinear(const float InGainLinear);
+		SIGNALPROCESSING_API void SetOutputGainLinear(const float InGainLinear);
 
-		void SetType(const EWaveShaperType InType);
+		SIGNALPROCESSING_API void SetType(const EWaveShaperType InType);
 
 		// Processes one Sample, using ATan
 		// Deprecating in favor of ProcessAudioBuffer
-		void ProcessAudio(const float InSample, float& OutSample);
+		SIGNALPROCESSING_API void ProcessAudio(const float InSample, float& OutSample);
 
 		// Process an entire buffer of audio
-		void ProcessAudioBuffer(const float* InBuffer, float* OutBuffer, int32 NumFrames);
+		SIGNALPROCESSING_API void ProcessAudioBuffer(const float* InBuffer, float* OutBuffer, int32 NumFrames);
 
 	private:
 

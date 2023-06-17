@@ -24,7 +24,7 @@ namespace Geometry
  * Revolve generators currently depend on the ability to use DynamicMesh operations to (eg) triangulate endcaps/etc,
  * and so they are not currently FMeshShapeGenerators (this may be resolved in future)
  */
-class GEOMETRYCORE_API FBaseRevolveGenerator
+class FBaseRevolveGenerator
 {
 public:
 
@@ -87,7 +87,7 @@ public:
  * Revolve a planar polyline (in the XY plane) around the +Z axis along a circular path
  * (+X, +Y) in the 2D polyline is mapped to (+X, 0, +Z)
  */
-class GEOMETRYCORE_API FRevolvePlanarPathGenerator : public FBaseRevolveGenerator
+class FRevolvePlanarPathGenerator : public FBaseRevolveGenerator
 {
 public:
 	/** Vertices of the planar polyline/path that will be revolved */
@@ -97,7 +97,7 @@ public:
 	bool bCapped = true;
 
 	/** Generate the mesh */
-	FDynamicMesh3 GenerateMesh();
+	GEOMETRYCORE_API FDynamicMesh3 GenerateMesh();
 
 };
 
@@ -105,7 +105,7 @@ public:
 * Revolve a planar polygon (in the XY plane) around the +Z axis along a circular path
 * (+X, +Y) in the 2D polygon is mapped to (+X, 0, +Z)
 */
-class GEOMETRYCORE_API FRevolvePlanarPolygonGenerator : public FBaseRevolveGenerator
+class FRevolvePlanarPolygonGenerator : public FBaseRevolveGenerator
 {
 public:
 	/** Vertices of the planar polygon that will be revolved */
@@ -115,7 +115,7 @@ public:
 	bool bWeldVertsOnAxis = false;
 
 	/** Generate the mesh */
-	FDynamicMesh3 GenerateMesh();
+	GEOMETRYCORE_API FDynamicMesh3 GenerateMesh();
 };
 
 
@@ -123,7 +123,7 @@ public:
 * Revolve a planar polygon (in the XY plane) around the +Z axis along a spiral path.
 * (+X, +Y) in the 2D polygon is mapped to (+X, 0, +Z)
 */
-class GEOMETRYCORE_API FSpiralRevolvePlanarPolygonGenerator : public FBaseRevolveGenerator
+class FSpiralRevolvePlanarPolygonGenerator : public FBaseRevolveGenerator
 {
 public:
 	/** Vertices of the planar polygon that will be revolved */
@@ -136,7 +136,7 @@ public:
 	double RisePerFullRevolution = 50;
 
 	/** Generate the mesh */
-	FDynamicMesh3 GenerateMesh();
+	GEOMETRYCORE_API FDynamicMesh3 GenerateMesh();
 };
 
 

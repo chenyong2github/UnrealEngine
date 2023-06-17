@@ -13,14 +13,14 @@
 #include "TransformNoScale.generated.h"
 
 USTRUCT(BlueprintType)
-struct ANIMATIONCORE_API FTransformNoScale
+struct FTransformNoScale
 {
 	GENERATED_BODY()
 
 	/**
 	 * The identity transformation (Rotation = FRotator::ZeroRotator, Translation = FVector::ZeroVector, Scale = (1,1,1)).
 	 */
-	static const FTransformNoScale Identity;
+	static ANIMATIONCORE_API const FTransformNoScale Identity;
 
 	FORCEINLINE_DEBUGGABLE FTransformNoScale()
 		: Location(ForceInitToZero)

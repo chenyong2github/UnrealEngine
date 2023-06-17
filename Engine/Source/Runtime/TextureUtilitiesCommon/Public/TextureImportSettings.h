@@ -46,8 +46,8 @@ enum class ETextureImportPNGInfill : uint8
 	Always
 };
 
-UCLASS(config=Editor, defaultconfig, meta=(DisplayName="Texture Import"))
-class TEXTUREUTILITIESCOMMON_API UTextureImportSettings : public UDeveloperSettings
+UCLASS(config=Editor, defaultconfig, meta=(DisplayName="Texture Import"), MinimalAPI)
+class UTextureImportSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()
 	
@@ -80,13 +80,13 @@ public:
 
 	//~ Begin UObject Interface
 
-	virtual void PostInitProperties() override;
+	TEXTUREUTILITIESCOMMON_API virtual void PostInitProperties() override;
 	
 	// Get the PNGInfill setting, with Default mapped to a concrete choice
-	ETextureImportPNGInfill GetPNGInfillMapDefault() const;
+	TEXTUREUTILITIESCOMMON_API ETextureImportPNGInfill GetPNGInfillMapDefault() const;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	TEXTUREUTILITIESCOMMON_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
 	//~ End UObject Interface

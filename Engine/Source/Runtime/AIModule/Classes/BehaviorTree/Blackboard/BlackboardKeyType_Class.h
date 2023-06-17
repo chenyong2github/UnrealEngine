@@ -8,27 +8,27 @@
 
 class UBlackboardComponent;
 
-UCLASS(EditInlineNew, meta=(DisplayName="Class"))
-class AIMODULE_API UBlackboardKeyType_Class : public UBlackboardKeyType
+UCLASS(EditInlineNew, meta=(DisplayName="Class"), MinimalAPI)
+class UBlackboardKeyType_Class : public UBlackboardKeyType
 {
 	GENERATED_UCLASS_BODY()
 
 	typedef UClass* FDataType;
-	static const FDataType InvalidValue;
+	static AIMODULE_API const FDataType InvalidValue;
 
 	UPROPERTY(Category=Blackboard, EditDefaultsOnly, meta=(AllowAbstract="1"))
 	TObjectPtr<UClass> BaseClass;
 	
-	static UClass* GetValue(const UBlackboardKeyType_Class* KeyOb, const uint8* RawData);
-	static bool SetValue(UBlackboardKeyType_Class* KeyOb, uint8* RawData, UClass* Value);
+	static AIMODULE_API UClass* GetValue(const UBlackboardKeyType_Class* KeyOb, const uint8* RawData);
+	static AIMODULE_API bool SetValue(UBlackboardKeyType_Class* KeyOb, uint8* RawData, UClass* Value);
 
-	virtual EBlackboardCompare::Type CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
+	AIMODULE_API virtual EBlackboardCompare::Type CompareValues(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock,
 		const UBlackboardKeyType* OtherKeyOb, const uint8* OtherMemoryBlock) const override;
 
-	virtual FString DescribeSelf() const override;
-	virtual bool IsAllowedByFilter(UBlackboardKeyType* FilterOb) const override;
+	AIMODULE_API virtual FString DescribeSelf() const override;
+	AIMODULE_API virtual bool IsAllowedByFilter(UBlackboardKeyType* FilterOb) const override;
 
 protected:
-	virtual FString DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* RawData) const override;
-	virtual bool TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const override;
+	AIMODULE_API virtual FString DescribeValue(const UBlackboardComponent& OwnerComp, const uint8* RawData) const override;
+	AIMODULE_API virtual bool TestBasicOperation(const UBlackboardComponent& OwnerComp, const uint8* MemoryBlock, EBasicKeyOperation::Type Op) const override;
 };

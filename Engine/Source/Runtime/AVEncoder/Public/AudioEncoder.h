@@ -25,7 +25,7 @@ namespace AVEncoder
 		virtual void OnEncodedAudioFrame(const FMediaPacket& Packet) = 0;
 	};
 
-	class AVENCODER_API FAudioEncoder
+	class FAudioEncoder
 	{
 	public:
 		virtual ~FAudioEncoder() {}
@@ -41,11 +41,11 @@ namespace AVEncoder
 		virtual void Encode(const FAudioFrame& Frame) = 0;
 		virtual FAudioConfig GetConfig() const = 0;
 
-		virtual void RegisterListener(IAudioEncoderListener& Listener);
-		virtual void UnregisterListener(IAudioEncoderListener& Listener);
+		AVENCODER_API virtual void RegisterListener(IAudioEncoderListener& Listener);
+		AVENCODER_API virtual void UnregisterListener(IAudioEncoderListener& Listener);
 
 	protected:
-		void OnEncodedAudioFrame(const FMediaPacket& Packet);
+		AVENCODER_API void OnEncodedAudioFrame(const FMediaPacket& Packet);
 	private:
 
 		FCriticalSection ListenersMutex;

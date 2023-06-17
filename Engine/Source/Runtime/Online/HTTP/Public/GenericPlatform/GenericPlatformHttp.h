@@ -18,14 +18,14 @@ class IHttpRequest;
  * Platform specific Http implementations
  * Intended usage is to use FPlatformHttp instead of FGenericPlatformHttp
  */
-class HTTP_API FGenericPlatformHttp
+class FGenericPlatformHttp
 {
 public:
 
 	/**
 	 * Platform initialization step
 	 */
-	static void Init();
+	static HTTP_API void Init();
 
 	/**
 	 * Creates a platform-specific HTTP manager.
@@ -40,21 +40,21 @@ public:
 	/**
 	 * Platform shutdown step
 	 */
-	static void Shutdown();
+	static HTTP_API void Shutdown();
 
 	/**
 	 * Creates a new Http request instance for the current platform
 	 *
 	 * @return request object
 	 */
-	static IHttpRequest* ConstructRequest();
+	static HTTP_API IHttpRequest* ConstructRequest();
 
 	/**
 	 * Check if a platform uses the HTTP thread
 	 *
 	 * @return true if the platform uses threaded HTTP, false if not
 	 */
-	static bool UsesThreadedHttp();
+	static HTTP_API bool UsesThreadedHttp();
 
 	/**
 	 * Returns a percent-encoded version of the passed in string
@@ -62,7 +62,7 @@ public:
 	 * @param UnencodedString The unencoded string to convert to percent-encoding
 	 * @return The percent-encoded string
 	 */
-	static FString UrlEncode(const FStringView UnencodedString);
+	static HTTP_API FString UrlEncode(const FStringView UnencodedString);
 
 	/**
 	 * Returns a decoded version of the percent-encoded passed in string
@@ -70,7 +70,7 @@ public:
 	 * @param EncodedString The percent encoded string to convert to string
 	 * @return The decoded string
 	 */
-	static FString UrlDecode(const FStringView EncodedString);
+	static HTTP_API FString UrlDecode(const FStringView EncodedString);
 
 	/**
 	 * Returns the &lt; &gt...etc encoding for strings between HTML elements.
@@ -78,27 +78,27 @@ public:
 	 * @param UnencodedString The unencoded string to convert to html encoding.
 	 * @return The html encoded string
 	 */
-	static FString HtmlEncode(const FStringView UnencodedString);
+	static HTTP_API FString HtmlEncode(const FStringView UnencodedString);
 
 	/** 
 	* Returns the domain and port portion of the URL, e.g., "a.b.c:d" of "http://a.b.c:d/e"
 	* @param Url the URL to return the domain and port of
 	* @return the domain and port of the specified URL
 	*/
-	static FString GetUrlDomainAndPort(const FStringView Url);
+	static HTTP_API FString GetUrlDomainAndPort(const FStringView Url);
 
 	/** 
 	 * Returns the domain portion of the URL, e.g., "a.b.c" of "http://a.b.c:d/e"
 	 * @param Url the URL to return the domain of
 	 * @return the domain of the specified URL
 	 */
-	static FString GetUrlDomain(const FStringView Url);
+	static HTTP_API FString GetUrlDomain(const FStringView Url);
 
 	/**
 	 * Get the mime type for the file
 	 * @return the mime type for the file.
 	 */
-	static FString GetMimeType(const FString& FilePath);
+	static HTTP_API FString GetMimeType(const FString& FilePath);
 
 	/**
 	 * Returns the default User-Agent string to use in HTTP requests.
@@ -106,15 +106,15 @@ public:
 	 *
 	 * @return the default User-Agent string that requests should use.
 	 */
-	static FString GetDefaultUserAgent();
-	static FString EscapeUserAgentString(const FString& UnescapedString);
+	static HTTP_API FString GetDefaultUserAgent();
+	static HTTP_API FString EscapeUserAgentString(const FString& UnescapedString);
 
 	/**
 	 * Get the proxy address specified by the operating system
 	 *
 	 * @return optional FString: If unset: we are unable to get information from the operating system. If set: the proxy address set by the operating system (may be blank)
 	 */
-	static TOptional<FString> GetOperatingSystemProxyAddress();
+	static HTTP_API TOptional<FString> GetOperatingSystemProxyAddress();
 
 	/**
 	 * Check if getting proxy information from the current operating system is supported
@@ -123,12 +123,12 @@ public:
 	 * 
 	 * @return true if we are able to get proxy information from the current operating system, false if not
 	 */
-	static bool IsOperatingSystemProxyInformationSupported();
+	static HTTP_API bool IsOperatingSystemProxyInformationSupported();
 
 	/**
 	 * Helper function for checking if a byte array is in URL encoded format.
 	 */
-	static bool IsURLEncoded(const TArray<uint8>& Payload);
+	static HTTP_API bool IsURLEncoded(const TArray<uint8>& Payload);
 
 	/**
 	 * Extract the URL-Decoded value of the specified ParameterName from Url. An unset return means the parameter was not present in Url, while an empty value means it was present, but had no value.
@@ -137,14 +137,14 @@ public:
 	 * @param ParameterName The parameter name to look for
 	 * @return If ParameterName was found, the string value of its value (in URL Decoded format), otherwise the return value is unset
 	 */
-	static TOptional<FString> GetUrlParameter(const FStringView Url, const FStringView ParameterName);
+	static HTTP_API TOptional<FString> GetUrlParameter(const FStringView Url, const FStringView ParameterName);
 
 	/**
 	 * Extract the Port part of a URL, or an unset object if there was non specified. Example: "http://example.org:23/" would return 23, while "https://example.org/" would return an unset object
 	 * 
 	 * @param Url The URL to parse for a Port
 	 */
-	static TOptional<uint16> GetUrlPort(const FStringView Url);
+	static HTTP_API TOptional<uint16> GetUrlPort(const FStringView Url);
 
 	/**
 	 * Extract the Path portion of a URL, optionally including the Query String, and optionally including the Fragment (when also including the query string.)
@@ -155,7 +155,7 @@ public:
 	 * @param bIncludeQueryString include the URL's query string in the return value (if one is found)
 	 * @param bIncludeFragment include the URL's fragement in the return value (if one is found)
 	 */
-	static FString GetUrlPath(const FStringView Url, const bool bIncludeQueryString = false, const bool bIncludeFragment = false);
+	static HTTP_API FString GetUrlPath(const FStringView Url, const bool bIncludeQueryString = false, const bool bIncludeFragment = false);
 
 	/**
 	 * Check the protocol of the provided URL to determine if this is for a secure connection (HTTPS, WSS, etc)
@@ -163,5 +163,5 @@ public:
 	 * @param The URL to check for a scheme
 	 * @return True if secure, false if insecure, unset if unknown
 	 */
-	static TOptional<bool> IsSecureProtocol(const FStringView Url);
+	static HTTP_API TOptional<bool> IsSecureProtocol(const FStringView Url);
 };

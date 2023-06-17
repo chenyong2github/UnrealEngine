@@ -12,8 +12,8 @@
  * Set tag cooldown decorator node.
  * A decorator node that sets a gameplay tag cooldown.
  */
-UCLASS(HideCategories=(Condition))
-class AIMODULE_API UBTDecorator_SetTagCooldown : public UBTDecorator
+UCLASS(HideCategories=(Condition), MinimalAPI)
+class UBTDecorator_SetTagCooldown : public UBTDecorator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -29,12 +29,12 @@ class AIMODULE_API UBTDecorator_SetTagCooldown : public UBTDecorator
 	UPROPERTY(Category = Decorator, EditAnywhere)
 	bool bAddToExistingDuration;
 
-	virtual FString GetStaticDescription() const override;
+	AIMODULE_API virtual FString GetStaticDescription() const override;
 
 #if WITH_EDITOR
-	virtual FName GetNodeIconName() const override;
+	AIMODULE_API virtual FName GetNodeIconName() const override;
 #endif // WITH_EDITOR
 
 protected:
-	virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult) override;
+	AIMODULE_API virtual void OnNodeDeactivation(FBehaviorTreeSearchData& SearchData, EBTNodeResult::Type NodeResult) override;
 };

@@ -20,11 +20,11 @@ namespace Geometry
  * split UV/normal/tangent/color, ie in the overlays there will be a unique overlay element for each
  * base mesh vertex.
  */
-class MESHCONVERSIONENGINETYPES_API FStaticMeshLODResourcesToDynamicMesh
+class FStaticMeshLODResourcesToDynamicMesh
 {
 public:
 
-	struct MESHCONVERSIONENGINETYPES_API ConversionOptions
+	struct ConversionOptions
 	{
 		bool bWantNormals = true;
 		bool bWantTangents = true;
@@ -36,7 +36,7 @@ public:
 		FVector3d BuildScale = FVector3d::One();
 	};
 
-	static bool Convert(
+	static MESHCONVERSIONENGINETYPES_API bool Convert(
 		const FStaticMeshLODResources* StaticMeshResources, 
 		const ConversionOptions& Options, 
 		FDynamicMesh3& OutputMesh);

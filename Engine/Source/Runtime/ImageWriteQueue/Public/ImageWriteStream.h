@@ -17,7 +17,7 @@ struct FImageStreamEndpoint;
 /**
  * A pipe that receives image data and forwards it onto 0 or more end points, copying the buffer as few times as possible
  */
-struct IMAGEWRITEQUEUE_API FImagePixelPipe
+struct FImagePixelPipe
 {
 	/**
 	 * Default constructor (an empty pipe)
@@ -38,21 +38,21 @@ struct IMAGEWRITEQUEUE_API FImagePixelPipe
 	 *
 	 * @param InImagePixelData         The data to push through this pipe
 	 */
-	void Push(TUniquePtr<FImagePixelData>&& InImagePixelData);
+	IMAGEWRITEQUEUE_API void Push(TUniquePtr<FImagePixelData>&& InImagePixelData);
 
 	/**
 	 * Add a new end point handler to this pipe.
 	 *
 	 * @param InEndpoint               The new endpoint to add. Potentially used on any thread.
 	 */
-	void AddEndpoint(TUniquePtr<FImageStreamEndpoint>&& InEndpoint);
+	IMAGEWRITEQUEUE_API void AddEndpoint(TUniquePtr<FImageStreamEndpoint>&& InEndpoint);
 
 	/**
 	 * Add a new end point handler to this pipe as a functor.
 	 *
 	 * @param InHandler                A handler function implemented as an anonymous functor. Potentially called on any thread.
 	 */
-	void AddEndpoint(const TFunction<void(TUniquePtr<FImagePixelData>&& )>& InHandler);
+	IMAGEWRITEQUEUE_API void AddEndpoint(const TFunction<void(TUniquePtr<FImagePixelData>&& )>& InHandler);
 
 	/**
 	 * Access this pipe's current set of end points.
@@ -77,7 +77,7 @@ private:
 /**
  * Stream end-point that receives a copy of image data from a thread
  */
-struct IMAGEWRITEQUEUE_API FImageStreamEndpoint
+struct FImageStreamEndpoint
 {
 	virtual ~FImageStreamEndpoint(){}
 
@@ -86,7 +86,7 @@ struct IMAGEWRITEQUEUE_API FImageStreamEndpoint
 	 *
 	 * @param InOwnedImage       Image data to pass through this end point.
 	 */
-	void PipeImage(TUniquePtr<FImagePixelData>&& InOwnedImage);
+	IMAGEWRITEQUEUE_API void PipeImage(TUniquePtr<FImagePixelData>&& InOwnedImage);
 
 private:
 

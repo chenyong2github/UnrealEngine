@@ -14,16 +14,16 @@ namespace Audio
 	 * This is useful for cases where we can't use a peak detector with asymptotic tracking.
 	 * For example: lookahead limiters, silence detection, etc.
 	 */
-	class SIGNALPROCESSING_API FMovingAverager
+	class FMovingAverager
 	{
 	public:
 		// Delay length in samples.
-		FMovingAverager(uint32 NumSamples);
+		SIGNALPROCESSING_API FMovingAverager(uint32 NumSamples);
 
 		// Returns average amplitude across the internal buffer, and fills Output with the delay line output.
-		float ProcessInput(const float& Input, float& Output);
+		SIGNALPROCESSING_API float ProcessInput(const float& Input, float& Output);
 
-		void SetNumSamples(uint32 NumSamples);
+		SIGNALPROCESSING_API void SetNumSamples(uint32 NumSamples);
 
 	private:
 		FMovingAverager();
@@ -40,14 +40,14 @@ namespace Audio
 	/**
 	 * Vectorized version of FMovingAverager.
 	 */
-	class SIGNALPROCESSING_API FMovingVectorAverager
+	class FMovingVectorAverager
 	{
 	public:
 		// Delay length in samples. NumSamples must be divisible by four.
-		FMovingVectorAverager(uint32 NumSamples);
+		SIGNALPROCESSING_API FMovingVectorAverager(uint32 NumSamples);
 
 		// Returns average amplitude across the internal buffer, and fills Output with the delay line output.
-		float ProcessAudio(const VectorRegister4Float& Input, VectorRegister4Float& Output);
+		SIGNALPROCESSING_API float ProcessAudio(const VectorRegister4Float& Input, VectorRegister4Float& Output);
 
 	private:
 		FMovingVectorAverager();
@@ -65,26 +65,26 @@ namespace Audio
 	 * This object will return buffered audio while the input signal is louder than the specified threshold,
 	 * and buffer audio when the input signal otherwise.
 	 */
-	class SIGNALPROCESSING_API FSilenceDetection
+	class FSilenceDetection
 	{
 	public:
 		// InOnsetThreshold is the minimum amplitude of a signal before we begin outputting audio, in linear gain.
 		// InReleaseThreshold is the amplitude of the signal before we stop outputting audio, in linear gain.
 		// AttackDurationInSamples is the amount of samples we average over when calculating our amplitude when the in audio is below the threshold.
 		// ReleaseDurationInSamples is the amount of samples we average over when calculating our amplitude when the input audio is above the threshold.
-		FSilenceDetection(float InOnsetThreshold, float InReleaseThreshold, int32 AttackDurationInSamples, int32 ReleaseDurationInSamples);
+		SIGNALPROCESSING_API FSilenceDetection(float InOnsetThreshold, float InReleaseThreshold, int32 AttackDurationInSamples, int32 ReleaseDurationInSamples);
 
 		// Buffers InAudio and renders any non-silent audio to OutAudio. Returns the number of samples written to OutAudio.
 		// The number of samples returned will only be less than NumSamples if the signal becomes audible mid-buffer.
 		// We do not return partial buffers when returning from an audible state to a silent state.
 		// This should also work in place, i.e. if InAudio == OutAudio.
-		int32 ProcessBuffer(const float* InAudio, float* OutAudio, int32 NumSamples);
+		SIGNALPROCESSING_API int32 ProcessBuffer(const float* InAudio, float* OutAudio, int32 NumSamples);
 
 		// Set the threshold of audibility, in terms of linear gain.
-		void SetThreshold(float InThreshold);
+		SIGNALPROCESSING_API void SetThreshold(float InThreshold);
 
 		// Returns the current estimate of the current amplitude of the input signal, in linear gain.
-		float GetCurrentAmplitude();
+		SIGNALPROCESSING_API float GetCurrentAmplitude();
 	private:
 		FSilenceDetection();
 
@@ -100,21 +100,21 @@ namespace Audio
 	 * This object accepts an input buffer and current amplitude estimate of that input buffer,
 	 * Then applies a computed gain target. Works like a standard feed forward limiter, with a threshold of 0.
 	 */
-	class SIGNALPROCESSING_API FSlowAdaptiveGainControl
+	class FSlowAdaptiveGainControl
 	{
 	public:
 		// InGainTarget is our target running linear gain.
 		// InAdaptiveRate is the time it will take to respond to changes in amplitude, in numbers of buffer callbacks.
 		// InGainMin is the most we will attenuate the input signal.
 		// InGainMax is the most we will amplify the input signal.
-		FSlowAdaptiveGainControl(float InGainTarget, int32 InAdaptiveRate, float InGainMin = 0.01f, float InGainMax = 2.0f);
+		SIGNALPROCESSING_API FSlowAdaptiveGainControl(float InGainTarget, int32 InAdaptiveRate, float InGainMin = 0.01f, float InGainMax = 2.0f);
 		
 		// Takes an amplitude estimate and an input buffer, and attenuates InAudio based on it.
 		// Returns the linear gain applied to InAudio.
-		float ProcessAudio(float* InAudio, int32 NumSamples, float InAmplitude);
+		SIGNALPROCESSING_API float ProcessAudio(float* InAudio, int32 NumSamples, float InAmplitude);
 
 		// Sets the responsiveness of the adaptive gain control, in number of buffer callbacks.
-		void SetAdaptiveRate(int32 InAdaptiveRate);
+		SIGNALPROCESSING_API void SetAdaptiveRate(int32 InAdaptiveRate);
 
 	private:
 		FSlowAdaptiveGainControl();
@@ -140,17 +140,17 @@ namespace Audio
 	 * If no new weights are given and we've converged to our previous input weights, this works like a normal FFT-based FIR filter.
 	 * Convergence is non-asymptotic: if no new weights are given after our number of steps until convergence, our filter is using the exact weights given.
 	 */
-	class SIGNALPROCESSING_API FAdaptiveFilter_DEPRECATED // Deprecated in 5.1
+	class FAdaptiveFilter_DEPRECATED // Deprecated in 5.1
 	{
 	public:
-		FAdaptiveFilter_DEPRECATED(int32 FilterLength, int32 AudioCallbackSize);
+		SIGNALPROCESSING_API FAdaptiveFilter_DEPRECATED(int32 FilterLength, int32 AudioCallbackSize);
 
 		/*
 		* Applies current filter to InAudio in-place. If there is a new target set of weights, they can be input below.
 		*/
-		void ProcessAudio(float* InAudio, int32 NumSamples);
+		SIGNALPROCESSING_API void ProcessAudio(float* InAudio, int32 NumSamples);
 
-		void SetWeights(const FrequencyBuffer& InFilterWeights, int32 FilterLength, float InLearningRate);
+		SIGNALPROCESSING_API void SetWeights(const FrequencyBuffer& InFilterWeights, int32 FilterLength, float InLearningRate);
 
 	private:
 
@@ -178,7 +178,7 @@ namespace Audio
 	};
 
 	class UE_DEPRECATED(5.1, "FAdaptiveFilter will no longer be supported.") FAdaptiveFilter;
-	class SIGNALPROCESSING_API FAdaptiveFilter : public FAdaptiveFilter_DEPRECATED
+	class FAdaptiveFilter : public FAdaptiveFilter_DEPRECATED
 	{
 		public:
 			using FAdaptiveFilter_DEPRECATED::FAdaptiveFilter_DEPRECATED;
@@ -187,12 +187,12 @@ namespace Audio
 	/**
 	 * This class takes an incoming signal and an outgoing signal, Correlates them, and returns the frequency values of the weight targets to pass to an adaptive filter.  
 	 */
-	class SIGNALPROCESSING_API FFDAPFilterComputer_DEPRECATED // Deprecated in 5.1
+	class FFDAPFilterComputer_DEPRECATED // Deprecated in 5.1
 	{
 	public:
-		FFDAPFilterComputer_DEPRECATED();
+		SIGNALPROCESSING_API FFDAPFilterComputer_DEPRECATED();
 
-		void GenerateWeights(const float* IncomingSignal, int32 NumIncomingSamples, const float* OutgoingSignal, int32 NumOutgoingSamples, FrequencyBuffer& OutWeights);
+		SIGNALPROCESSING_API void GenerateWeights(const float* IncomingSignal, int32 NumIncomingSamples, const float* OutgoingSignal, int32 NumOutgoingSamples, FrequencyBuffer& OutWeights);
 
 	private:
 		FrequencyBuffer IncomingFrequencies;
@@ -203,7 +203,7 @@ namespace Audio
 	};
 
 	class UE_DEPRECATED(5.1, "FAFDAPFFilterComputer will no longer be supported.") FFDAPFilterComputer;
-	class SIGNALPROCESSING_API FFDAPFilterComputer : public FFDAPFilterComputer_DEPRECATED 
+	class FFDAPFilterComputer : public FFDAPFilterComputer_DEPRECATED 
 	{
 	};
 
@@ -212,20 +212,20 @@ namespace Audio
 	 * To add a new patch to a rendered audio signal, user AddNewSignalPatch. See FPatchInput for how to push audio.
 	 * ProcessAudio then filters the microphone signal accordingly.
 	 */
-	class SIGNALPROCESSING_API FAcousticEchoCancellation_DEPRECATED // Deprecated in 5.1
+	class FAcousticEchoCancellation_DEPRECATED // Deprecated in 5.1
 	{
 	public:
 		/**
 		 * Convergence Rate should be a number between 0 and 1. The higher the number, the quicker the adaptive filter reacts. 
 		 */
-		FAcousticEchoCancellation_DEPRECATED(float InConvergenceRate, int32 CallbackSize, int32 InFilterLength, int32 InFilterUpdateRate = 1);
+		SIGNALPROCESSING_API FAcousticEchoCancellation_DEPRECATED(float InConvergenceRate, int32 CallbackSize, int32 InFilterLength, int32 InFilterUpdateRate = 1);
 
 		/** Callback function for outgoing audio signal. This is where the filter is applied, and the bulk of the DSP work takes place. */
-		void ProcessAudio(float* InAudio, int32 NumSamples);
+		SIGNALPROCESSING_API void ProcessAudio(float* InAudio, int32 NumSamples);
 
 		/** This is how any signal that may be picked up by the microphone may be added to the echo cancellation here: */
-		FPatchInput AddNewSignalPatch(int32 ExpectedLatency, float Gain = 1.0f);
-		void RemoveSignalPatch(const FPatchInput& Patch);
+		SIGNALPROCESSING_API FPatchInput AddNewSignalPatch(int32 ExpectedLatency, float Gain = 1.0f);
+		SIGNALPROCESSING_API void RemoveSignalPatch(const FPatchInput& Patch);
 
 	private:
 		FPatchMixer PatchMixer;
@@ -241,7 +241,7 @@ namespace Audio
 	};
 
 	class UE_DEPRECATED(5.1, "FAcousticEchoCancellation will no longer be supported.") FAcousticEchoCancellation;
-	class SIGNALPROCESSING_API FAcousticEchoCancellation : public FAcousticEchoCancellation_DEPRECATED
+	class FAcousticEchoCancellation : public FAcousticEchoCancellation_DEPRECATED
 	{
 		public:
 			using FAcousticEchoCancellation_DEPRECATED::FAcousticEchoCancellation_DEPRECATED;

@@ -209,7 +209,7 @@ template<> struct TStructOpsTypeTraits<FMovieSceneEvaluationFieldEntityTree> : p
  * maintained along with guaranteeing no redundant entries exist.
  */
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneEntityComponentField
+struct FMovieSceneEntityComponentField
 {
 	GENERATED_BODY()
 
@@ -255,7 +255,7 @@ struct MOVIESCENE_API FMovieSceneEntityComponentField
 	 * @param OutRange    Will receive the hull of the range that was intersected for which the resulting OutEntities remains constant
 	 * @param OutEntities A set that will be populated with all the entities that exist at the specified time
 	 */
-	void QueryPersistentEntities(FFrameNumber QueryTime, TRange<FFrameNumber>& OutRange, FMovieSceneEvaluationFieldEntitySet& OutEntities) const;
+	MOVIESCENE_API void QueryPersistentEntities(FFrameNumber QueryTime, TRange<FFrameNumber>& OutRange, FMovieSceneEvaluationFieldEntitySet& OutEntities) const;
 
 	/**
 	 * Query the persistent entities for any given time within a sequence.
@@ -265,12 +265,12 @@ struct MOVIESCENE_API FMovieSceneEntityComponentField
 	 * @param QueryCallback A handler for dealing with the resulting entities
 	 * @param OutRange      Will receive the hull of the range that was intersected for which the resulting OutEntities remains constant
 	 */
-	void QueryPersistentEntities(FFrameNumber QueryTime, TFunctionRef<bool(const FMovieSceneEvaluationFieldEntityQuery&)> QueryCallback, TRange<FFrameNumber>& OutRange) const;
+	MOVIESCENE_API void QueryPersistentEntities(FFrameNumber QueryTime, TFunctionRef<bool(const FMovieSceneEvaluationFieldEntityQuery&)> QueryCallback, TRange<FFrameNumber>& OutRange) const;
 
 	/**
 	 * Check whether this field contains any one-shot entities
 	 */
-	bool HasAnyOneShotEntities() const;
+	MOVIESCENE_API bool HasAnyOneShotEntities() const;
 
 	/**
 	 * Query the one-shot entities that overlap with the specified query range.
@@ -279,7 +279,7 @@ struct MOVIESCENE_API FMovieSceneEntityComponentField
 	 * @param QueryRange  The ranger over which to query the field (in the TickResolution of the sequence this was generated from)
 	 * @param OutEntities A set that will be populated with all the entities that overlapped at all with the specified range
 	 */
-	void QueryOneShotEntities(const TRange<FFrameNumber>& QueryRange, FMovieSceneEvaluationFieldEntitySet& OutEntityIndices) const;
+	MOVIESCENE_API void QueryOneShotEntities(const TRange<FFrameNumber>& QueryRange, FMovieSceneEvaluationFieldEntitySet& OutEntityIndices) const;
 
 private:
 
@@ -311,29 +311,29 @@ private:
  * Builder class used for populating an FMovieSceneEntityComponentField with data.
  * Ensures that null or redundant entities or meta-data are not added to the field, and that all indices are valid and correct.
  */
-struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
+struct FMovieSceneEntityComponentFieldBuilder
 {
 	static constexpr uint32 InvalidEntityID = ~0u;
 
 	/**
 	 * Construction from a field to populate
 	 */
-	FMovieSceneEntityComponentFieldBuilder(FMovieSceneEntityComponentField* InField);
+	MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder(FMovieSceneEntityComponentField* InField);
 
 	/**
 	 * Destructor that cleans up redundant data if necessary
 	 */
-	~FMovieSceneEntityComponentFieldBuilder();
+	MOVIESCENE_API ~FMovieSceneEntityComponentFieldBuilder();
 
 	/**
 	 * Access the shared meta-data for all the entities created by this builder.
 	 */
-	FMovieSceneEvaluationFieldSharedEntityMetaData& GetSharedMetaData();
+	MOVIESCENE_API FMovieSceneEvaluationFieldSharedEntityMetaData& GetSharedMetaData();
 
 	/**
 	 * Access the index of the shared meta-data of this builder.
 	 */
-	int32 GetSharedMetaDataIndex() const;
+	MOVIESCENE_API int32 GetSharedMetaDataIndex() const;
 
 	/**
 	 * Add meta-data to this tree returning its index within this builder
@@ -341,7 +341,7 @@ struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 	 * @param InMetaData     The meta-data to add.
 	 * @return A unique index for this meta-data within this builder, or INDEX_NONE if the meta-data is redundant
 	 */
-	int32 AddMetaData(const FMovieSceneEvaluationFieldEntityMetaData& InMetaData);
+	MOVIESCENE_API int32 AddMetaData(const FMovieSceneEvaluationFieldEntityMetaData& InMetaData);
 
 	/**
 	 * Retrieve an index for the entity that is identified by the specified owner and ID
@@ -350,7 +350,7 @@ struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 	 * @param EntityID       (Optional) An identifier used to identify the entity inside IMovieSceneEntityProvider::ImportEntityImpl. Could be an index within an array or a set of flags.
 	 * @return An index into this builder used to uniquely identify this entity.
 	 */
-	int32 FindOrAddEntity(UObject* EntityOwner, uint32 EntityID = 0);
+	MOVIESCENE_API int32 FindOrAddEntity(UObject* EntityOwner, uint32 EntityID = 0);
 
 	/**
 	 * Add a persistent entity to the field for a given range. Equivalent to AddPersistentEntity(Range, FindOrAddEntity(EntityOwner, EntityID)).
@@ -361,7 +361,7 @@ struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 	 * @param EntityID       (Optional) An identifier used to identify the entity inside IMovieSceneEntityProvider::ImportEntityImpl. Could be an index within an array or a set of flags.
 	 * @param MetaDataIndex  (Optional) Meta-data to use for this entitiy within this range. See AddMetaData.
 	 */
-	void AddPersistentEntity(const TRange<FFrameNumber>& Range, UObject* EntityOwner, uint32 EntityID = 0, int32 InMetaDataIndex = INDEX_NONE);
+	MOVIESCENE_API void AddPersistentEntity(const TRange<FFrameNumber>& Range, UObject* EntityOwner, uint32 EntityID = 0, int32 InMetaDataIndex = INDEX_NONE);
 
 	/**
 	 * Add a persistent entity to the field for a given range
@@ -371,7 +371,7 @@ struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 	 * @param LocalIndex     The index to the entity retrieved from FindOrAddEntity.
 	 * @param MetaDataIndex  (Optional) Meta-data to use for this entitiy within this range. See AddMetaData.
 	 */
-	void AddPersistentEntity(const TRange<FFrameNumber>& Range, int32 LocalIndex, int32 InMetaDataIndex = INDEX_NONE);
+	MOVIESCENE_API void AddPersistentEntity(const TRange<FFrameNumber>& Range, int32 LocalIndex, int32 InMetaDataIndex = INDEX_NONE);
 
 	/**
 	 * Add a one-shot entity to the field for a given range. Equivalent to AddOneShotEntity(Range, FindOrAddEntity(EntityOwner, EntityID)).
@@ -382,7 +382,7 @@ struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 	 * @param EntityID       (Optional) An identifier used to identify the entity inside IMovieSceneEntityProvider::ImportEntityImpl. Could be an index within an array or a set of flags.
 	 * @param MetaDataIndex  (Optional) Meta-data to use for this entitiy within this range. See AddMetaData.
 	 */
-	void AddOneShotEntity(const TRange<FFrameNumber>& OneShotRange, UObject* EntityOwner, uint32 EntityID = 0, int32 InMetaDataIndex = INDEX_NONE);
+	MOVIESCENE_API void AddOneShotEntity(const TRange<FFrameNumber>& OneShotRange, UObject* EntityOwner, uint32 EntityID = 0, int32 InMetaDataIndex = INDEX_NONE);
 
 	/**
 	 * Add a one-shot entity to the field for a given range
@@ -392,15 +392,15 @@ struct MOVIESCENE_API FMovieSceneEntityComponentFieldBuilder
 	 * @param LocalIndex     The index to the entity retrieved from FindOrAddEntity.
 	 * @param MetaDataIndex  (Optional) Meta-data to use for this entitiy within this range. See AddMetaData.
 	 */
-	void AddOneShotEntity(const TRange<FFrameNumber>& OneShotRange, int32 LocalIndex, int32 InMetaDataIndex = INDEX_NONE);
+	MOVIESCENE_API void AddOneShotEntity(const TRange<FFrameNumber>& OneShotRange, int32 LocalIndex, int32 InMetaDataIndex = INDEX_NONE);
 
 private:
 
 	/** Convert a user-facing local index into KeyToFieldIndex, into an index within FMovieSceneEntityComponentField::Entities */
-	int32 LocalEntityIndexToFieldIndex(int32 LocalIndex);
+	MOVIESCENE_API int32 LocalEntityIndexToFieldIndex(int32 LocalIndex);
 
 	/** Convert a user-facing local meta-data index into MetaDataToFieldIndex, into an index within FMovieSceneEntityComponentField::EntityMetaData */
-	int32 LocalMetaDataIndexToFieldIndex(int32 LocalIndex);
+	MOVIESCENE_API int32 LocalMetaDataIndexToFieldIndex(int32 LocalIndex);
 
 	/** Array of entity keys and their field index within FMovieSceneEntityComponentField::Entities */
 	struct FKeyToIndex

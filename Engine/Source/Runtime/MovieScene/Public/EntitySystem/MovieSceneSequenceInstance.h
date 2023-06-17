@@ -48,7 +48,7 @@ ENUM_CLASS_FLAGS(ESequenceInstanceUpdateFlags);
  * A sequence instance represents a specific instance of a currently playing sequence, either as a top-level sequence in an IMovieScenePlayer, or as a sub sequence.
  * Any given sequence asset may have any number of instances created for it at any given time depending on how many times it is referenced by playing sequences
  */
-struct MOVIESCENE_API FSequenceInstance
+struct FSequenceInstance
 {
 	/** Ledger that tracks all currently instantiated entities for this instance */
 	FEntityLedger Ledger;
@@ -60,7 +60,7 @@ public:
 	 *
 	 * @param Linker     The linker that owns this sequence instance
 	 */
-	void ConditionalRecompile(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void ConditionalRecompile(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Called only for top-level sequence instances before any updates to it with the specified context.
@@ -70,7 +70,7 @@ public:
 	 * @param Context    The overall context that this sequence instance is being evaluated with
 	 * @param OutDissections   An array to populate with dissected time ranges that should be evaluated separately, in order.
 	 */
-	void DissectContext(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& Context, TArray<TRange<FFrameTime>>& OutDissections);
+	MOVIESCENE_API void DissectContext(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& Context, TArray<TRange<FFrameTime>>& OutDissections);
 
 
 	/**
@@ -79,7 +79,7 @@ public:
 	 * @param Linker     The linker that owns this sequence instance
 	 * @param InContext  The context that this sequence instance is to be evaluated with
 	 */
-	void Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext);
+	MOVIESCENE_API void Start(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext);
 
 
 	/**
@@ -87,7 +87,7 @@ public:
 	 *
 	 * @param Linker     The linker that owns this sequence instance
 	 */
-	void PreEvaluation(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void PreEvaluation(UMovieSceneEntitySystemLinker* Linker);
 
 
 	/**
@@ -96,7 +96,7 @@ public:
 	 * @param Linker     The linker that owns this sequence instance
 	 * @param InContext  The (potentially dissected) context that this sequence instance is to be evaluated with
 	 */
-	void Update(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext);
+	MOVIESCENE_API void Update(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext);
 
 
 	/**
@@ -105,7 +105,7 @@ public:
 	 * @param Linker     The linker that owns this sequence instance
 	 * @return           Whether the instance can be finished immediately
 	 */
-	bool CanFinishImmediately(UMovieSceneEntitySystemLinker* Linker) const;
+	MOVIESCENE_API bool CanFinishImmediately(UMovieSceneEntitySystemLinker* Linker) const;
 
 
 	/**
@@ -113,19 +113,19 @@ public:
 	 *
 	 * @param Linker     The linker that owns this sequence instance
 	 */
-	void Finish(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void Finish(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Called when this sequence instance has been evaluated in order for it to do any clean-up or other post-update work
 	 *
 	 * @param Linker     The linker that owns this sequence instance
 	 */
-	void PostEvaluation(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void PostEvaluation(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Called to run legacy track templates
 	 */
-	void RunLegacyTrackTemplates();
+	MOVIESCENE_API void RunLegacyTrackTemplates();
 
 public:
 
@@ -134,7 +134,7 @@ public:
 	 *
 	 * @return A pointer to this instance's player
 	 */
-	IMovieScenePlayer* GetPlayer() const;
+	MOVIESCENE_API IMovieScenePlayer* GetPlayer() const;
 
 	/**
 	 * Retrieve the IMovieScenePlayer's unique index
@@ -247,17 +247,17 @@ public:
 	/**
 	 * Attempt to locate a sub instance based on its sequence ID
 	 */
-	FInstanceHandle FindSubInstance(FMovieSceneSequenceID SequenceID) const;
+	MOVIESCENE_API FInstanceHandle FindSubInstance(FMovieSceneSequenceID SequenceID) const;
 
 	/**
 	 * Attempt to locate an entity given its owner and ID
 	 */
-	FMovieSceneEntityID FindEntity(UObject* Owner, uint32 EntityID) const;
+	MOVIESCENE_API FMovieSceneEntityID FindEntity(UObject* Owner, uint32 EntityID) const;
 
 	/**
 	 * Attempt to locate all entities given their owner
 	 */
-	void FindEntities(UObject* Owner, TArray<FMovieSceneEntityID>& OutEntityIDs) const;
+	MOVIESCENE_API void FindEntities(UObject* Owner, TArray<FMovieSceneEntityID>& OutEntityIDs) const;
 
 	/**
 	 * Retrieve the legacy evaluator for this sequence, if it is available (may return nullptr)
@@ -270,7 +270,7 @@ public:
 	/**
 	 * Retrieve a path for this sequence instance back to the root
 	 */
-	FSubSequencePath GetSubSequencePath() const;
+	MOVIESCENE_API FSubSequencePath GetSubSequencePath() const;
 
 public:
 
@@ -295,40 +295,40 @@ public:
 	/**
 	 * Invalidate any cached data that may be being used for evaluation due to a change in the source asset data
 	 */
-	void InvalidateCachedData(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void InvalidateCachedData(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Destroy this sequence instance immediately - Finish must previously have been called
 	 */
-	void DestroyImmediately(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void DestroyImmediately(UMovieSceneEntitySystemLinker* Linker);
 
 	/**
 	 * Called to override the simulated root sequence ID for this instance. Only valid for IsRootSequence() instances.
 	 */
-	void OverrideRootSequence(UMovieSceneEntitySystemLinker* Linker, FMovieSceneSequenceID NewRootSequenceID);
+	MOVIESCENE_API void OverrideRootSequence(UMovieSceneEntitySystemLinker* Linker, FMovieSceneSequenceID NewRootSequenceID);
 
 public:
 
 	/** Constructor for top level sequences */
-	explicit FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FRootInstanceHandle ThisInstanceHandle);
+	MOVIESCENE_API explicit FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FRootInstanceHandle ThisInstanceHandle);
 
 	/** Constructor for sub sequences */
-	explicit FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle ThisInstanceHandle, FInstanceHandle InParentInstanceHandle, FRootInstanceHandle RootInstanceHandle, FMovieSceneSequenceID InSequenceID);
+	MOVIESCENE_API explicit FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle ThisInstanceHandle, FInstanceHandle InParentInstanceHandle, FRootInstanceHandle RootInstanceHandle, FMovieSceneSequenceID InSequenceID);
 
 	/** Destructor */
-	~FSequenceInstance();
+	MOVIESCENE_API ~FSequenceInstance();
 
 	/** Sequence instances are not copyable */
 	FSequenceInstance(const FSequenceInstance&) = delete;
 	FSequenceInstance& operator=(const FSequenceInstance&) = delete;
 
 	/** Move constructors implemented in cpp to avoid includes for TUniquePtr */
-	FSequenceInstance(FSequenceInstance&&);
-	FSequenceInstance& operator=(FSequenceInstance&&);
+	MOVIESCENE_API FSequenceInstance(FSequenceInstance&&);
+	MOVIESCENE_API FSequenceInstance& operator=(FSequenceInstance&&);
 
 private:
 
-	void InitializeLegacyEvaluator(UMovieSceneEntitySystemLinker* Linker);
+	MOVIESCENE_API void InitializeLegacyEvaluator(UMovieSceneEntitySystemLinker* Linker);
 
 private:
 

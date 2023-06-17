@@ -35,7 +35,7 @@ class FVoronoiDiagram;
 
 // The Voronoi Compute Helper caches information to help compute cells quickly
 // To safely parallelize voronoi diagram construction, create a separate compute helper per-thread
-class VORONOI_API FVoronoiComputeHelper
+class FVoronoiComputeHelper
 {
 	TPimplPtr<voro::voro_compute<voro::container>> Compute;
 public:
@@ -46,19 +46,19 @@ public:
 	FVoronoiComputeHelper(FVoronoiComputeHelper&& Other) = default;
 	FVoronoiComputeHelper& operator=(FVoronoiComputeHelper&& Other) = default;
 
-	void Init();
+	VORONOI_API void Init();
 
 	friend class FVoronoiDiagram;
 };
 
-class VORONOI_API FVoronoiDiagram
+class FVoronoiDiagram
 {
 	int32 NumSites;
 	TPimplPtr<voro::container> Container;
 	FBox Bounds;
 
 public:
-	const static int MinDefaultSitesPerThread;
+	VORONOI_API const static int MinDefaultSitesPerThread;
 
 	/**
 	 * Create a Voronoi diagram with the given sites, in a box bounding containing those sites
@@ -68,7 +68,7 @@ public:
 	 * @param SquaredDistSkipPtThreshold	A safety threshold to avoid creating invalid cells: sites that are within this distance of an already-added site will not be added
 	 *										(If you know there will be no duplicate sites, can set to zero for faster perf.)
 	 */
-	FVoronoiDiagram(const TArrayView<const FVector>& Sites, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
+	VORONOI_API FVoronoiDiagram(const TArrayView<const FVector>& Sites, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
 	/**
 	 * Create a Voronoi diagram with the given sites, in a given bounding box
 	 * 
@@ -78,7 +78,7 @@ public:
 	 * @param SquaredDistSkipPtThreshold	A safety threshold to avoid creating invalid cells: sites that are within this distance of an already-added site will not be added.
 	 *										(If you know there will be no duplicate sites, can set to zero for faster perf.)
 	 */
-	FVoronoiDiagram(const TArrayView<const FVector>& Sites, const FBox &Bounds, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
+	VORONOI_API FVoronoiDiagram(const TArrayView<const FVector>& Sites, const FBox &Bounds, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
 
 	/**
 	 * Make a container for a Voronoi diagram without any points.  Call AddSites() after to finish creating the diagram.
@@ -87,7 +87,7 @@ public:
 	 * @param Bounds				Bounding box within which to compute the Voronoi diagram
 	 * @param ExtraBoundingSpace	Amount to expand the bounding box before computing the Voronoi diagram
 	 */
-	FVoronoiDiagram(int32 ExpectedNumSites, const FBox& Bounds, double ExtraBoundingSpace);
+	VORONOI_API FVoronoiDiagram(int32 ExpectedNumSites, const FBox& Bounds, double ExtraBoundingSpace);
 
 	/**
 	 * Make an empty diagram, to be filled in with a subsequent call to "Initialize()"
@@ -109,26 +109,26 @@ public:
 	 * @param SquaredDistSkipPtThreshold	A safety threshold to avoid creating invalid cells: sites that are within this distance of an already-added site will not be added.
 	 *										(If you know there will be no duplicate sites, can set to zero for faster perf.)
 	 */
-	void Initialize(const TArrayView<const FVector>& Sites, const FBox& Bounds, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
+	VORONOI_API void Initialize(const TArrayView<const FVector>& Sites, const FBox& Bounds, double ExtraBoundingSpace, double SquaredDistSkipPtThreshold = UE_KINDA_SMALL_NUMBER);
 
-	~FVoronoiDiagram();
+	VORONOI_API ~FVoronoiDiagram();
 
-	static FBox GetBounds(const TArrayView<const FVector>& Sites, double ExtraBoundingSpace = UE_DOUBLE_KINDA_SMALL_NUMBER);
+	static VORONOI_API FBox GetBounds(const TArrayView<const FVector>& Sites, double ExtraBoundingSpace = UE_DOUBLE_KINDA_SMALL_NUMBER);
 
 	int32 Num() const
 	{
 		return NumSites;
 	}
 
-	void AddSites(const TArrayView<const FVector>& Sites, double SquaredDistSkipPtThreshold = 0.0f);
+	VORONOI_API void AddSites(const TArrayView<const FVector>& Sites, double SquaredDistSkipPtThreshold = 0.0f);
 
-	void ComputeAllCellsSerial(TArray<FVoronoiCellInfo>& AllCells);
-	void ComputeAllCells(TArray<FVoronoiCellInfo>& AllCells, int32 ApproxSitesPerThread = -1);
+	VORONOI_API void ComputeAllCellsSerial(TArray<FVoronoiCellInfo>& AllCells);
+	VORONOI_API void ComputeAllCells(TArray<FVoronoiCellInfo>& AllCells, int32 ApproxSitesPerThread = -1);
 
-	void ComputeAllNeighbors(TArray<TArray<int32>>& AllNeighbors, bool bExcludeBounds = true, int32 ApproxSitesPerThread = -1);
+	VORONOI_API void ComputeAllNeighbors(TArray<TArray<int32>>& AllNeighbors, bool bExcludeBounds = true, int32 ApproxSitesPerThread = -1);
 
-	void ComputeCellEdgesSerial(TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember);
-	void ComputeCellEdges(TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember, int32 ApproxSitesPerThread = -1);
+	VORONOI_API void ComputeCellEdgesSerial(TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember);
+	VORONOI_API void ComputeCellEdges(TArray<TTuple<FVector, FVector>>& Edges, TArray<int32>& CellMember, int32 ApproxSitesPerThread = -1);
 
 	/**
 	 * Find the closest Voronoi cell to a given position
@@ -138,7 +138,7 @@ public:
 	 * @param OutFoundSite		The position of the closest Voronoi site, if any
 	 * @return					The id of the Voronoi cell containing the given position, or -1 if position is outside diagram
 	 */
-	int32 FindCell(const FVector& Pos, FVoronoiComputeHelper& ComputeHelper, FVector& OutFoundSite) const;
+	VORONOI_API int32 FindCell(const FVector& Pos, FVoronoiComputeHelper& ComputeHelper, FVector& OutFoundSite) const;
 
 	int32 FindCell(const FVector& Pos, FVoronoiComputeHelper& ComputeHelper) const
 	{
@@ -146,7 +146,7 @@ public:
 		return FindCell(Pos, ComputeHelper, OutFoundSite);
 	}
 
-	FVoronoiComputeHelper GetComputeHelper() const;
+	VORONOI_API FVoronoiComputeHelper GetComputeHelper() const;
 
 	int32 ApproxSitesPerThreadWithDefault(int32 ApproxSitesPerThreadIn)
 	{
@@ -158,7 +158,7 @@ public:
 	}
 
 private:
-	TArray<int32> GetParallelBlockRanges(int32 ApproxSitesPerThread);
+	VORONOI_API TArray<int32> GetParallelBlockRanges(int32 ApproxSitesPerThread);
 };
 
 /**
@@ -170,7 +170,7 @@ private:
  * 
  * Note: Queries are only thread safe if each thread has its own FVoronoiComputeHelper
  */
-class VORONOI_API FVoronoiDiagramField
+class FVoronoiDiagramField
 {
 	TArray<FVector> Sites;
 	TArray<TArray<int32>> Neighbors;

@@ -17,8 +17,8 @@
  * Functionality to add to sections that contain constraints
  */
 
-UINTERFACE()
-class MOVIESCENETRACKS_API UMovieSceneConstrainedSection : public UInterface
+UINTERFACE(MinimalAPI)
+class UMovieSceneConstrainedSection : public UInterface
 {
 public:
 	GENERATED_BODY()
@@ -27,12 +27,12 @@ public:
 /**
  * Interface to be added to UMovieSceneSection types when they contain entity data
  */
-class MOVIESCENETRACKS_API IMovieSceneConstrainedSection
+class IMovieSceneConstrainedSection
 {
 public:
 
 	GENERATED_BODY()
-	IMovieSceneConstrainedSection();
+	MOVIESCENETRACKS_API IMovieSceneConstrainedSection();
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FConstraintChannelAddedEvent, IMovieSceneConstrainedSection*, FMovieSceneConstraintChannel*);
 
@@ -80,7 +80,7 @@ public:
 	/*
 	*  SetToNotRemoveChannel when we are told a constraint is removed, we need this sometimes sincet his will be destructive
 	*/
-	 void SetDoNoRemoveChannel(bool bInDoNotRemoveChannel);
+	 MOVIESCENETRACKS_API void SetDoNoRemoveChannel(bool bInDoNotRemoveChannel);
 
 	/*
 	*  Removed delegate that get's added by the track editor

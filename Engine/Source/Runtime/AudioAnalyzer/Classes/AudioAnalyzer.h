@@ -19,8 +19,8 @@ class UAudioAnalyzerSubsystem;
  * across multiple analyzers. 
  *
  */
-UCLASS(Abstract, EditInlineNew, BlueprintType)
-class AUDIOANALYZER_API UAudioAnalyzerSettings : public UAudioAnalyzerAssetBase
+UCLASS(Abstract, EditInlineNew, BlueprintType, MinimalAPI)
+class UAudioAnalyzerSettings : public UAudioAnalyzerAssetBase
 {
 	GENERATED_BODY()
 };
@@ -64,8 +64,8 @@ private:
  * To support blueprint access, subclasses can implement UFUNCTIONs to expose the data
  * returned by GetResult().
  */
-UCLASS(Abstract, EditInlineNew, BlueprintType)
-class AUDIOANALYZER_API UAudioAnalyzer : public UObject
+UCLASS(Abstract, EditInlineNew, BlueprintType, MinimalAPI)
+class UAudioAnalyzer : public UObject
 {
 	GENERATED_BODY()
 	
@@ -87,34 +87,34 @@ public:
 
 	/** Starts analyzing audio from the given audio bus. Optionally override the audio bus desired to analyze. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioAnalyzer, meta = (WorldContext = "WorldContextObject"))
-	void StartAnalyzing(const UObject* WorldContextObject, UAudioBus* AudioBusToAnalyze);
+	AUDIOANALYZER_API void StartAnalyzing(const UObject* WorldContextObject, UAudioBus* AudioBusToAnalyze);
 
 	/** Starts analyzing using the given world.*/
-	void StartAnalyzing(UWorld* InWorld, UAudioBus* AudioBusToAnalyze);
+	AUDIOANALYZER_API void StartAnalyzing(UWorld* InWorld, UAudioBus* AudioBusToAnalyze);
 
 	/** Stops analyzing audio. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioAnalyzer, meta = (WorldContext = "WorldContextObject"))
-	void StopAnalyzing(const UObject* WorldContextObject = nullptr);
+	AUDIOANALYZER_API void StopAnalyzing(const UObject* WorldContextObject = nullptr);
 
 	/**
 	 * Implementations can override this method to create settings objects
 	 * specific for their analyzer.
 	 */
-	virtual TUniquePtr<Audio::IAnalyzerSettings> GetSettings(const int32 InSampleRate, const int32 InNumChannels) const;
+	AUDIOANALYZER_API virtual TUniquePtr<Audio::IAnalyzerSettings> GetSettings(const int32 InSampleRate, const int32 InNumChannels) const;
 
 	/** Function to broadcast results. */
 	virtual void BroadcastResults() {}
 
 	//~ Begin UObject Interface.
-	virtual void BeginDestroy() override;
+	AUDIOANALYZER_API virtual void BeginDestroy() override;
 	//~ End UObject interface
 
 private: 
 	/** Returns if this audio analyzer has enough audio queued up and is ready for analysis. */
-	bool IsReadyForAnalysis() const;
+	AUDIOANALYZER_API bool IsReadyForAnalysis() const;
 
 	/** Does the actual analysis and casts the results to the derived classes type. Returns true if there results to broadcast. */
-	bool DoAnalysis();
+	AUDIOANALYZER_API bool DoAnalysis();
 
 protected:
 
@@ -125,7 +125,7 @@ protected:
 	}
 
 	/* Subclasses must override this method in order to inform this object which AnalyzerFactory to use for analysis */
-	virtual FName GetAnalyzerFactoryName() const PURE_VIRTUAL(UAudioAnalyzer::GetAnalyzerFactoryName, return FName(););
+	AUDIOANALYZER_API virtual FName GetAnalyzerFactoryName() const PURE_VIRTUAL(UAudioAnalyzer::GetAnalyzerFactoryName, return FName(););
 
 	/** How many frames of audio to wait before analyzing the audio. */
 	int32 NumFramesPerBufferToAnalyze = 1024;
@@ -133,7 +133,7 @@ protected:
 private:
 
 	// Returns UAudioAnalyzerSettings* if property points to a valid UAudioAnalyzerSettings, otherwise returns nullptr.
-	UAudioAnalyzerSettings* GetSettingsFromProperty(FProperty* Property);
+	AUDIOANALYZER_API UAudioAnalyzerSettings* GetSettingsFromProperty(FProperty* Property);
 
 	// Audio analysis subsystem used with this audio analyzer
 	UPROPERTY(Transient)

@@ -6,21 +6,21 @@
 #include "Styling/SlateStyle.h"
 
 /**  */
-class UMG_API FUMGStyle
+class FUMGStyle
 {
 public:
 
-	static void Initialize();
+	static UMG_API void Initialize();
 
-	static void Shutdown();
+	static UMG_API void Shutdown();
 
 	/** reloads textures used by slate renderer */
-	static void ReloadTextures();
+	static UMG_API void ReloadTextures();
 
 	/** @return The Slate style set for the UMG Style */
-	static const ISlateStyle& Get();
+	static UMG_API const ISlateStyle& Get();
 
-	static FName GetStyleSetName();
+	static UMG_API FName GetStyleSetName();
 
 private:
 

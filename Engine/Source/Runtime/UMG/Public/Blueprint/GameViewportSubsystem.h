@@ -18,7 +18,7 @@ class SConstraintCanvas;
  * The default value fills the entire screen / player region.
  */
 USTRUCT(BlueprintType)
-struct UMG_API FGameViewportWidgetSlot
+struct FGameViewportWidgetSlot
 {
 	GENERATED_BODY()
 
@@ -40,47 +40,47 @@ struct UMG_API FGameViewportWidgetSlot
 /**
  * 
  */
-UCLASS()
-class UMG_API UGameViewportSubsystem : public UEngineSubsystem
+UCLASS(MinimalAPI)
+class UGameViewportSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
 
 public:
 	//~ Begin Subsystem
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
+	UMG_API virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	UMG_API virtual void Deinitialize() override;
 	//~ End Subsystem
 
-	static UGameViewportSubsystem* Get();
-	static UGameViewportSubsystem* Get(UWorld* World);
+	static UMG_API UGameViewportSubsystem* Get();
+	static UMG_API UGameViewportSubsystem* Get(UWorld* World);
 	
 public:
 	/* @return true if the widget was added to the viewport using AddWidget or AddWidgetForPlayer. */
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = "User Interface")
-	bool IsWidgetAdded(const UWidget* Widget) const;
+	UMG_API bool IsWidgetAdded(const UWidget* Widget) const;
 
 	/** Adds it to the game's viewport. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
-	bool AddWidget(UWidget* Widget, FGameViewportWidgetSlot Slot);
+	UMG_API bool AddWidget(UWidget* Widget, FGameViewportWidgetSlot Slot);
 
 	/**
 	 * Adds the widget to the game's viewport in the section dedicated to the player. This is valuable in a split screen
 	 * game where you need to only show a widget over a player's portion of the viewport.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
-	bool AddWidgetForPlayer(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot Slot);
+	UMG_API bool AddWidgetForPlayer(UWidget* Widget, ULocalPlayer* Player, FGameViewportWidgetSlot Slot);
 
 	/** Removes the widget from the viewport. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
-	void RemoveWidget(UWidget* Widget);
+	UMG_API void RemoveWidget(UWidget* Widget);
 
 	/* The slot info from previously added widget or info that is store for later. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
-	FGameViewportWidgetSlot GetWidgetSlot(const UWidget* Widget) const;
+	UMG_API FGameViewportWidgetSlot GetWidgetSlot(const UWidget* Widget) const;
 
 	/* Update the slot info of a previously added widget or Store the slot info for later use. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = "User Interface")
-	void SetWidgetSlot(UWidget* Widget, FGameViewportWidgetSlot Slot);
+	UMG_API void SetWidgetSlot(UWidget* Widget, FGameViewportWidgetSlot Slot);
 
 	/** */
 	DECLARE_EVENT_TwoParams(UGameViewportSubsystem, FWidgetAddedEvent, UWidget*, ULocalPlayer*);
@@ -99,13 +99,13 @@ public:
 	 * by DPI, it ends up in the expected position.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GameViewportWidgetSlot")
-	static FGameViewportWidgetSlot SetWidgetSlotPosition(FGameViewportWidgetSlot Slot, const UWidget* Widget, FVector2D Position, bool bRemoveDPIScale);
+	static UMG_API FGameViewportWidgetSlot SetWidgetSlotPosition(FGameViewportWidgetSlot Slot, const UWidget* Widget, FVector2D Position, bool bRemoveDPIScale);
 
 	/**
 	 * Helper function to set the desired size in the viewport for the Slot.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "GameViewportWidgetSlot")
-	static FGameViewportWidgetSlot SetWidgetSlotDesiredSize(FGameViewportWidgetSlot Slot, FVector2D Size);
+	static UMG_API FGameViewportWidgetSlot SetWidgetSlotDesiredSize(FGameViewportWidgetSlot Slot, FVector2D Size);
 
 private:
 	struct FSlotInfo

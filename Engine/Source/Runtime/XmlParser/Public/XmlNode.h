@@ -9,7 +9,7 @@
 /** Forward Decl for implementation */
 class FXmlFile;
 
-class XMLPARSER_API FXmlAttribute
+class FXmlAttribute
 {
 public:
 	FXmlAttribute(const FString& InTag, const FString& InValue)
@@ -19,10 +19,10 @@ public:
 	}
 
 	/** Gets the tag of the attribute */
-	const FString& GetTag() const;
+	XMLPARSER_API const FString& GetTag() const;
 
 	/** Gets the value of the attribute */
-	const FString& GetValue() const;
+	XMLPARSER_API const FString& GetValue() const;
 
 private:
 	/** The tag string */
@@ -33,7 +33,7 @@ private:
 };
 
 /** Xml Node representing a line in an xml file */
-class XMLPARSER_API FXmlNode
+class FXmlNode
 {
 	friend class FXmlFile;
 
@@ -49,28 +49,28 @@ private:
 private:
 
 	/** Recursively deletes the nodes for cleanup */
-	void Delete();
+	XMLPARSER_API void Delete();
 
 public:
 
 	/** Gets the next node in a list of nodes */
-	const FXmlNode* GetNextNode() const;
+	XMLPARSER_API const FXmlNode* GetNextNode() const;
 	/** Gets a list of children nodes */
-	const TArray<FXmlNode*>& GetChildrenNodes() const;
+	XMLPARSER_API const TArray<FXmlNode*>& GetChildrenNodes() const;
 	/** Gets the first child of this node which can be iterated into with GetNextNode */
-	const FXmlNode* GetFirstChildNode() const;
+	XMLPARSER_API const FXmlNode* GetFirstChildNode() const;
 	/** Finds the first child node that contains the specified tag */
-	const FXmlNode* FindChildNode(const FString& InTag) const;
+	XMLPARSER_API const FXmlNode* FindChildNode(const FString& InTag) const;
 	/** Finds the first child node that contains the specified tag */
-	FXmlNode* FindChildNode(const FString& InTag);
+	XMLPARSER_API FXmlNode* FindChildNode(const FString& InTag);
 	/** Gets the tag of the node */
-	const FString& GetTag() const;
+	XMLPARSER_API const FString& GetTag() const;
 	/** Gets the value of the node */
-	const FString& GetContent() const;
+	XMLPARSER_API const FString& GetContent() const;
 	/** Sets the new value of the node */
-	void SetContent(const FString& InContent);
+	XMLPARSER_API void SetContent(const FString& InContent);
 	/** Sets the attributes of the node */
-	void SetAttributes(const TArray<FXmlAttribute>& InAttributes);
+	XMLPARSER_API void SetAttributes(const TArray<FXmlAttribute>& InAttributes);
 
 	/**
 	 * Gets all of the attributes in this node
@@ -83,7 +83,7 @@ public:
 	}
 
 	/** Gets an attribute that corresponds with the passed-in tag */
-	FString GetAttribute(const FString& InTag) const;
+	XMLPARSER_API FString GetAttribute(const FString& InTag) const;
 
 	/**
 	 *  Adds a child node to this node  
@@ -91,7 +91,7 @@ public:
 	 * @param	InContent			(optional) The content of the child node
 	 * @param	InAttributes		(optional) An array of attributes of the child node
 	 */
-	void AppendChildNode(const FString& InTag, const FString& InContent = FString(), const TArray<FXmlAttribute>& InAttributes = TArray<FXmlAttribute>());
+	XMLPARSER_API void AppendChildNode(const FString& InTag, const FString& InContent = FString(), const TArray<FXmlAttribute>& InAttributes = TArray<FXmlAttribute>());
 private:
 
 	/** The list of children nodes */

@@ -549,11 +549,11 @@ public:
 	RHI_API static void DumpResourceTransition(const FName& ResourceName, const ERHIAccess TransitionType);
 	
 private:
-	RHI_API static void DumpTransitionForResourceHandler();
+	static void DumpTransitionForResourceHandler();
 
-	RHI_API static TAutoConsoleVariable<FString> CVarDumpTransitionsForResource;
-	RHI_API static FAutoConsoleVariableSink CVarDumpTransitionsForResourceSink;
-	RHI_API static FName DumpTransitionForResource;
+	static TAutoConsoleVariable<FString> CVarDumpTransitionsForResource;
+	static FAutoConsoleVariableSink CVarDumpTransitionsForResourceSink;
+	static FName DumpTransitionForResource;
 };
 
 #if ENABLE_TRANSITION_DUMP

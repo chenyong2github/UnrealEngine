@@ -8,15 +8,15 @@
 
 Expose_TNameOf(FMargin);
 
-UCLASS()
-class UMG_API UMovieSceneMarginPropertySystem : public UMovieScenePropertySystem
+UCLASS(MinimalAPI)
+class UMovieSceneMarginPropertySystem : public UMovieScenePropertySystem
 {
 public:
 
 	GENERATED_BODY()
 	
-	UMovieSceneMarginPropertySystem(const FObjectInitializer& ObjInit);
+	UMG_API UMovieSceneMarginPropertySystem(const FObjectInitializer& ObjInit);
 
-	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+	UMG_API virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };
 

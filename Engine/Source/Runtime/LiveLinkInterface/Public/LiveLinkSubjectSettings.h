@@ -21,8 +21,8 @@ class ULiveLinkRole;
 
 
 // Base class for live link subject settings
-UCLASS()
-class LIVELINKINTERFACE_API ULiveLinkSubjectSettings : public UObject
+UCLASS(MinimalAPI)
+class ULiveLinkSubjectSettings : public UObject
 {
 public:
 	GENERATED_BODY()
@@ -53,7 +53,7 @@ public:
 public:
 	//~ Begin UObject interface
 #if WITH_EDITOR
-	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	LIVELINKINTERFACE_API virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 	//~ End UObject interface
 };
