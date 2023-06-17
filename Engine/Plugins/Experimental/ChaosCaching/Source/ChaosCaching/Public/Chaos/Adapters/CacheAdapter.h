@@ -34,7 +34,7 @@ namespace Chaos
 	 * This base interface should not be used to implement those adapters however but the derived classes
 	 * FCacheRecordAdapter and FCachePlaybackAdapter (declared below) should instead be used.
 	 */
-	class CHAOSCACHING_API FComponentCacheAdapter : public IModularFeature
+	class FComponentCacheAdapter : public IModularFeature
 	{
 	public:
 		enum class SupportType : uint8
@@ -45,9 +45,9 @@ namespace Chaos
 		};
 
 		/** Registration name for modular features module */
-		static const FName FeatureName;
-		static const uint8 EngineAdapterPriorityBegin;
-		static const uint8 UserAdapterPriorityBegin;
+		static CHAOSCACHING_API const FName FeatureName;
+		static CHAOSCACHING_API const uint8 EngineAdapterPriorityBegin;
+		static CHAOSCACHING_API const uint8 UserAdapterPriorityBegin;
 
 		FComponentCacheAdapter()          = default;
 		virtual ~FComponentCacheAdapter() = default;

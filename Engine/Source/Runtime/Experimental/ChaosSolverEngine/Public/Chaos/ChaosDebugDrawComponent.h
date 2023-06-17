@@ -10,23 +10,23 @@
 #include "ChaosDebugDrawComponent.generated.h"
 
 
-UCLASS(BlueprintType, ClassGroup = Chaos, meta = (BlueprintSpawnableComponent))
-class CHAOSSOLVERENGINE_API UChaosDebugDrawComponent : public UActorComponent
+UCLASS(BlueprintType, ClassGroup = Chaos, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UChaosDebugDrawComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 
-	UChaosDebugDrawComponent();
+	CHAOSSOLVERENGINE_API UChaosDebugDrawComponent();
 
 	//~ Begin UActorComponent interface
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	virtual void BeginDestroy() override;
+	CHAOSSOLVERENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	CHAOSSOLVERENGINE_API virtual void BeginPlay() override;
+	CHAOSSOLVERENGINE_API virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	CHAOSSOLVERENGINE_API virtual void BeginDestroy() override;
 	//~ End UActorComponent interface
 
-	static void BindWorldDelegates();
+	static CHAOSSOLVERENGINE_API void BindWorldDelegates();
 
 private:
 	static void HandlePostWorldInitialization(UWorld* World, const UWorld::InitializationValues IVS);

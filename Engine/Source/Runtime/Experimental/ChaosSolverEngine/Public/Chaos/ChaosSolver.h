@@ -13,13 +13,13 @@ class UChaosSolver;
 * UChaosSolver (UObject)
 *
 */
-UCLASS(customconstructor)
-class CHAOSSOLVERENGINE_API UChaosSolver : public UObject
+UCLASS(customconstructor, MinimalAPI)
+class UChaosSolver : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	UChaosSolver(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	CHAOSSOLVERENGINE_API UChaosSolver(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	bool IsVisible() { return true; }
 };
 

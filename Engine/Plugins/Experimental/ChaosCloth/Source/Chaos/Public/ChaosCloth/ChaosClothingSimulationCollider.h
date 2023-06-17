@@ -21,7 +21,7 @@ namespace Chaos
 	template<typename T> class TWeightedLatticeImplicitObject;
 
 	// Collider simulation node
-	class CHAOSCLOTH_API FClothingSimulationCollider final
+	class FClothingSimulationCollider final
 	{
 	public:
 		enum class ECollisionDataType : int32
@@ -31,26 +31,26 @@ namespace Chaos
 			LODs,  // LODIndex based start slot for LODs collisions
 		};
 
-		FClothingSimulationCollider(const UPhysicsAsset* InPhysicsAsset, const FReferenceSkeleton* InReferenceSkeleton);
+		CHAOSCLOTH_API FClothingSimulationCollider(const UPhysicsAsset* InPhysicsAsset, const FReferenceSkeleton* InReferenceSkeleton);
 
 		UE_DEPRECATED(5.2, "Use FClothingSimulationCollider(const UPhysicsAsset* InPhysicsAsset, const FReferenceSkeleton* InReferenceSkeleton) instead.")
-		FClothingSimulationCollider(
+		CHAOSCLOTH_API FClothingSimulationCollider(
 			const UClothingAssetCommon* InAsset,  // Cloth asset for collision data, can be nullptr
 			const USkeletalMeshComponent* InSkeletalMeshComponent,  // For asset LODs management, can be nullptr
 			bool bInUseLODIndexOverride,
 			int32 InLODIndexOverride);
 
-		~FClothingSimulationCollider();
+		CHAOSCLOTH_API ~FClothingSimulationCollider();
 
 		FClothingSimulationCollider(const FClothingSimulationCollider&) = delete;
 		FClothingSimulationCollider(FClothingSimulationCollider&&) = delete;
 		FClothingSimulationCollider& operator=(const FClothingSimulationCollider&) = delete;
 		FClothingSimulationCollider& operator=(FClothingSimulationCollider&&) = delete;
 
-		int32 GetNumGeometries() const;
+		CHAOSCLOTH_API int32 GetNumGeometries() const;
 
 		// Return source (untransformed) collision data for LODless, external and active LODs.
-		FClothCollisionData GetCollisionData(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth) const;
+		CHAOSCLOTH_API FClothCollisionData GetCollisionData(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth) const;
 
 		// ---- Animatable property setters ----
 		// Set external collision data, will only get updated when used as a Solver Collider TODO: Subclass collider?
@@ -58,29 +58,29 @@ namespace Chaos
 		// ---- End of the animatable property setters ----
 
 		// ---- Cloth interface ----
-		void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
-		void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+		CHAOSCLOTH_API void Add(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+		CHAOSCLOTH_API void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 
-		void PreUpdate(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
-		void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
-		void ResetStartPose(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+		CHAOSCLOTH_API void PreUpdate(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+		CHAOSCLOTH_API void Update(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
+		CHAOSCLOTH_API void ResetStartPose(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);
 		// ---- End of the Cloth interface ----
 
 		// ---- Debugging and visualization functions ----
 		// Return current active LOD collision particles translations, not thread safe, to use after solver update.
-		TConstArrayView<Softs::FSolverVec3> GetCollisionTranslations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		CHAOSCLOTH_API TConstArrayView<Softs::FSolverVec3> GetCollisionTranslations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 
 		// Return current active LOD collision particles rotations, not thread safe, to use after solver update.
-		TConstArrayView<Softs::FSolverRotation3> GetCollisionRotations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		CHAOSCLOTH_API TConstArrayView<Softs::FSolverRotation3> GetCollisionRotations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 
 		// Return current active LOD previous frame collision particles transforms, not thread safe, to use after solver update.
-		TConstArrayView<Softs::FSolverRigidTransform3> GetOldCollisionTransforms(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		CHAOSCLOTH_API TConstArrayView<Softs::FSolverRigidTransform3> GetOldCollisionTransforms(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 
 		// Return current active LOD collision geometries, not thread safe, to use after solver update.
-		TConstArrayView<TUniquePtr<FImplicitObject>> GetCollisionGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		CHAOSCLOTH_API TConstArrayView<TUniquePtr<FImplicitObject>> GetCollisionGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 
 		// Return whether the collision has been hit by a particle during CCD.
-		TConstArrayView<bool> GetCollisionStatus(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
+		CHAOSCLOTH_API TConstArrayView<bool> GetCollisionStatus(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const;
 		// ---- End of the debugging and visualization functions ----
 
 	private:
@@ -98,15 +98,15 @@ namespace Chaos
 			TArray<int32> MappedSkinnedBones;
 		};
 
-		void ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<FLevelSetCollisionData>& LevelSetCollisions, TArray<FSkinnedLevelSetCollisionData>& SkinnedLevelSetCollisions, TArray<int32>& UsedBoneIndices);
+		CHAOSCLOTH_API void ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<FLevelSetCollisionData>& LevelSetCollisions, TArray<FSkinnedLevelSetCollisionData>& SkinnedLevelSetCollisions, TArray<int32>& UsedBoneIndices);
 
-		int32 GetNumGeometries(int32 InSlotIndex) const;
+		CHAOSCLOTH_API int32 GetNumGeometries(int32 InSlotIndex) const;
 
 		// Return the collision particle offset for the specified slot being LODLess, external, or any of the LODs collision.
-		int32 GetOffset(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, int32 InSlotIndex) const;
+		CHAOSCLOTH_API int32 GetOffset(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, int32 InSlotIndex) const;
 
 		// Return the collision particle offset and number of geometries for the specified type if valid. If ECollisionDataType::LODs is asked, then the offset returned is for the current LOD.
-		bool GetOffsetAndNumGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType, int32& OutOffset, int32& OutNumGeometries) const;
+		CHAOSCLOTH_API bool GetOffsetAndNumGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType, int32& OutOffset, int32& OutNumGeometries) const;
 
 	private:
 		typedef TPair<const FClothingSimulationSolver*, const FClothingSimulationCloth*> FSolverClothPair;

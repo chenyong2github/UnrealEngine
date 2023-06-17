@@ -6,15 +6,15 @@
 #include "MovieSceneChaosCacheSection.generated.h"
 
 USTRUCT()
-struct CHAOSCACHING_API FMovieSceneChaosCacheParams : public FMovieSceneBaseCacheParams
+struct FMovieSceneChaosCacheParams : public FMovieSceneBaseCacheParams
 {
 	GENERATED_BODY()
 
-	FMovieSceneChaosCacheParams();
+	CHAOSCACHING_API FMovieSceneChaosCacheParams();
 	virtual ~FMovieSceneChaosCacheParams() override {}
 
 	/** Gets the animation sequence length, not modified by play rate */
-	virtual float GetSequenceLength() const override;
+	CHAOSCACHING_API virtual float GetSequenceLength() const override;
 	
 	/** The animation this section plays */
 	UPROPERTY(EditAnywhere, Category = "ChaosCache")

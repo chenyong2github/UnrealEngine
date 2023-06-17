@@ -4,7 +4,7 @@
 
 #include "Modules/ModuleInterface.h"
 
-class CHAOSCORE_API FChaosCoreEngineModule : public IModuleInterface
+class FChaosCoreEngineModule : public IModuleInterface
 {
 public:
 

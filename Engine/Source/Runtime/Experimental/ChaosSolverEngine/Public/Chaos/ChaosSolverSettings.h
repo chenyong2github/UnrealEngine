@@ -10,28 +10,28 @@
  * Settings class for the Chaos Solver
  */
 
-UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Chaos Solver"))
-class CHAOSSOLVERENGINE_API UChaosSolverSettings : public UDeveloperSettings, public IChaosSolverActorClassProvider
+UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Chaos Solver"), MinimalAPI)
+class UChaosSolverSettings : public UDeveloperSettings, public IChaosSolverActorClassProvider
 {
 	GENERATED_BODY()
 
 public:
 
-	UChaosSolverSettings();
+	CHAOSSOLVERENGINE_API UChaosSolverSettings();
 
 	// IChaosSolverActorClassProvider interface
-	virtual UClass* GetSolverActorClass() const;
+	CHAOSSOLVERENGINE_API virtual UClass* GetSolverActorClass() const;
 
 	/** The class to use when auto-creating a default chaos solver actor */
 	UPROPERTY(config, noclear, EditAnywhere, Category = GameInstance, meta = (MetaClass = "/Script/ChaosSolverEngine.ChaosSolverActor"))
 	FSoftClassPath DefaultChaosSolverActorClass;
 
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	CHAOSSOLVERENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	virtual void PostInitProperties() override;
-	virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
+	CHAOSSOLVERENGINE_API virtual void PostInitProperties() override;
+	CHAOSSOLVERENGINE_API virtual void PostReloadConfig(class FProperty* PropertyThatWasLoaded) override;
 
 private: 
 

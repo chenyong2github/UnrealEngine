@@ -71,8 +71,8 @@ struct FChaosDebugSubstepControl
 #endif
 };
 
-UCLASS()
-class CHAOSSOLVERENGINE_API AChaosSolverActor : public AActor
+UCLASS(MinimalAPI)
+class AChaosSolverActor : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -124,11 +124,11 @@ public:
 
 	/** Makes this solver the current world solver. Dynamically spawned objects will have their physics state created in this solver. */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAsCurrentWorldSolver();
+	CHAOSSOLVERENGINE_API void SetAsCurrentWorldSolver();
 
 	/** Controls whether the solver is able to simulate particles it controls */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	virtual void SetSolverActive(bool bActive);
+	CHAOSSOLVERENGINE_API virtual void SetSolverActive(bool bActive);
 
 	/*
 	* Display icon in the editor
@@ -141,25 +141,25 @@ public:
 	TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const { return PhysScene; }
 	Chaos::FPhysicsSolver* GetSolver() const { return Solver; }
 
-	virtual void PostRegisterAllComponents() override;
-	virtual void PreInitializeComponents() override;
+	CHAOSSOLVERENGINE_API virtual void PostRegisterAllComponents() override;
+	CHAOSSOLVERENGINE_API virtual void PreInitializeComponents() override;
 	
-	virtual void BeginPlay() override;
-	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
+	CHAOSSOLVERENGINE_API virtual void BeginPlay() override;
+	CHAOSSOLVERENGINE_API virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
 
 	/** UObject interface */
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	CHAOSSOLVERENGINE_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	void PostLoad() override;
-	void Serialize(FArchive& Ar) override;
-	void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	CHAOSSOLVERENGINE_API void PostLoad() override;
+	CHAOSSOLVERENGINE_API void Serialize(FArchive& Ar) override;
+	CHAOSSOLVERENGINE_API void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	/** End UObject interface */
 
 private:
 
 	/** If floor is enabled, make a particle to represent it */
-	void MakeFloor();
+	CHAOSSOLVERENGINE_API void MakeFloor();
 
 	TSharedPtr<FPhysScene_Chaos> PhysScene;
 	Chaos::FPhysicsSolver* Solver;

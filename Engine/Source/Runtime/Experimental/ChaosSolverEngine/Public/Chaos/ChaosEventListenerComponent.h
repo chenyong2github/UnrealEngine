@@ -20,17 +20,17 @@ class AChaosSolverActor;
  * Base class for listeners that query and respond to a frame's physics data (collision events, break events, etc).
  */
 
-UCLASS(BlueprintType, ClassGroup = Chaos, meta = (BlueprintSpawnableComponent))
-class CHAOSSOLVERENGINE_API UChaosEventListenerComponent : public UActorComponent
+UCLASS(BlueprintType, ClassGroup = Chaos, meta = (BlueprintSpawnableComponent), MinimalAPI)
+class UChaosEventListenerComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 
-	UChaosEventListenerComponent();
+	CHAOSSOLVERENGINE_API UChaosEventListenerComponent();
 
 	//~ Begin UActorComponent interface
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	CHAOSSOLVERENGINE_API virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	//~ End UActorComponent interface
 
 

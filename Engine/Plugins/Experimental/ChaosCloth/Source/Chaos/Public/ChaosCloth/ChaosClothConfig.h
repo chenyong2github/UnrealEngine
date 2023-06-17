@@ -50,25 +50,25 @@ enum class EChaosClothTetherMode : uint8
 
 /** Holds initial, asset level config for clothing actors. */
 // Hiding categories that will be used in the future
-UCLASS(HideCategories = (Collision))
-class CHAOSCLOTH_API UChaosClothConfig : public UClothConfigCommon
+UCLASS(HideCategories = (Collision), MinimalAPI)
+class UChaosClothConfig : public UClothConfigCommon
 {
 	GENERATED_BODY()
 public:
-	UChaosClothConfig();
-	virtual ~UChaosClothConfig() override;
+	CHAOSCLOTH_API UChaosClothConfig();
+	CHAOSCLOTH_API virtual ~UChaosClothConfig() override;
 
 	/** Migrate from the legacy FClothConfig structure. */
-	virtual void MigrateFrom(const FClothConfig_Legacy&) override;
+	CHAOSCLOTH_API virtual void MigrateFrom(const FClothConfig_Legacy&) override;
 
 	/** Migrate from shared config. */
-	virtual void MigrateFrom(const UClothSharedConfigCommon* ClothSharedConfig) override;
+	CHAOSCLOTH_API virtual void MigrateFrom(const UClothSharedConfigCommon* ClothSharedConfig) override;
 
 	/** Serialize override used to set the current custom version. */
-	virtual void Serialize(FArchive& Ar) override;
+	CHAOSCLOTH_API virtual void Serialize(FArchive& Ar) override;
 
 	/** PostLoad override used to deal with updates/changes in properties. */
-	virtual void PostLoad() override;
+	CHAOSCLOTH_API virtual void PostLoad() override;
 
 	/** Return wherether to pre-compute Inverse Masses. */
 	virtual bool NeedsInverseMasses() const override { return false; }  // TODO: Chaos Cloth uses the mass mode enum, and this will require a little refactor to work
@@ -80,7 +80,7 @@ public:
 	virtual bool TethersUseGeodesicDistance() const override { return bUseGeodesicDistance; }
 
 	/** Return the mass value, from whichever mass mode (Density, UniformMass, or TotalMass) is selected. */
-	float GetMassValue() const;
+	CHAOSCLOTH_API float GetMassValue() const;
 
 	/**
 	 * How cloth particle mass is determined
@@ -405,26 +405,26 @@ public:
  * parameters that cannot change between the various clothing assets assigned
  * to a specific skeletal mesh. @seealso UChaosClothConfig.
  */
-UCLASS()
-class CHAOSCLOTH_API UChaosClothSharedSimConfig : public UClothSharedConfigCommon
+UCLASS(MinimalAPI)
+class UChaosClothSharedSimConfig : public UClothSharedConfigCommon
 {
 	GENERATED_BODY()
 public:
-	UChaosClothSharedSimConfig();
-	virtual ~UChaosClothSharedSimConfig() override;
+	CHAOSCLOTH_API UChaosClothSharedSimConfig();
+	CHAOSCLOTH_API virtual ~UChaosClothSharedSimConfig() override;
 
 	/** Migrate from the legacy FClothConfig structure. */
-	virtual void MigrateFrom(const FClothConfig_Legacy& ClothConfig) override;
+	CHAOSCLOTH_API virtual void MigrateFrom(const FClothConfig_Legacy& ClothConfig) override;
 
 	/** Serialize override used to set the current custom version. */
-	virtual void Serialize(FArchive& Ar) override;
+	CHAOSCLOTH_API virtual void Serialize(FArchive& Ar) override;
 
 	/** PostLoad override used to deal with updates/changes in properties. */
-	virtual void PostLoad() override;
+	CHAOSCLOTH_API virtual void PostLoad() override;
 
 #if WITH_EDITOR
 	/** Called after changes in any of the asset properties. */
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
+	CHAOSCLOTH_API virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& ChainEvent) override;
 #endif
 
 	/**

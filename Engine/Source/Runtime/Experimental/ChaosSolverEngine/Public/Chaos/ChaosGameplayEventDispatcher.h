@@ -24,7 +24,7 @@ typedef TFunction<void(const FChaosBreakEvent&)> FOnBreakEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()
-struct CHAOSSOLVERENGINE_API FBreakEventCallbackWrapper
+struct FBreakEventCallbackWrapper
 {
 	GENERATED_BODY()
 
@@ -36,7 +36,7 @@ typedef TFunction<void(const FChaosRemovalEvent&)> FOnRemovalEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()
-struct CHAOSSOLVERENGINE_API FRemovalEventCallbackWrapper
+struct FRemovalEventCallbackWrapper
 {
 	GENERATED_BODY()
 
@@ -48,7 +48,7 @@ typedef TFunction<void(const FChaosCrumblingEvent&)> FOnCrumblingEventCallback;
 
 /** UStruct wrapper so we can store the TFunction in a TMap */
 USTRUCT()
-struct CHAOSSOLVERENGINE_API FCrumblingEventCallbackWrapper
+struct FCrumblingEventCallbackWrapper
 {
 	GENERATED_BODY()
 
@@ -76,20 +76,20 @@ struct FChaosPendingCollisionNotify
 };
 
 
-UCLASS()
-class CHAOSSOLVERENGINE_API UChaosGameplayEventDispatcher : public UChaosEventListenerComponent
+UCLASS(MinimalAPI)
+class UChaosGameplayEventDispatcher : public UChaosEventListenerComponent
 {
 	GENERATED_BODY()
 
 public:
 
-	UChaosGameplayEventDispatcher();
+	CHAOSSOLVERENGINE_API UChaosGameplayEventDispatcher();
 
-	virtual void OnRegister() override;
-	virtual void OnUnregister() override;
+	CHAOSSOLVERENGINE_API virtual void OnRegister() override;
+	CHAOSSOLVERENGINE_API virtual void OnUnregister() override;
 
-	void RegisterChaosEvents();
-	void UnregisterChaosEvents();
+	CHAOSSOLVERENGINE_API void RegisterChaosEvents();
+	CHAOSSOLVERENGINE_API void UnregisterChaosEvents();
 
 private:
 
@@ -131,17 +131,17 @@ public:
 	 * @param ComponentToListenTo	The component whose collisions will be reported
 	 * @param ObjectToNotify		The object that will receive the notifications. Should be a PrimitiveComponent or implement IChaosNotifyHandlerInterface, or both.
 	 */
-	void RegisterForCollisionEvents(UPrimitiveComponent* ComponentToListenTo, UObject* ObjectToNotify);
-	void UnRegisterForCollisionEvents(UPrimitiveComponent* ComponentToListenTo, UObject* ObjectToNotify);
+	CHAOSSOLVERENGINE_API void RegisterForCollisionEvents(UPrimitiveComponent* ComponentToListenTo, UObject* ObjectToNotify);
+	CHAOSSOLVERENGINE_API void UnRegisterForCollisionEvents(UPrimitiveComponent* ComponentToListenTo, UObject* ObjectToNotify);
 
-	void RegisterForBreakEvents(UPrimitiveComponent* Component, FOnBreakEventCallback InFunc);
-	void UnRegisterForBreakEvents(UPrimitiveComponent* Component);
+	CHAOSSOLVERENGINE_API void RegisterForBreakEvents(UPrimitiveComponent* Component, FOnBreakEventCallback InFunc);
+	CHAOSSOLVERENGINE_API void UnRegisterForBreakEvents(UPrimitiveComponent* Component);
 
-	void RegisterForRemovalEvents(UPrimitiveComponent* Component, FOnRemovalEventCallback InFunc);
-	void UnRegisterForRemovalEvents(UPrimitiveComponent* Component);
+	CHAOSSOLVERENGINE_API void RegisterForRemovalEvents(UPrimitiveComponent* Component, FOnRemovalEventCallback InFunc);
+	CHAOSSOLVERENGINE_API void UnRegisterForRemovalEvents(UPrimitiveComponent* Component);
 
-	void RegisterForCrumblingEvents(UPrimitiveComponent* Component, FOnCrumblingEventCallback InFunc);
-	void UnRegisterForCrumblingEvents(UPrimitiveComponent* Component);
+	CHAOSSOLVERENGINE_API void RegisterForCrumblingEvents(UPrimitiveComponent* Component, FOnCrumblingEventCallback InFunc);
+	CHAOSSOLVERENGINE_API void UnRegisterForCrumblingEvents(UPrimitiveComponent* Component);
 	
 private:
 

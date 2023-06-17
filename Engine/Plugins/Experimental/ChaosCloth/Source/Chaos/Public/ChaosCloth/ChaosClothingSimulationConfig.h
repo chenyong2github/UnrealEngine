@@ -18,13 +18,13 @@ namespace Chaos
 	}
 
 	// Cloth simulation properties
-	class CHAOSCLOTH_API FClothingSimulationConfig final
+	class FClothingSimulationConfig final
 	{
 	public:
-		FClothingSimulationConfig();
-		FClothingSimulationConfig(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
+		CHAOSCLOTH_API FClothingSimulationConfig();
+		CHAOSCLOTH_API FClothingSimulationConfig(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
 
-		~FClothingSimulationConfig();
+		CHAOSCLOTH_API ~FClothingSimulationConfig();
 
 		FClothingSimulationConfig(const FClothingSimulationConfig&) = delete;
 		FClothingSimulationConfig(FClothingSimulationConfig&&) = delete;
@@ -37,16 +37,16 @@ namespace Chaos
 		 * @param ClothSharedConfig The cloth solver shared config UObject.
 		 * @param bUseLegacyConfig Whether to make the config a legacy cloth config, so that the constraints disable themselves with missing masks, ...etc.
 		 */
-		void Initialize(const UChaosClothConfig* ClothConfig, const UChaosClothSharedSimConfig* ClothSharedConfig, bool bUseLegacyConfig = false);
+		CHAOSCLOTH_API void Initialize(const UChaosClothConfig* ClothConfig, const UChaosClothSharedSimConfig* ClothSharedConfig, bool bUseLegacyConfig = false);
 
 		/** Initialize config from a property collection. */
-		void Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
+		CHAOSCLOTH_API void Initialize(const TSharedPtr<const FManagedArrayCollection>& InPropertyCollection);
 
 		/** Return a property collection facade for reading properties from this configuration. */
-		const Softs::FCollectionPropertyConstFacade& GetProperties() const;
+		CHAOSCLOTH_API const Softs::FCollectionPropertyConstFacade& GetProperties() const;
 
 		/** Return a property collection facade for setting properties for this configuration. */
-		Softs::FCollectionPropertyFacade& GetProperties();
+		CHAOSCLOTH_API Softs::FCollectionPropertyFacade& GetProperties();
 
 		/** Return this configuration's internal property collection. */
 		TSharedPtr<const FManagedArrayCollection> GetPropertyCollection() const { return TSharedPtr<const FManagedArrayCollection>(PropertyCollection); }

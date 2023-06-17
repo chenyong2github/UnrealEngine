@@ -11,12 +11,12 @@
 #include "ChaosNotifyHandlerInterface.generated.h"
 
 USTRUCT(BlueprintType)
-struct CHAOSSOLVERENGINE_API FChaosPhysicsCollisionInfo
+struct FChaosPhysicsCollisionInfo
 {
 	GENERATED_BODY()
 public:
 
-	FChaosPhysicsCollisionInfo();
+	CHAOSSOLVERENGINE_API FChaosPhysicsCollisionInfo();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Chaos")
 	TObjectPtr<UPrimitiveComponent> Component = nullptr;
@@ -57,13 +57,13 @@ public:
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosPhysicsCollision, const FChaosPhysicsCollisionInfo&, CollisionInfo);
 
 /** Interface for objects that want collision and trailing notifies from the Chaos solver */
-UINTERFACE(BlueprintType)
-class CHAOSSOLVERENGINE_API UChaosNotifyHandlerInterface : public UInterface
+UINTERFACE(BlueprintType, MinimalAPI)
+class UChaosNotifyHandlerInterface : public UInterface
 {
 	GENERATED_UINTERFACE_BODY()
 };
 
-class CHAOSSOLVERENGINE_API IChaosNotifyHandlerInterface : public IInterface
+class IChaosNotifyHandlerInterface : public IInterface
 {
 	GENERATED_IINTERFACE_BODY()
 
@@ -75,7 +75,7 @@ public:
 	virtual void DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo) {};
 
 	/** Entry point for collision notifications, called by the underlying system. Not for overriding. */
-	void HandlePhysicsCollision(const FChaosPhysicsCollisionInfo& CollisionInfo);
+	CHAOSSOLVERENGINE_API void HandlePhysicsCollision(const FChaosPhysicsCollisionInfo& CollisionInfo);
 
 };
 
@@ -84,12 +84,12 @@ public:
 /**
  * 
  */
-UCLASS()
-class CHAOSSOLVERENGINE_API UChaosSolverEngineBlueprintLibrary : public UBlueprintFunctionLibrary
+UCLASS(MinimalAPI)
+class UChaosSolverEngineBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 public:
 
 	UFUNCTION(BlueprintPure, Category = "Chaos", meta = (WorldContext = "WorldContextObject"))
-	static FHitResult ConvertPhysicsCollisionToHitResult(const FChaosPhysicsCollisionInfo& PhysicsCollision);
+	static CHAOSSOLVERENGINE_API FHitResult ConvertPhysicsCollisionToHitResult(const FChaosPhysicsCollisionInfo& PhysicsCollision);
 };
