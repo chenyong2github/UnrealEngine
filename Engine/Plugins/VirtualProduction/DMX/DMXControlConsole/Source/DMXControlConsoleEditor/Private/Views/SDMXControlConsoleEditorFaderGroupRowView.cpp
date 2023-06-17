@@ -111,7 +111,7 @@ void SDMXControlConsoleEditorFaderGroupRowView::AddFaderGroup(UDMXControlConsole
 
 	const int32 Index = FaderGroup->GetIndex();
 
-	const TSharedRef<SDMXControlConsoleEditorFaderGroupView> FaderGroupWidget = 
+	const TSharedRef<SDMXControlConsoleEditorFaderGroupView> FaderGroupWidget =
 		SNew(SDMXControlConsoleEditorFaderGroupView, FaderGroup)
 		.Visibility(TAttribute<EVisibility>::CreateSP(this, &SDMXControlConsoleEditorFaderGroupRowView::GetFaderGroupViewVisibility, FaderGroup));
 

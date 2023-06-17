@@ -7,6 +7,7 @@
 #include "Algo/Find.h"
 #include "Algo/ForEach.h"
 #include "DMXControlConsoleData.h"
+#include "DMXControlConsoleFaderBase.h"
 #include "DMXControlConsoleFaderGroup.h"
 #include "DMXControlConsoleFaderGroupRow.h"
 #include "DMXControlConsoleEditorSelection.h"
@@ -176,8 +177,9 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 	{
 		const TArray<TSharedPtr<FDMXEntityFixturePatchRef>> SelectedItems = FixturePatchList->GetSelectedFixturePatchRefs();
 		const TArray<UDMXControlConsoleFaderGroup*> AllFaderGroups = EditorConsoleData->GetAllFaderGroups();
+		TArray<UObject*> FaderGroupsToAddToSelection;
 		TArray<UObject*> FaderGroupsToRemoveFromSelection;
-		Algo::ForEach(AllFaderGroups, [SelectedItems, &FaderGroupsToRemoveFromSelection](UDMXControlConsoleFaderGroup* FaderGroup)
+		Algo::ForEach(AllFaderGroups, [SelectedItems, &FaderGroupsToAddToSelection, &FaderGroupsToRemoveFromSelection](UDMXControlConsoleFaderGroup* FaderGroup)
 			{
 				if (!FaderGroup || !FaderGroup->HasFixturePatch())
 				{
@@ -191,13 +193,19 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowSelectionChanged(cons
 					});
 
 				FaderGroup->SetIsActive(bIsFixturePatchSelected);
-				if (!bIsFixturePatchSelected)
+				if (bIsFixturePatchSelected)
+				{
+					const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
+					FaderGroupsToAddToSelection.Append(AllFaders);
+				}
+				else
 				{
 					FaderGroupsToRemoveFromSelection.Add(FaderGroup);
 				}
 			});
 
 		const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
+		SelectionHandler->AddToSelection(FaderGroupsToAddToSelection);
 		SelectionHandler->RemoveFromSelection(FaderGroupsToRemoveFromSelection);
 	}
 }
@@ -231,21 +239,22 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowDoubleClicked(const T
 	}
 
 	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
-	if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
+	const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData();
+	if (!EditorConsoleData)
 	{
-		if (const UDMXEntityFixturePatch* FixturePatch = ItemClicked->GetFixturePatch())
-		{
-			UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
-			if (FaderGroup && FaderGroup->IsActive())
-			{
-				const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
-				if (!SelectionHandler->IsSelected(FaderGroup))
-				{
-					SelectionHandler->ClearSelection();
-					SelectionHandler->AddToSelection(FaderGroup);
-				}
-			}
-		}
+		return;
+	}
+
+	const UDMXEntityFixturePatch* FixturePatch = ItemClicked->GetFixturePatch();
+	if (!FixturePatch)
+	{
+		return;
+	}
+
+	UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
+	if (FaderGroup && FaderGroup->IsActive())
+	{
+		FaderGroup->SetIsExpanded(true);
 	}
 }
 
@@ -284,8 +293,7 @@ void SDMXControlConsoleEditorFixturePatchVerticalBox::OnRowCheckBoxStateChanged(
 	UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
 	if (FaderGroup)
 	{
-		const bool bIsMuted = CheckBoxState == ECheckBoxState::Unchecked;
-		FaderGroup->SetMute(bIsMuted);
+		FaderGroup->ToggleMute();
 	}
 }
 
@@ -322,7 +330,7 @@ ECheckBoxState SDMXControlConsoleEditorFixturePatchVerticalBox::IsListChecked() 
 	return ECheckBoxState::Undetermined;
 }
 
-bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsRowChecked(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const
+ECheckBoxState SDMXControlConsoleEditorFixturePatchVerticalBox::IsRowChecked(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const
 {
 	const UDMXEntityFixturePatch* FixturePatch = InFixturePatchRef.IsValid() ? InFixturePatchRef->GetFixturePatch() : nullptr;
 	if (FixturePatch)
@@ -330,12 +338,25 @@ bool SDMXControlConsoleEditorFixturePatchVerticalBox::IsRowChecked(const TShared
 		const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 		if (const UDMXControlConsoleData* EditorConsoleData = EditorConsoleModel->GetEditorConsoleData())
 		{
-			const UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch);
-			return IsValid(FaderGroup) && !FaderGroup->IsMuted();
+			if (const UDMXControlConsoleFaderGroup* FaderGroup = EditorConsoleData->FindFaderGroupByFixturePatch(FixturePatch))
+			{
+				if (FaderGroup->IsMuted())
+				{
+					const TArray<UDMXControlConsoleFaderBase*> AllFaders = FaderGroup->GetAllFaders();
+					const bool bIsAnyFaderUnmuted = Algo::AnyOf(AllFaders, [](const UDMXControlConsoleFaderBase* Fader)
+						{
+							return Fader && !Fader->IsMuted();
+						});
+
+					return bIsAnyFaderUnmuted ? ECheckBoxState::Undetermined : ECheckBoxState::Unchecked;
+				}
+
+				return ECheckBoxState::Checked;
+			}
 		}
 	}
 
-	return false;
+	return ECheckBoxState::Undetermined;
 }
 
 void SDMXControlConsoleEditorFixturePatchVerticalBox::OnMuteAllFaderGroups(bool bMute, bool bOnlyActive) const

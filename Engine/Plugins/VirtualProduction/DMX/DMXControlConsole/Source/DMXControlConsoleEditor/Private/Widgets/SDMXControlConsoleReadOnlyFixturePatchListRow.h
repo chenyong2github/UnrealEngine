@@ -18,7 +18,7 @@ public:
 	{}
 
 		/** Called to get the CheckBox state of this row */
-		SLATE_EVENT(FDMXFixturePatchListRowCheckBoxStateRetValDelegate, IsChecked)
+		SLATE_EVENT(FDMXFixturePatchListCheckBoxStateRetValDelegate, IsChecked)
 
 		/** Called when CheckBox state of this row has changed */
 		SLATE_EVENT(FOnCheckStateChanged, OnCheckStateChanged)
@@ -42,5 +42,5 @@ private:
 
 	// Slate Arguments
 	FOnCheckStateChanged OnCheckStateChanged;
-	FDMXFixturePatchListRowCheckBoxStateRetValDelegate IsCheckedDelegate;
+	FDMXFixturePatchListCheckBoxStateRetValDelegate IsCheckedDelegate;
 };

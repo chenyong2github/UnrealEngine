@@ -48,6 +48,33 @@ void FDMXControlConsoleEditorSelection::AddToSelection(UDMXControlConsoleFaderBa
 	}
 }
 
+void FDMXControlConsoleEditorSelection::AddToSelection(const TArray<UObject*> Elements, bool bNotifySelectionChange)
+{
+	if (Elements.IsEmpty())
+	{
+		return;
+	}
+
+	for (UObject* Element : Elements)
+	{
+		if (UDMXControlConsoleFaderGroup* FaderGroup = Cast<UDMXControlConsoleFaderGroup>(Element))
+		{
+			constexpr bool bNotifyFaderGroupSelectionChange = false;
+			AddToSelection(FaderGroup, bNotifyFaderGroupSelectionChange);
+		}
+		else if (UDMXControlConsoleFaderBase* Fader = Cast<UDMXControlConsoleFaderBase>(Element))
+		{
+			constexpr bool bNotifyFaderSelectionChange = false;
+			AddToSelection(Fader, bNotifyFaderSelectionChange);
+		}
+	}
+
+	if (bNotifySelectionChange)
+	{
+		OnSelectionChanged.Broadcast();
+	}
+}
+
 void FDMXControlConsoleEditorSelection::AddAllFadersFromFaderGroupToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bOnlyVisible, bool bNotifySelectionChange)
 {
 	if (FaderGroup && FaderGroup->IsActive())

@@ -87,8 +87,8 @@ private:
 	/** Checks if Faders array contains a reference to the given Element */
 	bool ContainsElement(const TScriptInterface<IDMXControlConsoleFaderGroupElement>& Element);
 
-	/** Restores this widget to the last saved expansion state from the model */
-	void RestoreExpansionState();
+	/** Updates this widget to the last saved expansion state from the model */
+	void UpdateExpansionState();
 
 	/** Called when the Expand Arrow button is clicked */
 	void OnExpandArrowClicked(bool bExpand);

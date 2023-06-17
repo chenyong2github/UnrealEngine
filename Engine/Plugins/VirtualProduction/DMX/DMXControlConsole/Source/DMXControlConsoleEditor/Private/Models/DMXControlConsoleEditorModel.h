@@ -29,6 +29,13 @@ enum class EDMXControlConsoleEditorViewMode : uint8
 	Expanded
 };
 
+/** Enum for DMX Control Console input modes */
+enum class EDMXControlConsoleEditorInputMode : uint8
+{
+	Relative,
+	Absolute
+};
+
 /** Model of the console currently being edited in the control console editor.  */
 UCLASS(Config = DMXEditor)
 class UDMXControlConsoleEditorModel 
@@ -55,11 +62,17 @@ public:
 	/** Gets the current View Mode for Faders. */
 	EDMXControlConsoleEditorViewMode GetFadersViewMode() const { return FadersViewMode; }
 
+	/** Gets the current Input Mode for Faders. */
+	EDMXControlConsoleEditorInputMode GetInputMode() const { return InputMode; }
+
 	/** Sets the current View Mode for Fader Groups. */
 	void SetFaderGroupsViewMode(EDMXControlConsoleEditorViewMode ViewMode);
 
 	/** Sets the current View Mode for Faders. */
 	void SetFadersViewMode(EDMXControlConsoleEditorViewMode ViewMode);
+
+	/** Sets the current Input Mode for Faders. */
+	void SetInputMode(EDMXControlConsoleEditorInputMode NewInputMode) { InputMode = NewInputMode; }
 
 	/** Sends DMX on the Control Console */
 	void SendDMX();
@@ -211,8 +224,11 @@ private:
 	FDMXReadOnlyFixturePatchListDescriptor FixturePatchListDescriptor;
 
 	/** Current view mode for FaderGroupView widgets*/
-	EDMXControlConsoleEditorViewMode FaderGroupsViewMode = EDMXControlConsoleEditorViewMode::Collapsed;
+	EDMXControlConsoleEditorViewMode FaderGroupsViewMode = EDMXControlConsoleEditorViewMode::Expanded;
 
 	/** Current view mode for Faders widgets */
 	EDMXControlConsoleEditorViewMode FadersViewMode = EDMXControlConsoleEditorViewMode::Collapsed;
+	
+	/** Current input mode for Faders widgets */
+	EDMXControlConsoleEditorInputMode InputMode = EDMXControlConsoleEditorInputMode::Absolute;
 };

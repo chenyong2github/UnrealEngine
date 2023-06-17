@@ -225,7 +225,7 @@ ECheckBoxState SDMXControlConsoleReadOnlyFixturePatchList::IsRowChecked(const TS
 {
 	if (IsRowCheckedDelegate.IsBound())
 	{
-		return IsRowCheckedDelegate.Execute(InFixturePatchRef) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		return IsRowCheckedDelegate.Execute(InFixturePatchRef);
 	}
 
 	return ECheckBoxState::Undetermined;

@@ -466,8 +466,24 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	}
 	ToolbarBuilder.EndSection();
 
-	ToolbarBuilder.BeginSection("View Mode");
+	ToolbarBuilder.BeginSection("Modes");
 	{
+		const TSharedRef<SComboButton> InputModeComboButton =
+			SNew(SComboButton)
+			.ContentPadding(0.f)
+			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+			.OnGetMenuContent(this, &SDMXControlConsoleEditorView::GenerateInputModeMenuWidget)
+			.HasDownArrow(true)
+			.ButtonContent()
+			[
+				GenerateButtonContentLambda(
+					FSlateColor::UseForeground(),
+					FDMXControlConsoleEditorStyle::Get().GetBrush("DMXControlConsole.InputMode"),
+					LOCTEXT("InputModeToolbarButtonText", "Input Mode"))
+			];
+
+		ToolbarBuilder.AddWidget(InputModeComboButton);
+	
 		const TSharedRef<SComboButton> ViewModeComboButton =
 			SNew(SComboButton)
 			.ContentPadding(0.f)
@@ -531,6 +547,41 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateToolbar()
 	return ToolbarBuilder.MakeWidget();
 }
 
+
+TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateInputModeMenuWidget()
+{
+	constexpr bool bShouldCloseWindowAfterClosing = false;
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
+
+	MenuBuilder.BeginSection("Faders", LOCTEXT("FadersInputModeCategory", "Faders"));
+	{
+		UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
+		const auto AddMenuEntryLambda = [&MenuBuilder, EditorConsoleModel, this](const FString& Label, EDMXControlConsoleEditorInputMode InputMode)
+		{
+			MenuBuilder.AddMenuEntry
+			(
+				FText::FromString(Label),
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction
+				(
+					FExecuteAction::CreateUObject(EditorConsoleModel, &UDMXControlConsoleEditorModel::SetInputMode, InputMode),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateLambda([this, EditorConsoleModel, InputMode]() { return EditorConsoleModel->GetInputMode() == InputMode; })
+				),
+				NAME_None,
+				EUserInterfaceActionType::RadioButton
+			);
+		};
+
+		AddMenuEntryLambda(TEXT("Relative"), EDMXControlConsoleEditorInputMode::Relative);
+		AddMenuEntryLambda(TEXT("Absolute"), EDMXControlConsoleEditorInputMode::Absolute);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 {
 	constexpr bool bShouldCloseWindowAfterClosing = false;
@@ -538,7 +589,7 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 
 	MenuBuilder.BeginSection("Fader Groups", LOCTEXT("FaderGroupsViewModeCategory", "Fader Groups"));
 	{
-		const auto AddMenuEntryFn = [&MenuBuilder, this](const FString& Label, EDMXControlConsoleEditorViewMode ViewMode)
+		const auto AddMenuEntryLambda = [&MenuBuilder, this](const FString& Label, EDMXControlConsoleEditorViewMode ViewMode)
 			{
 				MenuBuilder.AddMenuEntry
 				(
@@ -556,14 +607,14 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 				);
 			};
 
-		AddMenuEntryFn(TEXT("Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
-		AddMenuEntryFn(TEXT("Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
+		AddMenuEntryLambda(TEXT("Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
+		AddMenuEntryLambda(TEXT("Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
 	}
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("Faders", LOCTEXT("FadersViewModeCategory", "Faders"));
 	{
-		const auto AddMenuEntryFn = [&MenuBuilder, this](const FString& Label, EDMXControlConsoleEditorViewMode ViewMode)
+		const auto AddMenuEntryLambda = [&MenuBuilder, this](const FString& Label, EDMXControlConsoleEditorViewMode ViewMode)
 			{
 				MenuBuilder.AddMenuEntry
 				(
@@ -581,8 +632,8 @@ TSharedRef<SWidget> SDMXControlConsoleEditorView::GenerateViewModeMenuWidget()
 				);
 			};
 
-		AddMenuEntryFn(TEXT("Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
-		AddMenuEntryFn(TEXT("Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
+		AddMenuEntryLambda(TEXT("Collapsed"), EDMXControlConsoleEditorViewMode::Collapsed);
+		AddMenuEntryLambda(TEXT("Expanded"), EDMXControlConsoleEditorViewMode::Expanded);
 	}
 	MenuBuilder.EndSection();
 

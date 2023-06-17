@@ -52,6 +52,7 @@ FDMXControlConsoleEditorStyle::FDMXControlConsoleEditorStyle()
 		Set("DMXControlConsole.PlayDMX", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/play", Icon16x16, FStyleColors::AccentGreen));
 		Set("DMXControlConsole.StopPlayingDMX", new EDITOR_IMAGE_BRUSH("Icons/generic_stop_16x", Icon16x16, FStyleColors::AccentRed));
 		Set("DMXControlConsole.ResetToDefault", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/Reset", Icon16x16));
+		Set("DMXControlConsole.InputMode", new EDITOR_IMAGE_BRUSH_SVG("Starship/MainToolbar/select", Icon16x16));
 		Set("DMXControlConsole.Fader.Mute", new IMAGE_BRUSH("SmallCheckBox", Icon16x16));
 		Set("DMXControlConsole.Fader.Unmute", new IMAGE_BRUSH("SmallCheckBox_Checked", Icon16x16));
 	}

@@ -62,7 +62,7 @@ private:
 	ECheckBoxState IsListChecked() const;
 
 	/** Called to get wheter a row is checked or not in FixturePatchList */
-	bool IsRowChecked(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
+	ECheckBoxState IsRowChecked(const TSharedPtr<FDMXEntityFixturePatchRef> InFixturePatchRef) const;
 
 	/** Called to mute/unmute all Fader Groups in current Control Console */
 	void OnMuteAllFaderGroups(bool bMute, bool bOnlyActive = false) const;

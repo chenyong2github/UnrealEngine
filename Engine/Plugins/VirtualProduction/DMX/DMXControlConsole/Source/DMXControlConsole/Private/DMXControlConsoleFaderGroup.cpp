@@ -426,6 +426,17 @@ void UDMXControlConsoleFaderGroup::ToggleLock()
 }
 
 #if WITH_EDITOR
+void UDMXControlConsoleFaderGroup::SetIsExpanded(bool bExpanded, bool bNotify)
+{
+	bIsExpanded = bExpanded;
+	if (bNotify)
+	{
+		OnFaderGroupExpanded.Broadcast();
+	}
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
 bool UDMXControlConsoleFaderGroup::IsFirstActiveFaderGroupInRow() const
 {
 	const UDMXControlConsoleFaderGroupRow& OwnerRow = GetOwnerFaderGroupRowChecked();

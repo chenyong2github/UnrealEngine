@@ -22,6 +22,9 @@ public:
 	/** Adds the given Fader to selection */
 	void AddToSelection(UDMXControlConsoleFaderBase* Fader, bool bNotifySelectionChange = true);
 
+	/** Adds the elements in the given array to selection */
+	void AddToSelection(const TArray<UObject*> Elements, bool bNotifySelectionChange = true);
+
 	/** Adds to selection all Faders from the given Fader Group */
 	void AddAllFadersFromFaderGroupToSelection(UDMXControlConsoleFaderGroup* FaderGroup, bool bOnlyVisible = false, bool bNotifySelectionChange = true);
 
@@ -31,7 +34,7 @@ public:
 	/** Removes the given Fader from selection */
 	void RemoveFromSelection(UDMXControlConsoleFaderBase* Fader, bool bNotifySelectionChange = true);
 
-	/** Removes the all the elements given array from selection */
+	/** Removes the elements in the given array from selection */
 	void RemoveFromSelection(const TArray<UObject*> Elements, bool bNotifySelectionChange = true);
 
 	/** Multiselects the Fader or Fader Group and the current selection */

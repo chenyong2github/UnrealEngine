@@ -65,6 +65,9 @@ private:
 	/** Generates the toolbar for this view */
 	TSharedRef<SWidget> GenerateToolbar();
 
+	/** Generates a widget to select the current input mode */
+	TSharedRef<SWidget> GenerateInputModeMenuWidget();
+
 	/** Generates a widget to select the current view mode */
 	TSharedRef<SWidget> GenerateViewModeMenuWidget();
 

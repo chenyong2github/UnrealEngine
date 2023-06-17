@@ -127,13 +127,13 @@ public:
 	bool IsExpanded() const { return bIsExpanded; }
 
 	/** Sets the expansion state of the Fader Group */
-	void SetIsExpanded(const bool bExpanded) { bIsExpanded = bExpanded; }
+	void SetIsExpanded(bool bExpanded, bool bNotify = true);
 
 	/** Gets the activity state of the Fader Group */
 	bool IsActive() const { return HasFixturePatch() ? bIsActive : true; }
 
 	/** Sets the activity state of the Fader Group */
-	void SetIsActive(const bool bActive) { bIsActive = bActive; }
+	void SetIsActive(bool bActive) { bIsActive = bActive; }
 
 	/** True if this is the firs active Fader Group in its row */
 	bool IsFirstActiveFaderGroupInRow() const;
@@ -156,6 +156,11 @@ public:
 
 	/** Gets a reference to OnFixturePatchChanged delegate */
 	FDMXOnFaderGroupFixturePatchChangedDelegate& GetOnFixturePatchChanged() { return OnFixturePatchChangedDelegate; }
+
+#if WITH_EDITOR
+	/** Gets a reference to OnFaderGroupExpanded delegate */
+	FSimpleMulticastDelegate& GetOnFaderGroupExpanded() { return OnFaderGroupExpanded; }
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 	/** Last string from Editor filtering */
@@ -212,6 +217,11 @@ private:
 
 	/** Called when Fixture Patch is changed */
 	FDMXOnFaderGroupFixturePatchChangedDelegate OnFixturePatchChangedDelegate;
+
+#if WITH_EDITORONLY_DATA
+	/** Called when Fader Group expansion state changes */
+	FSimpleMulticastDelegate OnFaderGroupExpanded;
+#endif
 
 	/** Name identifier of this Fader Group */
 	UPROPERTY(EditAnywhere, Category = "DMX Fader Group")

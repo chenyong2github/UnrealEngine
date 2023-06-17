@@ -510,6 +510,11 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 		return;
 	}
 
+	if (!ensureMsgf(FaderSpinBox.IsValid(), TEXT("Invalid fader widget, cannot set fader value correctly.")))
+	{
+		return;
+	}
+
 	UDMXControlConsoleEditorModel* EditorConsoleModel = GetMutableDefault<UDMXControlConsoleEditorModel>();
 	const TSharedRef<FDMXControlConsoleEditorSelection> SelectionHandler = EditorConsoleModel->GetSelectionHandler();
 	const TArray<TWeakObjectPtr<UObject>> SelectedFadersObjects = SelectionHandler->GetSelectedFaders();
@@ -522,8 +527,9 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 	}
 	else
 	{
+		const EDMXControlConsoleEditorInputMode InputMode = EditorConsoleModel->GetInputMode();
 		const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
-		const float Percentage = (NewValue - Fader->GetMinValue()) / Range;
+		const float FaderSpinBoxValue = FaderSpinBox->GetValue();
 
 		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 		{
@@ -536,8 +542,29 @@ void SDMXControlConsoleEditorFader::HandleValueChanged(uint32 NewValue)
 			}
 
 			const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
-			const uint32 Value = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * Percentage);
-			SelectedFader->SetValue(Value);
+			float SelectedFaderPercentage = 0.f;
+			uint32 SelectedFaderValue = 0;
+
+			switch (InputMode)
+			{
+			case EDMXControlConsoleEditorInputMode::Relative:
+			{
+				// Relative percentage
+				SelectedFaderPercentage = (static_cast<float>(NewValue) - FaderSpinBoxValue) / Range;
+				const float SelectedFaderClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * SelectedFaderPercentage, 0.f, MAX_uint32);
+				SelectedFaderValue = static_cast<uint32>(SelectedFaderClampedValue);
+				break;
+			} 
+			case EDMXControlConsoleEditorInputMode::Absolute:
+			{
+				// Absolute percentage
+				SelectedFaderPercentage = (NewValue - Fader->GetMinValue()) / Range;
+				SelectedFaderValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * SelectedFaderPercentage);
+				break;
+			}
+			}
+			
+			SelectedFader->SetValue(SelectedFaderValue);
 		}
 	}
 }
@@ -555,6 +582,11 @@ void SDMXControlConsoleEditorFader::OnBeginValueChange()
 void SDMXControlConsoleEditorFader::OnValueCommitted(uint32 NewValue, ETextCommit::Type CommitType)
 {
 	if (!ensureMsgf(Fader.IsValid(), TEXT("Invalid fader, cannot set fader value correctly.")))
+	{
+		return;
+	}
+
+	if (!ensureMsgf(FaderSpinBox.IsValid(), TEXT("Invalid fader widget, cannot set fader value correctly.")))
 	{
 		return;
 	}
@@ -579,9 +611,28 @@ void SDMXControlConsoleEditorFader::OnValueCommitted(uint32 NewValue, ETextCommi
 	else
 	{
 		const float Range = Fader->GetMaxValue() - Fader->GetMinValue();
+		const float FaderSpinBoxValue = FaderSpinBox->GetValue();
+		float PreCommittedPercentage = 0.f;
+		float Percentage = 0.f;
 		
-		const float PreCommittedPercentage = (PreCommittedValue - Fader->GetMinValue()) / Range;
-		const float Percentage = (NewValue - Fader->GetMinValue()) / Range;
+		const EDMXControlConsoleEditorInputMode InputMode = EditorConsoleModel->GetInputMode();
+		switch (InputMode)
+		{
+		case EDMXControlConsoleEditorInputMode::Relative:
+		{
+			// Relative percentages
+			PreCommittedPercentage = (static_cast<float>(PreCommittedValue) - FaderSpinBoxValue) / Range;
+			Percentage = (static_cast<float>(NewValue) - FaderSpinBoxValue) / Range;
+			break;
+		}
+		case EDMXControlConsoleEditorInputMode::Absolute:
+		{
+			// Absolute percentages
+			PreCommittedPercentage = (PreCommittedValue - Fader->GetMinValue()) / Range;
+			Percentage = (NewValue - Fader->GetMinValue()) / Range;
+			break;
+		}
+		}
 
 		for (const TWeakObjectPtr<UObject> SelectFaderObject : SelectedFadersObjects)
 		{
@@ -594,14 +645,32 @@ void SDMXControlConsoleEditorFader::OnValueCommitted(uint32 NewValue, ETextCommi
 			}
 
 			const float SelectedFaderRange = SelectedFader->GetMaxValue() - SelectedFader->GetMinValue();
-			
+			uint32 SelectedFaderPreCommittedValue = 0;
+			uint32 SelectedFaderValue = 0;
+
+			switch (InputMode)
+			{
+			case EDMXControlConsoleEditorInputMode::Relative:
+			{
+				const float SelectedFaderPreCommittedClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * PreCommittedPercentage, 0.f, MAX_uint32);
+				SelectedFaderPreCommittedValue = static_cast<uint32>(SelectedFaderPreCommittedClampedValue);
+				const float SelectedFaderClampedValue = FMath::Clamp(static_cast<float>(SelectedFader->GetValue()) + SelectedFaderRange * Percentage, 0.f, MAX_uint32);
+				SelectedFaderValue = static_cast<uint32>(SelectedFaderClampedValue);
+				break;
+			}
+			case EDMXControlConsoleEditorInputMode::Absolute:
+			{
+				SelectedFaderPreCommittedValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * PreCommittedPercentage);
+				SelectedFaderValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * Percentage);
+				break;
+			}
+			}
+
 			// Reset to PreCommittedValue to handle transactions
-			const uint32 SelectedFaderPreCommittedValue = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * PreCommittedPercentage);
 			SelectedFader->SetValue(SelectedFaderPreCommittedValue);
 
-			const uint32 Value = SelectedFader->GetMinValue() + static_cast<uint32>(SelectedFaderRange * Percentage);
 			SelectedFader->PreEditChange(UDMXControlConsoleRawFader::StaticClass()->FindPropertyByName(UDMXControlConsoleRawFader::GetValuePropertyName()));
-			SelectedFader->SetValue(Value);
+			SelectedFader->SetValue(SelectedFaderValue);
 			SelectedFader->PostEditChange();
 		}
 	}

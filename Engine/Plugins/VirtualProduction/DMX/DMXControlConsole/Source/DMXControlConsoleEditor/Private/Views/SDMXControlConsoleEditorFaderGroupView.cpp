@@ -35,7 +35,7 @@ namespace UE::Private::DMXControlConsoleEditorFaderGroupView
 };
 
 SDMXControlConsoleEditorFaderGroupView::SDMXControlConsoleEditorFaderGroupView()
-	: ViewMode(EDMXControlConsoleEditorViewMode::Collapsed)
+	: ViewMode(EDMXControlConsoleEditorViewMode::Expanded)
 {}
 
 void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs, const TObjectPtr<UDMXControlConsoleFaderGroup>& InFaderGroup)
@@ -52,6 +52,7 @@ void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs,
 	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnElementAdded);
 	EditorConsoleModel->GetOnControlConsoleForceRefresh().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnElementRemoved);
 	FaderGroup->GetOnFixturePatchChanged().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::OnFaderGroupFixturePatchChanged);
+	FaderGroup->GetOnFaderGroupExpanded().AddSP(this, &SDMXControlConsoleEditorFaderGroupView::UpdateExpansionState);
 
 	ChildSlot
 		[
@@ -137,7 +138,7 @@ void SDMXControlConsoleEditorFaderGroupView::Construct(const FArguments& InArgs,
 			]
 		];
 
-	RestoreExpansionState();
+	UpdateExpansionState();
 }
 
 int32 SDMXControlConsoleEditorFaderGroupView::GetIndex() const
@@ -472,7 +473,7 @@ bool SDMXControlConsoleEditorFaderGroupView::ContainsElement(const TScriptInterf
 	return ElementWidgets.ContainsByPredicate(IsFaderInUseLambda);
 }
 
-void SDMXControlConsoleEditorFaderGroupView::RestoreExpansionState()
+void SDMXControlConsoleEditorFaderGroupView::UpdateExpansionState()
 {
 	if (FaderGroup.IsValid())
 	{
@@ -492,8 +493,9 @@ void SDMXControlConsoleEditorFaderGroupView::OnExpandArrowClicked(bool bExpand)
 	{
 		ViewMode = bExpand ? EDMXControlConsoleEditorViewMode::Expanded : EDMXControlConsoleEditorViewMode::Collapsed;
 
+		constexpr bool bNotifyExpansionStateChange = false;
 		FaderGroup->Modify();
-		FaderGroup->SetIsExpanded(bExpand);
+		FaderGroup->SetIsExpanded(bExpand, bNotifyExpansionStateChange);
 	}
 }
 
@@ -566,8 +568,7 @@ void SDMXControlConsoleEditorFaderGroupView::OnViewModeChanged()
 	const UDMXControlConsoleEditorModel* EditorConsoleModel = GetDefault<UDMXControlConsoleEditorModel>();
 	ViewMode = EditorConsoleModel->GetFaderGroupsViewMode();
 
-	TSharedPtr<SDMXControlConsoleEditorExpandArrowButton> ExpandArrowButton = GetExpandArrowButton();
-	if (!ExpandArrowButton.IsValid())
+	if (!FaderGroup.IsValid())
 	{
 		return;
 	}
@@ -576,11 +577,11 @@ void SDMXControlConsoleEditorFaderGroupView::OnViewModeChanged()
 	{
 	case EDMXControlConsoleEditorViewMode::Collapsed:
 	{
-		ExpandArrowButton->SetExpandArrow(false);
+		FaderGroup->SetIsExpanded(false);
 		break;
 	}
 	case EDMXControlConsoleEditorViewMode::Expanded:
-		ExpandArrowButton->SetExpandArrow(true);
+		FaderGroup->SetIsExpanded(true);
 		break;
 	}
 }

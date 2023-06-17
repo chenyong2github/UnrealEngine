@@ -10,8 +10,9 @@ struct FDMXEntityFixturePatchRef;
 class UDMXControlConsoleFaderGroup;
 
 
-DECLARE_DELEGATE_RetVal(ECheckBoxState, FDMXFixturePatchListRowCheckBoxStateRetValDelegate)
-DECLARE_DELEGATE_TwoParams(FDMXFixturePatchListRowCheckBoxStateDelegate, ECheckBoxState, const TSharedPtr<FDMXEntityFixturePatchRef>)
+DECLARE_DELEGATE_RetVal(ECheckBoxState, FDMXFixturePatchListCheckBoxStateRetValDelegate)
+DECLARE_DELEGATE_RetVal_OneParam(ECheckBoxState, FDMXFixturePatchListEntityRetValDelegate, const TSharedPtr<FDMXEntityFixturePatchRef>)
+DECLARE_DELEGATE_TwoParams(FDMXFixturePatchListCheckBoxStateDelegate, ECheckBoxState, const TSharedPtr<FDMXEntityFixturePatchRef>)
 
 /** Collumn IDs in the Fixture Patch List */
 struct FDMXControlConsoleReadOnlyFixturePatchListCollumnIDs
@@ -54,13 +55,13 @@ public:
 		SLATE_EVENT(FOnCheckStateChanged, OnCheckBoxStateChanged)
 
 		/** Called when checkbox state is changed in a row */
-		SLATE_EVENT(FDMXFixturePatchListRowCheckBoxStateDelegate, OnRowCheckBoxStateChanged)
+		SLATE_EVENT(FDMXFixturePatchListCheckBoxStateDelegate, OnRowCheckBoxStateChanged)
 
 		/** Called to get the checkbox state of the list */
-		SLATE_EVENT(FDMXFixturePatchListRowCheckBoxStateRetValDelegate, IsChecked)
+		SLATE_EVENT(FDMXFixturePatchListCheckBoxStateRetValDelegate, IsChecked)
 
 		/** Called to get the checkbox state of each row of the list */
-		SLATE_EVENT(FDMXFixturePatchListRowRetValDelegate, IsRowChecked)
+		SLATE_EVENT(FDMXFixturePatchListEntityRetValDelegate, IsRowChecked)
 
 	SLATE_END_ARGS()
 
@@ -97,7 +98,7 @@ private:
 
 	// Slate Arguments
 	FOnCheckStateChanged OnCheckBoxStateChangedDelegate;
-	FDMXFixturePatchListRowCheckBoxStateDelegate OnRowCheckBoxStateChangedDelegate;
-	FDMXFixturePatchListRowCheckBoxStateRetValDelegate IsCheckedDelegate;
-	FDMXFixturePatchListRowRetValDelegate IsRowCheckedDelegate;
+	FDMXFixturePatchListCheckBoxStateDelegate OnRowCheckBoxStateChangedDelegate;
+	FDMXFixturePatchListCheckBoxStateRetValDelegate IsCheckedDelegate;
+	FDMXFixturePatchListEntityRetValDelegate IsRowCheckedDelegate;
 };
