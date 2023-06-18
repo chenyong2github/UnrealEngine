@@ -60,7 +60,13 @@ void FPixelStreamingEditorModule::ShutdownModule()
 
 void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Module)
 {
-	EditorStreamer = Module.CreateStreamer("Editor");
+	FString EditorStreamerID;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), EditorStreamerID))
+	{
+		EditorStreamerID = "Editor";
+	}
+
+	EditorStreamer = Module.CreateStreamer(EditorStreamerID);
 
 	// Give the editor streamer the default url if the user hasn't specified one when launching the editor
 	if (EditorStreamer->GetSignallingServerURL().IsEmpty())
@@ -92,10 +98,6 @@ void FPixelStreamingEditorModule::InitEditorStreaming(IPixelStreamingModule& Mod
 
 	IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([&](TSharedPtr<SWindow> RootWindow, bool bIsRunningStartupDialog) {
 		MaybeResizeEditor(RootWindow);
-
-		// We don't want to show tooltips in render off screen as they're currently broken
-		bool bIsRenderingOffScreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
-		FSlateApplication::Get().SetAllowTooltips(!bIsRenderingOffScreen);
 
 		if (UE::EditorPixelStreaming::Settings::CVarEditorPixelStreamingStartOnLaunch.GetValueOnAnyThread())
 		{

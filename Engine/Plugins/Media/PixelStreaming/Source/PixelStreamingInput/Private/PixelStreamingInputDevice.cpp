@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingInputDevice.h"
+#include "Framework/Application/SlateApplication.h"
 
 TSharedPtr<UE::PixelStreamingInput::FPixelStreamingInputDevice> UE::PixelStreamingInput::FPixelStreamingInputDevice::InputDevice;
 
@@ -23,6 +24,8 @@ namespace UE::PixelStreamingInput
 
 	FPixelStreamingInputDevice::FPixelStreamingInputDevice()
 	{
+		// This is imperative for editor streaming as when a modal is open or we've hit a BP breakpoint, the engine tick loop will not run, so instead we rely on this delegate to tick for us
+		FSlateApplication::Get().OnPreTick().AddRaw(this, &FPixelStreamingInputDevice::Tick);
 	}
 
 	void FPixelStreamingInputDevice::AddInputHandler(TSharedPtr<IPixelStreamingInputHandler> InputHandler)
