@@ -41,12 +41,14 @@ FCounterAtomicInt	GIoRequestsFailed(TEXT("Ias/IoRequestsFailed"), TraceCounterDi
 FCounterInt			GReadRequestsCreated(TEXT("Ias/ReadRequestsCreated"), TraceCounterDisplayHint_None);
 FCounterAtomicInt	GReadRequestsRemoved(TEXT("Ias/ReadRequestsRemoved"), TraceCounterDisplayHint_None);
 // cache stats
-FCounterAtomicInt	GCacheHits(TEXT("Ias/CacheHits"), TraceCounterDisplayHint_None);
-FCounterAtomicInt	GCacheHitsSize(TEXT("Ias/Size/CacheHitsSize"), TraceCounterDisplayHint_Memory);
-FCounterAtomicInt	GCachePuts(TEXT("Ias/CachePuts"), TraceCounterDisplayHint_None);
-FCounterAtomicInt	GCachePutsSize(TEXT("Ias/Size/CachePutsSize"), TraceCounterDisplayHint_Memory);
-FCounterAtomicInt	GCacheRejects(TEXT("Ias/CacheRejects"), TraceCounterDisplayHint_None);
-FCounterAtomicInt	GCacheRejectsSize(TEXT("Ias/Size/CacheRejectsSize"), TraceCounterDisplayHint_Memory);
+FCounterAtomicInt	GCacheErrorCount(TEXT("Ias/CacheErrorCount"), TraceCounterDisplayHint_None);
+FCounterAtomicInt	GCacheGetCount(TEXT("Ias/CacheGetCount"), TraceCounterDisplayHint_None);
+FCounterAtomicInt	GCachePutCount(TEXT("Ias/CachePutCount"), TraceCounterDisplayHint_None);
+FCounterAtomicInt	GCachePutExistingCount(TEXT("Ias/CachePutExistingCount"), TraceCounterDisplayHint_None);
+FCounterAtomicInt	GCachePutRejectCount(TEXT("Ias/CachePutRejectCount"), TraceCounterDisplayHint_None);
+FCounterAtomicInt	GCacheCachedBytes(TEXT("Ias/CacheCachedBytes"), TraceCounterDisplayHint_Memory);
+FCounterAtomicInt	GCachePendingBytes(TEXT("Ias/CachePendingBytes"), TraceCounterDisplayHint_Memory);
+FCounterAtomicInt	GCacheReadBytes(TEXT("Ias/CacheReadBytes"), TraceCounterDisplayHint_Memory);
 // http stats
 FCounterInt			GHttpRequestsCompleted(TEXT("Ias/HttpRequestsCompleted"), TraceCounterDisplayHint_None);
 FCounterInt			GHttpRequestsFailed(TEXT("Ias/HttpRequestsFailed"), TraceCounterDisplayHint_None);
@@ -67,18 +69,38 @@ CSV_DEFINE_STAT(Ias, FrameIoRequestsFailed);
 CSV_DEFINE_STAT(Ias, FrameReadRequestsCreated);
 CSV_DEFINE_STAT(Ias, FrameReadRequestsRemoved);
 // cache stats
-CSV_DEFINE_STAT(Ias, FrameCacheHits);
-CSV_DEFINE_STAT(Ias, FrameCacheHitsSize);
-CSV_DEFINE_STAT(Ias, FrameCachePuts);
-CSV_DEFINE_STAT(Ias, FrameCachePutsSize);
-CSV_DEFINE_STAT(Ias, FrameCacheRejects);
-CSV_DEFINE_STAT(Ias, FrameCacheRejectsSize);
+CSV_DEFINE_STAT(Ias, FrameCacheErrorCount);
+CSV_DEFINE_STAT(Ias, FrameCacheGetCount);
+CSV_DEFINE_STAT(Ias, FrameCachePutCount);
+CSV_DEFINE_STAT(Ias, FrameCachePutExistingCount);
+CSV_DEFINE_STAT(Ias, FrameCachePutRejectCount);
+CSV_DEFINE_STAT(Ias, FrameCacheCachedBytes);
+CSV_DEFINE_STAT(Ias, FrameCachePendingBytes);
+CSV_DEFINE_STAT(Ias, FrameCacheReadBytes);
 // http stats
 CSV_DEFINE_STAT(Ias, FrameHttpRequestsCompleted);
 CSV_DEFINE_STAT(Ias, FrameHttpRequestsFailed);
 CSV_DEFINE_STAT(Ias, FrameHttpRequestsPending);
 CSV_DEFINE_STAT(Ias, FrameHttpRequestsInflight);
 CSV_DEFINE_STAT(Ias, FrameHttpRequestsCompletedSize);
+
+static FOnDemandIoBackendStats* GStatistics = nullptr;
+
+FOnDemandIoBackendStats::FOnDemandIoBackendStats()
+{
+	check(GStatistics == nullptr);
+	GStatistics = this;
+}
+
+FOnDemandIoBackendStats::~FOnDemandIoBackendStats()
+{
+	GStatistics = nullptr;
+}
+
+FOnDemandIoBackendStats* FOnDemandIoBackendStats::Get()
+{
+	return GStatistics;
+}
 
 void FOnDemandIoBackendStats::OnIoRequestEnqueue()
 {
@@ -119,31 +141,49 @@ void FOnDemandIoBackendStats::OnChunkRequestRelease()
 	CSV_CUSTOM_STAT_DEFINED(FrameReadRequestsRemoved, int32(GReadRequestsRemoved.Get()), ECsvCustomStatOp::Set);
 }
 
-void FOnDemandIoBackendStats::OnCacheHit(uint64 InSize)
-{
-	GCacheHits.Add(1);
-	CSV_CUSTOM_STAT_DEFINED(FrameCacheHits, int32(GCacheHits.Get()), ECsvCustomStatOp::Set);
 
-	GCacheHitsSize.Add(InSize);
-	CSV_CUSTOM_STAT_DEFINED(FrameCacheHitsSize, BytesToApproxKB(GCacheHitsSize.Get()), ECsvCustomStatOp::Set);
+void FOnDemandIoBackendStats::OnCacheError()
+{
+	GCacheErrorCount.Add(1);
+	CSV_CUSTOM_STAT_DEFINED(FrameCacheErrorCount, int32(GCacheErrorCount.Get()), ECsvCustomStatOp::Set);
 }
 
-void FOnDemandIoBackendStats::OnCachePut(uint64 InSize)
+void FOnDemandIoBackendStats::OnCacheGet(uint64 DataSize)
 {
-	GCachePuts.Add(1);
-	CSV_CUSTOM_STAT_DEFINED(FrameCachePuts, int32(GCachePuts.Get()), ECsvCustomStatOp::Set);
-
-	GCachePutsSize.Add(InSize);
-	CSV_CUSTOM_STAT_DEFINED(FrameCachePutsSize, BytesToApproxKB(GCachePutsSize.Get()), ECsvCustomStatOp::Set);
+	GCacheGetCount.Add(1);
+	CSV_CUSTOM_STAT_DEFINED(FrameCacheGetCount, int32(GCacheGetCount.Get()), ECsvCustomStatOp::Set);
+	GCacheReadBytes.Add(DataSize);
+	CSV_CUSTOM_STAT_DEFINED(FrameCacheReadBytes, BytesToApproxKB(GCacheReadBytes.Get()), ECsvCustomStatOp::Set);
 }
 
-void FOnDemandIoBackendStats::OnCacheReject(uint64 InSize)
+void FOnDemandIoBackendStats::OnCachePut()
 {
-	GCacheRejects.Add(1);
-	CSV_CUSTOM_STAT_DEFINED(FrameCacheRejects, int32(GCacheRejects.Get()), ECsvCustomStatOp::Set);
+	GCachePutCount.Add(1);
+	CSV_CUSTOM_STAT_DEFINED(FrameCachePutCount, int32(GCachePutCount.Get()), ECsvCustomStatOp::Set);
+}
 
-	GCacheRejectsSize.Add(InSize);
-	CSV_CUSTOM_STAT_DEFINED(FrameCacheRejectsSize, BytesToApproxKB(GCacheRejectsSize.Get()), ECsvCustomStatOp::Set);
+void FOnDemandIoBackendStats::OnCachePutExisting(uint64 /*DataSize*/)
+{
+	GCachePutExistingCount.Add(1);
+	CSV_CUSTOM_STAT_DEFINED(FrameCachePutExistingCount, int32(GCachePutExistingCount.Get()), ECsvCustomStatOp::Set);
+}
+
+void FOnDemandIoBackendStats::OnCachePutReject(uint64 /*DataSize*/)
+{
+	GCachePutRejectCount.Add(1);
+	CSV_CUSTOM_STAT_DEFINED(FrameCachePutRejectCount, int32(GCachePutRejectCount.Get()), ECsvCustomStatOp::Set);
+}
+
+void FOnDemandIoBackendStats::OnCachePendingBytes(uint64 TotalSize)
+{
+	GCachePendingBytes.Set(TotalSize);
+	CSV_CUSTOM_STAT_DEFINED(FrameCachePendingBytes, BytesToApproxKB(GCachePendingBytes.Get()), ECsvCustomStatOp::Set);
+}
+
+void FOnDemandIoBackendStats::OnCachePersistedBytes(uint64 TotalSize)
+{
+	GCacheCachedBytes.Set(TotalSize);
+	CSV_CUSTOM_STAT_DEFINED(FrameCacheCachedBytes, BytesToApproxKB(GCacheCachedBytes.Get()), ECsvCustomStatOp::Set);
 }
 
 void FOnDemandIoBackendStats::OnHttpRequestEnqueue()

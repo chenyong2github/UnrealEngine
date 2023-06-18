@@ -986,18 +986,7 @@ void FOnDemandIoBackend::CompleteRequest(FChunkRequest* ChunkRequest)
 
 	if (bCanCache && !ChunkRequest->bCached && Chunk.GetSize() > 0)
 	{
-		if (FIoStatus Status = Cache->Put(ChunkRequest->Params.ChunkKey, Chunk); Status.IsOk())
-		{
-			Stats.OnCachePut(Chunk.GetSize());
-		}
-		else
-		{
-			Stats.OnCacheReject(Chunk.GetSize());
-		}
-	}
-	else if (ChunkRequest->bCached)
-	{
-		Stats.OnCacheHit(Chunk.GetSize());
+		Cache->Put(ChunkRequest->Params.ChunkKey, Chunk);
 	}
 
 	Stats.OnChunkRequestRelease();

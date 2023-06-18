@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// {{{1 misc
-
 #include "FileIoCache.h"
+#include "Statistics.h"
 
 #include "Containers/IntrusiveDoubleLinkedList.h"
 #include "GenericPlatform/GenericPlatformFile.h"
@@ -25,97 +24,10 @@
 
 DEFINE_LOG_CATEGORY(LogIoCache);
 
-// }}}
-
 namespace UE::IO::Private
 {
 
 using namespace UE::Tasks;
-
-// {{{1 stats
-
-////////////////////////////////////////////////////////////////////////////////
-#define BUILD_DATUM_X(x) \
-	x(CachedBytes) \
-	x(ErrorCount) \
-	x(GetCount) \
-	x(PendingBytes) \
-	x(PutCount) \
-	x(PutExistingCount) \
-	x(PutRejectCount) \
-	x(ReadBytes)
-
-#if !COUNTERSTRACE_ENABLED
-namespace FCountersTrace
-{
-	struct FCounterInt
-	{
-		FCounterInt(...) {}
-		void Set(int64 i) { V = i; }
-		void Add(int64 d) { V += d; }
-		int64 Get() const { return V;}
-		std::atomic<int64> V = 0;
-	};
-	using FCounterAtomicInt = FCounterInt;
-}
-#endif 
-
-class FStatistics
-{
-public:
-	enum class EDatum : int32
-	{
-#define DATUM_X(x) x,
-		BUILD_DATUM_X(DATUM_X)
-#undef DATUM_X
-		_Count,
-	};
-
-	void Add(EDatum Which, int64 Delta);
-	void Set(EDatum Which, int64 Value);
-	int64 Get(EDatum Which) const;
-
-private:
-	struct FDatum
-	{
-		FDatum(const TCHAR* Name);
-		FCountersTrace::FCounterAtomicInt Value;
-	};
-
-	FDatum Datums[int(EDatum::_Count)] = {
-#define DATUM_X(x) FDatum{ TEXT("Ias/FileCache/") TEXT(PREPROCESSOR_TO_STRING(x)) },
-		BUILD_DATUM_X(DATUM_X)
-#undef DATUM_X
-	};
-};
-
-static FStatistics GStatistics;
-
-FStatistics::FDatum::FDatum(const TCHAR* Name)
-: Value(TraceCounterNameType_Static, Name, TraceCounterDisplayHint_None)
-{
-	FCountersTrace::FCounterAtomicInt(TEXT(""), TraceCounterDisplayHint_None).Get();
-	FCountersTrace::FCounterInt(TEXT(""), TraceCounterDisplayHint_None).Get();
-}
-
-void FStatistics::Add(EDatum Which, int64 Delta)
-{
-	Datums[int(Which)].Value.Add(Delta);
-}
-
-void FStatistics::Set(EDatum Which, int64 Value)
-{
-	Datums[int(Which)].Value.Set(Value);
-}
-
-int64 FStatistics::Get(EDatum Which) const
-{
-	return Datums[int(Which)].Value.Get();
-}
-
-
-
-// {{{1 toc-file
 
 ////////////////////////////////////////////////////////////////////////////////
 class FCacheFileToc
@@ -225,8 +137,6 @@ FIoStatus FCacheFileToc::Save(const FString& FilePath, const uint64 CursorPos)
 
 
 
-// {{{1 cache-map
-
 ////////////////////////////////////////////////////////////////////////////////
 enum class ECacheEntryState : uint8
 {
@@ -313,20 +223,21 @@ bool FCacheMap::Get(const FIoHash& Key, FCacheEntry& OutEntry) const
 
 bool FCacheMap::InsertPending(FIoHash Key, FIoBuffer& Data, bool& bAdded)
 {
-	check(Data.GetSize() > 0);
+	uint64 DataSize = Data.GetSize();
+	check(DataSize > 0);
 
 	FScopeLock _(&Cs);
 
 	bAdded = false;
-	if (TotalPendingBytes + Data.GetSize() > MaxPendingBytes)
+	if (TotalPendingBytes + DataSize > MaxPendingBytes)
 	{
-		GStatistics.Add(FStatistics::EDatum::PutRejectCount, 1);
+		FOnDemandIoBackendStats::Get()->OnCachePutReject(DataSize);
 		return false;
 	}
 
 	if (Lookup.Contains(Key))
 	{
-		GStatistics.Add(FStatistics::EDatum::PutExistingCount, 1);
+		FOnDemandIoBackendStats::Get()->OnCachePutExisting(DataSize);
 		return true;
 	}
 
@@ -338,10 +249,10 @@ bool FCacheMap::InsertPending(FIoHash Key, FIoBuffer& Data, bool& bAdded)
 
 	Pending.AddTail(Entry.Get());
 
-	TotalPendingBytes += Data.GetSize();
+	TotalPendingBytes += DataSize;
 
-	GStatistics.Add(FStatistics::EDatum::PendingBytes, Data.GetSize());
-	GStatistics.Add(FStatistics::EDatum::PutCount, 1);
+	FOnDemandIoBackendStats::Get()->OnCachePut();
+	FOnDemandIoBackendStats::Get()->OnCachePendingBytes(TotalPendingBytes);
 
 	return bAdded = true;
 }
@@ -373,7 +284,7 @@ int32 FCacheMap::RemovePending(FCacheEntryList& OutPending, uint32 MaxSize)
 	}
 
 	TotalPendingBytes -= ReturnSize;
-	GStatistics.Set(FStatistics::EDatum::PendingBytes, TotalPendingBytes);
+	FOnDemandIoBackendStats::Get()->OnCachePendingBytes(TotalPendingBytes);
 
 	return ReturnSize;
 }
@@ -398,7 +309,7 @@ void FCacheMap::InsertPersisted(FCacheEntryList&& InPersisted, const uint64 Curs
 
 	Persisted.AddTail(MoveTemp(InPersisted));
 	TotalPersistedBytes += PersistedBytes;
-	GStatistics.Add(FStatistics::EDatum::CachedBytes, PersistedBytes);
+	FOnDemandIoBackendStats::Get()->OnCachePersistedBytes(PersistedBytes);
 }
 
 void FCacheMap::RemovePersisted(const uint64 RequiredSize)
@@ -422,7 +333,7 @@ void FCacheMap::RemovePersisted(const uint64 RequiredSize)
 	}
 
 	TotalPersistedBytes -= RemovedBytes;
-	GStatistics.Add(FStatistics::EDatum::CachedBytes, -int64(RemovedBytes));
+	FOnDemandIoBackendStats::Get()->OnCachePersistedBytes(TotalPersistedBytes);
 }
 
 FIoStatus FCacheMap::Load(const FString& FilePath, uint64& OutCursorPos)
@@ -456,7 +367,7 @@ FIoStatus FCacheMap::Load(const FString& FilePath, uint64& OutCursorPos)
 		check(ExpectedCursosPos == OutCursorPos);
 	}
 
-	GStatistics.Set(FStatistics::EDatum::CachedBytes, TotalPersistedBytes);
+	FOnDemandIoBackendStats::Get()->OnCachePersistedBytes(TotalPersistedBytes);
 
 	return FIoStatus(EIoErrorCode::Ok);
 }
@@ -480,8 +391,6 @@ FIoStatus FCacheMap::Save(const FString& FilePath, const uint64 CursorPos)
 }
 
 
-
-// {{{1 governor
 
 ////////////////////////////////////////////////////////////////////////////////
 class FGovernorExternal
@@ -598,8 +507,6 @@ void FGovernorInternal::Return(uint32 LeftOver)
 
 
 
-// {{{1 file-impl
-
 ////////////////////////////////////////////////////////////////////////////////
 class FFileIoCache final
 	: public FRunnable
@@ -685,7 +592,7 @@ TTask<TIoStatusOr<FIoBuffer>> FFileIoCache::Get(const FIoHash& Key, const FIoRea
 				const uint64 ReadSize = FMath::Min(Options.GetSize(), Entry.Data.GetSize());
 				FIoBuffer Buffer = Options.GetTargetVa() ? FIoBuffer(FIoBuffer::Wrap, Options.GetTargetVa(), ReadSize) : FIoBuffer(ReadSize);
 				Buffer.GetMutableView().CopyFrom(Entry.Data.GetView().RightChop(ReadOffset));
-				GStatistics.Add(FStatistics::EDatum::GetCount, 1);
+				FOnDemandIoBackendStats::Get()->OnCacheGet(Entry.Data.GetSize());
 
 				return TIoStatusOr<FIoBuffer>(Buffer);
 			}
@@ -713,12 +620,11 @@ TTask<TIoStatusOr<FIoBuffer>> FFileIoCache::Get(const FIoHash& Key, const FIoRea
 					const FIoHash Hash = FIoHash::HashBuffer(Buffer.GetView());
 					if (Hash == ExpectedHash) 
 					{
-						GStatistics.Add(FStatistics::EDatum::GetCount, 1);
-						GStatistics.Add(FStatistics::EDatum::ReadBytes, ReadSize);
+						FOnDemandIoBackendStats::Get()->OnCacheGet(ReadSize);
 						return TIoStatusOr<FIoBuffer>(Buffer);
 					}
 
-					GStatistics.Add(FStatistics::EDatum::ErrorCount, 1);
+					FOnDemandIoBackendStats::Get()->OnCacheError();
 					UE_LOG(LogIoCache, Verbose, TEXT("Read chunk failed, hash mismatch, Key='%s', Hash='%s', ExpectedHash='%s', File='%s', Offset='%llu', Size='%llu'"),
 						*LexToString(Entry.Key), *LexToString(Hash), *LexToString(ExpectedHash), *CacheFilePath, ReadOffset, ReadSize);
 
@@ -726,7 +632,7 @@ TTask<TIoStatusOr<FIoBuffer>> FFileIoCache::Get(const FIoHash& Key, const FIoRea
 				}
 				else
 				{
-					GStatistics.Add(FStatistics::EDatum::ErrorCount, 1);
+					FOnDemandIoBackendStats::Get()->OnCacheError();
 					UE_LOG(LogIoCache, Warning, TEXT("Read chunk failed, unable to open cache file '%s' for reading"), *CacheFilePath);
 					return TIoStatusOr<FIoBuffer>(FIoStatus(EIoErrorCode::ReadError));
 				}
@@ -922,13 +828,9 @@ void FFileIoCache::FileWriterThreadInner()
 	Entries.Reset();
 }
 
-// }}}
-
 } // namespace UE::IO::Private
 
 TUniquePtr<IIoCache> MakeFileIoCache(const FFileIoCacheConfig& Config)
 {
 	return MakeUnique<UE::IO::Private::FFileIoCache>(Config);
 }
-
-// vim: foldlevel=1
