@@ -88,12 +88,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		if (IsLoading())
 		{
-			bIsMissingClassDesc = true;
+			// We need to prefetch the class path here as the class registry might not have registered its redirector from the asset registry class data.
+			ClassDescRegistry.PrefetchClassDescs({ ClassPath });
+			ClassDesc = InActorDesc->bIsDefaultActorDesc ? ClassDescRegistry.GetClassDescDefaultForClass(ClassPath) : ClassDescRegistry.GetClassDescDefaultForActor(ClassPath);
 
-			ClassDesc = ClassDescRegistry.GetClassDescDefault(FTopLevelAssetPath(TEXT("/Script/Engine.Actor")));
-			check(ClassDesc);			
+			if (!ClassDesc)
+			{
+				bIsMissingClassDesc = true;
+	
+				ClassDesc = ClassDescRegistry.GetClassDescDefault(FTopLevelAssetPath(TEXT("/Script/Engine.Actor")));
+				check(ClassDesc);
 
-			UE_LOG(LogWorldPartition, Log, TEXT("Can't find class descriptor '%s' for loading '%s', using '%s'"), *ClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString(), *ClassDesc->GetActorSoftPath().ToString());
+				UE_LOG(LogWorldPartition, Log, TEXT("Can't find class descriptor '%s' for loading '%s', using '%s'"), *ClassPath.ToString(), *InActorDesc->GetActorSoftPath().ToString(), *ClassDesc->GetActorSoftPath().ToString());
+			}
 		}
 		else
 		{
