@@ -12002,10 +12002,11 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 			//  - We do not need to account for the Top Normal texture when evaluating the material byte count for the optimization algorithm.
 			//  - This is because we only need to optimize for the Strata uint material buffer.
 
-
 			// 2. Process the list of BSDFs for worst case memory usage and count operators.
+			static_assert(STRATA_MAX_BSDF_COUNT_FOR_BDSFOFFSET	== (32u / STRATA_BSDF_OFFSET_BIT_COUNT));
+			static_assert(STRATA_MAX_BSDF_COUNT					<= (1u << STRATA_BSDF_OFFSET_BIT_COUNT));
+			const uint32 BSDFMaxByteCountForOffset = uint32(1u << STRATA_BSDF_OFFSET_BIT_COUNT) * sizeof(uint32);
 			uint32 OperatorCount = 0;
-			const uint32 BSDFMaxByteCount = uint32(FMath::Pow(2.0f, float(STRATA_BSDF_OFFSET_BIT_COUNT))) * sizeof(uint32);
 			for (auto& It : StrataMaterialExpressionRegisteredOperators)
 			{
 				if (It.IsDiscarded())
@@ -12137,9 +12138,9 @@ bool FHLSLMaterialTranslator::FStrataCompilationContext::StrataGenerateDerivedMa
 				} // switch (It.OperatorType)
 
 				const uint32 BSDFRequestedSizeByte = StrataMaterialRequestedSizeByte - PreStrataMaterialRequestedSizeByte;
-				if (BSDFRequestedSizeByte > BSDFMaxByteCount)
+				if (BSDFRequestedSizeByte > BSDFMaxByteCountForOffset)
 				{
-					Compiler->Errorf(TEXT("A BSDF is requesting more bytes than our BSDF offset system can handle (%d/%d bytes). Notify your rendering engineer. Material %s (asset: %s).\r\n"), BSDFRequestedSizeByte, BSDFMaxByteCount, *CompilerMaterial->GetDebugName(), *CompilerMaterial->GetAssetPath().ToString(), OperatorCount, STRATA_MAX_OPERATOR_COUNT);
+					Compiler->Errorf(TEXT("A BSDF is requesting more bytes than our BSDF offset system can handle (%d/%d bytes). Notify your rendering engineer. Material %s (asset: %s).\r\n"), BSDFRequestedSizeByte, BSDFMaxByteCountForOffset, *CompilerMaterial->GetDebugName(), *CompilerMaterial->GetAssetPath().ToString(), OperatorCount, STRATA_MAX_OPERATOR_COUNT);
 					return false;
 				}
 			}
