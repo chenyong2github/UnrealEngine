@@ -212,11 +212,6 @@ bool FSkeletalMeshEditor::OnRequestClose(EAssetEditorCloseReason InCloseReason)
 	return bAllowClose;
 }
 
-FName FSkeletalMeshEditor::GetMainTabName() const
-{
-	return SkeletalMeshEditorTabs::ViewportTab;
-}
-
 void FSkeletalMeshEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_SkeletalMeshEditor", "Skeletal Mesh Editor"));

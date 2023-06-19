@@ -244,12 +244,7 @@ public:
 	/** Returns the default extensibility managers, these are applied for all asset types */
 	static UNREALED_API TSharedPtr<FExtensibilityManager> GetSharedMenuExtensibilityManager();
 	static UNREALED_API TSharedPtr<FExtensibilityManager> GetSharedToolBarExtensibilityManager();
-
-	/** Override this to manually specify the tab that cannot be closed for your asset editor, it is the first tab
-	 *  registered otherwise
-	 */
-	virtual FName GetMainTabName() const { return NAME_None; }
-
+	
 	/**
 	 * Allows the caller to set a menu overlay, displayed to the far right of the editor's menu bar
 	 *

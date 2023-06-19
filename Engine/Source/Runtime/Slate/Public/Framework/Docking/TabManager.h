@@ -947,13 +947,7 @@ class FTabManager : public TSharedFromThis<FTabManager>
 
 		/** Provide a tab that will be the main tab and cannot be closed. */
 		SLATE_API void SetMainTab(const FTabId& InMainTabID);
-
-		/** If true, this tab manager will always have one main tab that cannot be closed
-		 *  Automatically set to the first tab registered if there are no tabs registered already (set on creation)
-		 *  or the first tab found otherwise
-		 */
-		SLATE_API void SetEnforceMainTab(bool bInEnforceMainTab);
-
+	
 		/* Prevent or allow all tabs to be drag */
 		void SetCanDoDragOperation(bool CanDoDragOperation) { bCanDoDragOperation = CanDoDragOperation; }
 		

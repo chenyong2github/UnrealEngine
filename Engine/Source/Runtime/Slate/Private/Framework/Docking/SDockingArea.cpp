@@ -8,7 +8,11 @@
 #include "Framework/Docking/FDockingDragOperation.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Framework/Docking/STabSidebar.h"
+#include "Styling/SlateColor.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Text/STextBlock.h"
 
+#define LOCTEXT_NAMESPACE "SDockingArea"
 
 void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FArea>& PersistentNode )
 {
@@ -24,6 +28,36 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 	const TAttribute<EVisibility> TargetCrossCenterVisibility = TAttribute<EVisibility>(SharedThis(this), &SDockingArea::TargetCrossCenterVisibility);
 
 	const TSharedRef<SOverlay> SidebarDrawersOverlay = SNew(SOverlay);
+
+	TSharedRef<SWidget> NoOpenTabsWidget =
+			SNew(SHorizontalBox)
+			.Visibility_Lambda([this]()
+			{
+				// This text is visible when we have no child tabs
+				return GetNumTabs() == 0 ? EVisibility::Visible : EVisibility::Collapsed;
+			})
+			
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("NoTabsDockedText", "This asset editor has no docked tabs."))
+				.TextStyle( FAppStyle::Get(), "HintText")
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.0f)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Image(FAppStyle::GetBrush("Icons.Help"))
+				.ToolTipText(LOCTEXT("NoTabsDockedTooltip", "To recover your tabs, you can reopen them from the Window menu, or drag and drop them back from floating windows.\n"
+												   "You can also reset your editor layout completely from the Window > Load Layout menu, but this affects all editor windows."))
+			];
 
 	// In DockSplitter mode we just act as a thin shell around a Splitter widget
 	this->ChildSlot
@@ -42,8 +76,19 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 			]
 			+ SHorizontalBox::Slot()
 			[
-				SAssignNew(Splitter, SSplitter)
-				.Orientation(PersistentNode->GetOrientation())
+				SNew(SOverlay)
+				+SOverlay::Slot()
+				[
+					SAssignNew(Splitter, SSplitter)
+					.Orientation(PersistentNode->GetOrientation())
+				]
+				+SOverlay::Slot()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				[
+					NoOpenTabsWidget
+				]
+				
 			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
@@ -674,3 +719,4 @@ void SDockingArea::UpdateWindowChromeAndSidebar()
 
 }
 
+#undef LOCTEXT_NAMESPACE
