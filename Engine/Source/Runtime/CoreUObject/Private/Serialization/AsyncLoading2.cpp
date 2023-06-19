@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Serialization/AsyncLoading2.h"
+#include "Algo/AnyOf.h"
 #include "Algo/Partition.h"
 #include "IO/IoDispatcher.h"
 #include "Serialization/AsyncPackageLoader.h"
@@ -2129,9 +2130,10 @@ struct FAsyncLoadEventSpec
 class FAsyncLoadingSyncLoadContext
 {
 public:
-	FAsyncLoadingSyncLoadContext(int32 InRequestId)
-		: RequestId(InRequestId)
+	FAsyncLoadingSyncLoadContext(TConstArrayView<int32> InRequestIDs)
+		: RequestIDs(InRequestIDs)
 	{
+		RequestedPackages.AddZeroed(RequestIDs.Num());
 		ContextId = NextContextId++;
 		if (NextContextId == 0)
 		{
@@ -2159,10 +2161,10 @@ public:
 	}
 
 	uint64 ContextId;
-	int32 RequestId;
-	FAsyncPackage2* RequestedPackage = nullptr;
+	TArray<int32, TInlineAllocator<4>> RequestIDs;
+	TArray<FAsyncPackage2*, TInlineAllocator<4>> RequestedPackages;
 	FAsyncPackage2* RequestingPackageDebug = nullptr;
-	std::atomic<bool> bHasFoundRequestedPackage { false };
+	std::atomic<bool> bHasFoundRequestedPackages { false };
 
 private:
 	std::atomic<int32> RefCount = 1;
@@ -3225,7 +3227,7 @@ public:
 	* @param FlushTree Package dependency tree to be flushed
 	* @return The current state of async loading
 	*/
-	EAsyncPackageState::Type TickAsyncLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit, int32 FlushRequestID, bool& bDidSomething);
+	EAsyncPackageState::Type TickAsyncLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit, TConstArrayView<int32> FlushRequestIDs, bool& bDidSomething);
 
 	/**
 	* [ASYNC THREAD] Main thread loop
@@ -3279,7 +3281,7 @@ public:
 
 	virtual void ResumeLoading() override;
 
-	virtual void FlushLoading(int32 PackageId) override;
+	virtual void FlushLoading(TConstArrayView<int32> RequestIds) override;
 
 	virtual int32 GetNumQueuedPackages() override
 	{
@@ -3308,6 +3310,15 @@ public:
 	}
 
 	/**
+	 * [ASYNC/GAME THREAD] Checks if a request ID already is added to the loading queue
+	 */
+	bool ContainsAnyRequestID(TConstArrayView<int32> RequestIDs)
+	{
+		FScopeLock Lock(&PendingRequestsCritical);
+		return Algo::AnyOf(RequestIDs, [this](int32 RequestID) { return PendingRequests.Contains(RequestID); });
+	}
+
+	/**
 	 * [ASYNC/GAME THREAD] Adds a request ID to the list of pending requests
 	 */
 	void AddPendingRequest(int32 RequestID)
@@ -3319,7 +3330,7 @@ public:
 	/**
 	 * [ASYNC/GAME THREAD] Removes a request ID from the list of pending requests
 	 */
-	void RemovePendingRequests(TArrayView<int32> RequestIDs)
+	void RemovePendingRequests(TConstArrayView<int32> RequestIDs)
 	{
 		FScopeLock Lock(&PendingRequestsCritical);
 		for (int32 ID : RequestIDs)
@@ -3463,7 +3474,7 @@ private:
 	* @param FlushTree Package dependency tree to be flushed
 	* @return The current state of async loading
 	*/
-	EAsyncPackageState::Type ProcessLoadedPackagesFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething, int32 FlushRequestID = INDEX_NONE);
+	EAsyncPackageState::Type ProcessLoadedPackagesFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething, TConstArrayView<int32> FlushRequestIDs = {});
 
 	void IncludePackageInSyncLoadContextRecursive(FAsyncLoadingThreadState2& ThreadState, uint64 ContextId, FAsyncPackage2* Package);
 	void UpdateSyncLoadContext(FAsyncLoadingThreadState2& ThreadState);
@@ -4727,7 +4738,7 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FAsyncLoadingThreadState2& Thr
 				check(IsInGameThread());
 				IoBatch.Issue(); // The batch might already contain requests for packages being imported from the uncooked one we're going to load so make sure that those are started before blocking
 				int32 ImportRequestId = AsyncLoadingThread.UncookedPackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr, LOAD_None);
-				AsyncLoadingThread.UncookedPackageLoader->FlushLoading(ImportRequestId);
+				AsyncLoadingThread.UncookedPackageLoader->FlushLoading({ImportRequestId});
 				UncookedPackage = FindObjectFast<UPackage>(nullptr, ImportedPackagePath.GetPackageFName());
 				ImportedPackageRef.SetPackage(UncookedPackage);
 				if (UncookedPackage)
@@ -6935,7 +6946,8 @@ void FAsyncLoadingThread2::UpdateSyncLoadContext(FAsyncLoadingThreadState2& Thre
 	FAsyncLoadingSyncLoadContext* SyncLoadContext = ThreadState.SyncLoadContextStack.Top();
 	if (ThreadState.bIsAsyncLoadingThread)
 	{
-		while (!ContainsRequestID(SyncLoadContext->RequestId))
+		// Retire complete/invalid contexts for which we aren't loading any requests
+		while (!ContainsAnyRequestID(SyncLoadContext->RequestIDs))
 		{
 			SyncLoadContext->ReleaseRef();
 			ThreadState.SyncLoadContextStack.Pop();
@@ -6946,29 +6958,52 @@ void FAsyncLoadingThread2::UpdateSyncLoadContext(FAsyncLoadingThreadState2& Thre
 			SyncLoadContext = ThreadState.SyncLoadContextStack.Top();
 		}
 	}
-	else if (!ContainsRequestID(SyncLoadContext->RequestId))
+	else if (!ContainsAnyRequestID(SyncLoadContext->RequestIDs))
 	{
 		return;
 	}
-	if (ThreadState.bCanAccessAsyncLoadingThreadData && !SyncLoadContext->bHasFoundRequestedPackage.load(std::memory_order_relaxed))
+	if (ThreadState.bCanAccessAsyncLoadingThreadData && !SyncLoadContext->bHasFoundRequestedPackages.load(std::memory_order_relaxed))
 	{
 		// Ensure that we've created the package we're waiting for
 		CreateAsyncPackagesFromQueue(ThreadState);
-		if (FAsyncPackage2* RequestedPackage = RequestIdToPackageMap.FindRef(SyncLoadContext->RequestId))
+		int32 FoundPackages = 0;
+		for (int32 i=0; i < SyncLoadContext->RequestIDs.Num(); ++i)
 		{
-			// Set RequestedPackage before setting bHasFoundRequestedPackage so that another thread looking at RequestedPackage
-			// after validating that bHasFoundRequestedPackage is true would see the proper value.
-			SyncLoadContext->RequestedPackage = RequestedPackage;
-			SyncLoadContext->bHasFoundRequestedPackage.store(true, std::memory_order_release);
-			IncludePackageInSyncLoadContextRecursive(ThreadState, SyncLoadContext->ContextId, RequestedPackage);
+			int32 RequestID = SyncLoadContext->RequestIDs[i];
+			if (SyncLoadContext->RequestedPackages[i] != nullptr)
+			{
+				++FoundPackages;	
+			}
+			else if (FAsyncPackage2* RequestedPackage = RequestIdToPackageMap.FindRef(RequestID))
+			{
+				// Set RequestedPackage before setting bHasFoundRequestedPackage so that another thread looking at RequestedPackage
+				// after validating that bHasFoundRequestedPackage is true would see the proper value.
+				SyncLoadContext->RequestedPackages[i] = RequestedPackage;
+				IncludePackageInSyncLoadContextRecursive(ThreadState, SyncLoadContext->ContextId, RequestedPackage);
+				++FoundPackages;	
+			}
+		}
+		
+		// Only set when full list is available 
+		if (FoundPackages == SyncLoadContext->RequestIDs.Num())
+		{
+			SyncLoadContext->bHasFoundRequestedPackages.store(true, std::memory_order_release);
 		}
 	}
-	if (SyncLoadContext->bHasFoundRequestedPackage.load(std::memory_order_acquire) && ThreadState.PackagesOnStack.Contains(SyncLoadContext->RequestedPackage))
+	if (SyncLoadContext->bHasFoundRequestedPackages.load(std::memory_order_acquire))
 	{
-		// Flushing a package while it's already being processed on the stack, if we're done preloading we let it pass and remove the request id
-		bool bPreloadIsDone = SyncLoadContext->RequestedPackage->AsyncPackageLoadingState >= EAsyncPackageLoadingState2::DeferredPostLoad;
-		UE_CLOG(!bPreloadIsDone, LogStreaming, Fatal, TEXT("Flushing package %s while it's being preloaded in the same callstack is not permitted"), *SyncLoadContext->RequestedPackage->Desc.UPackageName.ToString());
-		RemovePendingRequests(TArrayView<int32>(&SyncLoadContext->RequestId, 1));
+		for (int32 i=0; i < SyncLoadContext->RequestIDs.Num(); ++i)
+		{
+			int32 RequestID = SyncLoadContext->RequestIDs[i];
+			FAsyncPackage2* RequestedPackage = SyncLoadContext->RequestedPackages[i];
+			if (RequestedPackage && ThreadState.PackagesOnStack.Contains(RequestedPackage))
+			{
+				// Flushing a package while it's already being processed on the stack, if we're done preloading we let it pass and remove the request id
+				bool bPreloadIsDone = RequestedPackage->AsyncPackageLoadingState >= EAsyncPackageLoadingState2::DeferredPostLoad;
+				UE_CLOG(!bPreloadIsDone, LogStreaming, Fatal, TEXT("Flushing package %s while it's being preloaded in the same callstack is not permitted"), *RequestedPackage->Desc.UPackageName.ToString());
+				RemovePendingRequests({RequestID});
+			}
+		}
 	}
 }
 
@@ -7057,7 +7092,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 	return EAsyncPackageState::Complete;
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething, int32 FlushRequestID)
+EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething, TConstArrayView<int32> FlushRequestIDs)
 {
 	EAsyncPackageState::Type Result = EAsyncPackageState::Complete;
 
@@ -7276,7 +7311,8 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 		for (int32 CompletedPackageRequestIndex = CompletedPackageRequests.Num() - 1; CompletedPackageRequestIndex >= 0; --CompletedPackageRequestIndex)
 		{
 			FCompletedPackageRequest& CompletedPackageRequest = CompletedPackageRequests[CompletedPackageRequestIndex];
-			if (FlushRequestID == INDEX_NONE || CompletedPackageRequest.RequestIDs.Contains(FlushRequestID))
+			if (FlushRequestIDs.Num() == 0 
+				|| Algo::AnyOf(FlushRequestIDs, [&CompletedPackageRequest](int32 FlushRequestID) { return CompletedPackageRequest.RequestIDs.Contains(FlushRequestID); }))
 			{
 				RemovePendingRequests(CompletedPackageRequest.RequestIDs);
 				RequestsToProcess.Emplace(MoveTemp(CompletedPackageRequest));
@@ -7309,9 +7345,9 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 		bDidSomething = true;
 		
-		if (FlushRequestID != INDEX_NONE && !ContainsRequestID(FlushRequestID))
+		if (FlushRequestIDs.Num() != 0 && !ContainsAnyRequestID(FlushRequestIDs))
 		{
-			// The only package we care about has finished loading, so we're good to exit
+			// The only packages we care about have finished loading, so we're good to exit
 			break;
 		}
 	}
@@ -7323,7 +7359,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 	return Result;
 }
 
-EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit, int32 FlushRequestID, bool& bDidSomething)
+EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit, TConstArrayView<int32> FlushRequestIDs, bool& bDidSomething)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_TickAsyncLoadingGameThread);
 	//TRACE_INT_VALUE(QueuedPackagesCounter, QueuedPackagesCounter);
@@ -7360,7 +7396,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(FA
 		UpdateSyncLoadContext(ThreadState);
 
 		{
-			Result = ProcessLoadedPackagesFromGameThread(ThreadState, bDidSomething, FlushRequestID);
+			Result = ProcessLoadedPackagesFromGameThread(ThreadState, bDidSomething, FlushRequestIDs);
 			double TimeLimitUsedForProcessLoaded = FPlatformTime::Seconds() - TickStartTime;
 			UE_CLOG(!GIsEditor && bUseTimeLimit && TimeLimitUsedForProcessLoaded > .1f, LogStreaming, Warning, TEXT("Took %6.2fms to ProcessLoadedPackages"), float(TimeLimitUsedForProcessLoaded) * 1000.0f);
 		}
@@ -8507,11 +8543,11 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(FAsy
 	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetNumAsyncPackages(), ECsvCustomStatOp::Set);
 	
 	bool bDidSomething = false;
-	TickAsyncLoadingFromGameThread(ThreadState, bUseTimeLimit, bUseFullTimeLimit, TimeLimit, INDEX_NONE, bDidSomething);
+	TickAsyncLoadingFromGameThread(ThreadState, bUseTimeLimit, bUseFullTimeLimit, TimeLimit, {}, bDidSomething);
 	return IsAsyncLoadingPackages() ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }
 
-void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
+void FAsyncLoadingThread2::FlushLoading(TConstArrayView<int32> RequestIDs)
 {
 	if (IsAsyncLoadingPackages())
 	{
@@ -8520,7 +8556,7 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 
 		SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_FlushAsyncLoadingGameThread);
 
-		if (RequestId != INDEX_NONE && !ContainsRequestID(RequestId))
+		if (RequestIDs.Num() != 0 && !ContainsAnyRequestID(RequestIDs))
 		{
 			return;
 		}
@@ -8541,7 +8577,7 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(HandleCurrentlyExecutingEventNode);
 
-			UE_CLOG(RequestId == INDEX_NONE, LogStreaming, Fatal, TEXT("Flushing async loading while creating, serializing or postloading an object is not permitted"));
+			UE_CLOG(RequestIDs.Num() == 0, LogStreaming, Fatal, TEXT("Flushing async loading while creating, serializing or postloading an object is not permitted"));
 			CurrentlyExecutingPackage = GameThreadState->CurrentlyExecutingEventNode->GetPackage();
 			GameThreadState->PackagesOnStack.Push(CurrentlyExecutingPackage);
 			// Update the state of any package that is waiting for the currently executing one
@@ -8571,9 +8607,9 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 		}
 
 		FAsyncLoadingSyncLoadContext* SyncLoadContext = nullptr;
-		if (RequestId != INDEX_NONE && GOnlyProcessRequiredPackagesWhenSyncLoading)
+		if (RequestIDs.Num() != 0 && GOnlyProcessRequiredPackagesWhenSyncLoading)
 		{
-			SyncLoadContext = new FAsyncLoadingSyncLoadContext(RequestId);
+			SyncLoadContext = new FAsyncLoadingSyncLoadContext(RequestIDs);
 			SyncLoadContext->RequestingPackageDebug = CurrentlyExecutingPackage;
 			GameThreadState->SyncLoadContextStack.Push(SyncLoadContext);
 			if (AsyncLoadingThreadState)
@@ -8589,8 +8625,8 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 			while (IsAsyncLoadingPackages())
 			{
 				bool bDidSomething = false;
-				EAsyncPackageState::Type Result = TickAsyncLoadingFromGameThread(*GameThreadState, false, false, 0.0, RequestId, bDidSomething);
-				if (RequestId != INDEX_NONE && !ContainsRequestID(RequestId))
+				EAsyncPackageState::Type Result = TickAsyncLoadingFromGameThread(*GameThreadState, false, false, 0.0, RequestIDs, bDidSomething);
+				if (RequestIDs.Num() != 0 && !ContainsAnyRequestID(RequestIDs))
 				{
 					break;
 				}
@@ -8642,7 +8678,8 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 		ConditionalProcessEditorCallbacks();
 #endif
 
-		check(RequestId != INDEX_NONE || !IsAsyncLoadingPackages());
+		// If we asked to flush everything, we should no longer have anything in the pipeline
+		check(RequestIDs.Num() != 0 || !IsAsyncLoadingPackages());
 	}
 }
 

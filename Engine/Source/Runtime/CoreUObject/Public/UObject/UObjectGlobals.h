@@ -840,7 +840,7 @@ COREUOBJECT_API void FlushAsyncLoading(int32 PackageID = INDEX_NONE);
 /**
  * Blocks till a set of pending async load requests are complete.
  *
- * @param RequestIds list of return values from LoadPackageAsync to wait for. 
+ * @param RequestIds list of return values from LoadPackageAsync to wait for. An empty list means all requests
  */
 COREUOBJECT_API void FlushAsyncLoading(TConstArrayView<int32> RequestIds);
 

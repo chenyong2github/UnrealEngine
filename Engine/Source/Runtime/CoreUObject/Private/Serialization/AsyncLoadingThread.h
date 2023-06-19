@@ -6,6 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Algo/AnyOf.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "UObject/ObjectMacros.h"
 #include "Serialization/AsyncLoading.h"
@@ -110,46 +111,46 @@ struct FAsyncLoadEventQueue
 	}
 };
 
-/** 
- * Request to flush a specific package using the request id 
- */
-struct FFlushRequest
+// Shared data for FFlushRequest
+struct FFlushRequestData
 {
-	FFlushRequest() = default;
-
-	FFlushRequest(int32 InRequestId)
-		: RequestId(MakeShared<std::atomic<int32>, ESPMode::ThreadSafe>(InRequestId))
+	FFlushRequestData(TConstArrayView<int32> InRequestIDs)
+		: RequestIDs(MakeUnique<std::atomic<int32>[]>(InRequestIDs.Num()))
+		, NumRequests(InRequestIDs.Num())
 	{
+		for (int32 i=0; i < InRequestIDs.Num(); ++i)
+		{
+			RequestIDs.Get()[i] = InRequestIDs[i];
+		}
+	}
+	
+	TConstArrayView<std::atomic<int32>> GetRequestIDs() const
+	{
+		return MakeArrayView(RequestIDs.Get(), NumRequests);
 	}
 
-	int32 GetId() const
+	TArrayView<std::atomic<int32>> GetRequestIDs() 
 	{
-		return RequestId->load(std::memory_order_relaxed);
+		return MakeArrayView(RequestIDs.Get(), NumRequests);
 	}
-
-	bool IsValid() const
+	
+	void OnRequestComplete(int32 InCompletedRequest)
 	{
-		return RequestId.IsValid();
+		for (std::atomic<int32>& RequestID : GetRequestIDs())
+		{
+			if (RequestID.load(std::memory_order_relaxed) == InCompletedRequest)
+			{
+				++NumCompletedRequests;
+			}
+		}
 	}
-
-	operator bool() const
+	
+	bool IsComplete()
 	{
-		return IsValid();
-	}
-
-	void Reset()
-	{
-		RequestId.Reset();
+		return NumRequests == NumCompletedRequests;
 	}
 
 private:
-	void SetId(int32 InId)
-	{
-		RequestId->store(InId, std::memory_order_relaxed);
-	}
-
-	friend class FAsyncLoadingThread;
-
 	/** 
 	 * Shared request id state between main thread and async loading thread. 
 	 * @note because request id are assigned to package request after being generated
@@ -158,7 +159,63 @@ private:
 	 * fix up the main thread flush request id to identify the original request id instead of duplicate when trying to identify
 	 * which main thread packages should be processed when flushing.
 	 */
-	TSharedPtr<std::atomic<int32>, ESPMode::ThreadSafe> RequestId;
+	TUniquePtr<std::atomic<int32>[]> RequestIDs;	
+	int32 NumRequests;
+	int32 NumCompletedRequests = 0;
+};
+
+/** 
+ * Request to flush a specific package using the request id 
+ */
+struct FFlushRequest
+{
+	FFlushRequest() = default;
+
+	FFlushRequest(TConstArrayView<int32> InRequestIDs)
+		: Data(MakeShared<FFlushRequestData>(InRequestIDs))
+	{
+	}
+	
+	TConstArrayView<std::atomic<int32>> GetRequestIDs() const 
+	{
+		return Data->GetRequestIDs();
+	}
+
+	bool IsValid() const
+	{
+		return Data.IsValid();
+	}
+	
+	bool IsComplete() const
+	{
+		return Data->IsComplete();
+	}
+
+	operator bool() const
+	{
+		return IsValid();
+	}
+
+private:
+	void OnRequestComplete(int32 RequestID)
+	{
+		Data->OnRequestComplete(RequestID);	
+	}
+
+	void AdjustRequestIDs(TMap<int32, int32>& DuplicateRequestMap)
+	{
+		for (std::atomic<int32>& RequestID : Data->GetRequestIDs())
+		{	
+			if (int32* MainRequest = DuplicateRequestMap.Find(RequestID.load(std::memory_order_relaxed)))
+			{
+				RequestID.store(*MainRequest, std::memory_order_relaxed);
+			}
+		}
+	}
+
+	friend class FAsyncLoadingThread;
+
+	TSharedPtr<FFlushRequestData, ESPMode::ThreadSafe> Data;
 };
 
 /** Holds the maximum package summary size that can be set via ini files
@@ -333,7 +390,7 @@ public:
 
 	EAsyncPackageState::Type ProcessLoadingUntilComplete(TFunctionRef<bool()> CompletionPredicate, double TimeLimit) override;
 
-	void FlushLoading(int32 PackageId) override;
+	void FlushLoading(TConstArrayView<int32> RequestIDs) override;
 
 	void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject) override;
 
@@ -650,13 +707,35 @@ private:
 		return PendingRequests.Contains(RequestID);
 	}
 
+	/**
+	 * [ASYNC/GAME THREAD] Checks if a request ID already is added to the loading queue
+	 */
+	bool ContainsAnyRequestInternal(TConstArrayView<int32> RequestIDs)
+	{
+#if THREADSAFE_UOBJECTS
+		FScopeLock Lock(&PendingRequestsCritical);
+#endif
+		return Algo::AnyOf(RequestIDs, [this](int32 RequestID){ return PendingRequests.Contains(RequestID); });
+	}
+
+	/**
+	 * [ASYNC/GAME THREAD] Checks if a request ID already is added to the loading queue
+	 */
+	bool ContainsAnyRequestInternal(TConstArrayView<std::atomic<int32>> RequestIDs)
+	{
+#if THREADSAFE_UOBJECTS
+		FScopeLock Lock(&PendingRequestsCritical);
+#endif
+		return Algo::AnyOf(RequestIDs, [this](const std::atomic<int32>& RequestID){ return PendingRequests.Contains(RequestID.load(std::memory_order_relaxed)); });
+	}
+
 	/** 
 	 * [GAME THREAD] Add a Flush request to the flush stack
-	 * @param RequestID the request id of the package to flush
+	 * @param RequestIDs the request id of the packages to flush
 	 * @returns the flushtree for the flush request to use on the game thread
 	 * @note the FlushRequest is a shared resource between the async loading thread and the main thread
 	 */
-	FFlushRequest AddFlushRequest(int32 RequestID);
+	FFlushRequest AddFlushRequest(TConstArrayView<int32> RequestIDs);
 
 	/** 
 	 * [ASYNC THREAD] Peek the top of the flush request stack

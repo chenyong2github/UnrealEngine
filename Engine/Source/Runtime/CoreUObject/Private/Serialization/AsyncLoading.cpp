@@ -4657,9 +4657,13 @@ void FAsyncLoadingThread::CompleteFlushRequests(TArray<int32>& RequestIDs)
 	FScopeLock Lock(&FlushRequestCritical);
 	for (int32 RequestID : RequestIDs)
 	{
+		for (FFlushRequest& Flush : FlushRequests)
+		{
+			Flush.OnRequestComplete(RequestID);
+		}
 		FlushRequests.RemoveAll([RequestID](const FFlushRequest& Request)
 			{
-				return Request.GetId() == RequestID;
+				return Request.IsComplete();
 			});
 		DuplicateRequestMap.Remove(RequestID);
 	}
@@ -4670,9 +4674,9 @@ void FAsyncLoadingThread::MapDuplicateRequestID(int32 DuplicateRequestId, int32 
 	DuplicateRequestMap.Add(DuplicateRequestId, MainRequestId);
 }
 
-FFlushRequest FAsyncLoadingThread::AddFlushRequest(int32 RequestID)
+FFlushRequest FAsyncLoadingThread::AddFlushRequest(TConstArrayView<int32> RequestIDs)
 {
-	FFlushRequest FlushRequest = FFlushRequest(RequestID);
+	FFlushRequest FlushRequest = FFlushRequest(RequestIDs);
 	{
 		FScopeLock Lock(&FlushRequestCritical);
 		FlushRequests.Push(FlushRequest);
@@ -4701,10 +4705,7 @@ void FAsyncLoadingThread::AdjustFlushRequest(FFlushRequest& FlushRequest)
 {
 	if (FlushRequest)
 	{
-		if (int32* MainRequest = DuplicateRequestMap.Find(FlushRequest.GetId()))
-		{
-			FlushRequest.SetId(*MainRequest);
-		}
+		FlushRequest.AdjustRequestIDs(DuplicateRequestMap);
 	}
 }
 
@@ -4715,7 +4716,8 @@ bool FAsyncLoadingThread::ShouldProcessPackage(FAsyncPackage* InAsyncPackage, co
 		return true;
 	}
 
-	return InAsyncPackage->IsDependencyOf(FlushRequest.GetId());
+	return Algo::AnyOf(FlushRequest.GetRequestIDs(), 
+		[InAsyncPackage](const std::atomic<int32>& RequestID) { return InAsyncPackage->IsDependencyOf(RequestID.load(std::memory_order_relaxed)); });
 }
 
 EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTimeLimit, bool bUseFullTimeLimit, double TimeLimit, bool& bDidSomething, const FFlushRequest& FlushRequest)
@@ -4823,7 +4825,8 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 
 				CompletedPackages.Add(Package);
 
-				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessLoadedPackages Misc")) || (FlushRequest && !ContainsRequestInternal(FlushRequest.GetId())))
+				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessLoadedPackages Misc")) 
+				|| (FlushRequest && !ContainsAnyRequestInternal(FlushRequest.GetRequestIDs())))
 				{
 					// The only package we care about has finished loading, so we're good to exit
 					break;
@@ -6590,7 +6593,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 						check(IsInGameThread());
 						FAsyncLoadingThread::LeaveAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex()); // Fix thread check that triggers if we recurse back into the uncooked package loader from here
 						int32 ImportRequestId = IoStorePackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr, LOAD_None);
-						IoStorePackageLoader->FlushLoading(ImportRequestId);
+						IoStorePackageLoader->FlushLoading({ImportRequestId});
 						FAsyncLoadingThread::EnterAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex());
 						bLoadedFromIoStore = true;
 					}
@@ -7482,7 +7485,7 @@ int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName 
 	return RequestID;
 }
 
-void FAsyncLoadingThread::FlushLoading(int32 PackageID)
+void FAsyncLoadingThread::FlushLoading(TConstArrayView<int32> RequestIDs)
 {
  	if (IsAsyncLoadingPackages())
 	{
@@ -7491,7 +7494,7 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 
 		SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_FlushAsyncLoadingGameThread);
 
-		if (PackageID != INDEX_NONE && !ContainsRequestInternal(PackageID))
+		if (RequestIDs.Num() != 0 && !ContainsAnyRequestInternal(RequestIDs))
 		{
 			return;
 		}
@@ -7503,16 +7506,16 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 		// Flush async loaders without using a time limit. Needed for e.g. garbage collection.
 		{
 			FFlushRequest FlushRequest;
-			if (PackageID != INDEX_NONE)
+			if (RequestIDs.Num() != 0)
 			{
 				// This create and add a flush request to use on the async thread
-				FlushRequest = AddFlushRequest(PackageID);
+				FlushRequest = AddFlushRequest(RequestIDs);
 			}
 			SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_TickAsyncLoadingGameThread);
 			while (IsAsyncLoadingPackages())
 			{
 				EAsyncPackageState::Type Result = TickAsyncLoading(false, false, 0, FlushRequest);
-				if (PackageID != INDEX_NONE && !ContainsRequestInternal(PackageID))
+				if (RequestIDs.Num() != 0 && !ContainsAnyRequestInternal(RequestIDs))
 				{
 					break;
 				}
@@ -7535,7 +7538,7 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 		GFlushAsyncLoadingTime += ElapsedTime;
 		GFlushAsyncLoadingCount++;
 
-		check(PackageID != INDEX_NONE || !IsAsyncLoadingPackages());
+		check(RequestIDs.Num() != 0 || !IsAsyncLoadingPackages());
 
 	}
 }

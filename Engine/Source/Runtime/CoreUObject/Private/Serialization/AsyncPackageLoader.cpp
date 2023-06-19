@@ -251,23 +251,19 @@ bool IsInAsyncLoadingThreadCoreUObjectInternal()
 	}
 }
 
-void FlushAsyncLoading(TConstArrayView<int32> RequestIds)
+void FlushAsyncLoading(int32 RequestId /* = INDEX_NONE */)
 {
-	if (RequestIds.Num() == 0)
+	if (RequestId == INDEX_NONE)
 	{
-		FlushAsyncLoading(INDEX_NONE);
+		FlushAsyncLoading(TConstArrayView<int32>());
 	}
 	else
 	{
-		for (int32 Id : RequestIds)
-		{
-			UE_CLOG(Id == INDEX_NONE, LogStreaming, Warning, TEXT("FlushAsyncLoading called with a list including request id -1, this will flush ALL async loading. If this is intentional, pass an empty list instead."));
-			FlushAsyncLoading(Id);
-		}
+		FlushAsyncLoading(MakeArrayView({RequestId}));
 	}
 }
 
-void FlushAsyncLoading(int32 RequestId /* = INDEX_NONE */)
+void FlushAsyncLoading(TConstArrayView<int32> RequestIds)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FlushAsyncLoading);
 
@@ -284,18 +280,19 @@ void FlushAsyncLoading(int32 RequestId /* = INDEX_NONE */)
 		{
 			// Log the flush, but only display once per frame to avoid log spam.
 			static uint64 LastFrameNumber = -1;
+			TStringBuilder<1024> Buffer;
 			if (LastFrameNumber != GFrameNumber)
 			{
-				UE_LOG(LogStreaming, Display, TEXT("FlushAsyncLoading(%d): %d QueuedPackages, %d AsyncPackages"), RequestId, GPackageLoader->GetNumQueuedPackages(), GPackageLoader->GetNumAsyncPackages());
+				UE_LOG(LogStreaming, Display, TEXT("FlushAsyncLoading(%s): %d QueuedPackages, %d AsyncPackages"), *Buffer.Join(RequestIds, TEXT(",")), GPackageLoader->GetNumQueuedPackages(), GPackageLoader->GetNumAsyncPackages());
 			}
 			else
 			{
-				UE_LOG(LogStreaming, Log, TEXT("FlushAsyncLoading(%d): %d QueuedPackages, %d AsyncPackages"), RequestId, GPackageLoader->GetNumQueuedPackages(), GPackageLoader->GetNumAsyncPackages());
+				UE_LOG(LogStreaming, Log, TEXT("FlushAsyncLoading(%s): %d QueuedPackages, %d AsyncPackages"), *Buffer.Join(RequestIds, TEXT(",")), GPackageLoader->GetNumQueuedPackages(), GPackageLoader->GetNumAsyncPackages());
 			}
 			LastFrameNumber = GFrameNumber;
 		}
 #endif
-		GPackageLoader->FlushLoading(RequestId);
+		GPackageLoader->FlushLoading(RequestIds);
 	}
 }
 

@@ -130,10 +130,10 @@ public:
 		UncookedPackageLoader->ResumeLoading();
 	}
 
-	virtual void FlushLoading(int32 PackageId) override
+	virtual void FlushLoading(TConstArrayView<int32> RequestIds) override
 	{
-		CookedPackageLoader->FlushLoading(PackageId);
-		UncookedPackageLoader->FlushLoading(PackageId);
+		CookedPackageLoader->FlushLoading(RequestIds);
+		UncookedPackageLoader->FlushLoading(RequestIds);
 	}
 
 	virtual int32 GetNumQueuedPackages() override
