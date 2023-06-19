@@ -846,7 +846,7 @@ public:
 	}
 
 	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint16 FirstArraySlice, uint16 NumArraySlices)
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel = 0, uint16 FirstArraySlice = 0, uint16 NumArraySlices = 0)
 	{
 		check(MipLevel < 256);
 
@@ -858,7 +858,7 @@ public:
 	}
 
 	//UE_DEPRECATED(5.3, "Use the CreateUnorderedAccessView function that takes an FRHIViewDesc.")
-	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice, uint16 NumArraySlices)
+	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FRHITexture* Texture, uint32 MipLevel, uint8 Format, uint16 FirstArraySlice = 0, uint16 NumArraySlices = 0)
 	{
 		check(MipLevel < 256);
 
@@ -2365,6 +2365,11 @@ public:
 	}
 
 public:
+	static inline FRHIComputeCommandList& Get(FRHICommandListBase& RHICmdList)
+	{
+		return static_cast<FRHIComputeCommandList&>(RHICmdList);
+	}
+
 	FRHIComputeCommandList(FRHIGPUMask GPUMask = FRHIGPUMask::All(), ERecordingThread InRecordingThread = ERecordingThread::Render)
 		: FRHICommandListBase(GPUMask, InRecordingThread)
 	{}
@@ -3073,6 +3078,11 @@ protected:
 	}
 
 public:
+	static inline FRHICommandList& Get(FRHICommandListBase& RHICmdList)
+	{
+		return static_cast<FRHICommandList&>(RHICmdList);
+	}
+
 	FRHICommandList(FRHIGPUMask GPUMask = FRHIGPUMask::All(), ERecordingThread InRecordingThread = ERecordingThread::Render)
 		: FRHIComputeCommandList(GPUMask, InRecordingThread)
 	{}
@@ -4068,6 +4078,12 @@ class FRHICommandListImmediate : public FRHICommandList
 
 public:
 	static inline FRHICommandListImmediate& Get();
+
+	static inline FRHICommandListImmediate& Get(FRHICommandListBase& RHICmdList)
+	{
+		check(RHICmdList.IsImmediate());
+		return static_cast<FRHICommandListImmediate&>(RHICmdList);
+	}
 
 	RHI_API void BeginScene();
 	RHI_API void EndScene();
