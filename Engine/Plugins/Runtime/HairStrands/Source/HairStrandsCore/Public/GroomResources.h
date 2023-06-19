@@ -114,6 +114,7 @@ struct FHairCommonResource : public FRenderResource
 	virtual bool InternalGetOrRequestData(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex);
 	virtual bool InternalIsLODDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) const { return true; }
 	virtual void InternalResetLoadedSize() { }
+	virtual FHairStrandsBulkCommon* InternalGetBulkData() { return nullptr; }
 
 	bool bUseRenderGraph = true;
 	bool bIsInitialized = false;
@@ -142,6 +143,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	virtual void InternalRelease() override;
 	virtual bool InternalGetOrRequestData(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) override;
 	virtual void InternalResetLoadedSize() override;
+	virtual FHairStrandsBulkCommon* InternalGetBulkData() override { return &BulkData; }
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsResource"); }
@@ -288,6 +290,7 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 	virtual void InternalRelease() override;
 	virtual bool InternalGetOrRequestData(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) override;
 	virtual void InternalResetLoadedSize() override;
+	virtual FHairStrandsBulkCommon* InternalGetBulkData() override { return &BulkData; }
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsInterplationResource"); }
@@ -320,6 +323,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	virtual void InternalRelease() override;
 	virtual bool InternalGetOrRequestData(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) override;
 	virtual void InternalResetLoadedSize() override;
+	virtual FHairStrandsBulkCommon* InternalGetBulkData() override { return &BulkData; }
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsClusterResource"); }
@@ -358,6 +362,7 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	virtual bool InternalGetOrRequestData(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) override;
 	virtual bool InternalIsLODDataLoaded(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex) const override;
 	virtual void InternalResetLoadedSize() override;
+	virtual FHairStrandsBulkCommon* InternalGetBulkData() override { return &BulkData; }
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRestRootResource"); }

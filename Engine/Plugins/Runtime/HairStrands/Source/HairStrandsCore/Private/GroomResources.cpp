@@ -257,13 +257,26 @@ static FRDGBufferRef InternalCreateBufferRDG_FromHairBulkData(FRDGBuilder& Graph
 	check(InData.ChunkRequest);
 	FHairStreamingRequest::FChunk& InChunk = *InData.ChunkRequest;
 
+	const bool bDeallocate  = In != nullptr && InData.ChunkRequest->Status == FHairStreamingRequest::FChunk::EStatus::Unloading;
 	const bool bCreate 		= In == nullptr || BufferDesc.GetSize() == UploadDesc.GetSize();
 	const bool bCopy 		= In != nullptr && InChunk.Size > 0;
 	const bool bReallocate 	= In != nullptr && In->Desc.GetSize() < InChunk.TotalSize;
 
 	check(InChunk.Size > 0);
 	// Either create a new buffer or append new data to existing buffer
-	if (bCreate)
+	if (bDeallocate)
+	{
+		// 1. Create new (smaller) buffer 
+		FRDGBufferDesc NewBufferDesc = BufferDesc;
+		NewBufferDesc.Usage |= EBufferUsageFlags::UnorderedAccess;
+		FRDGBufferRef Out = GraphBuilder.CreateBuffer(NewBufferDesc, DebugName, ERDGBufferFlags::MultiFrame);
+
+		// 2. Copy existing data from the old buffer to the new buffer
+		check (Out->Desc.GetSize() <= In->Desc.GetSize());
+		AddCopyBufferPass(GraphBuilder, Out, 0, In, 0, Out->Desc.GetSize());
+		return Out;
+	}
+	else if (bCreate)
 	{	
 		check(BufferDesc.GetSize() >= UploadDesc.GetSize());
 
@@ -673,6 +686,7 @@ void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadi
 	Allocate(GraphBuilder, LoadingType, Status, HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, InLODIndex);
 }
 
+bool NeedDeallocation(uint32 InRequest, uint32 InAvailable);
 void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status, uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex)
 {
 	check(AllocationType == EHairStrandsAllocationType::Deferred);
@@ -701,6 +715,25 @@ void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadi
 		// 1. If all requested curve are already loaded, nothing to do
 		if (bIsInitialized && MaxAvailableCurveCount >= InRequestedCurveCount && InternalIsLODDataLoaded(InRequestedCurveCount, InRequestedPointCount, InLODIndex)) 
 		{ 
+			// Trim/Un-stream data if needed
+			if (NeedDeallocation(InRequestedCurveCount, MaxAvailableCurveCount))
+			{
+				StreamingRequest.CurveCount = InRequestedCurveCount;
+				StreamingRequest.PointCount = InRequestedPointCount;
+				StreamingRequest.LODIndex = InLODIndex;
+				if (FHairStrandsBulkCommon* Bulk = InternalGetBulkData())
+				{
+					Bulk->Unload(&StreamingRequest);
+				}
+				InternalAllocate(GraphBuilder, InRequestedCurveCount, InRequestedPointCount, StreamingRequest.LODIndex); // Do we need to pass something else for the deallocation
+
+				// Update the max curve count available
+				MaxAvailableCurveCount = StreamingRequest.CurveCount;
+
+				// Reset streaming request. When the request is delete, the DDC request becomes cancelled. 
+				StreamingRequest = FHairStreamingRequest();
+			}
+
 			Status |= EHairResourceStatus::EStatus::Valid; 
 		}
 		// 2. If more curves are requested, issue a streaming request

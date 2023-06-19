@@ -48,6 +48,8 @@ static int32 GHairStrands_Streaming = 0;
 static FAutoConsoleVariableRef CVarHairStrands_Streaming(TEXT("r.HairStrands.Streaming"), GHairStrands_Streaming, TEXT("Hair strands streaming toggle."), ECVF_RenderThreadSafe | ECVF_ReadOnly);
 static int32 GHairStrands_Streaming_CurvePage = 2048;
 static FAutoConsoleVariableRef CVarHairStrands_StreamingCurvePage(TEXT("r.HairStrands.Streaming.CurvePage"), GHairStrands_Streaming_CurvePage, TEXT("Number of strands curve per streaming page"));
+static int32 GHairStrands_Streaming_StreamOutThreshold = 2;
+static FAutoConsoleVariableRef CVarHairStrands_Streaming_StreamOutThreshold(TEXT("r.HairStrands.Streaming.StreamOutThreshold"), GHairStrands_Streaming_StreamOutThreshold, TEXT("Threshold used for streaming out data. In curve page. Default:2."));
 
 static int32 GHairStrands_AutoLOD_Force = 0;
 static float GHairStrands_AutoLOD_Scale = 1.f;
@@ -82,6 +84,22 @@ static uint32 GetRoundedCurveCount(uint32 InRequest, uint32 InMaxCurve)
 {
 	const uint32 Page = GetStreamingCurvePage();
 	return FMath::Min(FMath::DivideAndRoundUp(InRequest, Page) * Page,  InMaxCurve);
+}
+
+bool NeedDeallocation(uint32 InRequest, uint32 InAvailable)
+{
+	bool bNeedDeallocate = false;
+	if (GHairStrands_Streaming > 0)
+	{
+
+		const uint32 Page = GetStreamingCurvePage();
+		const uint32 RequestedPageCount = FMath::DivideAndRoundUp(InRequest, Page);
+		const uint32 AvailablePageCount = FMath::DivideAndRoundUp(InAvailable, Page);
+	
+		const uint32 DeallactionThreshold = FMath::Max(GHairStrands_Streaming_StreamOutThreshold, 2);
+		bNeedDeallocate = AvailablePageCount - RequestedPageCount >= DeallactionThreshold;
+	}
+	return bNeedDeallocate;
 }
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);

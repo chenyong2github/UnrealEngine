@@ -328,7 +328,7 @@ struct FHairStreamingRequest
 	// Hold request at the container level (transient to the request)
 	struct FChunk
 	{
-		enum EStatus { None, Pending, Completed, Failed };
+		enum EStatus { None, Pending, Completed, Failed, Unloading };
 		FSharedBuffer Data_DDC;
 		FIoBuffer Data_IO;
 		uint32 Offset = 0;				// Offset to the requested data
@@ -344,6 +344,7 @@ struct FHairStreamingRequest
 	void Request(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex, FHairStrandsBulkCommon& In, bool bWait=false, bool bFillBulkData=false, bool bWarmCache=false, const FName& InOwnerName = NAME_None);
 	bool IsNone() const;
 	bool IsCompleted();
+	bool IsUnloading() const;
 
 #if WITH_EDITORONLY_DATA
 	void WarmCache(uint32 InRequestedCurveCount, uint32 InRequestedPointCount, int32 InLODIndex, FHairStrandsBulkCommon& In);
@@ -397,14 +398,15 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkCommon
 	void Read_DDC(FHairStreamingRequest* In, TArray<UE::DerivedData::FCacheGetChunkRequest>& Out);
 	void Write_IO(UObject* Owner, FArchive& Out, int32 LODIndex=-1);
 	void Read_IO(FHairStreamingRequest* In, FBulkDataBatchRequest& Out);
+	void Unload(FHairStreamingRequest* In);
 
 	struct FQuery
 	{
-		void Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32 InOffset=0, uint32 InSize=0);
+		void Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32& InOffset, uint32 InSize=0);
 		uint32 GetCurveCount() const { check(StreamingRequest); return StreamingRequest->CurveCount; }
 		uint32 GetPointCount() const { check(StreamingRequest); return StreamingRequest->PointCount; }
 		int32  GetLODIndex() const	 { return StreamingRequest ? StreamingRequest->LODIndex : LODIndex; }
-		enum EQueryType { None, ReadDDC, WriteDDC, ReadIO, ReadWriteIO /* i.e. regular Serialize() */};
+		enum EQueryType { None, ReadDDC, WriteDDC, ReadIO, ReadWriteIO /* i.e. regular Serialize() */, UnloadData};
 		EQueryType Type = None;
 		FHairStreamingRequest* StreamingRequest = nullptr;
 		FBulkDataBatchRequest::FBatchBuilder* 			OutReadIO = nullptr;

@@ -175,6 +175,14 @@ void FHairStrandsBulkCommon::Write_IO(UObject* Owner, FArchive& Out, int32 InLOD
 	Q.LODIndex = InLODIndex;
 	GetResources(Q);
 }
+void FHairStrandsBulkCommon::Unload(FHairStreamingRequest* In)
+{
+	FHairStrandsBulkCommon::FQuery Q;
+	Q.Type = FHairStrandsBulkCommon::FQuery::UnloadData;
+	Q.StreamingRequest = In;
+	Q.StreamingRequest->Chunks.Reserve(GetResourceCount()); // This ensures that Chunks array is never reallocated, which would invalidate pointers to FChunk
+	GetResources(Q);
+}
 
 void FHairStrandsBulkCommon::Serialize(FArchive& Ar, UObject* Owner)
 {
@@ -187,7 +195,7 @@ void FHairStrandsBulkCommon::SerializeData(FArchive& Ar, UObject* Owner, int32 I
 	Write_IO(Owner, Ar, InLODIndex);
 }
 
-void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32 InOffset, uint32 InSize) 
+void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* InSuffix, uint32& InOffset, uint32 InSize) 
 {
 	check(Type != None);
 #if WITH_EDITORONLY_DATA
@@ -267,9 +275,8 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 		check(OutReadIO);
 		OutReadIO->Read(In.Data, InOffset, InSize, EAsyncIOPriorityAndFlags::AIOP_Normal, Chunk.Data_IO);
 	}
-	else
+	else if (Type == ReadWriteIO)
 	{
-		check(Type == ReadWriteIO)
 		check(OutWriteIO);
 
 		if (OutWriteIO->IsSaving())
@@ -278,6 +285,22 @@ void FHairStrandsBulkCommon::FQuery::Add(FHairBulkContainer& In, const TCHAR* In
 			In.Data.SetBulkDataFlags(BulkFlags);
 		}
 		In.Data.Serialize(*OutWriteIO, Owner, 0/*ChunkIndex*/, false /*bAttemptFileMapping*/);
+	}
+	else if (Type == UnloadData)
+	{
+		InOffset = FMath::Min(InOffset, InSize);
+		check (StreamingRequest != nullptr);
+		FHairStreamingRequest::FChunk& Chunk = StreamingRequest->Chunks.AddDefaulted_GetRef();
+		Chunk.Status 	= FHairStreamingRequest::FChunk::EStatus::Unloading;
+		Chunk.Container = &In;
+		Chunk.Size 		= InSize;
+		Chunk.Offset 	= InOffset;
+		Chunk.TotalSize = InSize;
+		In.ChunkRequest = &Chunk;
+	}
+	else
+	{
+		checkNoEntry();
 	}
 }
 
@@ -294,6 +317,11 @@ bool FHairStreamingRequest::IsNone() const
 }
 bool FHairStreamingRequest::IsCompleted()
 { 
+	if (IsUnloading())
+	{
+		return true;
+	}
+
 #if !WITH_EDITORONLY_DATA
 	if (IORequest.IsCompleted())
 	{
@@ -315,6 +343,17 @@ bool FHairStreamingRequest::IsCompleted()
 	}
 	return true; 
 #endif
+}
+bool FHairStreamingRequest::IsUnloading() const
+{ 
+	for (const FHairStreamingRequest::FChunk& Chunk : Chunks)
+	{
+		if (Chunk.Status == FHairStreamingRequest::FChunk::Unloading)
+		{
+			return true;
+		}
+	}
+	return false; 
 }
 #if WITH_EDITORONLY_DATA
 static void RequestWarmCache(UE::DerivedData::FRequestOwner* RequestOwner, const TArray<UE::DerivedData::FCacheGetChunkRequest>& Requests)
@@ -529,7 +568,7 @@ void FHairStrandsBulkData::GetResources(FHairStrandsBulkCommon::FQuery& Out)
 	// Translate requested curve count into chunk/offset/size to be read
 	uint32 PointCount = 0;
 	uint32 CurveCount = 0;
-	if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC)
+	if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC || Out.Type == FHairStrandsBulkCommon::FQuery::UnloadData)
 	{
 		CurveCount = FMath::Min(Header.CurveCount, Out.GetCurveCount());
 		PointCount = CurveCount > 0 ? Header.CurveToPointCount[CurveCount -1] : 0;
@@ -632,7 +671,7 @@ void FHairStrandsInterpolationBulkData::GetResources(FHairStrandsBulkCommon::FQu
 	{
 		// Translate requested curve count into chunk/offset/size to be read
 		uint32 PointCount = 0;
-		if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC)
+		if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC || Out.Type == FHairStrandsBulkCommon::FQuery::UnloadData)
 		{
 			PointCount = FMath::Min(Header.PointCount, Out.GetPointCount());
 		}
@@ -717,7 +756,7 @@ void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQ
 		// Translate requested curve count into chunk/offset/size to be read
 		uint32 PointCount = 0;
 		uint32 CurveCount = 0;
-		if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC)
+		if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC || Out.Type == FHairStrandsBulkCommon::FQuery::UnloadData)
 		{
 			CurveCount = FMath::Min(Header.CurveCount, Out.GetCurveCount());
 			PointCount = FMath::Min(Header.PointCount, Out.GetPointCount());
@@ -841,7 +880,7 @@ void FHairStrandsRootBulkData::GetResources(FQuery& Out)
 	// * Unique triangle data are loaded all at one
 	// * Root data are loaded based on the curve request
 	uint32 RootCount = Header.RootCount;
-	if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC)
+	if (Out.Type == FHairStrandsBulkCommon::FQuery::ReadIO || Out.Type == FHairStrandsBulkCommon::FQuery::ReadDDC || Out.Type == FHairStrandsBulkCommon::FQuery::UnloadData)
 	{
 		RootCount = FMath::Min(Header.RootCount, Out.GetCurveCount());
 	}
