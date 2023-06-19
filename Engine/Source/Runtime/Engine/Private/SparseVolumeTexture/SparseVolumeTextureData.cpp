@@ -61,6 +61,15 @@ bool FTextureData::Create(const ITextureDataProvider& DataProvider)
 
 	Header = FHeader(CreateInfo.VirtualVolumeAABBMin, CreateInfo.VirtualVolumeAABBMax, CreateInfo.AttributesFormats[0], CreateInfo.AttributesFormats[1], CreateInfo.FallbackValues[0], CreateInfo.FallbackValues[1]);
 
+	for (int32 i = 0; i < 2; ++i)
+	{
+		if (!SVT::IsSupportedFormat(Header.AttributesFormats[i]))
+		{
+			UE_LOG(LogSparseVolumeTextureData, Warning, TEXT("'%s' is not a supported SparseVolumeTexture format!"), GPixelFormats[Header.AttributesFormats[i]].Name);
+			return false;
+		}
+	}
+
 	if (Header.PageTableVolumeResolution.X > SVT::MaxVolumeTextureDim
 		|| Header.PageTableVolumeResolution.Y > SVT::MaxVolumeTextureDim
 		|| Header.PageTableVolumeResolution.Z > SVT::MaxVolumeTextureDim)
@@ -185,6 +194,15 @@ bool FTextureData::Create(const ITextureDataProvider& DataProvider)
 bool FTextureData::CreateFromDense(const FTextureDataCreateInfo& CreateInfo, const TArrayView64<uint8>& VoxelDataA, const TArrayView64<uint8>& VoxelDataB)
 {	
 	Header = FHeader(CreateInfo.VirtualVolumeAABBMin, CreateInfo.VirtualVolumeAABBMax, CreateInfo.AttributesFormats[0], CreateInfo.AttributesFormats[1], CreateInfo.FallbackValues[0], CreateInfo.FallbackValues[1]);
+
+	for (int32 i = 0; i < 2; ++i)
+	{
+		if (!SVT::IsSupportedFormat(Header.AttributesFormats[i]))
+		{
+			UE_LOG(LogSparseVolumeTextureData, Warning, TEXT("'%s' is not a supported SparseVolumeTexture format!"), GPixelFormats[Header.AttributesFormats[i]].Name);
+			return false;
+		}
+	}
 
 	if (Header.PageTableVolumeResolution.X > SVT::MaxVolumeTextureDim
 		|| Header.PageTableVolumeResolution.Y > SVT::MaxVolumeTextureDim
