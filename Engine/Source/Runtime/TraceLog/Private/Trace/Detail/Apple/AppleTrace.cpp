@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED && PLATFORM_APPLE
 
 #include <arpa/inet.h>
+#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <mach/mach.h>
