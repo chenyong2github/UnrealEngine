@@ -2202,11 +2202,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		}
 	}
 
-#if USE_IO_DISPATCHER
-	// Initialize on demand I/O dispatcher backend
-	FModuleManager::Get().LoadModule("IoStoreOnDemand");
-#endif
-
 	// 
 #if PLATFORM_DESKTOP && !IS_MONOLITHIC
 	{
@@ -6373,6 +6368,11 @@ bool FEngineLoop::AppInit( )
 		// init config system
 		FConfigCacheIni::InitializeConfigSystem();
 	}
+
+#if USE_IO_DISPATCHER
+	// Initialize on demand I/O dispatcher backend
+	FModuleManager::Get().LoadModule("IoStoreOnDemand");
+#endif
 
 	// Apply config driven presets
 	FTraceAuxiliary::InitializePresets(FCommandLine::Get());
