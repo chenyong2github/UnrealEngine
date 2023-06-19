@@ -844,7 +844,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 			ObjectIndirectArguments,
 			CulledObjectBufferParameters);
 
-		CullObjectsToView(GraphBuilder, Scene, View, Parameters, CulledObjectBufferParameters);
+		CullObjectsToView(GraphBuilder, *Scene, View, Parameters, CulledObjectBufferParameters);
 	}
 
 	ComputeDistanceFieldNormal(GraphBuilder, Views, SceneTextures.UniformBuffer, DistanceFieldNormal, Parameters);
@@ -853,7 +853,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 	if (UseAOObjectDistanceField())
 	{
 		//@todo - support multiple views - should pass one TileIntersectionParameters per view
-		BuildTileObjectLists(GraphBuilder, Scene, Views, ObjectIndirectArguments, CulledObjectBufferParameters, TileIntersectionParameters, DistanceFieldNormal, Parameters);
+		BuildTileObjectLists(GraphBuilder, *Scene, Views, ObjectIndirectArguments, CulledObjectBufferParameters, TileIntersectionParameters, DistanceFieldNormal, Parameters);
 	}
 
 	FRDGTextureRef BentNormalOutput = nullptr;

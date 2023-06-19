@@ -155,7 +155,7 @@ void FDeferredShadingSceneRenderer::RenderMeshDistanceFieldVisualization(
 				ObjectIndirectArguments,
 				CulledObjectBufferParameters);
 
-			CullObjectsToView(GraphBuilder, Scene, View, Parameters, CulledObjectBufferParameters);
+			CullObjectsToView(GraphBuilder, *Scene, View, Parameters, CulledObjectBufferParameters);
 		}
 
 		uint32 GroupSizeX = FMath::DivideAndRoundUp(View.ViewRect.Size().X / GAODownsampleFactor, GDistanceFieldAOTileSizeX);
