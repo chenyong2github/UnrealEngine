@@ -535,7 +535,7 @@ namespace UnrealBuildTool
 			// Do not allow inline method expansion if E&C support is enabled or inline expansion has been disabled
 			if (!CompileEnvironment.bSupportEditAndContinue && CompileEnvironment.bUseInlining)
 			{
-				Arguments.Add("/Ob2");
+				Arguments.Add($"/Ob{Math.Clamp(Target.WindowsPlatform.InlineFunctionExpansionLevel, 1, 3)}");
 			}
 			else
 			{

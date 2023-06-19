@@ -197,11 +197,18 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// If specified along with -PGOProfile, prevent the usage of extra counters. Please note that by default /FASTGENPROFILE doesnt use extra counters
-		/// https://learn.microsoft.com/en-us/cpp/build/reference/genprofile-fastgenprofile-generate-profiling-instrumented-build?view=msvc-170
 		/// </summary>
+		/// <seealso href="link">https://learn.microsoft.com/en-us/cpp/build/reference/genprofile-fastgenprofile-generate-profiling-instrumented-build</seealso>
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-PGONoExtraCounters")]
 		public bool bPGONoExtraCounters = false;
+
+		/// <summary>
+		/// Which level to use for Inline Function Expansion when TargetRules.bUseInlining is enabled
+		/// </summary>
+		/// <seealso href="link">https://learn.microsoft.com/en-us/cpp/build/reference/ob-inline-function-expansion</seealso>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		public int InlineFunctionExpansionLevel { get; set; } = 2;
 
 		/// <summary>
 		/// Version of the compiler toolchain to use on Windows platform. A value of "default" will be changed to a specific version at UBT start up.
@@ -630,6 +637,8 @@ namespace UnrealBuildTool
 		public bool bUseFastGenProfile => Inner.bUseFastGenProfile;
 
 		public bool bPGONoExtraCounters => Inner.bPGONoExtraCounters;
+
+		public int InlineFunctionExpansionLevel => Inner.InlineFunctionExpansionLevel;
 
 		public WindowsCompiler Compiler => Inner.Compiler;
 
