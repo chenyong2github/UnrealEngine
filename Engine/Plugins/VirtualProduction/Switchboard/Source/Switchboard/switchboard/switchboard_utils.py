@@ -9,6 +9,12 @@ import subprocess
 import threading
 from typing import Optional
 
+from pathlib import Path
+from .config import CONFIG, DEFAULT_MAP_TEXT
+from .switchboard_logging import LOGGER
+from re import split
+
+from switchboard import ugs_utils
 
 class PriorityModifier(Enum):
     ''' Corresponds to `int32 PriorityModifier` parameter to `FPlatformProcess::CreateProc`. '''
@@ -193,3 +199,42 @@ def expand_endpoint(
         port_str = str(default_port)
 
     return f'{addr_str}:{port_str}'
+
+
+def map_name_is_valid(map_name: str) -> bool:
+    """
+    Check if map is specified
+    """
+    return map_name != '' and map_name is not None and map_name != DEFAULT_MAP_TEXT \
+        and map_name != 'Default level' and map_name != 'None'
+
+
+def get_game_launch_level_path() -> str:
+    level = CONFIG.CURRENT_LEVEL
+
+    #check if map name is valid. If not - get map name from DefaultEngine.ini
+    if not map_name_is_valid(level):
+        level = ''
+
+        #check if DefaultEngine.ini exists
+        engine_ini = os.path.join(Path(CONFIG.UPROJECT_PATH.get_value()).parent, 'Config', 'DefaultEngine.ini')
+        if not os.path.exists(engine_ini):
+            LOGGER.warning("DefaultEngine.ini not found")
+            return ''
+
+        parser = ugs_utils.IniParser()
+
+        try:
+            engine_ini_file = open(engine_ini, "r", encoding="utf-8")
+            parser.read_file(engine_ini_file)
+
+            levels = parser.try_get('/Script/EngineSettings.GameMapsSettings', 'GameDefaultMap')
+
+            if len(levels) == 0:
+                raise Exception('Default map is not set in DefaultEngine.ini')
+            
+            level = levels[0]
+        except:
+            LOGGER.warning("Map is not set. Please select 'Level' to run dedicated server.")
+
+    return str(level)

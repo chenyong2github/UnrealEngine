@@ -59,4 +59,11 @@ namespace DisplayClusterStrings
 		// Specific events
 		static constexpr const TCHAR* EvtQuitName   = TEXT("quit");
 	}
+
+	namespace uri_args
+	{
+		static constexpr const TCHAR* ClusterId = TEXT("ClusterId=");
+		static constexpr const TCHAR* PrimaryNodeId = TEXT("PrimaryNodeId=");
+		static constexpr const TCHAR* PrimaryNodePort = TEXT("PrimaryNodePort=");
+	}
 };

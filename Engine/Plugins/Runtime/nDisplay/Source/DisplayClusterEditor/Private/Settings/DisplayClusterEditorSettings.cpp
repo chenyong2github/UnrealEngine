@@ -3,6 +3,7 @@
 #include "DisplayClusterEditorSettings.h"
 #include "DisplayClusterEditorEngine.h"
 #include "HAL/PlatformFileManager.h"
+#include "Serialization/JsonSerializerMacros.h"
 #include "Misc/ConfigCacheIni.h"
 
 
@@ -15,6 +16,7 @@ UDisplayClusterEditorSettings::UDisplayClusterEditorSettings(const FObjectInitia
 	: Super(ObjectInitializer) 
 {
 	GET_MEMBER_NAME_CHECKED(UDisplayClusterEditorSettings, bEnabled);
+	GET_MEMBER_NAME_CHECKED(UDisplayClusterEditorSettings, bClusterReplicationEnabled);
 }
 
 void UDisplayClusterEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -81,6 +83,30 @@ void UDisplayClusterEditorSettings::PostEditChangeProperty(FPropertyChangedEvent
 			GConfig->Flush(false, DefaultEnginePath);
 			GConfig->Flush(false, DefaultGamePath);
 			GConfig->Flush(false, DefaultInputPath);
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDisplayClusterEditorSettings, bClusterReplicationEnabled))
+		{
+			if (FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*DefaultEnginePath))
+			{
+				FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*DefaultEnginePath, false);
+			}
+
+			if (bClusterReplicationEnabled)
+			{
+				FJsonSerializableArray NetDriverDefinitions;
+				NetDriverDefinitions.Add(TEXT("(DefName=GameNetDriver,DriverClassName=/Script/DisplayClusterReplication.DisplayClusterNetDriver,DriverClassNameFallback=/Script/OnlineSubsystemUtils.IpNetDriver)"));
+				NetDriverDefinitions.Add(TEXT("(DefName=DemoNetDriver,DriverClassName=/Script/Engine.DemoNetDriver,DriverClassNameFallback=/Script/Engine.DemoNetDriver)"));
+
+				GConfig->SetArray(TEXT("/Script/Engine.GameEngine"), TEXT("+NetDriverDefinitions"), NetDriverDefinitions, DefaultEnginePath);
+				GConfig->SetString(TEXT("/Script/DisplayClusterReplication.DisplayClusterNetDriver"), TEXT("NetConnectionClassName"), TEXT("DisplayClusterReplication.DisplayClusterNetConnection"), DefaultEnginePath);
+			}
+			else
+			{
+				GConfig->RemoveKey(TEXT("/Script/Engine.GameEngine"), TEXT("!NetDriverDefinitions"), DefaultEnginePath);
+				GConfig->RemoveKey(TEXT("/Script/Engine.GameEngine"), TEXT("+NetDriverDefinitions"), DefaultEnginePath);
+				GConfig->RemoveKey(TEXT("/Script/DisplayClusterReplication.DisplayClusterNetDriver"), TEXT("NetConnectionClassName"), DefaultEnginePath);
+			}
+			GConfig->Flush(false, DefaultEnginePath);
 		}
 	}
 }

@@ -4691,7 +4691,13 @@ int32 UNetDriver::ServerReplicateActors_PrioritizeActors( UNetConnection* Connec
 	return FinalSortedCount;
 }
 
-int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, FActorPriority** PriorityActors, const int32 FinalSortedCount, int32& OutUpdated )
+int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors(UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, FActorPriority** PriorityActors, const int32 FinalSortedCount, int32& OutUpdated )
+{
+	TInterval<int32> ActorsIndexRange(0, FinalSortedCount);
+	return ServerReplicateActors_ProcessPrioritizedActorsRange(Connection, ConnectionViewers, PriorityActors, ActorsIndexRange, OutUpdated);
+}
+
+int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActorsRange( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, FActorPriority** PriorityActors, const TInterval<int32>& ActorsIndexRange, int32& OutUpdated, bool bIgnoreSaturation )
 {
 	SCOPE_CYCLE_COUNTER(STAT_NetProcessPrioritizedActorsTime);
 
@@ -4699,14 +4705,14 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 	int32 ActorUpdatesThisConnectionSent	= 0;
 	int32 FinalRelevantCount				= 0;
 
-	if (!Connection->IsNetReady( 0 ))
+	if (!Connection->IsNetReady( 0 ) && !bIgnoreSaturation)
 	{
 		GNumSaturatedConnections++;
 		// Connection saturated, don't process any actors
 		return 0;
 	}
 
-	for ( int32 j = 0; j < FinalSortedCount; j++ )
+	for ( int32 j = ActorsIndexRange.Min; j < ActorsIndexRange.Min + ActorsIndexRange.Max; j++ )
 	{
 		FNetworkObjectInfo*	ActorInfo = PriorityActors[j]->ActorInfo;
 
@@ -4819,7 +4825,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 						Channel->RelevantTime = ElapsedTime + 0.5 * UpdateDelayRandomStream.FRand();
 					}
 					// if the channel isn't saturated
-					if ( Channel->IsNetReady( 0 ) )
+					if ( Channel->IsNetReady( 0 ) || bIgnoreSaturation)
 					{
 						// replicate the actor
 						UE_LOG( LogNetTraffic, Log, TEXT( "- Replicate %s. %d" ), *Actor->GetName(), PriorityActors[j]->Priority );
@@ -4871,7 +4877,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 						Actor->ForceNetUpdate();
 					}
 					// second check for channel saturation
-					if (!Connection->IsNetReady( 0 ))
+					if (!Connection->IsNetReady( 0 ) && !bIgnoreSaturation)
 					{
 						// We can bail out now since this connection is saturated, we'll return how far we got though
 						GNumSaturatedConnections++;
@@ -4896,8 +4902,49 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 		}
 	}
 
-	return FinalSortedCount;
+	return ActorsIndexRange.Max;
 }
+
+void UNetDriver::ServerReplicateActors_MarkRelevantActors( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, int32 StartActorIndex, int32 EndActorIndex, FActorPriority** PriorityActors )
+{
+	// relevant actors that could not be processed this frame are marked to be considered for next frame
+	for ( int32 k=StartActorIndex; k<EndActorIndex; k++ )
+	{
+		if (!PriorityActors[k]->ActorInfo)
+		{
+			// A deletion entry, skip it because we dont have anywhere to store a 'better give higher priority next time'
+			continue;
+		}
+	
+		AActor* Actor = PriorityActors[k]->ActorInfo->Actor;
+	
+		UActorChannel* Channel = PriorityActors[k]->Channel;
+		
+		UE_LOG(LogNetTraffic, Verbose, TEXT("Saturated. %s"), *Actor->GetName());
+		if (Channel != NULL && ElapsedTime - Channel->RelevantTime <= 1.0)
+		{
+			UE_LOG(LogNetTraffic, Log, TEXT(" Saturated. Mark %s NetUpdateTime to be checked for next tick"), *Actor->GetName());
+			PriorityActors[k]->ActorInfo->bPendingNetUpdate = true;
+		}
+		else if ( IsActorRelevantToConnection( Actor, ConnectionViewers ) )
+		{
+			// If this actor was relevant but didn't get processed, force another update for next frame
+			UE_LOG( LogNetTraffic, Log, TEXT( " Saturated. Mark %s NetUpdateTime to be checked for next tick" ), *Actor->GetName() );
+			PriorityActors[k]->ActorInfo->bPendingNetUpdate = true;
+			if ( Channel != NULL )
+			{
+				Channel->RelevantTime = ElapsedTime + 0.5 * UpdateDelayRandomStream.FRand();
+			}
+		}
+	
+		// If the actor was forced to relevant and didn't get processed, try again on the next update;
+		if (PriorityActors[k]->ActorInfo->ForceRelevantFrame >= Connection->LastProcessedFrame)
+		{
+			PriorityActors[k]->ActorInfo->ForceRelevantFrame = ReplicationFrame+1;
+		}
+	}
+}
+
 #endif
 
 int64 UNetDriver::SendDestructionInfo(UNetConnection* Connection, FActorDestructionInfo* DestructionInfo)
@@ -5227,6 +5274,11 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 
 	FMemMark Mark( FMemStack::Get() );
 
+	if (OnPreConsiderListUpdateOverride.IsBound())
+	{
+		OnPreConsiderListUpdateOverride.Execute({ DeltaSeconds, nullptr, bCPUSaturated }, Updated, ConsiderList);
+	}
+
 	for ( int32 i=0; i < ClientConnections.Num(); i++ )
 	{
 		UNetConnection* Connection = ClientConnections[i];
@@ -5310,51 +5362,28 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 
 			FMemMark RelevantActorMark(FMemStack::Get());
 
-			FActorPriority* PriorityList	= NULL;
-			FActorPriority** PriorityActors = NULL;
+			const bool bProcessConsiderListIsBound = OnProcessConsiderListOverride.IsBound();
 
-			// Get a sorted list of actors for this connection
-			const int32 FinalSortedCount = ServerReplicateActors_PrioritizeActors( Connection, ConnectionViewers, ConsiderList, bCPUSaturated, PriorityList, PriorityActors );
-
-			// Process the sorted list of actors for this connection
-			const int32 LastProcessedActor = ServerReplicateActors_ProcessPrioritizedActors( Connection, ConnectionViewers, PriorityActors, FinalSortedCount, Updated );
-
-			// relevant actors that could not be processed this frame are marked to be considered for next frame
-			for ( int32 k=LastProcessedActor; k<FinalSortedCount; k++ )
+			if (bProcessConsiderListIsBound)
 			{
-				if (!PriorityActors[k]->ActorInfo)
-				{
-					// A deletion entry, skip it because we dont have anywhere to store a 'better give higher priority next time'
-					continue;
-				}
-
-				AActor* Actor = PriorityActors[k]->ActorInfo->Actor;
-
-				UActorChannel* Channel = PriorityActors[k]->Channel;
-				
-				UE_LOG(LogNetTraffic, Verbose, TEXT("Saturated. %s"), *Actor->GetName());
-				if (Channel != NULL && ElapsedTime - Channel->RelevantTime <= 1.0)
-				{
-					UE_LOG(LogNetTraffic, Log, TEXT(" Saturated. Mark %s NetUpdateTime to be checked for next tick"), *Actor->GetName());
-					PriorityActors[k]->ActorInfo->bPendingNetUpdate = true;
-				}
-				else if ( IsActorRelevantToConnection( Actor, ConnectionViewers ) )
-				{
-					// If this actor was relevant but didn't get processed, force another update for next frame
-					UE_LOG( LogNetTraffic, Log, TEXT( " Saturated. Mark %s NetUpdateTime to be checked for next tick" ), *Actor->GetName() );
-					PriorityActors[k]->ActorInfo->bPendingNetUpdate = true;
-					if ( Channel != NULL )
-					{
-						Channel->RelevantTime = ElapsedTime + 0.5 * UpdateDelayRandomStream.FRand();
-					}
-					}
-
-				// If the actor was forced to relevant and didn't get processed, try again on the next update;
-				if (PriorityActors[k]->ActorInfo->ForceRelevantFrame >= Connection->LastProcessedFrame)
-				{
-					PriorityActors[k]->ActorInfo->ForceRelevantFrame = ReplicationFrame+1;
-				}
+				OnProcessConsiderListOverride.Execute( { DeltaSeconds, Connection, bCPUSaturated }, Updated, ConsiderList );
 			}
+
+			if (!bProcessConsiderListIsBound)
+			{
+				FActorPriority* PriorityList = NULL;
+				FActorPriority** PriorityActors = NULL;
+
+				// Get a sorted list of actors for this connection
+				const int32 FinalSortedCount = ServerReplicateActors_PrioritizeActors(Connection, ConnectionViewers, ConsiderList, bCPUSaturated, PriorityList, PriorityActors);
+
+				// Process the sorted list of actors for this connection
+				TInterval<int32> ActorsIndexRange(0, FinalSortedCount);
+				const int32 LastProcessedActor = ServerReplicateActors_ProcessPrioritizedActorsRange(Connection, ConnectionViewers, PriorityActors, ActorsIndexRange, Updated);
+
+				ServerReplicateActors_MarkRelevantActors(Connection, ConnectionViewers, LastProcessedActor, FinalSortedCount, PriorityActors);
+			}
+
 			RelevantActorMark.Pop();
 
 			ConnectionViewers.Reset();
@@ -5369,6 +5398,11 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 		{
 			ConnectionsToClose.Add(Connection);
 		}
+	}
+
+	if (OnPostConsiderListUpdateOverride.IsBound())
+	{
+		OnPostConsiderListUpdateOverride.ExecuteIfBound( { DeltaSeconds, nullptr, bCPUSaturated }, Updated, ConsiderList );
 	}
 
 	// shuffle the list of connections if not all connections were ticked

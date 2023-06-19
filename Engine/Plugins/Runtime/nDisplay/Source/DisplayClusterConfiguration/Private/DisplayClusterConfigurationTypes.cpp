@@ -10,8 +10,10 @@
 #include "DisplayClusterConfigurationLog.h"
 #include "DisplayClusterConfigurationStrings.h"
 #include "DisplayClusterProjectionStrings.h"
+#include "Config/IDisplayClusterConfigManager.h"
 
 #include "Engine/StaticMesh.h"
+#include "IDisplayCluster.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
@@ -432,6 +434,35 @@ void UDisplayClusterConfigurationData::GetReferencedMeshNames(TArray<FString>& O
 	{
 		Cluster->GetReferencedMeshNames(OutMeshNames);
 	}
+}
+
+int32 UDisplayClusterConfigurationData::GetNumberOfClusterNodes() const
+{
+	if (Cluster == nullptr)
+	{
+		return 0;
+	}
+
+	return Cluster->Nodes.Num();
+}
+
+FString UDisplayClusterConfigurationData::GetPrimaryNodeAddress() const
+{
+	if (!IDisplayCluster::Get().GetConfigMgr())
+	{
+		return FString();
+	}
+
+	if (!IDisplayCluster::Get().GetConfigMgr()->GetConfig())
+	{
+		return FString();
+	}
+
+	UDisplayClusterConfigurationData* DisplayClusterConfigurationData = IDisplayCluster::Get().GetConfigMgr()->GetConfig();
+	
+	const FString PrimaryNodeId = DisplayClusterConfigurationData->Cluster->PrimaryNode.Id;
+
+	return DisplayClusterConfigurationData->Cluster->GetNode(PrimaryNodeId)->Host;
 }
 
 UDisplayClusterConfigurationData* UDisplayClusterConfigurationData::CreateNewConfigData(UObject* Owner, EObjectFlags ObjectFlags)

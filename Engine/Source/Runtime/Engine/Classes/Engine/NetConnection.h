@@ -1200,8 +1200,16 @@ public:
 	/** 
 	* Handle a packet we just received. 
 	* bIsReinjectedPacket is true if a packet is reprocessed after getting cached 
+	* bDispatchPacket if true the packet will be processed (passed to DispatchPacket)
 	*/
-	void ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacket=false );
+	ENGINE_API virtual void ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacket=false, bool bDispatchPacket=true );
+	
+	/**
+	* Disassemble and dispatch packet.
+	* PacketId is an id of the packet to dispatch
+	* bOutSkipAck Flag that marks packet as dropped
+	*/
+	ENGINE_API virtual void DispatchPacket( FBitReader& Reader, int32 PacketId, bool& bOutSkipAck, bool& bOutHasBunchErrors );
 
 	/** Packet was negatively acknowledged. */
 	void ReceivedNak( int32 NakPacketId );
@@ -1243,7 +1251,7 @@ public:
 	 * Wrapper for setting the current client login state, so we can trap for debugging, and verbosity purposes. 
 	 * Only valid on the server
 	 */
-	ENGINE_API void SetClientLoginState( const EClientLoginState::Type NewState );
+	ENGINE_API virtual void SetClientLoginState( const EClientLoginState::Type NewState );
 
 	/** 
 	 * Wrapper for setting the current expected client login msg type. 
@@ -1349,7 +1357,7 @@ public:
 	void CleanupDormantReplicatorsForActor(AActor* Actor);
 
 	/** Trigger a callback on all dormant replicators of every dormant actor we stored */
-	void ExecuteOnAllDormantReplicators(UE::Net::FExecuteForEachDormantReplicator ExecuteFunction);
+	ENGINE_API void ExecuteOnAllDormantReplicators(UE::Net::FExecuteForEachDormantReplicator ExecuteFunction);
 
 	/** Trigger a callback on all dormant replicators owned by a dormant actor */
 	void ExecuteOnAllDormantReplicatorsOfActor(AActor* OwnerActor, UE::Net::FExecuteForEachDormantReplicator ExecuteFunction);
@@ -1524,6 +1532,11 @@ protected:
 	 * Notification that information about this connection may have been updated
 	 */
 	ENGINE_API void NotifyConnectionUpdated();
+
+	/**
+	 * Return last notified packet id
+	 */
+	ENGINE_API int32 GetLastNotifiedPacketId() const;
 
 private:
 	/**

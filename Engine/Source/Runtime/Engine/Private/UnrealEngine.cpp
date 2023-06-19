@@ -14357,6 +14357,12 @@ EBrowseReturnVal::Type UEngine::Browse( FWorldContext& WorldContext, FURL URL, F
 		BroadcastTravelFailure(WorldContext.World(), ETravelFailure::CheatCommands, Error);
 		return EBrowseReturnVal::Failure;
 	}
+
+	if (OnOverrideBrowseURL.IsBound())
+	{
+		return OnOverrideBrowseURL.Execute(WorldContext, URL, Error);
+	}
+
 	if( URL.IsLocalInternal() )
 	{
 		// Local map file.
@@ -14575,6 +14581,11 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 	}
 
 	// Update the pending level.
+	if ( OnOverridePendingNetGameUpdate.ExecuteIfBound(Context, DeltaSeconds) )
+	{
+		return;
+	}
+
 	if( Context.PendingNetGame )
 	{
 		Context.PendingNetGame->Tick( DeltaSeconds );

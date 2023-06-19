@@ -16,6 +16,8 @@ class IDisplayClusterClusterNodeController;
 class IDisplayClusterClusterSyncObject;
 class UDisplayClusterConfigurationData;
 
+DECLARE_DELEGATE_RetVal_ThreeParams(EBrowseReturnVal::Type, FOnBrowseLoadMap, FWorldContext& WorldContext, FURL URL, FString& Error);
+DECLARE_DELEGATE_TwoParams(FOnPengineLevelUpdate, FWorldContext& Context, float DeltaSeconds);
 
 /**
  * Extended game engine
@@ -61,7 +63,14 @@ private:
 	bool BarrierAvoidanceOn() const;
 
 	void GameSyncChange(const FDisplayClusterClusterEventJson& InEvent);
+	
+	/** Implements custom loading logic to support listening server
+	 */
+	EBrowseReturnVal::Type BrowseLoadMap(FWorldContext& WorldContext, FURL URL, FString& Error);
 
+	/** Custom logic to update PendingLevel in order to support listening server
+	 */
+	void PendingLevelUpdate(FWorldContext& Context, float DeltaSeconds);
 private:
 	IPDisplayClusterClusterManager* ClusterMgr = nullptr;
 

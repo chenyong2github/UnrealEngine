@@ -16,7 +16,7 @@ class UNetDriver;
 struct FWorldContext;
 
 UCLASS(customConstructor, transient)
-class UPendingNetGame :
+class ENGINE_API UPendingNetGame :
 	public UObject,
 	public FNetworkNotify
 {
@@ -61,7 +61,7 @@ public:
 	 *
 	 * @param Response response from the game containing its encryption key or an error message
 	 */
-	ENGINE_API void SetEncryptionKey(const FEncryptionKeyResponse& Response);
+	void SetEncryptionKey(const FEncryptionKeyResponse& Response);
 
 	bool HasFailedTravel() const {return bFailedTravel; }
 	void SetFailedTravel(bool bInFailedTravel) { bFailedTravel = bInFailedTravel; }
@@ -96,7 +96,7 @@ public:
 	/**
 	 * Send the packet for triggering the initial join
 	 */
-	ENGINE_API void SendInitialJoin();
+	void SendInitialJoin();
 
 	//~ Begin FNetworkNotify Interface.
 	virtual EAcceptConnection::Type NotifyAcceptingConnection() override;

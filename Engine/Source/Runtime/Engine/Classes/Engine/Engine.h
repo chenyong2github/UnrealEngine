@@ -693,6 +693,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FPreRenderDelegateEx, class FRDGBuilder&);
 DECLARE_MULTICAST_DELEGATE(FPostRenderDelegate);
 DECLARE_MULTICAST_DELEGATE_OneParam(FPostRenderDelegateEx, class FRDGBuilder&);
 
+DECLARE_DELEGATE_RetVal_ThreeParams(EBrowseReturnVal::Type, FBrowseURL, FWorldContext& WorldContext, FURL URL, FString& Error);
+DECLARE_DELEGATE_TwoParams(FPendingLevelUpdate, FWorldContext& Context, float DeltaSeconds);
+
 /**
  * Type of UObject purge type to be performed by the engine
  */
@@ -3438,6 +3441,19 @@ private:
 	bool bIsVanillaProduct;
 
 protected:
+	/**
+	 * Delegate for overriding the method Browse in the part that parses an URL
+	 * and loads specified level or creates PendingNetGame.
+	 * Parameter are the same as those passed to the calling method Browse
+	 */
+	FBrowseURL OnOverrideBrowseURL;
+
+	/**
+	 * Delegate for overriding the method TickWorldTravel in the part that
+	 * controls the state of PendingNetGame
+	 * Parameter are the same as those passed to the calling method Browse
+	 */
+	FPendingLevelUpdate OnOverridePendingNetGameUpdate;
 
 	TIndirectArray<FWorldContext>	WorldList;
 

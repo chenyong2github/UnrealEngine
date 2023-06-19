@@ -413,6 +413,22 @@ DECLARE_DELEGATE_RetVal(bool, FShouldSkipRepNotifies);
 
 #endif
 
+/**
+ * The structure to pass to the OnConsiderListUpdate delegate 
+ * 
+ * @param DeltaSeconds     Time between the frames
+ * @param Connection       NetConnection to process
+ * @param bCPUSaturated    Not used by the engine at the moment but kept for compatibility
+ */
+struct ENGINE_API ConsiderListUpdateParams
+{
+	float DeltaSeconds = 0;
+	UNetConnection* Connection = nullptr;
+	bool bCPUSaturated = false;
+};
+
+DECLARE_DELEGATE_ThreeParams(FOnConsiderListUpdate, const ConsiderListUpdateParams& UpdateParams, int32& OutUpdated, const TArray<FNetworkObjectInfo*>& ConsiderList);
+
 //
 // Whether to support net lag and packet loss testing.
 //
@@ -626,7 +642,7 @@ struct FNetDriverReplicationSystemConfig
 //
 // Priority sortable list.
 //
-struct FActorPriority
+struct ENGINE_API FActorPriority
 {
 	int32						Priority;	// Update priority, higher = more important.
 	
@@ -1898,8 +1914,38 @@ protected:
 	*/
 	int32 ServerReplicateActors_PrepConnections( const float DeltaSeconds );
 	void ServerReplicateActors_BuildConsiderList( TArray<FNetworkObjectInfo*>& OutConsiderList, const float ServerTickTime );
-	int32 ServerReplicateActors_PrioritizeActors( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, const TArray<FNetworkObjectInfo*>& ConsiderList, const bool bCPUSaturated, FActorPriority*& OutPriorityList, FActorPriority**& OutPriorityActors );
+
+	// Actor prioritization
+	ENGINE_API int32 ServerReplicateActors_PrioritizeActors( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, const TArray<FNetworkObjectInfo*>& ConsiderList, const bool bCPUSaturated, FActorPriority*& OutPriorityList, FActorPriority**& OutPriorityActors );
+	
+	UE_DEPRECATED(5.3, "This function has been deprecated. Please use ServerReplicateActors_ProcessPrioritizedActorsRange instead")
 	int32 ServerReplicateActors_ProcessPrioritizedActors( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, FActorPriority** PriorityActors, const int32 FinalSortedCount, int32& OutUpdated );
+	
+	// Actor relevancy processing within specified range
+	ENGINE_API int32 ServerReplicateActors_ProcessPrioritizedActorsRange( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, FActorPriority** PriorityActors, const TInterval<int32>& ActorsIndexRange, int32& OutUpdated, bool bIgnoreSaturation = false );
+	
+	// Relevant actors that could not be processed this frame are marked to be considered for next frame
+	ENGINE_API void ServerReplicateActors_MarkRelevantActors( UNetConnection* Connection, const TArray<FNetViewer>& ConnectionViewers, int32 StartActorIndex, int32 EndActorIndex, FActorPriority** PriorityActors );
+	
+	/**
+	* Delegate for overriding the method ServerReplicateActors
+	* in the part that prepares prioritized actors list of
+	* client connections
+	*/
+	FOnConsiderListUpdate OnPreConsiderListUpdateOverride;
+
+	/**
+	* Delegate that complements the method ServerReplicateActors
+	* with the additional replication logic
+	*/
+	FOnConsiderListUpdate OnPostConsiderListUpdateOverride;
+
+	/**
+	* Delegate that allows to implement additional procedures after
+	* main replication logic in the corresponding part of the method
+	* ServerReplicateActors
+	*/
+	FOnConsiderListUpdate OnProcessConsiderListOverride;
 #endif
 
 	/** Used to handle any NetDriver specific cleanup once a level has been removed from the world. */

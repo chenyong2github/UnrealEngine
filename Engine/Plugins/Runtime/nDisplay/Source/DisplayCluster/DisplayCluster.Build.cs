@@ -21,6 +21,7 @@ public class DisplayCluster : ModuleRules
 				"DisplayClusterLightCardEditorShaders",
 				"DisplayClusterLightCardExtender",
 				"Engine",
+				"EngineSettings",
 				"EnhancedInput",
 			});
 

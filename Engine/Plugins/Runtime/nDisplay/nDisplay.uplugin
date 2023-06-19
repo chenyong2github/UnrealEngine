@@ -213,6 +213,15 @@
 				"Win64",
 				"Linux"
 			]
+		},
+		{
+			"Name": "DisplayClusterReplication",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
 		}
 	],
 	"Plugins": [
@@ -258,6 +267,14 @@
 		},
 		{
 			"Name": "MovieRenderPipeline",
+			"Enabled": true
+		},
+		{
+			"Name": "OnlineSubsystem",
+			"Enabled": true
+		},
+		{
+			"Name": "OnlineSubsystemUtils",
 			"Enabled": true
 		}
 	]

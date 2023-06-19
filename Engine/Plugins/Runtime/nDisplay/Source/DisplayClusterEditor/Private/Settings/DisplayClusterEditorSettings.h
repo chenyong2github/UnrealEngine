@@ -29,4 +29,8 @@ protected:
 protected:
 	UPROPERTY(config, EditAnywhere, Category = Main, meta = (ToolTip = "When enabled, replaces the original GameEngine to DisplayClusterGameEngine", ConfigRestartRequired = true))
 	bool bEnabled;
+
+	/** When enabled, replaces the original NetDriver to DisplayClusterNetDriver, original NetConnection to DisplayClusterNetDriver */
+	UPROPERTY(config, EditAnywhere, Category = Main, meta = (ToolTip = "When enabled, replaces the original NetDriver to DisplayClusterNetDriver, original NetConnection to DisplayClusterNetDriver", ConfigRestartRequired = true))
+	bool bClusterReplicationEnabled;
 };

@@ -542,6 +542,13 @@ public:
 	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 
 public:
+	/** Returns number of nodes in current cluster */
+	int32 GetNumberOfClusterNodes() const;
+
+	/** Returns primary node IP address of current cluster */
+	FString GetPrimaryNodeAddress() const;
+
+public:
 	FDisplayClusterConfigurationDataMetaInfo Meta;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = Configuration, meta = (DisplayAfter = "RenderFrameSettings"))

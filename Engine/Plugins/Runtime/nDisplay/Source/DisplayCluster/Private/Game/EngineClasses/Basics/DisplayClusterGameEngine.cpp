@@ -15,7 +15,13 @@
 
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/DisplayClusterAppExit.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 #include "Misc/Parse.h"
 
 #include "Misc/DisplayClusterGlobals.h"
@@ -25,6 +31,14 @@
 
 #include "SocketSubsystem.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+
+#include "EngineGlobals.h"
+#include "Engine/NetDriver.h"
+#include "Engine/GameInstance.h"
+
+#include "UObject/Linker.h"
+#include "GameMapsSettings.h"
+#include "GameFramework/GameModeBase.h"
 
 #include "Stats/Stats.h"
 
@@ -143,6 +157,9 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 
 	// Initialize base stuff.
 	UGameEngine::Init(InEngineLoop);
+
+	OnOverrideBrowseURL.BindUObject(this, &UDisplayClusterGameEngine::BrowseLoadMap);
+	OnOverridePendingNetGameUpdate.BindUObject(this, &UDisplayClusterGameEngine::PendingLevelUpdate);
 }
 
 EDisplayClusterOperationMode UDisplayClusterGameEngine::DetectOperationMode() const
@@ -461,5 +478,155 @@ void UDisplayClusterGameEngine::GameSyncChange(const FDisplayClusterClusterEvent
 			ReceivedSync(InEvent.Type,InEvent.Name);
 			CheckGameStartBarrier();
 		}
+	}
+}
+
+EBrowseReturnVal::Type UDisplayClusterGameEngine::BrowseLoadMap(FWorldContext& WorldContext, FURL URL, FString& Error)
+{
+	FString DisplayClusterServerType;
+	FParse::Value(FCommandLine::Get(), TEXT("dc_replicationserver_type"), DisplayClusterServerType);
+
+	const bool IsDisplayCluster = (IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster);
+	const bool IsDisplayClusterListenServer = IsDisplayCluster && DisplayClusterServerType.Equals(TEXT("listen"));
+
+	if (URL.IsLocalInternal() && !IsDisplayClusterListenServer)
+	{
+		// Local map file.
+		return LoadMap(WorldContext, URL, NULL, Error) ? EBrowseReturnVal::Success : EBrowseReturnVal::Failure;
+	}
+	else if ((URL.IsInternal() && GIsClient) || (URL.IsLocalInternal() && IsDisplayClusterListenServer))
+	{
+		EBrowseReturnVal::Type BrowseResult = EBrowseReturnVal::Failure;
+
+		if (IsDisplayClusterListenServer)
+		{
+			BrowseResult = LoadMap(WorldContext, URL, NULL, Error) ? EBrowseReturnVal::Success : EBrowseReturnVal::Failure;
+		}
+
+		if ((URL.IsInternal() && GIsClient) || (BrowseResult == EBrowseReturnVal::Success))
+		{
+			// Network URL.
+			if (WorldContext.PendingNetGame)
+			{
+				CancelPending(WorldContext);
+			}
+
+			// Clean up the netdriver/socket so that the pending level succeeds
+			if (WorldContext.World() && ShouldShutdownWorldNetDriver())
+			{
+				ShutdownWorldNetDriver(WorldContext.World());
+			}
+
+			WorldContext.PendingNetGame = NewObject<UPendingNetGame>();
+			WorldContext.PendingNetGame->Initialize(URL); //-V595
+			WorldContext.PendingNetGame->InitNetDriver(); //-V595
+
+			if (!WorldContext.PendingNetGame)
+			{
+				// If the inital packet sent in InitNetDriver results in a socket error, HandleDisconnect() and CancelPending() may be called, which will null the PendingNetGame.
+				Error = NSLOCTEXT("Engine", "PendingNetGameInitFailure", "Error initializing the network driver.").ToString();
+				BroadcastTravelFailure(WorldContext.World(), ETravelFailure::PendingNetGameCreateFailure, Error);
+				return EBrowseReturnVal::Failure;
+			}
+
+			if (!WorldContext.PendingNetGame->NetDriver)
+			{
+				// UPendingNetGame will set the appropriate error code and connection lost type, so
+				// we just have to propagate that message to the game.
+				BroadcastTravelFailure(WorldContext.World(), ETravelFailure::PendingNetGameCreateFailure, WorldContext.PendingNetGame->ConnectionError);
+				WorldContext.PendingNetGame = NULL;
+				return EBrowseReturnVal::Failure;
+			}
+			return EBrowseReturnVal::Pending;
+		}
+	}
+	else if (URL.IsInternal())
+	{
+		// Invalid.
+		Error = NSLOCTEXT("Engine", "ServerOpen", "Servers can't open network URLs").ToString();
+		return EBrowseReturnVal::Failure;
+	}
+
+	return EBrowseReturnVal::Failure;
+}
+
+void UDisplayClusterGameEngine::PendingLevelUpdate(FWorldContext& Context, float DeltaSeconds)
+{
+	// Update the pending level.
+	if (Context.PendingNetGame)
+	{
+		Context.PendingNetGame->Tick(DeltaSeconds);
+		if (Context.PendingNetGame && Context.PendingNetGame->ConnectionError.Len() > 0)
+		{
+			BroadcastNetworkFailure(NULL, Context.PendingNetGame->NetDriver, ENetworkFailure::PendingConnectionFailure, Context.PendingNetGame->ConnectionError);
+			CancelPending(Context);
+		}
+		else if (Context.PendingNetGame && Context.PendingNetGame->bSuccessfullyConnected && !Context.PendingNetGame->bSentJoinRequest && !Context.PendingNetGame->bLoadedMapSuccessfully && (Context.OwningGameInstance == NULL || !Context.OwningGameInstance->DelayPendingNetGameTravel()))
+		{
+			if (Context.PendingNetGame->HasFailedTravel())
+			{
+				BrowseToDefaultMap(Context);
+				BroadcastTravelFailure(Context.World(), ETravelFailure::TravelFailure, TEXT("Travel failed for unknown reason"));
+			}
+			else if (!MakeSureMapNameIsValid(Context.PendingNetGame->URL.Map))
+			{
+				BrowseToDefaultMap(Context);
+				BroadcastTravelFailure(Context.World(), ETravelFailure::PackageMissing, Context.PendingNetGame->URL.Map);
+			}
+			else if (!Context.PendingNetGame->bLoadedMapSuccessfully)
+			{
+				// Attempt to load the map.
+				FString Error;
+				FString DisplayClusterServerType;
+				FParse::Value(FCommandLine::Get(), TEXT("dc_replicationserver_type"), DisplayClusterServerType);
+
+				const bool IsDisplayCluster = FParse::Param(FCommandLine::Get(), TEXT("dc_cluster"));
+				const bool IsDisplayClusterListenServer = IsDisplayCluster && DisplayClusterServerType.Equals(TEXT("listen"));
+
+				bool bLoadedMapSuccessfully = true;
+
+				if (IsDisplayClusterListenServer)
+				{
+					MovePendingLevel(Context);
+				}
+				else
+				{
+					bLoadedMapSuccessfully = LoadMap(Context, Context.PendingNetGame->URL, Context.PendingNetGame, Error);
+				}
+
+				if (Context.PendingNetGame != nullptr)
+				{
+					if (!Context.PendingNetGame->LoadMapCompleted(this, Context, bLoadedMapSuccessfully, Error))
+					{
+						BrowseToDefaultMap(Context);
+						BroadcastTravelFailure(Context.World(), ETravelFailure::LoadMapFailure, Error);
+					}
+				}
+				else
+				{
+					BrowseToDefaultMap(Context);
+					BroadcastTravelFailure(Context.World(), ETravelFailure::TravelFailure, Error);
+				}
+			}
+		}
+
+		if (Context.PendingNetGame && Context.PendingNetGame->bLoadedMapSuccessfully && (Context.OwningGameInstance == NULL || !Context.OwningGameInstance->DelayCompletionOfPendingNetGameTravel()))
+		{
+			if (!Context.PendingNetGame->HasFailedTravel())
+			{
+				Context.PendingNetGame->TravelCompleted(this, Context);
+				Context.PendingNetGame = nullptr;
+			}
+			else
+			{
+				CancelPending(Context);
+				BrowseToDefaultMap(Context);
+				BroadcastTravelFailure(Context.World(), ETravelFailure::LoadMapFailure, TEXT("Travel failed for unknown reason"));
+			}
+		}
+	}
+	else if (TransitionType == ETransitionType::WaitingToConnect)
+	{
+		TransitionType = ETransitionType::None;
 	}
 }
