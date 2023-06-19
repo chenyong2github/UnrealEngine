@@ -113,7 +113,7 @@ class FGeneratedKey
 	friend uint32 GetTypeHash(const FGeneratedKey& Key);
 
 public:
-	FGeneratedKey(void* InFunctionAddress, const UEdGraphPin& InPin, const UCustomizableObjectNode& Node, FMutableGraphGenerationContext& GenerationContext, const bool UseMesh = false);
+	FGeneratedKey(void* InFunctionAddress, const UEdGraphPin& InPin, const UCustomizableObjectNode& Node, FMutableGraphGenerationContext& GenerationContext, const bool UseMesh = false, bool bOnlyConnectedLOD = false);
 	
 	bool operator==(const FGeneratedKey& Other) const;
 
@@ -130,6 +130,9 @@ private:
 
 	/** Active morphs at the time of mesh generation. */
 	TArray<FMorphNodeData> MeshMorphStack;
+
+	/** When caching a generated mesh, true if we force to generate the connected LOD when using Automatic LODs From Mesh. */
+	bool bOnlyConnectedLOD = false;
 };
 
 

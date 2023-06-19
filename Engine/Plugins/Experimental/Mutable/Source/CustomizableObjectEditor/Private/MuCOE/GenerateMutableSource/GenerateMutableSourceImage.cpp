@@ -648,7 +648,7 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeProject->MeshPin()))
 		{
 			FMutableGraphMeshGenerationData DummyMeshData;
-			mu::NodeMeshPtr MeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, DummyMeshData);
+			mu::NodeMeshPtr MeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, DummyMeshData, false, false);
 			ImageNode->SetMesh(MeshNode);
 		}
 
@@ -984,7 +984,9 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 						// Generating a new Texture column if not exists
 						if (Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
 						{
-							bSuccess = GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+							int32 Dummy = -1; // TODO MTBL-1512
+							bool Dummy2 = false;
+							bSuccess = GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, Dummy, Dummy, GenerationContext.CurrentLOD, Dummy, Dummy2, GenerationContext);
 
 							if (!bSuccess)
 							{

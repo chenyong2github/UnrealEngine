@@ -18,6 +18,8 @@ LAYOUT -> MeshLayoutNode
 
 MORPHSTACK -> NodeMeshMorphStackDefinition MESH
 
+MORPH -> SKELETASLMESHASSET
+
 STATICMESHASSET -> UStaticMesh
 
 SKELETASLMESHASSET-> USkeletalMesh
@@ -28,7 +30,7 @@ MESH -> NodeMeshMorphStackApplication MORPHSTACK MESH
 MESH -> NodeMeshReshape MESH:BaseMesh MESH:BaseShape MESH:TargetShape
 MESH -> NodeMeshSwitch ENUM MESH*
 MESH -> NodeMeshVariation MESH MESH*
-MESH -> NodeSkeletalMesh SKELETALMESH LAYOUT*
+MESH -> NodeSkeletalMesh SKELETASLMESHASSET LAYOUT* MORPH*
 MESH -> NodeStaticMesh STATICMESHASSET
 MESH -> NodeAnimationPose MESH
 MESH -> NodeTable SKELETASLMESHASSET* STATICMESHASSET*
@@ -83,7 +85,7 @@ SURFACE -> NodeMaterialVariation SURFACENODE SURFACENODE*
 SURFACE -> NodeCopyMaterial MESH SURFACENODE
 SURFACE -> NodeRemoveMesh SURFACENODE MESH
 SURFACE -> NodeRemoveMeshBlocks SURFACENODE 
-SURFACE -> NodeMorphMaterial SURFACENODE
+SURFACE -> NodeMorphMaterial SURFACENODE MORPH
 
 MODIFIER -> NodeMeshClipDeform MESH
 MODIFIER -> NodeMeshClipWithMesh MESH SURFACENODE

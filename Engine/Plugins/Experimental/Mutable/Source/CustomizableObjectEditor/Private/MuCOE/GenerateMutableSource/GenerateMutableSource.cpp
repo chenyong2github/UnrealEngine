@@ -254,7 +254,7 @@ FMutableComponentInfo& FMutableGraphGenerationContext::GetCurrentComponentInfo()
 }
 
 
-FGeneratedKey::FGeneratedKey(void* InFunctionAddress, const UEdGraphPin& InPin, const UCustomizableObjectNode& Node, FMutableGraphGenerationContext& GenerationContext, const bool UseMesh)
+FGeneratedKey::FGeneratedKey(void* InFunctionAddress, const UEdGraphPin& InPin, const UCustomizableObjectNode& Node, FMutableGraphGenerationContext& GenerationContext, const bool UseMesh, const bool InbOnlyConnectedLOD)
 {
 	FunctionAddress = InFunctionAddress;
 	Pin = &InPin;
@@ -264,6 +264,7 @@ FGeneratedKey::FGeneratedKey(void* InFunctionAddress, const UEdGraphPin& InPin, 
 	{
 		Flags = GenerationContext.MeshGenerationFlags.Last();
 		MeshMorphStack = GenerationContext.MeshMorphStack;
+		bOnlyConnectedLOD = InbOnlyConnectedLOD;
 	}
 }
 
@@ -274,7 +275,8 @@ bool FGeneratedKey::operator==(const FGeneratedKey& Other) const
 		Pin == Other.Pin &&
 		LOD == Other.LOD &&
 		Flags == Other.Flags &&
-		MeshMorphStack == Other.MeshMorphStack;
+		MeshMorphStack == Other.MeshMorphStack &&
+		bOnlyConnectedLOD == Other.bOnlyConnectedLOD;
 }
 
 
@@ -285,6 +287,7 @@ uint32 GetTypeHash(const FGeneratedKey& Key)
 	Hash = HashCombine(Hash, GetTypeHash(Key.LOD));
 	Hash = HashCombine(Hash, GetTypeHash(Key.Flags));
 	//Hash = HashCombine(Hash, GetTypeHash(Key.MeshMorphStack)); // Does not support array
+	Hash = HashCombine(Hash, GetTypeHash(Key.bOnlyConnectedLOD));
 	
 	return Hash;
 }

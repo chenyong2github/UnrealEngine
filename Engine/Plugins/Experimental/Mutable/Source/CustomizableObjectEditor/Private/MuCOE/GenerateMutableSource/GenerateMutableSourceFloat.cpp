@@ -343,7 +343,9 @@ mu::NodeScalarPtr GenerateMutableSourceFloat(const UEdGraphPin* Pin, FMutableGra
 					// Generating a new Float column if not exists
 					if (Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
 					{
-						bSuccess = GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+						int32 Dummy = -1; // TODO MTBL-1512
+						bool Dummy2 = false;
+						bSuccess = GenerateTableColumn(TypedNodeTable, Pin, Table, ColumnName, Dummy, Dummy, GenerationContext.CurrentLOD, Dummy, Dummy2, GenerationContext);
 
 						if (!bSuccess)
 						{

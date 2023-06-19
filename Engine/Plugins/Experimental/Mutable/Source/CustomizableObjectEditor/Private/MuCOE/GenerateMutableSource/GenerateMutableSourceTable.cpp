@@ -20,7 +20,8 @@
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
 
-bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr MutableTable,	const FString& ColumnName,	const FString& RowName,	const int32 RowIdx,	uint8* CellData, FProperty* Property, const int32 LOD, FMutableGraphGenerationContext& GenerationContext)
+bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr MutableTable,	const FString& ColumnName,	const FString& RowName,	const int32 RowIdx,	uint8* CellData, FProperty* Property,
+	const int LODIndexConnected, const int32 SectionIndexConnected, int32 LODIndex, int32 SectionIndex, const bool bOnlyConnectedLOD, FMutableGraphGenerationContext& GenerationContext)
 {
 	int32 CurrentColumn;
 
@@ -158,103 +159,108 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 				return false;
 			}
 
+			GetLODAndSectionForAutomaticLODs(GenerationContext, *TableNode, *SkeletalMesh, LODIndexConnected, SectionIndexConnected, LODIndex, SectionIndex, bOnlyConnectedLOD);
+			
 			// Parameter used for LOD differences
-			int32 CurrentLOD = LOD;
-
-			int NumLODs = SkeletalMesh->GetLODInfoArray().Num();
-
-			if (NumLODs <= CurrentLOD)
+	
+			if (GenerationContext.CurrentAutoLODStrategy != ECustomizableObjectAutomaticLODStrategy::AutomaticFromMesh || 
+				SectionIndex == SectionIndexConnected)
 			{
-				CurrentLOD = NumLODs - 1;
+				const int32 NumLODs = SkeletalMesh->GetImportedModel()->LODModels.Num();
 
-				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] needs LOD %d but has less LODs than the reference mesh. LOD %d will be used instead. This can cause some performance penalties."),
-					*ColumnName, *RowName, LOD, CurrentLOD);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
-			}
-
-			int32 NumMaterials = SkeletalMesh->GetImportedModel()->LODModels[CurrentLOD].Sections.Num();
-			int32 ReferenceNumMaterials = ReferenceSkeletalMesh->GetImportedModel()->LODModels[CurrentLOD].Sections.Num();
-
-			if (NumMaterials != ReferenceNumMaterials)
-			{
-				FString Dif_1 = NumMaterials > ReferenceNumMaterials ? "more" : "less";
-				FString Dif_2 = NumMaterials > ReferenceNumMaterials ? "Some will be ignored" : "This can cause some compilation errors.";
-
-				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] has %s Sections than the reference mesh. %s"), *ColumnName, *RowName, *Dif_1, *Dif_2);
-				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
-			}
-
-			int32 Materials = NumMaterials <= ReferenceNumMaterials ? NumMaterials : ReferenceNumMaterials;
-
-			for (int32 MatIndex = 0; MatIndex < Materials; ++MatIndex)
-			{
-				FString MutableColumnName = TableNode->GenerateSkeletalMeshMutableColumName(ColumnName, LOD, MatIndex);
-
-				CurrentColumn = MutableTable.get()->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
-
-				if (CurrentColumn == -1)
+				if (NumLODs <= LODIndex)
 				{
-					CurrentColumn = MutableTable->AddColumn(StringCast<ANSICHAR>(*MutableColumnName).Get(), mu::TABLE_COLUMN_TYPE::TCT_MESH);
-				}
+					LODIndex = NumLODs - 1;
 
-				// First process the mesh tags that are going to make the mesh unique and affect whether it's repeated in 
-				// the mesh cache or not
-				FString MeshUniqueTags;
+					FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] needs LOD %d but has less LODs than the reference mesh. LOD %d will be used instead. This can cause some performance penalties."),
+						*ColumnName, *RowName, LODIndex, LODIndex);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
+				}
+			}
+
+			FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+			
+			if (ImportedModel->LODModels.IsValidIndex(LODIndex)) // Ignore error since this Section is empty due to Automatic LODs From Mesh
+			{
+				int32 NumSections = ImportedModel->LODModels[LODIndex].Sections.Num();
+				int32 ReferenceNumMaterials = ImportedModel->LODModels[LODIndex].Sections.Num();
+
+				if (NumSections != ReferenceNumMaterials)
+				{
+					FString Dif_1 = NumSections > ReferenceNumMaterials ? "more" : "less";
+					FString Dif_2 = NumSections > ReferenceNumMaterials ? "Some will be ignored" : "This can cause some compilation errors.";
+
+					FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] has %s Sections than the reference mesh. %s"), *ColumnName, *RowName, *Dif_1, *Dif_2);
+					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
+				}
+			}
+
+			FString MutableColumnName = TableNode->GenerateSkeletalMeshMutableColumName(ColumnName, LODIndex, SectionIndex);
+
+			CurrentColumn = MutableTable.get()->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
+
+			if (CurrentColumn == -1)
+			{
+				CurrentColumn = MutableTable->AddColumn(StringCast<ANSICHAR>(*MutableColumnName).Get(), mu::TABLE_COLUMN_TYPE::TCT_MESH);
+			}
+
+			// First process the mesh tags that are going to make the mesh unique and affect whether it's repeated in 
+			// the mesh cache or not
+			FString MeshUniqueTags;
+
+			if (!AnimBPAssetTag.IsEmpty())
+			{
+				MeshUniqueTags += AnimBPAssetTag;
+			}
+
+			TArray<FString> ArrayAnimBPTags;
+
+			for (const FGameplayTag& Tag : GameplayTags)
+			{
+				MeshUniqueTags += GenerateGameplayTag(Tag.ToString());
+			}
+
+			//TODO: Add AnimBp physics to Tables.
+			mu::MeshPtr MutableMesh = GenerateMutableMesh(SkeletalMesh, TSoftClassPtr<UAnimInstance>(), LODIndexConnected, SectionIndexConnected, LODIndex, SectionIndex, MeshUniqueTags, GenerationContext, TableNode);
+
+			if (MutableMesh)
+			{
+ 				if (SkeletalMesh->GetPhysicsAsset() && MutableMesh->GetPhysicsBody() && MutableMesh->GetPhysicsBody()->GetBodyCount())
+				{	
+					TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
+					GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
+					FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
+
+					AddTagToMutableMeshUnique(*MutableMesh, PhysicsAssetTag);
+				}
 
 				if (!AnimBPAssetTag.IsEmpty())
 				{
-					MeshUniqueTags += AnimBPAssetTag;
+					AddTagToMutableMeshUnique(*MutableMesh, AnimBPAssetTag);
 				}
-
-				TArray<FString> ArrayAnimBPTags;
 
 				for (const FGameplayTag& Tag : GameplayTags)
 				{
-					MeshUniqueTags += GenerateGameplayTag(Tag.ToString());
+					AddTagToMutableMeshUnique(*MutableMesh, GenerateGameplayTag(Tag.ToString()));
 				}
 
-				//TODO: Add AnimBp physics to Tables.
-				mu::MeshPtr MutableMesh = GenerateMutableMesh(SkeletalMesh, TSoftClassPtr<UAnimInstance>(), CurrentLOD, MatIndex, MeshUniqueTags, GenerationContext, TableNode);
+				AddSocketTagsToMesh(SkeletalMesh, MutableMesh, GenerationContext);
 
-				if (MutableMesh)
+				if (UCustomizableObjectSystem::GetInstance()->IsMutableAnimInfoDebuggingEnabled())
 				{
- 					if (SkeletalMesh->GetPhysicsAsset() && MutableMesh->GetPhysicsBody() && MutableMesh->GetPhysicsBody()->GetBodyCount())
-					{	
-						TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
-						GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
-						FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
-
-						AddTagToMutableMeshUnique(*MutableMesh, PhysicsAssetTag);
-					}
-
-					if (!AnimBPAssetTag.IsEmpty())
-					{
-						AddTagToMutableMeshUnique(*MutableMesh, AnimBPAssetTag);
-					}
-
-					for (const FGameplayTag& Tag : GameplayTags)
-					{
-						AddTagToMutableMeshUnique(*MutableMesh, GenerateGameplayTag(Tag.ToString()));
-					}
-
-					AddSocketTagsToMesh(SkeletalMesh, MutableMesh, GenerationContext);
-
-					if (UCustomizableObjectSystem::GetInstance()->IsMutableAnimInfoDebuggingEnabled())
-					{
-						FString MeshPath;
-						SkeletalMesh->GetOuter()->GetPathName(nullptr, MeshPath);
-						FString MeshTag = FString("__MeshPath:") + MeshPath;
-						AddTagToMutableMeshUnique(*MutableMesh, MeshTag);
-					}
-
-					MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
+					FString MeshPath;
+					SkeletalMesh->GetOuter()->GetPathName(nullptr, MeshPath);
+					FString MeshTag = FString("__MeshPath:") + MeshPath;
+					AddTagToMutableMeshUnique(*MutableMesh, MeshTag);
 				}
-				else
-				{
-					FString msg = FString::Printf(TEXT("Error converting skeletal mesh LOD %d, Material %d from column [%s] row [%s] to mutable."),
-						LOD, MatIndex, *ColumnName, *RowName);
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
-				}
+
+				MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
+			}
+			else
+			{
+				FString msg = FString::Printf(TEXT("Error converting skeletal mesh LOD %d, Section %d from column [%s] row [%s] to mutable."),
+					LODIndex, SectionIndex, *ColumnName, *RowName);
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 			}
 		}
 
@@ -278,9 +284,8 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 				return false;
 			}
 
-			// Static Meshes only support LOD 0 at the moment (TODO)
-			//int32 CurrentLOD = LOD;
-			int32 CurrentLOD = 0;
+			// Parameter used for LOD differences
+			int32 CurrentLOD = LODIndex;
 
 			int NumLODs = StaticMesh->GetRenderData()->LODResources.Num();
 
@@ -289,7 +294,7 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 				CurrentLOD = NumLODs - 1;
 
 				FString msg = FString::Printf(TEXT("Mesh from column [%s] row [%s] needs LOD %d but has less LODs than the reference mesh. LOD %d will be used instead. This can cause some performance penalties."),
-					*ColumnName, *RowName, LOD, CurrentLOD);
+					*ColumnName, *RowName, LODIndex, CurrentLOD);
 				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 			}
 
@@ -305,32 +310,27 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 			}
 
-			int32 Materials = NumMaterials <= ReferenceNumMaterials ? NumMaterials : ReferenceNumMaterials;
+			FString MutableColumnName = TableNode->GenerateStaticMeshMutableColumName(ColumnName, SectionIndex);
 
-			for (int32 MatIndex = 0; MatIndex < Materials; ++MatIndex)
+			CurrentColumn = MutableTable.get()->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
+
+			if (CurrentColumn == -1)
 			{
-				FString MutableColumnName = TableNode->GenerateStaticMeshMutableColumName(ColumnName, MatIndex);
+				CurrentColumn = MutableTable->AddColumn(StringCast<ANSICHAR>(*MutableColumnName).Get(), mu::TABLE_COLUMN_TYPE::TCT_MESH);
+			}
 
-				CurrentColumn = MutableTable.get()->FindColumn(StringCast<ANSICHAR>(*MutableColumnName).Get());
+			mu::MeshPtr MutableMesh = GenerateMutableMesh(StaticMesh, TSoftClassPtr<UAnimInstance>(), CurrentLOD, SectionIndex, CurrentLOD, SectionIndex, FString(), GenerationContext, TableNode); // TODO GMT
 
-				if (CurrentColumn == -1)
-				{
-					CurrentColumn = MutableTable->AddColumn(StringCast<ANSICHAR>(*MutableColumnName).Get(), mu::TABLE_COLUMN_TYPE::TCT_MESH);
-				}
+			if (MutableMesh)
+			{
+				MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
+			}
+			else
+			{
+				FString msg = FString::Printf(TEXT("Error converting skeletal mesh LOD %d, Section %d from column [%s] row [%s] to mutable."),
+					LODIndex, SectionIndex, *ColumnName, *RowName);
 
-				mu::MeshPtr MutableMesh = GenerateMutableMesh(StaticMesh, TSoftClassPtr<UAnimInstance>(), CurrentLOD, MatIndex, FString(), GenerationContext, TableNode);
-
-				if (MutableMesh)
-				{
-					MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
-				}
-				else
-				{
-					FString msg = FString::Printf(TEXT("Error converting skeletal mesh LOD %d, Material %d from column [%s] row [%s] to mutable."),
-						LOD, MatIndex, *ColumnName, *RowName);
-
-					GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
-				}
+				GenerationContext.Compiler->CompilerLog(FText::FromString(msg), TableNode);
 			}
 		}
 
@@ -701,7 +701,8 @@ bool FillTableColumn(const UCustomizableObjectNodeTable* TableNode,	mu::TablePtr
 }
 
 
-bool GenerateTableColumn(const UCustomizableObjectNodeTable* TableNode, const UEdGraphPin* Pin, mu::TablePtr MutableTable, const FString& DataTableColumnName, const int32 LOD, FMutableGraphGenerationContext& GenerationContext)
+bool GenerateTableColumn(const UCustomizableObjectNodeTable* TableNode, const UEdGraphPin* Pin, mu::TablePtr MutableTable, const FString& DataTableColumnName,
+	const int32 LODIndexConnected, const int32 SectionIndexConnected, const int32 LODIndex, const int32 SectionIndex, const bool bOnlyConnectedLOD, FMutableGraphGenerationContext& GenerationContext)
 {
 	SCOPED_PIN_DATA(GenerationContext, Pin)
 
@@ -734,7 +735,8 @@ bool GenerateTableColumn(const UCustomizableObjectNodeTable* TableNode, const UE
 
 			if (CellData)
 			{
-				bool bColumnGenerated = FillTableColumn(TableNode, MutableTable, DataTableColumnName, RowNames[RowIndex].ToString(), RowIndex, CellData, ColumnProperty, LOD, GenerationContext);
+				bool bColumnGenerated = FillTableColumn(TableNode, MutableTable, DataTableColumnName, RowNames[RowIndex].ToString(), RowIndex, CellData, ColumnProperty,
+					LODIndexConnected, SectionIndexConnected, LODIndex, SectionIndex, bOnlyConnectedLOD, GenerationContext);
 				
 				if (!bSuccess)
 				{

@@ -385,7 +385,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeMat->GetMeshPin()))
 		{
 			FMutableGraphMeshGenerationData MeshData;
-			MeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, MeshData);
+			MeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, MeshData, false, false);
 
 			if (MeshNode)
 			{
@@ -439,7 +439,9 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 					// Generating a column for each modified parameter(texture, color & float) if not exists
 					if (Table && Table->FindColumn(StringCast<ANSICHAR>(*ColumnName).Get()) == INDEX_NONE)
 					{
-						GenerateTableColumn(TypedNodeTable, ConnectedPin, Table, ColumnName, GenerationContext.CurrentLOD, GenerationContext);
+						int32 Dummy = -1; // TODO MTBL-1512
+						bool Dummy2 = false;
+						GenerateTableColumn(TypedNodeTable, ConnectedPin, Table, ColumnName, Dummy, Dummy, GenerationContext.CurrentLOD, Dummy, Dummy2, GenerationContext);
 					}
 
 					// Checking if this material has some parameters modified by the table node linked to it
@@ -1094,7 +1096,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			FMutableGraphMeshGenerationData MeshData;
 			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeExt->AddMeshPin()))
 			{
-				AddMeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, MeshData, true);
+				AddMeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, MeshData, true, false);
 			}
 
 			if (AddMeshNode)
@@ -1256,7 +1258,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeRem->RemoveMeshPin()))
 			{
 				FMutableGraphMeshGenerationData DummyMeshData;
-				RemoveMeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, DummyMeshData);
+				RemoveMeshNode = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, DummyMeshData, false, true);
 			}
 
 			if (RemoveMeshNode)
@@ -1299,12 +1301,13 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			else
 			{
 				FMutableGraphMeshGenerationData DummyMeshData;
-				mu::NodeMeshPtr BaseSourceMesh = GenerateMutableSourceMesh(BaseSourcePin, GenerationContext, DummyMeshData);
+				mu::NodeMeshPtr BaseSourceMesh = GenerateMutableSourceMesh(BaseSourcePin, GenerationContext, DummyMeshData, false, false);
 
 				mu::NodeMeshFragmentPtr MeshFrag = new mu::NodeMeshFragment();
 				MeshFrag->SetMesh(BaseSourceMesh);
 				MeshFrag->SetLayoutOrGroup(TypedNodeRemBlocks->ParentLayoutIndex);
 				MeshFrag->SetFragmentType(mu::NodeMeshFragment::FT_LAYOUT_BLOCKS);
+				MeshFrag->SetMessageContext(TypedNodeRemBlocks);
 
 				// Add the block indices
 				TArray<int> FoundBlockIndices;
@@ -1496,7 +1499,8 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			else
 			{
 				//Morph Mesh
-				mu::MeshPtr MorphedSourceMesh = BuildMorphedMutableMesh(BaseSourcePin, TypedNodeMorph->MorphTargetName, GenerationContext);
+				// The Mesh Base Source from the Parent Material will always have all LODs since it is not an auxiliary Mesh (clipping, reshape...).
+				mu::MeshPtr MorphedSourceMesh = BuildMorphedMutableMesh(BaseSourcePin, TypedNodeMorph->MorphTargetName, GenerationContext, false); 
 
 				mu::NodeMeshConstantPtr MorphedSourceMeshNode = new mu::NodeMeshConstant;
 				MorphedSourceMeshNode->SetMessageContext(Node);					
