@@ -70,6 +70,7 @@ namespace Chaos
 
 }
 
+
 extern int32 GEnableKinematicDeferralStartPhysicsCondition;
 
 struct FConstraintBrokenDelegateWrapper
@@ -246,47 +247,15 @@ public:
 
 	UChaosEventRelay* GetChaosEventRelay() const { return ChaosEventRelay.Get(); }
 
-	/** Get cached state for replication, if no state is cached RegisterForReplicationCache() is called */
-	ENGINE_API const FRigidBodyState* GetStateFromReplicationCache(UPrimitiveComponent* RootComponent, int& ServerFrame);
-	
-	/** Register a component for physics replication state caching, the component will deregister automatically if cache is not accessed within timelimit set by CVar: np2.ReplicationCache.LingerForNSeconds */
-	ENGINE_API void RegisterForReplicationCache(UPrimitiveComponent* RootComponent);
-
 	/** Populate the replication cache from the list of registered components */
 	ENGINE_API void PopulateReplicationCache(const int32 PhysicsStep);
-
-	struct FReplicationCacheData
-	{
-		FReplicationCacheData(UPrimitiveComponent* InRootComponent, Chaos::FReal InAccessTime)
-			: RootComponent(InRootComponent)
-			, AccessTime(InAccessTime)
-		{
-			RootComponent->GetRigidBodyState(State);
-		}
-
-		TObjectPtr<UPrimitiveComponent> GetRootComponent()	{ return RootComponent; }
-		FRigidBodyState& GetState()	{ return State; }
-		void SetAccessTime(Chaos::FReal Time) { AccessTime = Time; }
-		Chaos::FReal GetAccessTime() { return AccessTime; }
-
-	private:
-		TObjectPtr<UPrimitiveComponent> RootComponent;
-		Chaos::FReal AccessTime;
-		FRigidBodyState State;
-	};
 
 	// Storage structure for replication data
 	// probably should just expose read/write API not the structure directly itself like this.
 	struct FPrimitiveComponentReplicationCache
 	{
 		int32 ServerFrame = 0;
-		TMap<FObjectKey, FReplicationCacheData> Map;
-
-		void Reset()
-		{
-			ServerFrame = 0;
-			Map.Reset();
-		}
+		TMap<FObjectKey, FRigidBodyState>	Map;
 	};
 
 	FPrimitiveComponentReplicationCache ReplicationCache;
