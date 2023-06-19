@@ -214,18 +214,6 @@ private:
 
 public:
 	/** Returns the multicast delegate if any delegates are bound to the sparse delegate */
-	UE_DEPRECATED(4.25, "This function has been deprecated - please use GetShared() instead")
-	MulticastDelegate* Get() const
-	{
-		MulticastDelegate* Result = nullptr;
-		if (bIsBound)
-		{
-			Result = static_cast<MulticastDelegate*>(FSparseDelegateStorage::GetMulticastDelegate(GetDelegateOwner(), GetDelegateName()));
-		}
-		return Result;
-	}
-
-	/** Returns the multicast delegate if any delegates are bound to the sparse delegate */
 	TSharedPtr<MulticastDelegate> GetShared() const
 	{
 		TSharedPtr<MulticastDelegate> Result;

@@ -372,40 +372,6 @@ public:
 	COREUOBJECT_API SIZE_T GetAllocatedSize() const;
 };
 
-
-struct UE_DEPRECATED(4.23, "Outdated since display index replaced FName as key") FLinkerNamePairKeyFuncs : DefaultKeyFuncs<FName, false>
-{
-	static FORCEINLINE bool Matches(FName A, FName B)
-	{
-		// The linker requires that FNames preserve case, but the numeric suffix can be ignored since
-		// that is stored separately for each FName instance saved
-		return A.GetDisplayIndex() == B.GetDisplayIndex();
-	}
-
-	static FORCEINLINE uint32 GetKeyHash(FName Key)
-	{
-		return GetTypeHash(Key.GetDisplayIndex());
-	}
-};
-
-
-template<typename ValueType>
-struct UE_DEPRECATED(4.23, "Outdated since display indexes replaced FNames as keys") TLinkerNameMapKeyFuncs : TDefaultMapKeyFuncs<FName, ValueType, false>
-{
-	static FORCEINLINE bool Matches(FName A, FName B)
-	{
-		// The linker requires that FNames preserve case, but the numeric suffix can be ignored since
-		// that is stored separately for each FName instance saved
-		return A.GetDisplayIndex() == B.GetDisplayIndex();
-	}
-
-	static FORCEINLINE uint32 GetKeyHash(FName Key)
-	{
-		return GetTypeHash(Key.GetDisplayIndex());
-	}
-};
-
-
 /*----------------------------------------------------------------------------
 	FLinker.
 ----------------------------------------------------------------------------*/
@@ -750,9 +716,6 @@ COREUOBJECT_API FLinkerLoad* GetPackageLinker(UPackage* InOuter, const TCHAR* In
 
 
 COREUOBJECT_API FString GetPrestreamPackageLinkerName(const TCHAR* InLongPackageName, bool bSkipIfExists = true);
-
-UE_DEPRECATED(4.25, "No longer used; use version that takes a UPackage* and call EnsureLoadingComplete separately.")
-COREUOBJECT_API void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename);
 
 /**
  *

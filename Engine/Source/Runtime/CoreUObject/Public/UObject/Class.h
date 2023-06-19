@@ -636,9 +636,6 @@ public:
 	 */
 	COREUOBJECT_API virtual void SetSuperStruct(UStruct* NewSuperStruct);
 
-	UE_DEPRECATED(4.23, "Replace with GetAuthoredNameForField or UField::GetAuthoredName")
-	COREUOBJECT_API virtual FString PropertyNameToDisplayName(FName InName) const;
-
 	/** Returns a human readable string for a given field, overridden for user defined structs */
 	COREUOBJECT_API virtual FString GetAuthoredNameForField(const UField* Field) const;
 
@@ -3443,9 +3440,6 @@ public:
 	 * @return					True if the specified function exists and is implemented in a blueprint generated class
 	 */
 	COREUOBJECT_API virtual bool IsFunctionImplementedInScript(FName InFunctionName) const;
-
-	UE_DEPRECATED(4.23, "IsFunctionImplementedInBlueprint is deprecated, call IsFunctionImplementedInScript instead")
-	bool IsFunctionImplementedInBlueprint(FName InFunctionName) const { return IsFunctionImplementedInScript(InFunctionName); }
 
 	/**
 	 * Checks if the property exists on this class or a parent class.

@@ -2052,19 +2052,6 @@ void UStruct::SetSuperStruct(UStruct* NewSuperStruct)
 #endif
 }
 
-FString UStruct::PropertyNameToDisplayName(FName InName) const
-{
-	FFieldVariant FoundField = FindUFieldOrFProperty(this, InName);
-	if (FoundField.IsUObject())
-	{
-		return GetAuthoredNameForField(FoundField.Get<UField>());
-	}
-	else
-	{
-		return GetAuthoredNameForField(FoundField.Get<FField>());
-	}
-}
-
 FString UStruct::GetAuthoredNameForField(const UField* Field) const
 {
 	if (Field)

@@ -4511,21 +4511,6 @@ public:
 	}
 
 	/**
-	 * Static version of Num() used when you don't need to bother to construct a FScriptMapHelper. Returns the number of elements in the map.
-	 *
-	 * @param  Target  Pointer to the raw memory associated with a FScriptMap
-	 *
-	 * @return The number of elements in the map.
-	 */
-	UE_DEPRECATED(4.25, "This shortcut is no longer valid - the Num() should be read from a proper map helper")
-	static FORCEINLINE int32 Num(const void* Target)
-	{
-		int32 Result = ((const FScriptMap*)Target)->Num();
-		checkSlow(Result >= 0); 
-		return Result;
-	}
-
-	/**
 	 * Returns a uint8 pointer to the pair in the map
 	 *
 	 * @param  Index  index of the item to return a pointer to.
@@ -6369,20 +6354,6 @@ struct FPropertyChangedEvent
 	{
 	}
 
-	UE_DEPRECATED(4.25, "The FPropertyChangedEvent constructor taking a TArray* is deprecated. Use the version taking a TArrayView instead.")
-	FPropertyChangedEvent(FProperty* InProperty, EPropertyChangeType::Type InChangeType, const TArray<const UObject*>* InTopLevelObjects)
-		: Property(InProperty)
-		, MemberProperty(InProperty)
-		, ChangeType(InChangeType)
-		, ObjectIteratorIndex(INDEX_NONE)
-		, bFilterChangedInstances(false)
-	{
-		if (InTopLevelObjects)
-		{
-			TopLevelObjects = MakeArrayView(*InTopLevelObjects);
-		}
-	}
-
 	void SetActiveMemberProperty( FProperty* InActiveMemberProperty )
 	{
 		MemberProperty = InActiveMemberProperty;
@@ -6732,41 +6703,6 @@ struct TFieldRange
 /*-----------------------------------------------------------------------------
 	Field templates.
 -----------------------------------------------------------------------------*/
-
-//
-// Find a typed field in a struct.
-//
-template <class T>
-UE_DEPRECATED(4.25, "FindField will no longer return properties. Use FindFProperty instead or FindUField if you want to find functions or enums.")
- T* FindField( const UStruct* Owner, FName FieldName )
-{
-	// We know that a "none" field won't exist in this Struct
-	if( FieldName.IsNone() )
-	{
-		return nullptr;
-	}
-
-	// Search by comparing FNames (INTs), not strings
-	for( TFieldIterator<T>It( Owner ); It; ++It )
-	{
-		if( It->GetFName() == FieldName )
-		{
-			return *It;
-		}
-	}
-
-	// If we didn't find it, return no field
-	return nullptr;
-}
-
-template <class T>
-UE_DEPRECATED(4.25, "FindField will no longer return properties. Use FindFProperty instead or FindUField if you want to find UFunctions or UEnums.")
-T* FindField( const UStruct* Owner, const TCHAR* FieldName )
-{
-	// lookup the string name in the Name hash
-	FName Name(FieldName, FNAME_Find);
-	return FindField<T>(Owner, Name);
-}
 
 template <class T> 
 typename TEnableIf<TIsDerivedFrom<T, UField>::IsDerived, T*>::Type FindUField(const UStruct* Owner, FName FieldName, EFieldIterationFlags IterationFlags = EFieldIterationFlags::Default)

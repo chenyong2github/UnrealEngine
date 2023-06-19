@@ -53,16 +53,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	}
 
-	UE_DEPRECATED(4.27, "Bundles scopes are removed, please use FAssetBundleEntry(FName InBundleName) instead")
-	FAssetBundleEntry(const FPrimaryAssetId& InBundleScope, FName InBundleName)
-		: FAssetBundleEntry(InBundleName)
-	{
-		check(InBundleScope == FPrimaryAssetId());
-	}
-
 	/** Returns true if this represents a real entry */
 	bool IsValid() const { return !BundleName.IsNone(); }
-
 
 	/** Equality */
 	bool operator==(const FAssetBundleEntry& Other) const
@@ -106,13 +98,6 @@ struct FAssetBundleData
 
 	/** Returns pointer to an entry with given Scope/Name */
 	COREUOBJECT_API FAssetBundleEntry* FindEntry(FName SearchName);
-	
-	UE_DEPRECATED(4.27, "Bundles scopes are removed, please use FindEntry(FName) instead")
-	FAssetBundleEntry* FindEntry(const FPrimaryAssetId& SearchScope, FName SearchName)
-	{
-		check(SearchScope == FPrimaryAssetId());
-		return FindEntry(SearchName);
-	}
 
 	/** Adds or updates an entry with the given BundleName -> Path. Scope is empty and will be filled in later */
 	UE_DEPRECATED(5.1, "The contents of an asset bundle now use FTopLevelAssetPath instead of FSoftObjectPath.")

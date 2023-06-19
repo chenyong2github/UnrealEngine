@@ -55,16 +55,6 @@ struct TWeakInterfacePtr
 		}
 	}
 
-	UE_DEPRECATED(4.27, "Please use the constructor that takes a pointer")
-	TWeakInterfacePtr(T& Interface)
-	{
-		ObjectInstance = Cast<UObject>(&Interface);
-		if (ObjectInstance != nullptr)
-		{
-			InterfaceInstance = &Interface;
-		}
-	}
-
 	/**
 	 * Reset the weak pointer back to the null state.
 	 */
@@ -159,12 +149,6 @@ struct TWeakInterfacePtr
 	FORCEINLINE bool operator!=(const TWeakInterfacePtr<T>& Other) const
 	{
 		return InterfaceInstance != Other.InterfaceInstance;
-	}
-
-	UE_DEPRECATED(4.27, "Implicit equality with a UObject pointer has been deprecated - use GetObject() and test equality on its return value")
-	FORCEINLINE bool operator==(const UObject* Other) const
-	{
-		return Other == ObjectInstance.Get();
 	}
 
 	FORCEINLINE TScriptInterface<T> ToScriptInterface() const

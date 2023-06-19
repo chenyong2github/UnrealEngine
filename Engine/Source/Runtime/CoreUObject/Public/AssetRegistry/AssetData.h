@@ -488,13 +488,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		AppendObjectPath(Builder);
 		String.Append(FString(Builder));
 	}
-
-
-	UE_DEPRECATED(4.18, "ToStringReference was renamed to GetSoftObjectPath")
-	FSoftObjectPath ToStringReference() const
-	{
-		return GetSoftObjectPath();
-	}
 	
 	/** Gets primary asset id of this data */
 	COREUOBJECT_API FPrimaryAssetId GetPrimaryAssetId() const;

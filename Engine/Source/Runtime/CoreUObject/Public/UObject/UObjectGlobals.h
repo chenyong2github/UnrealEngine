@@ -544,28 +544,6 @@ COREUOBJECT_API UClass* StaticLoadClass(UClass* BaseClass, UObject* InOuter, con
 COREUOBJECT_API UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& Params);
 
 /**
- * Create a new instance of an object.  The returned object will be fully initialized.  If InFlags contains RF_NeedsLoad (indicating that the object still needs to load its object data from disk), components
- * are not instanced (this will instead occur in PostLoad()).  The different between StaticConstructObject and StaticAllocateObject is that StaticConstructObject will also call the class constructor on the object
- * and instance any components.
- *
- * @param	Class		The class of the object to create
- * @param	InOuter		The object to create this object within (the Outer property for the new object will be set to the value specified here).
- * @param	Name		The name to give the new object. If no value (NAME_None) is specified, the object will be given a unique name in the form of ClassName_#.
- * @param	SetFlags	The ObjectFlags to assign to the new object. some flags can affect the behavior of constructing the object.
- * @param	InternalSetFlags	The InternalObjectFlags to assign to the new object. some flags can affect the behavior of constructing the object.
- * @param	Template	If specified, the property values from this object will be copied to the new object, and the new object's ObjectArchetype value will be set to this object.
- *						If nullptr, the class default object is used instead.
- * @param	bInCopyTransientsFromClassDefaults	If true, copy transient from the class defaults instead of the pass in archetype ptr (often these are the same)
- * @param	InstanceGraph	Contains the mappings of instanced objects and components to their templates
- * @param	bAssumeTemplateIsArchetype	If true, Template is guaranteed to be an archetype
- * @param	ExternalPackage	Assign an external Package to the created object if non-null
- *
- * @return	A pointer to a fully initialized object of the specified class.
- */
-UE_DEPRECATED(4.26, "Use version that takes parameter struct")
-COREUOBJECT_API UObject* StaticConstructObject_Internal(const UClass* Class, UObject* InOuter = (UObject*)GetTransientPackage(), FName Name = NAME_None, EObjectFlags SetFlags = RF_NoFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, UObject* Template = nullptr, bool bCopyTransientsFromClassDefaults = false, struct FObjectInstancingGraph* InstanceGraph = nullptr, bool bAssumeTemplateIsArchetype = false, UPackage* ExternalPackage = nullptr);
-
-/**
  * Creates a copy of SourceObject using the Outer and Name specified, as well as copies of all objects contained by SourceObject.  
  * Any objects referenced by SourceOuter or RootObject and contained by SourceOuter are also copied, maintaining their name relative to SourceOuter.
  * Any references to objects that are duplicated are automatically replaced with the copy of the object.
@@ -947,15 +925,6 @@ COREUOBJECT_API void SetMountPointDefaultPackageFlags(const TMap<FString, EPacka
 */
 COREUOBJECT_API void RemoveMountPointDefaultPackageFlags(const TArrayView<FString> InMountPoints);
 #endif
-
-/**
- * Find an existing package by name or create it if it doesn't exist
- * @param InOuter		The Outer object to search inside (unused)
- * @return The existing package or a newly created one
- *
- */
-UE_DEPRECATED(4.26, "Use CreatePackage overload that does not take the first Outer parameter. Specifying non-null outers for UPackages is no longer supported.")
-COREUOBJECT_API UPackage* CreatePackage( UObject* InOuter, const TCHAR* PackageName );
 
 /**
  * Find an existing package by name or create it if it doesn't exist

@@ -52,11 +52,6 @@ enum class ECoreRedirectFlags : uint32
 	Option_MatchSubstring = 0x01000000, // Does a slow substring match
 	Option_MissingLoad =	0x02000000, // An automatically-created redirect that was created in response to a missing Thing during load. Redirect will be removed if and when the Thing is loaded.
 	Option_AllMask =		0xFF000000, // Bit mask of all possible Options
-
-	// Deprecated Names
-	Option_InstanceOnly UE_DEPRECATED(4.25, "Use Category_InstanceOnly instead") = Category_InstanceOnly,
-	Option_Removed UE_DEPRECATED(4.25, "Use Category_Removed instead") = Category_Removed,
-	Option_ExactMatchMask UE_DEPRECATED(4.25, "Use Category_AllMask instead") = Category_AllMask,
 };
 ENUM_CLASS_FLAGS(ECoreRedirectFlags);
 

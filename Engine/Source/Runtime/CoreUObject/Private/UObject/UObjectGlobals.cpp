@@ -963,11 +963,6 @@ void RemoveMountPointDefaultPackageFlags(const TArrayView<FString> InMountPoints
 }
 #endif //if WITH_EDITOR
 
-UPackage* CreatePackage(UObject* InOuter, const TCHAR* PackageName)
-{
-	return CreatePackage(PackageName);
-}
-
 UPackage* CreatePackage(const TCHAR* PackageName )
 {
 	FString InName;
@@ -4325,21 +4320,6 @@ FStaticConstructObjectParameters::FStaticConstructObjectParameters(const UClass*
 	: Class(InClass)
 	, Outer((UObject*)GetTransientPackage())
 {
-}
-
-UObject* StaticConstructObject_Internal(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags, UObject* Template, bool bCopyTransientsFromClassDefaults, FObjectInstancingGraph* InstanceGraph, bool bAssumeTemplateIsArchetype, UPackage* ExternalPackage)
-{
-	FStaticConstructObjectParameters Params(Class);
-	Params.Outer = InOuter;
-	Params.Name = Name;
-	Params.SetFlags = SetFlags;
-	Params.InternalSetFlags = InternalSetFlags;
-	Params.Template = Template;
-	Params.bCopyTransientsFromClassDefaults = bCopyTransientsFromClassDefaults;
-	Params.InstanceGraph = InstanceGraph;
-	Params.bAssumeTemplateIsArchetype = bAssumeTemplateIsArchetype;
-	Params.ExternalPackage = ExternalPackage;
-	return StaticConstructObject_Internal(Params);
 }
 
 UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& Params)

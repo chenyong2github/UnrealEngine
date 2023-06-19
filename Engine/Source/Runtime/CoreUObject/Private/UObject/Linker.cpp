@@ -919,13 +919,6 @@ FLinkerLoad* LoadPackageLinker(UPackage* InOuter, const TCHAR* InLongPackageName
 	return LoadPackageLinker(InOuter, GetPackagePath(InOuter, InLongPackageName), LoadFlags, Sandbox, InReaderOverride, [](FLinkerLoad* InLinker) {});
 }
 
-
-void ResetLoadersForSave(UObject* InOuter, const TCHAR* Filename)
-{
-	UPackage* Package = dynamic_cast<UPackage*>(InOuter);
-	ResetLoadersForSave(Package, Filename);
-}
-
 void ResetLoadersForSave(UPackage* Package, const TCHAR* Filename)
 {
 	FLinkerLoad* Loader = FLinkerLoad::FindExistingLinkerForPackage(Package);

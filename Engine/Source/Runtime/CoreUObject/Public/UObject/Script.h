@@ -481,9 +481,6 @@ public:
 	// Callback for blueprint instrumentation enable/disable events
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnToggleScriptProfiler, bool );
 
-	// Deprecated
-	DECLARE_MULTICAST_DELEGATE(FOnScriptExecutionEnd);
-
 public:
 	// Called when a script exception occurs
 	static COREUOBJECT_API FOnScriptDebuggingEvent OnScriptException;
@@ -491,9 +488,6 @@ public:
 	static COREUOBJECT_API FOnScriptInstrumentEvent OnScriptProfilingEvent;
 	// Called when a script profiler is enabled/disabled
 	static COREUOBJECT_API FOnToggleScriptProfiler OnToggleScriptProfiler;
-
-	UE_DEPRECATED(4.26, "OnScriptExecutionEnd is deprecated, bind to delegate inside FBlueprintContextTracker instead")
-	static COREUOBJECT_API FOnScriptExecutionEnd OnScriptExecutionEnd;
 
 public:
 	static COREUOBJECT_API void ThrowScriptException(const UObject* ActiveObject, struct FFrame& StackFrame, const FBlueprintExceptionInfo& Info);

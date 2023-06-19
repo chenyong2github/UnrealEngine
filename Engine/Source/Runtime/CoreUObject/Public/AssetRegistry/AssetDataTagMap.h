@@ -267,9 +267,6 @@ public:
 
 	COREUOBJECT_API bool		Equals(FStringView Str) const;
 
-	UE_DEPRECATED(4.27, "Use AsString(), AsName(), AsExportPath() or AsText() instead. ")
-	operator FString () const { return AsString(); }
-
 private:
 	/** Return whether this's value is a MarshalledFText, and copy it into out parameter if so */
 	bool						TryGetAsMarshalledText(FixedTagPrivate::FMarshalledText& Out) const;
@@ -378,19 +375,6 @@ public:
 		return FindTag(Tag).Equals(Value);
 	}
 
-	UE_DEPRECATED(4.27, "Use FindTag().As[String|Name|Text/ExportPath]() instead, this checks internally. ")
-	FString FindChecked(FName Key) const
-	{
-		return FindTag(Key).AsString();
-	}
-	
-	/** Find a value by key (default value if not found) */
-	UE_DEPRECATED(4.27, "Use FindTag() instead. ")
-	FString FindRef(FName Key) const
-	{
-		return FindTag(Key).AsString();
-	}
-
 	/** Determine whether a key is present in the map */
 	bool Contains(FName Key) const
 	{
@@ -406,12 +390,6 @@ public:
 		}
 
 		return Loose != nullptr ? Loose->Num() : 0;
-	}
-
-	UE_DEPRECATED(4.27, "Use CopyMap() instead if you really need to make a copy. ")
-	FAssetDataTagMap GetMap() const
-	{
-		return CopyMap();
 	}
 
 	/** Copy map contents to a loose FAssetDataTagMap */
@@ -436,9 +414,6 @@ public:
 	// Note that FAssetDataTagMap isn't sorted and that order matters
 	COREUOBJECT_API friend bool operator==(const FAssetDataTagMapSharedView& A, const FAssetDataTagMap& B);
 	COREUOBJECT_API friend bool operator==(const FAssetDataTagMapSharedView& A, const FAssetDataTagMapSharedView& B);
-
-	UE_DEPRECATED(4.27, "Use FMemoryCounter instead. ")
-	uint32 GetAllocatedSize() const { return 0; }
 
 	///** Shrinks the contained map */
 	void Shrink();
