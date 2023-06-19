@@ -76,10 +76,6 @@
 			"SupportedTargetPlatforms": [
 				"Win64"
 			]
-		},
-		{
-			"Name": "ChaosCaching",
-			"Enabled": true
 		}
 	]
 }

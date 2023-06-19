@@ -36,7 +36,6 @@
 #include "AttributeEditorTool.h"
 #include "MeshAttributePaintTool.h"
 #include "ChaosClothAsset/ClothWeightMapPaintTool.h"
-#include "ChaosClothAsset/ClothTrainingTool.h"
 #include "ChaosClothAsset/ClothTransferSkinWeightsTool.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
@@ -201,12 +200,6 @@ void UChaosClothAssetEditorMode::RegisterAddNodeCommand(TSharedPtr<FUICommandInf
 
 void UChaosClothAssetEditorMode::RegisterPreviewTools()
 {
-	using namespace UE::Chaos::ClothAsset;
-
-	UEditorInteractiveToolsContext* const PreviewSceneToolsContext = PreviewScene->GetClothPreviewEditorModeManager()->GetInteractiveToolsContext();
-
-	const FChaosClothAssetEditorCommands& CommandInfos = FChaosClothAssetEditorCommands::Get();
-	RegisterClothTool(CommandInfos.BeginClothTrainingTool, FChaosClothAssetEditorCommands::BeginClothTrainingToolIdentifier, NewObject<UClothTrainingToolBuilder>(), PreviewSceneToolsContext);
 }
 
 void UChaosClothAssetEditorMode::RegisterTools()

@@ -148,7 +148,6 @@ void FChaosClothAssetEditorModeToolkit::BuildToolPalette(FName PaletteIndex, cla
 	if (PaletteIndex == FBaseCharacterFXEditorModeToolkit::ToolsTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.AddWeightMapNode);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginClothTrainingTool);
 		ToolbarBuilder.AddToolBarButton(Commands.AddTransferSkinWeightsNode);
 	}
 }

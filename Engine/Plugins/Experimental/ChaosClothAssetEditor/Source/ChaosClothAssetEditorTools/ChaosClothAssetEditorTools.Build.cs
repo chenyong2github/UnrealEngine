@@ -37,7 +37,6 @@ public class ChaosClothAssetEditorTools : ModuleRules
 				"MeshModelingToolsExp",
 				"EditorStyle",
 				"EditorSubsystem",
-				"GeometryCache",
 				"GeometryCore",
 				"GeometryFramework",
 				"LevelEditor",
