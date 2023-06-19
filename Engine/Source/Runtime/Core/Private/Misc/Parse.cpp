@@ -1514,7 +1514,20 @@ struct FGrammarBasedParser
 		}
 		else
 		{
-			OnCmd(Item, FStringView{});
+			if (Item.Len())
+			{
+				OnCmd(Item, FStringView{});
+			}
+			else
+			{
+				// If there is no Key then we will try consuming a value, if we can parse one
+				FStringView ItemValue = ParseValue();
+				if (HasError())
+				{
+					return {};
+				}
+				OnCmd(FStringView{}, ItemValue);
+			}
 		}
 		return FStringView{ Start,  UE_PTRDIFF_TO_INT32(Cursor - Start) };
 	}
