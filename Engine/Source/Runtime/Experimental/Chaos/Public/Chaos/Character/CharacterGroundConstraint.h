@@ -220,6 +220,18 @@ namespace Chaos
 		FReal GetRadialForceLimit() const { return ConstraintSettings.Read().RadialForceLimit; }
 
 
+		/// The maximum force that the character can apply in the plane defined by the ground normal
+		/// to hold the character in place while standing on an unwalkable incline (defined by max
+		/// walkable slope angle)
+		void SetFrictionForceLimit(const FReal& Value)
+		{
+			ConstraintSettings.Modify(true, DirtyFlags, Proxy, [&Value](FCharacterGroundConstraintSettings& Data) {
+				Data.FrictionForceLimit = Value > FReal(0.0) ? Value : FReal(0.0);
+				});
+		}
+		FReal GetFrictionForceLimit() const { return ConstraintSettings.Read().FrictionForceLimit; }
+
+
 		/// The maximum torque that the character can apply about the vertical axis to rotate the
 		/// character to its target facing direction (or hold the character in place if no target
 		/// delta facing is set).

@@ -16,6 +16,7 @@ namespace Chaos
 		FVec3 VerticalAxis = FVec3(0.0, 0.0, 1.0);	/// World space up direction (default z axis)
 		FReal TargetHeight = 0.0;					/// Desired distance from the character body to the ground
 		FReal RadialForceLimit = 1500.0;			/// How much force the character can apply parallel to the ground plane to reach the target position
+		FReal FrictionForceLimit = 100.0;			/// How much force the character can apply parallel to the ground plane to reach the target position when standing on an unwalkable incline
 		FReal TwistTorqueLimit = 1000.0;			///	How much torque the character can apply about the vertical axis to reach the target facing direction
 		FReal SwingTorqueLimit = 5000.0;			///	How much torque the character can apply about the other axes to remain upright
 		FReal CosMaxWalkableSlopeAngle = 0.633;		/// Cosine of the maximum angle in degrees that the character is allowed to walk on

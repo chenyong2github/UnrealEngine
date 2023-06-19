@@ -71,7 +71,10 @@ namespace Chaos
 	{
 		if (Constraint != nullptr)
 		{
-			Constraint->CharacterParticle->RemoveConstraintHandle(Constraint);
+			if (Constraint->CharacterParticle != nullptr)
+			{
+				Constraint->CharacterParticle->RemoveConstraintHandle(Constraint);
+			}
 			if (Constraint->GroundParticle != nullptr)
 			{
 				Constraint->GroundParticle->RemoveConstraintHandle(Constraint);

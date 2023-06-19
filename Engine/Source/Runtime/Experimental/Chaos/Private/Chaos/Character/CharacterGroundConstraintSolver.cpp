@@ -183,6 +183,9 @@ namespace Chaos
 			}
 
 			// If the slope is too steep adjust the target to not point up the slope
+			// and set the radial force to zero
+			const FReal DtSq = Dt * Dt;
+
 			FReal DP = FVec3::DotProduct(Settings.VerticalAxis, GroundNormal);
 			if (DP <= Data.CosMaxWalkableSlopeAngle)
 			{
@@ -193,6 +196,11 @@ namespace Chaos
 				{
 					TargetDeltaPos -= UpMotion * FVec3(UpSlope);
 				}
+				ConstraintData.RadialImpulseLimit = FSolverReal(Settings.FrictionForceLimit * DtSq);
+			}
+			else
+			{
+				ConstraintData.RadialImpulseLimit = FSolverReal(Settings.RadialForceLimit * DtSq);
 			}
 
 			const FVec3 MotionTarget = Character_X + TargetDeltaPos;
@@ -201,12 +209,11 @@ namespace Chaos
 
 			const FMatrix33 WorldSpaceCharacterInvI = Utilities::ComputeWorldSpaceInertia(BodyData.CharacterBody.Q(), BodyData.CharacterBody.InvILocal());
 			const FReal CharacterInvI = Settings.VerticalAxis.Dot(WorldSpaceCharacterInvI * Settings.VerticalAxis);
-			const FReal DtSq = Dt * Dt;
+			
 
 			// Write constraint data
 			ConstraintData.AngularImpulseLimit = FSolverReal(Settings.TwistTorqueLimit * DtSq);
 			ConstraintData.AngularSwingImpulseLimit = FSolverReal(Settings.SwingTorqueLimit * DtSq);
-			ConstraintData.RadialImpulseLimit = FSolverReal(Settings.RadialForceLimit * DtSq);
 			ConstraintData.VerticalAxis = FSolverVec3(Settings.VerticalAxis);
 			ConstraintData.AssumedOnGroundHeight = FSolverReal(Settings.AssumedOnGroundHeight);
 			ConstraintData.CharacterInvIZ = FSolverReal(CharacterInvI);
