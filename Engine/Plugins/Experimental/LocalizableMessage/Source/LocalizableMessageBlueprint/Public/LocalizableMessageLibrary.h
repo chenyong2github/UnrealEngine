@@ -10,7 +10,7 @@ struct FLocalizableMessage;
 class FText;
 
 /** BlueprintFunctionLibrary for LocalizableMessage */
-UCLASS()
+UCLASS(MinimalAPI)
 class ULocalizableMessageLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
