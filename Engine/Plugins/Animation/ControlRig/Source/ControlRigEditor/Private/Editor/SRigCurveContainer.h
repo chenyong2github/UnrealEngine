@@ -8,6 +8,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 #include "Rigs/RigHierarchy.h"
+#include "ControlRigBlueprint.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDisplayedRigCurveInfo
