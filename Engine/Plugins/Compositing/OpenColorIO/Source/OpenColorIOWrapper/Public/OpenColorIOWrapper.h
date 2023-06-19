@@ -227,7 +227,11 @@ public:
 	/** Apply the CPU color transform in-place to the specified image. */
 	OPENCOLORIOWRAPPER_API bool TransformImage(const FImageView& InOutImage) const;
 
-	/** Apply the CPU color transform from the source image to the destination image. (The destination FImageView is const but what it points at is not.) */
+	/** Apply the CPU color transform from the source image to the destination image.
+	 * (The destination FImageView is const but what it points at is not.)
+	 * 
+	 * Note: This function is currently less optimal, as it is not parallelized.
+	 */
 	OPENCOLORIOWRAPPER_API bool TransformImage(const FImageView& SrcImage, const FImageView& DestImage) const;
 
 private:
