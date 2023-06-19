@@ -12,7 +12,11 @@ set -e
 
 cd "`dirname "$0"`"
 
-if [ ! -f Engine/Binaries/DotNET/GitDependencies/linux-x64/GitDependencies ] && [ ! -f Engine/Binaries/DotNET/GitDependencies/osx-x64/GitDependencies ] ; then
+# Select the preferred architecture for the current system
+ARCH=x64
+[ $(uname -m) == "arm64" ] && ARCH=arm64 
+
+if [ ! -f Engine/Binaries/DotNET/GitDependencies/linux-x64/GitDependencies ] && [ ! -f Engine/Binaries/DotNET/GitDependencies/osx-$ARCH/GitDependencies ] ; then
 	echo "GitSetup ERROR: This script does not appear to be located \
 	   in the root UE directory and must be run from there."
 	exit 1
