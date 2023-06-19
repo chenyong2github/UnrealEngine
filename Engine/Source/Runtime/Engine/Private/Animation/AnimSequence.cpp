@@ -5478,7 +5478,7 @@ void UAnimSequence::FinishAsyncTasks()
 			}
 			else
 			{
-				if (CompressedAnimData->IsValid(this))
+				if (CompressedAnimData->IsValid(this, true))
 				{
 #if WITH_EDITOR
 					//This is only safe during sync anim compression
