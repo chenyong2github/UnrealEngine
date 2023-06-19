@@ -10,6 +10,7 @@
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+#include <openssl/pem.h>
 
 DEFINE_LOG_CATEGORY(LogPlatformCryptoOpenSSL);
 
@@ -445,6 +446,16 @@ FRSAKeyHandle FEncryptionContextOpenSSL::CreateKey_RSA(const TArrayView<const ui
 #endif
 
 	return NewKey;
+}
+
+FRSAKeyHandle FEncryptionContextOpenSSL::GetPublicKey_RSA(const TArrayView<const uint8> Source)
+{
+	BIO* KeyBuf = BIO_new_mem_buf(Source.GetData(), Source.Num());
+	RSA* Key = PEM_read_bio_RSA_PUBKEY(KeyBuf, 0, 0, 0);
+
+	BIO_free(KeyBuf);
+
+	return Key;
 }
 
 void FEncryptionContextOpenSSL::DestroyKey_RSA(FRSAKeyHandle Key)
