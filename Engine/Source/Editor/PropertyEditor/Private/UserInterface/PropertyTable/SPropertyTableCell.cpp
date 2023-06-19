@@ -87,6 +87,13 @@ void SPropertyTableCell::OnCellValueChanged( UObject* Object, FPropertyChangedEv
 TSharedRef< SWidget > SPropertyTableCell::ConstructCellContents()
 {
 	TSharedRef< SWidget > CellContents = SNullWidget::NullWidget;
+
+	// If the cell doesnt pass the permission list, don't show any widget for it
+	if(!Cell->PassesPermissionList())
+	{
+		return CellContents;
+	}
+	
 	if ( Presenter.IsValid() )
 	{
 		if ( Cell->InEditMode() )

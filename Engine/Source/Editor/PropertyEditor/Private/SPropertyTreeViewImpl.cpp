@@ -703,7 +703,27 @@ bool SPropertyTreeViewImpl::IsPropertyNodeVisible(TSharedPtr<FPropertyNode> InPr
 	const FProperty* Property = InPropertyNode->GetProperty();
 	if(Property != NULL)
 	{
-		bPropertyVisible = FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(FDetailTreeNode::GetPropertyNodeBaseStructure(InPropertyNode->GetParentNode()), Property->GetFName());
+		// If we have a permission list in use, make sure this property is in the list for the most common base class and the class of all objects we are viewing
+		if(FPropertyEditorPermissionList::Get().IsEnabled())
+		{
+			bPropertyVisible = FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(FDetailTreeNode::GetPropertyNodeBaseStructure(InPropertyNode->GetParentNode()), Property->GetFName());
+
+			for (int32 ObjectIndex = 0; ObjectIndex < RootPropertyNode->GetNumObjects(); ++ObjectIndex)
+			{
+				UObject* ObjectToCheck = RootPropertyNode->GetUObject(ObjectIndex);
+
+				const UClass* ObjClass = Cast<UClass>(ObjectToCheck);
+				if (ObjClass == nullptr)
+				{
+					ObjClass = ObjectToCheck->GetClass();
+				}
+
+				if(ObjClass)
+				{
+					bPropertyVisible &= FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(ObjClass, Property->GetFName());
+				}
+			}
+		}
 
 		if(IsPropertyVisible.IsBound())
 		{

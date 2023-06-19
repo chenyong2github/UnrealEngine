@@ -7,6 +7,7 @@
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "PropertyHandle.h"
 #include "PropertyNode.h"
+#include "PropertyPermissionList.h"
 #include "UObject/WeakObjectPtr.h"
 
 class FPropertyPath;
@@ -15,6 +16,7 @@ class UObject;
 FPropertyTableCell::FPropertyTableCell( const TSharedRef< class IPropertyTableColumn >& InColumn, const TSharedRef< class IPropertyTableRow >& InRow )
 	: bIsBound( false )
 	, bInEditMode( false )
+	, bIsPropertyAllowed(true)
 	, EnteredEditModeEvent()
 	, ExitedEditModeEvent()
 	, Column( InColumn )
@@ -102,16 +104,18 @@ void FPropertyTableCell::Refresh()
 		bIsBound = true;
 		PropertyEditor = FPropertyEditor::Create( PropertyNode.ToSharedRef(), GetTable() );
 	}
+
+	bIsPropertyAllowed = DoesPropertyPassPermissionList();
 }
 
 bool FPropertyTableCell::IsReadOnly() const 
 { 
-	return !IsBound() || PropertyEditor->IsEditConst() || ( PropertyEditor->HasEditCondition() && !PropertyEditor->IsEditConditionMet() );
+	return !bIsPropertyAllowed || !IsBound() || PropertyEditor->IsEditConst() || ( PropertyEditor->HasEditCondition() && !PropertyEditor->IsEditConditionMet() );
 }
 
 bool FPropertyTableCell::IsValid() const
 {
-	return !IsBound() || (PropertyEditor->GetPropertyHandle()->GetProperty() != NULL);
+	return (!IsBound() || (PropertyEditor->GetPropertyHandle()->GetProperty() != NULL));
 }
 
 FString FPropertyTableCell::GetValueAsString() const
@@ -159,8 +163,47 @@ TSharedPtr< class IPropertyHandle > FPropertyTableCell::GetPropertyHandle() cons
 	return NULL;
 }
 
+bool FPropertyTableCell::DoesPropertyPassPermissionList()
+{
+	// If we have a permission list, make sure the object for this cell allows the property to be displayed
+	if(FPropertyEditorPermissionList::Get().IsEnabled())
+	{
+		// Get the Object and the Property
+		UObject* Object = GetObject().Get();
+		TSharedPtr< class FPropertyNode > Node = GetNode();
+		
+		if(Object && Node)
+		{
+			// Extract the FProperty and UClass from them respectively
+			const FProperty* Property = Node->GetProperty();
+			const UClass* ObjClass = Cast<UClass>(Object);
+			if (ObjClass == nullptr)
+			{
+				ObjClass = Object->GetClass();
+			}
+			
+			if(ObjClass && Property)
+			{
+				if(!FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(ObjClass, Property->GetFName()))
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
 void FPropertyTableCell::EnterEditMode() 
 {
+	// We don't let the cell enter edit mode if it doesn't pass the permission list, but we do allow ExitEditMode()
+	// in case the permission list changes when you are in edit mode
+	if(!bIsPropertyAllowed)
+	{
+		return;
+	}
+	
 	if ( !bInEditMode )
 	{
 		TSharedRef< IPropertyTable > Table = GetTable();

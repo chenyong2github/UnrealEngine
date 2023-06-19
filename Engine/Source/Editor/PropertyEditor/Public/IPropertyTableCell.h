@@ -16,6 +16,7 @@ public:
 	virtual bool IsBound() const = 0;
 	virtual bool InEditMode() const = 0;
 	virtual bool IsValid() const = 0;
+	virtual bool PassesPermissionList() const { return true; }
 
 	virtual FString GetValueAsString() const = 0;
 	virtual FText GetValueAsText() const = 0;

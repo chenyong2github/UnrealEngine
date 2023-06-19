@@ -27,6 +27,7 @@ public:
 	virtual bool IsBound() const override { return bIsBound; }
 	virtual bool InEditMode() const override { return bInEditMode; }
 	virtual bool IsValid() const override;
+	virtual bool PassesPermissionList() const override { return bIsPropertyAllowed; }
 
 	virtual FString GetValueAsString() const override;
 	virtual FText GetValueAsText() const override;
@@ -48,11 +49,15 @@ public:
 	DECLARE_DERIVED_EVENT( FPropertyTableCell, IPropertyTableCell::FExitedEditModeEvent, FExitedEditModeEvent  );
 	virtual FExitedEditModeEvent& OnExitedEditMode() override { return ExitedEditModeEvent; }
 
-
+private:
+	// Check if the property for this cell passes the permission list for the object we are viewing
+	bool DoesPropertyPassPermissionList();
+	
 private:
 
 	bool bIsBound;
 	bool bInEditMode;
+	bool bIsPropertyAllowed;
 
 	FEnteredEditModeEvent EnteredEditModeEvent;
 	FExitedEditModeEvent ExitedEditModeEvent;
