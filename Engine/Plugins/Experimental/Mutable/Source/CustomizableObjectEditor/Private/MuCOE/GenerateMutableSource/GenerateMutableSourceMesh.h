@@ -4,7 +4,7 @@
 
 #include "MuT/NodeModifierMeshClipWithMesh.h"
 #include "MuT/Table.h"
-
+#include "Animation/AnimInstance.h"
 #include "UObject/SoftObjectPtr.h"
 
 class FName;
