@@ -1412,6 +1412,9 @@ public:
 
 	FStrataViewData StrataViewData;
 
+	uint32 LocalHeightFogGPUInstanceCount;
+	FRDGBufferSRVRef LocalHeightFogGPUInstanceDataBufferSRV;
+
 	FHairStrandsViewData HairStrandsViewData;
 
 	/** Parameters for exponential height fog. */

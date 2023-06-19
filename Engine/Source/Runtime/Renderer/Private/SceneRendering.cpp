@@ -970,6 +970,9 @@ void FViewInfo::Init()
 	StrataViewData.Reset();
 	HairStrandsViewData = FHairStrandsViewData();
 
+	LocalHeightFogGPUInstanceCount = 0;
+	LocalHeightFogGPUInstanceDataBufferSRV = nullptr;
+
 	GPUSceneViewId = INDEX_NONE;
 
 	// Filled in by FDeferredShadingSceneRenderer::UpdateLumenScene

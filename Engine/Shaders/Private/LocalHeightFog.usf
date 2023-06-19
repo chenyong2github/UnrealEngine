@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "Common.ush"
+
+#if SHADING_PATH_MOBILE
+#define MobileSceneTextures MobileBasePass.SceneTextures 
+#endif
+
 #include "SceneTexturesCommon.ush"
 #include "HeightFogCommon.ush"
 #include "ParticipatingMediaCommon.ush"
@@ -22,10 +26,39 @@ struct FLocalHeightFogGPUInstanceData
 	float3 Albedo;
 	float  PhaseG;
 	float3 Emissive;
-	uint   FogMode;
+	float  FogMode;
 };
 
-StructuredBuffer<FLocalHeightFogGPUInstanceData> LocalHeightFogInstances;
+// Structured buffers cannot be sampled from the vertex shader on some mobile platforms.
+// That is why simple Buffers are used, because this tech needs to run on mobile platforms.
+Buffer<float4> LocalHeightFogInstances;
+FLocalHeightFogGPUInstanceData GetLocalHeightFogGPUInstanceData(uint Index)
+{
+	FLocalHeightFogGPUInstanceData Data;
+	uint Offset = Index * 19;
+
+	Data.Transform		= float4x4(LocalHeightFogInstances[Offset + 0], LocalHeightFogInstances[Offset + 1], LocalHeightFogInstances[Offset + 2], LocalHeightFogInstances[Offset + 3]);
+	Data.InvTransform	= float4x4(LocalHeightFogInstances[Offset + 4], LocalHeightFogInstances[Offset + 5], LocalHeightFogInstances[Offset + 6], LocalHeightFogInstances[Offset + 7]);
+
+	Data.InvTranformNoScale = float4x4(LocalHeightFogInstances[Offset + 8], LocalHeightFogInstances[Offset + 9], LocalHeightFogInstances[Offset + 10], LocalHeightFogInstances[Offset + 11]);
+	Data.TransformScaleOnly = float4x4(LocalHeightFogInstances[Offset + 12], LocalHeightFogInstances[Offset + 13], LocalHeightFogInstances[Offset + 14], LocalHeightFogInstances[Offset + 15]);
+
+	float4 Temp0 = LocalHeightFogInstances[Offset + 16];
+	Data.Density			= Temp0.x;
+	Data.HeightFalloff		= Temp0.y;
+	Data.HeightOffset		= Temp0.z;
+	Data.RadialAttenuation	= Temp0.w;
+
+	float4 Temp1 = LocalHeightFogInstances[Offset + 17];
+	Data.Albedo		= Temp1.xyz;
+	Data.PhaseG		= Temp1.w;
+
+	float4 Temp2 = LocalHeightFogInstances[Offset + 18];
+	Data.Emissive	= Temp2.xyz;
+	Data.FogMode	= Temp2.w;
+
+	return Data;
+}
 
 
 struct FLocalHeightFogVertexOutput
@@ -44,7 +77,7 @@ void LocalHeightFogSplatVS(
 
 	float4 LocalPosition = InPosition;
 
-	FLocalHeightFogGPUInstanceData FogInstance = LocalHeightFogInstances[InstanceIndex];
+	FLocalHeightFogGPUInstanceData FogInstance = GetLocalHeightFogGPUInstanceData(InstanceIndex);
 
 	float4x4 FogTransform = FogInstance.Transform;
 
@@ -190,7 +223,7 @@ void LocalHeightFogSplatPS(
 	float3 CamRayTranslatedWorldDir = normalize(SvPositionToTranslatedWorld(float4(SVPos.xy, 0.5, 1.0)));
 	float3 CamRayWorldDir = CamRayTranslatedWorldDir;
 
-	FLocalHeightFogGPUInstanceData FogInstance = LocalHeightFogInstances[InstanceIndex];
+	FLocalHeightFogGPUInstanceData FogInstance = GetLocalHeightFogGPUInstanceData(InstanceIndex);
 
 	OutColor = float4(0, 0, 0, 1);
 
@@ -204,7 +237,14 @@ void LocalHeightFogSplatPS(
 	float2 TsU = RayIntersectSphere(RayPosU, RayDirU, float4(0.0, 0.0, 0.0, 1.0));
 	if (any(TsU > 0.0))
 	{
+#if SHADING_PATH_MOBILE
+		// LookupDeviceZ with uint2 SVPos.xy as input does not work on mobile.
+		float2 UV = SVPos * View.BufferSizeAndInvSize.zw;
+		const float DeviceZ = LookupDeviceZ(UV);
+#else
 		const float DeviceZ = LookupDeviceZ(uint2(SVPos.xy));
+#endif
+
 		float3 DepthBufferTranslatedWorldPos = SvPositionToTranslatedWorld(float4(SVPos.xy, DeviceZ, 1.0));
 		float LengthD = length(DepthBufferTranslatedWorldPos - CamRayTranslatedWorldOrigin);
 
