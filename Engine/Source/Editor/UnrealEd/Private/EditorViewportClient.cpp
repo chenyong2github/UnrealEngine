@@ -3191,7 +3191,7 @@ void FEditorViewportClient::StartTrackingDueToInput( const struct FInputEventSta
 		}
 
 		// Start new tracking. Potentially reset the widget so that StartTracking can pick a new axis.
-		if ( Widget && ( !bDraggingByHandle || InputState.IsCtrlButtonPressed() ) )
+		if ( Widget && ( !bDraggingByHandle && InputState.IsCtrlButtonPressed() ) )
 		{
 			bWidgetAxisControlledByDrag = false;
 			Widget->SetCurrentAxis( EAxisList::None );
