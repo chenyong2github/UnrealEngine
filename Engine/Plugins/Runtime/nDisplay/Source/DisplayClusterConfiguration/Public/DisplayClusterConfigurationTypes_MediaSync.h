@@ -21,10 +21,7 @@ public:
 	virtual ~IDisplayClusterMediaOutputSynchronizationPolicyHandler() = default;
 
 	/** Returns true if specified media capture type can be synchonized by the policy implementation */
-	virtual bool IsCaptureTypeSupported(UMediaCapture* MediaCapture) const
-	{
-		return true;
-	}
+	virtual bool IsCaptureTypeSupported(UMediaCapture* MediaCapture) const = 0;
 
 	/** Starts synchronization of specific output stream (capture device). Returns false if failed. */
 	virtual bool StartSynchronization(UMediaCapture* MediaCapture, const FString& MediaId) = 0;

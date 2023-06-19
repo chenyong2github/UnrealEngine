@@ -22,6 +22,7 @@ public:
 	virtual bool StartSynchronization(UMediaCapture* MediaCapture, const FString& MediaId) override;
 	virtual void StopSynchronization() override;
 	virtual bool IsRunning() override final;
+	virtual bool IsCaptureTypeSupported(UMediaCapture* MediaCapture) const override;
 	//~ End IDisplayClusterMediaOutputSynchronizationPolicyHandler interface
 
 	/** Children implement their own sync approaches. */

@@ -97,6 +97,11 @@ bool FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::
 	return bIsRunning;
 }
 
+bool FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::IsCaptureTypeSupported(UMediaCapture* MediaCapture) const
+{
+	return true;
+}
+
 FString FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::GetMediaDeviceId() const
 {
 	return MediaDeviceId;
