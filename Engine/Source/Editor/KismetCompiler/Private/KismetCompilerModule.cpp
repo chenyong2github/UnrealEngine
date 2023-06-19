@@ -193,16 +193,18 @@ void FKismet2CompilerModule::RemoveBlueprintGeneratedClasses(class UBlueprint* B
 {
 	if (Blueprint != NULL)
 	{
-		if (Blueprint->GeneratedClass != NULL)
-		{
-			FKismetCompilerUtilities::ConsignToOblivion(Blueprint->GeneratedClass, Blueprint->bIsRegeneratingOnLoad);
-			Blueprint->GeneratedClass = NULL;
-		}
-
+		// Order unfortunately matters, as we want to allow UBlueprintGeneratedClass::GetAuthoritativeClass to function
+		// correctly for as long as possible:
 		if (Blueprint->SkeletonGeneratedClass != NULL)
 		{
 			FKismetCompilerUtilities::ConsignToOblivion(Blueprint->SkeletonGeneratedClass, Blueprint->bIsRegeneratingOnLoad);
 			Blueprint->SkeletonGeneratedClass = NULL;
+		}
+
+		if (Blueprint->GeneratedClass != NULL)
+		{
+			FKismetCompilerUtilities::ConsignToOblivion(Blueprint->GeneratedClass, Blueprint->bIsRegeneratingOnLoad);
+			Blueprint->GeneratedClass = NULL;
 		}
 	}
 }
