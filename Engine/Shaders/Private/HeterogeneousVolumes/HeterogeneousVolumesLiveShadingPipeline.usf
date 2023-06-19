@@ -257,8 +257,6 @@ void RenderSingleScatteringWithLiveShadingCS(
 	uint2 DispatchThreadId : SV_DispatchThreadID
 )
 {
-	float3 Radiance = 0.0;
-	float3 Transmittance = 1.0;
 	FDebugOutput DebugOutput = (FDebugOutput)0;
 
 	// Create screen ray
@@ -268,6 +266,9 @@ void RenderSingleScatteringWithLiveShadingCS(
 	}
 	uint LinearIndex = DispatchThreadId.y * GroupCount.x * THREADGROUP_SIZE_2D + DispatchThreadId.x;
 	uint2 PixelCoord = DispatchThreadId.xy + View.ViewRectMin.xy;
+
+	float3 Radiance = 0.0;
+	float3 Transmittance = 1.0 - RWLightingTexture[PixelCoord].a;
 
 	// Extract depth
 	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
@@ -336,7 +337,8 @@ void RenderSingleScatteringWithLiveShadingCS(
 
 		// Output..
 		float3 Opacity = bApplyEmissionAndTransmittance ? 1.0 - Transmittance : 0.0;
-		RWLightingTexture[PixelCoord] += float4(Radiance * View.PreExposure, Luminance(Opacity));
+		RWLightingTexture[PixelCoord].rgb += Radiance * View.PreExposure;
+		RWLightingTexture[PixelCoord].a = Luminance(Opacity);
 
 		// Debug output
 		//RWDebugOutputBuffer[LinearIndex] = DebugOutput;

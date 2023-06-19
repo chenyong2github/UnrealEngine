@@ -169,6 +169,13 @@ static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesLightingCacheDownsamp
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarHeterogeneousVolumesDepthSort(
+	TEXT("r.HeterogeneousVolumes.DepthSort"),
+	1,
+	TEXT("Iterates over volumes in depth-sorted order, based on its centroid (Default = 1)"),
+	ECVF_RenderThreadSafe
+);
+
 DECLARE_GPU_STAT_NAMED(HeterogeneousVolumesStat, TEXT("HeterogeneousVolumes"));
 
 static bool IsHeterogeneousVolumesEnabled()
@@ -422,6 +429,19 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 			}
 			else
 			{
+				// Collect volume interfaces
+				struct VolumeMesh
+				{
+					const IHeterogeneousVolumeInterface* Volume;
+					const FMaterialRenderProxy* MaterialRenderProxy;
+
+					VolumeMesh(const IHeterogeneousVolumeInterface* V, const FMaterialRenderProxy* M) : 
+						Volume(V),
+						MaterialRenderProxy(M)
+					{}
+				};
+
+				TArray<VolumeMesh> VolumeMeshes;
 				for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.HeterogeneousVolumesMeshBatches.Num(); ++MeshBatchIndex)
 				{
 					const FMeshBatch* Mesh = View.HeterogeneousVolumesMeshBatches[MeshBatchIndex].Mesh;
@@ -434,13 +454,47 @@ void FDeferredShadingSceneRenderer::RenderHeterogeneousVolumes(
 					const FMaterialRenderProxy* MaterialRenderProxy = Mesh->MaterialRenderProxy;
 					for (int32 VolumeIndex = 0; VolumeIndex < Mesh->Elements.Num(); ++VolumeIndex)
 					{
-						IHeterogeneousVolumeInterface* HeterogeneousVolume = (IHeterogeneousVolumeInterface*) Mesh->Elements[VolumeIndex].UserData;
+						const IHeterogeneousVolumeInterface* HeterogeneousVolume = (IHeterogeneousVolumeInterface*)Mesh->Elements[VolumeIndex].UserData;
 						//check(HeterogeneousVolume != nullptr);
 						if (HeterogeneousVolume == nullptr)
 						{
 							continue;
 						}
 
+						VolumeMeshes.Add(VolumeMesh(HeterogeneousVolume, MaterialRenderProxy));
+					}
+				}
+
+				// Provide coarse depth-sorting, based on camera-distance to world centroid
+				bool bDepthSort = CVarHeterogeneousVolumesDepthSort.GetValueOnRenderThread() == 1;
+				if (bDepthSort)
+				{
+					struct FDepthCompareHeterogeneousVolumes
+					{
+						FVector WorldCameraOrigin;
+						FDepthCompareHeterogeneousVolumes(FViewInfo& View) : WorldCameraOrigin(View.ViewMatrices.GetViewOrigin()) {}
+
+						FORCEINLINE bool operator()(const VolumeMesh& A, const VolumeMesh& B) const
+						{
+							FVector CameraToA = A.Volume->GetBounds().Origin - WorldCameraOrigin;
+							float SquaredDistanceToA = FVector::DotProduct(CameraToA, CameraToA);
+
+							FVector CameraToB = B.Volume->GetBounds().Origin - WorldCameraOrigin;
+							float SquaredDistanceToB = FVector::DotProduct(CameraToB, CameraToB);
+
+							return SquaredDistanceToA < SquaredDistanceToB;
+						}
+					};
+
+					VolumeMeshes.Sort(FDepthCompareHeterogeneousVolumes(View));
+				}
+
+				for (int32 VolumeIndex = 0; VolumeIndex < VolumeMeshes.Num(); ++VolumeIndex)
+				{
+					{
+						const IHeterogeneousVolumeInterface* HeterogeneousVolume = VolumeMeshes[VolumeIndex].Volume;
+						const FMaterialRenderProxy* MaterialRenderProxy = VolumeMeshes[VolumeIndex].MaterialRenderProxy;
+						const FPrimitiveSceneProxy* PrimitiveSceneProxy = HeterogeneousVolume->GetPrimitiveSceneProxy();
 						const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 						const int32 PrimitiveId = PrimitiveSceneInfo->GetIndex();
 						const FBoxSphereBounds LocalBoxSphereBounds = HeterogeneousVolume->GetLocalBounds();
