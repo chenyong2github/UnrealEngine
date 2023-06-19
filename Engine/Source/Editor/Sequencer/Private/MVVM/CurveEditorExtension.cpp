@@ -4,6 +4,7 @@
 #include "MVVM/Selection/Selection.h"
 
 #include "FrameNumberDetailsCustomization.h"
+#include "Filters/SCurveEditorFilterPanel.h"
 #include "Framework/Docking/TabManager.h"
 #include "IPropertyRowGenerator.h"
 #include "MVVM/ViewModels/SequencerEditorViewModel.h"
@@ -201,7 +202,7 @@ void FCurveEditorExtension::CreateCurveEditor(const FTimeSliderArgs& TimeSliderA
 			TimeSliderArgs, Sequencer, CurveEditorModel.ToSharedRef());
 
 	CurveEditorTreeView = SNew(SCurveEditorTree, CurveEditorModel);
-	TSharedRef<SCurveEditorPanel> CurveEditorWidget = SNew(SCurveEditorPanel, CurveEditorModel.ToSharedRef())
+	CurveEditorPanel = SNew(SCurveEditorPanel, CurveEditorModel.ToSharedRef())
 		// Grid lines match the color specified in FSequencerTimeSliderController::OnPaintViewArea
 		.GridLineTint(FLinearColor(0.f, 0.f, 0.f, 0.3f))
 		.ExternalTimeSliderController(CurveEditorTimeSliderController)
@@ -242,7 +243,7 @@ void FCurveEditorExtension::CreateCurveEditor(const FTimeSliderArgs& TimeSliderA
 
 	// Register an instanced custom property type layout to handle converting FFrameNumber from Tick Resolution to Display Rate.
 	TWeakPtr<ISequencer> WeakSequencer(Sequencer);
-	CurveEditorWidget->GetKeyDetailsView()->GetPropertyRowGenerator()->RegisterInstancedCustomPropertyTypeLayout(
+	CurveEditorPanel->GetKeyDetailsView()->GetPropertyRowGenerator()->RegisterInstancedCustomPropertyTypeLayout(
 			"FrameNumber", 
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(CreateFrameNumberCustomization, WeakSequencer));
 
@@ -252,14 +253,43 @@ void FCurveEditorExtension::CreateCurveEditor(const FTimeSliderArgs& TimeSliderA
 		FExecuteAction::CreateLambda([this] { FSlateApplication::Get().SetKeyboardFocus(CurveEditorSearchBox, EFocusCause::SetDirectly); })
 	);
 
-	CurveEditorPanel = SNew(SSequencerCurveEditor, CurveEditorWidget, Sequencer);
+	CurveEditorWidget = SNew(SSequencerCurveEditor, CurveEditorPanel.ToSharedRef(), Sequencer);
+
+	CurveEditorPanel->OnFilterClassChanged.BindRaw(this, &FCurveEditorExtension::FilterClassChanged);
 
 	// Check to see if the tab is already opened due to the saved window layout.
 	FTabId TabId = FTabId(FCurveEditorExtension::CurveEditorTabName);
 	TSharedPtr<SDockTab> ExistingCurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(TabId);
 	if (ExistingCurveEditorTab)
 	{
-		ExistingCurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
+		ExistingCurveEditorTab->SetContent(CurveEditorWidget.ToSharedRef());
+	}
+}
+
+void FCurveEditorExtension::FilterClassChanged()
+{
+	TSharedPtr<FSequencerEditorViewModel> OwnerModel = WeakOwnerModel.Pin();
+	if (!ensure(OwnerModel))
+	{
+		return;
+	}
+
+	TSharedPtr<FSequencer> Sequencer = OwnerModel->GetSequencerImpl();
+	if (!ensure(Sequencer))
+	{
+		return;
+	}
+
+	if (CurveEditorPanel)
+	{
+		TSharedPtr<SCurveEditorFilterPanel> FilterPanel = CurveEditorPanel->GetFilterPanel();
+		if (FilterPanel)
+		{
+			TWeakPtr<ISequencer> WeakSequencer(Sequencer);
+			FilterPanel->GetDetailsView()->RegisterInstancedCustomPropertyTypeLayout(
+				"FrameNumber",
+				FOnGetPropertyTypeCustomizationInstance::CreateStatic(CreateFrameNumberCustomization, WeakSequencer));
+		}
 	}
 }
 
@@ -283,7 +313,7 @@ void FCurveEditorExtension::OpenCurveEditor()
 	TSharedPtr<SDockTab> CurveEditorTab = Sequencer->GetToolkitHost()->GetTabManager()->TryInvokeTab(TabId);
 	if (CurveEditorTab.IsValid())
 	{
-		CurveEditorTab->SetContent(CurveEditorPanel.ToSharedRef());
+		CurveEditorTab->SetContent(CurveEditorWidget.ToSharedRef());
 
 		const FSlateIcon SequencerGraphIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon");
 		CurveEditorTab->SetTabIcon(SequencerGraphIcon.GetIcon());

@@ -73,7 +73,6 @@ void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCu
 
 	FOnClassPicked OnPicked(FOnClassPicked::CreateSP(this, &SCurveEditorFilterPanel::SetFilterClass));
 
-
 	FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
 	
@@ -88,7 +87,7 @@ void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCu
 	DetailsViewArgs.bShowOptions = false;
 
 	// Generate it and store a reference so we can update it with the right object later.
-	DetailView = PropertyEditor.CreateDetailView(DetailsViewArgs);
+	DetailsView = PropertyEditor.CreateDetailView(DetailsViewArgs);
 	TSharedRef<SWidget> ClassFilterWidget = ClassViewerModule.CreateClassViewer(Options, OnPicked);
 
 	ChildSlot
@@ -105,7 +104,7 @@ void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCu
 		+ SVerticalBox::Slot()
 		.FillHeight(1.f)
 		[
-			DetailView.ToSharedRef()
+			DetailsView.ToSharedRef()
 		]
 		
 		// Footer Row
@@ -143,20 +142,32 @@ void SCurveEditorFilterPanel::Construct(const FArguments& InArgs, TSharedRef<FCu
 void SCurveEditorFilterPanel::SetFilterClass(UClass* InClass)
 {
 	UObject* ClassCDO = InClass->GetDefaultObject<UObject>();
-	DetailView->SetObject(ClassCDO);
+
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (CurveEditor)
+	{
+		if (UCurveEditorFilterBase* Filter = Cast<UCurveEditorFilterBase>(ClassCDO))
+		{
+			Filter->InitializeFilter(CurveEditor.ToSharedRef());
+		}
+	}
+
+	DetailsView->SetObject(ClassCDO);
+
+	OnFilterClassChanged.ExecuteIfBound();
 }
 
 FReply SCurveEditorFilterPanel::OnApplyClicked()
 {
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
-	if (CurveEditor && DetailView->GetSelectedObjects().Num() > 0)
+	if (CurveEditor && DetailsView->GetSelectedObjects().Num() > 0)
 	{
 		const TMap<FCurveModelID, FKeyHandleSet>& SelectedKeys = CurveEditor->GetSelection().GetAll();
 		
 		FText TransactionText = FText::Format(NSLOCTEXT("CurveEditorFilterApply", "Filter Curves", "Filtered {0}|plural(one=Curve, other=Curves)"), CurveEditor->GetSelection().Count());
 		FScopedTransaction Transaction(TransactionText);
 
-		UCurveEditorFilterBase* Filter = Cast<UCurveEditorFilterBase>(DetailView->GetSelectedObjects()[0]);
+		UCurveEditorFilterBase* Filter = Cast<UCurveEditorFilterBase>(DetailsView->GetSelectedObjects()[0]);
 		TMap<FCurveModelID, FKeyHandleSet> OutKeysToSelect;
 		Filter->ApplyFilter(CurveEditor.ToSharedRef(), SelectedKeys, OutKeysToSelect);
 
@@ -174,22 +185,24 @@ FReply SCurveEditorFilterPanel::OnApplyClicked()
 
 bool SCurveEditorFilterPanel::CanApplyFilter() const
 {
-	bool bHasSelection = false;
-	bool bHasFilter = false;
-
-	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
-	if (CurveEditor.IsValid())
+	if (DetailsView->GetSelectedObjects().Num() == 0)
 	{
-		bHasSelection = CurveEditor->GetSelection().Count() > 0;
+		return false;
 	}
 
-	bHasFilter = DetailView->GetSelectedObjects().Num() > 0;
+	UCurveEditorFilterBase* CurrentFilter = Cast<UCurveEditorFilterBase>(DetailsView->GetSelectedObjects()[0].Get());
 
-	return bHasSelection && bHasFilter;
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (CurveEditor.IsValid() && CurrentFilter)
+	{
+		return CurrentFilter->CanApplyFilter(CurveEditor.ToSharedRef());
+	}
+
+	return false;
 }
 
 
-void SCurveEditorFilterPanel::OpenDialog(TSharedPtr<SWindow> RootWindow, TSharedRef<FCurveEditor> InHostCurveEditor, TSubclassOf<UCurveEditorFilterBase> DefaultFilterClass)
+TSharedPtr<SCurveEditorFilterPanel> SCurveEditorFilterPanel::OpenDialog(TSharedPtr<SWindow> RootWindow, TSharedRef<FCurveEditor> InHostCurveEditor, TSubclassOf<UCurveEditorFilterBase> DefaultFilterClass)
 {
 	TSharedPtr<SWindow> ExistingWindow = ExistingFilterWindow.Pin();
 	if (ExistingWindow.IsValid())
@@ -221,6 +234,8 @@ void SCurveEditorFilterPanel::OpenDialog(TSharedPtr<SWindow> RootWindow, TShared
 	);
 
 	ExistingFilterWindow = ExistingWindow;
+
+	return FilterPanel;
 }
 
 void SCurveEditorFilterPanel::CloseDialog()
@@ -236,9 +251,9 @@ void SCurveEditorFilterPanel::CloseDialog()
 FText SCurveEditorFilterPanel::GetCurrentFilterText() const
 {
 	FText CurrentFilterName = NSLOCTEXT("SCurveEditorFilterPanel", "NoFilterSelectedName", "None");
-	if (DetailView->GetSelectedObjects().Num() > 0)
+	if (DetailsView->GetSelectedObjects().Num() > 0)
 	{
-		UCurveEditorFilterBase* CurrentFilter = Cast<UCurveEditorFilterBase>(DetailView->GetSelectedObjects()[0].Get());
+		UCurveEditorFilterBase* CurrentFilter = Cast<UCurveEditorFilterBase>(DetailsView->GetSelectedObjects()[0].Get());
 		if (CurrentFilter)
 		{
 			CurrentFilterName = CurrentFilter->GetClass()->GetDisplayNameText();

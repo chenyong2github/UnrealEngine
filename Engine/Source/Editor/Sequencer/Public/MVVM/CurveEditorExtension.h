@@ -12,6 +12,7 @@
 
 class ISequencer;
 class IPropertyTypeCustomization;
+class SCurveEditorPanel;
 class SCurveEditorTree;
 struct FTimeSliderArgs;
 
@@ -62,6 +63,9 @@ private:
 	/** Syncs the selection of the curve editor with that of the sequencer */
 	void SyncSelection();
 
+	/** Executed when the filter class has changed */
+	void FilterClassChanged();
+
 private:
 
 	/** The sequencer editor we are extending with a curve editor */
@@ -73,8 +77,10 @@ private:
 	TSharedPtr<SCurveEditorTree> CurveEditorTreeView;
 	/** The search widget for filtering curves in the Curve Editor tree. */
 	TSharedPtr<SWidget> CurveEditorSearchBox;
+	/** The curve editor widget containing the curve editor panel */
+	TSharedPtr<SWidget> CurveEditorWidget;
 	/** The curve editor panel. This is created and updated even if it is not currently visible. */
-	TSharedPtr<SWidget> CurveEditorPanel;
+	TSharedPtr<SCurveEditorPanel> CurveEditorPanel;
 
 	friend class FCurveEditorIntegrationExtension;
 };

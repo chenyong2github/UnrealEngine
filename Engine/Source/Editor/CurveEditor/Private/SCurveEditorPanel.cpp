@@ -1148,8 +1148,17 @@ void SCurveEditorPanel::ShowCurveFilterUI(TSubclassOf<UCurveEditorFilterBase> Fi
 	TSharedPtr<SDockTab> OwnerTab = TabManager.IsValid() ? TabManager->GetOwnerTab() : TSharedPtr<SDockTab>();
 	TSharedPtr<SWindow> RootWindow = OwnerTab.IsValid() ? OwnerTab->GetParentWindow() : TSharedPtr<SWindow>();
 
-	SCurveEditorFilterPanel::OpenDialog(RootWindow, CurveEditor.ToSharedRef(), FilterClass);
+	FilterPanel = SCurveEditorFilterPanel::OpenDialog(RootWindow, CurveEditor.ToSharedRef(), FilterClass);
+	FilterPanel->OnFilterClassChanged.BindRaw(this, &SCurveEditorPanel::FilterClassChanged);
+
+	FilterClassChanged();
 }
+
+void SCurveEditorPanel::FilterClassChanged()
+{
+	OnFilterClassChanged.ExecuteIfBound();
+}
+
 
 const FGeometry& SCurveEditorPanel::GetScrollPanelGeometry() const
 {

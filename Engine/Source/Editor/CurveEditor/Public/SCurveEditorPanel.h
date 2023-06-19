@@ -37,6 +37,7 @@ class ITimeSliderController;
 class SCurveEditorToolProperties;
 class SCurveEditorView;
 class SCurveEditorViewContainer;
+class SCurveEditorFilterPanel;
 class SCurveKeyDetailPanel;
 class SScrollBox;
 class SWidget;
@@ -100,6 +101,14 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 		return KeyDetailsView;
 	}
 
+	/**
+	 * Access the filter panel
+	 */
+	TSharedPtr<class SCurveEditorFilterPanel> GetFilterPanel() const
+	{
+		return FilterPanel;
+	}
+
 	void AddView(TSharedRef<SCurveEditorView> ViewToAdd);
 
 	void RemoveView(TSharedRef<SCurveEditorView> ViewToRemove);
@@ -150,6 +159,11 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 
 	/** Reset Stored Min/Max's*/
 	void ResetMinMaxes();
+
+	/** Delegate for when the chosen filter class has changed */
+	FSimpleDelegate OnFilterClassChanged;
+	void FilterClassChanged();
+
 private:
 	// SWidget Interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -312,6 +326,9 @@ private:
 
 	/** Edit panel */
 	TSharedPtr<SCurveKeyDetailPanel> KeyDetailsView;
+
+	/* Filter panel */
+	TSharedPtr<SCurveEditorFilterPanel> FilterPanel;
 
 	/** Tool options panel */
 	TSharedPtr<SCurveEditorToolProperties> ToolPropertiesPanel;
