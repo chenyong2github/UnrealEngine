@@ -208,12 +208,6 @@ public:
 
 	/** Helper function to punch through and honor UAnimGraphNode_Base::PreloadRequiredAssets, which formerly relied on loading assets during compile */
 	static UNREALED_API void PreloadBlueprintSpecificData(UBlueprint* Blueprint);
-
-	/**
-	 * Regenerates the class at class load time, and refreshes the blueprint
-	 */
-	UE_DEPRECATED(5.2, "Replace with FKismetEditorUtilities::CompileBlueprint")
-	static UNREALED_API UClass* RegenerateBlueprintClass(UBlueprint* Blueprint, UClass* ClassToRegenerate, UObject* PreviousCDO);
 	
 	/**
 	 * Links external dependencies
