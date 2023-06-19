@@ -21,11 +21,6 @@
 			"LoadingPhase": "PostConfigInit"
 		},
 		{
-			"Name": "OpenColorIOWrapper",
-			"Type": "Editor",
-			"LoadingPhase": "PostConfigInit"
-		},
-		{
 			"Name": "OpenColorIOEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PreDefault",
