@@ -81,7 +81,19 @@ bool UActorElementEditorWorldInterface::DeleteElements(TArrayView<const FTypedEl
 bool UActorElementEditorWorldInterface::CanDuplicateElement(const FTypedElementHandle& InElementHandle)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
-	return Actor != nullptr; // All actors can be duplicated
+	if (Actor && Actor->GetLevel())
+	{
+		if (UWorld* ActorWorld = Actor->GetLevel()->GetWorld())
+		{
+			// If the actor is in a PIE world but doesn't have an editor counterpart it means it's a temporary
+			// actor spawned to the world. These actors can cause issues when copied so have been disabled.
+			if (ActorWorld->WorldType == EWorldType::PIE && !GEditor->ObjectsThatExistInEditorWorld.Get(Actor))
+			{
+				return false;
+			}
+		}
+	}
+	return Actor != nullptr;
 }
 
 void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
@@ -126,6 +138,19 @@ void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FType
 
 bool UActorElementEditorWorldInterface::CanCopyElement(const FTypedElementHandle& InElementHandle)
 {
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
+	if (Actor && Actor->GetLevel())
+	{
+		if (UWorld* ActorWorld = Actor->GetLevel()->GetWorld())
+		{
+			// If the actor is in a PIE world but doesn't have an editor counterpart it means it's a temporary
+			// actor spawned to the world. These actors can cause issues when copied so have been disabled.
+			if (ActorWorld->WorldType == EWorldType::PIE && !GEditor->ObjectsThatExistInEditorWorld.Get(Actor))
+			{
+				return false;
+			}
+		}
+	}
 	return true;
 }
 
