@@ -23,6 +23,7 @@
 #include "RigVMTypeUtils.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "Rigs/RigControlHierarchy.h"
+#include "Settings/ControlRigSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprint)
 
@@ -30,7 +31,6 @@
 #include "IControlRigEditorModule.h"
 #include "Kismet2/WatchedPin.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Settings/ControlRigSettings.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Editor/Transactor.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
@@ -374,6 +374,11 @@ UClass* UControlRigBlueprint::GetRigVMEdGraphSchemaClass() const
 UClass* UControlRigBlueprint::GetRigVMEdGraphClass() const
 {
 	return UControlRigGraph::StaticClass();
+}
+
+UClass* UControlRigBlueprint::GetRigVMEditorSettingsClass() const
+{
+	return UControlRigEditorSettings::StaticClass();
 }
 
 TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNewBlueprintName)

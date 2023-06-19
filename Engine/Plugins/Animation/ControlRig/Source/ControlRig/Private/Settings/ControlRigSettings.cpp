@@ -4,11 +4,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigSettings)
 
-#if WITH_EDITOR
-#include "RigVMModel/RigVMController.h"
-#include "RigVMModel/RigVMNode.h"
-#endif
-
 UControlRigSettings::UControlRigSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -24,7 +19,6 @@ UControlRigEditorSettings::UControlRigEditorSettings(const FObjectInitializer& O
 #endif
 {
 #if WITH_EDITORONLY_DATA
-	bAutoLinkMutableNodes = false;
 	bResetControlsOnCompile = true;
 	bResetControlsOnPinValueInteraction = false;
 	bEnableUndoForPoseInteraction = true;

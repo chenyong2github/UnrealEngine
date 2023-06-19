@@ -16,6 +16,7 @@ public class RigVM : ModuleRules
                 "Engine",
                 "AnimationCore",
                 "AnimGraphRuntime",
+                "DeveloperSettings",
             }
         );
 

@@ -673,6 +673,11 @@ bool URigVMBlueprint::TryImportGraphFromText(const FString& InClipboardText, UEd
 	return true;
 }
 
+URigVMEditorSettings* URigVMBlueprint::GetRigVMEditorSettings() const
+{
+	return GetMutableDefault<URigVMEditorSettings>(GetRigVMEditorSettingsClass());
+}
+
 void URigVMBlueprint::Serialize(FArchive& Ar)
 {
 	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(URigVMBlueprint, RigVMClient));

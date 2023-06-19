@@ -66,36 +66,6 @@ public:
 	/** Steps out of the collapsed/function node, when halted at a breakpoint */
 	TSharedPtr< FUICommandInfo > StepOut;
 
-	/** Stores the selected node(s) into snippet 1. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet1;
-
-	/** Stores the selected node(s) into snippet 2. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet2;
-
-	/** Stores the selected node(s) into snippet 3. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet3;
-
-	/** Stores the selected node(s) into snippet 4. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet4;
-
-	/** Stores the selected node(s) into snippet 5. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet5;
-
-	/** Stores the selected node(s) into snippet 6. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet6;
-
-	/** Stores the selected node(s) into snippet 7. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet7;
-
-	/** Stores the selected node(s) into snippet 8. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet8;
-
-	/** Stores the selected node(s) into snippet 9. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet9;
-
-	/** Stores the selected node(s) into snippet 0. */
-	TSharedPtr< FUICommandInfo > StoreNodeSnippet0;
-
 	/** Frames the selected nodes */
 	TSharedPtr< FUICommandInfo > FrameSelection;
 

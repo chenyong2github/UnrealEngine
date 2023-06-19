@@ -11,6 +11,7 @@
 #include "RigVMCore/RigVMGraphFunctionDefinition.h"
 #include "EdGraph/RigVMEdGraph.h"
 #include "EdGraph/RigVMEdGraphSchema.h"
+#include "RigVMSettings.h"
 
 #include "RigVMBlueprint.generated.h"
 
@@ -221,6 +222,12 @@ public:
 
 	/** Returns the expected ed graph schema class to use for this blueprint */
 	virtual UClass* GetRigVMEdGraphSchemaClass() const { return URigVMEdGraphSchema::StaticClass(); }
+
+	/** Returns the class of the settings to use */
+	virtual UClass* GetRigVMEditorSettingsClass() const { return URigVMEditorSettings::StaticClass(); }
+
+	/** Returns the settings defaults for this blueprint */
+	URigVMEditorSettings* GetRigVMEditorSettings() const;
 
 	virtual void Serialize(FArchive& Ar) override;
 

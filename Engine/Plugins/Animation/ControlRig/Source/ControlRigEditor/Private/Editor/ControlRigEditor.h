@@ -447,13 +447,6 @@ protected:
 	URigVMController* GetFocusedController() const;
 	TSharedPtr<SGraphEditor> GetGraphEditor(UEdGraph* InEdGraph) const;
 	
-	// stores a node snippet into the setting
-	void StoreNodeSnippet(int32 InSnippetIndex);
-	// restores a node snippet from the setting
-	void RestoreNodeSnippet(int32 InSnippetIndex);
-	// returns the right setting storage for a given snippet index
-	static FString* GetSnippetStorage(int32 InSnippetIndex);
-
 	URigVMController* ActiveController;
 	bool bControlRigEditorInitialized;
 	bool bIsSettingObjectBeingDebugged;

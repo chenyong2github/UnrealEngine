@@ -337,13 +337,10 @@ URigVMEdGraphNode* URigVMEdGraphUnitNodeSpawner::SpawnNode(UEdGraph* ParentGraph
 
 void URigVMEdGraphUnitNodeSpawner::HookupMutableNode(URigVMNode* InModelNode, URigVMBlueprint* InRigBlueprint)
 {
-	/*
-	// Todo in a follow up submit
-	if(!UControlRigEditorSettings::Get()->bAutoLinkMutableNodes)
+	if(!InRigBlueprint->GetRigVMEditorSettings()->bAutoLinkMutableNodes)
 	{
 		return;
 	}
-	*/
 	
 	URigVMController* Controller = InRigBlueprint->GetController(InModelNode->GetGraph());
 

@@ -43,6 +43,7 @@ public:
 	virtual UClass* GetRigVMEdGraphNodeClass() const override;
 	virtual UClass* GetRigVMEdGraphSchemaClass() const override;
 	virtual TArray<FString> GeneratePythonCommands(const FString InNewBlueprintName) override;
+	virtual UClass* GetRigVMEditorSettingsClass() const override;
 	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
