@@ -6,10 +6,10 @@
 #include "GeometryCacheCodecBase.generated.h"
 
 struct FResourceSizeEx;
-
 struct FGeometryCacheMeshData;
 class UGeometryCacheTrackStreamable;
 class FGeometryCacheTrackStreamableRenderResource;
+class FRHICommandListBase;
 
 /**
 The smallest unit of streamed geometry cache data.
