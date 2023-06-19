@@ -123,8 +123,8 @@ FAutoConsoleVariableRef CVarMaxGeometryCollectionAsyncPhysicsTickIdleTimeMs(TEXT
 float GeometryCollectionRemovalMultiplier = 1.0f;
 FAutoConsoleVariableRef CVarGeometryCollectionRemovalTimerMultiplier(TEXT("p.Chaos.GC.RemovalTimerMultiplier"), GeometryCollectionRemovalMultiplier, TEXT("Multiplier for the removal time evaluation ( > 1 : faster removal , > 1 slower"));
 
-// temporary cvar , shoul dbe removed when the root event is no longer no ecessary
-bool GeometryCollectionEmitRootBreakingEvent = true;
+// temporary cvar , should be removed when the root event is no longer no necessary
+bool GeometryCollectionEmitRootBreakingEvent = false;
 FAutoConsoleVariableRef CVarGeometryCollectionEmitRootBreakingEvent(TEXT("p.Chaos.GC.EmitRootBreakingEvent"), GeometryCollectionEmitRootBreakingEvent, TEXT("When true send a breaking event when root is breaking"));
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
