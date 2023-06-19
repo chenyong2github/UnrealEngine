@@ -19,6 +19,11 @@ namespace TypedElementDataStorage
 	struct FQueryDescription;
 	
 	using QueryCallback = TFunction<void(const FQueryDescription&, IQueryContext&)>;
+	using QueryCallbackRef = TFunctionRef<void(const FQueryDescription&, IQueryContext&)>;
+	using DirectQueryCallback = TFunction<void(const FQueryDescription&, IDirectQueryContext&)>;
+	using DirectQueryCallbackRef = TFunctionRef<void(const FQueryDescription&, IDirectQueryContext&)>;
+	using SubqueryCallback = TFunction<void(const FQueryDescription&, ISubqueryContext&)>;
+	using SubqueryCallbackRef = TFunctionRef<void(const FQueryDescription&, ISubqueryContext&)>;
 	
 	struct FQueryDescription final
 	{

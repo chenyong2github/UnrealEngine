@@ -190,37 +190,30 @@ ITypedElementDataStorageInterface::FQueryResult FTypedElementExtendedQueryStore:
 
 	if (FTypedElementExtendedQuery* QueryData = Get(Query))
 	{
-		if (QueryData->Description.bSimpleQuery)
+		switch (QueryData->Description.Action)
 		{
-			switch (QueryData->Description.Action)
+		case ActionType::None:
+			Result.Completed = CompletionType::Fully;
+			break;
+		case ActionType::Select:
+			if (!QueryData->Processor.IsValid())
 			{
-			case ActionType::None:
-				Result.Completed = CompletionType::Fully;
-				break;
-			case ActionType::Select:
-				if (!QueryData->Processor.IsValid())
-				{
-					Result = FTypedElementQueryProcessorData::Execute(
-						Callback, QueryData->Description, QueryData->NativeQuery, EntityManager);
-				}
-				else
-				{
-					Result.Completed = CompletionType::Unsupported;
-				}
-				break;
-			case ActionType::Count:
-				// Only the count is requested so no need to trigger the callback.
-				Result.Count = QueryData->NativeQuery.GetNumMatchingEntities(EntityManager);
-				Result.Completed = CompletionType::Fully;
-				break;
-			default:
-				Result.Completed = CompletionType::Unsupported;
-				break;
+				Result = FTypedElementQueryProcessorData::Execute(
+					Callback, QueryData->Description, QueryData->NativeQuery, EntityManager);
 			}
-		}
-		else
-		{
+			else
+			{
+				Result.Completed = CompletionType::Unsupported;
+			}
+			break;
+		case ActionType::Count:
+			// Only the count is requested so no need to trigger the callback.
+			Result.Count = QueryData->NativeQuery.GetNumMatchingEntities(EntityManager);
+			Result.Completed = CompletionType::Fully;
+			break;
+		default:
 			Result.Completed = CompletionType::Unsupported;
+			break;
 		}
 	}
 	else

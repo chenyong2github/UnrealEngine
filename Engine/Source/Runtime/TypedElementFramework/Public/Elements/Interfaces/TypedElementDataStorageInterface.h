@@ -222,13 +222,15 @@ public:
 
 	using IQueryContext = TypedElementDataStorage::IQueryContext;
 	using IDirectQueryContext = TypedElementDataStorage::IDirectQueryContext;
-	using ISubqueryCallbackContext = TypedElementDataStorage::ISubqueryCallbackContext;
+	using ISubqueryContext = TypedElementDataStorage::ISubqueryContext;
 
 	using FQueryDescription = TypedElementDataStorage::FQueryDescription;
 	using QueryCallback = TypedElementDataStorage::QueryCallback;
-
-	using QueryCallbackRef = TFunctionRef<void(const FQueryDescription&, IQueryContext&)>;
-	using DirectQueryCallbackRef = TFunctionRef<void(const FQueryDescription&, IDirectQueryContext&)>;
+	using QueryCallbackRef = TypedElementDataStorage::QueryCallbackRef;
+	using DirectQueryCallback = TypedElementDataStorage::DirectQueryCallback;
+	using DirectQueryCallbackRef = TypedElementDataStorage::DirectQueryCallbackRef;
+	using SubqueryCallback = TypedElementDataStorage::SubqueryCallback;
+	using SubqueryCallbackRef = TypedElementDataStorage::SubqueryCallbackRef;
 
 	/** 
 	 * Registers a query with the data storage. The description is processed into an internal format and may be changed. If no valid

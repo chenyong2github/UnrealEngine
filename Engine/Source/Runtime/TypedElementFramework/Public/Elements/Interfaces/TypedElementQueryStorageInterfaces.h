@@ -65,9 +65,9 @@ namespace TypedElementDataStorage
 	/**
 	 * Interface to be provided to query callbacks that are directly called through from a query callback.
 	 */
-	struct ISubqueryCallbackContext : public ICommonQueryContext
+	struct ISubqueryContext : public ICommonQueryContext
 	{
-		virtual ~ISubqueryCallbackContext() = default;
+		virtual ~ISubqueryContext() = default;
 	};
 
 	/**

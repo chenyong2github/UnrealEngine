@@ -315,6 +315,12 @@ namespace TypedElementQueryBuilder
 	private:
 		ITypedElementDataStorageInterface::FQueryDescription Query;
 	};
+
+	template<typename Function>
+	ITypedElementDataStorageInterface::DirectQueryCallback CreateDirectQueryCallbackBinding(Function&& Callback);
+	template<typename Function>
+	ITypedElementDataStorageInterface::DirectQueryCallback CreateSubqueryCallbackBinding(Function&& Callback);
+
 } // namespace TypedElementQueryBuilder
 
 #include "Elements/Framework/TypedElementQueryBuilder.inl"
