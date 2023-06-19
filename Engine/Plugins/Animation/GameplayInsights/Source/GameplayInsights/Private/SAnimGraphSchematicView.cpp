@@ -233,7 +233,6 @@ class SAnimGraphSchematicNode : public SMultiColumnTableRow<TSharedRef<FAnimGrap
 
 		if (InColumnName == AnimGraphSchematicColumns::Type)
 		{
-#if WITH_EDITOR
 			IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
 
 			if (const TraceServices::IAnalysisSession* AnalysisSession = RewindDebugger->GetAnalysisSession())
@@ -248,8 +247,8 @@ class SAnimGraphSchematicNode : public SMultiColumnTableRow<TSharedRef<FAnimGrap
 
 					if (ObjectInfo && AnimInstanceClassInfo)
 					{
-
-						return 
+#if WITH_EDITOR
+						return
 							SNew(SBorder)
 							.BorderImage(bIsRoot ? FGameplayInsightsStyle::Get().GetBrush("SchematicViewRootLeft") : FCoreStyle::Get().GetBrush("NoBorder"))
 							[
