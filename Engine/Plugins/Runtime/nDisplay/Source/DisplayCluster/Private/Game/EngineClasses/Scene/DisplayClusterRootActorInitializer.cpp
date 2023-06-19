@@ -44,6 +44,41 @@ void FDisplayClusterRootActorInitializer::Initialize(ADisplayClusterRootActor* I
 	Cleanup();
 }
 
+void FDisplayClusterRootActorInitializer::UpdateComponentTransformsOnly(ADisplayClusterRootActor* Actor, UDisplayClusterConfigurationData* ConfigData)
+{
+	if (!(Actor && ConfigData))
+	{
+		return;
+	}
+
+	// Xform components
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationSceneComponentXform>>& Xform : ConfigData->Scene->Xforms)
+	{
+		if (USceneComponent* const ActorComponent = Actor->GetComponentByName<USceneComponent>(Xform.Key))
+		{
+			ActorComponent->SetRelativeLocationAndRotation(Xform.Value->Location, Xform.Value->Rotation);
+		}
+	}
+
+	// Camera components
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationSceneComponentCamera>>& Camera : ConfigData->Scene->Cameras)
+	{
+		if (USceneComponent* const ActorComponent = Actor->GetComponentByName<USceneComponent>(Camera.Key))
+		{
+			ActorComponent->SetRelativeLocationAndRotation(Camera.Value->Location, Camera.Value->Rotation);
+		}
+	}
+
+	// Screen components
+	for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationSceneComponentScreen>>& Screen : ConfigData->Scene->Screens)
+	{
+		if (USceneComponent* const ActorComponent = Actor->GetComponentByName<USceneComponent>(Screen.Key))
+		{
+			ActorComponent->SetRelativeLocationAndRotation(Screen.Value->Location, Screen.Value->Rotation);
+		}
+	}
+}
+
 void FDisplayClusterRootActorInitializer::ApplyConfigDataToComponents()
 {
 	// Configure xform components
@@ -176,7 +211,7 @@ void FDisplayClusterRootActorInitializer::SpawnComponents(const TMap<FString, TC
 		if (!AllComponents.Contains(Item.Key))
 		{
 			// Check if a component with the same name is already stored on the BP.
-			UActorComponent* const ExistingComponent = Cast<TComp>(ProcessingActor->GetComponentByName<UActorComponent>(Item.Key));
+			UActorComponent* const ExistingComponent = ProcessingActor->GetComponentByName<UActorComponent>(Item.Key);
 			if (!ExistingComponent)
 			{
 				// Create new component

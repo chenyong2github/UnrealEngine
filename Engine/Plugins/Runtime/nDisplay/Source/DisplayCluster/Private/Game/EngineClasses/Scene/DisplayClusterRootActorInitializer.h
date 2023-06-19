@@ -34,6 +34,9 @@ public:
 	// Main initialization function that manages the whole initialization process
 	void Initialize(ADisplayClusterRootActor* Actor, UDisplayClusterConfigurationData* ConfigData);
 
+	// Updates component transforms only based on the config settings
+	void UpdateComponentTransformsOnly(ADisplayClusterRootActor* Actor, UDisplayClusterConfigurationData* ConfigData);
+
 private:
 	// Applies configuration data to the corresponding components
 	void ApplyConfigDataToComponents();

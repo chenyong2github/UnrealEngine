@@ -345,6 +345,12 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 		}
 	}
 
+	// Update component transforms if any of them have been changed in the file
+	{
+		TUniquePtr<FDisplayClusterRootActorInitializer> Initializer = MakeUnique<FDisplayClusterRootActorInitializer>();
+		Initializer->UpdateComponentTransformsOnly(this, ConfigData);
+	}
+
 	// There is no sense to call BuildHierarchy because it works for non-BP root actors.
 	// On the other hand, OverwriteFromConfig method is called for BP root actors only by nature.
 
