@@ -1,16 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "HAL/Platform.h"
+
+#if PLATFORM_MAC
+
 #include "RiderPathLocator/RiderPathLocator.h"
 
 #include "HAL/FileManager.h"
-#include "HAL/PlatformProcess.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
+#include "Mac/MacPlatformProcess.h"
 
 #include "Runtime/Launch/Resources/Version.h"
-
-#if PLATFORM_MAC
 
 TOptional<FInstallInfo> FRiderPathLocator::GetInstallInfoFromRiderPath(const FString& PathToRiderApp, FInstallInfo::EInstallType InstallType)
 {
