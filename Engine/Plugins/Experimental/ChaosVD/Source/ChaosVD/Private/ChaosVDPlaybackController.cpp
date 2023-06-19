@@ -110,12 +110,18 @@ void FChaosVDPlaybackController::PlayFromClosestKeyFrame(const int32 InTrackID, 
 
 	for (int32 CurrentFrameNumber = KeyFrameNumber; CurrentFrameNumber < FrameNumber; CurrentFrameNumber++)
 	{				
-		const FChaosVDSolverFrameData* SolverFrameData = LoadedRecording->GetSolverFrameData(InTrackID, CurrentFrameNumber);
-		const int32 LastStepNumber = SolverFrameData->SolverSteps.Num() - 1;
-
-		if (SolverFrameData && ensure(SolverFrameData->SolverSteps.IsValidIndex(LastStepNumber)))
+		if (const FChaosVDSolverFrameData* SolverFrameData = LoadedRecording->GetSolverFrameData(InTrackID, CurrentFrameNumber))
 		{
-			InSceneToControl.UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[LastStepNumber], *SolverFrameData);
+			const int32 LastStepNumber = SolverFrameData->SolverSteps.Num() - 1;
+
+			if (SolverFrameData && ensure(SolverFrameData->SolverSteps.IsValidIndex(LastStepNumber)))
+			{
+				InSceneToControl.UpdateFromRecordedStepData(InTrackID, SolverFrameData->DebugName, SolverFrameData->SolverSteps[LastStepNumber], *SolverFrameData);
+			}
+		}
+		else
+		{
+			UE_LOG(LogChaosVDEditor, Error, TEXT("[%s] Failed to read solver frame data for frame [%d] in track [%d]"), ANSI_TO_TCHAR(__FUNCTION__), CurrentFrameNumber, InTrackID);
 		}
 	}
 }
