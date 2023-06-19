@@ -283,8 +283,15 @@ bool FRewindDebuggerObjectTrack::UpdateInternal()
 	{
 		Children.Sort([](const TSharedPtr<FRewindDebuggerTrack>& A, const TSharedPtr<FRewindDebuggerTrack>& B)
 		{
-			return A->GetSortOrderPriority() > B->GetSortOrderPriority() ||
-					A->GetDisplayName().ToString() < B->GetDisplayName().ToString();
+			const int SortOrderPriorityA = A->GetSortOrderPriority();
+			const int SortOrderPriorityB = B->GetSortOrderPriority();
+			
+			if (SortOrderPriorityA != SortOrderPriorityB)
+			{
+				return SortOrderPriorityA > SortOrderPriorityB;
+			}
+			
+			return A->GetDisplayName().ToString() < B->GetDisplayName().ToString();
 		});
 	}
 
