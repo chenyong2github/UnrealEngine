@@ -813,6 +813,7 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 					UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
 					StaticMesh->AddAssetUserData(UserData);
 				}
+				UserData->PrimPaths.AddUnique(PrimPath.GetString());
 
 				MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(LODIndexToMaterialInfo, UserData);
 

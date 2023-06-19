@@ -1392,6 +1392,7 @@ namespace UsdSkelRootTranslatorImpl
 						UserData->PrimvarToUVIndex = LODIndexToMaterialInfo[0].PrimvarToUVIndex;	// We use the same primvar mapping for all LODs
 						SkeletalMesh->AddAssetUserData(UserData);
 					}
+					UserData->PrimPaths.AddUnique(PrimPath.GetString());
 
 					MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(LODIndexToMaterialInfo, UserData);
 

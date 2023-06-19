@@ -774,6 +774,7 @@ void FGeometryCacheCreateAssetsTaskChain::SetupTasks()
 					AnimUserData->LayerStartOffsetSeconds = StartTimeOffset;
 					GeometryCache->AddAssetUserData(AnimUserData);
 				}
+				UserData->PrimPaths.AddUnique(PrimPath.GetString());
 
 				MeshTranslationImpl::RecordSourcePrimsForMaterialSlots(LODIndexToMaterialInfo, UserData);
 
