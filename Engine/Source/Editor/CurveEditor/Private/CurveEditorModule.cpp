@@ -7,10 +7,13 @@
 #include "CurveEditorTypes.h"
 #include "CurveEditorViewRegistry.h"
 #include "Delegates/Delegate.h"
+#include "Filters/CurveEditorBakeFilter.h"
+#include "Filters/CurveEditorBakeFilterCustomization.h"
 #include "HAL/PlatformCrt.h"
 #include "ICurveEditorModule.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "ToolMenus.h"
 
 class FCurveEditorModule : public ICurveEditorModule
@@ -29,11 +32,15 @@ public:
 				FCoreDelegates::OnPostEngineInit.AddStatic(&FCurveEditorCommands::Register);
 			}
 		}
+
+		RegisterCustomizations();
 	}
 
 	virtual void ShutdownModule() override
 	{
 		FCurveEditorCommands::Unregister();
+
+		UnregisterCustomizations();
 	}
 
 	virtual FDelegateHandle RegisterEditorExtension(FOnCreateCurveEditorExtension InOnCreateCurveEditorExtension) override
@@ -48,7 +55,6 @@ public:
 	{
 		EditorExtensionDelegates.RemoveAll([=](const FOnCreateCurveEditorExtension& Delegate) { return Delegate.GetHandle() == InHandle; });
 	}
-
 
 	virtual FDelegateHandle RegisterToolExtension(FOnCreateCurveEditorToolExtension InOnCreateCurveEditorToolExtension) override
 	{
@@ -86,6 +92,20 @@ public:
 	virtual TArrayView<const FOnCreateCurveEditorToolExtension> GetToolExtensions() const override
 	{
 		return ToolExtensionDelegates;
+	}
+
+	void RegisterCustomizations()
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyEditorModule.RegisterCustomClassLayout(UCurveEditorBakeFilter::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FCurveEditorBakeFilterCustomization::MakeInstance));
+		PropertyEditorModule.NotifyCustomizationModuleChanged();
+	}
+
+	void UnregisterCustomizations()
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyEditorModule.UnregisterCustomClassLayout(UCurveEditorBakeFilter::StaticClass()->GetFName());
+		PropertyEditorModule.NotifyCustomizationModuleChanged();
 	}
 
 private:

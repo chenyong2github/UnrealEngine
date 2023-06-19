@@ -16,17 +16,20 @@ UCurveEditorFFTFilter::UCurveEditorFFTFilter()
 
 void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEditor, const TMap<FCurveModelID, FKeyHandleSet>& InKeysToOperateOn, TMap<FCurveModelID, FKeyHandleSet>& OutKeysToSelect)
 {
+	const FFrameRate DisplayRate = InCurveEditor->GetTimeSliderController() ? InCurveEditor->GetTimeSliderController()->GetDisplayRate() : FFrameRate();
+	const FFrameRate TickResolution = InCurveEditor->GetTimeSliderController() ? InCurveEditor->GetTimeSliderController()->GetTickResolution() : FFrameRate();
+
 	// FFT works on one curve at a time and expects the keys to have an even spacing between them.
 	// We re-use the Bake filter to bake the supplied curve, but before we do this we need to cache
 	// the original key times so that we can evaluate the filtered curve and update the original curve
 	// with the smoothed out values.
 	// Now that we've backed up the original time and values of the keys, we need to bake it down to have even spacing. This is important for FFT.
 	UCurveEditorBakeFilter* BakeFilter = UCurveEditorBakeFilter::StaticClass()->GetDefaultObject<UCurveEditorBakeFilter>();
-		
+	BakeFilter->InitializeFilter(InCurveEditor);
+	
 	// Since we're baking under the hood, we need to cache their bake interval, override it to a reasonable number, and restore it at the end.
-	float OriginalIntervalRate = BakeFilter->BakeIntervalInSeconds;
-	bool bOriginalUseFrameBake = BakeFilter->bUseFrameBake;
-	BakeFilter->bUseFrameBake = false;
+	FFrameNumber OriginalBakeInterval = BakeFilter->BakeInterval;
+	float OriginalBakeIntervalInSeconds = BakeFilter->BakeIntervalInSeconds;
 
 	TArray<FKeyHandle> OriginalKeyHandles;
 	TArray<FKeyPosition> SelectedKeyPositions;
@@ -61,7 +64,11 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 			continue;
 		}
 		//Set interval range divded by twice the number of keys.
-		BakeFilter->BakeIntervalInSeconds = (MaxKey - MinKey) /  ( 2 * OriginalKeyHandles.Num());
+
+		const double IntervalAsSeconds = (MaxKey - MinKey) / (2 * OriginalKeyHandles.Num());
+		BakeFilter->BakeIntervalInSeconds = IntervalAsSeconds;
+		BakeFilter->BakeInterval = FFrameRate::TransformTime(DisplayRate.AsFrameNumber(IntervalAsSeconds), DisplayRate, TickResolution).FrameNumber;
+		
 		// This stores the position of all of the original keys. Once we've filtered the curve we will need to sample it at these positions.
 		TArray<FKeyPosition> OriginalKeyPositions;
 		TArray<FKeyAttributes> OriginalKeyAttributes;
@@ -168,7 +175,7 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 	}
 
 	// Restore their Bake Filter settings.
-	BakeFilter->BakeIntervalInSeconds = OriginalIntervalRate;
-	BakeFilter->bUseFrameBake = bOriginalUseFrameBake;
+	BakeFilter->BakeInterval = OriginalBakeInterval;
+	BakeFilter->BakeIntervalInSeconds = OriginalBakeIntervalInSeconds;
 }
 

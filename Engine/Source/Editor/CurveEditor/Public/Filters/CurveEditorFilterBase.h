@@ -26,6 +26,23 @@ class CURVEEDITOR_API UCurveEditorFilterBase : public UObject
 	GENERATED_BODY()
 
 public:
+
+	/**
+	 * Initialize this filter and any parameters it depends on
+	 */
+	void InitializeFilter(TSharedRef<FCurveEditor> InCurveEditor)
+	{
+		InitializeFilter_Impl(InCurveEditor);
+	}
+
+	/**
+	 * Check whether this filter can be applied to the specified curve editor
+	 */
+	bool CanApplyFilter(TSharedRef<FCurveEditor> InCurveEditor)
+	{
+		return CanApplyFilter_Impl(InCurveEditor);
+	}
+
 	/** 
 	* Applies the filter to all keys on the specified curve.
 	* @param		InCurveEditor		The curve editor that owns the FCurveModelIDs to operate on.
@@ -120,7 +137,14 @@ public:
 	}
 
 protected:
+
+	/** Implementation function for initializing this filter */
+	virtual void InitializeFilter_Impl(TSharedRef<FCurveEditor> InCurveEditor) {}
+
 	/** An implementation must override this function to implement filtering functionality. This is named different and doesn't use function overloading due to C++ name resolution issues
 	* which prevent calling base class functions of the same name (even with different signatures) from a pointer to the derived class. */
 	virtual void ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEditor, const TMap<FCurveModelID, FKeyHandleSet>& InKeysToOperateOn, TMap<FCurveModelID, FKeyHandleSet>& OutKeysToSelect) {}
+
+	/** Implementation function for determining whether this filter can be applied */
+	virtual bool CanApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEditor);
 };
