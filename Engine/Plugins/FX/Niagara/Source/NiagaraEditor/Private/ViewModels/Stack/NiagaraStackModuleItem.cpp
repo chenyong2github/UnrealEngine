@@ -860,7 +860,7 @@ UNiagaraStackEntry::FStackIssueFixDelegate UNiagaraStackModuleItem::GetUpgradeVe
 	{
 		return FStackIssueFixDelegate();
 	}
-	return FStackIssueFixDelegate::CreateLambda([=]()
+	return FStackIssueFixDelegate::CreateLambda([this]()
     {
         FScopedTransaction ScopedTransaction(LOCTEXT("UpgradeVersionFix", "Change module version"));
         FNiagaraScriptVersionUpgradeContext UpgradeContext;

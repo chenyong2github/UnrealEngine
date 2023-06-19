@@ -206,7 +206,7 @@ TSharedRef<ITableRow> FComponentSelectionControl::MakeComponentListItemWidget(TS
 					.IsChecked(State)
 					.ToolTipText(LOCTEXT("IncorporateCheckBoxToolTip", "When ticked the Component will be incorporated into the merge"))
 
-					.OnCheckStateChanged_Lambda([=](ECheckBoxState NewState)
+					.OnCheckStateChanged_Lambda([this, ComponentData, bIsMesh](ECheckBoxState NewState)
 					{
 						ComponentData->bShouldIncorporate = (NewState == ECheckBoxState::Checked);
 

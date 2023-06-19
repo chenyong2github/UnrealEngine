@@ -94,7 +94,7 @@ bool FDirectoryWatcherSimpleCreateTest::RunTest(const FString& Parameters)
 	TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir));
 
 	// Give the stream time to start up before doing the test
-	AddCommand(new FDelayedFunctionLatentCommand([=]{
+	AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir, Test]{
 
 		// Create a file and check that it got reported as created
 		FFileHelper::SaveStringToFile(TEXT(""), *(WorkingDir / Filename));
@@ -125,7 +125,7 @@ bool FDirectoryWatcherSimpleModifyTest::RunTest(const FString& Parameters)
 	// Create a file first
 	FFileHelper::SaveStringToFile(TEXT(""), *(WorkingDir / Filename));
 
-	AddCommand(new FDelayedFunctionLatentCommand([=]{
+	AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir]{
 
 		// Start watching the directory
 		TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir));
@@ -167,7 +167,7 @@ bool FDirectoryWatcherSimpleDeleteTest::RunTest(const FString& Parameters)
 	TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir));
 
 	// Give the stream time to start up before doing the test
-	AddCommand(new FDelayedFunctionLatentCommand([=]{
+	AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir, Test]{
 
 		// Delete the file
 		IFileManager::Get().Delete(*(WorkingDir / Filename));
@@ -203,7 +203,7 @@ bool FDirectoryWatcherSubFolderTest::RunTest(const FString& Parameters)
 	FFileHelper::SaveStringToFile(TEXT(""), *(WorkingDir / RemovedFilename));
 
 	// Give the stream time to start up before doing the test
-	AddCommand(new FDelayedFunctionLatentCommand([=]{
+	AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir]{
 
 		// Start watching the directory
 		TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir));
@@ -258,7 +258,7 @@ bool FDirectoryWatcherNewFolderTest::RunTest(const FString& Parameters)
 	IFileManager::Get().DeleteDirectory(*( WorkingDir / CreatedDirectory ), true);
 
 	// Give the stream time to start up before doing the test
-	AddCommand(new FDelayedFunctionLatentCommand([=] {
+	AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir] {
 
 		IFileManager::Get().MakeDirectory(*(WorkingDir / RemovedDirectory), true);
 
@@ -305,7 +305,7 @@ bool FDirectoryWatcherIgnoreSubtreeTest::RunTest(const FString& Parameters)
 	IFileManager::Get().DeleteDirectory(*( WorkingDir / ChildDirectory ), true);
 
 	// Give the stream time to start up before doing the test
-	AddCommand(new FDelayedFunctionLatentCommand([=]{
+	AddCommand(new FDelayedFunctionLatentCommand([this, WorkingDir]{
 
 		// Start watching the directory
 		TSharedPtr<FDirectoryWatcherTestPayload> Test = MakeShareable(new FDirectoryWatcherTestPayload(WorkingDir, IDirectoryWatcher::WatchOptions::IgnoreChangesInSubtree | IDirectoryWatcher::WatchOptions::IncludeDirectoryChanges));

@@ -47,7 +47,7 @@ public:
 			// Unregister the level editor extensions
 			{
 				FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
-				LevelEditor.GetAllLevelEditorToolbarViewMenuExtenders().RemoveAll([=](const FLevelEditorModule::FLevelEditorMenuExtender& Extender) { return Extender.GetHandle() == ViewMenuExtenderHandle; });
+				LevelEditor.GetAllLevelEditorToolbarViewMenuExtenders().RemoveAll([this](const FLevelEditorModule::FLevelEditorMenuExtender& Extender) { return Extender.GetHandle() == ViewMenuExtenderHandle; });
 			}
 			
 			//

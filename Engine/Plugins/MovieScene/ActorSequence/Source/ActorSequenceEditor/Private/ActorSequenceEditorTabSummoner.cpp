@@ -387,7 +387,7 @@ public:
 			TSharedRef<FExtender> AddMenuExtender = MakeShareable(new FExtender);
 
 			AddMenuExtender->AddMenuExtension("AddTracks", EExtensionHook::Before, nullptr,
-				FMenuExtensionDelegate::CreateLambda([=](FMenuBuilder& MenuBuilder){
+				FMenuExtensionDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder){
 
 					MenuBuilder.AddSubMenu(
 						LOCTEXT("AddComponent_Label", "Component"),

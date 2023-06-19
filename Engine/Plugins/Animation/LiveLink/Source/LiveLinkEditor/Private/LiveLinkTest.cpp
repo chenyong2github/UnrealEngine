@@ -102,7 +102,7 @@ bool FLiveLinkInterpolationTest::RunTest(const FString& Parameters)
 	BasicWorker->GenericInterpolate(BlendFactor, InterpolationOptions, FrameDataStructA, FrameDataStructB, FrameDataStructR);
 	const FLiveLinkTestFrameDataInternal& FrameR = *FrameDataStructR.Cast<FLiveLinkTestFrameDataInternal>();
 
-	auto TestStruct = [=](const FLiveLinkInnerTestInternal& FrameR, int32 OuterIndex)
+	auto TestStruct = [=, this](const FLiveLinkInnerTestInternal& FrameR, int32 OuterIndex)
 		{
 			TestEqual(TEXT("InnerSingleFloat"), FrameR.InnerSingleFloat, FloatR * -1.f - 100 * OuterIndex);
 			TestEqual(TEXT("InnerSingleInt"), FrameR.InnerSingleInt, IntR * -1 - 100 * OuterIndex);

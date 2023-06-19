@@ -223,7 +223,7 @@ void FFoliageTypePaintingCustomization::GetHiddenPropertyVisibility(const TShare
 	if (bHideInReapplyTool)
 	{
 		// In addition to hiding it it behind the given property, only show this in the reapply tool
-		OutVisibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([=]
+		OutVisibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this, VisibilityGetter]
 		{
 			if (!FoliageEditMode->UISettings.GetReapplyToolSelected() && VisibilityGetter.IsBound())
 			{

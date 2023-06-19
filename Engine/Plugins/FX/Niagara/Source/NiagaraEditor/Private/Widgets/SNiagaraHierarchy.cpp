@@ -893,7 +893,7 @@ void SNiagaraHierarchy::RequestRefreshSourceViewNextFrame(bool bFullRefresh)
 {
 	if(!RefreshSourceViewNextFrameHandle.IsValid())
 	{
-		RefreshSourceViewNextFrameHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([=](double CurrentTime, float DeltaTime)
+		RefreshSourceViewNextFrameHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([this, bFullRefresh](double CurrentTime, float DeltaTime)
 		{
 			RefreshSourceView(bFullRefresh);
 			RefreshSourceViewNextFrameHandle.Reset();
@@ -920,7 +920,7 @@ void SNiagaraHierarchy::RequestRefreshHierarchyViewNextFrame(bool bFullRefresh)
 {
 	if(!RefreshHierarchyViewNextFrameHandle.IsValid())
 	{
-		RefreshHierarchyViewNextFrameHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([=](double CurrentTime, float DeltaTime)
+		RefreshHierarchyViewNextFrameHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([this, bFullRefresh](double CurrentTime, float DeltaTime)
 		{
 			RefreshHierarchyView(bFullRefresh);
 			RefreshHierarchyViewNextFrameHandle.Reset();
@@ -1015,7 +1015,7 @@ void SNiagaraHierarchy::RequestRefreshSectionsViewNextFrame()
 {
 	if(!RefreshSectionsViewNextFrameHandle.IsValid())
 	{
-		RefreshSectionsViewNextFrameHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([=](double CurrentTime, float DeltaTime)
+		RefreshSectionsViewNextFrameHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateLambda([this](double CurrentTime, float DeltaTime)
 		{
 			RefreshSectionsView();
 			RefreshSectionsViewNextFrameHandle.Reset();

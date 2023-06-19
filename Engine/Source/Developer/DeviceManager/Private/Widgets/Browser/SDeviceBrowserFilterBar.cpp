@@ -57,7 +57,7 @@ void SDeviceBrowserFilterBar::Construct(const FArguments& InArgs, TSharedRef<FDe
 			[
 				SNew(SCheckBox)
 				.IsChecked_Lambda(
-					[=]() -> ECheckBoxState {
+					[this, PlatformEntry]() -> ECheckBoxState {
 						return Filter->IsPlatformEnabled(PlatformEntry->PlatformName)
 							? ECheckBoxState::Checked
 							: ECheckBoxState::Unchecked;
@@ -65,7 +65,7 @@ void SDeviceBrowserFilterBar::Construct(const FArguments& InArgs, TSharedRef<FDe
 				)
 				.Padding(FMargin(6.0, 2.0))
 				.OnCheckStateChanged_Lambda(
-					[=](ECheckBoxState CheckState) {
+					[this, PlatformEntry](ECheckBoxState CheckState) {
 						Filter->SetPlatformEnabled(PlatformEntry->PlatformName, CheckState == ECheckBoxState::Checked);
 					}
 				)
@@ -92,7 +92,7 @@ void SDeviceBrowserFilterBar::Construct(const FArguments& InArgs, TSharedRef<FDe
 						[
 							SNew(STextBlock)
 								.Text_Lambda(
-									[=]() -> FText {
+									[this, PlatformEntry]() -> FText {
 										return FText::Format(LOCTEXT("PlatformListRowFmt", "{0} ({1})"), FText::FromString(PlatformEntry->PlatformName), FText::AsNumber(Filter->GetServiceCountPerPlatform(PlatformEntry->PlatformName)));
 									}
 								)

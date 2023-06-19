@@ -124,7 +124,7 @@ TSharedRef<SWidget> SNiagaraScalabilityPreviewSettings::CreatePreviewPlatformWid
 			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 			.OnClicked(this, &SNiagaraScalabilityPreviewSettings::OnResetPreviewPlatformClicked)
 			.ToolTipText(LOCTEXT("ResetPreviewPlatformToolTip", "Reset the platform to preview."))
-			.Visibility_Lambda([=]()
+			.Visibility_Lambda([this]()
 			{
 				return ScalabilityViewModel->GetPreviewDeviceProfile().IsSet() ? EVisibility::Visible : EVisibility::Collapsed;
 			})
@@ -150,7 +150,7 @@ TSharedRef<SWidget> SNiagaraScalabilityPreviewSettings::CreatePreviewPlatformWid
 					SNew(SBox)
 					.WidthOverride(16.f)
 					.HeightOverride(16.f)
-					.Visibility_Lambda([=]()
+					.Visibility_Lambda([this]()
 				    {
 						return GetActivePreviewPlatformImage() != nullptr
 							? EVisibility::Visible

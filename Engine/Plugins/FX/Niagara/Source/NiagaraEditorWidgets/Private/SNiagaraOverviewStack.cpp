@@ -131,7 +131,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 						[					
 							SNew(SButton)
 							.ButtonStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.SimpleButton")
-							.Visibility_Lambda([=]()
+							.Visibility_Lambda([this]()
 							{
 								if (StackEntry->GetCanExpandInOverview())
 								{	
@@ -144,7 +144,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 									return EVisibility::Collapsed;
 								}
 							})
-							.OnClicked_Lambda([=]()
+							.OnClicked_Lambda([this]()
 							{
 								const bool bWillBeExpanded = !StackEntry->GetIsExpandedInOverview();
 								FText Message = FText::Format(LOCTEXT("ChangedCollapseState", "{0} {1}"), bWillBeExpanded ?
@@ -216,12 +216,12 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 			ScalabilityOverlay->AddSlot()
 			[
 				SNew(SBorder)
-				.Visibility_Lambda([=]()
+				.Visibility_Lambda([this, RendererItem]()
 				{
 					return bScalabilityModeActive && RendererItem->IsExcludedFromScalability() && !RendererItem->IsOwningEmitterExcludedFromScalability() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; 
 				})
 				.BorderImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.SystemOverview.ExcludedFromScalability.RendererItem"))
-				.BorderBackgroundColor_Lambda([=]()
+				.BorderBackgroundColor_Lambda([this]()
 				{
 					return FLinearColor(1, 1, 1, FNiagaraEditorUtilities::GetScalabilityTintAlpha(EmitterHandleViewModel.Pin()->GetEmitterHandle()));
 				})

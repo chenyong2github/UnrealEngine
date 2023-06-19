@@ -480,20 +480,20 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			//.MinSliderValue(TAttribute<TOptional<int32> >(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetMinLandscapeResolution))
 			//.MaxSliderValue(TAttribute<TOptional<int32> >(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetMaxLandscapeResolution))
 			.Value(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetLandscapeResolutionX)
-			.OnValueChanged_Lambda([=](int32 NewValue)
+			.OnValueChanged_Lambda([this](int32 NewValue)
 			{
 				OnChangeLandscapeResolutionX(NewValue, false);
 			})
-			.OnValueCommitted_Lambda([=](int32 NewValue, ETextCommit::Type)
+			.OnValueCommitted_Lambda([this](int32 NewValue, ETextCommit::Type)
 			{
 				OnChangeLandscapeResolutionX(NewValue, true);
 			})
-			.OnBeginSliderMovement_Lambda([=]()
+			.OnBeginSliderMovement_Lambda([this]()
 			{
 				bUsingSlider = true;
 				GEditor->BeginTransaction(LOCTEXT("ChangeResolutionX_Transaction", "Change Landscape Resolution X"));
 			})
-			.OnEndSliderMovement_Lambda([=](double)
+			.OnEndSliderMovement_Lambda([this](double)
 			{
 				GEditor->EndTransaction();
 				bUsingSlider = false;
@@ -522,20 +522,20 @@ void FLandscapeEditorDetailCustomization_NewLandscape::CustomizeDetails(IDetailL
 			//.MinSliderValue(TAttribute<TOptional<int32> >(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetMinLandscapeResolution))
 			//.MaxSliderValue(TAttribute<TOptional<int32> >(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetMaxLandscapeResolution))
 			.Value(this, &FLandscapeEditorDetailCustomization_NewLandscape::GetLandscapeResolutionY)
-			.OnValueChanged_Lambda([=](int32 NewValue)
+			.OnValueChanged_Lambda([this](int32 NewValue)
 			{
 				OnChangeLandscapeResolutionY(NewValue, false);
 			})
-			.OnValueCommitted_Lambda([=](int32 NewValue, ETextCommit::Type)
+			.OnValueCommitted_Lambda([this](int32 NewValue, ETextCommit::Type)
 			{
 				OnChangeLandscapeResolutionY(NewValue, true);
 			})
-			.OnBeginSliderMovement_Lambda([=]()
+			.OnBeginSliderMovement_Lambda([this]()
 			{
 				bUsingSlider = true;
 				GEditor->BeginTransaction(LOCTEXT("ChangeResolutionY_Transaction", "Change Landscape Resolution Y"));
 			})
-			.OnEndSliderMovement_Lambda([=](double)
+			.OnEndSliderMovement_Lambda([this](double)
 			{
 				GEditor->EndTransaction();
 				bUsingSlider = false;

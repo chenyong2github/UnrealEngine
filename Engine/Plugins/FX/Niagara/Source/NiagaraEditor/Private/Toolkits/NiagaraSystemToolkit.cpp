@@ -524,7 +524,7 @@ void FNiagaraSystemToolkit::SetupCommands()
 
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().IsolateSelectedEmitters,
-		FExecuteAction::CreateLambda([=]()
+		FExecuteAction::CreateLambda([this]()
 		{
 			SystemViewModel->IsolateSelectedEmitters();
 		}),
@@ -532,7 +532,7 @@ void FNiagaraSystemToolkit::SetupCommands()
 
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().DisableSelectedEmitters,
-		FExecuteAction::CreateLambda([=]()
+		FExecuteAction::CreateLambda([this]()
 		{
 			SystemViewModel->DisableSelectedEmitters();
 		}),

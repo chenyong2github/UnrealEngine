@@ -472,7 +472,7 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 			RootTreeItems[0]->GenerateContextMenu(Menu, *this);
 		}
 
-		Menu->AddDynamicSection("HierarchyDynamicSection", FNewToolMenuDelegateLegacy::CreateLambda([=](FMenuBuilder& MenuBuilder, UToolMenu* Menu)
+		Menu->AddDynamicSection("HierarchyDynamicSection", FNewToolMenuDelegateLegacy::CreateLambda([this](FMenuBuilder& MenuBuilder, UToolMenu* Menu)
 		{
 			WorldModel->BuildHierarchyMenu(MenuBuilder);
 		}));

@@ -86,7 +86,7 @@ void IMeshPaintEdMode::Enter()
 	// Initialize adapter globals
 	FMeshPaintAdapterFactory::InitializeAdapterGlobals();
 
-	SelectionChangedHandle = USelection::SelectionChangedEvent.AddLambda([=](UObject* Object) { MeshPainter->Refresh();  });
+	SelectionChangedHandle = USelection::SelectionChangedEvent.AddLambda([this](UObject* Object) { MeshPainter->Refresh();  });
 
 	if (UsesToolkits() && !Toolkit.IsValid())
 	{

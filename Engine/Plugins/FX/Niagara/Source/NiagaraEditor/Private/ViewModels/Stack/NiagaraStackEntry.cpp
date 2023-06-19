@@ -775,7 +775,7 @@ void UNiagaraStackEntry::RefreshChildren()
 	}
 	
 	// Stack issues refresh
-	NewStackIssues.RemoveAll([=](const FStackIssue& Issue) { return Issue.GetCanBeDismissed() && GetStackEditorData().GetDismissedStackIssueIds().Contains(Issue.GetUniqueIdentifier()); }); 
+	NewStackIssues.RemoveAll([this](const FStackIssue& Issue) { return Issue.GetCanBeDismissed() && GetStackEditorData().GetDismissedStackIssueIds().Contains(Issue.GetUniqueIdentifier()); }); 
 
 	StackIssues.Empty();
 	StackIssues.Append(NewStackIssues);

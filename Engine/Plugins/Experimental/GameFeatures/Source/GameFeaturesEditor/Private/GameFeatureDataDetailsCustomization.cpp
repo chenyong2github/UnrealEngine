@@ -132,7 +132,7 @@ void FGameFeatureDataDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder
 				.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 				[
 					SNew(SHorizontalBox)
-					.Visibility_Lambda([=]() { return (GetCurrentState() == EGameFeaturePluginState::Active) ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Visibility_Lambda([this]() { return (GetCurrentState() == EGameFeaturePluginState::Active) ? EVisibility::Visible : EVisibility::Collapsed; })
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					.Padding(Padding)

@@ -716,8 +716,8 @@ void FNiagaraDebugHUDSettingsDetailsCustomization::CustomizeDetails(class IDetai
 				.AutoWidth()
 				[
 					SNew(SCheckBox)
-					.IsChecked_Lambda([=]() -> ECheckBoxState { return GetEditBool() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
-					.OnCheckStateChanged_Lambda([=](ECheckBoxState NewState) { GetEditBool() = NewState == ECheckBoxState::Checked; WeakSettings.Get()->NotifyPropertyChanged(); })
+					.IsChecked_Lambda([GetEditBool]() -> ECheckBoxState { return GetEditBool() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
+					.OnCheckStateChanged_Lambda([this, GetEditBool](ECheckBoxState NewState) { GetEditBool() = NewState == ECheckBoxState::Checked; WeakSettings.Get()->NotifyPropertyChanged(); })
 				]
 				+ SHorizontalBox::Slot()
 				[

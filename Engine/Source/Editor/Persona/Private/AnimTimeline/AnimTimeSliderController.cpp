@@ -991,8 +991,8 @@ TSharedRef<SWidget> FAnimTimeSliderController::OpenSetPlaybackRangeMenu(FFrameNu
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ SetSelectionRangeStart(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber < UE::MovieScene::DiscreteExclusiveUpper(SelectionRange); })
+				FExecuteAction::CreateLambda([this, FrameNumber]{ SetSelectionRangeStart(FrameNumber); }),
+				FCanExecuteAction::CreateLambda([FrameNumber, SelectionRange]{ return SelectionRange.IsEmpty() || FrameNumber < UE::MovieScene::DiscreteExclusiveUpper(SelectionRange); })
 			)
 		);
 
@@ -1001,8 +1001,8 @@ TSharedRef<SWidget> FAnimTimeSliderController::OpenSetPlaybackRangeMenu(FFrameNu
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ SetSelectionRangeEnd(FrameNumber); }),
-				FCanExecuteAction::CreateLambda([=]{ return SelectionRange.IsEmpty() || FrameNumber >= UE::MovieScene::DiscreteInclusiveLower(SelectionRange); })
+				FExecuteAction::CreateLambda([this, FrameNumber]{ SetSelectionRangeEnd(FrameNumber); }),
+				FCanExecuteAction::CreateLambda([FrameNumber, SelectionRange]{ return SelectionRange.IsEmpty() || FrameNumber >= UE::MovieScene::DiscreteInclusiveLower(SelectionRange); })
 			)
 		);
 
@@ -1011,8 +1011,8 @@ TSharedRef<SWidget> FAnimTimeSliderController::OpenSetPlaybackRangeMenu(FFrameNu
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([=]{ TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>::Empty()); }),
-				FCanExecuteAction::CreateLambda([=]{ return !SelectionRange.IsEmpty(); })
+				FExecuteAction::CreateLambda([this, FrameNumber]{ TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(TRange<FFrameNumber>::Empty()); }),
+				FCanExecuteAction::CreateLambda([FrameNumber, SelectionRange]{ return !SelectionRange.IsEmpty(); })
 			)
 		);
 	}

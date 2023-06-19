@@ -367,7 +367,7 @@ void FEdModeFoliage::BindCommands()
 		Commands.SetPaint,
 		FExecuteAction::CreateRaw(this, &FEdModeFoliage::OnSetPaint),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([=]
+		FIsActionChecked::CreateLambda([this]
 	{
 		return UISettings.GetPaintToolSelected() && !UISettings.GetIsInSingleInstantiationMode();
 	}));
@@ -376,7 +376,7 @@ void FEdModeFoliage::BindCommands()
 		Commands.SetReapplySettings,
 		FExecuteAction::CreateRaw(this, &FEdModeFoliage::OnSetReapplySettings),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([=]
+		FIsActionChecked::CreateLambda([this]
 	{
 		return UISettings.GetReapplyToolSelected() && !UISettings.GetIsInSingleInstantiationMode();
 	}));
@@ -385,7 +385,7 @@ void FEdModeFoliage::BindCommands()
 		Commands.SetSelect,
 		FExecuteAction::CreateRaw(this, &FEdModeFoliage::OnSetSelectInstance),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([=]
+		FIsActionChecked::CreateLambda([this]
 	{
 		return UISettings.GetSelectToolSelected();
 	}));
@@ -394,7 +394,7 @@ void FEdModeFoliage::BindCommands()
 		Commands.SetLassoSelect,
 		FExecuteAction::CreateRaw(this, &FEdModeFoliage::OnSetLasso),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([=]
+		FIsActionChecked::CreateLambda([this]
 	{
 		return UISettings.GetLassoSelectToolSelected();
 	}));
@@ -403,7 +403,7 @@ void FEdModeFoliage::BindCommands()
 		Commands.SetPaintBucket,
 		FExecuteAction::CreateRaw(this, &FEdModeFoliage::OnSetPaintFill),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([=]
+		FIsActionChecked::CreateLambda([this]
 	{
 		return UISettings.GetPaintBucketToolSelected();
 	}));

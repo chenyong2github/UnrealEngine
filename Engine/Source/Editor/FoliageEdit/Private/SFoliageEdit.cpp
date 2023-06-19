@@ -610,7 +610,7 @@ TSharedRef<SWidget> SFoliageEdit::MakeFilterMenu()
 		LOCTEXT("FilterLandscapeTooltip", "Allow Foliage to be placed on Landscape"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda( [=] { FoliageEditMode->UISettings.SetFilterLandscape( !FoliageEditMode->UISettings.GetFilterLandscape()); }),
+			FExecuteAction::CreateLambda( [this] { FoliageEditMode->UISettings.SetFilterLandscape( !FoliageEditMode->UISettings.GetFilterLandscape()); }),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateRaw( &FoliageEditMode->UISettings, &FFoliageUISettings::GetFilterLandscape)
 		),
@@ -624,7 +624,7 @@ TSharedRef<SWidget> SFoliageEdit::MakeFilterMenu()
 		LOCTEXT("FilterStaticMeshTooltip", "Allow Foliage to be placed on StaticMesh"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda( [=] { FoliageEditMode->UISettings.SetFilterStaticMesh( !FoliageEditMode->UISettings.GetFilterStaticMesh()); }),
+			FExecuteAction::CreateLambda( [this] { FoliageEditMode->UISettings.SetFilterStaticMesh( !FoliageEditMode->UISettings.GetFilterStaticMesh()); }),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateRaw( &FoliageEditMode->UISettings, &FFoliageUISettings::GetFilterStaticMesh)
 		),
@@ -638,7 +638,7 @@ TSharedRef<SWidget> SFoliageEdit::MakeFilterMenu()
 		LOCTEXT("FilterBSPTooltip", "Allow Foliage to be placed on BSP"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda( [=] { FoliageEditMode->UISettings.SetFilterBSP( !FoliageEditMode->UISettings.GetFilterBSP()); }),
+			FExecuteAction::CreateLambda( [this] { FoliageEditMode->UISettings.SetFilterBSP( !FoliageEditMode->UISettings.GetFilterBSP()); }),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateRaw( &FoliageEditMode->UISettings, &FFoliageUISettings::GetFilterBSP)
 		),
@@ -652,7 +652,7 @@ TSharedRef<SWidget> SFoliageEdit::MakeFilterMenu()
 		LOCTEXT("FilterFoliageTooltip", "Allow Foliage to be placed on Foliage"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda( [=] { FoliageEditMode->UISettings.SetFilterFoliage( !FoliageEditMode->UISettings.GetFilterFoliage()); }),
+			FExecuteAction::CreateLambda( [this] { FoliageEditMode->UISettings.SetFilterFoliage( !FoliageEditMode->UISettings.GetFilterFoliage()); }),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateRaw( &FoliageEditMode->UISettings, &FFoliageUISettings::GetFilterFoliage)
 		),
@@ -666,7 +666,7 @@ TSharedRef<SWidget> SFoliageEdit::MakeFilterMenu()
 		LOCTEXT("FilterTranslucentTooltip", "Allow Foliage to be placed on Translucent"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda( [=] { FoliageEditMode->UISettings.SetFilterTranslucent( !FoliageEditMode->UISettings.GetFilterTranslucent()); }),
+			FExecuteAction::CreateLambda( [this] { FoliageEditMode->UISettings.SetFilterTranslucent( !FoliageEditMode->UISettings.GetFilterTranslucent()); }),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateRaw( &FoliageEditMode->UISettings, &FFoliageUISettings::GetFilterTranslucent)
 		),
@@ -688,7 +688,7 @@ TSharedRef<SWidget> SFoliageEdit::MakeSettingsMenu()
 		LOCTEXT("SettingsCurrentLevelTooltip", "Allow Foliage to be placed on Translucent"),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda( [=] { 
+			FExecuteAction::CreateLambda( [this] { 
 				FoliageEditMode->UISettings.SetSpawnInCurrentLevelMode( !FoliageEditMode->UISettings.GetIsInSpawnInCurrentLevelMode() ); 
 			}),
 			FCanExecuteAction(),
@@ -1290,7 +1290,7 @@ TSharedRef<SWidget> SFoliageEdit::GetSingleInstantiationModeMenuContent()
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SFoliageEdit::OnSingleInstantiationPlacementModeChanged, i),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([=] { return FoliageEditMode->UISettings.GetSingleInstantiationPlacementMode() == EFoliageSingleInstantiationPlacementMode::Type(i); })
+				FIsActionChecked::CreateLambda([this, i] { return FoliageEditMode->UISettings.GetSingleInstantiationPlacementMode() == EFoliageSingleInstantiationPlacementMode::Type(i); })
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton

@@ -3663,7 +3663,7 @@ void FControlRigParameterTrackEditor::AddControlKeys(
 	
 	TGuardValue<bool> Guard(bIsDoingSelection, true);
 
-	auto OnKeyProperty = [=](FFrameNumber Time) -> FKeyPropertyResult
+	auto OnKeyProperty = [=, this](FFrameNumber Time) -> FKeyPropertyResult
 	{
 		FFrameNumber LocalTime = Time;
 		//for modify weights we evaluate so need to make sure we use the evaluated time
@@ -4865,7 +4865,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 						LOCTEXT("CollapseAllSections", "Collapse All Sections"),
 						LOCTEXT("CollapseAllSections_ToolTip", "Collapse all sections onto this section"),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateLambda([=] { CollapseAllLayers(); }))
+						FUIAction(FExecuteAction::CreateLambda([this] { CollapseAllLayers(); }))
 					);
 				}
 			}
@@ -4878,7 +4878,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 						LOCTEXT("KeyZeroValue", "Key Zero Value"),
 						LOCTEXT("KeyZeroValue_Tooltip", "Set zero key on all controls in this section"),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateLambda([=] { KeyZeroValue(); }))
+						FUIAction(FExecuteAction::CreateLambda([this] { KeyZeroValue(); }))
 					);
 				}
 				
@@ -4886,14 +4886,14 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 					LOCTEXT("KeyWeightZero", "Key Weight Zero"),
 					LOCTEXT("KeyWeightZero_Tooltip", "Key a zero value on the Weight channel"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateLambda([=] { KeyWeightValue(0.0f); }))
+					FUIAction(FExecuteAction::CreateLambda([this] { KeyWeightValue(0.0f); }))
 				);
 				
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("KeyWeightOne", "Key Weight One"),
 					LOCTEXT("KeyWeightOne_Tooltip", "Key a one value on the Weight channel"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateLambda([=] { KeyWeightValue(1.0f); }))
+					FUIAction(FExecuteAction::CreateLambda([this] { KeyWeightValue(1.0f); }))
 				);
 				
 			}
@@ -4905,8 +4905,8 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 				LOCTEXT("SetFromSelectedControls_ToolTip", "Set active channels from the current control selection"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=] { ShowSelectedControlsChannels(); }),
-					FCanExecuteAction::CreateLambda([=] { return ControlRig->CurrentControlSelection().Num() > 0; } )
+					FExecuteAction::CreateLambda([this] { ShowSelectedControlsChannels(); }),
+					FCanExecuteAction::CreateLambda([ControlRig] { return ControlRig->CurrentControlSelection().Num() > 0; } )
 				)
 			);
 
@@ -4914,7 +4914,7 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 				LOCTEXT("ShowAllControls", "Show All Controls"),
 				LOCTEXT("ShowAllControls_ToolTip", "Set active channels from all controls"),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda([=] { return ShowAllControlsChannels(); }))
+				FUIAction(FExecuteAction::CreateLambda([this] { return ShowAllControlsChannels(); }))
 			);
 
 			MenuBuilder.AddSubMenu(

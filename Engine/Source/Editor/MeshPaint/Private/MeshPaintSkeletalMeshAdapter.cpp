@@ -218,7 +218,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnAdded()
 	FSkeletalMeshReferencers& SkeletalMeshReferencers = MeshToComponentMap.FindOrAdd(ReferencedSkeletalMesh);
 
 	checkf(!SkeletalMeshReferencers.Referencers.ContainsByPredicate(
-		[=](const FSkeletalMeshReferencers::FReferencersInfo& Info)
+		[this](const FSkeletalMeshReferencers::FReferencersInfo& Info)
 		{
 			return Info.SkeletalMeshComponent == this->SkeletalMeshComponent;
 		}), TEXT("This Skeletal Mesh Component has already been Added"));
@@ -286,7 +286,7 @@ void FMeshPaintGeometryAdapterForSkeletalMeshes::OnRemoved()
 	checkf(SkeletalMeshReferencers->Referencers.Num() > 0, TEXT("Skeletal Mesh does not have any referencers"));
 
 	const int32 Index = SkeletalMeshReferencers->Referencers.IndexOfByPredicate(
-		[=](const FSkeletalMeshReferencers::FReferencersInfo& Info)
+		[this](const FSkeletalMeshReferencers::FReferencersInfo& Info)
 		{
 			return Info.SkeletalMeshComponent == this->SkeletalMeshComponent;
 		}

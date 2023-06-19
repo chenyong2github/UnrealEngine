@@ -181,7 +181,7 @@ void FCameraShakePreviewerModule::UnregisterViewportOptionMenuExtender()
 	UToolMenus::UnregisterOwner(this);
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(LevelEditorModuleName);
-	LevelEditorModule.GetAllLevelViewportOptionsMenuExtenders().RemoveAll([=](const FLevelEditorModule::FLevelEditorMenuExtender& Extender) { return Extender.GetHandle() == ViewportOptionsMenuExtenderHandle; });
+	LevelEditorModule.GetAllLevelViewportOptionsMenuExtenders().RemoveAll([this](const FLevelEditorModule::FLevelEditorMenuExtender& Extender) { return Extender.GetHandle() == ViewportOptionsMenuExtenderHandle; });
 
 	if (GEditor)
 	{

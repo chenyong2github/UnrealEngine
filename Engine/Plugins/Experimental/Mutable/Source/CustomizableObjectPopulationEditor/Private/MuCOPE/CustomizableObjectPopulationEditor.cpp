@@ -359,16 +359,16 @@ TSharedRef<SWidget> FCustomizableObjectPopulationEditor::GenerateTestPopulationM
 		ViewportColumnsEntry = SNew(SNumericEntryBox<int32>).AllowSpin(true)
 		.MinValue(1).MaxValue(100)
 		.MinSliderValue(1).MaxSliderValue(100)
-		.Value_Lambda([=]()->int32 {return ViewportColumns; })
-		.OnValueChanged_Lambda([=](int32 NewValue) {ViewportColumns = NewValue; });
+		.Value_Lambda([this]()->int32 {return ViewportColumns; })
+		.OnValueChanged_Lambda([this](int32 NewValue) {ViewportColumns = NewValue; });
 
 		MenuBuilder.AddWidget(ViewportColumnsEntry.ToSharedRef(), LOCTEXT("PopulationClassColumns", "Population Columns:"));
 
 		InstanceSeparationEntry = SNew(SNumericEntryBox<int32>).AllowSpin(true)
 		.MinValue(1).MaxValue(1000)
 		.MinSliderValue(1).MaxSliderValue(1000)
-		.Value_Lambda([=]()->int32 {return InstanceSeparation; })
-		.OnValueChanged_Lambda([=](int32 NewValue) {InstanceSeparation = NewValue; });
+		.Value_Lambda([this]()->int32 {return InstanceSeparation; })
+		.OnValueChanged_Lambda([this](int32 NewValue) {InstanceSeparation = NewValue; });
 
 		MenuBuilder.AddWidget(InstanceSeparationEntry.ToSharedRef(), LOCTEXT("PopulationClassSeparation", "Instance separation:"));
 	}

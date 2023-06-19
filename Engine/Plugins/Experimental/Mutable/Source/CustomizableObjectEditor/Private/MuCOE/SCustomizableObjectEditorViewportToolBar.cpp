@@ -1090,14 +1090,14 @@ TSharedRef<SWidget> SCustomizableObjectEditorViewportToolBar::GenerateViewportOp
 						SNew(SBox).WidthOverride(100.0f)
 						[
 							SNew(SSlider)
-							.Value_Lambda([=]() {return Viewport.Pin().Get()->GetViewportCameraSpeed(); })
+							.Value_Lambda([this]() {return Viewport.Pin().Get()->GetViewportCameraSpeed(); })
 							.MinValue(1).MaxValue(4)
-							.OnValueChanged_Lambda([=](int32 Value) { Viewport.Pin().Get()->SetViewportCameraSpeed(Value); })
+							.OnValueChanged_Lambda([this](int32 Value) { Viewport.Pin().Get()->SetViewportCameraSpeed(Value); })
 						]
 					]
 					+ SHorizontalBox::Slot().AutoWidth()
 					[
-						SNew(STextBlock).Text_Lambda([=]() { return FText::AsNumber(Viewport.Pin().Get()->GetViewportCameraSpeed()); })
+						SNew(STextBlock).Text_Lambda([this]() { return FText::AsNumber(Viewport.Pin().Get()->GetViewportCameraSpeed()); })
 					]
 				];
 				

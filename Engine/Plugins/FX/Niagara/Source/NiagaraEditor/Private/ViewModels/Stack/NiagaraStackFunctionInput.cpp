@@ -627,7 +627,7 @@ UNiagaraStackEntry::FStackIssueFixDelegate UNiagaraStackFunctionInput::GetUpgrad
 	{
 		return FStackIssueFixDelegate();
 	}
-	return FStackIssueFixDelegate::CreateLambda([=]()
+	return FStackIssueFixDelegate::CreateLambda([this]()
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("UpgradeVersionFix", "Change dynamic input version"));
 		FNiagaraScriptVersionUpgradeContext UpgradeContext;
@@ -765,7 +765,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 		if (ScriptData != nullptr)
 		{
 			UNiagaraStackFunctionInputCollection* DynamicInputEntry = FindCurrentChildOfTypeByPredicate<UNiagaraStackFunctionInputCollection>(CurrentChildren,
-				[=](UNiagaraStackFunctionInputCollection* CurrentFunctionInputEntry)
+				[this](UNiagaraStackFunctionInputCollection* CurrentFunctionInputEntry)
 			{
 				return CurrentFunctionInputEntry->GetInputFunctionCallNode() == InputValues.DynamicNode.Get() &&
 					CurrentFunctionInputEntry->GetModuleNode() == OwningModuleNode.Get();
@@ -916,7 +916,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 	if (InputValues.Mode == EValueMode::Data && InputValues.DataObject.IsValid())
 	{
 		UNiagaraStackObject* ValueObjectEntry = FindCurrentChildOfTypeByPredicate<UNiagaraStackObject>(CurrentChildren,
-			[=](UNiagaraStackObject* CurrentObjectEntry) { return CurrentObjectEntry->GetObject() == InputValues.DataObject.Get(); });
+			[this](UNiagaraStackObject* CurrentObjectEntry) { return CurrentObjectEntry->GetObject() == InputValues.DataObject.Get(); });
 
 		if(ValueObjectEntry == nullptr)
 		{
@@ -1633,7 +1633,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 			FNiagaraStackGraphUtilities::GetStackNodeGroups(*OutputNode, StackGroups);
 
 			int32 CurrentModuleIndex = OutputNode == CurrentOutputNode
-				? StackGroups.IndexOfByPredicate([=](const FNiagaraStackGraphUtilities::FStackNodeGroup Group) { return Group.EndNode == OwningModuleNode; })
+				? StackGroups.IndexOfByPredicate([this](const FNiagaraStackGraphUtilities::FStackNodeGroup Group) { return Group.EndNode == OwningModuleNode; })
 				: INDEX_NONE;
 
 			int32 MaxGroupIndex = CurrentModuleIndex != INDEX_NONE ? CurrentModuleIndex : StackGroups.Num() - 1;

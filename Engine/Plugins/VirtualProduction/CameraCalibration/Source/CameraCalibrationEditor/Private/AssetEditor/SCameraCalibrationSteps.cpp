@@ -606,7 +606,7 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 						.MinValue(TOptional<float>())
 						.MaxValue(TOptional<float>())
 						.Delta(0.0f)
-						.Value_Lambda([=]() 
+						.Value_Lambda([this, ParameterInfo]() 
 						{ 
 							float ScalarValue = 0.0f;
 							
@@ -617,7 +617,7 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 
 							return ScalarValue;
 						})
-						.MinSliderValue_Lambda([=]() 
+						.MinSliderValue_Lambda([this, ParameterInfo]()
 						{ 
 							float MinValue = 0.0f;
 							float MaxValue = 0.0f;
@@ -629,7 +629,7 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 
 							return MinValue;
 						})
-						.MaxSliderValue_Lambda([=]() 
+						.MaxSliderValue_Lambda([this, ParameterInfo]()
 						{ 
 							float MinValue = 0.0f;
 							float MaxValue = 0.0f;
@@ -641,7 +641,7 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 
 							return MaxValue;
 						})
-						.OnValueChanged_Lambda([=](float NewValue) 
+						.OnValueChanged_Lambda([this, ParameterInfo](float NewValue)
 						{ 
 							if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 							{
@@ -653,7 +653,7 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 								}
 							}
 						})
-						.OnValueCommitted_Lambda([=](float NewValue, ETextCommit::Type)	
+						.OnValueCommitted_Lambda([this, ParameterInfo](float NewValue, ETextCommit::Type)
 						{
 							if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 							{
@@ -694,11 +694,11 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 						.HasDownArrow(false)
 						.CollapseMenuOnParentFocus(true)
 						.ButtonStyle(FAppStyle::Get(), "Sequencer.AnimationOutliner.ColorStrip") // Style matches the button used in cinematic film overlays
-						.OnGetMenuContent_Lambda([=]() -> TSharedRef<SWidget>
+						.OnGetMenuContent_Lambda([this, ParameterInfo]() -> TSharedRef<SWidget>
 						{
 							return SNew(SColorPicker)
 								.UseAlpha(true)
-								.TargetColorAttribute_Lambda([=]() 
+								.TargetColorAttribute_Lambda([this, ParameterInfo]()
 								{
 									FLinearColor ColorValue = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 										
@@ -709,7 +709,7 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 
 									return ColorValue;
 								})
-								.OnColorCommitted_Lambda([=](FLinearColor NewColor) 
+								.OnColorCommitted_Lambda([this, ParameterInfo](FLinearColor NewColor)
 								{
 									if (UMaterialInstanceDynamic* Overlay = CurrentOverlayMID.Get())
 									{
@@ -727,7 +727,7 @@ void SCameraCalibrationSteps::UpdateOverlayMaterialParameterWidget()
 							SNew(SColorBlock)
 							.ShowBackgroundForAlpha(true)
 							.Size(FVector2D(10.0f, 20.0f))
-							.Color_Lambda([=]()
+							.Color_Lambda([this, ParameterInfo]()
 							{
 								FLinearColor ColorValue = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
 

@@ -206,7 +206,7 @@ void SDisplayClusterConfiguratorNewClusterItemDialog::Construct(const FArguments
 								.OptionsSource(&PresetItems)
 								.InitiallySelectedItem(InitiallySelectedPresetItem)
 								.OnSelectionChanged(this, &SDisplayClusterConfiguratorNewClusterItemDialog::OnSelectedPresetChanged)
-								.OnGenerateWidget_Lambda([=](TSharedPtr<FDisplayClusterConfiguratorPresetSize> Item)
+								.OnGenerateWidget_Lambda([this](TSharedPtr<FDisplayClusterConfiguratorPresetSize> Item)
 								{
 									return SNew(STextBlock).Text(GetPresetDisplayText(Item));
 								})

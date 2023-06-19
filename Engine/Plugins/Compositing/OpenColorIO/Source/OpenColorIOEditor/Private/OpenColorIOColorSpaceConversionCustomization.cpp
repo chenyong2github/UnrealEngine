@@ -45,7 +45,7 @@ void FOpenColorIOColorConversionSettingsCustomization::CustomizeHeader(TSharedRe
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Text(MakeAttributeLambda([=]
+						.Text(MakeAttributeLambda([this]
 							{
 								if (ColorSpaceConversion->IsValid())
 								{

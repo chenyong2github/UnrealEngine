@@ -1475,7 +1475,7 @@ void FOpenGLDynamicRHI::RHIGenerateMips(FRHITexture* SurfaceRHI)
 {
 	if (FOpenGL::SupportsGenerateMipmap())
 	{
-		RunOnGLRenderContextThread([=]()
+		RunOnGLRenderContextThread([this, SurfaceRHI]()
 		{
 			VERIFY_GL_SCOPE();
 			GPUProfilingData.RegisterGPUWork(0);
@@ -2034,7 +2034,7 @@ void FOpenGLDynamicRHI::UnlockTexture2D_RenderThread(class FRHICommandListImmedi
 	}
 	else
 	{
-		auto GLCommand = [=]()
+		auto GLCommand = [this, Params, Texture, MipIndex, bLockWithinMiptail]()
 		{
 			uint32 DestStride;
 			uint64 LockedByteCount = ~0ULL;
@@ -2091,7 +2091,7 @@ void FOpenGLDynamicRHI::RHIUnlockTextureCubeFace_RenderThread(class FRHICommandL
 	}
 	else
 	{
-		auto GLCommand = [=]()
+		auto GLCommand = [this, Params, Texture, FaceIndex, ArrayIndex, MipIndex, bLockWithinMiptail]()
 		{
 			uint32 DestStride;
 			uint8* TexMem = (uint8*)this->RHILockTextureCubeFace(Texture, FaceIndex, ArrayIndex, MipIndex, RLM_WriteOnly, DestStride, bLockWithinMiptail);
@@ -2146,7 +2146,7 @@ void FOpenGLDynamicRHI::UnlockTexture2DArray_RenderThread(class FRHICommandListI
 	}
 	else
 	{
-		auto GLCommand = [=]()
+		auto GLCommand = [this, Params, Texture, ArrayIndex, MipIndex, bLockWithinMiptail]()
 		{
 			uint32 DestStride;
 			uint8* TexMem = (uint8*)this->RHILockTexture2DArray(Texture, ArrayIndex, MipIndex, Params.LockMode, DestStride, bLockWithinMiptail);

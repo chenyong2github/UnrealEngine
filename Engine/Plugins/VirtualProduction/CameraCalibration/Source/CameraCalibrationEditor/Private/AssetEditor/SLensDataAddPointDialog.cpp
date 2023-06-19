@@ -158,7 +158,7 @@ void SLensDataAddPointDialog::Construct(const FArguments& InArgs, ULensFile* InL
 					.ButtonContent()
 					[
 						SNew(STextBlock)
-						.Text(MakeAttributeLambda([=]
+						.Text(MakeAttributeLambda([this]
 						{
 							switch (SelectedCategory)
 							{

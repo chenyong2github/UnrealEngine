@@ -407,7 +407,7 @@ bool SGameplayTagWidget::FilterChildrenCheck( TSharedPtr<FGameplayTagNode> InIte
 		return false;
 	}
 
-	auto FilterChildrenCheck_r = ([=]()
+	auto FilterChildrenCheck_r = ([this, InItem]()
 	{
 		TArray< TSharedPtr<FGameplayTagNode> > Children = InItem->GetChildTagNodes();
 		for( int32 iChild = 0; iChild < Children.Num(); ++iChild )

@@ -90,7 +90,7 @@ void UMovieSceneLiveLinkTrackRecorder::CreateTracks()
 	const bool bIncludeDisabledSubjects = false;
 	const bool bIncludeVirtualSubjects = true;
 	TArray<FLiveLinkSubjectKey> EnabledSubjects = LiveLinkClient->GetSubjects(bIncludeDisabledSubjects, bIncludeVirtualSubjects);
-	const FLiveLinkSubjectKey* DesiredSubjectKey = EnabledSubjects.FindByPredicate([=](const FLiveLinkSubjectKey& InOther) { return SubjectName == InOther.SubjectName; });
+	const FLiveLinkSubjectKey* DesiredSubjectKey = EnabledSubjects.FindByPredicate([this](const FLiveLinkSubjectKey& InOther) { return SubjectName == InOther.SubjectName; });
 	if (DesiredSubjectKey == nullptr)
 	{
 		UE_LOG(LogLiveLinkSequencer, Warning, TEXT("Error: Could not create live link track. Could not find an enabled subject with subject name '%s'."), *SubjectName.ToString());

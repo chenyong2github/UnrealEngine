@@ -1460,7 +1460,7 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationComponentPicke
 		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
 		[
 			SNew(SComboButton)
-			.OnGetMenuContent_Lambda([=]() { return BuildCalibrationComponentMenu(); })
+			.OnGetMenuContent_Lambda([this]() { return BuildCalibrationComponentMenu(); })
 			.ContentPadding(FMargin(4.0, 2.0))
 			.ButtonContent()
 			[

@@ -381,7 +381,7 @@ TSharedPtr<SWidget> FGeometryCollectionTrackEditor::BuildOutlinerEditWidget(cons
 	{
 		TWeakPtr<ISequencer> WeakSequencer = GetSequencer();
 
-		auto SubMenuCallback = [=]() -> TSharedRef<SWidget>
+		auto SubMenuCallback = [this, ObjectBinding, Track, GeomMeshComp]() -> TSharedRef<SWidget>
 		{
 			FMenuBuilder MenuBuilder(true, nullptr);
 

@@ -79,7 +79,7 @@ void FDisplayClusterConfiguratorScreenDetailsCustomization::CustomizeDetails(IDe
 				.OptionsSource(&PresetItems)
 				.InitiallySelectedItem(InitiallySelectedPresetItem)
 				.OnSelectionChanged(this, &FDisplayClusterConfiguratorScreenDetailsCustomization::OnSelectedPresetChanged)
-				.OnGenerateWidget_Lambda([=](TSharedPtr<FDisplayClusterConfiguratorAspectRatioPresetSize> Item)
+				.OnGenerateWidget_Lambda([this](TSharedPtr<FDisplayClusterConfiguratorAspectRatioPresetSize> Item)
 				{
 					return SNew(STextBlock)
 						.Font(IDetailLayoutBuilder::GetDetailFont())

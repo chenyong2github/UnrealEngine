@@ -549,9 +549,9 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 		LOCTEXT("ShowAllAdvancedToolTip", "Forces all advanced items to be showing in the stack."),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowAllAdvanced(!StackViewModel->GetShowAllAdvanced()); }),
+			FExecuteAction::CreateLambda([this]() { StackViewModel->SetShowAllAdvanced(!StackViewModel->GetShowAllAdvanced()); }),
 			FCanExecuteAction(),
-			FGetActionCheckState::CreateLambda([=]() { return StackViewModel->GetShowAllAdvanced() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
+			FGetActionCheckState::CreateLambda([this]() { return StackViewModel->GetShowAllAdvanced() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
 		NAME_None, EUserInterfaceActionType::Check);
 
 	MenuBuilder.AddMenuEntry(
@@ -559,9 +559,9 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 		LOCTEXT("ShowParameterReadsToolTip", "Whether or not to show the parameters that a module reads from."),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowLinkedInputs(!StackViewModel->GetShowLinkedInputs()); }),
+			FExecuteAction::CreateLambda([this]() { StackViewModel->SetShowLinkedInputs(!StackViewModel->GetShowLinkedInputs()); }),
 			FCanExecuteAction(),
-			FGetActionCheckState::CreateLambda([=]() { return StackViewModel->GetShowLinkedInputs() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
+			FGetActionCheckState::CreateLambda([this]() { return StackViewModel->GetShowLinkedInputs() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
 		NAME_None, EUserInterfaceActionType::Check);
 
 	MenuBuilder.AddMenuEntry(
@@ -569,9 +569,9 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 		LOCTEXT("ShowParameterWritesToolTip", "Whether or not to show parameters that a module writes to."),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowOutputs(!StackViewModel->GetShowOutputs()); }),
+			FExecuteAction::CreateLambda([this]() { StackViewModel->SetShowOutputs(!StackViewModel->GetShowOutputs()); }),
 			FCanExecuteAction(),
-			FGetActionCheckState::CreateLambda([=]() { return StackViewModel->GetShowOutputs() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
+			FGetActionCheckState::CreateLambda([this]() { return StackViewModel->GetShowOutputs() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
 		NAME_None, EUserInterfaceActionType::Check);
 
 	MenuBuilder.AddMenuEntry(
@@ -579,9 +579,9 @@ TSharedRef<SWidget> SNiagaraStack::GetViewOptionsMenu() const
 		LOCTEXT("ShowIssuesToolTip", "Hides all modules except those that have unresolved issues."),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=]() { StackViewModel->SetShowOnlyIssues(!StackViewModel->GetShowOnlyIssues()); }),
+			FExecuteAction::CreateLambda([this]() { StackViewModel->SetShowOnlyIssues(!StackViewModel->GetShowOnlyIssues()); }),
 			FCanExecuteAction(),
-			FGetActionCheckState::CreateLambda([=]() { return StackViewModel->GetShowOnlyIssues() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
+			FGetActionCheckState::CreateLambda([this]() { return StackViewModel->GetShowOnlyIssues() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })),
 		NAME_None, EUserInterfaceActionType::Check);
 
 	return MenuBuilder.MakeWidget();

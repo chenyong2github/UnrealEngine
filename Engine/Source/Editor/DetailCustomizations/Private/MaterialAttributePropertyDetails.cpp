@@ -79,11 +79,11 @@ void FMaterialAttributePropertyDetails::OnBuildChild(TSharedRef<IPropertyHandle>
 
 	FPropertyComboBoxArgs ComboArgs(
 		ChildHandle,
-		FOnGetPropertyComboBoxStrings::CreateLambda([=](TArray<TSharedPtr<FString>>& OutComboBoxStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems) -> void  
+		FOnGetPropertyComboBoxStrings::CreateLambda([this](TArray<TSharedPtr<FString>>& OutComboBoxStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems) -> void  
 		{									
 			OutComboBoxStrings = AttributeDisplayNameList;
 		}), 
-		FOnGetPropertyComboBoxValue::CreateLambda( [=]() -> FString
+		FOnGetPropertyComboBoxValue::CreateLambda( [this, ChildHandle]() -> FString
 		{
 			FString AttributeName;
 			if (ChildHandle->IsValidHandle())
@@ -97,7 +97,7 @@ void FMaterialAttributePropertyDetails::OnBuildChild(TSharedRef<IPropertyHandle>
 			} 
 			return AttributeName;
 		}),
-		FOnPropertyComboBoxValueSelected::CreateLambda( [=] (const FString& Selection)
+		FOnPropertyComboBoxValueSelected::CreateLambda( [this, ChildHandle] (const FString& Selection)
 		{
 			if (ChildHandle->IsValidHandle())
 			{

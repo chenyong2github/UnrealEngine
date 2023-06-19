@@ -106,13 +106,13 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 
 	Commands->MapAction(
 		FNiagaraEditorCommands::Get().HideDisabledModules,
-		FExecuteAction::CreateLambda([=]()
+		FExecuteAction::CreateLambda([this]()
 		{
 			UNiagaraStackEditorData& EditorData = ViewModel->GetSystemViewModel()->GetEditorData().GetStackEditorData();
 			EditorData.bHideDisabledModules = !EditorData.bHideDisabledModules;
 		}),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([=]()
+		FIsActionChecked::CreateLambda([this]()
 		{
 			UNiagaraStackEditorData& EditorData = ViewModel->GetSystemViewModel()->GetEditorData().GetStackEditorData();
 			return EditorData.bHideDisabledModules;

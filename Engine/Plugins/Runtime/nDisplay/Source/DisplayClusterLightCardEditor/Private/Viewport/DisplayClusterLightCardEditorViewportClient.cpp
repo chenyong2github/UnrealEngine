@@ -1637,7 +1637,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 		TWeakObjectPtr<AActor> StageActorWeakPtr(StageActor);
 		// Schedule for the next tick so CDO changes get propagated first in the event of config editor skeleton
 		// regeneration & compiles. nDisplay's custom propagation may have issues if the archetype isn't correct.
-		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
+		PreviewWorld->GetTimerManager().SetTimerForNextTick([=, this]()
 		{
 			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActorImpl"), STAT_UpdatePreviewActorImpl, STATGROUP_NDisplayLightCardEditor);
 			

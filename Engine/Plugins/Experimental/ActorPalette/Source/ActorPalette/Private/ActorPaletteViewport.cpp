@@ -189,11 +189,11 @@ void SActorPaletteViewport::Construct(const FArguments& InArgs, TSharedPtr<class
 				SNew(SButton)
 				.Text(LOCTEXT("QuickButtonLabel_ReloadLastMap", "Open Last Level"))
 				.VAlign(VAlign_Center)
-				.Visibility_Lambda([=]()
+				.Visibility_Lambda([this]()
 				{
 					return (GetDefault<UActorPaletteSettings>()->FindLastLevelForTab(TabIndex) != INDEX_NONE) ? EVisibility::Visible : EVisibility::Collapsed;
 				})
-				.ToolTipText_Lambda([=]()
+				.ToolTipText_Lambda([this]()
 				{
 					const UActorPaletteSettings* Settings = GetDefault<UActorPaletteSettings>();
 					const int32 LastLevelForTabIndex = Settings->FindLastLevelForTab(TabIndex);
@@ -201,7 +201,7 @@ void SActorPaletteViewport::Construct(const FArguments& InArgs, TSharedPtr<class
 						FText::Format(LOCTEXT("QuickButtonTooltip_ReloadLastMap", "Use {0} as an Actor Palette"), FText::FromName(Settings->SettingsPerLevel[LastLevelForTabIndex].GetAsAssetData().PackageName)) :
 						FText::GetEmpty();
 				})
-				.OnClicked_Lambda([=]()
+				.OnClicked_Lambda([this]()
 				{
 					const UActorPaletteSettings* Settings = GetDefault<UActorPaletteSettings>();
 					int32 LastLevelIndex = Settings->FindLastLevelForTab(TabIndex);
@@ -279,13 +279,13 @@ void SActorPaletteViewport::BindCommands()
 
 	CommandList->MapAction(
 		Commands.ToggleGameView,
-		FExecuteAction::CreateLambda([=]() { TypedViewportClient->SetGameView(!TypedViewportClient->IsInGameView()); }),
+		FExecuteAction::CreateLambda([this]() { TypedViewportClient->SetGameView(!TypedViewportClient->IsInGameView()); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([=](){ return TypedViewportClient->IsInGameView(); }));
+		FIsActionChecked::CreateLambda([this](){ return TypedViewportClient->IsInGameView(); }));
 
 	CommandList->MapAction(
 		Commands.ResetCameraView,
-		FExecuteAction::CreateLambda([=]() { TypedViewportClient->ResetCameraView(); }));
+		FExecuteAction::CreateLambda([this]() { TypedViewportClient->ResetCameraView(); }));
 }
 
 void SActorPaletteViewport::OnFocusViewportToSelection()
@@ -343,7 +343,7 @@ TSharedRef<SWidget> SActorPaletteViewport::GenerateMapMenu() const
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("OpenLevelFromPicker_Label", "Open Level..."),
 			LOCTEXT("OpenLevelFromPicker_Tooltip", "Select an existing level asset to use as an Actor Palette"),
-			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder)
+			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& SubMenuBuilder)
 			{
 				FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
 							
@@ -351,7 +351,7 @@ TSharedRef<SWidget> SActorPaletteViewport::GenerateMapMenu() const
 				FAssetPickerConfig Config;
 				Config.Filter.ClassPaths.Add(UWorld::StaticClass()->GetClassPathName());
 				Config.InitialAssetViewType = EAssetViewType::List;
-				Config.OnAssetSelected = FOnAssetSelected::CreateLambda([=](const FAssetData& AssetData)
+				Config.OnAssetSelected = FOnAssetSelected::CreateLambda([this](const FAssetData& AssetData)
 				{
 					TypedViewportClient->OpenWorldAsPalette(AssetData);
 					FSlateApplication::Get().DismissAllMenus();
@@ -387,7 +387,7 @@ TSharedRef<SWidget> SActorPaletteViewport::GenerateMapMenu() const
 			if (Asset.AssetClassPath == UWorld::StaticClass()->GetClassPathName())
 			{
 				FUIAction Action;
-				Action.ExecuteAction.BindLambda([=]()
+				Action.ExecuteAction.BindLambda([this, Asset]()
 				{
 					TypedViewportClient->OpenWorldAsPalette(Asset);
 				});
@@ -412,7 +412,7 @@ TSharedRef<SWidget> SActorPaletteViewport::GenerateMapMenu() const
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("OpenLevelFromRecentList_Label", "Recent Levels"),
 			LOCTEXT("OpenLevelFromRecentList_Tooltip", "Select a level recently used as an Actor Palette"),
-			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder)
+			FNewMenuDelegate::CreateLambda([this, Settings](FMenuBuilder& SubMenuBuilder)
 			{
 				bool bAddedAnyRecent = false;
 				for (const FString& RecentEntry : Settings->RecentlyUsedList)
@@ -424,7 +424,7 @@ TSharedRef<SWidget> SActorPaletteViewport::GenerateMapMenu() const
 						bAddedAnyRecent = true;
 
 						FUIAction Action;
-						Action.ExecuteAction.BindLambda([=]()
+						Action.ExecuteAction.BindLambda([this, Asset]()
 						{
 							TypedViewportClient->OpenWorldAsPalette(Asset);
 						});
@@ -451,7 +451,7 @@ TSharedRef<SWidget> SActorPaletteViewport::GenerateMapMenu() const
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("OpenLevelFromFavoriteList_Label", "Favorite Levels"),
 			LOCTEXT("OpenLevelFromFavoriteList_Tooltip", "Select a favorite level as an Actor Palette"),
-			FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder)
+			FNewMenuDelegate::CreateLambda([this, Settings](FMenuBuilder& SubMenuBuilder)
 			{
 				if (TypedViewportClient->GetCurrentWorldAssetData().IsValid())
 				{

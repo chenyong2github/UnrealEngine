@@ -36,6 +36,6 @@ void FDisplayClusterConfiguratorExternalImageTypeCustomization::CustomizeHeader(
 		SNew(SDisplayClusterConfiguratorExternalImagePicker)
 		.ImagePath(ImagePath)
 		.Extensions(ImageExtensions)
-		.OnImagePathPicked_Lambda([=](const FString& NewImagePath) { ImagePathHandle->SetValue(NewImagePath); })
+		.OnImagePathPicked_Lambda([this](const FString& NewImagePath) { ImagePathHandle->SetValue(NewImagePath); })
 	];
 }

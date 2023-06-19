@@ -271,7 +271,7 @@ void UNiagaraStackEventScriptItemGroup::RefreshChildrenInternal(const TArray<UNi
 	FVersionedNiagaraEmitterData* EmitterData = GetEmitterViewModel()->GetEmitter().GetEmitterData();
 
 	const FNiagaraEventScriptProperties* EventScriptProperties = EmitterData->GetEventHandlers().FindByPredicate(
-		[=](const FNiagaraEventScriptProperties& InEventScriptProperties) { return InEventScriptProperties.Script->GetUsageId() == GetScriptUsageId(); });
+		[this](const FNiagaraEventScriptProperties& InEventScriptProperties) { return InEventScriptProperties.Script->GetUsageId() == GetScriptUsageId(); });
 
 	if (EventScriptProperties != nullptr)
 	{

@@ -1104,19 +1104,19 @@ void FFractureEditorModeToolkit::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.ExplodeMore,
-		FExecuteAction::CreateLambda([=]() { this->OnSetExplodedViewValue( FMath::Min(1.0, this->GetExplodedViewValue() + .1) ); } ),
+		FExecuteAction::CreateLambda([this]() { this->OnSetExplodedViewValue( FMath::Min(1.0, this->GetExplodedViewValue() + .1) ); } ),
 		EUIActionRepeatMode::RepeatEnabled
 	);
 
 	ToolkitCommands->MapAction(
 		Commands.ExplodeLess,
-		FExecuteAction::CreateLambda([=]() { this->OnSetExplodedViewValue( FMath::Max(0.0, this->GetExplodedViewValue() - .1) ); } ),
+		FExecuteAction::CreateLambda([this]() { this->OnSetExplodedViewValue( FMath::Max(0.0, this->GetExplodedViewValue() - .1) ); } ),
 		EUIActionRepeatMode::RepeatEnabled
 	);
 
 	ToolkitCommands->MapAction(
 		Commands.CancelTool,
-		FExecuteAction::CreateLambda([=]()
+		FExecuteAction::CreateLambda([this]()
 		{
 			if (GetActiveTool())
 			{

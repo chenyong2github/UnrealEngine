@@ -96,7 +96,7 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 			{
 				return Landscape.IsValid() && Landscape->CanHaveLayersContent() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 			})
-			.OnCheckStateChanged_Lambda([=](ECheckBoxState NewState)
+			.OnCheckStateChanged_Lambda([this, Landscape](ECheckBoxState NewState)
 			{
 				bool bChecked = (NewState == ECheckBoxState::Checked);
 				if (Landscape.IsValid() && (Landscape->CanHaveLayersContent() != bChecked))

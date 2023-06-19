@@ -34,7 +34,7 @@ namespace UE::NNEEditorTools::Private
 
 		WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(INVTEXT("NNE Model Data Editor"));
 
-		InTabManager->RegisterTabSpawner("NNEModelDataTab", FOnSpawnTab::CreateLambda([=](const FSpawnTabArgs&)
+		InTabManager->RegisterTabSpawner("NNEModelDataTab", FOnSpawnTab::CreateLambda([this](const FSpawnTabArgs&)
 			{
 				return SNew(SDockTab)
 				[

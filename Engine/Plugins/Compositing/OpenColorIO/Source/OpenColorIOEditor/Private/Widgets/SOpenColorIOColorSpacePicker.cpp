@@ -38,7 +38,7 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(MakeAttributeLambda([=]
+			.Text(MakeAttributeLambda([this]
 				{
 					if (DisplayViewSelection.IsValid())
 					{
@@ -158,7 +158,7 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 							SetCurrentColorSpace(ColorSpace);
 						}),
 						FCanExecuteAction(),
-						FIsActionChecked::CreateLambda([=]
+						FIsActionChecked::CreateLambda([this, ColorSpace]
 						{
 							return ColorSpaceSelection == ColorSpace;
 						})
@@ -203,7 +203,7 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 								SetCurrentDisplayView(DisplayView);
 							}),
 							FCanExecuteAction(),
-							FIsActionChecked::CreateLambda([=]
+							FIsActionChecked::CreateLambda([this, DisplayView]
 							{
 								return DisplayViewSelection == DisplayView;
 							})

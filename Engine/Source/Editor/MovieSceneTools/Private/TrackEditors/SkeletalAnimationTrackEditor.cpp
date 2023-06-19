@@ -785,7 +785,7 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 			BoneNames.Add(Skeleton->GetReferenceSkeleton().GetBoneName(BoneIndex));
 		}
 
-		auto MatchToBone = [=](bool bMatchPrevious, int32 Index)
+		auto MatchToBone = [=, this](bool bMatchPrevious, int32 Index)
 		{
 			return FUIAction(
 				FExecuteAction::CreateLambda([=, this]
@@ -925,7 +925,7 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				LOCTEXT("MatchPitchRotationTooltip", "Match the Pitch Rotation, may want this off for better matching"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateLambda([=]()->void { 
+					FExecuteAction::CreateLambda([=, this]()->void { 
 						FScopedTransaction MatchTransaction(LOCTEXT("MatchPitchRotation_Transaction", "Match Pitch Rotation"));
 						Section.Modify();
 						Section.ToggleMatchIncludePitchRotation();

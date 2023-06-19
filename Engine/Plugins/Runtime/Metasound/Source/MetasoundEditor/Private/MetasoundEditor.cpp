@@ -149,7 +149,7 @@ namespace Metasound
 			virtual int32 GetReorderIndexInContainer() const override
 			{
 				TArray<Frontend::FConstNodeHandle> InputHandles = GetGraphHandle()->GetConstInputNodes();
-				return InputHandles.IndexOfByPredicate([=](const Frontend::FConstNodeHandle& NodeHandle)
+				return InputHandles.IndexOfByPredicate([this](const Frontend::FConstNodeHandle& NodeHandle)
 				{
 					return NodeHandle->GetID() == MemberID;
 				});

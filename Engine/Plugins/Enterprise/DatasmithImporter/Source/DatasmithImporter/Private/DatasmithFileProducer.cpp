@@ -1618,7 +1618,7 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		[
 			SAssignNew(IconText, STextBlock)
 				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
-				.Text(MakeAttributeLambda([=]
+				.Text(MakeAttributeLambda([this]
 				{
 					return IsProducerSuperseded() ? FEditorFontGlyphs::Exclamation_Triangle : FEditorFontGlyphs::File;
 				}))
@@ -1626,7 +1626,7 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		]
 	];
 
-	IconText->SetToolTipText(MakeAttributeLambda([=]
+	IconText->SetToolTipText(MakeAttributeLambda([this]
 	{
 		if (IsProducerSuperseded())
 		{
@@ -1841,7 +1841,7 @@ void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 		[
 			SAssignNew(IconText, STextBlock)
 			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.11"))
-			.Text(MakeAttributeLambda([=]
+			.Text(MakeAttributeLambda([this]
 			{
 				return IsProducerSuperseded() ? FEditorFontGlyphs::Exclamation_Triangle : FEditorFontGlyphs::Folder;
 			}))
@@ -1849,7 +1849,7 @@ void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 		]
 	];
 
-	IconText->SetToolTipText(MakeAttributeLambda([=]
+	IconText->SetToolTipText(MakeAttributeLambda([this]
 	{
 		if (IsProducerSuperseded())
 		{

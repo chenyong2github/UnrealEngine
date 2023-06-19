@@ -266,14 +266,14 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::GenerateRow(int32 
 					.IsEnabled(this, &FLandscapeEditorCustomNodeBuilder_Layers::IsLayerEditionEnabled, InLayerIndex)
 					.Visibility(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlphaVisibility, InLayerIndex)
 					.Value(this, &FLandscapeEditorCustomNodeBuilder_Layers::GetLayerAlpha, InLayerIndex)
-					.OnValueChanged_Lambda([=](float InValue) { SetLayerAlpha(InValue, InLayerIndex, false); })
-					.OnValueCommitted_Lambda([=](float InValue, ETextCommit::Type InCommitType) { SetLayerAlpha(InValue, InLayerIndex, true); })
-					.OnBeginSliderMovement_Lambda([=]()
+					.OnValueChanged_Lambda([this, InLayerIndex](float InValue) { SetLayerAlpha(InValue, InLayerIndex, false); })
+					.OnValueCommitted_Lambda([this, InLayerIndex](float InValue, ETextCommit::Type InCommitType) { SetLayerAlpha(InValue, InLayerIndex, true); })
+					.OnBeginSliderMovement_Lambda([this, InLayerIndex]()
 					{
 						CurrentSlider = InLayerIndex;
 						GEditor->BeginTransaction(LOCTEXT("Landscape_Layers_SetAlpha", "Set Layer Alpha"));
 					})
-					.OnEndSliderMovement_Lambda([=](double)
+					.OnEndSliderMovement_Lambda([this](double)
 					{
 						GEditor->EndTransaction();
 						CurrentSlider = INDEX_NONE;

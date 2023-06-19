@@ -335,7 +335,7 @@ void FNiagaraUserParameterNodeBuilder::AddCustomMenuActionsForParameter(FDetailW
 	if(UserParameter.IsDataInterface())
 	{
 		FUIAction CopyAction;
-		CopyAction.ExecuteAction = FExecuteAction::CreateLambda([=]()
+		CopyAction.ExecuteAction = FExecuteAction::CreateLambda([this, UserParameter]()
 		{
 			FNiagaraVariant CurrentParameterValue = GetCurrentParameterValue(UserParameter);
 			if(CurrentParameterValue.IsValid() == false || CurrentParameterValue.GetDataInterface() == nullptr)
@@ -352,7 +352,7 @@ void FNiagaraUserParameterNodeBuilder::AddCustomMenuActionsForParameter(FDetailW
 		WidgetRow.CopyAction(CopyAction);
 
 		FUIAction PasteAction;
-		PasteAction.ExecuteAction = FExecuteAction::CreateLambda([=]()
+		PasteAction.ExecuteAction = FExecuteAction::CreateLambda([this, UserParameter]()
 		{
 			FNiagaraVariant CurrentParameterValue = GetCurrentParameterValue(UserParameter);
 			if(CurrentParameterValue.IsValid() == false || CurrentParameterValue.GetDataInterface() == nullptr)
@@ -376,7 +376,7 @@ void FNiagaraUserParameterNodeBuilder::AddCustomMenuActionsForParameter(FDetailW
 	else if(UserParameter.IsUObject())
 	{
 		FUIAction CopyAction;
-		CopyAction.ExecuteAction = FExecuteAction::CreateLambda([=]()
+		CopyAction.ExecuteAction = FExecuteAction::CreateLambda([this, UserParameter]()
 		{
 			FNiagaraVariant CurrentParameterValue = GetCurrentParameterValue(UserParameter);
 			if(CurrentParameterValue.IsValid() == false)
@@ -389,7 +389,7 @@ void FNiagaraUserParameterNodeBuilder::AddCustomMenuActionsForParameter(FDetailW
 		WidgetRow.CopyAction(CopyAction);
 
 		FUIAction PasteAction;
-		PasteAction.ExecuteAction = FExecuteAction::CreateLambda([=]()
+		PasteAction.ExecuteAction = FExecuteAction::CreateLambda([this, UserParameter]()
 		{
 			FString PastedString;
 			FPropertyEditorClipboard::ClipboardPaste(PastedString);

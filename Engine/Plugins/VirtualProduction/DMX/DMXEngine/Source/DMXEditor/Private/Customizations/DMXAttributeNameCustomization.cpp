@@ -40,7 +40,7 @@ void FDMXAttributeNameCustomization::CustomizeHeader(TSharedRef<IPropertyHandle>
 	}
 
 	InHeaderRow
-		.IsEnabled(MakeAttributeLambda([=] 
+		.IsEnabled(MakeAttributeLambda([this, InPropertyHandle] 
 			{ 
 				return !InPropertyHandle->IsEditConst() && PropertyUtilities->IsPropertyEditingEnabled();
 			}))

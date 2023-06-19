@@ -92,7 +92,7 @@ void FLevelSequenceEditorActorBinding::AddPossessActorMenuExtensions(FMenuBuilde
 	if (!SelectedLabel.IsEmpty())
 	{
 		// Copy the array into the lambda - probably not that big a deal
-		MenuBuilder.AddMenuEntry(SelectedLabel, FText(), ActorIcon, FExecuteAction::CreateLambda([=]{
+		MenuBuilder.AddMenuEntry(SelectedLabel, FText(), ActorIcon, FExecuteAction::CreateLambda([this, ActorsValidForPossession]{
 			FSlateApplication::Get().DismissAllMenus();
 			AddActorsToSequencer(ActorsValidForPossession.GetData(), ActorsValidForPossession.Num());
 		}));
@@ -128,7 +128,7 @@ void FLevelSequenceEditorActorBinding::AddPossessActorMenuExtensions(FMenuBuilde
 		[
 			SceneOutlinerModule.CreateActorPicker(
 				InitOptions,
-				FOnActorPicked::CreateLambda([=](AActor* Actor){
+				FOnActorPicked::CreateLambda([this](AActor* Actor){
 					// Create a new binding for this actor
 					FSlateApplication::Get().DismissAllMenus();
 					AddActorsToSequencer(&Actor, 1);

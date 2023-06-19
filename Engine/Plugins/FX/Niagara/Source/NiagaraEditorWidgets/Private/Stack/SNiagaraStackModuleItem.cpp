@@ -41,7 +41,7 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 {
 	ModuleItem = &InModuleItem;
 
-	ModuleItem->OnNoteModeSet().BindLambda([=](bool bEnabled)
+	ModuleItem->OnNoteModeSet().BindLambda([this](bool bEnabled)
 	{
 		if(bEnabled)
 		{

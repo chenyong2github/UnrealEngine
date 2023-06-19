@@ -592,7 +592,7 @@ void UNiagaraStackScriptItemGroup::RefreshIssues(TArray<FStackIssue>& NewIssues)
 		FText FixDescription = LOCTEXT("FixStackGraph", "Fix invalid stack graph");
 		FStackIssueFix ResetStackFix(
 			FixDescription,
-			FStackIssueFixDelegate::CreateLambda([=]()
+			FStackIssueFixDelegate::CreateLambda([this, FixDescription, Graph]()
 		{
 			FScopedTransaction ScopedTransaction(FixDescription);
 			FNiagaraStackGraphUtilities::ResetGraphForOutput(*Graph, ScriptUsage, ScriptUsageId);

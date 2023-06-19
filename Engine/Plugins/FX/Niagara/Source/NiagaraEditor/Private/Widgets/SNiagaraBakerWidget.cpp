@@ -225,7 +225,7 @@ void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 	// Baker Toolbar
 	FSlimHorizontalToolBarBuilder BakerToolbarBuilder(MakeShareable(new FUICommandList), FMultiBoxCustomization::None);
 	BakerToolbarBuilder.AddToolBarButton(
-		FUIAction(FExecuteAction::CreateLambda([=]() { OnCapture(); })),
+		FUIAction(FExecuteAction::CreateLambda([this]() { OnCapture(); })),
 		NAME_None,
 		FText::GetEmpty(),	//LOCTEXT("Bake", "Bake"),
 		LOCTEXT("BakeTooltip", "Run the bake process"),

@@ -225,7 +225,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 				.OnEndSliderMovement(this, &SCinematicLevelViewport::SetTime)
 				.Value(this, &SCinematicLevelViewport::GetTime)
 				.ToolTipText(LOCTEXT("TimeLocalToCurrentSequence", "The current time of the sequence relative to the focused sequence."))
-				.Delta_Lambda([=]()
+				.Delta_Lambda([this]()
 				{
 					return UIData.OuterResolution.AsDecimal() * UIData.OuterPlayRate.AsInterval(); 
 				})
@@ -337,7 +337,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 								[
 									SNew(STextBlock)
 									.ColorAndOpacity(Gray)
-									.Text_Lambda([=]{ return UIData.ShotName; })
+									.Text_Lambda([this]{ return UIData.ShotName; })
 									.ToolTipText(LOCTEXT("CurrentSequence", "The name of the currently evaluated sequence."))
 								]
 
@@ -348,7 +348,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 								[
 									SNew(STextBlock)
 									.ColorAndOpacity(Gray)
-									.Text_Lambda([=] { return UIData.CameraName; })
+									.Text_Lambda([this] { return UIData.CameraName; })
 									.ToolTipText(LOCTEXT("CurrentCamera", "The name of the current camera."))
 								]
 							]
@@ -359,7 +359,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 							[
 								SNew(STextBlock)
 								.ColorAndOpacity(Gray)
-								.Text_Lambda([=] { return UIData.Filmback; })
+								.Text_Lambda([this] { return UIData.Filmback; })
 								.ToolTipText(LOCTEXT("CurrentFilmback", "The name of the current shot's filmback (the imaging area of the frame/sensor)."))
 							]
 
@@ -369,7 +369,7 @@ void SCinematicLevelViewport::Construct(const FArguments& InArgs)
 								SNew(STextBlock)
 								.Font(FAppStyle::GetFontStyle("Sequencer.FixedFont"))
 								.ColorAndOpacity(Gray)
-								.Text_Lambda([=] { return UIData.LocalPlaybackTime; })
+								.Text_Lambda([this] { return UIData.LocalPlaybackTime; })
 								.ToolTipText(LOCTEXT("LocalPlaybackTime", "The current playback time relative to the currently evaluated sequence."))
 							]
 						]

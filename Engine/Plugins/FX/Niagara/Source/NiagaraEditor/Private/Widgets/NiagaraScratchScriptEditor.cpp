@@ -211,7 +211,7 @@ TSharedRef<SWidget> FNiagaraGraphEditorSummoner::CreateTabBodyForObject(const FW
 
 	// We need to register the tab being closed as we need to clear out the active selection logic when that happens.
 	// There may be better places to put this, but this works well in practice.
-	SDockTab::FOnTabClosedCallback TabClosedCallback = SDockTab::FOnTabClosedCallback::CreateLambda([=](TSharedRef<SDockTab> DockTab)
+	SDockTab::FOnTabClosedCallback TabClosedCallback = SDockTab::FOnTabClosedCallback::CreateLambda([this](TSharedRef<SDockTab> DockTab)
 		{
 			TSharedPtr<FNiagaraSystemToolkit> Toolkit = EditorPtr.Pin();
 			if (Toolkit.IsValid())

@@ -1914,7 +1914,7 @@ void FDisplayClusterLightCardEditor::OnLevelActorDeleted(AActor* Actor)
 		
 		if (Actor->GetWorld())
 		{
-			Actor->GetWorld()->GetTimerManager().SetTimerForNextTick([=]()
+			Actor->GetWorld()->GetTimerManager().SetTimerForNextTick([this]()
 			{
 				// Schedule for next tick so available selections are properly updated once the
 				// actor is fully deleted.

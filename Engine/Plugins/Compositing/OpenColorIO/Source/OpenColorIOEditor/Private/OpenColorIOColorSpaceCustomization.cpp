@@ -193,7 +193,7 @@ void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuild
 		FText::FromString(InColorSpace.ToString()),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=]
+			FExecuteAction::CreateLambda([this, InColorSpace]
 			{
 				if (FStructProperty* StructProperty = CastField<FStructProperty>(CachedProperty->GetProperty()))
 				{
@@ -208,7 +208,7 @@ void FOpenColorIOColorSpaceCustomization::AddMenuEntry(FMenuBuilder& InMenuBuild
 			}
 			),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([=]
+			FIsActionChecked::CreateLambda([this, InColorSpace]
 			{
 				TArray<void*> RawData;
 				CachedProperty->AccessRawData(RawData);
@@ -285,7 +285,7 @@ void FOpenColorIODisplayViewCustomization::AddMenuEntry(FMenuBuilder& InMenuBuil
 		FText::FromString(InDisplayView.ToString()),
 		FSlateIcon(),
 		FUIAction(
-			FExecuteAction::CreateLambda([=]
+			FExecuteAction::CreateLambda([this, InDisplayView]
 				{
 					if (FStructProperty* StructProperty = CastField<FStructProperty>(CachedProperty->GetProperty()))
 					{
@@ -300,7 +300,7 @@ void FOpenColorIODisplayViewCustomization::AddMenuEntry(FMenuBuilder& InMenuBuil
 				}
 			),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateLambda([=]
+			FIsActionChecked::CreateLambda([this, InDisplayView]
 				{
 					TArray<void*> RawData;
 					CachedProperty->AccessRawData(RawData);

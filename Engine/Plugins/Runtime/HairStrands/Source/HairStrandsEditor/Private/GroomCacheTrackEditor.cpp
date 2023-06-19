@@ -379,7 +379,7 @@ TSharedPtr<SWidget> FGroomCacheTrackEditor::BuildOutlinerEditWidget(const FGuid&
 	{
 		TWeakPtr<ISequencer> WeakSequencer = GetSequencer();
 
-		auto SubMenuCallback = [=]() -> TSharedRef<SWidget>
+		auto SubMenuCallback = [this, ObjectBinding, Track]() -> TSharedRef<SWidget>
 		{
 			FMenuBuilder MenuBuilder(true, nullptr);
 

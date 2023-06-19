@@ -109,7 +109,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 #if WITH_EDITOR
 			TestNameWidget = SNew(SHyperlink)
 				.Style(FAutomationWindowStyle::Get(), "Common.GotoNativeCodeHyperlink")
-				.OnNavigate_Lambda([=] {
+				.OnNavigate_Lambda([this] {
 					GEngine->Exec(nullptr, *TestStatus->GetOpenCommand());
 				})
 				.Text(FText::FromString(TestStatus->GetDisplayNameWithDecoration()));
@@ -120,7 +120,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 #if WITH_EDITOR
 			TestNameWidget = SNew(SHyperlink)
 				.Style(FAutomationWindowStyle::Get(), "Common.GotoNativeCodeHyperlink")
-				.OnNavigate_Lambda([=] {
+				.OnNavigate_Lambda([this] {
 					FString AssetPath = TestStatus->GetAssetPath();
 					FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
@@ -143,7 +143,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		{
 			TestNameWidget = SNew(SHyperlink)
 				.Style(FAutomationWindowStyle::Get(), "Common.GotoNativeCodeHyperlink")
-				.OnNavigate_Lambda([=] { FSlateApplication::Get().GotoLineInSource(TestStatus->GetSourceFile(), TestStatus->GetSourceFileLine()); })
+				.OnNavigate_Lambda([this] { FSlateApplication::Get().GotoLineInSource(TestStatus->GetSourceFile(), TestStatus->GetSourceFileLine()); })
 				.Text(FText::FromString(TestStatus->GetDisplayNameWithDecoration()));
 		}
 		else
