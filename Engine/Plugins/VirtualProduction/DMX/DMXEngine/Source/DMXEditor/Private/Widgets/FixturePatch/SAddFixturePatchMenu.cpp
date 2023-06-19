@@ -178,7 +178,7 @@ namespace UE::DMXEditor::FixturePatchEditor
 		RequestRefreshModeComboBoxTimerHandle.Invalidate();
 
 		UDMXLibrary* DMXLibrary = WeakDMXEditor.IsValid() ? WeakDMXEditor.Pin()->GetDMXLibrary() : nullptr;
-		if (!WeakDMXEditor.IsValid())
+		if (!DMXLibrary)
 		{
 			return;
 		}
