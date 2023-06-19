@@ -335,7 +335,6 @@ private:
 	FBuildDefinitions& BuildDefinitions;
 	bool bAllowHardDependencies = true;
 	bool bAllowSoftDependencies = true;
-	bool bHybridIterativeEnabled = true;
 	bool bErrorOnEngineContentUse = false;
 	bool bPackageNamesComplete = false;
 	bool bDependenciesComplete = false;

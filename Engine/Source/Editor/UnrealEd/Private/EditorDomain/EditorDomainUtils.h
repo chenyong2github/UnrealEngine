@@ -115,6 +115,9 @@ FClassDigestMap& GetClassDigests();
 /** Initializes some global config-driven values used by the EditorDomain and TargetDomain. */
 void UtilsInitialize();
 
+/** Initializes global config-driven values that are only needed by the TargetDomain. */
+void UtilsTargetDomainInit();
+
 #if ENABLE_COOK_STATS
 namespace CookStats
 {

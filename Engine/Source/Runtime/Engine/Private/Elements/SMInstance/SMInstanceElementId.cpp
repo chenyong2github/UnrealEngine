@@ -385,7 +385,8 @@ USMInstanceElementIdMapTransactor::USMInstanceElementIdMapTransactor()
 #if WITH_EDITORONLY_DATA
 void USMInstanceElementIdMapTransactor::Serialize(FArchive& Ar)
 {
-	checkf(!Ar.IsPersistent(), TEXT("USMInstanceElementIdMapTransactor can only be serialized by transient archives!"));
+	checkf(!Ar.IsPersistent() || this->HasAnyFlags(RF_ClassDefaultObject),
+		TEXT("USMInstanceElementIdMapTransactor can only be serialized by transient archives!"));
 
 	if (OwnerEntry)
 	{

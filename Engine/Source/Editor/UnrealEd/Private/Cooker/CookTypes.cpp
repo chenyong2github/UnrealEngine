@@ -698,6 +698,7 @@ void FInitializeConfigSettings::MoveToLocal(UCookOnTheFlyServer& COTFS)
 void FBeginCookConfigSettings::CopyFromLocal(const UCookOnTheFlyServer& COTFS)
 {
 	bHybridIterativeEnabled = COTFS.bHybridIterativeEnabled;
+	bHybridIterativeAllowAllClasses = COTFS.bHybridIterativeAllowAllClasses;
 	FParse::Value(FCommandLine::Get(), TEXT("-CookShowInstigator="), CookShowInstigator); // We don't store this on COTFS, so reparse it from commandLine
 	TSet<FName> COTFSNeverCookPackageList;
 	COTFS.PackageTracker->NeverCookPackageList.GetValues(COTFSNeverCookPackageList);
@@ -733,6 +734,7 @@ FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FBeginCookConfigSetting
 {
 	Writer.BeginObject();
 	Writer << "HybridIterativeEnabled" << Value.bHybridIterativeEnabled;
+	Writer << "HybridIterativeAllowAllClasses" << Value.bHybridIterativeAllowAllClasses;
 	Writer << "CookShowInstigator" << Value.CookShowInstigator;
 	Writer << "NeverCookPackageList" << Value.NeverCookPackageList;
 	
@@ -754,6 +756,7 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FBeginCookConfigSetting
 {
 	bool bOk = Field.IsObject();
 	bOk = LoadFromCompactBinary(Field["HybridIterativeEnabled"], OutValue.bHybridIterativeEnabled) & bOk;
+	bOk = LoadFromCompactBinary(Field["HybridIterativeAllowAllClasses"], OutValue.bHybridIterativeAllowAllClasses) & bOk;
 	bOk = LoadFromCompactBinary(Field["CookShowInstigator"], OutValue.CookShowInstigator) & bOk;
 	bOk = LoadFromCompactBinary(Field["NeverCookPackageList"], OutValue.NeverCookPackageList) & bOk;
 

@@ -1175,7 +1175,7 @@ void UTransBuffer::Initialize(SIZE_T InMaxMemory)
 // UObject interface.
 void UTransBuffer::Serialize( FArchive& Ar )
 {
-	check( !Ar.IsPersistent() );
+	check( !Ar.IsPersistent() || this->HasAnyFlags(RF_ClassDefaultObject) );
 
 	CheckState();
 

@@ -49,6 +49,7 @@
 #include "Stats/StatsMisc.h"
 #include "String/Find.h"
 #include "String/ParseTokens.h"
+#include "TargetDomain/TargetDomainUtils.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/SoftObjectPath.h"
 
@@ -1237,9 +1238,8 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 		{
 			// A package that was not explored in the previous cook. No need to record it
 		}
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		else if (CurrentPackageData->PackageGuid == PreviousPackageData->PackageGuid)
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		else if (ComputePackageDifferences_IsPackageFileUnchanged(Options, PackageName, *CurrentPackageData,
+			*PreviousPackageData))
 		{
 			if (PreviousPackageData->DiskSize < 0)
 			{
@@ -1445,6 +1445,28 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 			}
 		}
 	}
+}
+
+bool FAssetRegistryGenerator::ComputePackageDifferences_IsPackageFileUnchanged(
+	const FComputeDifferenceOptions& Options, FName PackageName, const FAssetPackageData& CurrentPackageData,
+	const FAssetPackageData& PreviousPackageData)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (CurrentPackageData.PackageGuid != PreviousPackageData.PackageGuid)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	{
+		return false;
+	}
+
+	if (Options.bIterativeUseClassFilters)
+	{
+		if (!UE::TargetDomain::IsIterativeEnabled(PackageName, false /* bAllowAllClasses */))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 FName FAssetRegistryGenerator::GetGeneratorPackage(FName PackageName, const FAssetRegistryState& InState)

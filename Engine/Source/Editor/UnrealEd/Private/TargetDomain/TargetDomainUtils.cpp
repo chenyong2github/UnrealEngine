@@ -382,7 +382,7 @@ bool IsCookAttachmentsValid(FName PackageName, const FCookAttachments& CookAttac
 	return true;
 }
 
-bool IsIterativeEnabled(FName PackageName)
+bool IsIterativeEnabled(FName PackageName, bool bAllowAllClasses)
 {
 	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
 	if (!AssetRegistry)
@@ -396,25 +396,28 @@ bool IsIterativeEnabled(FName PackageName)
 	}
 	FAssetPackageData& PackageData = *PackageDataOpt;
 
-	UE::EditorDomain::FClassDigestMap& ClassDigests = UE::EditorDomain::GetClassDigests();
-	FReadScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
-	for (FName ClassName : PackageData.ImportedClasses)
+	if (!bAllowAllClasses)
 	{
-		FTopLevelAssetPath ClassPath(WriteToString<256>(ClassName).ToView());
-		UE::EditorDomain::FClassDigestData* ExistingData = nullptr;
-		if (ClassPath.IsValid())
+		UE::EditorDomain::FClassDigestMap& ClassDigests = UE::EditorDomain::GetClassDigests();
+		FReadScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
+		for (FName ClassName : PackageData.ImportedClasses)
 		{
-			ExistingData = ClassDigests.Map.Find(ClassPath);
-		}
-		if (!ExistingData)
-		{
-			// All allowlisted classes are added to ClassDigests at startup, so if the class is not in ClassDigests,
-			// it is not allowlisted
-			return false;
-		}
-		if (!ExistingData->bTargetIterativeEnabled)
-		{
-			return false;
+			FTopLevelAssetPath ClassPath(WriteToString<256>(ClassName).ToView());
+			UE::EditorDomain::FClassDigestData* ExistingData = nullptr;
+			if (ClassPath.IsValid())
+			{
+				ExistingData = ClassDigests.Map.Find(ClassPath);
+			}
+			if (!ExistingData)
+			{
+				// All allowlisted classes are added to ClassDigests at startup, so if the class is not in ClassDigests,
+				// it is not allowlisted
+				return false;
+			}
+			if (!ExistingData->bTargetIterativeEnabled)
+			{
+				return false;
+			}
 		}
 	}
 	return true;

@@ -16,6 +16,7 @@
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValue.h"
 #include "Editor.h"
+#include "Engine/Blueprint.h"
 #include "Engine/StaticMesh.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/FileManager.h"
@@ -196,10 +197,9 @@ TMap<FTopLevelAssetPath, EDomainUse> GClassBlockedUses;
 TMap<FName, EDomainUse> GPackageBlockedUses;
 TMultiMap<FTopLevelAssetPath, FTopLevelAssetPath> GConstructClasses;
 TSet<FTopLevelAssetPath> GTargetDomainClassBlockList;
-bool GTargetDomainClassUseAllowList = true;
-bool GTargetDomainClassEmptyAllowList = false;
 TArray<FTopLevelAssetPath> GGlobalConstructClasses;
 bool bGGlobalConstructClassesInitialized = false;
+bool bGUtilsTargetDomainInitialized = false;
 FBlake3Hash GGlobalConstructClassesHash;
 int64 GMaxBulkDataSize = -1;
 
@@ -507,10 +507,6 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FTopLevelAssetPath ClassPat
 	// Fill in digest data config-driven flags
 	DigestData->EditorDomainUse = EDomainUse::LoadEnabled | EDomainUse::SaveEnabled;
 	DigestData->EditorDomainUse &= ~MapFindRef(GClassBlockedUses, ClassPath, EDomainUse::None);
-	if (!GTargetDomainClassUseAllowList)
-	{
-		DigestData->bTargetIterativeEnabled = !GTargetDomainClassBlockList.Contains(ClassPath);
-	}
 
 	// Fill in native-specific digest data, get the ParentName, and if non-native, get the native ancestor struct
 	UStruct* Struct = nullptr;
@@ -635,10 +631,6 @@ FClassDigestData* FPrecacheClassDigest::GetRecursive(FTopLevelAssetPath ClassPat
 			}
 			EnumSetFlagsAnd(DigestData->EditorDomainUse, EDomainUse::LoadEnabled | EDomainUse::SaveEnabled,
 				DigestData->EditorDomainUse, ParentDigest->EditorDomainUse);
-			if (!GTargetDomainClassUseAllowList)
-			{
-				DigestData->bTargetIterativeEnabled &= ParentDigest->bTargetIterativeEnabled;
-			}
 			ConstructClasses.Append(ParentDigest->ConstructClasses);
 			if (!StructAsClass)
 			{
@@ -994,7 +986,6 @@ TSet<FTopLevelAssetPath> ConstructTargetIterativeClassBlockList()
 
 void ConstructTargetIterativeClassAllowList()
 {
-	// We're using an allowlist with a blocklist override, so the blocklist is only needed when creating the allowlist
 	TSet<FTopLevelAssetPath> BlockListClassPaths = ConstructTargetIterativeClassBlockList();
 
 	// AllowList elements implicitly allow all parent classes, so instead of consulting a list and propagating
@@ -1008,8 +999,13 @@ void ConstructTargetIterativeClassAllowList()
 	TStringBuilder<256> NameStringBuffer;
 	TMap<FTopLevelAssetPath, TOptional<bool>> Visited;
 	auto EnableClassIfNotBlocked = [&Visited, &EnabledClassPaths, &BlockListClassPaths, &NameStringBuffer]
-		(const FTopLevelAssetPath& ClassPath, UStruct* Struct, bool& bOutIsBlocked, auto& EnableClassIfNotBlockedRef)
+		(UStruct* Struct, bool& bOutIsBlocked, auto& EnableClassIfNotBlockedRef)
 	{
+		FTopLevelAssetPath ClassPath(Struct);
+		if (!ClassPath.IsValid())
+		{
+			return;
+		}
 		int32 KeyHash = GetTypeHash(ClassPath);
 		TOptional<bool>& BlockedValue = Visited.FindOrAddByHash(KeyHash, ClassPath);
 		if (BlockedValue.IsSet())
@@ -1023,11 +1019,7 @@ void ConstructTargetIterativeClassAllowList()
 		UStruct* ParentStruct = Struct->GetSuperStruct();
 		if (ParentStruct)
 		{
-			FTopLevelAssetPath ParentStructPath(ParentStruct);
-			if (ParentStructPath.IsValid())
-			{
-				EnableClassIfNotBlockedRef(ParentStructPath, ParentStruct, bParentBlocked, EnableClassIfNotBlockedRef);
-			}
+			EnableClassIfNotBlockedRef(ParentStruct, bParentBlocked, EnableClassIfNotBlockedRef);
 		}
 
 		bOutIsBlocked = bParentBlocked || BlockListClassPaths.Contains(ClassPath);
@@ -1043,7 +1035,10 @@ void ConstructTargetIterativeClassAllowList()
 	};
 
 	TArray<FString> AllowListLeafNames;
+	TArray<FString> AllowListScriptPackages;
 	GConfig->GetArray(TEXT("TargetDomain"), TEXT("IterativeClassAllowList"), AllowListLeafNames, GEditorIni);
+	GConfig->GetArray(TEXT("TargetDomain"), TEXT("IterativeScriptPackageAllowList"), AllowListScriptPackages, GEditorIni);
+	TSet<UStruct*> AllowListClasses;
 	for (const FString& ClassPathString : AllowListLeafNames)
 	{
 		FTopLevelAssetPath ClassPath(ClassPathString);
@@ -1061,8 +1056,45 @@ void ConstructTargetIterativeClassAllowList()
 		{
 			continue;
 		}
+		AllowListClasses.Add(Struct);
+	}
+	UPackage* CoreUObjectPackage = UClass::StaticClass()->GetPackage();
+	UPackage* EnginePackage = UBlueprint::StaticClass()->GetPackage();
+	for (const FString& ScriptPackage : AllowListScriptPackages)
+	{
+		if (!FPackageName::IsScriptPackage(ScriptPackage))
+		{
+			continue;
+		}
+		UPackage* Package = FindObject<UPackage>(nullptr, *ScriptPackage);
+		if (!Package)
+		{
+			continue;
+		}
+		ForEachObjectWithPackage(Package, [Package, CoreUObjectPackage, EnginePackage, &AllowListClasses](UObject* Object)
+			{
+				UClass* Class = Cast<UClass>(Object);
+				if (!Class)
+				{
+					return true;
+				}
+				if (Package == CoreUObjectPackage || Package == EnginePackage)
+				{
+					// Skip some non-normal classes in CoreUObject and Engine; we crash on them because e.g. they do not have a CDO
+					if (FStringView(WriteToString<256>(Object->GetFName())).StartsWith(TEXT("Default_")))
+					{
+						return true;
+					}
+				}
+				AllowListClasses.Add(Class);
+				return true;
+			}, false /* bIncludeNestedObjects */);
+	}
+
+	for (UStruct* Struct : AllowListClasses)
+	{
 		bool bUnusedIsBlocked;
-		EnableClassIfNotBlocked(ClassPath, Struct, bUnusedIsBlocked, EnableClassIfNotBlocked);
+		EnableClassIfNotBlocked(Struct, bUnusedIsBlocked, EnableClassIfNotBlocked);
 	}
 
 	TArray<FTopLevelAssetPath> EnabledClassPathsArray = EnabledClassPaths.Array();
@@ -1113,9 +1145,6 @@ TMultiMap<FTopLevelAssetPath, FTopLevelAssetPath> ConstructConstructClasses()
 	};
 	return ConstructClasses;
 }
-
-FDelegateHandle GUtilsPostInitDelegate;
-void UtilsPostEngineInit();
 
 /** A default implementation of IPackageDigestCache that stores the Digests in a TMap. */
 class FDefaultPackageDigestCache : public IPackageDigestCache
@@ -1176,53 +1205,21 @@ void UtilsInitialize()
 	GPackageBlockedUses = ConstructPackageNameBlockedUses();
 	GConstructClasses = ConstructConstructClasses();
 
-	bool bTargetDomainClassUseBlockList = true;
-	if (FParse::Param(FCommandLine::Get(), TEXT("fullcook")))
-	{
-		// Allow list is marked as used, but is initialized empty
-		bTargetDomainClassUseBlockList = false;
-		GTargetDomainClassUseAllowList = true;
-		GTargetDomainClassEmptyAllowList = true;
-	}
-	else if (FParse::Param(FCommandLine::Get(), TEXT("iterate")))
-	{
-		bTargetDomainClassUseBlockList = false;
-		GTargetDomainClassUseAllowList = false;
-	}
-	else
-	{
-		GConfig->GetBool(TEXT("TargetDomain"), TEXT("IterativeClassAllowListEnabled"), GTargetDomainClassUseAllowList, GEditorIni);
-		GTargetDomainClassEmptyAllowList = false;
-	}
-
-	if (!GTargetDomainClassUseAllowList && bTargetDomainClassUseBlockList)
-	{
-		GTargetDomainClassBlockList = ConstructTargetIterativeClassBlockList();
-	}
-
 	double MaxBulkDataSize = 64 * 1024;
 	GConfig->GetDouble(TEXT("EditorDomain"), TEXT("MaxBulkDataSize"), MaxBulkDataSize, GEditorIni);
 	GMaxBulkDataSize = static_cast<uint64>(MaxBulkDataSize);
 
-	// Constructing allowlists requires use of UStructs, and the early SetPackageResourceManager
-	// where UtilsInitialize is called is too early; trying to call UStruct->GetSchemaHash at that
-	// time will break the UClass. Defer the construction of allowlist-based data until OnPostEngineInit
-	GUtilsPostInitDelegate = FCoreDelegates::OnPostEngineInit.AddLambda([]() { UtilsPostEngineInit(); });
-
-
 	COOK_STAT(UE::EditorDomain::CookStats::Register());
 }
 
-void UtilsPostEngineInit()
+void UtilsTargetDomainInit()
 {
-	FCoreDelegates::OnPostEngineInit.Remove(GUtilsPostInitDelegate);
-	GUtilsPostInitDelegate.Reset();
-
-	// Note that constructing AllowLists depends on all BlockLists having been parsed already
-	if (GTargetDomainClassUseAllowList && !GTargetDomainClassEmptyAllowList)
+	if (bGUtilsTargetDomainInitialized)
 	{
-		ConstructTargetIterativeClassAllowList();
+		return;
 	}
+	bGUtilsTargetDomainInitialized = true;
+	ConstructTargetIterativeClassAllowList();
 }
 
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FIoHash& EditorDomainHash)

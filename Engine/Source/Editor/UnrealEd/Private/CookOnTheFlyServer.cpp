@@ -6414,6 +6414,8 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 #if WITH_ADDITIONAL_CRASH_CONTEXTS
 	FGenericCrashContext::OnAdditionalCrashContextDelegate().AddUObject(this, &UCookOnTheFlyServer::DumpCrashContext);
 #endif
+
+	UE::EditorDomain::UtilsTargetDomainInit();
 }
 
 
@@ -7905,6 +7907,8 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 			FAssetRegistryGenerator::FComputeDifferenceOptions Options;
 			Options.bRecurseModifications = true;
 			Options.bRecurseScriptModifications = !IsCookFlagSet(ECookInitializationFlags::IgnoreScriptPackagesOutOfDate);
+			Options.bIterativeUseClassFilters = true;
+			GConfig->GetBool(TEXT("CookSettings"), TEXT("IterativeUseClassFilters"), Options.bIterativeUseClassFilters, GEditorIni);
 			FAssetRegistryGenerator::FAssetRegistryDifference Difference;
 			PlatformAssetRegistry.ComputePackageDifferences(Options, *PreviousAssetRegistry, Difference);
 			PreviousGeneratorPackages = MoveTemp(Difference.GeneratorPackages);
@@ -10089,6 +10093,7 @@ void FBeginCookConfigSettings::LoadLocal(FBeginCookContext& BeginContext)
 	bHybridIterativeEnabled &= !BeginContext.COTFS.IsCookingDLC();
 	// HybridIterative uses TargetDomain storage of dependencies which is only implemented in ZenStore
 	bHybridIterativeEnabled &= BeginContext.COTFS.IsUsingZenStore();
+	bHybridIterativeAllowAllClasses = BeginContext.COTFS.IsCookFlagSet(ECookInitializationFlags::Iterative);
 
 	FParse::Value(FCommandLine::Get(), TEXT("-CookShowInstigator="), CookShowInstigator);
 	LoadNeverCookLocal(BeginContext);
@@ -10112,6 +10117,7 @@ void FBeginCookConfigSettings::LoadLocal(FBeginCookContext& BeginContext)
 void UCookOnTheFlyServer::SetBeginCookConfigSettings(FBeginCookContext& BeginContext, UE::Cook::FBeginCookConfigSettings&& Settings)
 {
 	bHybridIterativeEnabled = Settings.bHybridIterativeEnabled;
+	bHybridIterativeAllowAllClasses = Settings.bHybridIterativeAllowAllClasses;
 	PackageDatas->SetBeginCookConfigSettings(Settings.CookShowInstigator);
 	SetNeverCookPackageConfigSettings(BeginContext, Settings);
 	if (!bFirstCookInThisProcessInitialized)

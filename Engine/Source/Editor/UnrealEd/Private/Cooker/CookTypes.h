@@ -344,6 +344,7 @@ namespace UE::Cook
 
 		FString CookShowInstigator;
 		bool bHybridIterativeEnabled = true;
+		bool bHybridIterativeAllowAllClasses = false;
 		TArray<FName> NeverCookPackageList;
 		TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
 

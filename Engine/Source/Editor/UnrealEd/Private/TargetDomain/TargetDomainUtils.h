@@ -62,7 +62,7 @@ void FetchCookAttachments(TArrayView<FName> PackageNames, const ITargetPlatform*
 bool IsCookAttachmentsValid(FName PackageName, const FCookAttachments& CookAttachments);
 
 /** Return whether iterative cook is enabled for the given packagename, based on used-class allowlist/blocklist. */
-bool IsIterativeEnabled(FName PackageName);
+bool IsIterativeEnabled(FName PackageName, bool bAllowAllClasses);
 
 
 /** Store extra information derived during save and used by the cooker for the given EditorDomain package. */

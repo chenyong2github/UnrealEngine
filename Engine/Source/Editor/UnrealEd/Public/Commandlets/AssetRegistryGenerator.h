@@ -73,6 +73,8 @@ public:
 		bool bRecurseModifications;
 		/** if true, modified script / c++ packages are recursed, if false only asset references are recursed */
 		bool bRecurseScriptModifications;
+		/** If true, use the AllowList and DenyList for classes on a package's used classes to decide whether the package is iterable. */
+		bool bIterativeUseClassFilters;
 	};
 
 	/** Info about a GeneratorPackage (see ICookPackageSplitter) loaded from previous iterative cooks. */
@@ -131,7 +133,8 @@ public:
 	 * @param PreviousAssetPackageDataMap previously cooked asset package data
 	 * @param OutDifference the differences between the current and the previous state
 	 */
-	void ComputePackageDifferences(const FComputeDifferenceOptions& Options, const FAssetRegistryState& PreviousState, FAssetRegistryDifference& OutDifference);
+	void ComputePackageDifferences(const FComputeDifferenceOptions& Options, const FAssetRegistryState& PreviousState, 
+		FAssetRegistryDifference& OutDifference);
 
 	/** Computes just the list of packages in the PreviousState that no longer exist in the current state. */
 	void ComputePackageRemovals(const FAssetRegistryState& PreviousState, TArray<FName>& OutRemovedPackages,
@@ -285,6 +288,9 @@ private:
 	void UpdateKeptPackages();
 
 	void SetOverridePackageDependencies(FName PackageName, TConstArrayView<FAssetDependency> OverridePackageDependencies);
+
+	bool ComputePackageDifferences_IsPackageFileUnchanged(const FComputeDifferenceOptions& Options, FName PackageName,
+		const FAssetPackageData& CurrentPackageData, const FAssetPackageData& PreviousPackageData);
 
 	/** State of the asset registry that is being built for this platform */
 	FAssetRegistryState State;

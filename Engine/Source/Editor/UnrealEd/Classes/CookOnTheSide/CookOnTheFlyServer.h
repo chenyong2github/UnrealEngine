@@ -1444,6 +1444,7 @@ private:
 	 * cooked in hybrid-iterative builds.
 	 */
 	bool bHybridIterativeEnabled = true;
+	bool bHybridIterativeAllowAllClasses = false;
 	bool bHiddenDependenciesDebug = false;
 	bool bOnlyEditorOnlyDebug = false;
 	bool bHiddenDependenciesClassPathFilterListIsAllowList = true;

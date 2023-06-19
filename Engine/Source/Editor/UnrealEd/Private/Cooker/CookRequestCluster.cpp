@@ -53,7 +53,6 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS)
 		bAllowSoftDependencies = false;
 	}
 
-	bHybridIterativeEnabled = COTFS.bHybridIterativeEnabled;
 	if (bErrorOnEngineContentUse)
 	{
 		DLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
@@ -546,7 +545,7 @@ FRequestCluster::FGraphSearch::FGraphSearch(FRequestCluster& InCluster)
 	, AsyncResultsReadyEvent(EEventMode::ManualReset)
 {
 	AsyncResultsReadyEvent->Trigger();
-	bCookAttachmentsEnabled = !Cluster.bFullBuild && Cluster.bHybridIterativeEnabled;
+	bCookAttachmentsEnabled = !Cluster.bFullBuild && Cluster.COTFS.bHybridIterativeEnabled;
 	LastActivityTime = FPlatformTime::Seconds();
 	VertexAllocator.SetMaxBlockSize(1024);
 	VertexAllocator.SetMaxBlockSize(65536);
@@ -1082,9 +1081,9 @@ void FRequestCluster::FGraphSearch::ExploreVertexEdges(FVertexData& Vertex)
 			if (IsCookAttachmentsValid(PackageName, PlatformAttachments))
 			{
 				ICookedPackageWriter* PackageWriter = FetchPlatformData.Writer;
-				if (!Cluster.bFullBuild && Cluster.bHybridIterativeEnabled)
+				if (!Cluster.bFullBuild && Cluster.COTFS.bHybridIterativeEnabled)
 				{
-					if (IsIterativeEnabled(PackageName))
+					if (IsIterativeEnabled(PackageName, Cluster.COTFS.bHybridIterativeAllowAllClasses))
 					{
 						if (PlatformIndex == FirstSessionPlatformIndex)
 						{
