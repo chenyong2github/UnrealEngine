@@ -47,11 +47,14 @@ public:
 	SLATECORE_API void SetOwner(const FChildren& Children);
 
 	/** Attach the child widget the slot now owns. */
+	FORCEINLINE_DEBUGGABLE void AttachWidget(TSharedRef<SWidget>&& InWidget)
+	{
+		DetatchParentFromContent();
+		Widget = MoveTemp(InWidget);
+		AfterContentOrOwnerAssigned();
+	}
 	FORCEINLINE_DEBUGGABLE void AttachWidget( const TSharedRef<SWidget>& InWidget )
 	{
-		// TODO: If we don't hold a reference here, ~SWidget() could called on the old widget before the assignment takes place
-		// The behavior of TShareRef is going to change in the near future to avoid this issue and this should then be reverted.
-		TSharedRef<SWidget> LocalWidget = Widget;
 		DetatchParentFromContent();
 		Widget = InWidget;
 		AfterContentOrOwnerAssigned();
@@ -130,6 +133,11 @@ class TSlotBase : public FSlotBase
 public:
 	using FSlotBase::FSlotBase;
 
+	SlotType& operator[](TSharedRef<SWidget>&& InChildWidget)
+	{
+		this->AttachWidget(MoveTemp(InChildWidget));
+		return static_cast<SlotType&>(*this);
+	}
 	SlotType& operator[]( const TSharedRef<SWidget>& InChildWidget )
 	{
 		this->AttachWidget(InChildWidget);
@@ -164,6 +172,11 @@ public:
 
 	public:
 		/** Attach the child widget the slot will own. */
+		typename SlotType::FSlotArguments& operator[](TSharedRef<SWidget>&& InChildWidget)
+		{
+			ChildWidget = MoveTemp(InChildWidget);
+			return Me();
+		}
 		typename SlotType::FSlotArguments& operator[](const TSharedRef<SWidget>& InChildWidget)
 		{
 			ChildWidget = InChildWidget;
