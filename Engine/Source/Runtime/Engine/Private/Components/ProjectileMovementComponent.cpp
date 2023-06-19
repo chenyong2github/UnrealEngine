@@ -25,6 +25,7 @@ UProjectileMovementComponent::UProjectileMovementComponent(const FObjectInitiali
 	bInterpMovement = false;
 	bInterpRotation = false;
 	bInterpolationComplete = true;
+	bInterpolationUseScopedMovement = true;
 	InterpLocationTime = 0.100f;
 	InterpRotationTime = 0.050f;
 	InterpLocationMaxLagDistance = 300.0f;
@@ -133,6 +134,11 @@ void UProjectileMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 {
 	QUICK_SCOPE_CYCLE_COUNTER( STAT_ProjectileMovementComponent_TickComponent );
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ProjectileMovement);
+
+	// Can avoid moving the interpolated object's children until the end of the entire simulation frame.
+	// This only makes sense if simulation is also enabled, which would move the UpdatedComponent and move the attached InterpolatedComponent (and children) again.
+	const bool bUseScopedInterpolatedMove = bInterpolationUseScopedMovement && bSimulationEnabled;
+	const FScopedMovementUpdate ScopedInterpolatedMove(GetInterpolatedComponent(), bUseScopedInterpolatedMove ? EScopedUpdate::DeferredUpdates : EScopedUpdate::ImmediateUpdates);
 
 	// Still need to finish interpolating after we've stopped simulating, so do that first.
 	if (!bInterpolationComplete)

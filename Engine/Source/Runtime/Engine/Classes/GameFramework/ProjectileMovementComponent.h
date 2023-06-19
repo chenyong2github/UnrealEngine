@@ -119,6 +119,14 @@ protected:
 	uint8 bInterpolationComplete:1;
 
 public:
+
+	/**
+	 * If true, uses FScopedMovementUpdate to avoid moving the attached interpolated object's children more than once during a tick when it would both interpolate and move during projectile simulation.
+	 * This also defers overlap updates for the interpolated object until after the simulation update completes.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category=ProjectileInterpolation)
+	uint8 bInterpolationUseScopedMovement:1;
+
 	/** Saved HitResult Time (0 to 1) from previous simulation step. Equal to 1.0 when there was no impact. */
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=ProjectileBounces)
 	float PreviousHitTime;
