@@ -25,8 +25,6 @@ public:
 	void SetDispatchType(mtlpp::DispatchType Type);
 	
     void Begin();
-	
-	void Wait(FMetalFence* Fence);
 
     void BeginRenderPass(mtlpp::RenderPassDescriptor RenderPass);
 
@@ -150,16 +148,12 @@ private:
     void ConditionalSwitchToRender(void);
     void ConditionalSwitchToCompute(void);
 	void ConditionalSwitchToBlit(void);
-	void ConditionalSwitchToAsyncBlit(void);
-	void ConditionalSwitchToAsyncCompute(void);
 	
     void PrepareToRender(uint32 PrimType);
     void PrepareToDispatch(void);
-	void PrepareToAsyncDispatch(void);
 
     void CommitRenderResourceTables(void);
     void CommitDispatchResourceTables(void);
-	void CommitAsyncDispatchResourceTables(void);
     
     void ConditionalSubmit();
 	
@@ -180,19 +174,13 @@ private:
     uint16 BoundSamplers[EMetalShaderStages::Num];
     
     FMetalCommandEncoder CurrentEncoder;
-    FMetalCommandEncoder PrologueEncoder;
 	
 	// To ensure that buffer uploads aren't overwritten before they are used track what is in flight
 	// Disjoint ranges *are* permitted!
 	TMap<id<MTLBuffer>, TArray<NSRange>> OutstandingBufferUploads;
 
 	// Fences for the current command encoder chain
-	TRefCountPtr<FMetalFence> PassStartFence;
 	TRefCountPtr<FMetalFence> CurrentEncoderFence;
-
-	// Fences for the prologue command encoder chain
-	TRefCountPtr<FMetalFence> PrologueStartEncoderFence;
-	TRefCountPtr<FMetalFence> PrologueEncoderFence;
     
     mtlpp::RenderPassDescriptor RenderPassDesc;
     

@@ -129,7 +129,7 @@ public:
 	
 	void SetRenderStoreActions(FMetalCommandEncoder& CommandEncoder, bool const bConditionalSwitch);
 	
-	void SetRenderState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder);
+	void SetRenderState(FMetalCommandEncoder& CommandEncoder);
 
 	void CommitRenderResources(FMetalCommandEncoder* Raster);
 
@@ -170,7 +170,7 @@ public:
 	FTexture2DRHIRef CreateFallbackDepthStencilSurface(uint32 Width, uint32 Height);
 	bool GetFallbackDepthStencilBound(void) const { return bFallbackDepthStencilBound; }
 	
-	void SetRenderPipelineState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder);
+	void SetRenderPipelineState(FMetalCommandEncoder& CommandEncoder);
     void SetComputePipelineState(FMetalCommandEncoder& CommandEncoder);
 	void FlushVisibilityResults(FMetalCommandEncoder& CommandEncoder);
 

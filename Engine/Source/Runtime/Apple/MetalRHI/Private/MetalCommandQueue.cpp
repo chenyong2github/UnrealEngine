@@ -325,13 +325,12 @@ FMetalFence* FMetalCommandQueue::CreateFence(ns::String const& Label) const
 	if ((Features & EMetalFeaturesFences) != 0)
 	{
 		FMetalFence* InternalFence = FMetalFencePool::Get().AllocateFence();
-		for (uint32 i = mtlpp::RenderStages::Vertex; InternalFence && i <= mtlpp::RenderStages::Fragment; i++)
 		{
-			mtlpp::Fence InnerFence = InternalFence->Get((mtlpp::RenderStages)i);
+			mtlpp::Fence InnerFence = InternalFence->Get();
 			NSString* String = nil;
 			if (GetEmitDrawEvents())
 			{
-				String = [NSString stringWithFormat:@"%u %p: %@", i, InnerFence.GetPtr(), Label.GetPtr()];
+				String = [NSString stringWithFormat:@"%p: %@", InnerFence.GetPtr(), Label.GetPtr()];
 			}
 	#if METAL_DEBUG_OPTIONS
 			if (RuntimeDebuggingLevel >= EMetalDebugLevelValidation)

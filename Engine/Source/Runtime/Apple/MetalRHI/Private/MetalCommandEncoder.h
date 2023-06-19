@@ -82,6 +82,84 @@ struct FMetalCommandDebug
 	FMetalCommandData Data;
 };
 
+namespace EMetalFenceWaitStage
+{
+	enum Type
+	{
+		None			= 0,
+		BeforeVertex	= 1 << 0, // Wait fence before VS/CS is executed
+		BeforeFragment	= 1 << 1, // Wait fence before PS is executed
+	};
+};
+
+// An emulator of MTLBarrierScope that is supported since IOS 16.0
+struct FMetalBarrierScope
+{
+	EMetalFenceWaitStage::Type BuffersWaitStage;
+	EMetalFenceWaitStage::Type RenderTargetsWaitStage;
+	EMetalFenceWaitStage::Type TexturesWaitStage;
+
+	FMetalBarrierScope()
+	{
+		Reset();
+	}
+
+	void Reset()
+	{
+		BuffersWaitStage = EMetalFenceWaitStage::None;
+		RenderTargetsWaitStage = EMetalFenceWaitStage::None;
+		TexturesWaitStage = EMetalFenceWaitStage::None;
+	}
+
+	EMetalFenceWaitStage::Type GetFenceWaitStage()
+	{
+		if (BuffersWaitStage == EMetalFenceWaitStage::BeforeVertex
+			|| TexturesWaitStage == EMetalFenceWaitStage::BeforeVertex)
+		{
+			return EMetalFenceWaitStage::BeforeVertex;
+		}
+		else
+		{
+			return EMetalFenceWaitStage::BeforeFragment;
+		}
+	}
+};
+
+struct FMetalCommandEncoderFence
+{
+	// Resources produced in the prologue pass
+	TSet<mtlpp::Resource::Type> FenceResources;
+	// Fence written by the prologue pass
+	TRefCountPtr<FMetalFence> Fence;
+	// The barrier state for the current pass
+	FMetalBarrierScope BarrierScope;
+
+	FMetalCommandEncoderFence() = default;
+
+	FMetalCommandEncoderFence(FMetalCommandEncoderFence&& In)
+	{
+		FenceResources = MoveTemp(In.FenceResources);
+		Fence = In.Fence;
+	}
+
+	FMetalCommandEncoderFence& operator=(FMetalCommandEncoderFence&& lhs)
+	{
+		if (this != &lhs)
+		{
+			FenceResources = MoveTemp(lhs.FenceResources);
+			Fence = lhs.Fence;
+		}
+		return *this;
+	}
+
+	void Reset()
+	{
+		FenceResources.Empty();
+		Fence = nullptr;
+		BarrierScope.Reset();
+	}
+};
+
 class FMetalCommandBufferMarkers : public ns::Object<FMetalCommandBufferDebug*, ns::CallingConvention::ObjectiveC>
 {
 public:
@@ -235,12 +313,6 @@ public:
 	
 	/** Prevent further GPU work until the event is reached. */
 	void WaitForFence(FMetalFence* Fence);
-	
-	/**
-	 * Prevent further GPU work until the event is reached and then kick the fence again so future encoders may wait on it.
-	 * Unlike the functions above this is not guarded and the caller must ensure proper matching waits & updates.
-	 */
-	void WaitAndUpdateFence(FMetalFence* Fence);
 
 #pragma mark - Public Debug Support -
 	
@@ -481,13 +553,6 @@ public:
 	FMetalSubBufferRing& GetRingBuffer(void);
 	
 #pragma mark - Public Resource query Access -
-
-	/*
-	 * Returns True if the Resource has been bound to a command encoder, otherwise false.  History will be cleared after a commit operation
-	 * @returns True if the Resource has been bound to a command encoder, otherwise false.
-	 */
-	bool HasTextureBindingHistory(FMetalTexture const& Texture) const;
-	bool HasBufferBindingHistory(FMetalBuffer const& Buffer) const;
 	
 private:
 #pragma mark - Private Functions -
@@ -502,8 +567,8 @@ private:
 	
 	void SetShaderBufferInternal(mtlpp::FunctionType Function, uint32 Index);
 	
-	void FenceResource(mtlpp::Texture const& Resource);
-	void FenceResource(mtlpp::Buffer const& Resource);
+	void FenceResource(mtlpp::Texture const& Resource, mtlpp::FunctionType Function, bool bIsRenderTarget = false);
+	void FenceResource(mtlpp::Buffer const& Resource, mtlpp::FunctionType Function);
 
 	void UseResource(mtlpp::Resource const& Resource, mtlpp::ResourceUsage const Usage);
 	
@@ -591,27 +656,16 @@ public:
 #if ENABLE_METAL_GPUPROFILE
 	FMetalCommandBufferStats* CommandBufferStats;
 #endif
-#if METAL_DEBUG_OPTIONS
-	uint8 WaitCount;
-	uint8 UpdateCount;
-#endif
 
 	TArray<ns::Object<mtlpp::CommandBufferHandler>> CompletionHandlers;
 	NSMutableArray* DebugGroups;
     
     TSet<ns::AutoReleased<FMetalBuffer>> ActiveBuffers;
-    
-	TSet<ns::AutoReleased<FMetalBuffer>> BufferBindingHistory;
-	TSet<ns::AutoReleased<FMetalTexture>> TextureBindingHistory;
 	
 	TMap<mtlpp::Resource::Type, mtlpp::ResourceUsage> ResourceUsage;
 	
 	TSet<mtlpp::Resource::Type> TransitionedResources;
-	TSet<mtlpp::Resource::Type> FenceResources;
-	
-	TSet<TRefCountPtr<FMetalFence>> FragmentFences;
-	
-	mtlpp::RenderStages FenceStage;
+	FMetalCommandEncoderFence CommandEncoderFence;
 	uint32 EncoderNum;
 	uint32 CmdBufIndex;
 	EMetalCommandEncoderType Type;

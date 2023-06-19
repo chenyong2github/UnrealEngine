@@ -1791,7 +1791,7 @@ void FMetalStateCache::FlushVisibilityResults(FMetalCommandEncoder& CommandEncod
 #endif
 }
 
-void FMetalStateCache::SetRenderState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder)
+void FMetalStateCache::SetRenderState(FMetalCommandEncoder& CommandEncoder)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MetalSetRenderStateTime);
 	
@@ -1878,7 +1878,7 @@ void FMetalStateCache::EnsureTextureAndType(EMetalShaderStages Stage, uint32 Ind
 #endif
 }
 
-void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncoder, FMetalCommandEncoder* PrologueEncoder)
+void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncoder)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MetalSetRenderPipelineStateTime);
 	
@@ -1889,11 +1889,6 @@ void FMetalStateCache::SetRenderPipelineState(FMetalCommandEncoder& CommandEncod
 
 		check(Pipeline);
         CommandEncoder.SetRenderPipelineState(Pipeline);
-        if (Pipeline->ComputePipelineState)
-        {
-            check(PrologueEncoder);
-            PrologueEncoder->SetComputePipelineState(Pipeline);
-        }
         
         PipelineBits &= EMetalPipelineFlagComputeMask;
     }

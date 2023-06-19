@@ -119,20 +119,6 @@ uint32 FMetalFence::Release() const
 	return Refs;
 }
 
-#if METAL_DEBUG_OPTIONS
-void FMetalFence::Validate(void) const
-{
-	if (GetMetalDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation && Get(mtlpp::RenderStages::Vertex))
-	{
-		[(FMetalDebugFence*)Get(mtlpp::RenderStages::Vertex).GetPtr() validate];
-		if (Get(mtlpp::RenderStages::Fragment))
-		{
-			[(FMetalDebugFence*)Get(mtlpp::RenderStages::Fragment).GetPtr() validate];
-		}
-	}
-}
-#endif
-
 void FMetalFencePool::Initialise(mtlpp::Device const& InDevice)
 {
 	Device = InDevice;
@@ -141,13 +127,10 @@ void FMetalFencePool::Initialise(mtlpp::Device const& InDevice)
 #if METAL_DEBUG_OPTIONS
 		if (GMetalRuntimeDebugLevel >= EMetalDebugLevelValidation)
 		{
-			FMetalDebugFence* VertexFence = [[FMetalDebugFence new] autorelease];
-			VertexFence.Inner = Device.NewFence();
-			FMetalDebugFence* FragmentFence = [[FMetalDebugFence new] autorelease];
-			FragmentFence.Inner = Device.NewFence();
+			FMetalDebugFence* DebugFence = [[FMetalDebugFence new] autorelease];
+			DebugFence.Inner = Device.NewFence();
 			FMetalFence* F = new FMetalFence;
-			F->Set(mtlpp::RenderStages::Vertex, VertexFence);
-			F->Set(mtlpp::RenderStages::Fragment, FragmentFence);
+			F->Set(DebugFence);
 			Fences.Add(F);
 			Lifo.Push(F);
 		}
@@ -155,8 +138,7 @@ void FMetalFencePool::Initialise(mtlpp::Device const& InDevice)
 #endif
 		{
 			FMetalFence* F = new FMetalFence;
-			F->Set(mtlpp::RenderStages::Vertex, Device.NewFence());
-			F->Set(mtlpp::RenderStages::Fragment, Device.NewFence());
+			F->Set(Device.NewFence());
 #if METAL_DEBUG_OPTIONS
 			if (GMetalRuntimeDebugLevel >= EMetalDebugLevelValidation)
 			{
@@ -192,21 +174,6 @@ FMetalFence* FMetalFencePool::AllocateFence()
 	return Fence;
 }
 
-void FMetalFence::ValidateUsage(FMetalFence* InFence)
-{
-	if (InFence)
-	{
-		if (InFence->NumWrites(mtlpp::RenderStages::Vertex) != InFence->NumWaits(mtlpp::RenderStages::Vertex))
-		{
-			UE_LOG(LogMetal, Warning, TEXT("%p (%s) writes %d waits %d"), InFence, *FString(InFence->Get(mtlpp::RenderStages::Vertex).GetLabel()), (uint32)InFence->NumWrites(mtlpp::RenderStages::Vertex), (uint32)InFence->NumWaits(mtlpp::RenderStages::Vertex));
-		}
-		if (InFence->NumWrites(mtlpp::RenderStages::Fragment) != InFence->NumWaits(mtlpp::RenderStages::Fragment))
-		{
-			UE_LOG(LogMetal, Warning, TEXT("%p (%s) writes %d waits %d"), InFence, *FString(InFence->Get(mtlpp::RenderStages::Fragment).GetLabel()), (uint32)InFence->NumWrites(mtlpp::RenderStages::Fragment), (uint32)InFence->NumWaits(mtlpp::RenderStages::Fragment));
-		}
-	}
-}
-
 void FMetalFencePool::ReleaseFence(FMetalFence* const InFence)
 {
 	if (InFence)
@@ -217,7 +184,6 @@ void FMetalFencePool::ReleaseFence(FMetalFence* const InFence)
 		if (GMetalRuntimeDebugLevel >= EMetalDebugLevelValidation)
 		{
 			FScopeLock Lock(&Mutex);
-			FMetalFence::ValidateUsage(InFence);
 			check(!Fences.Contains(InFence));
 			Fences.Add(InFence);
 		}

@@ -63,19 +63,11 @@
 
 class FMetalFence
 {
-	enum
-	{
-		NumFenceStages = 2
-	};
 public:
 	FMetalFence()
 	: NumRefs(0)
 	{
-		for (uint32 i = 0; i < NumFenceStages; i++)
-		{
-			Writes[i] = 0;
-			Waits[i] = 0;
-		}
+		Reset();
 	}
 	
 	explicit FMetalFence(FMetalFence const& Other)
@@ -103,73 +95,51 @@ public:
 	{
 		if (&Other != this)
 		{
-			for (uint32 i = 0; i < NumFenceStages; i++)
-			{
-				Fences[i] = Other.Fences[i];
-			}
+			Fence = Other.Fence;
 		}
 		return *this;
 	}
 	
-#if METAL_DEBUG_OPTIONS
-	void Validate(void) const;
-#endif
-	
 	void Reset(void)
 	{
-		for (uint32 i = 0; i < NumFenceStages; i++)
-		{
-			Writes[i] = 0;
-			Waits[i] = 0;
-		}
+		WriteNum = 0;
+		WaitNum = 0;
 	}
 	
-	void Write(mtlpp::RenderStages Stage)
+	void Write()
 	{
-		Writes[(uint32)Stage - 1u]++;
+		WriteNum++;
 	}
 	
-	void Wait(mtlpp::RenderStages Stage)
+	void Wait()
 	{
-		Waits[(uint32)Stage - 1u]++;
+		WaitNum++;
 	}
 	
-	int8 NumWrites(mtlpp::RenderStages Stage) const
+	int8 NumWrite() const
 	{
-		return Writes[(uint32)Stage - 1u];
+		return WriteNum;
 	}
 	
-	int8 NumWaits(mtlpp::RenderStages Stage) const
+	int8 NumWait() const
 	{
-		return Waits[(uint32)Stage - 1u];
+		return WaitNum;
 	}
 	
-	bool NeedsWrite(mtlpp::RenderStages Stage) const
+	mtlpp::Fence Get() const
 	{
-		return Writes[(uint32)Stage - 1u] == 0 || (Waits[(uint32)Stage - 1u] > Writes[(uint32)Stage - 1u]);
+		return Fence;
 	}
 	
-	bool NeedsWait(mtlpp::RenderStages Stage) const
+	void Set(mtlpp::Fence InFence)
 	{
-		return Waits[(uint32)Stage - 1u] == 0 || (Writes[(uint32)Stage - 1u] > Waits[(uint32)Stage - 1u]);
+		Fence = InFence;
 	}
-	
-	mtlpp::Fence Get(mtlpp::RenderStages Stage) const
-	{
-		return Fences[(uint32)Stage - 1u];
-	}
-	
-	void Set(mtlpp::RenderStages Stage, mtlpp::Fence Fence)
-	{
-		Fences[(uint32)Stage - 1u] = Fence;
-	}
-	
-	static void ValidateUsage(FMetalFence* Fence);
 	
 private:
-	mtlpp::Fence Fences[NumFenceStages];
-	int8 Writes[NumFenceStages];
-	int8 Waits[NumFenceStages];
+	mtlpp::Fence Fence;
+	int8 WriteNum;
+	int8 WaitNum;
 	mutable int32 NumRefs;	
 };
 
