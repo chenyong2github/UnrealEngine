@@ -1318,32 +1318,45 @@ bool UsdToUnreal::ConvertPointInstancerToMesh(
 		return false;
 	}
 
-	FScopedUsdAllocs Allocs;
-
-	pxr::UsdStageRefPtr Stage = PointInstancer.GetPrim().GetStage();
-	if ( !Stage )
-	{
-		return false;
-	}
-
 	// Bake each prototype to a single mesh description and material assignment struct
 	TArray<FMeshDescription> PrototypeMeshDescriptions;
 	TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo> PrototypeMaterialAssignments;
 	TArray<TMap<FPolygonGroupID, FPolygonGroupID>> PrototypePolygonGroupRemapping;
 	uint32 NumPrototypes = 0;
+	UE::FUsdStage Stage;
 	{
-		const pxr::UsdRelationship& Prototypes = PointInstancer.GetPrototypesRel();
-
-		pxr::SdfPathVector PrototypePaths;
-		if ( !Prototypes.GetTargets( &PrototypePaths ) )
+		TArray<UE::FSdfPath> PrototypePaths;
 		{
-			return false;
-		}
+			Stage = UE::FUsdStage{PointInstancer.GetPrim().GetStage()};
+			if (!Stage)
+			{
+				return false;
+			}
 
-		NumPrototypes = PrototypePaths.size();
-		if ( NumPrototypes == 0 )
-		{
-			return true;
+			TOptional<FScopedUsdAllocs> Allocs;
+			Allocs.Emplace();
+
+			const pxr::UsdRelationship& Prototypes = PointInstancer.GetPrototypesRel();
+
+			pxr::SdfPathVector UsdPrototypePaths;
+			if ( !Prototypes.GetTargets( &UsdPrototypePaths ) )
+			{
+				return false;
+			}
+
+			NumPrototypes = UsdPrototypePaths.size();
+			if (NumPrototypes == 0)
+			{
+				return true;
+			}
+
+			Allocs.Reset();
+			PrototypePaths.Reserve(NumPrototypes);
+			for(const pxr::SdfPath& UsdPath : UsdPrototypePaths)
+			{
+				PrototypePaths.Add(UE::FSdfPath{UsdPath});
+			}
+			Allocs.Emplace();
 		}
 
 		PrototypeMeshDescriptions.SetNum( NumPrototypes );
@@ -1357,9 +1370,9 @@ bool UsdToUnreal::ConvertPointInstancerToMesh(
 
 		for ( uint32 PrototypeIndex = 0; PrototypeIndex < NumPrototypes; ++PrototypeIndex )
 		{
-			const pxr::SdfPath& PrototypePath = PrototypePaths[ PrototypeIndex ];
+			const UE::FSdfPath& PrototypePath = PrototypePaths[ PrototypeIndex ];
 
-			pxr::UsdPrim PrototypeUsdPrim = Stage->GetPrimAtPath( PrototypePath );
+			UE::FUsdPrim PrototypeUsdPrim = Stage.GetPrimAtPath( PrototypePath );
 			if ( !PrototypeUsdPrim )
 			{
 				UE_LOG( LogUsd, Warning, TEXT( "Failed to find prototype '%s' for PointInstancer '%s' within ConvertPointInstancerToMesh" ),
@@ -1442,7 +1455,6 @@ bool UsdToUnreal::ConvertPointInstancerToMesh(
 	for ( uint32 PrototypeIndex = 0; PrototypeIndex < NumPrototypes; ++PrototypeIndex )
 	{
 		const FMeshDescription& PrototypeMeshDescription = PrototypeMeshDescriptions[ PrototypeIndex ];
-		UsdUtils::FUsdPrimMaterialAssignmentInfo& PrototypeMaterialAssignment = PrototypeMaterialAssignments[ PrototypeIndex ];
 
 		// We may generate some empty meshes in case a prototype is invisible, for example
 		if ( PrototypeMeshDescription.IsEmpty() )
@@ -2497,49 +2509,50 @@ int32 UsdUtils::GetNumberOfLODVariants( const pxr::UsdPrim& Prim )
 
 bool UsdUtils::IterateLODMeshes( const pxr::UsdPrim& ParentPrim, TFunction<bool( const pxr::UsdGeomMesh & LODMesh, int32 LODIndex )> Func )
 {
-	if ( !ParentPrim )
+	if (!ParentPrim)
 	{
 		return false;
 	}
 
-	FScopedUsdAllocs Allocs;
+	TOptional<FScopedUsdAllocs> Allocs;
+	Allocs.Emplace();
 
 	const std::string LODString = UnrealIdentifiers::LOD.GetString();
 
 	pxr::UsdVariantSets VariantSets = ParentPrim.GetVariantSets();
-	if ( !VariantSets.HasVariantSet( LODString ) )
+	if (!VariantSets.HasVariantSet(LODString))
 	{
 		return false;
 	}
 
-	pxr::UsdVariantSet LODVariantSet = VariantSets.GetVariantSet( LODString );
+	pxr::UsdVariantSet LODVariantSet = VariantSets.GetVariantSet(LODString);
 	const std::string OriginalVariant = LODVariantSet.GetVariantSelection();
 
 	pxr::UsdStageRefPtr Stage = ParentPrim.GetStage();
-	pxr::UsdEditContext( Stage, Stage->GetRootLayer() );
+	pxr::UsdEditContext(Stage, Stage->GetRootLayer());
 
 	bool bHasValidVariant = false;
-	for ( const std::string& LODVariantName : VariantSets.GetVariantSet( LODString ).GetVariantNames() )
+	for (const std::string& LODVariantName : VariantSets.GetVariantSet(LODString).GetVariantNames())
 	{
-		int32 LODIndex = UsdGeomMeshImpl::GetLODIndexFromName( LODVariantName );
-		if ( LODIndex == INDEX_NONE )
+		int32 LODIndex = UsdGeomMeshImpl::GetLODIndexFromName(LODVariantName);
+		if (LODIndex == INDEX_NONE)
 		{
 			continue;
 		}
 
-		LODVariantSet.SetVariantSelection( LODVariantName );
+		LODVariantSet.SetVariantSelection(LODVariantName);
 
 		pxr::UsdGeomMesh LODMesh;
-		pxr::TfToken TargetChildNameToken{ LODVariantName };
+		pxr::TfToken TargetChildNameToken{LODVariantName};
 
 		// Search for our LOD child mesh
 		pxr::UsdPrimSiblingRange PrimRange = ParentPrim.GetChildren();
-		for ( pxr::UsdPrimSiblingRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt )
+		for (pxr::UsdPrimSiblingRange::iterator PrimRangeIt = PrimRange.begin(); PrimRangeIt != PrimRange.end(); ++PrimRangeIt)
 		{
 			const pxr::UsdPrim& Child = *PrimRangeIt;
-			if ( pxr::UsdGeomMesh ChildMesh{ Child } )
+			if (pxr::UsdGeomMesh ChildMesh{Child})
 			{
-				if ( Child.GetName() == TargetChildNameToken )
+				if (Child.GetName() == TargetChildNameToken)
 				{
 					LODMesh = ChildMesh;
 					// Don't break here so we can show warnings if the user has other prims here (that we may end up ignoring)
@@ -2547,28 +2560,35 @@ bool UsdUtils::IterateLODMeshes( const pxr::UsdPrim& ParentPrim, TFunction<bool(
 				}
 				else
 				{
-					UE_LOG(LogUsd, Warning, TEXT("Unexpected prim '%s' inside LOD variant '%s'. For automatic parsing of LODs, each LOD variant should contain only a single Mesh prim named the same as the variant!"),
-						*UsdToUnreal::ConvertPath( Child.GetPath() ),
-						*UsdToUnreal::ConvertString( LODVariantName )
+					UE_LOG(
+						LogUsd,
+						Warning,
+						TEXT("Unexpected prim '%s' inside LOD variant '%s'. For automatic parsing of LODs, each LOD variant should contain only a "
+							 "single Mesh prim named the same as the variant!"),
+						*UsdToUnreal::ConvertPath(Child.GetPath()),
+						*UsdToUnreal::ConvertString(LODVariantName)
 					);
 				}
 			}
 		}
-		if ( !LODMesh )
+		if (!LODMesh)
 		{
 			continue;
 		}
 
 		bHasValidVariant = true;
 
+		// Reset our forced allocator as we don't know what Func expects
+		Allocs.Reset();
 		bool bContinue = Func(LODMesh, LODIndex);
-		if ( !bContinue )
+		Allocs.Emplace();
+		if (!bContinue)
 		{
 			break;
 		}
 	}
 
-	LODVariantSet.SetVariantSelection( OriginalVariant );
+	LODVariantSet.SetVariantSelection(OriginalVariant);
 	return bHasValidVariant;
 }
 

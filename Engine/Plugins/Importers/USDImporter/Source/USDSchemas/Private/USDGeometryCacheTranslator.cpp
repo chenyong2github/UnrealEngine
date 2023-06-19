@@ -107,8 +107,6 @@ namespace UsdGeometryCacheTranslatorImpl
 			return;
 		}
 
-		FScopedUsdAllocs Allocs;
-
 		FMeshDescription TempMeshDescription;
 		UsdUtils::FUsdPrimMaterialAssignmentInfo TempMaterialInfo;
 

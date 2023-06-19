@@ -288,25 +288,18 @@ namespace UsdGeomMeshTranslatorImpl
 	// We use a separate function for this because there is a very specific set of conditions where we successfully can do this, and we
 	// want to fall back to just parsing UsdMesh as a simple single-LOD mesh if we fail.
 	bool TryLoadingMultipleLODs(
-		const pxr::UsdTyped& UsdMesh,
+		const UE::FUsdPrim& MeshPrim,
 		TArray<FMeshDescription>& OutLODIndexToMeshDescription,
 		TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo,
 		const UsdToUnreal::FUsdMeshConversionOptions& Options
 	)
 	{
-		FScopedUsdAllocs Allocs;
-
-		pxr::UsdPrim UsdMeshPrim = UsdMesh.GetPrim();
-		if (!UsdMeshPrim)
+		if(!MeshPrim)
 		{
 			return false;
 		}
 
-		pxr::UsdPrim ParentPrim = UsdMeshPrim.GetParent();
-		if (!ParentPrim)
-		{
-			return false;
-		}
+		UE::FUsdPrim ParentPrim = MeshPrim.GetParent();
 
 		TMap<int32, FMeshDescription> LODIndexToMeshDescriptionMap;
 		TMap<int32, UsdUtils::FUsdPrimMaterialAssignmentInfo> LODIndexToMaterialInfoMap;
@@ -319,7 +312,7 @@ namespace UsdGeomMeshTranslatorImpl
 		// Here we are choosing to preemptively traverse all LODs to fetch the combined primvars that we'll use for
 		// each UV index for the static mesh as a whole
 		TFunction<bool(const pxr::UsdGeomMesh&, int32)> CombinePrimvars =
-			[&AllPrimvars, &PreferredPrimvars, &LODIndexToMaterialInfoMap]
+			[&AllPrimvars, &PreferredPrimvars]
 			(const pxr::UsdGeomMesh& LODMesh, int32 LODIndex)
 			{
 				TArray<TUsdStore<pxr::UsdGeomPrimvar>> MeshPrimvars = UsdUtils::GetUVSetPrimvars(
@@ -366,32 +359,36 @@ namespace UsdGeomMeshTranslatorImpl
 
 			bool bSuccess = true;
 
-			// The user can't manually hide/unhide a particular LOD in the engine after it is imported, so we should probably bake
-			// the particular LOD visibility into the combined mesh. Note how we don't use computed visibility here, as we only really
-			// care if this mesh in particular has been marked as invisible
-			pxr::TfToken Visibility;
-			pxr::UsdAttribute VisibilityAttr = LODMesh.GetVisibilityAttr();
-			if (VisibilityAttr && VisibilityAttr.Get(&Visibility, Options.TimeCode) && Visibility == pxr::UsdGeomTokens->inherited)
 			{
-				// If we're interpreting LODs we must bake the transform from each LOD Mesh into the vertices, because there's no guarantee
-				// all LODs have the same transform, so we can't just put the transforms directly on the component. If we are not interpreting
-				// LODs we can do that though
-				// TODO: Handle resetXformOp here
-				bool bResetXformStack = false;
-				FTransform MeshTransform = FTransform::Identity;
-				bSuccess &= UsdToUnreal::ConvertXformable(LODMesh.GetPrim().GetStage(), LODMesh, MeshTransform, Options.TimeCode.GetValue(), &bResetXformStack);
-
-				if (bSuccess)
+				FScopedUsdAllocs Allocs;
+				// The user can't manually hide/unhide a particular LOD in the engine after it is imported, so we should probably bake
+				// the particular LOD visibility into the combined mesh. Note how we don't use computed visibility here, as we only really
+				// care if this mesh in particular has been marked as invisible
+				pxr::TfToken Visibility;
+				pxr::UsdAttribute VisibilityAttr = LODMesh.GetVisibilityAttr();
+				if (VisibilityAttr && VisibilityAttr.Get(&Visibility, Options.TimeCode) && Visibility == pxr::UsdGeomTokens->inherited)
 				{
-					OptionsCopy.AdditionalTransform = MeshTransform * Options.AdditionalTransform;
-					OptionsCopy.bMergeIdenticalMaterialSlots = false;  // We only merge slots when collapsing, and we never collapse LODs
-
-					bSuccess &= UsdToUnreal::ConvertGeomMesh(
+					// If we're interpreting LODs we must bake the transform from each LOD Mesh into the vertices, because there's no guarantee
+					// all LODs have the same transform, so we can't just put the transforms directly on the component. If we are not interpreting
+					// LODs we can do that though
+					// TODO: Handle resetXformOp here
+					bool bResetXformStack = false;
+					FTransform MeshTransform = FTransform::Identity;
+					bSuccess &= UsdToUnreal::ConvertXformable(
+						LODMesh.GetPrim().GetStage(),
 						LODMesh,
-						TempMeshDescription,
-						TempMaterialInfo,
-						OptionsCopy
+						MeshTransform,
+						Options.TimeCode.GetValue(),
+						&bResetXformStack
 					);
+
+					if (bSuccess)
+					{
+						OptionsCopy.AdditionalTransform = MeshTransform * Options.AdditionalTransform;
+						OptionsCopy.bMergeIdenticalMaterialSlots = false;	 // We only merge slots when collapsing, and we never collapse LODs
+
+						bSuccess &= UsdToUnreal::ConvertGeomMesh(LODMesh, TempMeshDescription, TempMaterialInfo, OptionsCopy);
+					}
 				}
 			}
 
@@ -423,32 +420,29 @@ namespace UsdGeomMeshTranslatorImpl
 	}
 
 	void LoadMeshDescriptions(
-		pxr::UsdTyped UsdMesh,
+		UE::FUsdPrim MeshPrim,
 		TArray<FMeshDescription>& OutLODIndexToMeshDescription,
 		TArray<UsdUtils::FUsdPrimMaterialAssignmentInfo>& OutLODIndexToMaterialInfo,
 		const UsdToUnreal::FUsdMeshConversionOptions& Options,
 		bool bInterpretLODs = false
 	)
 	{
-		if (!UsdMesh)
+		if (!MeshPrim)
 		{
 			return;
 		}
 
-		FScopedUsdAllocs Allocs;
-
-		pxr::UsdPrim Prim = UsdMesh.GetPrim();
-		pxr::UsdStageRefPtr Stage = Prim.GetStage();
-		pxr::SdfPath Path = Prim.GetPrimPath();
+		UE::FUsdStage Stage = MeshPrim.GetStage();
+		UE::FSdfPath Path = MeshPrim.GetPrimPath();
 
 		bool bInterpretedLODs = false;
 		if (bInterpretLODs)
 		{
-			bInterpretedLODs = TryLoadingMultipleLODs(UsdMesh, OutLODIndexToMeshDescription, OutLODIndexToMaterialInfo, Options);
+			bInterpretedLODs = TryLoadingMultipleLODs(MeshPrim, OutLODIndexToMeshDescription, OutLODIndexToMaterialInfo, Options);
 
 			// Have to be very careful here as flipping through LODs invalidates prim references, so we need to
 			// re-acquire them
-			UsdMesh = pxr::UsdGeomMesh{Stage->GetPrimAtPath(Path)};
+			MeshPrim = Stage.GetPrimAtPath(Path);
 		}
 
 		// If we've managed to interpret LODs, we won't place our mesh transform on the static mesh component itself
@@ -460,7 +454,7 @@ namespace UsdGeomMeshTranslatorImpl
 		{
 			// TODO: Handle resetXformOp here
 			bool bResetXformStack = false;
-			bSuccess &= UsdToUnreal::ConvertXformable(Stage, UsdMesh, MeshTransform, Options.TimeCode.GetValue(), &bResetXformStack);
+			bSuccess &= UsdToUnreal::ConvertXformable(Stage, UE::FUsdTyped{MeshPrim}, MeshTransform, Options.TimeCode.GetValue(), &bResetXformStack);
 		}
 
 		if (!bInterpretedLODs)
@@ -477,8 +471,11 @@ namespace UsdGeomMeshTranslatorImpl
 				OptionsCopy.AdditionalTransform = MeshTransform * Options.AdditionalTransform;
 				OptionsCopy.bMergeIdenticalMaterialSlots = false;  // We only merge for collapsed meshes
 
+				FScopedUsdAllocs Allocs;
+				pxr::UsdGeomMesh UsdMesh{MeshPrim};
+
 				bSuccess &= UsdToUnreal::ConvertGeomMesh(
-					pxr::UsdGeomMesh{UsdMesh},
+					UsdMesh,
 					TempMeshDescription,
 					TempMaterialInfo,
 					OptionsCopy
@@ -966,7 +963,7 @@ void FGeomMeshCreateAssetsTaskChain::SetupTasks()
 			Options.AdditionalTransform = AdditionalTransform;
 
 			UsdGeomMeshTranslatorImpl::LoadMeshDescriptions(
-				pxr::UsdTyped(GetPrim()),
+				GetPrim(),
 				LODIndexToMeshDescription,
 				LODIndexToMaterialInfo,
 				Options,
