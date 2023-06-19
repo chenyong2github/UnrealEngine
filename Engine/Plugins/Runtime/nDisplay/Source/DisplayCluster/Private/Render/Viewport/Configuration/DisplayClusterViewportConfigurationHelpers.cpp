@@ -223,10 +223,10 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 			if (MediaSettings.bEnable)
 			{
 				// Don't render the viewport if media input assigned
-				DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = !!MediaSettings.MediaSource;
+				DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.IsMediaInputAssigned();
 
 				// Mark this viewport is going to be captured by a capture device
-				DstViewport.RenderSettings.bIsBeingCaptured = !!MediaSettings.MediaOutput;
+				DstViewport.RenderSettings.bIsBeingCaptured = MediaSettings.IsMediaOutputAssigned();
 			}
 		}
 	}

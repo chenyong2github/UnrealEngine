@@ -211,17 +211,27 @@ void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::
 				// Backbuffer capture
 				{
 					const FDisplayClusterConfigurationMedia& MediaSettings = NodeIt.Value->Media;
-					if (MediaSettings.bEnable && MediaSettings.MediaOutput && MediaSettings.OutputSyncPolicy)
-					{
-						// Pick the same sync policy only
-						if (MediaSettings.OutputSyncPolicy->GetClass() == GetPolicyClass())
-						{
-							const FString BackbufferCaptureId = DisplayClusterMediaHelpers::MediaId::GenerateMediaId(
-								DisplayClusterMediaHelpers::MediaId::EMediaDeviceType::Output,
-								DisplayClusterMediaHelpers::MediaId::EMediaOwnerType::Backbuffer,
-								NodeIt.Key, RootActor->GetName(), FString());
 
-							OutMarkers.Add(BackbufferCaptureId);
+					if (MediaSettings.bEnable)
+					{
+						uint8 CaptureIdx = 0;
+						for (const FDisplayClusterConfigurationMediaOutput& MediaOutputItem : MediaSettings.MediaOutputs)
+						{
+							if (IsValid(MediaOutputItem.MediaOutput) && IsValid(MediaOutputItem.OutputSyncPolicy))
+							{
+								// Pick the same sync policy only
+								if (MediaOutputItem.OutputSyncPolicy->GetClass() == GetPolicyClass())
+								{
+									const FString BackbufferCaptureId = DisplayClusterMediaHelpers::MediaId::GenerateMediaId(
+										DisplayClusterMediaHelpers::MediaId::EMediaDeviceType::Output,
+										DisplayClusterMediaHelpers::MediaId::EMediaOwnerType::Backbuffer,
+										NodeIt.Key, RootActor->GetName(), FString(), CaptureIdx);
+
+									OutMarkers.Add(BackbufferCaptureId);
+								}
+							}
+
+							++CaptureIdx;
 						}
 					}
 				}
@@ -233,17 +243,27 @@ void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::
 					for (const TPair<FString, TObjectPtr<UDisplayClusterConfigurationViewport>>& ViewportIt : NodeIt.Value->Viewports)
 					{
 						const FDisplayClusterConfigurationMedia& MediaSettings = ViewportIt.Value->RenderSettings.Media;
-						if (MediaSettings.bEnable && MediaSettings.MediaOutput && MediaSettings.OutputSyncPolicy)
-						{
-							// Pick the same sync policy only
-							if (MediaSettings.OutputSyncPolicy->GetClass() == GetPolicyClass())
-							{
-								const FString ViewportCaptureId = DisplayClusterMediaHelpers::MediaId::GenerateMediaId(
-									DisplayClusterMediaHelpers::MediaId::EMediaDeviceType::Output,
-									DisplayClusterMediaHelpers::MediaId::EMediaOwnerType::Viewport,
-									NodeIt.Key, RootActor->GetName(), ViewportIt.Key);
 
-								OutMarkers.Add(ViewportCaptureId);
+						if (MediaSettings.bEnable)
+						{
+							uint8 CaptureIdx = 0;
+							for (const FDisplayClusterConfigurationMediaOutput& MediaOutputItem : MediaSettings.MediaOutputs)
+							{
+								if (IsValid(MediaOutputItem.MediaOutput) && IsValid(MediaOutputItem.OutputSyncPolicy))
+								{
+									// Pick the same sync policy only
+									if (MediaOutputItem.OutputSyncPolicy->GetClass() == GetPolicyClass())
+									{
+										const FString ViewportCaptureId = DisplayClusterMediaHelpers::MediaId::GenerateMediaId(
+											DisplayClusterMediaHelpers::MediaId::EMediaDeviceType::Output,
+											DisplayClusterMediaHelpers::MediaId::EMediaOwnerType::Viewport,
+											NodeIt.Key, RootActor->GetName(), ViewportIt.Key, CaptureIdx);
+
+										OutMarkers.Add(ViewportCaptureId);
+									}
+								}
+
+								++CaptureIdx;
 							}
 						}
 					}
@@ -262,9 +282,11 @@ void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::
 			for (UDisplayClusterICVFXCameraComponent* const ICVFXCameraComponent : ICVFXCameraComponents)
 			{
 				const FDisplayClusterConfigurationMediaICVFX& MediaSettings = ICVFXCameraComponent->CameraSettings.RenderSettings.Media;
+
 				if (MediaSettings.bEnable)
 				{
-					for (const FDisplayClusterConfigurationMediaOutputGroup& MediaOutputGroup : MediaSettings.MediaOutputGroups)
+					uint8 CaptureIdx = 0;
+					for (const FDisplayClusterConfigurationMediaOutputGroupICVFX& MediaOutputGroup : MediaSettings.MediaOutputGroups)
 					{
 						// Pick the same sync policy only
 						if (MediaOutputGroup.MediaOutput && MediaOutputGroup.OutputSyncPolicy)
@@ -276,12 +298,14 @@ void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::
 									const FString ICVFXCaptureId = DisplayClusterMediaHelpers::MediaId::GenerateMediaId(
 										DisplayClusterMediaHelpers::MediaId::EMediaDeviceType::Output,
 										DisplayClusterMediaHelpers::MediaId::EMediaOwnerType::ICVFXCamera,
-										NodeId, RootActor->GetName(), ICVFXCameraComponent->GetName());
+										NodeId, RootActor->GetName(), ICVFXCameraComponent->GetName(), CaptureIdx);
 
 									OutMarkers.Add(ICVFXCaptureId);
 								}
 							}
 						}
+
+						++CaptureIdx;
 					}
 				}
 			}

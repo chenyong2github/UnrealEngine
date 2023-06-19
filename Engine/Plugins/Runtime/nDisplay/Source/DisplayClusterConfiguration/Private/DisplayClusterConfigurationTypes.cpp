@@ -165,8 +165,8 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 }
 
 
-const float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;
-const float UDisplayClusterConfigurationViewport::ViewportMaximumSize = 15360.0f;
+constexpr float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;
+constexpr float UDisplayClusterConfigurationViewport::ViewportMaximumSize = 15360.0f;
 
 UDisplayClusterConfigurationViewport::UDisplayClusterConfigurationViewport()
 {
@@ -174,6 +174,24 @@ UDisplayClusterConfigurationViewport::UDisplayClusterConfigurationViewport()
 	bIsVisible = true;
 	bIsUnlocked = true;
 #endif
+}
+
+void UDisplayClusterConfigurationViewport::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (IsValid(RenderSettings.Media.MediaOutput_DEPRECATED))
+		{
+			RenderSettings.Media.MediaOutputs.Add(
+				{ RenderSettings.Media.MediaOutput_DEPRECATED , RenderSettings.Media.OutputSyncPolicy_DEPRECATED });
+
+			RenderSettings.Media.MediaOutput_DEPRECATED = nullptr;
+			RenderSettings.Media.OutputSyncPolicy_DEPRECATED = nullptr;
+		}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -250,6 +268,24 @@ void UDisplayClusterConfigurationViewport::OnPreCompile(FCompilerResultsLog& Mes
 		// be hit when compiling after this viewport was deleted and then the deletion undone.
 		EnablePreviewTexture();
 	}
+}
+
+void UDisplayClusterConfigurationClusterNode::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (IsValid(Media.MediaOutput_DEPRECATED))
+		{
+			Media.MediaOutputs.Add(
+				{ Media.MediaOutput_DEPRECATED , Media.OutputSyncPolicy_DEPRECATED });
+
+			Media.MediaOutput_DEPRECATED = nullptr;
+			Media.OutputSyncPolicy_DEPRECATED = nullptr;
+		}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITOR
 }
 
 void UDisplayClusterConfigurationClusterNode::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)

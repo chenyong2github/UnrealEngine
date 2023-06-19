@@ -306,12 +306,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "NDisplay|Configuration")
 	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 	
-private:
+	//~ Begin UObject interface
+public:
+	virtual void PostLoad() override;
+
 #if WITH_EDITOR
-	// UObject interface
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	// End of UObject interface
 #endif
+	//~ End UObject interface
 
 public:
 	/** IP address of this specific cluster Node */

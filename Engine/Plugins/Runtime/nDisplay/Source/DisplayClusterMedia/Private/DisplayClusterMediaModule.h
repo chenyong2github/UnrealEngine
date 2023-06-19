@@ -51,7 +51,7 @@ private:
 
 private:
 	TMap<FString, TSharedPtr<FDisplayClusterMediaCaptureViewport>> CaptureViewports;
-	TSharedPtr<FDisplayClusterMediaCaptureNode>                    CaptureNode;
+	TMap<FString, TSharedPtr<FDisplayClusterMediaCaptureNode>>     CaptureNode;
 
 	TMap<FString, TSharedPtr<FDisplayClusterMediaInputViewport>>   InputViewports;
 	TSharedPtr<FDisplayClusterMediaInputNode>                      InputNode;

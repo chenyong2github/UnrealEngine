@@ -163,14 +163,19 @@ public:
 	UDisplayClusterConfigurationViewport();
 
 public:
+	//~ Begin UObject interface
+	void PostLoad() override;
+
+#if WITH_EDITOR
+	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif
+	//~ End UObject interfacef
+
+public:
 	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 
 #if WITH_EDITOR
-	// UObject interface
-	virtual void PreEditChange(FEditPropertyChain& PropertyAboutToChange) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-	// End of UObject interface
-
 	/** Enable the preview texture. Only should be called by the object managing the preview texture state. */
 	void EnablePreviewTexture();
 	

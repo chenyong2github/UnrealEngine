@@ -15,6 +15,40 @@
 #include "DisplayClusterConfigurationTypes_Media.generated.h"
 
 
+/*
+ * Media input item
+ */
+USTRUCT(Blueprintable)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaInput
+{
+	GENERATED_BODY()
+
+public:
+	/** Media source to use */
+	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Media")
+	TObjectPtr<UMediaSource> MediaSource;
+};
+
+
+/*
+ * Media output item
+ */
+USTRUCT(Blueprintable)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaOutput
+{
+	GENERATED_BODY()
+
+public:
+	/** Media output to use */
+	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Media")
+	TObjectPtr<UMediaOutput> MediaOutput;
+
+	/** Media output synchronization policy */
+	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (DisplayName = "Capture Synchronization"))
+	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> OutputSyncPolicy;
+};
+
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /*
@@ -31,22 +65,36 @@ public:
 	bool bEnable = false;
 
 	/** Media source to use */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Media")
-	TObjectPtr<UMediaSource> MediaSource;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
+	FDisplayClusterConfigurationMediaInput MediaInput;
 
-	/** Media output to use */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Output")
-	TObjectPtr<UMediaOutput> MediaOutput;
+	/** Media outputs to use */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
+	TArray<FDisplayClusterConfigurationMediaOutput> MediaOutputs;
 
-	/** Media output synchronization policy */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayName = "Capture Synchronization"))
-	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> OutputSyncPolicy;
+public:
+	/** Returns true if a media source assigned */
+	bool IsMediaInputAssigned() const;
+
+	/** Returns true if at least one media output assigned */
+	bool IsMediaOutputAssigned() const;
 
 protected:
 #if WITH_EDITORONLY_DATA
-	UE_DEPRECATED(5.2, "This property has been deprecated")
-	UPROPERTY()
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated"))
 	FString MediaSharingNode_DEPRECATED;
+
+public:
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated. Please refer new MediaInput property."))
+	TObjectPtr<UMediaSource> MediaSource_DEPRECATED;
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated. Please refer new MediaOutputs property."))
+	TObjectPtr<UMediaOutput> MediaOutput_DEPRECATED;
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property has been deprecated. Please refer new MediaOutputs property."))
+	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> OutputSyncPolicy_DEPRECATED;
+
 #endif // WITH_EDITORONLY_DATA
 };
 
@@ -54,10 +102,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 /*
- * Input media group
+ * Media input group (ICVFX)
  */
 USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaInputGroup
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaInputGroupICVFX
+	: public FDisplayClusterConfigurationMediaInput
 {
 	GENERATED_BODY()
 
@@ -65,18 +114,15 @@ public:
 	/** Cluster nodes that use media source below */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Media, meta = (ClusterItemType = ClusterNodes))
 	FDisplayClusterConfigurationClusterItemReferenceList ClusterNodes;
-
-	/** Media source to use */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Media")
-	TObjectPtr<UMediaSource> MediaSource;
 };
 
 
 /*
- * Output media group
+ * Media output group (ICVFX)
  */
 USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaOutputGroup
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaOutputGroupICVFX
+	: public FDisplayClusterConfigurationMediaOutput
 {
 	GENERATED_BODY()
 
@@ -84,14 +130,6 @@ public:
 	/** Cluster nodes that export media via MediaOutput below */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Media, meta = (ClusterItemType = ClusterNodes))
 	FDisplayClusterConfigurationClusterItemReferenceList ClusterNodes;
-
-	/** Media output to use */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Media")
-	TObjectPtr<UMediaOutput> MediaOutput;
-
-	/** Media output synchronization policy */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (DisplayName = "Capture Synchronization"))
-	TObjectPtr<UDisplayClusterMediaOutputSynchronizationPolicy> OutputSyncPolicy;
 };
 
 
@@ -108,13 +146,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
 	bool bEnable = false;
 
-	/** Media output mapping */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
-	TArray<FDisplayClusterConfigurationMediaOutputGroup> MediaOutputGroups;
-
 	/** Media input mapping */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
-	TArray<FDisplayClusterConfigurationMediaInputGroup> MediaInputGroups;
+	TArray<FDisplayClusterConfigurationMediaInputGroupICVFX> MediaInputGroups;
+
+	/** Media output mapping */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
+	TArray<FDisplayClusterConfigurationMediaOutputGroupICVFX> MediaOutputGroups;
 
 public:
 	/** Returns true if a specific cluster node has media source assigned */
@@ -126,11 +164,27 @@ public:
 	/** Returns media source bound to a specific cluster node */
 	UMediaSource* GetMediaSource(const FString& NodeId) const;
 
-	/** Returns media output bound to a specific cluster node */
-	UMediaOutput* GetMediaOutput(const FString& NodeId) const;
+	/** Returns media outputs bound to a specific cluster node */
+	TArray<FDisplayClusterConfigurationMediaOutputGroupICVFX> GetMediaOutputGroups(const FString& NodeId) const;
 
-	/** Returns media output sync policy bound to a specific cluster node */
-	UDisplayClusterMediaOutputSynchronizationPolicy* GetOutputSyncPolicy(const FString& NodeId) const;
+public:
+	UE_DEPRECATED(5.3, "This function has beend deprecated. Please use GetMediaOutputGroups.")
+	TArray<UMediaOutput*> GetMediaOutputs(const FString& NodeId) const
+	{
+		return {};
+	}
+
+	UE_DEPRECATED(5.3, "This function has beend deprecated. Please use GetMediaOutputGroups.")
+	UDisplayClusterMediaOutputSynchronizationPolicy* GetOutputSyncPolicy(const FString& NodeId) const
+	{
+		return nullptr;
+	}
+
+	UE_DEPRECATED(5.3, "This function has beend deprecated. Please use GetMediaOutputGroups.")
+	UMediaOutput* GetMediaOutput(const FString& NodeId) const
+	{
+		return nullptr;
+	}
 
 	UE_DEPRECATED(5.2, "This function has beend deprecated.")
 	bool IsMediaSharingNode(const FString& InNodeId) const

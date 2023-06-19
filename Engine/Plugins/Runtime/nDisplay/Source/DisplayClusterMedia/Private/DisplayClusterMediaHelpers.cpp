@@ -13,7 +13,7 @@ namespace DisplayClusterMediaHelpers
 	namespace MediaId
 	{
 		// Generate media ID for a specific entity
-		FString GenerateMediaId(EMediaDeviceType DeviceType, EMediaOwnerType OwnerType, const FString& NodeId, const FString& DCRAName, const FString& OwnerName)
+		FString GenerateMediaId(EMediaDeviceType DeviceType, EMediaOwnerType OwnerType, const FString& NodeId, const FString& DCRAName, const FString& OwnerName, uint8 Index)
 		{
 			if (DeviceType == EMediaDeviceType::Input)
 			{
@@ -37,16 +37,16 @@ namespace DisplayClusterMediaHelpers
 				switch (OwnerType)
 				{
 				case EMediaOwnerType::Backbuffer:
-					return FString::Printf(TEXT("%s_%s_backbuffer_capture"), *NodeId, *DCRAName);
+					return FString::Printf(TEXT("%s_%s_backbuffer_capture_%u"), *NodeId, *DCRAName, Index);
 
 				case EMediaOwnerType::Viewport:
-					return FString::Printf(TEXT("%s_%s_%s_viewport_capture"), *NodeId, *DCRAName, *OwnerName);
+					return FString::Printf(TEXT("%s_%s_%s_viewport_capture_%u"), *NodeId, *DCRAName, *OwnerName, Index);
 
 				case EMediaOwnerType::ICVFXCamera:
-					return FString::Printf(TEXT("%s_%s_%s_icvfx_capture"), *NodeId, *DCRAName, *OwnerName);
+					return FString::Printf(TEXT("%s_%s_%s_icvfx_capture_%u"), *NodeId, *DCRAName, *OwnerName, Index);
 
 				default:
-					unimplemented();
+					checkNoEntry();
 				}
 			}
 

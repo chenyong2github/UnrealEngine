@@ -28,7 +28,7 @@ namespace DisplayClusterMediaHelpers
 		};
 
 		// Generate media ID for a specific entity
-		FString GenerateMediaId(EMediaDeviceType DeviceType, EMediaOwnerType OwnerType, const FString& NodeId, const FString& DCRAName, const FString& OwnerName);
+		FString GenerateMediaId(EMediaDeviceType DeviceType, EMediaOwnerType OwnerType, const FString& NodeId, const FString& DCRAName, const FString& OwnerName, uint8 Index);
 	}
 
 	// Generates internal ICVFX viewport IDs

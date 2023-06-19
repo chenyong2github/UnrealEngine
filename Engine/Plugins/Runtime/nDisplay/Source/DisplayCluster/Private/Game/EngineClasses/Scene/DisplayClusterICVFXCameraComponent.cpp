@@ -88,7 +88,7 @@ bool UDisplayClusterICVFXCameraComponent::IsICVFXEnabled() const
 		static const FString NodeId = GDisplayCluster->GetPrivateClusterMgr()->GetNodeId();
 
 		// First condition to render offscreen: it has media output assigned
-		const bool bUsesMediaOutput = CameraSettings.RenderSettings.Media.bEnable ? !!CameraSettings.RenderSettings.Media.GetMediaOutput(NodeId) : false;
+		const bool bUsesMediaOutput = (CameraSettings.RenderSettings.Media.bEnable && CameraSettings.RenderSettings.Media.IsMediaOutputAssigned(NodeId));
 
 		// Get backbuffer media settings
 		const FDisplayClusterConfigurationMedia* BackbufferMediaSettings = nullptr;
@@ -105,7 +105,9 @@ bool UDisplayClusterICVFXCameraComponent::IsICVFXEnabled() const
 
 		// Second condition to render offscreen: the backbuffer has media output assigned.
 		// This means the whole frame including ICVFX cameras need to be rendered.
-		const bool bIsBackbufferBeingCaptured = BackbufferMediaSettings ? !!BackbufferMediaSettings->MediaOutput : false;
+		const bool bIsBackbufferBeingCaptured = BackbufferMediaSettings ?
+			BackbufferMediaSettings->bEnable && BackbufferMediaSettings->IsMediaOutputAssigned() :
+			false;
 
 		// Finally make a decision if the camera should be rendered
 		return CameraSettings.bEnable && (bUsesMediaOutput || bIsBackbufferBeingCaptured);
