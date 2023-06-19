@@ -48,7 +48,7 @@ private:
 	friend class URigVMController;
 	friend class URigVMCompiler;
 	friend struct FRigVMAddSelectNodeAction;
-	friend class UControlRigSelectNodeSpawner;
+	friend class URigVMEdGraphSelectNodeSpawner;
 	friend class FRigVMParserAST;
 	friend class FRigVMSelectExprAST;
 	friend struct FRigVMRemoveNodeAction;

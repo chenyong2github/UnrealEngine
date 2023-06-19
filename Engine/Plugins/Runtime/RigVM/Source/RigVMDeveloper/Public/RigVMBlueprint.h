@@ -127,6 +127,68 @@ enum class ERigVMBlueprintLoadType : uint8
 	CheckUserDefinedStructs
 };
 
+USTRUCT(meta = (Deprecated = "5.2"))
+struct RIGVMDEVELOPER_API FRigVMOldPublicFunctionArg
+{
+	GENERATED_BODY();
+	
+	FRigVMOldPublicFunctionArg()
+	: Name(NAME_None)
+	, CPPType(NAME_None)
+	, CPPTypeObjectPath(NAME_None)
+	, bIsArray(false)
+	, Direction(ERigVMPinDirection::Input)
+	{}
+
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	FName CPPType;
+
+	UPROPERTY()
+	FName CPPTypeObjectPath;
+
+	UPROPERTY()
+	bool bIsArray;
+
+	UPROPERTY()
+	ERigVMPinDirection Direction;
+
+	FEdGraphPinType GetPinType() const;
+};
+
+USTRUCT(meta = (Deprecated = "5.2"))
+struct RIGVMDEVELOPER_API FRigVMOldPublicFunctionData
+{
+	GENERATED_BODY();
+
+	FRigVMOldPublicFunctionData()
+		:Name(NAME_None)
+	{}
+
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	FString DisplayName;
+
+	UPROPERTY()
+	FString Category;
+
+	UPROPERTY()
+	FString Keywords;
+
+	UPROPERTY()
+	FRigVMOldPublicFunctionArg ReturnValue;
+
+	UPROPERTY()
+	TArray<FRigVMOldPublicFunctionArg> Arguments;
+
+	bool IsMutable() const;
+};
+
+
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class RIGVMDEVELOPER_API URigVMBlueprint : public UBlueprint, public IRigVMClientHost
 {

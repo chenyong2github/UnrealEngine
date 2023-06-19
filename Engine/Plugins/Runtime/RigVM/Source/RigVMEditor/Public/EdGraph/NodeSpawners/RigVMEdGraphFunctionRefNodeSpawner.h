@@ -12,35 +12,35 @@
 #include "BlueprintActionFilter.h"
 #include "BlueprintNodeSignature.h"
 #include "BlueprintFieldNodeSpawner.h"
-#include "ControlRigBlueprint.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
+#include "RigVMBlueprint.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
-#include "ControlRigFunctionRefNodeSpawner.generated.h"
+#include "RigVMEdGraphFunctionRefNodeSpawner.generated.h"
 
-class UControlRigGraphNode;
+class URigVMEdGraphNode;
 
 UCLASS(Transient)
-class CONTROLRIGEDITOR_API UControlRigFunctionRefNodeSpawner : public UBlueprintNodeSpawner
+class RIGVMEDITOR_API URigVMEdGraphFunctionRefNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_BODY()
 
 public:
 
 	/**
-	 * Creates a new UControlRigFunctionRefNodeSpawner, charged with spawning a function reference
+	 * Creates a new URigVMEdGraphFunctionRefNodeSpawner, charged with spawning a function reference
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigFunctionRefNodeSpawner* CreateFromFunction(URigVMLibraryNode* InFunction);
+	static URigVMEdGraphFunctionRefNodeSpawner* CreateFromFunction(URigVMLibraryNode* InFunction);
 
 	/**
-	 * Creates a new UControlRigFunctionRefNodeSpawner, charged with spawning a function reference
+	 * Creates a new URigVMEdGraphFunctionRefNodeSpawner, charged with spawning a function reference
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigFunctionRefNodeSpawner* CreateFromAssetData(const FAssetData& InAssetData, const FRigVMGraphFunctionHeader& InPublicFunction);
-	static UControlRigFunctionRefNodeSpawner* CreateFromAssetData(const FAssetData& InAssetData, const FControlRigPublicFunctionData& InPublicFunction);
+	static URigVMEdGraphFunctionRefNodeSpawner* CreateFromAssetData(const FAssetData& InAssetData, const FRigVMGraphFunctionHeader& InPublicFunction);
+	static URigVMEdGraphFunctionRefNodeSpawner* CreateFromAssetData(const FAssetData& InAssetData, const FRigVMOldPublicFunctionData& InPublicFunction);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -63,7 +63,7 @@ private:
 	UPROPERTY()
 	FSoftObjectPath AssetPath;
 
-	static UControlRigGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, FRigVMGraphFunctionHeader& InFunction, FVector2D const Location);
+	static URigVMEdGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, FRigVMGraphFunctionHeader& InFunction, FVector2D const Location);
 
 	friend class UEngineTestControlRig;
 	friend class FControlRigEditor;

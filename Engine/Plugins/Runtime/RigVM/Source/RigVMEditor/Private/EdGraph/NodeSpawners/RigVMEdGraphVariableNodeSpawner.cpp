@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigVariableNodeSpawner.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphVariableNodeSpawner.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Settings/EditorStyleSettings.h"
@@ -12,24 +12,24 @@
 #include "K2Node_Variable.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMModel/RigVMController.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 #include "RigVMModel/Nodes/RigVMVariableNode.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigVariableNodeSpawner)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraphVariableNodeSpawner)
 
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
 
-#define LOCTEXT_NAMESPACE "ControlRigVariableNodeSpawner"
+#define LOCTEXT_NAMESPACE "RigVMEdGraphVariableNodeSpawner"
 
-UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromExternalVariable(UControlRigBlueprint* InBlueprint, const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
+URigVMEdGraphVariableNodeSpawner* URigVMEdGraphVariableNodeSpawner::CreateFromExternalVariable(URigVMBlueprint* InBlueprint, const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
 {
-	UControlRigVariableNodeSpawner* NodeSpawner = NewObject<UControlRigVariableNodeSpawner>(GetTransientPackage());
+	URigVMEdGraphVariableNodeSpawner* NodeSpawner = NewObject<URigVMEdGraphVariableNodeSpawner>(GetTransientPackage());
 	NodeSpawner->Blueprint = InBlueprint;
 	NodeSpawner->ExternalVariable = InExternalVariable;
 	NodeSpawner->bIsGetter = bInIsGetter;
-	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	NodeSpawner->NodeClass = URigVMEdGraphNode::StaticClass();
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 	
@@ -44,23 +44,23 @@ UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromExtern
 	return NodeSpawner;
 }
 
-UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromLocalVariable(
-	UControlRigBlueprint* InBlueprint, URigVMGraph* InGraphOwner, const FRigVMGraphVariableDescription& InLocalVariable,
+URigVMEdGraphVariableNodeSpawner* URigVMEdGraphVariableNodeSpawner::CreateFromLocalVariable(
+	URigVMBlueprint* InBlueprint, URigVMGraph* InGraphOwner, const FRigVMGraphVariableDescription& InLocalVariable,
 	bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
 {
-	UControlRigVariableNodeSpawner* Spawner = CreateFromExternalVariable(InBlueprint, InLocalVariable.ToExternalVariable(), bInIsGetter, InMenuDesc, InCategory, InTooltip);
+	URigVMEdGraphVariableNodeSpawner* Spawner = CreateFromExternalVariable(InBlueprint, InLocalVariable.ToExternalVariable(), bInIsGetter, InMenuDesc, InCategory, InTooltip);
 	Spawner->bIsLocalVariable = true;
 	Spawner->GraphOwner = InGraphOwner;
 	return Spawner;
 }
 
-void UControlRigVariableNodeSpawner::Prime()
+void URigVMEdGraphVariableNodeSpawner::Prime()
 {
 	// we expect that you don't need a node template to construct menu entries
 	// from this, so we choose not to pre-cache one here
 }
 
-bool UControlRigVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
+bool URigVMEdGraphVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
 {
 	if (Blueprint.IsValid())
 	{
@@ -74,7 +74,7 @@ bool UControlRigVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionF
 			bool bIsFiltered = true;
 			if (Filter.Context.Graphs.Num() == 1 && GraphOwner.IsValid())
 			{
-				if (UControlRigGraph* Graph = Cast<UControlRigGraph>(Filter.Context.Graphs[0]))
+				if (URigVMEdGraph* Graph = Cast<URigVMEdGraph>(Filter.Context.Graphs[0]))
 				{
 					if (GraphOwner.Get() == Graph->GetModel())
 					{
@@ -92,12 +92,12 @@ bool UControlRigVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionF
 	return Super::IsTemplateNodeFilteredOut(Filter);
 }
 
-FBlueprintNodeSignature UControlRigVariableNodeSpawner::GetSpawnerSignature() const
+FBlueprintNodeSignature URigVMEdGraphVariableNodeSpawner::GetSpawnerSignature() const
 {
 	return FBlueprintNodeSignature(FString("RigUnit=" + ExternalVariable.Name.ToString()));
 }
 
-FBlueprintActionUiSpec UControlRigVariableNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
+FBlueprintActionUiSpec URigVMEdGraphVariableNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
 {
 	UEdGraph* TargetGraph = (Context.Graphs.Num() > 0) ? Context.Graphs[0] : nullptr;
 	FBlueprintActionUiSpec MenuSignature = PrimeDefaultUiSpec(TargetGraph);
@@ -106,17 +106,17 @@ FBlueprintActionUiSpec UControlRigVariableNodeSpawner::GetUiSpec(FBlueprintActio
 	return MenuSignature;
 }
 
-UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
+UEdGraphNode* URigVMEdGraphVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
 {
-	UControlRigGraphNode* NewNode = nullptr;
+	URigVMEdGraphNode* NewNode = nullptr;
 
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 	bool const bIsUserFacingNode = !bIsTemplateNode;
 
 	// First create a backing member for our node
-	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+	URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(ParentGraph);
 	if(RigGraph == nullptr) return nullptr;
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
+	URigVMBlueprint* RigBlueprint = Cast<URigVMBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
 	FName MemberName = NAME_None;
@@ -159,7 +159,7 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 		static const FString SetterPrefix = TEXT("Setter");
 		NodeName = FString::Printf(VariableNodeNameFormat, bIsGetter ? *GetterPrefix : *SetterPrefix, *ExternalVariable.Name.ToString());
 
-		NewNode = NewObject<UControlRigGraphNode>(ParentGraph, *NodeName);
+		NewNode = NewObject<URigVMEdGraphNode>(ParentGraph, *NodeName);
 		ParentGraph->AddNode(NewNode, false);
 
 		NewNode->CreateNewGuid();
@@ -178,7 +178,7 @@ UEdGraphNode* UControlRigVariableNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 	{
 		for (UEdGraphNode* Node : ParentGraph->Nodes)
 		{
-			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+			if (URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(Node))
 			{
 				if (RigNode->GetModelNodeName() == ModelNode->GetFName())
 				{

@@ -12,27 +12,27 @@
 #include "BlueprintActionFilter.h"
 #include "BlueprintNodeSignature.h"
 #include "BlueprintFieldNodeSpawner.h"
-#include "ControlRigBlueprint.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
+#include "RigVMBlueprint.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
 #include "RigVMModel/Nodes/RigVMTemplateNode.h"
-#include "ControlRigTemplateNodeSpawner.generated.h"
+#include "RigVMEdGraphTemplateNodeSpawner.generated.h"
 
-class UControlRigGraphNode;
+class URigVMEdGraphNode;
 
 UCLASS(Transient)
-class CONTROLRIGEDITOR_API UControlRigTemplateNodeSpawner : public UBlueprintNodeSpawner
+class RIGVMEDITOR_API URigVMEdGraphTemplateNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_BODY()
 
 public:
 	/**
-	 * Creates a new UControlRigVariableNodeSpawner, charged with spawning 
+	 * Creates a new URigVMEdGraphVariableNodeSpawner, charged with spawning 
 	 * a new member-variable node
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigTemplateNodeSpawner* CreateFromNotation(const FName& InNotation, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static URigVMEdGraphTemplateNodeSpawner* CreateFromNotation(const FName& InNotation, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -47,7 +47,7 @@ private:
 	UPROPERTY(Transient)
 	FName TemplateNotation;
 
-	static UControlRigGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, const FName& InNotation, FVector2D const Location);
+	static URigVMEdGraphNode* SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, const FName& InNotation, FVector2D const Location);
 
 	friend class UEngineTestControlRig;
 	friend class FControlRigEditor;

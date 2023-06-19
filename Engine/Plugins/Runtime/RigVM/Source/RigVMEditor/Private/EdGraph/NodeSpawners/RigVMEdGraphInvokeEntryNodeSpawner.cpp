@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigInvokeEntryNodeSpawner.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphInvokeEntryNodeSpawner.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Settings/EditorStyleSettings.h"
@@ -11,23 +11,23 @@
 #include "EditorCategoryUtils.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMModel/RigVMController.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 #include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigInvokeEntryNodeSpawner)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraphInvokeEntryNodeSpawner)
 
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
 
-#define LOCTEXT_NAMESPACE "ControlRigInvokeEntryNodeSpawner"
+#define LOCTEXT_NAMESPACE "RigVMEdGraphInvokeEntryNodeSpawner"
 
-UControlRigInvokeEntryNodeSpawner* UControlRigInvokeEntryNodeSpawner::CreateForEntry(UControlRigBlueprint* InBlueprint, const FName& InEntryName, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
+URigVMEdGraphInvokeEntryNodeSpawner* URigVMEdGraphInvokeEntryNodeSpawner::CreateForEntry(URigVMBlueprint* InBlueprint, const FName& InEntryName, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
 {
-	UControlRigInvokeEntryNodeSpawner* NodeSpawner = NewObject<UControlRigInvokeEntryNodeSpawner>(GetTransientPackage());
+	URigVMEdGraphInvokeEntryNodeSpawner* NodeSpawner = NewObject<URigVMEdGraphInvokeEntryNodeSpawner>(GetTransientPackage());
 	NodeSpawner->Blueprint = InBlueprint;
 	NodeSpawner->EntryName = InEntryName;
-	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	NodeSpawner->NodeClass = URigVMEdGraphNode::StaticClass();
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 	
@@ -40,18 +40,18 @@ UControlRigInvokeEntryNodeSpawner* UControlRigInvokeEntryNodeSpawner::CreateForE
 	return NodeSpawner;
 }
 
-void UControlRigInvokeEntryNodeSpawner::Prime()
+void URigVMEdGraphInvokeEntryNodeSpawner::Prime()
 {
 	// we expect that you don't need a node template to construct menu entries
 	// from this, so we choose not to pre-cache one here
 }
 
-FBlueprintNodeSignature UControlRigInvokeEntryNodeSpawner::GetSpawnerSignature() const
+FBlueprintNodeSignature URigVMEdGraphInvokeEntryNodeSpawner::GetSpawnerSignature() const
 {
 	return FBlueprintNodeSignature(FString("InvokeEntryNode=" + EntryName.ToString()));
 }
 
-FBlueprintActionUiSpec UControlRigInvokeEntryNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
+FBlueprintActionUiSpec URigVMEdGraphInvokeEntryNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
 {
 	UEdGraph* TargetGraph = (Context.Graphs.Num() > 0) ? Context.Graphs[0] : nullptr;
 	FBlueprintActionUiSpec MenuSignature = PrimeDefaultUiSpec(TargetGraph);
@@ -60,17 +60,17 @@ FBlueprintActionUiSpec UControlRigInvokeEntryNodeSpawner::GetUiSpec(FBlueprintAc
 	return MenuSignature;
 }
 
-UEdGraphNode* UControlRigInvokeEntryNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
+UEdGraphNode* URigVMEdGraphInvokeEntryNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
 {
-	UControlRigGraphNode* NewNode = nullptr;
+	URigVMEdGraphNode* NewNode = nullptr;
 
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 	bool const bIsUserFacingNode = !bIsTemplateNode;
 
 	// First create a backing member for our node
-	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+	URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(ParentGraph);
 	if(RigGraph == nullptr) return nullptr;
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
+	URigVMBlueprint* RigBlueprint = Cast<URigVMBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
 #if WITH_EDITOR
@@ -100,7 +100,7 @@ UEdGraphNode* UControlRigInvokeEntryNodeSpawner::Invoke(UEdGraph* ParentGraph, F
 	{
 		for (UEdGraphNode* Node : ParentGraph->Nodes)
 		{
-			if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+			if (URigVMEdGraphNode* RigNode = Cast<URigVMEdGraphNode>(Node))
 			{
 				if (RigNode->GetModelNodeName() == ModelNode->GetFName())
 				{

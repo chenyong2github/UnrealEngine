@@ -273,18 +273,14 @@ private:
 	friend class SRigVMEdGraphNode;
 	friend class FRigVMArgumentLayout;
 	friend class FRigVMEdGraphDetails;
-	friend class URigVMTemplateNodeSpawner;
-	friend class URigVMArrayNodeSpawner;
-	friend class URigVMIfNodeSpawner;
-	friend class URigVMSelectNodeSpawner;
+	friend class URigVMEdGraphTemplateNodeSpawner;
+	friend class URigVMEdGraphArrayNodeSpawner;
+	friend class URigVMEdGraphIfNodeSpawner;
+	friend class URigVMEdGraphSelectNodeSpawner;
 
 	// todo
 	friend class FControlRigEditor;
 	friend class UControlRigBlueprint;
 	friend class SControlRigGraphNode;
 	friend class UControlRigGraphSchema;
-	friend class UControlRigTemplateNodeSpawner;
-	friend class UControlRigArrayNodeSpawner;
-	friend class UControlRigIfNodeSpawner;
-	friend class UControlRigSelectNodeSpawner;
 };

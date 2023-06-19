@@ -124,18 +124,6 @@ private:
 
 #endif
 
-	friend class UControlRigUnitNodeSpawner;
-	friend class UControlRigVariableNodeSpawner;
-	friend class UControlRigParameterNodeSpawner;
-	friend class UControlRigBranchNodeSpawner;
-	friend class UControlRigIfNodeSpawner;
-	friend class UControlRigSelectNodeSpawner;
-	friend class UControlRigTemplateNodeSpawner;
-	friend class UControlRigEnumNodeSpawner;
-	friend class UControlRigFunctionRefNodeSpawner;
-	friend class UControlRigArrayNodeSpawner;
-	friend class UControlRigInvokeEntryNodeSpawner;
-
 	friend class UControlRigGraphNode;
 	friend class FControlRigEditor;
 	friend class SControlRigGraphNode;

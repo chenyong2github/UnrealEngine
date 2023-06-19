@@ -60,7 +60,7 @@ private:
 	friend class URigVMController;
 	friend class URigVMCompiler;
 	friend struct FRigVMAddEnumNodeAction;
-	friend class UControlRigEnumNodeSpawner;
+	friend class URigVMEdGraphEnumNodeSpawner;
 	friend class FRigVMParserAST;
 };
 

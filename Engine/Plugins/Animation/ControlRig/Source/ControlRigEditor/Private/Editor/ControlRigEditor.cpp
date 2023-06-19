@@ -61,7 +61,7 @@
 #include "Units/Hierarchy/RigUnit_GetControlTransform.h"
 #include "Units/Hierarchy/RigUnit_SetCurveValue.h"
 #include "Units/Hierarchy/RigUnit_AddBoneTransform.h"
-#include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphUnitNodeSpawner.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "ControlRigObjectVersion.h"
 #include "EdGraphUtilities.h"
@@ -6685,7 +6685,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 				}
 			}
 
-			UControlRigUnitNodeSpawner::HookupMutableNode(ModelNode, GetControlRigBlueprint());
+			URigVMEdGraphUnitNodeSpawner::HookupMutableNode(ModelNode, GetControlRigBlueprint());
 		}
 
 		NodePosition += NodePositionIncrement;

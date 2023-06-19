@@ -95,20 +95,6 @@ private:
 	TMap<FName, UEdGraphNode*> ModelNodePathToEdNode;
 	mutable TWeakObjectPtr<URigVMGraph> CachedModelGraph;
 
-	/*
-	friend class UControlRigUnitNodeSpawner;
-	friend class UControlRigVariableNodeSpawner;
-	friend class UControlRigParameterNodeSpawner;
-	friend class UControlRigBranchNodeSpawner;
-	friend class UControlRigIfNodeSpawner;
-	friend class UControlRigSelectNodeSpawner;
-	friend class UControlRigTemplateNodeSpawner;
-	friend class UControlRigEnumNodeSpawner;
-	friend class UControlRigFunctionRefNodeSpawner;
-	friend class UControlRigArrayNodeSpawner;
-	friend class UControlRigInvokeEntryNodeSpawner;
-	*/
-
 #endif
 	friend class URigVMEdGraphNode;
 	friend class URigVMBlueprint;
@@ -117,16 +103,15 @@ private:
 	friend class SControlRigGraphNode;
 	friend class URigVMBlueprint;
 
-	// todo
-	friend class UControlRigUnitNodeSpawner;
-	friend class UControlRigVariableNodeSpawner;
-	friend class UControlRigParameterNodeSpawner;
-	friend class UControlRigBranchNodeSpawner;
-	friend class UControlRigIfNodeSpawner;
-	friend class UControlRigSelectNodeSpawner;
-	friend class UControlRigTemplateNodeSpawner;
-	friend class UControlRigEnumNodeSpawner;
-	friend class UControlRigFunctionRefNodeSpawner;
-	friend class UControlRigArrayNodeSpawner;
-	friend class UControlRigInvokeEntryNodeSpawner;
+	friend class URigVMEdGraphUnitNodeSpawner;
+	friend class URigVMEdGraphVariableNodeSpawner;
+	friend class URigVMEdGraphParameterNodeSpawner;
+	friend class URigVMEdGraphBranchNodeSpawner;
+	friend class URigVMEdGraphIfNodeSpawner;
+	friend class URigVMEdGraphSelectNodeSpawner;
+	friend class URigVMEdGraphTemplateNodeSpawner;
+	friend class URigVMEdGraphEnumNodeSpawner;
+	friend class URigVMEdGraphFunctionRefNodeSpawner;
+	friend class URigVMEdGraphArrayNodeSpawner;
+	friend class URigVMEdGraphInvokeEntryNodeSpawner;
 };

@@ -14,26 +14,26 @@
 #include "BlueprintFieldNodeSpawner.h"
 #include "RigVMCore/RigVMExternalVariable.h"
 #include "RigVMModel/RigVMVariableDescription.h"
-#include "ControlRigVariableNodeSpawner.generated.h"
+#include "RigVMEdGraphVariableNodeSpawner.generated.h"
 
-class UControlRigGraphNode;
-class UControlRigBlueprint;
+class URigVMEdGraphNode;
+class URigVMBlueprint;
 
 UCLASS(Transient)
-class CONTROLRIGEDITOR_API UControlRigVariableNodeSpawner : public UBlueprintNodeSpawner
+class RIGVMEDITOR_API URigVMEdGraphVariableNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_BODY()
 
 public:
 
 	/**
-	 * Creates a new UControlRigVariableNodeSpawner, charged with spawning 
+	 * Creates a new URigVMEdGraphVariableNodeSpawner, charged with spawning 
 	 * a new member-variable node
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigVariableNodeSpawner* CreateFromExternalVariable(UControlRigBlueprint* InBlueprint, const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
-	static UControlRigVariableNodeSpawner* CreateFromLocalVariable(UControlRigBlueprint* InBlueprint, URigVMGraph* InGraphOwner, const FRigVMGraphVariableDescription& InLocalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static URigVMEdGraphVariableNodeSpawner* CreateFromExternalVariable(URigVMBlueprint* InBlueprint, const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static URigVMEdGraphVariableNodeSpawner* CreateFromLocalVariable(URigVMBlueprint* InBlueprint, URigVMGraph* InGraphOwner, const FRigVMGraphVariableDescription& InLocalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -46,7 +46,7 @@ public:
 private:
 
 	/** The pin type we will spawn */
-	TWeakObjectPtr<UControlRigBlueprint> Blueprint;
+	TWeakObjectPtr<URigVMBlueprint> Blueprint;
 	TWeakObjectPtr<URigVMGraph> GraphOwner;
 	FRigVMExternalVariable ExternalVariable;
 	bool bIsGetter;

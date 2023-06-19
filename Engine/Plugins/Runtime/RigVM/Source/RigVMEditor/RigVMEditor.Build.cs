@@ -12,7 +12,11 @@ public class RigVMEditor : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "RigVM",
-                "RigVMDeveloper"
+                "RigVMDeveloper",
+                "SlateCore",
+                "BlueprintGraph",
+                "GraphEditor",
+                "UnrealEd",
             }
         );
     }

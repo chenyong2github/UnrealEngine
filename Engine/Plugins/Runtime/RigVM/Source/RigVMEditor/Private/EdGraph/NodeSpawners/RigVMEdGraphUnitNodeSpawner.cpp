@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigUnitNodeSpawner.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphUnitNodeSpawner.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Settings/EditorStyleSettings.h"
@@ -14,30 +14,23 @@
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMBlueprintUtils.h"
 #include "ScopedTransaction.h"
-#include "Units/Execution/RigUnit_BeginExecution.h"
-#include "ControlRig.h"
-#include "Settings/ControlRigSettings.h"
-#include "Units/Execution/RigUnit_BeginExecution.h"
-#include "Units/Execution/RigUnit_InverseExecution.h"
-#include "Units/Execution/RigUnit_PrepareForExecution.h"
-#include "Units/Execution/RigUnit_InteractionExecution.h"
 #include "RigVMFunctions/Execution/RigVMFunction_UserDefinedEvent.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigUnitNodeSpawner)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraphUnitNodeSpawner)
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "SGraphActionMenu.h"
 #endif
 
-#define LOCTEXT_NAMESPACE "ControlRigUnitNodeSpawner"
+#define LOCTEXT_NAMESPACE "RigVMEdGraphUnitNodeSpawner"
 
-UControlRigUnitNodeSpawner* UControlRigUnitNodeSpawner::CreateFromStruct(UScriptStruct* InStruct, const FName& InMethodName, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
+URigVMEdGraphUnitNodeSpawner* URigVMEdGraphUnitNodeSpawner::CreateFromStruct(UScriptStruct* InStruct, const FName& InMethodName, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
 {
-	UControlRigUnitNodeSpawner* NodeSpawner = NewObject<UControlRigUnitNodeSpawner>(GetTransientPackage());
+	URigVMEdGraphUnitNodeSpawner* NodeSpawner = NewObject<URigVMEdGraphUnitNodeSpawner>(GetTransientPackage());
 	NodeSpawner->StructTemplate = InStruct;
 	NodeSpawner->MethodName = InMethodName;
-	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	NodeSpawner->NodeClass = URigVMEdGraphNode::StaticClass();
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 	
@@ -121,18 +114,18 @@ UControlRigUnitNodeSpawner* UControlRigUnitNodeSpawner::CreateFromStruct(UScript
 	return NodeSpawner;
 }
 
-void UControlRigUnitNodeSpawner::Prime()
+void URigVMEdGraphUnitNodeSpawner::Prime()
 {
 	// we expect that you don't need a node template to construct menu entries
 	// from this, so we choose not to pre-cache one here
 }
 
-FBlueprintNodeSignature UControlRigUnitNodeSpawner::GetSpawnerSignature() const
+FBlueprintNodeSignature URigVMEdGraphUnitNodeSpawner::GetSpawnerSignature() const
 {
 	return FBlueprintNodeSignature(FString("RigUnit=" + StructTemplate->GetFName().ToString()));
 }
 
-FBlueprintActionUiSpec UControlRigUnitNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
+FBlueprintActionUiSpec URigVMEdGraphUnitNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
 {
 	UEdGraph* TargetGraph = (Context.Graphs.Num() > 0) ? Context.Graphs[0] : nullptr;
 	FBlueprintActionUiSpec MenuSignature = PrimeDefaultUiSpec(TargetGraph);
@@ -141,9 +134,9 @@ FBlueprintActionUiSpec UControlRigUnitNodeSpawner::GetUiSpec(FBlueprintActionCon
 	return MenuSignature;
 }
 
-UEdGraphNode* UControlRigUnitNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
+UEdGraphNode* URigVMEdGraphUnitNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
 {
-	UControlRigGraphNode* NewNode = nullptr;
+	URigVMEdGraphNode* NewNode = nullptr;
 
 	if(StructTemplate)
 	{
@@ -161,11 +154,11 @@ UEdGraphNode* UControlRigUnitNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 	return NewNode;
 }
 
-UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, UScriptStruct* StructTemplate, const FName& InMethodName, FVector2D const Location)
+URigVMEdGraphNode* URigVMEdGraphUnitNodeSpawner::SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, UScriptStruct* StructTemplate, const FName& InMethodName, FVector2D const Location)
 {
-	UControlRigGraphNode* NewNode = nullptr;
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+	URigVMEdGraphNode* NewNode = nullptr;
+	URigVMBlueprint* RigBlueprint = Cast<URigVMBlueprint>(Blueprint);
+	URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(ParentGraph);
 
 	if (RigBlueprint != nullptr && RigGraph != nullptr)
 	{
@@ -221,20 +214,17 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 
 		if (URigVMUnitNode* ModelNode = Controller->AddUnitNode(StructTemplate, InMethodName, Location, Name.ToString(), bIsUserFacingNode, !bIsTemplateNode))
 		{
-			NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
+			NewNode = Cast<URigVMEdGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 			check(NewNode);
 
 			if (NewNode && bIsUserFacingNode)
 			{
 				if(StructTemplate == FRigVMFunction_UserDefinedEvent::StaticStruct())
 				{
+					const URigVMEdGraphSchema* Schema = CastChecked<URigVMEdGraphSchema>(NewNode->GetSchema());
+					
 					// ensure uniqueness for the event name
-					TArray<FName> ExistingEventNames = {
-						FRigUnit_BeginExecution::EventName,
-						FRigUnit_InverseExecution::EventName,
-						FRigUnit_PrepareForExecution::EventName,
-						FRigUnit_InteractionExecution::EventName
-					};
+					TArray<FName> ExistingEventNames;
 
 					const TArray<URigVMGraph*> Models = RigBlueprint->GetAllModels();
 					for(URigVMGraph* Model : Models)
@@ -252,9 +242,9 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 						}
 					}
 
-					FName SafeEventName = Controller->GetSchema()->GetUniqueName(EventName, [ExistingEventNames](const FName& NameToCheck) -> bool
+					FName SafeEventName = Controller->GetSchema()->GetUniqueName(EventName, [ExistingEventNames, Schema](const FName& NameToCheck) -> bool
 					{
-						return !ExistingEventNames.Contains(NameToCheck);
+						return !ExistingEventNames.Contains(NameToCheck) && !Schema->IsRigVMDefaultEvent(NameToCheck);
 					}, false, true);
 
 					Controller->SetPinDefaultValue(ModelNode->FindPin(TEXT("EventName"))->GetPinPath(), SafeEventName.ToString(), false, true, false, true);
@@ -267,6 +257,8 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 			}
 
 #if WITH_EDITORONLY_DATA
+			/*
+			// Todo: we should remove this functionality imho
 			if (!bIsTemplateNode)
 			{
 				const FControlRigSettingsPerPinBool* ExpansionMapPtr = UControlRigEditorSettings::Get()->RigUnitPinExpansion.Find(ModelNode->GetScriptStruct()->GetName());
@@ -320,6 +312,7 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 					}
 				}
 			}
+			*/
 #endif
 
 			if (bIsUserFacingNode)
@@ -342,12 +335,15 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 	return NewNode;
 }
 
-void UControlRigUnitNodeSpawner::HookupMutableNode(URigVMNode* InModelNode, UControlRigBlueprint* InRigBlueprint)
+void URigVMEdGraphUnitNodeSpawner::HookupMutableNode(URigVMNode* InModelNode, URigVMBlueprint* InRigBlueprint)
 {
+	/*
+	// Todo in a follow up submit
 	if(!UControlRigEditorSettings::Get()->bAutoLinkMutableNodes)
 	{
 		return;
 	}
+	*/
 	
 	URigVMController* Controller = InRigBlueprint->GetController(InModelNode->GetGraph());
 
@@ -377,7 +373,7 @@ void UControlRigUnitNodeSpawner::HookupMutableNode(URigVMNode* InModelNode, UCon
 		URigVMPin* ClosestOtherModelNodeExecutePin = nullptr;
 		float ClosestDistance = FLT_MAX;
 
-		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
+		const URigVMEdGraphSchema* Schema = GetDefault<URigVMEdGraphSchema>();
 		if (Schema->LastPinForCompatibleCheck)
 		{
 			URigVMPin* FromPin = Controller->GetGraph()->FindPin(Schema->LastPinForCompatibleCheck->GetName());

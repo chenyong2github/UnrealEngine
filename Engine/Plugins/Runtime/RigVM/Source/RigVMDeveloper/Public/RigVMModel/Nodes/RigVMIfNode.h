@@ -43,7 +43,7 @@ private:
 	friend class URigVMController;
 	friend class URigVMCompiler;
 	friend struct FRigVMAddIfNodeAction;
-	friend class UControlRigIfNodeSpawner;
+	friend class URigVMEdGraphIfNodeSpawner;
 	friend class FRigVMParserAST;
 	friend struct FRigVMRemoveNodeAction;
 };

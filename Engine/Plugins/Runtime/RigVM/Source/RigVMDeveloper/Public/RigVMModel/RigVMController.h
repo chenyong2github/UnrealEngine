@@ -1455,7 +1455,7 @@ private:
 	friend struct FRigVMClient;
 	friend struct FRigVMActionWrapper;
 	friend class URigVMSchema;
-	friend class UControlRigFunctionRefNodeSpawner;
+	friend class URigVMEdGraphFunctionRefNodeSpawner;
 };
 
 class FRigVMControllerNotifGuard

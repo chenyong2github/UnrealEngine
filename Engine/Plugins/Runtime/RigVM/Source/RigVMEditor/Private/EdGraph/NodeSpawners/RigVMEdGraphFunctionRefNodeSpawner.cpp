@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigFunctionRefNodeSpawner.h"
-#include "ControlRigUnitNodeSpawner.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphFunctionRefNodeSpawner.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphUnitNodeSpawner.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Settings/EditorStyleSettings.h"
@@ -15,11 +15,8 @@
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMBlueprintUtils.h"
 #include "ScopedTransaction.h"
-#include "Units/Execution/RigUnit_BeginExecution.h"
-#include "ControlRig.h"
-#include "Settings/ControlRigSettings.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigFunctionRefNodeSpawner)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraphFunctionRefNodeSpawner)
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -27,20 +24,20 @@
 #include "GraphEditorSettings.h" 
 #endif
 
-#define LOCTEXT_NAMESPACE "ControlRigFunctionRefNodeSpawner"
+#define LOCTEXT_NAMESPACE "RigVMEdGraphFunctionRefNodeSpawner"
 
 // 3 possible creation types:
 // - CreateFromFunction(URigVMLibraryNode) --> This is a local function. Valid Header.
 // - CreateFromAssetData(const FAssetData& InAssetData, const FRigVMGraphFunctionHeader& InPublicFunction) --> Public function. Valid Header.
-// - CreateFromAssetData(const FAssetData& InAssetData, const FControlRigPublicFunctionData& InPublicFunction) --> Public function. Valid AssetData and Header.Name
+// - CreateFromAssetData(const FAssetData& InAssetData, const FRigVMOldPublicFunctionData& InPublicFunction) --> Public function. Valid AssetData and Header.Name
 
-UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFromFunction(URigVMLibraryNode* InFunction)
+URigVMEdGraphFunctionRefNodeSpawner* URigVMEdGraphFunctionRefNodeSpawner::CreateFromFunction(URigVMLibraryNode* InFunction)
 {
 	check(InFunction);
 
-	UControlRigFunctionRefNodeSpawner* NodeSpawner = NewObject<UControlRigFunctionRefNodeSpawner>(GetTransientPackage());
+	URigVMEdGraphFunctionRefNodeSpawner* NodeSpawner = NewObject<URigVMEdGraphFunctionRefNodeSpawner>(GetTransientPackage());
 	NodeSpawner->ReferencedPublicFunctionHeader = InFunction->GetFunctionHeader();
-	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	NodeSpawner->NodeClass = URigVMEdGraphNode::StaticClass();
 	NodeSpawner->bIsLocalFunction = true;
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
@@ -88,11 +85,11 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 	return NodeSpawner;
 }
 
-UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFromAssetData(const FAssetData& InAssetData, const FRigVMGraphFunctionHeader& InPublicFunction)
+URigVMEdGraphFunctionRefNodeSpawner* URigVMEdGraphFunctionRefNodeSpawner::CreateFromAssetData(const FAssetData& InAssetData, const FRigVMGraphFunctionHeader& InPublicFunction)
 {
-	UControlRigFunctionRefNodeSpawner* NodeSpawner = NewObject<UControlRigFunctionRefNodeSpawner>(GetTransientPackage());
+	URigVMEdGraphFunctionRefNodeSpawner* NodeSpawner = NewObject<URigVMEdGraphFunctionRefNodeSpawner>(GetTransientPackage());
 	NodeSpawner->ReferencedPublicFunctionHeader = InPublicFunction;
-	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	NodeSpawner->NodeClass = URigVMEdGraphNode::StaticClass();
 	NodeSpawner->bIsLocalFunction = false;
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
@@ -137,16 +134,16 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 	return NodeSpawner;
 }
 
-UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFromAssetData(const FAssetData& InAssetData, const FControlRigPublicFunctionData& InPublicFunction)
+URigVMEdGraphFunctionRefNodeSpawner* URigVMEdGraphFunctionRefNodeSpawner::CreateFromAssetData(const FAssetData& InAssetData, const FRigVMOldPublicFunctionData& InPublicFunction)
 {
-	UControlRigFunctionRefNodeSpawner* NodeSpawner = NewObject<UControlRigFunctionRefNodeSpawner>(GetTransientPackage());
-	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	URigVMEdGraphFunctionRefNodeSpawner* NodeSpawner = NewObject<URigVMEdGraphFunctionRefNodeSpawner>(GetTransientPackage());
+	NodeSpawner->NodeClass = URigVMEdGraphNode::StaticClass();
 	NodeSpawner->bIsLocalFunction = false;
 
 	FRigVMGraphFunctionHeader& Header = NodeSpawner->ReferencedPublicFunctionHeader;
 	Header.Name = InPublicFunction.Name;
 	Header.Arguments.Reserve(InPublicFunction.Arguments.Num());
-	for (const FControlRigPublicFunctionArg& Arg : InPublicFunction.Arguments)
+	for (const FRigVMOldPublicFunctionArg& Arg : InPublicFunction.Arguments)
 	{
 		FRigVMGraphFunctionArgument NewArgument;
 		NewArgument.Name = Arg.Name;
@@ -168,7 +165,7 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 	MenuSignature.Category = FText::FromString(Category);
 	MenuSignature.Keywords = FText::FromString(InPublicFunction.Keywords);
 
-	if(const UControlRigBlueprint* ReferencedBlueprint = Cast<UControlRigBlueprint>(InAssetData.FastGetAsset(false)))
+	if(const URigVMBlueprint* ReferencedBlueprint = Cast<URigVMBlueprint>(InAssetData.FastGetAsset(false)))
 	{
 		if(const URigVMFunctionLibrary* FunctionLibrary = ReferencedBlueprint->GetLocalFunctionLibrary())
 		{
@@ -214,13 +211,13 @@ UControlRigFunctionRefNodeSpawner* UControlRigFunctionRefNodeSpawner::CreateFrom
 	return NodeSpawner;
 }
 
-void UControlRigFunctionRefNodeSpawner::Prime()
+void URigVMEdGraphFunctionRefNodeSpawner::Prime()
 {
 	// we expect that you don't need a node template to construct menu entries
 	// from this, so we choose not to pre-cache one here
 }
 
-FBlueprintNodeSignature UControlRigFunctionRefNodeSpawner::GetSpawnerSignature() const
+FBlueprintNodeSignature URigVMEdGraphFunctionRefNodeSpawner::GetSpawnerSignature() const
 {
 	FString SignatureString = TEXT("Invalid RigFunction");
 	if (ReferencedPublicFunctionHeader.IsValid())
@@ -245,7 +242,7 @@ FBlueprintNodeSignature UControlRigFunctionRefNodeSpawner::GetSpawnerSignature()
 	return FBlueprintNodeSignature(SignatureString);
 }
 
-FBlueprintActionUiSpec UControlRigFunctionRefNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
+FBlueprintActionUiSpec URigVMEdGraphFunctionRefNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
 {
 	UEdGraph* TargetGraph = (Context.Graphs.Num() > 0) ? Context.Graphs[0] : nullptr;
 	FBlueprintActionUiSpec MenuSignature = PrimeDefaultUiSpec(TargetGraph);
@@ -254,16 +251,16 @@ FBlueprintActionUiSpec UControlRigFunctionRefNodeSpawner::GetUiSpec(FBlueprintAc
 	return MenuSignature;
 }
 
-UEdGraphNode* UControlRigFunctionRefNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
+UEdGraphNode* URigVMEdGraphFunctionRefNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
 {
-	UControlRigGraphNode* NewNode = nullptr;
+	URigVMEdGraphNode* NewNode = nullptr;
 
 	// if we are trying to build the real function ref - but we haven't loaded the asset yet...
 	if(!FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph))
 	{
 		if (!ReferencedPublicFunctionHeader.IsValid() && AssetPath.IsValid())
 		{
-			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(AssetPath.TryLoad()))
+			if (URigVMBlueprint* Blueprint = Cast<URigVMBlueprint>(AssetPath.TryLoad()))
 			{
 				ReferencedPublicFunctionHeader = Blueprint->GetLocalFunctionLibrary()->FindFunction(ReferencedPublicFunctionHeader.Name)->GetFunctionHeader();			
 			}
@@ -285,7 +282,7 @@ UEdGraphNode* UControlRigFunctionRefNodeSpawner::Invoke(UEdGraph* ParentGraph, F
 	else
 	{
 		// we are only going to get here if we are spawning a template node
-		NewNode = NewObject<UControlRigGraphNode>(ParentGraph);
+		NewNode = NewObject<URigVMEdGraphNode>(ParentGraph);
 		ParentGraph->AddNode(NewNode, false);
 
 		NewNode->CreateNewGuid();
@@ -320,11 +317,11 @@ UEdGraphNode* UControlRigFunctionRefNodeSpawner::Invoke(UEdGraph* ParentGraph, F
 	return NewNode;
 }
 
-UControlRigGraphNode* UControlRigFunctionRefNodeSpawner::SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, FRigVMGraphFunctionHeader& InFunction, FVector2D const Location)
+URigVMEdGraphNode* URigVMEdGraphFunctionRefNodeSpawner::SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, FRigVMGraphFunctionHeader& InFunction, FVector2D const Location)
 {
-	UControlRigGraphNode* NewNode = nullptr;
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+	URigVMEdGraphNode* NewNode = nullptr;
+	URigVMBlueprint* RigBlueprint = Cast<URigVMBlueprint>(Blueprint);
+	URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(ParentGraph);
 
 	if (RigBlueprint != nullptr && RigGraph != nullptr)
 	{
@@ -342,7 +339,7 @@ UControlRigGraphNode* UControlRigFunctionRefNodeSpawner::SpawnNode(UEdGraph* Par
 		TGuardValue<bool> AllowPrivateFunctionsOnTemplateController(Controller->bAllowPrivateFunctions, bIsTemplateNode);
 		if (URigVMFunctionReferenceNode* ModelNode = Controller->AddFunctionReferenceNodeFromDescription(InFunction, Location, Name.ToString(), bIsUserFacingNode, !bIsTemplateNode))
 		{
-			NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
+			NewNode = Cast<URigVMEdGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 			check(NewNode);
 
 			if (NewNode && bIsUserFacingNode)
@@ -350,7 +347,7 @@ UControlRigGraphNode* UControlRigFunctionRefNodeSpawner::SpawnNode(UEdGraph* Par
 				Controller->ClearNodeSelection(true);
 				Controller->SelectNode(ModelNode, true, true);
 
-				UControlRigUnitNodeSpawner::HookupMutableNode(ModelNode, RigBlueprint);
+				URigVMEdGraphUnitNodeSpawner::HookupMutableNode(ModelNode, RigBlueprint);
 			}
 
 			if (!bIsTemplateNode)
@@ -384,7 +381,7 @@ UControlRigGraphNode* UControlRigFunctionRefNodeSpawner::SpawnNode(UEdGraph* Par
 			}
 			else
 			{
-				// If the package is a template, do not remove the ControlRigGraphNode
+				// If the package is a template, do not remove the EdGraphNode
 				// We might be spawning a node to populate the PROTO_ context menu for function declarations.
 				FRigVMControllerNotifGuard NotifGuard(Controller, true);
 				Controller->RemoveNode(ModelNode, false);
@@ -412,7 +409,7 @@ UControlRigGraphNode* UControlRigFunctionRefNodeSpawner::SpawnNode(UEdGraph* Par
 	return NewNode;
 }
 
-bool UControlRigFunctionRefNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
+bool URigVMEdGraphFunctionRefNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
 {
 	if(bIsLocalFunction)
 	{

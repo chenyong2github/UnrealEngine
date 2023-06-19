@@ -27,66 +27,6 @@ class USkeletalMesh;
 class UControlRigGraph;
 struct FEndLoadPackageContext;
 
-USTRUCT(meta = (Deprecated = "5.2"))
-struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionArg
-{
-	GENERATED_BODY();
-	
-	FControlRigPublicFunctionArg()
-	: Name(NAME_None)
-	, CPPType(NAME_None)
-	, CPPTypeObjectPath(NAME_None)
-	, bIsArray(false)
-	, Direction(ERigVMPinDirection::Input)
-	{}
-
-	UPROPERTY()
-	FName Name;
-
-	UPROPERTY()
-	FName CPPType;
-
-	UPROPERTY()
-	FName CPPTypeObjectPath;
-
-	UPROPERTY()
-	bool bIsArray;
-
-	UPROPERTY()
-	ERigVMPinDirection Direction;
-
-	FEdGraphPinType GetPinType() const;
-};
-
-USTRUCT(meta = (Deprecated = "5.2"))
-struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionData
-{
-	GENERATED_BODY();
-
-	FControlRigPublicFunctionData()
-		:Name(NAME_None)
-	{}
-
-	UPROPERTY()
-	FName Name;
-
-	UPROPERTY()
-	FString DisplayName;
-
-	UPROPERTY()
-	FString Category;
-
-	UPROPERTY()
-	FString Keywords;
-
-	UPROPERTY()
-	FControlRigPublicFunctionArg ReturnValue;
-
-	UPROPERTY()
-	TArray<FControlRigPublicFunctionArg> Arguments;
-
-	bool IsMutable() const;
-};
 
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public URigVMBlueprint, public IInterface_PreviewMeshProvider
@@ -141,7 +81,7 @@ protected:
 
 	/** Asset searchable information about exposed public functions on this rig */
 	UPROPERTY(AssetRegistrySearchable)
-	TArray<FControlRigPublicFunctionData> PublicFunctions_DEPRECATED;
+	TArray<FRigVMOldPublicFunctionData> PublicFunctions_DEPRECATED;
 
 	virtual void SetupDefaultObjectDuringCompilation(URigVMHost* InCDO) override;
 

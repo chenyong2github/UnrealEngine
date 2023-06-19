@@ -38,40 +38,6 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprint"
 
-FEdGraphPinType FControlRigPublicFunctionArg::GetPinType() const
-{
-	FRigVMExternalVariable Variable;
-	Variable.Name = Name;
-	Variable.bIsArray = bIsArray;
-	Variable.TypeName = CPPType;
-	
-	if(CPPTypeObjectPath.IsValid())
-	{
-		Variable.TypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
-	}
-
-	return RigVMTypeUtils::PinTypeFromExternalVariable(Variable);
-}
-
-bool FControlRigPublicFunctionData::IsMutable() const
-{
-	for(const FControlRigPublicFunctionArg& Arg : Arguments)
-	{
-		if(!Arg.CPPTypeObjectPath.IsNone())
-		{
-			if(UScriptStruct* Struct = Cast<UScriptStruct>(
-				RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(Arg.CPPTypeObjectPath.ToString())))
-			{
-				if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-				{
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
 TArray<UControlRigBlueprint*> UControlRigBlueprint::sCurrentlyOpenedRigBlueprints;
 
 UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectInitializer)
@@ -888,9 +854,9 @@ void UControlRigBlueprint::PatchFunctionsOnLoad()
 	TArray<FName> BackwardsCompatiblePublicFunctions;
 	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::StoreFunctionsInGeneratedClass)
 	{
-		for (const FControlRigPublicFunctionData& Data : PublicFunctions_DEPRECATED)
+		for (const FRigVMOldPublicFunctionData& OldPublicFunction : PublicFunctions_DEPRECATED)
 		{
-			BackwardsCompatiblePublicFunctions.Add(Data.Name);
+			BackwardsCompatiblePublicFunctions.Add(OldPublicFunction.Name);
 		}
 	}
 	else

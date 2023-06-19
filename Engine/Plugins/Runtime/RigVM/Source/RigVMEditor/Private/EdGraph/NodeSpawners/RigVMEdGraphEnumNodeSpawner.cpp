@@ -1,29 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigEnumNodeSpawner.h"
-#include "ControlRigUnitNodeSpawner.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphEnumNodeSpawner.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphUnitNodeSpawner.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMModel/RigVMController.h"
-#include "ControlRigBlueprint.h"
+#include "RigVMBlueprint.h"
 
 #include "RigVMModel/Nodes/RigVMEnumNode.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigEnumNodeSpawner)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraphEnumNodeSpawner)
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #endif
 
-#define LOCTEXT_NAMESPACE "ControlRigEnumNodeSpawner"
+#define LOCTEXT_NAMESPACE "RigVMEdGraphEnumNodeSpawner"
 
-UControlRigEnumNodeSpawner* UControlRigEnumNodeSpawner::CreateForEnum(UEnum* InEnum, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
+URigVMEdGraphEnumNodeSpawner* URigVMEdGraphEnumNodeSpawner::CreateForEnum(UEnum* InEnum, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
 {
-	UControlRigEnumNodeSpawner* NodeSpawner = NewObject<UControlRigEnumNodeSpawner>(GetTransientPackage());
-	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	URigVMEdGraphEnumNodeSpawner* NodeSpawner = NewObject<URigVMEdGraphEnumNodeSpawner>(GetTransientPackage());
+	NodeSpawner->NodeClass = URigVMEdGraphNode::StaticClass();
 	NodeSpawner->Enum = InEnum;
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
@@ -37,12 +37,12 @@ UControlRigEnumNodeSpawner* UControlRigEnumNodeSpawner::CreateForEnum(UEnum* InE
 	return NodeSpawner;
 }
 
-FBlueprintNodeSignature UControlRigEnumNodeSpawner::GetSpawnerSignature() const
+FBlueprintNodeSignature URigVMEdGraphEnumNodeSpawner::GetSpawnerSignature() const
 {
 	return FBlueprintNodeSignature(FString("RigUnit=" + Enum->GetFName().ToString()));
 }
 
-FBlueprintActionUiSpec UControlRigEnumNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
+FBlueprintActionUiSpec URigVMEdGraphEnumNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
 {
 	UEdGraph* TargetGraph = (Context.Graphs.Num() > 0) ? Context.Graphs[0] : nullptr;
 	FBlueprintActionUiSpec MenuSignature = PrimeDefaultUiSpec(TargetGraph);
@@ -51,16 +51,16 @@ FBlueprintActionUiSpec UControlRigEnumNodeSpawner::GetUiSpec(FBlueprintActionCon
 	return MenuSignature;
 }
 
-UEdGraphNode* UControlRigEnumNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
+UEdGraphNode* URigVMEdGraphEnumNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
 {
-	UControlRigGraphNode* NewNode = nullptr;
+	URigVMEdGraphNode* NewNode = nullptr;
 
 	bool const bIsTemplateNode = FBlueprintNodeTemplateCache::IsTemplateOuter(ParentGraph);
 	bool const bIsUserFacingNode = !bIsTemplateNode;
 
 	if (bIsTemplateNode)
 	{
-		NewNode = NewObject<UControlRigGraphNode>(ParentGraph, TEXT("EnumNode"));
+		NewNode = NewObject<URigVMEdGraphNode>(ParentGraph, TEXT("EnumNode"));
 		ParentGraph->AddNode(NewNode, false);
 
 		NewNode->CreateNewGuid();
@@ -77,9 +77,9 @@ UEdGraphNode* UControlRigEnumNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 	}
 
 	// First create a backing member for our node
-	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+	URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(ParentGraph);
 	if(RigGraph == nullptr) return nullptr;
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
+	URigVMBlueprint* RigBlueprint = Cast<URigVMBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
 #if WITH_EDITOR
@@ -100,7 +100,7 @@ UEdGraphNode* UControlRigEnumNodeSpawner::Invoke(UEdGraph* ParentGraph, FBinding
 
 	if (URigVMEnumNode* ModelNode = Controller->AddEnumNode(*Enum->GetPathName(), Location, Name.ToString(), bIsUserFacingNode, !bIsTemplateNode))
 	{
-		NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
+		NewNode = Cast<URigVMEdGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 
 		if (NewNode && bIsUserFacingNode)
 		{

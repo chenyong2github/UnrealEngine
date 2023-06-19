@@ -7,19 +7,19 @@
 #include "BlueprintNodeSignature.h"
 #include "BlueprintFieldNodeSpawner.h"
 #include "RigVMModel/RigVMGraph.h"
-#include "ControlRigInvokeEntryNodeSpawner.generated.h"
+#include "RigVMEdGraphInvokeEntryNodeSpawner.generated.h"
 
-class UControlRigGraphNode;
-class UControlRigBlueprint;
+class URigVMEdGraphNode;
+class URigVMBlueprint;
 
 UCLASS(Transient)
-class CONTROLRIGEDITOR_API UControlRigInvokeEntryNodeSpawner : public UBlueprintNodeSpawner
+class RIGVMEDITOR_API URigVMEdGraphInvokeEntryNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_BODY()
 
 public:
 
-	static UControlRigInvokeEntryNodeSpawner* CreateForEntry(UControlRigBlueprint* InBlueprint, const FName& InEntryName, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static URigVMEdGraphInvokeEntryNodeSpawner* CreateForEntry(URigVMBlueprint* InBlueprint, const FName& InEntryName, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -31,7 +31,7 @@ public:
 private:
 
 	/** The pin type we will spawn */
-	TWeakObjectPtr<UControlRigBlueprint> Blueprint;
+	TWeakObjectPtr<URigVMBlueprint> Blueprint;
 	TWeakObjectPtr<URigVMGraph> GraphOwner;
 	FName EntryName;
 

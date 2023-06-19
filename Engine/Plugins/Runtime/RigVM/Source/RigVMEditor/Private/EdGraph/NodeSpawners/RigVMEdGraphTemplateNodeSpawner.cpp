@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ControlRigTemplateNodeSpawner.h"
-#include "ControlRigUnitNodeSpawner.h"
-#include "Graph/ControlRigGraph.h"
-#include "Graph/ControlRigGraphNode.h"
-#include "Graph/ControlRigGraphSchema.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphTemplateNodeSpawner.h"
+#include "EdGraph/NodeSpawners/RigVMEdGraphUnitNodeSpawner.h"
+#include "EdGraph/RigVMEdGraph.h"
+#include "EdGraph/RigVMEdGraphNode.h"
+#include "EdGraph/RigVMEdGraphSchema.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Settings/EditorStyleSettings.h"
@@ -15,22 +15,21 @@
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMBlueprintUtils.h"
 #include "ScopedTransaction.h"
-#include "ControlRig.h"
 #include "RigVMModel/Nodes/RigVMDispatchNode.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigTemplateNodeSpawner)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMEdGraphTemplateNodeSpawner)
 
 #if WITH_EDITOR
 #include "Editor.h"
 #endif
 
-#define LOCTEXT_NAMESPACE "ControlRigTemplateNodeSpawner"
+#define LOCTEXT_NAMESPACE "RigVMEdGraphTemplateNodeSpawner"
 
-UControlRigTemplateNodeSpawner* UControlRigTemplateNodeSpawner::CreateFromNotation(const FName& InNotation, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
+URigVMEdGraphTemplateNodeSpawner* URigVMEdGraphTemplateNodeSpawner::CreateFromNotation(const FName& InNotation, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
 {
-	UControlRigTemplateNodeSpawner* NodeSpawner = NewObject<UControlRigTemplateNodeSpawner>(GetTransientPackage());
+	URigVMEdGraphTemplateNodeSpawner* NodeSpawner = NewObject<URigVMEdGraphTemplateNodeSpawner>(GetTransientPackage());
 	NodeSpawner->TemplateNotation = InNotation;
-	NodeSpawner->NodeClass = UControlRigGraphNode::StaticClass();
+	NodeSpawner->NodeClass = URigVMEdGraphNode::StaticClass();
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
 	
@@ -62,19 +61,19 @@ UControlRigTemplateNodeSpawner* UControlRigTemplateNodeSpawner::CreateFromNotati
 	return NodeSpawner;
 }
 
-void UControlRigTemplateNodeSpawner::Prime()
+void URigVMEdGraphTemplateNodeSpawner::Prime()
 {
 	// we expect that you don't need a node template to construct menu entries
 	// from this, so we choose not to pre-cache one here
 }
 
-FBlueprintNodeSignature UControlRigTemplateNodeSpawner::GetSpawnerSignature() const
+FBlueprintNodeSignature URigVMEdGraphTemplateNodeSpawner::GetSpawnerSignature() const
 {
 	const int32 NotationHash = (int32)GetTypeHash(TemplateNotation);
 	return FBlueprintNodeSignature(FString("RigVMTemplate_") + FString::FromInt(NotationHash));
 }
 
-bool UControlRigTemplateNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
+bool URigVMEdGraphTemplateNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
 {
 	bool bFilteredOut = true;
 	for (UEdGraphPin* Pin : Filter.Context.Pins)
@@ -86,9 +85,9 @@ bool UControlRigTemplateNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionF
 				continue;
 			}
 
-			if (UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(Graph))
+			if (URigVMEdGraph* EdGraph = Cast<URigVMEdGraph>(Graph))
 			{
-				if (URigVMGraph* RigGraph = ControlRigGraph->GetModel())
+				if (URigVMGraph* RigGraph = EdGraph->GetModel())
 				{
 					if (URigVMPin* ModelPin = RigGraph->FindPin(Pin->GetName()))
 					{
@@ -138,7 +137,7 @@ bool UControlRigTemplateNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionF
 	return Super::IsTemplateNodeFilteredOut(Filter);
 }
 
-FBlueprintActionUiSpec UControlRigTemplateNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
+FBlueprintActionUiSpec URigVMEdGraphTemplateNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
 {
 	UEdGraph* TargetGraph = (Context.Graphs.Num() > 0) ? Context.Graphs[0] : nullptr;
 	FBlueprintActionUiSpec MenuSignature = PrimeDefaultUiSpec(TargetGraph);
@@ -147,9 +146,9 @@ FBlueprintActionUiSpec UControlRigTemplateNodeSpawner::GetUiSpec(FBlueprintActio
 	return MenuSignature;
 }
 
-UEdGraphNode* UControlRigTemplateNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
+UEdGraphNode* URigVMEdGraphTemplateNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSet const& Bindings, FVector2D const Location) const
 {
-	UControlRigGraphNode* NewNode = nullptr;
+	URigVMEdGraphNode* NewNode = nullptr;
 
 	if(!TemplateNotation.IsNone())
 	{
@@ -167,11 +166,11 @@ UEdGraphNode* UControlRigTemplateNodeSpawner::Invoke(UEdGraph* ParentGraph, FBin
 	return NewNode;
 }
 
-UControlRigGraphNode* UControlRigTemplateNodeSpawner::SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, const FName& InNotation, FVector2D const Location)
+URigVMEdGraphNode* URigVMEdGraphTemplateNodeSpawner::SpawnNode(UEdGraph* ParentGraph, UBlueprint* Blueprint, const FName& InNotation, FVector2D const Location)
 {
-	UControlRigGraphNode* NewNode = nullptr;
-	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
-	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+	URigVMEdGraphNode* NewNode = nullptr;
+	URigVMBlueprint* RigBlueprint = Cast<URigVMBlueprint>(Blueprint);
+	URigVMEdGraph* RigGraph = Cast<URigVMEdGraph>(ParentGraph);
 
 	if (RigBlueprint != nullptr && RigGraph != nullptr)
 	{
@@ -197,14 +196,14 @@ UControlRigGraphNode* UControlRigTemplateNodeSpawner::SpawnNode(UEdGraph* Parent
 
 		if (URigVMTemplateNode* ModelNode = Controller->AddTemplateNode(InNotation, Location, Name.ToString(), bIsUserFacingNode, !bIsTemplateNode))
 		{
-			NewNode = Cast<UControlRigGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
+			NewNode = Cast<URigVMEdGraphNode>(RigGraph->FindNodeForModelNodeName(ModelNode->GetFName()));
 
 			if (NewNode && bIsUserFacingNode)
 			{
 				Controller->ClearNodeSelection(true);
 				Controller->SelectNode(ModelNode, true, true);
 
-				UControlRigUnitNodeSpawner::HookupMutableNode(ModelNode, RigBlueprint);
+				URigVMEdGraphUnitNodeSpawner::HookupMutableNode(ModelNode, RigBlueprint);
 			}
 
 			if (bIsUserFacingNode)

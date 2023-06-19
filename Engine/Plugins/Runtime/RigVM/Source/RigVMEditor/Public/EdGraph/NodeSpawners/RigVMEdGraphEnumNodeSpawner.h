@@ -12,23 +12,23 @@
 #include "BlueprintActionFilter.h"
 #include "BlueprintNodeSignature.h"
 #include "BlueprintFieldNodeSpawner.h"
-#include "ControlRigEnumNodeSpawner.generated.h"
+#include "RigVMEdGraphEnumNodeSpawner.generated.h"
 
-class UControlRigGraphNode;
+class URigVMEdGraphNode;
 
 UCLASS(Transient)
-class CONTROLRIGEDITOR_API UControlRigEnumNodeSpawner : public UBlueprintNodeSpawner
+class RIGVMEDITOR_API URigVMEdGraphEnumNodeSpawner : public UBlueprintNodeSpawner
 {
 	GENERATED_BODY()
 
 public:
 
 	/**
-	 * Creates a new UControlRigEnumNodeSpawner
+	 * Creates a new URigVMEdGraphEnumNodeSpawner
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigEnumNodeSpawner* CreateForEnum(UEnum* InEnum, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static URigVMEdGraphEnumNodeSpawner* CreateForEnum(UEnum* InEnum, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
 
 	// UBlueprintNodeSpawner interface
 	virtual FBlueprintNodeSignature GetSpawnerSignature() const override;

@@ -65,6 +65,40 @@ static TArray<UClass*> GetClassObjectsInPackage(UPackage* InPackage)
 	return ClassObjects;
 }
 
+FEdGraphPinType FRigVMOldPublicFunctionArg::GetPinType() const
+{
+	FRigVMExternalVariable Variable;
+	Variable.Name = Name;
+	Variable.bIsArray = bIsArray;
+	Variable.TypeName = CPPType;
+	
+	if(CPPTypeObjectPath.IsValid())
+	{
+		Variable.TypeObject = RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
+	}
+
+	return RigVMTypeUtils::PinTypeFromExternalVariable(Variable);
+}
+
+bool FRigVMOldPublicFunctionData::IsMutable() const
+{
+	for(const FRigVMOldPublicFunctionArg& Arg : Arguments)
+	{
+		if(!Arg.CPPTypeObjectPath.IsNone())
+		{
+			if(UScriptStruct* Struct = Cast<UScriptStruct>(
+				RigVMTypeUtils::FindObjectFromCPPTypeObjectPath(Arg.CPPTypeObjectPath.ToString())))
+			{
+				if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 FSoftObjectPath URigVMBlueprint::PreDuplicateAssetPath;
 FSoftObjectPath URigVMBlueprint::PreDuplicateHostPath;
 
