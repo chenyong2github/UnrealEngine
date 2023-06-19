@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Collections.Generic;
 using EpicGames.Core;
+using EpicGames.Serialization;
 
 namespace UnrealBuildTool
 {
@@ -222,12 +224,10 @@ namespace UnrealBuildTool
 		public String[]? DisallowedPlugins;
 
 		/// <summary>
-		/// Private constructor. This object should not be created directly; read it from disk using FromFile() instead.
+		/// The JsonObject created from reading a .uplugin on disk or from parsing a json text 
+		/// This preserves the order of all the fields from the source json as well as account for any custom fields.
 		/// </summary>
-		private PluginDescriptor()
-		{
-			FileVersion = (int)PluginDescriptorVersion.Latest;
-		}
+		private readonly JsonObject CachedJson;
 
 		/// <summary>
 		/// Reads a plugin descriptor from a json object
@@ -237,6 +237,7 @@ namespace UnrealBuildTool
 		/// <returns>New plugin descriptor</returns>
 		public PluginDescriptor(JsonObject RawObject, FileReference PluginPath)
 		{
+			CachedJson = RawObject;
 			// Read the version
 			if (!RawObject.TryGetIntegerField("FileVersion", out FileVersion))
 			{
@@ -356,7 +357,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Creates a plugin descriptor from a file on disk
+		/// Creates a plugin descriptor from a file on disk preserving all custom fields in the file.
 		/// </summary>
 		/// <param name="FileName">The filename to read</param>
 		/// <returns>New plugin descriptor</returns>
@@ -376,7 +377,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Saves the descriptor to disk
+		/// Saves the descriptor to disk. This only saves the default fields in a .uplugin and does not account for cusotm fields.
 		/// </summary>
 		/// <param name="FileName">The filename to write to</param>
 		public void Save(string FileName)
@@ -387,6 +388,18 @@ namespace UnrealBuildTool
 				Write(Writer);
 				Writer.WriteObjectEnd();
 			}
+		}
+
+		/// <summary>
+		/// Saves the descriptor to disk preserving all custom fields that were read in.
+		/// </summary>
+		/// <param name="fileName">The filename to write to</param>
+		public void Save2(string fileName)
+		{
+			// @TODO: This should replace all instances of Save() at some point in the future. There's just still a lot of references to test and refactor that needs to be verified. 
+			UpdateJson();
+			string jsonString = CachedJson.ToJsonString();
+			File.WriteAllText(fileName, jsonString);
 		}
 
 		/// <summary>
@@ -504,6 +517,114 @@ namespace UnrealBuildTool
 			if (DisallowedPlugins != null && DisallowedPlugins.Length > 0)
 			{
 				Writer.WriteStringArrayField("DisallowedPlugins", DisallowedPlugins);
+			}
+		}
+
+		private void UpdateJson()
+		{
+			CachedJson.AddOrSetFieldValue("FileVersion", (int)ProjectDescriptorVersion.Latest);
+			CachedJson.AddOrSetFieldValue("Version", Version);
+			CachedJson.AddOrSetFieldValue("VersionName", VersionName);
+			CachedJson.AddOrSetFieldValue("FriendlyName", FriendlyName);
+			CachedJson.AddOrSetFieldValue("Description", Description);
+			CachedJson.AddOrSetFieldValue("Category", Category);
+			CachedJson.AddOrSetFieldValue("CreatedBy", CreatedBy);
+			CachedJson.AddOrSetFieldValue("CreatedByURL", CreatedByURL);
+			CachedJson.AddOrSetFieldValue("DocsURL", DocsURL);
+			CachedJson.AddOrSetFieldValue("MarketplaceURL", MarketplaceURL);
+			CachedJson.AddOrSetFieldValue("SupportURL", SupportURL);
+			if (!String.IsNullOrEmpty(EngineVersion))
+			{
+				CachedJson.AddOrSetFieldValue("EngineVersion", EngineVersion);
+			}
+			if (!String.IsNullOrEmpty(VersePath))
+			{
+				CachedJson.AddOrSetFieldValue("VersePath", VersePath);
+			}
+			if (VerseScope != VerseScope.User)
+			{
+				CachedJson.AddOrSetFieldValue("VerseScope", VerseScope.ToString());
+			}
+			if (bEnabledByDefault.HasValue)
+			{
+				CachedJson.AddOrSetFieldValue("EnabledByDefault", bEnabledByDefault.Value);
+			}
+			CachedJson.AddOrSetFieldValue("CanContainContent", bCanContainContent);
+			if (bCanContainVerse)
+			{
+				CachedJson.AddOrSetFieldValue("CanContainVerse", bCanContainVerse);
+			}
+			if (bIsBetaVersion)
+			{
+				CachedJson.AddOrSetFieldValue("IsBetaVersion", bIsBetaVersion);
+			}
+			if (bIsExperimentalVersion)
+			{
+				CachedJson.AddOrSetFieldValue("IsExperimentalVersion", bIsExperimentalVersion);
+			}
+			if (bInstalled)
+			{
+				CachedJson.AddOrSetFieldValue("Installed", bInstalled);
+			}
+
+			if (bRequiresBuildPlatform)
+			{
+				CachedJson.AddOrSetFieldValue("RequiresBuildPlatform", bRequiresBuildPlatform);
+			}
+
+			if (bIsSealed)
+			{
+				CachedJson.AddOrSetFieldValue("Sealed", bIsSealed);
+			}
+
+			if (bExplicitlyLoaded)
+			{
+				CachedJson.AddOrSetFieldValue("ExplicitlyLoaded", bExplicitlyLoaded);
+			}
+
+			if (bHasExplicitPlatforms)
+			{
+				CachedJson.AddOrSetFieldValue("HasExplicitPlatforms", bHasExplicitPlatforms);
+			}
+
+			if (SupportedTargetPlatforms != null && SupportedTargetPlatforms.Count > 0)
+			{
+				CachedJson.AddOrSetFieldValue("SupportedTargetPlatforms", SupportedTargetPlatforms.Select<UnrealTargetPlatform, string>(x => x.ToString()).ToArray());
+			}
+
+			if (SupportedPrograms != null && SupportedPrograms.Length > 0)
+			{
+				CachedJson.AddOrSetFieldValue("SupportedPrograms", SupportedPrograms);
+			}
+			if (bIsPluginExtension)
+			{
+				CachedJson.AddOrSetFieldValue("bIsPluginExtension", bIsPluginExtension);
+			}
+
+			if (Modules != null && Modules.Count > 0)
+			{
+				ModuleDescriptor.UpdateJson(CachedJson, "Modules", Modules.ToArray());
+			}
+
+			LocalizationTargetDescriptor.UpdateJson(CachedJson, "LocalizationTargets", LocalizationTargets);
+
+			if (PreBuildSteps != null)
+			{
+				CachedJson.AddOrSetFieldValue("PreBuildSteps", PreBuildSteps.ToJsonObject());
+			}
+
+			if (PostBuildSteps != null)
+			{
+				CachedJson.AddOrSetFieldValue("PostBuildSteps", PostBuildSteps.ToJsonObject());
+			}
+
+			if (Plugins != null && Plugins.Count > 0)
+			{
+				PluginReferenceDescriptor.UpdateJson(CachedJson, "Plugins", Plugins.ToArray());
+			}
+			if (DisallowedPlugins != null && DisallowedPlugins.Length > 0)
+			{
+				CachedJson.AddOrSetFieldValue("DisallowedPlugins", DisallowedPlugins);
 			}
 		}
 
