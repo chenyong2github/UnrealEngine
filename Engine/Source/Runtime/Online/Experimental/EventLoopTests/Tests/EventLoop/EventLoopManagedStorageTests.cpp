@@ -8,7 +8,7 @@ namespace UE::EventLoop
 {
 	struct FMockManagedStorageHandleTraits
 	{
-		static constexpr TCHAR* Name = TEXT("MockManagedStorageHandle");
+		static constexpr const TCHAR* Name = TEXT("MockManagedStorageHandle");
 	};
 
 	struct FMockEventLoopManagedStorageTraits

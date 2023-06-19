@@ -8,7 +8,7 @@ namespace UE::EventLoop
 {
 	struct FMockTimerHandleTraits
 	{
-		static constexpr TCHAR* Name = TEXT("MockTimerHandle");
+		static constexpr const TCHAR* Name = TEXT("MockTimerHandle");
 	};
 
 	struct FEventLoopTimerManagerMockTraits : public FTimerManagerTraitsBase
