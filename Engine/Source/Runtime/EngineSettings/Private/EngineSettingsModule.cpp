@@ -74,7 +74,7 @@ UGeneralProjectSettings::UGeneralProjectSettings( const FObjectInitializer& Obje
 	, bAllowMaximize(true)
 	, bAllowMinimize(true)
 	, EyeOffsetForFakeStereoRenderingDevice(0.0320000005f)
-	, FOVForFakeStereoRenderingDevice(100)
+	, FOVForFakeStereoRenderingDevice(90)
 { }
 
 
