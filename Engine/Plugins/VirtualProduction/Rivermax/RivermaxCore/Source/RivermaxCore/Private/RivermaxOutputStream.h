@@ -4,6 +4,7 @@
 
 #include "IRivermaxOutputStream.h"
 
+#include "Async/Future.h"
 #include "Containers/SpscQueue.h"
 #include "HAL/Runnable.h"
 #include "RivermaxHeader.h"
@@ -245,6 +246,9 @@ namespace UE::RivermaxCore::Private
 
 		/** Guid given by boundary monitoring handler to unregister ourselves */
 		FGuid MonitoringGuid;
+
+		/** Future returned by the async initialization job we launch. Used to detect if it has completed during shutdown. */
+		TFuture<void> InitializationFuture;
 
 		/** Time to sleep when waiting for an operation to complete */
 		static constexpr double SleepTimeSeconds = 50.0 * 1E-6;

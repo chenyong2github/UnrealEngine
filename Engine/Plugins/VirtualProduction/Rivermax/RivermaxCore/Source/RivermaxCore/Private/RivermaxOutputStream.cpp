@@ -329,7 +329,7 @@ namespace UE::RivermaxCore::Private
 		// Enable frame boundary monitoring
 		MonitoringGuid = RivermaxModule->GetRivermaxBoundaryMonitor().StartMonitoring(Options.FrameRate);
 
-		Async(EAsyncExecution::TaskGraph, [this]()
+		InitializationFuture = Async(EAsyncExecution::TaskGraph, [this]()
 		{
 			TAnsiStringBuilder<2048> SDPDescription;
 			UE::RivermaxCore::Private::Utils::StreamOptionsToSDPDescription(Options, SDPDescription);
@@ -400,6 +400,11 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxOutputStream::Uninitialize()
 	{
+		if (!InitializationFuture.IsReady())
+		{
+			InitializationFuture.Wait();
+		}
+
 		if (RivermaxThread != nullptr)
 		{
 			Stop();

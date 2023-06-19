@@ -138,8 +138,9 @@ void FSyncPointWatcher::WaitForSinglePendingTaskToComplete()
 
 FSyncPointWatcher::~FSyncPointWatcher()
 {
-	Stop();
-	WorkingThread->WaitForCompletion();
+	constexpr bool bWaitForThread = true;
+	WorkingThread->Kill(bWaitForThread);
+	WorkingThread.Reset();
 }
 
 }
