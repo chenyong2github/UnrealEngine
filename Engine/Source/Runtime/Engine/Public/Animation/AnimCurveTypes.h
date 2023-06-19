@@ -125,7 +125,7 @@ public:
 		: CurveTypeFlags(0)
 	{
 #if WITH_EDITORONLY_DATA
-		Color = MakeColor();
+		Color = MakeColor(CurveName);
 #endif
 	}
 
@@ -134,7 +134,7 @@ public:
 		, CurveTypeFlags(InCurveTypeFlags)
 	{
 #if WITH_EDITORONLY_DATA
-		Color = MakeColor();
+		Color = MakeColor(CurveName);
 #endif
 	}
 
@@ -144,7 +144,7 @@ public:
 		, CurveTypeFlags(InCurveTypeFlags)
 	{
 #if WITH_EDITORONLY_DATA
-		Color = MakeColor();
+		Color = MakeColor(CurveName);
 #endif
 	}
 
@@ -195,9 +195,8 @@ public:
 	/** Get the color used to display this curve in the editor */
 	FLinearColor GetColor() const { return Color; }
 
-private:
 	/** Make an initial color */
-	ENGINE_API FLinearColor MakeColor();
+	static ENGINE_API FLinearColor MakeColor(const FName& CurveName);
 #endif
 };
 

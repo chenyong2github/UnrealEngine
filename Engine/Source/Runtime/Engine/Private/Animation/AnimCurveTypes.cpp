@@ -74,7 +74,7 @@ void FAnimCurveBase::PostSerialize(const FArchive& Ar)
 		{
 			// Need to set the curve name before we generate a new color
 			CurveName = Name_DEPRECATED.DisplayName;
-			Color = MakeColor();
+			Color = MakeColor(CurveName);
 		}
 
 		if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimationRemoveSmartNames)
@@ -120,7 +120,7 @@ int32 FAnimCurveBase::GetCurveTypeFlags() const
 }
 
 #if WITH_EDITORONLY_DATA
-FLinearColor FAnimCurveBase::MakeColor()
+FLinearColor FAnimCurveBase::MakeColor(const FName& CurveName)
 {
 	// Create a color based on the hash of the name
 	FRandomStream Stream(GetTypeHash(CurveName));
