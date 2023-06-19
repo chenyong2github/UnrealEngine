@@ -50,6 +50,8 @@ public:
 	void Unregister(FAccountId AccountId);
 };
 
+using FAuthOSSAdapterPtr = TSharedPtr<class FAuthOSSAdapter>;
+
 class ONLINESERVICESOSSADAPTER_API FAuthOSSAdapter : public FAuthCommon
 {
 public:
