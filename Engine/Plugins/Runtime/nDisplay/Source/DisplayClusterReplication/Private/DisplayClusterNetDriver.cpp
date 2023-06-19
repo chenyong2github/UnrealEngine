@@ -281,8 +281,11 @@ void UDisplayClusterNetDriver::TickFlush(float DeltaSeconds)
 	}
 
 	const UDisplayClusterConfigurationData* ConfigData = IDisplayCluster::Get().GetConfigMgr()->GetConfig();
+	check(ConfigData);
+	const uint32 ClusterNodesAmount = ConfigData->GetNumberOfClusterNodes();
+	check(ClusterNodesAmount > 0);
 
-	if ((World->GetNetMode() == NM_ListenServer) && (SyncConnections.Num() < (ConfigData->GetNumberOfClusterNodes() - 1)))
+	if ((World->GetNetMode() == NM_ListenServer) && (SyncConnections.Num() < (static_cast<int32>(ClusterNodesAmount) - 1)))
 	{
 		return;
 	}
