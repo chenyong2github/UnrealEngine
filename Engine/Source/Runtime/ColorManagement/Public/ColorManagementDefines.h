@@ -6,11 +6,11 @@
 
 namespace UE { namespace Color {
 
-/** Increment upon breaking changes to the EEncoding enum. Note that changing this forces a rebuild of textures that rely on it. */
-constexpr uint32 ENCODING_TYPES_VER = 4;
+/** Increment upon breaking changes to the EEncoding enum. */
+constexpr uint32 ENCODING_TYPES_VER = 3;
 
-/** Increment upon breaking changes to the EColorSpace and EChromaticAdaptationMethod enums. Note that changing this forces a rebuild of textures that rely on it.*/
-constexpr uint32 COLORSPACE_VER = 2;
+/** Increment upon breaking changes to the EColorSpace and EChromaticAdaptationMethod enums. */
+constexpr uint32 COLORSPACE_VER = 1;
 
 /** List of available encodings/transfer functions.
 * 
