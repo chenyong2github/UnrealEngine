@@ -373,6 +373,16 @@ namespace Horde.Server.Configuration
 			}
 		}
 
+		internal byte[] Serialize(GlobalConfig config)
+		{
+			return JsonSerializer.SerializeToUtf8Bytes(config, _jsonOptions);
+		}
+		
+		internal GlobalConfig? Deserialize(byte[] data)
+		{
+			return JsonSerializer.Deserialize<GlobalConfig>(data, _jsonOptions);
+		}
+
 		/// <summary>
 		/// Writes information about the current snapshot to the logger
 		/// </summary>
