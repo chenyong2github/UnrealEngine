@@ -41,15 +41,15 @@ struct FLightCardAlphaGradientSettings
 	bool bEnableAlphaGradient = false;
 
 	/** Starting alpha value in the gradient */
-	UPROPERTY(EditAnywhere, Interp, BlueprintReadWrite, Category = "Appearance", meta = (EditCondition = "bEnableAlphaGradient"))
+	UPROPERTY(EditAnywhere, Interp, BlueprintReadWrite, Category = "Appearance")
 	float StartingAlpha = 0;
 
 	/** Ending alpha value in the gradient */
-	UPROPERTY(EditAnywhere, Interp, BlueprintReadWrite, Category = "Appearance", meta = (EditCondition = "bEnableAlphaGradient"))
+	UPROPERTY(EditAnywhere, Interp, BlueprintReadWrite, Category = "Appearance")
 	float EndingAlpha = 1;
 
 	/** The angle (degrees) determines the gradient direction. */
-	UPROPERTY(EditAnywhere, Interp, BlueprintReadWrite, Category = "Appearance", meta = (EditCondition = "bEnableAlphaGradient"))
+	UPROPERTY(EditAnywhere, Interp, BlueprintReadWrite, Category = "Appearance")
 	float Angle = 0;
 };
 

@@ -64,7 +64,7 @@ public:
 	bool bEnable = true;
 
 	/** The base remap to apply to the entire viewport, used to apply flipping and rotation to the viewport */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (NoHeader, Simplified, AngleInterval = "90", EditCondition = "bEnable"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (NoHeader, Simplified, AngleInterval = "90"))
 	FDisplayClusterConfigurationViewport_RemapData BaseRemap;
 
 	/** Additional remaps to apply to the viewport, can be used to subdivide the viewport into multiple outputs. Experimental, not exposed to users at this time */

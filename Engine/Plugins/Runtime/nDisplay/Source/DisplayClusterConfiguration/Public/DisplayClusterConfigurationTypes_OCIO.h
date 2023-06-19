@@ -53,7 +53,7 @@ struct FDisplayClusterConfigurationOCIOProfile
 	FOpenColorIODisplayConfiguration OCIOConfiguration_DEPRECATED;
 
 	/** Specify the viewports to apply this OpenColorIO configuration. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OCIO", meta = (EditCondition = "bIsEnabled"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "OCIO")
 	TArray<FString> ApplyOCIOToObjects;
 
 	/** Conversion to apply when this display is enabled */

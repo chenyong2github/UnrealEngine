@@ -20,7 +20,7 @@
  * 
  * Additionally, this type supports using property paths within its EditCondition specifier, allowing the edit condition
  * of the referenced property within a details panel to depend on other referenced properties. The && operator is supported,
- * allowing multipe property paths to be used to construct the edit condition.
+ * allowing multiple property paths to be used to construct the edit condition.
  */
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterEditorPropertyReference

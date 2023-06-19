@@ -143,11 +143,11 @@ protected:
 	uint8 bEnableGizmo : 1;
 
 	/** Base gizmo scale */
-	UPROPERTY(EditAnywhere, Category = "Gizmo", meta = (EditCondition = "bEnableGizmo"))
+	UPROPERTY(EditAnywhere, Category = "Gizmo")
 	FVector BaseGizmoScale;
 
 	/** Gizmo scale multiplier */
-	UPROPERTY(EditAnywhere, Category = "Gizmo", meta = (UIMin = "0", UIMax = "2.0", ClampMin = "0.01", ClampMax = "10.0", EditCondition = "bEnableGizmo"))
+	UPROPERTY(EditAnywhere, Category = "Gizmo", meta = (UIMin = "0", UIMax = "2.0", ClampMin = "0.01", ClampMax = "10.0"))
 	float GizmoScaleMultiplier;
 
 	UPROPERTY(Transient)
