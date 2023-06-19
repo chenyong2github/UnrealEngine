@@ -170,12 +170,13 @@ private:
 	void OnLevelBeginMakingVisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
 	void OnLevelBeginMakingInvisible(UWorld* InWorld, const ULevelStreaming* InStreamingLevel, ULevel* InLoadedLevel);
 	void UpdateLoadingAndPendingLoadStreamingLevels(const ULevelStreaming* InStreamingLevel);
+	bool IncrementalUpdateStreamingState();
 	
 	// Server information
 	uint32 GetServerClientsVisibleLevelsHash() const { return ServerClientsVisibleLevelsHash; }
 	void UpdateServerClientsVisibleLevelNames();
 
-	static ENGINE_API void UpdateStreamingStateInternal(const UWorld* InWorld, const TArray<TObjectPtr<UWorldPartition>>& InWorldPartitions);
+	static ENGINE_API void UpdateStreamingStateInternal(const UWorld* InWorld, UWorldPartition* InWorldPartition = nullptr);
 	static int32 GetMaxCellsToLoad(const UWorld* InWorld);
 	static bool IsServer(const UWorld* InWorld);
 
@@ -190,13 +191,14 @@ private:
 	friend class UWorldPartition;
 	friend class UWorldPartitionStreamingPolicy;
 
+	// Registered world partitions & incremental update
 	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
-
-	TSet<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
-
-	FWorldPartitionStreamingSourceProviderFilter IsStreamingSourceProviderFiltered;
+	TSet<TObjectPtr<UWorldPartition>> IncrementalUpdateWorldPartitions;
+	TSet<TObjectPtr<UWorldPartition>> IncrementalUpdateWorldPartitionsPendingAdd;
 
 	// Streaming Sources
+	TSet<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
+	FWorldPartitionStreamingSourceProviderFilter IsStreamingSourceProviderFiltered;
 	TArray<FWorldPartitionStreamingSource> StreamingSources;
 	TMap<FName, FStreamingSourceVelocity> StreamingSourcesVelocity;
 	uint32 StreamingSourcesHash;
@@ -206,6 +208,7 @@ private:
 	TSet<FName> ServerClientsVisibleLevelNames;
 	uint32 ServerClientsVisibleLevelsHash;
 
+	// Debug draw
 	TArray<FWorldPartitionDraw2DContext> WorldPartitionsDraw2DContext;
 	FDelegateHandle	DrawHandle;
 

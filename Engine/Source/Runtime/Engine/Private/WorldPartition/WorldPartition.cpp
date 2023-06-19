@@ -728,7 +728,7 @@ void UWorldPartition::Uninitialize()
 		// Unload all loaded cells
 		if (World->IsGameWorld())
 		{
-			UWorldPartitionSubsystem::UpdateStreamingStateInternal(World, { this });
+			UWorldPartitionSubsystem::UpdateStreamingStateInternal(World, this);
 		}
 
 #if WITH_EDITOR
