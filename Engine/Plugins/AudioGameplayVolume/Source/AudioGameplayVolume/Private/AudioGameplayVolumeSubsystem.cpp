@@ -160,6 +160,11 @@ bool UAudioGameplayVolumeSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 	return !IsRunningDedicatedServer();
 }
 
+void UAudioGameplayVolumeSubsystem::Deinitialize()
+{
+	AGVComponents.Reset();
+}
+
 void UAudioGameplayVolumeSubsystem::Update()
 {
 	check(IsInAudioThread());

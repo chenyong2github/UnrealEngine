@@ -126,6 +126,7 @@ public:
 
 	//~ Begin USubsystem interface
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
+	virtual void Deinitialize() override;
 	//~ End USubsystem interface
 
 	//~ Begin UAudioEngineSubsystem interface
