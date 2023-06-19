@@ -362,6 +362,7 @@ private:
 	static const TCHAR* FindClassDepHelpText;
 	static const FName AssetAuditTabName;
 	static const FName AssetDiskSizeTabName;
+	static const FName AssetDiskSize2TabName;
 	static const FName ReferenceViewerTabName;
 	static const FName SizeMapTabName;
 
@@ -413,6 +414,7 @@ const TCHAR* FAssetManagerEditorModule::FindDepChainHelpText = TEXT("Finds all d
 const TCHAR* FAssetManagerEditorModule::FindClassDepHelpText = TEXT("Finds all dependencies of a certain set of classes to the target asset.\n Usage: FindDepClasses TargetPackagePath ClassName1 ClassName2 etc (optional: -hardonly/-softonly) \n e.g. FindDepChain /game/characters/heroes/muriel/meshes/muriel /game/cards");
 const FName FAssetManagerEditorModule::AssetAuditTabName = TEXT("AssetAudit");
 const FName FAssetManagerEditorModule::AssetDiskSizeTabName = TEXT("AssetDiskSize");
+const FName FAssetManagerEditorModule::AssetDiskSize2TabName = TEXT("AssetDiskSize2");
 const FName FAssetManagerEditorModule::ReferenceViewerTabName = TEXT("ReferenceViewer");
 const FName FAssetManagerEditorModule::SizeMapTabName = TEXT("SizeMap");
 
@@ -518,11 +520,18 @@ void FAssetManagerEditorModule::StartupModule()
 		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(AssetAuditTabName, FVector2D(1080, 600));
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(AssetDiskSizeTabName, FOnSpawnTab::CreateRaw(this, &FAssetManagerEditorModule::SpawnAssetDiskSizeTab))
-			.SetDisplayName(LOCTEXT("AssetDiskSizeTitle", "Asset Disk Size"))
+			.SetDisplayName(LOCTEXT("AssetDiskSizeTitle", "Asset Disk Size 1"))
 			.SetTooltipText(LOCTEXT("AssetDiskSizeTooltip", "Open Asset Disk Size window, allows to analyze disk size for assets."))
 			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsAuditCategory())
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Audit"));
 		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(AssetDiskSizeTabName, FVector2D(1080, 600));
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(AssetDiskSize2TabName, FOnSpawnTab::CreateRaw(this, &FAssetManagerEditorModule::SpawnAssetDiskSizeTab))
+			.SetDisplayName(LOCTEXT("AssetDiskSizeTitle", "Asset Disk Size 2"))
+			.SetTooltipText(LOCTEXT("AssetDiskSizeTooltip", "Open Asset Disk Size window, allows to analyze disk size for assets."))
+			.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsAuditCategory())
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Audit"));
+		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(AssetDiskSize2TabName, FVector2D(1080, 600));
 
 		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ReferenceViewerTabName, FOnSpawnTab::CreateRaw(this, &FAssetManagerEditorModule::SpawnReferenceViewerTab))
 			.SetDisplayName(LOCTEXT("ReferenceViewerTitle", "Reference Viewer"))

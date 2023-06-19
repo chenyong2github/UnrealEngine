@@ -136,6 +136,7 @@ struct FAssetTableDependencySizes
 struct FAssetTablePluginInfo
 {
 	TSet<int32> PluginDependencies;
+	TSet<int32> DiscoveredPluginDependencies;
 	const TCHAR* PluginName = nullptr;
 	int64 Size = -1;
 };

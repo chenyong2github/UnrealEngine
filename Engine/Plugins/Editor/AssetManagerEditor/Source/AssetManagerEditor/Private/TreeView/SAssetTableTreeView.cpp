@@ -72,6 +72,8 @@ void SAssetTableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FAssetT
 	CreateGroupings();
 	CreateSortings();
 
+	RegistrySourceTimeText->SetText(LOCTEXT("RegistrySourceTimeText_None", "No registry loaded."));
+
 	RequestOpenRegistry();
 }
 
@@ -172,6 +174,21 @@ void SAssetTableTreeView::ConstructHeaderArea(TSharedRef<SVerticalBox> InWidgetC
 			.VAlign(VAlign_Center)
 			[
 				ConstructFilterConfiguratorButton()
+			]
+		];
+
+	InWidgetContent->AddSlot()
+		.VAlign(VAlign_Center)
+		.AutoHeight()
+		.Padding(2.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(RegistrySourceTimeText, STextBlock)
 			]
 		];
 
@@ -870,6 +887,7 @@ void SAssetTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 void SAssetTableTreeView::RequestOpenRegistry()
 {
 	bNeedsToOpenRegistry = true;
+	FooterLeftTextStoredPreOpen = FooterLeftText;
 	FooterLeftText = LOCTEXT("FooterLeftTextFmt_OpenRegistry_Filtered", "Opening registry... please wait...");
 }
 
@@ -880,7 +898,22 @@ void SAssetTableTreeView::OpenRegistry()
 	RegistrySource.SourceName = FAssetManagerEditorRegistrySource::CustomSourceName;
 	if (EditorModule->PopulateRegistrySource(&RegistrySource))
 	{
+		IFileManager& FileManager = IFileManager::Get();
+		const FString RegistryFilePath = FileManager.GetFilenameOnDisk(*FileManager.ConvertToAbsolutePathForExternalAppForRead(*RegistrySource.SourceFilename));
+		RegistrySourceTimeText->SetText(FText::Format(LOCTEXT("RegistrySourceTimeText", "Loaded: {0} from {1}"), 
+			FText::FromString(RegistryFilePath),
+			FText::FromString(RegistrySource.SourceTimestamp)));
+
 		RequestRefreshAssets();
+	}
+	else if (!IsRegistrySourceValid())
+	{
+		FooterLeftText = LOCTEXT("FooterLeftTextFmt_OpenRegistry_Failed", "No registry selected or load failed.");
+		RegistrySourceTimeText->SetText(LOCTEXT("RegistrySourceTimeText_None", "No registry loaded."));
+	}
+	else
+	{
+		FooterLeftText = FooterLeftTextStoredPreOpen;
 	}
 }
 
@@ -1242,6 +1275,9 @@ void SAssetTableTreeView::RefreshAssets()
 
 	TMap<FString, int64> PluginToSizeMap;
 
+	typedef TSet<const TCHAR*, TStringPointerSetKeyFuncs_DEPRECATED<const TCHAR*>> DeprecatedTCharSetType;
+	TMap<const TCHAR*, DeprecatedTCharSetType, FDefaultSetAllocator, TStringPointerMapKeyFuncs_DEPRECATED<const TCHAR*, DeprecatedTCharSetType>> DiscoveredPluginDependencyEdges;
+
 	if (IsRegistrySourceValid())
 	{
 		TMap<FAssetData, int32> AssetToIndexMap;
@@ -1348,9 +1384,25 @@ void SAssetTableTreeView::RefreshAssets()
 					}
 					if (ensure(RowIndex != nullptr))
 					{
+						const TCHAR* CurrentPlugin = AssetTable->GetAssetChecked(*RowIndex).GetPluginName();
+						DeprecatedTCharSetType DependencyPlugins;
+
 						for (int32 Index : IndicesOfDependenciesInRowTableToAddToCurrentSourceAssetRow)
 						{
 							AssetTable->GetAsset(*RowIndex)->Dependencies.AddUnique(Index);
+
+							const TCHAR* DependencyPlugin = AssetTable->GetAsset(Index)->GetPluginName();
+							if (DependencyPlugin != CurrentPlugin)
+							{
+								DependencyPlugins.Add(DependencyPlugin);
+							}
+						}
+
+
+						DeprecatedTCharSetType& DiscoveredPluginDependencyList = DiscoveredPluginDependencyEdges.FindOrAdd(CurrentPlugin);
+						for (const TCHAR* DependencyPlugin : DependencyPlugins)
+						{
+							DiscoveredPluginDependencyList.Add(DependencyPlugin);
 						}
 					}
 				}
@@ -1378,11 +1430,11 @@ void SAssetTableTreeView::RefreshAssets()
 	// Setup plugin infos and dependencies. This will eventually be replaced by data from the asset registry
 	for (TPair<FString, int64>& PluginEntry : PluginToSizeMap)
 	{
+		const TCHAR* StoredPluginName = AssetTable->StoreStr(PluginEntry.Key);
+		FAssetTablePluginInfo& PluginInfo = AssetTable->GetOrCreatePluginInfo(StoredPluginName);
+		PluginInfo.Size = PluginEntry.Value;
 		if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginEntry.Key))
 		{
-			const TCHAR* StoredPluginName = AssetTable->StoreStr(PluginEntry.Key);
-			FAssetTablePluginInfo& PluginInfo = AssetTable->GetOrCreatePluginInfo(StoredPluginName);
-			PluginInfo.Size = PluginEntry.Value;
 			TArray<FPluginReferenceDescriptor> PluginReferences;
 			IPluginManager::Get().GetPluginDependencies(PluginEntry.Key, PluginReferences);
 			for (const FPluginReferenceDescriptor& ReferenceDescriptor : PluginReferences)
@@ -1394,10 +1446,57 @@ void SAssetTableTreeView::RefreshAssets()
 					DependencyIndex = AssetTable->GetNumPlugins();
 					AssetTable->GetOrCreatePluginInfo(StoredReferencePluginName);
 				}
-				PluginInfo.PluginDependencies.Add(DependencyIndex);
+				// Note that we can't use PluginInfo directly because the above code could have grown the array 
+				// and that would invalidate the reference
+				AssetTable->GetOrCreatePluginInfo(StoredPluginName).PluginDependencies.Add(DependencyIndex);
 			}
 		}
+		else
+		{
+			UE_LOG(LogInsights, Warning, TEXT("Could not find plugin %s in plugin manager."), PluginInfo.PluginName);
+		}
 	}
+
+	// Discovered version
+	for (const TPair<const TCHAR*, DeprecatedTCharSetType>& DiscoveredDependencies : DiscoveredPluginDependencyEdges)
+	{
+		const TCHAR* StoredPluginName = AssetTable->StoreStr(DiscoveredDependencies.Key);
+		FAssetTablePluginInfo& PluginInfo = AssetTable->GetOrCreatePluginInfo(StoredPluginName);
+
+		for (const TCHAR* DependencyName : DiscoveredDependencies.Value)
+		{
+			int32 DependencyIndex = AssetTable->GetIndexForPlugin(DependencyName);
+			ensureAlways(DependencyIndex != -1); // These were created above.
+			PluginInfo.DiscoveredPluginDependencies.Add(DependencyIndex);
+		}
+	}
+
+	// TODO: Once we have the dependency data from the uplugin files in the cook we can 
+	// compare them to the discovered dependencies to see if there are plugins we're dependending on
+	// that, perhaps, we shouldn't be. That said, we shouldn't storer the discovered dependencies on the 
+	// plugin infos at that point.
+
+	//// Analyze difference
+	//UE_LOG(LogInsights, Warning, TEXT("Registry Deps-------"));
+	//for (int32 PluginIndex = 0; PluginIndex < AssetTable->GetNumPlugins(); PluginIndex++)
+	//{
+	//	const FAssetTablePluginInfo& PluginInfo = AssetTable->GetPluginInfoByIndex(PluginIndex);
+	//	UE_LOG(LogInsights, Warning, TEXT("Plugin: %s"), PluginInfo.PluginName);
+	//	for (int32 DependencyIndex : PluginInfo.PluginDependencies)
+	//	{
+	//		UE_LOG(LogInsights, Warning, TEXT("\t%s"), AssetTable->GetPluginInfoByIndex(DependencyIndex).PluginName);
+	//	}
+	//}
+	//UE_LOG(LogInsights, Warning, TEXT("Discovered Deps-------"));
+	//for (int32 PluginIndex = 0; PluginIndex < AssetTable->GetNumPlugins(); PluginIndex++)
+	//{
+	//	const FAssetTablePluginInfo& PluginInfo = AssetTable->GetPluginInfoByIndex(PluginIndex);
+	//	UE_LOG(LogInsights, Warning, TEXT("Plugin: %s"), PluginInfo.PluginName);
+	//	for (int32 DependencyIndex : PluginInfo.DiscoveredPluginDependencies)
+	//	{
+	//		UE_LOG(LogInsights, Warning, TEXT("\t%s"), AssetTable->GetPluginInfoByIndex(DependencyIndex).PluginName);
+	//	}
+	//}
 
 	Stopwatch.Stop();
 	const double TotalTime = Stopwatch.GetAccumulatedTime();

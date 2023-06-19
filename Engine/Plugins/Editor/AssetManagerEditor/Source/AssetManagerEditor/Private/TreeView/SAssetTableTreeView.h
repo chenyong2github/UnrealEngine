@@ -116,6 +116,8 @@ private:
 	bool bNeedsToRefreshAssets = false;
 	bool bNeedsToRebuild = false;
 
+	FText FooterLeftTextStoredPreOpen;
+	FText RegistryLoadedText;
 	FText FooterLeftText;
 	FText FooterCenterText1;
 	FText FooterCenterText2;
