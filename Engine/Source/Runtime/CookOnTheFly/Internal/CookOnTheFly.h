@@ -307,7 +307,7 @@ public:
 
 	virtual const FString& GetPlatformName() const = 0;
 
-	virtual const TArray<FString> GetZenHostNames() const = 0;
+	virtual const FString& GetZenHostName() const = 0;
 
 	virtual const uint16 GetZenHostPort() const = 0;
 

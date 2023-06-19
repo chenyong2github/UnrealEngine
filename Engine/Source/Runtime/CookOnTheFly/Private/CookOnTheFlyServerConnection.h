@@ -17,6 +17,8 @@ public:
 	virtual bool SendPayload(const TArray<uint8>& Payload) = 0;
 	virtual bool HasPendingPayload() = 0;
 	virtual bool ReceivePayload(FArrayReader& Payload) = 0;
+	virtual FString GetHostName() const = 0;
+
 };
 
 UE::Cook::ICookOnTheFlyServerConnection* MakeCookOnTheFlyServerConnection(TUniquePtr<ICookOnTheFlyServerTransport> InTransport, const FString& InHost);

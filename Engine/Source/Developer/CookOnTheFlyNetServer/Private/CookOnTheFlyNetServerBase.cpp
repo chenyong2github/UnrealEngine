@@ -5,8 +5,6 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Serialization/ArrayReader.h"
 #include "HAL/RunnableThread.h"
-#include "SocketSubsystem.h"
-#include "IPAddress.h"
 
 FCookOnTheFlyClientConnectionBase::FCookOnTheFlyClientConnectionBase(FCookOnTheFlyNetworkServerBase& InOwner)
 	: Owner(InOwner)
@@ -96,29 +94,6 @@ bool FCookOnTheFlyClientConnectionBase::Initialize()
 	HandshakeResponsePayload << ZenProjectId;
 	HandshakeResponsePayload << ZenHostName;
 	HandshakeResponsePayload << ZenHostPort;
-
-	if (ZenHostName == "localhost")
-	{
-		TArray<FString> RemoteHostNames;
-		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
-		if (SocketSubsystem != nullptr)
-		{
-			TArray<TSharedPtr<FInternetAddr>> Addresses;
-			if (SocketSubsystem->GetLocalAdapterAddresses(Addresses))
-			{
-				for (const TSharedPtr<FInternetAddr>& Address : Addresses)
-				{
-					RemoteHostNames.Add(Address->ToString(false));
-				}
-			}
-		}
-		int32 RemoteHostNameCount = RemoteHostNames.Num();
-		HandshakeResponsePayload << RemoteHostNameCount;
-		for (FString RemoteHostName : RemoteHostNames)
-		{
-			HandshakeResponsePayload << RemoteHostName;
-		}
-	}
 
 	if (!SendPayload(HandshakeResponsePayload))
 	{

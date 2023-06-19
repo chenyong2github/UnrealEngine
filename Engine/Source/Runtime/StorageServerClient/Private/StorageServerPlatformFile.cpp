@@ -255,25 +255,10 @@ TUniquePtr<FArchive> FStorageServerPlatformFile::TryFindProjectStoreMarkerFile(I
 	{
 		return nullptr;
 	}
-
-	FString RelativeStagedPath = TEXT("../../../");
-	FString RootPath = FPaths::RootDir();
-	FString PlatformName = FPlatformProperties::PlatformName();
-	FString CookedOutputPath = FPaths::Combine(FPaths::ProjectDir(), TEXT("Saved"), TEXT("Cooked"), PlatformName);
-
-	TArray<FString> PotentialProjectStorePaths;
-	PotentialProjectStorePaths.Add(RelativeStagedPath);
-	PotentialProjectStorePaths.Add(CookedOutputPath);
-	PotentialProjectStorePaths.Add(RootPath);
-
-	for (const FString& ProjectStorePath : PotentialProjectStorePaths)
+	const TCHAR* ProjectMarkerPath = TEXT("../../../.projectstore");
+	if (IFileHandle* ProjectStoreMarkerHandle = Inner->OpenRead(ProjectMarkerPath); ProjectStoreMarkerHandle != nullptr)
 	{
-		FString ProjectMarkerPath = ProjectStorePath / TEXT(".projectstore");
-		if (IFileHandle* ProjectStoreMarkerHandle = Inner->OpenRead(*ProjectMarkerPath); ProjectStoreMarkerHandle != nullptr)
-		{
-			UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Found '%s'"), *ProjectMarkerPath);
-			return TUniquePtr<FArchive>(new FArchiveFileReaderGeneric(ProjectStoreMarkerHandle, *ProjectMarkerPath, ProjectStoreMarkerHandle->Size()));
-		}
+		return TUniquePtr<FArchive>(new FArchiveFileReaderGeneric(ProjectStoreMarkerHandle, ProjectMarkerPath, ProjectStoreMarkerHandle->Size()));
 	}
 	return nullptr;
 }
@@ -285,7 +270,7 @@ bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR*
 	TSharedPtr<UE::Cook::ICookOnTheFlyServerConnection> DefaultConnection = CookOnTheFlyModule.GetDefaultServerConnection();
 	if (DefaultConnection.IsValid() && !DefaultConnection->GetZenProjectName().IsEmpty())
 	{
-		HostAddrs.Append(DefaultConnection->GetZenHostNames());
+		HostAddrs.Add(DefaultConnection->GetZenHostName());
 		HostPort = DefaultConnection->GetZenHostPort();
 		return true;
 	}
@@ -311,23 +296,19 @@ bool FStorageServerPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR*
 			}
 
 			HostPort = ZenServerField["hostport"].AsUInt16(HostPort);
-			UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Using connection settings from .projectstore: HostAddrs='%s' and HostPort='%d'"), *FString::Join(HostAddrs, TEXT("+")), HostPort);
+			UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Found .projectstore"));
 		}
 	}
 
 	FString Host;
 	if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStoreHost="), Host))
 	{
-		UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Adding connection settings from command line: -ZenStoreHost='%s'"), *Host);
 		if (!Host.ParseIntoArray(HostAddrs, TEXT("+"), true))
 		{
 			HostAddrs.Add(Host);
 		}
 	}
-	if (FParse::Value(CmdLine, TEXT("-ZenStorePort="), HostPort))
-	{
-		UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Using connection settings from command line: -ZenStorePort='%d'"), HostPort);
-	}
+	FParse::Value(CmdLine, TEXT("-ZenStorePort="), HostPort);
 	return HostAddrs.Num() > 0;
 }
 
@@ -347,18 +328,11 @@ bool FStorageServerPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* C
 			{
 				ServerProject = FString(ZenServerField["projectid"].AsString());
 				ServerPlatform = FString(ZenServerField["oplogid"].AsString());
-				UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Using settings from .projectstore: ServerProject='%s' and ServerPlatform='%s'"), *ServerProject, *ServerPlatform);
 			}
 		}
 	
-		if (FParse::Value(CmdLine, TEXT("-ZenStoreProject="), ServerProject))
-		{
-			UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Using settings from command line: -ZenStoreProject='%s'"), *ServerProject);
-		}
-		if (FParse::Value(CmdLine, TEXT("-ZenStorePlatform="), ServerPlatform))
-		{
-			UE_LOG(LogStorageServerPlatformFile, Display, TEXT("Using settings from command line: -ZenStorePlatform='%s'"), *ServerPlatform);
-		}
+		FParse::Value(CmdLine, TEXT("-ZenStoreProject="), ServerProject);
+		FParse::Value(CmdLine, TEXT("-ZenStorePlatform="), ServerPlatform);
 		return true;
 	}
 	return false;
