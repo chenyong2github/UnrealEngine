@@ -72,10 +72,11 @@ void GlobalDistanceFieldDebugCS(
 {
 	if (all(DispatchThreadId.xyz == 0))
 	{
-		int NumFreePages = -1;
+		int NumFreePages = GlobalDistanceFieldPageFreeListAllocatorBuffer[0];
+		int NumAllocPages = -1;
 		if (GlobalDistanceFieldMaxPageNum > 0)
 		{
-			NumFreePages = GlobalDistanceFieldMaxPageNum - GlobalDistanceFieldPageFreeListAllocatorBuffer[0];
+			NumAllocPages = GlobalDistanceFieldMaxPageNum - GlobalDistanceFieldPageFreeListAllocatorBuffer[0];
 		}
 
 		FShaderPrintContext Context = InitShaderPrintContext(true, float2(0.8, 0.2));
@@ -83,12 +84,16 @@ void GlobalDistanceFieldDebugCS(
 		Print(Context, TEXT("GDF Pages"));
 		Newline(Context);
 
-		Print(Context, TEXT(" Alloc "));
-		Print(Context, NumFreePages);
-		Newline(Context);
-
 		Print(Context, TEXT(" Max   "));
 		Print(Context, GlobalDistanceFieldMaxPageNum);
+		Newline(Context);
+
+		Print(Context, TEXT(" Alloc "), FontRed);
+		Print(Context, NumAllocPages, FontRed);
+		Newline(Context);
+
+		Print(Context, TEXT(" Free  "), FontGreen);
+		Print(Context, NumFreePages, FontGreen);
 		Newline(Context);
 
 		Print(Context, TEXT(" Combi "));
