@@ -14,3 +14,13 @@ FText ULocalizableMessageLibrary::Conv_LocalizableMessageToText(UObject* WorldCo
 	FLocalizableMessageProcessor& Processor = ILocalizableMessageModule::Get().GetLocalizableMessageProcessor();
 	return Processor.Localize(Message, LocContext);
 }
+
+bool ULocalizableMessageLibrary::IsEmpty_LocalizableMessage(const FLocalizableMessage& Message)
+{
+	return Message.IsEmpty();
+}
+
+void ULocalizableMessageLibrary::Reset_LocalizableMessage(FLocalizableMessage& Message)
+{
+	Message.Reset();
+}

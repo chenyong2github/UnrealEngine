@@ -9,18 +9,30 @@
 struct FLocalizableMessage;
 class FText;
 
-/** BlueprintFunctionLibrary for LocalizationMessage */
-UCLASS(Abstract, MinimalAPI, BlueprintInternalUseOnly)
+/** BlueprintFunctionLibrary for LocalizableMessage */
+UCLASS()
 class ULocalizableMessageLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
 	/**
-	 * Conversion function from LocalizationMessage to FText.
+	 * Conversion function from LocalizableMessage to FText.
 	 * @note Is only valid on the client. The processor generate a 
 	 */
-	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = "Localization Message", meta = (WorldContext = "WorldContextObject", BlueprintInternalUseOnly = "true"))
+	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category = "Localizable Message", meta = (WorldContext = "WorldContextObject"))
 	static LOCALIZABLEMESSAGEBLUEPRINT_API FText Conv_LocalizableMessageToText(UObject* WorldContextObject, UPARAM(ref) const FLocalizableMessage& Message);
+
+	/**
+	 * Returns true if the message is empty
+	 */
+	UFUNCTION(BlueprintPure, Category = "Localizable Message")
+	static LOCALIZABLEMESSAGEBLUEPRINT_API bool IsEmpty_LocalizableMessage(UPARAM(ref) const FLocalizableMessage& Message);
+
+	/**
+	 * Resets the Localizable Message
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Localizable Message")
+	static LOCALIZABLEMESSAGEBLUEPRINT_API void Reset_LocalizableMessage(UPARAM(ref) FLocalizableMessage& Message);
 };
 

@@ -20,7 +20,10 @@ public:
 	LOCALIZABLEMESSAGE_API ~FLocalizableMessageParameterEntry();
 
 	bool operator==(const FLocalizableMessageParameterEntry& Other) const;
-	bool operator!=(const FLocalizableMessageParameterEntry& Other) const { return !(*this == Other); }
+	bool operator!=(const FLocalizableMessageParameterEntry& Other) const
+	{
+		return !(*this == Other);
+	}
 
 	UPROPERTY()
 	FString Key;
@@ -37,7 +40,23 @@ struct FLocalizableMessage
 	LOCALIZABLEMESSAGE_API FLocalizableMessage();
 	LOCALIZABLEMESSAGE_API ~FLocalizableMessage();
 	LOCALIZABLEMESSAGE_API bool operator==(const FLocalizableMessage& Other) const;
-	bool operator!=(const FLocalizableMessage& Other) const { return !(*this == Other); }
+
+	void Reset()
+	{
+		Key.Reset();
+		DefaultText.Reset();
+		Substitutions.Reset();
+	}
+
+	bool operator!=(const FLocalizableMessage& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	bool IsEmpty() const
+	{
+		return Key.IsEmpty() && DefaultText.IsEmpty();
+	}
 
 	UPROPERTY()
 	FString Key;
