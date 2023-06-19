@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/AssertionMacros.h"
 #include "RHIDefinitions.h"
 #include "HAL/Platform.h"
 
