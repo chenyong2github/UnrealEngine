@@ -187,6 +187,7 @@ struct FDefaultTemporalUpscaler
 {
 	struct FInputs
 	{
+		bool bAllowFullResSlice = false;
 		bool bGenerateSceneColorHalfRes = false;
 		bool bGenerateSceneColorQuarterRes = false;
 		bool bGenerateOutputMip1 = false;
@@ -201,7 +202,7 @@ struct FDefaultTemporalUpscaler
 
 	struct FOutputs
 	{
-		FScreenPassTexture FullRes;
+		FScreenPassTextureSlice FullRes;
 		FScreenPassTexture HalfRes;
 		FScreenPassTexture QuarterRes;
 		FVelocityFlattenTextures VelocityFlattenTextures;

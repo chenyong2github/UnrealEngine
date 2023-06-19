@@ -313,7 +313,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
 	SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ColorTexture)
 
 	// Parameters to apply to the scene color.
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneColorApplyParamaters)
@@ -574,13 +574,12 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 
 	if (!Output.IsValid())
 	{
-		FRDGTextureDesc OutputDesc = Inputs.SceneColor.Texture->Desc;
-		OutputDesc.Reset();
-		OutputDesc.Flags |= View.bUseComputePasses ? TexCreate_UAV : TexCreate_RenderTargetable;
-		OutputDesc.Flags |= GFastVRamConfig.Tonemap;
-		// RGB is the color in LDR, A is the luminance for PostprocessAA
-		OutputDesc.ClearValue = FClearValueBinding(FLinearColor(0, 0, 0, 0));
-
+		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
+			SceneColorViewport.Extent,
+			Inputs.SceneColor.TextureSRV->Desc.Texture->Desc.Format,
+			FClearValueBinding(FLinearColor(0, 0, 0, 0)),
+			GFastVRamConfig.Tonemap | TexCreate_ShaderResource | (View.bUseComputePasses ? TexCreate_UAV : TexCreate_RenderTargetable));;
+		
 		const FTonemapperOutputDeviceParameters OutputDeviceParameters = GetTonemapperOutputDeviceParameters(*View.Family);
 		const EDisplayOutputFormat OutputDevice = static_cast<EDisplayOutputFormat>(OutputDeviceParameters.OutputDevice);
 
@@ -765,7 +764,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	CommonParameters.OutputDevice = GetTonemapperOutputDeviceParameters(ViewFamily);
 	CommonParameters.Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
 	CommonParameters.Output = GetScreenPassTextureViewportParameters(OutputViewport);
-	CommonParameters.ColorTexture = Inputs.SceneColor.Texture;
+	CommonParameters.ColorTexture = Inputs.SceneColor.TextureSRV;
 	CommonParameters.LumBilateralGrid = Inputs.LocalExposureTexture;
 	CommonParameters.BlurredLogLum = Inputs.BlurredLogLuminanceTexture;
 	CommonParameters.LumBilateralGridSampler = BilinearClampSampler;

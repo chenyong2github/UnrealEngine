@@ -72,6 +72,22 @@ inline FScreenPassTexture::FScreenPassTexture(FRDGTextureRef InTexture)
 	}
 }
 
+inline FScreenPassTexture::FScreenPassTexture(FRDGTextureRef InTexture, FIntRect InViewRect)
+	: Texture(InTexture)
+	, ViewRect(InViewRect)
+{ }
+
+inline FScreenPassTexture::FScreenPassTexture(const FScreenPassTextureSlice& ScreenTexture)
+	: Texture(ScreenTexture.TextureSRV->Desc.Texture)
+	, ViewRect(ScreenTexture.ViewRect)
+{
+	if (Texture && Texture->Desc.IsTextureArray())
+	{
+		check(ScreenTexture.TextureSRV->Desc.FirstArraySlice == 0);
+		check(ScreenTexture.TextureSRV->Desc.NumArraySlices == 1);
+	}
+}
+
 inline bool FScreenPassTexture::IsValid() const
 {
 	return Texture != nullptr && !ViewRect.IsEmpty();
@@ -83,6 +99,31 @@ inline bool FScreenPassTexture::operator==(FScreenPassTexture Other) const
 }
 
 inline bool FScreenPassTexture::operator!=(FScreenPassTexture Other) const
+{
+	return !(*this == Other);
+}
+
+inline FScreenPassTextureSlice::FScreenPassTextureSlice(FRDGTextureSRVRef InTextureSRV, FIntRect InViewRect)
+	: TextureSRV(InTextureSRV)
+	, ViewRect(InViewRect)
+{
+	if (TextureSRV && TextureSRV->Desc.Texture->Desc.IsTextureArray())
+	{
+		check(TextureSRV->Desc.NumArraySlices == 1);
+	}
+}
+
+inline bool FScreenPassTextureSlice::IsValid() const
+{
+	return TextureSRV != nullptr && !ViewRect.IsEmpty();
+}
+
+inline bool FScreenPassTextureSlice::operator==(FScreenPassTextureSlice Other) const
+{
+	return TextureSRV == Other.TextureSRV && ViewRect == Other.ViewRect;
+}
+
+inline bool FScreenPassTextureSlice::operator!=(FScreenPassTextureSlice Other) const
 {
 	return !(*this == Other);
 }
@@ -106,6 +147,13 @@ inline FScreenPassTextureViewport::FScreenPassTextureViewport(FScreenPassTexture
 {
 	check(InTexture.IsValid());
 	Extent = InTexture.Texture->Desc.Extent;
+	Rect = InTexture.ViewRect;
+}
+
+inline FScreenPassTextureViewport::FScreenPassTextureViewport(FScreenPassTextureSlice InTexture)
+{
+	check(InTexture.IsValid());
+	Extent = InTexture.TextureSRV->Desc.Texture->Desc.Extent;
 	Rect = InTexture.ViewRect;
 }
 

@@ -42,6 +42,47 @@ FRDGTextureRef TryCreateViewFamilyTexture(FRDGBuilder& GraphBuilder, const FScen
 	return Texture;
 }
 
+// static
+FScreenPassTexture FScreenPassTexture::CopyFromSlice(FRDGBuilder& GraphBuilder, const FScreenPassTextureSlice& ScreenTextureSlice)
+{
+	if (!ScreenTextureSlice.TextureSRV)
+	{
+		return FScreenPassTexture(nullptr, ScreenTextureSlice.ViewRect);
+	}
+	else if (!ScreenTextureSlice.TextureSRV->Desc.Texture->Desc.IsTextureArray())
+	{
+		return FScreenPassTexture(ScreenTextureSlice.TextureSRV->Desc.Texture, ScreenTextureSlice.ViewRect);
+	}
+
+	FRDGTextureDesc Desc = ScreenTextureSlice.TextureSRV->Desc.Texture->Desc;
+	Desc.Dimension = ETextureDimension::Texture2D;
+
+	FRDGTextureRef NewTexture = GraphBuilder.CreateTexture(Desc, TEXT("CopyToScreenPassTexture2D"));
+
+	FRHICopyTextureInfo CopyInfo;
+	CopyInfo.SourceSliceIndex = ScreenTextureSlice.TextureSRV->Desc.FirstArraySlice;
+
+	AddCopyTexturePass(
+		GraphBuilder,
+		ScreenTextureSlice.TextureSRV->Desc.Texture,
+		NewTexture,
+		CopyInfo);
+
+	return FScreenPassTexture(NewTexture, ScreenTextureSlice.ViewRect);
+}
+
+// static
+FScreenPassTextureSlice FScreenPassTextureSlice::CreateFromScreenPassTexture(FRDGBuilder& GraphBuilder, const FScreenPassTexture& ScreenTexture)
+{
+	if (!ScreenTexture.Texture)
+	{
+		return FScreenPassTextureSlice(nullptr, ScreenTexture.ViewRect);
+	}
+
+	check(!ScreenTexture.Texture->Desc.IsTextureArray());
+	return FScreenPassTextureSlice(GraphBuilder.CreateSRV(FRDGTextureSRVDesc(ScreenTexture.Texture)), ScreenTexture.ViewRect);
+}
+
 FScreenPassRenderTarget FScreenPassRenderTarget::CreateFromInput(
 	FRDGBuilder& GraphBuilder,
 	FScreenPassTexture Input,

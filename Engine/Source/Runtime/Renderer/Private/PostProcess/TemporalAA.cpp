@@ -584,7 +584,7 @@ FTAAOutputs AddTemporalAAPass(
 	const bool bIsMainPass = IsMainTAAConfig(Inputs.Pass);
 
 	// Whether to use camera cut shader permutation or not.
-	const bool bCameraCut = !InputHistory.IsValid() || View.bCameraCut;
+	const bool bCameraCut = !InputHistory.IsValid() || InputHistory.OutputSliceIndex != 0 || View.bCameraCut;
 
 	const FIntPoint OutputExtent = Inputs.GetOutputExtent();
 
@@ -1067,8 +1067,7 @@ FDefaultTemporalUpscaler::FOutputs AddGen4MainTemporalAAPasses(
 	}
 
 	FDefaultTemporalUpscaler::FOutputs Outputs;
-	Outputs.FullRes.Texture = SceneColorTexture;
-	Outputs.FullRes.ViewRect = SecondaryViewRect;
+	Outputs.FullRes = FScreenPassTextureSlice::CreateFromScreenPassTexture(GraphBuilder, FScreenPassTexture(SceneColorTexture, SecondaryViewRect));
 	Outputs.HalfRes.Texture = TAAOutputs.DownsampledSceneColor;
 	Outputs.HalfRes.ViewRect = FIntRect::DivideAndRoundUp(SecondaryViewRect, 2);
 	return Outputs;

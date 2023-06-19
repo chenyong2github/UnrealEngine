@@ -973,6 +973,9 @@ struct FTemporalAAHistory
 	// Viewport coordinate of the history in RT according to ReferenceBufferSize.
 	FIntRect ViewportRect;
 
+	// Returns the slice index that contains the output in RT[0].
+	int32 OutputSliceIndex = 0;
+
 
 	void SafeRelease()
 	{

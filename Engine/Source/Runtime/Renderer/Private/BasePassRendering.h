@@ -107,7 +107,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	SHADER_PARAMETER(int32, SSRQuality)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevSceneColor)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, PrevSceneColor)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PrevSceneColorSampler)
 	// Volumetric cloud
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VolumetricCloudColor)

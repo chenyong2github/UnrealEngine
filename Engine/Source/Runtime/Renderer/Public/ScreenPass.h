@@ -11,6 +11,9 @@
 #include "RHIStaticStates.h"
 #include "SceneView.h"
 
+struct FScreenPassTexture;
+struct FScreenPassTextureSlice;
+
 // Returns whether a HMD hidden area mask is being used for VR.
 RENDERER_API bool IsHMDHiddenAreaMaskActive();
 
@@ -38,11 +41,11 @@ struct FScreenPassTexture
 	FScreenPassTexture() = default;
 
 	explicit FScreenPassTexture(FRDGTextureRef InTexture);
+	explicit FScreenPassTexture(const FScreenPassTextureSlice& ScreenTexture);
 
-	FScreenPassTexture(FRDGTextureRef InTexture, FIntRect InViewRect)
-		: Texture(InTexture)
-		, ViewRect(InViewRect)
-	{}
+	FScreenPassTexture(FRDGTextureRef InTexture, FIntRect InViewRect);
+
+	RENDERER_API static FScreenPassTexture CopyFromSlice(FRDGBuilder& GraphBuilder, const FScreenPassTextureSlice& ScreenTextureSlice);
 
 	bool IsValid() const;
 
@@ -50,6 +53,24 @@ struct FScreenPassTexture
 	bool operator!=(FScreenPassTexture Other) const;
 
 	FRDGTextureRef Texture = nullptr;
+	FIntRect ViewRect;
+};
+
+// Describes a Texture2D or a slice within a texture array with a paired viewport rect.
+struct FScreenPassTextureSlice
+{
+	FScreenPassTextureSlice() = default;
+
+	FScreenPassTextureSlice(FRDGTextureSRVRef InTextureSRV, FIntRect InViewRect);
+
+	RENDERER_API static FScreenPassTextureSlice CreateFromScreenPassTexture(FRDGBuilder& GraphBuilder, const FScreenPassTexture& ScreenTexture);
+
+	bool IsValid() const;
+
+	bool operator==(FScreenPassTextureSlice Other) const;
+	bool operator!=(FScreenPassTextureSlice Other) const;
+
+	FRDGTextureSRVRef TextureSRV = nullptr;
 	FIntRect ViewRect;
 };
 
@@ -107,6 +128,7 @@ public:
 	{}
 
 	explicit FScreenPassTextureViewport(FScreenPassTexture InTexture);
+	explicit FScreenPassTextureViewport(FScreenPassTextureSlice InTexture);
 
 	explicit FScreenPassTextureViewport(FRDGTextureRef InTexture)
 		: FScreenPassTextureViewport(FScreenPassTexture(InTexture))

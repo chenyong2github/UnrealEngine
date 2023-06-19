@@ -79,7 +79,7 @@ struct FMotionBlurInputs
 	FScreenPassRenderTarget OverrideOutput;
 
 	// [Required] The input scene color and view rect.
-	FScreenPassTexture SceneColor;
+	FScreenPassTextureSlice SceneColor;
 
 	// [Required] The input scene depth and view rect.
 	FScreenPassTexture SceneDepth;
@@ -102,10 +102,10 @@ struct FMotionBlurInputs
 
 struct FMotionBlurOutputs
 {
-	FScreenPassTexture FullRes;
+	FScreenPassTextureSlice FullRes;
 	FScreenPassTexture HalfRes;
 	FScreenPassTexture QuarterRes;
 };
 
 FMotionBlurOutputs AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMotionBlurInputs& Inputs);
-FScreenPassTexture AddVisualizeMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMotionBlurInputs& Inputs);
+FScreenPassTextureSlice AddVisualizeMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMotionBlurInputs& Inputs);

@@ -2046,7 +2046,7 @@ FDefaultTemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 
 	FDefaultTemporalUpscaler::FOutputs Outputs;
-	Outputs.FullRes.Texture = SceneColorOutputTexture;
+	Outputs.FullRes.TextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc(SceneColorOutputTexture));
 	Outputs.FullRes.ViewRect = OutputRect;
 	if (SceneColorOutputHalfResTexture)
 	{

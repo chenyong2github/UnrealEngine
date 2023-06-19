@@ -32,7 +32,7 @@ struct FTonemapInputs
 	FScreenPassRenderTarget OverrideOutput;
 
 	// [Required] HDR scene color to tonemap.
-	FScreenPassTexture SceneColor;
+	FScreenPassTextureSlice SceneColor;
 
 	// [Required] Filtered bloom texture to composite with tonemapped scene color. This should be transparent black for no bloom.
 	FScreenPassTexture Bloom;

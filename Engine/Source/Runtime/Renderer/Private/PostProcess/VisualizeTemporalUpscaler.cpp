@@ -33,6 +33,8 @@ FScreenPassTexture AddVisualizeTemporalUpscalerPass(FRDGBuilder& GraphBuilder, c
 
 	if (Inputs.TAAConfig != EMainTAAPassConfig::Disabled)
 	{
+		FScreenPassTexture OutputTexture = FScreenPassTexture::CopyFromSlice(GraphBuilder, Inputs.Outputs.FullRes);
+
 		auto VisualizeTextureLabel = [](FRDGTextureRef Texture, const TCHAR* Suffix = TEXT(""))
 		{
 			return FString::Printf(TEXT("vis %s%s"), Texture->Name, Suffix);
@@ -108,7 +110,7 @@ FScreenPassTexture AddVisualizeTemporalUpscalerPass(FRDGBuilder& GraphBuilder, c
 			PassInputs.SceneVelocity = Inputs.Inputs.SceneVelocity;
 
 			FVisualizeBufferTile& Tile = Tiles[4 * 1 + 0];
-			Tile.Input = AddVisualizeMotionBlurPass(GraphBuilder, View, PassInputs);
+			Tile.Input = FScreenPassTexture(AddVisualizeMotionBlurPass(GraphBuilder, View, PassInputs));
 			Tile.Input.ViewRect = CropViewRectToCenter(Tile.Input.ViewRect);
 			Tile.Label = TEXT("show VisualizeMotionBlur");
 		}
@@ -138,18 +140,18 @@ FScreenPassTexture AddVisualizeTemporalUpscalerPass(FRDGBuilder& GraphBuilder, c
 		// Output
 		{
 			FVisualizeBufferTile& Tile = Tiles[4 * 3 + 3];
-			Tile.Input = Inputs.Outputs.FullRes;
+			Tile.Input.Texture = OutputTexture.Texture;
 			Tile.Input.ViewRect = CropViewRectToCenter(Tile.Input.ViewRect);
-			Tile.Label = VisualizeTextureLabel(Inputs.Outputs.FullRes.Texture);
+			Tile.Label = VisualizeTextureLabel(OutputTexture.Texture);
 		}
 
 		// Output alpha
 		if (bSupportsAlpha)
 		{
 			FVisualizeBufferTile& Tile = Tiles[4 * 3 + 2];
-			Tile.Input.Texture = FVisualizeTexture::AddVisualizeTextureAlphaPass(GraphBuilder, View.ShaderMap, Inputs.Outputs.FullRes.Texture);
-			Tile.Input.ViewRect = CropViewRectToCenter(Inputs.Outputs.FullRes.ViewRect);
-			Tile.Label = VisualizeTextureLabel(Inputs.Outputs.FullRes.Texture, TEXT(" A"));
+			Tile.Input.Texture = FVisualizeTexture::AddVisualizeTextureAlphaPass(GraphBuilder, View.ShaderMap, OutputTexture.Texture);
+			Tile.Input.ViewRect = CropViewRectToCenter(OutputTexture.ViewRect);
+			Tile.Label = VisualizeTextureLabel(OutputTexture.Texture, TEXT(" A"));
 		}
 
 		// Black bottom left corner
@@ -210,7 +212,7 @@ FScreenPassTexture AddVisualizeTemporalUpscalerPass(FRDGBuilder& GraphBuilder, c
 			// Display the input/output resolutions
 			{
 				QuickDrawSummary(/* Location = */ 1, FString::Printf(TEXT("Input: %dx%d %s"), View.ViewRect.Width(), View.ViewRect.Height(), GPixelFormats[Inputs.Inputs.SceneColor.Texture->Desc.Format].Name));
-				QuickDrawSummary(/* Location = */ 2, FString::Printf(TEXT("Output: %dx%d %s"), Inputs.Outputs.FullRes.ViewRect.Width(), Inputs.Outputs.FullRes.ViewRect.Height(), GPixelFormats[Inputs.Outputs.FullRes.Texture->Desc.Format].Name));
+				QuickDrawSummary(/* Location = */ 2, FString::Printf(TEXT("Output: %dx%d %s"), Inputs.Outputs.FullRes.ViewRect.Width(), Inputs.Outputs.FullRes.ViewRect.Height(), GPixelFormats[Inputs.Outputs.FullRes.TextureSRV->Desc.Texture->Desc.Format].Name));
 			}
 
 			// Display the pre-exposure being used
