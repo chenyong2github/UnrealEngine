@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Delegates/Delegate.h"
 
 class FMessageLog;
 
@@ -11,6 +12,15 @@ namespace Trace {
 
 class IAnalyzer;
 class IInDataStream;
+	
+enum class EAnalysisMessageSeverity
+{
+	Info,
+	Warning,
+	Error
+};
+
+DECLARE_DELEGATE_TwoParams(FMessageDelegate, EAnalysisMessageSeverity, FStringView);	
 
 /**
  * Represents the processing (e.g. analysis) of a trace stream. Instances are
@@ -34,11 +44,6 @@ public:
 	 * @param bState Pause if true, resume if false. */
 	void Pause(bool bState);
 
-
-	/**
-	 * Gets the message log. Must be called after analysis has finished.
-	 */
-	FMessageLog* GetLog();
 
 						~FAnalysisProcessor();
 						FAnalysisProcessor() = default;
@@ -66,6 +71,9 @@ public:
 	 * from the trace stream. */
 	void AddAnalyzer(IAnalyzer& Analyzer);
 
+	/** Adds a callback to recieve important messages. */
+	void SetMessageDelegate(FMessageDelegate Delegate);
+
 	/** Creates and starts analysis returning an FAnalysisProcessor instance which
 	 * represents the analysis and affords some control over it.
 	 * @param DataStream Input stream of trace log data to be analysed. */
@@ -73,6 +81,7 @@ public:
 
 private:
 	TArray<IAnalyzer*>	Analyzers;
+	FMessageDelegate	OnMessage;
 };
 
 } // namespace Trace

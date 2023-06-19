@@ -7,7 +7,6 @@
 #include "Common/FormatArgs.h"
 #include "Common/Utils.h"
 #include "Internationalization/Internationalization.h"
-#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "RegionProvider"
 
@@ -53,14 +52,7 @@ void FRegionProvider::AppendRegionBegin(const TCHAR* Name, double Time)
 		++NumWarnings;
 		if (NumWarnings <= MaxWarningMessages)
 		{
-			if (FMessageLog* Log = Session.GetLog())
-			{
-				Log->Warning(FText::Format(LOCTEXT("DoubleRegionBegin", "A region begin event ({0}) was encountered while a region with same name is already open."), FText::FromString(FString(Name))));
-			}
-			else
-			{
-				UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region begin event (%s) was encountered while a region with same name is already open."), Name)
-			}
+			UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region begin event (%s) was encountered while a region with same name is already open."), Name)
 		}
 	}
 	else
@@ -105,14 +97,7 @@ void FRegionProvider::AppendRegionEnd(const TCHAR* Name, double Time)
 		++NumWarnings;
 		if (NumWarnings <= MaxWarningMessages)
 		{
-			if (FMessageLog* Log = Session.GetLog())
-			{
-				Log->Warning(FText::Format(LOCTEXT("StrayRegionEnd", "A region end event ({0}) was encountered without having seen a matching region start event first."), FText::FromString(FString(Name))));
-			}
-			else
-			{
-				UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region end event (%s) was encountered without having seen a matching region start event first."), Name)
-			}
+			UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region end event (%s) was encountered without having seen a matching region start event first."), Name)
 		}
 	}
 
@@ -134,14 +119,7 @@ void FRegionProvider::OnAnalysisSessionEnded()
 		++NumWarnings;
 		if (NumWarnings <= MaxWarningMessages)
 		{
-			if (FMessageLog* Log = Session.GetLog())
-			{
-				Log->Warning(FText::Format(LOCTEXT("StrayRegionBegin", "A region begin event ({0}) was never closed."), FText::FromString(FString(Region->Text))));
-			}
-			else
-			{
-				UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region begin event (%s) was never closed."), Region->Text)
-			}
+			UE_LOG(LogTraceServices, Warning, TEXT("[Regions] A region begin event (%s) was never closed."), Region->Text)
 		}
 	}
 

@@ -390,6 +390,9 @@ private:
 	/** Resets (closes) current session instance. */
 	void ResetSession(bool bNotify = true);
 
+	/** Extract messages from the session */
+	void PollAnalysisInfo();
+
 	void OnSessionChanged();
 	void OnSessionAnalysisCompleted();
 
@@ -410,6 +413,9 @@ private:
 
 	/** The name of the Unreal Insights log listing. */
 	FName LogListingName;
+
+	/** Name used for Analysis log in Message Log. */
+	FName AnalysisLogListingName;
 
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;

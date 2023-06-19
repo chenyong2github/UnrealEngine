@@ -2,15 +2,11 @@
 
 #include "TraceAnalysisModule.h"
 
-#include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 void FTraceAnalysisModule::StartupModule()
 {
-	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-	MessageLogModule.RegisterLogListing(GetMessageLogName(), NSLOCTEXT("Trace", "TraceAnalysis", "Trace Analysis"));
-	MessageLogModule.EnableMessageLogDisplay(true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

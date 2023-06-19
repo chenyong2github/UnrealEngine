@@ -10,9 +10,9 @@
 #include "HAL/UnrealMemory.h"
 #include "Internationalization/Internationalization.h"
 #include "Logging/LogMacros.h"
-#include "Logging/MessageLog.h"
 #include "StreamReader.h"
 #include "Templates/UnrealTemplate.h"
+#include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/Detail/Protocol.h"
 #include "Trace/Detail/Transport.h"
@@ -2025,7 +2025,20 @@ public:
 	{
 		FAnalysisMachine&	Machine;
 		FAnalysisBridge&	Bridge;
-		FMessageLog*		Log;
+		FMessageDelegate&	OnMessage;
+
+		inline void EmitMessage(EAnalysisMessageSeverity Severity, FStringView Message) const
+		{
+			const bool _ = OnMessage.ExecuteIfBound(Severity, Message);
+		}
+
+		template<typename FormatType, typename... Types>
+		inline void EmitMessagef(EAnalysisMessageSeverity Severity, const FormatType& Format, Types... Args) const
+		{
+			TStringBuilder<64> FormattedMessage;
+			FormattedMessage.Appendf(Format, Forward<Types>(Args)...);
+			EmitMessage(Severity, FormattedMessage.ToView());
+		}
 	};
 
 	class FStage
@@ -2040,7 +2053,7 @@ public:
 		virtual void		ExitStage(const FMachineContext& Context) {};
 	};
 
-							FAnalysisMachine(FAnalysisBridge& InBridge, FMessageLog* Log);
+							FAnalysisMachine(FAnalysisBridge& InBridge, FMessageDelegate&& InMessage);
 							~FAnalysisMachine();
 	EStatus					OnData(FStreamReader& Reader);
 	void					Transition();
@@ -2053,13 +2066,13 @@ private:
 	FStage*					ActiveStage = nullptr;
 	TArray<FStage*>			StageQueue;
 	TArray<FStage*>			DeadStages;
-	FMessageLog*			Log;
+	FMessageDelegate		OnMessage;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-FAnalysisMachine::FAnalysisMachine(FAnalysisBridge& InBridge, FMessageLog* InLog)
+FAnalysisMachine::FAnalysisMachine(FAnalysisBridge& InBridge, FMessageDelegate&& InMessage)
 : Bridge(InBridge)
-, Log(InLog)
+, OnMessage(InMessage)
 {
 }
 
@@ -2093,7 +2106,7 @@ void FAnalysisMachine::Transition()
 {
 	if (ActiveStage != nullptr)
 	{
-		const FMachineContext Context = { *this, Bridge, Log };
+		const FMachineContext Context = { *this, Bridge, OnMessage };
 		ActiveStage->ExitStage(Context);
 
 		DeadStages.Add(ActiveStage);
@@ -2103,7 +2116,7 @@ void FAnalysisMachine::Transition()
 
 	if (ActiveStage != nullptr)
 	{
-		const FMachineContext Context = { *this, Bridge, Log };
+		const FMachineContext Context = { *this, Bridge, OnMessage };
 		ActiveStage->EnterStage(Context);
 	}
 }
@@ -2111,7 +2124,7 @@ void FAnalysisMachine::Transition()
 ////////////////////////////////////////////////////////////////////////////////
 FAnalysisMachine::EStatus FAnalysisMachine::OnData(FStreamReader& Reader)
 {
-	const FMachineContext Context = { *this, Bridge, Log };
+	const FMachineContext Context = { *this, Bridge, OnMessage };
 	EStatus Ret;
 	do
 	{
@@ -2302,7 +2315,10 @@ FProtocol2Stage::EStatus FProtocol2Stage::OnData(
 	const FTidPacketTransport::ETransportResult Result = InnerTransport->Update();
 	if (Result == FTidPacketTransport::ETransportResult::Error)
 	{
-		Context.Log->Error(LOCTEXT("TransportError", "An error was detected in the transport layer, most likely due to a corrupt trace file. See log for details."));
+		Context.EmitMessage(
+			EAnalysisMessageSeverity::Error,
+			TEXT("An error was detected in the transport layer, most likely due to a corrupt trace file. See log for details.")
+		);
 		return EStatus::Error;
 	}
 
@@ -2962,7 +2978,10 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnData(
 	const FTidPacketTransport::ETransportResult Result = Transport.Update();
 	if (Result == FTidPacketTransport::ETransportResult::Error)
 	{
-		Context.Log->Error(LOCTEXT("TransportError", "An error was detected in the transport layer, most likely due to a corrupt trace file. See log for details."));
+		Context.EmitMessage(
+			EAnalysisMessageSeverity::Error,
+			TEXT("An error was detected in the transport layer, most likely due to a corrupt trace file. See log for details.")
+		);
 		return EStatus::Error;
 	}
 
@@ -3105,7 +3124,7 @@ int32 FProtocol5Stage::ParseImportantEvents(FStreamReader& Reader, EventDescArra
 		const FTypeRegistry::FTypeInfo* TypeInfo = TypeRegistry.Get(Uid);
 		if (TypeInfo == nullptr)
 		{
-			Context.Log->Warning(LOCTEXT("UnknownUID","An unknown event UID was encountered."));
+			Context.EmitMessagef(EAnalysisMessageSeverity::Warning, TEXT("An unknown event UID (%d) was encountered."), Uid);
 			return 1;
 		}
 
@@ -3139,7 +3158,7 @@ int32 FProtocol5Stage::ParseImportantEvents(FStreamReader& Reader, EventDescArra
 
 			if (Cursor[0] != uint8(EKnownUids::AuxDataTerminal))
 			{
-				Context.Log->Warning(LOCTEXT("AuxDataTerminalExpected","Expected an aux data terminal in the stream."));
+				Context.EmitMessage(EAnalysisMessageSeverity::Warning, TEXT("Expected an aux data terminal in the stream."));
 				return -1;
 			}
 		}
@@ -3172,9 +3191,14 @@ FProtocol5Stage::EStatus FProtocol5Stage::OnDataNormal(const FMachineContext& Co
 
 		// Stop analysis if this thread has accumulated too much data.
 		// This can happen on corrupted traces (ex. with serial sync events missing or out of order).
-		if (ThreadReader->GetRemaining() > 512 * 1024 * 1024)
+		constexpr int32 MaxAccumulatedBytes = 512 * 1024 * 1024;
+		if (ThreadReader->GetRemaining() > MaxAccumulatedBytes)
 		{
-			Context.Log->Error(LOCTEXT("TooMuchData", "Analysis accumulated too much data before being able to continue analysing the stream."));
+			Context.EmitMessagef(
+				EAnalysisMessageSeverity::Error,
+				TEXT("Analysis accumulated too much data (%d MiB) before being able to continue analysing the stream."),
+				ThreadReader->GetRemaining() / (1024*1024)
+			);
 			return EStatus::Error;
 		}
 
@@ -3546,7 +3570,7 @@ int32 FProtocol5Stage::ParseEvent(FStreamReader& Reader, FEventDesc& EventDesc, 
 		const FTypeRegistry::FTypeInfo* TypeInfo = TypeRegistry.Get(Uid);
 		if (TypeInfo == nullptr)
 		{
-			Context.Log->Warning(LOCTEXT("UnknownUID","An unknown event UID was encountered."));
+			Context.EmitMessagef(EAnalysisMessageSeverity::Warning, TEXT("An unknown event UID (%u) was encountered."), Uid);
 			return 0;
 		}
 
@@ -3793,7 +3817,7 @@ int32 FProtocol5Stage::DispatchEvents(
 
 		if (!TypeRegistry.IsUidValid(Uid))
 		{
-			Context.Log->Warning(LOCTEXT("UnknownUID","An unknown event UID was encountered."));
+			Context.EmitMessagef(EAnalysisMessageSeverity::Warning, TEXT("An unknown event UID (%u) was encountered."), Uid);
 			return -1;
 		}
 
@@ -3989,9 +4013,11 @@ FEstablishTransportStage::EStatus FEstablishTransportStage::OnData(
 	case ETransport::TidPacketSync:	Transport = new FTidPacketTransportSync(); break;
 	default:
 		{
-			Context.Log->Error(FText::Format(
-				LOCTEXT("InvalidTransportVersion", "Unknown transport version: {0}. You may need to recompile this application"),
-				FText::AsNumber(TransportVersion)));
+			Context.EmitMessagef(
+				EAnalysisMessageSeverity::Error,
+				TEXT("Unknown transport version: %u. You may need to recompile this application"),
+				TransportVersion
+			);
 			return EStatus::Error;
 		}
 	}
@@ -4032,9 +4058,11 @@ FEstablishTransportStage::EStatus FEstablishTransportStage::OnData(
 
 	default:
 		{
-			Context.Log->Error(FText::Format(
-					LOCTEXT("UnknownProtocolVersion", "Unknown protocol version: {0}. You may need to recompile this application."),
-					FText::AsNumber(ProtocolVersion)));
+			Context.EmitMessagef(
+				EAnalysisMessageSeverity::Error,
+				TEXT("Unknown protocol version: %u. You may need to recompile this application"),
+				ProtocolVersion
+			);
 			return EStatus::Error;
 		}
 	}
@@ -4107,7 +4135,7 @@ FMagicStage::EStatus FMagicStage::OnData(
 	if (Magic == 'ECRT' || Magic == '2CRT')
 	{
 		// Source is big-endian which we don't currently support
-		Context.Log->Error(LOCTEXT("BigEndian", "Big endian traces are currently not supported."));
+		Context.EmitMessage(EAnalysisMessageSeverity::Error, TEXT("Big endian traces are currently not supported."));
 		return EStatus::Error;
 	}
 
@@ -4136,7 +4164,7 @@ FMagicStage::EStatus FMagicStage::OnData(
 		return EStatus::Continue;
 	}
 
-	Context.Log->Error(LOCTEXT("IncorrectMagic", "The file or stream was not recognized as trace stream."));
+	Context.EmitMessage(EAnalysisMessageSeverity::Error, TEXT("The file or stream was not recognized as trace stream."));
 	return EStatus::Error;
 }
 
@@ -4148,7 +4176,7 @@ FMagicStage::EStatus FMagicStage::OnData(
 class FAnalysisEngine::FImpl
 {
 public:
-					FImpl(TArray<IAnalyzer*>&& Analyzers, FMessageLog* InLog);
+						FImpl(TArray<IAnalyzer*>&& Analyzers, FMessageDelegate&& InMessage);
 	void				Begin();
 	void				End();
 	bool				OnData(FStreamReader& Reader);
@@ -4157,9 +4185,9 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-FAnalysisEngine::FImpl::FImpl(TArray<IAnalyzer*>&& Analyzers, FMessageLog* InLog)
+FAnalysisEngine::FImpl::FImpl(TArray<IAnalyzer*>&& Analyzers, FMessageDelegate&& InMessage)
 : Bridge(Forward<TArray<IAnalyzer*>>(Analyzers))
-, Machine(Bridge, InLog)
+, Machine(Bridge, Forward<FMessageDelegate>(InMessage))
 {
 }
 
@@ -4188,8 +4216,8 @@ bool FAnalysisEngine::FImpl::OnData(FStreamReader& Reader)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& Analyzers, FMessageLog* InLog)
-: Impl(new FImpl(Forward<TArray<IAnalyzer*>>(Analyzers), InLog))
+FAnalysisEngine::FAnalysisEngine(TArray<IAnalyzer*>&& Analyzers, FMessageDelegate&& InMessage)
+: Impl(new FImpl(Forward<TArray<IAnalyzer*>>(Analyzers), Forward<FMessageDelegate>(InMessage)))
 {
 }
 

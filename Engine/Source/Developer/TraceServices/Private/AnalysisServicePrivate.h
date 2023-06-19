@@ -55,7 +55,9 @@ public:
 	virtual void AddMetadata(FName InName, double InValue) override;
 	virtual void AddMetadata(FName InName, FString InValue) override;
 
-	virtual FMessageLog* GetLog() const override;
+	virtual FMessageLog* GetLog() const override {return nullptr;};
+	virtual uint32 GetNumPendingMessages() const override;
+	virtual TArray<FAnalysisMessage> DrainPendingMessages() override;
 
 	virtual ILinearAllocator& GetLinearAllocator() override { return Allocator; }
 	virtual const TCHAR* StoreString(const TCHAR* String) override { return StringStore.Store(String); }
@@ -81,6 +83,8 @@ private:
 	virtual const IProvider* ReadProviderPrivate(const FName& Name) const override;
 	virtual IEditableProvider* EditProviderPrivate(const FName& Name) override;
 
+	void OnAnalysisMessage(UE::Trace::EAnalysisMessageSeverity Severity, FStringView Message);
+
 private:
 	mutable FAnalysisSessionLock Lock;
 	FString Name;
@@ -92,6 +96,8 @@ private:
 	FAnalysisCache Cache;
 	TArray<UE::Trace::IAnalyzer*> Analyzers;
 	TMap<FName, TTuple<TSharedPtr<IProvider>, TSharedPtr<IEditableProvider>>> Providers;
+	TArray<FAnalysisMessage> PendingMessages;
+	mutable std::atomic<uint32> PendingMessagesCount;
 	mutable TUniquePtr<UE::Trace::IInDataStream> DataStream;
 	mutable UE::Trace::FAnalysisProcessor Processor;
 };

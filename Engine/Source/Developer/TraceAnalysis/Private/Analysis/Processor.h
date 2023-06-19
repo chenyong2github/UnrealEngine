@@ -18,7 +18,7 @@ class FAnalysisProcessor::FImpl
 	: public FRunnable
 {
 public:
-						FImpl(IInDataStream& DataStream, TArray<IAnalyzer*>&& InAnalyzers);
+						FImpl(IInDataStream& DataStream, TArray<IAnalyzer*>&& InAnalyzers, FMessageDelegate&& InMessage);
 						~FImpl();
 	virtual uint32		Run() override;
 	bool				IsActive() const;
@@ -28,7 +28,6 @@ public:
 	FMessageLog*		GetLog();
 
 private:
-	FMessageLog			Log;
 	FAnalysisEngine		AnalysisEngine;
 	IInDataStream&		DataStream;
 	FEvent*				StopEvent;

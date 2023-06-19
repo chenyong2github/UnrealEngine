@@ -113,6 +113,7 @@ void FAnalysisSession::Start()
 	{
 		Context.AddAnalyzer(*Analyzer);
 	}
+	Context.SetMessageDelegate(UE::Trace::FMessageDelegate::CreateRaw(this, &FAnalysisSession::OnAnalysisMessage));
 	Processor = Context.Process(*DataStream);
 }
 
@@ -167,9 +168,16 @@ void FAnalysisSession::AddMetadata(FName InName, FString InValue)
 	Value.StringValue = InValue;
 }
 
-FMessageLog* FAnalysisSession::GetLog() const
+uint32 FAnalysisSession::GetNumPendingMessages() const
 {
-	return Processor.GetLog();
+	return PendingMessagesCount.load();
+}
+
+TArray<FAnalysisMessage> FAnalysisSession::DrainPendingMessages() 
+{
+	Lock.WriteAccessCheck();
+	PendingMessagesCount.store(0);
+	return MoveTemp(PendingMessages);
 }
 
 void FAnalysisSession::AddAnalyzer(UE::Trace::IAnalyzer* Analyzer)
@@ -206,6 +214,22 @@ IEditableProvider* FAnalysisSession::EditProviderPrivate(const FName& InName)
 	{
 		return nullptr;
 	}
+}
+
+void FAnalysisSession::OnAnalysisMessage(UE::Trace::EAnalysisMessageSeverity InSeverity, FStringView InMessage)
+{
+	EMessageSeverity::Type Severity = EMessageSeverity::Type::Info;
+	switch(InSeverity)
+	{
+	case UE::Trace::EAnalysisMessageSeverity::Error: Severity = EMessageSeverity::Type::Error; break;
+	case UE::Trace::EAnalysisMessageSeverity::Warning: Severity = EMessageSeverity::Type::Warning; break;
+	case UE::Trace::EAnalysisMessageSeverity::Info: Severity = EMessageSeverity::Type::Info; break;
+	}
+	
+	Lock.BeginEdit();
+	PendingMessages.Push(FAnalysisMessage { Severity, FString(InMessage)});
+	PendingMessagesCount.fetch_add(1);
+	Lock.EndEdit();
 }
 
 FAnalysisService::FAnalysisService(FModuleService& InModuleService)

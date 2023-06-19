@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/ContainersFwd.h"
+#include "Trace/Analysis.h"
 
 class FMessageLog;
 
@@ -16,7 +17,7 @@ class FStreamReader;
 class FAnalysisEngine
 {
 public:
-						FAnalysisEngine(TArray<IAnalyzer*>&& Analyzers, FMessageLog* InLog);
+						FAnalysisEngine(TArray<IAnalyzer*>&& Analyzers, FMessageDelegate&& InMessage);
 						~FAnalysisEngine();
 	void				Begin();
 	void				End();

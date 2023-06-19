@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+#include "Logging/TokenizedMessage.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/SharedPointer.h"
 
@@ -63,9 +64,17 @@ struct FTraceSessionMetadata
 	FString StringValue;
 };
 
+struct FAnalysisMessage
+{
+	EMessageSeverity::Type Severity;
+	FString Message;	
+};
+
 class IAnalysisSession
 {
 public:
+
+	
 	virtual ~IAnalysisSession() = default;
 	virtual void Stop(bool bAndWait=false) const = 0;
 	virtual void Wait() const = 0;
@@ -88,7 +97,12 @@ public:
 	virtual void AddMetadata(FName InName, double InValue) = 0;
 	virtual void AddMetadata(FName InName, FString InValue) = 0;
 
+	UE_DEPRECATED(5.3, "No longer used.")
 	virtual FMessageLog* GetLog() const = 0;
+	/** Get the number of pending messages. Can be called without lock */
+	virtual uint32 GetNumPendingMessages() const = 0;
+	/** Moves pending messages to the return array. */
+	virtual TArray<FAnalysisMessage> DrainPendingMessages() = 0;
 
 	virtual void BeginRead() const = 0;
 	virtual void EndRead() const = 0;

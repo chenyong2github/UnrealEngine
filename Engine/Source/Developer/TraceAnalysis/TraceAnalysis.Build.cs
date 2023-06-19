@@ -12,10 +12,7 @@ public class TraceAnalysis : ModuleRules
 		PrivateDependencyModuleNames.Add("Asio");
 		PrivateDependencyModuleNames.Add("Cbor");
 		PrivateDependencyModuleNames.Add("Core");
-		PrivateDependencyModuleNames.Add("MessageLog");
 		PrivateDependencyModuleNames.Add("Sockets");
 		PrivateDependencyModuleNames.Add("TraceLog");
-
-		PrivateIncludePathModuleNames.Add("MessageLog");
 	}
 }

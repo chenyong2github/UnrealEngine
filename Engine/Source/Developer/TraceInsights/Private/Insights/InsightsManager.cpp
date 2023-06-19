@@ -143,6 +143,7 @@ TSharedPtr<FInsightsManager> FInsightsManager::CreateInstance(TSharedRef<TraceSe
 FInsightsManager::FInsightsManager(TSharedRef<TraceServices::IAnalysisService> InTraceAnalysisService,
 								   TSharedRef<TraceServices::IModuleService> InTraceModuleService)
 	: LogListingName(TEXT("UnrealInsights"))
+	, AnalysisLogListingName(TEXT("TraceAnalysis"))
 	, AnalysisService(InTraceAnalysisService)
 	, ModuleService(InTraceModuleService)
 	, CommandList(new FUICommandList())
@@ -167,6 +168,7 @@ void FInsightsManager::Initialize(IUnrealInsightsModule& InsightsModule)
 
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	MessageLogModule.RegisterLogListing(GetLogListingName(), LOCTEXT("UnrealInsights", "Unreal Insights"));
+	MessageLogModule.RegisterLogListing(AnalysisLogListingName, LOCTEXT("TraceAnalysis", "Trace Analysis"));
 	MessageLogModule.EnableMessageLogDisplay(true);
 
 	// Register tick functions.
@@ -537,6 +539,8 @@ bool FInsightsManager::Tick(float DeltaTime)
 
 	UpdateSessionDuration();
 
+	PollAnalysisInfo();
+
 #if !WITH_EDITOR
 	if (!bIsSessionInfoSet && Session.IsValid())
 	{
@@ -576,7 +580,9 @@ void FInsightsManager::UpdateSessionDuration()
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			bLocalIsAnalysisComplete = Session->IsAnalysisComplete();
 			LocalSessionDuration = Session->GetDurationSeconds();
+
 		}
+
 
 		if (LocalSessionDuration != SessionDuration)
 		{
@@ -685,8 +691,39 @@ void FInsightsManager::ResetSession(bool bNotify)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FInsightsManager::PollAnalysisInfo()
+{
+	if (Session.IsValid())
+	{
+		if (Session->GetNumPendingMessages())
+		{
+			TSharedPtr<TraceServices::IAnalysisSession> EditableSession = ConstCastSharedPtr<TraceServices::IAnalysisSession>(Session);
+			TraceServices::FAnalysisSessionEditScope SessionEditScope(*EditableSession.Get());
+			const auto Messages = EditableSession->DrainPendingMessages();
+			
+			FMessageLog ReportMessageLog(AnalysisLogListingName);
+			for (const auto& Message : Messages)
+			{
+				TSharedRef<FTokenizedMessage> LogMessage = FTokenizedMessage::Create(Message.Severity, FText::FromString(Message.Message));
+				ReportMessageLog.AddMessage(LogMessage);
+				if (Message.Severity == EMessageSeverity::Error)
+				{
+					ReportMessageLog.Notify();
+				}
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FInsightsManager::OnSessionChanged()
 {
+	if (Session.IsValid())
+	{
+		FMessageLog(AnalysisLogListingName).NewPage(FText::FromString(Session->GetName()));
+	}
+	
 	SessionChangedEvent.Broadcast();
 }
 
@@ -1133,26 +1170,6 @@ void FInsightsManager::ScheduleCommand(const FString& InCmd)
 
 void FInsightsManager::OnSessionAnalysisCompleted()
 {
-	// Report any errors or warning that occurred
-	FMessageLog* Log = Session->GetLog();
-	if (Log)
-	{
-		if (const int32 NumErrors = Log->NumMessages(EMessageSeverity::Error); NumErrors > 0)
-		{
-			Log->Notify(FText::Format(NSLOCTEXT("TraceAnalysis", "FinishedWithErrors", "Analysis finished with {0} error(s)"),
-				FText::AsNumber(NumErrors)));
-		}
-		else if (const int32 NumWarnings = Log->NumMessages(EMessageSeverity::Warning); NumWarnings > 0)
-		{
-			Log->Notify(FText::Format(NSLOCTEXT("TraceAnalysis", "FinishedWithWarnings", "Analysis finished with {0} warning(s)"),
-				FText::AsNumber(NumWarnings)));
-		}
-		else
-		{
-			Log->Notify(NSLOCTEXT("TraceAnalysis", "Finished", "Analysis finished."));
-		}
-	}
-
 	if (!SessionAnalysisCompletedCmd.IsEmpty())
 	{
 		FOutputDevice& Ar = *GLog;
