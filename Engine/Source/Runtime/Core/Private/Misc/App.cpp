@@ -459,3 +459,10 @@ FString FApp::GetZenStoreProjectId()
 #endif
 	return FString();
 }
+
+
+FGuid FApp::GetInstanceId()
+{
+	static FGuid InstanceId = FGuid::NewGuid();
+	return InstanceId;
+}

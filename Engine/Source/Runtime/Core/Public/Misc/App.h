@@ -249,11 +249,7 @@ public:
 	 * @return Instance identifier, or an invalid GUID if there is no local instance.
 	 * @see GetSessionId
 	 */
-	FORCEINLINE static FGuid GetInstanceId()
-	{
-		static FGuid InstanceId = FGuid::NewGuid();
-		return InstanceId;
-	}
+	static CORE_API FGuid GetInstanceId();
 
 	/**
 	 * Gets the name of this application instance.
