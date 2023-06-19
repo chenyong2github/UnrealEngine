@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED && PLATFORM_ANDROID
 
 #include <arpa/inet.h>
+#include <string.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
