@@ -22,9 +22,9 @@ namespace UnrealBuildTool.Rules
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					/* Add any extra deps here, should not require any UE modules */
+					"Core"
 				}
-			);
+			);		
 		}
 	}
 }
