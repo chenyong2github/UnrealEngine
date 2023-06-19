@@ -21,7 +21,7 @@ public:
 	/**
 	 * Initialize the RHI for this rendering resource
 	 */
-	NIAGARAVERTEXFACTORIES_API virtual void InitRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	NIAGARAVERTEXFACTORIES_API virtual void ReleaseRHI() override;
 	FShaderResourceViewRHIRef VertexBufferSRV;
 

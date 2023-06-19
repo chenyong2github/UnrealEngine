@@ -52,7 +52,7 @@ public:
 		: NumQuadsPerSide(InNumQuadsPerSide) 
 	{}
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	int32 GetIndexCount() const { return NumIndices; }
 
@@ -73,7 +73,7 @@ public:
 
 	~FVirtualHeightfieldMeshVertexFactory();
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);

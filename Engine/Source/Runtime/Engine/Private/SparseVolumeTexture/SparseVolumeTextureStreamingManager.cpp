@@ -771,7 +771,7 @@ FStreamingManager::FStreamingManager()
 
 }
 
-void FStreamingManager::InitRHI()
+void FStreamingManager::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	using namespace UE::DerivedData;
 
@@ -2331,7 +2331,7 @@ FStreamingManager::FTileDataTexture::FTileDataTexture(const FIntVector3& InResol
 	check(TileCoordsIndex == PhysicalTilesCapacity);
 }
 
-void FStreamingManager::FTileDataTexture::InitRHI()
+void FStreamingManager::FTileDataTexture::InitRHI(FRHICommandListBase&)
 {
 	const FIntVector3 Resolution = ResolutionInTiles * SPARSE_VOLUME_TILE_RES_PADDED;
 	if (FormatA != PF_Unknown)

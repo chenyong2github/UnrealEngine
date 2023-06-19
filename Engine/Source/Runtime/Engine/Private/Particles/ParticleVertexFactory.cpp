@@ -22,18 +22,18 @@ public:
 	/**
 	 * Initialize the RHI for this rendering resource
 	 */
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const uint32 Size = sizeof(FVector2f) * 4;
 
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo(TEXT("FNullSubUVCutoutVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
+		VertexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		void* BufferData = RHICmdList.LockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 		FMemory::Memzero(BufferData, Size);
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 
-		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
+		VertexBufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
 	}
 	
 	virtual void ReleaseRHI() override
@@ -178,7 +178,7 @@ public:
 		Offset += sizeof(float) * 4;
 	}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FVertexDeclarationElementList Elements;
 		int32	Offset = 0;
@@ -249,7 +249,7 @@ FRHIVertexDeclaration* FParticleSpriteVertexFactory::GetPSOPrecacheVertexDeclara
 /**
  *	Initialize the Render Hardware Interface for this vertex factory
  */
-void FParticleSpriteVertexFactory::InitRHI()
+void FParticleSpriteVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	InitStreams();
 	SetDeclaration(GetParticleSpriteVertexDeclaration(NumVertsInInstanceBuffer, bUsesDynamicParameter).VertexDeclarationRHI);

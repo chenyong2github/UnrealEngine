@@ -145,7 +145,7 @@ public:
 	/** Returns the height of the texture in pixels. */
 	virtual uint32 GetSizeY() const override { return Size.Y; }
 	
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
@@ -495,7 +495,7 @@ void UAppleARKitEnvironmentCaptureProbeTexture::Init(float InTimestamp, id<MTLTe
 		ENQUEUE_RENDER_COMMAND(UpdateEnvironmentCapture)(
 			[InResource = GetResource()](FRHICommandListImmediate& RHICmdList)
 			{
-				InResource->InitRHI();
+				InResource->InitRHI(RHICmdList);
 			});
 	}
 }
@@ -578,7 +578,7 @@ public:
 	/**
 	 * Called when the resource is initialized. This is only called by the rendering thread.
 	 */
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FARMetalResource"));
 
@@ -893,7 +893,7 @@ public:
 	{
 	}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);

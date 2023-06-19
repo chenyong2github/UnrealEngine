@@ -20,7 +20,7 @@ public:
 	void Destroy();
 
 	/** Initializes the index buffers RHI resource. */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** Releases the index buffers RHI resource. */
 	virtual void ReleaseRHI() override;

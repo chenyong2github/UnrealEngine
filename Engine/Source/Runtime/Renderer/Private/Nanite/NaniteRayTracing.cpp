@@ -164,7 +164,7 @@ namespace Nanite
 
 	}
 
-	void FRayTracingManager::InitRHI()
+	void FRayTracingManager::InitRHI(FRHICommandListBase&)
 	{
 		if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 		{

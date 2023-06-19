@@ -122,7 +122,7 @@ public:
 	static NIAGARAVERTEXFACTORIES_API void GetPSOPrecacheVertexFetchElements(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
 
 	// FRenderResource interface.
-	NIAGARAVERTEXFACTORIES_API virtual void InitRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/**
 	* Set the uniform buffer for this vertex factory.

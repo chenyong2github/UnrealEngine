@@ -418,7 +418,7 @@ void FResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) cons
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(PageDependencies.GetAllocatedSize());
 }
 
-void FVertexFactory::InitRHI()
+void FVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
@@ -2355,12 +2355,10 @@ bool IsMaskingAllowed(UWorld* World, bool bForceNaniteForMasked)
 	return (GNaniteAllowMaskedMaterials != 0) && (bAllowedByWorld || bForceNaniteForMasked);
 }
 
-void FVertexFactoryResource::InitRHI()
+void FVertexFactoryResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
-		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
-	
 		LLM_SCOPE_BYTAG(Nanite);
 		VertexFactory = new FVertexFactory(ERHIFeatureLevel::SM5);
 		VertexFactory->InitResource(RHICmdList);
@@ -2405,7 +2403,7 @@ FNaniteVertexFactory::~FNaniteVertexFactory()
 	ReleaseResource();
 }
 
-void FNaniteVertexFactory::InitRHI()
+void FNaniteVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 }

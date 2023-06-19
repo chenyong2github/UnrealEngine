@@ -392,7 +392,7 @@ public:
 	/**
 	* Initialize the RHI for this rendering resource
 	*/
-	void InitRHI() override
+	void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> Indices;
 
@@ -421,7 +421,7 @@ public:
 
 		// Create index buffer. Fill buffer with initial data upon creation
 		FRHIResourceCreateInfo CreateInfo(TEXT("FRayTracingDebugLineAABBIndexBuffer"), &Indices);
-		IndexBufferRHI = RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
+		IndexBufferRHI = RHICmdList.CreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
 	}
 };
 
@@ -434,7 +434,7 @@ struct FRayTracingDebugResources : public FRenderResource
 	int32 PickingBufferNumPending = 0;
 	TArray<FRHIGPUBufferReadback*> PickingBuffers;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		PickingBuffers.AddZeroed(MaxPickingBuffers);
 	}

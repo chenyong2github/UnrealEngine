@@ -108,7 +108,7 @@ public:
 	void CopyMetaData(const FSkinWeightLookupVertexBuffer& Other);
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	virtual FString GetFriendlyName() const override
@@ -215,7 +215,7 @@ public:
 	void CopyMetaData(const FSkinWeightDataVertexBuffer& Other);
 
 	// FRenderResource interface.
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	ENGINE_API virtual void ReleaseRHI() override;
 
 	virtual FString GetFriendlyName() const override 

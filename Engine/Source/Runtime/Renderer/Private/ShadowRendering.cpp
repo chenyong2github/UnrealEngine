@@ -203,11 +203,11 @@ class FDummyWholeSceneDirectionalShadowStencilVertexBuffer : public FVertexBuffe
 {
 public:
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyWholeSceneDirectionalShadowStencilVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * 12, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 12, RLM_WriteOnly);
+		VertexBufferRHI = RHICmdList.CreateBuffer(sizeof(FVector4f) * 12, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FVector4f* DummyContents = (FVector4f*)RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 12, RLM_WriteOnly);
 
 		// Far Plane
 		DummyContents[0] = FVector4f( 1,  1,  1 /* StencilFar */);
@@ -225,7 +225,7 @@ public:
 		DummyContents[10] = FVector4f( 1,  1, -1);
 		DummyContents[11] = FVector4f( 1, -1, -1);
 
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 	}
 };
 
@@ -773,7 +773,7 @@ FRHIBlendState* FProjectedShadowInfo::GetBlendStateForProjection(bool bProjectin
 class FFrustumVertexBuffer : public FVertexBuffer
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoStencilFrustum"));
 		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4f) * 8, BUF_Static, CreateInfo);
@@ -2473,13 +2473,13 @@ void SetupTranslucentSelfShadowUniformParameters(const FProjectedShadowInfo* Sha
 	}
 }
 
-void FEmptyTranslucentSelfShadowUniformBuffer::InitRHI()
+void FEmptyTranslucentSelfShadowUniformBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FTranslucentSelfShadowUniformParameters Parameters;
 	SetupTranslucentSelfShadowUniformParameters(nullptr, Parameters);
 	SetContentsNoUpdate(Parameters);
 
-	Super::InitRHI();
+	Super::InitRHI(RHICmdList);
 }
 
 

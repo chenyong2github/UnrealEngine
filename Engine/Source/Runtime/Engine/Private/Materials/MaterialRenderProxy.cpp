@@ -558,7 +558,7 @@ FMaterialRenderProxy::~FMaterialRenderProxy()
 	DeletedFlag = -1;
 }
 
-void FMaterialRenderProxy::InitRHI()
+void FMaterialRenderProxy::InitRHI(FRHICommandListBase& RHICmdList)
 {
 #if WITH_EDITOR
 	// MaterialRenderProxyMap is only used by shader compiling

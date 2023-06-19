@@ -624,7 +624,7 @@ OwnerName(InOwnerName)
 {
 }
 
-void FHairCommonResource::InitRHI()
+void FHairCommonResource::InitRHI(FRHICommandListBase&)
 {
 	// 1. If the resource is Updated (ReleaseRHI, IniRHI), reset its loaded data counter
 	if (!bIsInitialized)
@@ -792,15 +792,15 @@ FHairCardIndexBuffer::FHairCardIndexBuffer(const TArray<FHairCardsIndexFormat::T
 	SetOwnerName(InOwnerName); 
 }
 
-void FHairCardIndexBuffer::InitRHI()
+void FHairCardIndexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	const uint32 DataSizeInBytes = FHairCardsIndexFormat::SizeInByte * Indices.Num();
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("FHairCardIndexBuffer"));
-	IndexBufferRHI = RHICreateBuffer(DataSizeInBytes, BUF_Static | BUF_IndexBuffer, FHairCardsIndexFormat::SizeInByte, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-	void* Buffer = RHILockBuffer(IndexBufferRHI, 0, DataSizeInBytes, RLM_WriteOnly);
+	IndexBufferRHI = RHICmdList.CreateBuffer(DataSizeInBytes, BUF_Static | BUF_IndexBuffer, FHairCardsIndexFormat::SizeInByte, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+	void* Buffer = RHICmdList.LockBuffer(IndexBufferRHI, 0, DataSizeInBytes, RLM_WriteOnly);
 	FMemory::Memcpy(Buffer, Indices.GetData(), DataSizeInBytes);
-	RHIUnlockBuffer(IndexBufferRHI);
+	RHICmdList.UnlockBuffer(IndexBufferRHI);
 	IndexBufferRHI->SetOwnerName(GetOwnerName());
 }
 

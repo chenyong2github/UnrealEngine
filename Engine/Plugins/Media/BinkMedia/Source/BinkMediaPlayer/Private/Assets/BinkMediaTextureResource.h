@@ -13,7 +13,7 @@ struct FBinkMediaTextureResource : FTextureResource, FRenderTarget, FDeferredUpd
 	{ 
 	}
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	virtual FIntPoint GetSizeXY() const override { return Owner->CachedDimensions; }
 	virtual void UpdateDeferredResource(FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget = true) override;

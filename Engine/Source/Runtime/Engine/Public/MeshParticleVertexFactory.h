@@ -172,7 +172,7 @@ public:
 	ENGINE_API void Copy(const FMeshParticleVertexFactory& Other);
 
 	// FRenderResource interface.
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	FMeshParticleInstanceVertices*& GetInstanceVerticesCPU()
 	{

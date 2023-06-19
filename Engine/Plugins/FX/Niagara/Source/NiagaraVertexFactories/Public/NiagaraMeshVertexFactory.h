@@ -206,7 +206,7 @@ public:
 	}
 
 	// FRenderResource interface.
-	NIAGARAVERTEXFACTORIES_API virtual void InitRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	int32 GetMeshIndex() const { return MeshIndex; }
 	void SetMeshIndex(int32 InMeshIndex) { MeshIndex = InMeshIndex; }

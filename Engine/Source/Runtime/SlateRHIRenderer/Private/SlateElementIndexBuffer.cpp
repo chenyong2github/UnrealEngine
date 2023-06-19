@@ -46,7 +46,7 @@ void FSlateElementIndexBuffer::Destroy()
 }
 
 /** Initializes the index buffers RHI resource. */
-void FSlateElementIndexBuffer::InitRHI()
+void FSlateElementIndexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	checkSlow( IsInRenderingThread() );
 
@@ -55,7 +55,7 @@ void FSlateElementIndexBuffer::InitRHI()
 	SetBufferSize(MinBufferSize);
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("FSlateElementIndexBuffer"));
-	IndexBufferRHI = RHICreateIndexBuffer( sizeof(SlateIndex), MinBufferSize, BUF_Dynamic, CreateInfo );
+	IndexBufferRHI = RHICmdList.CreateIndexBuffer( sizeof(SlateIndex), MinBufferSize, BUF_Dynamic, CreateInfo );
 	check( IsValidRef(IndexBufferRHI) );
 }
 

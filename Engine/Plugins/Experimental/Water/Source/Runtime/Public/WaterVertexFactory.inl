@@ -31,9 +31,9 @@ TWaterVertexFactory<bWithWaterSelectionSupport>::~TWaterVertexFactory()
 }
 
 template <bool bWithWaterSelectionSupport>
-void TWaterVertexFactory<bWithWaterSelectionSupport>::InitRHI()
+void TWaterVertexFactory<bWithWaterSelectionSupport>::InitRHI(FRHICommandListBase& RHICmdList)
 {
-	Super::InitRHI();
+	Super::InitRHI(RHICmdList);
 
 	// Setup the uniform data:
 	SetupUniformDataForGroup(EWaterMeshRenderGroupType::RG_RenderWaterTiles);
@@ -43,7 +43,6 @@ void TWaterVertexFactory<bWithWaterSelectionSupport>::InitRHI()
 	SetupUniformDataForGroup(EWaterMeshRenderGroupType::RG_RenderUnselectedWaterTilesOnly);
 #endif // WITH_WATER_SELECTION_SUPPORT
 
-	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 	VertexBuffer->InitResource(RHICmdList);
 	IndexBuffer->InitResource(RHICmdList);
 

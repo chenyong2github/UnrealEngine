@@ -31,7 +31,7 @@ public:
 	virtual uint32 GetSizeY() const final override { return SizeY; }
 	// Depth for 3D texture or ArraySize for texture 2d arrays
 	virtual uint32 GetSizeZ() const final override { return SizeZ; }
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() final override;
 
 	// This is only coherent sync on the rendering thread. To get the gamethread coherent value, use UStreamableRenderResource.CacheStreamableResourceState

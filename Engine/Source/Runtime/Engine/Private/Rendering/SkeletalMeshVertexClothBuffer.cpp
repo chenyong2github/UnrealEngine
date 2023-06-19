@@ -110,14 +110,14 @@ void FSkeletalMeshVertexClothBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBa
 /**
 * Initialize the RHI resource for this vertex buffer
 */
-void FSkeletalMeshVertexClothBuffer::InitRHI()
+void FSkeletalMeshVertexClothBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	SCOPED_LOADTIMER(FSkeletalMeshVertexClothBuffer_InitRHI);
 
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 	if (VertexBufferRHI)
 	{
-		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, 16, PF_A32B32G32R32F);
+		VertexBufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, 16, PF_A32B32G32R32F);
 	}
 }
 

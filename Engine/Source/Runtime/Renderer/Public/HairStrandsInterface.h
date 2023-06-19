@@ -219,7 +219,7 @@ class FHairGroupPublicData : public FRenderResource
 public:
 	RENDERER_API FHairGroupPublicData(uint32 InGroupIndex, const FName& OwnerName);
 	
-	RENDERER_API virtual void InitRHI() override;
+	RENDERER_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	RENDERER_API virtual void ReleaseRHI() override;
 	virtual FString GetFriendlyName() const override { return TEXT("FHairGroupPublicData"); }
 	RENDERER_API void Allocate(FRDGBuilder& GraphBuilder);

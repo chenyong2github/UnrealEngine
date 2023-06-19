@@ -18,7 +18,7 @@ public:
 	virtual ~FDisplayClusterRender_TextureResource();
 
 	//~FTextureResource
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	//~~ FTextureResource
 
 	/** Release texture data from memory. */

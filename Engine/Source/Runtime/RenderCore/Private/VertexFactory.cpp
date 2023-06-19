@@ -344,34 +344,34 @@ void FVertexFactory::InitDeclaration(const FVertexDeclarationElementList& Elemen
 	}
 }
 
-void FPrimitiveIdDummyBuffer::InitRHI() 
+void FPrimitiveIdDummyBuffer::InitRHI(FRHICommandListBase& RHICmdList) 
 {
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FPrimitiveIdDummyBuffer"));
 
-	VertexBufferRHI = RHICreateBuffer(sizeof(uint32), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-	uint32* Vertices = (uint32*)RHILockBuffer(VertexBufferRHI, 0, sizeof(uint32), RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateBuffer(sizeof(uint32), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+	uint32* Vertices = (uint32*)RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(uint32), RLM_WriteOnly);
 	Vertices[0] = 0;
-	RHIUnlockBuffer(VertexBufferRHI);
-	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
+	VertexBufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
 }
 
 TGlobalResource<FPrimitiveIdDummyBuffer> GPrimitiveIdDummy;
 
-void FPrimitiveIdDummyBufferMobile::InitRHI() 
+void FPrimitiveIdDummyBufferMobile::InitRHI(FRHICommandListBase& RHICmdList) 
 {
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FPrimitiveIdDummyBufferMobile"));
 
-	VertexBufferRHI = RHICreateBuffer(BufferStride, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-	FVector4f* Vertices = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, BufferStride, RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateBuffer(BufferStride, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+	FVector4f* Vertices = (FVector4f*)RHICmdList.LockBuffer(VertexBufferRHI, 0, BufferStride, RLM_WriteOnly);
 	Vertices[0] = FVector4f(0, 0, 0, 0);
 	Vertices[1] = FVector4f(1, 0, 0, 0);
 	Vertices[2] = FVector4f(0, 1, 0, 0);
 	Vertices[3] = FVector4f(0, 0, 1, 0);
 	Vertices[4] = FVector4f(0, 0, 0, 0);
-	RHIUnlockBuffer(VertexBufferRHI);
-	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
+	VertexBufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F);
 }
 
 TGlobalResource<FPrimitiveIdDummyBufferMobile> GPrimitiveIdDummyMobile;

@@ -611,7 +611,7 @@ public:
 	FLightmapResourceCluster() : AllocatedVT(nullptr) {}
 	ENGINE_API virtual ~FLightmapResourceCluster();
 
-	ENGINE_API virtual void InitRHI();
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList);
 	ENGINE_API virtual void ReleaseRHI();
 
 	ENGINE_API void SetFeatureLevelAndInitialize(const FStaticFeatureLevel InFeatureLevel);

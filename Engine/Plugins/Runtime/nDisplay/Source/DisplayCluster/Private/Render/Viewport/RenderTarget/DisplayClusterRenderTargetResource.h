@@ -157,7 +157,7 @@ public:
 	{ }
 
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	virtual FString GetFriendlyName() const override
 	{
@@ -183,7 +183,7 @@ public:
 	{ }
 
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	virtual FIntPoint GetSizeXY() const override
 	{

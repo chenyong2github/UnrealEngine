@@ -184,21 +184,21 @@ int32 GenerateParticleSortKeys(
 /**
  * Initialize RHI resources.
  */
-void FParticleSortBuffers::InitRHI()
+void FParticleSortBuffers::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	for (int32 BufferIndex = 0; BufferIndex < 2; ++BufferIndex)
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("PartialSortKeyBuffer"));
 
-		KeyBuffers[BufferIndex] = RHICreateVertexBuffer( BufferSize * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
-		KeyBufferSRVs[BufferIndex] = RHICreateShaderResourceView( KeyBuffers[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT );
-		KeyBufferUAVs[BufferIndex] = RHICreateUnorderedAccessView( KeyBuffers[BufferIndex], PF_R32_UINT );
+		KeyBuffers[BufferIndex] = RHICmdList.CreateVertexBuffer( BufferSize * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		KeyBufferSRVs[BufferIndex] = RHICmdList.CreateShaderResourceView( KeyBuffers[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT );
+		KeyBufferUAVs[BufferIndex] = RHICmdList.CreateUnorderedAccessView( KeyBuffers[BufferIndex], PF_R32_UINT );
 
 		CreateInfo.DebugName = TEXT("PartialSortVertexBuffer");
-		VertexBuffers[BufferIndex] = RHICreateVertexBuffer( BufferSize * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		VertexBuffers[BufferIndex] = RHICmdList.CreateVertexBuffer( BufferSize * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 
-		VertexBufferSortSRVs[BufferIndex] = RHICreateShaderResourceView(VertexBuffers[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT);
-		VertexBufferSortUAVs[BufferIndex] = RHICreateUnorderedAccessView(VertexBuffers[BufferIndex], PF_R32_UINT);
+		VertexBufferSortSRVs[BufferIndex] = RHICmdList.CreateShaderResourceView(VertexBuffers[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT);
+		VertexBufferSortUAVs[BufferIndex] = RHICmdList.CreateUnorderedAccessView(VertexBuffers[BufferIndex], PF_R32_UINT);
 	}
 }
 

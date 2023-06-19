@@ -51,15 +51,15 @@ public:
 	uint32 DefaultValue = 0;
 
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// Create a buffer with one element.
 		uint32 NumBytes = GPixelFormats[PixelFormat].BlockBytes;
 		FRHIResourceCreateInfo CreateInfo(*DebugName);
-		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | BUF_Static, CreateInfo);
+		Buffer = RHICmdList.CreateVertexBuffer(NumBytes, BUF_ShaderResource | BUF_Static, CreateInfo);
 
 		// Zero the buffer memory.
-		void* Data = RHILockBuffer(Buffer, 0, NumBytes, RLM_WriteOnly);
+		void* Data = RHICmdList.LockBuffer(Buffer, 0, NumBytes, RLM_WriteOnly);
 		FMemory::Memset(Data, 0, NumBytes);
 
 		if (PixelFormat == PF_R8G8B8A8)
@@ -67,9 +67,9 @@ public:
 			*reinterpret_cast<uint32*>(Data) = DefaultValue;
 		}
 
-		RHIUnlockBuffer(Buffer);
+		RHICmdList.UnlockBuffer(Buffer);
 
-		SRV = RHICreateShaderResourceView(Buffer, NumBytes, PixelFormat);
+		SRV = RHICmdList.CreateShaderResourceView(Buffer, NumBytes, PixelFormat);
 	}
 
 	virtual void ReleaseRHI() override
@@ -94,7 +94,7 @@ public:
 	FTextureRHIRef Texture;
 	FShaderResourceViewRHIRef SRV;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const FRHITextureCreateDesc Desc = FRHITextureCreateDesc(*DebugName, Dimension)
 			.SetExtent(1, 1)

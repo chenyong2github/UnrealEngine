@@ -94,7 +94,7 @@ public:
 	ENGINE_API void Copy(const FLocalVertexFactory& Other);
 
 	// FRenderResource interface.
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override
 	{
 		UniformBuffer.SafeRelease();

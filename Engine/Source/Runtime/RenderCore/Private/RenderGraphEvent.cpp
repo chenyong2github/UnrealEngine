@@ -14,7 +14,7 @@ public:
 	// Destructor
 	virtual ~FRDGTimingPool() = default;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		check(IsInRenderingThread());
 		bIsBudgetRecordingEnabled.SetAll(false);

@@ -28,7 +28,7 @@ namespace
 
 		virtual ~FMoviePlaybackResources() { }
 
-		virtual void InitRHI() override
+		virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 		{
 			FVertexDeclarationElementList Elements;
 			uint16 Stride = sizeof(FMediaElementVertex);
@@ -47,7 +47,7 @@ namespace
 			Vertices[3].Position.Set(1.0f, -1.0f, 1.0f, 1.0f);
 			Vertices[3].TextureCoordinate.Set(1.0f, 1.0f);
 			FRHIResourceCreateInfo CreateInfo(TEXT("FMoviePlaybackResources"), &Vertices);
-			VertexBufferRHI = RHICreateVertexBuffer(sizeof(FMediaElementVertex) * 4, BUF_Static, CreateInfo);
+			VertexBufferRHI = RHICmdList.CreateVertexBuffer(sizeof(FMediaElementVertex) * 4, BUF_Static, CreateInfo);
 		}
 
 		virtual void ReleaseRHI() override

@@ -115,7 +115,7 @@ extern ENGINE_API void RasterizeToVolumeTexture(FRHICommandList& RHICmdList, FVo
 class ENGINE_API FVolumeRasterizeVertexBuffer : public FVertexBuffer
 {
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 extern ENGINE_API TGlobalResource<FVolumeRasterizeVertexBuffer> GVolumeRasterizeVertexBuffer;

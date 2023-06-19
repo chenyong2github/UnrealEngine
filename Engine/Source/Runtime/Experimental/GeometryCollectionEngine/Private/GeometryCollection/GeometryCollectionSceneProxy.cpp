@@ -906,6 +906,8 @@ void FGeometryCollectionSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 
 void FGeometryCollectionSceneProxy::UpdatingRayTracingGeometry_RenderingThread(TArray<FGeometryCollectionMeshElement> const& InSectionArray)
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	if (bGeometryResourceUpdated)
 	{
 		RayTracingGeometry.Initializer.Segments.Empty();
@@ -927,7 +929,7 @@ void FGeometryCollectionSceneProxy::UpdatingRayTracingGeometry_RenderingThread(T
 		{
 			RayTracingGeometry.Initializer.IndexBuffer = MeshResource.IndexBuffer.IndexBufferRHI;
 			// Create the ray tracing geometry but delay the acceleration structure build.
-			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
+			RayTracingGeometry.CreateRayTracingGeometry(RHICmdList, ERTAccelerationStructureBuildPriority::Skip);
 		}
 
 		bGeometryResourceUpdated = false;

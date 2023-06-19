@@ -105,7 +105,7 @@ public:
 		DupVertIndexData.Discard();
 	}
 
-    virtual void InitRHI() override
+    virtual void InitRHI(FRHICommandListBase& RHICmdList) override
     {
 		const static FLazyName DuplicatedVerticesBuffeName(TEXT("FDuplicatedVerticesBuffer"));
         {
@@ -115,9 +115,9 @@ public:
             FRHIResourceCreateInfo CreateInfo(TEXT("DuplicatedVerticesIndexBuffer"), ResourceArray);
 			CreateInfo.ClassName = DuplicatedVerticesBuffeName;
 			CreateInfo.OwnerName = GetOwnerName();
-            DuplicatedVerticesIndexBuffer.VertexBufferRHI = RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+            DuplicatedVerticesIndexBuffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			DuplicatedVerticesIndexBuffer.VertexBufferRHI->SetOwnerName(GetOwnerName());
-            DuplicatedVerticesIndexBuffer.VertexBufferSRV = RHICreateShaderResourceView(DuplicatedVerticesIndexBuffer.VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
+            DuplicatedVerticesIndexBuffer.VertexBufferSRV = RHICmdList.CreateShaderResourceView(DuplicatedVerticesIndexBuffer.VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
         }
 
         {
@@ -127,9 +127,9 @@ public:
             FRHIResourceCreateInfo CreateInfo(TEXT("LengthAndIndexDuplicatedVerticesIndexBuffer"), ResourceArray);
 			CreateInfo.ClassName = DuplicatedVerticesBuffeName;
 			CreateInfo.OwnerName = GetOwnerName();
-            LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferRHI = RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+            LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferRHI->SetOwnerName(GetOwnerName());
-            LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV = RHICreateShaderResourceView(LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
+            LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferSRV = RHICmdList.CreateShaderResourceView(LengthAndIndexDuplicatedVerticesIndexBuffer.VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
         }
     }
 

@@ -165,7 +165,7 @@ bool FTextureShareResource::ReleaseTextureShareHandle_RenderThread()
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FTextureShareResource::InitRHI()
+void FTextureShareResource::InitRHI(FRHICommandListBase&)
 {
 	FTexture2DRHIRef NewTextureRHI;
 	switch (CoreObject->GetObjectDesc_RenderThread().ProcessDesc.DeviceType)

@@ -80,7 +80,7 @@ public:
 	RENDERCORE_API FNullColorVertexBuffer();
 	RENDERCORE_API ~FNullColorVertexBuffer();
 
-	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	RENDERCORE_API virtual void ReleaseRHI() override;
 
 	FShaderResourceViewRHIRef VertexBufferSRV;
@@ -98,7 +98,7 @@ public:
 	RENDERCORE_API FNullVertexBuffer();
 	RENDERCORE_API ~FNullVertexBuffer();
 
-	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	RENDERCORE_API virtual void ReleaseRHI() override;
 
 	FShaderResourceViewRHIRef VertexBufferSRV;
@@ -113,7 +113,7 @@ public:
 	/**
 	* Initialize the RHI for this rendering resource
 	*/
-	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 extern RENDERCORE_API TGlobalResource<FScreenSpaceVertexBuffer, FRenderResource::EInitPhase::Pre> GScreenSpaceVertexBuffer;
@@ -124,7 +124,7 @@ public:
 	RENDERCORE_API FTileVertexDeclaration();
 	RENDERCORE_API virtual ~FTileVertexDeclaration();
 
-	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	RENDERCORE_API virtual void ReleaseRHI() override;
 
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
@@ -138,7 +138,7 @@ public:
 	/**
 	* Initialize the RHI for this rendering resource
 	*/
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 extern RENDERCORE_API TGlobalResource<FCubeIndexBuffer, FRenderResource::EInitPhase::Pre> GCubeIndexBuffer;
 
@@ -148,7 +148,7 @@ public:
 	/**
 	* Initialize the RHI for this rendering resource
 	*/
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 extern RENDERCORE_API TGlobalResource<FTwoTrianglesIndexBuffer, FRenderResource::EInitPhase::Pre> GTwoTrianglesIndexBuffer;
 

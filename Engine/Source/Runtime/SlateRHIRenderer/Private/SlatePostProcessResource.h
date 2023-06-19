@@ -30,7 +30,7 @@ public:
 	void CleanUp();
 
 	/** FRenderResource interface */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	/** FSlateShaderResource interface */

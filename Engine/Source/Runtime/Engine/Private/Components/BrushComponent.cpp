@@ -50,14 +50,14 @@ public:
 	}
 
 	// FRenderResource interface.
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		if(NumEdges)
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FModelWireIndexBuffer"));
-			IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16),NumEdges * 2 * sizeof(uint16),BUF_Static, CreateInfo);
+			IndexBufferRHI = RHICmdList.CreateIndexBuffer(sizeof(uint16),NumEdges * 2 * sizeof(uint16),BUF_Static, CreateInfo);
 
-			uint16* DestIndex = (uint16*)RHILockBuffer(IndexBufferRHI,0,NumEdges * 2 * sizeof(uint16),RLM_WriteOnly);
+			uint16* DestIndex = (uint16*)RHICmdList.LockBuffer(IndexBufferRHI,0,NumEdges * 2 * sizeof(uint16),RLM_WriteOnly);
 			uint16 BaseIndex = 0;
 			for(int32 PolyIndex = 0;PolyIndex < Polys.Num();PolyIndex++)
 			{
@@ -69,7 +69,7 @@ public:
 				}
 				BaseIndex += Poly.Vertices.Num();
 			}
-			RHIUnlockBuffer(IndexBufferRHI);
+			RHICmdList.UnlockBuffer(IndexBufferRHI);
 		}
 	}
 

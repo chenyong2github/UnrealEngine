@@ -123,7 +123,7 @@ public:
 	static const uint32 Height = 20;	// to minimize distortion we also tessellate in Y but a perspective distortion could do that with fewer triangles.
 
 	/** Initialize the RHI for this rendering resource */
-	void InitRHI() override;
+	void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	uint32 NumVertices() const;
 

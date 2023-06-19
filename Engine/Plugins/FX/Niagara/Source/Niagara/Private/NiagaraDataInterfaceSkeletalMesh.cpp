@@ -896,7 +896,7 @@ void FSkeletalMeshGpuSpawnStaticBuffers::Initialise(FNDISkeletalMesh_InstanceDat
 	}
 }
 
-void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
+void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// As of today, the UI does not allow to cull specific section of a mesh so this data could be generated on the Mesh. But Section culling might be added later?
 	// Also see https://jira.it.epicgames.net/browse/UE-69376 : we would need to know if GPU sampling of the mesh surface is needed or not on the mesh to be able to do that.
@@ -956,11 +956,11 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSkeletalMeshGpuSpawnStaticBuffers"));
 		uint32 SizeByte = NDISkelMeshLocal::GetProbAliasDWORDSize(TriangleCount) * sizeof(uint32);
-		BufferTriangleUniformSamplerProbAliasRHI = RHICreateBuffer(SizeByte, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		uint32* PackedData = (uint32*)RHILockBuffer(BufferTriangleUniformSamplerProbAliasRHI, 0, SizeByte, RLM_WriteOnly);
+		BufferTriangleUniformSamplerProbAliasRHI = RHICmdList.CreateBuffer(SizeByte, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		uint32* PackedData = (uint32*)RHICmdList.LockBuffer(BufferTriangleUniformSamplerProbAliasRHI, 0, SizeByte, RLM_WriteOnly);
 		NDISkelMeshLocal::PackProbAlias(PackedData, triangleSampler);
-		RHIUnlockBuffer(BufferTriangleUniformSamplerProbAliasRHI);
-		BufferTriangleUniformSamplerProbAliasSRV = RHICreateShaderResourceView(BufferTriangleUniformSamplerProbAliasRHI, sizeof(uint32), PF_R32_UINT);
+		RHICmdList.UnlockBuffer(BufferTriangleUniformSamplerProbAliasRHI);
+		BufferTriangleUniformSamplerProbAliasSRV = RHICmdList.CreateShaderResourceView(BufferTriangleUniformSamplerProbAliasRHI, sizeof(uint32), PF_R32_UINT);
 #if STATS
 		GPUMemoryUsage += SizeByte;
 #endif
@@ -980,8 +980,8 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 		if (bSamplingRegionsAllAreaWeighted)
 		{
 			CreateInfo.ResourceArray = &SampleRegionsProbAlias;
-			SampleRegionsProbAliasBuffer = RHICreateVertexBuffer(SampleRegionsProbAlias.Num() * SampleRegionsProbAlias.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-			SampleRegionsProbAliasSRV = RHICreateShaderResourceView(SampleRegionsProbAliasBuffer, sizeof(uint32), PF_R32_UINT);
+			SampleRegionsProbAliasBuffer = RHICmdList.CreateVertexBuffer(SampleRegionsProbAlias.Num() * SampleRegionsProbAlias.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			SampleRegionsProbAliasSRV = RHICmdList.CreateShaderResourceView(SampleRegionsProbAliasBuffer, sizeof(uint32), PF_R32_UINT);
 #if STATS
 			GPUMemoryUsage += SampleRegionsProbAlias.Num() * SampleRegionsProbAlias.GetTypeSize();
 #endif
@@ -993,16 +993,16 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 
 		CreateInfo.DebugName = (TEXT("SampleRegionsTriangleIndicesBuffer"));
 		CreateInfo.ResourceArray = &SampleRegionsTriangleIndicies;
-		SampleRegionsTriangleIndicesBuffer = RHICreateVertexBuffer(SampleRegionsTriangleIndicies.Num() * SampleRegionsTriangleIndicies.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-		SampleRegionsTriangleIndicesSRV = RHICreateShaderResourceView(SampleRegionsTriangleIndicesBuffer, sizeof(int32), PF_R32_UINT);
+		SampleRegionsTriangleIndicesBuffer = RHICmdList.CreateVertexBuffer(SampleRegionsTriangleIndicies.Num() * SampleRegionsTriangleIndicies.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+		SampleRegionsTriangleIndicesSRV = RHICmdList.CreateShaderResourceView(SampleRegionsTriangleIndicesBuffer, sizeof(int32), PF_R32_UINT);
 #if STATS
 		GPUMemoryUsage += SampleRegionsTriangleIndicies.Num() * SampleRegionsTriangleIndicies.GetTypeSize();
 #endif
 
 		CreateInfo.DebugName = (TEXT("SampleRegionsVerticesBuffer"));
 		CreateInfo.ResourceArray = &SampleRegionsVertices;
-		SampleRegionsVerticesBuffer = RHICreateVertexBuffer(SampleRegionsVertices.Num() * SampleRegionsVertices.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-		SampleRegionsVerticesSRV = RHICreateShaderResourceView(SampleRegionsVerticesBuffer, sizeof(int32), PF_R32_UINT);
+		SampleRegionsVerticesBuffer = RHICmdList.CreateVertexBuffer(SampleRegionsVertices.Num() * SampleRegionsVertices.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+		SampleRegionsVerticesSRV = RHICmdList.CreateShaderResourceView(SampleRegionsVerticesBuffer, sizeof(int32), PF_R32_UINT);
 #if STATS
 		GPUMemoryUsage += SampleRegionsVertices.Num() * SampleRegionsVertices.GetTypeSize();
 #endif
@@ -1020,8 +1020,8 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 	if ( bMeshValid )
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSkeletalMeshGpuSpawnStaticBuffers"));
-		BufferTriangleMatricesOffsetRHI = RHICreateBuffer(VertexCount * sizeof(uint32), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		uint32* MatricesOffsets = (uint32*)RHILockBuffer(BufferTriangleMatricesOffsetRHI, 0, VertexCount * sizeof(uint32), RLM_WriteOnly);
+		BufferTriangleMatricesOffsetRHI = RHICmdList.CreateBuffer(VertexCount * sizeof(uint32), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		uint32* MatricesOffsets = (uint32*)RHICmdList.LockBuffer(BufferTriangleMatricesOffsetRHI, 0, VertexCount * sizeof(uint32), RLM_WriteOnly);
 		uint32 AccumulatedMatrixOffset = 0;
 		for (uint32 s = 0; s < SectionCount; ++s)
 		{
@@ -1034,8 +1034,8 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 			}
 			AccumulatedMatrixOffset += Section.BoneMap.Num();
 		}
-		RHIUnlockBuffer(BufferTriangleMatricesOffsetRHI);
-		BufferTriangleMatricesOffsetSRV = RHICreateShaderResourceView(BufferTriangleMatricesOffsetRHI, sizeof(uint32), PF_R32_UINT);
+		RHICmdList.UnlockBuffer(BufferTriangleMatricesOffsetRHI);
+		BufferTriangleMatricesOffsetSRV = RHICmdList.CreateShaderResourceView(BufferTriangleMatricesOffsetRHI, sizeof(uint32), PF_R32_UINT);
 #if STATS
 		GPUMemoryUsage += VertexCount * sizeof(uint32);
 #endif
@@ -1051,8 +1051,8 @@ void FSkeletalMeshGpuSpawnStaticBuffers::InitRHI()
 		FRHIResourceCreateInfo CreateInfo(TEXT("FilteredAndUnfilteredBonesBuffer"));
 		CreateInfo.ResourceArray = &FilteredAndUnfilteredBonesArray;
 
-		FilteredAndUnfilteredBonesBuffer = RHICreateVertexBuffer(FilteredAndUnfilteredBonesArray.Num() * FilteredAndUnfilteredBonesArray.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-		FilteredAndUnfilteredBonesSRV = RHICreateShaderResourceView(FilteredAndUnfilteredBonesBuffer, sizeof(uint16), PF_R16_UINT);
+		FilteredAndUnfilteredBonesBuffer = RHICmdList.CreateVertexBuffer(FilteredAndUnfilteredBonesArray.Num() * FilteredAndUnfilteredBonesArray.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+		FilteredAndUnfilteredBonesSRV = RHICmdList.CreateShaderResourceView(FilteredAndUnfilteredBonesBuffer, sizeof(uint16), PF_R16_UINT);
 	}
 	else
 	{
@@ -1122,7 +1122,7 @@ void FSkeletalMeshGpuDynamicBufferProxy::Initialise(const FReferenceSkeleton& Re
 	SamplingSocketCount = InSamplingSocketCount;
 }
 
-void FSkeletalMeshGpuDynamicBufferProxy::InitRHI()
+void FSkeletalMeshGpuDynamicBufferProxy::InitRHI(FRHICommandListBase& RHICmdList)
 {
 #if STATS
 	ensure(GPUMemoryUsage == 0);
@@ -1130,11 +1130,11 @@ void FSkeletalMeshGpuDynamicBufferProxy::InitRHI()
 	for (FSkeletalBuffer& Buffer : RWBufferBones)
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("SkeletalMeshGpuDynamicBuffer"));
-		Buffer.SectionBuffer = RHICreateVertexBuffer(sizeof(FVector4f) * 3 * SectionBoneCount, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
-		Buffer.SectionSRV = RHICreateShaderResourceView(Buffer.SectionBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
+		Buffer.SectionBuffer = RHICmdList.CreateVertexBuffer(sizeof(FVector4f) * 3 * SectionBoneCount, BUF_ShaderResource | BUF_Dynamic, CreateInfo);
+		Buffer.SectionSRV = RHICmdList.CreateShaderResourceView(Buffer.SectionBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
 
-		Buffer.SamplingBuffer = RHICreateVertexBuffer(sizeof(FVector4f) * 3 * (SamplingBoneCount + SamplingSocketCount), BUF_ShaderResource | BUF_Dynamic, CreateInfo);
-		Buffer.SamplingSRV = RHICreateShaderResourceView(Buffer.SamplingBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
+		Buffer.SamplingBuffer = RHICmdList.CreateVertexBuffer(sizeof(FVector4f) * 3 * (SamplingBoneCount + SamplingSocketCount), BUF_ShaderResource | BUF_Dynamic, CreateInfo);
+		Buffer.SamplingSRV = RHICmdList.CreateShaderResourceView(Buffer.SamplingBuffer, sizeof(FVector4f), PF_A32B32G32R32F);
 
 #if STATS
 		GPUMemoryUsage += sizeof(FVector4f) * 3 * SectionBoneCount;

@@ -175,7 +175,7 @@ public:
 	// Destructor
 	virtual ~FReflectionPlaneVertexDeclaration() {}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FVertexDeclarationElementList Elements;
 		Elements.Add(FVertexElement(0, 0, VET_Float2, 0, sizeof(FVector2f)));

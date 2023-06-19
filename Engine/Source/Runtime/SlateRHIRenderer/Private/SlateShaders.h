@@ -30,7 +30,7 @@ public:
 	virtual ~FSlateVertexDeclaration() {}
 
 	/** Initializes the vertex declaration RHI resource */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** Releases the vertex declaration RHI resource */
 	virtual void ReleaseRHI() override;
@@ -45,7 +45,7 @@ public:
 	virtual ~FSlateInstancedVertexDeclaration() {}
 	
 	/** Initializes the vertex declaration RHI resource */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 class FSlateMaskingVertexDeclaration : public FRenderResource
@@ -56,7 +56,7 @@ public:
 	virtual ~FSlateMaskingVertexDeclaration() {}
 
 	/** Initializes the vertex declaration RHI resource */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** Releases the vertex declaration RHI resource */
 	virtual void ReleaseRHI() override;

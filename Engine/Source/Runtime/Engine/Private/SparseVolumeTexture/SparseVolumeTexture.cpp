@@ -733,7 +733,7 @@ void FTextureRenderResources::SetGlobalVolumeResolution_GameThread(const FIntVec
 		});
 }
 
-void FTextureRenderResources::InitRHI()
+void FTextureRenderResources::InitRHI(FRHICommandListBase&)
 {
 	PageTableTextureReferenceRHI = RHICreateTextureReference(GBlackUintVolumeTexture->TextureRHI);
 	PhysicalTileDataATextureReferenceRHI = RHICreateTextureReference(GBlackVolumeTexture->TextureRHI);

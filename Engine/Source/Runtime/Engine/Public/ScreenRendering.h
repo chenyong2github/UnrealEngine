@@ -41,7 +41,7 @@ public:
 	// Destructor.
 	virtual ~FScreenVertexDeclaration() {}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FVertexDeclarationElementList Elements;
 		uint16 Stride = sizeof(FScreenVertex);

@@ -34,7 +34,7 @@ public:
 
 	const FStaticShadowDepthMapData* Data;
 
-	virtual void InitRHI();
+	virtual void InitRHI(FRHICommandListBase& RHICmdList);
 };
 
 UCLASS(abstract, HideCategories=(Trigger,Activation,"Components|Activation",Physics), ShowCategories=(Mobility), MinimalAPI)

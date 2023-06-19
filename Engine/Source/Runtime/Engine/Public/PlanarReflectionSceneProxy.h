@@ -26,7 +26,7 @@ public:
 		Size(InSize)
 	{}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase&)
 	{
 		// Create the sampler state RHI resource.
 		FSamplerStateInitializerRHI SamplerStateInitializer

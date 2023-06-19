@@ -152,7 +152,7 @@ public:
 	ENGINE_API void InitializeOnImport(const FBox& NewBounds, int32 InBrickSize);
 	ENGINE_API void FinalizeImport();
 
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	ENGINE_API virtual void ReleaseRHI() override;
 
 	ENGINE_API void InitRHIForSubLevelResources();

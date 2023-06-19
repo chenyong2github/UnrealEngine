@@ -41,7 +41,7 @@
 static const TCHAR* GLightSpriteAssetName = TEXT("/Engine/EditorResources/LightIcons/S_LightError.S_LightError");
 #endif
 
-void FStaticShadowDepthMap::InitRHI()
+void FStaticShadowDepthMap::InitRHI(FRHICommandListBase&)
 {
 	if (FApp::CanEverRender() && Data && Data->ShadowMapSizeX > 0 && Data->ShadowMapSizeY > 0 && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{

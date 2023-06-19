@@ -398,15 +398,15 @@ FSkeletalMeshConnectivityProxy::Initialize(const FSkeletalMeshConnectivity& Conn
 }
 
 void
-FSkeletalMeshConnectivityProxy::InitRHI()
+FSkeletalMeshConnectivityProxy::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FRHIResourceCreateInfo CreateInfo(TEXT("FSkeletalMeshConnectivityProxy_AdjacencyBuffer"));
 	CreateInfo.ResourceArray = &AdjacencyResource;
 
 	const int32 BufferSize = AdjacencyResource.Num();
 
-	AdjacencyBuffer = RHICreateVertexBuffer(BufferSize, BUF_ShaderResource | BUF_Static, CreateInfo);
-	AdjacencySrv = RHICreateShaderResourceView(AdjacencyBuffer, sizeof(uint32), PF_R32_UINT);
+	AdjacencyBuffer = RHICmdList.CreateVertexBuffer(BufferSize, BUF_ShaderResource | BUF_Static, CreateInfo);
+	AdjacencySrv = RHICmdList.CreateShaderResourceView(AdjacencyBuffer, sizeof(uint32), PF_R32_UINT);
 
 #if STATS
 	check(GpuMemoryUsage == 0);

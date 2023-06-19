@@ -144,7 +144,7 @@ public:
 	/**
 	 * Constructs render resources for this vertex factory.
 	 */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual bool RendersPrimitivesAsCameraFacingSprites() const override { return true; }
 
 	/**

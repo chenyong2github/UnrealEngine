@@ -39,7 +39,7 @@ void FSlateTexture2DRHIRef::Cleanup()
 	BeginCleanup(this);
 }
 
-void FSlateTexture2DRHIRef::InitRHI()
+void FSlateTexture2DRHIRef::InitRHI(FRHICommandListBase&)
 {
 	SCOPED_LOADTIMER(FSlateTexture2DRHIRef_InitDynamicRHI);
 
@@ -310,7 +310,7 @@ void FSlateTextureRenderTarget2DResource::ClampSize(int32 MaxSizeX,int32 MaxSize
 	}	
 }
 
-void FSlateTextureRenderTarget2DResource::InitRHI()
+void FSlateTextureRenderTarget2DResource::InitRHI(FRHICommandListBase&)
 {
 	SCOPED_LOADTIMER(FSlateTextureRenderTarget2DResource_InitDynamicRHI);
 

@@ -799,7 +799,7 @@ class FPrimitiveIdDummyBuffer : public FVertexBuffer
 {
 public:
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	virtual void ReleaseRHI() override
 	{
@@ -818,7 +818,7 @@ public:
 	// float4 * 5
 	static constexpr uint32 BufferStride = 16u * 5u;
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	virtual void ReleaseRHI() override
 	{

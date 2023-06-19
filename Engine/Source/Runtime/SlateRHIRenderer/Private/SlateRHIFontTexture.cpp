@@ -12,7 +12,7 @@ FSlateFontTextureRHIResource::FSlateFontTextureRHIResource(uint32 InWidth, uint3
 {
 }
 
-void FSlateFontTextureRHIResource::InitRHI()
+void FSlateFontTextureRHIResource::InitRHI(FRHICommandListBase&)
 {
 	check( IsInRenderingThread() );
 

@@ -32,7 +32,7 @@ public:
 					~FVirtualTextureTestType();
 
 	// FRenderResource interface
-	virtual void	InitRHI() override;
+	virtual void	InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void	ReleaseRHI() override;
 	
 	FRHITexture*	GetPhysicalTexture() const		{ return PhysicalTexture->GetRHI(); }

@@ -69,7 +69,7 @@ void FSlatePostProcessResource::CleanUp()
 	BeginCleanup(this);
 }
 
-void FSlatePostProcessResource::InitRHI()
+void FSlatePostProcessResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
 }
 

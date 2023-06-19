@@ -57,6 +57,8 @@ void FRDGBufferPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 
 TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(const FRDGBufferDesc& Desc, const TCHAR* InDebugName, ERDGPooledBufferAlignment Alignment)
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	const uint64 BufferPageSize = 64 * 1024;
 
 	FRDGBufferDesc AlignedDesc = Desc;
@@ -127,7 +129,7 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(const FRDGBufferDe
 
 		const ERHIAccess InitialAccess = RHIGetDefaultResourceState(Desc.Usage, false);
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
-		TRefCountPtr<FRHIBuffer> BufferRHI = RHICreateBuffer(NumBytes, Desc.Usage, Desc.BytesPerElement, InitialAccess, CreateInfo);
+		TRefCountPtr<FRHIBuffer> BufferRHI = RHICmdList.CreateBuffer(NumBytes, Desc.Usage, Desc.BytesPerElement, InitialAccess, CreateInfo);
 
 	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		RHIBindDebugLabelName(BufferRHI, InDebugName);
@@ -215,7 +217,7 @@ uint32 FRDGTransientRenderTarget::Release()
 	return Refs;
 }
 
-void FRDGTransientResourceAllocator::InitRHI()
+void FRDGTransientResourceAllocator::InitRHI(FRHICommandListBase&)
 {
 	Allocator = RHICreateTransientResourceAllocator();
 }

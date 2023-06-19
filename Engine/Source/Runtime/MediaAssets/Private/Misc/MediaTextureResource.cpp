@@ -723,7 +723,7 @@ void FMediaTextureResource::SetupSampler()
 }
 
 
-void FMediaTextureResource::InitRHI()
+void FMediaTextureResource::InitRHI(FRHICommandListBase&)
 {
 	SetupSampler();
 	

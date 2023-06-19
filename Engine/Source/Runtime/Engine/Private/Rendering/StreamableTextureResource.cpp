@@ -166,7 +166,7 @@ void FStreamableTextureResource::DecrementTextureStats() const
 }
 #endif
 
-void FStreamableTextureResource::InitRHI()
+void FStreamableTextureResource::InitRHI(FRHICommandListBase&)
 {
 	SCOPED_LOADTIMER(FStreamableTextureResource_InitRHI);
 

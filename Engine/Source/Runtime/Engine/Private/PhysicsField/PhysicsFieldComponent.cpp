@@ -113,28 +113,29 @@ FAutoConsoleVariableRef CVarPhysicsFieldEnableCulling(
 */
 
 template<typename BufferType, int ElementSize, EPixelFormat PixelFormat>
-void InitInternalBuffer(const uint32 ElementCount, FRWBuffer& OutputBuffer)
+void InitInternalBuffer(FRHICommandListBase& RHICmdList, const uint32 ElementCount, FRWBuffer& OutputBuffer)
 {
 	if (ElementCount > 0)
 	{
 		const uint32 BufferCount = ElementCount * ElementSize;
 		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
 		
-		OutputBuffer.Initialize(TEXT("FPhysicsFieldResource"), sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
+		OutputBuffer.Initialize(RHICmdList, TEXT("FPhysicsFieldResource"), sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
 
 		if (OutputBuffer.UAV)
 		{
-			FRHICommandListExecutor::GetImmediateCommandList().Transition(FRHITransitionInfo(OutputBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			FRHIComputeCommandList& RHICmdListCompute = FRHIComputeCommandList::Get(RHICmdList);
+
+			RHICmdListCompute.Transition(FRHITransitionInfo(OutputBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 			if (PixelFormat == EPixelFormat::PF_R32_FLOAT || PixelFormat == EPixelFormat::PF_A32B32G32R32F)
 			{
-				FRHICommandListExecutor::GetImmediateCommandList().ClearUAVFloat(OutputBuffer.UAV, FVector4f(ForceInitToZero));
+				RHICmdListCompute.ClearUAVFloat(OutputBuffer.UAV, FVector4f(ForceInitToZero));
 			}
 			else
 			{
-				FRHICommandListExecutor::GetImmediateCommandList().ClearUAVUint(OutputBuffer.UAV, FUintVector4(ForceInitToZero));
+				RHICmdListCompute.ClearUAVUint(OutputBuffer.UAV, FUintVector4(ForceInitToZero));
 			}
-			FRHICommandListExecutor::GetImmediateCommandList().Transition(FRHITransitionInfo(OutputBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
-
+			RHICmdListCompute.Transition(FRHITransitionInfo(OutputBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
 		}
 	}
 }
@@ -417,26 +418,26 @@ FPhysicsFieldResource::FPhysicsFieldResource(const int32 TargetCount, const TArr
 	FieldInfos.TimeSeconds = 0.0;
 }
 
-void FPhysicsFieldResource::InitRHI()
+void FPhysicsFieldResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	SCOPE_CYCLE_COUNTER(STAT_PhysicsFields_UpdateResource_RT);
 
 	const int32 DatasCount = FieldInfos.ClipmapCount * FieldInfos.TargetCount;
-	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(EFieldPhysicsType::Field_PhysicsType_Max + 1, TargetsOffsets);
+	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(RHICmdList, EFieldPhysicsType::Field_PhysicsType_Max + 1, TargetsOffsets);
 
-	InitInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(1, BoundsMin);
-	InitInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(1, BoundsMax);
+	InitInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, 1, BoundsMin);
+	InitInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, 1, BoundsMax);
 
-	InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(1, NodesParams);
-	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(1, NodesOffsets);
+	InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(RHICmdList, 1, NodesParams);
+	InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(RHICmdList, 1, NodesOffsets);
 
 	if (FieldInfos.bBuildClipmap)
 	{
 		const int32 CellsCount = FieldInfos.ClipmapCount * EFieldPhysicsType::Field_PhysicsType_Max;
-		InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(FieldInfos.ClipmapResolution * FieldInfos.ClipmapResolution * FieldInfos.ClipmapResolution * DatasCount, ClipmapBuffer);
-		InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(CellsCount + 1, CellsOffsets);
-		InitInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(CellsCount, CellsMin);
-		InitInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(CellsCount, CellsMax);
+		InitInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(RHICmdList, FieldInfos.ClipmapResolution * FieldInfos.ClipmapResolution * FieldInfos.ClipmapResolution * DatasCount, ClipmapBuffer);
+		InitInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(RHICmdList, CellsCount + 1, CellsOffsets);
+		InitInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(RHICmdList, CellsCount, CellsMin);
+		InitInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(RHICmdList, CellsCount, CellsMax);
 	}
 }
 

@@ -127,7 +127,7 @@ public:
 	/**
 	 * Initialize RHI resources for the curve texture.
 	 */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/**
 	 * Releases RHI resources.

@@ -180,7 +180,7 @@ class FMeshUvMappingBufferProxy : public FRenderResource
 public:
 	void Initialize(const FMeshUvMapping& UvMappingData);
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	FShaderResourceViewRHIRef GetSrv() const { return UvMappingSrv; }

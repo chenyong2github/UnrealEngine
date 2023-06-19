@@ -47,13 +47,13 @@ bool FWriteToSliceGS::ShouldCompilePermutation(const FGlobalShaderPermutationPar
 
 IMPLEMENT_SHADER_TYPE(, FWriteToSliceGS, TEXT("/Engine/Private/TranslucentLightingShaders.usf"), TEXT("WriteToSliceMainGS"), SF_Geometry);
 
-void FVolumeRasterizeVertexBuffer::InitRHI()
+void FVolumeRasterizeVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// Used as a non-indexed triangle strip, so 4 vertices per quad
 	const uint32 Size = 4 * sizeof(FScreenVertex);
 	FRHIResourceCreateInfo CreateInfo(TEXT("FVolumeRasterizeVertexBuffer"));
-	VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-	FScreenVertex* DestVertex = (FScreenVertex*)RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+	FScreenVertex* DestVertex = (FScreenVertex*)RHICmdList.LockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 
 	// Setup a full - render target quad
 	// A viewport and UVScaleBias will be used to implement rendering to a sub region
@@ -66,7 +66,7 @@ void FVolumeRasterizeVertexBuffer::InitRHI()
 	DestVertex[3].Position = FVector2f(-1, GProjectionSignY);
 	DestVertex[3].UV = FVector2f(0, 0);
 
-	RHIUnlockBuffer(VertexBufferRHI);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
 }
 
 TGlobalResource<FVolumeRasterizeVertexBuffer> GVolumeRasterizeVertexBuffer;

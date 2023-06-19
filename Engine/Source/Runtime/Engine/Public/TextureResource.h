@@ -169,7 +169,7 @@ public:
 	ENGINE_API FVirtualTexture2DResource(const UTexture2D* InOwner, struct FVirtualTextureBuiltData* InVTData, int32 FirstMipToUse);
 	ENGINE_API virtual ~FVirtualTexture2DResource();
 
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	ENGINE_API virtual void ReleaseRHI() override;
 
 	// Dynamic cast methods.
@@ -247,7 +247,7 @@ public:
 	virtual uint32 GetSizeY() const override;
 
 	/** Called when the resource is initialized. This is only called by the rendering thread. */
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** Called when the resource is released. This is only called by the rendering thread. */
 	ENGINE_API virtual void ReleaseRHI() override;
@@ -460,7 +460,7 @@ public:
 	 * Resources that need to initialize after a D3D device reset must implement this function.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/**
 	 * Releases the dynamic RHI resource and/or RHI render target resources used by this resource.
@@ -555,7 +555,7 @@ public:
 	 * Resources that need to initialize after a D3D device reset must implement this function.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/**
 	 * Releases the dynamic RHI resource and/or RHI render target resources used by this resource.

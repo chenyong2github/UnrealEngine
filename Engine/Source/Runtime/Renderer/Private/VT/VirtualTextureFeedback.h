@@ -43,7 +43,7 @@ public:
 
 protected:
 	//~ Begin FRenderResource Interface
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	//~ End FRenderResource Interface
 

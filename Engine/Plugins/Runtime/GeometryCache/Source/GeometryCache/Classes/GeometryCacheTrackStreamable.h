@@ -28,7 +28,7 @@ class FGeometryCacheTrackStreamableRenderResource : public FRenderResource
 public :
 	FGeometryCacheTrackStreamableRenderResource();
 	void InitGame(UGeometryCacheTrackStreamable *Track);
-	void InitRHI() override;
+	void InitRHI(FRHICommandListBase& RHICmdList) override;
 	void ReleaseRHI() override;
 
 	bool UpdateMeshData(float Time, bool bLooping, int32& InOutMeshSampleIndex, FGeometryCacheMeshData& OutMeshData);

@@ -1341,9 +1341,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// FRenderResource interface.
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
-		HZBOcclusionTests.InitRHI();
+		HZBOcclusionTests.InitRHI(RHICmdList);
 	}
 
 	virtual void ReleaseRHI() override
@@ -1579,7 +1579,7 @@ public:
 		, CubemapSize(0)
 	{}
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	/** 
@@ -2209,7 +2209,7 @@ public:
 	FIndirectLightingCache(ERHIFeatureLevel::Type InFeatureLevel);
 
 	// FRenderResource interface
-	virtual void InitRHI();
+	virtual void InitRHI(FRHICommandListBase& RHICmdList);
 	virtual void ReleaseRHI();
 
 	/** Allocates a block in the volume texture atlas for a primitive. */

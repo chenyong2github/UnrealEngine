@@ -84,7 +84,7 @@ public:
 	/**
 	 * Initialize RHI resources.
 	 */
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const int32 OffsetsCount = DIGIT_COUNT * MAX_GROUP_COUNT;
 		const int32 OffsetsBufferSize = OffsetsCount * sizeof(uint32);
@@ -92,15 +92,15 @@ public:
 		for (int32 BufferIndex = 0; BufferIndex < 2; ++BufferIndex)
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("SortOffset"));
-			Buffers[BufferIndex] = RHICreateVertexBuffer(
+			Buffers[BufferIndex] = RHICmdList.CreateVertexBuffer(
 				OffsetsBufferSize,
 				BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess,
 				CreateInfo);
-			BufferSRVs[BufferIndex] = RHICreateShaderResourceView(
+			BufferSRVs[BufferIndex] = RHICmdList.CreateShaderResourceView(
 				Buffers[BufferIndex],
 				/*Stride=*/ sizeof(uint32),
 				/*Format=*/ PF_R32_UINT );
-			BufferUAVs[BufferIndex] = RHICreateUnorderedAccessView(
+			BufferUAVs[BufferIndex] = RHICmdList.CreateUnorderedAccessView(
 				Buffers[BufferIndex],
 				/*Format=*/ PF_R32_UINT );
 		}
@@ -182,14 +182,14 @@ public:
 	/**
 	 * Initialize RHI resources.
 	 */
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FRadixSortParametersBuffer"));
-			SortParametersBufferRHI = RHICreateVertexBuffer(
+			SortParametersBufferRHI = RHICmdList.CreateVertexBuffer(
 				/*Size=*/ sizeof(FRadixSortParameters),
 				/*Usage=*/ BUF_Volatile | BUF_ShaderResource,
 				CreateInfo);
-			SortParametersBufferSRV = RHICreateShaderResourceView(
+			SortParametersBufferSRV = RHICmdList.CreateShaderResourceView(
 				SortParametersBufferRHI, /*Stride=*/ sizeof(uint32), PF_R32_UINT 
 				);
 	}

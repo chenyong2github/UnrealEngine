@@ -53,7 +53,7 @@ public:
 	void InitResources(FRHICommandListBase& RHICmdList);
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	const FDataType& GetData() const { return Data; }
 	FDataType Data;

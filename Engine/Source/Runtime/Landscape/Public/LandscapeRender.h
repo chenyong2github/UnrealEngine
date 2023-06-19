@@ -243,7 +243,7 @@ public:
 	LANDSCAPE_API void Copy(const FLandscapeVertexFactory& Other);
 
 	// FRenderResource interface.
-	LANDSCAPE_API virtual void InitRHI() override;
+	LANDSCAPE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseResource() override final { FVertexFactory::ReleaseResource(); }
 
 	/**
@@ -331,7 +331,7 @@ public:
 	/**
 	* Initialize the RHI for this rendering resource
 	*/
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 //

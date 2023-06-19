@@ -586,7 +586,7 @@ public:
 		SourceData = MoveTemp(InSourceData);
 	}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::CreateCube(TEXT("ReflectionTextureCube"), Size, Format)

@@ -2804,10 +2804,9 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 /**
 * Initialize the RHI for this rendering resource
 */
-void FLandscapeVertexBuffer::InitRHI()
+void FLandscapeVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	SCOPED_LOADTIMER(FLandscapeVertexBuffer_InitRHI);
-	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeVertexBuffer"));
@@ -3222,7 +3221,7 @@ void FLandscapeVertexFactoryPixelShaderParameters::GetElementShaderBindings(
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeVertexFactoryMVFParameters, "LandscapeMVF");
 
-void FLandscapeVertexFactory::InitRHI()
+void FLandscapeVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// list of declaration items
 	FVertexDeclarationElementList Elements;

@@ -71,7 +71,7 @@ class FStreamingManager : public FRenderResource
 public:
 	FStreamingManager();
 	
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	void	Add(FResources* Resources);

@@ -9,7 +9,7 @@
 #include "RenderingThread.h"
 #include "Rendering/SlateRenderer.h"
 
-void FBinkMediaTextureResource::InitRHI() 
+void FBinkMediaTextureResource::InitRHI(FRHICommandListBase&) 
 {
 	int w = Owner->GetSurfaceWidth() > 0 ? Owner->GetSurfaceWidth() : 1;
 	int h = Owner->GetSurfaceHeight() > 0 ? Owner->GetSurfaceHeight() : 1;

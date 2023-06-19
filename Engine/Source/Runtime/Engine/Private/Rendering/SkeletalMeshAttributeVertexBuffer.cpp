@@ -171,12 +171,12 @@ int32 FSkeletalMeshAttributeVertexBuffer::GetResourceSize() const
 }
 
 
-void FSkeletalMeshAttributeVertexBuffer::InitRHI()
+void FSkeletalMeshAttributeVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FResourceArrayInterface* ResourceArray = ValueData->GetResourceArray();
 	FRHIResourceCreateInfo CreateInfo(TEXT("SkeletalMeshAttributeVertexBuffer"), ResourceArray);
-	ValueBuffer.VertexBufferRHI = RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-	ValueBuffer.VertexBufferSRV = RHICreateShaderResourceView(ValueBuffer.VertexBufferRHI, ComponentStride, PixelFormat);
+	ValueBuffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+	ValueBuffer.VertexBufferSRV = RHICmdList.CreateShaderResourceView(ValueBuffer.VertexBufferRHI, ComponentStride, PixelFormat);
 }
 
 

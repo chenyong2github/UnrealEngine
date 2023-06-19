@@ -54,11 +54,11 @@ class FDummyPrevTransformBuffer : public FRenderResource
 public:
 	virtual ~FDummyPrevTransformBuffer() {}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyPrevTransformBuffer"));
-		VB = RHICreateVertexBuffer(sizeof(FVector4f) * 3, BUF_Static | BUF_ShaderResource, CreateInfo);
-		SRV = RHICreateShaderResourceView(VB, sizeof(FVector4f), PF_A32B32G32R32F);
+		VB = RHICmdList.CreateVertexBuffer(sizeof(FVector4f) * 3, BUF_Static | BUF_ShaderResource, CreateInfo);
+		SRV = RHICmdList.CreateShaderResourceView(VB, sizeof(FVector4f), PF_A32B32G32R32F);
 	}
 
 	virtual void ReleaseRHI()
@@ -185,7 +185,7 @@ void FMeshParticleVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Featur
 	}
 }
 
-void FMeshParticleVertexFactory::InitRHI()
+void FMeshParticleVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FVertexDeclarationElementList Elements;
 	GetVertexElements(GMaxRHIFeatureLevel, DynamicVertexStride, DynamicParameterVertexStride, Data, Elements, Streams);

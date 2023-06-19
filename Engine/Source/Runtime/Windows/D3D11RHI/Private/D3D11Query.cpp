@@ -597,7 +597,7 @@ void FD3D11DynamicRHI::RHICalibrateTimers()
 /**
  * Initializes all D3D resources and if necessary, the static variables.
  */
-void FD3D11BufferedGPUTiming::InitRHI()
+void FD3D11BufferedGPUTiming::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	StaticInitialize(D3DRHI, PlatformStaticInitialize);
 
@@ -804,7 +804,7 @@ D3D11_QUERY_DATA_TIMESTAMP_DISJOINT FD3D11DisjointTimeStampQuery::GetResult()
 	return DisjointQueryData;
 }
 
-void FD3D11DisjointTimeStampQuery::InitRHI()
+void FD3D11DisjointTimeStampQuery::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	D3D11_QUERY_DESC QueryDesc;
 	QueryDesc.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;

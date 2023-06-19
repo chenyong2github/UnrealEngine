@@ -354,7 +354,7 @@ void FHairCardsVertexFactory::InitResources(FRHICommandListBase& RHICmdList)
 	}
 }
 
-void FHairCardsVertexFactory::InitRHI()
+void FHairCardsVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// Nothing as the initialization is done when needed
 }

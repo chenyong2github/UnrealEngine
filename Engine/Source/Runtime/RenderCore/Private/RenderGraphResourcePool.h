@@ -95,7 +95,7 @@ public:
 	bool IsValid() const { return Allocator != nullptr; }
 
 private:
-	void InitRHI() override;
+	void InitRHI(FRHICommandListBase& RHICmdList) override;
 	void ReleaseRHI() override;
 
 	void AddPendingDeallocation(FRDGTransientRenderTarget* RenderTarget);

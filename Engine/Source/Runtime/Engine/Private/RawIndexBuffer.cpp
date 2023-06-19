@@ -39,19 +39,19 @@ void FRawIndexBuffer::CacheOptimize()
 #endif
 }
 
-void FRawIndexBuffer::InitRHI()
+void FRawIndexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	uint32 Size = Indices.Num() * sizeof(uint16);
 	if( Size > 0 )
 	{
 		// Create the index buffer.
 		FRHIResourceCreateInfo CreateInfo(TEXT("FRawIndexBuffer"));
-		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		IndexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		// Initialize the buffer.
-		void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
+		void* Buffer = RHICmdList.LockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
 		FMemory::Memcpy(Buffer, Indices.GetData(), Size);
-		RHIUnlockBuffer(IndexBufferRHI);
+		RHICmdList.UnlockBuffer(IndexBufferRHI);
 	}
 }
 
@@ -96,7 +96,7 @@ void FRawIndexBuffer16or32::ComputeIndexWidth()
 	}
 }
 
-void FRawIndexBuffer16or32::InitRHI()
+void FRawIndexBuffer16or32::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	const int32 IndexStride = b32Bit ? sizeof(uint32) : sizeof(uint16);
 	const int32 NumIndices = Indices.Num();
@@ -106,10 +106,10 @@ void FRawIndexBuffer16or32::InitRHI()
 	{
 		// Create the index buffer.
 		FRHIResourceCreateInfo CreateInfo(TEXT("FRawIndexBuffer"));
-		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, IndexStride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		IndexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_IndexBuffer, IndexStride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		// Initialize the buffer.		
-		void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
+		void* Buffer = RHICmdList.LockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
 
 		if (b32Bit)
 		{
@@ -123,8 +123,8 @@ void FRawIndexBuffer16or32::InitRHI()
 				DestIndices16Bit[i] = Indices[i];
 			}
 		}
-		
-		RHIUnlockBuffer(IndexBufferRHI);
+
+		RHICmdList.UnlockBuffer(IndexBufferRHI);
 	}
 
 	// Undo/redo can destroy and recreate the render resources for UModels without rebuilding the
@@ -389,7 +389,7 @@ void FRawStaticIndexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Ba
 	}
 }
 
-void FRawStaticIndexBuffer::InitRHI()
+void FRawStaticIndexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRawStaticIndexBuffer::InitRHI);
 	IndexBufferRHI = CreateRHIBuffer_RenderThread();

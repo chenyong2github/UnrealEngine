@@ -16,7 +16,7 @@ public:
 	, SizeY(InSizeY)
 	{}
 	
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
@@ -95,7 +95,7 @@ public:
 		bSRGB = InOwner->SRGB;
 	}
 	
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
@@ -138,7 +138,7 @@ public:
 			SizeY = ImageHeight;
 			
 			// Re-initialize the texture if the size changes
-			InitRHI();
+			InitRHI(RHICmdList);
 		}
 		
 		if (TextureRHI)

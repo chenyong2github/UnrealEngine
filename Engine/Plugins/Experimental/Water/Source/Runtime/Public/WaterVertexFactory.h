@@ -35,16 +35,16 @@ public:
 
 	FWaterMeshIndexBuffer(int32 InNumQuadsPerSide) : NumQuadsPerSide(InNumQuadsPerSide) {}
 
-	void InitRHI() override
+	void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// This is an optimized index buffer path for water tiles containing less than uint16 max vertices
 		if (NumQuadsPerSide < 256)
 		{
-			IndexBufferRHI = CreateIndexBuffer<uint16>();
+			IndexBufferRHI = CreateIndexBuffer<uint16>(RHICmdList);
 		}
 		else
 		{
-			IndexBufferRHI = CreateIndexBuffer<uint32>();
+			IndexBufferRHI = CreateIndexBuffer<uint32>(RHICmdList);
 		}
 	}
 
@@ -52,7 +52,7 @@ public:
 
 private:
 	template <typename IndexType>
-	FBufferRHIRef CreateIndexBuffer()
+	FBufferRHIRef CreateIndexBuffer(FRHICommandListBase& RHICmdList)
 	{
 		TResourceArray<IndexType, INDEXBUFFER_ALIGNMENT> Indices;
 
@@ -95,7 +95,7 @@ private:
 
 		// Create index buffer. Fill buffer with initial data upon creation
 		FRHIResourceCreateInfo CreateInfo(TEXT("FWaterMeshIndexBuffer"), &Indices);
-		return RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
+		return RHICmdList.CreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
 	}
 
 	int32 NumIndices = 0;
@@ -109,7 +109,7 @@ public:
 
 	FWaterMeshVertexBuffer(int32 InNumQuadsPerSide) : NumQuadsPerSide(InNumQuadsPerSide) {}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		ensureAlways(NumQuadsPerSide > 0);
 		const uint32 NumVertsPerSide = NumQuadsPerSide + 1;
@@ -117,8 +117,8 @@ public:
 		NumVerts = NumVertsPerSide * NumVertsPerSide;
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FWaterMeshVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * NumVerts, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * NumVerts, RLM_WriteOnly);
+		VertexBufferRHI = RHICmdList.CreateBuffer(sizeof(FVector4f) * NumVerts, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		FVector4f* DummyContents = (FVector4f*)RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * NumVerts, RLM_WriteOnly);
 
 		for (uint32 VertY = 0; VertY < NumVertsPerSide; VertY++)
 		{
@@ -133,9 +133,9 @@ public:
 			}
 		}
 
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 
-		SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+		SRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 	}
 
 	virtual void ReleaseRHI() override
@@ -181,7 +181,7 @@ public:
 	/**
 	* Constructs render resources for this vertex factory.
 	*/
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/**
 	* Release render resources for this vertex factory.

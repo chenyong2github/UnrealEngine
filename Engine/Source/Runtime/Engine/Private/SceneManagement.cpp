@@ -1047,7 +1047,7 @@ FInstancedViewUniformShaderParameters::FInstancedViewUniformShaderParameters()
 	FMemory::Memzero(*this);
 }
 
-void FSharedSamplerState::InitRHI()
+void FSharedSamplerState::InitRHI(FRHICommandListBase&)
 {
 	const float MipMapBias = UTexture2D::GetGlobalMipMapLODBias();
 
@@ -1234,12 +1234,12 @@ void GetLightmapClusterResourceParameters(
 	}
 }
 
-void FDefaultLightmapResourceClusterUniformBuffer::InitRHI()
+void FDefaultLightmapResourceClusterUniformBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FLightmapResourceClusterShaderParameters Parameters;
 	GetLightmapClusterResourceParameters(GMaxRHIFeatureLevel, FLightmapClusterResourceInput(), nullptr, Parameters);
 	SetContents(Parameters);
-	Super::InitRHI();
+	Super::InitRHI(RHICmdList);
 }
 
 /** Global uniform buffer containing the default precomputed lighting data. */
@@ -1514,14 +1514,14 @@ bool FMeshBatch::Validate(const FPrimitiveSceneProxy* PrimitiveSceneProxy, ERHIF
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileReflectionCaptureShaderParameters, "MobileReflectionCapture");
 
-void FDefaultMobileReflectionCaptureUniformBuffer::InitRHI()
+void FDefaultMobileReflectionCaptureUniformBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FMobileReflectionCaptureShaderParameters Parameters;
 	Parameters.Params = FVector4f(1.f, 0.f, 0.f, 0.f);
 	Parameters.Texture = GBlackTextureCube->TextureRHI;
 	Parameters.TextureSampler = GBlackTextureCube->SamplerStateRHI;
 	SetContents(Parameters);
-	Super::InitRHI();
+	Super::InitRHI(RHICmdList);
 }
 
 /** Global uniform buffer containing the default reflection data used in mobile renderer. */

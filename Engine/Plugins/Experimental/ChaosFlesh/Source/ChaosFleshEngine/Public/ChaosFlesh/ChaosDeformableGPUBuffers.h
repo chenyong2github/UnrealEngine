@@ -25,7 +25,7 @@ namespace UE::ChaosDeformable
 		void RetainLocalMemory() { bEmptyArray = false; }
 
 		/** FRenderResource overrides */
-		void InitRHI() override;
+		void InitRHI(FRHICommandListBase& RHICmdList) override;
 		FString GetFriendlyName() const override { return BufferName; }
 		/** End FRenderResource overrides */
 	private:
@@ -54,7 +54,7 @@ namespace UE::ChaosDeformable
 		uint32 GetBufferSize() const;
 
 		/** FRenderResource overrides */
-		void InitRHI() override;
+		void InitRHI(FRHICommandListBase& RHICmdList) override;
 		FString GetFriendlyName() const override { return BufferName; }
 		/** End FRenderResource overrides */
 	private:
@@ -88,7 +88,7 @@ namespace UE::ChaosDeformable
 		uint32 GetBufferSize() const;
 
 		/** FRenderResource overrides */
-		void InitRHI() override;
+		void InitRHI(FRHICommandListBase& RHICmdList) override;
 		FString GetFriendlyName() const override { return BufferName; }
 		/** End FRenderResource overrides */
 	private:

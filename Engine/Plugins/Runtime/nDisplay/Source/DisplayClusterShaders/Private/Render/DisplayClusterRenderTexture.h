@@ -15,7 +15,7 @@ public:
 
 	void ReleaseTextureData();
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	void* GetTextureData() const
 	{

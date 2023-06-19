@@ -157,7 +157,7 @@ FIndirectLightingCache::FIndirectLightingCache(ERHIFeatureLevel::Type InFeatureL
 	CacheSize = GLightingCacheDimension;
 }
 
-void FIndirectLightingCache::InitRHI()
+void FIndirectLightingCache::InitRHI(FRHICommandListBase&)
 {
 	if (CanIndirectLightingCacheUseVolumeTexture(GetFeatureLevel()))
 	{

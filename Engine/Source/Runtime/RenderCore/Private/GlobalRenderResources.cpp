@@ -46,7 +46,7 @@ class FColoredTexture : public FTextureWithSRV
 {
 public:
 	// FResource interface.
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// Create the texture RHI.  		
 		FColorBulkData BulkData(R, G, B, A);
@@ -65,7 +65,7 @@ public:
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 		// Create a view of the texture
-		ShaderResourceViewRHI = RHICreateShaderResourceView(TextureRHI, 0u);
+		ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(TextureRHI, 0u);
 	}
 
 	virtual uint32 GetSizeX() const override { return 1; }
@@ -75,23 +75,23 @@ public:
 class FEmptyVertexBuffer : public FVertexBufferWithSRV
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// Create the texture RHI.  		
 		FRHIResourceCreateInfo CreateInfo(TEXT("EmptyVertexBuffer"));
 
-		VertexBufferRHI = RHICreateVertexBuffer(16u, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(16u, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 
 		// Create a view of the buffer
-		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, 4u, PF_R32_UINT);
-		UnorderedAccessViewRHI = RHICreateUnorderedAccessView(VertexBufferRHI, PF_R32_UINT);
+		ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(VertexBufferRHI, 4u, PF_R32_UINT);
+		UnorderedAccessViewRHI = RHICmdList.CreateUnorderedAccessView(VertexBufferRHI, PF_R32_UINT);
 	}
 };
 
 class FEmptyStructuredBuffer : public FVertexBufferWithSRV
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// Create the buffer RHI.  		
 		FRHIResourceCreateInfo CreateInfo(TEXT("EmptyStructuredBuffer"));
@@ -100,17 +100,17 @@ public:
 		VertexBufferRHI = RHICreateStructuredBuffer(sizeof(uint32), BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 
 		// Create a view of the buffer
-		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI);
-		UnorderedAccessViewRHI = RHICreateUnorderedAccessView(VertexBufferRHI, false, false);
+		ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(VertexBufferRHI);
+		UnorderedAccessViewRHI = RHICmdList.CreateUnorderedAccessView(VertexBufferRHI, false, false);
 	}
 };
 
 class FBlackTextureWithSRV : public FColoredTexture<0, 0, 0, 255>
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
-		FColoredTexture::InitRHI();
+		FColoredTexture::InitRHI(RHICmdList);
 		FRHITextureReference::DefaultTexture = TextureRHI;
 	}
 
@@ -134,19 +134,19 @@ FVertexBufferWithSRV* GEmptyStructuredBufferWithUAV = new TGlobalResource<FEmpty
 class FWhiteVertexBuffer : public FVertexBufferWithSRV
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// Create the texture RHI.  		
 		FRHIResourceCreateInfo CreateInfo(TEXT("WhiteVertexBuffer"));
 
-		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(sizeof(FVector4f), BUF_Static | BUF_ShaderResource, CreateInfo);
 
-		FVector4f* BufferData = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f), RLM_WriteOnly);
+		FVector4f* BufferData = (FVector4f*)RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector4f), RLM_WriteOnly);
 		*BufferData = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 
 		// Create a view of the buffer
-		ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F);
+		ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F);
 	}
 };
 
@@ -155,13 +155,12 @@ FVertexBufferWithSRV* GWhiteVertexBufferWithSRV = new TGlobalResource<FWhiteVert
 class FWhiteVertexBufferWithRDG : public FBufferWithRDG
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		if (!Buffer.IsValid())
 		{
 			Buffer = AllocatePooledBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), 1), TEXT("WhiteVertexBufferWithRDG"));
 
-			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 			FVector4f* BufferData = (FVector4f*)RHICmdList.LockBuffer(Buffer->GetRHI(), 0, sizeof(FVector4f), RLM_WriteOnly);
 			*BufferData = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 			RHICmdList.UnlockBuffer(Buffer->GetRHI());
@@ -178,7 +177,7 @@ template <EPixelFormat PixelFormat, uint8 Alpha>
 class FBlackVolumeTexture : public FTexture
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		if (GSupportsTexture3D)
 		{
@@ -225,7 +224,7 @@ FTexture* GBlackUintVolumeTexture = new TGlobalResource<FBlackVolumeTexture<PF_R
 class FBlackArrayTexture : public FTexture
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// Create the texture RHI.
 		FColorBulkData BulkData(0);
@@ -266,7 +265,7 @@ public:
 	static const FColor MipColors[NumMips];
 
 	// FResource interface.
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// Create the texture RHI.
 		int32 TextureSize = 1 << (NumMips - 1);
@@ -358,7 +357,7 @@ public:
 	{}
 
 	// FRenderResource interface.
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// Create the texture RHI.
 		const FRHITextureCreateDesc Desc =
@@ -412,7 +411,7 @@ class FBlackCubeArrayTexture : public FTexture
 {
 public:
 	// FResource interface.
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		if (SupportsTextureCubeArray(GetFeatureLevel()))
 		{
@@ -454,7 +453,7 @@ class FUintTexture : public FTextureWithSRV
 {
 public:
 	// FResource interface.
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("UintTexture"), 1, 1, Format)
@@ -474,7 +473,7 @@ public:
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 		// Create a view of the texture
-		ShaderResourceViewRHI = RHICreateShaderResourceView(TextureRHI, 0u);
+		ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(TextureRHI, 0u);
 	}
 
 	virtual uint32 GetSizeX() const override { return 1; }
@@ -529,19 +528,19 @@ FTexture* GBlackUintTexture = new TGlobalResource<FUintTexture<PF_R32G32B32A32_U
 FNullColorVertexBuffer::FNullColorVertexBuffer() = default;
 FNullColorVertexBuffer::~FNullColorVertexBuffer() = default;
 
-void FNullColorVertexBuffer::InitRHI()
+void FNullColorVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FNullColorVertexBuffer"));
 
-	VertexBufferRHI = RHICreateBuffer(sizeof(uint32) * 4, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-	uint32* Vertices = (uint32*)RHILockBuffer(VertexBufferRHI, 0, sizeof(uint32) * 4, RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateBuffer(sizeof(uint32) * 4, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+	uint32* Vertices = (uint32*)RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(uint32) * 4, RLM_WriteOnly);
 	Vertices[0] = FColor(255, 255, 255, 255).DWColor();
 	Vertices[1] = FColor(255, 255, 255, 255).DWColor();
 	Vertices[2] = FColor(255, 255, 255, 255).DWColor();
 	Vertices[3] = FColor(255, 255, 255, 255).DWColor();
-	RHIUnlockBuffer(VertexBufferRHI);
-	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
+	VertexBufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
 }
 
 void FNullColorVertexBuffer::ReleaseRHI()
@@ -559,16 +558,16 @@ TGlobalResource<FNullColorVertexBuffer, FRenderResource::EInitPhase::Pre> GNullC
 FNullVertexBuffer::FNullVertexBuffer() = default;
 FNullVertexBuffer::~FNullVertexBuffer() = default;
 
-void FNullVertexBuffer::InitRHI()
+void FNullVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FNullVertexBuffer"));
-	VertexBufferRHI = RHICreateBuffer(sizeof(FVector3f), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-	FVector3f* LockedData = (FVector3f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector3f), RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateBuffer(sizeof(FVector3f), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+	FVector3f* LockedData = (FVector3f*)RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector3f), RLM_WriteOnly);
 	*LockedData = FVector3f(0.0f);
-	RHIUnlockBuffer(VertexBufferRHI);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
 
-	VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
+	VertexBufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
 }
 
 void FNullVertexBuffer::ReleaseRHI()
@@ -583,12 +582,12 @@ TGlobalResource<FNullVertexBuffer, FRenderResource::EInitPhase::Pre> GNullVertex
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FScreenSpaceVertexBuffer
 
-void FScreenSpaceVertexBuffer::InitRHI()
+void FScreenSpaceVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FScreenSpaceVertexBuffer"));
-	VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector2f) * 4, BUF_Static, CreateInfo);
-	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector2f) * 4, RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateVertexBuffer(sizeof(FVector2f) * 4, BUF_Static, CreateInfo);
+	void* VoidPtr = RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector2f) * 4, RLM_WriteOnly);
 	static const FVector2f Vertices[4] =
 	{
 		FVector2f(-1,-1),
@@ -597,7 +596,7 @@ void FScreenSpaceVertexBuffer::InitRHI()
 		FVector2f(+1,+1),
 	};
 	FMemory::Memcpy(VoidPtr, Vertices, sizeof(FVector2f) * 4);
-	RHIUnlockBuffer(VertexBufferRHI);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
 }
 
 TGlobalResource<FScreenSpaceVertexBuffer, FRenderResource::EInitPhase::Pre> GScreenSpaceVertexBuffer;
@@ -608,7 +607,7 @@ TGlobalResource<FScreenSpaceVertexBuffer, FRenderResource::EInitPhase::Pre> GScr
 FTileVertexDeclaration::FTileVertexDeclaration() = default;
 FTileVertexDeclaration::~FTileVertexDeclaration() = default;
 
-void FTileVertexDeclaration::InitRHI()
+void FTileVertexDeclaration::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FVertexDeclarationElementList Elements;
 	uint16 Stride = sizeof(FVector2f);
@@ -626,14 +625,14 @@ TGlobalResource<FTileVertexDeclaration, FRenderResource::EInitPhase::Pre> GTileV
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FCubeIndexBuffer
 
-void FCubeIndexBuffer::InitRHI()
+void FCubeIndexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FCubeIndexBuffer"));
-	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NUM_CUBE_VERTICES, BUF_Static, CreateInfo);
-	void* VoidPtr = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NUM_CUBE_VERTICES, RLM_WriteOnly);
+	IndexBufferRHI = RHICmdList.CreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NUM_CUBE_VERTICES, BUF_Static, CreateInfo);
+	void* VoidPtr = RHICmdList.LockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NUM_CUBE_VERTICES, RLM_WriteOnly);
 	FMemory::Memcpy(VoidPtr, GCubeIndices, NUM_CUBE_VERTICES * sizeof(uint16));
-	RHIUnlockBuffer(IndexBufferRHI);
+	RHICmdList.UnlockBuffer(IndexBufferRHI);
 }
 
 TGlobalResource<FCubeIndexBuffer, FRenderResource::EInitPhase::Pre> GCubeIndexBuffer;
@@ -641,15 +640,15 @@ TGlobalResource<FCubeIndexBuffer, FRenderResource::EInitPhase::Pre> GCubeIndexBu
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTwoTrianglesIndexBuffer
 
-void FTwoTrianglesIndexBuffer::InitRHI()
+void FTwoTrianglesIndexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// create a static vertex buffer
 	FRHIResourceCreateInfo CreateInfo(TEXT("FTwoTrianglesIndexBuffer"));
-	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * 6, BUF_Static, CreateInfo);
-	void* VoidPtr = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * 6, RLM_WriteOnly);
+	IndexBufferRHI = RHICmdList.CreateIndexBuffer(sizeof(uint16), sizeof(uint16) * 6, BUF_Static, CreateInfo);
+	void* VoidPtr = RHICmdList.LockBuffer(IndexBufferRHI, 0, sizeof(uint16) * 6, RLM_WriteOnly);
 	static const uint16 Indices[] = { 0, 1, 3, 0, 3, 2 };
 	FMemory::Memcpy(VoidPtr, Indices, 6 * sizeof(uint16));
-	RHIUnlockBuffer(IndexBufferRHI);
+	RHICmdList.UnlockBuffer(IndexBufferRHI);
 }
 
 TGlobalResource<FTwoTrianglesIndexBuffer, FRenderResource::EInitPhase::Pre> GTwoTrianglesIndexBuffer;
@@ -929,33 +928,43 @@ public:
 	/**
 	 * Locks the vertex buffer so it may be written to.
 	 */
-	void Lock()
+	void Lock(FRHICommandListBase& RHICmdList)
 	{
 		check(MappedBuffer == NULL);
 		check(AllocatedByteCount == 0);
 		check(IsValidRef(IndexBufferRHI));
-		MappedBuffer = (uint8*)RHILockBuffer(IndexBufferRHI, 0, BufferSize, RLM_WriteOnly);
+		MappedBuffer = (uint8*)RHICmdList.LockBuffer(IndexBufferRHI, 0, BufferSize, RLM_WriteOnly);
+	}
+
+	void Lock()
+	{
+		Lock(FRHICommandListImmediate::Get());
 	}
 
 	/**
 	 * Unocks the buffer so the GPU may read from it.
 	 */
-	void Unlock()
+	void Unlock(FRHICommandListBase& RHICmdList)
 	{
 		check(MappedBuffer != NULL);
 		check(IsValidRef(IndexBufferRHI));
-		RHIUnlockBuffer(IndexBufferRHI);
+		RHICmdList.UnlockBuffer(IndexBufferRHI);
 		MappedBuffer = NULL;
 		AllocatedByteCount = 0;
 		NumFramesUnused = 0;
 	}
 
+	void Unlock()
+	{
+		Unlock(FRHICommandListImmediate::Get());
+	}
+
 	// FRenderResource interface.
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		check(!IsValidRef(IndexBufferRHI));
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDynamicIndexBuffer"));
-		IndexBufferRHI = RHICreateIndexBuffer(Stride, BufferSize, BUF_Volatile, CreateInfo);
+		IndexBufferRHI = RHICmdList.CreateIndexBuffer(Stride, BufferSize, BUF_Volatile, CreateInfo);
 		MappedBuffer = NULL;
 		AllocatedByteCount = 0;
 	}

@@ -132,7 +132,7 @@ void FNiagaraMeshVertexFactory::GetVertexElements(ERHIFeatureLevel::Type Feature
 	}
 }
 
-void FNiagaraMeshVertexFactory::InitRHI()
+void FNiagaraMeshVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	check(HasValidFeatureLevel());
 	const bool bSupportsManualVertexFetch = SupportsManualVertexFetch(GetFeatureLevel());

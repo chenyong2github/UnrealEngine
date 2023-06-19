@@ -452,11 +452,11 @@ public:
 	FSpriteIndexBuffer<16> ScatterIndexBuffer;
 
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		if (!GRHISupportsRectTopology)
 		{
-			ScatterIndexBuffer.InitRHI();
+			ScatterIndexBuffer.InitRHI(RHICmdList);
 		}
 	}
 

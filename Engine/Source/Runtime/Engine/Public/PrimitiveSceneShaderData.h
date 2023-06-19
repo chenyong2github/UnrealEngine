@@ -43,7 +43,7 @@ public:
 		: ShaderPlatform(SP_NumPlatforms)
 	{}
 
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	virtual void ReleaseRHI() override
 	{
@@ -67,7 +67,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	ENGINE_API void UploadToGPU();
+	ENGINE_API void UploadToGPU(FRHICommandListBase& RHICmdList);
 
 	EShaderPlatform ShaderPlatform=SP_NumPlatforms;
 

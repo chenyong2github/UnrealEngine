@@ -63,7 +63,7 @@ public:
 	/**
 	* Initialize the RHI resource for this vertex buffer
 	*/
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/**
 	* Release the RHI resource for this vertex buffer

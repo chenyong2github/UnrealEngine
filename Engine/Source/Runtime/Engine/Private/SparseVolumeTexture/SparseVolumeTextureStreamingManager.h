@@ -82,7 +82,7 @@ public:
 	FStreamingManager();
 
 	//~ Begin FRenderResource Interface.
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	//~ End FRenderResource Interface.
 
@@ -152,7 +152,7 @@ private:
 
 		// Number of tiles available for allocation.
 		int32 GetNumAvailableTiles() { return PhysicalTilesCapacity - NextFreeTileCoordIndex; }
-		virtual void InitRHI() override;
+		virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 		virtual void ReleaseRHI() override;
 
 	private:

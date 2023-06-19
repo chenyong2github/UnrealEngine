@@ -35,7 +35,7 @@ public:
 
 	virtual uint64 GetPlatformMipsSize(uint32 NumMips) const override;
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual bool IsProxy() const override { return ProxiedResource != nullptr; }
 
 protected:

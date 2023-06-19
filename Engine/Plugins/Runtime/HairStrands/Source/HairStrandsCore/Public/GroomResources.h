@@ -97,7 +97,7 @@ struct FHairCommonResource : public FRenderResource
 	FHairCommonResource(EHairStrandsAllocationType AllocationType, const FHairResourceName& InResourceName, const FName& InOwnerName, bool bUseRenderGraph=true);
 
 	/* Init/Release buffers (FRenderResource) */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	/* Init/Release buffers (FHairCommonResource) */
@@ -565,7 +565,7 @@ struct FHairStrandsRaytracingResource : public FHairCommonResource
 class FHairCardsVertexBuffer : public FVertexBufferWithSRV
 {
 public:
-	virtual void InitRHI() override {}
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override {}
 };
 
 class FHairCardIndexBuffer : public FIndexBuffer
@@ -573,7 +573,7 @@ class FHairCardIndexBuffer : public FIndexBuffer
 public:
 	const TArray<FHairCardsIndexFormat::Type>& Indices;
 	FHairCardIndexBuffer(const TArray<FHairCardsIndexFormat::Type>& InIndices, const FName& InOwnerName);
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 /* Render buffers that will be used for rendering */

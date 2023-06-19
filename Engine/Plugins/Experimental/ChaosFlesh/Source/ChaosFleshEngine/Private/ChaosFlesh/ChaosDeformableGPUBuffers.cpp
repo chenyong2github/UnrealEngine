@@ -40,26 +40,26 @@ uint32 FFloatArrayBufferWithSRV::GetBufferSize() const
 	return NumValues * sizeof(float);
 }
 
-void FFloatArrayBufferWithSRV::InitRHI()
+void FFloatArrayBufferWithSRV::InitRHI(FRHICommandListBase& RHICmdList)
 {
     if (Array.Num() > 0)
     {
         FRHIResourceCreateInfo CreateInfo(TEXT("UMLDeformerModel::FFloatArrayBufferWithSRV"));
 
-        VertexBufferRHI = RHICreateVertexBuffer(Array.Num() * sizeof(float), BUF_Static | BUF_ShaderResource, CreateInfo);
-        float* Data = reinterpret_cast<float*>(RHILockBuffer(VertexBufferRHI, 0, Array.Num() * sizeof(float), RLM_WriteOnly));
+        VertexBufferRHI = RHICmdList.CreateVertexBuffer(Array.Num() * sizeof(float), BUF_Static | BUF_ShaderResource, CreateInfo);
+        float* Data = reinterpret_cast<float*>(RHICmdList.LockBuffer(VertexBufferRHI, 0, Array.Num() * sizeof(float), RLM_WriteOnly));
         for (int32 Index = 0; Index < Array.Num(); ++Index)
         {
             Data[Index] = Array[Index];
         }
-        RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 
 		if (bEmptyArray)
 		{
 			Array.Empty();
 		}
 
-        ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
+        ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
 
 		UE_LOG(LogFleshDeformerBuffers, Log,
 			TEXT("FFloatArrayBufferWithSRV - '%s' - Buffer size: %d, Array num: %d"),
@@ -114,22 +114,22 @@ uint32 FHalfArrayBufferWithSRV::GetBufferSize() const
 	return NumValues * sizeof(FFloat16);
 }
 
-void FHalfArrayBufferWithSRV::InitRHI()
+void FHalfArrayBufferWithSRV::InitRHI(FRHICommandListBase& RHICmdList)
 {
     if (Array.Num() > 0)
     {
         FRHIResourceCreateInfo CreateInfo(TEXT("FHalfArrayBufferWithSRV"));
 
-        VertexBufferRHI = RHICreateVertexBuffer(Array.Num() * sizeof(FFloat16), BUF_Static | BUF_ShaderResource, CreateInfo);
-        FFloat16* Data = reinterpret_cast<FFloat16*>(RHILockBuffer(VertexBufferRHI, 0, Array.Num() * sizeof(FFloat16), RLM_WriteOnly));
+        VertexBufferRHI = RHICmdList.CreateVertexBuffer(Array.Num() * sizeof(FFloat16), BUF_Static | BUF_ShaderResource, CreateInfo);
+        FFloat16* Data = reinterpret_cast<FFloat16*>(RHICmdList.LockBuffer(VertexBufferRHI, 0, Array.Num() * sizeof(FFloat16), RLM_WriteOnly));
         for (int32 Index = 0; Index < Array.Num(); ++Index)
         {
             Data[Index] = Array[Index];
         }
-        RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
         Array.Empty();
 
-        ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FFloat16), PF_R16F);
+        ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FFloat16), PF_R16F);
 
 		UE_LOG(LogFleshDeformerBuffers, Log,
 			TEXT("FHalfArrayBufferWithSRV - '%s' - Buffer size: %d, Array num: %d"),
@@ -241,7 +241,7 @@ FORCEINLINE void SetBits(uint32& Value, uint32 Bits, uint32 NumBits, uint32 Offs
 	Value = (Value & ~Mask) | (Bits << Offset);
 }
 
-void FIndexArrayBufferWithSRV::InitRHI()
+void FIndexArrayBufferWithSRV::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// Buffer is comprised of 32 bit values.  We're packing 32, 16, or 8 bit ints into 32 bit slots.
 	const int32 NumIndices = Array.Num();
@@ -260,10 +260,10 @@ void FIndexArrayBufferWithSRV::InitRHI()
     {
         // Create the index buffer.
         FRHIResourceCreateInfo CreateInfo(*GetFriendlyName());
-		VertexBufferRHI = RHICreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource, CreateInfo);
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource, CreateInfo);
 
         // Initialize the buffer.		
-        void* Buffer = RHILockBuffer(VertexBufferRHI, 0, BufferSize, RLM_WriteOnly);
+        void* Buffer = RHICmdList.LockBuffer(VertexBufferRHI, 0, BufferSize, RLM_WriteOnly);
 		
 		if (!bForce32 && bUint8)
         {
@@ -326,11 +326,11 @@ void FIndexArrayBufferWithSRV::InitRHI()
 		}
 #endif
 
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
         Array.Empty();
 
 		EPixelFormat Format = PF_R32_UINT;
-        ShaderResourceViewRHI = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), Format);
+        ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(uint32), Format);
 
 		UE_LOG(LogFleshDeformerBuffers, Log,
 			TEXT("FIndexArrayBufferWithSRV - '%s' - Data stride: %d, Buffer size: %d, Input array size: %d"),

@@ -65,7 +65,7 @@ public:
 
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FVertexDeclarationElementList Elements;
 		Elements.Add(FVertexElement(0, 0, VET_Float4, 0, sizeof(FVector4f)));
@@ -88,14 +88,14 @@ class FDummyVertexBuffer : public FVertexBuffer
 {
 public:
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(FVector4f) * 2, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FVector4f* DummyContents = (FVector4f*)RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 2, RLM_WriteOnly);
+		VertexBufferRHI = RHICmdList.CreateBuffer(sizeof(FVector4f) * 2, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FVector4f* DummyContents = (FVector4f*)RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 2, RLM_WriteOnly);
 		DummyContents[0] = FVector4f(0.0f, 0.0f, 0.0f, 0.0f);
 		DummyContents[1] = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 	}
 };
 TGlobalResource<FDummyVertexBuffer> GDummyVertexBuffer;
@@ -103,7 +103,7 @@ TGlobalResource<FDummyVertexBuffer> GDummyVertexBuffer;
 /**
  * Constructs render resources for this vertex factory.
  */
-void FVectorFieldVisualizationVertexFactory::InitRHI()
+void FVectorFieldVisualizationVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FVertexStream Stream;
 

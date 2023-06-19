@@ -322,7 +322,7 @@ void FStaticMeshVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& 
 	Batcher.QueueUpdateRequest(TexCoordVertexBuffer.VertexBufferRHI, nullptr);
 }
 
-void FStaticMeshVertexBuffer::InitRHI()
+void FStaticMeshVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshVertexBuffer::InitRHI);
 	SCOPED_LOADTIMER(FStaticMeshVertexBuffer_InitRHI);
@@ -338,7 +338,7 @@ void FStaticMeshVertexBuffer::InitRHI()
 	{
 		uint32       Stride = GetUseHighPrecisionTangentBasis() ? 8 : 4;
 		EPixelFormat Format = GetUseHighPrecisionTangentBasis() ? PF_R16G16B16A16_SNORM : PF_R8G8B8A8_SNORM;
-		TangentsSRV = RHICreateShaderResourceView(TangentsVertexBuffer.VertexBufferRHI, Stride, Format);
+		TangentsSRV = RHICmdList.CreateShaderResourceView(TangentsVertexBuffer.VertexBufferRHI, Stride, Format);
 	}
 
 	const bool bHadTexCoordData = TexcoordData != nullptr;
@@ -348,7 +348,7 @@ void FStaticMeshVertexBuffer::InitRHI()
 	{
 		uint32       Stride = GetUseFullPrecisionUVs() ? 8 : 4;
 		EPixelFormat Format = GetUseFullPrecisionUVs() ? PF_G32R32F : PF_G16R16F;
-		TextureCoordinatesSRV = RHICreateShaderResourceView(TexCoordVertexBuffer.VertexBufferRHI, Stride, Format);
+		TextureCoordinatesSRV = RHICmdList.CreateShaderResourceView(TexCoordVertexBuffer.VertexBufferRHI, Stride, Format);
 	}
 }
 

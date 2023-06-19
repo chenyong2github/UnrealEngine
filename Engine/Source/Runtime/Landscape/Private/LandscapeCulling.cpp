@@ -70,7 +70,7 @@ public:
 
 	void Copy(const FLandscapeTileVertexFactory& Other);
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	FDataType Data;
 };
@@ -78,7 +78,7 @@ public:
 //
 // FLandscapeTileVertexFactory
 //
-void FLandscapeTileVertexFactory::InitRHI()
+void FLandscapeTileVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// list of declaration items
 	FVertexDeclarationElementList Elements;
@@ -213,7 +213,7 @@ public:
 
 	virtual void InitResource(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseResource() override;
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 public:
 	FVertexBuffer VertexBuffer;
@@ -235,7 +235,7 @@ void FLandscapeTileMesh::ReleaseResource()
 	IndexBuffer.ReleaseResource();
 }
 
-void FLandscapeTileMesh::InitRHI()
+void FLandscapeTileMesh::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	const uint32 TileSizeVertx = LANDSCAPE_TILE_QUADS + 1u;
 
@@ -245,8 +245,8 @@ void FLandscapeTileMesh::InitRHI()
 		const uint32 Stride = sizeof(FLandscapeVertex);
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeTileMeshVertexBuffer"));
-		VertexBuffer.VertexBufferRHI = RHICreateBuffer(NumVertx * Stride, BUF_Static | BUF_VertexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FLandscapeVertex* Vertex = (FLandscapeVertex*)RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, NumVertx * Stride, RLM_WriteOnly);
+		VertexBuffer.VertexBufferRHI = RHICmdList.CreateBuffer(NumVertx * Stride, BUF_Static | BUF_VertexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FLandscapeVertex* Vertex = (FLandscapeVertex*)RHICmdList.LockBuffer(VertexBuffer.VertexBufferRHI, 0, NumVertx * Stride, RLM_WriteOnly);
 
 		for (uint32 y = 0; y < TileSizeVertx; y++)
 		{
@@ -260,7 +260,7 @@ void FLandscapeTileMesh::InitRHI()
 			}
 		}
 
-		RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBuffer.VertexBufferRHI);
 	}
 
 	// 
@@ -268,8 +268,8 @@ void FLandscapeTileMesh::InitRHI()
 		const int32 NumIndices = FMath::Square(LANDSCAPE_TILE_QUADS) * 6u;
 		const uint32 Stride = sizeof(uint16);
 		FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeTileMeshIndexBuffer"));
-		IndexBuffer.IndexBufferRHI = RHICreateBuffer(NumIndices * Stride, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		uint16* Indices = (uint16*)RHILockBuffer(IndexBuffer.IndexBufferRHI, 0, NumIndices * Stride, RLM_WriteOnly);
+		IndexBuffer.IndexBufferRHI = RHICmdList.CreateBuffer(NumIndices * Stride, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		uint16* Indices = (uint16*)RHICmdList.LockBuffer(IndexBuffer.IndexBufferRHI, 0, NumIndices * Stride, RLM_WriteOnly);
 
 		for (uint32 y = 0; y < LANDSCAPE_TILE_QUADS; y++)
 		{
@@ -291,7 +291,7 @@ void FLandscapeTileMesh::InitRHI()
 				Indices += 6;
 			}
 		}
-		RHIUnlockBuffer(IndexBuffer.IndexBufferRHI);
+		RHICmdList.UnlockBuffer(IndexBuffer.IndexBufferRHI);
 	}
 }
 
@@ -315,13 +315,11 @@ public:
 		ReleaseResource();
 	}
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
-void FLandscapeTileDataBuffer::InitRHI()
+void FLandscapeTileDataBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
-	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
-
 	const uint32 SubsectionTilesRow = FMath::DivideAndRoundUp(SubsectionSizeQuads, LANDSCAPE_TILE_QUADS);
 	const uint32 SubsectionTiles = SubsectionTilesRow * SubsectionTilesRow;
 	const uint32 ComponentTiles = SubsectionTiles * NumSubsections * NumSubsections;

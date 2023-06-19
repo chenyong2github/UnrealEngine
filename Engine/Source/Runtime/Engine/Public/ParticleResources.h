@@ -20,7 +20,7 @@ extern const int32 GParticleScratchVertexBufferSize;
 class FParticleTexCoordVertexBuffer : public FVertexBuffer
 {
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 /** Global particle texture coordinate vertex buffer. */
@@ -29,7 +29,7 @@ extern ENGINE_API TGlobalResource<FParticleTexCoordVertexBuffer> GParticleTexCoo
 class FParticleEightTexCoordVertexBuffer : public FVertexBuffer
 {
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 extern TGlobalResource<FParticleEightTexCoordVertexBuffer> GParticleEightTexCoordVertexBuffer;
@@ -40,7 +40,7 @@ extern TGlobalResource<FParticleEightTexCoordVertexBuffer> GParticleEightTexCoor
 class FParticleIndexBuffer : public FIndexBuffer
 {
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 /**
@@ -49,7 +49,7 @@ public:
 class FSixTriangleParticleIndexBuffer : public FIndexBuffer
 {
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 /** Global particle index buffer. */
@@ -69,7 +69,7 @@ public:
 	FParticleShaderParamRef GetShaderParam();
 	FParticleBufferParamRef GetBufferParam();
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 private:

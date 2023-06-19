@@ -321,7 +321,7 @@ class FPostProcessMaterialVertexDeclaration : public FRenderResource
 public:
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
 
-	void InitRHI() override
+	void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FVertexDeclarationElementList Elements;
 		uint32 Stride = sizeof(FFilterVertex);

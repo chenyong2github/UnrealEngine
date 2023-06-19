@@ -4,7 +4,7 @@
 
 #include "PipelineStateCache.h"
 
-void FDisplayClusterMeshVertexDeclaration::InitRHI()
+void FDisplayClusterMeshVertexDeclaration::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FVertexDeclarationElementList Elements;
 

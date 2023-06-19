@@ -5407,15 +5407,15 @@ void FSceneRenderer::SetStereoViewport(FRHICommandList& RHICmdList, const FViewI
 class FDummySceneColorResolveBuffer : public FVertexBuffer
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const int32 NumDummyVerts = 3;
 		const uint32 Size = sizeof(FVector4f) * NumDummyVerts;
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDummySceneColorResolveBuffer"));
-		VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
+		VertexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		void* BufferData = RHICmdList.LockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 		FMemory::Memset(BufferData, 0, Size);		
-		RHIUnlockBuffer(VertexBufferRHI);		
+		RHICmdList.UnlockBuffer(VertexBufferRHI);		
 	}
 };
 

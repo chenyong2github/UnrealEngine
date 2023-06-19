@@ -27,19 +27,19 @@ public:
 	/**
 	* Initialize the RHI for this rendering resource
 	*/
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo(TEXT("FClearVertexBuffer"));
-		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4f) * 4, BUF_Static, CreateInfo);
-		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 4, RLM_WriteOnly);
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(sizeof(FVector4f) * 4, BUF_Static, CreateInfo);
+		void* VoidPtr = RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 4, RLM_WriteOnly);
 		// Generate the vertices used
 		FVector4f* Vertices = reinterpret_cast<FVector4f*>(VoidPtr);
 		Vertices[0] = FVector4f(-1.0f, 1.0f, 0.0f, 1.0f);
 		Vertices[1] = FVector4f(1.0f, 1.0f, 0.0f, 1.0f);
 		Vertices[2] = FVector4f(-1.0f, -1.0f, 0.0f, 1.0f);
 		Vertices[3] = FVector4f(1.0f, -1.0f, 0.0f, 1.0f);
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 	}
 };
 extern RENDERCORE_API TGlobalResource<FClearVertexBuffer> GClearVertexBuffer;

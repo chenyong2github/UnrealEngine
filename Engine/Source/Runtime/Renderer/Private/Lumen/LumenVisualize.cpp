@@ -403,7 +403,7 @@ public:
 	/** Destructor. */
 	virtual ~FVisualizeTracesVertexDeclaration() {}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FVertexDeclarationElementList Elements;
 		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);

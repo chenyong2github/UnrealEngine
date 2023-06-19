@@ -25,41 +25,41 @@ namespace NDIGeometryCollectionLocal
 	static const TCHAR* TemplateShaderFilePath = TEXT("/Plugin/Experimental/ChaosNiagara/NiagaraDataInterfaceGeometryCollection.ush");
 
 	template<typename BufferType, EPixelFormat PixelFormat>
-	void CreateInternalBuffer(FReadBuffer& OutputBuffer, uint32 ElementCount)
+	void CreateInternalBuffer(FRHICommandListBase& RHICmdList, FReadBuffer& OutputBuffer, uint32 ElementCount)
 	{
 		if (ElementCount > 0)
 		{
-			OutputBuffer.Initialize(TEXT("FNDIGeometryCollectionBuffer"), sizeof(BufferType), ElementCount, PixelFormat, BUF_Static);
+			OutputBuffer.Initialize(RHICmdList, TEXT("FNDIGeometryCollectionBuffer"), sizeof(BufferType), ElementCount, PixelFormat, BUF_Static);
 		}
 	}
 
 	template<typename BufferType, EPixelFormat PixelFormat>
-	void UpdateInternalBuffer(const TArray<BufferType>& InputData, FReadBuffer& OutputBuffer)
+	void UpdateInternalBuffer(FRHICommandListBase& RHICmdList, const TArray<BufferType>& InputData, FReadBuffer& OutputBuffer)
 	{
 		uint32 ElementCount = InputData.Num();
 		if (ElementCount > 0 && OutputBuffer.Buffer.IsValid())
 		{
 			const uint32 BufferBytes = sizeof(BufferType) * ElementCount;
 
-			void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
+			void* OutputData = RHICmdList.LockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
 			FMemory::Memcpy(OutputData, InputData.GetData(), BufferBytes);
-			RHIUnlockBuffer(OutputBuffer.Buffer);
+			RHICmdList.UnlockBuffer(OutputBuffer.Buffer);
 		}
 	}
 }
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIGeometryCollectionBuffer::InitRHI()
+void FNDIGeometryCollectionBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
-	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(WorldTransformBuffer, 3 * NumPieces);
-	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(PrevWorldTransformBuffer, 3 * NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, WorldTransformBuffer, 3 * NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, PrevWorldTransformBuffer, 3 * NumPieces);
 
-	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(WorldInverseTransformBuffer, 3 * NumPieces);
-	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(PrevWorldInverseTransformBuffer, 3 * NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, WorldInverseTransformBuffer, 3 * NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, PrevWorldInverseTransformBuffer, 3 * NumPieces);
 
-	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(BoundsBuffer, NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, BoundsBuffer, NumPieces);
 }
 
 void FNDIGeometryCollectionBuffer::ReleaseRHI()
@@ -301,13 +301,14 @@ void FNDIGeometryCollectionProxy::PreStage(const FNDIGpuComputePreStageContext& 
 		if (Context.GetSimStageData().bFirstStage)
 		{
 			FNDIGeometryCollectionBuffer* AssetBuffer = ProxyData->AssetBuffer;
+			FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 			// #todo(dmp): bounds buffer doesn't need to be updated each frame
-			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->WorldTransformBuffer, ProxyData->AssetBuffer->WorldTransformBuffer);
-			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->PrevWorldTransformBuffer, ProxyData->AssetBuffer->PrevWorldTransformBuffer);
-			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->WorldInverseTransformBuffer, ProxyData->AssetBuffer->WorldInverseTransformBuffer);
-			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->PrevWorldInverseTransformBuffer, ProxyData->AssetBuffer->PrevWorldInverseTransformBuffer);
-			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->BoundsBuffer, ProxyData->AssetBuffer->BoundsBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->AssetArrays->WorldTransformBuffer, ProxyData->AssetBuffer->WorldTransformBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->AssetArrays->PrevWorldTransformBuffer, ProxyData->AssetBuffer->PrevWorldTransformBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->AssetArrays->WorldInverseTransformBuffer, ProxyData->AssetBuffer->WorldInverseTransformBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->AssetArrays->PrevWorldInverseTransformBuffer, ProxyData->AssetBuffer->PrevWorldInverseTransformBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->AssetArrays->BoundsBuffer, ProxyData->AssetBuffer->BoundsBuffer);
 		}
 	}
 }

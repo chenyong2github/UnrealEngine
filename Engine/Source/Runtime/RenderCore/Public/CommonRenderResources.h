@@ -41,7 +41,7 @@ public:
 	/** Destructor. */
 	virtual ~FFilterVertexDeclaration() {}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FVertexDeclarationElementList Elements;
 		uint16 Stride = sizeof(FFilterVertex);
@@ -67,7 +67,7 @@ public:
 	/** Destructor. */
 	virtual ~FEmptyVertexDeclaration() {}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FVertexDeclarationElementList Elements;
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
@@ -88,7 +88,7 @@ class FScreenRectangleVertexBuffer : public FVertexBuffer
 {
 public:
 	/** Initialize the RHI for this rendering resource */
-	void InitRHI() override;
+	void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 extern RENDERCORE_API TGlobalResource<FScreenRectangleVertexBuffer, FRenderResource::EInitPhase::Pre> GScreenRectangleVertexBuffer;
@@ -98,7 +98,7 @@ class FScreenRectangleIndexBuffer : public FIndexBuffer
 {
 public:
 	/** Initialize the RHI for this rendering resource */
-	void InitRHI() override;
+	void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 extern RENDERCORE_API TGlobalResource<FScreenRectangleIndexBuffer, FRenderResource::EInitPhase::Pre> GScreenRectangleIndexBuffer;

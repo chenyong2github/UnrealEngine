@@ -300,18 +300,8 @@ FHairGroupPublicData::FHairGroupPublicData(uint32 InGroupIndex, const FName& InO
 	GroupIndex = InGroupIndex;
 }
 
-void FHairGroupPublicData::InitRHI()
+void FHairGroupPublicData::InitRHI(FRHICommandListBase& RHICmdList)
 {
-	if (bIsInitialized || GUsingNullRHI) { return; }
-
-	// Resource are allocated on-demand
-	#if 0
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-	Allocate(GraphBuilder);
-	GraphBuilder.Execute();
-	#endif
 }
 
 void FHairGroupPublicData::Allocate(FRDGBuilder& GraphBuilder)

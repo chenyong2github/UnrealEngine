@@ -21,7 +21,7 @@ public:
 	FNaniteVertexFactory(ERHIFeatureLevel::Type FeatureLevel);
 	ENGINE_API ~FNaniteVertexFactory();
 
-	ENGINE_API virtual void InitRHI() override final;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override final;
 
 	static ENGINE_API bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 	static ENGINE_API void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);

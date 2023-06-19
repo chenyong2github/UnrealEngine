@@ -12,7 +12,7 @@ void FPaperSpriteVertexBuffer::SetDynamicUsage(bool bInDynamicUsage)
 	bDynamicUsage = bInDynamicUsage;
 }
 
-void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
+void FPaperSpriteVertexBuffer::CreateBuffers(FRHICommandListBase& RHICmdList, int32 InNumVertices)
 {
 	//Make sure we don't have dangling buffers
 	if (NumAllocatedVertices > 0)
@@ -28,10 +28,10 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	// create vertex buffer
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpritePositionBuffer"));
-		PositionBuffer.VertexBufferRHI = RHICreateVertexBuffer(PositionSize, Usage, CreateInfo);
+		PositionBuffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer(PositionSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
-			PositionBufferSRV = RHICreateShaderResourceView(PositionBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+			PositionBufferSRV = RHICmdList.CreateShaderResourceView(PositionBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		}
 
 	}
@@ -40,10 +40,10 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	// create vertex buffer
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteTangentBuffer"));
-		TangentBuffer.VertexBufferRHI = RHICreateVertexBuffer(TangentSize, Usage, CreateInfo);
+		TangentBuffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer(TangentSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
-			TangentBufferSRV = RHICreateShaderResourceView(TangentBuffer.VertexBufferRHI, sizeof(FPackedNormal), PF_R8G8B8A8_SNORM);
+			TangentBufferSRV = RHICmdList.CreateShaderResourceView(TangentBuffer.VertexBufferRHI, sizeof(FPackedNormal), PF_R8G8B8A8_SNORM);
 		}
 	}
 
@@ -51,10 +51,10 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	// create vertex buffer
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteTexCoordBuffer"));
-		TexCoordBuffer.VertexBufferRHI = RHICreateVertexBuffer(TexCoordSize, Usage, CreateInfo);
+		TexCoordBuffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer(TexCoordSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
-			TexCoordBufferSRV = RHICreateShaderResourceView(TexCoordBuffer.VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
+			TexCoordBufferSRV = RHICmdList.CreateShaderResourceView(TexCoordBuffer.VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
 		}
 	}
 
@@ -62,17 +62,17 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	// create vertex buffer
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteColorBuffer"));
-		ColorBuffer.VertexBufferRHI = RHICreateVertexBuffer(ColorSize, Usage, CreateInfo);
+		ColorBuffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer(ColorSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
-			ColorBufferSRV = RHICreateShaderResourceView(ColorBuffer.VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
+			ColorBufferSRV = RHICmdList.CreateShaderResourceView(ColorBuffer.VertexBufferRHI, sizeof(FColor), PF_R8G8B8A8);
 		}
 	}
 
 	//Create Index Buffer
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteIndexBuffer"));
-		IndexBuffer.IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), Vertices.Num() * sizeof(uint32), Usage, CreateInfo);
+		IndexBuffer.IndexBufferRHI = RHICmdList.CreateIndexBuffer(sizeof(uint32), Vertices.Num() * sizeof(uint32), Usage, CreateInfo);
 	}
 }
 
@@ -92,49 +92,49 @@ void FPaperSpriteVertexBuffer::ReleaseBuffers()
 	NumAllocatedVertices = 0;
 }
 
-void FPaperSpriteVertexBuffer::CommitVertexData()
+void FPaperSpriteVertexBuffer::CommitVertexData(FRHICommandListBase& RHICmdList)
 {
 	if (Vertices.Num())
 	{
 		//Check if we have to accommodate the buffer size
 		if (NumAllocatedVertices != Vertices.Num())
 		{
-			CreateBuffers(Vertices.Num());
+			CreateBuffers(RHICmdList, Vertices.Num());
 		}
 
 		//Lock vertices
 		FVector3f* PositionBufferData = nullptr;
 		uint32 PositionSize = Vertices.Num() * sizeof(FVector3f);
 		{
-			void* Data = RHILockBuffer(PositionBuffer.VertexBufferRHI, 0, PositionSize, RLM_WriteOnly);
+			void* Data = RHICmdList.LockBuffer(PositionBuffer.VertexBufferRHI, 0, PositionSize, RLM_WriteOnly);
 			PositionBufferData = static_cast<FVector3f*>(Data);
 		}
 
 		FPackedNormal* TangentBufferData = nullptr;
 		uint32 TangentSize = Vertices.Num() * 2 * sizeof(FPackedNormal);
 		{
-			void* Data = RHILockBuffer(TangentBuffer.VertexBufferRHI, 0, TangentSize, RLM_WriteOnly);
+			void* Data = RHICmdList.LockBuffer(TangentBuffer.VertexBufferRHI, 0, TangentSize, RLM_WriteOnly);
 			TangentBufferData = static_cast<FPackedNormal*>(Data);
 		}
 
 		FVector2f* TexCoordBufferData = nullptr;
 		uint32 TexCoordSize = Vertices.Num() * sizeof(FVector2f);
 		{
-			void* Data = RHILockBuffer(TexCoordBuffer.VertexBufferRHI, 0, TexCoordSize, RLM_WriteOnly);
+			void* Data = RHICmdList.LockBuffer(TexCoordBuffer.VertexBufferRHI, 0, TexCoordSize, RLM_WriteOnly);
 			TexCoordBufferData = static_cast<FVector2f*>(Data);
 		}
 
 		FColor* ColorBufferData = nullptr;
 		uint32 ColorSize = Vertices.Num() * sizeof(FColor);
 		{
-			void* Data = RHILockBuffer(ColorBuffer.VertexBufferRHI, 0, ColorSize, RLM_WriteOnly);
+			void* Data = RHICmdList.LockBuffer(ColorBuffer.VertexBufferRHI, 0, ColorSize, RLM_WriteOnly);
 			ColorBufferData = static_cast<FColor*>(Data);
 		}
 
 		uint32* IndexBufferData = nullptr;
 		uint32 IndexSize = Vertices.Num() * sizeof(uint32);
 		{
-			void* Data = RHILockBuffer(IndexBuffer.IndexBufferRHI, 0, IndexSize, RLM_WriteOnly);
+			void* Data = RHICmdList.LockBuffer(IndexBuffer.IndexBufferRHI, 0, IndexSize, RLM_WriteOnly);
 			IndexBufferData = static_cast<uint32*>(Data);
 		}
 
@@ -150,21 +150,21 @@ void FPaperSpriteVertexBuffer::CommitVertexData()
 		}
 
 		// Unlock the buffer.
-		RHIUnlockBuffer(PositionBuffer.VertexBufferRHI);
-		RHIUnlockBuffer(TangentBuffer.VertexBufferRHI);
-		RHIUnlockBuffer(TexCoordBuffer.VertexBufferRHI);
-		RHIUnlockBuffer(ColorBuffer.VertexBufferRHI);
-		RHIUnlockBuffer(IndexBuffer.IndexBufferRHI);
+		RHICmdList.UnlockBuffer(PositionBuffer.VertexBufferRHI);
+		RHICmdList.UnlockBuffer(TangentBuffer.VertexBufferRHI);
+		RHICmdList.UnlockBuffer(TexCoordBuffer.VertexBufferRHI);
+		RHICmdList.UnlockBuffer(ColorBuffer.VertexBufferRHI);
+		RHICmdList.UnlockBuffer(IndexBuffer.IndexBufferRHI);
 
 		//We clear the vertex data, as it isn't needed anymore
 		Vertices.Empty();
 	}
 }
 
-void FPaperSpriteVertexBuffer::InitRHI()
+void FPaperSpriteVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	//Automatically try to create the data and use it
-	CommitVertexData();
+	CommitVertexData(RHICmdList);
 }
 
 void FPaperSpriteVertexBuffer::ReleaseRHI()

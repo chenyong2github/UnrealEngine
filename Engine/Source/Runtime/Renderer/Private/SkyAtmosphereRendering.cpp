@@ -1049,13 +1049,13 @@ public:
 		return FRenderDistantSkyLightLutCS::GroupSize;
 	}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const uint32 GroupSize = GetSampletCount();
 		const float GroupSizeInv = 1.0f / float(GroupSize);
 
-		UniformSphereSamplesBuffer.Initialize(TEXT("UniformSphereSamplesBuffer"), sizeof(FVector4f), GroupSize * GroupSize, EPixelFormat::PF_A32B32G32R32F, BUF_Static);
-		FVector4f* Dest = (FVector4f*)RHILockBuffer(UniformSphereSamplesBuffer.Buffer, 0, sizeof(FVector4f)*GroupSize*GroupSize, RLM_WriteOnly);
+		UniformSphereSamplesBuffer.Initialize(RHICmdList, TEXT("UniformSphereSamplesBuffer"), sizeof(FVector4f), GroupSize * GroupSize, EPixelFormat::PF_A32B32G32R32F, BUF_Static);
+		FVector4f* Dest = (FVector4f*)RHICmdList.LockBuffer(UniformSphereSamplesBuffer.Buffer, 0, sizeof(FVector4f)*GroupSize*GroupSize, RLM_WriteOnly);
 
 		FMath::SRandInit(0xDE4DC0DE);
 		for (uint32 i = 0; i < GroupSize; ++i)
@@ -1077,7 +1077,7 @@ public:
 			}
 		}
 
-		RHIUnlockBuffer(UniformSphereSamplesBuffer.Buffer);
+		RHICmdList.UnlockBuffer(UniformSphereSamplesBuffer.Buffer);
 	}
 
 	virtual void ReleaseRHI()

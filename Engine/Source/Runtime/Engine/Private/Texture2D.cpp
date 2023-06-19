@@ -1323,7 +1323,7 @@ FVirtualTexture2DResource::~FVirtualTexture2DResource()
 {
 }
 
-void FVirtualTexture2DResource::InitRHI()
+void FVirtualTexture2DResource::InitRHI(FRHICommandListBase&)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTexture2DResource::InitRHI);
 	LLM_SCOPED_TAG_WITH_STAT_NAME_IN_SET(FLowLevelMemTracker::Get().IsTagSetActive(ELLMTagSet::Assets) ? PackageName : NAME_None, ELLMTagSet::Assets, ELLMTracker::Default);

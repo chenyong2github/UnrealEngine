@@ -25,7 +25,7 @@ bool FInstancedScreenVertexShaderVS::ShouldCompilePermutation(const FGlobalShade
 	return Aspects.IsInstancedMultiViewportEnabled();
 }
 
-void FScreenRectangleVertexBuffer::InitRHI()
+void FScreenRectangleVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
 	Vertices.SetNumUninitialized(6);
@@ -51,10 +51,10 @@ void FScreenRectangleVertexBuffer::InitRHI()
 
 	// Create vertex buffer. Fill buffer with initial data upon creation
 	FRHIResourceCreateInfo CreateInfo(TEXT("FScreenRectangleVertexBuffer"), &Vertices);
-	VertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfo);
+	VertexBufferRHI = RHICmdList.CreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfo);
 }
 
-void FScreenRectangleIndexBuffer::InitRHI()
+void FScreenRectangleIndexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	const uint16 Indices[] = 
 	{
@@ -70,5 +70,5 @@ void FScreenRectangleIndexBuffer::InitRHI()
 
 	// Create index buffer. Fill buffer with initial data upon creation
 	FRHIResourceCreateInfo CreateInfo(TEXT("FScreenRectangleIndexBuffer"), &IndexBuffer);
-	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), IndexBuffer.GetResourceDataSize(), BUF_Static, CreateInfo);
+	IndexBufferRHI = RHICmdList.CreateIndexBuffer(sizeof(uint16), IndexBuffer.GetResourceDataSize(), BUF_Static, CreateInfo);
 }

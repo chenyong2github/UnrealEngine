@@ -216,7 +216,7 @@ public:
 
 	static const uint32 NumVerts = NumSides * NumSlices * 2;
 
-	void InitRHI() override
+	void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> Indices;
 
@@ -268,7 +268,7 @@ public:
 
 		// Create index buffer. Fill buffer with initial data upon creation
 		FRHIResourceCreateInfo CreateInfo(TEXT("FStencilConeIndexBuffer"), &Indices);
-		IndexBufferRHI = RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
+		IndexBufferRHI = RHICmdList.CreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
 	}
 
 	int32 GetIndexCount() const { return NumIndices; }
@@ -291,7 +291,7 @@ public:
 	/**
 	* Initialize the RHI for this rendering resource
 	*/
-	void InitRHI() override
+	void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		TResourceArray<FVector4f, VERTEXBUFFER_ALIGNMENT> Verts;
 		Verts.Empty(NumVerts);

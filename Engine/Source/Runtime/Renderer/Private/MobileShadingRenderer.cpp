@@ -307,7 +307,7 @@ class FMobileDirLightShaderParamsRenderResource : public FRenderResource
 public:
 	using MobileDirLightUniformBufferRef = TUniformBufferRef<FMobileDirectionalLightShaderParameters>;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		UniformBufferRHI =
 			MobileDirLightUniformBufferRef::CreateUniformBufferImmediate(

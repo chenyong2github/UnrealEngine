@@ -16,7 +16,7 @@ FNiagaraCutoutVertexBuffer::FNiagaraCutoutVertexBuffer(int32 ZeroInitCount)
 	}
 }
 
-void FNiagaraCutoutVertexBuffer::InitRHI()
+void FNiagaraCutoutVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if (Data.Num())
 	{
@@ -24,11 +24,11 @@ void FNiagaraCutoutVertexBuffer::InitRHI()
 		FRHIResourceCreateInfo CreateInfo(TEXT("FNiagaraCutoutVertexBuffer"));
 
 		const int32 DataSize = Data.Num() * sizeof(FVector2f);
-		VertexBufferRHI = RHICreateBuffer(DataSize, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, DataSize, RLM_WriteOnly);
+		VertexBufferRHI = RHICmdList.CreateBuffer(DataSize, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		void* BufferData = RHICmdList.LockBuffer(VertexBufferRHI, 0, DataSize, RLM_WriteOnly);
 		FMemory::Memcpy(BufferData, Data.GetData(), DataSize);
-		RHIUnlockBuffer(VertexBufferRHI);
-		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
+		VertexBufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
 
 		Data.Empty();
 	}

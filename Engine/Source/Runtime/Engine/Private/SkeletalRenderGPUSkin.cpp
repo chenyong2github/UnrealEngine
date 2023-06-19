@@ -84,7 +84,7 @@ static int32 GetRayTracingSkeletalMeshGlobalLODBias()
 FMorphVertexBuffer
 -----------------------------------------------------------------------------*/
 
-void FMorphVertexBuffer::InitRHI()
+void FMorphVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// LOD of the skel mesh is used to find number of vertices in buffer
 	FSkeletalMeshLODRenderData& LodData = SkelMeshRenderData->LODRenderData[LODIdx];
@@ -102,23 +102,23 @@ void FMorphVertexBuffer::InitRHI()
 	// BUF_ShaderResource is needed for Morph support of the SkinCache
 	Flags = (EBufferUsageFlags)(Flags | BUF_ShaderResource);
 
-	VertexBufferRHI = RHICreateVertexBuffer(Size, Flags, CreateInfo);
+	VertexBufferRHI = RHICmdList.CreateVertexBuffer(Size, Flags, CreateInfo);
 	VertexBufferRHI->SetOwnerName(GetOwnerName());
-	SRVValue = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
+	SRVValue = RHICmdList.CreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
 
 	if (!bUseGPUMorphTargets)
 	{
 		// Lock the buffer.
-		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, sizeof(FMorphGPUSkinVertex)*LodData.GetNumVertices(), RLM_WriteOnly);
+		void* BufferData = RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FMorphGPUSkinVertex)*LodData.GetNumVertices(), RLM_WriteOnly);
 		FMorphGPUSkinVertex* Buffer = (FMorphGPUSkinVertex*)BufferData;
 		FMemory::Memzero(&Buffer[0], sizeof(FMorphGPUSkinVertex)*LodData.GetNumVertices());
 		// Unlock the buffer.
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 		bNeedsInitialClear = false;
 	}
 	else
 	{
-		UAVValue = RHICreateUnorderedAccessView(VertexBufferRHI, PF_R32_UINT);
+		UAVValue = RHICmdList.CreateUnorderedAccessView(VertexBufferRHI, PF_R32_UINT);
 		bNeedsInitialClear = true;
 	}
 
@@ -775,7 +775,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 
 void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRenderData& LODModel, uint32 LODIndex, TArray<FBufferRHIRef>& VertexBufffers)
 {
-	check(IsInRenderingThread());
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	if (IsRayTracingEnabled() && bSupportRayTracing)
 	{
@@ -881,7 +881,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateRayTracingGeometry(FSkeletalMeshLODRender
 			RayTracingGeometryStructureSize = RHICalcRayTracingGeometrySize(Initializer);
 
 			// Only create RHI object but enqueue actual BLAS creation so they can be accumulated
-			RayTracingGeometry.CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Skip);
+			RayTracingGeometry.CreateRayTracingGeometry(RHICmdList, ERTAccelerationStructureBuildPriority::Skip);
 		}
 		else if (!bAnySegmentUsesWorldPositionOffset)
 		{

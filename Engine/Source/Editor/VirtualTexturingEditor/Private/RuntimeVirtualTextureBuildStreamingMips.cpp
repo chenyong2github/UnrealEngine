@@ -40,7 +40,7 @@ namespace
 		}
 
 		//~ Begin FRenderResource Interface.
-		virtual void InitRHI() override
+		virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 		{
 			RenderTargets.Init(nullptr, NumLayers);
 			StagingTextures.Init(nullptr, NumLayers);

@@ -108,9 +108,8 @@ public:
 		}
 	}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
-		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 		Buffers.PositionVertexBuffer.InitResource(RHICmdList);
 		Buffers.StaticMeshVertexBuffer.InitResource(RHICmdList);
 	}
@@ -138,7 +137,7 @@ public:
 		ReleaseResource();
 	}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FQuadMeshVertexBuffer* VertexBuffer = &GQuadMeshVertexBuffer;
 		FLocalVertexFactory::FDataType NewData;
@@ -150,7 +149,7 @@ public:
 		// Don't call SetData(), because that ends up calling UpdateRHI(), and if the resource has already been initialized
 		// (e.g. when switching the feature level in the editor), that calls InitRHI(), resulting in an infinite loop.
 		Data = NewData;
-		FLocalVertexFactory::InitRHI();
+		FLocalVertexFactory::InitRHI(RHICmdList);
 	}
 
 	bool HasIncompatibleFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel)

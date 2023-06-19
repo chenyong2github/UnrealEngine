@@ -78,7 +78,7 @@ void FDisplayClusterRenderTextureResource::ReleaseTextureData()
 	}
 }
 
-void FDisplayClusterRenderTextureResource::InitRHI()
+void FDisplayClusterRenderTextureResource::InitRHI(FRHICommandListBase&)
 {
 	check(IsInRenderingThread());
 

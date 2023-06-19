@@ -93,7 +93,7 @@ FSimpleElementVertexDeclaration::FSimpleElementVertexDeclaration() = default;
 FSimpleElementVertexDeclaration::FSimpleElementVertexDeclaration(FSimpleElementVertexDeclaration&&) = default;
 FSimpleElementVertexDeclaration::~FSimpleElementVertexDeclaration() = default;
 
-void FSimpleElementVertexDeclaration::InitRHI()
+void FSimpleElementVertexDeclaration::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FVertexDeclarationElementList Elements;
 	uint16 Stride = sizeof(FSimpleElementVertex);

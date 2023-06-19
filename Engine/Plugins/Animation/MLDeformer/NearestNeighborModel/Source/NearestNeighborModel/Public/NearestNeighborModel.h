@@ -39,7 +39,7 @@ namespace UE::NearestNeighborModel
 		void Init(TArray<T>* InArray, const FString& InDebugName);
 
 	private:
-		void InitRHI() override;
+		void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 		TArray<T>* Array = nullptr;
 		FString DebugName;
@@ -52,7 +52,7 @@ namespace UE::NearestNeighborModel
 		void Init(int32 InNumElements, const FString& InDebugName);
 
 	private:
-		void InitRHI() override;
+		void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 		int32 NumElements = 0;
 		FString DebugName;

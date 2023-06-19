@@ -1054,13 +1054,13 @@ void RefreshSamplerStatesCallback()
 				if (WrapState)
 				{
 					WrapState->ReleaseRHI();
-					WrapState->InitRHI();
+					WrapState->InitRHI(RHICmdList);
 				}
 
 				if (ClampState)
 				{
 					ClampState->ReleaseRHI();
-					ClampState->InitRHI();
+					ClampState->InitRHI(RHICmdList);
 				}
 			}
 			);
@@ -10650,7 +10650,7 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		}
 
 		static TArray<FBufferRHIRef> BufferRefs;
-		ENQUEUE_RENDER_COMMAND(GPUOOMAllocate)([MBToAllocate](FRHICommandListImmediate& CmdList)
+		ENQUEUE_RENDER_COMMAND(GPUOOMAllocate)([MBToAllocate](FRHICommandListImmediate& RHICmdList)
 		{
 			// variables captured by value are const
 			size_t RemainingMB = MBToAllocate;
@@ -10662,11 +10662,11 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 
 				// create and fill buffer
 				FRHIResourceCreateInfo Info(TEXT("Debug GPUAlloc"));
-				FBufferRHIRef Buf = RHICreateBuffer(CurrentAllocBytes, EBufferUsageFlags::VertexBuffer, 32, ERHIAccess::Unknown, Info);
+				FBufferRHIRef Buf = RHICmdList.CreateBuffer(CurrentAllocBytes, EBufferUsageFlags::VertexBuffer, 32, ERHIAccess::Unknown, Info);
 				// only need to touch some of the memory
-				void* Data = RHILockBuffer(Buf, 0, CurrentAllocBytes, EResourceLockMode::RLM_WriteOnly);
+				void* Data = RHICmdList.LockBuffer(Buf, 0, CurrentAllocBytes, EResourceLockMode::RLM_WriteOnly);
 				FMemory::Memset(Data, 'd', CurrentAllocBytes);
-				RHIUnlockBuffer(Buf);
+				RHICmdList.UnlockBuffer(Buf);
 
 				// store temporarily to avoid RAII
 				BufferRefs.Add(Buf);

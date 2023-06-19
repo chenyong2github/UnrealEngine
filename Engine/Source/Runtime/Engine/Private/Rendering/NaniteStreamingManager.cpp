@@ -602,7 +602,7 @@ FStreamingManager::FStreamingManager() :
 {
 }
 
-void FStreamingManager::InitRHI()
+void FStreamingManager::InitRHI(FRHICommandListBase&)
 {
 	if (!DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{

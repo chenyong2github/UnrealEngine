@@ -59,7 +59,7 @@ public:
 	~FNiagaraGPUInstanceCountManager();
 
 	// Init resource for the first time.
-	void InitRHI();
+	void InitRHI(FRHICommandListBase& RHICmdList);
 	// Free resources.
 	void ReleaseRHI();
 

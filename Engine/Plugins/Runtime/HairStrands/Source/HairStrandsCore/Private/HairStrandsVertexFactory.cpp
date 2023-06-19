@@ -41,34 +41,34 @@ public:
 	FShaderResourceViewRHIRef SRVByteAddress;
 	FBufferRHIRef ByteAddressBufferRHI;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const static FLazyName ClassName(TEXT("FDummyCulledDispatchVertexIdsBuffer"));
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FDummyCulledDispatchVertexIdsBuffer"));
 			CreateInfo.ClassName = ClassName;
 			uint32 NumBytes = sizeof(uint32) * 4;
-			VertexBufferRHI = RHICreateBuffer(NumBytes, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-			uint32* DummyContents = (uint32*)RHILockBuffer(VertexBufferRHI, 0, NumBytes, RLM_WriteOnly);
+			VertexBufferRHI = RHICmdList.CreateBuffer(NumBytes, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+			uint32* DummyContents = (uint32*)RHICmdList.LockBuffer(VertexBufferRHI, 0, NumBytes, RLM_WriteOnly);
 			DummyContents[0] = DummyContents[1] = DummyContents[2] = DummyContents[3] = 0;
-			RHIUnlockBuffer(VertexBufferRHI);
+			RHICmdList.UnlockBuffer(VertexBufferRHI);
 		}
 
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("FDummyByteAddressBuffer"));
 			CreateInfo.ClassName = ClassName;
 			uint32 NumBytes = sizeof(uint32) * 4;
-			ByteAddressBufferRHI = RHICreateBuffer(NumBytes, BUF_Static | BUF_ShaderResource |BUF_ByteAddressBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
-			uint32* DummyContents = (uint32*)RHILockBuffer(ByteAddressBufferRHI, 0, NumBytes, RLM_WriteOnly);
+			ByteAddressBufferRHI = RHICmdList.CreateBuffer(NumBytes, BUF_Static | BUF_ShaderResource |BUF_ByteAddressBuffer, 0, ERHIAccess::SRVMask, CreateInfo);
+			uint32* DummyContents = (uint32*)RHICmdList.LockBuffer(ByteAddressBufferRHI, 0, NumBytes, RLM_WriteOnly);
 			DummyContents[0] = DummyContents[1] = DummyContents[2] = DummyContents[3] = 0;
-			RHIUnlockBuffer(ByteAddressBufferRHI);
+			RHICmdList.UnlockBuffer(ByteAddressBufferRHI);
 		}
 
-		SRVUint = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
-		SRVFloat = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_FLOAT);
-		SRVRGBA = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R8G8B8A8);
-		SRVRGBA_Uint = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R8G8B8A8_UINT);
-		SRVByteAddress = RHICreateShaderResourceView(ByteAddressBufferRHI, sizeof(uint32), PF_R32_UINT);
+		SRVUint = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
+		SRVFloat = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_FLOAT);
+		SRVRGBA = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R8G8B8A8);
+		SRVRGBA_Uint = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R8G8B8A8_UINT);
+		SRVByteAddress = RHICmdList.CreateShaderResourceView(ByteAddressBufferRHI, sizeof(uint32), PF_R32_UINT);
 	}
 
 	virtual void ReleaseRHI() override
@@ -262,7 +262,7 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Compute,		
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_RayHitGroup,	FHairStrandsVertexFactoryShaderParameters);
 #endif
 
-void FHairStrandsVertexFactory::InitRHI()
+void FHairStrandsVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	// Nothing as the initialize runs only on first use
 }

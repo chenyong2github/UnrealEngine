@@ -29,16 +29,16 @@ class FSpeedTreeWindNullUniformBuffer : public TUniformBuffer<FSpeedTreeUniformP
 {
 	typedef TUniformBuffer< FSpeedTreeUniformParameters > Super;
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
-void FSpeedTreeWindNullUniformBuffer::InitRHI()
+void FSpeedTreeWindNullUniformBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FSpeedTreeUniformParameters Parameters;
 	FMemory::Memzero(Parameters);
 	SetContentsNoUpdate(Parameters);
 	
-	Super::InitRHI();
+	Super::InitRHI(RHICmdList);
 }
 
 static TGlobalResource< FSpeedTreeWindNullUniformBuffer > GSpeedTreeWindNullUniformBuffer;
@@ -413,7 +413,7 @@ void FLocalVertexFactory::Copy(const FLocalVertexFactory& Other)
 	BeginUpdateResourceRHI(this);
 }
 
-void FLocalVertexFactory::InitRHI()
+void FLocalVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	SCOPED_LOADTIMER(FLocalVertexFactory_InitRHI);
 

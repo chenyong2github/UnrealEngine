@@ -25,7 +25,7 @@ public:
 		Fences.AddDefaulted(NumFences);
 	}
 
-	void InitRHI()
+	void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 	}
 
@@ -82,7 +82,7 @@ public:
 		Fences.AddDefaulted(InSize);
 	}
 
-	void InitRHI()
+	void InitRHI(FRHICommandListBase&)
 	{
 		if (!DummyFence.IsValid())
 		{
@@ -160,14 +160,14 @@ FVirtualTextureFeedback::~FVirtualTextureFeedback()
 	delete Fences;
 }
 
-void FVirtualTextureFeedback::InitRHI()
+void FVirtualTextureFeedback::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	for (int32 Index = 0; Index < MaxTransfers; ++Index)
 	{
 		FeedbackItems[Index].StagingBuffer = RHICreateStagingBuffer();
 	}
 
-	Fences->InitRHI();
+	Fences->InitRHI(RHICmdList);
 }
 
 void FVirtualTextureFeedback::ReleaseRHI()

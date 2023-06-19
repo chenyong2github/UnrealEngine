@@ -47,7 +47,7 @@ class FEmptyPrecomputedLightingUniformBuffer : public TUniformBuffer< FPrecomput
 {
 	typedef TUniformBuffer< FPrecomputedLightingUniformParameters > Super;
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 /** Global uniform buffer containing the default precomputed lighting data. */
@@ -69,7 +69,7 @@ class FEmptyIndirectLightingCacheUniformBuffer : public TUniformBuffer< FIndirec
 {
 	typedef TUniformBuffer< FIndirectLightingCacheUniformParameters > Super;
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 /** Global uniform buffer containing the default precomputed lighting data. */

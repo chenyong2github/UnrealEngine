@@ -115,8 +115,10 @@ public:
 	 * Called when entering the state where both the resource and the RHI have been initialized.
 	 * This is only called by the rendering thread.
 	 */
-	virtual void InitRHI() {}
-	virtual void InitRHI(FRHICommandListBase& RHICmdList) { InitRHI(); }
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) {}
+
+	UE_DEPRECATED(5.3, "InitRHI now requires a command list.")
+	virtual void InitRHI() final {}
 
 	/**
 	 * Releases the RHI resources used by this resource.
@@ -129,9 +131,10 @@ public:
 	 * Initializes the resource.
 	 * This is only called by the rendering thread.
 	 */
+	RENDERCORE_API virtual void InitResource(FRHICommandListBase& RHICmdList);
+
 	UE_DEPRECATED(5.3, "InitResource now requires a command list.")
 	virtual void InitResource() final { InitResource(GetCommandList()); }
-	RENDERCORE_API virtual void InitResource(FRHICommandListBase& RHICmdList);
 
 	/**
 	 * Prepares the resource for deletion.
@@ -460,7 +463,7 @@ public:
 	RENDERCORE_API void BeginRelease_GameThread();
 
 	// FRenderResource interface.
-	RENDERCORE_API virtual void InitRHI();
+	RENDERCORE_API virtual void InitRHI(FRHICommandListBase& RHICmdList);
 	RENDERCORE_API virtual void ReleaseRHI();
 	RENDERCORE_API virtual FString GetFriendlyName() const;
 };

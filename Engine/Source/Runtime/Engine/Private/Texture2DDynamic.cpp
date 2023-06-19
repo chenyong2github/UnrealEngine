@@ -36,7 +36,7 @@ uint32 FTexture2DDynamicResource::GetSizeY() const
 }
 
 /** Called when the resource is initialized. This is only called by the rendering thread. */
-void FTexture2DDynamicResource::InitRHI()
+void FTexture2DDynamicResource::InitRHI(FRHICommandListBase&)
 {
 	// Create the sampler state RHI resource.
 	ESamplerAddressMode SamplerAddressMode = Owner->SamplerAddressMode;

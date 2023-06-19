@@ -56,7 +56,7 @@ public:
 	//~ End FViewport Interface
 
 	//~ Begin FRenderResource Interface
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual FString GetFriendlyName() const override { return FString(TEXT("FDummyViewport"));}
 	//~ End FRenderResource Interface
 private:

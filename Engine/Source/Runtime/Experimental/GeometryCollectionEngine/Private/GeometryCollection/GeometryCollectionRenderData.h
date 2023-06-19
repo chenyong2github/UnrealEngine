@@ -36,7 +36,7 @@ protected:
 	void AllocateData(bool bInNeedsCPUAccess = true);
 	void ResizeBuffer(uint32 InNumVertices);
 
-	void InitRHI() override;
+	void InitRHI(FRHICommandListBase& RHICmdList) override;
 	void ReleaseRHI() override;
 
 	static const EPixelFormat PixelFormat = PF_R16_UINT;

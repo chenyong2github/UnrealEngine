@@ -250,7 +250,7 @@ FVariableRateShadingImageManager::FVariableRateShadingImageManager()
 
 FVariableRateShadingImageManager::~FVariableRateShadingImageManager() {}
 
-void FVariableRateShadingImageManager::InitRHI()
+void FVariableRateShadingImageManager::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if (IsVRSSupportedByRHI())
 	{

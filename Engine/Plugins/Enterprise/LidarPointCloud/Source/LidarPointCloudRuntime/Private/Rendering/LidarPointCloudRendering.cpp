@@ -128,15 +128,15 @@ private:
 			InitResource(FRHICommandListImmediate::Get());
 		}
 
-		virtual void InitRHI() override
+		virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 		{
 			const uint32 Size = DataLength * sizeof(FVector3f);
 
 			FRHIResourceCreateInfo CreateInfo(TEXT("FLidarPointCloudCollisionVertexBuffer"));
-			VertexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-			void* Buffer = RHILockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
+			VertexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+			void* Buffer = RHICmdList.LockBuffer(VertexBufferRHI, 0, Size, RLM_WriteOnly);
 			FMemory::Memcpy(Buffer, Data, Size);
-			RHIUnlockBuffer(VertexBufferRHI);
+			RHICmdList.UnlockBuffer(VertexBufferRHI);
 		}
 	} VertexBuffer;
 	class FLidarPointCloudCollisionIndexBuffer : public FIndexBuffer
@@ -153,15 +153,15 @@ private:
 			InitResource(FRHICommandListImmediate::Get());
 		}
 
-		virtual void InitRHI() override
+		virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 		{
 			const uint32 Size = DataLength * sizeof(uint32);
 
 			FRHIResourceCreateInfo CreateInfo(TEXT("FLidarPointCloudCollisionIndexBuffer"));
-			IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-			void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
+			IndexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+			void* Buffer = RHICmdList.LockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
 			FMemory::Memcpy(Buffer, Data, Size);
-			RHIUnlockBuffer(IndexBufferRHI);
+			RHICmdList.UnlockBuffer(IndexBufferRHI);
 		}
 	} IndexBuffer;
 

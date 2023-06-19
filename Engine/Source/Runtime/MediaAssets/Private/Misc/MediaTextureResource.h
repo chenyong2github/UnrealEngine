@@ -127,7 +127,7 @@ public:
 	virtual FString GetFriendlyName() const override;
 	virtual uint32 GetSizeX() const override;
 	virtual uint32 GetSizeY() const override;
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 protected:

@@ -32,7 +32,7 @@ public:
 	virtual FString GetFriendlyName() const override { return TEXT("FSlateFontTextureRHIResource"); }
 
 	/** FRenderResource interface */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	
 	/** Returns whether the texture resource is 8-bit grayscale or 8-bit per-channel BGRA color */

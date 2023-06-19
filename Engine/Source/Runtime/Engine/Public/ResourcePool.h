@@ -248,7 +248,7 @@ public: // From FTickableObjectRenderThread
 	}
 	
 public: // From FRenderResource
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FTickableObjectRenderThread::Register();
 	}

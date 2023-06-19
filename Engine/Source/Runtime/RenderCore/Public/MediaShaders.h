@@ -146,7 +146,7 @@ public:
 	RENDERCORE_API FMediaVertexDeclaration();
 	RENDERCORE_API virtual ~FMediaVertexDeclaration();
 
-	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	RENDERCORE_API virtual void ReleaseRHI() override;
 
 	FVertexDeclarationRHIRef VertexDeclarationRHI;

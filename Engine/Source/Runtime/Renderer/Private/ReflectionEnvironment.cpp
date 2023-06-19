@@ -145,7 +145,7 @@ bool IsReflectionCaptureAvailable()
 	return (!AllowStaticLightingVar || AllowStaticLightingVar->GetInt() != 0);
 }
 
-void FReflectionEnvironmentCubemapArray::InitRHI()
+void FReflectionEnvironmentCubemapArray::InitRHI(FRHICommandListBase&)
 {
 	if (SupportsTextureCubeArray(GetFeatureLevel()))
 	{
@@ -543,10 +543,10 @@ void FReflectionEnvironmentCubemapArray::ResizeCubemapArrayGPU(uint32 InMaxCubem
 	int OldMaxCubemaps = MaxCubemaps;
 	MaxCubemaps = InMaxCubemaps;
 
-	InitRHI();
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	InitRHI(RHICmdList);
 
 	FTextureRHIRef TexRef = OldReflectionEnvs->GetRHI();
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const int32 NumMips = FMath::CeilLogTwo(InCubemapSize) + 1;
 
 	{

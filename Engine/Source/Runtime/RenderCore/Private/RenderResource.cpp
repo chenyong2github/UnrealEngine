@@ -148,14 +148,14 @@ void FRenderResource::ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel)
 	ENQUEUE_RENDER_COMMAND(FRenderResourceChangeFeatureLevel)(
 		[NewFeatureLevel](FRHICommandList& RHICmdList)
 	{
-		const auto Lambda = [NewFeatureLevel](FRenderResource* Resource)
+		const auto Lambda = [NewFeatureLevel, &RHICmdList](FRenderResource* Resource)
 		{
 			// Only resources configured for a specific feature level need to be updated
 			if (Resource->HasValidFeatureLevel() && (Resource->FeatureLevel != NewFeatureLevel))
 			{
 				Resource->ReleaseRHI();
 				Resource->FeatureLevel = NewFeatureLevel;
-				Resource->InitRHI();
+				Resource->InitRHI(RHICmdList);
 			}
 		};
 
@@ -534,7 +534,7 @@ void FTextureReference::InvalidateLastRenderTime()
 	}
 }
 
-void FTextureReference::InitRHI()
+void FTextureReference::InitRHI(FRHICommandListBase&)
 {
 	SCOPED_LOADTIMER(FTextureReference_InitRHI);
 	TextureReferenceRHI = RHICreateTextureReference();

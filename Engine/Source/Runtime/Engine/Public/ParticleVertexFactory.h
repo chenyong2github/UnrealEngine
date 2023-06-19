@@ -120,7 +120,7 @@ public:
 	{}
 
 	// FRenderResource interface.
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	virtual bool RendersPrimitivesAsCameraFacingSprites() const override { return true; }
 

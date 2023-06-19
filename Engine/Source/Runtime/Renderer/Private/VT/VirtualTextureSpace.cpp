@@ -107,7 +107,7 @@ void FVirtualTextureSpace::FreeVirtualTexture(FAllocatedVirtualTexture* VirtualT
 	Allocator.Free(VirtualTexture);
 }
 
-void FVirtualTextureSpace::InitRHI()
+void FVirtualTextureSpace::InitRHI(FRHICommandListBase&)
 {
 	for (uint32 TextureIndex = 0u; TextureIndex < GetNumPageTableTextures(); ++TextureIndex)
 	{

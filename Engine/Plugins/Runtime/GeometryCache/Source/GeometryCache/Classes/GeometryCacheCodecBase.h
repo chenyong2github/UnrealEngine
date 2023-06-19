@@ -86,7 +86,7 @@ public:
 	/**
 		Called once we are on the render thread this can create any render buffers etc.
 	*/
-	virtual void InitRHI() {};
+	virtual void InitRHI(FRHICommandListBase&) {};
 
 	virtual bool DecodeSingleFrame(FGeometryCacheCodecDecodeArguments &Args) { return false; }
 	

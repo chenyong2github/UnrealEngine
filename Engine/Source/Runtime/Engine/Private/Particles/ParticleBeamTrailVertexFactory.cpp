@@ -76,7 +76,7 @@ public:
 		Elements.Add(FVertexElement(1, 0, VET_Float4, 5, bUsesDynamicParameter ? sizeof(FVector4f) : 0));
 	}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FVertexDeclarationElementList Elements;
 		int32	Offset = 0;
@@ -133,7 +133,7 @@ FRHIVertexDeclaration* FParticleBeamTrailVertexFactory::GetPSOPrecacheVertexDecl
 /**
  *	Initialize the Render Hardware Interface for this vertex factory
  */
-void FParticleBeamTrailVertexFactory::InitRHI()
+void FParticleBeamTrailVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	SetDeclaration(bUsesDynamicParameter ? GParticleBeamTrailVertexDeclarationDynamic.VertexDeclarationRHI
 		: GParticleBeamTrailVertexDeclaration.VertexDeclarationRHI);

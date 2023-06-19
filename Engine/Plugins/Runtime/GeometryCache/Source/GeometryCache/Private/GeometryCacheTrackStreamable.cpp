@@ -600,10 +600,9 @@ void FGeometryCacheTrackStreamableRenderResource::InitGame(UGeometryCacheTrackSt
 	Track = SetTrack;
 }
 
-void FGeometryCacheTrackStreamableRenderResource::InitRHI()
+void FGeometryCacheTrackStreamableRenderResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
-	check(IsInRenderingThread());
-	Codec->InitRHI();
+	Codec->InitRHI(RHICmdList);
 }
 
 void FGeometryCacheTrackStreamableRenderResource::ReleaseRHI()

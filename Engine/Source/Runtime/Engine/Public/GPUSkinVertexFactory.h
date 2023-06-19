@@ -472,7 +472,7 @@ public:
 	virtual uint32 GetMorphVertexBufferUpdatedFrameNumber() const override;
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 protected:
@@ -721,7 +721,7 @@ public:
 	* Creates declarations for each of the vertex stream components and
 	* initializes the device resource
 	*/
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 protected:

@@ -45,7 +45,7 @@ public:
 	}
 
 	/** Initialize RHI resources. */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** Release RHI resources. */
 	virtual void ReleaseRHI() override;

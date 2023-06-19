@@ -141,7 +141,7 @@ public:
 	virtual void ReleaseRHI() override;
 
 	/** Init Field resources. */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** Update RHI resources. */
 	void UpdateResource(FRHICommandListImmediate& RHICmdList,

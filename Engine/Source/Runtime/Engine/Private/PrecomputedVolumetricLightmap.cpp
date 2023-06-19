@@ -221,7 +221,7 @@ void FPrecomputedVolumetricLightmapData::FinalizeImport()
 	INC_DWORD_STAT_BY(STAT_VolumetricLightmapBuildData, VolumeBytes);
 }
 
-ENGINE_API void FPrecomputedVolumetricLightmapData::InitRHI()
+ENGINE_API void FPrecomputedVolumetricLightmapData::InitRHI(FRHICommandListBase&)
 {
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{

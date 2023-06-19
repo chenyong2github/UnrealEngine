@@ -88,7 +88,7 @@ TGlobalResource<FSlateMaskingVertexDeclaration> GSlateMaskingVertexDeclaration;
 /************************************************************************/
 /* FSlateVertexDeclaration                                              */
 /************************************************************************/
-void FSlateVertexDeclaration::InitRHI()
+void FSlateVertexDeclaration::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FVertexDeclarationElementList Elements;
 	uint16 Stride = sizeof(FSlateVertex);
@@ -111,7 +111,7 @@ void FSlateVertexDeclaration::ReleaseRHI()
 /************************************************************************/
 /* FSlateInstancedVertexDeclaration                                     */
 /************************************************************************/
-void FSlateInstancedVertexDeclaration::InitRHI()
+void FSlateInstancedVertexDeclaration::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FVertexDeclarationElementList Elements;
 	uint16 Stride = sizeof(FSlateVertex);
@@ -135,7 +135,7 @@ void FSlateElementPS::ModifyCompilationEnvironment(const FGlobalShaderPermutatio
 /************************************************************************/
 /* FSlateMaskingVertexDeclaration                                              */
 /************************************************************************/
-void FSlateMaskingVertexDeclaration::InitRHI()
+void FSlateMaskingVertexDeclaration::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	FVertexDeclarationElementList Elements;
 	uint16 Stride = sizeof(uint32);

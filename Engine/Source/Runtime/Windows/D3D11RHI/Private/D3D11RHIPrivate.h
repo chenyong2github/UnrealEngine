@@ -192,7 +192,7 @@ public:
 	/**
 	 * Initializes all D3D resources.
 	 */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/**
 	 * Releases all D3D resources.
@@ -237,7 +237,7 @@ public:
 	/**
 	 * Initializes all D3D resources.
 	 */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/**
 	 * Releases all D3D resources.
@@ -261,7 +261,7 @@ public:
 		Timing(InRHI, 1)
 	{
 		// Initialize Buffered timestamp queries 
-		Timing.InitRHI(); // can't do this from the RHI thread
+		Timing.InitRHI(FRHICommandListExecutor::GetImmediateCommandList()); // can't do this from the RHI thread
 	}
 
 	virtual ~FD3D11EventNode()
@@ -299,8 +299,9 @@ public:
 		RootEventTiming(InRHI, 1),
 		DisjointQuery(InRHI)
 	{
-		RootEventTiming.InitRHI();
-		DisjointQuery.InitRHI();
+		FRHICommandListBase& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		RootEventTiming.InitRHI(RHICmdList);
+		DisjointQuery.InitRHI(RHICmdList);
 	}
 
 	~FD3D11EventNodeFrame()

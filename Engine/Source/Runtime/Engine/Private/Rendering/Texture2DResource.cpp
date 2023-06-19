@@ -96,7 +96,7 @@ void FTexture2DResource::CacheSamplerStateInitializer(const UTexture2D* InOwner)
 	MipBias = UTexture2D::GetGlobalMipMapLODBias() + DefaultMipBias;
 }
 
-void FTexture2DResource::InitRHI()
+void FTexture2DResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if (ProxiedResource)
 	{
@@ -107,7 +107,7 @@ void FTexture2DResource::InitRHI()
 	}
 	else
 	{
-		FStreamableTextureResource::InitRHI();
+		FStreamableTextureResource::InitRHI(RHICmdList);
 	}
 }
 

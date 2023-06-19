@@ -83,7 +83,7 @@ public:
 	ENGINE_API FSimpleElementVertexDeclaration(FSimpleElementVertexDeclaration&&);
 	ENGINE_API virtual ~FSimpleElementVertexDeclaration();
 
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	ENGINE_API virtual void ReleaseRHI() override;
 };
 

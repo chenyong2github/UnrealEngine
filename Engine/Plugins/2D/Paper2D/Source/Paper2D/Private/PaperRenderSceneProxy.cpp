@@ -250,7 +250,7 @@ void FPaperRenderSceneProxy::RecreateCachedRenderData(FRHICommandListBase& RHICm
 		if (VertexBuffer.IsInitialized())
 		{
 			const bool bFactoryRequiresReInitialization = VertexBuffer.CommitRequiresBufferRecreation();
-			VertexBuffer.CommitVertexData();
+			VertexBuffer.CommitVertexData(RHICmdList);
 
 			//When the buffer reallocates, the factory needs to bind the buffers and SRV again, we just init again.
 			if (bFactoryRequiresReInitialization)

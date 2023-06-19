@@ -74,7 +74,7 @@ public:
 	FSubUVBoundingGeometryBuffer(TArray<FVector2f>* InVertices);
 	~FSubUVBoundingGeometryBuffer();
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 };
 

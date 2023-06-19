@@ -228,7 +228,7 @@ public:
 	FNodesAndClusterBatchesBuffer	MainAndPostNodesAndClusterBatchesBuffer;
 
 public:
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	void Update(FRDGBuilder& GraphBuilder); // Called once per frame before any Nanite rendering has occurred.

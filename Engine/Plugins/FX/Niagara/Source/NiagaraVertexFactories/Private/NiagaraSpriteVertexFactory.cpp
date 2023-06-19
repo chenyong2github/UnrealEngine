@@ -137,7 +137,7 @@ public:
 		Elements.Add(FVertexElement(0, Offset, VET_Float2, 0, InitialStride, false));
 	}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FVertexDeclarationElementList Elements;
 		int32	Offset = 0;
@@ -189,7 +189,7 @@ void FNiagaraSpriteVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInput
 /**
  *	Initialize the Render Hardware Interface for this vertex factory
  */
-void FNiagaraSpriteVertexFactory::InitRHI()
+void FNiagaraSpriteVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	InitStreams();
 	SetDeclaration(GParticleSpriteVertexDeclaration.VertexDeclarationRHI);

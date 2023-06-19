@@ -28,7 +28,7 @@ public:
 	int32 GetResourceSize() const;
 	void CleanUp();
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	virtual FString GetFriendlyName() const override { return TEXT("SkeletalMeshAttributeVertexBuffer"); }
 

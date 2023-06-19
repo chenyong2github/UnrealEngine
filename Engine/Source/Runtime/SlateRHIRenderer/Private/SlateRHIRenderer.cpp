@@ -127,7 +127,7 @@ struct FSlateDrawWindowCommandParams
 	bool bClear;
 };
 
-void FViewportInfo::InitRHI()
+void FViewportInfo::InitRHI(FRHICommandListBase&)
 {
 	// Viewport RHI is created on the game thread
 	// Create the depth-stencil surface if needed.

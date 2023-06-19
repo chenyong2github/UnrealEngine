@@ -102,7 +102,7 @@ struct FViewportInfo : public FRenderResource
 	bool bSceneHDREnabled;
 
 	/** FRenderResource interface */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	virtual void ReleaseResource() override;
 

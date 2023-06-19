@@ -61,9 +61,9 @@ class FGPUSortDummyUAV : public FRenderResource
 public:
 	FRWBuffer Buffer;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
-		Buffer.Initialize(TEXT("FGPUSortDummyUAV"), sizeof(int32), 1, EPixelFormat::PF_R32_UINT, BUF_Static);
+		Buffer.Initialize(RHICmdList, TEXT("FGPUSortDummyUAV"), sizeof(int32), 1, EPixelFormat::PF_R32_UINT, BUF_Static);
 	}
 
 	virtual void ReleaseRHI() override
@@ -674,6 +674,7 @@ void FGPUSortManager::FinalizeSortBatches()
 
 void FGPUSortManager::UpdateSortBuffersPool()
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 	int32 NumSortBuffersRequired = DynamicValueBufferPool.Num() ? 1 : 0;
 	int32 MaxSortBuffersSizes = 0;
 
@@ -705,14 +706,14 @@ void FGPUSortManager::UpdateSortBuffersPool()
 			{
 				SortBuffers->ReleaseRHI();
 				SortBuffers->SetBufferSize(MaxSortBuffersSizes);
-				SortBuffers->InitRHI();
+				SortBuffers->InitRHI(RHICmdList);
 			}
 		}
 		else
 		{
 			FParticleSortBuffers* SortBuffers = new FParticleSortBuffers;
 			SortBuffers->SetBufferSize(MaxSortBuffersSizes);
-			SortBuffers->InitRHI();
+			SortBuffers->InitRHI(RHICmdList);
 			SortBuffersPool.Add(SortBuffers);
 		}
 	}

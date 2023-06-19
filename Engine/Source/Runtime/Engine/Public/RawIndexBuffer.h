@@ -25,7 +25,7 @@ public:
 	void CacheOptimize();
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	// Serialization.
 	friend FArchive& operator<<(FArchive& Ar,FRawIndexBuffer& I);
@@ -59,7 +59,7 @@ public:
 	void ForceUse32Bit(bool bIn32Bit) { b32Bit = bIn32Bit; }
 
 	// FRenderResource interface.
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	// Serialization.
 	friend FArchive& operator<<(FArchive& Ar,FRawIndexBuffer16or32& I);
@@ -304,7 +304,7 @@ public:
     void Discard();
     
 	// FRenderResource interface.
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	inline bool Is32Bit() const { return b32Bit; }
 
@@ -396,7 +396,7 @@ public:
 	/**
 	* Create the index buffer RHI resource and initialize its data
 	*/
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const bool bHadIndexData = Num() > 0;
 		IndexBufferRHI = CreateRHIBuffer_RenderThread();
@@ -404,7 +404,7 @@ public:
 		if (IndexBufferRHI && IsSRVNeeded(Indices.GetAllowCPUAccess()) && bHadIndexData)
 		{
 			// If the index buffer is a placeholder we still need to create a FRHIShaderResourceView.
-			SRVValue = RHICreateShaderResourceView(IndexBufferRHI, sizeof(INDEX_TYPE), sizeof(INDEX_TYPE) == 2 ? PF_R16_UINT : PF_R32_UINT);
+			SRVValue = RHICmdList.CreateShaderResourceView(IndexBufferRHI, sizeof(INDEX_TYPE), sizeof(INDEX_TYPE) == 2 ? PF_R16_UINT : PF_R32_UINT);
 		}
 	}
 	

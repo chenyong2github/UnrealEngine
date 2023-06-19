@@ -45,16 +45,16 @@ public:
 	void SetDynamicUsage(bool bInDynamicUsage);
 
 	/* Initializes the buffers with the given number of vertices to accommodate. */
-	void CreateBuffers(int32 NumVertices);
+	void CreateBuffers(FRHICommandListBase& RHICmdList, int32 NumVertices);
 
 	/* Clear all the buffers currently being used. */
 	void ReleaseBuffers();
 
 	/* Moves all the PaperVertex data onto the RHI buffers. */
-	void CommitVertexData();
+	void CommitVertexData(FRHICommandListBase& RHICmdList);
 
 	// FRenderResource interface
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	virtual void InitResource(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseResource() override;

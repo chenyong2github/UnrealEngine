@@ -794,7 +794,7 @@ protected:
 
 	//~ Begin FRenderResource Interface.
 	ENGINE_API virtual void ReleaseRHI() override;
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 };
 
 // Shortcuts for checking the state of both left&right variations of control keys.

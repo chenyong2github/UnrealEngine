@@ -31,7 +31,7 @@ public:
 	virtual uint32 GetHeight() const override { return Height; }
 
 	/** FRenderResource Interface.  Called when render resources need to be initialized */
-	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** FRenderResource Interface.  Called when render resources need to be released */
 	ENGINE_API virtual void ReleaseRHI() override;
@@ -120,7 +120,7 @@ public:
 	{
 	}
 
-	virtual void InitRHI() override {}
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override {}
 
 	/** 
 	 * Releases all dynamic RHI data
@@ -161,7 +161,7 @@ public:
 	virtual void ClampSize(int32 SizeX,int32 SizeY) override;
 
 	// FRenderResource implementation
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	// FRenderTarget interface

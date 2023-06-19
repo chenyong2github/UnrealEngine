@@ -87,7 +87,7 @@ public:
 	inline FTexturePagePool& GetPagePool() { return Pool; }
 
 	// FRenderResource interface
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	inline uint32 AddRef() { return ++NumRefs; }

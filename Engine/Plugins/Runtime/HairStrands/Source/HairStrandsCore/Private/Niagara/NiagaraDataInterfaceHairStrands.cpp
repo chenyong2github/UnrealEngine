@@ -290,14 +290,13 @@ void FNDIHairStrandsBuffer::Transfer(FRDGBuilder& GraphBuilder, const TStaticArr
 	}
 }
 
-void FNDIHairStrandsBuffer::InitRHI()
+void FNDIHairStrandsBuffer::InitRHI(FRHICommandListBase&)
 {
 	//ReadbackBuffer = new FRHIGPUBufferReadback(TEXT("Hair.PositionOffsetBuffer"));
 	
 	if (SourceRestResources != nullptr)
 	{
-		FMemMark MemMark(FMemStack::Get());
-		FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
+		FRDGBuilder GraphBuilder(FRHICommandListImmediate::Get());
 		FHairStrandsBulkData* SourceDatas = &SourceRestResources->BulkData; // This could be released by that time depending on how the initialization order is
 		{
 			static const uint32 ZeroData[] = {

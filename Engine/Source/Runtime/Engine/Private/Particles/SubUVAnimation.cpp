@@ -51,7 +51,7 @@ FSubUVBoundingGeometryBuffer::FSubUVBoundingGeometryBuffer(TArray<FVector2f>* In
 
 FSubUVBoundingGeometryBuffer::~FSubUVBoundingGeometryBuffer() = default;
 
-void FSubUVBoundingGeometryBuffer::InitRHI()
+void FSubUVBoundingGeometryBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	const uint32 SizeInBytes = Vertices->Num() * Vertices->GetTypeSize();
 
@@ -59,8 +59,8 @@ void FSubUVBoundingGeometryBuffer::InitRHI()
 	{
 		FSubUVVertexResourceArray ResourceArray(Vertices->GetData(), SizeInBytes);
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSubUVBoundingGeometryBuffer"), &ResourceArray);
-		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_ShaderResource | BUF_Static, CreateInfo);
-		ShaderResourceView = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(SizeInBytes, BUF_ShaderResource | BUF_Static, CreateInfo);
+		ShaderResourceView = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FVector2f), PF_G32R32F);
 	}
 }
 

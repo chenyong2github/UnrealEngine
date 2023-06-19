@@ -234,7 +234,7 @@ bool ShouldDrawSceneViewsInOneNanitePass(const FViewInfo& View)
 	return View.bIsMultiViewportEnabled && CVarDrawSceneViewsInOneNanitePass && (CVarDrawSceneViewsInOneNanitePass->GetValueOnRenderThread() > 0);
 }
 
-void FGlobalResources::InitRHI()
+void FGlobalResources::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{

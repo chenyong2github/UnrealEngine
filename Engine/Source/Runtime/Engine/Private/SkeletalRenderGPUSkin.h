@@ -210,7 +210,7 @@ public:
 	/** 
 	* Initialize the dynamic RHI for this rendering resource 
 	*/
-	virtual void InitRHI();
+	virtual void InitRHI(FRHICommandListBase& RHICmdList);
 
 	/** 
 	* Release the dynamic RHI for this rendering resource 

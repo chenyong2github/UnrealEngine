@@ -106,7 +106,7 @@ public:
 	// That function is only supposed to be used when dynamic ray tracing is enabled
 	RENDERCORE_API void InitRHIForDynamicRayTracing();
 
-	RENDERCORE_API void CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority);
+	RENDERCORE_API void CreateRayTracingGeometry(FRHICommandListBase& RHICmdList, ERTAccelerationStructureBuildPriority InBuildPriority);
 
 	bool HasPendingBuildRequest() const
 	{
@@ -118,7 +118,7 @@ public:
 
 	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingGeometry"); }
 
-	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	RENDERCORE_API virtual void ReleaseRHI() override;
 
 	RENDERCORE_API virtual void ReleaseResource() override;

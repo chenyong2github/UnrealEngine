@@ -53,7 +53,7 @@ protected:
 
 		FPointCloudVertexResourceArray ResourceArray(InVertexData, InSizeInBytes);
 		FRHIResourceCreateInfo CreateInfo(TEXT("FPointCloudVertexBufferBase"), &ResourceArray);
-		VertexBufferRHI = RHICreateVertexBuffer(InSizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(InSizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 	}
 
 	uint32 NumVerts = 0;
@@ -168,10 +168,8 @@ public:
 		RHICmdList.UnlockBuffer( IndexBufferRHI );
 	}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
-		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
-	
 		check(NumPoints > 0 && MaxIndex > 0);
 //@todo joeg - cvar quad vs tri in addition to platform support
 		const bool bShouldUseQuadList = GRHISupportsQuadTopology;

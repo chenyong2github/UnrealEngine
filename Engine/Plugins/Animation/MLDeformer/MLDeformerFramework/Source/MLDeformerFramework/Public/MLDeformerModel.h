@@ -74,7 +74,7 @@ namespace UE::MLDeformer
 		 * This does the actual render resource init, which means this creates and fills the buffer on the GPU.
 		 * After it successfully initializes, it will empty our VertexMap member array to not store the data in both GPU memory and main memory.
 		 */
-		void InitRHI() override;
+		void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 		/** The array of integers we want to store on the GPU. This buffer will be emptied after successfully calling InitRHI. */
 		TArray<int32> VertexMap;

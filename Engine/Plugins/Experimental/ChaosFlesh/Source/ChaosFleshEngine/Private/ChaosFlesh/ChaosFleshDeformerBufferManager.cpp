@@ -354,6 +354,8 @@ bool FChaosFleshDeformableGPUManager::FBindingsBuffer::InitData(
 	}
 	if(Local::CVarParams.bTestCompressedIndexing)
 	{
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 		TArray<int32> DataRange32;
 		TArray<int32> DataRange16;
 		TArray<int32> DataRange8;
@@ -370,19 +372,19 @@ bool FChaosFleshDeformableGPUManager::FBindingsBuffer::InitData(
 			UE::ChaosDeformable::FIndexArrayBufferWithSRV Buffer32; 
 			Buffer32.SetBufferName("Test_int32"); 
 			Buffer32.Init(DataRange32.GetData(), DataRange32.Num()); 
-			Buffer32.InitRHI();
+			Buffer32.InitRHI(RHICmdList);
 		}
 		{
 			UE::ChaosDeformable::FIndexArrayBufferWithSRV Buffer16; 
 			Buffer16.SetBufferName("Test_int16"); 
 			Buffer16.Init(DataRange16.GetData(), DataRange16.Num()); 
-			Buffer16.InitRHI();
+			Buffer16.InitRHI(RHICmdList);
 		}
 		{
 			UE::ChaosDeformable::FIndexArrayBufferWithSRV Buffer8; 
 			Buffer8.SetBufferName("Test_int8"); 
 			Buffer8.Init(DataRange8.GetData(), DataRange8.Num()); 
-			Buffer8.InitRHI();
+			Buffer8.InitRHI(RHICmdList);
 		}
 	}
 #endif

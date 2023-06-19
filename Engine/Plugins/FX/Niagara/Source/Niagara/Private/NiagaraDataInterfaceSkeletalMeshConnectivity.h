@@ -17,7 +17,7 @@ class FSkeletalMeshConnectivityProxy : public FRenderResource
 public:
 	bool Initialize(const FSkeletalMeshConnectivity& ConnectivityData);
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	FShaderResourceViewRHIRef GetSrv() const { return AdjacencySrv; }

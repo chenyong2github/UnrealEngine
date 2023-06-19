@@ -94,7 +94,7 @@ public:
 	RENDERCORE_API bool IsRenderAlarmLoggingEnabled() const;
 
 protected:
-	RENDERCORE_API virtual void InitRHI() override;
+	RENDERCORE_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	RENDERCORE_API virtual void ReleaseRHI() override;
 	RENDERCORE_API void Cleanup();
 	RENDERCORE_API void IncrementTotalAllocations(uint32 Num);

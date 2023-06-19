@@ -53,11 +53,11 @@ static const FName GetProjectionPointName(TEXT("GetProjectionPoint"));
 //------------------------------------------------------------------------------------------------------------
 
 template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount, uint32 BufferCount = 1>
-void CreateInternalBuffer(FReadBuffer& OutputBuffer)
+void CreateInternalBuffer(FRHICommandListBase& RHICmdList, FReadBuffer& OutputBuffer)
 {
 	if (ElementCount > 0)
 	{
-		OutputBuffer.Initialize(TEXT("FNDIPhysicsAssetBuffer"), sizeof(BufferType), ElementCount * BufferCount, PixelFormat, BUF_Static);
+		OutputBuffer.Initialize(RHICmdList, TEXT("FNDIPhysicsAssetBuffer"), sizeof(BufferType), ElementCount * BufferCount, PixelFormat, BUF_Static);
 	}
 }
 
@@ -412,15 +412,15 @@ ETickingGroup ComputeTickingGroup(const TArray<TWeakObjectPtr<class USkeletalMes
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIPhysicsAssetBuffer::InitRHI()
+void FNDIPhysicsAssetBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	using namespace NDIPhysicsAssetLocal;
 
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(WorldTransformBuffer);
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(InverseTransformBuffer);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(RHICmdList, WorldTransformBuffer);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(RHICmdList, InverseTransformBuffer);
 
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(ElementExtentBuffer);
-	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, PHYSICS_ASSET_MAX_PRIMITIVES>(PhysicsTypeBuffer);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(RHICmdList, ElementExtentBuffer);
+	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, PHYSICS_ASSET_MAX_PRIMITIVES>(RHICmdList, PhysicsTypeBuffer);
 }
 
 void FNDIPhysicsAssetBuffer::ReleaseRHI()

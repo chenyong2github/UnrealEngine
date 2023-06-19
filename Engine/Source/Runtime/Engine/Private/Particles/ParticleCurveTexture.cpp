@@ -124,7 +124,7 @@ public:
 	/** The vertex declaration. */
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FVertexDeclarationElementList Elements;
 
@@ -222,8 +222,8 @@ static void InjectCurves(
 		// get a buffer for all curve textures at once, and copy curve data over
 		//
 		FRHIResourceCreateInfo CreateInfo(TEXT("ScratchVertexBuffer"));
-		FBufferRHIRef ScratchVertexBufferRHI = RHICreateBuffer(TotalSamples * sizeof(FColor), BUF_Volatile | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		FColor* RESTRICT DestSamples = (FColor*)RHILockBuffer(ScratchVertexBufferRHI, 0, TotalSamples * sizeof(FColor), RLM_WriteOnly);
+		FBufferRHIRef ScratchVertexBufferRHI = RHICmdList.CreateBuffer(TotalSamples * sizeof(FColor), BUF_Volatile | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		FColor* RESTRICT DestSamples = (FColor*)RHICmdList.LockBuffer(ScratchVertexBufferRHI, 0, TotalSamples * sizeof(FColor), RLM_WriteOnly);
 
 		int32 CurrOffset = 0;
 
@@ -505,7 +505,7 @@ FParticleCurveTexture::FParticleCurveTexture()
 /**
 * Initialize RHI resources for the curve texture.
 */
-void FParticleCurveTexture::InitRHI()
+void FParticleCurveTexture::InitRHI(FRHICommandListBase&)
 {
 	const static FLazyName ClassName(TEXT("FParticleCurveTexture"));
 

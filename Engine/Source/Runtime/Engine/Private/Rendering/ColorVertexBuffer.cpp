@@ -417,7 +417,7 @@ void FColorVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Batch
 	}
 }
 
-void FColorVertexBuffer::InitRHI()
+void FColorVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FColorVertexBuffer::InitRHI);
 	SCOPED_LOADTIMER(FColorVertexBuffer_InitRHI);
@@ -425,7 +425,7 @@ void FColorVertexBuffer::InitRHI()
 	VertexBufferRHI = CreateRHIBuffer_RenderThread();
 	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 	{
-		ColorComponentsSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R8G8B8A8);
+		ColorComponentsSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, 4, PF_R8G8B8A8);
 	}
 }
 

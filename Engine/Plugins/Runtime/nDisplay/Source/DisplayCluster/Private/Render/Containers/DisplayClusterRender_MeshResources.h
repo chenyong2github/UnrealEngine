@@ -31,7 +31,7 @@ public:
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
 
 	//~ Begin FRenderResource interface
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 	//~ End FRenderResource interface
 };

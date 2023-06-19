@@ -133,11 +133,11 @@ bool IsMeshDistanceFieldEnabled()
 //------------------------------------------------------------------------------------------------------------
 
 template<typename BufferType, EPixelFormat PixelFormat>
-void CreateInternalBuffer(FReadBuffer& OutputBuffer, uint32 ElementCount)
+void CreateInternalBuffer(FRHICommandListBase& RHICmdList, FReadBuffer& OutputBuffer, uint32 ElementCount)
 {
 	if (ElementCount > 0)
 	{
-		OutputBuffer.Initialize(TEXT("FNDIRigidMeshCollisionBuffer"), sizeof(BufferType), ElementCount, PixelFormat, BUF_Static);
+		OutputBuffer.Initialize(RHICmdList, TEXT("FNDIRigidMeshCollisionBuffer"), sizeof(BufferType), ElementCount, PixelFormat, BUF_Static);
 	}
 }
 
@@ -659,17 +659,17 @@ bool WeakActorPtrLess(const TWeakObjectPtr<AActor>& Lhs, const TWeakObjectPtr<AA
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIRigidMeshCollisionBuffer::InitRHI()
+void FNDIRigidMeshCollisionBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	using namespace NDIRigidMeshCollisionLocal;
 
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(WorldTransformBuffer, 3 * MaxNumTransforms);
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(InverseTransformBuffer, 3 * MaxNumTransforms);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, WorldTransformBuffer, 3 * MaxNumTransforms);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, InverseTransformBuffer, 3 * MaxNumTransforms);
 
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ElementExtentBuffer, MaxNumPrimitives);
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(MeshScaleBuffer, MaxNumPrimitives);
-	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(PhysicsTypeBuffer, MaxNumPrimitives);
-	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(DFIndexBuffer, MaxNumPrimitives);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ElementExtentBuffer, MaxNumPrimitives);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, MeshScaleBuffer, MaxNumPrimitives);
+	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(RHICmdList, PhysicsTypeBuffer, MaxNumPrimitives);
+	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(RHICmdList, DFIndexBuffer, MaxNumPrimitives);
 }
 
 void FNDIRigidMeshCollisionBuffer::ReleaseRHI()

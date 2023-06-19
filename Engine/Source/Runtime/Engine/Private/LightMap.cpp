@@ -3512,7 +3512,7 @@ void FLightmapResourceCluster::ReleaseAllocatedVT()
 	}
 }
 
-void FLightmapResourceCluster::InitRHI()
+void FLightmapResourceCluster::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	SCOPED_LOADTIMER(FLightmapResourceCluster_InitRHI);
 	TryInitializeUniformBuffer();

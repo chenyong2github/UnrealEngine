@@ -327,15 +327,15 @@ SIZE_T FSceneViewState::GetSizeBytes() const
 class FOcclusionQueryIndexBuffer : public FIndexBuffer
 {
 public:
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		const uint32 MaxBatchedPrimitives = FOcclusionQueryBatcher::OccludedPrimitiveQueryBatchSize;
 		const uint32 Stride = sizeof(uint16);
 		const uint32 SizeInBytes = MaxBatchedPrimitives * NUM_CUBE_VERTICES * Stride;
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FOcclusionQueryIndexBuffer"));
-		IndexBufferRHI = RHICreateBuffer(SizeInBytes, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
-		uint16* RESTRICT Indices = (uint16*) RHILockBuffer(IndexBufferRHI, 0, SizeInBytes, RLM_WriteOnly);
+		IndexBufferRHI = RHICmdList.CreateBuffer(SizeInBytes, BUF_Static | BUF_IndexBuffer, Stride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		uint16* RESTRICT Indices = (uint16*) RHICmdList.LockBuffer(IndexBufferRHI, 0, SizeInBytes, RLM_WriteOnly);
 
 		for(uint32 PrimitiveIndex = 0;PrimitiveIndex < MaxBatchedPrimitives;PrimitiveIndex++)
 		{
@@ -344,7 +344,7 @@ public:
 				Indices[PrimitiveIndex * NUM_CUBE_VERTICES + Index] = PrimitiveIndex * 8 + GCubeIndices[Index];
 			}
 		}
-		RHIUnlockBuffer(IndexBufferRHI);
+		RHICmdList.UnlockBuffer(IndexBufferRHI);
 	}
 };
 TGlobalResource<FOcclusionQueryIndexBuffer> GOcclusionQueryIndexBuffer;
@@ -796,7 +796,7 @@ void FHZBOcclusionTester::SetInvalidFrameNumber()
 	checkSlow(IsInvalidFrame());
 }
 
-void FHZBOcclusionTester::InitRHI()
+void FHZBOcclusionTester::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
@@ -1627,7 +1627,7 @@ FOcclusionFeedback::~FOcclusionFeedback()
 {
 }
 
-void FOcclusionFeedback::InitRHI()
+void FOcclusionFeedback::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	for (int32 i = 0; i < UE_ARRAY_COUNT(OcclusionBuffers); ++i)
 	{

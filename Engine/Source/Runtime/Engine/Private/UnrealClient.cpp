@@ -2287,7 +2287,7 @@ void FViewport::ReleaseRHI()
 	ViewportRHI.SafeRelease();
 }
 
-void FViewport::InitRHI()
+void FViewport::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if(bRequiresHitProxyStorage)
 	{
@@ -2654,7 +2654,7 @@ FDummyViewport::~FDummyViewport()
 	}
 }
 
-void FDummyViewport::InitRHI()
+void FDummyViewport::InitRHI(FRHICommandListBase&)
 {
 	EPixelFormat DummyViewportFormat = bSceneHDREnabled ? GRHIHDRDisplayOutputFormat : PF_A2B10G10R10;
 	const FRHITextureCreateDesc Desc =

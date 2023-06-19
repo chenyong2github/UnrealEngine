@@ -106,7 +106,7 @@ public:
 	FLandscapeTextureResource(const FLandscapeTextureResource&) = delete;
 	FLandscapeTextureResource(const FLandscapeTextureResource&&) = delete;
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	void ReleaseSourceData();
@@ -618,7 +618,7 @@ FLandscapeTextureResource::FLandscapeTextureResource(const FIntPoint& InCellCoun
 {
 }
 
-void FLandscapeTextureResource::InitRHI()
+void FLandscapeTextureResource::InitRHI(FRHICommandListBase&)
 {
 	if (HeightBulkData.DataSize > 0)
 	{

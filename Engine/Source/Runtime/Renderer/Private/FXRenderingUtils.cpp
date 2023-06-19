@@ -151,17 +151,17 @@ class FDFDummyByteAddress : public FRenderResource
 public:
 	TRefCountPtr<FRDGPooledBuffer> PooledBuffer;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1);
 		BufferDesc.Usage = BUF_Static | BUF_ShaderResource | BUF_ByteAddressBuffer;
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FDFDummyByteAddress"));
-		FBufferRHIRef RHIBuffer = RHICreateStructuredBuffer(BufferDesc.BytesPerElement, BufferDesc.GetSize(), BufferDesc.Usage, CreateInfo);
+		FBufferRHIRef RHIBuffer = RHICmdList.CreateStructuredBuffer(BufferDesc.BytesPerElement, BufferDesc.GetSize(), BufferDesc.Usage, CreateInfo);
 		{
-			void* Data = RHILockBuffer(RHIBuffer, 0, BufferDesc.GetSize(), RLM_WriteOnly);
+			void* Data = RHICmdList.LockBuffer(RHIBuffer, 0, BufferDesc.GetSize(), RLM_WriteOnly);
 			FMemory::Memset(Data, 0, BufferDesc.GetSize());
-			RHIUnlockBuffer(RHIBuffer);
+			RHICmdList.UnlockBuffer(RHIBuffer);
 		}
 
 		PooledBuffer = new FRDGPooledBuffer(RHIBuffer, BufferDesc, BufferDesc.NumElements, CreateInfo.DebugName);

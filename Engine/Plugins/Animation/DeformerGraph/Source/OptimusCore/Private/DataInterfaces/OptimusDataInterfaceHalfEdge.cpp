@@ -238,9 +238,9 @@ public:
 		EdgeToTwinEdgeData = MoveTemp(InEdgeToTwinEdgeData);
 	}
 
-	void InitRHI() override
+	void InitRHI(FRHICommandListBase&) override
 	{
-		FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
+		FRDGBuilder GraphBuilder(FRHICommandListImmediate::Get());
 
 		const int32 NumLods = VertexToEdgeData.Num();
 		VertexToEdgeBuffers.SetNum(NumLods);

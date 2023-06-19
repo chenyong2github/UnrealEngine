@@ -95,7 +95,7 @@ public:
 	{
 	}
 
-	virtual void InitRHI()
+	virtual void InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FVertexDeclarationElementList Elements;
 		int32	Offset = 0;
@@ -147,7 +147,7 @@ void FNiagaraRibbonVertexFactory::GetPSOPrecacheVertexFetchElements(EVertexInput
 /**
 *	Initialize the Render Hardware Interface for this vertex factory
 */
-void FNiagaraRibbonVertexFactory::InitRHI()
+void FNiagaraRibbonVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	SetDeclaration(GNiagaraRibbonVertexDeclaration.VertexDeclarationRHI);
 

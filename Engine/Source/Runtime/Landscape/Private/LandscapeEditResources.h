@@ -18,7 +18,7 @@ public:
 	virtual uint32 GetSizeY() const override { return SizeY; }
 
 	/** Called when the resource is initialized. This is only called by the rendering thread. */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	FUnorderedAccessViewRHIRef GetTextureUAV(uint32 InMipLevel) const;
@@ -46,7 +46,7 @@ public:
 	virtual uint32 GetSizeZ() const { return SizeZ; }
 
 	/** Called when the resource is initialized. This is only called by the rendering thread. */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 	FUnorderedAccessViewRHIRef GetTextureUAV(uint32 InMipLevel) const;

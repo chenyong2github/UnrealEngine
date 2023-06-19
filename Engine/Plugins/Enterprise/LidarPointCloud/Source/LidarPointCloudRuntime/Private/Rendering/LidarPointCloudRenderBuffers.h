@@ -46,7 +46,7 @@ public:
 	uint32 PointOffset;
 
 	virtual void Resize(const uint32& RequestedCapacity) override;
-	virtual void InitRHI() override;	
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;	
 };
 
 /**
@@ -68,7 +68,7 @@ public:
 	int32 PointCount;
 
 	virtual void Resize(const uint32& RequestedCapacity) override;	
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 private:
@@ -199,7 +199,7 @@ public:
 	virtual FShaderResourceViewRHIRef GetVertexBufferSRV();
 	virtual FRHIUniformBuffer* GetUniformBuffer() const { return UniformBuffer.GetReference(); }
 	
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 
 protected:
@@ -222,12 +222,12 @@ private:
 		FShaderResourceViewRHIRef VertexBufferSRV;
 
 	public:
-		virtual void InitRHI() override;
+		virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 		virtual FString GetFriendlyName() const override { return TEXT("FPointCloudVertexBuffer"); }
 		friend FLidarPointCloudVertexFactory;
 	} VertexBuffer;
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 };
 
@@ -245,11 +245,11 @@ private:
 	{
 		FShaderResourceViewRHIRef VertexBufferSRV;
 	public:
-		virtual void InitRHI() override;
+		virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 		virtual FString GetFriendlyName() const override { return TEXT("FPointCloudVertexBuffer"); }
 	} VertexBuffer;
 	
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 };
 

@@ -21,7 +21,7 @@ FD3D11ConstantBuffer::~FD3D11ConstantBuffer()
 /**
 * Creates a constant buffer on the device
 */
-void FD3D11ConstantBuffer::InitRHI()
+void FD3D11ConstantBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 // New circular buffer system for faster constant uploads.  Avoids CopyResource and speeds things up considerably
 	// aligned for best performance

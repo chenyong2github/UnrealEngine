@@ -43,7 +43,7 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 	void Transfer(FRDGBuilder& GraphBuilder, const TStaticArray<float, 32 * NumScales>& InParamsScale);
 
 	/** Init the buffer */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** Release the buffer */
 	virtual void ReleaseRHI() override;

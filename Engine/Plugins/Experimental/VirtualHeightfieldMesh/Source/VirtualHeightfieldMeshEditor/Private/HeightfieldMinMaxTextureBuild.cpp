@@ -36,7 +36,7 @@ namespace
 		}
 
 		//~ Begin FRenderResource Interface.
-		virtual void InitRHI() override
+		virtual void InitRHI(FRHICommandListBase&) override
 		{
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 

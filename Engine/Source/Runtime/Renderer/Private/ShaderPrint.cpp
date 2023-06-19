@@ -164,7 +164,7 @@ namespace ShaderPrint
 	class FEmptyBuffer : public FBufferWithRDG
 	{
 	public:
-		void InitRHI() override
+		void InitRHI(FRHICommandListBase&) override
 		{
 			Buffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(4, GetCountersUintSize()), TEXT("ShaderPrint.EmptyValueBuffer"));
 		}

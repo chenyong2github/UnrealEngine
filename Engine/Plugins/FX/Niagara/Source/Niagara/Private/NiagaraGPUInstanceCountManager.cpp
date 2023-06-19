@@ -114,7 +114,7 @@ FNiagaraGPUInstanceCountManager::~FNiagaraGPUInstanceCountManager()
 	ReleaseRHI();
 }
 
-void FNiagaraGPUInstanceCountManager::InitRHI()
+void FNiagaraGPUInstanceCountManager::InitRHI(FRHICommandListBase& RHICmdList)
 {
 }
 

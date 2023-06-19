@@ -110,7 +110,7 @@ FAutoConsoleVariableRef CVarSkylightRealTimeReflectionCapture(
 
 constexpr EPixelFormat SKYLIGHT_CUBEMAP_FORMAT = PF_FloatRGBA;
 
-void FSkyTextureCubeResource::InitRHI()
+void FSkyTextureCubeResource::InitRHI(FRHICommandListBase&)
 {
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5 || GSupportsRenderTargetFormat_PF_FloatRGBA)
 	{

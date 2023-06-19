@@ -100,7 +100,7 @@ void FGlobalDynamicReadBuffer::Cleanup()
 		HalfBufferPool = nullptr;
 	}
 }
-void FGlobalDynamicReadBuffer::InitRHI()
+void FGlobalDynamicReadBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 }
 

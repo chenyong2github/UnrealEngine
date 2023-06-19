@@ -210,7 +210,7 @@ public:
 	/**
 	 * Initialize RHI resources.
 	 */
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		if (VolumeData && GSupportsTexture3D)
 		{
@@ -1059,7 +1059,7 @@ public:
 	/**
 	 * Initialize RHI resources.
 	 */
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		if (GSupportsTexture3D)
 		{
@@ -1082,7 +1082,7 @@ public:
 
 			if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 			{
-				VolumeTextureUAV = RHICreateUnorderedAccessView(VolumeTextureRHI);
+				VolumeTextureUAV = RHICmdList.CreateUnorderedAccessView(VolumeTextureRHI);
 			}
 		}
 	}

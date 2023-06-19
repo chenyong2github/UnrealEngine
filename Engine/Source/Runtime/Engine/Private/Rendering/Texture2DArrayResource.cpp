@@ -102,7 +102,7 @@ uint64 FTexture2DArrayResource::GetPlatformMipsSize(uint32 NumMips) const
 	}
 }
 
-void FTexture2DArrayResource::InitRHI()
+void FTexture2DArrayResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if (ProxiedResource)
 	{
@@ -113,7 +113,7 @@ void FTexture2DArrayResource::InitRHI()
 	}
 	else
 	{
-		FStreamableTextureResource::InitRHI();
+		FStreamableTextureResource::InitRHI(RHICmdList);
 	}
 }
 

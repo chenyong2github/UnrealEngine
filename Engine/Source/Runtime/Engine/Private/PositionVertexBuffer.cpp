@@ -235,7 +235,7 @@ void FPositionVertexBuffer::ReleaseRHIForStreaming(FRHIResourceUpdateBatcher& Ba
 	Batcher.QueueUpdateRequest(VertexBufferRHI, nullptr);
 }
 
-void FPositionVertexBuffer::InitRHI()
+void FPositionVertexBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPositionVertexBuffer::InitRHI);
 
@@ -255,7 +255,7 @@ void FPositionVertexBuffer::InitRHI()
 		{
 			// When VertexData is null, this buffer hasn't been streamed in yet. We still need to create a FRHIShaderResourceView which will be
 			// cached in a vertex factory uniform buffer later. The nullptr tells the RHI that the SRV doesn't view on anything yet.
-			PositionComponentSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
+			PositionComponentSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
 		}
 	}
 }

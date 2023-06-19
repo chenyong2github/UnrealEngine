@@ -16,7 +16,7 @@ public:
 	/** Destructor. */
 	virtual ~FDistortionVertexDeclaration() {}
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		uint16 Stride = sizeof(FDistortionVertex);
 		FVertexDeclarationElementList Elements;

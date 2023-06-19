@@ -50,7 +50,7 @@ struct FNDIPhysicsAssetArrays
 struct FNDIPhysicsAssetBuffer : public FRenderResource
 {
 	/** Init the buffer */
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	/** Release the buffer */
 	virtual void ReleaseRHI() override;

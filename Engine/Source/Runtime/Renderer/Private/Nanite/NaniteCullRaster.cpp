@@ -1867,7 +1867,7 @@ public:
 	FByteAddressBuffer	Verts;
 	FByteAddressBuffer	Indexes;
 
-	virtual void InitRHI() override;
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 	virtual void ReleaseRHI() override;
 };
 
@@ -1883,7 +1883,7 @@ static void CreateAndUpload( FByteAddressBuffer& Buffer, const TArray<T>& Array,
 	RHIUnlockBuffer( Buffer.Buffer );
 }
 
-void FTessellationTableResources::InitRHI()
+void FTessellationTableResources::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if( DoesPlatformSupportNanite( GMaxRHIShaderPlatform ) )
 	{

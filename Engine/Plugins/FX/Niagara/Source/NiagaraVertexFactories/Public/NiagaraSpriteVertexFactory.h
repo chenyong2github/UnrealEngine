@@ -140,7 +140,7 @@ public:
 	{}
 
 	// FRenderResource interface.
-	NIAGARAVERTEXFACTORIES_API virtual void InitRHI() override;
+	NIAGARAVERTEXFACTORIES_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
 
 	virtual bool RendersPrimitivesAsCameraFacingSprites() const override { return true; }
 

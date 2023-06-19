@@ -457,7 +457,7 @@ void FScene::AddLight(LightComponentType* LightComponent)
 		{
 			LightRenderStateRef->RenderStaticShadowDepthMap(RHICmdList, RenderState);
 			StaticShadowDepthMap.Data = DepthMapPtr;
-			StaticShadowDepthMap.InitRHI();
+			StaticShadowDepthMap.InitRHI(RHICmdList);
 		}
 
 		for (FGeometryRenderStateToken Token : RelevantGeometriesToUpdateOnRenderThread)

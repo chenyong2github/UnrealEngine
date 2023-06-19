@@ -109,7 +109,7 @@ void FGeometryCollectionVertexFactory::GetPSOPrecacheVertexFetchElements(EVertex
 	}
 }
 
-void FGeometryCollectionVertexFactory::InitRHI()
+void FGeometryCollectionVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	SCOPED_LOADTIMER(FGeometryCollectionVertexFactory_InitRHI);
 

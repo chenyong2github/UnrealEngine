@@ -2055,7 +2055,7 @@ void FSceneViewport::OnPostResizeWindowBackbuffer(void* Backbuffer)
 	}
 }
 
-void FSceneViewport::InitRHI()
+void FSceneViewport::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	if(bRequiresHitProxyStorage)
 	{

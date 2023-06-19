@@ -120,7 +120,7 @@ EPixelFormat RemapVirtualTexturePhysicalSpaceFormat(EPixelFormat InFormat)
 	return InFormat;
 }
 
-void FVirtualTexturePhysicalSpace::InitRHI()
+void FVirtualTexturePhysicalSpace::InitRHI(FRHICommandListBase&)
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -159,10 +159,10 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 		FRHITextureSRVCreateInfo SRVCreateInfo;
 		SRVCreateInfo.Format = FormatSRV;
 		SRVCreateInfo.SRGBOverride = SRGBO_ForceDisable;
-		TextureSRV[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
+		TextureSRV[Layer] = RHICmdList.CreateShaderResourceView(TextureRHI, SRVCreateInfo);
 
 		SRVCreateInfo.SRGBOverride = SRGBO_Default;
-		TextureSRV_SRGB[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
+		TextureSRV_SRGB[Layer] = RHICmdList.CreateShaderResourceView(TextureRHI, SRVCreateInfo);
 	}
 }
 

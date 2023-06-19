@@ -117,7 +117,7 @@ namespace StencilingGeometry
 		/** 
 		* Initialize the RHI for this rendering resource 
 		*/
-		void InitRHI() override
+		void InitRHI(FRHICommandListBase& RHICmdList) override
 		{
 			const int32 NumSides = NumSphereSides;
 			const int32 NumRings = NumSphereRings;
@@ -156,7 +156,7 @@ namespace StencilingGeometry
 
 			// Create vertex buffer. Fill buffer with initial data upon creation
 			FRHIResourceCreateInfo CreateInfo(TEXT("TStencilSphereVertexBuffer"), &Verts);
-			VertexBufferRHI = RHICreateVertexBuffer(Size,BUF_Static,CreateInfo);
+			VertexBufferRHI = RHICmdList.CreateVertexBuffer(Size,BUF_Static,CreateInfo);
 		}
 
 		int32 GetVertexCount() const { return NumSphereVerts; }
@@ -199,7 +199,7 @@ namespace StencilingGeometry
 		/** 
 		* Initialize the RHI for this rendering resource 
 		*/
-		void InitRHI() override
+		void InitRHI(FRHICommandListBase& RHICmdList) override
 		{
 			const int32 NumSides = NumSphereSides;
 			const int32 NumRings = NumSphereRings;
@@ -228,7 +228,7 @@ namespace StencilingGeometry
 
 			// Create index buffer. Fill buffer with initial data upon creation
 			FRHIResourceCreateInfo CreateInfo(TEXT("TStencilSphereIndexBuffer"), &Indices);
-			IndexBufferRHI = RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
+			IndexBufferRHI = RHICmdList.CreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
 		}
 
 		int32 GetIndexCount() const { return NumIndices; }; 

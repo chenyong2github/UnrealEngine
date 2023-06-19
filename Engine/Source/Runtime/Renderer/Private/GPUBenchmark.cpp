@@ -150,7 +150,7 @@ struct FVertexThroughputDeclaration : public FRenderResource
 {
 	FVertexDeclarationRHIRef DeclRHI;
 
-	virtual void InitRHI() override
+	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FVertexDeclarationElementList Elements = 
 		{
