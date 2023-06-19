@@ -124,7 +124,13 @@ namespace UE::MVVM::Private
 
 	void AppendWidgetPathString(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintPropertyPath& WidgetPath, FStringBuilderBase& PathBuilder)
 	{
-		if (WidgetBlueprint == nullptr || WidgetPath.GetWidgetName().IsNone())
+		if (WidgetBlueprint == nullptr)
+		{
+			PathBuilder << TEXT("<none>");
+			return;
+		}
+
+		if (WidgetPath.GetWidgetName().IsNone())
 		{
 			PathBuilder << TEXT("<none>");
 		}
