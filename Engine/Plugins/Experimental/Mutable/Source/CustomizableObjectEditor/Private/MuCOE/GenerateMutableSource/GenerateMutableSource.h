@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Animation/Skeleton.h"
+#include "Animation/AnimInstance.h"
 #include "Engine/SkeletalMesh.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCOE/ExtensionDataCompilerInterface.h"
