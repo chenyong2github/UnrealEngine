@@ -48,32 +48,6 @@ void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32 DataOffs
 	}
 }
 
-void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32 DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue, bool bNormalize, EComponentStrippingVector ComponentStrippingVector)
-{
-	FVector Vector = DecodeVector(CurValues, DataOffset, ComponentStrippingVector);
-
-	// linear interpolation
-	if (!FMath::IsNearlyZero(LerpValue))
-	{
-		if (LerpValue < 0.f)
-		{
-			Vector = FMath::Lerp(Vector, DecodeVector(PrevValues, DataOffset, ComponentStrippingVector), -LerpValue);
-		}
-		else
-		{
-			Vector = FMath::Lerp(Vector, DecodeVector(NextValues, DataOffset, ComponentStrippingVector), LerpValue);
-		}
-	}
-
-	// @todo: do we need to add options for cubic interpolation?
-	if (bNormalize)
-	{
-		Vector = Vector.GetSafeNormal(UE_SMALL_NUMBER, FVector::XAxisVector);
-	}
-
-	EncodeVector(Values, DataOffset, Vector, ComponentStrippingVector);
-}
-
 FVector FFeatureVectorHelper::DecodeVector(TConstArrayView<float> Values, int32 DataOffset, EComponentStrippingVector ComponentStrippingVector)
 {
 	switch (ComponentStrippingVector)
@@ -96,27 +70,6 @@ void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32 DataOf
 	Values[DataOffset + 1] = Vector2D.Y;
 }
 
-void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32 DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue)
-{
-	FVector2D Vector2D = DecodeVector2D(CurValues, DataOffset);
-
-	// linear interpolation
-	if (!FMath::IsNearlyZero(LerpValue))
-	{
-		if (LerpValue < 0.f)
-		{
-			Vector2D = FMath::Lerp(Vector2D, DecodeVector2D(PrevValues, DataOffset), -LerpValue);
-		}
-		else
-		{
-			Vector2D = FMath::Lerp(Vector2D, DecodeVector2D(NextValues, DataOffset), LerpValue);
-		}
-	}
-
-	// @todo: do we need to add options for cubic interpolation?
-	EncodeVector2D(Values, DataOffset, Vector2D);
-}
-
 FVector2D FFeatureVectorHelper::DecodeVector2D(TConstArrayView<float> Values, int32 DataOffset)
 {
 	return FVector2D(Values[DataOffset + 0], Values[DataOffset + 1]);
@@ -127,30 +80,17 @@ void FFeatureVectorHelper::EncodeFloat(TArrayView<float> Values, int32 DataOffse
 	Values[DataOffset + 0] = Value;
 }
 
-void FFeatureVectorHelper::EncodeFloat(TArrayView<float> Values, int32 DataOffset, TConstArrayView<float> PrevValues, TConstArrayView<float> CurValues, TConstArrayView<float> NextValues, float LerpValue)
-{
-	float Value = DecodeFloat(CurValues, DataOffset);
-
-	// linear interpolation
-	if (!FMath::IsNearlyZero(LerpValue))
-	{
-		if (LerpValue < 0.f)
-		{
-			Value = FMath::Lerp(Value, DecodeFloat(PrevValues, DataOffset), -LerpValue);
-		}
-		else
-		{
-			Value = FMath::Lerp(Value, DecodeFloat(NextValues, DataOffset), LerpValue);
-		}
-	}
-
-	// @todo: do we need to add options for cubic interpolation?
-	EncodeFloat(Values, DataOffset, Value);
-}
-
 float FFeatureVectorHelper::DecodeFloat(TConstArrayView<float> Values, int32 DataOffset)
 {
 	return Values[DataOffset];
+}
+
+void FFeatureVectorHelper::Copy(TArrayView<float> Values, int32 DataOffset, int32 DataCardinality, TConstArrayView<float> OriginValues)
+{
+	for (int32 i = 0; i < DataCardinality; ++i)
+	{
+		Values[DataOffset + i] = OriginValues[DataOffset + i];
+	}
 }
 
 } // namespace UE::PoseSearch

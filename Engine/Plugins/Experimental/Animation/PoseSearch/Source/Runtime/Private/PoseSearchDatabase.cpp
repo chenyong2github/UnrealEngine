@@ -457,41 +457,6 @@ int32 UPoseSearchDatabase::GetPoseIndexFromTime(float Time, const UE::PoseSearch
 	return SearchIndexAsset.GetPoseIndexFromTime(Time, bIsLooping, Schema->SampleRate);
 }
 
-bool UPoseSearchDatabase::GetPoseIndicesAndLerpValueFromTime(float Time, const UE::PoseSearch::FSearchIndexAsset& SearchIndexAsset, int32& PrevPoseIdx, int32& PoseIdx, int32& NextPoseIdx, float& LerpValue) const
-{
-	PoseIdx = GetPoseIndexFromTime(Time, SearchIndexAsset);
-	if (PoseIdx == INDEX_NONE)
-	{
-		PrevPoseIdx = INDEX_NONE;
-		NextPoseIdx = INDEX_NONE;
-		LerpValue = 0.f;
-		return false;
-	}
-
-	const float FloatPoseOffset = Schema->SampleRate * Time - SearchIndexAsset.FirstSampleIdx;
-	const int32 PoseOffset = FMath::RoundToInt(FloatPoseOffset);
-	LerpValue = FloatPoseOffset - float(PoseOffset);
-
-	const float PrevTime = Time - 1.f / Schema->SampleRate;
-	const float NextTime = Time + 1.f / Schema->SampleRate;
-
-	PrevPoseIdx = GetPoseIndexFromTime(PrevTime, SearchIndexAsset);
-	if (PrevPoseIdx == INDEX_NONE)
-	{
-		PrevPoseIdx = PoseIdx;
-	}
-
-	NextPoseIdx = GetPoseIndexFromTime(NextTime, SearchIndexAsset);
-	if (NextPoseIdx == INDEX_NONE)
-	{
-		NextPoseIdx = PoseIdx;
-	}
-
-	check(LerpValue >= -0.5f && LerpValue <= 0.5f);
-
-	return true;
-}
-
 const FInstancedStruct& UPoseSearchDatabase::GetAnimationAssetStruct(int32 AnimationAssetIndex) const
 {
 	check(AnimationAssets.IsValidIndex(AnimationAssetIndex));

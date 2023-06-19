@@ -39,14 +39,8 @@ void FSearchResult::Update(float NewAssetTime)
 		const FInstancedStruct& DatabaseAsset = Database->GetAnimationAssetStruct(SearchIndexAsset);
 		if (DatabaseAsset.GetPtr<FPoseSearchDatabaseSequence>() || DatabaseAsset.GetPtr<FPoseSearchDatabaseAnimComposite>())
 		{
-			if (Database->GetPoseIndicesAndLerpValueFromTime(NewAssetTime, SearchIndexAsset, PrevPoseIdx, PoseIdx, NextPoseIdx, LerpValue))
-			{
-				AssetTime = NewAssetTime;
-			}
-			else
-			{
-				Reset();
-			}
+			PoseIdx = Database->GetPoseIndexFromTime(NewAssetTime, SearchIndexAsset);
+			AssetTime = NewAssetTime;
 		}
 		else if (const FPoseSearchDatabaseBlendSpace* DatabaseBlendSpace = DatabaseAsset.GetPtr<FPoseSearchDatabaseBlendSpace>())
 		{
@@ -60,14 +54,9 @@ void FSearchResult::Update(float NewAssetTime)
 			// to a real time before we advance it
 			check(NewAssetTime >= 0.f && NewAssetTime <= 1.f);
 			const float RealTime = NewAssetTime * PlayLength;
-			if (Database->GetPoseIndicesAndLerpValueFromTime(RealTime, SearchIndexAsset, PrevPoseIdx, PoseIdx, NextPoseIdx, LerpValue))
-			{
-				AssetTime = NewAssetTime;
-			}
-			else
-			{
-				Reset();
-			}
+
+			PoseIdx = Database->GetPoseIndexFromTime(RealTime, SearchIndexAsset);
+			AssetTime = NewAssetTime;
 		}
 		else
 		{

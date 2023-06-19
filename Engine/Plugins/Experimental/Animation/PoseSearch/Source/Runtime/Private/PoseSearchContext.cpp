@@ -261,20 +261,13 @@ FSearchContext::FSearchContext(const FPoseSearchQueryTrajectory* InTrajectory, c
 		if (SearchIndex.Values.IsEmpty())
 		{
 			const int32 NumDimensions = CurrentResult.Database->Schema->SchemaCardinality;
-			CurrentResultPoseVectorData.AddUninitialized(NumDimensions * 3);
-
-			CurrentResultNextPoseVector = SearchIndex.GetReconstructedPoseValues(CurrentResult.NextPoseIdx, MakeArrayView(CurrentResultPoseVectorData.GetData(), NumDimensions));
+			CurrentResultPoseVectorData.AddUninitialized(NumDimensions);
 			CurrentResultPoseVector = SearchIndex.GetReconstructedPoseValues(CurrentResult.PoseIdx, MakeArrayView(CurrentResultPoseVectorData.GetData() + NumDimensions, NumDimensions));
-			CurrentResultPrevPoseVector = SearchIndex.GetReconstructedPoseValues(CurrentResult.PrevPoseIdx, MakeArrayView(CurrentResultPoseVectorData.GetData() + 2 * NumDimensions, NumDimensions));
 		}
 		else
 		{
-			CurrentResultNextPoseVector = SearchIndex.GetPoseValues(CurrentResult.NextPoseIdx);
 			CurrentResultPoseVector = SearchIndex.GetPoseValues(CurrentResult.PoseIdx);
-			CurrentResultPrevPoseVector = SearchIndex.GetPoseValues(CurrentResult.PrevPoseIdx);
 		}
-
-		check(CurrentResultNextPoseVector.Num() == CurrentResultPoseVector.Num() && CurrentResultPrevPoseVector.Num() == CurrentResultPoseVector.Num());
 	}
 }
 

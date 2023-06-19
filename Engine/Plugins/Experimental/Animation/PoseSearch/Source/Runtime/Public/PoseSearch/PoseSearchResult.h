@@ -38,12 +38,6 @@ struct FSearchResult
 	FPoseSearchCost PoseCost;
 	int32 PoseIdx = INDEX_NONE;
 
-	int32 PrevPoseIdx = INDEX_NONE;
-	int32 NextPoseIdx = INDEX_NONE;
-
-	// lerp value to find AssetTime from PrevPoseIdx -> AssetTime -> NextPoseIdx, within range [-0.5, 0.5]
-	float LerpValue = 0.f;
-
 	TObjectPtr<const UPoseSearchDatabase> Database;
 
 	float AssetTime = 0.0f;

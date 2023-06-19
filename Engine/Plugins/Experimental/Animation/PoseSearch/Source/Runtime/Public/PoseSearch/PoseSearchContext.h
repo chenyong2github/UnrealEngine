@@ -157,9 +157,7 @@ struct POSESEARCH_API FSearchContext
 
 	bool IsCurrentResultFromDatabase(const UPoseSearchDatabase* Database) const;
 
-	TConstArrayView<float> GetCurrentResultPrevPoseVector() const { return CurrentResultPrevPoseVector; }
 	TConstArrayView<float> GetCurrentResultPoseVector() const { return CurrentResultPoseVector; }
-	TConstArrayView<float> GetCurrentResultNextPoseVector() const { return CurrentResultNextPoseVector; }
 
 	const FSearchResult& GetCurrentResult() const { return CurrentResult; }
 	float GetPoseJumpThresholdTime() const { return PoseJumpThresholdTime; }
@@ -184,10 +182,7 @@ private:
 	float PoseJumpThresholdTime = 0.f;
 	bool bForceInterrupt = false;
 
-	// cached previous, current, and next pose data
-	TConstArrayView<float> CurrentResultNextPoseVector;
 	TConstArrayView<float> CurrentResultPoseVector;
-	TConstArrayView<float> CurrentResultPrevPoseVector;
 	TStackAlignedArray<float> CurrentResultPoseVectorData;
 
 	// transforms cached in component space
