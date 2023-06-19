@@ -9,7 +9,7 @@
 /**
  * A material expression that computes a left-right split matte, split at a specified u value.
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
 class UMaterialExpressionMaterialXSplitLeftRight : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

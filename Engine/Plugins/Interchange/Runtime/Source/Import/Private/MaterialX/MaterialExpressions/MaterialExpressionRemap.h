@@ -9,7 +9,7 @@
 /**
  * A material expression that Remap a value from one range to another.
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
 class UMaterialExpressionMaterialXRemap : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

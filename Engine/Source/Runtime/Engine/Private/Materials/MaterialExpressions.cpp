@@ -124,6 +124,12 @@
 #include "Materials/MaterialExpressionLightmassReplace.h"
 #include "Materials/MaterialExpressionLightVector.h"
 #include "Materials/MaterialExpressionLinearInterpolate.h"
+#include "Materials/MaterialExpressionRgbToHsv.h"
+#include "Materials/MaterialExpressionHsvToRgb.h"
+#include "Materials/MaterialExpressionExponential.h"
+#include "Materials/MaterialExpressionExponential2.h"
+#include "Materials/MaterialExpressionLength.h"
+#include "Materials/MaterialExpressionLogarithm.h"
 #include "Materials/MaterialExpressionLogarithm2.h"
 #include "Materials/MaterialExpressionLogarithm10.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
@@ -11233,6 +11239,271 @@ void UMaterialExpressionPower::GetCaption(TArray<FString>& OutCaptions) const
 void UMaterialExpressionPower::GetExpressionToolTip(TArray<FString>& OutToolTip) 
 {
 	ConvertToMultilineToolTip(TEXT("Returns the Base value raised to the power of Exponent. Base value must be positive, values less than 0 will be clamped."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+UMaterialExpressionLength::UMaterialExpressionLength(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionLength::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if(!Input.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Length input"));
+	}
+
+	int32 Index = Input.Compile(Compiler);
+	if(Compiler->GetType(Index) == MCT_Float)
+	{
+		// optimized
+		return Compiler->Abs(Index);
+	}
+
+	return Compiler->Length(Index);
+}
+
+void UMaterialExpressionLength::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Length"));
+}
+
+void UMaterialExpressionLength::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Returns the length of input."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+UMaterialExpressionHsvToRgb::UMaterialExpressionHsvToRgb(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+		{}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionHsvToRgb::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if(!Input.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing HSVToRGB input"));
+	}
+
+	int32 InputIndex = Input.Compile(Compiler);
+	EMaterialValueType InputType = Compiler->GetType(InputIndex);
+	if(InputType != EMaterialValueType::MCT_Float3 && InputType != EMaterialValueType::MCT_Float4)
+	{
+		return InputIndex;
+	}
+
+	int32 Result = Compiler->HsvToRgb(InputIndex);
+
+	return Result;
+}
+
+void UMaterialExpressionHsvToRgb::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("HSVToRGB"));
+}
+
+void UMaterialExpressionHsvToRgb::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Convert an incoming color from HSV to RGB space."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+UMaterialExpressionRgbToHsv::UMaterialExpressionRgbToHsv(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+		{}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionRgbToHsv::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if(!Input.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing RGBToHSV input"));
+	}
+
+	int32 InputIndex = Input.Compile(Compiler);
+	EMaterialValueType InputType = Compiler->GetType(InputIndex);
+	if(InputType != EMaterialValueType::MCT_Float3 && InputType != EMaterialValueType::MCT_Float4)
+	{
+		return InputIndex;
+	}
+
+	int32 Result = Compiler->RgbToHsv(InputIndex);
+
+	return Result;
+}
+
+void UMaterialExpressionRgbToHsv::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("RGBToHSV"));
+}
+
+void UMaterialExpressionRgbToHsv::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Convert an incoming color from RGB to HSV space."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+UMaterialExpressionExponential::UMaterialExpressionExponential(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+		{}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionExponential::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if(!Input.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Exp input"));
+	}
+
+	return Compiler->Exponential(Input.Compile(Compiler));
+}
+
+void UMaterialExpressionExponential::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Exp"));
+}
+
+void UMaterialExpressionExponential::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Returns the base-e exponential, or e^x, of the input."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+UMaterialExpressionExponential2::UMaterialExpressionExponential2(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+		{}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionExponential2::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if(!Input.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Exp2 input"));
+	}
+
+	return Compiler->Exponential2(Input.Compile(Compiler));
+}
+
+void UMaterialExpressionExponential2::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Exp2"));
+}
+
+void UMaterialExpressionExponential2::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Returns the base 2 exponential, or 2^x, of the input."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+UMaterialExpressionLogarithm::UMaterialExpressionLogarithm(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+		{}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionLogarithm::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if(!Input.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing Log input"));
+	}
+
+	return Compiler->Logarithm(Input.Compile(Compiler));
+}
+
+void UMaterialExpressionLogarithm::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Log"));
+}
+
+void UMaterialExpressionLogarithm::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Returns the base-e logarithm, or natural logarithm, of the input. Input should be greater than 0."), 40, OutToolTip);
 }
 #endif // WITH_EDITOR
 

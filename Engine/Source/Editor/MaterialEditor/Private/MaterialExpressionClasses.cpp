@@ -123,6 +123,12 @@ void MaterialExpressionClasses::InitMaterialExpressionClasses()
 							continue;
 						}
 
+						// Hide node types that are tagged private
+						if(Class->HasMetaData(TEXT("Private")))
+						{
+							continue;
+						}
+
 						// Exclude comments from the expression list, as well as the base parameter expression and local variable usage, as they should not be used directly
 						if ( Class != UMaterialExpressionComment::StaticClass() 
 							&& Class != UMaterialExpressionParameter::StaticClass()

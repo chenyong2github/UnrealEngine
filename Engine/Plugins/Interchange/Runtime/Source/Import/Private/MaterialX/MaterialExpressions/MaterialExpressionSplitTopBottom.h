@@ -9,7 +9,7 @@
 /**
  * A material expression that computes a top-bottom split matte, split at a specified v value.
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
 class UMaterialExpressionMaterialXSplitTopBottom : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

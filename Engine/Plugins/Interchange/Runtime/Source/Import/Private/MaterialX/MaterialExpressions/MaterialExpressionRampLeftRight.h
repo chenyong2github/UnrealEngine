@@ -9,7 +9,7 @@
 /**
  * A material expression that computes a left-to-right bilinear value ramp.
  */
-UCLASS(collapsecategories, hidecategories = Object, MinimalAPI)
+UCLASS(collapsecategories, hidecategories = Object, MinimalAPI, meta = (Private))
 class UMaterialExpressionMaterialXRampLeftRight : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

@@ -13,7 +13,7 @@
  * Operation: abs(A - B)
  * Result: Lerp(B, abs(A - B), Alpha)
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
 class UMaterialExpressionMaterialXDifference : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

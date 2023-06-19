@@ -13,7 +13,7 @@
  * implementation matching the behavior of certain DCC packages, and "1" or "TRS" performs
  * -pivot, translate, rotate, scale, +pivot which does not introduce texture shear.
  * Default is 0 "SRT" for backward compatibility.*/
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
 class UMaterialExpressionMaterialXPlace2D : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

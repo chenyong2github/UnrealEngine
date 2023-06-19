@@ -14,7 +14,7 @@
  *            1-(1-A)(1-B) if A >= 0.5
  * Result: Lerp(B, Op, Alpha)
  */
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object)
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, meta = (Private))
 class UMaterialExpressionMaterialXOverlay : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()

@@ -73,6 +73,9 @@ enum class EPreshaderOpcode : uint8
 	Greater,
 	LessEqual,
 	GreaterEqual,
+	Exp,
+	Exp2,
+	Log
 };
 
 struct FPreshaderStructType
