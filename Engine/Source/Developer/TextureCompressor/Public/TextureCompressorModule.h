@@ -407,8 +407,16 @@ public:
 	 * @param OutMip - The output mip.
 	 * @param SrcImage - The source longlat image.
 	 */
+	UE_DEPRECATED(5.3, "GenerateBaseCubeMipFromLongitudeLatitude2D with FTextureBuildSettings should be used.")
 	TEXTURECOMPRESSOR_API static void GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution, uint8 SourceEncodingOverride = 0);
 
+	/**
+	 * Generates the base cubemap mip from a longitude-latitude 2D image.
+	 * @param OutMip - The output mip.
+	 * @param SrcImage - The source longlat image.
+	 * @param InBuildSettings - Image build settings
+	 */
+	TEXTURECOMPRESSOR_API static void GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const FTextureBuildSettings& InBuildSettings);
 
 	/**
 	 * Generates angularly filtered mips.
