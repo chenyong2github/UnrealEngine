@@ -33,11 +33,11 @@ enum class ECurveEditorTangentVisibility : uint8
 UENUM()
 enum class ECurveEditorZoomPosition : uint8
 {
-	/** Current Time. */
-	CurrentTime,
+	/** Playhead. */
+	CurrentTime UMETA(DisplayName = "Playhead"),
 
 	/** Mouse Position. */
-	MousePosition,
+	MousePosition UMETA(DisplayName = "Mouse Position"),
 };
 
 /** Custom Color Object*/
