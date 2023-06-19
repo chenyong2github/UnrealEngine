@@ -14,7 +14,7 @@ struct STATETREEMODULE_API FStateTreeDebugTextTaskInstanceData
 	GENERATED_BODY()
 
 	/** Optional actor where to draw the text at. */
-	UPROPERTY(EditAnywhere, Category = "Parameter")
+	UPROPERTY(EditAnywhere, Category = "Input", meta=(Optional))
 	TObjectPtr<AActor> ReferenceActor = nullptr;
 };
 
