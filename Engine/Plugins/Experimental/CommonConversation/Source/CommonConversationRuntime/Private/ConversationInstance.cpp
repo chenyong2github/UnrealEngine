@@ -179,6 +179,8 @@ void UConversationInstance::TryStartingConversation()
 			}
 		}
 
+		ConversationRNG.Initialize(NAME_None);
+
 		OnStarted();
 
 		OnCurrentConversationNodeModified();
