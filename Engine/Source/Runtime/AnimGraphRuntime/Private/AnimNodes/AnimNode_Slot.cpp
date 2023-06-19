@@ -52,7 +52,8 @@ void FAnimNode_Slot::Update_AnyThread(const FAnimationUpdateContext& Context)
 			Request.Duration = InertializationRequest.Get<0>();
 			Request.BlendProfile = InertializationRequest.Get<1>();
 #if ANIM_TRACE_ENABLED
-			Request.Description = NSLOCTEXT("AnimNode_Slot", "InertializationRequestDescription", "Slot");
+			Request.NodeId = Context.GetCurrentNodeId();
+			Request.AnimInstance = Context.AnimInstanceProxy->GetAnimInstanceObject();
 #endif
 
 			InertializationRequester->RequestInertialization(Request);

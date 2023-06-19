@@ -38,6 +38,7 @@ private:
 		RouteId_AnimNodeValueString,
 		RouteId_AnimNodeValueObject,
 		RouteId_AnimNodeValueClass,
+		RouteId_AnimNodeValueAnimNode,
 		RouteId_AnimSequencePlayer,
 		RouteId_BlendSpacePlayer,
 		RouteId_StateMachineState,

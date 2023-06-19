@@ -70,6 +70,8 @@ static void RequestInertialBlend(const FAnimationUpdateContext& Context, float B
 			Request.Duration = BlendTime;
 #if ANIM_TRACE_ENABLED
 			Request.Description = LOCTEXT("InertializationRequestDescription", "Motion Matching");
+			Request.NodeId = Context.GetCurrentNodeId();
+			Request.AnimInstance = Context.AnimInstanceProxy->GetAnimInstanceObject();
 #endif
 
 			InertializationRequester->RequestInertialization(Request);

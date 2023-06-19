@@ -166,6 +166,7 @@ struct FAnimTrace
 	ENGINE_API FORCENOINLINE static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const TCHAR* InValue);
 	ENGINE_API FORCENOINLINE static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const UClass* InValue);
 	ENGINE_API FORCENOINLINE static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const UObject* InValue);
+	ENGINE_API FORCENOINLINE static void OutputAnimNodeValueAnimNode(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, int32 InValue, const UObject* InValueAnimInstanceId);
 
 	/** Helper function to output debug info for sequence player nodes */
 	ENGINE_API static void OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayerBase& InNode);
@@ -228,6 +229,9 @@ struct FAnimTrace
 #define TRACE_ANIM_NODE_VALUE_WITH_ID(Context, NodeId, Key, Value) \
 	FAnimTrace::OutputAnimNodeValue(Context, NodeId, Key, Value);
 
+#define TRACE_ANIM_NODE_VALUE_WITH_ID_ANIM_NODE(Context, NodeId, Key, Value, ValueAnimInstanceId) \
+	FAnimTrace::OutputAnimNodeValueAnimNode(Context, NodeId, Key, Value, ValueAnimInstanceId);
+
 #define TRACE_ANIM_SEQUENCE_PLAYER(Context, Node) \
 	FAnimTrace::OutputAnimSequencePlayer(Context, Node);
 
@@ -262,6 +266,7 @@ struct FAnimTrace
 #define TRACE_SCOPED_ANIM_NODE_SUSPEND
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value)
 #define TRACE_ANIM_NODE_VALUE_WITH_ID(Context, NodeId, Key, Value)
+#define TRACE_ANIM_NODE_VALUE_WITH_ID_ANIM_NODE(Context, NodeId, Key, Value, ValueAnimInstanceId)
 #define TRACE_ANIM_SEQUENCE_PLAYER(Context, Node)
 #define TRACE_ANIM_STATE_MACHINE_STATE(Context, StateMachineIndex, StateIndex, StateWeight, ElapsedTime)
 #define TRACE_ANIM_NOTIFY(AnimInstance, NotifyEvent, EventType)

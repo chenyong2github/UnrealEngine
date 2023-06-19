@@ -437,6 +437,22 @@ const FSkeletalMeshInfo* FAnimationProvider::FindSkeletalMeshInfo(uint64 InObjec
 	return nullptr;
 }
 
+const FAnimNodeInfo* FAnimationProvider::FindAnimNodeInfo(int32 InAnimNodeId, uint64 InAnimInstanceId) const
+{
+	Session.ReadAccessCheck();
+
+	const uint32* IndexPtr = AnimNodeIdToIndexMap.Find({ InAnimNodeId, InAnimInstanceId });
+	if (IndexPtr != nullptr)
+	{
+		if (*IndexPtr < uint32(AnimNodeInfos.Num()))
+		{
+			return &AnimNodeInfos[*IndexPtr];
+		}
+	}
+
+	return nullptr;
+}
+
 const TCHAR* FAnimationProvider::GetName(uint32 InId) const
 {
 	const TCHAR* const* FoundName = NameMap.Find(InId);
@@ -488,6 +504,12 @@ FText FAnimationProvider::FormatNodeValue(const FAnimNodeValueMessage& InMessage
 	{
 		const FClassInfo& ClassInfo = GameplayProvider.GetClassInfo(InMessage.Value.Class.Value);
 		Text = FText::FromString(ClassInfo.PathName);
+		break;
+	}
+	case EAnimNodeValueType::AnimNode:
+	{
+		const FAnimNodeInfo* AnimNodeInfo = FindAnimNodeInfo(InMessage.Value.AnimNode.Value, InMessage.Value.AnimNode.AnimInstanceId);
+		Text = FText::FromString(AnimNodeInfo ? AnimNodeInfo->Name : TEXT(""));
 		break;
 	}
 	}
@@ -887,6 +909,20 @@ void FAnimationProvider::AppendAnimNodeStart(uint64 InAnimInstanceId, double InS
 
 	Timeline->AppendEvent(InStartTime, Message);
 
+	if (AnimNodeIdToIndexMap.Find({ InNodeId, InAnimInstanceId }) == nullptr)
+	{
+		bHasAnyData = true;
+
+		FAnimNodeInfo NewAnimNodeInfo;
+		NewAnimNodeInfo.Id = Message.NodeId;
+		NewAnimNodeInfo.AnimInstanceId = Message.AnimInstanceId;
+		NewAnimNodeInfo.Name = Message.NodeName;
+		NewAnimNodeInfo.TypeName = Message.NodeTypeName;
+
+		uint32 NewAnimNodeInfoIndex = AnimNodeInfos.Add(NewAnimNodeInfo);
+		AnimNodeIdToIndexMap.Add({ InNodeId, InAnimInstanceId }, NewAnimNodeInfoIndex);
+	}
+
 	Session.UpdateDurationSeconds(InStartTime);
 }
 
@@ -1026,6 +1062,16 @@ void FAnimationProvider::AppendAnimNodeValueClass(uint64 InAnimInstanceId, doubl
 	FAnimNodeValueMessage Message;
 	Message.Value.Class.Value = InValue;
 	Message.Value.Type = EAnimNodeValueType::Class;
+
+	AppendAnimNodeValue(InAnimInstanceId, InTime, InRecordingTime, InFrameCounter, InNodeId, InKey, Message);
+}
+
+void FAnimationProvider::AppendAnimNodeValueAnimNode(uint64 InAnimInstanceId, double InTime, double InRecordingTime, uint16 InFrameCounter, int32 InNodeId, const TCHAR* InKey, int32 InValue, uint64 InValueAnimInstanceId)
+{
+	FAnimNodeValueMessage Message;
+	Message.Value.AnimNode.Value = InValue;
+	Message.Value.AnimNode.AnimInstanceId = InValueAnimInstanceId;
+	Message.Value.Type = EAnimNodeValueType::AnimNode;
 
 	AppendAnimNodeValue(InAnimInstanceId, InTime, InRecordingTime, InFrameCounter, InNodeId, InKey, Message);
 }

@@ -146,6 +146,16 @@ struct FVariantTreeNode : TSharedFromThis<FVariantTreeNode>
 		return MakeShared<FVariantTreeNode>(InName, Value, InId);
 	}
 
+	static TSharedRef<FVariantTreeNode> MakeAnimNode(const FText& InName, uint64 InValue, uint64 InAnimInstanceId, uint64 InId = INDEX_NONE)
+	{
+		FVariantValue Value;
+		Value.Type = EAnimNodeValueType::AnimNode;
+		Value.AnimNode.Value = InValue;
+		Value.AnimNode.AnimInstanceId = InAnimInstanceId;
+
+		return MakeShared<FVariantTreeNode>(InName, Value, InId);
+	}
+
 private:
 	FText Name;
 	FVariantValue Value;

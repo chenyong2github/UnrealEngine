@@ -11,13 +11,8 @@
 
 struct FInertializationDetailsNodeItem
 {
-	const TCHAR* Type = nullptr;
-	float ElapsedTime = 0.0f;
-	float Duration = 0.0f;
-	float MaxDuration = 0.0f;
-	float InertializationWeight = 0.0f;
-	bool bActive = false;
-	const TCHAR* Request = nullptr;
+	TArray<const TCHAR*, TInlineAllocator<16>> PropertyNames;
+	TArray<FVariantValue, TInlineAllocator<16>> PropertyValues;
 };
 
 void SInertializationDetailsView::GetVariantsAtFrame(const TraceServices::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const
@@ -25,7 +20,7 @@ void SInertializationDetailsView::GetVariantsAtFrame(const TraceServices::FFrame
 	const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
 	const FAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
 
-	TSortedMap<int32, FInertializationDetailsNodeItem, TInlineAllocator<8>> NodeMap;
+	TSortedMap<TTuple<int32, uint64>, FInertializationDetailsNodeItem, TInlineAllocator<8>> NodeMap;
 
 	if(GameplayProvider && AnimationProvider)
 	{
@@ -48,8 +43,7 @@ void SInertializationDetailsView::GetVariantsAtFrame(const TraceServices::FFrame
 					{
 						if (FCString::Strcmp(InertializationNodeType, InMessage.NodeTypeName) == 0)
 						{
-							FInertializationDetailsNodeItem& NodeItemRef = NodeMap.FindOrAdd(InMessage.NodeId);
-							NodeItemRef.Type = InMessage.NodeName;
+							NodeMap.FindOrAdd({ InMessage.NodeId, InMessage.AnimInstanceId });
 							break;
 						}
 					}
@@ -67,32 +61,10 @@ void SInertializationDetailsView::GetVariantsAtFrame(const TraceServices::FFrame
 			{
 				if (InStartTime >= InFrame.StartTime && InEndTime <= InFrame.EndTime)
 				{
-					if (FInertializationDetailsNodeItem* NodeItem = NodeMap.Find(InMessage.NodeId))
+					if (FInertializationDetailsNodeItem* NodeItem = NodeMap.Find({ InMessage.NodeId, InMessage.AnimInstanceId }))
 					{
-						if (FCString::Strcmp(InMessage.Key, TEXT("State")) == 0)
-						{
-							NodeItem->bActive = FCString::Strcmp(InMessage.Value.String.Value, TEXT("EInertializationState::Active")) == 0;
-						}
-						else if (FCString::Strcmp(InMessage.Key, TEXT("Elapsed Time")) == 0)
-						{
-							NodeItem->ElapsedTime = InMessage.Value.Float.Value;
-						}
-						else if (FCString::Strcmp(InMessage.Key, TEXT("Duration")) == 0)
-						{
-							NodeItem->Duration = InMessage.Value.Float.Value;
-						}
-						else if (FCString::Strcmp(InMessage.Key, TEXT("Max Duration")) == 0)
-						{
-							NodeItem->MaxDuration = InMessage.Value.Float.Value;
-						}
-						else if (FCString::Strcmp(InMessage.Key, TEXT("Inertialization Weight")) == 0)
-						{
-							NodeItem->InertializationWeight = InMessage.Value.Float.Value;
-						}
-						else if (FCString::Strcmp(InMessage.Key, TEXT("Request")) == 0)
-						{
-							NodeItem->Request = InMessage.Value.String.Value;
-						}
+						NodeItem->PropertyNames.Add(InMessage.Key);
+						NodeItem->PropertyValues.Add(InMessage.Value);
 					}
 				}
 				return TraceServices::EEventEnumerate::Continue;
@@ -101,16 +73,36 @@ void SInertializationDetailsView::GetVariantsAtFrame(const TraceServices::FFrame
 
 		// Make UI Variant Items
 
-		for (TPair<int32, FInertializationDetailsNodeItem>& NodePair : NodeMap)
+		for (TPair<TTuple<int32, uint64>, FInertializationDetailsNodeItem>& NodePair : NodeMap)
 		{
-			if (NodePair.Value.bActive)
+			bool bInertializationActive = false;
+
+			const int32 PropertyNum = NodePair.Value.PropertyNames.Num();
+
+			// Check if inertialization node is Active
+
+			for (int32 PropertyIdx = 0; PropertyIdx < PropertyNum; PropertyIdx++)
 			{
-				TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(NodePair.Value.Type ? FText::FromString(NodePair.Value.Type) : LOCTEXT("UnknownNode", "Unknown Node"), NodePair.Key));
-				Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("ElapsedTime", "Elapsed Time"), NodePair.Value.ElapsedTime));
-				Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("Duration", "Duration"), NodePair.Value.Duration));
-				Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("MaxDuration", "Max Duration"), NodePair.Value.MaxDuration));
-				Header->AddChild(FVariantTreeNode::MakeFloat(LOCTEXT("InertializationWeight", "Inertialization Weight"), NodePair.Value.InertializationWeight));
-				Header->AddChild(FVariantTreeNode::MakeString(LOCTEXT("RequestNode", "Request Node"), NodePair.Value.Request));
+				if (FCString::Strcmp(NodePair.Value.PropertyNames[PropertyIdx], TEXT("State")) == 0 &&
+					FCString::Strcmp(NodePair.Value.PropertyValues[PropertyIdx].String.Value, TEXT("EInertializationState::Active")) == 0)
+				{
+					bInertializationActive = true;
+				}
+			}
+
+			// If node is active then add to details view
+
+			if (bInertializationActive)
+			{
+				TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(
+					FVariantTreeNode::MakeAnimNode(LOCTEXT("InertializationNode", "Inertialization Node"), NodePair.Key.Get<0>(), NodePair.Key.Get<1>()));
+
+				for (int32 PropertyIdx = 0; PropertyIdx < PropertyNum; PropertyIdx++)
+				{
+					Header->AddChild(MakeShared<FVariantTreeNode>(
+						FText::FromString(NodePair.Value.PropertyNames[PropertyIdx]), 
+						NodePair.Value.PropertyValues[PropertyIdx], 0, INDEX_NONE));
+				}
 			}
 		}
 	}

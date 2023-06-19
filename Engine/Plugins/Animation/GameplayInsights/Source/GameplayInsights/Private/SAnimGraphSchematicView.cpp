@@ -18,12 +18,16 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Images/SImage.h"
+#include "SVariantValueView.h"
 
 #if WITH_EDITOR
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Styling/SlateIconFinder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "IAnimationBlueprintEditor.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SAnimGraphSchematicView"
@@ -66,178 +70,12 @@ public:
 		TSharedPtr<FAnimNodeValueMessage> PinnedValue = Value.Pin();
 		if(PinnedValue.IsValid())
 		{
-			return StaticMakeValueWidget(AnalysisSession, PinnedValue.ToSharedRef());
+			return SVariantValueView::MakeVariantValueWidget(AnalysisSession, PinnedValue.ToSharedRef()->Value, FText::GetEmpty());
 		}
 		else
 		{
 			return SNullWidget::NullWidget;
 		}
-	}
-
-	static TSharedRef<SWidget> StaticMakeValueWidget(const TraceServices::IAnalysisSession& InAnalysisSession, const TSharedRef<FAnimNodeValueMessage>& InValue) 
-	{ 
-		switch(InValue->Value.Type)
-		{
-		case EAnimNodeValueType::Bool:
-			return 
-				SNew(SCheckBox)
-				.IsEnabled(false)
-				.IsChecked(InValue->Value.Bool.bValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked);
-
-		case EAnimNodeValueType::Int32:
-			return
-				SNew(SBox)
-				.WidthOverride(125.0f)
-				[
-					SNew(SEditableTextBox)
-					.IsEnabled(false)
-					.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-					.Text(FText::AsNumber(InValue->Value.Int32.Value))
-				];
-
-		case EAnimNodeValueType::Float:
-			return 
-				SNew(SBox)
-				.WidthOverride(125.0f)
-				[
-					SNew(SEditableTextBox)
-					.IsEnabled(false)
-					.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-					.Text(FText::AsNumber(InValue->Value.Float.Value))
-				];
-
-		case EAnimNodeValueType::Vector2D:
-			return SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SBox)
-					.WidthOverride(125.0f)
-					[
-						SNew(SEditableTextBox)
-						.IsEnabled(false)
-						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-						.Text(FText::AsNumber(InValue->Value.Vector2D.Value.X))
-					]
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SBox)
-					.WidthOverride(125.0f)
-					[
-						SNew(SEditableTextBox)
-						.IsEnabled(false)
-						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-						.Text(FText::AsNumber(InValue->Value.Vector2D.Value.Y))
-					]
-				];
-
-		case EAnimNodeValueType::Vector:
-			return SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SBox)
-					.WidthOverride(125.0f)
-					[
-						SNew(SEditableTextBox)
-						.IsEnabled(false)
-						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-						.Text(FText::AsNumber(InValue->Value.Vector.Value.X))
-					]
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SBox)
-					.WidthOverride(125.0f)
-					[
-						SNew(SEditableTextBox)
-						.IsEnabled(false)
-						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-						.Text(FText::AsNumber(InValue->Value.Vector.Value.Y))
-					]
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SBox)
-					.WidthOverride(125.0f)
-					[
-						SNew(SEditableTextBox)
-						.IsEnabled(false)
-						.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-						.Text(FText::AsNumber(InValue->Value.Vector.Value.Z))
-					]
-				];
-
-		case EAnimNodeValueType::String:
-			return 
-				SNew(STextBlock)
-				.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-				.Text(FText::FromString(InValue->Value.String.Value));
-
-		case EAnimNodeValueType::Object:
-		{
-			const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-			if(GameplayProvider)
-			{
-				TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
-
-				const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(InValue->Value.Object.Value);
-#if WITH_EDITOR
-				return 
-					SNew(SHyperlink)
-					.Text(FText::FromString(ObjectInfo.Name))
-					.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
-					.ToolTipText(FText::Format(LOCTEXT("AssetHyperlinkTooltipFormat", "Open asset '{0}'"), FText::FromString(ObjectInfo.PathName)))
-					.OnNavigate_Lambda([ObjectInfo]()
-					{
-						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ObjectInfo.PathName);
-					});
-#else
-				return 
-					SNew(STextBlock)
-					.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-					.Text(FText::FromString(ObjectInfo.Name))
-					.ToolTipText(FText::FromString(ObjectInfo.PathName));
-#endif
-			}
-		}
-		break;
-
-		case EAnimNodeValueType::Class:
-		{
-			const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
-			if(GameplayProvider)
-			{
-				TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
-
-				const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(InValue->Value.Class.Value);
-#if WITH_EDITOR
-				return 
-					SNew(SHyperlink)
-					.Text(FText::FromString(ClassInfo.Name))
-					.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
-					.ToolTipText(FText::Format(LOCTEXT("ClassHyperlinkTooltipFormat", "Open class '{0}'"), FText::FromString(ClassInfo.PathName)))
-					.OnNavigate_Lambda([ClassInfo]()
-					{
-						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ClassInfo.PathName);
-					});
-#else
-				return 
-					SNew(STextBlock)
-					.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
-					.Text(FText::FromString(ClassInfo.Name))
-					.ToolTipText(FText::FromString(ClassInfo.PathName));
-#endif			
-			}
-		}
-		break;
-		}
-
-		return SNullWidget::NullWidget; 
 	}
 
 	const TraceServices::IAnalysisSession& AnalysisSession;
@@ -322,9 +160,10 @@ public:
 class FAnimGraphSchematicNode : public TSharedFromThis<FAnimGraphSchematicNode>
 {
 public:
-	FAnimGraphSchematicNode(int32 InNodeId, const FText& InType, const TraceServices::IAnalysisSession& InAnalysisSession)
+	FAnimGraphSchematicNode(int32 InNodeId, uint64 InAnimInstanceId, const FText& InType, const TraceServices::IAnalysisSession& InAnalysisSession)
 		: AnalysisSession(InAnalysisSession)
 		, NodeId(InNodeId)
+		, AnimInstanceId(InAnimInstanceId)
 		, Type(InType)
 		, FilterState(EAnimGraphSchematicFilterState::Hidden)
 		, bLinearized(false)
@@ -347,7 +186,8 @@ public:
 
 	const TraceServices::IAnalysisSession& AnalysisSession;
 
-	int32 NodeId;
+	int32 NodeId = INDEX_NONE;
+	uint64 AnimInstanceId = INDEX_NONE;
 
 	FText Type;
 
@@ -393,29 +233,123 @@ class SAnimGraphSchematicNode : public SMultiColumnTableRow<TSharedRef<FAnimGrap
 
 		if (InColumnName == AnimGraphSchematicColumns::Type)
 		{
-			return 
-				SNew(SBorder)
-				.BorderImage(bIsRoot ? FGameplayInsightsStyle::Get().GetBrush("SchematicViewRootLeft") : FCoreStyle::Get().GetBrush("NoBorder"))
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(6, 0, 0, 0)
-					[
-						SNew(SExpanderArrow, SharedThis(this))
-						.IndentAmount(12)
-					]
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Font(FCoreStyle::Get().GetFontStyle(bIsRoot ? "ExpandableArea.TitleFont" : "SmallFont"))
-						.Text(Node->Type)
-						.HighlightText(FilterText)
-					]
-				];
+#if WITH_EDITOR
+			IRewindDebugger* RewindDebugger = IRewindDebugger::Instance();
+
+			if (const TraceServices::IAnalysisSession* AnalysisSession = RewindDebugger->GetAnalysisSession())
+			{
+				if (const FGameplayProvider* GameplayProvider = AnalysisSession->ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName))
+				{
+					TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+
+					const FObjectInfo* ObjectInfo = GameplayProvider->FindObjectInfo(Node->AnimInstanceId);
+					const FClassInfo* AnimInstanceClassInfo = ObjectInfo ? GameplayProvider->FindClassInfo(ObjectInfo->ClassId) : nullptr;
+					const int32 AnimNodeId = Node->NodeId;
+
+					if (ObjectInfo && AnimInstanceClassInfo)
+					{
+
+						return 
+							SNew(SBorder)
+							.BorderImage(bIsRoot ? FGameplayInsightsStyle::Get().GetBrush("SchematicViewRootLeft") : FCoreStyle::Get().GetBrush("NoBorder"))
+							[
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								.Padding(6, 0, 0, 0)
+								[
+									SNew(SExpanderArrow, SharedThis(this))
+									.IndentAmount(12)
+								]
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(SHyperlink)
+									.Text(Node->Type)
+									.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+									.ToolTipText(FText::Format(LOCTEXT("AssetHyperlinkTooltipFormat", "Open node '{0}'"), Node->Type))
+									.HighlightText(FilterText)
+									.OnNavigate_Lambda([AnimNodeId, AnimInstanceClassInfo]()
+									{
+										TSoftObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
+										InstanceClass = FSoftObjectPath(AnimInstanceClassInfo->PathName);
+
+										if (InstanceClass.LoadSynchronous())
+										{
+											if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass.Get()->ClassGeneratedBy))
+											{
+												GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AnimBlueprint);
+
+												if (IAnimationBlueprintEditor* AnimBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, true)))
+												{
+													int32 AnimNodeIndex = InstanceClass.Get()->GetAnimNodeProperties().Num() - AnimNodeId - 1;
+													TWeakObjectPtr<const UEdGraphNode>* GraphNode = InstanceClass.Get()->AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(AnimNodeIndex);
+													if (GraphNode != nullptr && GraphNode->Get())
+													{
+														AnimBlueprintEditor->JumpToHyperlink(GraphNode->Get());
+													}
+												}
+											}
+										}
+									})
+								]
+							];
+#else
+						return 
+							SNew(SBorder)
+							.BorderImage(bIsRoot ? FGameplayInsightsStyle::Get().GetBrush("SchematicViewRootLeft") : FCoreStyle::Get().GetBrush("NoBorder"))
+							[
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								.Padding(6, 0, 0, 0)
+								[
+									SNew(SExpanderArrow, SharedThis(this))
+									.IndentAmount(12)
+								]
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(SHyperlink)
+									.Text(Node->Type)
+									.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+									.HighlightText(FilterText)
+								]
+							];
+#endif
+					}
+					else
+					{
+						return 
+							SNew(SBorder)
+							.BorderImage(bIsRoot ? FGameplayInsightsStyle::Get().GetBrush("SchematicViewRootLeft") : FCoreStyle::Get().GetBrush("NoBorder"))
+							[
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								.Padding(6, 0, 0, 0)
+								[
+									SNew(SExpanderArrow, SharedThis(this))
+									.IndentAmount(12)
+								]
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(SHyperlink)
+									.Text(Node->Type)
+									.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+									.HighlightText(FilterText)
+								]
+							];
+					}
+				}
+			}
 		}
 		else
 		{
@@ -423,7 +357,7 @@ class SAnimGraphSchematicNode : public SMultiColumnTableRow<TSharedRef<FAnimGrap
 			TSharedRef<FAnimNodeValueMessage>* ValuePtr = Node->KeysAndValues.Find(InColumnName);
 			if(ValuePtr)
 			{
-				ValueWidget = FAnimGraphSchematicPropertyNode::StaticMakeValueWidget(Node->AnalysisSession, *ValuePtr);
+				ValueWidget = SVariantValueView::MakeVariantValueWidget(Node->AnalysisSession, (*ValuePtr)->Value, FText::GetEmpty());
 			}
 
 			return
@@ -622,7 +556,7 @@ void SAnimGraphSchematicView::RefreshNodes()
 									TSharedRef<FAnimGraphSchematicNode>* ExistingNodePtr = NodeMap.Find(InMessage.NodeId);
 									if(ExistingNodePtr == nullptr)
 									{
-										Node = NodeMap.Add(InMessage.NodeId, MakeShared<FAnimGraphSchematicNode>(InMessage.NodeId, FText::FromString(InMessage.NodeName), *AnalysisSession));
+										Node = NodeMap.Add(InMessage.NodeId, MakeShared<FAnimGraphSchematicNode>(InMessage.NodeId, AnimInstanceId, FText::FromString(InMessage.NodeName), *AnalysisSession));
 
 										// Add dummy values for weight and root motion weight
 										TSharedRef<FAnimNodeValueMessage> WeightMessage = MakeShared<FAnimNodeValueMessage>();

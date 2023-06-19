@@ -17,8 +17,6 @@ public:
 	
 	FInertializationTrack(uint64 InObjectId, int32 NodeId, const FText& Name);
 
-	int32 GetNodeId() const { return NodeId; };
-
 private:
 	virtual bool UpdateInternal() override;
 	virtual TSharedPtr<SWidget> GetTimelineViewInternal() override;
@@ -32,11 +30,11 @@ private:
 
 	TSharedPtr<SCurveTimelineView::FTimelineCurveData> GetCurveData() const;
 	
-	int32 NodeId;
+	int32 NodeId = INDEX_NONE;
 
 	FSlateIcon Icon;
 	FText CurveName;
-	uint64 ObjectId;
+	uint64 ObjectId = INDEX_NONE;
 
 	mutable TSharedPtr<SCurveTimelineView::FTimelineCurveData> CurveData;
 	mutable int CurvesUpdateRequested = 0;
@@ -59,7 +57,7 @@ private:
 	virtual FSlateIcon GetIconInternal() override { return Icon; }
 
 	FSlateIcon Icon;
-	uint64 ObjectId;
+	uint64 ObjectId = INDEX_NONE;
 	TArray<TSharedPtr<FInertializationTrack>> Children;
 };
 	

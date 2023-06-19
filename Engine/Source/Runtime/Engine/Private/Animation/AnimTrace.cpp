@@ -179,6 +179,17 @@ UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueClass)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Animation, AnimNodeValueAnimNode)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(double, RecordingTime)
+	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(int32, Value)
+	UE_TRACE_EVENT_FIELD(uint64, ValueAnimInstanceId)
+	UE_TRACE_EVENT_FIELD(int32, NodeId)
+	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Key)
+UE_TRACE_EVENT_END()
+
 UE_TRACE_EVENT_BEGIN(Animation, AnimSequencePlayer)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
@@ -1007,6 +1018,35 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, uin
 		<< AnimNodeValueClass.Value(FObjectTrace::GetObjectId(InValue))
 		<< AnimNodeValueClass.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
 		<< AnimNodeValueClass.Key(InKey);
+}
+
+void FAnimTrace::OutputAnimNodeValueAnimNode(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, int32 InValue, const UObject* InValueAnimInstanceId)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
+	if (!bChannelEnabled)
+	{
+		return;
+	}
+
+	check(InContext.AnimInstanceProxy);
+
+	if (CANNOT_TRACE_OBJECT(InContext.AnimInstanceProxy->GetSkelMeshComponent()))
+	{
+		return;
+	}
+
+	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
+	TRACE_OBJECT(AnimInstance);
+
+	UE_TRACE_LOG(Animation, AnimNodeValueAnimNode, AnimationChannel)
+		<< AnimNodeValueAnimNode.Cycle(FPlatformTime::Cycles64())
+		<< AnimNodeValueAnimNode.RecordingTime(FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()))
+		<< AnimNodeValueAnimNode.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
+		<< AnimNodeValueAnimNode.NodeId(NodeIndex)
+		<< AnimNodeValueAnimNode.Value(InValue)
+		<< AnimNodeValueAnimNode.ValueAnimInstanceId(FObjectTrace::GetObjectId(InValueAnimInstanceId))
+		<< AnimNodeValueAnimNode.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
+		<< AnimNodeValueAnimNode.Key(InKey);
 }
 
 void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayerBase& InNode)

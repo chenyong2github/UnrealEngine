@@ -129,6 +129,8 @@ struct FInertializationRequest
 		BlendMode = EAlphaBlendOption::Linear;
 		CustomBlendCurve = nullptr;
 		Description = FText::GetEmpty();
+		NodeId = INDEX_NONE;
+		AnimInstance = nullptr;
 	}
 
 	friend bool operator==(const FInertializationRequest& A, const FInertializationRequest& B)
@@ -139,7 +141,9 @@ struct FInertializationRequest
 			(A.bUseBlendMode == B.bUseBlendMode) &&
 			(A.BlendMode == B.BlendMode) &&
 			(A.CustomBlendCurve == B.CustomBlendCurve) &&
-			(A.Description.EqualTo(B.Description));
+			(A.Description.EqualTo(B.Description) &&
+			(A.NodeId == B.NodeId) &&
+			(A.AnimInstance == B.AnimInstance));
 	}
 
 	friend bool operator!=(const FInertializationRequest& A, const FInertializationRequest& B)
@@ -170,6 +174,14 @@ struct FInertializationRequest
 	// Description of the request - used for debugging.
 	UPROPERTY(Transient)
 	FText Description;
+
+	// Node id from which this request was made.
+	UPROPERTY(Transient)
+	int32 NodeId = INDEX_NONE;
+
+	// Anim instance from which this request was made.
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> AnimInstance = nullptr;
 };
 
 
@@ -432,6 +444,13 @@ private:
 
 	// Description for the current inertialization request - used for debugging
 	FText InertializationRequestDescription;
+
+	// Node Id for the current inertialization request - used for debugging
+	int32 InertializationRequestNodeId = INDEX_NONE;
+
+	// Anim Instance for the current inertialization request - used for debugging
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> InertializationRequestAnimInstance = nullptr;
 
 	// Inertialization durations indexed by skeleton bone index (used for per-bone blending)
 	TCustomBoneIndexArray<float, FSkeletonPoseBoneIndex> InertializationDurationPerBone;

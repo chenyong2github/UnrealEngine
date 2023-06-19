@@ -212,6 +212,13 @@ private:
 	// Description for the current inertialization request - used for debugging
 	FText InertializationRequestDescription;
 
+	// Node Id for the current inertialization request - used for debugging
+	int32 InertializationRequestNodeId = INDEX_NONE;
+
+	// Anim Instance for the current inertialization request - used for debugging
+	UPROPERTY(Transient)
+	TObjectPtr<UObject> InertializationRequestAnimInstance = nullptr;
+
 	// Current inertialization durations for each bone, indexed by skeleton bone index (used for per-bone blending).
 	TCustomBoneIndexArray<float, FSkeletonPoseBoneIndex> InertializationDurationPerBone;
 

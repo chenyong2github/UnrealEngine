@@ -37,6 +37,7 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_AnimNodeValueString, "Animation", "AnimNodeValueString");
 	Builder.RouteEvent(RouteId_AnimNodeValueObject, "Animation", "AnimNodeValueObject");
 	Builder.RouteEvent(RouteId_AnimNodeValueClass, "Animation", "AnimNodeValueClass");
+	Builder.RouteEvent(RouteId_AnimNodeValueAnimNode, "Animation", "AnimNodeValueAnimNode");
 	Builder.RouteEvent(RouteId_AnimSequencePlayer, "Animation", "AnimSequencePlayer");
 	Builder.RouteEvent(RouteId_BlendSpacePlayer, "Animation", "BlendSpacePlayer");
 	Builder.RouteEvent(RouteId_StateMachineState, "Animation", "StateMachineState");
@@ -235,6 +236,7 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 	case RouteId_AnimNodeValueString:
 	case RouteId_AnimNodeValueObject:
 	case RouteId_AnimNodeValueClass:
+	case RouteId_AnimNodeValueAnimNode:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 		double RecordingTime = EventData.GetValue<double>("RecordingTime");
@@ -297,6 +299,13 @@ bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		{
 			uint64 Value = EventData.GetValue<uint64>("Value");
 			AnimationProvider.AppendAnimNodeValueClass(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), RecordingTime, FrameCounter, NodeId, *Key, Value);
+			break;
+		}
+		case RouteId_AnimNodeValueAnimNode:
+		{
+			int32 Value = EventData.GetValue<int32>("Value");
+			uint64 ValueAnimInstanceId = EventData.GetValue<uint64>("ValueAnimInstanceId");
+			AnimationProvider.AppendAnimNodeValueAnimNode(AnimInstanceId, Context.EventTime.AsSeconds(Cycle), RecordingTime, FrameCounter, NodeId, *Key, Value, ValueAnimInstanceId);
 			break;
 		}
 		}

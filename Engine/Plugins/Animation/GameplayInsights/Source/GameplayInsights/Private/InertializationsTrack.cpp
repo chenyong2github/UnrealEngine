@@ -277,12 +277,26 @@ bool FInertializationsTrackCreator::HasDebugInfoInternal(uint64 ObjectId) const
 {
 	const TraceServices::IAnalysisSession* AnalysisSession = IRewindDebugger::Instance()->GetAnalysisSession();
 	TraceServices::FAnalysisSessionReadScope SessionReadScope(*AnalysisSession);
+	
 	bool bHasData = false;
+
 	if (const FAnimationProvider* AnimationProvider = AnalysisSession->ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName))
 	{
-		AnimationProvider->ReadAnimGraphTimeline(ObjectId, [&bHasData](const FAnimationProvider::AnimGraphTimeline& InGraphTimeline)
+		AnimationProvider->ReadAnimNodesTimeline(ObjectId, [&AnimationProvider, &bHasData](const FAnimationProvider::AnimNodesTimeline& InTimeline)
 		{
-			bHasData = true;
+			InTimeline.EnumerateEvents(InTimeline.GetStartTime(), InTimeline.GetEndTime(), [&AnimationProvider, &bHasData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeMessage& InMessage)
+			{
+				for (const TCHAR* InertializationNodeType : { TEXT("AnimNode_DeadBlending"), TEXT("AnimNode_Inertialization") })
+				{
+					if (FCString::Strcmp(InertializationNodeType, InMessage.NodeTypeName) == 0)
+					{
+						bHasData = true;
+						return TraceServices::EEventEnumerate::Stop;
+					}
+				}
+
+				return TraceServices::EEventEnumerate::Continue;
+			});
 		});
 	}
 	

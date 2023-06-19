@@ -4,6 +4,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "GameplayProvider.h"
+#include "AnimationProvider.h"
 #include "TraceServices/Model/Frames.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
@@ -22,8 +23,11 @@
 #if WITH_EDITOR
 #include "AnimPreviewInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Editor.h"
 #include "IAnimationEditor.h"
+#include "IAnimationBlueprintEditor.h"
 #include "IPersonaToolkit.h"
 #include "SourceCodeNavigation.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -37,7 +41,7 @@ namespace VariantColumns
 	static const FName Value("Value");
 };
 
-static TSharedRef<SWidget> MakeVariantValueWidget(const TraceServices::IAnalysisSession& InAnalysisSession, const FVariantValue& InValue, const TAttribute<FText>& InHighlightText) 
+TSharedRef<SWidget> SVariantValueView::MakeVariantValueWidget(const TraceServices::IAnalysisSession& InAnalysisSession, const FVariantValue& InValue, const TAttribute<FText>& InHighlightText)
 { 
 	switch(InValue.Type)
 	{
@@ -248,6 +252,62 @@ static TSharedRef<SWidget> MakeVariantValueWidget(const TraceServices::IAnalysis
 #endif			
 		}
 	}
+
+	case EAnimNodeValueType::AnimNode:
+	{
+		const FGameplayProvider* GameplayProvider = InAnalysisSession.ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+		const FAnimationProvider* AnimationProvider = InAnalysisSession.ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+
+		if (GameplayProvider && AnimationProvider)
+		{
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+
+			const FAnimNodeInfo* AnimNodeInfo = AnimationProvider->FindAnimNodeInfo(InValue.AnimNode.Value, InValue.AnimNode.AnimInstanceId);
+			const FObjectInfo* ObjectInfo = GameplayProvider->FindObjectInfo(InValue.AnimNode.AnimInstanceId);
+			const FClassInfo* AnimInstanceClassInfo = ObjectInfo ? GameplayProvider->FindClassInfo(ObjectInfo->ClassId) : nullptr;
+
+			if (AnimNodeInfo && ObjectInfo && AnimInstanceClassInfo)
+			{
+#if WITH_EDITOR
+				return
+					SNew(SHyperlink)
+					.Text(FText::FromString(AnimNodeInfo->Name))
+					.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallText"))
+					.ToolTipText(FText::Format(LOCTEXT("AssetHyperlinkTooltipFormat", "Open node '{0}'"), FText::FromString(AnimNodeInfo->Name)))
+					.OnNavigate_Lambda([ObjectInfo, AnimNodeInfo, AnimInstanceClassInfo, InValue]()
+					{
+						TSoftObjectPtr<UAnimBlueprintGeneratedClass> InstanceClass;
+						InstanceClass = FSoftObjectPath(AnimInstanceClassInfo->PathName);
+
+						if (InstanceClass.LoadSynchronous())
+						{
+							if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass.Get()->ClassGeneratedBy))
+							{
+								GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(AnimBlueprint);
+
+								if (IAnimationBlueprintEditor* AnimBlueprintEditor = static_cast<IAnimationBlueprintEditor*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(AnimBlueprint, true)))
+								{
+									int32 AnimNodeIndex = InstanceClass.Get()->GetAnimNodeProperties().Num() - AnimNodeInfo->Id - 1;
+									TWeakObjectPtr<const UEdGraphNode>* GraphNode = InstanceClass.Get()->AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(AnimNodeIndex);
+									if (GraphNode != nullptr && GraphNode->Get())
+									{
+										AnimBlueprintEditor->JumpToHyperlink(GraphNode->Get());
+									}
+								}
+							}
+						}
+					});
+#else
+				return
+					SNew(STextBlock)
+					.Font(FCoreStyle::Get().GetFontStyle("SmallFont"))
+					.Text(FText::FromString(AnimNodeInfo->Name))
+					.ToolTipText(FText::FromString(AnimNodeInfo->Name))
+					.HighlightText(InHighlightText);
+#endif
+			}
+		}
+	}
 	break;
 	}
 
@@ -328,7 +388,7 @@ public:
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
-						MakeVariantValueWidget(*AnalysisSession, Node->GetValue(), HighlightText)
+						SVariantValueView::MakeVariantValueWidget(*AnalysisSession, Node->GetValue(), HighlightText)
 					]
 				];
 		}

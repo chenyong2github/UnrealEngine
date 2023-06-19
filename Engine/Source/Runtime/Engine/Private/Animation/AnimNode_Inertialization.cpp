@@ -286,6 +286,8 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 		InertializationDuration = FMath::Max(RequestQueue[0].Duration - AppliedDeficit, 0.0f);
 #if ANIM_TRACE_ENABLED
 		InertializationRequestDescription = RequestQueue[0].Description;
+		InertializationRequestNodeId = RequestQueue[0].NodeId;
+		InertializationRequestAnimInstance = RequestQueue[0].AnimInstance;
 #endif
 		FillSkeletonBoneDurationsArray(InertializationDurationPerBone, InertializationDuration, RequestQueue[0].BlendProfile);
 
@@ -304,6 +306,8 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 					InertializationDuration = RequestDuration;
 #if ANIM_TRACE_ENABLED
 					InertializationRequestDescription = Request.Description;
+					InertializationRequestNodeId = Request.NodeId;
+					InertializationRequestAnimInstance = Request.AnimInstance;
 #endif
 				}
 
@@ -456,7 +460,8 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Max Duration"), InertializationMaxDuration);
 	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Normalized Time"), InertializationDuration > UE_KINDA_SMALL_NUMBER ? (InertializationElapsedTime / InertializationDuration) : 0.0f);
 	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Inertialization Weight"), InertializationWeight);
-	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Request"), *InertializationRequestDescription.ToString());
+	TRACE_ANIM_NODE_VALUE_WITH_ID(Output, GetNodeIndex(), TEXT("Request Description"), *InertializationRequestDescription.ToString());
+	TRACE_ANIM_NODE_VALUE_WITH_ID_ANIM_NODE(Output, GetNodeIndex(), TEXT("Request Node"), InertializationRequestNodeId, InertializationRequestAnimInstance);
 }
 
 

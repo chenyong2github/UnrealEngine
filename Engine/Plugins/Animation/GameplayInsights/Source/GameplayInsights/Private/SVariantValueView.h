@@ -9,6 +9,7 @@
 #include "Containers/StringFwd.h"
 
 namespace TraceServices { class IAnalysisSession; }
+struct FVariantValue;
 struct FVariantTreeNode;
 class FTextFilterExpressionEvaluator;
 enum class EVariantTreeNodeFilterState;
@@ -40,6 +41,9 @@ public:
 	/** @return Trace session that the view references */
 	const TraceServices::IAnalysisSession&  GetAnalysisSession() const { return *AnalysisSession; }
 	
+	/** @return New Widget for the given Variant Value */
+	static TSharedRef<SWidget> MakeVariantValueWidget(const TraceServices::IAnalysisSession& InAnalysisSession, const FVariantValue& InValue, const TAttribute<FText>& InHighlightText);
+
 private:
 	// SWidget interface
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;

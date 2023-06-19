@@ -3,6 +3,7 @@
 #include "VariantTreeNode.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "GameplayProvider.h"
+#include "AnimationProvider.h"
 
 #define LOCTEXT_NAMESPACE "FVariantTreeNode"
 
@@ -44,6 +45,19 @@ FString FVariantTreeNode::GetValueAsString(const TraceServices::IAnalysisSession
 
 				const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(Value.Class.Value);
 				return ClassInfo.PathName;
+			}
+
+			break;
+		}
+	case EAnimNodeValueType::AnimNode:
+		{
+			const FAnimationProvider* AnimationProvider = InAnalysisSession.ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
+			if (AnimationProvider)
+			{
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(InAnalysisSession);
+
+				const FAnimNodeInfo* AnimNodeInfo = AnimationProvider->FindAnimNodeInfo(Value.AnimNode.Value, Value.AnimNode.AnimInstanceId);
+				return AnimNodeInfo ? AnimNodeInfo->Name : TEXT("");
 			}
 
 			break;

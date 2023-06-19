@@ -146,7 +146,8 @@ void FAnimNode_MirrorBase::Update_AnyThread(const FAnimationUpdateContext& Conte
 				FInertializationRequest Request;
 				Request.Duration = GetBlendTimeOnMirrorStateChange();
 #if ANIM_TRACE_ENABLED
-				Request.Description = LOCTEXT("InertializationRequestDescription", "Mirror");
+				Request.NodeId = Context.GetCurrentNodeId();
+				Request.AnimInstance = Context.AnimInstanceProxy->GetAnimInstanceObject();
 #endif
 
 				InertializationRequester->RequestInertialization(Request);

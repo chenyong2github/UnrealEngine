@@ -6,6 +6,7 @@
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/AnimInstanceProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SequenceEvaluatorLibrary)
 
@@ -94,7 +95,8 @@ FSequenceEvaluatorReference USequenceEvaluatorLibrary::SetSequenceWithInertialBl
 						FInertializationRequest Request;
 						Request.Duration = BlendTime;
 #if ANIM_TRACE_ENABLED
-						Request.Description = NSLOCTEXT("SequenceEvaluatorLibrary", "InertializationRequestDescription", "Sequence Evaluator");
+						Request.NodeId = AnimationUpdateContext->GetCurrentNodeId();
+						Request.AnimInstance = AnimationUpdateContext->AnimInstanceProxy->GetAnimInstanceObject();
 #endif
 
 						InertializationRequester->RequestInertialization(Request);
