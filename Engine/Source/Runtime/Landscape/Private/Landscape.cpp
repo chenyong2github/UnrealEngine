@@ -3191,6 +3191,16 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 		UpdateRenderingMethod();
 	}
 
+	// Warn if there are any active Physical Material Renders on this Proxy
+	// don.boogert todo: We should block or wait for this to complete within some timeout period.
+	for (ULandscapeComponent* LandscapeComponent : LandscapeComponents)
+	{
+		if (LandscapeComponent->PhysicalMaterialTask.IsInProgress())
+		{
+			UE_LOG(LogLandscape, Warning, TEXT("Physical material render on component: '%s' in progress."), *LandscapeComponent->GetFullName());
+		}
+	}
+
 	if (LandscapeGuid.IsValid())
 	{
 		if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
@@ -5698,6 +5708,18 @@ void FLandscapePhysicalMaterialBuilder::Build()
 	}
 }
 
+void FLandscapePhysicalMaterialBuilder::Rebuild()
+{
+	if (World)
+	{
+		for (TActorIterator<ALandscapeProxy> ProxyIt(World); ProxyIt; ++ProxyIt)
+		{
+			ProxyIt->InvalidatePhysicalMaterial();
+			ProxyIt->BuildPhysicalMaterial();
+		}
+	}
+}
+
 int32 FLandscapePhysicalMaterialBuilder::GetOudatedPhysicalMaterialComponentsCount()
 {
 	if (World)
@@ -5740,6 +5762,14 @@ UE::Landscape::EOutdatedDataFlags ALandscapeProxy::GetOutdatedDataFlags() const
 	return OutdatedDataFlags;
 }
 
+void ALandscapeProxy::InvalidatePhysicalMaterial()
+{
+	for (ULandscapeComponent* Component : LandscapeComponents)
+	{
+		Component->PhysicalMaterialHash = 0;
+	}
+}
+
 void ALandscapeProxy::BuildPhysicalMaterial(struct FScopedSlowTask* InSlowTask)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
@@ -5752,7 +5782,7 @@ void ALandscapeProxy::BuildPhysicalMaterial(struct FScopedSlowTask* InSlowTask)
 void ALandscapeProxy::UpdatePhysicalMaterialTasksStatus(TSet<ULandscapeComponent*>* OutdatedComponents, int32* OutdatedComponentsCount) const
 {
 	int32 OutdatedCount = 0;
-	for (auto Component : LandscapeComponents)
+	for (ULandscapeComponent* Component : LandscapeComponents)
 	{
 		uint32 Hash = Component->CalculatePhysicalMaterialTaskHash();
 		if (Component->PhysicalMaterialHash != Hash || Component->PhysicalMaterialTask.IsValid())
@@ -5767,7 +5797,7 @@ void ALandscapeProxy::UpdatePhysicalMaterialTasksStatus(TSet<ULandscapeComponent
 
 	if (OutdatedCount == 0)
 	{
-		for (auto Component : LandscapeComponents)
+		for (ULandscapeComponent* Component : LandscapeComponents)
 		{
 			const bool bIsDirty = Component->GetPackage()->IsDirty();
 			if (Component->LastSavedPhysicalMaterialHash != Component->PhysicalMaterialHash && !bIsDirty)

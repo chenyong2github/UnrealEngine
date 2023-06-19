@@ -424,7 +424,7 @@ void ULandscapeSubsystem::BuildGrassMaps()
 
 void ULandscapeSubsystem::BuildPhysicalMaterial()
 {
-	PhysicalMaterialBuilder->Build();
+	PhysicalMaterialBuilder->Rebuild();
 }
 
 TArray<ALandscapeProxy*> ULandscapeSubsystem::GetOutdatedProxies(UE::Landscape::EOutdatedDataFlags InMatchingOutdatedDataFlags, bool bInMustMatchAllFlags) const

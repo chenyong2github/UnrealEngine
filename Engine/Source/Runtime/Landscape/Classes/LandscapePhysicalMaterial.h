@@ -16,9 +16,7 @@
 class FLandscapePhysicalMaterialRenderTask
 {
 public:
-	/* Task constructs with IsValid() false. */
 	FLandscapePhysicalMaterialRenderTask()
-		: PoolHandle(-1)
 	{}
 
 	~FLandscapePhysicalMaterialRenderTask()
@@ -27,7 +25,7 @@ public:
 	}
 
 	/** Initialize the task for a component. A task in progress can safely call Init() again to rekick the task. Returns false if no physical material needs to be rendered. */
-	bool Init(class ULandscapeComponent const* LandscapeComponent);
+	bool Init(class ULandscapeComponent const* LandscapeComponent, uint32 InHash);
 	/** Release the task. After calling this IsValid() will return false until we call Init() again. */
 	void Release();
 
@@ -35,6 +33,9 @@ public:
 	bool IsValid() const;
 	/** Returns true if the task is complete and the result is available. */
 	bool IsComplete() const;
+	/** Is this Task in progress (valid and incomplete) */
+	bool IsInProgress() const;
+
 
 	/** Update a task. Does nothing if the task is complete. */
 	void Tick();
@@ -46,14 +47,17 @@ public:
 	/** Get the result data. Assumes that IsComplete() is true. This doesn't Release() the data. */
 	TArray <class UPhysicalMaterial* > const& GetResultMaterials() const;
 
+	uint32 GetHash() const { return Hash; }
 private:
 	void UpdateInternal(bool bInFlush);
 
 private:
-	int32 PoolHandle;
+	int32 PoolHandle = -1;
 	
 	friend class FLandscapePhysicalMaterialRenderTaskPool;
 	FLandscapePhysicalMaterialRenderTask(FLandscapePhysicalMaterialRenderTask const&);
+
+	uint32 Hash = 0;
 };
 
 namespace LandscapePhysicalMaterial

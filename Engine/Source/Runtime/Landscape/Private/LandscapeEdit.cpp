@@ -1816,6 +1816,31 @@ bool ULandscapeComponent::CanUpdatePhysicalMaterial()
 	return GetCollisionComponent() != nullptr;
 }
 
+void ULandscapeComponent::FinalizePhysicalMaterial(bool bInImmediatePhysicsRebuild)
+{
+	if (!PhysicalMaterialTask.IsValid())
+	{
+		return;
+	}
+
+	if (!PhysicalMaterialTask.IsComplete())
+	{
+		return;
+	}
+
+	UpdateCollisionPhysicalMaterialData(PhysicalMaterialTask.GetResultMaterials(), PhysicalMaterialTask.GetResultIds());
+	PhysicalMaterialHash = PhysicalMaterialTask.GetHash();
+
+	PhysicalMaterialTask.Release();
+
+	if (bInImmediatePhysicsRebuild)
+	{
+		ULandscapeHeightfieldCollisionComponent* CollisionComponent = GetCollisionComponent();
+		check(CollisionComponent != nullptr);
+
+		CollisionComponent->RecreateCollision();
+	}
+}
 
 void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 {
@@ -1825,8 +1850,6 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 		if (PhysicalMaterialTask.IsValid())
 		{
 			PhysicalMaterialTask.Release();
-			// Resetting the hash ensures we will re-start the task once we CAN update physical materials.
-			PhysicalMaterialHash = 0;
 		}
 		return;
 	}
@@ -1836,12 +1859,18 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 	ULandscapeHeightfieldCollisionComponent* CollisionComponent = GetCollisionComponent();
 	check(CollisionComponent != nullptr);
 
-	if (PhysicalMaterialHash != Hash)
+	if (Hash == PhysicalMaterialHash)
+	{
+		check(!PhysicalMaterialTask.IsValid());
+		return;
+	}
+
+	if (PhysicalMaterialTask.GetHash() != Hash)
 	{
 		TArray<UPhysicalMaterial*> PhysicalMaterials;
 		if (GetRenderPhysicalMaterials(PhysicalMaterials))
 		{
-			bool bSuccess = PhysicalMaterialTask.Init(this);
+			bool bSuccess = PhysicalMaterialTask.Init(this, Hash);
 			check(bSuccess && PhysicalMaterialTask.IsValid());
 		}
 		else
@@ -1851,7 +1880,7 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 			CollisionComponent->PhysicalMaterialRenderData.RemoveBulkData();
 			PhysicalMaterialTask.Release();
 		}
-		PhysicalMaterialHash = Hash;
+	
 	}
 
 	// If we have a current task, update it
@@ -1859,16 +1888,9 @@ void ULandscapeComponent::UpdatePhysicalMaterialTasks()
 	{
 		if (PhysicalMaterialTask.IsComplete())
 		{
-			UpdateCollisionPhysicalMaterialData(PhysicalMaterialTask.GetResultMaterials(), PhysicalMaterialTask.GetResultIds());
-
-			PhysicalMaterialTask.Release();
-
 			// Potentially, we do not force an update of the physics data here (behind a CVar, as we don't necessarily need the 
 			//  information immediately in the editor and update will happen on cook or PIE) :
-			if (CVarLandscapeApplyPhysicalMaterialChangesImmediately.GetValueOnGameThread() != 0)
-			{
-				CollisionComponent->RecreateCollision();
-			}
+			FinalizePhysicalMaterial(CVarLandscapeApplyPhysicalMaterialChangesImmediately.GetValueOnGameThread() != 0);
 		}
 		else
 		{

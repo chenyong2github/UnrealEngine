@@ -1128,6 +1128,7 @@ public:
 	UE_DEPRECATED(5.3, "GetOutdatedGIBakedTextureComponentsCount is officially deprecated now returns 0")
 	int32 GetOutdatedGIBakedTextureComponentsCount() const { return 0; }
 	LANDSCAPE_API void BuildPhysicalMaterial(struct FScopedSlowTask* InSlowTask = nullptr);
+	LANDSCAPE_API void InvalidatePhysicalMaterial();
 	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount() const;
 	LANDSCAPE_API virtual void CreateSplineComponent() override;
 	LANDSCAPE_API virtual void CreateSplineComponent(const FVector& Scale3D) override;
@@ -1545,6 +1546,7 @@ class FLandscapePhysicalMaterialBuilder
 public:
 	LANDSCAPE_API FLandscapePhysicalMaterialBuilder(UWorld* InWorld);
 	LANDSCAPE_API void Build();
+	LANDSCAPE_API void Rebuild();
 	LANDSCAPE_API int32 GetOudatedPhysicalMaterialComponentsCount();
 private:
 	UWorld* World;

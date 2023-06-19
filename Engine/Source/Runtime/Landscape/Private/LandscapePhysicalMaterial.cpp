@@ -550,13 +550,14 @@ public:
 static TGlobalResource< FLandscapePhysicalMaterialRenderTaskPool > GTaskPool;
 
 
-bool FLandscapePhysicalMaterialRenderTask::Init(ULandscapeComponent const* LandscapeComponent)
+bool FLandscapePhysicalMaterialRenderTask::Init(ULandscapeComponent const* LandscapeComponent, uint32 InHash)
 {
 	check(IsInGameThread());
 	if (IsValid())
 	{
 		GTaskPool.Free(*this);
 	}
+	Hash = InHash;
 	return GTaskPool.Allocate(*this, LandscapeComponent);
 }
 
@@ -566,6 +567,7 @@ void FLandscapePhysicalMaterialRenderTask::Release()
 	if (IsValid())
 	{
 		GTaskPool.Free(*this);
+		Hash = 0;
 	}
 }
 
@@ -580,6 +582,11 @@ bool FLandscapePhysicalMaterialRenderTask::IsComplete() const
 	check(IsInGameThread());
 	check(IsValid());
 	return GTaskPool.Pool[PoolHandle].CompletionState == ECompletionState::Complete;
+}
+
+bool FLandscapePhysicalMaterialRenderTask::IsInProgress() const
+{
+	return IsValid() && !IsComplete();
 }
 
 void FLandscapePhysicalMaterialRenderTask::Tick()

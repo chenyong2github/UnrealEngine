@@ -1021,6 +1021,8 @@ public:
 	bool CanUpdatePhysicalMaterial();
 	/** Update physical material render tasks. */
 	void UpdatePhysicalMaterialTasks();
+	/** Write the physical materials into the LandscapeComponent from the Render & Immediately Rebuild physics if requested */
+	void FinalizePhysicalMaterial(bool bInImmediatePhysicsRebuild);
 	/** Update collision component physical materials from render task results. */
 	void UpdateCollisionPhysicalMaterialData(TArray<UPhysicalMaterial*> const& InPhysicalMaterials, TArray<uint8> const& InMaterialIds);
 
