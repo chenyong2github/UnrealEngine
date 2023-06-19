@@ -1138,11 +1138,13 @@ static bool IsComponentStreamingRelevant(const AActor* InActor, const UActorComp
 		return false;
 	}
 
-	if (InComponent->HasAnyFlags(RF_Transient))
+	// Transient components shoudn't be part of the streeaming bounds, unless the actor itself is transient.
+	if (!InActor->HasAnyFlags(RF_Transient) && InComponent->HasAnyFlags(RF_Transient))
 	{
 		return false;
 	}
 
+	// Editor-only components shoudn't be part of the streeaming bounds, unless the actor itself is editor-only.
 	if (!InActor->IsEditorOnly() && InComponent->IsEditorOnly())
 	{
 		return false;

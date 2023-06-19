@@ -416,14 +416,17 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 	// Can't have public or standalone on spawned actors and components because that
 	// will lead to asserts when trying to collect them during a level change, or when
-	// trying to replace them (right-clicking from the world outliner)
-	EObjectFlags ComponentFlags = Context->ObjectFlags & ~RF_Standalone & ~RF_Public;
+	// trying to replace them (right-clicking from the world outliner). Also, must set
+	// the transient flag after spawn to make sure the spawned actor get an external
+	// package if needed.
+	const EObjectFlags PreComponentFlags = Context->ObjectFlags & ~(RF_Standalone | RF_Public | RF_Transient);
+	const EObjectFlags PostComponentFlags = Context->ObjectFlags & RF_Transient;
 
 	if ( bNeedsActor.GetValue() )
 	{
 		// Spawn actor
 		FActorSpawnParameters SpawnParameters;
-		SpawnParameters.ObjectFlags = ComponentFlags;
+		SpawnParameters.ObjectFlags = PreComponentFlags;
 		SpawnParameters.OverrideLevel =  Context->Level;
 		SpawnParameters.Name = Prim.GetName();
 		SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested; // Will generate a unique name in case of a conflict
@@ -433,6 +436,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 
 		if ( SpawnedActor )
 		{
+			SpawnedActor->SetFlags(PostComponentFlags);
+
 #if WITH_EDITOR
 			const bool bMarkDirty = false;
 			SpawnedActor->SetActorLabel( Prim.GetName().ToString(), bMarkDirty );
@@ -511,7 +516,8 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 				ComponentType.GetValue(),
 				*IUsdClassesModule::SanitizeObjectName(Prim.GetName().ToString())
 			);
-			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), ComponentName, ComponentFlags );
+			SceneComponent = NewObject< USceneComponent >( ComponentOuter, ComponentType.GetValue(), ComponentName, PreComponentFlags );
+			SceneComponent->SetFlags(PostComponentFlags);
 
 			if ( AActor* Owner = SceneComponent->GetOwner() )
 			{
