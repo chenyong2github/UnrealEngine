@@ -207,7 +207,7 @@ public:
 	/**
 	* Saves generated asset registry data for each platform.
 	*/
-	bool SaveAssetRegistry(const FString& SandboxPath, bool bSerializeDevelopmentAssetRegistry = true, bool bForceNoFilterAssets = false);
+	bool SaveAssetRegistry(const FString& SandboxPath, bool bSerializeDevelopmentAssetRegistry, bool bForceNoFilterAssets, uint64& OutDevelopmentAssetRegistryHash);
 
 	/** 
 	 * Writes out CookerOpenOrder.log file 

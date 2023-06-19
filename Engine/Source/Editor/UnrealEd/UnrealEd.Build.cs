@@ -106,6 +106,7 @@ public class UnrealEd : ModuleRules
 				"AnimGraph",
 				"AppFramework",
 				"CinematicCamera",
+				"CookMetadata",
 				"CurveEditor",
 				"DataLayerEditor",
 				"DerivedDataCache",

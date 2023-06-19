@@ -39,6 +39,7 @@
 #include "Cooker/WorkerRequestsLocal.h"
 #include "Cooker/WorkerRequestsRemote.h"
 #include "CookerSettings.h"
+#include "CookMetadata.h"
 #include "CookOnTheFlyNetServer.h"
 #include "CookPackageSplitter.h"
 #include "DerivedDataCacheInterface.h"
@@ -729,7 +730,8 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 	// Functions in this section are not dependent upon each other and can be ordered arbitrarily or for async performance
 	InitializeShadersForCookOnTheFly(BeginContext.TargetPlatforms);
 	// SaveAssetRegistry is done in CookByTheBookFinished for CBTB, but we need at the start of CookOnTheFly to send as startup information to connecting clients
-	PlatformData->RegistryGenerator->SaveAssetRegistry(GetSandboxAssetRegistryFilename(), true);
+	uint64 DevelopmentAssetRegistryHash = 0;
+	PlatformData->RegistryGenerator->SaveAssetRegistry(GetSandboxAssetRegistryFilename(), true, false, DevelopmentAssetRegistryHash);
 
 	// Initialize systems that nothing in AddCookOnTheFlyPlatformFromGameThread references
 	// Functions in this section are not dependent upon each other and can be ordered arbitrarily or for async performance
@@ -8775,6 +8777,19 @@ FString UCookOnTheFlyServer::GetCookedAssetRegistryFilename(const FString& Platf
 	return CookedAssetRegistryFilename;
 }
 
+FString UCookOnTheFlyServer::GetCookedCookMetadataFilename(const FString& PlatformName )
+{
+	if (IsCookingDLC())
+	{
+		check(IsDirectorCookByTheBook());
+		const FString Filename = GetBaseDirectoryForDLC() / TEXT("Metadata") / UE::Cook::GetCookMetadataFilename();
+		return ConvertToFullSandboxPath(*Filename, true).Replace(TEXT("[Platform]"), *PlatformName);
+	}
+
+	const FString MetadataFilename = FPaths::ProjectDir() / TEXT("Metadata") / UE::Cook::GetCookMetadataFilename();
+	return ConvertToFullSandboxPath(*MetadataFilename, true).Replace(TEXT("[Platform]"), *PlatformName);
+}
+
 FString UCookOnTheFlyServer::GetSandboxCachedEditorThumbnailsFilename()
 {
 	if (IsCookingDLC())
@@ -9218,6 +9233,167 @@ void UCookOnTheFlyServer::CleanShaderCodeLibraries()
 	}
 }
 
+void UCookOnTheFlyServer::WriteCookMetadata(const ITargetPlatform* InTargetPlatform, uint64 InDevelopmentAssetRegistryHash)
+{
+	FString PlatformNameString = InTargetPlatform->PlatformName();
+
+	//
+	// Write the plugin hierarchy for the plugins we cooked. For DLC this is limited to the DLC plugin, otherwise
+	// we write out all plugins enabled for the cook.
+	//
+
+	TArray<TSharedRef<IPlugin>> EnabledPlugins = IPluginManager::Get().GetEnabledPlugins();
+
+	// Remove any plugins that don't support the target platform.
+	EnabledPlugins.RemoveAllSwap([InTargetPlatform](const TSharedRef<IPlugin>& Plugin)
+	{
+		return InTargetPlatform->IsEnabledForPlugin(Plugin.Get()) == false;
+	});
+
+	// Filter to the DLC plugin + dependencies if we are a DLC cook.
+	if (IsCookingDLC())
+	{
+		TMap<FStringView, TSharedRef<IPlugin>> EnabledPluginMap;
+		IPlugin* DlcPlugin = nullptr;
+		for (TSharedRef<IPlugin>& Plugin : EnabledPlugins)
+		{
+			EnabledPluginMap.Add(Plugin->GetName(), Plugin);
+			if (Plugin->GetName() == CookByTheBookOptions->DlcName)
+			{
+				check(DlcPlugin == nullptr);
+				DlcPlugin = &Plugin.Get();
+			}
+		}
+
+		if (DlcPlugin == nullptr)
+		{
+			UE_LOG(LogCook, Warning, TEXT("Dlc plugin %s not found, as a result including all plugins in cook metadata file."), *CookByTheBookOptions->DlcName);
+		}
+		else
+		{
+			TSet<FStringView> IncludedSet;
+
+			TArray<IPlugin*> DependencyStack;
+			IncludedSet.Add(DlcPlugin->GetName());
+			DependencyStack.Add(DlcPlugin);
+
+			while (DependencyStack.Num())
+			{
+				IPlugin* CurrentPlugin = DependencyStack.Pop();
+
+				for (const FPluginReferenceDescriptor& ChildPlugin : CurrentPlugin->GetDescriptor().Plugins)
+				{
+					TSharedRef<IPlugin>* FoundPlugin = EnabledPluginMap.Find(ChildPlugin.Name);
+					if (FoundPlugin)
+					{
+						bool bAlreadyExists = false;
+						IncludedSet.Add(ChildPlugin.Name, &bAlreadyExists);
+						if (bAlreadyExists == false)
+						{
+							DependencyStack.Add(&FoundPlugin->Get());
+						}
+					}
+				}
+			}
+
+			EnabledPlugins.RemoveAllSwap([&IncludedSet](TSharedRef<IPlugin>& EnabledPlugin)
+			{
+				return IncludedSet.Contains(EnabledPlugin->GetName()) == false;
+			}, false /* bAllowShrinking */);
+
+			UE_LOG(LogCook, Display, TEXT("Dlc cook narrowed cook plugin metadata list from %d to %d plugins"), EnabledPluginMap.Num(), EnabledPlugins.Num());
+		}
+	}
+
+	if (IntFitsIn<uint16>(EnabledPlugins.Num()) == false)
+	{
+		UE_LOG(LogCook, Warning, TEXT("Number of plugins exceeds 64k, unable to write cook metadata file (count = %d"), EnabledPlugins.Num());
+	}
+	else
+	{
+		TArray<UE::Cook::FCookMetadataPluginEntry> PluginsToAdd;
+		TMap<FString, uint16> IndexForPlugin;
+		TArray<uint16> PluginChildArray;
+
+		PluginsToAdd.AddDefaulted(EnabledPlugins.Num());
+		uint16 AddIndex = 0;
+		for (TSharedRef<IPlugin>& EnabledPlugin : EnabledPlugins)
+		{
+			UE::Cook::FCookMetadataPluginEntry& NewEntry = PluginsToAdd[AddIndex];
+			NewEntry.Name = EnabledPlugin->GetName();
+			IndexForPlugin.Add(NewEntry.Name, AddIndex);
+			AddIndex++;
+		}
+
+		// Construct the dependency list.
+		for (TSharedRef<IPlugin>& EnabledPlugin : EnabledPlugins)
+		{
+			uint16 SelfIndex = IndexForPlugin[EnabledPlugin->GetName()];
+			UE::Cook::FCookMetadataPluginEntry& Entry = PluginsToAdd[SelfIndex];
+
+			// We detect if this would overflow below and cancel the write - so while this could store
+			// bogus data, it won't get saved.
+			Entry.DependencyIndexStart = (uint16)PluginChildArray.Num();
+
+			const FPluginDescriptor& Descriptor = EnabledPlugin->GetDescriptor();
+			for (FPluginReferenceDescriptor ChildPlugin : Descriptor.Plugins)
+			{
+				if (uint16* ChildIndex = IndexForPlugin.Find(ChildPlugin.Name); ChildIndex != nullptr)
+				{
+					PluginChildArray.Add(*ChildIndex);
+				}
+				else
+				{
+					UE_LOG(LogCook, Display, TEXT("Dependent plugin %s wasn't found in enabled plugins list when creating cook metadata file... skipping"), *ChildPlugin.Name);
+				}
+			}
+
+			Entry.DependencyIndexEnd = PluginChildArray.Num();
+		}
+
+		// Read the root plugins from the config and make sure they exist. This is temporary until we 
+		// have the root qualification exists as part of the plugin definition.
+		TArray<uint16> RootPlugins;
+		{
+			TArray<FString> RootPluginListFromConfig;
+			GConfig->GetArray(TEXT("CookMetadata"), TEXT("RootPluginList"), RootPluginListFromConfig, GEditorIni);
+			for (const FString& Plugin : RootPluginListFromConfig)
+			{
+				uint16* RootPluginIndex = IndexForPlugin.Find(Plugin);
+				if (RootPluginIndex)
+				{
+					RootPlugins.Add(*RootPluginIndex);
+				}
+				else
+				{
+					UE_LOG(LogCook, Warning, TEXT("Unable to find root plugin %s from config list"), *Plugin);
+				}
+			}
+		}
+
+		if (IntFitsIn<uint16>(PluginChildArray.Num()) == false)
+		{
+			UE_LOG(LogCook, Warning, TEXT("Number of child plugins exceeds 64k, unable to write cook metadata file (count = %d)"), PluginChildArray.Num());
+		}
+		else
+		{
+			UE::Cook::FCookMetadataState MetadataState;
+			UE::Cook::FCookMetadataPluginHierarchy PluginHierarchy;
+
+			PluginHierarchy.PluginsEnabledAtCook = MoveTemp(PluginsToAdd);
+			PluginHierarchy.PluginDependencies = MoveTemp(PluginChildArray);
+			PluginHierarchy.RootPlugins = MoveTemp(RootPlugins);
+
+			MetadataState.SetPluginHierarchyInfo(MoveTemp(PluginHierarchy));
+			MetadataState.SetAssociatedDevelopmentAssetRegistryHash(InDevelopmentAssetRegistryHash);
+
+			FArrayWriter SerializedCookMetadata;
+			MetadataState.Serialize(SerializedCookMetadata);
+			FFileHelper::SaveArrayToFile(SerializedCookMetadata, *GetCookedCookMetadataFilename(PlatformNameString));
+		}
+	}
+}
+
 void UCookOnTheFlyServer::CookByTheBookFinished()
 {
 	using namespace UE::Cook;
@@ -9250,6 +9426,9 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	FString LibraryName = GetProjectShaderLibraryName();
 	check(!LibraryName.IsEmpty());
 	const bool bCacheShaderLibraries = IsUsingShaderCodeLibrary();
+
+	// The hashes of the entire files, per platform.
+	TArray<uint64> DevelopmentAssetRegistryHashes;
 
 	{
 		// Save modified asset registry with all streaming chunk info generated during cook
@@ -9287,8 +9466,8 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				TArray<FPackageData*> CookedPackageDatas;
 				TArray<FPackageData*> IgnorePackageDatas;
 
-				const FName& PlatformName = FName(*TargetPlatform->PlatformName());
-				FString PlatformNameString = PlatformName.ToString();
+				FString PlatformNameString = TargetPlatform->PlatformName();
+				FName PlatformName(*PlatformNameString);
 
 				PackageDatas->GetCookedPackagesForPlatform(TargetPlatform, CookedPackageDatas, IgnorePackageDatas);
 
@@ -9399,7 +9578,9 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				}
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(SaveRealAssetRegistry);
-					Generator.SaveAssetRegistry(SandboxRegistryFilename, bSaveDevelopmentAssetRegistry, bForceNoFilterAssetsFromAssetRegistry);
+					uint64 DevArHash = 0;
+					Generator.SaveAssetRegistry(SandboxRegistryFilename, bSaveDevelopmentAssetRegistry, bForceNoFilterAssetsFromAssetRegistry, DevArHash);
+					DevelopmentAssetRegistryHashes.Add(DevArHash);
 				}
 				{
 					Generator.PostSave();
@@ -9439,6 +9620,14 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 				}
 			}
 		}
+	}
+
+	// Write cook metadata file.for each platform
+	int32 PlatformIndex = 0;
+	for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
+	{
+		WriteCookMetadata(TargetPlatform, DevelopmentAssetRegistryHashes[PlatformIndex]);
+		PlatformIndex++;
 	}
 
 	FString ActualLibraryName = GenerateShaderCodeLibraryName(LibraryName, IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild));

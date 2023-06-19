@@ -13,6 +13,7 @@
 #include "Cooker/CookPackageData.h"
 #include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookWorkerClient.h"
+#include "CookMetadata.h"
 #include "Commandlets/ChunkDependencyInfo.h"
 #include "Commandlets/IChunkDataGenerator.h"
 #include "Engine/AssetManager.h"
@@ -22,6 +23,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformFileManager.h"
+#include "Hash/xxhash.h"
 #include "ICollectionManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "IPlatformFileSandboxWrapper.h"
@@ -1670,7 +1672,8 @@ void FAssetRegistryGenerator::AddAssetToFileOrderRecursive(const FName& InPackag
 	}
 }
 
-bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool bSerializeDevelopmentAssetRegistry, bool bForceNoFilter)
+bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool bSerializeDevelopmentAssetRegistry, 
+	bool bForceNoFilter, uint64& OutDevelopmentAssetRegistryHash)
 {
 	LLM_SCOPE_BYTAG(Cooker_GeneratedAssetRegistry);
 	UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Saving asset registry v%d."), FAssetRegistryVersion::Type::LatestVersion);
@@ -1714,10 +1717,28 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 
 			DevelopmentState.Save(SerializedAssetRegistry, DevelopmentSaveOptions);
 
+			UE::Tasks::TTask<uint64> HashTask = UE::Tasks::Launch(TEXT("HashDevelopmentAssetRegistry"),
+			 [&SerializedAssetRegistry]()
+			{
+				FMemoryView ToHash = MakeMemoryView(SerializedAssetRegistry);
+				return UE::Cook::FCookMetadataState::ComputeHashOfDevelopmentAssetRegistry(ToHash);
+			});
+
 			// Save the generated registry
 			FFileHelper::SaveArrayToFile(SerializedAssetRegistry, *PlatformSandboxPath);
 
-			UE_LOG(LogAssetRegistryGenerator, Display, TEXT("Generated development asset registry %s num assets %d, size is %5.2fkb"), *PlatformSandboxPath, State.GetNumAssets(), (float)SerializedAssetRegistry.Num() / 1024.f);
+			uint64 WaitStartTime = FPlatformTime::Cycles64();
+			uint64 DevArXxHash = HashTask.GetResult();
+			double WaitTime = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - WaitStartTime);
+
+			UE_LOG(LogAssetRegistryGenerator, Display, 
+				TEXT("Generated development asset registry %s num assets %d, size is %5.2fkb, ")
+				TEXT("XxHash64 = " UINT64_FMT ", waited on hash %.2f seconds"), 
+				*PlatformSandboxPath, State.GetNumAssets(), (float)SerializedAssetRegistry.Num() / 1024.f, 
+				DevArXxHash, WaitTime
+				);
+
+			OutDevelopmentAssetRegistryHash = DevArXxHash;
 		}
 
 		if (bGenerateChunks)

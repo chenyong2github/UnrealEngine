@@ -1217,6 +1217,10 @@ private:
 
 	UNREALED_API FString GetCookedAssetRegistryFilename(const FString& PlatformName);
 
+	// Return the filename to use for the cook metadata file, adjusted for DLC, sandbox, and platform.
+	FString GetCookedCookMetadataFilename(const FString& PlatformName);
+	void WriteCookMetadata(const ITargetPlatform* InTargetPlatform, uint64 InDevelopmentAssetRegistryHash);
+
 	/* @return Full path of the CachedEditorThumbnails.bin file in the sandbox */
 	UNREALED_API FString GetSandboxCachedEditorThumbnailsFilename();
 
