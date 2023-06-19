@@ -323,22 +323,25 @@ class UStreamableSparseVolumeTexture : public USparseVolumeTexture
 
 public:
 
-	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	UPROPERTY(VisibleAnywhere, Category = "Texture", AssetRegistrySearchable)
 	FIntVector VolumeResolution;
 
-	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	UPROPERTY(VisibleAnywhere, Category = "Texture", AssetRegistrySearchable)
 	int32 NumMipLevels;
 
-	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	UPROPERTY(VisibleAnywhere, Category = "Texture", AssetRegistrySearchable)
+	int32 NumFrames;
+
+	UPROPERTY(VisibleAnywhere, Category = "Texture", AssetRegistrySearchable)
 	TEnumAsByte<enum EPixelFormat> FormatA;
 
-	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	UPROPERTY(VisibleAnywhere, Category = "Texture", AssetRegistrySearchable)
 	TEnumAsByte<enum EPixelFormat> FormatB;
 
-	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	UPROPERTY(VisibleAnywhere, Category = "Texture", AdvancedDisplay)
 	FVector4f FallbackValueA;
 
-	UPROPERTY(VisibleAnywhere, Category = "Texture")
+	UPROPERTY(VisibleAnywhere, Category = "Texture", AdvancedDisplay)
 	FVector4f FallbackValueB;
 
 	// The addressing mode to use for the X axis.
@@ -354,7 +357,7 @@ public:
 	TEnumAsByte<enum TextureAddress> AddressZ;
 
 	// If enabled, the SparseVolumeTexture is only going to use the local DDC. For certain assets it might be reasonable to also use the remote DDC, but for larger assets this will mean long up- and download times.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", meta = (DisplayName = "Local DDC Only"), AssetRegistrySearchable, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Texture", AdvancedDisplay)
 	bool bLocalDDCOnly = true;
 
 #if WITH_EDITORONLY_DATA

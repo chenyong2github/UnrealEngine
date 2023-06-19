@@ -1106,6 +1106,7 @@ bool UStreamableSparseVolumeTexture::EndInitialize(int32 InNumMipLevels)
 	check(NumMipLevelsFullMipChain > 0);
 
 	NumMipLevels = (InNumMipLevels <= INDEX_NONE) ? NumMipLevelsFullMipChain : FMath::Clamp(InNumMipLevels, 1, NumMipLevelsFullMipChain);
+	NumFrames = Frames.Num();
 
 	for (USparseVolumeTextureFrame* Frame : Frames)
 	{
@@ -1162,6 +1163,9 @@ void UStreamableSparseVolumeTexture::PostInitProperties()
 void UStreamableSparseVolumeTexture::PostLoad()
 {
 	Super::PostLoad();
+
+	// Ensure that NumFrames always corresponds to the actual number of frames
+	NumFrames = GetNumFrames();
 
 #if WITH_EDITORONLY_DATA
 	RecacheFrames();

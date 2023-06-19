@@ -70,6 +70,21 @@ static void ComputeDefaultOpenVDBGridAssignment(const TArray<TSharedPtr<FOpenVDB
 	ImportOptions->bIsSequence = NumFiles > 1;
 }
 
+static FString GetVDBSequenceBaseFileName(const FString& FileName, bool bDiscardUnderscore)
+{
+	const FString CleanFileName = FPaths::GetCleanFilename(FileName);
+	const FString CleanFileNameWithoutExt = CleanFileName.LeftChop(4);
+	const int32 LastNonDigitIndex = CleanFileNameWithoutExt.FindLastCharByPredicate([&](TCHAR Letter) 
+		{ 
+			const bool bIsDigit = FChar::IsDigit(Letter);
+			const bool bIsUnderscore = bDiscardUnderscore && Letter == TEXT('_');
+			return !bIsDigit && !bIsUnderscore;
+		}) + 1;
+	const int32 DigitCount = CleanFileNameWithoutExt.Len() - LastNonDigitIndex;
+	const FString CleanFileNameWithoutSuffix = CleanFileNameWithoutExt.LeftChop(DigitCount);
+	return CleanFileNameWithoutSuffix;
+}
+
 static TArray<FString> FindOpenVDBSequenceFileNames(const FString& Filename)
 {
 	TArray<FString> SequenceFilenames;
@@ -85,13 +100,7 @@ static TArray<FString> FindOpenVDBSequenceFileNames(const FString& Filename)
 	{
 		const FString Path = FPaths::GetPath(Filename);
 		const FString CleanFilename = FPaths::GetCleanFilename(Filename);
-		FString CleanFilenameWithoutSuffix;
-		{
-			const FString CleanFilenameWithoutExt = CleanFilename.LeftChop(4);
-			const int32 LastNonDigitIndex = CleanFilenameWithoutExt.FindLastCharByPredicate([](TCHAR Letter) { return !FChar::IsDigit(Letter); }) + 1;
-			const int32 DigitCount = CleanFilenameWithoutExt.Len() - LastNonDigitIndex;
-			CleanFilenameWithoutSuffix = CleanFilenameWithoutExt.LeftChop(CleanFilenameWithoutExt.Len() - LastNonDigitIndex);
-		}
+		const FString CleanFilenameWithoutSuffix = GetVDBSequenceBaseFileName(Filename, false /*bDiscardUnderscore*/);
 
 		// Find all files potentially part of the sequence
 		TArray<FString> PotentialSequenceFilenames;
@@ -416,7 +425,7 @@ void USparseVolumeTextureFactory::CleanUp()
 UObject* USparseVolumeTextureFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename,
 	const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)
 {
-	return ImportInternal(InClass, InParent, InName, Flags, Filename, Parms, bOutOperationCanceled);
+	return ImportInternal(InClass, InParent, InName, Flags, Filename, Parms, bOutOperationCanceled, false /*bIsReimport*/);
 }
 
 bool USparseVolumeTextureFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
@@ -461,7 +470,7 @@ EReimportResult::Type USparseVolumeTextureFactory::Reimport(UObject* Obj)
 	}
 
 	bool OutCanceled = false;
-	if (!ImportInternal(StreamableSVT->GetClass(), StreamableSVT->GetOuter(), *StreamableSVT->GetName(), RF_Public | RF_Standalone, Filename, nullptr, OutCanceled))
+	if (!ImportInternal(StreamableSVT->GetClass(), StreamableSVT->GetOuter(), *StreamableSVT->GetName(), RF_Public | RF_Standalone, Filename, nullptr, OutCanceled, true /*bIsReimport*/))
 	{
 		if (OutCanceled)
 		{
@@ -478,7 +487,7 @@ EReimportResult::Type USparseVolumeTextureFactory::Reimport(UObject* Obj)
 #endif // OPENVDB_AVAILABLE
 }
 
-UObject* USparseVolumeTextureFactory::ImportInternal(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, bool& bOutOperationCanceled)
+UObject* USparseVolumeTextureFactory::ImportInternal(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, bool& bOutOperationCanceled, bool bIsReimport)
 {
 #if OPENVDB_AVAILABLE
 
@@ -785,7 +794,35 @@ UObject* USparseVolumeTextureFactory::ImportInternal(UClass* InClass, UObject* I
 			return nullptr;
 		}
 
-		UAnimatedSparseVolumeTexture* AnimatedSVTexture = NewObject<UAnimatedSparseVolumeTexture>(InParent, UAnimatedSparseVolumeTexture::StaticClass(), InName, Flags);
+		// By default, the resulting package (already created) and object (about to be) will have the name of the imported file.
+		// However, since the file is part of an entire sequence that we imported, it would be confusing if the resulting asset was named "file_0000" instead of "file",
+		// so we attempt to rename both package and object here.
+		// Don't try to rename the SVT if we are doing a reimport.
+		FName NewObjectName = InName;
+		if (!bIsReimport)
+		{
+			FString NewFileName = GetVDBSequenceBaseFileName(Filename, true /*bDiscardUnderscore*/);
+
+			// Don't try to rename the package if it's the transient package
+			if (InParent != GetTransientPackage() && InParent->IsA<UPackage>())
+			{
+				const FString PackageName = InParent->GetName(); // Contains name with path
+				int32 LastSeparatorIndex = 0;
+				const bool bFoundSeparator = PackageName.FindLastChar(TEXT('/'), LastSeparatorIndex);
+				// Get the substring containing the path only, without the file name
+				const FString PackagePath = bFoundSeparator ? PackageName.Left(LastSeparatorIndex) : FString();
+				const FString NewPackageName = PackagePath / NewFileName;
+
+				UPackage* ExistingPackage = FindPackage(InParent->GetOuter(), *NewPackageName);
+				if (!ExistingPackage)
+				{
+					InParent->Rename(*NewPackageName, nullptr, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+					NewObjectName = *NewFileName;
+				}
+			}
+		}
+
+		UAnimatedSparseVolumeTexture* AnimatedSVTexture = NewObject<UAnimatedSparseVolumeTexture>(InParent, UAnimatedSparseVolumeTexture::StaticClass(), NewObjectName, Flags);
 		const bool bInitSuccess = AnimatedSVTexture->Initialize(UncookedFramesData);
 		if (!bInitSuccess)
 		{
