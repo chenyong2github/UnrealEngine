@@ -19,7 +19,7 @@ class LEARNINGAGENTS_API ULearningAgentsController : public ULearningAgentsManag
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsController(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ULearningAgentsController();
 	ULearningAgentsController(FVTableHelper& Helper);
 	virtual ~ULearningAgentsController();
 

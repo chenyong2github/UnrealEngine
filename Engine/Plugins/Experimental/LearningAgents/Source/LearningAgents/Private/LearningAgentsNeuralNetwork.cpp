@@ -8,9 +8,9 @@
 #include "UObject/Package.h"
 #include "Misc/FileHelper.h"
 
-ULearningAgentsNeuralNetwork::ULearningAgentsNeuralNetwork() {}
-ULearningAgentsNeuralNetwork::ULearningAgentsNeuralNetwork(FVTableHelper& Helper) : ULearningAgentsNeuralNetwork() {}
-ULearningAgentsNeuralNetwork::~ULearningAgentsNeuralNetwork() {}
+ULearningAgentsNeuralNetwork::ULearningAgentsNeuralNetwork() = default;
+ULearningAgentsNeuralNetwork::ULearningAgentsNeuralNetwork(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsNeuralNetwork::~ULearningAgentsNeuralNetwork() = default;
 
 namespace UE::Learning::Agents
 {

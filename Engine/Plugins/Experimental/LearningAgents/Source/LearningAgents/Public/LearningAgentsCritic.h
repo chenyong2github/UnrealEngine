@@ -50,7 +50,7 @@ class LEARNINGAGENTS_API ULearningAgentsCritic : public ULearningAgentsManagerCo
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsCritic(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ULearningAgentsCritic();
 	ULearningAgentsCritic(FVTableHelper& Helper);
 	virtual ~ULearningAgentsCritic();
 

@@ -13,9 +13,9 @@
 #include "LearningLog.h"
 #include "EngineDefines.h"
 
-ULearningAgentsInteractor::ULearningAgentsInteractor(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
-ULearningAgentsInteractor::ULearningAgentsInteractor(FVTableHelper& Helper) : ULearningAgentsInteractor() {}
-ULearningAgentsInteractor::~ULearningAgentsInteractor() {}
+ULearningAgentsInteractor::ULearningAgentsInteractor() : Super(FObjectInitializer::Get()) {}
+ULearningAgentsInteractor::ULearningAgentsInteractor(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsInteractor::~ULearningAgentsInteractor() = default;
 
 void ULearningAgentsInteractor::SetupInteractor()
 {

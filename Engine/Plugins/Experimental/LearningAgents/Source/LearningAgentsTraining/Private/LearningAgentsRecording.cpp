@@ -17,9 +17,9 @@ bool FLearningAgentsRecord::Serialize(FArchive& Ar)
 	return true;
 }
 
-ULearningAgentsRecording::ULearningAgentsRecording() {}
-ULearningAgentsRecording::ULearningAgentsRecording(FVTableHelper& Helper) {}
-ULearningAgentsRecording::~ULearningAgentsRecording() {}
+ULearningAgentsRecording::ULearningAgentsRecording() = default;
+ULearningAgentsRecording::ULearningAgentsRecording(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsRecording::~ULearningAgentsRecording() = default;
 
 namespace UE::Learning::Agents::Recording::Private
 {

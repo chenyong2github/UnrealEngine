@@ -28,7 +28,7 @@ class ULearningAgentsManagerComponent;
  * If you have multiple different types of objects you want controlled by Learning Agents, you should consider creating
  * one agent manager per object type, rather than trying to share an agent manager.
  */
-UCLASS(Abstract, BlueprintType, Blueprintable)
+UCLASS(BlueprintType, Blueprintable)
 class LEARNINGAGENTS_API ALearningAgentsManager : public AActor
 {
 	GENERATED_BODY()
@@ -36,7 +36,7 @@ class LEARNINGAGENTS_API ALearningAgentsManager : public AActor
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ALearningAgentsManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ALearningAgentsManager();
 	ALearningAgentsManager(FVTableHelper& Helper);
 	virtual ~ALearningAgentsManager();
 

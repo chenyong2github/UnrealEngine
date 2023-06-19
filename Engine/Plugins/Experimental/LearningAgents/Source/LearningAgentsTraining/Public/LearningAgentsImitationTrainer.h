@@ -96,7 +96,7 @@ class LEARNINGAGENTSTRAINING_API ULearningAgentsImitationTrainer : public UActor
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsImitationTrainer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ULearningAgentsImitationTrainer();
 	ULearningAgentsImitationTrainer(FVTableHelper& Helper);
 	virtual ~ULearningAgentsImitationTrainer();
 

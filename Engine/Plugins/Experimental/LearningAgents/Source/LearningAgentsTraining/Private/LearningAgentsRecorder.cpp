@@ -83,9 +83,9 @@ void ULearningAgentsRecorder::FAgentRecordBuffer::CopyToRecord(FLearningAgentsRe
 	}
 }
 
-ULearningAgentsRecorder::ULearningAgentsRecorder(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
-ULearningAgentsRecorder::ULearningAgentsRecorder(FVTableHelper& Helper) : ULearningAgentsRecorder() {}
-ULearningAgentsRecorder::~ULearningAgentsRecorder() {}
+ULearningAgentsRecorder::ULearningAgentsRecorder() : Super(FObjectInitializer::Get()) {}
+ULearningAgentsRecorder::ULearningAgentsRecorder(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsRecorder::~ULearningAgentsRecorder() = default;
 
 void ULearningAgentsRecorder::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {

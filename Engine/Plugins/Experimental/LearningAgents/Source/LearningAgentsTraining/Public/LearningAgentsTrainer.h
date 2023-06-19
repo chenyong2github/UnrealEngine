@@ -332,7 +332,7 @@ class LEARNINGAGENTSTRAINING_API ULearningAgentsTrainer : public ULearningAgents
 public:
 
 	// These constructors/destructors are needed to make forward declarations happy
-	ULearningAgentsTrainer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	ULearningAgentsTrainer();
 	ULearningAgentsTrainer(FVTableHelper& Helper);
 	virtual ~ULearningAgentsTrainer();
 

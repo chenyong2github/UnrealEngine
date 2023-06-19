@@ -8,9 +8,9 @@
 #include "LearningFeatureObject.h"
 #include "LearningLog.h"
 
-ULearningAgentsController::ULearningAgentsController(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
-ULearningAgentsController::ULearningAgentsController(FVTableHelper& Helper) : ULearningAgentsController() {}
-ULearningAgentsController::~ULearningAgentsController() {}
+ULearningAgentsController::ULearningAgentsController() : Super(FObjectInitializer::Get()) {}
+ULearningAgentsController::ULearningAgentsController(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsController::~ULearningAgentsController() = default;
 
 void ULearningAgentsController::SetActions_Implementation(const TArray<int32>& AgentIds)
 {

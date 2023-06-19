@@ -5,9 +5,9 @@
 #include "LearningAgentsHelpers.h"
 #include "LearningLog.h"
 
-ULearningAgentsManagerComponent::ULearningAgentsManagerComponent(const FObjectInitializer& ObjectInitializer) : UActorComponent(ObjectInitializer) {}
-ULearningAgentsManagerComponent::ULearningAgentsManagerComponent(FVTableHelper& Helper) : ULearningAgentsManagerComponent() {}
-ULearningAgentsManagerComponent::~ULearningAgentsManagerComponent() {}
+ULearningAgentsManagerComponent::ULearningAgentsManagerComponent(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
+ULearningAgentsManagerComponent::ULearningAgentsManagerComponent(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsManagerComponent::~ULearningAgentsManagerComponent() = default;
 
 void ULearningAgentsManagerComponent::PostInitProperties()
 {

@@ -14,9 +14,9 @@
 #include "Misc/Paths.h"
 #include "GameFramework/Actor.h"
 
-ULearningAgentsPolicy::ULearningAgentsPolicy(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
-ULearningAgentsPolicy::ULearningAgentsPolicy(FVTableHelper& Helper) : ULearningAgentsPolicy() {}
-ULearningAgentsPolicy::~ULearningAgentsPolicy() {}
+ULearningAgentsPolicy::ULearningAgentsPolicy() : Super(FObjectInitializer::Get()) {}
+ULearningAgentsPolicy::ULearningAgentsPolicy(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsPolicy::~ULearningAgentsPolicy() = default;
 
 void ULearningAgentsPolicy::SetupPolicy(
 	ULearningAgentsInteractor* InInteractor, 

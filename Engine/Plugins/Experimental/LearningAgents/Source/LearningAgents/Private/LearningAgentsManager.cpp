@@ -10,9 +10,9 @@
 #include "UObject/ScriptInterface.h"
 #include "EngineDefines.h"
 
-ALearningAgentsManager::ALearningAgentsManager(const FObjectInitializer& ObjectInitializer) : AActor(ObjectInitializer) {}
-ALearningAgentsManager::ALearningAgentsManager(FVTableHelper& Helper) : ALearningAgentsManager() {}
-ALearningAgentsManager::~ALearningAgentsManager() {}
+ALearningAgentsManager::ALearningAgentsManager() : Super(FObjectInitializer::Get()) {}
+ALearningAgentsManager::ALearningAgentsManager(FVTableHelper& Helper) : Super(Helper) {}
+ALearningAgentsManager::~ALearningAgentsManager() = default;
 
 void ALearningAgentsManager::PostInitProperties()
 {

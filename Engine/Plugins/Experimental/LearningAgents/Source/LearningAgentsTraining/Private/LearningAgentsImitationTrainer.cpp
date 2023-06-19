@@ -16,9 +16,9 @@
 #include "LearningNeuralNetworkObject.h"
 #include "Misc/Paths.h"
 
-ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer(const FObjectInitializer& ObjectInitializer) : UActorComponent(ObjectInitializer) {}
-ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer(FVTableHelper& Helper) : ULearningAgentsImitationTrainer() {}
-ULearningAgentsImitationTrainer::~ULearningAgentsImitationTrainer() {}
+ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer() : Super(FObjectInitializer::Get()) {}
+ULearningAgentsImitationTrainer::ULearningAgentsImitationTrainer(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsImitationTrainer::~ULearningAgentsImitationTrainer() = default;
 
 void ULearningAgentsImitationTrainer::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {

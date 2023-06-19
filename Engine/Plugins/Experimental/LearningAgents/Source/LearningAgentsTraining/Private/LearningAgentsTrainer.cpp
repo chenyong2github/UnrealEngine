@@ -104,9 +104,9 @@ FString FLearningAgentsTrainerPathSettings::GetIntermediatePath() const
 	return IntermediateRelativePath.Path;
 }
 
-ULearningAgentsTrainer::ULearningAgentsTrainer(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
-ULearningAgentsTrainer::ULearningAgentsTrainer(FVTableHelper& Helper) : ULearningAgentsTrainer() {}
-ULearningAgentsTrainer::~ULearningAgentsTrainer() {}
+ULearningAgentsTrainer::ULearningAgentsTrainer() : Super(FObjectInitializer::Get()) {}
+ULearningAgentsTrainer::ULearningAgentsTrainer(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsTrainer::~ULearningAgentsTrainer() = default;
 
 void ULearningAgentsTrainer::SetupTrainer(
 	ULearningAgentsInteractor* InInteractor,

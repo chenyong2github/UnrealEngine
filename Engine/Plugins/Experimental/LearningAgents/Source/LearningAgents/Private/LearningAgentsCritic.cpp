@@ -15,9 +15,9 @@
 #include "Misc/Paths.h"
 #include "GameFramework/Actor.h"
 
-ULearningAgentsCritic::ULearningAgentsCritic(const FObjectInitializer& ObjectInitializer) : ULearningAgentsManagerComponent(ObjectInitializer) {}
-ULearningAgentsCritic::ULearningAgentsCritic(FVTableHelper& Helper) : ULearningAgentsCritic() {}
-ULearningAgentsCritic::~ULearningAgentsCritic() {}
+ULearningAgentsCritic::ULearningAgentsCritic() : Super(FObjectInitializer::Get()) {}
+ULearningAgentsCritic::ULearningAgentsCritic(FVTableHelper& Helper) : Super(Helper) {}
+ULearningAgentsCritic::~ULearningAgentsCritic() = default;
 
 void ULearningAgentsCritic::SetupCritic(
 	ULearningAgentsInteractor* InInteractor, 
