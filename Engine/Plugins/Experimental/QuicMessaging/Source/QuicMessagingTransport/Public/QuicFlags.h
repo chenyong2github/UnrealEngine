@@ -94,6 +94,19 @@ enum class EQuicClientState : uint8
 
 
 /**
+ * Enumerates client connection changes.
+ */
+enum class EQuicClientConnectionChange : uint8
+{
+	/** Client has connected. */
+	Connected,
+
+	/** Client has disconnected. */
+	Disconnected
+};
+
+
+/**
  * Enumerates client certificate verification.
  */
 enum class EQuicClientVerificationMode : uint8

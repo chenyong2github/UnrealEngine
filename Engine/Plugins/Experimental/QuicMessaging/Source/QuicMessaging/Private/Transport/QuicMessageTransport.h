@@ -17,6 +17,7 @@
 #include "QuicFlags.h"
 #include "QuicMessages.h"
 #include "QuicTransportMessages.h"
+#include "QuicTransportNotifications.h"
 
 
 class FArrayReader;
@@ -212,6 +213,12 @@ public:
 	 */
 	FOnQuicMetaMessageReceived& OnMetaMessageReceived();
 
+	/**
+	 * Delegate that notifies bound functions when a client
+	 * has connected to or disconnected from a remote endpoint (QuicServer).
+	 */
+	FOnQuicClientConnectionChanged& OnClientConnectionChanged();
+
 private:
 
 	/**
@@ -259,6 +266,13 @@ private:
 	 */
 	void HandleManagerNodeLost(const FGuid& LostNodeId);
 
+	/**
+	 * Handles client connection changes.
+	 */
+	void HandleClientConnectionChange(
+		const FGuid& NodeId, const FIPv4Endpoint& RemoteEndpoint,
+		const EQuicClientConnectionChange ConnectionState);
+
 private:
 
 	/** Holds any pending restart requests. */
@@ -295,5 +309,8 @@ private:
 
 	/** Holds the meta message received delegate. */
 	FOnQuicMetaMessageReceived OnQuicMetaMessageDelegate;
+
+	/** Holds the client connection changed delegate. */
+	FOnQuicClientConnectionChanged OnQuicClientConnectionChangedDelegate;
 
 };

@@ -225,6 +225,7 @@ bool FQuicMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 	EndpointManager->OnDeserializeHeader().BindRaw(this, &FQuicMessageTransport::HandleManagerDeserializeHeader);
 	EndpointManager->OnEndpointNodeDiscovered().BindRaw(this, &FQuicMessageTransport::HandleManagerNodeDiscovered);
 	EndpointManager->OnEndpointNodeLost().BindRaw(this, &FQuicMessageTransport::HandleManagerNodeLost);
+	EndpointManager->OnClientConnectionChanged().BindRaw(this, &FQuicMessageTransport::HandleClientConnectionChange);
 
 	if (EndpointMode == EEndpointMode::Server)
 	{
@@ -332,6 +333,12 @@ bool FQuicMessageTransport::TransportAuthResponseMessage(
 FOnQuicMetaMessageReceived& FQuicMessageTransport::OnMetaMessageReceived()
 {
 	return OnQuicMetaMessageDelegate;
+}
+
+
+FOnQuicClientConnectionChanged& FQuicMessageTransport::OnClientConnectionChanged()
+{
+	return OnQuicClientConnectionChangedDelegate;
 }
 
 
@@ -453,3 +460,13 @@ void FQuicMessageTransport::HandleManagerNodeLost(const FGuid& LostNodeId)
 }
 
 
+void FQuicMessageTransport::HandleClientConnectionChange(
+	const FGuid& NodeId, const FIPv4Endpoint& RemoteEndpoint,
+	const EQuicClientConnectionChange ConnectionState)
+{
+	EQuicClientConnectionState ClientState
+		= (ConnectionState == EQuicClientConnectionChange::Connected)
+		? EQuicClientConnectionState::Connected : EQuicClientConnectionState::Disconnected;
+
+	OnQuicClientConnectionChangedDelegate.Broadcast(NodeId, RemoteEndpoint, ClientState);
+}

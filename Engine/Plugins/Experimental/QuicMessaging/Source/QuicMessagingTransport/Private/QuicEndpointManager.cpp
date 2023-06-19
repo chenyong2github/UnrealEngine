@@ -798,6 +798,12 @@ void FQuicEndpointManager::EndpointNodeDiscovered(const FGuid NodeId,
 	}
 
     EndpointNodeDiscoveredDelegate.ExecuteIfBound(NodeId);
+
+	if (EndpointMode == EEndpointMode::Client)
+	{
+		ClientConnectionChangedDelegate.ExecuteIfBound(
+			NodeId, NodeEndpoint, EQuicClientConnectionChange::Connected);
+	}
 }
 
 
@@ -825,6 +831,12 @@ void FQuicEndpointManager::EndpointNodeLost(const FGuid NodeId, const FIPv4Endpo
 	}
 
     EndpointNodeLostDelegate.ExecuteIfBound(NodeId);
+
+	if (EndpointMode == EEndpointMode::Client)
+	{
+		ClientConnectionChangedDelegate.ExecuteIfBound(
+			NodeId, LostEndpoint, EQuicClientConnectionChange::Disconnected);
+	}
 }
 
 

@@ -15,7 +15,6 @@
 #include "QuicNodeInfo.h"
 #include "QuicMessages.h"
 
-
 class FQuicEndpoint;
 struct FQuicEndpointConfig;
 struct QUIC_API_TABLE;
@@ -303,6 +302,19 @@ public:
 	}
 
 	/**
+	 * Delegate for when a client connection changes.
+	 *
+	 * @return The delegate
+	 */
+	DECLARE_DELEGATE_ThreeParams(FOnClientConnectionChanged,
+		const FGuid& /*NodeId*/, const FIPv4Endpoint& /*RemoteEndpoint*/,
+		const EQuicClientConnectionChange /*ConnectionState*/)
+	FOnClientConnectionChanged& OnClientConnectionChanged()
+	{
+		return ClientConnectionChangedDelegate;
+	}
+
+	/**
 	 * Get the NodeId of a known endpoint.
 	 *
 	 * @param Endpoint The endpoint
@@ -463,5 +475,8 @@ private:
 
 	/** Holds a delegate to be invoked when a node was lost. */
 	FOnEndpointNodeLost EndpointNodeLostDelegate;
+
+	/** Holds a delegate to be invoked when a client connection has changed. */
+	FOnClientConnectionChanged ClientConnectionChangedDelegate;
 
 };

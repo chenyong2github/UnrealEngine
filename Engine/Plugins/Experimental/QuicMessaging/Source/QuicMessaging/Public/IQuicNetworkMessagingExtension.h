@@ -6,6 +6,7 @@
 #include "INetworkMessagingExtension.h"
 
 #include "QuicTransportMessages.h"
+#include "QuicTransportNotifications.h"
 
 
 /**
@@ -107,5 +108,13 @@ public:
 	 * @return The delegate
 	 */
 	virtual FOnQuicMetaMessageReceived& OnQuicMetaMessageReceived() = 0;
+
+	/**
+	 * Delegate that notifies bound functions when a QuicClient
+	 * has connected to or disconnected from a remote endpoint (QuicServer).
+	 *
+	 * @return The delegate
+	 */
+	virtual FOnQuicClientConnectionChanged& OnQuicClientConnectionChanged() = 0;
 
 };

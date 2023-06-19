@@ -557,6 +557,19 @@ public:
 		return Transport->OnMetaMessageReceived();
 	}
 
+	virtual FOnQuicClientConnectionChanged& OnQuicClientConnectionChanged() override
+	{
+		const TSharedPtr<FQuicMessageTransport> Transport = WeakBridgeTransport.Pin();
+
+		if (!Transport.IsValid())
+		{
+			UE_LOG(LogQuicMessaging, Fatal,
+				TEXT("[QuicMessagingAPI::OnQuicClientConnectionChanged] Transport pointer not valid."));
+		}
+
+		return Transport->OnClientConnectionChanged();
+	}
+
 protected:
 
 	static bool ParseEndpoint(const FString& InEndpointString,
