@@ -197,6 +197,14 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	{
 		WriteCbField<bool>(Writer, "VTPow22_ForceNewDDcKey", true); 
 	}
+	// Force a new DDC key when utilizing color space transforms due to the switch to
+	// OpenColorIO. Remove when the build version is updated and all textures get rebuilt
+	// with it.
+	if (BuildSettings.SourceEncodingOverride != 0 /*UE::Color::EEncoding::None*/ ||
+		BuildSettings.bHasColorSpaceDefinition)
+	{
+		WriteCbField<bool>(Writer, "OCIO_ForceNewKey", true);
+	}
 
 	Writer.EndObject();
 }

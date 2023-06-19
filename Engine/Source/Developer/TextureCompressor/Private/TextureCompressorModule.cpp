@@ -16,6 +16,8 @@
 #include "Interfaces/ITextureFormat.h"
 #include "Misc/Paths.h"
 #include "Tasks/Task.h"
+#include "OpenColorIOWrapper.h"
+#include "OpenColorIOWrapperModule.h"
 #include "ImageCore.h"
 #include "ImageParallelFor.h"
 #include <cmath>
@@ -1598,6 +1600,55 @@ static void DownscaleImage(const FImage& SrcImage, FImage& DstImage, const FText
 	}
 }
 
+// Replaces previous calls to FImage::Linearize and FImageCore::TransformToWorkingColorSpace
+static void LinearizeToWorkingColorSpace(const FImage& SrcImage, FImage& DstImage, const FTextureBuildSettings& BuildSettings)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.LinearizeToWorkingColorSpace);
+
+	// Allocate the 32-bit linear floating-point image
+	DstImage.Init(SrcImage.SizeX, SrcImage.SizeY, SrcImage.NumSlices, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+
+	FImageView SrcImageView(SrcImage);
+	const UE::Color::EEncoding SourceEncodingOverride = static_cast<UE::Color::EEncoding>(BuildSettings.SourceEncodingOverride);
+
+	// If the source encoding override is active, we avoid CopyImage's de-gammatization and instead let OpenColorIO do the decoding below.
+	if (SourceEncodingOverride != UE::Color::EEncoding::None)
+	{
+		SrcImageView.GammaSpace = DstImage.GammaSpace; // EGammaSpace::Linear
+	}
+
+	FImageCore::CopyImage(SrcImageView, DstImage);
+
+	// Decode and/or color transform to the working color space when needed
+	if (SourceEncodingOverride != UE::Color::EEncoding::None || BuildSettings.bHasColorSpaceDefinition)
+	{
+		FOpenColorIOWrapperSourceColorSettings SrcSettings;
+		SrcSettings.EncodingOverride = SourceEncodingOverride;
+
+		if (BuildSettings.bHasColorSpaceDefinition)
+		{
+			// Matrix transform will be applied by OpenColorIO, unless it is already equal to the working color space.
+			// Note: We no longer manually apply SaturateToHalfFloat(..) as this is now handled internally by the library.
+			TStaticArray<FVector2d, 4> SourceChromaticities;
+			SourceChromaticities[0] = FVector2d(BuildSettings.RedChromaticityCoordinate);
+			SourceChromaticities[1] = FVector2d(BuildSettings.GreenChromaticityCoordinate);
+			SourceChromaticities[2] = FVector2d(BuildSettings.BlueChromaticityCoordinate);
+			SourceChromaticities[3] = FVector2d(BuildSettings.WhiteChromaticityCoordinate);
+
+			SrcSettings.ColorSpaceOverride = MoveTemp(SourceChromaticities);
+			SrcSettings.ChromaticAdaptationMethod = static_cast<UE::Color::EChromaticAdaptationMethod>(BuildSettings.ChromaticAdaptationMethod);
+		}
+
+		// Invoke the OpenColorIO library processor with the specified transformation to the working color space.
+		const FOpenColorIOWrapperProcessor Processor = FOpenColorIOWrapperProcessor::CreateTransformToWorkingColorSpace(SrcSettings);
+		const bool bSuccess = Processor.TransformImage(DstImage);
+		if (!bSuccess)
+		{
+			UE_LOG(LogTextureCompressor, Error, TEXT("Failed to linearize the texture to the working color space."));
+		}
+	}
+}
+
 void ITextureCompressorModule::GenerateMipChain(
 	const FTextureBuildSettings& Settings,
 	const FImage& BaseImage,
@@ -2060,13 +2111,23 @@ static uint32 ComputeLongLatCubemapExtents(int32 SrcImageSizeX, const uint32 Max
 
 void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const uint32 MaxCubemapTextureResolution, uint8 SourceEncodingOverride)
 {
+	FTextureBuildSettings TempBuildSettings;
+	TempBuildSettings.MaxTextureResolution = MaxCubemapTextureResolution;
+	TempBuildSettings.SourceEncodingOverride = SourceEncodingOverride;
+	TempBuildSettings.bHasColorSpaceDefinition = false;
+
+	GenerateBaseCubeMipFromLongitudeLatitude2D(OutMip, SrcImage, TempBuildSettings);
+}
+
+void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage* OutMip, const FImage& SrcImage, const FTextureBuildSettings& InBuildSettings)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.CubeMipFromLongLat);
 
 	FImage LongLatImage;
-	SrcImage.Linearize(SourceEncodingOverride, LongLatImage);
+	LinearizeToWorkingColorSpace(SrcImage, LongLatImage, InBuildSettings);
 
 	// TODO_TEXTURE: Expose target size to user.
-	uint32 Extent = ComputeLongLatCubemapExtents(LongLatImage.SizeX, MaxCubemapTextureResolution);
+	uint32 Extent = ComputeLongLatCubemapExtents(LongLatImage.SizeX, InBuildSettings.MaxTextureResolution);
 	float InvExtent = 1.0f / (float)Extent;
 	OutMip->Init(Extent, Extent, SrcImage.NumSlices * 6, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 
@@ -3728,11 +3789,13 @@ public:
 	}
 
 	// IModuleInterface implementation.
-	void StartupModule()
+	void StartupModule() override
 	{
+		// Ensure the OpenColorIO wrapper module is loaded first.
+		IOpenColorIOWrapperModule::Get();
 	}
 
-	void ShutdownModule()
+	void ShutdownModule() override
 	{
 	}
 
@@ -4024,7 +4087,7 @@ private:
 			if (bLongLatCubemap)
 			{
 				// Generate the base mip from the long-lat source image.
-				GenerateBaseCubeMipFromLongitudeLatitude2D(&Mip, Image, BuildSettings.MaxTextureResolution, BuildSettings.SourceEncodingOverride);
+				GenerateBaseCubeMipFromLongitudeLatitude2D(&Mip, Image, BuildSettings);
 	
 				check( CopyCount == 1 );
 			}
@@ -4034,7 +4097,7 @@ private:
 				if(BuildSettings.bApplyKernelToTopMip)
 				{
 					FImage Temp;
-					Image.Linearize(BuildSettings.SourceEncodingOverride, Temp);
+					LinearizeToWorkingColorSpace(Image, Temp, BuildSettings);
 					if(BuildSettings.bRenormalizeTopMip)
 					{
 						NormalizeMip(Temp);
@@ -4046,7 +4109,7 @@ private:
 				{
 					if (bLinearize)
 					{
-						Image.Linearize(BuildSettings.SourceEncodingOverride, Mip);
+						LinearizeToWorkingColorSpace(Image, Mip, BuildSettings);
 						if (BuildSettings.bRenormalizeTopMip)
 						{
 							NormalizeMip(Mip);
@@ -4076,17 +4139,6 @@ private:
 			if (BuildSettings.Downscale > 1.f)
 			{		
 				DownscaleImage(Mip, Mip, FTextureDownscaleSettings(BuildSettings));
-			}
-
-			if (BuildSettings.bHasColorSpaceDefinition)
-			{
-				FImageCore::TransformToWorkingColorSpace(
-					Mip,
-					FVector2d(BuildSettings.RedChromaticityCoordinate),
-					FVector2d(BuildSettings.GreenChromaticityCoordinate),
-					FVector2d(BuildSettings.BlueChromaticityCoordinate),
-					FVector2d(BuildSettings.WhiteChromaticityCoordinate),
-					static_cast<UE::Color::EChromaticAdaptationMethod>(BuildSettings.ChromaticAdaptationMethod));
 			}
 
 			// Apply color adjustments
