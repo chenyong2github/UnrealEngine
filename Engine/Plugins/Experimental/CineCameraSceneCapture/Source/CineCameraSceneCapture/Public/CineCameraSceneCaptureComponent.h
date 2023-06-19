@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "OpenColorIOColorSpace.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "CineCameraSceneCaptureComponent.generated.h"
 
@@ -36,6 +37,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Capture Settings", AdvancedDisplay)
 	bool bFollowSceneCaptureRenderPath;
 
+	/** 
+	* Open Color IO Configuration. Used to apply color transforms.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Color", meta = (DisplayName = "OpenColorIO Display Configuration"))
+	FOpenColorIODisplayConfiguration OCIOConfiguration;
+
+	/** Used to gather relevant properties for View rendering. */
 	UPROPERTY()
 	TSoftObjectPtr<UCineCameraComponent> CineCameraComponent;
 

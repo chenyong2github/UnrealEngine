@@ -15,6 +15,15 @@ public class CineCameraSceneCapture : ModuleRules
 				"Slate",
 				"SlateCore",
 				"CinematicCamera",
+				"RenderCore",
+				"Renderer",
+			}
+		);
+
+		PublicDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"OpenColorIO",
 			}
 		);
 	}

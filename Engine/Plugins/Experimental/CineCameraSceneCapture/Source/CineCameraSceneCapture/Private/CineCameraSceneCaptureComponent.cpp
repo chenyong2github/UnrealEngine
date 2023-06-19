@@ -7,6 +7,10 @@
 #include "Runtime/Engine/Public/SceneView.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "OpenColorIODisplayExtension.h"
+#include "OpenColorIORendering.h"
+#include "PostProcess/PostProcessMaterialInputs.h"
+#include "ScreenPass.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "FCineCameraSceneCaptureModule"
@@ -42,7 +46,29 @@ public:
 
 		// Required for certain effects (lighting) to match that of Cine Camera.
 		InView.bIsSceneCapture = bFollowSceneCaptureRenderPath;
+
+		bIsOcioEnabledRenderThread = DisplayConfiguration.bIsEnabled;
+
+		// Setup OCIO.
+		if (DisplayConfiguration.bIsEnabled)
+		{
+			FOpenColorIORenderPassResources PassResources = FOpenColorIORendering::GetRenderPassResources(DisplayConfiguration.ColorConfiguration, InViewFamily.GetFeatureLevel());
+
+			if (PassResources.IsValid())
+			{
+				FOpenColorIORendering::PrepareView(InViewFamily, InView);
+			}
+
+			ENQUEUE_RENDER_COMMAND(ProcessColorSpaceTransform)(
+				[this, ResourcesRenderThread = MoveTemp(PassResources), bInIsOcioEnabledRenderThread = DisplayConfiguration.bIsEnabled](FRHICommandListImmediate& RHICmdList)
+				{
+					//Caches render thread resource to be used when applying configuration in PostRenderViewFamily_RenderThread
+					CachedResourcesRenderThread = ResourcesRenderThread;
+				}
+			);
+		}
 	}
+
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {};
 	//~ End FSceneViewExtensionBase Interface
 
@@ -62,6 +88,46 @@ public:
 	{
 		DeltaTime = InDeltaTime;
 	}
+
+	virtual void SubscribeToPostProcessingPass(EPostProcessingPass PassId, FAfterPassCallbackDelegateArray& InOutPassCallbacks, bool bIsPassEnabled)
+	{
+		if (!bIsOcioEnabledRenderThread)
+		{
+			return;
+		}
+
+		if (PassId == EPostProcessingPass::Tonemap)
+		{
+			InOutPassCallbacks.Add(FAfterPassCallbackDelegate::CreateRaw(this, &FCineCameraCaptureSceneViewExtension::PostProcessPassAfterTonemap_RenderThread));
+		}
+	}
+
+	FScreenPassTexture PostProcessPassAfterTonemap_RenderThread(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& InOutInputs)
+	{
+		const FScreenPassTexture& SceneColor = InOutInputs.GetInput(EPostProcessMaterialInput::SceneColor);
+		check(SceneColor.IsValid());
+
+		FScreenPassRenderTarget Output = InOutInputs.OverrideOutput;
+
+		// If the override output is provided, it means that this is the last pass in post processing.
+		if (!Output.IsValid())
+		{
+			Output = FScreenPassRenderTarget::CreateFromInput(GraphBuilder, SceneColor, View.GetOverwriteLoadAction(), TEXT("OCIORenderTarget"));
+		}
+
+		FOpenColorIORendering::AddPass_RenderThread(
+			GraphBuilder,
+			View,
+			SceneColor,
+			Output,
+			CachedResourcesRenderThread
+		);
+
+		return MoveTemp(Output);
+	}
+
+	void SetDisplayConfiguration(const FOpenColorIODisplayConfiguration& InDisplayConfiguration) { DisplayConfiguration = InDisplayConfiguration; };
+
 private:
 	/**
 	* Translates to View.bIsSceneCapture.
@@ -77,13 +143,24 @@ private:
 	* Delta time between frames. Used for camera smoothing.
 	*/
 	float DeltaTime = 0.0f;
+
+	/** Cached pass resources required to apply conversion for render thread */
+	FOpenColorIORenderPassResources CachedResourcesRenderThread;
+
+	/** Configuration to apply during post render callback */
+	FOpenColorIODisplayConfiguration DisplayConfiguration;
+
+	/** Indicates if OCIO is enabled. */
+	std::atomic<bool> bIsOcioEnabledRenderThread;
 };
+
 
 UCineCaptureComponent2D::UCineCaptureComponent2D(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), RenderTargetHighestDimension(1280), bFollowSceneCaptureRenderPath(true)
 {
 	CaptureSource = ESceneCaptureSource::SCS_FinalToneCurveHDR;
 	bAlwaysPersistRenderingState = true;
+	OCIOConfiguration.bIsEnabled = false;
 }
 
 void UCineCaptureComponent2D::UpdateSceneCaptureContents(FSceneInterface* Scene)
@@ -145,6 +222,8 @@ void UCineCaptureComponent2D::OnRegister()
 		CineCaptureSVE = MakeShared<FCineCameraCaptureSceneViewExtension>();
 		SceneViewExtensions.Add(CineCaptureSVE);
 	}
+
+	CineCaptureSVE->SetDisplayConfiguration(OCIOConfiguration);
 
 	ValidateCineCameraComponent();
 }
