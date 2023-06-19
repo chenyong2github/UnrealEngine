@@ -19,6 +19,19 @@ namespace UE {
 namespace Trace {
 namespace Private {
 
+struct FSetLastErrorScope
+{
+	FSetLastErrorScope(DWORD InError)
+		: Error(InError){}
+	~FSetLastErrorScope()
+	{
+		SetLastError(Error);
+	}
+
+private:
+	DWORD Error;
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 UPTRINT ThreadCreate(const ANSICHAR*, void (*Entry)())
 {
@@ -128,12 +141,14 @@ UPTRINT TcpSocketConnect(const ANSICHAR* Host, uint16 Port)
 	int Result = connect(Socket, Info->ai_addr, int(Info->ai_addrlen));
 	if (Result == SOCKET_ERROR)
 	{
+		FSetLastErrorScope _(GetLastError());
 		closesocket(Socket);
 		return 0;
 	}
 
 	if (!TcpSocketSetNonBlocking(Socket, 0))
 	{
+		FSetLastErrorScope _(GetLastError());
 		closesocket(Socket);
 		return 0;
 	}
@@ -160,6 +175,7 @@ UPTRINT TcpSocketListen(uint16 Port)
 	int Result = bind(Socket, (SOCKADDR*)&SockAddr, sizeof(SockAddr));
 	if (Result == INVALID_SOCKET)
 	{
+		FSetLastErrorScope _(GetLastError());
 		closesocket(Socket);
 		return 0;
 	}
@@ -167,12 +183,14 @@ UPTRINT TcpSocketListen(uint16 Port)
 	Result = listen(Socket, 1);
 	if (Result == INVALID_SOCKET)
 	{
+		FSetLastErrorScope _(GetLastError());
 		closesocket(Socket);
 		return 0;
 	}
 
 	if (!TcpSocketSetNonBlocking(Socket, 1))
 	{
+		FSetLastErrorScope _(GetLastError());
 		closesocket(Socket);
 		return 0;
 	}
@@ -193,6 +211,7 @@ int32 TcpSocketAccept(UPTRINT Socket, UPTRINT& Out)
 
 	if (!TcpSocketSetNonBlocking(Inner, 0))
 	{
+		FSetLastErrorScope _(GetLastError());
 		closesocket(Inner);
 		return 0;
 	}
@@ -265,6 +284,19 @@ UPTRINT FileOpen(const ANSICHAR* Path)
 	return UPTRINT(Out) + 1;
 }
 
+	
+////////////////////////////////////////////////////////////////////////////////
+int32 GetLastErrorCode()
+{
+	return ::GetLastError();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool GetErrorMessage(char* OutBuffer, uint32 BufferSize, int32 ErrorCode)
+{
+	return FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM, NULL, ErrorCode, 0, OutBuffer, BufferSize, NULL) != 0;
+}
+	
 } // namespace Private
 } // namespace Trace
 } // namespace UE

@@ -255,6 +255,21 @@ UPTRINT FileOpen(const ANSICHAR* Path)
 	return UPTRINT(Out + 1);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+int32 GetLastErrorCode()
+{
+	return errno;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool GetErrorMessage(char* OutBuffer, uint32 BufferSize, int32 ErrorCode)
+{
+	const char* ErrorMessage = std::strerror(ErrorCode);
+	const bool bResult = strncpy(OutBuffer, ErrorMessage, BufferSize) != 0;
+	OutBuffer[BufferSize-1] = 0;
+	return bResult;
+}
+
 } // namespace Private
 } // namespace Trace
 } // namespace UE

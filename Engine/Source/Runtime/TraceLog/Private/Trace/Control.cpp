@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include "Trace/Platform.h"
+#include "Trace/Message.h"
 
 #include "Misc/CString.h"
 #include "Templates/UnrealTemplate.h"
@@ -126,6 +127,8 @@ static bool Writer_ControlListen()
 
 	if (!GControlListen)
 	{
+		//This unfortunately triggers on editor shutdown needlessly spamming the log
+		//UE_TRACE_ERRORMESSAGE_F(ListenFail, GetLastErrorCode(), "Port: %d", GControlPort);
 		GControlState = EControlState::Failed;
 		return false;
 	}
@@ -169,6 +172,7 @@ static void Writer_ControlRecv()
 		int32 Recvd = IoRead(GControlSocket, Head, ReadSize);
 		if (Recvd <= 0)
 		{
+			UE_TRACE_ERRORMESSAGE_F(ReadError, GetLastErrorCode(), "While reading remote command. Read returned %d", Recvd);
 			IoClose(GControlSocket);
 			GControlSocket = 0;
 			GControlState = EControlState::Listening;

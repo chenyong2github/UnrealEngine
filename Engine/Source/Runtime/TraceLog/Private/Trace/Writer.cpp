@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "Message.h"
 #include "Trace/Config.h"
 
 #if UE_TRACE_ENABLED
@@ -308,6 +309,7 @@ static bool Writer_FlushSendBuffer()
 	{
 		if (!IoWrite(GDataHandle, GSendBuffer, GSendBufferCursor - GSendBuffer))
 		{
+			UE_TRACE_ERRORMESSAGE(WriteError, GetLastErrorCode());
 			IoClose(GDataHandle);
 			GDataHandle = 0;
 			return false;
@@ -355,6 +357,7 @@ static void Writer_SendDataImpl(const void* Data, uint32 Size)
 #else
 	if (!IoWrite(GDataHandle, Data, Size))
 	{
+		UE_TRACE_ERRORMESSAGE(WriteError, GetLastErrorCode());
 		IoClose(GDataHandle);
 		GDataHandle = 0;
 	}
@@ -626,6 +629,7 @@ static bool Writer_SessionPrologue()
 
 	if (!bOk)
 	{
+		UE_TRACE_ERRORMESSAGE(WriteError, GetLastErrorCode());
 		IoClose(GDataHandle);
 		GDataHandle = 0;
 		return false;
@@ -674,7 +678,7 @@ static void Writer_WorkerUpdateInternal()
 
 #if TRACE_PRIVATE_BUFFER_SEND
 	const uint32 FlushSendBufferCadenceMask = 8-1; // Flush every 8 calls
-	if( (++GUpdateCounter & FlushSendBufferCadenceMask) == 0)
+	if((++GUpdateCounter & FlushSendBufferCadenceMask) == 0 && GDataHandle != 0)
 	{
 		Writer_FlushSendBuffer();
 	}
@@ -909,12 +913,14 @@ bool Writer_SendTo(const ANSICHAR* Host, uint32 Flags, uint32 Port)
 	UPTRINT DataHandle = TcpSocketConnect(Host, uint16(Port));
 	if (!DataHandle)
 	{
+		UE_TRACE_ERRORMESSAGE_F(ConnectError, GetLastErrorCode(), "Connecting to host (%s:%d)", Host, Port);
 		return false;
 	}
 
 	DataHandle = Writer_PackSendFlags(DataHandle, Flags);
 	if (!DataHandle)
 	{
+		UE_TRACE_MESSAGE(ConnectError, "Handle was unexpectedly using MSB flags.");
 		return false;
 	}
 
@@ -935,6 +941,7 @@ bool Writer_WriteTo(const ANSICHAR* Path, uint32 Flags)
 	UPTRINT DataHandle = FileOpen(Path);
 	if (!DataHandle)
 	{
+		UE_TRACE_ERRORMESSAGE_F(FileOpenError, GetLastErrorCode(), "Opening file (%s)", Path);
 		return false;
 	}
 
@@ -1093,6 +1100,7 @@ bool Writer_WriteSnapshot(const FSnapshotTarget& Target)
 		// Write the file header
 		if (!GDataHandle || !Writer_SessionPrologue())
 		{
+			UE_TRACE_ERRORMESSAGE(FileOpenError, GetLastErrorCode());
 			return false;
 		}
 

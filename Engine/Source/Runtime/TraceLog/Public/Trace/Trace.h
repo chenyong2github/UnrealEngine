@@ -79,6 +79,29 @@ TEventRef<IdType> MakeEventRef(IdType InId, uint32 InTypeId)
 
 using OnConnectFunc = void(void);
 
+enum class EMessageType : uint8
+{
+	Reserved = 0,
+	WriteError,
+	ReadError,
+	ConnectError,
+	ListenError,
+	EstablishError,
+	FileOpenError,
+};
+	
+struct FMessageEvent
+{
+	/** Type of message */
+	EMessageType		Type;
+	/** Type of message stringified */
+	const char*			TypeStr;
+	/** Clarifying message, may be null for some message types. Pointer only valide during callback. */
+	const char*			Description;
+};
+
+using OnMessageFunc = void(const FMessageEvent&);
+
 struct FInitializeDesc
 {
 	uint32			TailSizeBytes		= 4 << 20; // can be set to 0 to disable the tail buffer
@@ -116,6 +139,7 @@ struct FSendFlags
 };
 
 UE_TRACE_API void	SetMemoryHooks(AllocFunc Alloc, FreeFunc Free) UE_TRACE_IMPL();
+UE_TRACE_API void	SetMessageCallback(OnMessageFunc MessageFunc) UE_TRACE_IMPL();
 UE_TRACE_API void	Initialize(const FInitializeDesc& Desc) UE_TRACE_IMPL();
 UE_TRACE_API void	StartWorkerThread() UE_TRACE_IMPL();	
 UE_TRACE_API void	Shutdown() UE_TRACE_IMPL();

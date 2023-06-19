@@ -33,6 +33,10 @@ void	IoClose(UPTRINT Handle);
 
 ////////////////////////////////////////////////////////////////////////////////
 UPTRINT	FileOpen(const ANSICHAR* Path);
+	
+////////////////////////////////////////////////////////////////////////////////
+int32	GetLastErrorCode();
+bool	GetErrorMessage(char* OutBuffer, uint32 BufferSize, int32 ErrorCode);	
 
 } // namespace Private
 } // namespace Trace
