@@ -17,6 +17,7 @@
 #include "Logging/StructuredLog.h"
 #include "InstallBundleUtils.h"
 #include "JsonObjectConverter.h"
+#include "Algo/Transform.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGameFeatureVersePathMapper, Log, All);
 
@@ -213,38 +214,131 @@ namespace GameFeatureVersePathMapper
 		});
 	}
 
-	class FDepthFirstPluginSorter
+	bool FDepthFirstGameFeatureSorter::Visit(const FName Plugin, TFunctionRef<void(FName)> AddOutput)
 	{
-		enum class EVisitState : uint8
+		const FGameFeaturePluginInfo* MaybePluginInfo = GfpInfoMap.Find(Plugin);
+		if (!MaybePluginInfo)
 		{
-			None,
-			Visiting,
-			Visited
-		};
+			UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "DepthFirstGameFeatureSorter: could not find {PluginName}", Plugin);
+			return false;
+		}
+		const FGameFeaturePluginInfo& PluginInfo = *MaybePluginInfo;
 
-		const TMap<FString, int32>& GFPChunks;
-		TMap<TSharedPtr<IPlugin>, EVisitState> VisitedPlugins;
-
-		bool Visit(const TSharedPtr<IPlugin>& Plugin, TArray<TSharedPtr<IPlugin>>& OutPlugins)
+		// Add a scope here to make sure VisitState isn't used later. It can become invalid if VisitedPlugins is resized
 		{
-			// Add a scope here to make sure VisitState isn't used later. It can become invalid if VisitedPlugins is resized
+			EVisitState& VisitState = VisitedPlugins.FindOrAdd(Plugin, EVisitState::None);
+			if (VisitState == EVisitState::Visiting)
 			{
-				EVisitState& VisitState = VisitedPlugins.FindOrAdd(Plugin, EVisitState::None);
-				if (VisitState == EVisitState::Visiting)
-				{
-					UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Cycle detected in plugin dependencies with {PluginName}", Plugin->GetName());
-					return false;
-				}
-
-				if (VisitState == EVisitState::Visited)
-				{
-					return true;
-				}
-
-				VisitState = EVisitState::Visiting;
+				UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "DepthFirstGameFeatureSorter: Cycle detected in plugin dependencies with {PluginName}", Plugin);
+				return false;
 			}
 
-			IPluginManager& PluginMan = IPluginManager::Get();
+			if (VisitState == EVisitState::Visited)
+			{
+				return true;
+			}
+
+			VisitState = EVisitState::Visiting;
+		}
+
+		for (const FName DepPlugin : PluginInfo.Dependencies)
+		{
+			if (!Visit(DepPlugin, AddOutput))
+			{
+				return false;
+			}
+		}
+
+		VisitedPlugins.FindChecked(Plugin) = EVisitState::Visited;
+		AddOutput(Plugin);
+		return true;
+	}
+
+	bool FDepthFirstGameFeatureSorter::Sort(TFunctionRef<FName()> GetNextRootPlugin, TFunctionRef<void(FName)> AddOutput)
+	{
+		for (FName RootPlugin = GetNextRootPlugin(); !RootPlugin.IsNone(); RootPlugin = GetNextRootPlugin())
+		{
+			if (!Visit(RootPlugin, AddOutput))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool FDepthFirstGameFeatureSorter::Sort(TConstArrayView<FName> RootPlugins, TFunctionRef<void(FName)> AddOutput)
+	{
+		return Sort(
+			[RootPlugins, i = int32(0)]() mutable -> FName
+			{
+				if (!RootPlugins.IsValidIndex(i))
+				{
+					return {};
+				}
+				return RootPlugins[i++];
+			},
+			AddOutput);
+	}
+
+	bool FDepthFirstGameFeatureSorter::Sort(TConstArrayView<FName> RootPlugins, TArray<FName>& OutPlugins)
+	{
+		return Sort(
+			[RootPlugins, i = int32(0)]() mutable -> FName
+			{
+				if (!RootPlugins.IsValidIndex(i))
+				{
+					return {};
+				}
+				return RootPlugins[i++];
+			}, 
+			[&OutPlugins](FName OutPlugin) 
+			{
+				OutPlugins.Add(OutPlugin);
+			});
+	}
+
+	TOptional<FGameFeatureVersePathLookup> BuildLookup(const ITargetPlatform* TargetPlatform /*= nullptr*/, const FAssetRegistryState* DevAR /*= nullptr*/)
+	{
+		const TMap<FString, int32> GFPChunks = DevAR ? FindGFPChunks(*DevAR) : FindGFPChunks();
+
+		IPluginManager& PluginMan = IPluginManager::Get();
+
+		FInstallBundleResolver InstallBundleResolver(TargetPlatform ? *TargetPlatform->IniPlatformName() : nullptr);
+
+		FGameFeatureVersePathLookup Output;
+		for (const TPair<FString, int32>& Pair : GFPChunks)
+		{
+			TSharedPtr<IPlugin> Plugin = PluginMan.FindPlugin(Pair.Key);
+			if (!Plugin)
+			{
+				UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Could not find uplugin {PluginName}", Pair.Key);
+				return {};
+			}
+
+			FStringView PluginNameView(Plugin->GetName());
+			FName PluginName(PluginNameView);
+
+			if (Plugin->GetVersePath().IsEmpty())
+			{
+				UE_LOGFMT(LogGameFeatureVersePathMapper, Warning, "Could not find verse path for uplugin {PluginName}, using default value", PluginName);
+				Output.VersePathToGfpMap.Add(FString::Format(TEXT("/Fortnite.com/GameFeatures/{0}"), { PluginNameView }), PluginName);
+			}
+			else
+			{
+				Output.VersePathToGfpMap.Add(Plugin->GetVersePath() / Plugin->GetName(), PluginName);
+			}
+
+			FGameFeaturePluginInfo& GfpInfo = Output.GfpInfoMap.Add(PluginName);
+
+			const FString DescriptorFileName = FPaths::CreateStandardFilename(Plugin->GetDescriptorFileName());
+
+			const int32 Chunk = Pair.Value;
+			const FString ChunkPattern = Chunk > 0 ? GetChunkPattern(Chunk) : FString();
+			const FString InstallBundleName = InstallBundleResolver.Resolve(ChunkPattern);
+
+			GfpInfo.GfpUri = InstallBundleName.IsEmpty() ?
+				UGameFeaturesSubsystem::GetPluginURL_FileProtocol(DescriptorFileName) :
+				UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(DescriptorFileName, InstallBundleName);
 
 			for (const FPluginReferenceDescriptor& Dependency : Plugin->GetDescriptor().Plugins)
 			{
@@ -256,118 +350,18 @@ namespace GameFeatureVersePathMapper
 
 				if (!GFPChunks.Contains(Dependency.Name))
 				{
+					// Dependency is not a GFP
 					continue;
-				} // Dependency is not a GFP
-
-				const TSharedPtr<IPlugin> DepPlugin = PluginMan.FindPlugin(Dependency.Name);
-				if (!DepPlugin)
-				{
-					UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Could not find dependency uplugin {DepPluginName} for {PluginName}, skipping", Dependency.Name, Plugin->GetName());
-					return false;
 				}
 
-				if (!Visit(DepPlugin, OutPlugins))
-				{
-					return false;
-				}
+				GfpInfo.Dependencies.Emplace(FStringView(Dependency.Name));
 			}
-
-			VisitedPlugins.Add(Plugin, EVisitState::Visited);
-			OutPlugins.Add(Plugin);
-			return true;
-		};
-
-	public:
-		// InGFPChunks is used to determine if dependencies are actually GFPs
-		// Non-GFP dependencies are ignored
-		FDepthFirstPluginSorter(const TMap<FString, int32>& InGFPChunks) : GFPChunks(InGFPChunks) {}
-
-		bool Sort(const TArray<TSharedPtr<IPlugin>>& RootPlugins, TArray<TSharedPtr<IPlugin>>& OutPlugins)
-		{
-			for (const TSharedPtr<IPlugin>& RootPlugin : RootPlugins)
-			{
-				if (!Visit(RootPlugin, OutPlugins))
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-	};
-}
-
-TOptional<TMap<FString, TArray<FString>>> UGameFeatureVersePathMapperCommandlet::BuildLookup(
-	const ITargetPlatform* TargetPlatform /*= nullptr*/, const FAssetRegistryState* DevAR /*= nullptr*/)
-{
-	TOptional<TMap<FString, TArray<FString>>> Output;
-
-	const TMap<FString, int32> GFPChunks = DevAR ?
-		GameFeatureVersePathMapper::FindGFPChunks(*DevAR) :
-		GameFeatureVersePathMapper::FindGFPChunks();
-
-	IPluginManager& PluginMan = IPluginManager::Get();
-
-	TMap<FString, TArray<TSharedPtr<IPlugin>>> PluginRootSets;
-
-	// Add the root plugins for each verse paths
-	for (const TPair<FString, int32>& Pair : GFPChunks)
-	{
-		TSharedPtr<IPlugin> Plugin = PluginMan.FindPlugin(Pair.Key);
-		if (!Plugin)
-		{
-			UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Could not find uplugin {PluginName}, skipping", Pair.Key);
-			return Output;
 		}
 
-		if (!Plugin->GetVersePath().IsEmpty())
-		{
-			PluginRootSets.FindOrAdd(Plugin->GetVersePath()).Add(Plugin);
-		}
+		check(Output.VersePathToGfpMap.Num() == Output.GfpInfoMap.Num());
+
+		return Output;
 	}
-
-	// Discover and sort all dependencies
-	TMap<FString, TArray<TSharedPtr<IPlugin>>> SortedPluginSets;
-	SortedPluginSets.Reserve(PluginRootSets.Num());
-	for (const TPair<FString, TArray<TSharedPtr<IPlugin>>>& RootSetPair : PluginRootSets)
-	{
-		TArray<TSharedPtr<IPlugin>>& SortedPlugins = SortedPluginSets.Add(RootSetPair.Key);
-
-		GameFeatureVersePathMapper::FDepthFirstPluginSorter Sorter(GFPChunks);
-		if (!Sorter.Sort(RootSetPair.Value, SortedPlugins))
-		{
-			return Output;
-		}
-	}
-
-	Output.Emplace();
-	Output->Reserve(SortedPluginSets.Num());
-
-	// Create URIs for each GFP
-	GameFeatureVersePathMapper::FInstallBundleResolver InstallBundleResolver(TargetPlatform ? *TargetPlatform->IniPlatformName() : nullptr);
-	for (const TPair<FString, TArray<TSharedPtr<IPlugin>>>& SortedPair : SortedPluginSets)
-	{
-		TArray<FString>& UriList = Output->Add(SortedPair.Key);
-		UriList.Reserve(SortedPair.Value.Num());
-
-		for (const TSharedPtr<IPlugin>& Plugin : SortedPair.Value)
-		{
-			const FString DescriptorFileName = FPaths::CreateStandardFilename(Plugin->GetDescriptorFileName());
-
-			const int32 Chunk = GFPChunks.FindChecked(Plugin->GetName()); // Must exist
-			const FString ChunkPattern = Chunk > 0 ? GameFeatureVersePathMapper::GetChunkPattern(Chunk) : FString();
-			const FString InstallBundleName = InstallBundleResolver.Resolve(ChunkPattern);
-			if (InstallBundleName.IsEmpty())
-			{
-				UriList.Add(UGameFeaturesSubsystem::GetPluginURL_FileProtocol(DescriptorFileName));
-			}
-			else
-			{
-				UriList.Add(UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(DescriptorFileName, InstallBundleName));
-			}
-		}
-	}
-
-	return Output;
 }
 
 int32 UGameFeatureVersePathMapperCommandlet::Main(const FString& CmdLineParams)
@@ -394,36 +388,72 @@ int32 UGameFeatureVersePathMapperCommandlet::Main(const FString& CmdLineParams)
 		return 1;
 	}
 
-	FJsonVersePathGfpMap Output;
+	TOptional<GameFeatureVersePathMapper::FGameFeatureVersePathLookup> MaybeLookup = GameFeatureVersePathMapper::BuildLookup(Args.TargetPlatform, &DevAR);
+	if (!MaybeLookup)
 	{
-		TOptional<TMap<FString, TArray<FString>>> MaybeLookup = BuildLookup(Args.TargetPlatform, &DevAR);
-		if (!MaybeLookup)
-		{
-			// BuildLookup will emit errors
-			return 1;
-		}
-
-		Output.MapEntries.Reserve(MaybeLookup->Num());
-		for(TPair<FString, TArray<FString>>& VersePathPair : *MaybeLookup)
-		{
-			FJsonVersePathGfpMapEntry& OutputEntry = Output.MapEntries.Emplace_GetRef();
-			OutputEntry.VersePath = VersePathPair.Key;
-			OutputEntry.GfpUriList = MoveTemp(VersePathPair.Value);
-		}
-	}
-
-	TSharedPtr<FJsonObject> JsonObject = FJsonObjectConverter::UStructToJsonObject(Output);
-	if (!JsonObject)
-	{
-		UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Failed to to generate JSON");
+		// BuildLookup will emit errors
 		return 1;
+	}
+	GameFeatureVersePathMapper::FGameFeatureVersePathLookup& Lookup = *MaybeLookup;
+
+	TSharedRef<FJsonObject> OutJsonObject = MakeShared<FJsonObject>();
+	{
+		{
+			// Reversing the VersePathToGfpMap makes it more natural for the registration API
+			TMap<FName, TSharedRef<FJsonValueString>> TempGfpVersePathMap;
+			TempGfpVersePathMap.Reserve(Lookup.VersePathToGfpMap.Num());
+			for (const TPair<FString, FName>& Pair : Lookup.VersePathToGfpMap)
+			{
+				TempGfpVersePathMap.Emplace(Pair.Value, MakeShared<FJsonValueString>(Pair.Key));
+			}
+
+			TSharedRef<FJsonObject> GfpVersePathMap = MakeShared<FJsonObject>();
+
+			// Sort the reversed map in dependency order
+			GameFeatureVersePathMapper::FDepthFirstGameFeatureSorter Sorter(Lookup.GfpInfoMap);
+			Sorter.Sort(
+				[It = TempGfpVersePathMap.CreateConstIterator()]() mutable -> FName
+				{
+					if (!It)
+					{
+						return {};
+					}
+					FName Plugin = It.Key();
+					++It;
+					return Plugin;
+				},
+				[&TempGfpVersePathMap, GfpVersePathMap](FName OutPlugin)
+				{
+					GfpVersePathMap->Values.Add(OutPlugin.ToString(), TempGfpVersePathMap.FindChecked(OutPlugin));
+				});
+
+			OutJsonObject->Values.Add(TEXT("GfpVersePathMap"), MakeShared<FJsonValueObject>(GfpVersePathMap));
+		}
+
+		{
+			TSharedRef<FJsonObject> GfpInfoMap = MakeShared<FJsonObject>();
+			for (TPair<FName, GameFeatureVersePathMapper::FGameFeaturePluginInfo>& Pair : Lookup.GfpInfoMap)
+			{
+				TSharedRef<FJsonObject> GfpInfo = MakeShared<FJsonObject>();
+				GfpInfo->Values.Add(TEXT("GfpUri"), MakeShared<FJsonValueString>(MoveTemp(Pair.Value.GfpUri)));
+
+				TArray<TSharedPtr<FJsonValue>> Dependencies;
+				Dependencies.Reserve(Pair.Value.Dependencies.Num());
+				Algo::Transform(Pair.Value.Dependencies, Dependencies, [](FName Name) { return MakeShared<FJsonValueString>(Name.ToString()); });
+				GfpInfo->Values.Add(TEXT("Dependencies"), MakeShared<FJsonValueArray>(MoveTemp(Dependencies)));
+
+				GfpInfoMap->Values.Add(Pair.Key.ToString(), MakeShared<FJsonValueObject>(GfpInfo));
+			}
+
+			OutJsonObject->Values.Add(TEXT("GfpInfoMap"), MakeShared<FJsonValueObject>(GfpInfoMap));
+		}
 	}
 
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(Args.OutputPath));
 
 	TUniquePtr<FArchive> FileWriter(IFileManager::Get().CreateFileWriter(*Args.OutputPath));
 	TSharedRef<TJsonWriter<UTF8CHAR>> JsonWriter = TJsonWriterFactory<UTF8CHAR>::Create(FileWriter.Get());
-	if (!FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter))
+	if (!FJsonSerializer::Serialize(OutJsonObject, JsonWriter))
 	{
 		UE_LOGFMT(LogGameFeatureVersePathMapper, Error, "Failed to save output file at {Path}", Args.OutputPath);
 		return 1;
