@@ -1004,6 +1004,13 @@ namespace MoviePipeline
 			// Free the memory in the accumulator.
 			PinnedImageAccumulator->Reset();
 		}
+
+		{
+			// Explicitly free the SamplePixelData (which by now has been copied into the accumulator)
+			// so that we can profile how long freeing the allocation takes.
+			TRACE_CPUPROFILER_EVENT_SCOPE(ReleasePixelDataSample);
+			SamplePixelData.Reset();
+		}
 	}
 }
 

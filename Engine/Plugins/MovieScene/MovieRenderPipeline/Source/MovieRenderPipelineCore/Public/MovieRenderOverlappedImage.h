@@ -111,7 +111,9 @@ public:
 	void ZeroPlanes();
 
 	/**
-	 * Resets the memory.
+	 * Resets the PlaneSize and NumChannels but does NOT free the memory
+	 * because most of the time we're going to just need the same resolution
+	 * next frame anyways when InitMemory is called again.
 	 */
 	void Reset();
 
@@ -199,6 +201,19 @@ public:
 
 	/** Gamma for accumulation. Typical values are 1.0 and 2.2. */
 	float AccumulationGamma;
+
+
+	/** 
+	* A temporary buffer that is only initialized to the size of a single sample used during RGBA unpacking.
+	* We persist it as a member level variable to avoid having to allocate/free it for every sample (which
+	* is about a 32mb allocation at 4k) as that is quite slow.
+	*/
+	TArray64<float> UnpackedDataStorage[4];
+	/** 
+	* A temporary buffer that is only initialized to the size of a single sample used during weight plane accumulation.
+	* It is currently filled with 1.0f for all weights, and exists so that we can use the same code as we do for RGBA accumulation.
+	*/
+	TArray64<float> WeightChannelStorage;
 
 	TArray64<FImageOverlappedPlane> ChannelPlanes;
 	
