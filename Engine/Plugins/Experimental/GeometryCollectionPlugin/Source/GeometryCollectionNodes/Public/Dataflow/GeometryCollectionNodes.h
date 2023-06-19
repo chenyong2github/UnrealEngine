@@ -191,6 +191,73 @@ public:
 
 };
 
+UENUM()
+enum class EBoxLengthMeasurementMethod : uint8
+{
+	XAxis,
+	YAxis,
+	ZAxis,
+	ShortestAxis,
+	LongestAxis,
+	Diagonal
+};
+
+/**
+ *
+ * Create an array of lengths of bounding boxes (measured along an axis, diagonal, or the max/min axes) from an array of bounding boxes
+ *
+ */
+USTRUCT(meta = (DataflowGeometryCollection))
+struct FGetBoxLengthsDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGetBoxLengthsDataflowNode, "GetBoxLengths", "Utilities|Box", "")
+
+public:
+	
+	UPROPERTY(meta = (DataflowInput))
+	TArray<FBox> Boxes;
+
+	UPROPERTY(meta = (DataflowOutput))
+	TArray<float> Lengths;
+
+	UPROPERTY(EditAnywhere, Category = Options)
+	EBoxLengthMeasurementMethod MeasurementMethod = EBoxLengthMeasurementMethod::Diagonal;
+
+	inline double BoxToMeasurement(const FBox& Box) const
+	{
+		FVector Size = Box.GetSize();
+		switch (MeasurementMethod)
+		{
+		case EBoxLengthMeasurementMethod::XAxis:
+			return Size.X;
+		case EBoxLengthMeasurementMethod::YAxis:
+			return Size.Y;
+		case EBoxLengthMeasurementMethod::ZAxis:
+			return Size.Z;
+		case EBoxLengthMeasurementMethod::ShortestAxis:
+			return Size.GetMin();
+		case EBoxLengthMeasurementMethod::LongestAxis:
+			return Size.GetMax();
+		case EBoxLengthMeasurementMethod::Diagonal:
+			return Size.Length();
+		}
+		checkNoEntry(); // switch above should handle all cases
+		return Size.X;
+	}
+
+	FGetBoxLengthsDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Boxes);
+		RegisterOutputConnection(&Lengths);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+
 
 /**
  *

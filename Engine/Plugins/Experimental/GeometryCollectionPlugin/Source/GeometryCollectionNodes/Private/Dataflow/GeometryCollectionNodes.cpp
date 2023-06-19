@@ -53,6 +53,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FLogStringDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FBoundingBoxDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExpandBoundingBoxDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetBoxLengthsDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExpandVectorDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FStringAppendDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FHashStringDataflowNode);
@@ -178,6 +179,24 @@ void FBoundingBoxDataflowNode::Evaluate(Dataflow::FContext& Context, const FData
 		const FBox& BoundingBoxInCollectionSpace = BoundsFacade.GetBoundingBoxInCollectionSpace();
 
 		SetValue(Context, BoundingBoxInCollectionSpace, &BoundingBox);
+	}
+}
+
+void FGetBoxLengthsDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&Lengths))
+	{
+		const TArray<FBox>& InBoxes = GetValue(Context, &Boxes);
+
+		TArray<float> OutLengths;
+		OutLengths.SetNumUninitialized(InBoxes.Num());
+		for (int32 Idx = 0; Idx < InBoxes.Num(); ++Idx)
+		{
+			const FBox& Box = InBoxes[Idx];
+			OutLengths[Idx] = BoxToMeasurement(Box);
+		}
+
+		SetValue(Context, MoveTemp(OutLengths), &Lengths);
 	}
 }
 

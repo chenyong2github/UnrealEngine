@@ -46,6 +46,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionRandomDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionRootDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionCustomDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionFromIndexArrayDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionParentDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionByPercentageDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionChildrenDataflowNode);
@@ -60,6 +61,7 @@ namespace Dataflow
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionInBoxDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionInSphereDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionByFloatAttrDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSelectFloatArrayIndicesInRangeDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionTransformSelectionByIntAttrDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionVertexSelectionCustomDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCollectionFaceSelectionCustomDataflowNode);
@@ -402,6 +404,46 @@ void FCollectionTransformSelectionCustomDataflowNode::Evaluate(Dataflow::FContex
 	else if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+	}
+}
+
+
+void FCollectionTransformSelectionFromIndexArrayDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&TransformSelection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue(Context, &Collection);
+
+		if (InCollection.HasGroup(FGeometryCollection::TransformGroup))
+		{
+			const int32 NumTransforms = InCollection.NumElements(FGeometryCollection::TransformGroup);
+
+			const TArray<int32>& InBoneIndices = GetValue(Context, &BoneIndices);
+
+			FDataflowTransformSelection NewTransformSelection;
+			NewTransformSelection.Initialize(NumTransforms, false);
+			for (int32 SelectedIdx : InBoneIndices)
+			{
+				if (SelectedIdx >= 0 && SelectedIdx < NumTransforms)
+				{
+					NewTransformSelection.SetSelected(SelectedIdx);
+				}
+				else
+				{
+					UE_LOG(LogChaos, Error, TEXT("[Dataflow ERROR] Invalid selection index %d is outside valid bone index range [0, %d)"), SelectedIdx, NumTransforms);
+				}
+			}
+
+			SetValue(Context, MoveTemp(NewTransformSelection), &TransformSelection);
+		}
+		else
+		{
+			SetValue(Context, FDataflowTransformSelection(), &TransformSelection);
+		}
+	}
+	else if (Out->IsA(&Collection))
+	{
+		const FManagedArrayCollection& InCollection = GetValue(Context, &Collection);
 		SetValue(Context, InCollection, &Collection);
 	}
 }
@@ -765,6 +807,37 @@ void FCollectionTransformSelectionByFloatAttrDataflowNode::Evaluate(Dataflow::FC
 	}
 }
 
+void FSelectFloatArrayIndicesInRangeDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA(&Indices))
+	{
+		const TArray<float>& InValues = GetValue(Context, &Values);
+		float InMin = GetValue(Context, &Min);
+		float InMax = GetValue(Context, &Max);
+		bool bInsideRange = RangeSetting == ERangeSettingEnum::Dataflow_RangeSetting_InsideRange;
+
+		TArray<int32> OutIndices;
+		for (int32 Idx = 0; Idx < InValues.Num(); ++Idx)
+		{
+			const float FloatValue = InValues[Idx];
+
+			if (bInsideRange && FloatValue > Min && FloatValue < Max)
+			{
+				OutIndices.Add(Idx);
+			}
+			else if (!bInsideRange && (FloatValue < Min || FloatValue > Max))
+			{
+				OutIndices.Add(Idx);
+			}
+			else if (bInclusive && (FloatValue == Min || FloatValue == Max))
+			{
+				OutIndices.Add(Idx);
+			}
+		}
+
+		SetValue(Context, MoveTemp(OutIndices), &Indices);
+	}
+}
 
 void FCollectionTransformSelectionByIntAttrDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
