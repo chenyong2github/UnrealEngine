@@ -531,14 +531,14 @@ namespace CrossCompiler
 					// Interpolation modifiers
 					uint32 bLinear : 1;
 					uint32 bCentroid : 1;
-					uint32 bNoInterpolation : 1;
-					uint32 bNoPerspective : 1;
 					uint32 bSample : 1;
 				};
 				uint32 Raw;
 			};
 
 			const TCHAR* PrimitiveType = nullptr;
+			const TCHAR* NoInterpolatorType = nullptr;
+			const TCHAR* NoPerspectiveType = nullptr;
 
 			FTypeQualifier();
 

@@ -847,13 +847,15 @@ namespace CrossCompiler
 			{
 				Writer << TEXT("centroid ");
 			}
-			if (bNoInterpolation)
+			if (NoInterpolatorType)
 			{
-				Writer << TEXT("nointerpolation ");
+				Writer << NoInterpolatorType;
+				Writer << (TCHAR)' ';
 			}
-			if (bNoPerspective)
+			if (NoPerspectiveType)
 			{
-				Writer << TEXT("noperspective ");
+				Writer << NoPerspectiveType;
+				Writer << (TCHAR)' ';
 			}
 			if (bSample)
 			{

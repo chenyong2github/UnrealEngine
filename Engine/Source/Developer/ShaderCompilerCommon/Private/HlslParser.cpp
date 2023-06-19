@@ -560,22 +560,22 @@ namespace CrossCompiler
 						return ParseResultError();
 					}
 				}
-				else if (Token->String == TEXT("nointerpolation"))
+				else if (Token->String == TEXT("nointerpolation") || Token->String == TEXT("nointerp"))
 				{
 					Scanner.Advance();
 					++InterpolationNoInterpolationFound;
-					Qualifier->bNoInterpolation = true;
+					Qualifier->NoInterpolatorType = Allocator->Strdup(Token->String);
 					if (InterpolationNoInterpolationFound > 1)
 					{
 						Scanner.SourceError(TEXT("'nointerpolation' found more than once!\n"));
 						return ParseResultError();
 					}
 				}
-				else if (Token->String == TEXT("noperspective") || Token->String == TEXT("nopersp"))	// PSSL nopersp
+				else if (Token->String == TEXT("noperspective") || Token->String == TEXT("nopersp"))	
 				{
 					Scanner.Advance();
 					++InterpolationNoPerspectiveFound;
-					Qualifier->bNoPerspective = true;
+					Qualifier->NoPerspectiveType = Allocator->Strdup(Token->String);
 					if (InterpolationNoPerspectiveFound > 1)
 					{
 						Scanner.SourceError(TEXT("'noperspective' found more than once!\n"));
@@ -1926,7 +1926,7 @@ Done:
 			return EParseResult::Matched;
 		}
 
-		if (Parser.Scanner.MatchToken(EHlslToken::CBuffer))
+		if (Parser.Scanner.MatchToken(EHlslToken::ConstantBuffer) || Parser.Scanner.MatchToken(EHlslToken::CBuffer))
 		{
 			auto Result = ParseCBuffer(Parser, Allocator, OutNode);
 			if (Result == EParseResult::Error || Result == EParseResult::Matched)

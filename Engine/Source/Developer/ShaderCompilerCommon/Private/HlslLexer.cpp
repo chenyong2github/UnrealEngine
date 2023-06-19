@@ -311,6 +311,11 @@ namespace CrossCompiler
 				InsertToken(TEXT("uint64_t3x4"), EHlslToken::Uint64_t3x4);
 				InsertToken(TEXT("uint64_t4x4"), EHlslToken::Uint64_t4x4);
 
+				InsertToken(TEXT("ulong"), EHlslToken::Uint64_t);	
+				InsertToken(TEXT("ulong2"), EHlslToken::Uint64_t2);	
+				InsertToken(TEXT("ulong3"), EHlslToken::Uint64_t3);	
+				InsertToken(TEXT("ulong4"), EHlslToken::Uint64_t4);	
+
 				InsertToken(TEXT("half"), EHlslToken::Half);
 				InsertToken(TEXT("half1"), EHlslToken::Half1);
 				InsertToken(TEXT("half2"), EHlslToken::Half2);
