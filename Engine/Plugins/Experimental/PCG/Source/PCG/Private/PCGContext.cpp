@@ -132,6 +132,9 @@ void FPCGContext::InitializeSettings()
 			{
 				SettingsWithOverride = Cast<UPCGSettings>(StaticDuplicateObject(NodeSettings, GetTransientPackage(), NAME_None, RF_Transient));
 				SettingsWithOverride->AddToRoot();
+
+				// Force seed copy to prevent issue due to delta serialization vs. Seed being initialized in the constructor only for new nodes
+				SettingsWithOverride->Seed = NodeSettings->Seed;
 			}
 		}
 	}
