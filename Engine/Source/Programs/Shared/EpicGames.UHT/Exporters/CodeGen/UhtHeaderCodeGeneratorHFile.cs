@@ -282,7 +282,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 									string paramTypeOriginal = parameter.TypeOriginal(true);
 									string paramNameOriginal = parameter.NameOriginal(false);
 									string additionalParameters = String.Empty;
-									if (!parameter.Input && !parameter.Output && !parameter.Singleton)
+									if (parameter.IsLazy || (!parameter.Input && !parameter.Output && !parameter.Singleton))
 									{
 										additionalParameters = ", RigVMExecuteContext.GetSlice().GetIndex()";
 									}
