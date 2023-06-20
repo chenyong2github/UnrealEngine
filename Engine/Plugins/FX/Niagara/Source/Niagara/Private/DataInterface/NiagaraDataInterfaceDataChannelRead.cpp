@@ -1094,7 +1094,7 @@ void UNiagaraDataInterfaceDataChannelRead::SpawnConditional(FVectorVMExternalFun
 	FNiagaraDataChannelData* DataChannelData = InstData->DataChannelData.Get();
 	FNiagaraDataBuffer* Data = DataChannelData ? DataChannelData->GetCPUData(!bReadCurrentFrame) : nullptr;
 
-	bool bSpawn = INiagaraModule::DataChannelsEnabled() && Data && Data->GetNumInstances() > 0 && EmittterInst && InEnabled.GetAndAdvance();
+	bool bSpawn = INiagaraModule::DataChannelsEnabled() && Data && Data->GetNumInstances() > 0 && EmittterInst && EmittterInst->IsActive() && InEnabled.GetAndAdvance();
 	if(bSpawn)
 	{
 		FNDIRandomHelperFromStream RandHelper(Context);

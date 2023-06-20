@@ -87,6 +87,7 @@ public:
 
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
 
+	FORCEINLINE bool IsActive()const { return ExecutionState == ENiagaraExecutionState::Active; }
 	FORCEINLINE bool IsDisabled()const { return ExecutionState == ENiagaraExecutionState::Disabled; }
 	FORCEINLINE bool IsInactive()const { return ExecutionState == ENiagaraExecutionState::Inactive; }
 	FORCEINLINE bool IsComplete()const { return ExecutionState == ENiagaraExecutionState::Complete || ExecutionState == ENiagaraExecutionState::Disabled; }
