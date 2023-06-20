@@ -124,7 +124,7 @@ const uint8* TRigVMLazyValueBase::GetData(const FRigVMExecuteContext& Context) c
 			check(Context.ExtendedExecuteContext != nullptr);
 			MemoryHandle->ComputeLazyValueIfNecessary(*Context.ExtendedExecuteContext, SliceIndex);
 		}
-		return MemoryHandle->GetData(bFollowPropertyPath, SliceIndex);
+		return MemoryHandle->GetData(bFollowPropertyPath, INDEX_NONE);
 	}
 	return nullptr;
 }
