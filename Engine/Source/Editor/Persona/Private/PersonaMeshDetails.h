@@ -837,4 +837,7 @@ private:
 
 	// Delegate used at runtime to determine the state of the VertexOverrideColor property
 	bool GetVertexOverrideColorEnabledState() const;
+
+	// Called when the skeletal mesh has finished rebuilding. This may affect some settings, such as vertex attributes.
+	void OnMeshRebuildCompleted(USkeletalMesh* InMesh);
 };

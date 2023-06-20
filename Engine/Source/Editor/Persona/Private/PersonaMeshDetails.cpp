@@ -2125,6 +2125,11 @@ FPersonaMeshDetails::~FPersonaMeshDetails()
 		PreviewScene->UnregisterOnPreviewMeshChanged(this);
 	}
 
+	if (SkeletalMeshPtr.Get())
+	{
+		SkeletalMeshPtr.Get()->OnPostMeshCached().RemoveAll(this);
+	}
+
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostLODImport.RemoveAll(this);
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.RemoveAll(this);
 }
@@ -4367,6 +4372,12 @@ void FPersonaMeshDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 	IDetailCategoryBuilder& ClothingCategory = DetailLayout.EditCategory("Clothing", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
 	CustomizeClothingProperties(DetailLayout,ClothingCategory);
 
+	// Get notified when the mesh has finished building
+	if (SkeletalMeshPtr.Get())
+	{
+		SkeletalMeshPtr.Get()->OnPostMeshCached().AddSP(this, &FPersonaMeshDetails::OnMeshRebuildCompleted);
+	}
+
 	// Post process selector
 	IDetailCategoryBuilder& SkelMeshCategory = DetailLayout.EditCategory("SkeletalMesh");
 	TSharedRef<IPropertyHandle> PostProcessHandle = DetailLayout.GetProperty(USkeletalMesh::GetPostProcessAnimBlueprintMemberName(), USkeletalMesh::StaticClass());
@@ -4477,6 +4488,15 @@ bool FPersonaMeshDetails::GetVertexOverrideColorEnabledState() const
 	ensure(VertexColorImportOptionHandle->GetValue(VertexColorImportOption) == FPropertyAccess::Success);
 
 	return (VertexColorImportOption == EVertexColorImportOption::Override);
+}
+
+
+void FPersonaMeshDetails::OnMeshRebuildCompleted(USkeletalMesh* InMesh)
+{
+	if (InMesh == SkeletalMeshPtr.Get())
+	{
+		RefreshMeshDetailLayout();
+	}
 }
 
 void FPersonaMeshDetails::HideUnnecessaryProperties(IDetailLayoutBuilder& DetailLayout)
