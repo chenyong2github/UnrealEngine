@@ -1017,7 +1017,7 @@ void FWaterBooleanUtils::GenerateSubtractSweepConvexDecomposition(const FDynamic
 
 	// find largest "middle" bin - use this as the cut plane height
 	int32 MaxBinIndex = 1;
-	for (int32 k = 2; k < IntervalSteps - 1; ++k)
+	for (int32 k = 2; k < IntervalSteps; ++k)
 	{
 		if (ZHistogram[k] > ZHistogram[MaxBinIndex])
 		{
