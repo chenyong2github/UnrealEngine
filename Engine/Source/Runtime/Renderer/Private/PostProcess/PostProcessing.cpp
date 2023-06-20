@@ -694,7 +694,7 @@ void AddPostProcessingPasses(
 				FTranslucencyComposition TranslucencyComposition;
 				TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::ComposeToNewSceneColor;
 				TranslucencyComposition.bApplyModulateOnly = bComposeSeparateTranslucencyInTSR;
-				TranslucencyComposition.SceneColor = SceneColor;
+				TranslucencyComposition.SceneColor = FScreenPassTextureSlice::CreateFromScreenPassTexture(GraphBuilder, SceneColor);
 				TranslucencyComposition.SceneDepth = SceneDepth;
 				TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneColor);
 				TranslucencyComposition.OutputPixelFormat = SceneColorFormat;
@@ -889,7 +889,7 @@ void AddPostProcessingPasses(
 			// Compose Post-MotionBlur translucency in a new scene color to ensure it's not writing out in TAA's output that is also the history.
 			FTranslucencyComposition TranslucencyComposition;
 			TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::ComposeToNewSceneColor;
-			TranslucencyComposition.SceneColor = FScreenPassTexture::CopyFromSlice(GraphBuilder, SceneColorSlice); // TODO
+			TranslucencyComposition.SceneColor = SceneColorSlice;
 			TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneColorSlice);
 			TranslucencyComposition.OutputPixelFormat = SceneColorFormat;
 
@@ -1235,23 +1235,22 @@ void AddPostProcessingPasses(
 		{
 			FTranslucencyComposition TranslucencyComposition;
 			TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::ComposeToNewSceneColor;
-			TranslucencyComposition.SceneColor = SceneColor;
 			TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneColor);
 			TranslucencyComposition.OutputPixelFormat = SceneColorFormat;
 
 			if (PostDOFTranslucencyResources.IsValid())
 			{
-				TranslucencyComposition.SceneColor = TranslucencyComposition.AddPass(
+				TranslucencyComposition.SceneColor = FScreenPassTextureSlice::CreateFromScreenPassTexture(GraphBuilder, SceneColor);
+				SceneColor = TranslucencyComposition.AddPass(
 					GraphBuilder, View, PostDOFTranslucencyResources);
 			}
 
 			if (PostMotionBlurTranslucencyResources.IsValid())
 			{
-				TranslucencyComposition.SceneColor = TranslucencyComposition.AddPass(
+				TranslucencyComposition.SceneColor = FScreenPassTextureSlice::CreateFromScreenPassTexture(GraphBuilder, SceneColor);
+				SceneColor = TranslucencyComposition.AddPass(
 					GraphBuilder, View, PostMotionBlurTranslucencyResources);
 			}
-
-			SceneColor = TranslucencyComposition.SceneColor;
 		}
 
 		SceneColorBeforeTonemapSlice = FScreenPassTextureSlice::CreateFromScreenPassTexture(GraphBuilder, SceneColor);

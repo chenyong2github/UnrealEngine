@@ -402,7 +402,7 @@ class FComposeSeparateTranslucencyPS : public FGlobalShader
 		SHADER_PARAMETER(FVector2f, SeparateTranslucencyUVMax)
 		SHADER_PARAMETER(FVector2f, SeparateTranslucencyExtentInverse)
 
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState,  SceneColorSampler)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateTranslucencyPointTexture)
@@ -464,7 +464,7 @@ FScreenPassTexture FTranslucencyComposition::AddPass(
 	ensure(TranslucencyTextures.IsValid());
 	if (!TranslucencyTextures.IsValid())
 	{
-		return SceneColor;
+		return FScreenPassTexture(SceneColor);
 	}
 
 	ensure(TranslucencyTextures.Pass != ETranslucencyPass::TPT_MAX);
@@ -497,7 +497,7 @@ FScreenPassTexture FTranslucencyComposition::AddPass(
 	{
 		if (!TranslucencyTextures.ColorModulateTexture.IsValid())
 		{
-			return SceneColor;
+			return FScreenPassTexture(SceneColor);
 		}
 
 		SeparateTranslucencyTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
@@ -534,8 +534,8 @@ FScreenPassTexture FTranslucencyComposition::AddPass(
 		OpName = TEXT("ComposeTranslucencyToExistingColor");
 		BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha>::GetRHI();
 
-		ensure(SceneColor.Texture->Desc.Flags & TexCreate_RenderTargetable);
-		NewSceneColor = SceneColor.Texture;
+		ensure(SceneColor.TextureSRV->Desc.Texture->Desc.Flags & TexCreate_RenderTargetable);
+		NewSceneColor = SceneColor.TextureSRV->Desc.Texture;
 	}
 	else if (Operation == EOperation::ComposeToNewSceneColor)
 	{
@@ -545,7 +545,7 @@ FScreenPassTexture FTranslucencyComposition::AddPass(
 
 		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
 			OutputViewport.Extent,
-			OutputPixelFormat != PF_Unknown ? OutputPixelFormat : SceneColor.Texture->Desc.Format,
+			OutputPixelFormat != PF_Unknown ? OutputPixelFormat : SceneColor.TextureSRV->Desc.Texture->Desc.Format,
 			FClearValueBinding::Black,
 			TexCreate_RenderTargetable | TexCreate_ShaderResource);
 
@@ -582,8 +582,8 @@ FScreenPassTexture FTranslucencyComposition::AddPass(
 	PassParameters->SeparateTranslucencyExtentInverse = SeparateTranslucencyExtentInv;
 	
 	PassParameters->SceneColorTexture = Operation == EOperation::ComposeToNewSceneColor
-		? SceneColor.Texture
-		: GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
+		? SceneColor.TextureSRV
+		: GraphBuilder.CreateSRV(FRDGTextureSRVDesc(GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy)));
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
 	PassParameters->SeparateTranslucencyPointTexture = SeparateTranslucencyTexture;
@@ -1415,7 +1415,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 
 				FTranslucencyComposition TranslucencyComposition;
 				TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::ComposeToExistingSceneColor;
-				TranslucencyComposition.SceneColor = FScreenPassTexture(SceneTextures.Color.Target, View.ViewRect);
+				TranslucencyComposition.SceneColor = FScreenPassTextureSlice::CreateFromScreenPassTexture(GraphBuilder, FScreenPassTexture(SceneTextures.Color.Target, View.ViewRect));
 				TranslucencyComposition.SceneDepth = FScreenPassTexture(SceneTextures.Depth.Resolve, View.ViewRect);
 				TranslucencyComposition.OutputViewport = FScreenPassTextureViewport(SceneTextures.Depth.Resolve, View.ViewRect);
 

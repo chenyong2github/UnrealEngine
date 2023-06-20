@@ -167,7 +167,7 @@ struct FTranslucencyComposition
 	EOperation Operation = EOperation::UpscaleOnly;
 	bool bApplyModulateOnly = false;
 
-	FScreenPassTexture SceneColor;
+	FScreenPassTextureSlice SceneColor;
 	FScreenPassTexture SceneDepth;
 
 	FScreenPassTextureViewport OutputViewport;
