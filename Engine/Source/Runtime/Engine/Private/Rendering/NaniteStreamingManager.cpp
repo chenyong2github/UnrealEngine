@@ -687,6 +687,7 @@ void FStreamingManager::ReleaseRHI()
 
 void FStreamingManager::Add( FResources* Resources )
 {
+	check(Resources != nullptr);	// Needed to make static analysis happy
 	check(IsInRenderingThread());
 	check(!AsyncState.bUpdateActive);
 
