@@ -67,7 +67,11 @@ TArray<FString> GetPluginPathsByEnv( const TCHAR* EnvVariable )
  */
 TArray<FString> GetAdditionalExternalPluginsByEnvVar()
 {
+#if WITH_EDITOR
 	return GetPluginPathsByEnv(TEXT("UE_ADDITIONAL_PLUGIN_PATHS"));
+#else
+	return {};
+#endif
 }
 
 }
