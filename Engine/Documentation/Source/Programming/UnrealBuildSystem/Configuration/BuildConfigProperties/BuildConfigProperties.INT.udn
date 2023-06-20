@@ -272,7 +272,7 @@ $ MaxNestedPathLength : Maximum length of a path relative to the root directory.
 
 $ bUseFastGenProfile : If specified along with -PGOProfile, then /FASTGENPROFILE will be used instead of /GENPROFILE. This usually means that the PGO data is generated faster, but the resulting data may not yield as efficient optimizations during -PGOOptimize
 
-$ bPGONoExtraCounters : If specified along with -PGOProfile, prevent the usage of extra counters. Please note that by default /FASTGENPROFILE doesnt use extra counters https://learn.microsoft.com/en-us/cpp/build/reference/genprofile-fastgenprofile-generate-profiling-instrumented-build?view=msvc-170
+$ bPGONoExtraCounters : If specified along with -PGOProfile, prevent the usage of extra counters. Please note that by default /FASTGENPROFILE doesnt use extra counters
 
 $ Compiler : Version of the compiler toolchain to use on Windows platform. A value of "default" will be changed to a specific version at UBT start up.
 
@@ -303,6 +303,8 @@ $ bClangTimeTrace : (Experimental) Appends the -ftime-trace argument to the comm
 $ bCompilerTrace : Outputs compile timing information so that it can be analyzed.
 
 $ bShowIncludes : Print out files that are included by each source file
+
+$ InlineFunctionExpansionLevel : Which level to use for Inline Function Expansion when TargetRules.bUseInlining is enabled
 
 ### TargetRules
 
