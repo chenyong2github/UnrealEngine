@@ -353,8 +353,6 @@ public:
 
 	void PrepareBindlessViews(EShaderFrequency ShaderStage, TConstArrayView<FD3D12ShaderResourceView*> SRVs, TConstArrayView<FD3D12UnorderedAccessView*> UAVs);
 
-	void SetStreamOutTargets(FD3D12Resource **Buffers, uint32 Count, const uint32* Offsets);
-
 	bool HeapRolledOver(ERHIDescriptorHeapType InHeapType);
 	void HeapLoopedAround(ERHIDescriptorHeapType InHeapType);
 	void Init(uint32 InNumLocalViewDescriptors, uint32 InNumSamplerDescriptors);

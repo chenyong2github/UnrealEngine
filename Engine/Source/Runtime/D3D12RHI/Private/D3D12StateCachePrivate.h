@@ -286,7 +286,6 @@ protected:
 
 	bool bNeedSetVB = true;
 	bool bNeedSetRTs = true;
-	bool bNeedSetSOs = true;
 	bool bNeedSetViewports = true;
 	bool bNeedSetScissorRects = true;
 	bool bNeedSetPrimitiveTopology = true;
@@ -328,11 +327,6 @@ protected:
 
 			// Vertex Buffer State
 			FD3D12VertexBufferCache VBCache = {};
-
-			// SO
-			uint32			CurrentNumberOfStreamOutTargets = 0;
-			FD3D12Resource* CurrentStreamOutTargets[D3D12_SO_STREAM_COUNT] = {};
-			uint32			CurrentSOOffsets       [D3D12_SO_STREAM_COUNT] = {};
 
 			// Index Buffer State
 			FD3D12IndexBufferCache IBCache = {};

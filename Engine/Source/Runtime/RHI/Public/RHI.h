@@ -212,7 +212,7 @@ typedef TArray<FVertexElement,TFixedAllocator<MaxVertexElementCount> > FVertexDe
 
 /** RHI representation of a single stream out element. */
 //#todo-RemoveStreamOut
-struct FStreamOutElement
+struct UE_DEPRECATED(5.3, "StreamOut is not supported") FStreamOutElement
 {
 	/** Index of the output stream from the geometry shader. */
 	uint32 Stream;
@@ -244,7 +244,10 @@ struct FStreamOutElement
 };
 
 //#todo-RemoveStreamOut
+UE_DEPRECATED(5.3, "StreamOut is not supported")
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 typedef TArray<FStreamOutElement,TFixedAllocator<MaxVertexElementCount> > FStreamOutElementList;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 struct FSamplerStateInitializerRHI
 {

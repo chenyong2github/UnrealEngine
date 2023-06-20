@@ -174,7 +174,6 @@ void FD3D12StateCache::DirtyStateForNewCommandList()
 	// IndexBuffers are set in DrawIndexed*() calls, so there's no way to depend on previously set IndexBuffers without making a new DrawIndexed*() call.
 	PipelineState.Graphics.IBCache.Clear();
 
-	if (PipelineState.Graphics.CurrentNumberOfStreamOutTargets) { bNeedSetSOs = true; }
 	if (PipelineState.Graphics.CurrentNumberOfRenderTargets || PipelineState.Graphics.CurrentDepthStencilTarget) { bNeedSetRTs = true; }
 	if (PipelineState.Graphics.CurrentNumberOfViewports) { bNeedSetViewports = true; }
 	if (PipelineState.Graphics.CurrentNumberOfScissorRects) { bNeedSetScissorRects = true; }
@@ -213,7 +212,6 @@ void FD3D12StateCache::DirtyState()
 	PipelineState.Compute.bNeedSetRootSignature = true;
 	PipelineState.Graphics.bNeedSetRootSignature = true;
 	bNeedSetVB = true;
-	bNeedSetSOs = true;
 	bNeedSetRTs = true;
 	bNeedSetViewports = true;
 	bNeedSetScissorRects = true;
@@ -464,11 +462,6 @@ void FD3D12StateCache::ApplyState(ED3D12PipelineType PipelineType)
 			bNeedSetVB = false;
 			//SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetVertexBufferTime);
 			DescriptorCache.SetVertexBuffers(PipelineState.Graphics.VBCache);
-		}
-		if (bNeedSetSOs)
-		{
-			bNeedSetSOs = false;
-			DescriptorCache.SetStreamOutTargets(PipelineState.Graphics.CurrentStreamOutTargets, PipelineState.Graphics.CurrentNumberOfStreamOutTargets, PipelineState.Graphics.CurrentSOOffsets);
 		}
 		if (bNeedSetViewports)
 		{

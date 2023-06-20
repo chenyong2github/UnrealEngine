@@ -728,7 +728,7 @@ enum class EBufferUsageFlags : uint32
 	SourceCopy              = 1 << 5,
 
 	/** Create a buffer that can be bound as a stream output target. */
-	StreamOutput            = 1 << 6,
+	StreamOutput            UE_DEPRECATED(5.3, "StreamOut is not supported") = 1 << 6,
 
 	/** Create a buffer which contains the arguments used by DispatchIndirect or DrawIndirect. */
 	DrawIndirect            = 1 << 7,

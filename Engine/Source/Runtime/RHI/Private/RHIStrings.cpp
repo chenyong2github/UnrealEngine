@@ -319,7 +319,9 @@ FString GetBufferUsageFlagsName(EBufferUsageFlags BufferUsage)
 		case BUF_UnorderedAccess:		return TEXT("BUF_UnorderedAccess");
 		case BUF_ByteAddressBuffer:		return TEXT("BUF_ByteAddressBuffer");
 		case BUF_SourceCopy:			return TEXT("BUF_SourceCopy");
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		case BUF_StreamOutput:			return TEXT("BUF_StreamOutput");
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		case BUF_DrawIndirect:			return TEXT("BUF_DrawIndirect");
 		case BUF_ShaderResource:		return TEXT("BUF_ShaderResource");
 		case BUF_KeepCPUAccessible:		return TEXT("BUF_KeepCPUAccessible");
@@ -633,7 +635,9 @@ const TCHAR* GetBufferUsageFlagString(EBufferUsageFlags BufferUsage)
 		return TEXT("ByteAddressBuffer");
 	case EBufferUsageFlags::SourceCopy:
 		return TEXT("SourceCopy");
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	case EBufferUsageFlags::StreamOutput:
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return TEXT("StreamOutput");
 	case EBufferUsageFlags::DrawIndirect:
 		return TEXT("DrawIndirect");
