@@ -2,24 +2,23 @@
 
 #include "VirtualizationManager.h"
 
+#include "AnalyticsEventAttribute.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/PlatformTime.h"
 #include "Logging/MessageLog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
-#include "PackageRehydrationProcess.h"
 #include "Misc/ScopedSlowTask.h"
+#include "PackageRehydrationProcess.h"
 #include "PackageVirtualizationProcess.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "VirtualizationFilterSettings.h"
-#include "AnalyticsEventAttribute.h"
-
-#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "Virtualization"
 
@@ -1165,8 +1164,8 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 
 	// Check for any legacy settings and print them out (easier to do this in one block rather than one and time)
 	{
-		// Entries that are allows to be in [Core.ContentVirtualization
-		static const TArray<FString> AllowedEntries = { TEXT("SystemName") , TEXT("LazyInit") };
+		// Entries that are allows to be in [Core.ContentVirtualization]
+		static const TArray<FString> AllowedEntries = { TEXT("SystemName") , TEXT("LazyInit"), TEXT("InitPreSlate") };
 		
 		TArray<FString> LegacyEntries;	
 		if (const FConfigSection* LegacySection = ConfigFile.Find(LegacyConfigSection))
