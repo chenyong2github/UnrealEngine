@@ -80,6 +80,7 @@ FArchive& operator<<(FArchive& Ar, FTraceMotionMatchingState& State)
 	Ar << State.RecordingTime;
 	Ar << State.SearchBestCost;
 	Ar << State.SearchBruteForceCost;
+	Ar << State.SearchBestPosePos;
 	Ar << State.DatabaseEntries;
 	Ar << State.Trajectory;
 	Ar << State.CurrentDbEntryIdx;

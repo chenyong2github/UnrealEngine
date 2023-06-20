@@ -87,9 +87,16 @@ float FFeatureVectorHelper::DecodeFloat(TConstArrayView<float> Values, int32 Dat
 
 void FFeatureVectorHelper::Copy(TArrayView<float> Values, int32 DataOffset, int32 DataCardinality, TConstArrayView<float> OriginValues)
 {
-	for (int32 i = 0; i < DataCardinality; ++i)
+	check(Values.Num() == OriginValues.Num() && DataOffset + DataCardinality <= Values.Num());
+
+	float* RESTRICT ValuesData = Values.GetData() + DataOffset;
+	const float* RESTRICT OriginValuesData = OriginValues.GetData() + DataOffset;
+
+	check(ValuesData != OriginValuesData);
+
+	for (int32 i = 0; i < DataCardinality; ++i, ++ValuesData, ++OriginValuesData)
 	{
-		Values[DataOffset + i] = OriginValues[DataOffset + i];
+		*ValuesData = *OriginValuesData;
 	}
 }
 

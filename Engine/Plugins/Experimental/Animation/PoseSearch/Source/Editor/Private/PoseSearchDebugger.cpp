@@ -45,18 +45,23 @@ protected:
 	TSharedPtr<SCostCurveTimelineView> BruteForceCostView;
 	TSharedPtr<SCostCurveTimelineView::FTimelineCurveData> BruteForceCostData;
 
+	TSharedPtr<SCostCurveTimelineView> BestPosePosView;
+	TSharedPtr<SCostCurveTimelineView::FTimelineCurveData> BestPosePosData;
+
 	TSharedPtr<SToolTip> CostToolTip;
 
 	FText ToolTipTime;
 	FText ToolTipCost;
 	FText ToolTipCostBruteForce;
+	FText ToolTipBestPosePos;
 };
 
 void SCostTimelineView::Construct(const FArguments& InArgs)
 {
 	BestCostData = MakeShared<SCurveTimelineView::FTimelineCurveData>();
 	BruteForceCostData = MakeShared<SCurveTimelineView::FTimelineCurveData>();
-
+	BestPosePosData = MakeShared<SCurveTimelineView::FTimelineCurveData>();
+	
 	BestCostView = SNew(SCostCurveTimelineView)
 	.CurveColor(FLinearColor::White)
 	.ViewRange_Lambda([]()
@@ -80,6 +85,18 @@ void SCostTimelineView::Construct(const FArguments& InArgs)
 	{
 		return BruteForceCostData;
 	});
+
+	BestPosePosView = SNew(SCostCurveTimelineView)
+	.CurveColor(FLinearColor::Blue)
+	.ViewRange_Lambda([]()
+	{
+		return IRewindDebugger::Instance()->GetCurrentViewRange();
+	})
+	.RenderFill(false)
+	.CurveData_Lambda([this]()
+	{
+		return BestPosePosData;
+	});
 		
 	AddSlot()
 	[
@@ -88,6 +105,10 @@ void SCostTimelineView::Construct(const FArguments& InArgs)
 	AddSlot()
 	[
 		BestCostView.ToSharedRef()
+	];
+	AddSlot()
+	[
+		BestPosePosView.ToSharedRef()
 	];
 }
 
@@ -107,20 +128,24 @@ void SCostTimelineView::UpdateInternal(uint64 ObjectId)
 		TArray<FCurvePoint>& BruteForceCostPoints = BruteForceCostData->Points;
 		BruteForceCostPoints.Reset();
 
+		TArray<FCurvePoint>& BestPosePosPoints = BestPosePosData->Points;
+		BestPosePosPoints.Reset();
+
 		// convert time range to from rewind debugger times to profiler times
 		TRange<double> TraceTimeRange = RewindDebugger->GetCurrentTraceRange();
 		double StartTime = TraceTimeRange.GetLowerBoundValue();
 		double EndTime = TraceTimeRange.GetUpperBoundValue();
 
-		PoseSearchProvider->EnumerateMotionMatchingStateTimelines(ObjectId, [StartTime, EndTime, &BestCostPoints, &BruteForceCostPoints](const FTraceProvider::FMotionMatchingStateTimeline& InTimeline)
+		PoseSearchProvider->EnumerateMotionMatchingStateTimelines(ObjectId, [StartTime, EndTime, &BestCostPoints, &BruteForceCostPoints, &BestPosePosPoints](const FTraceProvider::FMotionMatchingStateTimeline& InTimeline)
 		{
 			// this isn't very efficient, and it gets called every frame.  will need optimizing
-			InTimeline.EnumerateEvents(StartTime, EndTime, [StartTime, EndTime, &BestCostPoints, &BruteForceCostPoints](double InStartTime, double InEndTime, uint32 InDepth, const FTraceMotionMatchingStateMessage& InMessage)
+			InTimeline.EnumerateEvents(StartTime, EndTime, [StartTime, EndTime, &BestCostPoints, &BruteForceCostPoints, &BestPosePosPoints](double InStartTime, double InEndTime, uint32 InDepth, const FTraceMotionMatchingStateMessage& InMessage)
 			{
 				if (InEndTime > StartTime && InStartTime < EndTime)
 				{
 					BestCostPoints.Add({ InMessage.RecordingTime, InMessage.SearchBestCost });
 					BruteForceCostPoints.Add({ InMessage.RecordingTime, InMessage.SearchBruteForceCost });
+					BestPosePosPoints.Add({ InMessage.RecordingTime, float(InMessage.SearchBestPosePos) });
 				}
 				return TraceServices::EEventEnumerate::Continue;
 			});
@@ -181,11 +206,13 @@ FReply SCostTimelineView::OnMouseMove(const FGeometry& MyGeometry, const FPointe
 					const float Time = CurvePoints[TargetPointIndex].Time;
 					const float BestCost = CurvePoints[TargetPointIndex].Value;
 					const float BruteForceCost = BruteForceCostData->Points[TargetPointIndex].Value;
+					const int32 BestPosePos = FMath::RoundToInt(BestPosePosData->Points[TargetPointIndex].Value);
 
 					// Tooltip text formatting
 					FNumberFormattingOptions FormattingOptions;
 					FormattingOptions.MaximumFractionalDigits = 3;
 
+					ToolTipBestPosePos = FText::Format(LOCTEXT("CostTimelineViewToolTip_BestPosePosFormat", "Best Index: {0}"), FText::AsNumber(BestPosePos, &FormattingOptions));
 					ToolTipTime = FText::Format(LOCTEXT("CostTimelineViewToolTip_TimeFormat", "Search Time: {0}"), FText::AsNumber(Time, &FormattingOptions));
 					ToolTipCost = FText::Format(LOCTEXT("CostTimelineViewToolTip_CostFormat", "Search Cost: {0}"), FText::AsNumber(BestCost, &FormattingOptions));
 
@@ -210,6 +237,13 @@ FReply SCostTimelineView::OnMouseMove(const FGeometry& MyGeometry, const FPointe
 								[
 									SNew(STextBlock)
 									.Text_Lambda([this]() { return ToolTipTime; })
+									.Font(FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont"))
+									.ColorAndOpacity(FLinearColor::Black)
+								]
+								+ SVerticalBox::Slot()
+								[
+									SNew(STextBlock)
+									.Text_Lambda([this]() { return ToolTipBestPosePos; })
 									.Font(FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont"))
 									.ColorAndOpacity(FLinearColor::Black)
 								]

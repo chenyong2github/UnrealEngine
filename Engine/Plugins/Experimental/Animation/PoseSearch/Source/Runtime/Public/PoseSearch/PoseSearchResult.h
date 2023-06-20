@@ -19,9 +19,7 @@ struct FSearchIndexAsset;
 struct FFeatureVectorBuilder
 {
 public:
-	void Init(const UPoseSearchSchema* Schema);
-	void Reset();
-
+	explicit FFeatureVectorBuilder(const UPoseSearchSchema* Schema);
 	const UPoseSearchSchema* GetSchema() const { return Schema.Get(); }
 
 	TArrayView<float> EditValues() { return Values; }
@@ -42,9 +40,10 @@ struct FSearchResult
 
 	float AssetTime = 0.0f;
 
-#if WITH_EDITORONLY_DATA
+#if UE_POSE_SEARCH_TRACE_ENABLED
 	FPoseSearchCost BruteForcePoseCost;
-#endif // WITH_EDITORONLY_DATA
+	int32 BestPosePos = 0;
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 
 	// Attempts to set the internal state to match the provided asset time including updating the internal DbPoseIdx. 
 	// If the provided asset time is out of bounds for the currently playing asset then this function will reset the 

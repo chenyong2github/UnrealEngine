@@ -101,7 +101,12 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 {
 	if (CurrentSearchResult.IsValid())
 	{
-		if (!FMath::IsNearlyEqual(PlayRate.Min, 1.f, UE_KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(PlayRate.Max, 1.f, UE_KINDA_SMALL_NUMBER))
+		if (!ensure(PlayRate.Min <= PlayRate.Max && PlayRate.Min > UE_KINDA_SMALL_NUMBER))
+		{
+			UE_LOG(LogPoseSearch, Error, TEXT("Couldn't update the WantedPlayRate in FMotionMatchingState::UpdateWantedPlayRate, because of invalid PlayRate interval (%f, %f)"), PlayRate.Min, PlayRate.Max);
+			WantedPlayRate = 1.f;
+		}
+		else if (!FMath::IsNearlyEqual(PlayRate.Min, PlayRate.Max, UE_KINDA_SMALL_NUMBER))
 		{
 			if (const UE::PoseSearch::FFeatureVectorBuilder* PoseSearchFeatureVectorBuilder = SearchContext.GetCachedQuery(CurrentSearchResult.Database->Schema))
 			{
@@ -110,7 +115,7 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 					TConstArrayView<float> QueryData = PoseSearchFeatureVectorBuilder->GetValues();
 					TConstArrayView<float> ResultData = CurrentSearchResult.Database->GetSearchIndex().GetPoseValues(CurrentSearchResult.PoseIdx);
 					const float EstimatedSpeedRatio = TrajectoryChannel->GetEstimatedSpeedRatio(QueryData, ResultData);
-					check(PlayRate.Min <= PlayRate.Max);
+
 					WantedPlayRate = FMath::Clamp(EstimatedSpeedRatio, PlayRate.Min, PlayRate.Max);
 				}
 				else
@@ -123,7 +128,11 @@ void FMotionMatchingState::UpdateWantedPlayRate(const UE::PoseSearch::FSearchCon
 		}
 		else if (!FMath::IsNearlyZero(TrajectorySpeedMultiplier))
 		{
-			WantedPlayRate = 1.f / TrajectorySpeedMultiplier;
+			WantedPlayRate = PlayRate.Min / TrajectorySpeedMultiplier;
+		}
+		else
+		{
+			WantedPlayRate = PlayRate.Min;
 		}
 	}
 }
@@ -160,7 +169,6 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 	const FPoseSearchQueryTrajectory& Trajectory,
 	UE::PoseSearch::FSearchContext& SearchContext,
 	const UE::PoseSearch::FSearchResult& CurrentResult,
-	const UE::PoseSearch::FSearchResult& LastResult,
 	float ElapsedPoseSearchTime,
 	const FTransform& RootMotionTransformDelta,
 	const UObject* AnimInstance,
@@ -169,7 +177,8 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 	bool bSearch,
 	float RecordingTime,
 	float SearchBestCost,
-	float SearchBruteForceCost)
+	float SearchBruteForceCost,
+	int32 SearchBestPosePos)
 {
 	using namespace UE::PoseSearch;
 	
@@ -246,6 +255,7 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 	TraceState.RecordingTime = RecordingTime;
 	TraceState.SearchBestCost = SearchBestCost;
 	TraceState.SearchBruteForceCost = SearchBruteForceCost;
+	TraceState.SearchBestPosePos = SearchBestPosePos;
 
 	TraceState.Trajectory = Trajectory;
 
@@ -290,11 +300,6 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 
 	InOutMotionMatchingState.bJumpedToPose = false;
 
-#if UE_POSE_SEARCH_TRACE_ENABLED
-	// Record Current Pose Index for Debugger
-	const FSearchResult LastResult = InOutMotionMatchingState.CurrentSearchResult;
-#endif
-
 	const IPoseHistory* History = nullptr;
 	if (IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<IPoseHistoryProvider>())
 	{
@@ -337,12 +342,12 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 			}
 		}
 
-#if WITH_EDITORONLY_DATA
+#if UE_POSE_SEARCH_TRACE_ENABLED
 		if (!SearchResult.BruteForcePoseCost.IsValid())
 		{
 			SearchResult.BruteForcePoseCost = SearchResult.PoseCost;
 		}
-#endif // WITH_EDITORONLY_DATA
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 
 		if (bJumpToPose)
 		{
@@ -351,9 +356,9 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		else
 		{
 			// copying few properties of SearchResult into CurrentSearchResult to facilitate debug drawing
-#if WITH_EDITORONLY_DATA
+#if UE_POSE_SEARCH_TRACE_ENABLED
 			InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost = SearchResult.BruteForcePoseCost;
-#endif // WITH_EDITORONLY_DATA
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 			InOutMotionMatchingState.CurrentSearchResult.PoseCost = SearchResult.PoseCost;
 		}
 	}
@@ -373,14 +378,10 @@ void UPoseSearchLibrary::UpdateMotionMatchingState(
 		const UAnimInstance* AnimInstance = Cast<const UAnimInstance>(Context.AnimInstanceProxy->GetAnimInstanceObject());
 
 		const float SearchBestCost = InOutMotionMatchingState.CurrentSearchResult.PoseCost.GetTotalCost();
-		float SearchBruteForceCost = SearchBestCost;
-#if WITH_EDITORONLY_DATA
-		SearchBruteForceCost = InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost.GetTotalCost();
-#endif // WITH_EDITORONLY_DATA
-
-		TraceMotionMatchingState(Trajectory, SearchContext, InOutMotionMatchingState.CurrentSearchResult, LastResult, InOutMotionMatchingState.ElapsedPoseSearchTime,
+		const float SearchBruteForceCost = InOutMotionMatchingState.CurrentSearchResult.BruteForcePoseCost.GetTotalCost();
+		TraceMotionMatchingState(Trajectory, SearchContext, InOutMotionMatchingState.CurrentSearchResult, InOutMotionMatchingState.ElapsedPoseSearchTime,
 			InOutMotionMatchingState.RootMotionTransformDelta, Context.AnimInstanceProxy->GetAnimInstanceObject(), Context.GetCurrentNodeId(), DeltaTime, bSearch,
-			AnimInstance ? FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()) : 0.f, SearchBestCost, SearchBruteForceCost);
+			AnimInstance ? FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()) : 0.f, SearchBestCost, SearchBruteForceCost, InOutMotionMatchingState.CurrentSearchResult.BestPosePos);
 	}
 #endif
 
@@ -602,12 +603,9 @@ void UPoseSearchLibrary::MotionMatch(
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 		const float SearchBestCost = SearchResult.PoseCost.GetTotalCost();
-		float SearchBruteForceCost = SearchBestCost;
-#if WITH_EDITORONLY_DATA
-		SearchBruteForceCost = SearchResult.BruteForcePoseCost.GetTotalCost();
-#endif // WITH_EDITORONLY_DATA
-		TraceMotionMatchingState(Trajectory, SearchContext, SearchResult, FSearchResult(), 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier,
-			AnimInstance->GetDeltaSeconds(), true, FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()), SearchBestCost, SearchBruteForceCost);
+		const float SearchBruteForceCost = SearchResult.BruteForcePoseCost.GetTotalCost();
+		TraceMotionMatchingState(Trajectory, SearchContext, SearchResult, 0.f, FTransform::Identity, AnimInstance, DebugSessionUniqueIdentifier,
+			AnimInstance->GetDeltaSeconds(), true, FObjectTrace::GetWorldElapsedTime(AnimInstance->GetWorld()), SearchBestCost, SearchBruteForceCost, SearchResult.BestPosePos);
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 	}
 }

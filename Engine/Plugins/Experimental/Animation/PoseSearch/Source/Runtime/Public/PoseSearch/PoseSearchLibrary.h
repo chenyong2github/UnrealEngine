@@ -84,7 +84,6 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 		const FPoseSearchQueryTrajectory& Trajectory,
 		UE::PoseSearch::FSearchContext& SearchContext,
 		const UE::PoseSearch::FSearchResult& CurrentResult,
-		const UE::PoseSearch::FSearchResult& LastResult,
 		float ElapsedPoseSearchTime,
 		const FTransform& RootMotionTransformDelta,
 		const UObject* AnimInstance,
@@ -93,7 +92,8 @@ class POSESEARCH_API UPoseSearchLibrary : public UBlueprintFunctionLibrary
 		bool bSearch,
 		float RecordingTime,
 		float SearchBestCost,
-		float SearchBruteForceCost);
+		float SearchBruteForceCost,
+		int32 SearchBestPosePos);
 #endif // UE_POSE_SEARCH_TRACE_ENABLED
 
 	static FPoseSearchQueryTrajectory ProcessTrajectory(

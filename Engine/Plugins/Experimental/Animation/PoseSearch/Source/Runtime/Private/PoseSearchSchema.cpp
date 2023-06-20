@@ -28,7 +28,8 @@ void UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PoseSearch_BuildQuery);
 
-	InOutQuery.Init(this);
+	check(InOutQuery.GetSchema() == this);
+	check(InOutQuery.GetValues().Num() == SchemaCardinality);
 
 	for (const TObjectPtr<UPoseSearchFeatureChannel>& ChannelPtr : GetChannels())
 	{

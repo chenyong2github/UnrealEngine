@@ -78,6 +78,7 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	float RecordingTime = 0.f;
 	float SearchBestCost = 0.f;
 	float SearchBruteForceCost = 0.f;
+	int32 SearchBestPosePos = 0;
 
 	TArray<FTraceMotionMatchingStateDatabaseEntry> DatabaseEntries;
 

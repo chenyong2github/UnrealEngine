@@ -11,18 +11,11 @@ namespace UE::PoseSearch
 
 //////////////////////////////////////////////////////////////////////////
 // FFeatureVectorBuilder
-void FFeatureVectorBuilder::Init(const UPoseSearchSchema* InSchema)
+FFeatureVectorBuilder::FFeatureVectorBuilder(const UPoseSearchSchema* InSchema)
 {
 	check(InSchema && InSchema->IsValid());
 	Schema = InSchema;
-	Values.Reset();
 	Values.SetNumZeroed(Schema->SchemaCardinality);
-}
-
-void FFeatureVectorBuilder::Reset()
-{
-	Schema = nullptr;
-	Values.Reset();
 }
 
 //////////////////////////////////////////////////////////////////////////
