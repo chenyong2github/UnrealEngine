@@ -9,6 +9,8 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
+#include "Misc/Change.h"
+#include "ReferenceSkeleton.h"
 
 class FTextFilterExpressionEvaluator;
 class FUICommandList;

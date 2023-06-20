@@ -9,6 +9,7 @@
 #include "ISkeletonEditorModule.h"
 #include "SkeletonModifier.h"
 #include "SReferenceSkeletonTree.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Preferences/PersonaOptions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshEditorUtils)

@@ -11,6 +11,9 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Editor.h"
+
 #define LOCTEXT_NAMESPACE "SReferenceSkeletonTree"
 
 namespace ReferenceSkeletonTreeLocals
