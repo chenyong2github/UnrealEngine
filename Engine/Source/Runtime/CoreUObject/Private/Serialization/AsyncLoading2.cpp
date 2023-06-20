@@ -5715,7 +5715,8 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessExportBundle(FAsyncLo
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ProcessExportBundle);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
-	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessExportBundles);
+	check(Package->AsyncPackageLoadingState >= EAsyncPackageLoadingState2::DependenciesReady);
+	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessExportBundles;
 
 	FAsyncPackageScope2 Scope(Package);
 #if WITH_EDITOR
