@@ -466,9 +466,11 @@ void FHttpManager::FlushTick(float DeltaSeconds)
 
 void FHttpManager::AddRequest(const FHttpRequestRef& Request)
 {
-	FScopeLock ScopeLock(&RequestLock);
-	check(!bFlushing);
-	Requests.Add(Request);
+	{
+		FScopeLock ScopeLock(&RequestLock);
+		check(!bFlushing);
+		Requests.Add(Request);
+	}
 	RequestAddedDelegate.ExecuteIfBound(Request);
 }
 
