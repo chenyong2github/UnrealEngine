@@ -1653,7 +1653,7 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 				else
 				{
 					Log.Reportf(EMessageSeverity::Error, TargetStruct,
-						TEXT("Cound not find matching Context object for Context property '%s:%s'. Property must have munual binding."),
+						TEXT("Cound not find matching Context object for Context property '%s:%s'. Property must have manual binding."),
 						*TargetStruct.Name.ToString(), *PropertyName.ToString());
 					bResult = false;
 				}

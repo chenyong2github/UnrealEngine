@@ -17,12 +17,19 @@ void FStateTreeCompilerLog::AppendToLog(IMessageLogListing* LogListing) const
 
 		if (StateTreeMessage.State != nullptr)
 		{
-			Message->AddToken(FUObjectToken::Create(StateTreeMessage.State, FText::FromName(StateTreeMessage.State->Name)));
+			TSharedRef<FUObjectToken> ObjectToken = FUObjectToken::Create(StateTreeMessage.State, FText::FromName(StateTreeMessage.State->Name));
+
+			// Add a dummy activation since default behavior opens content browser.
+			static auto DummyActivation = [](const TSharedRef<class IMessageToken>&) {};
+			ObjectToken->OnMessageTokenActivated(FOnMessageTokenActivated::CreateLambda(DummyActivation));
+			
+			Message->AddToken(ObjectToken);
 		}
 
 		if (StateTreeMessage.Item.ID.IsValid())
 		{
-			Message->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LogMessageItem", " {0}"), FText::FromName(StateTreeMessage.Item.Name))));
+			Message->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LogMessageItem", " {0} '{1}': "),
+				UEnum::GetDisplayValueAsText(StateTreeMessage.Item.DataSource), FText::FromName(StateTreeMessage.Item.Name))));
 		}
 
 		if (!StateTreeMessage.Message.IsEmpty())
