@@ -13,6 +13,7 @@
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
+#include "Misc/ITransaction.h"
 
 #define LOCTEXT_NAMESPACE "SReferenceSkeletonTree"
 
