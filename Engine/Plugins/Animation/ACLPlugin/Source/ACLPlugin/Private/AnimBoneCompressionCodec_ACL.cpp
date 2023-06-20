@@ -27,13 +27,6 @@ THIRD_PARTY_INCLUDES_END
 UAnimBoneCompressionCodec_ACL::UAnimBoneCompressionCodec_ACL(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITORONLY_DATA
-// @third party code - Epic Games Begin
-	bAllowFrameRemoval = false;
-	FrameRemovalThresholdType = ACLFrameRemovalThresholdType::ProportionOfFrames;
-	RemovalProportion = 0.5f;
-// @third party code - Epic Games End
-#endif	// WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITORONLY_DATA
@@ -44,27 +37,6 @@ void UAnimBoneCompressionCodec_ACL::GetCompressionSettings(acl::compression_sett
 	OutSettings = acl::get_default_compression_settings();
 
 	OutSettings.level = GetCompressionLevel(CompressionLevel);
-// @third party code - Epic Games Begin
-	if (bAllowFrameRemoval)
-	{
-		// set the compression settings for tracking error per frame
-		OutSettings.enable_frame_stripping = true;
-		OutSettings.frame_stripping_use_proportion = (FrameRemovalThresholdType == ACLFrameRemovalThresholdType::ProportionOfFrames);
-		if (TargetPlatform != nullptr)
-		{
-			FName TargetPlatformName = TargetPlatform->GetTargetPlatformInfo().Name;
-			OutSettings.frame_stripping_proportion = RemovalProportion.GetValueForPlatform(TargetPlatformName);
-			OutSettings.frame_stripping_error_distance = RemovalDistanceError.GetValueForPlatform(TargetPlatformName);
-		}
-		else
-		{
-			OutSettings.frame_stripping_proportion = RemovalProportion.GetValue();
-			OutSettings.frame_stripping_error_distance = RemovalDistanceError.GetValue();
-		}
-
-		OutSettings.metadata.include_contributing_error = true;
-	}
-// @third party code - Epic Games End
 }
 
 // @third party code - Epic Games Begin
