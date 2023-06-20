@@ -18,6 +18,7 @@
 #include "RemoteControlWebsocketRoute.h"
 #include "StageAppResponse.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 #include "WebRemoteControlUtils.h"
 #include "StageActor/DisplayClusterStageActorTemplate.h"
 #include "StageActor/DisplayClusterWeakStageActorPtr.h"
