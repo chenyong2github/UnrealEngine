@@ -12,7 +12,7 @@ class FIoBuffer;
 class FIoReadOptions;
 struct FIoHash;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogIoCache, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogIasCache, Log, All);
 
 /** Cache for binary blobs with a 20 byte cache key. */
 class IIoCache
