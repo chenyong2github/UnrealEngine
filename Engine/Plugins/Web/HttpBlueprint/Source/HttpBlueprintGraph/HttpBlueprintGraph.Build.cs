@@ -7,7 +7,7 @@ public class HttpBlueprintGraph : ModuleRules
 	public HttpBlueprintGraph(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
+		
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -18,7 +18,10 @@ public class HttpBlueprintGraph : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"GraphEditor",
+				"HttpBlueprint",
+				"HTTP",
 				"InputCore",
+				"JsonBlueprintUtilities",
 				"Kismet",
 				"KismetCompiler",
 				"KismetWidgets",
@@ -35,9 +38,6 @@ public class HttpBlueprintGraph : ModuleRules
 				{
 					"AssetTools",
 					"EditorStyle",
-					"HttpBlueprint",
-					"HTTP",
-					"JsonBlueprintUtilities",
 					"Projects",
 					"PropertyEditor",
 					"UnrealEd",

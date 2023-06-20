@@ -13,14 +13,17 @@ struct FEdGraphPinReference;
 class UGraphNodeContextMenuContext;
 class UToolMenu;
 
+/** Stores pin connections to restore after a node rebuild. */
 USTRUCT()
 struct FOptionalPin
 {
 	GENERATED_BODY()
 
+	/** Pin Name. */
 	UPROPERTY()
 	FName PinName;
 
+	/** Default value, stored as a string. */
 	UPROPERTY()
 	FString PinDefaultValue;
 
@@ -29,6 +32,7 @@ struct FOptionalPin
 	FEdGraphPinReference LinkedTo;
 };
 
+/** Node to create an Http header, with presets. */
 UCLASS(MinimalAPI)
 class UK2Node_MakeRequestHeader
 	: public UK2Node
@@ -40,6 +44,7 @@ public:
 	UK2Node_MakeRequestHeader(const FObjectInitializer& ObjectInitializer);
 
 	/** Begin UEdGraphNode Interface */
+	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
@@ -62,28 +67,38 @@ public:
 	virtual void RemoveInputPin(UEdGraphPin* Pin) override;
 	/** End IK2Node_AddPinInterface */
 
-	static FName GetOutputPinName();
-
+	/** Returns the singular output pin containing the created http header. */
 	UEdGraphPin* GetOutputPin() const;
 
 protected:
-	UE_NODISCARD bool IsValidInputPin(const UEdGraphPin* InputPin) const;
-
+	/** Creates the default pin layout for the currently selected preset. */
 	void ConstructDefaultPinsForPreset();
 
+	/** Updates the pin names according to their type and input index. */
 	void SyncPinNames();
-	static FName GetPinName(const int32& PinIndex);
-	virtual void GetKeyAndValuePins(TArray<UEdGraphPin*>& KeyPins, TArray<UEdGraphPin*>& ValuePins) const;
+
+	/** Separates and returns the Key and Value pins corresponding to each input Key/Value pair. */
+	virtual void GetKeyAndValuePins(TArrayView<UEdGraphPin*> InPins, TArray<UEdGraphPin*>& KeyPins, TArray<UEdGraphPin*>& ValuePins) const;
+
+	/** Iterates over the provided Pins. */
+	void ForEachInputPin(TArrayView<UEdGraphPin*> InPins, TUniqueFunction<void(UEdGraphPin*,int32)>&& PinFunc);
+
+	/** Creates a copy of the input Pin as an Optional Pin. */
+	static FOptionalPin MakeOptionalPin(UEdGraphPin* InPinToCopy);
 
 private:
+	/** The UEnum type containing preset names. */
 	TObjectPtr<UEnum> PresetEnum;
 
+	/** The currently selected preset index. */
 	UPROPERTY()
 	int32 PresetEnumIndex;
 
+	/** Number of key/value inputs. */
 	UPROPERTY()
 	int32 NumInputs;
 
+	/** Used to store hidden or pins to be later restored. */
 	UPROPERTY()
 	TArray<FOptionalPin> OptionalPins;
 };

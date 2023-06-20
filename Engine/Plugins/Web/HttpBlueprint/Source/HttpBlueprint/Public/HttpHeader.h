@@ -59,11 +59,10 @@ struct HTTPBLUEPRINT_API FHttpHeader
 	/**
 	 * Convenience function to set all of the headers in the internal header map on the request object.
 	 */
-	void AssignHeadersToRequest(TSharedRef<class IHttpRequest> Request);
+	void AssignHeadersToRequest(const TSharedRef<class IHttpRequest>& Request);
 	
 private:
-
+	/** Header key/value pairs. */
 	UPROPERTY()
-	TMap<FString, FString> Headers;
-	
+	TMap<FString, FString> Headers;	
 };
