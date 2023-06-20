@@ -144,6 +144,8 @@ namespace Audio
 				FGrain& Grain = GrainPool[GrainId];
 				
 				// Calculate the grain envelope
+				// should have never been added to the pool
+				check(!FMath::IsNearlyZero(Grain.DurationFrames));
 				const float Fraction = FMath::Min(Grain.NumFramesRendered / Grain.DurationFrames, 1.0f);
 				const float GrainVolume = Grain::GetValue(GrainEnvelope, Fraction);
 

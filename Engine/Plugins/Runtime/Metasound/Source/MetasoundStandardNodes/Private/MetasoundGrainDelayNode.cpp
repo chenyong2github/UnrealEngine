@@ -342,17 +342,24 @@ namespace Metasound
 			// execute the next spawn trigger
 			if (CurrAudioFrame == NextSpawnFrame)
 			{
+				++SpawnTrigIndex;
+
+				const float Delta = *GrainDurationDelta;
+				const float NewDuration = GrainDelayProcessor.GetGrainDurationClamped(*GrainDuration + FMath::RandRange(-0.5f * Delta, 0.5f * Delta));
+				if(FMath::IsNearlyZero(NewDuration))
+				{
+					// avoid spawning nodes of zero duration
+					continue;
+				}
+
 				const float NewDelay = GrainDelayProcessor.GetGrainDelayClamped(*GrainDelay + FMath::RandRange(-0.5f * (*GrainDelayDelta), 0.5f * (*GrainDelayDelta)));
-				const float NewDuration = GrainDelayProcessor.GetGrainDurationClamped(*GrainDuration + FMath::RandRange(-0.5f * (*GrainDurationDelta), 0.5f * (*GrainDurationDelta)));
 
 				// Clamp the pitch shift delta before determining the random range
 				const float ClampedPitchShiftDelta = GrainDelayProcessor.GetGrainPitchShiftClamped(*GrainPitchShiftDelta);
 				const float NewPitchShiftRatioOffset = GrainDelayProcessor.GetGrainPitchShiftFrameRatio(FMath::RandRange(-0.5f * ClampedPitchShiftDelta, 0.5f * ClampedPitchShiftDelta));
-				
+
 				// Spawn a new grain. Note the grain manager handles spawning logic and rate limiting.
 				GrainDelayProcessor.SpawnGrain(NewDelay, NewDuration, NewPitchShiftRatioOffset);
-				
-				++SpawnTrigIndex;
 			}
 		}
 	}
