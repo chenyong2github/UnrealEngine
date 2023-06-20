@@ -244,24 +244,218 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 	//////////////////////////////////////////////////
 	// Default View
 
-	class FDefaultViewPreset : public UE::Insights::ITableTreeViewPreset
+	//class FDefaultViewPreset : public UE::Insights::ITableTreeViewPreset
+	//{
+	//public:
+	//	virtual FText GetName() const override
+	//	{
+	//		return LOCTEXT("Default_PresetName", "Default");
+	//	}
+	//	virtual FText GetToolTip() const override
+	//	{
+	//		return LOCTEXT("Default_PresetToolTip", "Default View\nConfigure the tree view to show default asset info.");
+	//	}
+	//	virtual FName GetSortColumn() const override
+	//	{
+	//		return UE::Insights::FTable::GetHierarchyColumnId();
+	//	}
+	//	virtual EColumnSortMode::Type GetSortMode() const override
+	//	{
+	//		return EColumnSortMode::Type::Ascending;
+	//	}
+	//	virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+	//	{
+	//		InOutCurrentGroupings.Reset();
+
+	//		check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
+	//		InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+	//	}
+	//	virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
+	//	{
+	//		InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                         !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                   true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                   true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,  !true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,  !true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                    true, 200.0f });
+	//	}
+	//};
+	//AvailableViewPresets.Add(MakeShared<FDefaultViewPreset>());
+
+	////////////////////////////////////////////////////
+	//// GameFeaturePlugin, Type, Dependency View
+	//
+	//class FGameFeaturePluginTypeDependencyView : public UE::Insights::ITableTreeViewPreset
+	//{
+	//public:
+	//	virtual FText GetName() const override
+	//	{
+	//		return LOCTEXT("GFPTypeDepView_PresetName", "Dependency Analysis");
+	//	}
+
+	//	virtual FText GetToolTip() const override
+	//	{
+	//		return LOCTEXT("GFPTypeDepView_PresetToolTip", "Dependency Analysis View\nConfigure the tree view to show a breakdown of assets by Game Feature Plugin, Type, and Dependencies.");
+	//	}
+	//	virtual FName GetSortColumn() const override
+	//	{
+	//		return UE::Insights::FTable::GetHierarchyColumnId();
+	//	}
+	//	virtual EColumnSortMode::Type GetSortMode() const override
+	//	{
+	//		return EColumnSortMode::Type::Ascending;
+	//	}
+	//	virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+	//	{
+	//		InOutCurrentGroupings.Reset();
+
+	//		check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
+	//		InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+	//		const TSharedPtr<UE::Insights::FTreeNodeGrouping>* GameFeaturePluginGrouping = InAvailableGroupings.FindByPredicate(
+	//			[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+	//			{
+	//				return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
+	//					Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::PluginNameColumnId;
+	//			});
+	//		if (GameFeaturePluginGrouping)
+	//		{
+	//			InOutCurrentGroupings.Add(*GameFeaturePluginGrouping);
+	//		}
+
+	//		const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PrimaryTypeGrouping = InAvailableGroupings.FindByPredicate(
+	//			[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+	//			{
+	//				return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
+	//					Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::TypeColumnId;
+	//			});
+	//		if (PrimaryTypeGrouping)
+	//		{
+	//			InOutCurrentGroupings.Add(*PrimaryTypeGrouping);
+	//		}
+
+	//		const TSharedPtr<UE::Insights::FTreeNodeGrouping>* DependencyGrouping = InAvailableGroupings.FindByPredicate(
+	//			[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+	//			{
+	//				return Grouping->Is<FAssetDependencyGrouping>();
+	//			});
+	//		if (DependencyGrouping)
+	//		{
+	//			InOutCurrentGroupings.Add(*DependencyGrouping);
+	//		}
+	//	}
+	//	virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
+	//	{
+	//		InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                         !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                   true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                  !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,              !true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                    true, 200.0f });
+	//	}
+	//};
+	//AvailableViewPresets.Add(MakeShared<FGameFeaturePluginTypeDependencyView>());
+
+	////////////////////////////////////////////////////
+	//// Path Breakdown View
+
+	//class FAssetPathViewPreset : public UE::Insights::ITableTreeViewPreset
+	//{
+	//public:
+	//	virtual FText GetName() const override
+	//	{
+	//		return LOCTEXT("Path_PresetName", "Path");
+	//	}
+	//	virtual FText GetToolTip() const override
+	//	{
+	//		return LOCTEXT("Path_PresetToolTip", "Path Breakdown View\nConfigure the tree view to show a breakdown of assets by their path.");
+	//	}
+	//	virtual FName GetSortColumn() const override
+	//	{
+	//		return UE::Insights::FTable::GetHierarchyColumnId();
+	//	}
+	//	virtual EColumnSortMode::Type GetSortMode() const override
+	//	{
+	//		return EColumnSortMode::Type::Ascending;
+	//	}
+	//	virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+	//	{
+	//		InOutCurrentGroupings.Reset();
+
+	//		check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
+	//		InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+	//		const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PathGrouping = InAvailableGroupings.FindByPredicate(
+	//			[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+	//			{
+	//				return Grouping->Is<UE::Insights::FTreeNodeGroupingByPathBreakdown>() &&
+	//					   Grouping->As<UE::Insights::FTreeNodeGroupingByPathBreakdown>().GetColumnId() == FAssetTableColumns::PathColumnId;
+	//			});
+	//		if (PathGrouping)
+	//		{
+	//			InOutCurrentGroupings.Add(*PathGrouping);
+	//		}
+	//	}
+	//	virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
+	//	{
+	//		InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                         !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                   true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                   true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
+	//		InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                    true, 200.0f });
+	//	}
+	//};
+	//AvailableViewPresets.Add(MakeShared<FAssetPathViewPreset>());
+
+	////////////////////////////////////////////////////
+	//// Primary Type Breakdown View
+
+	class FPrimaryTypeViewPreset : public UE::Insights::ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
 		{
-			return LOCTEXT("Default_PresetName", "Default");
+			return LOCTEXT("PrimaryType_PresetName", "Group By Primary Type");
 		}
 		virtual FText GetToolTip() const override
 		{
-			return LOCTEXT("Default_PresetToolTip", "Default View\nConfigure the tree view to show default asset info.");
+			return LOCTEXT("PrimaryType_PresetToolTip", "Primary Type Breakdown View\nConfigure the tree view to show a breakdown of assets by their primary type.");
 		}
 		virtual FName GetSortColumn() const override
 		{
-			return UE::Insights::FTable::GetHierarchyColumnId();
+			return FAssetTableColumns::StagedCompressedSizeColumnId;
 		}
 		virtual EColumnSortMode::Type GetSortMode() const override
 		{
-			return EColumnSortMode::Type::Ascending;
+			return EColumnSortMode::Type::Descending;
 		}
 		virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
 		{
@@ -269,50 +463,61 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 
 			check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
 			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PrimaryTypeGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
+						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::PrimaryTypeColumnId;
+				});
+			if (PrimaryTypeGrouping)
+			{
+				InOutCurrentGroupings.Add(*PrimaryTypeGrouping);
+			}
 		}
 		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                         !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                          true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                   true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                   true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,  !true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,  !true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId, true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                    true, 200.0f });
 		}
 	};
-	AvailableViewPresets.Add(MakeShared<FDefaultViewPreset>());
+	AvailableViewPresets.Add(MakeShared<FPrimaryTypeViewPreset>());
 
-	//////////////////////////////////////////////////
-	// GameFeaturePlugin, Type, Dependency View
-	
-	class FGameFeaturePluginTypeDependencyView : public UE::Insights::ITableTreeViewPreset
+
+	////////////////////////////////////////////////////
+	//// Class Type Breakdown View
+
+	class FClassTypeViewPreset : public UE::Insights::ITableTreeViewPreset
 	{
 	public:
 		virtual FText GetName() const override
 		{
-			return LOCTEXT("GFPTypeDepView_PresetName", "Dependency Analysis");
+			return LOCTEXT("ClassType_PresetName", "Group By Class Type");
 		}
-
 		virtual FText GetToolTip() const override
 		{
-			return LOCTEXT("GFPTypeDepView_PresetToolTip", "Dependency Analysis View\nConfigure the tree view to show a breakdown of assets by Game Feature Plugin, Type, and Dependencies.");
+			return LOCTEXT("ClassType_PresetToolTip", "Class Type Breakdown View\nConfigure the tree view to show a breakdown of assets by their class type.");
 		}
 		virtual FName GetSortColumn() const override
 		{
-			return UE::Insights::FTable::GetHierarchyColumnId();
+			return FAssetTableColumns::StagedCompressedSizeColumnId;
 		}
 		virtual EColumnSortMode::Type GetSortMode() const override
 		{
-			return EColumnSortMode::Type::Ascending;
+			return EColumnSortMode::Type::Descending;
 		}
 		virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
 		{
@@ -321,16 +526,66 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
 			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
 
-			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* GameFeaturePluginGrouping = InAvailableGroupings.FindByPredicate(
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PrimaryTypeGrouping = InAvailableGroupings.FindByPredicate(
 				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
 				{
 					return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
-						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::PluginNameColumnId;
+						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::NativeClassColumnId;
 				});
-			if (GameFeaturePluginGrouping)
+			if (PrimaryTypeGrouping)
 			{
-				InOutCurrentGroupings.Add(*GameFeaturePluginGrouping);
+				InOutCurrentGroupings.Add(*PrimaryTypeGrouping);
 			}
+		}
+		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                   true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                   true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId, true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                    true, 200.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FClassTypeViewPreset>());
+
+	////////////////////////////////////////////////////
+	//// Asset Type Breakdown View
+
+	class FAssetTypeViewPreset : public UE::Insights::ITableTreeViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("AssetType_PresetName", "Group By Asset Type");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("AssetType_PresetToolTip", "Asset Type Breakdown View\nConfigure the tree view to show a breakdown of assets by their asset type.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FAssetTableColumns::StagedCompressedSizeColumnId;
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Descending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
 
 			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PrimaryTypeGrouping = InAvailableGroupings.FindByPredicate(
 				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
@@ -342,37 +597,100 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			{
 				InOutCurrentGroupings.Add(*PrimaryTypeGrouping);
 			}
-
-			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* DependencyGrouping = InAvailableGroupings.FindByPredicate(
-				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
-				{
-					return Grouping->Is<FAssetDependencyGrouping>();
-				});
-			if (DependencyGrouping)
-			{
-				InOutCurrentGroupings.Add(*DependencyGrouping);
-			}
 		}
 		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                         !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                          true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                          true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                   true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                  !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                   true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,              !true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId, true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                    true, 200.0f });
 		}
 	};
-	AvailableViewPresets.Add(MakeShared<FGameFeaturePluginTypeDependencyView>());
+	AvailableViewPresets.Add(MakeShared<FAssetTypeViewPreset>());
+
+	//////////////////////////////////////////////////
+	// Plugin Group View
+
+	class FPluginView : public UE::Insights::ITableTreeViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("PluginDepView_PresetName", "Group By Plugin");
+		}
+
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("PluginDepView_PresetToolTip", "Group By Plugin\nGroup assets by plugin.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FAssetTableColumns::StagedCompressedSizeColumnId;
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Descending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PrimaryGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
+						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::PluginNameColumnId;
+				});
+			if (PrimaryGrouping)
+			{
+				InOutCurrentGroupings.Add(*PrimaryGrouping);
+			}
+
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* SecondaryGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
+						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::TypeColumnId;
+				});
+			if (SecondaryGrouping)
+			{
+				InOutCurrentGroupings.Add(*SecondaryGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });	
+			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                         !true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                  !true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                  !true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                   !true, 200.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FPluginView>());
 
 	//////////////////////////////////////////////////
 	// Plugin Dependency View
@@ -391,11 +709,11 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 		}
 		virtual FName GetSortColumn() const override
 		{
-			return UE::Insights::FTable::GetHierarchyColumnId();
+			return FAssetTableColumns::StagedCompressedSizeColumnId;
 		}
 		virtual EColumnSortMode::Type GetSortMode() const override
 		{
-			return EColumnSortMode::Type::Ascending;
+			return EColumnSortMode::Type::Descending;
 		}
 		virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
 		{
@@ -404,149 +722,38 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
 			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
 
-			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* DependencyGrouping = InAvailableGroupings.FindByPredicate(
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PrimaryGrouping = InAvailableGroupings.FindByPredicate(
 				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
 				{
 					return Grouping->Is<FPluginDependencyGrouping>();
 				});
-			if (DependencyGrouping)
+			if (PrimaryGrouping)
 			{
-				InOutCurrentGroupings.Add(*DependencyGrouping);
+				InOutCurrentGroupings.Add(*PrimaryGrouping);
 			}
-		}
-		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
-		{
-			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                          true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                   true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                  !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,              !true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                   !true, 200.0f });
-		}
-	};
-	AvailableViewPresets.Add(MakeShared<FPluginDependencyView>());
 
-	//////////////////////////////////////////////////
-	// Path Breakdown View
-
-	class FAssetPathViewPreset : public UE::Insights::ITableTreeViewPreset
-	{
-	public:
-		virtual FText GetName() const override
-		{
-			return LOCTEXT("Path_PresetName", "Path");
-		}
-		virtual FText GetToolTip() const override
-		{
-			return LOCTEXT("Path_PresetToolTip", "Path Breakdown View\nConfigure the tree view to show a breakdown of assets by their path.");
-		}
-		virtual FName GetSortColumn() const override
-		{
-			return UE::Insights::FTable::GetHierarchyColumnId();
-		}
-		virtual EColumnSortMode::Type GetSortMode() const override
-		{
-			return EColumnSortMode::Type::Ascending;
-		}
-		virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
-		{
-			InOutCurrentGroupings.Reset();
-
-			check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
-			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
-
-			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PathGrouping = InAvailableGroupings.FindByPredicate(
-				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
-				{
-					return Grouping->Is<UE::Insights::FTreeNodeGroupingByPathBreakdown>() &&
-						   Grouping->As<UE::Insights::FTreeNodeGroupingByPathBreakdown>().GetColumnId() == FAssetTableColumns::PathColumnId;
-				});
-			if (PathGrouping)
-			{
-				InOutCurrentGroupings.Add(*PathGrouping);
-			}
-		}
-		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
-		{
-			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                         !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                   true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                   true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::ChunksColumnId,                       !true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::NativeClassColumnId,                   true, 200.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                    true, 200.0f });
-		}
-	};
-	AvailableViewPresets.Add(MakeShared<FAssetPathViewPreset>());
-
-	//////////////////////////////////////////////////
-	// Primary Asset Breakdown View
-
-	class FPrimaryAssetViewPreset : public UE::Insights::ITableTreeViewPreset
-	{
-	public:
-		virtual FText GetName() const override
-		{
-			return LOCTEXT("PrimaryAsset_PresetName", "Primary Asset");
-		}
-		virtual FText GetToolTip() const override
-		{
-			return LOCTEXT("PrimaryAsset_PresetToolTip", "Primary Asset Breakdown View\nConfigure the tree view to show a breakdown of assets by their primary asset type/name.");
-		}
-		virtual FName GetSortColumn() const override
-		{
-			return UE::Insights::FTable::GetHierarchyColumnId();
-		}
-		virtual EColumnSortMode::Type GetSortMode() const override
-		{
-			return EColumnSortMode::Type::Ascending;
-		}
-		virtual void SetCurrentGroupings(const TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<UE::Insights::FTreeNodeGrouping>>& InOutCurrentGroupings) const override
-		{
-			InOutCurrentGroupings.Reset();
-
-			check(InAvailableGroupings[0]->Is<UE::Insights::FTreeNodeGroupingFlat>());
-			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
-
-			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* PrimaryTypeGrouping = InAvailableGroupings.FindByPredicate(
+			const TSharedPtr<UE::Insights::FTreeNodeGrouping>* SecondaryGrouping = InAvailableGroupings.FindByPredicate(
 				[](TSharedPtr<UE::Insights::FTreeNodeGrouping>& Grouping)
 				{
 					return Grouping->Is<UE::Insights::FTreeNodeGroupingByUniqueValueCString>() &&
-						   Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::PrimaryTypeColumnId;
+						Grouping->As<UE::Insights::FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FAssetTableColumns::TypeColumnId;
 				});
-			if (PrimaryTypeGrouping)
+			if (SecondaryGrouping)
 			{
-				InOutCurrentGroupings.Add(*PrimaryTypeGrouping);
+				InOutCurrentGroupings.Add(*SecondaryGrouping);
 			}
 		}
 		virtual void GetColumnConfigSet(TArray<UE::Insights::FTableColumnConfig>& InOutConfigSet) const override
 		{
 			InOutConfigSet.Add({ UE::Insights::FTable::GetHierarchyColumnId(),              true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::CountColumnId,                         true, 100.0f });
+			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TypeColumnId,                         !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::NameColumnId,                         !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PathColumnId,                         !true, 400.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryTypeColumnId,                  !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::PrimaryNameColumnId,                  !true, 200.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::StagedCompressedSizeColumnId,          true, 100.0f });
-			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeUniqueDependenciesColumnId,   true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeSharedDependenciesColumnId,   true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalSizeExternalDependenciesColumnId,!true, 100.0f });
 			InOutConfigSet.Add({ FAssetTableColumns::TotalUsageCountColumnId,               true, 100.0f });
@@ -555,7 +762,9 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 			InOutConfigSet.Add({ FAssetTableColumns::PluginNameColumnId,                    true, 200.0f });
 		}
 	};
-	AvailableViewPresets.Add(MakeShared<FPrimaryAssetViewPreset>());
+	AvailableViewPresets.Add(MakeShared<FPluginDependencyView>());
+
+	
 
 	//////////////////////////////////////////////////
 

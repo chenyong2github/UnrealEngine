@@ -43,8 +43,23 @@ public:
 	FAssetTable& GetAssetTableChecked() const { return *AssetTablePtr; }
 	const FAssetTableRow& GetAssetChecked() const { return AssetTablePtr->GetAssetChecked(RowId.RowIndex); }
 
-	virtual const FSlateBrush* GetIcon() const override;
-	virtual FLinearColor GetColor() const override;
+	virtual const FSlateBrush* GetIcon() const final;
+	virtual FLinearColor GetColor() const final;
+	
+protected:
+
+	// Set of UI style options for node types
+	enum class EStyle
+	{
+		EDefault,
+		EGroup,
+		EAsset,
+		EPlugin,
+	};
+
+	virtual EStyle GetStyle() const;
+	const FSlateBrush* GetIcon(EStyle Style) const;
+	FLinearColor GetColor(EStyle Style) const;
 
 private:
 	FAssetTable* AssetTablePtr;
@@ -80,9 +95,8 @@ public:
 
 	virtual ~FAssetDependenciesGroupTreeNode() {}
 
-	virtual const FSlateBrush* GetIcon() const override;
-	virtual FLinearColor GetColor() const override;
-
+	virtual EStyle GetStyle() const override;
+	
 	virtual const FText GetExtraDisplayName() const;
 	virtual bool OnLazyCreateChildren(TSharedPtr<class UE::Insights::STableTreeView> InTableTreeView) override;
 
@@ -109,8 +123,7 @@ public:
 
 	virtual ~FPluginSimpleGroupNode() {}
 
-	virtual const FSlateBrush* GetIcon() const override;
-	virtual FLinearColor GetColor() const override;
+	virtual EStyle GetStyle() const override;
 
 	void AddAssetChildrenNodes();
 
@@ -133,6 +146,8 @@ public:
 
 	TSharedPtr<FPluginSimpleGroupNode> CreateChildren();
 
+	virtual EStyle GetStyle() const override;
+
 	virtual ~FPluginAndDependenciesGroupNode() {}
 };
 
@@ -154,6 +169,8 @@ public:
 
 	virtual const FText GetExtraDisplayName() const;
 	virtual bool OnLazyCreateChildren(TSharedPtr<class UE::Insights::STableTreeView> InTableTreeView) override;
+
+	virtual EStyle GetStyle() const override;
 
 private:
 	bool bAreChildrenCreated;

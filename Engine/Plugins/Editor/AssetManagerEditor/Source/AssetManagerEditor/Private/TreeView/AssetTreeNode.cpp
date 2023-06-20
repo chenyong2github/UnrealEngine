@@ -20,36 +20,88 @@ INSIGHTS_IMPLEMENT_RTTI(FPluginDependenciesGroupNode)
 // FAssetTreeNode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const FSlateBrush* FAssetTreeNode::GetIcon(EStyle Style) const
+{
+	switch ( Style )
+	{
+		default:
+		case EStyle::EDefault:
+		case EStyle::EAsset:
+		{
+			return UE::Insights::FInsightsStyle::GetBrush("Icons.Leaf.TreeItem");
+			break;
+		}
+				
+		case EStyle::EGroup:
+		{
+			return UE::Insights::FInsightsStyle::GetBrush("Icons.Group.TreeItem");
+			break;
+		}	
+
+		case EStyle::EPlugin:
+		{
+			return UE::Insights::FInsightsStyle::GetBrush("Icons.Plugin.TreeItem");
+			break;
+		}
+	}
+}
+
+FLinearColor FAssetTreeNode::GetColor(EStyle Style) const 
+{
+	switch (Style)
+	{
+		default:
+		case EStyle::EDefault:
+		{
+			return FLinearColor(1.0f, 1.0f, 0.5f, 1.0f);
+			break;
+		}
+
+		case EStyle::EAsset:
+		{
+			//return GetAssetChecked().GetColor();
+			return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			break;
+		}
+
+		case EStyle::EGroup:
+		{
+			return FLinearColor(1.0f, 1.0f, 0.5f, 1.0f);
+			break;
+		}
+
+		case EStyle::EPlugin:
+		{
+			return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+			break;
+		}	
+	}	
+}
+
+FAssetTreeNode::EStyle FAssetTreeNode::GetStyle() const
+{
+	return IsValidAsset() ? EStyle::EAsset : ( IsGroup() ? EStyle::EGroup : EStyle::EDefault );
+}
+
 const FSlateBrush* FAssetTreeNode::GetIcon() const
 {
-	if (IsValidAsset())
-	{
-		return FBaseTreeNode::GetDefaultIcon(false); // default icon for leaf nodes
-	}
-	return FBaseTreeNode::GetDefaultIcon(IsGroup()); // default icon
+	return GetIcon(GetStyle());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FLinearColor FAssetTreeNode::GetColor() const
 {
-	return GetAssetChecked().GetColor();
+	return GetColor(GetStyle());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FAssetDependenciesGroupTreeNode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FSlateBrush* FAssetDependenciesGroupTreeNode::GetIcon() const
+FAssetTreeNode::EStyle FAssetDependenciesGroupTreeNode::GetStyle() const
 {
-	return FBaseTreeNode::GetDefaultIcon(true); // default icon for group nodes
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FLinearColor FAssetDependenciesGroupTreeNode::GetColor() const
-{
-	return FLinearColor(0.75f, 0.5f, 1.0f, 1.0f);
+	return EStyle::EGroup;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,18 +158,10 @@ bool FAssetDependenciesGroupTreeNode::OnLazyCreateChildren(TSharedPtr<UE::Insigh
 // FPluginSimpleGroupNode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FSlateBrush* FPluginSimpleGroupNode::GetIcon() const
+FAssetTreeNode::EStyle FPluginSimpleGroupNode::GetStyle() const
 {
-	return UE::Insights::FBaseTreeNode::GetDefaultIcon(true);
+	return EStyle::EGroup;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FLinearColor FPluginSimpleGroupNode::GetColor() const
-{
-	return FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FPluginSimpleGroupNode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -148,6 +192,11 @@ void FPluginSimpleGroupNode::AddAssetChildrenNodes()
 // FPluginAndDependenciesGroupNode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FAssetTreeNode::EStyle FPluginAndDependenciesGroupNode::GetStyle() const
+{
+	return EStyle::EPlugin;
+}
+
 TSharedPtr<FPluginSimpleGroupNode> FPluginAndDependenciesGroupNode::CreateChildren()
 {
 	// [this]
@@ -161,12 +210,13 @@ TSharedPtr<FPluginSimpleGroupNode> FPluginAndDependenciesGroupNode::CreateChildr
 	{
 		// Create the Plugin Dependencies group node.
 		// The children nodes (list of dependent plugins) will be lazy created.
-		static FName DependenciesGroupName(TEXT("Plugin Dependencies"));
+		static FName DependenciesGroupName(TEXT("Dependencies"));
 		TSharedPtr<FPluginDependenciesGroupNode> DependenciesGroup = MakeShared<FPluginDependenciesGroupNode>(DependenciesGroupName, GetAssetTableWeak(), PluginIndex);
 		AddChildAndSetParent(DependenciesGroup);
 
 		// Create the Plugin Self group node (where asset nodes will be added).
-		FName PluginGroupName = AssetTable.GetNameForPlugin(PluginIndex);
+		//FName PluginGroupName = AssetTable.GetNameForPlugin(PluginIndex);
+		static FName PluginGroupName(TEXT("Assets"));
 		TSharedPtr<FPluginSimpleGroupNode> PluginGroup = MakeShared<FPluginSimpleGroupNode>(PluginGroupName, GetAssetTableWeak(), PluginIndex);
 		AddChildAndSetParent(PluginGroup);
 		return PluginGroup;
@@ -256,10 +306,11 @@ bool FPluginDependenciesGroupNode::OnLazyCreateChildren(TSharedPtr<class UE::Ins
 	return true;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
+FAssetTreeNode::EStyle FPluginDependenciesGroupNode::GetStyle() const
+{
+	return EStyle::EGroup;
+}
 
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE
