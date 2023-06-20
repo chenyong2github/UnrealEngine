@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// This must be defined before including Common.ush (see GetShadowReplaceState)
+#define SHADOW_DEPTH_SHADER DEPTH_ONLY
+
 #include "NaniteRasterizationCommon.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapPageAccessCommon.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapStaticCaching.ush"
@@ -1546,7 +1549,7 @@ void HWRasterizePS(VSOut In
 		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
 		// NOTE: Disable PDO in shadow passes (it does undesirable things and has always been disabled in these passes in Unreal)
-		#if WANT_PIXEL_DEPTH_OFFSET && DEPTH_ONLY == 0
+		#if WANT_PIXEL_DEPTH_OFFSET && SHADOW_DEPTH_SHADER == 0
 		ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, Pixel.Depth);
 		#endif
 
