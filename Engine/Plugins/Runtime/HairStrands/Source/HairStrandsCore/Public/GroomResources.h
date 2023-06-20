@@ -350,6 +350,37 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	FHairStrandsClusterCullingBulkData& BulkData;
 };
 
+struct FHairStrandsCullingResource : public FHairCommonResource
+{
+	FHairStrandsCullingResource(uint32 InPointCount, uint32 InCurveCount, uint32 InClusterCount, const FHairResourceName& InResourceName, const FName& InOwnerName);
+
+	/* Init/Release buffers */
+	virtual void InternalAllocate(FRDGBuilder& GraphBuilder, uint32 InCurveCount, uint32 InPointCount, int32 InLODIndex) override;
+	virtual void InternalRelease() override;
+
+	/* Get the resource name */
+	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsCullingResource"); }
+
+	/* Return the memory size for GPU resources */
+	uint32 GetResourcesSize() const
+	{
+		uint32 Total = 0;
+		Total += GetBufferTotalNumBytes(Resources.DrawIndirectBuffer);
+		Total += GetBufferTotalNumBytes(Resources.DrawIndirectRasterComputeBuffer);
+		Total += GetBufferTotalNumBytes(Resources.ClusterAABBBuffer);
+		Total += GetBufferTotalNumBytes(Resources.GroupAABBBuffer);
+		Total += GetBufferTotalNumBytes(Resources.CulledCurveBuffer);
+		Total += GetBufferTotalNumBytes(Resources.CulledVertexIdBuffer);
+		Total += GetBufferTotalNumBytes(Resources.CulledVertexRadiusScaleBuffer);
+		return Total;
+	}
+
+	uint32 ClusterCount = 0;
+	uint32 MaxPointCount = 0;
+	uint32 MaxCurveCount = 0;
+	FHairGroupPublicData::FCulling Resources;
+};
+
 /* Render buffers for root deformation for dynamic meshes */
 struct FHairStrandsRestRootResource : public FHairCommonResource
 {

@@ -124,6 +124,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	{
 		// Resources - Strands cluster data for culling/voxelization purpose
 		FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
+		FHairStrandsCullingResource* CullingResource = nullptr;
 
 		// Resources - Raytracing data when enabling (expensive) raytracing method
 		#if RHI_RAYTRACING

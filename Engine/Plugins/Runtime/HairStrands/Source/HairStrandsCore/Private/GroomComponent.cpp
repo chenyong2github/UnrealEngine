@@ -2774,9 +2774,14 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				check(StrandsLODCount <= LODScreenSizes.Num());
 				check(StrandsLODCount <= LODVisibilities.Num());
 				HairGroupInstance->HairGroupPublicData->ClusterCount = HairGroupInstance->Strands.ClusterCullingResource->BulkData.Header.ClusterCount;
-				BeginInitResource(HairGroupInstance->HairGroupPublicData);
 			}
 
+			HairGroupInstance->Strands.CullingResource = new FHairStrandsCullingResource(
+				HairGroupInstance->HairGroupPublicData->RestPointCount, 
+				HairGroupInstance->HairGroupPublicData->RestCurveCount, 
+				HairGroupInstance->HairGroupPublicData->ClusterCount, 
+				ResourceName, OwnerName);
+			HairGroupInstance->HairGroupPublicData->Culling = &HairGroupInstance->Strands.CullingResource->Resources;
 
 			HairGroupInstance->Strands.HairInterpolationType = HairInterpolationType;
 		}
@@ -2968,6 +2973,7 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 			{
 				InternalResourceRelease(LocalInstance->Strands.DeformedRootResource);
 				InternalResourceRelease(LocalInstance->Strands.DeformedResource);
+				InternalResourceRelease(LocalInstance->Strands.CullingResource);
 
 				#if RHI_RAYTRACING
 				if (LocalInstance->Strands.RenRaytracingResourceOwned)
@@ -3025,7 +3031,7 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 				}
 			}
 
-			InternalResourceRelease(LocalInstance->HairGroupPublicData);
+			delete LocalInstance->HairGroupPublicData;
 			LocalInstance->Release();
 			delete LocalInstance;
 		});
@@ -4026,7 +4032,7 @@ void DumpLoadedGroomComponent(IConsoleVariable* InCVarPakTesterEnabled)
 						GroupCount,
                         Instance->Cards.LODs.Num(), 
                         InstanceMemory.GetTotalSize()* ToMb,
-                        InstanceMemory.Common * ToMb,
+                        0,
 						InstanceMemory.Guides * ToMb,
 						InstanceMemory.Strands* ToMb,
 						InstanceMemory.Cards  * ToMb,
@@ -4045,7 +4051,7 @@ void DumpLoadedGroomComponent(IConsoleVariable* InCVarPakTesterEnabled)
 		Total_Component,
 		Total_Group,
         TotalMemory.GetTotalSize() * ToMb,
-		TotalMemory.Common* ToMb,
+		0,
 		TotalMemory.Guides * ToMb,
 		TotalMemory.Strands * ToMb,
 		TotalMemory.Cards * ToMb,
@@ -4128,11 +4134,11 @@ FGroomComponentRecreateRenderStateContext::~FGroomComponentRecreateRenderStateCo
 FGroomComponentMemoryStats FGroomComponentMemoryStats::Get(const FHairGroupInstance* In)
 {
 	FGroomComponentMemoryStats Out;
-	Out.Common  += In->HairGroupPublicData ? In->HairGroupPublicData->GetResourcesSize() : 0;
 	Out.Guides  += In->Guides.DeformedResource ? In->Guides.DeformedResource->GetResourcesSize() : 0;
 	Out.Guides  += In->Guides.DeformedRootResource ? In->Guides.DeformedRootResource->GetResourcesSize() : 0;
 	Out.Strands += In->Strands.DeformedResource ? In->Strands.DeformedResource->GetResourcesSize() : 0;
 	Out.Strands += In->Strands.DeformedRootResource ? In->Strands.DeformedRootResource->GetResourcesSize() : 0;
+	Out.Strands += In->Strands.CullingResource ? In->Strands.CullingResource->GetResourcesSize() : 0;
 #if RHI_RAYTRACING
 	Out.Strands += (In->Strands.RenRaytracingResourceOwned && In->Strands.RenRaytracingResource) ? In->Strands.RenRaytracingResource->GetResourcesSize() : 0;
 #endif
@@ -4149,7 +4155,6 @@ FGroomComponentMemoryStats FGroomComponentMemoryStats::Get(const FHairGroupInsta
 
 void FGroomComponentMemoryStats::Accumulate(const FGroomComponentMemoryStats& In)
 {
-	Common += In.Common ;
 	Guides += In.Guides ;
 	Strands+= In.Strands;
 	Cards  += In.Cards  ;

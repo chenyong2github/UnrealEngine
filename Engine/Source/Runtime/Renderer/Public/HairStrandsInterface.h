@@ -159,7 +159,6 @@ struct FRDGImportedBuffer
 RENDERER_API FRDGImportedBuffer Register(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In, ERDGImportedBufferFlags Flags, ERDGUnorderedAccessViewFlags UAVFlags = ERDGUnorderedAccessViewFlags::None);
 RENDERER_API FRDGBufferSRVRef   RegisterAsSRV(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In);
 RENDERER_API FRDGBufferUAVRef   RegisterAsUAV(FRDGBuilder& GraphBuilder, const FRDGExternalBuffer& In, ERDGUnorderedAccessViewFlags Flags = ERDGUnorderedAccessViewFlags::None);
-RENDERER_API void				ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBufferRef& InBuffer, FRDGExternalBuffer& OutBuffer, EPixelFormat Format = PF_Unknown);
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Misc/Helpers
 
@@ -214,37 +213,35 @@ protected:
 };
 typedef TArray<FHairStrandsInstance*> FHairStrandsInstances;
 
-class FHairGroupPublicData : public FRenderResource
+class FHairGroupPublicData
 {
 public:
 	RENDERER_API FHairGroupPublicData(uint32 InGroupIndex, const FName& OwnerName);
 	
-	RENDERER_API virtual void InitRHI(FRHICommandListBase& RHICmdList) override;
-	RENDERER_API virtual void ReleaseRHI() override;
-	virtual FString GetFriendlyName() const override { return TEXT("FHairGroupPublicData"); }
-	RENDERER_API void Allocate(FRDGBuilder& GraphBuilder);
-	RENDERER_API void Release();
-	RENDERER_API uint32 GetResourcesSize() const;
-
 	uint32 GetGroupIndex() const { return GroupIndex; }
 
-	FRDGExternalBuffer& GetDrawIndirectRasterComputeBuffer() { return DrawIndirectRasterComputeBuffer; }
-	const FRDGExternalBuffer& GetDrawIndirectRasterComputeBuffer() const { return DrawIndirectRasterComputeBuffer; }
-	FRDGExternalBuffer& GetDrawIndirectBuffer() { return DrawIndirectBuffer; }
-	FRDGExternalBuffer& GetClusterAABBBuffer() { return ClusterAABBBuffer; }
-	FRDGExternalBuffer& GetGroupAABBBuffer() { return GroupAABBBuffer; }
-	const FRDGExternalBuffer& GetGroupAABBBuffer() const { return GroupAABBBuffer; }
+	FRDGExternalBuffer& GetDrawIndirectRasterComputeBuffer() { return Culling->DrawIndirectRasterComputeBuffer; }
+	const FRDGExternalBuffer& GetDrawIndirectRasterComputeBuffer() const { return Culling->DrawIndirectRasterComputeBuffer; }
+	FRDGExternalBuffer& GetDrawIndirectBuffer() { return Culling->DrawIndirectBuffer; }
+	FRDGExternalBuffer& GetClusterAABBBuffer() { return Culling->ClusterAABBBuffer; }
+	FRDGExternalBuffer& GetGroupAABBBuffer() { return Culling->GroupAABBBuffer; }
+	const FRDGExternalBuffer& GetGroupAABBBuffer() const { return Culling->GroupAABBBuffer; }
 
-	const FRDGExternalBuffer& GetCulledCurveBuffer() const { return CulledCurveBuffer; }
-	const FRDGExternalBuffer& GetCulledVertexIdBuffer() const { return CulledVertexIdBuffer; }
-	const FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() const { return CulledVertexRadiusScaleBuffer; }
+	const FRDGExternalBuffer& GetCulledCurveBuffer() const { return Culling->CulledCurveBuffer; }
+	const FRDGExternalBuffer& GetCulledVertexIdBuffer() const { return Culling->CulledVertexIdBuffer; }
+	const FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() const { return Culling->CulledVertexRadiusScaleBuffer; }
 
-	FRDGExternalBuffer& GetCulledCurveBuffer() { return CulledCurveBuffer; }
-	FRDGExternalBuffer& GetCulledVertexIdBuffer() { return CulledVertexIdBuffer; }
-	FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() { return CulledVertexRadiusScaleBuffer; }
+	FRDGExternalBuffer& GetCulledCurveBuffer() { return Culling->CulledCurveBuffer; }
+	FRDGExternalBuffer& GetCulledVertexIdBuffer() { return Culling->CulledVertexIdBuffer; }
+	FRDGExternalBuffer& GetCulledVertexRadiusScaleBuffer() { return Culling->CulledVertexRadiusScaleBuffer; }
 
-	bool GetCullingResultAvailable() const { return bCullingResultAvailable; }
-	void SetCullingResultAvailable(bool b) { bCullingResultAvailable = b; }
+	bool GetCullingResultAvailable() const { return Culling->bCullingResultAvailable; }
+	void SetCullingResultAvailable(bool b) { Culling->bCullingResultAvailable = b; }
+	
+	void SetClusterAABBValid(bool In) { Culling->bClusterAABBValid = In;  }
+	bool GetClusterAABBValid() const  { return Culling->bClusterAABBValid;  }
+
+	void SetGroupAABBValid(bool In) { Culling->bGroupAABBValid = In;  }
 
 	void SupportVoxelization(bool InVoxelize) { bSupportVoxelization = InVoxelize; }
 	bool DoesSupportVoxelization() const { return bSupportVoxelization; }
@@ -362,35 +359,39 @@ public:
 		FTransform LocalToWorldTransform;
 	};
 
+	struct FCulling
+	{
+		/* Indirect draw buffer to draw everything or the result of the culling per pass */
+		FRDGExternalBuffer DrawIndirectBuffer;
+		FRDGExternalBuffer DrawIndirectRasterComputeBuffer;
+
+		/* Hair Cluster & Hair Group bounding box buffer */
+		FRDGExternalBuffer ClusterAABBBuffer;
+		FRDGExternalBuffer GroupAABBBuffer;
+		bool bGroupAABBValid = false;
+		bool bClusterAABBValid = false;
+
+		/* Culling & LODing results for a hair group */ // Better to be transient?
+		FRDGExternalBuffer CulledCurveBuffer;
+		FRDGExternalBuffer CulledVertexIdBuffer;
+		FRDGExternalBuffer CulledVertexRadiusScaleBuffer;
+		bool bCullingResultAvailable = false;
+	};
+
 	// Current hook for retriving instance data. 
 	// This needs to be refactor to merge FHairGroupPublicData & HairStrandsInstance
 	FHairStrandsInstance* Instance = nullptr;
+	FCulling* Culling = nullptr;
 
 	FVertexFactoryInput VFInput;
 	uint32 ClusterDataIndex = ~0; // #hair_todo: move this into instance data, or remove FHairStrandClusterData
 
 	uint32 GroupIndex = 0;
-	uint32 ClusterCount = 0;
 	uint32 RestPointCount = 0;
 	uint32 RestCurveCount = 0;
+	uint32 ClusterCount = 0;
 
-	/* Indirect draw buffer to draw everything or the result of the culling per pass */
-	FRDGExternalBuffer DrawIndirectBuffer;
-	FRDGExternalBuffer DrawIndirectRasterComputeBuffer;
-
-	/* Hair Cluster & Hair Group bounding box buffer */
-	FRDGExternalBuffer ClusterAABBBuffer;
-	FRDGExternalBuffer GroupAABBBuffer;
-	bool bGroupAABBValid = false;
-	bool bClusterAABBValid = false;
-
-	/* Culling & LODing results for a hair group */ // Better to be transient?
-	FRDGExternalBuffer CulledCurveBuffer;
-	FRDGExternalBuffer CulledVertexIdBuffer;
-	FRDGExternalBuffer CulledVertexRadiusScaleBuffer;
-	bool bCullingResultAvailable = false;
 	bool bSupportVoxelization = true;
-	bool bIsInitialized = false;
 
 	/* CPU LOD selection. Hair LOD selection can be done by CPU or GPU. If bUseCPULODSelection is true, 
 	   CPU LOD selection is enabled otherwise the GPU selection is used. CPU LOD selection use the CPU 

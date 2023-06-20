@@ -371,7 +371,6 @@ HAIRSTRANDSCORE_API const FLinearColor GetHairGroupDebugColor(int32 GroupIt);
 
 struct FGroomComponentMemoryStats
 {
-	uint32 Common = 0;
 	uint32 Guides = 0;
 	uint32 Strands= 0;
 	uint32 Cards  = 0;

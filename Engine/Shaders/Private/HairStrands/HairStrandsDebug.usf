@@ -2544,7 +2544,6 @@ struct FComponent
 	uint RestCurve;
 	uint ActiveCurve;
 
-	uint GPU_Common;
 	uint GPU_Guides;
 	uint GPU_Strands;
 	uint GPU_Cards;
@@ -2565,7 +2564,6 @@ FComponent GetComponent(uint Index)
 	Out.GPU_Strands 		=In.Data1.y;
 	Out.GPU_Cards 			=In.Data1.z;
 	Out.GPU_Meshes 			=In.Data1.w;
-	Out.GPU_Common			=In.Data2.x;
 
 	return Out;
 }
@@ -2722,15 +2720,13 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			{
 				const FComponent Info = GetComponent(It);
 				const uint Total
-					= Info.GPU_Common
-					+ Info.GPU_Guides
+					= Info.GPU_Guides
 					+ Info.GPU_Strands
 					+ Info.GPU_Cards;
 
 
 				PrintGroup(Ctx, Info.GroupIndex, Info.GroupCount);
 	
-				PrintLargeNumber(Ctx, Info.GPU_Common,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);
 				PrintLargeNumber(Ctx, Info.GPU_Guides,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);
 				PrintLargeNumber(Ctx, Info.GPU_Strands,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);
 				PrintLargeNumber(Ctx, Info.GPU_Cards,	FontWhite);		Print(Ctx, TEXT(" "), FontWhite);

@@ -1030,7 +1030,7 @@ static void AddHairDebugPrintInstancePass(
 			const float ContinousLODRadius = Instance->HairGroupPublicData->ContinuousLODScreenSize * MaxRectSizeInPixels * 0.5f; // Diameter->Radius
 
 			FHairDebugPrintInstanceCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDebugPrintInstanceCS::FParameters>();
-			Parameters->InstanceAABB = Register(GraphBuilder, Instance->HairGroupPublicData->GroupAABBBuffer, ERDGImportedBufferFlags::CreateSRV).SRV;
+			Parameters->InstanceAABB = Register(GraphBuilder, Instance->HairGroupPublicData->GetGroupAABBBuffer(), ERDGImportedBufferFlags::CreateSRV).SRV;
 			Parameters->InstanceScreenSphereBound = FVector4f(Instance->HairGroupPublicData->ContinuousLODScreenPos.X, Instance->HairGroupPublicData->ContinuousLODScreenPos.Y, 0.f, ContinousLODRadius);
 			ShaderPrint::SetParameters(GraphBuilder, *ShaderPrintData, Parameters->ShaderPrintUniformBuffer);
 			ClearUnusedGraphResources(ComputeShader, Parameters);
@@ -1143,7 +1143,7 @@ static void AddHairDebugPrintMemoryPass(
 				D.Data2.Z = MemoryStats.Cards;
 				D.Data2.W = MemoryStats.Meshes;
 
-				D.Data3.X = MemoryStats.Common;
+				D.Data3.X = 0;
 				D.Data3.Y = 0;
 				D.Data3.Z = 0;
 				D.Data3.W = 0;

@@ -669,7 +669,7 @@ static void AddAllocateVoxelPagesPass(
 				// * Or use its clusters AABBs (for dynamic groom)
 				// * Or use its CPU AABB (for CLOD)
 				// Even if the bGroupAABBValid is invalid, it has been reset to invalid AABB, so the code below won't mark any page as used.
-				const bool bUseClusterAABB = HairGroupData->bClusterAABBValid && bIsGPUDriven;
+				const bool bUseClusterAABB = HairGroupData->GetClusterAABBValid() && bIsGPUDriven;
 				
 				FVoxelMarkValidPageIndex_PrepareCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelMarkValidPageIndex_PrepareCS::FParameters>();
 				Parameters->MaxClusterCount								= HairGroupData->GetClusterCount();

@@ -877,7 +877,7 @@ static void AddHairClusterAABBPass(
 	FTransform InRenLocalToTranslatedWorld = Instance->LocalToWorld;
 	InRenLocalToTranslatedWorld.AddToTranslation(TranslatedWorldOffset);
 	const FBoxSphereBounds TransformedBounds = Bounds.TransformBy(InRenLocalToTranslatedWorld);
-	Instance->HairGroupPublicData->bClusterAABBValid = UpdateType == EHairAABBUpdateType::UpdateClusterAABB;
+	Instance->HairGroupPublicData->SetClusterAABBValid(UpdateType == EHairAABBUpdateType::UpdateClusterAABB);
 
 	FHairClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterAABBCS::FParameters>();
 	Parameters->LODIndex = ClusterData ? ClusterData->LODIndex : 1;;
@@ -2069,8 +2069,8 @@ void ComputeHairStrandsInterpolation(
 					}
 				}
 
-				Instance->HairGroupPublicData->bClusterAABBValid = false;
-				Instance->HairGroupPublicData->bGroupAABBValid = false;
+				Instance->HairGroupPublicData->SetClusterAABBValid(false);
+				Instance->HairGroupPublicData->SetGroupAABBValid(false);
 
 
 				if (bNeedGPUAABB)
@@ -2090,8 +2090,8 @@ void ComputeHairStrandsInterpolation(
 						Strands_PositionSRV,
 						Strands_CulledVertexCount.SRV);
 
-					Instance->HairGroupPublicData->bClusterAABBValid = UpdateType == EHairAABBUpdateType::UpdateClusterAABB;
-					Instance->HairGroupPublicData->bGroupAABBValid = true;
+					Instance->HairGroupPublicData->SetClusterAABBValid(UpdateType == EHairAABBUpdateType::UpdateClusterAABB);
+					Instance->HairGroupPublicData->SetGroupAABBValid(true);
 				}
 			}
 

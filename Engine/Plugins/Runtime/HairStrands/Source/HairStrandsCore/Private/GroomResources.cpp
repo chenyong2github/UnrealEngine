@@ -57,6 +57,20 @@ bool ValidateHairBulkData()
 	return GHairStrandsBulkData_Validation > 0;
 }
 
+static void ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBufferRef& InBuffer, FRDGExternalBuffer& OutBuffer, EPixelFormat Format = PF_Unknown)
+{
+	OutBuffer.Buffer = GraphBuilder.ConvertToExternalBuffer(InBuffer);
+	if (EnumHasAnyFlags(InBuffer->Desc.Usage, BUF_ShaderResource))
+	{
+		OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer, Format));
+	}
+	if (EnumHasAnyFlags(InBuffer->Desc.Usage, BUF_UnorderedAccess))
+	{
+		OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer, Format));
+	}
+	OutBuffer.Format = Format;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 
 EHairResourceLoadingType GetHairResourceLoadingType(EHairGeometryType InGeometryType, int32 InLODIndex)
@@ -382,6 +396,16 @@ void InternalCreateByteAddressBufferRDG_FromHairBulkData(FRDGBuilder& GraphBuild
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Regular data loading
+
+static void InternalCreateIndirectBufferRDG(FRDGBuilder& GraphBuilder, FRDGExternalBuffer& Out, const TCHAR* DebugName, const FName& OwnerName)
+{
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(4, 4);
+	Desc.Usage |= BUF_DrawIndirect;
+	FRDGBufferRef Buffer = GraphBuilder.CreateBuffer(Desc, DebugName, ERDGBufferFlags::None);
+	Buffer->SetOwnerName(OwnerName);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, PF_R32_UINT), 0u);
+	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, PF_R32_UINT);
+}
 
 static FRDGBufferRef InternalCreateVertexBuffer(
 	FRDGBuilder& GraphBuilder,
@@ -1242,6 +1266,85 @@ void FHairStrandsClusterCullingResource::InternalRelease()
 void FHairStrandsClusterCullingResource::InternalResetLoadedSize()
 {
 	BulkData.ResetLoadedSize();
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
+// Cluster culling resources
+
+struct FHairStrandsSintFormat
+{
+	typedef int32 Type;
+	typedef int32 BulkType;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UInt;
+	static const EPixelFormat Format = PF_R32_SINT;
+};
+
+struct FHairStrandsUintFormat
+{
+	typedef uint32 Type;
+	typedef uint32 BulkType;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UInt;
+	static const EPixelFormat Format = PF_R32_UINT;
+};
+
+struct FHairStrandsFloatFormat
+{
+	typedef float Type;
+	typedef float BulkType;
+	static const uint32 ComponentCount = 1;
+	static const uint32 SizeInByte = sizeof(Type);
+	static const EVertexElementType VertexElementType = VET_UInt;
+	static const EPixelFormat Format = PF_R32_FLOAT;
+};
+
+FHairStrandsCullingResource::FHairStrandsCullingResource(uint32 InPointCount, uint32 InCurveCount, uint32 InClusterCount, const FHairResourceName& InResourceName, const FName& InOwnerName):
+FHairCommonResource(EHairStrandsAllocationType::Deferred, InResourceName, InOwnerName)
+{
+	MaxPointCount = InPointCount;
+	MaxCurveCount = InCurveCount;
+	ClusterCount = InClusterCount;
+	MaxAvailableCurveCount = 0;
+}
+
+void FHairStrandsCullingResource::InternalAllocate(FRDGBuilder& GraphBuilder, uint32 InCurveCount, uint32 InPointCount, int32 InLODIndex)
+{
+	if (ClusterCount > 0)
+	{	
+		const uint32 PointCount = FMath::Min(InPointCount, MaxPointCount);
+		const uint32 CurveCount = FMath::Min(InCurveCount, MaxCurveCount);
+
+		InternalCreateVertexBufferRDG<FHairStrandsUintFormat>(GraphBuilder, CurveCount, Resources.CulledCurveBuffer, TEXT("Hair.Cluster_CulledCurveBuffer"), GetOwnerName(), EHairResourceUsageType::Dynamic);
+		InternalCreateVertexBufferRDG<FHairStrandsUintFormat>(GraphBuilder, PointCount, Resources.CulledVertexIdBuffer, TEXT("Hair.Cluster_CulledVertexIdBuffer"), GetOwnerName(), EHairResourceUsageType::Dynamic);
+		InternalCreateVertexBufferRDG<FHairStrandsFloatFormat>(GraphBuilder, PointCount, Resources.CulledVertexRadiusScaleBuffer, TEXT("Hair.Cluster_CulledVertexRadiusScaleBuffer"), GetOwnerName(), EHairResourceUsageType::Dynamic);
+		AddClearUAVFloatPass(GraphBuilder, RegisterAsUAV(GraphBuilder, Resources.CulledVertexRadiusScaleBuffer), 0.f);
+	
+		// Only allocated once, as cluster count does not change
+		if (Resources.DrawIndirectBuffer.Buffer == nullptr)
+		{
+			InternalCreateVertexBufferRDG<FHairStrandsSintFormat>(GraphBuilder, ClusterCount * 6, Resources.ClusterAABBBuffer, TEXT("Hair.Cluster_ClusterAABBBuffer"), GetOwnerName(), EHairResourceUsageType::Dynamic);
+			InternalCreateVertexBufferRDG<FHairStrandsSintFormat>(GraphBuilder, 6, Resources.GroupAABBBuffer, TEXT("Hair.Cluster_GroupAABBBuffer"), GetOwnerName(), EHairResourceUsageType::Dynamic);
+			InternalCreateIndirectBufferRDG(GraphBuilder, Resources.DrawIndirectBuffer, TEXT("Hair.Cluster_DrawIndirectBuffer"), GetOwnerName());
+			InternalCreateIndirectBufferRDG(GraphBuilder, Resources.DrawIndirectRasterComputeBuffer, TEXT("Hair.Cluster_DrawIndirectRasterComputeBuffer"), GetOwnerName());
+			GraphBuilder.SetBufferAccessFinal(Register(GraphBuilder, Resources.DrawIndirectBuffer, ERDGImportedBufferFlags::None).Buffer, ERHIAccess::IndirectArgs);
+		}
+	}
+}
+
+void FHairStrandsCullingResource::InternalRelease()
+{
+	Resources.DrawIndirectBuffer.Release();
+	Resources.DrawIndirectRasterComputeBuffer.Release();
+	Resources.ClusterAABBBuffer.Release();
+	Resources.GroupAABBBuffer.Release();
+	Resources.CulledCurveBuffer.Release();
+	Resources.CulledVertexIdBuffer.Release();
+	Resources.CulledVertexRadiusScaleBuffer.Release();
+	MaxAvailableCurveCount = 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
