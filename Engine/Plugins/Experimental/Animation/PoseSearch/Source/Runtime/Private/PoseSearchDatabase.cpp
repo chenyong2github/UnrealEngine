@@ -700,7 +700,7 @@ static inline void EvaluatePoseKernel(UE::PoseSearch::FSearchResult& Result, con
 			Result.PoseCost = PoseCost;
 			Result.PoseIdx = PoseIdx;
 
-#if WITH_EDITORONLY_DATA
+#if UE_POSE_SEARCH_TRACE_ENABLED
 			if (bUpdateBestCandidates)
 			{
 				Result.BestPosePos = ResultIndex;
