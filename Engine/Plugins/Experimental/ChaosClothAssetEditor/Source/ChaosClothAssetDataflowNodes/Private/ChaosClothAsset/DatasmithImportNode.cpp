@@ -98,31 +98,34 @@ void FChaosClothAssetDatasmithImportNode::Evaluate(Dataflow::FContext& Context, 
 {
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
-		if (FPaths::FileExists(ImportFile.FilePath))
+		const FMD5Hash FileHash = ImportFile.FilePath.IsEmpty() ?
+			FMD5Hash() :  // Reset to an empty cloth collection
+			FPaths::FileExists(ImportFile.FilePath) ?
+				FMD5Hash::HashFile(*ImportFile.FilePath) :  // Update cache to the file content if necessary
+				ImportHash;  // Keep the current cached file
+
+		if (FileHash != ImportHash)
 		{
-			const FMD5Hash FileHash = FMD5Hash::HashFile(*ImportFile.FilePath);
-			if (FileHash != ImportHash)
+			ImportHash = FileHash;
+
+			// The file has changed, reimport
+			const bool bSuccess = EvaluateImpl(Context, ImportCache);
+
+			if (!bSuccess)
 			{
-				ImportHash = FileHash;
+				using namespace UE::Chaos::ClothAsset;
 
-				// The file has changed, reimport
-				const bool bSuccess = EvaluateImpl(Context, ImportCache);
+				// The import has failed, reset the cache to an empty cloth collection
+				ImportCache.Reset();
 
-				if (!bSuccess)
-				{
-					using namespace UE::Chaos::ClothAsset;
+				const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(ImportCache));
+				FCollectionClothFacade CollectionClothFacade(ClothCollection);
+				CollectionClothFacade.DefineSchema();
 
-					// The import has failed, reset the cache to an empty cloth collection
-					ImportCache.Reset();
-
-					const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(ImportCache));
-					FCollectionClothFacade CollectionClothFacade(ClothCollection);
-					CollectionClothFacade.DefineSchema();
-
-					ImportCache = MoveTemp(*ClothCollection);
-				}
+				ImportCache = MoveTemp(*ClothCollection);
 			}
 		}
+
 		SetValue(Context, ImportCache, &Collection);
 	}
 }

@@ -26,7 +26,7 @@ public:
 
 	/** Generate a single render pattern rather than a render pattern per sim pattern. */
 	UPROPERTY(EditAnywhere, Category = "Copy Simulation To Render Mesh")
-	bool bGenerateSingleRenderPattern = false;
+	bool bGenerateSingleRenderPattern = true;
 
 	FChaosClothAssetCopySimulationToRenderMeshNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
