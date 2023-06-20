@@ -165,15 +165,15 @@ private:
 	void AddCachedReferencers(const FName& PathName, TArray<FName>& ArrayReferenceNames);
 
 	/** Launches the compile task in another thread when compiling a CO in the editor
-	* param ShowNotification [in] whether to show the compiling CO notification or not
+	* @param bShowNotification [in] whether to show the compiling CO notification or not
 	* @return nothing */
-	void LaunchMutableCompile(bool ShowNotification);
+	void LaunchMutableCompile(bool bShowNotification);
 
 	/** Launches the save derived data task in another thread after compiling a CO in the
 	* editor
-	* param ShowNotification [in] whether to show the saving DD notification or not
+	* @param bShowNotification [in] whether to show the saving DD notification or not
 	* @return nothing */
-	void SaveCODerivedData(bool ShowNotification);
+	void SaveCODerivedData(bool bShowNotification);
 
 	/** When compiling a CO in the editor, flag to know when the Unreal textures have been converted to Mutable textures */
 	bool PendingTexturesToLoad;

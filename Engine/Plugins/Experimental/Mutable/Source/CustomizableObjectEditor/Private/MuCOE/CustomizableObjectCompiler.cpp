@@ -731,9 +731,9 @@ void FCustomizableObjectCompiler::AddCachedReferencers(const FName& PathName, TA
 }
 
 
-void FCustomizableObjectCompiler::LaunchMutableCompile(bool ShowNotification)
+void FCustomizableObjectCompiler::LaunchMutableCompile(bool bShowNotification)
 {
-	if(!Options.bSilentCompilation && ShowNotification)
+	if(bShowNotification)
 	{
 		AddCompileNotification(LOCTEXT("CustomizableObjectCompileInProgress", "Compiling"));
 	}
@@ -746,14 +746,14 @@ void FCustomizableObjectCompiler::LaunchMutableCompile(bool ShowNotification)
 }
 
 
-void FCustomizableObjectCompiler::SaveCODerivedData(bool ShowNotification)
+void FCustomizableObjectCompiler::SaveCODerivedData(bool bShowNotification)
 {
 	if (!SaveDDTask.IsValid())
 	{
 		return;
 	}
 
-	if (!Options.bSilentCompilation && ShowNotification)
+	if (bShowNotification)
 	{
 		AddCompileNotification(LOCTEXT("SavingCustomizableObjectDerivedData", "Saving Data"));
 	}
@@ -1333,7 +1333,7 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 				// will do the remaining steps (convert textures asynchronously and launch the Mutable compile thread)
 				CompilationLaunchPending = true;
 
-				if (!Options.bSilentCompilation && PendingTexturesToLoad)
+				if (PendingTexturesToLoad)
 				{
 					AddCompileNotification(LOCTEXT("ConvertingToMutableTexture", "Converting textures"));
 				}
@@ -1522,6 +1522,11 @@ void FCustomizableObjectCompiler::ForceFinishBeforeStartCompilation(UCustomizabl
 
 void FCustomizableObjectCompiler::AddCompileNotification(const FText& CompilationStep) const
 {
+	if (Options.bSilentCompilation)
+	{
+		return;
+	}
+
 	const FText Text = CurrentObject ? FText::FromString(FString::Printf(TEXT("Compiling %s"), *CurrentObject->GetName())) : LOCTEXT("CustomizableObjectCompileInProgressNotification", "Compiling Customizable Object");
 	
 	FCustomizableObjectEditorLogger::CreateLog(Text)
