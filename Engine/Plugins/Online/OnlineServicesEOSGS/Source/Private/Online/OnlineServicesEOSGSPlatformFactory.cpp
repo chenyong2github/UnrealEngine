@@ -7,6 +7,7 @@
 #include "Online/OnlineServicesEOSGS.h"
 
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Fork.h"
 #include "Misc/LazySingleton.h"
 #include "Modules/ModuleManager.h"
 
@@ -52,7 +53,11 @@ namespace UE::Online {
 
 FOnlineServicesEOSGSPlatformFactory::FOnlineServicesEOSGSPlatformFactory()
 {
-	DefaultEOSPlatformHandle = CreatePlatform();
+	// If a fork is requested, we need to wait for post-fork to create the default platform
+	if (!FForkProcessHelper::IsForkRequested() || FForkProcessHelper::IsForkedChildProcess())
+	{
+		GetDefaultPlatform();
+	}
 }
 
 FOnlineServicesEOSGSPlatformFactory& FOnlineServicesEOSGSPlatformFactory::Get()
@@ -139,5 +144,14 @@ IEOSPlatformHandlePtr FOnlineServicesEOSGSPlatformFactory::CreatePlatform()
 	return EOSPlatformHandle;
 }
 
+IEOSPlatformHandlePtr FOnlineServicesEOSGSPlatformFactory::GetDefaultPlatform()
+{
+	if (!DefaultEOSPlatformHandle)
+	{
+		DefaultEOSPlatformHandle = CreatePlatform();
+	}
+
+	return DefaultEOSPlatformHandle;
+}
 
 /* UE::Online */ }

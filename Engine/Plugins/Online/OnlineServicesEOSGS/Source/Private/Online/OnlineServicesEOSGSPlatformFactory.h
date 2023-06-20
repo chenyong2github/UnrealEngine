@@ -34,9 +34,8 @@ public:
 	 * The default platform is created on startup and can be used by the default instance of online services EOS.
 	 * @return the default platform
 	 */
-	IEOSPlatformHandlePtr GetDefaultPlatform() { return DefaultEOSPlatformHandle; }
+	IEOSPlatformHandlePtr GetDefaultPlatform();
 private:
-	/** Default constructor */
 	FOnlineServicesEOSGSPlatformFactory();
 	friend FLazySingleton;
 	/** Platform handle for the default instance */
