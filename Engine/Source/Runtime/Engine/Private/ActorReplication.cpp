@@ -380,9 +380,10 @@ void AActor::GatherCurrentMovement()
 			bool bFoundInCache = false;
 
 			UWorld* World = GetWorld();
+			int ServerFrame = 0; 
 			if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(World->GetPhysicsScene()))
 			{
-				if (FRigidBodyState* FoundState = Scene->ReplicationCache.Map.Find(FObjectKey(RootPrimComp)))
+				if (const FRigidBodyState* FoundState = Scene->GetStateFromReplicationCache(RootPrimComp, ServerFrame)) 
 				{
 					ReplicatedMovement.FillFrom(*FoundState, this, Scene->ReplicationCache.ServerFrame);
 					bFoundInCache = true;
@@ -394,7 +395,7 @@ void AActor::GatherCurrentMovement()
 				// fallback to GT data
 				FRigidBodyState RBState;
 				RootPrimComp->GetRigidBodyState(RBState);
-				ReplicatedMovement.FillFrom(RBState, this, 0);
+				ReplicatedMovement.FillFrom(RBState, this, ServerFrame);
 			}
 
 			// Don't replicate movement if we're welded to another parent actor.

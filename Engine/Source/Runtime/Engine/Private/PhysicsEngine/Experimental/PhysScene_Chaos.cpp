@@ -57,6 +57,9 @@ FAutoConsoleVariableRef CVar_KinematicDeferralUpdateExternalAccelerationStructur
 bool GKinematicDeferralLogInvalidBodies = false;
 FAutoConsoleVariableRef CVar_KinematicDeferralLogInvalidBodies(TEXT("p.KinematicDeferralLogInvalidBodies"), GKinematicDeferralLogInvalidBodies, TEXT("If true and p.KinematicDeferralCheckValidBodies is true, log when an invalid body is found on kinematic update."));
 
+float GReplicationCacheLingerForNSeconds = 3.f;
+FAutoConsoleVariableRef CVar_ReplicationCacheLingerForNSeconds(TEXT("np2.ReplicationCache.LingerForNSeconds"), GReplicationCacheLingerForNSeconds, TEXT("How long to keep data in the replication cache without the actor accessing it, after this we stop caching the actors state until it tries to access it again."));
+
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_UpdateKinematicsOnDeferredSkelMeshesChaos, STATGROUP_Physics);
 
 struct FPendingAsyncPhysicsCommand
@@ -530,6 +533,7 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 	
 	// Make sure physics replication is cleared before we're fully destructed
 	PhysicsReplication.Reset();
+	ReplicationCache.Reset();
 
 	FPhysicsDelegates::OnPhysSceneTerm.Broadcast(this);
 
@@ -1217,44 +1221,91 @@ void FPhysScene_Chaos::AddToComponentMaps(UPrimitiveComponent* Component, IPhysi
 	}
 }
 
+const FRigidBodyState* FPhysScene_Chaos::GetStateFromReplicationCache(UPrimitiveComponent* RootComponent, int& ServerFrame)
+{
+	if (!GetSolver()->GetRewindCallback())
+	{
+		// We only populate replication cache through the RewindCallback
+		ServerFrame = 0;
+		return nullptr;
+	}
+
+	ServerFrame = ReplicationCache.ServerFrame;
+
+	const FObjectKey Key(RootComponent);
+	if (!ReplicationCache.Map.Contains(Key))
+	{
+		RegisterForReplicationCache(RootComponent);
+	}
+
+	FRigidBodyState* ReplicationState = nullptr;
+	if (FReplicationCacheData* ReplicationData = ReplicationCache.Map.Find(Key))
+	{
+		if (ReplicationData->IsCached())
+		{
+			ReplicationData->SetAccessTime(GetSolver()->GetSolverTime());
+			ReplicationState = &ReplicationData->GetState();
+		}
+	}
+	return ReplicationState;
+}
+
+void FPhysScene_Chaos::RegisterForReplicationCache(UPrimitiveComponent* RootComponent)
+{
+	const FObjectKey Key(RootComponent);
+	ReplicationCache.Map.Add(Key, FReplicationCacheData(RootComponent, GetSolver()->GetSolverTime()));
+}
+
 void FPhysScene_Chaos::PopulateReplicationCache(const int32 PhysicsStep)
 {
-	auto ReplicationCacheHelper = [this](auto& Handle, UPrimitiveComponent* RootComponent)
+	auto ReplicationCacheHelper = [this](auto& Handle, FReplicationCacheData& ReplicationData, bool& StateWasCached)
 	{
-		FObjectKey Key(RootComponent);
-		FRigidBodyState& ReplicationState = ReplicationCache.Map.FindOrAdd(Key);
-
-		ReplicationState.Position = Handle->X();
-		ReplicationState.Quaternion = Handle->R();
-		ReplicationState.LinVel = Handle->V();
-		ReplicationState.AngVel = Handle->W();
-		ReplicationState.Flags = Handle->ObjectState() == Chaos::EObjectStateType::Sleeping ? ERigidBodyFlags::Sleeping : 0;
-	};
-
-	ReplicationCache.ServerFrame = PhysicsStep;
-	for (TActorIterator<AActor> It(GetOwningWorld()); It; ++It)
-	{
-		AActor* Actor = *It;
-		if (Actor && Actor->GetIsReplicated() && Actor->IsReplicatingMovement())
+		// If the component reference has lingered in the replication cache for too long without being accessed, remove it and stop caching data.
+		const Chaos::FReal CacheLingerTime = GetSolver()->GetSolverTime() - ReplicationData.GetAccessTime();
+		if (CacheLingerTime > GReplicationCacheLingerForNSeconds)
 		{
-			UPrimitiveComponent* RootComponent = Cast<UPrimitiveComponent>(Actor->GetRootComponent());
-			if (RootComponent && RootComponent->IsSimulatingPhysics())
+			StateWasCached = false;
+		}
+		else
+		{
+			FRigidBodyState& ReplicationState = ReplicationData.GetState();
+			ReplicationState.Position = Handle->X();
+			ReplicationState.Quaternion = Handle->R();
+			ReplicationState.LinVel = Handle->V();
+			ReplicationState.AngVel = Handle->W();
+			ReplicationState.Flags = Handle->ObjectState() == Chaos::EObjectStateType::Sleeping ? ERigidBodyFlags::Sleeping : 0;
+			StateWasCached = true;
+		}
+		ReplicationData.SetIsCached(StateWasCached);
+	};
+	
+	ReplicationCache.ServerFrame = PhysicsStep;
+	bool StateWasCached;
+	for (auto It = ReplicationCache.Map.CreateIterator(); It; ++It)
+	{
+		StateWasCached = false;
+		FReplicationCacheData& ReplicationData = It.Value();
+		TObjectPtr<UPrimitiveComponent> RootComponent = ReplicationData.GetRootComponent();
+		if (RootComponent)
+		{
+			if (FBodyInstanceAsyncPhysicsTickHandle BIHandle = RootComponent->GetBodyInstanceAsyncPhysicsTickHandle())
 			{
-				if (FBodyInstanceAsyncPhysicsTickHandle BIHandle = RootComponent->GetBodyInstanceAsyncPhysicsTickHandle())
+				ReplicationCacheHelper(BIHandle, ReplicationData, StateWasCached);
+			}
+			else if (Chaos::FPhysicsObjectHandle PhysicsObject = RootComponent->GetPhysicsObjectByName(NAME_None))
+			{
+				Chaos::FReadPhysicsObjectInterface_Internal Interface = Chaos::FPhysicsObjectInternalInterface::GetRead();
+				if (Chaos::FPBDRigidParticleHandle* POHandle = Interface.GetRigidParticle(PhysicsObject))
 				{
-					ReplicationCacheHelper(BIHandle, RootComponent);
-				}
-				else if (Chaos::FPhysicsObjectHandle PhysicsObject = RootComponent->GetPhysicsObjectByName(NAME_None))
-				{
-					Chaos::FReadPhysicsObjectInterface_Internal Interface = Chaos::FPhysicsObjectInternalInterface::GetRead();
-					Chaos::FPBDRigidParticleHandle* POHandle = Interface.GetRigidParticle(PhysicsObject);
-
-					if (POHandle != nullptr)
-					{
-						ReplicationCacheHelper(POHandle, RootComponent);
-					}
+					ReplicationCacheHelper(POHandle, ReplicationData, StateWasCached);
 				}
 			}
+		}
+
+		if (!StateWasCached)
+		{
+			// Deregister actor from ReplicationCache
+			It.RemoveCurrent();
 		}
 	}
 }
