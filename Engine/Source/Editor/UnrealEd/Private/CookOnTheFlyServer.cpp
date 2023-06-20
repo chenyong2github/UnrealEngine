@@ -6574,13 +6574,21 @@ void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfi
 	// Debugging hidden dependencies
 	bOnlyEditorOnlyDebug = FParse::Param(FCommandLine::Get(), TEXT("OnlyEditorOnlyDebug"));
 	bSkipOnlyEditorOnly = false;
-	GConfig->GetBool(TEXT("CookSettings"), TEXT("OnlyEditorOnly"), bSkipOnlyEditorOnly, GEditorIni);
-	bSkipOnlyEditorOnly |= FParse::Param(FCommandLine::Get(), TEXT("OnlyEditorOnly"));
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("SkipOnlyEditorOnly"), bSkipOnlyEditorOnly, GEditorIni);
+	FString ParamText;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-SkipOnlyEditorOnly="), ParamText))
+	{
+		LexFromString(bSkipOnlyEditorOnly, *ParamText);
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("SkipOnlyEditorOnly")))
+	{
+		bSkipOnlyEditorOnly = true;
+	}
 	bSkipOnlyEditorOnly |= bOnlyEditorOnlyDebug;
 	if (bSkipOnlyEditorOnly)
 	{
 		UE_LOG(LogCook, Display,
-			TEXT("OnlyEditorOnly is enabled, unsolicited packages will not be cooked unless they are referenced from the cooked version of the instigator package."));
+			TEXT("SkipOnlyEditorOnly is enabled, unsolicited packages will not be cooked unless they are referenced from the cooked version of the instigator package."));
 	}
 
 	bHiddenDependenciesDebug = FParse::Param(FCommandLine::Get(), TEXT("HiddenDependenciesDebug"));
