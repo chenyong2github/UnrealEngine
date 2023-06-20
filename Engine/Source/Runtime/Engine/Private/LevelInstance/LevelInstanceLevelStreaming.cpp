@@ -377,9 +377,9 @@ void ULevelStreamingLevelInstance::OnLevelLoadedChanged(ULevel* InLevel)
 					{
 						OuterWorldPartition->bOverrideEnableStreamingInEditor = false;
 					}
-					else if (ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(LevelInstanceID); LevelInstance && LevelInstance->SupportsPartialEditorLoading())
+					else if (ILevelInstanceInterface* LevelInstance = LevelInstanceSubsystem->GetLevelInstance(LevelInstanceID))
 					{
-						OuterWorldPartition->bOverrideEnableStreamingInEditor = true;
+						OuterWorldPartition->bOverrideEnableStreamingInEditor = LevelInstance->SupportsPartialEditorLoading();
 					}
 				}
 				else

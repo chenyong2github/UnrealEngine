@@ -25,38 +25,34 @@ bool ILevelInstanceInterface::SupportsPartialEditorLoading() const
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 		{
-			bool bResult = true;
+			if (LevelInstanceSubsystem->IsEditingLevelInstance(this))
+			{
+				return false;
+			}
+
 			const AActor* Actor = CastChecked<AActor>(this);
 
-			LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(Actor, [LevelInstanceSubsystem, &bResult](const ILevelInstanceInterface* LevelInstance)
+			// If the level instance actor (or any parent actor) is not spatially loaded, don't partially load.
+			if (!Actor->GetIsSpatiallyLoaded())
 			{
-				// If the level instance (or any parent level instance) is in edit mode, don't partially load.
-				if (LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstance))
+				return false;
+			}
+
+			// If the level instance actor (or any parent actor) is unsaved, don't partially load.
+			if (Actor->GetPackage()->HasAllPackagesFlags(PKG_NewlyCreated))
+			{
+				return false;
+			}
+
+			if (ILevelInstanceInterface* Parent = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
+			{
+				if (!Parent->SupportsPartialEditorLoading())
 				{
-					bResult = false;
 					return false;
 				}
+			}
 
-				// If the level instance actor (or any parent actor) is not spatially loaded, don't partially load.
-				const AActor* LevelInstanceActor = CastChecked<AActor>(LevelInstance);
-				if (!LevelInstanceActor->GetIsSpatiallyLoaded())
-				{
-					bResult = false;
-					return false;
-				}
-
-				// If the level instance actor (or any parent actor) is unsaved, don't partially load.
-				if (LevelInstanceActor->GetPackage()->HasAllPackagesFlags(PKG_NewlyCreated))
-				{
-					bResult = false;
-					return false;
-				}
-
-				// We can partially load
-				return true;
-			});
-
-			return bResult;
+			return true;
 		}
 	}
 
