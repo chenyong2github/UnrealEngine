@@ -605,7 +605,8 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		GetOutputAudioChannelOrder(),
 		MoveTemp(InDefaultParameters),
 		bBuildSynchronous,
-		DataChannel
+		DataChannel,
+		DynamicTransactor
 	};
 
 	TSharedPtr<FMetasoundGenerator> Generator = MakeShared<FMetasoundGenerator>(MoveTemp(InitParams));
