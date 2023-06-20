@@ -108,9 +108,6 @@ private:
 	/** The stream to receive response body */
 	TSharedPtr<FArchive> ResponseBodyReceiveStream;
 
-	/** flag to mark wether we tried canceled this request */
-	bool bCanceled;
-	
 	/** Time taken to complete/cancel the request. */
 	float ElapsedTime;
 
