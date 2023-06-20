@@ -1105,6 +1105,63 @@ public:
 		return INDEX_NONE;
 	}
 
+private:
+
+	int32 FindAfterImpl(bool bValue, int32 StartIndex) const
+	{
+		checkSlow((StartIndex >= 0) & (StartIndex <= NumBits));
+
+		// Produce a mask for the first iteration
+		uint32 Mask = ~0u << (StartIndex % FBitSet::BitsPerWord);
+
+		// Iterate over the array until we see a word with a matching bit
+		const uint32 Test = bValue ? 0u : ~0u;
+
+		const uint32* RESTRICT DwordArray = GetData();
+		const int32 LocalNumBits = NumBits;
+		const int32 DwordCount = FBitSet::CalculateNumWords(LocalNumBits);
+		int32 DwordIndex = FMath::DivideAndRoundDown(StartIndex, NumBitsPerDWORD);
+		while (DwordIndex < DwordCount && (DwordArray[DwordIndex] & Mask) == (Test & Mask))
+		{
+			++DwordIndex;
+			Mask = ~0u;
+		}
+
+		if (DwordIndex < DwordCount)
+		{
+			// If we're looking for a false, then we flip the bits - then we only need to find the first one bit
+			const uint32 Bits = (bValue ? DwordArray[DwordIndex] : ~DwordArray[DwordIndex]) & Mask;
+			UE_ASSUME(Bits != 0);
+			const int32 LowestBitIndex = FMath::CountTrailingZeros(Bits) + (DwordIndex << NumBitsPerDWORDLogTwo);
+			if (LowestBitIndex < LocalNumBits)
+			{
+				return LowestBitIndex;
+			}
+		}
+
+		return INDEX_NONE;
+	}
+
+public:
+
+	/**
+	 * Finds the first occurrence of the specified value (true/false) in the array, starting from the given bit index, and returns the bit index.
+	 * If the specified value is not found after the given index, INDEX_NONE is returned.
+	 *
+	 * @param  bValue      The value (true/false) to search for.
+	 * @param  StartIndex  The index to start the search from.
+	 *
+	 * @pre StartIndex is expected to be in the inclusive range [0, Num()].
+	 *
+	 * @return The index of the first occurrence of the specified value (true/false) after StartIndex, or INDEX_NONE if not found.
+	 */
+	template <typename IndexType>
+	FORCEINLINE int32 FindAfter(bool bValue, IndexType StartIndex) const
+	{
+		static_assert(!std::is_same_v<IndexType, bool>, "TBitArray::FindAfter: unexpected bool passed as the StartIndex argument");
+		return FindAfterImpl(bValue, StartIndex);
+	}
+
 	/**
 	* Finds the last true/false bit in the array, and returns the bit index.
 	* If there is none, INDEX_NONE is returned.
