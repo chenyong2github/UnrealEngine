@@ -162,7 +162,8 @@ void UAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActor*
 				if (Spec.Ability->GetInstancingPolicy() == EGameplayAbilityInstancingPolicy::InstancedPerActor)
 				{
 					UGameplayAbility* AbilityInstance = Spec.GetPrimaryInstance();
-					if (ensureMsgf(AbilityInstance, TEXT("%s: Could not find a Primary Instance for InstancedPerActor Ability Spec!"), ANSI_TO_TCHAR(__func__)))
+					// If we don't have the ability instance, it was either already destroyed or will get called on creation
+					if (AbilityInstance)
 					{
 						AbilityInstance->OnAvatarSet(AbilityActorInfo.Get(), Spec);
 					}
