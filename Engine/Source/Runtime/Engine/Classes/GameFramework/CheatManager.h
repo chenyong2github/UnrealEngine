@@ -84,6 +84,8 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, meta = (DisplayName = "Removed From Cheat Manager", Keywords = "End Play"))
 	ENGINE_API void RemovedFromCheatManager();
+
+	ENGINE_API virtual void DoExtensionSpecificBugItLog(FOutputDevice& OutputFile);
 };
 
 /** 
@@ -466,7 +468,7 @@ protected:
 
 protected:
 	/** Do game specific bugIt */
-	virtual bool DoGameSpecificBugItLog(FOutputDevice& OutputFile) { return true; }
+	ENGINE_API virtual bool DoGameSpecificBugItLog(FOutputDevice& OutputFile);
 
 	/** Switch controller to debug camera without locking gameplay and with locking local player controller input */
 	UFUNCTION(BlueprintCallable,Category="Cheat Manager")

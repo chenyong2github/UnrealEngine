@@ -55,6 +55,10 @@ APlayerController* UCheatManagerExtension::GetPlayerController() const
 	return GetOuterUCheatManager()->GetPlayerController();
 }
 
+void UCheatManagerExtension::DoExtensionSpecificBugItLog(FOutputDevice& OutputFile)
+{
+}
+
 UCheatManager::UCheatManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bToggleAILogging(false)
@@ -1261,6 +1265,19 @@ void UCheatManager::LogOutBugItGoToLogFile( const FString& InScreenShotDesc, con
 	// so here we want to send this bad boy back to the PC
 	SendDataToPCViaUnrealConsole( TEXT("UE_PROFILER!BUGIT:"), *(FullFileName) );
 #endif // ALLOW_DEBUG_FILES
+}
+
+bool UCheatManager::DoGameSpecificBugItLog(FOutputDevice& OutputFile)
+{
+	for (UCheatManagerExtension* Extension : CheatManagerExtensions)
+	{
+		if (Extension)
+		{
+			Extension->DoExtensionSpecificBugItLog(OutputFile);
+		}
+	}
+
+	return true;
 }
 
 AActor* UCheatManager::GetTarget(APlayerController* PlayerController, struct FHitResult& OutHit)
