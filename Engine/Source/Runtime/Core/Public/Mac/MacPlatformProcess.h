@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "GenericPlatform/GenericPlatformProcess.h"
+#include "Apple/ApplePlatformProcess.h"
 #include <sys/sysctl.h>
 
 /** Wrapper around Unix pid_t. Should not be copyable as changes in the process state won't be properly propagated to all copies. */
@@ -153,7 +153,7 @@ struct FProcHandle
 /**
  * Mac implementation of the Process OS functions
  **/
-struct CORE_API FMacPlatformProcess : public FGenericPlatformProcess
+struct CORE_API FMacPlatformProcess : public FApplePlatformProcess
 {
 	struct FProcEnumInfo;
 
@@ -225,11 +225,6 @@ struct CORE_API FMacPlatformProcess : public FGenericPlatformProcess
 	static uint32 GetCurrentProcessId();
 	static uint32 GetCurrentCoreNumber();
 	static const TCHAR* BaseDir();
-	static const TCHAR* UserDir();
-	static const TCHAR* UserTempDir();
-	static const TCHAR* UserSettingsDir();
-	static const TCHAR* ApplicationSettingsDir();
-	static FString GetApplicationSettingsDir(const ApplicationSettingsContext& Settings);
 	static const TCHAR* ComputerName();
 	static const TCHAR* UserName(bool bOnlyAlphaNumeric = true);
 	static void SetCurrentWorkingDirectoryToBaseDir();
@@ -270,7 +265,6 @@ struct CORE_API FMacPlatformProcess : public FGenericPlatformProcess
 	// Mac specific
 	static const TCHAR* UserPreferencesDir();
 	static const TCHAR* UserLogsDir();
-	static const TCHAR* UserHomeDir();
 
 private:
 

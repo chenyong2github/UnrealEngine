@@ -5,7 +5,7 @@
 ==============================================================================================*/
 
 #pragma once
-#include "GenericPlatform/GenericPlatformProcess.h"
+#include "Apple/ApplePlatformProcess.h"
 #import "IOSAsyncTask.h"
 
 /** Dummy process handle for platforms that use generic implementation. */
@@ -26,7 +26,7 @@ public:
 /**
 * iOS implementation of the Process OS functions
 **/
-struct CORE_API FIOSPlatformProcess : public FGenericPlatformProcess
+struct CORE_API FIOSPlatformProcess : public FApplePlatformProcess
 {
 	static const TCHAR* ComputerName();
 	static const TCHAR* BaseDir();
