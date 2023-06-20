@@ -454,7 +454,7 @@ export function processOtherBotTargets(
 		const routes = ubergraph.findAllRoutesBetween(sourceNode, targetNode, [], new Set(skipNodes))
 		if (routes.length === 0)
 		{
-			errors.push(`No route between '${sourceNode.debugName}' and '${targetNode.debugName}'`)
+			//errors.push(`No route between '${sourceNode.debugName}' and '${targetNode.debugName}'`)
 			continue
 		}
 
