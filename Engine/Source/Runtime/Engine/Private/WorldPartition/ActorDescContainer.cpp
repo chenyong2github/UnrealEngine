@@ -6,6 +6,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Algo/Transform.h"
 #include "Engine/Level.h"
 #include "UObject/ObjectSaveContext.h"
 #include "AssetRegistry/ARFilter.h"
@@ -52,8 +53,8 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 		// Do a synchronous scan of the level external actors path.					
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(ScanPathsSynchronous);
-			AssetRegistry.ScanPathsSynchronous({ ContainerExternalActorsPath }, /*bForceRescan*/false, /*bIgnoreDenyListScanFilters*/false);
+			TRACE_CPUPROFILER_EVENT_SCOPE(ScanSynchronous);
+			AssetRegistry.ScanSynchronous({ ContainerExternalActorsPath }, TArray<FString>());
 		}
 
 		FARFilter Filter;
@@ -360,6 +361,55 @@ void UActorDescContainer::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldT
 	}
 }
 
+void UActorDescContainer::OnClassDescriptorUpdated(const FWorldPartitionActorDesc* InClassDesc)
+{
+	FWorldPartitionClassDescRegistry& ClassDescRegistry = FWorldPartitionClassDescRegistry::Get();
+
+	TArray<FString> ActorPackages;
+	for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
+	{
+		if (ActorDescIterator->GetBaseClass().IsValid())
+		{
+			if (const FWorldPartitionActorDesc* ActorClassDesc = ClassDescRegistry.GetClassDescDefaultForActor(ActorDescIterator->GetBaseClass()))
+			{
+				if (ClassDescRegistry.IsDerivedFrom(ActorClassDesc, InClassDesc))
+				{
+					ActorPackages.Add(ActorDescIterator->GetActorPackage().ToString());
+				}
+			}
+		}
+	}
+
+	if (ActorPackages.Num())
+	{
+		FARFilter Filter;
+		Filter.bIncludeOnlyOnDiskAssets = true;
+		Filter.PackageNames.Reserve(ActorPackages.Num());
+		Algo::Transform(ActorPackages, Filter.PackageNames, [](const FString& ActorPath) { return *ActorPath; });
+
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.ScanSynchronous(TArray<FString>(), ActorPackages);
+
+		TArray<FAssetData> Assets;
+		AssetRegistry.GetAssets(Filter, Assets);
+
+		for (const FAssetData& Asset : Assets)
+		{
+			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Asset);
+								
+			if (NewActorDesc.IsValid() && NewActorDesc->GetNativeClass().IsValid())
+			{
+				if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(NewActorDesc->GetGuid()))
+				{
+					OnActorDescUpdating(ExistingActorDesc->Get());
+					FWorldPartitionActorDescUtils::UpdateActorDescriptorFromActorDescriptor(NewActorDesc, *ExistingActorDesc);
+					OnActorDescUpdated(ExistingActorDesc->Get());
+				}
+			}
+		}
+	}
+}
+
 bool UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 {
 	if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(ActorGuid))
@@ -402,6 +452,9 @@ void UActorDescContainer::RegisterEditorDelegates()
 		FCoreUObjectDelegates::OnObjectPreSave.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
 		FEditorDelegates::OnPackageDeleted.AddUObject(this, &UActorDescContainer::OnPackageDeleted);
 		FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UActorDescContainer::OnObjectsReplaced);
+		
+		FWorldPartitionClassDescRegistry& ClassDescRegistry = FWorldPartitionClassDescRegistry::Get();
+		ClassDescRegistry.OnClassDescriptorUpdated().AddUObject(this, &UActorDescContainer::OnClassDescriptorUpdated);
 	}
 }
 
@@ -412,6 +465,9 @@ void UActorDescContainer::UnregisterEditorDelegates()
 		FCoreUObjectDelegates::OnObjectPreSave.RemoveAll(this);
 		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
 		FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+
+		FWorldPartitionClassDescRegistry& ClassDescRegistry = FWorldPartitionClassDescRegistry::Get();
+		ClassDescRegistry.OnClassDescriptorUpdated().RemoveAll(this);
 	}
 }
 

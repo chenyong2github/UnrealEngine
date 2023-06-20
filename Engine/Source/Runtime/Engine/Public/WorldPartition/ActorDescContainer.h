@@ -54,6 +54,7 @@ public:
 	ENGINE_API void OnObjectPreSave(UObject* Object, FObjectPreSaveContext SaveContext);
 	ENGINE_API void OnPackageDeleted(UPackage* Package);
 	ENGINE_API void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
+	ENGINE_API void OnClassDescriptorUpdated(const FWorldPartitionActorDesc* InClassDesc);
 
 	FName GetContainerPackage() const { return ContainerPackageName; }
 	void SetContainerPackage(const FName& InContainerPackageName) { ContainerPackageName = InContainerPackageName; }

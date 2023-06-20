@@ -215,7 +215,7 @@ void FWorldPartitionClassDescRegistry::PrefetchClassDescs(const TArray<FTopLevel
 		Filter.PackageNames.Reserve(FilePaths.Num());
 		Algo::Transform(FilePaths, Filter.PackageNames, [](const FString& ClassPath) { return *ClassPath; });
 	
-		AssetRegistry.ScanFilesSynchronous(FilePaths, /*bForceRescan*/false);
+		AssetRegistry.ScanSynchronous(TArray<FString>(), FilePaths);
 		AssetRegistry.GetAssets(Filter, Assets);
 	};
 
@@ -354,6 +354,25 @@ bool FWorldPartitionClassDescRegistry::IsRegisteredClass(const FTopLevelAssetPat
 	check(IsInitialized());
 	const FTopLevelAssetPath ClassPath = RedirectClassPath(InClassPath);
 	return ClassByPath.Contains(ClassPath);
+}
+
+bool FWorldPartitionClassDescRegistry::IsDerivedFrom(const FWorldPartitionActorDesc* InClassDesc, const FWorldPartitionActorDesc* InParentClassDesc) const
+{
+	const FTopLevelAssetPath ParentClassPath = FTopLevelAssetPath(InParentClassDesc->GetActorSoftPath().ToString());
+
+	FTopLevelAssetPath ClassPath = FTopLevelAssetPath(InClassDesc->GetActorSoftPath().ToString());
+
+	while (ClassPath.IsValid())
+	{
+		if (ClassPath == ParentClassPath)
+		{
+			return true;
+		}
+
+		ClassPath = ParentClassMap.FindRef(ClassPath);
+	}
+
+	return false;
 }
 
 const FWorldPartitionActorDesc* FWorldPartitionClassDescRegistry::GetClassDescDefault(const FTopLevelAssetPath& InClassPath) const
@@ -637,6 +656,8 @@ void FWorldPartitionClassDescRegistry::UpdateClassDescriptor(UObject* InObject, 
 
 			ValidateInternalState();
 		}
+
+		ClassDescriptorUpdatedEvent.Broadcast(ExistingClassDesc->Get());
 	}
 }
 

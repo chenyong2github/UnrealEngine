@@ -29,7 +29,10 @@ public:
 
 	ENGINE_API bool IsRegisteredClass(const FTopLevelAssetPath& InClassPath) const;
 
-	const FParentClassMap& GetParentClassMap() const { check(IsInitialized()); return ParentClassMap; }
+	ENGINE_API bool IsDerivedFrom(const FWorldPartitionActorDesc* InClassDesc, const FWorldPartitionActorDesc* InParentClassDesc) const;
+
+	DECLARE_EVENT_OneParam(FWorldPartitionClassDescRegistry, FClassDescriptorUpdated, const FWorldPartitionActorDesc*);
+	FClassDescriptorUpdated& OnClassDescriptorUpdated() { return ClassDescriptorUpdatedEvent; }
 
 private:
 	ENGINE_API void PrefetchClassDesc(UClass* InClass);
@@ -41,9 +44,13 @@ private:
 	ENGINE_API void RegisterClassDescriptorFromActorClass(const UClass* InActorClass);
 
 	friend class FActorDescArchive;
+	friend class UActorDescContainer;
 	ENGINE_API const FWorldPartitionActorDesc* GetClassDescDefault(const FTopLevelAssetPath& InClassPath) const;
 	ENGINE_API const FWorldPartitionActorDesc* GetClassDescDefaultForActor(const FTopLevelAssetPath& InClassPath) const;
 	ENGINE_API const FWorldPartitionActorDesc* GetClassDescDefaultForClass(const FTopLevelAssetPath& InClassPath) const;
+
+	friend class UWorldPartitionResaveActorsBuilder;
+	ENGINE_API const FParentClassMap& GetParentClassMap() const { check(IsInitialized()); return ParentClassMap; }
 
 	ENGINE_API void OnObjectPreSave(UObject* InObject, FObjectPreSaveContext InSaveContext);
 	ENGINE_API void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
@@ -65,5 +72,6 @@ private:
 	FNameClassDescMap ClassByPath;
 	FParentClassMap ParentClassMap;
 	FRedirectClassMap RedirectClassMap;
+	FClassDescriptorUpdated ClassDescriptorUpdatedEvent;
 };
 #endif
