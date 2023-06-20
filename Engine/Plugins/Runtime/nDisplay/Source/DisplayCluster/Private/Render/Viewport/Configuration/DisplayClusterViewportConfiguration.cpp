@@ -236,6 +236,7 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 
 				RenderFrameSettings.bIsRenderingInEditor = true;
 				RenderFrameSettings.bIsPreviewRendering = true;
+				RenderFrameSettings.bFreezePreviewRender = InPreviewSettings->bFreezePreviewRender;
 				
 				if (InPreviewSettings->bIsPIE)
 				{

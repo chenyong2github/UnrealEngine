@@ -306,8 +306,10 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 	{
 		ImplBeginReallocateViewports(*ViewportManager);
 
+		const FDisplayClusterRenderFrameSettings& RenderFrameSettings = ViewportManager->GetRenderFrameSettings();
+		
 		// Disable ICVFX if cluster node rendering is not used
-		const FString& ClusterNodeId = ViewportManager->GetRenderFrameSettings().ClusterNodeId;
+		const FString& ClusterNodeId = RenderFrameSettings.ClusterNodeId;
 		if(ClusterNodeId.IsEmpty())
 		{
 			// The nDisplay viewport should now always have the name of the cluster node.
@@ -402,7 +404,11 @@ void FDisplayClusterViewportConfigurationICVFX::Update()
 				}
 			}
 
-			if (StageSettings.bFreezeRenderOuterViewports)
+			if (StageSettings.bFreezeRenderOuterViewports
+#if WITH_EDITOR
+				|| (RenderFrameSettings.bIsPreviewRendering && RenderFrameSettings.bFreezePreviewRender)
+#endif
+				)
 			{
 				// Freeze rendering for outer viewports
 				for (const TSharedPtr<FDisplayClusterViewport, ESPMode::ThreadSafe>& TargetIt : TargetViewports)

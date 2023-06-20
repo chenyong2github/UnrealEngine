@@ -76,6 +76,9 @@ struct FDisplayClusterRenderFrameSettings
 	// Configuration used to render preview
 	bool bIsPreviewRendering = false;
 
+	// If the preview rendering should be frozen
+	bool bFreezePreviewRender = false;
+	
 	// Allow mGPU in editor mode
 	bool bAllowMultiGPURenderingInEditor = false;
 	int32 PreviewMinGPUIndex = 0;

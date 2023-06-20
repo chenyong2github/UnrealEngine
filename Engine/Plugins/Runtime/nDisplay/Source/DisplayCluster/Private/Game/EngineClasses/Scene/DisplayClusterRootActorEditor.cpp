@@ -501,11 +501,6 @@ void ADisplayClusterRootActor::ImplRenderPreview_Editor()
 
 	if (PreviewClusterNodeIndex < 0)
 	{
-		if (bFreezePreviewRender)
-		{
-			return;
-		}
-
 		// Allow preview render
 		PreviewClusterNodeIndex = 0;
 	}
@@ -555,7 +550,7 @@ void ADisplayClusterRootActor::ImplRenderPreview_Editor()
 		PreviewClusterNodeIndex++;
 		if (PreviewClusterNodeIndex >= ExistClusterNodesIDs.Num())
 		{
-			PreviewClusterNodeIndex = bFreezePreviewRender ? -1 : 0;
+			PreviewClusterNodeIndex = 0;
 
 			bOutputFrameToPostProcessRenderTarget = bOutputFrameToPostProcessRenderTarget ?
 				bPreviewEnablePostProcess :
