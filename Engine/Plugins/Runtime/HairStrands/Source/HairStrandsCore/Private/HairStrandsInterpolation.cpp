@@ -1086,7 +1086,7 @@ class FHairTangentCS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FCulling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(uint32, VertexCount)
+		SHADER_PARAMETER(uint32, PointCount)
 		SHADER_PARAMETER(uint32, HairStrandsVF_bCullingEnable)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PositionBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,	HairStrandsVF_CullingIndirectBuffer)
@@ -1111,7 +1111,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairTangentCS, "/Engine/Private/HairStrands/HairStrands
 void AddHairTangentPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	uint32 VertexCount,
+	uint32 PointCount,
 	FHairGroupPublicData* HairGroupPublicData,
 	FRDGBufferSRVRef PositionBuffer,
 	FRDGImportedBuffer OutTangentBuffer)
@@ -1121,7 +1121,7 @@ void AddHairTangentPass(
 	FHairTangentCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairTangentCS::FParameters>();
 	Parameters->PositionBuffer = PositionBuffer;
 	Parameters->OutputTangentBuffer = OutTangentBuffer.UAV;
-	Parameters->VertexCount = VertexCount;
+	Parameters->PointCount = PointCount;
 	Parameters->HairStrandsVF_bCullingEnable = bCullingEnable ? 1 : 0;
 
 	FHairTangentCS::FPermutationDomain PermutationVector;
@@ -1145,7 +1145,7 @@ void AddHairTangentPass(
 	}
 	else
 	{
-		const FIntVector DispatchCount(FMath::DivideAndRoundUp(VertexCount, FHairTangentCS::GetGroupSize()), 1, 1);
+		const FIntVector DispatchCount(FMath::DivideAndRoundUp(PointCount, FHairTangentCS::GetGroupSize()), 1, 1);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("HairStrands::Tangent(culling=off)"),
@@ -2015,8 +2015,8 @@ void ComputeHairStrandsInterpolation(
 			{
 				Strands_PositionSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionBuffer);
 				Strands_PositionOffsetSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer);
-				// Generated the static tangent if they haven;t been generated yet
-				Instance->Strands.RestResource->GetTangentBuffer(GraphBuilder, ShaderMap);
+				// Generated the static tangent if they haven't been generated yet
+				Instance->Strands.RestResource->GetTangentBuffer(GraphBuilder, ShaderMap, ActivePointCount, ActiveCurveCount);
 				Strands_TangentSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->TangentBuffer);
 			}
 

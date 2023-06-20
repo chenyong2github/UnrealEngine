@@ -6,7 +6,7 @@
 #include "HairStrandsClusterCommon.ush"
 
 #if SHADER_TANGENT
-uint VertexCount;
+uint PointCount;
 
 Buffer<uint4>  	 PositionBuffer;
 RWBuffer<float4> OutputTangentBuffer;
@@ -27,22 +27,22 @@ float4 PackNormal(float3 V, uint A)
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 {
-	const int MaxVertexCount = int(VertexCount);
+	const int MaxPointCount = int(PointCount);
 	int IndexCurr = DispatchThreadId;
-	int IndexPrev = clamp(IndexCurr-1, 0, MaxVertexCount-1);
-	int IndexNext = clamp(IndexCurr+1, 0, MaxVertexCount-1);
-	bool bValid = IndexCurr < MaxVertexCount;
+	int IndexPrev = clamp(IndexCurr-1, 0, MaxPointCount-1);
+	int IndexNext = clamp(IndexCurr+1, 0, MaxPointCount-1);
+	bool bValid = IndexCurr < MaxPointCount;
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bCullingEnable)
 	{
 		const int FetchIndex = DispatchThreadId;
-		const int VertexCountAfterCulling = clamp((int)HairStrandsVF_CullingIndirectBuffer[3], 0, MaxVertexCount);
+		const int PointCountAfterCulling = clamp((int)HairStrandsVF_CullingIndirectBuffer[3], 0, MaxPointCount);
 		bValid = false;
-		if (FetchIndex < VertexCountAfterCulling)
+		if (FetchIndex < PointCountAfterCulling)
 		{
-			const int FetchIndexPrev = clamp(FetchIndex-1, 0, VertexCountAfterCulling-1);
-			const int FetchIndexCurr = clamp(FetchIndex  , 0, VertexCountAfterCulling-1);
-			const int FetchIndexNext = clamp(FetchIndex+1, 0, VertexCountAfterCulling-1);
+			const int FetchIndexPrev = clamp(FetchIndex-1, 0, PointCountAfterCulling-1);
+			const int FetchIndexCurr = clamp(FetchIndex  , 0, PointCountAfterCulling-1);
+			const int FetchIndexNext = clamp(FetchIndex+1, 0, PointCountAfterCulling-1);
 
 			IndexPrev = HairStrandsVF_CullingIndexBuffer[FetchIndexPrev];
 			IndexCurr = HairStrandsVF_CullingIndexBuffer[FetchIndexCurr];
@@ -53,7 +53,7 @@ void MainCS(uint DispatchThreadId : SV_DispatchThreadID)
 	}
 #endif
 
-	if (IndexCurr < MaxVertexCount)
+	if (IndexCurr < MaxPointCount)
 	{
 		const FHairControlPoint CPCurr = UnpackHairControlPoint(PositionBuffer[IndexCurr]);
 		const FHairControlPoint CPPrev = UnpackHairControlPoint(PositionBuffer[IndexPrev]);

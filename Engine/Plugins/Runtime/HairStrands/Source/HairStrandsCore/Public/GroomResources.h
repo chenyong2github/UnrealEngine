@@ -148,7 +148,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsResource"); }
 
-	FRDGExternalBuffer GetTangentBuffer(class FRDGBuilder& GraphBuilder, class FGlobalShaderMap* ShaderMap);
+	FRDGExternalBuffer GetTangentBuffer(class FRDGBuilder& GraphBuilder, class FGlobalShaderMap* ShaderMap, uint32 PointCount, uint32 CurveCount);
 	
 	FVector GetPositionOffset() const { return BulkData.GetPositionOffset(); }
 
@@ -198,6 +198,8 @@ struct FHairStrandsRestResource : public FHairCommonResource
 
 	inline uint32 GetPointCount() const { return BulkData.GetNumPoints(); }
 	inline uint32 GetCurveCount() const { return BulkData.GetNumCurves(); }
+
+	uint32 CachedTangentPointCount = 0;
 };
 
 struct FHairStrandsDeformedResource : public FHairCommonResource

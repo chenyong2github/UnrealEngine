@@ -1097,6 +1097,14 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 		InternalCreateVertexBufferRDG_FromHairBulkData<FHairStrandsPointToCurveFormat32>(GraphBuilder, BulkData.Data.PointToCurve, PointCount, PointToCurveBuffer, ToHairResourceDebugName(HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PointToCurveBuffer), ResourceName), OwnerName, EHairResourceUsageType::Static);
 	}
 
+	// If the buffer is not null, it means it was been lazily allocated once. In such a case, The tangent buffer is recreated the new required size
+	const bool bStaticTangentNeeded = TangentBuffer.Buffer != nullptr;
+	if (bStaticTangentNeeded)
+	{
+		InternalCreateVertexBufferRDG<FHairStrandsTangentFormat>(GraphBuilder, PointCount * FHairStrandsTangentFormat::ComponentCount, TangentBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRest_TangentBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
+		CachedTangentPointCount = 0; // Force recaching
+	}
+
 	if (PositionOffsetBuffer.Buffer == nullptr)
 	{	
 		TArray<FVector4f> RestOffset;
@@ -1109,25 +1117,34 @@ void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 void AddHairTangentPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	uint32 VertexCount,
+	uint32 PointCount,
 	FHairGroupPublicData* HairGroupPublicData,
 	FRDGBufferSRVRef PositionBuffer,
 	FRDGImportedBuffer OutTangentBuffer);
 
-FRDGExternalBuffer FHairStrandsRestResource::GetTangentBuffer(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap)
+FRDGExternalBuffer FHairStrandsRestResource::GetTangentBuffer(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, uint32 ActivePointCount, uint32 ActiveCurveCount)
 {
 	// Lazy allocation and update
 	if (TangentBuffer.Buffer == nullptr)
 	{
-		InternalCreateVertexBufferRDG<FHairStrandsTangentFormat>(GraphBuilder, BulkData.GetNumPoints() * FHairStrandsTangentFormat::ComponentCount, TangentBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRest_TangentBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
+		InternalCreateVertexBufferRDG<FHairStrandsTangentFormat>(GraphBuilder, ActivePointCount * FHairStrandsTangentFormat::ComponentCount, TangentBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRest_TangentBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
+	}
 
+	const uint32 AllocatedPoint = TangentBuffer.Buffer->Desc.NumElements / FHairStrandsTangentFormat::ComponentCount;
+	const uint32 RequestedPoint = ActivePointCount;
+
+	const bool bRecomputeTangent = (AllocatedPoint >= RequestedPoint) && (ActivePointCount > CachedTangentPointCount);
+	if (bRecomputeTangent)
+	{
 		AddHairTangentPass(
 			GraphBuilder,
 			ShaderMap,
-			BulkData.GetNumPoints(),
+			ActivePointCount,
 			nullptr,
 			RegisterAsSRV(GraphBuilder, PositionBuffer),
 			Register(GraphBuilder, TangentBuffer, ERDGImportedBufferFlags::CreateUAV));
+
+		CachedTangentPointCount = ActivePointCount;
 	}
 
 	return TangentBuffer;
