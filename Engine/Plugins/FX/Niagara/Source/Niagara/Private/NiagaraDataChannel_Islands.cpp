@@ -82,7 +82,7 @@ void UNiagaraDataChannelHandler_Islands::EndFrame(float DeltaTime, FNiagaraWorld
 
 void UNiagaraDataChannelHandler_Islands::Tick(float DeltaTime, ETickingGroup TickGroup, FNiagaraWorldManager* OwningWorld)
 {
-	UNiagaraDataChannel_Islands* IslandChannel = GetChannelTyped<UNiagaraDataChannel_Islands>();
+	const UNiagaraDataChannel_Islands* IslandChannel = GetChannelTyped<const UNiagaraDataChannel_Islands>();
 	for (auto It = ActiveIslands.CreateIterator(); It; ++It)
 	{
 		FNDCIsland& Island = IslandPool[*It];
@@ -115,7 +115,7 @@ FNiagaraDataChannelDataPtr UNiagaraDataChannelHandler_Islands::FindData(FNiagara
 
 FNDCIsland* UNiagaraDataChannelHandler_Islands::FindOrCreateIsland(const FNiagaraDataChannelSearchParameters& SearchParams, ENiagaraResourceAccess AccessType)
 {
-	UNiagaraDataChannel_Islands* IslandChannel = CastChecked<UNiagaraDataChannel_Islands>(DataChannel);
+	const UNiagaraDataChannel_Islands* IslandChannel = CastChecked<const UNiagaraDataChannel_Islands>(DataChannel);
 
 	FVector Location = SearchParams.GetLocation();
 	if (AccessType == ENiagaraResourceAccess::ReadOnly)
@@ -290,7 +290,7 @@ void FNDCIsland::OnAcquired(FVector Location)
 	FBox HandlerSystemBounds(-Bounds.BoxExtent, Bounds.BoxExtent);
 	for (auto& SoftSys : Channel->Systems)
 	{
-		if (UNiagaraSystem* Sys = SoftSys.Get())
+		if (UNiagaraSystem* Sys = SoftSys.LoadSynchronous())
 		{
 			FFXSystemSpawnParameters SpawnParams;
 			SpawnParams.bAutoActivate = false;//We must activate AFTER adding this component to our handle system array.

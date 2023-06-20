@@ -805,12 +805,7 @@ namespace NiagaraDataChannel
 void UNiagaraDataChannel::PostInitProperties()
 {
 	Super::PostInitProperties();
-
-	FNiagaraWorldManager::ForAllWorldManagers(
-		[DataChannel = this](FNiagaraWorldManager& WorldMan)
-		{
-			WorldMan.InitDataChannel(DataChannel, true);
-		});
+	INiagaraModule::RequestRefreshDataChannels();
 }
 
 void UNiagaraDataChannel::PostLoad()
@@ -851,22 +846,13 @@ void UNiagaraDataChannel::PostLoad()
 	//TODO: Can serialize?
 	GameDataLayout.Init(Variables);
 
-	FNiagaraWorldManager::ForAllWorldManagers(
-		[DataChannel = this](FNiagaraWorldManager& WorldMan)
-		{
-			WorldMan.InitDataChannel(DataChannel, true);
-		});
+	INiagaraModule::RequestRefreshDataChannels();
 }
 
 void UNiagaraDataChannel::BeginDestroy()
 {
 	Super::BeginDestroy();
-
-	FNiagaraWorldManager::ForAllWorldManagers(
-		[DataChannel = this](FNiagaraWorldManager& WorldMan)
-		{
-			WorldMan.RemoveDataChannel(DataChannel);
-		});
+	INiagaraModule::RequestRefreshDataChannels();
 }
 
 #if WITH_EDITOR
@@ -894,11 +880,7 @@ void UNiagaraDataChannel::PostEditChangeProperty(FPropertyChangedEvent& Property
 
 	GameDataLayout.Init(Variables);
 
-	FNiagaraWorldManager::ForAllWorldManagers(
-		[DataChannel = this](FNiagaraWorldManager& WorldMan)
-		{
-			WorldMan.InitDataChannel(DataChannel, true);
-		});
+	INiagaraModule::RequestRefreshDataChannels();
 }
 
 #endif//WITH_EDITOR

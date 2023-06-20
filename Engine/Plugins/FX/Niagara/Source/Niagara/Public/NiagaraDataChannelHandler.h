@@ -37,7 +37,12 @@ public:
 	*/
 	NIAGARA_API virtual FNiagaraDataChannelDataPtr FindData(FNiagaraDataChannelSearchParameters SearchParams, ENiagaraResourceAccess AccessType)  PURE_VIRTUAL(UNiagaraDataChannelHandler::FindData, return nullptr;);
 
-	const UNiagaraDataChannel* GetDataChannel()const { return DataChannel; }
+	const UNiagaraDataChannel* GetDataChannel()const
+	{
+		const UNiagaraDataChannel* Ret = DataChannel.Get();
+		check(Ret);
+		return Ret;
+	}
 
 	UFUNCTION(BlueprintCallable, Category="Data Channel")
 	NIAGARA_API UNiagaraDataChannelWriter* GetDataChannelWriter();
@@ -53,7 +58,7 @@ public:
 protected:
 
 	UPROPERTY()
-	TObjectPtr<const UNiagaraDataChannel> DataChannel;
+	TWeakObjectPtr<const UNiagaraDataChannel> DataChannel;
 
 	/** Helper object allowing BP to write data in this channel. */
 	UPROPERTY()

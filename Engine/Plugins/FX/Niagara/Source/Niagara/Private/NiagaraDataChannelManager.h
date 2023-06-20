@@ -31,6 +31,8 @@ public:
 	void EndFrame(float DeltaSeconds);
 
 	void Tick(float DeltaSeconds, ETickingGroup TickGroup);
+
+	void RefreshDataChannels();
 	
 	/**
 	Return the DataChannel handler for the given channel.
@@ -44,5 +46,5 @@ private:
 	FNiagaraWorldManager* WorldMan = nullptr;
 
 	/** Runtime handlers for each DataChannel channel. */
-	TMap<TObjectPtr<const UNiagaraDataChannel>, TObjectPtr<UNiagaraDataChannelHandler>> Channels;
+	TMap<TWeakObjectPtr<const UNiagaraDataChannel>, TObjectPtr<UNiagaraDataChannelHandler>> Channels;
 };

@@ -21,6 +21,14 @@ void FNiagaraDataChannelManager::AddReferencedObjects(FReferenceCollector& Colle
 	Collector.AddReferencedObjects(Channels);
 }
 
+void FNiagaraDataChannelManager::RefreshDataChannels()
+{
+	for (TObjectIterator<UNiagaraDataChannel> DCIt; DCIt; ++DCIt)
+	{
+		InitDataChannel(*DCIt, false);
+	}
+}
+
 void FNiagaraDataChannelManager::Init()
 {
 	//Initialize any existing data channels, more may be initialized later as they are loaded.
@@ -42,11 +50,19 @@ void FNiagaraDataChannelManager::BeginFrame(float DeltaSeconds)
 {
 	if (INiagaraModule::DataChannelsEnabled())
 	{
+		check(IsInGameThread());
 		SCOPE_CYCLE_COUNTER(STAT_DataChannelManager_BeginFrame);
 		//Tick all DataChannel channel handlers.
-		for (auto& ChannelPair : Channels)
+		for (auto It = Channels.CreateIterator(); It; ++It)
 		{
-			ChannelPair.Value->BeginFrame(DeltaSeconds, WorldMan);
+			if(const UNiagaraDataChannel* Channel = It.Key().Get())
+			{
+				It.Value()->BeginFrame(DeltaSeconds, WorldMan);
+			}
+			else
+			{
+				It.RemoveCurrent();
+			}
 		}
 	}
 }
@@ -55,6 +71,7 @@ void FNiagaraDataChannelManager::EndFrame(float DeltaSeconds)
 {
 	if (INiagaraModule::DataChannelsEnabled())
 	{
+		check(IsInGameThread());
 		SCOPE_CYCLE_COUNTER(STAT_DataChannelManager_EndFrame);
 		//Tick all DataChannel channel handlers.
 		for (auto& ChannelPair : Channels)
@@ -68,6 +85,7 @@ void FNiagaraDataChannelManager::Tick(float DeltaSeconds, ETickingGroup TickGrou
 {
 	if(INiagaraModule::DataChannelsEnabled())
 	{
+		check(IsInGameThread());
 		SCOPE_CYCLE_COUNTER(STAT_DataChannelManager_Tick);
 		//Tick all DataChannel channel handlers.
 		for (auto& ChannelPair : Channels)
@@ -83,6 +101,7 @@ void FNiagaraDataChannelManager::Tick(float DeltaSeconds, ETickingGroup TickGrou
 
 UNiagaraDataChannelHandler* FNiagaraDataChannelManager::FindDataChannelHandler(const UNiagaraDataChannel* Channel)
 {
+	check(IsInGameThread());
 	if (TObjectPtr<UNiagaraDataChannelHandler>* Found = Channels.Find(Channel))
 	{
 		return (*Found).Get();
@@ -92,6 +111,7 @@ UNiagaraDataChannelHandler* FNiagaraDataChannelManager::FindDataChannelHandler(c
 
 void FNiagaraDataChannelManager::InitDataChannel(const UNiagaraDataChannel* InChannel, bool bForce)
 {
+	check(IsInGameThread());
 	UWorld* World = GetWorld();
 	if(INiagaraModule::DataChannelsEnabled() && World && !World->IsNetMode(NM_DedicatedServer) && InChannel->IsValid())
 	{
@@ -106,6 +126,7 @@ void FNiagaraDataChannelManager::InitDataChannel(const UNiagaraDataChannel* InCh
 
 void FNiagaraDataChannelManager::RemoveDataChannel(const UNiagaraDataChannel* InChannel)
 {
+	check(IsInGameThread());
 	Channels.Remove(InChannel);
 }
 

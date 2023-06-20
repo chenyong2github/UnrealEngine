@@ -124,8 +124,10 @@ public:
 	NIAGARA_API void UnregisterAbortSystemCompile(FDelegateHandle DelegateHandle);
 
 	NIAGARA_API void OnAssetLoaded(UObject* Asset);
-
 #endif
+
+	static void RequestRefreshDataChannels() { bDataChannelRefreshRequested = true; }
+	static void RefreshDataChannels();
 
 #if NIAGARA_PERF_BASELINES
 	NIAGARA_API void GeneratePerfBaselines(TArray<UNiagaraEffectType*>& BaselinesToGenerate);
@@ -399,5 +401,7 @@ private:
 #endif
 
 	FDelegateHandle OnCVarUnregisteredHandle;
+
+	static std::atomic<bool> bDataChannelRefreshRequested;
 };
 

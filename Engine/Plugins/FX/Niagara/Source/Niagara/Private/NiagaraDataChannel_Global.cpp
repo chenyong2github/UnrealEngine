@@ -44,8 +44,8 @@ void UNiagaraDataChannelHandler_Global::BeginDestroy()
 
 void UNiagaraDataChannelHandler_Global::Init(const UNiagaraDataChannel* InChannel)
 {
+	check(InChannel);
 	Super::Init(InChannel);
-	check(DataChannel);
 	Data = CreateData();
 }
 

@@ -64,6 +64,8 @@ static FAutoConsoleVariableRef CVarLogCompileIdGeneration(
 float INiagaraModule::EngineGlobalSpawnCountScale = 1.0f;
 float INiagaraModule::EngineGlobalSystemCountScale = 1.0f;
 
+std::atomic<bool> INiagaraModule::bDataChannelRefreshRequested = false;
+
 int32 GEnableVerboseNiagaraChangeIdLogging = 0;
 static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
 	TEXT("fx.EnableVerboseNiagaraChangeIdLogging"),
@@ -520,6 +522,8 @@ void INiagaraModule::OnWorldTickStart(UWorld* World, ELevelTick TickType, float 
 #if WITH_EDITOR
 	PollSystemCompilations();
 #endif
+
+	RefreshDataChannels();
 	
 #if NIAGARA_PERF_BASELINES
 	if (BaselineHandler.IsValid())
@@ -527,6 +531,19 @@ void INiagaraModule::OnWorldTickStart(UWorld* World, ELevelTick TickType, float 
 		BaselineHandler->Tick(World, DeltaSeconds);
 	}
 #endif
+}
+
+void INiagaraModule::RefreshDataChannels()
+{
+	if (bDataChannelRefreshRequested)
+	{
+		bDataChannelRefreshRequested = false;
+		FNiagaraWorldManager::ForAllWorldManagers(
+			[](FNiagaraWorldManager& WorldMan)
+			{
+				WorldMan.GetDataChannelManager().RefreshDataChannels();
+			});
+	}
 }
 
 void INiagaraModule::OnPostGarbageCollect()
