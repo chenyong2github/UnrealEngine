@@ -1058,6 +1058,8 @@ void UModelingToolsEditorMode::Enter()
 		});
 	}
 
+	BlueprintPreCompileHandle = GEditor->OnBlueprintPreCompile().AddUObject(this, &UModelingToolsEditorMode::OnBlueprintPreCompile);
+
 	// Removing levels from the world can happen either by entering/exiting level instance edit mode, or
 	// by using the Levels panel. The problem is that any temporary actors we may have spawned in the 
 	// level for visualization, gizmos, etc. will be garbage collected. While EdModeInteractiveToolsContext
@@ -1146,6 +1148,10 @@ void UModelingToolsEditorMode::RegisterUVEditor()
 void UModelingToolsEditorMode::Exit()
 {
 	FWorldDelegates::PreLevelRemovedFromWorld.RemoveAll(this);
+	if (BlueprintPreCompileHandle.IsValid())
+	{
+		GEditor->OnBlueprintPreCompile().Remove(BlueprintPreCompileHandle);
+	}
 
 	// shutdown selection interaction
 	if (SelectionInteraction != nullptr)
@@ -1263,6 +1269,23 @@ void UModelingToolsEditorMode::OnEditorClosed()
 		GEditor->OnEditorClose().Remove(EditorClosedEventHandle);
 	}
 }
+
+
+void UModelingToolsEditorMode::OnBlueprintPreCompile(UBlueprint* Blueprint)
+{
+	// if a Blueprint is compiled, all old instances of it in a level go "stale" and new
+	// instances are created. Currently SelectionManager does not handle this replacement. 
+	// Seems quite hard to know if Blueprint is a parent of any active targets, so if
+	// a Blueprint is compiled we will just clear out any active selection & targets to avoid
+	// potential crashes. Note that this also breaks undo somewhat, as the FChanges seem to 
+	// still be registered against the 'old' instance pointer and hence are ignored/skipped.
+	if (SelectionManager != nullptr)
+	{
+		SelectionManager->ClearSelection();
+		SelectionManager->ClearActiveTargets();
+	}
+}
+
 
 void UModelingToolsEditorMode::OnToolsContextRender(IToolsContextRenderAPI* RenderAPI)
 {
@@ -1387,31 +1410,71 @@ void UModelingToolsEditorMode::UpdateSelectionManagerOnEditorSelectionChange(boo
 		return;
 	}
 
-	// figure out what is selected and then extract valid selection identifiers if there are any
-	TArray<AActor*> SelectedActors;
-	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors); 
+	// Find selected Component types that are currently supported. Currently determining this via explicit casting,
+	// probably it should be handled by the Selector Factories registered in UModelingToolsEditorMode::Enter(),
+	// possibly via the SelectionManager. 
 
-	// this should probably not be the place we make this kind of decision...but for now it will do
-	TArray<FGeometryIdentifier> ValidIdentifiers;
-	for ( AActor* Actor : SelectedActors)
+	TArray<UDynamicMeshComponent*> SelectedDynamicMeshComponents;
+	TArray<UStaticMeshComponent*> SelectedStaticMeshComponents;
+	TArray<UBrushComponent*> SelectedBrushComponents;
+
+	if (GEditor->GetSelectedComponents()->Num() > 0)
 	{
-		if (Cast<ADynamicMeshActor>(Actor) != nullptr)
+		// if we have supported Components selected on a multi-Component Actor, they will be
+		// returned via these functions
+		GEditor->GetSelectedComponents()->GetSelectedObjects<UDynamicMeshComponent>(SelectedDynamicMeshComponents);
+		GEditor->GetSelectedComponents()->GetSelectedObjects<UStaticMeshComponent>(SelectedStaticMeshComponents);
+		GEditor->GetSelectedComponents()->GetSelectedObjects<UBrushComponent>(SelectedBrushComponents);
+	}
+	// Conceivably this could be an 'else', however currently in the Editor when a Volume Actor is selected,
+	// GetSelectedComponents()->Num() > 0 but no BrushComponent will be found (it appears to be some kind of TypedElement wrapper).
+	// However note that this might result in some unexpected Meshes being Selectable on multi-Component Actors
+	if (SelectedDynamicMeshComponents.Num() == 0 && SelectedStaticMeshComponents.Num() == 0 && SelectedBrushComponents.Num() == 0)
+	{
+		// assume Actor selection, find all valid Components on the selected Actors
+		TArray<AActor*> SelectedActors;
+		GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors);
+		for (AActor* Actor : SelectedActors)
 		{
-			ValidIdentifiers.Add( FGeometryIdentifier::PrimitiveComponent(
-				Cast<ADynamicMeshActor>(Actor)->GetDynamicMeshComponent(), FGeometryIdentifier::EObjectType::DynamicMeshComponent) );
-		}
-		else if (bEnableVolumeElementSelection && Cast<AVolume>(Actor) != nullptr)
-		{
-			ValidIdentifiers.Add( FGeometryIdentifier::PrimitiveComponent(
-				Cast<AVolume>(Actor)->GetBrushComponent(), FGeometryIdentifier::EObjectType::BrushComponent) );
-		}
-		else if (bEnableStaticMeshElementSelection && Cast<AStaticMeshActor>(Actor) != nullptr)
-		{
-			// StaticMeshComponent can exist under any Actor, should not rely on Actor selection...
-			ValidIdentifiers.Add( FGeometryIdentifier::PrimitiveComponent(
-				Cast<AStaticMeshActor>(Actor)->GetStaticMeshComponent(), FGeometryIdentifier::EObjectType::StaticMeshComponent) );
+			Actor->ForEachComponent(false, [&](UActorComponent* Component) 
+			{
+				if (UDynamicMeshComponent* DynamicMeshComponent = Cast<UDynamicMeshComponent>(Component))
+				{
+					SelectedDynamicMeshComponents.Add(DynamicMeshComponent);
+				}
+				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+				{
+					SelectedStaticMeshComponents.Add(StaticMeshComponent);
+				}
+				if (UBrushComponent* BrushComponent = Cast<UBrushComponent>(Component))
+				{
+					SelectedBrushComponents.Add(BrushComponent);
+				}
+			});
 		}
 	}
+
+	// convert selected Component types into selection Identifiers
+	TArray<FGeometryIdentifier> ValidIdentifiers;
+	for (UDynamicMeshComponent* DynamicMeshComponent : SelectedDynamicMeshComponents)
+	{
+		ValidIdentifiers.Add(FGeometryIdentifier::PrimitiveComponent(DynamicMeshComponent, FGeometryIdentifier::EObjectType::DynamicMeshComponent));
+	}
+	if (bEnableStaticMeshElementSelection)
+	{
+		for (UStaticMeshComponent* StaticMeshComponent : SelectedStaticMeshComponents)
+		{
+			ValidIdentifiers.Add(FGeometryIdentifier::PrimitiveComponent(StaticMeshComponent, FGeometryIdentifier::EObjectType::StaticMeshComponent));
+		}
+	}
+	if (bEnableVolumeElementSelection)
+	{
+		for (UBrushComponent* BrushComponent : SelectedBrushComponents)
+		{
+			ValidIdentifiers.Add(FGeometryIdentifier::PrimitiveComponent(BrushComponent, FGeometryIdentifier::EObjectType::BrushComponent));
+		}
+	}
+
 
 	// This is gross. If we are entering the Mode, we need to update the SelectionManager w/ the current state. However this
 	// update needs to be undoable. Since we are not part of whatever Transaction was involved in changing modes, we are going

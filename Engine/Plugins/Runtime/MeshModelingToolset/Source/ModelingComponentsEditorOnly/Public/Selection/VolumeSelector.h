@@ -39,6 +39,12 @@ public:
 	virtual IGeometrySelectionTransformer* InitializeTransformation(const FGeometrySelection& Selection) override;
 	virtual void ShutdownTransformation(IGeometrySelectionTransformer* Transformer) override;
 
+	virtual void UpdateAfterGeometryEdit(
+		IToolsContextTransactionsAPI* TransactionsAPI,
+		bool bInTransaction,
+		TUniquePtr<UE::Geometry::FDynamicMeshChange> DynamicMeshChange,
+		FText GeometryEditTransactionString) override;
+
 
 	// FEditorUndoClient implementation
 	virtual void PostUndo(bool bSuccess) override;

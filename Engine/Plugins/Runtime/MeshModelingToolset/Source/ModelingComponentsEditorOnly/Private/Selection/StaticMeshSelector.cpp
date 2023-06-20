@@ -19,6 +19,7 @@
 #include "Selection/DynamicMeshPolygroupTransformer.h"
 
 #include "RenderingThread.h"
+#include "UObject/Package.h"
 
 using namespace UE::Geometry;
 
@@ -180,6 +181,26 @@ void FStaticMeshSelector::ShutdownTransformation(IGeometrySelectionTransformer* 
 }
 
 
+void FStaticMeshSelector::UpdateAfterGeometryEdit(
+	IToolsContextTransactionsAPI* TransactionsAPI,
+	bool bInTransaction,
+	TUniquePtr<FDynamicMeshChange> DynamicMeshChange,
+	FText GeometryEditTransactionString)
+{
+	if (!bInTransaction)
+	{
+		TransactionsAPI->BeginUndoTransaction(GeometryEditTransactionString);
+	}
+
+	CommitMeshTransform();
+
+	if (!bInTransaction)
+	{
+		TransactionsAPI->EndUndoTransaction();
+	}
+}
+
+
 void FStaticMeshSelector::CopyFromStaticMesh()
 {
 	int32 UseLODIndex = 0;
@@ -240,8 +261,29 @@ bool FStaticMeshComponentSelectorFactory::CanBuildForTarget(FGeometryIdentifier 
 	if (TargetIdentifier.TargetType == FGeometryIdentifier::ETargetType::PrimitiveComponent)
 	{
 		UStaticMeshComponent* Component = TargetIdentifier.GetAsComponentType<UStaticMeshComponent>();
-		if (Component != nullptr)
+		if (Component != nullptr )
 		{
+			// Ensure that the Component is an SMComponent and not an ISMC or other subclass that might have other behaviors
+			// that we can't know if the Selector will properly support
+			if (ExactCast<UStaticMeshComponent>(Component) == nullptr)
+			{
+				return false;
+			}
+
+			// ensure that we have a static mesh and it's not a built-in Engine mesh
+			UStaticMesh* StaticMesh = Component->GetStaticMesh();
+			if (StaticMesh == nullptr ||
+				StaticMesh->GetPathName().StartsWith(TEXT("/Engine/")))
+			{
+				return false;
+			}
+
+			// ensure that this is not a cooked static mesh
+			if (StaticMesh->GetOutermost()->bIsCookedForEditor)
+			{
+				return false;
+			}
+
 			return true;
 		}
 	}

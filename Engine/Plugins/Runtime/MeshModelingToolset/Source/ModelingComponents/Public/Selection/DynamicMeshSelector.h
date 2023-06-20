@@ -9,6 +9,7 @@
 #include "Selection/GeometrySelector.h"
 #include "Components/DynamicMeshComponent.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "TransformTypes.h"
 
 
@@ -117,6 +118,27 @@ public:
 	virtual void GetSelectionFrame(const FGeometrySelection& Selection, UE::Geometry::FFrame3d& SelectionFrame, bool bTransformToWorld) override;
 	virtual void AccumulateSelectionBounds(const FGeometrySelection& Selection, FGeometrySelectionBounds& BoundsInOut, bool bTransformToWorld) override;
 	virtual void AccumulateSelectionElements(const FGeometrySelection& Selection, FGeometrySelectionElements& Elements, bool bTransformToWorld, bool bIsForPreview) override;
+
+	/**
+	 * UpdateAfterGeometryEdit should be called after editing the UDynamicMesh owned by the Selector (TargetMesh). 
+	 * This may be an external DynamicMesh in the case of a DynamicMeshComponent, or a temporary UDynamicMesh in
+	 * the case of (eg) the StaticMeshSelector and VolumeSelector subclasses. In DynamicMeshSelector the MeshChange
+	 * can just be emitted as a transaction, this is the default behavior. However in StaticMeshSelector, the StaticMesh 
+	 * needs to be synchronized with the UDynamicMesh modification in the same transaction. And potentially the MeshChange 
+	 * does not need to be emitted at all in that case. 
+	 * 
+	 * This is a bit ugly and might be possible to do more cleanly by having the StaticMeshSelector listen to the 
+	 * UDynamicMesh for changes. However currently we do not have the granularity to have it /only/ listen for 
+	 * external mesh edit changes, and not all changes (and since the UDynamicMesh changes in response to  
+	 * StaticMesh changes, eg on undo or external edits, it creates a cycle). 
+	 */
+	virtual void UpdateAfterGeometryEdit(
+		IToolsContextTransactionsAPI* TransactionsAPI, 
+		bool bInTransaction, 
+		TUniquePtr<UE::Geometry::FDynamicMeshChange> DynamicMeshChange, 
+		FText GeometryEditTransactionString );
+
+
 
 public:
 	// these need to be public for the Transformers...can we do it another way?

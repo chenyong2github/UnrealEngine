@@ -8,6 +8,7 @@
 #include "DynamicMesh/MeshIndexUtil.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "Changes/MeshVertexChange.h"
+#include "Changes/MeshChange.h"
 #include "DynamicMesh/ColliderMesh.h"
 #include "GroupTopology.h"
 #include "Spatial/SegmentTree3.h"
@@ -628,6 +629,21 @@ void FBaseDynamicMeshSelector::AccumulateSelectionElements(const FGeometrySelect
 }
 
 
+
+
+
+void FBaseDynamicMeshSelector::UpdateAfterGeometryEdit(
+	IToolsContextTransactionsAPI* TransactionsAPI,
+	bool bInTransaction,
+	TUniquePtr<FDynamicMeshChange> DynamicMeshChange,
+	FText GeometryEditTransactionString)
+{
+	TransactionsAPI->AppendChange(GetDynamicMesh(),
+		MakeUnique<FMeshChange>(MoveTemp(DynamicMeshChange)), GeometryEditTransactionString);
+}
+
+
+
 void FBaseDynamicMeshSelector::UpdateColliderMesh()
 {
 	// should we transform to world??
@@ -906,6 +922,7 @@ void FBasicDynamicMeshSelectionTransformer::EndTransform(IToolsContextTransactio
 		OnEndTransformFunc(TransactionsAPI);
 	}
 }
+
 
 
 void FBasicDynamicMeshSelectionTransformer::PreviewRender(IToolsContextRenderAPI* RenderAPI)

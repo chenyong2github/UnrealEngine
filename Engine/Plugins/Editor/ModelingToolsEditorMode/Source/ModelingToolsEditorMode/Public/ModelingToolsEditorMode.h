@@ -21,6 +21,7 @@ class UModelingSceneSnappingManager;
 class UModelingSelectionInteraction;
 class UGeometrySelectionManager;
 class UInteractiveCommand;
+class UBlueprint;
 
 UCLASS(Transient)
 class UModelingToolsEditorMode : public UBaseLegacyWidgetEdMode, public ILegacyEdModeSelectInterface
@@ -148,6 +149,9 @@ protected:
 	void CancelActiveToolActionOrTool();
 
 	void ConfigureRealTimeViewportsOverride(bool bEnable);
+
+	FDelegateHandle BlueprintPreCompileHandle;
+	void OnBlueprintPreCompile(UBlueprint* Blueprint);
 
 
 	// UInteractiveCommand support. Currently implemented by creating instances of

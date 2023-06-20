@@ -349,7 +349,10 @@ bool UGeometrySelectionManager::AddActiveTarget(FGeometryIdentifier TargetIdenti
 	}
 
 	TSharedPtr<FGeometrySelectionTarget> SelectionTarget = GetCachedTarget(TargetIdentifier, UseFactory);
-	check(SelectionTarget != nullptr);
+	if (SelectionTarget.IsValid() == false)
+	{
+		return false;
+	}
 
 	ActiveTargetMap.Add(TargetIdentifier, SelectionTarget);
 	ActiveTargetReferences.Add(SelectionTarget);
@@ -536,12 +539,17 @@ TSharedPtr<UGeometrySelectionManager::FGeometrySelectionTarget> UGeometrySelecti
 	}
 
 	// if we are in a situation where we don't have a cache, currently we need the Factory to exist?
-	check(UseFactory != nullptr);
+	if (UseFactory == nullptr)
+	{
+		return nullptr;
+	}
 
 	// selector has to be built properly
 	TUniquePtr<IGeometrySelector> Selector = UseFactory->BuildForTarget(TargetIdentifier);
-	// not going to handle this for now...
-	check(Selector.IsValid());
+	if (Selector.IsValid() == false)
+	{
+		return nullptr;
+	}
 
 	TSharedPtr<FGeometrySelectionTarget> SelectionTarget = MakeShared<FGeometrySelectionTarget>();
 	SelectionTarget->Selector = MoveTemp(Selector);

@@ -13,6 +13,7 @@
 #include "Operations/SimpleHoleFiller.h"
 #include "MeshRegionBoundaryLoops.h"
 #include "DynamicMesh/MeshIndexUtil.h"
+#include "Selection/DynamicMeshSelector.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RetriangulateGeometrySelectionCommand)
 
@@ -38,6 +39,13 @@ bool URetriangulateGeometrySelectionCommand::CanExecuteCommandForSelection(UGeom
 
 void URetriangulateGeometrySelectionCommand::ExecuteCommandForSelection(UGeometrySelectionEditCommandArguments* SelectionArgs, UInteractiveCommandResult** Result)
 {
+	IGeometrySelector* BaseSelector = SelectionArgs->SelectionHandle.Selector;
+	if (!ensure(BaseSelector != nullptr))
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("URetriangulateGeometrySelectionCommand: Retriangulate Selection requires Selector be provided in Selection Arguments"));
+		return;
+	}
+
 	if (Result != nullptr)
 	{
 		*Result = nullptr;
@@ -46,6 +54,11 @@ void URetriangulateGeometrySelectionCommand::ExecuteCommandForSelection(UGeometr
 	// should have been verified by CanExecute
 	check(SelectionArgs->IsMatchingType(FGeometryIdentifier::ETargetType::MeshContainer, FGeometryIdentifier::EObjectType::DynamicMesh));
 	
+	// TODO: extremely hardcoded behavior right here. Need a way to make this more generic, however
+	// having the UpdateAfterGeometryEdit function in the base GeometrySelector does not make sense as 
+	// it is specific to meshes. Probably this Command needs to be specialized for Mesh Edits.
+	FBaseDynamicMeshSelector* BaseDynamicMeshSelector = static_cast<FBaseDynamicMeshSelector*>(BaseSelector);
+
 	// collect up all our inputs
 	UDynamicMesh* MeshObject = SelectionArgs->SelectionHandle.Identifier.GetAsObjectType<UDynamicMesh>();
 	check(MeshObject != nullptr);
@@ -170,8 +183,8 @@ void URetriangulateGeometrySelectionCommand::ExecuteCommandForSelection(UGeometr
 	if ( bTrackChanges && DynamicMeshChange.IsValid() )
 	{
 		SelectionArgs->GetTransactionsAPI()->BeginUndoTransaction(GetCommandShortString());
-		SelectionArgs->GetTransactionsAPI()->AppendChange(MeshObject, 
-			MakeUnique<FMeshChange>(MoveTemp(DynamicMeshChange)), GetCommandShortString());
+		BaseDynamicMeshSelector->UpdateAfterGeometryEdit(
+			SelectionArgs->GetTransactionsAPI(), true, MoveTemp(DynamicMeshChange), GetCommandShortString());
 		SelectionArgs->GetTransactionsAPI()->EndUndoTransaction();
 	}
 

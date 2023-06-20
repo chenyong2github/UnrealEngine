@@ -200,6 +200,29 @@ void FVolumeSelector::ShutdownTransformation(IGeometrySelectionTransformer* Tran
 }
 
 
+
+void FVolumeSelector::UpdateAfterGeometryEdit(
+	IToolsContextTransactionsAPI* TransactionsAPI,
+	bool bInTransaction,
+	TUniquePtr<FDynamicMeshChange> DynamicMeshChange,
+	FText GeometryEditTransactionString)
+{
+	if (!bInTransaction)
+	{
+		TransactionsAPI->BeginUndoTransaction(GeometryEditTransactionString);
+	}
+
+	CommitMeshTransform();
+
+	if (!bInTransaction)
+	{
+		TransactionsAPI->EndUndoTransaction();
+	}
+}
+
+
+
+
 void FVolumeSelector::CommitMeshTransform()
 {
 	FTransform SetTransform = ParentVolume->GetActorTransform();
