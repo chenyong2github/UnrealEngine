@@ -5450,11 +5450,18 @@ bool MakeBinaryConfig(const TCHAR* CmdLine)
  */
 bool ExecuteUnrealPak(const TCHAR* CmdLine)
 {
-	FString IoStoreArg;
-	if (FParse::Value(CmdLine, TEXT("-CreateGlobalContainer="), IoStoreArg) ||
-		FParse::Value(CmdLine, TEXT("-CreateDLCContainer="), IoStoreArg))
 	{
-		return CreateIoStoreContainerFiles(CmdLine) == 0;
+		FString IoStoreArg;
+		if (FParse::Value(CmdLine, TEXT("-CreateGlobalContainer="), IoStoreArg) ||
+			FParse::Value(CmdLine, TEXT("-CreateDLCContainer="), IoStoreArg))
+		{
+			return CreateIoStoreContainerFiles(CmdLine) == 0;
+		}
+
+		if (FParse::Value(CmdLine, TEXT("-Upload="), IoStoreArg))
+		{
+			return UploadIoStoreContainerFiles(*IoStoreArg) == 0;
+		}
 	}
 
 	// Parse all the non-option arguments from the command line

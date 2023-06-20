@@ -11,11 +11,18 @@
 #include "Misc/Base64.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Parse.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "String/LexFromString.h"
+
+#if (IS_PROGRAM || WITH_EDITOR)
+#include "Async/Async.h"
+#include "Misc/FileHelper.h"
+#include "S3/S3Client.h"
+#endif // (IS_PROGRAM || WITH_EDITOR)
 
 DEFINE_LOG_CATEGORY(LogIas);
 
@@ -226,6 +233,8 @@ FCbWriter& operator<<(FCbWriter& Writer, const FOnDemandTocContainerEntry& Conta
 	}
 	Writer.EndArray();
 
+	Writer.AddHash(UTF8TEXTVIEW("UTocHash"), ContainerEntry.UTocHash);
+
 	Writer.EndObject();
 
 	return Writer;
@@ -261,6 +270,8 @@ bool LoadFromCompactBinary(FCbFieldView Field, FOnDemandTocContainerEntry& OutCo
 		{
 			OutContainer.BlockHashes.Add(ArrayField.AsHash());
 		}
+
+		OutContainer.UTocHash = Obj["UTocHash"].AsHash();
 
 		return true;
 	}
@@ -343,6 +354,498 @@ bool LoadFromCompactBinary(FCbFieldView Field, FOnDemandToc& OutToc)
 	return false;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+#if (IS_PROGRAM || WITH_EDITOR)
+class FS3UploadQueue
+{
+public:
+	FS3UploadQueue(FS3Client& Client, const FString& Bucket, int32 ThreadCount);
+	bool Enqueue(const FString& Key, FIoBuffer Payload);
+	bool Flush();
+
+private:
+	void ThreadEntry();
+
+	struct FQueueEntry
+	{
+		FString Key;
+		FIoBuffer Payload;
+	};
+
+	FS3Client& Client;
+	TArray<TFuture<void>> Threads;
+	FString Bucket;
+	FCriticalSection CriticalSection;
+	TQueue<FQueueEntry> Queue;
+	FEventRef WakeUpEvent;
+	FEventRef UploadCompleteEvent;
+	std::atomic_int32_t ConcurrentUploads{0};
+	std::atomic_int32_t ActiveThreadCount{0};
+	std::atomic_int32_t ErrorCount{0};
+	std::atomic_bool bCompleteAdding{false};
+};
+
+FS3UploadQueue::FS3UploadQueue(FS3Client& InClient, const FString& InBucket, int32 ThreadCount)
+	: Client(InClient)
+	, Bucket(InBucket)
+{
+	ActiveThreadCount = ThreadCount;
+	for (int32 Idx = 0; Idx < ThreadCount; ++Idx)
+	{
+		Threads.Add(AsyncThread([this]()
+		{
+			ThreadEntry();
+		}));
+	}
+}
+
+bool FS3UploadQueue::Enqueue(const FString& Key, FIoBuffer Payload)
+{
+	if (ActiveThreadCount == 0)
+	{
+		return false;
+	}
+
+	for(;;)
+	{
+		bool bEnqueued = false;
+		{
+			FScopeLock _(&CriticalSection);
+			if (ConcurrentUploads < Threads.Num())
+			{
+				bEnqueued = Queue.Enqueue(FQueueEntry {Key, Payload});
+			}
+		}
+
+		if (bEnqueued)
+		{
+			WakeUpEvent->Trigger();
+			break;
+		}
+
+		UploadCompleteEvent->Wait();
+	}
+
+	return true;
+}
+
+void FS3UploadQueue::ThreadEntry()
+{
+	for(;;)
+	{
+		FQueueEntry Entry;
+		bool bDequeued = false;
+		{
+			FScopeLock _(&CriticalSection);
+			bDequeued = Queue.Dequeue(Entry);
+		}
+
+		if (!bDequeued)
+		{
+			if (bCompleteAdding)
+			{
+				break;
+			}
+			WakeUpEvent->Wait();
+			continue;
+		}
+
+		ConcurrentUploads++;
+		const FS3PutObjectResponse Response = Client.TryPutObject(FS3PutObjectRequest{Bucket, Entry.Key, Entry.Payload.GetView()});
+		ConcurrentUploads--;
+		UploadCompleteEvent->Trigger();
+
+		if (Response.IsOk())
+		{
+			UE_LOG(LogIas, Display, TEXT("Uploaded chunk '%s/%s/%s'"), *Client.GetConfig().ServiceUrl, *Bucket, *Entry.Key);
+		}
+		else
+		{
+			UE_LOG(LogIas, Warning, TEXT("Failed to upload chunk '%s/%s/%s', StatusCode: %u"), *Client.GetConfig().ServiceUrl, *Bucket, *Entry.Key, Response.StatusCode);
+			ErrorCount++;
+			break;
+		}
+	}
+
+	ActiveThreadCount--;
+}
+
+bool FS3UploadQueue::Flush()
+{
+	bCompleteAdding = true;
+	for (int32 Idx = 0; Idx < Threads.Num(); ++Idx)
+	{
+		WakeUpEvent->Trigger();
+	}
+
+	for (TFuture<void>& Thread : Threads)
+	{
+		Thread.Wait();
+	}
+
+	return ErrorCount == 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+TIoStatusOr<FIoStoreUploadParams> FIoStoreUploadParams::Parse(const TCHAR* CommandLine)
+{
+	FIoStoreUploadParams Params;
+
+	if (!FParse::Value(CommandLine, TEXT("Bucket="), Params.Bucket))
+	{
+		FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Invalid bucket name"));
+	}
+
+	FParse::Value(CommandLine, TEXT("BucketPrefix="), Params.BucketPrefix);
+	FParse::Value(CommandLine, TEXT("ServiceUrl="), Params.ServiceUrl);
+	FParse::Value(CommandLine, TEXT("Region="), Params.Region);
+	FParse::Value(CommandLine, TEXT("AccessKey="), Params.AccessKey);
+	FParse::Value(CommandLine, TEXT("SecretKey="), Params.SecretKey);
+	FParse::Value(CommandLine, TEXT("SessionToken="), Params.SessionToken);
+	FParse::Value(CommandLine, TEXT("CredentialsFile="), Params.CredentialsFile);
+	FParse::Value(CommandLine, TEXT("CredentialsFileKeyName="), Params.CredentialsFileKeyName);
+	Params.bDeleteContainerFiles = FParse::Param(CommandLine, TEXT("KeepUploadedContainers")) == false;
+
+	if (Params.AccessKey.IsEmpty() &&
+		Params.SecretKey.IsEmpty() &&
+		Params.CredentialsFile.IsEmpty() &&
+		Params.CredentialsFileKeyName.IsEmpty())
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Invalid credentials"));
+	}
+	
+	if (!Params.AccessKey.IsEmpty() && Params.SecretKey.IsEmpty())
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Invalid secret key"));
+	}
+	else if (Params.AccessKey.IsEmpty() && !Params.SecretKey.IsEmpty())
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Invalid access key"));
+	}
+
+	if (!Params.CredentialsFile.IsEmpty() && Params.CredentialsFileKeyName.IsEmpty())
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Invalid credential file key name"));
+	}
+
+	if (Params.ServiceUrl.IsEmpty() && Params.Region.IsEmpty())
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Service URL or AWS region needs to be specified"));
+	}
+
+	return Params;
+}
+
+TIoStatusOr<FIoStoreUploadResult> UploadContainerFiles(
+	const FIoStoreUploadParams& UploadParams,
+	TConstArrayView<FString> ContainerFiles,
+	const TMap<FGuid, FAES::FAESKey>& EncryptionKeys)
+{
+	FS3ClientConfig Config;
+	Config.ServiceUrl = UploadParams.ServiceUrl;
+	Config.Region = UploadParams.Region;
+	
+	FS3ClientCredentials Credentials;
+	if (UploadParams.CredentialsFile.IsEmpty() == false)
+	{
+		UE_LOG(LogIas, Display, TEXT("Loading credentials file '%s'"), *UploadParams.CredentialsFile);
+		FS3CredentialsProfileStore CredentialsStore = FS3CredentialsProfileStore::FromFile(UploadParams.CredentialsFile);
+		if (CredentialsStore.TryGetCredentials(UploadParams.CredentialsFileKeyName, Credentials) == false)
+		{
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Failed to find valid credentials in credentials file"));
+		}
+		else
+		{
+			UE_LOG(LogIas, Display, TEXT("Found credentials for '%s'"), *UploadParams.CredentialsFileKeyName);
+		}
+	}
+	else
+	{
+		Credentials = FS3ClientCredentials(UploadParams.AccessKey, UploadParams.SecretKey, UploadParams.SessionToken);
+	}
+
+	FS3Client Client(Config, Credentials);
+	FS3UploadQueue UploadQueue(Client, UploadParams.Bucket, UploadParams.MaxConcurrentUploads);
+
+	if (ContainerFiles.Num() == 0)
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("No container file(s) specified"));
+	}
+
+	TSet<FIoHash> ExistingChunks;
+	{
+		TStringBuilder<256> TocsKey;
+		TocsKey << UploadParams.BucketPrefix << "/";
+
+		UE_LOG(LogIas, Display, TEXT("Fetching TOC's '%s/%s/%s'"), *Client.GetConfig().ServiceUrl, *UploadParams.Bucket, TocsKey.ToString());
+		FS3ListObjectResponse Response = Client.ListObjects(FS3ListObjectsRequest
+		{
+			UploadParams.Bucket,
+			TocsKey.ToString(),
+			TEXT('/')
+		});
+
+		for (const FS3Object& TocInfo : Response.Objects)
+		{
+			if (TocInfo.Key.EndsWith(TEXT("iochunktoc")) == false)
+			{
+				continue;
+			}
+
+			UE_LOG(LogIas, Display, TEXT("Fetching TOC '%s/%s/%s'"), *Client.GetConfig().ServiceUrl, *UploadParams.Bucket, *TocInfo.Key);
+			FS3GetObjectResponse TocResponse = Client.GetObject(FS3GetObjectRequest
+			{
+				UploadParams.Bucket,
+				TocInfo.Key
+			});
+			
+			if (TocResponse.IsOk() == false)
+			{
+				UE_LOG(LogIas, Warning, TEXT("Failed to fetch TOC '%s/%s/%s'"), *Client.GetConfig().ServiceUrl, *UploadParams.Bucket, *TocInfo.Key);
+				continue;
+			}
+
+			FOnDemandToc Toc;
+			if (UE::LoadFromCompactBinary(FCbFieldView(TocResponse.Body.GetData()), Toc) == false)
+			{
+				UE_LOG(LogIas, Warning, TEXT("Failed to load TOC '%s/%s/%s'"), *Client.GetConfig().ServiceUrl, *UploadParams.Bucket, *TocInfo.Key);
+				continue;
+			}
+
+			for (const FOnDemandTocContainerEntry& ContainerEntry : Toc.Containers)
+			{
+				for (const FOnDemandTocEntry& TocEntry : ContainerEntry.Entries)
+				{
+					ExistingChunks.Add(TocEntry.Hash);
+				}
+			}
+		}
+	}
+	UE_LOG(LogIas, Display, TEXT("Found %d existing chunks"), ExistingChunks.Num());
+	
+	FString ChunksRelativePath = UploadParams.BucketPrefix.IsEmpty()
+		? FString::Printf(TEXT("IoChunksV%u"), EOnDemandChunkVersion::Latest)
+		: FString::Printf(TEXT("%s/IoChunksV%u"), *UploadParams.BucketPrefix, EOnDemandChunkVersion::Latest);
+
+	ChunksRelativePath.ToLowerInline();
+
+	uint64 TotalUploadedChunks = 0;
+	uint64 TotalUploadedBytes = 0;
+
+	FOnDemandToc OnDemandToc;
+	OnDemandToc.Header.ChunksDirectory = FString::Printf(TEXT("IoChunksV%u"), EOnDemandChunkVersion::Latest).ToLower();
+
+	TArray<FString> UploadedFiles;
+	for (const FString& Path : ContainerFiles)
+	{
+		FIoStoreReader ContainerFileReader;
+		{
+			FIoStatus Status = ContainerFileReader.Initialize(*FPaths::ChangeExtension(Path, TEXT("")), EncryptionKeys);
+			if (!Status.IsOk())
+			{
+				UE_LOG(LogIas, Error, TEXT("Failed to open container '%s' for reading"), *Path);
+				continue;
+			}
+		}
+
+		if (EnumHasAnyFlags(ContainerFileReader.GetContainerFlags(), EIoContainerFlags::OnDemand) == false)
+		{
+			UE_LOG(LogIas, Display, TEXT("Skipping non ondemand container '%s'"), *Path);
+			continue;
+		}
+		
+		UE_LOG(LogIas, Display, TEXT("Uploading container '%s/.ucas'"), *Path);
+
+		const uint32 BlockSize = ContainerFileReader.GetCompressionBlockSize();
+		if (OnDemandToc.Header.BlockSize == 0)
+		{
+			OnDemandToc.Header.BlockSize = ContainerFileReader.GetCompressionBlockSize();
+		}
+		check(OnDemandToc.Header.BlockSize == ContainerFileReader.GetCompressionBlockSize());
+
+		TArray<FIoStoreTocChunkInfo> ChunkInfos;
+		ContainerFileReader.EnumerateChunks([&ChunkInfos](FIoStoreTocChunkInfo&& Info)
+		{ 
+			ChunkInfos.Emplace(MoveTemp(Info));
+			return true;
+		});
+		
+		FOnDemandTocContainerEntry& ContainerEntry = OnDemandToc.Containers.AddDefaulted_GetRef();
+		ContainerEntry.ContainerName = FPaths::GetBaseFilename(Path);
+		ContainerEntry.EncryptionKeyGuid = LexToString(ContainerFileReader.GetEncryptionKeyGuid());
+		
+		for (const FIoStoreTocChunkInfo& ChunkInfo : ChunkInfos)
+		{
+			const bool bDecrypt = false;
+			TIoStatusOr<FIoStoreCompressedReadResult> Status = ContainerFileReader.ReadCompressed(ChunkInfo.Id, FIoReadOptions(), bDecrypt);
+			if (!Status.IsOk())
+			{
+				return Status.Status();
+			}
+
+			FIoStoreCompressedReadResult ReadResult = Status.ConsumeValueOrDie();
+
+			const uint32 BlockOffset = ContainerEntry.BlockSizes.Num();
+			const uint32 BlockCount = ReadResult.Blocks.Num();
+			const FIoHash ChunkHash = FIoHash::HashBuffer(ReadResult.IoBuffer.GetView());
+
+			FMemoryView EncodedBlocks = ReadResult.IoBuffer.GetView();
+			uint64 RawChunkSize = 0;
+			uint64 EncodedChunkSize = 0;
+			for (const FIoStoreCompressedBlockInfo& BlockInfo : ReadResult.Blocks)
+			{
+				const uint64 EncodedBlockSize = Align(BlockInfo.CompressedSize, FAES::AESBlockSize);
+				ContainerEntry.BlockSizes.Add(EncodedBlockSize);
+
+				FMemoryView EncodedBlock = EncodedBlocks.Left(EncodedBlockSize);
+				EncodedBlocks += EncodedBlock.GetSize();
+				ContainerEntry.BlockHashes.Add(FIoHash::HashBuffer(EncodedBlock));
+
+				EncodedChunkSize += EncodedBlockSize;
+				RawChunkSize += BlockInfo.UncompressedSize;
+
+				if (OnDemandToc.Header.CompressionFormat.IsEmpty() && BlockInfo.CompressionMethod != NAME_None)
+				{
+					OnDemandToc.Header.CompressionFormat = BlockInfo.CompressionMethod.ToString();
+				}
+			}
+
+			if (EncodedChunkSize != ReadResult.IoBuffer.GetSize())
+			{
+				return FIoStatus(EIoErrorCode::ReadError, TEXT("Encoded chunk size does not match buffer"));
+			}
+
+			FOnDemandTocEntry& TocEntry = ContainerEntry.Entries.AddDefaulted_GetRef();
+			TocEntry.ChunkId = ChunkInfo.Id;
+			TocEntry.Hash = ChunkHash;
+			TocEntry.RawHash = ChunkInfo.Hash.ToIoHash();
+			TocEntry.RawSize = RawChunkSize;
+			TocEntry.EncodedSize = EncodedChunkSize;
+			TocEntry.BlockOffset = BlockOffset;
+			TocEntry.BlockCount = BlockCount;
+
+			if (ExistingChunks.Contains(TocEntry.Hash) == false)
+			{
+				const FString HashString = LexToString(ChunkHash);
+
+				TStringBuilder<256> Key;
+				Key << ChunksRelativePath
+					<< TEXT("/") << HashString.Left(2)
+					<< TEXT("/") << HashString
+					<< TEXT(".iochunk");
+
+				const bool bEnqueued = UploadQueue.Enqueue(Key.ToString(), ReadResult.IoBuffer);
+
+				if (bEnqueued)
+				{
+					UE_LOG(LogIas, Display, TEXT("Uploaded chunk '%s/%s/%s'"), *Client.GetConfig().ServiceUrl, *UploadParams.Bucket, Key.ToString());
+				}
+				else
+				{
+					return FIoStatus(EIoErrorCode::WriteError, TEXT("Failed to upload chunk"));
+				}
+
+				TotalUploadedChunks++;
+				TotalUploadedBytes += ReadResult.IoBuffer.GetSize();
+			}
+		}
+
+		{
+			const FString UTocFilePath = FPaths::ChangeExtension(Path, TEXT(".utoc"));
+			TArray<uint8> Buffer;
+			if (!FFileHelper::LoadFileToArray(Buffer, *UTocFilePath))
+			{
+				return FIoStatus(EIoErrorCode::ReadError, TEXT("Failed to upload .utoc file"));
+			}
+
+			ContainerEntry.UTocHash = FIoHash::HashBuffer(Buffer.GetData(), Buffer.Num());
+			TStringBuilder<256> Key;
+			if (UploadParams.BucketPrefix.IsEmpty() == false)
+			{
+				Key << UploadParams.BucketPrefix.ToLower() << TEXT("/");
+			}
+			Key << LexToString(ContainerEntry.UTocHash) << TEXT(".utoc");
+
+			const FS3PutObjectResponse Response = Client.TryPutObject(
+				FS3PutObjectRequest{UploadParams.Bucket, Key.ToString(), MakeMemoryView(Buffer.GetData(), Buffer.Num())});
+
+			if (Response.IsOk())
+			{
+				UE_LOG(LogIas, Display, TEXT("Uploaded '%s'"), *UTocFilePath);
+			}
+			else
+			{
+				return FIoStatus(EIoErrorCode::WriteError, FString::Printf(TEXT("Failed to upload '%s', StatusCode: %u"), *UTocFilePath, Response.StatusCode));
+			}
+		}
+		
+		UploadedFiles.Add(Path);
+	}
+
+	if (OnDemandToc.Containers.IsEmpty())
+	{
+		return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("No container file(s) marked as on demand"));
+	}
+
+	if (!UploadQueue.Flush())
+	{
+		return FIoStatus(EIoErrorCode::WriteError, TEXT("Failed to upload chunk(s)"));
+	}
+
+	FIoStoreUploadResult UploadResult;
+	{
+		FCbWriter Writer;
+		Writer << OnDemandToc;
+
+		FLargeMemoryWriter Ar;
+		SaveCompactBinary(Ar, Writer.Save());
+
+		UploadResult.TocHash = FIoHash::HashBuffer(Ar.GetView());
+		TStringBuilder<256> Key;
+		if (UploadParams.BucketPrefix.IsEmpty() == false)
+		{
+			Key << UploadParams.BucketPrefix.ToLower() << TEXT("/");
+		}
+		Key << LexToString(UploadResult.TocHash) << TEXT(".iochunktoc");
+
+		UploadResult.TocPath = Key.ToString();
+
+		const FS3PutObjectResponse Response = Client.TryPutObject(FS3PutObjectRequest{UploadParams.Bucket, Key.ToString(), Ar.GetView()});
+		if (Response.IsOk())
+		{
+			UE_LOG(LogIas, Display, TEXT("Uploaded on demand TOC '%s/%s/%s'"), *Client.GetConfig().ServiceUrl, *UploadParams.Bucket, Key.ToString());
+		}
+		else
+		{
+			UE_LOG(LogIas, Warning, TEXT("Failed to upload TOC '%s/%s/%s', StatusCode: %u"), *Client.GetConfig().ServiceUrl, *UploadParams.Bucket, Key.ToString(), Response.StatusCode);
+			return FIoStatus(EIoErrorCode::WriteError, TEXT("Failed to upload TOC"));
+		}
+	}
+
+	if (UploadParams.bDeleteContainerFiles)
+	{
+		for (const FString& TocPath : UploadedFiles)
+		{
+			const FString CasPath = FPaths::ChangeExtension(TocPath, TEXT(".ucas"));
+			const TCHAR* FilePaths[] {*TocPath, *CasPath};
+			for (const TCHAR* FilePath : FilePaths)
+			{
+				if (IFileManager::Get().FileExists(FilePath))
+				{
+					UE_LOG(LogIas, Display, TEXT("Deleting '%s'"), FilePath); 
+					IFileManager::Get().Delete(FilePath);
+				}
+			}
+		}
+	}
+	
+	UE_LOG(LogIas, Display, TEXT("Done uploading %d container file(s), %d chunks of total %.2lf MiB"),
+		UploadedFiles.Num(), TotalUploadedChunks, (double(TotalUploadedBytes) / 1024 / 1024));
+	
+	return UploadResult;
+}
+#endif // (IS_PROGRAM || WITH_EDITOR)
+
 } // namespace UE
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -384,7 +887,7 @@ void FIoStoreOnDemandModule::StartupModule()
 
 	{
 		FString EncryptionKey;
-		if (FParse::Value(CommandLine, TEXT("Ias.EncryptionKey="), EncryptionKey))
+		if (FParse::Value(CommandLine, TEXT("IasEncryptionKey="), EncryptionKey))
 		{
 			FGuid KeyGuid;
 			FAES::FAESKey Key;

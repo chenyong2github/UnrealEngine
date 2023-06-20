@@ -194,6 +194,8 @@ public:
 	FS3ListObjectResponse ListObjects(const FS3ListObjectsRequest& Request);
 	/** Upload an object described by the specified request parameters. */
 	FS3PutObjectResponse PutObject(const FS3PutObjectRequest& Request);
+	/** Retries uploading an object until succeeded or max attempts has been reached. */
+	FS3PutObjectResponse TryPutObject(const FS3PutObjectRequest& Request, int32 MaxAttempts = 3, float Delay = 0.5f);
 
 private:
 	void Setup(FS3Request& Request);

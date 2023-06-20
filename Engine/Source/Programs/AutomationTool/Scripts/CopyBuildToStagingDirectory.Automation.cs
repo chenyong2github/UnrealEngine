@@ -281,7 +281,7 @@ namespace AutomationScripts
 			string ContainerName,
 			FileReference PakOutputLocation,
 			DirectoryReference OptionalOutputLocation,
-			DirectoryReference OnDemandOutputLocation,
+			bool bOnDemand,
 			bool bCompressed,
 			DirectoryReference OptionalStageLooseFileRootPath,
 			EncryptionAndSigning.CryptoSettings CryptoSettings,
@@ -291,16 +291,7 @@ namespace AutomationScripts
 			bool bIsDLC)
 		{
 			StringBuilder CmdLine = new StringBuilder();
-
-			if (OnDemandOutputLocation != null)
-			{
-				FileReference OnDemandPakOutPutLocation = FileReference.Combine(OnDemandOutputLocation, ContainerName);
-				CmdLine.AppendFormat(" -OnDemandOutput={0}", MakePathSafeToUseWithCommandLine(OnDemandOutputLocation.FullName));
-			}
-			else
-			{
-				CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
-			}
+			CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
 
 			if (OptionalOutputLocation != null)
 			{
@@ -345,6 +336,11 @@ namespace AutomationScripts
 				{
 					CmdLine.AppendFormat(" -sign");
 				}
+			}
+
+			if (bOnDemand)
+			{
+				CmdLine.AppendFormat(" -OnDemand");
 			}
 
 			return CmdLine.ToString();
@@ -3260,13 +3256,11 @@ namespace AutomationScripts
 				OutputFilename = OutputFilename + PostFix;
 
 				StagedFileReference OutputRelativeLocation;
-				StagedDirectoryReference OnDemandOutputRelativeLocation;
 				if (Params.HasDLCName)
 				{
 					if (Params.DLCOverrideStagedSubDir != null)
 					{
 						OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, Params.DLCOverrideStagedSubDir, "Content", "Paks", Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename + ".pak");
-						OnDemandOutputRelativeLocation = StagedDirectoryReference.Combine(SC.RelativeProjectRootForStage, Params.DLCOverrideStagedSubDir, "ContentOnDemand");
 					}
 					else
 					{
@@ -3281,13 +3275,11 @@ namespace AutomationScripts
 							PluginSubdirectory = Params.DLCFile.GetFileNameWithoutAnyExtensions();
 						}
 						OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, PluginSubdirectory, "Content", "Paks", SC.FinalCookPlatform, Params.DLCFile.GetFileNameWithoutExtension() + OutputFilename + ".pak");
-						OnDemandOutputRelativeLocation = StagedDirectoryReference.Combine(SC.RelativeProjectRootForStage, PluginSubdirectory, "ContentOnDemand");
 					}
 				}
 				else
 				{
 					OutputRelativeLocation = StagedFileReference.Combine(SC.RelativeProjectRootForStage, "Content", "Paks", OutputFilename + OutputFilenameExtension);
-					OnDemandOutputRelativeLocation = StagedDirectoryReference.Combine(SC.RelativeProjectRootForStage, "ContentOnDemand");
 				}
 				if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.UFS))
 				{
@@ -3295,12 +3287,7 @@ namespace AutomationScripts
 				}
 				OutputRelativeLocation = SC.StageTargetPlatform.Remap(OutputRelativeLocation);
 				
-				//TODO: Do we need to remap the ondemand output location?
-				//OnDemandOutputRelativeLocation = SC.StageTargetPlatform.Remap(OnDemandOutputRelativeLocation);
-
 				FileReference OutputLocation = FileReference.Combine(SC.RuntimeRootDir, OutputRelativeLocation.Name);
-				DirectoryReference OnDemandOutputLocation = DirectoryReference.Combine(SC.RuntimeRootDir, OnDemandOutputRelativeLocation.Name);
-
 				bool bCopiedExistingPak = false;
 
 				if (!PakParams.bOnDemand && !PakParams.bStageLoose && SC.StageTargetPlatform != SC.CookSourcePlatform && !Params.IgnorePaksFromDifferentCookSource)
@@ -3441,7 +3428,7 @@ namespace AutomationScripts
 								OutputLocation.GetFileNameWithoutAnyExtensions(),
 								OutputLocation,
 								SC.OptionalFileStageDirectory,
-								PakParams.bOnDemand ? OnDemandOutputLocation : null,
+								PakParams.bOnDemand,
 								bCompressContainers,
 								StageLooseFileRootPath,
 								CryptoSettings,

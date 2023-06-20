@@ -10,6 +10,11 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 
+#if (IS_PROGRAM || WITH_EDITOR)
+#include "Misc/AES.h"
+#include "Containers/Map.h"
+#endif // (IS_PROGRAM || WITH_EDITOR)
+
 #define UE_API IOSTOREONDEMAND_API
 
 class FCbWriter;
@@ -28,6 +33,7 @@ enum class EOnDemandTocVersion : uint32
 {
 	Invalid			= 0,
 	Initial			= 1,
+	UTocHash		= 2,
 
 	LatestPlusOne,
 	Latest			= (LatestPlusOne - 1)
@@ -80,6 +86,7 @@ struct FOnDemandTocContainerEntry
 	TArray<FOnDemandTocEntry> Entries;
 	TArray<uint32> BlockSizes;
 	TArray<FIoHash> BlockHashes;
+	FIoHash UTocHash;
 
 	UE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FOnDemandTocContainerEntry& ContainerEntry);
 };
@@ -98,21 +105,36 @@ struct FOnDemandToc
 
 UE_API bool LoadFromCompactBinary(FCbFieldView Field, FOnDemandToc& OutToc);
 
-////////////////////////////////////////////////////////////////////////////////
 #if (IS_PROGRAM || WITH_EDITOR)
 
-class IOnDemandIoStoreWriter
+////////////////////////////////////////////////////////////////////////////////
+struct FIoStoreUploadParams
 {
-public:
-	virtual ~IOnDemandIoStoreWriter() = default;
-	virtual TSharedPtr<IIoStoreWriter> CreateContainer(const FString& ContainerName, const FIoContainerSettings& ContainerSettings) = 0;
-	virtual void Flush() = 0;
+	FString ServiceUrl;
+	FString Bucket;
+	FString BucketPrefix;
+	FString Region; 
+	FString AccessKey;
+	FString SecretKey;
+	FString SessionToken;
+	FString CredentialsFile;
+	FString CredentialsFileKeyName;
+	int32 MaxConcurrentUploads = 16;
+	bool bDeleteContainerFiles = true;
+	
+	UE_API static TIoStatusOr<FIoStoreUploadParams> Parse(const TCHAR* CommandLine);
 };
 
-UE_API TUniquePtr<IOnDemandIoStoreWriter> MakeOnDemandIoStoreWriter(
-	const FIoStoreWriterSettings& WriterSettings,
-	const FString& OutputDirectory,
-	uint32 MaxConcurrentWrites = 64);
+struct FIoStoreUploadResult
+{
+	FIoHash TocHash;
+	FString TocPath;
+};
+
+UE_API TIoStatusOr<FIoStoreUploadResult> UploadContainerFiles(
+	const FIoStoreUploadParams& UploadParams,
+	TConstArrayView<FString> ContainerFiles,
+	const TMap<FGuid, FAES::FAESKey>& EncryptionKeys);
 
 #endif // (IS_PROGRAM || WITH_EDITOR)
 

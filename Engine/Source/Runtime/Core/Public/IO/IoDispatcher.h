@@ -123,6 +123,13 @@ public:
 		return BytesToHex(Hash, 20);
 	}
 
+	FIoHash ToIoHash() const
+	{
+		FIoHash IoHash;
+		FMemory::Memcpy(IoHash.GetBytes(), Hash, sizeof(FIoHash));
+		return IoHash;
+	}
+
 	static FIoChunkHash CreateFromIoHash(const FIoHash& IoHash)
 	{
 		FIoChunkHash Result;
@@ -725,7 +732,7 @@ public:
 	// in FIoStoreCompressedReadResult::FIoBuffer as a contiguous buffer, however each block is padded during encryption, so
 	// either use FIoStoreCompressedBlockInfo::AlignedSize to advance through the buffer, or use FIoStoreCompressedBlockInfo::OffsetInBuffer
 	// directly.
-	CORE_API TIoStatusOr<FIoStoreCompressedReadResult> ReadCompressed(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
+	CORE_API TIoStatusOr<FIoStoreCompressedReadResult> ReadCompressed(const FIoChunkId& Chunk, const FIoReadOptions& Options, bool bDecrypt = true) const;
 
 	CORE_API const FIoDirectoryIndexReader& GetDirectoryIndexReader() const;
 

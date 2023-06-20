@@ -2,6 +2,7 @@
 
 #include "S3/S3Client.h"
 #include "Containers/ChunkedArray.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 
@@ -308,11 +309,11 @@ FS3CredentialsProfileStore FS3CredentialsProfileStore::FromFile(const FString& F
 			FS3ClientCredentials Credentials;
 			if (const FConfigValue* SessionToken = Section.Find(TEXT("aws_session_token")))
 			{
-				Credentials = FS3ClientCredentials(AccessKey ->GetValue(), SecretKey->GetValue(), SessionToken->GetValue());
+				Credentials = FS3ClientCredentials(AccessKey->GetValue(), SecretKey->GetValue(), SessionToken->GetValue());
 			}
 			else
 			{
-				Credentials = FS3ClientCredentials(AccessKey ->GetValue(), SecretKey->GetValue());
+				Credentials = FS3ClientCredentials(AccessKey->GetValue(), SecretKey->GetValue());
 			}
 
 			ProfileStore.Credentials.Add(ProfileName, MoveTemp(Credentials));
@@ -685,6 +686,11 @@ FS3Client::FS3Client(const FS3ClientConfig& ClientConfig, const FS3ClientCredent
 	, Credentials(ClientCredentials)
 {
 	ConnectionPool = MakeUnique<FS3Client::FConnectionPool>();
+
+	if (!Config.Region.IsEmpty())
+	{
+		Config.ServiceUrl = TEXT("https://s3.amazonaws.com");
+	}
 }
 
 FS3Client::~FS3Client()
@@ -717,6 +723,22 @@ FS3PutObjectResponse FS3Client::PutObject(const FS3PutObjectRequest& PutRequest)
 
 	FS3Request Request(*this);
 	return Request.Perform(FS3Request::EMethod::Put, Url.ToString(), FSharedBuffer::MakeView(PutRequest.ObjectData));
+}
+
+FS3PutObjectResponse FS3Client::TryPutObject(const FS3PutObjectRequest& Request, int32 MaxAttempts, float Delay)
+{
+	FS3PutObjectResponse Response;
+	for (int32 Attempt = 0; Attempt < MaxAttempts; ++Attempt)
+	{
+		Response = PutObject(Request);
+		if (Response.IsOk())
+		{
+			break;
+		}
+		FPlatformProcess::Sleep(Delay);
+	}
+
+	return Response;
 }
 
 FS3ListObjectResponse FS3Client::ListObjects(const FS3ListObjectsRequest& ListRequest)

@@ -2166,6 +2166,18 @@ public:
 			}
 		}
 
+		~FContainerFileAccess()
+		{
+			for (int32 Index = 0; Index < NumHandlesPerFile; Index++)
+			{
+				if (Handle[Index] != nullptr)
+				{
+					delete Handle[Index];
+					Handle[Index] = nullptr;
+				}
+			}
+		}
+
 		bool IsValid() const { return bValid; }
 	};
 	
@@ -2627,7 +2639,7 @@ public:
 		return UncompressedBuffer;
 	}
 
-	TIoStatusOr<FIoStoreCompressedReadResult> ReadCompressed(const FIoChunkId& ChunkId, const FIoReadOptions& Options) const
+	TIoStatusOr<FIoStoreCompressedReadResult> ReadCompressed(const FIoChunkId& ChunkId, const FIoReadOptions& Options, bool bDecrypt) const
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ReadChunkCompressed);
 
@@ -2707,7 +2719,7 @@ public:
 			}
 		}
 
-		if (EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Encrypted))
+		if (bDecrypt && EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Encrypted) )
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Decrypt);
 
@@ -2867,9 +2879,9 @@ TIoStatusOr<FIoBuffer> FIoStoreReader::Read(const FIoChunkId& Chunk, const FIoRe
 	return Impl->Read(Chunk, Options);
 }
 
-TIoStatusOr<FIoStoreCompressedReadResult> FIoStoreReader::ReadCompressed(const FIoChunkId& Chunk, const FIoReadOptions& Options) const
+TIoStatusOr<FIoStoreCompressedReadResult> FIoStoreReader::ReadCompressed(const FIoChunkId& Chunk, const FIoReadOptions& Options, bool bDecrypt) const
 {
-	return Impl->ReadCompressed(Chunk, Options);
+	return Impl->ReadCompressed(Chunk, Options, bDecrypt);
 }
 
 UE::Tasks::TTask<TIoStatusOr<FIoBuffer>> FIoStoreReader::ReadAsync(const FIoChunkId& Chunk, const FIoReadOptions& Options) const

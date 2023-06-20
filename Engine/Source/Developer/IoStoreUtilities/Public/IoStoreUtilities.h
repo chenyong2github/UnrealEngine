@@ -52,3 +52,5 @@ IOSTOREUTILITIES_API bool ProcessFilesFromIoStoreContainer(
 	int32 MaxConcurrentReaders);
 
 IOSTOREUTILITIES_API bool SignIoStoreContainer(const TCHAR* InContainerFilename, const FRSAKeyHandle InSigningKey);
+
+IOSTOREUTILITIES_API bool UploadIoStoreContainerFiles(const TCHAR* Params); 

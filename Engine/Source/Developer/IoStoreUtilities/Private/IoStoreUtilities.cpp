@@ -89,6 +89,7 @@ static const uint64 DefaultCompressionBlockAlignment = 64 << 10;
 static const uint64 DefaultMemoryMappingAlignment = 16 << 10;
 
 static TUniquePtr<FIoStoreReader> CreateIoStoreReader(const TCHAR* Path, const FKeyChain& KeyChain);
+bool UploadIoStoreContainerFiles(const UE::FIoStoreUploadParams& UploadParams, TConstArrayView<FString> ContainerFiles, const FKeyChain& KeyChain);
 
 class FIoStoreChunkDatabase : public IIoStoreWriterReferenceChunkDatabase
 {
@@ -450,13 +451,13 @@ struct FContainerSourceSpec
 	FName Name;
 	FString OutputPath;
 	FString OptionalOutputPath;
-	FString OnDemandOutputPath;
 	FString StageLooseFileRootPath;
 	TArray<FContainerSourceFile> SourceFiles;
 	FString PatchTargetFile;
 	TArray<FString> PatchSourceContainerFiles;
-	FGuid EncryptionKeyOverrideGuid;
+	FString EncryptionKeyOverrideGuid;
 	bool bGenerateDiffPatch = false;
+	bool bOnDemand = false;
 };
 
 struct FCookedFileStatData
@@ -942,6 +943,7 @@ struct FIoStoreArguments
 	bool bCreateDirectoryIndex = true;
 	bool bClusterByOrderFilePriority = false;
 	bool bFileRegions = false;
+	bool bUpload = false;
 	EAssetRegistryWritebackMethod WriteBackMetadataToAssetRegistry = EAssetRegistryWritebackMethod::Disabled;
 
 	FOodleDataCompression::ECompressor ShaderOodleCompressor = FOodleDataCompression::ECompressor::Mermaid;
@@ -962,7 +964,6 @@ struct FContainerTargetSpec
 	FGuid EncryptionKeyGuid;
 	FString OutputPath;
 	FString OptionalSegmentOutputPath;
-	FString OnDemandOutputPath;
 	FString StageLooseFileRootPath;
 	TSharedPtr<IIoStoreWriter> IoStoreWriter;
 	TSharedPtr<IIoStoreWriter> OptionalSegmentIoStoreWriter;
@@ -2552,17 +2553,22 @@ void InitializeContainerTargetsAndPackages(
 	{
 		FContainerTargetSpec* ContainerTarget = AddContainer(ContainerSource.Name, ContainerTargets);
 		ContainerTarget->OutputPath = ContainerSource.OutputPath;
-		ContainerTarget->OnDemandOutputPath = ContainerSource.OnDemandOutputPath;
 		ContainerTarget->StageLooseFileRootPath = ContainerSource.StageLooseFileRootPath;
 		ContainerTarget->bGenerateDiffPatch = ContainerSource.bGenerateDiffPatch;
+
+		if (ContainerSource.bOnDemand)
+		{
+			ContainerTarget->ContainerFlags |= EIoContainerFlags::OnDemand;
+		}
+
 		if (Arguments.bSign)
 		{
 			ContainerTarget->ContainerFlags |= EIoContainerFlags::Signed;
 		}
 
-		if (!ContainerTarget->EncryptionKeyGuid.IsValid())
+		if (!ContainerTarget->EncryptionKeyGuid.IsValid() && !ContainerSource.EncryptionKeyOverrideGuid.IsEmpty())
 		{
-			ContainerTarget->EncryptionKeyGuid = ContainerSource.EncryptionKeyOverrideGuid;
+			FGuid::Parse(ContainerSource.EncryptionKeyOverrideGuid, ContainerTarget->EncryptionKeyGuid);
 		}
 
 		ContainerTarget->PatchSourceReaders = CreatePatchSourceReaders(ContainerSource.PatchSourceContainerFiles, Arguments);
@@ -2607,6 +2613,12 @@ void InitializeContainerTargetsAndPackages(
 				}
 
 				ContainerTarget->TargetFiles.Emplace(MoveTemp(TargetFile));
+			}
+
+			if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::OnDemand) &&
+				!EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
+			{
+				UE_LOG(LogIoStore, Warning, TEXT("Container '%s' set as on demand but is not encrypted, please revisit encryption strategy before publisihing to public CDN's"), *ContainerSource.Name.ToString());
 			}
 
 			if (bHasOptionalSegmentPackages)
@@ -3753,9 +3765,9 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
 		check(IoStatus.IsOk());
 	}
+	TArray<FString> OnDemandContainers;
 	TArray<TSharedPtr<IIoStoreWriter>> IoStoreWriters;
 	TSharedPtr<IIoStoreWriter> GlobalIoStoreWriter;
-	TUniquePtr<UE::IOnDemandIoStoreWriter> OnDemandIoStoreWriter;
 	{
 		IOSTORE_CPU_SCOPE(InitializeWriters);
 		if (!Arguments.IsDLC())
@@ -3775,7 +3787,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			IOSTORE_CPU_SCOPE(InitializeWriter);
 			check(ContainerTarget->ContainerId.IsValid());
 
-			if (ContainerTarget->OutputPath.IsEmpty() && ContainerTarget->OnDemandOutputPath.IsEmpty())
+			if (ContainerTarget->OutputPath.IsEmpty())
 			{
 				continue;
 			}
@@ -3785,34 +3797,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				FLooseFilesWriterSettings WriterSettings;
 				WriterSettings.TargetRootPath = ContainerTarget->StageLooseFileRootPath;
 				ContainerTarget->IoStoreWriter = MakeLooseFilesIoStoreWriter(WriterSettings);
-				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
-			}
-			else if (!ContainerTarget->OnDemandOutputPath.IsEmpty())
-			{
-				if (!OnDemandIoStoreWriter.IsValid())
-				{
-					FIoStoreWriterSettings WriterSettings;
-					WriterSettings.CompressionMethod = NAME_Oodle;
-					OnDemandIoStoreWriter = UE::MakeOnDemandIoStoreWriter(WriterSettings, ContainerTarget->OnDemandOutputPath);
-				}
-
-				FIoContainerSettings ContainerSettings;
-				ContainerSettings.ContainerFlags = EIoContainerFlags::OnDemand | EIoContainerFlags::Compressed;
-
-				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
-				{
-					if (const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid))
-					{
-						ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
-						ContainerSettings.EncryptionKey = Key->Key;
-						ContainerSettings.ContainerFlags |= EIoContainerFlags::Encrypted;
-					}
-					else
-					{
-						UE_LOG(LogIoStore, Warning, TEXT("Failed to find encryption key '%s' for container '%s'"), *ContainerTarget->EncryptionKeyGuid.ToString(), *ContainerTarget->Name.ToString());
-					}
-				}
-				ContainerTarget->IoStoreWriter = OnDemandIoStoreWriter->CreateContainer(ContainerTarget->Name.ToString(), ContainerSettings);
 				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 			}
 			else
@@ -3825,10 +3809,16 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				}
 				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
 				{
-					const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid);
-					check(Key);
-					ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
-					ContainerSettings.EncryptionKey = Key->Key;
+					if (const FNamedAESKey* Key = Arguments.KeyChain.GetEncryptionKeys().Find(ContainerTarget->EncryptionKeyGuid))
+					{
+						ContainerSettings.EncryptionKeyGuid = ContainerTarget->EncryptionKeyGuid;
+						ContainerSettings.EncryptionKey = Key->Key;
+					}
+					else
+					{
+						UE_LOG(LogIoStore, Error, TEXT("Failed to find encryption key '%s'"), *ContainerTarget->EncryptionKeyGuid.ToString());
+						return -1;
+					}
 				}
 				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Signed))
 				{
@@ -3846,6 +3836,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					ContainerTarget->OptionalSegmentIoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OptionalSegmentOutputPath, ContainerSettings);
 					ContainerTarget->OptionalSegmentIoStoreWriter->SetReferenceChunkDatabase(ChunkDatabase);
 					IoStoreWriters.Add(ContainerTarget->OptionalSegmentIoStoreWriter);
+				}
+				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::OnDemand))
+				{
+					OnDemandContainers.Add(ContainerTarget->OutputPath);
 				}
 			}
 		}
@@ -4001,13 +3995,6 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		FIoWriteOptions WriteOptions;
 		WriteOptions.DebugName = TEXT("ScriptObjects");
 		GlobalIoStoreWriter->Append(CreateIoChunkId(0, 0, EIoChunkType::ScriptObjects), ScriptObjectsBuffer, WriteOptions);
-	}
-
-	if (OnDemandIoStoreWriter.IsValid())
-	{
-		UE_LOG(LogIoStore, Display, TEXT("Serializing ondemand content..."));
-		IOSTORE_CPU_SCOPE(SerializingContentOnDemand);
-		OnDemandIoStoreWriter->Flush();
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
@@ -4343,6 +4330,21 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		TRACE_CPUPROFILER_EVENT_SCOPE(WaitForCsvFiles);
 		UE_LOG(LogIoStore, Display, TEXT("Writing csv file(s) to: %s (*.utoc.csv)"), *Arguments.CsvPath);
 		FTaskGraphInterface::Get().WaitUntilTaskCompletes(WriteCsvFileTask);
+	}
+
+	if (Arguments.bUpload && OnDemandContainers.IsEmpty() == false)
+	{
+		TIoStatusOr<UE::FIoStoreUploadParams> UploadParams = UE::FIoStoreUploadParams::Parse(FCommandLine::Get());
+		if (UploadParams.IsOk() == false)
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("Skipping upload of container file(s), reason '%s'"), *UploadParams.Status().ToString());
+			return 0;
+		}
+
+		if (UploadIoStoreContainerFiles(UploadParams.ConsumeValueOrDie(), OnDemandContainers, Arguments.KeyChain) == false)
+		{
+			return -1;
+		}
 	}
 
 	return 0;
@@ -7432,12 +7434,7 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 			{
 				ContainerSpec.OutputPath = FPaths::ChangeExtension(ContainerSpec.OutputPath, TEXT(""));
 			}
-			else if (!FParse::Value(*Command, TEXT("OnDemandOutput="), ContainerSpec.OnDemandOutputPath))
-			{
-				UE_LOG(LogIoStore, Error, TEXT("Output argument missing from command '%s'"), *Command);
-				return false;
-			}
-
+			ContainerSpec.bOnDemand = FParse::Param(*Command, TEXT("OnDemand"));
 			FParse::Value(*Command, TEXT("OptionalOutput="), ContainerSpec.OptionalOutputPath);
 
 			FParse::Value(*Command, TEXT("StageLooseFileRootPath="), ContainerSpec.StageLooseFileRootPath);
@@ -7472,12 +7469,7 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 					UE_LOG(LogIoStore, Error, TEXT("Failed to parse Pak response file '%s'"), *ResponseFilePath);
 					return false;
 				}
-
-				FString EncryptionKeyOverrideGuidString;
-				if (FParse::Value(*Command, TEXT("EncryptionKeyOverrideGuid="), EncryptionKeyOverrideGuidString))
-				{
-					FGuid::Parse(EncryptionKeyOverrideGuidString, ContainerSpec.EncryptionKeyOverrideGuid);
-				}
+				FParse::Value(*Command, TEXT("EncryptionKeyOverrideGuid="), ContainerSpec.EncryptionKeyOverrideGuid);
 			}
 		}
 	}
@@ -7725,6 +7717,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		
 		Arguments.DLCName = FPaths::GetBaseFilename(*Arguments.DLCPluginPath);
 		Arguments.bRemapPluginContentToGame = FParse::Param(FCommandLine::Get(), TEXT("RemapPluginContentToGame"));
+		Arguments.bUpload = FParse::Param(FCommandLine::Get(), TEXT("Upload"));
 
 		UE_LOG(LogIoStore, Display, TEXT("DLC: '%s'"), *Arguments.DLCPluginPath);
 		UE_LOG(LogIoStore, Display, TEXT("Remapping plugin content to game: '%s'"), Arguments.bRemapPluginContentToGame ? TEXT("True") : TEXT("False"));
@@ -7771,6 +7764,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	else if (FParse::Value(FCommandLine::Get(), TEXT("CreateGlobalContainer="), Arguments.GlobalContainerPath))
 	{
 		Arguments.GlobalContainerPath = FPaths::ChangeExtension(Arguments.GlobalContainerPath, TEXT(""));
+		Arguments.bUpload = FParse::Param(FCommandLine::Get(), TEXT("Upload"));
 
 		if (!ParseContainerGenerationArguments(Arguments, WriterSettings))
 		{
@@ -7887,4 +7881,140 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	}
 
 	return CreateTarget(Arguments, WriterSettings);
+}
+
+bool UploadIoStoreContainerFiles(const UE::FIoStoreUploadParams& UploadParams, TConstArrayView<FString> ContainerFiles, const FKeyChain& KeyChain)
+{
+	TMap<FGuid, FAES::FAESKey> EncryptionKeys;
+	for (const TPair<FGuid, FNamedAESKey>& KeyPair: KeyChain.GetEncryptionKeys())
+	{
+		EncryptionKeys.Add(KeyPair.Key, KeyPair.Value.Key);
+	}
+
+	TIoStatusOr<UE::FIoStoreUploadResult> Result = UE::UploadContainerFiles(UploadParams, ContainerFiles, EncryptionKeys);
+	if (Result.IsOk() == false)
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Failed to upload container file(s), reason '%s'"), *Result.Status().ToString());
+		return false;
+	}
+
+	UE::FIoStoreUploadResult UploadResult = Result.ConsumeValueOrDie();
+
+	FString ConfigFilePath;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ConfigFilePath="), ConfigFilePath))
+	{
+		FStringBuilderBase Sb;
+		Sb << TEXT("[Endpoint]") << TEXT("\r\n");
+
+		FString DistributionUrl;
+		if (FParse::Value(FCommandLine::Get(), TEXT("DistributionUrl="), DistributionUrl))
+		{
+			Sb << TEXT("DistributionUrl=\"") << DistributionUrl << TEXT("\"\r\n");
+		}
+		else
+		{
+			Sb << TEXT("ServiceUrl=\"") << UploadParams.ServiceUrl << TEXT("\"\r\n");
+		}
+
+		// Temporary solution to get replays working with encrypted on demand content
+		{
+			FString EncryptionKeyName;
+			if (FParse::Value(FCommandLine::Get(), TEXT("OnDemandEncryptionKeyName="), EncryptionKeyName))
+			{
+				TOptional<FNamedAESKey> EncryptionKey;
+				for (const TPair<FGuid, FNamedAESKey>& KeyPair: KeyChain.GetEncryptionKeys())
+				{
+					if (KeyPair.Value.Name.Compare(EncryptionKeyName, ESearchCase::IgnoreCase) == 0)
+					{
+						EncryptionKey.Emplace(KeyPair.Value);
+					}
+				}
+
+				if (EncryptionKey)
+				{
+					FString KeyString = FBase64::Encode(EncryptionKey.GetValue().Key.Key, FAES::FAESKey::KeySize);
+					Sb << TEXT("ContentKey=\"") << EncryptionKey.GetValue().Guid.ToString() << TEXT(":") << KeyString << TEXT("\"\r\n");
+				}
+				else
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("Failed to encryption key '%s' in key chain"), *EncryptionKeyName);
+				}
+			}
+		}
+
+		if (DistributionUrl.IsEmpty())
+		{
+			// Append the bucket name when using a local/custom service
+			Sb << TEXT("TocPath=\"") << UploadParams.Bucket / UploadResult.TocPath << TEXT("\"\r\n");
+		}
+		else
+		{
+			Sb << TEXT("TocPath=\"") << UploadResult.TocPath << TEXT("\"\r\n");
+		}
+
+		UE_LOG(LogIoStore, Display, TEXT("Saving on demand config file '%s'"), *ConfigFilePath);
+		if (FFileHelper::SaveStringToFile(Sb.ToString(), *ConfigFilePath) == false)
+		{
+			UE_LOG(LogIoStore, Error, TEXT("Failed to save on demand config file '%s'"), *ConfigFilePath);
+		}
+	}
+
+	return Result.IsOk();
+}
+
+bool UploadIoStoreContainerFiles(const TCHAR* ContainerPathOrWildcard)
+{
+	check(ContainerPathOrWildcard);
+
+	FKeyChain KeyChain;
+	LoadKeyChain(FCommandLine::Get(), KeyChain);
+
+	TIoStatusOr<UE::FIoStoreUploadParams> UploadParams = UE::FIoStoreUploadParams::Parse(FCommandLine::Get());
+	if (UploadParams.IsOk() == false)
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Failed to upload container file(s), reason '%s'"), *UploadParams.Status().ToString());
+		return false;
+	}
+
+	TArray<FString> ContainerFiles;
+	{
+		if (IFileManager::Get().FileExists(ContainerPathOrWildcard))
+		{
+			ContainerFiles.Add(ContainerPathOrWildcard);
+		}
+		else if (IFileManager::Get().DirectoryExists(ContainerPathOrWildcard))
+		{
+			FString Directory = ContainerPathOrWildcard;
+			FPaths::NormalizeDirectoryName(Directory);
+
+			TArray<FString> FoundContainerFiles;
+			IFileManager::Get().FindFiles(FoundContainerFiles, *(Directory / TEXT("*.utoc")), true, false);
+
+			for (const FString& Filename : FoundContainerFiles)
+			{
+				ContainerFiles.Emplace(Directory / Filename);
+			}
+		}
+		else
+		{
+			FString Directory = FPaths::GetPath(ContainerPathOrWildcard);
+			FPaths::NormalizeDirectoryName(Directory);
+
+			TArray<FString> FoundContainerFiles;
+			IFileManager::Get().FindFiles(FoundContainerFiles, ContainerPathOrWildcard, true, false);
+
+			for (const FString& Filename : FoundContainerFiles)
+			{
+				ContainerFiles.Emplace(Directory / Filename);
+			}
+		}
+	}
+
+	if (ContainerFiles.IsEmpty())
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Failed to find container file(s) '%s'"), ContainerPathOrWildcard);
+		return false;
+	}
+
+	return UploadIoStoreContainerFiles(UploadParams.ConsumeValueOrDie(), ContainerFiles, KeyChain);
 }
