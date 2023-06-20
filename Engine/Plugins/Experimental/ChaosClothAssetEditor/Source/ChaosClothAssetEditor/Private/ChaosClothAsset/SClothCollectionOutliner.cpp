@@ -135,6 +135,8 @@ void SClothCollectionOutliner::SetClothCollection(TSharedPtr<FManagedArrayCollec
 		ListItems.Empty();
 		SelectedGroupName = FName();
 	}
+	// Refresh the combo box with the new set of group names after ClothCollectionGroupNames changed
+	SelectedGroupNameComboBox->RefreshOptions();
 }
 
 void SClothCollectionOutliner::SetSelectedGroupName(const FName& InSelectedGroupName)
