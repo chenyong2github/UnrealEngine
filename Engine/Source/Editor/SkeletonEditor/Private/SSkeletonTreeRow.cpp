@@ -31,7 +31,10 @@ void SSkeletonTreeRow::Construct( const FArguments& InArgs, const TSharedRef<STa
 
 	check( Item.IsValid() );
 
-	SMultiColumnTableRow< TSharedPtr<ISkeletonTreeItem> >::Construct( FSuperRowType::FArguments(), InOwnerTableView );
+	const FSuperRowType::FArguments Args = FSuperRowType::FArguments()
+		.Style( FAppStyle::Get(), "TableView.AlternatingRow" );
+	
+	SMultiColumnTableRow< TSharedPtr<ISkeletonTreeItem> >::Construct( Args, InOwnerTableView );
 }
 
 void SSkeletonTreeRow::ConstructChildren(ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent)

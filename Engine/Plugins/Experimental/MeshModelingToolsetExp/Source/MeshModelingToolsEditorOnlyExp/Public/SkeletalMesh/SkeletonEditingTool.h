@@ -144,6 +144,9 @@ public:
 	// IModifierToggleBehaviorTarget overrides
 	virtual void OnUpdateModifierState(int ModifierID, bool bIsOn) override;
 
+	// ISkeletalMeshEditionInterface overrides
+	virtual TWeakObjectPtr<USkeletonModifier> GetModifier() const override;
+	
 protected:
 
 	// UInteractiveTool overrides

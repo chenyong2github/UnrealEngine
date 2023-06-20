@@ -6,6 +6,10 @@
 #include "InteractiveToolsContext.h"
 #include "IPersonaToolkit.h"
 #include "ISkeletalMeshEditor.h"
+#include "ISkeletonEditorModule.h"
+#include "SkeletonModifier.h"
+#include "SReferenceSkeletonTree.h"
+#include "Preferences/PersonaOptions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkeletalMeshEditorUtils)
 
@@ -66,7 +70,8 @@ void USkeletalMeshEditorContextObject::Unregister(UInteractiveToolManager* InToo
 	
 	InToolManager->GetContextObjectStore()->RemoveContextObject(this);
 
-	Bindings.Reset();
+	EditorBindings.Reset();
+	TreeBindings.Reset();
 	
 	bRegistered = false;
 }
@@ -74,7 +79,8 @@ void USkeletalMeshEditorContextObject::Unregister(UInteractiveToolManager* InToo
 void USkeletalMeshEditorContextObject::Init(const TWeakPtr<ISkeletalMeshEditor>& InEditor)
 {
 	Editor = InEditor;
-	Bindings.Reset();
+	EditorBindings.Reset();
+	TreeBindings.Reset();
 }
 
 void USkeletalMeshEditorContextObject::HideSkeleton()
@@ -115,40 +121,13 @@ void USkeletalMeshEditorContextObject::ShowSkeleton()
 
 void USkeletalMeshEditorContextObject::BindTo(ISkeletalMeshEditingInterface* InEditingInterface)
 {
-	if (!InEditingInterface || !Editor.IsValid())
+	if (!InEditingInterface)
 	{
 		return;
 	}
 	
-	if (Bindings.Contains(InEditingInterface))
-	{
-		return;
-	}
-	
-	TSharedPtr<ISkeletalMeshEditorBinding> Binding = Editor.Pin()->GetBinding();
-	if (Binding.IsValid())
-	{
-		InEditingInterface->BindTo(Binding);
-	
-		FBindData BindData;
-	
-		// connect external interface to tool (ie skeletal mesh editor -> tool)
-		BindData.ToToolNotifierHandle = Binding->GetNotifier().Delegate().AddLambda(
-			[InEditingInterface](const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
-		{
-			InEditingInterface->GetNotifier().HandleNotification(BoneNames, InNotifyType);
-		});
-	
-		// connect too to external interface (ie tool -> skeletal mesh editor)
-		BindData.FromToolNotifierHandle = InEditingInterface->GetNotifier().Delegate().AddLambda(
-			[Binding](const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
-		{
-			Binding->GetNotifier().HandleNotification(BoneNames, InNotifyType);
-		});
-		Bindings.Emplace(InEditingInterface, BindData);
-	
-		InEditingInterface->GetNotifier().HandleNotification(Binding->GetSelectedBones(), ESkeletalMeshNotifyType::BonesSelected);
-	}
+	BindEditor(InEditingInterface);
+	BindRefSkeletonTree(InEditingInterface);
 }
 
 void USkeletalMeshEditorContextObject::UnbindFrom(ISkeletalMeshEditingInterface* InEditingInterface)
@@ -157,29 +136,168 @@ void USkeletalMeshEditorContextObject::UnbindFrom(ISkeletalMeshEditingInterface*
 	{
 		return;
 	}
-	
-	if (FBindData* BindData = Bindings.Find(InEditingInterface))
+
+	UnbindEditor(InEditingInterface);
+	UnbindRefSkeletonTree(InEditingInterface);
+}
+
+TPair<FDelegateHandle, FDelegateHandle> USkeletalMeshEditorContextObject::BindInterfaceTo(
+	ISkeletalMeshEditingInterface* InInterface,
+	ISkeletalMeshNotifier& InOtherNotifier)
+{
+	// connect external interface to tool (ie skeletal mesh editor -> tool)
+	FDelegateHandle ToToolNotifierHandle = InOtherNotifier.Delegate().AddLambda(
+	[InInterface](const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
 	{
-		if (BindData->ToToolNotifierHandle.IsValid())
-		{
-			TSharedPtr<ISkeletalMeshEditorBinding> Binding = GetBinding();
-			if (Binding.IsValid())
-			{
-				Binding->GetNotifier().Delegate().Remove(BindData->ToToolNotifierHandle);
-			}
-			BindData->ToToolNotifierHandle.Reset();
-		}
+		InInterface->GetNotifier().HandleNotification(BoneNames, InNotifyType);
+	});
+
+	// connect tool to external interface (ie tool -> skeletal mesh editor)
+	FDelegateHandle FromToolNotifierHandle = InInterface->GetNotifier().Delegate().AddLambda(
+		[&InOtherNotifier](const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType)
+	{
+		InOtherNotifier.HandleNotification(BoneNames, InNotifyType);
+	});
+
+	return {ToToolNotifierHandle, FromToolNotifierHandle};
+}
+
+void USkeletalMeshEditorContextObject::UnbindInterfaceFrom(
+	ISkeletalMeshEditingInterface* InInterface,
+	ISkeletalMeshNotifier& InOtherNotifier,
+	const FBindData& InOutBindData)
+{
+	if (InOutBindData.ToToolNotifierHandle.IsValid())
+	{
+		InOtherNotifier.Delegate().Remove(InOutBindData.ToToolNotifierHandle);
+	}
+
+	if (InOutBindData.FromToolNotifierHandle.IsValid())
+	{
+		InInterface->GetNotifier().Delegate().Remove(InOutBindData.FromToolNotifierHandle);
+	}
+}
+
+void USkeletalMeshEditorContextObject::BindEditor(ISkeletalMeshEditingInterface* InEditingInterface)
+{
+	if (!InEditingInterface || !Editor.IsValid())
+	{
+		return;
+	}
 	
+	if (EditorBindings.Contains(InEditingInterface))
+	{
+		return;
+	}
+
+	TSharedPtr<ISkeletalMeshEditorBinding> Binding = Editor.Pin()->GetBinding();
+	if (!Binding.IsValid())
+	{
+		return;
+	}
+
+	InEditingInterface->BindTo(Binding);
+
+	FBindData BindData;
+	Tie(BindData.ToToolNotifierHandle, BindData.FromToolNotifierHandle) = BindInterfaceTo(InEditingInterface, Binding->GetNotifier());
+	EditorBindings.Emplace(InEditingInterface, BindData);
+
+	InEditingInterface->GetNotifier().HandleNotification(Binding->GetSelectedBones(), ESkeletalMeshNotifyType::BonesSelected);
+}
+
+void USkeletalMeshEditorContextObject::UnbindEditor(ISkeletalMeshEditingInterface* InEditingInterface)
+{
+	if (const FBindData* BindData = EditorBindings.Find(InEditingInterface))
+	{
 		if (BindData->FromToolNotifierHandle.IsValid())
 		{
-			InEditingInterface->GetNotifier().Delegate().Remove(BindData->FromToolNotifierHandle);
 			InEditingInterface->Unbind();
-			
-			BindData->FromToolNotifierHandle.Reset();
+		}
+
+		if (Editor.IsValid())
+		{
+			const TSharedPtr<ISkeletalMeshEditorBinding> Binding = Editor.Pin()->GetBinding();
+			UnbindInterfaceFrom(InEditingInterface, Binding->GetNotifier(), *BindData);
 		}
 	
-		Bindings.Remove(InEditingInterface);
+		EditorBindings.Remove(InEditingInterface);
 	}
+}
+
+void USkeletalMeshEditorContextObject::BindRefSkeletonTree(ISkeletalMeshEditingInterface* InEditingInterface)
+{
+	if (!InEditingInterface || !Editor.IsValid())
+	{
+		return;
+	}
+	
+	const TWeakObjectPtr<USkeletonModifier> Modifier = InEditingInterface->GetModifier();
+	if (!Modifier.IsValid())
+	{
+		return;
+	}
+	
+	const TSharedPtr<FTabManager> TabManager = Editor.Pin()->GetAssociatedTabManager();
+	TSharedPtr<SDockTab> SkeletonTab = TabManager->FindExistingLiveTab(GetSkeletonTreeTabId());
+	if (SkeletonTab.IsValid())
+	{
+		DefaultSkeletonWidget = SkeletonTab->GetContent();
+	}
+	else
+	{
+		SkeletonTab = TabManager->TryInvokeTab(GetSkeletonTreeTabId());
+	}
+
+	check(SkeletonTab.IsValid());
+
+	SAssignNew(RefSkeletonWidget, SBorder)
+		.Padding(4.f)
+		.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+	[
+		SAssignNew(RefSkeletonTree, SReferenceSkeletonTree)
+			.Modifier(Modifier)
+	];
+
+	SkeletonTab->SetContent(RefSkeletonWidget.ToSharedRef());
+
+	FBindData BindData;
+	Tie(BindData.ToToolNotifierHandle, BindData.FromToolNotifierHandle) = BindInterfaceTo(InEditingInterface, RefSkeletonTree->GetNotifier());
+	TreeBindings.Emplace(InEditingInterface, BindData);
+}
+
+void USkeletalMeshEditorContextObject::UnbindRefSkeletonTree(ISkeletalMeshEditingInterface* InEditingInterface)
+{
+	if (const FBindData* BindData = TreeBindings.Find(InEditingInterface))
+	{
+		if (RefSkeletonTree.IsValid())
+		{
+			UnbindInterfaceFrom(InEditingInterface, RefSkeletonTree->GetNotifier(), *BindData);
+		}
+
+		if (Editor.IsValid())
+		{
+			const TSharedPtr<FTabManager> TabManager = Editor.Pin()->GetAssociatedTabManager();
+			const TSharedPtr<SDockTab> SkeletonTab = TabManager->FindExistingLiveTab(GetSkeletonTreeTabId());
+			if (SkeletonTab.IsValid())
+			{
+				if (SkeletonTab->GetContent() == RefSkeletonWidget)
+				{
+					SkeletonTab->SetContent(DefaultSkeletonWidget.IsValid() ? DefaultSkeletonWidget.ToSharedRef() : SNullWidget::NullWidget);
+				}
+			}
+		}
+		
+		RefSkeletonTree.Reset();
+		RefSkeletonWidget.Reset();
+		
+		TreeBindings.Remove(InEditingInterface);
+	}
+}
+
+const FName& USkeletalMeshEditorContextObject::GetSkeletonTreeTabId()
+{
+	static const FName SkeletonTreeId(TEXT("SkeletonTreeView"));
+	return SkeletonTreeId;
 }
 
 TSharedPtr<ISkeletalMeshEditorBinding> USkeletalMeshEditorContextObject::GetBinding() const

@@ -25,6 +25,12 @@ public:
 
 	// Editing tools commands
 	TSharedPtr<FUICommandInfo> ToggleEditingToolsMode;
+
+	// Skeleton Editing commands
+	TSharedPtr<FUICommandInfo> NewBone;
+	TSharedPtr<FUICommandInfo> RemoveBone;
+	TSharedPtr<FUICommandInfo> UnParentBone;
+	TSharedPtr<FUICommandInfo> RenameBone;
 };
 
 class FSkeletalMeshModelingToolsActionCommands : public TInteractiveToolCommands<FSkeletalMeshModelingToolsActionCommands>

@@ -499,6 +499,11 @@ void USkeletonEditingTool::UnParentBones()
 	if (bBonesUnParented)
 	{
 		GetToolManager()->DisplayMessage(LOCTEXT("Unparent", "Selected bones have been unparented."), EToolMessageLevel::UserNotification);
+
+		if (NeedsNotification())
+		{
+			GetNotifier().Notify({}, ESkeletalMeshNotifyType::HierarchyChanged);
+		}
 		
 		EndChange();
 		return;
@@ -518,6 +523,11 @@ void USkeletonEditingTool::ParentBones(const FName& InParentName)
 	const bool bBonesParented = Modifier->ParentBones(GetSelectedBones(), {InParentName});
 	if (bBonesParented)
 	{
+		if (NeedsNotification())
+		{
+			GetNotifier().Notify({}, ESkeletalMeshNotifyType::HierarchyChanged);
+		}
+		
 		EndChange();
 	}
 	else
@@ -595,11 +605,13 @@ void USkeletonEditingTool::RenameBones()
 				Selection[Index] = BoneInfos[BoneIndices[Index]].Name;
 			}
 		}
-		Properties->Name = GetCurrentBone();
+
+		const FName NewName = GetCurrentBone();
+		Properties->Name = NewName;
 		
 		if (NeedsNotification())
 		{
-			GetNotifier().Notify({CurrentBone}, ESkeletalMeshNotifyType::BonesRenamed);
+			GetNotifier().Notify( {NewName}, ESkeletalMeshNotifyType::BonesRenamed);
 		}
 		
 		EndChange();
@@ -919,6 +931,11 @@ FInputRayHit USkeletonEditingTool::CanBeginClickDragSequence(const FInputDeviceR
 	return FInputRayHit();
 }
 
+TWeakObjectPtr<USkeletonModifier> USkeletonEditingTool::GetModifier() const
+{
+	return Modifier;
+}
+
 void USkeletonEditingTool::HandleSkeletalMeshModified(const TArray<FName>& InBoneNames, const ESkeletalMeshNotifyType InNotifyType)
 {
 	if (GetNotifier().Notifying())
@@ -952,6 +969,8 @@ void USkeletonEditingTool::HandleSkeletalMeshModified(const TArray<FName>& InBon
 			break;
 		case ESkeletalMeshNotifyType::BonesRenamed:
 			Selection = BoneNames;
+			break;
+		case ESkeletalMeshNotifyType::HierarchyChanged:
 			break;
 		default:
 			break;

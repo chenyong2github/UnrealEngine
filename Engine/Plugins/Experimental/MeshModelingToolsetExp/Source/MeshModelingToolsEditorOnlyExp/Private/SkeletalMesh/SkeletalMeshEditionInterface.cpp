@@ -29,6 +29,11 @@ void ISkeletalMeshEditingInterface::Unbind()
 	Binding.Reset();
 }
 
+TWeakObjectPtr<USkeletonModifier> ISkeletalMeshEditingInterface::GetModifier() const
+{
+	return nullptr;
+}
+
 TOptional<FName> ISkeletalMeshEditingInterface::GetBoneName(HHitProxy* InHitProxy) const
 {
 	if (const HBoneHitProxy* BoneProxy = HitProxyCast<HBoneHitProxy>(InHitProxy))

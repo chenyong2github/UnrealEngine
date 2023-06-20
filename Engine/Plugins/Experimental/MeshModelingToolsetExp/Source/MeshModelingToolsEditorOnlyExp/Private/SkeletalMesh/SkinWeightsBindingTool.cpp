@@ -376,6 +376,10 @@ void USkinWeightsBindingTool::HandleSkeletalMeshModified(const TArray<FName>& In
 			Properties->CurrentBone = InBoneNames.IsEmpty() ? NAME_None : InBoneNames[0];
 		}
 		break;
+	case ESkeletalMeshNotifyType::BonesRenamed:
+		break;
+	case ESkeletalMeshNotifyType::HierarchyChanged:
+        break;
 	default:
 		checkNoEntry();
 	}

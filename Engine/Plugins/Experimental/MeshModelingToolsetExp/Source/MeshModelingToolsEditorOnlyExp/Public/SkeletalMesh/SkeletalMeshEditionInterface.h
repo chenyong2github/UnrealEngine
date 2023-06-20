@@ -16,6 +16,7 @@ class FSkeletalMeshToolNotifier;
 class UTransformProxy;
 class UInteractiveToolManager;
 class IGizmoStateTarget;
+class USkeletonModifier;
 struct FInputDeviceRay;
 
 /**
@@ -44,6 +45,8 @@ public:
 	
 	void BindTo(TSharedPtr<ISkeletalMeshEditorBinding> InBinding);
 	void Unbind();
+
+	virtual TWeakObjectPtr<USkeletonModifier> GetModifier() const;
 	
 protected:
 	virtual void HandleSkeletalMeshModified(const TArray<FName>& BoneNames, const ESkeletalMeshNotifyType InNotifyType) = 0;

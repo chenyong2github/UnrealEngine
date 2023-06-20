@@ -1674,6 +1674,9 @@ void FSkeletalMeshEditorNotifier::HandleNotification(const TArray<FName>& BoneNa
 			SkeletonTree->SetSelectedBone(BoneNames[0], ESelectInfo::Direct);
 		}
 		break;
+	case ESkeletalMeshNotifyType::HierarchyChanged:
+		SkeletonTree->Refresh();
+		break;
 	}
 }
 

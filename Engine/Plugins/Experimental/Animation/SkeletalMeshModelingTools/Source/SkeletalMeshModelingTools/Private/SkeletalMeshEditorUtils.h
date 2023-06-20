@@ -14,6 +14,7 @@ class UInteractiveToolsContext;
 class UInteractiveToolManager;
 class ISkeletalMeshEditor;
 class USkeletalMeshEditorContextObject;
+class SReferenceSkeletonTree;
 
 namespace UE
 {
@@ -62,7 +63,29 @@ private:
 		FDelegateHandle ToToolNotifierHandle;
 		FDelegateHandle FromToolNotifierHandle;		
 	};
-	TMap< ISkeletalMeshEditingInterface*, FBindData > Bindings;
+	TMap< ISkeletalMeshEditingInterface*, FBindData > EditorBindings;
+	TMap< ISkeletalMeshEditingInterface*, FBindData > TreeBindings;
+
+	static TPair<FDelegateHandle, FDelegateHandle> BindInterfaceTo(
+		ISkeletalMeshEditingInterface* InInterface,
+		ISkeletalMeshNotifier& InOtherNotifier);
+	
+	static void UnbindInterfaceFrom(
+		ISkeletalMeshEditingInterface* InInterface,
+		ISkeletalMeshNotifier& InOtherNotifier,
+		const FBindData& InOutBindData);
+
+	void BindEditor(ISkeletalMeshEditingInterface* InEditingInterface);
+	void UnbindEditor(ISkeletalMeshEditingInterface* InEditingInterface);
+
+	void BindRefSkeletonTree(ISkeletalMeshEditingInterface* InEditingInterface);
+	void UnbindRefSkeletonTree(ISkeletalMeshEditingInterface* InEditingInterface);
+
+	static const FName& GetSkeletonTreeTabId();
+
+	TSharedPtr<SWidget> RefSkeletonWidget;
+	TSharedPtr<SReferenceSkeletonTree> RefSkeletonTree;
+	TSharedPtr<SWidget> DefaultSkeletonWidget;
 	
 	bool bRegistered = false;
 };

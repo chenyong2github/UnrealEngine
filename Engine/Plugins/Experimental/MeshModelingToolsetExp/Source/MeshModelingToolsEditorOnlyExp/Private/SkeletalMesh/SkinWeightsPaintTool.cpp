@@ -1798,6 +1798,10 @@ void USkinWeightsPaintTool::HandleSkeletalMeshModified(const TArray<FName>& InBo
 			}
 		}
 		break;
+	case ESkeletalMeshNotifyType::BonesRenamed:
+		break;
+	case ESkeletalMeshNotifyType::HierarchyChanged:
+		break;
 	default:
 		checkNoEntry();
 	}
