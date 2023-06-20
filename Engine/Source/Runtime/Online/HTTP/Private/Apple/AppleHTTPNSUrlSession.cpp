@@ -40,6 +40,9 @@ enum class EAppleHttpRequestResponseState: uint8
 
 	/** flag meant to reduce locking on ResponseStreamLock*/
 	@public BOOL bInitializedWithValidStream;
+
+	/** Delegate invoked after processing URLSession:task:didCompleteWithError:*/
+	@public FTaskCompleteDelegate TaskCompleteDelegate;
 }
 
 /** A handle for the response */
@@ -209,6 +212,7 @@ enum class EAppleHttpRequestResponseState: uint8
 			}
 		}
 	}
+	TaskCompleteDelegate.ExecuteIfBound();
 }
 
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask willCacheResponse:(NSCachedURLResponse *)proposedResponse completionHandler:(void (^)(NSCachedURLResponse *cachedResponse))completionHandler
@@ -568,10 +572,11 @@ bool FAppleHttpNSUrlSessionRequest::StartRequest()
 		// Both Task and Response keep a strong reference to the delegate
 		Task.delegate = Response->ResponseDelegate;
 
+		//Setup delegates before starting the request
+		FHttpModule::Get().GetHttpManager().AddThreadedRequest(SharedThis(this));
+
 		[[Task retain] resume];
 		UE_LOG(LogHttp, Verbose, TEXT("[NSURLSessionTask resume]"));
-
-		FHttpModule::Get().GetHttpManager().AddThreadedRequest(SharedThis(this));
 	}
 	else
 	{
@@ -707,6 +712,11 @@ FAppleHttpNSUrlSessionResponse::~FAppleHttpNSUrlSessionResponse()
 	
 	[ResponseDelegate release];
 	ResponseDelegate = nil;
+}
+
+void FAppleHttpNSUrlSessionResponse::SetInternalTaskCompleteDelegate(FTaskCompleteDelegate&& Delegate)
+{	
+	ResponseDelegate->TaskCompleteDelegate = MoveTemp(Delegate);
 }
 
 void FAppleHttpNSUrlSessionResponse::CleanSharedObjects()

@@ -7,6 +7,13 @@
 #include "Interfaces/IHttpResponse.h"
 #include "PlatformHttp.h"
 
+
+/**
+ * Delegate invoked when in progress NSUrlSessionTask completes. It is invoked in an out of our control thread
+ *
+ */
+DECLARE_DELEGATE(FTaskCompleteDelegate);
+
 /**
  * Apple implementation of an Http request
  */
@@ -187,6 +194,13 @@ public:
 	 * Cleans internal shared objects between request and response
 	 */
 	void CleanSharedObjects();
+
+	/**
+	 * Sets delegate invoked after processing URLSession:task:didCompleteWithError:
+	 * Should be set right before task is started 
+	*/
+	void SetInternalTaskCompleteDelegate(FTaskCompleteDelegate&& Delegate);
+
 	/**
 	 * Constructor
 	 *

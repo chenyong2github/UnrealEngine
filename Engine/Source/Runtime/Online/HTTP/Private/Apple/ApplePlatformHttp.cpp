@@ -2,6 +2,7 @@
 
 #include "Apple/ApplePlatformHttp.h"
 #include "Http.h"
+#include "AppleHttpManager.h"
 #include "AppleHTTPNSUrlConnection.h"
 #include "AppleHTTPNSUrlSession.h"
 #include "Apple/CFRef.h"
@@ -271,6 +272,19 @@ void FApplePlatformHttp::ShutdownWithNSUrlSession()
 	[Session finishTasksAndInvalidate];
 	[Session release];
 	Session = nil;
+}
+
+FHttpManager* FApplePlatformHttp::CreatePlatformHttpManager()
+{
+	if(bUseNSUrlSession)
+	{
+		return new FAppleHttpManager();
+	}
+	else
+	{
+		// Event based http manager does not support FAppleHTTPNSURLConnection 
+		return nullptr;
+	}
 }
 
 IHttpRequest* FApplePlatformHttp::ConstructRequest()
