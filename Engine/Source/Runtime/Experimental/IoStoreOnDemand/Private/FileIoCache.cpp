@@ -663,7 +663,7 @@ void FFileIoCache::Initialize()
 
 	WriterThread.Reset(FRunnableThread::Create(this, TEXT("Ias.FileCache"), 0, TPri_BelowNormal));
 
-	const FString CacheDir = FPaths::ProjectPersistentDownloadDir() / TEXT("IoCache");
+	const FString CacheDir = FPaths::ProjectPersistentDownloadDir() / TEXT("chunkdownload");
 	CacheFilePath = CacheDir / TEXT("cache.ucas");
 	WriteCursorPos = 0;
 
