@@ -93,25 +93,35 @@ namespace AudioModulation
 
 		virtual ~FGetModulatorValueNodeOperator() = default;
 
-		virtual Metasound::FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(Metasound::FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace Metasound;
+			
+			InOutVertexData.BindReadVertex("Modulator", Modulator);
+			InOutVertexData.BindReadVertex("Normalized", Normalized);
+		}
 
-			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference("Modulator", Modulator);
-			Inputs.AddDataReadReference("Normalized", Normalized);
+		virtual void BindOutputs(Metasound::FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace Metasound;
+			
+			InOutVertexData.BindReadVertex("Out", OutValue);
+		}
 
-			return Inputs;
+		virtual Metasound::FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual Metasound::FDataReferenceCollection GetOutputs() const override
 		{
-			using namespace Metasound;
-
-			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference("Out", FFloatReadRef(OutValue));
-
-			return Outputs;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Execute()

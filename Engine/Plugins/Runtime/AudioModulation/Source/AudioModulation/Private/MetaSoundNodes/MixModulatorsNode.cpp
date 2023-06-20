@@ -105,27 +105,37 @@ namespace AudioModulation
 
 		virtual ~FMixModulatorsNodeOperator() = default;
 
-		virtual Metasound::FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(Metasound::FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace Metasound;
+			
+			InOutVertexData.BindReadVertex("In1", Modulator1);
+			InOutVertexData.BindReadVertex("In2", Modulator2);
+			InOutVertexData.BindReadVertex("MixParameter", Parameter);
+			InOutVertexData.BindReadVertex("Normalized", Normalized);
+		}
 
-			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference("In1", Modulator1);
-			Inputs.AddDataReadReference("In2", Modulator2);
-			Inputs.AddDataReadReference("MixParameter", Parameter);
-			Inputs.AddDataReadReference("Normalized", Normalized);
+		virtual void BindOutputs(Metasound::FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace Metasound;
+			
+			InOutVertexData.BindReadVertex("Out", OutValue);
+		}
 
-			return Inputs;
+		virtual Metasound::FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual Metasound::FDataReferenceCollection GetOutputs() const override
 		{
-			using namespace Metasound;
-
-			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference("Out", FFloatReadRef(OutValue));
-
-			return Outputs;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Execute()

@@ -159,7 +159,7 @@ namespace Metasound
 			FInt32ReadRef InNoRepeatOrder = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<int32>(Inputs, METASOUND_GET_PARAM_NAME(InputNoRepeatOrder), InParams.OperatorSettings);
 			FBoolReadRef bInEnableSharedState = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(Inputs, METASOUND_GET_PARAM_NAME(InputEnableSharedState), InParams.OperatorSettings);
 
-			return MakeUnique<TArrayRandomGetOperator<ArrayType>>(InParams, InTriggerNext, InTriggerReset, InInputArray, InInputWeightsArray, InSeedValue, InNoRepeatOrder, *bInEnableSharedState);
+			return MakeUnique<TArrayRandomGetOperator<ArrayType>>(InParams, InTriggerNext, InTriggerReset, InInputArray, InInputWeightsArray, InSeedValue, InNoRepeatOrder, bInEnableSharedState);
 		}
 
 		TArrayRandomGetOperator(
@@ -170,7 +170,7 @@ namespace Metasound
 			const TDataReadReference<WeightsArrayType>& InInputWeightsArray,
 			const FInt32ReadRef& InSeedValue,
 			const FInt32ReadRef& InNoRepeatOrder,
-			bool bInEnableSharedState)
+			const FBoolReadRef& bInEnableSharedState)
 			: TriggerNext(InTriggerNext)
 			, TriggerReset(InTriggerReset)
 			, InputArray(InInputArray)
@@ -191,41 +191,40 @@ namespace Metasound
 
 		virtual ~TArrayRandomGetOperator() = default;
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace ArrayNodeRandomGetVertexNames;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTriggerNextValue), TriggerNext);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTriggerResetSeed), TriggerReset);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputRandomArray), InputArray);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputWeights), InputWeightsArray);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputSeed), SeedValue);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputNoRepeatOrder), NoRepeatOrder);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InputEnableSharedState), bEnableSharedState);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace ArrayNodeRandomGetVertexNames;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputTriggerOnNext), TriggerOnNext);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputTriggerOnReset), TriggerOnReset);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(ShuffleOutputValue), OutValue);
+		}
+
 		virtual FDataReferenceCollection GetInputs() const override
 		{
-			FDataReferenceCollection Inputs;
-			// This function is no longer used
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
 			checkNoEntry();
-			return Inputs;
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			FDataReferenceCollection Outputs;
-			// This function is no longer used
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
 			checkNoEntry();
-			return Outputs;
-		}
-
-		virtual void Bind(FVertexInterfaceData& InOutVertexData) const override
-		{
-			using namespace ArrayNodeRandomGetVertexNames;
-
-			FInputVertexInterfaceData& Inputs = InOutVertexData.GetInputs();
-
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTriggerNextValue), TriggerNext);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputTriggerResetSeed), TriggerReset);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputRandomArray), InputArray);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputWeights), InputWeightsArray);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputSeed), SeedValue);
-			Inputs.BindReadVertex(METASOUND_GET_PARAM_NAME(InputNoRepeatOrder), NoRepeatOrder);
-			Inputs.SetValue(METASOUND_GET_PARAM_NAME(InputEnableSharedState), bEnableSharedState);
-
-			FOutputVertexInterfaceData& Outputs = InOutVertexData.GetOutputs();
-
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputTriggerOnNext), TriggerOnNext);
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(OutputTriggerOnReset), TriggerOnReset);
-			Outputs.BindReadVertex(METASOUND_GET_PARAM_NAME(ShuffleOutputValue), OutValue);
+			return {};
 		}
 
 		void Reset(const IOperator::FResetParams& InParams)
@@ -258,7 +257,7 @@ namespace Metasound
 
 		bool UseSharedState() const
 		{
-			return bEnableSharedState && bSharedStateInitialized;
+			return *bEnableSharedState && bSharedStateInitialized;
 		}
 
 		void Execute()
@@ -396,7 +395,7 @@ namespace Metasound
 			bSharedStateInitialized = false;
 			if (InArraySize > 0)
 			{
-				if (bEnableSharedState)
+				if (*bEnableSharedState)
 				{
 					// Get the environment variable for the unique ID of the sound
 					check(SharedStateUniqueId.IsValid());
@@ -454,7 +453,7 @@ namespace Metasound
 		FGuid SharedStateUniqueId;
 		int32 PrevArraySize = 0;
 		bool bIsPreviewSound = false;
-		bool bEnableSharedState = false;
+		FBoolReadRef bEnableSharedState;
 		bool bSharedStateInitialized = false;
 	};
 

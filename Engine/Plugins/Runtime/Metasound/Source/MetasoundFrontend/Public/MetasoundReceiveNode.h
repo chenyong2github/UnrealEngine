@@ -116,25 +116,33 @@ namespace Metasound
 					ResetReceiverAndCleanupChannel();
 				}
 
-				virtual FDataReferenceCollection GetInputs() const override
+				virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 				{
 					using namespace ReceiveNodeInfo; 
+					InOutVertexData.BindReadVertex<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput), DefaultData);
+					InOutVertexData.BindReadVertex<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), SendAddress);
+				}
 
-					FDataReferenceCollection Inputs;
+				virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+				{
+					using namespace ReceiveNodeInfo;
+					InOutVertexData.BindReadVertex<TDataType>(METASOUND_GET_PARAM_NAME(Output), TDataReadReference<TDataType>(OutputData));
+				}
 
-					Inputs.AddDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput), DefaultData);
-					Inputs.AddDataReadReference<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput), SendAddress);
-
-					return Inputs;
+				virtual FDataReferenceCollection GetInputs() const override
+				{
+					// This should never be called. Bind(...) is called instead. This method
+					// exists as a stop-gap until the API can be deprecated and removed.
+					checkNoEntry();
+					return {};
 				}
 
 				virtual FDataReferenceCollection GetOutputs() const override
 				{
-					using namespace ReceiveNodeInfo;
-
-					FDataReferenceCollection Outputs;
-					Outputs.AddDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(Output), TDataReadReference<TDataType>(OutputData));
-					return Outputs;
+					// This should never be called. Bind(...) is called instead. This method
+					// exists as a stop-gap until the API can be deprecated and removed.
+					checkNoEntry();
+					return {};
 				}
 
 				void Execute()

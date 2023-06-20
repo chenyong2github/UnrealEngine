@@ -127,28 +127,39 @@ namespace Metasound
 
 		virtual ~FMetasoundWaveTableOscillatorNodeOperator() = default;
 
-		virtual FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
-			FDataReferenceCollection Inputs;
-
-			Inputs.AddDataReadReference("WaveTable", WaveTableReadRef);
-			Inputs.AddDataReadReference("Sync", SyncReadRef);
-			Inputs.AddDataReadReference("Freq", FreqReadRef);
+			InOutVertexData.BindReadVertex("WaveTable", WaveTableReadRef);
+			InOutVertexData.BindReadVertex("Play", PlayReadRef);
+			InOutVertexData.BindReadVertex("Stop", StopReadRef);
+			InOutVertexData.BindReadVertex("Sync", SyncReadRef);
+			InOutVertexData.BindReadVertex("Freq", FreqReadRef);
 
 			if (PhaseModReadRef.IsSet())
 			{
-				Inputs.AddDataReadReference("PhaseMod", *PhaseModReadRef);
+				InOutVertexData.BindReadVertex("PhaseMod", *PhaseModReadRef);
 			}
+		}
 
-			return Inputs;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			InOutVertexData.BindReadVertex("Out", TDataReadReference<FAudioBuffer>(OutBufferWriteRef));
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference("Out", TDataReadReference<FAudioBuffer>(OutBufferWriteRef));
-
-			return Outputs;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Execute()

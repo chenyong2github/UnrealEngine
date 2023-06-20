@@ -161,6 +161,8 @@ namespace Metasound
 			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(XPin), Pins.X);
 			InOutVertexData.SetValue(METASOUND_GET_PARAM_NAME(OffsetPin), Pins.Offset);
 			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OctavesPin), Pins.Octaves);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(MinValuePin), Pins.MinValue);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(MaxValuePin), Pins.MaxValue);
 		}
 
 		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override

@@ -94,25 +94,33 @@ namespace Metasound
 
 		virtual ~FMetasoundWaveTableGetNodeOperator() = default;
 
-		virtual FDataReferenceCollection GetInputs() const override
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
 			using namespace Metasound;
+			InOutVertexData.BindReadVertex("WaveTableBank", WaveTableBankReadRef);
+			InOutVertexData.BindReadVertex("TableIndex", TableIndexReadRef);
+		}
 
-			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference("WaveTableBank", WaveTableBankReadRef);
-			Inputs.AddDataReadReference("TableIndex", TableIndexReadRef);
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			using namespace Metasound;
+			InOutVertexData.BindReadVertex("Out", OutTable);
+		}
 
-			return Inputs;
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			using namespace Metasound;
-
-			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference("Out", FWaveTableWriteRef(OutTable));
-
-			return Outputs;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 	private:

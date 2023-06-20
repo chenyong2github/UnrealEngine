@@ -150,22 +150,22 @@ namespace Metasound
 	{
 		using namespace StereoDelay;
 
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InAudioInputLeft), FAudioBufferReadRef(LeftAudioInput));
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InAudioInputRight), FAudioBufferReadRef(RightAudioInput));
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InDelayMode), FStereoDelayModeReadRef(StereoDelayMode));
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InDelayTime), FTimeReadRef(DelayTime));
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InDelayRatio), FFloatReadRef(DelayRatio));
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InDryLevel), FFloatReadRef(DryLevel));
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InWetLevel), FFloatReadRef(WetLevel));
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InFeedbackAmount), FFloatReadRef(Feedback));
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InAudioInputLeft), LeftAudioInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InAudioInputRight), RightAudioInput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InDelayMode), StereoDelayMode);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InDelayTime), DelayTime);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InDelayRatio), DelayRatio);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InDryLevel), DryLevel);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InWetLevel), WetLevel);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InFeedbackAmount), Feedback);
 	}
 
 	void FStereoDelayOperator::BindOutputs(FOutputVertexInterfaceData& InOutVertexData)
 	{
 		using namespace StereoDelay;
 
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutAudioLeft), FAudioBufferReadRef(LeftAudioOutput));
-		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutAudioRight), FAudioBufferReadRef(RightAudioOutput));
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutAudioLeft), LeftAudioOutput);
+		InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(OutAudioRight), RightAudioOutput);
 	}
 
 	FDataReferenceCollection FStereoDelayOperator::GetInputs() const

@@ -159,32 +159,43 @@ namespace Metasound
 		}
 
 		virtual ~FMetaSoundWaveTablePlayerNodeOperator() = default;
-
-		virtual FDataReferenceCollection GetInputs() const override
+		
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
 		{
-			FDataReferenceCollection Inputs;
-
-			Inputs.AddDataReadReference("WaveTableBank", WaveTableBankReadRef);
-			Inputs.AddDataReadReference("Index", IndexReadRef);
-			Inputs.AddDataReadReference("Sync", SyncReadRef);
-			Inputs.AddDataReadReference("PitchShift", PitchShiftReadRef);
-			Inputs.AddDataReadReference("Loop", LoopReadRef);
+			InOutVertexData.BindReadVertex("WaveTableBank", WaveTableBankReadRef);
+			InOutVertexData.BindReadVertex("Index", IndexReadRef);
+			InOutVertexData.BindReadVertex("Play", PlayReadRef);
+			InOutVertexData.BindReadVertex("Stop", StopReadRef);
+			InOutVertexData.BindReadVertex("Sync", SyncReadRef);
+			InOutVertexData.BindReadVertex("PitchShift", PitchShiftReadRef);
+			InOutVertexData.BindReadVertex("Loop", LoopReadRef);
 
 			if (PhaseModReadRef.IsSet())
 			{
-				Inputs.AddDataReadReference("PhaseMod", *PhaseModReadRef);
+				InOutVertexData.BindReadVertex("PhaseMod", *PhaseModReadRef);
 			}
+		}
 
-			return Inputs;
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			InOutVertexData.BindReadVertex("MonoOut", TDataReadReference<FAudioBuffer>(OutBufferWriteRef));
+			InOutVertexData.BindReadVertex("OnFinished", TDataReadReference<FTrigger>(OutOnFinishedRef));
+		}
+
+		virtual FDataReferenceCollection GetInputs() const override
+		{
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference("MonoOut", TDataReadReference<FAudioBuffer>(OutBufferWriteRef));
-			Outputs.AddDataReadReference("OnFinished", TDataReadReference<FTrigger>(OutOnFinishedRef));
-
-			return Outputs;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		void Execute()

@@ -226,11 +226,11 @@ namespace Metasound
 		// Theoretical limit of .WAV files.
 		static_assert(NumInputChannels > 0 && NumInputChannels <= 65535, "Num Channels > 0 and <= 65535");
 
-		TWaveWriterOperator(const FOperatorSettings& InSettings, TArray<FAudioBufferReadRef>&& InAudioBuffers, FBoolReadRef&& InEnabled, const TSharedPtr<FNumberedFileCache, ESPMode::ThreadSafe>& InNumberedFileCache, const FString& InFilenamePrefix)
+		TWaveWriterOperator(const FOperatorSettings& InSettings, TArray<FAudioBufferReadRef>&& InAudioBuffers, FBoolReadRef&& InEnabled, const TSharedPtr<FNumberedFileCache, ESPMode::ThreadSafe>& InNumberedFileCache, FStringReadRef&& InFilenamePrefix)
 			: AudioInputs{ MoveTemp(InAudioBuffers) }
 			, Enabled{ MoveTemp(InEnabled) }
 			, NumberedFileCacheSP{ InNumberedFileCache }
-			, FileNamePrefix{ InFilenamePrefix }
+			, FileNamePrefix{ MoveTemp(InFilenamePrefix) }
 			, SampleRate{ InSettings.GetSampleRate() }
 		{
 			check(AudioInputs.Num() == NumInputChannels);
@@ -254,6 +254,10 @@ namespace Metasound
 			{
 				InOutVertexData.BindReadVertex(GetAudioInputName(i), AudioInputs[i]);
 			}
+
+			using namespace WaveWriterVertexNames;
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InEnabledPin), Enabled);
+			InOutVertexData.BindReadVertex(METASOUND_GET_PARAM_NAME(InFilenamePrefixPin), FileNamePrefix);
 		}
 
 		virtual void BindOutputs(FOutputVertexInterfaceData&) override
@@ -498,7 +502,7 @@ namespace Metasound
 		FBoolReadRef Enabled;
 		TUniquePtr<FWaveWriter> Writer;
 		TSharedPtr<FNumberedFileCache, ESPMode::ThreadSafe> NumberedFileCacheSP;
-		FString FileNamePrefix;
+		FStringReadRef FileNamePrefix;
 		float SampleRate = 0.f;
 		bool bIsEnabled = false;
 	};
@@ -512,8 +516,6 @@ namespace Metasound
 		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
 		const FOperatorSettings& Settings = InParams.OperatorSettings;
 		const FInputVertexInterface& InputInterface = DeclareVertexInterface().GetInputInterface();
-
-		FStringReadRef FilenamePrefix = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, METASOUND_GET_PARAM_NAME(InFilenamePrefixPin), Settings);
 
 		int32 NumConnectedAudioPins = 0;
 		TArray<FAudioBufferReadRef> InputBuffers;
@@ -532,7 +534,7 @@ namespace Metasound
 				MoveTemp(InputBuffers),
 				InputCol.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InEnabledPin), Settings),
 				GetNameCache(),
-				*FilenamePrefix
+				InputCol.GetDataReadReferenceOrConstructWithVertexDefault<FString>(InputInterface, METASOUND_GET_PARAM_NAME(InFilenamePrefixPin), Settings)
 			);
 		}
 

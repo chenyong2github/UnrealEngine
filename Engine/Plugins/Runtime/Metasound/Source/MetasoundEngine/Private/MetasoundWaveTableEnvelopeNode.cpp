@@ -139,27 +139,38 @@ namespace Metasound
 
 		virtual ~FMetasoundWaveTableEnvelopeNodeOperator() = default;
 
+		virtual void BindInputs(FInputVertexInterfaceData& InOutVertexData) override
+		{
+			
+			InOutVertexData.BindReadVertex("WaveTable", WaveTableReadRef);
+			InOutVertexData.BindReadVertex("Play", PlayReadRef);
+			InOutVertexData.BindReadVertex("Stop", StopReadRef);
+			InOutVertexData.BindReadVertex("Pause", PauseReadRef);
+			InOutVertexData.BindReadVertex("Duration", DurationReadRef);
+			InOutVertexData.BindReadVertex("Mode", ModeReadRef);
+			InOutVertexData.BindReadVertex("Interpolation", InterpModeReadRef);
+		}
+
+		virtual void BindOutputs(FOutputVertexInterfaceData& InOutVertexData) override
+		{
+			InOutVertexData.BindReadVertex("OnFinished", OnFinishedWriteRef);
+			InOutVertexData.BindReadVertex("Out", OutWriteRef);
+		}
+
 		virtual FDataReferenceCollection GetInputs() const override
 		{
-			FDataReferenceCollection Inputs;
-			Inputs.AddDataReadReference("WaveTable", WaveTableReadRef);
-			Inputs.AddDataReadReference("Play", PlayReadRef);
-			Inputs.AddDataReadReference("Stop", StopReadRef);
-			Inputs.AddDataReadReference("Pause", PauseReadRef);
-			Inputs.AddDataReadReference("Duration", DurationReadRef);
-			Inputs.AddDataReadReference("Mode", ModeReadRef);
-
-
-			return Inputs;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		virtual FDataReferenceCollection GetOutputs() const override
 		{
-			FDataReferenceCollection Outputs;
-			Outputs.AddDataReadReference("OnFinished", TDataReadReference<FTrigger>(OnFinishedWriteRef));
-			Outputs.AddDataReadReference("Out", TDataReadReference<float>(OutWriteRef));
-
-			return Outputs;
+			// This should never be called. Bind(...) is called instead. This method
+			// exists as a stop-gap until the API can be deprecated and removed.
+			checkNoEntry();
+			return {};
 		}
 
 		float GetStopValue(WaveTable::FWaveTableSampler::ESingleSampleMode InSampleMode) const
