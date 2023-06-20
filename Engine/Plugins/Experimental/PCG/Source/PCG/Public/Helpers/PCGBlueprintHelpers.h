@@ -47,6 +47,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Temporary", meta = (ScriptMethod))
 	static UPCGComponent* GetOriginalComponent(UPARAM(ref) FPCGContext& Context);
 
+	UFUNCTION(BlueprintCallable, Category = "PCG", meta = (ScriptMethod))
+	static AActor* GetTargetActor(UPARAM(ref) FPCGContext& Context, UPCGSpatialData* SpatialData);
+
 	UFUNCTION(BlueprintCallable, Category = "PCG|Points", meta = (ScriptMethod))
 	static void SetExtents(UPARAM(ref) FPCGPoint& InPoint, const FVector& InExtents);
 

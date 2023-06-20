@@ -82,6 +82,11 @@ UPCGComponent* UPCGBlueprintHelpers::GetOriginalComponent(FPCGContext& Context)
 	}
 }
 
+AActor* UPCGBlueprintHelpers::GetTargetActor(FPCGContext& Context, UPCGSpatialData* SpatialData)
+{
+	return Context.GetTargetActor(SpatialData);
+}
+
 void UPCGBlueprintHelpers::SetExtents(FPCGPoint& InPoint, const FVector& InExtents)
 {
 	InPoint.SetExtents(InExtents);
