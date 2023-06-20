@@ -18,9 +18,9 @@
 
 #include "Features/IModularFeatures.h"
 #include "Misc/App.h"
-#include "Misc/NetworkVersion.h"
-#include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Fork.h"
+#include "Misc/NetworkVersion.h"
 
 #if WITH_EOS_SDK
 
@@ -144,11 +144,15 @@ void FOnlineSubsystemEOS::ModuleInit()
 		return;
 	}
 
-	EOS_EResult InitResult = EOSSDKManager->Initialize();
-	if (InitResult != EOS_EResult::EOS_Success)
+	// If a fork is requested, we need to wait for post-fork to init the SDK
+	if (!FForkProcessHelper::IsForkRequested() || FForkProcessHelper::IsForkedChildProcess())
 	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to initialize the EOS SDK with result code (%d)"), InitResult);
-		return;
+		EOS_EResult InitResult = EOSSDKManager->Initialize();
+		if (InitResult != EOS_EResult::EOS_Success)
+		{
+			UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to initialize the EOS SDK with result code (%d)"), InitResult);
+			return;
+		}
 	}
 }
 
@@ -274,6 +278,13 @@ bool FOnlineSubsystemEOS::Init()
 	if (!EOSSDKManager)
 	{
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::Init() failed to get EOSSDKManager interface"));
+		return false;
+	}
+
+	EOS_EResult InitResult = EOSSDKManager->Initialize();
+	if (InitResult != EOS_EResult::EOS_Success)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to initialize the EOS SDK with result code (%d)"), InitResult);
 		return false;
 	}
 
