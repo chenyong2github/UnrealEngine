@@ -233,9 +233,9 @@ void FDisplayClusterMediaModule::InitializeMedia()
 						}
 
 						// Media capture
-						const TArray<FDisplayClusterConfigurationMediaOutputGroupICVFX> MediaOutputItems = MediaSettings.GetMediaOutputGroups(ClusterNodeId);
+						const TArray<FDisplayClusterConfigurationMediaOutputGroup> MediaOutputItems = MediaSettings.GetMediaOutputGroups(ClusterNodeId);
 						uint8 CaptureIdx = 0;
-						for (const FDisplayClusterConfigurationMediaOutputGroupICVFX& MediaOutputItem : MediaOutputItems)
+						for (const FDisplayClusterConfigurationMediaOutputGroup& MediaOutputItem : MediaOutputItems)
 						{
 							if (IsValid(MediaOutputItem.MediaOutput))
 							{

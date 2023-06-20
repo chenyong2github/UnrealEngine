@@ -105,7 +105,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
  * Media input group (ICVFX)
  */
 USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaInputGroupICVFX
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaInputGroup
 	: public FDisplayClusterConfigurationMediaInput
 {
 	GENERATED_BODY()
@@ -121,7 +121,7 @@ public:
  * Media output group (ICVFX)
  */
 USTRUCT(Blueprintable)
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaOutputGroupICVFX
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMediaOutputGroup
 	: public FDisplayClusterConfigurationMediaOutput
 {
 	GENERATED_BODY()
@@ -148,11 +148,11 @@ public:
 
 	/** Media input mapping */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
-	TArray<FDisplayClusterConfigurationMediaInputGroupICVFX> MediaInputGroups;
+	TArray<FDisplayClusterConfigurationMediaInputGroup> MediaInputGroups;
 
 	/** Media output mapping */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media")
-	TArray<FDisplayClusterConfigurationMediaOutputGroupICVFX> MediaOutputGroups;
+	TArray<FDisplayClusterConfigurationMediaOutputGroup> MediaOutputGroups;
 
 public:
 	/** Returns true if a specific cluster node has media source assigned */
@@ -165,7 +165,7 @@ public:
 	UMediaSource* GetMediaSource(const FString& NodeId) const;
 
 	/** Returns media outputs bound to a specific cluster node */
-	TArray<FDisplayClusterConfigurationMediaOutputGroupICVFX> GetMediaOutputGroups(const FString& NodeId) const;
+	TArray<FDisplayClusterConfigurationMediaOutputGroup> GetMediaOutputGroups(const FString& NodeId) const;
 
 public:
 	UE_DEPRECATED(5.3, "This function has beend deprecated. Please use GetMediaOutputGroups.")

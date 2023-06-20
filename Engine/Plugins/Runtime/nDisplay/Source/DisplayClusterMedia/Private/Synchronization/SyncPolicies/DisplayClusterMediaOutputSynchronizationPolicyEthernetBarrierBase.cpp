@@ -286,7 +286,7 @@ void FDisplayClusterMediaOutputSynchronizationPolicyEthernetBarrierBaseHandler::
 				if (MediaSettings.bEnable)
 				{
 					uint8 CaptureIdx = 0;
-					for (const FDisplayClusterConfigurationMediaOutputGroupICVFX& MediaOutputGroup : MediaSettings.MediaOutputGroups)
+					for (const FDisplayClusterConfigurationMediaOutputGroup& MediaOutputGroup : MediaSettings.MediaOutputGroups)
 					{
 						// Pick the same sync policy only
 						if (MediaOutputGroup.MediaOutput && MediaOutputGroup.OutputSyncPolicy)

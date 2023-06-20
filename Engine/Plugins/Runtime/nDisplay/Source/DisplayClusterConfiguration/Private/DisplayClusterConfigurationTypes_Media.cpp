@@ -37,9 +37,9 @@ bool FDisplayClusterConfigurationMediaICVFX::IsMediaInputAssigned(const FString&
 
 bool FDisplayClusterConfigurationMediaICVFX::IsMediaOutputAssigned(const FString& NodeId) const
 {
-	const TArray<FDisplayClusterConfigurationMediaOutputGroupICVFX> NodeOutputGroups = GetMediaOutputGroups(NodeId);
+	const TArray<FDisplayClusterConfigurationMediaOutputGroup> NodeOutputGroups = GetMediaOutputGroups(NodeId);
 
-	for (const FDisplayClusterConfigurationMediaOutputGroupICVFX& NodeOutputGroup : NodeOutputGroups)
+	for (const FDisplayClusterConfigurationMediaOutputGroup& NodeOutputGroup : NodeOutputGroups)
 	{
 		if (IsValid(NodeOutputGroup.MediaOutput))
 		{
@@ -58,7 +58,7 @@ bool FDisplayClusterConfigurationMediaICVFX::IsMediaOutputAssigned(const FString
 UMediaSource* FDisplayClusterConfigurationMediaICVFX::GetMediaSource(const FString& NodeId) const
 {
 	// Look up for a group that contains node ID specified
-	for (const FDisplayClusterConfigurationMediaInputGroupICVFX& MediaInputGroup : MediaInputGroups)
+	for (const FDisplayClusterConfigurationMediaInputGroup& MediaInputGroup : MediaInputGroups)
 	{
 		const bool bNodeFound = MediaInputGroup.ClusterNodes.ItemNames.ContainsByPredicate([NodeId](const FString& Item)
 			{
@@ -74,9 +74,9 @@ UMediaSource* FDisplayClusterConfigurationMediaICVFX::GetMediaSource(const FStri
 	return nullptr;
 }
 
-TArray<FDisplayClusterConfigurationMediaOutputGroupICVFX> FDisplayClusterConfigurationMediaICVFX::GetMediaOutputGroups(const FString& NodeId) const
+TArray<FDisplayClusterConfigurationMediaOutputGroup> FDisplayClusterConfigurationMediaICVFX::GetMediaOutputGroups(const FString& NodeId) const
 {
-	return MediaOutputGroups.FilterByPredicate([NodeId](const FDisplayClusterConfigurationMediaOutputGroupICVFX& Item)
+	return MediaOutputGroups.FilterByPredicate([NodeId](const FDisplayClusterConfigurationMediaOutputGroup& Item)
 		{
 			return Item.ClusterNodes.ItemNames.Contains(NodeId);
 		});
