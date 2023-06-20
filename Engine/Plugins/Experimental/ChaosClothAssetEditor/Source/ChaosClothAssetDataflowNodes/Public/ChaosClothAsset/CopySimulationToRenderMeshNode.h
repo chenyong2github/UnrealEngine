@@ -8,31 +8,28 @@
 
 class UMaterialInterface;
 
+/** Copy the simulation mesh to the render mesh to be able to render the simulation mesh, or when not using a different mesh for rendering. */
 USTRUCT(Meta = (DataflowCloth))
 struct FChaosClothAssetCopySimulationToRenderMeshNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetCopySimulationToRenderMeshNode, "CopySimulationToRenderMesh", "Cloth", "Cloth Simulation Render Mesh")
-	//DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")  // TODO: Leave out the render type until there is something to render
 
 public:
 
-	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DataflowPassthrough = "Collection"))
 	FManagedArrayCollection Collection;
 
-	/** List of patterns to apply the operation on. All patterns will be used if left empty. */
-	UPROPERTY(EditAnywhere, Category = "Pattern Selection")
-	TArray<int32> Patterns;
-
 	/** New material for the render mesh. */
-	UPROPERTY(EditAnywhere, Category = "Render Mesh")
+	UPROPERTY(EditAnywhere, Category = "Copy Simulation To Render Mesh")
 	TObjectPtr<const UMaterialInterface> Material;
 
-	/** Generate a single render pattern rather than a render pattern per sim pattern */
-	UPROPERTY(EditAnywhere, Category = "Render Mesh")
+	/** Generate a single render pattern rather than a render pattern per sim pattern. */
+	UPROPERTY(EditAnywhere, Category = "Copy Simulation To Render Mesh")
 	bool bGenerateSingleRenderPattern = false;
 
 	FChaosClothAssetCopySimulationToRenderMeshNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
+private:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };

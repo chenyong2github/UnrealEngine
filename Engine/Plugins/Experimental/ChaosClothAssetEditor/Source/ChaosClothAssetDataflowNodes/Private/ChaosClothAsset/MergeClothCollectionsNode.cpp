@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/MergeClothCollectionsNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "Dataflow/DataflowInputOutput.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MergeClothCollectionsNode)
 
@@ -24,21 +24,43 @@ void FChaosClothAssetMergeClothCollectionsNode::Evaluate(Dataflow::FContext& Con
 		// Evaluate in collection
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
-		
-		// Make it a valid cloth collection if needed
+
+		// Keep track of whether any of these collections are valid cloth collections
 		FCollectionClothFacade ClothFacade(ClothCollection);
-		ClothFacade.DefineSchema();
+		bool bAreAnyValid = ClothFacade.IsValid();
+
+		// Make it a valid cloth collection if needed
+		if (!bAreAnyValid)
+		{
+			ClothFacade.DefineSchema();
+		}
+
 		// Iterate through the inputs and append them to LOD 0
 		const TArray<const FManagedArrayCollection*> Collections = GetCollections();
 		for (int32 InputIndex = 1; InputIndex < Collections.Num(); ++InputIndex)
 		{
-			const FManagedArrayCollection& OtherCollection = GetValue<FManagedArrayCollection>(Context, Collections[InputIndex]);
-			const TSharedRef<const FManagedArrayCollection> OtherClothCollection = MakeShared<const FManagedArrayCollection>(OtherCollection);
-			const FCollectionClothConstFacade OtherClothFacade(OtherClothCollection);  // TODO: Remove Shared pointer from facade and skip duplication
-			ClothFacade.Append(OtherClothFacade);
+			FManagedArrayCollection OtherCollection = GetValue<FManagedArrayCollection>(Context, Collections[InputIndex]);  // Can't use a const reference here sadly since the facade needs a SharedRef to be created
+			const TSharedRef<const FManagedArrayCollection> OtherClothCollection = MakeShared<const FManagedArrayCollection>(MoveTemp(OtherCollection));
+			const FCollectionClothConstFacade OtherClothFacade(OtherClothCollection);
+			if (OtherClothFacade.IsValid())
+			{
+				ClothFacade.Append(OtherClothFacade);
+				bAreAnyValid = true;
+			}
 		}
 
-		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
+		// Set the output
+		if (bAreAnyValid)
+		{
+			// Use the merged cloth collection, but only if there were at least one valid input cloth collections
+			SetValue(Context, MoveTemp(*ClothCollection), &Collection);
+		}
+		else
+		{
+			// Otherwise pass through the first input unchanged
+			const FManagedArrayCollection& Passthrough = GetValue<FManagedArrayCollection>(Context, &Collection);
+			SetValue(Context, Passthrough, &Collection);
+		}
 	}
 }
 

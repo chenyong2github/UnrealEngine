@@ -7,6 +7,7 @@
 #include "Misc/SecureHash.h"
 #include "DatasmithImportNode.generated.h"
 
+/** Import a file from a third party garment construction package compatible with the Datasmith scene format. */
 USTRUCT(meta = (DataflowCloth))
 struct FChaosClothAssetDatasmithImportNode : public FDataflowNode
 {
@@ -14,7 +15,7 @@ struct FChaosClothAssetDatasmithImportNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetDatasmithImportNode, "DatasmithImport", "Cloth", "Cloth Datasmith Import")
 
 public:
-	UPROPERTY(meta = (DataflowOutput, DisplayName = "Collection"))
+	UPROPERTY(meta = (DataflowOutput))
 	FManagedArrayCollection Collection;
 
 	/** Path of the file to import using any available Datasmith cloth translator. */

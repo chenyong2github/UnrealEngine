@@ -115,7 +115,7 @@ void UClothTransferSkinWeightsTool::Setup()
 
 	SetSRTPropertiesFromTransform(TransferSkinWeightsNode->Transform);
 	ToolProperties->SourceMesh = TransferSkinWeightsNode->SkeletalMesh;
-	ToolProperties->SourceMeshLOD = TransferSkinWeightsNode->SkeletalMeshLOD;
+	ToolProperties->SourceMeshLOD = TransferSkinWeightsNode->LodIndex;
 	
 
 	AddToolPropertySource(ToolProperties);
@@ -266,7 +266,7 @@ void UClothTransferSkinWeightsTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		TransferSkinWeightsNode->SkeletalMesh = ToolProperties->SourceMesh;
-		TransferSkinWeightsNode->SkeletalMeshLOD = ToolProperties->SourceMeshLOD;
+		TransferSkinWeightsNode->LodIndex = ToolProperties->SourceMeshLOD;
 		TransferSkinWeightsNode->Transform = TransformFromProperties();
 	}
 
@@ -307,7 +307,7 @@ bool UClothTransferSkinWeightsTool::CanAccept() const
 	const FTransform& TransformOnNode = TransferSkinWeightsNode->Transform;;
 
 	return (ToolProperties->SourceMesh != TransferSkinWeightsNode->SkeletalMesh) ||
-		(ToolProperties->SourceMeshLOD != TransferSkinWeightsNode->SkeletalMeshLOD) ||
+		(ToolProperties->SourceMeshLOD != TransferSkinWeightsNode->LodIndex) ||
 		(ToolProperties->SourceMeshRotation != TransformOnNode.Rotator().Euler()) ||
 		(ToolProperties->SourceMeshTranslation != TransformOnNode.GetTranslation()) ||
 		(ToolProperties->SourceMeshScale != TransformOnNode.GetScale3D());

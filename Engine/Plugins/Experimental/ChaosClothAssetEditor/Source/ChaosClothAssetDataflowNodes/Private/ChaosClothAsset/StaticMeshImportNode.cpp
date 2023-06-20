@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/StaticMeshImportNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
+#include "ChaosClothAsset/ClothDataflowTools.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
-#include "ChaosClothAsset/ClothDataflowTools.h"
+#include "Dataflow/DataflowInputOutput.h"
 #include "Engine/StaticMesh.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "MeshDescriptionToDynamicMesh.h"
@@ -86,14 +86,14 @@ bool BuildSkeletalMeshModelFromMeshDescription(const FMeshDescription* const InM
 	{
 		for (const FText& Message : WarningMessages)
 		{
-			DataflowNodes::LogAndToastWarning(FText::Format(LOCTEXT("SkelMeshConvertWarningFmt", "{0}"), Message));
+			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("%s"), *Message.ToString());
 		}
 		return false;
 	}
 	return true;
 }
 
-void InitializeDataFromMeshDescription(
+bool InitializeDataFromMeshDescription(
 	const FMeshDescription* const InMeshDescription,
 	const FMeshBuildSettings& InBuildSettings,
 	const TArray<FStaticMaterial>& StaticMaterials,
@@ -108,7 +108,9 @@ void InitializeDataFromMeshDescription(
 			const FString RenderMaterialPathName = StaticMaterials[SectionIndex].MaterialInterface ? StaticMaterials[SectionIndex].MaterialInterface->GetPathName() : "";
 			FClothDataflowTools::AddRenderPatternFromSkeletalMeshSection(ClothCollection, SkeletalMeshModel, SectionIndex, RenderMaterialPathName);
 		}
+		return true;
 	}
+	return false;
 }
 
 } // namespace UE::Chaos::ClothAsset::Private
@@ -122,7 +124,7 @@ FChaosClothAssetStaticMeshImportNode::FChaosClothAssetStaticMeshImportNode(const
 void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	using namespace UE::Chaos::ClothAsset;
-	using namespace UE::Chaos::ClothAsset::DataflowNodes;
+	using namespace UE::Chaos::ClothAsset::Private;
 
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
@@ -136,7 +138,7 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 		if (StaticMesh && (bImportAsSimMesh || bImportAsRenderMesh))
 		{
 			const int32 NumLods = StaticMesh->GetNumSourceModels();
-			if(LodIndex < NumLods)
+			if (LodIndex < NumLods)
 			{
 				const FMeshDescription* const MeshDescription = StaticMesh->GetMeshDescription(LodIndex);
 				check(MeshDescription);
@@ -151,12 +153,19 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 
 					Converter.Convert(MeshDescription, DynamicMesh);
 					constexpr bool bAppend = false;
-					UE::Chaos::ClothAsset::FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannel, UVScale, bAppend);
+					FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannel, UVScale, bAppend);
 				}
 				if (bImportAsRenderMesh)
 				{
 					// Add render data into a single pattern for now
-					UE::Chaos::ClothAsset::Private::InitializeDataFromMeshDescription(MeshDescription, StaticMesh->GetSourceModel(LodIndex).BuildSettings, StaticMesh->GetStaticMaterials(), ClothCollection);
+					if (!InitializeDataFromMeshDescription(MeshDescription, StaticMesh->GetSourceModel(LodIndex).BuildSettings, StaticMesh->GetStaticMaterials(), ClothCollection))
+					{
+						FClothDataflowTools::LogAndToastWarning(*this,
+							LOCTEXT("InvalidRenderMeshHeadline", "Invalid render mesh."),
+							FText::Format(
+								LOCTEXT("InvalidRenderMeshDetails", "The input static mesh {0} failed to convert to a valid render mesh."),
+								FText::FromString(StaticMesh->GetName())));
+					}
 				}
 
 				// Set a default skeleton
@@ -164,8 +173,12 @@ void FChaosClothAssetStaticMeshImportNode::Evaluate(Dataflow::FContext& Context,
 			}
 			else
 			{
-				DataflowNodes::LogAndToastWarning(
-					FText::Format(LOCTEXT("FChaosClothAssetStaticMeshImportNode::InvalidLod", "FChaosClothAssetStaticMeshImportNode: Invalid LodIndex {0} >= Num Lods in static mesh {1}"),
+				FClothDataflowTools::LogAndToastWarning(*this,
+					LOCTEXT("InvalidLodIndexHeadline", "Invalid LOD index."),
+					FText::Format(LOCTEXT("InvalidLodIndexDetails",
+						"{0} is not a valid LOD index for static mesh {1}.\n"
+						"This static mesh has {2} LOD(s)."),
+						FText::FromString(StaticMesh->GetName()),
 						LodIndex,
 						NumLods));
 			}

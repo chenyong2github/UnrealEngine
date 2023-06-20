@@ -6,6 +6,7 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "MergeClothCollectionsNode.generated.h"
 
+/** Merge multiple cloth collections into a single cloth collection of multiple patterns. */
 USTRUCT(Meta = (DataflowCloth))
 struct FChaosClothAssetMergeClothCollectionsNode : public FDataflowNode
 {
@@ -13,7 +14,7 @@ struct FChaosClothAssetMergeClothCollectionsNode : public FDataflowNode
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetMergeClothCollectionsNode, "MergeClothCollections", "Cloth", "Cloth Merge Collection")
 
 public:
-	static constexpr int32 MaxInputs = 6;  // Hardcoded number of nputs since it is currently not possible to use arrays for optional inputs
+	static constexpr int32 MaxInputs = 6;  // Hardcoded number of inputs since it is currently not possible to use arrays for optional inputs
 
 	/** Input 0, right click on the node and add pins to add more merge inputs. */
 	UPROPERTY(Meta = (DataflowInput, DataflowOutput, DataflowPassthrough = "Collection"))
@@ -39,14 +40,15 @@ public:
 
 	FChaosClothAssetMergeClothCollectionsNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
+private:
+	//~ Begin FDataflowNode interface
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-
 	virtual Dataflow::FPin AddPin() override;
 	virtual bool CanAddPin() const override { return NumInputs < MaxInputs; }
 	virtual bool CanRemovePin() const override { return NumInputs > 1; }
 	virtual Dataflow::FPin RemovePin() override;
-	virtual void Serialize(FArchive& Ar);
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End FDataflowNode interface
 
-private:
 	TArray<const FManagedArrayCollection*> GetCollections() const;
 };

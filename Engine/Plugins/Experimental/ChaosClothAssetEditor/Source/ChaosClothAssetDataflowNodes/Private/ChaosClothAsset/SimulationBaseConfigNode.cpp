@@ -1,41 +1,46 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/SimulationBaseConfigNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/ClothDataflowTools.h"
 #include "Chaos/CollectionPropertyFacade.h"
+#include "Dataflow/DataflowInputOutput.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetSimulationBaseConfigNode"
 
 namespace UE::Chaos::ClothAsset::Private
 {
-	static void LogAndToastDuplicateProperty(const FName& NodeName, const FName& PropertyName)
+	static void LogAndToastDuplicateProperty(const FDataflowNode& DataflowNode, const FName& PropertyName)
 	{
-		using namespace UE::Chaos::ClothAsset::DataflowNodes;
+		using namespace UE::Chaos::ClothAsset;
 
-		const FText Message = FText::Format(
+		static const FText Headline = LOCTEXT("DuplicatePropertyHeadline", "Duplicate property.");
+
+		const FText Details = FText::Format(
 			LOCTEXT(
-				"DuplicateProperty",
-				"Cloth collection property '{1}' was already set in an upstream node, and its values are now overriden by node '{0}'."),
-			FText::FromName(NodeName),
+				"DuplicatePropertyDetails",
+				"Cloth collection property '{0}' was already set in an upstream node.\n"
+				"Its values have now been overridden."),
 			FText::FromName(PropertyName));
 
-		LogAndToastWarning(Message);
+		FClothDataflowTools::LogAndToastWarning(DataflowNode, Headline, Details);
 	}
 
-	static void LogAndToastSimilarProperty(const FName& NodeName, const FName& PropertyName, const FName& SimilarPropertyName)
+	static void LogAndToastSimilarProperty(const FDataflowNode& DataflowNode, const FName& PropertyName, const FName& SimilarPropertyName)
 	{
-		using namespace UE::Chaos::ClothAsset::DataflowNodes;
+		using namespace UE::Chaos::ClothAsset;
 
-		const FText Message = FText::Format(
+		static const FText Headline = LOCTEXT("SimilarPropertyHeadline", "Similar property.");
+
+		const FText Details = FText::Format(
 			LOCTEXT(
-				"SimilarProperty",
-				"Cloth collection property '{1}' set in node and '{0}' is similar to the property '{2}' already set in an upstream node, "
-				"which might result in an undefined simulation behavior."),
-			FText::FromName(NodeName),
+				"SimilarPropertyDetails",
+				"Cloth collection property '{0}' is similar to the property '{1}' already set in an upstream node.\n"
+				"This might result in an undefined simulation behavior."),
 			FText::FromName(PropertyName),
 			FText::FromName(SimilarPropertyName));
 
-		LogAndToastWarning(Message);
+		FClothDataflowTools::LogAndToastWarning(DataflowNode, Headline, Details);
 	}
 }
 
@@ -52,19 +57,22 @@ void FChaosClothAssetSimulationBaseConfigNode::RegisterCollectionConnections()
 void FChaosClothAssetSimulationBaseConfigNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	using namespace Chaos::Softs;
-	using namespace UE::Chaos::ClothAsset::DataflowNodes;
+	using namespace UE::Chaos::ClothAsset;
 
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
-		FCollectionPropertyMutableFacade Properties(ClothCollection);
-		Properties.DefineSchema();
+		if (FCollectionClothFacade(ClothCollection).IsValid())  // Can only act on the collection if it is a valid cloth collection
+		{
+			FCollectionPropertyMutableFacade Properties(ClothCollection);
+			Properties.DefineSchema();
 
-		AddProperties(Properties);
+			AddProperties(Properties);
 
-		EvaluateClothCollection(Context, ClothCollection);
+			EvaluateClothCollection(Context, ClothCollection);
+		}
 
 		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
@@ -76,7 +84,7 @@ int32 FChaosClothAssetSimulationBaseConfigNode::AddPropertyHelper(
 	bool bIsAnimatable,
 	const TArray<FName>& SimilarPropertyNames) const
 {
-	using namespace UE::Chaos::ClothAsset::Private;
+	using namespace UE::Chaos::ClothAsset;
 
 	constexpr bool bIsEnabled = true;
 
@@ -88,14 +96,14 @@ int32 FChaosClothAssetSimulationBaseConfigNode::AddPropertyHelper(
 	else
 	{
 		Properties.SetAnimatable(KeyIndex, bIsAnimatable);
-		LogAndToastDuplicateProperty(FDataflowNode::Name, PropertyName);
+		Private::LogAndToastDuplicateProperty(*this, PropertyName);
 	}
 
 	for (const FName& SimilarPropertyName : SimilarPropertyNames)
 	{
 		if (Properties.GetKeyIndex(SimilarPropertyName.ToString()) != INDEX_NONE)
 		{
-			LogAndToastSimilarProperty(FDataflowNode::Name, PropertyName, SimilarPropertyName);
+			Private::LogAndToastSimilarProperty(*this, PropertyName, SimilarPropertyName);
 		}
 	}
 

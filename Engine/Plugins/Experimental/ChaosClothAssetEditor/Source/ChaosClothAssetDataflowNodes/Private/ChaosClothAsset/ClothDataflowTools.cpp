@@ -4,12 +4,16 @@
 #include "ChaosClothAsset/ClothGeometryTools.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Animation/Skeleton.h"
-#include "BoneWeights.h"
+#include "Dataflow/DataflowNode.h"
 #include "DynamicMesh/NonManifoldMappingSupport.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Math/UnrealMathUtility.h"
 #include "Rendering/SkeletalMeshLODModel.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "SkeletalMeshAttributes.h"
 #include "ToDynamicMesh.h"
+
+DEFINE_LOG_CATEGORY(LogChaosClothAssetDataflowNodes);
 
 namespace UE::Chaos::ClothAsset
 {
@@ -433,4 +437,23 @@ namespace UE::Chaos::ClothAsset
 		constexpr bool bAppend = true;
 		FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannelIndex, FVector2f(1.f), bAppend);
 	}
+
+	void FClothDataflowTools::LogAndToastWarning(const FDataflowNode& DataflowNode, const FText& Headline, const FText& Details)
+	{
+		static const FTextFormat TextFormat = FTextFormat::FromString(TEXT("{0}: {1}\n{2}"));
+		const FText NodeName = FText::FromName(DataflowNode.GetName());
+		const FText Text = FText::Format(TextFormat, NodeName, Headline, Details);
+
+		FNotificationInfo NotificationInfo(Text);
+		NotificationInfo.ExpireDuration = 5.0f;
+		FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+
+		UE_LOG(LogChaosClothAssetDataflowNodes, Display, TEXT("%s"), *Text.ToString());
+	}
+
+	FString FClothDataflowTools::MakeAttributeName(const FString& String)
+	{
+		return SlugStringForValidName(String, TEXT("_")).Replace(TEXT("\\"), TEXT("_"));
+	}
+
 }  // End namespace UE::Chaos::ClothAsset

@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/ReverseNormalsNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
+#include "Dataflow/DataflowInputOutput.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReverseNormalsNode)
 
@@ -12,8 +13,6 @@ FChaosClothAssetReverseNormalsNode::FChaosClothAssetReverseNormalsNode(const Dat
 	: FDataflowNode(InParam, InGuid)
 {
 	RegisterInputConnection(&Collection);
-	RegisterInputConnection(&SimPatterns);
-	RegisterInputConnection(&RenderPatterns);
 	RegisterOutputConnection(&Collection, &Collection);
 }
 
@@ -27,14 +26,17 @@ void FChaosClothAssetReverseNormalsNode::Evaluate(Dataflow::FContext& Context, c
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
-		FClothGeometryTools::ReverseMesh(
-			ClothCollection,
-			bReverseSimMeshNormals,
-			bReverseSimMeshWindingOrder,
-			bReverseRenderMeshNormals,
-			bReverseRenderMeshWindingOrder,
-			GetValue<TArray<int32>>(Context, &SimPatterns),
-			GetValue<TArray<int32>>(Context, &RenderPatterns));
+		if (FCollectionClothFacade(ClothCollection).IsValid())  // Can only act on the collection if it is a valid cloth collection
+		{
+			FClothGeometryTools::ReverseMesh(
+				ClothCollection,
+				bReverseSimMeshNormals,
+				bReverseSimMeshWindingOrder,
+				bReverseRenderMeshNormals,
+				bReverseRenderMeshWindingOrder,
+				SimPatterns,
+				RenderPatterns);
+		}
 
 		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}

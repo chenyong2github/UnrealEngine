@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/CopySimulationToRenderMeshNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
+#include "Dataflow/DataflowInputOutput.h"
 #include "Materials/Material.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CopySimulationToRenderMeshNode)
@@ -13,7 +14,6 @@ FChaosClothAssetCopySimulationToRenderMeshNode::FChaosClothAssetCopySimulationTo
 	: FDataflowNode(InParam, InGuid)
 {
 	RegisterInputConnection(&Collection);
-	RegisterInputConnection(&Patterns);
 	RegisterOutputConnection(&Collection, &Collection);
 }
 
@@ -27,16 +27,19 @@ void FChaosClothAssetCopySimulationToRenderMeshNode::Evaluate(Dataflow::FContext
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
-		// Empty mesh and materials
-		FClothGeometryTools::DeleteRenderMesh(ClothCollection);
+		if (FCollectionClothFacade(ClothCollection).IsValid())  // Can only act on the collection if it is a valid cloth collection
+		{
+			// Empty mesh and materials
+			FClothGeometryTools::DeleteRenderMesh(ClothCollection);
 
-		// Find the material asset path
-		const FString MaterialPathName = Material ? 
-			Material->GetPathName() :
-			FString(TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"));
+			// Find the material asset path
+			const FString MaterialPathName = Material ? 
+				Material->GetPathName() :
+				FString(TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"));
 
-		// Copy the mesh data
-		FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialPathName, bGenerateSingleRenderPattern);
+			// Copy the mesh data
+			FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialPathName, bGenerateSingleRenderPattern);
+		}
 
 		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}

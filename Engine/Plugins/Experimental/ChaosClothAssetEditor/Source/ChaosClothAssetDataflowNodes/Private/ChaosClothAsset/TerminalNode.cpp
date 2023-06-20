@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/TerminalNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothAsset.h"
-#include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/ClothDataflowTools.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
-#include "Chaos/CollectionPropertyFacade.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Animation/Skeleton.h"
+#include "Chaos/CollectionPropertyFacade.h"
+#include "Dataflow/DataflowInputOutput.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Materials/Material.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -107,21 +108,21 @@ void FChaosClothAssetTerminalNode::SetAssetValue(TObjectPtr<UObject> Asset, Data
 				{
 					ClothFacade.Initialize(FCollectionClothConstFacade(ClothCollections[LastValidLodIndex]));
 
-					DataflowNodes::LogAndToastWarning(
+					FClothDataflowTools::LogAndToastWarning(*this,
+						LOCTEXT("InvalidInputLodNHeadline", "Invalid input LOD."),
 						FText::Format(
-							LOCTEXT(
-								"InvalidLodN",
-								"ClothAssetTerminal: Invalid or empty input LOD for LOD {0}.\n"
-								"Using previous valid LOD {1} instead."),
-						LodIndex,
-						LastValidLodIndex));
+							LOCTEXT("InvalidInputLodNDetails",
+								"Invalid or empty input LOD for LOD {0}.\n"
+								"Using the previous valid LOD {1} instead."),
+							LodIndex,
+							LastValidLodIndex));
 				}
 				else
 				{
-					DataflowNodes::LogAndToastWarning(
-						LOCTEXT(
-							"InvalidLod0",
-							"ClothAssetTerminal: Invalid or empty input LOD for LOD 0.\n"
+					FClothDataflowTools::LogAndToastWarning(*this,
+						LOCTEXT("InvalidInputLod0Headline", "Invalid input LOD 0."),
+						LOCTEXT("InvalidInputLod0Details",
+							"Invalid or empty input LOD for LOD 0.\n"
 							"LOD 0 cannot be empty in order to construct a valid Cloth Asset."));
 					break; // Empty cloth asset
 				}

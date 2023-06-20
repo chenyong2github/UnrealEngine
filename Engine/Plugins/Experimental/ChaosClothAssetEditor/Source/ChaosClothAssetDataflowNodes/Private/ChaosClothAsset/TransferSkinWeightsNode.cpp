@@ -1,45 +1,45 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/TransferSkinWeightsNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
+#include "ChaosClothAsset/ClothDataflowTools.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "Animation/Skeleton.h"
+#include "Dataflow/DataflowInputOutput.h"
+#include "DynamicMesh/DynamicBoneAttribute.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshTransforms.h"
+#include "Engine/SkeletalMesh.h"
 #include "MeshDescriptionToDynamicMesh.h"
+#include "Operations/TransferBoneWeights.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Rendering/SkeletalMeshModel.h"
-#include "DynamicMesh/MeshTransforms.h"
-#include "Operations/TransferBoneWeights.h"
 #include "SkeletalMeshAttributes.h"
-#include "Engine/SkeletalMesh.h"
-#include "Animation/Skeleton.h"
-#include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
-#include "DynamicMesh/DynamicMeshAttributeSet.h"
-#include "DynamicMesh/DynamicBoneAttribute.h"
-#include "DynamicMesh/MeshNormals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TransferSkinWeightsNode)
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetTransferSkinWeightsNode"
 
-using namespace UE::Chaos::ClothAsset;
-using namespace UE::AnimationCore;
-using namespace UE::Geometry;
-
-namespace UE::ChaosClothAsset::Private
+namespace UE::Chaos::ClothAsset::Private
 {
-	void SkeletalMeshToDynamicMesh(USkeletalMesh* FromSkeletalMeshAsset, int32 SkeletalMeshLOD, FDynamicMesh3& ToDynamicMesh)
+	static void SkeletalMeshToDynamicMesh(USkeletalMesh* FromSkeletalMeshAsset, int32 LodIndex, FDynamicMesh3& ToDynamicMesh)
 	{	
 		FMeshDescription SourceMesh;
-		FromSkeletalMeshAsset->GetMeshDescription(SkeletalMeshLOD, SourceMesh);
+		FromSkeletalMeshAsset->GetMeshDescription(LodIndex, SourceMesh);
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.Convert(&SourceMesh, ToDynamicMesh);
 	}
 
 	// Convert the cloth into DynamicMesh
 	// @todo: This should instead be handled by a cloth lod to dynamic mesh converter similar to functions in the ClothPatternToDynamicMesh.h
-	bool SimClothToDynamicMesh(const FCollectionClothConstFacade& ClothFacade,
-								const FReferenceSkeleton& TargetRefSkeleton, // the reference skeleton to add to the dynamic mesh
-								FDynamicMesh3& WeldedSimMesh)
+	static bool SimClothToDynamicMesh(
+		const UE::Chaos::ClothAsset::FCollectionClothConstFacade& ClothFacade,
+		const FReferenceSkeleton& TargetRefSkeleton, // the reference skeleton to add to the dynamic mesh
+		UE::Geometry::FDynamicMesh3& WeldedSimMesh)
 	{
+		using namespace UE::Geometry;
+
 		// Convert the sim mesh to DynamicMesh. 
 		// @todo: FTransferBoneWeights should accept raw data arrays (vertices/triangles) to avoid this conversion
 		WeldedSimMesh.Clear();
@@ -73,8 +73,15 @@ namespace UE::ChaosClothAsset::Private
 		return true;
 	}
 
-	void TransferInpaintWeights(const FReferenceSkeleton& TargetRefSkeleton, const double NormalThreshold, const double RadiusPercentage, bool bUseParallel, FCollectionClothFacade& ClothFacade, FTransferBoneWeights& TransferBoneWeights)
+	static void TransferInpaintWeights(
+		const FReferenceSkeleton& TargetRefSkeleton,
+		const double NormalThreshold,
+		const double RadiusPercentage,
+		bool bUseParallel,
+		UE::Chaos::ClothAsset::FCollectionClothFacade& ClothFacade,
+		UE::Geometry::FTransferBoneWeights& TransferBoneWeights)
 	{
+		using namespace UE::Geometry;
 
 		//
 		// Convert cloth sim mesh LOD to the welded dynamic sim mesh.
@@ -82,27 +89,25 @@ namespace UE::ChaosClothAsset::Private
 		FDynamicMesh3 WeldedSimMesh;
 		if (!ensure(SimClothToDynamicMesh(ClothFacade, TargetRefSkeleton, WeldedSimMesh)))
 		{
-			UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsFailedLodToDynamicMesh", "TransferSkinWeightsNode: Failed to weld the simulation mesh for LOD."));
+			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("TransferSkinWeightsNode: Failed to weld the simulation mesh for LOD."));
 			return;
 		}
-
 
 		//
 		// Transfer the weights from the body to the welded sim mesh.
 		//
 		TransferBoneWeights.NormalThreshold = FMathd::DegToRad * NormalThreshold;
 		TransferBoneWeights.SearchRadius = RadiusPercentage * WeldedSimMesh.GetBounds().DiagonalLength();
-		if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
+		if (!ensure(TransferBoneWeights.Validate() == EOperationValidationResult::Ok))
 		{
-			UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsInpaintWeightsInvalidParameters", "TransferSkinWeightsNode: Transfer method parameters are invalid."));
+			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("TransferSkinWeightsNode: Transfer method parameters are invalid."));
 			return;
 		}
-		if (!TransferBoneWeights.TransferWeightsToMesh(WeldedSimMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName))
+		if (!ensure(TransferBoneWeights.TransferWeightsToMesh(WeldedSimMesh, FSkeletalMeshAttributes::DefaultSkinWeightProfileName)))
 		{
-			UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsFailed", "TransferSkinWeightsNode: Transferring skin weights failed"));
+			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("TransferSkinWeightsNode: Transferring skin weights failed."));
 			return;
 		}
-
 
 		//
 		// Copy the new bone weight data from the welded sim mesh back to the cloth patterns.
@@ -117,7 +122,6 @@ namespace UE::ChaosClothAsset::Private
 			OutAttribute->GetValue(WeldedID, ClothFacade.GetSimBoneIndices()[WeldedID],
 				ClothFacade.GetSimBoneWeights()[WeldedID]);
 		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
-
 
 		//
 		// Compute the bone weights for the render mesh by transferring weights from the sim mesh
@@ -136,8 +140,14 @@ namespace UE::ChaosClothAsset::Private
 		}, bUseParallel ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 	}
 
-	void TransferClosestPointOnSurface(const FReferenceSkeleton& TargetRefSkeleton, const bool bUseParallel, FCollectionClothFacade& ClothFacade, FTransferBoneWeights& TransferBoneWeights)
+	static void TransferClosestPointOnSurface(
+		const FReferenceSkeleton& TargetRefSkeleton,
+		const bool bUseParallel,
+		UE::Chaos::ClothAsset::FCollectionClothFacade& ClothFacade,
+		UE::Geometry::FTransferBoneWeights& TransferBoneWeights)
 	{
+		using namespace UE::Geometry;
+
 		//
 		// Compute the bone index mappings. This allows the transfer operator to retarget weights to the correct skeleton.
 		//
@@ -148,9 +158,9 @@ namespace UE::ChaosClothAsset::Private
 			TargetBoneToIndex.Add(TargetRefSkeleton.GetRawRefBoneInfo()[BoneIdx].Name, BoneIdx);
 		}
 
-		if (TransferBoneWeights.Validate() != EOperationValidationResult::Ok)
+		if (!ensure(TransferBoneWeights.Validate() == EOperationValidationResult::Ok))
 		{
-			UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsClosestPointOnSurfaceInvalidParameters", "TransferSkinWeightsNode: Transfer method parameters are invalid."));
+			UE_LOG(LogChaosClothAssetDataflowNodes, Warning, TEXT("TransferSkinWeightsNode: Transfer method parameters are invalid."));
 			return;
 		}
 
@@ -187,25 +197,30 @@ FChaosClothAssetTransferSkinWeightsNode::FChaosClothAssetTransferSkinWeightsNode
 {
 	RegisterInputConnection(&Collection);
 	RegisterOutputConnection(&Collection, &Collection);
-	RegisterInputConnection(&SkeletalMesh);
 }
 
 void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	using namespace UE::ChaosClothAsset::Private;
+	using namespace UE::Chaos::ClothAsset;
+	using namespace UE::Chaos::ClothAsset::Private;
+	using namespace UE::Geometry;
 
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		// Evaluate inputs
 		FManagedArrayCollection InputCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InputCollection));
-		const TObjectPtr<USkeletalMesh> InputSkeletalMesh = GetValue<TObjectPtr<USkeletalMesh>>(Context, &SkeletalMesh);
 
-		if (InputSkeletalMesh)
+		if (SkeletalMesh && FCollectionClothFacade(ClothCollection).IsValid())  // Can only act on the collection if it is a valid cloth collection
 		{
-			if (!InputSkeletalMesh->IsValidLODIndex(SkeletalMeshLOD))
+			if (!SkeletalMesh->IsValidLODIndex(LodIndex))
 			{
-				UE::Chaos::ClothAsset::DataflowNodes::LogAndToastWarning(LOCTEXT("Warning_TransferWeightsInvalidSkeletalMeshLOD", "TransferSkinWeightsNode: The specified input SkeletalMesh LOD is not valid."));
+				FClothDataflowTools::LogAndToastWarning(*this,
+					LOCTEXT("InvalidLodIndexHeadline", "Invalid LOD Index."),
+					FText::Format(
+						LOCTEXT("InvalidLodIndexDetails", "LOD index {0} is not a valid LOD for skeletal mesh {1}."),
+						LodIndex,
+						FText::FromString(SkeletalMesh.GetName())));
 				SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 				return;
 			}
@@ -214,10 +229,9 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 			// Convert source Skeletal Mesh to Dynamic Mesh.
 			//
 			FDynamicMesh3 SourceDynamicMesh;
-			SkeletalMeshToDynamicMesh(InputSkeletalMesh, SkeletalMeshLOD, SourceDynamicMesh);
+			SkeletalMeshToDynamicMesh(SkeletalMesh, LodIndex, SourceDynamicMesh);
 			MeshTransforms::ApplyTransform(SourceDynamicMesh, Transform, true);
-			const FReferenceSkeleton& TargetRefSkeleton = InputSkeletalMesh->GetSkeleton()->GetReferenceSkeleton();
-
+			const FReferenceSkeleton& TargetRefSkeleton = SkeletalMesh->GetSkeleton()->GetReferenceSkeleton();
 
 			//
 			// Setup the bone weight transfer operator for the source mesh.
@@ -227,12 +241,11 @@ void FChaosClothAssetTransferSkinWeightsNode::Evaluate(Dataflow::FContext& Conte
 			TransferBoneWeights.bUseParallel = bUseParallel;
 			TransferBoneWeights.TransferMethod = static_cast<FTransferBoneWeights::ETransferBoneWeightsMethod>(TransferMethod);
 
-
 			//
 			// Transfer the bone weights from the source Skeletal mesh to the Cloth asset.
 			//
 			FCollectionClothFacade ClothFacade(ClothCollection);
-			ClothFacade.SetSkeletonAssetPathName(InputSkeletalMesh->GetSkeleton()->GetPathName());
+			ClothFacade.SetSkeletonAssetPathName(SkeletalMesh->GetSkeleton()->GetPathName());
 
 			if (TransferMethod == EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights)
 			{

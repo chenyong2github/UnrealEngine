@@ -38,7 +38,6 @@
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowObject.h"
 #include "ChaosClothAsset/AddWeightMapNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "GraphEditor.h"
 #include "Dataflow/DataflowSNode.h"
 #include "Dataflow/DataflowGraphEditor.h"

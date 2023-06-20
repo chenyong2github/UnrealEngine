@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/AddWeightMapNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "ChaosClothAsset/ClothDataflowTools.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
+#include "Dataflow/DataflowInputOutput.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AddWeightMapNode)
 
@@ -14,8 +15,7 @@ FChaosClothAssetAddWeightMapNode::FChaosClothAssetAddWeightMapNode(const Dataflo
 {
 	RegisterInputConnection(&Collection);
 	RegisterOutputConnection(&Collection, &Collection);
-	RegisterInputConnection(&Name);
-	RegisterOutputConnection(&Name, &Name);
+	RegisterOutputConnection(&Name);
 }
 
 void FChaosClothAssetAddWeightMapNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
@@ -25,22 +25,21 @@ void FChaosClothAssetAddWeightMapNode::Evaluate(Dataflow::FContext& Context, con
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		// Evaluate in collection
-		FString InNameString = GetValue<FString>(Context, &Name);
-
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 		FCollectionClothFacade ClothFacade(ClothCollection);
 		if (ClothFacade.IsValid())  // Can only act on the collection if it is a valid cloth collection
 		{
-			const FName InName(InNameString);
+			const FName InName(Name);
 			ClothFacade.AddWeightMap(InName);		// Does nothing if weight map already exists
 
 			TArrayView<float> ClothWeights = ClothFacade.GetWeightMap(InName);
 			const int32 MaxWeightIndex = FMath::Min(VertexWeights.Num(), ClothWeights.Num());
 			if (VertexWeights.Num() > 0 && VertexWeights.Num() != ClothWeights.Num())
 			{
-				DataflowNodes::LogAndToastWarning(
-					FText::Format(LOCTEXT("WeightMapSize", "FChaosClothAssetAddWeightMapNode: Vertex count mismatch: vertex weights in the node: {0}; 3D vertices in cloth: {1}"),
+				FClothDataflowTools::LogAndToastWarning(*this,
+					LOCTEXT("VertexCountMismatchHeadline", "Vertex count mismatch."),
+					FText::Format(LOCTEXT("VertexCountMismatchDetails", "Vertex weights in the node: {0}\n3D vertices in the cloth: {1}"),
 						VertexWeights.Num(),
 						ClothWeights.Num()));
 			}
@@ -51,7 +50,7 @@ void FChaosClothAssetAddWeightMapNode::Evaluate(Dataflow::FContext& Context, con
 			}
 		}
 		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
-		SetValue(Context, MoveTemp(InNameString), &Name);
+		SetValue(Context, Name, &Name);
 	}
 }
 

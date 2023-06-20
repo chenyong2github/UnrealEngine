@@ -8,14 +8,15 @@
 
 class UStaticMesh;
 
+/** Import a static mesh asset into the cloth collection simulation and/or render mesh containers. */
 USTRUCT(Meta = (DataflowCloth))
 struct FChaosClothAssetStaticMeshImportNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetStaticMeshImportNode, "StaticMeshImport", "Cloth", "Cloth Static Mesh Import")
-public:
 
-	UPROPERTY(Meta = (DataflowOutput, DisplayName = "Collection"))
+public:
+	UPROPERTY(Meta = (DataflowOutput))
 	FManagedArrayCollection Collection;
 
 	/* The Static Mesh to import from */
@@ -23,7 +24,7 @@ public:
 	TObjectPtr<const UStaticMesh> StaticMesh;
 
 	/* Which static mesh Lod to import.*/
-	UPROPERTY(EditAnywhere, Category = "Static Mesh Import")
+	UPROPERTY(EditAnywhere, Category = "Static Mesh Import", Meta = (ClampMin = "0"))
 	int32 LodIndex = 0;
 
 	/* Import static mesh data as a simulation mesh data.*/
@@ -44,5 +45,6 @@ public:
 
 	FChaosClothAssetStaticMeshImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
+private:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };

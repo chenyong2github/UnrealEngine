@@ -8,33 +8,33 @@
 
 class UChaosClothConfig;
 class UChaosClothSharedSimConfig;
-class UMaterialInterface;
 
+/** Add default simulation properties to the cloth collection in the format of the skeletal mesh cloth editor. */
 USTRUCT(Meta = (DataflowCloth))
 struct FChaosClothAssetSimulationDefaultConfigNode : public FDataflowNode, public FGCObject
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetSimulationDefaultConfigNode, "SimulationDefaultConfig", "Cloth", "Cloth Simulation Default Config")
-	//DATAFLOW_NODE_RENDER_TYPE(FManagedArrayCollection::StaticType(), "Collection")  // TODO: Leave out the render type until there is something to render
 
 public:
-
-	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DataflowPassthrough = "Collection"))
 	FManagedArrayCollection Collection;
 
 	/** Cloth Simulation Properties. */
-	UPROPERTY(EditAnywhere, Instanced, NoClear, Category = "Dataflow")
+	UPROPERTY(EditAnywhere, Instanced, NoClear, Category = "Simulation Default Config")
 	TObjectPtr<UChaosClothConfig> SimulationConfig;
 
 	/** Cloth Shared Simulation Properties. */
-	UPROPERTY(EditAnywhere, Instanced, NoClear, Category = "Dataflow")
+	UPROPERTY(EditAnywhere, Instanced, NoClear, Category = "Simulation Default Config")
 	TObjectPtr<UChaosClothSharedSimConfig> SharedSimulationConfig;
 
 	FChaosClothAssetSimulationDefaultConfigNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
-	virtual void Serialize(FArchive& Ar) override;
-
+private:
+	//~ Begin FDataflowNode Interface
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End FDataflowNode Interface
 
 	//~ Begin FGCObject Interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;

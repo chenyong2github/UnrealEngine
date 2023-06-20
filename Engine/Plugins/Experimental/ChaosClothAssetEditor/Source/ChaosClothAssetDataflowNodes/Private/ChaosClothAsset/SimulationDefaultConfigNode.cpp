@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/SimulationDefaultConfigNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothEngineTools.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ChaosCloth/ChaosClothConfig.h"
 #include "ChaosCloth/ChaosClothingSimulationConfig.h"
-#include "Chaos/PBDLongRangeConstraints.h"  // For Tether modes
 #include "Chaos/CollectionPropertyFacade.h"
+#include "Chaos/PBDLongRangeConstraints.h"  // For Tether modes
+#include "Dataflow/DataflowInputOutput.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SimulationDefaultConfigNode)
 
@@ -38,27 +39,31 @@ void FChaosClothAssetSimulationDefaultConfigNode::Serialize(FArchive& Ar)
 
 void FChaosClothAssetSimulationDefaultConfigNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	using namespace Chaos;
-	using namespace Chaos::Softs;
+	using namespace ::Chaos;
+	using namespace ::Chaos::Softs;
+	using namespace UE::Chaos::ClothAsset;
 
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
 
-		FClothingSimulationConfig ClothingSimulationConfig;
-		ClothingSimulationConfig.Initialize(SimulationConfig.Get(), SharedSimulationConfig.Get());
+		if (FCollectionClothFacade(ClothCollection).IsValid())  // Can only act on the collection if it is a valid cloth collection
+		{
+			FClothingSimulationConfig ClothingSimulationConfig;
+			ClothingSimulationConfig.Initialize(SimulationConfig.Get(), SharedSimulationConfig.Get());
 
-		ClothingSimulationConfig.GetPropertyCollection()->CopyTo(&ClothCollection.Get());
+			ClothingSimulationConfig.GetPropertyCollection()->CopyTo(&ClothCollection.Get());
 
-		// Generate tethers
-		const FCollectionPropertyConstFacade& Properties = ClothingSimulationConfig.GetProperties();		
-		constexpr bool bUseGeodesicTethersDefault = true;
-		const bool bUseGeodesicTethers = Properties.GetValue<bool>(TEXT("UseGeodesicTethers"), bUseGeodesicTethersDefault);
-		// Use the "MaxDistance" weight map to generate tethers. This follows legacy behavior.
-		static const FName MaxDistanceName(TEXT("MaxDistance"));
+			// Generate tethers
+			const FCollectionPropertyConstFacade& Properties = ClothingSimulationConfig.GetProperties();
+			constexpr bool bUseGeodesicTethersDefault = true;
+			const bool bUseGeodesicTethers = Properties.GetValue<bool>(TEXT("UseGeodesicTethers"), bUseGeodesicTethersDefault);
+			// Use the "MaxDistance" weight map to generate tethers. This follows legacy behavior.
+			static const FName MaxDistanceName(TEXT("MaxDistance"));
 
-		UE::Chaos::ClothAsset::FClothEngineTools::GenerateTethers(ClothCollection, MaxDistanceName, bUseGeodesicTethers);
+			UE::Chaos::ClothAsset::FClothEngineTools::GenerateTethers(ClothCollection, MaxDistanceName, bUseGeodesicTethers);
+		}
 
 		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}

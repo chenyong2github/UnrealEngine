@@ -4,7 +4,6 @@
 
 #include "Dataflow/DataflowNode.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
-#include "BoneWeights.h"
 #include "TransferSkinWeightsNode.generated.h"
 
 class USkeletalMesh;
@@ -12,53 +11,62 @@ class USkeletalMesh;
 UENUM(BlueprintType)
 enum class EChaosClothAssetTransferSkinWeightsMethod : uint8
 {
-	// For every vertex on the target mesh, find the closest point on the surface of the source mesh and copy its weights.
+	/** For every vertex on the target mesh, find the closest point on the surface of the source mesh and copy its weights. */
 	ClosestPointOnSurface,
 	
-	// For every vertex on the target mesh, find the closest point on the surface of the source mesh. If that point 
-	// is within the SearchRadius, and their normals differ by less than the NormalThreshold, then we directly copy  
-	// the weights from the source point to the target mesh vertex. For all the vertices we didn't copy the weights 
-	// directly, automatically compute the smooth weights.
+	/**
+	 * For every vertex on the target mesh, find the closest vertex on the surface of the source mesh.
+	 * If that vertex position is within the search radius, and their normals differ by less than the specified normal threshold,
+	 * then the vertex weights are directly copied from the source vertex to the target mesh vertex.
+	 * For all other vertices whose weights didn't get transferred, smoothed weight values are automatically computed.
+	 */
 	InpaintWeights
 };
 
-
+/** Transfer the skinning weights set on a skeletal mesh to the simulation and/or render mesh stored in the cloth collection. */
 USTRUCT(Meta = (DataflowCloth))
 struct FChaosClothAssetTransferSkinWeightsNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetTransferSkinWeightsNode, "TransferSkinWeights", "Cloth", "Cloth Transfer Skin Weights")
-	//DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")  // TODO: Leave out the render type until there is something to render
 
 public:
-
-	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DataflowPassthrough = "Collection"))
 	FManagedArrayCollection Collection;
 
-	UPROPERTY(EditAnywhere, Category = "Source Mesh", Meta = (Dataflowinput, DisplayName = "SkeletalMesh"))
+	/** The skeletal mesh to transfer the skin weights from. */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Source Mesh")
 	TObjectPtr<USkeletalMesh> SkeletalMesh;
 
-	UPROPERTY(EditAnywhere, Category = "Source Mesh", Meta = (DisplayName = "SkeletalMeshLOD"))
-	int32 SkeletalMeshLOD = 0;
+	/** The skeletal mesh LOD to transfer the skin weights from. */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Source Mesh", Meta = (DisplayName = "LOD Index"))
+	int32 LodIndex = 0;
 
-	// The relative transform between the SkeletalMesh and ClothCollection
-	UPROPERTY(EditAnywhere, Category = "Source Mesh", Meta = (DisplayName = "Transform"))
+	/** The relative transform between the skeletal mesh and the cloth asset. */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Source Mesh")
 	FTransform Transform;
 
-	UPROPERTY(EditAnywhere, Category = "Transfer Method", Meta = (DisplayName = "Algorithm"))
+	/** Algorithm used for the transfer method. Use the simple ClosestPointOnSurface method or the more complex InpaintWeights method for better results. */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (DisplayName = "Algorithm"))
 	EChaosClothAssetTransferSkinWeightsMethod TransferMethod = EChaosClothAssetTransferSkinWeightsMethod::ClosestPointOnSurface;
 
-	// Defines the search radius as the RadiusPercentage * BoundingBoxDiagonalLength. All points not within the search
-	// radius will be ignored. If negative, all points are considered. Only used in the InpaintWeights algorithm.
-	UPROPERTY(EditAnywhere, Category = "Transfer Method", Meta = (UIMin = -1, UIMax = 2, ClampMin = -1, ClampMax = 2, DisplayName = "Radius Percentage", EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
+	/**
+	 * Percentage of the bounding box diagonal of the simulation mesh to use as search radius for the InpaintWeights method.
+	 * All points outside of the search radius will be ignored. 
+	 * When set to a negative value (e.g. -1), all points will be considered.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (UIMin = -1, UIMax = 2, ClampMin = -1, ClampMax = 2, EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
 	double RadiusPercentage = 0.05;
 
-	// Maximum angle (in degress) difference between target and source point normals to be considred a match. 
-	// If negative, normals are ignored. Only used in the InpaintWeights algorithm.
-	UPROPERTY(EditAnywhere, Category = "Transfer Method", Meta = (UIMin = -1, UIMax = 180, ClampMin = -1, ClampMax = 180, DisplayName = "Normal Threshold", EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
+	/**
+	 * Maximum angle difference (in degrees) between the target and source point normals to be considered a match for the InpaintWeights method.
+	 * If set to a negative value (e.g. -1), normals will be ignored.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Transfer Skin Weights|Transfer Method", Meta = (UIMin = -1, UIMax = 180, ClampMin = -1, ClampMax = 180, EditCondition="TransferMethod==EChaosClothAssetTransferSkinWeightsMethod::InpaintWeights"))
 	double NormalThreshold = 30;
 
 	FChaosClothAssetTransferSkinWeightsNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
+private:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };

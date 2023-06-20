@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/ImportNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothAsset.h"
+#include "ChaosClothAsset/ClothDataflowTools.h"
 #include "ChaosClothAsset/CollectionClothFacade.h"
+#include "Dataflow/DataflowInputOutput.h"
+#include "Dataflow/DataflowObjectInterface.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "Materials/Material.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -15,15 +17,12 @@
 FChaosClothAssetImportNode::FChaosClothAssetImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
 	: FDataflowNode(InParam, InGuid)
 {
-	RegisterInputConnection(&ClothAsset);
-	RegisterInputConnection(&ImportLod);
 	RegisterOutputConnection(&Collection);
 }
 
 void FChaosClothAssetImportNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	using namespace UE::Chaos::ClothAsset;
-	using namespace UE::Chaos::ClothAsset::DataflowNodes;
 
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
@@ -39,7 +38,9 @@ void FChaosClothAssetImportNode::Evaluate(Dataflow::FContext& Context, const FDa
 					{
 						// Can't create a loop
 						bSetValue = false;
-						LogAndToastWarning(LOCTEXT("RecursiveAssetLoop", "FClothAssetNode: The source asset cannot be the terminal asset."));
+						FClothDataflowTools::LogAndToastWarning(*this,
+							LOCTEXT("RecursiveAssetLoopHeadline", "Recursive asset loop."),
+							LOCTEXT("RecursiveAssetLoopDetails", "The source asset cannot be the same as the terminal asset."));
 					}
 					else
 					{
@@ -62,12 +63,10 @@ void FChaosClothAssetImportNode::Evaluate(Dataflow::FContext& Context, const FDa
 		// Copy the cloth asset to this node's output collection
 		if (bSetValue)
 		{
-			const TObjectPtr<const UChaosClothAsset>& InClothAsset = GetValue<TObjectPtr<const UChaosClothAsset>>(Context, &ClothAsset);
-			const int32& InImportLod = GetValue<int32>(Context, &ImportLod);
-			const TArray<TSharedRef<const FManagedArrayCollection>>& InClothCollections = InClothAsset->GetClothCollections();
-			if (InImportLod >= 0 && InClothCollections.Num() > InImportLod)
+			const TArray<TSharedRef<const FManagedArrayCollection>>& InClothCollections = ClothAsset->GetClothCollections();
+			if (ImportLod >= 0 && InClothCollections.Num() > ImportLod)
 			{
-				const FCollectionClothConstFacade InClothFacade(InClothCollections[InImportLod]);
+				const FCollectionClothConstFacade InClothFacade(InClothCollections[ImportLod]);
 				ClothFacade.Initialize(InClothFacade);
 			}
 		}

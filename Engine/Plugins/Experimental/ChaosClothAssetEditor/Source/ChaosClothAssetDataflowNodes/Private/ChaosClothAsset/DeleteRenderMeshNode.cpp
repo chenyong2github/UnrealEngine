@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/DeleteRenderMeshNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
+#include "Dataflow/DataflowInputOutput.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DeleteRenderMeshNode)
 
@@ -12,7 +13,6 @@ FChaosClothAssetDeleteRenderMeshNode::FChaosClothAssetDeleteRenderMeshNode(const
 	: FDataflowNode(InParam, InGuid)
 {
 	RegisterInputConnection(&Collection);
-	RegisterInputConnection(&Patterns);
 	RegisterOutputConnection(&Collection, &Collection);
 }
 
@@ -25,16 +25,10 @@ void FChaosClothAssetDeleteRenderMeshNode::Evaluate(Dataflow::FContext& Context,
 		// Evaluate in collection
 		FManagedArrayCollection InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>(MoveTemp(InCollection));
-
-		if (Patterns.IsEmpty())
+		if (FCollectionClothFacade(ClothCollection).IsValid())  // Can only act on the collection if it is a valid cloth collection
 		{
 			FClothGeometryTools::DeleteRenderMesh(ClothCollection);
 		}
-		else
-		{
-			DataflowNodes::LogAndToastWarning(LOCTEXT("DeletePerPatternNotImplemented", "FClothAssetDeleteRenderMeshNode: Delete per patterns not implemented."));
-		}
-
 		SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 	}
 }

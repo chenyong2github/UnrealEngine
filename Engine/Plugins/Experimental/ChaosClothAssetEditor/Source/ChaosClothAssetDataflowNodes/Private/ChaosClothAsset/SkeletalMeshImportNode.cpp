@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosClothAsset/SkeletalMeshImportNode.h"
-#include "ChaosClothAsset/DataflowNodes.h"
-#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "ChaosClothAsset/ClothDataflowTools.h"
+#include "ChaosClothAsset/CollectionClothFacade.h"
 #include "Animation/Skeleton.h"
-#include "BoneWeights.h"
+#include "Dataflow/DataflowInputOutput.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
@@ -26,32 +25,44 @@ FChaosClothAssetSkeletalMeshImportNode::FChaosClothAssetSkeletalMeshImportNode(c
 void FChaosClothAssetSkeletalMeshImportNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
 	using namespace UE::Chaos::ClothAsset;
-	using namespace UE::Chaos::ClothAsset::DataflowNodes;
 
 	if (Out->IsA<FManagedArrayCollection>(&Collection))
 	{
 		const TSharedRef<FManagedArrayCollection> ClothCollection = MakeShared<FManagedArrayCollection>();
+		FCollectionClothFacade ClothFacade(ClothCollection);
+		ClothFacade.DefineSchema();
+
 		if (SkeletalMesh)
 		{
 			const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
 			const bool bIsValidLOD = ImportedModel && ImportedModel->LODModels.IsValidIndex(LODIndex);
-			if (!ensureAlways(bIsValidLOD))
+			if (!bIsValidLOD)
 			{
+				FClothDataflowTools::LogAndToastWarning(*this, LOCTEXT("InvalidLODHeadline", "Invalid LOD."),
+					FText::Format(
+						LOCTEXT("InvalidLODDetails", "No valid LOD {0} found for skeletal mesh {1}."),
+						LODIndex,
+						FText::FromString(SkeletalMesh->GetName())));
+
 				SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 				return;
 			}
-			const FSkeletalMeshLODModel &LODModel = ImportedModel->LODModels[LODIndex];
 
+			const FSkeletalMeshLODModel &LODModel = ImportedModel->LODModels[LODIndex];
 			const bool bIsValidSection = LODModel.Sections.IsValidIndex(SectionIndex);;
-			if (!ensureAlways(bIsValidSection))
+			if (!bIsValidSection)
 			{
+				FClothDataflowTools::LogAndToastWarning(*this, LOCTEXT("InvalidSectionHeadline", "Invalid section."),
+					FText::Format(
+						LOCTEXT("InvalidSectionDetails", "No valid section {0} found for skeletal mesh {1}."),
+						SectionIndex,
+						FText::FromString(SkeletalMesh->GetName())));
+
 				SetValue(Context, MoveTemp(*ClothCollection), &Collection);
 				return;
 			}
 
 			const FSkelMeshSection &Section = LODModel.Sections[SectionIndex];
-			FCollectionClothFacade ClothFacade(ClothCollection);
-			ClothFacade.DefineSchema();
 
 			if (bImportSimMesh)
 			{

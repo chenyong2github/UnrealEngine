@@ -6,26 +6,27 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "AddWeightMapNode.generated.h"
 
+/** Painted weight map attributes node. */
 USTRUCT(Meta = (DataflowCloth))
 struct FChaosClothAssetAddWeightMapNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetAddWeightMapNode, "AddWeightMap", "Cloth", "Cloth Add Weight Map")
-	//DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")  // TODO: Leave out the render type until there is something to render
 
 public:
 
-	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DisplayName = "Collection", DataflowPassthrough = "Collection"))
+	UPROPERTY(Meta = (Dataflowinput, DataflowOutput, DataflowPassthrough = "Collection"))
 	FManagedArrayCollection Collection;
 
-	UPROPERTY(EditAnywhere, Category = "Weight Map", Meta = (Dataflowinput, DataflowOutput, DisplayName = "Name", DataflowPassthrough = "Name"))
+	/** The name to be set as a weight map attribute. */
+	UPROPERTY(EditAnywhere, Category = "Add Weight Map", Meta = (DataflowOutput))
 	FString Name;
 
-	UPROPERTY(EditAnywhere, Category = "Weight Map")
+	UPROPERTY()
 	TArray<float> VertexWeights;
-
 
 	FChaosClothAssetAddWeightMapNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 
+private:
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
