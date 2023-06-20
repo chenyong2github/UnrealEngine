@@ -4000,8 +4000,10 @@ namespace UE::Landscape::Private
 	}
 } // namespace UE::Landscape::Private
 
-void ALandscapeProxy::CopySharedProperties(ALandscapeProxy* Landscape)
+void ALandscapeProxy::CopySharedProperties(ALandscapeProxy* InLandscape)
 {
+	SynchronizeUnmarkedSharedProperties(InLandscape);
+
 	for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
 	{
 		FProperty* Property = *PropertyIterator;
@@ -4013,14 +4015,14 @@ void ALandscapeProxy::CopySharedProperties(ALandscapeProxy* Landscape)
 
 		if (IsSharedProperty(Property))
 		{
-			UE::Landscape::Private::CopyProperty(Property, Landscape, this);
+			UE::Landscape::Private::CopyProperty(Property, InLandscape, this);
 		}
 	}
 }
 
 TArray<FName> ALandscapeProxy::SynchronizeSharedProperties(ALandscapeProxy* InLandscape)
 {
-	TArray<FName> SynchronizedProperties;
+	TArray<FName> SynchronizedProperties = SynchronizeUnmarkedSharedProperties(InLandscape);
 
 	for (TFieldIterator<FProperty> PropertyIterator(GetClass()); PropertyIterator; ++PropertyIterator)
 	{

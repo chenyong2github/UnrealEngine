@@ -1079,7 +1079,7 @@ public:
 
 #if WITH_EDITOR
 	// Copy properties from parent Landscape actor
-	LANDSCAPE_API void CopySharedProperties(ALandscapeProxy* Landscape);
+	LANDSCAPE_API void CopySharedProperties(ALandscapeProxy* InLandscape);
 
 	/**
 	* Enforce property sharing and requirements related to the parent Landscape actor
@@ -1450,6 +1450,13 @@ protected:
 
 	/** Fixup any internal representation for shared properties. Will be used when deprecating or renaming a property. */
 	virtual void FixupOverriddenSharedProperties() {}
+
+	/**
+	* Synchronizes all shared properties that cannot be marked by regular meta tags.
+	* @param The landscape to use as a template.
+	* @return An array containing all synchronized properties.
+	*/
+	LANDSCAPE_API virtual TArray<FName> SynchronizeUnmarkedSharedProperties(ALandscapeProxy* InLandscape);
 
 protected:
 	FLandscapeMaterialChangedDelegate LandscapeMaterialChangedDelegate;

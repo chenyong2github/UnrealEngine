@@ -8844,6 +8844,28 @@ void ALandscapeProxy::InitializeLayerWithEmptyContent(const FGuid& InLayerGuid)
 		}
 	}
 }
+
+TArray<FName> ALandscapeProxy::SynchronizeUnmarkedSharedProperties(ALandscapeProxy* InLandscape)
+{
+	check(InLandscape != nullptr);
+	TArray<FName> SynchronizedProperties;
+	USceneComponent* OwnRootComponent = GetRootComponent();
+	USceneComponent* ProxyRootComponent = InLandscape->GetRootComponent();
+
+	if ((OwnRootComponent != nullptr) && (ProxyRootComponent != nullptr))
+	{
+		FVector ProxyScale3D = ProxyRootComponent->GetComponentToWorld().GetScale3D();
+
+		if (!OwnRootComponent->GetRelativeScale3D().Equals(ProxyScale3D))
+		{
+			OwnRootComponent->SetRelativeScale3D(ProxyScale3D);
+			SynchronizedProperties.Emplace(TEXT("RelativeScale3D"));
+		}
+	}
+
+	return SynchronizedProperties;
+}
+
 #endif
 
 void ALandscape::BeginDestroy()
