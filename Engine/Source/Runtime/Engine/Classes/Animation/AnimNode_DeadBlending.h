@@ -39,7 +39,7 @@ struct FAnimNode_DeadBlending : public FAnimNode_Base, public IBoneReferenceSkel
 
 private:
 
-	// If the default blend settings should always be used rather than those coming from the inertialization request.
+	// When enabled, the default blend settings will always be used rather than those coming from the inertialization request.
 	UPROPERTY(EditAnywhere, Category = Blending)
 	bool bAlwaysUseDefaultBlendSettings = false;
 
@@ -62,6 +62,14 @@ private:
 	// Multiplier that can be used to scale the overall blend durations coming from inertialization requests.
 	UPROPERTY(EditAnywhere, Category = Blending, meta = (Min = "0.0", UIMin = "0.0"))
 	float BlendTimeMultiplier = 1.0f;
+
+	/**
+	 * When enabled, bone scales will be linearly interpolated. This is slightly more performant and consistent with the
+	 * rest of Unreal but visually gives the appearance of the rate of change of scale being affected by the overall
+	 * size of the bone.
+	 */
+	UPROPERTY(EditAnywhere, Category = Blending)
+	bool bLinearlyInterpolateScales = false;
 
 	// List of curves that should not use inertial blending. These curves will change instantly when the animation switches.
 	UPROPERTY(EditAnywhere, Category = Filter)
@@ -94,6 +102,20 @@ private:
 	 */
 	UPROPERTY(EditAnywhere, Category = Extrapolation, meta = (Min = "0.0", UIMin = "0.0"), DisplayName = "Maximum Extrapolation Half Life")
 	float ExtrapolationHalfLifeMax = 1.0f;
+
+	/**
+	 * When enabled, curves will blend in from zero when they are in the animation being transitioned to but not in the 
+	 * animation being transitioned from.
+	 */
+	UPROPERTY(EditAnywhere, Category = Curves)
+	bool bBlendInMissingCurves = true;
+
+	/**
+	 * When enabled, curves will blend out to zero when they are in the animation being transitioned from but not in the 
+	 * animation being transitioned to.
+	 */
+	UPROPERTY(EditAnywhere, Category = Curves)
+	bool bBlendOutMissingCurves = true;
 
 #if WITH_EDITORONLY_DATA
 	
