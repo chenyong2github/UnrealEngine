@@ -211,6 +211,11 @@ public:
 
 	struct FBestPoseCandidates
 	{
+		void Add(const UPoseSearchDatabase* Database)
+		{
+			SearchedDatabases.Add(Database);
+		}
+
 		void Add(const FPoseSearchCost& Cost, int32 PoseIdx, const UPoseSearchDatabase* Database, EPoseCandidateFlags PoseCandidateFlags)
 		{
 			if (EPoseCandidateFlags* PoseIdxPoseCandidateFlags = PoseIdxToFlags.Find(PoseIdx))
@@ -252,6 +257,8 @@ public:
 				PoseCandidateHeap.HeapPush(PoseCandidate);
 				PoseIdxToFlags.Add(PoseIdx, PoseCandidateFlags);
 			}
+
+			Add(Database);
 		}
 
 		void Pop(FPoseCandidate& OutItem)
@@ -270,7 +277,13 @@ public:
 			MaxPoseCandidates = Value;
 		}
 
+		const TSet<const UPoseSearchDatabase*>& GetSearchedDatabases() const
+		{
+			return SearchedDatabases;
+		}
+
 	private:
+		TSet<const UPoseSearchDatabase*> SearchedDatabases;
 		TArray<FPoseCandidateBase> PoseCandidateHeap;
 		TMap<int32, EPoseCandidateFlags> PoseIdxToFlags;
 		int32 MaxPoseCandidates = 200;

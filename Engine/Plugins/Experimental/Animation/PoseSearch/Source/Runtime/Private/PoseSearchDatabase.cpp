@@ -781,7 +781,13 @@ FPoseSearchCost UPoseSearchDatabase::SearchContinuingPose(UE::PoseSearch::FSearc
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 		SearchContext.BestCandidates.Add(ContinuingPoseCost, ContinuingPoseIdx, this, EPoseCandidateFlags::Valid_ContinuingPose);
-#endif
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
+	}
+	else
+	{
+#if UE_POSE_SEARCH_TRACE_ENABLED
+		SearchContext.BestCandidates.Add(this);
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 	}
 
 	return ContinuingPoseCost;
@@ -886,8 +892,12 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 		TConstArrayView<float> QueryValues = SearchContext.GetOrBuildQuery(Schema).GetValues();
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
-#endif
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 	}
+
+#if UE_POSE_SEARCH_TRACE_ENABLED
+	SearchContext.BestCandidates.Add(this);
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 
 	// finalizing Result properties
 	if (Result.PoseIdx != INDEX_NONE)
@@ -962,8 +972,12 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 		TConstArrayView<float> QueryValues = SearchContext.GetOrBuildQuery(Schema).GetValues();
 		FNonSelectableIdx NonSelectableIdx;
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
-#endif
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 	}
+
+#if UE_POSE_SEARCH_TRACE_ENABLED
+	SearchContext.BestCandidates.Add(this);
+#endif // UE_POSE_SEARCH_TRACE_ENABLED
 
 	// finalizing Result properties
 	if (Result.PoseIdx != INDEX_NONE)

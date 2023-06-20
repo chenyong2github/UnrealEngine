@@ -208,6 +208,12 @@ void UPoseSearchLibrary::TraceMotionMatchingState(
 
 	const int32 CurrentPoseIdx = bSearch && CurrentResult.PoseCost.IsValid() ? CurrentResult.PoseIdx : -1;
 	FTraceMotionMatchingState TraceState;
+
+	for (const UPoseSearchDatabase* SearchedDatabase : SearchContext.BestCandidates.GetSearchedDatabases())
+	{
+		AddUniqueDatabase(TraceState.DatabaseEntries, SearchedDatabase, SearchContext);
+	}
+
 	while (!SearchContext.BestCandidates.IsEmpty())
 	{
 		FSearchContext::FPoseCandidate PoseCandidate;
