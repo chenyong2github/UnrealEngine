@@ -249,7 +249,6 @@ namespace mu
 		TEXT("IM_BLANKLAYOUT   "),
 		TEXT("IM_COMPOSE       "),
 		TEXT("IM_INTERPOLATE   "),
-		TEXT("IM_INTERPOLATE3  "),
 		TEXT("IM_SATURATE      "),
 		TEXT("IM_LUMINANCE     "),
 		TEXT("IM_SWIZZLE       "),

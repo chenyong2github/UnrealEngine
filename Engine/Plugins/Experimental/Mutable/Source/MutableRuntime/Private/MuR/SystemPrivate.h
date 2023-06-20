@@ -1107,16 +1107,17 @@ namespace mu
         };
 
 		/** Maximum working memory that mutable should be using. */
-		uint64 BudgetBytes = 0;
+		int64 BudgetBytes = 0;
 
 		/** Maximum excess memory reached suring the current operation. */
-		uint64 BudgetExcessBytes = 0;
+		int64 BudgetExcessBytes = 0;
 
-		/** . */
-		uint32 TrackedBudgetBytes_Rom = 0;
-		uint32 TrackedBudgetBytes_Temp = 0;
-		uint32 TrackedBudgetBytes_Pooled = 0;
-		uint32 TrackedBudgetBytes_Cached = 0;
+		/** Signed ints to account for imprecisions especially with temp.*/
+		int32 TrackedBudgetBytes_Rom = 0;
+		// int32 TrackedBudgetBytes_Temp = 0;
+		int32 TrackedBudgetBytes_Pooled = 0;
+		int32 TrackedBudgetBytes_Cached = 0;
+		int32 TrackedBudgetBytes_Stream = 0;
 
 		/** This value is used to track the order of loading of roms. */
         uint64 RomTick = 0;
@@ -1148,6 +1149,12 @@ namespace mu
 		* Return true if it succeeded, false otherwise.
 		*/
 		bool EnsureBudgetBelow(uint64 AdditionalMemory);
+		
+		/** Return true if the memory budget is 90% full. */
+		bool IsMemoryBudgetFull() const;
+
+		/** Calculate the current usage of memory as used to calculate the budget. */
+		int64 GetCurrentMemoryBytes() const;
 
         /** Register that a specific rom has been requested and update the heuristics to keep it in memory. */
         void MarkRomUsed( int32 RomIndex, const TSharedPtr<const Model>& );
@@ -1194,7 +1201,7 @@ namespace mu
 			Ptr<Image> Result = new Image(SizeX, SizeY, Lods, Format, Init);
 
 			TempImages.Add(Result);
-			TrackedBudgetBytes_Temp += Result->GetDataSize();
+			//TrackedBudgetBytes_Temp += Result->GetDataSize();
 			return Result;
 		}
 
@@ -1206,7 +1213,7 @@ namespace mu
 			int32 Removed = TempImages.RemoveSingle(Resource);
 			if (Removed)
 			{
-				TrackedBudgetBytes_Temp -= Resource->GetDataSize();
+				//TrackedBudgetBytes_Temp -= Resource->GetDataSize();
 			}
 			
 			check(!TempImages.Contains(Resource));
@@ -1246,7 +1253,7 @@ namespace mu
 			int32 Removed = TempImages.RemoveSingle(Resource);
 			if (Removed)
 			{
-				TrackedBudgetBytes_Temp -= ResourceDataSize;
+				//TrackedBudgetBytes_Temp -= ResourceDataSize;
 			}
 
 			check(!TempImages.Contains(Resource));
@@ -1285,7 +1292,7 @@ namespace mu
 			int32 Removed = TempImages.RemoveSingle(Resource);
 			if (Removed)
 			{
-				TrackedBudgetBytes_Temp -= ResourceDataSize;
+				//TrackedBudgetBytes_Temp -= ResourceDataSize;
 			}
 
 			check(!TempImages.Contains(Resource));
@@ -1444,7 +1451,7 @@ namespace mu
 			if (!bTakeOwnership && Result->IsUnique())
 			{
 				TempImages.Add(Result);
-				TrackedBudgetBytes_Temp += ResultDataSize;
+				//TrackedBudgetBytes_Temp += ResultDataSize;
 			}
 
 			return Result;
@@ -1459,7 +1466,7 @@ namespace mu
 				int32 Removed = TempImages.RemoveSingle(Resource);
 				if (Removed)
 				{
-					TrackedBudgetBytes_Temp -= ResourceDataSize;
+					//TrackedBudgetBytes_Temp -= ResourceDataSize;
 				}
 
 				check(!TempImages.Contains(Resource));

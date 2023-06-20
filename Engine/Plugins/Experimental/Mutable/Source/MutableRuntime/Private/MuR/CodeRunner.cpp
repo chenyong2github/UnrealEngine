@@ -944,7 +944,8 @@ namespace mu
 
 			int32 MipsToSkip = item.ExecutionOptions;
             Ptr<const Image> Source;
-            program.GetConstant(cat, Source, MipsToSkip);
+			program.GetConstant(cat, Source, MipsToSkip,
+				[this](int32 x, int32 y, int32 m, EImageFormat f) { return CreateImage(x,y,m,f); } );
 
 			// Assume the ROM has been loaded previously in a task generated at IssueOp
 			check(Source);
@@ -3794,29 +3795,29 @@ namespace mu
                     {
 						int32 LevelCount = FMath::Max(pMin->GetLODCount(), pMax->GetLODCount());
 						
-						Ptr<Image> pNew = CreateImage( pMin->GetSizeX(), pMin->GetSizeY(), LevelCount, pMin->GetFormat() );
+						Ptr<Image> pNew = CloneOrTakeOver(pMin);
 
 						// Be defensive: ensure image sizes match.
-						if (pMin->GetSize() != pMax->GetSize())
+						if (pNew->GetSize() != pMax->GetSize())
 						{
 							MUTABLE_CPUPROFILER_SCOPE(ImageResize_ForInterpolate);
-							Ptr<Image> Resized = CreateImage(pMin->GetSizeX(), pMin->GetSizeY(), pMax->GetLODCount(), pMax->GetFormat(), EInitializationType::NotInitialized);
+							Ptr<Image> Resized = CreateImage(pNew->GetSizeX(), pNew->GetSizeY(), pMax->GetLODCount(), pMax->GetFormat(), EInitializationType::NotInitialized);
 							ImageResizeLinear(Resized.get(), 0, pMax.get());
 							Release(pMax);
 							pMax = Resized;
 						}
 
-						if (pMin->GetLODCount() != LevelCount)
+						if (pNew->GetLODCount() != LevelCount)
 						{
 							MUTABLE_CPUPROFILER_SCOPE(Mipmap_ForInterpolate);
 
-							ImagePtr pDest = CreateImage(pMin->GetSizeX(), pMin->GetSizeY(), LevelCount, pMin->GetFormat());
+							ImagePtr pDest = CreateImage(pNew->GetSizeX(), pNew->GetSizeY(), LevelCount, pNew->GetFormat());
 
 							FMipmapGenerationSettings settings{};
-							ImageMipmap(m_pSystem->WorkingMemoryManager, m_pSettings->ImageCompressionQuality, pDest.get(), pMin.get(), LevelCount, settings);
+							ImageMipmap(m_pSystem->WorkingMemoryManager, m_pSettings->ImageCompressionQuality, pDest.get(), pNew.get(), LevelCount, settings);
 
-							Release(pMin);
-							pMin = pDest;
+							Release(pNew);
+							pNew = pDest;
 						}
 
 						if (pMax->GetLODCount() != LevelCount)
@@ -3832,9 +3833,8 @@ namespace mu
 							pMax = pDest;
 						}
 
-                        ImageInterpolate( pNew.get(), pMin.get(), pMax.get(), bifactor );
+                        ImageInterpolate( pNew.get(), pMax.get(), bifactor );
 
-						Release(pMin);
 						Release(pMax);
 						StoreImage(item, pNew);
 					}
@@ -3850,55 +3850,6 @@ namespace mu
 				}
 
                 break;
-            }
-
-            default:
-                check(false);
-            }
-
-            break;
-        }
-
-        case OP_TYPE::IM_INTERPOLATE3:
-        {
-			OP::ImageInterpolate3Args args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageInterpolate3Args>(item.At);
-            switch (item.Stage)
-            {
-            case 0:
-                AddOp( FScheduledOp( item.At, item, 1),
-                        FScheduledOp::FromOpAndOptions( args.factor1, item, 0),
-                        FScheduledOp::FromOpAndOptions( args.factor2, item, 0),
-                        FScheduledOp( args.target0, item),
-                        FScheduledOp( args.target1, item),
-                        FScheduledOp( args.target2, item) );
-                break;
-
-            case 1:
-            {
-           		MUTABLE_CPUPROFILER_SCOPE(IM_INTERPOLATE3_1)
-
-                // \TODO Optimise limit cases
-                float factor1 = LoadScalar(FScheduledOp::FromOpAndOptions(args.factor1, item, 0));
-                float factor2 = LoadScalar(FScheduledOp::FromOpAndOptions(args.factor2, item, 0));
-
-				Ptr<const Image> Target0 = LoadImage( FCacheAddress(args.target0,item) );
-				Ptr<const Image> Target1 = LoadImage( FCacheAddress(args.target1,item) );
-				Ptr<const Image> Target2 = LoadImage( FCacheAddress(args.target2,item) );
-
-				Ptr<Image> Result;
-				
-				if (Target0)
-				{
-					// \TODO Optimise by doing in-place if possible
-					Result = CreateImageLike(Target0.get(), EInitializationType::NotInitialized);
-					ImageInterpolate(Result.get(), Target0.get(), Target1.get(), Target2.get(), factor1, factor2);
-				}
-
-				Release(Target0);
-				Release(Target1);
-				Release(Target2);
-				StoreImage(item, Result);
-				break;
             }
 
             default:
@@ -6387,18 +6338,6 @@ namespace mu
 			switch (item.Stage)
 			{
 			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.targets[0], item)); break;
-			case 1: StoreValidDesc(item); break;
-			default: check(false);
-			}
-			break;
-		}
-
-		case OP_TYPE::IM_INTERPOLATE3:
-		{
-			OP::ImageInterpolate3Args args = program.GetOpArgs<OP::ImageInterpolate3Args>(item.At);
-			switch (item.Stage)
-			{
-			case 0: AddOp(FScheduledOp(item.At, item, 1), FScheduledOp(args.target0, item)); break;
 			case 1: StoreValidDesc(item); break;
 			default: check(false);
 			}

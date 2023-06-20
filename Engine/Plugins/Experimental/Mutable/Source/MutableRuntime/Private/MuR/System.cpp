@@ -43,7 +43,6 @@ namespace mu
 
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_LiveInstances,		TEXT("MutableRuntime/LiveInstances"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_Updates,			TEXT("MutableRuntime/Updates"));
-	TRACE_DECLARE_INT_COUNTER(MutableRuntime_StreamingBytes,	TEXT("MutableRuntime/StreamingBytes"));
 
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemInternal,	TEXT("MutableRuntime/MemInternal"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_MemTemp,		TEXT("MutableRuntime/MemTemp"));
@@ -169,9 +168,10 @@ namespace mu
 		check(m_pD->WorkingMemoryManager.TempMeshes.IsEmpty());
 
 		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Pooled = 0;
-		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Temp = 0;
+		//m_pD->WorkingMemoryManager.TrackedBudgetBytes_Temp = 0;
 		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Cached = 0;
 		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Rom = 0;
+		m_pD->WorkingMemoryManager.TrackedBudgetBytes_Stream = 0;
 	}
 
 	
@@ -933,7 +933,7 @@ namespace mu
 			// Data reserved for ongoing streaming operations
 			for ( const CodeRunner::FRomLoadOp& Op : CurrentRunner->m_romLoadOps )
 			{
-				StreamingBufferBytes += Op.m_streamBuffer.Num();
+				StreamingBufferBytes += Op.m_streamBuffer.GetAllocatedSize();
 			}
 
 			InternalBytes += CurrentRunner->GetInternalMemoryBytes();
@@ -976,13 +976,13 @@ namespace mu
 			+ StreamingBufferBytes
 			+ RomBytes;
 
-		UE_LOG(LogMutableCore, Log, TEXT("Mem KB: Internal %7d   Temp %7d (%7d)   Pool %7d (%7d)   Cache0+1 %7d (%7d) (%7d)   Rom %7d (%7d)   Stream %7d   Total %7d / %7d"),
+		UE_LOG(LogMutableCore, Log, TEXT("Mem KB: Internal %7d   Temp %7d    Pool %7d (%7d)   Cache0+1 %7d (%7d) (%7d)   Rom %7d (%7d)   Stream %7d (%7d)   Total %7d / %7d"),
 			InternalBytes / 1024,
-			TempBytes / 1024, TrackedBudgetBytes_Temp / 1024,
+			TempBytes / 1024, //TrackedBudgetBytes_Temp / 1024,
 			PoolBytes / 1024, TrackedBudgetBytes_Pooled / 1024,
 			CacheBytes / 1024, TrackedCacheBytes / 1024, TrackedBudgetBytes_Cached / 1024,
 			RomBytes / 1024, TrackedBudgetBytes_Rom / 1024,
-			StreamingBufferBytes / 1024,
+			StreamingBufferBytes / 1024, TrackedBudgetBytes_Stream / 1024,
 			TotalBytes / 1024,
 			BudgetBytes / 1024
 			);
@@ -1030,6 +1030,52 @@ namespace mu
     }
 
 
+	//---------------------------------------------------------------------------------------------
+	int64 FWorkingMemoryManager::GetCurrentMemoryBytes() const
+	{
+		MUTABLE_CPUPROFILER_SCOPE(GetCurrentMemoryBytes);
+
+		int32 RomBytes = TrackedBudgetBytes_Rom; // GetRomBytes();
+		int32 PoolBytes = TrackedBudgetBytes_Pooled; // GetPooledBytes();
+		int32 TempBytes = GetTempBytes(); // TrackedBudgetBytes_Temp + GetTempMeshesBytes(); 
+		int32 TrackedCacheBytes = TrackedBudgetBytes_Cached; // GetTrackedCacheBytes();
+		int32 TrackedStreamBytes = TrackedBudgetBytes_Stream;
+
+		int64 TotalBytes = 0;
+		TotalBytes += TempBytes;
+		TotalBytes += RomBytes;
+		TotalBytes += PoolBytes;
+		TotalBytes += TrackedCacheBytes;
+		TotalBytes += TrackedStreamBytes;
+
+		TRACE_COUNTER_SET(MutableRuntime_MemTemp, TempBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemPool, PoolBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemCache, TrackedCacheBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemRom, RomBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemStream, TrackedStreamBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemTotal, TotalBytes);
+		TRACE_COUNTER_SET(MutableRuntime_MemBudget, BudgetBytes);
+
+		return TotalBytes;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	bool FWorkingMemoryManager::IsMemoryBudgetFull() const
+	{
+		// If we have 0 budget it means we have unlimited budget
+		if (BudgetBytes == 0)
+		{
+			return false;
+		}
+
+		uint64 CurrentBytes = GetCurrentMemoryBytes();
+		uint64 BudgetThresholdBytes = (BudgetBytes * 9) / 10;
+		
+		return CurrentBytes > BudgetThresholdBytes;
+	}
+
+
     //---------------------------------------------------------------------------------------------
 	bool FWorkingMemoryManager::EnsureBudgetBelow( uint64 AdditionalMemory )
     {
@@ -1039,28 +1085,13 @@ namespace mu
 		if (BudgetBytes == 0)
 		{
 			return true;
-		}
+		}		
 
-		uint32 RomBytes = 0;
-		uint32 PoolBytes = 0;
-		uint32 TempBytes = 0;
-		uint32 TrackedCacheBytes = 0;
-		{
-			MUTABLE_CPUPROFILER_SCOPE(EnsureBudgetBelow_Measure);
-			RomBytes = TrackedBudgetBytes_Rom; // GetRomBytes();
-			PoolBytes = TrackedBudgetBytes_Pooled; // GetPooledBytes();
-			TempBytes = TrackedBudgetBytes_Temp + GetTempMeshesBytes(); // GetTempBytes();
-			TrackedCacheBytes = TrackedBudgetBytes_Cached; // GetTrackedCacheBytes();
-		}
-
-		uint64 TotalBytes = 0;
-		TotalBytes += TempBytes;
-		TotalBytes += RomBytes;
-		TotalBytes += PoolBytes;
-		TotalBytes += TrackedCacheBytes;
+		int64 TotalBytes = GetCurrentMemoryBytes();
 
 		// Add the extra memory that we are trying to allocate when we return.
 		TotalBytes += AdditionalMemory;
+
 
         bool bFinished = TotalBytes <= BudgetBytes;
 
@@ -1399,16 +1430,9 @@ namespace mu
 
 		}
 
-		TRACE_COUNTER_SET(MutableRuntime_MemTemp, TempBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemPool, PoolBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemCache, TrackedCacheBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemRom, RomBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemTotal, TotalBytes);
-		TRACE_COUNTER_SET(MutableRuntime_MemBudget, BudgetBytes);
-
 		if (!bFinished)
 		{
-			uint64 ExcessBytes = TotalBytes - BudgetBytes;
+			int64 ExcessBytes = TotalBytes - BudgetBytes;
 
 			if (ExcessBytes > BudgetExcessBytes)
 			{

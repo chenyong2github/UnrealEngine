@@ -655,31 +655,9 @@ namespace mu
             break;
         }
 
-
-        case OP_TYPE::IM_INTERPOLATE3:
-        {
-            // We move the op down all the paths
-            auto newOp = mu::Clone<ASTOpFixed>(at);
-
-            auto top0 = newOp->children[newOp->op.args.ImageInterpolate3.target0].child();
-            newOp->SetChild(newOp->op.args.ImageInterpolate3.target0,
-                            Visit(top0, currentCropOp));
-
-            auto top1 = newOp->children[newOp->op.args.ImageInterpolate3.target1].child();
-            newOp->SetChild(newOp->op.args.ImageInterpolate3.target1,
-                            Visit(top1, currentCropOp));
-
-            auto top2 = newOp->children[newOp->op.args.ImageInterpolate3.target2].child();
-            newOp->SetChild(newOp->op.args.ImageInterpolate3.target2,
-                            Visit(top2, currentCropOp));
-
-            newAt = newOp;
-            break;
-        }
-
-        default:
-            break;
-        }
+		default:
+			break;
+		}
 
         // end on line, replace with crop
         if (at==newAt && at!=m_initialSource && !skipSinking)
@@ -1144,24 +1122,6 @@ namespace mu
 				break;
 			}
 
-
-			case OP_TYPE::IM_INTERPOLATE3:
-			{
-				Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(at);
-
-				Ptr<ASTOp> top0 = newOp->children[newOp->op.args.ImageInterpolate3.target0].child();
-				newOp->SetChild(newOp->op.args.ImageInterpolate3.target0, Visit(top0, currentSinkingOp));
-
-				Ptr<ASTOp> top1 = newOp->children[newOp->op.args.ImageInterpolate3.target1].child();
-				newOp->SetChild(newOp->op.args.ImageInterpolate3.target1, Visit(top1, currentSinkingOp));
-
-				Ptr<ASTOp> top2 = newOp->children[newOp->op.args.ImageInterpolate3.target2].child();
-				newOp->SetChild(newOp->op.args.ImageInterpolate3.target2, Visit(top2, currentSinkingOp));
-
-				newAt = newOp;
-				break;
-			}
-
 			case OP_TYPE::IM_MULTILAYER:
 			{
 				Ptr<ASTOpImageMultiLayer> nop = mu::Clone<ASTOpImageMultiLayer>(at);
@@ -1471,35 +1431,6 @@ namespace mu
                         sourceOp->SetChild( sourceOp->op.args.ImageResize.source, targetAt);
                         newOp->SetChild( newOp->op.args.ImageInterpolate.targets[s], sourceOp );
                     }
-                }
-
-                at = newOp;
-                break;
-            }
-
-            case OP_TYPE::IM_INTERPOLATE3:
-            {
-                Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(sourceAt);
-
-                {
-                    Ptr<ASTOpFixed> sourceOp = mu::Clone<ASTOpFixed>(this);
-                    auto targetAt = newOp->children[ newOp->op.args.ImageInterpolate3.target0 ].child();
-                    sourceOp->SetChild( sourceOp->op.args.ImageResize.source, targetAt);
-                    newOp->SetChild( newOp->op.args.ImageInterpolate3.target0, sourceOp );
-                }
-
-                {
-                    Ptr<ASTOpFixed> sourceOp = mu::Clone<ASTOpFixed>(this);
-                    auto targetAt = newOp->children[ newOp->op.args.ImageInterpolate3.target1 ].child();
-                    sourceOp->SetChild( sourceOp->op.args.ImageResize.source, targetAt);
-                    newOp->SetChild( newOp->op.args.ImageInterpolate3.target1, sourceOp );
-                }
-
-                {
-                    Ptr<ASTOpFixed> sourceOp = mu::Clone<ASTOpFixed>(this);
-                    auto targetAt = newOp->children[ newOp->op.args.ImageInterpolate3.target2 ].child();
-                    sourceOp->SetChild( sourceOp->op.args.ImageResize.source, targetAt);
-                    newOp->SetChild( newOp->op.args.ImageInterpolate3.target2, sourceOp );
                 }
 
                 at = newOp;

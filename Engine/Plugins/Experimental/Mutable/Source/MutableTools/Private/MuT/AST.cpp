@@ -1136,10 +1136,6 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
         res = GetImageDesc(op.args.ImageInterpolate.targets[0], returnBestOption, context );
         break;
 
-    case OP_TYPE::IM_INTERPOLATE3:
-        res = GetImageDesc( op.args.ImageInterpolate3.target0, returnBestOption, context );
-        break;
-
     case OP_TYPE::IM_PLAINCOLOUR:
         res.m_format = EImageFormat(op.args.ImagePlainColour.format);
         res.m_size[0] = op.args.ImagePlainColour.size[0];
@@ -1516,22 +1512,6 @@ bool ASTOpFixed::IsImagePlainConstant(FVector4f& colour) const
         res = children[op.args.ImagePlainColour.colour]->IsColourConstant( colour );
         break;
 
-    case OP_TYPE::IM_INTERPOLATE3:
-        res = children[op.args.ImageInterpolate3.target0]->IsColourConstant( colour );
-        if (res)
-        {
-			FVector4f baseColour;
-            res = children[op.args.ImageInterpolate3.target1]->IsColourConstant( colour );
-            res &= (colour==baseColour);
-        }
-        if (res)
-        {
-			FVector4f baseColour;
-            res = children[op.args.ImageInterpolate3.target2]->IsColourConstant( colour );
-            res &= (colour==baseColour);
-        }
-        break;
-
     default:
         // TODO: Improve this test with more operations
         //check( false );
@@ -1639,13 +1619,6 @@ mu::Ptr<ImageSizeExpression> ASTOpFixed::GetImageSizeExpression() const
         if ( children[op.args.ImageInterpolate.targets[0]] )
         {
             pRes = children[op.args.ImageInterpolate.targets[0]].child()->GetImageSizeExpression();
-        }
-        break;
-
-    case OP_TYPE::IM_INTERPOLATE3:
-        if ( children[op.args.ImageInterpolate3.target0] )
-        {
-            pRes = children[op.args.ImageInterpolate3.target0].child()->GetImageSizeExpression();
         }
         break;
 

@@ -22,7 +22,6 @@ namespace mu
 {
 
 	/** Used to debug and log. */
-	constexpr bool bForceSingleThread = false;
 	constexpr bool DebugRom = false;
 	constexpr bool DebugRomAll = false;
 	constexpr int32 DebugRomIndex = 44;
@@ -645,7 +644,8 @@ namespace mu
 
 
         //! Get a constant image, assuming it is fully loaded. The image constant will be composed with lodaded mips if necessary.
-        void GetConstant( int32 ConstantIndex, ImagePtrConst& res, int32 MipsToSkip) const
+		template <typename CreateImageFunc>
+        void GetConstant( int32 ConstantIndex, ImagePtrConst& res, int32 MipsToSkip, const CreateImageFunc& CreateImage) const
         {
 			int32 ReallySkippedLODs = FMath::Min(m_constantImages[ConstantIndex].LODCount - 1, MipsToSkip);
 			int32 FirstLODIndexIndex = m_constantImages[ConstantIndex].FirstIndex;
@@ -669,7 +669,7 @@ namespace mu
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ComposeConstantImage);
 
-				Ptr<Image> Result = new Image( CurrentMip->GetSizeX(), CurrentMip->GetSizeY(), FinalLODs, CurrentMip->GetFormat() );
+				Ptr<Image> Result = CreateImage( CurrentMip->GetSizeX(), CurrentMip->GetSizeY(), FinalLODs, CurrentMip->GetFormat() );
 				Result->m_flags = CurrentMip->m_flags;
 
 				// Some non-block pixel formats require separate memory size calculation

@@ -62,7 +62,6 @@ namespace mu
 	class NodeImageReference;
 	class NodeImageFormat;
 	class NodeImageGradient;
-	class NodeImageInterpolate3;
 	class NodeImageInterpolate;
 	class NodeImageInvert;
 	class NodeImageLayer;
@@ -427,7 +426,6 @@ namespace mu
 		void GenerateImage_LayerColour(const FImageGenerationOptions&, FImageGenerationResult&, const NodeImageLayerColour*);
 		void GenerateImage_Resize(const FImageGenerationOptions&, FImageGenerationResult&, const NodeImageResize*);
 		void GenerateImage_PlainColour(const FImageGenerationOptions&, FImageGenerationResult&, const NodeImagePlainColour*);
-		void GenerateImage_Interpolate3(const FImageGenerationOptions&, FImageGenerationResult&, const NodeImageInterpolate3*);
 		void GenerateImage_Project(const FImageGenerationOptions&, FImageGenerationResult&, const NodeImageProject*);
 		void GenerateImage_Mipmap(const FImageGenerationOptions&, FImageGenerationResult&, const NodeImageMipmap*);
 		void GenerateImage_Switch(const FImageGenerationOptions&, FImageGenerationResult&, const NodeImageSwitch*);

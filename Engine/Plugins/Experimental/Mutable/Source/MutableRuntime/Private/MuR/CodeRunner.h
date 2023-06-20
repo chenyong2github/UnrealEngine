@@ -37,9 +37,7 @@ namespace  mu
 	class RangeIndex;
 
 
-    //---------------------------------------------------------------------------------------------
-    //! Code execution of the mutable virtual machine.
-    //---------------------------------------------------------------------------------------------
+    /** Code execution of the mutable virtual machine. */
     class CodeRunner
     {
     public:
@@ -50,8 +48,7 @@ namespace  mu
 
     protected:
 
-        //! Type of data sometimes stored in the code runner heap to pass info between
-        //! operation stages.
+        /** Type of data sometimes stored in the code runner heap to pass info between operation stages. */
         struct FScheduledOpData
         {
 			union
@@ -126,7 +123,7 @@ namespace  mu
 		TArray< FScheduledOpData > m_heapData;
 		TArray< FImageDesc > m_heapImageDesc;
 
-		//! Only used for correct mip skipping with external images. Is the LOD for which the image is build.
+		/** Only used for correct mip skipping with external images. It is the LOD for which the image is build. */
 		int32 ImageLOD;
 
 	public:
@@ -371,7 +368,10 @@ namespace  mu
 	protected:
 
 		/** Strategy to choose the order of execution of operations. */
-		EExecutionStrategy ExecutionStrategy = EExecutionStrategy::None; 
+		EExecutionStrategy ExecutionStrategy = EExecutionStrategy::None;
+
+		/** If this flag is enabled, issued operation stage that use tasks will be executed in the mutable thread instead of in a generic worker thread. */
+		bool bForceSerialTaskExecution = false;
 
 		/** List of pending operations that we don't know if they cannot be run yet because of dependencies. */
 		TArray< FTask > ClosedTasks;
@@ -382,127 +382,130 @@ namespace  mu
 		/** For every op, up to what stage it has been scheduled to run. */
 		CodeContainer<uint8> ScheduledStagePerOp;
 
+		/** List of tasks that are ready to run concurrently. */
+		TArray< TSharedPtr<FIssuedTask> > IssuedTasksOnHold;
+
 		/** List of tasks that have been set to run concurrently and their completion is unknown. */
 		TArray< TSharedPtr<FIssuedTask> > IssuedTasks;
 
 	public:
 
-		bool LoadBool(const FCacheAddress& From)
+		inline bool LoadBool(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetBool(From);
 		}
 
-		float LoadInt(const FCacheAddress& From)
+		inline float LoadInt(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetInt(From);
 		}
 
-		float LoadScalar(const FCacheAddress& From)
+		inline float LoadScalar(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetScalar(From);
 		}
 
-		FVector4f LoadColor(const FCacheAddress& From)
+		inline FVector4f LoadColor(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetColour(From);
 		}
 
-		Ptr<const String> LoadString(const FCacheAddress& From)
+		inline Ptr<const String> LoadString(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetString(From);
 		}
 
-		FProjector LoadProjector(const FCacheAddress& From)
+		inline FProjector LoadProjector(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetProjector(From);
 		}
 
-		Ptr<const Mesh> LoadMesh(const FCacheAddress& From)
+		inline Ptr<const Mesh> LoadMesh(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.LoadMesh(From);
 		}
 
-		Ptr<const Image> LoadImage(const FCacheAddress& From)
+		inline Ptr<const Image> LoadImage(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.LoadImage(From);
 		}
 
-		Ptr<const Layout> LoadLayout(const FCacheAddress& From)
+		inline Ptr<const Layout> LoadLayout(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetLayout(From);
 		}
 
-		Ptr<const Instance> LoadInstance(const FCacheAddress& From)
+		inline Ptr<const Instance> LoadInstance(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetInstance(From);
 		}
 
-		Ptr<const ExtensionData> LoadExtensionData(const FCacheAddress& From)
+		inline Ptr<const ExtensionData> LoadExtensionData(const FCacheAddress& From)
 		{
 			return m_pSystem->WorkingMemoryManager.CurrentInstanceCache->GetExtensionData(From);
 		}
 
-		void StoreValidDesc(const FCacheAddress& To)
+		inline void StoreValidDesc(const FCacheAddress& To)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetValidDesc(To);
 		}
 
-		void StoreBool(const FCacheAddress& To, bool Value)
+		inline void StoreBool(const FCacheAddress& To, bool Value)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetBool(To, Value);
 		}
 
-		void StoreInt(const FCacheAddress& To, int32 Value)
+		inline void StoreInt(const FCacheAddress& To, int32 Value)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetInt(To, Value);
 		}
 
-		void StoreScalar(const FCacheAddress& To, float Value)
+		inline void StoreScalar(const FCacheAddress& To, float Value)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetScalar(To, Value);
 		}
 
-		void StoreString(const FCacheAddress& To, Ptr<const String> Value)
+		inline void StoreString(const FCacheAddress& To, Ptr<const String> Value)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetString(To, Value);
 		}
 
-		void StoreColor(const FCacheAddress& To, const FVector4f& Value)
+		inline void StoreColor(const FCacheAddress& To, const FVector4f& Value)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetColour(To, Value);
 		}
 
-		void StoreProjector(const FCacheAddress& To, const FProjector& Value)
+		inline void StoreProjector(const FCacheAddress& To, const FProjector& Value)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetProjector(To, Value);
 		}
 
-		void StoreMesh(const FCacheAddress& To, Ptr<const Mesh> Resource)
+		inline void StoreMesh(const FCacheAddress& To, Ptr<const Mesh> Resource)
 		{
 			m_pSystem->WorkingMemoryManager.StoreMesh(To, Resource);
 		}
 
-		void StoreImage(const FCacheAddress& To, Ptr<const Image> Resource)
+		inline void StoreImage(const FCacheAddress& To, Ptr<const Image> Resource)
 		{
 			m_pSystem->WorkingMemoryManager.StoreImage(To, Resource);
 		}
 
-		void StoreLayout(const FCacheAddress& To, Ptr<const Layout> Resource)
+		inline void StoreLayout(const FCacheAddress& To, Ptr<const Layout> Resource)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetLayout(To, Resource);
 		}
 
-		void StoreInstance(const FCacheAddress& To, Ptr<const Instance> Resource)
+		inline void StoreInstance(const FCacheAddress& To, Ptr<const Instance> Resource)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetInstance(To, Resource);
 		}
 
-		void StoreExtensionData(const FCacheAddress& To, Ptr<const ExtensionData> Resource)
+		inline void StoreExtensionData(const FCacheAddress& To, Ptr<const ExtensionData> Resource)
 		{
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetExtensionData(To, Resource);
 		}
 
-		Ptr<Image> CreateImage(uint32 SizeX, uint32 SizeY, uint32 Lods, EImageFormat Format, EInitializationType Init = EInitializationType::Black)
+		inline Ptr<Image> CreateImage(uint32 SizeX, uint32 SizeY, uint32 Lods, EImageFormat Format, EInitializationType Init = EInitializationType::Black)
 		{
 			Ptr<Image> Result = m_pSystem->WorkingMemoryManager.CreateImage(SizeX, SizeY, Lods, Format, Init);
 			return MoveTemp(Result);
@@ -515,38 +518,38 @@ namespace  mu
 		}
 
 		/** Ref will be nulled and relesed in any case. */
-		Ptr<Image> CloneOrTakeOver(Ptr<const Image>& Ref)
+		inline Ptr<Image> CloneOrTakeOver(Ptr<const Image>& Ref)
 		{
 			Ptr<Image> Result = m_pSystem->WorkingMemoryManager.CloneOrTakeOver(Ref);
 			return MoveTemp(Result);
 		}
 
-		void Release(Ptr<const Image>& Resource)
+		inline void Release(Ptr<const Image>& Resource)
 		{
 			return m_pSystem->WorkingMemoryManager.Release(Resource);
 		}
 
-		void Release(Ptr<Image>& Resource)
+		inline void Release(Ptr<Image>& Resource)
 		{
 			return m_pSystem->WorkingMemoryManager.Release(Resource);
 		}
 
-		UE_NODISCARD Ptr<Mesh> CreateMesh(int32 BudgetReserveSize = 0)
+		UE_NODISCARD inline Ptr<Mesh> CreateMesh(int32 BudgetReserveSize = 0)
 		{
 			return m_pSystem->WorkingMemoryManager.CreateMesh(BudgetReserveSize);
 		}
 
-		UE_NODISCARD Ptr<Mesh> CloneOrTakeOver(Ptr<const Mesh>& Ref)
+		UE_NODISCARD inline Ptr<Mesh> CloneOrTakeOver(Ptr<const Mesh>& Ref)
 		{
 			return m_pSystem->WorkingMemoryManager.CloneOrTakeOver(Ref);
 		}
 
-		void Release(Ptr<const Mesh>& Resource)
+		inline void Release(Ptr<const Mesh>& Resource)
 		{
 			m_pSystem->WorkingMemoryManager.Release(Resource);
 		}
 
-		void Release(Ptr<Mesh>& Resource)
+		inline void Release(Ptr<Mesh>& Resource)
 		{
 			m_pSystem->WorkingMemoryManager.Release(Resource);
 		}
@@ -605,6 +608,31 @@ namespace  mu
 		
 		/** Update debug stats. */
 		void UpdateTraces();
+
+		/** */
+		inline bool ShouldIssueTask() const
+		{
+			// Can we afford to delay issued tasks?
+			bool bCanDelayTasks = IssuedTasks.Num() > 0 || OpenTasks.Num() > 0;
+			if (!bCanDelayTasks)
+			{
+				return true;
+			}
+			else
+			{
+				// We could wait. Let's see if we have enough memory to issue tasks anyway.
+				bool bHaveEnoughMemory = !m_pSystem->WorkingMemoryManager.IsMemoryBudgetFull();
+				if (bHaveEnoughMemory)
+				{
+					return  true;
+				}
+			}
+
+			return false;
+		}
+
+		/** */
+		void LaunchIssuedTask(const TSharedPtr<FIssuedTask>& TaskToIssue, bool& bOutFailed);
 
     };
 

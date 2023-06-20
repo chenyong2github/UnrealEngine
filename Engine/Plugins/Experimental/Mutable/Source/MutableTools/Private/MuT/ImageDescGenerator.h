@@ -13,7 +13,6 @@
 #include "MuT/NodeImageFormat.h"
 #include "MuT/NodeImageGradient.h"
 #include "MuT/NodeImageInterpolate.h"
-#include "MuT/NodeImageInterpolate3.h"
 #include "MuT/NodeImageInvert.h"
 #include "MuT/NodeImageLayer.h"
 #include "MuT/NodeImageLayerColour.h"
@@ -52,7 +51,6 @@ namespace mu
                                // Standard operations from models
                                public Visitor<NodeImageConstant::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageInterpolate::Private, Ptr<ASTOp>, true>,
-                               public Visitor<NodeImageInterpolate3::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageSaturate::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageLuminance::Private, Ptr<ASTOp>, true>,
                                public Visitor<NodeImageLayer::Private, Ptr<ASTOp>, true>,
@@ -84,7 +82,6 @@ namespace mu
 
         Ptr<ASTOp> Visit( const NodeImageConstant::Private& );
         Ptr<ASTOp> Visit( const NodeImageInterpolate::Private& );
-        Ptr<ASTOp> Visit( const NodeImageInterpolate3::Private& );
         Ptr<ASTOp> Visit( const NodeImageSaturate::Private& );
         Ptr<ASTOp> Visit( const NodeImageLuminance::Private& );
         Ptr<ASTOp> Visit( const NodeImageLayer::Private& );

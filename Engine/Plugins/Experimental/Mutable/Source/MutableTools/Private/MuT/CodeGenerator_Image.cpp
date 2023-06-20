@@ -62,8 +62,6 @@
 #include "MuT/NodeImageGradient.h"
 #include "MuT/NodeImageGradientPrivate.h"
 #include "MuT/NodeImageInterpolate.h"
-#include "MuT/NodeImageInterpolate3.h"
-#include "MuT/NodeImageInterpolate3Private.h"
 #include "MuT/NodeImageInterpolatePrivate.h"
 #include "MuT/NodeImageInvert.h"
 #include "MuT/NodeImageInvertPrivate.h"
@@ -168,7 +166,6 @@ namespace mu
 			case NodeImage::EType::LayerColour: GenerateImage_LayerColour(Options, result, static_cast<const NodeImageLayerColour*>(Node)); break;
 			case NodeImage::EType::Resize: GenerateImage_Resize(Options, result, static_cast<const NodeImageResize*>(Node)); break;
 			case NodeImage::EType::PlainColour: GenerateImage_PlainColour(Options, result, static_cast<const NodeImagePlainColour*>(Node)); break;
-			case NodeImage::EType::Interpolate3: GenerateImage_Interpolate3(Options, result, static_cast<const NodeImageInterpolate3*>(Node)); break;
 			case NodeImage::EType::Project: GenerateImage_Project(Options, result, static_cast<const NodeImageProject*>(Node)); break;
 			case NodeImage::EType::Mipmap: GenerateImage_Mipmap(Options, result, static_cast<const NodeImageMipmap*>(Node)); break;
 			case NodeImage::EType::Switch: GenerateImage_Switch(Options, result, static_cast<const NodeImageSwitch*>(Node)); break;
@@ -688,98 +685,6 @@ namespace mu
             target = GenerateImageSize( target, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
             op->SetChild( op->op.args.ImageInterpolate.targets[0], target);
         }
-
-        result.op = op;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Interpolate3(const FImageGenerationOptions& Options, FImageGenerationResult& result, const NodeImageInterpolate3* InNode)
-	{
-		const NodeImageInterpolate3::Private& node = *InNode->GetPrivate();
-
-		MUTABLE_CPUPROFILER_SCOPE(NodeImageInterpolate3);
-
-        Ptr<ASTOpFixed> op = new ASTOpFixed();
-        op->op.type = OP_TYPE::IM_INTERPOLATE3;
-
-        // Factors
-        if ( node.m_pFactor1.get() )
-        {
-            op->SetChild( op->op.args.ImageInterpolate3.factor1, Generate( node.m_pFactor1 ));
-        }
-        else
-        {
-            // This argument is required
-            op->SetChild( op->op.args.ImageInterpolate3.factor1,
-                          GenerateMissingScalarCode(TEXT("Interpolation factor 1"), 0.3f, node.m_errorContext ));
-        }
-
-        if ( node.m_pFactor2.get() )
-        {
-            op->SetChild( op->op.args.ImageInterpolate3.factor2, Generate( node.m_pFactor2 ));
-        }
-        else
-        {
-            // This argument is required
-            op->SetChild( op->op.args.ImageInterpolate3.factor2,
-                          GenerateMissingScalarCode(TEXT("Interpolation factor 2"), 0.3f, node.m_errorContext ));
-        }
-
-        // Target 0
-        Ptr<ASTOp> target;
-        if ( node.m_pTarget0 )
-        {
-			FImageGenerationResult BaseResult;
-			GenerateImage(Options, BaseResult, node.m_pTarget0);
-			target = BaseResult.op;
-        }
-        else
-        {
-            // This argument is required
-            target = GenerateMissingImageCode(TEXT("Interpolation target 0"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
-        }
-        target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
-        target = GenerateImageSize
-                ( target, FImageSize((uint16)m_imageState.Last().m_imageRect.size[0],(uint16)m_imageState.Last().m_imageRect.size[1]) );
-        op->SetChild( op->op.args.ImageInterpolate3.target0, target);
-
-        // Target 1
-        if ( node.m_pTarget1 )
-        {
-			FImageGenerationResult BaseResult;
-			GenerateImage(Options, BaseResult, node.m_pTarget1);
-			target = BaseResult.op;
-		}
-        else
-        {
-            // This argument is required
-            target = GenerateMissingImageCode(TEXT("Interpolation target 1"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
-        }
-        target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
-        target = GenerateImageSize
-                ( target, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
-                                      (uint16)m_imageState.Last().m_imageRect.size[1]) );
-        op->SetChild( op->op.args.ImageInterpolate3.target1, target);
-
-        // Target 2
-        if ( node.m_pTarget2 )
-        {
-			FImageGenerationResult BaseResult;
-			GenerateImage(Options, BaseResult, node.m_pTarget2);
-			target = BaseResult.op;
-		}
-        else
-        {
-            // This argument is required
-            target = GenerateMissingImageCode(TEXT("Interpolation target 2"), EImageFormat::IF_RGB_UBYTE, node.m_errorContext, Options);
-        }
-        target = GenerateImageFormat( target, EImageFormat::IF_RGB_UBYTE );
-        target = GenerateImageSize
-                ( target, FImageSize( (uint16)m_imageState.Last().m_imageRect.size[0],
-                                      (uint16)m_imageState.Last().m_imageRect.size[1] ) );
-        op->SetChild( op->op.args.ImageInterpolate3.target2, target);
-
 
         result.op = op;
     }

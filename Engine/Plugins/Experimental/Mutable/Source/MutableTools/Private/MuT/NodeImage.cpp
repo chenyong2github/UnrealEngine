@@ -13,7 +13,6 @@
 #include "MuT/NodeImageFormat.h"
 #include "MuT/NodeImageGradient.h"
 #include "MuT/NodeImageInterpolate.h"
-#include "MuT/NodeImageInterpolate3.h"
 #include "MuT/NodeImageInvert.h"
 #include "MuT/NodeImageLayer.h"
 #include "MuT/NodeImageLayerColour.h"
@@ -84,7 +83,7 @@ namespace mu
 		case 20 :  return NodeImageLayerColour::StaticUnserialise( arch ); break;
 		case 21 :  return NodeImageResize::StaticUnserialise( arch ); break;
 		case 22 :  return NodeImagePlainColour::StaticUnserialise( arch ); break;
-		case 23 :  return NodeImageInterpolate3::StaticUnserialise( arch ); break;
+		//case 23 :  return NodeImageInterpolate3::StaticUnserialise( arch ); break;
         case 24 :  return NodeImageProject::StaticUnserialise( arch ); break;
         case 25 :  return NodeImageMipmap::StaticUnserialise( arch ); break;
         case 26 :  return NodeImageSwitch::StaticUnserialise( arch ); break;

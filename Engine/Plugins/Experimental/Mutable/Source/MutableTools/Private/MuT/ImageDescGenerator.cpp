@@ -18,7 +18,6 @@
 #include "MuT/NodeImageConstantPrivate.h"
 #include "MuT/NodeImageFormatPrivate.h"
 #include "MuT/NodeImageGradientPrivate.h"
-#include "MuT/NodeImageInterpolate3Private.h"
 #include "MuT/NodeImageInterpolatePrivate.h"
 #include "MuT/NodeImageInvertPrivate.h"
 #include "MuT/NodeImageLayerColourPrivate.h"
@@ -248,30 +247,6 @@ namespace mu
                 found = true;
                 Generate( *pB->GetBasePrivate() );
             }
-        }
-
-        m_desc.m_format = EImageFormat::IF_RGB_UBYTE;
-
-        return 0;
-    }
-
-
-    //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> ImageDescGenerator::Visit( const NodeImageInterpolate3::Private& node )
-    {
-        m_desc = MUTABLE_MISSING_IMAGE_DESC;
-
-        if ( node.m_pTarget0 )
-        {
-            Generate( *node.m_pTarget0->GetBasePrivate() );
-        }
-        else if ( node.m_pTarget1 )
-        {
-            Generate( *node.m_pTarget1->GetBasePrivate() );
-        }
-        else if ( node.m_pTarget2 )
-        {
-            Generate( *node.m_pTarget2->GetBasePrivate() );
         }
 
         m_desc.m_format = EImageFormat::IF_RGB_UBYTE;

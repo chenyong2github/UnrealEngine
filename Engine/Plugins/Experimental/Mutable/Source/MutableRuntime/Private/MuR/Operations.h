@@ -170,9 +170,6 @@ namespace mu
         //! Interpolate between 2 images taken from a row of targets (2 consecutive targets).
         IM_INTERPOLATE,
 
-        //! Interpolate between 3 images.
-        IM_INTERPOLATE3,
-
         //! Change the saturation of the image.
         IM_SATURATE,
 

@@ -86,7 +86,6 @@ namespace mu
 		{ DT_IMAGE,			true,   { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// IM_BLANKLAYOUT
 		{ DT_IMAGE,			true,	{ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0 }		},	// IM_COMPOSE
 		{ DT_IMAGE,			true,	{ 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// IM_INTERPOLATE
-		{ DT_IMAGE,			true,	{ 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// IM_INTERPOLATE3
 		{ DT_IMAGE,			true,	{ 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// IM_SATURATE
 		{ DT_IMAGE,			true,	{ 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// IM_LUMINANCE
 		{ DT_IMAGE,			true,	{ 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// IM_SWIZZLE
@@ -274,14 +273,6 @@ namespace mu
             {
                 f(&op.args.ImageInterpolate.targets[t] );
             }
-            break;
-
-        case OP_TYPE::IM_INTERPOLATE3:
-            f(&op.args.ImageInterpolate3.factor1 );
-            f(&op.args.ImageInterpolate3.factor2 );
-            f(&op.args.ImageInterpolate3.target0 );
-            f(&op.args.ImageInterpolate3.target1 );
-            f(&op.args.ImageInterpolate3.target2 );
             break;
 
         case OP_TYPE::IM_SATURATE:
@@ -691,17 +682,6 @@ namespace mu
             {
                 f(args.targets[t] );
             }
-            break;
-        }
-
-        case OP_TYPE::IM_INTERPOLATE3:
-        {
-			OP::ImageInterpolate3Args args = program.GetOpArgs<OP::ImageInterpolate3Args>(at);
-            f(args.factor1 );
-            f(args.factor2 );
-            f(args.target0 );
-            f(args.target1 );
-            f(args.target2 );
             break;
         }
 

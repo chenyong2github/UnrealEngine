@@ -477,29 +477,6 @@ namespace mu
 			break;
 		}
 
-
-		case OP_TYPE::IM_INTERPOLATE3:
-		{
-			// This op doesn't support compressed formats
-			if (!bIsCompressedFormat)
-			{
-				// We move the format down all the paths
-				auto newOp = mu::Clone<ASTOpFixed>(at);
-
-				auto top0 = newOp->children[newOp->op.args.ImageInterpolate3.target0].child();
-				newOp->SetChild(newOp->op.args.ImageInterpolate3.target0, Visit(top0, currentFormatOp));
-
-				auto top1 = newOp->children[newOp->op.args.ImageInterpolate3.target1].child();
-				newOp->SetChild(newOp->op.args.ImageInterpolate3.target1, Visit(top1, currentFormatOp));
-
-				auto top2 = newOp->children[newOp->op.args.ImageInterpolate3.target2].child();
-				newOp->SetChild(newOp->op.args.ImageInterpolate3.target2, Visit(top2, currentFormatOp));
-
-				newAt = newOp;
-			}
-			break;
-		}
-
 		case OP_TYPE::IM_LAYER:
 		{
 			if (GetOpDesc(at->GetOpType()).supportedBasePixelFormats[(size_t)format])

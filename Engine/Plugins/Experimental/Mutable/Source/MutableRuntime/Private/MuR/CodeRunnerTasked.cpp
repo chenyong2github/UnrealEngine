@@ -101,6 +101,8 @@ namespace mu
 				break;
 			}
 
+			m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream -= o.m_streamBuffer.GetAllocatedSize();
+
 			o.m_romIndex = -1;
 			o.m_streamBuffer.Empty();
 		}
@@ -110,82 +112,15 @@ namespace mu
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_OpenTask, TEXT("MutableRuntime/OpenTask"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_ClosedTasks, TEXT("MutableRuntime/ClosedTasks"));
 	TRACE_DECLARE_INT_COUNTER(MutableRuntime_IssuedTasks, TEXT("MutableRuntime/IssuedTasks"));
-	TRACE_DECLARE_INT_COUNTER(MutableRuntime_PCache_Keep, TEXT("MutableRuntime/PCache/Keep"));
-	TRACE_DECLARE_INT_COUNTER(MutableRuntime_PCache_Burn, TEXT("MutableRuntime/PCache/Burn"));
-	TRACE_DECLARE_INT_COUNTER(MutableRuntime_PCache_Update, TEXT("MutableRuntime/PCache/UpdateCount"));
-	TRACE_DECLARE_INT_COUNTER(MutableRuntime_PCache_UpdateSize, TEXT("MutableRuntime/PCache/UpdateSize"));
+	TRACE_DECLARE_INT_COUNTER(MutableRuntime_IssuedTasksOnHold, TEXT("MutableRuntime/IssuedHoldTasks"));
 
 	void CodeRunner::UpdateTraces()
 	{
-#if UE_MUTABLE_ENABLE_SLOW_TRACES && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-
-		//// Code Runner status
-		//TRACE_COUNTER_SET(MutableRuntime_OpenTask, OpenTasks.Num());
-		//TRACE_COUNTER_SET(MutableRuntime_ClosedTasks, ClosedTasks.Num());
-		//TRACE_COUNTER_SET(MutableRuntime_IssuedTasks, IssuedTasks.Num());
-
-		//// Program cache status
-		//{
-		//	CodeContainer< TPair<int32, Ptr<const RefCounted>> >::iterator It = GetMemory().m_resources.begin();
-		//	int32 NumKeep = 0;
-		//	int32 NumBurn = 0;
-		//	for (; It.IsValid(); ++It)
-		//	{
-		//		int32 State = (*It).Key;
-		//		if (State == 1)
-		//		{
-		//			++NumKeep;
-		//		}
-		//		else if (State == 2)
-		//		{
-		//			++NumBurn;
-		//		}
-		//	}
-		//	TRACE_COUNTER_SET(MutableRuntime_PCache_Keep, NumKeep);
-		//	TRACE_COUNTER_SET(MutableRuntime_PCache_Burn, NumBurn);
-		//}
-
-		//// Program cache types
-		//{
-		//	int32 NumUpdateCacheResources = 0;
-		//	int32 UpdateCacheResourcesSize = 0;
-		//	CodeContainer<int32>::iterator It = GetMemory().m_opHitCount.begin();
-		//	for (; It.IsValid(); ++It)
-		//	{
-		//		int32 Count = *It;
-		//		if ( (Count > 0x0fffff)
-		//			&& 
-		//			GetMemory().IsValid(It.get_address()))
-		//		{
-		//			++NumUpdateCacheResources;
-
-		//			OP_TYPE OpType = m_pModel->GetPrivate()->m_program.GetOpType(It.get_address().At);
-		//			DATATYPE DataType = GetOpDataType(OpType);
-		//			switch (DataType)
-		//			{
-		//			case DATATYPE::DT_MESH:
-		//			{
-		//				const Mesh* Resource = reinterpret_cast<const Mesh*>(GetMemory().m_resources[It.get_address()].Value.get());
-		//				UpdateCacheResourcesSize += Resource->GetDataSize();
-		//				break;
-		//			}
-		//			case DATATYPE::DT_IMAGE:
-		//			{
-		//				const Image* Resource = reinterpret_cast<const Image*>(GetMemory().m_resources[It.get_address()].Value.get());
-		//				UpdateCacheResourcesSize += Resource->GetDataSize();
-		//				break;
-		//			}
-		//			default:
-		//				check(false);
-		//				break;
-		//			}
-		//		}
-		//	}
-		//	TRACE_COUNTER_SET(MutableRuntime_PCache_Update, NumUpdateCacheResources);
-		//	TRACE_COUNTER_SET(MutableRuntime_PCache_UpdateSize, UpdateCacheResourcesSize);
-		//}
-
-#endif
+		// Code Runner status
+		TRACE_COUNTER_SET(MutableRuntime_OpenTask, OpenTasks.Num());
+		TRACE_COUNTER_SET(MutableRuntime_ClosedTasks, ClosedTasks.Num());
+		TRACE_COUNTER_SET(MutableRuntime_IssuedTasks, IssuedTasks.Num());
+		TRACE_COUNTER_SET(MutableRuntime_IssuedTasksOnHold, IssuedTasksOnHold.Num());
 	}
 
 
@@ -266,7 +201,6 @@ namespace mu
 		{   0,  20,   0,   0 },	// IM_BLANKLAYOUT
 		{   0,   0, -20,   0 },	// IM_COMPOSE
 		{   0,   0, -20,   0 },	// IM_INTERPOLATE
-		{   0,   0, -30,   0 },	// IM_INTERPOLATE3
 		{   0,   0,   0,   0 },	// IM_SATURATE
 		{   0,   0,   0,   0 },	// IM_LUMINANCE
 		{   0,   0,   0,   0 },	// IM_SWIZZLE
@@ -357,6 +291,74 @@ namespace mu
 	}
 
 
+	//---------------------------------------------------------------------------------------------
+	void CodeRunner::LaunchIssuedTask( const TSharedPtr<FIssuedTask>& TaskToIssue, bool& bOutFailed )
+	{
+		bool bFailed = false;
+		bool bHasWork = TaskToIssue->Prepare(this, bFailed);
+		if (bFailed)
+		{
+			bUnrecoverableError = true;
+			return;
+		}
+
+		// Launch it
+		if (bHasWork)
+		{
+			if (bForceSerialTaskExecution)
+			{
+				TaskToIssue->Event = {};
+				TaskToIssue->DoWork();
+			}
+			else
+			{
+#ifdef MUTABLE_USE_NEW_TASKGRAPH
+				TaskToIssue->Event = UE::Tasks::Launch(TEXT("MutableCore_Task"),
+					[TaskToIssue]() { TaskToIssue->DoWork(); },
+					UE::Tasks::ETaskPriority::Inherit);
+#else
+
+				ENamedThreads::Type Priority;
+				switch (CoreRunnerTaskPriority)
+				{
+				default:
+				case 0:
+					Priority = ENamedThreads::AnyThread;
+					break;
+				case 1:
+					Priority = ENamedThreads::AnyHiPriThreadHiPriTask;
+					break;
+				case 2:
+					Priority = ENamedThreads::AnyHiPriThreadNormalTask;
+					break;
+				case 3:
+					Priority = ENamedThreads::AnyNormalThreadHiPriTask;
+					break;
+				case 4:
+					Priority = ENamedThreads::AnyNormalThreadNormalTask;
+					break;
+				case 5:
+					Priority = ENamedThreads::AnyBackgroundHiPriTask;
+					break;
+				case 6:
+					Priority = ENamedThreads::AnyBackgroundThreadNormalTask;
+					break;
+				}
+
+				TaskToIssue->Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
+					[TaskToIssue]() { TaskToIssue->DoWork(); },
+					TStatId{},
+					nullptr,
+					Priority);
+#endif
+			}
+		}
+
+		// Remember it for later processing.
+		IssuedTasks.Add(TaskToIssue);
+	}
+
+
     //---------------------------------------------------------------------------------------------
     void CodeRunner::Run()
     {
@@ -417,43 +419,41 @@ namespace mu
 				}
 			}
 
-			UpdateTraces();
-
 			while (!OpenTasks.IsEmpty())
 			{
 				// Get a new task to run
 				FScheduledOp item;
 				switch (ExecutionStrategy)
 				{
-				case EExecutionStrategy::MinimizeMemory:
-				{
-					// TODO: This should be done when an operation is added to the OpenTasks array instead of every time.
-					int32 BestOp = 0;
-					int8 BestDelta = TNumericLimits<int8>::Max();
-					int32 OpenOpCount = OpenTasks.Num();
-					const FProgram& Program = m_pModel->GetPrivate()->m_program;
-					for (int32 OpIndex = 0; OpIndex < OpenOpCount; ++OpIndex)
-					{
-						const FScheduledOp& Candidate = OpenTasks[OpIndex];
-						int32 OpDelta = GetOpEstimatedMemoryDelta(Candidate, Program);
+				//case EExecutionStrategy::MinimizeMemory:
+				//{
+				//	// TODO: This should be done when an operation is added to the OpenTasks array instead of every time.
+				//	int32 BestOp = 0;
+				//	int8 BestDelta = TNumericLimits<int8>::Max();
+				//	int32 OpenOpCount = OpenTasks.Num();
+				//	const FProgram& Program = m_pModel->GetPrivate()->m_program;
+				//	for (int32 OpIndex = 0; OpIndex < OpenOpCount; ++OpIndex)
+				//	{
+				//		const FScheduledOp& Candidate = OpenTasks[OpIndex];
+				//		int32 OpDelta = GetOpEstimatedMemoryDelta(Candidate, Program);
 
-						if (OpDelta < BestDelta)
-						{
-							BestOp = OpIndex;
-							BestDelta = OpDelta;
+				//		if (OpDelta < BestDelta)
+				//		{
+				//			BestOp = OpIndex;
+				//			BestDelta = OpDelta;
 
-							// Shortcut: If we are freeing memory, we don't care how much: it is already the best op
-							if (BestDelta < 0)
-							{
-								break;
-							}
-						}
-					}
+				//			// Shortcut: If we are freeing memory, we don't care how much: it is already the best op
+				//			if (BestDelta < 0)
+				//			{
+				//				break;
+				//			}
+				//		}
+				//	}
 
-					item = OpenTasks[BestOp];
-					OpenTasks.RemoveAtSwap(BestOp,1,false);
-					break;
-				}
+				//	item = OpenTasks[BestOp];
+				//	OpenTasks.RemoveAtSwap(BestOp,1,false);
+				//	break;
+				//}
 
 				case EExecutionStrategy::None:
 				default:
@@ -481,69 +481,20 @@ namespace mu
 				TSharedPtr<FIssuedTask> IssuedTask = IssueOp(item);
 				if (IssuedTask)
 				{
-					bool bFailed = false;
-					bool hasWork = IssuedTask->Prepare(this, bFailed);
-					if (bFailed)
+					if (ShouldIssueTask())
 					{
-						bUnrecoverableError = true;
-						return;
-					}
-
-					// Launch it
-					if (hasWork)
-					{
-						// Optional hack to ensure deterministic single threading.
-						if (bForceSingleThread)
+						bool bFailed = false;
+						LaunchIssuedTask(IssuedTask, bFailed);
+						if (bFailed)
 						{
-							IssuedTask->Event = {};
-							IssuedTask->DoWork();
-						}
-						else
-						{
-#ifdef MUTABLE_USE_NEW_TASKGRAPH
-							IssuedTask->Event = UE::Tasks::Launch(TEXT("MutableCore_Task"),
-								[IssuedTask]() { IssuedTask->DoWork(); },
-								UE::Tasks::ETaskPriority::Inherit );
-#else
-
-							ENamedThreads::Type Priority;
-							switch (CoreRunnerTaskPriority)
-							{
-							default:
-							case 0:
-								Priority = ENamedThreads::AnyThread;
-								break;
-							case 1:
-								Priority = ENamedThreads::AnyHiPriThreadHiPriTask;
-								break;
-							case 2:
-								Priority = ENamedThreads::AnyHiPriThreadNormalTask;
-								break;
-							case 3:
-								Priority = ENamedThreads::AnyNormalThreadHiPriTask;
-								break;
-							case 4:
-								Priority = ENamedThreads::AnyNormalThreadNormalTask;
-								break;
-							case 5:
-								Priority = ENamedThreads::AnyBackgroundHiPriTask;
-								break;
-							case 6:
-								Priority = ENamedThreads::AnyBackgroundThreadNormalTask;
-								break;								
-							}
-							
-							IssuedTask->Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
-								[IssuedTask]() { IssuedTask->DoWork(); },
-								TStatId{},
-								nullptr,
-								Priority);
-#endif
+							bUnrecoverableError = true;
+							return;
 						}
 					}
-					
-					// Remember it for later processing.
-					IssuedTasks.Add(IssuedTask);
+					else
+					{
+						IssuedTasksOnHold.Add(IssuedTask);
+					}
 				}
 				else
 				{
@@ -552,19 +503,32 @@ namespace mu
 
 					if (ScheduledStagePerOp[item] == item.Stage + 1)
 					{
-						// We completed everything that was requested, clear it otherwise if needed
-						// again it is not going to be rebuilt.
-						// \TODO: track rebuilds.
+						// We completed everything that was requested, clear it. Otherwise if needed again it is not going to be rebuilt.
+						// \TODO: track operations that are run more than once?.
 						ScheduledStagePerOp[item] = 0;
 					}
 				}
-
-				UpdateTraces();
 
 				if (bProfile)
 				{
 					++NumRunOps;
 					RunOpsPerType[size_t(m_pModel->GetPrivate()->m_program.GetOpType(item.At))]++;
+				}
+			}
+
+			UpdateTraces();
+
+			// Look for tasks on hold and see if we can launch them
+			while (IssuedTasksOnHold.Num() && ShouldIssueTask())
+			{
+				TSharedPtr<FIssuedTask> TaskToIssue = IssuedTasksOnHold.Pop(false);
+
+				bool bFailed = false;
+				LaunchIssuedTask(TaskToIssue, bFailed);
+				if (bFailed)
+				{
+					bUnrecoverableError = true;
+					return;
 				}
 			}
 
@@ -574,7 +538,6 @@ namespace mu
 				if (o.m_romIndex>=0 && m_pSystem->StreamInterface->IsReadCompleted(o.m_streamID))
 				{
 					CompleteRomLoadOp(o);
-					UpdateTraces();
 				}
 			}
 
@@ -607,8 +570,9 @@ namespace mu
 					++Index;
 				}
 
-				UpdateTraces();
 			}
+
+			UpdateTraces();
 
 			// Debug: Did we dead-lock?
 			bool bDeadLock = !(OpenTasks.Num() || IssuedTasks.Num() || !ClosedTasks.Num() || bSomeWasReady);
@@ -665,8 +629,6 @@ namespace mu
 					// We should never reach this, since it would mean we deadlocked.
 					//check(false);
 				}
-
-				UpdateTraces();
 			}
 		}
 
@@ -2101,9 +2063,8 @@ namespace mu
 
 			if (uint32(op->m_streamBuffer.Num()) < RomSize)
 			{
-				// This could happen in 32-bit platforms
-				check(RomSize < std::numeric_limits<size_t>::max());
 				op->m_streamBuffer.SetNum((size_t)RomSize);
+				Runner->m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream += op->m_streamBuffer.GetAllocatedSize();
 			}
 
 			uint32 RomId = program.m_roms[RomIndex].Id;
@@ -2276,8 +2237,6 @@ namespace mu
 
 			// Free roms if necessary
 			{
-				MUTABLE_CPUPROFILER_SCOPE(FreeingRoms);
-
 				Runner->m_pSystem->WorkingMemoryManager.MarkRomUsed(RomIndex, Runner->m_pModel);
 				Runner->m_pSystem->WorkingMemoryManager.EnsureBudgetBelow(RomSize);
 			}
@@ -2302,9 +2261,8 @@ namespace mu
 
 			if (uint32(op->m_streamBuffer.Num()) < RomSize)
 			{
-				// This could happen in 32-bit platforms
-				check(RomSize < std::numeric_limits<size_t>::max());
 				op->m_streamBuffer.SetNum(RomSize);
+				Runner->m_pSystem->WorkingMemoryManager.TrackedBudgetBytes_Stream += op->m_streamBuffer.GetAllocatedSize();
 			}
 
 			uint32 RomId = program.m_roms[RomIndex].Id;
@@ -2353,8 +2311,10 @@ namespace mu
 			Runner->m_pSystem->WorkingMemoryManager.MarkRomUsed(RomIndex, Runner->m_pModel);
 			--ModelCache.PendingOpsPerRom[RomIndex];
 
-			if (DebugRom && (DebugRomAll || RomIndex==DebugRomIndex))
+			if (DebugRom && (DebugRomAll || RomIndex == DebugRomIndex))
+			{
 				UE_LOG(LogMutableCore, Log, TEXT("FLoadImageRomsTask::Complete rom %d, now peding ops is %d."), RomIndex, ModelCache.PendingOpsPerRom[RomIndex]);
+			}
 		}
 	}
 
@@ -2510,16 +2470,19 @@ namespace mu
 			int32 LODIndexCount = program.m_constantImages[ImageIndex].LODCount - ReallySkip;
 			check(LODIndexCount > 0);
 
-			bool bAnyMissing = false;
-			for (int32 i=0; i<LODIndexCount; ++i)
-			{
-				uint32 LODIndex = program.m_constantImageLODIndices[LODIndexIndex+i];
-				if ( !program.m_constantImageLODs[LODIndex].Value )
-				{
-					bAnyMissing = true;
-					break;
-				}
-			}
+			// We always need to follow this path, or roms may not be protected for long enough and might be unloaded 
+			// because of memory budget contraints.
+			bool bAnyMissing = true;
+			//bool bAnyMissing = false;
+			//for (int32 i=0; i<LODIndexCount; ++i)
+			//{
+			//	uint32 LODIndex = program.m_constantImageLODIndices[LODIndexIndex+i];
+			//	if ( !program.m_constantImageLODs[LODIndex].Value )
+			//	{
+			//		bAnyMissing = true;
+			//		break;
+			//	}
+			//}
 
 			if (bAnyMissing)
 			{
