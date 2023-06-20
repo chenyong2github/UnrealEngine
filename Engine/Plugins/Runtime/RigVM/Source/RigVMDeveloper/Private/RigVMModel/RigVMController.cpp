@@ -18832,7 +18832,14 @@ FRigVMClientPatchResult URigVMController::PatchRerouteNodesOnLoad()
 				}
 				else
 				{
-					ReroutesToRemove.Add(RerouteNode);
+					if (ValuePin->IsArray())
+					{
+						ReroutesToTurnIntoMakeArray.Add(RerouteNode);
+					}
+					else
+					{
+						ReroutesToRemove.Add(RerouteNode);
+					}
 				}
 			}
 		}
