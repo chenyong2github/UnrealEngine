@@ -15,6 +15,8 @@
 #include "Misc/PathViews.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
+#include "SVirtualizationRevisionControlConnectionDialog.h"
+#include "SourceControlHelpers.h"
 #include "SourceControlInitSettings.h"
 #include "SourceControlOperations.h"
 #include "VirtualizationManager.h"
@@ -336,17 +338,81 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 		return IVirtualizationBackend::EConnectionStatus::Error;
 	}
 
+	FString Port = ServerAddress;
+	FString UserName = TEXT("");
+	bool bSaveSettings = false; // Initially we will try to reason the perforce settings from the ini file and global environment
+								// so we don't want to save these values to the users ini files.
+
+	while (true)
+	{
+		// TODO: At the moment we cannot get back error messages from ISourceControlProvider::Init, nor can we get back info about
+		// the actual login details used, so for the initial dialog we will just have to go with the settings we know and not 
+		// give the user any details about the connection problem.
+		FText ErrorMessage;
+		IVirtualizationBackend::EConnectionStatus ConnectionResult = OnConnectInternal(Port, UserName, bSaveSettings, ErrorMessage);
+
+		if (ConnectionResult == IVirtualizationBackend::EConnectionStatus::Connected)
+		{
+			if (bSaveSettings)
+			{
+				check(::IsInGameThread());
+				GConfig->Flush(false, SourceControlHelpers::GetSettingsIni());
+			}
+			return IVirtualizationBackend::EConnectionStatus::Connected;
+		}
+
+#if UE_VA_WITH_SLATE
+		// If the local ini settings are ignored then there is no point saving correct settings given by the user.
+		// They will need to fix their root problem instead.
+		// TODO: Maybe give a bespoke error at this point?
+		if (bUseRetryConnectionDialog && bUseLocalIniFileSettings)
+		{
+			SRevisionControlConnectionDialog::FResult DialogResult = SRevisionControlConnectionDialog::RunDialog(Port, UserName);
+			if (!DialogResult.bShouldRetry)
+			{
+				OnConnectionError(ErrorMessage);
+				return IVirtualizationBackend::EConnectionStatus::Error;
+			}
+
+			Port = DialogResult.Port;
+			UserName = DialogResult.UserName;
+			bSaveSettings = true; // Now we have input from the user, so we should save it for future sessions
+		}
+		else
+#endif
+		{
+			OnConnectionError(ErrorMessage);
+			return IVirtualizationBackend::EConnectionStatus::Error;
+		}
+	}
+}
+
+
+IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnectInternal(FStringView Port, FStringView Username, bool bSaveConnectionSettings, FText& OutErrorMessage)
+{
 	// We do not want the connection to have a client workspace so explicitly set it to empty
 	FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideExisting);
 
-	const FSourceControlInitSettings::EConfigBehavior IniBehavior = bUseLocalIniFileSettings ?	FSourceControlInitSettings::EConfigBehavior::ReadOnly :
-																								FSourceControlInitSettings::EConfigBehavior::None;
+	FSourceControlInitSettings::EConfigBehavior IniBehavior = bSaveConnectionSettings	? FSourceControlInitSettings::EConfigBehavior::ReadWrite 
+																						: FSourceControlInitSettings::EConfigBehavior::ReadOnly;
+
+	if (!bUseLocalIniFileSettings)
+	{
+		IniBehavior = FSourceControlInitSettings::EConfigBehavior::None;
+	}
+
 	SCCSettings.SetConfigBehavior(IniBehavior);
 
-	if (!ServerAddress.IsEmpty())
+	if (!Port.IsEmpty())
 	{
-		SCCSettings.AddSetting(TEXT("P4Port"), ServerAddress);
+		SCCSettings.AddSetting(TEXT("P4Port"), Port);
 	}
+
+	if (!Username.IsEmpty())
+	{
+		SCCSettings.AddSetting(TEXT("P4User"), Username);
+	}
+
 	SCCSettings.AddSetting(TEXT("P4Client"), TEXT(""));
 
 	SCCProvider = ISourceControlModule::Get().CreateProvider(FName("Perforce"), TEXT("Virtualization"), SCCSettings);
@@ -358,12 +424,12 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 
 	// Will attempt to make initial connection to the server, it doesn't return any error values we can check against but
 	// it will output problems to the log file.
-	SCCProvider->Init(true);
+	const bool bForceConnection = true;
+	SCCProvider->Init(bForceConnection);
 
 	if (!SCCProvider->IsAvailable())
 	{
-		OnConnectionError(FText(LOCTEXT("FailedSourceControlConnection", "Failed to connect to revision control backend, see the Message Log 'Revision Control' errors for details.\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?")));
-
+		OutErrorMessage = FText(LOCTEXT("FailedSourceControlConnection", "Failed to connect to revision control backend, see the Message Log 'Revision Control' errors for details.\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?"));
 		return IVirtualizationBackend::EConnectionStatus::Error;
 	}
 
@@ -388,11 +454,9 @@ IVirtualizationBackend::EConnectionStatus FSourceControlBackend::OnConnect()
 
 	if (MetaInfoBuffer.IsNull())
 	{
-		FText Msg = FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find '{0}' on server '{1}'\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?"),
+		OutErrorMessage = FText::Format(LOCTEXT("FailedMetaInfo", "Failed to find '{0}' on server '{1}'\nThe revision control backend will be unable to pull payloads, is your revision control config set up correctly?"),
 			FText::FromString(PayloadMetaInfoPath),
 			FText::FromString(GetPortFromProvider(SCCProvider.Get())));
-
-		OnConnectionError(MoveTemp(Msg));
 
 		return IVirtualizationBackend::EConnectionStatus::Error;
 	}
@@ -1007,6 +1071,11 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 	{
 		FParse::Bool(*ConfigEntry, TEXT("UseLocalIniFileSettings="), bUseLocalIniFileSettings);
 		UE_LOG(LogVirtualization, Log, TEXT("[%s] Reading settings from local SourceControlSettings.ini is %s"), *GetDebugName(), bUseLocalIniFileSettings ? TEXT("enabled") : TEXT("disabled"));	
+	}
+
+	{
+		FParse::Bool(*ConfigEntry, TEXT("UseRetryConnectionDialog="), bUseRetryConnectionDialog);
+		UE_LOG(LogVirtualization, Log, TEXT("[%s] Showing a reconnect dialog on initial failure %s"), *GetDebugName(), bUseRetryConnectionDialog ? TEXT("enabled") : TEXT("disabled"));
 	}
 
 	{

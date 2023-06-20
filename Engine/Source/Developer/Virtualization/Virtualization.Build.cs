@@ -21,5 +21,18 @@ public class Virtualization : ModuleRules
 				"Projects",
 				"SourceControl"
 			});
+
+		if (Target.bUsesSlate)
+		{
+			// NOTE: Slate is being included via SourceControl anyway
+			PrivateDependencyModuleNames.Add("Slate");
+			PrivateDependencyModuleNames.Add("SlateCore");
+
+			PublicDefinitions.Add("UE_VA_WITH_SLATE=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("UE_VA_WITH_SLATE=0");
+		}
 	}
 }

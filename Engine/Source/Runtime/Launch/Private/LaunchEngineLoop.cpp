@@ -3244,10 +3244,12 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		}
 #endif
 
-#if WITH_EDITOR
-		// The virtualization system will be initialized when ever IVirtualizationSystem::Get is called
-		// but here we try to explicitly initialize it.
-		UE::Virtualization::Initialize(UE::Virtualization::EInitializationFlags::None);
+#if WITH_EDITOR	
+		if (UE::Virtualization::ShouldInitializePreSlate())
+		{
+			// Explicit initialization of the virtualization system, before slate has initialized and we cannot show error dialogs 
+			UE::Virtualization::Initialize(UE::Virtualization::EInitializationFlags::None);
+		}
 #endif //WITH_EDITOR
 
 		check(!GDistanceFieldAsyncQueue);
@@ -3735,6 +3737,14 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			UE_SCOPED_ENGINE_ACTIVITY(TEXT("Initializing UObject Classes"));
 			ProcessNewlyLoadedUObjects();
 		}
+
+#if WITH_EDITOR
+		if (!UE::Virtualization::ShouldInitializePreSlate())
+		{
+			// Explicit initialization of the virtualization system, after slate has initialized and we can show error dialogs.
+			UE::Virtualization::Initialize(UE::Virtualization::EInitializationFlags::None);
+		}
+#endif //WITH_EDITOR
 
 		// Ensure game localization has loaded before we continue
 		FTextLocalizationManager::Get().WaitForAsyncTasks();

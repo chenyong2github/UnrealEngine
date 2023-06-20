@@ -506,6 +506,24 @@ CORE_API void Initialize(EInitializationFlags Flags);
 CORE_API void Initialize(const FInitParams& InitParams, EInitializationFlags Flags);
 
 /**
+ * Returns if the system should be initialized before the slate system has been initialized or not.
+ * 
+ * Originally the VA system would be initialized as early as possible, but this would occur before
+ * slate has been set up and prevents us from initiating interactive dialogs. Now that we have
+ * the firm rule that engine content cannot be virtualized it should be safe for us to initialize
+ * the system after slate allowing dialogs.
+ * 
+ * This function exists so that a project could opt into the original behavior by setting the 
+ * config file value "engine.ini:[Core.ContentVirtualization]:InitPreSlate=true"
+ * This is only provided as a way for teams to quickly fix any issue that the later initialization
+ * might cause and is not a long term feature. This will be deprecated and removed in future releases.
+ * 
+ * Note that this is only really supported in the editor as we use the global config file, not one
+ * provided. Standalone programs should just initialize the system as needed.
+ */
+CORE_API bool ShouldInitializePreSlate();
+
+/**
  * Shutdowns the global IVirtualizationSystem if it exists. 
  * Calling this is optional as the system will shut itself down along with the rest of the engine.
  */

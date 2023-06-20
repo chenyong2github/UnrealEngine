@@ -349,6 +349,14 @@ void Initialize(const FInitParams& InitParams, EInitializationFlags Flags)
 	}
 }
 
+bool ShouldInitializePreSlate()
+{
+	bool bInitBeforeSlate = false;
+	GConfig->GetBool(TEXT("Core.ContentVirtualization"), TEXT("InitPreSlate"), bInitBeforeSlate, GEngineIni);
+
+	return bInitBeforeSlate;
+}
+
 void Shutdown()
 {
 	GVirtualizationSystem.Reset();
