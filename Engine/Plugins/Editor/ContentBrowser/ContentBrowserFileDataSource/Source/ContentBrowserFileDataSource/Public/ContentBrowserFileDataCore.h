@@ -4,6 +4,7 @@
 
 #include "ContentBrowserItemData.h"
 
+struct FContentBrowserDataFilter;
 class FContentBrowserFileItemDataPayload;
 class FContentBrowserFileItemDataPayload_Duplication;
 class FContentBrowserFolderItemDataPayload;
@@ -130,6 +131,13 @@ namespace ContentBrowserFileData
 	CONTENTBROWSERFILEDATASOURCE_API bool GetFolderItemAttributes(const FContentBrowserFolderItemDataPayload& InFolderPayload, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValues& OutAttributeValues);
 
 	CONTENTBROWSERFILEDATASOURCE_API bool GetFileItemAttributes(const FContentBrowserFileItemDataPayload& InFilePayload, const bool InIncludeMetaData, FContentBrowserItemDataAttributeValues& OutAttributeValues);
+
+	class CONTENTBROWSERFILEDATASOURCE_API FDefaultFileActions
+	{
+	public:
+		static bool ItemPassesFilter(const FName InFilePath, const FString& InFilename, const FContentBrowserDataFilter& InFilter, const bool bIsFile);
+		static bool GetItemAttribute(const FName InFilePath, const FString& InFilename, const bool InIncludeMetaData, const FName InAttributeKey, FContentBrowserItemDataAttributeValue& OutAttributeValue);
+	};
 
 }
 

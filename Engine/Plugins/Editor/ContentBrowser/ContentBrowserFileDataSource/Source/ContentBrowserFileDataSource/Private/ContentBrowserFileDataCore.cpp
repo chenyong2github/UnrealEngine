@@ -9,6 +9,7 @@
 #include "Misc/Paths.h"
 #include "AssetThumbnail.h"
 #include "AssetToolsModule.h"
+#include "AssetViewUtils.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserFileDataSource"
 
@@ -1071,6 +1072,57 @@ bool GetFileItemAttributes(const FContentBrowserFileItemDataPayload& InFilePaylo
 	// External attributes take priority
 	if (FileActions->GetAttributes.IsBound() && FileActions->GetAttributes.Execute(InFilePayload.GetInternalPath(), InFilePayload.GetFilename(), InIncludeMetaData, OutAttributeValues))
 	{
+		return true;
+	}
+
+	return false;
+}
+
+bool FDefaultFileActions::ItemPassesFilter(const FName InFilePath, const FString& InFilename, const FContentBrowserDataFilter& InFilter, const bool bIsFile)
+{
+	const FContentBrowserDataPackageFilter* PackageFilter = InFilter.ExtraFilters.FindFilter<FContentBrowserDataPackageFilter>();
+	if (PackageFilter && PackageFilter->PathPermissionList && PackageFilter->PathPermissionList->HasFiltering())
+	{
+		return PackageFilter->PathPermissionList->PassesStartsWithFilter(InFilePath, /*bAllowParentPaths*/!bIsFile);
+	}
+
+	return true;
+}
+
+bool FDefaultFileActions::GetItemAttribute(const FName InFilePath, const FString& InFilename, const bool InIncludeMetaData, const FName InAttributeKey, FContentBrowserItemDataAttributeValue& OutAttributeValue)
+{
+	if (InAttributeKey == ContentBrowserItemAttributes::ItemIsDeveloperContent)
+	{
+		const bool bIsDevelopersFolder = AssetViewUtils::IsDevelopersFolder(FNameBuilder(InFilePath));
+		OutAttributeValue.SetValue(bIsDevelopersFolder);
+		return true;
+	}
+
+	if (InAttributeKey == ContentBrowserItemAttributes::ItemIsLocalizedContent)
+	{
+		const bool bIsLocalizedFolder = FPackageName::IsLocalizedPackage(FNameBuilder(InFilePath));
+		OutAttributeValue.SetValue(bIsLocalizedFolder);
+		return true;
+	}
+
+	if (InAttributeKey == ContentBrowserItemAttributes::ItemIsEngineContent)
+	{
+		const bool bIsEngineFolder = AssetViewUtils::IsEngineFolder(FNameBuilder(InFilePath), /*bIncludePlugins*/true);
+		OutAttributeValue.SetValue(bIsEngineFolder);
+		return true;
+	}
+
+	if (InAttributeKey == ContentBrowserItemAttributes::ItemIsProjectContent)
+	{
+		const bool bIsProjectFolder = AssetViewUtils::IsProjectFolder(FNameBuilder(InFilePath), /*bIncludePlugins*/true);
+		OutAttributeValue.SetValue(bIsProjectFolder);
+		return true;
+	}
+
+	if (InAttributeKey == ContentBrowserItemAttributes::ItemIsPluginContent)
+	{
+		const bool bIsPluginFolder = AssetViewUtils::IsPluginFolder(FNameBuilder(InFilePath));
+		OutAttributeValue.SetValue(bIsPluginFolder);
 		return true;
 	}
 
