@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Linq;
 using System.Diagnostics;
 using EpicGames.Core;
 
@@ -91,15 +90,6 @@ namespace UnrealBuildTool
 			Writer.WriteObjectEnd();
 		}
 
-		JsonObject ToJsonObject()
-		{
-			JsonObject localizationTargetObject= new JsonObject();
-			localizationTargetObject.AddOrSetFieldValue("Name", Name);
-			localizationTargetObject.AddOrSetFieldValue("LoadingPolicy", LoadingPolicy.ToString());
-			
-			return localizationTargetObject;
-		}
-
 		/// <summary>
 		/// Write an array of target descriptors
 		/// </summary>
@@ -116,21 +106,6 @@ namespace UnrealBuildTool
 					Target.Write(Writer);
 				}
 				Writer.WriteArrayEnd();
-			}
-		}
-
-		/// <summary>
-		/// Updates a JsonObject with an array of localization target descriptors.
-		/// </summary>
-		/// <param name="InObject">The Json object to update.</param>
-		/// <param name="Name">Name of the array</param>
-		/// <param name="Targets">Array of targets</param>
-		public static void UpdateJson(JsonObject InObject, string Name, LocalizationTargetDescriptor[]? Targets)
-		{
-			if (Targets != null && Targets.Length > 0)
-			{
-				JsonObject[] JsonObjects = Targets.Select(X => X.ToJsonObject()).ToArray();
-				InObject.AddOrSetFieldValue(Name, JsonObjects);
 			}
 		}
 	}

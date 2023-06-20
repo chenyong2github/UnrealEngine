@@ -433,64 +433,6 @@ namespace UnrealBuildTool
 			Writer.WriteObjectEnd();
 		}
 
-		JsonObject ToJsonObject()
-		{
-			JsonObject ModuleObject = new JsonObject();
-			ModuleObject.AddOrSetFieldValue("Name", Name);
-			ModuleObject.AddOrSetFieldValue("Type", Type.ToString());
-			ModuleObject.AddOrSetFieldValue("LoadingPhase", LoadingPhase.ToString());
-			// important note: we don't check the length of the platform allow list, because if an unknown platform was read in, but was not valid, the 
-			// list will exist but be empty. We don't want to remove the allow list completely, because that would allow this module on all platforms,
-			// which will not be the desired effect
-			if (PlatformAllowList != null)
-			{
-				string[] PlatformAllowListStringArray = PlatformAllowList.Select(X => X.ToString()).ToArray();
-				ModuleObject.AddOrSetFieldValue("PlatformAllowList", PlatformAllowListStringArray);
-			}
-			if (PlatformDenyList != null && PlatformDenyList.Count > 0)
-			{
-				string[] PlatformDenyListStringArray = PlatformDenyList.Select(X => X.ToString()).ToArray();
-				ModuleObject.AddOrSetFieldValue("PlatformDenyList", PlatformDenyListStringArray);
-			}
-			if (TargetAllowList != null && TargetAllowList.Length > 0)
-			{
-				string[] TargetAllowListStringArray = TargetAllowList.Select(X => X.ToString()).ToArray();
-				ModuleObject.AddOrSetFieldValue("TargetAllowList", TargetAllowListStringArray);
-			}
-			if (TargetDenyList != null && TargetDenyList.Length > 0)
-			{
-				string[] TargetDenyListStringArray = TargetDenyList.Select(X => X.ToString()).ToArray();
-				ModuleObject.AddOrSetFieldValue("TargetDenyList", TargetDenyListStringArray);
-			}
-			if (TargetConfigurationAllowList != null && TargetConfigurationAllowList.Length > 0)
-			{
-				string[] TargetConfigurationAllowListStringArray = TargetConfigurationAllowList.Select(X => X.ToString()).ToArray();
-				ModuleObject.AddOrSetFieldValue("TargetConfigurationAllowList", TargetConfigurationAllowListStringArray);
-			}
-			if (TargetConfigurationDenyList != null && TargetConfigurationDenyList.Length > 0)
-			{
-				string[] TargetConfigurationDenyListStringArray = TargetConfigurationDenyList.Select(X => X.ToString()).ToArray();
-				ModuleObject.AddOrSetFieldValue("TargetConfigurationDenyList", TargetConfigurationDenyListStringArray);
-			}
-			if (ProgramAllowList != null && ProgramAllowList.Length > 0)
-			{
-				ModuleObject.AddOrSetFieldValue("ProgramAllowList", ProgramAllowList);
-			}
-			if (ProgramDenyList != null && ProgramDenyList.Length > 0)
-			{
-				ModuleObject.AddOrSetFieldValue("ProgramDenyList", ProgramDenyList);
-			}
-			if (AdditionalDependencies != null && AdditionalDependencies.Length > 0)
-			{
-				ModuleObject.AddOrSetFieldValue("AdditionalDependencies", AdditionalDependencies);
-			}
-			if (bHasExplicitPlatforms)
-			{
-				ModuleObject.AddOrSetFieldValue("HasExplicitPlatforms", bHasExplicitPlatforms);
-			}
-			return ModuleObject;
-		}
-
 		/// <summary>
 		/// Write an array of module descriptors
 		/// </summary>
@@ -507,21 +449,6 @@ namespace UnrealBuildTool
 					Module.Write(Writer);
 				}
 				Writer.WriteArrayEnd();
-			}
-		}
-
-		/// <summary>
-		/// Updates a JsonObject with an array of module descriptors 
-		/// </summary>
-		/// <param name="InObject">The JsonObject to update.</param>
-		/// <param name="Name">Name of the array</param>
-		/// <param name="Modules">Array of modules</param>
-		public static void UpdateJson(JsonObject InObject, string Name, ModuleDescriptor[]? Modules)
-		{
-			if (Modules != null && Modules.Length > 0)
-			{
-				JsonObject[] JsonObjects = Modules.Select(X => X.ToJsonObject()).ToArray();
-				InObject.AddOrSetFieldValue(Name, JsonObjects);
 			}
 		}
 
