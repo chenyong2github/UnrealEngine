@@ -268,6 +268,21 @@ void UDisplayClusterConfigurationViewport::OnPreCompile(FCompilerResultsLog& Mes
 	}
 }
 
+void UDisplayClusterConfigurationClusterNode::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
+}
+
+void UDisplayClusterConfigurationHostDisplayData::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
+}
+#endif
+
 void UDisplayClusterConfigurationClusterNode::PostLoad()
 {
 	Super::PostLoad();
@@ -285,21 +300,6 @@ void UDisplayClusterConfigurationClusterNode::PostLoad()
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
 }
-
-void UDisplayClusterConfigurationClusterNode::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-
-	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
-}
-
-void UDisplayClusterConfigurationHostDisplayData::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
-
-	OnPostEditChangeChainProperty.Broadcast(PropertyChangedEvent);
-}
-#endif
 
 UDisplayClusterConfigurationClusterNode::UDisplayClusterConfigurationClusterNode()
 	: bIsSoundEnabled(false)
