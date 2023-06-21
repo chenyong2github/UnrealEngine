@@ -143,6 +143,24 @@ private:
 		OutCurve.CheckDuplicates();
 	}
 
+	// Helper function for building curves
+	template<typename NamePredicateType, typename ValuePredicateType, typename ValidityPredicateType, typename CurveAllocatorType, typename CurveElementType>
+	FORCEINLINE_DEBUGGABLE static void BuildLinearUnfiltered(TBaseBlendedCurve<CurveAllocatorType, CurveElementType>& OutCurve, int32 InNumElements, const NamePredicateType& InNamePredicate, const ValuePredicateType& InValuePredicate, const ValidityPredicateType& InValidityPredicate)
+	{
+		OutCurve.Empty();
+		OutCurve.Reserve(InNumElements);
+
+		for(int32 ElementIndex = 0; ElementIndex < InNumElements; ++ElementIndex)
+		{
+			if (InValidityPredicate(ElementIndex))
+			{
+				OutCurve.Elements.Emplace(InNamePredicate(ElementIndex), InValuePredicate(ElementIndex));				
+			}
+		}
+		
+		OutCurve.CheckDuplicates();
+	}
+
 public:
 	// Helper function for building curves, applying any filtering
 	// Assumes (and enforces in debug builds) elements being built are in FName sorted order
@@ -299,6 +317,14 @@ public:
 		{
 			BuildLinearUnfiltered(OutCurve, InNumElements, InNamePredicate, InValuePredicate);
 		}
+	}
+
+	// Helper function for building curves, applying filtering through InValidityPredicate
+	template<typename NamePredicateType, typename ValuePredicateType, typename ValidityPredicateType, typename CurveAllocatorType, typename CurveElementType>
+	static void BuildUnsorted(TBaseBlendedCurve<CurveAllocatorType, CurveElementType>& OutCurve, int32 InNumElements, const NamePredicateType& InNamePredicate, const ValuePredicateType& InValuePredicate, const ValidityPredicateType& InValidityPredicate)
+	{
+		CURVE_PROFILE_CYCLE_COUNTER(FCurveUtils_BuildUnsorted);
+		BuildLinearUnfiltered(OutCurve, InNumElements, InNamePredicate, InValuePredicate, InValidityPredicate);
 	}
 
 	/**

@@ -200,6 +200,11 @@ public:
     void ResetCurveValues();
 
 	/**
+	 * Resets all curves to be unset (defaulting to 0.0)
+	 */
+	void UnsetCurveValues(bool bSetupUndo = false);
+
+	/**
 	 * Returns the number of elements in the Hierarchy.
 	 * @return The number of elements in the Hierarchy
 	 */

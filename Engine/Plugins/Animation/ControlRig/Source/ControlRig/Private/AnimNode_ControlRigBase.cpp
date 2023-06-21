@@ -83,13 +83,6 @@ void FAnimNode_ControlRigBase::Initialize_AnyThread(const FAnimationInitializeCo
 		ControlRig->RequestInit();
 		bControlRigRequiresInitialization = true;
 		LastBonesSerialNumberForCacheBones = 0;
-
-		// Cache curves
-		CachedBulkCurves.Empty();
-		for(FRigCurveElement* CurveElement : ControlRig->GetHierarchy()->GetCurves())
-		{
-			CachedBulkCurves.AddIndexed(CurveElement->GetName());
-		}
 	}
 	else
 	{
@@ -255,12 +248,11 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 
 	if (InputSettings.bUpdateCurves && bTransferInputCurves)
 	{
-		// TODO: Do we need to 'unset' old values manually here? The previous code could do this because it knows the
-		// global set of curves, but we dont know that any more
-		UE::Anim::FCurveUtils::BulkGet(InOutput.Curve, CachedBulkCurves, [Hierarchy](const UE::Anim::FNamedIndexElement& InBulkElement, float InValue)
+		Hierarchy->UnsetCurveValues();
+		InOutput.Curve.ForEachElement([Hierarchy](const UE::Anim::FCurveElement& InCurveElement)
 		{
-			const FRigElementKey Key(InBulkElement.Name, ERigElementType::Curve);
-			Hierarchy->SetCurveValue(Key, InValue);
+			const FRigElementKey Key(InCurveElement.Name, ERigElementType::Curve);
+			Hierarchy->SetCurveValue(Key, InCurveElement.Value);
 		});
 	}
 
@@ -376,16 +368,25 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 
 	if (OutputSettings.bUpdateCurves)
 	{
-		TArray<FRigCurveElement*> Curves = Hierarchy->GetCurves();
-		UE::Anim::FCurveUtils::BulkSet(InOutput.Curve, CachedBulkCurves, [Hierarchy, &Curves](const UE::Anim::FNamedIndexElement& InBulkElement)
+		const TArray<FRigCurveElement*> Curves = Hierarchy->GetCurves();
+		auto GetNameFromIndex = [&Curves](int32 InCurveIndex)
 		{
-			if (Curves.IsValidIndex(InBulkElement.Index))
-			{
-				FRigCurveElement* CurveElement = Curves[InBulkElement.Index];
-				return Hierarchy->GetCurveValue(CurveElement);
-			}
-			return 0.f;
-		});
+			return Curves[InCurveIndex]->GetName();
+		};
+
+		auto GetValueFromIndex = [&Curves](int32 InCurveIndex)
+		{
+			 return Curves[InCurveIndex]->Value;
+		};
+		
+		auto GetIsValidCurveFromIndex = [&Curves](int32 InCurveIndex)
+        {
+            return Curves[InCurveIndex]->bIsValueSet;
+        };
+
+		FBlendedCurve ControlRigCurves;
+		UE::Anim::FCurveUtils::BuildUnsorted(ControlRigCurves, Curves.Num(), GetNameFromIndex, GetValueFromIndex, GetIsValidCurveFromIndex);
+		InOutput.Curve.Combine(ControlRigCurves);
 	}
 
 #if WITH_EDITOR

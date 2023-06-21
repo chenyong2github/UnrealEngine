@@ -142,9 +142,6 @@ protected:
 	TMap<FName, FName> ControlRigCurveMappingByName;
 	
 	TMap<FName, int32> InputToControlIndex;
-
-	// Cached bulk curves for I/O
-	UE::Anim::FBulkCurves CachedBulkCurves;
 	
 	/** Node Mapping Container */
 	UPROPERTY(transient)

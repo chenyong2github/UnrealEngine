@@ -814,6 +814,18 @@ void URigHierarchy::ResetCurveValues()
 	}
 }
 
+void URigHierarchy::UnsetCurveValues(bool bSetupUndo)
+{
+	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
+	for(int32 ElementIndex=0; ElementIndex<Elements.Num(); ElementIndex++)
+	{
+		if(FRigCurveElement* CurveElement = Cast<FRigCurveElement>(Elements[ElementIndex]))
+		{
+			UnsetCurveValue(CurveElement, bSetupUndo);
+		}
+	}
+}
+
 int32 URigHierarchy::Num(ERigElementType InElementType) const
 {
 	return ElementsPerType[RigElementTypeToFlatIndex(InElementType)].Num();
