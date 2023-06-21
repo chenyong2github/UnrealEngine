@@ -117,7 +117,7 @@ private:
 	TSubclassOf<AActor>	ChildActorClass;
 
 	/** The actor that we spawned and own */
-	UPROPERTY(Replicated, BlueprintReadOnly, Category=ChildActorComponent, TextExportTransient, NonPIEDuplicateTransient, meta=(AllowPrivateAccess="true"))
+	UPROPERTY(Replicated, BlueprintReadOnly, ReplicatedUsing=OnRep_ChildActor, Category=ChildActorComponent, TextExportTransient, NonPIEDuplicateTransient, meta=(AllowPrivateAccess="true"))
 	TObjectPtr<AActor>	ChildActor;
 
 	/** Property to point to the template child actor for details panel purposes */
@@ -218,7 +218,10 @@ private:
 	ENGINE_API bool IsBeingRemovedFromLevel() const;
 
 	UFUNCTION()
-	ENGINE_API void OnChildActorDestroyed(AActor* DestroyedActor);
+	void OnRep_ChildActor();
+
+	UFUNCTION()
+	ENGINE_API void OnChildActorEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason);
 };
 
 struct FActorParentComponentSetter

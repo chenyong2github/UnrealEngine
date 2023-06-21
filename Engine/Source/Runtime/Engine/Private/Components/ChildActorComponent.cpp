@@ -655,44 +655,56 @@ bool UChildActorComponent::IsBeingRemovedFromLevel() const
 	return false;
 }
 
-void UChildActorComponent::OnChildActorDestroyed(AActor* DestroyedActor)
+void UChildActorComponent::OnRep_ChildActor()
+{
+	if (ChildActor)
+	{
+		ChildActor->OnEndPlay.AddUniqueDynamic(this, &ThisClass::OnChildActorEndPlay);
+	}
+}
+
+void UChildActorComponent::OnChildActorEndPlay(AActor* Actor, EEndPlayReason::Type EndPlayReason)
 {
 	if (GExitPurge)
 	{
 		return;
 	}
 
-	if (DestroyedActor && (DestroyedActor->HasAuthority() || !IsChildActorReplicated()) && !IsBeingRemovedFromLevel())
+	if (EndPlayReason == EEndPlayReason::Destroyed)
 	{
-		UWorld* World = DestroyedActor->GetWorld();
-		// World may be nullptr during shutdown
-		if (World != nullptr)
+		if (Actor && (Actor->HasAuthority() || !IsChildActorReplicated()) && !IsBeingRemovedFromLevel())
 		{
-			UClass* ChildClass = DestroyedActor->GetClass();
+			UWorld* World = Actor->GetWorld();
+			// World may be nullptr during shutdown
+			if (World != nullptr)
+			{
+				UClass* ChildClass = Actor->GetClass();
 
-			// We would like to make certain that our name is not going to accidentally get taken from us while we're destroyed
-			// so we increment ClassUnique beyond our index to be certain of it.  This is ... a bit hacky.
-			if (!GFastPathUniqueNameGeneration)
-			{
-				UpdateSuffixForNextNewObject(DestroyedActor->GetOuter(), ChildClass, [DestroyedActor](int32& Index) { Index = FMath::Max(Index, DestroyedActor->GetFName().GetNumber()); });
-			}
-
-			// If we are getting here due to garbage collection we can't rename, so we'll have to abandon this child actor name and pick up a new one
-			if (!IsGarbageCollecting())
-			{
-				const FString ObjectBaseName = FString::Printf(TEXT("DESTROYED_%s_CHILDACTOR"), *ChildClass->GetName());
-				DestroyedActor->Rename(*MakeUniqueObjectName(DestroyedActor->GetOuter(), ChildClass, *ObjectBaseName).ToString(), nullptr, REN_DoNotDirty | REN_ForceNoResetLoaders);
-			}
-			else
-			{
-				ChildActorName = NAME_None;
-				if (CachedInstanceData)
+				// We would like to make certain that our name is not going to accidentally get taken from us while we're destroyed
+				// so we increment ClassUnique beyond our index to be certain of it.  This is ... a bit hacky.
+				if (!GFastPathUniqueNameGeneration)
 				{
-					CachedInstanceData->ChildActorName = NAME_None;
+					UpdateSuffixForNextNewObject(Actor->GetOuter(), ChildClass, [Actor](int32& Index) { Index = FMath::Max(Index, Actor->GetFName().GetNumber()); });
+				}
+
+				// If we are getting here due to garbage collection we can't rename, so we'll have to abandon this child actor name and pick up a new one
+				if (!IsGarbageCollecting())
+				{
+					const FString ObjectBaseName = FString::Printf(TEXT("DESTROYED_%s_CHILDACTOR"), *ChildClass->GetName());
+					Actor->Rename(*MakeUniqueObjectName(Actor->GetOuter(), ChildClass, *ObjectBaseName).ToString(), nullptr, REN_DoNotDirty | REN_ForceNoResetLoaders);
+				}
+				else
+				{
+					ChildActorName = NAME_None;
+					if (CachedInstanceData)
+					{
+						CachedInstanceData->ChildActorName = NAME_None;
+					}
 				}
 			}
 		}
 	}
+
 	// While reinstancing we need the reference to remain valid so that we can
 	// overwrite it when references to old instances are updated to references
 	// to new instances:
@@ -799,7 +811,7 @@ void UChildActorComponent::CreateChildActor(TFunction<void(AActor*)> CustomizerF
 					}
 					else
 					{
-						ChildActor->OnDestroyed.AddDynamic(this, &ThisClass::OnChildActorDestroyed);
+						ChildActor->OnEndPlay.AddDynamic(this, &ThisClass::OnChildActorEndPlay);
 					}
 
 					ChildActorName = ChildActor->GetFName();
