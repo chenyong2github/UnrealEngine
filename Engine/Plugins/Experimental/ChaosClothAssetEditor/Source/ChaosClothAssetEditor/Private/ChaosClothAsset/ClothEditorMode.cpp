@@ -648,7 +648,7 @@ void UChaosClothAssetEditorMode::ResumeSimulation()
 
 bool UChaosClothAssetEditorMode::IsSimulationSuspended() const
 {
-	if (PreviewScene && PreviewScene->GetClothComponent())
+	if (PreviewScene && PreviewScene->GetClothComponent() && PreviewScene->GetClothComponent()->GetClothSimulationProxy())
 	{
 		return PreviewScene->GetClothComponent()->IsSimulationSuspended();
 	}
@@ -790,12 +790,18 @@ FBox UChaosClothAssetEditorMode::PreviewBoundingBox() const
 
 	if (const UChaosClothComponent* const Cloth = PreviewScene->GetClothComponent())
 	{
-		Bounds += Cloth->Bounds.GetBox();
+		if (Cloth->GetClothAsset())
+		{
+			Bounds += Cloth->Bounds.GetBox();
+		}
 	}
 
 	if (const USkeletalMeshComponent* const SkeletalMesh = PreviewScene->GetSkeletalMeshComponent())
 	{
-		Bounds += SkeletalMesh->Bounds.GetBox();
+		if (SkeletalMesh->GetSkeletalMeshAsset())
+		{
+			Bounds += SkeletalMesh->Bounds.GetBox();
+		}
 	}
 
 	return Bounds;

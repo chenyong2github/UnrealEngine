@@ -993,14 +993,14 @@ void FChaosClothAssetEditorToolkit::OnClothAssetChanged()
 
 	if (UChaosClothAsset* const ClothAsset = Cast<UChaosClothAsset>(ObjectsToEdit[0]))
 	{
-		const bool bHadClothComponent = (ClothPreviewScene->GetClothComponent() != nullptr);
+		const bool bHadClothAsset = (ClothPreviewScene->GetClothComponent()->GetClothAsset() != nullptr);
 
 		ClothPreviewScene->SetClothAsset(ClothAsset);
 
 		ensure(ClothAsset->HasAnyFlags(RF_Transactional));		// Ensure all objects are transactable for undo/redo in the details panel
 		SetEditingObject(ClothAsset);
 
-		if (!bHadClothComponent)
+		if (!bHadClothAsset)
 		{
 			// Focus on the cloth component if this is the first time adding one
 			ClothPreviewViewportClient->FocusViewportOnBox(ClothMode->PreviewBoundingBox());

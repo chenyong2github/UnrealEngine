@@ -27,22 +27,29 @@ class CHAOSCLOTHASSETEDITOR_API UChaosClothPreviewSceneDescription : public UObj
 public:
 	GENERATED_BODY()
 
+	UChaosClothPreviewSceneDescription()
+	{
+		SetFlags(RF_Transactional);
+	}
+
 	void SetPreviewScene(UE::Chaos::ClothAsset::FChaosClothPreviewScene* PreviewScene);
 
 	// Skeletal Mesh source asset
-	UPROPERTY(EditAnywhere, Category="SkeletalMesh")
+	UPROPERTY(EditAnywhere, Transient, Category="SkeletalMesh")
 	TObjectPtr<USkeletalMesh> SkeletalMeshAsset;
 
-	UPROPERTY(EditAnywhere, Category = "SkeletalMesh")
+	UPROPERTY(EditAnywhere, Transient, Category = "SkeletalMesh")
 	FTransform SkeletalMeshTransform;
 
-	UPROPERTY(EditAnywhere, Category = "SkeletalMesh")
+	UPROPERTY(EditAnywhere, Transient, Category = "SkeletalMesh")
 	TObjectPtr<UAnimationAsset> AnimationAsset;
 
 private:
 
 	// Listen for changes to the scene description members and notify the PreviewScene
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 
 	UE::Chaos::ClothAsset::FChaosClothPreviewScene* PreviewScene;
 };
@@ -68,7 +75,7 @@ public:
 	void SetClothAsset(UChaosClothAsset* Asset);
 
 	// Update Scene in response to the SceneDescription changing
-	void SceneDescriptionPropertyChanged(struct FPropertyChangedEvent& PropertyChangedEvent);
+	void SceneDescriptionPropertyChanged(const FName& PropertyName);
 
 	UAnimSingleNodeInstance* GetPreviewAnimInstance();
 	const UAnimSingleNodeInstance* const GetPreviewAnimInstance() const;
@@ -91,9 +98,6 @@ private:
 
 
 	void SkeletalMeshTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport);
-
-	void CreateSkeletalMeshComponent();
-	void DeleteSkeletalMeshComponent();
 
 	bool IsComponentSelected(const UPrimitiveComponent* InComponent);
 

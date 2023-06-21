@@ -10,6 +10,7 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "EditorModeTools.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #define LOCTEXT_NAMESPACE "SChaosClothAssetEditor3DViewport"
 
@@ -169,7 +170,7 @@ EVisibility SChaosClothAssetEditor3DViewport::GetAnimControlVisibility() const
 	using namespace UE::Chaos::ClothAsset;
 
 	const TSharedPtr<const FChaosClothPreviewScene> Scene = GetPreviewScene().Pin();
-	return (Scene && Scene->GetSkeletalMeshComponent() && Scene->GetPreviewAnimInstance()) ? EVisibility::Visible : EVisibility::Hidden;
+	return (Scene && Scene->GetSkeletalMeshComponent() && Scene->GetSkeletalMeshComponent()->GetSkeletalMeshAsset() && Scene->GetPreviewAnimInstance()) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 #undef LOCTEXT_NAMESPACE
