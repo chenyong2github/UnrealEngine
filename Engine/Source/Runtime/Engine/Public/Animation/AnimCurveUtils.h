@@ -321,7 +321,7 @@ public:
 
 	// Helper function for building curves, applying filtering through InValidityPredicate
 	template<typename NamePredicateType, typename ValuePredicateType, typename ValidityPredicateType, typename CurveAllocatorType, typename CurveElementType>
-	static void BuildUnsorted(TBaseBlendedCurve<CurveAllocatorType, CurveElementType>& OutCurve, int32 InNumElements, const NamePredicateType& InNamePredicate, const ValuePredicateType& InValuePredicate, const ValidityPredicateType& InValidityPredicate)
+	static void BuildUnsortedValidated(TBaseBlendedCurve<CurveAllocatorType, CurveElementType>& OutCurve, int32 InNumElements, const NamePredicateType& InNamePredicate, const ValuePredicateType& InValuePredicate, const ValidityPredicateType& InValidityPredicate)
 	{
 		CURVE_PROFILE_CYCLE_COUNTER(FCurveUtils_BuildUnsorted);
 		BuildLinearUnfiltered(OutCurve, InNumElements, InNamePredicate, InValuePredicate, InValidityPredicate);

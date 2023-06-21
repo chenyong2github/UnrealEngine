@@ -385,7 +385,7 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
         };
 
 		FBlendedCurve ControlRigCurves;
-		UE::Anim::FCurveUtils::BuildUnsorted(ControlRigCurves, Curves.Num(), GetNameFromIndex, GetValueFromIndex, GetIsValidCurveFromIndex);
+		UE::Anim::FCurveUtils::BuildUnsortedValidated(ControlRigCurves, Curves.Num(), GetNameFromIndex, GetValueFromIndex, GetIsValidCurveFromIndex);
 		InOutput.Curve.Combine(ControlRigCurves);
 	}
 
