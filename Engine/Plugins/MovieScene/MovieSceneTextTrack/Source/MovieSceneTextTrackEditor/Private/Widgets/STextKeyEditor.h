@@ -30,21 +30,13 @@ public:
 	void Construct(const FArguments& InArgs, FTextKeyEditorParams&& InParams);
 
 private:
-	/** Gets the CachedText value last set by either OnTextCommitted or InvalidateText*/
+	/** Gets the evaluated Text value at the current sequencer time */
 	FText GetText() const;
-
-	/**
-	 * Reevaluates the Text Channel for the given Section at the current sequencer time, and caches the result in CachedText
-	 * Currently only called in Widget Construction
-	 */
-	void InvalidateText();
 
 	/** Updates the CachedText result to the committed text and adds/updates a key to the text channel at the current sequencer time */
 	void OnTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
 
 	FTextKeyEditorParams Params;
-
-	FText CachedText;
 };
 
 }
