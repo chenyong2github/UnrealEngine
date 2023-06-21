@@ -423,7 +423,7 @@ public:
 					AutomationCommandQueue.RemoveAt(0);
 					if (AutomationCommand == EAutomationCommand::Quit || AutomationCommand == EAutomationCommand::SoftQuit)
 					{
-						if (AutomationCommandQueue.IsValidIndex(0))
+						if (AutomationCommandQueue.IsValidIndex(0) && !IsQuitQueued())
 						{
 							// Add Quit and SoftQuit commands back to the end of the array.
 							AutomationCommandQueue.Add(AutomationCommand);
@@ -491,6 +491,20 @@ public:
 		return (AutomationCommand == EAutomationCommand::RunCommandLineTests
 			|| AutomationCommand == EAutomationCommand::RunAll
 			|| AutomationCommand == EAutomationCommand::RunFilter);
+	}
+
+	bool IsQuitQueued()
+	{
+		for (auto Command : AutomationCommandQueue)
+		{
+			if (Command == EAutomationCommand::Quit
+				|| Command == EAutomationCommand::SoftQuit)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 	
 protected:
@@ -651,11 +665,21 @@ protected:
 				}
 				else if (FParse::Command(&TempCmd, TEXT("Quit")))
 				{
+					if (IsQuitQueued())
+					{
+						Ar.Log(TEXT("Automation: Quit command is already Queued."));
+						continue;
+					}
 					AutomationCommandQueue.Add(EAutomationCommand::Quit);
 					Ar.Logf(TEXT("Automation: Quit Command Queued."));
 				}
 				else if (FParse::Command(&TempCmd, TEXT("SoftQuit")))
 				{
+					if (IsQuitQueued())
+					{
+						Ar.Log(TEXT("Automation: Quit command is already Queued."));
+						continue;
+					}
 					AutomationCommandQueue.Add(EAutomationCommand::SoftQuit);
 					Ar.Logf(TEXT("Automation: SoftQuit Command Queued."));
 				}
