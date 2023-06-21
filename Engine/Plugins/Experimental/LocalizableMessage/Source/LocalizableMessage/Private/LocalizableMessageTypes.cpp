@@ -11,19 +11,25 @@ namespace LocalizableMessageTypes
 {
 	FLocalizableMessageProcessor::FScopedRegistrations RegisteredLocalizationTypes;
 
-	FText Int_LocalizeValue(const FLocalizableMessageParameterInt& Localizable, const FLocalizationContext& LocalizationContext)
+	FFormatArgumentValue Int_LocalizeValue(const FLocalizableMessageParameterInt& Localizable, const FLocalizationContext& LocalizationContext)
 	{
-		return FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.GetLocaleOverride());
+		FCulturePtr LocaleOverride = LocalizationContext.GetLocaleOverride();
+		return LocaleOverride
+			? FFormatArgumentValue(FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.GetLocaleOverride()))
+			: FFormatArgumentValue(Localizable.Value);
 	}
-	FText Float_LocalizeValue(const FLocalizableMessageParameterFloat& Localizable, const FLocalizationContext& LocalizationContext)
+	FFormatArgumentValue Float_LocalizeValue(const FLocalizableMessageParameterFloat& Localizable, const FLocalizationContext& LocalizationContext)
 	{
-		return FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.GetLocaleOverride());
+		FCulturePtr LocaleOverride = LocalizationContext.GetLocaleOverride();
+		return LocaleOverride
+			? FFormatArgumentValue(FText::AsNumber(Localizable.Value, nullptr, LocalizationContext.GetLocaleOverride()))
+			: FFormatArgumentValue(Localizable.Value);
 	}
-	FText String_LocalizeValue(const FLocalizableMessageParameterString& Localizable, const FLocalizationContext& LocalizationContext)
+	FFormatArgumentValue String_LocalizeValue(const FLocalizableMessageParameterString& Localizable, const FLocalizationContext& LocalizationContext)
 	{
 		return FText::AsCultureInvariant(Localizable.Value);
 	}
-	FText Message_LocalizeValue(const FLocalizableMessageParameterMessage& Localizable, const FLocalizationContext& LocalizationContext)
+	FFormatArgumentValue Message_LocalizeValue(const FLocalizableMessageParameterMessage& Localizable, const FLocalizationContext& LocalizationContext)
 	{
 		ILocalizableMessageModule& LocalizableMessageModule = ILocalizableMessageModule::Get();
 		FLocalizableMessageProcessor& Processor = LocalizableMessageModule.GetLocalizableMessageProcessor();

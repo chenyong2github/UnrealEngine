@@ -9,6 +9,7 @@
 #include "UObject/NameTypes.h"
 
 class FText;
+class FFormatArgumentValue;
 struct FLocalizableMessage;
 struct FLocalizationContext;
 
@@ -30,7 +31,7 @@ public:
 	LOCALIZABLEMESSAGE_API FText Localize(const FLocalizableMessage& Message, const FLocalizationContext& Context);
 
 	template <typename UserType>
-	void RegisterLocalizableType(const TFunction<FText(const UserType&, const FLocalizationContext&)>& LocalizeValueFunctor, FScopedRegistrations& ScopedRegistrations)
+	void RegisterLocalizableType(const TFunction<FFormatArgumentValue(const UserType&, const FLocalizationContext&)>& LocalizeValueFunctor, FScopedRegistrations& ScopedRegistrations)
 	{
 		auto FncLocalizeValue = [LocalizeValueFunctor](const FInstancedStruct& Localizable, const FLocalizationContext& LocalizationContext)
 		{
@@ -45,7 +46,7 @@ public:
 	LOCALIZABLEMESSAGE_API void UnregisterLocalizableTypes(FScopedRegistrations& ScopedRegistrations);
 
 private:
-	using LocalizeValueFnc = TFunction<FText(const FInstancedStruct&, const FLocalizationContext&)>;
+	using LocalizeValueFnc = TFunction<FFormatArgumentValue(const FInstancedStruct&, const FLocalizationContext&)>;
 
 	TMap<FName, LocalizeValueFnc> LocalizeValueMapping;
 };

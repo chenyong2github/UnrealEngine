@@ -25,7 +25,7 @@ FText FLocalizableMessageProcessor::Localize(const FLocalizableMessage& Message,
 		{
 			if (const LocalizeValueFnc* Functor = LocalizeValueMapping.Find(Substitution.Value.GetScriptStruct()->GetFName()))
 			{
-				FText SubstitutionResult = (*Functor)(Substitution.Value, Context);
+				FFormatArgumentValue SubstitutionResult = (*Functor)(Substitution.Value, Context);
 				FormatArguments.Add(Substitution.Key, MoveTemp(SubstitutionResult));
 			}
 			else
