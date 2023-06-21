@@ -88,7 +88,7 @@ public:
 
 	static_assert((uint8)(EReplicatedObjectState::Count) <= 32, "EReplicatedObjectState must fit in 5 bits. See FReplicationInfo::State and FReplicationRecord::FRecordInfo::ReplicatedObjectState members.");
 
-	const TCHAR* LexToString(const EReplicatedObjectState State);
+	static const TCHAR* LexToString(const EReplicatedObjectState State);
 
 	enum EFlushFlags : uint32
 	{
@@ -127,7 +127,6 @@ public:
 				uint64 LastAckedBaselineIndex : 2;						// Last acknowledged baseline index which we can use for deltacompresion
 				uint64 PendingBaselineIndex : 2;						// Baseline index pending acknowledgment from client
 				uint64 FlushFlags : 2;									// Flags indicating what we are waiting for when flushing
-				uint64 Padding : 27;
 			};
 		};
 
