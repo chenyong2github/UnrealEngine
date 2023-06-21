@@ -1107,7 +1107,7 @@ public:
 
 private:
 
-	int32 FindAfterImpl(bool bValue, int32 StartIndex) const
+	int32 FindFromImpl(bool bValue, int32 StartIndex) const
 	{
 		checkSlow((StartIndex >= 0) & (StartIndex <= NumBits));
 
@@ -1146,20 +1146,20 @@ public:
 
 	/**
 	 * Finds the first occurrence of the specified value (true/false) in the array, starting from the given bit index, and returns the bit index.
-	 * If the specified value is not found after the given index, INDEX_NONE is returned.
+	 * If the specified value is not found from the given index, INDEX_NONE is returned.
 	 *
 	 * @param  bValue      The value (true/false) to search for.
 	 * @param  StartIndex  The index to start the search from.
 	 *
 	 * @pre StartIndex is expected to be in the inclusive range [0, Num()].
 	 *
-	 * @return The index of the first occurrence of the specified value (true/false) after StartIndex, or INDEX_NONE if not found.
+	 * @return The index of the first occurrence of the specified value (true/false) from StartIndex, or INDEX_NONE if not found.
 	 */
 	template <typename IndexType>
-	FORCEINLINE int32 FindAfter(bool bValue, IndexType StartIndex) const
+	FORCEINLINE int32 FindFrom(bool bValue, IndexType StartIndex) const
 	{
-		static_assert(!std::is_same_v<IndexType, bool>, "TBitArray::FindAfter: unexpected bool passed as the StartIndex argument");
-		return FindAfterImpl(bValue, StartIndex);
+		static_assert(!std::is_same_v<IndexType, bool>, "TBitArray::FindFrom: unexpected bool passed as the StartIndex argument");
+		return FindFromImpl(bValue, StartIndex);
 	}
 
 	/**

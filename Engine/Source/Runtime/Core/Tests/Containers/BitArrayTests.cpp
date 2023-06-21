@@ -2054,40 +2054,40 @@ TEST_CASE_NAMED(FBitArrayFindTest, "System::Core::Containers::BitArray::Find", "
 	}
 }
 
-TEST_CASE_NAMED(FBitArrayFindAfterTest, "System::Core::Containers::BitArray::FindAfter", "[ApplicationContextMask][SmokeFilter]")
+TEST_CASE_NAMED(FBitArrayFindFromTest, "System::Core::Containers::BitArray::FindFrom", "[ApplicationContextMask][SmokeFilter]")
 {
 	{
 		TBitArray<> ArrTrue2(true, NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 0"), ArrTrue2.FindAfter(true, 0) == 0);
-		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 1"), ArrTrue2.FindAfter(true, 1) == 1);
-		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 31"), ArrTrue2.FindAfter(true, NumBitsPerDWORD - 1) == NumBitsPerDWORD - 1);
-		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 32"), ArrTrue2.FindAfter(true, NumBitsPerDWORD) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find false in an array full of true, starting at index 1"), ArrTrue2.FindAfter(false, 1) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find false in an array full of true, starting at index 32"), ArrTrue2.FindAfter(false, NumBitsPerDWORD) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 0"), ArrTrue2.FindFrom(true, 0) == 0);
+		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 1"), ArrTrue2.FindFrom(true, 1) == 1);
+		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 31"), ArrTrue2.FindFrom(true, NumBitsPerDWORD - 1) == NumBitsPerDWORD - 1);
+		CHECK_MESSAGE(TEXT("Find true in an array full of true, starting at index 32"), ArrTrue2.FindFrom(true, NumBitsPerDWORD) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find false in an array full of true, starting at index 1"), ArrTrue2.FindFrom(false, 1) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find false in an array full of true, starting at index 32"), ArrTrue2.FindFrom(false, NumBitsPerDWORD) == INDEX_NONE);
 	}
 
 	{
 		TBitArray<> ArrFalse2(false, NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 0"), ArrFalse2.FindAfter(false, 0) == 0);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 1"), ArrFalse2.FindAfter(false, 1) == 1);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 31"), ArrFalse2.FindAfter(false, NumBitsPerDWORD - 1) == NumBitsPerDWORD - 1);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 32"), ArrFalse2.FindAfter(false, NumBitsPerDWORD) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find true in an array full of false, starting at index 1"), ArrFalse2.FindAfter(true, 1) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 32"), ArrFalse2.FindAfter(true, NumBitsPerDWORD) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 0"), ArrFalse2.FindFrom(false, 0) == 0);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 1"), ArrFalse2.FindFrom(false, 1) == 1);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 31"), ArrFalse2.FindFrom(false, NumBitsPerDWORD - 1) == NumBitsPerDWORD - 1);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 32"), ArrFalse2.FindFrom(false, NumBitsPerDWORD) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find true in an array full of false, starting at index 1"), ArrFalse2.FindFrom(true, 1) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find false in an array full of false, starting at index 32"), ArrFalse2.FindFrom(true, NumBitsPerDWORD) == INDEX_NONE);
 	}
 
 	{
 		TBitArray<> ArrFalseThenTrue(false, NumBitsPerDWORD);
 		ArrFalseThenTrue.Add(true, NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find true in an array containing 32 false and then 32 true, starting after all of the false"), ArrFalseThenTrue.FindAfter(true, NumBitsPerDWORD) == NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find false in an array containing 32 false and then 32 true, starting after all of the false"), ArrFalseThenTrue.FindAfter(false, NumBitsPerDWORD) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find true in an array containing 32 false and then 32 true, starting after all of the false"), ArrFalseThenTrue.FindFrom(true, NumBitsPerDWORD) == NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find false in an array containing 32 false and then 32 true, starting after all of the false"), ArrFalseThenTrue.FindFrom(false, NumBitsPerDWORD) == INDEX_NONE);
 	}
 
 	{
 		TBitArray<> ArrTrueThenFalse(true, NumBitsPerDWORD);
 		ArrTrueThenFalse.Add(false, NumBitsPerDWORD);
-		CHECK_MESSAGE(TEXT("Find true in an array containing 32 true and then 32 false, starting after all of the true"), ArrTrueThenFalse.FindAfter(true, NumBitsPerDWORD) == INDEX_NONE);
-		CHECK_MESSAGE(TEXT("Find false in an array containing 32 true and then 32 false, starting after all of the true"), ArrTrueThenFalse.FindAfter(false, NumBitsPerDWORD) == NumBitsPerDWORD);
+		CHECK_MESSAGE(TEXT("Find true in an array containing 32 true and then 32 false, starting after all of the true"), ArrTrueThenFalse.FindFrom(true, NumBitsPerDWORD) == INDEX_NONE);
+		CHECK_MESSAGE(TEXT("Find false in an array containing 32 true and then 32 false, starting after all of the true"), ArrTrueThenFalse.FindFrom(false, NumBitsPerDWORD) == NumBitsPerDWORD);
 	}
 }
 
