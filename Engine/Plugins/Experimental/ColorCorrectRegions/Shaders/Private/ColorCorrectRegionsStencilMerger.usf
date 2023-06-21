@@ -16,6 +16,7 @@ uint MainPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0
 ) : SV_Target0
 {
+#if SHADING_PATH_DEFERRED
 	float4 SvPosition = UVAndScreenPos;
 	const float Float_Eps = 0.00000000001;
 
@@ -33,5 +34,6 @@ uint MainPS(
 			}
 		}
 	}
+#endif
 	return 0;
 }

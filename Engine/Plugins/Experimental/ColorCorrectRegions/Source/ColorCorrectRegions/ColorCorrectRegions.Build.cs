@@ -17,8 +17,6 @@ public class ColorCorrectRegions : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
-				"RenderCore",
 				"DisplayClusterLightCardExtender"
 			}
 		);
@@ -29,20 +27,15 @@ public class ColorCorrectRegions : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"MovieSceneCapture",
-				"RenderCore",
 				"RHI",
-				"Slate",
-				"SlateCore",
 				"Renderer",
 				"Projects",
-				"RenderCore"
+				"RenderCore",
 			}
 		);
 
 		if (Target.Type == TargetType.Editor)
 		{
-			PublicDependencyModuleNames.Add("UnrealEd");
 			PrivateDependencyModuleNames.Add("UnrealEd");
 			PrivateDependencyModuleNames.Add("EditorWidgets");
 		}
