@@ -102,10 +102,7 @@ void UDMXPixelMappingMatrixCellComponent::PostEditChangeProperty(FPropertyChange
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	if (UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent())
-	{
-		RendererComponent->InvalidatePixelMapRenderer();
-	}
+	InvalidatePixelMapRenderer();
 }
 #endif // WITH_EDITOR
 

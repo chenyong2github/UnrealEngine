@@ -87,11 +87,6 @@ void FDMXPixelMappingDragDropOp::LayoutOutputComponents(const FVector2D& GraphSp
 				{
 					OutputComponent->PreEditChange(nullptr);
 
-					constexpr bool bNotifyChildrenRecursive = true;
-					Component->ForEachChild([](UDMXPixelMappingBaseComponent* Component)
-						{
-							Component->PreEditChange(nullptr);
-						}, bNotifyChildrenRecursive);
 
 					if (ensureMsgf(OutputComponent->GetClass() != UDMXPixelMappingMatrixComponent::StaticClass(),
 						TEXT("Matrix Cells are not supported. Use the GroupChildDragDropHelper from this class instead")))
@@ -101,14 +96,9 @@ void FDMXPixelMappingDragDropOp::LayoutOutputComponents(const FVector2D& GraphSp
 						const FVector2D NewPosition = GraphSpacePosition - AnchorOffset - GraphSpaceDragOffset;
 						OutputComponent->SetPosition(NewPosition.RoundToVector());
 
-						OutputComponent->PostEditChange();
 					}
 
-					Component->ForEachChild([](UDMXPixelMappingBaseComponent* Component)
-						{
-							Component->PostEditChange();
-						}, bNotifyChildrenRecursive);
-
+					OutputComponent->PostEditChange();
 				}
 			}
 		}

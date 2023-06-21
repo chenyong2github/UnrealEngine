@@ -66,6 +66,8 @@ void UDMXPixelMappingFixtureGroupComponent::PostEditChangeProperty(FPropertyChan
 		}
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	InvalidatePixelMapRenderer();
 }
 #endif // WITH_EDITOR
 

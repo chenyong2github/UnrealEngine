@@ -87,10 +87,7 @@ void UDMXPixelMappingFixtureGroupItemComponent::Serialize(FArchive& Ar)
 	}
 #endif
 
-	if (UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent())
-	{
-		RendererComponent->InvalidatePixelMapRenderer();
-	}
+	InvalidatePixelMapRenderer();
 }
 
 void UDMXPixelMappingFixtureGroupItemComponent::PostInitProperties()
@@ -201,6 +198,8 @@ void UDMXPixelMappingFixtureGroupItemComponent::PostEditChangeProperty(FProperty
 		}
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	InvalidatePixelMapRenderer();
 }
 #endif // WITH_EDITOR
 

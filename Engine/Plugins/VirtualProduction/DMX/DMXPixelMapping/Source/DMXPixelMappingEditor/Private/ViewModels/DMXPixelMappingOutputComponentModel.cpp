@@ -110,6 +110,7 @@ bool FDMXPixelMappingOutputComponentModel::ShouldDrawCellID() const
 
 	return
 		LayoutSettings->bShowCellIDs &&
+		WeakOutputComponent.IsValid() &&
 		WeakOutputComponent->GetClass() == UDMXPixelMappingMatrixCellComponent::StaticClass();
 }
 

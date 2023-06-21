@@ -226,6 +226,8 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeProperty(FPropertyChangedEve
 	{
 		HandleMatrixChanged();
 	}
+
+	InvalidatePixelMapRenderer();
 }
 #endif // WITH_EDITOR
 
@@ -311,10 +313,10 @@ void UDMXPixelMappingMatrixComponent::SendDMX()
 			{
 				return Cast<UDMXPixelMappingMatrixCellComponent>(BaseComponent);
 			});
-		Algo::SortBy(CellComponents, [](UDMXPixelMappingMatrixCellComponent* Component)
+		Algo::SortBy(CellComponents, [ActiveModePtr](UDMXPixelMappingMatrixCellComponent* Component)
 			{
-				// Sort by cell coordinates
-				return Component->GetCellCoordinate().Y * Component->GetCellCoordinate().X + Component->GetCellCoordinate().X;
+				// Sort by cell ID
+				return Component->CellID;
 			});
 
 		// Accumulate matrix cell data
@@ -423,7 +425,6 @@ void UDMXPixelMappingMatrixComponent::SetPosition(const FVector2D& NewPosition)
 			ChildComponent->SetPosition(NewPosition + RelativePosition);
 
 		}, bUpdateSizeRecursive);
-
 
 	HandlePositionChanged();
 }
