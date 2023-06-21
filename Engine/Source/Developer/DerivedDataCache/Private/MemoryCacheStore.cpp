@@ -26,9 +26,8 @@ public:
 	explicit FMemoryCacheStore(
 		IMemoryCacheStore*& OutCache,
 		const TCHAR* InName,
-		ICacheStoreOwner* InOwner,
-		int64 InMaxCacheSize = -1,
-		bool bCanBeDisabled = false);
+		const TCHAR* InConfig,
+		ICacheStoreOwner* InOwner);
 	~FMemoryCacheStore() final;
 
 	// ICacheStore Interface
@@ -122,21 +121,33 @@ protected:
 FMemoryCacheStore::FMemoryCacheStore(
 	IMemoryCacheStore*& OutCache,
 	const TCHAR* InName,
-	ICacheStoreOwner* InOwner,
-	int64 InMaxCacheSize,
-	bool bInCanBeDisabled)
+	const TCHAR* InConfig,
+	ICacheStoreOwner* InOwner)
 	: Name(InName)
 	, StoreOwner(InOwner)
-	, MaxCacheSize(InMaxCacheSize < 0 ? 0 : uint64(InMaxCacheSize))
+	, MaxCacheSize(0)
 	, bDisabled(false)
 	, CurrentCacheSize(0)
 	, bMaxSizeExceeded(false)
-	, bCanBeDisabled(bInCanBeDisabled)
+	, bCanBeDisabled(false)
 {
 	OutCache = this;
+
+	// Make sure MaxCacheSize does not exceed 2 GB
+	int64 SignedMaxCacheSize = -1; // in MB
+	FParse::Value(InConfig, TEXT("MaxCacheSize="), SignedMaxCacheSize);
+	const int64 MaxSupportedCacheSize = 2048; // 2 GB
+	MaxCacheSize = FMath::Min(SignedMaxCacheSize, MaxSupportedCacheSize);
+	UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Max Cache Size: %d MB"), *Name, SignedMaxCacheSize);
+	MaxCacheSize = SignedMaxCacheSize < 0 ? 0 : SignedMaxCacheSize * 1024 * 1024;
+
 	if (StoreOwner)
 	{
-		constexpr ECacheStoreFlags Flags = ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store;
+		ECacheStoreFlags Flags = ECacheStoreFlags::Local | ECacheStoreFlags::Query;
+		if (!FParse::Param(InConfig, TEXT("ReadOnly")))
+		{
+			Flags |= ECacheStoreFlags::Store;
+		}
 		StoreOwner->Add(this, Flags);
 		StoreStats = StoreOwner->CreateStats(this, Flags, TEXTVIEW("Memory"), Name);
 	}
@@ -730,9 +741,9 @@ void FMemoryCacheStore::GetChunks(
 	}
 }
 
-void CreateMemoryCacheStore(IMemoryCacheStore*& OutCache, const TCHAR* Name, ICacheStoreOwner* Owner, int64 MaxCacheSize, bool bCanBeDisabled)
+void CreateMemoryCacheStore(IMemoryCacheStore*& OutCache, const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner* Owner)
 {
-	new FMemoryCacheStore(OutCache, Name, Owner, MaxCacheSize, bCanBeDisabled);
+	new FMemoryCacheStore(OutCache, Name, Config, Owner);
 }
 
 } // UE::DerivedData

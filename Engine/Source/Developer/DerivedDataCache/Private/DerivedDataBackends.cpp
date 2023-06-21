@@ -67,7 +67,7 @@ ILegacyCacheStore* CreateCacheStoreThrottle(ILegacyCacheStore* InnerCache, uint3
 ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bPutOnError);
 ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner& Owner, FString& OutPath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* NodeName, const TCHAR* Config);
-void CreateMemoryCacheStore(IMemoryCacheStore*& OutCache, const TCHAR* Name, ICacheStoreOwner* Owner, int64 MaxCacheSize, bool bCanBeDisabled);
+void CreateMemoryCacheStore(IMemoryCacheStore*& OutCache, const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner* Owner);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Name, const TCHAR* Filename, bool bWriting, bool bCompressed, ICacheStoreOwner* Owner);
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
 ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config, ICacheStoreOwner* Owner);
@@ -638,28 +638,12 @@ public:
 
 		bBootFound = true;
 
+	#if WITH_EDITOR
 		// Only allow boot cache with the editor. We don't want other tools and utilities (eg. SCW) writing to the same file.
-#if WITH_EDITOR
-		FString Filename;
-		int64 MaxCacheSize = -1; // in MB
-		const int64 MaxSupportedCacheSize = 2048; // 2GB
+		CreateMemoryCacheStore(BootCache, TEXT("Boot"), Entry, this);
+	#endif
 
-		FParse::Value(Entry, TEXT("MaxCacheSize="), MaxCacheSize);
-
-		// make sure MaxCacheSize does not exceed 2GB
-		MaxCacheSize = FMath::Min(MaxCacheSize, MaxSupportedCacheSize);
-
-		UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Max Cache Size: %d MB"), NodeName, MaxCacheSize);
-		CreateMemoryCacheStore(BootCache, TEXT("Boot"), this, MaxCacheSize * 1024 * 1024, /*bCanBeDisabled*/ true);
-#endif
-
-		if (BootCache)
-		{
-			Add(BootCache, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::Store);
-			return true;
-		}
-
-		return false;
+		return !!BootCache;
 	}
 
 	/**
@@ -674,7 +658,7 @@ public:
 		FString Filename;
 		FParse::Value(Entry, TEXT("Filename="), Filename);
 		IMemoryCacheStore* Cache;
-		CreateMemoryCacheStore(Cache, NodeName, this, /*MaxCacheSize*/ -1, /*bCanBeDisabled*/ false);
+		CreateMemoryCacheStore(Cache, NodeName, TEXT(""), this);
 		check(Cache);
 		if (Filename.Len())
 		{
@@ -692,7 +676,7 @@ public:
 		else
 		{
 			// This is unconditionally added to the hierarchy and will be deleted by the hierarchy.
-			CreateMemoryCacheStore(OutCache, TEXT("Memory"), this, 0, /*bCanBeDisabled*/ false);
+			CreateMemoryCacheStore(OutCache, TEXT("Memory"), TEXT("-ReadOnly"), this);
 			MemoryCache = OutCache;
 		}
 	}
