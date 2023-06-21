@@ -472,12 +472,9 @@ TSharedPtr<SWidget> SStateTreeView::HandleContextMenuOpening()
 	MenuBuilder.AddMenuEntry(FStateTreeEditorCommands::Get().EnableStates);
 
 #if WITH_STATETREE_DEBUGGER
-	if (UStateTreeSettings::Get().bUseDebugger)
-	{
-		MenuBuilder.AddSeparator();
-		MenuBuilder.AddMenuEntry(FStateTreeDebuggerCommands::Get().EnableOnEnterStateBreakpoint);
-		MenuBuilder.AddMenuEntry(FStateTreeDebuggerCommands::Get().EnableOnExitStateBreakpoint);
-	}
+	MenuBuilder.AddSeparator();
+	MenuBuilder.AddMenuEntry(FStateTreeDebuggerCommands::Get().EnableOnEnterStateBreakpoint);
+	MenuBuilder.AddMenuEntry(FStateTreeDebuggerCommands::Get().EnableOnExitStateBreakpoint);
 #endif // WITH_STATETREE_DEBUGGER
 	
 	return MenuBuilder.MakeWidget();

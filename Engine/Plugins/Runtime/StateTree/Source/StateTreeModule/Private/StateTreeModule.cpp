@@ -52,19 +52,25 @@ class FStateTreeModule : public IStateTreeModule
 	
 	FStateTreeTraceModule StateTreeTraceModule;
 
-	FAutoConsoleCommand EnableDebugger = FAutoConsoleCommand(
-		TEXT("statetree.enabledebugger"),
-		TEXT("Sets `bUseDebugger` to true in StateTreeSettings and turns on traces if not already active."),
-		FConsoleCommandDelegate::CreateLambda(
-			[]()
+	/** Keep track if StartTraces was explicitly called. */
+	bool bIsTracing = false;
+
+	FAutoConsoleCommand StartDebuggerTracesCommand = FAutoConsoleCommand(
+		TEXT("statetree.startdebuggertraces"),
+		TEXT("Turns on StateTree debugger traces if not already active."),
+		FConsoleCommandDelegate::CreateLambda([]
 		{
-				UStateTreeSettings& Settings = UStateTreeSettings::Get();
-				if (Settings.bUseDebugger == false)
-				{
-					Settings.bUseDebugger = true;
-					FStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<FStateTreeModule>("StateTree");
-					StateTreeModule.StartTraces();	
-				}
+			FStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<FStateTreeModule>("StateTreeModule");
+			StateTreeModule.StartTraces();
+		}));
+
+	FAutoConsoleCommand StopDebuggerTracesCommand = FAutoConsoleCommand(
+		TEXT("statetree.stopdebuggertraces"),
+		TEXT("Turns off StateTree debugger traces if active."),
+		FConsoleCommandDelegate::CreateLambda([]
+		{
+			FStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<FStateTreeModule>("StateTreeModule");
+			StateTreeModule.StopTraces();
 		}));
 #endif // WITH_STATETREE_DEBUGGER
 };
@@ -84,7 +90,10 @@ void FStateTreeModule::StartupModule()
 #if !WITH_EDITOR
 	// We don't automatically start traces for Editor targets since we rely on the debugger
 	// to start recording either on user action or on PIE session start.
-	StartTraces();
+	if (UStateTreeSettings::Get().bAutoStartDebuggerTracesOnNonEditorTargets)
+	{
+		StartTraces();
+	}
 #endif // !WITH_EDITOR
 
 #endif // WITH_STATETREE_DEBUGGER
@@ -109,7 +118,7 @@ void FStateTreeModule::ShutdownModule()
 void FStateTreeModule::StartTraces()
 {
 #if WITH_STATETREE_DEBUGGER
-	if (!UStateTreeSettings::Get().bUseDebugger || IsRunningCommandlet())
+	if (IsRunningCommandlet() || bIsTracing)
 	{
 		return;
 	}
@@ -151,12 +160,18 @@ void FStateTreeModule::StartTraces()
 		Options.bExcludeTail = true;
 		FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("localhost"), TEXT(""), &Options, LogStateTree);
 	}
+
+	bIsTracing = true;
 #endif // WITH_STATETREE_DEBUGGER
 }
 
 void FStateTreeModule::StopTraces()
 {
 #if WITH_STATETREE_DEBUGGER
+	if (bIsTracing == false)
+	{
+		return;
+	}
 
 	UE::Trace::ToggleChannel(TEXT("StateTreeDebugChannel"), false);
 	UE::Trace::ToggleChannel(TEXT("FrameChannel"), false);
@@ -175,6 +190,8 @@ void FStateTreeModule::StopTraces()
 	{
 		FTraceAuxiliary::Stop();
 	}
+
+	bIsTracing = false;
 #endif // WITH_STATETREE_DEBUGGER
 }
 
