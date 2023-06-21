@@ -479,16 +479,30 @@ void FWorldPartitionEditorModule::RunCommandletAsExternalProcess(const FString& 
 		UE_LOG(LogWorldPartitionEditor, Error, TEXT("%s %s"), *CurrentExecutableName, *Arguments);
 		UE_LOG(LogWorldPartitionEditor, Error, TEXT("Return Code: %i"), OutResult);
 
-		UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### BEGIN COMMANDLET OUTPUT ####"));
+		UE_LOG(LogWorldPartitionEditor, Error, TEXT("#### BEGIN COMMANDLET OUTPUT (from %s) ####"), *AbsLogFilePath);
 
 		TArray<FString> OutputLines;
 		FFileHelper::LoadFileToStringArray(OutputLines, *AbsLogFilePath);
 		for (const FString& OutputLine : OutputLines)
 		{
-			UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### COMMANDLET OUTPUT >> %s"), *OutputLine);
+			const FRegexPattern LogCategoryVerbosityPattern(TEXT("^(?:\\[.*\\])?\\w*:\\s(\\w*):\\s"));
+			FRegexMatcher Regex(LogCategoryVerbosityPattern, *OutputLine);
+			if (Regex.FindNext())
+			{
+				FString VerbosityString = Regex.GetCaptureGroup(1);
+				ELogVerbosity::Type Verbosity = ParseLogVerbosityFromString(VerbosityString);
+				switch (Verbosity)
+				{
+				case ELogVerbosity::Display: UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### COMMANDLET OUTPUT >> %s"), *OutputLine); break;
+				case ELogVerbosity::Warning: UE_LOG(LogWorldPartitionEditor, Warning, TEXT("#### COMMANDLET OUTPUT >> %s"), *OutputLine); break;
+				case ELogVerbosity::Error:	 UE_LOG(LogWorldPartitionEditor, Error, TEXT("  #### COMMANDLET OUTPUT >> %s"), *OutputLine); break;
+				case ELogVerbosity::Fatal:	 UE_LOG(LogWorldPartitionEditor, Error, TEXT("  #### COMMANDLET OUTPUT >> %s"), *OutputLine); break; // Do not output as FATAL as it would crash the editor
+				default: break;	// Ignore the non displayable log lines, they can be found in the log file
+				}
+			}
 		}		
 
-		UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### END COMMANDLET OUTPUT ####"));
+		UE_LOG(LogWorldPartitionEditor, Error, TEXT("#### END COMMANDLET OUTPUT ####"));
 	}
 }
 
