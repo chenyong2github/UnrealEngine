@@ -721,6 +721,8 @@ public:
 			case PF_ASTC_8x8_NORM_RG:
 			case PF_ASTC_10x10_NORM_RG:
 			case PF_ASTC_12x12_NORM_RG:
+			case PF_R9G9B9EXP5:
+			case PF_P010:
 				break;
 
 			case PF_G8:
