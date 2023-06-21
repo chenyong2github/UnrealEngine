@@ -25,11 +25,30 @@ namespace UE::PixelStreaming
 
 		Codecs[EPixelStreamingCodec::VP8].push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
 		Codecs[EPixelStreamingCodec::VP9].push_back(webrtc::SdpVideoFormat(cricket::kVp9CodecName));
-		// Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel3_1));
-		// Codecs[EPixelStreamingCodec::H264].push_back(UE::PixelStreaming::CreateH264Format(webrtc::H264Profile::kProfileBaseline, webrtc::H264Level::kLevel3_1));
+		// Codecs[EPixelStreamingCodec::H264].push_back(CreateH264Format(webrtc::H264Profile::kProfileConstrainedBaseline, webrtc::H264Level::kLevel3_1));
+		// Codecs[EPixelStreamingCodec::H264].push_back(CreateH264Format(webrtc::H264Profile::kProfileBaseline, webrtc::H264Level::kLevel3_1));
 		Codecs[EPixelStreamingCodec::H265].push_back(webrtc::SdpVideoFormat(cricket::kH265CodecName));
 
 		return Codecs;
+	}
+
+	/**
+	 * Adds all the formats of a given codec to a destination list according to a list of supported formats
+	 */
+	void AddSupportedCodecFormats(EPixelStreamingCodec Codec,
+							 	  const TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>>& SupportedFormatsForCodecs,
+							      std::vector<webrtc::SdpVideoFormat>& OutFormats)
+	{
+		if (SupportedFormatsForCodecs.Contains(Codec))
+		{
+			for (auto& Format : SupportedFormatsForCodecs[Codec])
+			{
+				if (std::find(std::begin(OutFormats), std::end(OutFormats), Format) == std::end(OutFormats))
+				{
+					OutFormats.push_back(Format);
+				}
+			}
+		}
 	}
 
 	std::vector<webrtc::SdpVideoFormat> FVideoDecoderFactory::GetSupportedFormats() const
@@ -37,37 +56,38 @@ namespace UE::PixelStreaming
 		// static so we dont create the list every time this is called since the list will not change during runtime.
 		static TMap<EPixelStreamingCodec, std::vector<webrtc::SdpVideoFormat>> CodecMap = CreateSupportedDecoderFormatMap();
 
-		// since this method is const we need to store this state statically. it means all instances will share this state
-		// but that actually works in our favor since we're describing more about the plugin state than the actual
-		// instance of this factory.
+		static EPixelStreamingCodec LastSelectedCodec = EPixelStreamingCodec::Invalid;
+		const EPixelStreamingCodec SelectedCodec = Settings::GetSelectedCodec();
+		const bool NegotiateCodecs = Settings::CVarPixelStreamingWebRTCNegotiateCodecs.GetValueOnAnyThread();
+
+		// this is static so we don't have to generate it every time we get a new connection and we cant do that
+		// on a member since this is a const method.
 		static std::vector<webrtc::SdpVideoFormat> SupportedFormats;
 
-		// If we are not negotiating codecs simply return just the one codec that is selected in UE
-		if (!Settings::CVarPixelStreamingWebRTCNegotiateCodecs.GetValueOnAnyThread())
+		// if we're not negotiating codecs we only support the selected codec. If the selected codec is for
+		// some reason unsupported, then we fall through to negotiating codecs.
+		if (!NegotiateCodecs)
 		{
-			const EPixelStreamingCodec SelectedCodec = UE::PixelStreaming::Settings::GetSelectedCodec();
-			if (CodecMap.Contains(SelectedCodec))
-			{
-				for (auto& Format : CodecMap[SelectedCodec])
-				{
-					SupportedFormats.push_back(Format);
-				}
-				return SupportedFormats;
-			}
-			else
+			SupportedFormats.clear();
+			AddSupportedCodecFormats(SelectedCodec, CodecMap, SupportedFormats);
+			
+			if (SupportedFormats.empty())
 			{
 				UE_LOG(LogPixelStreaming, Error, TEXT("Selected codec was not a supported codec, falling back to negotiating codecs..."));
 			}
+			else
+			{
+				return SupportedFormats;
+			}
 		}
 
-		static EPixelStreamingCodec LastSelectedCodec = EPixelStreamingCodec::Invalid;
-
-		const EPixelStreamingCodec SelectedCodec = UE::PixelStreaming::Settings::GetSelectedCodec();
+		// negotiating codecs means we have a list of codecs we can support and webrtc can pick one.
+		// the list will have the currently selected codec on the top so its the "preferred" codec.
+		// only if this changes do we need to rebuild the list
 		if (LastSelectedCodec != SelectedCodec)
 		{
-			// build a new format list
-			LastSelectedCodec = SelectedCodec;
 			SupportedFormats.clear();
+			LastSelectedCodec = SelectedCodec;
 
 			// order the codecs so the selected is first
 			TArray<EPixelStreamingCodec> OrderedCodecList;
@@ -83,13 +103,7 @@ namespace UE::PixelStreaming
 			// now just add each of the formats in order
 			for (auto& Codec : OrderedCodecList)
 			{
-				if (CodecMap.Contains(Codec))
-				{
-					for (auto& Format : CodecMap[Codec])
-					{
-						SupportedFormats.push_back(Format);
-					}
-				}
+				AddSupportedCodecFormats(Codec, CodecMap, SupportedFormats);
 			}
 		}
 

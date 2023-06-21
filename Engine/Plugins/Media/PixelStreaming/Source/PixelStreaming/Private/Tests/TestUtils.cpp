@@ -149,6 +149,28 @@ namespace UE::PixelStreaming
 		return true;
 	}
 
+	bool FWaitForDataChannelOrTimeout::Update()
+	{
+		// If no signalling we can early exit.
+		if (!OutPlayer->IsSignallingConnected())
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("Early exiting waiting for data channel as player is not connected to signalling server."));
+			return true;
+		}
+
+		if (OutPlayer)
+		{
+			double DeltaTime = FPlatformTime::Seconds() - StartTime;
+			if (DeltaTime > TimeoutSeconds)
+			{
+				UE_LOG(LogPixelStreaming, Error, TEXT("Timed out waiting for data channel between streamer and player."));
+				return true;
+			}
+			return OutPlayer->HaveDataChannel;
+		}
+		return true;
+	}
+
 	bool FWaitForStreamerConnectedOrTimeout::Update()
 	{
 		if (OutStreamer->IsSignallingConnected())

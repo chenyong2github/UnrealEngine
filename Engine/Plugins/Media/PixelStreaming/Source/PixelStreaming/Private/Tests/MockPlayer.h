@@ -118,7 +118,6 @@ namespace UE::PixelStreaming
 
 		virtual void OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override
 		{
-
 			PeerConnection = FPixelStreamingPeerConnection::Create(Config);
 
 			PeerConnection->OnEmitIceCandidate.AddLambda([this](const webrtc::IceCandidateInterface* Candidate) {
@@ -132,6 +131,8 @@ namespace UE::PixelStreaming
 				DataChannel->OnMessageReceived.AddLambda([this](uint8 Type, const webrtc::DataBuffer& RawBuffer) {
 					OnMessageReceived.Broadcast(Type, RawBuffer);
 				});
+
+				HaveDataChannel = true;
 			});
 
 			PeerConnection->OnIceStateChanged.AddLambda([this](webrtc::PeerConnectionInterface::IceConnectionState NewState) {
@@ -211,6 +212,7 @@ namespace UE::PixelStreaming
 		TUniquePtr<FPixelStreamingPeerConnection> PeerConnection;
 		TSharedPtr<FPixelStreamingDataChannel> DataChannel;
 		bool Completed = false;
+		bool HaveDataChannel = false;
 		TSharedPtr<rtc::VideoSinkInterface<webrtc::VideoFrame>> VideoSink;
 	};
 
