@@ -560,7 +560,7 @@ void FGoogleARCoreXRTrackingSystem::OnTrackableAdded(UARTrackedGeometry* InTrack
 {
 	if (ensure(InTrackedGeometry))
 	{
-		UE_LOG(LogGoogleARCoreTrackingSystem, Log, TEXT("OnTrackableAdded: %s"), *InTrackedGeometry->GetName());
+		UE_LOG(LogGoogleARCoreTrackingSystem, Log, TEXT("OnTrackableAdded: %s %s"), *InTrackedGeometry->GetName(), *InTrackedGeometry->GetDebugName().ToString());
 		TriggerOnTrackableAddedDelegates(InTrackedGeometry);
 	}
 }
@@ -577,7 +577,7 @@ void FGoogleARCoreXRTrackingSystem::OnTrackableRemoved(UARTrackedGeometry* InTra
 {
 	if (ensure(InTrackedGeometry))
 	{
-		UE_LOG(LogGoogleARCoreTrackingSystem, Log, TEXT("OnTrackableRemoved: %s"), *InTrackedGeometry->GetName());
+		UE_LOG(LogGoogleARCoreTrackingSystem, Log, TEXT("OnTrackableRemoved: %s %s"), *InTrackedGeometry->GetName(), *InTrackedGeometry->GetDebugName().ToString());
 		TriggerOnTrackableRemovedDelegates(InTrackedGeometry);
 	}
 }

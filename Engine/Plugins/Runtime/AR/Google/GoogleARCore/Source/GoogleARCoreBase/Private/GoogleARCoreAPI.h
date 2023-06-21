@@ -205,13 +205,13 @@ public:
 	UARTrackedGeometry* RemoveTrackable(FARCorePointer Pointer);
 
 #if PLATFORM_ANDROID
-	const FTrackedGeometryGroup& GetBaseTrackableFromHandle(ArTrackable* TrackableHandle, FGoogleARCoreSession* Session);
+	const FTrackedGeometryGroup* GetBaseTrackableFromHandle(ArTrackable* TrackableHandle, FGoogleARCoreSession* Session);
 	
 	template<class T>
 	T* GetTrackableFromHandle(ArTrackable* TrackableHandle, FGoogleARCoreSession* Session)
 	{
-		const auto& Group = GetBaseTrackableFromHandle(TrackableHandle, Session);
-		return CastChecked<T>(Group.TrackedGeometry);
+		const FTrackedGeometryGroup* Group = GetBaseTrackableFromHandle(TrackableHandle, Session);
+		return Group ? CastChecked<T>(Group->TrackedGeometry) : nullptr;
 	}
 	
 	void DumpTrackableHandleMap(const ArSession* SessionHandle);
@@ -411,8 +411,10 @@ void FGoogleARCoreFrame::GetUpdatedTrackables(TArray<T*>& OutARCoreTrackableList
 	for (auto TrackableHandle : Trackables)
 	{
 		T* TrackableObject = Session->GetUObjectManager()->template GetTrackableFromHandle<T>(TrackableHandle, Session);
-
-		OutARCoreTrackableList.Add(TrackableObject);
+		if (TrackableObject)
+		{
+			OutARCoreTrackableList.Add(TrackableObject);
+		}
 	}
 	ArTrackableList_destroy(TrackableListHandle);
 #endif
@@ -443,7 +445,10 @@ void FGoogleARCoreSession::GetAllTrackables(TArray<T*>& OutARCoreTrackableList)
 	for (auto TrackableHandle : Trackables)
 	{
 		T* TrackableObject = UObjectManager->template GetTrackableFromHandle<T>(TrackableHandle, this);
-		OutARCoreTrackableList.Add(TrackableObject);
+		if (TrackableObject)
+		{
+			OutARCoreTrackableList.Add(TrackableObject);
+		}
 	}
 	ArTrackableList_destroy(TrackableListHandle);
 #endif
