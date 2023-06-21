@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 				"BlueprintGraph",
 				"PropertyAccessEditor",
 				"StructUtils",
+				"StructUtilsEngine",
 				"StructUtilsEditor",
 				"GameplayTags",
 			}

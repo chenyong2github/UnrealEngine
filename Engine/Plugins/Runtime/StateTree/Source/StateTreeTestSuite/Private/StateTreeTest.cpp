@@ -1081,7 +1081,7 @@ struct FStateTreeTest_PropertyPathObject : FAITestBase
 		UStateTreeTest_PropertyObject* Object = NewObject<UStateTreeTest_PropertyObject>();
 		Object->InstancedObject = NewObject<UStateTreeTest_PropertyObjectInstanced>();
 		
-		const bool bUpdateResult = Path.UpdateInstanceStructsFromValue(FStateTreeDataView(Object));
+		const bool bUpdateResult = Path.UpdateSegmentsFromValue(FStateTreeDataView(Object));
 
 		AITEST_TRUE("Update instance types should succeeed", bUpdateResult);
 		AITEST_TRUE("Path segment 0 instance type should be UStateTreeTest_PropertyObjectInstanced", Path.GetSegment(0).GetInstanceStruct() == UStateTreeTest_PropertyObjectInstanced::StaticClass());
@@ -1256,7 +1256,7 @@ struct FStateTreeTest_PropertyPathArrayOfInstancedObjects : FAITestBase
 		UStateTreeTest_PropertyObject* Object = NewObject<UStateTreeTest_PropertyObject>();
 		Object->ArrayOfInstancedStructs.Emplace(FConstStructView::Make(Struct));
 
-		const bool bUpdateResult = Path.UpdateInstanceStructsFromValue(FStateTreeDataView(Object));
+		const bool bUpdateResult = Path.UpdateSegmentsFromValue(FStateTreeDataView(Object));
 		AITEST_TRUE("Update instance types should succeeed", bUpdateResult);
 		AITEST_EQUAL("Should have 2 path segments", Path.NumSegments(), 2);
 		AITEST_TRUE("Path segment 0 instance type should be FStateTreeTest_PropertyStruct", Path.GetSegment(0).GetInstanceStruct() == FStateTreeTest_PropertyStruct::StaticStruct());

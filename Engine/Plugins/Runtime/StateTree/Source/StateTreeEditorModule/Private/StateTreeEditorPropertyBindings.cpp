@@ -123,6 +123,35 @@ void FStateTreeEditorPropertyBindings::RemoveUnusedBindings(const TMap<FGuid, co
 		});
 }
 
+bool FStateTreeEditorPropertyBindings::ContainsAnyStruct(const TSet<const UStruct*>& Structs)
+{
+	auto PathContainsStruct = [&Structs](const FStateTreePropertyPath& PropertyPath)
+	{
+		for (const FStateTreePropertyPathSegment& Segment : PropertyPath.GetSegments())
+		{
+			if (Structs.Contains(Segment.GetInstanceStruct()))
+			{
+				return true;
+			}
+		}
+		return false;
+	};
+	
+	for (FStateTreePropertyPathBinding& PropertyPathBinding : PropertyBindings)
+	{
+		if (PathContainsStruct(PropertyPathBinding.GetSourcePath()))
+		{
+			return true;
+		}
+		if (PathContainsStruct(PropertyPathBinding.GetTargetPath()))
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FStateTreeEditorPropertyBindings::AddPropertyBinding(const FStateTreeEditorPropertyPath& SourcePath, const FStateTreeEditorPropertyPath& TargetPath)
 {
