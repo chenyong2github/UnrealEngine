@@ -10,6 +10,7 @@ using System.Text;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
+using static UnrealBuildTool.DataDrivenPlatformInfo;
 
 namespace UnrealBuildTool
 {
@@ -239,7 +240,12 @@ namespace UnrealBuildTool
 
 			// check DDPI to see if the platform is enabled on this host platform
 			string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
-			bool bIsEnabled = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(IniPlatformName)?.bIsEnabled ?? true;
+			bool bIsEnabled = true; 
+			ConfigDataDrivenPlatformInfo? DDPI = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(IniPlatformName);
+			if (DDPI != null)
+			{
+				bIsEnabled = DDPI.bIsEnabled;
+			}
 
 			// set up the SDK if the platform is enabled
 			UEBuildPlatformSDK.RegisterSDKForPlatform(SDK, Platform.ToString(), bIsEnabled);
@@ -255,7 +261,6 @@ namespace UnrealBuildTool
 		private static void InitializePerPlatformSDKs(string[] Args, bool bArgumentsAreForUBT, ILogger Logger)
 		{
 			Dictionary<string, string> PlatformToVersionMap = new();
-			HashSet<string> PlatformsThatNeedDefaultSDK = new();
 
 			IEnumerable<FileReference?> ProjectFiles;
 
@@ -278,46 +283,10 @@ namespace UnrealBuildTool
 
 				// get the project files for all targets - we allow null uproject files which means to use the defaults
 				// (same as a uproject that has no override SDK versions set)
-				List<TargetDescriptor> AllTargets = TargetDescriptor.ParseCommandLine(CommandLine, BuildConfiguration.bUsePrecompiled, bSkipRulesCompile: true, bForceRulesCompile: false, Logger);
-				ProjectFiles = AllTargets.Select(x => x.ProjectFile);
+				ProjectFiles = TargetDescriptor.ParseCommandLineForProjects(CommandLine, Logger);
 			}
 
-			foreach (FileReference? ProjectFile in ProjectFiles)
-			{
-				// because we can't safely tell, at this point, if any platform SDKs will be used for a given target, we have to check all of them
-				foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
-				{
-					string PlatformName = Platform.ToString();
-					string? OverrideSDKVersion = null;
-
-					if (ProjectFile != null)
-					{
-						ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile.Directory, Platform);
-						if (Ini.TryGetValue("OverrideSDK", "SDKVersion", out OverrideSDKVersion))
-						{
-							Logger.LogWarning("Project {Project} is overriding the active main SDK for {Platform} to {Override}", ProjectFile.GetFileNameWithoutAnyExtensions(), Platform, OverrideSDKVersion);
-
-							if (PlatformToVersionMap.ContainsKey(PlatformName) && PlatformToVersionMap[PlatformName] != OverrideSDKVersion)
-							{
-								throw new BuildException("Attempting to build with mismatching SDK versions! [MORE INFO HERE, BUT ALSO CHECK THAT ALL PROJECTS USE SAME VERSION]");
-							}
-						}
-					}
-					
-					// if we have a null version here, that means to use the default, later when the PlatformSDK is created
-					if (OverrideSDKVersion == null)
-					{
-						// mark _something_ in the map so we can detect mismatches
-						PlatformsThatNeedDefaultSDK.Add(PlatformName);
-					}
-					else
-					{
-						PlatformToVersionMap[PlatformName] = OverrideSDKVersion;
-					}
-				}
-			}
-
-			UEBuildPlatformSDK.InitializePerProjectSDKVersions(PlatformToVersionMap, PlatformsThatNeedDefaultSDK);
+			UEBuildPlatformSDK.InitializePerProjectSDKVersions(ProjectFiles.OfType<FileReference>());
 		}
 
 		/// <summary>
@@ -359,11 +328,10 @@ namespace UnrealBuildTool
 				InstalledPlatformInfo.Initialize();
 			}
 
-// disabling _for now_ as it is causing issues when using -TargetType param, causing too much stuff to be created early
-//			using (GlobalTracer.Instance.BuildSpan("Initializing PerPlatformSDKs").StartActive())
-//			{
-//				InitializePerPlatformSDKs(ArgumentsForPerPlatform, bArgumentsAreForUBT, Logger);
-//			}
+			using (GlobalTracer.Instance.BuildSpan("Initializing PerPlatformSDKs").StartActive())
+			{
+				InitializePerPlatformSDKs(ArgumentsForPerPlatform, bArgumentsAreForUBT, Logger);
+			}
 
 			// Find and register all tool chains and build platforms that are present
 			Type[] AllTypes;

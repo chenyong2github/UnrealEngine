@@ -5,16 +5,12 @@ using EpicGames.Core;
 
 namespace UnrealBuildTool
 {
+	/////////////////////////////////////////////////////////////////////////////////////
+	// If you are looking for any version numbers not listed here, see Windows_SDK.json
+	/////////////////////////////////////////////////////////////////////////////////////
+
 	partial class MicrosoftPlatformSDK : UEBuildPlatformSDK
 	{
-		/// <summary>
-		/// The default Windows SDK version to be used, if installed.
-		/// </summary>
-		static readonly VersionNumber[] PreferredWindowsSdkVersions = new VersionNumber[]
-		{
-			VersionNumber.Parse("10.0.18362.0")
-		};
-
 		/// <summary>
 		/// The minimum Windows SDK version to be used. If this is null then it means there is no minimum version
 		/// </summary>
@@ -69,20 +65,6 @@ namespace UnrealBuildTool
 		};
 
 		static readonly VersionNumber MinimumIntelOneApiVersion = new VersionNumber(2023, 0, 0);
-
-		/// <inheritdoc/>
-		protected override string GetMainVersionInternal()
-		{
-			// preferred/main version is the top of the Preferred list - 
-			return PreferredWindowsSdkVersions.First().ToString();
-		}
-
-		/// <inheritdoc/>
-		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
-		{
-			MinVersion = "10.0.00000.0";
-			MaxVersion = "10.9.99999.0";
-		}
 
 		/// <inheritdoc/>
 		protected override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)

@@ -291,8 +291,8 @@ public class ModifyStageContext
 	private void AddUFSFilesToList(List<FileReference> FileList, string Extension, DeploymentContext SC)
 	{
 		// look in SC and UFSFiles
-		FileList.AddRange(SC.FilesToStage.UFSFiles.Keys.Where(x => x.HasExtension(Extension)).Select(y => DeploymentContext.UnmakeRelativeStagedReference(SC, y)));
-		FileList.AddRange(UFSFilesToStage.Where(x => x.GetExtension().Equals(Extension, StringComparison.InvariantCultureIgnoreCase)));
+		FileList.AddRange(SC.FilesToStage.UFSFiles.Keys.Where(x => x.Name.EndsWith(Extension, StringComparison.OrdinalIgnoreCase)).Select(y => DeploymentContext.UnmakeRelativeStagedReference(SC, y)));
+		FileList.AddRange(UFSFilesToStage.Where(x => x.FullName.EndsWith(Extension, StringComparison.InvariantCultureIgnoreCase)));
 	}
 
 	private void UncookMaps(DeploymentContext SC)
@@ -331,6 +331,7 @@ public class ModifyStageContext
 			// UAT needs uplugin and ini files, so make sure they are not in the .pak
 			AddUFSFilesToList(NonUFSFilesToStage, ".uplugin", SC);
 			AddUFSFilesToList(NonUFSFilesToStage, ".ini", SC);
+			AddUFSFilesToList(NonUFSFilesToStage, "SDK.json", SC);
 			NonUFSFilesToStage = NonUFSFilesToStage.Where(x => x.GetFileName() != "BinaryConfig.ini").ToList();
 		}
 	}
@@ -767,7 +768,7 @@ public class MakeCookedEditor : BuildCommand
 		// plugins are already handled in the Plugins staging code
 		List<string> RootFoldersToStrip = new List<string> { "source", "plugins" };//, "binaries" };
 		List<string> SubFoldersToStrip = new List<string> { "source", "intermediate", "tests", "binaries" + Path.DirectorySeparatorChar + HostPlatform.Current.HostEditorPlatform.ToString().ToLower() };
-		List<string> RootNonUFSFolders = new List<string> { "shaders", "binaries", "build", "extras" };
+		List<string> RootNonUFSFolders = new List<string> { "shaders", "binaries", "build", "extras", "config" };
 
 
 		if (!Context.bStageShaderDirs)

@@ -1000,6 +1000,15 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Checks the above flags to see if target SDKs are likely to be compiled in
+		/// </summary>
+		private bool bUsesTargetSDKs
+		{
+			get => bNeedsExtraShaderFormats || bBuildDeveloperTools || bBuildTargetDeveloperTools || bForceBuildShaderFormats || bForceBuildTargetPlatforms;
+		}
+
+
+		/// <summary>
 		/// Whether we should compile SQLite using the custom "Unreal" platform (true), or using the native platform (false).
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2379,6 +2388,51 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigSubObject]
 		public WindowsTargetRules WindowsPlatform; // Requires 'this' parameter; initialized in constructor
+
+		/// <summary>
+		/// Checks if the target needs to care about SDK version - if not, we can share the target between projects that are on differnet SDK versions.
+		/// For instance, ShaderCompileWorker is very tied to, say, console SDK versions, but UnrealPak doesn't have SDK things compiled in
+		/// </summary>
+		/// <returns></returns>
+		public bool IsSDKVersionRelevant(UnrealTargetPlatform SDKPlatform)
+		{
+			// we always care bout the SDK of the platform we are compiling for (Platform is the platform this target is being built for)
+			if (this.Platform == SDKPlatform)
+			{
+				return true;
+			}
+
+			// at this point, we are checking against an SDK that we are not compiling for, ie a target platform sdk, so check if the Target has overriden it
+			if (bAreTargetSDKVersionsRelevantOverride != null)
+			{
+				return bAreTargetSDKVersionsRelevantOverride.Value;
+			}
+
+			// developer tools are what pull in SDK versions for other platforms, so Programs that don't use dev tools don't care about versions
+			if (Type == global::UnrealBuildTool.TargetType.Program || Type == global::UnrealBuildTool.TargetType.Editor)
+			{
+				return this.bUsesTargetSDKs;
+			}
+
+			// games/client/servers are not expected to contain other platform SDK bits in them, so we don't need to care
+			return false;
+		}
+
+		/// <summary>
+		/// Allow a target to override whether or not AreSDKVersionsRelevant uses default logic
+		/// </summary>
+		protected bool? bAreTargetSDKVersionsRelevantOverride = null;
+
+		/// <summary>
+		/// Checks if the target can use non-standard SDK versions. For instance, the editor is usually compiled as a modular build shared between projects,
+		/// so if one projet uses SDK version 1, and another uses 2, then the generated engine modules will use the most recently built SDK, which could break
+		/// </summary>
+		/// <returns></returns>
+		public bool AllowsPerProjectSDKVersion()
+		{
+			// modular target with TargetBuildEnvironment.Shared build type cannot allow per-project SDKs
+			return LinkType == TargetLinkType.Monolithic || BuildEnvironment == TargetBuildEnvironment.Unique;
+		}
 
 		/// <summary>
 		/// Create a TargetRules instance

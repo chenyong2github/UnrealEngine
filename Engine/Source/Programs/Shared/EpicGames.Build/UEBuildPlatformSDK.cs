@@ -9,6 +9,9 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
+using EpicGames.Core;
+using System.Runtime.InteropServices;
 
 namespace EpicGames.Core
 {
@@ -310,21 +313,7 @@ namespace EpicGames.Core
 			{
 				throw new Exception(string.Format("Re-registering SDK for {0}. All Platforms must have a unique SDK object", PlatformName));
 			}
-
-			// check that none of our override versions conflict with default version, by using MainVersion unless overridden and we aren't _also_
-			// requiring default version
-			if (!PlatformSDKMainVersions.ContainsKey(PlatformName))
-			{
-				PlatformSDKMainVersions.Add(PlatformName, SDK.GetMainVersionInternal());
-			}
-			else if (PlatformsThatNeedDefaultSDK != null && PlatformsThatNeedDefaultSDK.Contains(PlatformName))
-			{
-				if (!PlatformSDKMainVersions[PlatformName].Equals(SDK.GetMainVersionInternal(), StringComparison.OrdinalIgnoreCase))
-				{
-					throw new Exception($"A target overrode SDK for {PlatformName} to version {PlatformSDKMainVersions[PlatformName]}, but another target uses the default SDK version {SDK.GetMainVersionInternal()}");
-				}
-			}
-
+			
 			SDKRegistry.Add(PlatformName, SDK);
 
 			SDK.Init(PlatformName, bIsSdkAllowedOnHost);
@@ -334,6 +323,9 @@ namespace EpicGames.Core
 		{
 			PlatformName = InPlatformName;
 			bIsSdkAllowedOnHost = bInIsSdkAllowedOnHost;
+
+			// load the SDK config file
+			LoadJsonFile(PlatformName);
 
 			// if the parent set up autosdk, the env vars will be wrong, but we can still get the manual SDK version from before it was setup
 			string? ParentManualSDKVersions = Environment.GetEnvironmentVariable(GetPlatformManualSDKSetupEnvVar());
@@ -390,18 +382,20 @@ namespace EpicGames.Core
 			get { return SDKRegistry.Values.ToArray(); }
 		}
 
+		// True if at least one platform has had its version changed from the standard SDK version, which means it may not be compatible with other projects
+		public static bool bHasAnySDKOverride = false;
+
+		// True if this SDK has had its version changed from the standard SDK version, which means it may not be compatible with other projects
+		public bool bHasSDKOverride = false;
+
+		// Contains a list of projects that had per-project SDK overrides, used for validating conflicting SDKs
+		public List<FileReference> ProjectsThatOverrodeSDK = new();
+	
 		// String name of the platform (will match an UnrealTargetPlatform)
 		public string? PlatformName;
 
 		// True if this Sdk is allowed to be used by this host - if not, we can skip a lot 
 		public bool bIsSdkAllowedOnHost;
-
-		// Retrieves the version of the default SDK that is preferred choice, as well as the single AutoSDK version that will be used
-		public string GetMainVersion()
-		{
-			// at this point, the PlatformSDKMainVersions map is fully set up with default version, or with overrides that have been verified to not conflict
-			return PlatformSDKMainVersions[PlatformName!];
-		}
 
 		public SDKCollection GetAllSDKInfo()
 		{
@@ -542,22 +536,28 @@ namespace EpicGames.Core
 		/// Return the SDK version that the platform wants to use (AutoSDK dir must match this, full SDKs can be in a valid range)
 		/// </summary>
 		/// <returns></returns>
-		protected abstract string GetMainVersionInternal();
+		public virtual string GetMainVersion()
+		{
+			// by default, look up in SDK config value
+			return GetRequiredVersionFromConfig("MainVersion");
+		}
 
 		/// <summary>
 		/// Gets the valid string range of Sdk versions. TryConvertVersionToInt() will need to succeed to make this usable for range checks
 		/// </summary>
 		/// <param name="MinVersion">Smallest version allowed</param>
 		/// <param name="MaxVersion">Largest version allowed (inclusive)</param>
-		protected virtual void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+		protected virtual void GetValidVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
-			throw new Exception($"This platform's Sdk class ({GetType().Name}) must implement either GetValidVersionRange() or GetValidVersions(). If this triggers, and GetValidVersions() is implemented, that means GetValidVersionRange was called directly");
+			// by default, use SDK config file values
+			MinVersion = GetVersionFromConfig("MinVersion");
+			MaxVersion = GetVersionFromConfig("MaxVersion");
 		}
 
 		protected virtual SDKCollection GetValidVersions()
 		{
 			// if the platform doesn't override this, then it only has one sdk, so put it into the collection as the single sdk (this is very much the standard behavior)
-			string MinVersion, MaxVersion;
+			string? MinVersion, MaxVersion;
 			GetValidVersionRange(out MinVersion, out MaxVersion);
 			return new SDKCollection(MinVersion, MaxVersion, this);
 		}
@@ -646,7 +646,8 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public virtual string GetAutoSDKDirectoryForMainVersion()
 		{
-			return GetMainVersion();
+			// if there is an AutoSDKDirectory property, use it, otherwise, use the MainVersion string
+			return GetVersionFromConfig("AutoSDKDirectory") ?? GetMainVersion();
 		}
 
 
@@ -818,29 +819,19 @@ namespace EpicGames.Core
 		/// Allow the platform SDK to override the name it will use in AutoSDK, but default to the platform name
 		/// </summary>
 		/// <returns>The name of the directory to use inside the AutoSDK system</returns>
-		public virtual string? GetAutoSDKPlatformName()
+		public virtual string GetAutoSDKPlatformName()
 		{
-			return PlatformName;
+			return GetVersionFromConfig("AutoSDKPlatform") ?? PlatformName!;
 		}
 
 		#endregion
 
 		#region Per-project SDK support
 
-		private static Dictionary<string, string> PlatformSDKMainVersions = new();
-		private static HashSet<string>? PlatformsThatNeedDefaultSDK = new();
-		public static void InitializePerProjectSDKVersions(Dictionary<string, string> PerPlatformSDKOverrides, HashSet<string> InPlatformsThatNeedDefaultSDK)
+		private static List<FileReference> ProjectsToCheckForSDKOverrides = new();
+		public static void InitializePerProjectSDKVersions(IEnumerable<FileReference> ProjectsToCheckForOverrides)
 		{
-			if (PlatformSDKMainVersions.Count > 0)
-			{
-				throw new Exception("InitializePerProjectSDKVersions() was called multiple times, which is not allowed");
-			}
-
-			// cache off the overrides - Register will fill in the rest
-			PlatformSDKMainVersions = PerPlatformSDKOverrides;
-
-			// remember the platforms that need the default version, which we will use later to detect conflicting versions in Register			
-			PlatformsThatNeedDefaultSDK = InPlatformsThatNeedDefaultSDK;
+			ProjectsToCheckForSDKOverrides = ProjectsToCheckForOverrides.ToList();
 		}
 
 		#endregion
@@ -959,6 +950,155 @@ namespace EpicGames.Core
 			return null;
 		}
 
+		// cached SDK info from the SDK.json file
+		private Dictionary<string, string> ConfigSDKVersions = new(StringComparer.OrdinalIgnoreCase);
+		private Dictionary<string, string> DefaultConfigSDKVersions = new(StringComparer.OrdinalIgnoreCase);
+
+		private void LoadJsonFile(string Platform)
+		{
+			// fixup for Windows
+			if (Platform == "Win64")
+			{
+				Platform = "Windows";
+			}
+
+			Func<DirectoryReference, bool, FileReference?> MakeConfigFilename = (RootDir, bIsRequired) =>
+			{
+				FileReference PlatformExtensionLocation = FileReference.Combine(RootDir, "Platforms", Platform, "Config", $"{Platform}_SDK.json");
+				if (FileReference.Exists(PlatformExtensionLocation))
+				{
+					return PlatformExtensionLocation;
+				}
+				FileReference StandardLocation = FileReference.Combine(RootDir, "Config", Platform, $"{Platform}_SDK.json");
+				if (FileReference.Exists(StandardLocation))
+				{
+					return StandardLocation;
+				}
+				if (bIsRequired)
+				{
+					throw new Exception($"Failed to find required SDK.json for {Platform}. Looked in '{StandardLocation}' and '{PlatformExtensionLocation}'.");
+				}
+				return null;
+			};
+
+			FileReference EngineSDKConfigFile = MakeConfigFilename(Unreal.EngineDirectory, true)!;
+
+			// load the file, along with any chained group file
+			ProcessJsonFile(EngineSDKConfigFile, ConfigSDKVersions);
+
+			// copy off the versions to the defaults, so we can later get the 
+			foreach (string Key in ConfigSDKVersions.Keys)
+			{
+				DefaultConfigSDKVersions[Key] = ConfigSDKVersions[Key];
+			}
+
+			// now read overrides into the array
+			foreach (FileReference ProjectFile in ProjectsToCheckForSDKOverrides)
+			{
+				FileReference? ProjectSDKConfigFile = MakeConfigFilename(ProjectFile.Directory, false);
+				if (ProjectSDKConfigFile != null)
+				{
+					// load a project's SDK file if thre is one, into a temp dictionary
+					Dictionary<string, string> OverrideConfigSDKVersions = new(StringComparer.OrdinalIgnoreCase);
+					ProcessJsonFile(ProjectSDKConfigFile, OverrideConfigSDKVersions);
+
+					// currently only care about MainVersion in the overrides
+					string? OverrideMainVersion;
+					const string MainVersionKey = "MainVersion";
+					if (OverrideConfigSDKVersions.TryGetValue(MainVersionKey, out OverrideMainVersion))
+					{
+						// if different from default, then remmber it, and mark that it's been overridden
+						if (!OverrideMainVersion.Equals(DefaultConfigSDKVersions[MainVersionKey], StringComparison.OrdinalIgnoreCase))
+						{
+							// now check if it was already overridden, in which case we have a conflict we can't resolve, so error
+							if (ProjectsThatOverrodeSDK.Count > 0 && !OverrideMainVersion.Equals(ConfigSDKVersions[MainVersionKey], StringComparison.OrdinalIgnoreCase))
+							{
+								throw new Exception($"Project {ProjectFile.GetFileNameWithoutAnyExtensions()} wants to override {Platform} SDK to {OverrideMainVersion}, but it was already overridden to version {ConfigSDKVersions[MainVersionKey]}");							
+							}
+
+							Logger.LogWarning("Project {Project} is overriding {Platform} SDK to {OverrideMainVersion}", ProjectFile.GetFileNameWithoutAnyExtensions(), Platform, OverrideMainVersion);
+
+							ConfigSDKVersions[MainVersionKey] = OverrideMainVersion;
+							UEBuildPlatformSDK.bHasAnySDKOverride = true;
+							bHasSDKOverride = true;
+							ProjectsThatOverrodeSDK.Add(ProjectFile);
+						}
+					}
+				}
+			}
+		}
+
+		private void ProcessJsonFile(FileReference SDKConfigFile, Dictionary<string, string> VersionMap)
+		{
+			string Contents = FileReference.ReadAllText(SDKConfigFile);
+
+			// load the json into a dictionary
+			JsonSerializerOptions Options = new()
+			{
+				AllowTrailingCommas = true,
+				ReadCommentHandling = JsonCommentHandling.Skip,
+			};
+			Dictionary<string, string>? LoadedDictionary = JsonSerializer.Deserialize<Dictionary<string, string>>(Contents, Options);
+			if (LoadedDictionary == null)
+			{
+				throw new Exception($"Failed to parse SDK version file '{SDKConfigFile}'");
+			}
+
+			// look for special key to chain to other - after processing everything else (we only add from the "parent" settings not already in the map)
+			List<string> Parents = new();
+			foreach (string Key in LoadedDictionary.Keys)
+			{
+				if (Key.Equals("ParentSDKFile", StringComparison.OrdinalIgnoreCase))
+				{
+					Parents.Add(LoadedDictionary[Key]);
+				}
+				// add this key if it's not already in the (case-insensitive) dictionary 
+				else if (!VersionMap.ContainsKey(Key))
+				{
+					VersionMap.Add(Key, LoadedDictionary[Key]);
+				}
+			}
+
+			// now load parents, filling in unset properties
+			foreach (string Parent in Parents)
+			{
+				FileReference ParentConfigFile = FileReference.Combine(SDKConfigFile.Directory, Parent);
+				ProcessJsonFile(ParentConfigFile, VersionMap);
+			}
+		}
+
+		protected string GetRequiredVersionFromConfig(string VersionName)
+		{
+			// when bIsRequired is true, then we know it will return non-null
+			return GetVersionFromConfig(VersionName, bIsRequired:true)!;
+		}
+
+		protected string? GetVersionFromConfig(string VersionName, bool bIsRequired=false)
+		{
+			string? Version;
+			string HostPlatform = "Win64";
+			if (OperatingSystem.IsMacOS())
+			{
+				HostPlatform = "Mac";
+			}
+			else if (OperatingSystem.IsLinux())
+			{
+				HostPlatform = "Linux";
+			}
+			// look up both Version_Host and Version (Host specific version wins)
+			string HostSpecificVersionName = $"{VersionName}_{HostPlatform}";
+			if (ConfigSDKVersions!.TryGetValue(HostSpecificVersionName, out Version) || ConfigSDKVersions.TryGetValue(VersionName, out Version))
+			{
+				return Version;
+			}
+
+			if (bIsRequired)
+			{
+				throw new Exception($"Unable to find required SDK version '{VersionName}' for platform {PlatformName}. Check your SDK.json files");
+			}
+			return null;
+		}
+
 		#endregion
 
 		// AutoSDKs handling portion
@@ -1071,7 +1211,7 @@ namespace EpicGames.Core
 			{
 				if (SDKRoot != "")
 				{
-					SDKPath = Path.Combine(SDKRoot, "Host" + GetAutoSDKHostPlatform(), GetAutoSDKPlatformName()!);
+					SDKPath = Path.Combine(SDKRoot, "Host" + GetAutoSDKHostPlatform(), GetAutoSDKPlatformName());
 				}
 			}
 			return SDKPath;

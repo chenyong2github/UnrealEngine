@@ -699,6 +699,8 @@ namespace UnrealBuildTool
 			{
 				UEBuildPlatform Platform = UEBuildPlatform.GetBuildPlatform(Rules.Platform);
 				Platform.ValidateTarget(Rules);
+
+				ValidateSDKs(Rules);
 			}
 
 			// Some platforms may *require* monolithic compilation...
@@ -714,6 +716,42 @@ namespace UnrealBuildTool
 
 			return Rules;
 		}
+
+		private void ValidateSDKs(TargetRules Rules)
+		{
+			// ask if each plaform SDK matters to this target
+
+			foreach (UnrealTargetPlatform Platform in UnrealTargetPlatform.GetValidPlatforms())
+			{
+				if (!Rules.IsSDKVersionRelevant(Platform))
+				{
+					continue;
+				}
+
+				UEBuildPlatformSDK? SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
+				if (SDK == null)
+				{
+					continue;
+				}
+
+				if (SDK.bHasSDKOverride)
+				{
+					// if the target doesn't allow for an override at all, error
+					if (!Rules.AllowsPerProjectSDKVersion())
+					{
+						throw new BuildException($"Target {Rules.Name} is being built with a overridden {Platform} SDK version to '{SDK.GetMainVersion()}', but this target is not allowed - likely due to a modular build using a Shared BuildEnvironment");
+					}
+
+					// check to see if the project _doesn't_ override the SDK version (if it did, this was already handled during early processing)
+					if (Rules.ProjectFile == null || !SDK.ProjectsThatOverrodeSDK.Contains(Rules.ProjectFile))
+					{
+						string OverrideProject = SDK.ProjectsThatOverrodeSDK[0].GetFileNameWithoutAnyExtensions();
+						throw new BuildException($"Target {Rules.Name} is using default {Platform} SDK version, but another target (probably {OverrideProject}) has overridden the SDK version to '{SDK.GetMainVersion()}'. If this target doesn't care about SDK versions, set 'bAreTargetSDKVersionsRelevantOverride = false' in your Target.cs file");
+					}
+				}
+			}
+		}
+
 
 		/// <summary>
 		/// Creates a target rules object for the specified target name.
