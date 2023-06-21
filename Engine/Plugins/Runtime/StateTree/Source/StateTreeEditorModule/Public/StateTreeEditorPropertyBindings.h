@@ -59,9 +59,6 @@ struct STATETREEEDITORMODULE_API FStateTreeEditorPropertyBindings
 	 */
 	void RemoveUnusedBindings(const TMap<FGuid, const FStateTreeDataView>& ValidStructs);
 
-	/** @return true if any of the bindings references any of the Structs. */
-	bool ContainsAnyStruct(const TSet<const UStruct*>& Structs);
-
 	/** @return array view to all bindings. */
 	TConstArrayView<FStateTreePropertyPathBinding> GetBindings() const { return PropertyBindings; }
 

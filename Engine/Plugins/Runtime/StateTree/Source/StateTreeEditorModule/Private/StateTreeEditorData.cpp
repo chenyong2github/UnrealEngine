@@ -9,11 +9,6 @@
 #include "Algo/LevenshteinDistance.h"
 #include "StateTreeEditorModule.h"
 
-#if WITH_EDITOR
-#include "Engine/UserDefinedStruct.h"
-#include "StructUtilsDelegates.h"
-#endif
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreeEditorData)
 
 void UStateTreeEditorData::PostInitProperties()
@@ -21,97 +16,9 @@ void UStateTreeEditorData::PostInitProperties()
 	Super::PostInitProperties();
 
 	RootParameters.ID = FGuid::NewGuid();
-
-#if WITH_EDITOR
-	OnObjectsReinstancedHandle = FCoreUObjectDelegates::OnObjectsReinstanced.AddUObject(this, &UStateTreeEditorData::OnObjectsReinstanced);
-	OnUserDefinedStructReinstancedHandle = UE::StructUtils::Delegates::OnUserDefinedStructReinstanced.AddUObject(this, &UStateTreeEditorData::OnUserDefinedStructReinstanced);
-#endif
 }
 
 #if WITH_EDITOR
-
-void UStateTreeEditorData::BeginDestroy()
-{
-	if (OnObjectsReinstancedHandle.IsValid())
-	{
-		FCoreUObjectDelegates::OnObjectsReinstanced.Remove(OnObjectsReinstancedHandle);
-		OnObjectsReinstancedHandle.Reset();
-	}
-	if (OnUserDefinedStructReinstancedHandle.IsValid())
-	{
-		UE::StructUtils::Delegates::OnUserDefinedStructReinstanced.Remove(OnUserDefinedStructReinstancedHandle);
-		OnUserDefinedStructReinstancedHandle.Reset();
-	}
-	
-	Super::BeginDestroy();
-}
-
-void UStateTreeEditorData::OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap)
-{
-	if (ObjectMap.IsEmpty())
-	{
-		return;
-	}
-	
-	TSet<const UStruct*> Structs;
-	for (TMap<UObject*, UObject*>::TConstIterator It(ObjectMap); It; ++It)
-	{
-		if (const UObject* ObjectToBeReplaced = It->Value)
-		{
-			Structs.Add(ObjectToBeReplaced->GetClass());
-		}
-	}
-
-	bool bShouldUpdate = false;
-	VisitAllNodes([&Structs, &bShouldUpdate](const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)
-	{
-		if (Structs.Contains(Value.GetStruct()))
-		{
-			bShouldUpdate = true;
-			return EStateTreeVisitor::Break; 
-		}
-		return EStateTreeVisitor::Continue;
-	});
-
-	if (!bShouldUpdate)
-	{
-		bShouldUpdate = EditorBindings.ContainsAnyStruct(Structs);
-	}
-	
-	if (bShouldUpdate)
-	{
-		UpdateBindingsInstanceStructs();
-	}
-}
-
-void UStateTreeEditorData::OnUserDefinedStructReinstanced(const UUserDefinedStruct& UserDefinedStruct)
-{
-	TSet<const UStruct*> Structs;
-	Structs.Add(&UserDefinedStruct);
-
-	bool bShouldUpdate = false;
-	VisitAllNodes([&Structs, &bShouldUpdate](const UStateTreeState* State, const FStateTreeBindableStructDesc& Desc, const FStateTreeDataView Value)
-	{
-		if (Structs.Contains(Value.GetStruct()))
-		{
-			bShouldUpdate = true;
-			return EStateTreeVisitor::Break; 
-		}
-		return EStateTreeVisitor::Continue;
-	});
-
-	if (!bShouldUpdate)
-	{
-		bShouldUpdate = EditorBindings.ContainsAnyStruct(Structs);
-	}
-	
-	if (bShouldUpdate)
-	{
-		UpdateBindingsInstanceStructs();
-	}
-}
-
-
 void UStateTreeEditorData::PostLoad()
 {
 	Super::PostLoad();
@@ -530,12 +437,12 @@ void UStateTreeEditorData::UpdateBindingsInstanceStructs()
 	{
 		if (AllValues.Contains(Binding.GetSourcePath().GetStructID()))
 		{
-			Binding.GetMutableSourcePath().UpdateSegmentsFromValue(AllValues[Binding.GetSourcePath().GetStructID()]);
+			Binding.GetMutableSourcePath().UpdateInstanceStructsFromValue(AllValues[Binding.GetSourcePath().GetStructID()]);
 		}
 
 		if (AllValues.Contains(Binding.GetTargetPath().GetStructID()))
 		{
-			Binding.GetMutableTargetPath().UpdateSegmentsFromValue(AllValues[Binding.GetTargetPath().GetStructID()]);
+			Binding.GetMutableTargetPath().UpdateInstanceStructsFromValue(AllValues[Binding.GetTargetPath().GetStructID()]);
 		}
 	}
 }

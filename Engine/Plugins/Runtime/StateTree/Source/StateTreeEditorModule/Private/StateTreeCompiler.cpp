@@ -1506,7 +1506,7 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 		// Update path instance types from latest data. E.g. binding may have been created for instanced object of type FooB, and changed to FooA.
  		// @todo: not liking how this mutates the Binding.TargetPath, but currently we dont track well the instanced object changes.
 
-		if (!Binding.GetMutableTargetPath().UpdateSegmentsFromValue(TargetValue))
+		if (!Binding.GetMutableTargetPath().UpdateInstanceStructsFromValue(TargetValue))
 		{
 			Log.Reportf(EMessageSeverity::Error, TargetStruct,
 						TEXT("Malformed target property path for binding source property '%s' for target '%s:%s'."),
@@ -1545,7 +1545,7 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 		const FStateTreeDataView SourceValue = IDToStructValue[SourceStructID];
 		if (SourceValue.IsValid())
 		{
-			if (!Binding.GetMutableSourcePath().UpdateSegmentsFromValue(SourceValue))
+			if (!Binding.GetMutableSourcePath().UpdateInstanceStructsFromValue(SourceValue))
 			{
 				Log.Reportf(EMessageSeverity::Error, TargetStruct,
 					TEXT("Malformed target property path for binding source property '%s' for source '%s:%s'."),

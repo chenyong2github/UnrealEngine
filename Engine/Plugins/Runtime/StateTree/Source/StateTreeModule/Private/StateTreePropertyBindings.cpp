@@ -4,14 +4,6 @@
 #include "Misc/EnumerateRange.h"
 #include "PropertyPathHelpers.h"
 
-#if WITH_EDITOR
-#include "UObject/CoreRedirects.h"
-#include "UObject/Package.h"
-#include "Engine/BlueprintGeneratedClass.h"
-#include "Engine/UserDefinedStruct.h"
-#include "Kismet2/StructureEditorUtils.h"
-#endif
-
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateTreePropertyBindings)
 
 namespace UE::StateTree::Private
@@ -1219,15 +1211,10 @@ bool FStateTreePropertyPath::FromString(const FString& InPath)
 	return bResult;
 }
 
-bool FStateTreePropertyPath::UpdateSegments(const UStruct* BaseStruct, FString* OutError)
-{
-	return UpdateSegmentsFromValue(FStateTreeDataView(BaseStruct, nullptr), OutError);
-}
-
-bool FStateTreePropertyPath::UpdateSegmentsFromValue(const FStateTreeDataView BaseValueView, FString* OutError)
+bool FStateTreePropertyPath::UpdateInstanceStructsFromValue(const FStateTreeDataView BaseValueView, FString* OutError)
 {
 	TArray<FStateTreePropertyPathIndirection> Indirections;
-	if (!ResolveIndirectionsWithValue(BaseValueView, Indirections, OutError, /*bHandleRedirects*/true))
+	if (!ResolveIndirectionsWithValue(BaseValueView, Indirections, OutError))
 	{
 		return false;
 	}
@@ -1243,13 +1230,6 @@ bool FStateTreePropertyPath::UpdateSegmentsFromValue(const FStateTreeDataView Ba
 		{
 			Segments[Indirection.PathSegmentIndex].SetInstanceStruct(Indirection.InstanceStruct);
 		}
-#if WITH_EDITORONLY_DATA		
-		if (!Indirection.GetRedirectedName().IsNone())
-		{
-			Segments[Indirection.PathSegmentIndex].SetName(Indirection.GetRedirectedName());
-		}
-		Segments[Indirection.PathSegmentIndex].SetPropertyGuid(Indirection.GetPropertyGuid());
-#endif			
 	}
 
 	return true;
@@ -1292,12 +1272,12 @@ FString FStateTreePropertyPath::ToString(const int32 HighlightedSegment, const T
 }
 
 
-bool FStateTreePropertyPath::ResolveIndirections(const UStruct* BaseStruct, TArray<FStateTreePropertyPathIndirection>& OutIndirections, FString* OutError, bool bHandleRedirects) const
+bool FStateTreePropertyPath::ResolveIndirections(const UStruct* BaseStruct, TArray<FStateTreePropertyPathIndirection>& OutIndirections, FString* OutError) const
 {
-	return ResolveIndirectionsWithValue(FStateTreeDataView(BaseStruct, nullptr), OutIndirections, OutError, bHandleRedirects);
+	return ResolveIndirectionsWithValue(FStateTreeDataView(BaseStruct, nullptr), OutIndirections, OutError);
 }
 
-bool FStateTreePropertyPath::ResolveIndirectionsWithValue(const FStateTreeDataView BaseValueView, TArray<FStateTreePropertyPathIndirection>& OutIndirections, FString* OutError, bool bHandleRedirects) const
+bool FStateTreePropertyPath::ResolveIndirectionsWithValue(const FStateTreeDataView BaseValueView, TArray<FStateTreePropertyPathIndirection>& OutIndirections, FString* OutError) const
 {
 	OutIndirections.Reset();
 	if (OutError)
@@ -1330,79 +1310,7 @@ bool FStateTreePropertyPath::ResolveIndirectionsWithValue(const FStateTreeDataVi
 		}
 
 		const FProperty* Property = CurrentStruct->FindPropertyByName(Segment->GetName());
-
-#if WITH_EDITORONLY_DATA
-		FName RedirectedName;
-		FGuid PropertyGuid = Segment->GetPropertyGuid();
-
-		// Try to fix the path in editor.
-		if (bHandleRedirects)
-		{
-			
-			// Check if there's a core redirect for it.
-			if (!Property)
-			{
-				// Try to match by property ID (Blueprint or User Defined Struct).
-				if (Segment->GetPropertyGuid().IsValid())
-				{
-					if (const UBlueprintGeneratedClass* BlueprintClass = Cast<UBlueprintGeneratedClass>(CurrentStruct))
-					{
-						if (const FName* Name = BlueprintClass->PropertyGuids.FindKey(Segment->GetPropertyGuid()))
-						{
-							RedirectedName = *Name;
-							Property = CurrentStruct->FindPropertyByName(RedirectedName);
-						}
-					}
-					else if (const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(CurrentStruct))
-					{
-						if (FProperty* FoundProperty = FStructureEditorUtils::GetPropertyByGuid(UserDefinedStruct, Segment->GetPropertyGuid()))
-						{
-							RedirectedName = FoundProperty->GetFName();
-							Property = FoundProperty;
-						}
-					}
-				}
-				else
-				{
-					// Try core redirect
-					const FCoreRedirectObjectName OldPropertyName(Segment->GetName(), CurrentStruct->GetFName(), *CurrentStruct->GetOutermost()->GetPathName());
-					const FCoreRedirectObjectName NewPropertyName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Property, OldPropertyName);
-					if (OldPropertyName != NewPropertyName)
-					{
-						// Cached the result for later use.
-						RedirectedName = NewPropertyName.ObjectName;
-
-						Property = CurrentStruct->FindPropertyByName(RedirectedName);
-					}
-				}
-			}
-
-			// Update PropertyGuid 
-			if (Property)
-			{
-				const FName PropertyName = !RedirectedName.IsNone() ? RedirectedName : Segment->GetName();
-				if (const UBlueprintGeneratedClass* BlueprintClass = Cast<UBlueprintGeneratedClass>(CurrentStruct))
-				{
-					if (const FGuid* VarGuid = BlueprintClass->PropertyGuids.Find(PropertyName))
-					{
-						PropertyGuid = *VarGuid;
-					}
-				}
-				else if (const UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(CurrentStruct))
-				{
-					// Parse Guid from UDS property name.
-					PropertyGuid = FStructureEditorUtils::GetGuidFromPropertyName(PropertyName);
-				}
-			}
-		}
-#else
-		if (bHandleRedirects)
-		{
-			ensureMsgf(false, TEXT("The bHandleRedirects option is only available on editor builds."));
-		}
-#endif // WITH_EDITORONLY_DATA
-
-		if (!Property)
+		if (Property == nullptr)
 		{
 			if (OutError)
 			{
@@ -1427,11 +1335,7 @@ bool FStateTreePropertyPath::ResolveIndirectionsWithValue(const FStateTreeDataVi
 			Indirection.ArrayIndex = Segment->GetArrayIndex();
 			Indirection.PropertyOffset = ArrayProperty->GetOffset_ForInternal();
 			Indirection.PathSegmentIndex = Segment.GetIndex();
-			Indirection.AccessType = EStateTreePropertyAccessType::IndexArray;
-#if WITH_EDITORONLY_DATA
-			Indirection.RedirectedName = RedirectedName;
-			Indirection.PropertyGuid = PropertyGuid;
-#endif
+			Indirection.AccessType = EStateTreePropertyAccessType::IndexArray; 
 			
 			ArrayIndex = 0;
 			Offset = 0;
@@ -1477,10 +1381,7 @@ bool FStateTreePropertyPath::ResolveIndirectionsWithValue(const FStateTreeDataVi
 		Indirection.PropertyOffset = Offset;
 		Indirection.PathSegmentIndex = Segment.GetIndex();
 		Indirection.AccessType = EStateTreePropertyAccessType::Offset; 
-#if WITH_EDITORONLY_DATA
-		Indirection.RedirectedName = RedirectedName;
-		Indirection.PropertyGuid = PropertyGuid;
-#endif
+
 		const bool bLastSegment = Segment.GetIndex() == (Segments.Num() - 1);
 
 		if (!bLastSegment)

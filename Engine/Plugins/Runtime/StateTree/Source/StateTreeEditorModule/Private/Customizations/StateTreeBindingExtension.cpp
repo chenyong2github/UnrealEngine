@@ -105,7 +105,7 @@ void MakeStructPropertyPathFromBindingChain(const FGuid StructID, const TArray<F
 		}
 	}
 
-	OutPath.UpdateSegmentsFromValue(DataView);
+	OutPath.UpdateInstanceStructsFromValue(DataView);
 }
 
 EStateTreePropertyUsage MakeStructPropertyPathFromPropertyHandle(TSharedPtr<const IPropertyHandle> InPropertyHandle, FStateTreePropertyPath& OutPath)
