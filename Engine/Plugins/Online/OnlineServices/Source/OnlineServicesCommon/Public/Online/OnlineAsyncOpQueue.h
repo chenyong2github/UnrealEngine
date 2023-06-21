@@ -109,16 +109,30 @@ public:
 
 	void Tick(float DeltaSeconds)
 	{
-		// TODO: Limit for number of in-flight operations
-		for (TOptional<TSharedRef<IWrappedOp>> Operation = QueuedOperations.Dequeue(); Operation.IsSet(); Operation = QueuedOperations.Dequeue())
+		while (InFlightOperations.Num() < MaxConcurrentOperations)
 		{
-			InFlightOperations.Add(Operation.GetValue());
+			TOptional<TSharedRef<IWrappedOp>> Operation = QueuedOperations.Dequeue();
+			if (!Operation.IsSet())
+			{
+				break;
+			}
+
+			InFlightOperations.Emplace(Operation.GetValue(), Operation.GetValue()->OnComplete().Add([this, WeakOp = TWeakPtr<IWrappedOp>(Operation.GetValue())]()
+				{
+					InFlightOperations.RemoveAll([WeakOp](const TPair<TSharedRef<IWrappedOp>, FOnlineEventDelegateHandle>& InFlightOperation)
+						{
+							return InFlightOperation.Key == WeakOp;
+						});
+				}));
 			Operation.GetValue()->Start();
 		}
 	}
 
+	void SetMaxConcurrentOperations(int InMaxConcurrentOperations) { check(InMaxConcurrentOperations > 0); MaxConcurrentOperations = InMaxConcurrentOperations; }
+
 protected:
-	TArray<TSharedRef<IWrappedOp>> InFlightOperations;
+	TArray<TPair<TSharedRef<IWrappedOp>, FOnlineEventDelegateHandle>> InFlightOperations;
+	int MaxConcurrentOperations = 16;
 };
 
 class FOnlineAsyncOpQueueSerial : public FOnlineAsyncOpQueue

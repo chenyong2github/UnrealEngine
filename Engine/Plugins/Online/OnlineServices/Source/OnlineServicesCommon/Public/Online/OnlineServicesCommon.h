@@ -285,19 +285,19 @@ public:
 
 	/* Get op (Interface) */
 	template <typename OpType>
-	TOnlineAsyncOpRef<OpType> GetOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	TOnlineAsyncOpRef<OpType> GetOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
 	{
 		return OpCache.GetOp<OpType>(MoveTemp(Params), ConfigSectionHeiarchy);
 	}
 
-	template <typename OpType, typename ParamsFuncsType /*= TJoinableOpParamsFuncs<OpType>*/>
-	TOnlineAsyncOpRef<OpType> GetJoinableOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	template <typename OpType, typename ParamsFuncsType = TJoinableOpParamsFuncs<OpType>>
+	TOnlineAsyncOpRef<OpType> GetJoinableOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
 	{
 		return OpCache.GetJoinableOp<OpType, ParamsFuncsType>(MoveTemp(Params), ConfigSectionHeiarchy);
 	}
 
-	template <typename OpType, typename ParamsFuncsType /*= TMergeableOpParamsFuncs<OpType>*/>
-	TOnlineAsyncOpRef<OpType> GetMergeableOp(typename OpType::Params&& Params, const TArray<FString> ConfigSectionHeiarchy)
+	template <typename OpType, typename ParamsFuncsType = TMergeableOpParamsFuncs<OpType>>
+	TOnlineAsyncOpRef<OpType> GetMergeableOp(typename OpType::Params&& Params, const TArray<FString>& ConfigSectionHeiarchy)
 	{
 		return OpCache.GetMergeableOp<OpType, ParamsFuncsType>(MoveTemp(Params), ConfigSectionHeiarchy);
 	}
@@ -320,6 +320,8 @@ public:
 	FOnlineAsyncOpCache OpCache;
 
 protected:
+	void LoadCommonConfig();
+
 	TMap<FString, TUniquePtr<IOnlineExecHandler>> ExecCommands;
 
 	static uint32 NextInstanceIndex;

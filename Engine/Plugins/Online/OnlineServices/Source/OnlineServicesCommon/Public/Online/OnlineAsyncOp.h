@@ -6,6 +6,7 @@
 #include "Online/OnlineResult.h"
 #include "Online/OnlineTypeInfo.h"
 #include "Async/Async.h"
+#include "Traits/ElementType.h"
 
 namespace UE::Online {
 
@@ -958,6 +959,7 @@ protected:
 	int NextStep = 0;
 
 	friend class FOnlineAsyncOpCache;
+	FOnlineEventDelegateHandle OpCacheHandle; // Delegate handle for FOnlineAsyncOpCache internal usage
 };
 
 template <typename OpType>

@@ -10,6 +10,19 @@ DEFINE_LOG_CATEGORY(LogOnlineServices);
 
 namespace UE::Online {
 
+struct FOnlineServicesCommonConfig
+{
+	int32 MaxConcurrentOperations = 16;
+};
+
+namespace Meta {
+
+BEGIN_ONLINE_STRUCT_META(FOnlineServicesCommonConfig)
+	ONLINE_STRUCT_FIELD(FOnlineServicesCommonConfig, MaxConcurrentOperations)
+END_ONLINE_STRUCT_META()
+
+}
+
 uint32 FOnlineServicesCommon::NextInstanceIndex = 0;
 
 FOnlineServicesCommon::FOnlineServicesCommon(const FString& InConfigName, FName InInstanceName)
@@ -146,11 +159,15 @@ void FOnlineServicesCommon::Initialize()
 void FOnlineServicesCommon::PostInitialize()
 {
 	Components.Visit(&IOnlineComponent::PostInitialize);
+
+	LoadCommonConfig();
 }
 
 void FOnlineServicesCommon::UpdateConfig()
 {
 	Components.Visit(&IOnlineComponent::UpdateConfig);
+
+	LoadCommonConfig();
 }
 
 bool FOnlineServicesCommon::Tick(float DeltaSeconds)
@@ -225,5 +242,13 @@ bool FOnlineServicesCommon::Exec(UWorld* World, const TCHAR* Cmd, FOutputDevice&
 	return false;
 }
 #endif // UE_ALLOW_EXEC_COMMANDS
+
+void FOnlineServicesCommon::LoadCommonConfig()
+{
+	FOnlineServicesCommonConfig Config;
+	LoadConfig(Config);
+
+	ParallelQueue.SetMaxConcurrentOperations(Config.MaxConcurrentOperations);
+}
 
 /* UE::Online */ }
