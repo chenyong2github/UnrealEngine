@@ -62,7 +62,7 @@ public:
 				{
 					Track.Pin()->SetVisibilityFlag(InCheckBoxState == ECheckBoxState::Checked);
 					Track.Pin()->SetDirtyFlag();
-					TimingView.Pin()->OnTrackVisibilityChanged();
+					TimingView.Pin()->HandleTrackVisibilityChanged();
 				})
 				.Content()
 				[
@@ -165,7 +165,7 @@ void STimingViewTrackList::Construct(const FArguments& InArgs, const TSharedRef<
 						Track->SetVisibilityFlag(bVisible);
 						Track->SetDirtyFlag();
 					}
-					TimingView.Pin()->OnTrackVisibilityChanged();
+					TimingView.Pin()->HandleTrackVisibilityChanged();
 				})
 			]
 			+ SHorizontalBox::Slot()

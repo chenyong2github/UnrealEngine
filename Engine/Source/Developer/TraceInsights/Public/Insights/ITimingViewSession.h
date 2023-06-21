@@ -58,6 +58,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FSelectedTrackChangedDelegate, const TShared
 /** The delegate to be invoked when the selected timing event has changed */
 DECLARE_MULTICAST_DELEGATE_OneParam(FSelectedEventChangedDelegate, const TSharedPtr<const ITimingEvent> /*InEvent*/);
 
+/** The delegate to be invoked when a track visibility has changed */
+DECLARE_MULTICAST_DELEGATE(FTrackVisibilityChangedDelegate);
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Hosts a number of timing view visualizers, represents a session of the timing view. */
@@ -126,6 +129,9 @@ public:
 	virtual FSelectedTrackChangedDelegate& OnSelectedTrackChanged() = 0;
 	/** Gets the delegate to be invoked when the selected timing event has changed. */
 	virtual FSelectedEventChangedDelegate& OnSelectedEventChanged() = 0;
+
+	/** Gets the delegate to be invoked when the track visibility has changed. */
+	virtual FTrackVisibilityChangedDelegate& OnTrackVisibilityChanged() = 0;
 
 	//////////////////////////////////////////////////
 

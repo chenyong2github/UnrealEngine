@@ -12,11 +12,15 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/AxisViewportDouble.h"
 #include "Insights/ViewModels/FrameStatsHelper.h"
 #include "Insights/ViewModels/GraphTrackBuilder.h"
 #include "Insights/ViewModels/ITimingViewDrawHelper.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
+#include "Insights/ViewModels/ThreadTimingTrack.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
+#include "Insights/Widgets/STimingView.h"
 
 #define LOCTEXT_NAMESPACE "GraphTrack"
 
@@ -137,6 +141,18 @@ FTimingGraphTrack::FTimingGraphTrack()
 
 FTimingGraphTrack::~FTimingGraphTrack()
 {
+	if (OnTrackVisibilityChangedHandle.IsValid())
+	{
+		TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (TimingWindow.IsValid())
+		{
+			TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+			if (TimingView.IsValid())
+			{
+				TimingView->OnTrackVisibilityChanged().Remove(OnTrackVisibilityChangedHandle);
+			}
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,6 +160,21 @@ FTimingGraphTrack::~FTimingGraphTrack()
 void FTimingGraphTrack::Update(const ITimingTrackUpdateContext& Context)
 {
 	FGraphTrack::Update(Context);
+	if (!OnTrackVisibilityChangedHandle.IsValid())
+	{
+		TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (TimingWindow.IsValid())
+		{
+			TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+			if (TimingView.IsValid())
+			{
+				OnTrackVisibilityChangedHandle = TimingView->OnTrackVisibilityChanged().AddLambda([this]()
+					{
+						this->SetDirtyFlag();
+					});
+			}
+		}
+	}
 
 	const bool bIsEntireGraphTrackDirty = IsDirty() || Context.GetViewport().IsHorizontalViewportDirty();
 	bool bNeedsUpdate = bIsEntireGraphTrackDirty;
@@ -319,8 +350,10 @@ void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTim
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
+		TSet<uint32> Timelines;
+		GetVisibleTimelineIndexes(Timelines);
 		const double SessionDuration = Session->GetDurationSeconds();
-		if (Series.CachedSessionDuration != SessionDuration)
+		if (Series.CachedSessionDuration != SessionDuration || Series.CachedTimelinesNum != Timelines.Num())
 		{
 			Series.CachedSessionDuration = SessionDuration;
 
@@ -331,7 +364,11 @@ void FTimingGraphTrack::UpdateTimerSeries(FTimingGraphSeries& Series, const FTim
 
 			const uint32 TimelineCount = TimingProfilerProvider.GetTimelineCount();
 			uint32 NumTimelinesContainingEvent = 0;
-			for (uint32 TimelineIndex = 0; TimelineIndex < TimelineCount; ++TimelineIndex)
+
+			Series.CachedTimelinesNum = Timelines.Num();
+			Series.CachedEvents.Empty();
+
+			for (uint32 TimelineIndex : Timelines)
 			{
 				TimingProfilerProvider.ReadTimeline(TimelineIndex,
 					[SessionDuration, &Series, TimerReader, &Viewport, &NumTimelinesContainingEvent](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
@@ -466,10 +503,13 @@ void FTimingGraphTrack::UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, 
 	{
 		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
+		TSet<uint32> VisibleTimelines;
+		GetVisibleTimelineIndexes(VisibleTimelines);
 		const double SessionDuration = Session->GetDurationSeconds();
-		if (Series.CachedSessionDuration != SessionDuration)
+		if (Series.CachedSessionDuration != SessionDuration || Series.CachedTimelinesNum != VisibleTimelines.Num())
 		{
 			Series.CachedSessionDuration = SessionDuration;
+			Series.CachedTimelinesNum = VisibleTimelines.Num();
 
 			const TraceServices::IFrameProvider& FramesProvider = ReadFrameProvider(*Session.Get());
 
@@ -489,7 +529,7 @@ void FTimingGraphTrack::UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, 
 					Series.FrameStatsCachedEvents.Add(Event);
 				});
 
-			Insights::FFrameStatsHelper::ComputeFrameStatsForTimer(Series.FrameStatsCachedEvents, Series.TimerId);
+			Insights::FFrameStatsHelper::ComputeFrameStatsForTimer(Series.FrameStatsCachedEvents, Series.TimerId, VisibleTimelines);
 		}
 
 		int32 StartIndex = Algo::UpperBoundBy(Series.FrameStatsCachedEvents, Viewport.GetStartTime(), &Insights::FFrameStatsCachedEvent::FrameStartTime);
@@ -655,6 +695,26 @@ void FTimingGraphTrack::UpdateStatsCounterSeries(FTimingGraphSeries& Series, con
 			}
 		});
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingGraphTrack::GetVisibleTimelineIndexes(TSet<uint32>& TimelineIndexes)
+{
+	TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (!TimingWindow.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+	if (!TimingView.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<FThreadTimingSharedState> ThreadSharedState = TimingView->GetThreadTimingSharedState();
+	ThreadSharedState->GetVisibleTimelineIndexes(TimelineIndexes);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

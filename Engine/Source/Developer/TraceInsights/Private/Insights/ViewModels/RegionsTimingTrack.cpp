@@ -94,7 +94,7 @@ void FTimingRegionsSharedState::ShowHideRegionsTrack()
 
 	if (TimingView)
 	{
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 
 	if (bShowHideRegionsTrack)

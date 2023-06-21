@@ -196,7 +196,7 @@ void FFrameSharedState::SetAllFrameTracksToggle(bool bOnOff)
 
 	if (TimingView)
 	{
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 }
 

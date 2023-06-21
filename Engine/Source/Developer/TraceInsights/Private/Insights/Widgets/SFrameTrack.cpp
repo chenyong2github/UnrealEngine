@@ -25,6 +25,7 @@
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/FrameStatsHelper.h"
 #include "Insights/ViewModels/FrameTrackHelper.h"
+#include "Insights/ViewModels/ThreadTimingTrack.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
 #include "Insights/Widgets/STimingView.h"
 
@@ -45,6 +46,21 @@ SFrameTrack::SFrameTrack()
 
 SFrameTrack::~SFrameTrack()
 {
+	if (OnTrackVisibilityChangedHandle.IsValid())
+	{
+		TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (TimingWindow.IsValid())
+		{
+			TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+			if (TimingView.IsValid())
+			{
+				if (TimingView.Get() == RegisteredTimingView)
+				{
+					TimingView->OnTrackVisibilityChanged().Remove(OnTrackVisibilityChangedHandle);
+				}
+			}
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,6 +152,27 @@ void SFrameTrack::Construct(const FArguments& InArgs)
 
 void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (TimingWindow.IsValid())
+	{
+		TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+		if (TimingView.IsValid())
+		{
+			if (!OnTrackVisibilityChangedHandle.IsValid() || TimingView.Get() != RegisteredTimingView)
+			{
+				RegisteredTimingView = TimingView.Get();
+				OnTrackVisibilityChangedHandle = TimingView->OnTrackVisibilityChanged().AddLambda([this]()
+					{
+						// If there are more series than the default frame series.
+						if (this->AllSeries.Num() > ETraceFrameType::TraceFrameType_Count)
+						{
+							this->bIsStateDirty = true;
+						}
+					});
+			}
+		}
+	}
+
 	if (ThisGeometry != AllottedGeometry || bIsViewportDirty)
 	{
 		bIsViewportDirty = false;
@@ -336,7 +373,31 @@ void SFrameTrack::UpdateState()
 
 			FFrameTrackSeriesBuilder Builder(*Series, Viewport);
 
-			Insights::FFrameStatsHelper::ComputeFrameStatsForTimer(Frames, TimerSeries->TimerId);
+			bool bTimingViewExists = false;
+			TSet<uint32> Timelines;
+			TSharedPtr<class STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+
+			// Attemp to compute only from visible timelines.
+			if (TimingWindow.IsValid())
+			{
+				TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+				if (TimingView.IsValid())
+				{
+					TSharedPtr<FThreadTimingSharedState> ThreadSharedState = TimingView->GetThreadTimingSharedState();
+					if (ThreadSharedState.IsValid())
+					{
+						ThreadSharedState->GetVisibleTimelineIndexes(Timelines);
+						Insights::FFrameStatsHelper::ComputeFrameStatsForTimer(Frames, TimerSeries->TimerId, Timelines);
+						bTimingViewExists = true;
+					}
+				}
+			}
+
+			if (!bTimingViewExists)
+			{
+				// Compute the stats for all timelines. 
+				Insights::FFrameStatsHelper::ComputeFrameStatsForTimer(Frames, TimerSeries->TimerId);
+			}
 
 			uint64 CurrentIndex = StartIndex;
 			for (Insights::FFrameStatsCachedEvent& Event : Frames)

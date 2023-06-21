@@ -519,7 +519,7 @@ void FFileActivitySharedState::SetAllIoTracksToggle(bool bOnOff)
 
 	if (TimingView)
 	{
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 
 	if (bShowHideAllIoTracks)
@@ -546,7 +546,7 @@ void FFileActivitySharedState::ShowHideIoOverviewTrack()
 
 	if (TimingView)
 	{
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 
 	const bool bIsOverviewTrackVisible = IsIoOverviewTrackVisible();
@@ -581,7 +581,7 @@ void FFileActivitySharedState::ShowHideIoActivityTrack()
 
 	if (TimingView)
 	{
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 
 	const bool bIsOverviewTrackVisible = IsIoOverviewTrackVisible();

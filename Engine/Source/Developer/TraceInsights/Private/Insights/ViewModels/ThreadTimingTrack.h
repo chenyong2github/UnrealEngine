@@ -67,6 +67,7 @@ public:
 	bool IsCpuTrackVisible(uint32 InThreadId) const;
 
 	void GetVisibleCpuThreads(TSet<uint32>& OutSet) const;
+	void GetVisibleTimelineIndexes(TSet<uint32>& OutSet) const;
 
 	//////////////////////////////////////////////////
 	// ITimingViewExtender interface

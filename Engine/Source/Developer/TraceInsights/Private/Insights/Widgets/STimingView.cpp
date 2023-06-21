@@ -1824,7 +1824,7 @@ void STimingView::HideAllScrollableTracks()
 	{
 		Track->Hide();
 	}
-	OnTrackVisibilityChanged();
+	HandleTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3114,7 +3114,7 @@ void STimingView::ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimin
 			break;
 		}
 
-		OnTrackVisibilityChanged();
+		HandleTrackVisibilityChanged();
 	}
 }
 
@@ -4872,7 +4872,7 @@ void STimingView::ToggleTrackVisibility_Execute(uint64 InTrackId)
 	if (TrackPtrPtr)
 	{
 		(*TrackPtrPtr)->ToggleVisibility();
-		OnTrackVisibilityChanged();
+		HandleTrackVisibilityChanged();
 	}
 }
 
@@ -5022,7 +5022,7 @@ void STimingView::CloseQuickFindTab()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::OnTrackVisibilityChanged()
+void STimingView::HandleTrackVisibilityChanged()
 {
 	if (HoveredTrack.IsValid())
 	{
@@ -5046,7 +5046,7 @@ void STimingView::OnTrackVisibilityChanged()
 	}
 	Tooltip.SetDesiredOpacity(0.0f);
 
-	//TODO: TrackVisibilityChangedEvent.Broadcast();
+	OnTrackVisibilityChangedDelegate.Broadcast();
 	FTimingProfilerManager::Get()->OnThreadFilterChanged();
 }
 

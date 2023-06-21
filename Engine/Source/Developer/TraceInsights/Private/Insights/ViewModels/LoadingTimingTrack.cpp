@@ -201,7 +201,7 @@ void FLoadingSharedState::SetAllLoadingTracksToggle(bool bOnOff)
 		Track.SetVisibilityFlag(bShowHideAllLoadingTracks);
 	}
 
-	TimingView->OnTrackVisibilityChanged();
+	TimingView->HandleTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

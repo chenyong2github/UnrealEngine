@@ -420,7 +420,7 @@ void FMemorySharedState::SetAllMemoryTracksToggle(bool bOnOff)
 
 	if (TimingView)
 	{
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 }
 
@@ -482,7 +482,7 @@ int32 FMemorySharedState::RemoveMemoryGraphTrack(TSharedPtr<FMemoryGraphTrack> G
 		if (GraphTrack->GetSeries().Num() == 0)
 		{
 			GraphTrack->Hide();
-			TimingView->OnTrackVisibilityChanged();
+			TimingView->HandleTrackVisibilityChanged();
 		}
 		return -1;
 	}
@@ -585,7 +585,7 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insight
 		}
 
 		MainGraphTrack->Show();
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 
 	TSharedPtr<FMemoryGraphTrack> GraphTrack = GetMemTagGraphTrack(InMemTrackerId, InMemTagId);
@@ -627,7 +627,7 @@ TSharedPtr<FMemoryGraphTrack> FMemorySharedState::CreateMemTagGraphTrack(Insight
 	else
 	{
 		GraphTrack->Show();
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 
 	return GraphTrack;
@@ -655,7 +655,7 @@ int32 FMemorySharedState::RemoveMemTagGraphTrack(Insights::FMemoryTrackerId InMe
 				if (GraphTrack == MainGraphTrack)
 				{
 					GraphTrack->Hide();
-					TimingView->OnTrackVisibilityChanged();
+					TimingView->HandleTrackVisibilityChanged();
 				}
 				else
 				{
@@ -691,7 +691,7 @@ int32 FMemorySharedState::RemoveAllMemTagGraphTracks()
 			if (GraphTrack == MainGraphTrack)
 			{
 				GraphTrack->Hide();
-				TimingView->OnTrackVisibilityChanged();
+				TimingView->HandleTrackVisibilityChanged();
 			}
 			else
 			{
@@ -731,7 +731,7 @@ TSharedPtr<FMemoryGraphSeries> FMemorySharedState::ToggleMemTagGraphSeries(TShar
 		// Remove existing series.
 		InGraphTrack->RemoveMemTagSeries(InMemTrackerId, InMemTagId);
 		InGraphTrack->SetDirtyFlag();
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 
 		if (TagPtr)
 		{
@@ -753,7 +753,7 @@ TSharedPtr<FMemoryGraphSeries> FMemorySharedState::ToggleMemTagGraphSeries(TShar
 
 		InGraphTrack->SetDirtyFlag();
 		InGraphTrack->Show();
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 
 		return Series;
 	}

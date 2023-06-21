@@ -55,6 +55,7 @@ public:
 	double CachedSessionDuration;
 	TArray<FSimpleTimingEvent> CachedEvents; // used by Timer series
 	TArray<Insights::FFrameStatsCachedEvent> FrameStatsCachedEvents; // used by Frame Stats Timer series
+	uint32 CachedTimelinesNum = 0; // the number of timelines used to gather the data
 
 	bool bIsTime; // the unit for values is [second]
 	bool bIsMemory; // the unit for value is [byte]
@@ -93,7 +94,12 @@ protected:
 	void UpdateFrameStatsTimerSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
 	void UpdateStatsCounterSeries(FTimingGraphSeries& Series, const FTimingTrackViewport& Viewport);
 
+	void GetVisibleTimelineIndexes(TSet<uint32>& TimelineIndexes);
+
 	virtual void DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const override;
+
+private:
+	FDelegateHandle OnTrackVisibilityChangedHandle;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -413,6 +413,21 @@ void FThreadTimingSharedState::GetVisibleCpuThreads(TSet<uint32>& OutSet) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FThreadTimingSharedState::GetVisibleTimelineIndexes(TSet<uint32>& OutSet) const
+{
+	OutSet.Reset();
+	for (const auto& KV : CpuTracks)
+	{
+		const FCpuTimingTrack& Track = *KV.Value;
+		if (Track.IsVisible())
+		{
+			OutSet.Add(Track.GetTimelineIndex());
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FThreadTimingSharedState::OnBeginSession(Insights::ITimingViewSession& InSession)
 {
 	if (&InSession != TimingView)
@@ -712,7 +727,7 @@ void FThreadTimingSharedState::SetAllCpuTracksToggle(bool bOnOff)
 		KV.Value.bIsVisible = bShowHideAllCpuTracks;
 	}
 
-	TimingView->OnTrackVisibilityChanged();
+	TimingView->HandleTrackVisibilityChanged();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -731,7 +746,7 @@ void FThreadTimingSharedState::SetAllGpuTracksToggle(bool bOnOff)
 	}
 	if (GpuTrack.IsValid() || Gpu2Track.IsValid())
 	{
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 }
 
@@ -765,7 +780,7 @@ void FThreadTimingSharedState::ToggleTrackVisibilityByGroup_Execute(const TCHAR*
 			}
 		}
 
-		TimingView->OnTrackVisibilityChanged();
+		TimingView->HandleTrackVisibilityChanged();
 	}
 }
 

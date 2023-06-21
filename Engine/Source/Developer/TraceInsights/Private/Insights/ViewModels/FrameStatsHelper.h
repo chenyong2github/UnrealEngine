@@ -34,7 +34,11 @@ struct FFrameStatsCachedEvent
 class FFrameStatsHelper
 {
 public:
+	static void ComputeFrameStatsForTimer(TArray<FFrameStatsCachedEvent>& FrameStatsEvents, uint32 TimerId, const TSet<uint32>& Timelines);
 	static void ComputeFrameStatsForTimer(TArray<FFrameStatsCachedEvent>& FrameStatsEvents, uint32 TimerId);
+
+private:
+	static void ProcessTimeline(TArray<FFrameStatsCachedEvent>& FrameStatsEvents, uint32 TimerId, uint32 TimelineIndex);
 };
 
 // namespace Insights

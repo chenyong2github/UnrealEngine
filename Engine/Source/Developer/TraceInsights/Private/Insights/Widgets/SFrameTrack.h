@@ -16,6 +16,7 @@
 #include "Insights/ViewModels/FrameTrackViewport.h"
 
 class SScrollBar;
+class STimingView;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -239,6 +240,9 @@ protected:
 
 	/** Cursor type. */
 	ECursorType CursorType;
+
+	STimingView* RegisteredTimingView = nullptr; // For pointer comparison only, do not dereferentiate.
+	FDelegateHandle OnTrackVisibilityChangedHandle;
 
 	// Debug stats
 	int32 NumUpdatedFrames;

@@ -272,6 +272,7 @@ public:
 	virtual Insights::FHoveredEventChangedDelegate& OnHoveredEventChanged() override { return OnHoveredEventChangedDelegate; }
 	virtual Insights::FSelectedTrackChangedDelegate& OnSelectedTrackChanged() override { return OnSelectedTrackChangedDelegate; }
 	virtual Insights::FSelectedEventChangedDelegate& OnSelectedEventChanged() override { return OnSelectedEventChangedDelegate; }
+	virtual Insights::FTrackVisibilityChangedDelegate& OnTrackVisibilityChanged() override { return OnTrackVisibilityChangedDelegate; }
 
 	virtual void ResetSelectedEvent() override
 	{
@@ -317,7 +318,7 @@ public:
 
 	void HideAllScrollableTracks();
 
-	void OnTrackVisibilityChanged();
+	void HandleTrackVisibilityChanged();
 
 	bool IsGpuTrackVisible() const;
 	bool IsCpuTrackVisible(uint32 InThreadId) const;
@@ -717,6 +718,7 @@ protected:
 	Insights::FHoveredEventChangedDelegate OnHoveredEventChangedDelegate;
 	Insights::FSelectedTrackChangedDelegate OnSelectedTrackChangedDelegate;
 	Insights::FSelectedEventChangedDelegate OnSelectedEventChangedDelegate;
+	Insights::FTrackVisibilityChangedDelegate OnTrackVisibilityChangedDelegate;
 
 	TSharedPtr<FUICommandList> CommandList;
 

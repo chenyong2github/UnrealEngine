@@ -656,7 +656,7 @@ void FContextSwitchesSharedState::Command_DockCpuThreadTrackToBottom_Execute()
 					if (!ThreadTimingTrack->IsVisible())
 					{
 						ThreadTimingTrack->Show();
-						TimingView->OnTrackVisibilityChanged();
+						TimingView->HandleTrackVisibilityChanged();
 					}
 				}
 			}
@@ -723,7 +723,7 @@ void FContextSwitchesSharedState::Command_DockCpuCoreTrackToTop_Execute()
 					if (!CpuCoreTimingTrack->IsVisible())
 					{
 						CpuCoreTimingTrack->Show();
-						TimingView->OnTrackVisibilityChanged();
+						TimingView->HandleTrackVisibilityChanged();
 					}
 				}
 			}
