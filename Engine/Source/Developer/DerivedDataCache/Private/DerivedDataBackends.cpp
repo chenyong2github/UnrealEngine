@@ -66,11 +66,11 @@ ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, TFunct
 ILegacyCacheStore* CreateCacheStoreThrottle(ILegacyCacheStore* InnerCache, uint32 LatencyMS, uint32 MaxBytesPerSecond);
 ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bPutOnError);
 ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner& Owner, FString& OutPath);
-ILegacyCacheStore* CreateHttpCacheStore(const TCHAR* NodeName, const TCHAR* Config, ICacheStoreOwner* Owner);
+ILegacyCacheStore* CreateHttpCacheStore(const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner* Owner);
 void CreateMemoryCacheStore(IMemoryCacheStore*& OutCache, const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner* Owner);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Name, const TCHAR* Filename, bool bWriting, bool bCompressed, ICacheStoreOwner* Owner);
-ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
-ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config, ICacheStoreOwner* Owner);
+ILegacyCacheStore* CreateS3CacheStore(const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner& Owner);
+ILegacyCacheStore* CreateZenCacheStore(const TCHAR* Name, const TCHAR* Config, ICacheStoreOwner* Owner);
 ILegacyCacheStore* TryCreateCacheStoreReplay(ILegacyCacheStore* InnerCache);
 
 /**
@@ -309,7 +309,10 @@ public:
 				}
 				else if (NodeType == TEXT("S3"))
 				{
-					return ParseS3Cache(*NodeName, *Entry);
+					if (CreateS3CacheStore(*NodeName, *Entry, *this))
+					{
+						return true;
+					}
 				}
 				else if (NodeType == TEXT("Cloud") || NodeType == TEXT("Http"))
 				{
@@ -541,79 +544,6 @@ public:
 			Directories.AddUnique(Path);
 			return true;
 		}
-		return false;
-	}
-
-	/**
-	 * Creates an S3 data cache interface.
-	 */
-	bool ParseS3Cache(const TCHAR* NodeName, const TCHAR* Entry)
-	{
-		FString ManifestPath;
-		if (!FParse::Value(Entry, TEXT("Manifest="), ManifestPath))
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Manifest'."), NodeName);
-			return false;
-		}
-
-		FString BaseUrl;
-		if (!FParse::Value(Entry, TEXT("BaseUrl="), BaseUrl))
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'BaseUrl'."), NodeName);
-			return false;
-		}
-
-		FString CanaryObjectKey;
-		FParse::Value(Entry, TEXT("Canary="), CanaryObjectKey);
-
-		FString Region;
-		if (!FParse::Value(Entry, TEXT("Region="), Region))
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Region'."), NodeName);
-			return false;
-		}
-
-		// Check the EnvPathOverride environment variable to allow persistent overriding of data cache path, eg for offsite workers.
-		FString EnvPathOverride;
-		FString CachePath = FPaths::ProjectSavedDir() / TEXT("S3DDC");
-		if (FParse::Value(Entry, TEXT("EnvPathOverride="), EnvPathOverride))
-		{
-			FString FilesystemCachePathEnv = FPlatformMisc::GetEnvironmentVariable(*EnvPathOverride);
-			if (FilesystemCachePathEnv.Len() > 0)
-			{
-				if (FilesystemCachePathEnv == TEXT("None"))
-				{
-					UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s disabled due to %s=None"), NodeName, *EnvPathOverride);
-					return false;
-				}
-				else
-				{
-					CachePath = FilesystemCachePathEnv;
-					UE_LOG(LogDerivedDataCache, Log, TEXT("Found environment variable %s=%s"), *EnvPathOverride, *CachePath);
-				}
-			}
-
-			if (!EnvPathOverride.IsEmpty())
-			{
-				FString DDCPath;
-				if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *EnvPathOverride, DDCPath))
-				{
-					if ( DDCPath.Len() > 0 )
-					{
-						CachePath = DDCPath;
-						UE_LOG( LogDerivedDataCache, Log, TEXT("Found registry key GlobalDataCachePath %s=%s"), *EnvPathOverride, *CachePath );
-					}
-				}
-			}
-		}
-
-		if (ILegacyCacheStore* Backend = CreateS3CacheStore(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath))
-		{
-			Add(Backend, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::StopStore);
-			return true;
-		}
-
-		UE_LOG(LogDerivedDataCache, Log, TEXT("S3 backend is not supported on the current platform."));
 		return false;
 	}
 
