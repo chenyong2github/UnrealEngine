@@ -97,6 +97,9 @@ public:
 	EPlatformCryptoResult CreatePseudoRandomBytes(const TArrayView<uint8> OutData);
 
 	FSHA256Hasher CreateSHA256Hasher();
+
+	bool CalcSHA256(const TArrayView<const uint8> Source, TArray<uint8>& OutHash);
+
 };
 
 typedef FEncryptionContextOpenSSL FEncryptionContext;

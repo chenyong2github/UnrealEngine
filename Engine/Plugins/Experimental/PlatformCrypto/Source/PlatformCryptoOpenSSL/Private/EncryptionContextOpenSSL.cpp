@@ -543,3 +543,37 @@ FSHA256Hasher FEncryptionContextOpenSSL::CreateSHA256Hasher()
 {
 	return FSHA256Hasher();
 }
+
+bool FEncryptionContextOpenSSL::CalcSHA256(const TArrayView<const uint8> Source, TArray<uint8>& OutHash)
+{
+	FSHA256Hasher Hasher = CreateSHA256Hasher();
+
+	if (Hasher.Init() != EPlatformCryptoResult::Success)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Verbose,
+			TEXT("[FEncryptionContextOpenSSL::CalcSHA256] Failed to create SHA256Hasher."));
+
+		return false;
+	}
+
+	if (Hasher.Update(Source) != EPlatformCryptoResult::Success)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Verbose,
+			TEXT("[FEncryptionContextOpenSSL::CalcSHA256] Failed to update SHA256Hasher."));
+
+		return false;
+	}
+
+	OutHash.Empty();
+	OutHash.AddUninitialized(FSHA256Hasher::OutputByteLength);
+
+	if (Hasher.Finalize(OutHash) != EPlatformCryptoResult::Success)
+	{
+		UE_LOG(LogPlatformCryptoOpenSSL, Verbose,
+			TEXT("[FEncryptionContextOpenSSL::CalcSHA256] Failed to finalize SHA256Hasher."));
+
+		return false;
+	}
+
+	return true;
+}
