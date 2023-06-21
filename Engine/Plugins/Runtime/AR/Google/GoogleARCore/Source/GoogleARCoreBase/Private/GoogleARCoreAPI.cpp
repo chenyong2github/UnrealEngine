@@ -1531,6 +1531,9 @@ void FGoogleARCoreFrame::FilterLineTraceResults(ArHitResultList* HitResultList, 
 				continue;
 			}
 		}
+
+		// If we don't pass the handle into GetTrackableFromHandle we need to release it here.
+		ArTrackable_release(TrackableHandle);
 	}
 
 	ArHitResult_destroy(HitResultHandle);
