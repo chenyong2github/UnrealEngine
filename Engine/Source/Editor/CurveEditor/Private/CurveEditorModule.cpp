@@ -103,9 +103,14 @@ public:
 
 	void UnregisterCustomizations()
 	{
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyEditorModule.UnregisterCustomClassLayout(UCurveEditorBakeFilter::StaticClass()->GetFName());
-		PropertyEditorModule.NotifyCustomizationModuleChanged();
+		if (UObjectInitialized() && !IsEngineExitRequested())
+		{
+			if (FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor"))
+			{
+				PropertyEditorModule->UnregisterCustomClassLayout(UCurveEditorBakeFilter::StaticClass()->GetFName());
+				PropertyEditorModule->NotifyCustomizationModuleChanged();
+			}
+		}
 	}
 
 private:
