@@ -17,6 +17,7 @@
 
 class FTexture2DResourceMem;
 class FTexture2DResource;
+struct FTexture2DMipMap;
 struct FUpdateTextureRegion2D;
 
 UCLASS(hidecategories=Object, MinimalAPI, BlueprintType)

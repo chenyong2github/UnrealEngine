@@ -46,6 +46,7 @@
 namespace FOodleDataCompression {enum class ECompressor : uint8; enum class ECompressionLevel : int8; }
 
 class FTextureReference;
+class FTextureResource;
 class ITargetPlatform;
 class UAssetUserData;
 struct FPropertyChangedEvent;
