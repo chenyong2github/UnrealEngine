@@ -214,7 +214,8 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 	}
 	else
 	{
-		ExtractableProperties.Emplace(Settings->OutputAttributeName, ObjectToInspect, Property);
+		const FName AttributeName = (Settings->OutputAttributeName == PCGMetadataAttributeConstants::SourceNameAttributeName) ? Property->GetFName() : Settings->OutputAttributeName;
+		ExtractableProperties.Emplace(AttributeName, ObjectToInspect, Property);
 	}
 
 	if (ExtractableProperties.IsEmpty())

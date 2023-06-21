@@ -21,7 +21,7 @@ struct PCGEXTERNALDATAINTEROPEDITOR_API FPCGLoadAlembicBPData
 	FAbcConversionSettings ConversionSettings;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
-	TMap<FString, FPCGAttributePropertySelector> AttributeMapping;
+	TMap<FString, FPCGAttributePropertyInputSelector> AttributeMapping;
 };
 
 UCLASS()

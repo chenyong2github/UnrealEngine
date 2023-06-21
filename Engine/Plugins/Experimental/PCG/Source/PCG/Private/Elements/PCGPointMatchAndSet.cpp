@@ -3,6 +3,7 @@
 #include "Elements/PCGPointMatchAndSet.h"
 
 #include "PCGContext.h"
+#include "PCGCustomVersion.h"
 #include "PCGPin.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGHelpers.h"
@@ -32,6 +33,20 @@ UPCGPointMatchAndSetSettings::UPCGPointMatchAndSetSettings(const FObjectInitiali
 FText UPCGPointMatchAndSetSettings::GetNodeTooltipText() const
 {
 	return LOCTEXT("PointMatchAndSetNodeTooltip", "For all points, if a match is found (e.g. some attribute is equal to some value), sets a value on the point (e.g. another attribute).");
+}
+
+void UPCGPointMatchAndSetSettings::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	if (DataVersion < FPCGCustomVersion::UpdateAttributePropertyInputSelector
+		&& SetTarget.GetSelection() == EPCGAttributePropertySelection::Attribute
+		&& SetTarget.GetAttributeName() == PCGMetadataAttributeConstants::SourceAttributeName)
+	{
+		// Previous behavior of the output target for this node was:
+		// None => LastCreated
+		SetTarget.SetAttributeName(PCGMetadataAttributeConstants::LastCreatedAttributeName);
+	}
+
+	Super::ApplyDeprecation(InOutNode);
 }
 #endif // WITH_EDITOR
 
@@ -88,7 +103,7 @@ void UPCGPointMatchAndSetSettings::PostEditChangeProperty(FPropertyChangedEvent&
 		}
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UPCGPointMatchAndSetSettings, SetTarget))
 		{
-			bSetTargetIsAttribute = (SetTarget.Selection == EPCGAttributePropertySelection::Attribute);
+			bSetTargetIsAttribute = (SetTarget.GetSelection() == EPCGAttributePropertySelection::Attribute);
 
 			// If not targetting an attribute, but a property, assign the new type to the OutputType accordingly
 			if (!bSetTargetIsAttribute)

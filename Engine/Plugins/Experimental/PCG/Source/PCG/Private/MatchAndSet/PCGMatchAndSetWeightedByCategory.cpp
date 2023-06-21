@@ -127,7 +127,12 @@ void UPCGMatchAndSetWeightedByCategory::MatchAndSet_Implementation(
 		return;
 	}
 
-	const FPCGAttributePropertySelector& SetTarget = InSettings->SetTarget;
+	FPCGAttributePropertyInputSelector InputSource;
+	InputSource.SetAttributeName(CategoryAttribute);
+	InputSource = InputSource.CopyAndFixLast(InPointData);
+
+	// Deprecation old behavior, if SetTarget was None, we took last created in OutPointData
+	FPCGAttributePropertyOutputSelector SetTarget = InSettings->SetTarget.CopyAndFixSource(&InputSource, OutPointData);
 
 	// Create attribute if needed
 	if (!CreateAttributeIfNeeded(Context, SetTarget, *FirstValueForTypeExtraction, OutPointData, InSettings))
@@ -166,10 +171,6 @@ void UPCGMatchAndSetWeightedByCategory::MatchAndSet_Implementation(
 	//TODO: implement async loop?
 	const UPCGComponent* SourceComponent = Context.SourceComponent.Get();
 	const TArray<FPCGPoint>& InPoints = InPointData->GetPoints();
-
-	FPCGAttributePropertySelector InputSource;
-	InputSource.Selection = EPCGAttributePropertySelection::Attribute;
-	InputSource.AttributeName = ((CategoryAttribute == NAME_None) ? InPointData->Metadata->GetLatestAttributeNameOrNone() : CategoryAttribute);
 
 	TUniquePtr<const IPCGAttributeAccessor> InputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(InPointData, InputSource);
 	TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys = PCGAttributeAccessorHelpers::CreateConstKeys(InPointData, InputSource);

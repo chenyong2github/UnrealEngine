@@ -37,7 +37,7 @@ void UPCGMetadataBreakTransformSettings::PostLoad()
 #endif // WITH_EDITOR
 }
 
-FPCGAttributePropertySelector UPCGMetadataBreakTransformSettings::GetInputSource(uint32 Index) const
+FPCGAttributePropertyInputSelector UPCGMetadataBreakTransformSettings::GetInputSource(uint32 Index) const
 {
 	return InputSource;
 }

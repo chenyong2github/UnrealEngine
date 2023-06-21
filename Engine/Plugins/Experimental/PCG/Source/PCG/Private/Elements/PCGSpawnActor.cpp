@@ -104,7 +104,7 @@ namespace PCGSpawnActorHelpers
 
 			for (int32 i = 0; i < Overrides.Num(); ++i)
 			{
-				const FPCGAttributePropertySelector& InputSelector = Overrides[i].InputSource;
+				FPCGAttributePropertyInputSelector InputSelector = Overrides[i].InputSource.CopyAndFixLast(PointData);
 				const FString& OutputProperty = Overrides[i].PropertyTarget;
 
 				ActorSingleOverrides.Emplace(InputSelector, OutputProperty, TemplateActor, PointData);

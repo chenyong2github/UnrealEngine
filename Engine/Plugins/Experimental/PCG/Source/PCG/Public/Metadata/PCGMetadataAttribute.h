@@ -8,6 +8,14 @@
 
 class UPCGMetadata;
 
+namespace PCGMetadataAttributeConstants
+{
+	const FName LastAttributeName = TEXT("@Last");
+	const FName LastCreatedAttributeName = TEXT("@LastCreated");
+	const FName SourceAttributeName = TEXT("@Source");
+	const FName SourceNameAttributeName = TEXT("@SourceName");
+}
+
 class PCG_API FPCGMetadataAttributeBase
 {
 public:

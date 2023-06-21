@@ -2,13 +2,14 @@
 
 #include "Elements/PCGAttributeSelectElement.h"
 
-#include "Data/PCGSpatialData.h"
+#include "PCGContext.h"
+#include "PCGCustomVersion.h"
 #include "PCGParamData.h"
+#include "PCGPin.h"
 #include "Data/PCGPointData.h"
+#include "Data/PCGSpatialData.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
-#include "PCGContext.h"
-#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGAttributeSelectElement)
 
@@ -191,6 +192,19 @@ FText UPCGAttributeSelectSettings::GetDefaultNodeTitle() const
 {
 	return LOCTEXT("NodeTitle", "Attribute Select");
 }
+
+void UPCGAttributeSelectSettings::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	if (DataVersion < FPCGCustomVersion::UpdateAttributePropertyInputSelector
+		&& (OutputAttributeName == NAME_None))
+	{
+		// Previous behavior of the output attribute for this node was:
+		// None => SameName
+		OutputAttributeName = PCGMetadataAttributeConstants::SourceNameAttributeName;
+	}
+
+	Super::ApplyDeprecation(InOutNode);
+}
 #endif
 
 FName UPCGAttributeSelectSettings::AdditionalTaskName() const
@@ -289,13 +303,9 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 		return true;
 	}
 
-	FPCGAttributePropertySelector InputSource = Settings->InputSource;
-	if (InputSource.Selection == EPCGAttributePropertySelection::Attribute && InputSource.AttributeName == NAME_None && SpatialData->Metadata)
-	{
-		InputSource.SetAttributeName(SpatialData->Metadata->GetLatestAttributeNameOrNone());
-	}
+	FPCGAttributePropertyInputSelector InputSource = Settings->InputSource.CopyAndFixLast(SpatialData);
 
-	const FName OutputAttributeName = (Settings->OutputAttributeName == NAME_None) ? InputSource.GetName() : Settings->OutputAttributeName;
+	const FName OutputAttributeName = (Settings->OutputAttributeName == PCGMetadataAttributeConstants::SourceNameAttributeName) ? InputSource.GetName() : Settings->OutputAttributeName;
 	UPCGParamData* OutputParamData = NewObject<UPCGParamData>();
 
 	TUniquePtr<const IPCGAttributeAccessor> Accessor = PCGAttributeAccessorHelpers::CreateConstAccessor(PointData, InputSource);

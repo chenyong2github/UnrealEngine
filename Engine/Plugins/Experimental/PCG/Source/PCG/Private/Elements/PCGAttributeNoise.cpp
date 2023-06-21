@@ -211,12 +211,14 @@ bool FPCGAttributeNoiseElement::ExecuteInternal(FPCGContext* InContext) const
 
 			InputPoints = &PointData->GetPoints();
 
+			Context->InputSource = Settings->InputSource.CopyAndFixLast(PointData);
+
 			// Create a dummy accessor on the input before allocating the output, to avoid doing useless allocation.
-			TUniquePtr<const IPCGAttributeAccessor> TempInputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(PointData, Settings->InputSource);
+			TUniquePtr<const IPCGAttributeAccessor> TempInputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(PointData, Context->InputSource);
 			if (!TempInputAccessor)
 			{
 				Outputs.RemoveAt(Outputs.Num() - 1);
-				PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("CantCreateAccessor", "Could not find Attribute/Property {0}"), FText::FromName(Settings->InputSource.GetName())));
+				PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("CantCreateAccessor", "Could not find Attribute/Property {0}"), FText::FromName(Context->InputSource.GetName())));
 				Context->CurrentInput++;
 				continue;
 			}
@@ -225,7 +227,7 @@ bool FPCGAttributeNoiseElement::ExecuteInternal(FPCGContext* InContext) const
 			if (!PCG::Private::IsOfTypes<int32, int64, float, double, FVector, FVector2D, FVector4, FRotator, FQuat>(TempInputAccessor->GetUnderlyingType()))
 			{
 				Outputs.RemoveAt(Outputs.Num() - 1);
-				PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("AttributeIsNotANumericalType", "Attribute/Property {0} is not a numerical type, we can't apply noise to it."), FText::FromName(Settings->InputSource.GetName())));
+				PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("AttributeIsNotANumericalType", "Attribute/Property {0} is not a numerical type, we can't apply noise to it."), FText::FromName(Context->InputSource.GetName())));
 				Context->CurrentInput++;
 				continue;
 			}
@@ -240,8 +242,8 @@ bool FPCGAttributeNoiseElement::ExecuteInternal(FPCGContext* InContext) const
 			Output.Data = OutputData;
 
 			// Then create the accessor/keys
-			Context->InputAccessor = PCGAttributeAccessorHelpers::CreateAccessor(OutputData, Settings->InputSource);
-			Context->Keys = PCGAttributeAccessorHelpers::CreateKeys(OutputData, Settings->InputSource);
+			Context->InputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(OutputData, Context->InputSource);
+			Context->Keys = PCGAttributeAccessorHelpers::CreateKeys(OutputData, Context->InputSource);
 
 			// It won't fail because we validated on the input data and output is initialized from input.
 			check(Context->InputAccessor && Context->Keys);
@@ -255,31 +257,29 @@ bool FPCGAttributeNoiseElement::ExecuteInternal(FPCGContext* InContext) const
 				int32 NumPoints = Context->Keys->GetNum();
 				Context->TempValuesBuffer.SetNumUninitialized(sizeof(AttributeType) * NumPoints);
 
-				// If we have a different output target, create accessor (and also create the attribute if it doesn't exist), and check that we can broadcast to it
-				if (Settings->bOutputTargetDifferentFromInputSource)
+				Context->OutputTarget = Settings->OutputTarget.CopyAndFixSource(&Context->InputSource);
+
+				Context->OutputAccessor = PCGAttributeAccessorHelpers::CreateAccessor(OutputData, Context->OutputTarget);
+				if (!Context->OutputAccessor && Context->OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute)
 				{
-					Context->OptionalOutputAccessor = PCGAttributeAccessorHelpers::CreateAccessor(OutputData, Settings->OutputTarget);
-					if (!Context->OptionalOutputAccessor && Settings->OutputTarget.Selection == EPCGAttributePropertySelection::Attribute)
-					{
-						OutputData->Metadata->CreateAttribute<AttributeType>(Settings->OutputTarget.GetName(), AttributeType{}, /*bAllowsInterpolation=*/ true, /*bOverrideParent=*/false);
-						Context->OptionalOutputAccessor = PCGAttributeAccessorHelpers::CreateAccessor(OutputData, Settings->OutputTarget);
-					}
+					OutputData->Metadata->CreateAttribute<AttributeType>(Context->OutputTarget.GetName(), AttributeType{}, /*bAllowsInterpolation=*/ true, /*bOverrideParent=*/false);
+					Context->OutputAccessor = PCGAttributeAccessorHelpers::CreateAccessor(OutputData, Context->OutputTarget);
+				}
 
-					if (!Context->OptionalOutputAccessor)
-					{
-						PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("OutputTargetInvalid", "Failed to find/create Attribute/Property {0}."), FText::FromName(Settings->OutputTarget.GetName())));
-						return false;
-					}
+				if (!Context->OutputAccessor)
+				{
+					PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("OutputTargetInvalid", "Failed to find/create Attribute/Property {0}."), FText::FromName(Context->OutputTarget.GetName())));
+					return false;
+				}
 
-					if (!PCG::Private::IsBroadcastable(Context->InputAccessor->GetUnderlyingType(), Context->OptionalOutputAccessor->GetUnderlyingType()))
-					{
-						PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("CantBroadcast", "Cannot convert Attribute {0} ({1}) into Attribute {2} ({3})."),
-							FText::FromName(Settings->InputSource.GetName()),
-							FText::FromString(PCG::Private::GetTypeName(Context->InputAccessor->GetUnderlyingType())),
-							FText::FromName(Settings->OutputTarget.GetName()),
-							FText::FromString(PCG::Private::GetTypeName(Context->OptionalOutputAccessor->GetUnderlyingType()))));
-						return false;
-					}
+				if (!PCG::Private::IsBroadcastable(Context->InputAccessor->GetUnderlyingType(), Context->OutputAccessor->GetUnderlyingType()))
+				{
+					PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("CantBroadcast", "Cannot convert Attribute {0} ({1}) into Attribute {2} ({3})."),
+						FText::FromName(Context->InputSource.GetName()),
+						FText::FromString(PCG::Private::GetTypeName(Context->InputAccessor->GetUnderlyingType())),
+						FText::FromName(Context->OutputTarget.GetName()),
+						FText::FromString(PCG::Private::GetTypeName(Context->OutputAccessor->GetUnderlyingType()))));
+					return false;
 				}
 
 				return true;
@@ -303,8 +303,7 @@ bool FPCGAttributeNoiseElement::ExecuteInternal(FPCGContext* InContext) const
 		check(InputPoints && OutputPoints);
 
 		// Force clamp on Density
-		const FPCGAttributePropertySelector& Selector = Settings->bOutputTargetDifferentFromInputSource ? Settings->OutputTarget : Settings->InputSource;
-		const bool bClampResult = Settings->bClampResult || (Selector.Selection == EPCGAttributePropertySelection::PointProperty && Selector.PointProperty == EPCGPointProperties::Density);
+		const bool bClampResult = Settings->bClampResult || (Context->OutputTarget.GetSelection() == EPCGAttributePropertySelection::PointProperty && Context->OutputTarget.GetPointProperty() == EPCGPointProperties::Density);
 
 		// Dummy Initialize, we already initialized the output points before.
 		auto Initialize = []() {};
@@ -339,14 +338,7 @@ bool FPCGAttributeNoiseElement::ExecuteInternal(FPCGContext* InContext) const
 				using AttributeType = std::decay_t<decltype(Value)>;
 				int32 NumPoints = Context->Keys->GetNum();
 				TArrayView<AttributeType> Values(reinterpret_cast<AttributeType*>(Context->TempValuesBuffer.GetData()), NumPoints);
-				if (Context->OptionalOutputAccessor)
-				{
-					Context->OptionalOutputAccessor->SetRange<AttributeType>(Values, 0, *Context->Keys, EPCGAttributeAccessorFlags::AllowBroadcast);
-				}
-				else
-				{
-					Context->InputAccessor->SetRange<AttributeType>(Values, 0, *Context->Keys);
-				}
+				Context->OutputAccessor->SetRange<AttributeType>(Values, 0, *Context->Keys, EPCGAttributeAccessorFlags::AllowBroadcast);
 			});
 			
 			Context->CurrentInput++;

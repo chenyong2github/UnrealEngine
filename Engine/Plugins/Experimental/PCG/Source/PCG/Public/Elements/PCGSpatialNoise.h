@@ -93,7 +93,7 @@ public:
 
 	// The output attribute name to write, if not 'None'
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector ValueTarget;
+	FPCGAttributePropertyOutputNoSourceSelector ValueTarget;
 
 	// Adds a random amount of offset up to this amount
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
@@ -109,7 +109,7 @@ public:
 
 	// The output attribute name to write the voronoi cell id, if not 'None'
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Mode == PCGSpatialNoiseMode::Voronoi2D", EditConditionHides, PCG_Overridable))
-	FPCGAttributePropertySelector VoronoiCellIDTarget;
+	FPCGAttributePropertyOutputNoSourceSelector VoronoiCellIDTarget;
 	
 	// If true it will orient the output points to point towards the cell edges, which can be used for effects
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Mode == PCGSpatialNoiseMode::Voronoi2D", EditConditionHides, PCG_Overridable))

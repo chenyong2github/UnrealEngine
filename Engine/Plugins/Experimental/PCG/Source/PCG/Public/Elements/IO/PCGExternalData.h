@@ -31,7 +31,7 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
-	TMap<FString, FPCGAttributePropertySelector> AttributeMapping;
+	TMap<FString, FPCGAttributePropertyInputSelector> AttributeMapping;
 };
 
 class PCG_API FPCGExternalDataElement : public IPCGElement

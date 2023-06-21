@@ -1,14 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Metadata/PCGAttributePropertySelector.h"
+
+#include "PCGCustomVersion.h"
+#include "PCGData.h"
+#include "Helpers/PCGMetadataHelpers.h"
+#include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
 namespace PCGAttributePropertySelectorConstants
 {
-	const TCHAR* PropertyPrefix = TEXT("$");
-	const TCHAR* ExtraSeparator = TEXT(".");
-	const TCHAR PropertyPrefixChar = PropertyPrefix[0];
-	const TCHAR ExtraSeparatorChar = ExtraSeparator[0];
+	static const TCHAR* PropertyPrefix = TEXT("$");
+	static const TCHAR* ExtraSeparator = TEXT(".");
+	static const TCHAR PropertyPrefixChar = PropertyPrefix[0];
+	static const TCHAR ExtraSeparatorChar = ExtraSeparator[0];
 }
 
 FName FPCGAttributePropertySelector::GetName() const
@@ -38,8 +43,33 @@ FName FPCGAttributePropertySelector::GetName() const
 			return NAME_None;
 		}
 	}
+	case EPCGAttributePropertySelection::Attribute:
+	{
+		return GetAttributeName();
+	}
 	default:
-		return AttributeName;
+		return NAME_None;
+	}
+}
+
+bool FPCGAttributePropertySelector::SetAttributeName(FName InAttributeName, bool bResetExtraNames)
+{
+	const bool bHasExtraNames = !ExtraNames.IsEmpty();
+	if (bResetExtraNames)
+	{
+		ExtraNames.Empty();
+	}
+
+	if (Selection == EPCGAttributePropertySelection::Attribute && GetAttributeName() == InAttributeName)
+	{
+		// Nothing changed, except perhaps the extra names
+		return (bHasExtraNames && bResetExtraNames);
+	}
+	else
+	{
+		Selection = EPCGAttributePropertySelection::Attribute;
+		AttributeName = InAttributeName;
+		return true;
 	}
 }
 
@@ -60,27 +90,6 @@ bool FPCGAttributePropertySelector::SetPointProperty(EPCGPointProperties InPoint
 	{
 		Selection = EPCGAttributePropertySelection::PointProperty;
 		PointProperty = InPointProperty;
-		return true;
-	}
-}
-
-bool FPCGAttributePropertySelector::SetAttributeName(FName InAttributeName, bool bResetExtraNames)
-{
-	const bool bHasExtraNames = !ExtraNames.IsEmpty();
-	if (bResetExtraNames)
-	{
-		ExtraNames.Empty();
-	}
-
-	if (Selection == EPCGAttributePropertySelection::Attribute && AttributeName == InAttributeName)
-	{
-		// Nothing changed, except perhaps the extra names
-		return (bHasExtraNames && bResetExtraNames);
-	}
-	else
-	{
-		Selection = EPCGAttributePropertySelection::Attribute;
-		AttributeName = InAttributeName;
 		return true;
 	}
 }
@@ -132,9 +141,61 @@ FText FPCGAttributePropertySelector::GetDisplayText() const
 	return FText::FromString(Res);
 }
 
+
+bool FPCGAttributePropertySelector::operator==(const FPCGAttributePropertySelector& Other) const
+{
+	return IsSame(Other);
+}
+
+bool FPCGAttributePropertySelector::IsSame(const FPCGAttributePropertySelector& Other, bool bIncludeExtraNames) const
+{
+	if (Selection != Other.Selection || (bIncludeExtraNames && ExtraNames != Other.ExtraNames))
+	{
+		return false;
+	}
+
+	switch (Selection)
+	{
+	case EPCGAttributePropertySelection::Attribute:
+		return GetAttributeName() == Other.GetAttributeName();
+	case EPCGAttributePropertySelection::PointProperty:
+		return PointProperty == Other.PointProperty;
+	case EPCGAttributePropertySelection::ExtraProperty:
+		return ExtraProperty == Other.ExtraProperty;
+	default:
+		return false;
+	}
+}
+
+void FPCGAttributePropertySelector::ImportFromOtherSelector(const FPCGAttributePropertySelector& InOther)
+{
+	Selection = InOther.GetSelection();
+
+	switch (Selection)
+	{
+	case EPCGAttributePropertySelection::Attribute:
+		SetAttributeName(InOther.GetAttributeName());
+		break;
+	case EPCGAttributePropertySelection::PointProperty:
+		SetPointProperty(InOther.GetPointProperty());
+		break;
+	case EPCGAttributePropertySelection::ExtraProperty:
+		SetExtraProperty(InOther.GetExtraProperty());
+		break;
+	}
+
+	ExtraNames = InOther.GetExtraNames();
+}
+
 bool FPCGAttributePropertySelector::IsValid() const
 {
-	return (Selection != EPCGAttributePropertySelection::Attribute) || FPCGMetadataAttributeBase::IsValidName(AttributeName);
+	const FName ThisAttributeName = GetAttributeName();
+	return (Selection != EPCGAttributePropertySelection::Attribute) || 
+		ThisAttributeName == PCGMetadataAttributeConstants::LastAttributeName ||
+		ThisAttributeName == PCGMetadataAttributeConstants::LastCreatedAttributeName ||
+		ThisAttributeName == PCGMetadataAttributeConstants::SourceAttributeName ||
+		ThisAttributeName == PCGMetadataAttributeConstants::SourceNameAttributeName ||
+		FPCGMetadataAttributeBase::IsValidName(ThisAttributeName);
 }
 
 bool FPCGAttributePropertySelector::Update(FString NewValue)
@@ -188,6 +249,103 @@ bool FPCGAttributePropertySelector::Update(FString NewValue)
 
 ///////////////////////////////////////////////////////////////////////
 
+FPCGAttributePropertyInputSelector::FPCGAttributePropertyInputSelector()
+{
+	AttributeName = PCGMetadataAttributeConstants::LastAttributeName;
+}
+
+FPCGAttributePropertyInputSelector FPCGAttributePropertyInputSelector::CopyAndFixLast(const UPCGData* InData) const
+{
+	if (Selection == EPCGAttributePropertySelection::Attribute)
+	{
+		if (AttributeName == PCGMetadataAttributeConstants::LastAttributeName && InData && InData->HasCachedLastSelector())
+		{
+			return InData->GetCachedLastSelector();
+		}
+		else if (AttributeName == PCGMetadataAttributeConstants::LastCreatedAttributeName && InData)
+		{
+			if (const UPCGMetadata* Metadata = PCGMetadataHelpers::GetConstMetadata(InData))
+			{
+				FPCGAttributePropertyInputSelector Selector;
+				Selector.SetAttributeName(Metadata->GetLatestAttributeNameOrNone());
+				return Selector;
+			}
+		}
+	}
+
+	return *this;
+}
+
+bool FPCGAttributePropertyInputSelector::SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	if (Tag.Type == NAME_StructProperty
+		&& Tag.StructName == FPCGAttributePropertySelector::StaticStruct()->GetFName())
+	{
+		FPCGAttributePropertyInputSelector::StaticStruct()->SerializeItem(Slot, this, nullptr);
+		return true;
+	}
+
+	return false;
+}
+
+void FPCGAttributePropertyInputSelector::ApplyDeprecation(int32 InPCGCustomVersion)
+{
+	if ((InPCGCustomVersion < FPCGCustomVersion::UpdateAttributePropertyInputSelector) && (Selection == EPCGAttributePropertySelection::Attribute) && (AttributeName == PCGMetadataAttributeConstants::LastAttributeName))
+	{
+		AttributeName = PCGMetadataAttributeConstants::LastCreatedAttributeName;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
+
+FPCGAttributePropertyOutputSelector::FPCGAttributePropertyOutputSelector()
+{
+	AttributeName = PCGMetadataAttributeConstants::SourceAttributeName;
+}
+
+FPCGAttributePropertyOutputSelector FPCGAttributePropertyOutputSelector::CopyAndFixSource(const FPCGAttributePropertyInputSelector* InSourceSelector, const UPCGData* InOptionalData) const
+{
+	if (Selection == EPCGAttributePropertySelection::Attribute)
+	{
+		if (AttributeName == PCGMetadataAttributeConstants::SourceAttributeName && InSourceSelector)
+		{
+			return FPCGAttributePropertySelector::CreateFromOtherSelector<FPCGAttributePropertyOutputSelector>(*InSourceSelector);
+		}
+		else if (AttributeName == PCGMetadataAttributeConstants::SourceNameAttributeName && InSourceSelector)
+		{
+			FPCGAttributePropertyOutputSelector Selector;
+			Selector.SetAttributeName(InSourceSelector->GetName());
+			return Selector;
+		}
+		// Only for deprecation
+		else if (AttributeName == PCGMetadataAttributeConstants::LastCreatedAttributeName && InOptionalData)
+		{
+			if (const UPCGMetadata* Metadata = PCGMetadataHelpers::GetConstMetadata(InOptionalData))
+			{
+				FPCGAttributePropertyOutputSelector Selector;
+				Selector.SetAttributeName(Metadata->GetLatestAttributeNameOrNone());
+				return Selector;
+			}
+		}
+	}
+
+	return *this;
+}
+
+bool FPCGAttributePropertyOutputSelector::SerializeFromMismatchedTag(const struct FPropertyTag& Tag, FStructuredArchive::FSlot Slot)
+{
+	if (Tag.Type == NAME_StructProperty
+		&& Tag.StructName == FPCGAttributePropertySelector::StaticStruct()->GetFName())
+	{
+		FPCGAttributePropertyOutputSelector::StaticStruct()->SerializeItem(Slot, this, nullptr);
+		return true;
+	}
+
+	return false;
+}
+
+///////////////////////////////////////////////////////////////////////
+
 bool UPCGAttributePropertySelectorBlueprintHelpers::SetPointProperty(FPCGAttributePropertySelector& Selector, EPCGPointProperties InPointProperty)
 {
 	return Selector.SetPointProperty(InPointProperty);
@@ -203,7 +361,42 @@ bool UPCGAttributePropertySelectorBlueprintHelpers::SetExtraProperty(FPCGAttribu
 	return Selector.SetExtraProperty(InExtraProperty);
 }
 
+EPCGAttributePropertySelection UPCGAttributePropertySelectorBlueprintHelpers::GetSelection(const FPCGAttributePropertySelector& Selector)
+{
+	return Selector.GetSelection();
+}
+
+EPCGPointProperties UPCGAttributePropertySelectorBlueprintHelpers::GetPointProperty(const FPCGAttributePropertySelector& Selector)
+{
+	return Selector.GetPointProperty();
+}
+
+FName UPCGAttributePropertySelectorBlueprintHelpers::GetAttributeName(const FPCGAttributePropertySelector& Selector)
+{
+	return Selector.GetAttributeName();
+}
+
+EPCGExtraProperties UPCGAttributePropertySelectorBlueprintHelpers::GetExtraProperty(const FPCGAttributePropertySelector& Selector)
+{
+	return Selector.GetExtraProperty();
+}
+
+const TArray<FString>& UPCGAttributePropertySelectorBlueprintHelpers::GetExtraNames(const FPCGAttributePropertySelector& Selector)
+{
+	return Selector.GetExtraNames();
+}
+
 FName UPCGAttributePropertySelectorBlueprintHelpers::GetName(const FPCGAttributePropertySelector& Selector)
 {
 	return Selector.GetName();
+}
+
+FPCGAttributePropertyInputSelector UPCGAttributePropertySelectorBlueprintHelpers::CopyAndFixLast(const FPCGAttributePropertyInputSelector& Selector, const UPCGData* InData)
+{
+	return Selector.CopyAndFixLast(InData);
+}
+
+FPCGAttributePropertyOutputSelector UPCGAttributePropertySelectorBlueprintHelpers::CopyAndFixSource(const FPCGAttributePropertyOutputSelector& Selector, const FPCGAttributePropertyInputSelector& InSelector)
+{
+	return Selector.CopyAndFixSource(&InSelector);
 }

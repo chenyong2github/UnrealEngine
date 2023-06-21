@@ -31,7 +31,7 @@ public:
 	virtual FText GetDefaultNodeTitle() const override;
 #endif
 
-	FPCGAttributePropertySelector GetInputSource(uint32 Index) const override;
+	FPCGAttributePropertyInputSelector GetInputSource(uint32 Index) const override;
 
 	virtual FName GetOutputPinLabel(uint32 Index) const override;
 	virtual uint32 GetOutputPinNum() const override;
@@ -46,7 +46,7 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
-	FPCGAttributePropertySelector InputSource;
+	FPCGAttributePropertyInputSelector InputSource;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

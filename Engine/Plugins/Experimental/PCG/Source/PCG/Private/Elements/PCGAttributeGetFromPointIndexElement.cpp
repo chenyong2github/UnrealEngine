@@ -3,6 +3,7 @@
 #include "Elements/PCGAttributeGetFromPointIndexElement.h"
 
 #include "PCGContext.h"
+#include "PCGCustomVersion.h"
 #include "PCGPin.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
@@ -23,6 +24,19 @@ FName UPCGAttributeGetFromPointIndexSettings::GetDefaultNodeName() const
 FText UPCGAttributeGetFromPointIndexSettings::GetDefaultNodeTitle() const
 {
 	return LOCTEXT("NodeTitle", "Get Attribute From Point Index");
+}
+
+void UPCGAttributeGetFromPointIndexSettings::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	if (DataVersion < FPCGCustomVersion::UpdateAttributePropertyInputSelector
+		&& (OutputAttributeName == NAME_None))
+	{
+		// Previous behavior of the output attribute for this node was:
+		// None => SameName
+		OutputAttributeName = PCGMetadataAttributeConstants::SourceNameAttributeName;
+	}
+
+	Super::ApplyDeprecation(InOutNode);
 }
 #endif
 
@@ -111,13 +125,9 @@ bool FPCGAttributeGetFromPointIndexElement::ExecuteInternal(FPCGContext* Context
 		Output.Pin = PCGAttributeGetFromPointIndexConstants::OutputPointLabel;
 	}
 
-	FPCGAttributePropertySelector InputSource = Settings->InputSource;
-	if (InputSource.Selection == EPCGAttributePropertySelection::Attribute && InputSource.AttributeName == NAME_None)
-	{
-		InputSource.SetAttributeName(PointData->Metadata->GetLatestAttributeNameOrNone());
-	}
+	FPCGAttributePropertyInputSelector InputSource = Settings->InputSource.CopyAndFixLast(PointData);
 
-	FName OutputAttributeName = (Settings->OutputAttributeName == NAME_None) ? InputSource.GetName() : Settings->OutputAttributeName;
+	const FName OutputAttributeName = (Settings->OutputAttributeName == PCGMetadataAttributeConstants::SourceNameAttributeName) ? InputSource.GetName() : Settings->OutputAttributeName;
 
 	TUniquePtr<const IPCGAttributeAccessor> Accessor = PCGAttributeAccessorHelpers::CreateConstAccessor(PointData, InputSource);
 	FPCGAttributeAccessorKeysPoints PointKey(Point);

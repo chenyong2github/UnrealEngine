@@ -4,6 +4,7 @@
 
 #include "PCGSettings.h"
 #include "Metadata/PCGAttributePropertySelector.h"
+#include "Metadata/PCGMetadataAttribute.h"
 
 #include "PCGAttributeGetFromPointIndexElement.generated.h"
 
@@ -35,6 +36,7 @@ public:
 	virtual FName GetDefaultNodeName() const override;
 	virtual FText GetDefaultNodeTitle() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
+	virtual void ApplyDeprecation(UPCGNode* InOutNode) override;
 #endif
 
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
@@ -42,7 +44,7 @@ public:
 	//~End UPCGSettings interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector InputSource;
+	FPCGAttributePropertyInputSelector InputSource;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
 	int32 Index = 0;

@@ -97,8 +97,7 @@ bool FPCGMetadataBreakTransformTest::RunTest(const FString& Parameters)
 		const FName OutputAttributeName = TEXT("Output");
 
 		UPCGMetadataBreakTransformSettings* Settings = CastChecked<UPCGMetadataBreakTransformSettings>(TestData.Settings);
-		Settings->OutputTarget.Selection = EPCGAttributePropertySelection::Attribute;
-		Settings->OutputTarget.AttributeName = OutputAttributeName;
+		Settings->OutputTarget.SetAttributeName(OutputAttributeName);
 		FPCGElementPtr MetadataBreakTransformElement = TestData.Settings->GetElement();
 
 		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();

@@ -56,13 +56,10 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector InputSource;
+	FPCGAttributePropertyInputSelector InputSource;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bOutputTargetDifferentFromInputSource = false;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "bOutputTargetDifferentFromInputSource", EditConditionHides))
-	FPCGAttributePropertySelector OutputTarget;
+	FPCGAttributePropertyOutputSelector OutputTarget;
 
 	/** Attribute = (Original op Noise), Noise in [NoiseMin, NoiseMax] */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
@@ -95,6 +92,9 @@ public:
 
 	UPROPERTY()
 	bool bInvertSourceDensity_DEPRECATED = false;
+
+	UPROPERTY()
+	bool bOutputTargetDifferentFromInputSource_DEPRECATED = false;
 #endif // WITH_EDITORDATA_ONLY
 };
 
@@ -102,8 +102,10 @@ struct FPCGAttributeNoiseContext : public FPCGContext
 {
 	int32 CurrentInput = 0;
 	bool bDataPreparedForCurrentInput = false;
-	TUniquePtr<IPCGAttributeAccessor> InputAccessor;
-	TUniquePtr<IPCGAttributeAccessor> OptionalOutputAccessor;
+	FPCGAttributePropertyInputSelector InputSource;
+	FPCGAttributePropertyOutputSelector OutputTarget;
+	TUniquePtr<const IPCGAttributeAccessor> InputAccessor;
+	TUniquePtr<IPCGAttributeAccessor> OutputAccessor;
 	TUniquePtr<IPCGAttributeAccessorKeys> Keys;
 
 	TArray<uint8> TempValuesBuffer;

@@ -5,6 +5,7 @@
 #include "PCGData.h"
 #include "PCGPoint.h" // IWYU pragma: keep
 #include "Elements/PCGProjectionParams.h"
+#include "Metadata/PCGAttributePropertySelector.h"
 #include "Metadata/PCGMetadata.h"
 
 #include "PCGSpatialData.generated.h"
@@ -40,6 +41,10 @@ public:
 
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spatial; }
+
+	virtual bool HasCachedLastSelector() const override;
+	virtual FPCGAttributePropertyInputSelector GetCachedLastSelector() const override;
+	virtual void SetLastSelector(const FPCGAttributePropertySelector& InSelector) override;
 	// ~End UPCGData interface
 
 	/** Virtual call to allocate a new spacial data object, duplicate this spatial data into
@@ -150,6 +155,14 @@ public:
 
 protected:
 	virtual UPCGSpatialData* CopyInternal() const PURE_VIRTUAL(UPCGSpatialData::CopyInternal, return nullptr;);
+
+private:
+	/** Cache to keep track of the latest attribute manipulated on this data. */
+	UPROPERTY()
+	bool bHasCachedLastSelector = false;
+
+	UPROPERTY()
+	FPCGAttributePropertyInputSelector CachedLastSelector;
 };
 
 UCLASS(Abstract, ClassGroup = (Procedural))

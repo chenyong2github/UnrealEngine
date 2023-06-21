@@ -340,9 +340,16 @@ namespace PCGSpatialNoise
 	template<typename T>
 	void SetAttributeHelper(UPCGSpatialData* Data, const FPCGAttributePropertySelector& PropertySelector, const TArrayView<const T> Values)
 	{
-		if (PropertySelector.Selection == EPCGAttributePropertySelection::Attribute)
+		if (PropertySelector.GetSelection() == EPCGAttributePropertySelection::Attribute)
 		{
-			Data->Metadata->FindOrCreateAttribute<T>(PropertySelector.AttributeName);
+			// Discard None attributes
+			const FName AttributeName = PropertySelector.GetAttributeName();
+			if (AttributeName == NAME_None)
+			{
+				return;
+			}
+
+			Data->Metadata->FindOrCreateAttribute<T>(AttributeName);
 		}
 
 		TUniquePtr<IPCGAttributeAccessor> Accessor = PCGAttributeAccessorHelpers::CreateAccessor(Data, PropertySelector);

@@ -32,8 +32,7 @@ bool FPCGMetadataBooleanOpTest::RunTest(const FString& Parameters)
 	const FName InvalidAttribute = TEXT("Invalid");
 	const FName OutputAttributeName = TEXT("Output");
 
-	Settings->OutputTarget.Selection = EPCGAttributePropertySelection::Attribute;
-	Settings->OutputTarget.AttributeName = OutputAttributeName;
+	Settings->OutputTarget.SetAttributeName(OutputAttributeName);
 	Settings->ForceOutputConnections[0] = true;
 
 	const bool bAllowInterpolation = false;
@@ -118,16 +117,14 @@ bool FPCGMetadataBooleanOpTest::RunTest(const FString& Parameters)
 	ParamTaggedData1.Pin = PCGPinConstants::DefaultInputLabel;
 
 	Settings->Operation = EPCGMedadataBooleanOperation::Not;
-	Settings->InputSource1.Selection = EPCGAttributePropertySelection::Attribute;
-	Settings->InputSource2.Selection = EPCGAttributePropertySelection::Attribute;
 
 	{
-		Settings->InputSource1.AttributeName = TrueAttribute;
+		Settings->InputSource1.SetAttributeName(TrueAttribute);
 		bTestPassed &= ValidateOp(/*bExpectedResult=*/ false);
 	}
 
 	{
-		Settings->InputSource1.AttributeName = FalseAttribute;
+		Settings->InputSource1.SetAttributeName(FalseAttribute);
 		bTestPassed &= ValidateOp(true);
 	}
 

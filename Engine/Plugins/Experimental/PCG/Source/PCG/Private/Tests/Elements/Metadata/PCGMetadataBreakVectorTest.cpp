@@ -115,8 +115,7 @@ bool FPCGMetadataBreakVectorTest::RunTest(const FString& Parameters)
 		const FName OutputAttributeName = TEXT("Output");
 
 		UPCGMetadataBreakVectorSettings* Settings = CastChecked<UPCGMetadataBreakVectorSettings>(TestData.Settings);
-		Settings->OutputTarget.Selection = EPCGAttributePropertySelection::Attribute;
-		Settings->OutputTarget.AttributeName = OutputAttributeName;
+		Settings->OutputTarget.SetAttributeName(OutputAttributeName);
 		FPCGElementPtr MetadataBreakVectorElement = TestData.Settings->GetElement();
 
 		TUniquePtr<FPCGContext> Context = TestData.InitializeTestContext();

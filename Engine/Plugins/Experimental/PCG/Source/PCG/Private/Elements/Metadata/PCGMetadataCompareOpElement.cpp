@@ -99,7 +99,7 @@ bool UPCGMetadataCompareSettings::IsSupportedInputType(uint16 TypeId, uint32 Inp
 	}
 }
 
-FPCGAttributePropertySelector UPCGMetadataCompareSettings::GetInputSource(uint32 Index) const
+FPCGAttributePropertyInputSelector UPCGMetadataCompareSettings::GetInputSource(uint32 Index) const
 {
 	switch (Index)
 	{
@@ -108,7 +108,7 @@ FPCGAttributePropertySelector UPCGMetadataCompareSettings::GetInputSource(uint32
 	case 1:
 		return InputSource2;
 	default:
-		return FPCGAttributePropertySelector();
+		return FPCGAttributePropertyInputSelector();
 	}
 }
 

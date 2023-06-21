@@ -304,7 +304,7 @@ bool UPCGMetadataVectorSettings::IsSupportedInputType(uint16 TypeId, uint32 Inpu
 	}
 }
 
-FPCGAttributePropertySelector UPCGMetadataVectorSettings::GetInputSource(uint32 Index) const
+FPCGAttributePropertyInputSelector UPCGMetadataVectorSettings::GetInputSource(uint32 Index) const
 {
 	switch (Index)
 	{
@@ -315,7 +315,7 @@ FPCGAttributePropertySelector UPCGMetadataVectorSettings::GetInputSource(uint32 
 	case 2:
 		return InputSource3;
 	default:
-		return FPCGAttributePropertySelector();
+		return FPCGAttributePropertyInputSelector();
 	}
 }
 

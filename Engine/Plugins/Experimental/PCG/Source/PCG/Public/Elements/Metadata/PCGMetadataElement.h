@@ -35,6 +35,7 @@ public:
 	virtual FText GetNodeTooltipText() const;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 	virtual bool IsPinUsedByNodeExecution(const UPCGPin* InPin) const override;
+	virtual void ApplyDeprecation(UPCGNode* InOutNode) override;
 #endif
 
 protected:
@@ -45,10 +46,10 @@ protected:
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector InputSource;
+	FPCGAttributePropertyInputSelector InputSource;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector OutputTarget;
+	FPCGAttributePropertyOutputSelector OutputTarget;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

@@ -48,7 +48,7 @@ bool FPCGSpatialNoise_Perlin2D::RunTest(const FString& Parameters)
 	UPCGSpatialNoiseSettings* Settings = CastChecked<UPCGSpatialNoiseSettings>(TestData.Settings);
 
 	Settings->Mode = PCGSpatialNoiseMode::Perlin2D;
-	Settings->ValueTarget.AttributeName = TEXT("Noise");
+	Settings->ValueTarget.SetAttributeName(TEXT("Noise"));
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
@@ -71,7 +71,7 @@ bool FPCGSpatialNoise_Perlin2D::RunTest(const FString& Parameters)
 	UTEST_NOT_NULL("Output data", OutputData);
 	UTEST_EQUAL("Output point data count", OutputData->GetPoints().Num(), 100);
 
-	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.GetAttributeName());
 	UTEST_NOT_NULL("Noise Attribute Created", NoiseAttribute);
 
 	return true;
@@ -86,7 +86,7 @@ bool FPCGSpatialNoise_Caustic2D::RunTest(const FString& Parameters)
 	UPCGSpatialNoiseSettings* Settings = CastChecked<UPCGSpatialNoiseSettings>(TestData.Settings);
 
 	Settings->Mode = PCGSpatialNoiseMode::Caustic2D;
-	Settings->ValueTarget.AttributeName = TEXT("Noise");
+	Settings->ValueTarget.SetAttributeName(TEXT("Noise"));
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
@@ -109,7 +109,7 @@ bool FPCGSpatialNoise_Caustic2D::RunTest(const FString& Parameters)
 	UTEST_NOT_NULL("Output data", OutputData);
 	UTEST_EQUAL("Output point data count", OutputData->GetPoints().Num(), 100);
 
-	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.GetAttributeName());
 	UTEST_NOT_NULL("Noise Attribute Created", NoiseAttribute);
 
 	return true;
@@ -124,8 +124,8 @@ bool FPCGSpatialNoise_Voronoi2D::RunTest(const FString& Parameters)
 	UPCGSpatialNoiseSettings* Settings = CastChecked<UPCGSpatialNoiseSettings>(TestData.Settings);
 
 	Settings->Mode = PCGSpatialNoiseMode::Voronoi2D;
-	Settings->ValueTarget.AttributeName = TEXT("Distance");
-	Settings->VoronoiCellIDTarget.AttributeName = TEXT("CellID");
+	Settings->ValueTarget.SetAttributeName(TEXT("Distance"));
+	Settings->VoronoiCellIDTarget.SetAttributeName(TEXT("CellID"));
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
@@ -148,10 +148,10 @@ bool FPCGSpatialNoise_Voronoi2D::RunTest(const FString& Parameters)
 	UTEST_NOT_NULL("Output data", OutputData);
 	UTEST_EQUAL("Output point data count", OutputData->GetPoints().Num(), 100);
 
-	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.GetAttributeName());
 	UTEST_NOT_NULL("Distance Attribute Created", NoiseAttribute);
 
-	const FPCGMetadataAttribute<double>* CellIDAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->VoronoiCellIDTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* CellIDAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->VoronoiCellIDTarget.GetAttributeName());
 	UTEST_NOT_NULL("Cell ID Attribute Created", CellIDAttribute);
 
 
@@ -167,7 +167,7 @@ bool FPCGSpatialNoise_FractionalBrownian2D::RunTest(const FString& Parameters)
 	UPCGSpatialNoiseSettings* Settings = CastChecked<UPCGSpatialNoiseSettings>(TestData.Settings);
 
 	Settings->Mode = PCGSpatialNoiseMode::FractionalBrownian2D;
-	Settings->ValueTarget.AttributeName = TEXT("Noise");
+	Settings->ValueTarget.SetAttributeName(TEXT("Noise"));
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
@@ -190,7 +190,7 @@ bool FPCGSpatialNoise_FractionalBrownian2D::RunTest(const FString& Parameters)
 	UTEST_NOT_NULL("Output data", OutputData);
 	UTEST_EQUAL("Output point data count", OutputData->GetPoints().Num(), 100);
 
-	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.GetAttributeName());
 	UTEST_NOT_NULL("Noise Attribute Created", NoiseAttribute);
 
 	return true;
@@ -205,7 +205,7 @@ bool FPCGSpatialNoise_EdgeMask2D::RunTest(const FString& Parameters)
 	UPCGSpatialNoiseSettings* Settings = CastChecked<UPCGSpatialNoiseSettings>(TestData.Settings);
 
 	Settings->Mode = PCGSpatialNoiseMode::EdgeMask2D;
-	Settings->ValueTarget.AttributeName = TEXT("Noise");
+	Settings->ValueTarget.SetAttributeName(TEXT("Noise"));
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
@@ -228,7 +228,7 @@ bool FPCGSpatialNoise_EdgeMask2D::RunTest(const FString& Parameters)
 	UTEST_NOT_NULL("Output data", OutputData);
 	UTEST_EQUAL("Output point data count", OutputData->GetPoints().Num(), 100);
 
-	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.GetAttributeName());
 	UTEST_NOT_NULL("Noise Attribute Created", NoiseAttribute);
 
 	return true;
@@ -243,7 +243,7 @@ bool FPCGSpatialNoise_TilingPerlin2D::RunTest(const FString& Parameters)
 
 	Settings->Mode = PCGSpatialNoiseMode::Perlin2D;
 	Settings->bTiling = true;
-	Settings->ValueTarget.AttributeName = TEXT("Noise");
+	Settings->ValueTarget.SetAttributeName(TEXT("Noise"));
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
@@ -266,7 +266,7 @@ bool FPCGSpatialNoise_TilingPerlin2D::RunTest(const FString& Parameters)
 	UTEST_NOT_NULL("Output data", OutputData);
 	UTEST_EQUAL("Output point data count", OutputData->GetPoints().Num(), 100);
 
-	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.GetAttributeName());
 	UTEST_NOT_NULL("Noise Attribute Created", NoiseAttribute);
 
 	return true;
@@ -281,8 +281,8 @@ bool FPCGSpatialNoise_TilingVoronoi2D::RunTest(const FString& Parameters)
 
 	Settings->Mode = PCGSpatialNoiseMode::Voronoi2D;
 	Settings->bTiling = true;
-	Settings->ValueTarget.AttributeName = TEXT("Distance");
-	Settings->VoronoiCellIDTarget.AttributeName = TEXT("CellID");
+	Settings->ValueTarget.SetAttributeName(TEXT("Distance"));
+	Settings->VoronoiCellIDTarget.SetAttributeName(TEXT("CellID"));
 
 	FPCGElementPtr TestElement = TestData.Settings->GetElement();
 
@@ -305,10 +305,10 @@ bool FPCGSpatialNoise_TilingVoronoi2D::RunTest(const FString& Parameters)
 	UTEST_NOT_NULL("Output data", OutputData);
 	UTEST_EQUAL("Output point data count", OutputData->GetPoints().Num(), 100);
 
-	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* NoiseAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->ValueTarget.GetAttributeName());
 	UTEST_NOT_NULL("Distance Attribute Created", NoiseAttribute);
 
-	const FPCGMetadataAttribute<double>* CellIDAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->VoronoiCellIDTarget.AttributeName);
+	const FPCGMetadataAttribute<double>* CellIDAttribute = OutputData->Metadata->GetConstTypedAttribute<double>(Settings->VoronoiCellIDTarget.GetAttributeName());
 	UTEST_NOT_NULL("Cell ID Attribute Created", CellIDAttribute);
 
 	return true;

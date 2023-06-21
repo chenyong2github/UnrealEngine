@@ -18,7 +18,7 @@
 
 namespace PCGAttributeAccessorHelpers
 {
-	void ExtractMetadataAtribute(UPCGData* InData, FName Name, UPCGMetadata*& OutMetadata, FPCGMetadataAttributeBase*& OutAttribute, bool bForceGetNone = false)
+	void ExtractMetadataAtribute(UPCGData* InData, FName Name, UPCGMetadata*& OutMetadata, FPCGMetadataAttributeBase*& OutAttribute)
 	{
 		OutMetadata = nullptr;
 		OutAttribute = nullptr;
@@ -34,12 +34,6 @@ namespace PCGAttributeAccessorHelpers
 
 		if (OutMetadata)
 		{
-			// If Name is None, try to get the latest attribute
-			if (!bForceGetNone && Name == NAME_None)
-			{
-				Name = OutMetadata->GetLatestAttributeNameOrNone();
-			}
-
 			OutAttribute = OutMetadata->GetMutableAttribute(Name);
 		}
 	}
@@ -65,7 +59,7 @@ namespace PCGAttributeAccessorHelpers
 		const FName Name = InSelector.GetName();
 		TUniquePtr<IPCGAttributeAccessor> Accessor;
 
-		if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty)
+		if (InSelector.GetSelection() == EPCGAttributePropertySelection::PointProperty)
 		{
 			if (!InData || InData->template IsA<UPCGPointData>())
 			{
@@ -79,9 +73,9 @@ namespace PCGAttributeAccessorHelpers
 				}
 			}
 		}
-		else if (InSelector.Selection == EPCGAttributePropertySelection::ExtraProperty)
+		else if (InSelector.GetSelection() == EPCGAttributePropertySelection::ExtraProperty)
 		{
-			Accessor = CreateExtraAccessor(InSelector.ExtraProperty);
+			Accessor = CreateExtraAccessor(InSelector.GetExtraProperty());
 
 			if (!Accessor.IsValid())
 			{
@@ -92,13 +86,13 @@ namespace PCGAttributeAccessorHelpers
 
 		// At this point, it is not a point data or we didn't find a property.
 		// We can't continue if it is a property wanted.
-		if (InSelector.Selection == EPCGAttributePropertySelection::PointProperty && !Accessor.IsValid())
+		if (InSelector.GetSelection() == EPCGAttributePropertySelection::PointProperty && !Accessor.IsValid())
 		{
 			UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Expected to select a property but the data doesn't support this property."));
 			return TUniquePtr<IPCGAttributeAccessor>();
 		}
 
-		if (InSelector.Selection == EPCGAttributePropertySelection::Attribute)
+		if (InSelector.GetSelection() == EPCGAttributePropertySelection::Attribute)
 		{
 			UPCGMetadata* Metadata = nullptr;
 			FPCGMetadataAttributeBase* Attribute = nullptr;
@@ -135,7 +129,7 @@ namespace PCGAttributeAccessorHelpers
 		}
 
 		// At this point, check if we have chain accessors
-		for (const FString& ExtraName : InSelector.ExtraNames)
+		for (const FString& ExtraName : InSelector.GetExtraNames())
 		{
 			bool bSuccess = false;
 			Accessor = CreateChainAccessor(std::move(Accessor), FName(ExtraName), bSuccess);
@@ -154,6 +148,9 @@ namespace PCGAttributeAccessorHelpers
 				UE_LOG(LogPCG, Error, TEXT("[PCGAttributeAccessorHelpers::CreateAccessor] Attribute can not be written into, since it is read-only."));
 				return TUniquePtr<AccessorType>();
 			}
+
+			// Set the cached selector
+			InData->SetLastSelector(InSelector);
 		}
 
 		return Accessor;
@@ -437,7 +434,7 @@ TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConst
 			*OutAttributeName = AttributeName;
 		}
 
-		FPCGAttributePropertySelector InputSelector{};
+		FPCGAttributePropertyInputSelector InputSelector{};
 		InputSelector.SetAttributeName(AttributeName);
 		return PCGAttributeAccessorHelpers::CreateConstAccessor(ParamData, InputSelector);
 	}

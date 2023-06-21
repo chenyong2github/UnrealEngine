@@ -40,13 +40,15 @@ namespace PCGAttributeAccessorHelpers
 	* Creates a const accessor to the property or attribute pointed at by the InSelector.
 	* Note that InData must not be null if the selector points to an attribute,
 	* but in the case of properties, it either has to be the appropriate type or null.
+	* Make sure to update your selector before-hand if you want to support "@Last"
 	*/
 	PCG_API TUniquePtr<const IPCGAttributeAccessor> CreateConstAccessor(const UPCGData* InData, const FPCGAttributePropertySelector& InSelector);
 	
-	/** 
-	* Creates a non-const accessor to the property or attribute pointed at by the InSelector.
+	/**
+	* Creates a accessor to the property or attribute pointed at by the InSelector.
 	* Note that InData must not be null if the selector points to an attribute,
 	* but in the case of properties, it either has to be the appropriate type or null.
+	* Make sure to update your selector before-hand if you want to support "@Source". Otherwise the creation will fail.
 	*/
 	PCG_API TUniquePtr<IPCGAttributeAccessor> CreateAccessor(UPCGData* InData, const FPCGAttributePropertySelector& InSelector);
 

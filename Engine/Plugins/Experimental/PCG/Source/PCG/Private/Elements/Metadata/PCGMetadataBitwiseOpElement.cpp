@@ -73,7 +73,7 @@ bool UPCGMetadataBitwiseSettings::IsSupportedInputType(uint16 TypeId, uint32 Inp
 	return PCG::Private::IsOfTypes<int32, int64>(TypeId);
 }
 
-FPCGAttributePropertySelector UPCGMetadataBitwiseSettings::GetInputSource(uint32 Index) const
+FPCGAttributePropertyInputSelector UPCGMetadataBitwiseSettings::GetInputSource(uint32 Index) const
 {
 	switch (Index)
 	{
@@ -82,7 +82,7 @@ FPCGAttributePropertySelector UPCGMetadataBitwiseSettings::GetInputSource(uint32
 	case 1:
 		return InputSource2;
 	default:
-		return FPCGAttributePropertySelector();
+		return FPCGAttributePropertyInputSelector();
 	}
 }
 

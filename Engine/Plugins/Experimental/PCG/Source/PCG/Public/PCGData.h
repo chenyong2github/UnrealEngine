@@ -4,6 +4,7 @@
 
 #include "PCGCommon.h"
 #include "PCGCrc.h"
+#include "Metadata/PCGAttributePropertySelector.h"
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Templates/SubclassOf.h"
@@ -11,6 +12,7 @@
 #include "PCGData.generated.h"
 
 class FArchiveCrc32;
+class UPCGMetadata;
 class UPCGNode;
 class UPCGParamData;
 class UPCGSettings;
@@ -43,6 +45,10 @@ public:
 
 	/** CRC for this object instance. */
 	mutable FPCGCrc Crc;
+
+	virtual bool HasCachedLastSelector() const { return false; }
+	virtual FPCGAttributePropertyInputSelector GetCachedLastSelector() const { return FPCGAttributePropertyInputSelector{}; }
+	virtual void SetLastSelector(const FPCGAttributePropertySelector& InSelector) {};
 
 protected:
 	/** Computes Crc for this and any connected data. */

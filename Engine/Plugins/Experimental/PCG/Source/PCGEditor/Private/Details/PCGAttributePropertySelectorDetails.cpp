@@ -3,6 +3,7 @@
 #include "Details/PCGAttributePropertySelectorDetails.h"
 
 #include "Metadata/PCGAttributePropertySelector.h"
+#include "Metadata/PCGMetadataAttribute.h"
 
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
@@ -119,14 +120,30 @@ TSharedRef<SWidget> FPCGAttributePropertySelectorDetails::GenerateExtraMenu()
 
 	MenuBuilder.BeginSection("Attributes", LOCTEXT("AttributesHeader", "Attributes"));
 	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("LastAttributeHeader", "Last Attribute(None)"),
-			FText(),
-			FSlateIcon(),
-			FExecuteAction::CreateSP(this, &FPCGAttributePropertySelectorDetails::SetAttributeName, FName()),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
+		FStructProperty* StructProperty = CastFieldChecked<FStructProperty>(PropertyHandle->GetProperty());
+		if (StructProperty->Struct == FPCGAttributePropertyInputSelector::StaticStruct())
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("LastAttributeHeader", "Last Attribute"),
+				LOCTEXT("LastAttributeTooltip", "Refer to the last modified attribute. You can check it in the input inspection data."),
+				FSlateIcon(),
+				FExecuteAction::CreateSP(this, &FPCGAttributePropertySelectorDetails::SetAttributeName, PCGMetadataAttributeConstants::LastAttributeName),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+
+		if (StructProperty->Struct == FPCGAttributePropertyOutputSelector::StaticStruct())
+		{
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("SourceAttributeHeader", "Source Attribute"),
+				LOCTEXT("SourceAttributeTooltip", "Refer to the same attribute that will be used as input."),
+				FSlateIcon(),
+				FExecuteAction::CreateSP(this, &FPCGAttributePropertySelectorDetails::SetAttributeName, PCGMetadataAttributeConstants::SourceAttributeName),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
 	}
 	MenuBuilder.EndSection();
 

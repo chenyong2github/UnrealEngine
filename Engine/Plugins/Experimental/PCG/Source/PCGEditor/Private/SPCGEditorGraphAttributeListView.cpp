@@ -36,23 +36,24 @@ static TAutoConsoleVariable<bool> CVarShowAdvancedAttributesFields(
 
 namespace PCGEditorGraphAttributeListView
 {
-	const FString LastMetadataId = TEXT("@Last");
+	const FString NoneAttributeId = TEXT("@None");
 	const FText NoPinAvailableText = LOCTEXT("NoPinAvailableText", "No pins");
+	const FText LastLabelFormat = LOCTEXT("LastLabelFormat", "Last attribute: {0} / {1}");
 	const FText NoDataAvailableText = LOCTEXT("NoDataAvailableText", "No data available");
 	const FText NoNodeInspectedText = LOCTEXT("NoNodeInspectedText", "No node being inspected");
 	const FText NoNodeInspectedToolTip = LOCTEXT("NoNodeInspectedToolTip", "Inspect a node using the right click menu");
 	
 	/** Names of the columns in the attribute list */
 	const FName NAME_IndexColumn = FName(TEXT("IndexColumn"));
-	const FName NAME_PointPositionX = FName(TEXT("$Transform.Location.X"));
-	const FName NAME_PointPositionY = FName(TEXT("$Transform.Location.Y"));
-	const FName NAME_PointPositionZ = FName(TEXT("$Transform.Location.Z"));
-	const FName NAME_PointRotationX = FName(TEXT("$Transform.Rotation.X"));
-	const FName NAME_PointRotationY = FName(TEXT("$Transform.Rotation.Y"));
-	const FName NAME_PointRotationZ = FName(TEXT("$Transform.Rotation.Z"));
-	const FName NAME_PointScaleX = FName(TEXT("$Transform.Scale.X"));
-	const FName NAME_PointScaleY = FName(TEXT("$Transform.Scale.Y"));
-	const FName NAME_PointScaleZ = FName(TEXT("$Transform.Scale.Z"));
+	const FName NAME_PointPositionX = FName(TEXT("$Position.X"));
+	const FName NAME_PointPositionY = FName(TEXT("$Position.Y"));
+	const FName NAME_PointPositionZ = FName(TEXT("$Position.Z"));
+	const FName NAME_PointRotationX = FName(TEXT("$Rotation.X"));
+	const FName NAME_PointRotationY = FName(TEXT("$Rotation.Y"));
+	const FName NAME_PointRotationZ = FName(TEXT("$Rotation.Z"));
+	const FName NAME_PointScaleX = FName(TEXT("$Scale.X"));
+	const FName NAME_PointScaleY = FName(TEXT("$Scale.Y"));
+	const FName NAME_PointScaleZ = FName(TEXT("$Scale.Z"));
 	const FName NAME_PointBoundsMinX = FName(TEXT("$BoundsMin.X"));
 	const FName NAME_PointBoundsMinY = FName(TEXT("$BoundsMin.Y"));
 	const FName NAME_PointBoundsMinZ = FName(TEXT("$BoundsMin.Z"));
@@ -635,6 +636,12 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 		}
 	}
 
+	if (PCGData && PCGData->HasCachedLastSelector())
+	{
+		const FText LastSelector = PCGData->GetCachedLastSelector().GetDisplayText();
+		InfoTextBlock->SetText(FText::Format(PCGEditorGraphAttributeListView::LastLabelFormat, LastSelector, InfoTextBlock->GetText()));
+	}
+
 	RefreshSorting();
 }
 
@@ -1154,14 +1161,11 @@ void SPCGEditorGraphAttributeListView::OnFilterTextCommitted(const FText& NewTex
 
 void SPCGEditorGraphAttributeListView::AddColumn(const UPCGPointData* InPCGPointData, const FName& InColumnId, const FText& ColumnLabel, EHorizontalAlignment HeaderHAlign, EHorizontalAlignment CellHAlign)
 {
-	const float ColumnWidth = PCGEditorGraphAttributeListView::CalculateColumnWidth(ColumnLabel);
-
 	if (InPCGPointData)
 	{
 		const FString ColumnIdString = InColumnId.ToString();
 		
-		FPCGAttributePropertySelector TargetSelector;
-		TargetSelector.bForceGetNone = true;
+		FPCGAttributePropertyInputSelector TargetSelector;
 		TargetSelector.Update(ColumnIdString);
 	
 		FPCGColumnData& ColumnData = PCGColumnData.Add(InColumnId);
@@ -1190,6 +1194,8 @@ void SPCGEditorGraphAttributeListView::AddColumn(const UPCGPointData* InPCGPoint
 			ColumnData.DataKeys = PCGAttributeAccessorHelpers::CreateConstKeys(InPCGPointData, TargetSelector);
 		}
 	}
+
+	const float ColumnWidth = PCGEditorGraphAttributeListView::CalculateColumnWidth(ColumnLabel);
 	
 	SHeaderRow::FColumn::FArguments Arguments;
 	Arguments.ColumnId(InColumnId);
@@ -1256,16 +1262,15 @@ void SPCGEditorGraphAttributeListView::AddMetadataColumn(const UPCGData* InPCGDa
 	FString ColumnIdString(OriginalColumnIdString);
 	if (InColumnId == NAME_None)
 	{
-		ColumnIdString.ReplaceInline(LexToString(NAME_None), *PCGEditorGraphAttributeListView::LastMetadataId);
-		ColumnLabel = FText::Format(LOCTEXT("LastMetadataLabelFormat", "{0}{1}"), UEnum::GetDisplayValueAsText(InMetadataType), FText::FromString(PostFix));
+		ColumnIdString = PCGEditorGraphAttributeListView::NoneAttributeId;
+		ColumnLabel = FText::Format(LOCTEXT("NoneLabelFormat", "{0}{1}"), UEnum::GetDisplayValueAsText(InMetadataType), FText::FromString(PostFix));
 	}
 	
 	const FName ColumnId(ColumnIdString);
 
 	if (InPCGData)
 	{
-		FPCGAttributePropertySelector TargetSelector;
-		TargetSelector.bForceGetNone = true;
+		FPCGAttributePropertyInputSelector TargetSelector;
 		TargetSelector.Update(OriginalColumnIdString);
 	
 		FPCGColumnData& ColumnData = PCGColumnData.Add(ColumnId);

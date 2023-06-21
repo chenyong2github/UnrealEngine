@@ -38,7 +38,7 @@ void UPCGParamData::AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const
 	// Add all attribute values
 	for (FName AttributeName : AttributeNames)
 	{
-		FPCGAttributePropertySelector InputSource;
+		FPCGAttributePropertyInputSelector InputSource;
 		InputSource.SetAttributeName(AttributeName);
 
 		TUniquePtr<const IPCGAttributeAccessor> InputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(this, InputSource);
@@ -120,4 +120,43 @@ UPCGParamData* UPCGParamData::FilterParamsByKey(int64 InKey) const
 	}
 
 	return NewParams;
+}
+
+bool UPCGParamData::HasCachedLastSelector() const
+{
+	return bHasCachedLastSelector || (Metadata && Metadata->GetAttributeCount() > 0);
+}
+
+FPCGAttributePropertyInputSelector UPCGParamData::GetCachedLastSelector() const
+{
+	if (bHasCachedLastSelector)
+	{
+		return CachedLastSelector;
+	}
+
+	FPCGAttributePropertyInputSelector TempSelector{};
+
+	// If we have attribute and no last selector, create a cached last selector on the latest attribute, to catch "CreateAttribute" calls that didn't use accessors.
+	if (Metadata && Metadata->GetAttributeCount() > 0)
+	{
+		TempSelector.SetAttributeName(Metadata->GetLatestAttributeNameOrNone());
+	}
+
+	return TempSelector;
+}
+
+void UPCGParamData::SetLastSelector(const FPCGAttributePropertySelector& InSelector)
+{
+	// Check that it is not a not Attribute selector or Last/Source selector
+	if (InSelector.GetSelection() != EPCGAttributePropertySelection::Attribute 
+		|| InSelector.GetAttributeName() == PCGMetadataAttributeConstants::LastAttributeName
+		|| InSelector.GetAttributeName() == PCGMetadataAttributeConstants::LastCreatedAttributeName
+		|| InSelector.GetAttributeName() == PCGMetadataAttributeConstants::SourceAttributeName
+		|| InSelector.GetAttributeName() == PCGMetadataAttributeConstants::SourceNameAttributeName)
+	{
+		return;
+	}
+
+	bHasCachedLastSelector = true;
+	CachedLastSelector.ImportFromOtherSelector(InSelector);
 }

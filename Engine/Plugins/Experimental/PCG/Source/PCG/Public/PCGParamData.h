@@ -21,6 +21,10 @@ public:
 	// ~Begin UPCGData interface
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Param; }
 	virtual void AddToCrc(FArchiveCrc32& Ar, bool bFullDataCrc) const override;
+
+	virtual bool HasCachedLastSelector() const override;
+	virtual FPCGAttributePropertyInputSelector GetCachedLastSelector() const override;
+	virtual void SetLastSelector(const FPCGAttributePropertySelector& InSelector) override;
 	// ~End UPCGData interface
 
 	UFUNCTION(BlueprintCallable, Category = Metadata)
@@ -51,4 +55,12 @@ public:
 protected:
 	UPROPERTY()
 	TMap<FName, int64> NameMap;
+
+private:
+	/** Cache to keep track of the latest attribute manipulated on this data. */
+	UPROPERTY()
+	bool bHasCachedLastSelector = false;
+
+	UPROPERTY()
+	FPCGAttributePropertyInputSelector CachedLastSelector;
 };

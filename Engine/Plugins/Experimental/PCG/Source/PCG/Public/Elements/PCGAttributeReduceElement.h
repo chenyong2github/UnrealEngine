@@ -4,6 +4,7 @@
 
 #include "PCGSettings.h"
 #include "Metadata/PCGAttributePropertySelector.h"
+#include "Metadata/PCGMetadataAttribute.h"
 
 #include "PCGAttributeReduceElement.generated.h"
 
@@ -36,6 +37,7 @@ public:
 	virtual FName GetDefaultNodeName() const override;
 	virtual FText GetDefaultNodeTitle() const override;
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
+	virtual void ApplyDeprecation(UPCGNode* InOutNode) override;
 #endif
 
 	virtual FName AdditionalTaskName() const override;
@@ -45,7 +47,7 @@ public:
 	//~End UPCGSettings interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector InputSource;
+	FPCGAttributePropertyInputSelector InputSource;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	FName OutputAttributeName = NAME_None;

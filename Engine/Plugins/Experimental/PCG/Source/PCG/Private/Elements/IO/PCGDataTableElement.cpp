@@ -83,11 +83,11 @@ bool FPCGLoadDataTableElement::PrepareLoad(FPCGExternalDataContext* Context) con
 		}
 
 		// Try to match to a property (if the name maps to a property) or create attribute as needed
-		FPCGAttributePropertySelector PointPropertySelector;
+		FPCGAttributePropertyOutputSelector PointPropertySelector;
 
 		if (const FPCGAttributePropertySelector* MappedField = Settings->AttributeMapping.Find(FieldName))
 		{
-			PointPropertySelector = *MappedField;
+			PointPropertySelector.ImportFromOtherSelector(*MappedField);
 			FieldName = PointPropertySelector.GetDisplayText().ToString();
 		}
 		else
@@ -95,7 +95,7 @@ bool FPCGLoadDataTableElement::PrepareLoad(FPCGExternalDataContext* Context) con
 			PointPropertySelector.Update(FieldName);
 		}
 
-		if (PointPropertySelector.Selection == EPCGAttributePropertySelection::Attribute)
+		if (PointPropertySelector.GetSelection() == EPCGAttributePropertySelection::Attribute)
 		{
 			// Create attribute with the appropriate type
 			PointMetadata->CreateAttributeFromProperty(FName(FieldName), RowStruct, *FieldIt);

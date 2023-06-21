@@ -296,6 +296,8 @@ protected:
 	void AddAttributeInternal(FName AttributeName, FPCGMetadataAttributeBase* Attribute);
 	void RemoveAttributeInternal(FName AttributeName);
 
+	void SetLastCachedSelectorOnOwner(FName AttributeName);
+
 	UPROPERTY()
 	TObjectPtr<const UPCGMetadata> Parent;
 
@@ -340,27 +342,32 @@ FPCGMetadataAttribute<T>* UPCGMetadata::CreateAttribute(FName AttributeName, con
 
 	FPCGMetadataAttribute<T>* NewAttribute = new FPCGMetadataAttribute<T>(this, AttributeName, ParentAttribute, DefaultValue, bAllowsInterpolation);
 
-	AttributeLock.WriteLock();
-	if (FPCGMetadataAttributeBase** ExistingAttribute = Attributes.Find(AttributeName))
 	{
-		delete NewAttribute;
-		if ((*ExistingAttribute)->GetTypeId() != PCG::Private::MetadataTypes<T>::Id)
+		FWriteScopeLock WriteLock(AttributeLock);
+
+		if (FPCGMetadataAttributeBase** ExistingAttribute = Attributes.Find(AttributeName))
 		{
-			UE_LOG(LogPCG, Error, TEXT("Attribute %s already exists but is not the right type. Abort."), *AttributeName.ToString());
-			return nullptr;
+			delete NewAttribute;
+			if ((*ExistingAttribute)->GetTypeId() != PCG::Private::MetadataTypes<T>::Id)
+			{
+				UE_LOG(LogPCG, Error, TEXT("Attribute %s already exists but is not the right type. Abort."), *AttributeName.ToString());
+				return nullptr;
+			}
+			else
+			{
+				UE_LOG(LogPCG, Warning, TEXT("Attribute %s already exists"), *AttributeName.ToString());
+				NewAttribute = static_cast<FPCGMetadataAttribute<T>*>(*ExistingAttribute);
+			}
 		}
 		else
 		{
-			UE_LOG(LogPCG, Warning, TEXT("Attribute %s already exists"), *AttributeName.ToString());
-			NewAttribute = static_cast<FPCGMetadataAttribute<T>*>(*ExistingAttribute);
+			NewAttribute->AttributeId = NextAttributeId++;
+			AddAttributeInternal(AttributeName, NewAttribute);
+
+			// Also when creating an attribute, notify the PCG Data owner that the latest attribute manipulated is this one.
+			SetLastCachedSelectorOnOwner(AttributeName);
 		}
 	}
-	else
-	{
-		NewAttribute->AttributeId = NextAttributeId++;
-		AddAttributeInternal(AttributeName, NewAttribute);
-	}
-	AttributeLock.WriteUnlock();
 
 	return NewAttribute;
 }

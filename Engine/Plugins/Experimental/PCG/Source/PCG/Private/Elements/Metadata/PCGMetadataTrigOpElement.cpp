@@ -85,7 +85,7 @@ bool UPCGMetadataTrigSettings::IsSupportedInputType(uint16 TypeId, uint32 InputI
 	return PCG::Private::IsOfTypes<int32, int64, float, double>(TypeId);
 }
 
-FPCGAttributePropertySelector UPCGMetadataTrigSettings::GetInputSource(uint32 Index) const
+FPCGAttributePropertyInputSelector UPCGMetadataTrigSettings::GetInputSource(uint32 Index) const
 {
 	switch (Index)
 	{
@@ -94,7 +94,7 @@ FPCGAttributePropertySelector UPCGMetadataTrigSettings::GetInputSource(uint32 In
 	case 1:
 		return InputSource2;
 	default:
-		return FPCGAttributePropertySelector();
+		return FPCGAttributePropertyInputSelector();
 	}
 }
 

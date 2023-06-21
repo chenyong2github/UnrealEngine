@@ -87,7 +87,7 @@ void UPCGMetadataBreakVectorSettings::PostLoad()
 #endif // WITH_EDITOR
 }
 
-FPCGAttributePropertySelector UPCGMetadataBreakVectorSettings::GetInputSource(uint32 Index) const
+FPCGAttributePropertyInputSelector UPCGMetadataBreakVectorSettings::GetInputSource(uint32 Index) const
 {
 	return InputSource;
 }

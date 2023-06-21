@@ -31,13 +31,9 @@ bool UPCGMatchAndSetBase::CreateAttributeIfNeeded(FPCGContext& Context, const FP
 	check(OutPointData && OutPointData->Metadata);
 
 	check(OutPointData->Metadata);
-	if (Selector.Selection == EPCGAttributePropertySelection::Attribute)
+	if (Selector.GetSelection() == EPCGAttributePropertySelection::Attribute)
 	{
 		FName DestinationAttribute = Selector.GetName();
-		if (DestinationAttribute == NAME_None)
-		{
-			DestinationAttribute = OutPointData->Metadata->GetLatestAttributeNameOrNone();
-		}
 
 		if (!OutPointData->Metadata->HasAttribute(DestinationAttribute) ||
 			OutPointData->Metadata->GetConstAttribute(DestinationAttribute)->GetTypeId() != static_cast<uint16>(InSettings->SetTargetType))

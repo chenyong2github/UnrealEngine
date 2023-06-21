@@ -115,6 +115,41 @@ bool UPCGSettings::operator==(const UPCGSettings& Other) const
 #if WITH_EDITOR
 void UPCGSettings::ApplyDeprecation(UPCGNode* InOutNode)
 {
+	// For versions older than the update of input selector, look for any Input Selector in the properties, and if we find one that is default,
+	// we force to @LastCreated to keep the old behavior.
+	if (DataVersion < FPCGCustomVersion::UpdateAttributePropertyInputSelector)
+	{
+		auto Recurse = [this](UStruct* InStructClass, void* InContainer)
+		{
+			auto RecurseImpl = [this](UStruct* InStructClass, void* InContainer, auto Callback) -> void
+			{
+				for (TFieldIterator<FStructProperty> It(InStructClass, EFieldIterationFlags::IncludeSuper); It; ++It)
+				{
+					const FStructProperty* Property = CastField<FStructProperty>(*It);
+					if (!Property)
+					{
+						continue;
+					}
+
+					// If it is an Input Selector, apply deprecation
+					if (Property->Struct == FPCGAttributePropertyInputSelector::StaticStruct())
+					{
+						Property->ContainerPtrToValuePtr<FPCGAttributePropertyInputSelector>(InContainer)->ApplyDeprecation(DataVersion);
+					}
+					else
+					{
+						// Otherwise, go deeper.
+						Callback(Property->Struct.Get(), Property->ContainerPtrToValuePtr<void>(InContainer), Callback);
+					}
+				}
+			};
+
+			RecurseImpl(InStructClass, InContainer, RecurseImpl);
+		};
+
+		Recurse(GetClass(), this);
+	}
+
 	DataVersion = FPCGCustomVersion::LatestVersion;
 }
 

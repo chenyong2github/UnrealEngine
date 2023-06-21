@@ -3,12 +3,13 @@
 #include "Elements/Metadata/PCGMetadataOpElementBase.h"
 
 #include "PCGContext.h"
+#include "PCGCustomVersion.h"
 #include "PCGParamData.h"
+#include "PCGPin.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Elements/Metadata/PCGMetadataElementCommon.h"
 #include "Metadata/Accessors/PCGAttributeAccessorHelpers.h"
-#include "PCGPin.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadataOpElementBase)
 
@@ -21,8 +22,7 @@ void UPCGMetadataSettingsBase::PostLoad()
 #if WITH_EDITOR
 	if (OutputAttributeName_DEPRECATED != NAME_None)
 	{
-		OutputTarget.Selection = EPCGAttributePropertySelection::Attribute;
-		OutputTarget.AttributeName = OutputAttributeName_DEPRECATED;
+		OutputTarget.SetAttributeName(OutputAttributeName_DEPRECATED);
 		OutputAttributeName_DEPRECATED = NAME_None;
 	}
 #endif // WITH_EDITOR
@@ -163,6 +163,29 @@ FText UPCGMetadataSettingsBase::GetNodeTooltipText() const
 	return LOCTEXT("NodeTooltip", "Metadata operation between Points/Spatial/AttributeSet data.\n"
 		"Output data will be taken from the first spatial data by default, or first pin if all are attribute sets.\n"
 		"It can be overridden in the settings.");
+}
+
+void UPCGMetadataSettingsBase::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	if (DataVersion < FPCGCustomVersion::UpdateAttributePropertyInputSelector
+		&& OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute
+		&& OutputTarget.GetAttributeName() == PCGMetadataAttributeConstants::SourceAttributeName)
+	{
+		// Previous behavior of the output target for this node was:
+		// - If the input to forward is an attribute -> SourceName
+		// - If the input to forward was not an attribute -> None
+		const FPCGAttributePropertyInputSelector& InputSource = GetInputSource(GetInputPinToForward());
+		if (InputSource.GetSelection() == EPCGAttributePropertySelection::Attribute)
+		{
+			OutputTarget.SetAttributeName(PCGMetadataAttributeConstants::SourceNameAttributeName);
+		}
+		else
+		{
+			OutputTarget.SetAttributeName(NAME_None);
+		}
+	}
+
+	Super::ApplyDeprecation(InOutNode);
 }
 #endif // WITH_EDITOR
 
@@ -310,6 +333,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	FOperationData OperationData;
 	OperationData.InputAccessors.SetNum(NumberOfInputs);
 	OperationData.InputKeys.SetNum(NumberOfInputs);
+	OperationData.InputSources.SetNum(NumberOfInputs);
 	TArray<int32> NumberOfElements;
 	NumberOfElements.SetNum(NumberOfInputs);
 
@@ -318,11 +342,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 	bool bNoOperationNeeded = false;
 
-	// Use this name to forward it to the output if needed.
-	// Only set it if the first input is an attribute.
-	FName InputName = NAME_None;
-
-	auto CreateInputAccessorAndValidate = [this, Settings, InputPinToForward, &InputTaggedData, Context, &SourceMetadata, &OperationData, &InputName, &NumberOfElements, &bNoOperationNeeded, &SourceAttribute](uint32 Index) -> bool
+	auto CreateInputAccessorAndValidate = [this, Settings, InputPinToForward, &InputTaggedData, Context, &SourceMetadata, &OperationData, &NumberOfElements, &bNoOperationNeeded, &SourceAttribute](uint32 Index) -> bool
 	{
 		// First we verify if the input data match the first one. If the pin to forward is not connected, behave like a param data
 		const UClass* InputPinToForwardClass = (InputTaggedData[InputPinToForward].Data ? InputTaggedData[InputPinToForward].Data->GetClass() : UPCGParamData::StaticClass());
@@ -335,17 +355,8 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			return false;
 		}
 
-		FPCGAttributePropertySelector InputSource = Settings->GetInputSource(Index);
-
-		if (InputSource.Selection == EPCGAttributePropertySelection::Attribute && InputSource.AttributeName == NAME_None && SourceMetadata[Index])
-		{
-			InputSource.AttributeName = SourceMetadata[Index]->GetLatestAttributeNameOrNone();
-		}
-
-		if (Index == InputPinToForward && InputSource.Selection == EPCGAttributePropertySelection::Attribute)
-		{
-			InputName = InputSource.AttributeName;
-		}
+		OperationData.InputSources[Index] = Settings->GetInputSource(Index).CopyAndFixLast(InputTaggedData[Index].Data);
+		const FPCGAttributePropertyInputSelector& InputSource = OperationData.InputSources[Index];
 
 		OperationData.InputAccessors[Index] = PCGAttributeAccessorHelpers::CreateConstAccessor(InputTaggedData[Index].Data, InputSource);
 		OperationData.InputKeys[Index] = PCGAttributeAccessorHelpers::CreateConstKeys(InputTaggedData[Index].Data, InputSource);
@@ -414,7 +425,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 			return false;
 		}
 
-		if (InputSource.Selection == EPCGAttributePropertySelection::Attribute)
+		if (InputSource.GetSelection() == EPCGAttributePropertySelection::Attribute)
 		{
 			SourceAttribute[Index] = SourceMetadata[Index]->GetConstAttribute(InputSource.GetName());
 		}
@@ -458,12 +469,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 	OperationData.OutputAccessors.SetNum(Settings->GetOutputPinNum());
 	OperationData.OutputKeys.SetNum(Settings->GetOutputPinNum());
 
-	FPCGAttributePropertySelector OutputTarget = Settings->OutputTarget;
-
-	if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute && OutputTarget.AttributeName == NAME_None)
-	{
-		OutputTarget.AttributeName = InputName;
-	}
+	FPCGAttributePropertyOutputSelector OutputTarget = Settings->OutputTarget.CopyAndFixSource(&OperationData.InputSources[InputPinToForward]);
 
 	// Use implicit capture, since we capture a lot
 	auto CreateAttribute = [&](uint32 OutputIndex, auto DummyOutValue) -> bool
@@ -477,7 +483,7 @@ bool FPCGMetadataElementBase::ExecuteInternal(FPCGContext* Context) const
 
 		FName OutputName = OutputTarget.GetName();
 
-		if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute && OutputTarget.ExtraNames.IsEmpty())
+		if (OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute && OutputTarget.GetExtraNames().IsEmpty())
 		{
 			// In case of an attribute, we check if we have extra selectors. If not, we can just delete the attribute
 			// and create a new one of the right type.

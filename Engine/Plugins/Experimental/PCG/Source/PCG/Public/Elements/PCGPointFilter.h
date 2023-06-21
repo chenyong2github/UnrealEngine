@@ -62,7 +62,7 @@ struct PCG_API FPCGPointFilterThresholdSettings
 	bool bUseConstantThreshold = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides, PCG_NotOverridable))
-	FPCGAttributePropertySelector ThresholdAttribute;
+	FPCGAttributePropertyInputSelector ThresholdAttribute;
 
 	/** If the threshold data is Point data, it will sample input points in threshold data. Always true with Spatial data.*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides, PCG_Overridable))
@@ -115,14 +115,14 @@ public:
 
 	/** Target property/attribute related properties */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector TargetAttribute;
+	FPCGAttributePropertyInputSelector TargetAttribute;
 
 	/** Threshold property/attribute/constant related properties */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
 	bool bUseConstantThreshold = false;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides, PCG_NotOverridable))
-	FPCGAttributePropertySelector ThresholdAttribute;
+	FPCGAttributePropertyInputSelector ThresholdAttribute;
 
 	/** If the threshold data is Point data, it will sample input points in threshold data. Always true with Spatial data.*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bUseConstantThreshold", EditConditionHides, PCG_Overridable))
@@ -210,7 +210,7 @@ protected:
 public:
 	/** Target property/attribute related properties */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector TargetAttribute;
+	FPCGAttributePropertyInputSelector TargetAttribute;
 
 	/** Threshold property/attribute/constant related properties */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
@@ -223,7 +223,7 @@ public:
 class FPCGPointFilterElementBase : public FSimplePCGElement
 {
 protected:
-	bool DoFiltering(FPCGContext* Context, EPCGPointFilterOperator InOperation, const FPCGAttributePropertySelector& TargetAttribute, const FPCGPointFilterThresholdSettings& FirstThreshold, const FPCGPointFilterThresholdSettings* SecondThreshold = nullptr) const;
+	bool DoFiltering(FPCGContext* Context, EPCGPointFilterOperator InOperation, const FPCGAttributePropertyInputSelector& TargetAttribute, const FPCGPointFilterThresholdSettings& FirstThreshold, const FPCGPointFilterThresholdSettings* SecondThreshold = nullptr) const;
 };
 
 class FPCGPointFilterElement : public FPCGPointFilterElementBase

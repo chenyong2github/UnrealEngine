@@ -44,6 +44,9 @@ struct PCG_API FPCGCustomVersion
 		// StaticMeshSpawner now defaults to modify point bounds based on StaticMesh bounds
 		StaticMeshSpawnerApplyMeshBoundsToPointsByDefault = 11,
 
+		// Update of Input Selectors. Previous versions should default on @LastCreated
+		UpdateAttributePropertyInputSelector = 12,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

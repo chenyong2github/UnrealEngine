@@ -3,6 +3,7 @@
 #include "Elements/Metadata/PCGMetadataElement.h"
 
 #include "PCGContext.h"
+#include "PCGCustomVersion.h"
 #include "PCGParamData.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
@@ -42,6 +43,20 @@ FText UPCGMetadataOperationSettings::GetNodeTooltipText() const
 bool UPCGMetadataOperationSettings::IsPinUsedByNodeExecution(const UPCGPin* InPin) const
 {
 	return !InPin || (InPin->Properties.Label != PCGMetadataOperationSettings::AttributeLabel) || InPin->IsConnected();
+}
+
+void UPCGMetadataOperationSettings::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	if (DataVersion < FPCGCustomVersion::UpdateAttributePropertyInputSelector
+		&& OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute
+		&& OutputTarget.GetAttributeName() == PCGMetadataAttributeConstants::SourceAttributeName)
+	{
+		// Previous behavior of the output target for this node was:
+		// None => LastCreated
+		OutputTarget.SetAttributeName(PCGMetadataAttributeConstants::LastCreatedAttributeName);
+	}
+
+	Super::ApplyDeprecation(InOutNode);
 }
 #endif // WITH_EDITOR
 
@@ -104,7 +119,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 	const UPCGParamData* SourceAttributeSet = (!SourceAttributeInputs.IsEmpty() ? Cast<UPCGParamData>(SourceAttributeInputs[0].Data) : nullptr);
 
-	if (SourceAttributeSet && Settings->InputSource.Selection != EPCGAttributePropertySelection::Attribute)
+	if (SourceAttributeSet && Settings->InputSource.GetSelection() != EPCGAttributePropertySelection::Attribute)
 	{
 		PCGE_LOG(Error, GraphAndLog, FText::Format(LOCTEXT("InvalidInputSource", "{0} pin is connected but Input Source is not set to get an attribute."), FText::FromName(PCGMetadataOperationSettings::AttributeLabel)));
 		return true;
@@ -132,6 +147,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
+		const UPCGData* SourceData = SourceAttributeSet ? static_cast<const UPCGData*>(SourceAttributeSet) : static_cast<const UPCGData*>(OriginalData);
 		const UPCGMetadata* SourceMetadata = SourceAttributeSet ? SourceAttributeSet->Metadata : OriginalData->Metadata;
 
 		if (!SourceMetadata)
@@ -140,19 +156,14 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		FPCGAttributePropertySelector InputSource = Settings->InputSource;
-		FPCGAttributePropertySelector OutputTarget = Settings->OutputTarget;
+		FPCGAttributePropertyInputSelector InputSource = Settings->InputSource.CopyAndFixLast(SourceData);
+		// Deprecation, old behavior was if the Target was None, we took LastCreated in the SourceData
+		FPCGAttributePropertyOutputSelector OutputTarget = Settings->OutputTarget.CopyAndFixSource(&InputSource, SourceData);
 
-		const FName SourceAttribute = InputSource.GetName();
-		const FName DestinationAttribute = OutputTarget.GetName();
-		const FName LocalSourceAttribute = ((SourceAttribute != NAME_None) ? SourceAttribute : SourceMetadata->GetLatestAttributeNameOrNone());
-		const FName LocalDestinationAttribute = ((DestinationAttribute != NAME_None) ? DestinationAttribute : SourceMetadata->GetLatestAttributeNameOrNone());
+		const FName LocalSourceAttribute = InputSource.GetName();
+		const FName LocalDestinationAttribute = OutputTarget.GetName();
 
-		// Make sure we use the right attribute name
-		InputSource.AttributeName = LocalSourceAttribute;
-		OutputTarget.AttributeName = LocalDestinationAttribute;
-
-		if (Settings->InputSource.Selection == EPCGAttributePropertySelection::Attribute && !SourceMetadata->HasAttribute(LocalSourceAttribute))
+		if (Settings->InputSource.GetSelection() == EPCGAttributePropertySelection::Attribute && !SourceMetadata->HasAttribute(LocalSourceAttribute))
 		{
 			PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("InputMissingAttribute", "Input does not have the '{0}' attribute"), FText::FromName(LocalSourceAttribute)));
 			continue;
@@ -171,9 +182,9 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 		SampledPoints = Points;
 
 		// If it is attribute to attribute, just copy the attributes, if they exist and are valid
-		if (Settings->InputSource.Selection == EPCGAttributePropertySelection::Attribute && OutputTarget.Selection == EPCGAttributePropertySelection::Attribute)
+		if (Settings->InputSource.GetSelection() == EPCGAttributePropertySelection::Attribute && OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute)
 		{
-			if (LocalSourceAttribute == DestinationAttribute)
+			if (LocalSourceAttribute == LocalDestinationAttribute)
 			{
 				// Nothing to do...
 				continue;
@@ -185,15 +196,13 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 			// We only copy entries/values if we copy from the input spatial metadata
 			// If it is from the source attribute set, we don't copy (and all points will have the same default value, value from the attribute set)
 			const bool bCopyEntriesAndValues = (SourceAttributeSet == nullptr);
-			if (!SampledData->Metadata->CopyAttribute(OriginalAttribute, DestinationAttribute, /*bKeepParent=*/ false, /*bCopyEntries=*/ bCopyEntriesAndValues, /*bCopyValues=*/ bCopyEntriesAndValues))
+			if (!SampledData->Metadata->CopyAttribute(OriginalAttribute, LocalDestinationAttribute, /*bKeepParent=*/ false, /*bCopyEntries=*/ bCopyEntriesAndValues, /*bCopyValues=*/ bCopyEntriesAndValues))
 			{
-				PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("FailedCopyToNewAttribute", "Failed to copy to new attribute '{0}'"), FText::FromName(DestinationAttribute)));
+				PCGE_LOG(Warning, GraphAndLog, FText::Format(LOCTEXT("FailedCopyToNewAttribute", "Failed to copy to new attribute '{0}'"), FText::FromName(LocalDestinationAttribute)));
 			}
 
 			continue;
 		}
-
-		const UPCGData* SourceData = (SourceAttributeSet ? static_cast<const UPCGData*>(SourceAttributeSet) : static_cast<const UPCGData*>(OriginalData));
 
 		TUniquePtr<const IPCGAttributeAccessor> InputAccessor = PCGAttributeAccessorHelpers::CreateConstAccessor(SourceData, InputSource);
 		TUniquePtr<const IPCGAttributeAccessorKeys> InputKeys = PCGAttributeAccessorHelpers::CreateConstKeys(SourceData, InputSource);
@@ -206,7 +215,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 
 		// If the target is an attribute, only create a new one if the attribute doesn't already exist.
 		// If it exist, it will try to write to it.
-		if (OutputTarget.Selection == EPCGAttributePropertySelection::Attribute && !SampledData->Metadata->HasAttribute(LocalDestinationAttribute))
+		if (OutputTarget.GetSelection() == EPCGAttributePropertySelection::Attribute && !SampledData->Metadata->HasAttribute(LocalDestinationAttribute))
 		{
 			auto CreateAttribute = [SampledData, LocalDestinationAttribute](auto Dummy)
 			{

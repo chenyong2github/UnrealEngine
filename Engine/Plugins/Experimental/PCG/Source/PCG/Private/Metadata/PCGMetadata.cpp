@@ -2,8 +2,10 @@
 
 #include "Metadata/PCGMetadata.h"
 
-#include "Helpers/PCGPropertyHelpers.h"
+#include "PCGData.h"
 #include "PCGPoint.h"
+#include "Helpers/PCGPropertyHelpers.h"
+#include "Metadata/PCGAttributePropertySelector.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGMetadata)
 
@@ -328,6 +330,9 @@ FPCGMetadataAttributeBase* UPCGMetadata::GetMutableAttribute(FName AttributeName
 	if (FPCGMetadataAttributeBase** FoundAttribute = Attributes.Find(AttributeName))
 	{
 		Attribute = *FoundAttribute;
+
+		// Also when accessing an attribute, notify the PCG Data owner that the latest attribute manipulated is this one.
+		SetLastCachedSelectorOnOwner(AttributeName);
 	}
 	AttributeLock.ReadUnlock();
 
@@ -655,6 +660,10 @@ FPCGMetadataAttributeBase* UPCGMetadata::CopyAttribute(const FPCGMetadataAttribu
 		AttributeLock.WriteLock();
 		NewAttribute->AttributeId = NextAttributeId++;
 		AddAttributeInternal(NewAttributeName, NewAttribute);
+
+		// Also when creating an attribute, notify the PCG Data owner that the latest attribute manipulated is this one.
+		SetLastCachedSelectorOnOwner(NewAttributeName);
+
 		AttributeLock.WriteUnlock();
 	}
 
@@ -1146,3 +1155,12 @@ void UPCGMetadata::AccumulatePointWeightedAttributes(const FPCGPoint& InPoint, c
 	AccumulateWeightedAttributes(InPoint.MetadataEntry, InMetadata, Weight, bSetNonInterpolableAttributes, OutPoint.MetadataEntry);
 }
 
+void UPCGMetadata::SetLastCachedSelectorOnOwner(FName AttributeName)
+{
+	if (UPCGData* OwnerData = Cast<UPCGData>(GetOuter()))
+	{
+		FPCGAttributePropertyInputSelector Selector;
+		Selector.SetAttributeName(AttributeName);
+		OwnerData->SetLastSelector(Selector);
+	}
+}

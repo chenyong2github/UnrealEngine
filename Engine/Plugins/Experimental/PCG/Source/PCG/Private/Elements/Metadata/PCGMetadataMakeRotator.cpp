@@ -74,7 +74,7 @@ bool UPCGMetadataMakeRotatorSettings::IsSupportedInputType(uint16 TypeId, uint32
 	}
 }
 
-FPCGAttributePropertySelector UPCGMetadataMakeRotatorSettings::GetInputSource(uint32 Index) const
+FPCGAttributePropertyInputSelector UPCGMetadataMakeRotatorSettings::GetInputSource(uint32 Index) const
 {
 	switch (Index)
 	{
@@ -85,7 +85,7 @@ FPCGAttributePropertySelector UPCGMetadataMakeRotatorSettings::GetInputSource(ui
 	case 2:
 		return InputSource3;
 	default:
-		return FPCGAttributePropertySelector();
+		return FPCGAttributePropertyInputSelector();
 	}
 }
 

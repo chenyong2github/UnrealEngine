@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Helpers/PCGMetadataHelpers.h"
+
+#include "PCGParamData.h"
+#include "Data/PCGSpatialData.h"
 #include "Metadata/PCGMetadata.h"
 
 namespace PCGMetadataHelpers
@@ -19,5 +22,37 @@ namespace PCGMetadataHelpers
 		// which is going to cause some issues.
 		//check(Parent.IsExplicitlyNull() || Parent.IsValid());
 		return Parent.Get();
+	}
+
+	const UPCGMetadata* GetConstMetadata(const UPCGData* InData)
+	{
+		if (const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(InData))
+		{
+			return SpatialData->ConstMetadata();
+		}
+		else if (const UPCGParamData* ParamData = Cast<UPCGParamData>(InData))
+		{
+			return ParamData->ConstMetadata();
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	UPCGMetadata* GetMutableMetadata(UPCGData* InData)
+	{
+		if (UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(InData))
+		{
+			return SpatialData->MutableMetadata();
+		}
+		else if (UPCGParamData* ParamData = Cast<UPCGParamData>(InData))
+		{
+			return ParamData->MutableMetadata();
+		}
+		else
+		{
+			return nullptr;
+		}
 	}
 }

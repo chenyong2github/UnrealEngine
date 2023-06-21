@@ -5,6 +5,7 @@
 #include "PCGPin.h"
 #include "PCGSettings.h"
 #include "Elements/PCGActorSelector.h"
+#include "Metadata/PCGMetadataAttribute.h"
 
 #include "PCGPropertyToParamData.generated.h"
 
@@ -62,7 +63,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bExtractObjectAndStruct = false;
 
-	/** By default, attribute name will be the property name, but it can be overridden by this name. */
+	/** By default, attribute name will be None, but it can be overridden by this name. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "!bExtractObjectAndStruct", EditConditionHides))
 	FName OutputAttributeName = NAME_None;
 

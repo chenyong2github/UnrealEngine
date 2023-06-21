@@ -16,14 +16,14 @@ struct FPCGExternalDataContext : public FPCGContext
 	{
 		TUniquePtr<const IPCGAttributeAccessor> RowAccessor;
 		TUniquePtr<IPCGAttributeAccessor> PointAccessor;
-		FPCGAttributePropertySelector Selector;
+		FPCGAttributePropertyOutputSelector Selector;
 
 		FRowToPointAccessors() = default;
 		FRowToPointAccessors(const FRowToPointAccessors&) = delete;
 		FRowToPointAccessors(FRowToPointAccessors&&) = default;
 		FRowToPointAccessors& operator=(FRowToPointAccessors&&) = default;
 		FRowToPointAccessors& operator=(const FRowToPointAccessors&) = delete;
-		FRowToPointAccessors(TUniquePtr<const IPCGAttributeAccessor> InRow, TUniquePtr<IPCGAttributeAccessor> InPoint, const FPCGAttributePropertySelector& InSelector)
+		FRowToPointAccessors(TUniquePtr<const IPCGAttributeAccessor> InRow, TUniquePtr<IPCGAttributeAccessor> InPoint, const FPCGAttributePropertyOutputSelector& InSelector)
 			: RowAccessor(MoveTemp(InRow)), PointAccessor(MoveTemp(InPoint)), Selector(InSelector) {}
 	};
 

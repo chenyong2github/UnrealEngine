@@ -89,6 +89,7 @@ public:
 	virtual bool HasDynamicPins() const override { return true; }
 	virtual bool GetPinExtraIcon(const UPCGPin* InPin, FName& OutExtraIcon, FText& OutTooltip) const override;
 	virtual FText GetNodeTooltipText() const override;
+	virtual void ApplyDeprecation(UPCGNode* InOutNode) override;
 #endif
 	virtual EPCGDataType GetCurrentPinTypes(const UPCGPin* InPin) const override;
 
@@ -98,7 +99,7 @@ protected:
 	//~End UPCGSettings interface
 
 public:
-	virtual FPCGAttributePropertySelector GetInputSource(uint32 Index) const { return FPCGAttributePropertySelector(); };
+	virtual FPCGAttributePropertyInputSelector GetInputSource(uint32 Index) const { return FPCGAttributePropertyInputSelector(); };
 
 	virtual FName GetInputPinLabel(uint32 Index) const { return PCGPinConstants::DefaultInputLabel; }
 	virtual uint32 GetInputPinNum() const { return 1; };
@@ -124,7 +125,7 @@ public:
 	uint32 GetInputPinToForward() const;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Output")
-	FPCGAttributePropertySelector OutputTarget;
+	FPCGAttributePropertyOutputSelector OutputTarget;
 
 	/* By default, output is taken from first non-param pin (aka if the second pin is a point data, the output will be this point data). You can change it to any available input pin. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = "Output", meta = (GetOptions = GetOutputDataFromPinOptions))
@@ -168,6 +169,8 @@ public:
 		uint16 MostComplexInputType;
 		uint16 OutputType;
 		const UPCGMetadataSettingsBase* Settings = nullptr;
+
+		TArray<FPCGAttributePropertyInputSelector> InputSources;
 
 		TArray<TUniquePtr<const IPCGAttributeAccessorKeys>> InputKeys;
 		TArray<TUniquePtr<IPCGAttributeAccessorKeys>> OutputKeys;

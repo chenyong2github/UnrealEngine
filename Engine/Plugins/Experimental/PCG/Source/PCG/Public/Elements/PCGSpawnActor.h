@@ -34,7 +34,7 @@ struct FPCGActorPropertyOverride
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Settings)
-	FPCGAttributePropertySelector InputSource;
+	FPCGAttributePropertyInputSelector InputSource;
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FString PropertyTarget;
