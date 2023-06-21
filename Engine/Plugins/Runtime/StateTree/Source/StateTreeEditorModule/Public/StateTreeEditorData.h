@@ -57,6 +57,10 @@ public:
 	// ~IStateTreeEditorPropertyBindingsOwner
 
 #if WITH_EDITOR
+	using FReplacementObjectMap = TMap<UObject*, UObject*>;
+	void OnObjectsReinstanced(const FReplacementObjectMap& ObjectMap);
+	void OnUserDefinedStructReinstanced(const UUserDefinedStruct& UserDefinedStruct);
+	virtual void BeginDestroy() override;
 	virtual void PostLoad() override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
@@ -230,6 +234,11 @@ private:
 	void FixObjectInstance(TSet<UObject*>& SeenObjects, UObject& Outer, FStateTreeEditorNode& Node);
 	void FixObjectNodes();
 	void UpdateBindingsInstanceStructs();
+
+#if WITH_EDITORONLY_DATA
+	FDelegateHandle OnObjectsReinstancedHandle;
+	FDelegateHandle OnUserDefinedStructReinstancedHandle;
+#endif
 
 public:
 	/** Schema describing which inputs, evaluators, and tasks a StateTree can contain */	

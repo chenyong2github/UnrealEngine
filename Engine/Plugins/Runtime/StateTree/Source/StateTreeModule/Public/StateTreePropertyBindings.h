@@ -209,11 +209,28 @@ struct STATETREEMODULE_API FStateTreePropertyPathSegment
 	{
 		return InstanceStruct;
 	}
+
+#if WITH_EDITORONLY_DATA
+	FGuid GetPropertyGuid() const
+	{
+		return PropertyGuid;
+	}
+
+	void SetPropertyGuid(const FGuid NewGuid)
+	{
+		PropertyGuid = NewGuid;
+	}
+#endif
 	
 private:
 	/** Name of the property */
 	UPROPERTY()
 	FName Name;
+
+#if WITH_EDITORONLY_DATA
+	/** Guid of the property for Blueprint classes or User Defined Structs. */
+	FGuid PropertyGuid;
+#endif
 
 	/** Array index if the property is dynamic or static array. */
 	UPROPERTY()
@@ -246,6 +263,11 @@ struct FStateTreePropertyPathIndirection
 	int32 GetPathSegmentIndex() const { return PathSegmentIndex; }
 	EStateTreePropertyAccessType GetAccessType() const { return AccessType; }
 	const uint8* GetPropertyAddress() const { return ContainerAddress + PropertyOffset; }
+
+#if WITH_EDITORONLY_DATA
+	FName GetRedirectedName() const { return RedirectedName; }
+	FGuid GetPropertyGuid() const { return PropertyGuid; }
+#endif
 	
 private:
 	/** Property at the indirection. */
@@ -259,6 +281,14 @@ private:
 	
 	/** Type of the instance class/struct of when AccessType is ObjectInstance or StructInstance. */
 	const UStruct* InstanceStruct = nullptr;
+
+#if WITH_EDITORONLY_DATA
+	/** Redirected name, if the give property name was not found but was reconciled using core redirect or property Guid. Requires ResolveIndirections/WithValue() to be called with bHandleRedirects = true. */
+	FName RedirectedName;
+
+	/** Guid of the property for Blueprint classes or User Defined Structs. Requires ResolveIndirections/WithValue() to be called with bHandleRedirects = true. */
+	FGuid PropertyGuid;
+#endif
 	
 	/** Array index for static and dynamic arrays. Note: static array indexing is baked in the PropertyOffset. */
 	int32 ArrayIndex = 0;
@@ -326,28 +356,46 @@ struct STATETREEMODULE_API FStateTreePropertyPath
 	 * @param BaseStruct Base struct/class type the path is relative to.
 	 * @param OutIndirections Indirections describing how the properties were accessed. 
 	 * @param OutError Optional, pointer to string where error will be logged if update fails.
+	 * @param bHandleRedirects If true, the method will try to resolve missing properties using core redirects, and properties on Blueprint and User Defined Structs by ID. Available only in editor builds!
 	 * @return true of path could be resolved against the base value, and instance types were updated.
 	 */
-	bool ResolveIndirections(const UStruct* BaseStruct, TArray<FStateTreePropertyPathIndirection>& OutIndirections, FString* OutError = nullptr) const;
+	bool ResolveIndirections(const UStruct* BaseStruct, TArray<FStateTreePropertyPathIndirection>& OutIndirections, FString* OutError = nullptr, bool bHandleRedirects = false) const;
 	
 	/**
 	 * Resolves the property path against base value. The path is assumed to be relative to the BaseValueView.
 	 * @param BaseValueView Base value the path is relative to.
 	 * @param OutIndirections Indirections describing how the properties were accessed. 
 	 * @param OutError Optional, pointer to string where error will be logged if update fails.
+	 * @param bHandleRedirects If true, the method will try to resolve missing properties using core redirects, and properties on Blueprint and User Defined Structs by ID. Available only in editor builds!
 	 * @return true of path could be resolved against the base value, and instance types were updated.
 	 */
-	bool ResolveIndirectionsWithValue(const FStateTreeDataView BaseValueView, TArray<FStateTreePropertyPathIndirection>& OutIndirections, FString* OutError = nullptr) const;
+	bool ResolveIndirectionsWithValue(const FStateTreeDataView BaseValueView, TArray<FStateTreePropertyPathIndirection>& OutIndirections, FString* OutError = nullptr, bool bHandleRedirects = false) const;
 
 	/**
-	 * Updates property segment InstanceStruct types from value. The path is expected to be relative to the base value.
+	 * Updates property segments from base struct type. The path is expected to be relative to the BaseStruct.
+	 * The method handles renamed properties (core redirect, Blueprint and User Defined Structs by ID).
+	 * @param BaseValueView Base value the path is relative to.
+	 * @param OutError Optional, pointer to string where error will be logged if update fails.
+	 * @return true of path could be resolved against the base value, and instance types were updated.
+	 */
+	bool UpdateSegments(const UStruct* BaseStruct, FString* OutError = nullptr);
+
+	/**
+	 * Updates property segments from base value. The path is expected to be relative to the base value.
+	 * The method updates instance types, and handles renamed properties (core redirect, Blueprint and User Defined Structs by ID).
 	 * By storing the instance types on the path, we can resolve the path without the base value later.
 	 * @param BaseValueView Base value the path is relative to.
 	 * @param OutError Optional, pointer to string where error will be logged if update fails.
 	 * @return true of path could be resolved against the base value, and instance types were updated.
 	 */
-	bool UpdateInstanceStructsFromValue(const FStateTreeDataView BaseValueView, FString* OutError = nullptr);
+	bool UpdateSegmentsFromValue(const FStateTreeDataView BaseValueView, FString* OutError = nullptr);
 
+	UE_DEPRECATED(5.3, "Use UpdateSegmentsFromValue instead")
+	bool UpdateInstanceStructsFromValue(const FStateTreeDataView BaseValueView, FString* OutError = nullptr)
+	{
+		return UpdateSegmentsFromValue(BaseValueView, OutError);
+	}
+	
 	/** @return true if the path is empty. In that case the path points to the struct. */
 	bool IsPathEmpty() const { return Segments.IsEmpty(); }
 

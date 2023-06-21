@@ -632,13 +632,13 @@ bool UStateTree::PatchBindings()
 		{
 			FStateTreePropertyPathBinding& Binding = PropertyPathBindings[Index];
 
-			if (!Binding.GetMutableSourcePath().UpdateInstanceStructsFromValue(DataViews[Binding.GetCompiledSourceStructIndex().Get()]))
+			if (!Binding.GetMutableSourcePath().UpdateSegmentsFromValue(DataViews[Binding.GetCompiledSourceStructIndex().Get()]))
 			{
 				UE_LOG(LogStateTree, Error, TEXT("%hs: Failed to update source instance structs for property binding '%s'."), __FUNCTION__, *Binding.GetTargetPath().ToString());
 				return false;
 			}
 
-			if (!Binding.GetMutableTargetPath().UpdateInstanceStructsFromValue(TargetView))
+			if (!Binding.GetMutableTargetPath().UpdateSegmentsFromValue(TargetView))
 			{
 				UE_LOG(LogStateTree, Error, TEXT("%hs: Failed to update target instance structs for property binding '%s'."), __FUNCTION__, *Binding.GetTargetPath().ToString());
 				return false;
