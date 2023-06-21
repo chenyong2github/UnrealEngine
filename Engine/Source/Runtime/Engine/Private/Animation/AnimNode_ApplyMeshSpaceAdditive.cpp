@@ -3,6 +3,7 @@
 #include "Animation/AnimNode_ApplyMeshSpaceAdditive.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimationPoseData.h"
+#include "Animation/AnimStats.h"
 #include "Animation/ExposedValueHandler.h"
 #include "AnimationRuntime.h"
 

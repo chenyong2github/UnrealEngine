@@ -3,6 +3,7 @@
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNodeMessages.h"
+#include "Animation/AnimStats.h"
 #include "Engine/SkinnedAsset.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_PoseSearchHistoryCollector)

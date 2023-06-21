@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_RotateRootBone.h"
+#include "Animation/AnimStats.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimRootMotionProvider.h"
 

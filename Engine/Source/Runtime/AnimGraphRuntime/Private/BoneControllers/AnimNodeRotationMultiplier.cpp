@@ -4,6 +4,7 @@
 #include "BoneIndices.h"
 #include "BonePose.h"
 #include "BoneControllers/AnimNode_RotationMultiplier.h"
+#include "Animation/AnimStats.h"
 #include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////

@@ -2,6 +2,7 @@
 
 #include "BoneControllers/AnimNode_CCDIK.h"
 #include "Animation/AnimTypes.h"
+#include "Animation/AnimStats.h"
 #include "AnimationRuntime.h"
 #include "DrawDebugHelpers.h"
 #include "EngineDefines.h"

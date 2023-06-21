@@ -3,6 +3,7 @@
 #include "BoneControllers/AnimNode_ModifyBone.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 #include "Animation/AnimTrace.h"
 
 /////////////////////////////////////////////////////

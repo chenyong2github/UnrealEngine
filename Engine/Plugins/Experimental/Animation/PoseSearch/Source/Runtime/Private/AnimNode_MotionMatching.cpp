@@ -6,6 +6,7 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimStats.h"
 #include "Animation/BlendSpace.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"

@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_MultiWayBlend.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimStats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_MultiWayBlend)
 

@@ -3,6 +3,7 @@
 #include "AnimNode_RemapCurves.h"
 
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 
 void FAnimNode_RemapCurves::Evaluate_AnyThread(FPoseContext& Output)
 {

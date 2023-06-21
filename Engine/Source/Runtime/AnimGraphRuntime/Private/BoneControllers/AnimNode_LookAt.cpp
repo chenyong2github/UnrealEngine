@@ -6,6 +6,7 @@
 #include "SceneManagement.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 #include "AnimationCoreLibrary.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"

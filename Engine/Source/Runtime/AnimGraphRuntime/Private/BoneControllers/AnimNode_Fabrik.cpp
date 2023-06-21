@@ -5,6 +5,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 #include "FABRIK.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_Fabrik)

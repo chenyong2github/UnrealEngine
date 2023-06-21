@@ -2,6 +2,7 @@
 
 #include "BoneControllers/AnimNode_ResetRoot.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 #include "AnimationRuntime.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_ResetRoot)

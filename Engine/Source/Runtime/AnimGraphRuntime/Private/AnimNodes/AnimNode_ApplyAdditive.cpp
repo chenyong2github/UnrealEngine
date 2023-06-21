@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_ApplyAdditive.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimStats.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 

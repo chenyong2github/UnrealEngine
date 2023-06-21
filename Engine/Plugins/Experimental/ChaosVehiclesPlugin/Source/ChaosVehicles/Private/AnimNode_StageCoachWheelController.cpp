@@ -2,6 +2,7 @@
 
 #include "AnimNode_StageCoachWheelController.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimStats.h"
 #include "WheeledVehiclePawn.h"
 #include "ChaosVehicleMovementComponent.h"
 

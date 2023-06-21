@@ -4,6 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_CopyBoneDelta)
 

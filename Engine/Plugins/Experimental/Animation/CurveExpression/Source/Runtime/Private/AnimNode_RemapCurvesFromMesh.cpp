@@ -5,6 +5,7 @@
 #include "CurveExpressionCustomVersion.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNodeFunctionRef.h"
+#include "Animation/AnimStats.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/ExposedValueHandler.h"
 #include "Engine/SkeletalMesh.h"

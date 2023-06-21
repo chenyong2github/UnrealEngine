@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_AimOffsetLookAt.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 #include "AnimationRuntime.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"

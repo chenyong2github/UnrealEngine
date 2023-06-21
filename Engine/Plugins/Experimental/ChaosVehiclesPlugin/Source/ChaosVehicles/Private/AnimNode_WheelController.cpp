@@ -2,6 +2,7 @@
 
 #include "AnimNode_WheelController.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimStats.h"
 #include "WheeledVehiclePawn.h"
 #include "ChaosVehicleMovementComponent.h"
 

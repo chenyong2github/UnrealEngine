@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RetargetEditor/IKRetargetAnimInstance.h"
+#include "Animation/AnimStats.h"
 #include "Engine/SkeletalMesh.h"
 #include "RetargetEditor/IKRetargetAnimInstanceProxy.h"
 #include "RetargetEditor/IKRetargeterController.h"

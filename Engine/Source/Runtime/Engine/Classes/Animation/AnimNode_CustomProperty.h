@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
 #include "Animation/AnimNodeBase.h"
+#include "Animation/AnimStats.h"
 #include "AnimNode_CustomProperty.generated.h"
 
 /** 
@@ -108,7 +109,7 @@ protected:
 #if ANIMNODE_STATS_VERBOSE
 	// Cached StatID for this node
 	TStatId StatID;
-	virtual void InitializeStatID() { StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Anim>(FString(TEXT("Unknown"))); }
+	virtual void InitializeStatID(); { StatID = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_Anim>(FString(TEXT("Unknown"))); }
 #endif // ANIMNODE_STATS_VERBOSE
 
 	friend class UAnimGraphNode_CustomProperty;

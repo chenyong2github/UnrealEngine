@@ -3,6 +3,7 @@
 #include "BoneControllers/AnimNode_ApplyLimits.h"
 #include "AnimationCoreLibrary.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimStats.h"
 #include "AnimationRuntime.h"
 #include "AngularLimit.h"
 

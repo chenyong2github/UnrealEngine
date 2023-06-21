@@ -3,6 +3,7 @@
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_SaveCachedPose.h"
+#include "Animation/AnimStats.h"
 #include "Animation/BlendProfile.h"
 #include "Algo/MaxElement.h"
 #include "Components/SkeletalMeshComponent.h"

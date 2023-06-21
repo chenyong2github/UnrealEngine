@@ -3,6 +3,7 @@
 #include "BoneControllers/AnimNode_Constraint.h"
 #include "AnimationCoreLibrary.h"
 #include "AnimationRuntime.h"
+#include "Animation/AnimStats.h"
 #include "SceneManagement.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimTrace.h"

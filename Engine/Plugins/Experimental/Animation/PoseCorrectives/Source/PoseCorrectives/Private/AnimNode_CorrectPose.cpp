@@ -3,7 +3,7 @@
 #include "AnimNode_CorrectPose.h"
 
 #include "Animation/AnimInstanceProxy.h"
-
+#include "Animation/AnimStats.h"
 
 FAnimNode_CorrectPose::FAnimNode_CorrectPose()
 {
