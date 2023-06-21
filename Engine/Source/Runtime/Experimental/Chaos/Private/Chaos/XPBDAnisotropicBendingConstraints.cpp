@@ -178,23 +178,24 @@ TArray<FSolverVec3> FXPBDAnisotropicBendingConstraints::GenerateWarpWeftBiasBase
 	auto SortedEdge = [](int32 P0, int32 P1) { return P0 <= P1 ? TVec2<int32>(P0, P1) : TVec2<int32>(P1, P0); };
 	auto Multiplier = [](const FVec2f& UV0, const FVec2f& UV1)
 	{
-		// Input UVs: X = Warp, Y = Weft direction
-		// Transform to X = Warp, Y = Weft, Z = Bias
+		// Input UVs: X = Weft, Y = Warp direction
+		// Transform to X = Weft, Y = Warp, Z = Bias
+		// NOTE: Weft-dominant bend is along a vertical edge (i.e., larger V(Y) diff)). Warp-dominant bend is along a horizontal edge.
 		const FSolverVec2 UVDiff = UV1 - UV0;
 		const FSolverVec2 UVDiffAbs = UVDiff.GetAbs();
 		FSolverVec3 UVDiffTransformed;
 		if (UVDiffAbs.X > UVDiffAbs.Y)
 		{
 			// Stiffness is blend between warp and bias
-			UVDiffTransformed  = FSolverVec3(UVDiffAbs.X - UVDiffAbs.Y, (FSolverReal)0.f, UVDiffAbs.Y);
+			UVDiffTransformed  = FSolverVec3((FSolverReal)0.f, UVDiffAbs.X - UVDiffAbs.Y, UVDiffAbs.Y);
 		}
 		else
 		{
 			// Stiffness is blend between weft and bias
-			UVDiffTransformed = FSolverVec3((FSolverReal)0.f, UVDiffAbs.Y - UVDiffAbs.X, UVDiffAbs.X);
+			UVDiffTransformed = FSolverVec3(UVDiffAbs.Y - UVDiffAbs.X, (FSolverReal)0.f, UVDiffAbs.X);
 		}
 		const FSolverReal Denom = UVDiffTransformed.X + UVDiffTransformed.Y + UVDiffTransformed.Z;
-		return Denom > UE_SMALL_NUMBER ? UVDiffTransformed / Denom : FSolverVec3(1.f, 0.f, 0.f); // Default to Warp if zero length
+		return Denom > UE_SMALL_NUMBER ? UVDiffTransformed / Denom : FSolverVec3(0.f, 1.f, 0.f); // Default to Warp if zero length
 	};
 
 	const TArray<TVec3<int32>>& Elements = TriangleMesh.GetElements();
@@ -499,8 +500,8 @@ void FXPBDAnisotropicBendingConstraints::Apply(FSolverParticles& Particles, cons
 			!BucklingStiffnessHasWeightMap && !BucklingStiffnessWeftHasWeightMap && !BucklingStiffnessBiasHasWeightMap &&
 			!DampingHasWeightMap)
 		{
-			const FSolverVec3 ExpStiffnessValue((FSolverReal)Stiffness, (FSolverReal)StiffnessWeft, (FSolverReal)StiffnessBias);
-			const FSolverVec3 ExpBucklingValue((FSolverReal)BucklingStiffness, (FSolverReal)BucklingStiffnessWeft, (FSolverReal)BucklingStiffnessBias);
+			const FSolverVec3 ExpStiffnessValue((FSolverReal)StiffnessWeft, (FSolverReal)Stiffness, (FSolverReal)StiffnessBias);
+			const FSolverVec3 ExpBucklingValue((FSolverReal)BucklingStiffnessWeft, (FSolverReal)BucklingStiffness, (FSolverReal)BucklingStiffnessBias);
 			const FSolverReal DampingRatioValue = (FSolverReal)DampingRatio;
 
 			if (ExpStiffnessValue.Max() < MinStiffness && ExpBucklingValue.Max() < MinStiffness)
@@ -675,8 +676,8 @@ void FXPBDAnisotropicBendingConstraints::Apply(FSolverParticles& Particles, cons
 						const FSolverReal ExpBucklingWeftValue = BucklingStiffnessWeftHasWeightMap ? BucklingStiffnessWeft[ConstraintIndex] : BucklingStiffnessWeftNoMap;
 						const FSolverReal ExpBucklingBiasValue = BucklingStiffnessBiasHasWeightMap ? BucklingStiffnessBias[ConstraintIndex] : BucklingStiffnessBiasNoMap;
 						const FSolverReal DampingRatioValue = DampingHasWeightMap ? DampingRatio[ConstraintIndex] : DampingNoMap;
-						ApplyHelper(Particles, Dt, ConstraintIndex, FSolverVec3(ExpStiffnessValue, ExpStiffnessWeftValue, ExpStiffnessBiasValue),
-							FSolverVec3(ExpBucklingValue, ExpBucklingWeftValue, ExpBucklingBiasValue), DampingRatioValue);
+						ApplyHelper(Particles, Dt, ConstraintIndex, FSolverVec3(ExpStiffnessWeftValue, ExpStiffnessValue, ExpStiffnessBiasValue),
+							FSolverVec3(ExpBucklingWeftValue, ExpBucklingValue, ExpBucklingBiasValue), DampingRatioValue);
 					});
 				}
 			}
@@ -688,8 +689,8 @@ void FXPBDAnisotropicBendingConstraints::Apply(FSolverParticles& Particles, cons
 			!BucklingStiffnessHasWeightMap && !BucklingStiffnessWeftHasWeightMap && !BucklingStiffnessBiasHasWeightMap &&
 			!DampingHasWeightMap)
 		{
-			const FSolverVec3 ExpStiffnessValue((FSolverReal)Stiffness, (FSolverReal)StiffnessWeft, (FSolverReal)StiffnessBias);
-			const FSolverVec3 ExpBucklingValue((FSolverReal)BucklingStiffness, (FSolverReal)BucklingStiffnessWeft, (FSolverReal)BucklingStiffnessBias);
+			const FSolverVec3 ExpStiffnessValue((FSolverReal)StiffnessWeft, (FSolverReal)Stiffness, (FSolverReal)StiffnessBias);
+			const FSolverVec3 ExpBucklingValue((FSolverReal)BucklingStiffnessWeft, (FSolverReal)BucklingStiffness, (FSolverReal)BucklingStiffnessBias);
 			const FSolverReal DampingRatioValue = (FSolverReal)DampingRatio;
 
 			if (ExpStiffnessValue.Max() < MinStiffness && ExpBucklingValue.Max() < MinStiffness)
@@ -720,8 +721,8 @@ void FXPBDAnisotropicBendingConstraints::Apply(FSolverParticles& Particles, cons
 				const FSolverReal ExpBucklingWeftValue = BucklingStiffnessWeftHasWeightMap ? BucklingStiffnessWeft[ConstraintIndex] : BucklingStiffnessWeftNoMap;
 				const FSolverReal ExpBucklingBiasValue = BucklingStiffnessBiasHasWeightMap ? BucklingStiffnessBias[ConstraintIndex] : BucklingStiffnessBiasNoMap;
 				const FSolverReal DampingRatioValue = DampingHasWeightMap ? DampingRatio[ConstraintIndex] : DampingNoMap;
-				ApplyHelper(Particles, Dt, ConstraintIndex, FSolverVec3(ExpStiffnessValue, ExpStiffnessWeftValue, ExpStiffnessBiasValue),
-					FSolverVec3(ExpBucklingValue, ExpBucklingWeftValue, ExpBucklingBiasValue), DampingRatioValue);
+				ApplyHelper(Particles, Dt, ConstraintIndex, FSolverVec3(ExpStiffnessWeftValue, ExpStiffnessValue, ExpStiffnessBiasValue),
+					FSolverVec3(ExpBucklingWeftValue, ExpBucklingValue, ExpBucklingBiasValue), DampingRatioValue);
 			}
 		}
 	}

@@ -272,7 +272,7 @@ export void ApplyXPBDAnisotropicBendingConstraintsWithMaps(uniform FVector4f Pan
 		#pragma ignore warning(perf)
 		const varying float StiffnessBias = StiffnessBiasTable[StiffnessBiasIndex];
 
-		const varying FVector3f StiffnessVector = {{Stiffness, StiffnessWeft, StiffnessBias}};
+		const varying FVector3f StiffnessVector = {{StiffnessWeft, Stiffness, StiffnessBias}};
 
 		#pragma ignore warning(perf)
 		const varying float BucklingStiffness = BucklingStiffnessTable[BucklingStiffnessIndex];
@@ -281,7 +281,7 @@ export void ApplyXPBDAnisotropicBendingConstraintsWithMaps(uniform FVector4f Pan
 		#pragma ignore warning(perf)
 		const varying float BucklingStiffnessBias = BucklingStiffnessBiasTable[BucklingStiffnessBiasIndex];
 		
-		const varying FVector3f BucklingStiffnessVector = {{BucklingStiffness, BucklingStiffnessWeft, BucklingStiffnessBias}};
+		const varying FVector3f BucklingStiffnessVector = {{BucklingStiffnessWeft, BucklingStiffness, BucklingStiffnessBias}};
 		
 		const varying float RestAngle = RestAngles[i];
 		const varying FVector3f WarpWeftBiasBaseMultiplier = VectorGather(&WarpWeftBiasBaseMultiplers[i]);
@@ -388,7 +388,7 @@ export void ApplyXPBDAnisotropicBendingConstraintsWithDampingAndMaps(uniform FVe
 		#pragma ignore warning(perf)
 		const varying float StiffnessBias = StiffnessBiasTable[StiffnessBiasIndex];
 
-		const varying FVector3f StiffnessVector = {{Stiffness, StiffnessWeft, StiffnessBias}};
+		const varying FVector3f StiffnessVector = {{StiffnessWeft, Stiffness, StiffnessBias}};
 
 		#pragma ignore warning(perf)
 		const varying float BucklingStiffness = BucklingStiffnessTable[BucklingStiffnessIndex];
@@ -397,7 +397,7 @@ export void ApplyXPBDAnisotropicBendingConstraintsWithDampingAndMaps(uniform FVe
 		#pragma ignore warning(perf)
 		const varying float BucklingStiffnessBias = BucklingStiffnessBiasTable[BucklingStiffnessBiasIndex];
 		
-		const varying FVector3f BucklingStiffnessVector = {{BucklingStiffness, BucklingStiffnessWeft, BucklingStiffnessBias}};
+		const varying FVector3f BucklingStiffnessVector = {{BucklingStiffnessWeft, BucklingStiffness, BucklingStiffnessBias}};
 		
 		#pragma ignore warning(perf)
 		const varying float DampingRatio = DampingTable[DampingIndex];

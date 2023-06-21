@@ -445,7 +445,7 @@ void FXPBDStretchBiasElementConstraints::Apply(FSolverParticles& Particles, cons
 		const int32 ConstraintColorNum = ConstraintsPerColorStartIndex.Num() - 1;
 		if (!StiffnessWarpHasWeightMap && !StiffnessWeftHasWeightMap && !StiffnessBiasHasWeightMap && !DampingHasWeightMap && !WarpScaleHasWeightMap && !WeftScaleHasWeightMap)
 		{
-			const FSolverVec3 ExpStiffnessValue(StiffnessWarpNoMap, StiffnessWeftNoMap, StiffnessBiasNoMap);
+			const FSolverVec3 ExpStiffnessValue(StiffnessWeftNoMap, StiffnessWarpNoMap, StiffnessBiasNoMap);
 			if (ExpStiffnessValue.Max() < MinStiffness)
 			{
 				return;
@@ -610,7 +610,7 @@ void FXPBDStretchBiasElementConstraints::Apply(FSolverParticles& Particles, cons
 						const FSolverReal DampingRatioValue = DampingHasWeightMap ? DampingRatio[ConstraintIndex] : DampingNoMap;
 						const FSolverReal WarpScaleValue = WarpScaleHasWeightMap ? WarpScale[ConstraintIndex] : WarpScaleNoMap;
 						const FSolverReal WeftScaleValue = WeftScaleHasWeightMap ? WeftScale[ConstraintIndex] : WeftScaleNoMap;
-						ApplyHelper(Particles, Dt, ConstraintIndex, FSolverVec3(ExpStiffnessWarpValue, ExpStiffnessWeftValue, ExpStiffnessBiasValue),DampingRatioValue, WarpScaleValue, WeftScaleValue);
+						ApplyHelper(Particles, Dt, ConstraintIndex, FSolverVec3(ExpStiffnessWeftValue, ExpStiffnessWarpValue, ExpStiffnessBiasValue),DampingRatioValue, WarpScaleValue, WeftScaleValue);
 					});
 				}
 			}
@@ -640,7 +640,7 @@ void FXPBDStretchBiasElementConstraints::Apply(FSolverParticles& Particles, cons
 				const FSolverReal DampingRatioValue = DampingHasWeightMap ? DampingRatio[ConstraintIndex] : DampingNoMap;
 				const FSolverReal WarpScaleValue = WarpScaleHasWeightMap ? WarpScale[ConstraintIndex] : WarpScaleNoMap;
 				const FSolverReal WeftScaleValue = WeftScaleHasWeightMap ? WeftScale[ConstraintIndex] : WeftScaleNoMap;
-				ApplyHelper(Particles, Dt, ConstraintIndex, FSolverVec3(ExpStiffnessWarpValue, ExpStiffnessWeftValue, ExpStiffnessBiasValue), DampingRatioValue, WarpScaleValue, WeftScaleValue);
+				ApplyHelper(Particles, Dt, ConstraintIndex, FSolverVec3(ExpStiffnessWeftValue, ExpStiffnessWarpValue, ExpStiffnessBiasValue), DampingRatioValue, WarpScaleValue, WeftScaleValue);
 			}
 		}
 	}
@@ -705,8 +705,8 @@ void FXPBDStretchBiasElementConstraints::ApplyHelper(FSolverParticles& Particles
 	const FSolverVec3 DXDvNormalized = DXDv * OneOverDXDvLen;
 
 	// constraints
-	const FSolverReal Cu = (DXDuLength - RestStretchLengths[ConstraintIndex][0]*WarpScaleValue); // stretch in warp direction
-	const FSolverReal Cv = (DXDvLength - RestStretchLengths[ConstraintIndex][1]*WeftScaleValue); // stretch in weft direction
+	const FSolverReal Cu = (DXDuLength - RestStretchLengths[ConstraintIndex][0]*WeftScaleValue); // stretch in weft direction
+	const FSolverReal Cv = (DXDvLength - RestStretchLengths[ConstraintIndex][1]*WarpScaleValue); // stretch in warp direction
 	const FSolverReal Cs = FSolverVec3::DotProduct(DXDuNormalized, DXDvNormalized);
 
 

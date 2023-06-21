@@ -29,8 +29,8 @@ static void CalcConstraintsAndGrads(const FVector3f& P0, const FVector3f& P1, co
 	const FVector3f DXDuNormalized = OneOverDXDuLen * DXDu;
 	const FVector3f DXDvNormalized = OneOverDXDvLen * DXDv;
 
-	Cu = DXDuLength - RestStretchLengths.V[0] * WarpScale;
-	Cv = DXDvLength - RestStretchLengths.V[1] * WeftScale;
+	Cu = DXDuLength - RestStretchLengths.V[0] * WeftScale;
+	Cv = DXDvLength - RestStretchLengths.V[1] * WarpScale;
 	Cs = VectorDot(DXDuNormalized, DXDvNormalized);
 
 	GradCu1 = DXDuNormalized * DeltaUVInv.V[0];
@@ -295,7 +295,7 @@ export void ApplyXPBDStretchBiasConstraintsWithMaps(uniform FVector4f PandInvM[]
 		const varying float StiffnessWeft = StiffnessWeftTable[StiffnessWeftIndex];
 		#pragma ignore warning(perf)
 		const varying float StiffnessBias = StiffnessBiasTable[StiffnessBiasIndex];
-		const varying FVector3f Stiffness = {{StiffnessWarp, StiffnessWeft, StiffnessBias}};
+		const varying FVector3f Stiffness = {{StiffnessWeft, StiffnessWarp, StiffnessBias}};
 
 		FVector3f Lambda = VectorLoad(&Lambdas[extract(i,0)]);
 		const varying FVector3f StiffnessScale = VectorLoad(&StiffnessScales[extract(i,0)]);
@@ -409,7 +409,7 @@ export void ApplyXPBDStretchBiasConstraintsWithDampingAndMaps(uniform FVector4f 
 		const varying float StiffnessWeft = StiffnessWeftTable[StiffnessWeftIndex];
 		#pragma ignore warning(perf)
 		const varying float StiffnessBias = StiffnessBiasTable[StiffnessBiasIndex];
-		const varying FVector3f Stiffness = {{StiffnessWarp, StiffnessWeft, StiffnessBias}};
+		const varying FVector3f Stiffness = {{StiffnessWeft, StiffnessWarp, StiffnessBias}};
 
 		#pragma ignore warning(perf)
 		const varying float DampingRatio = DampingTable[DampingIndex];
