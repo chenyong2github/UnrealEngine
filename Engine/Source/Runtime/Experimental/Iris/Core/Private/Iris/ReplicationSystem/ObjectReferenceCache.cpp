@@ -605,7 +605,6 @@ void FObjectReferenceCache::RemoveReference(FNetRefHandle RefHandle, const UObje
 		}
 		else
 		{
-			UE_LOG_REFERENCECACHE(Warning, TEXT("ObjectReferenceCache::RemoveReference: %s. Trying to find RefHandle without object to remove from ObjectToNetReferenceHandle. SLOW."), *RefHandle.ToString());
 			bool bSuccesfullyRemoved = false;
 			for (auto RefHandleIt = ObjectToNetReferenceHandle.CreateIterator(); RefHandleIt; ++RefHandleIt)
 			{
