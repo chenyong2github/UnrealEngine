@@ -208,38 +208,8 @@ void FStateTreeTransitionDetails::OnCopyTransition() const
 	} 
 }
 
-UStateTreeEditorData* FStateTreeTransitionDetails::GetEditorData() const
-{
-	TArray<UObject*> OuterObjects;
-	StructProperty->GetOuterObjects(OuterObjects);
-	for (UObject* Outer : OuterObjects)
-	{
-		UStateTreeEditorData* OuterEditorData = Cast<UStateTreeEditorData>(Outer);
-		if (OuterEditorData == nullptr)
-		{
-			OuterEditorData = Outer->GetTypedOuter<UStateTreeEditorData>();
-		}
-		if (OuterEditorData)
-		{
-			return OuterEditorData;
-		}
-	}
-	return nullptr;
-}
-
 void FStateTreeTransitionDetails::OnPasteTransition() const
 {
-	UStateTreeEditorData* EditorData = GetEditorData();
-	if (!EditorData)
-	{
-		return;
-	}
-	FStateTreeEditorPropertyBindings* Bindings = EditorData->GetPropertyEditorBindings();
-	if (!Bindings)
-	{
-		return;
-	}
-
 	FString PastedText;
 	FPlatformApplicationMisc::ClipboardPaste(PastedText);
 
@@ -263,16 +233,6 @@ void FStateTreeTransitionDetails::OnPasteTransition() const
 		if (FStateTreeTransition* Transition = static_cast<FStateTreeTransition*>(RawData[Index]))
 		{
 			Transition->ID = FGuid::NewGuid();
-
-			for (FStateTreeEditorNode& Condition : Transition->Conditions)
-			{
-				const FGuid OldStructID = Condition.ID;
-				Condition.ID = FGuid::NewGuid();
-				if (OldStructID.IsValid())
-				{
-					Bindings->CopyBindings(OldStructID, Condition.ID);
-				}
-			}
 		}
 	}
 

@@ -204,14 +204,6 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 			{
 				FStateTreeTransition& Transition = Transitions[TransitionsIndex];
 				Transition.ID = FGuid::NewGuid();
-
-				// Update conditions
-				for (FStateTreeEditorNode& Condition : Transition.Conditions)
-				{
-					const FGuid OldStructID = Condition.ID;
-					Condition.ID = FGuid::NewGuid();
-					CopyBindings(OldStructID, Condition.ID);
-				}
 			}
 		}
 
