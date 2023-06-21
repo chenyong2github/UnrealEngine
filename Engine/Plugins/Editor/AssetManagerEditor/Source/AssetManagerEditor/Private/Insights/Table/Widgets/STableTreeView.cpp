@@ -62,20 +62,20 @@ public:
 	virtual void RegisterCommands() override
 	{
 		UI_COMMAND(Command_CopyToClipboard,
-			"Copy To Clipboard",
-			"Copies the selection to clipboard.",
+			"Copy",
+			"Copies the selected table rows to clipboard.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Control, EKeys::C));
 
 		UI_COMMAND(Command_CopyColumnToClipboard,
-			"Copy Column Value To Clipboard",
-			"Copies the value of the hovered column to clipboard.",
+			"Copy Value",
+			"Copies the value of the hovered cell to clipboard.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
 
 		UI_COMMAND(Command_CopyColumnTooltipToClipboard,
-			"Copy Column Tooltip To Clipboard",
-			"Copies the value of the hovered column's tooltip to clipboard.",
+			"Copy Tooltip",
+			"Copies the tooltip of the hovered cell to clipboard.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Control | EModifierKey::Alt, EKeys::C));
 

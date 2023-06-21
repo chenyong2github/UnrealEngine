@@ -69,6 +69,15 @@ public:
 	{
 	}
 
+	/** Initialization constructor for a table record node. */
+	explicit FTableTreeNode(const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex, bool IsGroup)
+		: FBaseTreeNode(InName, IsGroup)
+		, ParentTable(InParentTable)
+		, RowId(InRowIndex)
+		, AggregatedValues(nullptr)
+	{
+	}
+
 	virtual ~FTableTreeNode()
 	{
 		CleanupAggregatedValues();
@@ -157,8 +166,8 @@ class FCustomTableTreeNode : public FTableTreeNode
 
 public:
 	/** Initialization constructor for a table record node. */
-	explicit FCustomTableTreeNode(const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex, const FSlateBrush* InIconBrush, FLinearColor InColor)
-		: FTableTreeNode(InName, InParentTable)
+	explicit FCustomTableTreeNode(const FName InName, TWeakPtr<FTable> InParentTable, int32 InRowIndex, const FSlateBrush* InIconBrush, FLinearColor InColor, bool IsGroup)
+		: FTableTreeNode(InName, InParentTable, InRowIndex, IsGroup)
 		, IconBrush(InIconBrush)
 		, Color(InColor)
 	{

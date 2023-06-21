@@ -115,10 +115,15 @@ private:
 
 	FText GetSymbolResolutionStatus() const;
 	FText GetSymbolResolutionTooltip() const;
+	
+	void UpdateQueryInfo();
 	FText GetQueryInfo() const;
 	FText GetQueryInfoTooltip() const;
+	FText GetFooterLeftText() const;
+	FText GetFooterCenterText() const;
 
-	void UpdateQueryInfo();
+	virtual void TreeView_OnSelectionChanged(Insights::FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo) override;
+
 	virtual void UpdateFilterContext(const FFilterConfigurator& InFilterConfigurator, const FTableTreeNode& InNode) const override;
 	virtual void InitFilterConfigurator(FFilterConfigurator& InOutFilterConfigurator) override;
 
@@ -139,6 +144,7 @@ private:
 	TraceServices::IAllocationsProvider::FQueryHandle Query = 0;
 	FText QueryInfo;
 	FText QueryInfoTooltip;
+	FText SelectionStatsText;
 	FStopwatch QueryStopwatch;
 	bool bHasPendingQueryReset = false;
 	bool bIsCallstackGroupingByFunction = true;

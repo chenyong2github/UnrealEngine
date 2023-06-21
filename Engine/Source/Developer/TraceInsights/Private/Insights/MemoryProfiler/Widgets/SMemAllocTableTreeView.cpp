@@ -10,6 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/SToolTip.h"
@@ -163,7 +164,6 @@ void SMemAllocTableTreeView::RebuildTree(bool bResync)
 					TableRowNodes.Add(NodePtr);
 				}
 				ensure(TableRowNodes.Num() == (bIncludeHeapAllocs ? TotalAllocCount : TotalAllocCount - HeapAllocCount));
-				UpdateQueryInfo();
 			}
 		}
 	}
@@ -221,6 +221,8 @@ void SMemAllocTableTreeView::OnQueryInvalidated()
 	{
 		ResetAndStartQuery();
 	}
+
+	UpdateQueryInfo();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -235,8 +237,6 @@ void SMemAllocTableTreeView::ResetAndStartQuery()
 		TArray<FMemoryAlloc>& Allocs = MemAllocTable->GetAllocs();
 		Allocs.Reset(10 * 1024 * 1024);
 	}
-
-	UpdateQueryInfo();
 
 	StartQuery();
 
@@ -408,7 +408,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Asset = nullptr;
 					Alloc.ClassName = nullptr;
 					Alloc.Package = nullptr;
-					
+
 					const uint32 MetadataId = Allocation->GetMetadataId();
 					if (MetadataId != TraceServices::IMetadataProvider::InvalidMetadataId && MetadataProvider && DefinitionProvider)
 					{
@@ -1103,8 +1103,9 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructFooter()
 		SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		.HAlign(HAlign_Left)
-		.Padding(2.0f)
+		.Padding(2.0f, 2.0f, 0.0f, 2.0f)
 		[
 			SNew(STextBlock)
 			.Text(this, &SMemAllocTableTreeView::GetQueryInfo)
@@ -1112,8 +1113,37 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructFooter()
 		]
 
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.Padding(0.0f, 2.0f, 0.0f, 2.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("FooterSeparator", " : "))
+			.ColorAndOpacity(FSlateColor(EStyleColor::White25))
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.Padding(0.0f, 2.0f, 8.0f, 2.0f)
+		[
+			SNew(STextBlock)
+			.Text(this, &SMemAllocTableTreeView::GetFooterLeftText)
+		]
+
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.HAlign(HAlign_Center)
+		.Padding(2.0f, 2.0f, 2.0f, 2.0f)
+		[
+			SNew(STextBlock)
+			.Text(this, &SMemAllocTableTreeView::GetFooterCenterText)
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		.HAlign(HAlign_Right)
-		.Padding(2.0f)
+		.Padding(8.0f, 2.0f, 2.0f, 2.0f)
 		[
 			SNew(STextBlock)
 			.Text(this, &SMemAllocTableTreeView::GetSymbolResolutionStatus)
@@ -1175,7 +1205,80 @@ FText SMemAllocTableTreeView::GetQueryInfo() const
 
 FText SMemAllocTableTreeView::GetQueryInfoTooltip() const
 {
-	return QueryInfoTooltip;
+	return Rule.IsValid() ? Rule->GetDescription() : FText::GetEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::GetFooterLeftText() const
+{
+	if (!Rule.IsValid())
+	{
+		return FText::GetEmpty();
+	}
+
+	if (Query != 0)
+	{
+		return LOCTEXT("FooterLeftTextRunningQuery", "running query...");
+	}
+
+	if (FilteredNodesPtr->Num() == TableRowNodes.Num())
+	{
+		return FText::Format(LOCTEXT("FooterLeftTextFmt1", "{0} {0}|plural(one=alloc,other=allocs)"), FText::AsNumber(TableRowNodes.Num()));
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("FooterLeftTextFmt2", "{0} / {1} {1}|plural(one=alloc,other=allocs)"), FilteredNodesPtr->Num(), FText::AsNumber(TableRowNodes.Num()));
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SMemAllocTableTreeView::GetFooterCenterText() const
+{
+	return SelectionStatsText;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::TreeView_OnSelectionChanged(FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo)
+{
+	TArray<FTableTreeNodePtr> SelectedNodes;
+	const int32 NumSelectedNodes = TreeView->GetSelectedItems(SelectedNodes);
+
+	if (NumSelectedNodes > 0)
+	{
+		int64 TotalAllocCount = 0;
+		int64 TotalAllocSize = 0;
+
+		TSharedRef<FTableColumn> CountColumn = Table->FindColumnChecked(FMemAllocTableColumns::CountColumnId);
+		TSharedRef<FTableColumn> SizeColumn = Table->FindColumnChecked(FMemAllocTableColumns::SizeColumnId);
+
+		for (const Insights::FTableTreeNodePtr& Node : SelectedNodes)
+		{
+			TOptional<FTableCellValue> CountValue = CountColumn->GetValue(*Node.Get());
+			if (CountValue.IsSet())
+			{
+				TotalAllocCount += CountValue.GetValue().AsInt64();
+			}
+
+			TOptional<FTableCellValue> SizeValue = SizeColumn->GetValue(*Node.Get());
+			if (SizeValue.IsSet())
+			{
+				TotalAllocSize += SizeValue.GetValue().AsInt64();
+			}
+		}
+
+		FNumberFormattingOptions FormattingOptionsMem;
+		FormattingOptionsMem.MaximumFractionalDigits = 2;
+
+		SelectionStatsText = FText::Format(LOCTEXT("SelectionStatsFmt", "{0} selected {0}|plural(one=item,other=items) ({1} {1}|plural(one=alloc,other=allocs), {2})"),
+			FText::AsNumber(NumSelectedNodes), FText::AsNumber(TotalAllocCount), FText::AsMemory(TotalAllocSize, &FormattingOptionsMem));
+	}
+	else
+	{
+		SelectionStatsText = FText::GetEmpty();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1257,8 +1360,7 @@ void SMemAllocTableTreeView::UpdateQueryInfo()
 			check(false);
 		}
 
-		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "{0} ({1}) : {2} allocs"), Rule->GetVerboseName(), TimeMarkersText, FText::AsNumber(TableRowNodes.Num()));
-		QueryInfoTooltip = Rule->GetDescription();
+		QueryInfo = FText::Format(LOCTEXT("QueryInfoFmt", "{0} ({1})"), Rule->GetVerboseName(), TimeMarkersText);
 	}
 }
 
@@ -1507,7 +1609,7 @@ void SMemAllocTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
 	}
 
 	{
-		const FText ItemLabel = LOCTEXT("ContextMenu_Export_SubMenu", "Export Snapshot");
+		const FText ItemLabel = LOCTEXT("ContextMenu_Export_SubMenu", "Export Snapshot...");
 		const FText ItemToolTip = LOCTEXT("ContextMenu_Export_Desc_SubMenu", "Export memory snapshot to construct diff later.");
 
 		FUIAction Action_ExportSnapshot

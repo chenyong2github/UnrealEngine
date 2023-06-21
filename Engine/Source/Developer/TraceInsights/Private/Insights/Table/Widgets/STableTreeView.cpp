@@ -60,20 +60,20 @@ public:
 	virtual void RegisterCommands() override
 	{
 		UI_COMMAND(Command_CopyToClipboard,
-			"Copy To Clipboard",
-			"Copies the selection to clipboard.",
+			"Copy",
+			"Copies the selected table rows to clipboard.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Control, EKeys::C));
 
 		UI_COMMAND(Command_CopyColumnToClipboard,
-			"Copy Column Value To Clipboard",
-			"Copies the value of the hovered column to clipboard.",
+			"Copy Value",
+			"Copies the value of the hovered cell to clipboard.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::C));
 
 		UI_COMMAND(Command_CopyColumnTooltipToClipboard,
-			"Copy Column Tooltip To Clipboard",
-			"Copies the value of the hovered column's tooltip to clipboard.",
+			"Copy Tooltip",
+			"Copies the tooltip of the hovered cell to clipboard.",
 			EUserInterfaceActionType::Button,
 			FInputChord(EModifierKey::Control | EModifierKey::Alt, EKeys::C));
 
@@ -1128,7 +1128,7 @@ void STableTreeView::UpdateFilterContext(const FFilterConfigurator& InFilterConf
 {
 	for (const TSharedRef<FTableColumn>& Column : Table->GetColumns())
 	{
-		if (!Column->CanBeFiltered())
+		if (!Column->CanBeFiltered() || !InFilterConfigurator.IsKeyUsed(Column->GetIndex()))
 		{
 			continue;
 		}
@@ -1153,11 +1153,7 @@ void STableTreeView::UpdateFilterContext(const FFilterConfigurator& InFilterConf
 			{
 				if (!Column->IsHierarchy())
 				{
-					// Converting string is heavy, check if the key is used for filtering before doing any conversion
-					if (InFilterConfigurator.IsKeyUsed(Column->GetIndex()))
-					{
-						FilterContext.SetFilterData<FString>(Column->GetIndex(), Column->GetValue(InNode)->AsString());
-					}
+					FilterContext.SetFilterData<FString>(Column->GetIndex(), Column->GetValue(InNode)->AsString());
 				}
 				break;
 			}
@@ -1171,12 +1167,13 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> STableTreeView::ConstructFilterConfiguratorButton()
 {
 	return SNew(SButton)
-		.ContentPadding(FMargin(-2.0f, 2.0f, -2.0f, 2.0f))
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 		.ToolTipText(LOCTEXT("FilterConfiguratorBtn_ToolTip", "Opens the filter configurator window."))
 		.OnClicked(this, &STableTreeView::FilterConfigurator_OnClicked)
 		[
 			SNew(SImage)
 			.Image(FInsightsStyle::GetBrush("Icons.ClassicFilterConfig"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -2443,31 +2440,15 @@ void STableTreeView::UpdateCStringSameValueAggregationSingleNode(const FTableCol
 	const TCHAR* AggregatedValue = nullptr;
 
 	// Find the first child node.
-	for (FBaseTreeNodePtr NodePtr : InOutGroupNode.GetChildren())
+	if (InOutGroupNode.GetChildrenCount() > 0)
 	{
-		if (!NodePtr->IsGroup())
+		FBaseTreeNodePtr NodePtr = InOutGroupNode.GetChildren()[0];
+		const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
+		if (NodeValue.IsSet() &&
+			NodeValue.GetValue().DataType == ETableCellDataType::CString)
 		{
-			const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
-			if (NodeValue.IsSet() &&
-				NodeValue.GetValue().DataType == ETableCellDataType::CString)
-			{
-				AggregatedValue = NodeValue.GetValue().CString;
-			}
+			AggregatedValue = NodeValue.GetValue().CString;
 		}
-		else
-		{
-			FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
-			if (TableNode.HasAggregatedValue(InColumn.GetId()))
-			{
-				const FTableCellValue& ChildGroupAggregatedValue = TableNode.GetAggregatedValue(InColumn.GetId());
-				if (ChildGroupAggregatedValue.DataType == ETableCellDataType::CString)
-				{
-					AggregatedValue = ChildGroupAggregatedValue.CString;
-				}
-			}
-		}
-
-		break;
 	}
 
 	if (AggregatedValue != nullptr)
@@ -2475,28 +2456,12 @@ void STableTreeView::UpdateCStringSameValueAggregationSingleNode(const FTableCol
 		// Check if all other children have the same value as the first node.
 		for (FBaseTreeNodePtr NodePtr : InOutGroupNode.GetChildren())
 		{
-			if (!NodePtr->IsGroup())
+			const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
+			if (NodeValue.IsSet() &&
+				NodeValue.GetValue().DataType == ETableCellDataType::CString &&
+				AggregatedValue == NodeValue.GetValue().CString)
 			{
-				const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
-				if (NodeValue.IsSet() &&
-					NodeValue.GetValue().DataType == ETableCellDataType::CString &&
-					AggregatedValue == NodeValue.GetValue().CString)
-				{
-					continue;
-				}
-			}
-			else
-			{
-				FTableTreeNode& TableNode = *(FTableTreeNode*)NodePtr.Get();
-				if (TableNode.HasAggregatedValue(InColumn.GetId()))
-				{
-					const FTableCellValue& ChildGroupAggregatedValue = TableNode.GetAggregatedValue(InColumn.GetId());
-					if (ChildGroupAggregatedValue.DataType == ETableCellDataType::CString &&
-						AggregatedValue == ChildGroupAggregatedValue.CString)
-					{
-						continue;
-					}
-				}
+				continue;
 			}
 
 			AggregatedValue = nullptr;
@@ -2550,18 +2515,11 @@ void STableTreeView::UpdateAggregation(const FTableColumn& InColumn, FTableTreeN
 				TableNode.ResetAggregatedValue(InColumn.GetId());
 				STableTreeView::UpdateAggregation<T, bSetInitialValue, true>(InColumn, TableNode, InitialAggregatedValue, ValueGetterFunc);
 			}
-			if (TableNode.HasAggregatedValue(InColumn.GetId()))
-			{
-				AggregatedValue = ValueGetterFunc(AggregatedValue, TableNode.GetAggregatedValue(InColumn.GetId()));
-			}
 		}
-		else
+		const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
+		if (NodeValue.IsSet())
 		{
-			const TOptional<FTableCellValue> NodeValue = InColumn.GetValue(*NodePtr);
-			if (NodeValue.IsSet())
-			{
-				AggregatedValue = ValueGetterFunc(AggregatedValue, NodeValue.GetValue());
-			}
+			AggregatedValue = ValueGetterFunc(AggregatedValue, NodeValue.GetValue());
 		}
 	}
 
