@@ -58,8 +58,11 @@ namespace OpenGLConsoleVariables
 #define RESTRICT_SUBDATA_SIZE 0
 #endif
 
-void IncrementBufferMemory(GLenum Type, uint32 NumBytes);
-void DecrementBufferMemory(GLenum Type, uint32 NumBytes);
+namespace OpenGLBufferStats
+{
+	void UpdateUniformBufferStats(int64 BufferSize, bool bAllocating);
+	void UpdateBufferStats(const FRHIBufferDesc& BufferDesc, bool bAllocating);
+}
 
 // Extra stats for finer-grained timing
 // They shouldn't always be on, as they may impact overall performance
@@ -173,7 +176,7 @@ public:
 				LoadData(0, BaseType::GetSize(), InData);
 			}
 #endif
-			IncrementBufferMemory(Type, BaseType::GetSize());
+			OpenGLBufferStats::UpdateBufferStats(BaseType::GetDesc(), true);
 		};
 
 		if (!BufferDesc.IsNull())
@@ -509,7 +512,7 @@ public:
 			}
 
 			LockBuffer = nullptr;
-			DecrementBufferMemory(Type, BaseType::GetSize());
+			OpenGLBufferStats::UpdateBufferStats(BaseType::GetDesc(), false);
 
 			ReleaseCachedBuffer();
 		}
@@ -546,6 +549,7 @@ public:
 		return true;
 	}
 
+	const FRHIBufferDesc& GetDesc() const { return Desc; }
 	uint32 GetSize() const { return Desc.Size; }
 	EBufferUsageFlags GetUsage() const { return Desc.Usage; }
 
@@ -597,12 +601,12 @@ struct FOpenGLEUniformBufferData : public FRefCountedObject
 		uint32 SizeInUint32s = (SizeInBytes + 3) / 4;
 		Data.Empty(SizeInUint32s);
 		Data.AddUninitialized(SizeInUint32s);
-		IncrementBufferMemory(GL_UNIFORM_BUFFER,Data.GetAllocatedSize());
+		OpenGLBufferStats::UpdateUniformBufferStats(Data.GetAllocatedSize(), true);
 	}
 
 	~FOpenGLEUniformBufferData()
 	{
-		DecrementBufferMemory(GL_UNIFORM_BUFFER,Data.GetAllocatedSize());
+		OpenGLBufferStats::UpdateUniformBufferStats(Data.GetAllocatedSize(), false);
 	}
 
 	TArray<uint32> Data;

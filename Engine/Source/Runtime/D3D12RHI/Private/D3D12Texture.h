@@ -256,16 +256,14 @@ FORCEINLINE FD3D12Texture* GetD3D12TextureFromRHITexture(FRHITexture* Texture, u
 	}
 }
 
-class FD3D12TextureStats
+namespace FD3D12TextureStats
 {
-public:
-
 	// Note: This function can be called from many different threads
 	// @param TextureSize >0 to allocate, <0 to deallocate
 	// @param b3D true:3D, false:2D or cube map
 	// @param bStreamable true:Streamable, false:not streamable
-	static void UpdateD3D12TextureStats(FD3D12Texture& Texture, const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap, bool bStreamable, bool bNewTexture);
+	void UpdateD3D12TextureStats(FD3D12Texture& Texture, const FD3D12ResourceDesc& ResourceDesc, const FRHITextureDesc& TextureDesc, uint64 TextureSize, bool bNewTexture, bool bAllocating);
 
-	static void D3D12TextureAllocated(FD3D12Texture& Texture, const D3D12_RESOURCE_DESC *Desc = nullptr);
-	static void D3D12TextureDeleted(FD3D12Texture& Texture);
+	void D3D12TextureAllocated(FD3D12Texture& Texture);
+	void D3D12TextureDeleted(FD3D12Texture& Texture);
 };

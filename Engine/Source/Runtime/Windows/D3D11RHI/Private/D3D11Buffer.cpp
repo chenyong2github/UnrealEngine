@@ -13,6 +13,25 @@ TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex(
 	TEXT("with the D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX flag instead of D3D11_RESOURCE_MISC_SHARED (default).\n"),
 	ECVF_Default);
 
+FD3D11Buffer::~FD3D11Buffer()
+{
+	D3D11BufferStats::UpdateBufferStats(*this, false);
+}
+
+void FD3D11Buffer::TakeOwnership(FD3D11Buffer& Other)
+{
+	FRHIBuffer::TakeOwnership(Other);
+	Resource = MoveTemp(Other.Resource);
+}
+
+void FD3D11Buffer::ReleaseOwnership()
+{
+	FRHIBuffer::ReleaseOwnership();
+
+	D3D11BufferStats::UpdateBufferStats(*this, false);
+	Resource = nullptr;
+}
+
 FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList, FRHIBufferDesc const& BufferDesc, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	if (BufferDesc.IsNull())
@@ -24,7 +43,8 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList,
 	checkf(BufferDesc.Size > 0, TEXT("Attempt to create buffer '%s' with size 0."), CreateInfo.DebugName ? CreateInfo.DebugName : TEXT("(null)"));
 
 	// Describe the buffer.
-	D3D11_BUFFER_DESC Desc = { BufferDesc.Size };
+	D3D11_BUFFER_DESC Desc{};
+	Desc.ByteWidth = BufferDesc.Size;
 
 	if (EnumHasAnyFlags(BufferDesc.Usage, BUF_AnyDynamic))
 	{
@@ -107,8 +127,6 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList,
 		BufferResource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(CreateInfo.DebugName) + 1, TCHAR_TO_ANSI(CreateInfo.DebugName));
 	}
 
-	UpdateBufferStats(BufferResource, true);
-
 	if (CreateInfo.DebugName)
 	{
 		BufferResource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(CreateInfo.DebugName) + 1, TCHAR_TO_ANSI(CreateInfo.DebugName));
@@ -125,6 +143,9 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(FRHICommandListBase& RHICmdList,
 	{
 		NewBuffer->SetName(CreateInfo.DebugName);
 	}
+
+	D3D11BufferStats::UpdateBufferStats(*NewBuffer, true);
+
 	return NewBuffer;
 }
 

@@ -361,10 +361,18 @@ struct FRHIGlobals
 	bool SupportsTextureStreaming = false;
 
 	/** Amount of memory allocated by textures. In kilobytes. */
+	UE_DEPRECATED(5.3, "CurrentTextureMemorySize was too vague, use StreamingTextureMemorySizeInKB in its place")
 	volatile int32 CurrentTextureMemorySize = 0;
 
 	/** Amount of memory allocated by rendertargets. In kilobytes. */
+	UE_DEPRECATED(5.3, "CurrentRendertargetMemorySize was too vague, use NonStreamingTextureMemorySizeInKB in its place")
 	volatile int32 CurrentRendertargetMemorySize = 0;
+
+	/** Amount of memory allocated by streaming textures. In kilobytes. */
+	volatile uint64 StreamingTextureMemorySizeInKB = 0;
+
+	/** Amount of memory allocated by non streaming textures. In kilobytes. */
+	volatile uint64 NonStreamingTextureMemorySizeInKB = 0;
 
 	/** Current texture streaming pool size, in bytes. 0 means unlimited. */
 	int64 TexturePoolSize = 0 * 1024 * 1024;
@@ -374,6 +382,12 @@ struct FRHIGlobals
 
 	/** Amount of local video memory demoted to system memory. In bytes. */
 	uint64 DemotedLocalMemorySize = 0;
+
+	/** Amount of memory allocated by buffers */
+	volatile uint64 BufferMemorySize = 0;
+
+	/** Amount of memory allocated by uniform buffers */
+	volatile uint64 UniformBufferMemorySize = 0;
 
 	/** Whether or not the RHI can handle a non-zero BaseVertexIndex - extra SetStreamSource calls will be needed if this is false */
 	bool SupportsBaseVertexIndex = true;

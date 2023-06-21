@@ -12,6 +12,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "MetalLLM.h"
 #include "RHILockTracker.h"
+#include "RHICoreStats.h"
 
 volatile int64 FMetalSurface::ActiveUploads = 0;
 
@@ -709,67 +710,24 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 	}
 	
 	// track memory usage
-	
-	if (CreateDesc.bIsRenderTarget)
+	const bool bOnlyStreamableTexturesInTexturePool = false;
+	UE::RHICore::UpdateGlobalTextureStats(GetDesc(), TotalTextureSize, bOnlyStreamableTexturesInTexturePool, true);
+
+	if (Texture && EnumHasAnyFlags(CreateDesc.Flags, TexCreate_ShaderResource | TexCreate_UAV) &&
+		!(Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
 	{
-		GCurrentRendertargetMemorySize += Align(TotalTextureSize, 1024) / 1024;
+		// If the texture was created without PixelFormatView delete the resources
+		// unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
+		check(0);
 	}
-	else
-	{
-		GCurrentTextureMemorySize += Align(TotalTextureSize, 1024) / 1024;
-	}
-	
-#if STATS
-	if (CreateDesc.IsTextureCube())
-	{
-		if (CreateDesc.bIsRenderTarget)
-		{
-			INC_MEMORY_STAT_BY(STAT_RenderTargetMemoryCube, TotalTextureSize);
-		}
-		else
-		{
-			INC_MEMORY_STAT_BY(STAT_TextureMemoryCube, TotalTextureSize);
-		}
-	}
-	else if (CreateDesc.IsTexture3D())
-	{
-		if (CreateDesc.bIsRenderTarget)
-		{
-			INC_MEMORY_STAT_BY(STAT_RenderTargetMemory3D, TotalTextureSize);
-		}
-		else
-		{
-			INC_MEMORY_STAT_BY(STAT_TextureMemory3D, TotalTextureSize);
-		}
-	}
-	else
-	{
-		if (CreateDesc.bIsRenderTarget)
-		{
-			INC_MEMORY_STAT_BY(STAT_RenderTargetMemory2D, TotalTextureSize);
-		}
-		else
-		{
-			INC_MEMORY_STAT_BY(STAT_TextureMemory2D, TotalTextureSize);
-		}
-	}
-#endif
-    
-    if (Texture && EnumHasAnyFlags(CreateDesc.Flags, TexCreate_ShaderResource | TexCreate_UAV) &&
-            !(Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
-    {
-        // If the texture was created without PixelFormatView delete the resources
-        // unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
-        check(0);
-    }
 }
 
 @interface FMetalDeferredStats : FApplePlatformObject
 {
 @public
-	uint64 TextureSize;
 	ETextureDimension Dimension;
-	bool bIsRenderTarget;
+	ETextureCreateFlags Flags;
+	uint64 TextureSize;
 }
 @end
 
@@ -777,57 +735,14 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalDeferredStats)
 -(void)dealloc
 {
-#if STATS
-	if (Dimension == ETextureDimension::TextureCube || Dimension == ETextureDimension::TextureCubeArray)
-	{
-		if (bIsRenderTarget)
-		{
-			DEC_MEMORY_STAT_BY(STAT_RenderTargetMemoryCube, TextureSize);
-		}
-		else
-		{
-			DEC_MEMORY_STAT_BY(STAT_TextureMemoryCube, TextureSize);
-		}
-	}
-	else if (Dimension == ETextureDimension::Texture3D)
-	{
-		if (bIsRenderTarget)
-		{
-			DEC_MEMORY_STAT_BY(STAT_RenderTargetMemory3D, TextureSize);
-		}
-		else
-		{
-			DEC_MEMORY_STAT_BY(STAT_TextureMemory3D, TextureSize);
-		}
-	}
-	else
-	{
-		if (bIsRenderTarget)
-		{
-			DEC_MEMORY_STAT_BY(STAT_RenderTargetMemory2D, TextureSize);
-		}
-		else
-		{
-			DEC_MEMORY_STAT_BY(STAT_TextureMemory2D, TextureSize);
-		}
-	}
-#endif
-	if (bIsRenderTarget)
-	{
-		GCurrentRendertargetMemorySize -= Align(TextureSize, 1024) / 1024;
-	}
-	else
-	{
-		GCurrentTextureMemorySize -= Align(TextureSize, 1024) / 1024;
-	}
+	const bool bOnlyStreamableTexturesInTexturePool = false;
+	UE::RHICore::UpdateGlobalTextureStats(Flags, Dimension, TextureSize, bOnlyStreamableTexturesInTexturePool, false);
 	[super dealloc];
 }
 @end
 
 FMetalSurface::~FMetalSurface()
 {
-	bool const bIsRenderTarget = IsRenderTarget(GetDesc().Flags);
-	
 	if (MSAATexture.GetPtr())
 	{
 		if (Texture.GetPtr() != MSAATexture.GetPtr())
@@ -835,7 +750,6 @@ FMetalSurface::~FMetalSurface()
 			SafeReleaseMetalTexture(this, MSAATexture, false);
 		}
 	}
-	
 	
 	//do the same as above.  only do a [release] if it's the same as texture.
 	if (MSAAResolveTexture.GetPtr())
@@ -858,8 +772,8 @@ FMetalSurface::~FMetalSurface()
 	// track memory usage
 	FMetalDeferredStats* Block = [FMetalDeferredStats new];
 	Block->Dimension = GetDesc().Dimension;
+	Block->Flags = GetDesc().Flags;
 	Block->TextureSize = TotalTextureSize;
-	Block->bIsRenderTarget = bIsRenderTarget;
 	SafeReleaseMetalObject(Block);
 	
 	if(ImageSurfaceRef)
@@ -1392,25 +1306,17 @@ ns::AutoReleased<FMetalTexture> FMetalSurface::GetCurrentTexture()
 
 void FMetalDynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 {
-	if(MemoryStats.TotalGraphicsMemory > 0)
+	UE::RHICore::FillBaselineTextureMemoryStats(OutStats);
+
+	if (MemoryStats.TotalGraphicsMemory > 0)
 	{
 		OutStats.DedicatedVideoMemory = MemoryStats.DedicatedVideoMemory;
 		OutStats.DedicatedSystemMemory = MemoryStats.DedicatedSystemMemory;
 		OutStats.SharedSystemMemory = MemoryStats.SharedSystemMemory;
 		OutStats.TotalGraphicsMemory = MemoryStats.TotalGraphicsMemory;
 	}
-	else
-	{
-		OutStats.DedicatedVideoMemory = 0;
-		OutStats.DedicatedSystemMemory = 0;
-		OutStats.SharedSystemMemory = 0;
-		OutStats.TotalGraphicsMemory = 0;
-	}
-	
-	OutStats.AllocatedMemorySize = int64(GCurrentTextureMemorySize) * 1024;
-	OutStats.LargestContiguousAllocation = OutStats.AllocatedMemorySize;
-	OutStats.TexturePoolSize = GTexturePoolSize;
-	OutStats.PendingMemoryAdjustment = 0;
+
+	OutStats.LargestContiguousAllocation = OutStats.StreamingMemorySize;
 }
 
 bool FMetalDynamicRHI::RHIGetTextureMemoryVisualizeData( FColor* /*TextureData*/, int32 /*SizeX*/, int32 /*SizeY*/, int32 /*Pitch*/, int32 /*PixelSize*/ )

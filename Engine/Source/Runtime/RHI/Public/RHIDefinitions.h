@@ -972,6 +972,9 @@ enum class ETextureCreateFlags : uint64
 	ReservedResource                  = 1ull << 37,
 	/** EXPERIMENTAL: Used with ReservedResource flag to immediately allocate and commit memory on creation. May use N small physical memory allocations instead of a single large one. */
 	ImmediateCommit                   = 1ull << 38,
+
+	/** Don't lump this texture with streaming memory when tracking total texture allocation sizes */
+	ForceIntoNonStreamingMemoryTracking = 1ull << 39,
 };
 ENUM_CLASS_FLAGS(ETextureCreateFlags);
 

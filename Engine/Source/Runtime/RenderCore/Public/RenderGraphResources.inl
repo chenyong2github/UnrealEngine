@@ -126,7 +126,7 @@ inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc)
 		OutDesc.Dimension = ETextureDimension::Texture2DArray;
 	}
 
-	OutDesc.Flags = InDesc.Flags;
+	OutDesc.Flags = InDesc.Flags | ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking;
 	OutDesc.FastVRAMPercentage = InDesc.FastVRAMPercentage;
 	check(OutDesc.IsValid());
 

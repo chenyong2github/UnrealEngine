@@ -19,6 +19,7 @@ int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS] = {};
 DEFINE_STAT(STAT_RenderTargetMemory2D);
 DEFINE_STAT(STAT_RenderTargetMemory3D);
 DEFINE_STAT(STAT_RenderTargetMemoryCube);
+DEFINE_STAT(STAT_UAVTextureMemory);
 DEFINE_STAT(STAT_TextureMemory2D);
 DEFINE_STAT(STAT_TextureMemory3D);
 DEFINE_STAT(STAT_TextureMemoryCube);
@@ -27,7 +28,9 @@ DEFINE_STAT(STAT_IndexBufferMemory);
 DEFINE_STAT(STAT_VertexBufferMemory);
 DEFINE_STAT(STAT_RTAccelerationStructureMemory);
 DEFINE_STAT(STAT_StructuredBufferMemory);
-DEFINE_STAT(STAT_PixelBufferMemory);
+DEFINE_STAT(STAT_ByteAddressBufferMemory);
+DEFINE_STAT(STAT_DrawIndirectBufferMemory);
+DEFINE_STAT(STAT_MiscBufferMemory);
 
 DEFINE_STAT(STAT_SamplerDescriptorsAllocated);
 DEFINE_STAT(STAT_ResourceDescriptorsAllocated);

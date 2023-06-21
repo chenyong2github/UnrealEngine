@@ -9,6 +9,7 @@
 #include "StaticBoundShaderState.h"
 #include "Engine/GameViewportClient.h"
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "RHICoreStats.h"
 
 #if WITH_DX_PERF
 	// For perf events
@@ -683,64 +684,40 @@ void FD3D11EventNodeFrame::LogDisjointQuery()
 	}
 }
 
-void UpdateBufferStats(TRefCountPtr<ID3D11Buffer> Buffer, bool bAllocating)
+static void D3D11UpdateBufferStatsCommon(ID3D11Buffer* Buffer, int64 BufferSize, bool bAllocating)
 {
-	D3D11_BUFFER_DESC Desc;
-	Buffer->GetDesc(&Desc);
+	// this is a work-around on Windows. Due to the fact that there is no way
+	// to hook the actual d3d allocations we can't track the memory in the normal way.
+	// Instead we simply tell LLM the size of these resources.
 
-	const bool bUniformBuffer = !!(Desc.BindFlags & D3D11_BIND_CONSTANT_BUFFER);
-	const bool bIndexBuffer = !!(Desc.BindFlags & D3D11_BIND_INDEX_BUFFER);
-	const bool bVertexBuffer = !!(Desc.BindFlags & D3D11_BIND_VERTEX_BUFFER);
+	LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, bAllocating ? BufferSize : -BufferSize, ELLMTracker::Platform, ELLMAllocType::None);
 
+#if UE_MEMORY_TRACE_ENABLED
 	if (bAllocating)
 	{
-		if (bUniformBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_UniformBufferMemory,Desc.ByteWidth);
-		}
-		else if (bIndexBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_IndexBufferMemory,Desc.ByteWidth);
-		}
-		else if (bVertexBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_VertexBufferMemory,Desc.ByteWidth);
-		}
-		else
-		{
-			INC_MEMORY_STAT_BY(STAT_StructuredBufferMemory,Desc.ByteWidth);
-		}
-
-		// this is a work-around on Windows. Due to the fact that there is no way
-		// to hook the actual d3d allocations we can't track the memory in the normal way.
-		// Instead we simply tell LLM the size of these resources.
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, Desc.ByteWidth, ELLMTracker::Platform, ELLMAllocType::None);
-		MemoryTrace_Alloc((uint64)Buffer.GetReference(), Desc.ByteWidth, 0, EMemoryTraceRootHeap::VideoMemory);
+		MemoryTrace_Alloc((uint64)Buffer, BufferSize, 0, EMemoryTraceRootHeap::VideoMemory);
 	}
 	else
-	{ //-V523
-		if (bUniformBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_UniformBufferMemory,Desc.ByteWidth);
-		}
-		else if (bIndexBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_IndexBufferMemory,Desc.ByteWidth);
-		}
-		else if (bVertexBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_VertexBufferMemory,Desc.ByteWidth);
-		}
-		else
-		{
-			DEC_MEMORY_STAT_BY(STAT_StructuredBufferMemory,Desc.ByteWidth);
-		}
+	{
+		MemoryTrace_Free((uint64)Buffer, EMemoryTraceRootHeap::VideoMemory);
+	}
+#endif
+}
 
-		// this is a work-around on Windows. Due to the fact that there is no way
-		// to hook the actual d3d allocations we can't track the memory in the normal way.
-		// Instead we simply tell LLM the size of these resources.
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -(int64)Desc.ByteWidth, ELLMTracker::Platform, ELLMAllocType::None);
-		MemoryTrace_Free((uint64)Buffer.GetReference(), EMemoryTraceRootHeap::VideoMemory);
+void D3D11BufferStats::UpdateUniformBufferStats(ID3D11Buffer* Buffer, int64 BufferSize, bool bAllocating)
+{
+	UE::RHICore::UpdateGlobalUniformBufferStats(BufferSize, bAllocating);
+	D3D11UpdateBufferStatsCommon(Buffer, BufferSize, bAllocating);
+}
+
+void D3D11BufferStats::UpdateBufferStats(FD3D11Buffer& Buffer, bool bAllocating)
+{
+	if (ID3D11Buffer* Resource = Buffer.Resource)
+	{
+		const FRHIBufferDesc& BufferDesc = Buffer.GetDesc();
+
+		UE::RHICore::UpdateGlobalBufferStats(BufferDesc, BufferDesc.Size, bAllocating);
+		D3D11UpdateBufferStatsCommon(Resource, BufferDesc.Size, bAllocating);
 	}
 }
 

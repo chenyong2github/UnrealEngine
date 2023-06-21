@@ -580,7 +580,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async()
 	if (GPoolSizeVRAMPercentage > 0 && TotalGraphicsMemory > 0)
 	{
 		const int64 UsableVRAM = FMath::Max<int64>(TotalGraphicsMemory * GPoolSizeVRAMPercentage / 100, TotalGraphicsMemory - Settings.VRAMPercentageClamp * 1024ll * 1024ll);
-		const int64 UsedVRAM = (int64)GCurrentRendertargetMemorySize * 1024ll + NonStreamingRenderAssetMemory; // Add any other...
+		const int64 UsedVRAM = (int64)GRHIGlobals.NonStreamingTextureMemorySizeInKB * 1024ll + NonStreamingRenderAssetMemory; // Add any other...
 		const int64 AvailableVRAMForStreaming = FMath::Min<int64>(UsableVRAM - UsedVRAM - MemoryMargin, PoolSize);
 		if (Settings.bLimitPoolSizeToVRAM || AvailableVRAMForStreaming > AvailableMemoryForStreaming)
 		{
@@ -589,7 +589,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateBudgetedMips_Async()
 	}
 
 	// Update EffectiveStreamingPoolSize, trying to stabilize it independently of temp memory, allocator overhead and non-streaming resources normal variation.
-	// It's hard to know how much temp memory and allocator overhead is actually in AllocatedMemorySize as it is platform specific.
+	// It's hard to know how much temp memory and allocator overhead is actually in StreamingMemorySize as it is platform specific.
 	// We handle it by not using all memory available. If temp memory and memory margin values are effectively bigger than the actual used values, the pool will stabilize.
 	if (AvailableMemoryForStreaming < MemoryBudget)
 	{

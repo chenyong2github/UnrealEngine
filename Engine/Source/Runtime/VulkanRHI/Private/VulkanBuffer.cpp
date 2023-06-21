@@ -11,6 +11,7 @@
 #include "VulkanLLM.h"
 #include "VulkanRayTracing.h"
 #include "VulkanTransientResourceAllocator.h"
+#include "RHICoreStats.h"
 
 static TMap<FVulkanResourceMultiBuffer*, VulkanRHI::FPendingBufferLock> GPendingLockIBs;
 static FCriticalSection GPendingLockIBsMutex;
@@ -36,59 +37,9 @@ static FORCEINLINE VulkanRHI::FPendingBufferLock GetPendingBufferLock(FVulkanRes
 	return PendingLock;
 }
 
-static FORCEINLINE void UpdateVulkanBufferStats(uint64_t Size, VkBufferUsageFlags Usage, bool Allocating)
+static void UpdateVulkanBufferStats(const FRHIBufferDesc& BufferDesc, int64 BufferSize, bool bAllocating)
 {
-	const bool bUniformBuffer = !!(Usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-	const bool bIndexBuffer = !!(Usage & VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-	const bool bVertexBuffer = !!(Usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-	const bool bAccelerationStructure = !!(Usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR);
-
-	if (Allocating)
-	{
-		if (bUniformBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_UniformBufferMemory, Size);
-		}
-		else if (bIndexBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_IndexBufferMemory, Size);
-		}
-		else if (bVertexBuffer)
-		{
-			INC_MEMORY_STAT_BY(STAT_VertexBufferMemory, Size);
-		}
-		else if (bAccelerationStructure)
-		{
-			INC_MEMORY_STAT_BY(STAT_RTAccelerationStructureMemory, Size);
-		}
-		else
-		{
-			INC_MEMORY_STAT_BY(STAT_StructuredBufferMemory, Size);
-		}
-	}
-	else
-	{
-		if (bUniformBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_UniformBufferMemory, Size);
-		}
-		else if (bIndexBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_IndexBufferMemory, Size);
-		}
-		else if (bVertexBuffer)
-		{
-			DEC_MEMORY_STAT_BY(STAT_VertexBufferMemory, Size);
-		}
-		else if (bAccelerationStructure)
-		{
-			INC_MEMORY_STAT_BY(STAT_RTAccelerationStructureMemory, Size);
-		}
-		else
-		{
-			DEC_MEMORY_STAT_BY(STAT_StructuredBufferMemory, Size);
-		}
-	}
+	UE::RHICore::UpdateGlobalBufferStats(BufferDesc, BufferSize, bAllocating);
 }
 
 static VkDeviceAddress GetBufferDeviceAddress(FVulkanDevice* Device, VkBuffer Buffer)
@@ -297,7 +248,7 @@ void FVulkanResourceMultiBuffer::AdvanceBufferIndex()
 		NewBufferAlloc.AllocStatus = FBufferAlloc::EAllocStatus::InUse;
 		NewBufferAlloc.DeviceAddress = GetBufferDeviceAddress(Device, NewBufferAlloc.Alloc.GetBufferHandle()) + NewBufferAlloc.Alloc.Offset;
 
-		UpdateVulkanBufferStats(BufferSize, BufferUsageFlags, true);
+		UpdateVulkanBufferStats(GetDesc(), BufferSize, true);
 	}
 }
 
@@ -651,7 +602,7 @@ void FVulkanResourceMultiBuffer::ReleaseOwnership()
 
 	if (TotalSize > 0)
 	{
-		UpdateVulkanBufferStats(TotalSize, BufferUsageFlags, false);
+		UpdateVulkanBufferStats(GetDesc(), TotalSize, false);
 	}
 }
 

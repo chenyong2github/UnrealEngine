@@ -8,6 +8,7 @@
 #include "Stats/Stats.h"
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
+#include "RHICoreStats.h"
 
 void VerifyOpenGLResult(GLenum ErrorCode, const TCHAR* Msg1, const TCHAR* Msg2, const TCHAR* Filename, uint32 Line)
 {
@@ -101,54 +102,15 @@ DEFINE_STAT(STAT_OpenGLUniformBindTime);
 DEFINE_STAT(STAT_OpenGLVBOSetupTime);
 #endif
 
-void IncrementBufferMemory(GLenum Type, uint32 NumBytes)
+
+void OpenGLBufferStats::UpdateUniformBufferStats(int64 BufferSize, bool bAllocating)
 {
-	if (Type == GL_SHADER_STORAGE_BUFFER)
-	{
-		INC_MEMORY_STAT_BY(STAT_StructuredBufferMemory,NumBytes);
-	}
-	else if (Type == GL_UNIFORM_BUFFER)
-	{
-		INC_MEMORY_STAT_BY(STAT_UniformBufferMemory,NumBytes);
-	}
-	else if (Type == GL_ELEMENT_ARRAY_BUFFER)
-	{
-		INC_MEMORY_STAT_BY(STAT_IndexBufferMemory,NumBytes);
-	}
-	else if (Type == GL_PIXEL_UNPACK_BUFFER)
-	{
-		INC_MEMORY_STAT_BY(STAT_PixelBufferMemory,NumBytes);
-	}
-	else
-	{
-		check(Type == GL_ARRAY_BUFFER);
-		INC_MEMORY_STAT_BY(STAT_VertexBufferMemory,NumBytes);
-	}
+	UE::RHICore::UpdateGlobalUniformBufferStats(BufferSize, bAllocating);
 }
 
-void DecrementBufferMemory(GLenum Type, uint32 NumBytes)
+void OpenGLBufferStats::UpdateBufferStats(const FRHIBufferDesc& BufferDesc, bool bAllocating)
 {
-	if (Type == GL_SHADER_STORAGE_BUFFER)
-	{
-		DEC_MEMORY_STAT_BY(STAT_StructuredBufferMemory,NumBytes);
-	}
-	else if (Type == GL_UNIFORM_BUFFER)
-	{
-		DEC_MEMORY_STAT_BY(STAT_UniformBufferMemory,NumBytes);
-	}
-	else if (Type == GL_ELEMENT_ARRAY_BUFFER)
-	{
-		DEC_MEMORY_STAT_BY(STAT_IndexBufferMemory,NumBytes);
-	}
-	else if (Type == GL_PIXEL_UNPACK_BUFFER)
-	{
-		DEC_MEMORY_STAT_BY(STAT_PixelBufferMemory,NumBytes);
-	}
-	else if (Type != 0) // CreateInfo.bWithoutNativeResource
-	{
-		check(Type == GL_ARRAY_BUFFER);
-		DEC_MEMORY_STAT_BY(STAT_VertexBufferMemory,NumBytes);
-	}
+	UE::RHICore::UpdateGlobalBufferStats(BufferDesc, BufferDesc.Size, bAllocating);
 }
 
 // Run passed function on whichever thread owns the render context.

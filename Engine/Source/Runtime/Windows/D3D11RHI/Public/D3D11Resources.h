@@ -334,9 +334,6 @@ public:
 
 };
 
-/** Updates tracked stats for a buffer. */
-extern void UpdateBufferStats(TRefCountPtr<ID3D11Buffer> Buffer, bool bAllocating);
-
 /** Forward declare the constants ring buffer. */
 class FD3D11ConstantsRingBuffer;
 
@@ -407,27 +404,10 @@ public:
 	}
 #endif
 
-	virtual ~FD3D11Buffer()
-	{
-		if (Resource)
-		{
-			UpdateBufferStats(Resource, false);
-		}
-	}
+	virtual ~FD3D11Buffer();
 
-	void TakeOwnership(FD3D11Buffer& Other)
-	{
-		FRHIBuffer::TakeOwnership(Other);
-		Resource = MoveTemp(Other.Resource);
-	}
-
-	void ReleaseOwnership()
-	{
-		FRHIBuffer::ReleaseOwnership();
-
-		UpdateBufferStats(Resource, false);
-		Resource = nullptr;
-	}
+	void TakeOwnership(FD3D11Buffer& Other);
+	void ReleaseOwnership();
 
 	// IRefCountedObject interface.
 	virtual uint32 AddRef() const
@@ -463,6 +443,12 @@ private:
 	TRefCountPtr<ID3D11Buffer> StagedRead;
 	uint32 ShadowBufferSize;
 };
+
+namespace D3D11BufferStats
+{
+	void UpdateUniformBufferStats(ID3D11Buffer* Buffer, int64 BufferSize, bool bAllocating);
+	void UpdateBufferStats(FD3D11Buffer& Buffer, bool bAllocating);
+}
 
 class FD3D11View : public TIntrusiveLinkedList<FD3D11View>
 {

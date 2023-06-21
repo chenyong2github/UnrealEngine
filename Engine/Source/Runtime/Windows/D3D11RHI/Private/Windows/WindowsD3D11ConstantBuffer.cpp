@@ -31,7 +31,7 @@ void FWinD3D11ConstantBuffer::InitRHI(FRHICommandListBase& RHICmdList)
 
 		CA_SUPPRESS(6385);	// Doesn't like COM
 		VERIFYD3D11RESULT_EX(D3DRHI->GetDevice()->CreateBuffer(&BufferDesc, nullptr, SubBuffer.Buffer.GetInitReference()), D3DRHI->GetDevice());
-		UpdateBufferStats(SubBuffer.Buffer, true);
+		D3D11BufferStats::UpdateUniformBufferStats(SubBuffer.Buffer, SubBuffer.Size, true);
 
 		BufferDesc.ByteWidth = Align(BufferDesc.ByteWidth / 2, 16);
 	}
@@ -43,9 +43,9 @@ void FWinD3D11ConstantBuffer::ReleaseRHI()
 {
 	FD3D11ConstantBuffer::ReleaseRHI();
 
-	for (FSubBuffer& SubBuffer : SubBuffers)
+	for (const FSubBuffer& SubBuffer : SubBuffers)
 	{
-		UpdateBufferStats(SubBuffer.Buffer, false);
+		D3D11BufferStats::UpdateUniformBufferStats(SubBuffer.Buffer, SubBuffer.Size, false);
 	}
 
 	SubBuffers.Empty();

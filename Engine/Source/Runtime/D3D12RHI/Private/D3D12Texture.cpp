@@ -9,6 +9,7 @@
 #include "ProfilingDebugging/MemoryTrace.h"
 #include "RHIUtilities.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
+#include "RHICoreStats.h"
 
 int64 FD3D12GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D12GlobalStats::GDedicatedSystemMemory = 0;
@@ -38,9 +39,10 @@ static TAutoConsoleVariable<int32> CVarUseUpdateTexture3DComputeShader(
 	TEXT(" 1: on"),
 	ECVF_RenderThreadSafe );
 
-static TAutoConsoleVariable<bool> CVarTexturePoolOnlyAccountStreamableTexture(
+static bool GTexturePoolOnlyAccountStreamableTexture = false;
+static FAutoConsoleVariableRef CVarTexturePoolOnlyAccountStreamableTexture(
 	TEXT("D3D12.TexturePoolOnlyAccountStreamableTexture"),
-	0,
+	GTexturePoolOnlyAccountStreamableTexture,
 	TEXT("Texture streaming pool size only account streamable texture .\n")
 	TEXT(" - 0: All texture types are counted in the pool (legacy, default).\n")
 	TEXT(" - 1: Only streamable textures are counted in the pool.\n")
@@ -282,84 +284,34 @@ struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHIC
 // Texture Stats
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-
-static bool ShouldCountAsTextureMemory(D3D12_RESOURCE_FLAGS MiscFlags)
-{
-	// Shouldn't be used for DEPTH, RENDER TARGET, or UNORDERED ACCESS
-	return !EnumHasAnyFlags(MiscFlags, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL | D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-}
-
-
-static TStatId GetRHIStatEnum(D3D12_RESOURCE_FLAGS MiscFlags, bool bCubeMap, bool b3D)
-{
 #if STATS
-	if (ShouldCountAsTextureMemory(MiscFlags))
-	{
-		// normal texture
-		if (bCubeMap)
-		{
-			return GET_STATID(STAT_TextureMemoryCube);
-		}
-		else if (b3D)
-		{
-			return GET_STATID(STAT_TextureMemory3D);
-		}
-		else
-		{
-			return GET_STATID(STAT_TextureMemory2D);
-		}
-	}
-	else
-	{
-		// render target
-		if (bCubeMap)
-		{
-			return GET_STATID(STAT_RenderTargetMemoryCube);
-		}
-		else if (b3D)
-		{
-			return GET_STATID(STAT_RenderTargetMemory3D);
-		}
-		else
-		{
-			return GET_STATID(STAT_RenderTargetMemory2D);
-		}
-	}
-#endif
-	return TStatId();
-}
-
-
-static TStatId GetD3D12StatEnum(D3D12_RESOURCE_FLAGS MiscFlags)
+static TStatId GetD3D12StatEnum(const FD3D12ResourceDesc& ResourceDesc)
 {
-#if STATS
-	if (EnumHasAnyFlags(MiscFlags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+	if (EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
 	{
 		return GET_STATID(STAT_D3D12RenderTargets);
 	}
-	else if (EnumHasAnyFlags(MiscFlags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
+
+	if (EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
 	{
 		return GET_STATID(STAT_D3D12UAVTextures);
 	}
-	else
-	{
-		return GET_STATID(STAT_D3D12Textures);
-	}
-#endif
-	return TStatId();
+
+	return GET_STATID(STAT_D3D12Textures);
 }
+#endif // STATS
 
 
-void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap, bool bStreamable, bool bNewTexture)
+void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const FD3D12ResourceDesc& ResourceDesc, const FRHITextureDesc& TextureDesc, uint64 TextureSize, bool bNewTexture, bool bAllocating)
 {
 #if TEXTURE_PROFILER_ENABLED
 	if (!bNewTexture
 		&& !Texture.ResourceLocation.IsTransient() 
-		&& !EnumHasAnyFlags(Texture.GetFlags(), TexCreate_Virtual)
+		&& !EnumHasAnyFlags(TextureDesc.Flags, ETextureCreateFlags::Virtual)
 		&& !Texture.ResourceLocation.IsAliased())
 	{
-		const uint64 SafeSize = (uint64)(TextureSize >= 0 ? TextureSize : 0);
-		FTextureProfiler::Get()->UpdateTextureAllocation(&Texture, SafeSize, Desc.Alignment, 0);
+		const uint64 SafeSize = bAllocating ? TextureSize : 0;
+		FTextureProfiler::Get()->UpdateTextureAllocation(&Texture, SafeSize, ResourceDesc.Alignment, 0);
 	}
 #endif
 
@@ -368,24 +320,12 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 		return;
 	}
 
-	const int64 AlignedSize = (TextureSize > 0) ? Align(TextureSize, 1024) / 1024 : -(Align(-TextureSize, 1024) / 1024);
-	if (ShouldCountAsTextureMemory(Desc.Flags))
-	{
-		const bool bOnlyStreamableTextureAccounted = CVarTexturePoolOnlyAccountStreamableTexture.GetValueOnAnyThread();
+	UE::RHICore::UpdateGlobalTextureStats(TextureDesc, TextureSize, GTexturePoolOnlyAccountStreamableTexture, bAllocating);
 
-		if (!bOnlyStreamableTextureAccounted || bStreamable)
-		{
-			FPlatformAtomics::InterlockedAdd(&GCurrentTextureMemorySize, AlignedSize);
-		}
-	}
-	else
-	{
-		FPlatformAtomics::InterlockedAdd(&GCurrentRendertargetMemorySize, AlignedSize);
-	}
+	const int64 TextureSizeDeltaInBytes = bAllocating ? static_cast<int64>(TextureSize) : -static_cast<int64>(TextureSize);
 
-	INC_MEMORY_STAT_BY_FName(GetD3D12StatEnum(Desc.Flags).GetName(), TextureSize);
-	INC_MEMORY_STAT_BY_FName(GetRHIStatEnum(Desc.Flags, bCubeMap, b3D).GetName(), TextureSize);
-	INC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, TextureSize);
+	INC_MEMORY_STAT_BY_FName(GetD3D12StatEnum(ResourceDesc).GetName(), TextureSizeDeltaInBytes);
+	INC_MEMORY_STAT_BY(STAT_D3D12MemoryCurrentTotal, TextureSizeDeltaInBytes);
 
 	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress = Texture.ResourceLocation.GetGPUVirtualAddress();
 
@@ -395,7 +335,7 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 	const bool bMemoryTrace = bTrackingAllAllocations || GPUAddress != 0;
 #endif
 
-	if (TextureSize > 0)
+	if (bAllocating)
 	{
 #if PLATFORM_WINDOWS
 		// On Windows there is no way to hook into the low level d3d allocations and frees.
@@ -411,7 +351,7 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 			// 2) placed resource from a pool allocator, because MemoryTrace_Alloc has been called in FD3D12Adapter::CreatePlacedResource
 			if (bMemoryTrace && !Texture.ResourceLocation.IsStandaloneOrPooledPlacedResource())
 			{
-				MemoryTrace_Alloc(GPUAddress, TextureSize, Desc.Alignment, EMemoryTraceRootHeap::VideoMemory);
+				MemoryTrace_Alloc(GPUAddress, TextureSize, ResourceDesc.Alignment, EMemoryTraceRootHeap::VideoMemory);
 			}
 #endif
 		}
@@ -437,33 +377,26 @@ void FD3D12TextureStats::UpdateD3D12TextureStats(FD3D12Texture& Texture, const D
 }
 
 
-void FD3D12TextureStats::D3D12TextureAllocated(FD3D12Texture& Texture, const D3D12_RESOURCE_DESC *Desc)
+void FD3D12TextureStats::D3D12TextureAllocated(FD3D12Texture& Texture)
 {
-	FD3D12Resource* D3D12Texture = Texture.GetResource();
-
-	if (D3D12Texture)
+	if (FD3D12Resource* D3D12Resource = Texture.GetResource())
 	{
-		if (!Desc)
-		{
-			Desc = &D3D12Texture->GetDesc();
-		}
+		const FD3D12ResourceDesc& ResourceDesc = D3D12Resource->GetDesc();
+		const FRHITextureDesc& TextureDesc = Texture.GetDesc();
 
 		// Don't update state for readback, virtual, or transient textures	
-		const ETextureCreateFlags CreateFlags = Texture.GetDesc().Flags;
-		if (!EnumHasAnyFlags(CreateFlags, TexCreate_Virtual | TexCreate_CPUReadback) && !Texture.ResourceLocation.IsTransient())
+		if (!EnumHasAnyFlags(TextureDesc.Flags, ETextureCreateFlags::Virtual | ETextureCreateFlags::CPUReadback) && !Texture.ResourceLocation.IsTransient())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::UpdateTextureStats);
 
-			const int64 TextureSize = Texture.ResourceLocation.GetSize();			
+			const uint64 TextureSize = Texture.ResourceLocation.GetSize();
 			const bool bNewTexture = true;
-			const bool bIsStreamable = EnumHasAnyFlags(CreateFlags, ETextureCreateFlags::Streamable);
-			UpdateD3D12TextureStats(Texture, *Desc, TextureSize, Texture.GetDesc().IsTexture3D(), Texture.GetDesc().IsTextureCube(), bIsStreamable, bNewTexture);
+			UpdateD3D12TextureStats(Texture, ResourceDesc, TextureDesc, TextureSize, bNewTexture, true);
 
 #if TEXTURE_PROFILER_ENABLED
 			if (!Texture.ResourceLocation.IsAliased())
 			{
-				const uint32 Alignment = Desc->Alignment;
-				FTextureProfiler::Get()->AddTextureAllocation(&Texture, TextureSize, Alignment, 0);
+				FTextureProfiler::Get()->AddTextureAllocation(&Texture, TextureSize, ResourceDesc.Alignment, 0);
 			}
 #endif
 		}
@@ -474,24 +407,22 @@ void FD3D12TextureStats::D3D12TextureAllocated(FD3D12Texture& Texture, const D3D
 
 void FD3D12TextureStats::D3D12TextureDeleted(FD3D12Texture& Texture)
 {
-	FD3D12Resource* D3D12Texture = Texture.GetResource();
-
-	if (D3D12Texture)
+	if (FD3D12Resource* D3D12Resource = Texture.GetResource())
 	{
+		const FD3D12ResourceDesc& ResourceDesc = D3D12Resource->GetDesc();
+		const FRHITextureDesc& TextureDesc = Texture.GetDesc();
+
 		// Don't update state for readback or transient textures, but virtual textures need to have their size deducted from calls to RHIVirtualTextureSetFirstMipInMemory.
-		const ETextureCreateFlags CreateFlags = Texture.GetDesc().Flags;
-		if (!EnumHasAnyFlags(CreateFlags, TexCreate_CPUReadback) && !Texture.ResourceLocation.IsTransient())
+		if (!EnumHasAnyFlags(TextureDesc.Flags, ETextureCreateFlags::CPUReadback) && !Texture.ResourceLocation.IsTransient())
 		{
-			const D3D12_RESOURCE_DESC& Desc = D3D12Texture->GetDesc();
-			const int64 TextureSize = Texture.ResourceLocation.GetSize();
-			ensure(TextureSize > 0 || EnumHasAnyFlags(CreateFlags, TexCreate_Virtual) || Texture.ResourceLocation.IsAliased());
+			const uint64 TextureSize = Texture.ResourceLocation.GetSize();
+			ensure(TextureSize > 0 || EnumHasAnyFlags(TextureDesc.Flags, ETextureCreateFlags::Virtual) || Texture.ResourceLocation.IsAliased());
 
 			const bool bNewTexture = false;
-			const bool bIsStreamable = EnumHasAnyFlags(CreateFlags, ETextureCreateFlags::Streamable);
-			UpdateD3D12TextureStats(Texture, Desc, -TextureSize, Texture.GetDesc().IsTexture3D(), Texture.GetDesc().IsTextureCube(), bIsStreamable, bNewTexture);
+			UpdateD3D12TextureStats(Texture, ResourceDesc, TextureDesc, TextureSize, bNewTexture, false);
 
 #if TEXTURE_PROFILER_ENABLED
-			if (!EnumHasAnyFlags(CreateFlags, TexCreate_Virtual) && !Texture.ResourceLocation.IsAliased())
+			if (!EnumHasAnyFlags(TextureDesc.Flags, ETextureCreateFlags::Virtual) && !Texture.ResourceLocation.IsAliased())
 			{
 				FTextureProfiler::Get()->RemoveTextureAllocation(&Texture);
 			}
@@ -682,15 +613,14 @@ FDynamicRHI::FRHICalcTextureSizeResult FD3D12DynamicRHI::RHICalcTexturePlatformS
  */
 void FD3D12DynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 {
+	UE::RHICore::FillBaselineTextureMemoryStats(OutStats);
+
 	OutStats.DedicatedVideoMemory = FD3D12GlobalStats::GDedicatedVideoMemory;
 	OutStats.DedicatedSystemMemory = FD3D12GlobalStats::GDedicatedSystemMemory;
 	OutStats.SharedSystemMemory = FD3D12GlobalStats::GSharedSystemMemory;
 	OutStats.TotalGraphicsMemory = FD3D12GlobalStats::GTotalGraphicsMemory ? FD3D12GlobalStats::GTotalGraphicsMemory : -1;
 
-	OutStats.AllocatedMemorySize = int64(GCurrentTextureMemorySize) * 1024;
-	OutStats.LargestContiguousAllocation = OutStats.AllocatedMemorySize;
-	OutStats.TexturePoolSize = GTexturePoolSize;
-	OutStats.PendingMemoryAdjustment = 0;
+	OutStats.LargestContiguousAllocation = OutStats.StreamingMemorySize;
 
 #if PLATFORM_WINDOWS
 	if (GAdjustTexturePoolSizeBasedOnBudget)
@@ -716,12 +646,12 @@ void FD3D12DynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 			// Attempt to lower the texture pool size to meet the budget.
 			const bool bOverActualBudget = LocalVideoMemoryInfo.CurrentUsage > LocalVideoMemoryInfo.Budget;
 			UE_CLOG(bOverActualBudget, LogD3D12RHI, Warning,
-				TEXT("Video memory usage is overbudget by %llu MB (using %lld MB/%lld MB budget). Usage breakdown: %lld MB (Textures), %lld MB (Render targets). Last requested texture pool size is %lld MB. This can cause stuttering due to paging."),
+				TEXT("Video memory usage is overbudget by %llu MB (using %lld MB/%lld MB budget). Usage breakdown: %lld MB (Streaming Textures), %lld MB (Non Streaming Textures). Last requested texture pool size is %lld MB. This can cause stuttering due to paging."),
 				(LocalVideoMemoryInfo.CurrentUsage - LocalVideoMemoryInfo.Budget) / 1024ll / 1024ll,
 				LocalVideoMemoryInfo.CurrentUsage / 1024ll / 1024ll,
 				LocalVideoMemoryInfo.Budget / 1024ll / 1024ll,
-				GCurrentTextureMemorySize / 1024ll,
-				GCurrentRendertargetMemorySize / 1024ll,
+				GRHIGlobals.StreamingTextureMemorySizeInKB / 1024ll,
+				GRHIGlobals.NonStreamingTextureMemorySizeInKB / 1024ll,
 				PreviousTexturePoolSize / 1024ll / 1024ll);
 
 			const int64 DesiredTexturePoolSize = PreviousTexturePoolSize + AvailableSpace - BudgetPadding;

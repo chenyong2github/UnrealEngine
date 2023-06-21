@@ -1510,10 +1510,10 @@ static void EngineMemoryWarningHandler(const FGenericMemoryWarningContext& Gener
 {
 	FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("EngineMemoryWarningHandler: Mem Used %.2f MB, Texture Memory %.2f MB, Render Target memory %.2f MB, OS Free %.2f MB\n"), 
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("EngineMemoryWarningHandler: Mem Used %.2f MB, Streaming Texture Memory %.2f MB, Non Streaming Texture Memory %.2f MB, OS Free %.2f MB\n"), 
 		Stats.UsedPhysical / 1048576.0f, 
-		GCurrentTextureMemorySize / 1024.f,
-		GCurrentRendertargetMemorySize / 1024.f,
+		static_cast<double>(GRHIGlobals.StreamingTextureMemorySizeInKB) / 1024.0,
+		static_cast<double>(GRHIGlobals.NonStreamingTextureMemorySizeInKB) / 1024.0,
 		Stats.AvailablePhysical / 1048576.0f);
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST

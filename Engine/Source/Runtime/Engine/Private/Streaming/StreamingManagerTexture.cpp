@@ -703,12 +703,12 @@ void FRenderAssetStreamingManager::PrepareAsyncTask(bool bProcessEverything)
 	if (Stats.IsUsingLimitedPoolSize() && !bProcessEverything && !Settings.bFullyLoadUsedTextures)
 	{
 		const int64 TempMemoryBudget = static_cast<int64>(Settings.MaxTempMemoryAllowed) * 1024 * 1024;
-		AsyncTask.Reset(Stats.TotalGraphicsMemory, Stats.AllocatedMemorySize, Stats.TexturePoolSize, TempMemoryBudget, MemoryMargin);
+		AsyncTask.Reset(Stats.TotalGraphicsMemory, Stats.StreamingMemorySize, Stats.TexturePoolSize, TempMemoryBudget, MemoryMargin);
 	}
 	else
 	{
 		// Temp must be smaller since membudget only updates if it has a least temp memory available.
-		AsyncTask.Reset(0, Stats.AllocatedMemorySize, MAX_int64, MAX_int64 / 2, 0);
+		AsyncTask.Reset(0, Stats.StreamingMemorySize, MAX_int64, MAX_int64 / 2, 0);
 	}
 	AsyncTask.StreamingData.Init(CurrentViewInfos, LastWorldUpdateTime, LevelRenderAssetManagers, DynamicComponentManager);
 

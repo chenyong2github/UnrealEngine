@@ -18,6 +18,7 @@
 
 #include "HAL/LowLevelMemTracker.h"
 #include "ProfilingDebugging/MemoryTrace.h"
+#include "RHICoreStats.h"
 
 int64 FD3D11GlobalStats::GDedicatedVideoMemory = 0;
 int64 FD3D11GlobalStats::GDedicatedSystemMemory = 0;
@@ -29,92 +30,31 @@ int64 FD3D11GlobalStats::GTotalGraphicsMemory = 0;
 	Texture allocator support.
 -----------------------------------------------------------------------------*/
 
-static bool ShouldCountAsTextureMemory(uint32 BindFlags)
-{
-	return (BindFlags & (D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_RENDER_TARGET | D3D11_BIND_UNORDERED_ACCESS)) == 0;
-}
-
-// @param b3D true:3D, false:2D or cube map
-static TStatId GetD3D11StatEnum(uint32 BindFlags, bool bCubeMap, bool b3D)
-{
-#if STATS
-	if(ShouldCountAsTextureMemory(BindFlags))
-	{
-		// normal texture
-		if(bCubeMap)
-		{
-			return GET_STATID(STAT_TextureMemoryCube);
-		}
-		else if(b3D)
-		{
-			return GET_STATID(STAT_TextureMemory3D);
-		}
-		else
-		{
-			return GET_STATID(STAT_TextureMemory2D);
-		}
-	}
-	else
-	{
-		// render target
-		if(bCubeMap)
-		{
-			return GET_STATID(STAT_RenderTargetMemoryCube);
-		}
-		else if(b3D)
-		{
-			return GET_STATID(STAT_RenderTargetMemory3D);
-		}
-		else
-		{
-			return GET_STATID(STAT_RenderTargetMemory2D);
-		}
-	}
-#endif
-	return TStatId();
-}
-
 // Note: This function can be called from many different threads
 // @param TextureSize >0 to allocate, <0 to deallocate
 // @param b3D true:3D, false:2D or cube map
 void UpdateD3D11TextureStats(FD3D11Texture& Texture, bool bAllocating)
 {
-	uint32 BindFlags, MiscFlags;
-	bool b3D = Texture.IsTexture3D();
-	if (b3D)
+	const FRHITextureDesc& TextureDesc = Texture.GetDesc();
+
+	uint32 BindFlags;
+	if (TextureDesc.IsTexture3D())
 	{
 		D3D11_TEXTURE3D_DESC Desc;
 		Texture.GetD3D11Texture3D()->GetDesc(&Desc);
 		BindFlags = Desc.BindFlags;
-		MiscFlags = Desc.MiscFlags;
 	}
 	else
 	{
 		D3D11_TEXTURE2D_DESC Desc;
 		Texture.GetD3D11Texture2D()->GetDesc(&Desc);
 		BindFlags = Desc.BindFlags;
-		MiscFlags = Desc.MiscFlags;
 	}
 
-	int64 TextureSize = Texture.GetMemorySize();
-	if (!bAllocating)
-	{
-		TextureSize = -TextureSize;
-	}
+	const uint64 TextureSize = Texture.GetMemorySize();
 
-	int64 AlignedSize = (TextureSize > 0) ? Align(TextureSize, 1024) / 1024 : -(Align(-TextureSize, 1024) / 1024);
-	if(ShouldCountAsTextureMemory(BindFlags))
-	{
-		FPlatformAtomics::InterlockedAdd(&GCurrentTextureMemorySize, AlignedSize);
-	}
-	else
-	{
-		FPlatformAtomics::InterlockedAdd(&GCurrentRendertargetMemorySize, AlignedSize);
-	}
-
-	bool bCubeMap = (MiscFlags & D3D11_RESOURCE_MISC_TEXTURECUBE) != 0;
-
-	INC_MEMORY_STAT_BY_FName(GetD3D11StatEnum(BindFlags, bCubeMap, b3D).GetName(), TextureSize);
+	const bool bOnlyStreamableTexturesInTexturePool = false;
+	UE::RHICore::UpdateGlobalTextureStats(TextureDesc, TextureSize, bOnlyStreamableTexturesInTexturePool, bAllocating);
 
 	if (bAllocating)
 	{
@@ -159,15 +99,14 @@ FDynamicRHI::FRHICalcTextureSizeResult FD3D11DynamicRHI::RHICalcTexturePlatformS
  */
 void FD3D11DynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 {
+	UE::RHICore::FillBaselineTextureMemoryStats(OutStats);
+
 	OutStats.DedicatedVideoMemory = FD3D11GlobalStats::GDedicatedVideoMemory;
     OutStats.DedicatedSystemMemory = FD3D11GlobalStats::GDedicatedSystemMemory;
     OutStats.SharedSystemMemory = FD3D11GlobalStats::GSharedSystemMemory;
 	OutStats.TotalGraphicsMemory = FD3D11GlobalStats::GTotalGraphicsMemory ? FD3D11GlobalStats::GTotalGraphicsMemory : -1;
 
-	OutStats.AllocatedMemorySize = int64(GCurrentTextureMemorySize) * 1024;
-	OutStats.LargestContiguousAllocation = OutStats.AllocatedMemorySize;
-	OutStats.TexturePoolSize = GTexturePoolSize;
-	OutStats.PendingMemoryAdjustment = 0;
+	OutStats.LargestContiguousAllocation = OutStats.StreamingMemorySize;
 }
 
 /**

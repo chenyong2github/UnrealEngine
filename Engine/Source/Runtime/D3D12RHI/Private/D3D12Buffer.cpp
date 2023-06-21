@@ -6,6 +6,7 @@ D3D12Buffer.cpp: D3D Common code for buffers.
 
 #include "D3D12RHIPrivate.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
+#include "RHICoreStats.h"
 
 FName GetRHIBufferClassName(const FName& ClassName)
 {
@@ -26,7 +27,7 @@ FD3D12Buffer::~FD3D12Buffer()
 	bool bTransient = ResourceLocation.IsTransient();
 	if (!bTransient)
 	{
-		UpdateBufferStats(this, false);
+		D3D12BufferStats::UpdateBufferStats(*this, false);
 	}
 }
 
@@ -424,7 +425,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(
 	// Don't track transient buffer stats here
 	if (!BufferOut->ResourceLocation.IsTransient())
 	{
-		UpdateBufferStats(BufferOut, true);
+		D3D12BufferStats::UpdateBufferStats(*BufferOut, true);
 	}
 
 	return BufferOut;
@@ -481,7 +482,7 @@ void FD3D12Buffer::ReleaseOwnership()
 
 	if (!ResourceLocation.IsTransient())
 	{
-		UpdateBufferStats(this, false);
+		D3D12BufferStats::UpdateBufferStats(*this, false);
 	}
 
 	ResourceLocation.Clear();

@@ -12,6 +12,7 @@
 #include "VulkanLLM.h"
 #include "VulkanBarriers.h"
 #include "VulkanTransientResourceAllocator.h"
+#include "RHICoreStats.h"
 
 int32 GVulkanSubmitOnTextureUnlock = 1;
 static FAutoConsoleVariableRef CVarVulkanSubmitOnTextureUnlock(
@@ -121,35 +122,20 @@ static TStatId GetVulkanStatEnum(bool bIsCube, bool bIs3D, bool bIsRT)
 	return TStatId();
 }
 
-static void UpdateVulkanTextureStats(int64 TextureSize, bool bIsCube, bool bIs3D, bool bIsRT)
+static void UpdateVulkanTextureStats(const FRHITextureDesc& TextureDesc, uint64 TextureSize, bool bAllocating)
 {
-	const int64 AlignedSize = (TextureSize > 0) ? Align(TextureSize, 1024) / 1024 : -(Align(-TextureSize, 1024) / 1024);
-	if (bIsRT == false)
-	{
-		FPlatformAtomics::InterlockedAdd(&GCurrentTextureMemorySize, AlignedSize);
-	}
-	else
-	{
-		FPlatformAtomics::InterlockedAdd(&GCurrentRendertargetMemorySize, AlignedSize);
-	}
-
-	INC_MEMORY_STAT_BY_FName(GetVulkanStatEnum(bIsCube, bIs3D, bIsRT).GetName(), TextureSize);
+	const bool bOnlyStreamableTexturesInTexturePool = false;
+	UE::RHICore::UpdateGlobalTextureStats(TextureDesc, TextureSize, bOnlyStreamableTexturesInTexturePool, bAllocating);
 }
 
-static void VulkanTextureAllocated(uint64 Size, VkImageViewType ImageType, bool bIsRT)
+static void VulkanTextureAllocated(const FRHITextureDesc& TextureDesc, uint64 Size)
 {
-	bool bIsCube = ImageType == VK_IMAGE_VIEW_TYPE_CUBE || ImageType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-	bool bIs3D = ImageType == VK_IMAGE_VIEW_TYPE_3D ;
-
-	UpdateVulkanTextureStats(Size, bIsCube, bIs3D, bIsRT);
+	UpdateVulkanTextureStats(TextureDesc, Size, true);
 }
 
-static void VulkanTextureDestroyed(uint64 Size, VkImageViewType ImageType, bool bIsRT)
+static void VulkanTextureDestroyed(const FRHITextureDesc& TextureDesc, uint64 Size)
 {
-	bool bIsCube = ImageType == VK_IMAGE_VIEW_TYPE_CUBE || ImageType == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
-	bool bIs3D = ImageType == VK_IMAGE_VIEW_TYPE_3D;
-
-	UpdateVulkanTextureStats(-(int64)Size, bIsCube, bIs3D, bIsRT);
+	UpdateVulkanTextureStats(TextureDesc, Size, false);
 }
 
 inline void FVulkanTexture::InternalLockWrite(FVulkanCommandListContext& Context, FVulkanTexture* Surface, const VkBufferImageCopy& Region, VulkanRHI::FStagingBuffer* StagingBuffer)
@@ -698,7 +684,7 @@ void FVulkanTexture::DestroySurface()
 			// If we don't own the allocation, it's transient memory not included in stats
 			if (Allocation.HasAllocation())
 			{
-				VulkanTextureDestroyed(Allocation.Size, GetViewType(), bRenderTarget);
+				VulkanTextureDestroyed(GetDesc(), Allocation.Size);
 			}
 
 			if (Image != VK_NULL_HANDLE)
@@ -878,6 +864,8 @@ void FVulkanTexture::SetInitialImageState(FVulkanCommandListContext& Context, Vk
 
 void FVulkanDynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 {
+	UE::RHICore::FillBaselineTextureMemoryStats(OutStats);
+
 	check(Device);
 	const uint64 TotalGPUMemory = Device->GetDeviceMemoryManager().GetTotalMemory(true);
 	const uint64 TotalCPUMemory = Device->GetDeviceMemoryManager().GetTotalMemory(false);
@@ -887,10 +875,7 @@ void FVulkanDynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 	OutStats.SharedSystemMemory = -1;
 	OutStats.TotalGraphicsMemory = TotalGPUMemory ? TotalGPUMemory : -1;
 
-	OutStats.AllocatedMemorySize = int64(GCurrentTextureMemorySize) * 1024;
-	OutStats.LargestContiguousAllocation = OutStats.AllocatedMemorySize;
-	OutStats.TexturePoolSize = GTexturePoolSize;
-	OutStats.PendingMemoryAdjustment = 0;
+	OutStats.LargestContiguousAllocation = OutStats.StreamingMemorySize;
 }
 
 bool FVulkanDynamicRHI::RHIGetTextureMemoryVisualizeData( FColor* /*TextureData*/, int32 /*SizeX*/, int32 /*SizeY*/, int32 /*Pitch*/, int32 /*PixelSize*/ )
@@ -1565,7 +1550,7 @@ FVulkanTexture::FVulkanTexture(FVulkanDevice& InDevice, const FRHITextureCreateD
 			}
 
 			// update rhi stats
-			VulkanTextureAllocated(Allocation.Size, GetViewType(), bRenderTarget);
+			VulkanTextureAllocated(GetDesc(), Allocation.Size);
 		}
 		Allocation.BindImage(Device, Image);
 

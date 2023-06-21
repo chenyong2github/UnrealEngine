@@ -77,7 +77,7 @@ void UniformBufferBeginFrame()
 				DEC_DWORD_STAT(STAT_D3D11NumFreeUniformBuffers);
 				DEC_MEMORY_STAT_BY(STAT_D3D11FreeUniformBufferMemory, PoolEntry.CreatedSize);
 				NumCleaned++;
-				UpdateBufferStats(PoolEntry.Buffer, false);
+				D3D11BufferStats::UpdateUniformBufferStats(PoolEntry.Buffer, PoolEntry.CreatedSize, false);
 				PoolEntry.Buffer.SafeRelease();
 				UniformBufferPool[BucketIndex].RemoveAtSwap(EntryIndex);
 			}
@@ -149,7 +149,7 @@ static TRefCountPtr<ID3D11Buffer> CreateAndUpdatePooledUniformBuffer(
 
 		VERIFYD3D11RESULT_EX(Device->CreateBuffer(&Desc, NULL, UniformBufferResource.GetInitReference()), Device);
 
-		UpdateBufferStats(UniformBufferResource, true);
+		D3D11BufferStats::UpdateUniformBufferStats(UniformBufferResource, Desc.ByteWidth, true);
 	}
 
 	check(IsValidRef(UniformBufferResource));

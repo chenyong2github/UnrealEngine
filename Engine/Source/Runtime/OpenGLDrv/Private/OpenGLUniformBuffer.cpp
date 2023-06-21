@@ -233,7 +233,7 @@ static void ReleaseUniformBuffer(bool bEmulatedBufferData, GLuint Resource, uint
 
 		RunOnGLRenderContextThread(MoveTemp(DeleteGLBuffer));
 	}
-	DecrementBufferMemory(GL_UNIFORM_BUFFER, AllocatedSize);
+	OpenGLBufferStats::UpdateUniformBufferStats(AllocatedSize, false);
 }
 
 // Does per-frame global updating for the uniform buffer pool.
@@ -606,7 +606,7 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 		}
 	}
 
-	IncrementBufferMemory(GL_UNIFORM_BUFFER, AllocatedSize);
+	OpenGLBufferStats::UpdateUniformBufferStats(AllocatedSize, true);
 
 	check(!bUseEmulatedUBs || (IsValidRef(EmulatedUniformDataRef) && (EmulatedUniformDataRef->Data.Num() * EmulatedUniformDataRef->Data.GetTypeSize() == AllocatedSize)));
 

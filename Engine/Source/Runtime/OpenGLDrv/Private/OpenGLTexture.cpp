@@ -13,6 +13,7 @@
 #include "OpenGLDrvPrivate.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Engine/Texture.h"
+#include "RHICoreStats.h"
 
 #if PLATFORM_ANDROID
 #include "ThirdParty/Android/detex/AndroidETC.h"
@@ -97,47 +98,21 @@ void FOpenGLTexture::UpdateTextureStats(FOpenGLTexture* Texture, bool bAllocatin
 {
 	const FRHITextureDesc& Desc = Texture->GetDesc();
 
-	const bool bRenderTarget = EnumHasAnyFlags(Desc.Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable);
-	const int64 TextureSize = bAllocating
-		?  int64(Texture->MemorySize)
-		: -int64(Texture->MemorySize);
+	const uint64 TextureSize = Texture->MemorySize;
 
-	const int64 TextureSizeInKBs = bAllocating
-		?  FMath::DivideAndRoundUp(int64(Texture->MemorySize), 1024ll)
-		: -FMath::DivideAndRoundUp(int64(Texture->MemorySize), 1024ll);
+	const bool bOnlyStreamableTexturesInTexturePool = false;
+	UE::RHICore::UpdateGlobalTextureStats(Desc, TextureSize, bOnlyStreamableTexturesInTexturePool, bAllocating);
 
-	if (bRenderTarget)
-	{
-		switch (Desc.Dimension)
-		{
-		default: checkNoEntry();
-		case ETextureDimension::Texture2D:		  INC_MEMORY_STAT_BY(STAT_RenderTargetMemory2D  , TextureSize); break;
-		case ETextureDimension::Texture2DArray:	  INC_MEMORY_STAT_BY(STAT_RenderTargetMemory2D  , TextureSize); break;
-		case ETextureDimension::Texture3D:		  INC_MEMORY_STAT_BY(STAT_RenderTargetMemory3D  , TextureSize); break;
-		case ETextureDimension::TextureCube:	  INC_MEMORY_STAT_BY(STAT_RenderTargetMemoryCube, TextureSize); break;
-		case ETextureDimension::TextureCubeArray: INC_MEMORY_STAT_BY(STAT_RenderTargetMemoryCube, TextureSize); break;
-		}
+	const int64 TextureSizeDelta = bAllocating ? int64(TextureSize) : -int64(TextureSize);
 
-		GCurrentRendertargetMemorySize = GCurrentRendertargetMemorySize + TextureSizeInKBs;
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, TextureSize, ELLMTracker::Platform, ELLMAllocType::None);
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::RenderTargets   , TextureSize, ELLMTracker::Default , ELLMAllocType::None);
-	}
-	else
-	{
-		switch (Desc.Dimension)
-		{
-		default: checkNoEntry();
-		case ETextureDimension::Texture2D:		  INC_MEMORY_STAT_BY(STAT_TextureMemory2D  , TextureSize); break;
-		case ETextureDimension::Texture2DArray:	  INC_MEMORY_STAT_BY(STAT_TextureMemory2D  , TextureSize); break;
-		case ETextureDimension::Texture3D:		  INC_MEMORY_STAT_BY(STAT_TextureMemory3D  , TextureSize); break;
-		case ETextureDimension::TextureCube:	  INC_MEMORY_STAT_BY(STAT_TextureMemoryCube, TextureSize); break;
-		case ETextureDimension::TextureCubeArray: INC_MEMORY_STAT_BY(STAT_TextureMemoryCube, TextureSize); break;
-		}
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+	const ELLMTag TextureTag = EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ResolveTargetable | ETextureCreateFlags::DepthStencilTargetable)
+		? ELLMTag::RenderTargets
+		: ELLMTag::Textures;
 
-		GCurrentTextureMemorySize = GCurrentTextureMemorySize + TextureSizeInKBs;
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, TextureSize, ELLMTracker::Platform, ELLMAllocType::None);
-		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Textures        , TextureSize, ELLMTracker::Default , ELLMAllocType::None);
-	}
+	LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, TextureSizeDelta, ELLMTracker::Platform, ELLMAllocType::None);
+	LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(TextureTag               , TextureSizeDelta, ELLMTracker::Default , ELLMAllocType::None);
+#endif // ENABLE_LOW_LEVEL_MEM_TRACKER
 }
 
 FDynamicRHI::FRHICalcTextureSizeResult FOpenGLDynamicRHI::RHICalcTexturePlatformSize(FRHITextureDesc const& Desc, uint32 FirstMipIndex)
@@ -155,15 +130,12 @@ FDynamicRHI::FRHICalcTextureSizeResult FOpenGLDynamicRHI::RHICalcTexturePlatform
  */
 void FOpenGLDynamicRHI::RHIGetTextureMemoryStats(FTextureMemoryStats& OutStats)
 {
+	UE::RHICore::FillBaselineTextureMemoryStats(OutStats);
+
 	OutStats.DedicatedVideoMemory = GOpenGLDedicatedVideoMemory;
-    OutStats.DedicatedSystemMemory = 0;
-    OutStats.SharedSystemMemory = 0;
 	OutStats.TotalGraphicsMemory = GOpenGLTotalGraphicsMemory ? GOpenGLTotalGraphicsMemory : -1;
 
-	OutStats.AllocatedMemorySize = int64(GCurrentTextureMemorySize) * 1024;
-	OutStats.LargestContiguousAllocation = OutStats.AllocatedMemorySize;
-	OutStats.TexturePoolSize = GTexturePoolSize;
-	OutStats.PendingMemoryAdjustment = 0;
+	OutStats.LargestContiguousAllocation = OutStats.StreamingMemorySize;
 }
 
 

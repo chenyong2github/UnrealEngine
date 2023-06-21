@@ -76,6 +76,9 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(FRHITexture
 	// We always want SRV access
 	Desc.Flags |= TexCreate_ShaderResource;
 
+	// Render target pool always forces textures into non streaming memory.
+	Desc.Flags |= ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking;
+
 	const uint32 DescHash = GetTypeHash(Desc);
 
 	for (uint32 Index = 0, Num = (uint32)PooledRenderTargets.Num(); Index < Num; ++Index)

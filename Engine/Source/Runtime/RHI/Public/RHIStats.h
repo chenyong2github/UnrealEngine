@@ -12,35 +12,36 @@ struct FTextureMemoryStats
 	// Hardware state (never change after device creation):
 
 	// -1 if unknown, in bytes
-	int64 DedicatedVideoMemory;
+	int64 DedicatedVideoMemory = -1;
+
 	// -1 if unknown, in bytes
-	int64 DedicatedSystemMemory;
+	int64 DedicatedSystemMemory = -1;
+
 	// -1 if unknown, in bytes
-	int64 SharedSystemMemory;
+	int64 SharedSystemMemory = -1;
+
 	// Total amount of "graphics memory" that we think we can use for all our graphics resources, in bytes. -1 if unknown.
-	int64 TotalGraphicsMemory;
+	int64 TotalGraphicsMemory = -1;
 
 	// Size of allocated memory, in bytes
-	int64 AllocatedMemorySize;
-	// Size of the largest memory fragment, in bytes
-	int64 LargestContiguousAllocation;
-	// 0 if streaming pool size limitation is disabled, in bytes
-	int64 TexturePoolSize;
-	// Upcoming adjustments to allocated memory, in bytes (async reallocations)
-	int32 PendingMemoryAdjustment;
+	UE_DEPRECATED(5.3, "AllocatedMemorySize was too vague, use StreamingMemorySize in its place")
+	int64 AllocatedMemorySize = 0;
 
-	// defaults
-	FTextureMemoryStats()
-		: DedicatedVideoMemory(-1)
-		, DedicatedSystemMemory(-1)
-		, SharedSystemMemory(-1)
-		, TotalGraphicsMemory(-1)
-		, AllocatedMemorySize(0)
-		, LargestContiguousAllocation(0)
-		, TexturePoolSize(0)
-		, PendingMemoryAdjustment(0)
-	{
-	}
+	// Size of memory allocated to streaming textures, in bytes
+	uint64 StreamingMemorySize = 0;
+
+	// Size of memory allocated to non-streaming textures, in bytes
+	uint64 NonStreamingMemorySize = 0;
+
+	// Size of the largest memory fragment, in bytes
+	int64 LargestContiguousAllocation = 0;
+	
+	// 0 if streaming pool size limitation is disabled, in bytes
+	int64 TexturePoolSize = 0;
+
+	// Upcoming adjustments to allocated memory, in bytes (async reallocations)
+	UE_DEPRECATED(5.3, "PendingMemoryAdjustment is unused")
+	int32 PendingMemoryAdjustment = 0;
 
 	bool AreHardwareStatsValid() const
 	{
@@ -55,7 +56,7 @@ struct FTextureMemoryStats
 
 	int64 ComputeAvailableMemorySize() const
 	{
-		return FMath::Max(TexturePoolSize - AllocatedMemorySize, (int64)0);
+		return FMath::Max<int64>(TexturePoolSize - StreamingMemorySize, 0);
 	}
 };
 
@@ -202,18 +203,24 @@ private:
 };
 
 // RHI memory stats.
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Render target memory 2D"), STAT_RenderTargetMemory2D, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Render target memory 3D"), STAT_RenderTargetMemory3D, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Render target memory Cube"), STAT_RenderTargetMemoryCube, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Texture memory 2D"), STAT_TextureMemory2D, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Texture memory 3D"), STAT_TextureMemory3D, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Texture memory Cube"), STAT_TextureMemoryCube, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Uniform buffer memory"), STAT_UniformBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Index buffer memory"), STAT_IndexBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Vertex buffer memory"), STAT_VertexBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Ray Tracing Acceleration Structure memory"), STAT_RTAccelerationStructureMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Structured buffer memory"), STAT_StructuredBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
-DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Pixel buffer memory"), STAT_PixelBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Render Target 2D Memory"), STAT_RenderTargetMemory2D, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Render Target 3D Memory"), STAT_RenderTargetMemory3D, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Render Target Cube Memory"), STAT_RenderTargetMemoryCube, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("UAV Texture Memory"), STAT_UAVTextureMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Texture 2D Memory"), STAT_TextureMemory2D, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Texture 3D Memory"), STAT_TextureMemory3D, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Texture Cube Memory"), STAT_TextureMemoryCube, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Uniform Buffer Memory"), STAT_UniformBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Index Buffer Memory"), STAT_IndexBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Vertex Buffer Memory"), STAT_VertexBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("RayTracing Acceleration Structure Memory"), STAT_RTAccelerationStructureMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Structured Buffer Memory"), STAT_StructuredBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Byte Address Buffer Memory"), STAT_ByteAddressBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Draw Indirect Buffer Memory"), STAT_DrawIndirectBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
+DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Misc Buffer Memory"), STAT_MiscBufferMemory, STATGROUP_RHI, FPlatformMemory::MCR_GPU, RHI_API);
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Sampler Descriptors Allocated"), STAT_SamplerDescriptorsAllocated, STATGROUP_RHI, RHI_API);
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Resource Descriptors Allocated"), STAT_ResourceDescriptorsAllocated, STATGROUP_RHI, RHI_API);

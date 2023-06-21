@@ -817,8 +817,6 @@ public:
 	}
 };
 
-extern void UpdateBufferStats(class FD3D12Buffer* Buffer, bool bAllocating);
-
 /** Uniform buffer resource class. */
 class FD3D12UniformBuffer : public FRHIUniformBuffer, public FD3D12DeviceChild, public FD3D12LinkedAdapterObject<FD3D12UniformBuffer>
 {
@@ -909,6 +907,11 @@ public:
 	FD3D12LockedResource LockedData;
 	uint32 BufferAlignment = 0;
 };
+
+namespace D3D12BufferStats
+{
+	void UpdateBufferStats(FD3D12Buffer& Buffer, bool bAllocating);
+}
 
 class FD3D12ResourceBarrierBatcher
 {
