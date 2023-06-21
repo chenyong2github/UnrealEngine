@@ -352,6 +352,11 @@ namespace UnrealBuildTool
 		string[]? ConfigurationNames = null;
 
 		/// <summary>
+		/// If set, strip out other found Target.cs files
+		/// </summary>
+		public string? SingleTargetName = null;
+
+		/// <summary>
 		/// If true, this generator wants to have a project for each target type (UnrealGame, UnrealEditor, etc) and has only the straight configs (Debug, Development)
 		/// </summary>
 		protected virtual bool bMakeProjectPerTarget => false;
@@ -965,6 +970,13 @@ namespace UnrealBuildTool
 			// Find all of the target files.  This will filter out any modules or targets that don't
 			// belong to platforms we're generating project files for.
 			List<FileReference> AllTargetFiles = DiscoverTargets(AllGameProjects, Logger, OnlyGameProject, SupportedPlatforms, bIncludeEngineSource, bIncludeTempTargets);
+
+			// if we only want one target, remove the others
+			if (SingleTargetName != null)
+			{
+				AllTargetFiles.RemoveAll(x => !x.GetFileNameWithoutAnyExtensions().Equals(SingleTargetName, StringComparison.OrdinalIgnoreCase) && 
+				!x.GetFileNameWithoutAnyExtensions().Equals(EngineProjectFileNameBase, StringComparison.OrdinalIgnoreCase));
+			}
 
 			// Sort the targets by name. When we have multiple targets of a given type for a project, we'll use the order to determine which goes in the primary project file (so that client names with a suffix will go into their own project).
 			AllTargetFiles = AllTargetFiles.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).ToList();

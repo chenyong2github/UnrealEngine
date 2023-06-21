@@ -172,6 +172,14 @@ namespace UnrealBuildTool
 			Logger.LogDebug("---   SDK INFO END   ---");
 			Logger.LogDebug("");
 
+			// look for a single target name param
+			string? SingleTargetName = null;
+			if (Arguments.HasValue("-SingleTarget="))
+			{
+				SingleTargetName = Arguments.GetString("-SingleTarget=");
+			}
+
+
 			// Create each project generator and run it
 			Dictionary<ProjectFileFormat, ProjectFileGenerator> Generators = new();
 			foreach (ProjectFileFormat ProjectFileFormat in ProjectFileFormats.Distinct())
@@ -229,6 +237,9 @@ namespace UnrealBuildTool
 					default:
 						throw new BuildException("Unhandled project file type '{0}", ProjectFileFormat);
 				}
+				// remember if we only wanted a single target (similar to -game -project, except usable with progarms without uprojects)
+				Generator.SingleTargetName = SingleTargetName;
+				
 				Generators[ProjectFileFormat] = Generator;
 			}
 

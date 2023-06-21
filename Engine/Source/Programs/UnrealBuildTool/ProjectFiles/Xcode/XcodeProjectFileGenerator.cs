@@ -58,11 +58,6 @@ namespace UnrealBuildTool
 		public static FileReference? SingleGameProject = null;
 
 		/// <summary>
-		/// If set, only write out one target/project 
-		/// </summary>
-		string? SingleTargetName = null;
-
-		/// <summary>
 		/// Shared file that the project agnostic projects can point to to get content only projects working nicely in Xcode
 		/// </summary>
 		public static FileReference ContentOnlySettingsFile = FileReference.Combine(Unreal.EngineDirectory, "Build/Xcode/ContentOnlySettings.xcconfig");
@@ -100,11 +95,6 @@ namespace UnrealBuildTool
 			if (CommandLine.HasValue("-appname="))
 			{
 				AppName = CommandLine.GetString("-appname=");
-			}
-
-			if (CommandLine.HasValue("-SingleTarget="))
-			{
-				SingleTargetName = CommandLine.GetString("-SingleTarget=");
 			}
 
 			// make sure only one Target writes the file

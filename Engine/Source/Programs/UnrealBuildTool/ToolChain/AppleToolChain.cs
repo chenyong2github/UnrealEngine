@@ -537,7 +537,7 @@ namespace UnrealBuildTool
 
 		#region Stub Xcode Projects
 
-		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments, ILogger Logger, out DirectoryReference? XcodeProjectFile)
+		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments, string? SingleTargetName, ILogger Logger, out DirectoryReference? XcodeProjectFile)
 		{
 			ProjectFileGenerator.bGenerateProjectFiles = true;
 			try
@@ -550,6 +550,8 @@ namespace UnrealBuildTool
 				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine, Logger), Logger);
 
 				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile, CmdLine);
+				// this could be improved if ProjectFileGenerator constructor took a Arguments param, and it could parse it there instead of the GenerateProjectFilesMode
+				Generator.SingleTargetName = SingleTargetName;
 				// don't need the editor data since these are stub projects
 				bool bSucces = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments, bCacheDataForEditor: false, Logger);
 				XcodeProjectFile = Generator.XCWorkspace;
@@ -612,7 +614,7 @@ namespace UnrealBuildTool
 			// we need to be in Engine/Source for some build.cs files
 			string CurrentCWD = Environment.CurrentDirectory;
 			Environment.CurrentDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Source").FullName;
-			GenerateProjectFiles(UProjectFile, Options.ToArray(), Logger, out GeneratedProjectFile);
+			GenerateProjectFiles(UProjectFile, Options.ToArray(), TargetName, Logger, out GeneratedProjectFile);
 			Environment.CurrentDirectory = CurrentCWD;
 		}
 
