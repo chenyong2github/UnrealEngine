@@ -25,107 +25,104 @@ enum class EMetaSoundOutputAudioFormat : uint8
 };
 
 
-namespace Metasound
+namespace Metasound::Engine
 {
-	namespace Engine
+	namespace OutputFormatMonoInterface
 	{
-		namespace OutputFormatMonoInterface
+		namespace Outputs
 		{
-			namespace Outputs
-			{
-				METASOUNDENGINE_API const extern FName MonoOut;
-			} // namespace Outputs
+			METASOUNDENGINE_API const extern FName MonoOut;
+		} // namespace Outputs
 
-			METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
+		METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
 
-			UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
-		} // namespace OutputFormatMonoInterface
+		UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
+	} // namespace OutputFormatMonoInterface
 
-		namespace OutputFormatStereoInterface
+	namespace OutputFormatStereoInterface
+	{
+		namespace Outputs
 		{
-			namespace Outputs
-			{
-				METASOUNDENGINE_API const extern FName LeftOut;
-				METASOUNDENGINE_API const extern FName RightOut;
-			} // namespace Outputs
+			METASOUNDENGINE_API const extern FName LeftOut;
+			METASOUNDENGINE_API const extern FName RightOut;
+		} // namespace Outputs
 
-			METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
+		METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
 
-			UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
-		} // namespace OutputFormatStereoInterface
+		UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
+	} // namespace OutputFormatStereoInterface
 
-		namespace OutputFormatQuadInterface
+	namespace OutputFormatQuadInterface
+	{
+		namespace Outputs
 		{
-			namespace Outputs
-			{
-				METASOUNDENGINE_API const extern FName FrontLeftOut;
-				METASOUNDENGINE_API const extern FName FrontRightOut;
-				METASOUNDENGINE_API const extern FName SideLeftOut;
-				METASOUNDENGINE_API const extern FName SideRightOut;
-			} // namespace Outputs
+			METASOUNDENGINE_API const extern FName FrontLeftOut;
+			METASOUNDENGINE_API const extern FName FrontRightOut;
+			METASOUNDENGINE_API const extern FName SideLeftOut;
+			METASOUNDENGINE_API const extern FName SideRightOut;
+		} // namespace Outputs
 
-			METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
+		METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
 
-			UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
-		} // namespace OutputFormatQuadInterface
+		UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
+	} // namespace OutputFormatQuadInterface
 
-		namespace OutputFormatFiveDotOneInterface
+	namespace OutputFormatFiveDotOneInterface
+	{
+		namespace Outputs
 		{
-			namespace Outputs
-			{
-				METASOUNDENGINE_API const extern FName FrontLeftOut;
-				METASOUNDENGINE_API const extern FName FrontRightOut;
-				METASOUNDENGINE_API const extern FName FrontCenterOut;
-				METASOUNDENGINE_API const extern FName LowFrequencyOut;
-				METASOUNDENGINE_API const extern FName SideLeftOut;
-				METASOUNDENGINE_API const extern FName SideRightOut;
-			} // namespace Outputs
+			METASOUNDENGINE_API const extern FName FrontLeftOut;
+			METASOUNDENGINE_API const extern FName FrontRightOut;
+			METASOUNDENGINE_API const extern FName FrontCenterOut;
+			METASOUNDENGINE_API const extern FName LowFrequencyOut;
+			METASOUNDENGINE_API const extern FName SideLeftOut;
+			METASOUNDENGINE_API const extern FName SideRightOut;
+		} // namespace Outputs
 
-			METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
+		METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
 
-			UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
-		} // namespace OutputFormatFiveDotOneInterface
+		UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
+	} // namespace OutputFormatFiveDotOneInterface
 
-		namespace OutputFormatSevenDotOneInterface
+	namespace OutputFormatSevenDotOneInterface
+	{
+		namespace Outputs
 		{
-			namespace Outputs
-			{
-				METASOUNDENGINE_API const extern FName FrontLeftOut;
-				METASOUNDENGINE_API const extern FName FrontRightOut;
-				METASOUNDENGINE_API const extern FName FrontCenterOut;
-				METASOUNDENGINE_API const extern FName LowFrequencyOut;
-				METASOUNDENGINE_API const extern FName SideLeftOut;
-				METASOUNDENGINE_API const extern FName SideRightOut;
-				METASOUNDENGINE_API const extern FName BackLeftOut;
-				METASOUNDENGINE_API const extern FName BackRightOut;
-			} // namespace Outputs
+			METASOUNDENGINE_API const extern FName FrontLeftOut;
+			METASOUNDENGINE_API const extern FName FrontRightOut;
+			METASOUNDENGINE_API const extern FName FrontCenterOut;
+			METASOUNDENGINE_API const extern FName LowFrequencyOut;
+			METASOUNDENGINE_API const extern FName SideLeftOut;
+			METASOUNDENGINE_API const extern FName SideRightOut;
+			METASOUNDENGINE_API const extern FName BackLeftOut;
+			METASOUNDENGINE_API const extern FName BackRightOut;
+		} // namespace Outputs
 
-			METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
+		METASOUNDENGINE_API const FMetasoundFrontendVersion& GetVersion();
 
-			UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
-			METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
-		} // namespace OutputFormatSevenDotOneInterface
+		UE_DEPRECATED(5.3, "Interfaces are no longer registered with the UClass as interfaces can support multiple UClasses")
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface(const UClass& InClass);
+		METASOUNDENGINE_API Audio::FParameterInterfacePtr CreateInterface();
+	} // namespace OutputFormatSevenDotOneInterface
 
-		// Contains information on output audio formats
-		struct METASOUNDENGINE_API FOutputAudioFormatInfo
-		{
-			FMetasoundFrontendVersion InterfaceVersion;
-			TArray<Metasound::FVertexName> OutputVertexChannelOrder;
-		};
+	// Contains information on output audio formats
+	struct METASOUNDENGINE_API FOutputAudioFormatInfo
+	{
+		FMetasoundFrontendVersion InterfaceVersion;
+		TArray<Metasound::FVertexName> OutputVertexChannelOrder;
+	};
 
-		using FOutputAudioFormatInfoMap = TMap<EMetaSoundOutputAudioFormat, FOutputAudioFormatInfo>;
-		using FOutputAudioFormatInfoPair = TPair<EMetaSoundOutputAudioFormat, FOutputAudioFormatInfo>;
+	using FOutputAudioFormatInfoMap = TMap<EMetaSoundOutputAudioFormat, FOutputAudioFormatInfo>;
+	using FOutputAudioFormatInfoPair = TPair<EMetaSoundOutputAudioFormat, FOutputAudioFormatInfo>;
 
-		// Return a map containing all the supported output audio formats for a MetaSound.
-		METASOUNDENGINE_API const FOutputAudioFormatInfoMap& GetOutputAudioFormatInfo();
-	} // namespace Engine
-} // namespace Metasound
+	// Return a map containing all the supported output audio formats for a MetaSound.
+	METASOUNDENGINE_API const FOutputAudioFormatInfoMap& GetOutputAudioFormatInfo();
+} // namespace Metasound::Engine

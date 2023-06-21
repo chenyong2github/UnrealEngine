@@ -20,9 +20,10 @@ namespace Metasound::Engine
 	{
 		Audio::FParameterInterface::FOutput GetFrontLeftOutput(const FName& InVertexName)
 		{
-			return {
+			return
+			{
 				LOCTEXT("OutputFormatSurroundInterface_GeneratedFrontLeftDisplayName", "Out Front Left"),
-				LOCTEXT("OutputFormatSurroundInterface_GeneratedFrontLeftDescription", "The resulting front left channel output audio from this source."),
+				LOCTEXT("OutputFormatSurroundInterface_GeneratedFrontLeftDescription", "The resulting front left channel output audio."),
 				GetMetasoundDataTypeName<FAudioBuffer>(),
 				InVertexName,
 				FText::GetEmpty(), // RequiredText
@@ -33,9 +34,10 @@ namespace Metasound::Engine
 
 		Audio::FParameterInterface::FOutput GetFrontRightOutput(const FName& InVertexName)
 		{
-			return {
+			return
+			{
 				LOCTEXT("OutputFormatSurroundInterface_GeneratedFrontRightDisplayName", "Out Front Right"),
-				LOCTEXT("OutputFormatSurroundInterface_GeneratedFrontRightDescription", "The resulting front right channel output audio from this source."),
+				LOCTEXT("OutputFormatSurroundInterface_GeneratedFrontRightDescription", "The resulting front right channel output audio."),
 				GetMetasoundDataTypeName<FAudioBuffer>(),
 				InVertexName,
 				FText::GetEmpty(), // RequiredText
@@ -46,9 +48,10 @@ namespace Metasound::Engine
 
 		Audio::FParameterInterface::FOutput GetFrontCenterOutput(const FName& InVertexName)
 		{
-			return {
+			return
+			{
 				LOCTEXT("OutputFormatSurroundInterface_GeneratedCenterDisplayName", "Out Front Center"),
-				LOCTEXT("OutputFormatSurroundInterface_GeneratedCenterDescription", "The resulting front center channel output audio from this source."),
+				LOCTEXT("OutputFormatSurroundInterface_GeneratedCenterDescription", "The resulting front center channel output audio."),
 				GetMetasoundDataTypeName<FAudioBuffer>(),
 				InVertexName,
 				FText::GetEmpty(), // RequiredText
@@ -59,9 +62,10 @@ namespace Metasound::Engine
 
 		Audio::FParameterInterface::FOutput GetLowFrequencyOutput(const FName& InVertexName)
 		{
-			return {
+			return
+			{
 				LOCTEXT("OutputFormatSurroundInterface_GeneratedLowFrequencyDisplayName", "Out Low Frequency"),
-				LOCTEXT("OutputFormatSurroundInterface_GeneratedLowFrequencyDescription", "The resulting low frequency channel output audio from this source."),
+				LOCTEXT("OutputFormatSurroundInterface_GeneratedLowFrequencyDescription", "The resulting low frequency channel output audio."),
 				GetMetasoundDataTypeName<FAudioBuffer>(),
 				InVertexName,
 				FText::GetEmpty(), // RequiredText
@@ -72,9 +76,10 @@ namespace Metasound::Engine
 
 		Audio::FParameterInterface::FOutput GetSideLeftOutput(const FName& InVertexName)
 		{
-			return {
+			return
+			{
 				LOCTEXT("OutputFormatSurroundInterface_GeneratedSideLeftDisplayName", "Out Side Left"),
-				LOCTEXT("OutputFormatSurroundInterface_GeneratedSideLeftDescription", "The resulting side left channel output audio from this source."),
+				LOCTEXT("OutputFormatSurroundInterface_GeneratedSideLeftDescription", "The resulting side left channel output audio."),
 				GetMetasoundDataTypeName<FAudioBuffer>(),
 				InVertexName,
 				FText::GetEmpty(), // RequiredText
@@ -85,9 +90,10 @@ namespace Metasound::Engine
 
 		Audio::FParameterInterface::FOutput GetSideRightOutput(const FName& InVertexName)
 		{
-			return {
+			return
+			{
 				LOCTEXT("OutputFormatSurroundInterface_GeneratedSideRightDisplayName", "Out Side Right"),
-				LOCTEXT("OutputFormatSurroundInterface_GeneratedSideRightDescription", "The resulting side right channel output audio from this source."),
+				LOCTEXT("OutputFormatSurroundInterface_GeneratedSideRightDescription", "The resulting side right channel output audio."),
 				GetMetasoundDataTypeName<FAudioBuffer>(),
 				InVertexName,
 				FText::GetEmpty(), // RequiredText
@@ -98,9 +104,10 @@ namespace Metasound::Engine
 
 		Audio::FParameterInterface::FOutput GetBackLeftOutput(const FName& InVertexName)
 		{
-			return {
+			return
+			{
 				LOCTEXT("OutputFormatSurroundInterface_GeneratedBackLeftDisplayName", "Out Back Left"),
-				LOCTEXT("OutputFormatSurroundInterface_GeneratedBackLeftDescription", "The resulting back left channel output audio from this source."),
+				LOCTEXT("OutputFormatSurroundInterface_GeneratedBackLeftDescription", "The resulting back left channel output audio."),
 				GetMetasoundDataTypeName<FAudioBuffer>(),
 				InVertexName,
 				FText::GetEmpty(), // RequiredText
@@ -111,9 +118,10 @@ namespace Metasound::Engine
 
 		Audio::FParameterInterface::FOutput GetBackRightOutput(const FName& InVertexName)
 		{
-			return {
+			return
+			{
 				LOCTEXT("OutputFormatSurroundInterface_GeneratedBackRightDisplayName", "Out Back Right"),
-				LOCTEXT("OutputFormatSurroundInterface_GeneratedBackRightDescription", "The resulting back right channel output audio from this source."),
+				LOCTEXT("OutputFormatSurroundInterface_GeneratedBackRightDescription", "The resulting back right channel output audio."),
 				GetMetasoundDataTypeName<FAudioBuffer>(),
 				InVertexName,
 				FText::GetEmpty(), // RequiredText
@@ -167,7 +175,7 @@ namespace Metasound::Engine
 					{
 						{
 							LOCTEXT("GeneratedAudioDisplayName", "Out Mono"),
-							LOCTEXT("GeneratedAudioDescription", "The resulting mono output from this source."),
+							LOCTEXT("GeneratedAudioDescription", "The resulting mono output."),
 							GetMetasoundDataTypeName<FAudioBuffer>(),
 							Outputs::MonoOut,
 							FText::GetEmpty(), // RequiredText
@@ -218,7 +226,7 @@ namespace Metasound::Engine
 					{
 						{
 							LOCTEXT("OutputFormatStereoInterface_GeneratedLeftDisplayName", "Out Left"),
-							LOCTEXT("OutputFormatStereoInterface_GeneratedLeftDescription", "The resulting left channel output audio from this source."),
+							LOCTEXT("OutputFormatStereoInterface_GeneratedLeftDescription", "The resulting left channel output audio."),
 							GetMetasoundDataTypeName<FAudioBuffer>(),
 							Outputs::LeftOut,
 							FText::GetEmpty(), // RequiredText
@@ -227,7 +235,7 @@ namespace Metasound::Engine
 						},
 						{
 							LOCTEXT("OutputFormatStereoInterface_GeneratedRightDisplayName", "Out Right"),
-							LOCTEXT("OutputFormatStereoInterface_GeneratedRightDescription", "The resulting right channel output audio from this source."),
+							LOCTEXT("OutputFormatStereoInterface_GeneratedRightDescription", "The resulting right channel output audio."),
 							GetMetasoundDataTypeName<FAudioBuffer>(),
 							Outputs::RightOut,
 							FText::GetEmpty(), // RequiredText

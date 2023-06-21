@@ -1201,15 +1201,15 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassName
 	FMetasoundFrontendClassName(const Metasound::FNodeClassName& InName);
 
 	// Namespace of class.
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General)
 	FName Namespace;
 
 	// Name of class.
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = General)
 	FName Name;
 
 	// Variant of class. The Variant is used to describe an equivalent class which performs the same operation but on differing types.
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = General)
 	FName Variant;
 
 	// Returns a full name of the class.
@@ -1617,5 +1617,5 @@ public:
 	}
 };
 
-
+METASOUNDFRONTEND_API const TCHAR* LexToString(EMetasoundFrontendClassType InClassType);
 METASOUNDFRONTEND_API const TCHAR* LexToString(EMetasoundFrontendVertexAccessType InVertexAccess);

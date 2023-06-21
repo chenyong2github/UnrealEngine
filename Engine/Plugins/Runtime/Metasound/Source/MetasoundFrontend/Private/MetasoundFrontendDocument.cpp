@@ -816,6 +816,38 @@ FMetasoundFrontendDocument::FMetasoundFrontendDocument()
 	ArchetypeVersion = FMetasoundFrontendVersion::GetInvalid();
 }
 
+const TCHAR* LexToString(EMetasoundFrontendClassType InClassType)
+{
+	switch (InClassType)
+	{
+		case EMetasoundFrontendClassType::External:
+			return TEXT("External");
+		case EMetasoundFrontendClassType::Graph:
+			return TEXT("Graph");
+		case EMetasoundFrontendClassType::Input:
+			return TEXT("Input");
+		case EMetasoundFrontendClassType::Output:
+			return TEXT("Output");
+		case EMetasoundFrontendClassType::Literal:
+			return TEXT("Literal");
+		case EMetasoundFrontendClassType::Variable:
+			return TEXT("Variable");
+		case EMetasoundFrontendClassType::VariableDeferredAccessor:
+			return TEXT("Variable (Deferred Accessor)");
+		case EMetasoundFrontendClassType::VariableAccessor:
+			return TEXT("Variable (Accessor)");
+		case EMetasoundFrontendClassType::VariableMutator:
+			return TEXT("Variable (Mutator)");
+		case EMetasoundFrontendClassType::Template:
+			return TEXT("Template");
+		case EMetasoundFrontendClassType::Invalid:
+			return TEXT("Invalid");
+		default:
+			static_assert(static_cast<int32>(EMetasoundFrontendClassType::Invalid) == 10, "Possible missed EMetasoundFrontendClassType case coverage");
+			return nullptr;
+	}
+}
+
 const TCHAR* LexToString(EMetasoundFrontendVertexAccessType InVertexAccess)
 {
 	switch (InVertexAccess)
