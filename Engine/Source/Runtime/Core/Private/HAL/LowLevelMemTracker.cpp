@@ -80,19 +80,21 @@ FAutoConsoleCommand DumpLLM(
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda(
 		[](const TArray<FString>& Args, UWorld* InWorld, FOutputDevice& Ar)
 	{
-		bool bCSV = false;
-		for (const FString& Arg : Args)
+		FString Command = FString::Join(Args, TEXT(","));
+
+		bool bCSV = FParse::Param(*Command, TEXT("CSV"));
+		bool bSnapshot = FParse::Param(*Command, TEXT("SNAPSHOT"));
+
+		UE::LLM::ESizeParams SizeParams(UE::LLM::ESizeParams::Default);
+		if (bSnapshot)
 		{
-			if (FParse::Param(*Arg, TEXT("CSV")))
-			{
-				bCSV = true;
-			}
+			EnumAddFlags(SizeParams, UE::LLM::ESizeParams::RelativeToSnapshot);
 		}
 		FLowLevelMemTracker::Get().DumpToLog(
-			bCSV ? FLowLevelMemTracker::EDumpFormat::CSV : FLowLevelMemTracker::EDumpFormat::PlainText, &Ar);
+			bCSV ? FLowLevelMemTracker::EDumpFormat::CSV : FLowLevelMemTracker::EDumpFormat::PlainText, &Ar, SizeParams);
 	}));
 
-void FLowLevelMemTracker::DumpToLog(EDumpFormat DumpFormat, FOutputDevice* OutputDevice)
+void FLowLevelMemTracker::DumpToLog(EDumpFormat DumpFormat, FOutputDevice* OutputDevice, UE::LLM::ESizeParams SizeParams)
 {
 	if (!IsEnabled())
 	{
@@ -119,11 +121,16 @@ void FLowLevelMemTracker::DumpToLog(EDumpFormat DumpFormat, FOutputDevice* Outpu
 			FString Line;
 			int64 Size;
 		};
+
+		UE::LLM::ESizeParams CurrentSizeParams = SizeParams;
+		UE::LLM::ESizeParams PeakSizeParams = CurrentSizeParams;
+		EnumAddFlags(PeakSizeParams, UE::LLM::ESizeParams::ReportPeak);
+
 		TArray<FTagLine> TagLines;
 		for (const UE::LLMPrivate::FTagData* TagData : GetTrackedTags(TrackerType))
 		{
-			int64 CurrentAmount = GetTagAmountForTracker(TrackerType, TagData, false /* bPeakAmount */);
-			int64 PeakAmount = GetTagAmountForTracker(TrackerType, TagData, true /* bPeakAmount */);
+			int64 CurrentAmount = GetTagAmountForTracker(TrackerType, TagData, SizeParams);
+			int64 PeakAmount = GetTagAmountForTracker(TrackerType, TagData, PeakSizeParams);
 			FString TagName = GetTagUniqueName(TagData).ToString();
 			FString TagLine;
 			if (DumpFormat == EDumpFormat::CSV)
@@ -307,7 +314,7 @@ public:
 
 	void Publish(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes,
 		const FTagData* OverrideTrackedTotalTagData, const FTagData* OverrideUntaggedTagData, int64 TrackedTotal,
-		ESizeParams SizeParams);
+		UE::LLM::ESizeParams SizeParams);
 
 	void OnPreFork();
 
@@ -320,7 +327,7 @@ private:
 	void WriteHeader(const FTagData* OverrideTrackedTotalTagData, const FTagData* OverrideUntaggedTagData);
 	void AddRow(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes,
 		const FTagData* OverrideTrackedTotalName, const FTagData* OverrideUntaggedName, int64 TrackedTotal,
-		ESizeParams SizeParams);
+		UE::LLM::ESizeParams SizeParams);
 
 	FConstTagDataArray Columns;
 	TFastPointerLLMSet<const FTagData*> ExistingColumns;
@@ -339,7 +346,7 @@ public:
 	void Clear();
 	void Publish(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes,
 		const FTagData* OverrideTrackedTotalName, const FTagData* OverrideUntaggedName, int64 TrackedTotal,
-		ESizeParams SizeParams);
+		UE::LLM::ESizeParams SizeParams);
 	static void TraceGenericTags(FLowLevelMemTracker& LLMRef);
 
 private:
@@ -359,7 +366,7 @@ public:
 	void SetTracker(ELLMTracker InTracker);
 	void Publish(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes,
 		const FTagData* OverrideTrackedTotalName, const FTagData* OverrideUntaggedName, int64 TrackedTotal,
-		ESizeParams SizeParams);
+		UE::LLM::ESizeParams SizeParams);
 protected:
 	void RecordTagToCsv(int32 CsvCategoryIndex, const FTagData* TagData, int64 TagSize);
 #if LLM_CSV_PROFILER_WRITER_ENABLED 
@@ -441,10 +448,10 @@ public:
 
 	void Clear();
 
-	void PublishStats(ESizeParams SizeParam);
-	void PublishCsv(ESizeParams SizeParam);
-	void PublishTrace(ESizeParams SizeParam);
-	void PublishCsvProfiler(ESizeParams SizeParam);
+	void PublishStats(UE::LLM::ESizeParams SizeParam);
+	void PublishCsv(UE::LLM::ESizeParams SizeParam);
+	void PublishTrace(UE::LLM::ESizeParams SizeParam);
+	void PublishCsvProfiler(UE::LLM::ESizeParams SizeParam);
 
 	void OnPreFork();
 
@@ -546,7 +553,7 @@ public:
 	void CaptureTagSnapshot();
 	void ClearTagSnapshot();
 
-	int64 GetTagAmount(const FTagData* TagData, bool bPeakAmount = false) const;
+	int64 GetTagAmount(const FTagData* TagData, UE::LLM::ESizeParams SizeParams = UE::LLM::ESizeParams::Default) const;
 	void SetTagAmountExternal(const FTagData* TagData, int64 Amount, bool bAddToTotal);
 	void SetTagAmountInUpdate(const FTagData* TagData, int64 Amount, bool bAddToTotal);
 	const FTagData* GetActiveTagData(ELLMTagSet TagSet = ELLMTagSet::None);
@@ -559,9 +566,9 @@ public:
 
 	int64 GetAllocTypeAmount(ELLMAllocType AllocType);
 
-	int64 GetTrackedTotal(ESizeParams SizeParams = ESizeParams::Default) const
+	int64 GetTrackedTotal(UE::LLM::ESizeParams SizeParams = UE::LLM::ESizeParams::Default) const
 	{
-		if (EnumHasAnyFlags(SizeParams, ESizeParams::RelativeToSnapshot))
+		if (EnumHasAnyFlags(SizeParams, UE::LLM::ESizeParams::RelativeToSnapshot))
 		{
 			return FMath::Clamp<int64>(TrackedTotal - TrackedTotalInSnapshot, 0, INT64_MAX);
 		}
@@ -1100,15 +1107,15 @@ void FLowLevelMemTracker::PublishDataPerFrame(const TCHAR* LogName)
 
 		bool bTrackPeaks = CVarLLMTrackPeaks.GetValueOnAnyThread() != 0;
 
-		ESizeParams SizeParams(ESizeParams::Default);
+		UE::LLM::ESizeParams SizeParams(UE::LLM::ESizeParams::Default);
 		if (bTrackPeaks)
 		{
-			EnumAddFlags(SizeParams, ESizeParams::ReportPeak);
+			EnumAddFlags(SizeParams, UE::LLM::ESizeParams::ReportPeak);
 		}
 
 		if (bCapturedSizeSnapshot)
 		{
-			EnumAddFlags(SizeParams, ESizeParams::RelativeToSnapshot);
+			EnumAddFlags(SizeParams, UE::LLM::ESizeParams::RelativeToSnapshot);
 		}
 
 #if !LLM_ENABLED_TRACK_PEAK_MEMORY
@@ -2129,7 +2136,8 @@ FName FLowLevelMemTracker::GetTagUniqueName(const UE::LLMPrivate::FTagData* TagD
 	return TagData->GetName();
 }
 
-int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, bool bPeakAmount/* = false*/)
+// Deprecated in 5.3
+int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, bool bPeakAmount)
 {
 	if (bIsDisabled)
 	{
@@ -2138,11 +2146,12 @@ int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag T
 
 	BootstrapInitialise();
 
-	return GetTagAmountForTracker(Tracker, FindTagData(Tag), bPeakAmount);
+	return GetTagAmountForTracker(Tracker, FindTagData(Tag), bPeakAmount ? UE::LLM::ESizeParams::ReportPeak : UE::LLM::ESizeParams::Default);
 }
 
+// Deprecated in 5.3
 int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, const UE::LLMPrivate::FTagData* TagData,
-	bool bPeakAmount/* = false*/)
+	bool bPeakAmount)
 {
 	using namespace UE::LLMPrivate;
 
@@ -2159,11 +2168,12 @@ int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, const UE:
 	}
 
 	FScopeLock UpdateScopeLock(&UpdateLock); // uses of TagSizes are guarded by the UpdateLock
-	return GetTracker(Tracker)->GetTagAmount(TagData, bPeakAmount);
+	return GetTracker(Tracker)->GetTagAmount(TagData, bPeakAmount ? UE::LLM::ESizeParams::ReportPeak : UE::LLM::ESizeParams::Default);
 }
 
+// Deprecated in 5.3
 int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet,
-	bool bPeakAmount /* = false */)
+	bool bPeakAmount)
 {
 	if (bIsDisabled)
 	{
@@ -2172,7 +2182,59 @@ int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, FName Tag
 
 	BootstrapInitialise();
 
-	return GetTagAmountForTracker(Tracker, FindTagData(Tag, TagSet, UE::LLMPrivate::ETagReferenceSource::FunctionAPI), bPeakAmount);
+	UE::LLM::ESizeParams SizeParams(UE::LLM::ESizeParams::Default);
+	if (bPeakAmount)
+	{
+		EnumAddFlags(SizeParams, UE::LLM::ESizeParams::ReportPeak);
+	}
+
+	return GetTagAmountForTracker(Tracker, FindTagData(Tag, TagSet, UE::LLMPrivate::ETagReferenceSource::FunctionAPI), bPeakAmount ? UE::LLM::ESizeParams::ReportPeak : UE::LLM::ESizeParams::Default);
+}
+
+int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, const UE::LLMPrivate::FTagData* TagData,
+	UE::LLM::ESizeParams SizeParams)
+{
+	using namespace UE::LLMPrivate;
+
+	if (bIsDisabled)
+	{
+		return 0;
+	}
+
+	BootstrapInitialise();
+
+	if (TagData == nullptr)
+	{
+		return 0;
+	}
+
+	FScopeLock UpdateScopeLock(&UpdateLock); // uses of TagSizes are guarded by the UpdateLock
+	return GetTracker(Tracker)->GetTagAmount(TagData, SizeParams);
+}
+
+int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet,
+	UE::LLM::ESizeParams SizeParams)
+{
+	if (bIsDisabled)
+	{
+		return 0;
+	}
+
+	BootstrapInitialise();
+
+	return GetTagAmountForTracker(Tracker, FindTagData(Tag, TagSet, UE::LLMPrivate::ETagReferenceSource::FunctionAPI), SizeParams);
+}
+
+int64 FLowLevelMemTracker::GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, UE::LLM::ESizeParams SizeParams)
+{
+	if (bIsDisabled)
+	{
+		return 0;
+	}
+
+	BootstrapInitialise();
+
+	return GetTagAmountForTracker(Tracker, FindTagData(Tag), SizeParams);
 }
 
 void FLowLevelMemTracker::SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal)
@@ -3819,7 +3881,7 @@ void FLLMTracker::UpdateThreads()
 	}
 }
 
-void FLLMTracker::PublishStats(ESizeParams SizeParams)
+void FLLMTracker::PublishStats(UE::LLM::ESizeParams SizeParams)
 {
 	if (OverrideTrackedTotalTagData)
 	{
@@ -3857,20 +3919,20 @@ void FLLMTracker::PublishStats(ESizeParams SizeParams)
 	}
 }
 
-void FLLMTracker::PublishCsv(ESizeParams SizeParams)
+void FLLMTracker::PublishCsv(UE::LLM::ESizeParams SizeParams)
 {
 	CsvWriter.Publish(LLMRef, TagSizes, OverrideTrackedTotalTagData, OverrideUntaggedTagData, GetTrackedTotal(SizeParams), SizeParams);
 }
 
-void FLLMTracker::PublishTrace(ESizeParams SizeParams)
+void FLLMTracker::PublishTrace(UE::LLM::ESizeParams SizeParams)
 {
 	// Trace tracker does not support the handling of Snapshot currently
-	EnumRemoveFlags(SizeParams, ESizeParams::RelativeToSnapshot);
+	EnumRemoveFlags(SizeParams, UE::LLM::ESizeParams::RelativeToSnapshot);
 
 	TraceWriter.Publish(LLMRef, TagSizes, OverrideTrackedTotalTagData, OverrideUntaggedTagData, GetTrackedTotal(SizeParams), SizeParams);
 }
 
-void FLLMTracker::PublishCsvProfiler(ESizeParams SizeParams)
+void FLLMTracker::PublishCsvProfiler(UE::LLM::ESizeParams SizeParams)
 {
 	CsvProfilerWriter.Publish(LLMRef, TagSizes, OverrideTrackedTotalTagData, OverrideUntaggedTagData, GetTrackedTotal(SizeParams), SizeParams);
 }
@@ -3948,7 +4010,7 @@ void FLLMTracker::GetTagsNamesWithAmount(TMap<FName, uint64>& OutTagsNamesWithAm
 		const FTagData* TagData = It.Key;
 		if (TagData->GetTagSet() == TagSet)
 		{
-			OutTagsNamesWithAmount.Add(TagData->GetName(), It.Value.GetSize(ESizeParams::Default));
+			OutTagsNamesWithAmount.Add(TagData->GetName(), It.Value.GetSize(UE::LLM::ESizeParams::Default));
 		}
 	}
 }
@@ -4015,12 +4077,12 @@ bool FLLMTracker::FindTagsForPtr(void* InPtr, TArray<const FTagData *, TInlineAl
 	return true;
 }
 
-int64 FLLMTracker::GetTagAmount(const FTagData* TagData, bool bPeakAmount/* = false*/) const
+int64 FLLMTracker::GetTagAmount(const FTagData* TagData, UE::LLM::ESizeParams SizeParams) const
 {
 	const FTrackerTagSizeData* AllocationData = TagSizes.Find(TagData);
 	if (AllocationData)
 	{
-		return AllocationData->GetSize((bPeakAmount ? ESizeParams::ReportPeak : ESizeParams::Default));
+		return AllocationData->GetSize(SizeParams);
 	}
 	else
 	{
@@ -4340,7 +4402,7 @@ void FLLMCsvWriter::SetTracker(ELLMTracker InTracker)
 
 void FLLMCsvWriter::Publish(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes,
 	const FTagData* OverrideTrackedTotalTagData, const FTagData* OverrideUntaggedTagData, int64 TrackedTotal,
-	ESizeParams SizeParams)
+	UE::LLM::ESizeParams SizeParams)
 {
 	const double Now = FPlatformTime::Seconds();
 
@@ -4485,7 +4547,7 @@ void FLLMCsvWriter::WriteHeader(const FTagData* OverrideTrackedTotalTagData, con
 
 void FLLMCsvWriter::AddRow(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes,
 	const FTagData* OverrideTrackedTotalTagData, const FTagData* OverrideUntaggedTagData, int64 TrackedTotal,
-	ESizeParams SizeParams)
+	UE::LLM::ESizeParams SizeParams)
 {
 	TStringBuilder<256> TextBuffer;
 	auto WriteValue = [this, &TextBuffer](int64 Value)
@@ -4565,7 +4627,7 @@ const void* FLLMTraceWriter::GetTagId(const FTagData* TagData)
 
 void FLLMTraceWriter::Publish(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes,
 	const FTagData* OverrideTrackedTotalTagData, const FTagData* OverrideUntaggedTagData, int64 TrackedTotal,
-	ESizeParams SizeParams)
+	UE::LLM::ESizeParams SizeParams)
 {
 	if (!UE_TRACE_CHANNELEXPR_IS_ENABLED(MemTagChannel))
 	{
@@ -4710,7 +4772,7 @@ void FLLMCsvProfilerWriter::SetTracker(ELLMTracker InTracker)
 
 void FLLMCsvProfilerWriter::Publish(FLowLevelMemTracker& LLMRef, const FTrackerTagSizeMap& TagSizes,
 	const FTagData* OverrideTrackedTotalTagData, const FTagData* OverrideUntaggedTagData, int64 TrackedTotal,
-	ESizeParams SizeParams)
+	UE::LLM::ESizeParams SizeParams)
 {
 #if LLM_CSV_PROFILER_WRITER_ENABLED
 	int32 CsvCategoryIndex = (Tracker == ELLMTracker::Platform) ?

@@ -127,6 +127,24 @@ enum class ELLMTagSet : uint8
 	Max, // note: see FLowLevelMemTracker::ShouldReduceThreads and IsAssetTagForAssets if you add any asset-style tagsets
 };
 
+/*
+ * Size parameter flags used when requesting the size of the tracked tag data.
+ */
+namespace UE::LLM
+{
+
+enum class ESizeParams : uint8
+{
+	Default = 0,
+	ReportCurrent = 0,
+	ReportPeak = 1,
+	RelativeToSnapshot = 2
+};
+
+ENUM_CLASS_FLAGS(ESizeParams);
+
+} // UE::LLM
+
 // Do not add to these macros. Please use the LLM_DECLARE_TAG family of macros below to create new tags.
 #define LLM_ENUM_GENERIC_TAGS(macro) \
 	macro(Untagged,								"Untagged",						NAME_None,													NAME_None,										-1)\
@@ -634,12 +652,23 @@ public:
 	CORE_API FName GetTagUniqueName(const UE::LLMPrivate::FTagData* TagData) const;
 
 	/** Get the amount of memory for an ELLMTag from the given tracker. */
-	CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, bool bPeakAmount = false);
+	CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, UE::LLM::ESizeParams SizeParams = UE::LLM::ESizeParams::Default);
 
 	/** Get the amount of memory for a FTagData from the given tracker. */
-	CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, const UE::LLMPrivate::FTagData* TagData, bool bPeakAmount = false);
+	CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, const UE::LLMPrivate::FTagData* TagData, UE::LLM::ESizeParams SizeParams = UE::LLM::ESizeParams::Default);
 
-    CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet, bool bPeakAmount = false);
+    CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet, UE::LLM::ESizeParams SizeParams = UE::LLM::ESizeParams::Default);
+
+	/** Get the amount of memory for an ELLMTag from the given tracker. */
+	UE_DEPRECATED(5.3, "Use version that takes ESizeParams instead")
+	CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, bool bPeakAmount);
+
+	/** Get the amount of memory for a FTagData from the given tracker. */
+	UE_DEPRECATED(5.3, "Use version that takes ESizeParams instead")
+	CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, const UE::LLMPrivate::FTagData* TagData, bool bPeakAmount);
+
+	UE_DEPRECATED(5.3, "Use version that takes ESizeParams instead")
+	CORE_API int64 GetTagAmountForTracker(ELLMTracker Tracker, FName Tag, ELLMTagSet TagSet, bool bPeakAmount);
 
 	/** Set the amount of memory for an ELLMTag for a given tracker and optionally update the total tracked memory. */
 	CORE_API void SetTagAmountForTracker(ELLMTracker Tracker, ELLMTag Tag, int64 Amount, bool bAddToTotal);
@@ -658,7 +687,7 @@ public:
 		PlainText,
 		CSV,
 	};
-	CORE_API void DumpToLog(EDumpFormat DumpFormat = EDumpFormat::PlainText, FOutputDevice* OutputDevice = nullptr);
+	CORE_API void DumpToLog(EDumpFormat DumpFormat = EDumpFormat::PlainText, FOutputDevice* OutputDevice = nullptr, UE::LLM::ESizeParams SizeParams = UE::LLM::ESizeParams::Default);
 
 	CORE_API void OnPreFork();
 

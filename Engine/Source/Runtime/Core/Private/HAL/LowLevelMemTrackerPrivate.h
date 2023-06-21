@@ -173,15 +173,6 @@ namespace UE
 {
 namespace LLMPrivate
 {
-	enum class ESizeParams : uint8
-	{
-		Default = 0,
-		ReportCurrent = 0,
-		ReportPeak = 1,
-		RelativeToSnapshot = 2
-	};
-	ENUM_CLASS_FLAGS(ESizeParams);
-
 	/** Size information stored on the tracker for a tag; includes amounts aggregated from threadstates and from external api users */
 	struct FTrackerTagSizeData
 	{
@@ -194,18 +185,18 @@ namespace LLMPrivate
 		bool bExternalValid = false;
 		bool bExternalAddToTotal = false;
 
-		int64 GetSize(ESizeParams SizeParams) const
+		int64 GetSize(UE::LLM::ESizeParams SizeParams) const
 		{
 			int64 CurrentSize = Size;
 
 #if LLM_ENABLED_TRACK_PEAK_MEMORY
-			if (EnumHasAnyFlags(SizeParams, ESizeParams::ReportPeak))
+			if (EnumHasAnyFlags(SizeParams, UE::LLM::ESizeParams::ReportPeak))
 			{
 				CurrentSize = PeakSize;
 			}
 #endif
 			// Note, this will also subtract the snapshotted size from PeakSize if that flag is enabled
-			if (EnumHasAnyFlags(SizeParams, ESizeParams::RelativeToSnapshot))
+			if (EnumHasAnyFlags(SizeParams, UE::LLM::ESizeParams::RelativeToSnapshot))
 			{
 				CurrentSize = FMath::Clamp<int64>(CurrentSize - SizeInSnapshot, 0, INT64_MAX);
 			}
