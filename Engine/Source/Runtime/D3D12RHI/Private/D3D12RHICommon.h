@@ -14,7 +14,7 @@
 
 #include "Containers/StaticArray.h"
 #include "MultiGPU.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 
 class FD3D12Adapter;
 class FD3D12Device;
