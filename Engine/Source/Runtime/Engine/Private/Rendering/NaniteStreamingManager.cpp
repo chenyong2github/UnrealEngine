@@ -1739,7 +1739,7 @@ void FStreamingManager::AddPendingExplicitRequests()
 				const uint32 Priority = FMath::Min(Packed | ((1 << (NANITE_MAX_RESOURCE_PAGES_BITS + 1)) - 1), NANITE_MAX_PRIORITY_BEFORE_PARENTS);	// Round quantized priority up
 				if (PageIndex >= Resources->NumRootPages && PageIndex < (uint32)Resources->PageStreamingStates.Num())
 				{
-					AddRequest(Resources->RuntimeResourceID, PageIndex, *(const float*)&Priority);
+					AddRequest(Resources->RuntimeResourceID, PageIndex, Priority);
 					NumPageRequests++;
 				}
 			}
