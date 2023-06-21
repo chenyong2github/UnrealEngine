@@ -162,31 +162,12 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		public MetadataItem(DirectoryReference ProductDirectory, DirectoryReference XcodeProject, ConfigHierarchy Ini, string Location, MetadataMode InMode, DirectoryReference CopyFromFolderIfNotFound)
 		{
 			// no extension means it's a .ini entry
-			if (String.IsNullOrEmpty(Path.GetExtension(Location)))
+			if (Path.GetExtension(Location).Length == 0)
 			{
 				string? FileLocation;
-				if (Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", Location, out FileLocation) && !String.IsNullOrEmpty(FileLocation))
+				if (Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", Location, out FileLocation) && FileLocation.Length > 0)
 				{
-					if (FileLocation.StartsWith("(FilePath=", StringComparison.OrdinalIgnoreCase))
-					{
-						FileLocation = ConfigHierarchy.GetStructEntry(FileLocation, "FilePath", false)!;
-						if (FileLocation.StartsWith("/Engine/"))
-						{
-							File = FileReference.Combine(Unreal.EngineDirectory, FileLocation.Substring(8));
-						}
-						else if (FileLocation.StartsWith("/Game/"))
-						{
-							File = FileReference.Combine(ProductDirectory, FileLocation.Substring(6));
-						}
-						else
-						{
-							File = new FileReference(FileLocation);
-						}
-					}
-					else
-					{
-						File = new FileReference(FileLocation);
-					}
+					File = AppleExports.ConvertFilePath(ProductDirectory, FileLocation);
 				}
 			}
 			else
@@ -355,10 +336,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 		// settings read from project configs
 		public IOSProjectSettings? IOSProjectSettings;
-		public IOSProvisioningData? IOSProvisioningData;
-
 		public TVOSProjectSettings? TVOSProjectSettings;
-		public TVOSProvisioningData? TVOSProvisioningData;
 
 		// Name of the product (usually the project name, but UE5.xcodeproj is actually UnrealGame product)
 		public string ProductName;
@@ -476,7 +454,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			if (String.IsNullOrEmpty(BundleIdentifier))
 			{
 				ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
-				Ini.GetString($"/Script/MacTargetPlatform.XcodeProjectSettings", "ModernBundleIdentifier", out BundleIdentifier);
+				Ini.GetString($"/Script/MacTargetPlatform.XcodeProjectSettings", "BundleIdentifier", out BundleIdentifier);
 			}
 			if (String.IsNullOrEmpty(BundleIdentifier))
 			{
@@ -533,20 +511,12 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			{
 				IOSPlatform IOSPlatform = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.IOS));
 				IOSProjectSettings = IOSPlatform.ReadProjectSettings(UProjectFileLocation);
-				if (!bUseAutomaticSigning)
-				{
-					IOSProvisioningData = IOSPlatform.ReadProvisioningData(IOSProjectSettings, bForDistribution);
-				}
 			}
 
 			if (AllConfigs.Any(x => x.bSupportsTVOS))
 			{
 				TVOSPlatform TVOSPlatform = ((TVOSPlatform)UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.TVOS));
 				TVOSProjectSettings = TVOSPlatform.ReadProjectSettings(UProjectFileLocation);
-				if (!bUseAutomaticSigning)
-				{
-					TVOSProvisioningData = TVOSPlatform.ReadProvisioningData(TVOSProjectSettings, bForDistribution);
-				}
 			}
 
 			return true;
@@ -557,7 +527,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			// read setings from the configs, now that we have a project
 			ConfigHierarchy SharedPlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UProjectFileLocation?.Directory, UnrealTargetPlatform.Mac);
-			SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernCodeSigning", out bUseAutomaticSigning);
+			SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAutomaticCodeSigning", out bUseAutomaticSigning);
 
 			Metadata = new Metadata(ProductDirectory, XcodeProjectFileLocation, SharedPlatformIni, bSupportsMac, bSupportsIOS || bSupportsTVOS, Logger);
 		}
@@ -778,7 +748,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			Project.FileCollection.AddFileReference(Xcconfig.Guid, Xcconfig.FileRef.MakeRelativeTo(XcodeProjectDirectory), "explicitFileType", "test.xcconfig", "\"<group>\"", "Xcconfigs");
 		}
 
-		public virtual void WriteXcconfigFile()
+		public virtual void WriteXcconfigFile(ILogger Logger)
 		{
 
 		}
@@ -788,8 +758,9 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 		/// </summary>
 		/// <param name="Content"></param>
 		/// <param name="Node"></param>
+		/// <param name="Logger"></param>
 		/// <param name="WrittenNodes"></param>
-		public static void WriteNodeAndReferences(StringBuilder Content, XcodeProjectNode Node, HashSet<XcodeProjectNode>? WrittenNodes = null)
+		public static void WriteNodeAndReferences(StringBuilder Content, XcodeProjectNode Node, ILogger Logger, HashSet<XcodeProjectNode>? WrittenNodes = null)
 		{
 			if (WrittenNodes == null)
 			{
@@ -798,14 +769,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 
 			// write the node into the xcode project file
 			Node.Write(Content);
-			Node.WriteXcconfigFile();
+			Node.WriteXcconfigFile(Logger);
 
 			foreach (XcodeProjectNode Reference in Node.References)
 			{
 				if (!WrittenNodes.Contains(Reference))
 				{
 					WrittenNodes.Add(Reference);
-					WriteNodeAndReferences(Content, Reference, WrittenNodes);
+					WriteNodeAndReferences(Content, Reference, Logger, WrittenNodes);
 				}
 			}
 		}
@@ -1564,7 +1535,51 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			Content.WriteLine($"\t\t\tproductName = \"{UnrealData.ProductName}\";");
 		}
 
-		public override void WriteXcconfigFile()
+		private static Dictionary<string, string> PlistFileMap = new(StringComparer.OrdinalIgnoreCase);
+		private string GetPlistSigningName(string ProvisionSetting, ILogger Logger)
+		{
+			string? SigningName;
+			lock(PlistFileMap)
+			{
+				if (!PlistFileMap.TryGetValue(ProvisionSetting, out SigningName))
+				{
+					FileReference ProfileFile = AppleExports.ConvertFilePath(UnrealData.UProjectFileLocation?.Directory, ProvisionSetting);
+
+					// get mobile provision UUID, either directly or from the probision
+					if (ProfileFile.GetExtension() == ".mobileprovision")
+					{
+						// security will read the provision and dump out the text (plist) bits of the profile, and plutil will extract the UUID to stdout
+						string UUID = Utils.RunLocalProcessAndReturnStdOut("/bin/sh", $"-c 'security cms -D -i {ProfileFile.FullName.Replace(" ", "\\ ")} | plutil -extract UUID raw -'");
+
+						// make sure it's living in user's library
+						// (note: i couldn't find a way to install it without opening Xcode, so copying it works well enough)
+						DirectoryReference UserDir = new DirectoryReference(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+						FileReference InstalledProfileFile = FileReference.Combine(UserDir, "Library", "MobileDevice", "Provisioning Profiles", $"{UUID}.mobileprovision");
+
+						// copy if needed
+						if (!FileReference.Exists(InstalledProfileFile))
+						{
+							DirectoryReference.CreateDirectory(InstalledProfileFile.Directory);
+							FileReference.Copy(ProfileFile, InstalledProfileFile);
+							Logger.LogInformation("Copying project's provision '{SourceProvision}' to your libary: '{TargetProvision}'", ProfileFile, InstalledProfileFile);
+						}
+
+
+						SigningName = UUID;
+					}
+					else
+					{
+						SigningName = ProvisionSetting;
+					}
+
+					PlistFileMap[ProvisionSetting] = SigningName;
+				}
+			}
+
+			return SigningName!;
+		}
+
+		public override void WriteXcconfigFile(ILogger Logger)
 		{
 			// gather general, all-platform, data we are doing to put into the configs
 			UnrealBuildConfig BuildConfig = BuildConfigList!.BuildConfigs[0].Info;
@@ -1592,7 +1607,8 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			ConfigHierarchy PlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, UnrealData.UProjectFileLocation?.Directory, Platform);
 
 			// settings for all platforms
-			bool bAutomaticSigning = true;
+			bool bAutomaticSigning;
+			bool bMacSignToRunLocally;
 			string? SigningTeam;
 			string? SigningPrefix;
 			string? AppCategory;
@@ -1600,18 +1616,22 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			string SDKRoot;
 			string DeploymentTarget;
 			string DeploymentTargetKey;
-			string? SigningCert = null;
+			string? SigningIdentity = null;
 			string? ProvisioningProfile = null;
 			string? SupportedDevices = null;
 			string? MarketingVersion = null;
 			string? BundleIdentifier;
 			List<string> ExtraConfigLines = new();
 
-			// get codesigning info (all platforms)
-			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernCodeSigning", out bAutomaticSigning);
-			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "ModernSigningTeam", out SigningTeam);
-			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "ModernSigningPrefix", out SigningPrefix);
+			// get signing settings
+			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAutomaticCodeSigning", out bAutomaticSigning);
+			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bMacSignToRunLocally", out bMacSignToRunLocally);
+			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "CodeSigningTeam", out SigningTeam);
+			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "CodeSigningPrefix", out SigningPrefix);
+			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", $"{Platform}ProvisioningProfile", out ProvisioningProfile);
+			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", $"{Platform}SigningIdentity", out SigningIdentity);
 			PlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppCategory", out AppCategory);
+
 
 			if (Platform == UnrealTargetPlatform.Mac)
 			{
@@ -1649,12 +1669,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					SupportedDevices = UnrealData.IOSProjectSettings!.RuntimeDevices;
 					DeploymentTarget = UnrealData.IOSProjectSettings.RuntimeVersion;
 
-					if (UnrealData.IOSProvisioningData != null && UnrealData.bWriteCodeSigningSettings)
-					{
-						ProvisioningProfile = UnrealData.IOSProvisioningData.MobileProvisionUUID;
-						SigningCert = UnrealData.IOSProvisioningData.SigningCertificate ?? (UnrealData.bForDistribution ? "Apple Distribution" : "Apple Developer");
-					}
-
 					// only iphone deals with orientation
 					List<string> SupportedOrientations = XcodeUtils.GetSupportedOrientations(PlatformIni);
 					ExtraConfigLines.Add($"INFOPLIST_KEY_UISupportedInterfaceOrientations = \"{String.Join(" ", SupportedOrientations)}\"");
@@ -1675,12 +1689,6 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					DeploymentTargetKey = "TVOS_DEPLOYMENT_TARGET";
 					SupportedDevices = UnrealData.TVOSProjectSettings!.RuntimeDevices;
 					DeploymentTarget = UnrealData.TVOSProjectSettings.RuntimeVersion;
-
-					if (UnrealData.TVOSProvisioningData != null && UnrealData.bWriteCodeSigningSettings)
-					{
-						ProvisioningProfile = UnrealData.TVOSProvisioningData.MobileProvisionUUID;
-						SigningCert = UnrealData.TVOSProvisioningData.SigningCertificate ?? (UnrealData.bForDistribution ? "Apple Distribution" : "Apple Developer");
-					}
 				}
 			}
 
@@ -1767,22 +1775,43 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				Xcconfig.AppendLine($"INFOPLIST_KEY_LSApplicationCategoryType = {AppCategory}");
 			}
 
-			if (UnrealData.bWriteCodeSigningSettings)
+			// always use defualt codesigning for Editor, which is for running locally
+			if (UnrealData.bWriteCodeSigningSettings && UnrealData.TargetRules.Type != TargetType.Editor)
 			{
 				Xcconfig.AppendLine("");
 				Xcconfig.AppendLine("// Code-signing settings");
 				Xcconfig.AppendLine("CODE_SIGN_STYLE = " + (bAutomaticSigning ? "Automatic" : "Manual"));
-				if (!String.IsNullOrEmpty(SigningTeam))
+				Xcconfig.AppendLine($"DEVELOPMENT_TEAM = {SigningTeam}");
+
+				// Mac has Sign to Run Locally to deal with
+				if (Platform == UnrealTargetPlatform.Mac)
 				{
-					Xcconfig.AppendLine($"DEVELOPMENT_TEAM = {SigningTeam}");
+					// when set, always use the - identity, that's how Xcode selects "Sign to Run Locally"
+					// if it is not set, and Automatic is on, then it will use it's default of "Apple Development", but we don't specify it in case default changes
+					if (bMacSignToRunLocally)
+					{
+						Xcconfig.AppendLine($"CODE_SIGN_IDENTITY = -");
+					}
+					else if (!bAutomaticSigning && SigningIdentity != null)
+					{
+						Xcconfig.AppendLine($"CODE_SIGN_IDENTITY = \"{SigningIdentity}\"");
+					}
 				}
-				if (!String.IsNullOrEmpty(ProvisioningProfile))
+				else
 				{
-					Xcconfig.AppendLine($"PROVISIONING_PROFILE_SPECIFIER = {ProvisioningProfile}");
-				}
-				if (SigningCert != null)
-				{
-					Xcconfig.AppendLine($"CODE_SIGN_IDENTITY = {SigningCert}");
+					if (!bAutomaticSigning)
+					{
+						// only use profile on IOS
+						if (!String.IsNullOrEmpty(ProvisioningProfile))
+						{
+							string SigningName = GetPlistSigningName(ProvisioningProfile, Logger);
+							Xcconfig.AppendLine($"PROVISIONING_PROFILE_SPECIFIER = {SigningName}");
+						}
+						if (SigningIdentity != null)
+						{
+							Xcconfig.AppendLine($"CODE_SIGN_IDENTITY = \"{SigningIdentity}\"");
+						}
+					}
 				}
 			}
 
@@ -1885,7 +1914,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 		}
 
-		public override void WriteXcconfigFile()
+		public override void WriteXcconfigFile(ILogger Logger)
 		{
 			// write out settings that for compiling natively
 			Xcconfig!.AppendLine("CLANG_CXX_LANGUAGE_STANDARD = c++17");
@@ -2113,7 +2142,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 
 			// cache the main group
-			SharedFileCollection.MainGroupGuid = XcodeFileCollection.GetRootGroupGuid(SharedFileCollection.Groups);
+			SharedFileCollection.MainGroupGuid = XcodeFileCollection.GetRootGroupGuid(SharedFileCollection.Groups, UnrealData.XcodeProjectFileLocation);
 
 			// filter each file into the appropriate batch
 			foreach (XcodeSourceFile File in SharedFileCollection.BuildableFilesToResponseFile.Keys)
@@ -2205,7 +2234,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 				{
 					// @todo hahahaah
 					continue;
-					//bSuccess = MergeIntoTemplateProject(PBXFilePath, RootProject, TemplateProject);
+					//bSuccess = MergeIntoTemplateProject(PBXFilePath, RootProject, TemplateProject, Logger);
 				}
 				else
 				{
@@ -2226,7 +2255,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 					FileCollection.Write(Content);
 
 					// now write out the project node and its recursive dependent nodes
-					XcodeProjectNode.WriteNodeAndReferences(Content, RootProject);
+					XcodeProjectNode.WriteNodeAndReferences(Content, RootProject, Logger);
 
 					Content.WriteLine(1, "};");
 					Content.WriteLine(1, $"rootObject = {RootProject.Guid} /* Project object */;");
@@ -2282,7 +2311,7 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			return XcodeUtils.Plist(Command);
 		}
 
-		bool MergeIntoTemplateProject(FileReference PBXProjFilePath, XcodeProject RootProject, FileReference TemplateProject)
+		bool MergeIntoTemplateProject(FileReference PBXProjFilePath, XcodeProject RootProject, FileReference TemplateProject, ILogger Logger)
 		{
 			// activate a file for plist reading/writing here
 			XcodeUtils.SetActivePlistFile(PBXFilePathForPlatform(CurrentPlistPlatform).FullName);
@@ -2304,14 +2333,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			// the runtarget and project need to write out so all of their xcconfigs get written as well,
 			// so write everything to a temp string that is tossed, but all xcconfigs will be done at least
 			StringBuilder Temp = new StringBuilder();
-			XcodeProjectNode.WriteNodeAndReferences(Temp, RootProject!);
+			XcodeProjectNode.WriteNodeAndReferences(Temp, RootProject!, Logger);
 
 			StringBuilder Content = new StringBuilder();
 			Content.WriteLine(0, "{");
 			FileCollection.Write(Content);
-			XcodeProjectNode.WriteNodeAndReferences(Content, BuildTarget);
-			XcodeProjectNode.WriteNodeAndReferences(Content, IndexTarget);
-			XcodeProjectNode.WriteNodeAndReferences(Content, BuildDependency);
+			XcodeProjectNode.WriteNodeAndReferences(Content, BuildTarget, Logger);
+			XcodeProjectNode.WriteNodeAndReferences(Content, IndexTarget, Logger);
+			XcodeProjectNode.WriteNodeAndReferences(Content, BuildDependency, Logger);
 			Content.WriteLine(0, "}");
 
 			// write to disk

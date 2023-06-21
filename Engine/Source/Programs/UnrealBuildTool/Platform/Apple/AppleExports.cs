@@ -3,6 +3,7 @@
 using System;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
@@ -42,6 +43,32 @@ namespace UnrealBuildTool
 				Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernXcode", out bUseModernXcode);
 			}
 			return bUseModernXcode;
+		}
+
+		/// <summary>
+		///  This is a FilePath from UE settings, like /Game/Foo/Bar.txt
+		/// </summary>
+		/// <param name="ProductDirectory">Directory to use for /Game paths</param>
+		/// <param name="FilePath"></param>
+		/// <returns></returns>
+		public static FileReference ConvertFilePath(DirectoryReference? ProductDirectory, string FilePath)
+		{
+			// for FilePath params, pull the path out of the struct
+			if (FilePath.StartsWith("(FilePath=", StringComparison.OrdinalIgnoreCase))
+			{
+				FilePath = ConfigHierarchy.GetStructEntry(FilePath, "FilePath", false)!;
+			}
+
+			if (FilePath.StartsWith("/Engine/", StringComparison.OrdinalIgnoreCase))
+			{
+				return FileReference.Combine(Unreal.EngineDirectory, FilePath.Substring(8));
+			}
+			else if (ProductDirectory != null && FilePath.StartsWith("/Game/", StringComparison.OrdinalIgnoreCase))
+			{
+				return FileReference.Combine(ProductDirectory, FilePath.Substring(6));
+			}
+
+			return new FileReference(FilePath);
 		}
 
 		/// <summary>
@@ -92,6 +119,32 @@ namespace UnrealBuildTool
 			if (GeneratedProjectFile == null)
 			{
 				return 1;
+			}
+
+			// look for the special app store connect key information
+			ConfigHierarchy SharedPlatformIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ProjectFile?.Directory, UnrealTargetPlatform.Mac);
+			bool bUseAutomaticCodeSigning;
+			SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAutomaticCodeSigning", out bUseAutomaticCodeSigning);
+			if (bUseAutomaticCodeSigning)
+			{
+				ExtraOptions += " -allowProvisioningUpdates";
+
+				// handle AppStore Connect settings
+				bool bUseAppStoreConnect;
+				SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseAppStoreConnect", out bUseAppStoreConnect);
+				if (bUseAppStoreConnect)
+				{
+					string? IssuerID, KeyID, KeyPath;
+					if (SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectIssuerID", out IssuerID) &&
+						SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectKeyID", out KeyID) &&
+						SharedPlatformIni.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "AppStoreConnectKeyPath", out KeyPath))
+					{
+						FileReference KeyFile = ConvertFilePath(ProjectFile?.Directory, KeyPath);
+						ExtraOptions += $" -authenticationKeyIssuerID {IssuerID}";
+						ExtraOptions += $" -authenticationKeyID {KeyID}";
+						ExtraOptions += $" -authenticationKeyPath \"{KeyFile}\"";
+					}
+				}
 			}
 
 			// run xcodebuild on the generated project to make the .app

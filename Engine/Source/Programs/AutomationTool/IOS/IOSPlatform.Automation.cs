@@ -804,24 +804,7 @@ public class IOSPlatform : ApplePlatform
 		string SigningCertificate;
 		string TeamUUID;
 		bool bAutomaticSigning;
-		if (AppleExports.UseModernXcode(Params.RawProjectPath))
-		{
-			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, Params.RawProjectPath.Directory!, UnrealTargetPlatform.IOS);
-
-			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "bUseModernCodeSigning", out bAutomaticSigning);
-			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "ModernSigningTeam", out TeamUUID);
-			//			Ini.TryGetValue("/Script/MacTargetPlatform.XcodeProjectSettings", "ModernSigningPrefix", out SigningPrefix);
-			if (!bAutomaticSigning)
-			{
-				throw new AutomationException("Currently only Modern (automatic) codesigning is supported with Modern xcode");
-			}
-			SigningCertificate = null;
-			MobileProvision = null;
-		}
-		else
-		{
-			GetProvisioningData(Params.RawProjectPath, Params.Distribution, out MobileProvision, out SigningCertificate, out TeamUUID, out bAutomaticSigning);
-		}
+		GetProvisioningData(Params.RawProjectPath, Params.Distribution, out MobileProvision, out SigningCertificate, out TeamUUID, out bAutomaticSigning);
 
 		//@TODO: We should be able to use this code on both platforms, when the following issues are sorted:
 		//   - Raw executable is unsigned & unstripped (need to investigate adding stripping to IPP)

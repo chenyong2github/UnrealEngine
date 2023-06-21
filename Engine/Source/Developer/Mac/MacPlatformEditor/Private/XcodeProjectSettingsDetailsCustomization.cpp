@@ -29,7 +29,7 @@ void FXcodeProjectSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBu
     PremadeMacEntitlements = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UXcodeProjectSettings, PremadeMacEntitlements));
     ShippingEntitlements = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UXcodeProjectSettings, ShippingSpecificMacEntitlements));
     
-    IDetailCategoryBuilder& PlistCategory = DetailLayout.EditCategory(TEXT("Info.plist"));
+    IDetailCategoryBuilder& PlistCategory = DetailLayout.EditCategory(TEXT("Plist Files"));
     PlistCategory.AddCustomRow(LOCTEXT("InfoPlist", "Info.plist"), false)
     .WholeRowWidget
     [
@@ -45,7 +45,7 @@ void FXcodeProjectSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBu
          ]
     ];
     
-    IDetailCategoryBuilder& ShipEntitlementCategory = DetailLayout.EditCategory(TEXT("Entitlement"));
+    IDetailCategoryBuilder& ShipEntitlementCategory = DetailLayout.EditCategory(TEXT("Entitlements"));
     ShipEntitlementCategory.AddCustomRow(LOCTEXT("Entitlement", "Entitlement"), false)
     .WholeRowWidget
     [
@@ -72,18 +72,22 @@ void FXcodeProjectSettingsDetailsCustomization::CustomizeDetails(IDetailLayoutBu
             {
                 SortOrder = 0;
             }
-            else if(CategoryName == "Info.plist")
+            else if(CategoryName == "Plist Files")
             {
                 SortOrder = 1;
             }
-            else if(CategoryName == "Entitlement")
-            {
-                SortOrder = 2;
-            }
+			else if(CategoryName == "Entitlements")
+			{
+				SortOrder = 2;
+			}
+			else if(CategoryName == "Code Signing")
+			{
+				SortOrder = 3;
+			}
             else
             {
                 // Unknown category, should explicitly set order
-                ensure(false);
+                ensureMsgf(false, TEXT("Unknown category %s in XcodeProjectSttings"), *CategoryName.ToString());
                 SortOrder = 999;
             }
 

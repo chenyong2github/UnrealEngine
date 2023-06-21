@@ -461,9 +461,14 @@ namespace UnrealBuildTool.XcodeProjectXcconfig
 			}
 		}
 
-		public static string GetRootGroupGuid(Dictionary<string, XcodeFileGroup> GroupsDict)
+		public static string GetRootGroupGuid(Dictionary<string, XcodeFileGroup> GroupsDict, FileSystemReference ProjectFile)
 		{
-			return FindRootFileGroup(GroupsDict)!.GroupGuid;
+			XcodeFileGroup? RootGroup = FindRootFileGroup(GroupsDict);
+			if (RootGroup == null)
+			{
+				throw new BuildException($"The project '{ProjectFile}' had no root group, no files have been added");
+			}
+			return RootGroup.GroupGuid;
 		}
 
 		private static XcodeFileGroup? FindRootFileGroup(Dictionary<string, XcodeFileGroup> GroupsDict)

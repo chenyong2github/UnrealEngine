@@ -313,6 +313,19 @@ namespace UnrealBuildTool
 			return Framework.ExtractedTokenFile!;
 		}
 
+		/// <summary>
+		/// If the project is a UnrealGame project, Target.ProjectDirectory refers to the engine dir, not the actual dir of the project. So this method gets the 
+		/// actual directory of the project whether it is a UnrealGame project or not.
+		/// </summary>
+		/// <returns>The actual project directory.</returns>
+		/// <param name="ProjectFile">The path to the project file</param>
+		internal static DirectoryReference GetActualProjectDirectory(FileReference? ProjectFile)
+		{
+			DirectoryReference ProjectDirectory = (ProjectFile == null ? DirectoryReference.FromString(UnrealBuildTool.GetRemoteIniPath())! : DirectoryReference.FromFile(ProjectFile)!);
+			return ProjectDirectory;
+		}
+
+
 		/// <inheritdoc/>
 		protected override string EscapePreprocessorDefinition(string Definition)
 		{
@@ -629,7 +642,6 @@ namespace UnrealBuildTool
 				$"-scheme \"{SchemeName}\"",
 				$"-configuration \"{Configuration}\"",
 				$"-destination generic/platform=" + (Platform == UnrealTargetPlatform.TVOS ? "tvOS" : Platform == UnrealTargetPlatform.Mac ? "macOS" : "iOS"),
-				"-allowProvisioningUpdates",
 				"-hideShellScriptEnvironment",
 				// xcode gets confused it we _just_ wrote out entitlements while generating the temp project, and it thinks it was modified _during_ building
 				// but it wasn't, it was written before the build started
@@ -689,6 +701,15 @@ namespace UnrealBuildTool
 
 		private int PostBuildSync(ApplePostBuildSyncTarget Target, ILogger Logger)
 		{
+			// generate the IOS plist file every time
+			if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
+			{
+				string GameName = Target.ProjectFile == null ? "UnrealGame" : Target.ProjectFile.GetFileNameWithoutAnyExtensions();
+				// most of these params are uused in modern
+				UEDeployIOS.GenerateIOSPList(Target.ProjectFile, Target.Configuration, Target.ProjectFile!.Directory.FullName, Target.ProjectFile == null, GameName, bIsClient: false,
+					GameName, Unreal.EngineDirectory.FullName, Target.ProjectFile!.Directory.FullName, null, null, false, Logger);
+			}
+
 			// if xcode is building this, it will also do the Run stuff anyway, so no need to do it here as well
 			if (Environment.GetEnvironmentVariable("UE_BUILD_FROM_XCODE") == "1")
 			{
@@ -732,6 +753,14 @@ namespace UnrealBuildTool
 			PostBuildSyncAction.ProducedItems.Add(GetPostBuildOutputFile(Executable.Location, Target.Name, Target.Platform));
 			PostBuildSyncAction.StatusDescription = $"Executing PostBuildSync [{Executable.Location}]";
 			PostBuildSyncAction.bCanExecuteRemotely = false;
+
+
+			if (Target.Platform == UnrealTargetPlatform.IOS || Target.Platform == UnrealTargetPlatform.TVOS)
+			{
+				// @todo: do we need one per Target for IOS? Client? I dont think so for Modern
+				FileReference PlistFile = FileReference.Combine(AppleToolChain.GetActualProjectDirectory(Target.ProjectFile), "Build/IOS/UBTGenerated/Info.Template.plist");
+				PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(PlistFile));
+			}
 
 			return PostBuildSyncAction;
 		}

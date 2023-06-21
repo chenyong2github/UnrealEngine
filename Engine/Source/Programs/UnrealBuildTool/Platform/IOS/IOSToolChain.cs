@@ -1206,17 +1206,8 @@ namespace UnrealBuildTool
 				PostBuildSyncAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				PostBuildSyncAction.PrerequisiteItems.Add(Executable);
 				PostBuildSyncAction.PrerequisiteItems.UnionWith(OutputFiles);
-				if (bUseModernXcode)
-				{
-					// @todo: do we need one per Target for IOS? Client? I dont think so for Modern
-					FileReference PlistFile = FileReference.Combine(GetActualProjectDirectory(ProjectFile), "Build/IOS/UBTGenerated/Info.Template.plist");
-					PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(PlistFile));
-				}
-				else
-				{
-					PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(GetStagedExecutablePath(Executable.Location, Target.Name)));
-					PostBuildSyncAction.DeleteItems.UnionWith(PostBuildSyncAction.ProducedItems);
-				}
+				PostBuildSyncAction.ProducedItems.Add(FileItem.GetItemByFileReference(GetStagedExecutablePath(Executable.Location, Target.Name)));
+				PostBuildSyncAction.DeleteItems.UnionWith(PostBuildSyncAction.ProducedItems);
 				PostBuildSyncAction.StatusDescription = "Executing PostBuildSync";
 				PostBuildSyncAction.bCanExecuteRemotely = false;
 
@@ -1371,18 +1362,6 @@ namespace UnrealBuildTool
 			Plist = Plist.Replace("BUNDLE_ID", BundleID);
 
 			FileReference.WriteAllText(MissingPlistPath, Plist);
-		}
-
-		/// <summary>
-		/// If the project is a UnrealGame project, Target.ProjectDirectory refers to the engine dir, not the actual dir of the project. So this method gets the 
-		/// actual directory of the project whether it is a UnrealGame project or not.
-		/// </summary>
-		/// <returns>The actual project directory.</returns>
-		/// <param name="ProjectFile">The path to the project file</param>
-		private static DirectoryReference GetActualProjectDirectory(FileReference? ProjectFile)
-		{
-			DirectoryReference ProjectDirectory = (ProjectFile == null ? DirectoryReference.FromString(UnrealBuildTool.GetRemoteIniPath())! : DirectoryReference.FromFile(ProjectFile)!);
-			return ProjectDirectory;
 		}
 
 		private static void GenerateFrameworkWrapperIfNonexistent(IOSPostBuildSyncTarget Target, ILogger Logger)
