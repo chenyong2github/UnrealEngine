@@ -266,11 +266,6 @@ void UChaosClothAssetEditorMode::OnToolEnded(UInteractiveToolManager* Manager, U
 	}
 }
 
-void UChaosClothAssetEditorMode::PostUndo()
-{
-	ReinitializeDynamicMeshComponents();
-}
-
 void UChaosClothAssetEditorMode::BindCommands()
 {
 	using namespace UE::Chaos::ClothAsset;

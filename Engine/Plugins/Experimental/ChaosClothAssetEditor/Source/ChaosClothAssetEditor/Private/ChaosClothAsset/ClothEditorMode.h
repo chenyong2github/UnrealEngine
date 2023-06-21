@@ -98,7 +98,6 @@ private:
 	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const override;
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
-	virtual void PostUndo() override;
 	virtual void CreateToolkit() override;
 	virtual void BindCommands() override;
 
