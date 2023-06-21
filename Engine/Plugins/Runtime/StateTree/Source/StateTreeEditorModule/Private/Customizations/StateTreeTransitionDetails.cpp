@@ -1,16 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeTransitionDetails.h"
+#include "Debugger/StateTreeDebuggerUIExtensions.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "IDetailChildrenBuilder.h"
+#include "IPropertyUtilities.h"
+#include "ScopedTransaction.h"
+#include "StateTreeEditor.h"
+#include "StateTreeEditorData.h"
+#include "StateTreePropertyHelpers.h"
 #include "StateTreeTypes.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "DetailWidgetRow.h"
-#include "DetailLayoutBuilder.h"
-#include "IDetailChildrenBuilder.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "StateTreePropertyHelpers.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
@@ -19,19 +23,35 @@ TSharedRef<IPropertyTypeCustomization> FStateTreeTransitionDetails::MakeInstance
 	return MakeShareable(new FStateTreeTransitionDetails);
 }
 
-void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<class IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	StructProperty = StructPropertyHandle;
-	PropUtils = StructCustomizationUtils.GetPropertyUtilities().Get();
+	PropUtils = StructCustomizationUtils.GetPropertyUtilities();
 
-	TriggerProperty = StructProperty->GetChildHandle(TEXT("Trigger"));
-	PriorityProperty = StructProperty->GetChildHandle(TEXT("Priority"));
-	EventTagProperty = StructProperty->GetChildHandle(TEXT("EventTag"));
-	StateProperty = StructProperty->GetChildHandle(TEXT("State"));
-	DelayTransitionProperty = StructProperty->GetChildHandle(TEXT("bDelayTransition"));
-	DelayDurationProperty = StructProperty->GetChildHandle(TEXT("DelayDuration"));
-	DelayRandomVarianceProperty = StructProperty->GetChildHandle(TEXT("DelayRandomVariance"));
-	ConditionsProperty = StructProperty->GetChildHandle(TEXT("Conditions"));
+	// Find StateTreeEditorData associated with this panel.
+	UStateTreeEditorData* EditorData = nullptr;
+	const TArray<TWeakObjectPtr<>>& Objects = PropUtils->GetSelectedObjects();
+	for (const TWeakObjectPtr<>& WeakObject : Objects)
+	{
+		if (const UObject* Object = WeakObject.Get())
+		{
+			if (UStateTreeEditorData* OuterEditorData = Object->GetTypedOuter<UStateTreeEditorData>())
+			{
+				EditorData = OuterEditorData;
+				break;
+			}
+		}
+	}
+
+	TriggerProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, Trigger));
+	PriorityProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, Priority));
+	EventTagProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, EventTag));
+	StateProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, State));
+	DelayTransitionProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, bDelayTransition));
+	DelayDurationProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, DelayDuration));
+	DelayRandomVarianceProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, DelayRandomVariance));
+	ConditionsProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, Conditions));
+	IDProperty = StructProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, ID));
 
 	HeaderRow
 		.RowTag(StructProperty->GetProperty()->GetFName())
@@ -53,7 +73,15 @@ void FStateTreeTransitionDetails::CustomizeHeader(TSharedRef<class IPropertyHand
 			[
 				StructPropertyHandle->CreateDefaultPropertyButtonWidgets()
 			]
-		];
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.FillWidth(1.0f)
+			[
+				UE::StateTreeEditor::DebuggerExtensions::CreateTransitionWidget(StructPropertyHandle, EditorData)
+			]
+		]
+		.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FStateTreeTransitionDetails::OnCopyTransition)))
+		.PasteAction(FUIAction(FExecuteAction::CreateSP(this, &FStateTreeTransitionDetails::OnPasteTransition)));
 }
  
 void FStateTreeTransitionDetails::CustomizeChildren(TSharedRef<class IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -65,12 +93,18 @@ void FStateTreeTransitionDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 	check(DelayRandomVarianceProperty);
 	check(StateProperty);
 	check(ConditionsProperty);
+	check(IDProperty);
 
 	auto IsTickOrEventTransition = [this]()
 	{
 		return !EnumHasAnyFlags(GetTrigger(), EStateTreeTransitionTrigger::OnStateCompleted) ? EVisibility::Visible : EVisibility::Collapsed;
 	};
 
+	if (UE::StateTree::Editor::GbDisplayItemIds)
+	{
+		StructBuilder.AddProperty(IDProperty.ToSharedRef());
+	}
+	
 	// Trigger
 	StructBuilder.AddProperty(TriggerProperty.ToSharedRef());
 
@@ -196,6 +230,53 @@ FText FStateTreeTransitionDetails::GetDescription() const
 	}
 
 	return FText::Format(LOCTEXT("TransitionDesc", "{0} {1}"), TriggerText, TargetText);
+}
+
+void FStateTreeTransitionDetails::OnCopyTransition() const
+{
+	FString Value;
+	// Use PPF_Copy so that all properties get copied.
+	if (StructProperty->GetValueAsFormattedString(Value, PPF_Copy) == FPropertyAccess::Success)
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*Value);
+	} 
+}
+
+void FStateTreeTransitionDetails::OnPasteTransition() const
+{
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+
+	if (PastedText.IsEmpty())
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("PasteTransition", "Paste Transition"));
+
+	StructProperty->NotifyPreChange();
+
+	// Make sure we instantiate new objects when setting the value.
+	StructProperty->SetValueFromFormattedString(PastedText, EPropertyValueSetFlags::InstanceObjects);
+
+	// Reset GUIDs on paste
+	TArray<void*> RawData;
+	StructProperty->AccessRawData(RawData);
+	for (int32 Index = 0; Index < RawData.Num(); Index++)
+	{
+		if (FStateTreeTransition* Transition = static_cast<FStateTreeTransition*>(RawData[Index]))
+		{
+			Transition->ID = FGuid::NewGuid();
+		}
+	}
+
+	StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+	StructProperty->NotifyFinishedChangingProperties();
+
+	if (PropUtils)
+	{
+		PropUtils->ForceRefresh();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

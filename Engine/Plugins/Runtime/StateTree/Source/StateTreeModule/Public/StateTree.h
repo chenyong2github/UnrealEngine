@@ -35,6 +35,8 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		AddedExternalTransitions,
 		// Changed how bindings are represented
 		ChangedBindingsRepresentation,
+		// Added guid to transitions
+		AddedTransitionIds,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -121,7 +123,7 @@ public:
 	/** @return Struct views of all nodes */
 	const FInstancedStructContainer& GetNodes() const { return Nodes; }
 
-	/** @return Node index matching a given Id; invalid handle if node not found. */
+	/** @return Node index matching a given Id; invalid index if node not found. */
 	FStateTreeIndex16 GetNodeIndexFromId(const FGuid Id) const;
 
 	/** @return View of all states. */
@@ -129,6 +131,9 @@ public:
 
 	/** @return Pointer to the transition at a given index; null if not found. */ 
 	const FCompactStateTransition* GetTransitionFromIndex(const int16 TransitionIndex) const;
+	
+	/** @return Runtime transition index matching a given Id; invalid index if node not found. */
+	FStateTreeIndex16 GetTransitionIndexFromId(const FGuid Id) const;
 
 #if WITH_EDITOR
 	/** Resets the compiled data to empty. */
@@ -231,6 +236,10 @@ private:
 	/** Mapping of node guid for the Editor and node index, created at compilation. */
 	UPROPERTY()
 	TArray<FStateTreeNodeIdToIndex> IDToNodeMappings;
+	
+	/** Mapping of state transition identifiers and runtime compact transition index, created at compilation. */
+	UPROPERTY()
+	TArray<FStateTreeTransitionIdToIndex> IDToTransitionMappings;
 
 	/**
 	 * Parameters that could be used for bindings within the Tree.

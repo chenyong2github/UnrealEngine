@@ -5,6 +5,7 @@
 
 
 #include "EditorFontGlyphs.h"
+#include "StateTreeEditor.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeEditorStyle.h"
 
@@ -259,10 +260,38 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.AutoWidth()
 				.Padding(FMargin(8.0f, 0.0f, 0, 0.0f))
 				[
-					SNew(STextBlock)
-					.Text(this, &SStateTreeViewRow::GetCompletedTransitionsIcon)
-					.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
-					.Visibility(this, &SStateTreeViewRow::GetCompletedTransitionVisibility)
+					SNew(SOverlay)
+					+ SOverlay::Slot()
+					[
+						SNew(STextBlock)
+						.Text(this, &SStateTreeViewRow::GetCompletedTransitionsIcon)
+						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
+						.Visibility(this, &SStateTreeViewRow::GetCompletedTransitionVisibility)
+					]
+					+ SOverlay::Slot()
+					[
+						// Breakpoint box
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Top)
+						.HAlign(HAlign_Left)
+						.AutoWidth()
+						[
+							SNew(SBox)
+							.Padding(FMargin(0.0f, -10.0f, 0.0f, 0.0f))
+							[
+								SNew(SImage)
+								.DesiredSizeOverride(FVector2D(10.f, 10.f))
+								.Image(FStateTreeEditorStyle::Get().GetBrush(TEXT("StateTreeEditor.Debugger.Breakpoint.EnabledAndValid")))
+								.Visibility(this, &SStateTreeViewRow::GetCompletedTransitionBreakpointVisibility)
+								.ToolTipText_Lambda([this]
+									{
+										return FText::Format(LOCTEXT("TransitionBreakpointTooltip","Break when executing transition: {0}"),
+											GetCompletedTransitionWithBreakpointDesc());
+									})
+							]
+						]
+					]
 				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
@@ -298,10 +327,38 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.Padding(FMargin(4.0f, 0.0f, 0, 0))
 				.AutoWidth()
 				[
-					SNew(STextBlock)
-					.Text(this, &SStateTreeViewRow::GetSucceededTransitionIcon)
-					.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
-					.Visibility(this, &SStateTreeViewRow::GetSucceededTransitionVisibility)
+					SNew(SOverlay)
+					+ SOverlay::Slot()
+					[
+						SNew(STextBlock)
+						.Text(this, &SStateTreeViewRow::GetSucceededTransitionIcon)
+						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
+						.Visibility(this, &SStateTreeViewRow::GetSucceededTransitionVisibility)
+					]
+					+ SOverlay::Slot()
+					[
+						// Breakpoint box
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Top)
+						.HAlign(HAlign_Left)
+						.AutoWidth()
+						[
+							SNew(SBox)
+							.Padding(FMargin(0.0f, -10.0f, 0.0f, 0.0f))
+							[
+								SNew(SImage)
+								.DesiredSizeOverride(FVector2D(10.f, 10.f))
+								.Image(FStateTreeEditorStyle::Get().GetBrush(TEXT("StateTreeEditor.Debugger.Breakpoint.EnabledAndValid")))
+								.Visibility(this, &SStateTreeViewRow::GetSucceededTransitionBreakpointVisibility)
+								.ToolTipText_Lambda([this]
+									{
+										return FText::Format(LOCTEXT("TransitionBreakpointTooltip", "Break when executing transition: {0}"),
+											GetSucceededTransitionWithBreakpointDesc());
+									})
+							]
+						]
+					]
 				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
@@ -337,10 +394,38 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.Padding(FMargin(4.0f, 0.0f, 0, 0))
 				.AutoWidth()
 				[
-					SNew(STextBlock)
-					.Text(this, &SStateTreeViewRow::GetFailedTransitionIcon)
-					.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
-					.Visibility(this, &SStateTreeViewRow::GetFailedTransitionVisibility)
+					SNew(SOverlay)
+					+ SOverlay::Slot()
+					[
+						SNew(STextBlock)
+						.Text(this, &SStateTreeViewRow::GetFailedTransitionIcon)
+						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
+						.Visibility(this, &SStateTreeViewRow::GetFailedTransitionVisibility)
+					]
+					+ SOverlay::Slot()
+					[
+						// Breakpoint box
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Top)
+						.HAlign(HAlign_Left)
+						.AutoWidth()
+						[
+							SNew(SBox)
+							.Padding(FMargin(0.0f, -10.0f, 0.0f, 0.0f))
+							[
+								SNew(SImage)
+								.DesiredSizeOverride(FVector2D(10.f, 10.f))
+								.Image(FStateTreeEditorStyle::Get().GetBrush(TEXT("StateTreeEditor.Debugger.Breakpoint.EnabledAndValid")))
+								.Visibility(this, &SStateTreeViewRow::GetFailedTransitionBreakpointVisibility)
+								.ToolTipText_Lambda([this]
+									{
+										return FText::Format(LOCTEXT("TransitionBreakpointTooltip", "Break when executing transition: {0}"),
+											GetFailedTransitionWithBreakpointDesc());
+									})
+							]
+						]
+					]
 				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
@@ -353,6 +438,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 					.Visibility(this, &SStateTreeViewRow::GetFailedTransitionVisibility)
 				]
 			]
+
 			// Transitions
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -374,10 +460,38 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 				.Padding(FMargin(4.0f, 0.0f, 0, 0))
 				.AutoWidth()
 				[
-					SNew(STextBlock)
-					.Text(FEditorFontGlyphs::Long_Arrow_Right)
-					.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
-					.Visibility(this, &SStateTreeViewRow::GetConditionalTransitionsVisibility)
+					SNew(SOverlay)
+					+ SOverlay::Slot()
+					[
+						SNew(STextBlock)
+						.Text(FEditorFontGlyphs::Long_Arrow_Right)
+						.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
+						.Visibility(this, &SStateTreeViewRow::GetConditionalTransitionsVisibility)
+					]
+					+ SOverlay::Slot()
+					[
+						// Breakpoint box
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Top)
+						.HAlign(HAlign_Left)
+						.AutoWidth()
+						[
+							SNew(SBox)
+							.Padding(FMargin(0.0f, -10.0f, 0.0f, 0.0f))
+							[
+								SNew(SImage)
+								.DesiredSizeOverride(FVector2D(10.f, 10.f))
+								.Image(FStateTreeEditorStyle::Get().GetBrush(TEXT("StateTreeEditor.Debugger.Breakpoint.EnabledAndValid")))
+								.Visibility(this, &SStateTreeViewRow::GetConditionalTransitionsBreakpointVisibility)
+								.ToolTipText_Lambda([this]
+									{
+										return FText::Format(LOCTEXT("TransitionBreakpointTooltip", "Break when executing transition: {0}"),
+											GetConditionalTransitionsWithBreakpointDesc());
+									})
+							]
+						]
+					]
 				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
@@ -462,10 +576,15 @@ TSharedRef<SHorizontalBox> SStateTreeViewRow::CreateTasksWidget()
 					return FText::GetEmpty();
 				};
 
-			FText TaskName = FText::FromName(Task->Name);
-
-			// Uncomment to visualize Task Ids
-			// TaskName = FText::FromString(FString::Printf(TEXT("%s (%s)"), *Task->Name.ToString(), *LexToString(TaskId)));
+			FText TaskName;
+			if (UE::StateTree::Editor::GbDisplayItemIds)
+			{
+				TaskName = FText::FromString(FString::Printf(TEXT("%s (%s)"), *Task->Name.ToString(), *LexToString(TaskId)));
+			}
+			else
+			{
+				TaskName = FText::FromName(Task->Name);
+			}
 
 			TasksBox->AddSlot()
 				.AutoWidth()
@@ -571,6 +690,10 @@ FText SStateTreeViewRow::GetStateDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
+		if (UE::StateTree::Editor::GbDisplayItemIds)
+		{
+			return FText::FromString(FString::Printf(TEXT("%s (%s)"), *State->Name.ToString(), *LexToString(State->ID)));	
+		}
 		return FText::FromName(State->Name);
 	}
 	return FText::FromName(FName());
@@ -795,13 +918,31 @@ FText SStateTreeViewRow::GetLinkDescription(const FStateTreeStateLink& Link)
 	return FText::GetEmpty();
 };
 
-FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask) const
+FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const FTransitionDescFilterOptions FilterOptions) const
 {
 	TArray<FText> DescItems;
-	
+	const UStateTreeEditorData* TreeEditorData = WeakTreeData.Get();
+
 	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
-		const bool bMatch = bUseMask ? EnumHasAnyFlags(Transition.Trigger, Trigger) : Transition.Trigger == Trigger;
+		// Apply filter for enabled/disabled transitions
+		if ((FilterOptions.Enabled == ETransitionDescRequirement::RequiredTrue && Transition.bTransitionEnabled == false)
+			|| (FilterOptions.Enabled == ETransitionDescRequirement::RequiredFalse && Transition.bTransitionEnabled))
+		{
+			continue;
+		}
+
+#if WITH_STATETREE_DEBUGGER
+		// Apply filter for transitions with/without breakpoint
+		const bool bHasBreakpoint = TreeEditorData != nullptr && TreeEditorData->HasBreakpoint(Transition.ID, EStateTreeBreakpointType::OnTransition);
+		if ((FilterOptions.WithBreakpoint == ETransitionDescRequirement::RequiredTrue && bHasBreakpoint == false)
+			|| (FilterOptions.WithBreakpoint == ETransitionDescRequirement::RequiredFalse && bHasBreakpoint))
+		{
+			continue;
+		}
+#endif // WITH_STATETREE_DEBUGGER
+
+		const bool bMatch = FilterOptions.bUseMask ? EnumHasAnyFlags(Transition.Trigger, Trigger) : Transition.Trigger == Trigger;
 		if (bMatch)
 		{
 			DescItems.Add(GetLinkDescription(Transition.State));
@@ -859,7 +1000,7 @@ FText SStateTreeViewRow::GetTransitionsDesc(const UStateTreeState& State, const 
 	return FText::Join(FText::FromString(TEXT(", ")), DescItems);
 }
 
-FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask) const
+FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const FTransitionDescFilterOptions FilterOptions) const
 {
 	enum EIconType
 	{
@@ -871,10 +1012,29 @@ FText SStateTreeViewRow::GetTransitionsIcon(const UStateTreeState& State, const 
 	};
 	uint8 IconType = IconNone;
 	
+	const UStateTreeEditorData* TreeEditorData = WeakTreeData.Get();
+	
 	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
+		// Apply filter for enabled/disabled transitions
+		if ((FilterOptions.Enabled == ETransitionDescRequirement::RequiredTrue && Transition.bTransitionEnabled == false)
+			|| (FilterOptions.Enabled == ETransitionDescRequirement::RequiredFalse && Transition.bTransitionEnabled))
+		{
+			continue;
+		}
+
+#if WITH_STATETREE_DEBUGGER
+		// Apply filter for transitions with/without breakpoint
+		const bool bHasBreakpoint = TreeEditorData != nullptr && TreeEditorData->HasBreakpoint(Transition.ID, EStateTreeBreakpointType::OnTransition);
+		if ((FilterOptions.WithBreakpoint == ETransitionDescRequirement::RequiredTrue && bHasBreakpoint == false)
+			|| (FilterOptions.WithBreakpoint == ETransitionDescRequirement::RequiredFalse && bHasBreakpoint))
+		{
+			continue;
+		}
+#endif // WITH_STATETREE_DEBUGGER
+		
 		// The icons here depict "transition direction", not the type specifically.
-		const bool bMatch = bUseMask ? EnumHasAnyFlags(Transition.Trigger, Trigger) : Transition.Trigger == Trigger;
+		const bool bMatch = FilterOptions.bUseMask ? EnumHasAnyFlags(Transition.Trigger, Trigger) : Transition.Trigger == Trigger;
 		if (bMatch)
 		{
 			switch (Transition.State.LinkType)
@@ -950,8 +1110,19 @@ EVisibility SStateTreeViewRow::GetTransitionsVisibility(const UStateTreeState& S
 
 		for (const FStateTreeTransition& Transition : State.Transitions)
 		{
+			// Skip disabled transitions
+			if (Transition.bTransitionEnabled == false)
+			{
+				continue;
+			}
+
 			HandledTriggers |= Transition.Trigger;
 			bExactMatch |= (Transition.Trigger == Trigger);
+
+			if (bExactMatch)
+			{
+				break;
+			}
 		}
 
 		// Assume that leaf states should have completion transitions.
@@ -1008,11 +1179,38 @@ EVisibility SStateTreeViewRow::GetTransitionsVisibility(const UStateTreeState& S
 	// Handle the test
 	for (const FStateTreeTransition& Transition : State.Transitions)
 	{
+		// Skip disabled transitions
+		if (Transition.bTransitionEnabled == false)
+		{
+			continue;
+		}
+
 		if (EnumHasAnyFlags(Trigger, Transition.Trigger))
 		{
 			return EVisibility::Visible;
 		}
 	}
+	return EVisibility::Collapsed;
+}
+
+EVisibility SStateTreeViewRow::GetTransitionsBreakpointVisibility(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const
+{
+#if WITH_STATETREE_DEBUGGER
+	if (const UStateTreeEditorData* TreeEditorData = WeakTreeData.Get())
+	{
+		for (const FStateTreeTransition& Transition : State.Transitions)
+		{
+			if (Transition.bTransitionEnabled && EnumHasAnyFlags(Trigger, Transition.Trigger))
+			{
+				if (TreeEditorData->HasBreakpoint(Transition.ID, EStateTreeBreakpointType::OnTransition))
+				{
+					return GetTransitionsVisibility(State, Trigger);
+				}
+			}
+		}
+	}
+#endif // WITH_STATETREE_DEBUGGER
+	
 	return EVisibility::Collapsed;
 }
 
@@ -1025,6 +1223,15 @@ EVisibility SStateTreeViewRow::GetCompletedTransitionVisibility() const
 	return EVisibility::Visible;
 }
 
+EVisibility SStateTreeViewRow::GetCompletedTransitionBreakpointVisibility() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		return GetTransitionsBreakpointVisibility(*State, EStateTreeTransitionTrigger::OnStateCompleted);
+	}
+	return EVisibility::Visible;
+}
+
 FText SStateTreeViewRow::GetCompletedTransitionsDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
@@ -1032,6 +1239,17 @@ FText SStateTreeViewRow::GetCompletedTransitionsDesc() const
 		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateCompleted);
 	}
 	return LOCTEXT("Invalid", "Invalid");
+}
+
+FText SStateTreeViewRow::GetCompletedTransitionWithBreakpointDesc() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		FTransitionDescFilterOptions FilterOptions;
+		FilterOptions.WithBreakpoint = ETransitionDescRequirement::RequiredTrue;
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateCompleted, FilterOptions);
+	}
+	return FText::GetEmpty();
 }
 
 FText SStateTreeViewRow::GetCompletedTransitionsIcon() const
@@ -1052,11 +1270,31 @@ EVisibility SStateTreeViewRow::GetSucceededTransitionVisibility() const
 	return EVisibility::Collapsed;
 }
 
+EVisibility SStateTreeViewRow::GetSucceededTransitionBreakpointVisibility() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		return GetTransitionsBreakpointVisibility(*State, EStateTreeTransitionTrigger::OnStateSucceeded);
+	}
+	return EVisibility::Collapsed;
+}
+
 FText SStateTreeViewRow::GetSucceededTransitionDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
 		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateSucceeded);
+	}
+	return FText::GetEmpty();
+}
+
+FText SStateTreeViewRow::GetSucceededTransitionWithBreakpointDesc() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		FTransitionDescFilterOptions FilterOptions;
+		FilterOptions.WithBreakpoint = ETransitionDescRequirement::RequiredTrue;
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateSucceeded, FilterOptions);
 	}
 	return FText::GetEmpty();
 }
@@ -1079,6 +1317,15 @@ EVisibility SStateTreeViewRow::GetFailedTransitionVisibility() const
 	return EVisibility::Collapsed;
 }
 
+EVisibility SStateTreeViewRow::GetFailedTransitionBreakpointVisibility() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		return GetTransitionsBreakpointVisibility(*State, EStateTreeTransitionTrigger::OnStateFailed);
+	}
+	return EVisibility::Collapsed;
+}
+
 FText SStateTreeViewRow::GetFailedTransitionDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
@@ -1086,6 +1333,17 @@ FText SStateTreeViewRow::GetFailedTransitionDesc() const
 		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateFailed);
 	}
 	return LOCTEXT("Invalid", "Invalid");
+}
+
+FText SStateTreeViewRow::GetFailedTransitionWithBreakpointDesc() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		FTransitionDescFilterOptions FilterOptions;
+		FilterOptions.WithBreakpoint = ETransitionDescRequirement::RequiredTrue;
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnStateFailed, FilterOptions);
+	}
+	return FText::GetEmpty();
 }
 
 FText SStateTreeViewRow::GetFailedTransitionIcon() const
@@ -1106,11 +1364,34 @@ EVisibility SStateTreeViewRow::GetConditionalTransitionsVisibility() const
 	return EVisibility::Collapsed;
 }
 
+EVisibility SStateTreeViewRow::GetConditionalTransitionsBreakpointVisibility() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		return GetTransitionsBreakpointVisibility(*State, EStateTreeTransitionTrigger::OnTick | EStateTreeTransitionTrigger::OnEvent);
+	}
+	return EVisibility::Collapsed;
+}
+
 FText SStateTreeViewRow::GetConditionalTransitionsDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnTick | EStateTreeTransitionTrigger::OnEvent, /*bUseMask*/true);
+		FTransitionDescFilterOptions FilterOptions;
+		FilterOptions.bUseMask = true;
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnTick | EStateTreeTransitionTrigger::OnEvent, FilterOptions);
+	}
+	return FText::GetEmpty();
+}
+
+FText SStateTreeViewRow::GetConditionalTransitionsWithBreakpointDesc() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		FTransitionDescFilterOptions FilterOptions;
+		FilterOptions.WithBreakpoint = ETransitionDescRequirement::RequiredTrue;
+		FilterOptions.bUseMask = true;
+		return GetTransitionsDesc(*State, EStateTreeTransitionTrigger::OnTick | EStateTreeTransitionTrigger::OnEvent, FilterOptions);
 	}
 	return FText::GetEmpty();
 }

@@ -559,17 +559,22 @@ bool FStateTreeDebugger::HasTransitionBreakpoint(const FStateTreeIndex16 Index, 
 	});
 }
 
-void FStateTreeDebugger::SetBreakpoint(FStateTreeStateHandle StateHandle, EStateTreeBreakpointType BreakpointType)
+void FStateTreeDebugger::SetStateBreakpoint(const FStateTreeStateHandle StateHandle, const EStateTreeBreakpointType BreakpointType)
 {
 	Breakpoints.Emplace(StateHandle, BreakpointType);
 }
 
-void FStateTreeDebugger::SetTaskBreakpoint(const FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType)
+void FStateTreeDebugger::SetTransitionBreakpoint(const FStateTreeIndex16 TransitionIndex, const EStateTreeBreakpointType BreakpointType)
+{
+	Breakpoints.Emplace(FStateTreeDebuggerBreakpoint::FStateTreeTransitionIndex(TransitionIndex), BreakpointType);
+}
+
+void FStateTreeDebugger::SetTaskBreakpoint(const FStateTreeIndex16 NodeIndex, const EStateTreeBreakpointType BreakpointType)
 {
 	Breakpoints.Emplace(FStateTreeDebuggerBreakpoint::FStateTreeTaskIndex(NodeIndex), BreakpointType);
 }
 
-void FStateTreeDebugger::ClearBreakpoint(const FStateTreeIndex16 NodeIndex, EStateTreeBreakpointType BreakpointType)
+void FStateTreeDebugger::ClearBreakpoint(const FStateTreeIndex16 NodeIndex, const EStateTreeBreakpointType BreakpointType)
 {
 	const int32 Index = Breakpoints.IndexOfByPredicate([NodeIndex, BreakpointType](const FStateTreeDebuggerBreakpoint& Breakpoint)
 		{
@@ -662,9 +667,9 @@ void FStateTreeDebugger::SendNotifications()
 		check(HitBreakpointInstanceId.IsValid());
 		check(Breakpoints.IsValidIndex(HitBreakpointIndex));
 
-		// Force scrub time to latest read time to reflect most recent events.
+		// Force scrub time to latest simulation time to reflect most recent events.
 		// This will notify scrub position changed and active states
-		SetScrubTime(LastTraceReadTime);
+		SetScrubTime(RecordingDuration);
 
 		// Make sure the instance is selected in case the breakpoint was set for any instances 
 		if (SelectedInstanceId != HitBreakpointInstanceId)

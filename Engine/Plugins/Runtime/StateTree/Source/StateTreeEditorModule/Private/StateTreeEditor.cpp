@@ -44,6 +44,17 @@ const FName FStateTreeEditor::CompilerResultsTabId(TEXT("StateTreeEditor_Compile
 const FName FStateTreeEditor::DebuggerTabId(TEXT("StateTreeEditor_Debugger"));
 #endif // WITH_STATETREE_DEBUGGER
 
+
+namespace UE::StateTree::Editor
+{
+bool GbDisplayItemIds = false;
+
+FAutoConsoleVariableRef CVarDisplayItemIds(
+	TEXT("statetree.displayitemids"),
+	GbDisplayItemIds,
+	TEXT("Appends Id to task and state names in the treeview and expose Ids in the details view."));
+}
+
 void FStateTreeEditor::PostUndo(bool bSuccess)
 {
 }

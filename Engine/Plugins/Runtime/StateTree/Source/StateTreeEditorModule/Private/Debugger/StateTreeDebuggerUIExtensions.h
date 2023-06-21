@@ -17,7 +17,8 @@ class UStateTreeEditorData;
 namespace UE::StateTreeEditor::DebuggerExtensions
 {
 
-TSharedRef<SWidget> CreateStateWidget(IDetailLayoutBuilder& DetailBuilder, UStateTreeEditorData* TreeData);
+TSharedRef<SWidget> CreateStateWidget(const IDetailLayoutBuilder& DetailBuilder, UStateTreeEditorData* TreeData);
 TSharedRef<SWidget> CreateEditorNodeWidget(const TSharedPtr<IPropertyHandle>& StructPropertyHandle, UStateTreeEditorData* TreeData);
+TSharedRef<SWidget> CreateTransitionWidget(const TSharedPtr<IPropertyHandle>& StructPropertyHandle, UStateTreeEditorData* TreeData);
 
 }; // UE::StateTreeEditor::DebuggerExtensions

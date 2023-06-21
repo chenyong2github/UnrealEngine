@@ -981,11 +981,12 @@ void SStateTreeDebuggerView::OnNewInstance(FStateTreeInstanceDebugId InstanceId)
 
 		// Look at current selection; if nothing selected or stale track then select new track
 		const TSharedPtr<RewindDebugger::FRewindDebuggerTrack> Selection = InstancesTreeView->GetSelection();
-		if (const FStateTreeDebuggerBaseTrack* DebuggerBaseTrack = static_cast<FStateTreeDebuggerBaseTrack*>(ExistingOwnerTrack->Get()))
+		if (const FStateTreeDebuggerBaseTrack* DebuggerBaseTrack = static_cast<FStateTreeDebuggerBaseTrack*>(Selection.Get()))
 		{
 			if (DebuggerBaseTrack->IsStale())
 			{
 				InstancesTreeView->SetSelection(SubTrack);
+				InstancesTreeView->ScrollTo(SubTrack);
 			}
 		}
 		else

@@ -147,7 +147,173 @@ void OnTaskBreakpointToggled(TSharedPtr<IPropertyHandle> StructProperty, UStateT
 #endif // WITH_STATETREE_DEBUGGER
 }
 
-TSharedRef<SWidget> CreateStateWidget(IDetailLayoutBuilder& DetailBuilder, UStateTreeEditorData* TreeData)
+ECheckBoxState GetBreakpointCheckState(
+	const TSharedPtr<IPropertyHandle>& StructPropertyHandle,
+	const UStateTreeEditorData* EditorData,
+	TFunctionRef<ECheckBoxState(const UObject& OuterObject, const IPropertyHandle& PropertyHandle, const UStateTreeEditorData&)> Callback)
+{
+	ECheckBoxState CommonState = ECheckBoxState::Unchecked;
+#if WITH_STATETREE_DEBUGGER
+	if (StructPropertyHandle.IsValid() == false
+		|| StructPropertyHandle->IsValidHandle() == false
+		|| EditorData == nullptr)
+	{
+		return CommonState;
+	}
+
+	TArray<UObject*> OuterObjects;
+	StructPropertyHandle->GetOuterObjects(OuterObjects);
+
+	CommonState = ECheckBoxState::Undetermined;
+	for (const UObject* OuterObject : OuterObjects)
+	{
+		if (OuterObject != nullptr)
+		{
+			const ECheckBoxState State = Callback(*OuterObject, *StructPropertyHandle.Get(), *EditorData);
+			if (CommonState == ECheckBoxState::Undetermined)
+			{
+				CommonState = State;
+			}
+			else if (CommonState != State)
+			{
+				CommonState = ECheckBoxState::Undetermined;
+				break;
+			}
+		}
+	}
+#endif // WITH_STATETREE_DEBUGGER
+	return CommonState;
+}
+
+ECheckBoxState GetTransitionBreakpointCheckState(const TSharedPtr<IPropertyHandle>& StructPropertyHandle, const UStateTreeEditorData* EditorData)
+{
+#if WITH_STATETREE_DEBUGGER	
+	return GetBreakpointCheckState(StructPropertyHandle, EditorData,
+		[](const UObject& OuterObject, const IPropertyHandle& PropertyHandle, const UStateTreeEditorData& EditorData)
+		{
+			const UStateTreeState* TreeState = Cast<UStateTreeState>(&OuterObject);
+			const int32 IndexInArray = PropertyHandle.GetIndexInArray();
+			if (TreeState->Transitions.IsValidIndex(IndexInArray))
+			{
+				return EditorData.HasBreakpoint(TreeState->Transitions[IndexInArray].ID, EStateTreeBreakpointType::OnTransition)
+					? ECheckBoxState::Checked : ECheckBoxState::Unchecked;	
+			}
+
+			return  ECheckBoxState::Unchecked;
+		});
+#else
+	return  ECheckBoxState::Unchecked;
+#endif // WITH_STATETREE_DEBUGGER
+}
+
+ECheckBoxState GetTransitionEnabledCheckState(const TSharedPtr<IPropertyHandle>& StructPropertyHandle)
+{
+	const TSharedPtr<IPropertyHandle> EnabledProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, bTransitionEnabled));
+	if (ensureMsgf(EnabledProperty.IsValid() && EnabledProperty->IsValidHandle(),
+		TEXT("The property needs to be exposed to the Editor to allow us to use a property handle")))
+	{
+		bool bEnabled = false;
+
+		switch (EnabledProperty->GetValue(bEnabled))
+		{
+		case FPropertyAccess::MultipleValues:
+			return ECheckBoxState::Undetermined;
+		case FPropertyAccess::Success:
+			return bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		case FPropertyAccess::Fail:
+		default:
+			return ECheckBoxState::Checked;
+		}
+	}
+	return ECheckBoxState::Checked;
+}
+
+void OnTransitionEnableToggled(const TSharedPtr<IPropertyHandle>& StructPropertyHandle)
+{
+	const TSharedPtr<IPropertyHandle> EnabledProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FStateTreeTransition, bTransitionEnabled));
+	if (ensureMsgf(EnabledProperty.IsValid() && EnabledProperty->IsValidHandle(),
+		TEXT("The property needs to be exposed to the Editor to allow us to use a property handle")))
+	{
+		FScopedTransaction Transaction(LOCTEXT("OnStateEnableToggled", "Toggled State Enabled"));
+
+		bool bEnabled = false;
+		const FPropertyAccess::Result Result = EnabledProperty->GetValue(bEnabled);
+
+		if (Result == FPropertyAccess::MultipleValues || bEnabled == false)
+		{
+			EnabledProperty->SetValue(true);
+		}
+		else
+		{
+			EnabledProperty->SetValue(false);
+		}
+	}
+}
+
+void OnTransitionBreakpointToggled(const TSharedPtr<IPropertyHandle>& StructPropertyHandle, UStateTreeEditorData* EditorData)
+{	
+#if WITH_STATETREE_DEBUGGER
+	if (StructPropertyHandle.IsValid() == false
+		|| StructPropertyHandle->IsValidHandle() == false
+		|| EditorData == nullptr)
+	{
+		return;
+	}
+	
+	// Determine desired toggled state. Undermined will switch all to checked (i.e. Enable breakpoint)
+	const ECheckBoxState CommonState = GetTransitionBreakpointCheckState(StructPropertyHandle, EditorData);
+	const ECheckBoxState ToggledState = (CommonState == ECheckBoxState::Checked) ? ECheckBoxState::Unchecked : ECheckBoxState::Checked; 
+	
+	const IPropertyHandle& PropertyHandle = *(StructPropertyHandle.Get());
+
+	TArray<UObject*> OuterObjects;
+	PropertyHandle.GetOuterObjects(OuterObjects);
+
+	for (const UObject* OuterObject : OuterObjects)
+	{
+		if (const UStateTreeState* TreeState = Cast<UStateTreeState>(OuterObject))
+		{
+			const int32 IndexInArray = PropertyHandle.GetIndexInArray();
+
+			if (TreeState->Transitions.IsValidIndex(IndexInArray))
+			{
+				const FStateTreeTransition& Transition = TreeState->Transitions[IndexInArray];
+				const bool bHasBreakpoint = EditorData->HasBreakpoint(Transition.ID, EStateTreeBreakpointType::OnTransition);
+				EditorData->HasBreakpoint(Transition.ID, EStateTreeBreakpointType::OnTransition);
+				if (ToggledState == ECheckBoxState::Checked && bHasBreakpoint == false)
+				{
+					EditorData->AddBreakpoint(Transition.ID, EStateTreeBreakpointType::OnTransition);	
+				}
+				else if (ToggledState == ECheckBoxState::Unchecked && bHasBreakpoint)
+				{
+					EditorData->RemoveBreakpoint(Transition.ID, EStateTreeBreakpointType::OnTransition);
+				}		
+			}
+		}
+	}
+#endif // WITH_STATETREE_DEBUGGER
+}
+
+TSharedRef<SWidget> CreateDebugOptionsWidget(const TSharedRef<SWidget>& ContentWidget)
+{
+	return SNew(SComboButton)
+		.ToolTipText(LOCTEXT("DebugOptions", "Debug Options"))
+		.HasDownArrow(false)
+		.ContentPadding(0)
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+		.MenuContent()
+		[
+			ContentWidget
+		]
+		.ButtonContent()
+		[
+			SNew(SImage)
+			.Image(FStateTreeEditorStyle::Get().GetBrush("StateTreeEditor.DebugOptions"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
+		];
+}
+
+TSharedRef<SWidget> CreateStateWidget(const IDetailLayoutBuilder& DetailBuilder, UStateTreeEditorData* TreeData)
 {
 	TWeakObjectPtr<UStateTreeEditorData> WeakTreeData = TreeData;
 	const TSharedPtr<IPropertyHandle> EnabledProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStateTreeState, bEnabled));
@@ -303,21 +469,7 @@ TSharedRef<SWidget> CreateStateWidget(IDetailLayoutBuilder& DetailBuilder, UStat
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SNew(SComboButton)
-			.ToolTipText(LOCTEXT("DebugOptions", "Debug Options"))
-			.HasDownArrow(false)
-			.ContentPadding(0)
-			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-			.MenuContent()
-			[
-				DebuggingActions.MakeWidget()
-			]
-			.ButtonContent()
-			[
-				SNew(SImage)
-				.Image(FStateTreeEditorStyle::Get().GetBrush("StateTreeEditor.DebugOptions"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
+			CreateDebugOptionsWidget(DebuggingActions.MakeWidget())
 		];
 
 	return HeaderContentWidget;
@@ -613,21 +765,123 @@ TSharedRef<SWidget> CreateEditorNodeWidget(const TSharedPtr<IPropertyHandle>& St
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SNew(SComboButton)
-			.ToolTipText(LOCTEXT("DebugOptions", "Debug Options"))
-			.HasDownArrow(false)
-			.ContentPadding(0)
-			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-			.MenuContent()
+			CreateDebugOptionsWidget(DebuggingActions.MakeWidget())
+		];
+}
+
+TSharedRef<SWidget> CreateTransitionWidget(const TSharedPtr<IPropertyHandle>& StructPropertyHandle, UStateTreeEditorData* TreeData)
+{
+	using namespace EditorNodeUtils;
+
+	TWeakObjectPtr<UStateTreeEditorData> WeakTreeData = TreeData;
+
+	FMenuBuilder DebuggingActions(/*CloseWindowAfterMenuSelection*/ true, /*CommandList*/nullptr);
+	DebuggingActions.BeginSection(FName("Options"), LOCTEXT("TransitionOptions", "Transition Debug Options"));
+	DebuggingActions.AddMenuEntry
+	(
+		LOCTEXT("ToggleTransitionEnabled", "Transition Enabled"),
+		LOCTEXT("ToggleTransitionEnabled_ToolTip", "Enables or disables selected transition(s). StateTree must be recompiled to take effect."),
+		FSlateIcon(),
+		FUIAction
+		(
+			FExecuteAction::CreateLambda([StructPropertyHandle] { OnTransitionEnableToggled(StructPropertyHandle); }),
+			FCanExecuteAction(),
+			FGetActionCheckState::CreateLambda([StructPropertyHandle] { return GetTransitionEnabledCheckState(StructPropertyHandle); })
+		),
+		NAME_None,
+		EUserInterfaceActionType::Check
+	);
+	DebuggingActions.AddSeparator();
+	DebuggingActions.AddMenuEntry
+	(
+		LOCTEXT("ToggleTransitionBreakpoint", "Break on transition"),
+		LOCTEXT("ToggleTransitionBreakpoint_ToolTip", "Enables or disables breakpoint when executing the transition(s)."),
+		FSlateIcon(),
+		FUIAction
+		(
+			FExecuteAction::CreateLambda([StructPropertyHandle, WeakTreeData] { OnTransitionBreakpointToggled(StructPropertyHandle, WeakTreeData.Get()); }),
+			FCanExecuteAction(),
+			FGetActionCheckState::CreateLambda([StructPropertyHandle, WeakTreeData]
+				{
+					return GetTransitionBreakpointCheckState(StructPropertyHandle, WeakTreeData.Get());
+				})
+		),
+		NAME_None,
+		EUserInterfaceActionType::Check
+	);
+	DebuggingActions.EndSection();
+
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.0f)
+		.HAlign(HAlign_Right)
+		[
+			SNew(SHorizontalBox)
+			.Clipping(EWidgetClipping::OnDemand)
+
+			// Disabled Label
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f)
 			[
-				DebuggingActions.MakeWidget()
+				SNew(SBorder)
+				.Padding(FMargin(6, 2))
+				.BorderImage_Lambda([StructPropertyHandle]
+					{
+						return GetTransitionEnabledCheckState(StructPropertyHandle) == ECheckBoxState::Unchecked
+						? FStateTreeEditorStyle::Get().GetBrush("StateTree.Node.Label")
+						: FStateTreeEditorStyle::Get().GetBrush("StateTree.Node.Label.Mixed");
+					})
+				.Visibility_Lambda([StructPropertyHandle]
+					{
+						return GetTransitionEnabledCheckState(StructPropertyHandle) == ECheckBoxState::Checked ? EVisibility::Collapsed : EVisibility::Visible;
+					})
+				[
+					SNew(STextBlock)
+					.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Param.Label")
+					.ColorAndOpacity(FStyleColors::Foreground)
+					.Text(LOCTEXT("LabelDisabled", "DISABLED"))
+					.ToolTipText(LOCTEXT("DisabledTransitionTooltip", "This transition has been disabled."))
+				]
 			]
-			.ButtonContent()
+
+			// Break on transition Label
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.Padding(4.0f, 0.0f)
 			[
-				SNew(SImage)
-				.Image(FStateTreeEditorStyle::Get().GetBrush("StateTreeEditor.DebugOptions"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
+				SNew(SBorder)
+				.Padding(FMargin(6, 2))
+				.BorderImage_Lambda([StructPropertyHandle, WeakTreeData]
+					{
+						return GetTransitionBreakpointCheckState(StructPropertyHandle, WeakTreeData.Get()) == ECheckBoxState::Checked
+						? FStateTreeEditorStyle::Get().GetBrush("StateTree.Node.Label")
+						: FStateTreeEditorStyle::Get().GetBrush("StateTree.Node.Label.Mixed");
+					})
+				.Visibility_Lambda([StructPropertyHandle, WeakTreeData]
+					{
+						return GetTransitionBreakpointCheckState(StructPropertyHandle, WeakTreeData.Get()) == ECheckBoxState::Unchecked ? EVisibility::Collapsed : EVisibility::Visible;
+					})
+				[
+					SNew(STextBlock)
+					.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Param.Label")
+					.ColorAndOpacity(FStyleColors::Foreground)
+					.Text(LOCTEXT("LabelTransitionBreakpoint", "BREAK ON TRANSITION"))
+					.ToolTipText(LOCTEXT("BreakTransitionTooltip", "Break when executing this transition."))
+				]
 			]
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(0,0,6,0)
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			CreateDebugOptionsWidget(DebuggingActions.MakeWidget())
 		];
 }
 

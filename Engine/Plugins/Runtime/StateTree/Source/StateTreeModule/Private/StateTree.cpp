@@ -59,6 +59,12 @@ const FCompactStateTransition* UStateTree::GetTransitionFromIndex(const int16 Tr
 	return Transitions.IsValidIndex(TransitionIndex) ? &Transitions[TransitionIndex] : nullptr;
 }
 
+FStateTreeIndex16 UStateTree::GetTransitionIndexFromId(const FGuid Id) const
+{
+	const FStateTreeTransitionIdToIndex* Entry = IDToTransitionMappings.FindByPredicate([Id](const FStateTreeTransitionIdToIndex& Entry){ return Entry.Id == Id; });
+	return Entry != nullptr ? Entry->Index : FStateTreeIndex16::Invalid;
+}
+
 TSharedPtr<FStateTreeInstanceData> UStateTree::GetSharedInstanceData() const
 {
 	// Create a unique index for each thread.
@@ -113,6 +119,7 @@ void UStateTree::ResetCompiled()
 	Parameters.Reset();
 	IDToStateMappings.Reset();
 	IDToNodeMappings.Reset();
+	IDToTransitionMappings.Reset();
 
 	ParametersDataViewIndex = FStateTreeIndex8::Invalid;
 	

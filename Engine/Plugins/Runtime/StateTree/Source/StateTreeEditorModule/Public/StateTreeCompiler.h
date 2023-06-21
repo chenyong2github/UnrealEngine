@@ -67,6 +67,7 @@ private:
 	UStateTreeEditorData* EditorData = nullptr;
 	TMap<FGuid, int32> IDToNode;
 	TMap<FGuid, int32> IDToState;
+	TMap<FGuid, int32> IDToTransition;
 	TMap<FGuid, const FStateTreeDataView > IDToStructValue;
 	TArray<UStateTreeState*> SourceStates;
 

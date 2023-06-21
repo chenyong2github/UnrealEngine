@@ -5,6 +5,7 @@
 #include "DetailLayoutBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 #include "IPropertyUtilities.h"
+#include "StateTreeEditor.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeSchema.h"
 #include "Debugger/StateTreeDebuggerUIExtensions.h"
@@ -36,6 +37,7 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	}
 	const UStateTreeSchema* Schema = EditorData ? EditorData->Schema : nullptr;
 
+	const TSharedPtr<IPropertyHandle> IDProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStateTreeState, ID));
 	const TSharedPtr<IPropertyHandle> EnabledProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStateTreeState, bEnabled));
 	const TSharedPtr<IPropertyHandle> TasksProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStateTreeState, Tasks));
 	const TSharedPtr<IPropertyHandle> SingleTaskProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStateTreeState, SingleTask));
@@ -47,6 +49,10 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	const TSharedPtr<IPropertyHandle> SelectionBehaviorProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStateTreeState, SelectionBehavior));
 
 	EnabledProperty->MarkHiddenByCustomization();
+	if (UE::StateTree::Editor::GbDisplayItemIds == false)
+	{
+		IDProperty->MarkHiddenByCustomization();
+	}
 
 	uint8 StateTypeValue = 0;
 	TypeProperty->GetValue(StateTypeValue);

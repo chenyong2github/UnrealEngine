@@ -28,7 +28,8 @@ enum class EStateTreeTraceEventType : uint8
 	OnTaskTicked		UMETA(DisplayName = "Ticked"),		// for Task events
 	Passed				UMETA(DisplayName = "Passed"),		// for Condition events
 	Failed				UMETA(DisplayName = "Failed"),		// for Condition events
-	OnEvaluating		UMETA(DisplayName = "Evaluating")	// for Transition events
+	OnEvaluating		UMETA(DisplayName = "Evaluating"),	// for Transition events
+	OnTransition		UMETA(DisplayName = "Transition")	// for Transition events
 };
 
 #if WITH_STATETREE_DEBUGGER

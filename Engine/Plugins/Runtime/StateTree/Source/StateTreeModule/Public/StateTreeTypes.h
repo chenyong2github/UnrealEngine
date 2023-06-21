@@ -539,8 +539,8 @@ struct STATETREEMODULE_API FStateTreeTransitionResult
 		TargetState = FStateTreeStateHandle::Invalid;
 		NextActiveStates.Reset();
 		CurrentState = FStateTreeStateHandle::Invalid;
-		ChangeType = EStateTreeStateChangeType::Changed; 
-		Priority = EStateTreeTransitionPriority::None; 
+		ChangeType = EStateTreeStateChangeType::Changed;
+		Priority = EStateTreeTransitionPriority::None;
 	}
 	
 	/** Current active states, where the transition started. */
@@ -573,7 +573,7 @@ struct STATETREEMODULE_API FStateTreeTransitionResult
 
 	/** Priority of the transition that caused the state change. */
 	UPROPERTY(EditDefaultsOnly, Category = "Default", BlueprintReadOnly)
-	EStateTreeTransitionPriority Priority = EStateTreeTransitionPriority::None; 
+	EStateTreeTransitionPriority Priority = EStateTreeTransitionPriority::None;
 };
 
 
@@ -584,6 +584,11 @@ USTRUCT()
 struct STATETREEMODULE_API FCompactStateTransition
 {
 	GENERATED_BODY()
+
+	explicit FCompactStateTransition()
+		: bTransitionEnabled(true)
+	{
+	}
 
 	/** @return True if the transition has delay. */
 	bool HasDelay() const
@@ -618,6 +623,10 @@ struct STATETREEMODULE_API FCompactStateTransition
 	/** Number of conditions to test. */
 	UPROPERTY()
 	uint8 ConditionsNum = 0;
+
+	/** Indicates if the transition is enabled and should be considered. */
+	UPROPERTY()
+	uint8 bTransitionEnabled : 1;
 };
 
 /**
@@ -836,6 +845,28 @@ struct STATETREEMODULE_API FStateTreeNodeIdToIndex
 	UPROPERTY();
 	FGuid Id;
 
+	UPROPERTY();
+	FStateTreeIndex16 Index;
+};
+
+/**
+ * Pair of transition id and its associated compact transition index created at compilation.
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeTransitionIdToIndex
+{
+	GENERATED_BODY()
+
+	FStateTreeTransitionIdToIndex() = default;
+	explicit FStateTreeTransitionIdToIndex(const FGuid& Id, const FStateTreeIndex16 Index)
+		: Id(Id)
+		, Index(Index)
+	{
+	}
+
+	UPROPERTY();
+	FGuid Id;
+	
 	UPROPERTY();
 	FStateTreeIndex16 Index;
 };

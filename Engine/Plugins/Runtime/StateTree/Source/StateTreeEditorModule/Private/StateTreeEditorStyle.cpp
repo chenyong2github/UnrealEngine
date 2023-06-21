@@ -96,6 +96,13 @@ FStateTreeEditorStyle::FStateTreeEditorStyle()
 		Set("StateTree.Details", Details);
 
 		Set("StateTree.Node.Label", new FSlateRoundedBoxBrush(FStyleColors::AccentGray, 6.f));
+
+		// For multi selection with mixed values for a given property
+		Set("StateTree.Node.Label.Mixed", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 6.f));
+
+		const FLinearColor Color = FStyleColors::Hover.GetSpecifiedColor();
+		const FLinearColor HollowColor = Color.CopyWithNewOpacity(0.0);
+		Set("StateTree.Node.Label.Mixed", new FSlateRoundedBoxBrush(HollowColor, 6.0f, Color, 1.0f));
 	}
 
 	// Task

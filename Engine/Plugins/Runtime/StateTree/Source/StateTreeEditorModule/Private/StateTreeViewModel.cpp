@@ -160,6 +160,9 @@ namespace UE::StateTree::Editor
 
 		for (FStateTreeTransition& Transition : State->Transitions)
 		{
+			// Transition Ids are not used by nodes so no need to add to 'IDsMap'
+			Transition.ID = FGuid::NewGuid();
+
 			FixNodesAfterDuplication(Transition.Conditions, IDsMap, Links);
 			Links.Emplace(&Transition.State);
 		}
@@ -306,17 +309,28 @@ void FStateTreeViewModel::RefreshDebuggerBreakpoints()
 
 		for (const FStateTreeEditorBreakpoint& Breakpoint : TreeData->Breakpoints)
 		{
+			// Test if the ID is associated to a task
 			const FStateTreeIndex16 Index = StateTree->GetNodeIndexFromId(Breakpoint.ID);
 			if (Index.IsValid())
 			{
-				Debugger->SetTaskBreakpoint(Index, Breakpoint.BreakpointType);	
+				Debugger->SetTaskBreakpoint(Index, Breakpoint.BreakpointType);
 			}
 			else
 			{
+				// Then test if the ID is associated to a State
 				FStateTreeStateHandle StateHandle = StateTree->GetStateHandleFromId(Breakpoint.ID);
 				if (StateHandle.IsValid())
 				{
-					Debugger->SetBreakpoint(StateHandle, Breakpoint.BreakpointType);
+					Debugger->SetStateBreakpoint(StateHandle, Breakpoint.BreakpointType);
+				}
+				else
+				{
+					// Then test if the ID is associated to a transition
+					const FStateTreeIndex16 TransitionIndex = StateTree->GetTransitionIndexFromId(Breakpoint.ID);
+					if (TransitionIndex.IsValid())
+					{
+						Debugger->SetTransitionBreakpoint(TransitionIndex, Breakpoint.BreakpointType);
+					}
 				}
 			}
 		}

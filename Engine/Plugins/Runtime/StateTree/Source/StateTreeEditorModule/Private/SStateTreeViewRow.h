@@ -50,24 +50,53 @@ private:
 	FText GetLinkedStateDesc() const;
 
 	EVisibility GetCompletedTransitionVisibility() const;
+	EVisibility GetCompletedTransitionBreakpointVisibility() const;
 	FText GetCompletedTransitionsDesc() const;
+	FText GetCompletedTransitionWithBreakpointDesc() const;
 	FText GetCompletedTransitionsIcon() const;
 
 	EVisibility GetSucceededTransitionVisibility() const;
+	EVisibility GetSucceededTransitionBreakpointVisibility() const;
 	FText GetSucceededTransitionDesc() const;
+	FText GetSucceededTransitionWithBreakpointDesc() const;
 	FText GetSucceededTransitionIcon() const;
 
 	EVisibility GetFailedTransitionVisibility() const;
+	EVisibility GetFailedTransitionBreakpointVisibility() const;
 	FText GetFailedTransitionDesc() const;
+	FText GetFailedTransitionWithBreakpointDesc() const;
 	FText GetFailedTransitionIcon() const;
 
 	EVisibility GetConditionalTransitionsVisibility() const;
+	EVisibility GetConditionalTransitionsBreakpointVisibility() const;
 	FText GetConditionalTransitionsDesc() const;
+	FText GetConditionalTransitionsWithBreakpointDesc() const;
+
+	enum class ETransitionDescRequirement : uint8
+	{
+		Any,
+		RequiredTrue,
+		RequiredFalse,
+	};
+
+	/**
+	 * Filtering options used to build the description of the transitions.
+	 * The default setup includes only enabled transition,
+	 * with or without breakpoints and requires exact trigger match (no partial mask)
+	 */
+	struct FTransitionDescFilterOptions
+	{
+		FTransitionDescFilterOptions() {};
+		ETransitionDescRequirement Enabled = ETransitionDescRequirement::RequiredTrue;
+		ETransitionDescRequirement WithBreakpoint = ETransitionDescRequirement::Any;
+		bool bUseMask = false;
+	};
 
 	static FText GetLinkDescription(const FStateTreeStateLink& Link);
-	FText GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask = false) const;
-	FText GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const bool bUseMask = false) const;
+	FText GetTransitionsDesc(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const FTransitionDescFilterOptions FilterOptions = {}) const;
+	FText GetTransitionsIcon(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger, const FTransitionDescFilterOptions FilterOptions = {}) const;
 	EVisibility GetTransitionsVisibility(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const;
+	EVisibility GetTransitionsBreakpointVisibility(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const;
 
 	bool HasParentTransitionForTrigger(const UStateTreeState& State, const EStateTreeTransitionTrigger Trigger) const;
 

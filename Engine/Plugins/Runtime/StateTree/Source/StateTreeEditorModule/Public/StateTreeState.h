@@ -18,6 +18,8 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	FStateTreeTransition() = default;
 	FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
 	FStateTreeTransition(const EStateTreeTransitionTrigger InTrigger, const FGameplayTag InEventTag, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr);
+
+	void PostSerialize(const FArchive& Ar);
 	
 	template<typename T, typename... TArgs>
 	TStateTreeEditorNode<T>& AddCondition(TArgs&&... InArgs)
@@ -45,6 +47,9 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	UPROPERTY(EditDefaultsOnly, Category = "Transition", meta=(DisplayName="Transition To"))
 	FStateTreeStateLink State;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Transition")
+	FGuid ID;
+
 	/**
 	 * Transition priority when multiple transitions happen at the same time.
 	 * During transition handling, the transitions are visited from leaf to root.
@@ -68,6 +73,19 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	/** Conditions that must pass so that the transition can be triggered. */
 	UPROPERTY(EditDefaultsOnly, Category = "Transition", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeConditionBase", BaseClass = "/Script/StateTreeModule.StateTreeConditionBlueprintBase"))
 	TArray<FStateTreeEditorNode> Conditions;
+
+	/** True if the Transition is Enabled (i.e. not explicitly disabled in the asset). */
+	UPROPERTY(EditDefaultsOnly, Category = "Debug")
+	bool bTransitionEnabled = true;
+};
+
+template<>
+struct TStructOpsTypeTraits<FStateTreeTransition> : TStructOpsTypeTraitsBase2<FStateTreeTransition>
+{
+	enum
+	{
+		WithPostSerialize = true,
+	};
 };
 
 USTRUCT()
@@ -170,12 +188,16 @@ public:
 	 */
 	FStateTreeTransition& AddTransition(const EStateTreeTransitionTrigger InTrigger, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr)
 	{
-		return Transitions.Emplace_GetRef(InTrigger, InType, InState);
+		FStateTreeTransition& Transition = Transitions.Emplace_GetRef(InTrigger, InType, InState);
+		Transition.ID = FGuid::NewGuid();
+		return Transition;
 	}
 
 	FStateTreeTransition& AddTransition(const EStateTreeTransitionTrigger InTrigger, const FGameplayTag InEventTag, const EStateTreeTransitionType InType, const UStateTreeState* InState = nullptr)
 	{
-		return Transitions.Emplace_GetRef(InTrigger, InEventTag, InType, InState);
+		FStateTreeTransition& Transition = Transitions.Emplace_GetRef(InTrigger, InEventTag, InType, InState);
+		Transition.ID = FGuid::NewGuid();
+		return Transition;
 	}
 
 
@@ -196,7 +218,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "State")
 	FStateTreeStateParameters Parameters;
 
-	UPROPERTY(meta = (IgnoreForMemberInitializationTest))
+	UPROPERTY(EditDefaultsOnly, Category = "State", meta = (IgnoreForMemberInitializationTest))
 	FGuid ID;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Enter Conditions", meta = (BaseStruct = "/Script/StateTreeModule.StateTreeConditionBase", BaseClass = "/Script/StateTreeModule.StateTreeConditionBlueprintBase"))

@@ -6,6 +6,7 @@
 #include "IPropertyUtilities.h"
 #include "IDetailChildrenBuilder.h"
 #include "StateTree.h"
+#include "StateTreeEditor.h"
 #include "StateTreeEditorData.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -646,6 +647,13 @@ void FStateTreeEditorNodeDetails::CustomizeChildren(TSharedRef<class IPropertyHa
 	FGuid ID;
 	UE::StateTree::PropertyHelpers::GetStructValue<FGuid>(IDProperty, ID);
 
+	// ID
+	if (UE::StateTree::Editor::GbDisplayItemIds)
+	{
+		// ID
+		StructBuilder.AddProperty(IDProperty.ToSharedRef());
+	}
+	
 	// Node
 	TSharedRef<FBindableNodeInstanceDetails> NodeDetails = MakeShareable(new FBindableNodeInstanceDetails(NodeProperty, FGuid(), EditorData));
 	StructBuilder.AddCustomBuilder(NodeDetails);

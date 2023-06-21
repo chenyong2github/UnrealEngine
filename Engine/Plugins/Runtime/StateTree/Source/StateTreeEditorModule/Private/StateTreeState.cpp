@@ -26,6 +26,17 @@ FStateTreeTransition::FStateTreeTransition(const EStateTreeTransitionTrigger InT
 	State = InState ? InState->GetLinkToState() : FStateTreeStateLink(InType);
 }
 
+void FStateTreeTransition::PostSerialize(const FArchive& Ar)
+{
+#if WITH_EDITORONLY_DATA
+	const int32 CurrentVersion = Ar.CustomVer(FStateTreeCustomVersion::GUID);
+	if (CurrentVersion < FStateTreeCustomVersion::AddedTransitionIds)
+	{
+		ID = FGuid::NewGuid();
+	}
+#endif // WITH_EDITORONLY_DAT
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // UStateTreeState
@@ -69,6 +80,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 	static const FStateTreeEditPropertyPath StateEnterConditionsPath(UStateTreeState::StaticClass(), TEXT("EnterConditions"));
 	static const FStateTreeEditPropertyPath StateTransitionsPath(UStateTreeState::StaticClass(), TEXT("Transitions"));
 	static const FStateTreeEditPropertyPath StateTransitionsConditionsPath(UStateTreeState::StaticClass(), TEXT("Transitions.Conditions"));
+	static const FStateTreeEditPropertyPath StateTransitionsIDPath(UStateTreeState::StaticClass(), TEXT("Transitions.ID"));
 
 
 	// Broadcast name changes so that the UI can update.
@@ -196,6 +208,17 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 			}
 		}
 
+		// Transitions
+		if (ChangePropertyPath.IsPathExact(StateTransitionsPath))
+		{
+			const int32 TransitionsIndex = ChangePropertyPath.GetPropertyArrayIndex(StateTransitionsPath);
+			if (Transitions.IsValidIndex(TransitionsIndex))
+			{
+				FStateTreeTransition& Transition = Transitions[TransitionsIndex];
+				Transition.ID = FGuid::NewGuid();
+			}
+		}
+
 		// Transition conditions
 		if (ChangePropertyPath.IsPathExact(StateTransitionsConditionsPath))
 		{
@@ -219,7 +242,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 		}
 	}
 	
-	// Set default state to root on new transitions.
+	// Set default state to root and Id on new transitions.
 	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 	{
 		if (ChangePropertyPath.IsPathExact(StateTransitionsPath))
@@ -231,6 +254,7 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 				Transition.Trigger = EStateTreeTransitionTrigger::OnStateCompleted;
 				const UStateTreeState* RootState = GetRootState();
 				Transition.State = RootState->GetLinkToState();
+				Transition.ID = FGuid::NewGuid();
 			}
 		}
 	}

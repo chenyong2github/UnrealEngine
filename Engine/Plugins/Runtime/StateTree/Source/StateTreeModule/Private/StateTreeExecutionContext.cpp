@@ -419,7 +419,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 		if (TriggerTransitions())
 		{
 			STATETREE_TRACE_SCOPED_PHASE(EStateTreeUpdatePhase::ApplyTransitions);
-			
+			STATETREE_TRACE_TRANSITION_EVENT(NextTransitionIndex, EStateTreeTraceEventType::OnTransition);
+			NextTransitionIndex = FStateTreeIndex16::Invalid;
+
 			// We have committed to state change, consume events that were accumulated during the tick above.
 			EventQueue.Reset();
 
@@ -1663,6 +1665,12 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 				const int16 TransitionIndex = State.TransitionsBegin + i;
 				const FCompactStateTransition& Transition = StateTree.Transitions[TransitionIndex];
 
+				// Skip disabled transitions
+				if (Transition.bTransitionEnabled == false)
+				{
+					continue;
+				}
+				
 				// No need to test the transition if same or higher priority transition has already been processed.
 				if (Transition.Priority <= NextTransition.Priority)
 				{
@@ -1691,7 +1699,10 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 							});
 
 						// Trigger Delayed Transition when the delay has passed.
-						RequestTransition(Transition.State, Transition.Priority);
+						if (RequestTransition(Transition.State, Transition.Priority))
+						{
+							NextTransitionIndex = FStateTreeIndex16(TransitionIndex);
+						}
 						continue;
 					}
 				}
@@ -1738,7 +1749,10 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 						}
 					}
 
-					RequestTransition(Transition.State, Transition.Priority);
+					if (RequestTransition(Transition.State, Transition.Priority))
+					{
+						NextTransitionIndex = FStateTreeIndex16(TransitionIndex);
+					}
 				}
 			}
 		}
@@ -1793,6 +1807,12 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 				const int16 TransitionIndex = State.TransitionsBegin + i;
 				const FCompactStateTransition& Transition = StateTree.Transitions[TransitionIndex];
 
+				// Skip disabled transitions
+				if (Transition.bTransitionEnabled == false)
+				{
+					continue;
+				}
+
 				if (EnumHasAnyFlags(Transition.Trigger, CompletionTrigger))
 				{
 					bool bPassed = false;
@@ -1808,6 +1828,7 @@ bool FStateTreeExecutionContext::TriggerTransitions()
 						// No priority on completion transitions, use the priority to signal that state is selected.
 						if (RequestTransition(Transition.State, EStateTreeTransitionPriority::Normal))
 						{
+							NextTransitionIndex = FStateTreeIndex16(TransitionIndex);
 							break;
 						}
 					}
@@ -2034,6 +2055,12 @@ bool FStateTreeExecutionContext::SelectStateInternal(const FStateTreeStateHandle
 			{
 				const int16 TransitionIndex = State.TransitionsBegin + i;
 				const FCompactStateTransition& Transition = StateTree.Transitions[TransitionIndex];
+
+				// Skip disabled transitions
+				if (Transition.bTransitionEnabled == false)
+				{
+					continue;
+				}
 
 				// No need to test the transition if same or higher priority transition has already been processed.
 				if (Transition.Priority <= CurrentPriority)

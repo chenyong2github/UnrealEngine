@@ -19,14 +19,16 @@ struct FStateTreeEditorBreakpoint
 
 	FStateTreeEditorBreakpoint() = default;
 	explicit FStateTreeEditorBreakpoint(const FGuid& ID, const EStateTreeBreakpointType BreakpointType)
-		: ID(ID),
-		BreakpointType(BreakpointType)
+		: ID(ID)
+		, BreakpointType(BreakpointType)
 	{
 	}
 
+	/** Unique Id of the Node or State associated to the breakpoint. */
 	UPROPERTY()
 	FGuid ID;
 
+	/** The event type that should trigger the breakpoint (e.g. OnEnter, OnExit, etc.). */
 	UPROPERTY()
 	EStateTreeBreakpointType BreakpointType = EStateTreeBreakpointType::Unset;
 };
@@ -218,10 +220,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_STATETREE_DEBUGGER
 	bool HasAnyBreakpoint(FGuid ID) const;
-	bool HasBreakpoint(FGuid ID, EStateTreeBreakpointType Type) const;
-	const FStateTreeEditorBreakpoint* GetBreakpoint(FGuid ID, EStateTreeBreakpointType Type) const;
-	void AddBreakpoint(FGuid ID, EStateTreeBreakpointType Type);
-	bool RemoveBreakpoint(FGuid ID, EStateTreeBreakpointType Type);
+	bool HasBreakpoint(FGuid ID, EStateTreeBreakpointType BreakpointType) const;
+	const FStateTreeEditorBreakpoint* GetBreakpoint(FGuid ID, EStateTreeBreakpointType BreakpointType) const;
+	void AddBreakpoint(FGuid ID, EStateTreeBreakpointType BreakpointType);
+	bool RemoveBreakpoint(FGuid ID, EStateTreeBreakpointType BreakpointType);
 #endif // WITH_STATETREE_DEBUGGER
 
 	// ~StateTree Builder API

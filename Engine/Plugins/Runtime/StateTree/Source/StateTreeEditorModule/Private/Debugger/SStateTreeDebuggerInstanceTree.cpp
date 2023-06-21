@@ -82,6 +82,11 @@ void SStateTreeDebuggerInstanceTree::SetSelection(const TSharedPtr<RewindDebugge
 	TreeView->SetSelection(SelectedItem);
 }
 
+void SStateTreeDebuggerInstanceTree::ScrollTo(const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& SelectedItem) const
+{
+	TreeView->RequestScrollIntoView(SelectedItem);
+}
+
 void SStateTreeDebuggerInstanceTree::ScrollTo(const double ScrollOffset) const
 {
 	TreeView->SetScrollOffset(ScrollOffset);

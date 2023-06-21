@@ -5,6 +5,9 @@
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;
+class IPropertyUtilities;
+class IDetailChildrenBuilder;
+class FDetailWidgetRow;
 class UStateTree;
 class UStateTreeState;
 enum class EStateTreeTransitionTrigger : uint8;
@@ -20,8 +23,8 @@ public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
 	/** IPropertyTypeCustomization interface */
-	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
 private:
 
@@ -29,7 +32,10 @@ private:
 
 	EStateTreeTransitionTrigger GetTrigger() const;
 	bool GetDelayTransition() const;
-	
+
+	void OnCopyTransition() const;
+	void OnPasteTransition() const;
+
 	TSharedPtr<IPropertyHandle> TriggerProperty;
 	TSharedPtr<IPropertyHandle> PriorityProperty;
 	TSharedPtr<IPropertyHandle> EventTagProperty;
@@ -38,7 +44,8 @@ private:
 	TSharedPtr<IPropertyHandle> DelayDurationProperty;
 	TSharedPtr<IPropertyHandle> DelayRandomVarianceProperty;
 	TSharedPtr<IPropertyHandle> ConditionsProperty;
+	TSharedPtr<IPropertyHandle> IDProperty;
 
-	class IPropertyUtilities* PropUtils;
+	TSharedPtr<IPropertyUtilities> PropUtils;
 	TSharedPtr<IPropertyHandle> StructProperty;
 };

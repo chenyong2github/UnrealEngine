@@ -340,6 +340,12 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 		StateTree->IDToStateMappings.Emplace(ToState.Key, FStateTreeStateHandle(ToState.Value));
 	}
 
+	// Store mapping between state transition identifier and compact transition index. Used for debugging purposes.
+	for (const TPair<FGuid, int32>& ToTransition: IDToTransition)
+	{
+		StateTree->IDToTransitionMappings.Emplace(ToTransition.Key, FStateTreeIndex16(ToTransition.Value));
+	}
+
 	UE::StateTree::Compiler::FCheckOutersArchive CheckOuters(*StateTree, *EditorData, Log);
 	StateTree->Serialize(CheckOuters);
 	
@@ -790,10 +796,13 @@ bool FStateTreeCompiler::CreateStateTransitions()
 		
 		for (FStateTreeTransition& Transition : SourceState->Transitions)
 		{
+			IDToTransition.Add(Transition.ID, StateTree->Transitions.Num());
+
 			FCompactStateTransition& CompactTransition = StateTree->Transitions.AddDefaulted_GetRef();
 			CompactTransition.Trigger = Transition.Trigger;
 			CompactTransition.Priority = Transition.Priority;
 			CompactTransition.EventTag = Transition.EventTag;
+			CompactTransition.bTransitionEnabled = Transition.bTransitionEnabled;
 			
 			if (Transition.bDelayTransition)
 			{

@@ -39,6 +39,7 @@ public:
 
 	TSharedPtr<RewindDebugger::FRewindDebuggerTrack> GetSelection() const;
 	void SetSelection(const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& SelectedItem) const;
+	void ScrollTo(const TSharedPtr<RewindDebugger::FRewindDebuggerTrack>& SelectedItem) const;
 	void ScrollTo(double ScrollOffset) const;
 
 private:
