@@ -625,15 +625,15 @@ void FStateTreeEditorNodeDetails::ResetToDefault(TSharedPtr<IPropertyHandle> Pro
 		StructProperty,
 		[](IPropertyHandle& StructPropertyHandle)
 		{
-			TArray<void*> RawNodeData;
+	TArray<void*> RawNodeData;
 			StructPropertyHandle.AccessRawData(RawNodeData);
-			for (void* Data : RawNodeData)
-			{
-				if (FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(Data))
-				{
-					Node->Reset();
-				}
-			}
+	for (void* Data : RawNodeData)
+	{
+		if (FStateTreeEditorNode* Node = static_cast<FStateTreeEditorNode*>(Data))
+		{
+			Node->Reset();
+		}
+	}
 		});
 
 	if (PropUtils)
