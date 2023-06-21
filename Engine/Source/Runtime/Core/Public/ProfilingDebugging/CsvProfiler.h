@@ -56,16 +56,16 @@ struct FCsvDeclaredStat;
 // Inline stats (no up front definition)
 #define CSV_SCOPED_TIMING_STAT(Category,StatName) \
 	TRACE_CSV_PROFILER_INLINE_STAT(#StatName, CSV_CATEGORY_INDEX(Category)); \
-	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX(Category));
+	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX(Category), "CSV_"#StatName);
 #define CSV_SCOPED_TIMING_STAT_GLOBAL(StatName) \
 	TRACE_CSV_PROFILER_INLINE_STAT(#StatName, CSV_CATEGORY_INDEX_GLOBAL); \
-	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX_GLOBAL);
+	FScopedCsvStat _ScopedCsvStat_ ## StatName (#StatName, CSV_CATEGORY_INDEX_GLOBAL, "CSV_"#StatName);
 #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StatName) \
 	TRACE_CSV_PROFILER_INLINE_STAT_EXCLUSIVE(#StatName); \
-	FScopedCsvStatExclusive _ScopedCsvStatExclusive_ ## StatName (#StatName);
+	FScopedCsvStatExclusive _ScopedCsvStatExclusive_ ## StatName (#StatName, "CSV_"#StatName);
 #define CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(StatName,Condition) \
 	TRACE_CSV_PROFILER_INLINE_STAT_EXCLUSIVE(#StatName); \
-	FScopedCsvStatExclusiveConditional _ScopedCsvStatExclusive_ ## StatName (#StatName,Condition);
+	FScopedCsvStatExclusiveConditional _ScopedCsvStatExclusive_ ## StatName (#StatName,Condition, "CSV_"#StatName);
 
 #define CSV_SCOPED_WAIT(WaitTime)							FScopedCsvWaitConditional _ScopedCsvWait(WaitTime>0 && FCsvProfiler::IsWaitTrackingEnabledOnCurrentThread());
 #define CSV_SCOPED_WAIT_CONDITIONAL(Condition)				FScopedCsvWaitConditional _ScopedCsvWait(Condition);
@@ -344,12 +344,12 @@ public:
 
 	/** Begin static interface (used by macros)*/
 	/** Push/pop events */
-	CORE_API static void BeginStat(const char* StatName, uint32 CategoryIndex);
+	CORE_API static void BeginStat(const char* StatName, uint32 CategoryIndex, const char* NamedEventName = nullptr);
 	CORE_API static void BeginStat(const FName& StatName, uint32 CategoryIndex);
 	CORE_API static void EndStat(const char* StatName, uint32 CategoryIndex);
 	CORE_API static void EndStat(const FName& StatName, uint32 CategoryIndex);
 
-	CORE_API static void BeginExclusiveStat(const char * StatName);
+	CORE_API static void BeginExclusiveStat(const char * StatName, const char* NamedEventName = nullptr);
 	CORE_API static void EndExclusiveStat(const char * StatName);
 
 	CORE_API static void RecordCustomStat(const char * StatName, uint32 CategoryIndex, float Value, const ECsvCustomStatOp CustomStatOp);
@@ -523,11 +523,11 @@ private:
 class FScopedCsvStat
 {
 public:
-	FScopedCsvStat(const char * InStatName, uint32 InCategoryIndex)
+	FScopedCsvStat(const char * InStatName, uint32 InCategoryIndex, const char * InNamedEventName = nullptr)
 		: StatName(InStatName)
 		, CategoryIndex(InCategoryIndex)
 	{
-		FCsvProfiler::BeginStat(StatName, CategoryIndex);
+		FCsvProfiler::BeginStat(StatName, CategoryIndex, InNamedEventName);
 	}
 
 	~FScopedCsvStat()
@@ -541,10 +541,10 @@ public:
 class FScopedCsvStatExclusive 
 {
 public:
-	FScopedCsvStatExclusive(const char * InStatName)
+	FScopedCsvStatExclusive(const char * InStatName, const char* InNamedEventName = nullptr)
 		: StatName(InStatName)
 	{
-		FCsvProfiler::BeginExclusiveStat(StatName);
+		FCsvProfiler::BeginExclusiveStat(StatName, InNamedEventName);
 	}
 
 	~FScopedCsvStatExclusive()
@@ -557,13 +557,13 @@ public:
 class FScopedCsvStatExclusiveConditional
 {
 public:
-	FScopedCsvStatExclusiveConditional(const char * InStatName, bool bInCondition)
+	FScopedCsvStatExclusiveConditional(const char * InStatName, bool bInCondition, const char* InNamedEventName = nullptr)
 		: StatName(InStatName)
 		, bCondition(bInCondition)
 	{
 		if (bCondition)
 		{
-			FCsvProfiler::BeginExclusiveStat(StatName);
+			FCsvProfiler::BeginExclusiveStat(StatName, InNamedEventName);
 		}
 	}
 
