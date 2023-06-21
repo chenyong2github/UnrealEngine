@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/Views/SHeaderRow.h"
 #include "ISceneOutlinerTreeItem.h"
+#include "Misc/ComparisonUtility.h"
 
 namespace SceneOutliner
 {
@@ -28,108 +29,17 @@ namespace SceneOutliner
 		}
 		FORCEINLINE bool operator<(const FNumericStringWrapper& Other) const
 		{
-			return CompareNumeric(String, Other.String) < 0;
+			return UE::ComparisonUtility::CompareNaturalOrder(String, Other.String) < 0;
 		}
 		FORCEINLINE bool operator>(const FNumericStringWrapper& Other) const
 		{
-			return CompareNumeric(String, Other.String) > 0;
+			return UE::ComparisonUtility::CompareNaturalOrder(String, Other.String) > 0;
 		}
 		FORCEINLINE bool operator==(const FNumericStringWrapper& Other) const
 		{
 			return String == Other.String;
 		}
-
 	private:
-		static bool BothAscii(TCHAR C1, TCHAR C2)
-		{
-			return (((uint32)C1 | (uint32)C2) & 0xffffff80) == 0;
-		}
-
-		static bool BothNumbers(TCHAR C1, TCHAR C2)
-		{
-			return C1 >= '0' && C1 <= '9' && C2 >= '0' && C2 <= '9';
-		}
-
-		static int32 CompareNumeric(const FString& A, const FString& B)
-		{
-			const TCHAR* String1 = *A;
-			const TCHAR* String2 = *B;
-
-			while (true)
-			{
-				TCHAR C1 = *String1;
-				TCHAR C2 = *String2;
-
-				// Ignore underscores
-				if (TChar<TCHAR>::IsUnderscore(C1))
-				{
-					String1++;
-					continue;
-				}
-
-				// Ignore underscores
-				if (TChar<TCHAR>::IsUnderscore(C2))
-				{
-					String2++;
-					continue;
-				}
-
-				// Sort numerically when numbers are found 
-				if (BothNumbers(C1, C2))
-				{
-					int64 IntA = 0;
-					do
-					{
-						IntA *= 10;
-						IntA += TChar<TCHAR>::ConvertCharDigitToInt(C1);
-
-						String1++;
-						C1 = *String1;
-					} while (C1 >= '0' && C1 <= '9');
-
-					int64 IntB = 0;
-					do
-					{
-						IntB *= 10;
-						IntB += TChar<TCHAR>::ConvertCharDigitToInt(C2);
-
-						String2++;
-						C2 = *String2;
-					} while (C2 >= '0' && C2 <= '9');
-
-					if (IntA != IntB)
-					{
-						return IntA < IntB ? -1 : 1;
-					}
-
-					continue;
-				}
-				else if (C1 == C2)
-				{
-					// Reached the end of the string
-					if (C1 == 0)
-					{
-						// Strings compared equal, return shortest first
-						return A.Len() == B.Len() ? 0 : A.Len() < B.Len() ? -1 : 1;
-					}
-				}
-				else if (BothAscii(C1, C2))
-				{
-					if (int32 Diff = TChar<TCHAR>::ToUnsigned(TChar<TCHAR>::ToLower(C1)) - TChar<TCHAR>::ToUnsigned(TChar<TCHAR>::ToLower(C2)))
-					{
-						return Diff;
-					}
-				}
-				else
-				{
-					return TChar<TCHAR>::ToUnsigned(C1) - TChar<TCHAR>::ToUnsigned(C2);
-				}
-
-				String1++;
-				String2++;
-			}
-		}
-
 		FNumericStringWrapper(const FNumericStringWrapper&);
 		FNumericStringWrapper& operator=(const FNumericStringWrapper&);
 	};

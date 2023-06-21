@@ -6,7 +6,7 @@
 #include "CoreTypes.h"
 #include "Misc/CString.h"
 
-namespace UE { namespace ComparisonUtility {
+namespace UE::ComparisonUtility {
 
 int32 CompareWithNumericSuffix(FName A, FName B)
 {
@@ -17,24 +17,14 @@ int32 CompareWithNumericSuffix(FStringView A, FStringView B)
 {
 	auto SplitNumericSuffix = [](FStringView Full, FStringView& OutPrefix, int64& OutSuffix)
 	{
-		auto IsDigit = [](const TCHAR C)
-		{
-			return C >= TEXT('0') && C <= TEXT('9');
-		};
-
-		auto CharToDigit = [](const TCHAR C) -> int32
-		{
-			return C - '0';
-		};
-
 		int32 NumDigits = 0;
 		OutSuffix = 0;
 		{
 			int32 Magnitude = 1;
 			const TCHAR* FullStart = Full.GetData();
-			for (const TCHAR* C = FullStart + Full.Len() - 1; C >= FullStart && IsDigit(*C); --C)
+			for (const TCHAR* C = FullStart + Full.Len() - 1; C >= FullStart && FChar::IsDigit(*C); --C)
 			{
-				OutSuffix += CharToDigit(*C) * Magnitude;
+				OutSuffix += FChar::ConvertCharDigitToInt(*C) * Magnitude;
 				Magnitude *= 10;
 				++NumDigits;
 			}
@@ -86,4 +76,96 @@ int32 CompareWithNumericSuffix(FStringView A, FStringView B)
 	return 0;
 }
 
-} } // namespace UE::ComparisonUtility
+int32 CompareNaturalOrder(FStringView A, FStringView B)
+{
+	auto BothAscii = [](TCHAR C1, TCHAR C2) -> bool
+	{
+		return ((static_cast<uint32>(C1) | static_cast<uint32>(C2)) & 0xffffff80) == 0;
+	};
+
+	auto ConsumeNumber = [](const TCHAR*& Str) -> int64
+	{
+		bool bOverflow = false;
+		uint64 Number = 0;
+		TCHAR C = *Str;
+		do
+		{
+			Number *= 10;
+			Number += FChar::ConvertCharDigitToInt(C);
+
+			bOverflow = bOverflow || Number > static_cast<uint64>(MAX_int64);
+			Str++;
+			C = *Str;
+		} while (FChar::IsDigit(C));
+
+		if (bOverflow)
+		{
+			// Too large to process as a number
+			Number = INDEX_NONE;
+		}
+
+		return Number;
+	};
+	
+	const TCHAR* StringA = A.GetData();
+	const TCHAR* StringB = B.GetData();
+ 
+	while (true)
+	{
+		TCHAR CharA = *StringA;
+		TCHAR CharB = *StringB;
+ 
+		// Ignore underscores
+		if (FChar::IsUnderscore(CharA))
+		{
+			StringA++;
+			continue;
+		}
+ 
+		// Ignore underscores
+		if (FChar::IsUnderscore(CharB))
+		{
+			StringB++;
+			continue;
+		}
+ 
+		// Sort numerically when numbers are found 
+		if (FChar::IsDigit(CharA) && FChar::IsDigit(CharB))
+		{
+			const int64 IntA = ConsumeNumber(StringA);
+			const int64 IntB = ConsumeNumber(StringB);
+ 
+			if (IntA != IntB)
+			{
+				return IntA < IntB ? -1 : 1;
+			}
+ 
+			continue;
+		}
+		else if (CharA == CharB)
+		{
+			// Reached the end of the string
+			if (CharA == TCHAR('\0'))
+			{
+				// Strings compared equal, return shortest first
+				return A.Len() == B.Len() ? 0 : A.Len() < B.Len() ? -1 : 1;
+			}
+		}
+		else if (BothAscii(CharA, CharB))
+		{
+			if (int32 Diff = FChar::ToUnsigned(FChar::ToLower(CharA)) - FChar::ToUnsigned(FChar::ToLower(CharB)))
+			{
+				return Diff;
+			}
+		}
+		else
+		{
+			return FChar::ToUnsigned(CharA) - FChar::ToUnsigned(CharB);
+		}
+ 
+		StringA++;
+		StringB++;
+	}
+}
+	
+} // namespace UE::ComparisonUtility

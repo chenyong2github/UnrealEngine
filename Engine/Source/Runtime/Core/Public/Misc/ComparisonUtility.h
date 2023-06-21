@@ -7,7 +7,7 @@
 #include "HAL/Platform.h"
 #include "UObject/NameTypes.h"
 
-namespace UE { namespace ComparisonUtility {
+namespace UE::ComparisonUtility {
 
 /** Compare the two names, correctly ordering any numeric suffixes they may have */
 CORE_API int32 CompareWithNumericSuffix(FName A, FName B);
@@ -15,4 +15,7 @@ CORE_API int32 CompareWithNumericSuffix(FName A, FName B);
 /** Compare the two strings, correctly ordering any numeric suffixes they may have */
 CORE_API int32 CompareWithNumericSuffix(FStringView A, FStringView B);
 
-} } // namespace UE::ComparisonUtility
+/** Compare the two strings, correctly ordering any numeric components they may have */
+CORE_API int32 CompareNaturalOrder(FStringView A, FStringView B);
+
+} // namespace UE::ComparisonUtility
