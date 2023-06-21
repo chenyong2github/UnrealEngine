@@ -49,5 +49,8 @@ private:
 	TUniquePtr<FEditor2DMouseWheelZoomBehaviorTarget> ZoomBehaviorTarget;
 
 	TWeakPtr<FUICommandList> ToolCommandList;
+
+	// Saved view transform for the currently inactive view mode (i.e. store the 3D camera here while in 2D mode and vice-versa)
+	FViewportCameraTransform SavedInactiveViewTransform;
 };
 } // namespace UE::Chaos::ClothAsset

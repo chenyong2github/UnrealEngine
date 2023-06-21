@@ -133,6 +133,7 @@ private:
 
 	void SetRestSpaceViewportClient(TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> ViewportClient);
 	void RefocusRestSpaceViewportClient();
+	void FirstTimeFocusRestSpaceViewport();
 
 	// intended to be called by the toolkit when selected node in the Dataflow graph changes
 	void SetSelectedClothCollection(TSharedPtr<FManagedArrayCollection> Collection);
@@ -202,8 +203,9 @@ private:
 
 	TWeakPtr<UE::Chaos::ClothAsset::FChaosClothEditorRestSpaceViewportClient, ESPMode::ThreadSafe> RestSpaceViewportClient;
 
-	// Whether a cloth collection has ever been set on this Mode object
-	bool bFirstClothCollection = true;
+	// The first time we get a valid mesh, refocus the camera on it
+	bool bFirstValid2DMesh = true;
+	bool bFirstValid3DMesh = true;
 
 	// Whether the rest space viewport should focus on the rest space mesh on the next tick
 	bool bShouldFocusRestSpaceView = true;

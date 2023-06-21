@@ -57,6 +57,12 @@ FChaosClothEditorRestSpaceViewportClient::FChaosClothEditorRestSpaceViewportClie
 
 void FChaosClothEditorRestSpaceViewportClient::SetConstructionViewMode(EClothPatternVertexType InViewMode)
 {
+	const bool bSwitching2D3D = (ConstructionViewMode == UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D) != (InViewMode == UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D);
+	if (bSwitching2D3D)
+	{
+		Swap(SavedInactiveViewTransform, ViewTransformPerspective);
+	}
+
 	ConstructionViewMode = InViewMode;
 
 	BehaviorSet->RemoveAll();

@@ -382,12 +382,8 @@ void UChaosClothAssetEditorMode::SetSelectedClothCollection(TSharedPtr<FManagedA
 	SelectedClothCollection = Collection;
 	ReinitializeDynamicMeshComponents();
 
-	if (bFirstClothCollection && Collection)
-	{
-		// refocus the viewport if this is the first time a cloth collection has been set
-		RefocusRestSpaceViewportClient();
-		bFirstClothCollection = false;
-	}
+	// The first time we get a valid mesh, refocus the camera on it
+	FirstTimeFocusRestSpaceViewport();
 }
 
 TSharedPtr<FManagedArrayCollection> UChaosClothAssetEditorMode::GetClothCollection()
@@ -600,6 +596,27 @@ void UChaosClothAssetEditorMode::RefocusRestSpaceViewportClient()
 	}
 }
 
+void UChaosClothAssetEditorMode::FirstTimeFocusRestSpaceViewport()
+{
+	// If this is the first time seeing a valid 2D or 3D mesh, refocus the camera on it.
+	const bool bIsValid = (SelectedClothCollection && DynamicMeshComponent && DynamicMeshComponent->GetMesh()->TriangleCount() > 0);
+	const bool bIs2D = ConstructionViewMode == UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D;
+
+	if (bIsValid)
+	{
+		if (bIs2D && bFirstValid2DMesh)
+		{
+			bFirstValid2DMesh = false;
+			RefocusRestSpaceViewportClient();
+		}
+		else if (!bIs2D && bFirstValid3DMesh)
+		{
+			bFirstValid3DMesh = false;
+			RefocusRestSpaceViewportClient();
+		}
+	}
+}
+
 void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObject>>& AssetsIn)
 {
 	// InitializeContexts needs to have been called first so that we have the 3d preview world ready.
@@ -804,8 +821,6 @@ FBox UChaosClothAssetEditorMode::PreviewBoundingBox() const
 
 void UChaosClothAssetEditorMode::SetConstructionViewMode(UE::Chaos::ClothAsset::EClothPatternVertexType InMode)
 {
-	const bool bSwitching2D3D = (ConstructionViewMode == UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D) != (InMode == UE::Chaos::ClothAsset::EClothPatternVertexType::Sim2D);
-
 	ConstructionViewMode = InMode;
 	ReinitializeDynamicMeshComponents();
 
@@ -815,10 +830,8 @@ void UChaosClothAssetEditorMode::SetConstructionViewMode(UE::Chaos::ClothAsset::
 		VC->SetConstructionViewMode(ConstructionViewMode);
 	}
 
-	if (bSwitching2D3D)
-	{
-		RefocusRestSpaceViewportClient();
-	}
+	// If we are switching to a mode with a valid mesh for the first time, focus the camera on it
+	FirstTimeFocusRestSpaceViewport();
 }
 
 UE::Chaos::ClothAsset::EClothPatternVertexType UChaosClothAssetEditorMode::GetConstructionViewMode() const
