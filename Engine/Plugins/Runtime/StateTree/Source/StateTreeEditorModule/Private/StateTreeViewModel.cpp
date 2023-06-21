@@ -822,11 +822,8 @@ void FStateTreeViewModel::DuplicateSelectedStates()
 	const int32 Index = AfterState->Parent ? AfterState->Parent->Children.Find(AfterState) : TreeData->SubTrees.Find(AfterState);
 	if (Index != INDEX_NONE)
 	{
-		FString TextToImport;
-		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
-			
 		const FScopedTransaction Transaction(LOCTEXT("DuplicateStatesTransaction", "Duplicate State(s)"));
-		PasteStatesAsChildrenFromText(TextToImport, AfterState->Parent, Index + 1);
+		PasteStatesAsChildrenFromText(ExportedText, AfterState->Parent, Index + 1);
 	}
 }
 

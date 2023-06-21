@@ -196,6 +196,25 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 			}
 		}
 
+		// Transitions
+		if (ChangePropertyPath.IsPathExact(StateTransitionsPath))
+		{
+			const int32 TransitionsIndex = ChangePropertyPath.GetPropertyArrayIndex(StateTransitionsPath);
+			if (Transitions.IsValidIndex(TransitionsIndex))
+			{
+				FStateTreeTransition& Transition = Transitions[TransitionsIndex];
+				Transition.ID = FGuid::NewGuid();
+
+				// Update conditions
+				for (FStateTreeEditorNode& Condition : Transition.Conditions)
+				{
+					const FGuid OldStructID = Condition.ID;
+					Condition.ID = FGuid::NewGuid();
+					CopyBindings(OldStructID, Condition.ID);
+				}
+			}
+		}
+
 		// Transition conditions
 		if (ChangePropertyPath.IsPathExact(StateTransitionsConditionsPath))
 		{

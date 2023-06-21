@@ -35,6 +35,7 @@ private:
 	FSlateColor GetActiveStateColor() const;
 	FSlateColor GetSubTreeMarkerColor() const;
 	FText GetStateDesc() const;
+	FText GetStateIDDesc() const;
 
 	EVisibility GetConditionVisibility() const;
 	EVisibility GetStateBreakpointVisibility() const;

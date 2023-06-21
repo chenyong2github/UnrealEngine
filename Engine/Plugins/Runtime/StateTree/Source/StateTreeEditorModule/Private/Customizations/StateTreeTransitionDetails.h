@@ -5,8 +5,7 @@
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;
-class UStateTree;
-class UStateTreeState;
+class UStateTreeEditorData;
 enum class EStateTreeTransitionTrigger : uint8;
 
 /**
@@ -24,6 +23,8 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
 private:
+
+	UStateTreeEditorData* GetEditorData() const;
 
 	FText GetDescription() const;
 

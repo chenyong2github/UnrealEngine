@@ -198,4 +198,91 @@ FText FStateTreeTransitionDetails::GetDescription() const
 	return FText::Format(LOCTEXT("TransitionDesc", "{0} {1}"), TriggerText, TargetText);
 }
 
+void FStateTreeTransitionDetails::OnCopyTransition() const
+{
+	FString Value;
+	// Use PPF_Copy so that all properties get copied.
+	if (StructProperty->GetValueAsFormattedString(Value, PPF_Copy) == FPropertyAccess::Success)
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*Value);
+	} 
+}
+
+UStateTreeEditorData* FStateTreeTransitionDetails::GetEditorData() const
+{
+	TArray<UObject*> OuterObjects;
+	StructProperty->GetOuterObjects(OuterObjects);
+	for (UObject* Outer : OuterObjects)
+	{
+		UStateTreeEditorData* OuterEditorData = Cast<UStateTreeEditorData>(Outer);
+		if (OuterEditorData == nullptr)
+		{
+			OuterEditorData = Outer->GetTypedOuter<UStateTreeEditorData>();
+		}
+		if (OuterEditorData)
+		{
+			return OuterEditorData;
+		}
+	}
+	return nullptr;
+}
+
+void FStateTreeTransitionDetails::OnPasteTransition() const
+{
+	UStateTreeEditorData* EditorData = GetEditorData();
+	if (!EditorData)
+	{
+		return;
+	}
+	FStateTreeEditorPropertyBindings* Bindings = EditorData->GetPropertyEditorBindings();
+	if (!Bindings)
+	{
+		return;
+	}
+
+	FString PastedText;
+	FPlatformApplicationMisc::ClipboardPaste(PastedText);
+
+	if (PastedText.IsEmpty())
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("PasteTransition", "Paste Transition"));
+
+	StructProperty->NotifyPreChange();
+
+	// Make sure we instantiate new objects when setting the value.
+	StructProperty->SetValueFromFormattedString(PastedText, EPropertyValueSetFlags::InstanceObjects);
+
+	// Reset GUIDs on paste
+	TArray<void*> RawData;
+	StructProperty->AccessRawData(RawData);
+	for (int32 Index = 0; Index < RawData.Num(); Index++)
+	{
+		if (FStateTreeTransition* Transition = static_cast<FStateTreeTransition*>(RawData[Index]))
+		{
+			Transition->ID = FGuid::NewGuid();
+
+			for (FStateTreeEditorNode& Condition : Transition->Conditions)
+			{
+				const FGuid OldStructID = Condition.ID;
+				Condition.ID = FGuid::NewGuid();
+				if (OldStructID.IsValid())
+				{
+					Bindings->CopyBindings(OldStructID, Condition.ID);
+				}
+			}
+		}
+	}
+
+	StructProperty->NotifyPostChange(EPropertyChangeType::ValueSet);
+	StructProperty->NotifyFinishedChangingProperties();
+
+	if (PropUtils)
+	{
+		PropUtils->ForceRefresh();
+	}
+}
+
 #undef LOCTEXT_NAMESPACE
