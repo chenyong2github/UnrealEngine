@@ -22,8 +22,11 @@ namespace UnrealBuildTool.Rules
 					"AssetTools",
 					"Slate",
 					"SlateCore",
+					"SourceControl",
+					"SourceControlWindows",
 					"ToolMenus",
 					"UnrealEd",
+					"UncontrolledChangelists",
 				}
 			);
 

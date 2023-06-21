@@ -15,6 +15,7 @@
 #include "ContentBrowserDataUtils.h"
 #include "AssetTypeActions_Base.h"
 #include "ToolMenuSection.h"
+#include "SourceControlHelpers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBrowserFileDataSource)
 
@@ -2078,9 +2079,10 @@ FContentBrowserItemData UContentBrowserFileDataSource::OnFinalizeDuplicateFile(c
 		const FString Extension = FPaths::GetExtension(DuplicationContext->GetFilename(), /*bIncludeDot*/true);
 		const FString NewFilename = FPaths::GetPath(DuplicationContext->GetFilename()) / InProposedName + Extension;
 
-		// TODO: SCC integration?
 		if (IFileManager::Get().Copy(*NewFilename, *DuplicationContext->GetSourceFilename(), /*bReplace*/false) == COPY_OK)
 		{
+			USourceControlHelpers::MarkFileForAdd(NewFilename, /*bSilent*/true);
+
 			const FString NewInternalPath = FPaths::GetPath(DuplicationContext->GetInternalPath().ToString()) / InProposedName + Extension;
 			return CreateFileItem(*NewInternalPath, NewFilename);
 		}

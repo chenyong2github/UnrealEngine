@@ -347,7 +347,7 @@ bool FAssetSourceControlContextMenuState::AddSourceControlMenuOptions(FToolMenuS
 	{
 		InSection.AddMenuEntry(
 			"SCCConnectToSourceControl",
-			LOCTEXT("SCCConnectToSourceControl", "Connect To Revision Control..."),
+			LOCTEXT("SCCConnectToSourceControl", "Connect to Revision Control..."),
 			LOCTEXT("SCCConnectToSourceControlTooltip", "Connect to a revision control system for tracking changes to your content and levels."),
 			FSlateIcon(FRevisionControlStyleManager::GetStyleSetName(), "RevisionControl.Icon"),
 			FUIAction(

@@ -10,6 +10,7 @@
 #include "AssetThumbnail.h"
 #include "AssetToolsModule.h"
 #include "AssetViewUtils.h"
+#include "SourceControlHelpers.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserFileDataSource"
 
@@ -211,7 +212,9 @@ bool MigrateDirectoryContents(const FFileConfigData& InConfig, TArrayView<const 
 		// Ensure the destination directory exists
 		if (FileManager.MakeDirectory(*DirectoryToMigrate.DestDir, true))
 		{
-			FileManager.IterateDirectoryRecursively(*DirectoryToMigrate.SourceDir, [&InConfig, &DirectoryToMigrate, &SlowTask, &FileManager, &bDidMigrate, bDeleteSource](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
+			TArray<FString> FilesToAdd;
+			TArray<FString> FilesToDelete;
+			FileManager.IterateDirectoryRecursively(*DirectoryToMigrate.SourceDir, [&FilesToAdd, &FilesToDelete, &InConfig, &DirectoryToMigrate, &SlowTask, &FileManager, &bDidMigrate](const TCHAR* FilenameOrDirectory, bool bIsDirectory) -> bool
 			{
 				if (bIsDirectory)
 				{
@@ -222,20 +225,17 @@ bool MigrateDirectoryContents(const FFileConfigData& InConfig, TArrayView<const 
 				}
 				else
 				{
-					// TODO: SCC integration?
-
 					const bool bValidFile = InConfig.FindFileActionsForFilename(FilenameOrDirectory).IsValid();
 					if (bValidFile)
 					{
 						FString NewDestFile = FilenameOrDirectory;
 						NewDestFile.ReplaceInline(*DirectoryToMigrate.SourceDir, *DirectoryToMigrate.DestDir);
 
-						const bool bDidCopy = FileManager.Copy(*NewDestFile, FilenameOrDirectory, /*bReplace*/false) == COPY_OK;
-						bDidMigrate |= bDidCopy;
-
-						if (bDidCopy && bDeleteSource)
+						if (FileManager.Copy(*NewDestFile, FilenameOrDirectory, /*bReplace*/false) == COPY_OK)
 						{
-							FileManager.Delete(FilenameOrDirectory);
+							bDidMigrate = true;;
+							FilesToAdd.Add(NewDestFile);
+							FilesToDelete.Add(FilenameOrDirectory);
 						}
 					}
 				}
@@ -244,8 +244,17 @@ bool MigrateDirectoryContents(const FFileConfigData& InConfig, TArrayView<const 
 				return !SlowTask.ShouldCancel();
 			});
 
+			USourceControlHelpers::MarkFilesForAdd(FilesToAdd, /*bSilent*/true);
 			if (bDeleteSource)
 			{
+				if (!USourceControlHelpers::MarkFilesForDelete(FilesToDelete, /*bSilent*/true))
+				{
+					for (const FString& FileToDelete : FilesToDelete)
+					{
+						FileManager.Delete(*FileToDelete);
+					}
+				}
+
 				// Remove the source if empty of *all* files
 				DeleteDirectoryIfEmpty(DirectoryToMigrate.SourceDir);
 			}
@@ -482,20 +491,23 @@ bool DuplicateItems(const UContentBrowserDataSource* InOwnerDataSource, TArrayVi
 bool DuplicateFileItems(TArrayView<const TSharedRef<const FContentBrowserFileItemDataPayload>> InFilePayloads, TArray<TSharedRef<const FContentBrowserFileItemDataPayload>>& OutNewFilePayloads)
 {
 	bool bDidDuplicate = false;
+	TArray<FString> FilesToAdd;
 
 	for (const TSharedRef<const FContentBrowserFileItemDataPayload>& FilePayload : InFilePayloads)
 	{
 		FString NewFilename = FilePayload->GetFilename();
 		MakeUniqueFilename(NewFilename);
 
-		// TODO: SCC integration?
 		if (IFileManager::Get().Copy(*NewFilename, *FilePayload->GetFilename(), /*bReplace*/false) == COPY_OK)
 		{
 			const FString NewInternalPath = FPaths::GetPath(FilePayload->GetInternalPath().ToString()) / FPaths::GetCleanFilename(NewFilename);
 			OutNewFilePayloads.Emplace(MakeShared<FContentBrowserFileItemDataPayload>(*NewInternalPath, NewFilename, FilePayload->GetFileActions()));
 			bDidDuplicate = true;
+			FilesToAdd.Add(NewFilename);
 		}
 	}
+
+	USourceControlHelpers::MarkFilesForAdd(FilesToAdd, /*bSilent*/true);
 
 	return bDidDuplicate;
 }
@@ -597,11 +609,24 @@ bool DeleteFolderItems(TArrayView<const TSharedRef<const FContentBrowserFolderIt
 bool DeleteFileItems(TArrayView<const TSharedRef<const FContentBrowserFileItemDataPayload>> InFilePayloads)
 {
 	bool bDidDelete = false;
+	TArray<FString> FilesToDelete;
 
 	for (const TSharedRef<const FContentBrowserFileItemDataPayload>& FilePayload : InFilePayloads)
 	{
-		// TODO: SCC integration?
-		bDidDelete |= IFileManager::Get().Delete(*FilePayload->GetFilename());
+		FilesToDelete.Add(FilePayload->GetFilename());
+	}
+
+	if (USourceControlHelpers::MarkFilesForDelete(FilesToDelete, /*bSilent*/true))
+	{
+		bDidDelete = true;
+	}
+	else
+	{
+		IFileManager& FileManager = IFileManager::Get();
+		for (const FString& FileToDelete : FilesToDelete)
+		{
+			bDidDelete |= FileManager.Delete(*FileToDelete);
+		}
 	}
 
 	return bDidDelete;
@@ -746,11 +771,19 @@ bool RenameFolderItem(const FFileConfigData& InConfig, const FContentBrowserFold
 
 bool RenameFileItem(const FContentBrowserFileItemDataPayload& InFilePayload, const FString& InNewName, FName& OutNewInternalPath, FString& OutNewFilename)
 {
-	// TODO: SCC integration?
+	IFileManager& FileManager = IFileManager::Get();
+
 	const FString Extension = FPaths::GetExtension(InFilePayload.GetFilename(), /*bIncludeDot*/true);
 	const FString NewFilename = FPaths::GetPath(InFilePayload.GetFilename()) / InNewName + Extension;
-	if (IFileManager::Get().Move(*NewFilename, *InFilePayload.GetFilename(), /*bReplace*/false))
+	if (FileManager.Copy(*NewFilename, *InFilePayload.GetFilename(), /*bReplace*/false) == COPY_OK)
 	{
+		// TODO: This could be a branch (rather than delete + add)
+		if (!USourceControlHelpers::MarkFileForDelete(InFilePayload.GetFilename(), /*bSilent*/false))
+		{
+			FileManager.Delete(*InFilePayload.GetFilename());
+		}
+		USourceControlHelpers::MarkFileForAdd(NewFilename, /*bSilent*/true);
+
 		OutNewInternalPath = *(FPaths::GetPath(InFilePayload.GetInternalPath().ToString()) / InNewName + Extension);
 		OutNewFilename = NewFilename;
 		return true;
@@ -813,13 +846,19 @@ bool CopyFolderItems(const FFileConfigData& InConfig, TArrayView<const TSharedRe
 bool CopyFileItems(TArrayView<const TSharedRef<const FContentBrowserFileItemDataPayload>> InFilePayloads, const FString& InDestDiskPath)
 {
 	bool bDidCopy = false;
+	TArray<FString> FilesToAdd;
 
 	for (const TSharedRef<const FContentBrowserFileItemDataPayload>& FilePayload : InFilePayloads)
 	{
-		// TODO: SCC integration?
 		const FString NewFilename = InDestDiskPath / FPaths::GetCleanFilename(FilePayload->GetFilename());
-		bDidCopy |= IFileManager::Get().Copy(*NewFilename, *FilePayload->GetFilename(), /*bReplace*/false) == COPY_OK;
+		if (IFileManager::Get().Copy(*NewFilename, *FilePayload->GetFilename(), /*bReplace*/false) == COPY_OK)
+		{
+			bDidCopy = true;
+			FilesToAdd.Add(NewFilename);
+		}
 	}
+
+	USourceControlHelpers::MarkFilesForAdd(FilesToAdd, /*bSilent*/true);
 
 	return bDidCopy;
 }
@@ -886,12 +925,30 @@ bool MoveFolderItems(const FFileConfigData& InConfig, TArrayView<const TSharedRe
 bool MoveFileItems(TArrayView<const TSharedRef<const FContentBrowserFileItemDataPayload>> InFilePayloads, const FString& InDestDiskPath)
 {
 	bool bDidMove = false;
+	TArray<FString> FilesToAdd;
+	TArray<FString> FilesToDelete;
+
+	IFileManager& FileManager = IFileManager::Get();
 
 	for (const TSharedRef<const FContentBrowserFileItemDataPayload>& FilePayload : InFilePayloads)
 	{
-		// TODO: SCC integration?
+		// TODO: This could be a branch (rather than delete + add)
 		const FString NewFilename = InDestDiskPath / FPaths::GetCleanFilename(FilePayload->GetFilename());
-		bDidMove |= IFileManager::Get().Move(*NewFilename, *FilePayload->GetFilename(), /*bReplace*/false);
+		if (FileManager.Copy(*NewFilename, *FilePayload->GetFilename(), /*bReplace*/false) == COPY_OK)
+		{
+			bDidMove = true;
+			FilesToAdd.Add(NewFilename);
+			FilesToDelete.Add(FilePayload->GetFilename());
+		}
+	}
+
+	USourceControlHelpers::MarkFilesForAdd(FilesToAdd, /*bSilent*/true);
+	if (!USourceControlHelpers::MarkFilesForDelete(FilesToDelete, /*bSilent*/true))
+	{
+		for (const FString& FileToDelete : FilesToDelete)
+		{
+			FileManager.Delete(*FileToDelete);
+		}
 	}
 
 	return bDidMove;
