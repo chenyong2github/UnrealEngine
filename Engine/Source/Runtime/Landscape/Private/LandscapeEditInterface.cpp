@@ -4753,8 +4753,7 @@ void FLandscapeEditDataInterface::SetEditToolTextureData(int32 X1, int32 Y1, int
 				int32 WeightmapSize = (Component->SubsectionSizeQuads+1) * Component->NumSubsections;
 				EditToolTexture = Component->GetLandscapeProxy()->CreateLandscapeToolTexture(WeightmapSize, WeightmapSize, InTextureGroup, TSF_G8);
 				EditToolTexture->PostEditChange();
-
-				ZeroTexture(EditToolTexture);
+				
 				Component->UpdateEditToolRenderData();
 			}
 

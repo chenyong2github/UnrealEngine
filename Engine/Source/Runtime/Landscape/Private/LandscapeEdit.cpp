@@ -7958,7 +7958,13 @@ UTexture2D* ALandscapeProxy::CreateLandscapeToolTexture(int32 InSizeX, int32 InS
 {
 	UObject* TexOuter = const_cast<ALandscapeProxy*>(this);
 	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter, GenerateUniqueLandscapeTextureName(TexOuter, InLODGroup));
-	NewTexture->Source.Init(InSizeX, InSizeY, 1, 1, InFormat);
+
+	int32 BytesPerPixel = FTextureSource::GetBytesPerPixel(InFormat);
+	int32 ZeroBufferSize = BytesPerPixel * InSizeX * InSizeY;
+	std::unique_ptr<uint8[]> ZeroBuffer(new uint8[ZeroBufferSize]);
+	memset(ZeroBuffer.get(), 0, ZeroBufferSize);
+	
+	NewTexture->Source.Init(InSizeX, InSizeY, 1, 1, InFormat, ZeroBuffer.get());
 	NewTexture->SRGB = false;
 	NewTexture->CompressionNone = true;
 	NewTexture->MipGenSettings = TMGS_NoMipmaps;
