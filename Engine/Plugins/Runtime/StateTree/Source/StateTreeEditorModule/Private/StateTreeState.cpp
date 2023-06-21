@@ -196,17 +196,6 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 			}
 		}
 
-		// Transitions
-		if (ChangePropertyPath.IsPathExact(StateTransitionsPath))
-		{
-			const int32 TransitionsIndex = ChangePropertyPath.GetPropertyArrayIndex(StateTransitionsPath);
-			if (Transitions.IsValidIndex(TransitionsIndex))
-			{
-				FStateTreeTransition& Transition = Transitions[TransitionsIndex];
-				Transition.ID = FGuid::NewGuid();
-			}
-		}
-
 		// Transition conditions
 		if (ChangePropertyPath.IsPathExact(StateTransitionsConditionsPath))
 		{

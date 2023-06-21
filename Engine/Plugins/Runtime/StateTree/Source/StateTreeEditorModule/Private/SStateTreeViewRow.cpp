@@ -571,10 +571,6 @@ FText SStateTreeViewRow::GetStateDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (UE::StateTree::Editor::GbDisplayItemIds)
-		{
-			return FText::FromString(FString::Printf(TEXT("%s (%s)"), *State->Name.ToString(), *LexToString(State->ID)));	
-		}
 		return FText::FromName(State->Name);
 	}
 	return FText::FromName(FName());
