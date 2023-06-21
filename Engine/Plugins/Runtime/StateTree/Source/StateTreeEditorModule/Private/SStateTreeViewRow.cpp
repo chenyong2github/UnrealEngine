@@ -168,6 +168,20 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
 											.Clipping(EWidgetClipping::ClipToBounds)
 											.IsSelected(this, &SStateTreeViewRow::IsStateSelected)
 										]
+
+										// State ID
+										+ SHorizontalBox::Slot()
+										.VAlign(VAlign_Center)
+										.AutoWidth()
+										[
+											SNew(STextBlock)
+											.Visibility_Lambda([]()
+											{
+												return UE::StateTree::Editor::GbDisplayItemIds ? EVisibility::Visible : EVisibility::Collapsed;
+											})
+											.Text(this, &SStateTreeViewRow::GetStateIDDesc)
+											.TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Details")
+										]
 									]
 									+ SOverlay::Slot()
 									[
@@ -690,11 +704,16 @@ FText SStateTreeViewRow::GetStateDesc() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		if (UE::StateTree::Editor::GbDisplayItemIds)
-		{
-			return FText::FromString(FString::Printf(TEXT("%s (%s)"), *State->Name.ToString(), *LexToString(State->ID)));	
-		}
 		return FText::FromName(State->Name);
+	}
+	return FText::FromName(FName());
+}
+
+FText SStateTreeViewRow::GetStateIDDesc() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		return FText::FromString(*LexToString(State->ID));
 	}
 	return FText::FromName(FName());
 }

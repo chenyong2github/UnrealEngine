@@ -359,10 +359,7 @@ void SStateTreeView::HandleModelStatesChanged(const TSet<UStateTreeState*>& Affe
 	// This method is called when anything in a state changes, make sure to only rebuild when needed.
 	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Tasks))
 	{
-		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::ValueSet)
-		{
 		bArraysChanged = true;
-	}
 	}
 		
 	if (bArraysChanged)

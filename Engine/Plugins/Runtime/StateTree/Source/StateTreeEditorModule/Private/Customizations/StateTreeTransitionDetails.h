@@ -8,8 +8,7 @@ class IPropertyHandle;
 class IPropertyUtilities;
 class IDetailChildrenBuilder;
 class FDetailWidgetRow;
-class UStateTree;
-class UStateTreeState;
+class UStateTreeEditorData;
 enum class EStateTreeTransitionTrigger : uint8;
 
 /**
@@ -27,6 +26,8 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 
 private:
+
+	UStateTreeEditorData* GetEditorData() const;
 
 	FText GetDescription() const;
 
