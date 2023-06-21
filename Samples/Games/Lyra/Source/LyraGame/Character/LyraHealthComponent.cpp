@@ -75,8 +75,8 @@ void ULyraHealthComponent::InitializeWithAbilitySystem(ULyraAbilitySystemCompone
 	}
 
 	// Register to listen for attribute changes.
-	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(ULyraHealthSet::GetHealthAttribute()).AddUObject(this, &ThisClass::HandleHealthChanged);
-	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(ULyraHealthSet::GetMaxHealthAttribute()).AddUObject(this, &ThisClass::HandleMaxHealthChanged);
+	HealthSet->OnHealthChanged.AddUObject(this, &ThisClass::HandleHealthChanged);
+	HealthSet->OnMaxHealthChanged.AddUObject(this, &ThisClass::HandleMaxHealthChanged);
 	HealthSet->OnOutOfHealth.AddUObject(this, &ThisClass::HandleOutOfHealth);
 
 	// TEMP: Reset attributes to default values.  Eventually this will be driven by a spread sheet.
@@ -86,8 +86,6 @@ void ULyraHealthComponent::InitializeWithAbilitySystem(ULyraAbilitySystemCompone
 
 	OnHealthChanged.Broadcast(this, HealthSet->GetHealth(), HealthSet->GetHealth(), nullptr);
 	OnMaxHealthChanged.Broadcast(this, HealthSet->GetHealth(), HealthSet->GetHealth(), nullptr);
-
-	//UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(GetOwner(), UGameFrameworkComponentManager::NAME_HealthComponentReady);
 }
 
 void ULyraHealthComponent::UninitializeFromAbilitySystem()
@@ -96,6 +94,8 @@ void ULyraHealthComponent::UninitializeFromAbilitySystem()
 
 	if (HealthSet)
 	{
+		HealthSet->OnHealthChanged.RemoveAll(this);
+		HealthSet->OnMaxHealthChanged.RemoveAll(this);
 		HealthSet->OnOutOfHealth.RemoveAll(this);
 	}
 
@@ -135,31 +135,20 @@ float ULyraHealthComponent::GetHealthNormalized() const
 	return 0.0f;
 }
 
-static AActor* GetInstigatorFromAttrChangeData(const FOnAttributeChangeData& ChangeData)
+void ULyraHealthComponent::HandleHealthChanged(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
 {
-	if (ChangeData.GEModData != nullptr)
-	{
-		const FGameplayEffectContextHandle& EffectContext = ChangeData.GEModData->EffectSpec.GetEffectContext();
-		return EffectContext.GetOriginalInstigator();
-	}
-
-    return nullptr;
+	OnHealthChanged.Broadcast(this, OldValue, NewValue, DamageInstigator);
 }
 
-void ULyraHealthComponent::HandleHealthChanged(const FOnAttributeChangeData& ChangeData)
+void ULyraHealthComponent::HandleMaxHealthChanged(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
 {
-	OnHealthChanged.Broadcast(this, ChangeData.OldValue, ChangeData.NewValue, GetInstigatorFromAttrChangeData(ChangeData));
+	OnMaxHealthChanged.Broadcast(this, OldValue, NewValue, DamageInstigator);
 }
 
-void ULyraHealthComponent::HandleMaxHealthChanged(const FOnAttributeChangeData& ChangeData)
-{
-	OnMaxHealthChanged.Broadcast(this, ChangeData.OldValue, ChangeData.NewValue, GetInstigatorFromAttrChangeData(ChangeData));
-}
-
-void ULyraHealthComponent::HandleOutOfHealth(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec& DamageEffectSpec, float DamageMagnitude)
+void ULyraHealthComponent::HandleOutOfHealth(AActor* DamageInstigator, AActor* DamageCauser, const FGameplayEffectSpec* DamageEffectSpec, float DamageMagnitude, float OldValue, float NewValue)
 {
 #if WITH_SERVER_CODE
-	if (AbilitySystemComponent)
+	if (AbilitySystemComponent && DamageEffectSpec)
 	{
 		// Send the "GameplayEvent.Death" gameplay event through the owner's ability system.  This can be used to trigger a death gameplay ability.
 		{
@@ -167,10 +156,10 @@ void ULyraHealthComponent::HandleOutOfHealth(AActor* DamageInstigator, AActor* D
 			Payload.EventTag = LyraGameplayTags::GameplayEvent_Death;
 			Payload.Instigator = DamageInstigator;
 			Payload.Target = AbilitySystemComponent->GetAvatarActor();
-			Payload.OptionalObject = DamageEffectSpec.Def;
-			Payload.ContextHandle = DamageEffectSpec.GetEffectContext();
-			Payload.InstigatorTags = *DamageEffectSpec.CapturedSourceTags.GetAggregatedTags();
-			Payload.TargetTags = *DamageEffectSpec.CapturedTargetTags.GetAggregatedTags();
+			Payload.OptionalObject = DamageEffectSpec->Def;
+			Payload.ContextHandle = DamageEffectSpec->GetEffectContext();
+			Payload.InstigatorTags = *DamageEffectSpec->CapturedSourceTags.GetAggregatedTags();
+			Payload.TargetTags = *DamageEffectSpec->CapturedTargetTags.GetAggregatedTags();
 			Payload.EventMagnitude = DamageMagnitude;
 
 			FScopedPredictionWindow NewScopedWindow(AbilitySystemComponent, true);
@@ -182,9 +171,9 @@ void ULyraHealthComponent::HandleOutOfHealth(AActor* DamageInstigator, AActor* D
 			FLyraVerbMessage Message;
 			Message.Verb = TAG_Lyra_Elimination_Message;
 			Message.Instigator = DamageInstigator;
-			Message.InstigatorTags = *DamageEffectSpec.CapturedSourceTags.GetAggregatedTags();
+			Message.InstigatorTags = *DamageEffectSpec->CapturedSourceTags.GetAggregatedTags();
 			Message.Target = ULyraVerbMessageHelpers::GetPlayerStateFromObject(AbilitySystemComponent->GetAvatarActor());
-			Message.TargetTags = *DamageEffectSpec.CapturedTargetTags.GetAggregatedTags();
+			Message.TargetTags = *DamageEffectSpec->CapturedTargetTags.GetAggregatedTags();
 			//@TODO: Fill out context tags, and any non-ability-system source/instigator tags
 			//@TODO: Determine if it's an opposing team kill, self-own, team kill, etc...
 

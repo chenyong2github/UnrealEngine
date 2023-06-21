@@ -40,7 +40,13 @@ public:
 	ATTRIBUTE_ACCESSORS(ULyraHealthSet, Healing);
 	ATTRIBUTE_ACCESSORS(ULyraHealthSet, Damage);
 
-	// Delegate to broadcast when the health attribute reaches zero.
+	// Delegate when health changes due to damage/healing, some information may be missing on the client
+	mutable FLyraAttributeEvent OnHealthChanged;
+
+	// Delegate when max health changes
+	mutable FLyraAttributeEvent OnMaxHealthChanged;
+
+	// Delegate to broadcast when the health attribute reaches zero
 	mutable FLyraAttributeEvent OnOutOfHealth;
 
 protected:
@@ -73,11 +79,14 @@ private:
 	// Used to track when the health reaches 0.
 	bool bOutOfHealth;
 
+	// Store the health before any changes 
+	float MaxHealthBeforeAttributeChange;
+	float HealthBeforeAttributeChange;
+
 	// -------------------------------------------------------------------
 	//	Meta Attribute (please keep attributes that aren't 'stateful' below 
 	// -------------------------------------------------------------------
 
-private:
 	// Incoming healing. This is mapped directly to +Health
 	UPROPERTY(BlueprintReadOnly, Category="Lyra|Health", Meta=(AllowPrivateAccess=true))
 	FGameplayAttributeData Healing;
