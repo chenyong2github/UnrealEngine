@@ -13,13 +13,18 @@
 	"EnabledByDefault" : false,
 	"CanContainContent" : false,
 	"IsBetaVersion" : false,
-	"Installed" : false,
-	"Modules" :
-	[
+	"Installed": false,
+	"Modules": [
 		{
-			"Name" : "JWT",
-			"Type" : "Runtime",
-			"LoadingPhase" : "Default"
+			"Name": "JWT",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "PlatformCrypto",
+			"Enabled": true
 		}
 	]
 }
