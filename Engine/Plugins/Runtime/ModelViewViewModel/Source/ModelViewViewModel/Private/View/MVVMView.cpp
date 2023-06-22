@@ -138,8 +138,13 @@ void UMVVMView::DeinitializeBindings()
 	UUserWidget* UserWidget = GetUserWidget();
 	check(UserWidget);
 
-	for (FMVVMViewSource& Source : Sources)
+	const TArrayView<const FMVVMViewClass_SourceCreator> AllViewModelCreators = ClassExtension->GetViewModelCreators();
+	check(AllViewModelCreators.Num() == Sources.Num());
+	for (int32 Index = 0; Index < AllViewModelCreators.Num(); ++Index)
 	{
+		const FMVVMViewClass_SourceCreator& Item = AllViewModelCreators[Index];
+		FMVVMViewSource& Source = Sources[Index];
+
 		if (Source.RegisteredCount > 0 && Source.Source)
 		{
 			TScriptInterface<INotifyFieldValueChanged> SourceAsInterface = Source.Source;
@@ -150,6 +155,8 @@ void UMVVMView::DeinitializeBindings()
 		// For GC release any object used by the view
 		if (!Source.bSetManually)
 		{
+			Item.DestroyInstance(Source.Source, this);
+
 			Source.Source = nullptr;
 			if (Source.bAssignedToUserWidgetProperty)
 			{
@@ -327,6 +334,11 @@ bool UMVVMView::SetSourceInternal(FName ViewModelName, TScriptInterface<INotifyF
 					DisableLibraryBinding(Binding, Index);
 				}
 			}
+		}
+
+		if (!ViewSource.bSetManually && ViewSource.Source)
+		{
+			SourceCreator.DestroyInstance(ViewSource.Source, this);
 		}
 
 		ViewSource.Source = NewValue.GetObject();

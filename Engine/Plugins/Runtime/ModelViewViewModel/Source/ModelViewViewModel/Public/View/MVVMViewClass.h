@@ -37,6 +37,8 @@ struct FMVVMViewClass_SourceCreator
 public:
 	UObject* CreateInstance(const UMVVMViewClass* ViewClass, UMVVMView* View, UUserWidget* UserWidget) const;
 
+	void DestroyInstance(const UObject* ViewModel, const UMVVMView* View) const;
+
 	UClass* GetSourceClass() const
 	{
 		return ExpectedSourceType.Get();

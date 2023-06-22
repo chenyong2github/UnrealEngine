@@ -122,6 +122,14 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 	return Result;
 }
 
+void FMVVMViewClass_SourceCreator::DestroyInstance(const UObject* ViewModel, const UMVVMView* View) const
+{
+	if (Resolver)
+	{
+		Resolver->DestroyInstance(ViewModel, View);
+	}
+}
+
 #if UE_WITH_MVVM_DEBUGGING
 FMVVMViewClass_SourceCreator::FToStringArgs FMVVMViewClass_SourceCreator::FToStringArgs::Short()
 {

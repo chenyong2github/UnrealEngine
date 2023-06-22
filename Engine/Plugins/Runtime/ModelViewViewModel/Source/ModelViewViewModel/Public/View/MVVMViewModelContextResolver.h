@@ -27,4 +27,6 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category="Viewmodel", DisplayName="Create Instance")
 	TScriptInterface<INotifyFieldValueChanged> K2_CreateInstance(const UClass* ExpectedType, const UUserWidget* UserWidget) const;
+
+	virtual void DestroyInstance(const UObject* ViewModel, const UMVVMView* View) const {}
 };
