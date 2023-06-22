@@ -20,14 +20,26 @@ struct STATETREEMODULE_API FStateTreeIndex16
 	}
 
 	FStateTreeIndex16() = default;
-	
+
+	/**
+	 * Construct from a uint16 index where MAX_uint16 is considered an invalid index
+	 * (i.e FStateTreeIndex16::InvalidValue).
+	 */
+	explicit FStateTreeIndex16(const uint16 InIndex) : Value(InIndex)
+	{
+	}
+
+	/**
+	 * Construct from a int32 index where INDEX_NONE is considered an invalid index
+	 * and converted to FStateTreeIndex16::InvalidValue (i.e MAX_uint16).
+	 */
 	explicit FStateTreeIndex16(const int32 InIndex)
 	{
 		check(InIndex == INDEX_NONE || IsValidIndex(InIndex));
 		Value = InIndex == INDEX_NONE ? InvalidValue : (uint16)InIndex;
 	}
 
-	/** @retrun value of the index. */
+	/** @retrun value of the index or FStateTreeIndex16::InvalidValue (i.e. MAX_uint16) if invalid. */
 	uint16 Get() const { return Value; }
 	
 	/** @return the index value as int32, mapping invalid value to INDEX_NONE. */
