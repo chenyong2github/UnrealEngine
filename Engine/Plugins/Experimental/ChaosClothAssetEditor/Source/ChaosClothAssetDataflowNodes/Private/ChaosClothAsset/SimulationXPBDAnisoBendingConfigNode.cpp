@@ -14,6 +14,18 @@ FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::FChaosClothAssetSimulation
 
 void FChaosClothAssetSimulationXPBDAnisoBendingConfigNode::AddProperties(::Chaos::Softs::FCollectionPropertyMutableFacade& Properties) const
 {
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYENUMCHECKED2(
+		XPBDAnisoRestAngleType,
+		XPBDRestAngleType,  // Existing properties to warn against
+		RestAngleType);     //
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED2(
+		XPBDAnisoFlatnessRatio,
+		XPBDFlatnessRatio,  // Existing properties to warn against
+		FlatnessRatio);     //
+	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED2(
+		XPBDAnisoRestAngle,
+		XPBDRestAngle,  // Existing properties to warn against
+		RestAngle);     //
 	UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED4(
 		XPBDAnisoBendingStiffnessWarp,
 		BendingSpringStiffness,        // Existing properties to warn against

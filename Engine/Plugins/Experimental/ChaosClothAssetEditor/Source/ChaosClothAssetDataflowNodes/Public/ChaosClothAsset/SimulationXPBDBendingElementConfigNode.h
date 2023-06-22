@@ -4,6 +4,7 @@
 
 #include "ChaosClothAsset/SimulationBaseConfigNode.h"
 #include "ChaosClothAsset/WeightedValue.h"
+#include "SimulationPBDBendingElementConfigNode.h"
 #include "SimulationXPBDBendingElementConfigNode.generated.h"
 
 /** XPBD bending element constraint property configuration node. */
@@ -15,6 +16,34 @@ struct FChaosClothAssetSimulationXPBDBendingElementConfigNode : public FChaosClo
 
 public:
 	/**
+	 * Method for calculating the rest angles of the constraints.
+	 */
+	UPROPERTY(EditAnywhere, Category = "XPBDBendingElement Properties")
+	EChaosClothAssetRestAngleConstructionType XPBDRestAngleType = EChaosClothAssetRestAngleConstructionType::Use3DRestAngles;
+
+	/**
+	 * Calculate rest angles as a ratio between completely flat and whatever is the 3D rest angle.
+	 * When FlatnessRatio = 0, this is equivalent to "Use3DRestAngles".
+	 * When FlatnessRatio = 1, the rest angle will be 0 (completely flat).
+	 * If a valid weight map is found with the given Weight Map name, then both Low and High values
+	 * are interpolated with the per particle weight to make the final value used for the simulation.
+	 * Otherwise all particles are considered to have a zero weight, and only the Low value is meaningful.
+	 */
+	UPROPERTY(EditAnywhere, Category = "XPBDBendingElement Properties", Meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1", EditCondition = "XPBDRestAngleType == EChaosClothAssetRestAngleConstructionType::FlatnessRatio"))
+	FChaosClothAssetWeightedValueNonAnimatable XPBDFlatnessRatio = { 0.f, 0.f, TEXT("XPBDFlatnessRatio") };
+
+	/**
+	 * Set rest angles to be the explicit value set here (in degrees).
+	 * 0 = Flat, Positive values fold away from the edge normal, Negative values fold toward the edge normal.
+	 * When converting vertex weight values to edge values, the value with the smallest absolute value is selected.
+	 * If a valid weight map is found with the given Weight Map name, then both Low and High values
+	 * are interpolated with the per particle weight to make the final value used for the simulation.
+	 * Otherwise all particles are considered to have a zero weight, and only the Low value is meaningful.
+	 */
+	UPROPERTY(EditAnywhere, Category = "XPBDBendingElement Properties", Meta = (UIMin = "-180", UIMax = "180", ClampMin = "-180", ClampMax = "180", EditCondition = "XPBDRestAngleType == EChaosClothAssetRestAngleConstructionType::RestAngle"))
+	FChaosClothAssetWeightedValueNonAnimatable XPBDRestAngle = { 0.f, 0.f, TEXT("XPBDRestAngle") };
+
+	/**
 	 * The stiffness of the bending element constraints.
 	 * If a valid weight map is found with the given Weight Map name, then both Low and High values
 	 * are interpolated with the per particle weight to make the final value used for the simulation.
@@ -24,7 +53,7 @@ public:
 	FChaosClothAssetWeightedValue XPBDBendingElementStiffness = { true, 100.f, 100.f, TEXT("XPBDBendingElementStiffness") };
 
 	/**
-	 * The damping of the bending element constraints.
+	 * The damping of the bending element constraints, relative to critical damping.
 	 * If a valid weight map is found with the given Weight Map name, then both Low and High values
 	 * are interpolated with the per particle weight to make the final value used for the simulation.
 	 * Otherwise all particles are considered to have a zero weight, and only the Low value is meaningful.
@@ -40,7 +69,7 @@ public:
 	float XPBDBucklingRatio = 0.5f;
 
 	/**
-	 * The stiffness after bucking.
+	 * The stiffness after buckling.
 	 * The constraint will use this stiffness instead of element Stiffness once the cloth has buckled, i.e., bent beyond a certain angle.
 	 * Typically, Buckling Stiffness is set to be less than BendingElement Stiffness.
 	 * Buckling Ratio determines the switch point between using BendingElement Stiffness and Buckling Stiffness.

@@ -103,6 +103,40 @@ private:
 
 	CHAOS_API TArray<FSolverVec3> GenerateWarpWeftBiasBaseMultipliers(const TArray<TVec3<FVec2f>>& FaceVertexPatternPositions, const FTriangleMesh& TriangleMesh) const;
 
+	TConstArrayView<FRealSingle> GetRestAngleMapFromCollection(
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		const FCollectionPropertyConstFacade& PropertyCollection)
+	{
+		const ERestAngleConstructionType ConstructionType = (ERestAngleConstructionType)GetXPBDAnisoRestAngleType(PropertyCollection, (int32)ERestAngleConstructionType::Use3DRestAngles);
+
+		switch (ConstructionType)
+		{
+		default:
+		case ERestAngleConstructionType::Use3DRestAngles:
+			return TConstArrayView<FRealSingle>(); // Unused
+		case ERestAngleConstructionType::FlatnessRatio:
+			return WeightMaps.FindRef(GetXPBDAnisoFlatnessRatioString(PropertyCollection, XPBDAnisoFlatnessRatioName.ToString()));
+		case ERestAngleConstructionType::ExplicitRestAngles:
+			return WeightMaps.FindRef(GetXPBDAnisoRestAngleString(PropertyCollection, XPBDAnisoRestAngleName.ToString()));
+		}
+	}
+
+	FSolverVec2 GetRestAngleValueFromCollection(const FCollectionPropertyConstFacade& PropertyCollection)
+	{
+		const ERestAngleConstructionType ConstructionType = (ERestAngleConstructionType)GetXPBDAnisoRestAngleType(PropertyCollection, (int32)ERestAngleConstructionType::Use3DRestAngles);
+
+		switch (ConstructionType)
+		{
+		default:
+		case ERestAngleConstructionType::Use3DRestAngles:
+			return FSolverVec2(0.f); // Unused
+		case ERestAngleConstructionType::FlatnessRatio:
+			return FSolverVec2(GetWeightedFloatXPBDAnisoFlatnessRatio(PropertyCollection, 0.f));
+		case ERestAngleConstructionType::ExplicitRestAngles:
+			return FSolverVec2(GetWeightedFloatXPBDAnisoRestAngle(PropertyCollection, 0.f));
+		}
+	}
+
 	using Base::Constraints;
 	using Base::ParticleOffset;
 	using Base::ParticleCount;
@@ -129,6 +163,9 @@ private:
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoBucklingStiffnessWarp, float);
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoBucklingStiffnessWeft, float);
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoBucklingStiffnessBias, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoFlatnessRatio, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoRestAngle, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDAnisoRestAngleType, int32);
 };
 
 }  // End namespace Chaos::Softs

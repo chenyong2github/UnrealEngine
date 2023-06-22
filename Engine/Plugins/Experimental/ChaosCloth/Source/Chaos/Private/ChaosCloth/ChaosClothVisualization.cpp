@@ -52,10 +52,11 @@ enum class EBendingDrawMode : int
 {
 	BuckleStatus = 0,
 	ParallelGraphColor = 1,
-	Anisotropy = 2
+	Anisotropy = 2,
+	RestAngle = 3
 };
 static int32 BendingDrawMode = (int32)EBendingDrawMode::BuckleStatus;
-static FAutoConsoleVariableRef CVarClothVizBendDrawMode(TEXT("p.ChaosClothVisualization.BendingDrawMode"), BendingDrawMode, TEXT("Bending draw mode, 0 = BuckleStatus, 1 = Parallel graph color, 2 = Anisotropy"));
+static FAutoConsoleVariableRef CVarClothVizBendDrawMode(TEXT("p.ChaosClothVisualization.BendingDrawMode"), BendingDrawMode, TEXT("Bending draw mode, 0 = BuckleStatus, 1 = Parallel graph color, 2 = Anisotropy, 3 = RestAngle"));
 
 enum class EStretchBiasDrawMode : int
 {
@@ -1598,6 +1599,22 @@ static FAutoConsoleVariableRef CVarClothVizStretchBiasDrawOutOfRange(TEXT("p.Cha
 			DrawLine(PDI, Pos0, Pos1, FLinearColor(Multiplier[0], Multiplier[1], Multiplier[2]));
 		}
 	}
+	static void DrawBendingElementRestAngle(FPrimitiveDrawInterface* PDI, const TConstArrayView<::Chaos::Softs::FSolverVec3>& Positions, const ::Chaos::FVec3& LocalSpaceLocation, const ::Chaos::Softs::FPBDBendingConstraintsBase* const BendingConstraints)
+	{
+		const TArray<TVec4<int32>>& Constraints = BendingConstraints->GetConstraints();
+		const TArray<Softs::FSolverReal>& RestAngles = BendingConstraints->GetRestAngles();
+		for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+		{
+			const Softs::FSolverVec3& P1 = Positions[Constraints[ConstraintIndex][0]];
+			const Softs::FSolverVec3& P2 = Positions[Constraints[ConstraintIndex][1]];
+			const Softs::FSolverReal RestAngle = RestAngles[ConstraintIndex];
+			const uint8 ColorSat = (uint8)FMath::Clamp(FMath::Abs(RestAngle) / UE_PI * 256, 0, 255);
+
+			const FVec3 Pos0 = FVec3(P1) + LocalSpaceLocation;
+			const FVec3 Pos1 = FVec3(P2) + LocalSpaceLocation;
+			DrawLine(PDI, Pos0, Pos1, FLinearColor::MakeFromHSV8(RestAngle > 0 ? 170 : 0, ColorSat, 255));
+		}
+	}
 
 	void FClothVisualization::DrawBendingConstraint(FPrimitiveDrawInterface* PDI) const
 	{
@@ -1635,6 +1652,9 @@ static FAutoConsoleVariableRef CVarClothVizStretchBiasDrawOutOfRange(TEXT("p.Cha
 			{
 				switch ((Private::EBendingDrawMode)Private::BendingDrawMode)
 				{
+				case Private::EBendingDrawMode::RestAngle:
+					DrawBendingElementRestAngle(PDI, Positions, LocalSpaceLocation, BendingConstraints);
+					break;
 				case Private::EBendingDrawMode::ParallelGraphColor:
 					DrawSpringConstraintColors(PDI, Positions, LocalSpaceLocation, BendingConstraints);
 					break;
@@ -1649,6 +1669,9 @@ static FAutoConsoleVariableRef CVarClothVizStretchBiasDrawOutOfRange(TEXT("p.Cha
 			{
 				switch ((Private::EBendingDrawMode)Private::BendingDrawMode)
 				{
+				case Private::EBendingDrawMode::RestAngle:
+					DrawBendingElementRestAngle(PDI, Positions, LocalSpaceLocation, BendingConstraints);
+					break;
 				case Private::EBendingDrawMode::ParallelGraphColor:
 					DrawSpringConstraintColors(PDI, Positions, LocalSpaceLocation, BendingConstraints);
 					break;
@@ -1663,6 +1686,9 @@ static FAutoConsoleVariableRef CVarClothVizStretchBiasDrawOutOfRange(TEXT("p.Cha
 			{
 				switch ((Private::EBendingDrawMode)Private::BendingDrawMode)
 				{
+				case Private::EBendingDrawMode::RestAngle:
+					DrawBendingElementRestAngle(PDI, Positions, LocalSpaceLocation, BendingConstraints);
+					break;
 				case Private::EBendingDrawMode::ParallelGraphColor:
 					DrawSpringConstraintColors(PDI, Positions, LocalSpaceLocation, BendingConstraints);
 					break;

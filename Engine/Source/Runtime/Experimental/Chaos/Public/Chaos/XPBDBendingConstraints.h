@@ -44,9 +44,12 @@ public:
 			MoveTemp(InConstraints),
 			WeightMaps.FindRef(GetXPBDBendingElementStiffnessString(PropertyCollection, XPBDBendingElementStiffnessName.ToString())),
 			WeightMaps.FindRef(GetXPBDBucklingStiffnessString(PropertyCollection, XPBDBucklingStiffnessName.ToString())),
+			GetRestAngleMapFromCollection(WeightMaps, PropertyCollection),
 			FSolverVec2(GetWeightedFloatXPBDBendingElementStiffness(PropertyCollection, MaxStiffness)),
 			(FSolverReal)GetXPBDBucklingRatio(PropertyCollection, 0.f),
 			FSolverVec2(GetWeightedFloatXPBDBucklingStiffness(PropertyCollection, MaxStiffness)),
+			GetRestAngleValueFromCollection(PropertyCollection),
+			(ERestAngleConstructionType)GetXPBDRestAngleType(PropertyCollection, (int32)ERestAngleConstructionType::Use3DRestAngles),
 			bTrimKinematicConstraints,
 			MaxStiffness)
 		, DampingRatio(
@@ -200,6 +203,40 @@ private:
 	CHAOS_API void InitColor(const FSolverParticles& InParticles);
 	CHAOS_API void ApplyHelper(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue, const FSolverReal ExpBucklingValue, const FSolverReal DampingRatioValue) const;
 
+	TConstArrayView<FRealSingle> GetRestAngleMapFromCollection(
+		const TMap<FString, TConstArrayView<FRealSingle>>& WeightMaps,
+		const FCollectionPropertyConstFacade& PropertyCollection)
+	{
+		const ERestAngleConstructionType ConstructionType = (ERestAngleConstructionType)GetXPBDRestAngleType(PropertyCollection, (int32)ERestAngleConstructionType::Use3DRestAngles);
+
+		switch (ConstructionType)
+		{
+		default:
+		case ERestAngleConstructionType::Use3DRestAngles:
+			return TConstArrayView<FRealSingle>(); // Unused
+		case ERestAngleConstructionType::FlatnessRatio:
+			return WeightMaps.FindRef(GetXPBDFlatnessRatioString(PropertyCollection, XPBDFlatnessRatioName.ToString()));
+		case ERestAngleConstructionType::ExplicitRestAngles:
+			return WeightMaps.FindRef(GetXPBDRestAngleString(PropertyCollection, XPBDRestAngleName.ToString()));
+		}
+	}
+
+	FSolverVec2 GetRestAngleValueFromCollection(const FCollectionPropertyConstFacade& PropertyCollection)
+	{
+		const ERestAngleConstructionType ConstructionType = (ERestAngleConstructionType)GetXPBDRestAngleType(PropertyCollection, (int32)ERestAngleConstructionType::Use3DRestAngles);
+
+		switch (ConstructionType)
+		{
+		default:
+		case ERestAngleConstructionType::Use3DRestAngles:
+			return FSolverVec2(0.f); // Unused
+		case ERestAngleConstructionType::FlatnessRatio:
+			return FSolverVec2(GetWeightedFloatXPBDFlatnessRatio(PropertyCollection, 0.f));
+		case ERestAngleConstructionType::ExplicitRestAngles:
+			return FSolverVec2(GetWeightedFloatXPBDRestAngle(PropertyCollection, 0.f));
+		}
+	}
+
 	using Base::Constraints;
 	using Base::ParticleOffset;
 	using Base::ParticleCount;
@@ -215,6 +252,9 @@ private:
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDBendingElementDamping, float);
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDBucklingRatio, float);
 	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDBucklingStiffness, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDFlatnessRatio, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDRestAngle, float);
+	UE_CHAOS_DECLARE_PROPERTYCOLLECTION_NAME(XPBDRestAngleType, int32);
 };
 
 }  // End namespace Chaos::Softs

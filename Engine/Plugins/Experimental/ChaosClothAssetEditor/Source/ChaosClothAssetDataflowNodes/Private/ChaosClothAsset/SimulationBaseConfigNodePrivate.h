@@ -35,6 +35,12 @@
 		{ FName(TEXT(#SimilarProperty1)), FName(TEXT(#SimilarProperty2)) }); \
 	Properties.SetValue(Property##KeyIndex, Property);
 
+/** Macro for adding and setting enum value as int32 properties from inside AddProperties() and check for two similar properties being overriden. */
+#define UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYENUMCHECKED2(Property, SimilarProperty1, SimilarProperty2) \
+	const int32 Property##KeyIndex = AddPropertyHelper(Properties, FName(TEXT(#Property)), true, \
+		{ FName(TEXT(#SimilarProperty1)), FName(TEXT(#SimilarProperty2) )}); \
+	Properties.SetValue(Property##KeyIndex, (int32)Property);
+
 /** Macro for adding and setting weighted value properties from inside AddProperties() and check for a similar property being overriden. */
 #define UE_CHAOS_CLOTHASSET_SIMULATIONCONFIG_SETPROPERTYWEIGHTEDCHECKED1(Property, SimilarProperty1) \
 	const int32 Property##KeyIndex = AddPropertyHelper(Properties, FName(TEXT(#Property)), Property.bIsAnimatable, \

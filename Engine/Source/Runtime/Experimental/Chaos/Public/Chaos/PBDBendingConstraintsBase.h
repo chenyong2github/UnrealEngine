@@ -13,15 +13,25 @@ namespace Chaos::Softs
 class FPBDBendingConstraintsBase
 {
 public:
+	enum class ERestAngleConstructionType : uint8
+	{
+		Use3DRestAngles,
+		FlatnessRatio,
+		ExplicitRestAngles
+	};
+
 	FPBDBendingConstraintsBase(const FSolverParticles& InParticles,
 		int32 InParticleOffset,
-		int32 InParticleCount, 
+		int32 InParticleCount,
 		TArray<TVec4<int32>>&& InConstraints,
 		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
 		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
+		const TConstArrayView<FRealSingle>& RestAngleMap,
 		const FSolverVec2& InStiffness,
 		const FSolverReal InBucklingRatio,
 		const FSolverVec2& InBucklingStiffness,
+		const FSolverVec2& RestAngleValue,
+		ERestAngleConstructionType RestAngleConstructionType,
 		bool bTrimKinematicConstraints = false,
 		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness)
 		: Constraints(bTrimKinematicConstraints ? TrimKinematicConstraints(InConstraints, InParticles): MoveTemp(InConstraints))
@@ -48,15 +58,25 @@ public:
 			FPBDStiffness::DefaultParameterFitBase,
 			MaxStiffness)
 	{
-		for (const TVec4<int32>& Constraint : Constraints)
-		{
-			const FSolverVec3& P1 = InParticles.X(Constraint[0]);
-			const FSolverVec3& P2 = InParticles.X(Constraint[1]);
-			const FSolverVec3& P3 = InParticles.X(Constraint[2]);
-			const FSolverVec3& P4 = InParticles.X(Constraint[3]);
-			RestAngles.Add(CalcAngle(P1, P2, P3, P4));
-		}
+		CalculateRestAngles(InParticles, ParticleOffset, ParticleCount, RestAngleMap, RestAngleValue, RestAngleConstructionType);
 	}
+
+	FPBDBendingConstraintsBase(const FSolverParticles& InParticles,
+		int32 InParticleOffset,
+		int32 InParticleCount,
+		TArray<TVec4<int32>>&& InConstraints,
+		const TConstArrayView<FRealSingle>& StiffnessMultipliers,
+		const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers,
+		const FSolverVec2& InStiffness,
+		const FSolverReal InBucklingRatio,
+		const FSolverVec2& InBucklingStiffness,
+		bool bTrimKinematicConstraints = false,
+		FSolverReal MaxStiffness = FPBDStiffness::DefaultPBDMaxStiffness)
+		:FPBDBendingConstraintsBase(InParticles, InParticleOffset, InParticleCount, MoveTemp(InConstraints),
+			StiffnessMultipliers, BucklingStiffnessMultipliers, TConstArrayView<FRealSingle>(),
+			InStiffness, InBucklingRatio, InBucklingStiffness, FSolverVec2((FSolverReal)0.f),
+			ERestAngleConstructionType::Use3DRestAngles, bTrimKinematicConstraints, MaxStiffness)
+	{}
 
 	UE_DEPRECATED(5.2, "Use one of the other constructors instead.")
 	FPBDBendingConstraintsBase(const FSolverParticles& InParticles, TArray<TVec4<int32>>&& InConstraints, const FSolverReal InStiffness = (FSolverReal)1.)
@@ -68,14 +88,7 @@ public:
 		, BucklingRatio(0.f)
 		, BucklingStiffness(FSolverVec2(InStiffness))
 	{
-		for (const TVec4<int32>& Constraint : Constraints)
-		{
-			const FSolverVec3& P1 = InParticles.X(Constraint[0]);
-			const FSolverVec3& P2 = InParticles.X(Constraint[1]);
-			const FSolverVec3& P3 = InParticles.X(Constraint[2]);
-			const FSolverVec3& P4 = InParticles.X(Constraint[3]);
-			RestAngles.Add(CalcAngle(P1, P2, P3, P4));
-		}
+		CalculateRestAngles(InParticles, ParticleOffset, ParticleCount, TConstArrayView<FRealSingle>(), FSolverVec2(0.f), ERestAngleConstructionType::Use3DRestAngles);
 	}
 
 	virtual ~FPBDBendingConstraintsBase() {}
@@ -257,6 +270,13 @@ private:
 		return ExtractedEdges;
 	}
 
+	CHAOS_API void CalculateRestAngles(const FSolverParticles& InParticles,
+		int32 InParticleOffset,
+		int32 InParticleCount,
+		const TConstArrayView<FRealSingle>& RestAngleMap,
+		const FSolverVec2& RestAngleValue,
+		ERestAngleConstructionType RestAngleConstructionType);
+	
 protected:
 	TArray<TVec4<int32>> Constraints;
 	TArray<TVec2<int32>> ConstraintSharedEdges; // Only shared edges are used for calculating weighted stiffnesses.

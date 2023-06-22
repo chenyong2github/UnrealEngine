@@ -14,7 +14,7 @@ struct FChaosClothAssetSimulationXPBDAnisoStretchConfigNode : public FChaosCloth
 	DATAFLOW_NODE_DEFINE_INTERNAL(FChaosClothAssetSimulationXPBDAnisoStretchConfigNode, "SimulationXPBDAnisoStretchConfig", "Cloth", "Cloth Simulation XPBD Anisotropic Stretch Config")
 
 public:
-	/** Whether to use the 3D drapped space as rest lengths, or use the 2D pattern space instead. */
+	/** Whether to use the 3D draped space as rest lengths, or use the 2D pattern space instead. */
 	UPROPERTY(EditAnywhere, Category = "XPBDAnisoStretch Properties")
 	bool bXPBDAnisoStretchUse3dRestLengths = true;
 
@@ -46,7 +46,7 @@ public:
 	FChaosClothAssetWeightedValue XPBDAnisoStretchStiffnessBias = { true, 100.f, 100.f, TEXT("XPBDAnisoStretchStiffnessBias") };
 
 	/**
-	 * The damping of the stretch constraints.
+	 * The damping of the stretch constraints, relative to critical damping.
 	 * If a valid weight map is found with the given Weight Map name, then both Low and High values
 	 * are interpolated with the per particle weight to make the final value used for the simulation.
 	 * Otherwise all particles are considered to have a zero weight, and only the Low value is meaningful.
