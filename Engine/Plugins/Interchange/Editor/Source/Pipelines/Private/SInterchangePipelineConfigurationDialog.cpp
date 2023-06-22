@@ -29,14 +29,20 @@ const FName ReimportStackName = TEXT("ReimportPipeline");
 void SInterchangePipelineItem::Construct(
 	const FArguments& InArgs,
 	const TSharedRef<STableViewBase>& OwnerTable,
-	TObjectPtr<UInterchangePipelineBase> InPipelineElement)
+	TSharedPtr<FInterchangePipelineItemType> InPipelineElement)
 {
 	PipelineElement = InPipelineElement;
-	TObjectPtr<UInterchangePipelineBase> PipelineElementPtr = PipelineElement.Get();
+	TObjectPtr<UInterchangePipelineBase> PipelineElementPtr = PipelineElement->Pipeline;
 	check(PipelineElementPtr.Get());
-	FText PipelineName = PipelineElementPtr.Get() ? FText::FromString(PipelineElementPtr->GetClass()->GetName()) : LOCTEXT("InvalidPipelineName", "Invalid Pipeline");
-	STableRow<TObjectPtr<UInterchangePipelineBase>>::Construct(
-		STableRow<TObjectPtr<UInterchangePipelineBase>>::FArguments()
+	FText PipelineName = LOCTEXT("InvalidPipelineName", "Invalid Pipeline");
+	if (PipelineElementPtr.Get())
+	{
+		FString PipelineNameString = FString::Printf(TEXT("%s (%s)"), *PipelineElement->DisplayName, *PipelineElementPtr->GetClass()->GetName());
+		PipelineName = FText::FromString(PipelineNameString);
+	}
+		
+	STableRow<TSharedPtr<FInterchangePipelineItemType>>::Construct(
+		STableRow<TSharedPtr<FInterchangePipelineItemType>>::FArguments()
 		.Content()
 		[
 			SNew(SHorizontalBox)
@@ -125,10 +131,10 @@ TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfigura
 		TSharedPtr<FString> StackNamePtr = MakeShared<FString>(Stack.StackName.ToString());
 		if (CurrentStackName == Stack.StackName)
 		{
-			for (UInterchangePipelineBase* DefaultPipeline : Stack.Pipelines)
+			for (const TObjectPtr<UInterchangePipelineBase>& DefaultPipeline : Stack.Pipelines)
 			{
 				check(DefaultPipeline);
-				if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(DefaultPipeline))
+				if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline))
 				{
 					GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
 					if (Stack.StackName == ReimportStackName)
@@ -143,7 +149,8 @@ TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfigura
 						GeneratedPipeline->LoadSettings(Stack.StackName);
 						GeneratedPipeline->PreDialogCleanup(Stack.StackName);
 					}
-					PipelineListViewItems.Add(GeneratedPipeline);
+
+					PipelineListViewItems.Add(MakeShareable(new FInterchangePipelineItemType{ DefaultPipeline.GetName(), GeneratedPipeline}));
 				}
 			}
 			SelectedStack = StackNamePtr;
@@ -257,7 +264,6 @@ TSharedRef<SBox> SInterchangePipelineConfigurationDialog::SpawnPipelineConfigura
 		});
 	return PipelineConfigurationPanelBox;
 }
-
 
 void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs)
 {
@@ -395,9 +401,9 @@ void SInterchangePipelineConfigurationDialog::Construct(const FArguments& InArgs
 		FString KeyName = CurrentStackName.ToString() + TEXT("_LastSelectedPipeline");
 		if (GConfig->GetString(TEXT("InterchangeSelectPipeline"), *KeyName, LastPipelineName, GEditorPerProjectIni))
 		{
-			for (TObjectPtr<UInterchangePipelineBase> PipelineItem : PipelineListViewItems)
+			for (TSharedPtr<FInterchangePipelineItemType> PipelineItem : PipelineListViewItems)
 			{
-				FString PipelineItemName = PipelineItem->GetClass()->GetName();
+				FString PipelineItemName = PipelineItem->Pipeline->GetClass()->GetName();
 				if (PipelineItemName.Equals(LastPipelineName))
 				{
 					PipelinesListView->SetSelection(PipelineItem, ESelectInfo::Direct);
@@ -463,22 +469,24 @@ FReply SInterchangePipelineConfigurationDialog::OnResetToDefault()
 				{
 					continue;
 				}
-				for (UInterchangePipelineBase* DefaultPipeline : Stack.Pipelines)
+				for (const TObjectPtr<UInterchangePipelineBase>& DefaultPipeline : Stack.Pipelines)
 				{
 					//We assume the pipelines inside one stack are all different classes, we use the class to know which default asset we need to duplicate
 					if (DefaultPipeline->GetClass() == PipelineClass)
 					{
+						
 						for(int32 PipelineIndex = 0; PipelineIndex < PipelineListViewItems.Num(); ++PipelineIndex)
 						{
-							TObjectPtr<UInterchangePipelineBase> PipelineElement = PipelineListViewItems[PipelineIndex];
+							
+							TObjectPtr<UInterchangePipelineBase> PipelineElement = PipelineListViewItems[PipelineIndex]->Pipeline;
+
 							if (PipelineElement.Get() == Pipeline)
 							{
-								if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(DefaultPipeline))
+								if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline))
 								{
 									GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
 									//Switch the pipeline the element point on
-									PipelineListViewItems.RemoveAt(PipelineIndex, 1, false);
-									PipelineListViewItems.Insert(GeneratedPipeline, PipelineIndex);
+									PipelineListViewItems[PipelineIndex]->Pipeline = GeneratedPipeline;
 									PipelineConfigurationDetailsView->SetObject(GeneratedPipeline, true);
 									PipelinesListView->SetSelection(PipelineListViewItems[PipelineIndex], ESelectInfo::Direct);
 									PipelinesListView->RequestListRefresh();
@@ -496,10 +504,10 @@ FReply SInterchangePipelineConfigurationDialog::OnResetToDefault()
 
 bool SInterchangePipelineConfigurationDialog::ValidateAllPipelineSettings(TOptional<FText>& OutInvalidReason) const
 {
-	for (TObjectPtr<UInterchangePipelineBase> PipelineElement : PipelineListViewItems)
+	for (TSharedPtr<FInterchangePipelineItemType> PipelineElement : PipelineListViewItems)
 	{
-		check(PipelineElement);
-		if (!PipelineElement->IsSettingsAreValid(OutInvalidReason))
+		check(PipelineElement->Pipeline);
+		if (!PipelineElement->Pipeline->IsSettingsAreValid(OutInvalidReason))
 		{
 			return false;
 		}
@@ -525,11 +533,11 @@ FText SInterchangePipelineConfigurationDialog::GetImportButtonTooltip() const
 
 void SInterchangePipelineConfigurationDialog::SaveAllPipelineSettings() const
 {
-	for (const TObjectPtr<UInterchangePipelineBase> PipelineElement : PipelineListViewItems)
+	for (TSharedPtr<FInterchangePipelineItemType> PipelineElement : PipelineListViewItems)
 	{
-		if (PipelineElement)
+		if (PipelineElement->Pipeline)
 		{
-			PipelineElement->SaveSettings(CurrentStackName);
+			PipelineElement->Pipeline->SaveSettings(CurrentStackName);
 		}
 	}
 }
@@ -547,13 +555,13 @@ void SInterchangePipelineConfigurationDialog::ClosePipelineConfiguration(const E
 		bImportAll = UseSameSettingsForAllCheckBox->IsChecked();
 		
 		//Fill the OutPipelines array
-		for (const TObjectPtr<UInterchangePipelineBase> PipelineElement : PipelineListViewItems)
+		for (TSharedPtr<FInterchangePipelineItemType> PipelineElement : PipelineListViewItems)
 		{
-			OutPipelines->Add(PipelineElement.Get());
+			OutPipelines->Add(PipelineElement->Pipeline);
 		}
 	}
 
-	//Save the settings only if its not a reimport
+	//Save the settings only if its not a re-import
 	if (!bReimport)
 	{
 		SaveAllPipelineSettings();
@@ -629,10 +637,10 @@ void SInterchangePipelineConfigurationDialog::OnStackSelectionChanged(TSharedPtr
 		{
 			continue;
 		}
-		for (UInterchangePipelineBase* DefaultPipeline : Stack.Pipelines)
+		for (const TObjectPtr<UInterchangePipelineBase>& DefaultPipeline : Stack.Pipelines)
 		{
 			check(DefaultPipeline);
-			if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstance(DefaultPipeline))
+			if (UInterchangePipelineBase* GeneratedPipeline = UE::Interchange::GeneratePipelineInstanceInSourceAssetPackage(DefaultPipeline))
 			{
 				GeneratedPipeline->TransferAdjustSettings(DefaultPipeline);
 				if (Stack.StackName != ReimportStackName)
@@ -641,7 +649,7 @@ void SInterchangePipelineConfigurationDialog::OnStackSelectionChanged(TSharedPtr
 					GeneratedPipeline->LoadSettings(Stack.StackName);
 					GeneratedPipeline->PreDialogCleanup(Stack.StackName);
 				}
-				PipelineListViewItems.Add(GeneratedPipeline);
+				PipelineListViewItems.Add(MakeShareable(new FInterchangePipelineItemType{ DefaultPipeline->GetName(), GeneratedPipeline}));
 			}
 		}
 	}
@@ -654,21 +662,20 @@ void SInterchangePipelineConfigurationDialog::OnStackSelectionChanged(TSharedPtr
 	PipelinesListView->RequestListRefresh();
 }
 
-
 TSharedRef<ITableRow> SInterchangePipelineConfigurationDialog::MakePipelineListRowWidget(
-	TObjectPtr<UInterchangePipelineBase> InElement,
+	TSharedPtr<FInterchangePipelineItemType> InElement,
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
-	check(InElement);
+	check(InElement->Pipeline);
 	return SNew(SInterchangePipelineItem, OwnerTable, InElement);
 }
 
-void SInterchangePipelineConfigurationDialog::OnPipelineSelectionChanged(TObjectPtr<UInterchangePipelineBase> InItem, ESelectInfo::Type SelectInfo)
+void SInterchangePipelineConfigurationDialog::OnPipelineSelectionChanged(TSharedPtr<FInterchangePipelineItemType> InItem, ESelectInfo::Type SelectInfo)
 {
 	CurrentSelectedPipeline = nullptr;
 	if (InItem)
 	{
-		CurrentSelectedPipeline = InItem;
+		CurrentSelectedPipeline = InItem->Pipeline;
 	}
 	PipelineConfigurationDetailsView->SetObject(CurrentSelectedPipeline.Get());
 	
