@@ -300,7 +300,6 @@ void UMovieSceneSequenceTickManager::UnregisterSequenceActor(AActor* InActor, TS
 
 void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 {
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(MovieSceneEval);
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_SequenceTickManager);
 
 	// Let all tickable clients update. Some of them won't do anything, others will do synchronous
