@@ -46,9 +46,9 @@ public:
 
 namespace UE::JWT
 {
-	JWT_API TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken, const bool bIsSignatureEncoded);
+	JWT_API TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken);
 
-	JWT_API bool FromString(const FStringView InEncodedJWT, FJsonWebToken& OutJsonWebToken, const bool bIsSignatureEncoded);
+	JWT_API bool FromString(const FStringView InEncodedJWT, FJsonWebToken& OutJsonWebToken);
 }
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
