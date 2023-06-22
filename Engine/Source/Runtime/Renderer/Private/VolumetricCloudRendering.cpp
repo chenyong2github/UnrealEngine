@@ -8,6 +8,7 @@
 #include "Components/VolumetricCloudComponent.h"
 #include "VolumetricCloudProxy.h"
 #include "DeferredShadingRenderer.h"
+#include "MeshPassUtils.h"
 #include "PixelShaderUtils.h"
 #include "RenderGraphUtils.h"
 #include "ScenePrivate.h"
@@ -2360,12 +2361,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 
 					ShaderBindings.Finalize(&PassShaders);
 
-					FRHIComputeShader* ComputeShaderRHI = ComputeShader.GetComputeShader();
-					SetComputePipelineState(RHICmdList, ComputeShaderRHI);
-					ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
-					SetShaderParameters(RHICmdList, ComputeShader, ComputeShaderRHI, *PassParameters);
-					RHICmdList.DispatchComputeShader(GroupCount.X, GroupCount.Y, GroupCount.Z);
-					UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShaderRHI);
+					UE::MeshPassUtils::Dispatch(RHICmdList, ComputeShader, ShaderBindings, *PassParameters, GroupCount);
 				});
 		}
 		
@@ -2458,12 +2454,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 
 				ShaderBindings.Finalize(&PassShaders);
 
-				FRHIComputeShader* ComputeShaderRHI = ComputeShader.GetComputeShader();
-				SetComputePipelineState(RHICmdList, ComputeShaderRHI);
-				ShaderBindings.SetOnCommandList(RHICmdList, ComputeShaderRHI);
-				SetShaderParameters(RHICmdList, ComputeShader, ComputeShaderRHI, *PassParameters);
-				RHICmdList.DispatchComputeShader(GroupCount.X, GroupCount.Y, GroupCount.Z);
-				UnsetShaderUAVs(RHICmdList, ComputeShader, ComputeShaderRHI);
+				UE::MeshPassUtils::Dispatch(RHICmdList, ComputeShader, ShaderBindings, *PassParameters, GroupCount);
 			});
 	}
 	else

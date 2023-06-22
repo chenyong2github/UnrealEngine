@@ -5,6 +5,7 @@
 
 #include "LightRendering.h"
 #include "LocalVertexFactory.h"
+#include "MeshPassUtils.h"
 #include "PixelShaderUtils.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
@@ -365,10 +366,8 @@ void AddComputePass(
 				ComputeShader->ShaderLooseBindings.SetParameters(SingleShaderBindings, PassParameters);
 				ShaderBindings.Finalize(&PassShaders);
 			}
-			SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
-			ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader.GetComputeShader());
 
-			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
+			UE::MeshPassUtils::Dispatch(RHICmdList, ComputeShader, ShaderBindings, *PassParameters, GroupCount);
 		}
 	);
 }

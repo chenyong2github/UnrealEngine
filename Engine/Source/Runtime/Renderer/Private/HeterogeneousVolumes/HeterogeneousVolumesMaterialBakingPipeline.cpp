@@ -4,6 +4,7 @@
 #include "HeterogeneousVolumeInterface.h"
 
 #include "LocalVertexFactory.h"
+#include "MeshPassUtils.h"
 #include "PixelShaderUtils.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
@@ -190,11 +191,8 @@ void ComputeHeterogeneousVolumeBakeMaterial(
 
 					ShaderBindings.Finalize(&PassShaders);
 				}
-				SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
-				ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader.GetComputeShader());
 
-				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
-				//FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *PassParameters, IndirectArgs->GetIndirectRHICallBuffer(), IndirectOffset);
+				UE::MeshPassUtils::Dispatch(RHICmdList, ComputeShader, ShaderBindings, *PassParameters, GroupCount);
 			}
 		}
 	);

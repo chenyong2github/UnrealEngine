@@ -4,6 +4,7 @@
 
 #include "HeterogeneousVolumeInterface.h"
 #include "LocalVertexFactory.h"
+#include "MeshPassUtils.h"
 #include "PixelShaderUtils.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
@@ -1933,9 +1934,8 @@ void RasterizeVolumesIntoFrustumVoxelGrid(
 
 						ShaderBindings.Finalize(&PassShaders);
 					}
-					ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader.GetComputeShader());
 
-					FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *PassParameters, PassParameters->IndirectArgs->GetIndirectRHICallBuffer(), 0);
+					UE::MeshPassUtils::DispatchIndirect(RHICmdList, ComputeShader, ShaderBindings, *PassParameters, PassParameters->IndirectArgs->GetIndirectRHICallBuffer(), 0);
 				}
 			}
 		);
@@ -2402,9 +2402,8 @@ void RasterizeVolumesIntoOrthoVoxelGrid(
 
 							ShaderBindings.Finalize(&PassShaders);
 						}
-						ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader.GetComputeShader());
 
-						FComputeShaderUtils::DispatchIndirect(RHICmdList, ComputeShader, *PassParameters, PassParameters->IndirectArgs->GetIndirectRHICallBuffer(), 0);
+						UE::MeshPassUtils::DispatchIndirect(RHICmdList, ComputeShader, ShaderBindings, *PassParameters, PassParameters->IndirectArgs->GetIndirectRHICallBuffer(), 0);
 					}
 				}
 			);
