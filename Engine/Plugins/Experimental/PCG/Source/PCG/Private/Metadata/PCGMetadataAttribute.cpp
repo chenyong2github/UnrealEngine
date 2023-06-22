@@ -107,7 +107,7 @@ void FPCGMetadataAttributeBase::ClearEntries()
 bool FPCGMetadataAttributeBase::IsValidName(const FString& Name)
 {
 	// A valid name is alphanumeric with some special characters allowed.
-	static const FString AllowedSpecialCharacters = TEXT("_-/");
+	static const FString AllowedSpecialCharacters = TEXT(" _-/");
 
 	for (int32 i = 0; i < Name.Len(); ++i)
 	{

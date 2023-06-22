@@ -20,13 +20,13 @@ namespace PCGActorSelector
 	}
 
 	// Need to pass a pointer of pointer to the found actor. The lambda will capture this pointer and modify its value when an actor is found.
-	TFunction<bool(AActor*)> GetFilteringFunction(const FPCGActorSelectorSettings& InSettings, const TFunction<bool(const AActor*)>& BoundsCheck, TArray<AActor*>& InFoundActors)
+	TFunction<bool(AActor*)> GetFilteringFunction(const FPCGActorSelectorSettings& InSettings, const TFunction<bool(const AActor*)>& BoundsCheck, const TFunction<bool(const AActor*)>& SelfIgnoreCheck, TArray<AActor*>& InFoundActors)
 	{
 		if (!FilterRequired(InSettings))
 		{
-			return [&InFoundActors, &BoundsCheck](AActor* Actor) -> bool
+			return [&InFoundActors, &BoundsCheck, &SelfIgnoreCheck](AActor* Actor) -> bool
 			{
-				if (BoundsCheck(Actor))
+				if (BoundsCheck(Actor) && SelfIgnoreCheck(Actor))
 				{
 					InFoundActors.Add(Actor);
 				}
@@ -39,9 +39,9 @@ namespace PCGActorSelector
 		switch (InSettings.ActorSelection)
 		{
 		case EPCGActorSelection::ByTag:
-			return[ActorSelectionTag = InSettings.ActorSelectionTag, &InFoundActors, bMultiSelect, &BoundsCheck](AActor* Actor) -> bool
+			return[ActorSelectionTag = InSettings.ActorSelectionTag, &InFoundActors, bMultiSelect, &BoundsCheck, &SelfIgnoreCheck](AActor* Actor) -> bool
 			{
-				if (Actor->ActorHasTag(ActorSelectionTag) && BoundsCheck(Actor))
+				if (Actor->ActorHasTag(ActorSelectionTag) && BoundsCheck(Actor) && SelfIgnoreCheck(Actor))
 				{
 					InFoundActors.Add(Actor);
 					return bMultiSelect;
@@ -51,9 +51,9 @@ namespace PCGActorSelector
 			};
 
 		case EPCGActorSelection::ByClass:
-			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActors, bMultiSelect, &BoundsCheck](AActor* Actor) -> bool
+			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActors, bMultiSelect, &BoundsCheck, &SelfIgnoreCheck](AActor* Actor) -> bool
 			{
-				if (Actor->IsA(ActorSelectionClass) && BoundsCheck(Actor))
+				if (Actor->IsA(ActorSelectionClass) && BoundsCheck(Actor) && SelfIgnoreCheck(Actor))
 				{
 					InFoundActors.Add(Actor);
 					return bMultiSelect;
@@ -73,7 +73,7 @@ namespace PCGActorSelector
 		return [](AActor* Actor) -> bool { return false; };
 	}
 
-	TArray<AActor*> FindActors(const FPCGActorSelectorSettings& Settings, const UPCGComponent* InComponent, const TFunction<bool(const AActor*)>& BoundsCheck)
+	TArray<AActor*> FindActors(const FPCGActorSelectorSettings& Settings, const UPCGComponent* InComponent, const TFunction<bool(const AActor*)>& BoundsCheck, const TFunction<bool(const AActor*)>& SelfIgnoreCheck)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(PCGActorSelector::FindActor);
 
@@ -97,7 +97,7 @@ namespace PCGActorSelector
 
 		// We pass FoundActor ref, that will be captured by the FilteringFunction
 		// It will modify the FoundActor pointer to the found actor, if found.
-		TFunction<bool(AActor*)> FilteringFunction = PCGActorSelector::GetFilteringFunction(Settings, BoundsCheck, FoundActors);
+		TFunction<bool(AActor*)> FilteringFunction = PCGActorSelector::GetFilteringFunction(Settings, BoundsCheck, SelfIgnoreCheck, FoundActors);
 
 		// In case of iterating over all actors in the world, call our filtering function and get out.
 		if (Settings.ActorFilter == EPCGActorFilter::AllWorldActors)
@@ -192,13 +192,13 @@ namespace PCGActorSelector
 		return FoundActors;
 	}
 
-	AActor* FindActor(const FPCGActorSelectorSettings& InSettings, UPCGComponent* InComponent, const TFunction<bool(const AActor*)>& BoundsCheck)
+	AActor* FindActor(const FPCGActorSelectorSettings& InSettings, UPCGComponent* InComponent, const TFunction<bool(const AActor*)>& BoundsCheck, const TFunction<bool(const AActor*)>& SelfIgnoreCheck)
 	{
 		// In order to make sure we don't try to select multiple, we'll do a copy of the settings here.
 		FPCGActorSelectorSettings Settings = InSettings;
 		Settings.bSelectMultiple = false;
 
-		TArray<AActor*> Actors = FindActors(Settings, InComponent, BoundsCheck);
+		TArray<AActor*> Actors = FindActors(Settings, InComponent, BoundsCheck, SelfIgnoreCheck);
 		return Actors.IsEmpty() ? nullptr : Actors[0];
 	}
 }

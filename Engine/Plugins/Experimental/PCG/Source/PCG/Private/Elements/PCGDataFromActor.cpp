@@ -4,9 +4,13 @@
 
 #include "PCGComponent.h"
 #include "PCGSubsystem.h"
+#include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
+#include "Elements/PCGMergeElement.h"
+#include "Grid/PCGPartitionActor.h"
 #include "Helpers/PCGHelpers.h"
 
+#include "Algo/AnyOf.h"
 #include "GameFramework/Actor.h"
 #include "UObject/Package.h"
 
@@ -147,7 +151,40 @@ bool FPCGDataFromActorElement::ExecuteInternal(FPCGContext* InContext) const
 			};
 		}
 
-		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, Context->SourceComponent.Get(), BoundsCheck);
+		TFunction<bool(const AActor*)> SelfIgnoreCheck = [](const AActor*) -> bool { return true; };
+		if (Self && Settings->ActorSelector.bIgnoreSelfAndChildren)
+		{
+			SelfIgnoreCheck = [Self](const AActor* OtherActor) -> bool
+			{
+				// Check if OtherActor is a child of self
+				const AActor* CurrentOtherActor = OtherActor;
+				while (CurrentOtherActor)
+				{
+					if (CurrentOtherActor == Self)
+					{
+						return false;
+					}
+
+					CurrentOtherActor = CurrentOtherActor->GetParentActor();
+				}
+
+				// Check if Self is a child of OtherActor
+				const AActor* CurrentSelfActor = Self;
+				while (CurrentSelfActor)
+				{
+					if (CurrentSelfActor == OtherActor)
+					{
+						return false;
+					}
+
+					CurrentSelfActor = CurrentSelfActor->GetParentActor();
+				}
+
+				return true;
+			};
+		}
+
+		Context->FoundActors = PCGActorSelector::FindActors(Settings->ActorSelector, Context->SourceComponent.Get(), BoundsCheck, SelfIgnoreCheck);
 		Context->bPerformedQuery = true;
 
 		if (Context->FoundActors.IsEmpty())
@@ -222,9 +259,84 @@ void FPCGDataFromActorElement::GatherWaitTasks(AActor* FoundActor, FPCGContext* 
 
 void FPCGDataFromActorElement::ProcessActors(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, const TArray<AActor*>& FoundActors) const
 {
-	for (AActor* Actor : FoundActors)
+	// Special case:
+	// If we're asking for single point with the merge single point data, we can do a more efficient process
+	if (Settings->Mode == EPCGGetDataFromActorMode::GetSinglePoint && Settings->bMergeSinglePointData && FoundActors.Num() > 1)
 	{
-		ProcessActor(Context, Settings, Actor);
+		MergeActorsIntoPointData(Context, Settings, FoundActors);
+	}
+	else
+	{
+		for (AActor* Actor : FoundActors)
+		{
+			ProcessActor(Context, Settings, Actor);
+		}
+	}
+}
+
+void FPCGDataFromActorElement::MergeActorsIntoPointData(FPCGContext* Context, const UPCGDataFromActorSettings* Settings, const TArray<AActor*>& FoundActors) const
+{
+	check(Context);
+
+	// At this point in time, the partition actors behave slightly differently, so if we are in the case where
+	// we have one or more partition actors, we'll go through the normal process and do post-processing to merge the point data instead.
+	const bool bContainsPartitionActors = Algo::AnyOf(FoundActors, [](const AActor* Actor) { return Cast<APCGPartitionActor>(Actor) != nullptr; });
+
+	if (!bContainsPartitionActors)
+	{
+		UPCGPointData* Data = NewObject<UPCGPointData>();
+		bool bHasData = false;
+
+		for (AActor* Actor : FoundActors)
+		{
+			if (Actor)
+			{
+				Data->AddSinglePointFromActor(Actor);
+				bHasData = true;
+			}
+		}
+
+		if (bHasData)
+		{
+			FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+			TaggedData.Data = Data;
+		}
+	}
+	else // Stripped-down version of the normal code path with bParseActor = false
+	{
+		FPCGDataCollection DataToMerge;
+		auto DataFilter = [](EPCGDataType InDataType) { return true; };
+		const bool bParseActor = false;
+
+		for (AActor* Actor : FoundActors)
+		{
+			if (Actor)
+			{
+				FPCGDataCollection Collection = UPCGComponent::CreateActorPCGDataCollection(Actor, Context->SourceComponent.Get(), DataFilter, bParseActor);
+				DataToMerge.TaggedData += Collection.TaggedData;
+			}
+		}
+
+		// Perform point data-to-point data merge
+		if (DataToMerge.TaggedData.Num() > 1)
+		{
+			UPCGMergeSettings* MergeSettings = NewObject<UPCGMergeSettings>();
+			FPCGMergeElement MergeElement;
+			FPCGContext* MergeContext = MergeElement.Initialize(DataToMerge, Context->SourceComponent, nullptr);
+			MergeContext->AsyncState.NumAvailableTasks = Context->AsyncState.NumAvailableTasks;
+			MergeContext->InputData.TaggedData.Emplace_GetRef().Data = MergeSettings;
+
+			while (!MergeElement.Execute(MergeContext))
+			{
+			}
+
+			Context->OutputData = MergeContext->OutputData;
+			delete MergeContext;
+		}
+		else if (DataToMerge.TaggedData.Num() == 1)
+		{
+			Context->OutputData.TaggedData = DataToMerge.TaggedData;
+		}
 	}
 }
 

@@ -87,7 +87,11 @@ protected:
 	// ~End UPCGSpatialData interface
 
 public:
+	/** Initializes a single point based on the given actor */
 	void InitializeFromActor(AActor* InActor);
+
+	/** Adds a single point based on the given actor */
+	void AddSinglePointFromActor(AActor* InActor);
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	const TArray<FPCGPoint>& GetPoints() const { return Points; }

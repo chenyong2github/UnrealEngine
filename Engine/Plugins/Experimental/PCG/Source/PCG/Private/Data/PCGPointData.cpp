@@ -229,6 +229,11 @@ namespace PCGPointHelpers
 	}
 }
 
+namespace PCGPointDataConstants
+{
+	const FName ActorReferenceAttribute = TEXT("ActorReference");
+}
+
 FPCGPointRef::FPCGPointRef(const FPCGPoint& InPoint)
 {
 	Point = &InPoint;
@@ -385,32 +390,32 @@ void UPCGPointData::SetPoints(const TArray<FPCGPoint>& InPoints)
 void UPCGPointData::InitializeFromActor(AActor* InActor)
 {
 	check(InActor);
+	check(Metadata && Metadata->GetAttributeCount() == 0);
 
-	Points.SetNum(1);
-	Points[0].Transform = InActor->GetActorTransform();
+	AddSinglePointFromActor(InActor);
+}
 
-	const FVector& Position = Points[0].Transform.GetLocation();
-	Points[0].Seed = PCGHelpers::ComputeSeed((int)Position.X, (int)Position.Y, (int)Position.Z);
+void UPCGPointData::AddSinglePointFromActor(AActor* InActor)
+{
+	check(InActor);
+
+	FPCGPoint& Point = GetMutablePoints().Emplace_GetRef();
+	Point.Transform = InActor->GetActorTransform();
+
+	const FVector& Position = Point.Transform.GetLocation();
+	Point.Seed = PCGHelpers::ComputeSeed((int)Position.X, (int)Position.Y, (int)Position.Z);
 
 	const FBox LocalBounds = PCGHelpers::GetActorLocalBounds(InActor);
-	Points[0].BoundsMin = LocalBounds.Min;
-	Points[0].BoundsMax = LocalBounds.Max;
+	Point.BoundsMin = LocalBounds.Min;
+	Point.BoundsMax = LocalBounds.Max;
 
-	Metadata = NewObject<UPCGMetadata>(this);
+	Point.MetadataEntry = Metadata->AddEntry();
 
-	const bool bHasTags = (!InActor->Tags.IsEmpty());
-
-	// Create a metadata entry only when we have tags, since all point data initialized this way will always have the actor reference field, 
-	// it is therefore not needed to be careful about default values
-	if (bHasTags)
+	FPCGMetadataAttribute<FString>* ActorReferenceAttribute = Metadata->FindOrCreateAttribute(PCGPointDataConstants::ActorReferenceAttribute, FString(), /*bAllowsInterpolation=*/false, /*bOverrideParent=*/false, /*bOverwriteIfTypeMismatch=*/false);
+	if (ActorReferenceAttribute)
 	{
-		Points[0].MetadataEntry = Metadata->AddEntry();
-	}	
-
-	// TODO: Maybe make that a method somewhere else
-	// NOTE: for booleans, it's not sufficient to set the default value to true, it's just not going to be a good idea when merging point data together
-	// Add a self-reference attribute for use in GetActorData with single point
-	Metadata->CreateAttribute<FString>(TEXT("ActorReference"), FSoftObjectPath(InActor).ToString(), /*bAllowsInterpolation=*/false, /*bOverrideParent=*/false);
+		ActorReferenceAttribute->SetValue(Point.MetadataEntry, FSoftObjectPath(InActor).ToString());
+	}
 
 	// Parse tags as well
 	for (FName Tag : InActor->Tags)
@@ -418,6 +423,7 @@ void UPCGPointData::InitializeFromActor(AActor* InActor)
 		const FString TagString = Tag.ToString();
 		int32 EqualPosition = INDEX_NONE;
 		
+		// Tags that contain a colon will be consider a field:value pair; we'll try to read a number first then default to a string
 		if(TagString.FindChar(':', EqualPosition))
 		{
 			FString LeftSide = TagString.Left(EqualPosition);
@@ -430,21 +436,26 @@ void UPCGPointData::InitializeFromActor(AActor* InActor)
 
 			if(RightSide.IsNumeric())
 			{
-				double RightValue = FCString::Atod(*RightSide);
-
-				FPCGMetadataAttribute<double>* Attribute = Metadata->CreateAttribute<double>(FName(LeftSide), 0.0, /*bAllowsInterpolation=*/false, /*bOverrideParent=*/false);
-				Attribute->SetValue(Points[0].MetadataEntry, RightValue);
+				if (FPCGMetadataAttribute<double>* Attribute = Metadata->FindOrCreateAttribute<double>(FName(LeftSide), 0.0, /*bAllowsInterpolation=*/false, /*bOverrideParent=*/false, /*bOverwriteIfTypeMismatch=*/false))
+				{
+					double RightSideValue = FCString::Atod(*RightSide);
+					Attribute->SetValue(Point.MetadataEntry, RightSideValue);
+				}
 			}
 			else
 			{
-				FPCGMetadataAttribute<FString>* Attribute = Metadata->CreateAttribute<FString>(FName(LeftSide), FString(), false, false);
-				Attribute->SetValue(Points[0].MetadataEntry, RightSide);
+				if (FPCGMetadataAttribute<FString>* Attribute = Metadata->FindOrCreateAttribute<FString>(FName(LeftSide), FString(), /*bAllowsInterpolation=*/false, /*bOverrideParent=*/false, /*bOverwriteIfTypeMismatch=*/false))
+				{
+					Attribute->SetValue(Point.MetadataEntry, RightSide);
+				}
 			}
 		}
-		else
+		else // Otherwise, consider that the tag is a boolean value
 		{
-			FPCGMetadataAttribute<bool>* Attribute = Metadata->CreateAttribute<bool>(Tag, false, /*bAllowsInterpolation=*/false, /*bOverrideParent=*/false);
-			Attribute->SetValue(Points[0].MetadataEntry, true);
+			if (FPCGMetadataAttribute<bool>* Attribute = Metadata->FindOrCreateAttribute<bool>(Tag, false, /*bAllowsInterpolation=*/false, /*bOverrideParent=*/false, /*bOverwriteIfTypeMismatch=*/false))
+			{
+				Attribute->SetValue(Point.MetadataEntry, true);
+			}
 		}
 	}
 }

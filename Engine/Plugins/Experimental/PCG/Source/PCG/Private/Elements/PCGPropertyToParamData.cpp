@@ -125,7 +125,9 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 	// First find the actor depending on the selection
 	UPCGComponent* OriginalComponent = UPCGBlueprintHelpers::GetOriginalComponent(*Context);
 	auto NoBoundsCheck = [](const AActor*) -> bool { return true; };
-	AActor* FoundActor = PCGActorSelector::FindActor(Settings->ActorSelector, OriginalComponent, NoBoundsCheck);
+	auto NoSelfIgnoreCheck = [](const AActor*) -> bool { return true; };
+
+	AActor* FoundActor = PCGActorSelector::FindActor(Settings->ActorSelector, OriginalComponent, NoBoundsCheck, NoSelfIgnoreCheck);
 
 	if (!FoundActor)
 	{
