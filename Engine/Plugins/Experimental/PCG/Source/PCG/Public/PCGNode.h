@@ -46,6 +46,9 @@ public:
 
 	/** Used to be able to force deprecation when things need to be deprecated at the graph level. */
 	void ApplyDeprecation();
+
+	/** If a node does require structural changes, this will apply them */
+	virtual void ApplyStructuralDeprecation();
 #endif
 
 	/** Returns the owning graph */

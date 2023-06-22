@@ -4,18 +4,96 @@
 
 #include "PCGContext.h"
 #include "PCGCustomVersion.h"
+#include "PCGEdge.h"
+#include "PCGGraph.h"
 #include "PCGPin.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
 #include "Data/PCGUnionData.h"
+#include "Elements/PCGUnionElement.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PCGDifferenceElement)
+
+#define LOCTEXT_NAMESPACE "PCGDifferenceElement"
+
+#if WITH_EDITOR
+FText UPCGDifferenceSettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("NodeTooltip", "Spatially subtracts the target difference data from the source data, outputing the difference of the two.");
+}
+
+void UPCGDifferenceSettings::ApplyStructuralDeprecation(UPCGNode* InOutNode)
+{
+	if (DataVersion < FPCGCustomVersion::DifferenceNodeIterateOnSourceAndUnionDifferences)
+	{
+		UPCGPin* SourcePin = InOutNode->GetInputPin(PCGDifferenceConstants::SourceLabel);
+		check(SourcePin);
+
+		// Check if single connection AND single data, to avoid adding a union if not necessary
+		const int32 SourceEdgeCount = SourcePin->EdgeCount();
+		if (SourceEdgeCount > 1 || (SourceEdgeCount == 1 && !SourcePin->Edges.IsEmpty() && SourcePin->Edges[0]->InputPin->AllowMultipleData()))
+		{
+			// To match previous default behavior, we'll add a union node preceding the source inputs
+			UPCGGraph* PCGGraph = InOutNode->GetGraph();
+			check(PCGGraph);
+
+			UPCGSettings* UnionSettings = nullptr;
+			UPCGNode* UnionNode = PCGGraph->AddNodeOfType(UPCGUnionSettings::StaticClass(), UnionSettings);
+			check(UnionNode && !UnionNode->GetInputPins().IsEmpty() && !UnionNode->GetOutputPins().IsEmpty());
+			UnionSettings->bEnabled = InOutNode->GetSettings()->bEnabled;
+
+			UPCGPin* UnionSourcePin = UnionNode->GetInputPins()[0];
+			UPCGPin* UnionOutputPin = UnionNode->GetOutputPins()[0];
+
+			int32 SumSourceNodesPositionX = 0;
+			int32 SumSourceNodesPositionY = 0;
+			while(!SourcePin->Edges.IsEmpty())
+			{
+				UPCGPin* UpstreamPin = SourcePin->Edges[0]->InputPin;
+				check(UpstreamPin);
+
+				// Collect the source node's position for later mean
+				check(UpstreamPin->Node);
+				int32 NodePositionX, NodePositionY;
+				UpstreamPin->Node->GetNodePosition(NodePositionX, NodePositionY);
+				SumSourceNodesPositionX += NodePositionX;
+				SumSourceNodesPositionY += NodePositionY;
+		
+				UpstreamPin->BreakEdgeTo(SourcePin);
+				UpstreamPin->AddEdgeTo(UnionSourcePin);
+			}
+
+			// The injected node should be placed halfway between the difference node and the mean of the sources' position
+			int32 NodePositionX, NodePositionY;
+			InOutNode->GetNodePosition(NodePositionX, NodePositionY);
+			const int32 SourceNodeLocalPositionMeanX = SumSourceNodesPositionX / SourceEdgeCount;
+			const int32 SourceNodeLocalPositionMeanY = SumSourceNodesPositionY / SourceEdgeCount;
+			
+			UnionNode->SetNodePosition((NodePositionX + SourceNodeLocalPositionMeanX) / 2, (NodePositionY + SourceNodeLocalPositionMeanY) / 2);
+			UnionNode->NodeComment = LOCTEXT("DeprecationUnionNodeCreated", "Node added to replicate deprecated behavior of the Difference node.").ToString();
+			UnionNode->bCommentBubbleVisible = 1;
+
+			// Reconnect union back to source
+			UnionOutputPin->AddEdgeTo(SourcePin);		
+
+			UE_LOG(LogPCG, Log, TEXT("Difference node of previous version detected. A 'Union' node was created automatically to replicate the previous version's behavior."));
+		}
+	}
+	
+	Super::ApplyStructuralDeprecation(InOutNode);
+}
+#endif // WITH_EDITOR
 
 TArray<FPCGPinProperties> UPCGDifferenceSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGDifferenceConstants::SourceLabel, EPCGDataType::Spatial);
-	PinProperties.Emplace(PCGDifferenceConstants::DifferencesLabel, EPCGDataType::Spatial);
+	FPCGPinProperties& PinPropertiesSource = PinProperties.Emplace_GetRef(PCGDifferenceConstants::SourceLabel, EPCGDataType::Spatial);
+	FPCGPinProperties& PinPropertiesDifferences = PinProperties.Emplace_GetRef(PCGDifferenceConstants::DifferencesLabel, EPCGDataType::Spatial);
+
+#if WITH_EDITOR
+	PinPropertiesSource.Tooltip = LOCTEXT("SourcePropertiesTooltip", "The source input of the operation, from which the difference will be subtracted. Multiple pins or data on this pin will be iterated upon, resulting in an output of the difference operation for every input.");
+	PinPropertiesDifferences.Tooltip = LOCTEXT("DifferencesPropertiesTooltip", "The difference input of the operation. Inputs on this pin will be implicitly unioned together to be used in the difference operation.");
+#endif // WITH_EDITOR
 
 	return PinProperties;
 }
@@ -23,8 +101,12 @@ TArray<FPCGPinProperties> UPCGDifferenceSettings::InputPinProperties() const
 TArray<FPCGPinProperties> UPCGDifferenceSettings::OutputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
-
+	FPCGPinProperties& PinPropertiesOutput = PinProperties.Emplace_GetRef(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Spatial);
+	
+#if WITH_EDITOR
+	PinPropertiesOutput.Tooltip = LOCTEXT("OutputPropertiesTooltip", "The data after being processed through the difference operation.");
+#endif // WITH_EDITOR
+	
 	return PinProperties;
 }
 
@@ -40,7 +122,6 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 	// Early-out for previous behavior (without labeled edges)
 	if (Context->Node && !Context->Node->IsInputPinConnected(PCGDifferenceConstants::SourceLabel) && !Context->Node->IsInputPinConnected(PCGDifferenceConstants::DifferencesLabel))
 	{
-		LabellessProcessing(Context);
 		return true;
 	}
 
@@ -51,158 +132,72 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 	TArray<FPCGTaggedData> Differences = Context->InputData.GetInputsByPin(PCGDifferenceConstants::DifferencesLabel);
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
-	// Get only spatial data or build an union from the sources
-	const UPCGSpatialData* FirstSpatialData = nullptr;
-	UPCGUnionData* UnionData = nullptr;
-	int32 DifferenceTaggedDataIndex = -1;
-
 	bool bHasPointsInSource = false;
 	bool bHasPointsInDifferences = false;
 
-	// Start by either selecting a source or building a union
+	// Validate that there's usable data on the differences pin
+	bool bDifferenceDataHasValidData = false;
+	for (const FPCGTaggedData& Difference : Differences)
+	{
+		if (Difference.Data && Difference.Data->IsA<UPCGSpatialData>())
+		{
+			bDifferenceDataHasValidData = true;
+			bHasPointsInDifferences |= Difference.Data->IsA<UPCGPointData>();
+			break;
+		}
+	}
+
+	// If no valid difference data, send sources directly to output and return
+	if (!bDifferenceDataHasValidData)
+	{
+		Outputs = Sources;
+		return true;
+	}
+
+	// Iterate over the sources and subtract the differences
 	for (FPCGTaggedData& Source : Sources)
 	{
-		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Source.Data);
+		const UPCGSpatialData* SourceSpatialData = Cast<UPCGSpatialData>(Source.Data);
 
-		// Non-spatial data, we're not going to touch
-		if (!SpatialData)
+		// Propagate non-spatial data
+		if (!SourceSpatialData)
 		{
 			Outputs.Add(Source);
 			continue;
 		}
 
-		bHasPointsInSource |= (Cast<UPCGPointData>(SpatialData) != nullptr);
+		bHasPointsInSource |= SourceSpatialData->IsA<UPCGPointData>();
 
-		if (!FirstSpatialData)
-		{
-			FirstSpatialData = SpatialData;
-			DifferenceTaggedDataIndex = Outputs.Num();
-			Outputs.Add(Source);
-		}
-		else
-		{
-			if (!UnionData)
-			{
-				UnionData = FirstSpatialData->UnionWith(SpatialData);
-				// TODO: expose union settings?
-
-				// Replace source by union
-				Outputs[DifferenceTaggedDataIndex].Data = UnionData;
-			}
-			else
-			{
-				UnionData->AddData(SpatialData);
-			}
-		}
-	}
-	
-	if (FirstSpatialData || UnionData)
-	{
-		check(DifferenceTaggedDataIndex >= 0);
-		// Then, depending on the presence of differences, we'll create a difference as needed
-		UPCGDifferenceData* DifferenceData = nullptr;
+		UPCGDifferenceData* DifferenceData = NewObject<UPCGDifferenceData>();
+		DifferenceData->Initialize(SourceSpatialData);
+		
 		for (FPCGTaggedData& Difference : Differences)
 		{
-			const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Difference.Data);
-
-			if (SpatialData)
+			if (const UPCGSpatialData* DifferenceSpatialData = Cast<const UPCGSpatialData>(Difference.Data))
 			{
-				bHasPointsInDifferences |= (Cast<UPCGPointData>(SpatialData) != nullptr);
-
-				if (!DifferenceData)
-				{
-					DifferenceData = (UnionData ? UnionData : FirstSpatialData)->Subtract(SpatialData);
-					DifferenceData->SetDensityFunction(Settings->DensityFunction);
-					DifferenceData->bDiffMetadata = Settings->bDiffMetadata;
-#if WITH_EDITOR
-					DifferenceData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
-#endif
-
-					Outputs[DifferenceTaggedDataIndex].Data = DifferenceData;
-				}
-				else
-				{
-					DifferenceData->AddDifference(SpatialData);
-				}
-			}
-			else
-			{
-				// We are not propagating data from the differences if they don't contribute
+				DifferenceData->AddDifference(DifferenceSpatialData);
 			}
 		}
+
+		DifferenceData->SetDensityFunction(Settings->DensityFunction);
+		DifferenceData->bDiffMetadata = Settings->bDiffMetadata;
+#if WITH_EDITOR
+		DifferenceData->bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
+#endif
+
+		FPCGTaggedData& Output = Outputs.Add_GetRef(Source);
+		Output.Data = DifferenceData;
 
 		// Finally, apply any discretization based on the mode
 		if (DifferenceData && 
 			(Settings->Mode == EPCGDifferenceMode::Discrete || 
 			(Settings->Mode == EPCGDifferenceMode::Inferred && bHasPointsInSource && bHasPointsInDifferences)))
 		{
-			Outputs[DifferenceTaggedDataIndex].Data = DifferenceData->ToPointData(Context);
+			Output.Data = DifferenceData->ToPointData(Context);
 		}
 	}
 
 	return true;
 }
 
-void FPCGDifferenceElement::LabellessProcessing(FPCGContext* Context) const
-{
-	const UPCGDifferenceSettings* Settings = Context->GetInputSettings<UPCGDifferenceSettings>();
-	check(Settings);
-
-	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
-
-	const EPCGDifferenceDensityFunction DensityFunction = Settings->DensityFunction;
-#if WITH_EDITOR
-	const bool bKeepZeroDensityPoints = Settings->bKeepZeroDensityPoints;
-#else
-	const bool bKeepZeroDensityPoints = false;
-#endif
-
-	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
-
-	const UPCGSpatialData* FirstSpatialData = nullptr;
-	UPCGDifferenceData* DifferenceData = nullptr;
-	int32 DifferenceTaggedDataIndex = -1;
-
-	auto AddToDifference = [&FirstSpatialData, &DifferenceData, &DifferenceTaggedDataIndex, DensityFunction, bKeepZeroDensityPoints, &Outputs](const UPCGSpatialData* SpatialData) {
-		if (!DifferenceData)
-		{
-			DifferenceData = FirstSpatialData->Subtract(SpatialData);
-			DifferenceData->SetDensityFunction(DensityFunction);
-#if WITH_EDITOR
-			DifferenceData->bKeepZeroDensityPoints = bKeepZeroDensityPoints;
-#endif
-
-			FPCGTaggedData& DifferenceTaggedData = Outputs[DifferenceTaggedDataIndex];
-			DifferenceTaggedData.Data = DifferenceData;
-		}
-		else
-		{
-			DifferenceData->AddDifference(SpatialData);
-		}
-	};
-
-	// TODO: it might not make sense to perform the difference if the first
-	// data isn't a spatial data, otherwise, what would it really mean?
-	for (FPCGTaggedData& Input : Inputs)
-	{
-		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
-
-		// Non-spatial data, we're not going to touch
-		if (!SpatialData)
-		{
-			Outputs.Add(Input);
-			continue;
-		}
-
-		if (!FirstSpatialData)
-		{
-			FirstSpatialData = SpatialData;
-			DifferenceTaggedDataIndex = Outputs.Num();
-			Outputs.Add(Input);
-
-			continue;
-		}
-
-		AddToDifference(SpatialData);
-	}
-}
+#undef LOCTEXT_NAMESPACE

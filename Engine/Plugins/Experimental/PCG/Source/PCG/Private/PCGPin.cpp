@@ -320,6 +320,11 @@ bool UPCGPin::AllowMultipleConnections() const
 	return IsOutputPin() || Properties.bAllowMultipleConnections;
 }
 
+bool UPCGPin::AllowMultipleData() const
+{
+	return Properties.bAllowMultipleData;
+}
+
 bool UPCGPin::CanConnect(const UPCGPin* OtherPin) const
 {
 	return OtherPin && (Edges.IsEmpty() || AllowMultipleConnections());

@@ -267,6 +267,13 @@ void UPCGGraph::PostLoad()
 		ExtraNode->ConditionalPostLoad();
 	}
 
+	// Create a copy to iterate through the nodes while more might be added
+	TArray<UPCGNode*> NodesCopy(Nodes);
+	for (UPCGNode* Node : NodesCopy)
+	{
+		Node->ApplyStructuralDeprecation();
+	}
+
 	// Finally, apply deprecation that changes edges/rebinds
 	ForEachNode([](UPCGNode* InNode) { return InNode->ApplyDeprecationBeforeUpdatePins(); });
 
@@ -380,8 +387,9 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettingsInterface* InSettingsInterface)
 		const FName DefaultNodeName = InSettingsInterface->GetSettings()->GetDefaultNodeName();
 		if (DefaultNodeName != NAME_None)
 		{
-			FName NodeName = MakeUniqueObjectName(this, UPCGNode::StaticClass(), DefaultNodeName);
-			Node->Rename(*NodeName.ToString());
+			const FName NodeName = MakeUniqueObjectName(this, UPCGNode::StaticClass(), DefaultNodeName);
+			// Flags added because default flags favor tick/interactive, not load-time renaming.
+			Node->Rename(*NodeName.ToString(), nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
 		}
 #endif
 

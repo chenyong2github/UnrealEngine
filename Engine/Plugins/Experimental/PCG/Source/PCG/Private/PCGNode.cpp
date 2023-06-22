@@ -150,6 +150,15 @@ void UPCGNode::ApplyDeprecation()
 		ensure(Settings->DataVersion == FPCGCustomVersion::LatestVersion);
 	}
 }
+
+void UPCGNode::ApplyStructuralDeprecation()
+{
+	if (UPCGSettings* Settings = GetSettings())
+	{
+		Settings->ApplyStructuralDeprecation(this);
+	}
+}
+
 #endif
 
 #if WITH_EDITOR

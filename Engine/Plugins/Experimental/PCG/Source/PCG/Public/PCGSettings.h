@@ -224,6 +224,9 @@ public:
 	/** Any final migration/recovery that can be done after pins are finalized. This function should also set DataVersion to LatestVersion. */
 	virtual void ApplyDeprecation(UPCGNode* InOutNode);
 
+	/** If settings require structural changes, this will apply them */
+	virtual void ApplyStructuralDeprecation(UPCGNode* InOutNode) {}
+
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
 	virtual FText GetDefaultNodeTitle() const { return FText::FromName(GetDefaultNodeName()); }
 	virtual FText GetNodeTooltipText() const { return FText::GetEmpty(); }

@@ -47,6 +47,9 @@ struct PCG_API FPCGCustomVersion
 		// Update of Input Selectors. Previous versions should default on @LastCreated
 		UpdateAttributePropertyInputSelector = 12,
 
+		// Difference node now iterates on the source pin and unions the differences pin
+		DifferenceNodeIterateOnSourceAndUnionDifferences = 13,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -137,6 +137,7 @@ public:
 	void SetTooltip(const FText& InTooltip);
 
 	bool AllowMultipleConnections() const;
+	bool AllowMultipleData() const;
 	bool IsCompatible(const UPCGPin* OtherPin) const;
 	bool CanConnect(const UPCGPin* OtherPin) const;
 
