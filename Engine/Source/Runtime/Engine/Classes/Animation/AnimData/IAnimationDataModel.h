@@ -156,7 +156,7 @@ public:
 	* @return	Array containing all bone animation tracks 
 	*/
 	UE_DEPRECATED(5.2, "GetBoneAnimationTracks has been deprecated")
-	UFUNCTION(BlueprintCallable, Category = AnimationDataModel, meta=(DeprecatedFunction, DeprecationMessage="GetBoneAnimationTracks has been deprecated"))
+	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual const TArray<FBoneAnimationTrack>& GetBoneAnimationTracks() const = 0;
 
 	virtual FTransform EvaluateBoneTrackTransform(FName TrackName, const FFrameTime& FrameTime, const EAnimInterpolationType& Interpolation) const = 0;
@@ -169,14 +169,14 @@ public:
 	* @return	Bone animation track for the provided index
 	*/
 	UE_DEPRECATED(5.2, "GetBoneTrackByIndex has been deprecated")
-	UFUNCTION(BlueprintCallable, Category = AnimationDataModel, meta=(DeprecatedFunction, DeprecationMessage="GetBoneTrackByIndex has been deprecated"))
+	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual const FBoneAnimationTrack& GetBoneTrackByIndex(int32 TrackIndex) const = 0;
 
 	/**
 	* @return	Bone animation track for the provided (bone) name
 	*/
 	UE_DEPRECATED(5.2, "GetBoneTrackByName has been deprecated")
-	UFUNCTION(BlueprintCallable, Category = AnimationDataModel, meta=(DeprecatedFunction, DeprecationMessage="GetBoneTrackByName has been deprecated"))
+	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual const FBoneAnimationTrack& GetBoneTrackByName(FName TrackName) const = 0;
 
 	/**
@@ -195,21 +195,21 @@ public:
 	* @return	Internal track index for the provided bone animation track if found, otherwise returns INDEX_NONE 
 	*/
 	UE_DEPRECATED(5.2, "FindBoneTrackByIndex has been deprecated")
-	UFUNCTION(BlueprintCallable, Category = AnimationDataModel, meta=(DeprecatedFunction, DeprecationMessage="FindBoneTrackByIndex has been deprecated"))
+	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual int32 GetBoneTrackIndex(const FBoneAnimationTrack& Track) const = 0;
 
 	/**
 	* @return	Internal track index for the provided (bone) name if found, otherwise returns INDEX_NONE 
 	*/
 	UE_DEPRECATED(5.2, "GetBoneTrackIndexByName has been deprecated")
-	UFUNCTION(BlueprintCallable, Category = AnimationDataModel, meta=(DeprecatedFunction, DeprecationMessage="GetBoneTrackIndexByName has been deprecated"))
+	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual int32 GetBoneTrackIndexByName(FName TrackName) const = 0;
 
 	/**
 	* @return	Whether or not the provided track index is valid 
 	*/
 	UE_DEPRECATED(5.2, "IsValidBoneTrackIndex has been deprecated")
-	UFUNCTION(BlueprintCallable, Category = AnimationDataModel, meta=(DeprecatedFunction, DeprecationMessage="IsValidBoneTrackIndex has been deprecated"))
+	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
 	virtual bool IsValidBoneTrackIndex(int32 TrackIndex) const = 0;
 
 	UFUNCTION(BlueprintCallable, Category = AnimationDataModel)
