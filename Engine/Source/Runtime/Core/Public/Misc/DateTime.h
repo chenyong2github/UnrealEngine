@@ -631,7 +631,7 @@ public:
 	 */
 	static FDateTime FromUnixTimestampDecimal(double UnixTime)
 	{
-		return FDateTime(1970, 1, 1) + FTimespan(UnixTime * ETimespan::TicksPerSecond);
+		return FDateTime(1970, 1, 1) + FTimespan(int64(UnixTime * ETimespan::TicksPerSecond));
 	}
 
 	/**
