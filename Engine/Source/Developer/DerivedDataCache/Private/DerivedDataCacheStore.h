@@ -220,7 +220,9 @@ class FCacheStoreRequestTimer final
 {
 public:
 	explicit FCacheStoreRequestTimer(FCacheStoreRequestStats& Stats);
-	~FCacheStoreRequestTimer();
+	inline ~FCacheStoreRequestTimer() { Stop(); }
+
+	void Stop();
 
 	FCacheStoreRequestTimer(const FCacheStoreRequestTimer&) = delete;
 	FCacheStoreRequestTimer& operator=(const FCacheStoreRequestTimer&) = delete;
@@ -237,11 +239,22 @@ class ICacheStoreStats
 {
 public:
 	virtual ~ICacheStoreStats() = default;
+
+	/** Returns the type name of the associated cache store. */
 	virtual FStringView GetType() const = 0;
+	/** Returns the name of the associated cache store in the hierarchy. */
 	virtual FStringView GetName() const = 0;
+	/** Returns the path to the associated cache store where applicable. */
 	virtual FStringView GetPath() const = 0;
+
+	/** Sets the flags detailing how the associated cache store operates. */
 	virtual void SetFlags(ECacheStoreFlags Flags) = 0;
+	/** Sets the status of the associated cache store. Persists until the next call. */
 	virtual void SetStatus(ECacheStoreStatusCode StatusCode, const FText& Status) = 0;
+	/** Sets a named attribute on the associated cache store. Persists until the next call. */
+	virtual void SetAttribute(FStringView Key, FStringView Value) = 0;
+
+	/** Adds stats for a single request that was processed by the associated cache store. */
 	virtual void AddRequest(const FCacheStoreRequestStats& Stats) = 0;
 };
 

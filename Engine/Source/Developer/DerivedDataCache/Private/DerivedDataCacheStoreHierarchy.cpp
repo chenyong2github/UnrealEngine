@@ -48,6 +48,8 @@ public:
 	ECacheStoreStatusCode StatusCode = ECacheStoreStatusCode::None;
 	mutable FMutex Mutex;
 
+	TMap<FString, FString> Attributes;
+
 #if ENABLE_COOK_STATS
 	FCookStats::CallStats GetStats;
 	FCookStats::CallStats PutStats;
@@ -80,6 +82,7 @@ private:
 	FStringView GetPath() const final { return Path; }
 	void SetFlags(ECacheStoreFlags Flags) final;
 	void SetStatus(ECacheStoreStatusCode StatusCode, const FText& Status) final;
+	void SetAttribute(FStringView Key, FStringView Value) final;
 	void AddRequest(const FCacheStoreRequestStats& Stats) final;
 };
 
@@ -104,6 +107,12 @@ void FCacheStoreStats::SetStatus(ECacheStoreStatusCode InStatusCode, const FText
 	StatusCode = InStatusCode;
 }
 
+void FCacheStoreStats::SetAttribute(FStringView Key, FStringView Value)
+{
+	TUniqueLock Lock(Mutex);
+	Attributes.Emplace(Key, Value);
+}
+
 void FCacheStoreStats::AddRequest(const FCacheStoreRequestStats& Stats)
 {
 #if ENABLE_COOK_STATS
@@ -123,7 +132,7 @@ void FCacheStoreStats::AddRequest(const FCacheStoreRequestStats& Stats)
 		LatencyIndex %= LatencyHistory.Num();
 	}
 
-	if (Stats.PhysicalReadSize)
+	if (Stats.PhysicalReadSize && !Stats.LogicalWriteSize)
 	{
 		FRateStat& CurrentPhysicalReadSize = PhysicalReadSizeHistory[PhysicalReadSizeIndex++];
 		PhysicalReadSizeCount = FMath::Max(PhysicalReadSizeCount, PhysicalReadSizeIndex);
@@ -133,7 +142,7 @@ void FCacheStoreStats::AddRequest(const FCacheStoreRequestStats& Stats)
 		CurrentPhysicalReadSize.Amount = Stats.PhysicalReadSize;
 	}
 
-	if (Stats.PhysicalWriteSize)
+	if (Stats.PhysicalWriteSize && !Stats.LogicalReadSize)
 	{
 		FRateStat& CurrentPhysicalWriteSize = PhysicalWriteSizeHistory[PhysicalWriteSizeIndex++];
 		PhysicalWriteSizeCount = FMath::Max(PhysicalWriteSizeCount, PhysicalWriteSizeIndex);
@@ -372,6 +381,14 @@ FCacheStoreHierarchy::~FCacheStoreHierarchy()
 	{
 		Node.AsyncCache.Reset();
 		delete Node.Cache;
+
+		if (UNLIKELY(!Node.CacheStats.IsEmpty()))
+		{
+			FCacheStoreStats* Stats = Node.CacheStats[0];
+			UE_LOGFMT(LogDerivedDataCache, Fatal,
+				"Leaked stats for {Type} cache store '{Name}' with path '{Path}'.",
+				Stats->Type, Stats->Name, Stats->Path);
+		}
 	}
 }
 
@@ -1432,6 +1449,11 @@ static void ConvertToLegacyStats(FDerivedDataCacheStatsNode& OutNode, const FCac
 	FDerivedDataCacheUsageStats& UsageStats = OutNode.UsageStats.FindOrAdd({});
 	UsageStats.GetStats = Stats.GetStats;
 	UsageStats.PutStats = Stats.PutStats;
+
+	for (const TTuple<FString, FString>& Attribute : Stats.Attributes)
+	{
+		OutNode.CustomStats.Emplace(WriteToString<64>(Stats.Name, TEXT('.'), Attribute.Key), Attribute.Value);
+	}
 #endif
 
 	const auto MeasureActiveWallTime = [](TConstArrayView<FCacheStoreStats::FRateStat> History) -> FMonotonicTimeSpan

@@ -17,14 +17,19 @@ FCacheStoreRequestTimer::FCacheStoreRequestTimer(FCacheStoreRequestStats& OutSta
 {
 }
 
-FCacheStoreRequestTimer::~FCacheStoreRequestTimer()
+void FCacheStoreRequestTimer::Stop()
 {
+	if (StartTime.IsInfinity())
+	{
+		return;
+	}
 	const FMonotonicTimePoint EndTime = FMonotonicTimePoint::Now();
 	const bool bIsInGameThread = IsInGameThread();
 	TUniqueLock Lock(Stats.Mutex);
 	(bIsInGameThread ? Stats.MainThreadTime : Stats.OtherThreadTime) = EndTime - StartTime;
 	Stats.StartTime = FMath::Min(Stats.StartTime, StartTime);
 	Stats.EndTime = FMath::Max(Stats.EndTime, EndTime);
+	StartTime = FMonotonicTimePoint::Infinity();
 }
 
 void FCacheStoreRequestStats::AddLatency(const FMonotonicTimeSpan InLatency)
