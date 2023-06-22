@@ -1219,7 +1219,10 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 	Flags |= SpeedClass == EBackendSpeedClass::Local ? ECacheStoreFlags::Local : ECacheStoreFlags::Remote;
 
 	StoreOwner.Add(this, Flags);
-	StoreStats = StoreOwner.CreateStats(this, Flags, TEXTVIEW("File System"), Params.CacheName, CachePath);
+	if (!Params.bDeleteOnly)
+	{
+		StoreStats = StoreOwner.CreateStats(this, Flags, TEXTVIEW("File System"), Params.CacheName, CachePath);
+	}
 
 	UpdateStatus();
 
@@ -1230,7 +1233,10 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 
 FFileSystemCacheStore::~FFileSystemCacheStore()
 {
-	StoreOwner.DestroyStats(StoreStats);
+	if (StoreStats)
+	{
+		StoreOwner.DestroyStats(StoreStats);
+	}
 
 	TUniqueLock Lock(ActiveStoresMutex);
 	ActiveStores.Remove(this);
@@ -2807,13 +2813,16 @@ bool FFileSystemCacheStore::IsDeactivatedForPerformance()
 
 void FFileSystemCacheStore::UpdateStatus()
 {
-	if (bDeactivedForPerformance.load(std::memory_order_relaxed))
+	if (StoreStats)
 	{
-		StoreStats->SetStatus(ECacheStoreStatusCode::Warning, NSLOCTEXT("DerivedDataCache", "DeactivatedForPerformance", "Deactivated for performance"));
-	}
-	else
-	{
-		StoreStats->SetStatus(ECacheStoreStatusCode::None, {});
+		if (bDeactivedForPerformance.load(std::memory_order_relaxed))
+		{
+			StoreStats->SetStatus(ECacheStoreStatusCode::Warning, NSLOCTEXT("DerivedDataCache", "DeactivatedForPerformance", "Deactivated for performance"));
+		}
+		else
+		{
+			StoreStats->SetStatus(ECacheStoreStatusCode::None, {});
+		}
 	}
 }
 

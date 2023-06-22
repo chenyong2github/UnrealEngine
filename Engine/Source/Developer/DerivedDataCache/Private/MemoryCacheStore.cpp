@@ -149,7 +149,10 @@ FMemoryCacheStore::FMemoryCacheStore(
 			Flags |= ECacheStoreFlags::Store;
 		}
 		StoreOwner->Add(this, Flags);
-		StoreStats = StoreOwner->CreateStats(this, Flags, TEXTVIEW("Memory"), Name);
+		if (!FParse::Param(InConfig, TEXT("NoStats")))
+		{
+			StoreStats = StoreOwner->CreateStats(this, Flags, TEXTVIEW("Memory"), Name);
+		}
 	}
 }
 
@@ -157,7 +160,7 @@ FMemoryCacheStore::~FMemoryCacheStore()
 {
 	bShuttingDown = true;
 	Disable();
-	if (StoreOwner)
+	if (StoreStats)
 	{
 		StoreOwner->DestroyStats(StoreStats);
 	}

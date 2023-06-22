@@ -646,11 +646,6 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 
 	for (TSharedRef<const FDerivedDataCacheStatsNode> Node : LeafUsageStats)
 	{
-		if (Node->GetCacheType().Equals(TEXT("Memory")))
-		{
-			continue;
-		}
-
 		FDerivedDataCacheUsageStats Stats;
 
 		for (const auto& KVP : Node->UsageStats)

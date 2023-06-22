@@ -1520,16 +1520,9 @@ void FCacheStoreHierarchy::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 	OutNode.Children.Reserve(Nodes.Num());
 	for (const FCacheStoreNode& Node : Nodes)
 	{
-		if (Node.CacheStats.IsEmpty())
+		for (const FCacheStoreStats* Stats : Node.CacheStats)
 		{
-			Node.Cache->LegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get());
-		}
-		else
-		{
-			for (const FCacheStoreStats* Stats : Node.CacheStats)
-			{
-				ConvertToLegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get(), *Stats);
-			}
+			ConvertToLegacyStats(OutNode.Children.Add_GetRef(MakeShared<FDerivedDataCacheStatsNode>()).Get(), *Stats);
 		}
 	}
 }
