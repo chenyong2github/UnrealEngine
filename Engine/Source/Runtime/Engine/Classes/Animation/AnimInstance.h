@@ -1127,7 +1127,7 @@ public:
 	ENGINE_API void ClearMorphTargets();
 
 	UE_DEPRECATED(5.0, "Please use UKismetAnimationLibrary::CalculateDirection instead")
-	UFUNCTION(BlueprintCallable, Category="Animation", meta=(BlueprintThreadSafe))
+	UFUNCTION(BlueprintCallable, Category="Animation", meta=(BlueprintThreadSafe, DeprecatedFunction, DeprecationMessage="Please use UKismetAnimationLibrary::CalculateDirection instead"))
 	ENGINE_API float CalculateDirection(const FVector& Velocity, const FRotator& BaseRotation) const;
 
 	//--- AI communication start ---//

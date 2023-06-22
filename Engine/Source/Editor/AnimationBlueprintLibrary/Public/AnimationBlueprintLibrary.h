@@ -88,22 +88,22 @@ public:
 
 	/** Retrieves the Raw Translation Animation Data for the given Animation Track Name and Animation Sequence */
 	UE_DEPRECATED(5.2, "GetRawTrackPositionData has been deprecated, use AnimationModel interface instead")
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData")
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData", meta=(DeprecatedFunction, DeprecationMessage="GetRawTrackPositionData has been deprecated, use AnimationModel interface instead"))
 	static void GetRawTrackPositionData(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName, TArray<FVector>& PositionData) {}
 
 	/** Retrieves the Raw Rotation Animation Data for the given Animation Track Name and Animation Sequence */
 	UE_DEPRECATED(5.2, "GetRawTrackRotationData has been deprecated, use AnimationModel interface instead")
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData")
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData", meta=(DeprecatedFunction, DeprecationMessage="GetRawTrackRotationData has been deprecated, use AnimationModel interface instead"))
 	static void GetRawTrackRotationData(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName, TArray<FQuat>& RotationData ) {}
 
 	/** Retrieves the Raw Scale Animation Data for the given Animation Track Name and Animation Sequence */	
 	UE_DEPRECATED(5.2, "GetRawTrackScaleData has been deprecated, use AnimationModel interface instead")
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData")
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData", meta=(DeprecatedFunction, DeprecationMessage="GetRawTrackScaleData has been deprecated, use AnimationModel interface instead"))
 	static void GetRawTrackScaleData(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName, TArray<FVector>& ScaleData) {}
 
 	/** Retrieves the Raw Animation Data for the given Animation Track Name and Animation Sequence */
-	UE_DEPRECATED(5.2, "GetRawTrackScaleData has been deprecated, use AnimationModel interface instead")
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData")
+	UE_DEPRECATED(5.2, "GetRawTrackData has been deprecated, use AnimationModel interface instead")
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|RawTrackData", meta=(DeprecatedFunction, DeprecationMessage="GetRawTrackData has been deprecated, use AnimationModel interface instead"))
 	static void GetRawTrackData(const UAnimSequenceBase* AnimationSequenceBase, const FName TrackName, TArray<FVector>& PositionKeys,TArray<FQuat>& RotationKeys, TArray<FVector>& ScalingKeys) {}
 
 	/** Checks whether or not the given Animation Track Name is contained within the Animation Sequence */
@@ -467,22 +467,22 @@ public:
 
 	/** Retrieves Bone Pose data for the given Bone Name at the specified Time from the given Animation Sequence */
 	UE_DEPRECATED(5.2, "GetBonePosesForTime is deprecated, use AnimPose or AnimationDataModel interface directly")
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Pose")
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Pose", meta=(DeprecatedFunction, DeprecationMessage="GetBonePoseForTime has been deprecated, use AnimationModel interface instead"))
 	static void GetBonePoseForTime(const UAnimSequenceBase* AnimationSequenceBase, FName BoneName, float Time, bool bExtractRootMotion, FTransform& Pose);
 
 	/** Retrieves Bone Pose data for the given Bone Name at the specified Frame from the given Animation Sequence */
 	UE_DEPRECATED(5.2, "GetBonePosesForTime is deprecated, use AnimPose or AnimationDataModel interface directly")
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Pose")
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Pose", meta=(DeprecatedFunction, DeprecationMessage="GetBonePosesForTime has been deprecated, use AnimationModel interface instead"))
 	static void GetBonePoseForFrame(const UAnimSequenceBase* AnimationSequenceBase, FName BoneName, int32 Frame, bool bExtractRootMotion, FTransform& Pose);
 
 	/** Retrieves Bone Pose data for the given Bone Names at the specified Time from the given Animation Sequence */
 	UE_DEPRECATED(5.2, "GetBonePosesForTime is deprecated, use AnimPose or AnimationDataModel interface directly")
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Pose")
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Pose", meta=(DeprecatedFunction, DeprecationMessage="GetBonePosesForTime has been deprecated, use AnimationModel interface instead"))
 	static void GetBonePosesForTime(const UAnimSequenceBase* AnimationSequenceBase, TArray<FName> BoneNames, float Time, bool bExtractRootMotion, TArray<FTransform>& Poses, const USkeletalMesh* PreviewMesh = nullptr);
 
 	/** Retrieves Bone Pose data for the given Bone Names at the specified Frame from the given Animation Sequence */
 	UE_DEPRECATED(5.2, "GetBonePosesForTime is deprecated, use AnimPose or AnimationDataModel interface directly")
-	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Pose")
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|Pose", meta=(DeprecatedFunction, DeprecationMessage="GetBonePosesForTime has been deprecated, use AnimationModel interface instead"))
 	static void GetBonePosesForFrame(const UAnimSequenceBase* AnimationSequenceBase, TArray<FName> BoneNames, int32 Frame, bool bExtractRootMotion, TArray<FTransform>& Poses, const USkeletalMesh* PreviewMesh = nullptr);
 
 	// Virtual bones
