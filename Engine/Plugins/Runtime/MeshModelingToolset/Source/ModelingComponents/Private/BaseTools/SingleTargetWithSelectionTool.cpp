@@ -2,15 +2,21 @@
 
 #include "BaseTools/SingleTargetWithSelectionTool.h"
 
+#include "ModelingToolTargetUtil.h"
 #include "Engine/World.h"
+#include "UDynamicMesh.h"
 
+#include "Drawing/PreviewGeometryActor.h"
+#include "TargetInterfaces/DynamicMeshSource.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
 #include "Selection/StoredMeshSelectionUtil.h"
+#include "Selection/GeometrySelectionVisualization.h"
 #include "Selections/GeometrySelection.h"
+#include "PropertySets/GeometrySelectionVisualizationProperties.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SingleTargetWithSelectionTool)
 
@@ -62,15 +68,36 @@ void USingleTargetWithSelectionToolBuilder::InitializeNewTool(USingleTargetWithS
 
 }
 
+void USingleTargetWithSelectionTool::OnTick(float DeltaTime)
+{
+	Super::OnTick(DeltaTime);
+
+	if (GeometrySelectionViz)
+	{
+		UE::Geometry::UpdateGeometrySelectionVisualization(GeometrySelectionViz, GeometrySelectionVizProperties);
+	}
+}
+
 
 void USingleTargetWithSelectionTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	OnShutdown(ShutdownType);
 	TargetWorld = nullptr;
+
+	Super::Shutdown(ShutdownType);
 }
 
 void USingleTargetWithSelectionTool::OnShutdown(EToolShutdownType ShutdownType)
 {
+	if (GeometrySelectionViz)
+	{
+		GeometrySelectionViz->Disconnect();
+	}
+
+	if (GeometrySelectionVizProperties)
+	{
+		GeometrySelectionVizProperties->SaveProperties(this);
+	}
 }
 
 void USingleTargetWithSelectionTool::SetTargetWorld(UWorld* World)

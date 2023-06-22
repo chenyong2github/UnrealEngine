@@ -21,6 +21,8 @@
 #include "Operations/MeshConvexHull.h"
 #include "MinVolumeBox3.h"
 #include "ToolTargetManager.h"
+#include "PropertySets/GeometrySelectionVisualizationProperties.h"
+#include "Selection/GeometrySelectionVisualization.h"
 
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UVProjectionTool)
@@ -189,6 +191,28 @@ void UUVProjectionTool::Setup()
 	ClickToSetPlaneBehavior->Initialize(SetPlaneCtrlClickBehaviorTarget.Get());
 	AddInputBehavior(ClickToSetPlaneBehavior);
 
+	if (HasGeometrySelection())
+	{
+		GeometrySelectionVizProperties = NewObject<UGeometrySelectionVisualizationProperties>(this);
+		GeometrySelectionVizProperties->RestoreProperties(this);
+		AddToolPropertySource(GeometrySelectionVizProperties);
+		GeometrySelectionVizProperties->Initialize(this);
+		GeometrySelectionVizProperties->bEnableShowTriangleROIBorder = true;
+		GeometrySelectionVizProperties->SelectionElementType = static_cast<EGeometrySelectionElementType>(GeometrySelection.ElementType);
+		GeometrySelectionVizProperties->SelectionTopologyType = static_cast<EGeometrySelectionTopologyType>(GeometrySelection.TopologyType);
+
+		GeometrySelectionViz = NewObject<UPreviewGeometry>(this);
+		GeometrySelectionViz->CreateInWorld(GetTargetWorld(), WorldTransform);
+		UE::Geometry::InitializeGeometrySelectionVisualization(
+			GeometrySelectionViz,
+			GeometrySelectionVizProperties,
+			*InputMesh,
+			GeometrySelection,
+			nullptr,
+			nullptr,
+			TriangleROI.Get());
+	}
+
 	// probably already done
 	Preview->InvalidateResult();
 
@@ -221,30 +245,6 @@ void UUVProjectionTool::UpdateNumPreviews()
 
 	EdgeRenderer = NewObject<UPreviewGeometry>(this);
 	EdgeRenderer->CreateInWorld(GetTargetWorld(), (FTransform)WorldTransform);
-
-	// if we have an ROI, show its borders
-	if (TriangleROI->Num() > 0)
-	{
-		FDynamicMesh3* UseMesh = InputMesh.Get();
-		FMeshRegionBoundaryLoops BoundaryLoops(UseMesh, *TriangleROI, true);
-		TSet<int32> BorderEdges;
-		for (const FEdgeLoop& Loop : BoundaryLoops.GetLoops())
-		{
-			BorderEdges.Append(Loop.Edges);
-		}
-
-		const FColor ROIBorderColor(240, 15, 240);
-		const float ROIBorderThickness = 4.0f;
-		const float ROIBorderDepthBias = 0.1f * (float)(WorldBounds.DiagonalLength() * 0.01);
-		EdgeRenderer->CreateOrUpdateLineSet(TEXT("ROIBorders"), UseMesh->MaxEdgeID(), [&](int32 eid, TArray<FRenderableLine>& LinesOut) {
-			if (BorderEdges.Contains(eid))
-			{
-				FVector3d A, B;
-				UseMesh->GetEdgeV(eid, A, B);
-				LinesOut.Add(FRenderableLine((FVector)A, (FVector)B, ROIBorderColor, ROIBorderThickness, ROIBorderDepthBias));
-			}
-		}, 1);
-	}
 }
 
 
@@ -283,6 +283,8 @@ void UUVProjectionTool::OnShutdown(EToolShutdownType ShutdownType)
 	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
 	TransformGizmo = nullptr;
 	TransformProxy = nullptr;
+
+	Super::OnShutdown(ShutdownType);
 }
 
 
@@ -429,6 +431,8 @@ void UUVProjectionTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 
 void UUVProjectionTool::OnTick(float DeltaTime)
 {
+	Super::OnTick(DeltaTime);
+
 	if (bHavePendingAction)
 	{
 		ApplyAction(PendingAction);

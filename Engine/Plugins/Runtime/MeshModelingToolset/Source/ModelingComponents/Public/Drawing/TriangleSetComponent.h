@@ -108,6 +108,11 @@ public:
 	/** Queries whether a triangle with the given ID exists in the component. */
 	bool IsTriangleValid(const int32 ID) const;
 
+	/** Sets the color of all existing triangles */
+	void SetAllTrianglesColor(const FColor& NewColor);
+
+	/** Sets the materials of all existing triangles */
+	void SetAllTrianglesMaterial(UMaterialInterface* Material);
 
 	/**
 	 * Add a triangle with the given vertices, normal, Color, and Material
@@ -120,6 +125,20 @@ public:
 	 * @return ID of the two triangles created
 	 */
 	UE::Geometry::FIndex2i AddQuad(const FVector& A, const FVector& B, const FVector& C, const FVector& D, const FVector& Normal, const FColor& Color, UMaterialInterface* Material);
+
+	// utility construction functions
+
+	/**
+	 * Add a set of triangles for each index in a sequence
+	 * @param NumIndices iterate from 0...NumIndices and call TriangleGenFunc() for each value
+	 * @param TriangleGenFunc called to fetch the triangles for an index, callee filles TrianglesOut array (reset before each call)
+	 * @param TrianglesPerIndexHint if > 0, will reserve space for NumIndices*TrianglesPerIndexHint new triangles
+	 */
+	void AddTriangles(
+		int32 NumIndices,
+		TFunctionRef<void(int32 Index, TArray<FRenderableTriangle>& TrianglesOut)> TriangleGenFunc,
+		int32 TrianglesPerIndexHint = -1,
+		bool bDeferRenderStateDirty = false);
 
 private:
 
@@ -146,6 +165,8 @@ private:
 	TSparseArray<TTuple<int32, int32>> Triangles;
 	TSparseArray<TSparseArray<FRenderableTriangle>> TrianglesByMaterial;
 	TMap<UMaterialInterface*, int32> MaterialToIndex;
+
+	int32 AddTriangleInternal(const FRenderableTriangle& OverlayTriangle);
 
 	friend class FTriangleSetSceneProxy;
 };

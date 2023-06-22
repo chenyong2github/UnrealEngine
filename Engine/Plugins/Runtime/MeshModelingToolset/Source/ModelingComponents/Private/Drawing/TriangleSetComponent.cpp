@@ -8,6 +8,7 @@
 #include "LocalVertexFactory.h"
 #include "PrimitiveSceneProxy.h"
 #include "SceneInterface.h"
+#include "ShaderCompiler.h"
 #include "StaticMeshResources.h"
 
 #include "Algo/Accumulate.h"
@@ -35,7 +36,7 @@ public:
 	FTriangleSetSceneProxy(UTriangleSetComponent* Component)
 		: FPrimitiveSceneProxy(Component),
 		MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel())),
-		VertexFactory(GetScene().GetFeatureLevel(), "FPointSetSceneProxy")
+		VertexFactory(GetScene().GetFeatureLevel(), "FTriangleSetSceneProxy")
 	{
 		const int32 NumTriangleVertices = Algo::Accumulate(Component->TrianglesByMaterial, 0, [](int32 Acc, const TSparseArray<FRenderableTriangle>& Tris) { return Acc + Tris.Num() * 3; });
 		const int32 NumTriangleIndices = NumTriangleVertices;
@@ -51,16 +52,24 @@ public:
 		int32 IndexBufferIndex = 0;
 
 		// Triangles
-		int32 MaterialIndex = 0;
-		for (const auto& MaterialTriangles : Component->TrianglesByMaterial)
+		for (TPair<UMaterialInterface*, int32> MaterialAndMaterialIndex : Component->MaterialToIndex)
 		{
+			UMaterialInterface* Material = MaterialAndMaterialIndex.Get<0>();
+			if (Material == nullptr)
+			{
+				continue;
+			}
+			
+			const int32 MaterialIndex = MaterialAndMaterialIndex.Get<1>();
+			const TSparseArray<FRenderableTriangle>& MaterialTriangles = Component->TrianglesByMaterial[MaterialIndex];
+
 			MeshBatchDatas.Emplace();
 			FTriangleSetMeshBatchData& MeshBatchData = MeshBatchDatas.Last();
 			MeshBatchData.MinVertexIndex = VertexBufferIndex;
 			MeshBatchData.MaxVertexIndex = VertexBufferIndex + MaterialTriangles.Num() * 3 - 1;
 			MeshBatchData.StartIndex = IndexBufferIndex;
 			MeshBatchData.NumPrimitives = MaterialTriangles.Num();
-			MeshBatchData.MaterialProxy = Component->GetMaterial(MaterialIndex)->GetRenderProxy();
+			MeshBatchData.MaterialProxy = Material->GetRenderProxy();
 
 			for (const FRenderableTriangle& Triangle : MaterialTriangles)
 			{
@@ -87,8 +96,6 @@ public:
 				VertexBufferIndex += 3;
 				IndexBufferIndex += 3;
 			}
-
-			MaterialIndex++;
 		}
 
 		ENQUEUE_RENDER_COMMAND(LineSetVertexBuffersInit)(
@@ -238,12 +245,47 @@ void UTriangleSetComponent::ReserveTriangles(const int32 MaxID)
 
 int32 UTriangleSetComponent::AddTriangle(const FRenderableTriangle& OverlayTriangle)
 {
-	const int32 MaterialIndex = FindOrAddMaterialIndex(OverlayTriangle.Material);
-	const int32 IndexByMaterial = TrianglesByMaterial[MaterialIndex].Add(OverlayTriangle);
+	MarkRenderStateDirty();
+	return AddTriangleInternal(OverlayTriangle);
+}
+
+int32 UTriangleSetComponent::AddTriangleInternal(const FRenderableTriangle& Triangle)
+{
+	const int32 MaterialIndex = FindOrAddMaterialIndex(Triangle.Material);
+	const int32 IndexByMaterial = TrianglesByMaterial[MaterialIndex].Add(Triangle);
 	const int32 ID = Triangles.Add(MakeTuple(MaterialIndex, IndexByMaterial));
 	MarkRenderStateDirty();
 	bBoundsDirty = true;
 	return ID;
+}
+
+void UTriangleSetComponent::AddTriangles(
+	int32 NumIndices,
+	TFunctionRef<void(int32 Index, TArray<FRenderableTriangle>& TrianglesOut)> TriangleGenFunc,
+	int32 TrianglesPerIndexHint,
+	bool bDeferRenderStateDirty)
+{
+	TArray<FRenderableTriangle> Temp;
+	if (TrianglesPerIndexHint > 0)
+	{
+		ReserveTriangles(Triangles.Num() + NumIndices*TrianglesPerIndexHint);
+		Temp.Reserve(TrianglesPerIndexHint);
+	}
+
+	for (int32 k = 0; k < NumIndices; ++k)
+	{
+		Temp.Reset();
+		TriangleGenFunc(k, Temp);
+		for (const FRenderableTriangle& Triangle : Temp)
+		{
+			AddTriangleInternal(Triangle);
+		}
+	}
+
+	if (!bDeferRenderStateDirty)
+	{
+		MarkRenderStateDirty();
+	}
 }
 
 void UTriangleSetComponent::InsertTriangle(const int32 ID, const FRenderableTriangle& OverlayTriangle)
@@ -265,7 +307,24 @@ void UTriangleSetComponent::RemoveTriangle(const int32 ID)
 	if (Container.Num() == 0)
 	{
 		TrianglesByMaterial.RemoveAt(MaterialIndex);
-		MaterialToIndex.Remove(GetMaterial(MaterialIndex + 2));
+
+		// Find the MaterialInterface* for the given MaterialIndex. TMaps doesn't support finding values matching a
+		// given key so we just visit all the pairs
+		UMaterialInterface* MaterialToRemove = nullptr;
+		for (TPair<UMaterialInterface*, int32> MaterialAndMaterialIndex : MaterialToIndex)
+		{
+			if (MaterialAndMaterialIndex.Get<1>() == MaterialIndex)
+			{
+				MaterialToRemove = MaterialAndMaterialIndex.Get<0>();
+				break;
+			}
+		}
+		if (ensure(MaterialToRemove))
+		{
+			int32 NumRemoved = MaterialToIndex.Remove(MaterialToRemove);
+			ensure(NumRemoved == 1);
+		}
+
 		SetMaterial(MaterialIndex, nullptr);
 	}
 	Triangles.RemoveAt(ID);
@@ -309,6 +368,42 @@ UE::Geometry::FIndex2i UTriangleSetComponent::AddQuad(const FVector& A, const FV
 bool UTriangleSetComponent::IsTriangleValid(const int32 ID) const
 {
 	return Triangles.IsValidIndex(ID);
+}
+
+void UTriangleSetComponent::SetAllTrianglesColor(const FColor& NewColor)
+{
+	for (TSparseArray<FRenderableTriangle>& TriangleArray : TrianglesByMaterial)
+	{
+		for (FRenderableTriangle& Triangle : TriangleArray)
+		{
+			Triangle.Vertex0.Color = NewColor;
+			Triangle.Vertex1.Color = NewColor;
+			Triangle.Vertex2.Color = NewColor;
+		}
+	}
+}
+
+void UTriangleSetComponent::SetAllTrianglesMaterial(UMaterialInterface* Material)
+{
+	int32 MaterialIndex = FindOrAddMaterialIndex(Material);
+	for (TSparseArray<TTuple<int32, int32>>::TIterator It = Triangles.CreateIterator(); It; ++It)
+	{
+		const int32 OldMaterialIndex = It->Get<0>();
+		if (OldMaterialIndex != MaterialIndex)
+		{
+			const int32 OldIndexByMaterial = It->Get<1>();
+
+			FRenderableTriangle Triangle = TrianglesByMaterial[OldMaterialIndex][OldIndexByMaterial];
+			Triangle.Material = Material;
+
+			int32 TrianglesIndex = It.GetIndex();
+			RemoveTriangle(TrianglesIndex);
+			InsertTriangle(TrianglesIndex, Triangle);
+		}
+	}
+
+	// TODO RemoveTriangle and InsertTriangle also do this... for every triangle! we should fix that 
+	MarkRenderStateDirty();
 }
 
 FPrimitiveSceneProxy* UTriangleSetComponent::CreateSceneProxy()

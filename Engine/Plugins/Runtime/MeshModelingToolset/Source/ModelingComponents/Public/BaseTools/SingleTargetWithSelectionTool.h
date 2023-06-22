@@ -7,6 +7,11 @@
 #include "Selections/GeometrySelection.h"
 #include "SingleTargetWithSelectionTool.generated.h"
 
+class UPreviewGeometry;
+class UGeometrySelectionVisualizationProperties;
+
+PREDECLARE_GEOMETRY(class FDynamicMesh3)
+PREDECLARE_GEOMETRY(class FGroupTopology)
 
 UCLASS(Transient, Abstract)
 class MODELINGCOMPONENTS_API USingleTargetWithSelectionToolBuilder : public UInteractiveToolWithToolTargetsBuilder
@@ -42,6 +47,8 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType);
 
+	virtual void OnTick(float DeltaTime) override;
+
 	virtual void SetTargetWorld(UWorld* World);
 	virtual UWorld* GetTargetWorld();
 
@@ -63,4 +70,10 @@ public:
 protected:
 	UE::Geometry::FGeometrySelection GeometrySelection;
 	bool bGeometrySelectionInitialized = false;
+
+	UPROPERTY()
+	TObjectPtr<UGeometrySelectionVisualizationProperties> GeometrySelectionVizProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UPreviewGeometry> GeometrySelectionViz = nullptr;
 };

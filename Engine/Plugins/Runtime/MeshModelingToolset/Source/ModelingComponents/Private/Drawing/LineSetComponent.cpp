@@ -303,6 +303,14 @@ void ULineSetComponent::SetAllLinesThickness(const float NewThickness)
 	MarkRenderStateDirty();
 }
 
+void ULineSetComponent::SetAllLinesDepthBias(const float NewDepthBias)
+{
+	for (FRenderableLine& Line : Lines)
+	{
+		Line.DepthBias = NewDepthBias;
+	}
+	MarkRenderStateDirty();
+}
 
 void ULineSetComponent::SetAllLinesLength(const float NewLength, bool bUpdateBounds)
 {

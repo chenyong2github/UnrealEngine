@@ -22,6 +22,8 @@
 #include "Util/ColorConstants.h"
 #include "Selections/GeometrySelectionUtil.h"
 #include "Selection/StoredMeshSelectionUtil.h"
+#include "Selection/GeometrySelectionVisualization.h"
+#include "PropertySets/GeometrySelectionVisualizationProperties.h"
 #include "ToolTargetManager.h"
 
 #include "Polygroups/PolygroupsGenerator.h"
@@ -239,13 +241,17 @@ void UConvertToPolygonsTool::Setup()
 
 	// initialize triangle ROI if one exists
 	SelectionTriangleROI = MakeShared<TSet<int32>, ESPMode::ThreadSafe>();
+	TArray<int> TriangleROI;
 	if (HasGeometrySelection())
 	{
 		const FGeometrySelection& InputSelection = GetGeometrySelection();
+
 		UE::Geometry::EnumerateSelectionTriangles(InputSelection, *OriginalDynamicMesh,
 			[&](int32 TriangleID) { SelectionTriangleROI->Add(TriangleID); });
 
-		OriginalSubmesh = MakeShared<FDynamicSubmesh3, ESPMode::ThreadSafe>(OriginalDynamicMesh.Get(), SelectionTriangleROI->Array());
+		TriangleROI = SelectionTriangleROI->Array();
+
+		OriginalSubmesh = MakeShared<FDynamicSubmesh3, ESPMode::ThreadSafe>(OriginalDynamicMesh.Get(), TriangleROI);
 		bUsingSelection = true;
 	}
 
@@ -353,6 +359,27 @@ void UConvertToPolygonsTool::Setup()
 	OutputProperties->OptionsList.Add(TEXT("Create New..."));
 	OutputProperties->WatchProperty(OutputProperties->GroupLayer, [&](FName NewName) { OutputProperties->bShowNewLayerName = (NewName == TEXT("Create New...")); });
 
+	if (bUsingSelection)
+	{
+		GeometrySelectionVizProperties = NewObject<UGeometrySelectionVisualizationProperties>(this);
+		GeometrySelectionVizProperties->RestoreProperties(this);
+		AddToolPropertySource(GeometrySelectionVizProperties);
+		GeometrySelectionVizProperties->Initialize(this);
+		GeometrySelectionVizProperties->bEnableShowTriangleROIBorder = true;
+		GeometrySelectionVizProperties->SelectionElementType = static_cast<EGeometrySelectionElementType>(GeometrySelection.ElementType);
+		GeometrySelectionVizProperties->SelectionTopologyType = static_cast<EGeometrySelectionTopologyType>(GeometrySelection.TopologyType);
+
+		GeometrySelectionViz = NewObject<UPreviewGeometry>(this);
+		GeometrySelectionViz->CreateInWorld(GetTargetWorld(), MeshTransform);
+		UE::Geometry::InitializeGeometrySelectionVisualization(
+			GeometrySelectionViz,
+			GeometrySelectionVizProperties,
+			*OriginalDynamicMesh,
+			GeometrySelection,
+			nullptr,
+			nullptr,
+			&TriangleROI);
+	}
 
 	// start the compute
 	PreviewCompute->InvalidateResult();
@@ -520,6 +547,8 @@ void UConvertToPolygonsTool::OnShutdown(EToolShutdownType ShutdownType)
 	{
 		ComputeOperatorSharedMesh->ReleaseSharedObject();
 	}
+
+	Super::OnShutdown(ShutdownType);
 }
 
 void UConvertToPolygonsTool::OnSettingsModified()
@@ -532,6 +561,8 @@ void UConvertToPolygonsTool::OnSettingsModified()
 
 void UConvertToPolygonsTool::OnTick(float DeltaTime)
 {
+	Super::OnTick(DeltaTime);
+
 	PreviewCompute->Tick(DeltaTime);
 }
 

@@ -89,11 +89,31 @@ public:
 	/** Sets the color of all points currently in the set. */
 	void SetAllPointsColor(const FColor& NewColor);
 
+	/** Sets the size of all points currently in the set. */
+	void SetAllPointsSize(float NewSize);
+
+	/** Sets the depth bias of all points currently in the set. */
+	void SetAllPointsDepthBias(float NewDepthBias);
+
 	/** Remove a point from the set. */
 	void RemovePoint(const int32 ID);
 
 	/** Queries whether a point with the given ID exists */
 	bool IsPointValid(const int32 ID) const;
+
+	// utility construction functions
+	
+	/**
+	 * Add a set of points for each index in a sequence
+	 * @param NumIndices iterate from 0...NumIndices and call PointGenFunc() for each value
+	 * @param PointGenFunc called to fetch the points for an index, callee filles PointsOut array (reset before each call)
+	 * @param PointsPerIndexHint if > 0, will reserve space for NumIndices*PointsPerIndexHint new points
+	 */
+	void AddPoints(
+		int32 NumIndices,
+		TFunctionRef<void(int32 Index, TArray<FRenderablePoint>& PointsOut)> PointGenFunc,
+		int32 PointsPerIndexHint = -1,
+		bool bDeferRenderStateDirty = false);
 
 private:
 
@@ -119,6 +139,8 @@ private:
 	mutable bool bBoundsDirty;
 
 	TSparseArray<FRenderablePoint> Points;
+
+	int32 AddPointInternal(const FRenderablePoint& Point);
 
 	friend class FPointSetSceneProxy;
 };

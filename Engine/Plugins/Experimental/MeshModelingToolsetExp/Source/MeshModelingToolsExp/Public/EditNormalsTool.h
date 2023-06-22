@@ -19,6 +19,8 @@
 struct FMeshDescription;
 class UDynamicMeshComponent;
 class UEditNormalsTool;
+class UPreviewGeometry;
+class UGeometrySelectionVisualizationProperties;
 
 /**
  *
@@ -95,37 +97,6 @@ public:
 
 
 
-/**
- * Advanced properties
- */
-UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditNormalsAdvancedProperties : public UInteractiveToolPropertySet
-{
-	GENERATED_BODY()
-
-public:
-	UEditNormalsAdvancedProperties();
-
-	/** Render the geometry selection */
-	UPROPERTY(EditAnywhere, Category = "Selection Visualization",
-		meta = (EditCondition = "bToolHasSelection", HideEditConditionToggle, EditConditionHides))
-	bool bShowSelection = false;
-
-	/** This tool treats edge selections as vertex selections. Enable this to show the edited vertices */
-	UPROPERTY(EditAnywhere, Category="Selection Visualization", AdvancedDisplay, DisplayName="Show Vertex Selection",
-		meta = (EditCondition = "bToolHasSelection && bToolHasEdgeSelection", HideEditConditionToggle, EditConditionHides))
-	bool bShowEdgeSelectionAsVertexSelection = false;
-
-	//
-	// The following are not user visible
-	//
-
-	UPROPERTY(meta = (TransientToolProperty))
-	bool bToolHasSelection;
-
-	UPROPERTY(meta = (TransientToolProperty))
-	bool bToolHasEdgeSelection;
-};
 
 
 /**
@@ -166,7 +137,6 @@ public:
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void OnTick(float DeltaTime) override;
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override;
@@ -185,9 +155,6 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UEditNormalsToolProperties> BasicProperties = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<UEditNormalsAdvancedProperties> AdvancedProperties = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
@@ -214,17 +181,21 @@ protected:
 	// Selection
 	//
 
+	UPROPERTY()
+	TObjectPtr<UGeometrySelectionVisualizationProperties> GeometrySelectionVizProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UPreviewGeometry> GeometrySelectionViz = nullptr;
+
 	// The geometry selection that the user started the tool with. If the selection is empty we operate on the whole
 	// mesh, if its not empty we only edit the overlay elements implied by the selection.
 	UE::Geometry::FGeometrySelection InputGeometrySelection;
-	UE::Geometry::FSelectionRenderHelper InputGeometrySelectionRenderer; // Default selection visualization
-
-	// Cache the input polygroup set which was used to start the tool. We do this because users can change the
-	// polygroup referenced by the operator while using the tool.
-	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGeometrySelectionPolygroupSet;
 
 	// If the user starts the tool with an edge selection we convert it to a vertex selection with triangle topology
 	// and store it here, we do this since we expect users to want vertex and edge selections to behave similarly.
 	UE::Geometry::FGeometrySelection TriangleVertexGeometrySelection;
-	UE::Geometry::FSelectionRenderHelper TriangleVertexGeometrySelectionRenderer; // Debug selection visualization, off by default
+
+	// Cache the input polygroup set which was used to start the tool. We do this because users can change the
+	// polygroup referenced by the operator while using the tool.
+	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGeometrySelectionPolygroupSet;
 };

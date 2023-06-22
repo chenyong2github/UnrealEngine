@@ -69,6 +69,10 @@ void UPreviewGeometry::SetTransform(const FTransform& UseTransform)
 
 void UPreviewGeometry::SetAllVisible(bool bVisible)
 {
+	for (TPair<FString, TObjectPtr<UTriangleSetComponent>> Entry : TriangleSets)
+	{
+		Entry.Value->SetVisibility(bVisible);
+	}
 	for (TPair<FString, TObjectPtr<ULineSetComponent>> Entry : LineSets)
 	{
 		Entry.Value->SetVisibility(bVisible);
@@ -80,6 +84,53 @@ void UPreviewGeometry::SetAllVisible(bool bVisible)
 }
 
 
+UTriangleSetComponent* UPreviewGeometry::AddTriangleSet(const FString& SetIdentifier)
+{
+	if (TriangleSets.Contains(SetIdentifier))
+	{
+		check(false);
+		return nullptr;
+	}
+
+	UTriangleSetComponent* TriangleSet = NewObject<UTriangleSetComponent>(ParentActor);
+	TriangleSet->SetupAttachment(ParentActor->GetRootComponent());
+	TriangleSet->RegisterComponent();
+
+	TriangleSets.Add(SetIdentifier, TriangleSet);
+	return TriangleSet;
+}
+
+
+UTriangleSetComponent* UPreviewGeometry::FindTriangleSet(const FString& TriangleSetIdentifier)
+{
+	TObjectPtr<UTriangleSetComponent>* Found = TriangleSets.Find(TriangleSetIdentifier);
+	if (Found != nullptr)
+	{
+		return *Found;
+	}
+	return nullptr;
+}
+
+
+
+void UPreviewGeometry::CreateOrUpdateTriangleSet(const FString& TriangleSetIdentifier, int32 NumIndices,
+	TFunctionRef<void(int32 Index, TArray<FRenderableTriangle>& TrianglesOut)> TriangleGenFunc,
+	int32 TrianglesPerIndexHint)
+{
+	UTriangleSetComponent* TriangleSet = FindTriangleSet(TriangleSetIdentifier);
+	if (TriangleSet == nullptr)
+	{
+		TriangleSet = AddTriangleSet(TriangleSetIdentifier);
+		if (TriangleSet == nullptr)
+		{
+			check(false);
+			return;
+		}
+	}
+
+	TriangleSet->Clear();
+	TriangleSet->AddTriangles(NumIndices, TriangleGenFunc, TrianglesPerIndexHint);
+}
 
 
 ULineSetComponent* UPreviewGeometry::AddLineSet(const FString& SetIdentifier)
@@ -235,6 +286,25 @@ UPointSetComponent* UPreviewGeometry::FindPointSet(const FString& PointSetIdenti
 		return *Found;
 	}
 	return nullptr;
+}
+
+void UPreviewGeometry::CreateOrUpdatePointSet(const FString& PointSetIdentifier, int32 NumIndices,
+	TFunctionRef<void(int32 Index, TArray<FRenderablePoint>& PointsOut)> PointGenFunc,
+	int32 PointsPerIndexHint)
+{
+	UPointSetComponent* PointSet = FindPointSet(PointSetIdentifier);
+	if (PointSet == nullptr)
+	{
+		PointSet = AddPointSet(PointSetIdentifier);
+		if (PointSet == nullptr)
+		{
+			check(false);
+			return;
+		}
+	}
+
+	PointSet->Clear();
+	PointSet->AddPoints(NumIndices, PointGenFunc, PointsPerIndexHint);
 }
 
 bool UPreviewGeometry::RemovePointSet(const FString& PointSetIdentifier, bool bDestroy)

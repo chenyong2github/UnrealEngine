@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InteractiveToolObjects.h"
+#include "Drawing/TriangleSetComponent.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/PointSetComponent.h"
 
@@ -75,6 +76,43 @@ public:
 	 */
 	void SetAllVisible(bool bVisible);
 
+
+	//
+	// Triangle Sets
+	//
+
+	/** Create a new triangle set with the given TriangleSetIdentifier and return it */
+	UFUNCTION()
+	UTriangleSetComponent* AddTriangleSet(const FString& TriangleSetIdentifier);
+
+	/** @return the TriangleSetComponent with the given TriangleSetIdentifier, or nullptr if not found */
+	UFUNCTION()
+	UTriangleSetComponent* FindTriangleSet(const FString& TriangleSetIdentifier);
+
+
+	//
+	// Triangle Set Utilities
+	//
+
+	/**
+	 * Find the identified triangle set and call UpdateFuncType(UTriangleSetComponent*)
+	 */
+	template<typename UpdateFuncType>
+	void UpdateTriangleSet(const FString& TriangleSetIdentifier, UpdateFuncType UpdateFunc)
+	{
+		UTriangleSetComponent* TriangleSet = FindTriangleSet(TriangleSetIdentifier);
+		if (TriangleSet)
+		{
+			UpdateFunc(TriangleSet);
+		}
+	}
+
+	/**
+	 * Add a set of triangles produced by calling TriangleGenFunc for each index in range [0,NumIndices)
+	 */
+	void CreateOrUpdateTriangleSet(const FString& TriangleSetIdentifier, int32 NumIndices,
+		TFunctionRef<void(int32 Index, TArray<FRenderableTriangle>& TrianglesOut)> TriangleGenFunc,
+		int32 TrianglesPerIndexHint = -1);
 
 
 	//
@@ -154,8 +192,6 @@ public:
 			UpdateFunc(Entry.Value);
 		}
 	}
-
-
 
 	/**
 	 * Add a set of lines produced by calling LineGenFunc for each index in range [0,NumIndices)
@@ -242,6 +278,14 @@ public:
 		}
 	}
 
+	/**
+	 * Add a set of points produced by calling PointGenFunc for each index in range [0,NumIndices)
+	 */
+	void CreateOrUpdatePointSet(const FString& PointSetIdentifier, int32 NumIndices,
+		TFunctionRef<void(int32 Index, TArray<FRenderablePoint>& PointsOut)> PointGenFunc,
+		int32 PointsPerIndexHint = -1);
+
+
 public:
 
 	/**
@@ -249,6 +293,12 @@ public:
 	 */
 	UPROPERTY()
 	TObjectPtr<APreviewGeometryActor> ParentActor = nullptr;
+
+	/**
+	 * TriangleSetComponents created and owned by the UPreviewGeometry, and added as child components of the ParentActor
+	 */
+	UPROPERTY()
+	TMap<FString, TObjectPtr<UTriangleSetComponent>> TriangleSets;
 
 	/**
 	 * LineSetComponents created and owned by the UPreviewGeometry, and added as child components of the ParentActor

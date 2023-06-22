@@ -42,13 +42,13 @@ void ToolSelectionUtil::SetNewActorSelection(UInteractiveToolManager* ToolManage
 	ToolManager->RequestSelectionChange(NewSelection);
 }
 
-MODELINGCOMPONENTS_API bool ToolSelectionUtil::AccumulateSelectionElements(
-		FGeometrySelectionElements& Elements,
-		const FGeometrySelection& Selection,
-		const FDynamicMesh3& SourceMesh,
-		const FGroupTopology* GroupTopology,
-		const FTransform* ApplyTransform,
-		bool bMapFacesToEdges)
+bool ToolSelectionUtil::AccumulateSelectionElements(
+	FGeometrySelectionElements& Elements,
+	const FGeometrySelection& Selection,
+	const FDynamicMesh3& SourceMesh,
+	const FGroupTopology* GroupTopology,
+	const FTransform* ApplyTransform,
+	bool bMapFacesToEdges)
 {
 	auto AddPoint = [&Elements](uint32 Vid, const FVector3d& Point) { Elements.Points.Add(Point); };
 	auto AddSegment = [&Elements](uint32 Eid, const FSegment3d& Segment) { Elements.Segments.Add(Segment); };

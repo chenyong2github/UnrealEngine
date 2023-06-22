@@ -268,8 +268,13 @@ void UPointSetComponent::ReservePoints(const int32 MaxID)
 
 int32 UPointSetComponent::AddPoint(const FRenderablePoint& OverlayPoint)
 {
-	const int32 ID(Points.Add(OverlayPoint));
 	MarkRenderStateDirty();
+	return AddPointInternal(OverlayPoint);
+}
+
+int32 UPointSetComponent::AddPointInternal(const FRenderablePoint& Point)
+{
+	const int32 ID(Points.Add(Point));
 	bBoundsDirty = true;
 	return ID;
 }
@@ -318,6 +323,24 @@ void UPointSetComponent::SetAllPointsColor(const FColor& NewColor)
 	for (FRenderablePoint& Point : Points)
 	{
 		Point.Color = NewColor;
+	}
+	MarkRenderStateDirty();
+}
+
+void UPointSetComponent::SetAllPointsSize(float NewSize)
+{
+	for (FRenderablePoint& Point : Points)
+	{
+		Point.Size = NewSize;
+	}
+	MarkRenderStateDirty();
+}
+
+void UPointSetComponent::SetAllPointsDepthBias(float NewDepthBias)
+{
+	for (FRenderablePoint& Point : Points)
+	{
+		Point.DepthBias = NewDepthBias;
 	}
 	MarkRenderStateDirty();
 }
@@ -383,3 +406,31 @@ FBoxSphereBounds UPointSetComponent::CalcBounds(const FTransform& LocalToWorld) 
 }
 
 
+void UPointSetComponent::AddPoints(
+	int32 NumIndices,
+	TFunctionRef<void(int32 Index, TArray<FRenderablePoint>& PointsOut)> PointGenFunc,
+	int32 PointsPerIndexHint,
+	bool bDeferRenderStateDirty)
+{
+	TArray<FRenderablePoint> TempPoints;
+	if (PointsPerIndexHint > 0)
+	{
+		ReservePoints(Points.Num() + NumIndices*PointsPerIndexHint);
+		TempPoints.Reserve(PointsPerIndexHint);
+	}
+
+	for (int32 k = 0; k < NumIndices; ++k)
+	{
+		TempPoints.Reset();
+		PointGenFunc(k, TempPoints);
+		for (const FRenderablePoint& Point : TempPoints)
+		{
+			AddPointInternal(Point);
+		}
+	}
+
+	if (!bDeferRenderStateDirty)
+	{
+		MarkRenderStateDirty();
+	}
+}

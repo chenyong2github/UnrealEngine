@@ -86,6 +86,9 @@ public:
 	/** Sets the thickness of all existing lines */
 	void SetAllLinesThickness(const float NewThickness);
 
+	/** Sets the depth bias of all existing lines */
+	void SetAllLinesDepthBias(const float NewDepthBias);
+
 	/** Rescales each line assuming that vertex 0 is the origin */
 	void SetAllLinesLength(const float NewLength, bool bUpdateBounds = false);
 
