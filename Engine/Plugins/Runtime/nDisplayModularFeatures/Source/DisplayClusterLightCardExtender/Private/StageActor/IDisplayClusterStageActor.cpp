@@ -54,7 +54,7 @@ FBox IDisplayClusterStageActor::GetBoxBounds(bool bLocalSpace) const
 {
 	if (const AActor* Actor = FStageActorHelper::GetActorConst(this))
 	{
-		return Actor->GetComponentsBoundingBox();
+		return Actor->GetComponentsBoundingBox(/* bNonColliding */ true);
 	}
 	return FBox();
 }
