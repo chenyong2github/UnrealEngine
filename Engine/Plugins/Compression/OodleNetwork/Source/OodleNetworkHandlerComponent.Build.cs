@@ -78,9 +78,10 @@ public class OodleNetworkHandlerComponent : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			// NOTE: Simulator builds should use .sim.a files but we're not building sim as of this writing
-			ReleaseLib = "liboo2netios.a";
-			DebugLib = "liboo2netios_dbg.a";
+			string LibExt = (Target.Architecture == UnrealArch.IOSSimulator) ? ".sim.a" : ".a";
+
+			ReleaseLib = "liboo2netios" + LibExt;
+			DebugLib = "liboo2netios_dbg" + LibExt;
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{

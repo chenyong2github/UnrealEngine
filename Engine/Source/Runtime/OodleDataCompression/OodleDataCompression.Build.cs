@@ -74,9 +74,9 @@ using UnrealBuildTool;
 			}
 			else if (Target.Platform == UnrealTargetPlatform.IOS)
 			{
-				// NOTE: Simulator builds should use .sim.a files but we're not building sim as of this writing
-				ReleaseLib = "liboo2coreios.a";
-				DebugLib = "liboo2coreios_dbg.a";
+				string libEnding = (Target.Architecture == UnrealArch.IOSSimulator) ? ".sim.a" : ".a";
+				ReleaseLib = "liboo2coreios" + libEnding;
+				DebugLib = "liboo2coreios_dbg" + libEnding;
 			}
 			else if (Target.Platform == UnrealTargetPlatform.TVOS)
 			{
