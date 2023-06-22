@@ -110,7 +110,7 @@ void FMoviePipelinePanoramicBlender::OnCompleteRenderPassDataAvailable_AnyThread
 	// We calculate all of these immediately on the task thread because it's read-only and we need the
 	// information calculated by it to allocate memory when we start working on a sample.
 	FIntPoint SampleSize = DataPayload->Pane.Resolution;
-	FRotator SampleRotation = FRotator(DataPayload->Pane.CameraRotation);
+	FRotator SampleRotation = FRotator(DataPayload->Pane.bUseLocalRotation ? DataPayload->Pane.CameraLocalRotation : DataPayload->Pane.CameraRotation);
 	const float SampleHalfHorizontalFoVDegrees = 0.5f * DataPayload->Pane.HorizontalFieldOfView;
 	const float SampleHalfVerticalFoVDegrees = 0.5f * DataPayload->Pane.VerticalFieldOfView; // FMath::RadiansToDegrees((FMath::Atan((0.5f * SampleSize.X / FMath::Tan(DataPayload->Pane.HorizontalFieldOfView / 2.f))))); // CTransformTools::getVFovFromHFovAndARInDegrees(iSampleFovInDegrees, static_cast<float>(iSampleSize.X) / static_cast<float>(iSampleSize.Y));
 	const float SampleHalfHorizontalFoVCosine = FMath::Cos(FMath::DegreesToRadians(SampleHalfHorizontalFoVDegrees));

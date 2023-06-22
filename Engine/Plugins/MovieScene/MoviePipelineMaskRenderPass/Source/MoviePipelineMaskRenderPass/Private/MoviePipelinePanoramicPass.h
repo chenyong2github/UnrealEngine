@@ -40,7 +40,11 @@ struct FPanoPane : public UMoviePipelineImagePassBase::IViewCalcPayload
 	FVector CameraLocation;
 	FVector PrevCameraLocation;
 	FRotator CameraRotation;
+	FRotator CameraLocalRotation;
 	FRotator PrevCameraRotation;
+
+	// If true, uses only the CameraLocalRotation which means that if the camera yaws, so will the resulting blended image.
+	bool bUseLocalRotation;
 
 	// How many horizontal segments are there total.
 	int32 NumHorizontalSteps;
@@ -152,6 +156,12 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Panoramic Settings", meta = (UIMin = "1", ClampMin = "1"))
 	int32 NumVerticalSteps;
+
+	/**
+	* Should the Pitch, Yaw and Roll of the camera be respected? If false, only the location will be taken from the camera.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Panoramic Settings")
+	bool bFollowCameraOrientation;
 	
 	/**
 	* If true we will capture a stereo panorama. This doubles everything (all render times, memory requirements, etc.)

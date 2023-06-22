@@ -22,6 +22,7 @@ UMoviePipelinePanoramicPass::UMoviePipelinePanoramicPass()
 	: UMoviePipelineImagePassBase()
 	, NumHorizontalSteps(8)
 	, NumVerticalSteps(3)
+	, bFollowCameraOrientation(true)
 	, bStereo(false)
 	, EyeSeparation(6.5f)
 	, EyeConvergenceDistance(EyeSeparation * 30.f)
@@ -52,7 +53,7 @@ namespace MoviePipeline
 			return Results;
 		};
 
-		void GetCameraOrientationForStereo(FVector& OutLocation, FRotator& OutRotation, const FPanoPane& InPane, const int32 InStereoIndex, const bool bInPrevPosition)
+		void GetCameraOrientationForStereo(FVector& OutLocation, FRotator& OutRotation, FRotator& OutLocalRotation, const FPanoPane& InPane, const int32 InStereoIndex, const bool bInPrevPosition)
 		{
 			// ToDo: This 110 (-55, 55) comes from TwinMotion who uses a hard-coded number of v-steps, may need adjusting.
 			const TArray<float> PitchValues = MoviePipeline::Panoramic::DistributeValuesInInterval(-55, 55, InPane.NumVerticalSteps, /*Inclusive Max*/true);
@@ -67,6 +68,7 @@ namespace MoviePipeline
 			const FRotator SourceRot = bInPrevPosition ? InPane.PrevOriginalCameraRotation : InPane.OriginalCameraRotation;
 			FQuat RotationResult = FQuat(SourceRot) * HorizontalRotQuat * VerticalRotQuat;
 			OutRotation = FRotator(RotationResult);
+			OutLocalRotation = FRotator(HorizontalRotQuat * VerticalRotQuat);
 
 			// If not using stereo rendering then the eye is just the camera location
 			if (InStereoIndex < 0)
@@ -420,10 +422,12 @@ void UMoviePipelinePanoramicPass::RenderSample_GameThreadImpl(const FMoviePipeli
 				Pane.NumVerticalSteps = NumVerticalSteps;
 				Pane.EyeSeparation = EyeSeparation;
 				Pane.EyeConvergenceDistance = EyeConvergenceDistance;
+				Pane.bUseLocalRotation = bFollowCameraOrientation;
 
 				// Get the actual camera location/rotation for this particular pane, the above values are from the global camera.
-				MoviePipeline::Panoramic::GetCameraOrientationForStereo(/*Out*/ Pane.CameraLocation, /*Out*/ Pane.CameraRotation, Pane, StereoIndex, /*bInPrevPos*/ false);
-				MoviePipeline::Panoramic::GetCameraOrientationForStereo(/*Out*/ Pane.PrevCameraLocation, /*Out*/ Pane.PrevCameraRotation, Pane, StereoIndex, /*bInPrevPos*/ true);
+				MoviePipeline::Panoramic::GetCameraOrientationForStereo(/*Out*/ Pane.CameraLocation, /*Out*/ Pane.CameraRotation, /*Out*/ Pane.CameraLocalRotation, Pane, StereoIndex, /*bInPrevPos*/ false);
+				FRotator DummyPrevLocalRot;
+				MoviePipeline::Panoramic::GetCameraOrientationForStereo(/*Out*/ Pane.PrevCameraLocation, /*Out*/ Pane.PrevCameraRotation, /*Out*/ DummyPrevLocalRot, Pane, StereoIndex, /*bInPrevPos*/ true);
 
 				GetFieldOfView(Pane.HorizontalFieldOfView, Pane.VerticalFieldOfView, bStereo);
 
