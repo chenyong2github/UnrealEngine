@@ -623,6 +623,18 @@ public:
 	}
 
 	/**
+	 * Returns the date from Unix time (seconds from midnight 1970-01-01)
+	 *
+	 * @param UnixTime Unix time (seconds from midnight 1970-01-01)
+	 * @return Gregorian date and time.
+	 * @see ToUnixTimestampDecimal
+	 */
+	static FDateTime FromUnixTimestampDecimal(double UnixTime)
+	{
+		return FDateTime(1970, 1, 1) + FTimespan(UnixTime * ETimespan::TicksPerSecond);
+	}
+
+	/**
 	 * Checks whether the given year is a leap year.
 	 *
 	 * A leap year is a year containing one additional day in order to keep the calendar synchronized
