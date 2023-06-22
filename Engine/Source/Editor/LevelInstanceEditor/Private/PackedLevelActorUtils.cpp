@@ -178,7 +178,7 @@ bool FPackedLevelActorUtils::CreateOrUpdateBlueprint(TSoftObjectPtr<UWorld> InWo
 
 void FPackedLevelActorUtils::UpdateBlueprint(UBlueprint* InBlueprint, bool bCheckoutAndSave)
 {
-	return FPackedLevelActorBuilder::CreateDefaultBuilder()->UpdateBlueprint(InBlueprint, bCheckoutAndSave);
+	FPackedLevelActorBuilder::CreateDefaultBuilder()->UpdateBlueprint(InBlueprint, bCheckoutAndSave);
 }
 
 #undef LOCTEXT_NAMESPACE

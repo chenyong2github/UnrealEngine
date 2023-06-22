@@ -53,6 +53,7 @@ void FPackedLevelActorBuilderContext::DiscardActor(AActor* InActor)
 }
 
 FPackedLevelActorBuilder::FPackedLevelActorBuilder()
+	: PreviewScene(FPreviewScene::ConstructionValues().SetTransactional(false))
 {
 }
 
@@ -297,8 +298,7 @@ ALevelInstance* FPackedLevelActorBuilder::CreateTransientLevelInstanceForPacking
 	SpawnParams.bNoFail = true;
 	SpawnParams.ObjectFlags |= RF_Transient;
 
-	UWorld* World = GEditor->GetEditorWorldContext().World();
-	check(World);
+	UWorld* World = PreviewScene.GetWorld();
 	SpawnParams.OverrideLevel = World->PersistentLevel;
 
 	// Provide the same ActorGuid all the time so that sorting of Component by ObjectPath are deterministic (used in FPackedLevelActorISMBuilder::PackActors)
@@ -381,7 +381,7 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromUnpacked(ILevelInstanc
 	SpawnParams.ObjectFlags |= RF_Transient;
 	SpawnParams.ObjectFlags &= ~RF_Transactional;
 	
-	UWorld* World = LevelInstanceActor->GetWorld();
+	UWorld* World = PreviewScene.GetWorld();
 	SpawnParams.OverrideLevel = World->PersistentLevel;
 
 	APackedLevelActor* PackedLevelActor = World->SpawnActor<APackedLevelActor>(LevelInstanceActor->GetActorLocation(), LevelInstanceActor->GetActorRotation(), SpawnParams);

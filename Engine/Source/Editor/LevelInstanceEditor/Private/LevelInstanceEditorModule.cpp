@@ -8,6 +8,7 @@
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "PackedLevelActor/PackedLevelActor.h"
+#include "PackedLevelActor/PackedLevelActorBuilder.h"
 #include "LevelInstanceEditorSettings.h"
 #include "ToolMenus.h"
 #include "Editor.h"
@@ -669,11 +670,12 @@ namespace LevelInstanceMenuUtils
 			FScopedSlowTask SlowTask(0.0f, LOCTEXT("UpdatePackedBlueprintsProgress", "Updating Packed Blueprints..."));
 			TSet<TSoftObjectPtr<UBlueprint>> BlueprintAssets;
 			FPackedLevelActorUtils::GetPackedBlueprintsForWorldAsset(TSoftObjectPtr<UWorld>(WorldAsset.GetSoftObjectPath()), BlueprintAssets, false);
+			TSharedPtr<FPackedLevelActorBuilder> Builder = FPackedLevelActorBuilder::CreateDefaultBuilder();
 			for (TSoftObjectPtr<UBlueprint> BlueprintAsset : BlueprintAssets)
 			{
 				if (UBlueprint* Blueprint = BlueprintAsset.Get())
 				{
-					FPackedLevelActorUtils::UpdateBlueprint(Blueprint, false);
+					Builder->UpdateBlueprint(Blueprint, false);
 				}
 			}
 		});

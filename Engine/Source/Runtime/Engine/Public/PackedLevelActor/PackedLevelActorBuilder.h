@@ -10,6 +10,7 @@
 #include "PackedLevelActor/IPackedLevelActorBuilder.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Containers/Set.h"
+#include "PreviewScene.h"
 
 class ILevelInstanceInterface;
 class APackedLevelActor;
@@ -78,6 +79,7 @@ private:
 	
 	TSet<UClass*> ClassDiscards;
 	TMap<FPackedLevelActorBuilderID, TUniquePtr<IPackedLevelActorBuilder>> Builders;
+	FPreviewScene PreviewScene;
 };
 
 

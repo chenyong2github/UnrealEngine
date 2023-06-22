@@ -1528,12 +1528,6 @@ void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 			return;
 		}
 
-		const bool bIsEditingLevelInstance = IsEditingLevelInstance(LevelInstance);
-		if (!bIsEditingLevelInstance && Actor->IsA<APackedLevelActor>())
-		{
-			return;
-		}
-
 		const bool bAlreadyRooted = Actor->IsRooted();
 		// Unloading LevelInstances leads to GC and Actor can be collected. Add to root temp. It will get collected after the OnActorDeleted callbacks
 		if (!bAlreadyRooted)
@@ -1541,8 +1535,10 @@ void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 			Actor->AddToRoot();
 		}
 
+		const bool bIsEditingLevelInstance = IsEditingLevelInstance(LevelInstance);
+
 		FScopedSlowTask SlowTask(0, LOCTEXT("UnloadingLevelInstances", "Unloading Level Instances..."), !GetWorld()->IsGameWorld());
-		SlowTask.MakeDialog();
+		SlowTask.MakeDialogDelayed(1.0f);
 		check(!IsEditingLevelInstanceDirty(LevelInstance) && !HasDirtyChildrenLevelInstances(LevelInstance));
 		if (bIsEditingLevelInstance)
 		{
