@@ -184,6 +184,14 @@ void IEnhancedInputSubsystemInterface::AddMappingContext(const UInputMappingCont
 			PlayerInput->AppliedInputContexts.Add(MappingContext, Priority);
 			RequestRebuildControlMappings(Options);
 		}
+
+		if (Options.bNotifyUserSettings)
+		{
+			if (UEnhancedInputUserSettings* Settings = GetUserSettings())
+			{
+				Settings->RegisterInputMappingContext(MappingContext);
+			}
+		}
 	}
 	else
 	{
@@ -199,6 +207,14 @@ void IEnhancedInputSubsystemInterface::RemoveMappingContext(const UInputMappingC
 		{
 			PlayerInput->AppliedInputContexts.Remove(MappingContext);
 			RequestRebuildControlMappings(Options);
+		}
+
+		if (Options.bNotifyUserSettings)
+		{
+			if (UEnhancedInputUserSettings* Settings = GetUserSettings())
+			{
+				Settings->UnregisterInputMappingContext(MappingContext);
+			}
 		}
 	}
 }

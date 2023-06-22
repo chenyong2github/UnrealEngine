@@ -51,6 +51,7 @@ struct FModifyContextOptions
 	FModifyContextOptions()
 		: bIgnoreAllPressedKeysUntilRelease(true)
 		, bForceImmediately(false)
+		, bNotifyUserSettings(false)
 	{}
 
 	// If true then any keys that are pressed during the rebuild of control mappings will be ignored until they are released.
@@ -60,6 +61,11 @@ struct FModifyContextOptions
 	// The mapping changes will be applied synchronously, rather than at the end of the frame, making them available to the input system on the same frame.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	uint8 bForceImmediately : 1;
+	
+	// If true, then this Mapping Context will be registered or unregistered with the Enhanced Input User Settings on this subsystem,
+	// if they exist.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	uint8 bNotifyUserSettings : 1;
 };
 
 // Includes native functionality shared between all subsystems

@@ -660,7 +660,7 @@ public:
 	 * in the context and create an initial Player Mappable Key for every mapping that is marked as mappable.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
-	virtual bool RegisterInputMappingContext(UInputMappingContext* IMC);
+	virtual bool RegisterInputMappingContext(const UInputMappingContext* IMC);
 
 	/** Registers multiple mapping contexts with the settings */
 	UFUNCTION(BlueprintCallable, Category="Enhanced Input|User Settings")
@@ -675,7 +675,7 @@ public:
 	bool UnregisterInputMappingContexts(const TSet<UInputMappingContext*>& MappingContexts);
 
 	/** Gets all the currently registered mapping contexts with the settings */
-	const TSet<TObjectPtr<UInputMappingContext>>& GetRegisteredInputMappingContexts() const;
+	const TSet<TObjectPtr<const UInputMappingContext>>& GetRegisteredInputMappingContexts() const;
 
 	/** Returns true if this mapping context is currently registered with the settings */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Enhanced Input|User Settings")
@@ -695,7 +695,7 @@ protected:
 	 * This will be called for each key profile when users initially call RegisterInputMappingContext, and on
 	 * load during Serialize to correctly populate a loaded profile with all the known registered IMC's mappings.
 	 */
-	virtual bool RegisterKeyMappingsToProfile(UEnhancedPlayerMappableKeyProfile& Profile, UInputMappingContext* IMC);
+	virtual bool RegisterKeyMappingsToProfile(UEnhancedPlayerMappableKeyProfile& Profile, const UInputMappingContext* IMC);
 
 	/**
 	 * Determines the hardware device that an action key mapping is associated with. By default, the hardware will be FHardwareDeviceIdentifier::Invalid.
@@ -731,5 +731,5 @@ protected:
 	 * active on the user, but you want to track for creating a menu for key mappings.
 	 */
 	UPROPERTY(Transient)
-	TSet<TObjectPtr<UInputMappingContext>> RegisteredMappingContexts;
+	TSet<TObjectPtr<const UInputMappingContext>> RegisteredMappingContexts;
 };

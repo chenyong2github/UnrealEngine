@@ -805,7 +805,7 @@ void UEnhancedInputUserSettings::Serialize(FArchive& Ar)
 				}
 
 				// We need to populate this key profile with all the known key mappings so that it's up to date 
-				for (TObjectPtr<UInputMappingContext> IMC : RegisteredMappingContexts)
+				for (TObjectPtr<const UInputMappingContext> IMC : RegisteredMappingContexts)
 				{
 					RegisterKeyMappingsToProfile(*NewProfile, IMC);
 				}
@@ -1218,7 +1218,7 @@ UEnhancedPlayerMappableKeyProfile* UEnhancedInputUserSettings::CreateNewKeyProfi
 		SavedKeyProfiles.Add(InArgs.ProfileIdentifier, OutProfile);
 		
 		// We need to populate this key profile with all the known key mappings so that it's up to date 
-		for (TObjectPtr<UInputMappingContext> IMC : RegisteredMappingContexts)
+		for (TObjectPtr<const UInputMappingContext> IMC : RegisteredMappingContexts)
 		{
 			RegisterKeyMappingsToProfile(*OutProfile, IMC);
 		}
@@ -1256,7 +1256,7 @@ bool UEnhancedInputUserSettings::RegisterInputMappingContexts(const TSet<UInputM
 	return bResult;
 }
 
-bool UEnhancedInputUserSettings::RegisterInputMappingContext(UInputMappingContext* IMC)
+bool UEnhancedInputUserSettings::RegisterInputMappingContext(const UInputMappingContext* IMC)
 {
 	if (!IMC)
 	{
@@ -1290,7 +1290,7 @@ bool UEnhancedInputUserSettings::RegisterInputMappingContext(UInputMappingContex
 	return bResult;
 }
 
-bool UEnhancedInputUserSettings::RegisterKeyMappingsToProfile(UEnhancedPlayerMappableKeyProfile& Profile, UInputMappingContext* IMC)
+bool UEnhancedInputUserSettings::RegisterKeyMappingsToProfile(UEnhancedPlayerMappableKeyProfile& Profile, const UInputMappingContext* IMC)
 {
 	if (!IMC)
 	{
@@ -1413,7 +1413,7 @@ bool UEnhancedInputUserSettings::UnregisterInputMappingContexts(const TSet<UInpu
 	return bResult;
 }
 
-const TSet<TObjectPtr<UInputMappingContext>>& UEnhancedInputUserSettings::GetRegisteredInputMappingContexts() const
+const TSet<TObjectPtr<const UInputMappingContext>>& UEnhancedInputUserSettings::GetRegisteredInputMappingContexts() const
 {
 	return RegisteredMappingContexts;
 }
