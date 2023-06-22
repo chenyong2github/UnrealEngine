@@ -12,7 +12,7 @@ class ILevelInstanceInterface;
 class FPackedLevelActorUtils
 {
 public:
-	static void GetPackedBlueprintsForWorldAsset(const TSoftObjectPtr<UWorld>& InWorldAsset, TSet<TSoftObjectPtr<UBlueprint>>& OutPackedBlueprintAssets, bool bInLoadedOnly = false, bool bInDiskOnly = false);
+	static void GetPackedBlueprintsForWorldAsset(const TSoftObjectPtr<UWorld>& InWorldAsset, TSet<TSoftObjectPtr<UBlueprint>>& OutPackedBlueprintAssets, bool bInLoadedOnly = false);
 
 	static bool CanPack();
 
