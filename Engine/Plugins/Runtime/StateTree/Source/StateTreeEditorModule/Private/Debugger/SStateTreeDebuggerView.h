@@ -64,6 +64,7 @@ private:
 	void OnPIESingleStepped(bool bIsSimulating) const;
 	
 	void OnBreakpointHit(const FStateTreeInstanceDebugId InstanceId, const FStateTreeDebuggerBreakpoint Breakpoint, const TSharedRef<FUICommandList> ActionList) const;
+	void OnNewSession();
 	void OnNewInstance(FStateTreeInstanceDebugId InstanceId);
 	void OnSelectedInstanceCleared();
 
@@ -150,10 +151,13 @@ private:
 	FInstancedStruct SelectedNodeDataStruct;
 
 	/** Object created from the event data when statetree node was holding an object. */
-	TWeakObjectPtr<UObject> SelectedNodeDataObject;
+	TWeakObjectPtr<> SelectedNodeDataObject;
 
 	/** Indicates that a live session was started (record button or auto record in PIE) to generate StateTree traces. */
 	bool bRecording = false;
+
+	/** True if the timelines scrolls automatically. */
+	bool bAutoScroll = true;
 };
 
 #endif // WITH_STATETREE_DEBUGGER

@@ -26,7 +26,8 @@ class FStateTreeModule : public IStateTreeModule
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	virtual void StartTraces() override;
+	virtual bool StartTraces(int32& OutTraceId) override;
+	virtual bool IsTracing() const override;
 	virtual void StopTraces() override;
 
 #if WITH_STATETREE_DEBUGGER
@@ -59,19 +60,20 @@ class FStateTreeModule : public IStateTreeModule
 		TEXT("statetree.startdebuggertraces"),
 		TEXT("Turns on StateTree debugger traces if not already active."),
 		FConsoleCommandDelegate::CreateLambda([]
-		{
-			FStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<FStateTreeModule>("StateTreeModule");
-			StateTreeModule.StartTraces();
-		}));
+			{
+				IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
+				int32 TraceId = 0;
+				StateTreeModule.StartTraces(TraceId);
+			}));
 
 	FAutoConsoleCommand StopDebuggerTracesCommand = FAutoConsoleCommand(
 		TEXT("statetree.stopdebuggertraces"),
 		TEXT("Turns off StateTree debugger traces if active."),
 		FConsoleCommandDelegate::CreateLambda([]
-		{
-			FStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<FStateTreeModule>("StateTreeModule");
-			StateTreeModule.StopTraces();
-		}));
+			{
+				IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
+				StateTreeModule.StopTraces();
+			}));
 #endif // WITH_STATETREE_DEBUGGER
 };
 
@@ -92,7 +94,8 @@ void FStateTreeModule::StartupModule()
 	// to start recording either on user action or on PIE session start.
 	if (UStateTreeSettings::Get().bAutoStartDebuggerTracesOnNonEditorTargets)
 	{
-		StartTraces();
+		int32 TraceId = INDEX_NONE;
+		StartTraces(TraceId);
 	}
 #endif // !WITH_EDITOR
 
@@ -115,15 +118,24 @@ void FStateTreeModule::ShutdownModule()
 #endif // WITH_STATETREE_DEBUGGER
 }
 
-void FStateTreeModule::StartTraces()
+bool FStateTreeModule::StartTraces(int32& OutTraceId)
 {
+	OutTraceId = INDEX_NONE;
 #if WITH_STATETREE_DEBUGGER
 	if (IsRunningCommandlet() || bIsTracing)
 	{
-		return;
+		return false;
 	}
 
-	const bool bAlreadyConnected = FTraceAuxiliary::IsConnected();
+	FGuid SessionGuid, TraceGuid;
+	const bool bAlreadyConnected = FTraceAuxiliary::IsConnected(SessionGuid, TraceGuid);
+
+	if (UE::Trace::FStoreClient* Client = GetStoreClient())
+	{
+		const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfoByGuid(TraceGuid);
+		// Note that 0 is returned instead of INDEX_NONE to match default invalid value for GetTraceId 
+		OutTraceId = SessionInfo != nullptr ? SessionInfo->GetTraceId(): 0;
+	}
 
 	// If trace is already connected let's keep track of enabled channels to restore them when we stop recording
 	if (bAlreadyConnected)
@@ -154,14 +166,27 @@ void FStateTreeModule::StartTraces()
 	UE::Trace::ToggleChannel(TEXT("StateTreeDebugChannel"), true);
 	UE::Trace::ToggleChannel(TEXT("FrameChannel"), true);
 
+	bool bAreTracesStarted = false;
 	if (bAlreadyConnected == false)
 	{
 		FTraceAuxiliary::FOptions Options;
 		Options.bExcludeTail = true;
-		FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("localhost"), TEXT(""), &Options, LogStateTree);
+		bAreTracesStarted = FTraceAuxiliary::Start(FTraceAuxiliary::EConnectionType::Network, TEXT("localhost"), TEXT(""), &Options, LogStateTree);
 	}
 
 	bIsTracing = true;
+	return bAreTracesStarted;
+#else
+	return false;
+#endif // WITH_STATETREE_DEBUGGER
+}
+
+bool FStateTreeModule::IsTracing() const
+{
+#if WITH_STATETREE_DEBUGGER
+	return bIsTracing;
+#else
+	return false;
 #endif // WITH_STATETREE_DEBUGGER
 }
 

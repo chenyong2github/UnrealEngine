@@ -59,13 +59,13 @@ FString FStateTreeTraceTransitionEvent::ToString(const UStateTree& StateTree) co
 //----------------------------------------------------------------------//
 FString FStateTreeTraceNodeEvent::ToString(const UStateTree& StateTree) const
 {
-	const FConstStructView NodeView = StateTree.GetNode(Index.Get());
+	const FConstStructView NodeView = Index.IsValid() ? StateTree.GetNode(Index.Get()) : FConstStructView();
 	const FStateTreeNodeBase* Node = NodeView.GetPtr<const FStateTreeNodeBase>();
 
 	return FString::Printf(TEXT("%s '%s (%s)'"),
 			*UEnum::GetDisplayValueAsText(EventType).ToString(),
 			Node != nullptr ? *Node->Name.ToString() : *LexToString(Index.Get()),
-			*NodeView.GetScriptStruct()->GetName());
+			NodeView.IsValid() ? *NodeView.GetScriptStruct()->GetName() : TEXT("Invalid Node"));
 }
 
 

@@ -81,7 +81,7 @@ FStateTreeDebugger::FStateTreeDebugger()
 
 FStateTreeDebugger::~FStateTreeDebugger()
 {
-	StopAnalysis();
+	StopSessionAnalysis();
 }
 
 void FStateTreeDebugger::Tick(const float DeltaTime)
@@ -100,27 +100,22 @@ void FStateTreeDebugger::Tick(const float DeltaTime)
 	}
 	
 	UpdateInstances();
-	SyncToCurrentSessionDuration();
+
+	if (bSessionAnalysisPaused == false)
+	{
+		SyncToCurrentSessionDuration();
+	}
 }
 
-void FStateTreeDebugger::StopAnalysis()
+void FStateTreeDebugger::StopSessionAnalysis()
 {
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
 		Session->Stop(true);
 		AnalysisSession.Reset();	
 	}
-}
 
-void FStateTreeDebugger::Pause()
-{
-	bPaused = true;
-}
-
-void FStateTreeDebugger::Unpause()
-{
-	// unpause and let next tick read the traces
-	bPaused = false;	
+	bSessionAnalysisPaused = false;
 }
 
 void FStateTreeDebugger::SyncToCurrentSessionDuration()
@@ -206,21 +201,49 @@ void FStateTreeDebugger::UpdateInstances()
 	}
 }
 
-void FStateTreeDebugger::RequestAnalysisOfNextLiveSession()
+bool FStateTreeDebugger::RequestAnalysisOfNextLiveSession()
 {
-	// Invalidate our current active session
-	ActiveSessionTraceDescriptor = FTraceDescriptor();
+	// Get snapshot of current trace to help identify the next live one
+	LastLiveSessionId = INDEX_NONE;
+	TArray<FTraceDescriptor> TraceDescriptors;
+	GetLiveTraces(TraceDescriptors);
 
-	// Stop current analysis if any
-	StopAnalysis();
+	// 0 is the invalid value used for Trace Id
+	constexpr int32 InvalidTraceId = 0;
+	int32 ActiveTraceId = InvalidTraceId;
 
-	TArray<FTraceDescriptor> Traces;
-	GetLiveTraces(Traces);
-	
-	LastLiveSessionId = Traces.Num() ? Traces.Last().TraceId : INDEX_NONE;
+	// StartTraces returns true if a new connection was created. In this case
+	// we try to start an analysis on that new connection as soon as possible.
+	// Otherwise it might have been able to use an active connection in which
+	// case it was returned in the output parameter.
+	if (StateTreeModule.StartTraces(ActiveTraceId))
+	{
+		// Invalidate our current active session
+		ActiveSessionTraceDescriptor = FTraceDescriptor();
 
-	// This won't succeed yet but will schedule our next retry
-	TryStartNewLiveSessionAnalysis(1.0f);
+		// Stop current analysis if any
+		StopSessionAnalysis();
+
+		LastLiveSessionId = TraceDescriptors.Num() ? TraceDescriptors.Last().TraceId : INDEX_NONE;
+
+		// This won't succeed yet but will schedule our next retry
+		TryStartNewLiveSessionAnalysis(1.0f);
+		return true;
+	}
+
+	// Otherwise we start analysis of the already active trace, if any.
+	if (ActiveTraceId != InvalidTraceId)
+	{
+		if (const FTraceDescriptor* Descriptor = TraceDescriptors.FindByPredicate([ActiveTraceId](const FTraceDescriptor& Descriptor)
+			{
+				return Descriptor.TraceId == ActiveTraceId;
+			}))
+		{
+			return StartSessionAnalysis(*Descriptor);
+		}
+	}
+
+	return false;
 }
 
 bool FStateTreeDebugger::TryStartNewLiveSessionAnalysis(const float RetryPollingDuration)
@@ -248,14 +271,21 @@ bool FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescr
 	}
 
 	ActiveSessionTraceDescriptor = FTraceDescriptor();
+
+	// Make sure any active analysis is stopped
+	StopSessionAnalysis();
+
 	UE::Trace::FStoreClient* StoreClient = GetStoreClient();
 	if (StoreClient == nullptr)
 	{
 		return false;
 	}
 
-	// Make sure any active analysis is stopped
-	StopAnalysis();
+	// If new trace descriptor is not valid no need to continue
+	if (TraceDescriptor.IsValid() == false)
+	{
+		return false;
+	}
 
 	RecordingDuration = 0;
 	AnalysisDuration = 0;
@@ -291,13 +321,14 @@ bool FStateTreeDebugger::StartSessionAnalysis(const FTraceDescriptor& TraceDescr
 		{
 			checkf(!AnalysisSession.IsValid(), TEXT("Must make sure that current session was properly stopped before starting a new one otherwise it can cause threading issues"));
 			AnalysisSession = TraceAnalysisService->StartAnalysis(TraceId, *TraceName, MoveTemp(TraceData));
-			
-			SyncToCurrentSessionDuration();
 		}
 
 		if (AnalysisSession.IsValid())
 		{
-			ActiveSessionTraceDescriptor = TraceDescriptor;	
+			ActiveSessionTraceDescriptor = TraceDescriptor;
+			EventCollections.Reset();
+			ScrubState.SetEventCollectionIndex(INDEX_NONE);
+			OnNewSession.ExecuteIfBound();
 		}
 	}
 
@@ -470,7 +501,7 @@ void FStateTreeDebugger::RefreshActiveStates()
 
 bool FStateTreeDebugger::CanStepBackToPreviousStateWithEvents() const
 {
-	return bPaused ? ScrubState.HasPreviousFrame() : false;
+	return ScrubState.HasPreviousFrame();
 }
 
 void FStateTreeDebugger::StepBackToPreviousStateWithEvents()
@@ -483,7 +514,7 @@ void FStateTreeDebugger::StepBackToPreviousStateWithEvents()
 
 bool FStateTreeDebugger::CanStepForwardToNextStateWithEvents() const
 {
-	return bPaused ? ScrubState.HasNextFrame() : false;
+	return ScrubState.HasNextFrame();
 }
 
 void FStateTreeDebugger::StepForwardToNextStateWithEvents()
@@ -496,7 +527,7 @@ void FStateTreeDebugger::StepForwardToNextStateWithEvents()
 
 bool FStateTreeDebugger::CanStepBackToPreviousStateChange() const
 {
-	return bPaused ? ScrubState.HasPreviousActiveStates() : false;
+	return ScrubState.HasPreviousActiveStates();
 }
 
 void FStateTreeDebugger::StepBackToPreviousStateChange()
@@ -509,7 +540,7 @@ void FStateTreeDebugger::StepBackToPreviousStateChange()
 
 bool FStateTreeDebugger::CanStepForwardToNextStateChange() const
 {
-	return bPaused ? ScrubState.HasNextActiveStates() : false;
+	return ScrubState.HasNextActiveStates();
 }
 
 void FStateTreeDebugger::StepForwardToNextStateChange()
@@ -681,6 +712,8 @@ void FStateTreeDebugger::SendNotifications()
 
 		HitBreakpointIndex = INDEX_NONE;
 		HitBreakpointInstanceId.Reset();
+
+		PauseSessionAnalysis();
 	}
 }
 
@@ -702,15 +735,14 @@ void FStateTreeDebugger::ReadTrace(
 	}
 }
 
-void FStateTreeDebugger::EvaluateBreakpoints(const FStateTreeInstanceDebugId InstanceId, const FStateTreeTraceEventVariantType& Event)
+bool FStateTreeDebugger::EvaluateBreakpoints(const FStateTreeInstanceDebugId InstanceId, const FStateTreeTraceEventVariantType& Event)
 {
-	if (bPaused // ignored when scrubbing a paused session
-		|| StateTreeAsset == nullptr // asset is required to properly match state handles
-		|| HitBreakpointIndex != INDEX_NONE // stop on first hit breakpoint
+	if (StateTreeAsset == nullptr // asset is required to properly match state handles
+		|| HitBreakpointIndex != INDEX_NONE // Only consider first hit breakpoint in the frame
 		|| Breakpoints.IsEmpty()
 		|| (SelectedInstanceId.IsValid() && InstanceId != SelectedInstanceId)) // ignore events not for the selected instances		
 	{
-		return;
+		return false;
 	}
 	
 	EStateTreeTraceEventType EventType = EStateTreeTraceEventType::Unset;
@@ -757,6 +789,8 @@ void FStateTreeDebugger::EvaluateBreakpoints(const FStateTreeInstanceDebugId Ins
 			}
 		}
 	}
+
+	return HitBreakpointInstanceId.IsValid();
 }
 
 bool FStateTreeDebugger::ProcessEvent(const FStateTreeInstanceDebugId InstanceId, const TraceServices::FFrame& Frame, const FStateTreeTraceEventVariantType& Event)

@@ -21,6 +21,7 @@
 #include "StateTreeDebuggerTrack.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeEditorSettings.h"
+#include "StateTreeEditorStyle.h"
 #include "StateTreeExecutionContext.h"
 #include "StateTreeModule.h"
 #include "StateTreeState.h"
@@ -161,6 +162,7 @@ SStateTreeDebuggerView::~SStateTreeDebuggerView()
 	{
 		Debugger->OnScrubStateChanged.Unbind();
 		Debugger->OnBreakpointHit.Unbind();
+		Debugger->OnNewSession.Unbind();
 		Debugger->OnNewInstance.Unbind();
 		Debugger->OnSelectedInstanceCleared.Unbind();
 	}
@@ -174,24 +176,19 @@ SStateTreeDebuggerView::~SStateTreeDebuggerView()
 
 void SStateTreeDebuggerView::StartRecording()
 {
-	// We give priority to the Editor actions even if an analysis was active (remote process)
-	// This will stop current analysis and connect to the new live trace.
-	Debugger->RequestAnalysisOfNextLiveSession();
-	
-	Debugger->ClearSelection();
-
 	if (CanStartRecording())
 	{
-		IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
-		StateTreeModule.StartTraces();
+		Debugger->ClearSelection();
 
-		bRecording = true;
+		// We give priority to the Editor actions even if an analysis was active (remote process)
+		// This will stop current analysis and connect to the new live trace.
+		bRecording = Debugger->RequestAnalysisOfNextLiveSession();
 	}
 }
 
 void SStateTreeDebuggerView::StopRecording()
 {
-	if (bRecording)
+	if (CanStopRecording())
 	{
 		IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
 		StateTreeModule.StopTraces();
@@ -220,18 +217,17 @@ void SStateTreeDebuggerView::OnPIEStarted(const bool bIsSimulating)
 void SStateTreeDebuggerView::OnPIEStopped(const bool bIsSimulating)
 {
 	StopRecording();
-	Debugger->StopAnalysis();
-	Debugger->Unpause();
+	Debugger->StopSessionAnalysis();
 }
 
 void SStateTreeDebuggerView::OnPIEPaused(const bool bIsSimulating) const
 {
-	Debugger->Pause();
+	Debugger->PauseSessionAnalysis();
 }
 
 void SStateTreeDebuggerView::OnPIEResumed(const bool bIsSimulating) const
 {
-	Debugger->Unpause();
+	Debugger->ResumeSessionAnalysis();
 }
 
 void SStateTreeDebuggerView::OnPIESingleStepped(bool bSimulating) const
@@ -246,9 +242,11 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	StateTreeEditorData = Cast<UStateTreeEditorData>(InStateTree.EditorData.Get()); 
 
 	Debugger = InStateTreeViewModel->GetDebugger();
-	bRecording = FTraceAuxiliary::IsConnected();
+	IStateTreeModule& StateTreeModule = FModuleManager::GetModuleChecked<IStateTreeModule>("StateTreeModule");
+	bRecording = StateTreeModule.IsTracing();
 
 	// Bind callbacks to the debugger delegates
+	Debugger->OnNewSession.BindSP(this, &SStateTreeDebuggerView::OnNewSession);
 	Debugger->OnNewInstance.BindSP(this, &SStateTreeDebuggerView::OnNewInstance);
 	Debugger->OnScrubStateChanged.BindSP(this, &SStateTreeDebuggerView::OnDebuggerScrubStateChanged);
 	Debugger->OnBreakpointHit.BindSP(this, &SStateTreeDebuggerView::OnBreakpointHit, InCommandList);
@@ -260,7 +258,7 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 	// Put debugger in proper simulation state when view is constructed after PIE/SIE was started
 	if (FPlayWorldCommandCallbacks::HasPlayWorldAndPaused())
 	{
-		Debugger->Pause();
+		Debugger->PauseSessionAnalysis();
 	}
 
 	// Add & Bind commands
@@ -284,35 +282,86 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 		FGetActionCheckState::CreateLambda([this] { return GetStateBreakpointCheckState(EStateTreeBreakpointType::OnExit); }),
 		FIsActionButtonVisible::CreateLambda([this] { return CanAddStateBreakpoint(EStateTreeBreakpointType::OnExit) || CanRemoveStateBreakpoint(EStateTreeBreakpointType::OnExit); }));
 	
-	// Toolbar
-	FSlimHorizontalToolBarBuilder ToolbarBuilder(InCommandList, FMultiBoxCustomization::None, /*InExtender*/ nullptr, /*InForceSmallIcons*/ true);
-	ToolbarBuilder.BeginSection(TEXT("Debugging"));
+	// Toolbars
+
+	FUIAction AnalysisPauseToggleButtonAction;
+	AnalysisPauseToggleButtonAction.GetActionCheckState.BindLambda([this]
+	{
+		return Debugger && Debugger->IsAnalysisSessionPaused() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	});
+	AnalysisPauseToggleButtonAction.ExecuteAction.BindLambda([this]
+	{
+		if (Debugger)
+		{
+			if (Debugger->IsAnalysisSessionPaused())
+			{
+				Debugger->ResumeSessionAnalysis();
+			}
+			else
+			{
+				Debugger->PauseSessionAnalysis();
+			}
+		}
+	});
+	
+	FSlimHorizontalToolBarBuilder LeftToolbar(InCommandList, FMultiBoxCustomization::None, /*InExtender*/ nullptr, /*InForceSmallIcons*/ true);
+	LeftToolbar.BeginSection(TEXT("Debugging"));
 	{
 		const FStateTreeDebuggerCommands& DebuggerCommands = FStateTreeDebuggerCommands::Get();
-		ToolbarBuilder.AddToolBarButton(DebuggerCommands.StartRecording);
-		ToolbarBuilder.AddToolBarButton(DebuggerCommands.StopRecording);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.StartRecording);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.StopRecording);
 
 		const FPlayWorldCommands& PlayWorldCommands = FPlayWorldCommands::Get();
-		ToolbarBuilder.AddToolBarButton(PlayWorldCommands.RepeatLastPlay);
-		ToolbarBuilder.AddToolBarButton(PlayWorldCommands.PausePlaySession,
+		LeftToolbar.AddToolBarButton(PlayWorldCommands.RepeatLastPlay);
+		LeftToolbar.AddToolBarButton(PlayWorldCommands.PausePlaySession,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.PausePlaySession.Small"));
-		ToolbarBuilder.AddToolBarButton(PlayWorldCommands.ResumePlaySession,
+		LeftToolbar.AddToolBarButton(PlayWorldCommands.ResumePlaySession,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.ResumePlaySession.Small"));	
-		ToolbarBuilder.AddToolBarButton(PlayWorldCommands.StopPlaySession,
+		LeftToolbar.AddToolBarButton(PlayWorldCommands.StopPlaySession,
 					NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlayWorld.StopPlaySession.Small"));
-		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(DebuggerCommands.PreviousFrameWithStateChange);
-		ToolbarBuilder.AddToolBarButton(DebuggerCommands.PreviousFrameWithEvents);
-		ToolbarBuilder.AddToolBarButton(DebuggerCommands.NextFrameWithEvents);
-		ToolbarBuilder.AddToolBarButton(DebuggerCommands.NextFrameWithStateChange);
+		LeftToolbar.AddSeparator();
+		LeftToolbar.AddToolBarButton(DebuggerCommands.PreviousFrameWithStateChange);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.PreviousFrameWithEvents);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.NextFrameWithEvents);
+		LeftToolbar.AddToolBarButton(DebuggerCommands.NextFrameWithStateChange);
+		LeftToolbar.AddSeparator();
+		LeftToolbar.AddToolBarButton(AnalysisPauseToggleButtonAction,
+			NAME_None,
+			TAttribute<FText>(),
+			LOCTEXT("DebuggerPauseToolTip", "Debugger Paused"),
+			FSlateIcon(FStateTreeEditorStyle::Get().GetStyleSetName(), "StateTreeEditor.ToggleDebuggerPause"),
+			EUserInterfaceActionType::ToggleButton);
 	}
-	ToolbarBuilder.EndSection();
+	LeftToolbar.EndSection();
+
+	FSlimHorizontalToolBarBuilder RightToolbar(nullptr, FMultiBoxCustomization::None);
+
+	FUIAction AutoScrollToggleButtonAction;
+	AutoScrollToggleButtonAction.GetActionCheckState.BindLambda([this]
+	{
+		return bAutoScroll ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	});
+	AutoScrollToggleButtonAction.ExecuteAction.BindLambda([this]
+	{
+		bAutoScroll = !bAutoScroll;
+	});
+
+	RightToolbar.BeginSection("Auto-Scroll");
+	RightToolbar.AddToolBarButton(
+		AutoScrollToggleButtonAction,
+		NAME_None,
+		TAttribute<FText>(),
+		LOCTEXT("AutoScrollToolTip", "Auto-Scroll"),
+		FSlateIcon(FStateTreeEditorStyle::Get().GetStyleSetName(),"StateTreeEditor.AutoScroll"),
+		EUserInterfaceActionType::ToggleButton);
+	RightToolbar.EndSection();
 
 	// Auto-select session if there is only one available
 	TArray<FStateTreeDebugger::FTraceDescriptor> TraceDescriptors;
 	Debugger->GetLiveTraces(TraceDescriptors);
-	
-	if (TraceDescriptors.Num() == 1)
+
+	// Make sure that the active trace contains statetree specific traces
+	if (TraceDescriptors.Num() == 1 && StateTreeModule.IsTracing())
 	{
 		Debugger->StartSessionAnalysis(TraceDescriptors.Last());
 	}
@@ -478,9 +527,22 @@ void SStateTreeDebuggerView::Construct(const FArguments& InArgs, const UStateTre
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
+			.HAlign(HAlign_Fill)
 			.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 			[
-				ToolbarBuilder.MakeWidget()
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.FillWidth(1.0f)
+				[
+					LeftToolbar.MakeWidget()
+				]
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				[
+					RightToolbar.MakeWidget()
+				]
 			]
 			+ SVerticalBox::Slot().AutoHeight()
 			[
@@ -591,8 +653,8 @@ void SStateTreeDebuggerView::Tick(const FGeometry& AllottedGeometry, const doubl
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_StateTreeDebuggerView_TickView);
 
-	//Stick to most recent data
-	if (Debugger->IsPaused() == false)
+	// Stick to most recent data if required
+	if (bAutoScroll && !Debugger->IsAnalysisSessionPaused())
 	{
 		Debugger->SetScrubTime(Debugger->GetRecordingDuration());
 	}
@@ -657,7 +719,7 @@ void SStateTreeDebuggerView::BindDebuggerToolbarCommands(const TSharedRef<FUICom
 
 bool SStateTreeDebuggerView::CanStepBackToPreviousStateWithEvents() const
 {
-	return Debugger->CanStepBackToPreviousStateWithEvents();
+	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused()) && Debugger->CanStepBackToPreviousStateWithEvents();
 }
 
 void SStateTreeDebuggerView::StepBackToPreviousStateWithEvents()
@@ -667,7 +729,7 @@ void SStateTreeDebuggerView::StepBackToPreviousStateWithEvents()
 
 bool SStateTreeDebuggerView::CanStepForwardToNextStateWithEvents() const
 {
-	return Debugger->CanStepForwardToNextStateWithEvents();
+	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused()) && Debugger->CanStepForwardToNextStateWithEvents();
 }
 
 void SStateTreeDebuggerView::StepForwardToNextStateWithEvents()
@@ -677,7 +739,7 @@ void SStateTreeDebuggerView::StepForwardToNextStateWithEvents()
 
 bool SStateTreeDebuggerView::CanStepBackToPreviousStateChange() const
 {
-	return Debugger->CanStepBackToPreviousStateChange();
+	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused()) && Debugger->CanStepBackToPreviousStateChange();
 }
 
 void SStateTreeDebuggerView::StepBackToPreviousStateChange()
@@ -687,7 +749,7 @@ void SStateTreeDebuggerView::StepBackToPreviousStateChange()
 
 bool SStateTreeDebuggerView::CanStepForwardToNextStateChange() const
 {
-	return Debugger->CanStepForwardToNextStateChange();
+	return (bAutoScroll == false || Debugger->IsAnalysisSessionPaused()) && Debugger->CanStepForwardToNextStateChange();
 }
 
 void SStateTreeDebuggerView::StepForwardToNextStateChange()
@@ -838,7 +900,7 @@ void SStateTreeDebuggerView::HandleEnableStateBreakpoint(EStateTreeBreakpointTyp
 
 void SStateTreeDebuggerView::OnTimeLineScrubPositionChanged(double Time, bool bIsScrubbing)
 {
-	Debugger->Pause();
+	bAutoScroll = false;
 	Debugger->SetScrubTime(Time);
 }
 
@@ -951,6 +1013,23 @@ void SStateTreeDebuggerView::OnBreakpointHit(const FStateTreeInstanceDebugId Ins
 		{
 			ActionList->ExecuteAction(FPlayWorldCommands::Get().PausePlaySession.ToSharedRef());
 		}
+	}
+}
+
+void SStateTreeDebuggerView::OnNewSession()
+{
+	// Clear tracks
+	InstanceOwnerTracks.Reset();
+
+	// Refresh tree viewa
+	if (InstancesTreeView)
+	{
+		InstancesTreeView->Refresh();
+	}
+
+	if (InstanceTimelinesTreeView)
+	{
+		InstanceTimelinesTreeView->Refresh();
 	}
 }
 

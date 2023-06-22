@@ -28,6 +28,7 @@ DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerScrubStateChanged, const UE::State
 DECLARE_DELEGATE_TwoParams(FOnStateTreeDebuggerBreakpointHit, FStateTreeInstanceDebugId InstanceId, const FStateTreeDebuggerBreakpoint Breakpoint);
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerActiveStatesChanges, TConstArrayView<FStateTreeStateHandle> ActiveStates);
 DECLARE_DELEGATE_OneParam(FOnStateTreeDebuggerNewInstance, FStateTreeInstanceDebugId InstanceId);
+DECLARE_DELEGATE(FOnStateTreeDebuggerNewSession);
 DECLARE_DELEGATE(FOnStateTreeDebuggerDebuggedInstanceSet);
 
 struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
@@ -53,15 +54,6 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	const UStateTree* GetAsset() const { return StateTreeAsset.Get(); }
 	void SetAsset(const UStateTree* InStateTreeAsset) { StateTreeAsset = InStateTreeAsset; }
 	
-	/** Stops reading traces every frame to preserve current state. */
-	void Pause();
-
-	/** Indicates that the debugger was explicitly paused and is no longer fetching new events from the analysis session. */
-	bool IsPaused() const { return bPaused; }
-
-	/** Resumes reading traces every frame. */
-	void Unpause();
-
 	/** Forces a single refresh to latest state. Useful when simulation is paused. */
 	void SyncToCurrentSessionDuration();
 	
@@ -76,9 +68,6 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 
 	bool CanStepForwardToNextStateChange() const;
 	void StepForwardToNextStateChange();
-
-	bool IsAnalysisSessionActive() const { return GetAnalysisSession() != nullptr; }
-	const TraceServices::IAnalysisSession* GetAnalysisSession() const;
 
 	bool IsActiveInstance(double Time, FStateTreeInstanceDebugId InstanceId) const;
 	FText GetInstanceName(FStateTreeInstanceDebugId InstanceId) const;
@@ -125,14 +114,21 @@ struct STATETREEMODULE_API FStateTreeDebugger : FTickableGameObject
 	/**
 	 * Queue a request to auto start an analysis session on the next available live trace.
 	 * This will replace the current analysis session if any.
+	 * @return True if connection was successfully requested or was able to use active trace, false otherwise.
 	 */
-	void RequestAnalysisOfNextLiveSession();
+	bool RequestAnalysisOfNextLiveSession();
 
+	bool IsAnalysisSessionActive() const { return GetAnalysisSession() != nullptr; }
+	bool IsAnalysisSessionPaused() const { return bSessionAnalysisPaused; }
+	const TraceServices::IAnalysisSession* GetAnalysisSession() const;
 	bool StartSessionAnalysis(const FTraceDescriptor& TraceDescriptor);
-	void StopAnalysis();
+	void PauseSessionAnalysis()  { bSessionAnalysisPaused = true; }
+	void ResumeSessionAnalysis() { bSessionAnalysisPaused = false; }
+	void StopSessionAnalysis();
 	FTraceDescriptor GetSelectedTraceDescriptor() const { return ActiveSessionTraceDescriptor; }
 	FText GetSelectedTraceDescription() const;
 
+	FOnStateTreeDebuggerNewSession OnNewSession;
 	FOnStateTreeDebuggerNewInstance OnNewInstance;
 	FOnStateTreeDebuggerDebuggedInstanceSet OnSelectedInstanceCleared;
 	FOnStateTreeDebuggerScrubStateChanged OnScrubStateChanged;
@@ -155,7 +151,13 @@ private:
 		const TraceServices::FFrame& Frame
 		);
 
-	void EvaluateBreakpoints(FStateTreeInstanceDebugId InstanceId, const FStateTreeTraceEventVariantType& Event);
+	/**
+	 * Tests event for given instance id against breakpoints.
+	 * @param InstanceId Id of the statetree instance that produces the event.
+	 * @param Event The event received from the instance.
+	 * @return True if a breakpoint has been it, false otherwise.
+	 */
+	bool EvaluateBreakpoints(FStateTreeInstanceDebugId InstanceId, const FStateTreeTraceEventVariantType& Event);
 
 	void SendNotifications();
 
@@ -243,8 +245,11 @@ private:
 	/** List of new instances discovered by processing event in the analysis session. */
 	TArray<FStateTreeInstanceDebugId> NewInstances;
 
-	/** Indicates that the debugger was explicitly paused and will wait before fetching new events from the analysis session provider. */
-	bool bPaused = false;
+	/**
+	 * Indicates that the debugger no longer process new events from the analysis session until it gets resumed.
+	 * This can be an external explicit request or after hitting a breakpoint.
+	 */
+	bool bSessionAnalysisPaused = false;
 };
 
 #endif // WITH_STATETREE_DEBUGGER
