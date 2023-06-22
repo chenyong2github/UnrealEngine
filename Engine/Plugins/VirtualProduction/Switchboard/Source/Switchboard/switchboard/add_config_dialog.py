@@ -404,6 +404,13 @@ class AddConfigDialog(QtWidgets.QDialog):
         editorfolder = ''
         projectpath = ''
 
+        sbfolder = ''
+        try:
+            sbpath = os.path.abspath(__file__)
+            sbfolder = self.find_upstream_path_with_name(sbpath, "Engine")
+        except FileNotFoundError:
+            pass
+
         # pick the best candidate out of the detected ones
         for idx, editor in enumerate(editors):
             try:
@@ -411,19 +418,16 @@ class AddConfigDialog(QtWidgets.QDialog):
             except FileNotFoundError:
                 continue
 
-            projectpath = projects[idx]
+            if sbfolder == '' or editorfolder == sbfolder:
+                projectpath = projects[idx]
 
             # prefer when we have both editor and project paths
             if editorfolder and projectpath:
                 break
 
         # If process-based detection didn't work, try to find the Engine associated with the running Switchboard
-        if not editorfolder:
-            try:
-                sbpath = os.path.abspath(__file__)
-                editorfolder = self.find_upstream_path_with_name(sbpath, "Engine")
-            except FileNotFoundError:
-                pass
+        if not editorfolder and sbfolder:
+            editorfolder = sbfolder
 
         # Populate the fields that we're updating and were found
 

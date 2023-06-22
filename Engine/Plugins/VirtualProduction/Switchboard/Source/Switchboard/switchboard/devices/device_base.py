@@ -82,7 +82,7 @@ class Device(QtCore.QObject):
 
         self._name = name  # Assigned name
         self.device_qt_handler = DeviceQtHandler()
-
+        self.autojoin_mu_server = False
         self.setting_address = AddressSetting('address', 'Address', address)
         self.setting_address.signal_setting_changed.connect(
             lambda: self._check_recreate_osc_client())

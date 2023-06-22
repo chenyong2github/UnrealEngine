@@ -1318,7 +1318,8 @@ class SwitchboardDialog(QtCore.QObject):
         device_widget.signal_device_widget_close.connect(self.device_widget_close)
         device_widget.signal_device_widget_sync.connect(self.device_widget_sync)
         device_widget.signal_device_widget_build.connect(self.device_widget_build)
-        device_widget.signal_device_widget_fill_ddc.connect(self.device_widget_fill_ddc)
+        if hasattr(device_widget, 'signal_device_widget_fill_ddc'):
+            device_widget.signal_device_widget_fill_ddc.connect(self.device_widget_fill_ddc)
         device_widget.signal_device_widget_trigger_start_toggled.connect(self.device_widget_trigger_start_toggled)
         device_widget.signal_device_widget_trigger_stop_toggled.connect(self.device_widget_trigger_stop_toggled)
 
