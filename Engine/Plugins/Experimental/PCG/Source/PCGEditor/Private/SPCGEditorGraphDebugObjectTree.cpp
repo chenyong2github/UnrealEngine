@@ -235,7 +235,8 @@ void SPCGEditorGraphDebugObjectTree::SetDebugObjectFromSelection_OnClicked()
 		return;
 	}
 
-	USelection* SelectedActors = GEditor ? GEditor->GetSelectedActors() : nullptr;
+	check(GEditor);
+	USelection* SelectedActors = GEditor->GetSelectedActors();
 	if (!IsValid(SelectedActors))
 	{
 		return;
