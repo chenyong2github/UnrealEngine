@@ -6,6 +6,8 @@
 #include "LocalizableMessage.h"
 #include "LocalizationContext.h"
 
+DEFINE_LOG_CATEGORY(LogLocalizableMessageProcessor);
+
 FLocalizableMessageProcessor::FLocalizableMessageProcessor()
 {
 
@@ -41,9 +43,13 @@ FText FLocalizableMessageProcessor::Localize(const FLocalizableMessage& Message,
 
 	// an unfortunate number of allocations and copies here
 	FText DefaultFText = FInternationalization::ForUseOnlyByLocMacroAndGraphNodeTextLiterals_CreateText(*Message.DefaultText, TEXT(""), *Message.Key);
-	return FormatArguments.Num() > 0
+	FText RetFText = FormatArguments.Num() > 0
 		? FText::Format(DefaultFText, FormatArguments)
 		: DefaultFText;
+
+	UE_LOG(LogLocalizableMessageProcessor, VeryVerbose, TEXT("Localized Text: [%s]"),*RetFText.ToString());
+
+	return RetFText;
 }
 
 void FLocalizableMessageProcessor::UnregisterLocalizableTypes(FScopedRegistrations& ScopedRegistrations)

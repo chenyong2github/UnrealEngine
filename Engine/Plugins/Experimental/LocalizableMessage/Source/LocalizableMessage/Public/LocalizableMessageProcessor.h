@@ -4,6 +4,7 @@
 
 #include "Containers/Map.h"
 #include "InstancedStruct.h"
+#include "Logging/LogMacros.h"
 #include "Templates/Function.h"
 #include "Templates/Tuple.h"
 #include "UObject/NameTypes.h"
@@ -50,3 +51,5 @@ private:
 
 	TMap<FName, LocalizeValueFnc> LocalizeValueMapping;
 };
+
+DECLARE_LOG_CATEGORY_EXTERN(LogLocalizableMessageProcessor, Log, All);
