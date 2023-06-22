@@ -1148,12 +1148,12 @@ void UText3DComponent::BuildTextMeshInternal(const bool& bCleanCache)
 	for (int32 LineIndex = 0; LineIndex < ShapedText->Lines.Num(); LineIndex++)
 	{
 		const FShapedGlyphLine& ShapedLine = ShapedText->Lines[LineIndex];
-		FVector Location = GetLineLocation(LineIndex);
+		FVector LineLocation = GetLineLocation(LineIndex);
 
 		for (int32 LineGlyph = 0; LineGlyph < ShapedLine.GlyphsToRender.Num(); LineGlyph++)
 		{
-			FVector GlyphLocation = Location;
-			Location.Y += ShapedLine.GetAdvance(LineGlyph, Kerning, WordSpacing);
+			FVector GlyphLocation = LineLocation;
+			LineLocation.Y += ShapedLine.GetAdvance(LineGlyph, Kerning, WordSpacing);
 
 			const FShapedGlyphEntry& ShapedGlyph = ShapedLine.GlyphsToRender[LineGlyph];
 			if (!ShapedGlyph.bIsVisible)

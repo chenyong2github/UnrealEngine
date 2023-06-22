@@ -31,7 +31,8 @@ struct FShapedGlyphLine
 
 		if (Index < GlyphsToRender.Num() - 1)
 		{
-			Advance += Glyph.Kerning + Kerning;
+			// @note: as per FSlateElementBatcher::BuildShapedTextSequence, per Glyph Kerning isn't used
+			Advance += Kerning;
 
 			if (!Glyph.bIsVisible)
 			{
