@@ -36,6 +36,7 @@ class DeviceLiveLinkFace(Device):
         self.query_timer.start(sleep_time_in_ms)
         self._query_time = datetime.datetime.now()
 
+        self.display_on = True
         osc_port_setting = DeviceLiveLinkFace.csettings['osc_port']
         osc_port_setting.signal_setting_changed.connect(
             lambda: self._check_recreate_osc_client())
@@ -146,8 +147,19 @@ class DeviceLiveLinkFace(Device):
 
         self.send_osc_message(osc.RECORD_START, [slate, take])
 
+    #Toggle Display
+    def toggle_display(self):
+        if self.display_on:
+            self.send_osc_message(osc.DISPLAY_OFF, 1)
+            self.display_on = False
+        else:
+            self.send_osc_message(osc.DISPLAY_ON, 1)
+            self.display_on = True
+
 
 class DeviceWidgetLiveLinkFace(DeviceWidget):
+    signal_device_widget_toggle_display = QtCore.Signal(object)
+
     def __init__(self, name, device_hash, address, icons, parent=None):
         super().__init__(name, device_hash, address, icons, parent=parent)
 
@@ -162,7 +174,18 @@ class DeviceWidgetLiveLinkFace(DeviceWidget):
                                              tool_tip='Look for mobile',
                                              checkable=True, checked=True)
 
+        self.disp_button = self.add_control_button(':/icons/images/icon_record_disabled.png',
+                                           icon_hover=':/icons/images/icon_record_hover.png',
+                                        icon_disabled=':/icons/images/icon_record_disabled.png',
+                                              icon_on=':/icons/images/icon_record.png',
+                                        icon_hover_on=':/icons/images/icon_record_hover.png',
+                                     icon_disabled_on=':/icons/images/icon_record_disabled.png',
+                                             tool_tip='Toggle Device Display',
+                                             checkable=True, checked=True)
+
+
         self.look_for_button.clicked.connect(self.look_for_button_clicked)
+        self.disp_button.clicked.connect(self.toggle_display)
 
     def set_battery(self, value):
         rounded_value = int(round(value * 100 / 10.0)) * 10
@@ -171,9 +194,13 @@ class DeviceWidgetLiveLinkFace(DeviceWidget):
         pixmap = QtGui.QPixmap(qrc_path)
 
         if pixmap.isNull():
-            pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(40, 40))
+            pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(30, 30))
 
         self.device_icon.setPixmap(pixmap)
+
+    def toggle_display(self, value):
+        self.signal_device_widget_toggle_display.emit(self)
+        
 
     def look_for_button_clicked(self):
         if self.look_for_button.isChecked():

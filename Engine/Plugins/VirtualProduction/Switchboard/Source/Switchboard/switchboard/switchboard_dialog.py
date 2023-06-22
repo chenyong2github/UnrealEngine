@@ -1322,6 +1322,12 @@ class SwitchboardDialog(QtCore.QObject):
         device_widget.signal_device_widget_trigger_start_toggled.connect(self.device_widget_trigger_start_toggled)
         device_widget.signal_device_widget_trigger_stop_toggled.connect(self.device_widget_trigger_stop_toggled)
 
+        #Live Link Face Toggle Display
+        try:
+            device_widget.signal_device_widget_toggle_display.connect(self.device_widget_toggle_display)
+        except:
+            pass
+
         # KiPro Signal Support
         try:
             device_widget.signal_device_widget_play.connect(self.device_widget_play)
@@ -1334,6 +1340,10 @@ class SwitchboardDialog(QtCore.QObject):
             device.device_widget_registered(device_widget)
         except:
             LOGGER.error(f'Could not find device with hash {device_widget.device_hash} when registering its widget')
+
+    def device_widget_toggle_display(self, device_widget):
+        device = self.device_manager.device_with_hash(device_widget.device_hash)
+        device.toggle_display()
 
     def on_all_plugin_devices_connect_toggled(self, plugin_name, button_state):
         devices = self.device_manager.devices_of_type(plugin_name)

@@ -13,6 +13,8 @@ ARSESSION_START = '/ARSessionStart'
 ARSESSION_START_CONFIRM = '/ARSessionStartConfirm'
 ARSESSION_STOP = '/ARSessionStop'
 ARSESSION_STOP_CONFIRM = '/ARSessionStopConfirm'
+DISPLAY_OFF = '/VideoDisplayOff'
+DISPLAY_ON = '/VideoDisplayOn'
 
 # LiveLink
 LIVE_LINK_CONNECT = '/LiveLink'
