@@ -68,6 +68,16 @@ bool FJwtAlgorithm_RS256::SetPublicKey(const TArrayView<const uint8> InKey)
 }
 
 
+bool FJwtAlgorithm_RS256::SetPublicKey(const FStringView InKey)
+{
+	TArray<uint8> PublicKeyBytes;
+
+	FJwtUtils::StringViewToBytes(InKey, PublicKeyBytes);
+
+	return SetPublicKey(PublicKeyBytes);
+}
+
+
 void FJwtAlgorithm_RS256::DestroyKey(void* Key)
 {
 	TUniquePtr<FEncryptionContext> EncryptionContext

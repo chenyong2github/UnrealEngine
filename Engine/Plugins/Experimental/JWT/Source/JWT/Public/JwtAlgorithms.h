@@ -5,9 +5,6 @@
 #include "JwtAlgorithm.h"
 
 
-typedef void* FRSAKeyHandle;
-
-
 class JWT_API FJwtAlgorithm_RS256
 	: public IJwtAlgorithm
 {
@@ -45,6 +42,15 @@ public:
 	 * @return Whether the operation was successful
 	 */
 	bool SetPublicKey(const TArrayView<const uint8> InKey);
+
+	/**
+	 * Set the public RSA key.
+	 *
+	 * @param InKey Key as string view
+	 *
+	 * @return Whether the operation was successful
+	 */
+	bool SetPublicKey(const FStringView InKey);
 
 private:
 

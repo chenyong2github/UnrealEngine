@@ -1,10 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "JsonWebToken.h"
-#include "Algo/Count.h"
+
 #include "JwtGlobals.h"
-#include "Misc/Base64.h"
+#include "JwtUtils.h"
+
+#include "Algo/Count.h"
 #include "Serialization/JsonSerializer.h"
+
 
 // JWT header field names
 const TCHAR *const FJsonWebToken::HEADER_TYPE = TEXT("typ");
@@ -22,89 +25,6 @@ const TCHAR* const FJsonWebToken::CLAIM_NOT_BEFORE = TEXT("nbf");
 const TCHAR *const FJsonWebToken::CLAIM_SUBJECT = TEXT("sub");
 const TCHAR *const FJsonWebToken::CLAIM_AUDIENCE = TEXT("aud");
 
-
-namespace
-{
-	/**
-	 * Helper for splitting FStringViews, like FString.
-	 */
-	bool SplitStringView(const FStringView InSourceString, const TCHAR InDelimiter, FStringView& OutLeft, FStringView& OutRight)
-	{
-		int32 Position = INDEX_NONE;
-		if (!InSourceString.FindChar(InDelimiter, Position) || Position == INDEX_NONE)
-		{
-			return false;
-		}
-
-		OutLeft = InSourceString.Left(Position);
-		OutRight = InSourceString.RightChop(Position + 1);
-		return true;
-	}
-
-	/**
-	 * Splits an encoded JWT string into the 3 header, payload, and signature parts.
-	 */
-	bool SplitEncodedJsonWebTokenString(const FStringView InEncodedJsonWebTokenString, FStringView& OutEncodedHeaderPart, FStringView& OutEncodedPayloadPart, FStringView& OutEncodedSignaturePart)
-	{
-		FStringView Rest;
-
-		if (!SplitStringView(InEncodedJsonWebTokenString, TEXT('.'), OutEncodedHeaderPart, Rest))
-		{
-			UE_LOG(LogJwt, Warning, TEXT("[SplitEncodedJsonWebTokenString] Cannot extract header from token string."));
-			return false;
-		}
-
-		if (!SplitStringView(Rest, TEXT('.'), OutEncodedPayloadPart, OutEncodedSignaturePart))
-		{
-			UE_LOG(LogJwt, Warning, TEXT("[SplitEncodedJsonWebTokenString] Cannot extract payload from token string."));
-			return false;
-		}
-
-		if (OutEncodedHeaderPart.IsEmpty() || OutEncodedPayloadPart.IsEmpty())
-		{
-			UE_LOG(LogJwt, Warning, TEXT("[SplitEncodedJsonWebTokenString] Empty header and/or payload in token string."));
-			return false;
-		}
-
-		return true;
-	}
-
-	bool Base64UrlDecode(const FStringView InSource, FString& OutDest)
-	{
-		if (InSource.IsEmpty())
-		{
-			return false;
-		}
-
-		return FBase64::Decode(FString(InSource), OutDest, EBase64Mode::UrlSafe);
-	}
-
-	bool Base64UrlDecode(const FStringView InSource, TArray<uint8>& OutDest)
-	{
-		if (InSource.IsEmpty())
-		{
-			return false;
-		}
-
-		return FBase64::Decode(FString(InSource), OutDest, EBase64Mode::UrlSafe);
-	}
-
-	bool StringViewToBytes(const FStringView In, TArray<uint8>& OutBytes, const bool IsEncoded)
-	{
-		if (IsEncoded)
-		{
-			return Base64UrlDecode(In, OutBytes);
-		}
-
-		OutBytes.Reserve(In.Len());
-		for (const TCHAR& Ch : In)
-		{
-			OutBytes.Add(static_cast<uint8>(Ch));
-		}
-
-		return true;
-	}
-}
 
 void FJsonWebToken::DumpJsonObject(const FJsonObject& InJsonObject)
 {
@@ -190,7 +110,7 @@ TSharedPtr<FJsonObject> FJsonWebToken::ParseEncodedJson(const FStringView InEnco
 	TSharedPtr<FJsonObject> ParsedObj;
 
 	FString DecodedJson;
-	if (Base64UrlDecode(InEncodedJson, DecodedJson))
+	if (FJwtUtils::Base64UrlDecode(InEncodedJson, DecodedJson))
 	{
 		ParsedObj = FromJson(DecodedJson);
 	}
@@ -224,7 +144,7 @@ TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJs
 	FStringView EncodedHeader;
 	FStringView EncodedPayload;
 	FStringView SignaturePart;
-	if (!SplitEncodedJsonWebTokenString(InEncodedJsonWebToken, EncodedHeader, EncodedPayload, SignaturePart))
+	if (!FJwtUtils::SplitEncodedJsonWebTokenString(InEncodedJsonWebToken, EncodedHeader, EncodedPayload, SignaturePart))
 	{
 		return {};
 	}
@@ -260,7 +180,7 @@ TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJs
 
 		TArray<uint8> SignatureBytes;
 
-		if (!Base64UrlDecode(SignaturePart, SignatureBytes))
+		if (!FJwtUtils::Base64UrlDecode(SignaturePart, SignatureBytes))
 		{
 			UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::FromString] Failed to decode the signature."));
 			return {};
