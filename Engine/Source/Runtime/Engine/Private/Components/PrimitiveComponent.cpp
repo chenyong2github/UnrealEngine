@@ -4532,8 +4532,9 @@ void UPrimitiveComponent::PrecachePSOs()
 
 void UPrimitiveComponent::RequestRecreateRenderStateWhenPSOPrecacheFinished(const FGraphEventArray& PSOPrecacheCompileEvents)
 {
-	// Mark the render state dirty when all PSOs are compiled so the proxy gets recreated
-	if (ProxyCreationWhenPSOReady() && !PSOPrecacheCompileEvents.IsEmpty())
+	// If the proxy creation strategy relies on knowing when the precached PSO has been compiled,
+	// schedule a task to mark the render state dirty when all PSOs are compiled so the proxy gets recreated.
+	if (GetPSOPrecacheProxyCreationStrategy() != EPSOPrecacheProxyCreationStrategy::AlwaysCreate && !PSOPrecacheCompileEvents.IsEmpty())
 	{
 		PSOPrecacheCompileEvent = TGraphTask<FMarkRenderStateDirtyTask>::CreateTask(&PSOPrecacheCompileEvents).ConstructAndDispatchWhenReady(this);
 	}
@@ -4541,7 +4542,17 @@ void UPrimitiveComponent::RequestRecreateRenderStateWhenPSOPrecacheFinished(cons
 	bPSOPrecacheCalled = true;
 }
 
-bool UPrimitiveComponent::IsPSOPrecaching()
+bool UPrimitiveComponent::IsPSOPrecaching() const
+{
+	return PSOPrecacheCompileEvent && !PSOPrecacheCompileEvent->IsComplete();
+}
+
+bool UPrimitiveComponent::ShouldRenderProxyFallbackToDefaultMaterial() const
+{
+	return IsPSOPrecaching() && GetPSOPrecacheProxyCreationStrategy() == EPSOPrecacheProxyCreationStrategy::UseDefaultMaterialUntilPSOPrecached;
+}
+
+bool UPrimitiveComponent::CheckPSOPrecachingAndBoostPriority()
 {
 	ensure(!IsComponentPSOPrecachingEnabled() || bPSOPrecacheCalled);
 
@@ -4558,7 +4569,7 @@ bool UPrimitiveComponent::IsPSOPrecaching()
 		PSOPrecacheCompileEvent = nullptr;
 	}
 
-	return PSOPrecacheCompileEvent != nullptr;
+	return IsPSOPrecaching();
 }
 
 #if WITH_EDITOR

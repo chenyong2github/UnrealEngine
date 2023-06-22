@@ -526,12 +526,17 @@ FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 	FSkeletalMeshSceneProxy* Result = nullptr;
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
 
+	if (CheckPSOPrecachingAndBoostPriority() && GetPSOPrecacheProxyCreationStrategy() == EPSOPrecacheProxyCreationStrategy::DelayUntilPSOPrecached)
+	{
+		UE_LOG(LogSkinnedMeshComp, Verbose, TEXT("Skipping CreateSceneProxy for USkinnedMeshComponent %s (USkinnedMeshComponent PSOs are still compiling)"), *GetFullName());
+		return nullptr;
+	}
+
 	// Only create a scene proxy for rendering if properly initialized
 	if (SkelMeshRenderData &&
 		SkelMeshRenderData->LODRenderData.IsValidIndex(GetPredictedLODLevel()) &&
 		!bHideSkin &&
-		MeshObject &&
-		!IsPSOPrecaching())
+		MeshObject)
 	{
 		// Only create a scene proxy if the bone count being used is supported, or if we don't have a skeleton (this is the case with destructibles)
 		int32 MinLODIndex = ComputeMinLOD();

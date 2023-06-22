@@ -5640,6 +5640,8 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		bAlwaysHasVelocity = true;
 	}
 
+	bool bForceDefaultMaterial = Component->ShouldRenderProxyFallbackToDefaultMaterial();
+
 	// setup materials and performance classification for each LOD.
 	extern bool GForceDefaultMaterial;
 	bool bCastShadow = Component->CastShadow;
@@ -5674,7 +5676,7 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 			// If the material is NULL, or isn't flagged for use with skeletal meshes, it will be replaced by the default material.
 			UMaterialInterface* Material = Component->GetMaterial(UseMaterialIndex);
-			if (GForceDefaultMaterial && Material && !IsTranslucentBlendMode(*Material))
+			if (bForceDefaultMaterial || (GForceDefaultMaterial && Material && !IsTranslucentBlendMode(*Material)))
 			{
 				Material = UMaterial::GetDefaultMaterial(MD_Surface);
 				MaterialRelevance |= Material->GetRelevance(FeatureLevel);

@@ -813,6 +813,11 @@ void USplineMeshComponent::CollectPSOPrecacheData(const FPSOPrecacheParams& Base
 FPrimitiveSceneProxy* USplineMeshComponent::CreateStaticMeshSceneProxy(Nanite::FMaterialAudit& NaniteMaterials, bool bCreateNanite)
 {
 	LLM_SCOPE(ELLMTag::StaticMesh);
+
+     if (CheckPSOPrecachingAndBoostPriority() && GetPSOPrecacheProxyCreationStrategy() == EPSOPrecacheProxyCreationStrategy::DelayUntilPSOPrecached)
+	{
+		return nullptr;
+	}
 	
 	if (bCreateNanite && ShouldRenderNaniteSplineMeshes())
 	{

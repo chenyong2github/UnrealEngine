@@ -960,8 +960,17 @@ public:
 	/** Schedule task to mark render state dirty when the PSO precaching tasks are done */
 	ENGINE_API void RequestRecreateRenderStateWhenPSOPrecacheFinished(const FGraphEventArray& PSOPrecacheCompileEvents);
 
-	/** Check if PSOs are still precaching and boost priority if not done yet */
-	ENGINE_API bool IsPSOPrecaching();
+	/** Check if PSOs are still precaching */
+	ENGINE_API bool IsPSOPrecaching() const;
+
+	/** Whether the render proxy should fallback to the default material because the PSOs are still precaching */
+	ENGINE_API bool ShouldRenderProxyFallbackToDefaultMaterial() const;
+
+	/**
+	 * Check if PSOs are still precaching and boost priority if not done yet.
+	 * Returns true if the PSOs are still precaching.
+	 */
+	ENGINE_API bool CheckPSOPrecachingAndBoostPriority();
 
 	/**
 	 * Set of actors to ignore during component sweeps in MoveComponent().

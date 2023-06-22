@@ -3301,6 +3301,12 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 	}
 	ProxySize = 0;
 
+	if (CheckPSOPrecachingAndBoostPriority() && GetPSOPrecacheProxyCreationStrategy() == EPSOPrecacheProxyCreationStrategy::DelayUntilPSOPrecached)
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for UHierarchicalInstancedStaticMeshComponent %s (UHierarchicalInstancedStaticMeshComponent PSOs are still compiling)"), *GetFullName());
+		return nullptr;
+	}
+
 	// Verify that the mesh is valid before using it.
 	const bool bMeshIsValid =
 		// Make sure we have instances.
@@ -3308,8 +3314,7 @@ FPrimitiveSceneProxy* UHierarchicalInstancedStaticMeshComponent::CreateSceneProx
 		// Make sure we have an actual static mesh.
 		GetStaticMesh() &&
 		!GetStaticMesh()->IsCompiling() &&
-		GetStaticMesh()->HasValidRenderData(false) &&
-		!IsPSOPrecaching();
+		GetStaticMesh()->HasValidRenderData(false);
 
 	if (bMeshIsValid)
 	{

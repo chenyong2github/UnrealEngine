@@ -6912,7 +6912,7 @@ FPrimitiveSceneProxy* UParticleSystemComponent::CreateSceneProxy()
 			PrecacheAssetPSOs(Template);
 		}
 
-		if (IsPSOPrecaching())
+		if (CheckPSOPrecachingAndBoostPriority() && GetPSOPrecacheProxyCreationStrategy() != EPSOPrecacheProxyCreationStrategy::AlwaysCreate)
 		{
 			UE_LOG(LogParticles, Verbose, TEXT("Skipping CreateSceneProxy for UParticleSystemComponent %s (UParticleSystem PSOs are still compiling)"), *GetFullName());
 			return nullptr;

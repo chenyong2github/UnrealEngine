@@ -2717,6 +2717,12 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateStaticMeshSceneProxy(
 
 	LLM_SCOPE(ELLMTag::InstancedMesh);
 
+	if (CheckPSOPrecachingAndBoostPriority() && GetPSOPrecacheProxyCreationStrategy() == EPSOPrecacheProxyCreationStrategy::DelayUntilPSOPrecached)
+	{
+		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for UInstancedStaticMeshComponent %s (UInstancedStaticMeshComponent PSOs are still compiling)"), *GetFullName());
+		return nullptr;
+	}
+
 	if (bCreateNanite)
 	{
 		return ::new Nanite::FSceneProxy(NaniteMaterials, this);
@@ -2746,8 +2752,7 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 		// make sure we have an actual static mesh
 		GetStaticMesh() &&
 		GetStaticMesh()->IsCompiling() == false &&
-		GetStaticMesh()->HasValidRenderData() &&
-		!IsPSOPrecaching();
+		GetStaticMesh()->HasValidRenderData();
 
 	if (bMeshIsValid)
 	{

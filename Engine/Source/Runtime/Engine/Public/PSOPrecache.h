@@ -236,6 +236,24 @@ extern ENGINE_API bool IsComponentPSOPrecachingEnabled();
  */
 extern ENGINE_API bool IsResourcePSOPrecachingEnabled();
 
+enum class EPSOPrecacheProxyCreationStrategy : uint8
+{
+	// Always create the render proxy regardless of whether the PSO has finished precaching or not. 
+	// This will introduce a blocking wait when the proxy is rendered if the PSO is not ready.
+	AlwaysCreate = 0, 
+
+	// Delay the creation of the render proxy until the PSO has finished precaching. 
+	// This effectively skips drawing components until the PSO is ready, when the proxy will be created.
+	DelayUntilPSOPrecached = 1, 
+	
+	// Create a render proxy that uses the default material if the PSO has not finished precaching by creation time.
+	// The proxy will be re-created with the actual materials once the PSO is ready.
+	// Currently implemented only for static and skinned mesh components, while Niagara components will skip render proxy creation altogether.
+	UseDefaultMaterialUntilPSOPrecached = 2
+};
+
+extern ENGINE_API EPSOPrecacheProxyCreationStrategy GetPSOPrecacheProxyCreationStrategy();
+
 /**
  * Delay component proxy creation when it's requested PSOs are still precaching
  */

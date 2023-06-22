@@ -265,6 +265,8 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	}
 #endif
 
+	bool bForceDefaultMaterial = InComponent->ShouldRenderProxyFallbackToDefaultMaterial();
+
 	// Find the first LOD with any vertices (ie that haven't been stripped)
 	int FirstAvailableLOD = 0;
 	for (; FirstAvailableLOD < RenderData->LODResources.Num(); FirstAvailableLOD++)
@@ -275,7 +277,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 		}
 	}
 
-	if (GForceDefaultMaterial)
+	if (bForceDefaultMaterial || GForceDefaultMaterial)
 	{
 		MaterialRelevance |= UMaterial::GetDefaultMaterial(MD_Surface)->GetRelevance(FeatureLevel);
 	}
@@ -2206,6 +2208,8 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 		SetGlobalVolumeLightmap(true);
 	}
 
+	bool bForceDefaultMaterial = InComponent->ShouldRenderProxyFallbackToDefaultMaterial();
+
 	bool bMeshMapBuildDataOverriddenByLightmapPreview = false;
 
 #if WITH_EDITOR
@@ -2326,7 +2330,7 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 		SectionInfo.MaterialIndex = Section.MaterialIndex;
 #endif
 
-		if (GForceDefaultMaterial && SectionInfo.Material && !IsTranslucentBlendMode(*SectionInfo.Material))
+		if (bForceDefaultMaterial || (GForceDefaultMaterial && SectionInfo.Material && !IsTranslucentBlendMode(*SectionInfo.Material)))
 		{
 			SectionInfo.Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
@@ -2623,7 +2627,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
-	if (IsPSOPrecaching())
+	if (CheckPSOPrecachingAndBoostPriority() && GetPSOPrecacheProxyCreationStrategy() == EPSOPrecacheProxyCreationStrategy::DelayUntilPSOPrecached)
 	{
 		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (Static mesh component PSOs are still compiling)"), *GetFullName());
 		return nullptr;
