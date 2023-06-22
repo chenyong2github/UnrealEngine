@@ -5,7 +5,10 @@
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class IDMXPixelMappingRenderer;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 /**
  * Public module interface for the DMX Renderer module
@@ -49,5 +52,7 @@ public:
 	 *
 	 * @return IDMXPixelMappingRenderer instance.
 	 */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TSharedPtr<IDMXPixelMappingRenderer> CreateRenderer() const = 0;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };

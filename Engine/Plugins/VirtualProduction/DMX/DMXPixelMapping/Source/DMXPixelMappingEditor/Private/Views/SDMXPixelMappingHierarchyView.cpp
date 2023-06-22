@@ -356,8 +356,10 @@ void SDMXPixelMappingHierarchyView::RestoreSelectedItems()
 
 	GEditor->GetTimerManager()->SetTimerForNextTick([this]()
 		{
-
-			WidgetTreeView->ClearSelection();
+			if (WidgetTreeView.IsValid())
+			{
+				WidgetTreeView->ClearSelection();
+			}
 			for (FDMXPixelMappingHierarchyItemWidgetModelPtr& Model : RootWidgets)
 			{
 				RestoreSelectionForItemAndChildren(Model);

@@ -13,6 +13,7 @@
 #include "IDetailsView.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
+#include "ScopedTransaction.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 #include "Views/SDMXPixelMappingDesignerView.h"
 #include "Widgets/SBoxPanel.h"
@@ -238,9 +239,14 @@ void SDMXPixelMappingInputSourceView::OnComponentAddedOrRemoved(UDMXPixelMapping
 
 FReply SDMXPixelMappingInputSourceView::OnAddButtonClicked()
 {
-	if (const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin())
+	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = WeakToolkit.Pin();
+	UDMXPixelMapping* PixelMapping = Toolkit.IsValid() ? Toolkit->GetDMXPixelMapping() : nullptr;
+	if (Toolkit.IsValid() && PixelMapping && PixelMapping->GetRootComponent())
 	{
+		const FScopedTransaction AddRendererTransaction(LOCTEXT("AddRendererTransaction", "Add Pixel Mapping Input Source"));
+		PixelMapping->GetRootComponent()->PreEditChange(nullptr);
 		Toolkit->AddRenderer();
+		PixelMapping->GetRootComponent()->PostEditChange();
 		
 		UDMXPixelMappingRendererComponent* RendererComponentToSelect = Toolkit->GetActiveRendererComponent();
 		if (RendererComponentToSelect)

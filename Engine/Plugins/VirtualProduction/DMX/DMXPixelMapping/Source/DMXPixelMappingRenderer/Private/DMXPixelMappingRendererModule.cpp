@@ -19,9 +19,11 @@ void FDMXPixelMappingRendererModule::StartupModule()
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 TSharedPtr<IDMXPixelMappingRenderer> FDMXPixelMappingRendererModule::CreateRenderer() const
 {
 	return MakeShared<FDMXPixelMappingRenderer>();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 IMPLEMENT_MODULE(FDMXPixelMappingRendererModule, DMXPixelMappingRenderer);

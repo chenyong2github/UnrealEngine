@@ -491,6 +491,11 @@ void FDMXPixelMappingToolkit::OnComponentRemoved(UDMXPixelMapping* PixelMapping,
 
 void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
 {
+	if (!DMXPixelMapping)
+	{
+		return;
+	}
+
 	// Make sure we loaded all UObjects
 	DMXPixelMapping->CreateOrLoadObjects();
 
@@ -588,6 +593,20 @@ void FDMXPixelMappingToolkit::InitializeInternal(const EToolkitMode::Type Mode, 
 	SetupCommands();
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
+	
+	// Select the first renderer component
+	if (UDMXPixelMappingRootComponent* RootComponent = DMXPixelMapping->GetRootComponent())
+	{
+		UDMXPixelMappingBaseComponent* const* FirstRendererComponetPtr = Algo::FindByPredicate(DMXPixelMapping->GetRootComponent()->GetChildren(), [](UDMXPixelMappingBaseComponent* Component)
+			{
+				return Component && Component->GetClass() == UDMXPixelMappingRendererComponent::StaticClass();
+			});
+		if (FirstRendererComponetPtr)
+		{
+			const FDMXPixelMappingComponentReference ComponentReference(StaticCastSharedRef<FDMXPixelMappingToolkit>(AsShared()), *FirstRendererComponetPtr);
+			SelectComponents(TSet<FDMXPixelMappingComponentReference>({ ComponentReference }));
+		}
+	}
 }
 
 TSharedRef<SDockTab> FDMXPixelMappingToolkit::SpawnTab_InputSourceView(const FSpawnTabArgs& Args)
