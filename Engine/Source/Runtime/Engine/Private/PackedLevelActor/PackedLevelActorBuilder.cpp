@@ -32,6 +32,7 @@
 #include "ContentBrowserModule.h"
 #include "EditorDirectories.h"
 #include "WorldPartition/Filter/WorldPartitionActorFilter.h"
+#include "Serialization/ArchiveCrc32.h"
 
 
 #define LOCTEXT_NAMESPACE "FPackedLevelActorBuilder"
@@ -194,12 +195,16 @@ bool FPackedLevelActorBuilder::PackActor(FPackedLevelActorBuilderContext& InCont
 	InContext.SetRelativePivotTransform(RelativePivotTransform);	
 	ClusterActor(InContext, CastChecked<AActor>(InContext.GetLevelInstanceToPack()));
 
+	TArray<uint32> HashArray;
 	for (const auto& Pair : InContext.GetClusters())
 	{
 		TUniquePtr<IPackedLevelActorBuilder>& Builder = Builders.FindChecked(Pair.Key.GetBuilderID());
-		Builder->PackActors(InContext, Pair.Key, Pair.Value);
+		HashArray.Add(Builder->PackActors(InContext, Pair.Key, Pair.Value));
 	}
-			
+	HashArray.Sort();
+	FArchiveCrc32 Ar;
+	Ar << HashArray;
+	InContext.GetPackedLevelActor()->SetPackedHash(Ar.GetCrc());
 	InContext.Report(Log);
 	return true;
 }
@@ -295,6 +300,11 @@ ALevelInstance* FPackedLevelActorBuilder::CreateTransientLevelInstanceForPacking
 	UWorld* World = GEditor->GetEditorWorldContext().World();
 	check(World);
 	SpawnParams.OverrideLevel = World->PersistentLevel;
+
+	// Provide the same ActorGuid all the time so that sorting of Component by ObjectPath are deterministic (used in FPackedLevelActorISMBuilder::PackActors)
+	// It is safe because CreateTransientLevelInstanceForPacking is always called to Create a Level Instance on the stack, pack it and destroy it so no Guid conflicts can happen.
+	const FGuid PackingActorGuid(0x626EAF37, 0x1F7E47B9, 0x8C4788DC, 0x85F52822);
+	SpawnParams.OverrideActorGuid = PackingActorGuid;
 	APackedLevelActor* LevelInstance = World->SpawnActor<APackedLevelActor>(InLocation, InRotator, SpawnParams);
 	LevelInstance->SetFilter(InFilter, false);
 	LevelInstance->SetShouldLoadForPacking(true);
@@ -424,6 +434,15 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelAct
 		return false;
 	}
 	
+	// No Need to update the Blueprint because packing result is the same
+	FMessageLog Log("PackedLevelActor");
+	uint32 PackedHash = CastChecked<APackedLevelActor>(BP->GeneratedClass->GetDefaultObject())->GetPackedHash();
+	if (PackedHash != 0 && PackedHash == InActor->GetPackedHash())
+	{
+		Log.Info(FText::Format(LOCTEXT("PackedBlueprintUpdated", "Packed Blueprint '{0}' already up to date"), FText::FromString(InBlueprintAsset.ToString())));
+		return true;
+	}
+
 	BP->Modify();
 
 	TArray<USCS_Node*> AllNodes = BP->SimpleConstructionScript->GetAllNodes();
@@ -473,6 +492,7 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelAct
 		PackedLevelActor->SetWorldAsset(InActor->GetWorldAsset());
 		PackedLevelActor->SetFilter(InActor->GetFilter(), false);
 		PackedLevelActor->SetPackedVersion(NewVersion);
+		PackedLevelActor->SetPackedHash(InActor->GetPackedHash());
 		// match root component mobility to source actor
 		USceneComponent* Root = PackedLevelActor->GetRootComponent();
 		Root->SetMobility(InActor->GetRootComponent()->Mobility);
@@ -486,7 +506,6 @@ bool FPackedLevelActorBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevelAct
 			
 	// Synchronous compile
 	FKismetEditorUtilities::CompileBlueprint(BP, EBlueprintCompileOptions::SkipGarbageCollection);
-	FMessageLog Log("PackedLevelActor");
 	Log.Info(FText::Format(LOCTEXT("PackedBlueprintUpdated", "Updated Packed Blueprint '{0}'"), FText::FromString(InBlueprintAsset.ToString())));
 
 	if (bCheckoutAndSave)

@@ -61,7 +61,10 @@ public:
 
 	ENGINE_API virtual bool CanEditChange(const FProperty* InProperty) const override;
 		
-	void SetPackedVersion(const FGuid& Version) { PackedVersion = Version; }
+	void SetPackedVersion(const FGuid& InVersion) { PackedVersion = InVersion; }
+
+	uint32 GetPackedHash() const { return PackedHash; }
+	void SetPackedHash(uint32 InHash) { PackedHash = InHash; }
 
 	ENGINE_API virtual bool IsHiddenEd() const override;
 	ENGINE_API virtual bool IsHLODRelevant() const override;
@@ -93,6 +96,9 @@ public:
 private:
 	UPROPERTY()
 	FGuid PackedVersion;
+
+	UPROPERTY()
+	uint32 PackedHash;
 #endif
 
 #if WITH_EDITOR

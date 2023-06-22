@@ -2,6 +2,9 @@
 
 #include "ISMPartition/ISMComponentBatcher.h"
 #include "Components/StaticMeshComponent.h"
+#include "Serialization/ArchiveCrc32.h"
+#include "Misc/TransformUtilities.h"
+#include "Templates/TypeHash.h"
 
 void FISMComponentBatcher::Add(const UActorComponent* InComponent)
 {
@@ -15,6 +18,7 @@ void FISMComponentBatcher::Add(const UActorComponent* InComponent, TFunctionRef<
 
 void FISMComponentBatcher::AddInternal(const UActorComponent* InComponent, TOptional<TFunctionRef<FTransform(const FTransform&)>> InTransformFunc)
 {
+	Hash = 0; // Invalidate
 	int32 NewNumCustomDataFloats = 0;
 	int32 NewNumInstances = 0;
 
@@ -120,4 +124,21 @@ void FISMComponentBatcher::InitComponent(UInstancedStaticMeshComponent* ISMCompo
 			ISMComponent->AdditionalRandomSeeds = TArrayView<FInstancedStaticMeshRandomSeed>(&const_cast<FISMComponentBatcher*>(this)->RandomSeeds[1], RandomSeeds.Num() - 1);
 		}
 	}		
+}
+
+void FISMComponentBatcher::ComputeHash() const
+{
+	uint32 CRC = 0;
+	for (const FTransform& InstanceTransform : InstancesTransformsWS)
+	{
+		CRC = HashCombine(TransformUtilities::GetRoundedTransformCRC32(InstanceTransform), CRC);
+	}
+	
+	FArchiveCrc32 Ar(CRC);
+	FISMComponentBatcher& This = *const_cast<FISMComponentBatcher*>(this);
+
+	Ar << This.InstancesCustomData;
+	Ar << This.RandomSeeds;
+
+	Hash = Ar.GetCrc();
 }

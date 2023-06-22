@@ -21,7 +21,7 @@ public:
 	virtual ~IPackedLevelActorBuilder() {}
 	virtual FPackedLevelActorBuilderID GetID() const = 0;
 	virtual void GetPackClusters(FPackedLevelActorBuilderContext& InContext, AActor* InActor) const = 0;
-	virtual void PackActors(FPackedLevelActorBuilderContext& InBuilder, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const = 0;
+	virtual uint32 PackActors(FPackedLevelActorBuilderContext& InBuilder, const FPackedLevelActorBuilderClusterID& InClusterID, const TArray<UActorComponent*>& InComponents) const = 0;
 protected:
 	FPackedLevelActorBuilder& Owner;
 };

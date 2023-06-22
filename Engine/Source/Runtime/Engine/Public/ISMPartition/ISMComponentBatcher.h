@@ -63,9 +63,21 @@ public:
 	 */
 	ENGINE_API void InitComponent(UInstancedStaticMeshComponent* ISMComponent) const;
 
-private:
-	ENGINE_API void AddInternal(const UActorComponent* InComponent, TOptional<TFunctionRef<FTransform(const FTransform&)>> InTransformFunc);
+	
+	inline uint32 GetHash() const
+	{
+		if (Hash == 0)
+		{
+			ComputeHash();
+		}
+		return Hash;
+	}
 
+private:
+	void ENGINE_API AddInternal(const UActorComponent* InComponent, TOptional<TFunctionRef<FTransform(const FTransform&)>> InTransformFunc);
+	void ENGINE_API ComputeHash() const;
+
+	mutable uint32 Hash = 0;
 	int32 NumInstances = 0;
 	int32 NumCustomDataFloats = 0;
 
