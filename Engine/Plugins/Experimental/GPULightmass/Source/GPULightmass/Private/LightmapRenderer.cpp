@@ -1045,6 +1045,7 @@ bool FSceneRenderState::SetupRayTracingScene(FRDGBuilder& GraphBuilder, int32 LO
 							};
 
 							DynamicGeometryCollection.AddDynamicMeshBatchForGeometryUpdate(
+								RHICmdList,
 								Landscape.ComponentUObject->GetWorld()->Scene->GetRenderScene(),
 								ReferenceView.Get(),
 								nullptr,
@@ -1593,6 +1594,8 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 		return;
 	}
 
+	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
+
 	const auto HoldReference = [](FRDGBuilder& GraphBuilder, const FShaderResourceViewRHIRef& View) -> const FShaderResourceViewRHIRef&
 	{
 		return *GraphBuilder.AllocObject<FShaderResourceViewRHIRef>(View);
@@ -1610,7 +1613,6 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 		if (TileUploadRequests.Num() > 0)
 		{
-			FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 			SCOPED_DRAW_EVENTF(RHICmdList, GPULightmassUploadConvergedTiles, TEXT("GPULightmass UploadConvergedTiles %d tiles"), TileUploadRequests.Num());
 
 			int32 NewSize = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(TileUploadRequests.Num())));
