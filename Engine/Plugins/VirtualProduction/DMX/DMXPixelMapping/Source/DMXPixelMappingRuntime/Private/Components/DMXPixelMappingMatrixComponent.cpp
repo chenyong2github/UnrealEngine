@@ -563,7 +563,7 @@ void UDMXPixelMappingMatrixComponent::OnFixtureTypeChanged(const UDMXEntityFixtu
 
 void UDMXPixelMappingMatrixComponent::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
 {
-	if (FixturePatch)
+	if (FixturePatch && FixturePatch == FixturePatchRef.GetEntity())
 	{
 		HandleMatrixChanged();
 
