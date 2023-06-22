@@ -269,7 +269,6 @@ void USkeletalMeshModelingToolsEditorMode::CreateToolkit()
 	Toolkit = MakeShareable(new FSkeletalMeshModelingToolsEditorModeToolkit);
 }
 
-
 void USkeletalMeshModelingToolsEditorMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	Super::Tick(ViewportClient, DeltaTime);
@@ -298,6 +297,19 @@ bool USkeletalMeshModelingToolsEditorMode::HandleClick(FEditorViewportClient* In
 
 bool USkeletalMeshModelingToolsEditorMode::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const
 {
+	// if Tool supports custom Focus box, use that first
+	if (GetToolManager()->HasAnyActiveTool())
+	{
+		UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
+		IInteractiveToolCameraFocusAPI* FocusAPI = Cast<IInteractiveToolCameraFocusAPI>(Tool);
+		if (FocusAPI && FocusAPI->SupportsWorldSpaceFocusBox())
+		{
+			InOutBox = FocusAPI->GetWorldSpaceFocusBox();
+			return true;
+		}
+	}
+
+	// focus using selected bones in skel mesh editor
 	if (const USkeletalMeshComponent* Component = Cast<USkeletalMeshComponent>(PrimitiveComponent))
 	{
 		check(Component->GetSkeletalMeshAsset());
@@ -336,18 +348,6 @@ bool USkeletalMeshModelingToolsEditorMode::ComputeBoundingBoxForViewportFocus(AA
 				
 				return true; 
 			}
-		}
-	}
-
-	// if Tool supports custom Focus box, use that
-	if (GetToolManager()->HasAnyActiveTool())
-	{
-		UInteractiveTool* Tool = GetToolManager()->GetActiveTool(EToolSide::Mouse);
-		IInteractiveToolCameraFocusAPI* FocusAPI = Cast<IInteractiveToolCameraFocusAPI>(Tool);
-		if (FocusAPI && FocusAPI->SupportsWorldSpaceFocusBox())
-		{
-			InOutBox = FocusAPI->GetWorldSpaceFocusBox();
-			return true;
 		}
 	}
 	

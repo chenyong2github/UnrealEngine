@@ -157,6 +157,7 @@ void FSkeletalMeshModelingToolsModule::OnToggleEditingToolsMode(TWeakPtr<ISkelet
 		{
 			EditorModeManager.ActivateMode(USkeletalMeshModelingToolsEditorMode::Id, true);
 
+			// bind notifications to skeletal mesh modeling editor mode
 			UEdMode* ActiveMode = EditorModeManager.GetActiveScriptableMode(USkeletalMeshModelingToolsEditorMode::Id);
 			if (USkeletalMeshModelingToolsEditorMode* SkeletalMeshMode = CastChecked<USkeletalMeshModelingToolsEditorMode>(ActiveMode))
 			{

@@ -31,18 +31,12 @@ public:
 
 	// UEdMode overrides
 	virtual void Initialize() override;
-
 	virtual void Enter() override;
 	virtual void Exit() override;
 	virtual void CreateToolkit() override;
-
 	virtual void Tick(FEditorViewportClient* InViewportClient, float InDeltaTime) override;
-	// void Render(const FSceneView* InView, FViewport* InViewport, FPrimitiveDrawInterface* InPDI) override;
-	// void DrawHUD(FEditorViewportClient* InViewportClient, FViewport* InViewport, const FSceneView* InView, FCanvas* InCanvas) override;
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy *HitProxy, const FViewportClick &Click) override;
-
 	virtual bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const override;
-	
 	virtual bool UsesToolkits() const override { return true; }
 
 	// binding

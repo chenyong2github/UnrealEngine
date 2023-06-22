@@ -83,6 +83,18 @@ USkinWeightsPaintToolProperties::USkinWeightsPaintToolProperties()
 
 	MinColor = FLinearColor::Black;
 	MaxColor = FLinearColor::White;
+
+	BrushConfigs.Add(EWeightEditOperation::Add, &BrushConfigAdd);
+	BrushConfigs.Add(EWeightEditOperation::Replace, &BrushConfigReplace);
+	BrushConfigs.Add(EWeightEditOperation::Multiply, &BrushConfigMultiply);
+	BrushConfigs.Add(EWeightEditOperation::Relax, &BrushConfigRelax);
+
+	LoadConfig();
+}
+
+FSkinWeightBrushConfig& USkinWeightsPaintToolProperties::GetBrushConfig()
+{
+	return *BrushConfigs[BrushMode];
 }
 
 void FMultiBoneWeightEdits::MergeSingleEdit(
@@ -260,7 +272,7 @@ void FSkinToolDeformer::UpdateVertexDeformation(USkinWeightsPaintTool* Tool)
 	}
 
 	// update data structures used by the selection mode
-	if (EditingMode == EWeightEditMode::Selection)
+	if (EditingMode == EWeightEditMode::Vertices)
 	{
 		// update AABB Tree for vertex selection
 		TRACE_CPUPROFILER_EVENT_SCOPE(SkinTool::UpdateAABBTree);
@@ -753,11 +765,35 @@ void USkinWeightsPaintTool::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		Super::Render(RenderAPI);	
 	}
-	else if (PolygonSelectionMechanic && WeightToolProperties->EditingMode == EWeightEditMode::Selection)
+	else if (PolygonSelectionMechanic && WeightToolProperties->EditingMode == EWeightEditMode::Vertices)
 	{
 		PolygonSelectionMechanic->Render(RenderAPI);
 	}
 	
+}
+
+FBox USkinWeightsPaintTool::GetWorldSpaceFocusBox()
+{
+	// TODO add support for selected bones
+
+	const FGroupTopologySelection& Selection = PolygonSelectionMechanic->GetActiveSelection();
+	if (!Selection.SelectedCornerIDs.IsEmpty())
+	{
+		TArray<VertexIndex> SelectedVertexIndices = Selection.SelectedCornerIDs.Array();
+		const FDynamicMesh3* Mesh = PreviewMesh->GetMesh();
+		FTransform3d Transform(PreviewMesh->GetTransform());
+		FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
+		for (const int32 VertexID : SelectedVertexIndices)
+		{
+			Bounds.Contain(Transform.TransformPosition(Mesh->GetVertex(VertexID)));
+		}
+		if (Bounds.MaxDim() > FMathf::ZeroTolerance)
+		{
+			return static_cast<FBox>(Bounds);
+		}
+	}
+	
+	return PreviewMesh->GetActor()->GetComponentsBoundingBox();
 }
 
 void USkinWeightsPaintTool::OnTick(float DeltaTime)
@@ -897,7 +933,7 @@ void USkinWeightsPaintTool::CalculateVertexROI(
 		return UseFalloff;
 	};
 	
-	if (WeightToolProperties->FalloffMode == EWeightBrushFalloffMode::Volume)
+	if (WeightToolProperties->GetBrushConfig().FalloffMode == EWeightBrushFalloffMode::Volume)
 	{
 		const IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 		const FTransform3d Transform(TargetComponent->GetWorldTransform());
@@ -918,7 +954,7 @@ void USkinWeightsPaintTool::CalculateVertexROI(
 		return;
 	}
 
-	if (WeightToolProperties->FalloffMode == EWeightBrushFalloffMode::Surface)
+	if (WeightToolProperties->GetBrushConfig().FalloffMode == EWeightBrushFalloffMode::Surface)
 	{
 		// get coordinate frame from stamp
 		auto GetFrameFromStamp = [](const FBrushStampData& InStamp) -> FFrame3d
@@ -982,9 +1018,9 @@ void USkinWeightsPaintTool::CalculateVertexROI(
 FVector4f USkinWeightsPaintTool::WeightToColor(float Value) const
 {
 	// optional greyscale mode
-	if (WeightToolProperties->ColorMode == EWeightColorMode::Greyscale)
+	if (WeightToolProperties->ColorMode == EWeightColorMode::MinMax)
 	{
-		return FLinearColor::LerpUsingHSV(FLinearColor::Black, FLinearColor::White, Value);	
+		return FLinearColor::LerpUsingHSV(WeightToolProperties->MinColor, WeightToolProperties->MaxColor, Value);	
 	}
 	
 	// early out zero weights to min color
@@ -1783,7 +1819,11 @@ void USkinWeightsPaintTool::HandleSkeletalMeshModified(const TArray<FName>& InBo
 	case ESkeletalMeshNotifyType::BonesRemoved:
 		break;
 	case ESkeletalMeshNotifyType::BonesMoved:
-		break;
+		{
+			// TODO update only vertices weighted to modified bones (AND CHILDREN!?)
+			Weights.Deformer.SetAllVerticesToBeUpdated();
+			break;	
+		}
 	case ESkeletalMeshNotifyType::BonesSelected:
 		{
 			// store selected bones
@@ -1815,7 +1855,7 @@ void USkinWeightsPaintTool::ToggleEditingMode()
 {
 	Weights.Deformer.SetAllVerticesToBeUpdated();
 	SetBrushEnabled(WeightToolProperties->EditingMode == EWeightEditMode::Brush);
-	PolygonSelectionMechanic->SetIsEnabled(WeightToolProperties->EditingMode == EWeightEditMode::Selection);
+	PolygonSelectionMechanic->SetIsEnabled(WeightToolProperties->EditingMode == EWeightEditMode::Vertices);
 }
 
 void USkinWeightsPaintTool::OnPropertyModified(UObject* ModifiedObject, FProperty* ModifiedProperty)

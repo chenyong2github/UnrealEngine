@@ -21,5 +21,15 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 private:
+
+	void AddBrushUI(IDetailLayoutBuilder& DetailBuilder);
+	void AddSelectionUI(IDetailLayoutBuilder& DetailBuilder);
+
+	IDetailLayoutBuilder* CurrentDetailBuilder;
 	TWeakObjectPtr<USkinWeightsPaintToolProperties> SkinToolSettings;
+
+	static float WeightSliderWidths;
+	static float WeightEditingLabelsPercent;
+	static float WeightEditVerticalPadding;
+	static float WeightEditHorizontalPadding;
 };

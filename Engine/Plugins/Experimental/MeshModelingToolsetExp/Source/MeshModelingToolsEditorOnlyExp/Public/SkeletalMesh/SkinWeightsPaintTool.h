@@ -35,15 +35,15 @@ UENUM()
 enum class EWeightEditMode : uint8
 {
 	Brush,
-	Selection,
+	Vertices
 };
 
 // weight color mode
 UENUM()
 enum class EWeightColorMode : uint8
 {
-	Greyscale,
-	ColorRamp,
+	MinMax,
+	Ramp,
 };
 
 // brush falloff mode
@@ -239,8 +239,27 @@ public:
 	UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
+// for saveing/restoring the brush settings separately for each brush mode (Add, Replace, etc...)
+USTRUCT()
+struct FSkinWeightBrushConfig
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	float Strength = 1.f;
+
+	UPROPERTY()
+	float Radius = 20.0f;
+	
+	UPROPERTY()
+	float Falloff = 1.0f;
+
+	UPROPERTY()
+	EWeightBrushFalloffMode FalloffMode = EWeightBrushFalloffMode::Surface;
+};
+
 // Container for properties displayed in Details panel while using USkinWeightsPaintTool
-UCLASS()
+UCLASS(config = EditorSettings)
 class MESHMODELINGTOOLSEDITORONLYEXP_API USkinWeightsPaintToolProperties : public UBrushBaseProperties
 {
 	GENERATED_BODY()
@@ -256,8 +275,6 @@ public:
 	// custom brush modes and falloff types
 	UPROPERTY()
 	EWeightEditOperation BrushMode;
-	UPROPERTY()
-	EWeightBrushFalloffMode FalloffMode;
 
 	// weight color properties
 	UPROPERTY(EditAnywhere, Category = WeightColors)
@@ -271,17 +288,28 @@ public:
 	bool bColorModeChanged = false;
 
 	// weight editing arguments
-	UPROPERTY()
+	UPROPERTY(Config = EditorSettings)
 	TEnumAsByte<EAxis::Type> MirrorAxis = EAxis::X;
-	UPROPERTY()
+	UPROPERTY(Config = EditorSettings)
 	EMirrorDirection MirrorDirection = EMirrorDirection::PositiveToNegative;
-	UPROPERTY()
-	EWeightEditOperation FloodMode;
-	UPROPERTY()
+	UPROPERTY(Config = EditorSettings)
 	float FloodValue = 1.f;
-	UPROPERTY()
+	UPROPERTY(Config = EditorSettings)
 	float PruneValue = 0.01;
 
+	// save/restore user specified settings for each tool mode
+	FSkinWeightBrushConfig& GetBrushConfig();
+	TMap<EWeightEditOperation, FSkinWeightBrushConfig*> BrushConfigs;
+	UPROPERTY(Config = EditorSettings)
+	FSkinWeightBrushConfig BrushConfigAdd;
+	UPROPERTY(Config = EditorSettings)
+	FSkinWeightBrushConfig BrushConfigReplace;
+	UPROPERTY(Config = EditorSettings)
+	FSkinWeightBrushConfig BrushConfigMultiply;
+	UPROPERTY(Config = EditorSettings)
+	FSkinWeightBrushConfig BrushConfigRelax;
+
+	// pointer back to paint tool
 	TObjectPtr<USkinWeightsPaintTool> WeightTool;
 };
 
@@ -309,6 +337,10 @@ public:
 	virtual void Setup() override;
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+
+	// IInteractiveToolCameraFocusAPI
+	virtual bool SupportsWorldSpaceFocusBox() override { return true; }
+	virtual FBox GetWorldSpaceFocusBox() override;
 
 	void ExternalUpdateWeights(const int32 BoneIndex, const TMap<int32, float>& IndexValues);
 

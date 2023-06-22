@@ -14,8 +14,16 @@
 
 #define LOCTEXT_NAMESPACE "SkinWeightToolSettingsEditor"
 
+// layout constants
+float FSkinWeightDetailCustomization::WeightSliderWidths = 150.0f;
+float FSkinWeightDetailCustomization::WeightEditingLabelsPercent = 0.40f;
+float FSkinWeightDetailCustomization::WeightEditVerticalPadding = 4.0f;
+float FSkinWeightDetailCustomization::WeightEditHorizontalPadding = 2.0f;
+
 void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+	CurrentDetailBuilder = &DetailBuilder;
+	
 	TArray<TWeakObjectPtr<UObject>> DetailObjects;
 	DetailBuilder.GetObjectsBeingCustomized(DetailObjects);
 
@@ -23,15 +31,10 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 	ensure(DetailObjects.Num()==1);
 	SkinToolSettings = Cast<USkinWeightsPaintToolProperties>(DetailObjects[0]);
 
-	// layout constants
-	constexpr float WeightSliderWidths = 150.0f;
-	constexpr float WeightEditingLabelsPercent = 0.40f;
-	constexpr float WeightEditVerticalPadding = 4.0f;
-
 	// custom display of falloff mode as segmented toggle buttons
 	IDetailCategoryBuilder& EditModeCategory = DetailBuilder.EditCategory("Weight Editing Mode", FText::GetEmpty(), ECategoryPriority::Important);
 
-	// add segmented control toggle for brush falloff modes ("Surface" or "Volume")
+	// add segmented control toggle for editing modes ("Brush" or "Selection")
 	EditModeCategory.AddCustomRow(LOCTEXT("EditModeCategory", "Weight Editing Mode"), false)
 	.WholeRowContent()
 	[
@@ -50,14 +53,89 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 			{
 				SkinToolSettings->EditingMode = Mode;
 				SkinToolSettings->WeightTool->ToggleEditingMode();
+				if (CurrentDetailBuilder)
+				{
+					CurrentDetailBuilder->ForceRefreshDetails();
+				}
 			})
 			+SSegmentedControl<EWeightEditMode>::Slot(EWeightEditMode::Brush)
 			.Text(LOCTEXT("BrushEditMode", "Brush"))
-			+ SSegmentedControl<EWeightEditMode>::Slot(EWeightEditMode::Selection)
-			.Text(LOCTEXT("SelectionEditMode", "Selection"))
+			+ SSegmentedControl<EWeightEditMode>::Slot(EWeightEditMode::Vertices)
+			.Text(LOCTEXT("VertexEditMode", "Vertices"))
 		]
 	];
+
+	// BRUSH editing mode UI
+	if (SkinToolSettings->EditingMode == EWeightEditMode::Brush)
+	{
+		AddBrushUI(DetailBuilder);
+	}
+
+	// VERTEX editing mode UI
+	if (SkinToolSettings->EditingMode == EWeightEditMode::Vertices)
+	{
+		AddSelectionUI(DetailBuilder);
+	}
 	
+	// COLOR MODE category
+	IDetailCategoryBuilder& WeightColorsCategory = DetailBuilder.EditCategory("WeightColors", FText::GetEmpty(), ECategoryPriority::Important);
+	WeightColorsCategory.InitiallyCollapsed(true);
+	WeightColorsCategory.AddCustomRow(LOCTEXT("ColorModeCategory", "Color Mode"), false)
+	.NameContent()
+	[
+		SNew(STextBlock)
+		.Text(LOCTEXT("ColorModeLabel", "Color Mode"))
+		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+		.ToolTipText(LOCTEXT("ColorModeTooltip", "Determines how the weight colors are displayed."))
+	]
+	.ValueContent()
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		[
+			SNew(SBox)
+			.Padding(2.0f)
+			.HAlign(HAlign_Center)
+			[
+				SNew(SSegmentedControl<EWeightColorMode>)
+				.Value_Lambda([this]()
+				{
+					return SkinToolSettings->ColorMode;
+				})
+				.OnValueChanged_Lambda([this](EWeightColorMode Mode)
+				{
+					SkinToolSettings->ColorMode = Mode;
+					SkinToolSettings->bColorModeChanged = true;
+				})
+				+ SSegmentedControl<EWeightColorMode>::Slot(EWeightColorMode::MinMax)
+				.Text(LOCTEXT("MinMaxMode", "Min / Max"))
+				+SSegmentedControl<EWeightColorMode>::Slot(EWeightColorMode::Ramp)
+				.Text(LOCTEXT("RampMode", "Color Ramp"))
+			]
+		]
+	];
+
+	// hide all base brush properties that have been customized
+	const TSharedRef<IPropertyHandle> BrushModeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightsPaintToolProperties, BrushMode));
+	DetailBuilder.HideProperty(BrushModeHandle);
+	const TSharedRef<IPropertyHandle> BrushSizeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushSize), UBrushBaseProperties::StaticClass());
+	DetailBuilder.HideProperty(BrushSizeHandle);
+	const TSharedRef<IPropertyHandle> BrushStrengthHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushStrength), UBrushBaseProperties::StaticClass());
+	DetailBuilder.HideProperty(BrushStrengthHandle);
+	const TSharedRef<IPropertyHandle> BrushFalloffHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushFalloffAmount), UBrushBaseProperties::StaticClass());
+	DetailBuilder.HideProperty(BrushFalloffHandle);
+	const TSharedRef<IPropertyHandle> BrushRadiusHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushRadius), UBrushBaseProperties::StaticClass());
+	DetailBuilder.HideProperty(BrushRadiusHandle);
+	const TSharedRef<IPropertyHandle> SpecifyRadiusHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, bSpecifyRadius), UBrushBaseProperties::StaticClass());
+	DetailBuilder.HideProperty(SpecifyRadiusHandle);
+	const TSharedRef<IPropertyHandle> EditModePropHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightsPaintToolProperties, EditingMode));
+	DetailBuilder.HideProperty(EditModePropHandle);
+	const TSharedRef<IPropertyHandle> ColorModePropHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightsPaintToolProperties, ColorMode));
+	DetailBuilder.HideProperty(ColorModePropHandle);
+}
+
+void FSkinWeightDetailCustomization::AddBrushUI(IDetailLayoutBuilder& DetailBuilder)
+{
 	// custom display of falloff mode as segmented toggle buttons
 	IDetailCategoryBuilder& BrushCategory = DetailBuilder.EditCategory("Brush", FText::GetEmpty(), ECategoryPriority::Important);
 
@@ -69,15 +147,14 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 		.Padding(2.0f)
 		[
 			SNew(SSegmentedControl<EWeightEditOperation>)
-			.ToolTipText(LOCTEXT("WeightEditModeTooltip",
-					"Add: applies the current weight PLUS the strength value to the new weight.\n"
-					"Remove: applies the current weight MINUS the strength value to the new weight.\n"
-					"Multiply: applies the current weight MULTIPLIED by the strength value to the new weight.\n"
-					"Relax: applies the average of the connected (by edge) vertex weights to the new vertex weight, blended by the strength.\n"))
-			.IsEnabled_Lambda([this]()
-			{
-				return SkinToolSettings->EditingMode == EWeightEditMode::Brush;
-			})
+			.ToolTipText(LOCTEXT("FloodTooltip",
+				"Add: applies the current weight plus the flood value to the new weight.\n"
+				"Replace: applies the current weight minus the strength value to the new weight.\n"
+				"Multiply: applies the current weight multiplied by the strength value to the new weight.\n"
+				"Relax: applies the average of the connected (by edge) vertex weights to the new vertex weight, blended by the strength.\n"
+				"This command operates on the selected bone(s) and selected vertices.\n"
+				"If no bones are selected, ALL bones are considered.\n"
+				"If no vertices are selected, ALL vertices are considered."))
 			.Value_Lambda([this]()
 			{
 				return SkinToolSettings->BrushMode;
@@ -108,18 +185,15 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 			.ToolTipText(LOCTEXT("BrushFalloffModeTooltip",
 					"Surface: falloff is based on the distance along the surface from the brush center to nearby connected vertices.\n"
 					"Volume: falloff is based on the straight-line distance from the brush center to surrounding vertices.\n"))
-			.IsEnabled_Lambda([this]()
-			{
-				return SkinToolSettings->EditingMode == EWeightEditMode::Brush;
-			})
 			.Value_Lambda([this]()
 			{
-				return SkinToolSettings->FalloffMode;
+				return SkinToolSettings->GetBrushConfig().FalloffMode;
 			})
 			.OnValueChanged_Lambda([this](EWeightBrushFalloffMode Mode)
 			{
-				SkinToolSettings->FalloffMode = Mode;
 				SkinToolSettings->bColorModeChanged = true;
+				SkinToolSettings->GetBrushConfig().FalloffMode = Mode;
+				SkinToolSettings->SaveConfig();
 			})
 			+SSegmentedControl<EWeightBrushFalloffMode>::Slot(EWeightBrushFalloffMode::Surface)
 			.Text(LOCTEXT("SurfaceMode", "Surface"))
@@ -143,19 +217,20 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 		.MaxSliderValue(20.f)
 		.Value(10.0f)
 		.SupportDynamicSliderMaxValue(true)
-		.IsEnabled_Lambda([this]()
-		{
-			return SkinToolSettings->EditingMode == EWeightEditMode::Brush;
-		})
 		.Value_Lambda([this]()
 		{
-			return SkinToolSettings->BrushRadius;
+			return SkinToolSettings->GetBrushConfig().Radius;
 		})
 		.OnValueChanged_Lambda([this](float NewValue)
 		{
 			SkinToolSettings->BrushRadius = NewValue;
+			SkinToolSettings->GetBrushConfig().Radius = NewValue;
 			FPropertyChangedEvent PropertyChangedEvent(UBrushBaseProperties::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushRadius)));
 			SkinToolSettings->PostEditChangeProperty(PropertyChangedEvent);
+		})
+		.OnValueCommitted_Lambda([this](float NewValue, ETextCommit::Type CommitType)
+		{
+			SkinToolSettings->SaveConfig();
 		})
 	];
 
@@ -175,19 +250,20 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 		.MaxSliderValue(1.f)
 		.Value(1.0f)
 		.SupportDynamicSliderMaxValue(true)
-		.IsEnabled_Lambda([this]()
-		{
-			return SkinToolSettings->EditingMode == EWeightEditMode::Brush;
-		})
 		.Value_Lambda([this]()
 		{
-			return SkinToolSettings->BrushStrength;
+			return SkinToolSettings->GetBrushConfig().Strength;
 		})
 		.OnValueChanged_Lambda([this](float NewValue)
 		{
 			SkinToolSettings->BrushStrength = NewValue;
+			SkinToolSettings->GetBrushConfig().Strength = NewValue;
 			FPropertyChangedEvent PropertyChangedEvent(UBrushBaseProperties::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushStrength)));
 			SkinToolSettings->PostEditChangeProperty(PropertyChangedEvent);
+		})
+		.OnValueCommitted_Lambda([this](float NewValue, ETextCommit::Type CommitType)
+		{
+			SkinToolSettings->SaveConfig();
 		})
 	];
 
@@ -204,22 +280,26 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 		SNew(SSpinBox<float>)
 		.MinValue(0.f)
 		.MaxValue(1.f)
-		.IsEnabled_Lambda([this]()
-		{
-			return SkinToolSettings->EditingMode == EWeightEditMode::Brush;
-		})
 		.Value_Lambda([this]()
 		{
-			return SkinToolSettings->BrushFalloffAmount;
+			return SkinToolSettings->GetBrushConfig().Falloff;
 		})
 		.OnValueChanged_Lambda([this](float NewValue)
 		{
 			SkinToolSettings->BrushFalloffAmount = NewValue;
+			SkinToolSettings->GetBrushConfig().Falloff = NewValue;
 			FPropertyChangedEvent PropertyChangedEvent(UBrushBaseProperties::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushFalloffAmount)));
 			SkinToolSettings->PostEditChangeProperty(PropertyChangedEvent);
 		})
+		.OnValueCommitted_Lambda([this](float NewValue, ETextCommit::Type CommitType)
+		{
+			SkinToolSettings->SaveConfig();
+		})
 	];
+}
 
+void FSkinWeightDetailCustomization::AddSelectionUI(IDetailLayoutBuilder& DetailBuilder)
+{
 	// custom display of weight editing tools
 	IDetailCategoryBuilder& EditWeightsCategory = DetailBuilder.EditCategory("EditWeights", FText::GetEmpty(), ECategoryPriority::Important);
 	EditWeightsCategory.InitiallyCollapsed(true);
@@ -242,10 +322,6 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 					"This command operates on the selected bone(s) and selected vertices.\n "
 					"If no bones are selected, ALL bone weights are considered.\n "
 					"If no vertices are selected, ALL vertices are considered."))
-			.IsEnabled_Lambda([this]()
-			{
-				return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-			})
 			.OnClicked_Lambda([this]()
 			{
 				SkinToolSettings->WeightTool->AverageWeights();
@@ -266,7 +342,7 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 					"If no vertices are selected, ALL vertices are considered."))
 			.IsEnabled_Lambda([this]()
 			{
-				return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
+				return SkinToolSettings->EditingMode == EWeightEditMode::Vertices;
 			})
 			.OnClicked_Lambda([this]()
 			{
@@ -283,7 +359,7 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 		SNew(SVerticalBox)
 		
 		+ SVerticalBox::Slot()
-		.Padding(0.f, WeightEditVerticalPadding)
+		.Padding(WeightEditHorizontalPadding, WeightEditVerticalPadding)
 		[
 			SNew(SHorizontalBox)
 			
@@ -308,10 +384,6 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 						"X: copies weights across the YZ plane.\n"
 						"Y: copies weights across the XZ plane.\n"
 						"Z: copies weights across the XY plane."))
-					.IsEnabled_Lambda([this]()
-					{
-						return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-					})
 					.Value_Lambda([this]()
 					{
 						return SkinToolSettings->MirrorAxis;
@@ -332,10 +404,6 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 				[
 					SNew(SSegmentedControl<EMirrorDirection>)
 					.ToolTipText(LOCTEXT("MirrorDirectionTooltip", "The direction that determines what side of the plane to copy weights from."))
-					.IsEnabled_Lambda([this]()
-					{
-						return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-					})
 					.Value_Lambda([this]()
 					{
 						return SkinToolSettings->MirrorDirection;
@@ -365,10 +433,6 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 					"This command operates on the selected bone(s) and selected vertices.\n "
 					"If no bones are selected, ALL bone weights are considered.\n "
 					"If no vertices are selected, ALL vertices are considered."))
-				.IsEnabled_Lambda([this]()
-				{
-					return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-				})
 				.OnClicked_Lambda([this]()
 				{
 					SkinToolSettings->WeightTool->MirrorWeights(SkinToolSettings->MirrorAxis, SkinToolSettings->MirrorDirection);
@@ -408,10 +472,6 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 				.MaxSliderValue(1.f)
 				.Value(1.0f)
 				.SupportDynamicSliderMaxValue(true)
-				.IsEnabled_Lambda([this]()
-				{
-					return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-				})
 				.Value_Lambda([this]()
 				{
 					return SkinToolSettings->FloodValue;
@@ -420,76 +480,63 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 				{
 					SkinToolSettings->FloodValue = NewValue;
 				})
+				.OnValueCommitted_Lambda([this](float NewValue, ETextCommit::Type CommitType)
+				{
+					SkinToolSettings->SaveConfig();
+				})
 			]
 		]
 
-		+ SVerticalBox::Slot()
-		.Padding(0.f, WeightEditVerticalPadding)
+		+SVerticalBox::Slot()
+		.Padding(WeightEditHorizontalPadding, WeightEditVerticalPadding)
 		[
 			SNew(SHorizontalBox)
-				
-			+SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.FillWidth(WeightEditingLabelsPercent)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("FloodOperationLabel", "Flood Operation"))
-				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-				.ToolTipText(LOCTEXT("FloodOperationTooltip", "The operation to perform when Flood button is pressed."))
-			]
 
-			+SHorizontalBox::Slot()
-			.FillWidth(1.f)
-			[
-				SNew(SSegmentedControl<EWeightEditOperation>)
-				.ToolTipText(LOCTEXT("FloodOperationButtonTooltip",
-					"Add: applies the current weight PLUS the flood value to the new weight.\n"
-					"Remove: applies the current weight MINUS the flood value to the new weight.\n"
-					"Multiply: applies the current weight MULTIPLIED by the flood value to the new weight.\n"
-					"Relax: applies the average of the connected (by edge) vertex weights to the new vertex weight.\n"))
-				.IsEnabled_Lambda([this]()
-				{
-					return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-				})
-				.Value_Lambda([this]()
-				{
-					return SkinToolSettings->FloodMode;
-				})
-				.OnValueChanged_Lambda([this](EWeightEditOperation Mode)
-				{
-					SkinToolSettings->FloodMode = Mode;
-				})
-				+SSegmentedControl<EWeightEditOperation>::Slot(EWeightEditOperation::Add)
-				.Text(LOCTEXT("FloodAddMode", "Add"))
-				+ SSegmentedControl<EWeightEditOperation>::Slot(EWeightEditOperation::Replace)
-				.Text(LOCTEXT("FloodReplaceMode", "Replace"))
-				+ SSegmentedControl<EWeightEditOperation>::Slot(EWeightEditOperation::Multiply)
-				.Text(LOCTEXT("FloodMultiplyMode", "Multiply"))
-				+ SSegmentedControl<EWeightEditOperation>::Slot(EWeightEditOperation::Relax)
-				.Text(LOCTEXT("FloodRelaxMode", "Relax"))
-			]
-		]
-		
-		+SVerticalBox::Slot()
-		.Padding(0.f, WeightEditVerticalPadding)
-		[
-			SNew(SBox)
+			+ SHorizontalBox::Slot()
 			[
 				SNew(SButton)
 				.HAlign(HAlign_Center)
-				.Text(LOCTEXT("FloodWeightsButtonLabel", "Flood"))
-				.ToolTipText(LOCTEXT("FloodButtonTooltip",
-					"Modifies the vertex weights according to the chosen operation. See the operation tooltip for details.\n"
-					"This command operates on the selected bone(s) and selected vertices.\n"
-					"If no bones are selected, ALL bones are considered.\n"
-					"If no vertices are selected, ALL vertices are considered."))
-				.IsEnabled_Lambda([this]()
-				{
-					return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-				})
+				.Text(LOCTEXT("AddWeightsButtonLabel", "Add"))
+				.ToolTipText(LOCTEXT("AddOpTooltip", "Add: applies the current weight plus the flood value to the new weight.\n"))
 				.OnClicked_Lambda([this]()
 				{
-					SkinToolSettings->WeightTool->FloodWeights(SkinToolSettings->FloodValue, SkinToolSettings->FloodMode);
+					SkinToolSettings->WeightTool->FloodWeights(SkinToolSettings->FloodValue, EWeightEditOperation::Add);
+					return FReply::Handled();
+				})
+			]
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.Text(LOCTEXT("ReplaceWeightsButtonLabel", "Replace"))
+				.ToolTipText(LOCTEXT("ReplaceOpTooltip", "Replace: applies the current weight minus the strength value to the new weight.\n"))
+				.OnClicked_Lambda([this]()
+				{
+					SkinToolSettings->WeightTool->FloodWeights(SkinToolSettings->FloodValue, EWeightEditOperation::Replace);
+					return FReply::Handled();
+				})
+			]
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.Text(LOCTEXT("MultiplyeightsButtonLabel", "Multiply"))
+				.ToolTipText(LOCTEXT("MultiplyOpTooltip", "Multiply: applies the current weight multiplied by the strength value to the new weight.\n"))
+				.OnClicked_Lambda([this]()
+				{
+					SkinToolSettings->WeightTool->FloodWeights(SkinToolSettings->FloodValue, EWeightEditOperation::Multiply);
+					return FReply::Handled();
+				})
+			]
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.Text(LOCTEXT("RelaxWeightsButtonLabel", "Relax"))
+				.ToolTipText(LOCTEXT("RelaxeOpTooltip", "Relax: applies the average of the connected (by edge) vertex weights to the new vertex weight, blended by the strength.\n"))
+				.OnClicked_Lambda([this]()
+				{
+					SkinToolSettings->WeightTool->FloodWeights(SkinToolSettings->FloodValue, EWeightEditOperation::Relax);
 					return FReply::Handled();
 				})
 			]
@@ -503,7 +550,7 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 		SNew(SVerticalBox)
 
 		+ SVerticalBox::Slot()
-		.Padding(0.f, WeightEditVerticalPadding)
+		.Padding(WeightEditHorizontalPadding, WeightEditVerticalPadding)
 		[
 			SNew(SHorizontalBox)
 					
@@ -523,10 +570,6 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 				SNew(SSpinBox<float>)
 				.MinValue(0.f)
 				.MaxValue(1.f)
-				.IsEnabled_Lambda([this]()
-				{
-					return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-				})
 				.Value_Lambda([this]()
 				{
 					return SkinToolSettings->PruneValue;
@@ -535,11 +578,15 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 				{
 					SkinToolSettings->PruneValue = NewValue;
 				})
+				.OnValueCommitted_Lambda([this](float NewValue, ETextCommit::Type CommitType)
+				{
+					SkinToolSettings->SaveConfig();
+				})
 			]
 		]
 		
 		+SVerticalBox::Slot()
-		.Padding(0.f, WeightEditVerticalPadding)
+		.Padding(WeightEditHorizontalPadding, WeightEditVerticalPadding)
 		[
 			SNew(SBox)
 			.MinDesiredWidth(WeightSliderWidths)
@@ -552,10 +599,6 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 					"This command operates on the selected bone(s) and selected vertices.\n "
 					"If no bones are selected, ALL bone weights are considered.\n "
 					"If no vertices are selected, ALL vertices are considered."))
-				.IsEnabled_Lambda([this]()
-				{
-					return SkinToolSettings->EditingMode == EWeightEditMode::Selection;
-				})
 				.OnClicked_Lambda([this]()
 				{
 					SkinToolSettings->WeightTool->PruneWeights(SkinToolSettings->PruneValue);
@@ -564,64 +607,6 @@ void FSkinWeightDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& Deta
 			]
 		]
 	];
-	
-	// COLOR MODE category
-	IDetailCategoryBuilder& WeightColorsCategory = DetailBuilder.EditCategory("WeightColors", FText::GetEmpty(), ECategoryPriority::Important);
-	WeightColorsCategory.InitiallyCollapsed(true);
-	WeightColorsCategory.AddCustomRow(LOCTEXT("ColorModeCategory", "Color Mode"), false)
-	.NameContent()
-	[
-		SNew(STextBlock)
-		.Text(LOCTEXT("ColorModeLabel", "Color Mode"))
-		.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-		.ToolTipText(LOCTEXT("ColorModeTooltip", "Determines how the weight colors are displayed."))
-	]
-	.ValueContent()
-	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		[
-			SNew(SBox)
-			.Padding(2.0f)
-			.HAlign(HAlign_Center)
-			[
-				SNew(SSegmentedControl<EWeightColorMode>)
-				.Value_Lambda([this]()
-				{
-					return SkinToolSettings->ColorMode;
-				})
-				.OnValueChanged_Lambda([this](EWeightColorMode Mode)
-				{
-					SkinToolSettings->ColorMode = Mode;
-					SkinToolSettings->bColorModeChanged = true;
-				})
-				+ SSegmentedControl<EWeightColorMode>::Slot(EWeightColorMode::Greyscale)
-				.Text(LOCTEXT("GreyscaleMode", "Greyscale"))
-				+SSegmentedControl<EWeightColorMode>::Slot(EWeightColorMode::ColorRamp)
-				.Text(LOCTEXT("RampMode", "Color Ramp"))
-			]
-		]
-	];
-
-	// hide all base brush properties that have been customized
-	const TSharedRef<IPropertyHandle> BrushModeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightsPaintToolProperties, BrushMode));
-	DetailBuilder.HideProperty(BrushModeHandle);
-	const TSharedRef<IPropertyHandle> BrushSizeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushSize), UBrushBaseProperties::StaticClass());
-	DetailBuilder.HideProperty(BrushSizeHandle);
-	const TSharedRef<IPropertyHandle> BrushStrengthHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushStrength), UBrushBaseProperties::StaticClass());
-	DetailBuilder.HideProperty(BrushStrengthHandle);
-	const TSharedRef<IPropertyHandle> BrushFalloffHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushFalloffAmount), UBrushBaseProperties::StaticClass());
-	DetailBuilder.HideProperty(BrushFalloffHandle);
-	const TSharedRef<IPropertyHandle> BrushRadiusHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, BrushRadius), UBrushBaseProperties::StaticClass());
-	DetailBuilder.HideProperty(BrushRadiusHandle);
-	const TSharedRef<IPropertyHandle> SpecifyRadiusHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBrushBaseProperties, bSpecifyRadius), UBrushBaseProperties::StaticClass());
-	DetailBuilder.HideProperty(SpecifyRadiusHandle);
-	const TSharedRef<IPropertyHandle> FalloffPropHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightsPaintToolProperties, FalloffMode));
-	DetailBuilder.HideProperty(FalloffPropHandle);
-	const TSharedRef<IPropertyHandle> EditModePropHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightsPaintToolProperties, EditingMode));
-	DetailBuilder.HideProperty(EditModePropHandle);
-	const TSharedRef<IPropertyHandle> ColorModePropHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightsPaintToolProperties, ColorMode));
-	DetailBuilder.HideProperty(ColorModePropHandle);
 }
 
 #undef LOCTEXT_NAMESPACE
