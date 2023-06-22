@@ -154,7 +154,7 @@ struct FSlateCachedElementData
 
 	static const FSlateClippingState* GetClipStateFromParent(const FSlateClippingManager& ParentClipManager);
 
-	SLATECORE_API FORCEINLINE void ValidateWidgetOwner(TSharedPtr<FSlateCachedElementList> List, const SWidget* CurrentWidget);
+	SLATECORE_API void ValidateWidgetOwner(TSharedPtr<FSlateCachedElementList> List, const SWidget* CurrentWidget);
 
 	template<EElementType ElementType>
 	TSlateDrawElement<ElementType>& AddCachedElement(FSlateCachedElementsHandle& CacheHandle, const FSlateClippingManager& ParentClipManager, const SWidget* CurrentWidget)
