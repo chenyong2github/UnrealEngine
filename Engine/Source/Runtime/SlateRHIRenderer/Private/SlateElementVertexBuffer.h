@@ -123,7 +123,7 @@ private:
 	void ResizeBuffer( int32 NewSizeBytes )
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(Slate_RTResizeBuffer);
-		checkSlow( IsInRenderingThread() );
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 		int32 FinalSize = FMath::Max( NewSizeBytes, MinBufferSize );
 
@@ -132,7 +132,7 @@ private:
 			VertexBufferRHI.SafeRelease();
 
 			FRHIResourceCreateInfo CreateInfo(TEXT("SlateElementVertices"));
-			VertexBufferRHI = RHICreateVertexBuffer(FinalSize, BUF_Dynamic, CreateInfo);
+			VertexBufferRHI = RHICmdList.CreateVertexBuffer(FinalSize, BUF_Dynamic, CreateInfo);
 
 			check(IsValidRef(VertexBufferRHI));
 

@@ -144,7 +144,7 @@ public:
 				return;
 		}
 
-		SRV = RHICreateShaderResourceView(Texture, 0);
+		SRV = RHICmdList.CreateShaderResourceView(Texture, 0);
 	}
 
 	virtual void ReleaseRHI() override
@@ -154,60 +154,53 @@ public:
 	}
 };
 
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyFloatBuffer(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyFloat"));
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyFloat2Buffer(PF_G16R16F, TEXT("NiagaraRenderer::DummyFloat2"));
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyFloat4Buffer(PF_A32B32G32R32F, TEXT("NiagaraRenderer::DummyFloat4"));
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyWhiteColorBuffer(PF_R8G8B8A8, TEXT("NiagaraRenderer::DummyWhiteColorBuffer"), FColor::White.ToPackedRGBA());
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyIntBuffer(PF_R32_SINT, TEXT("NiagaraRenderer::DummyInt"));
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyUIntBuffer(PF_R32_UINT, TEXT("NiagaraRenderer::DummyUInt"));
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyUInt2Buffer(PF_R32G32_UINT, TEXT("NiagaraRenderer::DummyUInt2"));
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyUInt4Buffer(PF_R32G32B32A32_UINT, TEXT("NiagaraRenderer::DummyUInt4"));
+static TGlobalResource<FNiagaraEmptyBufferSRV> DummyHalfBuffer(PF_R16F, TEXT("NiagaraRenderer::DummyHalf"));
+
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyFloatBuffer()
 {
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyFloatBuffer(PF_R32_FLOAT, TEXT("NiagaraRenderer::DummyFloat"));
 	return DummyFloatBuffer.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyFloat2Buffer()
 {
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyFloat2Buffer(PF_G16R16F, TEXT("NiagaraRenderer::DummyFloat2"));
 	return DummyFloat2Buffer.SRV;
 }
 
-
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyFloat4Buffer()
 {
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyFloat4Buffer(PF_A32B32G32R32F, TEXT("NiagaraRenderer::DummyFloat4"));
 	return DummyFloat4Buffer.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyWhiteColorBuffer()
 {
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyWhiteColorBuffer(PF_R8G8B8A8, TEXT("NiagaraRenderer::DummyWhiteColorBuffer"), FColor::White.ToPackedRGBA());
 	return DummyWhiteColorBuffer.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyIntBuffer()
-{
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyIntBuffer(PF_R32_SINT, TEXT("NiagaraRenderer::DummyInt"));
+{;
 	return DummyIntBuffer.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyUIntBuffer()
 {
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyUIntBuffer(PF_R32_UINT, TEXT("NiagaraRenderer::DummyUInt"));
 	return DummyUIntBuffer.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyUInt2Buffer()
 {
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyUInt2Buffer(PF_R32G32_UINT, TEXT("NiagaraRenderer::DummyUInt2"));
 	return DummyUInt2Buffer.SRV;
 }
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyUInt4Buffer()
 {
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyUInt4Buffer(PF_R32G32B32A32_UINT, TEXT("NiagaraRenderer::DummyUInt4"));
 	return DummyUInt4Buffer.SRV;
 }
 
@@ -234,12 +227,10 @@ FRHIShaderResourceView* FNiagaraRenderer::GetDummyTextureReadBuffer3D()
 
 FRHIShaderResourceView* FNiagaraRenderer::GetDummyHalfBuffer()
 {
-	check(IsInRenderingThread());
-	static TGlobalResource<FNiagaraEmptyBufferSRV> DummyHalfBuffer(PF_R16F, TEXT("NiagaraRenderer::DummyHalf"));
 	return DummyHalfBuffer.SRV;
 }
 
-FParticleRenderData FNiagaraRenderer::TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, const FNiagaraRendererLayout* RendererLayout, TConstArrayView<uint32> IntComponents, const FNiagaraDataBuffer* SrcData)
+FParticleRenderData FNiagaraRenderer::TransferDataToGPU(FRHICommandListBase& RHICmdList, FGlobalDynamicReadBuffer& DynamicReadBuffer, const FNiagaraRendererLayout* RendererLayout, TConstArrayView<uint32> IntComponents, const FNiagaraDataBuffer* SrcData)
 {
 	const int32 NumInstances = SrcData->GetNumInstances();
 	const int32 TotalFloatSize = RendererLayout->GetTotalFloatComponents_RenderThread() * NumInstances;
@@ -247,9 +238,9 @@ FParticleRenderData FNiagaraRenderer::TransferDataToGPU(FGlobalDynamicReadBuffer
 	const int32 TotalIntSize = IntComponents.Num() * NumInstances;
 
 	FParticleRenderData Allocation;
-	Allocation.FloatData = TotalFloatSize ? DynamicReadBuffer.AllocateFloat(TotalFloatSize) : FGlobalDynamicReadBuffer::FAllocation();
-	Allocation.HalfData = TotalHalfSize ? DynamicReadBuffer.AllocateHalf(TotalHalfSize) : FGlobalDynamicReadBuffer::FAllocation();
-	Allocation.IntData = TotalIntSize ? DynamicReadBuffer.AllocateInt32(TotalIntSize) : FGlobalDynamicReadBuffer::FAllocation();
+	Allocation.FloatData = TotalFloatSize ? DynamicReadBuffer.AllocateFloat(RHICmdList, TotalFloatSize) : FGlobalDynamicReadBuffer::FAllocation();
+	Allocation.HalfData = TotalHalfSize ? DynamicReadBuffer.AllocateHalf(RHICmdList, TotalHalfSize) : FGlobalDynamicReadBuffer::FAllocation();
+	Allocation.IntData = TotalIntSize ? DynamicReadBuffer.AllocateInt32(RHICmdList, TotalIntSize) : FGlobalDynamicReadBuffer::FAllocation();
 
 	Allocation.FloatStride = TotalFloatSize ? NumInstances * sizeof(float) : 0;
 	Allocation.HalfStride = TotalHalfSize ? NumInstances * sizeof(FFloat16) : 0;

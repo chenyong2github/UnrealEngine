@@ -4680,9 +4680,14 @@ class FRHITextureViewCache
 {
 public:
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	RHI_API FRHIUnorderedAccessView* GetOrCreateUAV(FRHITexture* Texture, const FRHITextureUAVCreateInfo& CreateInfo);
+	RHI_API FRHIUnorderedAccessView* GetOrCreateUAV(FRHICommandListBase& RHICmdList, FRHITexture* Texture, const FRHITextureUAVCreateInfo& CreateInfo);
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
+	RHI_API FRHIShaderResourceView* GetOrCreateSRV(FRHICommandListBase& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
+
+	UE_DEPRECATED(5.3, "GetOrCreateUAV now requires a command list.")
+	RHI_API FRHIUnorderedAccessView* GetOrCreateUAV(FRHITexture* Texture, const FRHITextureUAVCreateInfo& CreateInfo);
+	UE_DEPRECATED(5.3, "GetOrCreateSRV now requires a command list.")
 	RHI_API FRHIShaderResourceView* GetOrCreateSRV(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
 
 	// Sets the debug name of the RHI view resources.
@@ -4701,9 +4706,14 @@ class FRHIBufferViewCache
 {
 public:
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	RHI_API FRHIUnorderedAccessView* GetOrCreateUAV(FRHIBuffer* Buffer, const FRHIBufferUAVCreateInfo& CreateInfo);
+	RHI_API FRHIUnorderedAccessView* GetOrCreateUAV(FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer, const FRHIBufferUAVCreateInfo& CreateInfo);
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
+	RHI_API FRHIShaderResourceView* GetOrCreateSRV(FRHICommandListBase& RHICmdList, FRHIBuffer* Buffer, const FRHIBufferSRVCreateInfo& CreateInfo);
+
+	UE_DEPRECATED(5.3, "GetOrCreateUAV now requires a command list.")
+	RHI_API FRHIUnorderedAccessView* GetOrCreateUAV(FRHIBuffer* Buffer, const FRHIBufferUAVCreateInfo& CreateInfo);
+	UE_DEPRECATED(5.3, "GetOrCreateSRV now requires a command list.")
 	RHI_API FRHIShaderResourceView* GetOrCreateSRV(FRHIBuffer* Buffer, const FRHIBufferSRVCreateInfo& CreateInfo);
 
 	// Sets the debug name of the RHI view resources.

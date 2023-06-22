@@ -24,7 +24,7 @@ struct FMetalRayTracingGeometryParameters
 class FMetalRayTracingGeometry : public FRHIRayTracingGeometry
 {
 public:
-	FMetalRayTracingGeometry(const FRayTracingGeometryInitializer& InInitializer);
+	FMetalRayTracingGeometry(FRHICommandListBase& RHICmdList, const FRayTracingGeometryInitializer& InInitializer);
 	~FMetalRayTracingGeometry();
 
 	void ReleaseUnderlyingResource();

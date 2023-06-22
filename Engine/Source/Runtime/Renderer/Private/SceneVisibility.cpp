@@ -5001,7 +5001,7 @@ void FDeferredShadingSceneRenderer::EndInitViews(
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_InitViews_UpdatePrimitiveIndirectLightingCacheBuffers);
 		// Now that the indirect lighting cache is updated, we can update the primitive precomputed lighting buffers.
-		UpdatePrimitiveIndirectLightingCacheBuffers();
+		UpdatePrimitiveIndirectLightingCacheBuffers(GraphBuilder.RHICmdList);
 	}
 
 	SeparateTranslucencyDimensions = UpdateSeparateTranslucencyDimensions(*this);

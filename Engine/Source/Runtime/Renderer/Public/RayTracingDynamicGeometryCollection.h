@@ -20,6 +20,16 @@ public:
 	RENDERER_API ~FRayTracingDynamicGeometryCollection();
 
 	RENDERER_API void AddDynamicMeshBatchForGeometryUpdate(
+		FRHICommandListBase& RHICmdList,
+		const FScene* Scene, 
+		const FSceneView* View, 
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy, 
+		const FRayTracingDynamicGeometryUpdateParams& Params,
+		uint32 PrimitiveId 
+	);
+
+	UE_DEPRECATED(5.3, "AddDynamicMeshBatchForGeometryUpdate now requires a command list.")
+	RENDERER_API void AddDynamicMeshBatchForGeometryUpdate(
 		const FScene* Scene, 
 		const FSceneView* View, 
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy, 

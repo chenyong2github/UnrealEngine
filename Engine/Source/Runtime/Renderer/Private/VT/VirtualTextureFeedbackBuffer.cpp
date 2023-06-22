@@ -83,10 +83,10 @@ void FVirtualTextureFeedbackBuffer::Begin(FRDGBuilder& GraphBuilder, const FVirt
 	if (AllocatePooledBuffer(BufferDesc, PooledBuffer, TEXT("VirtualTextureFeedbackGPU")))
 	{
 		FRDGBufferUAVDesc UAVDesc{};
-		UAV = PooledBuffer->GetOrCreateUAV(UAVDesc);
+		UAV = PooledBuffer->GetOrCreateUAV(GraphBuilder.RHICmdList, UAVDesc);
 	}
 
-	AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureClear"), [this](FRHICommandListImmediate& RHICmdList)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("VirtualTextureClear"), [this](FRHICommandList& RHICmdList)
 	{
 		// Clear virtual texture feedback to default value
 		RHICmdList.Transition(FRHITransitionInfo(UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));

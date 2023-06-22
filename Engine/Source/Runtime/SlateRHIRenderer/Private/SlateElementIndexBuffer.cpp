@@ -70,7 +70,7 @@ void FSlateElementIndexBuffer::ResizeBuffer( int32 NewSizeBytes )
 	{
 		IndexBufferRHI.SafeRelease();
 		FRHIResourceCreateInfo CreateInfo(TEXT("FSlateElementIndexBuffer"));
-		IndexBufferRHI = RHICreateIndexBuffer( sizeof(SlateIndex), FinalSize, BUF_Dynamic, CreateInfo );
+		IndexBufferRHI = FRHICommandListImmediate::Get().CreateIndexBuffer( sizeof(SlateIndex), FinalSize, BUF_Dynamic, CreateInfo );
 		check(IsValidRef(IndexBufferRHI));
 
 		SetBufferSize(FinalSize);

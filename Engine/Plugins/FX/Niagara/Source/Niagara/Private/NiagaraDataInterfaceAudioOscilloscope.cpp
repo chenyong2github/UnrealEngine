@@ -346,7 +346,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResoluti
 				GPUDownsampledBuffer.Release();
 			}
 
-			GPUDownsampledBuffer.Initialize(TEXT("FNiagaraDataInterfaceProxyOscilloscope_GPUDownsampledBuffer"), sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+			GPUDownsampledBuffer.Initialize(RHICmdList, TEXT("FNiagaraDataInterfaceProxyOscilloscope_GPUDownsampledBuffer"), sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		});
 
 		VectorVMReadBuffer.SetNumZeroed(Resolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
@@ -466,15 +466,15 @@ void FNiagaraDataInterfaceProxyOscilloscope::PostAudioToGPU()
 		size_t BufferSize = DownsampledBuffer.Num() * sizeof(float);
 		if (BufferSize != 0 && !GPUDownsampledBuffer.NumBytes)
 		{
-			GPUDownsampledBuffer.Initialize(TEXT("GPUDownsampledBuffer"), sizeof(float), Resolution * NumChannelsInDownsampledBuffer.GetValue(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
+			GPUDownsampledBuffer.Initialize(RHICmdList, TEXT("GPUDownsampledBuffer"), sizeof(float), Resolution * NumChannelsInDownsampledBuffer.GetValue(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		}
 
 		if (GPUDownsampledBuffer.NumBytes > 0)
 		{
-			float *BufferData = static_cast<float*>(RHILockBuffer(GPUDownsampledBuffer.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
+			float *BufferData = static_cast<float*>(RHICmdList.LockBuffer(GPUDownsampledBuffer.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 			FScopeLock ScopeLock(&DownsampleBufferLock);
 			FPlatformMemory::Memcpy(BufferData, DownsampledBuffer.GetData(), BufferSize);
-			RHIUnlockBuffer(GPUDownsampledBuffer.Buffer);
+			RHICmdList.UnlockBuffer(GPUDownsampledBuffer.Buffer);
 		}
 	});
 }

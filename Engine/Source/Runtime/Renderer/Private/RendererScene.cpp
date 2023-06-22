@@ -3129,7 +3129,7 @@ void FScene::AddReflectionCapture(UReflectionCaptureComponent* Component)
 			
 			if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 			{
-				Proxy->UpdateMobileUniformBuffer();
+				Proxy->UpdateMobileUniformBuffer(RHICmdList);
 			}
 
 			checkSlow(Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num() == Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Num());
@@ -3211,7 +3211,7 @@ void FScene::UpdateReflectionCaptureTransform(UReflectionCaptureComponent* Compo
 
 			if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 			{
-				Proxy->UpdateMobileUniformBuffer();
+				Proxy->UpdateMobileUniformBuffer(RHICmdList);
 			}
 		});
 	}
@@ -4361,7 +4361,7 @@ void FScene::UpdateSpeedTreeWind(double CurrentTime)
 				SET_SPEEDTREE_TABLE_FLOAT4V(WindRollingLeafAndDirection, SH_ROLLING_LEAF_RIPPLE_MIN);
 				SET_SPEEDTREE_TABLE_FLOAT4V(WindRollingNoise, SH_ROLLING_NOISE_PERIOD);
 
-				WindComputation->UniformBuffer.UpdateUniformBufferImmediate(UniformParameters);
+				WindComputation->UniformBuffer.UpdateUniformBufferImmediate(RHICmdList, UniformParameters);
 			}
 		});
 	#undef SET_SPEEDTREE_TABLE_FLOAT4V

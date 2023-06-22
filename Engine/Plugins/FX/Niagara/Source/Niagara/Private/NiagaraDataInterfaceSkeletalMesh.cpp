@@ -1344,17 +1344,17 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 			// Copy bone remap data matrices
 			{
 				const uint32 NumBytes = AllSectionsRefToLocalMatrices.Num() * sizeof(FVector4f);
-				void* DstData = RHILockBuffer(ThisProxy->GetRWBufferBone().SectionBuffer, 0, NumBytes, RLM_WriteOnly);
+				void* DstData = RHICmdList.LockBuffer(ThisProxy->GetRWBufferBone().SectionBuffer, 0, NumBytes, RLM_WriteOnly);
 				FMemory::Memcpy(DstData, AllSectionsRefToLocalMatrices.GetData(), NumBytes);
-				RHIUnlockBuffer(ThisProxy->GetRWBufferBone().SectionBuffer);
+				RHICmdList.UnlockBuffer(ThisProxy->GetRWBufferBone().SectionBuffer);
 			}
 
 			// Copy bone sampling data
 			{
 				const uint32 NumBytes = BoneSamplingData.Num() * sizeof(FVector4f);
-				FVector4f* DstData = reinterpret_cast<FVector4f*>(RHILockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer, 0, NumBytes, RLM_WriteOnly));
+				FVector4f* DstData = reinterpret_cast<FVector4f*>(RHICmdList.LockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer, 0, NumBytes, RLM_WriteOnly));
 				FMemory::Memcpy(DstData, BoneSamplingData.GetData(), NumBytes);
-				RHIUnlockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer);
+				RHICmdList.UnlockBuffer(ThisProxy->GetRWBufferBone().SamplingBuffer);
 			}
 		}
 	);

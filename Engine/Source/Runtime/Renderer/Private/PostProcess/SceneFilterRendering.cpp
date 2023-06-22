@@ -218,7 +218,7 @@ void DrawRectangle(
 }
 
 void DrawTransformedRectangle(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	float X,
 	float Y,
 	float SizeX,
@@ -238,8 +238,8 @@ void DrawTransformedRectangle(
 	// we don't do the triangle optimization as this case is rare for the DrawTransformedRectangle case
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("DrawTransformedRectangle"));
-	FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * 4, BUF_Volatile, CreateInfo);
-	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * 4, RLM_WriteOnly);
+	FBufferRHIRef VertexBufferRHI = RHICmdList.CreateVertexBuffer(sizeof(FFilterVertex) * 4, BUF_Volatile, CreateInfo);
+	void* VoidPtr = RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * 4, RLM_WriteOnly);
 
 	FFilterVertex* Vertices = reinterpret_cast<FFilterVertex*>(VoidPtr);
 
@@ -263,7 +263,7 @@ void DrawTransformedRectangle(
 		Vertices[VertexIndex].UV.Y = Vertices[VertexIndex].UV.Y / (float)TextureSize.Y;
 	}
 
-	RHIUnlockBuffer(VertexBufferRHI);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
 	RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
 	RHICmdList.DrawIndexedPrimitive(GTwoTrianglesIndexBuffer.IndexBufferRHI, 0, 0, 4, 0, 2, 1);
 	VertexBufferRHI.SafeRelease();

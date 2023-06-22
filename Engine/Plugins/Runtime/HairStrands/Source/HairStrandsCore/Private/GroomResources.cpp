@@ -62,11 +62,11 @@ static void ConvertToExternalBufferWithViews(FRDGBuilder& GraphBuilder, FRDGBuff
 	OutBuffer.Buffer = GraphBuilder.ConvertToExternalBuffer(InBuffer);
 	if (EnumHasAnyFlags(InBuffer->Desc.Usage, BUF_ShaderResource))
 	{
-		OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(FRDGBufferSRVDesc(InBuffer, Format));
+		OutBuffer.SRV = OutBuffer.Buffer->GetOrCreateSRV(GraphBuilder.RHICmdList, FRDGBufferSRVDesc(InBuffer, Format));
 	}
 	if (EnumHasAnyFlags(InBuffer->Desc.Usage, BUF_UnorderedAccess))
 	{
-		OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(FRDGBufferUAVDesc(InBuffer, Format));
+		OutBuffer.UAV = OutBuffer.Buffer->GetOrCreateUAV(GraphBuilder.RHICmdList, FRDGBufferUAVDesc(InBuffer, Format));
 	}
 	OutBuffer.Format = Format;
 }
@@ -118,51 +118,38 @@ const TCHAR* ToHairResourceDebugName(const TCHAR* In, FHairResourceName& InDebug
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // FRWBuffer utils 
-void UploadDataToBuffer(FReadBuffer& OutBuffer, uint32 DataSizeInBytes, const void* InCpuData)
-{
-	void* BufferData = RHILockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
-	FMemory::Memcpy(BufferData, InCpuData, DataSizeInBytes);
-	RHIUnlockBuffer(OutBuffer.Buffer);
-}
-
-void UploadDataToBuffer(FRWBufferStructured& OutBuffer, uint32 DataSizeInBytes, const void* InCpuData)
-{
-	void* BufferData = RHILockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
-	FMemory::Memcpy(BufferData, InCpuData, DataSizeInBytes);
-	RHIUnlockBuffer(OutBuffer.Buffer);
-}
 
 template<typename FormatType>
-void CreateBuffer(const TArray<typename FormatType::Type>& InData, FRWBuffer& OutBuffer, const TCHAR* DebugName, ERHIAccess InitialAccess = ERHIAccess::SRVMask)
+void CreateBuffer(FRHICommandListBase& RHICmdList, const TArray<typename FormatType::Type>& InData, FRWBuffer& OutBuffer, const TCHAR* DebugName, ERHIAccess InitialAccess = ERHIAccess::SRVMask)
 {
 	const uint32 DataCount = InData.Num();
 	const uint32 DataSizeInBytes = FormatType::SizeInByte*DataCount;
 
 	if (DataSizeInBytes == 0) return;
 
-	OutBuffer.Initialize(FormatType::SizeInByte, DataCount, FormatType::Format, InitialAccess, BUF_Static, DebugName);
-	void* BufferData = RHILockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
+	OutBuffer.Initialize(RHICmdList, FormatType::SizeInByte, DataCount, FormatType::Format, InitialAccess, BUF_Static, DebugName);
+	void* BufferData = RHICmdList.LockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
 
 	FMemory::Memcpy(BufferData, InData.GetData(), DataSizeInBytes);
-	RHIUnlockBuffer(OutBuffer.Buffer);
+	RHICmdList.UnlockBuffer(OutBuffer.Buffer);
 }
 
 template<typename FormatType>
-void CreateBuffer(uint32 InVertexCount, FRWBuffer& OutBuffer, const TCHAR* DebugName)
+void CreateBuffer(FRHICommandListBase& RHICmdList, uint32 InVertexCount, FRWBuffer& OutBuffer, const TCHAR* DebugName)
 {
 	const uint32 DataCount = InVertexCount;
 	const uint32 DataSizeInBytes = FormatType::SizeInByte*DataCount;
 
 	if (DataSizeInBytes == 0) return;
 
-	OutBuffer.Initialize(FormatType::SizeInByte, DataCount, FormatType::Format, ERHIAccess::UAVCompute, BUF_Static, DebugName);
-	void* BufferData = RHILockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
+	OutBuffer.Initialize(RHICmdList, FormatType::SizeInByte, DataCount, FormatType::Format, ERHIAccess::UAVCompute, BUF_Static, DebugName);
+	void* BufferData = RHICmdList.LockBuffer(OutBuffer.Buffer, 0, DataSizeInBytes, RLM_WriteOnly);
 	FMemory::Memset(BufferData, 0, DataSizeInBytes);
-	RHIUnlockBuffer(OutBuffer.Buffer);
+	RHICmdList.UnlockBuffer(OutBuffer.Buffer);
 }
 
 template<typename FormatType>
-void CreateBuffer(const TArray<typename FormatType::Type>& InData, FHairCardsVertexBuffer& OutBuffer, const TCHAR* DebugName, const FName& OwnerName, ERHIAccess InitialAccess = ERHIAccess::SRVMask)
+void CreateBuffer(FRHICommandListBase& RHICmdList, const TArray<typename FormatType::Type>& InData, FHairCardsVertexBuffer& OutBuffer, const TCHAR* DebugName, const FName& OwnerName, ERHIAccess InitialAccess = ERHIAccess::SRVMask)
 {
 	const uint32 DataCount = InData.Num();
 	const uint32 DataSizeInBytes = FormatType::SizeInByte * DataCount;
@@ -172,13 +159,13 @@ void CreateBuffer(const TArray<typename FormatType::Type>& InData, FHairCardsVer
 	FRHIResourceCreateInfo CreateInfo(DebugName);
 	CreateInfo.ResourceArray = nullptr;
 
-	OutBuffer.VertexBufferRHI = RHICreateVertexBuffer(DataSizeInBytes, BUF_Static | BUF_ShaderResource, InitialAccess, CreateInfo);
+	OutBuffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer(DataSizeInBytes, BUF_Static | BUF_ShaderResource, InitialAccess, CreateInfo);
 	OutBuffer.VertexBufferRHI->SetOwnerName(OwnerName);
 
-	void* BufferData = RHILockBuffer(OutBuffer.VertexBufferRHI, 0, DataSizeInBytes, RLM_WriteOnly);
+	void* BufferData = RHICmdList.LockBuffer(OutBuffer.VertexBufferRHI, 0, DataSizeInBytes, RLM_WriteOnly);
 	FMemory::Memcpy(BufferData, InData.GetData(), DataSizeInBytes);
-	RHIUnlockBuffer(OutBuffer.VertexBufferRHI);
-	OutBuffer.ShaderResourceViewRHI = RHICreateShaderResourceView(OutBuffer.VertexBufferRHI, FormatType::SizeInByte, FormatType::Format);
+	RHICmdList.UnlockBuffer(OutBuffer.VertexBufferRHI);
+	OutBuffer.ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(OutBuffer.VertexBufferRHI, FormatType::SizeInByte, FormatType::Format);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -842,11 +829,13 @@ FHairCardsRestResource::FHairCardsRestResource(const FHairCardsBulkData& InBulkD
 
 void FHairCardsRestResource::InternalAllocate()
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	// These resources are kept as regular (i.e., non-RDG resources) as they need to be bound at the input assembly stage by the Vertex declaraction which requires FVertexBuffer type
-	CreateBuffer<FHairCardsPositionFormat>(BulkData.Positions, RestPositionBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_PositionBuffer"), ResourceName), OwnerName);
-	CreateBuffer<FHairCardsNormalFormat>(BulkData.Normals, NormalsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_NormalBuffer"), ResourceName), OwnerName);
-	CreateBuffer<FHairCardsUVFormat>(BulkData.UVs, UVsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_UVBuffer"), ResourceName), OwnerName);
-	CreateBuffer<FHairCardsMaterialFormat>(BulkData.Materials, MaterialsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_MaterialBuffer"), ResourceName), OwnerName);
+	CreateBuffer<FHairCardsPositionFormat>(RHICmdList, BulkData.Positions, RestPositionBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_PositionBuffer"), ResourceName), OwnerName);
+	CreateBuffer<FHairCardsNormalFormat>(RHICmdList, BulkData.Normals, NormalsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_NormalBuffer"), ResourceName), OwnerName);
+	CreateBuffer<FHairCardsUVFormat>(RHICmdList, BulkData.UVs, UVsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_UVBuffer"), ResourceName), OwnerName);
+	CreateBuffer<FHairCardsMaterialFormat>(RHICmdList, BulkData.Materials, MaterialsBuffer, ToHairResourceDebugName(TEXT("Hair.CardsRest_MaterialBuffer"), ResourceName), OwnerName);
 
 	FSamplerStateRHIRef DefaultSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	DepthSampler = DefaultSampler;
@@ -986,10 +975,12 @@ FHairMeshesRestResource::FHairMeshesRestResource(const FHairMeshesBulkData& InBu
 
 void FHairMeshesRestResource::InternalAllocate()
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	// These resources are kept as regular (i.e., non-RDG resources) as they need to be bound at the input assembly stage by the Vertex declaraction which requires FVertexBuffer type
-	CreateBuffer<FHairCardsPositionFormat>(BulkData.Positions, RestPositionBuffer, ToHairResourceDebugName(TEXT("Hair.MeshesRest_Positions"), ResourceName), OwnerName);
-	CreateBuffer<FHairCardsNormalFormat>(BulkData.Normals, NormalsBuffer, ToHairResourceDebugName(TEXT("Hair.MeshesRest_Normals"), ResourceName), OwnerName);
-	CreateBuffer<FHairCardsUVFormat>(BulkData.UVs, UVsBuffer, ToHairResourceDebugName(TEXT("Hair.MeshesRest_UVs"), ResourceName), OwnerName);
+	CreateBuffer<FHairCardsPositionFormat>(RHICmdList, BulkData.Positions, RestPositionBuffer, ToHairResourceDebugName(TEXT("Hair.MeshesRest_Positions"), ResourceName), OwnerName);
+	CreateBuffer<FHairCardsNormalFormat>(RHICmdList, BulkData.Normals, NormalsBuffer, ToHairResourceDebugName(TEXT("Hair.MeshesRest_Normals"), ResourceName), OwnerName);
+	CreateBuffer<FHairCardsUVFormat>(RHICmdList, BulkData.UVs, UVsBuffer, ToHairResourceDebugName(TEXT("Hair.MeshesRest_UVs"), ResourceName), OwnerName);
 }
 
 void FHairMeshesRestResource::InternalRelease()

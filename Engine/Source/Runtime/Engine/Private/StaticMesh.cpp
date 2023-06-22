@@ -259,7 +259,7 @@ void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI(FRHICommandLis
 		BufferSectionTriangleRHI = RHICmdList.CreateBuffer(SizeByte, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 
 		// Now compute the alias look up table for unifor; distribution for all section and all triangles
-		SectionTriangleInfo* SectionTriangleInfoBuffer = (SectionTriangleInfo*)RHILockBuffer(BufferSectionTriangleRHI, 0, SizeByte, RLM_WriteOnly);
+		SectionTriangleInfo* SectionTriangleInfoBuffer = (SectionTriangleInfo*)RHICmdList.LockBuffer(BufferSectionTriangleRHI, 0, SizeByte, RLM_WriteOnly);
 		for (uint32 i = 0; i < AllSectionCount; ++i)
 		{
 			FStaticMeshSectionAreaWeightedTriangleSampler& sampler = (*Samplers)[i];

@@ -1013,7 +1013,7 @@ public:
 		
 		if (!DecodedTextureUAV)
 		{
-			DecodedTextureUAV = RHICreateUnorderedAccessView(DecodedTextureRef);
+			DecodedTextureUAV = RHICmdList.CreateUnorderedAccessView(DecodedTextureRef);
 		}
 		
 		{

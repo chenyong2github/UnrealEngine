@@ -221,8 +221,8 @@ void FNiagaraAsyncGpuTraceHelper::BuildDispatch(FRHICommandList& RHICmdList, FNi
  		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, TraceResults.AllocatedBytes());
  		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, TraceCounts.AllocatedBytes());
 
-		Dispatch.TraceRequests = TraceRequests.Alloc(Dispatch.MaxTraces);
-		Dispatch.TraceResults = TraceResults.Alloc(Dispatch.MaxTraces);
+		Dispatch.TraceRequests = TraceRequests.Alloc(RHICmdList, Dispatch.MaxTraces);
+		Dispatch.TraceResults = TraceResults.Alloc(RHICmdList, Dispatch.MaxTraces);
 		Dispatch.TraceCounts = TraceCounts.Alloc<uint32>(3, RHICmdList, true);
 
  		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, TraceRequests.AllocatedBytes());
@@ -252,8 +252,8 @@ void FNiagaraAsyncGpuTraceHelper::BuildDummyDispatch(FRHICommandList& RHICmdList
  		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, TraceResults.AllocatedBytes());
  		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, TraceCounts.AllocatedBytes());
 
-		DummyDispatch.TraceRequests = TraceRequests.Alloc(1);
-		DummyDispatch.TraceResults = TraceResults.Alloc(1);
+		DummyDispatch.TraceRequests = TraceRequests.Alloc(RHICmdList, 1);
+		DummyDispatch.TraceResults = TraceResults.Alloc(RHICmdList, 1);
 		DummyDispatch.LastFrameTraceResults = DummyDispatch.TraceResults;
 		DummyDispatch.TraceCounts = TraceCounts.Alloc<uint32>(3, RHICmdList, true);
 		

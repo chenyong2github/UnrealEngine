@@ -1308,6 +1308,11 @@ void FReflectionCaptureProxy::SetTransform(const FMatrix& InTransform)
 
 void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 {
+	UpdateMobileUniformBuffer(FRHICommandListImmediate::Get());
+}
+
+void FReflectionCaptureProxy::UpdateMobileUniformBuffer(FRHICommandListBase& RHICmdList)
+{
 	FTexture* CaptureTexture = GBlackTextureCube;
 	if (EncodedHDRCubemap)
 	{
@@ -1323,7 +1328,7 @@ void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 
 	if (MobileUniformBuffer.GetReference())
 	{
-		MobileUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+		MobileUniformBuffer.UpdateUniformBufferImmediate(RHICmdList, Parameters);
 	}
 	else
 	{

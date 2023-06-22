@@ -163,6 +163,18 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	uint32 PrimitiveId
 )
 {
+	AddDynamicMeshBatchForGeometryUpdate(FRHICommandListImmediate::Get(), Scene, View, PrimitiveSceneProxy, UpdateParams, PrimitiveId);
+}
+
+void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
+	FRHICommandListBase& RHICmdList,
+	const FScene* Scene,
+	const FSceneView* View,
+	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+	const FRayTracingDynamicGeometryUpdateParams& UpdateParams,
+	uint32 PrimitiveId
+)
+{
 	FRayTracingGeometry& Geometry = *UpdateParams.Geometry;
 	bool bUsingIndirectDraw = UpdateParams.bUsingIndirectDraw;
 	uint32 NumMaxVertices = UpdateParams.NumVertices;
@@ -199,7 +211,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 			static const uint32 VertexBufferCacheSize = GRTDynGeomSharedVertexBufferSizeInMB * 1024 * 1024;
 			uint32 AllocationSize = FMath::Max(VertexBufferCacheSize, UpdateParams.VertexBufferSize);
 
-			VertexPositionBuffer->RWBuffer.Initialize(TEXT("FRayTracingDynamicGeometryCollection::RayTracingDynamicVertexBuffer"), sizeof(float), AllocationSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
+			VertexPositionBuffer->RWBuffer.Initialize(RHICmdList, TEXT("FRayTracingDynamicGeometryCollection::RayTracingDynamicVertexBuffer"), sizeof(float), AllocationSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
 			VertexPositionBuffer->UsedSize = 0;
 		}
 
@@ -309,7 +321,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	// Optionally resize the buffer when not shared (could also be lazy allocated and still empty)
 	if (!bUseSharedVertexBuffer && RWBuffer->NumBytes != UpdateParams.VertexBufferSize)
 	{
-		RWBuffer->Initialize(TEXT("FRayTracingDynamicGeometryCollection::RayTracingDynamicVertexBuffer"), sizeof(float), UpdateParams.VertexBufferSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
+		RWBuffer->Initialize(RHICmdList, TEXT("FRayTracingDynamicGeometryCollection::RayTracingDynamicVertexBuffer"), sizeof(float), UpdateParams.VertexBufferSize / sizeof(float), PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
 		bRefit = false;
 	}
 
@@ -346,7 +358,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	if (!bRefit)
 	{
 		checkf(Geometry.Initializer.OfflineData == nullptr, TEXT("Dynamic geometry is not expected to have offline acceleration structure data"));
-		Geometry.RayTracingGeometryRHI = RHICreateRayTracingGeometry(Geometry.Initializer);
+		Geometry.RayTracingGeometryRHI = RHICmdList.CreateRayTracingGeometry(Geometry.Initializer);
 		Geometry.SetRequiresBuild(true);
 	}
 

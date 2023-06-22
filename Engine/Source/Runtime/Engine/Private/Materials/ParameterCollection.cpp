@@ -858,7 +858,7 @@ void FMaterialParameterCollectionInstanceResource::UpdateContents(const FGuid& I
 		{
 			check(NewSize == UniformBufferLayout->ConstantBufferSize);
 			check(UniformBuffer->GetLayoutPtr() == UniformBufferLayout);
-			RHIUpdateUniformBuffer(UniformBuffer, Data.GetData());
+			FRHICommandListImmediate::Get().UpdateUniformBuffer(UniformBuffer, Data.GetData());
 		}
 		else
 		{

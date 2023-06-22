@@ -128,9 +128,11 @@ struct FTextureRWBuffer
 			FRHITextureCreateDesc::Create2D(InDebugName, SizeX, SizeY, Format)
 			.SetFlags(Flags);
 
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 		Buffer = RHICreateTexture(Desc);
-		UAV = RHICreateUnorderedAccessView(Buffer, 0);
-		SRV = RHICreateShaderResourceView(Buffer, 0);
+		UAV = RHICmdList.CreateUnorderedAccessView(Buffer, 0);
+		SRV = RHICmdList.CreateShaderResourceView(Buffer, 0);
 	}
 
 	void Initialize3D(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
@@ -141,9 +143,11 @@ struct FTextureRWBuffer
 			FRHITextureCreateDesc::Create3D(InDebugName, SizeX, SizeY, SizeZ, Format)
 			.SetFlags(Flags);
 
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 		Buffer = RHICreateTexture(Desc);
-		UAV = RHICreateUnorderedAccessView(Buffer, 0);
-		SRV = RHICreateShaderResourceView(Buffer, 0);
+		UAV = RHICmdList.CreateUnorderedAccessView(Buffer, 0);
+		SRV = RHICmdList.CreateShaderResourceView(Buffer, 0);
 	}
 
 	void Release()
@@ -232,12 +236,14 @@ struct FRWBuffer
 		Initialize(RHICmdList, InDebugName, BytesPerElement, NumElements, Format, ERHIAccess::UAVCompute, AdditionalUsage, InResourceArray);
 	}
 
+	UE_DEPRECATED(5.3, "Initialize now requires a command list.")
 	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, EBufferUsageFlags AdditionalUsage = BUF_None, FResourceArrayInterface* InResourceArray = nullptr)
 	{
 		check(IsInRenderingThread());
 		Initialize(FRHICommandListExecutor::GetImmediateCommandList(), InDebugName, BytesPerElement, NumElements, Format, ERHIAccess::UAVCompute, AdditionalUsage, InResourceArray);
 	}
 
+	UE_DEPRECATED(5.3, "Initialize now requires a command list.")
 	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, ERHIAccess InResourceState, EBufferUsageFlags AdditionalUsage = BUF_None, FResourceArrayInterface* InResourceArray = nullptr)
 	{
 		check(IsInRenderingThread());
@@ -272,6 +278,8 @@ struct FTextureReadBuffer2D
 	const static ETextureCreateFlags DefaultTextureInitFlag = ETextureCreateFlags::ShaderResource;
 	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag, FResourceBulkDataInterface* InBulkData = nullptr)
 	{
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
 		const FRHITextureCreateDesc Desc =
@@ -281,7 +289,7 @@ struct FTextureReadBuffer2D
 
 		Buffer = RHICreateTexture(Desc);
 		
-		SRV = RHICreateShaderResourceView(Buffer, 0);
+		SRV = RHICmdList.CreateShaderResourceView(Buffer, 0);
 	}
 
 	void Release()
@@ -310,6 +318,7 @@ struct FReadBuffer
 		SRV = RHICmdList.CreateShaderResourceView(Buffer, BytesPerElement, UE_PIXELFORMAT_TO_UINT8(Format));
 	}
 
+	UE_DEPRECATED(5.3, "Initialize now requires a command list.")
 	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, EBufferUsageFlags AdditionalUsage = BUF_None, FResourceArrayInterface* InResourceArray = nullptr)
 	{
 		Initialize(FRHICommandListImmediate::Get(), InDebugName, BytesPerElement, NumElements, Format, AdditionalUsage, InResourceArray);
@@ -350,6 +359,7 @@ struct FRWBufferStructured
 		SRV = RHICmdList.CreateShaderResourceView(Buffer);
 	}
 
+	UE_DEPRECATED(5.3, "Initialize now requires a command list.")
 	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EBufferUsageFlags AdditionalUsage = BUF_None, bool bUseUavCounter = false, bool bAppendBuffer = false, ERHIAccess InitialState = ERHIAccess::UAVMask)
 	{
 		Initialize(FRHICommandListImmediate::Get(), InDebugName, BytesPerElement, NumElements, AdditionalUsage, bUseUavCounter, bAppendBuffer, InitialState);
@@ -381,6 +391,7 @@ struct FByteAddressBuffer
 		SRV = RHICmdList.CreateShaderResourceView(Buffer);
 	}
 
+	UE_DEPRECATED(5.3, "Initialize now requires a command list.")
 	void Initialize(const TCHAR* InDebugName, uint32 InNumBytes, EBufferUsageFlags AdditionalUsage = BUF_None)
 	{
 		Initialize(FRHICommandListImmediate::Get(), InDebugName, InNumBytes, AdditionalUsage);
@@ -405,6 +416,7 @@ struct FRWByteAddressBuffer : public FByteAddressBuffer
 		UAV = RHICmdList.CreateUnorderedAccessView(Buffer, false, false);
 	}
 
+	UE_DEPRECATED(5.3, "Initialize now requires a command list.")
 	void Initialize(const TCHAR* DebugName, uint32 InNumBytes, EBufferUsageFlags AdditionalUsage = BUF_None)
 	{
 		Initialize(FRHICommandListImmediate::Get(), DebugName, InNumBytes, AdditionalUsage);
@@ -443,6 +455,7 @@ struct FDynamicReadBuffer : public FReadBuffer
 		FReadBuffer::Initialize(RHICmdList, DebugName, BytesPerElement, NumElements, Format, AdditionalUsage);
 	}
 
+	UE_DEPRECATED(5.3, "Initialize now requires a command list.")
 	void Initialize(const TCHAR* DebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, EBufferUsageFlags AdditionalUsage = BUF_None)
 	{
 		Initialize(FRHICommandListImmediate::Get(), DebugName, BytesPerElement, NumElements, Format, AdditionalUsage);
@@ -458,6 +471,7 @@ struct FDynamicReadBuffer : public FReadBuffer
 		MappedBuffer = (uint8*)RHICmdList.LockBuffer(Buffer, 0, NumBytes, RLM_WriteOnly);
 	}
 
+	UE_DEPRECATED(5.3, "Lock now requires a command list.")
 	void Lock()
 	{
 		Lock(FRHICommandListImmediate::Get());
@@ -474,6 +488,7 @@ struct FDynamicReadBuffer : public FReadBuffer
 		MappedBuffer = nullptr;
 	}
 
+	UE_DEPRECATED(5.3, "Unlock now requires a command list.")
 	void Unlock()
 	{
 		Unlock(FRHICommandListImmediate::Get());

@@ -1313,6 +1313,8 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 	{
 		if (Source.EmitterRenderMode == ERM_Normal)
 		{
+			FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 			const auto FeatureLevel = ViewFamily.GetFeatureLevel();
 			const auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 
@@ -1383,7 +1385,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 			if (bGeneratePrevTransformBuffer)
 			{
-				PrevTransformBuffer = MeshVertexFactory->LockPreviousTransformBuffer(ParticleCount);
+				PrevTransformBuffer = MeshVertexFactory->LockPreviousTransformBuffer(RHICmdList, ParticleCount);
 			}
 				
 			// todo: mobile Note hat if the allocation fails, PrevTransformBuffer SRV buffer wont be filled. Assuming this is ok since there is nothing to draw at that point.
@@ -1431,7 +1433,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 			if (bGeneratePrevTransformBuffer)
 			{
-				MeshVertexFactory->UnlockPreviousTransformBuffer();
+				MeshVertexFactory->UnlockPreviousTransformBuffer(RHICmdList);
 			}
 
 			MeshVertexFactory->SetInstanceBuffer(Allocation.VertexBuffer, Allocation.VertexOffset, InstanceVertexStride);

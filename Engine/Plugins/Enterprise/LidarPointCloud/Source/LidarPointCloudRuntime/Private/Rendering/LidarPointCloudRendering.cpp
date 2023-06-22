@@ -96,6 +96,8 @@ private:
 
 		void Initialize(FVertexBuffer* InVertexBuffer)
 		{
+			FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 			FDataType NewData;
 			NewData.PositionComponent = FVertexStreamComponent(InVertexBuffer, 0, 12, VET_Float3);
 			NewData.ColorComponent = FVertexStreamComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
@@ -104,14 +106,14 @@ private:
 
 			if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 			{
-				NewData.PositionComponentSRV = RHICreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_R32_FLOAT);
+				NewData.PositionComponentSRV = RHICmdList.CreateShaderResourceView(InVertexBuffer->VertexBufferRHI, 4, PF_R32_FLOAT);
 				NewData.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
 				NewData.TangentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
 				NewData.TextureCoordinatesSRV = GNullColorVertexBuffer.VertexBufferSRV;
 			}
 
 			Data = NewData;
-			InitResource(FRHICommandListImmediate::Get());
+			InitResource(RHICmdList);
 		}
 	} VertexFactory;
 	class FLidarPointCloudCollisionVertexBuffer : public FVertexBuffer
@@ -374,16 +376,17 @@ public:
 	virtual void UpdateRenderData(const FLidarPointCloudProxyUpdateData& InRenderData) override
 	{
 		RenderData = InRenderData;
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 		const int32 NumTreeStructure = RenderData.TreeStructure.Num() > 0 ? RenderData.TreeStructure.Num() : 16;
 		TreeBuffer->Resize(NumTreeStructure);
-		uint8* DataPtr = (uint8*)RHILockBuffer(TreeBuffer->Buffer, 0, NumTreeStructure * sizeof(uint32), RLM_WriteOnly);
+		uint8* DataPtr = (uint8*)RHICmdList.LockBuffer(TreeBuffer->Buffer, 0, NumTreeStructure * sizeof(uint32), RLM_WriteOnly);
 		FMemory::Memzero(DataPtr, NumTreeStructure * sizeof(uint32));
 		if (RenderData.TreeStructure.Num() > 0)
 		{
 			FMemory::Memcpy(DataPtr, RenderData.TreeStructure.GetData(), NumTreeStructure * sizeof(uint32));
 		}
-		RHIUnlockBuffer(TreeBuffer->Buffer);
+		RHICmdList.UnlockBuffer(TreeBuffer->Buffer);
 	}
 
 	void SetupMeshBatch(FMeshBatch& MeshBatch, const FLidarPointCloudProxyUpdateDataNode& Node, const FLidarPointCloudBatchElementUserData* UserData) const

@@ -301,7 +301,7 @@ void FNiagaraGpuComputeDispatch::Tick(UWorld* World, float DeltaTime)
 		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, false);
-			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool();
+			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool(RHICmdList);
 		}
 	);
 }
@@ -313,7 +313,7 @@ void FNiagaraGpuComputeDispatch::FlushPendingTicks_GameThread()
 		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, true);
-			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool();
+			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool(RHICmdList);
 		}
 	);
 }
@@ -325,7 +325,7 @@ void FNiagaraGpuComputeDispatch::FlushAndWait_GameThread()
 		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, true);
-			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool();
+			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool(RHICmdList);
 			RT_NiagaraBatcher->GetGpuReadbackManager()->WaitCompletion(RHICmdList);
 		}
 	);
@@ -1342,7 +1342,7 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstS
 							{
 								FreeIDListSizesBuffer.Release();
 							}
-							FreeIDListSizesBuffer.Initialize(TEXT("NiagaraFreeIDListSizes"), sizeof(uint32), NumAllocatedFreeIDListSizes, EPixelFormat::PF_R32_SINT, ERHIAccess::UAVCompute, BUF_Static);
+							FreeIDListSizesBuffer.Initialize(RHICmdList, TEXT("NiagaraFreeIDListSizes"), sizeof(uint32), NumAllocatedFreeIDListSizes, EPixelFormat::PF_R32_SINT, ERHIAccess::UAVCompute, BUF_Static);
 						}
 
 						SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUComputeClearFreeIDListSizes);

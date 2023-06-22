@@ -683,10 +683,10 @@ void FMobileSceneRenderer::InitViews(
 	{
 		SetupSceneReflectionCaptureBuffer(RHICmdList);
 	}
-	UpdateSkyReflectionUniformBuffer();
+	UpdateSkyReflectionUniformBuffer(RHICmdList);
 
 	// Now that the indirect lighting cache is updated, we can update the uniform buffers.
-	UpdatePrimitiveIndirectLightingCacheBuffers();
+	UpdatePrimitiveIndirectLightingCacheBuffers(RHICmdList);
 
 	UpdateDirectionalLightUniformBuffers(GraphBuilder, Views[0]);
 	
@@ -912,7 +912,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Global dynamic buffers need to be committed before rendering.
 	DynamicIndexBuffer.Commit();
 	DynamicVertexBuffer.Commit();
-	DynamicReadBuffer.Commit();
+	DynamicReadBuffer.Commit(GraphBuilder.RHICmdList);
 	
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_SceneSim));
 
@@ -1834,7 +1834,7 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRDGBuilder& Gra
 	}
 	CachedView = &View;
 
-	AddPass(GraphBuilder, RDG_EVENT_NAME("UpdateDirectionalLightUniformBuffers"), [this, &View](FRHICommandListImmediate&)
+	AddPass(GraphBuilder, RDG_EVENT_NAME("UpdateDirectionalLightUniformBuffers"), [this, &View](FRHICommandListImmediate& RHICmdList)
 	{
 		const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows;
 		// Fill in the other entries based on the lights
@@ -1842,12 +1842,12 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRDGBuilder& Gra
 		{
 			FMobileDirectionalLightShaderParameters Params;
 			SetupMobileDirectionalLightUniformParameters(*Scene, View, VisibleLightInfos, ChannelIdx, bDynamicShadows, Params);
-			Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[ChannelIdx + 1].UpdateUniformBufferImmediate(Params);
+			Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[ChannelIdx + 1].UpdateUniformBufferImmediate(RHICmdList, Params);
 		}
 	});
 }
 
-void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
+void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer(FRHICommandListBase& RHICmdList)
 {
 	FSkyLightSceneProxy* SkyLight = nullptr;
 	if (Scene->SkyLight
@@ -1861,7 +1861,7 @@ void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
 
 	FMobileReflectionCaptureShaderParameters Parameters;
 	SetupMobileSkyReflectionUniformParameters(SkyLight, Parameters);
-	Scene->UniformBuffers.MobileSkyReflectionUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	Scene->UniformBuffers.MobileSkyReflectionUniformBuffer.UpdateUniformBufferImmediate(RHICmdList, Parameters);
 }
 
 class FPreTonemapMSAA_Mobile : public FGlobalShader

@@ -3621,7 +3621,7 @@ void FRDGBuilder::InitRHI(FRDGTextureSRVRef SRV)
 	FRHITexture* TextureRHI = Texture->GetRHIUnchecked();
 	check(TextureRHI);
 
-	SRV->ResourceRHI = Texture->ViewCache->GetOrCreateSRV(TextureRHI, SRV->Desc);
+	SRV->ResourceRHI = Texture->ViewCache->GetOrCreateSRV(RHICmdList, TextureRHI, SRV->Desc);
 }
 
 void FRDGBuilder::InitRHI(FRDGTextureUAVRef UAV)
@@ -3637,7 +3637,7 @@ void FRDGBuilder::InitRHI(FRDGTextureUAVRef UAV)
 	FRHITexture* TextureRHI = Texture->GetRHIUnchecked();
 	check(TextureRHI);
 
-	UAV->ResourceRHI = Texture->ViewCache->GetOrCreateUAV(TextureRHI, UAV->Desc);
+	UAV->ResourceRHI = Texture->ViewCache->GetOrCreateUAV(RHICmdList, TextureRHI, UAV->Desc);
 }
 
 void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buffer)
@@ -3724,7 +3724,7 @@ void FRDGBuilder::InitRHI(FRDGBufferSRVRef SRV)
 		SRVCreateInfo.Format = PF_Unknown;
 	}
 
-	SRV->ResourceRHI = Buffer->ViewCache->GetOrCreateSRV(BufferRHI, SRVCreateInfo);
+	SRV->ResourceRHI = Buffer->ViewCache->GetOrCreateSRV(RHICmdList, BufferRHI, SRVCreateInfo);
 }
 
 void FRDGBuilder::InitRHI(FRDGBufferUAV* UAV)
@@ -3749,7 +3749,7 @@ void FRDGBuilder::InitRHI(FRDGBufferUAV* UAV)
 		UAVCreateInfo.Format = PF_Unknown;
 	}
 
-	UAV->ResourceRHI = Buffer->ViewCache->GetOrCreateUAV(Buffer->GetRHIUnchecked(), UAVCreateInfo);
+	UAV->ResourceRHI = Buffer->ViewCache->GetOrCreateUAV(RHICmdList, Buffer->GetRHIUnchecked(), UAVCreateInfo);
 }
 
 void FRDGBuilder::InitRHI(FRDGView* View)

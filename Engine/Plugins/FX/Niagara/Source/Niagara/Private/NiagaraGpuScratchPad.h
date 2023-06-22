@@ -74,7 +74,7 @@ public:
 				//Round up the size to pow 2 to ensure a slowly growing user doesn't just keep allocating new buckets. Probably a better guess size here than power of 2.
 				uint32 NewBufferSize = FPlatformMath::RoundUpToPowerOfTwo(FMath::Max(MinBucketSize, NumElements));
 
-				NewBuffer->Buffer.Initialize(*BufferDebugName, BytesPerElement, NewBufferSize, PixelFormat, CurrentAccess, BufferUsageFlags);
+				NewBuffer->Buffer.Initialize(RHICmdList, *BufferDebugName, BytesPerElement, NewBufferSize, PixelFormat, CurrentAccess, BufferUsageFlags);
 			
 				ToUse = NewBuffer;
 
@@ -300,7 +300,7 @@ public:
 	}
 
 	/** Allocates NumElements from the scratch pad. Will try to allocate from an existing buffer but will create a new one if needed. */
-	FAllocation Alloc(uint32 NumElements)
+	FAllocation Alloc(FRHICommandListBase& RHICmdList, uint32 NumElements)
 	{
 		//Look for a buffer to fit this allocation.
 		FBuffer* ToUse = nullptr;
@@ -324,6 +324,7 @@ public:
 			uint32 NewBufferSize = FPlatformMath::RoundUpToPowerOfTwo(FMath::Max(MinBucketSize, NumElements));
 
 			NewBuffer->Buffer.Initialize(
+				RHICmdList,
 				*DebugName,
 				sizeof(T),
 				NewBufferSize,

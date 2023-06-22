@@ -2486,7 +2486,7 @@ protected:
 
 	void OnStartRender(FRHICommandListImmediate& RHICmdList);
 
-	void UpdatePrimitiveIndirectLightingCacheBuffers();
+	void UpdatePrimitiveIndirectLightingCacheBuffers(FRHICommandListBase& RHICmdList);
 
 	void RenderPlanarReflection(class FPlanarReflectionSceneProxy* ReflectionSceneProxy);
 
@@ -2730,7 +2730,7 @@ protected:
 	void SetupMobileBasePassAfterShadowInit(FExclusiveDepthStencil::Type BasePassDepthStencilAccess, TArrayView<FViewCommands> ViewCommandsPerView, FInstanceCullingManager& InstanceCullingManager);
 
 	void UpdateDirectionalLightUniformBuffers(FRDGBuilder& GraphBuilder, const FViewInfo& View);
-	void UpdateSkyReflectionUniformBuffer();
+	void UpdateSkyReflectionUniformBuffer(FRHICommandListBase& RHICmdList);
 	
 	void BuildInstanceCullingDrawParams(FRDGBuilder& GraphBuilder, FViewInfo& View, class FMobileRenderPassParameters* PassParameters);
 

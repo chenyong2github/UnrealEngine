@@ -260,18 +260,18 @@ struct FNDIArrayInstanceData_RenderThread
 			FRHIResourceCreateInfo CreateInfo(TEXT("NiagaraDataInterfaceArray"));
 			const EBufferUsageFlags BufferUsage = BUF_Static | BUF_ShaderResource | BUF_VertexBuffer | (IsReadOnly() ? BUF_None : BUF_UnorderedAccess | BUF_SourceCopy);
 			const ERHIAccess DefaultAccess = IsReadOnly() ? ERHIAccess::SRVCompute : ERHIAccess::UAVCompute;
-			ArrayBuffer = RHICreateBuffer(ArrayNumBytes, BufferUsage, TypeStride, DefaultAccess, CreateInfo);
+			ArrayBuffer = RHICmdList.CreateBuffer(ArrayNumBytes, BufferUsage, TypeStride, DefaultAccess, CreateInfo);
 
-			ArraySRV = RHICreateShaderResourceView(ArrayBuffer, TypeStride, PixelFormat);
+			ArraySRV = RHICmdList.CreateShaderResourceView(ArrayBuffer, TypeStride, PixelFormat);
 			if ( !IsReadOnly() )
 			{
-				ArrayUAV = RHICreateUnorderedAccessView(ArrayBuffer, PixelFormat);
+				ArrayUAV = RHICmdList.CreateUnorderedAccessView(ArrayBuffer, PixelFormat);
 			}
 		}
 
 		// Copy data in new data over
 		{
-			uint8* GPUMemory = reinterpret_cast<uint8*>(RHILockBuffer(ArrayBuffer, 0, ArrayNumBytes, RLM_WriteOnly));
+			uint8* GPUMemory = reinterpret_cast<uint8*>(RHICmdList.LockBuffer(ArrayBuffer, 0, ArrayNumBytes, RLM_WriteOnly));
 			if (InArrayData.Num() > 0)
 			{
 				T::CopyCpuToGpuMemory(GPUMemory, InArrayData.GetData(), InArrayData.Num());
@@ -280,7 +280,7 @@ struct FNDIArrayInstanceData_RenderThread
 			const TArrayType DefaultValue = TArrayType(FNDIArrayImplHelper<TArrayType>::GetDefaultValue());
 			T::CopyCpuToGpuMemory(GPUMemory + (sizeof(TVMArrayType) * NumElements), &DefaultValue, 1);
 
-			RHIUnlockBuffer(ArrayBuffer);
+			RHICmdList.UnlockBuffer(ArrayBuffer);
 		}
 
 		// Adjust counter value

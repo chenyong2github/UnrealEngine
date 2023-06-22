@@ -90,7 +90,7 @@ public:
 	RENDERER_API FRDGBufferRef GetBufferChecked() const;
 
 	// Creates new RHI view of a layer. Can only be used on valid ray tracing scene. 
-	RENDERER_API FShaderResourceViewRHIRef CreateLayerViewRHI(ERayTracingSceneLayer Layer) const;
+	RENDERER_API FShaderResourceViewRHIRef CreateLayerViewRHI(FRHICommandListBase& RHICmdList, ERayTracingSceneLayer Layer) const;
 
 	// Returns RDG view of a layer. Can only be used on valid ray tracing scene.
 	RENDERER_API FRDGBufferSRVRef GetLayerView(ERayTracingSceneLayer Layer) const;

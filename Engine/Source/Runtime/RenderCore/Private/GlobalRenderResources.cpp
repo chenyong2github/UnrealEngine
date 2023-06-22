@@ -97,7 +97,7 @@ public:
 		FRHIResourceCreateInfo CreateInfo(TEXT("EmptyStructuredBuffer"));
 
 		const uint32 BufferSize = sizeof(uint32) * 4u;
-		VertexBufferRHI = RHICreateStructuredBuffer(sizeof(uint32), BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		VertexBufferRHI = RHICmdList.CreateStructuredBuffer(sizeof(uint32), BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 
 		// Create a view of the buffer
 		ShaderResourceViewRHI = RHICmdList.CreateShaderResourceView(VertexBufferRHI);

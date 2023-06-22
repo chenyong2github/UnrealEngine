@@ -180,13 +180,14 @@ uint32 FSharedPoolPolicyData::BucketSizes[NumPoolBucketSizes] = {
  -----------------------------------------------------------------------------*/
 FVertexBufferAndSRV FBoneBufferPoolPolicy::CreateResource(CreationArguments Args)
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 	uint32 BufferSize = GetPoolBucketSize(GetPoolBucketIndex(Args));
 	// in VisualStudio the copy constructor call on the return argument can be optimized out
 	// see https://msdn.microsoft.com/en-us/library/ms364057.aspx#nrvo_cpp05_topic3
 	FVertexBufferAndSRV Buffer;
 	FRHIResourceCreateInfo CreateInfo(TEXT("FBoneBufferPoolPolicy"));
-	Buffer.VertexBufferRHI = RHICreateVertexBuffer( BufferSize, (BUF_Dynamic | BUF_ShaderResource), CreateInfo );
-	Buffer.VertexBufferSRV = RHICreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F );
+	Buffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer( BufferSize, (BUF_Dynamic | BUF_ShaderResource), CreateInfo );
+	Buffer.VertexBufferSRV = RHICmdList.CreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector4f), PF_A32B32G32R32F );
 	return Buffer;
 }
 
@@ -201,13 +202,14 @@ void FBoneBufferPoolPolicy::FreeResource(FVertexBufferAndSRV Resource)
 
 FVertexBufferAndSRV FClothBufferPoolPolicy::CreateResource(CreationArguments Args)
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 	uint32 BufferSize = GetPoolBucketSize(GetPoolBucketIndex(Args));
 	// in VisualStudio the copy constructor call on the return argument can be optimized out
 	// see https://msdn.microsoft.com/en-us/library/ms364057.aspx#nrvo_cpp05_topic3
 	FVertexBufferAndSRV Buffer;
 	FRHIResourceCreateInfo CreateInfo(TEXT("FClothBufferPoolPolicy"));
-	Buffer.VertexBufferRHI = RHICreateVertexBuffer( BufferSize, (BUF_Dynamic | BUF_ShaderResource), CreateInfo );
-	Buffer.VertexBufferSRV = RHICreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector2f), PF_G32R32F );
+	Buffer.VertexBufferRHI = RHICmdList.CreateVertexBuffer( BufferSize, (BUF_Dynamic | BUF_ShaderResource), CreateInfo );
+	Buffer.VertexBufferSRV = RHICmdList.CreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector2f), PF_G32R32F );
 	return Buffer;
 }
 
@@ -316,7 +318,7 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 
 				return true;
 			}
-			ChunkMatrices = (FMatrix3x4*)RHILockBuffer(CurrentBoneBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
+			ChunkMatrices = (FMatrix3x4*)RHICmdList.LockBuffer(CurrentBoneBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
 		}
 	}
 	else
@@ -365,7 +367,7 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 		if (NumBones)
 		{
 			check(CurrentBoneBuffer);
-			RHIUnlockBuffer(CurrentBoneBuffer->VertexBufferRHI);
+			RHICmdList.UnlockBuffer(CurrentBoneBuffer->VertexBufferRHI);
 		}
 	}
 	else
@@ -1107,7 +1109,7 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 
 			return true;
 		}
-		float* RESTRICT Data = (float* RESTRICT)RHILockBuffer(CurrentClothBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
+		float* RESTRICT Data = (float* RESTRICT)RHICmdList.LockBuffer(CurrentClothBuffer->VertexBufferRHI, 0, VectorArraySize, RLM_WriteOnly);
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FGPUBaseSkinAPEXClothVertexFactory_UpdateClothSimulData_CopyData);
 			float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
@@ -1124,7 +1126,7 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 				Normal += 3;
 			}
 		}
-		RHIUnlockBuffer(CurrentClothBuffer->VertexBufferRHI);
+		RHICmdList.UnlockBuffer(CurrentClothBuffer->VertexBufferRHI);
 	}
 	
 	return false;
@@ -1425,7 +1427,7 @@ void FGPUSkinPassthroughVertexFactory::CreateUniformBuffer()
 	}
 }
 
-void FGPUSkinPassthroughVertexFactory::CreateLooseUniformBuffer(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, uint32 InFrameNumber)
+void FGPUSkinPassthroughVertexFactory::CreateLooseUniformBuffer(FRHICommandListBase& RHICmdList, FGPUBaseSkinVertexFactory const* InSourceVertexFactory, uint32 InFrameNumber)
 {
 	FRHIShaderResourceView* PositionSRV = SRVs[EShaderResource::Position] != nullptr ? SRVs[EShaderResource::Position] : (FRHIShaderResourceView*)InSourceVertexFactory->GetPositionsSRV();
 	FRHIShaderResourceView* PrevPositionSRV = SRVs[EShaderResource::PreviousPosition] != nullptr ? SRVs[EShaderResource::PreviousPosition] : PositionSRV;
@@ -1434,11 +1436,13 @@ void FGPUSkinPassthroughVertexFactory::CreateLooseUniformBuffer(FGPUBaseSkinVert
 	Parameters.FrameNumber = InFrameNumber;
 	Parameters.GPUSkinPassThroughPositionBuffer = PositionSRV;
 	Parameters.GPUSkinPassThroughPreviousPositionBuffer = PrevPositionSRV;
-	LooseParametersUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	LooseParametersUniformBuffer.UpdateUniformBufferImmediate(RHICmdList, Parameters);
 }
 
 void FGPUSkinPassthroughVertexFactory::SetVertexAttributes(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, FAddVertexAttributeDesc const& InDesc)
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	// Check for new vertex attributes.
 	bool bNeedFullUpdate = false;
 	for (int32 Index = 0; Index < InDesc.VertexAttributes.Num(); ++Index)
@@ -1491,7 +1495,7 @@ void FGPUSkinPassthroughVertexFactory::SetVertexAttributes(FGPUBaseSkinVertexFac
 
 		// Rebuild the vertex declaration.
 		// This will also update the uniform buffer.
-		UpdateRHI(FRHICommandListImmediate::Get());
+		UpdateRHI(RHICmdList);
 
 		// Rebuild the vertex stream indices.
 		BuildStreamIndices();
@@ -1508,7 +1512,7 @@ void FGPUSkinPassthroughVertexFactory::SetVertexAttributes(FGPUBaseSkinVertexFac
 	if (bNeedLooseUniformBufferUpdate)
 	{
 		// Update the loose uniform buffer.
-		CreateLooseUniformBuffer(InSourceVertexFactory, InDesc.FrameNumber);
+		CreateLooseUniformBuffer(RHICmdList, InSourceVertexFactory, InDesc.FrameNumber);
 	}
 }
 

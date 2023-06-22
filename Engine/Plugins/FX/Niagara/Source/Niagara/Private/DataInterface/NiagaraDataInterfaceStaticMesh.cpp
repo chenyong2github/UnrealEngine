@@ -436,7 +436,7 @@ namespace NDIStaticMeshLocal
 			Release();
 		}
 
-		void Init(FGpuInitializeData& GpuInitializeData)
+		void Init(FRHICommandListBase& RHICmdList, FGpuInitializeData& GpuInitializeData)
 		{
 			// Gather mesh buffers
 			if (GpuInitializeData.LODResource)
@@ -447,7 +447,7 @@ namespace NDIStaticMeshLocal
 				if (bCanCreateIndexSRV)
 				{
 					bool b32Bit = GpuInitializeData.LODResource->IndexBuffer.Is32Bit();
-					MeshIndexBufferSRV = RHICreateShaderResourceView(IndexBufferRHIRef, b32Bit ? 4 : 2, b32Bit ? PF_R32_UINT : PF_R16_UINT);
+					MeshIndexBufferSRV = RHICmdList.CreateShaderResourceView(IndexBufferRHIRef, b32Bit ? 4 : 2, b32Bit ? PF_R32_UINT : PF_R16_UINT);
 				}
 				else
 				{
@@ -490,11 +490,11 @@ namespace NDIStaticMeshLocal
 				SectionCounts.Z = GpuInitializeData.NumUnfilteredSections;
 				if (GpuInitializeData.SectionInfos.Num() > 0)
 				{
-					SectionInfos.Initialize(TEXT("NDISkelMesh_SectionInfos"), sizeof(FIntVector4), GpuInitializeData.SectionInfos.Num(), EPixelFormat::PF_R32G32B32A32_UINT, BUF_Static, &GpuInitializeData.SectionInfos);
+					SectionInfos.Initialize(RHICmdList, TEXT("NDISkelMesh_SectionInfos"), sizeof(FIntVector4), GpuInitializeData.SectionInfos.Num(), EPixelFormat::PF_R32G32B32A32_UINT, BUF_Static, &GpuInitializeData.SectionInfos);
 				}
 				if (GpuInitializeData.FilteredAndUnfilteredSections.Num() > 0)
 				{
-					FilteredAndUnfilteredSections.Initialize(TEXT("NDISkelMesh_FilteredAndUnfilteredSections"), sizeof(uint16), GpuInitializeData.FilteredAndUnfilteredSections.Num(), EPixelFormat::PF_R16_UINT, BUF_Static, &GpuInitializeData.FilteredAndUnfilteredSections);
+					FilteredAndUnfilteredSections.Initialize(RHICmdList, TEXT("NDISkelMesh_FilteredAndUnfilteredSections"), sizeof(uint16), GpuInitializeData.FilteredAndUnfilteredSections.Num(), EPixelFormat::PF_R16_UINT, BUF_Static, &GpuInitializeData.FilteredAndUnfilteredSections);
 				}
 			}
 			else
@@ -516,11 +516,11 @@ namespace NDIStaticMeshLocal
 			SocketCounts.Z = GpuInitializeData.NumUnfilteredSockets;
 			if ( GpuInitializeData.SocketTransforms.Num() > 0 )
 			{
-				SocketTransforms.Initialize(TEXT("NDISkelMesh_SocketTransforms"), sizeof(FVector4f), GpuInitializeData.SocketTransforms.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &GpuInitializeData.SocketTransforms);
+				SocketTransforms.Initialize(RHICmdList, TEXT("NDISkelMesh_SocketTransforms"), sizeof(FVector4f), GpuInitializeData.SocketTransforms.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &GpuInitializeData.SocketTransforms);
 			}
 			if ( GpuInitializeData.FilteredAndUnfilteredSockets.Num() > 0 )
 			{
-				FilteredAndUnfilteredSockets.Initialize(TEXT("NDISkelMesh_FilteredAndUnfilteredSockets"), sizeof(uint16), GpuInitializeData.FilteredAndUnfilteredSockets.Num(), EPixelFormat::PF_R16_UINT, BUF_Static, &GpuInitializeData.FilteredAndUnfilteredSockets);
+				FilteredAndUnfilteredSockets.Initialize(RHICmdList, TEXT("NDISkelMesh_FilteredAndUnfilteredSockets"), sizeof(uint16), GpuInitializeData.FilteredAndUnfilteredSockets.Num(), EPixelFormat::PF_R16_UINT, BUF_Static, &GpuInitializeData.FilteredAndUnfilteredSockets);
 			}
 		#if STATS
 			GPUMemoryUsage = SectionInfos.NumBytes + FilteredAndUnfilteredSections.NumBytes + SocketTransforms.NumBytes + FilteredAndUnfilteredSockets.NumBytes;
@@ -1858,7 +1858,7 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 			[GpuInitializeData_RT=MoveTemp(GpuInitializeData)](FRHICommandListImmediate& CmdList)
 			{
 				NDIStaticMeshLocal::FInstanceData_RenderThread& InstanceData_RT = GpuInitializeData_RT->RenderProxy->PerInstanceData_RT.Add(GpuInitializeData_RT->SystemInstanceID);
-				InstanceData_RT.Init(*(GpuInitializeData_RT.Get()));
+				InstanceData_RT.Init(CmdList, *(GpuInitializeData_RT.Get()));
 			}
 		);
 	}

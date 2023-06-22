@@ -237,7 +237,7 @@ void FMeshParticleVertexFactory::SetDynamicParameterBuffer(const FVertexBuffer* 
 	}
 }
 
-uint8* FMeshParticleVertexFactory::LockPreviousTransformBuffer(uint32 ParticleCount)
+uint8* FMeshParticleVertexFactory::LockPreviousTransformBuffer(FRHICommandListBase& RHICmdList, uint32 ParticleCount)
 {
 	const static uint32 ElementSize = sizeof(FVector4f);
 	const static uint32 ParticleSize = ElementSize * 3;
@@ -248,19 +248,19 @@ uint8* FMeshParticleVertexFactory::LockPreviousTransformBuffer(uint32 ParticleCo
 	if (AllocationRequest > PrevTransformBuffer.NumBytes)
 	{
 		PrevTransformBuffer.Release();
-		PrevTransformBuffer.Initialize(TEXT("PrevTransformBuffer"), ElementSize, ParticleCount * 3, PF_A32B32G32R32F, BUF_Dynamic);
+		PrevTransformBuffer.Initialize(RHICmdList, TEXT("PrevTransformBuffer"), ElementSize, ParticleCount * 3, PF_A32B32G32R32F, BUF_Dynamic);
 	}
 
-	PrevTransformBuffer.Lock();
+	PrevTransformBuffer.Lock(RHICmdList);
 
 	return PrevTransformBuffer.MappedBuffer;
 }
 
-void FMeshParticleVertexFactory::UnlockPreviousTransformBuffer()
+void FMeshParticleVertexFactory::UnlockPreviousTransformBuffer(FRHICommandListBase& RHICmdList)
 {
 	check(PrevTransformBuffer.MappedBuffer);
 
-	PrevTransformBuffer.Unlock();
+	PrevTransformBuffer.Unlock(RHICmdList);
 }
 
 FRHIShaderResourceView* FMeshParticleVertexFactory::GetPreviousTransformBufferSRV() const

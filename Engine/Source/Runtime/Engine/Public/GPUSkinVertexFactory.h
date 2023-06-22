@@ -813,7 +813,7 @@ private:
 	void OverrideSRVs(FGPUBaseSkinVertexFactory const* InSourceVertexFactory);
 	void BuildStreamIndices();
 	void CreateUniformBuffer();
-	void CreateLooseUniformBuffer(FGPUBaseSkinVertexFactory const* InSourceVertexFactory, uint32 InFrameNumber);
+	void CreateLooseUniformBuffer(FRHICommandListBase& RHICmdList, FGPUBaseSkinVertexFactory const* InSourceVertexFactory, uint32 InFrameNumber);
 
 	uint32 VertexAttributeMask;
 	TStaticArray<int32, EVertexAtttribute::NumAttributes> StreamIndices;

@@ -17,11 +17,11 @@ void FNiagaraSystemStaticBuffers::Finalize()
 	if (GpuFloatResource.Num() > 0)
 	{
 		ENQUEUE_RENDER_COMMAND(InitBuffers)(
-			[this](FRHICommandListImmediate&)
+			[this](FRHICommandListImmediate& RHICmdList)
 			{
 				check(GpuFloatBuffer.NumBytes == 0);
 
-				GpuFloatBuffer.Initialize(TEXT("NiagaraSystemStaticBuffers"), sizeof(float), GpuFloatResource.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static, &GpuFloatResource);
+				GpuFloatBuffer.Initialize(RHICmdList, TEXT("NiagaraSystemStaticBuffers"), sizeof(float), GpuFloatResource.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static, &GpuFloatResource);
 			}
 		);
 	}

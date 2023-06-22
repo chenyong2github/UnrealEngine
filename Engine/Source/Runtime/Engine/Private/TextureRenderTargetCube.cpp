@@ -250,7 +250,7 @@ UTextureCube* UTextureRenderTargetCube::ConstructTextureCube(
  * Called when the resource is initialized, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTargetCubeResource::InitRHI(FRHICommandListBase&)
+void FTextureRenderTargetCubeResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
 
@@ -287,7 +287,7 @@ void FTextureRenderTargetCubeResource::InitRHI(FRHICommandListBase&)
 
 		if (EnumHasAnyFlags(TexCreateFlags, ETextureCreateFlags::UAV))
 		{
-			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(TextureRHI);
+			UnorderedAccessViewRHI = RHICmdList.CreateUnorderedAccessView(TextureRHI);
 		}
 
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);

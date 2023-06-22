@@ -107,7 +107,14 @@ public:
 	*/
 	ENGINE_API void SetData(const FDataType& InData);
 
+	UE_DEPRECATED(5.3, "CreateManualVertexFetchUniformBuffer requires a command list.")
 	ENGINE_API void CreateManualVertexFetchUniformBuffer(
+		const FVertexBuffer* PoistionBuffer,
+		const FVertexBuffer* MotionBlurBuffer,
+		FGeometryCacheVertexFactoryUserData& OutUserData) const;
+
+	ENGINE_API void CreateManualVertexFetchUniformBuffer(
+		FRHICommandListBase& RHICmdList,
 		const FVertexBuffer* PoistionBuffer,
 		const FVertexBuffer* MotionBlurBuffer,
 		FGeometryCacheVertexFactoryUserData& OutUserData) const;

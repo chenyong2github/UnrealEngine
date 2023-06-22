@@ -20,18 +20,19 @@ FHMDViewMesh::~FHMDViewMesh()
 void FHMDViewMesh::BuildMesh(const FVector2D Positions[], uint32 VertexCount, EHMDMeshType MeshType)
 {
 	check(VertexCount > 2 && VertexCount % 3 == 0);
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	NumVertices = VertexCount;
 	NumTriangles = NumVertices / 3;
 	NumIndices = NumVertices;
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("FHMDViewMesh"));
-	VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * NumVertices, BUF_Static, CreateInfo);
-	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * NumVertices, RLM_WriteOnly);
+	VertexBufferRHI = RHICmdList.CreateVertexBuffer(sizeof(FFilterVertex) * NumVertices, BUF_Static, CreateInfo);
+	void* VoidPtr = RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * NumVertices, RLM_WriteOnly);
 	FFilterVertex* pVertices = reinterpret_cast<FFilterVertex*>(VoidPtr);
 
-	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NumIndices, BUF_Static, CreateInfo);
-	void* VoidPtr2 = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NumIndices, RLM_WriteOnly);
+	IndexBufferRHI = RHICmdList.CreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NumIndices, BUF_Static, CreateInfo);
+	void* VoidPtr2 = RHICmdList.LockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NumIndices, RLM_WriteOnly);
 	uint16* pIndices = reinterpret_cast<uint16*>(VoidPtr2);
 
 	for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
@@ -66,6 +67,6 @@ void FHMDViewMesh::BuildMesh(const FVector2D Positions[], uint32 VertexCount, EH
 		pIndices[VertexIndex] = static_cast<uint16>(VertexIndex);
 	}
 
-	RHIUnlockBuffer(VertexBufferRHI);
-	RHIUnlockBuffer(IndexBufferRHI);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
+	RHICmdList.UnlockBuffer(IndexBufferRHI);
 }

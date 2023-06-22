@@ -41,7 +41,7 @@ public:
 		VertexBufferSRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, 16, PF_A32B32G32R32F);
 	}
 
-	void UpdateDynamicData(const TArray<FMatrix44f>& Transforms, EResourceLockMode LockMode);
+	void UpdateDynamicData(FRHICommandListBase& RHICmdList, const TArray<FMatrix44f>& Transforms, EResourceLockMode LockMode);
 
 	int32 NumTransforms;
 
@@ -272,7 +272,7 @@ protected:
 	/** Setup a geometry collection vertex factory. */
 	void SetupVertexFactory(FRHICommandListBase& RHICmdList, FGeometryCollectionVertexFactory& GeometryCollectionVertexFactory, FColorVertexBuffer* ColorOverride = nullptr) const;
 	/** Update skinned position buffer used by mobile CPU skinning path. */
-	void UpdateSkinnedPositions(TArray<FMatrix44f> const& Transforms);
+	void UpdateSkinnedPositions(FRHICommandListBase& RHICmdList, TArray<FMatrix44f> const& Transforms);
 	/** Get material proxy from material ID */
 	FMaterialRenderProxy* GetMaterial(FMeshElementCollector& Collector, int32 MaterialIndex) const;
 	/** Get the standard or debug vertex factory dependent on current state. */

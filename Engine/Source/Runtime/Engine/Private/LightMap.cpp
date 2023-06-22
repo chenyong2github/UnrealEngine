@@ -3378,7 +3378,7 @@ bool FLightmapResourceCluster::GetUseVirtualTexturing() const
 // Otherwise UniformBuffer is created with empty parameters
 void FLightmapResourceCluster::TryInitializeUniformBuffer()
 {
-	check(IsInRenderingThread());
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	FLightmapResourceClusterShaderParameters Parameters;
 
@@ -3398,7 +3398,7 @@ void FLightmapResourceCluster::TryInitializeUniformBuffer()
 	}
 	else
 	{
-		RHIUpdateUniformBuffer(UniformBuffer, &Parameters);
+		RHICmdList.UpdateUniformBuffer(UniformBuffer, &Parameters);
 	}
 }
 
@@ -3414,7 +3414,7 @@ void FLightmapResourceCluster::SetFeatureLevelAndInitialize(const FStaticFeature
 
 void FLightmapResourceCluster::UpdateUniformBuffer()
 {
-	check(IsInRenderingThread());
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	if (UniformBuffer.IsValid())
 	{
@@ -3423,7 +3423,7 @@ void FLightmapResourceCluster::UpdateUniformBuffer()
 		FLightmapResourceClusterShaderParameters Parameters;
 		GetLightmapClusterResourceParameters(GetFeatureLevel(), Input, GetUseVirtualTexturing() ? GetAllocatedVT() : nullptr, Parameters);
 
-		RHIUpdateUniformBuffer(UniformBuffer, &Parameters);
+		RHICmdList.UpdateUniformBuffer(UniformBuffer, &Parameters);
 	}
 }
 

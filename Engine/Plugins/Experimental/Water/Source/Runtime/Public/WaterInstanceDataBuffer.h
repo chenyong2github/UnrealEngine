@@ -22,7 +22,7 @@ public:
 
 				for (int32 i = 0; i < NumBuffers; ++i)
 				{
-					Buffer[i] = RHICreateVertexBuffer(SizeInBytes, BUF_Dynamic, CreateInfo);
+					Buffer[i] = RHICmdList.CreateVertexBuffer(SizeInBytes, BUF_Dynamic, CreateInfo);
 					BufferMemory[i] = TArrayView<FVector4f>();
 				}
 			}
@@ -37,19 +37,19 @@ public:
 		}
 	}
 
-	void Lock(int32 InInstanceCount)
+	void Lock(FRHICommandListBase& RHICmdList, int32 InInstanceCount)
 	{
 		for (int32 i = 0; i < NumBuffers; ++i)
 		{
-			BufferMemory[i] = Lock(InInstanceCount, i);
+			BufferMemory[i] = Lock(RHICmdList, InInstanceCount, i);
 		}
 	}
 
-	void Unlock()
+	void Unlock(FRHICommandListBase& RHICmdList)
 	{
 		for (int32 i = 0; i < NumBuffers; ++i)
 		{
-			Unlock(i);
+			Unlock(RHICmdList, i);
 			BufferMemory[i] = TArrayView<FVector4f>();
 		}
 	}
@@ -66,10 +66,8 @@ public:
 	}
 
 private:
-	TArrayView<FVector4f> Lock(int32 InInstanceCount, int32 InBufferID)
+	TArrayView<FVector4f> Lock(FRHICommandListBase& RHICmdList, int32 InInstanceCount, int32 InBufferID)
 	{
-		check(IsInRenderingThread());
-
 		uint32 SizeInBytes = InInstanceCount * sizeof(FVector4f);
 
 		if (SizeInBytes > Buffer[InBufferID]->GetSize())
@@ -81,16 +79,16 @@ private:
 			// Align size in to avoid reallocating for a few differences of instance count
 			uint32 AlignedSizeInBytes = Align<uint32>(SizeInBytes, 4 * 1024);
 
-			Buffer[InBufferID] = RHICreateVertexBuffer(AlignedSizeInBytes, BUF_Dynamic, CreateInfo);
+			Buffer[InBufferID] = RHICmdList.CreateVertexBuffer(AlignedSizeInBytes, BUF_Dynamic, CreateInfo);
 		}
 
-		FVector4f* Data = reinterpret_cast<FVector4f*>(RHILockBuffer(Buffer[InBufferID], 0, SizeInBytes, RLM_WriteOnly));
+		FVector4f* Data = reinterpret_cast<FVector4f*>(RHICmdList.LockBuffer(Buffer[InBufferID], 0, SizeInBytes, RLM_WriteOnly));
 		return TArrayView<FVector4f>(Data, InInstanceCount);
 	}
 
-	void Unlock(int32 InBufferID)
+	void Unlock(FRHICommandListBase& RHICmdList, int32 InBufferID)
 	{
-		RHIUnlockBuffer(Buffer[InBufferID]);
+		RHICmdList.UnlockBuffer(Buffer[InBufferID]);
 	}
 
 	FBufferRHIRef Buffer[NumBuffers];

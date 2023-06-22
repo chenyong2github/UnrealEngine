@@ -261,10 +261,10 @@ public:
 	const FRHITextureCreateInfo& GetCreateInfo() const { return CreateInfo; }
 
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(GetRHI(), InCreateInfo); }
+	FRHIUnorderedAccessView* GetOrCreateUAV(FRHICommandListBase& RHICmdList, const FRHITextureUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(RHICmdList, GetRHI(), InCreateInfo); }
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(GetRHI(), InCreateInfo); }
+	FRHIShaderResourceView* GetOrCreateSRV(FRHICommandListBase& RHICmdList, const FRHITextureSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(RHICmdList, GetRHI(), InCreateInfo); }
 
 	// The create info describing the texture.
 	const FRHITextureCreateInfo CreateInfo;
@@ -299,10 +299,10 @@ public:
 	const FRHIBufferCreateInfo& GetCreateInfo() const { return CreateInfo; }
 
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(GetRHI(), InCreateInfo); }
+	FRHIUnorderedAccessView* GetOrCreateUAV(FRHICommandListBase& RHICmdList, const FRHIBufferUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(RHICmdList, GetRHI(), InCreateInfo); }
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(GetRHI(), InCreateInfo); }
+	FRHIShaderResourceView* GetOrCreateSRV(FRHICommandListBase& RHICmdList, const FRHIBufferSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(RHICmdList, GetRHI(), InCreateInfo); }
 
 	// The create info describing the texture.
 	const FRHIBufferCreateInfo CreateInfo;

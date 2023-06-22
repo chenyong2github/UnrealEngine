@@ -141,26 +141,22 @@ void InitInternalBuffer(FRHICommandListBase& RHICmdList, const uint32 ElementCou
 }
 
 template<typename BufferType, int ElementSize, EPixelFormat PixelFormat>
-void UpdateInternalBuffer(const uint32 ElementCount, const BufferType* InputData, FRWBuffer& OutputBuffer, const bool bInitField = false)
+void UpdateInternalBuffer(FRHICommandListBase& RHICmdList, const uint32 ElementCount, const BufferType* InputData, FRWBuffer& OutputBuffer, const bool bInitField = false)
 {
 	if (ElementCount > 0 && InputData)
 	{
 		const uint32 BufferCount = ElementCount * ElementSize;
 		const uint32 BufferBytes = sizeof(BufferType) * BufferCount;
 
-		FRHICommandListExecutor::GetImmediateCommandList().Transition(FRHITransitionInfo(OutputBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-
 		if(bInitField)
 		{
-			OutputBuffer.Initialize(TEXT("FPhysicsFieldResource"),sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
+			OutputBuffer.Initialize(RHICmdList, TEXT("FPhysicsFieldResource"),sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
 		}
 
-		void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
+		void* OutputData = RHICmdList.LockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
 		FMemory::Memcpy(OutputData, InputData, BufferBytes);
-		RHIUnlockBuffer(OutputBuffer.Buffer);
-
-		FRHICommandListExecutor::GetImmediateCommandList().Transition(FRHITransitionInfo(OutputBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
+		RHICmdList.UnlockBuffer(OutputBuffer.Buffer);
 	}
 }
 
@@ -538,9 +534,9 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 		SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_UpdateBuffers);
 		SCOPED_GPU_STAT(RHICmdList, PhysicsFields_UpdateBuffers);
 
-		UpdateInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(NodesParamsDatas.Num(), NodesParamsDatas.GetData(), NodesParams, true);
-		UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(NodesOffsetsDatas.Num(), NodesOffsetsDatas.GetData(), NodesOffsets, true);
-		UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(TargetsOffsetsDatas.Num(), TargetsOffsetsDatas.GetData(), TargetsOffsets);
+		UpdateInternalBuffer<float, 1, EPixelFormat::PF_R32_FLOAT>(RHICmdList, NodesParamsDatas.Num(), NodesParamsDatas.GetData(), NodesParams, true);
+		UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(RHICmdList, NodesOffsetsDatas.Num(), NodesOffsetsDatas.GetData(), NodesOffsets, true);
+		UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(RHICmdList, TargetsOffsetsDatas.Num(), TargetsOffsetsDatas.GetData(), TargetsOffsets);
 
 		FieldInfos.TimeSeconds = TimeSeconds;
 		for (uint32 BoundIndex = 0; BoundIndex < EFieldPhysicsType::Field_PhysicsType_Max + 1; ++BoundIndex)
@@ -549,8 +545,8 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 		}
 		// LWC_TODO: Perf pessimization
 		// LWC_TODO: Precision loss
-		UpdateInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(BoundsMinDatas.Num(), UE::LWC::ConvertArrayType<FVector4f>(BoundsMinDatas).GetData(), BoundsMin, true);	
-		UpdateInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(BoundsMaxDatas.Num(),  UE::LWC::ConvertArrayType<FVector4f>(BoundsMaxDatas).GetData(), BoundsMax, true);
+		UpdateInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, BoundsMinDatas.Num(), UE::LWC::ConvertArrayType<FVector4f>(BoundsMinDatas).GetData(), BoundsMin, true);	
+		UpdateInternalBuffer<FVector4f, 1, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, BoundsMaxDatas.Num(),  UE::LWC::ConvertArrayType<FVector4f>(BoundsMaxDatas).GetData(), BoundsMax, true);
 	}
 
 	if (FieldInfos.bBuildClipmap)
@@ -581,9 +577,9 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 			FieldInfos.ClipmapCenter = FieldInfos.ViewOrigin;
 			UpdateBounds(TargetsMinDatas, TargetsMaxDatas, TargetsOffsetsDatas, BoundsOffsetsDatas);
 
-			UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(FieldInfos.CellsOffsets.Num(), FieldInfos.CellsOffsets.GetData(), CellsOffsets);
-			UpdateInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(FieldInfos.CellsMin.Num(), FieldInfos.CellsMin.GetData(), CellsMin);
-			UpdateInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(FieldInfos.CellsMax.Num(), FieldInfos.CellsMax.GetData(), CellsMax);
+			UpdateInternalBuffer<int32, 1, EPixelFormat::PF_R32_SINT>(RHICmdList, FieldInfos.CellsOffsets.Num(), FieldInfos.CellsOffsets.GetData(), CellsOffsets);
+			UpdateInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(RHICmdList, FieldInfos.CellsMin.Num(), FieldInfos.CellsMin.GetData(), CellsMin);
+			UpdateInternalBuffer<FIntVector4, 1, EPixelFormat::PF_R32G32B32A32_UINT>(RHICmdList, FieldInfos.CellsMax.Num(), FieldInfos.CellsMax.GetData(), CellsMax);
 		}
 		{
 			SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_BuildClipmap);

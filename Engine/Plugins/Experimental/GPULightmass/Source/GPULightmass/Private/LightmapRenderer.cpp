@@ -206,12 +206,14 @@ struct FGPUBatchedTileRequests
 	{
 		if (BatchedTilesDesc.Num() > 0)
 		{
+			FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 			FRHIResourceCreateInfo CreateInfo(TEXT("BatchedTilesBuffer"));
 			CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 			CreateInfo.ResourceArray = &BatchedTilesDesc;
 
-			BatchedTilesBuffer = RHICreateStructuredBuffer(sizeof(FGPUTileDescription), BatchedTilesDesc.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-			BatchedTilesSRV = RHICreateShaderResourceView(BatchedTilesBuffer);
+			BatchedTilesBuffer = RHICmdList.CreateStructuredBuffer(sizeof(FGPUTileDescription), BatchedTilesDesc.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			BatchedTilesSRV = RHICmdList.CreateShaderResourceView(BatchedTilesBuffer);
 		}
 	}
 };
@@ -1053,7 +1055,7 @@ bool FSceneRenderState::SetupRayTracingScene(FRDGBuilder& GraphBuilder, int32 LO
 							const uint32 BLASScratchSize = DynamicGeometryCollection.ComputeScratchBufferSize();
 
 							FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("RHILandscapeScratchBuffer"));
-							FBufferRHIRef ScratchBuffer = RHICreateBuffer(BLASScratchSize, BUF_StructuredBuffer | BUF_RayTracingScratch, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo);
+							FBufferRHIRef ScratchBuffer = RHICmdList.CreateBuffer(BLASScratchSize, BUF_StructuredBuffer | BUF_RayTracingScratch, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo);
 
 							RHICmdList.SetStaticUniformBuffers({ReferenceView->ViewUniformBuffer, SceneUniforms.GetBufferRHI(GraphBuilder)});
 							DynamicGeometryCollection.DispatchUpdates(RHICmdList, ScratchBuffer);
@@ -1126,21 +1128,22 @@ bool FSceneRenderState::SetupRayTracingScene(FRDGBuilder& GraphBuilder, int32 LO
 
 			FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(SceneInitializer.NumNativeInstancesPerLayer[0], ERayTracingAccelerationStructureFlags::FastTrace);
 			FRHIResourceCreateInfo BufferCreateInfo(TEXT("LightmassRayTracingSceneBuffer"));
-			RayTracingSceneBuffer = RHICreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, BufferCreateInfo);
-			RayTracingSceneSRV = RHICreateShaderResourceView(RayTracingSceneBuffer);
+			RayTracingSceneBuffer = RHICmdList.CreateBuffer(uint32(SizeInfo.ResultSize), BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, BufferCreateInfo);
+			RayTracingSceneSRV = RHICmdList.CreateShaderResourceView(RayTracingSceneBuffer);
 
 			FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("LightmassRayTracingScratchBuffer"));
-			FBufferRHIRef ScratchBuffer = RHICreateBuffer(
+			FBufferRHIRef ScratchBuffer = RHICmdList.CreateBuffer(
 				uint32(SizeInfo.BuildScratchSize),
 				BUF_StructuredBuffer | BUF_RayTracingScratch, GRHIRayTracingScratchBufferAlignment, ERHIAccess::UAVCompute,
 				ScratchBufferCreateInfo);
 
 			FRWBufferStructured InstanceBuffer;
-			InstanceBuffer.Initialize(TEXT("LightmassRayTracingInstanceBuffer"), GRHIRayTracingInstanceDescriptorSize, SceneInitializer.NumNativeInstancesPerLayer[0]);
+			InstanceBuffer.Initialize(RHICmdList, TEXT("LightmassRayTracingInstanceBuffer"), GRHIRayTracingInstanceDescriptorSize, SceneInitializer.NumNativeInstancesPerLayer[0]);
 
 			// Need to pass "BUF_MultiGPUAllocate", as acceleration structure virtual addresses are different per GPU
 			FByteAddressBuffer AccelerationStructureAddressesBuffer;
 			AccelerationStructureAddressesBuffer.Initialize(
+				RHICmdList,
 				TEXT("LightmassRayTracingAccelerationStructureAddressesBuffer"),
 				SceneInitializer.ReferencedGeometries.Num() * sizeof(FRayTracingAccelerationStructureAddress),
 				BUF_Volatile | BUF_MultiGPUAllocate);
@@ -1150,8 +1153,8 @@ bool FSceneRenderState::SetupRayTracingScene(FRDGBuilder& GraphBuilder, int32 LO
 			FShaderResourceViewRHIRef InstanceUploadSRV;
 			{
 				FRHIResourceCreateInfo CreateInfo(TEXT("LightmassRayTracingInstanceUploadBuffer"));
-				InstanceUploadBuffer = RHICreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), InstanceUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
-				InstanceUploadSRV = RHICreateShaderResourceView(InstanceUploadBuffer);
+				InstanceUploadBuffer = RHICmdList.CreateStructuredBuffer(sizeof(FRayTracingInstanceDescriptorInput), InstanceUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+				InstanceUploadSRV = RHICmdList.CreateShaderResourceView(InstanceUploadBuffer);
 			}
 
 			const uint32 TransformUploadBufferSize = SceneWithGeometryInstances.NumNativeCPUInstances * 3 * sizeof(FVector4f);
@@ -1159,8 +1162,8 @@ bool FSceneRenderState::SetupRayTracingScene(FRDGBuilder& GraphBuilder, int32 LO
 			FShaderResourceViewRHIRef TransformUploadSRV;
 			{
 				FRHIResourceCreateInfo CreateInfo(TEXT("LightmassRayTracingTransformUploadBuffer"));
-				TransformUploadBuffer = RHICreateStructuredBuffer(sizeof(FVector4f), TransformUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
-				TransformUploadSRV = RHICreateShaderResourceView(TransformUploadBuffer);
+				TransformUploadBuffer = RHICmdList.CreateStructuredBuffer(sizeof(FVector4f), TransformUploadBufferSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
+				TransformUploadSRV = RHICmdList.CreateShaderResourceView(TransformUploadBuffer);
 			}
 
 			{
@@ -1785,15 +1788,15 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					{
 						FRHIResourceCreateInfo CreateInfo(TEXT("SrcTilePositionsBuffer"), &SrcTilePositions);
 						CreateInfo.GPUMask = FRHIGPUMask::GPU0();
-						SrcTilePositionsBuffer = RHICreateStructuredBuffer(sizeof(FIntPoint), SrcTilePositions.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
-						SrcTilePositionsSRV = RHICreateShaderResourceView(SrcTilePositionsBuffer);
+						SrcTilePositionsBuffer = RHICmdList.CreateStructuredBuffer(sizeof(FIntPoint), SrcTilePositions.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
+						SrcTilePositionsSRV = RHICmdList.CreateShaderResourceView(SrcTilePositionsBuffer);
 					}
 
 					{
 						FRHIResourceCreateInfo CreateInfo(TEXT("DstTilePositionsBuffer"), &DstTilePositions);
 						CreateInfo.GPUMask = FRHIGPUMask::GPU0();
-						DstTilePositionsBuffer = RHICreateStructuredBuffer(sizeof(FIntPoint), DstTilePositions.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
-						DstTilePositionsSRV = RHICreateShaderResourceView(DstTilePositionsBuffer);
+						DstTilePositionsBuffer = RHICmdList.CreateStructuredBuffer(sizeof(FIntPoint), DstTilePositions.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
+						DstTilePositionsSRV = RHICmdList.CreateShaderResourceView(DstTilePositionsBuffer);
 					}
 
 					{
@@ -2670,29 +2673,29 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 					{
 						FRHIResourceCreateInfo CreateInfo(TEXT("LightTypeBuffer"), &LightTypeArray);
 						CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
-						LightTypeBuffer = RHICreateVertexBuffer(LightTypeArray.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
-						LightTypeSRV = RHICreateShaderResourceView(LightTypeBuffer, sizeof(int32), PF_R32_SINT);
+						LightTypeBuffer = RHICmdList.CreateVertexBuffer(LightTypeArray.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
+						LightTypeSRV = RHICmdList.CreateShaderResourceView(LightTypeBuffer, sizeof(int32), PF_R32_SINT);
 					}
 
 					{
 						FRHIResourceCreateInfo CreateInfo(TEXT("ChannelIndexBuffer"), &ChannelIndexArray);
 						CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
-						ChannelIndexBuffer = RHICreateVertexBuffer(ChannelIndexArray.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
-						ChannelIndexSRV = RHICreateShaderResourceView(ChannelIndexBuffer, sizeof(int32), PF_R32_SINT);
+						ChannelIndexBuffer = RHICmdList.CreateVertexBuffer(ChannelIndexArray.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
+						ChannelIndexSRV = RHICmdList.CreateShaderResourceView(ChannelIndexBuffer, sizeof(int32), PF_R32_SINT);
 					}
 
 					{
 						FRHIResourceCreateInfo CreateInfo(TEXT("LightSampleIndexSRV"), &LightSampleIndexArray);
 						CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
-						LightSampleIndexBuffer = RHICreateVertexBuffer(LightSampleIndexArray.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
-						LightSampleIndexSRV = RHICreateShaderResourceView(LightSampleIndexBuffer, sizeof(int32), PF_R32_SINT);
+						LightSampleIndexBuffer = RHICmdList.CreateVertexBuffer(LightSampleIndexArray.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
+						LightSampleIndexSRV = RHICmdList.CreateShaderResourceView(LightSampleIndexBuffer, sizeof(int32), PF_R32_SINT);
 					}
 
 					{
 						FRHIResourceCreateInfo CreateInfo(TEXT("LightShaderParameterBuffer"), &LightShaderParameterArray);
 						CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
-						LightShaderParameterBuffer = RHICreateStructuredBuffer(sizeof(FLightShaderConstants), LightShaderParameterArray.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
-						LightShaderParameterSRV = RHICreateShaderResourceView(LightShaderParameterBuffer);
+						LightShaderParameterBuffer = RHICmdList.CreateStructuredBuffer(sizeof(FLightShaderConstants), LightShaderParameterArray.GetResourceDataSize(), BUF_Dynamic | BUF_ShaderResource, CreateInfo);
+						LightShaderParameterSRV = RHICmdList.CreateShaderResourceView(LightShaderParameterBuffer);
 					}
 
 					// Render GBuffer

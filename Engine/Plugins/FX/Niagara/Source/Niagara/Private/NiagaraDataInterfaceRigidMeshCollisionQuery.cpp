@@ -28,6 +28,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "SceneInterface.h"
 #include "SceneView.h"
+#include "RenderGraphBuilder.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceRigidMeshCollisionQuery)
 
@@ -142,17 +143,17 @@ void CreateInternalBuffer(FRHICommandListBase& RHICmdList, FReadBuffer& OutputBu
 }
 
 template<typename BufferType, EPixelFormat PixelFormat>
-void UpdateInternalBuffer(const TArray<BufferType>& InputData, FReadBuffer& OutputBuffer)
+void UpdateInternalBuffer(FRHICommandListBase& RHICmdList, const TArray<BufferType>& InputData, FReadBuffer& OutputBuffer)
 {
 	uint32 ElementCount = InputData.Num();
 	if (ElementCount > 0 && OutputBuffer.Buffer.IsValid())
 	{
 		const uint32 BufferBytes = sizeof(BufferType) * ElementCount;
 
-		void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
+		void* OutputData = RHICmdList.LockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
 		FMemory::Memcpy(OutputData, InputData.GetData(), BufferBytes);
-		RHIUnlockBuffer(OutputBuffer.Buffer);
+		RHICmdList.UnlockBuffer(OutputBuffer.Buffer);
 	}
 }
 
@@ -920,19 +921,21 @@ struct FNDIRigidMeshCollisionProxy : public FNiagaraDataInterfaceProxy
 		{
 			if (Context.GetSimStageData().bFirstStage)
 			{
+				FRHICommandListBase& RHICmdList = Context.GetGraphBuilder().RHICmdList;
+
 				//-OPT: We may be able to avoid updating the buffers all the time
-				UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->WorldTransform, ProxyData->AssetBuffer->WorldTransformBuffer);
-				UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->InverseTransform, ProxyData->AssetBuffer->InverseTransformBuffer);
-				UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->ElementExtent, ProxyData->AssetBuffer->ElementExtentBuffer);
-				UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->MeshScale, ProxyData->AssetBuffer->MeshScaleBuffer);
-				UpdateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(ProxyData->PhysicsType, ProxyData->AssetBuffer->PhysicsTypeBuffer);
+				UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->WorldTransform, ProxyData->AssetBuffer->WorldTransformBuffer);
+				UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->InverseTransform, ProxyData->AssetBuffer->InverseTransformBuffer);
+				UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->ElementExtent, ProxyData->AssetBuffer->ElementExtentBuffer);
+				UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(RHICmdList, ProxyData->MeshScale, ProxyData->AssetBuffer->MeshScaleBuffer);
+				UpdateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT>(RHICmdList, ProxyData->PhysicsType, ProxyData->AssetBuffer->PhysicsTypeBuffer);
 
 				// the distance field indexing needs to be generated using the scene
 				if (!ProxyData->ComponentIdIndex.IsEmpty() && ProxyData->AssetBuffer->DFIndexBuffer.Buffer.IsValid())
 				{
 					const int32 ElementCount = ProxyData->ComponentIdIndex.Num();
 					const uint32 BufferBytes = sizeof(uint32) * ElementCount;
-					void* BufferData = RHILockBuffer(ProxyData->AssetBuffer->DFIndexBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
+					void* BufferData = RHICmdList.LockBuffer(ProxyData->AssetBuffer->DFIndexBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
 
 					const FSceneInterface* Scene = Context.GetComputeDispatchInterface().GetSceneInterface();
 					if (Scene && !ProxyData->UniqueComponentIds.IsEmpty())
@@ -958,7 +961,7 @@ struct FNDIRigidMeshCollisionProxy : public FNiagaraDataInterfaceProxy
 					{
 						FMemory::Memset(BufferData, 0xFF, BufferBytes);
 					}
-					RHIUnlockBuffer(ProxyData->AssetBuffer->DFIndexBuffer.Buffer);
+					RHICmdList.UnlockBuffer(ProxyData->AssetBuffer->DFIndexBuffer.Buffer);
 				}
 			}
 		}

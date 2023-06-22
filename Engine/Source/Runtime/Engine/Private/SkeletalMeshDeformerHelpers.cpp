@@ -111,7 +111,7 @@ FRDGBuffer* FSkeletalMeshDeformerHelpers::AllocateVertexFactoryPositionBuffer(FR
 		const uint32 PosBufferBytesPerElement = 4;
 		PositionBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(PosBufferBytesPerElement, NumVertices * 3), InBufferName, ERDGBufferFlags::None);
 		DeformerGeometry.Position = GraphBuilder.ConvertToExternalBuffer(PositionBuffer);
-		DeformerGeometry.PositionSRV = DeformerGeometry.Position->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R32_FLOAT));
+		DeformerGeometry.PositionSRV = DeformerGeometry.Position->GetOrCreateSRV(GraphBuilder.RHICmdList, FRHIBufferSRVCreateInfo(PF_R32_FLOAT));
 		DeformerGeometry.PositionUpdatedFrame = Frame;
 		GraphBuilder.SetBufferAccessFinal(PositionBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
 
@@ -164,7 +164,7 @@ FRDGBuffer* FSkeletalMeshDeformerHelpers::AllocateVertexFactoryTangentBuffer(FRD
 		TangentBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(TangentBufferBytesPerElement, NumVertices * 2), InBufferName, ERDGBufferFlags::None);
 		DeformerGeometry.Tangent = GraphBuilder.ConvertToExternalBuffer(TangentBuffer);
 		const EPixelFormat TangentsFormat = IsOpenGLPlatform(GMaxRHIShaderPlatform) ? PF_R16G16B16A16_SINT : PF_R16G16B16A16_SNORM;
-		DeformerGeometry.TangentSRV = DeformerGeometry.Tangent->GetOrCreateSRV(FRHIBufferSRVCreateInfo(TangentsFormat));
+		DeformerGeometry.TangentSRV = DeformerGeometry.Tangent->GetOrCreateSRV(GraphBuilder.RHICmdList, FRHIBufferSRVCreateInfo(TangentsFormat));
 		DeformerGeometry.TangentUpdatedFrame = Frame;
 		GraphBuilder.SetBufferAccessFinal(TangentBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
 	}
@@ -199,7 +199,7 @@ FRDGBuffer* FSkeletalMeshDeformerHelpers::AllocateVertexFactoryColorBuffer(FRDGB
 		const uint32 ColorBufferBytesPerElement = 4;
 		ColorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(ColorBufferBytesPerElement, NumVertices), InBufferName, ERDGBufferFlags::None);
 		DeformerGeometry.Color = GraphBuilder.ConvertToExternalBuffer(ColorBuffer);
-		DeformerGeometry.ColorSRV = DeformerGeometry.Color->GetOrCreateSRV(FRHIBufferSRVCreateInfo(PF_R8G8B8A8));
+		DeformerGeometry.ColorSRV = DeformerGeometry.Color->GetOrCreateSRV(GraphBuilder.RHICmdList, FRHIBufferSRVCreateInfo(PF_R8G8B8A8));
 		DeformerGeometry.ColorUpdatedFrame = Frame;
 		GraphBuilder.SetBufferAccessFinal(ColorBuffer, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask);
 	}

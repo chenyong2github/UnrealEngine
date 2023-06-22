@@ -112,6 +112,8 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(FRHITexture
 			<< FRenderTargetPool_CreateTexture.Name(Name);
 #endif
 
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 		const ERHIAccess AccessInitial = ERHIAccess::SRVMask;
 		FRHITextureCreateDesc CreateDesc(Desc, AccessInitial, Name);
 		const static FLazyName ClassName(TEXT("FPooledRenderTarget"));
@@ -136,12 +138,12 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(FRHITexture
 					? Desc.UAVFormat
 					: Desc.Format;
 
-				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->GetRHI(), 0, (uint8)AliasFormat, 0, 0);
+				Found->RenderTargetItem.UAV = RHICmdList.CreateUnorderedAccessView(Found->GetRHI(), 0, (uint8)AliasFormat, 0, 0);
 			}
 			else
 			{
 				checkf(Desc.UAVFormat == PF_Unknown || Desc.UAVFormat == Desc.Format, TEXT("UAV aliasing is not supported by the current RHI."));
-				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->GetRHI(), 0);
+				Found->RenderTargetItem.UAV = RHICmdList.CreateUnorderedAccessView(Found->GetRHI(), 0);
 			}
 		}
 

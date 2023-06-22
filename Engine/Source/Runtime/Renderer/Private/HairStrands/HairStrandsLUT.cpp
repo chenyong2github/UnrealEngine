@@ -294,13 +294,13 @@ static FRDGTextureRef AddHairCoverageLUTPass(FRDGBuilder& GraphBuilder, const FV
 		RDG_EVENT_NAME("UploadHairCoverageBuffer"),
 		UploadParameters,
 		ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
-		[UploadParameters, SizeInBytes](FRHICommandListImmediate& RHICmdList)
+		[UploadParameters, SizeInBytes](FRHICommandList& RHICmdList)
 	{
 		FHairCountToCoverageData Source;
 		
-		void* Dest = RHILockBuffer(UploadParameters->UploadBuffer->GetRHI(), 0, SizeInBytes, RLM_WriteOnly);
+		void* Dest = RHICmdList.LockBuffer(UploadParameters->UploadBuffer->GetRHI(), 0, SizeInBytes, RLM_WriteOnly);
 		FPlatformMemory::Memcpy(Dest, Source.Data, SizeInBytes);
-		RHIUnlockBuffer(UploadParameters->UploadBuffer->GetRHI());
+		RHICmdList.UnlockBuffer(UploadParameters->UploadBuffer->GetRHI());
 	});
 
 

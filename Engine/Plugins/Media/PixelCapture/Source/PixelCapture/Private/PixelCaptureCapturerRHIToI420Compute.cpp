@@ -38,6 +38,8 @@ FPixelCaptureCapturerRHIToI420Compute ::~FPixelCaptureCapturerRHIToI420Compute()
 
 void FPixelCaptureCapturerRHIToI420Compute::Initialize(int32 InputWidth, int32 InputHeight)
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	const int32 Width = InputWidth * Scale;
 	const int32 Height = InputHeight * Scale;
 
@@ -80,11 +82,9 @@ void FPixelCaptureCapturerRHIToI420Compute::Initialize(int32 InputWidth, int32 I
 	StagingTextureU = RHICreateTexture(StagingDescUV);
 	StagingTextureV = RHICreateTexture(StagingDescUV);
 
-	TextureYUAV = RHICreateUnorderedAccessView(TextureY);
-	TextureUUAV = RHICreateUnorderedAccessView(TextureU);
-	TextureVUAV = RHICreateUnorderedAccessView(TextureV);
-
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	TextureYUAV = RHICmdList.CreateUnorderedAccessView(TextureY);
+	TextureUUAV = RHICmdList.CreateUnorderedAccessView(TextureU);
+	TextureVUAV = RHICmdList.CreateUnorderedAccessView(TextureV);
 
 	int32 OutWidth, OutHeight;
 	RHICmdList.MapStagingSurface(StagingTextureY, nullptr, MappedY, OutWidth, OutHeight);

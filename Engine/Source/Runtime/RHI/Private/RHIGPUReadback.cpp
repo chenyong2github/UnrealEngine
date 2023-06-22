@@ -47,13 +47,13 @@ void* FGenericRHIStagingBuffer::Lock(uint32 InOffset, uint32 NumBytes)
 	check(ShadowBuffer);
 	check(!bIsLocked);
 	bIsLocked = true;
-	return reinterpret_cast<void*>(reinterpret_cast<uint8*>(RHILockBuffer(ShadowBuffer, InOffset, NumBytes, RLM_ReadOnly)) + Offset);
+	return reinterpret_cast<void*>(reinterpret_cast<uint8*>(FRHICommandListImmediate::Get().LockBuffer(ShadowBuffer, InOffset, NumBytes, RLM_ReadOnly)) + Offset);
 }
 
 void FGenericRHIStagingBuffer::Unlock()
 {
 	check(bIsLocked);
-	RHIUnlockBuffer(ShadowBuffer);
+	FRHICommandListImmediate::Get().UnlockBuffer(ShadowBuffer);
 	bIsLocked = false;
 }
 

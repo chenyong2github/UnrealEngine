@@ -622,7 +622,7 @@ ETextureCreateFlags FTextureRenderTarget2DResource::GetCreateFlags()
  * Called when the resource is initialized, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTarget2DResource::InitRHI(FRHICommandListBase&)
+void FTextureRenderTarget2DResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
 
@@ -655,7 +655,7 @@ void FTextureRenderTarget2DResource::InitRHI(FRHICommandListBase&)
 
 		if (EnumHasAnyFlags(TexCreateFlags, ETextureCreateFlags::UAV))
 		{
-			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(RenderTargetTextureRHI);
+			UnorderedAccessViewRHI = RHICmdList.CreateUnorderedAccessView(RenderTargetTextureRHI);
 		}
 
 		SetGPUMask(FRHIGPUMask::All());

@@ -324,6 +324,7 @@ private:
 	void FrameUpdate() const;
 
 	void CreateMeshBatch(
+		FRHICommandListBase& RHICmdList,
 		const FGeomCacheTrackProxy* TrackProxy,
 		const struct FGeometryCacheMeshBatchInfo& BatchInfo,
 		class FGeometryCacheVertexFactoryUserDataWrapper& UserDataWrapper,

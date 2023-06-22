@@ -1081,9 +1081,9 @@ FORCEINLINE int32 ComputeAlignedTileCount(int32 TileCount)
  * @param TileCount - The number of tiles in the array.
  * @param AlignedTileCount - The number of tiles to create in buffer for aligned rendering.
  */
-static void BuildTileVertexBuffer(FParticleBufferParamRef TileOffsetsRef, const uint32* Tiles, int32 TileCount, int32 AlignedTileCount)
+static void BuildTileVertexBuffer(FRHICommandListBase& RHICmdList, FParticleBufferParamRef TileOffsetsRef, const uint32* Tiles, int32 TileCount, int32 AlignedTileCount)
 {
-	FVector2f* TileOffset = (FVector2f*)RHILockBuffer( TileOffsetsRef, 0, AlignedTileCount * sizeof(FVector2f), RLM_WriteOnly );
+	FVector2f* TileOffset = (FVector2f*)RHICmdList.LockBuffer( TileOffsetsRef, 0, AlignedTileCount * sizeof(FVector2f), RLM_WriteOnly );
 	for ( int32 Index = 0; Index < TileCount; ++Index )
 	{
 		const uint32 TileIndex = Tiles[Index];
@@ -1095,7 +1095,7 @@ static void BuildTileVertexBuffer(FParticleBufferParamRef TileOffsetsRef, const 
 		TileOffset[Index].X = 100.0f;
 		TileOffset[Index].Y = 100.0f;
 	}
-	RHIUnlockBuffer( TileOffsetsRef );
+	RHICmdList.UnlockBuffer( TileOffsetsRef );
 }
 
 /**
@@ -1422,7 +1422,7 @@ void ClearTiles(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& 
 				
 		if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 		{
-			BuildTileVertexBuffer(BufferParam, TilesPtr, TilesThisDrawCall, TilesThisDrawCall);
+			BuildTileVertexBuffer(RHICmdList, BufferParam, TilesPtr, TilesThisDrawCall, TilesThisDrawCall);
 
 			const FParticleTileVS::FParameters VsParameters = VertexShader->GetParameters(ShaderParam);
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VsParameters);
@@ -1432,7 +1432,7 @@ void ClearTiles(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& 
 		else
 		{
 			const int32 AlignedTilesThisDrawCall = ComputeAlignedTileCount(TilesThisDrawCall);
-			BuildTileVertexBuffer(BufferParam, TilesPtr, TilesThisDrawCall, AlignedTilesThisDrawCall);
+			BuildTileVertexBuffer(RHICmdList, BufferParam, TilesPtr, TilesThisDrawCall, AlignedTilesThisDrawCall);
 
 			const FParticleTileVS::FParameters VsParameters = VertexShader->GetParameters(ShaderParam);
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), VsParameters);
@@ -1614,9 +1614,9 @@ void InjectNewParticles(FRHICommandList& RHICmdList, FGraphicsPipelineStateIniti
 		// Copy new particles in to the vertex buffer.
 		const int32 ParticlesThisDrawCall = FMath::Min<int32>( ParticleCount, MaxParticlesPerDrawCall );
 		const void* Src = NewParticles.GetData() + FirstParticle;
-		void* Dest = RHILockBuffer( ScratchVertexBufferRHI, 0, ParticlesThisDrawCall * sizeof(FNewParticle), RLM_WriteOnly );
+		void* Dest = RHICmdList.LockBuffer( ScratchVertexBufferRHI, 0, ParticlesThisDrawCall * sizeof(FNewParticle), RLM_WriteOnly );
 		FMemory::Memcpy( Dest, Src, ParticlesThisDrawCall * sizeof(FNewParticle) );
-		RHIUnlockBuffer( ScratchVertexBufferRHI );
+		RHICmdList.UnlockBuffer( ScratchVertexBufferRHI );
 		ParticleCount -= ParticlesThisDrawCall;
 		FirstParticle += ParticlesThisDrawCall;
 
@@ -1850,15 +1850,13 @@ static void VisualizeGPUSimulation(
  * @param VertexBuffer - The buffer with which to fill with particle indices.
  * @param InTiles - The list of tiles for which to generate indices.
  */
-static void BuildParticleVertexBuffer(FRHIBuffer* VertexBufferRHI, const TArray<uint32>& InTiles )
+static void BuildParticleVertexBuffer(FRHICommandListBase& RHICmdList, FRHIBuffer* VertexBufferRHI, const TArray<uint32>& InTiles )
 {
-	check( IsInRenderingThread() );
-
 	const int32 TileCount = InTiles.Num();
 	const int32 IndexCount = TileCount * GParticlesPerTile;
 	const int32 BufferSize = IndexCount * sizeof(FParticleIndex);
 	const int32 Stride = 1;
-	FParticleIndex* RESTRICT ParticleIndices = (FParticleIndex*)RHILockBuffer( VertexBufferRHI, 0, BufferSize, RLM_WriteOnly );
+	FParticleIndex* RESTRICT ParticleIndices = (FParticleIndex*)RHICmdList.LockBuffer( VertexBufferRHI, 0, BufferSize, RLM_WriteOnly );
 
 	for ( int32 Index = 0; Index < TileCount; ++Index )
 	{
@@ -1884,7 +1882,7 @@ static void BuildParticleVertexBuffer(FRHIBuffer* VertexBufferRHI, const TArray<
 			}
 		}
 	}
-	RHIUnlockBuffer( VertexBufferRHI );
+	RHICmdList.UnlockBuffer( VertexBufferRHI );
 }
 
 /*-----------------------------------------------------------------------------
@@ -1982,11 +1980,11 @@ static FBox ComputeParticleBounds(
 		// Create a buffer for storing bounds.
 		const int32 BufferSize = GroupCount * 2 * sizeof(FVector4f);
 		FRHIResourceCreateInfo CreateInfo(TEXT("BoundsVertexBuffer"));
-		FBufferRHIRef BoundsVertexBufferRHI = RHICreateVertexBuffer(
+		FBufferRHIRef BoundsVertexBufferRHI = RHICmdList.CreateVertexBuffer(
 			BufferSize,
 			BUF_Static | BUF_UnorderedAccess | BUF_KeepCPUAccessible,
 			CreateInfo);
-		FUnorderedAccessViewRHIRef BoundsVertexBufferUAV = RHICreateUnorderedAccessView(
+		FUnorderedAccessViewRHIRef BoundsVertexBufferUAV = RHICmdList.CreateUnorderedAccessView(
 			BoundsVertexBufferRHI,
 			PF_A32B32G32R32F );
 
@@ -2019,7 +2017,7 @@ static FBox ComputeParticleBounds(
 		UnsetShaderUAVs(RHICmdList, ParticleBoundsCS, ParticleBoundsCS.GetComputeShader());
 
 		// Read back bounds.
-		FVector4f* GroupBounds = (FVector4f*)RHILockBuffer( BoundsVertexBufferRHI, 0, BufferSize, RLM_ReadOnly );
+		FVector4f* GroupBounds = (FVector4f*)RHICmdList.LockBuffer( BoundsVertexBufferRHI, 0, BufferSize, RLM_ReadOnly );
 
 		// Find valid starting bounds.
 		uint32 GroupIndex = 0;
@@ -2108,7 +2106,7 @@ public:
 	/**
 	 * Initializes the vertex buffer from a list of tiles.
 	 */
-	void Init( const TArray<uint32>& Tiles )
+	void Init( FRHICommandListBase& RHICmdList, const TArray<uint32>& Tiles )
 	{
 		TileCount = Tiles.Num();
 		AlignedTileCount = ComputeAlignedTileCount(TileCount);
@@ -2116,7 +2114,7 @@ public:
 		if (Tiles.Num())
 		{
 			int32 BufferAlignedTileCount = (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 ? TileCount : AlignedTileCount);
-			BuildTileVertexBuffer(VertexBufferRHI, Tiles.GetData(), Tiles.Num(), BufferAlignedTileCount);
+			BuildTileVertexBuffer(RHICmdList, VertexBufferRHI, Tiles.GetData(), Tiles.Num(), BufferAlignedTileCount);
 		}
 	}
 
@@ -2170,13 +2168,13 @@ public:
 	/**
 	 * Initializes the vertex buffer from a list of tiles.
 	 */
-	void Init( const TArray<uint32>& Tiles )
+	void Init(FRHICommandListBase& RHICmdList, const TArray<uint32>& Tiles )
 	{
 		ParticleCount = Tiles.Num() * GParticlesPerTile;
 		InitResource(FRHICommandListImmediate::Get());
 		if ( Tiles.Num() )
 		{
-			BuildParticleVertexBuffer( VertexBufferRHI, Tiles );
+			BuildParticleVertexBuffer( RHICmdList, VertexBufferRHI, Tiles );
 		}
 	}
 
@@ -2452,8 +2450,8 @@ void FParticleSimulationGPU::InitResources(const TArray<uint32>& Tiles, FGPUSpri
 				Simulation->TileVertexBuffer.ReleaseResource();
 
 				// Initialize new buffers with list of tiles.
-				Simulation->VertexBuffer.Init(Tiles);
-				Simulation->TileVertexBuffer.Init(Tiles);
+				Simulation->VertexBuffer.Init(RHICmdList, Tiles);
+				Simulation->TileVertexBuffer.Init(RHICmdList, Tiles);
 
 				// Store simulation resources for this emitter.
 				Simulation->GPUSpriteResources = InGPUSpriteResourcesRef;

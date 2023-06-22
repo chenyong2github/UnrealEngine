@@ -174,14 +174,14 @@ void FNiagaraDataInterfaceProxySpectrum::PostDataToGPU()
 
 			if (NumSamplesInBuffer > 0)
 			{
-				GPUBuffer.Initialize(TEXT("FNiagaraDataInterfaceProxySpectrum_GPUBuffer"), sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+				GPUBuffer.Initialize(RHICmdList, TEXT("FNiagaraDataInterfaceProxySpectrum_GPUBuffer"), sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 			}
 		}
 
 		// Copy to GPU data
 		if (GPUBuffer.NumBytes > 0)
 		{
-			float *BufferData = static_cast<float*>(RHILockBuffer(GPUBuffer.Buffer, 0, NumBytesInBuffer, EResourceLockMode::RLM_WriteOnly));
+			float *BufferData = static_cast<float*>(RHICmdList.LockBuffer(GPUBuffer.Buffer, 0, NumBytesInBuffer, EResourceLockMode::RLM_WriteOnly));
 
 			FScopeLock ScopeLock(&BufferLock);
 
@@ -192,7 +192,7 @@ void FNiagaraDataInterfaceProxySpectrum::PostDataToGPU()
 				FPlatformMemory::Memcpy(&BufferData[Pos], ChannelSpectrumBuffers[ChannelIndex].GetData(), NumBytesInChannelBuffer);
 			}
 
-			RHIUnlockBuffer(GPUBuffer.Buffer);
+			RHICmdList.UnlockBuffer(GPUBuffer.Buffer);
 		}
 	});
 }

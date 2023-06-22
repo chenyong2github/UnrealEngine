@@ -328,6 +328,8 @@ public:
 
 		if (MaxNumTiles > 0)
 		{
+			FRHICommandListBase& RHICmdList = GraphBuilder.RHICmdList;
+
 			// Occupancy bits
 			{
 				const uint32 BufferSize = NumTextures * MaxNumTiles * SVT::NumOccupancyWordsPerPaddedTile * sizeof(uint32);
@@ -335,7 +337,7 @@ public:
 				BufferDesc.Usage |= EBufferUsageFlags::Dynamic; // Skip the unneeded copy from upload to VRAM resource on d3d12 RHI
 				AllocatePooledBuffer(BufferDesc, OccupancyBitsUploadBuffer, TEXT("SparseVolumeTexture.OccupancyBitsUploadBuffer"));
 
-				OccupancyBitsAPtr = (uint8*)RHILockBuffer(OccupancyBitsUploadBuffer->GetRHI(), 0, BufferSize, RLM_WriteOnly);
+				OccupancyBitsAPtr = (uint8*)RHICmdList.LockBuffer(OccupancyBitsUploadBuffer->GetRHI(), 0, BufferSize, RLM_WriteOnly);
 				OccupancyBitsBPtr = OccupancyBitsAPtr + (FormatA != PF_Unknown ? (MaxNumTiles * SVT::NumOccupancyWordsPerPaddedTile * sizeof(uint32)) : 0);
 			}
 			// Tile data offsets
@@ -345,7 +347,7 @@ public:
 				BufferDesc.Usage |= EBufferUsageFlags::Dynamic; // Skip the unneeded copy from upload to VRAM resource on d3d12 RHI
 				AllocatePooledBuffer(BufferDesc, TileDataOffsetsUploadBuffer, TEXT("SparseVolumeTexture.TileDataOffsetsUploadBuffer"));
 
-				TileDataOffsetsAPtr = (uint8*)RHILockBuffer(TileDataOffsetsUploadBuffer->GetRHI(), 0, BufferSize, RLM_WriteOnly);
+				TileDataOffsetsAPtr = (uint8*)RHICmdList.LockBuffer(TileDataOffsetsUploadBuffer->GetRHI(), 0, BufferSize, RLM_WriteOnly);
 				TileDataOffsetsBPtr = TileDataOffsetsAPtr + (FormatA != PF_Unknown ? (MaxNumTiles * sizeof(uint32)) : 0);
 			}
 			// TileCoords
@@ -355,7 +357,7 @@ public:
 				BufferDesc.Usage |= EBufferUsageFlags::Dynamic; // Skip the unneeded copy from upload to VRAM resource on d3d12 RHI
 				AllocatePooledBuffer(BufferDesc, DstTileCoordsUploadBuffer, TEXT("SparseVolumeTexture.TileCoordsUploadBuffer"));
 
-				TileCoordsPtr = (uint8*)RHILockBuffer(DstTileCoordsUploadBuffer->GetRHI(), 0, BufferSize, RLM_WriteOnly);
+				TileCoordsPtr = (uint8*)RHICmdList.LockBuffer(DstTileCoordsUploadBuffer->GetRHI(), 0, BufferSize, RLM_WriteOnly);
 			}
 
 			// TileData
@@ -365,7 +367,7 @@ public:
 				BufferDesc.Usage |= EBufferUsageFlags::Dynamic; // Skip the unneeded copy from upload to VRAM resource on d3d12 RHI
 				AllocatePooledBuffer(BufferDesc, TileDataAUploadBuffer, TEXT("SparseVolumeTexture.TileDataAUploadBuffer"));
 
-				TileDataAPtr = (uint8*)RHILockBuffer(TileDataAUploadBuffer->GetRHI(), 0, FMath::Max(MaxNumVoxelsA, 1) * FormatSizeA, RLM_WriteOnly);
+				TileDataAPtr = (uint8*)RHICmdList.LockBuffer(TileDataAUploadBuffer->GetRHI(), 0, FMath::Max(MaxNumVoxelsA, 1) * FormatSizeA, RLM_WriteOnly);
 			}
 			if (FormatSizeB > 0)
 			{
@@ -373,7 +375,7 @@ public:
 				BufferDesc.Usage |= EBufferUsageFlags::Dynamic; // Skip the unneeded copy from upload to VRAM resource on d3d12 RHI
 				AllocatePooledBuffer(BufferDesc, TileDataBUploadBuffer, TEXT("SparseVolumeTexture.TileDataBUploadBuffer"));
 
-				TileDataBPtr = (uint8*)RHILockBuffer(TileDataBUploadBuffer->GetRHI(), 0, FMath::Max(MaxNumVoxelsB, 1) * FormatSizeB, RLM_WriteOnly);
+				TileDataBPtr = (uint8*)RHICmdList.LockBuffer(TileDataBUploadBuffer->GetRHI(), 0, FMath::Max(MaxNumVoxelsB, 1) * FormatSizeB, RLM_WriteOnly);
 			}
 		}
 	}
@@ -421,16 +423,18 @@ public:
 		check(DstTextureB || FormatSizeB <= 0);
 		if (MaxNumTiles > 0)
 		{
-			RHIUnlockBuffer(OccupancyBitsUploadBuffer->GetRHI());
-			RHIUnlockBuffer(TileDataOffsetsUploadBuffer->GetRHI());
-			RHIUnlockBuffer(DstTileCoordsUploadBuffer->GetRHI());
+			FRHICommandListBase& RHICmdList = GraphBuilder.RHICmdList;
+
+			RHICmdList.UnlockBuffer(OccupancyBitsUploadBuffer->GetRHI());
+			RHICmdList.UnlockBuffer(TileDataOffsetsUploadBuffer->GetRHI());
+			RHICmdList.UnlockBuffer(DstTileCoordsUploadBuffer->GetRHI());
 			if (TileDataAPtr)
 			{
-				RHIUnlockBuffer(TileDataAUploadBuffer->GetRHI());
+				RHICmdList.UnlockBuffer(TileDataAUploadBuffer->GetRHI());
 			}
 			if (TileDataBPtr)
 			{
-				RHIUnlockBuffer(TileDataBUploadBuffer->GetRHI());
+				RHICmdList.UnlockBuffer(TileDataBUploadBuffer->GetRHI());
 			}
 
 			if (NumWrittenTiles > 0)
@@ -557,7 +561,7 @@ public:
 			BufferDesc.Usage |= EBufferUsageFlags::Dynamic;
 			AllocatePooledBuffer(BufferDesc, UpdatesUploadBuffer, TEXT("SparseVolumeTexture.PageTableUpdatesUploadBuffer"));
 
-			DataPtr = (uint8*)RHILockBuffer(UpdatesUploadBuffer->GetRHI(), 0, MaxNumUpdates * 2 * sizeof(uint32), RLM_WriteOnly);
+			DataPtr = (uint8*)GraphBuilder.RHICmdList.LockBuffer(UpdatesUploadBuffer->GetRHI(), 0, MaxNumUpdates * 2 * sizeof(uint32), RLM_WriteOnly);
 		}
 	}
 
@@ -588,7 +592,7 @@ public:
 	{
 		if (MaxNumUpdates > 0)
 		{
-			RHIUnlockBuffer(UpdatesUploadBuffer->GetRHI());
+			GraphBuilder.RHICmdList.UnlockBuffer(UpdatesUploadBuffer->GetRHI());
 
 			if (NumWrittenUpdates > 0)
 			{
@@ -687,9 +691,9 @@ public:
 				BufferDesc.Usage |= EBufferUsageFlags::Dynamic;
 				AllocatePooledBuffer(BufferDesc, UpdatesUploadBuffer, TEXT("SparseVolumeTexture.StreamingInfoUploadBuffer"));
 
-				void* DataPtr = RHILockBuffer(UpdatesUploadBuffer->GetRHI(), 0, Updates.Num() * sizeof(uint32), RLM_WriteOnly);
+				void* DataPtr = GraphBuilder.RHICmdList.LockBuffer(UpdatesUploadBuffer->GetRHI(), 0, Updates.Num() * sizeof(uint32), RLM_WriteOnly);
 				FMemory::Memcpy(DataPtr, Updates.GetData(), Updates.Num() * sizeof(uint32));
-				RHIUnlockBuffer(UpdatesUploadBuffer->GetRHI());
+				GraphBuilder.RHICmdList.UnlockBuffer(UpdatesUploadBuffer->GetRHI());
 			}
 
 			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSparseVolumeTextureUpdateStreamingInfoBufferCS>();

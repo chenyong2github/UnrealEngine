@@ -1497,6 +1497,9 @@ public:
 	ENGINE_API FReflectionCaptureProxy(const class UReflectionCaptureComponent* InComponent);
 
 	ENGINE_API void SetTransform(const FMatrix& InTransform);
+	ENGINE_API void UpdateMobileUniformBuffer(FRHICommandListBase& RHICmdList);
+	
+	UE_DEPRECATED(5.3, "UpdateMobileUniformBuffer now takes a command list.")
 	ENGINE_API void UpdateMobileUniformBuffer();
 };
 

@@ -339,14 +339,14 @@ public:
 		BrickUploadDataBuffer(InBrickUploadDataBuffer)
 	{}
 
-	void AllocateAndLock(uint32 NumBrickUploads, uint32 BrickSize)
+	void AllocateAndLock(FRHICommandListBase& RHICmdList, uint32 NumBrickUploads, uint32 BrickSize)
 	{
 		const uint32 NumCoordElements = FMath::RoundUpToPowerOfTwo(NumBrickUploads);
 		const uint32 CoordNumBytesPerElement = GPixelFormats[PF_R32G32B32A32_UINT].BlockBytes;
 
 		if (BrickUploadCoordinatesBuffer.NumBytes < NumCoordElements * CoordNumBytesPerElement)
 		{
-			BrickUploadCoordinatesBuffer.Initialize(TEXT("DistanceFields.BrickUploadCoordinatesBuffer"), CoordNumBytesPerElement, NumCoordElements, PF_R32G32B32A32_UINT, BUF_Volatile);
+			BrickUploadCoordinatesBuffer.Initialize(RHICmdList, TEXT("DistanceFields.BrickUploadCoordinatesBuffer"), CoordNumBytesPerElement, NumCoordElements, PF_R32G32B32A32_UINT, BUF_Volatile);
 		}
 
 		const uint32 NumBrickDataElements = FMath::RoundUpToPowerOfTwo(NumBrickUploads) * BrickSize * BrickSize * BrickSize;
@@ -355,17 +355,17 @@ public:
 		if (BrickUploadDataBuffer.NumBytes < NumBrickDataElements * BrickDataNumBytesPerElement 
 			|| (BrickUploadDataBuffer.NumBytes > NumBrickDataElements * BrickDataNumBytesPerElement && BrickUploadDataBuffer.NumBytes > 32 * 1024 * 1024))
 		{
-			BrickUploadDataBuffer.Initialize(TEXT("DistanceFields.BrickUploadDataBuffer"), BrickDataNumBytesPerElement, NumBrickDataElements, DistanceField::DistanceFieldFormat, BUF_Volatile);
+			BrickUploadDataBuffer.Initialize(RHICmdList, TEXT("DistanceFields.BrickUploadDataBuffer"), BrickDataNumBytesPerElement, NumBrickDataElements, DistanceField::DistanceFieldFormat, BUF_Volatile);
 		}
 
-		BrickUploadCoordinatesPtr = (FIntVector4*)RHILockBuffer(BrickUploadCoordinatesBuffer.Buffer, 0, NumCoordElements * CoordNumBytesPerElement, RLM_WriteOnly);
-		BrickUploadDataPtr = (uint8*)RHILockBuffer(BrickUploadDataBuffer.Buffer, 0, NumBrickDataElements * BrickDataNumBytesPerElement, RLM_WriteOnly);
+		BrickUploadCoordinatesPtr = (FIntVector4*)RHICmdList.LockBuffer(BrickUploadCoordinatesBuffer.Buffer, 0, NumCoordElements * CoordNumBytesPerElement, RLM_WriteOnly);
+		BrickUploadDataPtr = (uint8*)RHICmdList.LockBuffer(BrickUploadDataBuffer.Buffer, 0, NumBrickDataElements * BrickDataNumBytesPerElement, RLM_WriteOnly);
 	}
 
-	void Unlock() const
+	void Unlock(FRHICommandListBase& RHICmdList) const
 	{
-		RHIUnlockBuffer(BrickUploadCoordinatesBuffer.Buffer);
-		RHIUnlockBuffer(BrickUploadDataBuffer.Buffer);
+		RHICmdList.UnlockBuffer(BrickUploadCoordinatesBuffer.Buffer);
+		RHICmdList.UnlockBuffer(BrickUploadDataBuffer.Buffer);
 	}
 };
 
@@ -384,28 +384,28 @@ public:
 		IndirectionUploadDataBuffer(InIndirectionUploadDataBuffer)
 	{}
 
-	void AllocateAndLock(uint32 NumIndirectionUploads)
+	void AllocateAndLock(FRHICommandListBase& RHICmdList, uint32 NumIndirectionUploads)
 	{
 		const uint32 NumElements = FMath::RoundUpToPowerOfTwo(NumIndirectionUploads);
 
 		if (IndirectionUploadIndicesBuffer.NumBytes < NumElements * sizeof(uint32))
 		{
-			IndirectionUploadIndicesBuffer.Initialize(TEXT("DistanceFields.IndirectionUploadIndicesBuffer"), sizeof(uint32), NumElements, PF_R32_UINT, BUF_Volatile);
+			IndirectionUploadIndicesBuffer.Initialize(RHICmdList, TEXT("DistanceFields.IndirectionUploadIndicesBuffer"), sizeof(uint32), NumElements, PF_R32_UINT, BUF_Volatile);
 		}
 		
 		if (IndirectionUploadDataBuffer.NumBytes < NumElements * sizeof(FVector4f))
 		{
-			IndirectionUploadDataBuffer.Initialize(TEXT("DistanceFields.IndirectionUploadDataBuffer"), sizeof(FVector4f), NumElements, PF_A32B32G32R32F, BUF_Volatile);
+			IndirectionUploadDataBuffer.Initialize(RHICmdList, TEXT("DistanceFields.IndirectionUploadDataBuffer"), sizeof(FVector4f), NumElements, PF_A32B32G32R32F, BUF_Volatile);
 		}
 		
-		IndirectionUploadIndicesPtr = (uint32*)RHILockBuffer(IndirectionUploadIndicesBuffer.Buffer, 0, NumElements * sizeof(uint32), RLM_WriteOnly);
-		IndirectionUploadDataPtr = (FVector4f*)RHILockBuffer(IndirectionUploadDataBuffer.Buffer, 0, NumElements * sizeof(FVector4f), RLM_WriteOnly);
+		IndirectionUploadIndicesPtr = (uint32*)RHICmdList.LockBuffer(IndirectionUploadIndicesBuffer.Buffer, 0, NumElements * sizeof(uint32), RLM_WriteOnly);
+		IndirectionUploadDataPtr = (FVector4f*)RHICmdList.LockBuffer(IndirectionUploadDataBuffer.Buffer, 0, NumElements * sizeof(FVector4f), RLM_WriteOnly);
 	}
 
-	void Unlock() const
+	void Unlock(FRHICommandListBase& RHICmdList) const
 	{
-		RHIUnlockBuffer(IndirectionUploadIndicesBuffer.Buffer);
-		RHIUnlockBuffer(IndirectionUploadDataBuffer.Buffer);
+		RHICmdList.UnlockBuffer(IndirectionUploadIndicesBuffer.Buffer);
+		RHICmdList.UnlockBuffer(IndirectionUploadDataBuffer.Buffer);
 	}
 };
 
@@ -1487,7 +1487,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 			else
 			{
 				// Allocate staging buffer space for the indirection atlas compute scatter
-				IndirectionAtlasUpload.AllocateAndLock(NumIndirectionTableAdds);
+				IndirectionAtlasUpload.AllocateAndLock(GraphBuilder.RHICmdList, NumIndirectionTableAdds);
 				UpdateParameters.IndirectionIndicesUploadPtr = IndirectionAtlasUpload.IndirectionUploadIndicesPtr;
 				UpdateParameters.IndirectionDataUploadPtr = IndirectionAtlasUpload.IndirectionUploadDataPtr;
 			}
@@ -1498,7 +1498,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 		if (NumBrickUploads > 0)
 		{
 			// Allocate staging buffer space for the brick atlas compute scatter
-			AtlasUpload.AllocateAndLock(NumBrickUploads, DistanceField::BrickSize);
+			AtlasUpload.AllocateAndLock(GraphBuilder.RHICmdList, NumBrickUploads, DistanceField::BrickSize);
 			UpdateParameters.BrickUploadDataPtr = AtlasUpload.BrickUploadDataPtr;
 			UpdateParameters.BrickUploadCoordinatesPtr = AtlasUpload.BrickUploadCoordinatesPtr;
 		}
@@ -1519,7 +1519,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 
 			if (NumBrickUploads > 0)
 			{
-				AtlasUpload.Unlock();
+				AtlasUpload.Unlock(GraphBuilder.RHICmdList);
 			}
 
 			if (NumIndirectionTableAdds > 0)
@@ -1531,7 +1531,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 				}
 				else
 				{
-					IndirectionAtlasUpload.Unlock();
+					IndirectionAtlasUpload.Unlock(GraphBuilder.RHICmdList);
 
 					TShaderMapRef<FScatterUploadDistanceFieldIndirectionAtlasCS> ComputeShader(GlobalShaderMap);
 

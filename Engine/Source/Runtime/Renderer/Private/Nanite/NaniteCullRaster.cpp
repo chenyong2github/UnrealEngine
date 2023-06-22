@@ -1872,15 +1872,15 @@ public:
 };
 
 template< typename T >
-static void CreateAndUpload( FByteAddressBuffer& Buffer, const TArray<T>& Array, const TCHAR* InDebugName )
+static void CreateAndUpload( FRHICommandListBase& RHICmdList, FByteAddressBuffer& Buffer, const TArray<T>& Array, const TCHAR* InDebugName )
 {
-	Buffer.Initialize( InDebugName, Array.Num() * Array.GetTypeSize() );
+	Buffer.Initialize( RHICmdList, InDebugName, Array.Num() * Array.GetTypeSize() );
 
-	uint8* DataPtr = (uint8*)RHILockBuffer( Buffer.Buffer, 0, Buffer.NumBytes, RLM_WriteOnly );
+	uint8* DataPtr = (uint8*)RHICmdList.LockBuffer( Buffer.Buffer, 0, Buffer.NumBytes, RLM_WriteOnly );
 
 	FMemory::Memcpy( DataPtr, Array.GetData(), Buffer.NumBytes );
 
-	RHIUnlockBuffer( Buffer.Buffer );
+	RHICmdList.UnlockBuffer( Buffer.Buffer );
 }
 
 void FTessellationTableResources::InitRHI(FRHICommandListBase& RHICmdList)
@@ -1889,9 +1889,9 @@ void FTessellationTableResources::InitRHI(FRHICommandListBase& RHICmdList)
 	{
 		FTessellationTable TessellationTable(16);
 
-		CreateAndUpload( Offsets,	TessellationTable.OffsetTable,	TEXT("TessellationTable.Offsets") );
-		CreateAndUpload( Verts,		TessellationTable.Verts,		TEXT("TessellationTable.Verts") );
-		CreateAndUpload( Indexes,	TessellationTable.Indexes,		TEXT("TessellationTable.Indexes") );
+		CreateAndUpload( RHICmdList, Offsets,	TessellationTable.OffsetTable,	TEXT("TessellationTable.Offsets") );
+		CreateAndUpload( RHICmdList, Verts,		TessellationTable.Verts,		TEXT("TessellationTable.Verts") );
+		CreateAndUpload( RHICmdList, Indexes,	TessellationTable.Indexes,		TEXT("TessellationTable.Indexes") );
 	}
 }
 

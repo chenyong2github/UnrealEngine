@@ -77,7 +77,7 @@ class FMRMeshVertexBuffer : public FVertexBuffer
 {
 public:
 	int32 NumVerts = 0;
-	void InitRHIWith( const TArray<DataType>& PerVertexData )
+	void InitRHIWith(FRHICommandListBase& RHICmdList, const TArray<DataType>& PerVertexData )
 	{
 		NumVerts = PerVertexData.Num();
 
@@ -85,7 +85,7 @@ public:
 
 		FMRMeshVertexResourceArray ResourceArray(PerVertexData.GetData(), SizeInBytes);
 		FRHIResourceCreateInfo CreateInfo(TEXT("FMRMeshVertexBuffer"), &ResourceArray);
-		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 	}
 
 };
@@ -94,34 +94,34 @@ class FMRMeshIndexBuffer : public FIndexBuffer
 {
 public:
 	int32 NumIndices = 0;
-	void InitRHIWith( const TArray<uint32>& Indices )
+	void InitRHIWith(FRHICommandListBase& RHICmdList, const TArray<uint32>& Indices )
 	{
 		NumIndices = Indices.Num();
 
 		const uint32 Size = Indices.Num() * sizeof(uint32);
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FMRMeshIndexBuffer"));
-		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		IndexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint32), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		// Write the indices to the index buffer.
-		void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
+		void* Buffer = RHICmdList.LockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
 		FMemory::Memcpy(Buffer, Indices.GetData(), Size);
-		RHIUnlockBuffer(IndexBufferRHI);
+		RHICmdList.UnlockBuffer(IndexBufferRHI);
 	}
 
-	void InitRHIWith(const TArray<uint16>& Indices)
+	void InitRHIWith(FRHICommandListBase& RHICmdList, const TArray<uint16>& Indices)
 	{
 		NumIndices = Indices.Num();
 
 		const uint32 Size = Indices.Num() * sizeof(uint16);
 
 		FRHIResourceCreateInfo CreateInfo(TEXT("FMRMeshIndexBuffer"));
-		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+		IndexBufferRHI = RHICmdList.CreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		// Write the indices to the index buffer.
-		void* Buffer = RHILockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
+		void* Buffer = RHICmdList.LockBuffer(IndexBufferRHI, 0, Size, RLM_WriteOnly);
 		FMemory::Memcpy(Buffer, Indices.GetData(), Size);
-		RHIUnlockBuffer(IndexBufferRHI);
+		RHICmdList.UnlockBuffer(IndexBufferRHI);
 	}
 };
 
@@ -260,8 +260,8 @@ public:
 		// POSITION BUFFER
 		{
 			NewSection->PositionBuffer.InitResource(RHICmdList);
-			NewSection->PositionBuffer.InitRHIWith(Args.PositionData);
-			NewSection->PositionBufferSRV = RHICreateShaderResourceView(NewSection->PositionBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+			NewSection->PositionBuffer.InitRHIWith(RHICmdList, Args.PositionData);
+			NewSection->PositionBufferSRV = RHICmdList.CreateShaderResourceView(NewSection->PositionBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		}
 
 		// TEXTURE COORDS BUFFER
@@ -269,8 +269,8 @@ public:
 			NewSection->UVBuffer.InitResource(RHICmdList);
 			if (Args.UVData.Num())
 			{
-				NewSection->UVBuffer.InitRHIWith(Args.UVData);
-				NewSection->UVBufferSRV = RHICreateShaderResourceView(NewSection->UVBuffer.VertexBufferRHI, 8, PF_G32R32F);
+				NewSection->UVBuffer.InitRHIWith(RHICmdList, Args.UVData);
+				NewSection->UVBufferSRV = RHICmdList.CreateShaderResourceView(NewSection->UVBuffer.VertexBufferRHI, 8, PF_G32R32F);
 			}
 		}
 
@@ -279,12 +279,12 @@ public:
 			NewSection->TangentXZBuffer.InitResource(RHICmdList);
 			if (Args.TangentXZData.Num())
 			{
-				NewSection->TangentXZBuffer.InitRHIWith(Args.TangentXZData);
+				NewSection->TangentXZBuffer.InitRHIWith(RHICmdList, Args.TangentXZData);
 			}
 
 			if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 			{
-				NewSection->TangentXZBufferSRV = RHICreateShaderResourceView(NewSection->TangentXZBuffer.VertexBufferRHI, 4, PF_R8G8B8A8_SNORM);
+				NewSection->TangentXZBufferSRV = RHICmdList.CreateShaderResourceView(NewSection->TangentXZBuffer.VertexBufferRHI, 4, PF_R8G8B8A8_SNORM);
 			}
 		}
 
@@ -293,15 +293,15 @@ public:
 			NewSection->ColorBuffer.InitResource(RHICmdList);
 			if (Args.ColorData.Num())
 			{
-				NewSection->ColorBuffer.InitRHIWith(Args.ColorData);
-				NewSection->ColorBufferSRV = RHICreateShaderResourceView(NewSection->ColorBuffer.VertexBufferRHI, 4, PF_R8G8B8A8);
+				NewSection->ColorBuffer.InitRHIWith(RHICmdList, Args.ColorData);
+				NewSection->ColorBufferSRV = RHICmdList.CreateShaderResourceView(NewSection->ColorBuffer.VertexBufferRHI, 4, PF_R8G8B8A8);
 			}
 		}
 
 		// INDEX BUFFER
 		{
 			NewSection->IndexBuffer.InitResource(RHICmdList);
-			NewSection->IndexBuffer.InitRHIWith(Args.Indices);
+			NewSection->IndexBuffer.InitRHIWith(RHICmdList, Args.Indices);
 		}
 
 		// VERTEX FACTORY

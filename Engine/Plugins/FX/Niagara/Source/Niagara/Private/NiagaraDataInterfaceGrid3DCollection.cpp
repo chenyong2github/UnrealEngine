@@ -2895,6 +2895,8 @@ void UNiagaraDataInterfaceGrid3DCollection::SetShaderParameters(const FNiagaraDa
 	FGrid3DCollectionRWInstanceData_RenderThread* OriginalProxyData = ProxyData;
 	check(ProxyData);
 
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+
 	if (ProxyData->OtherProxy != nullptr)
 	{
 		FNiagaraDataInterfaceProxyGrid3DCollectionProxy* OtherGrid3DProxy = static_cast<FNiagaraDataInterfaceProxyGrid3DCollectionProxy*>(ProxyData->OtherProxy);
@@ -2948,13 +2950,11 @@ void UNiagaraDataInterfaceGrid3DCollection::SetShaderParameters(const FNiagaraDa
 			);
 		}
 		PerAttributeData[ProxyData->TotalNumAttributes * 2] = FVector4f(65535, 65535, 65535, 65535);
-		ProxyData->PerAttributeData.Initialize(TEXT("Grid3D::PerAttributeData"), sizeof(FVector4f), PerAttributeData.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &PerAttributeData);
+		ProxyData->PerAttributeData.Initialize(GraphBuilder.RHICmdList, TEXT("Grid3D::PerAttributeData"), sizeof(FVector4f), PerAttributeData.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &PerAttributeData);
 	}
 
 	// Set parameters
 	const FVector3f HalfPixelOffset = FVector3f(0.5f / ProxyData->NumCells.X, 0.5f / ProxyData->NumCells.Y, 0.5f / ProxyData->NumCells.Z);
-
-	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
 
 	FNDIGrid3DShaderParameters* Parameters = Context.GetParameterNestedStruct<FNDIGrid3DShaderParameters>();
 	Parameters->NumAttributes = ProxyData->TotalNumAttributes;

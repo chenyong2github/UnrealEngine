@@ -176,8 +176,8 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			FShaderResourceViewRHIRef Y_SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_G8);
-			FShaderResourceViewRHIRef UV_SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_R8G8);
+			FShaderResourceViewRHIRef Y_SRV = RHICmdList.CreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_G8);
+			FShaderResourceViewRHIRef UV_SRV = RHICmdList.CreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_R8G8);
 
 			const FHardwareVideoDecodingShaderParams Parameters = FWmfMediaHardwareVideoDecodingShader::GetParameters(Y_SRV, UV_SRV, InSample->IsOutputSrgb());
 
@@ -204,7 +204,7 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 			{
 				PixelFormat = PF_DXT5;
 			}
-			FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PixelFormat);
+			FShaderResourceViewRHIRef SRV = RHICmdList.CreateShaderResourceView(SampleDestinationTexture, 0, 1, PixelFormat);
 
 			const FHardwareVideoDecodingShaderParams Parameters = FWmfMediaHardwareVideoDecodingShader::GetParameters(SRV, InSample->IsOutputSrgb());
 
@@ -220,7 +220,7 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_A16B16G16R16);
+			FShaderResourceViewRHIRef SRV = RHICmdList.CreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_A16B16G16R16);
 
 			const FHardwareVideoDecodingShaderParams Parameters = FWmfMediaHardwareVideoDecodingShader::GetParameters(SRV, InSample->IsOutputSrgb());
 
@@ -236,7 +236,7 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_DXT5);
+			FShaderResourceViewRHIRef SRV = RHICmdList.CreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_DXT5);
 
 			const FHardwareVideoDecodingShaderParams Parameters = FWmfMediaHardwareVideoDecodingShader::GetParameters(SRV, InSample->IsOutputSrgb());
 
@@ -263,8 +263,8 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
-			FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_DXT5);
-			FShaderResourceViewRHIRef SRVAlpha = RHICreateShaderResourceView(SampleDestinationAlphaTexture, 0, 1, PF_BC4);
+			FShaderResourceViewRHIRef SRV = RHICmdList.CreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_DXT5);
+			FShaderResourceViewRHIRef SRVAlpha = RHICmdList.CreateShaderResourceView(SampleDestinationAlphaTexture, 0, 1, PF_BC4);
 
 			const FHardwareVideoDecodingShaderParams VsParameters = FWmfMediaHardwareVideoDecodingShader::GetParameters(SRV, InSample->IsOutputSrgb());
 			const FHardwareVideoDecodingShaderParams PsParameters = FWmfMediaHardwareVideoDecodingShader::GetParameters(SRV, SRVAlpha, InSample->IsOutputSrgb());

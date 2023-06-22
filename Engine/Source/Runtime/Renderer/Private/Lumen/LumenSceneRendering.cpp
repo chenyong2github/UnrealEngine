@@ -1947,9 +1947,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 					FPrimitiveIdVertexBufferPoolEntry Entry = GPrimitiveIdVertexBufferPool.Allocate(GraphBuilder.RHICmdList, PrimitiveIdBufferDataSize);
 					PrimitiveIdVertexBuffer = Entry.BufferRHI;
 
-					void* RESTRICT Data = RHILockBuffer(PrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
+					void* RESTRICT Data = GraphBuilder.RHICmdList.LockBuffer(PrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
 					FMemory::Memcpy(Data, LumenCardRenderer.MeshDrawPrimitiveIds.GetData(), PrimitiveIdBufferDataSize);
-					RHIUnlockBuffer(PrimitiveIdVertexBuffer);
+					GraphBuilder.RHICmdList.UnlockBuffer(PrimitiveIdVertexBuffer);
 
 					GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
 				}

@@ -38,7 +38,7 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 	const uint32 IndexStride = Initializer.IndexBuffer->GetStride();
 
 	const FRawBufferShaderResourceViewInitializer IBViewInitializer(Initializer.IndexBuffer);
-	FShaderResourceViewRHIRef IndexBufferSRV = RHICreateShaderResourceView(IBViewInitializer);
+	FShaderResourceViewRHIRef IndexBufferSRV = RHICmdList.CreateShaderResourceView(IBViewInitializer);
 
 	for (const FRayTracingGeometrySegment& Segment : Initializer.Segments)
 	{
@@ -60,7 +60,7 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 		SetShaderValue(BatchedParameters, ComputeShader->MaxVerticesParam, Segment.MaxVertices);
 
 		const FRawBufferShaderResourceViewInitializer VBViewInitializer(Segment.VertexBuffer);
-		FShaderResourceViewRHIRef VertexBufferSRV = RHICreateShaderResourceView(VBViewInitializer);
+		FShaderResourceViewRHIRef VertexBufferSRV = RHICmdList.CreateShaderResourceView(VBViewInitializer);
 
 		SetSRVParameter(BatchedParameters, ComputeShader->VertexBufferParam, VertexBufferSRV);
 		SetSRVParameter(BatchedParameters, ComputeShader->IndexBufferParam, IndexBufferSRV);
@@ -102,7 +102,7 @@ void FRayTracingValidateSceneBuildParamsCS::Dispatch(FRHICommandList& RHICmdList
 		FRHIBatchedShaderParameters& BatchedParameters = RHICmdList.GetScratchShaderParameters();
 
 		const FRawBufferShaderResourceViewInitializer InstanceBufferViewInitializer(InstanceBuffer);
-		FShaderResourceViewRHIRef InstanceBufferSRV = RHICreateShaderResourceView(InstanceBufferViewInitializer);
+		FShaderResourceViewRHIRef InstanceBufferSRV = RHICmdList.CreateShaderResourceView(InstanceBufferViewInitializer);
 
 		SetShaderValue(BatchedParameters, ComputeShader->NumInstancesParam, NumInstances);
 		SetShaderValue(BatchedParameters, ComputeShader->NumHitGroupsParam, NumHitGroups);

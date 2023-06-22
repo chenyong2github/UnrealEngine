@@ -520,7 +520,7 @@ public:
 		}
 	}
 
-	void UpdateIndirectLightingCacheBuffer();
+	void UpdateIndirectLightingCacheBuffer(FRHICommandListBase& RHICmdList);
 
 	/** Will output the LOD ranges of the static meshes used with this primitive. */
 	RENDERER_API void GetStaticMeshesLODRange(int8& OutMinLOD, int8& OutMaxLOD) const;
@@ -711,6 +711,7 @@ private:
 	int32 NumLightmapDataEntries;
 
 	void UpdateIndirectLightingCacheBuffer(
+		FRHICommandListBase& RHICmdList,
 		const class FIndirectLightingCache* LightingCache,
 		const class FIndirectLightingCacheAllocation* LightingAllocation,
 		FVector VolumetricLightmapLookupPosition,

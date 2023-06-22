@@ -358,7 +358,7 @@ public:
 		BufferDesc.Usage = BufferDesc.Usage | EBufferUsageFlags::Dynamic;
 		AllocatePooledBuffer(BufferDesc, PageUploadBuffer, TEXT("Nanite.PageUploadBuffer"));
 	
-		PageDataPtr = (uint8*)RHILockBuffer(PageUploadBuffer->GetRHI(), 0, MaxPageBytes, RLM_WriteOnly);
+		PageDataPtr = (uint8*)GraphBuilder.RHICmdList.LockBuffer(PageUploadBuffer->GetRHI(), 0, MaxPageBytes, RLM_WriteOnly);
 	}
 
 	uint8* Add_GetRef(uint32 PageSize, uint32 DstPageOffset, const FPageKey& GPUPageKey, const TArray<uint32>& PageDependencies)
@@ -397,7 +397,7 @@ public:
 
 	void ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGBuffer* DstBuffer)
 	{
-		RHIUnlockBuffer(PageUploadBuffer->GetRHI());
+		GraphBuilder.RHICmdList.UnlockBuffer(PageUploadBuffer->GetRHI());
 
 		const uint32 NumPages = AddedPageInfos.Num();
 		if (NumPages == 0)	// This can end up getting called with NumPages = 0 when NumReadyPages > 0 and all pages early out.
@@ -414,7 +414,7 @@ public:
 			AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredUploadDesc(BytesPerElement, InstallInfoAllocationSize / BytesPerElement), InstallInfoUploadBuffer, TEXT("Nanite.InstallInfoUploadBuffer"));
 		}
 
-		FPageInstallInfo* InstallInfoPtr = (FPageInstallInfo*)RHILockBuffer(InstallInfoUploadBuffer->GetRHI(), 0, InstallInfoAllocationSize, RLM_WriteOnly);
+		FPageInstallInfo* InstallInfoPtr = (FPageInstallInfo*)GraphBuilder.RHICmdList.LockBuffer(InstallInfoUploadBuffer->GetRHI(), 0, InstallInfoAllocationSize, RLM_WriteOnly);
 
 		uint32 PageDependenciesAllocationSize = FMath::RoundUpToPowerOfTwo(FMath::Max(FlattenedPageDependencies.Num(), 4096) * sizeof(uint32));
 		if (PageDependenciesAllocationSize > TryGetSize(PageDependenciesBuffer))
@@ -424,9 +424,9 @@ public:
 			AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredUploadDesc(BytesPerElement, PageDependenciesAllocationSize / BytesPerElement), PageDependenciesBuffer, TEXT("Nanite.PageDependenciesBuffer"));
 		}
 
-		uint32* PageDependenciesPtr = (uint32*)RHILockBuffer(PageDependenciesBuffer->GetRHI(), 0, PageDependenciesAllocationSize, RLM_WriteOnly);
+		uint32* PageDependenciesPtr = (uint32*)GraphBuilder.RHICmdList.LockBuffer(PageDependenciesBuffer->GetRHI(), 0, PageDependenciesAllocationSize, RLM_WriteOnly);
 		FMemory::Memcpy(PageDependenciesPtr, FlattenedPageDependencies.GetData(), FlattenedPageDependencies.Num() * sizeof(uint32));
-		RHIUnlockBuffer(PageDependenciesBuffer->GetRHI());
+		GraphBuilder.RHICmdList.UnlockBuffer(PageDependenciesBuffer->GetRHI());
 
 		// Split page installs into passes.
 		// Every pass adds the pages that no longer have any unresolved dependency.
@@ -470,7 +470,7 @@ public:
 			NumRemainingPages -= NumPassPages;
 		}
 
-		RHIUnlockBuffer(InstallInfoUploadBuffer->GetRHI());
+		GraphBuilder.RHICmdList.UnlockBuffer(InstallInfoUploadBuffer->GetRHI());
 
 		FRDGBufferSRV* PageUploadBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(PageUploadBuffer));
 		FRDGBufferSRV* InstallInfoUploadBufferSRV = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(InstallInfoUploadBuffer));

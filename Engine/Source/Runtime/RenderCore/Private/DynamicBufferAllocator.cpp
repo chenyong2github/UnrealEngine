@@ -110,7 +110,7 @@ void FGlobalDynamicReadBuffer::ReleaseRHI()
 }
 
 template<EPixelFormat Format, typename Type>
-FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer_AllocateInternal(FDynamicReadBufferPool* BufferPool, uint32 Num)
+FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer_AllocateInternal(FRHICommandListBase& RHICmdList, FDynamicReadBufferPool* BufferPool, uint32 Num)
 {
 	FScopeLock ScopeLock(&BufferPool->CriticalSection);
 	FGlobalDynamicReadBuffer::FAllocation Allocation;
@@ -143,13 +143,13 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer_AllocateInternal(
 			const uint32 NewBufferSize = FMath::Max(AlignedNum, (uint32)GMinReadBufferRenderingBufferSize);
 			Buffer = new FDynamicAllocReadBuffer();
 			BufferPool->Buffers.Add(Buffer);
-			Buffer->Initialize(TEXT("FGlobalDynamicReadBuffer_AllocateInternal"), sizeof(Type), NewBufferSize, Format, BUF_Volatile);
+			Buffer->Initialize(RHICmdList, TEXT("FGlobalDynamicReadBuffer_AllocateInternal"), sizeof(Type), NewBufferSize, Format, BUF_Volatile);
 		}
 
 		// Lock the buffer if needed.
 		if (Buffer->MappedBuffer == nullptr)
 		{
-			Buffer->Lock();
+			Buffer->Lock(RHICmdList);
 		}
 
 		// Remember this buffer, we'll try to allocate out of it in the future.
@@ -161,7 +161,7 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer_AllocateInternal(
 	checkf(Buffer->AllocatedByteCount + SizeInBytes <= Buffer->NumBytes, TEXT("Global dynamic read buffer allocation failed: BufferSize=%d AllocatedByteCount=%d SizeInBytes=%d"), Buffer->NumBytes, Buffer->AllocatedByteCount, SizeInBytes);
 	Allocation.Buffer = Buffer->MappedBuffer + Buffer->AllocatedByteCount;
 	Allocation.ReadBuffer = Buffer;
-	Buffer->SubAllocations.Emplace(RHICreateShaderResourceView(FShaderResourceViewInitializer(Buffer->Buffer, Format, Buffer->AllocatedByteCount, Num)));
+	Buffer->SubAllocations.Emplace(RHICmdList.CreateShaderResourceView(FShaderResourceViewInitializer(Buffer->Buffer, Format, Buffer->AllocatedByteCount, Num)));
 	Allocation.SRV = Buffer->SubAllocations.Last();
 	Buffer->AllocatedByteCount += SizeInBytes;
 
@@ -177,28 +177,28 @@ void FGlobalDynamicReadBuffer::IncrementTotalAllocations(uint32 Num)
 	}
 }
 
-FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateFloat(uint32 Num)
+FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateFloat(FRHICommandListBase& RHICmdList, uint32 Num)
 {
 	IncrementTotalAllocations(Num);
-	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R32_FLOAT, float>(FloatBufferPool, Num);
+	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R32_FLOAT, float>(RHICmdList, FloatBufferPool, Num);
 }
 
-FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateHalf(uint32 Num)
+FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateHalf(FRHICommandListBase& RHICmdList, uint32 Num)
 {
 	IncrementTotalAllocations(Num);
-	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R16F, FFloat16>(HalfBufferPool, Num);
+	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R16F, FFloat16>(RHICmdList, HalfBufferPool, Num);
 }
 
-FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateInt32(uint32 Num)
+FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateInt32(FRHICommandListBase& RHICmdList, uint32 Num)
 {
 	IncrementTotalAllocations(Num);
-	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R32_SINT, int32>(Int32BufferPool, Num);
+	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R32_SINT, int32>(RHICmdList, Int32BufferPool, Num);
 }
 
-FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateUInt32(uint32 Num)
+FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateUInt32(FRHICommandListBase& RHICmdList, uint32 Num)
 {
 	IncrementTotalAllocations(Num);
-	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R32_UINT, uint32>(UInt32BufferPool, Num);
+	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R32_UINT, uint32>(RHICmdList, UInt32BufferPool, Num);
 }
 
 bool FGlobalDynamicReadBuffer::IsRenderAlarmLoggingEnabled() const
@@ -206,7 +206,7 @@ bool FGlobalDynamicReadBuffer::IsRenderAlarmLoggingEnabled() const
 	return GMaxReadBufferRenderingBytesAllocatedPerFrame > 0 && TotalAllocatedSinceLastCommit >= (size_t)GMaxReadBufferRenderingBytesAllocatedPerFrame;
 }
 
-static void RemoveUnusedBuffers(FDynamicReadBufferPool* BufferPool)
+static void RemoveUnusedBuffers(FRHICommandListBase& RHICmdList, FDynamicReadBufferPool* BufferPool)
 {
 	extern int32 GGlobalBufferNumFramesUnusedThreshold;
 
@@ -215,7 +215,7 @@ static void RemoveUnusedBuffers(FDynamicReadBufferPool* BufferPool)
 		FDynamicAllocReadBuffer& Buffer = BufferPool->Buffers[BufferIndex];
 		if (Buffer.MappedBuffer != nullptr)
 		{
-			Buffer.Unlock();
+			Buffer.Unlock(RHICmdList);
 		}
 		else if (GGlobalBufferNumFramesUnusedThreshold && !Buffer.AllocatedByteCount)
 		{
@@ -232,18 +232,18 @@ static void RemoveUnusedBuffers(FDynamicReadBufferPool* BufferPool)
 	}
 }
 
-void FGlobalDynamicReadBuffer::Commit()
+void FGlobalDynamicReadBuffer::Commit(FRHICommandListBase& RHICmdList)
 {
-	RemoveUnusedBuffers(FloatBufferPool);
+	RemoveUnusedBuffers(RHICmdList, FloatBufferPool);
 	FloatBufferPool->CurrentBuffer = nullptr;
 
-	RemoveUnusedBuffers(Int32BufferPool);
+	RemoveUnusedBuffers(RHICmdList, Int32BufferPool);
 	Int32BufferPool->CurrentBuffer = nullptr;
 
-	RemoveUnusedBuffers(UInt32BufferPool);
+	RemoveUnusedBuffers(RHICmdList, UInt32BufferPool);
 	UInt32BufferPool->CurrentBuffer = nullptr;
 
-	RemoveUnusedBuffers(HalfBufferPool);
+	RemoveUnusedBuffers(RHICmdList, HalfBufferPool);
 	HalfBufferPool->CurrentBuffer = nullptr;
 
 	TotalAllocatedSinceLastCommit = 0;

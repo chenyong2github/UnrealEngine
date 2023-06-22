@@ -135,7 +135,7 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(const FRDGBufferDe
 		RHIBindDebugLabelName(BufferRHI, InDebugName);
 	#endif
 
-		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(MoveTemp(BufferRHI), Desc, AlignedDesc.NumElements, InDebugName);
+		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(RHICmdList, MoveTemp(BufferRHI), Desc, AlignedDesc.NumElements, InDebugName);
 		AllocatedBuffers.Add(PooledBuffer);
 		AllocatedBufferHashes.Add(BufferHash);
 		check(PooledBuffer->GetRefCount() == 2);

@@ -316,16 +316,16 @@ void FGeometryCollectionSceneProxy::CreateRenderThreadResources()
 		const EResourceLockMode LockMode = bLocalGeometryCollectionTripleBufferUploads ? RLM_WriteOnly_NoOverwrite : RLM_WriteOnly;
 
 		FGeometryCollectionTransformBuffer& TransformBuffer = GetCurrentTransformBuffer();
-		TransformBuffer.UpdateDynamicData(RestTransforms, LockMode);
+		TransformBuffer.UpdateDynamicData(RHICmdList, RestTransforms, LockMode);
 		FGeometryCollectionTransformBuffer& PrevTransformBuffer = GetCurrentPrevTransformBuffer();
-		PrevTransformBuffer.UpdateDynamicData(RestTransforms, LockMode);
+		PrevTransformBuffer.UpdateDynamicData(RHICmdList, RestTransforms, LockMode);
 	}
 	else
 	{
 		// Initialize CPU skinning buffer with rest transforms.
 		SkinnedPositionVertexBuffer.Init(MeshResource.PositionVertexBuffer.GetNumVertices(), false);
 		SkinnedPositionVertexBuffer.InitResource(RHICmdList);
-		UpdateSkinnedPositions(RestTransforms);
+		UpdateSkinnedPositions(RHICmdList, RestTransforms);
 	}
 
 	SetupVertexFactory(RHICmdList, VertexFactory);
@@ -487,14 +487,14 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 				
 			if (DynamicData->IsDynamic)
 			{
-				TransformBuffer.UpdateDynamicData(DynamicData->Transforms, LockMode);
-				PrevTransformBuffer.UpdateDynamicData(DynamicData->PrevTransforms, LockMode);
+				TransformBuffer.UpdateDynamicData(RHICmdList, DynamicData->Transforms, LockMode);
+				PrevTransformBuffer.UpdateDynamicData(RHICmdList, DynamicData->PrevTransforms, LockMode);
 			}
 			else
 			{
 				// If we are rendering the base mesh geometry then use RestTransforms for both current and previous transforms.
-				TransformBuffer.UpdateDynamicData(RestTransforms, LockMode);
-				PrevTransformBuffer.UpdateDynamicData(RestTransforms, LockMode);
+				TransformBuffer.UpdateDynamicData(RHICmdList, RestTransforms, LockMode);
+				PrevTransformBuffer.UpdateDynamicData(RHICmdList, RestTransforms, LockMode);
 			}
 
 			UpdateLooseParameter(VertexFactory, TransformBuffer.VertexBufferSRV, PrevTransformBuffer.VertexBufferSRV, MeshResource.BoneMapVertexBuffer.GetSRV());
@@ -511,7 +511,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 	}
 	else
 	{
-		UpdateSkinnedPositions(DynamicData->IsDynamic ? DynamicData->Transforms : RestTransforms);
+		UpdateSkinnedPositions(RHICmdList, DynamicData->IsDynamic ? DynamicData->Transforms : RestTransforms);
 	}
 
 #if RHI_RAYTRACING
@@ -522,13 +522,13 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 #endif
 }
 
-void FGeometryCollectionSceneProxy::UpdateSkinnedPositions(TArray<FMatrix44f> const& Transforms)
+void FGeometryCollectionSceneProxy::UpdateSkinnedPositions(FRHICommandListBase& RHICmdList, TArray<FMatrix44f> const& Transforms)
 {
 	const int32 VertexStride = SkinnedPositionVertexBuffer.GetStride();
 	const int32 VertexCount = SkinnedPositionVertexBuffer.GetNumVertices();
 	check (VertexCount == MeshDescription.NumVertices)
 
-	void* VertexBufferData = RHILockBuffer(SkinnedPositionVertexBuffer.VertexBufferRHI, 0, VertexCount * VertexStride, RLM_WriteOnly);
+	void* VertexBufferData = RHICmdList.LockBuffer(SkinnedPositionVertexBuffer.VertexBufferRHI, 0, VertexCount * VertexStride, RLM_WriteOnly);
 	check(VertexBufferData != nullptr);
 
 	FPositionVertexBuffer const& SourcePositionVertexBuffer = MeshResource.PositionVertexBuffer;
@@ -592,7 +592,7 @@ void FGeometryCollectionSceneProxy::UpdateSkinnedPositions(TArray<FMatrix44f> co
 
 	ParallelFor(NumBatches, GeometryCollectionBatch, !bParallelGeometryCollection);
 
-	RHIUnlockBuffer(SkinnedPositionVertexBuffer.VertexBufferRHI);
+	RHICmdList.UnlockBuffer(SkinnedPositionVertexBuffer.VertexBufferRHI);
 }
 
 FMaterialRenderProxy* FGeometryCollectionSceneProxy::GetMaterial(FMeshElementCollector& Collector, int32 MaterialIndex) const
@@ -1418,11 +1418,11 @@ void FGeometryCollectionDynamicDataPool::Release(FGeometryCollectionDynamicData*
 	}
 }
 
-void FGeometryCollectionTransformBuffer::UpdateDynamicData(const TArray<FMatrix44f>& Transforms, EResourceLockMode LockMode)
+void FGeometryCollectionTransformBuffer::UpdateDynamicData(FRHICommandListBase& RHICmdList, const TArray<FMatrix44f>& Transforms, EResourceLockMode LockMode)
 {
 	check(NumTransforms == Transforms.Num());
 
-	void* VertexBufferData = RHILockBuffer(VertexBufferRHI, 0, Transforms.Num() * sizeof(FMatrix44f), LockMode);
+	void* VertexBufferData = RHICmdList.LockBuffer(VertexBufferRHI, 0, Transforms.Num() * sizeof(FMatrix44f), LockMode);
 	FMemory::Memcpy(VertexBufferData, Transforms.GetData(), Transforms.Num() * sizeof(FMatrix44f));
-	RHIUnlockBuffer(VertexBufferRHI);
+	RHICmdList.UnlockBuffer(VertexBufferRHI);
 }

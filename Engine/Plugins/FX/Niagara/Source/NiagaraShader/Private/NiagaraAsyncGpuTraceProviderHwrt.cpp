@@ -313,7 +313,7 @@ void FNiagaraAsyncGpuTraceProviderHwrt::PostRenderOpaque(FRHICommandList& RHICmd
 	if (UE::FXRenderingUtils::RayTracing::HasRayTracingScene(Scene))
 	{
 		RayTracingScene = UE::FXRenderingUtils::RayTracing::GetRayTracingScene(Scene);
-		RayTracingSceneView = UE::FXRenderingUtils::RayTracing::GetRayTracingSceneView(Scene);
+		RayTracingSceneView = UE::FXRenderingUtils::RayTracing::GetRayTracingSceneView(RHICmdList, Scene);
 		ViewUniformBuffer = ReferenceView.ViewUniformBuffer;
 
 		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ShaderPlatform);

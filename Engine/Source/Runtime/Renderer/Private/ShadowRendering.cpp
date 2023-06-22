@@ -776,8 +776,8 @@ public:
 	virtual void InitRHI(FRHICommandListBase& RHICmdList) override
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoStencilFrustum"));
-		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4f) * 8, BUF_Static, CreateInfo);
-		FVector4f* OutFrustumVertices = reinterpret_cast<FVector4f*>(RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 8, RLM_WriteOnly));
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(sizeof(FVector4f) * 8, BUF_Static, CreateInfo);
+		FVector4f* OutFrustumVertices = reinterpret_cast<FVector4f*>(RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector4f) * 8, RLM_WriteOnly));
 		
 		for(uint32 vZ = 0;vZ < 2;vZ++)
 		{
@@ -794,7 +794,7 @@ public:
 			}
 		}
 
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 	}
 };
 TGlobalResource<FFrustumVertexBuffer> GFrustumVertexBuffer;

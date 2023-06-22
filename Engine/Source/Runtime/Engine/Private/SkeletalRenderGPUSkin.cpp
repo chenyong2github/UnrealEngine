@@ -1369,6 +1369,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 																					const TArray<int32>& SectionIdsUseByActiveMorphTargets, bool bGPUSkinCacheEnabled, FMorphVertexBuffer& MorphVertexBuffer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_Update);
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	if (IsValidRef(MorphVertexBuffer.VertexBufferRHI))
 	{
@@ -1488,7 +1489,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 		// Lock the real buffer.
 		{
 			SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_RhiLockAndCopy);
-			FMorphGPUSkinVertex* ActualBuffer = (FMorphGPUSkinVertex*)RHILockBuffer(MorphVertexBuffer.VertexBufferRHI, 0, Size, RLM_WriteOnly);
+			FMorphGPUSkinVertex* ActualBuffer = (FMorphGPUSkinVertex*)RHICmdList.LockBuffer(MorphVertexBuffer.VertexBufferRHI, 0, Size, RLM_WriteOnly);
 			FMemory::Memcpy(ActualBuffer, Buffer, Size);
 			FMemory::Free(Buffer);
 		}
@@ -1496,7 +1497,7 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 		{
 			SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_RhiUnlock);
 			// Unlock the buffer.
-			RHIUnlockBuffer(MorphVertexBuffer.VertexBufferRHI);
+			RHICmdList.UnlockBuffer(MorphVertexBuffer.VertexBufferRHI);
 			// Copy the section Ids use by all active morph targets
 			MorphVertexBuffer.SectionIds = SectionIdsUseByActiveMorphTargets;
 			// set update flag

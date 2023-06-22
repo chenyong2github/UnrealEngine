@@ -175,10 +175,8 @@ public:
 	}
 
 	/** Called on render thread to assign new dynamic data */
-	void SetDynamicData_RenderThread(FCableDynamicData* NewDynamicData)
+	void SetDynamicData_RenderThread(FRHICommandListBase& RHICmdList, FCableDynamicData* NewDynamicData)
 	{
-		check(IsInRenderingThread());
-
 		if (NewDynamicData != nullptr)
 		{
 			// Build mesh from cable points
@@ -201,35 +199,35 @@ public:
 
 			{
 				auto& VertexBuffer = VertexBuffers.PositionVertexBuffer;
-				void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+				void* VertexBufferData = RHICmdList.LockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 				FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
-				RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
+				RHICmdList.UnlockBuffer(VertexBuffer.VertexBufferRHI);
 			}
 
 			{
 				auto& VertexBuffer = VertexBuffers.ColorVertexBuffer;
-				void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+				void* VertexBufferData = RHICmdList.LockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 				FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
-				RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
+				RHICmdList.UnlockBuffer(VertexBuffer.VertexBufferRHI);
 			}
 
 			{
 				auto& VertexBuffer = VertexBuffers.StaticMeshVertexBuffer;
-				void* VertexBufferData = RHILockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTangentSize(), RLM_WriteOnly);
+				void* VertexBufferData = RHICmdList.LockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTangentSize(), RLM_WriteOnly);
 				FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTangentData(), VertexBuffer.GetTangentSize());
-				RHIUnlockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI);
+				RHICmdList.UnlockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI);
 			}
 
 			{
 				auto& VertexBuffer = VertexBuffers.StaticMeshVertexBuffer;
-				void* VertexBufferData = RHILockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTexCoordSize(), RLM_WriteOnly);
+				void* VertexBufferData = RHICmdList.LockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTexCoordSize(), RLM_WriteOnly);
 				FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTexCoordData(), VertexBuffer.GetTexCoordSize());
-				RHIUnlockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
+				RHICmdList.UnlockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
 			}
 
-			void* IndexBufferData = RHILockBuffer(IndexBuffer.IndexBufferRHI, 0, Indices.Num() * sizeof(int32), RLM_WriteOnly);
+			void* IndexBufferData = RHICmdList.LockBuffer(IndexBuffer.IndexBufferRHI, 0, Indices.Num() * sizeof(int32), RLM_WriteOnly);
 			FMemory::Memcpy(IndexBufferData, &Indices[0], Indices.Num() * sizeof(int32));
-			RHIUnlockBuffer(IndexBuffer.IndexBufferRHI);
+			RHICmdList.UnlockBuffer(IndexBuffer.IndexBufferRHI);
 
 			delete NewDynamicData;
 			NewDynamicData = NULL;
@@ -764,7 +762,7 @@ void UCableComponent::SendRenderDynamicData_Concurrent()
 		ENQUEUE_RENDER_COMMAND(FSendCableDynamicData)(
 			[CableSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
 		{
-			CableSceneProxy->SetDynamicData_RenderThread(DynamicData);
+			CableSceneProxy->SetDynamicData_RenderThread(RHICmdList, DynamicData);
 		});
 	}
 }

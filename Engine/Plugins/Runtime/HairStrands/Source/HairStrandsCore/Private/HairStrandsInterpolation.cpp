@@ -2189,7 +2189,7 @@ void ComputeHairStrandsInterpolation(
 
 		// Sanity check
 		check(Instance->HairGroupPublicData->VFInput.Strands.PositionBuffer.Buffer);
-		Instance->Strands.UniformBuffer.UpdateUniformBufferImmediate(Instance->GetHairStandsUniformShaderParameters(ViewMode));
+		Instance->Strands.UniformBuffer.UpdateUniformBufferImmediate(GraphBuilder.RHICmdList, Instance->GetHairStandsUniformShaderParameters(ViewMode));
 	}
 	else if (InstanceGeometryType == EHairGeometryType::Cards)
 	{	

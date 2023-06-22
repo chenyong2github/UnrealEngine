@@ -43,8 +43,8 @@ FRHIUnorderedAccessView* FNiagaraEmptyUAVPool::GetEmptyUAVFromPool(FRHICommandLi
 			case ENiagaraEmptyUAVType::Buffer:
 			{
 				const uint32 BytesPerElement = GPixelFormats[Format].BlockBytes;
-				NewUAV.Buffer = RHICreateVertexBuffer(BytesPerElement, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
-				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Buffer, Format);
+				NewUAV.Buffer = RHICmdList.CreateVertexBuffer(BytesPerElement, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
+				NewUAV.UAV = RHICmdList.CreateUnorderedAccessView(NewUAV.Buffer, Format);
 				break;
 			}
 			
@@ -55,7 +55,7 @@ FRHIUnorderedAccessView* FNiagaraEmptyUAVPool::GetEmptyUAVFromPool(FRHICommandLi
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
 
 				NewUAV.Texture = RHICreateTexture(Desc);
-				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Texture, 0);
+				NewUAV.UAV = RHICmdList.CreateUnorderedAccessView(NewUAV.Texture, 0);
 				break;
 			}
 			
@@ -66,7 +66,7 @@ FRHIUnorderedAccessView* FNiagaraEmptyUAVPool::GetEmptyUAVFromPool(FRHICommandLi
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
 
 				NewUAV.Texture = RHICreateTexture(Desc);
-				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Texture, 0);
+				NewUAV.UAV = RHICmdList.CreateUnorderedAccessView(NewUAV.Texture, 0);
 				break;
 			}
 			
@@ -77,7 +77,7 @@ FRHIUnorderedAccessView* FNiagaraEmptyUAVPool::GetEmptyUAVFromPool(FRHICommandLi
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
 
 				NewUAV.Texture = RHICreateTexture(Desc);
-				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Texture, 0);
+				NewUAV.UAV = RHICmdList.CreateUnorderedAccessView(NewUAV.Texture, 0);
 				break;
 			}
 			
@@ -88,7 +88,7 @@ FRHIUnorderedAccessView* FNiagaraEmptyUAVPool::GetEmptyUAVFromPool(FRHICommandLi
 					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
 
 				NewUAV.Texture = RHICreateTexture(Desc);
-				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Texture, 0);
+				NewUAV.UAV = RHICmdList.CreateUnorderedAccessView(NewUAV.Texture, 0);
 				break;
 			}
 

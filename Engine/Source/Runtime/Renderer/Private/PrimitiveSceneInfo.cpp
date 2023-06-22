@@ -2059,6 +2059,7 @@ void FPrimitiveSceneInfo::ApplyWorldOffset(FVector InOffset)
 }
 
 void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer(
+	FRHICommandListBase& RHICmdList,
 	const FIndirectLightingCache* LightingCache,
 	const FIndirectLightingCacheAllocation* LightingAllocation,
 	FVector VolumetricLightmapLookupPosition,
@@ -2078,11 +2079,11 @@ void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer(
 
 	if (IndirectLightingCacheUniformBuffer)
 	{
-		IndirectLightingCacheUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+		IndirectLightingCacheUniformBuffer.UpdateUniformBufferImmediate(RHICmdList, Parameters);
 	}
 }
 
-void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer()
+void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer(FRHICommandListBase& RHICmdList)
 {
 	if (bIndirectLightingCacheBufferDirty)
 	{
@@ -2094,6 +2095,7 @@ void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer()
 			&& Proxy->WillEverBeLit())
 		{
 			UpdateIndirectLightingCacheBuffer(
+				RHICmdList,
 				nullptr, 
 				nullptr,
 				Proxy->GetBounds().Origin,
@@ -2104,6 +2106,7 @@ void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer()
 		else if (IndirectLightingCacheAllocation && (Scene->IndirectLightingCache.IsInitialized() && IndirectLightingCacheAllocation->bHasEverUpdatedSingleSample))
 		{
 			UpdateIndirectLightingCacheBuffer(
+				RHICmdList,
 				&Scene->IndirectLightingCache,
 				IndirectLightingCacheAllocation,
 				FVector(0, 0, 0),
@@ -2113,7 +2116,7 @@ void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer()
 		else
 		{
 			// Fallback to the global empty buffer parameters
-			UpdateIndirectLightingCacheBuffer(nullptr, nullptr, FVector(0.0f, 0.0f, 0.0f), 0, nullptr);
+			UpdateIndirectLightingCacheBuffer(RHICmdList, nullptr, nullptr, FVector(0.0f, 0.0f, 0.0f), 0, nullptr);
 		}
 
 		bIndirectLightingCacheBufferDirty = false;

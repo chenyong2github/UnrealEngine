@@ -850,28 +850,28 @@ struct FNiagaraSimCacheHelper
 					if ( CacheLayout->FloatCount > 0 )
 					{
 						FRWBuffer& RWBuffer = DataBuffer.GetGPUBufferFloat();
-						uint8* RWBufferMemory = reinterpret_cast<uint8*>(RHILockBuffer(RWBuffer.Buffer, 0, RWBuffer.NumBytes, RLM_WriteOnly));
+						uint8* RWBufferMemory = reinterpret_cast<uint8*>(RHICmdList.LockBuffer(RWBuffer.Buffer, 0, RWBuffer.NumBytes, RLM_WriteOnly));
 						ReadFloatBuffers(iComponent, CacheLayout->FloatCount, CacheLayout->CacheBufferReadInfo_RT.ComponentMappingsToDataBuffer, *CacheBufferA, MakeArrayView(RWBufferMemory, RWBuffer.NumBytes), DataBuffer.GetFloatStride());
 						ReadCustomBuffers(FrameFraction, FrameDeltaSeconds, SimDeltaSeconds, RebaseTransform, CacheLayout->ComponentVelocity, CacheLayout->CacheBufferReadInfo_RT.VariableCopyMappingsToDataBuffer, *CacheBufferA, *CacheBufferB, RWBufferMemory, DataBuffer.GetFloatStride());
-						RHIUnlockBuffer(RWBuffer.Buffer);
+						RHICmdList.UnlockBuffer(RWBuffer.Buffer);
 					}
 
 					// Copy Half
 					if (CacheLayout->HalfCount > 0)
 					{
 						FRWBuffer& RWBuffer = DataBuffer.GetGPUBufferHalf();
-						uint8* RWBufferMemory = reinterpret_cast<uint8*>(RHILockBuffer(RWBuffer.Buffer, 0, RWBuffer.NumBytes, RLM_WriteOnly));
+						uint8* RWBufferMemory = reinterpret_cast<uint8*>(RHICmdList.LockBuffer(RWBuffer.Buffer, 0, RWBuffer.NumBytes, RLM_WriteOnly));
 						ReadHalfBuffers(iComponent, CacheLayout->HalfCount, CacheLayout->CacheBufferReadInfo_RT.ComponentMappingsToDataBuffer, *CacheBufferA, MakeArrayView(RWBufferMemory, RWBuffer.NumBytes), DataBuffer.GetHalfStride());
-						RHIUnlockBuffer(RWBuffer.Buffer);
+						RHICmdList.UnlockBuffer(RWBuffer.Buffer);
 					}
 
 					// Copy Int32
 					if (CacheLayout->Int32Count > 0)
 					{
 						FRWBuffer& RWBuffer = DataBuffer.GetGPUBufferInt();
-						uint8* RWBufferMemory = reinterpret_cast<uint8*>(RHILockBuffer(RWBuffer.Buffer, 0, RWBuffer.NumBytes, RLM_WriteOnly));
+						uint8* RWBufferMemory = reinterpret_cast<uint8*>(RHICmdList.LockBuffer(RWBuffer.Buffer, 0, RWBuffer.NumBytes, RLM_WriteOnly));
 						ReadInt32Buffers(iComponent, CacheLayout->Int32Count, CacheLayout->CacheBufferReadInfo_RT.ComponentMappingsToDataBuffer, *CacheBufferA, MakeArrayView(RWBufferMemory, RWBuffer.NumBytes), DataBuffer.GetInt32Stride());
-						RHIUnlockBuffer(RWBuffer.Buffer);
+						RHICmdList.UnlockBuffer(RWBuffer.Buffer);
 					}
 				}
 

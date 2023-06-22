@@ -187,6 +187,8 @@ void FARCameraSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InView
 
 void FARCameraSceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
+	FRHICommandListBase& RHICmdList = GraphBuilder.RHICmdList;
+
 	if (VertexBufferRHI == nullptr || !VertexBufferRHI.IsValid())
 	{
 		// Setup vertex buffer
@@ -206,7 +208,7 @@ void FARCameraSceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphB
 		Vertices[3].UV = FVector2f(1.f, 1.f);
 
 		FRHIResourceCreateInfo CreateInfoVB(TEXT("FARCameraSceneViewExtension"), &Vertices);
-		VertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);
+		VertexBufferRHI = RHICmdList.CreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);
 	}
 
 	if (IndexBufferRHI == nullptr || !IndexBufferRHI.IsValid())
@@ -220,7 +222,7 @@ void FARCameraSceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphB
 		FMemory::Memcpy(IndexBuffer.GetData(), Indices, NumIndices * sizeof(uint16));
 
 		FRHIResourceCreateInfo CreateInfoIB(TEXT("FARCameraSceneViewExtension"), &IndexBuffer);
-		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), IndexBuffer.GetResourceDataSize(), BUF_Static, CreateInfoIB);
+		IndexBufferRHI = RHICmdList.CreateIndexBuffer(sizeof(uint16), IndexBuffer.GetResourceDataSize(), BUF_Static, CreateInfoIB);
 	}
 
 	PPMaterial = Channel.GetPostProcessMaterial();

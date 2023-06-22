@@ -349,7 +349,7 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 		CreateInfo.bWithoutNativeResource = !SizeInBytes;
 		if (bRenderThread)
 		{
-			Ret = RHICreateIndexBuffer(IndexStride, SizeInBytes, BufferFlags, CreateInfo);
+			Ret = FRHICommandListImmediate::Get().CreateIndexBuffer(IndexStride, SizeInBytes, BufferFlags, CreateInfo);
 		}
 		else
 		{
@@ -506,7 +506,7 @@ FBufferRHIRef FRawStaticIndexBuffer16or32Interface::CreateRHIIndexBufferInternal
 	CreateInfo.bWithoutNativeResource = !Size;
 	if (bRenderThread)
 	{
-		Ret = RHICreateIndexBuffer(IndexSize, Size, Flags, CreateInfo);
+		Ret = FRHICommandListImmediate::Get().CreateIndexBuffer(IndexSize, Size, Flags, CreateInfo);
 	}
 	else
 	{

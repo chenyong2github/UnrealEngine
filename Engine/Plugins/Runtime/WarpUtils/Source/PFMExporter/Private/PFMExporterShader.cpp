@@ -110,9 +110,9 @@ bool FPFMExporterShader::ApplyPFMExporter_RenderThread(
 	DstPfmMesh.BeginExport_RenderThread(RHICmdList);
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("FPFMExporterShader"));
-	FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * NumVertices, BUF_Dynamic, CreateInfo);
+	FBufferRHIRef VertexBufferRHI = RHICmdList.CreateVertexBuffer(sizeof(FFilterVertex) * NumVertices, BUF_Dynamic, CreateInfo);
 	{//Fill buffer with vertex+selected UV channel:
-		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * NumVertices, RLM_WriteOnly);
+		void* VoidPtr = RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * NumVertices, RLM_WriteOnly);
 		FFilterVertex* pVertices = reinterpret_cast<FFilterVertex*>(VoidPtr);
 		for (uint32 i = 0; i < NumVertices; i++)
 		{
@@ -120,7 +120,7 @@ bool FPFMExporterShader::ApplyPFMExporter_RenderThread(
 			Vertex.Position = VertexPosition.VertexPosition(i);
 				Vertex.UV = VertexBuffer.GetVertexUV(i, UVIndex); // Get UV from selected channel
 		}
-		RHIUnlockBuffer(VertexBufferRHI);
+		RHICmdList.UnlockBuffer(VertexBufferRHI);
 	}
 	FRHIBuffer* IndexBufferRHI = IndexBuffer.IndexBufferRHI;
 

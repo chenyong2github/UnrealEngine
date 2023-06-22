@@ -164,7 +164,7 @@ public:
 			RHICmdList.UnlockBuffer(RHIBuffer);
 		}
 
-		PooledBuffer = new FRDGPooledBuffer(RHIBuffer, BufferDesc, BufferDesc.NumElements, CreateInfo.DebugName);
+		PooledBuffer = new FRDGPooledBuffer(RHICmdList, RHIBuffer, BufferDesc, BufferDesc.NumElements, CreateInfo.DebugName);
 	}
 
 	virtual void ReleaseRHI() override
@@ -251,9 +251,14 @@ FRHIRayTracingScene* UE::FXRenderingUtils::RayTracing::GetRayTracingScene(const 
 
 FRHIShaderResourceView* UE::FXRenderingUtils::RayTracing::GetRayTracingSceneView(const FSceneInterface* InScene)
 {
+	return GetRayTracingSceneView(FRHICommandListImmediate::Get(), InScene);
+}
+
+FRHIShaderResourceView* UE::FXRenderingUtils::RayTracing::GetRayTracingSceneView(FRHICommandListBase& RHICmdList, const FSceneInterface* InScene)
+{
 	if (const FScene* Scene = InScene->GetRenderScene())
 	{
-		return Scene->RayTracingScene.CreateLayerViewRHI(ERayTracingSceneLayer::Base);
+		return Scene->RayTracingScene.CreateLayerViewRHI(RHICmdList, ERayTracingSceneLayer::Base);
 	}
 
 	return nullptr;

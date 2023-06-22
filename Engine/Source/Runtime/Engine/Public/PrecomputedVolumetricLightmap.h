@@ -60,6 +60,9 @@ public:
 
 	ENGINE_API void CreateTexture(FIntVector Dimensions);
 	ENGINE_API void CreateTargetTexture(FIntVector Dimensions);
+	ENGINE_API void CreateUAV(FRHICommandListBase& RHICmdList);
+	
+	UE_DEPRECATED(5.3, "CreateUAV now requires a command list.")
 	ENGINE_API void CreateUAV();
 
 	TArray<uint8> Data;
@@ -497,6 +500,8 @@ struct FVolumetricLightmapBrickTextureSet : public FVolumetricLightmapBasicBrick
 	template<class VolumetricLightmapBrickDataType> // Can be either FVolumetricLightmapBrickData or FVolumetricLightmapBrickTextureSet
 	void Initialize(FIntVector InBrickDataDimensions, VolumetricLightmapBrickDataType& BrickData)
 	{
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 		BrickDataDimensions = InBrickDataDimensions;
 
 		AmbientVector.Format = BrickData.AmbientVector.Format;
@@ -509,22 +514,22 @@ struct FVolumetricLightmapBrickTextureSet : public FVolumetricLightmapBasicBrick
 		}
 
 		AmbientVector.CreateTargetTexture(BrickDataDimensions);
-		AmbientVector.CreateUAV();
+		AmbientVector.CreateUAV(RHICmdList);
 
 		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			SHCoefficients[i].CreateTargetTexture(BrickDataDimensions);
-			SHCoefficients[i].CreateUAV();
+			SHCoefficients[i].CreateUAV(RHICmdList);
 		}
 
 		if (BrickData.SkyBentNormal.Texture.IsValid())
 		{
 			SkyBentNormal.CreateTargetTexture(BrickDataDimensions);
-			SkyBentNormal.CreateUAV();
+			SkyBentNormal.CreateUAV(RHICmdList);
 		}
 
 		DirectionalLightShadowing.CreateTargetTexture(BrickDataDimensions);
-		DirectionalLightShadowing.CreateUAV();
+		DirectionalLightShadowing.CreateUAV(RHICmdList);
 	}
 
 	void Release()

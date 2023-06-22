@@ -220,9 +220,9 @@ void FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(FRHICommandList& 
 	//We can probably be smarter here but for now just push the whole map over to the GPU each time it's dirty.
 	//Ideally this should be a small amount of data and updated infrequently.
 	FReadBuffer NewPrimIdCollisionGroupPairs;
-	NewPrimIdCollisionGroupPairs.Initialize(TEXT("NewPrimIdCollisionGroupPairs"), sizeof(uint32) * 2, AllocInstances, EPixelFormat::PF_R32G32_UINT, BUF_Volatile);
+	NewPrimIdCollisionGroupPairs.Initialize(RHICmdList, TEXT("NewPrimIdCollisionGroupPairs"), sizeof(uint32) * 2, AllocInstances, EPixelFormat::PF_R32G32_UINT, BUF_Volatile);
 
-	uint32* PrimIdCollisionGroupPairPtr = (uint32*)RHILockBuffer(NewPrimIdCollisionGroupPairs.Buffer, 0, AllocInstances * sizeof(uint32) * 2, RLM_WriteOnly);
+	uint32* PrimIdCollisionGroupPairPtr = (uint32*)RHICmdList.LockBuffer(NewPrimIdCollisionGroupPairs.Buffer, 0, AllocInstances * sizeof(uint32) * 2, RLM_WriteOnly);
 	FMemory::Memset(PrimIdCollisionGroupPairPtr, 0, AllocInstances * sizeof(uint32) * 2);
 
 	for (auto Entry : CollisionGroupMap)
@@ -237,7 +237,7 @@ void FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(FRHICommandList& 
 		PrimIdCollisionGroupPairPtr[1] = CollisionGroup;
 		PrimIdCollisionGroupPairPtr += 2;
 	}
-	RHIUnlockBuffer(NewPrimIdCollisionGroupPairs.Buffer);
+	RHICmdList.UnlockBuffer(NewPrimIdCollisionGroupPairs.Buffer);
 
 	//Init the hash table if needed
 	if (Result.HashTableSize < AllocInstances)
@@ -245,10 +245,10 @@ void FNiagaraAsyncGpuTraceProvider::BuildCollisionGroupHashMap(FRHICommandList& 
 		Result.HashTableSize = AllocInstances;
 
 		Result.PrimIdHashTable.Release();
-		Result.PrimIdHashTable.Initialize(TEXT("NiagaraPrimIdHashTable"), sizeof(uint32), AllocInstances, BUF_Static);
+		Result.PrimIdHashTable.Initialize(RHICmdList, TEXT("NiagaraPrimIdHashTable"), sizeof(uint32), AllocInstances, BUF_Static);
 
 		Result.HashToCollisionGroups.Release();
-		Result.HashToCollisionGroups.Initialize(TEXT("NiagaraPrimIdHashToCollisionGroups"), sizeof(uint32), AllocInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
+		Result.HashToCollisionGroups.Initialize(RHICmdList, TEXT("NiagaraPrimIdHashToCollisionGroups"), sizeof(uint32), AllocInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
 	}
 
 	RHICmdList.Transition(FRHITransitionInfo(Result.PrimIdHashTable.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));

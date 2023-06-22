@@ -100,6 +100,8 @@ namespace NDIUObjectPropertyReaderLocal
 			FInstanceData_GameToRender* InstanceData_FromGT = static_cast<FInstanceData_GameToRender*>(PerInstanceData);
 			if ( FInstanceData_RenderThread* InstanceData_RT = PerInstanceData_RenderThread.Find(InstanceID) )
 			{
+				FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 				InstanceData_RT->CachedTransform = InstanceData_FromGT->CachedTransform;
 				if (InstanceData_RT->CachedTransform.IsSet())
 				{
@@ -122,14 +124,14 @@ namespace NDIUObjectPropertyReaderLocal
 					const uint32 NumElements = InstanceData_FromGT->PropertyData.Num() / 4;
 					if (NumElements > 0)
 					{
-						InstanceData_RT->PropertyData.Initialize(TEXT("NiagaraUObjectPropertyReader"), sizeof(float), NumElements, EPixelFormat::PF_R32_FLOAT);
+						InstanceData_RT->PropertyData.Initialize(RHICmdList, TEXT("NiagaraUObjectPropertyReader"), sizeof(float), NumElements, EPixelFormat::PF_R32_FLOAT);
 					}
 				}
 				if (InstanceData_RT->PropertyData.NumBytes > 0)
 				{
-					void* GpuMemory = RHILockBuffer(InstanceData_RT->PropertyData.Buffer, 0, InstanceData_RT->PropertyData.NumBytes, RLM_WriteOnly);
+					void* GpuMemory = RHICmdList.LockBuffer(InstanceData_RT->PropertyData.Buffer, 0, InstanceData_RT->PropertyData.NumBytes, RLM_WriteOnly);
 					FMemory::Memcpy(GpuMemory, InstanceData_FromGT->PropertyData.GetData(), InstanceData_FromGT->PropertyData.Num());
-					RHIUnlockBuffer(InstanceData_RT->PropertyData.Buffer);
+					RHICmdList.UnlockBuffer(InstanceData_RT->PropertyData.Buffer);
 				}
 			}
 			InstanceData_FromGT->~FInstanceData_GameToRender();

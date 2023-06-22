@@ -227,7 +227,7 @@ UVolumeTexture* UTextureRenderTargetVolume::ConstructTextureVolume(UObject* ObjO
  * Called when the resource is initialized, or when reseting all RHI resources.
  * This is only called by the rendering thread.
  */
-void FTextureRenderTargetVolumeResource::InitRHI(FRHICommandListBase&)
+void FTextureRenderTargetVolumeResource::InitRHI(FRHICommandListBase& RHICmdList)
 {
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Owner->GetOutermost(), ELLMTagSet::Assets);
 
@@ -264,7 +264,7 @@ void FTextureRenderTargetVolumeResource::InitRHI(FRHICommandListBase&)
 
 		if (EnumHasAnyFlags(TexCreateFlags, TexCreate_UAV))
 		{
-			UnorderedAccessViewRHI = RHICreateUnorderedAccessView(TextureRHI);
+			UnorderedAccessViewRHI = RHICmdList.CreateUnorderedAccessView(TextureRHI);
 		}
 
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);

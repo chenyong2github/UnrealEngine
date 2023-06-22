@@ -262,27 +262,27 @@ FGPUSortManager::FKeyGenInfo::FKeyGenInfo(uint32 NumElements, bool bHighPrecisio
 //*********************** FGPUSortManager::FValueBuffer ***********************
 //*****************************************************************************
 
-FGPUSortManager::FValueBuffer::FValueBuffer(int32 InAllocatedCount, int32 InUsedCount, const FGPUSortManager::FSettings& InSettings)
+FGPUSortManager::FValueBuffer::FValueBuffer(FRHICommandListBase& RHICmdList, int32 InAllocatedCount, int32 InUsedCount, const FGPUSortManager::FSettings& InSettings)
 	: AllocatedCount(InAllocatedCount)
 	, UsedCount(InUsedCount)
 {
 	check(InUsedCount >= 0 && InUsedCount <= InAllocatedCount);
 
 	FRHIResourceCreateInfo CreateInfo(TEXT("ValueBuffer"));
-	VertexBufferRHI = RHICreateVertexBuffer((uint32)InAllocatedCount * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, ERHIAccess::SRVGraphics, CreateInfo);
+	VertexBufferRHI = RHICmdList.CreateVertexBuffer((uint32)InAllocatedCount * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, ERHIAccess::SRVGraphics, CreateInfo);
 
-	UInt32SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
-	UInt32UAV = RHICreateUnorderedAccessView(VertexBufferRHI, PF_R32_UINT);
+	UInt32SRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
+	UInt32UAV = RHICmdList.CreateUnorderedAccessView(VertexBufferRHI, PF_R32_UINT);
 
 	if (EnumHasAnyFlags(InSettings.AllowedFlags, EGPUSortFlags::ValuesAsInt32))
 	{
-		Int32SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(int32), PF_R32_SINT);
-		Int32UAV = RHICreateUnorderedAccessView(VertexBufferRHI, PF_R32_SINT);
+		Int32SRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(int32), PF_R32_SINT);
+		Int32UAV = RHICmdList.CreateUnorderedAccessView(VertexBufferRHI, PF_R32_SINT);
 	}
 	if (EnumHasAnyFlags(InSettings.AllowedFlags, EGPUSortFlags::ValuesAsG16R16F))
 	{
-		G16R16SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FFloat16) * 2, PF_G16R16F);
-		G16R16UAV = RHICreateUnorderedAccessView(VertexBufferRHI, PF_G16R16F);
+		G16R16SRV = RHICmdList.CreateShaderResourceView(VertexBufferRHI, sizeof(FFloat16) * 2, PF_G16R16F);
+		G16R16UAV = RHICmdList.CreateUnorderedAccessView(VertexBufferRHI, PF_G16R16F);
 	}
 }
 
@@ -321,7 +321,7 @@ void FGPUSortManager::FValueBuffer::ReleaseRHI()
 //******************** FGPUSortManager::FDynamicValueBuffer *******************
 //*****************************************************************************
 
-void FGPUSortManager::FDynamicValueBuffer::Allocate(FAllocationInfo& OutInfo, const FGPUSortManager::FSettings& InSettings, int32 ValueCount, EGPUSortFlags Flags)
+void FGPUSortManager::FDynamicValueBuffer::Allocate(FRHICommandListBase& RHICmdList, FAllocationInfo& OutInfo, const FGPUSortManager::FSettings& InSettings, int32 ValueCount, EGPUSortFlags Flags)
 {
 	if (ValueBuffers.Num())
 	{
@@ -335,7 +335,7 @@ void FGPUSortManager::FDynamicValueBuffer::Allocate(FAllocationInfo& OutInfo, co
 		else
 		{
 			const int32 NewBufferSize = (int32)(RequiredCount * InSettings.BufferSlack);
-			FValueBuffer* NewValueBuffer = new FValueBuffer(NewBufferSize, LastValueBuffer.UsedCount, InSettings);
+			FValueBuffer* NewValueBuffer = new FValueBuffer(RHICmdList, NewBufferSize, LastValueBuffer.UsedCount, InSettings);
 			NewValueBuffer->Allocate(OutInfo, ValueCount, Flags);
 			ValueBuffers.Add(NewValueBuffer);
 		}
@@ -343,13 +343,13 @@ void FGPUSortManager::FDynamicValueBuffer::Allocate(FAllocationInfo& OutInfo, co
 	else
 	{
 		const int32 NewBufferSize = FMath::Max(InSettings.MinBufferSize, (int32)(ValueCount * InSettings.BufferSlack));
-		FValueBuffer* NewValueBuffer = new FValueBuffer(NewBufferSize, 0, InSettings);
+		FValueBuffer* NewValueBuffer = new FValueBuffer(RHICmdList, NewBufferSize, 0, InSettings);
 		NewValueBuffer->Allocate(OutInfo, ValueCount, Flags);
 		ValueBuffers.Add(NewValueBuffer);
 	}
 }
 
-void FGPUSortManager::FDynamicValueBuffer::SkrinkAndReset(const FGPUSortManager::FSettings& InSettings)
+void FGPUSortManager::FDynamicValueBuffer::SkrinkAndReset(FRHICommandListBase& RHICmdList, const FGPUSortManager::FSettings& InSettings)
 {
 	const int32 UsedCount = GetUsedCount();
 	if (UsedCount > 0)
@@ -364,7 +364,7 @@ void FGPUSortManager::FDynamicValueBuffer::SkrinkAndReset(const FGPUSortManager:
 			if (++NumFramesRequiringShrinking > InSettings.FrameCountBeforeShrinking)
 			{
 				ValueBuffers.Empty();
-				ValueBuffers.Add(new FValueBuffer((int32)RecommendedSize, 0, InSettings));
+				ValueBuffers.Add(new FValueBuffer(RHICmdList, (int32)RecommendedSize, 0, InSettings));
 			}
 		}
 		else
@@ -589,6 +589,8 @@ bool FGPUSortManager::AddTask(FAllocationInfo& OutInfo, int32 ValueCount, EGPUSo
 		return false;
 	}
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	LLM_SCOPE(ELLMTag::GPUSort);
 
 	// Can only use flags that were registered initially.
@@ -616,7 +618,7 @@ bool FGPUSortManager::AddTask(FAllocationInfo& OutInfo, int32 ValueCount, EGPUSo
 
 			SortBatch.NumElements += 1;
 			SortBatch.Flags = CombineBatchFlags(SortBatch.Flags, TaskFlags);
-			SortBatch.DynamicValueBuffer->Allocate(OutInfo, Settings, ValueCount, TaskFlags);
+			SortBatch.DynamicValueBuffer->Allocate(RHICmdList, OutInfo, Settings, ValueCount, TaskFlags);
 			return true;
 		}
 	}
@@ -634,7 +636,7 @@ bool FGPUSortManager::AddTask(FAllocationInfo& OutInfo, int32 ValueCount, EGPUSo
 	// since the task flags are more restrictive at this point than the batch flags that subsets as task get grouped.
 	SortBatch.DynamicValueBuffer = GetDynamicValueBufferFromPool(TaskFlags, BatchId);
 	checkSlow(SortBatch.DynamicValueBuffer);
-	SortBatch.DynamicValueBuffer->Allocate(OutInfo, Settings, ValueCount, TaskFlags);
+	SortBatch.DynamicValueBuffer->Allocate(RHICmdList, OutInfo, Settings, ValueCount, TaskFlags);
 
 	return true;
 }
@@ -672,9 +674,8 @@ void FGPUSortManager::FinalizeSortBatches()
 	}
 }
 
-void FGPUSortManager::UpdateSortBuffersPool()
+void FGPUSortManager::UpdateSortBuffersPool(FRHICommandListBase& RHICmdList)
 {
-	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 	int32 NumSortBuffersRequired = DynamicValueBufferPool.Num() ? 1 : 0;
 	int32 MaxSortBuffersSizes = 0;
 
@@ -741,7 +742,7 @@ void FGPUSortManager::OnPreRender(FRDGBuilder& GraphBuilder)
 		{
 			LLM_SCOPE(ELLMTag::GPUSort);
 			FinalizeSortBatches();
-			UpdateSortBuffersPool();
+			UpdateSortBuffersPool(RHICmdList);
 
 			if (SortBatches.Num())
 			{
@@ -827,7 +828,7 @@ void FGPUSortManager::OnPostRenderOpaque(FRDGBuilder& GraphBuilder)
 			}
 			PostPostRenderEvent.Broadcast(RHICmdList);
 
-			ResetDynamicValuesBuffers();
+			ResetDynamicValuesBuffers(RHICmdList);
 		}
 	);
 }
@@ -850,7 +851,7 @@ FGPUSortManager::FDynamicValueBuffer* FGPUSortManager::GetDynamicValueBufferFrom
 	return DynamicValueBuffer;
 }
 
-void FGPUSortManager::ResetDynamicValuesBuffers()
+void FGPUSortManager::ResetDynamicValuesBuffers(FRHICommandListBase& RHICmdList)
 {
 	check(!SortBatches.Num()) ;
 
@@ -859,7 +860,7 @@ void FGPUSortManager::ResetDynamicValuesBuffers()
 		for (int32 Index = 0; Index < DynamicValueBufferPool.Num(); ++Index)
 		{
 			FDynamicValueBuffer& DynamicValueBuffer = DynamicValueBufferPool[Index];
-			DynamicValueBuffer.SkrinkAndReset(Settings);
+			DynamicValueBuffer.SkrinkAndReset(RHICmdList, Settings);
 			if (DynamicValueBuffer.GetAllocatedCount() == 0)
 			{
 				DynamicValueBufferPool.RemoveAtSwap(Index);

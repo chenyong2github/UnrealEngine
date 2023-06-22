@@ -236,7 +236,7 @@ private:
 		 * @param InUsedCount - An initial used count, typically the used size of the previous buffer in FDynamicValueBuffer::ValueBuffers.
 		 * @param InSettings - The buffer allocation settings, in particular what data types are requires for SRV and UAV.
 		 */
-		FValueBuffer(int32 InAllocatedCount, int32 InUsedCount, const FSettings& InSettings);
+		FValueBuffer(FRHICommandListBase& RHICmdList, int32 InAllocatedCount, int32 InUsedCount, const FSettings& InSettings);
 
 		~FValueBuffer() { ReleaseRHI(); }
 
@@ -299,7 +299,7 @@ private:
 		 * @param ValueCount - The number of elements to add to the buffer.
 		 * @param Flags - Flag about what data format needs to be bound, see EGPUSortFlags::AnyValueFormat.
 		 */
-		void Allocate(FAllocationInfo& OutInfo, const FSettings& InSettings, int32 ValueCount, EGPUSortFlags Flags);
+		void Allocate(FRHICommandListBase& RHICmdList, FAllocationInfo& OutInfo, const FSettings& InSettings, int32 ValueCount, EGPUSortFlags Flags);
 
 		/**
 		 * Shrinks the buffer after it has been used this frame if applicable.
@@ -309,7 +309,7 @@ private:
 		 * 
 		 * @param InSettings - Buffer allocation settings, in particular the number of frames required before actually shrinking.
 		 */
-		void SkrinkAndReset(const FSettings& InSettings);
+		void SkrinkAndReset(FRHICommandListBase& RHICmdList, const FSettings& InSettings);
 		
 		/** Release resources */
 		void ReleaseRHI();
@@ -491,9 +491,9 @@ private:
 	/** Setup the final sort flags and the processing order of all batches. Called after no other tasks will be added this frame. */
 	void FinalizeSortBatches();
 	/** Make sure there is enough GPU sort buffers to satisfy all batches created this frame. Free one used ones. */
-	void UpdateSortBuffersPool();
+	void UpdateSortBuffersPool(FRHICommandListBase& RHICmdList);
 	/** Resize (shrink) the DynamicValueBuffers and free the unused ones. */
-	void ResetDynamicValuesBuffers();
+	void ResetDynamicValuesBuffers(FRHICommandListBase& RHICmdList);
 	/** Delete all GPU sort buffers. */
 	void ReleaseSortBuffers();
 

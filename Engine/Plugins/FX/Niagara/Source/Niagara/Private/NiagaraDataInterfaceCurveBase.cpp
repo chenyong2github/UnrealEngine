@@ -540,11 +540,11 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThreadImpl()
 
 			if (RT_ShaderLUT.Num() > 0)
 			{
-				RT_Proxy->CurveLUT.Initialize(TEXT("CurveLUT"), sizeof(float), RT_ShaderLUT.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
+				RT_Proxy->CurveLUT.Initialize(RHICmdList, TEXT("CurveLUT"), sizeof(float), RT_ShaderLUT.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 				const uint32 BufferSize = RT_ShaderLUT.Num() * sizeof(float);
-				void* BufferData = RHILockBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly);
+				void* BufferData = RHICmdList.LockBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly);
 				FPlatformMemory::Memcpy(BufferData, RT_ShaderLUT.GetData(), BufferSize);
-				RHIUnlockBuffer(RT_Proxy->CurveLUT.Buffer);
+				RHICmdList.UnlockBuffer(RT_Proxy->CurveLUT.Buffer);
 				INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RT_Proxy->CurveLUT.NumBytes);
 			}
 		}

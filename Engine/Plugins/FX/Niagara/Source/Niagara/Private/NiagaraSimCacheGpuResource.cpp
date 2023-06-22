@@ -92,18 +92,18 @@ void FNiagaraSimCacheGpuResource::BuildResource(UNiagaraSimCache* SimCache)
 
 	ENQUEUE_RENDER_COMMAND(FNiagaraSimCacheGpuResource_BuildResource)
 	(
-		[this, NumFrames_RT=NumFrames, NumEmitters_RT=NumEmitters, GpuCacheData_RT=MoveTemp(GpuCacheData)](FRHICommandList& CmdList)
+		[this, NumFrames_RT=NumFrames, NumEmitters_RT=NumEmitters, GpuCacheData_RT=MoveTemp(GpuCacheData)](FRHICommandList& RHICmdList)
 		{
 			NumFrames = NumFrames_RT;
 			NumEmitters = NumEmitters_RT;
 			SimCacheBuffer.Release();
 			if (GpuCacheData_RT.Num() > 0)
 			{
-				SimCacheBuffer.Initialize(TEXT("NiagaraSimCache"), sizeof(uint32), GpuCacheData_RT.Num(), EPixelFormat::PF_R32_UINT, BUF_Static);
+				SimCacheBuffer.Initialize(RHICmdList, TEXT("NiagaraSimCache"), sizeof(uint32), GpuCacheData_RT.Num(), EPixelFormat::PF_R32_UINT, BUF_Static);
 
-				void* GpuMemory = RHILockBuffer(SimCacheBuffer.Buffer, 0, SimCacheBuffer.NumBytes, RLM_WriteOnly);
+				void* GpuMemory = RHICmdList.LockBuffer(SimCacheBuffer.Buffer, 0, SimCacheBuffer.NumBytes, RLM_WriteOnly);
 				FMemory::Memcpy(GpuMemory, GpuCacheData_RT.GetData(), SimCacheBuffer.NumBytes);
-				RHIUnlockBuffer(SimCacheBuffer.Buffer);
+				RHICmdList.UnlockBuffer(SimCacheBuffer.Buffer);
 			}
 		}
 	);

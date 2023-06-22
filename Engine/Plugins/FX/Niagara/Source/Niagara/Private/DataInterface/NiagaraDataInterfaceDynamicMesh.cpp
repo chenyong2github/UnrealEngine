@@ -397,11 +397,9 @@ namespace NDIDynamicMeshLocal
 			ReleaseData();
 		}
 
-		void UpdateData(FGameToRenderData& GameToRenderData)
+		void UpdateData(FRHICommandListImmediate& RHICmdList, FGameToRenderData& GameToRenderData)
 		{
 			ReleaseData();
-
-			FRHICommandListImmediate& RHICmdList = FRHICommandListImmediate::Get();
 
 			bGpuUsesDynamicAllocation	= GameToRenderData.bGpuUsesDynamicAllocation;
 			NumSections					= GameToRenderData.MeshSections.Num();
@@ -1139,7 +1137,7 @@ bool UNiagaraDataInterfaceDynamicMesh::PerInstanceTickPostSimulate(void* PerInst
 			[RT_Proxy=GetProxyAs<FNDIProxy>(), RT_SystemInstanceID=InstanceData->SystemInstanceID, RT_GameToRenderData=FGameToRenderData(*InstanceData)](FRHICommandListImmediate& RHICmdList) mutable
 			{
 				FNDIInstanceData_RenderThread& InstanceData_RT = RT_Proxy->InstanceData_RT.FindOrAdd(RT_SystemInstanceID);
-				InstanceData_RT.UpdateData(RT_GameToRenderData);
+				InstanceData_RT.UpdateData(RHICmdList, RT_GameToRenderData);
 			}
 		);
 	}

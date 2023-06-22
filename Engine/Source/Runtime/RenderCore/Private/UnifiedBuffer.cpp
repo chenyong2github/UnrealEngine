@@ -831,6 +831,8 @@ void FRDGScatterUploadBuffer::Init(FRDGBuilder& GraphBuilder, uint32 NumElements
 	NumBytesPerElement = InNumBytesPerElement;
 	bFloat4Buffer = bInFloat4Buffer;
 
+	FRHICommandListBase& RHICmdList = GraphBuilder.RHICmdList;
+
 	const EBufferUsageFlags Usage = bInFloat4Buffer ? BUF_None : BUF_ByteAddressBuffer;
 	const uint32 TypeSize = bInFloat4Buffer ? 16 : 4;
 
@@ -867,16 +869,17 @@ void FRDGScatterUploadBuffer::Init(FRDGBuilder& GraphBuilder, uint32 NumElements
 		AllocatePooledBuffer(Desc, UploadBuffer, Name, ERDGPooledBufferAlignment::None);
 	}
 
-	ScatterData = (uint32*)RHILockBuffer(ScatterBuffer->GetRHI(), 0, ScatterBytes, RLM_WriteOnly);
-	UploadData = (uint8*)RHILockBuffer(UploadBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
+	ScatterData = (uint32*)RHICmdList.LockBuffer(ScatterBuffer->GetRHI(), 0, ScatterBytes, RLM_WriteOnly);
+	UploadData = (uint8*)RHICmdList.LockBuffer(UploadBuffer->GetRHI(), 0, UploadBytes, RLM_WriteOnly);
 }
 
 void FRDGScatterUploadBuffer::ResourceUploadToInternal(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGScatterUploadBuffer::ResourceUploadTo);
+	FRHICommandListBase& RHICmdList = GraphBuilder.RHICmdList;
 
-	RHIUnlockBuffer(ScatterBuffer->GetRHI());
-	RHIUnlockBuffer(UploadBuffer->GetRHI());
+	RHICmdList.UnlockBuffer(ScatterBuffer->GetRHI());
+	RHICmdList.UnlockBuffer(UploadBuffer->GetRHI());
 
 	ScatterData = nullptr;
 	UploadData = nullptr;
@@ -1295,13 +1298,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWBufferStructured>(FRHICommandList&
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, BytesPerElement, NumElements);
+		Buffer.Initialize(RHICmdList, DebugName, BytesPerElement, NumElements);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
-		NewBuffer.Initialize(DebugName, BytesPerElement, NumElements);
+		NewBuffer.Initialize(RHICmdList, DebugName, BytesPerElement, NumElements);
 
 		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
@@ -1330,13 +1333,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWByteAddressBuffer>(FRHICommandList
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, NumBytes);
+		Buffer.Initialize(RHICmdList, DebugName, NumBytes);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWByteAddressBuffer NewBuffer;
-		NewBuffer.Initialize(DebugName, NumBytes);
+		NewBuffer.Initialize(RHICmdList, DebugName, NumBytes);
 
 		RHICmdList.Transition({
 			FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
@@ -1364,13 +1367,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, FRWBuffe
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, BytesPerElement, NumElements, Format);
+		Buffer.Initialize(RHICmdList, DebugName, BytesPerElement, NumElements, Format);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBuffer NewBuffer;
-		NewBuffer.Initialize(DebugName, BytesPerElement, NumElements, Format);
+		NewBuffer.Initialize(RHICmdList, DebugName, BytesPerElement, NumElements, Format);
 
 		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
@@ -1405,13 +1408,13 @@ RENDERCORE_API bool ResizeResourceSOAIfNeeded<FRWBufferStructured>(FRHICommandLi
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, BytesPerElement, NumElements);
+		Buffer.Initialize(RHICmdList, DebugName, BytesPerElement, NumElements);
 		return true;
 	}
 	else if (Params.NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
-		NewBuffer.Initialize(DebugName, BytesPerElement, NumElements);
+		NewBuffer.Initialize(RHICmdList, DebugName, BytesPerElement, NumElements);
 
 		RHICmdList.Transition({
 			FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
@@ -1458,14 +1461,14 @@ RENDERCORE_API bool ResizeResourceSOAIfNeeded(FRDGBuilder& GraphBuilder, FRWBuff
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, BytesPerElement, NumElements);
+		Buffer.Initialize(GraphBuilder.RHICmdList, DebugName, BytesPerElement, NumElements);
 		return true;
 	}
 	else if (Params.NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
 		FRWBufferStructured OldBuffer = Buffer;
-		NewBuffer.Initialize(DebugName, BytesPerElement, NumElements);
+		NewBuffer.Initialize(GraphBuilder.RHICmdList, DebugName, BytesPerElement, NumElements);
 
 		AddPass(GraphBuilder, RDG_EVENT_NAME("ResizeResourceSOAIfNeeded"), 
 			[OldBuffer, NewBuffer, NumElements, NumElementsOld, Params](FRHICommandListImmediate& RHICmdList)
@@ -1531,13 +1534,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferS
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, BytesPerElement, NumElements);
+		Buffer.Initialize(GraphBuilder.RHICmdList, DebugName, BytesPerElement, NumElements);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
-		NewBuffer.Initialize(DebugName, BytesPerElement, NumElements);
+		NewBuffer.Initialize(GraphBuilder.RHICmdList, DebugName, BytesPerElement, NumElements);
 
 		AddCopyBufferPass(GraphBuilder, NewBuffer, Buffer, BytesPerElement);
 
@@ -1555,13 +1558,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWByteAdd
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, NumBytes);
+		Buffer.Initialize(GraphBuilder.RHICmdList, DebugName, NumBytes);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWByteAddressBuffer NewBuffer;
-		NewBuffer.Initialize(DebugName, NumBytes);
+		NewBuffer.Initialize(GraphBuilder.RHICmdList, DebugName, NumBytes);
 
 		AddCopyBufferPass(GraphBuilder, NewBuffer, Buffer, 4);
 
@@ -1579,13 +1582,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBuffer&
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(DebugName, BytesPerElement, NumElements, Format);
+		Buffer.Initialize(GraphBuilder.RHICmdList, DebugName, BytesPerElement, NumElements, Format);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBuffer NewBuffer;
-		NewBuffer.Initialize(DebugName, BytesPerElement, NumElements, Format);
+		NewBuffer.Initialize(GraphBuilder.RHICmdList, DebugName, BytesPerElement, NumElements, Format);
 
 		AddCopyBufferPass(GraphBuilder, NewBuffer, Buffer, BytesPerElement);
 
@@ -1598,6 +1601,7 @@ RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBuffer&
 
 void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement, bool bInFloat4Buffer, const TCHAR* DebugName )
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 	NumScatters = 0;
 	MaxScatters = NumElements;
 	NumBytesPerElement = InNumBytesPerElement;
@@ -1640,8 +1644,8 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 			ScatterBuffer.NumBytes = ScatterBufferSize;
 
 			FRHIResourceCreateInfo CreateInfo(DebugName);
-			ScatterBuffer.Buffer = RHICreateStructuredBuffer(sizeof(uint32), ScatterBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
-			ScatterBuffer.SRV = RHICreateShaderResourceView(ScatterBuffer.Buffer);
+			ScatterBuffer.Buffer = RHICmdList.CreateStructuredBuffer(sizeof(uint32), ScatterBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
+			ScatterBuffer.SRV = RHICmdList.CreateShaderResourceView(ScatterBuffer.Buffer);
 		}
 
 		if (UploadBytes > UploadBuffer.NumBytes || UploadBufferSize < UploadBuffer.NumBytes / 2)
@@ -1651,12 +1655,12 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 			UploadBuffer.NumBytes = UploadBufferSize;
 
 			FRHIResourceCreateInfo CreateInfo(DebugName);
-			UploadBuffer.Buffer = RHICreateStructuredBuffer(TypeSize, UploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
-			UploadBuffer.SRV = RHICreateShaderResourceView(UploadBuffer.Buffer);
+			UploadBuffer.Buffer = RHICmdList.CreateStructuredBuffer(TypeSize, UploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
+			UploadBuffer.SRV = RHICmdList.CreateShaderResourceView(UploadBuffer.Buffer);
 		}
 
-		ScatterData = (uint32*)RHILockBuffer(ScatterBuffer.Buffer, 0, ScatterBytes, RLM_WriteOnly);
-		UploadData = (uint8*)RHILockBuffer(UploadBuffer.Buffer, 0, UploadBytes, RLM_WriteOnly);
+		ScatterData = (uint32*)RHICmdList.LockBuffer(ScatterBuffer.Buffer, 0, ScatterBytes, RLM_WriteOnly);
+		UploadData = (uint8*)RHICmdList.LockBuffer(UploadBuffer.Buffer, 0, UploadBytes, RLM_WriteOnly);
 	}
 }
 
@@ -1714,20 +1718,20 @@ void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, const R
 		{
 			FScatterUploadBufferResourceArray ScatterResourceArray(ScatterData, ScatterDataSize);
 			FRHIResourceCreateInfo CreateInfo(TEXT("ScatterResourceArray"), &ScatterResourceArray);
-			ScatterBuffer.Buffer = RHICreateStructuredBuffer(sizeof(uint32), ScatterDataSize, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
-			ScatterBuffer.SRV = RHICreateShaderResourceView(ScatterBuffer.Buffer);
+			ScatterBuffer.Buffer = RHICmdList.CreateStructuredBuffer(sizeof(uint32), ScatterDataSize, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
+			ScatterBuffer.SRV = RHICmdList.CreateShaderResourceView(ScatterBuffer.Buffer);
 		}
 		{
 			FScatterUploadBufferResourceArray UploadResourceArray(UploadData, UploadDataSize);
 			FRHIResourceCreateInfo CreateInfo(TEXT("ScatterUploadBuffer"), &UploadResourceArray);
-			UploadBuffer.Buffer = RHICreateStructuredBuffer(TypeSize, UploadDataSize, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
-			UploadBuffer.SRV = RHICreateShaderResourceView(UploadBuffer.Buffer);
+			UploadBuffer.Buffer = RHICmdList.CreateStructuredBuffer(TypeSize, UploadDataSize, BUF_ShaderResource | BUF_Volatile | Usage, CreateInfo);
+			UploadBuffer.SRV = RHICmdList.CreateShaderResourceView(UploadBuffer.Buffer);
 		}
 	}
 	else
 	{
-		RHIUnlockBuffer(ScatterBuffer.Buffer);
-		RHIUnlockBuffer(UploadBuffer.Buffer);
+		RHICmdList.UnlockBuffer(ScatterBuffer.Buffer);
+		RHICmdList.UnlockBuffer(UploadBuffer.Buffer);
 
 		ScatterData = nullptr;
 		UploadData = nullptr;

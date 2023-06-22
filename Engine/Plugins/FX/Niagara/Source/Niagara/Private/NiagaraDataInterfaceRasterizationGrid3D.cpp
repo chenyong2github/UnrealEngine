@@ -1124,6 +1124,9 @@ void FNiagaraDataInterfaceProxyRasterizationGrid3D::PreStage(const FNDIGpuComput
 
 	RasterizationGrid3DRWInstanceData& InstanceData = SystemInstancesToProxyData.FindChecked(Context.GetSystemInstanceID());
 
+	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+	FRHICommandListBase& RHICmdList = GraphBuilder.RHICmdList;
+
 	const uint32 NumTotalCells = InstanceData.NumCells.X * InstanceData.NumCells.Y * InstanceData.NumCells.Z * InstanceData.TotalNumAttributes;
 
 	// Resize was requested
@@ -1164,12 +1167,11 @@ void FNiagaraDataInterfaceProxyRasterizationGrid3D::PreStage(const FNDIGpuComput
 			);
 		}
 		PerAttributeData[InstanceData.TotalNumAttributes * 2] = FVector4f(65535, 65535, 65535, 65535);
-		InstanceData.PerAttributeData.Initialize(TEXT("Grid3D::PerAttributeData"), sizeof(FVector4f), PerAttributeData.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &PerAttributeData);
+		InstanceData.PerAttributeData.Initialize(RHICmdList, TEXT("Grid3D::PerAttributeData"), sizeof(FVector4f), PerAttributeData.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Static, &PerAttributeData);
 	}
 
 	if (Context.IsOutputStage() && NumTotalCells > 0 && InstanceData.ClearBeforeNonIterationStage)
 	{
-		FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
 		const FUintVector4 ResetValue(InstanceData.ResetValue, InstanceData.ResetValue, InstanceData.ResetValue, InstanceData.ResetValue);
 		AddClearUAVPass(GraphBuilder, InstanceData.RasterizationTexture.GetOrCreateUAV(GraphBuilder), ResetValue);
 	}

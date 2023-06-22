@@ -333,7 +333,7 @@ FRayTracingAccelerationStructureSize FMetalDynamicRHI::RHICalcRayTracingSceneSiz
 	}
 }
 
-FMetalRayTracingGeometry::FMetalRayTracingGeometry(const FRayTracingGeometryInitializer& InInitializer)
+FMetalRayTracingGeometry::FMetalRayTracingGeometry(FRHICommandListBase& RHICmdList, const FRayTracingGeometryInitializer& InInitializer)
 	: FRHIRayTracingGeometry(InInitializer)
 	, bHasPendingCompactionRequests(false)
 {
@@ -370,7 +370,7 @@ FMetalRayTracingGeometry::FMetalRayTracingGeometry(const FRayTracingGeometryInit
 	FRHIResourceCreateInfo BlasBufferCreateInfo(*DebugNameString);
 	for (uint32 i = 0; i < MaxNumAccelerationStructure; i++)
 	{
-		AccelerationStructure[i] = ResourceCast(RHICreateBuffer(SizeInfo.ResultSize, BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, BlasBufferCreateInfo).GetReference());
+		AccelerationStructure[i] = ResourceCast(RHICmdList.CreateBuffer(SizeInfo.ResultSize, BUF_AccelerationStructure, 0, ERHIAccess::BVHWrite, BlasBufferCreateInfo).GetReference());
 		check(AccelerationStructure[i]);
 
 		AccelerationStructure[i]->AccelerationStructureHandle.SetLabel(TCHAR_TO_ANSI(*DebugNameString));
@@ -888,10 +888,10 @@ FRayTracingSceneRHIRef FMetalDynamicRHI::RHICreateRayTracingScene(FRayTracingSce
 	}
 }
 
-FRayTracingGeometryRHIRef FMetalDynamicRHI::RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer)
+FRayTracingGeometryRHIRef FMetalDynamicRHI::RHICreateRayTracingGeometry(FRHICommandListBase& RHICmdList, const FRayTracingGeometryInitializer& Initializer)
 {
 	@autoreleasepool {
-		return new FMetalRayTracingGeometry(Initializer);
+		return new FMetalRayTracingGeometry(RHICmdList, Initializer);
 	}
 }
 

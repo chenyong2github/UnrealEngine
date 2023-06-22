@@ -457,7 +457,7 @@ void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList&
 	TCHAR DebugBufferName[128];
 	FCString::Snprintf(DebugBufferName, UE_ARRAY_COUNT(DebugBufferName), TEXT("NiagaraFreeIDList_%s"), DebugSimName ? DebugSimName : TEXT(""));
 	FRWBuffer NewFreeIDsBuffer;
-	NewFreeIDsBuffer.Initialize(DebugBufferName, sizeof(int32), NumIDsToAlloc, EPixelFormat::PF_R32_SINT, BUF_Static);
+	NewFreeIDsBuffer.Initialize(RHICmdList, DebugBufferName, sizeof(int32), NumIDsToAlloc, EPixelFormat::PF_R32_SINT, BUF_Static);
 
 	FRHIShaderResourceView* ExistingBuffer = GPUNumAllocatedIDs > 0 ? GPUFreeIDs.SRV.GetReference() : FNiagaraRenderer::GetDummyIntBuffer();
 
@@ -844,7 +844,7 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 				GPUBufferFloat.Release();
 			}
 			NiagaraWarnGpuBufferSize(RequiredFloatByteSize, DebugSimName);
-			GPUBufferFloat.Initialize(TEXT("GPUBufferFloat"), sizeof(float), RequiredFloatByteSize / sizeof(float), EPixelFormat::PF_R32_FLOAT, ERHIAccess::SRVMask, GPUBufferFlags);
+			GPUBufferFloat.Initialize(RHICmdList, TEXT("GPUBufferFloat"), sizeof(float), RequiredFloatByteSize / sizeof(float), EPixelFormat::PF_R32_FLOAT, ERHIAccess::SRVMask, GPUBufferFlags);
 		}
 
 		// Half buffer requires growing or shrinking?
@@ -857,7 +857,7 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 				GPUBufferHalf.Release();
 			}
 			NiagaraWarnGpuBufferSize(RequiredHalfByteSize, DebugSimName);
-			GPUBufferHalf.Initialize(TEXT("GPUBufferHalf"), sizeof(FFloat16), RequiredHalfByteSize / sizeof(FFloat16), EPixelFormat::PF_R16F, ERHIAccess::SRVMask, GPUBufferFlags);
+			GPUBufferHalf.Initialize(RHICmdList, TEXT("GPUBufferHalf"), sizeof(FFloat16), RequiredHalfByteSize / sizeof(FFloat16), EPixelFormat::PF_R16F, ERHIAccess::SRVMask, GPUBufferFlags);
 		}
 
 		// Int buffer requires growing or shrinking?
@@ -870,7 +870,7 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 				GPUBufferInt.Release();
 			}
 			NiagaraWarnGpuBufferSize(RequiredInt32ByteSize, DebugSimName);
-			GPUBufferInt.Initialize(TEXT("GPUBufferInt"), sizeof(int32), RequiredInt32ByteSize / sizeof(int32), EPixelFormat::PF_R32_SINT, ERHIAccess::SRVMask, GPUBufferFlags);
+			GPUBufferInt.Initialize(RHICmdList, TEXT("GPUBufferInt"), sizeof(int32), RequiredInt32ByteSize / sizeof(int32), EPixelFormat::PF_R32_SINT, ERHIAccess::SRVMask, GPUBufferFlags);
 		}
 
 		// Allocate persistent IDs?
@@ -887,7 +887,7 @@ void FNiagaraDataBuffer::AllocateGPU(FRHICommandList& RHICmdList, uint32 InNumIn
 				NiagaraWarnGpuBufferSize(NumNeededElems * sizeof(int32), DebugSimName);
 				TStringBuilder<128> DebugBufferName;
 				DebugBufferName.Appendf(TEXT("NiagaraIDToIndexTable_%s_%p"), DebugSimName ? DebugSimName : TEXT(""), this);
-				GPUIDToIndexTable.Initialize(DebugBufferName.ToString(), sizeof(int32), NumNeededElems, EPixelFormat::PF_R32_SINT, ERHIAccess::SRVCompute, BUF_Static);
+				GPUIDToIndexTable.Initialize(RHICmdList, DebugBufferName.ToString(), sizeof(int32), NumNeededElems, EPixelFormat::PF_R32_SINT, ERHIAccess::SRVCompute, BUF_Static);
 			}
 		}
 	}
@@ -1285,9 +1285,9 @@ void FNiagaraDataBuffer::PushCPUBuffersToGPU(const TArray<FNiagaraDataBufferRef>
 		uint32 IntComponents = Owner->GetNumInt32Components();
 		uint32 HalfComponents = Owner->GetNumHalfComponents();
 
-		uint8* MappedBufferFloat = GPUBufferFloat.Buffer ? (uint8*)RHILockBuffer(GPUBufferFloat.Buffer, 0, FloatComponents * FloatStride, RLM_WriteOnly) : nullptr;
-		uint8* MappedBufferInt32 = GPUBufferInt.Buffer ? (uint8*)RHILockBuffer(GPUBufferInt.Buffer, 0, IntComponents * Int32Stride, RLM_WriteOnly) : nullptr;
-		uint8* MappedBufferHalf = GPUBufferHalf.Buffer ? (uint8*)RHILockBuffer(GPUBufferHalf.Buffer, 0, HalfComponents * HalfStride, RLM_WriteOnly) : nullptr;
+		uint8* MappedBufferFloat = GPUBufferFloat.Buffer ? (uint8*)RHICmdList.LockBuffer(GPUBufferFloat.Buffer, 0, FloatComponents * FloatStride, RLM_WriteOnly) : nullptr;
+		uint8* MappedBufferInt32 = GPUBufferInt.Buffer ? (uint8*)RHICmdList.LockBuffer(GPUBufferInt.Buffer, 0, IntComponents * Int32Stride, RLM_WriteOnly) : nullptr;
+		uint8* MappedBufferHalf = GPUBufferHalf.Buffer ? (uint8*)RHICmdList.LockBuffer(GPUBufferHalf.Buffer, 0, HalfComponents * HalfStride, RLM_WriteOnly) : nullptr;
 
 		for (uint32 CompIdx = 0; CompIdx < FloatComponents; ++CompIdx)
 		{
@@ -1330,17 +1330,17 @@ void FNiagaraDataBuffer::PushCPUBuffersToGPU(const TArray<FNiagaraDataBufferRef>
 
 		if (MappedBufferFloat)
 		{
-			RHIUnlockBuffer(GPUBufferFloat.Buffer);
+			RHICmdList.UnlockBuffer(GPUBufferFloat.Buffer);
 		}
 
 		if (MappedBufferInt32)
 		{
-			RHIUnlockBuffer(GPUBufferInt.Buffer);
+			RHICmdList.UnlockBuffer(GPUBufferInt.Buffer);
 		}
 
 		if (MappedBufferHalf)
 		{
-			RHIUnlockBuffer(GPUBufferHalf.Buffer);
+			RHICmdList.UnlockBuffer(GPUBufferHalf.Buffer);
 		}
 	}
 }

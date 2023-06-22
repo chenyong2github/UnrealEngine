@@ -161,8 +161,8 @@ public:
 	 */
 	ENGINE_API void SetDynamicParameterBuffer(const FVertexBuffer* InDynamicParameterBuffer, uint32 StreamOffset, uint32 Stride);
 
-	ENGINE_API uint8* LockPreviousTransformBuffer(uint32 ParticleCount);
-	ENGINE_API void UnlockPreviousTransformBuffer();
+	ENGINE_API uint8* LockPreviousTransformBuffer(FRHICommandListBase& RHICmdList, uint32 ParticleCount);
+	ENGINE_API void UnlockPreviousTransformBuffer(FRHICommandListBase& RHICmdList);
 	ENGINE_API FRHIShaderResourceView* GetPreviousTransformBufferSRV() const;
 
 	/**

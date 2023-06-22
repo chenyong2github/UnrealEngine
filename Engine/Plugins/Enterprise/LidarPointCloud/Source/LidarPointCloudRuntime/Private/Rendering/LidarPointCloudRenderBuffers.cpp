@@ -121,13 +121,15 @@ void FLidarPointCloudRenderBuffer::Initialize(FLidarPointCloudPoint* Data, int32
 {
 	Resize(NumPoints * 5);
 
-	uint8* StructuredBuffer = (uint8*)RHILockBuffer(Buffer, 0, NumPoints * sizeof(FLidarPointCloudPoint), RLM_WriteOnly);
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
+	uint8* StructuredBuffer = (uint8*)RHICmdList.LockBuffer(Buffer, 0, NumPoints * sizeof(FLidarPointCloudPoint), RLM_WriteOnly);
 	for (FLidarPointCloudPoint* P = Data, *DataEnd = P + NumPoints; P != DataEnd; ++P)
 	{
 		FMemory::Memcpy(StructuredBuffer, P, sizeof(FLidarPointCloudPoint));
 		StructuredBuffer += sizeof(FLidarPointCloudPoint);
 	}
-	RHIUnlockBuffer(Buffer);
+	RHICmdList.UnlockBuffer(Buffer);
 }
 
 //////////////////////////////////////////////////////////// Ray Tracing Geometry

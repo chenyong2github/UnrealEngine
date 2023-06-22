@@ -146,9 +146,12 @@ public:
 		return TUniformBufferRef<TBufferStruct>(RHICreateUniformBuffer(nullptr, TUniformBufferMetadataHelper<TBufferStruct>::GetStructMetadata()->GetLayoutPtr(), Usage, EUniformBufferValidation::ValidateResources));
 	}
 
+	UE_DEPRECATED(5.3, "UpdateUniformBufferImmediate requires a command list.")
 	void UpdateUniformBufferImmediate(const TBufferStruct& Value)
 	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RHIUpdateUniformBuffer(GetReference(), &Value);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	void UpdateUniformBufferImmediate(FRHICommandListBase& RHICmdList, const TBufferStruct& Value)

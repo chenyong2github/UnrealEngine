@@ -1224,6 +1224,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 			for (const FRayTracingDynamicGeometryUpdateParams& DynamicRayTracingGeometryUpdate : MaterialGatheringContext.DynamicRayTracingGeometriesToUpdate)
 			{
 				Scene->GetRayTracingDynamicGeometryCollection()->AddDynamicMeshBatchForGeometryUpdate(
+					GraphBuilder.RHICmdList,
 					Scene,
 					&View,
 					SceneProxy,
@@ -2293,7 +2294,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 			NaniteRayTracingUniformParams.HierarchyBuffer = PassParams->HierarchyBuffer->GetRHI();
 			NaniteRayTracingUniformParams.RayTracingDataBuffer = PassParams->RayTracingDataBuffer->GetRHI();
 
-			Nanite::GRayTracingManager.GetUniformBuffer().UpdateUniformBufferImmediate(NaniteRayTracingUniformParams);
+			Nanite::GRayTracingManager.GetUniformBuffer().UpdateUniformBufferImmediate(RHICmdList, NaniteRayTracingUniformParams);
 		}
 
 		check(ReferenceView.RayTracingMaterialPipeline || ReferenceView.RayTracingMaterialBindings.Num() == 0);
@@ -2336,7 +2337,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 			if (bAnyLumenHardwareInlineRayTracingPassEnabled)
 			{
-				BuildLumenHardwareRayTracingHitGroupData(Scene->RayTracingScene, ReferenceView, ReferenceView.LumenHardwareRayTracingHitDataBuffer);
+				BuildLumenHardwareRayTracingHitGroupData(RHICmdList, Scene->RayTracingScene, ReferenceView, ReferenceView.LumenHardwareRayTracingHitDataBuffer);
 			}
 		}
 
@@ -2389,7 +2390,7 @@ void FDeferredShadingSceneRenderer::FinishInitDynamicShadows(FRDGBuilder& GraphB
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
 		DynamicVertexBufferForInitShadows.Commit();
 		DynamicIndexBufferForInitShadows.Commit();
-		DynamicReadBufferForInitShadows.Commit();
+		DynamicReadBufferForInitShadows.Commit(GraphBuilder.RHICmdList);
 	}
 }
 
@@ -3005,7 +3006,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
 			DynamicIndexBufferForInitViews.Commit();
 			DynamicVertexBufferForInitViews.Commit();
-			DynamicReadBufferForInitViews.Commit();
+			DynamicReadBufferForInitViews.Commit(GraphBuilder.RHICmdList);
 		}
 	}
 

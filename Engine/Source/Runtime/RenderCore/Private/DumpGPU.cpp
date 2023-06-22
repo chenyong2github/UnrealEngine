@@ -1072,7 +1072,7 @@ public:
 		if (UAV)
 		{
 			check(Access == ERHIAccess::UAVCompute);
-			NewEntry->UAV = RHICreateUnorderedAccessView(*Texture, /* MipLevel = */ 0);
+			NewEntry->UAV = RHICmdList.CreateUnorderedAccessView(*Texture, /* MipLevel = */ 0);
 			*UAV = NewEntry->UAV;
 		}
 		else
@@ -1155,7 +1155,7 @@ public:
 						CreateStagingTexture(Desc, /* out */ &StagingSrcTextureRef);
 
 						RHICmdList.Transition(FRHITransitionInfo(StagingSrcTextureRef, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-						StagingOutput = RHICreateUnorderedAccessView(StagingSrcTextureRef, /* MipLevel = */ 0);
+						StagingOutput = RHICmdList.CreateUnorderedAccessView(StagingSrcTextureRef, /* MipLevel = */ 0);
 					}
 					StagingSrcTexture = StagingSrcTextureRef;
 				}
@@ -1288,7 +1288,7 @@ public:
 		FShaderResourceViewRHIRef SubResourceSRV;
 		if (SubresourceDumpDesc.bPreprocessForStaging)
 		{
-			SubResourceSRV = RHICreateShaderResourceView(RHITexture, FRHITextureSRVCreateInfo(SubresourceDesc));
+			SubResourceSRV = RHICmdList.CreateShaderResourceView(RHITexture, FRHITextureSRVCreateInfo(SubresourceDesc));
 			RHICmdListImmediate.Transition(FRHITransitionInfo(RHITexture, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		}
 		else

@@ -582,7 +582,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	// Global dynamic buffers need to be committed before rendering.
 	DynamicIndexBuffer.Commit();
 	DynamicVertexBuffer.Commit();
-	DynamicReadBuffer.Commit();
+	DynamicReadBuffer.Commit(GraphBuilder.RHICmdList);
 
 	InstanceCullingManager.FlushRegisteredViews(GraphBuilder);
 
@@ -663,7 +663,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	// Global dynamic buffers need to be committed before rendering.
 	DynamicIndexBufferForInitViews.Commit();
 	DynamicVertexBufferForInitViews.Commit();
-	DynamicReadBufferForInitViews.Commit();
+	DynamicReadBufferForInitViews.Commit(GraphBuilder.RHICmdList);
 
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem && Views.IsValidIndex(0))

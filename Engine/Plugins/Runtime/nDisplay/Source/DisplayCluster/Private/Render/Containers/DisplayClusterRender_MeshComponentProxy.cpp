@@ -91,9 +91,9 @@ void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHIComman
 			}
 		
 			FRHIResourceCreateInfo CreateInfo(TEXT("DisplayClusterRender_MeshComponentProxy_VertexBuffer"));
-			VertexBufferRHI = RHICreateVertexBuffer(VertexDataSize, Usage, CreateInfo);
+			VertexBufferRHI = RHICmdList.CreateVertexBuffer(VertexDataSize, Usage, CreateInfo);
 
-			FDisplayClusterMeshVertexType* DestVertexData = reinterpret_cast<FDisplayClusterMeshVertexType*>(RHILockBuffer(VertexBufferRHI, 0, VertexDataSize, RLM_WriteOnly));
+			FDisplayClusterMeshVertexType* DestVertexData = reinterpret_cast<FDisplayClusterMeshVertexType*>(RHICmdList.LockBuffer(VertexBufferRHI, 0, VertexDataSize, RLM_WriteOnly));
 			if (DestVertexData)
 			{
 				const FDisplayClusterMeshVertex* SrcVertexData = InMeshData->GetVertexData().GetData();
@@ -102,7 +102,7 @@ void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHIComman
 					DestVertexData[VertexIdx].SetVertexData(SrcVertexData[VertexIdx]);
 				}
 			
-				RHIUnlockBuffer(VertexBufferRHI);
+				RHICmdList.UnlockBuffer(VertexBufferRHI);
 			}
 		}
 
@@ -111,13 +111,13 @@ void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHIComman
 			size_t IndexDataSize = sizeof(uint32) * InMeshData->GetIndexData().Num();
 
 			FRHIResourceCreateInfo CreateInfo(TEXT("DisplayClusterRender_MeshComponentProxy_IndexBuffer"));
-			IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), IndexDataSize, Usage, CreateInfo);
+			IndexBufferRHI = RHICmdList.CreateIndexBuffer(sizeof(uint32), IndexDataSize, Usage, CreateInfo);
 
-			uint32* DestIndexData = reinterpret_cast<uint32*>(RHILockBuffer(IndexBufferRHI, 0, IndexDataSize, RLM_WriteOnly));
+			uint32* DestIndexData = reinterpret_cast<uint32*>(RHICmdList.LockBuffer(IndexBufferRHI, 0, IndexDataSize, RLM_WriteOnly));
 			if(DestIndexData)
 			{
 				FPlatformMemory::Memcpy(DestIndexData, InMeshData->GetIndexData().GetData(), IndexDataSize);
-				RHIUnlockBuffer(IndexBufferRHI);
+				RHICmdList.UnlockBuffer(IndexBufferRHI);
 			}
 		}
 	}

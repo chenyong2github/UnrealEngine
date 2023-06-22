@@ -258,6 +258,15 @@ void FGeometryCacheVertexVertexFactory::InitRHI(FRHICommandListBase& RHICmdList)
 }
 
 void FGeometryCacheVertexVertexFactory::CreateManualVertexFetchUniformBuffer(
+	const FVertexBuffer* PositionBuffer,
+	const FVertexBuffer* MotionBlurBuffer,
+	FGeometryCacheVertexFactoryUserData& OutUserData) const
+{
+	CreateManualVertexFetchUniformBuffer(FRHICommandListImmediate::Get(), PositionBuffer, MotionBlurBuffer, OutUserData);
+}
+
+void FGeometryCacheVertexVertexFactory::CreateManualVertexFetchUniformBuffer(
+	FRHICommandListBase& RHICmdList,
 	const FVertexBuffer* PoistionBuffer, 
 	const FVertexBuffer* MotionBlurBuffer,
 	FGeometryCacheVertexFactoryUserData& OutUserData) const
@@ -266,7 +275,7 @@ void FGeometryCacheVertexVertexFactory::CreateManualVertexFetchUniformBuffer(
 
 	if (PoistionBuffer != NULL)
 	{
-		OutUserData.PositionSRV = RHICreateShaderResourceView(PoistionBuffer->VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+		OutUserData.PositionSRV = RHICmdList.CreateShaderResourceView(PoistionBuffer->VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		// Position will need per-component fetch since we don't have R32G32B32 pixel format
 		ManualVertexFetchParameters.Position = OutUserData.PositionSRV;
 	}
@@ -277,7 +286,7 @@ void FGeometryCacheVertexVertexFactory::CreateManualVertexFetchUniformBuffer(
 
 	if (Data.TangentBasisComponents[0].VertexBuffer != NULL)
 	{
-		OutUserData.TangentXSRV = RHICreateShaderResourceView(Data.TangentBasisComponents[0].VertexBuffer->VertexBufferRHI, sizeof(FPackedNormal), PF_R8G8B8A8_SNORM);
+		OutUserData.TangentXSRV = RHICmdList.CreateShaderResourceView(Data.TangentBasisComponents[0].VertexBuffer->VertexBufferRHI, sizeof(FPackedNormal), PF_R8G8B8A8_SNORM);
 		ManualVertexFetchParameters.TangentX = OutUserData.TangentXSRV;
 	}
 	else
@@ -287,7 +296,7 @@ void FGeometryCacheVertexVertexFactory::CreateManualVertexFetchUniformBuffer(
 
 	if (Data.TangentBasisComponents[1].VertexBuffer != NULL)
 	{
-		OutUserData.TangentZSRV = RHICreateShaderResourceView(Data.TangentBasisComponents[1].VertexBuffer->VertexBufferRHI, sizeof(FPackedNormal), PF_R8G8B8A8_SNORM);
+		OutUserData.TangentZSRV = RHICmdList.CreateShaderResourceView(Data.TangentBasisComponents[1].VertexBuffer->VertexBufferRHI, sizeof(FPackedNormal), PF_R8G8B8A8_SNORM);
 		ManualVertexFetchParameters.TangentZ = OutUserData.TangentZSRV;
 	}
 	else
@@ -297,7 +306,7 @@ void FGeometryCacheVertexVertexFactory::CreateManualVertexFetchUniformBuffer(
 
 	if (Data.ColorComponent.VertexBuffer)
 	{
-		OutUserData.ColorSRV = RHICreateShaderResourceView(Data.ColorComponent.VertexBuffer->VertexBufferRHI, sizeof(FColor), PF_B8G8R8A8);
+		OutUserData.ColorSRV = RHICmdList.CreateShaderResourceView(Data.ColorComponent.VertexBuffer->VertexBufferRHI, sizeof(FColor), PF_B8G8R8A8);
 		ManualVertexFetchParameters.Color = OutUserData.ColorSRV;
 	}
 	else
@@ -308,7 +317,7 @@ void FGeometryCacheVertexVertexFactory::CreateManualVertexFetchUniformBuffer(
 
 	if (MotionBlurBuffer)
 	{
-		OutUserData.MotionBlurDataSRV = RHICreateShaderResourceView(MotionBlurBuffer->VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+		OutUserData.MotionBlurDataSRV = RHICmdList.CreateShaderResourceView(MotionBlurBuffer->VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		ManualVertexFetchParameters.MotionBlurData = OutUserData.MotionBlurDataSRV;
 	}
 	else if (PoistionBuffer != NULL)
@@ -323,7 +332,7 @@ void FGeometryCacheVertexVertexFactory::CreateManualVertexFetchUniformBuffer(
 	if (Data.TextureCoordinates.Num())
 	{
 		checkf(Data.TextureCoordinates.Num() <= 1, TEXT("We're assuming FGeometryCacheSceneProxy uses only one TextureCoordinates vertex buffer"));
-		OutUserData.TexCoordsSRV = RHICreateShaderResourceView(Data.TextureCoordinates[0].VertexBuffer->VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+		OutUserData.TexCoordsSRV = RHICmdList.CreateShaderResourceView(Data.TextureCoordinates[0].VertexBuffer->VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
 		// TexCoords will need per-component fetch since we don't have R32G32 pixel format
 		ManualVertexFetchParameters.TexCoords = OutUserData.TexCoordsSRV;
 	}

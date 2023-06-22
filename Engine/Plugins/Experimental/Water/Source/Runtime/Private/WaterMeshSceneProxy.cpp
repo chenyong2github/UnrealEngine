@@ -174,6 +174,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Water);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FWaterMeshSceneProxy::GetDynamicMeshElements);
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	// The water render groups we have to render for this batch : 
 	TArray<EWaterMeshRenderGroupType, TInlineAllocator<WaterVertexFactoryType::NumRenderGroups>> BatchRenderGroups;
@@ -293,7 +294,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 		return;
 	}
 
-	WaterInstanceDataBuffers->Lock(TotalInstanceCount * InstanceFactor);
+	WaterInstanceDataBuffers->Lock(RHICmdList, TotalInstanceCount * InstanceFactor);
 
 	int32 InstanceDataOffset = 0;
 
@@ -427,7 +428,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 		}
 	}
 
-	WaterInstanceDataBuffers->Unlock();
+	WaterInstanceDataBuffers->Unlock(RHICmdList);
 }
 
 #if RHI_RAYTRACING

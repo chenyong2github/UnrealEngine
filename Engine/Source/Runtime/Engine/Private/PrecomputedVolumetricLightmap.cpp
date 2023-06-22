@@ -45,9 +45,14 @@ void FVolumetricLightmapDataLayer::CreateTargetTexture(FIntVector Dimensions)
 
 void FVolumetricLightmapDataLayer::CreateUAV()
 {
+	CreateUAV(FRHICommandListImmediate::Get());
+}
+
+void FVolumetricLightmapDataLayer::CreateUAV(FRHICommandListBase& RHICmdList)
+{
 	check(Texture);
 
-	UAV = RHICreateUnorderedAccessView(Texture);
+	UAV = RHICmdList.CreateUnorderedAccessView(Texture);
 }
 
 TGlobalResource<FVolumetricLightmapBrickAtlas> GVolumetricLightmapBrickAtlas;
@@ -258,19 +263,21 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::InitRHIForSubLevelResources(
 {
 	if (SubLevelBrickPositions.Num() > 0)
 	{
+		FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 		SubLevelBrickPositions.SetAllowCPUAccess(true);
 		IndirectionTextureOriginalValues.SetAllowCPUAccess(true);
 
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("SubLevelBrickPositionsBuffer"), &SubLevelBrickPositions);
-			SubLevelBrickPositionsBuffer = RHICreateVertexBuffer(SubLevelBrickPositions.Num() * SubLevelBrickPositions.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-			SubLevelBrickPositionsSRV = RHICreateShaderResourceView(SubLevelBrickPositionsBuffer, sizeof(uint32), PF_R32_UINT);
+			SubLevelBrickPositionsBuffer = RHICmdList.CreateVertexBuffer(SubLevelBrickPositions.Num() * SubLevelBrickPositions.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			SubLevelBrickPositionsSRV = RHICmdList.CreateShaderResourceView(SubLevelBrickPositionsBuffer, sizeof(uint32), PF_R32_UINT);
 		}
 
 		{
 			FRHIResourceCreateInfo CreateInfo(TEXT("IndirectionTextureOriginalValuesBuffer"), &IndirectionTextureOriginalValues);
-			IndirectionTextureOriginalValuesBuffer = RHICreateVertexBuffer(IndirectionTextureOriginalValues.Num() * IndirectionTextureOriginalValues.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-			IndirectionTextureOriginalValuesSRV = RHICreateShaderResourceView(IndirectionTextureOriginalValuesBuffer, sizeof(FColor), PF_R8G8B8A8_UINT);
+			IndirectionTextureOriginalValuesBuffer = RHICmdList.CreateVertexBuffer(IndirectionTextureOriginalValues.Num() * IndirectionTextureOriginalValues.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
+			IndirectionTextureOriginalValuesSRV = RHICmdList.CreateShaderResourceView(IndirectionTextureOriginalValuesBuffer, sizeof(FColor), PF_R8G8B8A8_UINT);
 		}
 	}
 }
@@ -321,7 +328,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::HandleDataMovementInAtlas(in
 
 				FVolumetricLightmapDataLayer NewIndirectionTexture = SceneData->IndirectionTexture;
 				NewIndirectionTexture.CreateTargetTexture(IndirectionTextureDimensions);
-				NewIndirectionTexture.CreateUAV();
+				NewIndirectionTexture.CreateUAV(RHICmdList);
 
 				FMoveWholeIndirectionTextureCS::FParameters Parameters;
 				Parameters.NumBricks = NumBricks;
@@ -433,7 +440,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 
 			FVolumetricLightmapDataLayer NewIndirectionTexture = SceneData->IndirectionTexture;
 			NewIndirectionTexture.CreateTargetTexture(IndirectionTextureDimensions);
-			NewIndirectionTexture.CreateUAV();
+			NewIndirectionTexture.CreateUAV(RHICmdList);
 
 			RHICmdList.Transition(FRHITransitionInfo(NewIndirectionTexture.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
@@ -938,6 +945,8 @@ void FVolumetricLightmapBrickAtlas::Insert(int32 Index, FPrecomputedVolumetricLi
 {
 	check(!Allocations.FindByPredicate([Data](const Allocation& Other) { return Other.Data == Data; }));
 
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
 	bool bReadAfterCreate = false;
 
 	if (!bInitialized)
@@ -964,12 +973,10 @@ void FVolumetricLightmapBrickAtlas::Insert(int32 Index, FPrecomputedVolumetricLi
 		if (!TextureSet.SkyBentNormal.Texture.IsValid() && Data->BrickData.SkyBentNormal.Texture.IsValid())
 		{
 			TextureSet.SkyBentNormal.CreateTargetTexture(TextureSet.BrickDataDimensions);
-			TextureSet.SkyBentNormal.CreateUAV();
+			TextureSet.SkyBentNormal.CreateUAV(RHICmdList);
 			bReadAfterCreate = true;
 		}
 	}
-
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	if (bReadAfterCreate)
 	{

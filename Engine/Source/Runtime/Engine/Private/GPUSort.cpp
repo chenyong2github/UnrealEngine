@@ -124,28 +124,28 @@ public:
 	 * @param OutOffsets - Array to hold the offsets.
 	 * @param BufferIndex - Which buffer to retrieve.
 	 */
-	void GetOffsets( TArray<uint32>& OutOffsets, int32 BufferIndex )
+	void GetOffsets(FRHICommandListBase& RHICmdList, TArray<uint32>& OutOffsets, int32 BufferIndex )
 	{
 		const int32 OffsetsCount = DIGIT_COUNT * MAX_GROUP_COUNT;
 		const int32 OffsetsBufferSize = OffsetsCount * sizeof(uint32);
 
 		OutOffsets.Empty( OffsetsCount );
 		OutOffsets.AddUninitialized( OffsetsCount );
-		uint32* MappedOffsets = (uint32*)RHILockBuffer( Buffers[BufferIndex], 0, OffsetsBufferSize, RLM_ReadOnly );
+		uint32* MappedOffsets = (uint32*)RHICmdList.LockBuffer( Buffers[BufferIndex], 0, OffsetsBufferSize, RLM_ReadOnly );
 		FMemory::Memcpy( OutOffsets.GetData(), MappedOffsets, OffsetsBufferSize );
-		RHIUnlockBuffer( Buffers[BufferIndex] );
+		RHICmdList.UnlockBuffer( Buffers[BufferIndex] );
 	}
 
 	/**
 	 * Dumps the contents of the offsets buffer via debugf.
 	 * @param BufferIndex - Which buffer to dump.
 	 */
-	void DumpOffsets(int32 BufferIndex)
+	void DumpOffsets(FRHICommandListBase& RHICmdList, int32 BufferIndex)
 	{
 		TArray<uint32> Offsets;
 		uint32 GrandTotal = 0;
 
-		GetOffsets(Offsets, BufferIndex);
+		GetOffsets(RHICmdList, Offsets, BufferIndex);
 		for (int32 GroupIndex = 0; GroupIndex < MAX_GROUP_COUNT; ++GroupIndex)
 		{
 			uint32 DigitTotal = 0;
@@ -569,9 +569,9 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 			// Update uniform buffer.
 			if ( bUseConstantBufferWorkaround )
 			{
-				void* ParameterBuffer = RHILockBuffer( GRadixSortParametersBuffer.SortParametersBufferRHI, 0, sizeof(FRadixSortParameters), RLM_WriteOnly );
+				void* ParameterBuffer = RHICmdList.LockBuffer( GRadixSortParametersBuffer.SortParametersBufferRHI, 0, sizeof(FRadixSortParameters), RLM_WriteOnly );
 				FMemory::Memcpy( ParameterBuffer, &SortParameters, sizeof(FRadixSortParameters) );
-				RHIUnlockBuffer( GRadixSortParametersBuffer.SortParametersBufferRHI );
+				RHICmdList.UnlockBuffer( GRadixSortParametersBuffer.SortParametersBufferRHI );
 			}
 			else
 			{
@@ -615,7 +615,7 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 			if (bDebugOffsets)
 			{
 				UE_LOG(LogGPUSort, Log, TEXT("\n========== UPSWEEP =========="));
-				GSortOffsetBuffers.DumpOffsets(0);
+				GSortOffsetBuffers.DumpOffsets(RHICmdList, 0);
 			}
 
 			// Phase 2: Parallel prefix scan on the offsets buffer.
@@ -629,7 +629,7 @@ int32 SortGPUBuffers(FRHICommandList& RHICmdList, FGPUSortBuffers SortBuffers, i
 			if (bDebugOffsets)
 			{
 				UE_LOG(LogGPUSort, Log, TEXT("\n========== SPINE =========="));
-				GSortOffsetBuffers.DumpOffsets(1);
+				GSortOffsetBuffers.DumpOffsets(RHICmdList, 1);
 			}
 
 			RHICmdList.Transition({
@@ -735,11 +735,11 @@ static bool RunGPUSortTest(FRHICommandListImmediate& RHICmdList, int32 TestSize,
 	for (int32 BufferIndex = 0; BufferIndex < 2; ++BufferIndex)
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("KeysBuffer"));
-		KeysBufferRHI[BufferIndex] = RHICreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		KeysBufferRHI[BufferIndex] = RHICmdList.CreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 		KeysBufferSRV[BufferIndex] = RHICmdList.CreateShaderResourceView(KeysBufferRHI[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT);
 		KeysBufferUAV[BufferIndex] = RHICmdList.CreateUnorderedAccessView(KeysBufferRHI[BufferIndex], PF_R32_UINT);
 		CreateInfo.DebugName = TEXT("ValuesBuffer");
-		ValuesBufferRHI[BufferIndex] = RHICreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		ValuesBufferRHI[BufferIndex] = RHICmdList.CreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 		ValuesBufferSRV[BufferIndex] = RHICmdList.CreateShaderResourceView(ValuesBufferRHI[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT);
 		ValuesBufferUAV[BufferIndex] = RHICmdList.CreateUnorderedAccessView(ValuesBufferRHI[BufferIndex], PF_R32_UINT);
 	}

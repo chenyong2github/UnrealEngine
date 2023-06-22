@@ -539,7 +539,7 @@ public:
 				ENQUEUE_RENDER_COMMAND(FDynamicMeshSceneProxyFastUpdateVerticesBufferList)(
 					[Buffers, bPositions, bNormals, bColors, bUVs](FRHICommandListImmediate& RHICmdList)
 				{
-					Buffers->TransferVertexUpdateToGPU(bPositions, bNormals, bUVs, bColors);
+					Buffers->TransferVertexUpdateToGPU(RHICmdList, bPositions, bNormals, bUVs, bColors);
 				});
 			}
 		});

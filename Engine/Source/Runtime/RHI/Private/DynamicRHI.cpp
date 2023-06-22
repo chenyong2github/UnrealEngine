@@ -600,7 +600,7 @@ FTextureReferenceRHIRef FDynamicRHI::RHICreateTextureReference(FRHITexture* InRe
 	// If the referenced texture is configured for bindless, make sure we also create an SRV to use for bindless.
 	if (ReferencedTexture && ReferencedTexture->GetDefaultBindlessHandle().IsValid())
 	{
-		ShaderResourceView = ::RHICreateShaderResourceView(ReferencedTexture, 0u);
+		ShaderResourceView = FRHICommandListImmediate::Get().CreateShaderResourceView(ReferencedTexture, 0u);
 	}
 #endif
 

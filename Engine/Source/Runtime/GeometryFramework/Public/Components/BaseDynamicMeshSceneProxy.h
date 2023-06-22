@@ -247,9 +247,8 @@ public:
 	 * size/counts of any of the sub-buffers, a direct memcopy from the CPU-side buffer to the RHI buffer is used.
 	 * @warning This can only be called on the Rendering Thread.
 	 */
-	void TransferVertexUpdateToGPU(bool bPositions, bool bNormals, bool bTexCoords, bool bColors)
+	void TransferVertexUpdateToGPU(FRHICommandListBase& RHICmdList, bool bPositions, bool bNormals, bool bTexCoords, bool bColors)
 	{
-		check(IsInRenderingThread());
 		if (TriangleCount == 0)
 		{
 			return;
@@ -258,36 +257,41 @@ public:
 		if (bPositions)
 		{
 			FPositionVertexBuffer& VertexBuffer = this->PositionVertexBuffer;
-			void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			void* VertexBufferData = RHICmdList.LockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
-			RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
+			RHICmdList.UnlockBuffer(VertexBuffer.VertexBufferRHI);
 		}
 		if (bNormals)
 		{
 			FStaticMeshVertexBuffer& VertexBuffer = this->StaticMeshVertexBuffer;
-			void* VertexBufferData = RHILockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTangentSize(), RLM_WriteOnly);
+			void* VertexBufferData = RHICmdList.LockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTangentSize(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTangentData(), VertexBuffer.GetTangentSize());
-			RHIUnlockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI);
+			RHICmdList.UnlockBuffer(VertexBuffer.TangentsVertexBuffer.VertexBufferRHI);
 		}
 		if (bColors)
 		{
 			FColorVertexBuffer& VertexBuffer = this->ColorVertexBuffer;
-			void* VertexBufferData = RHILockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
+			void* VertexBufferData = RHICmdList.LockBuffer(VertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetNumVertices() * VertexBuffer.GetStride(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetVertexData(), VertexBuffer.GetNumVertices() * VertexBuffer.GetStride());
-			RHIUnlockBuffer(VertexBuffer.VertexBufferRHI);
+			RHICmdList.UnlockBuffer(VertexBuffer.VertexBufferRHI);
 		}
 		if (bTexCoords)
 		{
 			FStaticMeshVertexBuffer& VertexBuffer = this->StaticMeshVertexBuffer;
-			void* VertexBufferData = RHILockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTexCoordSize(), RLM_WriteOnly);
+			void* VertexBufferData = RHICmdList.LockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI, 0, VertexBuffer.GetTexCoordSize(), RLM_WriteOnly);
 			FMemory::Memcpy(VertexBufferData, VertexBuffer.GetTexCoordData(), VertexBuffer.GetTexCoordSize());
-			RHIUnlockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
+			RHICmdList.UnlockBuffer(VertexBuffer.TexCoordVertexBuffer.VertexBufferRHI);
 		}
 
 		InvalidateRayTracingData();
 		ValidateRayTracingData();		// currently we are immediately validating. This may be revisited in future.
 	}
 
+	UE_DEPRECATED(5.3, "TransferVertexUpdateToGPU now requires a command list")
+	void TransferVertexUpdateToGPU(bool bPositions, bool bNormals, bool bTexCoords, bool bColors)
+	{
+		TransferVertexUpdateToGPU(FRHICommandListImmediate::Get(), bPositions, bNormals, bTexCoords, bColors);
+	}
 
 	void InvalidateRayTracingData()
 	{

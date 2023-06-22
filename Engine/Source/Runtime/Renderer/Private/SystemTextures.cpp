@@ -111,7 +111,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 	// Create a WhiteDummy texture
 	{
 		WhiteDummy = CreateRenderTarget(GWhiteTexture->TextureRHI, TEXT("WhiteDummy"));
-		WhiteDummySRV = RHICreateShaderResourceView((FRHITexture2D*)WhiteDummy->GetRHI(), 0);
+		WhiteDummySRV = RHICmdList.CreateShaderResourceView((FRHITexture2D*)WhiteDummy->GetRHI(), 0);
 	}
 
 	// Create a BlackDummy texture
@@ -266,7 +266,7 @@ void FSystemTextures::InitializeCommonTextures(FRHICommandListImmediate& RHICmdL
 		FTextureRHIRef Texture = RHICreateTexture(Desc);
 		SetDummyTextureData<FColor>(Texture, FColor::White);
 		StencilDummy = CreateRenderTarget(Texture, Desc.DebugName);
-		StencilDummySRV = RHICreateShaderResourceView(StencilDummy->GetRHI(), 0);
+		StencilDummySRV = RHICmdList.CreateShaderResourceView(StencilDummy->GetRHI(), 0);
 	}
 
 	if (GPixelFormats[PF_FloatRGBA].Supported)
@@ -1576,6 +1576,7 @@ FRDGBufferRef GetInternalDefaultBuffer(
 
 	FRDGBufferDesc BufferDesc;
 	FRHIResourceCreateInfo CreateInfo(TEXT(""));
+	FRHICommandListBase& RHICmdList = GraphBuilder.RHICmdList;
 
 	// Adding new buffer if there is no fit (slow path)
 	TRefCountPtr<FRHIBuffer> RHIBuffer;
@@ -1584,7 +1585,7 @@ FRDGBufferRef GetInternalDefaultBuffer(
 	case EDefaultBufferType::VertexBuffer:
 		CreateInfo.DebugName = TEXT("DefaultBuffer");
 		BufferDesc = FRDGBufferDesc::CreateUploadDesc(NumBytePerElement, NumElements);
-		RHIBuffer = RHICreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource, CreateInfo);
+		RHIBuffer = RHICmdList.CreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource, CreateInfo);
 		break;
 
 	case EDefaultBufferType::StructuredBuffer:
@@ -1592,7 +1593,7 @@ FRDGBufferRef GetInternalDefaultBuffer(
 		BufferDesc = FRDGBufferDesc::CreateStructuredDesc(NumBytePerElement, NumElements);
 		// Remove the UAV flag, as default resources are supposed to be read-only.
 		EnumRemoveFlags(BufferDesc.Usage, EBufferUsageFlags::UnorderedAccess);
-		RHIBuffer = RHICreateStructuredBuffer(NumBytePerElement, BufferSize, BufferDesc.Usage, CreateInfo);
+		RHIBuffer = RHICmdList.CreateStructuredBuffer(NumBytePerElement, BufferSize, BufferDesc.Usage, CreateInfo);
 		break;
 
 	case EDefaultBufferType::ByteAddressBuffer:
@@ -1600,12 +1601,12 @@ FRDGBufferRef GetInternalDefaultBuffer(
 		BufferDesc = FRDGBufferDesc::CreateByteAddressDesc(BufferSize);
 		// Same as above.
 		EnumRemoveFlags(BufferDesc.Usage, EBufferUsageFlags::UnorderedAccess);
-		RHIBuffer = RHICreateStructuredBuffer(NumBytePerElement, BufferSize, BufferDesc.Usage, CreateInfo);
+		RHIBuffer = RHICmdList.CreateStructuredBuffer(NumBytePerElement, BufferSize, BufferDesc.Usage, CreateInfo);
 		break;
 
 	}
 
-	uint8* DestPtr = static_cast<uint8*>(GraphBuilder.RHICmdList.LockBuffer(RHIBuffer, 0, BufferSize, RLM_WriteOnly));
+	uint8* DestPtr = static_cast<uint8*>(RHICmdList.LockBuffer(RHIBuffer, 0, BufferSize, RLM_WriteOnly));
 	if (Value)
 	{
 		const uint8 *EndPtr = DestPtr + BufferSize; 
@@ -1624,12 +1625,12 @@ FRDGBufferRef GetInternalDefaultBuffer(
 	{
 		FMemory::Memzero(DestPtr, BufferSize);
 	}
-	GraphBuilder.RHICmdList.UnlockBuffer(RHIBuffer);
+	RHICmdList.UnlockBuffer(RHIBuffer);
 
 	FDefaultBuffer Entry;
 	Entry.Key = Key;
 	Entry.Hash = Hash;
-	Entry.Buffer = new FRDGPooledBuffer(RHIBuffer, BufferDesc, NumElements, CreateInfo.DebugName);
+	Entry.Buffer = new FRDGPooledBuffer(RHICmdList, RHIBuffer, BufferDesc, NumElements, CreateInfo.DebugName);
 
 	Index = DefaultBuffers.Add(Entry);
 	HashDefaultBuffers.Add(Hash, Index);

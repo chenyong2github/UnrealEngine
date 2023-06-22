@@ -1523,6 +1523,8 @@ void FNiagaraDataInterfaceProxy_DataChannelRead::ConsumePerInstanceDataFromGameT
 	FNDIDataChannelReadInstanceData_RT& SourceData = *reinterpret_cast<FNDIDataChannelReadInstanceData_RT*>(PerInstanceData);
 	FInstanceData& InstData = SystemInstancesToProxyData_RT.FindOrAdd(Instance);
 
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
+
 	InstData.ChannelDataRTProxy = SourceData.ChannelDataRTProxy;
 	InstData.bReadPrevFrame = SourceData.bReadPrevFrame;
 
@@ -1545,7 +1547,7 @@ void FNiagaraDataInterfaceProxy_DataChannelRead::ConsumePerInstanceDataFromGameT
 			if(SourceData.GPUScriptParameterOffsetTable.Num() > 0)
 			{
 				InstData.ParameterLayoutData = SourceData.GPUScriptParameterOffsetTable;
-				InstData.ParameterLayoutBuffer.Initialize(TEXT("NDIDataChannel_ParameterLayoutBuffer"), sizeof(uint32), SourceData.GPUScriptParameterOffsetTable.Num(), EPixelFormat::PF_R32_UINT, BUF_Static, &InstData.ParameterLayoutData);
+				InstData.ParameterLayoutBuffer.Initialize(RHICmdList, TEXT("NDIDataChannel_ParameterLayoutBuffer"), sizeof(uint32), SourceData.GPUScriptParameterOffsetTable.Num(), EPixelFormat::PF_R32_UINT, BUF_Static, &InstData.ParameterLayoutData);
 			}
 		}
 	}

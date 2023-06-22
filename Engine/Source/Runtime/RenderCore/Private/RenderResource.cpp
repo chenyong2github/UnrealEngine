@@ -277,7 +277,7 @@ FBufferRHIRef FRenderResource::CreateRHIBufferInternal(
 	FBufferRHIRef Buffer;
 	if (bRenderThread)
 	{
-		Buffer = RHICreateVertexBuffer(SizeInBytes, InBufferUsageFlags, CreateInfo);
+		Buffer = FRHICommandListImmediate::Get().CreateVertexBuffer(SizeInBytes, InBufferUsageFlags, CreateInfo);
 	}
 	else
 	{

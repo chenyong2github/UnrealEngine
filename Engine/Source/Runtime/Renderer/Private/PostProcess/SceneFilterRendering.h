@@ -60,7 +60,7 @@ extern RENDERER_API void DrawRectangle(
 
 // NOTE: Assumes previously set PSO has PrimitiveType = PT_TriangleList
 extern RENDERER_API void DrawTransformedRectangle(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	float X,
 	float Y,
 	float SizeX,

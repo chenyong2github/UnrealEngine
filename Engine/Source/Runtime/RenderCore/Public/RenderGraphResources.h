@@ -481,10 +481,16 @@ public:
 	{}
 
 	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(Texture, UAVDesc); }
+	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(FRHICommandListBase& RHICmdList, const FRHITextureUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(RHICmdList, Texture, UAVDesc); }
 
 	/** Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& SRVDesc) { return ViewCache.GetOrCreateSRV(Texture, SRVDesc); }
+	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(FRHICommandListBase& RHICmdList, const FRHITextureSRVCreateInfo& SRVDesc) { return ViewCache.GetOrCreateSRV(RHICmdList, Texture, SRVDesc); }
+
+	UE_DEPRECATED(5.3, "GetOrCreateUAV now requires a command list.")
+	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(FRHICommandListImmediate::Get(), Texture, UAVDesc); }
+
+	UE_DEPRECATED(5.3, "GetOrCreateSRV now requires a command list.")
+	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& SRVDesc) { return ViewCache.GetOrCreateSRV(FRHICommandListImmediate::Get(), Texture, SRVDesc); }
 
 	FORCEINLINE FRHITexture* GetRHI() const { return Texture; }
 
@@ -1120,7 +1126,7 @@ class FRDGPooledBuffer final
 	: public FRefCountBase
 {
 public:
-	FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc, uint32 InNumAllocatedElements, const TCHAR* InName)
+	FRDGPooledBuffer(FRHICommandListBase& RHICmdList, TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc, uint32 InNumAllocatedElements, const TCHAR* InName)
 		: Desc(InDesc)
 		, Buffer(MoveTemp(InBuffer))
 		, Name(InName)
@@ -1128,17 +1134,25 @@ public:
 	{
 		if (EnumHasAnyFlags(InDesc.Usage, EBufferUsageFlags::StructuredBuffer | EBufferUsageFlags::ByteAddressBuffer))
 		{
-			CachedSRV = GetOrCreateSRV(FRHIBufferSRVCreateInfo());
+			CachedSRV = GetOrCreateSRV(RHICmdList, FRHIBufferSRVCreateInfo());
 		}
 	}
+
+	RENDERCORE_API FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc, uint32 InNumAllocatedElements, const TCHAR* InName);
 
 	const FRDGBufferDesc Desc;
 
 	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(Buffer, UAVDesc); }
+	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(FRHICommandListBase& RHICmdList, const FRHIBufferUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(RHICmdList, Buffer, UAVDesc); }
 
 	/** Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& SRVDesc) { return ViewCache.GetOrCreateSRV(Buffer, SRVDesc); }
+	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(FRHICommandListBase& RHICmdList, const FRHIBufferSRVCreateInfo& SRVDesc) { return ViewCache.GetOrCreateSRV(RHICmdList, Buffer, SRVDesc); }
+
+	UE_DEPRECATED(5.3, "GetOrCreateUAV now requires a command list.")
+	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(FRHICommandListImmediate::Get(), Buffer, UAVDesc); }
+
+	UE_DEPRECATED(5.3, "GetOrCreateSRV now requires a command list.")
+	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& SRVDesc) { return ViewCache.GetOrCreateSRV(FRHICommandListImmediate::Get(), Buffer, SRVDesc); }
 
 	/** Returns the RHI buffer. */
 	FORCEINLINE FRHIBuffer* GetRHI() const { return Buffer; }
@@ -1150,9 +1164,15 @@ public:
 		return CachedSRV;
 	}
 
+	UE_DEPRECATED(5.3, "GetSRV now requires a command list.")
 	FORCEINLINE FRHIShaderResourceView* GetSRV(const FRHIBufferSRVCreateInfo& SRVDesc)
 	{
-		return GetOrCreateSRV(SRVDesc);
+		return GetOrCreateSRV(FRHICommandListImmediate::Get(), SRVDesc);
+	}
+
+	FORCEINLINE FRHIShaderResourceView* GetSRV(FRHICommandListBase& RHICmdList, const FRHIBufferSRVCreateInfo& SRVDesc)
+	{
+		return GetOrCreateSRV(RHICmdList, SRVDesc);
 	}
 
 	FORCEINLINE uint32 GetSize() const

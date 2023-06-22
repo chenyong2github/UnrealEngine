@@ -39,12 +39,13 @@ IMPLEMENT_GLOBAL_SHADER(FTestDrawInstancedPS, "/Plugin/RHITests/Private/TestDraw
 template <typename T>
 static FBufferRHIRef CreateBufferWithData(EBufferUsageFlags UsageFlags, ERHIAccess ResourceState, const TCHAR* Name, TConstArrayView<T> Data)
 {
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 	uint32 BufferSize = sizeof(T) * Data.Num();
 	FRHIResourceCreateInfo CreateInfo(Name);
-	FBufferRHIRef Buffer = RHICreateBuffer(BufferSize, UsageFlags, sizeof(T), ResourceState, CreateInfo);
-	void* MappedData = RHILockBuffer(Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly);
+	FBufferRHIRef Buffer = RHICmdList.CreateBuffer(BufferSize, UsageFlags, sizeof(T), ResourceState, CreateInfo);
+	void* MappedData = RHICmdList.LockBuffer(Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly);
 	FMemory::Memcpy(MappedData, Data.GetData(), BufferSize);
-	RHIUnlockBuffer(Buffer);
+	RHICmdList.UnlockBuffer(Buffer);
 	return Buffer;
 }
 
@@ -54,6 +55,8 @@ bool FRHIDrawTests::Test_MultiDrawIndirect(FRHICommandListImmediate& RHICmdList)
 	{
 		return true;
 	}
+
+	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
 
 	// Probably could/should automatically enable in the outer scope when running RHI Unit Tests
 	// RenderCaptureInterface::FScopedCapture RenderCapture(true /*bEnable*/, &RHICmdList, TEXT("Test_MultiDrawIndirect"));
@@ -74,7 +77,7 @@ bool FRHIDrawTests::Test_MultiDrawIndirect(FRHICommandListImmediate& RHICmdList)
 	static constexpr uint32 OutputBufferStride = sizeof(uint32);
 	static constexpr uint32 OutputBufferSize = OutputBufferStride * MaxInstances;
 	FRHIResourceCreateInfo OutputBufferCreateInfo(TEXT("Test_MultiDrawIndirect_OutputBuffer"));
-	FBufferRHIRef OutputBuffer = RHICreateBuffer(OutputBufferSize, EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::SourceCopy, OutputBufferStride, ERHIAccess::UAVCompute, OutputBufferCreateInfo);
+	FBufferRHIRef OutputBuffer = RHICmdList.CreateBuffer(OutputBufferSize, EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::SourceCopy, OutputBufferStride, ERHIAccess::UAVCompute, OutputBufferCreateInfo);
 
 	const uint32 CountValues[4] = { 1, 1, 16, 0 };
 	FBufferRHIRef CountBuffer = CreateBufferWithData(EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess, ERHIAccess::IndirectArgs, TEXT("Test_MultiDrawIndirect_Count"), MakeArrayView(CountValues));
@@ -96,7 +99,7 @@ bool FRHIDrawTests::Test_MultiDrawIndirect(FRHICommandListImmediate& RHICmdList)
 	FBufferRHIRef DrawArgBuffer = CreateBufferWithData(EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::VertexBuffer, ERHIAccess::IndirectArgs,
 		TEXT("Test_MultiDrawIndirect_DrawArgs"), MakeArrayView(DrawArgs));
 
-	FUnorderedAccessViewRHIRef OutputBufferUAV = RHICreateUnorderedAccessView(OutputBuffer, 
+	FUnorderedAccessViewRHIRef OutputBufferUAV = RHICmdList.CreateUnorderedAccessView(OutputBuffer, 
 		FRHIViewDesc::CreateBufferUAV()
 		.SetType(FRHIViewDesc::EBufferType::Typed)
 		.SetFormat(PF_R32_UINT));
