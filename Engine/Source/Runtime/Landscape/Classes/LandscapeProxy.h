@@ -916,10 +916,10 @@ public:
 	 * landscape to exist simultaneously.  If you want the original (uninstanced) value, use GetOriginalLandscapeGuid().
 	 */
 	virtual FGuid GetLandscapeGuid() const override { return LandscapeGuid; }
-	void SetLandscapeGuid(const FGuid& Guid)
+	void SetLandscapeGuid(const FGuid& Guid, bool bValidateGuid = true)
 	{
 		// we probably shouldn't be setting the landscape guid on instanced landscapes
-		check((OriginalLandscapeGuid == LandscapeGuid) || !OriginalLandscapeGuid.IsValid());
+		check(!bValidateGuid || (OriginalLandscapeGuid == LandscapeGuid) || !OriginalLandscapeGuid.IsValid());
 		LandscapeGuid = Guid;
 		OriginalLandscapeGuid = Guid;
 	}
