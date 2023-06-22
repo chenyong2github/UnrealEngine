@@ -51,6 +51,10 @@ namespace ESkeletalMeshState
 };
 
 
+// Priority for the mutable update queue, Low is the normal distance-based priority, High is normally used for discards and Mid for LOD downgrades
+enum class EQueuePriorityType : uint8 { High, Med, Med_Low, Low };
+
+
 /** Result of all the checks just before beginning an update. */
 enum class EUpdateRequired : uint8
 {
@@ -121,6 +125,7 @@ class CUSTOMIZABLEOBJECT_API UCustomizableObjectInstance : public UObject
 	GENERATED_BODY()
 
 	friend UCustomizableInstancePrivateData;
+	friend FMutableUpdateCandidate;
 
 public:
 	UCustomizableObjectInstance();
@@ -285,7 +290,7 @@ private:
 	 * Once the update reaches this function, the update has been considered started and must complete all the update flow.
 	 * Starting at this function, all Update code paths must end up in FinishUpdateGlobal!
 	 *
-	 * @param bIsCloseDistTick true iff called from the tick.
+	 * @param bIsCloseDistTick true if and only if called from the tick.
 	 */
 	void DoUpdateSkeletalMesh(bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist, bool bForceHighPriority, const EUpdateRequired* OptionalUpdateRequired, FInstanceUpdateDelegate* UpdateCallback);
 
@@ -306,6 +311,9 @@ public:
 	
 	// Releases all the mutable resources this instance holds, should only be called when it is not going to be used any more.
 	void ReleaseMutableResources(bool bCalledFromBeginDestroy);
+
+	/** Returns the priority an update issued by DoUpdateSkeletalMesh would get in the current instance configuration and state */
+	EQueuePriorityType GetUpdatePriority(bool bIsCloseDistTick, bool bOnlyUpdateIfNotGenerated, bool bIgnoreCloseDist, bool bForceHighPriority) const;
 
 	// Returns de description texture (ex: color bar) for this parameter and DescIndex
 	// This will only be valid if bBuildParameterDecorations was set to true before the last update.
@@ -632,7 +640,11 @@ public:
 	int32 GetNumLODsAvailable() const;
 
 	UE_DEPRECATED(5.2, "Use SetRequestedLODs instead.")
-	void SetMinMaxLODToLoad(int32 NewMinLOD = 0, int32 NewMaxLOD = INT32_MAX, bool LimitLODUpgrades = true);
+	void SetMinMaxLODToLoad(FMutableInstanceUpdateMap& InOutRequestedUpdates, int32 NewMinLOD = 0, int32 NewMaxLOD = INT32_MAX, bool bLimitLODUpgrades = true);
+
+	// Remove the following method after CL 25973936 is propagated to all streams
+	UE_DEPRECATED(5.2, "Use SetRequestedLODs instead.")
+	void SetMinMaxLODToLoad(int32 NewMinLOD = 0, int32 NewMaxLOD = INT32_MAX, bool bLimitLODUpgrades = true);
 
 	/** Return the Min LOD this Instance is using (from the beginning of an update. If an update fails this value will be incorrect). */
 	int32 GetCurrentMinLOD() const;
@@ -647,7 +659,11 @@ public:
 	 * Requires mutable.EnableOnlyGenerateRequestedLODs and CurrentInstanceLODManagement->IsOnlyGenerateRequestedLODLevelsEnabled() to be true.
 	 * @param InMinLOD - MinLOD to generate.
 	 * @param InMaxLOD - MaxLOD to generate.
-	 * @param InRequestedLODsPerComponent - Array with bitmasks of requested LODs per component with range from [0 .. CO->GetComponentCount()]. */
+	 * @param InRequestedLODsPerComponent - Array with bitmasks of requested LODs per component with range from [0 .. CO->GetComponentCount()].
+	 * @param InOutRequestedUpdates - Map from Instance to Update data that stores a request for the Instance to be updated, which will be either processed or discarded by priority (to be rerequested the next tick) */
+	void SetRequestedLODs(int32 InMinLOD, int32 InMaxLOD, const TArray<uint16>& InRequestedLODsPerComponent, FMutableInstanceUpdateMap& InOutRequestedUpdates);
+
+	// Remove the following method after CL 25973936 is propagated to all streams
 	void SetRequestedLODs(int32 InMinLOD, int32 InMaxLOD, const TArray<uint16>& InRequestedLODsPerComponent);
 
 	const TArray<uint16>& GetRequestedLODsPerComponent() const;
@@ -770,6 +786,55 @@ private:
 	/** If this is set to true, when updating the instance an additional step will be performed to calculate the list of instance parameters that are relevant for the current parameter vaules. */
 	bool bBuildParameterRelevancy_DEPRECATED = false;
 };
+
+
+class FMutableUpdateCandidate
+{
+public:
+	// The Instance to possibly update
+	UCustomizableObjectInstance* CustomizableObjectInstance;
+	EQueuePriorityType Priority = EQueuePriorityType::Med;
+
+	// These are the LODs that would be applied if this candidate is chosen
+	int32 MinLOD = 0;
+	int32 MaxLOD = INT32_MAX;
+
+	/** Array of RequestedLODs per component to generate if this candidate is chosen */
+	TArray<uint16> RequestedLODLevels;
+
+	FMutableUpdateCandidate(UCustomizableObjectInstance* InCustomizableObjectInstance) : CustomizableObjectInstance(InCustomizableObjectInstance) {}
+
+	FMutableUpdateCandidate(const UCustomizableObjectInstance* InCustomizableObjectInstance, const int32 InMinLOD, const int32 InMaxLOD,
+		const TArray<uint16>& InRequestedLODLevels) :
+		CustomizableObjectInstance(const_cast<UCustomizableObjectInstance*>(InCustomizableObjectInstance)), MinLOD(InMinLOD), MaxLOD(InMaxLOD),
+		RequestedLODLevels(InRequestedLODLevels) {}
+
+	bool HasBeenIssued()
+	{
+		return bHasBeenIssued;
+	}
+
+	void Issue()
+	{
+		bHasBeenIssued = true;
+	}
+
+	void ApplyLODUpdateParamsToInstance()
+	{
+		CustomizableObjectInstance->Descriptor.MinLOD = MinLOD;
+		CustomizableObjectInstance->Descriptor.MaxLOD = MaxLOD;
+
+		CustomizableObjectInstance->Descriptor.RequestedLODLevels = RequestedLODLevels;
+
+		CustomizableObjectInstance->UpdateDescriptorRuntimeHash.UpdateMinMaxLOD(MinLOD, MaxLOD);
+		CustomizableObjectInstance->UpdateDescriptorRuntimeHash.UpdateRequestedLODs(CustomizableObjectInstance->Descriptor.RequestedLODLevels);
+	}
+
+private:
+	/** If true it means that DoUpdateSkeletalMesh has decided this update should be performed, if false it should be ignored. Just used for consistency checks */
+	bool bHasBeenIssued = false;
+};
+
 
 #if WITH_EDITOR
 CUSTOMIZABLEOBJECT_API void CopyTextureProperties(UTexture2D* Texture, const UTexture2D* SourceTexture);

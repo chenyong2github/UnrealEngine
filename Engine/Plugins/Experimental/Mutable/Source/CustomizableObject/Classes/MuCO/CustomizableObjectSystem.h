@@ -185,7 +185,8 @@ public:
 
 
 /** End a Customizable Object Instance Update. All code paths of an update have to end here. */
-void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const mu::ParametersPtrConst Parameters = nullptr, const FDescriptorRuntimeHash InUpdatedHash = FDescriptorRuntimeHash());
+void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const FCustomizableObjectInstanceDescriptor* InstanceDescriptor = nullptr, const FDescriptorRuntimeHash InUpdatedHash = FDescriptorRuntimeHash());
+void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, mu::ParametersPtrConst Parameters, const FDescriptorRuntimeHash InUpdatedHash = FDescriptorRuntimeHash());
 
 
 UCLASS(Blueprintable, BlueprintType)
@@ -394,6 +395,9 @@ private:
 
 	// If there is an on-going operation, advance it.
 	void AdvanceCurrentOperation();
+
+	void DiscardInstances();
+	void ReleaseInstanceIDs();
 
 	// TODO: Can we move this to the editor module?
 #if WITH_EDITOR

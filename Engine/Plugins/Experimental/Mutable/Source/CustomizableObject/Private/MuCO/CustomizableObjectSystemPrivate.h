@@ -45,30 +45,10 @@ public:
 
 
 	static FMutableOperation CreateInstanceUpdate(UCustomizableObjectInstance* COInstance, bool bInNeverStream, int32 MipsToSkip, const FInstanceUpdateDelegate* UpdateCallback);
-	static FMutableOperation CreateInstanceDiscard(UCustomizableObjectInstance* COInstance);
-	static FMutableOperation CreateInstanceIDRelease(mu::Instance::ID);
-
-
-	enum class EOperationType
-	{
-		// Create mutable resources for a new instance or to update an exiting one.
-		Update,
-
-		// Discard the resources of an instance.
-		Discard,
-
-		// Release the instance ID and all the temp data associated with it. Usually used with the LiveUpdateMode
-		IDRelease
-
-		// Attention! If any new operation type is added, make sure to review FMutableQueue::Enqueue in CustomizableObjectSystem.cpp and
-		// modify it if new operations of this type should override older ones to the same instance. The default behavior is to enqueue 
-		// the new ones so that they are executed after the old ones.
-	};
-
-	// Type of the operation
-	EOperationType Type;
 
 	bool bStarted = false;
+
+	bool bForceGenerateAllLODs = false;
 
 	bool bNeverStream = false;
 
@@ -108,31 +88,49 @@ public:
 };
 
 
-
-struct FMutableQueueElem
+struct FMutablePendingInstanceUpdate
 {
-	// Priority for mutable update queue, Low is the normal distance-based priority, High is normally used for discards and Mid for LOD downgrades
-	enum EQueuePriorityType { High, Med, Med_Low, Low };
+	EQueuePriorityType PriorityType = EQueuePriorityType::Low;
 
-	EQueuePriorityType PriorityType;
-	float Priority;
-	TSharedPtr<FMutableOperation> Operation;
-	bool bIsDiscardResources;
+	TWeakObjectPtr<UCustomizableObjectInstance> CustomizableObjectInstance;
+	FCustomizableObjectInstanceDescriptor InstanceDescriptor;
 
-	static FMutableQueueElem Create(TSharedPtr<FMutableOperation> InOperation, EQueuePriorityType NewPriorityType, double NewPriority)
+	double SecondsAtUpdate = 0;
+	FInstanceUpdateDelegate* Callback = nullptr;
+	bool bNeverStream = false;
+
+	/** If this is non-zero, the instance images will be generated with a certain amount of mips starting from the smallest. Otherwise, the full images will be generated.
+	 * This is used for both Update and UpdateImage operations.
+	 */
+	int32 MipsToSkip = 0;
+
+	FMutablePendingInstanceUpdate(UCustomizableObjectInstance* InCustomizableObjectInstance)
 	{
-		FMutableQueueElem MutableQueueElem;
-
-		MutableQueueElem.PriorityType = NewPriorityType;
-		MutableQueueElem.Priority = NewPriority;
-		check(InOperation);
-		MutableQueueElem.Operation = InOperation;
-		MutableQueueElem.bIsDiscardResources = (InOperation->Type==FMutableOperation::EOperationType::Discard);
-
-		return MutableQueueElem;
+		check(InCustomizableObjectInstance);
+		CustomizableObjectInstance = InCustomizableObjectInstance;
 	}
 
-	friend bool operator <(const FMutableQueueElem& A, const FMutableQueueElem& B)
+	FMutablePendingInstanceUpdate(UCustomizableObjectInstance* InCustomizableObjectInstance, EQueuePriorityType NewPriorityType, 
+		                          FInstanceUpdateDelegate* InCallback, bool bInNeverStream, int32 InMipsToSkip)
+	{
+		PriorityType = NewPriorityType;
+
+		check(InCustomizableObjectInstance);
+		CustomizableObjectInstance = InCustomizableObjectInstance;
+		InstanceDescriptor = CustomizableObjectInstance->GetDescriptor();
+
+		SecondsAtUpdate = FPlatformTime::Seconds();
+		Callback = InCallback;
+		bNeverStream = bInNeverStream;
+		MipsToSkip = InMipsToSkip;
+	}
+
+	friend bool operator ==(const FMutablePendingInstanceUpdate& A, const FMutablePendingInstanceUpdate& B)
+	{
+		return A.CustomizableObjectInstance.HasSameIndexAndSerialNumber(B.CustomizableObjectInstance);
+	}
+
+	friend bool operator <(const FMutablePendingInstanceUpdate& A, const FMutablePendingInstanceUpdate& B)
 	{
 		if (A.PriorityType < B.PriorityType)
 		{
@@ -144,45 +142,128 @@ struct FMutableQueueElem
 		}
 		else
 		{
-			if (A.bIsDiscardResources && !B.bIsDiscardResources)
-			{
-				return true;
-			}
-			else if (!A.bIsDiscardResources && B.bIsDiscardResources)
-			{
-				return false;
-			}
-
-			return A.Priority < B.Priority;
+			return A.SecondsAtUpdate < B.SecondsAtUpdate;
 		}
 	}
 };
 
 
-/** Instances operations queue.
- *
- * The queue will only contain a single operation per UCustomizableObjectInstance.
- * If there is already an operation it will be replaced. */
-class FMutableQueue
+inline uint32 GetTypeHash(const FMutablePendingInstanceUpdate& Update)
 {
-	TArray<FMutableQueueElem> Array;
+	return GetTypeHash(Update.CustomizableObjectInstance.GetWeakPtrTypeHash());
+}
+
+
+struct FPendingInstanceUpdateKeyFuncs : BaseKeyFuncs<FMutablePendingInstanceUpdate, TWeakObjectPtr<UCustomizableObjectInstance>>
+{
+	FORCEINLINE static const TWeakObjectPtr<UCustomizableObjectInstance>& GetSetKey(const FMutablePendingInstanceUpdate& PendingUpdate)
+	{
+		return PendingUpdate.CustomizableObjectInstance;
+	}
+
+	FORCEINLINE static bool Matches(const TWeakObjectPtr<UCustomizableObjectInstance>& A, const TWeakObjectPtr<UCustomizableObjectInstance>& B)
+	{
+		return A.HasSameIndexAndSerialNumber(B);
+	}
+
+	FORCEINLINE static uint32 GetKeyHash(const TWeakObjectPtr<UCustomizableObjectInstance>& Identifier)
+	{
+		return GetTypeHash(Identifier.GetWeakPtrTypeHash());
+	}
+};
+
+
+struct FMutablePendingInstanceDiscard
+{
+	TWeakObjectPtr<UCustomizableObjectInstance> CustomizableObjectInstance;
+
+	FMutablePendingInstanceDiscard(UCustomizableObjectInstance* InCustomizableObjectInstance)
+	{
+		CustomizableObjectInstance = InCustomizableObjectInstance;
+	}
+
+	friend bool operator ==(const FMutablePendingInstanceDiscard& A, const FMutablePendingInstanceDiscard& B)
+	{
+		return A.CustomizableObjectInstance.HasSameIndexAndSerialNumber(B.CustomizableObjectInstance);
+	}
+};
+
+
+inline uint32 GetTypeHash(const FMutablePendingInstanceDiscard& Discard)
+{
+	return GetTypeHash(Discard.CustomizableObjectInstance.GetWeakPtrTypeHash());
+}
+
+
+struct FPendingInstanceDiscardKeyFuncs : BaseKeyFuncs<FMutablePendingInstanceUpdate, TWeakObjectPtr<UCustomizableObjectInstance>>
+{
+	FORCEINLINE static const TWeakObjectPtr<UCustomizableObjectInstance>& GetSetKey(const FMutablePendingInstanceDiscard& PendingDiscard)
+	{
+		return PendingDiscard.CustomizableObjectInstance;
+	}
+
+	FORCEINLINE static bool Matches(const TWeakObjectPtr<UCustomizableObjectInstance>& A, const TWeakObjectPtr<UCustomizableObjectInstance>& B)
+	{
+		return A.HasSameIndexAndSerialNumber(B);
+	}
+
+	FORCEINLINE static uint32 GetKeyHash(const TWeakObjectPtr<UCustomizableObjectInstance>& Identifier)
+	{
+		return GetTypeHash(Identifier.GetWeakPtrTypeHash());
+	}
+};
+
+
+/** Instance updates queue.
+ *
+ * The queues will only contain a single operation per UCustomizableObjectInstance.
+ * If there is already an operation it will be replaced. */
+class FMutablePendingInstanceWork
+{
+	TSet<FMutablePendingInstanceUpdate, FPendingInstanceUpdateKeyFuncs> PendingInstanceUpdates;
+
+	TSet<FMutablePendingInstanceDiscard, FPendingInstanceDiscardKeyFuncs> PendingInstanceDiscards;
+
+	TSet<mu::Instance::ID> PendingIDsToRelease;
+
+	int32 NumLODUpdatesLastTick = 0;
 
 public:
-	bool IsEmpty() const;
+	// Returns true if there are no pending instance updates. Doesn't take into account discards.
+	bool ArePendingUpdatesEmpty() const;
 
-	int Num() const;
+	// Returns the number of pending instance updates, LOD Updates, discards and releases last tick.
+	int32 Num() const;
 
-	void Enqueue(const FMutableQueueElem& TaskToEnqueue);
+	void SetLODUpdatesLastTick(int32 NumLODUpdates);
 
-	void Dequeue(FMutableQueueElem* DequeuedTask);
+	// Adds a new instance update
+	void AddUpdate(const FMutablePendingInstanceUpdate& UpdateToAdd);
 
-	void ChangePriorities();
+	// Removes an instance update
+	void RemoveUpdate(const TWeakObjectPtr<UCustomizableObjectInstance>& Instance);
 
-	void UpdatePriority(const UCustomizableObjectInstance* Instance);
+	const FMutablePendingInstanceUpdate* GetUpdate(const TWeakObjectPtr<UCustomizableObjectInstance>& Instance) const;
 
-	const FMutableQueueElem* Get(const UCustomizableObjectInstance* Instance) const;
-	
-	void Sort();
+	TSet<FMutablePendingInstanceUpdate, FPendingInstanceUpdateKeyFuncs>::TIterator GetUpdateIterator()
+	{
+		return PendingInstanceUpdates.CreateIterator();
+	}
+
+	TSet<FMutablePendingInstanceDiscard, FPendingInstanceDiscardKeyFuncs>::TIterator GetDiscardIterator()
+	{
+		return PendingInstanceDiscards.CreateIterator();
+	}
+
+	TSet<mu::Instance::ID>::TIterator GetIDsToReleaseIterator()
+	{
+		return PendingIDsToRelease.CreateIterator();
+	}
+
+	void AddDiscard(const FMutablePendingInstanceDiscard& TaskToEnqueue);
+	void AddIDRelease(mu::Instance::ID IDToRelease);
+
+	void RemoveAllUpdatesAndDiscardsAndReleases();
 };
 
 
@@ -551,7 +632,8 @@ public:
 	// from the game thread, and it is read from the Mutable thread only while updating the instance.
 	TArray<mu::RESOURCE_ID> ProtectedObjectCachedImages;
 
-	FMutableQueue MutableOperationQueue;
+	// The pending instance updates, discards or releases
+	FMutablePendingInstanceWork MutablePendingInstanceWork;
 
 	// Queue of game-thread tasks that need to be executed for the current operation
 	TQueue<FMutableTask> PendingTasks;
@@ -673,13 +755,15 @@ public:
 
 
 	// Init the async Skeletal Mesh creation/update
-	void InitUpdateSkeletalMesh(UCustomizableObjectInstance& Public, FMutableQueueElem::EQueuePriorityType Priority, FInstanceUpdateDelegate* UpdateCallback = nullptr);
+	void InitUpdateSkeletalMesh(UCustomizableObjectInstance& Public, EQueuePriorityType Priority, bool bIsCloseDistTick, FInstanceUpdateDelegate* UpdateCallback = nullptr);
 		
 	// Init an async and safe release of the UE and Mutable resources used by the instance without actually destroying the instance, for example if it's very far away
 	void InitDiscardResourcesSkeletalMesh(UCustomizableObjectInstance* InCustomizableObjectInstance);
 
 	// Init the async release of a Mutable Core Instance ID and all the temp resources associated with it
 	void InitInstanceIDRelease(mu::Instance::ID IDToRelease);
+
+	void GetMipStreamingConfig(const UCustomizableObjectInstance& Instance, bool& bOutNeverStream, int32& OutMipsToSkip) const;
 	
 	bool IsReplaceDiscardedWithReferenceMeshEnabled() const { return bReplaceDiscardedWithReferenceMesh; }
 	void SetReplaceDiscardedWithReferenceMeshEnabled(bool bIsEnabled) { bReplaceDiscardedWithReferenceMesh = bIsEnabled; }

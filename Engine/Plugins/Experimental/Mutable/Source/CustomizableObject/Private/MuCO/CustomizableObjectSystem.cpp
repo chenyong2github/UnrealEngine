@@ -102,98 +102,90 @@ TAutoConsoleVariable<bool> CVarEnableImageCache(
 	ECVF_Scalability);
 
 
-bool FMutableQueue::IsEmpty() const
+bool FMutablePendingInstanceWork::ArePendingUpdatesEmpty() const
 {
-	return Array.Num() == 0;
+	return PendingInstanceUpdates.Num() == 0;
 }
 
 
-int FMutableQueue::Num() const
+int32 FMutablePendingInstanceWork::Num() const
 {
-	return Array.Num();
+	return PendingInstanceUpdates.Num() + PendingInstanceDiscards.Num() + PendingIDsToRelease.Num() + NumLODUpdatesLastTick;
 }
 
 
-void FMutableQueue::Enqueue(const FMutableQueueElem& TaskToEnqueue)
+void FMutablePendingInstanceWork::SetLODUpdatesLastTick(int32 NumLODUpdates)
 {
-	for (FMutableQueueElem& QueueElem : Array)
+	NumLODUpdatesLastTick = NumLODUpdates;
+}
+
+
+void FMutablePendingInstanceWork::AddUpdate(const FMutablePendingInstanceUpdate& UpdateToAdd)
+{
+	if (FMutablePendingInstanceUpdate* ExistingUpdate = PendingInstanceUpdates.Find(UpdateToAdd.CustomizableObjectInstance))
 	{
-		check(QueueElem.Operation);
-		check(TaskToEnqueue.Operation);
-		if ((QueueElem.Operation->Type == FMutableOperation::EOperationType::Update || QueueElem.Operation->Type == FMutableOperation::EOperationType::Discard) &&
-			QueueElem.Operation->CustomizableObjectInstance == TaskToEnqueue.Operation->CustomizableObjectInstance)
-		{
-			UCustomizableObjectInstance* Instance = QueueElem.Operation->CustomizableObjectInstance.Get();
-			FInstanceUpdateDelegate* Callback = &QueueElem.Operation->UpdateCallback;
-			FinishUpdateGlobal(Instance, EUpdateResult::ErrorReplaced, Callback, QueueElem.Operation->GetParameters());
+		FMutablePendingInstanceUpdate TaskToEnqueue = UpdateToAdd;
+
+		FInstanceUpdateDelegate* Callback = ExistingUpdate->Callback;
+		FinishUpdateGlobal(ExistingUpdate->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, Callback, &ExistingUpdate->InstanceDescriptor);
+
+		TaskToEnqueue.PriorityType = FMath::Min(ExistingUpdate->PriorityType, UpdateToAdd.PriorityType);
+		TaskToEnqueue.SecondsAtUpdate = FMath::Min(ExistingUpdate->SecondsAtUpdate, UpdateToAdd.SecondsAtUpdate);
 		
-			QueueElem.Operation = TaskToEnqueue.Operation;
-			QueueElem.PriorityType = FMath::Min(QueueElem.PriorityType, TaskToEnqueue.PriorityType);
-			QueueElem.Priority = FMath::Min(QueueElem.Priority, TaskToEnqueue.Priority);
-			
-			return;
-		}
+		PendingInstanceUpdates.Remove(ExistingUpdate->CustomizableObjectInstance);
+		PendingInstanceUpdates.Add(TaskToEnqueue);
 	}
-
-	Array.HeapPush(TaskToEnqueue);
-}
-
-
-void FMutableQueue::Dequeue(FMutableQueueElem* DequeuedTask)
-{
-	Array.HeapPop(*DequeuedTask);
-}
-
-
-void FMutableQueue::ChangePriorities()
-{
-	for (FMutableQueueElem& Elem : Array)
+	else
 	{
-		check(Elem.Operation);
-		if (Elem.Operation->CustomizableObjectInstance.IsValid())
-		{
-			if (UCustomizableInstancePrivateData* CustomizableObjectInstancePrivateData = Elem.Operation->CustomizableObjectInstance->GetPrivate())
-			{
-				Elem.Priority = CustomizableObjectInstancePrivateData->MinSquareDistFromComponentToPlayer;
-			}
-		}
+		PendingInstanceUpdates.Add(UpdateToAdd);
 	}
-}
 
-
-void FMutableQueue::UpdatePriority(const UCustomizableObjectInstance* Instance)
-{
-	for (FMutableQueueElem& Elem : Array)
+	if (FMutablePendingInstanceDiscard* ExistingDiscard = PendingInstanceDiscards.Find(UpdateToAdd.CustomizableObjectInstance))
 	{
-		check(Elem.Operation);
-		if (Elem.Operation->CustomizableObjectInstance == Instance)
-		{
-			check(Instance->GetPrivate() != nullptr);
-			Elem.Priority = Instance->GetPrivate()->MinSquareDistFromComponentToPlayer;
-			break;
-		}
+		FinishUpdateGlobal(ExistingDiscard->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, nullptr, nullptr);
+
+		PendingInstanceDiscards.Remove(ExistingDiscard->CustomizableObjectInstance);
 	}
 }
 
 
-const FMutableQueueElem* FMutableQueue::Get(const UCustomizableObjectInstance* Instance) const
+void FMutablePendingInstanceWork::RemoveUpdate(const TWeakObjectPtr<UCustomizableObjectInstance>& Instance)
 {
-	for (const FMutableQueueElem& Elem : Array)
+	PendingInstanceUpdates.Remove(Instance);
+}
+
+
+const FMutablePendingInstanceUpdate* FMutablePendingInstanceWork::GetUpdate(const TWeakObjectPtr<UCustomizableObjectInstance>& Instance) const
+{
+	return PendingInstanceUpdates.Find(Instance);
+}
+
+
+void FMutablePendingInstanceWork::AddDiscard(const FMutablePendingInstanceDiscard& TaskToEnqueue)
+{
+	if (FMutablePendingInstanceUpdate* ExistingUpdate = PendingInstanceUpdates.Find(TaskToEnqueue.CustomizableObjectInstance.Get()))
 	{
-		check(Elem.Operation);
-		if (Elem.Operation->CustomizableObjectInstance == Instance)
-		{
-			return &Elem;
-		}
+		FinishUpdateGlobal(ExistingUpdate->CustomizableObjectInstance.Get(), EUpdateResult::ErrorReplaced, ExistingUpdate->Callback, &ExistingUpdate->InstanceDescriptor);
+		PendingInstanceUpdates.Remove(ExistingUpdate->CustomizableObjectInstance);
 	}
 
-	return nullptr;
+	PendingInstanceDiscards.Add(TaskToEnqueue);
+
+	TaskToEnqueue.CustomizableObjectInstance->GetPrivate()->SetCOInstanceFlags(Updating);
 }
 
 
-void FMutableQueue::Sort()
+void FMutablePendingInstanceWork::AddIDRelease(mu::Instance::ID IDToRelease)
 {
-	Array.Heapify();
+	PendingIDsToRelease.Add(IDToRelease);
+}
+
+
+void FMutablePendingInstanceWork::RemoveAllUpdatesAndDiscardsAndReleases()
+{
+	PendingInstanceUpdates.Empty();
+	PendingInstanceDiscards.Empty();
+	PendingIDsToRelease.Empty();
 }
 
 
@@ -224,7 +216,6 @@ FString UCustomizableObjectSystem::GetPluginVersion() const
 	// Bridge the call from the module. This implementation is available from blueprint.
 	return ICustomizableObjectModule::Get().GetPluginVersion();
 }
-
 
 
 void UCustomizableObjectSystem::LogShowData(bool bFullInfo, bool ShowMaterialInfo) const
@@ -427,11 +418,7 @@ void UCustomizableObjectSystem::BeginDestroy()
 
 		Private->CurrentInstanceBeingUpdated = nullptr;
 
-		while (!Private->MutableOperationQueue.IsEmpty())
-		{
-			FMutableQueueElem AuxOperation;
-			Private->MutableOperationQueue.Dequeue(&AuxOperation);
-		}
+		Private->MutablePendingInstanceWork.RemoveAllUpdatesAndDiscardsAndReleases();
 
 		FCustomizableObjectSystemPrivate::SSystem = nullptr;
 
@@ -505,17 +492,12 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 		int CountLOD1 = 0;
 		int CountLOD2 = 0;
 		int CountTotal = 0;
-		int CountPending = 0;
+
 		for (TObjectIterator<UCustomizableObjectInstance> CustomizableObjectInstance; CustomizableObjectInstance; ++CustomizableObjectInstance)
 		{
 			if ( IsValidChecked(*CustomizableObjectInstance) && CustomizableObjectInstance->GetPrivate())
 			{
 				++CountTotal;
-
-				if (CustomizableObjectInstance->SkeletalMeshStatus == ESkeletalMeshState::AsyncUpdatePending)
-				{
-					++CountPending;
-				}
 
 				for (int32 ComponentIndex = 0; ComponentIndex < CustomizableObjectInstance->SkeletalMeshes.Num(); ++ComponentIndex)
 				{
@@ -542,9 +524,9 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 
 		NumInstances = CountLOD0 + CountLOD1 + CountLOD2;
 		TotalInstances = CountTotal;
-		NumPendingInstances = CountPending;
+		NumPendingInstances = MutablePendingInstanceWork.Num();
 		//SET_DWORD_STAT(STAT_MutableSkeletalMeshResourceMemory, Size / 1024.f);
-		SET_DWORD_STAT(STAT_MutablePendingInstanceUpdates, MutableOperationQueue.Num());
+		SET_DWORD_STAT(STAT_MutablePendingInstanceUpdates, MutablePendingInstanceWork.Num());
 
 		uint64 Size = 0;
 		uint32 CountAllocated = 0;
@@ -591,7 +573,7 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 		if (LogBenchmarkUtil::isLoggingActive())
 		{
 			LogBenchmarkUtil::updateStat("customizable_objects", (int32)CountAllocatedSkeletalMesh);
-			LogBenchmarkUtil::updateStat("pending_instance_updates", MutableOperationQueue.Num());
+			LogBenchmarkUtil::updateStat("pending_instance_updates", MutablePendingInstanceWork.Num());
 			LogBenchmarkUtil::updateStat("allocated_textures", (int32)CountAllocated);
 			LogBenchmarkUtil::updateStat("texture_resource_memory", (long double)Size / 1048576.0L);
 			LogBenchmarkUtil::updateStat("texture_generated_memory", (long double)SizeGenerated / 1048576.0L);
@@ -602,7 +584,7 @@ void FCustomizableObjectSystemPrivate::UpdateStats()
 		SET_DWORD_STAT(STAT_MutableNumInstancesLOD1, CountLOD1);
 		SET_DWORD_STAT(STAT_MutableNumInstancesLOD2, CountLOD2);
 		SET_DWORD_STAT(STAT_MutableNumAllocatedSkeletalMeshes, CountAllocatedSkeletalMesh);
-		SET_DWORD_STAT(STAT_MutablePendingInstanceUpdates, MutableOperationQueue.Num());
+		SET_DWORD_STAT(STAT_MutablePendingInstanceUpdates, MutablePendingInstanceWork.Num());
 		SET_DWORD_STAT(STAT_MutableNumAllocatedTextures, CountAllocated);
 		SET_DWORD_STAT(STAT_MutableTextureResourceMemory, Size / 1024.f);
 		SET_DWORD_STAT(STAT_MutableTextureGeneratedMemory, SizeGenerated / 1024.f);
@@ -796,6 +778,13 @@ void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult Upd
 }
 
 
+void FinishUpdateGlobal(UCustomizableObjectInstance* Instance, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, const FCustomizableObjectInstanceDescriptor* InstanceDescriptor, const FDescriptorRuntimeHash InUpdatedHash)
+{
+	FinishUpdateGlobal(Instance, UpdateResult, UpdateCallback, InstanceDescriptor ? InstanceDescriptor->GetParameters() : nullptr, 
+		InUpdatedHash);
+}
+
+
 /** Update the given Instance Skeletal Meshes and call its callbacks. */
 void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance, const FDescriptorRuntimeHash& UpdatedDescriptorRuntimeHash, EUpdateResult UpdateResult, FInstanceUpdateDelegate* UpdateCallback, mu::ParametersPtrConst Parameters = nullptr)
 {
@@ -862,19 +851,15 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance& CustomizableObjectInstance,
 }
 
 
-void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjectInstance& Instance, FMutableQueueElem::EQueuePriorityType Priority, FInstanceUpdateDelegate* UpdateCallback)
+void FCustomizableObjectSystemPrivate::GetMipStreamingConfig(const UCustomizableObjectInstance& Instance, bool& bOutNeverStream, int32& OutMipsToSkip) const
 {
-	MUTABLE_CPUPROFILER_SCOPE(FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh);
-
-	check(IsInGameThread());
-
 	const FString CurrentState = Instance.GetCurrentState();
 	const FParameterUIData* State = Instance.GetCustomizableObject()->StateUIDataMap.Find(CurrentState);
 
 	// \TODO: This should be controllable independently
-	const bool bNeverStream = State ? State->TextureCompressionStrategy != ETextureCompressionStrategy::None : false;
-	bool bUseMipmapStreaming = !bNeverStream;
-	int32 MipsToSkip = 0; // 0 means all mips
+	bOutNeverStream = State ? State->TextureCompressionStrategy != ETextureCompressionStrategy::None : false;
+	bool bUseMipmapStreaming = !bOutNeverStream;
+	OutMipsToSkip = 0; // 0 means all mips
 
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 	if (!IStreamingManager::Get().IsTextureStreamingEnabled())
@@ -887,17 +872,27 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 
 	if (bUseMipmapStreaming && EnableMutableProgressiveMipStreaming)
 	{
-		MipsToSkip = 255; // This means skip all possible mips until only UTexture::GetStaticMinTextureResidentMipCount() are left
+		OutMipsToSkip = 255; // This means skip all possible mips until only UTexture::GetStaticMinTextureResidentMipCount() are left
 	}
+}
+
+
+void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjectInstance& Instance, EQueuePriorityType Priority, bool bIsCloseDistTick, FInstanceUpdateDelegate* UpdateCallback)
+{
+	MUTABLE_CPUPROFILER_SCOPE(FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh);
+
+	check(IsInGameThread());
+
+	bool bNeverStream = false;
+	int32 MipsToSkip = 0;
+
+	GetMipStreamingConfig(Instance, bNeverStream, MipsToSkip);
 	
 	const FDescriptorRuntimeHash UpdateDescriptorHash = Instance.GetUpdateDescriptorRuntimeHash();
 
-	if (const FMutableQueueElem* QueueElem = MutableOperationQueue.Get(&Instance))
+	if (const FMutablePendingInstanceUpdate* QueueElem = MutablePendingInstanceWork.GetUpdate(&Instance))
 	{
-		if (const TSharedPtr<FMutableOperation>& QueuedOperation = QueueElem->Operation;
-			QueuedOperation &&
-			QueuedOperation->Type == FMutableOperation::EOperationType::Update &&
-			UpdateDescriptorHash.IsSubset(QueuedOperation->InstanceDescriptorRuntimeHash))
+		if (UpdateDescriptorHash.IsSubset(FDescriptorRuntimeHash(QueueElem->InstanceDescriptor)))
 		{
 			FinishUpdateGlobal(&Instance, EUpdateResult::ErrorOptimized, UpdateCallback);			
 			return; // The the requested update is equal to the last enqueued update.
@@ -905,7 +900,6 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	}
 
 	if (CurrentMutableOperation &&
-		CurrentMutableOperation->Type == FMutableOperation::EOperationType::Update &&
 		UpdateDescriptorHash.IsSubset(CurrentMutableOperation->InstanceDescriptorRuntimeHash))
 	{
 		FinishUpdateGlobal(&Instance, EUpdateResult::ErrorOptimized, UpdateCallback);			
@@ -925,11 +919,14 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 	{	
 		Instance.SkeletalMeshStatus = ESkeletalMeshState::AsyncUpdatePending;
 
-		const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(&Instance, bNeverStream, MipsToSkip, UpdateCallback));
-		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, Priority, Instance.GetPrivate()->MinSquareDistFromComponentToPlayer));
-
 		// Cache Texture Parameters being used during the update:
-		GetImageProviderChecked()->CacheImages(*Operation->GetParameters());
+		GetImageProviderChecked()->CacheImages(*Instance.GetPrivate()->GetParameters(&Instance));
+
+		if (!bIsCloseDistTick) // When called from bIsCloseDistTick, the update operation is directly processed without going to a queue first
+		{
+			const FMutablePendingInstanceUpdate InstanceUpdate(&Instance, Priority, UpdateCallback, bNeverStream, MipsToSkip);
+			MutablePendingInstanceWork.AddUpdate(InstanceUpdate);
+		}
 	}
 }
 
@@ -940,9 +937,8 @@ void FCustomizableObjectSystemPrivate::InitDiscardResourcesSkeletalMesh(UCustomi
 
 	if (InCustomizableObjectInstance && InCustomizableObjectInstance->IsValidLowLevel())
 	{
-		const TSharedRef<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceDiscard(InCustomizableObjectInstance));
 		check(InCustomizableObjectInstance->GetPrivate() != nullptr);
-		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, FMutableQueueElem::EQueuePriorityType::High, InCustomizableObjectInstance->GetPrivate()->MinSquareDistFromComponentToPlayer));
+		MutablePendingInstanceWork.AddDiscard(FMutablePendingInstanceDiscard(InCustomizableObjectInstance));
 	}
 }
 
@@ -951,8 +947,7 @@ void FCustomizableObjectSystemPrivate::InitInstanceIDRelease(mu::Instance::ID ID
 {
 	check(IsInGameThread());
 
-	const TSharedRef<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceIDRelease(IDToRelease));
-	MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, FMutableQueueElem::EQueuePriorityType::High, 0));
+	MutablePendingInstanceWork.AddIDRelease(IDToRelease);
 }
 
 
@@ -2269,28 +2264,14 @@ namespace impl
 	}
 
 
-	/** Enqueue the release ID operation in the Mutable queue */
-	void Task_Game_ReleaseInstanceID(TSharedPtr<FMutableOperation> Operation)
-	{
-		MUTABLE_CPUPROFILER_SCOPE(Task_Game_ReleaseInstanceID)
-
-		check(Operation);
-		check(Operation->Type == FMutableOperation::EOperationType::IDRelease);
-
-		Task_Game_ReleaseInstanceID(Operation->IDToRelease);
-	}
-
-
 	/** "Start Update" */
 	void Task_Game_StartUpdate(TSharedPtr<FMutableOperation> Operation)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(Task_Game_StartUpdate)
 
 		UCustomizableObjectSystem::GetInstance()->GetPrivate()->MutableTaskGraph.AllowLaunchingMutableTaskLowPriority(false, false);
-
 		
 		check(Operation);
-		check(Operation->Type == FMutableOperation::EOperationType::Update);
 
 		UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 		check(System != nullptr);
@@ -2448,7 +2429,8 @@ namespace impl
 		CurrentOperationData->UpdateCallback = Operation->UpdateCallback;
 		CustomizableObject->GetLowPriorityTextureNames(CurrentOperationData->LowPriorityTextures);
 
-		if (System->IsOnlyGenerateRequestedLODsEnabled() && System->CurrentInstanceLODManagement->IsOnlyGenerateRequestedLODLevelsEnabled() && !CandidateInstancePrivateData->HasCOInstanceFlags(ForceGenerateAllLODs))
+		if (System->IsOnlyGenerateRequestedLODsEnabled() && System->CurrentInstanceLODManagement->IsOnlyGenerateRequestedLODLevelsEnabled() && 
+			!Operation->bForceGenerateAllLODs)
 		{
 			CurrentOperationData->RequestedLODs = Operation->InstanceDescriptorRuntimeHash.GetRequestedLODs();
 		}
@@ -2535,77 +2517,12 @@ void UCustomizableObjectSystem::AdvanceCurrentOperation()
 	// - we have an ongoing operations
 	// - we have no pending work for the ongoing operation
 	// - so we are starting it.
-	switch (Private->CurrentMutableOperation->Type)
 	{
-		case FMutableOperation::EOperationType::Discard:
-		{
-			MUTABLE_CPUPROFILER_SCOPE(OperationDiscard);
+		MUTABLE_CPUPROFILER_SCOPE(OperationUpdate);
 
-			// \TODO: Discards could be done in any case, concurrently with update operations. Should they be
-			// in their own "queue"?
-
-			UCustomizableObjectInstance* COI = Private->CurrentMutableOperation->CustomizableObjectInstance.Get();
-			UCustomizableInstancePrivateData* COIPrivateData = COI ? COI->GetPrivate() : nullptr;
-
-			// Only discard resources if the instance is still out range (it could have got closer to the player since the task was queued)
-			if (!CurrentInstanceLODManagement->IsOnlyUpdateCloseCustomizableObjectsEnabled() ||
-				!COI ||
-				((COIPrivateData != nullptr) &&
-				 (COIPrivateData->LastMinSquareDistFromComponentToPlayer > FMath::Square(CurrentInstanceLODManagement->GetOnlyUpdateCloseCustomizableObjectsDist()))
-				)
-			   )
-			{
-				if (COI && COI->IsValidLowLevel())
-				{
-					check(COIPrivateData != nullptr);
-					COIPrivateData->DiscardResourcesAndSetReferenceSkeletalMesh(COI);
-					COIPrivateData->ClearCOInstanceFlags(Updating);
-					COI->SkeletalMeshStatus = ESkeletalMeshState::Correct;
-				}
-			}
-			else
-			{
-				check(COIPrivateData != nullptr);
-				COIPrivateData->ClearCOInstanceFlags(Updating);
-			}
-
-			if (COI && !COI->HasAnySkeletalMesh())
-			{
-				// To solve the problem in the Mutable demo where PIE just after editor start made all instances appear as reference mesh until editor restart
-				check(COIPrivateData != nullptr);
-				COIPrivateData->ClearCOInstanceFlags(Generated);
-			}
-
-			ClearCurrentMutableOperation();
-
-			break;
-		}
-
-		case FMutableOperation::EOperationType::Update:
-		{
-			MUTABLE_CPUPROFILER_SCOPE(OperationUpdate);
-
-			// Start the first task of the update process. See namespace impl comments above.
-			impl::Task_Game_StartUpdate(Private->CurrentMutableOperation);
-			break;
-		}
-
-		case FMutableOperation::EOperationType::IDRelease:
-		{
-			MUTABLE_CPUPROFILER_SCOPE(OperationIDRelease);
-
-			impl::Task_Game_ReleaseInstanceID(Private->CurrentMutableOperation);
-
-			ClearCurrentMutableOperation();
-
-			break;
-		}
-
-		default:
-			check(false);
-			break;
+		// Start the first task of the update process. See namespace impl comments above.
+		impl::Task_Game_StartUpdate(Private->CurrentMutableOperation);
 	}
-
 }
 
 
@@ -2613,7 +2530,7 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableObjectSystem::Tick)
 	
-	// Building instances is not enable in servers. If at some point relevant collision or animation data is necessary for server logic this will need to be changed.
+	// Building instances is not enabled in servers. If at some point relevant collision or animation data is necessary for server logic this will need to be changed.
 #if UE_SERVER
 	return true;
 #endif
@@ -2648,9 +2565,10 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 	if (!Private->CurrentMutableOperation)
 	{
 		// Reset the instance relevancy
-		// \TODO: Review
-		// TODO: This should be done only when requiring a new job. And for the current operation instance, in case it needs to be cancelled.
-		CurrentInstanceLODManagement->UpdateInstanceDistsAndLODs();
+		// The RequestedUpdates only refer to LOD changes. User Customization and discards are handled separately
+		FMutableInstanceUpdateMap RequestedLODUpdates;
+		
+		CurrentInstanceLODManagement->UpdateInstanceDistsAndLODs(RequestedLODUpdates);
 
 		for (TObjectIterator<UCustomizableObjectInstance> CustomizableObjectInstance; CustomizableObjectInstance; ++CustomizableObjectInstance)
 		{
@@ -2660,21 +2578,150 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 
 				if (ObjectInstancePrivateData->HasCOInstanceFlags(UsedByComponentInPlay))
 				{
-					ObjectInstancePrivateData->TickUpdateCloseCustomizableObjects(**CustomizableObjectInstance);
+					ObjectInstancePrivateData->TickUpdateCloseCustomizableObjects(**CustomizableObjectInstance, true, RequestedLODUpdates);
 				}
 				else if (ObjectInstancePrivateData->HasCOInstanceFlags(UsedByComponent))
 				{
-					ObjectInstancePrivateData->UpdateInstanceIfNotGenerated(**CustomizableObjectInstance);
+					ensure(!RequestedLODUpdates.Contains(*CustomizableObjectInstance));
+					ObjectInstancePrivateData->UpdateInstanceIfNotGenerated(**CustomizableObjectInstance, RequestedLODUpdates);
+				}
+				else
+				{
+					ensure(!RequestedLODUpdates.Contains(*CustomizableObjectInstance));
 				}
 
 				ObjectInstancePrivateData->ClearCOInstanceFlags((ECOInstanceFlags)(UsedByComponent | UsedByComponentInPlay | PendingLODsUpdate)); // TODO MTBL-391: Makes no sense to clear it here, what if an update is requested before we set it back to true
 			}
+			else
+			{
+				ensure(!RequestedLODUpdates.Contains(*CustomizableObjectInstance));
+			}
 		}
 
-		// Update the queue. TODO: This should be done only when requiring a new job. And for the current operation instance, in case it needs to be cancelled.
-		{
-			Private->MutableOperationQueue.ChangePriorities();
+		TSharedPtr<FMutableOperation> FoundOperation;
 
+		{
+			// Look for the highest priority update between the pending updates and the LOD Requested Updates
+			EQueuePriorityType MaxPriorityFound = EQueuePriorityType::Low;
+			double MaxSquareDistanceFound = TNumericLimits<double>::Max();
+			double MinTimeFound = TNumericLimits<double>::Max();
+			const FMutablePendingInstanceUpdate* PendingInstanceUpdateFound = nullptr;
+			FMutableUpdateCandidate* LODUpdateCandidateFound = nullptr;
+
+			// Look for the highest priority Pending Update
+			for (auto Iterator = Private->MutablePendingInstanceWork.GetUpdateIterator(); Iterator; ++Iterator)
+			{
+				FMutablePendingInstanceUpdate& PendingUpdate = *Iterator;
+
+				if (PendingUpdate.CustomizableObjectInstance.IsValid())
+				{
+					EQueuePriorityType PriorityType = PendingUpdate.CustomizableObjectInstance->GetUpdatePriority(true, true, false, false);
+					
+					if (PendingUpdate.PriorityType <= MaxPriorityFound)
+					{
+						const double MinSquareDistFromComponentToPlayer = PendingUpdate.CustomizableObjectInstance->GetPrivate()->MinSquareDistFromComponentToPlayer;
+						
+						if (MinSquareDistFromComponentToPlayer < MaxSquareDistanceFound ||
+							(MinSquareDistFromComponentToPlayer == MaxSquareDistanceFound && PendingUpdate.SecondsAtUpdate < MinTimeFound))
+						{
+							MaxPriorityFound = PriorityType;
+							MaxSquareDistanceFound = MinSquareDistFromComponentToPlayer;
+							MinTimeFound = PendingUpdate.SecondsAtUpdate;
+							PendingInstanceUpdateFound = &PendingUpdate;
+							LODUpdateCandidateFound = nullptr;
+						}
+					}
+				}
+				else
+				{
+					Iterator.RemoveCurrent();
+				}
+			}
+
+			// Look for a higher priority LOD update
+			for (TPair<const UCustomizableObjectInstance*, FMutableUpdateCandidate>& LODUpdateTuple : RequestedLODUpdates)
+			{
+				const UCustomizableObjectInstance* Instance = LODUpdateTuple.Key;
+
+				if (Instance)
+				{
+					FMutableUpdateCandidate& LODUpdateCandidate = LODUpdateTuple.Value;
+					ensure(LODUpdateCandidate.HasBeenIssued());
+
+					if (LODUpdateCandidate.Priority <= MaxPriorityFound)
+					{
+						if (LODUpdateCandidate.CustomizableObjectInstance->GetPrivate()->MinSquareDistFromComponentToPlayer < MaxSquareDistanceFound)
+						{
+							MaxPriorityFound = LODUpdateCandidate.Priority;
+							MaxSquareDistanceFound = LODUpdateCandidate.CustomizableObjectInstance->GetPrivate()->MinSquareDistFromComponentToPlayer;
+							PendingInstanceUpdateFound = nullptr;
+							LODUpdateCandidateFound = &LODUpdateCandidate;
+						}
+					}
+				}
+			}
+
+			Private->MutablePendingInstanceWork.SetLODUpdatesLastTick(RequestedLODUpdates.Num());
+
+			// If the chosen LODUpdate has the same instance as a PendingUpdate, choose the PendingUpdate to apply both the LOD update
+			// and customization change
+			if (LODUpdateCandidateFound)
+			{
+				if (const FMutablePendingInstanceUpdate *PendingUpdateWithSameInstance = Private->MutablePendingInstanceWork.GetUpdate(LODUpdateCandidateFound->CustomizableObjectInstance))
+				{
+					PendingInstanceUpdateFound = PendingUpdateWithSameInstance;
+					LODUpdateCandidateFound = nullptr;
+
+					// In the processing of the PendingUpdate just below, it will add the LODUpdate's LOD params
+				}
+			}
+
+			if (PendingInstanceUpdateFound)
+			{
+				check(!LODUpdateCandidateFound);
+
+				UCustomizableObjectInstance* PendingInstance = PendingInstanceUpdateFound->CustomizableObjectInstance.Get();
+				ensure(PendingInstance);
+
+				// Maybe there's a LODUpdate that has the same instance, merge both updates as an optimization
+				FMutableUpdateCandidate* LODUpdateWithSameInstance = RequestedLODUpdates.Find(PendingInstance);
+				
+				if (LODUpdateWithSameInstance)
+				{
+					LODUpdateWithSameInstance->ApplyLODUpdateParamsToInstance();
+				}
+
+				// No need to do a DoUpdateSkeletalMesh, as it was already done when adding the pending update
+
+				FoundOperation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(PendingInstance,
+					PendingInstanceUpdateFound->bNeverStream, PendingInstanceUpdateFound->MipsToSkip, PendingInstanceUpdateFound->Callback));
+
+				Private->MutablePendingInstanceWork.RemoveUpdate(PendingInstanceUpdateFound->CustomizableObjectInstance);
+			}
+			else if(LODUpdateCandidateFound)
+			{
+				// Commit the LOD changes
+				LODUpdateCandidateFound->ApplyLODUpdateParamsToInstance();
+
+				// No need to check if a PendingUpdate has the same instance, it would already have been caught in the 
+				// previous if statements
+
+				// LOD updates are detected automatically and have never had a DoUpdateSkeletalMesh, so call it without enqueing a new update
+				UCustomizableInstancePrivateData* ObjectInstancePrivateData = LODUpdateCandidateFound->CustomizableObjectInstance->GetPrivate();
+				ObjectInstancePrivateData->TickUpdateCloseCustomizableObjects(*LODUpdateCandidateFound->CustomizableObjectInstance, false, RequestedLODUpdates);
+
+				bool bNeverStream = false;
+				int32 MipsToSkip = 0;
+
+				ensure(LODUpdateCandidateFound->CustomizableObjectInstance);
+				GetPrivate()->GetMipStreamingConfig(*LODUpdateCandidateFound->CustomizableObjectInstance, bNeverStream, MipsToSkip);
+
+				FoundOperation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(LODUpdateCandidateFound->CustomizableObjectInstance,
+					bNeverStream, MipsToSkip, nullptr));
+			}
+		}
+
+		{
 			for (TObjectIterator<UCustomizableObjectInstance> CustomizableObjectInstance; CustomizableObjectInstance; ++CustomizableObjectInstance)
 			{
 				if (IsValidChecked(*CustomizableObjectInstance) && CustomizableObjectInstance->GetPrivate())
@@ -2683,19 +2730,28 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 					CustomizableObjectInstance->GetPrivate()->MinSquareDistFromComponentToPlayer = FLT_MAX;
 				}
 			}
-
-			Private->MutableOperationQueue.Sort();
 		}
 
 		// Update the streaming limit if it has changed. It is safe to do this now.
 		Private->UpdateMemoryLimit();
 
+		// Free memory before starting the new update
+		DiscardInstances();
+		ReleaseInstanceIDs();
+
 		// Decide the next mutable operation to perform.
-		if (!Private->MutableOperationQueue.IsEmpty())
+		if (FoundOperation.IsValid())
 		{
-			FMutableQueueElem AuxElem;
-			Private->MutableOperationQueue.Dequeue(&AuxElem);
-			Private->CurrentMutableOperation = AuxElem.Operation;
+			Private->CurrentMutableOperation = FoundOperation;
+
+			UCustomizableObjectInstance* FoundInstance = Private->CurrentMutableOperation->CustomizableObjectInstance.Get();
+			
+			if (FoundInstance->GetPrivate()->HasCOInstanceFlags(ForceGenerateAllLODs))
+			{
+				Private->CurrentMutableOperation->bForceGenerateAllLODs = true;
+			}
+
+			Private->CurrentMutableOperation->CustomizableObjectInstance->GetPrivate()->InstanceUpdateFlags(*FoundInstance);
 		}
 		else
 		{
@@ -2731,6 +2787,89 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 	Private->MutableTaskGraph.Tick();
 
 	return true;
+}
+
+
+TAutoConsoleVariable<int32> CVarMaxNumInstancesToDiscardPerTick(
+	TEXT("mutable.MaxNumInstancesToDiscardPerTick"),
+	30,
+	TEXT("The maximum number of stale instances that will be discarded per tick by Mutable."),
+	ECVF_Scalability);
+
+
+void UCustomizableObjectSystem::DiscardInstances()
+{
+	// Handle instance discards
+	int32 NumInstancesDiscarded = 0;
+	const int32 DiscardLimitPerTick = CVarMaxNumInstancesToDiscardPerTick.GetValueOnGameThread();
+
+	for (auto Iterator = Private->MutablePendingInstanceWork.GetDiscardIterator(); Iterator && NumInstancesDiscarded < DiscardLimitPerTick; ++Iterator)
+	{
+		MUTABLE_CPUPROFILER_SCOPE(OperationDiscard);
+
+		UCustomizableObjectInstance* COI = Iterator->CustomizableObjectInstance.Get();
+
+		if (COI)
+		{
+			UCustomizableInstancePrivateData* COIPrivateData = COI ? COI->GetPrivate() : nullptr;
+
+			// Only discard resources if the instance is still out range (it could have got closer to the player since the task was queued)
+			if (!CurrentInstanceLODManagement->IsOnlyUpdateCloseCustomizableObjectsEnabled() ||
+				!COI ||
+				((COIPrivateData != nullptr) &&
+					(COIPrivateData->LastMinSquareDistFromComponentToPlayer > FMath::Square(CurrentInstanceLODManagement->GetOnlyUpdateCloseCustomizableObjectsDist()))
+					)
+				)
+			{
+				if (COI && COI->IsValidLowLevel())
+				{
+					check(COIPrivateData != nullptr);
+					COIPrivateData->DiscardResourcesAndSetReferenceSkeletalMesh(COI);
+					COIPrivateData->ClearCOInstanceFlags(Updating);
+					COI->SkeletalMeshStatus = ESkeletalMeshState::Correct;
+				}
+			}
+			else
+			{
+				check(COIPrivateData != nullptr);
+				COIPrivateData->ClearCOInstanceFlags(Updating);
+			}
+
+			if (COI && !COI->HasAnySkeletalMesh())
+			{
+				// To solve the problem in the Mutable demo where PIE just after editor start made all instances appear as reference mesh until editor restart
+				check(COIPrivateData != nullptr);
+				COIPrivateData->ClearCOInstanceFlags(Generated);
+			}
+		}
+
+		Iterator.RemoveCurrent();
+		NumInstancesDiscarded++;
+	}
+}
+
+
+TAutoConsoleVariable<int32> CVarMaxNumInstanceIDsToReleasePerTick(
+	TEXT("mutable.MaxNumInstanceIDsToReleasePerTick"),
+	30,
+	TEXT("The maximum number of stale instances IDs that will be released per tick by Mutable."),
+	ECVF_Scalability);
+
+
+void UCustomizableObjectSystem::ReleaseInstanceIDs()
+{
+	// Handle ID discards
+	int32 NumIDsReleased = 0;
+	const int32 IDReleaseLimitPerTick = CVarMaxNumInstanceIDsToReleasePerTick.GetValueOnGameThread();
+
+	for (auto Iterator = Private->MutablePendingInstanceWork.GetIDsToReleaseIterator();
+		Iterator && NumIDsReleased < IDReleaseLimitPerTick; ++Iterator)
+	{
+		impl::Task_Game_ReleaseInstanceID(*Iterator);
+
+		Iterator.RemoveCurrent();
+		NumIDsReleased++;
+	}
 }
 
 
@@ -2782,7 +2921,6 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	check(InCustomizableObjectInstance->GetCustomizableObject() != nullptr);
 
 	FMutableOperation Op;
-	Op.Type = EOperationType::Update;
 	Op.bNeverStream = bInNeverStream;
 	Op.MipsToSkip = InMipsToSkip;
 	Op.CustomizableObjectInstance = InCustomizableObjectInstance;
@@ -2790,6 +2928,7 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	Op.bStarted = false;
 	Op.bBuildParameterRelevancy = InCustomizableObjectInstance->GetBuildParameterRelevancy();
 	Op.Parameters = InCustomizableObjectInstance->GetPrivate()->GetParameters(InCustomizableObjectInstance);
+
 	if (UpdateCallback)
 	{
 		Op.UpdateCallback = *UpdateCallback;		
@@ -2802,31 +2941,6 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 		// Cancel the update because the parameters aren't valid, probably because the object is not compiled
 		Op.CustomizableObjectInstance = nullptr;
 	}
-
-	return Op;
-}
-
-
-FMutableOperation FMutableOperation::CreateInstanceDiscard(UCustomizableObjectInstance* InCustomizableObjectInstance)
-{
-	check(InCustomizableObjectInstance != nullptr);
-	check(InCustomizableObjectInstance->GetPrivate() != nullptr);
-
-	FMutableOperation Op;
-	Op.Type = EOperationType::Discard;
-	Op.CustomizableObjectInstance = InCustomizableObjectInstance;
-
-	Op.CustomizableObjectInstance->GetPrivate()->SetCOInstanceFlags(Updating);
-
-	return Op;
-}
-
-
-FMutableOperation FMutableOperation::CreateInstanceIDRelease(mu::Instance::ID IDToRelease)
-{
-	FMutableOperation Op;
-	Op.Type = EOperationType::IDRelease;
-	Op.IDToRelease = IDToRelease;
 
 	return Op;
 }

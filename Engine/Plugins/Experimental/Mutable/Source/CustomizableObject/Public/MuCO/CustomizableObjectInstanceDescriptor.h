@@ -16,6 +16,9 @@ class UCustomizableObject;
 class UCustomizableObjectInstance;
 class FDescriptorHash;
 class FDescriptorRuntimeHash;
+class FMutableUpdateCandidate;
+
+typedef TMap<const UCustomizableObjectInstance*, FMutableUpdateCandidate> FMutableInstanceUpdateMap;
 
 namespace mu
 {
@@ -332,6 +335,9 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	/** See FMultilayerProjector::UpdateVirtualLayer. */
 	void MultilayerProjectorUpdateVirtualLayer(const FName& ProjectorParamName, const FName& Id, const FMultilayerProjectorVirtualLayer& Layer);
 
+	/** Return a Mutable Core object containing all parameters. */
+	mu::Ptr<mu::Parameters> GetParameters() const;
+
 private:
 
 	UPROPERTY()
@@ -375,9 +381,6 @@ private:
 	UPROPERTY()
 	TMap<FName, FMultilayerProjector> MultilayerProjectors;
 
-	/** Return a Mutable Core object containing all parameters. */
-	mu::Ptr<mu::Parameters> GetParameters() const;
-
 	void CreateParametersLookupTable();
 	
 	// Friends
@@ -386,6 +389,7 @@ private:
 	friend UCustomizableObjectInstance;
 	friend UCustomizableInstancePrivateData;
 	friend FMultilayerProjector;
+	friend FMutableUpdateCandidate;
 };
 
 

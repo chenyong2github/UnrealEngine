@@ -226,8 +226,9 @@ public:
 	/** See FCustomizableObjectInstanceDescriptor::ReloadParameters(...). */
 	void ReloadParameters(UCustomizableObjectInstance* Public, bool bInvalidatePreviousData = false);
 
-	void TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public);
-	void UpdateInstanceIfNotGenerated(UCustomizableObjectInstance& Public);
+	/** If bOnlyUpdatePrioForUpdates is true, Instances that need an update won't be modified. Just their entry in InOutRequestedUpdates will get its priority updated  */
+	void TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public, const bool bOnlyUpdatePrioForUpdates, FMutableInstanceUpdateMap& InOutRequestedUpdates);
+	void UpdateInstanceIfNotGenerated(UCustomizableObjectInstance& Public, FMutableInstanceUpdateMap& InOutRequestedUpdates);
 
 	// Returns true if success (?)
 	bool UpdateSkeletalMesh_PostBeginUpdate0(UCustomizableObjectInstance* Public, const TSharedPtr<FMutableOperationData>& OperationData);

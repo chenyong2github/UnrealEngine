@@ -94,7 +94,7 @@ void UpdateCameraToInstancesDistance(const FVector CameraPosition)
 #endif
 
 
-void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
+void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs(FMutableInstanceUpdateMap& InOutRequestedUpdates)
 {
 	int32 NumGeneratedInstancesLimitLODs = GetNumGeneratedInstancesLimitFullLODs();
 	if (NumGeneratedInstancesLimitLODs > 0 || (IsOnlyUpdateCloseCustomizableObjectsEnabled() && IsOnlyGenerateRequestedLODLevelsEnabled()))
@@ -213,12 +213,12 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 				if (!bAlreadyReachedFixedLOD && SortedInstances[i]->GetMinSquareDistToPlayer() < DistanceForFixedLODSquared)
 				{
 					RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
-					SortedInstances[i]->SetRequestedLODs(0, MAX_int32, RequestedLODs);
+					SortedInstances[i]->SetRequestedLODs(0, MAX_int32, RequestedLODs, InOutRequestedUpdates);
 				}
 				else
 				{
 					RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
-					SortedInstances[i]->SetRequestedLODs(2, 2, RequestedLODs);
+					SortedInstances[i]->SetRequestedLODs(2, 2, RequestedLODs, InOutRequestedUpdates);
 					bAlreadyReachedFixedLOD = true;
 				}
 			}
@@ -228,12 +228,12 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 				if (!bAlreadyReachedFixedLOD && SortedInstances[i]->GetMinSquareDistToPlayer() < DistanceForFixedLODSquared)
 				{
 					RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
-					SortedInstances[i]->SetRequestedLODs(1, MAX_int32, RequestedLODs);
+					SortedInstances[i]->SetRequestedLODs(1, MAX_int32, RequestedLODs, InOutRequestedUpdates);
 				}
 				else
 				{
 					RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
-					SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs);
+					SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs, InOutRequestedUpdates);
 					bAlreadyReachedFixedLOD = true;
 				}
 			}
@@ -241,7 +241,7 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 			for (int32 i = NumGeneratedInstancesLimitLODs + NumGeneratedInstancesLimitLOD1; i < NumGeneratedInstancesLimitLODs + NumGeneratedInstancesLimitLOD1 + NumGeneratedInstancesLimitLOD2 && i < SortedInstances.Num(); ++i)
 			{
 				RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
-				SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs);
+				SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs, InOutRequestedUpdates);
 			}
 
 			for (int32 i = NumGeneratedInstancesLimitLODs + NumGeneratedInstancesLimitLOD1 + NumGeneratedInstancesLimitLOD2; i < SortedInstances.Num(); ++i)
@@ -255,7 +255,7 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 			for (int32 i = 0; i < SortedInstances.Num(); ++i)
 			{
 				RequestedLODs.Init(MAX_uint16, SortedInstances[i]->GetNumComponents());
-				SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs);
+				SortedInstances[i]->SetRequestedLODs(2, MAX_int32, RequestedLODs, InOutRequestedUpdates);
 			}
 		}
 	}
@@ -375,7 +375,7 @@ void UCustomizableInstanceLODManagement::UpdateInstanceDistsAndLODs()
 					It.Value.MaxLOD = It.Value.MinLOD;
 				}
 
-				It.Key->SetRequestedLODs(It.Value.MinLOD, It.Value.MaxLOD, It.Value.RequestedLODsPerComponent);
+				It.Key->SetRequestedLODs(It.Value.MinLOD, It.Value.MaxLOD, It.Value.RequestedLODsPerComponent, InOutRequestedUpdates);
 			}
 		}
 	}
@@ -428,4 +428,3 @@ bool UCustomizableInstanceLODManagement::IsOnlyUpdateCloseCustomizableObjectsEna
 {
 	return CVarOnlyUpdateCloseCustomizableObjects.GetValueOnGameThread();
 }
-
