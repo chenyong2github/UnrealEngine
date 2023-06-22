@@ -40,11 +40,15 @@ public:
 	bool bImportRenderMesh = true;
 
 	/**
-	 * UV channel of the skeletal meesh to import the 2D simulation mesh patterns from.
+	 * UV channel of the skeletal mesh to import the 2D simulation mesh patterns from.
 	 * If set to -1, then the import will unwrap the 3D simulation mesh into 2D simulation mesh patterns.
 	 */
-	UPROPERTY(EditAnywhere, Category = "Skeletal Mesh Import", Meta = (ClampMin = "-1"))
-	int32 UVChannel = INDEX_NONE;
+	UPROPERTY(EditAnywhere, Category = "Skeletal Mesh Import", Meta = (ClampMin = "-1", EditCondition = "bImportSimMesh"))
+	int32 UVChannel = 0;
+
+	/* Apply this scale to the UVs when populating Sim Mesh positions. */
+	UPROPERTY(EditAnywhere, Category = "Skeletal Mesh Import", Meta = (AllowPreserveRatio, EditCondition = "bImportSimMesh && UVChannel != INDEX_NONE"))
+	FVector2f UVScale = { 1.f, 1.f };
 
 	FChaosClothAssetSkeletalMeshImportNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 

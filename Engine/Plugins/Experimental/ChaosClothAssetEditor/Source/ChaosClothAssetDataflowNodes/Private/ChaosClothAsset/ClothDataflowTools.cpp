@@ -42,7 +42,7 @@ namespace UE::Chaos::ClothAsset
 
 				// We need to weld the mesh verts to get rid of duplicates (happens for smoothing groups)
 				TArray<FVector> UniqueVerts;
-				IndexRemap.AddDefaulted(NumVerts);
+				OriginalToMerged.AddDefaulted(NumVerts);
 				constexpr float ThreshSq = UE_THRESH_POINTS_ARE_SAME * UE_THRESH_POINTS_ARE_SAME;
 				for (int32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
 				{
@@ -71,11 +71,11 @@ namespace UE::Chaos::ClothAsset
 						// Unique
 						UniqueVerts.Add((FVector)SourceVert.Position);
 						OriginalIndexes.Add(VertIndex);
-						IndexRemap[VertIndex] = UniqueVerts.Num() - 1;
+						OriginalToMerged[VertIndex] = VertIndex;
 					}
 					else
 					{
-						IndexRemap[VertIndex] = RemapIndex;
+						OriginalToMerged[VertIndex] = OriginalIndexes[RemapIndex];
 					}
 				}
 
@@ -123,9 +123,9 @@ namespace UE::Chaos::ClothAsset
 			{
 				if (TriID >= 0 && TriID < (int32)SourceSection.NumTriangles)
 				{
-					VID0 = IndexRemap[IndexBuffer[3 * TriID + 0] - SourceSection.BaseVertexIndex];
-					VID1 = IndexRemap[IndexBuffer[3 * TriID + 1] - SourceSection.BaseVertexIndex];
-					VID2 = IndexRemap[IndexBuffer[3 * TriID + 2] - SourceSection.BaseVertexIndex];
+					VID0 = OriginalToMerged[IndexBuffer[3 * TriID + 0] - SourceSection.BaseVertexIndex];
+					VID1 = OriginalToMerged[IndexBuffer[3 * TriID + 1] - SourceSection.BaseVertexIndex];
+					VID2 = OriginalToMerged[IndexBuffer[3 * TriID + 2] - SourceSection.BaseVertexIndex];
 					return true;
 				}
 				return false;
@@ -350,7 +350,7 @@ namespace UE::Chaos::ClothAsset
 			const FSkelMeshSection& SourceSection;
 			const TConstArrayView<uint32> IndexBuffer;
 			TArray<int32> OriginalIndexes; // UniqueIndex -> OrigIndex
-			TArray<int32> IndexRemap; // OrigIndex -> UniqueIndex
+			TArray<int32> OriginalToMerged; // OriginalIndex -> OriginalIndexes[UniqueVertIndex] 
 			TArray<int32> TriIDs;
 			TArray<int32> EmptyArray;
 
@@ -418,7 +418,7 @@ namespace UE::Chaos::ClothAsset
 		ClothPatternFacade.SetRenderMaterialPathName(RenderMaterialPathName);
 	}
 	
-	void FClothDataflowTools::AddSimPatternsFromSkeletalMeshSection(const TSharedRef<FManagedArrayCollection>& ClothCollection, const FSkeletalMeshLODModel& SkeletalMeshModel, const int32 SectionIndex, const int32 UVChannelIndex)
+	void FClothDataflowTools::AddSimPatternsFromSkeletalMeshSection(const TSharedRef<FManagedArrayCollection>& ClothCollection, const FSkeletalMeshLODModel& SkeletalMeshModel, const int32 SectionIndex, const int32 UVChannelIndex, const FVector2f& UVScale)
 	{
 		check(SectionIndex < SkeletalMeshModel.Sections.Num());
 
@@ -435,7 +435,7 @@ namespace UE::Chaos::ClothAsset
 		UE::Geometry::FNonManifoldMappingSupport::AttachNonManifoldVertexMappingData(SkelMeshSectionToDynamicMesh.ToSrcVertIDMap, DynamicMesh);
 
 		constexpr bool bAppend = true;
-		FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannelIndex, FVector2f(1.f), bAppend);
+		FClothGeometryTools::BuildSimMeshFromDynamicMesh(ClothCollection, DynamicMesh, UVChannelIndex, UVScale, bAppend);
 	}
 
 	void FClothDataflowTools::LogAndToastWarning(const FDataflowNode& DataflowNode, const FText& Headline, const FText& Details)
