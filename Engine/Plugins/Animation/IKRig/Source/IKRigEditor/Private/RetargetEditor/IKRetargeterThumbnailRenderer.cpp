@@ -107,10 +107,13 @@ void FIKRetargeterThumbnailScene::GetViewMatrixParameters(
 		ThumbnailInfo = USceneThumbnailInfo::StaticClass()->GetDefaultObject<USceneThumbnailInfo>();
 	}
 
-	OutOrigin = -TotalBounds.GetBox().GetCenter();
-	OutOrbitPitch = ThumbnailInfo->OrbitPitch;
-	OutOrbitYaw = ThumbnailInfo->OrbitYaw;
-	OutOrbitZoom = TargetDistance + ThumbnailInfo->OrbitZoom;
+	if (ThumbnailInfo)
+	{
+		OutOrigin = -TotalBounds.GetBox().GetCenter();
+		OutOrbitPitch = ThumbnailInfo->OrbitPitch;
+		OutOrbitYaw = ThumbnailInfo->OrbitYaw;
+		OutOrbitZoom = TargetDistance + ThumbnailInfo->OrbitZoom;
+	}
 }
 
 void UIKRetargeterThumbnailRenderer::BeginDestroy()
