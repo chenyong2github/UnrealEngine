@@ -1073,22 +1073,7 @@ namespace ObjTranslatorUtils
 	{
 		UInterchangeShaderNode* TextureSampleShader = CreateMaterialTextureSampleNode(BaseNodeContainer, ShaderGraphNode, TexturePath);
 
-		if (TextureSampleShader && IsColorInitialized(Color))
-		{
-			FString MapName = Materials::Phong::Parameters::SpecularColor.ToString();
-
-			using namespace UE::Interchange::Materials::Standard::Nodes;
-
-			const FString MultiplierNodeName = MapName + TEXT("Multiply");
-			UInterchangeShaderNode* MultiplierNode = UInterchangeShaderNode::Create(&BaseNodeContainer, MultiplierNodeName, ShaderGraphNode->GetUniqueID());
-			MultiplierNode->SetCustomShaderType(Multiply::Name.ToString());
-
-			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(MultiplierNode, Multiply::Inputs::A.ToString(), TextureSampleShader->GetUniqueID());
-			MultiplierNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey( Multiply::Inputs::B.ToString() ), Color);
-
-			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputType, MultiplierNode->GetUniqueID());
-		}
-		else if (TextureSampleShader)
+		if (TextureSampleShader)
 		{
 			UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderGraphNode, InputType, TextureSampleShader->GetUniqueID());
 		}

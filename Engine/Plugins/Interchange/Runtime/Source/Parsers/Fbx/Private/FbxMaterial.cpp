@@ -109,11 +109,45 @@ namespace UE
 			{
 				using namespace Materials::Standard::Nodes;
 
-				UInterchangeShaderNode* NodeToConnectTo = ShaderGraphNode;
-				FString InputToConnectTo = InputName.ToString();
-
 				const int32 TextureCount = Property.GetSrcObjectCount<FbxFileTexture>();
 				const FbxDataType DataType = Property.GetPropertyDataType();
+				FString InputToConnectTo = InputName.ToString();
+
+				if (TextureCount == 0)
+				{
+					if (DataType.GetType() == eFbxDouble || DataType.GetType() == eFbxFloat || DataType.GetType() == eFbxInt)
+					{
+						float PropertyValue = Property.Get<float>() * Factor;
+						if (bInverse)
+						{
+							PropertyValue = 1.f - PropertyValue;
+						}
+
+						ShaderGraphNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), PropertyValue);
+					}
+					else if (DataType.GetType() == eFbxDouble3)
+					{
+						FLinearColor PropertyValue = FFbxConvert::ConvertColor(Property.Get<FbxDouble3>()) * Factor;
+						if (bInverse)
+						{
+							PropertyValue = FLinearColor::White - PropertyValue;
+						}
+
+						if (DefaultValue.IsType<FLinearColor>())
+						{
+							ShaderGraphNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), PropertyValue);
+						}
+						else if (DefaultValue.IsType<float>())
+						{
+							// We're connecting a linear color to a float input. Ideally, we'd go through a desaturate, but for now we'll just take the red channel and ignore the rest.
+							ShaderGraphNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), PropertyValue.R);
+						}
+					}
+
+					return true;
+				}
+
+				UInterchangeShaderNode* NodeToConnectTo = ShaderGraphNode;
 
 				if (bInverse)
 				{
@@ -152,39 +186,18 @@ namespace UE
 				}
 
 				// Handles max one texture per property.
-				if (TextureCount > 0)
+				FbxFileTexture* FbxTexture = Property.GetSrcObject<FbxFileTexture>(0);
+				if (UInterchangeShaderNode* TextureSampleShader = CreateTextureSampler(FbxTexture, NodeContainer, ShaderGraphNode->GetUniqueID()))
 				{
-					FbxFileTexture* FbxTexture = Property.GetSrcObject<FbxFileTexture>(0);
-					if (UInterchangeShaderNode* TextureSampleShader = CreateTextureSampler(FbxTexture, NodeContainer, ShaderGraphNode->GetUniqueID()))
-					{
-						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShader->GetUniqueID());
-					}
-					else
-					{
-						UInterchangeResultTextureWarning_TextureFileDoNotExist* Message = Parser.AddMessage<UInterchangeResultTextureWarning_TextureFileDoNotExist>();
-						Message->TextureName = FbxTexture ? UTF8_TO_TCHAR(FbxTexture->GetFileName()) : TEXT("Undefined");
-						Message->MaterialName = ShaderGraphNode->GetDisplayLabel();
-
-						return false;
-					}
+					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShader->GetUniqueID());
 				}
-				else if (DataType.GetType() == eFbxDouble || DataType.GetType() == eFbxFloat || DataType.GetType() == eFbxInt)
+				else
 				{
-					NodeToConnectTo->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), Property.Get<float>());
-				}
-				else if (DataType.GetType() == eFbxDouble3)
-				{
-					const FLinearColor PropertyValue = FFbxConvert::ConvertColor(Property.Get<FbxDouble3>());
+					UInterchangeResultTextureWarning_TextureFileDoNotExist* Message = Parser.AddMessage<UInterchangeResultTextureWarning_TextureFileDoNotExist>();
+					Message->TextureName = FbxTexture ? UTF8_TO_TCHAR(FbxTexture->GetFileName()) : TEXT("Undefined");
+					Message->MaterialName = ShaderGraphNode->GetDisplayLabel();
 
-					if (DefaultValue.IsType<FLinearColor>())
-					{
-						NodeToConnectTo->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), PropertyValue);
-					}
-					else if (DefaultValue.IsType<float>())
-					{
-						// We're connecting a linear color to a float input. Ideally, we'd go through a desaturate, but for now we'll just take the red channel and ignore the rest.
-						NodeToConnectTo->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputToConnectTo), PropertyValue.R);
-					}
+					return false;
 				}
 
 				return true;
@@ -377,11 +390,29 @@ namespace UE
 				}
 
 				// Opacity
+				// Connect only if transparency is either a texture or different from 0.f
 				{
-					const float TransparencyFactor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->TransparencyFactor.Get();
-					TVariant<FLinearColor, float> DefaultValue;
-					DefaultValue.Set<float>(0.f); // Opaque
-					ConnectInput(Phong::Parameters::Opacity, FbxSurfaceMaterial::sTransparentColor, TransparencyFactor, DefaultValue, true);
+					FBXSDK_NAMESPACE::FbxProperty MaterialProperty = SurfaceMaterial->FindProperty(FbxSurfaceMaterial::sTransparentColor);
+					if (ShouldConvertProperty(MaterialProperty))
+					{
+						const float TransparencyFactor = (float)((FbxSurfaceLambert*)SurfaceMaterial)->TransparencyFactor.Get();
+
+						if (MaterialProperty.GetSrcObjectCount<FbxFileTexture>() > 0)
+						{
+							TVariant<FLinearColor, float> DefaultValue;
+							DefaultValue.Set<float>(0.f); // Opaque
+							ConvertPropertyToShaderNode(NodeContainer, ShaderGraphNode, MaterialProperty, TransparencyFactor, Phong::Parameters::Opacity, DefaultValue, true);
+						}
+						else
+						{
+							const float OpacityScalar = 1.f - (MaterialProperty.Get<float>() * TransparencyFactor);
+							if (OpacityScalar < 1.f)
+							{
+								const FString InputName = UInterchangeShaderPortsAPI::MakeInputValueKey(Phong::Parameters::Opacity.ToString());
+								ShaderGraphNode->AddFloatAttribute(InputName, OpacityScalar);
+							}
+						}
+					}
 				}
 
 				// Get specular color and shininess if FBX material is a Phong one
