@@ -82,7 +82,7 @@ namespace UE::DMXEditor::AutoAssign
 {
 	enum class EAutoAssignMode : uint8
 	{
-		ChannelUnderMouse,
+		UserDefinedChannel,
 		SelectedUniverse,
 		FirstReachableUniverse,
 		AfterLastPatchedUniverse
@@ -105,14 +105,14 @@ namespace UE::DMXEditor::AutoAssign
 		static void SpreadOverUniverses(TArray<UDMXEntityFixturePatch*> FixturePatches);
 
 		/** Auto assigns FixturePatches. Returns the Universe the first patch was auto assigned to.*/
-		static int32 AutoAssign(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, TArray<UDMXEntityFixturePatch*> FixturePatches, int32 UniverseUnderMouse = 0, int32 ChannelUnderMouse = 0);
+		static int32 AutoAssign(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, TArray<UDMXEntityFixturePatch*> FixturePatches, int32 UniverseUnderMouse = 0, int32 UserDefinedChannel = 0);
 
 	private:
 		/** Non-static implementation of auto assign */
-		int32 AutoAssignInternal(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, TArray<UDMXEntityFixturePatch*> FixturePatches, int32 UniverseUnderMouse = 0, int32 ChannelUnderMouse = 0);
+		int32 AutoAssignInternal(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, TArray<UDMXEntityFixturePatch*> FixturePatches, int32 UniverseUnderMouse = 0, int32 UserDefinedChannel = 0);
 
 		/** Finds the absolute starting channel from options */
-		int64 FindAbsoluteStartingChannel(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, const UDMXLibrary& DMXLibrary, const TArray<UDMXEntityFixturePatch*>& FixturePatches, int32 UniverseUnderMouse, int32 ChannelUnderMouse) const;
+		int64 FindAbsoluteStartingChannel(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, const UDMXLibrary& DMXLibrary, const TArray<UDMXEntityFixturePatch*>& FixturePatches, int32 UniverseUnderMouse, int32 UserDefinedChannel) const;
 
 		/** Gets the DMX Library from the patches, or returns nullptr if a valid DMX Library cannot be deduced from patches */
 		UDMXLibrary* GetDMXLibrary(TArray<UDMXEntityFixturePatch*> FixturePatches) const;

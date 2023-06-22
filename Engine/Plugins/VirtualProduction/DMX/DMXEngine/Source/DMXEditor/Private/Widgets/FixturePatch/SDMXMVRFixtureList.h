@@ -125,10 +125,10 @@ private:
 	TSharedRef<SHeaderRow> GenerateHeaderRow();
 
 	/** Saves how the user customized the header row in DMX Editor Settings */
-	void SaveHeaderRowSettings();
+	void SaveSettings();
 
 	/** Restores how the user customized the header row in DMX Editor Settings */
-	void RestoresHeaderRowSettings();
+	void RestoreSettings();
 
 	/** Returns the column sort mode for the list*/
 	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;

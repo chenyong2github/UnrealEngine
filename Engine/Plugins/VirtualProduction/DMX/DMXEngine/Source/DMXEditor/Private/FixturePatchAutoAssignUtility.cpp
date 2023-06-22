@@ -74,8 +74,8 @@ namespace UE::DMXEditor::AutoAssign::Private
 		if (UDMXEntityFixturePatch* Patch = WeakFixturePatch.Get())
 		{
 			const int64 Universe = (GetLowerBoundValue() + 1) / DMX_UNIVERSE_SIZE;
-			const int64 Channel = (GetLowerBoundValue() + 1) % DMX_UNIVERSE_SIZE;
-			if (!ensureMsgf(Universe >= 1 && Channel >= 1, TEXT("Invalid universe and channel resulting from auto assign. Channels not applied for '%s'."), *Patch->Name))
+			const int64 Channel =  GetLowerBoundValue() + 1 - Universe * DMX_UNIVERSE_SIZE;
+			if (!ensureMsgf(Universe >= 1 && Channel >= 1 && Channel <= DMX_UNIVERSE_SIZE, TEXT("Invalid universe and channel resulting from auto assign. Channels not applied for '%s'."), *Patch->Name))
 			{
 				return;
 			}
@@ -366,13 +366,13 @@ namespace UE::DMXEditor::AutoAssign
 		FAutoAssignElementsUtility::SpreadOverUniverses(PatchElements);
 	}
 
-	int32 FAutoAssignUtility::AutoAssign(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, TArray<UDMXEntityFixturePatch*> FixturePatches, int32 UniverseUnderMouse, int32 ChannelUnderMouse)
+	int32 FAutoAssignUtility::AutoAssign(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, TArray<UDMXEntityFixturePatch*> FixturePatches, int32 UserDefinedUniverse, int32 UserDefinedChannel)
 	{
 		FAutoAssignUtility Instance;
-		return Instance.AutoAssignInternal(Mode, DMXEditor, FixturePatches, UniverseUnderMouse, ChannelUnderMouse);
+		return Instance.AutoAssignInternal(Mode, DMXEditor, FixturePatches, UserDefinedUniverse, UserDefinedChannel);
 	}
 
-	int32 FAutoAssignUtility::AutoAssignInternal(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, TArray<UDMXEntityFixturePatch*> FixturePatches, int32 UniverseUnderMouse, int32 ChannelUnderMouse)
+	int32 FAutoAssignUtility::AutoAssignInternal(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, TArray<UDMXEntityFixturePatch*> FixturePatches, int32 UserDefinedUniverse, int32 UserDefinedChannel)
 	{
 		UDMXLibrary* DMXLibrary = GetDMXLibrary(FixturePatches);
 		if (!DMXLibrary)
@@ -381,7 +381,7 @@ namespace UE::DMXEditor::AutoAssign
 		}
 
 		using namespace Private;
-		const int64 AbsoluteStartingChannel = FindAbsoluteStartingChannel(Mode, DMXEditor , *DMXLibrary, FixturePatches, UniverseUnderMouse, ChannelUnderMouse);
+		const int64 AbsoluteStartingChannel = FindAbsoluteStartingChannel(Mode, DMXEditor , *DMXLibrary, FixturePatches, UserDefinedUniverse, UserDefinedChannel);
 		const TArray<TSharedRef<FAutoAssignElement>> FreeElements = CreateFreeElements(*DMXLibrary, FixturePatches, AbsoluteStartingChannel);
 		const TArray<TSharedRef<FAutoAssignElement>> PatchElements = CreatePatchElements(FixturePatches);
 
@@ -399,7 +399,7 @@ namespace UE::DMXEditor::AutoAssign
 		return (*FirstPatchElementPtr)->GetLowerBoundValue() / DMX_UNIVERSE_SIZE;
 	}
 
-	int64 FAutoAssignUtility::FindAbsoluteStartingChannel(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, const UDMXLibrary& DMXLibrary, const TArray<UDMXEntityFixturePatch*>& FixturePatches, int32 UniverseUnderMouse, int32 ChannelUnderMouse) const
+	int64 FAutoAssignUtility::FindAbsoluteStartingChannel(EAutoAssignMode Mode, const TSharedRef<FDMXEditor>& DMXEditor, const UDMXLibrary& DMXLibrary, const TArray<UDMXEntityFixturePatch*>& FixturePatches, int32 UniverseUnderMouse, int32 UserDefinedChannel) const
 	{
 		if (!ensureMsgf(!FixturePatches.IsEmpty() && !FixturePatches.Contains(nullptr), TEXT("Unexpected no fixture patches or null entry in Fixture Patches. Expected to be handled during FAutoAssignUtility construction.")))
 		{
@@ -407,16 +407,16 @@ namespace UE::DMXEditor::AutoAssign
 		}
 
 		if (!ensureMsgf(
-			Mode != EAutoAssignMode::ChannelUnderMouse || 
-			(UniverseUnderMouse > 0 && UniverseUnderMouse <= DMX_UNIVERSE_SIZE && ChannelUnderMouse > 0 && ChannelUnderMouse <= DMX_UNIVERSE_SIZE),
+			Mode != EAutoAssignMode::UserDefinedChannel || 
+			(UniverseUnderMouse > 0 && UniverseUnderMouse <= DMX_UNIVERSE_SIZE && UserDefinedChannel > 0 && UserDefinedChannel <= DMX_UNIVERSE_SIZE),
 			TEXT("Trying to auto assign to channel under mouse, but provided channels are not valid. Skipping auto assign.")))
 		{
 			return DMX_UNIVERSE_SIZE;
 		}
 
-		if (Mode == EAutoAssignMode::ChannelUnderMouse)
+		if (Mode == EAutoAssignMode::UserDefinedChannel)
 		{
-			return (int64)UniverseUnderMouse * DMX_UNIVERSE_SIZE + ChannelUnderMouse - 1;
+			return (int64)UniverseUnderMouse * DMX_UNIVERSE_SIZE + UserDefinedChannel - 1;
 		}
 		else if (Mode == EAutoAssignMode::SelectedUniverse)
 		{
@@ -454,7 +454,7 @@ namespace UE::DMXEditor::AutoAssign
 
 			if (LastOtherFixturePatchPtr)
 			{
-				return  (int64)(*LastOtherFixturePatchPtr)->GetUniverseID() * DMX_UNIVERSE_SIZE + (*LastOtherFixturePatchPtr)->GetStartingChannel() + (*LastOtherFixturePatchPtr)->GetChannelSpan();
+				return  (int64)(*LastOtherFixturePatchPtr)->GetUniverseID() * DMX_UNIVERSE_SIZE + (*LastOtherFixturePatchPtr)->GetStartingChannel() + (*LastOtherFixturePatchPtr)->GetChannelSpan() - 1;
 			}
 			else
 			{

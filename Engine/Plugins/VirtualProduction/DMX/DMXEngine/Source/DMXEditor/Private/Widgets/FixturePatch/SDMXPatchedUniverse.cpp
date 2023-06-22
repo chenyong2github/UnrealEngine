@@ -584,7 +584,7 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, con
 			!Selection.IsEmpty())
 		{
 			ShiftSelectAnchorPatch = ShiftSelectAnchorPatch.IsValid() ? ShiftSelectAnchorPatch : Selection[0];
-			
+
 			UDMXLibrary* DMXLibrary = ShiftSelectAnchorPatch->GetParentLibrary();
 			if (!DMXLibrary)
 			{
@@ -600,18 +600,18 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, con
 			TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> ShiftSelection;
 			Algo::TransformIf(FixturePatches, ShiftSelection,
 				[&SelectedRange, Channel, this](UDMXEntityFixturePatch* FixturePatch)
-				{			
+				{
 					const int64 PatchAbsoluteStartingChannel = FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetStartingChannel();
 					const int64 PatchAbsoluteEndingChannel = FixturePatch->GetUniverseID() * DMX_MAX_ADDRESS + FixturePatch->GetEndingChannel();
 					const TRange<int64> PatchRange(PatchAbsoluteStartingChannel, PatchAbsoluteEndingChannel + 1);
-					return 
+					return
 						SelectedRange.Overlaps(PatchRange);
 				},
 				[](UDMXEntityFixturePatch* FixturePatch)
 				{
 					return FixturePatch;
-				}
-			);
+				});
+
 			SharedData->SelectFixturePatches(ShiftSelection);
 
 			return FReply::Handled();
@@ -619,9 +619,9 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, con
 		ShiftSelectAnchorPatch.Reset();
 
 		// Ctrl-Select
-		if (FSlateApplication::Get().GetModifierKeys().IsControlDown() && 
+		if (FSlateApplication::Get().GetModifierKeys().IsControlDown() &&
 			ClickedPatch)
-		{		
+		{
 			if (const bool bUnselect = Selection.Num() > 1 && Selection.Contains(ClickedPatch))
 			{
 				TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> WeakSelection = SharedData->GetSelectedFixturePatches();
@@ -1006,21 +1006,21 @@ UDMXEntityFixturePatch* SDMXPatchedUniverse::GetTopmostFixturePatchOnChannel(uin
 {
 	TArray<TSharedPtr<FDMXFixturePatchNode>> Nodes(PatchedNodes);
 	Nodes.RemoveAll([Channel](const TSharedPtr<FDMXFixturePatchNode>& Node)
+		{
+			if (UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get())
 			{
-				if (UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get())
-				{
-					const uint32 PatchStartingChannel = FixturePatch->GetStartingChannel();
-					const TRange<uint32> FixturePatchRange(PatchStartingChannel, PatchStartingChannel + FixturePatch->GetChannelSpan());
+				const uint32 PatchStartingChannel = FixturePatch->GetStartingChannel();
+				const TRange<uint32> FixturePatchRange(PatchStartingChannel, PatchStartingChannel + FixturePatch->GetChannelSpan());
 
-					return !FixturePatchRange.Contains(Channel);
-				}
-				return true;
-			});
+				return !FixturePatchRange.Contains(Channel);
+			}
+			return true;
+		});
 
 	Nodes.Sort([](const TSharedPtr<FDMXFixturePatchNode>& NodeA, const TSharedPtr<FDMXFixturePatchNode>& NodeB)
-			{
-				return NodeA->GetZOrder() > NodeB->GetZOrder();
-			});
+		{
+			return NodeA->GetZOrder() > NodeB->GetZOrder();
+		});
 
 	if (Nodes.IsEmpty())
 	{
@@ -1107,7 +1107,6 @@ TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 Channel)
 	constexpr bool bCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bCloseWindowAfterMenuSelection, CommandList);
 
-	// Auto Assign Section
 	if (!SharedData->GetSelectedFixturePatches().IsEmpty())
 	{
 		using namespace UE::DMXEditor::AutoAssign;
@@ -1125,7 +1124,7 @@ TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 Channel)
 				FSlateIcon(),
 				FUIAction
 				(
-					FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AutoAssignFixturePatches, EAutoAssignMode::ChannelUnderMouse),
+					FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AutoAssignFixturePatches, EAutoAssignMode::UserDefinedChannel),
 					FCanExecuteAction::CreateLambda([this, SharedThis = AsShared()] { return !SharedData->GetSelectedFixturePatches().IsEmpty(); })
 				),
 				NAME_None,

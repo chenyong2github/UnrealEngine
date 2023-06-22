@@ -541,7 +541,7 @@ SDMXMVRFixtureList::SDMXMVRFixtureList()
 
 SDMXMVRFixtureList::~SDMXMVRFixtureList()
 {
-	SaveHeaderRowSettings();
+	SaveSettings();
 }
 
 void SDMXMVRFixtureList::PostUndo(bool bSuccess)
@@ -667,7 +667,7 @@ void SDMXMVRFixtureList::RefreshList()
 {	
 	RequestListRefreshTimerHandle.Invalidate();
 
-	SaveHeaderRowSettings();
+	SaveSettings();
 
 	// Clear cached data
 	Rows.Reset();
@@ -1019,7 +1019,7 @@ TSharedRef<SHeaderRow> SDMXMVRFixtureList::GenerateHeaderRow()
 	);
 
 	// Restore user settings
-	RestoresHeaderRowSettings();
+	RestoreSettings();
 
 	return HeaderRow.ToSharedRef();
 }
@@ -1030,7 +1030,7 @@ void SDMXMVRFixtureList::SetKeyboardFocus()
 	FSlateApplication::Get().SetKeyboardFocus(AsShared());
 }
 
-void SDMXMVRFixtureList::SaveHeaderRowSettings()
+void SDMXMVRFixtureList::SaveSettings()
 {
 	UDMXEditorSettings* EditorSettings = GetMutableDefault<UDMXEditorSettings>();
 	if (HeaderRow.IsValid() && EditorSettings)
@@ -1055,11 +1055,13 @@ void SDMXMVRFixtureList::SaveHeaderRowSettings()
 			}
 		}
 
+		EditorSettings->MVRFixtureListSettings.SortByCollumnID = SortedByColumnID;
+
 		EditorSettings->SaveConfig();
 	}
 }
 
-void SDMXMVRFixtureList::RestoresHeaderRowSettings()
+void SDMXMVRFixtureList::RestoreSettings()
 {
 	if (const UDMXEditorSettings* EditorSettings = GetDefault<UDMXEditorSettings>())
 	{
@@ -1086,6 +1088,8 @@ void SDMXMVRFixtureList::RestoresHeaderRowSettings()
 		{
 			HeaderRow->SetColumnWidth(FDMXMVRFixtureListCollumnIDs::Patch, PatchColumnWidth);
 		}
+
+		SortedByColumnID = EditorSettings->MVRFixtureListSettings.SortByCollumnID;
 	}
 }
 
@@ -1326,8 +1330,9 @@ void SDMXMVRFixtureList::OnPasteItems()
 {
 	using namespace UE::DMX::SDMXMVRFixtureList::Private;
 
-	UDMXLibrary* DMXLibrary = WeakDMXEditor.IsValid() ? WeakDMXEditor.Pin()->GetDMXLibrary() : nullptr;
-	if (!DMXLibrary)
+	const TSharedPtr<FDMXEditor> DMXEditor = WeakDMXEditor.Pin();
+	UDMXLibrary* DMXLibrary = DMXEditor.IsValid() ? DMXEditor->GetDMXLibrary() : nullptr;
+	if (!DMXEditor.IsValid() || !DMXLibrary)
 	{
 		return;
 	}
@@ -1348,8 +1353,13 @@ void SDMXMVRFixtureList::OnPasteItems()
 			WeakPastedFixturePatches.Add(FixturePatch);
 		}
 
-		FixturePatchSharedData->SelectFixturePatches(WeakPastedFixturePatches);
+		// Assign
+		using namespace UE::DMXEditor::AutoAssign;
+		int32 AssignedToUniverse = FAutoAssignUtility::AutoAssign(EAutoAssignMode::SelectedUniverse, DMXEditor.ToSharedRef(), PastedFixturePatches);
 
+		FixturePatchSharedData->SelectUniverse(AssignedToUniverse);
+		FixturePatchSharedData->SelectFixturePatches(WeakPastedFixturePatches);
+	
 		RequestListRefresh();
 	}
 }
@@ -1372,6 +1382,7 @@ void SDMXMVRFixtureList::OnDuplicateItems()
 
 	const FText TransactionText = LOCTEXT("DuplicateFixturePatchesTransaction", "Duplicate Fixture Patches");
 	const FScopedTransaction PasteTransaction(TransactionText);
+	DMXLibrary->PreEditChange(nullptr);
 
 	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedWeakFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
 	SelectedWeakFixturePatches.Remove(nullptr);
@@ -1433,7 +1444,6 @@ void SDMXMVRFixtureList::OnDeleteItems()
 		return;
 	}
 	
-	// Its safe to assume all patches are in the same Library - A Multi-Library Editor wouldn't make sense.
 	UDMXLibrary* DMXLibrary = SelectedItems[0]->GetDMXLibrary();
 	if (!DMXLibrary)
 	{

@@ -351,57 +351,63 @@ FReply SDMXFixturePatcher::OnDropOntoChannel(int32 UniverseID, int32 ChannelID, 
 			const int32 AbsoluteOffset = DraggedNodesToChannelOffsetPair.Value + PadOffset;
 
 			int32 NewUniverseID = UniverseID;
-			int64 AbsoluteDesiredStartingChannel = UniverseID * DMX_MAX_ADDRESS + ChannelID - AbsoluteOffset;
+			int32 DesiredStartingChannel = ChannelID;
+			if (IsUniverseSelectionEnabled())
+			{
+				// Stay within the current Universe if only one universe is displayed
+				if (FixturePatch->GetUniverseID() != UniverseID)
+				{
+					continue;
+				}
 
-			// Allow drag to another universe if multiple universes are displayed
-			int32 DesiredUniverse = AbsoluteDesiredStartingChannel / DMX_MAX_ADDRESS;
-			if (DesiredUniverse < 1)
-			{
-				DesiredUniverse = 1;
-				AbsoluteDesiredStartingChannel = ChannelID - AbsoluteOffset % DMX_MAX_ADDRESS;
-			}
-			else if (DesiredUniverse > DMX_MAX_UNIVERSE)
-			{
-				DesiredUniverse = DMX_MAX_UNIVERSE;
-				AbsoluteDesiredStartingChannel = DMX_MAX_UNIVERSE * DMX_MAX_ADDRESS - ChannelSpan + 1;
+				DesiredStartingChannel = ChannelID - AbsoluteOffset % DMX_MAX_ADDRESS;
 			}
 			else
 			{
-				NewUniverseID = DesiredUniverse;
-			}
+				int64 AbsoluteDesiredStartingChannel = UniverseID * DMX_MAX_ADDRESS + ChannelID - AbsoluteOffset;
 
-			// Remove from previous universe if needed
-			if (NewUniverseID != PatchedNode->GetUniverseID())
-			{
-				const TSharedPtr<SDMXPatchedUniverse>* OldUniverseWidgetPtr = PatchedUniversesByID.Find(PatchedNode->GetUniverseID());
-				if (OldUniverseWidgetPtr)
+				// Allow drag to another universe if multiple universes are displayed
+				int32 DesiredUniverse = AbsoluteDesiredStartingChannel / DMX_MAX_ADDRESS;
+				if (DesiredUniverse < 1)
 				{
-					(*OldUniverseWidgetPtr)->Remove(PatchedNode);
-					(*OldUniverseWidgetPtr)->RequestRefresh();
+					DesiredUniverse = 1;
+					AbsoluteDesiredStartingChannel = ChannelID - AbsoluteOffset % DMX_MAX_ADDRESS;
 				}
+				else if (DesiredUniverse > DMX_MAX_UNIVERSE)
+				{
+					DesiredUniverse = DMX_MAX_UNIVERSE;
+					AbsoluteDesiredStartingChannel = DMX_MAX_UNIVERSE * DMX_MAX_ADDRESS - ChannelSpan + 1;
+				}
+				else
+				{
+					NewUniverseID = DesiredUniverse;
+				}
+
+				// Remove from previous universe if needed
+				if (NewUniverseID != PatchedNode->GetUniverseID())
+				{
+					const TSharedPtr<SDMXPatchedUniverse>* OldUniverseWidgetPtr = PatchedUniversesByID.Find(PatchedNode->GetUniverseID());
+					if (OldUniverseWidgetPtr)
+					{
+						(*OldUniverseWidgetPtr)->Remove(PatchedNode);
+						(*OldUniverseWidgetPtr)->RequestRefresh();
+					}
+				}
+
+				DesiredStartingChannel = AbsoluteDesiredStartingChannel % DMX_MAX_ADDRESS;
 			}
 
-			const int32 DesiredStartingChannel = AbsoluteDesiredStartingChannel % DMX_MAX_ADDRESS;
 			const int32 NewStartingChannel = ClampStartingChannel(DesiredStartingChannel, ChannelSpan);
 			DraggedNodesToChannelOffsetPair.Key->SetAddresses(NewUniverseID, NewStartingChannel, ChannelSpan);
 
-			// Show newly patched universes if many universes are displayed and the user dragged on top of it 
 			const TSharedPtr<SDMXPatchedUniverse>* UniverseWidgetPtr = PatchedUniversesByID.Find(NewUniverseID);
-			if (!UniverseWidgetPtr && !IsUniverseSelectionEnabled())
+			if (!UniverseWidgetPtr)
 			{
-				if (!UniverseWidgetPtr)
-				{
-					AddUniverse(NewUniverseID);
-					UniverseWidgetPtr = &PatchedUniversesByID.FindChecked(NewUniverseID);
-				}
-				check(UniverseWidgetPtr);
+				AddUniverse(NewUniverseID);
+				UniverseWidgetPtr = &PatchedUniversesByID.FindChecked(NewUniverseID);
 			}
-		
-			// Add the patch, if the universe is visible
-			if (UniverseWidgetPtr)
-			{
-				(*UniverseWidgetPtr)->FindOrAdd(DraggedNodesToChannelOffsetPair.Key);
-			}
+			check(UniverseWidgetPtr);
+			(*UniverseWidgetPtr)->FindOrAdd(DraggedNodesToChannelOffsetPair.Key);
 
 			// Pad further patches so they can't be offset more than the currently dropped patch
 			PadOffset = FMath::Min(PadOffset, DesiredStartingChannel - NewStartingChannel);

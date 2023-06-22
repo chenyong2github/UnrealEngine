@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Containers/UnrealString.h"
 #include "Engine/DeveloperSettings.h"
+#include "Widgets/Views/SHeaderRow.h"
 
 #include "DMXEditorSettings.generated.h"
 
@@ -33,6 +34,9 @@ struct FDMXMVRFixtureListSettings
 	/** With of the Patch column */
 	UPROPERTY()
 	float PatchColumnWidth = 0.f;
+
+	UPROPERTY()
+	FName SortByCollumnID = NAME_None;
 };
 
 UENUM()

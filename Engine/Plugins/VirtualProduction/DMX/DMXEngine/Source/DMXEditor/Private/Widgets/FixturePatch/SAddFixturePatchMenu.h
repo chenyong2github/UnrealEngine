@@ -6,12 +6,15 @@
 #include "Widgets/SCompoundWidget.h"
 
 class FDMXEditor;
+class FDMXFixturePatchSharedData;
 class FReply;
-template <typename OptionType> class SComboBox; 
+template <typename OptionType> class SComboBox;
 template <typename EntityType> class SDMXEntityPickerButton;
+class SEditableTextBox;
 class UDMXAddFixturePatchMenuData;
 class UDMXEntity;
 class UDMXEntityFixtureType;
+class UDMXLibrary;
 
 
 namespace UE::DMXEditor::FixturePatchEditor
@@ -34,17 +37,47 @@ namespace UE::DMXEditor::FixturePatchEditor
 		void RequestRefresh();
 
 	private:
+		/** Saves state to config */
+		void SaveConfig();
+
+		/** Creates a widget to select a fixture type */
+		TSharedRef<SWidget> MakeFixtureTypeSelectWidget();
+
+		/** Creates a widget to select a mode */
+		TSharedRef<SWidget> MakeModeSelectWidget();
+
+		/** Creates an widget to select the Universe and Channel */
+		TSharedRef<SWidget> MakeUniverseChannelSelectWidget();
+
+		/** Creates an editable text box to specify the number of patches */
+		TSharedRef<SWidget> MakeNumFixturePatchesEditableTextBox();
+
+		/** Creates a button that adds the fixture patches when clicked */
+		TSharedRef<SWidget> MakeAddFixturePatchesButton();
+
 		/** Generates an entry in the mode combo box */
 		TSharedRef<SWidget> GenerateModeComboBoxEntry(const TSharedPtr<uint32> InMode) const;
 
 		/** Refreshes the mode combo box */
 		void ForceRefresh();
 
+		/** Called when an entity was added or removed from the DMX Library */
+		void OnEntityAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities);
+
 		/** Called when a fixture type was selected */
 		void OnFixtureTypeSelected(UDMXEntity* InSelectedFixtureType);
 
 		/** Called when a mode was selected */
 		void OnModeSelected(TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo);
+
+		/** Returns the current universe channel text */
+		FText GetUniverseChannelText() const;
+
+		/** Called to verify the universe channel text */
+		bool OnVerifyUniverseChannelText(const FText& InNewText, FText& OutErrorMessage);
+
+		/** Called when the universe channel text was committed */
+		void OnUniverseChannelTextCommitted(const FText& Text, ETextCommit::Type CommitType);
 
 		/** Called when the 'Add' button was clicked */
 		FReply OnAddFixturePatchButtonClicked();
@@ -61,6 +94,12 @@ namespace UE::DMXEditor::FixturePatchEditor
 		/** The number of fixture patches to add */
 		int32 ActiveModeIndex = 0;
 
+		/** Universe where the patches will be added */
+		TOptional<int32> Universe;
+
+		/** Channel where the patches will be added */
+		TOptional<int32> Channel; 
+
 		/** The number of fixture patches to add */
 		uint32 NumFixturePatchesToAdd = 1;
 
@@ -70,11 +109,17 @@ namespace UE::DMXEditor::FixturePatchEditor
 		/** Widget to select the fixture type */
 		TSharedPtr<SDMXEntityPickerButton<UDMXEntityFixtureType>> FixtureTypeSelector;
 
+		/** Text boxt to set the channel where the patch will be spawned*/
+		TSharedPtr<SEditableTextBox> ChannelSelectWidget;
+
 		/** Sources for the mode combo box */
 		TArray<TSharedPtr<uint32>> ModeSources;
 
 		/** Combo box to selected the mode */
 		TSharedPtr<SComboBox<TSharedPtr<uint32>>> ModeComboBox;
+
+		/** Shared data for fixture patches */
+		TSharedPtr<FDMXFixturePatchSharedData> SharedData;
 
 		/** The DMX editor this widget displays */
 		TWeakPtr<FDMXEditor> WeakDMXEditor;
