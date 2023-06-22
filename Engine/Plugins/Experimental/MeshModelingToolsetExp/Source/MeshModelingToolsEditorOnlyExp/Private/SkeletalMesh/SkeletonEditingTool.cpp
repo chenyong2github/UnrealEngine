@@ -140,16 +140,12 @@ void USkeletonEditingTool::Setup()
 		UE::ToolTarget::HideSourceObject(Target);
 	}
 
+	ToolPropertyObjects.Add(this);
+	
 	// setup properties
 	{
-		Properties = NewObject<USkeletonEditingProperties>();
-		Properties->Initialize(this);
-		Properties->Name = GetCurrentBone();
-		Properties->RestoreProperties(this);
-		AddToolPropertySource(Properties);
-
 		ProjectionProperties = NewObject<UProjectionProperties>();
-		ProjectionProperties->Initialize(PreviewMesh);
+		ProjectionProperties->Initialize(this, PreviewMesh);
 		ProjectionProperties->RestoreProperties(this);
 		AddToolPropertySource(ProjectionProperties);
 
@@ -162,6 +158,12 @@ void USkeletonEditingTool::Setup()
 		OrientingProperties->Initialize(this);
 		OrientingProperties->RestoreProperties(this);
 		AddToolPropertySource(OrientingProperties);
+
+		Properties = NewObject<USkeletonEditingProperties>();
+		Properties->Initialize(this);
+		Properties->Name = GetCurrentBone();
+		Properties->RestoreProperties(this);
+		AddToolPropertySource(Properties);
 	}
 
 	// setup drag & drop behaviour
@@ -725,6 +727,21 @@ void USkeletonEditingTool::OnUpdateModifierState(int InModifierID, bool bIsOn)
 	}
 }
 
+EEditingOperation USkeletonEditingTool::GetOperation() const
+{
+	return Operation;	
+}
+
+void USkeletonEditingTool::SetOperation(const EEditingOperation InOperation, const bool bUpdateGizmo)
+{
+	Operation = InOperation;
+
+	if (bUpdateGizmo)
+	{
+		UpdateGizmo();
+	}
+}
+
 void USkeletonEditingTool::SelectBone(const FName& InBoneName)
 {
 	TArray<FName> NewSelection = Selection;
@@ -1285,8 +1302,9 @@ void UOrientingProperties::PostEditChangeProperty(FPropertyChangedEvent &Propert
 
 #endif
 
-void UProjectionProperties::Initialize(TObjectPtr<UPreviewMesh> InPreviewMesh) 
+void UProjectionProperties::Initialize(USkeletonEditingTool* ParentToolIn, TObjectPtr<UPreviewMesh> InPreviewMesh) 
 {
+	ParentTool = ParentToolIn;
 	PreviewMesh = InPreviewMesh;
 }
 

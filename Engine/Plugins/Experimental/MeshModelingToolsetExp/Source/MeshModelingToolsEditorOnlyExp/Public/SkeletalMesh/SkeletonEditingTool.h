@@ -132,6 +132,8 @@ public:
 	void RenameBones();
 	void MoveBones();
 	void OrientBones();
+	void RemoveBones();
+	void UnParentBones();
 
 	// ISkeletalMeshEditionInterface overrides
 	virtual TArray<FName> GetSelectedBones() const override;
@@ -146,6 +148,9 @@ public:
 
 	// ISkeletalMeshEditionInterface overrides
 	virtual TWeakObjectPtr<USkeletonModifier> GetModifier() const override;
+
+	EEditingOperation GetOperation() const;
+	void SetOperation(const EEditingOperation InOperation, const bool bUpdateGizmo = true);
 	
 protected:
 
@@ -157,8 +162,6 @@ protected:
 
 	// Modifier functions
 	void CreateNewBone();
-	void RemoveBones();
-	void UnParentBones();
 	void ParentBones(const FName& InParentName);
 
 	UPROPERTY()
@@ -173,8 +176,11 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMirroringProperties> MirroringProperties;
 
+public:
 	UPROPERTY()
 	TObjectPtr<UOrientingProperties> OrientingProperties;
+	
+protected:
 	
 	UPROPERTY()
 	TObjectPtr<USingleClickInputBehavior> LeftClickBehavior = nullptr;
@@ -262,13 +268,13 @@ public:
 	UPROPERTY()
 	FTransform Transform;
 	
-	UPROPERTY(EditAnywhere, Category = "Move")
+	UPROPERTY(EditAnywhere, Category = "Details")
 	bool bUpdateChildren = false;
 
-	UPROPERTY(EditAnywhere, Category = "Viewport Axis Settings",  meta = (ClampMin = "0.0", UIMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "Viewport Axis Settings",  meta = (DisplayPriority = 10, ClampMin = "0.0", UIMin = "0.0"))
 	float AxisLength = 1.f;
 
-	UPROPERTY(EditAnywhere, Category = "Viewport Axis Settings",  meta = (ClampMin = "0.0", UIMin = "0.0"))
+	UPROPERTY(EditAnywhere, Category = "Viewport Axis Settings",  meta = (DisplayPriority = 10, ClampMin = "0.0", UIMin = "0.0"))
 	float AxisThickness = 0.f;
 
 #if WITH_EDITOR
@@ -300,7 +306,7 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API UProjectionProperties: public UInteract
 	GENERATED_BODY()
 
 public:
-	void Initialize(TObjectPtr<UPreviewMesh> PreviewMesh);
+	void Initialize(USkeletonEditingTool* ParentToolIn, TObjectPtr<UPreviewMesh> PreviewMesh);
 
 	void UpdatePlane(const UGizmoViewContext& InViewContext, const FVector& InOrigin);
 	bool GetProjectionPoint(const FInputDeviceRay& InRay, FVector& OutHitPoint) const;
@@ -309,6 +315,8 @@ public:
 	EProjectionType ProjectionType = EProjectionType::WithinMesh;
 
 	FViewCameraState CameraState;
+
+	TWeakObjectPtr<USkeletonEditingTool> ParentTool = nullptr;
 	
 private:
 	TWeakObjectPtr<UPreviewMesh> PreviewMesh = nullptr;
@@ -332,13 +340,11 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API UMirroringProperties: public UInteracti
 public:
 	void Initialize(USkeletonEditingTool* ParentToolIn);
 
-	UFUNCTION(CallInEditor, Category = "Mirror")
 	void MirrorBones();
 
 	UPROPERTY(EditAnywhere, Category = "Mirror")
 	FMirrorOptions Options;
 
-private:
 	TWeakObjectPtr<USkeletonEditingTool> ParentTool = nullptr;
 };
 
@@ -354,19 +360,17 @@ class MESHMODELINGTOOLSEDITORONLYEXP_API UOrientingProperties: public UInteracti
 public:
 	void Initialize(USkeletonEditingTool* ParentToolIn);
 
-	UFUNCTION(CallInEditor, Category = "Orient")
 	void OrientBones();
-	
-	UPROPERTY(EditAnywhere, Category = "Orient")
-	FOrientOptions Options;
 
 	UPROPERTY(EditAnywhere, Category = "Orient")
 	bool bAutoOrient = false;
+	
+	UPROPERTY(EditAnywhere, Category = "Orient")
+	FOrientOptions Options;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent &PropertyChangedEvent) override;
 #endif
 	
-private:
 	TWeakObjectPtr<USkeletonEditingTool> ParentTool = nullptr;
 };

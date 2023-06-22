@@ -199,7 +199,11 @@ void FSkeletalMeshModelingToolsModule::RegisterPropertyCustomizations()
 		CustomizedClasses.Add(InStructName);
 	};
 
+	RegisterDetailCustomization(USkeletonEditingTool::StaticClass()->GetFName(), &FSkeletonEditingToolDetailCustomization::MakeInstance);
 	RegisterDetailCustomization(USkeletonEditingProperties::StaticClass()->GetFName(), &FSkeletonEditingPropertiesDetailCustomization::MakeInstance);
+	RegisterDetailCustomization(UMirroringProperties::StaticClass()->GetFName(), &FMirroringPropertiesDetailCustomization::MakeInstance);
+	RegisterDetailCustomization(UOrientingProperties::StaticClass()->GetFName(), &FOrientingPropertiesDetailCustomization::MakeInstance);
+	RegisterDetailCustomization(UProjectionProperties::StaticClass()->GetFName(), &FProjectionPropertiesDetailCustomization::MakeInstance);
 
 	PropertyModule.NotifyCustomizationModuleChanged();
 }
