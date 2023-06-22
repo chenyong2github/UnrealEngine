@@ -331,6 +331,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(GPULightmassMaterialCHS,
 #endif
 	Payload.WorldGeoNormal = GeoNormalSign * GeoNormal;
 	Payload.WorldNormal = MaterialParameters.WorldNormal;
+#if !MATERIAL_TANGENTSPACENORMAL
+	// already flipped if the material was in tangent space, so add the flip if it wasn't
+	Payload.WorldNormal *= MaterialParameters.TwoSidedSign;
+#endif
 
 	/**
 	 * Set material attributes for simplified materials
