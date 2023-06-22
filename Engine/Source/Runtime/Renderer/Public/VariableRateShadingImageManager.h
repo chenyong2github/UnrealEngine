@@ -106,6 +106,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GetMobileVariableRateShadingImage(const FSceneViewFamily& ViewFamily);
 
 	static bool IsVRSSupportedByRHI();
+	static bool IsVRSEnabled();
 	static bool IsVRSCompatibleWithView(const FViewInfo& View);
 	static bool IsVRSCompatibleWithOutputType(const EDisplayOutputFormat& DisplayOutputFormat);
 
@@ -122,6 +123,9 @@ private:
 	FRDGTextureRef GetForceRateImage(FRDGBuilder& GraphBuilder, int RateIndex = 0, EVRSImageType ImageType = EVRSImageType::Full);
 
 	EVRSImageType GetImageTypeFromPassType(EVRSPassType PassType);
+
+	bool bVRSEnabledForFrame = false;
+	int32 VRSForceRateForFrame = -1;
 };
 
 ENUM_CLASS_FLAGS(FVariableRateShadingImageManager::EVRSSourceType);
