@@ -1,7 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertySets/GeometrySelectionVisualizationProperties.h"
-#include "Engine.h"
+#include "Engine/Engine.h"
 #include "ToolSetupUtil.h"
 #include "Materials/MaterialRenderProxy.h"
 
