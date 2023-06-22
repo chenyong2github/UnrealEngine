@@ -20,8 +20,9 @@ public class OpenSSL : ModuleRules
 
 			string LibPath = Path.Combine(OpenSSLPath, "lib", PlatformSubdir);
 
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
+			string LibExt = (Target.Architecture == UnrealArch.IOSSimulator) ? ".sim.a" : ".a";
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl" + LibExt));
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto" + LibExt));
 		}
 		else if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
