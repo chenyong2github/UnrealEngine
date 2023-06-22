@@ -90,11 +90,15 @@ int32 ConcertSyncServerLoop(const TCHAR* CommandLine, const FConcertSyncServerLo
 		// Give external modules to do early initialisation
 		InitArgs.PreInitServerLoop.Broadcast();
 		
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("UdpMessaging"));
-		if (!Plugin || !Plugin->IsEnabled())
+		TSharedPtr<IPlugin> UdpPlugin = IPluginManager::Get().FindPlugin(TEXT("UdpMessaging"));
+		TSharedPtr<IPlugin> QuicPlugin = IPluginManager::Get().FindPlugin(TEXT("QuicMessaging"));
+
+		// Either the UdpMessaging or QuicMessaging plugin
+		// should be added to the {appname}.Target.cs build file.
+		if (!UdpPlugin || !QuicPlugin || (!UdpPlugin->IsEnabled() && !QuicPlugin->IsEnabled()))
 		{
-			// The UdpMessaging plugin should be added to the {appname}.Target.cs build file.
-			UE_LOG(LogSyncServer, Warning, TEXT("The 'UDP Messaging' plugin is disabled. The Concert server only supports UDP protocol."));
+			UE_LOG(LogSyncServer, Warning, TEXT("The 'UDP Messaging' and 'QUIC Messaging' plugins are disabled."
+				"The Concert server only supports UDP/QUIC protocol."));
 		}
 
 		// Setup Concert Sync to run in server mode.

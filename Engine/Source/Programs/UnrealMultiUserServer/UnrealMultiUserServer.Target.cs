@@ -11,6 +11,7 @@ public class UnrealMultiUserServerTarget : TargetRules
 		LinkType = TargetLinkType.Modular;
 		LaunchModuleName = "UnrealMultiUserServer";
 		AdditionalPlugins.Add("UdpMessaging");
+		AdditionalPlugins.Add("QuicMessaging");
 		AdditionalPlugins.Add("ConcertSyncServer");
 
 		// This app compiles against Core/CoreUObject, but not the Engine or Editor, so compile out Engine and Editor references from Core/CoreUObject

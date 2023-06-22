@@ -11,6 +11,7 @@ public class UnrealMultiUserSlateServerTarget : TargetRules
 		LinkType = TargetLinkType.Modular;
 		LaunchModuleName = "UnrealMultiUserSlateServer";
 		AdditionalPlugins.Add("UdpMessaging");
+		AdditionalPlugins.Add("QuicMessaging");
 		AdditionalPlugins.Add("ConcertSyncServer");
 		AdditionalPlugins.Add("MultiUserServer");
 
