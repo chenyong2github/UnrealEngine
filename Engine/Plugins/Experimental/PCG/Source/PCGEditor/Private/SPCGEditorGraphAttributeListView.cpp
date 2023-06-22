@@ -462,6 +462,12 @@ void SPCGEditorGraphAttributeListView::OnInspectedComponentChanged(UPCGComponent
 	{
 		PCGComponent->OnPCGGraphGeneratedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnGenerateUpdated);
 		PCGComponent->OnPCGGraphCleanedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnGenerateUpdated);
+
+		// Refresh if PCGComponent is being inspected already since we wont get a refresh after generation
+		if (PCGComponent->IsInspecting())
+		{
+			RequestRefresh();
+		}
 	}
 	else
 	{

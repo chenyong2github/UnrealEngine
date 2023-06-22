@@ -28,12 +28,13 @@
 #include "PCGEditorSettings.h"
 #include "PCGEditorUtils.h"
 #include "SPCGEditorGraphAttributeListView.h"
+#include "SPCGEditorGraphDebugObjectTree.h"
 #include "SPCGEditorGraphDebugObjectWidget.h"
 #include "SPCGEditorGraphDeterminism.h"
 #include "SPCGEditorGraphFind.h"
+#include "SPCGEditorGraphLogView.h"
 #include "SPCGEditorGraphNodePalette.h"
 #include "SPCGEditorGraphProfilingView.h"
-#include "SPCGEditorGraphLogView.h"
 
 #include "AssetToolsModule.h"
 #include "EdGraphUtilities.h"
@@ -68,6 +69,7 @@ namespace FPCGEditor_private
 	const FName GraphEditorID = FName(TEXT("GraphEditor"));
 	const FName PropertyDetailsID = FName(TEXT("PropertyDetails"));
 	const FName PaletteID = FName(TEXT("Palette"));
+	const FName DebugObjectID = FName(TEXT("DebugObject"));
 	const FName AttributesID = FName(TEXT("Attributes"));
 	const FName FindID = FName(TEXT("Find"));
 	const FName DeterminismID = FName(TEXT("Determinism"));
@@ -99,6 +101,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 
 	GraphEditorWidget = CreateGraphEditorWidget();
 	PaletteWidget = CreatePaletteWidget();
+	DebugObjectWidget = CreateDebugObjectWidget();
 	FindWidget = CreateFindWidget();
 	AttributesWidget = CreateAttributesWidget();
 	DeterminismWidget = CreateDeterminismWidget();
@@ -108,44 +111,56 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	BindCommands();
 	RegisterToolbar();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PCGGraphEditor_Layout_v0.5")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PCGGraphEditor_Layout_v0.6")
 		->AddArea
 		(
-			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
-			->Split
-			(				
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.10f)
-				->SetHideTabWell(true)
-				->AddTab(FPCGEditor_private::PaletteID, ETabState::OpenedTab)
-			)
+			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
 			->Split
 			(
-				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
-				->SetSizeCoefficient(0.70f)
+				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
+				->SetSizeCoefficient(0.72)
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.72)
+					->SetSizeCoefficient(0.10f)
+					->SetHideTabWell(true)
+					->AddTab(FPCGEditor_private::PaletteID, ETabState::OpenedTab)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.70)
 					->SetHideTabWell(true)
 					->AddTab(FPCGEditor_private::GraphEditorID, ETabState::OpenedTab)
 				)
 				->Split
 				(
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.28)
+					->SetSizeCoefficient(0.20f)
+					->SetHideTabWell(true)
+					->AddTab(FPCGEditor_private::PropertyDetailsID, ETabState::OpenedTab)
+				)
+			)
+			->Split
+			(
+				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
+				->SetSizeCoefficient(0.28)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.2)
+					->SetHideTabWell(true)
+					->AddTab(FPCGEditor_private::DebugObjectID, ETabState::OpenedTab)
+				)
+				->Split
+				(
+					FTabManager::NewStack()
+					->SetSizeCoefficient(0.8)
 					->SetHideTabWell(true)
 					->AddTab(FPCGEditor_private::AttributesID, ETabState::OpenedTab)
 					->AddTab(FPCGEditor_private::DeterminismID, ETabState::ClosedTab)
 					->AddTab(FPCGEditor_private::FindID, ETabState::ClosedTab)
 				)
-			)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(0.20f)
-				->SetHideTabWell(true)
-				->AddTab(FPCGEditor_private::PropertyDetailsID, ETabState::OpenedTab)
 			)
 		);
 
@@ -232,6 +247,10 @@ void FPCGEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager
 	InTabManager->RegisterTabSpawner(FPCGEditor_private::PaletteID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Palette))
 		.SetDisplayName(LOCTEXT("PaletteTab", "Palette"))
 		.SetGroup(WorkspaceMenuCategoryRef);
+	
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::DebugObjectID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_DebugObject))
+		.SetDisplayName(LOCTEXT("DebugTab", "Debug Object Tree"))
+		.SetGroup(WorkspaceMenuCategoryRef);
 
 	InTabManager->RegisterTabSpawner(FPCGEditor_private::AttributesID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Attributes))
 		.SetDisplayName(LOCTEXT("AttributesTab", "Attributes"))
@@ -259,6 +278,7 @@ void FPCGEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTa
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::GraphEditorID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::PropertyDetailsID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::PaletteID);
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::DebugObjectID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::AttributesID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::FindID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::DeterminismID);
@@ -2075,6 +2095,11 @@ TSharedRef<SPCGEditorGraphNodePalette> FPCGEditor::CreatePaletteWidget()
 	return SNew(SPCGEditorGraphNodePalette);
 }
 
+TSharedRef<SPCGEditorGraphDebugObjectTree> FPCGEditor::CreateDebugObjectWidget()
+{
+	return SNew(SPCGEditorGraphDebugObjectTree, SharedThis(this));
+}
+
 TSharedRef<SPCGEditorGraphFind> FPCGEditor::CreateFindWidget()
 {
 	return SNew(SPCGEditorGraphFind, SharedThis(this));
@@ -2292,6 +2317,16 @@ TSharedRef<SDockTab> FPCGEditor::SpawnTab_Palette(const FSpawnTabArgs& Args)
 		.TabColorScale(GetTabColorScale())
 		[
 			PaletteWidget.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_DebugObject(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGDebugObjectTitle", "Debug Object"))
+		.TabColorScale(GetTabColorScale())
+		[
+			DebugObjectWidget.ToSharedRef()
 		];
 }
 
