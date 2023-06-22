@@ -3,9 +3,12 @@
 #include "EditorConfigSubsystem.h"
 
 #include "Async/Async.h"
+#include "Editor.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
+
+TArray<TPair<UEditorConfigSubsystem::ESearchDirectoryType, FString>> UEditorConfigSubsystem::EarlyRegistredSearchDirectories;
 
 UEditorConfigSubsystem::UEditorConfigSubsystem()
 {
@@ -14,6 +17,8 @@ UEditorConfigSubsystem::UEditorConfigSubsystem()
 
 void UEditorConfigSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	SearchDirectories.Reserve(4  + EarlyRegistredSearchDirectories.Num());
+
 	AddSearchDirectory(ESearchDirectoryType::Engine, FPaths::Combine(FPaths::EngineConfigDir(), TEXT("Editor"))); // Engine
 	AddSearchDirectory(ESearchDirectoryType::Project, FPaths::Combine(FPaths::ProjectConfigDir(), TEXT("Editor"))); // ProjectName
 #ifdef UE_SAVED_DIR_OVERRIDE
@@ -21,6 +26,13 @@ void UEditorConfigSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 #else
 	AddSearchDirectory(ESearchDirectoryType::User, FPaths::Combine(FPlatformProcess::UserSettingsDir(), *FApp::GetEpicProductIdentifier(), TEXT("Editor"))); // AppData
 #endif
+
+	for (const TPair<ESearchDirectoryType, FString>& Pair : EarlyRegistredSearchDirectories)
+	{
+		AddSearchDirectory(Pair.Key, Pair.Value);
+	}
+
+	EarlyRegistredSearchDirectories.Empty();
 }
 
 void UEditorConfigSubsystem::Deinitialize()
@@ -295,4 +307,11 @@ void UEditorConfigSubsystem::AddSearchDirectory(ESearchDirectoryType Type, FStri
 		}
 		SearchDirectories.Add(NewEntry);
 	}
+}
+
+void UEditorConfigSubsystem::EarlyAddSearchDirectory(ESearchDirectoryType Type, FStringView SearchDir)
+{
+	EarlyRegistredSearchDirectories.Emplace(Type, SearchDir);
+	
+	check(!GEditor || !GEditor->IsInitialized());
 }

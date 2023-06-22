@@ -72,14 +72,24 @@ public:
 	{
 		Engine,
 		Project,
+		ProjectOverrides,
 		User
 	};
 
 	/**
 	 * Append a new config search directory to the given type.
-	 * Engine directories are searched first, then Project, then User.
+	 * Engine directories are searched first, then Project, then ProjectOverrides, then User.
 	 */
 	void AddSearchDirectory(ESearchDirectoryType Type, FStringView SearchDir);
+
+	/**
+	 * Append a new config search directory to the given type early.
+	 * Engine directories are searched first, then Project, then ProjectOverrides, then User.
+	 * 
+	 * Note: this function can only be called before the UEditorConfigSubsystem is initialized otherwise it will assert. 
+	 * This function is useful if there is a need to register a layer of config before any config read could happen.
+	 */
+	static void EarlyAddSearchDirectory(ESearchDirectoryType Type, FStringView SearchDir);
 
 private:
 	void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -104,6 +114,8 @@ private:
 	TArray<FPendingSave> PendingSaves;
 	TArray<TPair<ESearchDirectoryType, FString>> SearchDirectories;
 	TMap<FString, TSharedPtr<FEditorConfig>> LoadedConfigs;
+
+	static TArray<TPair<ESearchDirectoryType, FString>> EarlyRegistredSearchDirectories;
 };
 
 template <typename TObject>
