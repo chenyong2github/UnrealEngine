@@ -115,7 +115,13 @@ void UWaterBodyOceanComponent::OnPostEditChangeProperty(FOnWaterBodyChangedParam
 		// Affects the physics shape
 		InOutOnWaterBodyChangedParams.bShapeOrPositionChanged = true;
 	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyOceanComponent, OceanExtents)
+		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyOceanComponent, SavedZoneLocation))
+	{
+		InOutOnWaterBodyChangedParams.bShapeOrPositionChanged = true;
+	}
 }
+
 const TCHAR* UWaterBodyOceanComponent::GetWaterSpriteTextureName() const
 {
 	return TEXT("/Water/Icons/WaterBodyOceanSprite");
@@ -490,7 +496,9 @@ FBoxSphereBounds UWaterBodyOceanComponent::CalcBounds(const FTransform& LocalToW
 	{
 		const FVector Min(FVector(-OceanExtents / 2.0, -1.0 * GetChannelDepth()));
 		const FVector Max(FVector(OceanExtents / 2.0, 0.0));
-		return FBoxSphereBounds(FBox(Min, Max)).TransformBy(LocalToWorld);
+
+		// translate the bounds so they are centered on the SavedZoneLocation.
+		return FBoxSphereBounds(FBox(Min, Max)).TransformBy(LocalToWorld).TransformBy(FTransform(FVector(SavedZoneLocation, 0.)));
 	}
 	return FBoxSphereBounds(EForceInit::ForceInit).TransformBy(LocalToWorld);
 }

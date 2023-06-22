@@ -69,18 +69,17 @@ protected:
 	UPROPERTY(Category = Collision, EditAnywhere, BlueprintReadOnly)
 	FVector CollisionExtents;
 
-	// #todo_water: should we make this editor-only? It's not needed at runtime since the mesh will never regenerate at runtime
 	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadOnly)
 	FVector2D OceanExtents;
+
+	/** Save the water zone location so that the ocean mesh can be regenerated relative to it and match it perfectly without being loaded. */
+	UPROPERTY(Category = Water, EditAnywhere, BlueprintReadOnly, meta=(DisplayName="Ocean Center"))
+	FVector2D SavedZoneLocation;
 
 	UPROPERTY(Transient)
 	float HeightOffset = 0.0f;
 
 #if WITH_EDITORONLY_DATA
-
-	/** Serialize the offset relative to the water zone to check if the serialized mesh and the current water zone have a mismatch. */
-	UPROPERTY()
-	FVector2D SavedZoneLocation;
 
 	UPROPERTY()
 	FVector2D VisualExtents_DEPRECATED;
