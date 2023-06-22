@@ -2,6 +2,7 @@
 
 #include "SlateTestHelper.h"
 #include "CoreMinimal.h"
+#include "Rendering/DrawElements.h"
 #include "Rendering/DrawElementPayloads.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -59,12 +60,12 @@ void FSlateTestHelper::ToJson(const FWidgetStyle& InWidgetStyle, TSharedPtr<FJso
 	MyJsonObject->SetObjectField("WidgetStyle", InnerJsonObject);
 }
 
-void FSlateTestHelper::ToJson(const FSlateShapedTextPayload& ShapedTextPayload, TSharedPtr<FJsonObject> MyJsonObject)
+void FSlateTestHelper::ToJson(const FSlateShapedTextElement& ShapedTextElement, TSharedPtr<FJsonObject> MyJsonObject)
 {
 	TSharedPtr<FJsonObject> InnerJsonObject = MakeShared<FJsonObject>();
-	InnerJsonObject->SetStringField("Tint", ShapedTextPayload.GetTint().ToString());
-	InnerJsonObject->SetStringField("OutlineTint", ShapedTextPayload.GetOutlineTint().ToString());
-	MyJsonObject->SetObjectField("ShapedTextPayload", InnerJsonObject);
+	InnerJsonObject->SetStringField("Tint", ShapedTextElement.GetTint().ToString());
+	InnerJsonObject->SetStringField("OutlineTint", ShapedTextElement.GetOutlineTint().ToString());
+	MyJsonObject->SetObjectField("ShapedTextElement", InnerJsonObject);
 }
 }
 #endif

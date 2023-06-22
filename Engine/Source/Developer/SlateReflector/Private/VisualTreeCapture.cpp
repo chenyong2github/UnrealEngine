@@ -59,11 +59,11 @@ void FVisualEntry::Resolve(const FSlateWindowElementList& ElementList)
 		return;
 	}
 
-	auto ResolveBounds = [&](const FSlateDrawElementContainer& Container, uint8 InElementType)
+	auto ResolveBounds = [&](const auto& Container, uint8 InElementType)
 	{
 		if (InElementType == (uint8)ElementType)
 		{
-			const FSlateDrawElement& Element = Container.Elements[ElementIndex];
+			const FSlateDrawElement& Element = Container[ElementIndex];
 			const FSlateRenderTransform& Transform = Element.GetRenderTransform();
 			const FVector2D LocalSize = Element.GetLocalSize();
 
@@ -187,14 +187,13 @@ void FVisualTreeCapture::AddInvalidationRootCachedEntries(TSharedRef<FVisualTree
 	const TArray<TSharedPtr<FSlateCachedElementList>>& CachedElements = Data.GetCachedElementLists();
 	for (const TSharedPtr<FSlateCachedElementList>& CachedElement : CachedElements)
 	{
-		auto AddTypedEntries = [&](FSlateDrawElementContainer& Container)
+		auto AddTypedEntries = [&](auto& Container)
 		{
-			const FSlateDrawElementArray& DrawElementArray = Container.Elements;
 			const SWidget* Widget = CachedElement->OwningWidget;
 			// todo, should check if parents has the metadata also
 			if (Widget && !Widget->GetMetaData<FInvisibleToWidgetReflectorMetaData>())
 			{
-				for (const FSlateDrawElement& Element : DrawElementArray)
+				for (const FSlateDrawElement& Element : Container)
 				{
 					const int32 EntryIndex = Tree->Entries.Emplace(Widget->AsShared(), Element);
 

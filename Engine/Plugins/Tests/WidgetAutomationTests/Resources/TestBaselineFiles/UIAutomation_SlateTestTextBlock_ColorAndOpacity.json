@@ -8,7 +8,7 @@
 		"ForegroundColor": "(R=0.527115,G=0.527115,B=0.527115,A=1.000000)",
 		"SubduedForeground": "(R=0.527115,G=0.527115,B=0.527115,A=0.600000)"
 	},
-	"ShapedTextPayload":
+	"ShapedTextElement":
 	{
 		"Tint": "(R=0.500000,G=0.400000,B=0.300000,A=0.900000)",
 		"OutlineTint": "(R=0.000000,G=0.000000,B=0.000000,A=1.000000)"

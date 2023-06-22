@@ -9,7 +9,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 class JsonObject;
-struct FSlateShapedTextPayload;
+struct FSlateShapedTextElement;
 
 namespace UE::SlateWidgetAutomationTest
 {
@@ -28,7 +28,7 @@ public:
 	// JSON conversion functions.
 	static void ToJson(const FGeometry& MyGeometry, TSharedPtr<FJsonObject> MyJsonObject);
 	static void ToJson(const FWidgetStyle& InWidgetStyle, TSharedPtr<FJsonObject> MyJsonObject);
-	static void ToJson(const FSlateShapedTextPayload& ShapedTextPayload, TSharedPtr<FJsonObject> MyJsonObject);
+	static void ToJson(const FSlateShapedTextElement& ShapedTextElement, TSharedPtr<FJsonObject> MyJsonObject);
 };
 }
 #endif

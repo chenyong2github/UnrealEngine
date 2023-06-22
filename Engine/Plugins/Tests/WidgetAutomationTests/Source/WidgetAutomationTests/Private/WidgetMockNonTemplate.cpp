@@ -104,11 +104,10 @@ void FWidgetMockNonTemplate::OnPaintDataValidation(const FGeometry& AllottedGeom
 				if (CachedElementList != nullptr)
 				{
 					//@TODO Support all element types and create their own JSON conversion function.
-					for (const FSlateDrawElement& DrawElements : CachedElementList->DrawElements.Get<(uint8)EElementType::ET_ShapedText>().Elements)
+					for (const FSlateShapedTextElement& DrawElements : CachedElementList->DrawElements.Get<(uint8)EElementType::ET_ShapedText>())
 					{
-						FSlateShapedTextPayload ShapedTextPayload = DrawElements.GetDataPayload<FSlateShapedTextPayload>();
-						if (TestJsonObject->GetObjectField("ShapedTextPayload")->GetStringField("Tint") == ShapedTextPayload.GetTint().ToString()
-							&& TestJsonObject->GetObjectField("ShapedTextPayload")->GetStringField("OutlineTint") == ShapedTextPayload.GetOutlineTint().ToString())
+						if (TestJsonObject->GetObjectField("ShapedTextElement")->GetStringField("Tint") == DrawElements.GetTint().ToString()
+							&& TestJsonObject->GetObjectField("ShapedTextElement")->GetStringField("OutlineTint") == DrawElements.GetOutlineTint().ToString())
 						{
 							if (!DataValidations.Contains(FTestFunctionNames::NAME_OnPaint))
 							{
@@ -138,10 +137,9 @@ void FWidgetMockNonTemplate::OnPaintDataValidation(const FGeometry& AllottedGeom
 			if (CachedElementList != nullptr)
 			{
 				//@TODO Support all element types and create their own JSON conversion function.
-				for (const FSlateDrawElement& DrawElements : CachedElementList->DrawElements.Get<(uint8)EElementType::ET_ShapedText>().Elements)
+				for (const FSlateShapedTextElement& DrawElements : CachedElementList->DrawElements.Get<(uint8)EElementType::ET_ShapedText>())
 				{
-					FSlateShapedTextPayload ShapedTextPayload = DrawElements.GetDataPayload<FSlateShapedTextPayload>();
-					FSlateTestHelper::ToJson(ShapedTextPayload, WriteJsonObject);
+					FSlateTestHelper::ToJson(DrawElements, WriteJsonObject);
 				}
 			}
 		}

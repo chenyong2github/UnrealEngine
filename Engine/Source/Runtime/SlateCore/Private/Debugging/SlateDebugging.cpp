@@ -10,6 +10,7 @@
 #include "Misc/StringBuilder.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Rendering/DrawElements.h"
+#include "Rendering/DrawElementPayloads.h"
 #include "SlateGlobals.h"
 #include "Styling/CoreStyle.h"
 #include "Types/ReflectionMetadata.h"

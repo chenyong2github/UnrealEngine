@@ -10,7 +10,7 @@
 #include "Input/Reply.h"
 #include "Input/NavigationReply.h"
 #include "Input/PopupMethodReply.h"
-#include "Rendering/DrawElementTypes.h"
+#include "Rendering/DrawElementCoreTypes.h"
 #include "SlateGlobals.h"
 #include <utility>
 
@@ -19,10 +19,6 @@
 class FSlateInstanceBufferUpdate;
 class FWidgetStyle;
 class SWidget;
-
-
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Vertex/Index Buffer Pool Memory (CPU)"), STAT_SlateBufferPoolMemory, STATGROUP_SlateMemory, SLATECORE_API);
-DECLARE_MEMORY_STAT_EXTERN(TEXT("Cached Draw Element Memory (CPU)"), STAT_SlateCachedDrawElementMemory, STATGROUP_SlateMemory, SLATECORE_API);
 
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num Cached Element Lists"), STAT_SlateNumCachedElementLists, STATGROUP_Slate, SLATECORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num Cached Elements"), STAT_SlateNumCachedElements, STATGROUP_Slate, SLATECORE_API);
@@ -419,21 +415,6 @@ static_assert(TIsTriviallyDestructible<FShortRect>::Value == true, "FShortRect s
 
 namespace UE::Slate
 {
-	template<std::size_t, typename T>
-	using TypeRepeater = T;
-
-	template<typename ElementType, std::size_t... Indices>
-	auto MakeTupleWithNumInner(std::index_sequence<Indices...>)
-	{
-		return TTuple<TypeRepeater<Indices, ElementType>... >();
-	};
-
-	template<typename ElementType, std::size_t Num, typename Indices = std::make_index_sequence<Num>>
-	auto MakeTupleWithNum()
-	{
-		return MakeTupleWithNumInner<ElementType>(Indices{});
-	}
-
 	template<typename IndexType, IndexType...Indices>
 	auto MakeTupleIndiciesInner(std::integer_sequence<IndexType, Indices...>)
 	{
@@ -447,151 +428,21 @@ namespace UE::Slate
 	};
 };
 
+/**
+ * Note: FRenderingBufferStatTracker & FSlateDrawElementArray have been moved to DrawElementCoreTypes.h
+ */
 
 #if STATS
 
-struct FRenderingBufferStatTracker
-{
-	static void MemoryAllocated(int32 SizeBytes)
-	{
-		INC_DWORD_STAT_BY(STAT_SlateBufferPoolMemory, SizeBytes);
-	}
-
-	static void MemoryFreed(int32 SizeBytes)
-	{
-		DEC_DWORD_STAT_BY(STAT_SlateBufferPoolMemory, SizeBytes);
-	}
-};
-
-struct FDrawElementStatTracker
-{
-	static void MemoryAllocated(int32 SizeBytes)
-	{
-		INC_DWORD_STAT_BY(STAT_SlateCachedDrawElementMemory, SizeBytes);
-	}
-
-	static void MemoryFreed(int32 SizeBytes)
-	{
-		DEC_DWORD_STAT_BY(STAT_SlateCachedDrawElementMemory, SizeBytes);
-	}
-};
-
-template<typename StatTracker>
-class FSlateStatTrackingMemoryAllocator : public FDefaultAllocator
-{
-public:
-	typedef FDefaultAllocator Super;
-
-	class ForAnyElementType : public FDefaultAllocator::ForAnyElementType
-	{
-	public:
-		typedef FDefaultAllocator::ForAnyElementType Super;
-
-		ForAnyElementType()
-			: AllocatedSize(0)
-		{
-
-		}
-
-		/**
-		* Moves the state of another allocator into this one.
-		* Assumes that the allocator is currently empty, i.e. memory may be allocated but any existing elements have already been destructed (if necessary).
-		* @param Other - The allocator to move the state from.  This allocator should be left in a valid empty state.
-		*/
-		FORCEINLINE void MoveToEmpty(ForAnyElementType& Other)
-		{
-			Super::MoveToEmpty(Other);
-
-			AllocatedSize = Other.AllocatedSize;
-			Other.AllocatedSize = 0;
-		}
-
-		/** Destructor. */
-		~ForAnyElementType()
-		{
-			if (AllocatedSize)
-			{
-				StatTracker::MemoryFreed(AllocatedSize);
-			}
-		}
-
-		void ResizeAllocation(int32 PreviousNumElements, int32 NumElements, int32 NumBytesPerElement)
-		{
-			const int32 NewSize = NumElements * NumBytesPerElement;
-			StatTracker::MemoryAllocated(NewSize - AllocatedSize);
-
-			AllocatedSize = NewSize;
-
-			Super::ResizeAllocation(PreviousNumElements, NumElements, NumBytesPerElement);
-		}
-
-	private:
-		ForAnyElementType(const ForAnyElementType&);
-		ForAnyElementType& operator=(const ForAnyElementType&);
-	private:
-		int32 AllocatedSize;
-	};
-};
-
-template <typename T>
-struct TAllocatorTraits<FSlateStatTrackingMemoryAllocator<T>> : TAllocatorTraitsBase<FSlateStatTrackingMemoryAllocator<T>>
-{
-	enum { IsZeroConstruct = TAllocatorTraits<FDefaultAllocator>::IsZeroConstruct };
-};
-
 typedef TArray<FSlateVertex, FSlateStatTrackingMemoryAllocator<FRenderingBufferStatTracker>> FSlateVertexArray;
 typedef TArray<SlateIndex, FSlateStatTrackingMemoryAllocator<FRenderingBufferStatTracker>> FSlateIndexArray;
-typedef TArray<FSlateDrawElement, FSlateStatTrackingMemoryAllocator<FDrawElementStatTracker>> FSlateDrawElementArray;
-
-struct FSlateDrawElementContainer
-{
-	FSlateDrawElementArray Elements;
-};
-
-using FSlateDrawElementMap = TTuple<
-	FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer>;
 
 #else
 
 typedef TArray<FSlateVertex> FSlateVertexArray;
 typedef TArray<SlateIndex> FSlateIndexArray;
-typedef TArray<FSlateDrawElement> FSlateDrawElementArray;
 
-struct FSlateDrawElementContainer
-{
-	FSlateDrawElementArray Elements;
-};
-
-using FSlateDrawElementMap = TTuple<
-	FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer
-	, FSlateDrawElementContainer>;
-
-#endif
+#endif // STATS
 
 /**
  * Viewport implementation interface that is used by SViewport when it needs to draw and processes input.                   

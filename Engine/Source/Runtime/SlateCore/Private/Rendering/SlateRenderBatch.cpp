@@ -2,6 +2,7 @@
 
 #include "Rendering/SlateRenderBatch.h"
 #include "Rendering/DrawElements.h"
+#include "Rendering/DrawElementPayloads.h"
 #include "Rendering/ElementBatcher.h"
 #include "Textures/SlateShaderResource.h"
 

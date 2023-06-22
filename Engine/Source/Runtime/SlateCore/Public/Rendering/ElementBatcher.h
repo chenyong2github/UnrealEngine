@@ -283,8 +283,8 @@ private:
 	 * @param InElementBatchParamCreator - Functor that generates batch params given a slate draw element, used during batch-reuse
 	 * @param InElementBatchReserver - Functor that reserves vertexes and indicies given an element range and list of elements
 	 */
-	template<typename ElementAdder, typename ElementBatchParamCreator, typename ElementBatchReserver>
-	FORCEINLINE void GenerateIndexedVertexBatches(const FSlateDrawElementArray& DrawElements
+	template<typename ElementType, typename ElementAdder, typename ElementBatchParamCreator, typename ElementBatchReserver>
+	FORCEINLINE void GenerateIndexedVertexBatches(const FSlateDrawElementArray<ElementType>& DrawElements
 		, ElementAdder&& InElementAdder
 		, ElementBatchParamCreator&& InElementBatchParamCreator
 		, ElementBatchReserver&& InElementBatchReserver);
@@ -293,58 +293,59 @@ private:
 	 * Creates vertices necessary to draw a Quad element 
 	 */
 	template<ESlateVertexRounding Rounding>
-	void AddDebugQuadElement( const FSlateDrawElement& DrawElement);
+	void AddDebugQuadElement( const FSlateBoxElement& DrawElement);
 
 	/** 
 	 * Creates vertices necessary to draw multiple 3x3 elements
 	 */
-	void AddBoxElements( const FSlateDrawElementArray& DrawElement );
+	template<typename ElementType>
+	void AddBoxElements( const FSlateDrawElementArray<ElementType>& DrawElement );
 
 	/** 
 	 * Creates vertices necessary to draw a string (one quad per character)
 	 */
 	template<ESlateVertexRounding Rounding>
-	void AddTextElement( const FSlateDrawElement& DrawElement );
+	void AddTextElement( const FSlateTextElement& DrawElement );
 
 	/** 
 	 * Creates vertices necessary to draw a shaped glyph sequence (one quad per glyph)
 	 */
 	template<ESlateVertexRounding Rounding>
-	void AddShapedTextElement( const FSlateDrawElement& DrawElement );
+	void AddShapedTextElement( const FSlateShapedTextElement& DrawElement );
 
 	/** 
 	 * Creates vertices necessary to draw a gradient box (horizontal or vertical)
 	 */
 	template<ESlateVertexRounding Rounding>
-	void AddGradientElement( const FSlateDrawElement& DrawElement );
+	void AddGradientElement( const FSlateGradientElement& DrawElement );
 
 	/** 
 	 * Creates vertices necessary to draw a spline (Bezier curve)
 	 */
-	void AddSplineElement( const FSlateDrawElement& DrawElement );
+	void AddSplineElement( const FSlateSplineElement& DrawElement );
 
 	/** 
 	 * Creates vertices necessary to draw a multiple attached line segments
 	 */
-	void AddLineElements(const FSlateDrawElementArray& DrawElements);
+	void AddLineElements(const FSlateDrawElementArray<FSlateLineElement>& DrawElements);
 	
 	/** 
 	 * Creates vertices necessary to draw a viewport (just a textured quad)
 	 */
 	template<ESlateVertexRounding Rounding>
-	void AddViewportElement( const FSlateDrawElement& DrawElement );
+	void AddViewportElement( const FSlateViewportElement& DrawElement );
 
 	/** 
 	 * Creates vertices necessary to draw a border element
 	 */
 	template<ESlateVertexRounding Rounding>
-	void AddBorderElement( const FSlateDrawElement& DrawElement );
+	void AddBorderElement( const FSlateBoxElement& DrawElement );
 
-	void AddCustomElement( const FSlateDrawElement& DrawElement );
+	void AddCustomElement( const FSlateCustomDrawerElement& DrawElement );
 
-	void AddCustomVerts( const FSlateDrawElement& DrawElement );
+	void AddCustomVerts( const FSlateCustomVertsElement& DrawElement );
 
-	void AddPostProcessPass(const FSlateDrawElement& DrawElement, FVector2f WindowSize);
+	void AddPostProcessPass(const FSlatePostProcessElement& DrawElement, FVector2f WindowSize);
 
 	FSlateRenderBatch& CreateRenderBatch(
 		int32 Layer,

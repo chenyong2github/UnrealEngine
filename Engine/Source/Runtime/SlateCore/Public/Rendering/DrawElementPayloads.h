@@ -9,43 +9,22 @@
 #include "Styling/SlateBrush.h"
 #include "Types/SlateVector2.h"
 
-class FSlateShaderResourceProxy;
+#include "Rendering/RenderingCommon.h"
+#include "Rendering/DrawElementTypes.h"
 
-struct FSlateGradientStop
-{
-	FVector2f Position;
-	FLinearColor Color;
+//////////////////////////////////////////////////////////////////////////
+// Deprecated payloads
+//////////////////////////////////////////////////////////////////////////
 
-	/**
-	 * Construct a Gradient Stop from a Position and a Color.
-	 * @param InPosition - The position in widget space for this stop. Both X and Y are used for a single-axis gradient.
-						  A two stop gradient should go from (0,0), to (Width,Height).
-	 * @param InColor	- The color to lerp towards at this stop.
-	 */
-	template<typename VectorType>
-	FSlateGradientStop(const VectorType& InPosition, const FLinearColor InColor)
-		: Position(UE::Slate::CastToVector2f(InPosition))
-		, Color(InColor)
-	{
-	}
-};
-template <> struct TIsPODType<FSlateGradientStop> { enum { Value = true }; };
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
-struct FSlateDataPayload
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateDataPayload
 {
 	virtual ~FSlateDataPayload() {}
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) {}
 };
 
-struct FSlateTintableElement
-{
-	FLinearColor Tint;
-
-	FORCEINLINE void SetTint(const FLinearColor& InTint) { Tint = InTint; }
-	FORCEINLINE FLinearColor GetTint() const { return Tint; }
-};
-
-struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 {
 	FMargin Margin;
 	FBox2f UVRegion;
@@ -88,7 +67,7 @@ struct FSlateBoxPayload : public FSlateDataPayload, public FSlateTintableElement
 	}
 };
 
-struct FSlateRoundedBoxPayload : public FSlateBoxPayload
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateRoundedBoxPayload : public FSlateBoxPayload
 {
 	FLinearColor OutlineColor;
 	FVector4f Radius;
@@ -102,7 +81,7 @@ struct FSlateRoundedBoxPayload : public FSlateBoxPayload
 	FORCEINLINE float GetOutlineWeight() const { return OutlineWeight; }
 };
 
-struct FSlateTextPayload : public FSlateDataPayload, public FSlateTintableElement
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateTextPayload : public FSlateDataPayload, public FSlateTintableElement
 {
 	// The font to use when rendering
 	FSlateFontInfo FontInfo;
@@ -138,9 +117,8 @@ struct FSlateTextPayload : public FSlateDataPayload, public FSlateTintableElemen
 	}
 };
 
-
-struct FSlateShapedTextPayload : public FSlateDataPayload, public FSlateTintableElement
-{ 
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateShapedTextPayload : public FSlateDataPayload, public FSlateTintableElement
+{
 	// Shaped text data
 	FShapedGlyphSequencePtr ShapedGlyphSequence;
 
@@ -177,7 +155,7 @@ struct FSlateShapedTextPayload : public FSlateDataPayload, public FSlateTintable
 	}
 };
 
-struct FSlateGradientPayload : public FSlateDataPayload
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateGradientPayload : public FSlateDataPayload
 {
 	TArray<FSlateGradientStop> GradientStops;
 	EOrientation GradientType;
@@ -191,7 +169,7 @@ struct FSlateGradientPayload : public FSlateDataPayload
 	}
 };
 
-struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElement
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElement
 {
 	TArray<FSlateGradientStop> GradientStops;
 	// Bezier Spline Data points. E.g.
@@ -244,8 +222,8 @@ struct FSlateSplinePayload : public FSlateDataPayload, public FSlateTintableElem
 };
 
 
-struct FSlateLinePayload : public FSlateDataPayload, public FSlateTintableElement
-{ 
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateLinePayload : public FSlateDataPayload, public FSlateTintableElement
+{
 	TArray<FVector2f> Points;
 	TArray<FLinearColor> PointColors;
 	float Thickness;
@@ -297,7 +275,7 @@ struct FSlateLinePayload : public FSlateDataPayload, public FSlateTintableElemen
 	}
 };
 
-struct FSlateViewportPayload : public FSlateDataPayload, public FSlateTintableElement
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateViewportPayload : public FSlateDataPayload, public FSlateTintableElement
 {
 	FSlateShaderResource* RenderTargetResource;
 	uint8 bAllowViewportScaling : 1;
@@ -314,7 +292,7 @@ struct FSlateViewportPayload : public FSlateDataPayload, public FSlateTintableEl
 	}
 };
 
-struct FSlateCustomDrawerPayload : public FSlateDataPayload
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateCustomDrawerPayload : public FSlateDataPayload
 {
 	// Custom drawer data
 	TWeakPtr<ICustomSlateElement, ESPMode::ThreadSafe> CustomDrawer;
@@ -325,7 +303,7 @@ struct FSlateCustomDrawerPayload : public FSlateDataPayload
 	}
 };
 
-struct FSlateLayerPayload : public FSlateDataPayload
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateLayerPayload : public FSlateDataPayload
 {
 	class FSlateDrawLayerHandle* LayerHandle;
 
@@ -337,7 +315,7 @@ struct FSlateLayerPayload : public FSlateDataPayload
 
 };
 
-struct FSlateCachedBufferPayload : public FSlateDataPayload
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateCachedBufferPayload : public FSlateDataPayload
 {
 	// Cached render data
 	class FSlateRenderDataHandle* CachedRenderData;
@@ -353,7 +331,7 @@ struct FSlateCachedBufferPayload : public FSlateDataPayload
 	}
 };
 
-struct FSlateCustomVertsPayload : public FSlateDataPayload
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlateCustomVertsPayload : public FSlateDataPayload
 {
 	const FSlateShaderResourceProxy* ResourceProxy;
 
@@ -378,10 +356,12 @@ struct FSlateCustomVertsPayload : public FSlateDataPayload
 	}
 };
 
-struct FSlatePostProcessPayload : public FSlateDataPayload
+struct UE_DEPRECATED(5.3, "Draw Element Payloads are no longer used, instead use the equivalent FSlateDrawElement subclass") FSlatePostProcessPayload : public FSlateDataPayload
 {
 	// Post Process Data
 	FVector4f PostProcessData;
 	FVector4f CornerRadius;
 	int32 DownsampleAmount;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -15,6 +15,7 @@
 #include "Trace/SlateTrace.h"
 #include "Types/ReflectionMetadata.h"
 #include "Types/SlateAttributeMetaData.h"
+#include "Rendering/DrawElementPayloads.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(SLATECORE_API, Slate);
 
@@ -378,7 +379,8 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 	if (!Context.bAllowFastPathUpdate || bNeedsSlowPath || GSlateIsInInvalidationSlowPath)
 	{
 		SCOPED_NAMED_EVENT(Slate_PaintSlowPath, FColor::Red);
-
+		
+		// Clears existing cached element lists
 		ClearAllFastPathData(!Context.bAllowFastPathUpdate);
 
 		GSlateIsOnFastUpdatePath = false;
