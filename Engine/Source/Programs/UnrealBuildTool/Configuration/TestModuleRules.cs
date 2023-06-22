@@ -228,14 +228,23 @@ namespace UnrealBuildTool
 
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "Disabled", Convert.ToString(TestMetadata.Disabled));
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "Short", Convert.ToString(TestMetadata.TestShortName));
+					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "StagesWithProjectFile", Convert.ToString(TestMetadata.StagesWithProjectFile));
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "Target", Convert.ToString(TestTargetName));
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "BinariesRelative", Convert.ToString(TestBinariesPath));
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "ReportType", Convert.ToString(TestMetadata.ReportType));
-					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "InitialExtraArgs", Convert.ToString(TestMetadata.InitialExtraArgs));
+
+					string ExtraArguments = Convert.ToString(TestMetadata.InitialExtraArgs);
+					if(TestMetadata.StagesWithProjectFile)
+					{
+						//  -BaseFromWorkingDir Is needed here for Programs to properly detect .ini files from its irregular platform path.
+						ExtraArguments += $"--extra-args -BaseFromWorkingDir";
+					}
+
+					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "InitialExtraArgs", ExtraArguments);
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "HasAfterSteps", Convert.ToString(TestMetadata.HasAfterSteps));
 					InsertOrUpdateTestFlagProperty(ref lastUpdatedNode, TestMetadata.TestName, "UsesCatch2", Convert.ToString(TestMetadata.UsesCatch2));
 
-					InsertOrUpdateTestOption(ref lastUpdatedNode, TestMetadata.TestName, "Run" + TestMetadata.TestShortName + "Tests", "Run", "Tests", false.ToString());
+					InsertOrUpdateTestOption(ref lastUpdatedNode, TestMetadata.TestName, $"Run {TestMetadata.TestShortName} Tests", "Run", "Tests", false.ToString());
 
 					List<UnrealTargetPlatform> AllSupportedPlatforms = new List<UnrealTargetPlatform>();
 					object[] SupportedPlatforms = GetType().GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
@@ -436,6 +445,13 @@ namespace UnrealBuildTool
 				get => ReportTypePrivate;
 				set => ReportTypePrivate = value;
 			}
+
+			/// <summary>
+			/// Does this test use project files for staging additional files?
+			/// This will append `-SkipStage -Build=$(RootDir)/$($(TestName)Target)` to InitialExtraArgs
+			/// and cause the build to use BuildCookRun instead of a Compile step
+			/// </summary>
+			public bool StagesWithProjectFile { get; set; }
 
 			/// <summary>
 			/// Is this test disabled?

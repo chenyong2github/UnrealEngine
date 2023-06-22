@@ -4,6 +4,7 @@
   <Property Name="ReplicationSystemUsesCatch2" Value="True" />
   <Property Name="ReplicationSystemDisabled" Value="False" />
   <Property Name="ReplicationSystemShort" Value="Replication System" />
+  <Property Name="ReplicationSystemStagesWithProjectFile" Value="False" />
   <Property Name="ReplicationSystemTarget" Value="ReplicationSystemLowLevelTests" />
   <Property Name="ReplicationSystemBinariesRelative" Value="Engine\Binaries" />
   <Property Name="ReplicationSystemReportType" Value="console" />

@@ -4,6 +4,7 @@
   <Property Name="FoundationUsesCatch2" Value="True" />
   <Property Name="FoundationDisabled" Value="False" />
   <Property Name="FoundationShort" Value="Foundation" />
+  <Property Name="FoundationStagesWithProjectFile" Value="False" />
   <Property Name="FoundationTarget" Value="FoundationTests" />
   <Property Name="FoundationBinariesRelative" Value="Engine\Binaries" />
   <Property Name="FoundationReportType" Value="xml" />

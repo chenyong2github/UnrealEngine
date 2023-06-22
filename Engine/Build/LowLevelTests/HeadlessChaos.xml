@@ -4,6 +4,7 @@
   <Property Name="HeadlessChaosUsesCatch2" Value="False" />
   <Property Name="HeadlessChaosDisabled" Value="False" />
   <Property Name="HeadlessChaosShort" Value="Headless Chaos" />
+  <Property Name="HeadlessChaosStagesWithProjectFile" Value="False" />
   <Property Name="HeadlessChaosTarget" Value="HeadlessChaos" />
   <Property Name="HeadlessChaosBinariesRelative" Value="Engine\Binaries" />
   <Property Name="HeadlessChaosReportType" Value="console" />

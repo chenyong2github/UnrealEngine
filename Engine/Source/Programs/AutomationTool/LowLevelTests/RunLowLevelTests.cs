@@ -497,7 +497,9 @@ namespace LowLevelTests
 				ParentDirPath = Directory.GetParent(Executable).FullName;
 				BuildExecutableName = Path.GetFileNameWithoutExtension(Executable);
 
-				if (!ParentDirPath.Contains(InPlatform.ToString(), StringComparison.OrdinalIgnoreCase))
+				bool ContainsPlatformName = ParentDirPath.Contains(InPlatform.ToString(), StringComparison.OrdinalIgnoreCase);
+				bool ContainsWindowsName = (InPlatform == UnrealTargetPlatform.Win64 && ParentDirPath.Contains("Windows", StringComparison.OrdinalIgnoreCase));
+				if ( !(ContainsPlatformName || ContainsWindowsName) )
 				{
 					Log.Error("ParentPath did not have platform ({1}) : {0}", ParentDirPath, InPlatform);
 					continue;

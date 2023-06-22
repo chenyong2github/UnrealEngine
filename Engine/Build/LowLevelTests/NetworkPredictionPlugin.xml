@@ -4,6 +4,7 @@
   <Property Name="NetworkPredictionPluginUsesCatch2" Value="True" />
   <Property Name="NetworkPredictionPluginDisabled" Value="False" />
   <Property Name="NetworkPredictionPluginShort" Value="Net Prediction" />
+  <Property Name="NetworkPredictionPluginStagesWithProjectFile" Value="False" />
   <Property Name="NetworkPredictionPluginTarget" Value="NetworkPredictionTests" />
   <Property Name="NetworkPredictionPluginBinariesRelative" Value="Engine\Binaries" />
   <Property Name="NetworkPredictionPluginReportType" Value="console" />
