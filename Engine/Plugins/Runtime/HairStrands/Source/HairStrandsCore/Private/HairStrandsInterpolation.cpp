@@ -2043,7 +2043,7 @@ void ComputeHairStrandsInterpolation(
 					*Instance->Strands.Data,
 					Register(GraphBuilder, Instance->Strands.RestResource->CurveAttributeBuffer, ERDGImportedBufferFlags::CreateSRV).Buffer,
 					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->CurveBuffer),
-					RegisterAsSRV(GraphBuilder, Instance->Strands.ClusterCullingResource->CurveToClusterIdBuffer),
+					RegisterAsSRV(GraphBuilder, Instance->Strands.ClusterResource->CurveToClusterIdBuffer),
 					bValidGuide ? RegisterAsSRV(GraphBuilder, Instance->Strands.InterpolationResource->InterpolationBuffer) : nullptr,
 					OutRenCurveAttributeBuffer);
 			}

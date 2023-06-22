@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r40");
+	return TEXT("v8r41");
 }
 
 namespace FHairStrandsDecimation
@@ -2903,7 +2903,7 @@ static void BuildClusterData(
 	const FHairStrandsDatas& InRenStrandsData,
 	const float InGroomAssetRadius, 
 	const FHairGroupsLOD& InSettings, 
-	FHairStrandsClusterCullingData& Out)
+	FHairStrandsClusterData& Out)
 {
 	// 0. Rest existing culling data
 	Out.Reset();
@@ -3065,8 +3065,8 @@ static void BuildClusterData(
 }
 
 static void BuildClusterBulkData(
-	const FHairStrandsClusterCullingData& In,
-	FHairStrandsClusterCullingBulkData& Out)
+	const FHairStrandsClusterData& In,
+	FHairStrandsClusterBulkData& Out)
 {
 	Out.Reset();
 	Out.Header.ClusterCount		= In.ClusterCount;
@@ -3192,9 +3192,9 @@ void FGroomBuilder::BuildClusterBulkData(
 	const FHairStrandsDatas& InRenStrandsData,
 	const float InGroomAssetRadius,
 	const FHairGroupsLOD& InSettings,
-	FHairStrandsClusterCullingBulkData& Out)
+	FHairStrandsClusterBulkData& Out)
 {
-	FHairStrandsClusterCullingData ClusterData;
+	FHairStrandsClusterData ClusterData;
 	GroomBuilder_Cluster::BuildClusterData(InRenStrandsData, InGroomAssetRadius, InSettings, ClusterData);
 	GroomBuilder_Cluster::BuildClusterBulkData(ClusterData, Out);
 }

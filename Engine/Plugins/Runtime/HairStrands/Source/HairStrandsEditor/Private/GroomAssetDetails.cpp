@@ -1328,10 +1328,10 @@ void FGroomRenderingDetails::OnGenerateElementForLODs(TSharedRef<IPropertyHandle
 	];
 
 	// LOD Stats
-	const FHairStrandsClusterCullingBulkData& ClusterCullingBulkData = GroomAsset->GetHairGroupsPlatformData()[GroupIndex].Strands.ClusterCullingBulkData;
-	if (ClusterCullingBulkData.IsValid() && LODIndex < ClusterCullingBulkData.Header.LODInfos.Num())
+	const FHairStrandsClusterBulkData& ClusterBulkData = GroomAsset->GetHairGroupsPlatformData()[GroupIndex].Strands.ClusterBulkData;
+	if (ClusterBulkData.IsValid() && LODIndex < ClusterBulkData.Header.LODInfos.Num())
 	{
-		const FHairLODInfo& LODInfo = ClusterCullingBulkData.Header.LODInfos[LODIndex];
+		const FHairLODInfo& LODInfo = ClusterBulkData.Header.LODInfos[LODIndex];
 
 		ChildrenBuilder.AddCustomRow(LOCTEXT("HairStrandsLODInfo_Array", "HairStrandsLODInfo"))
 		.ValueContent()

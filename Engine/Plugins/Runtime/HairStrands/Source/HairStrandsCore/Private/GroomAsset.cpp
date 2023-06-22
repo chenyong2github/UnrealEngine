@@ -125,9 +125,9 @@ uint32 FHairGroupPlatformData::FStrands::GetDataSize() const
 	Total += FBaseWithInterpolation::GetDataSize();
 	uint32 CTotal = 0;
 	uint32 BTotal = 0;
-	BTotal += ClusterCullingBulkData.Data.CurveToClusterIds.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.CurveToClusterIds.GetBulkDataSize() : 0;
-	CTotal += ClusterCullingBulkData.Data.PackedClusterInfos.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.PackedClusterInfos.GetBulkDataSize() : 0;
-	CTotal += ClusterCullingBulkData.Data.PointLODs.IsBulkDataLoaded()	? ClusterCullingBulkData.Data.PointLODs.GetBulkDataSize() : 0;
+	BTotal += ClusterBulkData.Data.CurveToClusterIds.IsBulkDataLoaded() ? ClusterBulkData.Data.CurveToClusterIds.GetBulkDataSize() : 0;
+	CTotal += ClusterBulkData.Data.PackedClusterInfos.IsBulkDataLoaded()? ClusterBulkData.Data.PackedClusterInfos.GetBulkDataSize() : 0;
+	CTotal += ClusterBulkData.Data.PointLODs.IsBulkDataLoaded()	? ClusterBulkData.Data.PointLODs.GetBulkDataSize() : 0;
 
 	return BTotal + Total + CTotal;
 }
@@ -149,13 +149,13 @@ FGroomAssetMemoryStats FGroomAssetMemoryStats::Get(const FHairGroupPlatformData&
 	// Strands only
 	if (In.Strands.RestResource) 			Out.Memory.Rest 			= In.Strands.RestResource->GetResourcesSize();
 	if (In.Strands.InterpolationResource) 	Out.Memory.Interpolation 	= In.Strands.InterpolationResource->GetResourcesSize();
-	if (In.Strands.ClusterCullingResource)	Out.Memory.Cluster 			= In.Strands.ClusterCullingResource->GetResourcesSize();
+	if (In.Strands.ClusterResource)			Out.Memory.Cluster 			= In.Strands.ClusterResource->GetResourcesSize();
 #if RHI_RAYTRACING
 	if (In.Strands.RaytracingResource) 		Out.Memory.Raytracing 		= In.Strands.RaytracingResource->GetResourcesSize();
 #endif
 	if (In.Strands.RestResource) 			Out.Curves.Rest 			= In.Strands.RestResource->MaxAvailableCurveCount;
 	if (In.Strands.InterpolationResource) 	Out.Curves.Interpolation 	= In.Strands.InterpolationResource->MaxAvailableCurveCount;
-	if (In.Strands.ClusterCullingResource)	Out.Curves.Cluster 			= In.Strands.ClusterCullingResource->MaxAvailableCurveCount;
+	if (In.Strands.ClusterResource)			Out.Curves.Cluster 			= In.Strands.ClusterResource->MaxAvailableCurveCount;
 #if RHI_RAYTRACING
 	if (In.Strands.RaytracingResource)		Out.Curves.Raytracing 		= In.Strands.RaytracingResource->MaxAvailableCurveCount;
 #endif
@@ -532,7 +532,7 @@ static bool BuildHairGroup(
 			OutHairGroupsData[GroupIndex].Strands.InterpolationBulkData.Reset();
 		}
 
-		FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.Bounds.SphereRadius, InHairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
+		FGroomBuilder::BuildClusterBulkData(StrandsData, HairDescriptionGroups.Bounds.SphereRadius, InHairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterBulkData);
 	}
 	return bIsValid;
 }
@@ -559,7 +559,7 @@ static bool BuildHairGroupCluster(
 		FHairStrandsDatas StrandsData;
 		FHairStrandsDatas GuidesData;
 		FGroomBuilder::BuildData(HairGroup, InHairGroupsInterpolation[GroupIndex], OutHairGroupsInfo[GroupIndex], StrandsData, GuidesData);
-		FGroomBuilder::BuildClusterBulkData(StrandsData, InHairDescriptionGroups.Bounds.SphereRadius, InHairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingBulkData);
+		FGroomBuilder::BuildClusterBulkData(StrandsData, InHairDescriptionGroups.Bounds.SphereRadius, InHairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterBulkData);
 	}
 	return bIsValid;
 }
@@ -1037,11 +1037,11 @@ void UGroomAsset::UpdateResource()
 					GetHairGroupsInfo(),
 					GetHairGroupsPlatformData());
 
-				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData, FHairResourceName(GetFName(), GroupIndex), GetAssetPathName());
+				GroupData.Strands.ClusterResource = new FHairStrandsClusterResource(GroupData.Strands.ClusterBulkData, FHairResourceName(GetFName(), GroupIndex), GetAssetPathName());
 			}
 			else
 			{
-				InternalUpdateResource(GroupData.Strands.ClusterCullingResource);
+				InternalUpdateResource(GroupData.Strands.ClusterResource);
 			}
 
 			#if RHI_RAYTRACING
@@ -1114,7 +1114,7 @@ void UGroomAsset::ReleaseStrandsResource(uint32 GroupIndex)
 	if (GroupData.Strands.IsValid())
 	{
 		InternalReleaseResource(GroupData.Strands.RestResource);
-		InternalReleaseResource(GroupData.Strands.ClusterCullingResource);
+		InternalReleaseResource(GroupData.Strands.ClusterResource);
 		InternalReleaseResource(GroupData.Strands.InterpolationResource);
 		#if RHI_RAYTRACING
 		InternalReleaseResource(GroupData.Strands.RaytracingResource);
@@ -1842,7 +1842,7 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 	{
 		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.BulkData,               true /*bWait*/, true /*bFillBulkdata*/, true /*bWarmCache*/, Owner->GetFName()); }
 		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.InterpolationBulkData,  true /*bWait*/, true /*bFillBulkdata*/, true /*bWarmCache*/, Owner->GetFName()); }
-		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.ClusterCullingBulkData, true /*bWait*/, true /*bFillBulkdata*/, true /*bWarmCache*/, Owner->GetFName()); }
+		{ FHairStreamingRequest R; R.Request(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.ClusterBulkData, true /*bWait*/, true /*bFillBulkdata*/, true /*bWarmCache*/, Owner->GetFName()); }
 	}
 
 	if (!Ar.IsCooking() || !StrandData.bIsCookedOut)
@@ -1853,8 +1853,8 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 		if (bData)		{ StrandData.InterpolationBulkData.SerializeData(Ar, Owner); }
 		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairClusterCullingData)
 		{
-			if (bHeader){ StrandData.ClusterCullingBulkData.SerializeHeader(Ar, Owner); }
-			if (bData)	{ StrandData.ClusterCullingBulkData.SerializeData(Ar, Owner); }
+			if (bHeader){ StrandData.ClusterBulkData.SerializeHeader(Ar, Owner); }
+			if (bData)	{ StrandData.ClusterBulkData.SerializeData(Ar, Owner); }
 		}
 
 		#if WITH_EDITORONLY_DATA
@@ -1864,7 +1864,7 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 		{
 			{ FHairStreamingRequest R; R.WarmCache(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.BulkData); }
 			{ FHairStreamingRequest R; R.WarmCache(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.InterpolationBulkData); }
-			{ FHairStreamingRequest R; R.WarmCache(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.ClusterCullingBulkData); }
+			{ FHairStreamingRequest R; R.WarmCache(HAIR_MAX_NUM_CURVE_PER_GROUP, HAIR_MAX_NUM_POINT_PER_GROUP, -1/*LODIndex*/, StrandData.ClusterBulkData); }
 		}
 		#endif
 	}
@@ -1880,8 +1880,8 @@ static void InternalSerializeStrand(FArchive& Ar, UObject* Owner, FHairGroupPlat
 		if (bData) 		{ NoStrandsData.InterpolationBulkData.SerializeData(Ar, Owner); }
 		if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairClusterCullingData)
 		{
-			if (bHeader){ NoStrandsData.ClusterCullingBulkData.SerializeHeader(Ar, Owner); }
-			if (bData)	{ NoStrandsData.ClusterCullingBulkData.SerializeData(Ar, Owner); }
+			if (bHeader){ NoStrandsData.ClusterBulkData.SerializeHeader(Ar, Owner); }
+			if (bData)	{ NoStrandsData.ClusterBulkData.SerializeData(Ar, Owner); }
 		}
 	}
 }
@@ -2540,7 +2540,7 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 	{
 		In.Strands.BulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_RestData"));
 		In.Strands.InterpolationBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_InterpolationData"));
-		In.Strands.ClusterCullingBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_ClusterCullingData"));
+		In.Strands.ClusterBulkData.DerivedDataKey = DerivedDataKey + FString(TEXT("_ClusterData"));
 	};
 
 	FHairGroupPlatformData& PlatformData = GetHairGroupsPlatformData()[GroupIndex];
@@ -2628,7 +2628,7 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 			// Data (cluster Culling)
 			{
 				TArray<FCachePutValueRequest> Out;
-				PlatformData.Strands.ClusterCullingBulkData.Write_DDC(this, Out);
+				PlatformData.Strands.ClusterBulkData.Write_DDC(this, Out);
 
 				FRequestOwner AsyncOwner(EPriority::Normal);
 				GetCache().PutValue(Out, AsyncOwner);
@@ -3123,7 +3123,7 @@ bool UGroomAsset::BuildCardsData()
 
 		// When building cards in an empty groom, the strands resources need to be initialized once
 		FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[0];
-		if (!GroupData.Strands.ClusterCullingResource)
+		if (!GroupData.Strands.ClusterResource)
 		{
 			InitStrandsResources();
 		}
@@ -3409,9 +3409,9 @@ void UGroomAsset::InitStrandsResources()
 			FHairResourceName ResourceName(GetFName(), GroupIndex);
 			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.BulkData, EHairStrandsResourcesType::Strands, ResourceName, OwnerName);
 
-			if (GroupData.Strands.ClusterCullingBulkData.IsValid())
+			if (GroupData.Strands.ClusterBulkData.IsValid())
 			{
-				GroupData.Strands.ClusterCullingResource = new FHairStrandsClusterCullingResource(GroupData.Strands.ClusterCullingBulkData, ResourceName, OwnerName);
+				GroupData.Strands.ClusterResource = new FHairStrandsClusterResource(GroupData.Strands.ClusterBulkData, ResourceName, OwnerName);
 			}
 
 			// Interpolation are lazy allocated, as these resources are only used when RBF/simulation is enabled by a groom component
@@ -3781,7 +3781,7 @@ void UGroomAsset::StripLODs(const TArray<int32>& LODsToKeep, bool bRebuildResour
 		for (int32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
 		{
 			FHairGroupPlatformData& GroupData = GetHairGroupsPlatformData()[GroupIt];
-			InternalReleaseResource(GroupData.Strands.ClusterCullingResource);
+			InternalReleaseResource(GroupData.Strands.ClusterResource);
 
 			BuildHairGroupCluster(
 				GroupIt,

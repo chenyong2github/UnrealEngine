@@ -171,7 +171,7 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 			uint32 Total = 0;
 			if (RestResource) Total += RestResource->GetResourcesSize();
 			if (InterpolationResource) Total += InterpolationResource->GetResourcesSize();
-			if (ClusterCullingResource) Total += ClusterCullingResource->GetResourcesSize();
+			if (ClusterResource) Total += ClusterResource->GetResourcesSize();
 			#if RHI_RAYTRACING
 			if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
 			#endif
@@ -180,8 +180,8 @@ struct HAIRSTRANDSCORE_API FHairGroupPlatformData
 
 		uint32 GetDataSize() const;
 
-		FHairStrandsClusterCullingBulkData	ClusterCullingBulkData;
-		FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
+		FHairStrandsClusterBulkData	ClusterBulkData;
+		FHairStrandsClusterResource* ClusterResource = nullptr;
 
 		#if RHI_RAYTRACING
 		FHairStrandsRaytracingResource*		RaytracingResource = nullptr;

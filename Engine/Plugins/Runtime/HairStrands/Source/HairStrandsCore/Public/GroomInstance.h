@@ -123,7 +123,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	struct FStrands : FStrandsBaseWithInterpolation
 	{
 		// Resources - Strands cluster data for culling/voxelization purpose
-		FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
+		FHairStrandsClusterResource* ClusterResource = nullptr;
 		FHairStrandsCullingResource* CullingResource = nullptr;
 
 		// Resources - Raytracing data when enabling (expensive) raytracing method

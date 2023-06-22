@@ -316,9 +316,9 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 };
 
 
-struct FHairStrandsClusterCullingResource : public FHairCommonResource
+struct FHairStrandsClusterResource : public FHairCommonResource
 {
-	FHairStrandsClusterCullingResource(FHairStrandsClusterCullingBulkData& Data, const FHairResourceName& ResourceName, const FName& OwnerName);
+	FHairStrandsClusterResource(FHairStrandsClusterBulkData& Data, const FHairResourceName& ResourceName, const FName& OwnerName);
 
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -349,7 +349,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	/* Min. LOD a which a Point becomes visible */
 	FRDGExternalBuffer PointLODBuffer;
 
-	FHairStrandsClusterCullingBulkData& BulkData;
+	FHairStrandsClusterBulkData& BulkData;
 };
 
 struct FHairStrandsCullingResource : public FHairCommonResource

@@ -162,7 +162,7 @@ RENDERER_API FRDGBufferUAVRef   RegisterAsUAV(FRDGBuilder& GraphBuilder, const F
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Misc/Helpers
 
-struct FHairStrandClusterCullingData;
+struct FHairStrandClusterData;
 struct IPooledRenderTarget;
 struct FRWBuffer;
 class  FRDGPooledBuffer;

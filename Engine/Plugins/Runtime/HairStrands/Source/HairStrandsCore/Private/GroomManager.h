@@ -16,7 +16,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Misc/Helpers
 
-struct FHairStrandClusterCullingData;
+struct FHairStrandClusterData;
 class FRDGPooledBuffer;
 struct IPooledRenderTarget;
 struct FRWBuffer;

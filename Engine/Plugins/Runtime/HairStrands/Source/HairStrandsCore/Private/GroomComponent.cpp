@@ -485,7 +485,7 @@ public:
 		TArray<FHairGroupInstance*> LocalInstances = HairGroupInstances;
 		for (FHairGroupInstance* Instance : LocalInstances)
 		{
-			if (Instance->IsValid() || Instance->Strands.ClusterCullingResource)
+			if (Instance->IsValid() || Instance->Strands.ClusterResource)
 			{
 				check(Instance->HairGroupPublicData != nullptr);
 				Instance->AddRef();
@@ -509,7 +509,7 @@ public:
 		TArray<FHairGroupInstance*> LocalInstances = HairGroupInstances;
 		for (FHairGroupInstance* Instance : LocalInstances)
 		{
-			if (Instance->IsValid() || Instance->Strands.ClusterCullingResource)
+			if (Instance->IsValid() || Instance->Strands.ClusterResource)
 			{
 				check(Instance->GetRefCount() > 0);
 				LocalScene.RemoveHairStrands(Instance);
@@ -2762,18 +2762,18 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.BulkData, EHairStrandsResourcesType::Strands, ResourceName, OwnerName);
 			} 
 
-			// An empty groom doesn't have a ClusterCullingResource
-			HairGroupInstance->Strands.ClusterCullingResource = GroupData.Strands.ClusterCullingResource;
-			if (HairGroupInstance->Strands.ClusterCullingResource)
+			// An empty groom doesn't have a ClusterResource
+			HairGroupInstance->Strands.ClusterResource = GroupData.Strands.ClusterResource;
+			if (HairGroupInstance->Strands.ClusterResource)
 			{
 				// This codes assumes strands LOD are contigus and the highest (i.e., 0...x). Change this code to something more robust
 				check(HairGroupInstance->HairGroupPublicData);
-				const int32 StrandsLODCount = GroupData.Strands.ClusterCullingResource->BulkData.Header.LODInfos.Num();
+				const int32 StrandsLODCount = GroupData.Strands.ClusterResource->BulkData.Header.LODInfos.Num();
 				const TArray<float>& LODScreenSizes = HairGroupInstance->HairGroupPublicData->GetLODScreenSizes();
 				const TArray<bool>& LODVisibilities = HairGroupInstance->HairGroupPublicData->GetLODVisibilities();
 				check(StrandsLODCount <= LODScreenSizes.Num());
 				check(StrandsLODCount <= LODVisibilities.Num());
-				HairGroupInstance->HairGroupPublicData->ClusterCount = HairGroupInstance->Strands.ClusterCullingResource->BulkData.Header.ClusterCount;
+				HairGroupInstance->HairGroupPublicData->ClusterCount = HairGroupInstance->Strands.ClusterResource->BulkData.Header.ClusterCount;
 			}
 
 			HairGroupInstance->Strands.CullingResource = new FHairStrandsCullingResource(

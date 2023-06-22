@@ -779,7 +779,7 @@ void AddHairStreamingRequest(FHairGroupInstance* Instance, int32 InLODIndex)
 		{
 			if (Instance->Strands.RestRootResource)			{ Instance->Strands.RestRootResource->StreamInData(MeshLODIndex); }
 			if (Instance->Strands.RestResource)				{ Instance->Strands.RestResource->StreamInData(); }
-			if (Instance->Strands.ClusterCullingResource)	{ Instance->Strands.ClusterCullingResource->StreamInData(); }
+			if (Instance->Strands.ClusterResource)			{ Instance->Strands.ClusterResource->StreamInData(); }
 			if (Instance->Strands.InterpolationResource)	{ Instance->Strands.InterpolationResource->StreamInData(); }
 		}
 	}
@@ -925,7 +925,7 @@ static void RunHairLODSelection(
 			Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
 			Instance->HairGroupPublicData->ContinuousLODCoverageScale = 1.f;
 
-			if (Instance->Strands.ClusterCullingResource)
+			if (Instance->Strands.ClusterResource)
 			{
 				uint32 EffectiveCurveCount = 0;
 				if (Instance->HairGroupPublicData->bAutoLOD || IsHairStrandsForceAutoLODEnabled())
@@ -935,7 +935,7 @@ static void RunHairLODSelection(
 				}
 				else
 				{
-					EffectiveCurveCount = Instance->Strands.ClusterCullingResource->BulkData.GetCurveCount(LODIndex);
+					EffectiveCurveCount = Instance->Strands.ClusterResource->BulkData.GetCurveCount(LODIndex);
 				}
 				check(EffectiveCurveCount <= uint32(Instance->Strands.Data->Header.CurveToPointCount.Num()));
 
@@ -1071,7 +1071,7 @@ static void RunHairLODSelection(
 
 				if (Instance->Strands.RestRootResource)			{ Instance->Strands.RestRootResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount, MeshLODIndex); }
 				if (Instance->Strands.RestResource)				{ Instance->Strands.RestResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount); }
-				if (Instance->Strands.ClusterCullingResource)	{ Instance->Strands.ClusterCullingResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount); }
+				if (Instance->Strands.ClusterResource)			{ Instance->Strands.ClusterResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount); }
 				if (Instance->Strands.InterpolationResource)	{ Instance->Strands.InterpolationResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount); }
 				if (Instance->Strands.CullingResource)			{ Instance->Strands.CullingResource->Allocate(GraphBuilder, EHairResourceLoadingType::Async, ResourceStatus, RequestedCurveCount, RequestedPointCount); }
 

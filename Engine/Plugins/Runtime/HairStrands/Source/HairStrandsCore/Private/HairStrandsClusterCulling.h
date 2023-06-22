@@ -26,7 +26,7 @@ struct FHairStrandClusterData
 		FRDGExternalBuffer* CurveBuffer = nullptr;
 		FRDGExternalBuffer* PointLODBuffer = nullptr;
 
-		// See FHairStrandsClusterCullingResource fro details about those buffers.
+		// See FHairStrandsClusterResource fro details about those buffers.
 		FRDGExternalBuffer* GroupAABBBuffer = nullptr;
 		FRDGExternalBuffer* ClusterAABBBuffer = nullptr;
 		FRDGExternalBuffer* ClusterInfoBuffer = nullptr; // SRV

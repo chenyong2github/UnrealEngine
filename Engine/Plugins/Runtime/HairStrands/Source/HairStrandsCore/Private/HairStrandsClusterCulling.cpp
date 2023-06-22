@@ -279,11 +279,11 @@ void AddInstanceToClusterData(FHairGroupInstance* In, FHairStrandClusterData& Ou
 	HairGroupCluster.ClusterAABBBuffer = &In->HairGroupPublicData->GetClusterAABBBuffer();
 
 	HairGroupCluster.CurveBuffer = &In->Strands.RestResource->CurveBuffer;
-	HairGroupCluster.PointLODBuffer = &In->Strands.ClusterCullingResource->PointLODBuffer;
+	HairGroupCluster.PointLODBuffer = &In->Strands.ClusterResource->PointLODBuffer;
 
-	HairGroupCluster.ClusterInfoParameters = In->Strands.ClusterCullingResource->BulkData.Header.ClusterInfoParameters;
-	HairGroupCluster.ClusterInfoBuffer = &In->Strands.ClusterCullingResource->ClusterInfoBuffer;
-	HairGroupCluster.CurveToClusterIdBuffer = &In->Strands.ClusterCullingResource->CurveToClusterIdBuffer;
+	HairGroupCluster.ClusterInfoParameters = In->Strands.ClusterResource->BulkData.Header.ClusterInfoParameters;
+	HairGroupCluster.ClusterInfoBuffer = &In->Strands.ClusterResource->ClusterInfoBuffer;
+	HairGroupCluster.CurveToClusterIdBuffer = &In->Strands.ClusterResource->CurveToClusterIdBuffer;
 
 	HairGroupCluster.HairGroupPublicPtr = In->HairGroupPublicData;
 	HairGroupCluster.LODBias  = In->HairGroupPublicData->GetLODBias();

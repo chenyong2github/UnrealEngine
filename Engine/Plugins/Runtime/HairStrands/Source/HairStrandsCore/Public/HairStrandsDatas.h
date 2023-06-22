@@ -694,7 +694,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData : FHairStrandsBulkC
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Cluster Data/Bulk
 
-struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
+struct HAIRSTRANDSCORE_API FHairStrandsClusterData
 {
 	void Reset();
 	bool IsValid() const { return ClusterCount > 0 && PointCount > 0; }
@@ -710,7 +710,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingData
 	uint32 CurveCount = 0;			// Number of curves
 };
 
-struct HAIRSTRANDSCORE_API FHairStrandsClusterCullingBulkData : FHairStrandsBulkCommon
+struct HAIRSTRANDSCORE_API FHairStrandsClusterBulkData : FHairStrandsBulkCommon
 {
 	void Reset();
 	virtual void ResetLoadedSize() override;

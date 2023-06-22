@@ -111,9 +111,9 @@ void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 	PointsSimCurvesIndex.SetNum(NumCurves);
 }
 
-void FHairStrandsClusterCullingData::Reset()
+void FHairStrandsClusterData::Reset()
 {
-	*this = FHairStrandsClusterCullingData();
+	*this = FHairStrandsClusterData();
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -690,7 +690,7 @@ void FHairStrandsInterpolationBulkData::ResetLoadedSize()
 /////////////////////////////////////////////////////////////////////////////////////////
 // Cluster culling bulk data
 
-void FHairStrandsClusterCullingBulkData::Reset()
+void FHairStrandsClusterBulkData::Reset()
 {
 	Header.ClusterCount = 0;
 	Header.PointCount = 0;
@@ -708,14 +708,14 @@ void FHairStrandsClusterCullingBulkData::Reset()
 	Data.PointLODs			= FHairBulkContainer();
 }
 
-void FHairStrandsClusterCullingBulkData::ResetLoadedSize()
+void FHairStrandsClusterBulkData::ResetLoadedSize()
 {
 	Data.CurveToClusterIds.LoadedSize 	= 0;
 	Data.PackedClusterInfos.LoadedSize	= 0;
 	Data.PointLODs.LoadedSize			= 0;
 }
 
-void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
+void FHairStrandsClusterBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
 {
 	Ar << Header.ClusterCount;
 	Ar << Header.PointCount;
@@ -741,14 +741,14 @@ void FHairStrandsClusterCullingBulkData::SerializeHeader(FArchive& Ar, UObject* 
 	Ar << Header.Strides.PointLODStride;
 }
 
-uint32 FHairStrandsClusterCullingBulkData::GetResourceCount() const
+uint32 FHairStrandsClusterBulkData::GetResourceCount() const
 {
 	return 5;
 }
 
 bool ValidateHairBulkData();
 
-void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQuery & Out)
+void FHairStrandsClusterBulkData::GetResources(FHairStrandsBulkCommon::FQuery & Out)
 {
 	const bool bHasClusterData = Header.ClusterCount > 0;
 	if (bHasClusterData)
@@ -770,7 +770,7 @@ void FHairStrandsClusterCullingBulkData::GetResources(FHairStrandsBulkCommon::FQ
 	}
 }
 
-uint32 FHairStrandsClusterCullingBulkData::GetCurveCount(float InLODIndex) const
+uint32 FHairStrandsClusterBulkData::GetCurveCount(float InLODIndex) const
 {
 	const TArray<FHairLODInfo>& LODInfos = Header.LODInfos;
 
