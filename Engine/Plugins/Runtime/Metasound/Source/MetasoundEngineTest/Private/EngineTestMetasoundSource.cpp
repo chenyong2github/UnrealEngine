@@ -2,25 +2,22 @@
 
 #include "AudioDevice.h"
 #include "Components/AudioComponent.h"
+#include "EngineTestMetaSoundBuilder.h"
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/MetasoundOutputFormatInterfaces.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
-#include "MetasoundBuilderSubsystem.h"
-#include "MetasoundDataReference.h"
-#include "MetasoundFrontendController.h"
-#include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundSource.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/Paths.h"
+#include "Templates/SharedPointer.h"
 #include "Tests/AutomationCommon.h"
 
 
 #if WITH_DEV_AUTOMATION_TESTS
-
-namespace EngineTestMetasoundSourcePrivate
+namespace EngineTestMetaSoundSourcePrivate
 {
-	struct FInitTestBuilderOutput
+	struct FInitTestBuilderSourceOutput
 	{
 		FMetaSoundBuilderNodeOutputHandle OnPlayOutput;
 		FMetaSoundBuilderNodeInputHandle OnFinishedInput;
@@ -75,7 +72,7 @@ namespace EngineTestMetasoundSourcePrivate
 		return Node;
 	}
 
-	UMetaSoundSourceBuilder& CreateMetaSoundSourceBuilder(EMetaSoundOutputAudioFormat OutputFormat, bool bIsOneShot, FInitTestBuilderOutput& Output)
+	UMetaSoundSourceBuilder& CreateMetaSoundSourceBuilder(EMetaSoundOutputAudioFormat OutputFormat, bool bIsOneShot, EngineTestMetaSoundSourcePrivate::FInitTestBuilderSourceOutput& Output)
 	{
 		using namespace Audio;
 		using namespace Metasound;
@@ -102,14 +99,15 @@ namespace EngineTestMetasoundSourcePrivate
 		FMetaSoundBuilderNodeInputHandle* MonoOutNodeInput = nullptr,
 		float InDefaultFreq = 100.f)
 	{
-		using namespace EngineTestMetasoundSourcePrivate;
+		using namespace EngineTestMetaSoundPatchBuilderPrivate;
+		using namespace EngineTestMetaSoundSourcePrivate;
 		using namespace Metasound;
 		using namespace Metasound::Engine;
 		using namespace Metasound::Frontend;
 
 		constexpr EMetaSoundOutputAudioFormat OutputFormat = EMetaSoundOutputAudioFormat::Mono;
 		constexpr bool bIsOneShot = false;
-		FInitTestBuilderOutput Output;
+		FInitTestBuilderSourceOutput Output;
 		UMetaSoundSourceBuilder& Builder = CreateMetaSoundSourceBuilder(EMetaSoundOutputAudioFormat::Mono, bIsOneShot, Output);
 
 		EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
@@ -224,7 +222,7 @@ namespace EngineTestMetasoundSourcePrivate
 
 		return Document;
 	}
-} // EngineTestMetasoundSourcePrivate
+} // EngineTestMetaSoundSourcePrivate
 
 DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FAudioComponentPlayLatentCommand, UAudioComponent*, AudioComponent);
 
@@ -262,69 +260,6 @@ bool FMetaSoundSourceBuilderAuditionLatentCommand::Update()
 	return false;
 }
 
-DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(FMetaSoundSourceBuilderDisconnectInputLatentCommand, FAutomationTestBase&, Test, UMetaSoundBuilderBase*, Builder, FMetaSoundBuilderNodeInputHandle, InputToDisconnect);
-
-bool FMetaSoundSourceBuilderDisconnectInputLatentCommand::Update()
-{
-	EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
-	if (Builder)
-	{
-		Builder->DisconnectNodeInput(InputToDisconnect, Result);
-		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, TEXT("Failed to disconnect MetaSound node's input"));
-	}
-
-	return Result == EMetaSoundBuilderResult::Succeeded;
-}
-
-DEFINE_LATENT_AUTOMATION_COMMAND_FOUR_PARAMETER(FMetaSoundSourceBuilderSetLiteralLatentCommand, FAutomationTestBase&, Test, UMetaSoundBuilderBase*, Builder, FMetaSoundBuilderNodeInputHandle, NodeInput, FMetasoundFrontendLiteral, NewValue);
-
-bool FMetaSoundSourceBuilderSetLiteralLatentCommand::Update()
-{
-	EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
-	if (Builder)
-	{
-		Builder->SetNodeInputDefault(NodeInput, NewValue, Result);
-		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, TEXT("Failed to disconnect MetaSound node's input"));
-	}
-
-	return Result == EMetaSoundBuilderResult::Succeeded;
-}
-
-DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(FMetaSoundSourceBuilderRemoveNodeDefaultLiteralLatentCommand, FAutomationTestBase&, Test, UMetaSoundBuilderBase*, Builder, FMetaSoundBuilderNodeInputHandle, NodeInput);
-
-bool FMetaSoundSourceBuilderRemoveNodeDefaultLiteralLatentCommand::Update()
-{
-	EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
-	if (Builder)
-	{
-		Builder->RemoveNodeInputDefault(NodeInput, Result);
-		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, TEXT("Failed to disconnect MetaSound node's input"));
-	}
-
-	return Result == EMetaSoundBuilderResult::Succeeded;
-}
-
-DEFINE_LATENT_AUTOMATION_COMMAND_THREE_PARAMETER(FMetaSoundSourceBuilderCreateAndConnectTriGeneratorNodeLatentCommand, FAutomationTestBase&, Test, UMetaSoundSourceBuilder*, Builder, FMetaSoundBuilderNodeInputHandle, AudioOutNodeInput);
-
-bool FMetaSoundSourceBuilderCreateAndConnectTriGeneratorNodeLatentCommand::Update()
-{
-	EMetaSoundBuilderResult Result = EMetaSoundBuilderResult::Failed;
-	if (Builder)
-	{
-		// Tri Oscillator Node
-		FMetaSoundNodeHandle TriNode = Builder->AddNodeByClassName({ "UE", "Triangle", "Audio" }, 1, Result);
-		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded && TriNode.IsSet(), TEXT("Failed to create node by class name 'UE:Triangle:Audio"));
-
-		FMetaSoundBuilderNodeOutputHandle TriNodeAudioOutput = Builder->FindNodeOutputByName(TriNode, "Audio", Result);
-		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, TEXT("Failed to find Triangle Oscillator node output 'Audio'"));
-
-		Builder->ConnectNodes(TriNodeAudioOutput, AudioOutNodeInput, Result);
-		Test.AddErrorIfFalse(Result == EMetaSoundBuilderResult::Succeeded, TEXT("Failed to connect 'Audio' Triangle Oscillator output to MetaSound graph's 'Mono Output'"));
-	}
-
-	return Result == EMetaSoundBuilderResult::Succeeded;
-}
-
 DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FAudioComponentRemoveFromRootLatentCommand, UAudioComponent*, AudioComponent);
 
 bool FAudioComponentRemoveFromRootLatentCommand::Update()
@@ -332,18 +267,6 @@ bool FAudioComponentRemoveFromRootLatentCommand::Update()
 	if (AudioComponent)
 	{
 		AudioComponent->RemoveFromRoot();
-		return true;
-	}
-	return false;
-}
-
-DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FBuilderRemoveFromRootLatentCommand, UMetaSoundBuilderBase*, Builder);
-
-bool FBuilderRemoveFromRootLatentCommand::Update()
-{
-	if (Builder)
-	{
-		Builder->RemoveFromRoot();
 		return true;
 	}
 	return false;
@@ -357,7 +280,7 @@ bool FAudioMetasoundSourceTest::RunTest(const FString& Parameters)
 	UMetaSoundSource* MetaSoundSource = NewObject<UMetaSoundSource>(GetTransientPackage(), FName(*LexToString(FGuid::NewGuid())));;
 	if (ensure(nullptr != MetaSoundSource))
 	{
-		MetaSoundSource->SetDocument(EngineTestMetasoundSourcePrivate::CreateMetaSoundMonoSourceDocument());
+		MetaSoundSource->SetDocument(EngineTestMetaSoundSourcePrivate::CreateMetaSoundMonoSourceDocument());
 
 		if (FAudioDevice* AudioDevice = GEngine->GetMainAudioDeviceRaw())
 		{
@@ -388,10 +311,8 @@ bool FAudioMetasoundSourceTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAudioMetasoundSourceBuilderTest, "Audio.Metasound.AuditionMetasoundSource", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FAudioMetasoundSourceBuilderTest::RunTest(const FString& Parameters)
 {
-	using namespace EngineTestMetasoundSourcePrivate;
-// 	using namespace Metasound;
-// 	using namespace Metasound::Engine;
-// 	using namespace Metasound::Frontend;
+	using namespace EngineTestMetaSoundPatchBuilderPrivate;
+	using namespace EngineTestMetaSoundSourcePrivate;
 
 	FMetaSoundBuilderNodeInputHandle MonoOutNodeInput;
 	UMetaSoundSourceBuilder& Builder = CreateMetaSoundMonoSourceSinGenBuilder(*this, nullptr, &MonoOutNodeInput);
@@ -432,7 +353,7 @@ bool FAudioMetasoundSourceBuilderTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAudioMetasoundSourceBuilderLiveUpdateNode, "Audio.Metasound.LiveUpdateNodeMetaSoundSource", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FAudioMetasoundSourceBuilderLiveUpdateNode::RunTest(const FString& Parameters)
 {
-	using namespace EngineTestMetasoundSourcePrivate;
+	using namespace EngineTestMetaSoundSourcePrivate;
 	using namespace Metasound;
 	using namespace Metasound::Engine;
 	using namespace Metasound::Frontend;
@@ -486,7 +407,8 @@ bool FAudioMetasoundSourceBuilderLiveUpdateNode::RunTest(const FString& Paramete
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAudioMetasoundSourceBuilderLiveUpdateLiteral, "Audio.Metasound.LiveUpdateLiteralMetaSoundSource", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FAudioMetasoundSourceBuilderLiveUpdateLiteral::RunTest(const FString& Parameters)
 {
-	using namespace EngineTestMetasoundSourcePrivate;
+	using namespace EngineTestMetaSoundPatchBuilderPrivate;
+	using namespace EngineTestMetaSoundSourcePrivate;
 
 	FMetaSoundBuilderNodeInputHandle MonoOutNodeInput;
 	FMetaSoundBuilderNodeInputHandle GenNodeFreqInput;

@@ -82,6 +82,11 @@ namespace Metasound
 
 			virtual TUniquePtr<INodeRegistryEntry> Clone() const override = 0;
 
+			virtual TSet<FMetasoundFrontendVersion>* GetImplementedInterfaces() const override
+			{
+				return nullptr;
+			}
+
 			virtual bool IsNative() const override
 			{
 				return true;

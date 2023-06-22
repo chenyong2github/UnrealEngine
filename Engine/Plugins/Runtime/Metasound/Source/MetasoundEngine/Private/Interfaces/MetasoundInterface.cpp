@@ -72,8 +72,11 @@ namespace Metasound::Engine
 
 		// Input Formats
 		{
-			Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(FMetasoundFrontendInterface(InputFormatMonoInterface::CreateInterface()), IDataReference::RouterName));
-			Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(InputFormatStereoInterface::CreateInterface(), IDataReference::RouterName));
+			Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(InputFormatMonoInterface::CreateInterface()));
+			Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(InputFormatStereoInterface::CreateInterface()));
+			Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(InputFormatQuadInterface::CreateInterface()));
+			Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(InputFormatFiveDotOneInterface::CreateInterface()));
+			Reg.RegisterInterface(MakeUnique<FInterfaceRegistryEntry>(InputFormatSevenDotOneInterface::CreateInterface()));
 		}
 
 		// Output Formats

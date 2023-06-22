@@ -504,11 +504,9 @@ class METASOUNDENGINE_API UMetaSoundBuilderSubsystem : public UEngineSubsystem, 
 {
 	GENERATED_BODY()
 
+private:
 	UPROPERTY()
-	TMap<FName, TObjectPtr<UMetaSoundPatchBuilder>> NamedPatchBuilders;
-
-	UPROPERTY()
-	TMap<FName, TObjectPtr<UMetaSoundSourceBuilder>> NamedSourceBuilders;
+	TMap<FName, TObjectPtr<UMetaSoundBuilderBase>> NamedBuilders;
 
 	UPROPERTY()
 	mutable TMap<FName, TWeakObjectPtr<UMetaSoundBuilderBase>> AssetBuilders;
@@ -586,6 +584,9 @@ public:
 	UPARAM(DisplayName = "Param Literal") FMetasoundFrontendLiteral CreateMetaSoundLiteralFromParam(const FAudioParameter& Param);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
+	UPARAM(DisplayName = "Builder") UMetaSoundBuilderBase* FindBuilder(FName BuilderName);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
 	UPARAM(DisplayName = "Patch Builder") UMetaSoundPatchBuilder* FindPatchBuilder(FName BuilderName);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
@@ -596,11 +597,18 @@ public:
 
 	// Adds builder to subsystem's registry to make it persistent and easily accessible by multiple systems or Blueprints
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
+	void RegisterBuilder(FName BuilderName, UMetaSoundBuilderBase* Builder);
+
+	// Adds builder to subsystem's registry to make it persistent and easily accessible by multiple systems or Blueprints
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
 	void RegisterPatchBuilder(FName BuilderName, UMetaSoundPatchBuilder* Builder);
 
 	// Adds builder to subsystem's registry to make it persistent and easily accessible by multiple systems or Blueprints
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
 	void RegisterSourceBuilder(FName BuilderName, UMetaSoundSourceBuilder* Builder);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
+	UPARAM(DisplayName = "Unregistered") bool UnregisterBuilder(FName BuilderName);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|MetaSound|Builder")
 	UPARAM(DisplayName = "Unregistered") bool UnregisterPatchBuilder(FName BuilderName);
@@ -613,6 +621,8 @@ private:
 	BuilderClass& AttachBuilderToAssetCheckedPrivate(UObject* InMetaSoundObject) const
 	{
 		check(InMetaSoundObject);
+		check(InMetaSoundObject->IsAsset());
+
 		TScriptInterface<IMetaSoundDocumentInterface> DocInterface = InMetaSoundObject;
 		const FMetasoundFrontendDocument& Document = static_cast<const IMetaSoundDocumentInterface*>(DocInterface.GetInterface())->GetDocument();
 		const FName FullClassName = Document.RootGraph.Metadata.GetClassName().GetFullName();

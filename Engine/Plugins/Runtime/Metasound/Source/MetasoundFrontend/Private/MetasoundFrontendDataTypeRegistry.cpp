@@ -141,6 +141,11 @@ namespace Metasound
 					return nullptr;
 				}
 
+				virtual TSet<FMetasoundFrontendVersion>* GetImplementedInterfaces() const override
+				{
+					return nullptr;
+				}
+
 				virtual bool IsNative() const override
 				{
 					return true;

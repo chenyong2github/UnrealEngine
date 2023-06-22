@@ -123,6 +123,12 @@ namespace Metasound
 			/** Clone this registry entry. */
 			virtual TUniquePtr<INodeRegistryEntry> Clone() const = 0;
 
+			/** Returns set of implemented interface versions.
+			  *
+			  * Returns nullptr if node class implementation does not support interface implementation.
+			  */
+			virtual TSet<FMetasoundFrontendVersion>* GetImplementedInterfaces() const = 0;
+
 			/** Whether or not the node is natively defined */
 			virtual bool IsNative() const = 0;
 		};
@@ -306,6 +312,7 @@ public:
 
 	// Query for MetaSound Frontend document objects.
 	virtual bool FindFrontendClassFromRegistered(const Metasound::Frontend::FNodeRegistryKey& InKey, FMetasoundFrontendClass& OutClass) = 0;
+	virtual const TSet<FMetasoundFrontendVersion>* FindImplementedInterfacesFromRegistered(const Metasound::Frontend::FNodeRegistryKey& InKey) const = 0;
 	virtual bool FindNodeClassInfoFromRegistered(const Metasound::Frontend::FNodeRegistryKey& InKey, FNodeClassInfo& OutInfo) = 0;
 	UE_DEPRECATED(5.1, "Use FindInputNodeRegistryKeyForDataType with EMetasoundFrontendVertexAccessType instead.")
 	virtual bool FindInputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey) = 0;

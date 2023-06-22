@@ -369,6 +369,16 @@ namespace Metasound
 			return false;
 		}
 
+		const TSet<FMetasoundFrontendVersion>* FRegistryContainerImpl::FindImplementedInterfacesFromRegistered(const Metasound::Frontend::FNodeRegistryKey& InKey) const
+		{
+			if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))
+			{
+				return Entry->GetImplementedInterfaces();
+			}
+
+			return nullptr;
+		}
+
 		bool FRegistryContainerImpl::FindNodeClassInfoFromRegistered(const Metasound::Frontend::FNodeRegistryKey& InKey, FNodeClassInfo& OutInfo)
 		{
 			if (const INodeRegistryEntry* Entry = FindNodeEntry(InKey))

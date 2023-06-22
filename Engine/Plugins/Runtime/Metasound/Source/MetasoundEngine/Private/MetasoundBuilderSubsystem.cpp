@@ -55,11 +55,11 @@ namespace Metasound::Engine
 		}
 
 		template <typename BuilderClass>
-		BuilderClass& CreateTransientBuilder()
+		BuilderClass& CreateTransientBuilder(FName BuilderName = { })
 		{
 			const EObjectFlags NewObjectFlags = RF_Public | RF_Transient;
 			UPackage* TransientPackage = GetTransientPackage();
-			const FName ObjectName = MakeUniqueObjectName(TransientPackage, BuilderClass::StaticClass());
+			const FName ObjectName = MakeUniqueObjectName(TransientPackage, BuilderClass::StaticClass(), BuilderName);
 			TObjectPtr<BuilderClass> NewBuilder = NewObject<BuilderClass>(TransientPackage, ObjectName, NewObjectFlags);
 			check(NewBuilder);
 			NewBuilder->InitFrontendBuilder();
@@ -1273,7 +1273,8 @@ void UMetaSoundSourceBuilder::SetFormat(EMetaSoundOutputAudioFormat OutputFormat
 
 UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::CreatePatchBuilder(FName BuilderName, EMetaSoundBuilderResult& OutResult)
 {
-	return &Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
+	OutResult = EMetaSoundBuilderResult::Succeeded;
+	return &Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>(BuilderName);
 }
 
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
@@ -1292,7 +1293,7 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 	OnFinishedNodeInput = { };
 	AudioOutNodeInputs.Reset();
 
-	UMetaSoundSourceBuilder& NewBuilder = CreateTransientBuilder<UMetaSoundSourceBuilder>();
+	UMetaSoundSourceBuilder& NewBuilder = CreateTransientBuilder<UMetaSoundSourceBuilder>(BuilderName);
 
 	OutResult = EMetaSoundBuilderResult::Succeeded;
 	if (OutputFormat != EMetaSoundOutputAudioFormat::Mono)
@@ -1386,7 +1387,7 @@ UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::CreateSourceBuilder(
 
 UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::CreatePatchPresetBuilder(FName BuilderName, const TScriptInterface<IMetaSoundDocumentInterface>& ReferencedNodeClass, EMetaSoundBuilderResult& OutResult)
 {
-	UMetaSoundPatchBuilder& Builder = Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
+	UMetaSoundPatchBuilder& Builder = Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>(BuilderName);
 	Builder.ConvertToPreset(ReferencedNodeClass, OutResult);
 	return &Builder;
 }
@@ -1405,7 +1406,7 @@ UMetaSoundBuilderBase& UMetaSoundBuilderSubsystem::CreatePresetBuilder(FName Bui
 	else
 	{
 		checkf(false, TEXT("UClass '%s' cannot be built to a MetaSound preset"), *Class.GetFullName());
-		return Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>();
+		return Metasound::Engine::BuilderSubsystemPrivate::CreateTransientBuilder<UMetaSoundPatchBuilder>(BuilderName);
 	}
 }
 
@@ -1509,14 +1510,29 @@ const Metasound::Frontend::FDocumentModifyDelegates* UMetaSoundBuilderSubsystem:
 	return nullptr;
 }
 
+UMetaSoundBuilderBase* UMetaSoundBuilderSubsystem::FindBuilder(FName BuilderName)
+{
+	return NamedBuilders.FindRef(BuilderName);
+}
+
 UMetaSoundPatchBuilder* UMetaSoundBuilderSubsystem::FindPatchBuilder(FName BuilderName)
 {
-	return NamedPatchBuilders.FindRef(BuilderName);
+	if (UMetaSoundBuilderBase* Builder = FindBuilder(BuilderName))
+	{
+		return Cast<UMetaSoundPatchBuilder>(Builder);
+	}
+
+	return nullptr;
 }
 
 UMetaSoundSourceBuilder* UMetaSoundBuilderSubsystem::FindSourceBuilder(FName BuilderName)
 {
-	return NamedSourceBuilders.FindRef(BuilderName);
+	if (UMetaSoundBuilderBase* Builder = FindBuilder(BuilderName))
+	{
+		return Cast<UMetaSoundSourceBuilder>(Builder);
+	}
+
+	return nullptr;
 }
 
 void UMetaSoundBuilderSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -1540,22 +1556,41 @@ bool UMetaSoundBuilderSubsystem::IsInterfaceRegistered(FName InInterfaceName) co
 	return ISearchEngine::Get().FindInterfaceWithHighestVersion(InInterfaceName, Interface);
 }
 
+void UMetaSoundBuilderSubsystem::RegisterBuilder(FName BuilderName, UMetaSoundBuilderBase* Builder)
+{
+	if (Builder)
+	{
+		NamedBuilders.FindOrAdd(BuilderName) = Builder;
+	}
+}
+
 void UMetaSoundBuilderSubsystem::RegisterPatchBuilder(FName BuilderName, UMetaSoundPatchBuilder* Builder)
 {
-	NamedPatchBuilders.FindOrAdd(BuilderName) = Builder;
+	if (Builder)
+	{
+		NamedBuilders.FindOrAdd(BuilderName) = Builder;
+	}
 }
 
 void UMetaSoundBuilderSubsystem::RegisterSourceBuilder(FName BuilderName, UMetaSoundSourceBuilder* Builder)
 {
-	NamedSourceBuilders.FindOrAdd(BuilderName) = Builder;
+	if (Builder)
+	{
+		NamedBuilders.FindOrAdd(BuilderName) = Builder;
+	}
+}
+
+bool UMetaSoundBuilderSubsystem::UnregisterBuilder(FName BuilderName)
+{
+	return NamedBuilders.Remove(BuilderName) > 0;
 }
 
 bool UMetaSoundBuilderSubsystem::UnregisterPatchBuilder(FName BuilderName)
 {
-	return NamedPatchBuilders.Remove(BuilderName) > 0;
+	return NamedBuilders.Remove(BuilderName) > 0;
 }
 
 bool UMetaSoundBuilderSubsystem::UnregisterSourceBuilder(FName BuilderName)
 {
-	return NamedSourceBuilders.Remove(BuilderName) > 0;
+	return NamedBuilders.Remove(BuilderName) > 0;
 }
