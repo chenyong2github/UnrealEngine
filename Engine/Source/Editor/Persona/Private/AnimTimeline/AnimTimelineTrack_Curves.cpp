@@ -304,7 +304,7 @@ void FAnimTimelineTrack_Curves::OnVariableCurveNamePicked(const FName& InCurveNa
 	
 	if(InCurveName != NAME_None)
 	{
-		AddMetadataEntry(InCurveName);
+		AddVariableCurve(InCurveName);
 	}
 }
 
