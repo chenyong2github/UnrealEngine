@@ -901,8 +901,7 @@ static void AddHairDebugPrintInstancePass(
 			(FFloat16(LODIndex).Encoded) |
 			(FFloat16(Instance->Strands.Modifier.HairLengthScale_Override ? Instance->Strands.Modifier.HairLengthScale : -1.f).Encoded << 16);
 		
-		D.Data4.X = Instance->HairGroupPublicData->VFInput.bHasLODSwitch ? 1u : 0u;
-
+		bool bHasRaytracing = false;
 		switch (Instance->GeometryType) 
 		{
 		case EHairGeometryType::Strands:
@@ -949,6 +948,10 @@ static void AddHairDebugPrintInstancePass(
 				D.Data3.Z |= FFloat16(Instance->HairGroupPublicData->VFInput.Strands.Common.LengthScale).Encoded << 16u;
 				D.Data3.W |= FFloat16(Instance->HairGroupPublicData->GetActiveStrandsCoverageScale()).Encoded;
 				D.Data3.W |= Instance->HairGroupPublicData->bAutoLOD || IsHairStrandsForceAutoLODEnabled() ? (1u << 16u) : 0;
+
+				#if RHI_RAYTRACING
+				bHasRaytracing = Instance->Strands.RenRaytracingResource != nullptr;
+				#endif
 			}
 			break;
 		case EHairGeometryType::Cards:
@@ -960,6 +963,10 @@ static void AddHairDebugPrintInstancePass(
 				D.Data2 = FUintVector4(0);
 				D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] ? 0x1u : 0u;
 				D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView]  ? 0x2u : 0u;
+
+				#if RHI_RAYTRACING
+				bHasRaytracing = Instance->Cards.LODs[IntLODIndex].RaytracingResource != nullptr;
+				#endif
 			}
 			break;
 		case EHairGeometryType::Meshes:
@@ -971,9 +978,17 @@ static void AddHairDebugPrintInstancePass(
 				D.Data2 = FUintVector4(0);
 				D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesPrimaryView] ? 0x1u : 0u;
 				D.Data2.X |= InstanceIndex < InstanceCountPerType[HairInstanceCount_CardsOrMeshesShadowView]  ? 0x2u : 0u;
+
+				#if RHI_RAYTRACING
+				bHasRaytracing = Instance->Meshes.LODs[IntLODIndex].RaytracingResource != nullptr;
+				#endif
 			}
 			break;
 		}
+
+		D.Data4.X = 0;
+		D.Data4.X |= Instance->HairGroupPublicData->VFInput.bHasLODSwitch ? 1u : 0u;
+		D.Data4.X |= bHasRaytracing ? 2u : 0u;
 	}
 
 	ShaderPrint::FStrings AttributeNames;

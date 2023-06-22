@@ -566,7 +566,7 @@ struct FHairStrandsRaytracingResource : public FHairCommonResource
 	FHairStrandsRaytracingResource(const FHairMeshesBulkData& InData, const FHairResourceName& ResourceName, const FName& OwnerName);
 
 	/* Init/Release buffers */
-	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
+	virtual void InternalAllocate(FRDGBuilder& GraphBuilder, uint32 InCurveCount, uint32 InPointCount, int32 InLODIndex) override;
 	virtual void InternalRelease() override;
 
 	/* Get the resource name */
@@ -584,8 +584,8 @@ struct FHairStrandsRaytracingResource : public FHairCommonResource
 	FRDGExternalBuffer PositionBuffer;
 	FRDGExternalBuffer IndexBuffer;
 	FRayTracingGeometry RayTracingGeometry;
-	uint32 VertexCount = 0;
-	uint32 IndexCount = 0;
+	uint32 MaxVertexCount = 0;
+	uint32 MaxIndexCount = 0;
 	bool bOwnBuffers = false;
 	bool bIsRTGeometryInitialized = false;
 	bool bProceduralPrimitive = false;

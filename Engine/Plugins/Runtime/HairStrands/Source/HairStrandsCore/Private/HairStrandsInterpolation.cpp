@@ -2099,7 +2099,8 @@ void ComputeHairStrandsInterpolation(
 			#if RHI_RAYTRACING
 			if (Instance->Strands.RenRaytracingResource && (Instance->Strands.ViewRayTracingMask & ViewRayTracingMask) != 0)
 			{
-				const float HairRadiusRT	= Instance->HairGroupPublicData->VFInput.Strands.Common.RaytracingRadiusScale * Instance->HairGroupPublicData->VFInput.Strands.Common.Radius;
+				const float CLODScale = Instance->HairGroupPublicData->ContinuousLODCoverageScale;
+				const float HairRadiusRT	= Instance->HairGroupPublicData->VFInput.Strands.Common.RaytracingRadiusScale * Instance->HairGroupPublicData->VFInput.Strands.Common.Radius * CLODScale;
 				const float HairRootScaleRT = Instance->HairGroupPublicData->VFInput.Strands.Common.RootScale;
 				const float HairTipScaleRT	= Instance->HairGroupPublicData->VFInput.Strands.Common.TipScale;
 				const int ProceduralSplits = GetHairRaytracingProceduralSplits();
@@ -2159,8 +2160,8 @@ void ComputeHairStrandsInterpolation(
 							FBufferRHIRef IndexBuffer(bProceduralPrimitive ? nullptr : Instance->Strands.RenRaytracingResource->IndexBuffer.Buffer->GetRHI());
 							Instance->Strands.CachedProceduralSplits = ProceduralSplits;
 							BuildHairAccelerationStructure_Strands(RHICmdList,
-								Instance->Strands.RenRaytracingResource->VertexCount, // HAIR_TODO
-								Instance->Strands.RenRaytracingResource->IndexCount,
+								Instance->Strands.RenRaytracingResource->MaxVertexCount,
+								Instance->Strands.RenRaytracingResource->MaxIndexCount,
 								PositionBuffer,
 								IndexBuffer,
 								&Instance->Strands.RenRaytracingResource->RayTracingGeometry,

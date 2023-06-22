@@ -1637,6 +1637,22 @@ void FHairCardsInterpolationResource::InternalRelease()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 #if RHI_RAYTRACING
+bool GetSupportHairStrandsProceduralPrimitive(EShaderPlatform InShaderPlatform);
+
+static void ConvertPointToRaytracingVertexCount(bool bProceduralPrimitive, uint32 InPointCount, uint32& OutVertexCount, uint32& OutIndexCount)
+{
+	if (bProceduralPrimitive)
+	{
+		// only allocate space for primitive AABBs
+		OutVertexCount = InPointCount * 2 * STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS;
+	}
+	else
+	{
+		OutVertexCount = InPointCount * 4;
+		OutIndexCount  = InPointCount * 8 * 3;
+	}
+}
+
 // RT geometry for strands is built as a 4 sided cylinder
 //   each vertex of the curve becomes 4 points
 //   each curve segment turns into 2*4=8 triangles (3 indices for each)
@@ -1646,39 +1662,37 @@ void FHairCardsInterpolationResource::InternalRelease()
 // which used 6*float4 = 48 bytes per vertex
 // NOTE: the vertex buffer is a float4 because it is registered as a UAV for the compute shader to work
 // TODO: use a plain float vertex buffer with 3x the entries instead to save memory? (float3 UAVs are not allowed)
-bool GetSupportHairStrandsProceduralPrimitive(EShaderPlatform InShaderPlatform);
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairStrandsBulkData& InData, const FHairResourceName& ResourceName, const FName& InOwnerName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName, InOwnerName), bOwnBuffers(true)
 {
+	MaxVertexCount = 0;
+	MaxIndexCount = 0;
+	MaxAvailableCurveCount = 0;
 	bProceduralPrimitive = GetSupportHairStrandsProceduralPrimitive(GMaxRHIShaderPlatform);
-	if (bProceduralPrimitive)
-	{
-		// only allocate space for primitive AABBs
-		VertexCount = InData.GetNumPoints() * 2 * STRANDS_PROCEDURAL_INTERSECTOR_MAX_SPLITS;
-	}
-	else
-	{
-		VertexCount = InData.GetNumPoints() * 4;
-		IndexCount = InData.GetNumPoints() * 8 * 3;
-	}
 }
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairCardsBulkData& InData, const FHairResourceName& ResourceName, const FName& InOwnerName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName, InOwnerName),
-	VertexCount(InData.GetNumVertices()), bOwnBuffers(false)
+	MaxVertexCount(InData.GetNumVertices()), bOwnBuffers(false)
 {}
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairMeshesBulkData& InData, const FHairResourceName& ResourceName, const FName& InOwnerName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, ResourceName, InOwnerName),
-	VertexCount(InData.GetNumVertices()), bOwnBuffers(false)
+	MaxVertexCount(InData.GetNumVertices()), bOwnBuffers(false)
 {}
 
-void FHairStrandsRaytracingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
+void FHairStrandsRaytracingResource::InternalAllocate(FRDGBuilder& GraphBuilder, uint32 InCurveCount, uint32 InPointCount, int32 InLODIndex)
 {
 	if (bOwnBuffers)
 	{
-		InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRaytracing_PositionBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
-		InternalCreateStructuredBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, IndexCount, IndexBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRaytracing_IndexBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
+		ConvertPointToRaytracingVertexCount(bProceduralPrimitive, InPointCount, MaxVertexCount, MaxIndexCount);
+
+		InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, MaxVertexCount, PositionBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRaytracing_PositionBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
+		InternalCreateStructuredBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, MaxIndexCount, IndexBuffer, ToHairResourceDebugName(TEXT("Hair.StrandsRaytracing_IndexBuffer"), ResourceName), OwnerName, EHairResourceUsageType::Dynamic);
+
+		// Force reallocating and rebuilding the RT geometry
+		RayTracingGeometry.ReleaseResource();
+		bIsRTGeometryInitialized = false;
 	}
 }
 
