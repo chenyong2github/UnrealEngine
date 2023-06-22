@@ -1749,7 +1749,6 @@ void FPhysicsAssetEditorSharedData::PasteBodiesAndConstraintsFromClipboard(int32
 						{
 							// none found, create a brand new one 
 							ConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, ConstraintUniqueName);
-							check(ConstraintIndex != INDEX_NONE);
 						}
 
 						if (PhysicsAsset->ConstraintSetup.IsValidIndex(ConstraintIndex))
@@ -2158,6 +2157,8 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 	// name the new created primitives
 	AutoNameAllPrimitives(NewBodyIndex, NewBodyData.GeomType);
 
+	const bool bCanCreateConstraints = FPhysicsAssetUtils::CanCreateConstraints();
+
 	// Check if the bone of the new body has any physical children bones
 	for (int32 i = 0; i < EditorSkelMesh->GetRefSkeleton().GetRawBoneNum(); ++i)
 	{
@@ -2184,8 +2185,11 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 				// We are currently doing the latter...
 				if (ConstraintIndex == INDEX_NONE)
 				{
-					ConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, ChildBody->BoneName);
-					check(ConstraintIndex != INDEX_NONE);
+					if (bCanCreateConstraints)
+					{
+						ConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, ChildBody->BoneName);
+						check(ConstraintIndex != INDEX_NONE);
+					}
 				}
 				// If there's a pre-existing constraint, see if it needs to be fixed up
 				else
@@ -2216,16 +2220,19 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 					}
 				}
 
-				UPhysicsConstraintTemplate* ChildConstraintSetup = PhysicsAsset->ConstraintSetup[ ConstraintIndex ];
-				check(ChildConstraintSetup);
+				if (PhysicsAsset->ConstraintSetup.IsValidIndex(ConstraintIndex))
+				{
+					UPhysicsConstraintTemplate* ChildConstraintSetup = PhysicsAsset->ConstraintSetup[ConstraintIndex];
+					check(ChildConstraintSetup);
 
-				InitConstraintSetup(ChildConstraintSetup, ChildBodyIndex, NewBodyIndex);
+					InitConstraintSetup(ChildConstraintSetup, ChildBodyIndex, NewBodyIndex);
+				}
 			}
 		}
 	}
 
 	// If we have a physics parent, create a joint to it.
-	if (ParentBodyIndex != INDEX_NONE)
+	if (ParentBodyIndex != INDEX_NONE && bCanCreateConstraints)
 	{
 		const int32 NewConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, NewBoneName);
 		UPhysicsConstraintTemplate* ConstraintSetup = PhysicsAsset->ConstraintSetup[ NewConstraintIndex ];
@@ -2265,22 +2272,24 @@ void FPhysicsAssetEditorSharedData::MakeNewConstraints(int32 ParentBodyIndex, co
 	check(ParentBodyIndex < PhysicsAsset->SkeletalBodySetups.Num());
 
 	TArray<int32> NewlyCreatedConstraints;
-
-	for (const int32 ChildBodyIndex : ChildBodyIndices)
+	if (ensure(FPhysicsAssetUtils::CanCreateConstraints()))
 	{
-		check(ChildBodyIndex < PhysicsAsset->SkeletalBodySetups.Num());
+		for (const int32 ChildBodyIndex : ChildBodyIndices)
+		{
+			check(ChildBodyIndex < PhysicsAsset->SkeletalBodySetups.Num());
 
-		// Make a new unique name for this constraint
-		FString ConstraintName = MakeUniqueNewConstraintName();
+			// Make a new unique name for this constraint
+			FString ConstraintName = MakeUniqueNewConstraintName();
 
-		// Create new constraint with a name not related to a bone, so it wont get auto managed in code that creates new bodies
-		const int32 NewConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, *ConstraintName);
-		UPhysicsConstraintTemplate* ConstraintSetup = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
-		check(ConstraintSetup);
+			// Create new constraint with a name not related to a bone, so it wont get auto managed in code that creates new bodies
+			const int32 NewConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, *ConstraintName);
+			UPhysicsConstraintTemplate* ConstraintSetup = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
+			check(ConstraintSetup);
 
-		NewlyCreatedConstraints.Add(NewConstraintIndex);
+			NewlyCreatedConstraints.Add(NewConstraintIndex);
 
-		InitConstraintSetup(ConstraintSetup, ChildBodyIndex, ParentBodyIndex);
+			InitConstraintSetup(ConstraintSetup, ChildBodyIndex, ParentBodyIndex);
+		}
 	}
 
 	ClearSelectedConstraints();
@@ -2525,8 +2534,11 @@ void FPhysicsAssetEditorSharedData::DeleteBody(int32 DelBodyIndex, bool bRefresh
 					if (Constraint->DefaultInstance.ConstraintBone1 == BodyBelow->BoneName)
 					{
 						int32 NewConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, BodyBelow->BoneName, Constraint);
-						UPhysicsConstraintTemplate * NewConstraint = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
-						InitConstraintSetup(NewConstraint, BodyBelowIndex, ParentBodyIndex);
+						if (ensure(PhysicsAsset->ConstraintSetup.IsValidIndex(NewConstraintIndex)))
+						{
+							UPhysicsConstraintTemplate* NewConstraint = PhysicsAsset->ConstraintSetup[NewConstraintIndex];
+							InitConstraintSetup(NewConstraint, BodyBelowIndex, ParentBodyIndex);
+						}
 					}
 				}
 			}

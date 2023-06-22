@@ -215,4 +215,9 @@ namespace FPhysicsAssetUtils
 	 * @param	BodyIndex			Index of the body to destroy
 	 */
 	PHYSICSUTILITIES_API void DestroyBody(UPhysicsAsset* PhysAsset, int32 BodyIndex);
+
+	/**
+	* Whether or not Constraints are allowed to be created (due to asset list filtering)
+	*/
+	PHYSICSUTILITIES_API bool CanCreateConstraints();
 };

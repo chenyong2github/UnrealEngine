@@ -129,7 +129,7 @@ FBXImportOptions* GetImportOptions( UnFbx::FFbxImporter* FbxImporter, UFbxImport
 			ImportUI->PhysicsAsset = NULL;
 		}
 
-		if (!FbxImporter->CanImportClass(UPhysicsAsset::StaticClass()))
+		if (!FbxImporter->CanCreateClass(UPhysicsAsset::StaticClass()))
 		{
 			ImportUI->bCreatePhysicsAsset = false;
 		}
@@ -506,6 +506,17 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 	}
 }
 
+static bool AssetClassPassesFilter(UClass* Class, EAssetClassAction AssetClassAction)
+{
+	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+	TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(AssetClassAction);
+	if (Class && AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+	{
+		return AssetClassPermissionList->PassesFilter(Class->GetPathName());
+	}
+	return true;
+}
+
 void FImportedMaterialData::AddImportedMaterial( const FbxSurfaceMaterial& FbxMaterial, UMaterialInterface& UnrealMaterial )
 {
 	FbxToUnrealMaterialMap.Add( &FbxMaterial, &UnrealMaterial );
@@ -651,13 +662,12 @@ void FFbxImporter::ReleaseScene()
 
 bool FFbxImporter::CanImportClass(UClass* Class) const
 {
-	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
-	TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::ImportAsset);
-	if (Class && AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
-	{
-		return AssetClassPermissionList->PassesFilter(Class->GetPathName());
-	}
-	return true;
+	return AssetClassPassesFilter(Class, EAssetClassAction::ImportAsset);
+}
+
+bool FFbxImporter::CanCreateClass(UClass* Class) const
+{
+	return AssetClassPassesFilter(Class, EAssetClassAction::CreateAsset);
 }
 
 FBXImportOptions* UnFbx::FFbxImporter::GetImportOptions() const

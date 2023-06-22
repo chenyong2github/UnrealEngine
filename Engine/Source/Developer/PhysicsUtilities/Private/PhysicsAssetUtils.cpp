@@ -23,6 +23,9 @@
 #include "SkinnedLevelSetBuilder.h"
 #include "LevelSetHelpers.h"
 #include "Chaos/Levelset.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
+#include "Misc/NamePermissionList.h"
 
 namespace FPhysicsAssetUtils
 {
@@ -336,6 +339,7 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 
 	// Finally, iterate through all the bones and create bodies when needed
 
+	const bool bCanCreateConstraints = CanCreateConstraints();
 	FScopedSlowTask SlowTask((float)NumBones * 2, FText(), IsInGameThread());
 	if (IsInGameThread())
 	{
@@ -385,7 +389,7 @@ bool CreateFromSkeletalMeshInternal(UPhysicsAsset* PhysicsAsset, USkeletalMesh* 
 				if (bSuccess)
 				{
 					// create joint to parent body
-					if (Params.bCreateConstraints)
+					if (Params.bCreateConstraints && bCanCreateConstraints)
 					{
 						int32 ParentIndex = BoneIndex;
 						int32 ParentBodyIndex = INDEX_NONE;
@@ -1165,6 +1169,11 @@ int32 CreateNewConstraint(UPhysicsAsset* PhysAsset, FName InConstraintName, UPhy
 		return ConstraintIndex;
 	}
 
+	if (!ensure(CanCreateConstraints()))
+	{
+		return INDEX_NONE;
+	}
+
 	UPhysicsConstraintTemplate* NewConstraintSetup = NewObject<UPhysicsConstraintTemplate>(PhysAsset, NAME_None, RF_Transactional);
 	if(InConstraintSetup)
 	{
@@ -1266,6 +1275,17 @@ void DestroyBody(UPhysicsAsset* PhysAsset, int32 bodyIndex)
 	PhysAsset->UpdateBodySetupIndexMap();
 	// Update body indices.
 	PhysAsset->UpdateBoundsBodiesArray();
+}
+
+bool CanCreateConstraints()
+{
+	IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
+	TSharedPtr<FPathPermissionList> AssetClassPermissionList = AssetTools.GetAssetClassPathPermissionList(EAssetClassAction::CreateAsset);
+	if (UPhysicsConstraintTemplate::StaticClass() && AssetClassPermissionList && AssetClassPermissionList->HasFiltering())
+	{
+		return AssetClassPermissionList->PassesFilter(UPhysicsConstraintTemplate::StaticClass()->GetPathName());
+	}
+	return true;
 }
 
 }; // namespace FPhysicsAssetUtils
