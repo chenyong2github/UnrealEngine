@@ -630,7 +630,7 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 		NewSkyLightRenderState.ProcessedTexture = ProcessedSkyTexture->TextureRHI;
 		NewSkyLightRenderState.ProcessedTextureSampler = ProcessedSkyTexture->SamplerStateRHI;
 
-		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4f), 7);
+		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(RHICmdList, TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4f), 7);
 
 		NewSkyLightRenderState.PrepareSkyTexture(RHICmdList, FeatureLevel);
 
