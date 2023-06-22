@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "OpImageTransformPrivate.h"
 #include "Math/Vector.h"
 #include "Math/IntVector.h"
