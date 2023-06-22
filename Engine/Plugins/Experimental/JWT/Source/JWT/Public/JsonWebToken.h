@@ -8,6 +8,7 @@ class FJsonObject;
 class FJsonValue;
 enum class EJson;
 
+
 class JWT_API FJsonWebToken
 {
 public:
@@ -21,9 +22,9 @@ public:
 	 * @param InJsonWebTokenString The string to decode.
 	 * @return An optional set with a FJsonWebToken if the JWT was successfully decoded.
 	 */
-	static TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken, const bool bIsSignatureEncoded);
+	static TOptional<FJsonWebToken> FromString(const FStringView InEncodedJsonWebToken);
 
-	static bool FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken, const bool bIsSignatureEncoded);
+	static bool FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken);
 
 	/**
 	 * Gets the type.

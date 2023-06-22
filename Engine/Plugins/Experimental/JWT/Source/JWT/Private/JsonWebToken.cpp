@@ -198,9 +198,10 @@ TSharedPtr<FJsonObject> FJsonWebToken::ParseEncodedJson(const FStringView InEnco
 	return ParsedObj;
 }
 
-bool FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken, const bool bIsSignatureEncoded)
+bool FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken, FJsonWebToken& OutJsonWebToken)
 {
-	TOptional<FJsonWebToken> JsonWebToken = FromString(InEncodedJsonWebToken, bIsSignatureEncoded);
+	TOptional<FJsonWebToken> JsonWebToken = FromString(InEncodedJsonWebToken);
+
 	if (!JsonWebToken.IsSet())
 	{
 		return false;
@@ -210,7 +211,7 @@ bool FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken, FJsonWeb
 	return true;
 }
 
-TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken, const bool bIsSignatureEncoded)
+TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJsonWebToken)
 {
 	// Check for the correct number of dots.
 	if (Algo::Count(InEncodedJsonWebToken, TEXT('.')) != 2)
@@ -252,11 +253,14 @@ TOptional<FJsonWebToken> FJsonWebToken::FromString(const FStringView InEncodedJs
 
 	// Decode (but do not parse) the signature if it not empty.
 	TOptional<TArray<uint8>> Signature;
+
 	if (!SignaturePart.IsEmpty())
 	{
 		UE_LOG(LogJwt, VeryVerbose, TEXT("[FJsonWebToken::FromString] Decoding JWT signature."));
+
 		TArray<uint8> SignatureBytes;
-		if (!StringViewToBytes(SignaturePart, SignatureBytes, bIsSignatureEncoded))
+
+		if (!Base64UrlDecode(SignaturePart, SignatureBytes))
 		{
 			UE_LOG(LogJwt, Verbose, TEXT("[FJsonWebToken::FromString] Failed to decode the signature."));
 			return {};
