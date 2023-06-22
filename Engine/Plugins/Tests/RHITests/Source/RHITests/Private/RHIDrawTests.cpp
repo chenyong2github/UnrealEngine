@@ -56,8 +56,6 @@ bool FRHIDrawTests::Test_MultiDrawIndirect(FRHICommandListImmediate& RHICmdList)
 		return true;
 	}
 
-	FRHICommandListBase& RHICmdList = FRHICommandListImmediate::Get();
-
 	// Probably could/should automatically enable in the outer scope when running RHI Unit Tests
 	// RenderCaptureInterface::FScopedCapture RenderCapture(true /*bEnable*/, &RHICmdList, TEXT("Test_MultiDrawIndirect"));
 
