@@ -224,4 +224,6 @@ protected:
 	EObjectMixerTreeViewMode TreeViewMode = EObjectMixerTreeViewMode::Folders;
 
 	FName ModuleName = NAME_None;
+	
+	FDelegateHandle OnBlueprintFilterCompiledHandle;
 };

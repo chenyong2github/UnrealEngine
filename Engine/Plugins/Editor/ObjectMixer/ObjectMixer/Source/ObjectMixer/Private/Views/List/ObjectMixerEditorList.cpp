@@ -14,6 +14,13 @@
 void FObjectMixerEditorList::Initialize()
 {
 	RegisterAndMapContextMenuCommands();
+
+	// The base module is always notified when a blueprint filter is compiled.
+	// When it is, all submodules should rebuild their lists.
+	OnBlueprintFilterCompiledHandle = FObjectMixerEditorModule::Get().OnBlueprintFilterCompiled().AddLambda([this]()
+	{
+		CacheAndRebuildFilters(true);
+	});
 }
 
 void FObjectMixerEditorList::RegisterAndMapContextMenuCommands()
@@ -327,6 +334,11 @@ FObjectMixerEditorList::FObjectMixerEditorList(const FName InModuleName)
 FObjectMixerEditorList::~FObjectMixerEditorList()
 {
 	FlushWidget();
+
+	if (FObjectMixerEditorModule* ObjectMixerEditorModule = FModuleManager::GetModulePtr<FObjectMixerEditorModule>("ObjectMixer"))
+	{
+		ObjectMixerEditorModule->OnBlueprintFilterCompiled().Remove(OnBlueprintFilterCompiledHandle);
+	}
 }
 
 void FObjectMixerEditorList::FlushWidget()

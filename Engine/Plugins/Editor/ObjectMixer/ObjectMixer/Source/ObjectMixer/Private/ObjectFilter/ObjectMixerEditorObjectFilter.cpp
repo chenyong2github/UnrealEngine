@@ -2,7 +2,20 @@
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 
+#include "ObjectMixerEditorModule.h"
+
 #include "Kismet2/ComponentEditorUtils.h"
+
+void UObjectMixerObjectFilter::PostCDOCompiled(const FPostCDOCompiledContext& Context)
+{
+	UObject::PostCDOCompiled(Context);
+
+	// Only call on in-editor compile
+	if (!Context.bIsRegeneratingOnLoad)
+	{
+		FObjectMixerEditorModule::Get().OnBlueprintFilterCompiled().Broadcast();
+	}
+}
 
 FText UObjectMixerObjectFilter::GetRowDisplayName(UObject* InObject, const bool bIsHybridRow) const
 {

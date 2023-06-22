@@ -51,6 +51,10 @@ class OBJECTMIXEREDITOR_API UObjectMixerObjectFilter : public UObject
 public:
 
 	UObjectMixerObjectFilter() = default;
+
+	/** Begin UObject overrides */
+	virtual void PostCDOCompiled(const FPostCDOCompiledContext& Context) override;
+	/** End UObject overrides */
 	
 	/**
 	 * Return the basic object types you want to filter for in your level.

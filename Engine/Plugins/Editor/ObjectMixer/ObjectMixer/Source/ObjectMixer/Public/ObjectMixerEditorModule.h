@@ -85,6 +85,12 @@ public:
 	const TSubclassOf<UObjectMixerObjectFilter>& GetDefaultFilterClass() const;
 
 	const static FName BaseObjectMixerModuleName;
+	
+	DECLARE_MULTICAST_DELEGATE(FOnBlueprintFilterCompiled);
+	FOnBlueprintFilterCompiled& OnBlueprintFilterCompiled()
+	{
+		return OnBlueprintFilterCompiledDelegate;
+	}
 
 protected:
 
@@ -115,6 +121,8 @@ protected:
 	TSubclassOf<UObjectMixerObjectFilter> DefaultFilterClass;
 	
 	TSet<FDelegateHandle> DelegateHandles;
+
+	FOnBlueprintFilterCompiled OnBlueprintFilterCompiledDelegate;
 
 private:
 
