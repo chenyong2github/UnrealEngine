@@ -539,10 +539,14 @@ bool FStateTreeCompiler::CreateGlobalTasks()
 	StateTree->bHasGlobalTransitionTasks = false;
 	for (FStateTreeEditorNode& TaskNode : EditorData->GlobalTasks)
 	{
-		if (!CreateTask(nullptr, TaskNode, StateTree->bHasGlobalTransitionTasks))
+		if (!CreateTask(nullptr, TaskNode))
 		{
 			return false;
 		}
+		
+		const FStateTreeTaskBase& LastAddedTask = Nodes.Last().Get<FStateTreeTaskBase>();
+		
+		StateTree->bHasGlobalTransitionTasks |= LastAddedTask.bShouldAffectTransitions;
 	}
 	
 	const int32 GlobalTasksNum = Nodes.Num() - GlobalTasksBegin;
@@ -667,24 +671,49 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 			return false;
 		}
 		CompactState.TasksBegin = uint16(TasksBegin);
-		CompactState.bHasTransitionTasks = false;
 		
-		for (FStateTreeEditorNode& TaskNode : SourceState->Tasks)
+		int32 TaskInstanceStructNum = 0;
+		int32 TaskInstanceObjectNum = 0;
+
+		// Update instance data num for each state.
+		if (CompactState.Type == EStateTreeStateType::Linked)
 		{
-			bool bHasTransitionTasks = CompactState.bHasTransitionTasks; // bHasTransitionTasks is a bit flag.
-			if (!CreateTask(SourceState, TaskNode, bHasTransitionTasks))
+			// Linked state parameters.
+			TaskInstanceStructNum++;
+		}
+
+		TArrayView<FStateTreeEditorNode> Tasks;
+		if (SourceState->Tasks.Num())
+		{
+			Tasks = SourceState->Tasks;
+		}
+		else if (SourceState->SingleTask.Node.IsValid())
+		{
+			Tasks = TArrayView<FStateTreeEditorNode>(&SourceState->SingleTask, 1);
+		}
+		
+		bool bStateHasTransitionTasks = false;
+		for (FStateTreeEditorNode& TaskNode : Tasks)
+		{
+			if (!CreateTask(SourceState, TaskNode))
 			{
 				return false;
 			}
-			CompactState.bHasTransitionTasks = bHasTransitionTasks; 
+
+			const FStateTreeTaskBase& LastAddedTask = Nodes.Last().Get<FStateTreeTaskBase>();
+			if (LastAddedTask.bInstanceIsObject)
+			{
+				TaskInstanceObjectNum++;
+			}
+			else
+			{
+				TaskInstanceStructNum++;
+			}
+			
+			bStateHasTransitionTasks |= LastAddedTask.bShouldAffectTransitions;
 		}
 
-		bool bSingleStateHasTransitionTasks = CompactState.bHasTransitionTasks; // bHasTransitionTasks is a bit flag.
-		if (!CreateTask(SourceState, SourceState->SingleTask, bSingleStateHasTransitionTasks))
-		{
-			return false;
-		}
-		CompactState.bHasTransitionTasks = bSingleStateHasTransitionTasks;
+		CompactState.bHasTransitionTasks = bStateHasTransitionTasks;
 	
 		const int32 TasksNum = Nodes.Num() - TasksBegin;
 		if (const auto Validation = UE::StateTree::Compiler::IsValidCount8(TasksNum); Validation.DidFail())
@@ -692,7 +721,20 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 			Validation.Log(Log, TEXT("TasksNum"));
 			return false;
 		}
+		if (const auto Validation = UE::StateTree::Compiler::IsValidCount8(TaskInstanceObjectNum); Validation.DidFail())
+		{
+			Validation.Log(Log, TEXT("TaskInstanceObjectNum"));
+			return false;
+		}
+		if (const auto Validation = UE::StateTree::Compiler::IsValidCount8(TaskInstanceStructNum); Validation.DidFail())
+		{
+			Validation.Log(Log, TEXT("TaskInstanceStructNum"));
+			return false;
+		}
+
 		CompactState.TasksNum = uint8(TasksNum);
+		CompactState.TaskInstanceStructNum = uint8(TaskInstanceStructNum);
+		CompactState.TaskInstanceObjectNum = uint8(TaskInstanceObjectNum);
 	}
 	
 	return true;
@@ -1125,7 +1167,7 @@ bool FStateTreeCompiler::CompileAndValidateNode(const UStateTreeState* SourceSta
 	return Result != EDataValidationResult::Invalid;
 }
 
-bool FStateTreeCompiler::CreateTask(UStateTreeState* State, const FStateTreeEditorNode& TaskNode, bool& bOutHasTransitionTasks)
+bool FStateTreeCompiler::CreateTask(UStateTreeState* State, const FStateTreeEditorNode& TaskNode)
 {
 	// Silently ignore empty nodes.
 	if (!TaskNode.Node.IsValid())
@@ -1231,11 +1273,6 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState* State, const FStateTreeEdit
 		return false;
 	}
 	Task.DataViewIndex = FStateTreeIndex16(SourceStructIndex);
-
-	if (Task.bShouldAffectTransitions)
-	{
-		bOutHasTransitionTasks = true;
-	}
 	
 	return true;
 }
