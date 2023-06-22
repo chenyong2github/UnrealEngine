@@ -5,6 +5,7 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "EntitySystem/MovieSceneSequenceInstance.h"
 #include "Misc/ScopeRWLock.h"
+#include "MovieSceneFwd.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneSequenceID.h"
 
@@ -44,6 +45,21 @@ IMovieScenePlayer* IMovieScenePlayer::Get(uint16 InUniqueIndex)
 	FReadScopeLock ScopeLock(UE::MovieScene::GGlobalPlayerRegistryLock);
 	check(UE::MovieScene::GGlobalPlayerRegistry.IsValidIndex(InUniqueIndex));
 	return UE::MovieScene::GGlobalPlayerRegistry[InUniqueIndex];
+}
+
+void IMovieScenePlayer::Get(TArray<IMovieScenePlayer*>& OutPlayers, bool bOnlyUnstoppedPlayers)
+{
+	FReadScopeLock ScopeLock(UE::MovieScene::GGlobalPlayerRegistryLock);
+	for (auto It = UE::MovieScene::GGlobalPlayerRegistry.CreateIterator(); It; ++It)
+	{
+		if (IMovieScenePlayer* Player = *It)
+		{
+			if (!bOnlyUnstoppedPlayers || Player->GetPlaybackStatus() != EMovieScenePlayerStatus::Stopped)
+			{
+				OutPlayers.Add(*It);
+			}
+		}
+	}
 }
 
 void IMovieScenePlayer::SetIsEvaluatingFlag(uint16 InUniqueIndex, bool bIsUpdating)

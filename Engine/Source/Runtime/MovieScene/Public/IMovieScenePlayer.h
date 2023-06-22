@@ -346,6 +346,8 @@ public:
 
 	MOVIESCENE_API static IMovieScenePlayer* Get(uint16 InUniqueIndex);
 
+	MOVIESCENE_API static void Get(TArray<IMovieScenePlayer*>& OutPlayers, bool bOnlyUnstoppedPlayers);
+
 	MOVIESCENE_API static void SetIsEvaluatingFlag(uint16 InUniqueIndex, bool bIsUpdating);
 
 	MOVIESCENE_API bool IsEvaluating() const;

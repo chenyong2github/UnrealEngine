@@ -362,9 +362,40 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 	}
 
 	// Save the last view target/aspect ratio constraint/etc. so that it can all be restored when the camera object is null.
-	if (!LastViewTarget.IsValid() || (ViewTarget != CameraObject && ViewTarget != LastCameraObject))
+	if (!LastViewTarget.IsValid())
 	{
-		LastViewTarget = ViewTarget;
+		// If we had another level sequence playing before us, we don't want to cache its last camera. Let's see if
+		// we can instead ask it what its LastViewTarget was, so that we get what the actual previous view target was
+		// before any sequence started to play.
+		TArray<IMovieScenePlayer*> ActivePlayers;
+		const bool bOnlyEvaluatingPlayers = true;
+		IMovieScenePlayer::Get(ActivePlayers, bOnlyEvaluatingPlayers);
+		for (IMovieScenePlayer* ActivePlayer : ActivePlayers)
+		{
+			UObject* PlayerObject = ActivePlayer->AsUObject();
+			if (!PlayerObject)
+			{
+				continue;
+			}
+
+
+			ULevelSequencePlayer* PreviousLevelSequencePlayer = Cast<ULevelSequencePlayer>(PlayerObject);
+			if (!PreviousLevelSequencePlayer || PreviousLevelSequencePlayer == this)
+			{
+				continue;
+			}
+
+			if (PreviousLevelSequencePlayer->LastViewTarget.IsValid())
+			{
+				LastViewTarget = PreviousLevelSequencePlayer->LastViewTarget;
+				break;
+			}
+		}
+
+		if (!LastViewTarget.IsValid() && (ViewTarget != CameraObject && ViewTarget != LastCameraObject))
+		{
+			LastViewTarget = ViewTarget;
+		}
 	}
 	if (!LastLocalPlayer.IsValid() || (LocalPlayer != LastLocalPlayer))
 	{
