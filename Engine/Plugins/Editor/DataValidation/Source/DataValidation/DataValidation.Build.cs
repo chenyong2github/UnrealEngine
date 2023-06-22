@@ -36,11 +36,13 @@ public class DataValidation : ModuleRules
 				"AssetTools",
 				"PropertyEditor",
 				"GraphEditor",
+				"LevelEditor",
 				"BlueprintGraph",
 				"KismetCompiler",
 				"SandboxFile",
 				"Blutility",
 				"ToolMenus",
+				"TypedElementRuntime",
 				"SourceControl",
 				"UncontrolledChangelists",
 			}

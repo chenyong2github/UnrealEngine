@@ -11,8 +11,10 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 #include "DataValidationCommandlet.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 
 #include "ContentBrowserMenuContexts.h"
+#include "LevelEditorMenuContext.h"
 
 #include "EditorValidatorSubsystem.h"
 #include "ISettingsModule.h"
@@ -93,6 +95,30 @@ void FDataValidationModule::RegisterMenus()
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "DeveloperTools.MenuIcon"),
 			FUIAction(FExecuteAction::CreateStatic(&FDataValidationModule::Menu_ValidateData))
 		));
+	}
+
+	{
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu");
+		FToolMenuSection& Section = Menu->FindOrAddSection("ActorOptions");
+		Section.AddMenuEntry(
+			"ValidateActors",
+			LOCTEXT("ValidateActorsTabTitle", "Validate"),
+			LOCTEXT("ValidateActorsTooltipText", "Runs data validation on these actors."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "DeveloperTools.MenuIcon"),
+			FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InContext)
+			{
+				if (ULevelEditorContextMenuContext* Context = InContext.FindContext<ULevelEditorContextMenuContext>())
+				{
+					TArray<FAssetData> SelectedActorAssets;
+					Context->CurrentSelection->ForEachSelectedObject<AActor>([&SelectedActorAssets](AActor* SelectedActor)
+					{
+						SelectedActorAssets.Add(FAssetData(SelectedActor));
+						return true;
+					});
+					ValidateAssets(SelectedActorAssets, false, EDataValidationUsecase::Manual);
+				}
+			})
+		);
 	}
 
 	{
