@@ -79,6 +79,13 @@ void FElectraDecoderResourceManagerAndroid::FInstanceVars::RequestSurface(TWeakP
 		return;
 	}
 
+	/**
+		Note: The surface returned (if any) must be an _additional_ globalref, not the actual surface.
+		      This is because the actual surface might go away at any time, leaving us with an otherwise stale
+			  reference that will result in a JNI crash when used.
+			  The decoder implementation will pass along this globalref to the decoder and then release it,
+			  so this must not be the actual surface handle!
+	 */
 	void* Surface = rd->VideoDecoderResourceDelegate_GetCodecSurface();
 	SurfaceType = IDecoderPlatformResourceAndroid::ISurfaceRequestCallback::ESurfaceType::Surface;
 	Notify(SurfaceType, Surface);

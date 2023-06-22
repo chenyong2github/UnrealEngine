@@ -86,6 +86,8 @@ private:
 
 	jobject				CodecSurface;
 	FEvent*				SurfaceInitEvent;
+	FCriticalSection	CodecSurfaceLock;
+	jobject				CodecSurfaceToDelete;
 
 
 	static FName GetClassName()
@@ -128,6 +130,7 @@ FElectraTextureSampleSupport::FElectraTextureSampleSupport()
 	, GetVideoFrameUpdateInfoFN(GetClassMethod("GetVideoFrameUpdateInfo", "(IIIZ)Lcom/epicgames/unreal/ElectraTextureSample$FFrameUpdateInfo;"))
 	, CodecSurface(nullptr)
 	, SurfaceInitEvent(nullptr)
+	, CodecSurfaceToDelete(nullptr)
 {
 	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 
@@ -191,6 +194,11 @@ FElectraTextureSampleSupport::~FElectraTextureSampleSupport()
 		SurfaceInitEvent = nullptr;
 	}
 
+	CodecSurfaceLock.Lock();
+	CodecSurfaceToDelete = CodecSurface;
+	CodecSurface = nullptr;
+	CodecSurfaceLock.Unlock();
+
 	if (IsInGameThread())
 	{
 		// enqueue to RT to ensure GL resources are released on the appropriate thread.
@@ -200,9 +208,12 @@ FElectraTextureSampleSupport::~FElectraTextureSampleSupport()
 			{
 				JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 				JEnv->CallVoidMethod(Object, ReleaseFN.Method);
-				JEnv->DeleteGlobalRef(CodecSurface);
+				if (CodecSurfaceToDelete)
+				{
+					JEnv->DeleteGlobalRef(CodecSurfaceToDelete);
+				}
 				JEnv->DeleteGlobalRef(FFrameUpdateInfoClass);
-				CodecSurface = 0;
+				CodecSurfaceToDelete = nullptr;
 				FFrameUpdateInfoClass = 0;
 			});
 		});
@@ -212,9 +223,12 @@ FElectraTextureSampleSupport::~FElectraTextureSampleSupport()
 	{
 		JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
 		JEnv->CallVoidMethod(Object, ReleaseFN.Method);
-		JEnv->DeleteGlobalRef(CodecSurface);
+		if (CodecSurfaceToDelete)
+		{
+			JEnv->DeleteGlobalRef(CodecSurfaceToDelete);
+		}
 		JEnv->DeleteGlobalRef(FFrameUpdateInfoClass);
-		CodecSurface = 0;
+		CodecSurfaceToDelete = nullptr;
 		FFrameUpdateInfoClass = 0;
 	}
 }
@@ -337,7 +351,16 @@ jobject FElectraTextureSampleSupport::GetCodecSurface()
 		}
 	}
 
-	return CodecSurface;
+	// Create a new global ref to return.
+	jobject NewSurfaceHandle = nullptr;
+	CodecSurfaceLock.Lock();
+	if (CodecSurface)
+	{
+		JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
+		NewSurfaceHandle = JEnv->NewGlobalRef(CodecSurface);
+	}
+	CodecSurfaceLock.Unlock();
+	return NewSurfaceHandle;
 }
 
 //-----------------------------------------------------------------------------

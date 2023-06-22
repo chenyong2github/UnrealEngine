@@ -465,22 +465,18 @@ int32 FElectraH264VideoDecoderAndroidJava::InitializeDecoder(const FCreateParame
 			JEnv->DeleteLocalRef(CSD1);
 		}
 
-		// Pass along decoder output surface
-		jobject GlobalSurfaceRef = nullptr;
-		if (InCreateParams.VideoCodecSurface)
+		// Pass along decoder output surface. This is a global ref that we take control over now.
+		jobject GlobalSurfaceRef = InCreateParams.VideoCodecSurface;
+		if (GlobalSurfaceRef)
 		{
-			// Make sure we pass a valid global ref.
-			GlobalSurfaceRef = JEnv->NewGlobalRef(InCreateParams.VideoCodecSurface);
-			if (GlobalSurfaceRef)
-			{
-				JEnv->SetObjectField(CreateParams, FCreateParameters_VideoCodecSurface, GlobalSurfaceRef);
-			}
+			JEnv->SetObjectField(CreateParams, FCreateParameters_VideoCodecSurface, GlobalSurfaceRef);
 		}
 		JEnv->SetBooleanField(CreateParams, FCreateParameters_bSurfaceIsView, InCreateParams.bSurfaceIsView);
 
 		// Create and initialize a decoder instance.
 		result = CallMethodNoVerify<int>(ConfigureDecoderFN, CreateParams);
 		JEnv->DeleteLocalRef(CreateParams);
+		// We now release the global ref of the surface we were given. The decoder should have taken ownership of it now.
 		if (GlobalSurfaceRef)
 		{
 			JEnv->DeleteGlobalRef(GlobalSurfaceRef);
