@@ -601,6 +601,11 @@ struct FParameterTransformChannelEditorData
 					
 					return FVector(Euler.GetTranslation());
 				}
+				else if(ControlElement->Settings.ControlType == ERigControlType::Position)
+				{
+					FVector3f Vector = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+					return FVector(Vector.X, Vector.Y, Vector.Z);
+				}
 			}
 		}
 		return TOptional<FVector>();
@@ -662,6 +667,11 @@ struct FParameterTransformChannelEditorData
 					}
 					
 					return FVector(Transform.GetScale3D());
+				}
+				else if (ControlElement->Settings.ControlType == ERigControlType::Scale)
+				{
+					FVector3f Vector = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+					return FVector(Vector.X, Vector.Y, Vector.Z);
 				}
 			}
 		}
@@ -1026,15 +1036,6 @@ void UMovieSceneControlRigParameterSection::PostLoad()
 					Handle->ControlRig = ControlRig;
 				}
 			}
-			/*
-			if (ConstraintChannel.Constraint.IsValid() == false && ConstraintChannel.ConstraintCopyToSpawn)
-			{
-				const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
-				UTickableConstraint* NewOne = Controller.AddConstraintFromCopy(ConstraintChannel.ConstraintCopyToSpawn);
-				ConstraintChannel.Constraint = NewOne;
-				ReconstructChannelProxy();
-			}
-			*/
 		}
 	}
 }

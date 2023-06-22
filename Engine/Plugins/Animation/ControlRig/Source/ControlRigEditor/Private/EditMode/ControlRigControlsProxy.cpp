@@ -597,6 +597,11 @@ void UControlRigVectorControlProxy::PostEditChangeChainProperty(struct FProperty
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
+			if (ControlElement->Settings.ControlType == ERigControlType::Rotator)
+			{
+				FVector DVector(Vector.X, Vector.Y, Vector.Z);
+				ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, DVector);
+			}
 			ControlRig->SetControlValue<FVector3f>(ControlName, Vector, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
@@ -612,7 +617,12 @@ void UControlRigVectorControlProxy::ValueChanged()
 		Modify();
 		const FName PropertyName("Vector");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		const FVector3f Val = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+		FVector3f Val = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+		if (ControlElement->Settings.ControlType == ERigControlType::Rotator)
+		{ 
+			FVector DVector = ControlRig->GetHierarchy()->GetControlSpecifiedEulerAngle(ControlElement);
+			Val = FVector3f(DVector.X, DVector.Y, DVector.Z);
+		}
 		Binding.CallFunction<FVector3f>(*this, Val);
 	}
 }
@@ -624,6 +634,11 @@ void UControlRigVectorControlProxy::PostEditUndo()
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
+		if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Rotator)
+		{
+			FVector DVector(Vector.X, Vector.Y, Vector.Z);
+			ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, DVector);
+		}
 		ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Vector, true, EControlRigSetKey::Never,false);
 	}
 }
@@ -681,6 +696,11 @@ void UControlRigVectorControlProxy::SetKey(const IPropertyHandle& KeyedPropertyH
 				Context.KeyMask = (uint32)EControlRigContextChannelToKey::ScaleZ;
 				break;
 			}
+		}
+		if (ControlElement->Settings.ControlType == ERigControlType::Rotator)
+		{
+			FVector DVector(Vector.X, Vector.Y, Vector.Z);
+			ControlRig->GetHierarchy()->SetControlSpecifiedEulerAngle(ControlElement, DVector);
 		}
 		ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Vector, true, Context,false);
 	}
