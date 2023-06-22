@@ -7,7 +7,6 @@
 #include "MuT/Node.h"
 #include "MuT/NodeImage.h"
 
-
 namespace mu
 {
 
@@ -23,6 +22,7 @@ namespace mu
 	class InputArchive;
 	class OutputArchive;
 
+	enum class EAddressMode;
 
 	//! Node that multiplies the colors of an image, channel by channel.
 	//! \ingroup model
@@ -72,6 +72,9 @@ namespace mu
 		void SetScaleX( NodeScalarPtr pNode );
 		void SetScaleY( NodeScalarPtr pNode );
 		void SetRotation( NodeScalarPtr pNode );
+
+		EAddressMode GetAddressMode() const;
+		void SetAddressMode(EAddressMode AddressMode);
 		//-----------------------------------------------------------------------------------------
 		// Interface pattern
 		//-----------------------------------------------------------------------------------------

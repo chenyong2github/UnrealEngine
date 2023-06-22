@@ -1101,7 +1101,6 @@ namespace mu
                 MeshDifference(Result.get(), pBase.get(), pTarget.get(),
                                NumChannels, Semantics.GetData(), SemanticIndices.GetData(),
                                bIgnoreTextureCoords != 0, bOutSuccess);
-			
 				Release(pBase);
 				Release(pTarget);
 
@@ -4729,14 +4728,14 @@ namespace mu
             case 0:
 			{
 				const TArray<FScheduledOp, TInlineAllocator<6>> Deps = {
-						FScheduledOp( Args.base, item),
-						FScheduledOp( Args.offsetX, item),
-						FScheduledOp( Args.offsetY, item),
-						FScheduledOp( Args.scaleX, item),
-						FScheduledOp( Args.scaleY, item),
-						FScheduledOp( Args.rotation, item) };
+						FScheduledOp(Args.base, item),
+						FScheduledOp(Args.offsetX, item),
+						FScheduledOp(Args.offsetY, item),
+						FScheduledOp(Args.scaleX, item),
+						FScheduledOp(Args.scaleY, item),
+						FScheduledOp(Args.rotation, item) };
 
-                AddOp( FScheduledOp( item.At, item, 1), Deps );
+                AddOp(FScheduledOp(item.At, item, 1), Deps);
 
 				break;
 			}
@@ -4744,35 +4743,35 @@ namespace mu
             {
             	MUTABLE_CPUPROFILER_SCOPE(IM_TRANSFORM_1)
             		
-                Ptr<const Image> pBaseImage = LoadImage( FCacheAddress(Args.base, item) );
+                Ptr<const Image> pBaseImage = LoadImage(FCacheAddress(Args.base, item));
                 
                 const FVector2f Offset = FVector2f(
-                        Args.offsetX ? LoadScalar( FCacheAddress(Args.offsetX, item) ) : 0.0f,
-                        Args.offsetY ? LoadScalar( FCacheAddress(Args.offsetY, item) ) : 0.0f );
+                        Args.offsetX ? LoadScalar(FCacheAddress(Args.offsetX, item)) : 0.0f,
+                        Args.offsetY ? LoadScalar(FCacheAddress(Args.offsetY, item)) : 0.0f);
 
                 const FVector2f Scale = FVector2f(
-                        Args.scaleX ? LoadScalar( FCacheAddress(Args.scaleX, item) ) : 1.0f,
-                        Args.scaleY ? LoadScalar( FCacheAddress(Args.scaleY, item) ) : 1.0f );
+                        Args.scaleX ? LoadScalar(FCacheAddress(Args.scaleX, item)) : 1.0f,
+                        Args.scaleY ? LoadScalar(FCacheAddress(Args.scaleY, item)) : 1.0f);
 
 				// Map Range 0-1 to a full rotation
-                const float Rotation = LoadScalar( FCacheAddress(Args.rotation, item) ) * UE_TWO_PI;
+                const float Rotation = LoadScalar(FCacheAddress(Args.rotation, item)) * UE_TWO_PI;
 			
 				EImageFormat BaseFormat = pBaseImage->GetFormat();
 				int32 BaseLODs = pBaseImage->GetLODCount();
 				FImageSize BaseSize = pBaseImage->GetSize();
 				FImageSize SampleImageSize =  FImageSize(
-					static_cast<uint16>( FMath::Clamp( FMath::FloorToInt( float(BaseSize.X) * FMath::Abs(Scale.X)), 2, BaseSize.X) ),
-					static_cast<uint16>( FMath::Clamp( FMath::FloorToInt( float(BaseSize.Y) * FMath::Abs(Scale.Y)), 2, BaseSize.Y) ) );
+					static_cast<uint16>(FMath::Clamp(FMath::FloorToInt(float(BaseSize.X) * FMath::Abs(Scale.X)), 2, BaseSize.X)),
+					static_cast<uint16>(FMath::Clamp(FMath::FloorToInt(float(BaseSize.Y) * FMath::Abs(Scale.Y)), 2, BaseSize.Y)));
 	
 				Ptr<Image> pSampleImage = CreateImage(SampleImageSize[0], SampleImageSize[1], BaseLODs, BaseFormat, EInitializationType::NotInitialized);
-				ImageResizeLinear( pSampleImage.get(), 0, pBaseImage.get() );
+				ImageResizeLinear(pSampleImage.get(), 0, pBaseImage.get());
 				Release(pBaseImage);
 
 				Ptr<Image> Result = CreateImage(BaseSize.X, BaseSize.Y, 1, BaseFormat);
-				ImageTransform( Result.get(), pSampleImage.get(), Offset, Scale, Rotation );
+				ImageTransform(Result.get(), pSampleImage.get(), Offset, Scale, Rotation, static_cast<EAddressMode>(Args.AddressMode));
 
 				Release(pSampleImage);
-				StoreImage( item, Result );
+				StoreImage(item, Result);
 
                 break;
             }

@@ -33,7 +33,7 @@ namespace mu
 
 		//! Mipmap generation settings. 
 		float SharpenFactor = 0.0f;
-		EAddressMode AddressMode = EAddressMode::AM_NONE;
+		EAddressMode AddressMode = EAddressMode::None;
 		EMipmapFilterType FilterType = EMipmapFilterType::MFT_Unfiltered;
 		bool DitherMipmapAlpha = false;
 

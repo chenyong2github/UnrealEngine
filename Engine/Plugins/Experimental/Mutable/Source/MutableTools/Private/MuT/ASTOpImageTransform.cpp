@@ -46,7 +46,8 @@ namespace mu
 				offsetY == other->offsetY &&
 				scaleX == other->scaleX &&
 				scaleY == other->scaleY &&
-				rotation == other->rotation;
+				rotation == other->rotation &&
+				AddressMode == other->AddressMode;
 		}
 		return false;
 	}
@@ -62,6 +63,7 @@ namespace mu
 		hash_combine(res, scaleX.child().get());
 		hash_combine(res, scaleY.child().get());
 		hash_combine(res, rotation.child().get());
+		hash_combine(res, std::hash<uint32>()(static_cast<uint32>(AddressMode)));
 		return res;
 	}
 
@@ -76,6 +78,7 @@ namespace mu
 		n->scaleX = mapChild(scaleX.child());
 		n->scaleY = mapChild(scaleY.child());
 		n->rotation = mapChild(rotation.child());
+		n->AddressMode = AddressMode;
 		return n;
 	}
 
@@ -99,6 +102,7 @@ namespace mu
 		if (!linkedAddress)
 		{
 			OP::ImageTransformArgs Args;
+			FMemory::Memzero(Args);
 
 			Args.base = base ? base->linkedAddress : 0;
 			Args.offsetX = offsetX ? offsetX->linkedAddress : 0;
@@ -106,6 +110,8 @@ namespace mu
 			Args.scaleX = scaleX ? scaleX->linkedAddress : 0;
 			Args.scaleY = scaleY ? scaleY->linkedAddress : 0;
 			Args.rotation = rotation ? rotation->linkedAddress : 0;
+			Args.AddressMode = static_cast<uint32>(AddressMode);
+
 
 			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());

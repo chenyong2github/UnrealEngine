@@ -140,7 +140,7 @@ namespace mu
 			return kernel;
 		}
 
-		template<int32 PIXEL_SIZE, typename CHANNEL_TYPE, EAddressMode AD_MODE = EAddressMode::AM_NONE>
+		template<int32 PIXEL_SIZE, typename CHANNEL_TYPE, EAddressMode AD_MODE = EAddressMode::Wrap>
 		class ImageAccessor
 		{
 			const FIntVector2 m_dim;
@@ -155,18 +155,18 @@ namespace mu
 
 			uint8 operator()(int32 x, int32 y, int32 c) const
 			{
-				if constexpr (AD_MODE == EAddressMode::AM_WRAP)
+				if constexpr (AD_MODE == EAddressMode::Wrap)
 				{
 					// (y & (m_dim.Y - 1)) * m_dim.Y + (x & (m_dim.X - 1))
 					return m_pImageBuf[((y % m_dim.Y) * m_dim.X + (x % m_dim.X)) * PIXEL_SIZE + c];
 				}
-				else if (AD_MODE == EAddressMode::AM_CLAMP)
+				else if (AD_MODE == EAddressMode::ClampToEdge)
 				{
 					return m_pImageBuf[(mu::clamp(y, 0, m_dim.Y - 1) * m_dim.X +
 						mu::clamp(x, 0, m_dim.X - 1))
 						* PIXEL_SIZE + c];
 				}
-				else if (AD_MODE == EAddressMode::AM_BLACK_BORDER)
+				else if (AD_MODE == EAddressMode::ClampToBlack)
 				{
 					return ((x < m_dim.X) && (y < m_dim.Y) && (x >= 0) && (y >= 0))
 						? m_pImageBuf[(y * m_dim.X + x) * PIXEL_SIZE + c]
@@ -251,7 +251,7 @@ namespace mu
 			for (; mips >= 0; --mips)
 			{
 				ImageAccessor<PIXEL_SIZE, uint8, AD_MODE> sourceSampler(pSource, sourceSize);
-				ImageAccessor<PIXEL_SIZE, uint8, EAddressMode::AM_NONE> sourceSamplerAddressModeNone(pSource, sourceSize);
+				ImageAccessor<PIXEL_SIZE, uint8, EAddressMode::None> sourceSamplerAddressModeNone(pSource, sourceSize);
 
 				FIntVector2 destSize = FIntVector2(FMath::DivideAndRoundUp(sourceSize.X, 2), FMath::DivideAndRoundUp(sourceSize.Y, 2));
 
@@ -458,27 +458,27 @@ namespace mu
 		{
 			switch (settings.m_addressMode)
 			{
-			case EAddressMode::AM_CLAMP:
+			case EAddressMode::ClampToEdge:
 			{
-				GenerateMipmapUint8Sharpen<PIXEL_SIZE, EAddressMode::AM_CLAMP>(
+				GenerateMipmapUint8Sharpen<PIXEL_SIZE, EAddressMode::ClampToEdge>(
 					mips, pSource, Dest, sourceSize, settings.m_sharpenFactor);
 				break;
 			}
-			case EAddressMode::AM_WRAP:
+			case EAddressMode::Wrap:
 			{
-				GenerateMipmapUint8Sharpen<PIXEL_SIZE, EAddressMode::AM_WRAP>(
+				GenerateMipmapUint8Sharpen<PIXEL_SIZE, EAddressMode::Wrap>(
 					mips, pSource, Dest, sourceSize, settings.m_sharpenFactor);
 				break;
 			}
-			case EAddressMode::AM_BLACK_BORDER:
+			case EAddressMode::ClampToBlack:
 			{
-				GenerateMipmapUint8Sharpen<PIXEL_SIZE, EAddressMode::AM_BLACK_BORDER>(
+				GenerateMipmapUint8Sharpen<PIXEL_SIZE, EAddressMode::ClampToBlack>(
 					mips, pSource, Dest, sourceSize, settings.m_sharpenFactor);
 				break;
 			}
 			default:
 			{
-				GenerateMipmapUint8Sharpen<PIXEL_SIZE, EAddressMode::AM_NONE>(
+				GenerateMipmapUint8Sharpen<PIXEL_SIZE, EAddressMode::None>(
 					mips, pSource, Dest, sourceSize, settings.m_sharpenFactor);
 				break;
 			}

@@ -3,11 +3,11 @@
 
 #pragma once
 
+#include "MuR/ImagePrivate.h"
 #include "MuT/NodeImagePrivate.h"
 #include "MuT/NodeImageTransform.h"
 #include "MuT/AST.h"
 #include "MuT/NodeScalar.h"
-
 
 namespace mu
 {
@@ -30,10 +30,12 @@ namespace mu
 		NodeScalarPtr m_pScaleY;
 		NodeScalarPtr m_pRotation;
 
+		EAddressMode AddressMode = EAddressMode::Wrap;
+
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 0;
+            uint32 ver = 1;
 			arch << ver;
 
 			arch << m_pBase;
@@ -42,14 +44,15 @@ namespace mu
 			arch << m_pScaleX;
 			arch << m_pScaleY;
 			arch << m_pRotation;
+			arch << static_cast<uint32>(AddressMode);
 		}
 
 		//!
 		void Unserialise( InputArchive& arch )
 		{
-            uint32_t ver;
+            uint32 ver;
 			arch >> ver;
-			check(ver==0);
+			check(ver <= 1);
 
 			arch >> m_pBase;
 			arch >> m_pOffsetX;
@@ -57,6 +60,14 @@ namespace mu
 			arch >> m_pScaleX;
 			arch >> m_pScaleY;
 			arch >> m_pRotation;
+
+			uint32 AddressModeValue = static_cast<uint32>(EAddressMode::Wrap);
+			if (ver == 1)
+			{
+				arch >> AddressModeValue;
+			}
+
+			AddressMode = static_cast<EAddressMode>(AddressModeValue);
 		}
 	};
 

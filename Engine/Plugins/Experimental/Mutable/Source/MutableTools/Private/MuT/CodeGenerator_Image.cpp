@@ -609,6 +609,7 @@ namespace mu
  		op->scaleX = ScaleX ? ScaleX : ScaleY;
 		op->scaleY = ScaleY ? ScaleY : ScaleX;
 		op->rotation = Rotation; 
+		op->AddressMode = node.AddressMode;
 
         // Base image
         Ptr<ASTOp> base;

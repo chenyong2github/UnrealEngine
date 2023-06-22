@@ -11,11 +11,22 @@ class FArchive;
 class UCustomizableObjectNodeRemapPins;
 class UObject;
 
+UENUM()
+enum class ETextureTransformAddressMode
+{
+	Wrap,
+	ClampToEdge,
+	ClampToBlack
+};
+
 UCLASS()
 class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeTextureTransform : public UCustomizableObjectNode
 {
 public:
 	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = CustomizableObject)
+	ETextureTransformAddressMode AddressMode = ETextureTransformAddressMode::Wrap;
 
 	// Begin EdGraphNode interface
 	FText GetNodeTitle(ENodeTitleType::Type TittleType) const override;

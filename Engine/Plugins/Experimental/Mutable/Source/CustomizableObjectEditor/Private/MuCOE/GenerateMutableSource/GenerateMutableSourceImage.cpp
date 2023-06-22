@@ -791,6 +791,17 @@ mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGrap
 			mu::NodeScalarPtr RotationNode = GenerateMutableSourceFloat(RotationPin, GenerationContext);
 			TransformNode->SetRotation( RotationNode ); 
 		}
+
+		TransformNode->SetAddressMode(Invoke([&]() 
+		{
+			switch (TypedNodeTransform->AddressMode)
+			{
+			case ETextureTransformAddressMode::Wrap:		 return mu::EAddressMode::Wrap;
+			case ETextureTransformAddressMode::ClampToEdge:  return mu::EAddressMode::ClampToEdge;
+			case ETextureTransformAddressMode::ClampToBlack: return mu::EAddressMode::ClampToBlack;
+			default: { check(false); return mu::EAddressMode::None; }
+			}
+		}));
 	}
 
 	else if (const UCustomizableObjectNodeTextureSaturate* TypedNodeSaturate = Cast<UCustomizableObjectNodeTextureSaturate>(Node))

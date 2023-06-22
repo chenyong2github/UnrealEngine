@@ -144,5 +144,16 @@ namespace mu
 		m_pD->m_pRotation = pNode;
 	}
 
+	//---------------------------------------------------------------------------------------------
+	void NodeImageTransform::SetAddressMode(EAddressMode AddressMode)
+	{
+		m_pD->AddressMode = AddressMode;
+	}
+
+	//---------------------------------------------------------------------------------------------
+	EAddressMode NodeImageTransform::GetAddressMode() const
+	{
+		return m_pD->AddressMode;
+	}
 }
 

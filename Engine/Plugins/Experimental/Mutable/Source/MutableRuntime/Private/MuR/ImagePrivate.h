@@ -15,13 +15,14 @@ namespace mu
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( ESamplingMethod );
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( EMinFilterMethod );
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( EImageFormat );
+	MUTABLE_DEFINE_ENUM_SERIALISABLE( EAddressMode );
 
 
 	struct FMipmapGenerationSettings
 	{
 		float m_sharpenFactor = 0.0f;
 		EMipmapFilterType m_filterType = EMipmapFilterType::MFT_SimpleAverage;
-		EAddressMode m_addressMode = EAddressMode::AM_NONE;
+		EAddressMode m_addressMode = EAddressMode::None;
 		bool m_ditherMipmapAlpha = false;
 
 		void Serialise( OutputArchive& arch ) const

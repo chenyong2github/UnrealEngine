@@ -28,6 +28,8 @@ struct FProgram;
 		ASTChild scaleY;
 		ASTChild rotation;
 
+		EAddressMode AddressMode = EAddressMode::Wrap;
+
 	public:
 
 		ASTOpImageTransform();

@@ -821,6 +821,8 @@ namespace mu
 			ADDRESS scaleX = 0;
 			ADDRESS scaleY = 0;
 			ADDRESS rotation = 0;
+
+			uint32 AddressMode = 0;
 		};
 
         //-------------------------------------------------------------------------------------

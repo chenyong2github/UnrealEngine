@@ -128,12 +128,10 @@ namespace mu
 
 	enum class EAddressMode
 	{
-		AM_NONE,
-		AM_WRAP,
-		AM_CLAMP,
-		AM_BLACK_BORDER,
-		_AM_COUNT
-
+		None,
+		Wrap,
+		ClampToEdge,
+		ClampToBlack,
 	};
 
 	enum class EMipmapFilterType
@@ -174,6 +172,7 @@ namespace mu
 		TotalAreaHeuristic,
 		MaxValue
 	};
+
 	static_assert(uint32(EMinFilterMethod::MaxValue) <= (1 << 3), "EMinFilterMethod enum cannot hold more than 8 values");
 
 	struct FImageFormatData

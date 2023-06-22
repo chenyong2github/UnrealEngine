@@ -1636,11 +1636,11 @@ namespace mu
 								int mipsY = (int)ceilf(logf((float)blockSizeY / finfo.m_pixelsPerBlockY) / logf(2.0f));
 								mop->BlockLevels = (uint8_t)FMath::Max(mipsX, mipsY);
 
-								// Not important for the end of the mip tail?
-								mop->AddressMode = EAddressMode::AM_CLAMP;
-								mop->FilterType = EMipmapFilterType::MFT_SimpleAverage;
-								mop->SharpenFactor = 0;
-								mop->DitherMipmapAlpha = false;
+							// Not important for the end of the mip tail?
+							mop->AddressMode = EAddressMode::ClampToEdge;
+							mop->FilterType = EMipmapFilterType::MFT_SimpleAverage;
+							mop->SharpenFactor = 0;
+							mop->DitherMipmapAlpha = false;
 
 								imageAd = mop;
 							}
