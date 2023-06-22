@@ -52,7 +52,7 @@ public:
 	FBox GetFixedBounds() const;
 	FIntVector GetGridCoord() const;
 
-	uint32 GetGridSize() const { return PCGGridSize; }
+	uint32 GetPCGGridSize() const { return PCGGridSize; }
 	bool IsUsing2DGrid() const { return bUse2DGrid; }
 
 	void AddGraphInstance(UPCGComponent* OriginalComponent);

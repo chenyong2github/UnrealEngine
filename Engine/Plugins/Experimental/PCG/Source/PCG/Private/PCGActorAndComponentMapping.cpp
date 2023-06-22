@@ -330,7 +330,7 @@ void UPCGActorAndComponentMapping::RegisterPartitionActor(APCGPartitionActor* Ac
 	{
 		FWriteScopeLock WriteLock(PartitionActorsMapLock);
 
-		TMap<FIntVector, TObjectPtr<APCGPartitionActor>>& PartitionActorsMapGrid = PartitionActorsMap.FindOrAdd(Actor->GetGridSize());
+		TMap<FIntVector, TObjectPtr<APCGPartitionActor>>& PartitionActorsMapGrid = PartitionActorsMap.FindOrAdd(Actor->GetPCGGridSize());
 		if (PartitionActorsMapGrid.Contains(GridCoord))
 		{
 			return;
@@ -376,7 +376,7 @@ void UPCGActorAndComponentMapping::UnregisterPartitionActor(APCGPartitionActor* 
 
 	FIntVector GridCoord = Actor->GetGridCoord();
 
-	if (TMap<FIntVector, TObjectPtr<APCGPartitionActor>>* PartitionActorsMapGrid = PartitionActorsMap.Find(Actor->GetGridSize()))
+	if (TMap<FIntVector, TObjectPtr<APCGPartitionActor>>* PartitionActorsMapGrid = PartitionActorsMap.Find(Actor->GetPCGGridSize()))
 	{
 		FWriteScopeLock WriteLock(PartitionActorsMapLock);
 		PartitionActorsMapGrid->Remove(GridCoord);
