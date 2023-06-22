@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairGroupIndexBuilder_MaxVoxelResolution(TEXT
 
 FString FGroomBuilder::GetVersion()
 {
-	return TEXT("v8r41");
+	return TEXT("v8r41f");
 }
 
 namespace FHairStrandsDecimation
@@ -2729,7 +2729,7 @@ struct FClusterGrid
 		TArray<FCurve> ClusterCurves;
 	};
 
-	FClusterGrid(const FIntVector& InResolution, const FVector& InMinBound, const FVector& InMaxBound)
+	FClusterGrid(const FIntVector& InResolution, const FVector3f& InMinBound, const FVector3f& InMaxBound)
 	{
 		MinBound = InMinBound;
 		MaxBound = InMaxBound;
@@ -2753,10 +2753,10 @@ struct FClusterGrid
 			FMath::Clamp(CellCoord.Z, 0, GridResolution.Z - 1));
 	}
 
-	FORCEINLINE FIntVector ToCellCoord(const FVector& P) const
+	FORCEINLINE FIntVector ToCellCoord(const FVector3f& P) const
 	{
 		bool bIsValid = false;
-		const FVector F = ((P - MinBound) / (MaxBound - MinBound));
+		const FVector3f F = ((P - MinBound) / (MaxBound - MinBound));
 		const FIntVector CellCoord = FIntVector(FMath::FloorToInt(F.X * GridResolution.X), FMath::FloorToInt(F.Y * GridResolution.Y), FMath::FloorToInt(F.Z * GridResolution.Z));
 		return ClampToVolume(CellCoord, bIsValid);
 	}
@@ -2768,7 +2768,7 @@ struct FClusterGrid
 		return CellIndex;
 	}
 
-	void InsertRenderingCurve(FCurve& Curve, const FVector& Root)
+	void InsertRenderingCurve(FCurve& Curve, const FVector3f& Root)
 	{
 		FIntVector CellCoord = ToCellCoord(Root);
 		uint32 Index = ToIndex(CellCoord);
@@ -2776,8 +2776,8 @@ struct FClusterGrid
 		Cluster.ClusterCurves.Add(Curve);
 	}
 
-	FVector MinBound;
-	FVector MaxBound;
+	FVector3f MinBound;
+	FVector3f MaxBound;
 	FIntVector GridResolution;
 	TArray<FCluster> Clusters;
 };
@@ -3038,8 +3038,93 @@ static void BuildClusterData(
 		}
 	}
 
+	// Compute the number of cluster based on a voxelization of the groom.
+	uint32 ClusterCount = 0;
+	{
+		// 1. Allocate cluster per voxel containing contains >=1 render curve root
+		FVector3f GroupMinBound(InRenStrandsData.BoundingBox.Min);
+		FVector3f GroupMaxBound(InRenStrandsData.BoundingBox.Max);
+
+		// Compute the voxel volume resolution, and snap the max bound to the voxel grid
+		// Iterate until voxel size are below max resolution, so that computation is not too long
+		FIntVector VoxelResolution = FIntVector::ZeroValue;
+		{
+			const int32 MaxResolution = FMath::Max(GHairClusterBuilder_MaxVoxelResolution, 2);
+
+			float ClusterWorldSize = 1.f; //cm
+			bool bIsValid = false;
+			while (!bIsValid)
+			{
+				FVector3f VoxelResolutionF = (GroupMaxBound - GroupMinBound) / ClusterWorldSize;
+				VoxelResolution = FIntVector(FMath::CeilToInt(VoxelResolutionF.X), FMath::CeilToInt(VoxelResolutionF.Y), FMath::CeilToInt(VoxelResolutionF.Z));
+				bIsValid = VoxelResolution.X <= MaxResolution && VoxelResolution.Y <= MaxResolution && VoxelResolution.Z <= MaxResolution;
+				if (!bIsValid)
+				{
+					ClusterWorldSize *= 2;
+				}
+			}
+			GroupMaxBound = GroupMinBound + FVector3f(VoxelResolution) * ClusterWorldSize;
+		}
+
+		// 2. Insert all rendering curves into the voxel structure
+		FClusterGrid ClusterGrid(VoxelResolution, GroupMinBound, GroupMaxBound);
+		for (uint32 RenCurveIndex = 0; RenCurveIndex < RenCurveCount; ++RenCurveIndex)
+		{
+			FClusterGrid::FCurve RCurve;
+			RCurve.CurveIndex = RenCurveIndex;
+			RCurve.Count = InRenStrandsData.StrandsCurves.CurvesCount[RenCurveIndex];
+			RCurve.Offset = InRenStrandsData.StrandsCurves.CurvesOffset[RenCurveIndex];
+			RCurve.Area = 0.0f;
+			RCurve.AvgRadius = 0;
+			RCurve.MaxRadius = 0;
+
+			// Compute area of each curve to later compute area correction
+			for (uint32 RenPointIndex = 0; RenPointIndex < RCurve.Count; ++RenPointIndex)
+			{
+				uint32 PointGlobalIndex = RenPointIndex + RCurve.Offset;
+				const FVector3f& V0 = InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex];
+				if (RenPointIndex > 0)
+				{
+					const FVector3f& V1 = InRenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex - 1];
+					FVector3f OutDir;
+					float OutLength;
+					(V1 - V0).ToDirectionAndLength(OutDir, OutLength);
+					RCurve.Area += InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex] * OutLength;
+				}
+
+				const float PointRadius = InRenStrandsData.StrandsPoints.PointsRadius[PointGlobalIndex];
+				RCurve.AvgRadius += PointRadius;
+				RCurve.MaxRadius = FMath::Max(RCurve.MaxRadius, PointRadius);
+			}
+			RCurve.AvgRadius /= FMath::Max(1u, RCurve.Count);
+
+			const FVector3f Root = InRenStrandsData.StrandsPoints.PointsPosition[RCurve.Offset];
+			ClusterGrid.InsertRenderingCurve(RCurve, Root);
+		}
+
+		// 3. Count non-empty clusters
+		{
+			for (FClusterGrid::FCluster& Cluster : ClusterGrid.Clusters)
+			{
+				if (Cluster.ClusterCurves.Num() > 0)
+				{
+					++ClusterCount;
+				}
+			}
+		}
+	}
+
 	// 4. Fill in cluster Info for legacy compatibility
-	Out.ClusterCount = FMath::Min(FMath::DivideAndRoundUp(InRenStrandsData.GetNumCurves(), 100u), 1024u);
+	const uint32 MinClusterCount = FMath::Max(FMath::DivideAndRoundUp(InRenStrandsData.GetNumCurves(), 100u), 128u); // 1%
+	const uint32 MaxClusterCount = 4096;
+	Out.ClusterCount = FMath::Max(MinClusterCount, ClusterCount);
+	Out.ClusterCount = FMath::Min(Out.ClusterCount, InRenStrandsData.GetNumCurves()); // Can't have more clusters than curve, since we use curves as proxy for cluster AABB
+	Out.ClusterScale = 1.f;
+	if (ClusterCount > MaxClusterCount)
+	{
+		Out.ClusterScale = float(ClusterCount) / float(MaxClusterCount);
+		Out.ClusterCount = MaxClusterCount;
+	}
 	Out.CurveToClusterIds.SetNum(InRenStrandsData.GetNumCurves());
 	Out.ClusterInfos.SetNum(Out.ClusterCount);
 	const uint32 CurvePerCluster = FMath::DivideAndRoundUp(InRenStrandsData.GetNumCurves(), Out.ClusterCount);
@@ -3070,6 +3155,7 @@ static void BuildClusterBulkData(
 {
 	Out.Reset();
 	Out.Header.ClusterCount		= In.ClusterCount;
+	Out.Header.ClusterScale		= In.ClusterScale;
 	Out.Header.PointCount		= In.PointCount;
 	Out.Header.CurveCount		= In.CurveCount;
 	Out.Header.LODInfos			= In.LODInfos;

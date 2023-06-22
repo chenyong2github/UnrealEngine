@@ -693,6 +693,7 @@ void FHairStrandsInterpolationBulkData::ResetLoadedSize()
 void FHairStrandsClusterBulkData::Reset()
 {
 	Header.ClusterCount = 0;
+	Header.ClusterScale = 0;
 	Header.PointCount = 0;
 	Header.CurveCount = 0;
 	Header.ClusterInfoParameters = FVector4f::Zero();
@@ -718,6 +719,7 @@ void FHairStrandsClusterBulkData::ResetLoadedSize()
 void FHairStrandsClusterBulkData::SerializeHeader(FArchive& Ar, UObject* Owner)
 {
 	Ar << Header.ClusterCount;
+	Ar << Header.ClusterScale;
 	Ar << Header.PointCount;
 	Ar << Header.CurveCount;
 	Ar << Header.ClusterInfoParameters;

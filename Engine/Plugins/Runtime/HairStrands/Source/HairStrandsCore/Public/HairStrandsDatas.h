@@ -706,6 +706,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterData
 	TArray<uint32>				PointLODs;
 
 	uint32 ClusterCount = 0;		// Number of clusters
+	float  ClusterScale = 0;		// Cluster scale factor
 	uint32 PointCount = 0;			// Number of points
 	uint32 CurveCount = 0;			// Number of curves
 };
@@ -728,6 +729,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsClusterBulkData : FHairStrandsBulkCommon
 		TArray<FHairLODInfo> LODInfos;
 	
 		uint32 ClusterCount = 0;
+		float  ClusterScale = 0;
 		uint32 PointCount = 0;
 		uint32 CurveCount = 0;
 		FVector4f ClusterInfoParameters = FVector4f::Zero(); // xy:Scale/Offset for ScreenSize, zw:Scale/Offset for Radius

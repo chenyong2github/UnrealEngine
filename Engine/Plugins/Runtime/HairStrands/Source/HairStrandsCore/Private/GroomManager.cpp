@@ -823,11 +823,13 @@ static float ComputeActiveCurveCoverageScale(uint32 InAvailableCurveCount, uint3
 	return 1.f/FMath::Max(CurveRatio, 0.01f);
 }
 
-static uint32 ComputeActiveCurveCount(float InScreenSize, uint32 InCurveCount)
+static uint32 ComputeActiveCurveCount(float InScreenSize, uint32 InCurveCount, uint32 InClusterCount)
 {
 	const float Power = FMath::Max(0.1f, GHairStrands_AutoLOD_Scale);
 	const float ScreenSizeBias = FMath::Clamp(GHairStrands_AutoLOD_Bias, 0.f, 1.f);
-	const uint32 OutCurveCount = InCurveCount * FMath::Pow(FMath::Clamp(InScreenSize + ScreenSizeBias, 0.f, 1.0f), Power);
+	uint32 OutCurveCount = InCurveCount * FMath::Pow(FMath::Clamp(InScreenSize + ScreenSizeBias, 0.f, 1.0f), Power);
+	// Ensure there is at least 1 curve per cluster
+	OutCurveCount = FMath::Max(InClusterCount, OutCurveCount);
 	return FMath::Clamp(OutCurveCount, 1, InCurveCount);
 }
 
@@ -930,7 +932,7 @@ static void RunHairLODSelection(
 				uint32 EffectiveCurveCount = 0;
 				if (Instance->HairGroupPublicData->bAutoLOD || IsHairStrandsForceAutoLODEnabled())
 				{
-					EffectiveCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount);
+					EffectiveCurveCount = ComputeActiveCurveCount(Instance->HairGroupPublicData->ContinuousLODScreenSize, Instance->HairGroupPublicData->RestCurveCount, Instance->HairGroupPublicData->ClusterCount);
 					LODIndex = 0;
 				}
 				else

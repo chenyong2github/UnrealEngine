@@ -71,189 +71,6 @@ void MainClearClusterAABBCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Debug draw clusters
-#ifdef SHADER_DRAWDEBUGAABB
-
-#include "../Common.ush"
-#include "../ShaderPrint.ush"
-
-#define MODE_CLUSTER	1
-#define MODE_CULLED		2
-#define MODE_LOD		3
-#define MODE_LOD_SIMPLE	4
-
-uint ClusterCount;
-uint HairGroupId;
-uint TriangleCount;
-int ClusterDebugMode;
-
-Buffer<int> GroupAABBBuffer;
-Buffer<int> ClusterAABBBuffer;
-StructuredBuffer<FHairClusterDebugInfo> ClusterDebugInfoBuffer;
-
-Buffer<uint> CulledDrawIndirectParameters;
-Buffer<uint> CulledDispatchIndirectParametersClusterCountBuffer;
-
-[numthreads(64, 1, 1)]
-void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	if (DispatchThreadId.x == 0)
-	{
-		const bool bDrawClusterInfo = ClusterDebugMode == MODE_CLUSTER || ClusterDebugMode == MODE_CULLED || ClusterDebugMode == MODE_LOD;
-		const uint HairGroupHeight = 15; //bDrawClusterInfo ? 120u : 60u;
-
-		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50 + (HairGroupId == 0 ? 0 : HairGroupHeight) + HairGroupId * HairGroupHeight));
-
-		FFontColor FontValue = FontWhite;
-		FFontColor FontPercent = FontSilver;
-
-		if (bDrawClusterInfo)
-		{
-			if (HairGroupId == 0)
-			{
-				Print(Context, TEXT("HairGroup   Clusters      Triangles"), FontYellow);
-			#if PERMUTATION_DEBUGAABBBUFFER
-				Print(Context, TEXT("         ScreenSize LOD"), FontYellow);
-			#endif
-				Newline(Context);
-			}
-
-			const uint VisibleClusterCount  = CulledDispatchIndirectParametersClusterCountBuffer[0];
-			const uint VisibleTriangleCount = CulledDrawIndirectParameters[0] / 3; // CulledDrawIndirectParameters contains the total number of triangle indices (3 per triangle)
-
-			Print(Context, HairGroupId, FontOrange);
-
-			Print(Context, VisibleClusterCount, FontValue, 5, 0);
-			Print(Context, TEXT(" ["), FontPercent);
-			Print(Context, 100.0f * float(VisibleClusterCount) / float(ClusterCount), FontPercent, 4, 1);
-			Print(Context, TEXT("%] "), FontPercent);
-
-			Print(Context, VisibleTriangleCount, FontValue, 9, 0);
-			Print(Context, TEXT(" ["), FontPercent);
-			Print(Context, 100.0f * float(VisibleTriangleCount) / float(TriangleCount), FontPercent, 4, 1);
-			Print(Context, TEXT("%] "), FontPercent);
-
-		}
-
-		#if PERMUTATION_DEBUGAABBBUFFER
-		{
-			float ScreenSize = 1;
-			{
-				const FHairAABB Bound = ReadHairAABB(0, GroupAABBBuffer);
-
-				const float3 SphereOrigin = (Bound.Min + Bound.Max) * 0.5f;
-				const float  SphereRadius = length(Bound.Max - SphereOrigin);
-				ScreenSize = ComputeBoundsScreenSize(SphereOrigin, SphereRadius, LWCHackToFloat(PrimaryView.WorldCameraOrigin), View.ViewToClip);
-			}
-			Print(Context, ScreenSize, FontValue, 8, 2);
-			Print(Context, TEXT("   "));
-
-			// Show actual LOD distribution for all clusters. Otherwise show the average LOD index
-			const bool bShowLODHistogram = false;
-			// Aggregate all the cluster results
-			uint LODHistogram[MAX_HAIR_LOD] = { 0,0,0,0,0,0,0,0 };
-			uint TotalVertexCount = 0;
-			uint TotalVisibleCluster = 0;
-			float AvgLOD = 0;
-			for (uint ClusterIt = 0; ClusterIt < ClusterCount; ++ClusterIt)
-			{
-				const FHairClusterDebugInfo DebugInfo = ClusterDebugInfoBuffer[ClusterIt];
-				if (DebugInfo.LOD >= 0) // Not culled
-				{
-					const uint LOD = uint(DebugInfo.LOD + 0.5f);
-					LODHistogram[LOD] += 1;
-					AvgLOD += DebugInfo.LOD;
-					TotalVertexCount += DebugInfo.VertexCount;
-					TotalVisibleCluster++;
-				}
-			}		
-			AvgLOD /= max(1u, TotalVisibleCluster);
-
-			if (bShowLODHistogram)
-			{		
-				Print(Context, uint(LODHistogram[0] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Print(Context, uint(LODHistogram[1] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Print(Context, uint(LODHistogram[2] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Print(Context, uint(LODHistogram[3] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Print(Context, uint(LODHistogram[4] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Print(Context, uint(LODHistogram[5] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Print(Context, uint(LODHistogram[6] / float(max(1u, TotalVisibleCluster)) * 100.f));
-				Print(Context, uint(LODHistogram[7] / float(max(1u, TotalVisibleCluster)) * 100.f));
-			}
-			else
-			{
-				if (TotalVisibleCluster > 0)
-				{
-					Print(Context, AvgLOD, FontValue, 4, 2);
-				}
-				else
-				{
-					Print(Context, TEXT("Culled"), FontLightRed);
-				}
-			}
-		}
-		#endif
-
-	}
-
-	if (DispatchThreadId.x < ClusterCount)
-	{
-		const bool bDrawClusterAABB = ClusterDebugMode == MODE_CLUSTER || ClusterDebugMode == MODE_CULLED || ClusterDebugMode == MODE_LOD;
-		if (DispatchThreadId.x == 0 && bDrawClusterAABB)
-		{
-			const float4 GroupColor = float4(1.0f, 0.5f, 0.0f, 1.0f);
-			const FHairAABB Bound = ReadHairAABB(0, GroupAABBBuffer);
-			AddAABBTWS(Bound.Min, Bound.Max, GroupColor);
-		}
-
-		const uint ClusterId = DispatchThreadId;
-		const uint ClusterId6 = DispatchThreadId.x * 6;
-		float3 Min = float3(int3(ClusterAABBBuffer[ClusterId6    ], ClusterAABBBuffer[ClusterId6 + 1], ClusterAABBBuffer[ClusterId6 + 2]));
-		float3 Max = float3(int3(ClusterAABBBuffer[ClusterId6 + 3], ClusterAABBBuffer[ClusterId6 + 4], ClusterAABBBuffer[ClusterId6 + 5]));
-	
-		#if PERMUTATION_DEBUGAABBBUFFER
-		const FHairClusterDebugInfo DebugInfo = ClusterDebugInfoBuffer[ClusterId];
-		const bool bIsCulledState = DebugInfo.LOD < 0;
-		#endif
-
-		float4 Color = 0.0f;
-		if (ClusterDebugMode == MODE_CLUSTER)
-		{
-			Color = float4(0.5f, 1.0f, 0.0f, 0.1f);
-		}
-		#if PERMUTATION_DEBUGAABBBUFFER
-		else if (ClusterDebugMode == MODE_CULLED)
-		{
-			Color = float4(1.0f, 0.1f, 0.1f, 1.0f);
-			if (!bIsCulledState)
-			{
-				return;
-			}
-		}
-		else if (ClusterDebugMode == MODE_LOD_SIMPLE)
-		{
-			// No cluster AABB drawing
-			return;
-		}
-		else if (ClusterDebugMode == MODE_LOD)
-		{
-			if (bIsCulledState)
-			{
-				return;
-			}
-
-			float SelectedLod = float(DebugInfo.LOD) / D_LOD_DEBUG_SCALE;
-			Color = float4(GetHSVDebugColor(SelectedLod), 0.05f);
-		}
-		#endif
-
-		AddAABBTWS(Min, Max, Color);
-	}
-}
-
-#endif
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Reset indirect buffer args
 #ifdef SHADER_CLUSTERCULLINGINDCLEAR  
 
@@ -637,6 +454,7 @@ void Main(uint DispatchThreadId : SV_DispatchThreadID, uint ThreadIndex : SV_Gro
 
 uint CurveCount;
 uint ClusterCount;
+float ClusterScale;
 float3 CPUBoundMin;
 float3 CPUBoundMax;
 float LODIndex;
@@ -712,6 +530,11 @@ groupshared float3 OutHairPositionOffset;
 			}
 		}
 	}
+	// Scaling
+	const float3 ClusterAABBCenter = float3(ClusterAABBMin + ClusterAABBMax) * 0.5f;
+	const float3 ClusterAABBExtent = float3(ClusterAABBMax - ClusterAABBMin) * 0.5f;
+	ClusterAABBMin = ClusterAABBCenter - ClusterAABBExtent * ClusterScale;
+	ClusterAABBMax = ClusterAABBCenter + ClusterAABBExtent * ClusterScale;
 
 	// Write each thread result to shared memory
 	SharedClusterAABBMin[ThreadIndex] = ClusterAABBMin;

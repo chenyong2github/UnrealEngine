@@ -299,6 +299,7 @@ public:
 	bool GetLODVisibility() const { return bLODVisibility; }
 
 	uint32 GetClusterCount() const { return ClusterCount;  }
+	float GetClusterScale() const { return ClusterScale;  }
 
 	// Return the number of active point/curve for strand geometry
 	RENDERER_API uint32 GetActiveStrandsPointCount() const;
@@ -390,6 +391,7 @@ public:
 	uint32 RestPointCount = 0;
 	uint32 RestCurveCount = 0;
 	uint32 ClusterCount = 0;
+	float ClusterScale = 0;
 
 	bool bSupportVoxelization = true;
 

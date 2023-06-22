@@ -114,7 +114,7 @@ void FGroomVisualizationMenuCommands::InternalBuildVisualisationSubMenu(FMenuBui
 		{
 			Menu.BeginSection("LevelViewportGroomVisualizationAdvanced", LOCTEXT("GroomVisualizationAdvanced", "Groom Strands Advanced"));
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::VoxelsDensity);
-			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Cluster);
+			//Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::Cluster);
 			Commands.AddCommandTypeToMenu(Menu, EGroomViewMode::ClusterAABB);
 			if (!bIsGroomEditor)
 			{

@@ -4,7 +4,7 @@
 #include "../HairShadingCommon.ush"
 #include "../ColorMap.ush"
 
-#if SHADER_PRINT_INSTANCE || SHADER_PRINT || SHADER_PRINT_MEMORY
+#if SHADER_PRINT_INSTANCE || SHADER_PRINT || SHADER_PRINT_MEMORY || SHADER_CLUSTERAABB
 /////////////////////////////////////////////////////////////////////////////////////////
 // Utils function
 
@@ -2842,3 +2842,66 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 }
 
 #endif // SHADER_PRINT_MEMORY
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Debug draw clusters
+#ifdef SHADER_CLUSTERAABB
+
+#include "HairStrandsAABBCommon.ush"
+
+uint ClusterCount;
+uint HairGroupId;
+uint PointCount;
+uint CurveCount;
+uint bDrawAABB;
+
+Buffer<int> GroupAABBBuffer;
+Buffer<int> ClusterAABBBuffer;
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void MainDrawDebugAABBCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId.x == 0)
+	{
+		const bool bDrawClusterInfo = true;
+		const uint HairGroupHeight = 15;
+
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50 + (HairGroupId == 0 ? 0 : HairGroupHeight) + HairGroupId * HairGroupHeight));
+
+		FFontColor FontValue = FontWhite;
+		FFontColor FontPercent = FontSilver;
+
+		if (DispatchThreadId.x == 0)
+		{
+			if (HairGroupId == 0)
+			{
+				Print(Context, TEXT("Group Clusters Curves Points"), FontYellow);
+				Newline(Context);
+			}
+			Print(Context, HairGroupId, FontOrange, 6, 0);
+			Print(Context, ClusterCount, FontValue, 9, 0);
+			PrintLargeNumber(Context, CurveCount, FontValue);
+			Print(Context, TEXT(" "), FontYellow);
+			PrintLargeNumber(Context, PointCount, FontValue);
+		}
+	}
+
+	if (bDrawAABB)
+	{
+		// Group
+		if (DispatchThreadId.x == 0)
+		{
+			const FHairAABB GroupBound = ReadHairAABB(0, GroupAABBBuffer);
+			AddAABBTWS(GroupBound.Min, GroupBound.Max, float4(1.0f, 0.5f, 0.0f, 1.0f));
+		}
+	
+		// Cluster
+		if (DispatchThreadId.x < ClusterCount)
+		{
+			const FHairAABB ClusterBound = ReadHairAABB(DispatchThreadId, ClusterAABBBuffer, 1);
+			AddAABBTWS(ClusterBound.Min, ClusterBound.Max, float4(0.5f, 1.0f, 0.0f, 0.3f));
+		}
+	}
+}
+
+#endif // SHADER_CLUSTERAABB

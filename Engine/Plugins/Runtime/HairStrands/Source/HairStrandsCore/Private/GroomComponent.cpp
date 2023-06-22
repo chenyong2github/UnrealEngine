@@ -2659,6 +2659,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			HairGroupInstance->HairGroupPublicData->RestPointCount = GroupData.Strands.BulkData.GetNumPoints();
 			HairGroupInstance->HairGroupPublicData->RestCurveCount = GroupData.Strands.BulkData.GetNumCurves();
 			HairGroupInstance->HairGroupPublicData->ClusterCount = 0u;
+			HairGroupInstance->HairGroupPublicData->ClusterScale = 0.f;
 
 			// (Lazy) Allocate interpolation resources, only if guides are required
 			if (bNeedGuides)
@@ -2774,6 +2775,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				check(StrandsLODCount <= LODScreenSizes.Num());
 				check(StrandsLODCount <= LODVisibilities.Num());
 				HairGroupInstance->HairGroupPublicData->ClusterCount = HairGroupInstance->Strands.ClusterResource->BulkData.Header.ClusterCount;
+				HairGroupInstance->HairGroupPublicData->ClusterScale = HairGroupInstance->Strands.ClusterResource->BulkData.Header.ClusterScale;
 			}
 
 			HairGroupInstance->Strands.CullingResource = new FHairStrandsCullingResource(
