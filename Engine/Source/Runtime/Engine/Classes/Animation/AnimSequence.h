@@ -793,8 +793,7 @@ public:
 
 	// Should we be always using our raw data (i.e is our compressed data stale)
 	UE_DEPRECATED(5.2, "bUseRawDataOnly public access will be deprecated")
-	bool bUseRawDataOnly;
-
+	TAtomic<bool> bUseRawDataOnly;
 public:
 	/** Authored Sync markers */
 	UPROPERTY()

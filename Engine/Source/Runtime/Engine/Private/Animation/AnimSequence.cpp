@@ -702,7 +702,9 @@ void UAnimSequence::Serialize(FArchive& Ar)
 			SerializeCompressedData(Ar,false);
 			if (!bIsTransacting)
 			{
-				Ar << bUseRawDataOnly;
+				bool bTemp = bUseRawDataOnly;
+				Ar << bTemp;
+				bUseRawDataOnly = bTemp;
 			}
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
