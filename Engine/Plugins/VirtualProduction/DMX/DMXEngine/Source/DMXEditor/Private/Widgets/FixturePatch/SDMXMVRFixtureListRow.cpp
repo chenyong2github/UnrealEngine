@@ -707,7 +707,7 @@ TSharedRef<SWidget> SDMXMVRFixtureListRow::GeneratePatchWidget()
 						}
 						else
 						{
-							return LOCTEXT("AddressesText", "Not patched");
+							return LOCTEXT("NotPatchedText", "Not patched");
 						}
 					})
 				.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))

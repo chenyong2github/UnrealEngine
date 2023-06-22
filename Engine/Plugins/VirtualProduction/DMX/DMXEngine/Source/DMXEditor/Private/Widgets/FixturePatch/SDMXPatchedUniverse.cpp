@@ -1121,7 +1121,7 @@ TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 Channel)
 			MenuBuilder.AddMenuEntry
 			(
 				AutoAssignUnderMouseAssignLabel,
-				LOCTEXT("AssignTooltip", "Auto-assigns selected patches to first consecutive range of free channels, starting from the current mouse position."),
+				LOCTEXT("AutoAssignTooltip", "Auto-assigns selected patches to first consecutive range of free channels, starting from the current mouse position."),
 				FSlateIcon(),
 				FUIAction
 				(
