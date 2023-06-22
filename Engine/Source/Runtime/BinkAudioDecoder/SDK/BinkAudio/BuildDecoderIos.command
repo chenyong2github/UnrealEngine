@@ -20,11 +20,18 @@ mkdir $BUILD_LOCATION/ios/arm64
 mkdir $BUILD_LOCATION/ios/arm7
 mkdir $BUILD_LOCATION/ios/arm7s
 mkdir $BUILD_LOCATION/ios/x64
+mkdir $BUILD_LOCATION/ios/sim
 
 SIM_ARGS=(
 	-arch x86_64
 	--target=x86_64-apple-ios10
 	-mmmx
+	-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk
+)
+
+SIM_ARGS_ARM64=(
+	-arch arm64
+	-miphonesimulator-version-min=15
 	-isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk
 )
 
@@ -96,6 +103,14 @@ do
 	OUTPUT+=( $BUILD_LOCATION/ios/arm7s/${source_file%.*}.o )
 done
 ar rcs $OUTPUT_LOCATION/libbinka_ue_decode_ios_arm7s_static.a ${OUTPUT[@]}
+OUTPUT=()
+
+for source_file in "${SOURCES[@]}"
+do
+	clang ${SIM_ARGS_ARM64[@]} ${COMMON_ARGS[@]} -o $BUILD_LOCATION/ios/sim/${source_file%.*}.o $SOURCE_LOCATION/$source_file
+	OUTPUT+=( $BUILD_LOCATION/ios/sim/${source_file%.*}.o )
+done
+ar rcs $OUTPUT_LOCATION/libbinka_ue_decode_ios_static_sim.a ${OUTPUT[@]}
 OUTPUT=()
 
 SOURCES+=(x86_cpu.c)
