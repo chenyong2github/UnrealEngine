@@ -1118,7 +1118,9 @@ void UAppleARKitCameraVideoTexture::Init()
 void UAppleARKitCameraVideoTexture::UpdateFrame(const FAppleARKitFrame& InFrame)
 {
 #if SUPPORTS_ARKIT_1_0
-	if (InFrame.CapturedYImage && InFrame.CapturedCbCrImage)
+    if ((InFrame.CapturedYImage && InFrame.CapturedCbCrImage) &&
+        (InFrame.CapturedYImageSize.GetMin() > 0) &&
+        (InFrame.CapturedCbCrImageSize.GetMin() > 0))
 	{
 		CVMetalTextureRef CapturedYImageCopy = InFrame.CapturedYImage;
 		CVMetalTextureRef CapturedCbCrImageCopy = InFrame.CapturedCbCrImage;
@@ -1140,7 +1142,11 @@ void UAppleARKitCameraVideoTexture::UpdateFrame(const FAppleARKitFrame& InFrame)
 			}
 		});
 	}
+    else
 #endif
+    {
+        Size = FVector2f::ZeroVector;
+    }
 }
 
 #if SUPPORTS_ARKIT_1_0
