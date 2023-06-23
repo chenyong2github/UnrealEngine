@@ -1554,15 +1554,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Whether this target was compiled with an overridden sdk (usually from a platform .ini specifying an alternate SDK version)
-		/// </summary>
-		/// <returns></returns>
-		public bool BuiltWithOverriddenSDKs()
-		{
-			return UEBuildPlatformSDK.bHasAnySDKOverride;
-		}
-
-		/// <summary>
 		/// Constructor.
 		/// </summary>
 		/// <param name="InDescriptor">Target descriptor</param>

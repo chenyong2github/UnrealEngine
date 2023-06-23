@@ -4,12 +4,24 @@ using EpicGames.Core;
 
 namespace UnrealBuildTool
 {
-	/////////////////////////////////////////////////////////////////////////////////////
-	// If you are looking for any version numbers not listed here, see GDK_SDK.json
-	/////////////////////////////////////////////////////////////////////////////////////
-
 	partial class AndroidPlatformSDK : UEBuildPlatformSDK
 	{
+		protected override string GetMainVersionInternal()
+		{
+			return "r25b";
+		}
+
+		public override string GetAutoSDKDirectoryForMainVersion()
+		{
+			return "-26";
+		}
+
+		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
+		{
+			MinVersion = "r25b";
+			MaxVersion = "r25b";
+		}
+
 		protected override void GetValidSoftwareVersionRange(out string? MinVersion, out string? MaxVersion)
 		{
 			MinVersion = MaxVersion = null;

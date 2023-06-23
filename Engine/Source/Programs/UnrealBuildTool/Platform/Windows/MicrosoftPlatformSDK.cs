@@ -203,14 +203,8 @@ namespace UnrealBuildTool
 			}
 			else if (MinVersion == null && MaxVersion == null)
 			{
-				// convert the desired version into a VersionNumber
-				VersionNumber MainVersion = VersionNumber.Parse(UEBuildPlatformSDK.GetSDKForPlatform("Win64")!.GetMainVersion());
-				if (CachedWindowsSdkDirs!.ContainsKey(MainVersion))
-				{
-					WindowsSdkVersion = MainVersion;
-				}
-				// if it's not an installed version, use the highest installed version
-				else if (CachedWindowsSdkDirs.Any())
+				WindowsSdkVersion = PreferredWindowsSdkVersions.FirstOrDefault(x => CachedWindowsSdkDirs!.ContainsKey(x));
+				if (WindowsSdkVersion == null && CachedWindowsSdkDirs!.Count > 0)
 				{
 					WindowsSdkVersion = CachedWindowsSdkDirs.OrderBy(x => x.Key).Last().Key;
 				}
