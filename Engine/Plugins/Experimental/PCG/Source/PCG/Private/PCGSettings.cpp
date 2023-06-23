@@ -65,6 +65,74 @@ FString FPCGSettingsOverridableParam::GetPropertyPath() const
 	return FString::JoinBy(Properties, TEXT("/"), [](const FProperty* InProperty) { return InProperty ? InProperty->GetName() : FString(); });
 }
 
+TArray<FName> FPCGSettingsOverridableParam::GenerateAllPossibleAliases() const
+{
+	if (Properties.IsEmpty() || !HasAliases())
+	{
+		return TArray<FName>{};
+	}
+
+	auto ConcatenateNames = [](const FName& Name1, const FName& Name2) -> FName
+	{
+		return FName(FString::Printf(TEXT("%s/%s"), *Name1.ToString(), *Name2.ToString()));
+	};
+
+	// If we have multiple properties, we'll generate all possible aliases, which is a combination of each aliases for each property in the path.
+	TArray<FName> Result;
+	for (int32 i = 0; i < Properties.Num(); ++i)
+	{
+		const FPCGPropertyAliases* It = MapOfAliases.Find(i);
+		const TArray<FName>* CurrentAliases = It ? &It->Aliases : nullptr;
+		const FProperty* CurrentProperty = Properties[i];
+		const FName PropertyName = CurrentProperty ? CurrentProperty->GetFName() : NAME_None;
+
+		// If no alias at this level, just concatenate the property name to all existing aliases
+		if (!CurrentAliases || CurrentAliases->IsEmpty())
+		{
+			if (Result.IsEmpty())
+			{
+				Result.Add(PropertyName);
+			}
+			else
+			{
+				for (FName& Alias : Result)
+				{
+					Alias = ConcatenateNames(Alias, PropertyName);
+				}
+			}
+		}
+		else if (Result.IsEmpty())
+		{
+			if (CurrentAliases)
+			{
+				Result = *CurrentAliases;
+			}
+
+			// Also need to add the property name
+			Result.Add(PropertyName);
+		}
+		else
+		{
+			TArray<FName> Temp;
+			Temp.Reserve(Result.Num() * CurrentAliases->Num());
+			for (const FName& Alias : Result)
+			{
+				for (const FName& OtherAlias : *CurrentAliases)
+				{
+					Temp.Add(ConcatenateNames(Alias, OtherAlias));
+				}
+
+				// Also need to add the property name
+				Temp.Add(ConcatenateNames(Alias, PropertyName));
+			}
+
+			Result = std::move(Temp);
+		}
+	}
+
+	return Result;
+}
+
 #if WITH_EDITOR
 FString FPCGSettingsOverridableParam::GetDisplayPropertyPath() const
 {

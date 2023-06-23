@@ -31,10 +31,21 @@ namespace PCGAttributeAccessorHelpers
 
 	PCG_API TUniquePtr<IPCGAttributeAccessor> CreateChainAccessor(TUniquePtr<IPCGAttributeAccessor> InAccessor, FName Name, bool& bOutSuccess);
 
+	struct AccessorParamResult
+	{
+		FName AttributeName = NAME_None;
+		FName AliasUsed = NAME_None;
+		bool bUsedAliases = false;
+		bool bPinConnected = false;
+	};
+
+	UE_DEPRECATED(5.3, "Use the CreateConstAccessorForOverrideParamWithResult version")
+	PCG_API TUniquePtr<const IPCGAttributeAccessor> CreateConstAccessorForOverrideParam(const FPCGDataCollection& InInputData, const FPCGSettingsOverridableParam& InParam, FName* OutAttributeName = nullptr);
+
 	/**
 	* Create a const accessor depending on an overridable param
 	*/
-	PCG_API TUniquePtr<const IPCGAttributeAccessor> CreateConstAccessorForOverrideParam(const FPCGDataCollection& InInputData, const FPCGSettingsOverridableParam& InParam, FName* OutAttributeName = nullptr);
+	PCG_API TUniquePtr<const IPCGAttributeAccessor> CreateConstAccessorForOverrideParamWithResult(const FPCGDataCollection& InInputData, const FPCGSettingsOverridableParam& InParam, AccessorParamResult* OutResult = nullptr);
 
 	/** 
 	* Creates a const accessor to the property or attribute pointed at by the InSelector.

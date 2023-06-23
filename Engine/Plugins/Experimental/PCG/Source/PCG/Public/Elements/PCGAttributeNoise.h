@@ -62,17 +62,17 @@ public:
 	FPCGAttributePropertyOutputSelector OutputTarget;
 
 	/** Attribute = (Original op Noise), Noise in [NoiseMin, NoiseMax] */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable, PCG_OverrideAliases = "DensityMode"))
 	EPCGAttributeNoiseMode Mode = EPCGAttributeNoiseMode::Set;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable, PCG_OverrideAliases = "DensityNoiseMin"))
 	float NoiseMin = 0.f;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable, PCG_OverrideAliases = "DensityNoiseMax"))
 	float NoiseMax = 1.f;
 
 	/** Attribute = 1 - Attribute before applying the operation */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (PCG_Overridable, PCG_OverrideAliases = "bInvertSourceDensity"))
 	bool bInvertSource = false;
 
 	// Clamp the result between 0 and 1. Always applied if we apply noise to the density.

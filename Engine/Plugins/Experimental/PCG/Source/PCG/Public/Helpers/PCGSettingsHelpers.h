@@ -177,8 +177,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return false;
 		}
 
-		FName AttributeName = NAME_None;
-		TUniquePtr<const IPCGAttributeAccessor> AttributeAccessor = PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParam(InInputData, *Param, &AttributeName);
+		PCGAttributeAccessorHelpers::AccessorParamResult AccessorResult{};
+		TUniquePtr<const IPCGAttributeAccessor> AttributeAccessor = PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParamWithResult(InInputData, *Param, &AccessorResult);
+
+		const FName AttributeName = AccessorResult.AttributeName;
 
 		if (!AttributeAccessor)
 		{

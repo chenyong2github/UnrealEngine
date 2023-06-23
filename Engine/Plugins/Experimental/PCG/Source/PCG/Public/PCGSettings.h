@@ -52,6 +52,16 @@ enum class EPCGSettingsType : uint8
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGSettingsChanged, UPCGSettings*, EPCGChangeType);
 #endif
 
+// Dummy struct to bypass the UHT limitation for array of arrays.
+USTRUCT(meta=(Hidden))
+struct FPCGPropertyAliases
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TArray<FName> Aliases;
+};
+
 USTRUCT()
 struct FPCGSettingsOverridableParam
 {
@@ -66,14 +76,22 @@ struct FPCGSettingsOverridableParam
 	UPROPERTY()
 	TObjectPtr<const UStruct> PropertyClass;
 
+	// Map of all aliases for a given property, using its Index (to avoid name clashes within the same path)
+	UPROPERTY()
+	TMap<int32, FPCGPropertyAliases> MapOfAliases;
+
 	// If this flag is true, Label will be the full property path.
 	UPROPERTY()
 	bool bHasNameClash = false;
+
+	bool HasAliases() const { return !MapOfAliases.IsEmpty(); }
 
 	// Transient
 	TArray<const FProperty*> Properties;
 
 	FString GetPropertyPath() const;
+
+	TArray<FName> GenerateAllPossibleAliases() const;
 
 #if WITH_EDITOR
 	FString GetDisplayPropertyPath() const;

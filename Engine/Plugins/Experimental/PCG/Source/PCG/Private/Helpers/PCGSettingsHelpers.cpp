@@ -284,6 +284,26 @@ namespace PCGSettingsHelpers
 
 		check(InClass);
 
+		auto GatherAliases = [](const FProperty* InProperty, FPCGSettingsOverridableParam& InParam) -> void
+		{
+#if WITH_EDITOR
+			if (InProperty->HasMetaData(PCGObjectMetadata::OverrideAliases))
+			{
+				FPCGPropertyAliases Result;
+				TArray<FString> TempStringArray;
+				const FString& AliasesStr = InProperty->GetMetaData(PCGObjectMetadata::OverrideAliases);
+				AliasesStr.ParseIntoArray(TempStringArray, TEXT(","));
+
+				if (!TempStringArray.IsEmpty())
+				{
+					Algo::Transform(TempStringArray, Result.Aliases, [](const FString& In) -> FName { return FName(In); });
+					// We always emplace at level 0, it will be incremented by the recursion if it is deeper than 1 level.
+					InParam.MapOfAliases.Emplace(0, std::move(Result));
+				}
+			}
+#endif // WITH_EDITOR
+		};
+
 		for (TFieldIterator<FProperty> InputIt(InClass, SuperFlag, EFieldIteratorFlags::ExcludeDeprecated); InputIt; ++InputIt)
 		{
 			const FProperty* Property = *InputIt;
@@ -382,6 +402,7 @@ namespace PCGSettingsHelpers
 				Param.bHasNameClash = bHasNameClash;
 #if WITH_EDITOR
 				Param.Label = bHasNameClash ? FName(Param.GetDisplayPropertyPath()) : Label;
+				GatherAliases(Property, Param);
 #endif // WITH_EDITOR
 			}
 			else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
@@ -404,7 +425,7 @@ namespace PCGSettingsHelpers
 					RecurseConfig.MaxStructDepth--;
 				}
 
-				for (const FPCGSettingsOverridableParam& ChildParam : GetAllOverridableParams(StructProperty->Struct, RecurseConfig))
+				for (FPCGSettingsOverridableParam& ChildParam : GetAllOverridableParams(StructProperty->Struct, RecurseConfig))
 				{
 					FName Label = ChildParam.Label;
 					bool bHasNameClash = false;
@@ -439,6 +460,15 @@ namespace PCGSettingsHelpers
 #endif // WITH_EDITOR
 						Param.bHasNameClash = true;
 					}
+
+#if WITH_EDITOR
+					GatherAliases(Property, Param);
+					// For all already found aliases, add them to the current param, with the index incremented by 1.
+					for (TPair<int32, FPCGPropertyAliases>& It : ChildParam.MapOfAliases)
+					{
+						Param.MapOfAliases.Emplace(It.Key + 1, std::move(It.Value));
+					}
+#endif // WITH_EDITOR
 				}
 			}
 		}

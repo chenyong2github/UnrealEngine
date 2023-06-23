@@ -192,13 +192,27 @@ void FPCGContext::OverrideSettings()
 			continue;
 		}
 
-		FName AttributeName = NAME_None;
-		TUniquePtr<const IPCGAttributeAccessor> AttributeAccessor = PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParam(InputData, Param, &AttributeName);
+		PCGAttributeAccessorHelpers::AccessorParamResult AccessorResult{};
+		TUniquePtr<const IPCGAttributeAccessor> AttributeAccessor = PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParamWithResult(InputData, Param, &AccessorResult);
+
+		const FName AttributeName = AccessorResult.AttributeName;
 
 		// Attribute doesn't exist
 		if (!AttributeAccessor)
 		{
+			// Throw a warning if the pin was connected, but accessor failed
+			if (AccessorResult.bPinConnected)
+			{
+				PCGE_LOG_C(Warning, GraphAndLog, this, FText::Format(LOCTEXT("AttributeNotFoundOnConnectedPin", "Override pin '{0}' is connected, but attribute '{1}' was not found."), FText::FromName(Param.Label), FText::FromName(AttributeName)));
+			}
+
 			continue;
+		}
+
+		// If aliases were used, throw a warning to ask the user to update its graph
+		if (AccessorResult.bUsedAliases)
+		{
+			PCGE_LOG_C(Warning, GraphAndLog, this, FText::Format(LOCTEXT("OverrideWithAlias", "Attribute '{0}' was not found, but one of its deprecated aliases ('{1}') was. Please update the name to the new value."), FText::FromName(AttributeName), FText::FromName(AccessorResult.AliasUsed)));
 		}
 
 		TUniquePtr<IPCGAttributeAccessor> PropertyAccessor = PCGAttributeAccessorHelpers::CreatePropertyAccessor(Param.Properties.Last());

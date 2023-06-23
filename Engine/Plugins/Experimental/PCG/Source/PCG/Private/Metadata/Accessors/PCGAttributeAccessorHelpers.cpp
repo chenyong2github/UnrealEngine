@@ -411,15 +411,34 @@ TUniquePtr<IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateExtraAccess
 
 TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParam(const FPCGDataCollection& InInputData, const FPCGSettingsOverridableParam& InParam, FName* OutAttributeName)
 {
+	if (OutAttributeName)
+	{
+		AccessorParamResult Result{};
+		TUniquePtr<const IPCGAttributeAccessor> Accessor = CreateConstAccessorForOverrideParamWithResult(InInputData, InParam, &Result);
+		*OutAttributeName = Result.AttributeName;
+		return Accessor;
+	}
+	else
+	{
+		return CreateConstAccessorForOverrideParamWithResult(InInputData, InParam);
+	}
+}
+
+TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConstAccessorForOverrideParamWithResult(const FPCGDataCollection& InInputData, const FPCGSettingsOverridableParam& InParam, AccessorParamResult* OutResult)
+{
 	bool bFromGlobalParamsPin = false;
 	TArray<FPCGTaggedData> InputParamData = InInputData.GetParamsByPin(InParam.Label);
 	UPCGParamData* ParamData = !InputParamData.IsEmpty() ? CastChecked<UPCGParamData>(InputParamData[0].Data) : nullptr;
 
-	// If it is empty, try with the param pin
+	// If it is empty, try with the Overrides pin (Global Params)
 	if (!ParamData)
 	{
 		bFromGlobalParamsPin = true;
 		ParamData = InInputData.GetFirstParamsOnParamsPin();
+	}
+	else if (OutResult)
+	{
+		OutResult->bPinConnected = true;
 	}
 
 	if (ParamData && ParamData->Metadata && ParamData->Metadata->GetAttributeCount() > 0)
@@ -429,14 +448,36 @@ TUniquePtr<const IPCGAttributeAccessor> PCGAttributeAccessorHelpers::CreateConst
 			? ParamData->Metadata->GetLatestAttributeNameOrNone() 
 			: (!InParam.bHasNameClash ? InParam.PropertiesNames.Last() : FName(InParam.GetPropertyPath()));
 
-		if (OutAttributeName)
+		if (OutResult)
 		{
-			*OutAttributeName = AttributeName;
+			OutResult->AttributeName = AttributeName;
 		}
 
 		FPCGAttributePropertyInputSelector InputSelector{};
 		InputSelector.SetAttributeName(AttributeName);
-		return PCGAttributeAccessorHelpers::CreateConstAccessor(ParamData, InputSelector);
+		TUniquePtr<const IPCGAttributeAccessor> Result = PCGAttributeAccessorHelpers::CreateConstAccessor(ParamData, InputSelector);
+
+		if (!Result)
+		{
+			// If we didn't find it, try some aliases.
+			for (const FName& Alias : InParam.GenerateAllPossibleAliases())
+			{
+				InputSelector.SetAttributeName(Alias);
+				Result = PCGAttributeAccessorHelpers::CreateConstAccessor(ParamData, InputSelector);
+				if (Result)
+				{
+					if (OutResult)
+					{
+						OutResult->bUsedAliases = true;
+						OutResult->AliasUsed = Alias;
+					}
+
+					break;
+				}
+			}
+		}
+
+		return Result;
 	}
 
 	return TUniquePtr<const IPCGAttributeAccessor>{};
