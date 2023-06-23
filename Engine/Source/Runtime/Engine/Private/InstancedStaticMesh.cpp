@@ -2728,16 +2728,6 @@ FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateStaticMeshSceneProxy(
 		return ::new Nanite::FSceneProxy(NaniteMaterials, this);
 	}
 
-	// Validate the LOD resources here
-	const FStaticMeshLODResourcesArray& LODResources = GetStaticMesh()->GetRenderData()->LODResources;
-	const int32 SMCurrentMinLOD = GetStaticMesh()->GetMinLODIdx();
-	const int32 EffectiveMinLOD = bOverrideMinLOD ? MinLOD : SMCurrentMinLOD;
-	if (LODResources.Num() == 0 || LODResources[FMath::Clamp<int32>(EffectiveMinLOD, 0, LODResources.Num() - 1)].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() == 0)
-	{
-		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for InstancedStaticMeshComponent %s (LOD problems)"), *GetFullName());
-		return nullptr;
-	}
-
 	return ::new FInstancedStaticMeshSceneProxy(this, GetWorld()->GetFeatureLevel());
 }
 
