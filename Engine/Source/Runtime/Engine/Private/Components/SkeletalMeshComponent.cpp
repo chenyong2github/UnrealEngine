@@ -1974,6 +1974,10 @@ void USkeletalMeshComponent::RecalcRequiredBones(int32 LODIndex)
 	BoneSpaceTransforms = GetSkeletalMeshAsset()->GetRefSkeleton().GetRefBonePose();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	// Make sure no other parallel task is ongoing since we need to reset the shared required bones
+	// and they might be in use
+	HandleExistingParallelEvaluationTask(true, false);
+
 	// If we had cached our shared bone container, reset it
 	if (SharedRequiredBones)
 	{
