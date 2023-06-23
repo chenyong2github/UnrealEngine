@@ -133,5 +133,5 @@ public:
 	 * The path to the downloaded .p8 file shared with your team
 	 */
 	UPROPERTY(EditAnywhere, config, Category="Code Signing", meta = (EditCondition="bUseModernXcode && bUseAutomaticCodeSigning && bUseAppStoreConnect", DisplayName = "App Store Connect: Key File"))
-	FString AppStoreConnectKeyPath;
+	FFilePath AppStoreConnectKeyPath;
 };
