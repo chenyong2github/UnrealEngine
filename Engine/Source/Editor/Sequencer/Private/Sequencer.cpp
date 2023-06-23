@@ -417,6 +417,14 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(GetRootMovieSceneSequence());
 				return;
 			}
+			if (UObject* PlaybackContext = CachedPlaybackContext.Get())
+			{
+				if (ReplacementMap.Contains(PlaybackContext->GetClass()))
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(GetRootMovieSceneSequence());
+					return;
+				}
+			}
 
 			// Reset Bindings for replaced objects.
 			for (TPair<UObject*, UObject*> ReplacedObject : ReplacementMap)

@@ -233,6 +233,11 @@ void UWidgetAnimation::LocateBoundObjects(const FGuid& ObjectId, UObject* InCont
 	}
 
 	UUserWidget* PreviewWidget = CastChecked<UUserWidget>(InContext);
+	if (PreviewWidget->WidgetTree == nullptr)
+	{
+		return;
+	}
+
 	for (const FWidgetAnimationBinding& Binding : AnimationBindings)
 	{
 		if (Binding.AnimationGuid == ObjectId)
