@@ -1075,7 +1075,20 @@ namespace PCGSplineSampler
 								continue;
 							}
 
-							TransformWS.SetLocation(ProjectedPoint.Transform.GetLocation());
+							if (InProjectionParams.bProjectPositions)
+							{
+								TransformWS.SetLocation(ProjectedPoint.Transform.GetLocation());
+							}
+
+							if (InProjectionParams.bProjectRotations)
+							{
+								TransformWS.SetRotation(ProjectedPoint.Transform.GetRotation());
+							}
+
+							if (InProjectionParams.bProjectScales)
+							{
+								TransformWS.SetScale3D(ProjectedPoint.Transform.GetScale3D());
+							}
 						}
 
 						// Prune points outside of bounds

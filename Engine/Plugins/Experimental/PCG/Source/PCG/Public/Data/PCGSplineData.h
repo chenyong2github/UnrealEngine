@@ -68,6 +68,10 @@ class PCG_API UPCGSplineProjectionData : public UPCGProjectionData
 public:
 	void Initialize(const UPCGSplineData* InSourceSpline, const UPCGSpatialData* InTargetSurface, const FPCGProjectionParams& InParams);
 
+	// ~Begin UPCGData interface
+	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Spline; }
+	// ~End UPCGData interface
+
 	const UPCGSplineData* GetSpline() const;
 	const UPCGSpatialData* GetSurface() const;
 
