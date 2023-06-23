@@ -3180,6 +3180,7 @@ void FEditorViewportClient::StartTrackingDueToInput( const struct FInputEventSta
 		{
 			MouseDeltaTracker->EndTracking( this );
 			bIsTracking = false;
+			CheckHoveredHitProxy(Viewport->GetHitProxy(CachedMouseX, CachedMouseY));
 		}
 
 		bDraggingByHandle = (Widget && Widget->GetCurrentAxis() != EAxisList::None);
