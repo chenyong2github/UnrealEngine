@@ -30,6 +30,7 @@ namespace mu
 		struct FMessage
 		{
 			ErrorLogMessageType m_type = ELMT_NONE;
+			ErrorLogMessageSpamBin m_spam = ELMSB_ALL;
 			FString m_text;
             TSharedPtr<FErrorData> m_data;
 			const void* m_context = nullptr;
@@ -41,10 +42,10 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 
 		//!
-		void Add(const FString& Message, ErrorLogMessageType Type, const void* Context);
+		void Add(const FString& Message, ErrorLogMessageType Type, const void* Context, ErrorLogMessageSpamBin SpamBin = ELMSB_ALL);
 
         //!
-        void Add(const FString& InMessage, const ErrorLogMessageAttachedDataView& data, ErrorLogMessageType type, const void* context );
+        void Add(const FString& Message, const ErrorLogMessageAttachedDataView& Data, ErrorLogMessageType Type, const void* Context, ErrorLogMessageSpamBin SpamBin = ELMSB_ALL);
 	};
 
 

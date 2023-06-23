@@ -19,6 +19,14 @@ enum class ELoggerCategory
 };
 
 
+/** Notification spam prevention bins. Each bin will only show a limited amount of messages of its type, after which it will simply state "and X more BINNAME warnings/errors" */
+enum class ELoggerSpamBin : uint8
+{
+	TagsNotFound = 0,
+	ShowAll	// Notifications added to this bin will always be shown.
+};
+
+
 /** Log parameters. Holds all parameters required to create a new CustomizableObjectEditorLogger log. */
 class FLogParameters
 {
@@ -44,6 +52,8 @@ public:
 	FLogParameters& Notification(bool Notification = true);
 
 	FLogParameters& FixNotification(bool FixNotification = true);
+
+	FLogParameters& SpamBin(ELoggerSpamBin SpamBin);
 	
 	/** Actually display the log. */
 	void Log();
@@ -62,6 +72,8 @@ private:
 	TAttribute<FText> ParamSubText;
 	
 	ELoggerCategory ParamCategory = ELoggerCategory::General;
+
+	ELoggerSpamBin ParamSpamBin = ELoggerSpamBin::ShowAll;
 	
 	EMessageSeverity::Type ParamSeverity = EMessageSeverity::Info;
 	

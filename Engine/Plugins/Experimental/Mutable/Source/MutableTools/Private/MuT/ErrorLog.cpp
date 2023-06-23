@@ -104,6 +104,20 @@ namespace mu
 		return result;
 	}
 
+
+	//---------------------------------------------------------------------------------------------
+	ErrorLogMessageSpamBin ErrorLog::GetMessageSpamBin(int index) const
+	{
+		ErrorLogMessageSpamBin result = ELMSB_ALL;
+
+		if (index >= 0 && index < (int)m_pD->m_messages.Num())
+		{
+			result = m_pD->m_messages[index].m_spam;
+		}
+
+		return result;
+	}
+
 	//---------------------------------------------------------------------------------------------
     ErrorLogMessageAttachedDataView ErrorLog::GetMessageAttachedData( int index ) const
 	{
@@ -124,31 +138,38 @@ namespace mu
 	}
 
 	//---------------------------------------------------------------------------------------------
-	void ErrorLog::Private::Add(const FString& InMessage, ErrorLogMessageType InType, const void* InContext)
+	void ErrorLog::Private::Add(const FString& InMessage,
+								ErrorLogMessageType InType,
+								const void* InContext,
+								ErrorLogMessageSpamBin InSpamBin)
 	{
 		m_messages.Add(FMessage());
 		m_messages.Last().m_type = InType;
+		m_messages.Last().m_spam = InSpamBin;
 		m_messages.Last().m_text = InMessage;
 		m_messages.Last().m_context = InContext;
 	}
 
 	//---------------------------------------------------------------------------------------------
 	void ErrorLog::Private::Add(const FString& InMessage,
-                                const ErrorLogMessageAttachedDataView& dataView,
-                                ErrorLogMessageType type, const void* context )
+                                const ErrorLogMessageAttachedDataView& InDataView,
+                                ErrorLogMessageType InType, const void* InContext,
+								ErrorLogMessageSpamBin InSpamBin)
 	{
 		m_messages.Add(FMessage() );
-		m_messages.Last().m_type = type;
+		m_messages.Last().m_type = InType;
+		m_messages.Last().m_spam = InSpamBin;
 		m_messages.Last().m_text = InMessage;
-		m_messages.Last().m_context = context;
+		m_messages.Last().m_context = InContext;
 		m_messages.Last().m_data = MakeShared<FErrorData>();
 
-        if ( dataView.m_unassignedUVs && dataView.m_unassignedUVsSize > 0 )
+        if ( InDataView.m_unassignedUVs && InDataView.m_unassignedUVsSize > 0 )
         {
 			// \TODO: Review
-			m_messages.Last().m_data->m_unassignedUVs.Append(dataView.m_unassignedUVs, dataView.m_unassignedUVsSize);
+			m_messages.Last().m_data->m_unassignedUVs.Append(InDataView.m_unassignedUVs, InDataView.m_unassignedUVsSize);
         }
 	}
+	
 	
 	//---------------------------------------------------------------------------------------------
 	void ErrorLog::Log() const

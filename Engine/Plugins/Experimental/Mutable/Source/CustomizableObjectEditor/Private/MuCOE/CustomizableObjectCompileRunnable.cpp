@@ -103,35 +103,32 @@ uint32 FCustomizableObjectCompileRunnable::Run()
 	for (int i = 0; i < pLog->GetMessageCount(); ++i)
 	{
 		const FString& Message = pLog->GetMessageText(i);
-		mu::ErrorLogMessageType MessageType = pLog->GetMessageType(i);
-		mu::ErrorLogMessageAttachedDataView MessageAttachedData = pLog->GetMessageAttachedData(i);
+		const mu::ErrorLogMessageType MessageType = pLog->GetMessageType(i);
+		const mu::ErrorLogMessageAttachedDataView MessageAttachedData = pLog->GetMessageAttachedData(i);
 
-		if (MessageType == mu::ELMT_WARNING)
+		if (MessageType == mu::ELMT_WARNING || MessageType == mu::ELMT_ERROR)
 		{
+			const EMessageSeverity::Type Severity = MessageType == mu::ELMT_WARNING ? EMessageSeverity::Warning : EMessageSeverity::Error;
+			const ELoggerSpamBin SpamBin = [&] {
+				switch (pLog->GetMessageSpamBin(i)) {
+				case mu::ErrorLogMessageSpamBin::ELMSB_UNKNOWN_TAG:
+					return ELoggerSpamBin::TagsNotFound;
+				case mu::ErrorLogMessageSpamBin::ELMSB_ALL:
+				default:
+					return ELoggerSpamBin::ShowAll;
+			}
+			}();
+
 			if (MessageAttachedData.m_unassignedUVs && MessageAttachedData.m_unassignedUVsSize > 0) 
 			{			
 				TSharedPtr<FErrorAttachedData> ErrorAttachedData = MakeShared<FErrorAttachedData>();
 				ErrorAttachedData->UnassignedUVs.Reset();
 				ErrorAttachedData->UnassignedUVs.Append(MessageAttachedData.m_unassignedUVs, MessageAttachedData.m_unassignedUVsSize);
-				ArrayWarning.Add(FError(FText::AsCultureInvariant(Message), ErrorAttachedData, pLog->GetMessageContext(i)));
+				ArrayErrors.Add(FError(Severity, FText::AsCultureInvariant(Message), ErrorAttachedData, pLog->GetMessageContext(i), SpamBin));
 			}
 			else
 			{
-				ArrayWarning.Add(FError(FText::AsCultureInvariant(Message), pLog->GetMessageContext(i)));
-			}
-		}
-		else if (MessageType == mu::ELMT_ERROR)
-		{
-			if (MessageAttachedData.m_unassignedUVs && MessageAttachedData.m_unassignedUVsSize > 0) 
-			{			
-				TSharedPtr<FErrorAttachedData> ErrorAttachedData = MakeShared<FErrorAttachedData>();
-				ErrorAttachedData->UnassignedUVs.Reset();
-				ErrorAttachedData->UnassignedUVs.Append(MessageAttachedData.m_unassignedUVs, MessageAttachedData.m_unassignedUVsSize);
-				ArrayError.Add(FError(FText::AsCultureInvariant(Message), ErrorAttachedData, pLog->GetMessageContext(i)));
-			}
-			else
-			{
-				ArrayError.Add(FError(FText::AsCultureInvariant(Message), pLog->GetMessageContext(i)));
+				ArrayErrors.Add(FError(Severity, FText::AsCultureInvariant(Message), pLog->GetMessageContext(i), SpamBin));
 			}
 		}
 	}
@@ -152,15 +149,9 @@ bool FCustomizableObjectCompileRunnable::IsCompleted() const
 }
 
 
-const TArray<FCustomizableObjectCompileRunnable::FError>& FCustomizableObjectCompileRunnable::GetArrayError() const
+const TArray<FCustomizableObjectCompileRunnable::FError>& FCustomizableObjectCompileRunnable::GetArrayErrors() const
 {
-	return ArrayError;
-}
-
-
-const TArray<FCustomizableObjectCompileRunnable::FError>& FCustomizableObjectCompileRunnable::GetArrayWarning() const
-{
-	return ArrayWarning;
+	return ArrayErrors;
 }
 
 

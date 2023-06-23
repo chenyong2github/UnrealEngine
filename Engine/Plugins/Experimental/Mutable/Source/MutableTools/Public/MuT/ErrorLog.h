@@ -26,6 +26,14 @@ namespace mu
 		ELMT_INFO
 	} ErrorLogMessageType;
 
+	//! Categories of message stored in the log for the purpose of limiiting duplication of non-identical messages
+	//! \ingroup tools
+	typedef enum
+	{
+		ELMSB_ALL = 0,
+		ELMSB_UNKNOWN_TAG
+	} ErrorLogMessageSpamBin;
+
 	struct ErrorLogMessageAttachedDataView 
 	{
 		const float* m_unassignedUVs = nullptr;
@@ -62,6 +70,9 @@ namespace mu
 
 		//!
 		ErrorLogMessageType GetMessageType( int index ) const;
+
+		//!
+		ErrorLogMessageSpamBin GetMessageSpamBin(int index) const;
 
 		//! Get the attached data of a message.
 		//! \param index index of message data from 0 to GetMessageCount(ELMT_NONE)-1

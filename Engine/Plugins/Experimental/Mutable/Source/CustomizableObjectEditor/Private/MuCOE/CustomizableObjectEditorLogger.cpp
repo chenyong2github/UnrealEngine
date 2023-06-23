@@ -203,6 +203,13 @@ FLogParameters& FLogParameters::FixNotification(const bool FixNotification)
 }
 
 
+FLogParameters& FLogParameters::SpamBin(const ELoggerSpamBin SpamBin)
+{
+	ParamSpamBin = SpamBin;
+	return *this;
+}
+
+
 void FLogParameters::Log()
 {
 	Logger.Log(*this);

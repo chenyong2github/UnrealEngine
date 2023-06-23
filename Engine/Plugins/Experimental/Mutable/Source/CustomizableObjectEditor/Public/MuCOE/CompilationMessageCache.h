@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Logging/TokenizedMessage.h"
+#include "MuCOE/CustomizableObjectEditorLogger.h"
 
 // Forward declarations
 class UCustomizableObjectNode;
@@ -10,6 +11,7 @@ class UCustomizableObjectNode;
 class CUSTOMIZABLEOBJECTEDITOR_API FCompilationMessageCache
 {
 public:
+	FCompilationMessageCache();
 
 	/** Method designed to serve as a way to add a new message to the collection of messages the compiler has produced as
 	 * part of the compilation process.
@@ -18,7 +20,7 @@ public:
 	 * @param MessageSeverity Severity of the message.
 	 * @return True if the message is new and had not been added before. If it returns false it means it has not been logged again.
 	 */
-	 bool AddMessage(const FText& InMessage, const TArray<const UCustomizableObjectNode*>& InArrayNode, EMessageSeverity::Type MessageSeverity = EMessageSeverity::Warning);
+	 bool AddMessage(const FText& InMessage, const TArray<const UCustomizableObjectNode*>& InArrayNode, const EMessageSeverity::Type MessageSeverity = EMessageSeverity::Warning, const ELoggerSpamBin SpamBin = ELoggerSpamBin::ShowAll);
 	
 	
 	/** Provides the caller with separated arrays with all the warning and error messages.
@@ -48,6 +50,11 @@ public:
 	 * @return Amount of error messages cached.
 	 */
 	uint32 GetErrorCount() const;
+
+	/** Provides the caller with the amount of messages ignored because they were too similar even if not identical.
+	 * @return Amount of error messages ignored.
+	 */
+	uint32 GetIgnoredCount() const;
 	
 private:
 	
@@ -63,13 +70,16 @@ private:
 			return Message.EqualTo(o.Message) && Context == o.Context && Severity == o.Severity;
 		}
 	};
+	const uint32 MaxSpamMessages = 10;
 
 	/** Array with all the logged messages stored. */
 	TArray<FLoggedMessage> LoggedMessages;
+	TArray<FLoggedMessage> IgnoredMessages;
 
 	// Counters for the type of messages we have on LoggedMessages
-	uint32 PerformanceWarningCount = 0;
-	uint32 WarningCount = 0;
-	uint32 ErrorCount = 0;
-	
+	uint32 PerformanceWarningCount;
+	uint32 WarningCount;
+	uint32 ErrorCount;
+	uint32 IgnoredCount;
+	TArray<uint8> SpamBinCounts;
 };

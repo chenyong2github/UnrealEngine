@@ -1548,6 +1548,7 @@ void FCustomizableObjectCompiler::NotifyCompilationErrors() const
 {
 	const uint32 NumWarnings = CompilationLogsContainer.GetWarningCount(false);
 	const uint32 NumErrors = CompilationLogsContainer.GetErrorCount();
+	const uint32 NumIgnoreds = CompilationLogsContainer.GetIgnoredCount();
 	const bool NoWarningsOrErrors = !(NumWarnings || NumErrors);
 
 	if (Options.bSilentCompilation && NoWarningsOrErrors)
@@ -1574,8 +1575,11 @@ void FCustomizableObjectCompiler::NotifyCompilationErrors() const
 	const FText Prefix = FText::FromString(CurrentObject ? CurrentObject->GetName() : "Customizable Object");
 
 	const FText Message = NoWarningsOrErrors ?
-		FText::Format(LOCTEXT("CompilationFinishedSuccessfully", "{0} finished compiling successfully"), Prefix) :
-		FText::Format(LOCTEXT("CompilationFinished", "{0} finished compiling successfully with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors)"), Prefix, NumWarnings, NumErrors);
+		FText::Format(LOCTEXT("CompilationFinishedSuccessfully", "{0} finished compiling successfully."), Prefix) :
+		NumIgnoreds > 0 ?
+		FText::Format(LOCTEXT("CompilationFinished", "{0} finished compiling successfully with {1} {1}|plural(one=warning,other=warnings), {2} {2}|plural(one=error,other=errors) and {3} more similar warnings."), Prefix, NumWarnings, NumErrors, NumIgnoreds)
+		:
+		FText::Format(LOCTEXT("CompilationFinished", "{0} finished compiling successfully with {1} {1}|plural(one=warning,other=warnings) and {2} {2}|plural(one=error,other=errors)."), Prefix, NumWarnings, NumErrors);
 	
 	FCustomizableObjectEditorLogger::CreateLog(Message)
 	.Category(ELoggerCategory::Compilation)
@@ -1585,27 +1589,28 @@ void FCustomizableObjectCompiler::NotifyCompilationErrors() const
 }
 
 
-void FCustomizableObjectCompiler::CompilerLog(const FText& Message, const TArray<const UCustomizableObjectNode*>& ArrayNode, EMessageSeverity::Type MessageSeverity, bool bAddBaseObjectInfo)
+void FCustomizableObjectCompiler::CompilerLog(const FText& Message, const TArray<const UCustomizableObjectNode*>& ArrayNode, const EMessageSeverity::Type MessageSeverity, const bool bAddBaseObjectInfo, const ELoggerSpamBin SpamBin)
 {
-	if (CompilationLogsContainer.AddMessage(Message, ArrayNode, MessageSeverity)) // Cache the message for later reference
+	if (CompilationLogsContainer.AddMessage(Message, ArrayNode, MessageSeverity, SpamBin)) // Cache the message for later reference
 	{
 		FCustomizableObjectEditorLogger::CreateLog(Message)
 			.Severity(MessageSeverity)
 			.Nodes(ArrayNode)
 			.BaseObject(bAddBaseObjectInfo)
+			.SpamBin(SpamBin)
 			.Log();
 	}
 }
 
 
-void FCustomizableObjectCompiler::CompilerLog(const FText& Message, const UCustomizableObjectNode* Node, EMessageSeverity::Type MessageSeverity, bool AddBaseObjectInfo)
+void FCustomizableObjectCompiler::CompilerLog(const FText& Message, const UCustomizableObjectNode* Node, const EMessageSeverity::Type MessageSeverity, const bool bAddBaseObjectInfo, const ELoggerSpamBin SpamBin)
 {
 	TArray<const UCustomizableObjectNode*> ArrayNode;
 	if (Node)
 	{
 		ArrayNode.Add(Node);
 	}
-	CompilerLog(Message, ArrayNode, MessageSeverity, AddBaseObjectInfo);
+	CompilerLog(Message, ArrayNode, MessageSeverity, bAddBaseObjectInfo, SpamBin);
 }
 
 
@@ -1613,46 +1618,27 @@ void FCustomizableObjectCompiler::UpdateCompilerLogData()
 {
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	MessageLogModule.RegisterLogListing(FName("Mutable"), LOCTEXT("MutableLog", "Mutable"));
-	const TArray<FCustomizableObjectCompileRunnable::FError>& ArrayCompileWarning = CompileTask->GetArrayWarning();
-	const TArray<FCustomizableObjectCompileRunnable::FError>& ArrayCompileError = CompileTask->GetArrayError();
+	const TArray<FCustomizableObjectCompileRunnable::FError>& ArrayCompileErrors = CompileTask->GetArrayErrors();
 
 	FText ObjectName = CurrentObject ? FText::FromString(CurrentObject->GetName()) : LOCTEXT("Unknown Object", "Unknown Object");
 
 	int32 i;
-	for (i = 0; i < ArrayCompileError.Num(); ++i)
+	for (i = 0; i < ArrayCompileErrors.Num(); ++i)
 	{
-		const UCustomizableObjectNode** pNode = GeneratedNodes.Find(ArrayCompileError[i].Context);
+		const UCustomizableObjectNode** pNode = GeneratedNodes.Find(ArrayCompileErrors[i].Context);
 
-		if (ArrayCompileError[i].AttachedData && pNode)
+		if (ArrayCompileErrors[i].AttachedData && pNode)
 		{
 			UCustomizableObjectNode::FAttachedErrorDataView ErrorDataView;
-			ErrorDataView.UnassignedUVs = { ArrayCompileError[i].AttachedData->UnassignedUVs.GetData(),
-											ArrayCompileError[i].AttachedData->UnassignedUVs.Num() };
+			ErrorDataView.UnassignedUVs = { ArrayCompileErrors[i].AttachedData->UnassignedUVs.GetData(),
+											ArrayCompileErrors[i].AttachedData->UnassignedUVs.Num() };
 
 			const UCustomizableObjectNode* Node = Cast<UCustomizableObjectNode>(*pNode);
 			const_cast<UCustomizableObjectNode*>(Node)->AddAttachedErrorData(ErrorDataView);
 		}
 
-		FText FullMsg = FText::Format(LOCTEXT("MutableMessage", "{0} : {1}"), ObjectName, ArrayCompileError[i].Message);
-		CompilerLog(FullMsg, pNode ? *pNode : nullptr, EMessageSeverity::Error, true);
-	}
-
-	for (i = 0; i < ArrayCompileWarning.Num(); ++i)
-	{
-		const UCustomizableObjectNode** pNode = GeneratedNodes.Find(ArrayCompileWarning[i].Context);
-
-		if (ArrayCompileWarning[i].AttachedData && pNode)
-		{
-			UCustomizableObjectNode::FAttachedErrorDataView ErrorDataView;
-			ErrorDataView.UnassignedUVs = { ArrayCompileWarning[i].AttachedData->UnassignedUVs.GetData(),
-											ArrayCompileWarning[i].AttachedData->UnassignedUVs.Num() };
-
-			const UCustomizableObjectNode* Node = Cast<UCustomizableObjectNode>(*pNode);
-			const_cast<UCustomizableObjectNode*>(Node)->AddAttachedErrorData(ErrorDataView);
-		}
-
-		FText FullMsg = FText::Format(LOCTEXT("MutableMessage", "{0} : {1}"), ObjectName, ArrayCompileWarning[i].Message);
-		CompilerLog(FullMsg, pNode?*pNode:nullptr, EMessageSeverity::Warning, true);
+		FText FullMsg = FText::Format(LOCTEXT("MutableMessage", "{0} : {1}"), ObjectName, ArrayCompileErrors[i].Message);
+		CompilerLog(FullMsg, pNode ? *pNode : nullptr, ArrayCompileErrors[i].Severity, true, ArrayCompileErrors[i].SpamBin);
 	}
 }
 

@@ -6,6 +6,7 @@
 #include "MuCO/CustomizableObject.h"
 #include "MuR/Ptr.h"
 #include "MuT/Node.h"
+#include "MuCOE/CustomizableObjectEditorLogger.h"
 
 class ITargetPlatform;
 
@@ -21,20 +22,21 @@ public:
 
 	struct FError
 	{
+		EMessageSeverity::Type Severity;
+		ELoggerSpamBin SpamBin = ELoggerSpamBin::ShowAll;
 		FText Message;
 		TSharedPtr<FErrorAttachedData> AttachedData;
 		const void* Context;
 
-		FError(const FText& InMessage, const void* InContext) : Message(InMessage), Context(InContext) {}
-		FError(const FText& InMessage, const TSharedPtr<FErrorAttachedData>& InAttachedData, const void* InContext) 
-			: Message(InMessage), AttachedData(InAttachedData), Context(InContext) {}
+		FError(const EMessageSeverity::Type InSeverity, const FText& InMessage, const void* InContext, const ELoggerSpamBin InSpamBin = ELoggerSpamBin::ShowAll) : Severity(InSeverity), SpamBin(InSpamBin), Message(InMessage), Context(InContext) {}
+		FError(const EMessageSeverity::Type InSeverity, const FText& InMessage, const TSharedPtr<FErrorAttachedData>& InAttachedData, const void* InContext, const ELoggerSpamBin InSpamBin = ELoggerSpamBin::ShowAll)
+			: Severity(InSeverity), SpamBin(InSpamBin), Message(InMessage), AttachedData(InAttachedData), Context(InContext) {}
 	};
 
 private:
 
 	mu::Ptr<mu::Node> MutableRoot;
-	TArray<FError> ArrayWarning;
-	TArray<FError> ArrayError;
+	TArray<FError> ArrayErrors;
 
 public:
 
@@ -49,10 +51,7 @@ public:
 	bool IsCompleted() const;
 
 	//
-	const TArray<FError>& GetArrayError() const;
-	
-	//
-	const TArray<FError>& GetArrayWarning() const;
+	const TArray<FError>& GetArrayErrors() const;
 
 public:
 
