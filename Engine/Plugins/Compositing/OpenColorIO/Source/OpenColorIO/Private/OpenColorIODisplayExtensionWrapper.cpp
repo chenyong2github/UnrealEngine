@@ -124,6 +124,12 @@ UOpenColorIODisplayExtensionWrapper* UOpenColorIODisplayExtensionWrapper::Create
 			}
 		}
 
+		// Activate the SVE if a high-res screenshot is being taken
+		if (GIsHighResScreenshot)
+		{
+			return TOptional<bool>(bIsEnabled);
+		}
+
 		// If our viewport did not meet any of the criteria to activate the SVE, emit no opinion.
 		return TOptional<bool>();
 	};
