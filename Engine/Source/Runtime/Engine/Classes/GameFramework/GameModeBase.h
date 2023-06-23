@@ -288,16 +288,6 @@ public:
 	 */
 	ENGINE_API virtual void PreLogin(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage);
 
-	DECLARE_DELEGATE_OneParam(FOnPreLoginCompleteDelegate, const FString& /*ErrorMsg*/);
-
-	/**
-	 * Async version of PreLogin that MUST call OnComplete when done, otherwise incoming client connections will hang or timeout.
-	 * This allows servers to make requests to other services for verification of login credentials without blocking the game thread.
-	 * By default, this calls PreLogin() and OnComplete immediately to not break backwards compatibility. When overriding this, be sure
-	 * checks in PreLogin are also run, and that the GameModePreLoginEvent is broadcast.
-	 */
-	virtual void PreLoginAsync(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, const FOnPreLoginCompleteDelegate& OnComplete);
-
 	/**
 	 * Called to login new players by creating a player controller, overridable by the game
 	 *

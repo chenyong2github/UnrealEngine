@@ -6426,16 +6426,26 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					Connection->SetPlayerOnlinePlatformName(FName(*OnlinePlatformName));
 
 					// ask the game code if this player can join
+					FString ErrorMsg;
 					AGameModeBase* GameMode = GetAuthGameMode();
-					AGameModeBase::FOnPreLoginCompleteDelegate OnComplete = AGameModeBase::FOnPreLoginCompleteDelegate::CreateUObject(
-						this, &UWorld::PreLoginComplete, TWeakObjectPtr<UNetConnection>(Connection));
+
 					if (GameMode)
 					{
-						GameMode->PreLoginAsync(Tmp, Connection->LowLevelGetRemoteAddress(), Connection->PlayerId, OnComplete);
+						GameMode->PreLogin(Tmp, Connection->LowLevelGetRemoteAddress(), Connection->PlayerId, ErrorMsg);
+					}
+					if (!ErrorMsg.IsEmpty())
+					{
+						UE_LOG(LogNet, Log, TEXT("PreLogin failure: %s"), *ErrorMsg);
+						NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("PRELOGIN FAILURE"), *ErrorMsg, Connection));
+
+						Connection->SendCloseReason(ENetCloseResult::PreLoginFailure);
+						FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
+						Connection->FlushNet(true);
+						Connection->Close(ENetCloseResult::PreLoginFailure);
 					}
 					else
 					{
-						OnComplete.ExecuteIfBound(FString());
+						WelcomePlayer(Connection);
 					}
 				}
 				else
@@ -6555,17 +6565,66 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 					const TCHAR* Tmp = *SplitRequestURL;
 					for (; *Tmp && *Tmp != '?'; Tmp++);
 
-					// go through the same full login process for the split player
+					// go through the same full login process for the split player even though it's all in the same frame
+					FString ErrorMsg;
 					AGameModeBase* GameMode = GetAuthGameMode();
-					AGameModeBase::FOnPreLoginCompleteDelegate OnComplete = AGameModeBase::FOnPreLoginCompleteDelegate::CreateUObject(
-						this, &UWorld::PreLoginCompleteSplit, TWeakObjectPtr<UNetConnection>(Connection), SplitRequestUniqueIdRepl, SplitRequestURL);
 					if (GameMode)
 					{
-						GameMode->PreLoginAsync(Tmp, Connection->LowLevelGetRemoteAddress(), SplitRequestUniqueIdRepl, OnComplete);
+						GameMode->PreLogin(Tmp, Connection->LowLevelGetRemoteAddress(), SplitRequestUniqueIdRepl, ErrorMsg);
+					}
+					if (!ErrorMsg.IsEmpty())
+					{
+						// if any splitscreen viewport fails to join, all viewports on that client also fail
+						UE_LOG(LogNet, Log, TEXT("PreLogin failure: %s"), *ErrorMsg);
+						NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("PRELOGIN FAILURE"), *ErrorMsg, Connection));
+
+						Connection->SendCloseReason(ENetCloseResult::PreLoginFailure);
+						FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
+						Connection->FlushNet(true);
+						Connection->Close(ENetCloseResult::PreLoginFailure);
 					}
 					else
 					{
-						OnComplete.ExecuteIfBound(FString());
+						// create a child network connection using the existing connection for its parent
+						check(Connection->GetUChildConnection() == NULL);
+#if WITH_EDITORONLY_DATA
+						check(CurrentLevel);
+#else
+						ULevel* CurrentLevel = PersistentLevel;
+#endif
+
+						UChildConnection* ChildConn = NetDriver->CreateChild(Connection);
+						ChildConn->PlayerId = SplitRequestUniqueIdRepl;
+						ChildConn->SetPlayerOnlinePlatformName(Connection->GetPlayerOnlinePlatformName());
+						ChildConn->RequestURL = SplitRequestURL;
+						ChildConn->SetClientWorldPackageName(CurrentLevel->GetOutermost()->GetFName());
+
+						// create URL from string
+						FURL JoinSplitURL(NULL, *SplitRequestURL, TRAVEL_Absolute);
+
+						UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Join request: URL=%s"), *JoinSplitURL.ToString());
+						APlayerController* PC = SpawnPlayActor(ChildConn, ROLE_AutonomousProxy, JoinSplitURL, ChildConn->PlayerId, ErrorMsg, uint8(Connection->Children.Num()));
+						if (PC == NULL)
+						{
+							// Failed to connect.
+							UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Join failure: %s"), *ErrorMsg);
+							NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("JOINSPLIT FAILURE"), *ErrorMsg, Connection));
+							// remove the child connection
+							Connection->Children.Remove(ChildConn);
+
+							// if any splitscreen viewport fails to join, all viewports on that client also fail
+							Connection->SendCloseReason(ENetCloseResult::JoinSplitFailure);
+							FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
+							Connection->FlushNet(true);
+							Connection->Close(ENetCloseResult::JoinSplitFailure);
+						}
+						else
+						{
+							// Successfully spawned in game.
+							UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Succeeded: %s PlayerId: %s"),
+								*ChildConn->PlayerController->PlayerState->GetPlayerName(),
+								*ChildConn->PlayerController->PlayerState->GetUniqueId().ToDebugString());
+						}
 					}
 				}
 
@@ -6613,93 +6672,6 @@ void UWorld::NotifyControlMessage(UNetConnection* Connection, uint8 MessageType,
 				break;
 			}
 		}
-	}
-}
-
-bool UWorld::PreLoginCheckError(UNetConnection* Connection, const FString& ErrorMsg)
-{
-	if (Connection)
-	{
-		if (ErrorMsg.IsEmpty())
-		{
-			return true;
-		}
-
-		UE_LOG(LogNet, Log, TEXT("PreLogin failure: %s"), *ErrorMsg);
-		NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("PRELOGIN FAILURE"), *ErrorMsg, Connection));
-		Connection->SendCloseReason(ENetCloseResult::PreLoginFailure);
-		FString ErrorMsgCopy(ErrorMsg); // Needed because Send() can't handle const FString.
-		FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsgCopy);
-		Connection->FlushNet(true);
-		Connection->Close(ENetCloseResult::PreLoginFailure);
-	}
-	else
-	{
-		UE_LOG(LogNet, Log, TEXT("PreLogin failure: connection was null"));
-	}
-
-	return false;
-}
-
-void UWorld::PreLoginComplete(const FString& ErrorMsg, TWeakObjectPtr<UNetConnection> WeakConnection)
-{
-	UNetConnection* Connection = WeakConnection.Get();
-	if (!PreLoginCheckError(Connection, ErrorMsg))
-	{
-		return;
-	}
-
-	WelcomePlayer(Connection);
-}
-
-void UWorld::PreLoginCompleteSplit(const FString& ErrorMsg, TWeakObjectPtr<UNetConnection> WeakConnection, FUniqueNetIdRepl SplitRequestUniqueIdRepl, FString SplitRequestURL)
-{
-	UNetConnection* Connection = WeakConnection.Get();
-	if (!PreLoginCheckError(Connection, ErrorMsg))
-	{
-		return;
-	}
-
-	// create a child network connection using the existing connection for its parent
-	check(Connection->GetUChildConnection() == NULL);
-#if WITH_EDITORONLY_DATA
-	check(CurrentLevel);
-#else
-	ULevel* CurrentLevel = PersistentLevel;
-#endif
-
-	UChildConnection* ChildConn = NetDriver->CreateChild(Connection);
-	ChildConn->PlayerId = SplitRequestUniqueIdRepl;
-	ChildConn->SetPlayerOnlinePlatformName(Connection->GetPlayerOnlinePlatformName());
-	ChildConn->RequestURL = SplitRequestURL;
-	ChildConn->SetClientWorldPackageName(CurrentLevel->GetOutermost()->GetFName());
-
-	// create URL from string
-	FURL JoinSplitURL(NULL, *SplitRequestURL, TRAVEL_Absolute);
-
-	UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Join request: URL=%s"), *JoinSplitURL.ToString());
-	FString SpawnErrorMsg;
-	APlayerController* PC = SpawnPlayActor(ChildConn, ROLE_AutonomousProxy, JoinSplitURL, ChildConn->PlayerId, SpawnErrorMsg, uint8(Connection->Children.Num()));
-	if (PC == NULL)
-	{
-		// Failed to connect.
-		UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Join failure: %s"), *SpawnErrorMsg);
-		NETWORK_PROFILER(GNetworkProfiler.TrackEvent(TEXT("JOINSPLIT FAILURE"), *SpawnErrorMsg, Connection));
-		// remove the child connection
-		Connection->Children.Remove(ChildConn);
-
-		// if any splitscreen viewport fails to join, all viewports on that client also fail
-		Connection->SendCloseReason(ENetCloseResult::JoinSplitFailure);
-		FNetControlMessage<NMT_Failure>::Send(Connection, SpawnErrorMsg);
-		Connection->FlushNet(true);
-		Connection->Close(ENetCloseResult::JoinSplitFailure);
-	}
-	else
-	{
-		// Successfully spawned in game.
-		UE_LOG(LogNet, Log, TEXT("JOINSPLIT: Succeeded: %s PlayerId: %s"),
-			*ChildConn->PlayerController->PlayerState->GetPlayerName(),
-			*ChildConn->PlayerController->PlayerState->GetUniqueId().ToDebugString());
 	}
 }
 
