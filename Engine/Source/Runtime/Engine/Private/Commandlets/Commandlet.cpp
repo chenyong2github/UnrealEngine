@@ -24,6 +24,7 @@ UCommandlet::UCommandlet(const FObjectInitializer& ObjectInitializer)
 	ShowErrorCount = true;
 	ShowProgress = true;
 	FastExit = false;
+	UseCommandletResultAsExitCode = false;
 }
 
 

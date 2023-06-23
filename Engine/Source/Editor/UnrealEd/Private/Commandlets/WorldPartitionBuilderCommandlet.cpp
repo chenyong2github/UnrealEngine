@@ -71,8 +71,8 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 
 	if (Switches.Contains(TEXT("RunningFromUnrealEd")))
 	{
-		ShowErrorCount = false;	// This has the side effect of making the process return code match the return code of the commandlet
-		FastExit = true;		// Faster exit which avoids crash during shutdown. The engine isn't shutdown cleanly.
+		UseCommandletResultAsExitCode = true;	// The process return code will match the return code of the commandlet
+		FastExit = true;						// Faster exit which avoids crash during shutdown. The engine isn't shutdown cleanly.
 	}
 
 	ICollectionManager& CollectionManager = FModuleManager::LoadModuleChecked<FCollectionManagerModule>("CollectionManager").Get();

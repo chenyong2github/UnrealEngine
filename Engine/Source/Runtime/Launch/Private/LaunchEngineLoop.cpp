@@ -4225,19 +4225,21 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 				{
 					SET_WARN_COLOR(COLOR_RED);
 					UE_LOG(LogInit, Display, TEXT("Failure - %d error(s), %d warning(s)"), AllErrors.Num(), AllWarnings.Num() );
-					ErrorLevel = 1;
 				}
 				CLEAR_WARN_COLOR();
 			}
 			else
 			{
-				// Even when we're not displaying error/warning summaries in the log, still return an non-zero code if errors were logged
+				UE_LOG(LogInit, Display, TEXT("Finished."));
+			}
+
+			// Return an non-zero code if errors were logged and UseCommandletResultAsExitCode is false
+			if (!Commandlet->UseCommandletResultAsExitCode)
+			{
 				if ((ErrorLevel == 0) && (GWarn->GetNumErrors() > 0))
 				{
 					ErrorLevel = 1;
 				}
-
-				UE_LOG(LogInit, Display, TEXT("Finished.") );
 			}
 
 			double CommandletExecutionTime = FPlatformTime::Seconds() - CommandletExecutionStartTime;

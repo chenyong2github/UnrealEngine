@@ -91,6 +91,10 @@ class UCommandlet : public UObject
 	UPROPERTY()
 	uint32 FastExit:1;
 
+	/** Whether to use the commandlet result as the exit code, even if errors were logged during the whole engine execution */
+	UPROPERTY()
+	uint32 UseCommandletResultAsExitCode: 1;
+
 	/**
 	 * Entry point for your commandlet
 	 *
