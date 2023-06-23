@@ -853,7 +853,7 @@ TArray<FString> UMaterialEditingLibrary::GetMaterialExpressionInputNames(UMateri
 {
 	TArray<FString> InputNames;
 
-	TArray<FExpressionInput*> Inputs = MaterialExpression->GetInputs();
+	TArrayView<FExpressionInput*> Inputs = MaterialExpression->GetInputsView();
 	for (int32 InputIdx = 0; InputIdx < Inputs.Num(); InputIdx++)
 	{
 		FName Name;
@@ -877,7 +877,7 @@ TArray<int32> UMaterialEditingLibrary::GetMaterialExpressionInputTypes(UMaterial
 {
 	TArray<int32> InputTypes;
 
-	TArray<FExpressionInput*> Inputs = MaterialExpression->GetInputs();
+	TArrayView<FExpressionInput*> Inputs = MaterialExpression->GetInputsView();
 	for (int32 InputIdx = 0; InputIdx < Inputs.Num(); InputIdx++)
 	{
 		FExpressionInput* Input = Inputs[InputIdx];
