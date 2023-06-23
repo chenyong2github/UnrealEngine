@@ -602,6 +602,8 @@ public:
 
 	void OnSelectedNodesOnlyChanged();
 
+	void OnTimeDisplayFormatChanged();
+
 	/** Will create a custom menu if FSequencerViewParams::OnBuildCustomContextMenuForGuid is specified. */
 	void BuildCustomContextMenuForGuid(FMenuBuilder& MenuBuilder, FGuid ObjectBinding);
 

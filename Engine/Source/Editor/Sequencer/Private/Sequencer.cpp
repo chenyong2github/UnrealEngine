@@ -330,6 +330,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	Settings->GetOnEvaluateSubSequencesInIsolationChanged().AddSP(this, &FSequencer::RestorePreAnimatedState);
 	Settings->GetOnShowSelectedNodesOnlyChanged().AddSP(this, &FSequencer::OnSelectedNodesOnlyChanged);
+	Settings->GetOnTimeDisplayFormatChanged().AddSP(this, &FSequencer::OnTimeDisplayFormatChanged);
 
 	ObjectBindingTagCache = MakeUnique<FObjectBindingTagCache>();
 
@@ -590,9 +591,6 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		ObjectBindings.Add(ObjectBinding);
 	}
 
-	TSharedPtr<FFrameNumberInterface> FrameNumberInterface = StaticCastSharedPtr<FFrameNumberInterface>(GetNumericTypeInterface().ToSharedPtr());
-	Settings->GetOnTimeDisplayFormatChanged().AddRaw(FrameNumberInterface.Get(), &FFrameNumberInterface::DisplayFormatChanged);
-
 	FMovieSceneObjectBindingIDCustomization::BindTo(AsShared());
 
 	ZoomAnimation = FCurveSequence();
@@ -701,11 +699,6 @@ FSequencer::~FSequencer()
 
 void FSequencer::Close()
 {
-	if (Settings && SequencerWidget)
-	{
-		Settings->GetOnTimeDisplayFormatChanged().RemoveAll(&SequencerWidget->GetNumericTypeInterface().Get());
-	}
-
 	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
 		if (LevelVC != nullptr)
@@ -6718,6 +6711,15 @@ void FSequencer::OnSelectedNodesOnlyChanged()
 	RefreshTree();
 	
 	SynchronizeSequencerSelectionWithExternalSelection();
+}
+
+void FSequencer::OnTimeDisplayFormatChanged()
+{
+	TSharedPtr<FFrameNumberInterface> FrameNumberInterface = StaticCastSharedPtr<FFrameNumberInterface>(GetNumericTypeInterface().ToSharedPtr());
+	if (FrameNumberInterface.IsValid())
+	{
+		FrameNumberInterface->DisplayFormatChanged();
+	}
 }
 
 void FSequencer::ZoomToFit()
