@@ -627,12 +627,12 @@ void SAssetTableTreeView::InitAvailableViewPresets()
 	public:
 		virtual FText GetName() const override
 		{
-			return LOCTEXT("PluginDepView_PresetName", "Group By Plugin");
+			return LOCTEXT("PluginGroupView_PresetName", "Group By Plugin");
 		}
 
 		virtual FText GetToolTip() const override
 		{
-			return LOCTEXT("PluginDepView_PresetToolTip", "Group By Plugin\nGroup assets by plugin.");
+			return LOCTEXT("PluginGroupView_PresetToolTip", "Group By Plugin\nGroup assets by plugin.");
 		}
 		virtual FName GetSortColumn() const override
 		{
