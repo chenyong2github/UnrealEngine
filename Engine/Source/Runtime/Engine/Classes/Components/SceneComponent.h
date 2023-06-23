@@ -778,7 +778,7 @@ public:
 	/** 
 	 * Get world-space socket or bone location.
 	 * @param InSocketName Name of the socket or the bone to get the transform 
-	 * @return Socket transform in world space if socket if found. Otherwise it will return component's transform in world space.
+	 * @return Socket transform in world space if socket is found. Otherwise it will return component's transform in world space.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(Keywords="Bone"))
 	ENGINE_API virtual FVector GetSocketLocation(FName InSocketName) const;

@@ -1174,6 +1174,14 @@ public:
 		return LeaderPoseComponent.IsValid() ? LeaderPoseComponent.Get() : this;
 	}
 
+	/** 
+	 * Get world-space bone transform.
+	 * @param InBoneName Name of the the bone to get the transform 
+	 * @return Bone transform in world space if bone is found. Otherwise it will return component's transform in world space.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Transformation", meta=(Keywords="Bone"))
+	FTransform GetBoneTransform(FName InBoneName, ERelativeTransformSpace TransformSpace = RTS_World) const { return GetSocketTransform(InBoneName, TransformSpace); }
+
 	/**
 	* Returns color of the vertex.
 	*
