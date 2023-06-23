@@ -21,5 +21,11 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "OpenColorIO",
+			"Enabled": true
+		}
 	]
 }
