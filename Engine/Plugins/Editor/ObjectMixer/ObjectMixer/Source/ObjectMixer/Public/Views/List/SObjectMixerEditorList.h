@@ -155,6 +155,13 @@ public:
 	void SetTreeViewItemExpanded(const TSharedPtr<ISceneOutlinerTreeItem>& RowToExpand, const bool bNewExpansion) const;
 
 	void PropagatePropertyChangesToSelectedRows();
+	
+	[[nodiscard]] float GetScrollBoxContainerWidthOverride() const
+	{
+		return ScrollBoxContainerWidthOverride;
+	}
+
+	void SetScrollBoxContainerWidthOverride(const float InScrollBoxContainerWidthOverride);
 
 	// Columns
 
@@ -180,8 +187,10 @@ protected:
 	TSet<FObjectMixerEditorListRowData::FPropertyPropagationInfo> PendingPropertyPropagations;
 
 	TArray<FObjectMixerSceneOutlinerColumnInfo> HeaderColumnInfos;
+	TSharedPtr<SWidget> HeaderRowContextMenuWidget;
 
 	TWeakPtr<SHorizontalBox> ToolbarPtr;
+	TSharedPtr<SBox> ScrollBoxContainerPtr;
 
 	bool CanCreateFolder() const;
 	TSharedRef<SWidget> OnGenerateAddObjectButtonMenu() const;
@@ -218,4 +227,10 @@ protected:
 	void CreateActorTextInfoColumns(FSceneOutlinerInitializationOptions& OutInitOptions);
 	void SetupColumns(FSceneOutlinerInitializationOptions& OutInitOptions);
 	void SortColumnsForHeaderContextMenu();
+
+private:
+
+	bool bHasBeenResized = false;
+
+	float ScrollBoxContainerWidthOverride = 0.0f;
 };
