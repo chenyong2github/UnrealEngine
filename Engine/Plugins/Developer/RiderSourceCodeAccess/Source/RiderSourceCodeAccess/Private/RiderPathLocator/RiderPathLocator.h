@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "Containers/Set.h"
+#include "CoreMinimal.h"
 #include "Misc/Paths.h"
-
-template <typename OptionalType> struct TOptional;
 
 struct FVersion
 {	
 	bool IsInitialized() const { return Versions.Num() != 0; }
+
+	FVersion(){}
+
+	explicit FVersion(const FString& VersionString)
+	{
+		*this = VersionString;
+	}
 
 	void operator=(const FString& VersionString)
 	{
@@ -61,7 +66,16 @@ struct FVersion
 			if(LeftElement > RightElement) return false;
 		}
 		return LeftSize < RightSize;
-		
+	}
+
+	bool operator==(const FVersion& rhs) const
+	{
+		return !(*this < rhs) && !(rhs < *this); 
+	}
+
+	bool operator!=(const FVersion& rhs) const
+	{
+		return (*this < rhs) || (rhs < *this); 
 	}
 
 	FString ToString() const
@@ -122,6 +136,7 @@ struct FInstallInfo
     }
 };
 
+template <typename OptionalType> struct TOptional;
 class FRiderPathLocator
 {
 public:
@@ -130,7 +145,10 @@ public:
 	static TSet<FInstallInfo> CollectAllPaths();
 private:
 	static void ParseProductInfoJson(FInstallInfo& Info, const FString& ProductInfoJsonPath);
+	static FString GetDefaultIDEInstallLocationForToolboxV2();
 	static TArray<FInstallInfo> GetInstallInfosFromToolbox(const FString& ToolboxPath, const FString& Pattern);
 	static TArray<FInstallInfo> GetInstallInfosFromResourceFile();
 	static TArray<FInstallInfo> GetInstallInfos(const FString& ToolboxRiderRootPath, const FString& Pattern, FInstallInfo::EInstallType InstallType);
+	static FString GetHistoryJsonPath(const FString& RiderPath);
+	static FVersion GetLastBuildVersion(const FString& HistoryJsonPath);
 };

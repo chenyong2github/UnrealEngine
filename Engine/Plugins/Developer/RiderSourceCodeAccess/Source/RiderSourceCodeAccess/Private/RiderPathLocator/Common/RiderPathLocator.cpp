@@ -1,13 +1,16 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RiderPathLocator/RiderPathLocator.h"
+#include "Dom/JsonObject.h"
 #include "Interfaces/IPluginManager.h"
+#include "Internationalization/Regex.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
-TArray<FInstallInfo> FRiderPathLocator::GetInstallInfosFromToolbox(const FString& ToolboxPath, const FString& Pattern)
+FString ExtractPathFromSettingsJson(const FString& ToolboxPath)
 {
-	FString InstallPath = ToolboxPath;
 	const FString SettingJsonPath = FPaths::Combine(ToolboxPath, TEXT(".settings.json"));
 	if (FPaths::FileExists(SettingJsonPath))
 	{
@@ -22,30 +25,95 @@ TArray<FInstallInfo> FRiderPathLocator::GetInstallInfosFromToolbox(const FString
 			{
 				if (!InstallLocation.IsEmpty())
 				{
-					InstallPath = InstallLocation;
+					return InstallLocation;
 				}
 			}
 		}
 	}
-	
-	const FString ToolboxRiderRootPath = FPaths::Combine(InstallPath, TEXT("apps"));
-	if(!FPaths::DirectoryExists(ToolboxRiderRootPath)) return {};
+	return {};
+}
 
-	return GetInstallInfos(ToolboxRiderRootPath, Pattern, FInstallInfo::EInstallType::Toolbox);
+TArray<FInstallInfo> FRiderPathLocator::GetInstallInfosFromToolbox(const FString& ToolboxPath, const FString& Pattern)
+{
+	if(!FPaths::DirectoryExists(ToolboxPath)) return {};
+	
+	const FString InstallLocationPath = ExtractPathFromSettingsJson(ToolboxPath);
+	TArray<FInstallInfo> Result{};
+	if(!InstallLocationPath.IsEmpty())
+	{
+		// Toolbox V1 custom install location search path
+		Result = GetInstallInfos(FPaths::Combine(InstallLocationPath, TEXT("apps")), Pattern, FInstallInfo::EInstallType::Toolbox);
+		if(Result.Num() != 0) return Result;
+
+		// Toolbox V2 custom install location search path
+		return GetInstallInfos(InstallLocationPath, Pattern, FInstallInfo::EInstallType::Toolbox);		
+	}
+
+	// Toolbox V1 default install location search path
+	Result = GetInstallInfos(FPaths::Combine(ToolboxPath, TEXT("apps")), Pattern, FInstallInfo::EInstallType::Toolbox);
+	if(Result.Num() != 0) return Result;
+
+	const FString DefaultInstallLocation = GetDefaultIDEInstallLocationForToolboxV2();
+	return GetInstallInfos(DefaultInstallLocation, Pattern, FInstallInfo::EInstallType::Toolbox);
+}
+
+FVersion FRiderPathLocator::GetLastBuildVersion(const FString& HistoryJsonPath)
+{
+	if(!FPaths::FileExists(HistoryJsonPath)) return {};
+	
+	FString JsonStr;
+	FFileHelper::LoadFileToString(JsonStr, *HistoryJsonPath);
+	const TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(JsonStr);
+	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
+	if (!FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid()) return {};
+	
+	const TArray< TSharedPtr<FJsonValue> >* HistoryField;
+	if(!JsonObject->TryGetArrayField(TEXT("history"), HistoryField)) return {};
+	if(HistoryField->Num() == 0) return {};
+
+	const TSharedPtr<FJsonObject>* LastItemObject;
+	if(!HistoryField->Last()->TryGetObject(LastItemObject)) return {};
+
+	const TSharedPtr<FJsonObject>* ItemObject;
+	if(!LastItemObject->Get()->TryGetObjectField("item", ItemObject)) return {};
+
+	FString Build;
+	if(!ItemObject->Get()->TryGetStringField("build", Build)) return {};
+
+	return FVersion(Build);
+}
+
+FString FRiderPathLocator::GetHistoryJsonPath(const FString& RiderPath)
+{
+	FString Directory = FPaths::ConvertRelativePathToFull(FPaths::Combine(RiderPath, ".."));
+	int8_t SafeCheck = 10;
+	while(FPaths::DirectoryExists(Directory) && SafeCheck-- > 0)
+	{
+		FString HistoryPath = FPaths::Combine(Directory, ".history.json");
+		if(FPaths::FileExists(HistoryPath)) return HistoryPath;
+
+		Directory = FPaths::ConvertRelativePathToFull(FPaths::Combine(Directory, ".."));
+	}
+	return {};
 }
 
 TArray<FInstallInfo> FRiderPathLocator::GetInstallInfos(const FString& ToolboxRiderRootPath, const FString& Pattern, FInstallInfo::EInstallType InstallType)
 {
+	if(ToolboxRiderRootPath.IsEmpty() || !FPaths::DirectoryExists(ToolboxRiderRootPath)) return {};
+	
 	TArray<FInstallInfo> RiderInstallInfos;
 	TArray<FString> RiderPaths;
 	IFileManager::Get().FindFilesRecursive(RiderPaths, *ToolboxRiderRootPath, *Pattern, true, true);
 	for(const FString& RiderPath: RiderPaths)
 	{
 		TOptional<FInstallInfo> InstallInfo = GetInstallInfoFromRiderPath(RiderPath, InstallType);
-		if(InstallInfo.IsSet())
-		{
-			RiderInstallInfos.Add(InstallInfo.GetValue());
-		}
+		if(!InstallInfo.IsSet()) continue;
+		
+		FString HistoryJsonPath = GetHistoryJsonPath(RiderPath);
+		FVersion Version = GetLastBuildVersion(HistoryJsonPath);
+		if(Version.IsInitialized() && InstallInfo->Version != Version) continue;
+		
+		RiderInstallInfos.Add(InstallInfo.GetValue());
 	}
 	return RiderInstallInfos;
 }

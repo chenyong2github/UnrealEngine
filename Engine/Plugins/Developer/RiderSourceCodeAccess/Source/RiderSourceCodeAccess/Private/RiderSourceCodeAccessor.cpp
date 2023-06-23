@@ -4,9 +4,13 @@
 
 #include "RiderPathLocator/RiderPathLocator.h"
 
+#include "Modules/ModuleManager.h"
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/UProjectInfo.h"
+#include "DesktopPlatformModule.h"
 #include "ISourceCodeAccessModule.h"
 #include "Interfaces/IProjectManager.h"
 #include "ProjectDescriptor.h"

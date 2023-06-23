@@ -7,10 +7,8 @@
 #include "RiderPathLocator/RiderPathLocator.h"
 
 #include "HAL/FileManager.h"
-#include "Misc/FileHelper.h"
+#include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
-#include "Serialization/JsonSerializer.h"
-#include "Mac/MacPlatformProcess.h"
 
 #include "Runtime/Launch/Resources/Version.h"
 
@@ -107,6 +105,18 @@ static TArray<FInstallInfo> GetInstalledRidersWithMdfind()
 		}
 	}
 	return Result;
+}
+
+FString FRiderPathLocator::GetDefaultIDEInstallLocationForToolboxV2()
+{
+#if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION <= 20
+	TCHAR CHomePath[4096];
+	FPlatformMisc::GetEnvironmentVariable(TEXT("HOME"), CHomePath, ARRAY_COUNT(CHomePath));
+	const FString FHomePath = CHomePath;
+#else
+	const FString FHomePath = FPlatformMisc::GetEnvironmentVariable(TEXT("HOME"));
+#endif
+	return FPaths::Combine(FHomePath, TEXT("Applications"));
 }
 
 TSet<FInstallInfo> FRiderPathLocator::CollectAllPaths()
