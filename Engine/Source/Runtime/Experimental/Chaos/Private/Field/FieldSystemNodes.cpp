@@ -141,10 +141,9 @@ void FUniformInteger::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 1;
 }
 
-void FUniformInteger::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FUniformInteger::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(static_cast<float>(Magnitude));
 }
 
@@ -233,10 +232,9 @@ void FRadialIntMask::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 7;
 }
 
-void FRadialIntMask::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FRadialIntMask::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Radius);
 	NodesParams.Add(static_cast<float>(Position.X));
 	NodesParams.Add(static_cast<float>(Position.Y));
@@ -294,10 +292,9 @@ void FUniformScalar::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 1;
 }
 
-void FUniformScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FUniformScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 }
 
@@ -407,19 +404,16 @@ void FWaveScalar::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 9;
 }
 
-void FWaveScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FWaveScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,const float CommandTime) const
 {
-	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
-
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 	NodesParams.Add(static_cast<float>(Position.X));
 	NodesParams.Add(static_cast<float>(Position.Y));
 	NodesParams.Add(static_cast<float>(Position.Z));
 	NodesParams.Add(Wavelength);
 	NodesParams.Add(Period);
-	NodesParams.Add(NextTime);
+	NodesParams.Add(CommandTime);
 	NodesParams.Add(static_cast<float>(Function));
 	NodesParams.Add(static_cast<float>(Falloff));
 }
@@ -561,10 +555,9 @@ void FRadialFalloff::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 9;
 }
 
-void FRadialFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FRadialFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 	NodesParams.Add(MinRange);
 	NodesParams.Add(MaxRange);
@@ -675,10 +668,9 @@ void FPlaneFalloff::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 12;
 }
 
-void FPlaneFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FPlaneFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 	NodesParams.Add(MinRange);
 	NodesParams.Add(MaxRange);
@@ -791,10 +783,9 @@ void FBoxFalloff::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 15;
 }
 
-void FBoxFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FBoxFalloff::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 	NodesParams.Add(MinRange);
 	NodesParams.Add(MaxRange);
@@ -886,10 +877,9 @@ void FNoiseField::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 12;
 }
 
-void FNoiseField::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FNoiseField::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(MinRange);
 	NodesParams.Add(MaxRange);
 	NodesParams.Add(static_cast<float>(Transform.GetRotation().X));
@@ -950,10 +940,9 @@ void FUniformVector::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 4;
 }
 
-void FUniformVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const 
+void FUniformVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const 
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 	NodesParams.Add(static_cast<float>(Direction.X));
 	NodesParams.Add(static_cast<float>(Direction.Y));
@@ -1007,10 +996,9 @@ void FRadialVector::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 4;
 }
 
-void FRadialVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FRadialVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 	NodesParams.Add(static_cast<float>(Position.X));
 	NodesParams.Add(static_cast<float>(Position.Y));
@@ -1065,10 +1053,9 @@ void FRandomVector::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 1;
 }
 
-void FRandomVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const 
+void FRandomVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const 
 {
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 }
 
@@ -1219,20 +1206,17 @@ void FSumScalar::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 4;
 }
 
-void FSumScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FSumScalar::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
-
 	if (ScalarRight.IsValid())
 	{
-		ScalarRight->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+		ScalarRight->FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	}
 	if (ScalarLeft.IsValid())
 	{
-		ScalarLeft->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+		ScalarLeft->FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	}
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 	NodesParams.Add(static_cast<float>(ScalarRight != nullptr));
 	NodesParams.Add(static_cast<float>(ScalarLeft != nullptr));
@@ -1443,24 +1427,21 @@ void FSumVector::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 	NumParams += 5;
 }
 
-void FSumVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FSumVector::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
-
 	if (Scalar.IsValid())
 	{
-		Scalar->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+		Scalar->FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	}
 	if (VectorRight.IsValid())
 	{
-		VectorRight->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+		VectorRight->FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	}
 	if (VectorLeft.IsValid())
 	{
-		VectorLeft->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+		VectorLeft->FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	}
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(Magnitude);
 	NodesParams.Add(static_cast<float>(Scalar != nullptr));
 	NodesParams.Add(static_cast<float>(VectorRight != nullptr));
@@ -1592,17 +1573,14 @@ void FConversionField<InT, OutT>::FillSetupCount(int32& NumOffsets, int32& NumPa
 }
 
 template<class InT, class OutT>
-void FConversionField<InT, OutT>::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FConversionField<InT, OutT>::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
-
 	if (InputField.IsValid())
 	{
-		InputField->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+		InputField->FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	}
 
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(static_cast<float>(InputField != nullptr));
 }
 
@@ -1753,21 +1731,18 @@ void FCullingField<T>::FillSetupCount(int32& NumOffsets, int32& NumParams) const
 }
 
 template<class T>
-void FCullingField<T>::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-	const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const
+void FCullingField<T>::FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const
 {
-	const float NextTime = CommandTimes.Find(this) ? CommandTimes[this] : PreviousTime;
-
 	if (Culling.IsValid())
 	{
-		Culling->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+		Culling->FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	}
 	if (Input.IsValid())
 	{
-		Input->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, NextTime);
+		Input->FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	}
 
-	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, PreviousTime);
+	Super::FillSetupDatas(NodesOffsets, NodesParams, CommandTime);
 	NodesParams.Add(static_cast<float>(Culling != nullptr));
 	NodesParams.Add(static_cast<float>(Input != nullptr));
 	NodesParams.Add(static_cast<float>(Operation));

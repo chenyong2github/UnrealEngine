@@ -672,26 +672,23 @@ void FPhysicsFieldInstance::ReleaseInstance()
 	NodesParams.Empty();
 	TargetsMax.Empty();
 	TargetsMin.Empty();
+	BoundsMin.Empty();
+	BoundsMax.Empty();
 }
 
 void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
 {
-	NodesOffsets.Empty();
-	NodesParams.Empty();
+	NodesOffsets.Reset();
+	NodesParams.Reset();
 
-	TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1> BoundsOffsets;
-	TArray<FVector4> BoundsMin, BoundsMax;
-
-	int32 NumOffsets = 0;
-	int32 NumParams = 0;
-	TArray<int32> TestOffsets;
-	TArray<float> TestParams;
+	BoundsMin.Reset();
+	BoundsMax.Reset();
 
 	if (FieldResource)
 	{
 		TargetsMin.Init(FVector(0), EFieldPhysicsType::Field_PhysicsType_Max);
 		TargetsMax.Init(FVector(0), EFieldPhysicsType::Field_PhysicsType_Max);
-
+		
 		for (auto& TargetOffset : TargetsOffsets)
 		{
 			TargetOffset = 0;
@@ -702,91 +699,65 @@ void FPhysicsFieldInstance::UpdateInstance(const float TimeSeconds)
 		}
 		for (auto& TargetType : FieldResource->FieldInfos.TargetTypes)
 		{
-			TArray<FFieldNodeBase*> TargetRoots;
-			TArray<float> CreationTimes;
+			const int32 NodeOffset = NodesOffsets.Num();
+			FVector TargetMin(FLT_MAX), TargetMax(-FLT_MAX);
+			int32 NumCommands = 0;
+			
+			const EFieldOutputType OutputType = GetFieldTargetOutput(TargetType);
 			for (auto& FieldCommand : FieldCommands)
 			{
 				const EFieldPhysicsType CommandType = GetFieldPhysicsType(FieldCommand.TargetAttribute);
 				if (CommandType == TargetType)
 				{
-					const TUniquePtr<FFieldNodeBase>& RootNode = FieldCommand.RootNode;
-					TargetRoots.Add(RootNode.Get());
-					CreationTimes.Add(FieldCommand.TimeCreation);
-					BoundsOffsets[TargetType+1]++;
+					UPhysicsFieldComponent::BuildCommandBounds(FieldCommand);
+
 					BoundsMin.Add(FVector4(FieldCommand.BoundingBox.Min, 0.0));
 					BoundsMax.Add(FVector4(FieldCommand.BoundingBox.Max, FieldCommand.MaxMagnitude));
-				}
-			}
-			FFieldNodeBase* TargetNode = nullptr;
-			TMap<FFieldNodeBase*, float> CommandTimes;
-			if (TargetRoots.Num() == 1)
-			{
-				TargetNode = TargetRoots[0];
-				CommandTimes.Add(TargetNode, CreationTimes[0]);
-			}
-			else if (TargetRoots.Num() > 1)
-			{
-				const EFieldOutputType OutputType = GetFieldTargetOutput(TargetType);
-				if (OutputType == EFieldOutputType::Field_Output_Vector)
-				{
-					FFieldNode<FVector>* PreviousNode = StaticCast<FFieldNode<FVector>*>(TargetRoots[0]->NewCopy());
-					CommandTimes.Add(PreviousNode, CreationTimes[0]);
-					FFieldNode<FVector>* NextNode = nullptr;
-					for (int32 TargetIndex = 1; TargetIndex < TargetRoots.Num(); ++TargetIndex)
-					{
-						NextNode = StaticCast<FFieldNode<FVector>*>(TargetRoots[TargetIndex]->NewCopy());
-						CommandTimes.Add(NextNode, CreationTimes[TargetIndex]);
 
-						PreviousNode = new FSumVector(1.0, nullptr, PreviousNode,
-							NextNode, EFieldOperationType::Field_Add);
-					}
-					TargetNode = PreviousNode;
-				}
-				else if (OutputType == EFieldOutputType::Field_Output_Scalar)
-				{
-					FFieldNode<float>* PreviousNode = StaticCast<FFieldNode<float>*>(TargetRoots[0]->NewCopy());
-					CommandTimes.Add(PreviousNode, CreationTimes[0]);
-					FFieldNode<float>* NextNode = nullptr;
-					for (int32 TargetIndex = 1; TargetIndex < TargetRoots.Num(); ++TargetIndex)
+					TargetMin = MinVector(TargetMin, FieldCommand.BoundingBox.Min);
+					TargetMax = MaxVector(TargetMax, FieldCommand.BoundingBox.Max);
+					
+					// The order should N0,C0,N1,C1,S1,N2,C2,S2...(N: node data, C: conversion data, S: Sum data)
+					// Loop over the instances directly instead of building an instance graph to avoid stack overflow
+					if(NumCommands == 1)
 					{
-						NextNode = StaticCast<FFieldNode<float>*>(TargetRoots[TargetIndex]->NewCopy());
-						CommandTimes.Add(NextNode, CreationTimes[TargetIndex]);
-						PreviousNode = new FSumScalar(1.0, PreviousNode,
-							NextNode, EFieldOperationType::Field_Add);
+						// Pre fill datas : Only append a conversion field (int->float) for the first command 
+						// to be used by the SumScalar in the post fill
+						if (OutputType == EFieldOutputType::Field_Output_Integer)
+						{
+							FConversionField<int32, float>::FillDefaultSetup(NodesOffsets, NodesParams);
+						}
 					}
-					TargetNode = PreviousNode;
-				}
-				else if (OutputType == EFieldOutputType::Field_Output_Integer)
-				{
-					FFieldNode<float>* PreviousNode = new FConversionField<int32, float>(StaticCast<FFieldNode<int32>*>(TargetRoots[0]->NewCopy()));
-					CommandTimes.Add(PreviousNode, CreationTimes[0]);
-					FFieldNode<float>* NextNode = nullptr;
-					for (int32 TargetIndex = 1; TargetIndex < TargetRoots.Num(); ++TargetIndex)
+
+					FieldCommand.RootNode->FillSetupDatas(NodesOffsets, NodesParams, FieldCommand.TimeCreation);
+
+					if(NumCommands > 0)
 					{
-						NextNode = new FConversionField<int32, float>(StaticCast<FFieldNode<int32>*>(TargetRoots[TargetIndex]->NewCopy()));
-						CommandTimes.Add(NextNode, CreationTimes[TargetIndex]);
-						PreviousNode = new FSumScalar(1.0, PreviousNode,
-							NextNode, EFieldOperationType::Field_Add);
+						// Post fill datas : Append a sum vector field in between the previous node and the current one
+						if (OutputType == EFieldOutputType::Field_Output_Vector)
+						{
+							FSumVector::FillDefaultSetup(NodesOffsets, NodesParams);
+						}
+						// Post fill datas : Append a sum scalar field in between the previous node and the current one
+						else if (OutputType == EFieldOutputType::Field_Output_Scalar)
+						{
+							FSumScalar::FillDefaultSetup(NodesOffsets, NodesParams);
+						}
+						// Post fill datas : Append a conversion field (int->float) + sum scalar field in between the previous node and the current one
+						else if (OutputType == EFieldOutputType::Field_Output_Integer)
+						{
+							FConversionField<int32, float>::FillDefaultSetup(NodesOffsets, NodesParams);
+							FSumScalar::FillDefaultSetup(NodesOffsets, NodesParams);
+						}
 					}
-					TargetNode = PreviousNode;
+					++NumCommands;
 				}
 			}
-			const int32 PreviousNodes = NodesOffsets.Num();
-			FVector MinBound(-FLT_MAX), MaxBound(FLT_MAX);
-			if (TargetNode)
-			{
-				TargetNode->FillSetupCount(NumOffsets, NumParams);
-				NodesOffsets.Reserve(NumOffsets);
-				NodesParams.Reserve(NumParams);
-
-				TargetNode->FillSetupDatas(NodesOffsets, NodesParams, CommandTimes, 0.0);
-				TargetNode->ComputeFieldBounds(MinBound, MaxBound);
-				if (TargetRoots.Num() > 1) delete TargetNode;
-			}
-			TargetsOffsets[TargetType + 1] = NodesOffsets.Num() - PreviousNodes;
-
-			TargetsMin[TargetType] = MinBound;
-			TargetsMax[TargetType] = MaxBound;
+			BoundsOffsets[TargetType+1] = NumCommands;
+			TargetsOffsets[TargetType+1] = NodesOffsets.Num() - NodeOffset;
+			
+			TargetsMin[TargetType] = (NumCommands == 0) ? FVector(-FLT_MAX) : TargetMin;
+			TargetsMax[TargetType] = (NumCommands == 0) ? FVector(FLT_MAX) : TargetMax;
 		}
 		
 		for (uint32 FieldIndex = 1; FieldIndex < EFieldPhysicsType::Field_PhysicsType_Max + 1; ++FieldIndex)

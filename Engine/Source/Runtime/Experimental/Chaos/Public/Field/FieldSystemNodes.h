@@ -34,8 +34,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -80,8 +79,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -126,8 +124,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -170,8 +167,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -227,8 +223,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -292,8 +287,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -355,8 +349,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -406,8 +399,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -447,8 +439,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -487,8 +478,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -526,8 +516,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
@@ -575,14 +564,25 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
 	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+
+	/** Default setup for the sum scalar field */
+	static void FillDefaultSetup(TArray<int32>& NodesOffsets, TArray<float>& NodesParams)
+	{
+		NodesOffsets.Add(NodesParams.Num());
+		NodesParams.Add(static_cast<float>(Super::StaticType()));
+		NodesParams.Add(static_cast<float>(FFieldNodeBase::ESerializationType::FieldNode_FSumScalar));
+		NodesParams.Add(1.0);
+		NodesParams.Add(1.0);
+		NodesParams.Add(1.0);
+		NodesParams.Add(static_cast<float>(EFieldOperationType::Field_Add));
+	}
 
 	float Magnitude;
 	TUniquePtr< FFieldNode<float> > ScalarRight;
@@ -633,14 +633,26 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
 	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+
+	/** Default setup for the sum vector field */
+	static void FillDefaultSetup(TArray<int32>& NodesOffsets, TArray<float>& NodesParams)
+	{
+		NodesOffsets.Add(NodesParams.Num());
+		NodesParams.Add(static_cast<float>(Super::StaticType()));
+		NodesParams.Add(static_cast<float>(FFieldNodeBase::ESerializationType::FieldNode_FSumVector));
+		NodesParams.Add(1.0);
+		NodesParams.Add(0.0);
+		NodesParams.Add(1.0);
+		NodesParams.Add(1.0);
+		NodesParams.Add(static_cast<float>(EFieldOperationType::Field_Add));
+	}
 
 	float Magnitude;
 	TUniquePtr< FFieldNode<float> > Scalar;
@@ -681,14 +693,22 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;
 
 	/** Compute the min/max spatial bounds of the field */
 	CHAOS_API virtual void ComputeFieldBounds(FVector& MinBounds, FVector& MaxBounds) const override;
+
+	/** Default setup for the conversion field */
+	static void FillDefaultSetup(TArray<int32>& NodesOffsets, TArray<float>& NodesParams)
+	{
+		NodesOffsets.Add(NodesParams.Num());
+		NodesParams.Add(static_cast<float>(Super::StaticType()));
+		NodesParams.Add(static_cast<float>(FFieldNodeBase::ESerializationType::FieldNode_FConversionField));
+		NodesParams.Add(1.0);
+	}
 
 	TUniquePtr< FFieldNode<InT> > InputField;
 };
@@ -734,8 +754,7 @@ public:
 	CHAOS_API virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const override;
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override;
+	CHAOS_API virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override;
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	CHAOS_API virtual float EvalMaxMagnitude() const override;

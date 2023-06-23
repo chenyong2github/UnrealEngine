@@ -450,8 +450,7 @@ public:
 	virtual void FillSetupCount(int32& NumOffsets, int32& NumParams) const {}
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const {}
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const {}
 
 	/** Evaluate the maximum magnitude of the field graph  */
 	virtual float EvalMaxMagnitude() const { return 1.0; }
@@ -499,8 +498,7 @@ public:
 	}
 
 	/** Fill the offsets/params arrays that will be used by the world physics field */
-	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams,
-		const TMap<FFieldNodeBase*, float>& CommandTimes, const float PreviousTime) const override
+	virtual void FillSetupDatas(TArray<int32>& NodesOffsets, TArray<float>& NodesParams, const float CommandTime) const override
 	{
 		NodesOffsets.Add(NodesParams.Num());
 		NodesParams.Add(static_cast<float>(Type()));

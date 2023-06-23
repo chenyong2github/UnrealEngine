@@ -192,12 +192,21 @@ public:
 
 	/** Targets offsets in the nodes array*/
 	TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1> TargetsOffsets;
+	
+	/** Bounds offsets in the bounds array*/
+	TStaticArray<int32, EFieldPhysicsType::Field_PhysicsType_Max + 1> BoundsOffsets;
 
 	/** Nodes offsets in the paramter array */
 	TArray<int32> NodesOffsets;
 
 	/** Nodes input parameters and connection */
 	TArray<float> NodesParams;
+
+	/** Commands bounds min sorted per target type */
+	TArray<FVector4> BoundsMin;
+
+	/** Commands bounds max sorted per target type */
+	TArray<FVector4> BoundsMax;
 
 	/** List of all the field commands in the world */
 	TArray<FFieldSystemCommand> FieldCommands;
