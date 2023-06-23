@@ -95,37 +95,6 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 	RebuildCollectionSelector();
 
 	SetSingleCollectionSelection();
-
-	// Horizontal Scrollbar
-	TSharedPtr<SOverlay> ParentOverlay = StaticCastSharedPtr<SOverlay>(GetTreeView()->GetParentWidget());
-	FChildren* ScrollboxChildren = ParentOverlay->GetChildren();
-	
-	for (int32 ScrollboxChildItr = 0; ScrollboxChildItr < ScrollboxChildren->Num(); ScrollboxChildItr++)
-	{
-		TSharedRef<SWidget> ScrollboxChild = ScrollboxChildren->GetChildAt(ScrollboxChildItr);
-
-		if (ScrollboxChild == GetTreeView())
-		{
-			ParentOverlay->RemoveSlot(GetTreeView().ToSharedRef());
-			ParentOverlay->AddSlot(ScrollboxChildItr)
-			.HAlign(HAlign_Fill)
-			[
-				SNew(SScrollBox)
-				.Orientation(Orient_Horizontal)
-
-				+SScrollBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				[
-					SAssignNew(ScrollBoxContainerPtr, SBox)
-					.HAlign(HAlign_Fill)
-					[
-						GetTreeView().ToSharedRef()
-					]
-				]
-			];
-		}
-	}
 }
 
 SObjectMixerEditorList::~SObjectMixerEditorList()
@@ -617,12 +586,6 @@ void SObjectMixerEditorList::SetTreeViewItemExpanded(const TSharedPtr<ISceneOutl
 	GetTreeView()->SetItemExpansion(RowToExpand, bNewExpansion);
 }
 
-void SObjectMixerEditorList::SetScrollBoxContainerWidthOverride(const float InScrollBoxContainerWidthOverride)
-{
-	ScrollBoxContainerWidthOverride = InScrollBoxContainerWidthOverride;
-	ScrollBoxContainerPtr->SetWidthOverride(GetScrollBoxContainerWidthOverride());
-}
-
 FObjectMixerSceneOutlinerColumnInfo* SObjectMixerEditorList::GetColumnInfoByPropertyName(const FName& InPropertyName)
 {
 	return Algo::FindByPredicate(HeaderColumnInfos,
@@ -701,61 +664,6 @@ void SObjectMixerEditorList::Tick(const FGeometry& AllottedGeometry, const doubl
 		RebuildList();
 	}
 
-	if (!bHasBeenResized)
-	{
-		TSharedPtr<SHeaderRow> HeaderRow = GetTree().GetHeaderRow();
-		constexpr float MinAllowedWidth = 40;
-		constexpr float MaxAllowedWidth = 100;
-		const TArray<FName> FixedColumns =
-			{
-				FSceneOutlinerBuiltInColumnTypes::Unsaved(),
-				FObjectMixerOutlinerVisibilityColumn::GetID(),
-				FObjectMixerOutlinerSoloColumn::GetID()
-			};
-
-		// Iterate over columns in reverse so that built-in columns don't get squished
-		const TIndirectArray<SHeaderRow::FColumn>& HeaderColumns = HeaderRow->GetColumns();
-		for (int32 ColumnItr = HeaderColumns.Num() - 1; ColumnItr >= 0; ColumnItr--)
-		{
-			const SHeaderRow::FColumn& Column = HeaderColumns[ColumnItr];
-			
-			if (Column.ColumnId == FSceneOutlinerBuiltInColumnTypes::Label())
-			{
-				constexpr float DefaultWidthForItemLabelColumn = 150;
-				HeaderRow->SetColumnWidth(Column.ColumnId, DefaultWidthForItemLabelColumn);
-			}
-			else if (Column.ColumnId == FSceneOutlinerBuiltInColumnTypes::ActorInfo())
-			{
-				constexpr float DefaultWidthForActorInfoColumn = 150;
-				HeaderRow->SetColumnWidth(Column.ColumnId, DefaultWidthForActorInfoColumn);
-			}
-			else if (FixedColumns.Contains(Column.ColumnId)) // Skip Fixed-width columns
-			{
-				continue;
-			}
-
-			const FVector2f ColumnDesiredSize = Column.HeaderContent.Widget->GetDesiredSize();
-			const FVector2f ColumnLocalSize = Column.HeaderContent.Widget->GetPaintSpaceGeometry().GetLocalSize();
-			float MaxCalculatedWidth = FMath::Max(ColumnDesiredSize.X, ColumnLocalSize.X);
-			MaxCalculatedWidth = FMath::Max(MinAllowedWidth, MaxCalculatedWidth);
-			MaxCalculatedWidth = FMath::Min(MaxAllowedWidth, MaxCalculatedWidth);
-			HeaderRow->SetColumnWidth(Column.ColumnId, MaxCalculatedWidth);
-
-			if (Column.bIsVisible)
-			{
-				SetScrollBoxContainerWidthOverride(GetScrollBoxContainerWidthOverride() + MaxCalculatedWidth);
-			}
-		}
-
-		const float ParentWidgetWidth = AllottedGeometry.GetLocalSize().X;
-		if (GetScrollBoxContainerWidthOverride() < ParentWidgetWidth)
-		{
-			SetScrollBoxContainerWidthOverride(ParentWidgetWidth);
-		}
-
-		bHasBeenResized = true;
-	}
-
 	if (PendingPropertyPropagations.Num() > 0)
 	{
 		PropagatePropertyChangesToSelectedRows();
@@ -828,16 +736,6 @@ TSharedRef<SWidget> SObjectMixerEditorList::GenerateHeaderRowContextMenu()
 						const bool bNewColumnEnabled = !PinnedHeaderRow->IsColumnVisible(ColumnID);
 					
 						PinnedHeaderRow->SetShowGeneratedColumn(ColumnID, bNewColumnEnabled);
-
-						if (const SHeaderRow::FColumn* Match = Algo::FindByPredicate(PinnedHeaderRow->GetColumns(),
-							[ColumnID](const SHeaderRow::FColumn& Column)
-							{
-								return Column.ColumnId == ColumnID;
-							}))
-						{
-							const float DesiredSizeOffset = Match->HeaderContent.Widget->GetDesiredSize().X * (bNewColumnEnabled ? 1 : -1);
-							SetScrollBoxContainerWidthOverride(GetScrollBoxContainerWidthOverride() + DesiredSizeOffset);
-						}
 					}),
 					FCanExecuteAction::CreateLambda([bCanSelectColumn](){return bCanSelectColumn;}),
 					FIsActionChecked::CreateLambda([this, ColumnID]()
