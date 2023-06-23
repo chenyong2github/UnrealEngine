@@ -849,6 +849,51 @@ FString UMaterialEditingLibrary::GetMaterialPropertyInputNodeOutputName(UMateria
 	return FString();
 }
 
+TArray<FString> UMaterialEditingLibrary::GetMaterialExpressionInputNames(UMaterialExpression* MaterialExpression)
+{
+	TArray<FString> InputNames;
+
+	TArray<FExpressionInput*> Inputs = MaterialExpression->GetInputs();
+	for (int32 InputIdx = 0; InputIdx < Inputs.Num(); InputIdx++)
+	{
+		FName Name;
+		if (UMaterialExpressionMaterialFunctionCall* FuncCall = Cast<UMaterialExpressionMaterialFunctionCall>(MaterialExpression))
+		{
+			// If a function call, don't want to compare string with type postfix
+			Name = FuncCall->GetInputNameWithType(InputIdx, false);
+		}
+		else
+		{
+			const FName ExpressionInputName = MaterialExpression->GetInputName(InputIdx);
+			Name = UMaterialGraphNode::GetShortenPinName(ExpressionInputName);
+		}
+
+		InputNames.Add(Name.ToString());
+	}
+	return InputNames;
+}
+
+TArray<int32> UMaterialEditingLibrary::GetMaterialExpressionInputTypes(UMaterialExpression* MaterialExpression)
+{
+	TArray<int32> InputTypes;
+
+	TArray<FExpressionInput*> Inputs = MaterialExpression->GetInputs();
+	for (int32 InputIdx = 0; InputIdx < Inputs.Num(); InputIdx++)
+	{
+		FExpressionInput* Input = Inputs[InputIdx];
+		UMaterialExpression* Expression = Input != nullptr ? Input->Expression : nullptr;
+		if (Expression != nullptr)
+		{
+			InputTypes.Add(Expression->GetOutputType(Input->OutputIndex));
+		}
+		else
+		{
+			InputTypes.Add(MaterialExpression->GetInputType(InputIdx));
+		}
+	}
+	return InputTypes;
+}
+
 TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpression(UMaterial* Material, UMaterialExpression* MaterialExpression)
 {
 	TArray<UMaterialExpression*> MaterialExpressions;
