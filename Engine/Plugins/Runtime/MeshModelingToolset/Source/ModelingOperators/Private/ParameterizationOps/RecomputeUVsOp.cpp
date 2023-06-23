@@ -204,7 +204,11 @@ void FRecomputeUVsOp::CollectIslandComponentsPerTile(const FDynamicMeshUVOverlay
 
 			bUseExistingUVTopology = true;
 		}
-		ComponentsPerTile.Emplace(ConnectedComponents, Tiles[TileIndex]);
+
+		if (!ConnectedComponents.Components.IsEmpty())
+		{
+			ComponentsPerTile.Emplace(ConnectedComponents, Tiles[TileIndex]);
+		}
 	}
 }
 
