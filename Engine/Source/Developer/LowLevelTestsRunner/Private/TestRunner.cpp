@@ -146,7 +146,7 @@ void FTestRunner::ParseCommandLine(TConstArrayView<const ANSICHAR*> Args)
 		{
 			// Do nothing
 		}
-		else if (bFirstArgument && (bFirstItemIsUproject || Arg.StartsWith(ANSITEXTVIEW("--projectdir="))))
+		else if ((bFirstArgument && bFirstItemIsUproject) || Arg.StartsWith(ANSITEXTVIEW("--projectdir=")))
 		{
 			FStringBuilderBase Builder;
 			FString ProjectDirOverride;
