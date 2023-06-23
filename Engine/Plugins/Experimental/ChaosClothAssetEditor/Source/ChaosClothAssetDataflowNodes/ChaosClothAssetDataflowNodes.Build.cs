@@ -21,6 +21,7 @@ public class ChaosClothAssetDataflowNodes : ModuleRules
 				"ChaosCloth",
 				"ChaosClothAsset",
 				"ChaosClothAssetEngine",
+				"ChaosClothAssetTools",
 				"ClothingSystemRuntimeCommon",
 				"CoreUObject",
 				"DataflowCore",

@@ -586,7 +586,7 @@ private:
 };
 
 
-void FClothPatternToDynamicMesh::Convert(const TSharedRef<const FManagedArrayCollection> ClothCollection, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut)
+void FClothPatternToDynamicMesh::Convert(const TSharedRef<const FManagedArrayCollection> ClothCollection, int32 PatternIndex, EClothPatternVertexType VertexDataType, UE::Geometry::FDynamicMesh3& MeshOut, bool bDisableAttributes)
 {
 	const FCollectionClothConstFacade ClothFacade(ClothCollection);
 
@@ -595,26 +595,34 @@ void FClothPatternToDynamicMesh::Convert(const TSharedRef<const FManagedArrayCol
 	FClothPatternWrapper PatternWrapper(ClothFacade, PatternIndex, VertexDataType);
 
 	auto TriangleToGroupFunction = [](FClothPatternWrapper::TriIDType) { return 0; };
-	const bool bIsRenderType = VertexDataType == EClothPatternVertexType::Render;
-	auto TriangleToMaterialFunction = [PatternIndex, bIsRenderType, &ClothFacade](FClothPatternWrapper::TriIDType TriID)->int32
+
+	if (bDisableAttributes)
 	{
-		if (bIsRenderType)
+		PatternToDynamicMesh.ConvertWOAttributes(MeshOut, PatternWrapper, TriangleToGroupFunction);
+	}
+	else
+	{
+		constexpr bool bCopyTangents = false;
+		const bool bIsRenderType = VertexDataType == EClothPatternVertexType::Render;
+		auto TriangleToMaterialFunction = [PatternIndex, bIsRenderType, &ClothFacade](FClothPatternWrapper::TriIDType TriID)->int32
 		{
-			if (PatternIndex != INDEX_NONE)
+			if (bIsRenderType)
 			{
-				return PatternIndex;
+				if (PatternIndex != INDEX_NONE)
+				{
+					return PatternIndex;
+				}
+				const int32 FoundPattern = ClothFacade.FindRenderPatternByFaceIndex(TriID);
+				check(FoundPattern != INDEX_NONE);
+				return FoundPattern;
 			}
-			const int32 FoundPattern = ClothFacade.FindRenderPatternByFaceIndex(TriID);
-			check(FoundPattern != INDEX_NONE);
-			return FoundPattern;
-		}
 
-		// Sim meshes will have a default material with MaterialID zero applied
-		return 0;
-	};
+			// Sim meshes will have a default material with MaterialID zero applied
+			return 0;
+		};
 
-	constexpr bool bCopyTangents = false;
-	PatternToDynamicMesh.Convert(MeshOut, PatternWrapper, TriangleToGroupFunction, TriangleToMaterialFunction, bCopyTangents);
+		PatternToDynamicMesh.Convert(MeshOut, PatternWrapper, TriangleToGroupFunction, TriangleToMaterialFunction, bCopyTangents);
+	}
 
 	// Add non-manifold mapping data if DynamicMesh indices don't match orig indices
 	const int32 NumVertices = VertexDataType == EClothPatternVertexType::Render ? ClothFacade.GetNumRenderVertices() :
