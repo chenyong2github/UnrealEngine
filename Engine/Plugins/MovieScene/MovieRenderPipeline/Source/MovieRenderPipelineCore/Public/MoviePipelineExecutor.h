@@ -229,8 +229,8 @@ protected:
 		}
 
 		// Broadcast to both Native and Python/BP
-		OnExecutorFinishedDelegateNative.Broadcast(this, bFatal);
-		OnExecutorFinishedDelegate.Broadcast(this, bFatal);
+		OnExecutorFinishedDelegateNative.Broadcast(this, !bAnyJobHadFatalError);
+		OnExecutorFinishedDelegate.Broadcast(this, !bAnyJobHadFatalError);
 	}
 
 	bool IsAnyJobErrored() const { return bAnyJobHadFatalError; }
