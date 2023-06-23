@@ -490,7 +490,7 @@ bool FRichCurve::IsConstant(float Tolerance) const
 	const FRichCurveKey& RefKey = Keys[0];
 	for (const FRichCurveKey& Key : Keys)
 	{
-		if (!FMath::IsNearlyEqual(Key.Value, RefKey.Value, Tolerance))
+		if (!FMath::IsNearlyEqual(Key.Value, RefKey.Value, Tolerance) || Key.InterpMode == ERichCurveInterpMode::RCIM_Cubic)
 		{
 			return false;
 		}
