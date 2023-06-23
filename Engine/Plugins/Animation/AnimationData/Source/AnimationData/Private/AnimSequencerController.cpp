@@ -495,7 +495,7 @@ bool UAnimSequencerController::AddCurve(const FAnimationCurveIdentifier& CurveId
 					{
 						ReportError(LOCTEXT("FailedtoAddCurveControl", "Failed to add curve control"));
 					}
-					SetCurveColor(CurveId, FAnimCurveBase::MakeColor(CurveId.CurveName), bShouldTransact);
+					Model->CurveIdentifierToMetaData.FindChecked(CurveId).Color = FAnimCurveBase::MakeColor(CurveId.CurveName);
 					break;
 				default:
 					{
