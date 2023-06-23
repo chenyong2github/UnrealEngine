@@ -175,75 +175,6 @@ namespace mu
 
 	static_assert(uint32(EMinFilterMethod::MaxValue) <= (1 << 3), "EMinFilterMethod enum cannot hold more than 8 values");
 
-	struct FImageFormatData
-	{
-		static constexpr SIZE_T MAX_BYTES_PER_BLOCK = 16;
-
-		FImageFormatData
-			(
-				unsigned pixelsPerBlockX = 0,
-				unsigned pixelsPerBlockY = 0,
-				unsigned bytesPerBlock = 0,
-				unsigned channels = 0
-			)
-		{
-			m_pixelsPerBlockX = (uint8)pixelsPerBlockX;
-			m_pixelsPerBlockY = (uint8)pixelsPerBlockY;
-			m_bytesPerBlock = (uint16)bytesPerBlock;
-			m_channels = (uint16)channels;	
-		}
-
-		FImageFormatData
-			(
-				unsigned pixelsPerBlockX,
-				unsigned pixelsPerBlockY,
-				unsigned bytesPerBlock,
-				unsigned channels,
-				std::initializer_list<uint8> BlackBlockInit
-			)
-			: FImageFormatData(pixelsPerBlockX, pixelsPerBlockY, bytesPerBlock, channels)
-		{
-			check(MAX_BYTES_PER_BLOCK >= BlackBlockInit.size());
-
-			const SIZE_T SanitizedBlockSize = FMath::Min<SIZE_T>(MAX_BYTES_PER_BLOCK, BlackBlockInit.size());
-			FMemory::Memcpy(BlackBlock, BlackBlockInit.begin(), SanitizedBlockSize);
-		}
-
-		//! For block based formats, size of the block size. For uncompressed formats it will
-		//! always be 1,1. For non-block-based compressed formats, it will be 0,0.
-        uint8 m_pixelsPerBlockX, m_pixelsPerBlockY;
-
-		//! Number of bytes used by every pixel block, if uncompressed or block-compressed format.
-		//! For non-block-compressed formats, it returns 0.
-        uint16 m_bytesPerBlock;
-
-		//! Channels in every pixel of the image.
-        uint16 m_channels;
-
-		//! Representation of a black block of the image.
-		uint8 BlackBlock[MAX_BYTES_PER_BLOCK] = { 0 };
-	};
-		
-	MUTABLERUNTIME_API const FImageFormatData& GetImageFormatData(EImageFormat format );
-
-	/** Convert an image to another pixel format.
-	* Allocates the destination image.
-	* \warning Not all format conversions are implemented.
-	* \param onlyLOD If different than -1, only the specified lod level will be converted in the returned image.
-	* \return nullptr if the conversion failed, usually because not enough memory was allocated in the result. This is only checked for RLE compression.
-	*/
-	MUTABLERUNTIME_API Ptr<Image> ImagePixelFormat(int32 Quality, const Image* Base, EImageFormat TargetFormat, int32 OnlyLOD = -1);
-	
-	/** Convert an image to another pixel format.
-	* \warning Not all format conversions are implemented.
-	* \param onlyLOD If different than -1, only the specified lod level will be converted in the returned image.
-	* \return false if the conversion failed, usually because not enough memory was allocated in the result. This is only checked for RLE compression.
-	*/
-	MUTABLERUNTIME_API void ImagePixelFormat(bool& bOutSuccess, int32 Quality, Image* Result, const Image* Base, int32 OnlyLOD = -1);
-
-	MUTABLERUNTIME_API Ptr<Image> ImageSwizzle(EImageFormat Format, const Ptr<const Image> Sources[], const uint8 Channels[]);
-	MUTABLERUNTIME_API void ImageSwizzle(Image* Result, const Ptr<const Image> Sources[], const uint8 Channels[]);
-
     //! \brief 2D image resource with mipmaps.
 	//! \ingroup runtime
     class MUTABLERUNTIME_API Image : public Resource
@@ -264,13 +195,10 @@ namespace mu
         //!         base level. It must be a number between 1 and the maximum possible levels, which
         //!         depends on the image size.
         //! \param format Pixel format.
-        Image( uint32 sizeX, uint32 sizeY, uint32 lods, EImageFormat format, EInitializationType Init=EInitializationType::Black);
+        Image( uint32 sizeX, uint32 sizeY, uint32 lods, EImageFormat format, EInitializationType Init );
 		
 		/** */
 		static Ptr<Image> CreateAsReference( uint32 ID );
-
-		/** */
-		Ptr<Image> ExtractMip(int32 Mip) const;
 
 		//! Serialisation
 		static void Serialise( const Image* p, OutputArchive& arch );
@@ -391,7 +319,27 @@ namespace mu
 		}
 
 		//! Copy another image.
-		void CopyMove( Image* Other )
+		void Copy(const Image* Other)
+		{
+			LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
+			MUTABLE_CPUPROFILER_SCOPE(Copy);
+
+			if (Other == this)
+			{
+				return;
+			}
+
+			m_size = Other->m_size;
+			m_format = Other->m_format;
+			m_lods = Other->m_lods;
+			m_flags = Other->m_flags;
+			RelevancyMinY = Other->RelevancyMinY;
+			RelevancyMaxY = Other->RelevancyMaxY;
+			m_data =Other->m_data;
+			ReferenceID = Other->ReferenceID;
+		}
+
+		void CopyMove(Image* Other)
 		{
 			LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 			MUTABLE_CPUPROFILER_SCOPE(CopyMove);
@@ -409,15 +357,15 @@ namespace mu
 			RelevancyMaxY = Other->RelevancyMaxY;
 			m_data = MoveTemp(Other->m_data);
 			ReferenceID = Other->ReferenceID;
-			
-			Other->m_size = FImageSize(0,0);
+
+			Other->m_size = FImageSize(0, 0);
 			Other->m_format = EImageFormat::IF_NONE;
 			Other->m_lods = 0;
 			Other->m_flags = 0;
 			Other->RelevancyMinY = 0;
 			Other->RelevancyMaxY = 0;
 			Other->m_data.SetNum(0);
-			Other->ReferenceID=0;
+			Other->ReferenceID = 0;
 		}
 
 
@@ -494,9 +442,163 @@ namespace mu
 		//! Get the rect inside the image bounding the non-black content of the image.
 		void GetNonBlackRect(FImageRect& rect) const;
 		void GetNonBlackRect_Reference(FImageRect& rect) const;
+	};
+
+	/** */
+	struct FImageFormatData
+	{
+		static constexpr SIZE_T MAX_BYTES_PER_BLOCK = 16;
+
+		FImageFormatData
+		(
+			uint8 InPixelsPerBlockX = 0,
+			uint8 InPixelsPerBlockY = 0,
+			uint16 InBytesPerBlock = 0,
+			uint16 InChannels = 0
+		)
+		{
+			PixelsPerBlockX = InPixelsPerBlockX;
+			PixelsPerBlockY = InPixelsPerBlockY;
+			BytesPerBlock = InBytesPerBlock;
+			Channels = InChannels;
+		}
+
+		FImageFormatData
+		(
+			uint8 InPixelsPerBlockX,
+			uint8 InPixelsPerBlockY,
+			uint16 InBytesPerBlock,
+			uint16 InChannels,
+			std::initializer_list<uint8> BlackBlockInit
+		)
+			: FImageFormatData(InPixelsPerBlockX, InPixelsPerBlockY, InBytesPerBlock, InChannels)
+		{
+			check(MAX_BYTES_PER_BLOCK >= BlackBlockInit.size());
+
+			const SIZE_T SanitizedBlockSize = FMath::Min<SIZE_T>(MAX_BYTES_PER_BLOCK, BlackBlockInit.size());
+			FMemory::Memcpy(BlackBlock, BlackBlockInit.begin(), SanitizedBlockSize);
+		}
+
+		/** For block based formats, size of the block size.For uncompressed formats it will always be 1,1. For non-block-based compressed formats, it will be 0,0. */
+		uint8 PixelsPerBlockX, PixelsPerBlockY;
+
+		/** Number of bytes used by every pixel block, if uncompressed or block-compressed format.
+		 * For non-block-compressed formats, it returns 0.
+		 */
+		uint16 BytesPerBlock;
+
+		/** Channels in every pixel of the image. */
+		uint16 Channels;
+
+		/** Representation of a black block of the image. */
+		uint8 BlackBlock[MAX_BYTES_PER_BLOCK] = { 0 };
+	};
+
+	MUTABLERUNTIME_API const FImageFormatData& GetImageFormatData(EImageFormat format);
+
+	MUTABLERUNTIME_API struct FMipmapGenerationSettings
+	{
+		float m_sharpenFactor = 0.0f;
+		EMipmapFilterType m_filterType = EMipmapFilterType::MFT_SimpleAverage;
+		EAddressMode m_addressMode = EAddressMode::None;
+		bool m_ditherMipmapAlpha = false;
+
+		MUTABLERUNTIME_API void Serialise(OutputArchive& arch) const;
+		MUTABLERUNTIME_API void Unserialise(InputArchive& arch);
+	};
+
+	/** This struct contains image operations that may need to allocate and free temporary images to work.
+	* It's purpose is to override the creation, release and clone functions depending on the context.
+	*/
+	MUTABLERUNTIME_API struct FImageOperator
+	{
+		/** Common callback used for functions that can create temporary images. */
+		typedef TFunction<Ptr<Image>(int32, int32, int32, EImageFormat, EInitializationType)> FImageCreateFunc;
+		typedef TFunction<void(Ptr<Image>&)> FImageReleaseFunc;
+		typedef TFunction<Ptr<Image>(const Image*)> FImageCloneFunc;
+
+		FImageCreateFunc CreateImage;
+		FImageReleaseFunc ReleaseImage;
+		FImageCloneFunc CloneImage;
+
+		FImageOperator(FImageCreateFunc Create, FImageReleaseFunc Release, FImageCloneFunc Clone) : CreateImage(Create), ReleaseImage(Release), CloneImage(Clone) {};
+
+		/** Create an default version for untracked resources. */
+		static inline FImageOperator GetDefault()
+		{
+			return FImageOperator(
+				[](int32 x, int32 y, int32 m, EImageFormat f, EInitializationType i) { return new Image(x, y, m, f, EInitializationType::NotInitialized); },
+				[](Ptr<Image>& i) {i = nullptr; },
+				[](const Image* i) { return i->Clone(); }
+			);
+		}
+
+		/** Convert an image to another pixel format.
+		* Allocates the destination image.
+		* \warning Not all format conversions are implemented.
+		* \param onlyLOD If different than -1, only the specified lod level will be converted in the returned image.
+		* \return nullptr if the conversion failed, usually because not enough memory was allocated in the result. This is only checked for RLE compression.
+		*/
+		MUTABLERUNTIME_API Ptr<Image> ImagePixelFormat(int32 Quality, const Image* Base, EImageFormat TargetFormat, int32 OnlyLOD = -1);
+
+		/** Convert an image to another pixel format.
+		* \warning Not all format conversions are implemented.
+		* \param onlyLOD If different than -1, only the specified lod level will be converted in the returned image.
+		* \return false if the conversion failed, usually because not enough memory was allocated in the result. This is only checked for RLE compression.
+		*/
+		MUTABLERUNTIME_API void ImagePixelFormat(bool& bOutSuccess, int32 Quality, Image* Result, const Image* Base, int32 OnlyLOD = -1);
+
+		MUTABLERUNTIME_API Ptr<Image> ImageSwizzle(EImageFormat Format, const Ptr<const Image> Sources[], const uint8 Channels[]);
+
+		/** */
+		MUTABLERUNTIME_API Ptr<Image> ExtractMip(const Image* From, int32 Mip);
+
+		/** Bilinear filter image resize. */
+		void ImageResizeLinear(Image* Dest, int32 ImageCompressionQuality, const Image* Base);
 
 		/** Fill the image with a plain colour. */
-		void FillColour(FVector4f c);
+		void FillColor(Image* Image, FVector4f Color);
+
+		/** Support struct to keep preallocated data required for some mipmap operations. */
+		struct FScratchImageMipmap
+		{
+			Ptr<Image> Uncompressed;
+			Ptr<Image> UncompressedMips;
+			Ptr<Image> CompressedMips;
+		};
+
+		/** Generate the mipmaps for images.
+		* if bGenerateOnlyTail is true, generates the mips missing from Base to LevelCount and sets
+		* them in Dest (the full chain is spit in two images). Otherwise generate the mips missing
+		* from Base up to LevelCount and append them in Dest to the already generated Base's mips.
+		*/
+		void ImageMipmap(int32 CompressionQuality, Image* Dest, const Image* Base,
+			int32 LevelCount,
+			const FMipmapGenerationSettings&, bool bGenerateOnlyTail = false);
+
+		/** Mipmap separating the worst case treatment in 3 steps to manage allocations of temp data. */
+		void ImageMipmap_PrepareScratch(Image* Dest, const Image* Base, int32 LevelCount, FScratchImageMipmap&);
+		void ImageMipmap(FImageOperator::FScratchImageMipmap&, int32 CompressionQuality, Image* Dest, const Image* Base,
+			int32 LevelCount,
+			const FMipmapGenerationSettings&, bool bGenerateOnlyTail = false);
+		void ImageMipmap_ReleaseScratch(FScratchImageMipmap&);
+
+		/** */
+		MUTABLERUNTIME_API bool ImageCrop(Image* Cropped, int32 CompressionQuality, const Image* Base, const box< vec2<int32> >& Rect);
+
+		/** */
+		void ImageCompose(Image* Base, const Image* Block, const box< UE::Math::TIntVector2<uint16> >& Rect);
+
 	};
+
+	/** Update all the mipmaps in the image from the data in the base one.
+	* Only the mipmaps already existing in the image are updated.
+	*/
+	MUTABLERUNTIME_API void ImageMipmapInPlace(int32 CompressionQuality, Image* Base, const FMipmapGenerationSettings&);
+
+	/** */
+	MUTABLERUNTIME_API void ImageSwizzle(Image* Result, const Ptr<const Image> Sources[], const uint8 Channels[]);
+
+
 }
 

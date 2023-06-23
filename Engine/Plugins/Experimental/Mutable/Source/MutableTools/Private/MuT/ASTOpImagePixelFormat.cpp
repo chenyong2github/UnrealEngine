@@ -108,7 +108,7 @@ namespace mu
 
 		EImageFormat format = Format;
 		bool bIsCompressedFormat = IsCompressedFormat(Format);
-		//bool isBlockFormat = GetImageFormatData( format ).m_pixelsPerBlockX!=0;
+		//bool isBlockFormat = GetImageFormatData( format ).PixelsPerBlockX!=0;
 
 		// The instruction can be sunk
 		OP_TYPE sourceType = sourceAt->GetOpType();
@@ -182,7 +182,7 @@ namespace mu
 			EImageFormat layoutFormat = (EImageFormat)nop->op.args.ImageBlankLayout.format;
 			if (FormatIfAlpha != EImageFormat::IF_NONE
 				&&
-				GetImageFormatData(layoutFormat).m_channels > 3)
+				GetImageFormatData(layoutFormat).Channels > 3)
 			{
 				format = FormatIfAlpha;
 			}
@@ -200,7 +200,7 @@ namespace mu
 			EImageFormat layoutFormat = (EImageFormat)nop->op.args.ImagePlainColour.format;
 			if (FormatIfAlpha != EImageFormat::IF_NONE
 				&&
-				GetImageFormatData(layoutFormat).m_channels > 3)
+				GetImageFormatData(layoutFormat).Channels > 3)
 			{
 				format = FormatIfAlpha;
 			}
@@ -249,7 +249,7 @@ namespace mu
 
 		if (FormatIfAlpha != EImageFormat::IF_NONE
 			&&
-			GetImageFormatData(res.m_format).m_channels > 3)
+			GetImageFormatData(res.m_format).Channels > 3)
 		{
 			res.m_format = FormatIfAlpha;
 		}
@@ -339,7 +339,7 @@ namespace mu
 
 		EImageFormat format = currentFormatOp->Format;
 		bool bIsCompressedFormat = IsCompressedFormat(format);
-		bool isBlockFormat = GetImageFormatData(format).m_pixelsPerBlockX != 0;
+		bool isBlockFormat = GetImageFormatData(format).PixelsPerBlockX != 0;
 
 		// Already visited?
 		const Ptr<ASTOp>* Cached = OldToNew.Find({ at,currentFormatOp });
@@ -381,8 +381,8 @@ namespace mu
 			{
 				// We can only optimise if the layout grid blocks size in pixels is
 				// a multiple of the image format block size.
-				int imageFormatBlockSizeX = GetImageFormatData(format).m_pixelsPerBlockX;
-				int imageFormatBlockSizeY = GetImageFormatData(format).m_pixelsPerBlockY;
+				int imageFormatBlockSizeX = GetImageFormatData(format).PixelsPerBlockX;
+				int imageFormatBlockSizeY = GetImageFormatData(format).PixelsPerBlockY;
 				bool acceptable = imageFormatBlockSizeX == 1 && imageFormatBlockSizeY == 1;
 
 				if (!acceptable)

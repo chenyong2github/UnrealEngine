@@ -505,13 +505,13 @@ namespace  mu
 			m_pSystem->WorkingMemoryManager.CurrentInstanceCache->SetExtensionData(To, Resource);
 		}
 
-		inline Ptr<Image> CreateImage(uint32 SizeX, uint32 SizeY, uint32 Lods, EImageFormat Format, EInitializationType Init = EInitializationType::Black)
+		inline Ptr<Image> CreateImage(uint32 SizeX, uint32 SizeY, uint32 Lods, EImageFormat Format, EInitializationType Init)
 		{
 			Ptr<Image> Result = m_pSystem->WorkingMemoryManager.CreateImage(SizeX, SizeY, Lods, Format, Init);
 			return MoveTemp(Result);
 		}
 
-		Ptr<Image> CreateImageLike(const Image* Ref, EInitializationType Init = EInitializationType::Black)
+		Ptr<Image> CreateImageLike(const Image* Ref, EInitializationType Init)
 		{
 			Ptr<Image> Result = m_pSystem->WorkingMemoryManager.CreateImage(Ref->GetSizeX(), Ref->GetSizeY(), Ref->GetLODCount(), Ref->GetFormat(), Init);
 			return MoveTemp(Result);
@@ -635,5 +635,32 @@ namespace  mu
 		void LaunchIssuedTask(const TSharedPtr<FIssuedTask>& TaskToIssue, bool& bOutFailed);
 
     };
+
+
+	/** Helper function to create the memory-tracked image operator. */
+	inline FImageOperator MakeImageOperator(CodeRunner* Runner)
+	{
+		return FImageOperator(
+			// Create
+			[Runner](int32 x, int32 y, int32 m, EImageFormat f, EInitializationType i)
+			{
+				return Runner->CreateImage(x, y, m, f, i);
+			},
+
+			// Release
+			[Runner](Ptr<Image>& i)
+			{
+				Runner->Release(i);
+			},
+
+			// Clone
+			[Runner](const Image* i)
+			{
+				Ptr<Image> New = Runner->CreateImage(i->GetSizeX(), i->GetSizeY(), i->GetLODCount(), i->GetFormat(), EInitializationType::NotInitialized);
+				New->Copy(i);
+				return New;
+			}
+		);
+	}
 
 }

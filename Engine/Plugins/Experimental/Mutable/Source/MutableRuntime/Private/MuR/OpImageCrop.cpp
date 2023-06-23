@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "MuR/ImagePrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/Platform.h"
@@ -10,9 +8,10 @@
 namespace mu
 {
 
-	inline bool ImageCrop( Image* InCropped, int32 CompressionQuality, const Image* InBase, const box< vec2<int32> >& Rect )
+	bool FImageOperator::ImageCrop( Image* InCropped, int32 CompressionQuality, const Image* InBase, const box< vec2<int32> >& Rect)
 	{
 		Ptr<const Image> Base = InBase;
+		Ptr<Image> BaseReformat;
 		Ptr<Image> Cropped = InCropped;
 
 		EImageFormat BaseFormat = Base->GetFormat();
@@ -22,8 +21,9 @@ namespace mu
 		{
 			// Compressed formats need decompression + compression after crop			
 			// \TODO: This may use some additional untracked memory locally in this function.
-			Base = ImagePixelFormat(CompressionQuality, Base.get(), UncompressedFormat);
-			Cropped = new Image( InCropped->GetSizeX(), InCropped->GetSizeY(), InCropped->GetLODCount(), UncompressedFormat, EInitializationType::NotInitialized );
+			BaseReformat = ImagePixelFormat(CompressionQuality, Base.get(), UncompressedFormat);
+			Base = BaseReformat;
+			Cropped = CreateImage( InCropped->GetSizeX(), InCropped->GetSizeY(), InCropped->GetLODCount(), UncompressedFormat, EInitializationType::NotInitialized);
         }
 
 		const FImageFormatData& finfo = GetImageFormatData(UncompressedFormat);
@@ -44,22 +44,22 @@ namespace mu
 		}
 
 		// Block images are not supported for now
-		check( finfo.m_pixelsPerBlockX == 1 );
-		check( finfo.m_pixelsPerBlockY == 1 );
+		check( finfo.PixelsPerBlockX == 1 );
+		check( finfo.PixelsPerBlockY == 1 );
 
-		checkf( Rect.min[0] % finfo.m_pixelsPerBlockX == 0, TEXT("Rect must snap to blocks.") );
-		checkf( Rect.min[1] % finfo.m_pixelsPerBlockY == 0, TEXT("Rect must snap to blocks.") );
-		checkf( Rect.size[0] % finfo.m_pixelsPerBlockX == 0, TEXT("Rect must snap to blocks.") );
-		checkf( Rect.size[1] % finfo.m_pixelsPerBlockY == 0, TEXT("Rect must snap to blocks.") );
+		checkf( Rect.min[0] % finfo.PixelsPerBlockX == 0, TEXT("Rect must snap to blocks.") );
+		checkf( Rect.min[1] % finfo.PixelsPerBlockY == 0, TEXT("Rect must snap to blocks.") );
+		checkf( Rect.size[0] % finfo.PixelsPerBlockX == 0, TEXT("Rect must snap to blocks.") );
+		checkf( Rect.size[1] % finfo.PixelsPerBlockY == 0, TEXT("Rect must snap to blocks.") );
 
-		int baseRowSize = finfo.m_bytesPerBlock * Base->GetSizeX() / finfo.m_pixelsPerBlockX;
-		int cropRowSize = finfo.m_bytesPerBlock * Rect.size[0] / finfo.m_pixelsPerBlockX;
+		int baseRowSize = finfo.BytesPerBlock * Base->GetSizeX() / finfo.PixelsPerBlockX;
+		int cropRowSize = finfo.BytesPerBlock * Rect.size[0] / finfo.PixelsPerBlockX;
 
         const uint8_t* pBaseBuf = Base->GetData();
         uint8_t* pCropBuf = Cropped->GetData();
 
 		int skipPixels = Base->GetSizeX() * Rect.min[1] + Rect.min[0];
-		pBaseBuf += finfo.m_bytesPerBlock * skipPixels / finfo.m_pixelsPerBlockX;
+		pBaseBuf += finfo.BytesPerBlock * skipPixels / finfo.PixelsPerBlockX;
 		for ( int y=0; y<Rect.size[1]; ++y )
 		{
 			FMemory::Memcpy( pCropBuf, pBaseBuf, cropRowSize );
@@ -69,14 +69,18 @@ namespace mu
 
 		if (BaseFormat != UncompressedFormat)
 		{
+			ReleaseImage(BaseReformat);
+
 			bool bSuccess = false;
 			int32 DataSize = Cropped->m_data.Num();
 			while (!bSuccess)
 			{
 				InCropped->m_data.SetNumUninitialized(DataSize);
-				ImagePixelFormat(bSuccess, CompressionQuality, InCropped, Cropped.get());
+				ImagePixelFormat(bSuccess, CompressionQuality, InCropped, Cropped.get() );
 				DataSize = (DataSize + 16) * 2;
 			}
+
+			ReleaseImage(Cropped);
 		}
 
 		return true;

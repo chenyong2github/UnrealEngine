@@ -490,10 +490,6 @@ namespace mu
             int rows = Base->GetSizeY();
             int width = Base->GetSizeX();
 
-			// debug test
-			ImagePtr TempDecodedMask = new Image(Mask->GetSizeX(), Mask->GetSizeY(), Mask->GetLODCount(), EImageFormat::IF_L_UBYTE);
-			UncompressRLE_L(Mask, TempDecodedMask.get());
-
             for (int32 lod=0;lod<LODCount; ++lod)
             {
 				// Skip mip size and row sizes.
@@ -897,8 +893,8 @@ namespace mu
 
 		// No longer required.
 		//check(pBase->GetFormat() == pBlended->GetFormat());
-		check(BaseChannelOffset + CHANNELS_TO_BLEND <= GetImageFormatData(pBase->GetFormat()).m_channels);
-		check(BlendedChannelOffset + CHANNELS_TO_BLEND <= GetImageFormatData(pBlended->GetFormat()).m_channels);
+		check(BaseChannelOffset + CHANNELS_TO_BLEND <= GetImageFormatData(pBase->GetFormat()).Channels);
+		check(BlendedChannelOffset + CHANNELS_TO_BLEND <= GetImageFormatData(pBlended->GetFormat()).Channels);
 
 		check(bOnlyFirstLOD || pBase->GetLODCount() <= pBlended->GetLODCount());
 
@@ -2036,7 +2032,7 @@ namespace mu
         check( pBase->GetLODCount() <= pMask->GetLODCount() );
         check( pBase->GetLODCount() <= pBlended->GetLODCount() );
 
-		int pixelSize = GetImageFormatData( pBase->GetFormat() ).m_bytesPerBlock;
+		int pixelSize = GetImageFormatData( pBase->GetFormat() ).BytesPerBlock;
 
 		int start = ( pBase->GetSizeX()*rect.min[1]+rect.min[0] ) * pixelSize;
 		int stride = ( pBase->GetSizeX() - rect.size[0] ) * pixelSize;

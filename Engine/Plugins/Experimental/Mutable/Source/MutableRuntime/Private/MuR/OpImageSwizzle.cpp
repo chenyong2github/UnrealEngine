@@ -22,18 +22,16 @@ namespace mu
 
         // Pixelcount should already match, but due to bugs it may not be the case. Try to detect it,
         // but avoid crashing below:
-        uint16 numChannels = GetImageFormatData(Format).m_channels;
+        uint16 numChannels = GetImageFormatData(Format).Channels;
         for (uint16 c=0;c<numChannels; ++c)
         {
             if (Sources[c])
             {
-                size_t sourcePixelCount = Sources[c]->CalculatePixelCount();
-                if (PixelCount>sourcePixelCount)
+                int32 SourcePixelCount = Sources[c]->CalculatePixelCount();
+                if (PixelCount> SourcePixelCount)
                 {
-                    check(false);
-
                     // Something went wrong
-					PixelCount = sourcePixelCount;
+					PixelCount = SourcePixelCount;
                 }
             }
         }
@@ -232,7 +230,7 @@ namespace mu
 	}
 
 
-	Ptr<Image> ImageSwizzle( EImageFormat Format, const Ptr<const Image> Sources[], const uint8 Channels[] )
+	Ptr<Image> FImageOperator::ImageSwizzle( EImageFormat Format, const Ptr<const Image> Sources[], const uint8 Channels[] )
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageSwizzle);
 
@@ -241,11 +239,9 @@ namespace mu
 			return nullptr;
 		}
 
-		ImagePtr Dest = new Image(Sources[0]->GetSizeX(), Sources[0]->GetSizeY(),
-			Sources[0]->GetLODCount(),
-			Format);
+		Ptr<Image> Dest = CreateImage(Sources[0]->GetSizeX(), Sources[0]->GetSizeY(), Sources[0]->GetLODCount(), Format, EInitializationType::Black);
 
-		ImageSwizzle(Dest.get(), Sources, Channels);
+		mu::ImageSwizzle(Dest.get(), Sources, Channels);
 
 		return Dest;
 	}

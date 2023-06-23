@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MuR/OpImageMipmap.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/SystemPrivate.h"
 #include "Async/ParallelFor.h"
@@ -502,7 +501,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void ImageMipmap_PrepareScratch(FWorkingMemoryManager& Manager, Image* Dest, const Image* Base, int32 LevelCount, FScratchImageMipmap& Scratch )
+    void FImageOperator::ImageMipmap_PrepareScratch(Image* Dest, const Image* Base, int32 LevelCount, FScratchImageMipmap& Scratch )
     {
         int StartLevel = Base->GetLODCount() - 1;
 
@@ -534,23 +533,23 @@ namespace mu
         {
 			// Uncompress the last mip that we already have
 			FIntVector2 UncompressedSize = Base->CalculateMipSize(StartLevel);
-			Scratch.Uncompressed = Manager.CreateImage( 
+			Scratch.Uncompressed = CreateImage( 
 				(uint16)UncompressedSize[0], (uint16)UncompressedSize[1], 
 				1, 
-				EImageFormat::IF_RGBA_UBYTE);
+				EImageFormat::IF_RGBA_UBYTE, EInitializationType::NotInitialized );
 
 			FIntVector2 UncompressedMipsSize = Base->CalculateMipSize(StartLevel + 1);
 			// Generate the mipmaps from there on
-			Scratch.UncompressedMips = Manager.CreateImage( 
+			Scratch.UncompressedMips = CreateImage( 
 				(uint16)UncompressedMipsSize[0], (uint16)UncompressedMipsSize[1],
 				FMath::Max(1, LevelCount - StartLevel - 1), 
-				EImageFormat::IF_RGBA_UBYTE);
+				EImageFormat::IF_RGBA_UBYTE, EInitializationType::NotInitialized);
 
 			// Compress the mipmapped image
-			Scratch.CompressedMips = Manager.CreateImage(
+			Scratch.CompressedMips = CreateImage(
 				(uint16)UncompressedMipsSize[0], (uint16)UncompressedMipsSize[1],
 				Scratch.UncompressedMips->GetLODCount(),
-				Base->GetFormat());
+				Base->GetFormat(), EInitializationType::NotInitialized);
 
             break;
         }
@@ -560,25 +559,25 @@ namespace mu
         {
             // Uncompress the last mip that we already have
 			FIntVector2 UncompressedSize = Base->CalculateMipSize(StartLevel);
-            Scratch.Uncompressed = Manager.CreateImage(
+            Scratch.Uncompressed = CreateImage(
                 (uint16)UncompressedSize[0], (uint16)UncompressedSize[1],
                 1,
-                EImageFormat::IF_L_UBYTE);
+                EImageFormat::IF_L_UBYTE, EInitializationType::NotInitialized);
 
 
 			FIntVector2 UncompressedMipsSize = Base->CalculateMipSize(StartLevel + 1);
             // Generate the mipmaps from there on
-            Scratch.UncompressedMips = Manager.CreateImage(
+            Scratch.UncompressedMips = CreateImage(
                 (uint16)UncompressedMipsSize[0], (uint16)UncompressedMipsSize[1],
 				FMath::Max(1, LevelCount - StartLevel - 1),
-                EImageFormat::IF_L_UBYTE);
+                EImageFormat::IF_L_UBYTE, EInitializationType::NotInitialized);
 
 
             // Compress the mipmapped image
-            Scratch.CompressedMips = Manager.CreateImage(
+            Scratch.CompressedMips = CreateImage(
                 (uint16)UncompressedMipsSize[0], (uint16)UncompressedMipsSize[1],
                 Scratch.UncompressedMips->GetLODCount(),
-                Base->GetFormat());
+                Base->GetFormat(), EInitializationType::NotInitialized);
 
             // Preallocate ample memory for the compressed data
 			uint32 TotalMemory = Scratch.UncompressedMips->GetDataSize();
@@ -597,15 +596,15 @@ namespace mu
     }
 
 
-	void ImageMipmap_ReleaseScratch(FWorkingMemoryManager& Manager, FScratchImageMipmap& Scratch)
+	void FImageOperator::ImageMipmap_ReleaseScratch(FScratchImageMipmap& Scratch)
 	{
-		Manager.Release(Scratch.Uncompressed);
-		Manager.Release(Scratch.UncompressedMips);
-		Manager.Release(Scratch.CompressedMips);
+		ReleaseImage(Scratch.Uncompressed);
+		ReleaseImage(Scratch.UncompressedMips);
+		ReleaseImage(Scratch.CompressedMips);
 	}
 
 
-	void ImageMipmap(FScratchImageMipmap& Scratch, int32 CompressionQuality, Image* Dest, const Image* Base,
+	void FImageOperator::ImageMipmap(FScratchImageMipmap& Scratch, int32 CompressionQuality, Image* Dest, const Image* Base,
 		int32 LevelCount,
 		const FMipmapGenerationSettings& Settings, bool bGenerateOnlyTail)
 	{
@@ -731,16 +730,16 @@ namespace mu
 	}
 
 
-	void ImageMipmap(FWorkingMemoryManager& Manager, int32 CompressionQuality, Image* Dest, const Image* Base,
+	void FImageOperator::ImageMipmap(int32 CompressionQuality, Image* Dest, const Image* Base,
 		int32 LevelCount,
 		const FMipmapGenerationSettings& Settings, bool bGenerateOnlyTail)
 	{
 		FScratchImageMipmap Scratch;
-		ImageMipmap_PrepareScratch(Manager, Dest, Base, LevelCount, Scratch);
+		ImageMipmap_PrepareScratch(Dest, Base, LevelCount, Scratch);
 
 		ImageMipmap(Scratch, CompressionQuality, Dest, Base, LevelCount, Settings, bGenerateOnlyTail);
 
-		ImageMipmap_ReleaseScratch(Manager, Scratch);
+		ImageMipmap_ReleaseScratch(Scratch);
 	}
 
 

@@ -15,7 +15,7 @@ namespace mu
 	{
 		MUTABLE_CPUPROFILER_SCOPE(ImageInvert);
 
-		ImagePtr pDest = new Image(pA->GetSizeX(), pA->GetSizeY(), pA->GetLODCount(), pA->GetFormat());
+		ImagePtr pDest = new Image(pA->GetSizeX(), pA->GetSizeY(), pA->GetLODCount(), pA->GetFormat(), EInitializationType::NotInitialized);
 
 		uint8* pDestBuf = pDest->GetData();
 		const uint8* pABuf = pA->GetData();

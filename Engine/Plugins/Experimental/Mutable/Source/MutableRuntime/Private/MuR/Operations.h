@@ -669,12 +669,6 @@ namespace mu
             uint32 blockIndex;
         };
 
-        struct ImageDifferenceArgs
-        {
-            ADDRESS a;
-            ADDRESS b;
-        };
-
         struct ImageInterpolateArgs
         {
             ADDRESS factor;
@@ -1130,7 +1124,6 @@ namespace mu
             ImageResizeVarArgs ImageResizeVar;
             ImageResizeRelArgs ImageResizeRel;
             ImageBlankLayoutArgs ImageBlankLayout;
-            ImageDifferenceArgs ImageDifference;
             ImageInterpolateArgs ImageInterpolate;
             ImageInterpolate3Args ImageInterpolate3;
             ImageSaturateArgs ImageSaturate;

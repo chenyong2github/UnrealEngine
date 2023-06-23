@@ -233,7 +233,7 @@ namespace mu
 
 		// If we are not changing channel order, just remove the swizzle and adjust the format.
 		bool bSameChannelOrder = true;
-		int32 NumChannelsInFormat = GetImageFormatData(Format).m_channels;
+		int32 NumChannelsInFormat = GetImageFormatData(Format).Channels;
 		for (int32 c = 0; c < NumChannelsInFormat; ++c)
 		{
 			if (Sources[c] && SourceChannels[c] != c)

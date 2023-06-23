@@ -18,35 +18,6 @@ namespace mu
 	MUTABLE_DEFINE_ENUM_SERIALISABLE( EAddressMode );
 
 
-	struct FMipmapGenerationSettings
-	{
-		float m_sharpenFactor = 0.0f;
-		EMipmapFilterType m_filterType = EMipmapFilterType::MFT_SimpleAverage;
-		EAddressMode m_addressMode = EAddressMode::None;
-		bool m_ditherMipmapAlpha = false;
-
-		void Serialise( OutputArchive& arch ) const
-		{
-			uint32 ver = 0;
-			arch << ver;
-
-			arch << m_sharpenFactor;
-			arch << m_filterType;
-			arch << m_ditherMipmapAlpha;
-		}
-
-		void Unserialise( InputArchive& arch )
-		{
-			uint32 ver = 0;
-			arch >> ver;
-			check(ver == 0);
-
-			arch >> m_sharpenFactor;
-			arch >> m_filterType;
-			arch >> m_ditherMipmapAlpha;
-		}
-	};
-
 	//---------------------------------------------------------------------------------------------
 	//!
 	//---------------------------------------------------------------------------------------------
@@ -82,8 +53,8 @@ namespace mu
 	inline EImageFormat GetMostGenericFormat(EImageFormat a, EImageFormat b)
     {
         if (a==b) return a;
-        if ( GetImageFormatData(a).m_channels>GetImageFormatData(b).m_channels ) return a;
-        if ( GetImageFormatData(b).m_channels>GetImageFormatData(a).m_channels ) return b;
+        if ( GetImageFormatData(a).Channels>GetImageFormatData(b).Channels ) return a;
+        if ( GetImageFormatData(b).Channels>GetImageFormatData(a).Channels ) return b;
         if (a== EImageFormat::IF_BC2 || a== EImageFormat::IF_BC3 || a== EImageFormat::IF_ASTC_4x4_RGBA_LDR) return a;
         if (b== EImageFormat::IF_BC2 || b== EImageFormat::IF_BC3 || b== EImageFormat::IF_ASTC_4x4_RGBA_LDR) return b;
 

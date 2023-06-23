@@ -311,7 +311,7 @@ namespace mu
 				// We always need to return something valid.
 				if (!pResult)
 				{
-					pResult = new mu::Image(16, 16, 1, EImageFormat::IF_RGBA_UBYTE);
+					pResult = new mu::Image(16, 16, 1, EImageFormat::IF_RGBA_UBYTE, EInitializationType::Black);
 				}
 
 				break;

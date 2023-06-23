@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "MuR/ImagePrivate.h"
 #include "MuR/MutableMath.h"
 
@@ -9,7 +7,7 @@
 namespace mu
 {
 
-	inline void ImageCompose( Image* pBase, const Image* pBlock, const box< UE::Math::TIntVector2<uint16> >& rect )
+	void FImageOperator::ImageCompose( Image* pBase, const Image* pBlock, const box< UE::Math::TIntVector2<uint16> >& rect )
 	{
 		check(pBase && pBlock);
 		check(pBase != pBlock);
@@ -31,10 +29,10 @@ namespace mu
 		// If this is true, we are composing coordinates or sizes that don't fall on pixel format
 		// block borders.
 		bool bSubPixelBlockCompose = 
-			rect.min[0] % finfo.m_pixelsPerBlockX != 0
-			|| rect.min[1] % finfo.m_pixelsPerBlockY != 0
-			|| rect.size[0] % finfo.m_pixelsPerBlockX != 0
-			|| rect.size[1] % finfo.m_pixelsPerBlockY != 0;
+			rect.min[0] % finfo.PixelsPerBlockX != 0
+			|| rect.min[1] % finfo.PixelsPerBlockY != 0
+			|| rect.size[0] % finfo.PixelsPerBlockX != 0
+			|| rect.size[1] % finfo.PixelsPerBlockY != 0;
 
 		if (bSubPixelBlockCompose)
 		{
@@ -44,27 +42,29 @@ namespace mu
 			constexpr int32 Quality = 0;
 			Ptr<Image> TempBase = ImagePixelFormat(Quality, pBase, UncompressedFormat);
 			Ptr<Image> TempBlock = ImagePixelFormat(Quality, pBlock, UncompressedFormat);
-			ImageCompose( TempBase.get(), TempBlock.get(), rect );
+			ImageCompose( TempBase.get(), TempBlock.get(), rect);
+			ReleaseImage(TempBlock);
 			Ptr<Image> NewBase = ImagePixelFormat(Quality, TempBase.get(), OriginalFormat);
+			ReleaseImage(TempBase);
 			// ImageCompose above may have reduced the LODs because of the block lods.
-			pBase->m_lods = NewBase->m_lods;
-			pBase->m_data = MoveTemp(NewBase->m_data);
+			pBase->CopyMove( NewBase.get() );
+			ReleaseImage(NewBase);
 			return;
 		}
 		else
 		{
 			// Sizes in blocks of the current mips
 			UE::Math::TIntVector2<uint16> baseMipSize(
-				pBase->GetSizeX() / finfo.m_pixelsPerBlockX,
-				pBase->GetSizeY() / finfo.m_pixelsPerBlockY);
+				pBase->GetSizeX() / finfo.PixelsPerBlockX,
+				pBase->GetSizeY() / finfo.PixelsPerBlockY);
 
 			UE::Math::TIntVector2<uint16> blockMipPos(
-				rect.min[0] / finfo.m_pixelsPerBlockX,
-				rect.min[1] / finfo.m_pixelsPerBlockY);
+				rect.min[0] / finfo.PixelsPerBlockX,
+				rect.min[1] / finfo.PixelsPerBlockY);
 
 			UE::Math::TIntVector2<uint16> blockMipSize(
-				rect.size[0] / finfo.m_pixelsPerBlockX,
-				rect.size[1] / finfo.m_pixelsPerBlockY);
+				rect.size[0] / finfo.PixelsPerBlockX,
+				rect.size[1] / finfo.PixelsPerBlockY);
 
 			int doneMips = 0;
 			for (; doneMips < pBase->GetLODCount() && doneMips < pBlock->GetLODCount(); ++doneMips)
@@ -72,13 +72,13 @@ namespace mu
 				//UE_LOG(LogMutableCore, Warning, "Block Mip Pos : %d, %d", blockMipPos[0], blockMipPos[1]);
 
 				// Sizes of a row in bytes
-				int baseRowSize = finfo.m_bytesPerBlock * baseMipSize[0];
-				int blockRowSize = finfo.m_bytesPerBlock * blockMipSize[0];
+				int baseRowSize = finfo.BytesPerBlock * baseMipSize[0];
+				int blockRowSize = finfo.BytesPerBlock * blockMipSize[0];
 
 				uint8_t* pBaseBuf = pBase->GetMipData(doneMips);
 				const uint8_t* pBlockBuf = pBlock->GetMipData(doneMips);
 
-				int skipBytes = baseRowSize * blockMipPos[1] + blockMipPos[0] * finfo.m_bytesPerBlock;
+				int skipBytes = baseRowSize * blockMipPos[1] + blockMipPos[0] * finfo.BytesPerBlock;
 
 				pBaseBuf += skipBytes;
 				for (int y = 0; y < blockMipSize[1]; ++y)
@@ -108,7 +108,7 @@ namespace mu
 
 			// Adjust the actually valid mips, maybe wasting some of the reserved memory.
 			// TODO: Review this.
-			pBase->m_lods = (uint8_t)doneMips;
+			pBase->m_lods = (uint8)doneMips;
 			pBase->m_data.SetNum(pBase->CalculateDataSize());
 		}
     }

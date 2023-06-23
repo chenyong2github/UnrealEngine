@@ -29,58 +29,9 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     void FProgram::Check()
     {
-//    #ifdef MUTABLE_DEBUG
-//        // Process all from root
-//        if (m_states.size())
-//        {
-//            // Super debug: enable in case of emergencies.
-////            InvariantCodeVisitor invariantVisitor;
-////            invariantVisitor.Apply( *this, m_states[0].m_root );
-//        }
-
-//        for ( size_t i=0; i<m_code.size(); ++i )
-//        {
-//            if ( m_code[i].type == OP_TYPE::IM_PIXELFORMAT )
-//            {
-//                check( m_code[i].args.ImagePixelFormat.format != IF_NONE );
-//                check( m_code[i].args.ImagePixelFormat.source != i );
-//            }
-//    //
-//    //            if ( m_code[i].type == OP_TYPE::IM_MIPMAP )
-//    //            {
-//    //                check( m_code[i].args.ImageMipmap.blockLevels != 0 );
-//    //            }
-
-//            if ( m_code[i].type == OP_TYPE::ME_APPLYLAYOUT )
-//            {
-//                check( m_code[i].args.MeshApplyLayout.mesh != 0 );
-//                check( m_code[i].args.MeshApplyLayout.mesh != i );
-//            }
-
-//            if ( m_code[i].type == OP_TYPE::ME_MORPH2 )
-//            {
-//                for (int j=0;j<MUTABLE_OP_MAX_MORPH2_TARGETS;++j)
-//                {
-//                    auto target = m_code[i].args.MeshMorph2.targets[j];
-//                    check( m_code[target].type!=OP_TYPE::ME_APPLYLAYOUT );
-//                }
-//            }
-
-//            if ( m_code[i].type == OP_TYPE::ME_CONDITIONAL ||
-//                 m_code[i].type == OP_TYPE::IN_CONDITIONAL ||
-//                 m_code[i].type == OP_TYPE::IM_CONDITIONAL ||
-//                 m_code[i].type == OP_TYPE::LA_CONDITIONAL )
-//            {
-//                for (int j=0;j<MUTABLE_OP_MAX_MORPH2_TARGETS;++j)
-//                {
-//                    check( m_code[i].args.Conditional.condition!=i );
-//                    check( m_code[i].args.Conditional.yes!=i );
-//                    check( m_code[i].args.Conditional.no!=i );
-//                }
-//            }
-
-//        }
-//    #endif
+    #ifdef MUTABLE_DEBUG
+		// Insert debug checks here.
+    #endif
     }
 
 
@@ -844,7 +795,10 @@ namespace mu
         newKey.m_id = newId;
         newKey.m_lastRequestId = m_lastResourceResquestId;
         newKey.m_rootAddress = rootAt;
-        newKey.m_parameterValuesBlob = MoveTemp(parameterValuesBlob);
+
+		// Don't MoveTemp so that we get a tight array on the destination.
+		//newKey.m_parameterValuesBlob = MoveTemp(parameterValuesBlob);
+		newKey.m_parameterValuesBlob = parameterValuesBlob;
 
         // TODO: Move the constant to settings?
         const size_t maxGeneratedResourcesIDCacheSize = 1024;

@@ -35,36 +35,6 @@
 namespace mu
 {
 
-
-    //---------------------------------------------------------------------------------------------
-    //! Get an uncompressed version of the image.
-    //! If the image is not compressed, it si returned unmodified.
-    //---------------------------------------------------------------------------------------------
-    ImagePtrConst GetUncompressed( ImagePtrConst pSource )
-    {
-        ImagePtrConst pResult = pSource;
-
-        if ( pSource->GetFormat()== EImageFormat::IF_L_UBYTE_RLE )
-        {
-            ImagePtr pNew = new Image( pSource->GetSizeX(), pSource->GetSizeY(),
-                                 pSource->GetLODCount(),
-				EImageFormat::IF_L_UBYTE );
-            UncompressRLE_L( pSource.get(), pNew.get() );
-            pResult = pNew;
-        }
-        else if ( pSource->GetFormat()== EImageFormat::IF_L_UBIT_RLE )
-        {
-            ImagePtr pNew = new Image( pSource->GetSizeX(), pSource->GetSizeY(),
-                                 pSource->GetLODCount(),
-				EImageFormat::IF_L_UBYTE );
-            UncompressRLE_L1( pSource.get(), pNew.get() );
-            pResult = pNew;
-        }
-
-        return pResult;
-    }
-
-
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------

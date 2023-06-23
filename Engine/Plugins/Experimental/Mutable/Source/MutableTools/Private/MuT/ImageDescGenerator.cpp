@@ -290,7 +290,7 @@ namespace mu
         // Necessary since dxt1 reports 4 channels just in case
         if (m_desc.m_format!=node.m_format)
         {
-            if (GetImageFormatData(m_desc.m_format).m_channels>3
+            if (GetImageFormatData(m_desc.m_format).Channels >3
                     &&
                     node.m_formatIfAlpha!= EImageFormat::IF_NONE
                     )

@@ -12,8 +12,6 @@
 #include "MuR/ImagePrivate.h"
 #include "MuR/MeshPrivate.h"
 #include "MuR/ParametersPrivate.h"
-#include "MuR/OpImageResize.h"
-#include "MuR/OpImageMipmap.h"
 
 #define MUTABLE_MAX_RUNTIME_PARAMETERS_PER_STATE	64
 #define MUTABLE_GROW_BORDER_VALUE					2
@@ -408,9 +406,11 @@ namespace mu
 			// TODO:
 			int32 CompressionQuality = 4;
 
+			FImageOperator ImOp = FImageOperator::GetDefault();
+
 			// TODO: Not efficient if we don't make mips (no need to clone base)
 			// TODO: If the image already has mips, we will be duplicating them...
-			Ptr<Image> pMip = pImage->ExtractMip(0);			
+			Ptr<Image> pMip = ImOp.ExtractMip(pImage.get(),0);
 			for ( int Mip=0; Mip<MipsToStore; ++Mip )
 			{
 				check(pMip->GetFormat() == pImage->GetFormat());
@@ -448,11 +448,11 @@ namespace mu
 					if (Mip > pImage->GetLODCount())
 					{
 						// Generate from the last mip.
-						pMip = pMip->ExtractMip(1);
+						pMip = ImOp.ExtractMip(pMip.get(), 1);
 					}
 					else
 					{
-						pMip = pImage->ExtractMip(Mip+1);
+						pMip = ImOp.ExtractMip(pImage.get(),Mip+1);
 					}
 					check(pMip);
 				}
@@ -669,7 +669,7 @@ namespace mu
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ComposeConstantImage);
 
-				Ptr<Image> Result = CreateImage( CurrentMip->GetSizeX(), CurrentMip->GetSizeY(), FinalLODs, CurrentMip->GetFormat() );
+				Ptr<Image> Result = CreateImage( CurrentMip->GetSizeX(), CurrentMip->GetSizeY(), FinalLODs, CurrentMip->GetFormat(), EInitializationType::NotInitialized );
 				Result->m_flags = CurrentMip->m_flags;
 
 				// Some non-block pixel formats require separate memory size calculation
@@ -826,7 +826,7 @@ namespace mu
 		TArray<RESOURCE_KEY> m_generatedResources;
 
         //! Get a resource key for a given resource with given parameter values.
-        uint32 GetResourceKey( uint32 paramListIndex, OP::ADDRESS rootAt, const Parameters* pParams );
+        uint32 GetResourceKey( uint32 ParamListIndex, OP::ADDRESS RootAt, const Parameters* );
 
         //! @}
 

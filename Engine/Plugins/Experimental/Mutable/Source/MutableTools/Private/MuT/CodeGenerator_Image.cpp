@@ -7,7 +7,6 @@
 #include "MuR/Mesh.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
-#include "MuR/OpImageCrop.h"
 #include "MuR/OpImageProject.h"
 #include "MuR/Operations.h"
 #include "MuR/Parameters.h"
@@ -240,8 +239,16 @@ namespace mu
         //
         if ( pImage->GetSizeX()!=cropRect.size[0] || pImage->GetSizeY()!=cropRect.size[1] )
         {
-            Ptr<Image> pCropped = new Image(cropRect.size[0], cropRect.size[1], 1, pImage->GetFormat());
-			ImageCrop(pCropped.get(), m_compilerOptions->ImageCompressionQuality, pImage.get(), cropRect );
+			FImageOperator ImOp
+			(
+				[](int32 x, int32 y, int32 m, EImageFormat f, EInitializationType i) { return new Image(x, y, m, f, i); },
+				[](Ptr<Image>& i) {i = nullptr; },
+				[](const Image* i) { return i->Clone(); }
+			);
+
+
+            Ptr<Image> pCropped = new Image(cropRect.size[0], cropRect.size[1], 1, pImage->GetFormat(), EInitializationType::NotInitialized);
+			ImOp.ImageCrop(pCropped.get(), m_compilerOptions->ImageCompressionQuality, pImage.get(), cropRect);
             op->SetValue( pCropped, m_compilerOptions->OptimisationOptions.bUseDiskCache );
         }
         else
@@ -1783,7 +1790,7 @@ namespace mu
             // Make a checkered debug image
             const FImageSize size = MUTABLE_MISSING_IMAGE_DESC.m_size;
 
-            ImagePtr pImage = new Image( size[0], size[1], 1, format );
+            ImagePtr pImage = new Image( size[0], size[1], 1, format, EInitializationType::NotInitialized);
 
             switch (format)
             {
@@ -1892,7 +1899,7 @@ namespace mu
     Ptr<ASTOp> CodeGenerator::GeneratePlainImageCode( const vec3<float>& colour, const FImageGenerationOptions& Options )
     {
         const int size = 4;
-        ImagePtr pImage = new Image( size, size, 1, EImageFormat::IF_RGB_UBYTE );
+        ImagePtr pImage = new Image( size, size, 1, EImageFormat::IF_RGB_UBYTE, EInitializationType::NotInitialized);
 
         uint8_t* pData = pImage->GetData();
         for ( int p=0; p<size*size; ++p )

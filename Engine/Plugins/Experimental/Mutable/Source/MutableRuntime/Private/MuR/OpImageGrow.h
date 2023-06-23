@@ -25,7 +25,7 @@ namespace mu
 
 		ImagePtrConst pSource = pImage->Clone();
 
-		int rowSize = sizeX*GetImageFormatData( pImage->GetFormat() ).m_bytesPerBlock;
+		int rowSize = sizeX*GetImageFormatData( pImage->GetFormat() ).BytesPerBlock;
 
 		for ( int y=0; y<sizeY; ++y )
 		{
@@ -80,7 +80,7 @@ namespace mu
             return;
         }
 
-		int pixelSize = GetImageFormatData( pImage->GetFormat() ).m_bytesPerBlock;
+		int pixelSize = GetImageFormatData( pImage->GetFormat() ).BytesPerBlock;
 		int rowSize = sizeX*pixelSize;
 
 		for ( int y=0; y<sizeY; ++y )

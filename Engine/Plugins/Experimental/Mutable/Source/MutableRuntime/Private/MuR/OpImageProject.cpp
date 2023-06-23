@@ -61,7 +61,7 @@ namespace
             m_pTargetData = pTargetData;
             m_pMaskData = pMaskData;
 
-            check( GetImageFormatData( pSource->GetFormat() ).m_bytesPerBlock
+            check( GetImageFormatData( pSource->GetFormat() ).BytesPerBlock
                             ==
                             PIXEL_SIZE );
         }
@@ -248,7 +248,7 @@ namespace
             TargetDataPtr = pTargetData;
             MaskDataPtr = pMaskData;
 
-            check(GetImageFormatData(Source->GetFormat() ).m_bytesPerBlock == PIXEL_SIZE);
+            check(GetImageFormatData(Source->GetFormat() ).BytesPerBlock == PIXEL_SIZE);
         }
 
 		inline void ProcessPixel(uint8* BufferPosPtr, float Varying[4]) const
@@ -603,7 +603,7 @@ namespace
             m_pTargetData = pTargetData;
             m_pMaskData = pMaskData;
 
-            check( GetImageFormatData( pSource->GetFormat() ).m_bytesPerBlock
+            check( GetImageFormatData( pSource->GetFormat() ).BytesPerBlock
                             ==
                             PIXEL_SIZE );
         }
@@ -749,7 +749,7 @@ void ImageRasterProjected_Optimised( const Mesh* pMesh, Image* pImage,
     }
 
 	EImageFormat format = pImage->GetFormat();
-    int pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
+    int pixelSize = GetImageFormatData( format ).BytesPerBlock;
 
     int32 sizeX = pImage->GetSizeX();
     int32 sizeY = pImage->GetSizeY();
@@ -870,7 +870,7 @@ void ImageRasterProjected_OptimisedWrapping( const Mesh* pMesh, Image* pImage, P
     }
 
 	EImageFormat format = pImage->GetFormat();
-    int pixelSize = GetImageFormatData( format ).m_bytesPerBlock;
+    int pixelSize = GetImageFormatData( format ).BytesPerBlock;
 
     int sizeX = pImage->GetSizeX();
     int sizeY = pImage->GetSizeY();

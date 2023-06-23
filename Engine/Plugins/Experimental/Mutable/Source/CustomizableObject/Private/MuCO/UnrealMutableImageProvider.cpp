@@ -35,19 +35,19 @@ namespace
 			break;
 		}
 
-		pResult = new mu::Image(SizeX, SizeY, LODs, MutableFormat);
-
 		// If not locked ReadOnly the Texture Source's FGuid can change, invalidating the texture's caching/shaders
 		// making shader compile and cook times increase
 		const uint8* pSource = Texture->Source.LockMipReadOnly(MipmapsToSkip);
 		if (pSource)
 		{
+			pResult = new mu::Image(SizeX, SizeY, LODs, MutableFormat, mu::EInitializationType::NotInitialized);
 			FMemory::Memcpy(pResult->GetData(), pSource, pResult->GetDataSize());
 			Texture->Source.UnlockMip(MipmapsToSkip);
 		}
 		else
 		{
 			check(false);
+			pResult = new mu::Image(SizeX, SizeY, LODs, MutableFormat, mu::EInitializationType::Black);
 		}
 
 
@@ -72,20 +72,20 @@ namespace
 			break;
 		}
 
-		pResult = new mu::Image(SizeX, SizeY, LODs, MutableFormat);
-
 		// If not locked ReadOnly the Texture Source's FGuid can change, invalidating the texture's caching/shaders
 		// making shader compile and cook times increase
 		const void* pSource = Texture->GetPlatformData()->Mips[MipmapsToSkip].BulkData.LockReadOnly();
 
 		if (pSource)
 		{
+			pResult = new mu::Image(SizeX, SizeY, LODs, MutableFormat, mu::EInitializationType::NotInitialized);
 			FMemory::Memcpy(pResult->GetData(), pSource, pResult->GetDataSize());
 			Texture->GetPlatformData()->Mips[MipmapsToSkip].BulkData.Unlock();
 		}
 		else
 		{
 			check(false);
+			pResult = new mu::Image(SizeX, SizeY, LODs, MutableFormat, mu::EInitializationType::Black);
 		}
 
 #endif
@@ -227,7 +227,7 @@ mu::EImageFormat GetMutablePixelFormat(EPixelFormat InTextureFormat)
 			int SizeX = TextureToLoad->GetSizeX() >> MipIndex;
 			int SizeY = TextureToLoad->GetSizeY() >> MipIndex;
 
-			Image = new mu::Image(SizeX, SizeY, LODs, MutImageFormat);
+			Image = new mu::Image(SizeX, SizeY, LODs, MutImageFormat, mu::EInitializationType::NotInitialized);
 			MutImageDataSize = Image->GetDataSize();
 
 			// In a packaged game the bulk data has to be loaded
@@ -504,7 +504,7 @@ void FUnrealMutableImageProvider::CacheImage(const mu::EXTERNAL_IMAGE_ID& Id, bo
 					case UCustomizableSystemImageProvider::ValueType::Raw:
 					{
 						FIntVector desc = Provider->GetTextureParameterValueSize(Id);
-						pResult = new mu::Image(desc[0], desc[1], 1, mu::EImageFormat::IF_RGBA_UBYTE);
+						pResult = new mu::Image(desc[0], desc[1], 1, mu::EImageFormat::IF_RGBA_UBYTE, mu::EInitializationType::Black);
 						Provider->GetTextureParameterValueData(Id, pResult->GetData());
 						break;
 					}
@@ -659,7 +659,7 @@ mu::ImagePtr FUnrealMutableImageProvider::CreateDummy()
 	uint8_t colours[checkerTileCount][4] = { { 255, 255, 0, 0 },  { 0, 0, 255, 0 } };
 #endif
 
-	mu::ImagePtr pResult = new mu::Image(size, size, DUMMY_IMAGE_DESC.m_lods, DUMMY_IMAGE_DESC.m_format);
+	mu::ImagePtr pResult = new mu::Image(size, size, DUMMY_IMAGE_DESC.m_lods, DUMMY_IMAGE_DESC.m_format, mu::EInitializationType::NotInitialized);
 
 	uint8_t* pData = pResult->GetData();
 	for (int x = 0; x < size; ++x)

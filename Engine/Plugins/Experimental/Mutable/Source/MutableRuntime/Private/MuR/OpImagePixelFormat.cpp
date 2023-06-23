@@ -18,13 +18,10 @@ namespace mu
 {
 
 
-//-------------------------------------------------------------------------------------------------
-Ptr<Image> ImagePixelFormat( int32 CompressionQuality, const Image* Base, EImageFormat TargetFormat, int32 OnlyLOD )
+Ptr<Image> FImageOperator::ImagePixelFormat( int32 CompressionQuality, const Image* Base, EImageFormat TargetFormat, int32 OnlyLOD )
 {
 	MUTABLE_CPUPROFILER_SCOPE(ImagePixelFormat);
-
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("From %d to %d"), int32(Base->GetFormat()), int32(TargetFormat)));
-
 
 	FIntVector2 resultSize;
     int resultLODCount = 0;
@@ -41,7 +38,7 @@ Ptr<Image> ImagePixelFormat( int32 CompressionQuality, const Image* Base, EImage
         resultLODCount = 1;
     }
 
-    Ptr<Image> Result = new Image( (uint16)resultSize[0], (uint16)resultSize[1], resultLODCount, TargetFormat, EInitializationType::NotInitialized );
+    Ptr<Image> Result = CreateImage( resultSize[0], resultSize[1], resultLODCount, TargetFormat, EInitializationType::NotInitialized );
 	Result->m_flags = Base->m_flags;
 
 	if (Base->GetSizeX()<=0 ||Base->GetSizeY()<=0)
@@ -67,8 +64,7 @@ Ptr<Image> ImagePixelFormat( int32 CompressionQuality, const Image* Base, EImage
 }
 
 
-//-------------------------------------------------------------------------------------------------
-void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResult, const Image* Base, int32 OnlyLOD )
+void FImageOperator::ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResult, const Image* Base, int32 OnlyLOD)
 {
 	MUTABLE_CPUPROFILER_SCOPE(ImagePixelFormatInPlace);
 
@@ -311,16 +307,16 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
             case EImageFormat::IF_BGRA_UBYTE:
             {
                 check( OnlyLOD == -1 );
-                ImagePtr pTemp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_L_UBYTE );
+                ImagePtr Temp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_L_UBYTE, -1 );
  
 				// Try to compress
 				if (!pResult->m_data.Num())
 				{
 					// Allocate memory for the compressed data. TODO: Smaller?
-					pResult->m_data.SetNum(pTemp->m_data.Num());
+					pResult->m_data.SetNum(Temp->m_data.Num());
 				}
 
-				CompressRLE_L(bOutSuccess, pTemp.get(), pResult );
+				CompressRLE_L(bOutSuccess, Temp.get(), pResult );
 
 #ifdef MUTABLE_DEBUG_RLE		
 				if (bOutSuccess)
@@ -330,6 +326,7 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
                     check( !FMemory::Memcmp(pTest->GetData(), pTemp->GetData(), pTemp->GetDataSize() ) );
                 }
 #endif
+				ReleaseImage(Temp);
 
                 break;
             }
@@ -378,8 +375,8 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
             case EImageFormat::IF_BGRA_UBYTE:
             {
                 check( OnlyLOD == -1 );
-                ImagePtr pTemp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_L_UBYTE );
-				CompressRLE_L1(bOutSuccess, pTemp.get(), pResult );
+                ImagePtr Temp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_L_UBYTE, -1);
+				CompressRLE_L1(bOutSuccess, Temp.get(), pResult );
 
 #ifdef bOutSuccess		
 				if (bOutSuccess)
@@ -390,6 +387,7 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
 				}
 #endif
 
+				ReleaseImage(Temp);
                 break;
             }
 
@@ -457,14 +455,15 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
             case EImageFormat::IF_RGBA_UBYTE_RLE:
             {
                 check( OnlyLOD == -1 );
-                ImagePtr pTemp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGBA_UBYTE );
-                const uint8_t* pTempBuf = pTemp->GetData();
+                ImagePtr Temp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGBA_UBYTE, -1);
+                const uint8* TempBuf = Temp->GetData();
                 for ( int i=0; i<pixelCount; ++i )
                 {
-                    pDestBuf[i*3+0] = pTempBuf[i*4+0];
-                    pDestBuf[i*3+1] = pTempBuf[i*4+1];
-                    pDestBuf[i*3+2] = pTempBuf[i*4+2];
+                    pDestBuf[i*3+0] = TempBuf[i*4+0];
+                    pDestBuf[i*3+1] = TempBuf[i*4+1];
+                    pDestBuf[i*3+2] = TempBuf[i*4+2];
                 }
+				ReleaseImage(Temp);
                 break;
             }
 
@@ -649,14 +648,14 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
         {
             // TODO: Optimise
             pResult->m_format = EImageFormat::IF_RGBA_UBYTE;
-            ImagePixelFormat(bOutSuccess, CompressionQuality, pResult, Base, OnlyLOD );
+            ImagePixelFormat(bOutSuccess, CompressionQuality, pResult, Base, OnlyLOD);
 			check(bOutSuccess);
             pResult->m_format = EImageFormat::IF_BGRA_UBYTE;
 
-            uint8_t* pDestBuf = pResult->GetData();
+            uint8* pDestBuf = pResult->GetData();
             for ( int i=0; i<pixelCount; ++i )
             {
-                uint8_t temp = pDestBuf[i*4+0];
+                uint8 temp = pDestBuf[i*4+0];
                 pDestBuf[i*4+0] = pDestBuf[i*4+2];
                 pDestBuf[i*4+2] = temp;
             }
@@ -890,30 +889,32 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
 			case EImageFormat::IF_RGB_UBYTE_RLE:
 			{
 				check(OnlyLOD == -1);
-				ImagePtr pTemp = ImagePixelFormat(CompressionQuality, Base, EImageFormat::IF_RGB_UBYTE);
-				const uint8_t* pTempData = pTemp->GetData();
+				ImagePtr Temp = ImagePixelFormat(CompressionQuality, Base, EImageFormat::IF_RGB_UBYTE);
+				const uint8* TempData = Temp->GetData();
 				for (int i = 0; i < pixelCount; ++i)
 				{
-					pDestBuf[i * 4 + 0] = pTempData[i * 3 + 0];
-					pDestBuf[i * 4 + 1] = pTempData[i * 3 + 1];
-					pDestBuf[i * 4 + 2] = pTempData[i * 3 + 2];
+					pDestBuf[i * 4 + 0] = TempData[i * 3 + 0];
+					pDestBuf[i * 4 + 1] = TempData[i * 3 + 1];
+					pDestBuf[i * 4 + 2] = TempData[i * 3 + 2];
 					pDestBuf[i * 4 + 3] = 255;
 				}
+				ReleaseImage(Temp);
 				break;
 			}
 
 			case EImageFormat::IF_L_UBYTE_RLE:
 			{
 				check(OnlyLOD == -1);
-				ImagePtr pTemp = ImagePixelFormat(CompressionQuality, Base, EImageFormat::IF_L_UBYTE);
-				const uint8_t* pTempData = pTemp->GetData();
+				ImagePtr Temp = ImagePixelFormat(CompressionQuality, Base, EImageFormat::IF_L_UBYTE);
+				const uint8* TempData = Temp->GetData();
 				for (int i = 0; i < pixelCount; ++i)
 				{
-					pDestBuf[i * 4 + 0] = pTempData[i];
-					pDestBuf[i * 4 + 1] = pTempData[i];
-					pDestBuf[i * 4 + 2] = pTempData[i];
+					pDestBuf[i * 4 + 0] = TempData[i];
+					pDestBuf[i * 4 + 1] = TempData[i];
+					pDestBuf[i * 4 + 2] = TempData[i];
 					pDestBuf[i * 4 + 3] = 255;
 				}
+				ReleaseImage(Temp);
 				break;
 			}
 
@@ -936,12 +937,6 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
             {
                 check( OnlyLOD == -1 );
                 CompressRLE_RGBA( Base, pResult );
-
-                // TODO: TEST BLEH
-                //                ImagePtr pTest = ImagePixelFormat( CompressionQuality,
-                //                pResult, EImageFormat::IF_RGBA_UBYTE ); check(
-                //                !memcmp(pTest->GetData(), Base->GetData(),
-                //                Base->GetDataSize() ) );
                 break;
             }
 
@@ -950,14 +945,16 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
                 check( OnlyLOD == -1 );
 
                 // \todo: optimise
-                ImagePtr pTemp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGBA_UBYTE );
-                CompressRLE_RGBA( pTemp.get(), pResult );
+                ImagePtr Temp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGBA_UBYTE);
+                CompressRLE_RGBA( Temp.get(), pResult );
 
-                // TODO: TEST BLEH
+                // Test
                 //                ImagePtr pTest = ImagePixelFormat( CompressionQuality,
                 //                pResult, EImageFormat::IF_RGBA_UBYTE ); check(
                 //                !memcmp(pTest->GetData(), Base->GetData(),
                 //                Base->GetDataSize() ) );
+
+				ReleaseImage(Temp);
                 break;
             }
 
@@ -966,11 +963,12 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
                 check( OnlyLOD == -1 );
 
                 // \todo: optimise
-                ImagePtr pTemp1 = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGB_UBYTE );
-                ImagePtr pTemp2 =
-                    ImagePixelFormat( CompressionQuality, pTemp1.get(), EImageFormat::IF_RGBA_UBYTE );
-                CompressRLE_RGBA( pTemp2.get(), pResult );
-                break;
+                ImagePtr Temp1 = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGB_UBYTE);
+                ImagePtr Temp2 = ImagePixelFormat( CompressionQuality, Temp1.get(), EImageFormat::IF_RGBA_UBYTE);
+				ReleaseImage(Temp1);
+				CompressRLE_RGBA( Temp2.get(), pResult );
+				ReleaseImage(Temp2);
+				break;
             }
 
             default:
@@ -993,7 +991,7 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
                 check( OnlyLOD == -1 );
                 CompressRLE_RGB( Base, pResult );
 
-                // TODO: TEST BLEH
+                // Test
                 // ImagePtr pTest = ImagePixelFormat( CompressionQuality, pDest.get(),
                 // EImageFormat::IF_RGB_UBYTE ); check( !memcmp(pTest->GetData(), Base->GetData(),
                 // Base->GetDataSize() ) );
@@ -1005,11 +1003,12 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
                 check( OnlyLOD == -1 );
 
                 // \todo: optimise
-                ImagePtr pTemp1 = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGBA_UBYTE );
-                ImagePtr pTemp2 =
-                    ImagePixelFormat( CompressionQuality, pTemp1.get(), EImageFormat::IF_RGB_UBYTE );
-                CompressRLE_RGB( pTemp2.get(), pResult );
-                break;
+                ImagePtr Temp1 = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGBA_UBYTE);
+                ImagePtr Temp2 = ImagePixelFormat( CompressionQuality, Temp1.get(), EImageFormat::IF_RGB_UBYTE);
+				ReleaseImage(Temp1);
+				CompressRLE_RGB( Temp2.get(), pResult );
+				ReleaseImage(Temp2);
+				break;
             }
 
             default:
@@ -1046,28 +1045,30 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
 
             case EImageFormat::IF_L_UBYTE:
             {
-                ImagePtr pTemp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGB_UBYTE );
+                ImagePtr Temp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGB_UBYTE);
                 for ( int m=0; m<resultLODCount; ++m )
                 {
                     FIntVector2 mipSize = pResult->CalculateMipSize( m );
                     miro::RGB_to_BC1(
-                        mipSize[0], mipSize[1], pTemp->GetMipData( baseLOD + m ),
+                        mipSize[0], mipSize[1], Temp->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), CompressionQuality );
                 }
+				ReleaseImage(Temp);
                 break;
             }
 
             case EImageFormat::IF_BC3:
             {
-                ImagePtr pTemp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGBA_UBYTE );
+                ImagePtr Temp = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_RGBA_UBYTE);
                 for (int m = 0; m < resultLODCount; ++m)
                 {
                     FIntVector2 mipSize = pResult->CalculateMipSize(m);
                     miro::RGBA_to_BC1(
-                        mipSize[0], mipSize[1], pTemp->GetMipData( baseLOD + m ),
+                        mipSize[0], mipSize[1], Temp->GetMipData( baseLOD + m ),
                         pResult->GetMipData( m ), CompressionQuality );
                 }
-                break;
+				ReleaseImage(Temp);
+				break;
             }
 
             default:
@@ -1168,16 +1169,13 @@ void ImagePixelFormat( bool& bOutSuccess, int32 CompressionQuality, Image* pResu
 			case EImageFormat::IF_RGBA_UBYTE:
 			case EImageFormat::IF_BGRA_UBYTE:
 			{	
-                ImagePtr pTempBase =
-                        ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_L_UBYTE );
+                ImagePtr TempBase = ImagePixelFormat( CompressionQuality, Base, EImageFormat::IF_L_UBYTE, -1);
                 for (int m = 0; m < resultLODCount; ++m)
                 {
-                    FIntVector2 mipSize = pTempBase->CalculateMipSize( m );
-
-                    miro::L_to_BC4(
-                        mipSize[0], mipSize[1], Base->GetMipData( baseLOD + m ),
-                        pResult->GetMipData( m ), CompressionQuality );
+                    FIntVector2 MipSize = TempBase->CalculateMipSize( m );
+                    miro::L_to_BC4( MipSize[0], MipSize[1], Base->GetMipData( baseLOD + m ), pResult->GetMipData( m ), CompressionQuality );
                 }
+				ReleaseImage(TempBase);
 				break;
 			}
 

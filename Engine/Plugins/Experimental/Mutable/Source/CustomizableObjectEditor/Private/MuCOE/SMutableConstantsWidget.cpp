@@ -1152,7 +1152,7 @@ void SMutableConstantsWidget::LoadConstantImages()
 		TSharedPtr<FMutableConstantImageElement> ConstantImageElement =MakeShared<FMutableConstantImageElement>();
 
 		MutableProgramPtr->GetConstant(ImageIndex, ConstantImageElement->ImagePtr, 0,
-			[this](int32 x, int32 y, int32 m, mu::EImageFormat f) { return new mu::Image(x, y, m, f); });
+			[this](int32 x, int32 y, int32 m, mu::EImageFormat f, mu::EInitializationType i) { return new mu::Image(x, y, m, f, i); });
 
 		ConstantImageElement->IndexOnSourceVector = ImageIndex;
 		

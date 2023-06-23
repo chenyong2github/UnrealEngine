@@ -25,19 +25,14 @@
 #include "MuR/OpImageBinarise.h"
 #include "MuR/OpImageBlend.h"
 #include "MuR/OpImageColourMap.h"
-#include "MuR/OpImageCompose.h"
-#include "MuR/OpImageCrop.h"
-#include "MuR/OpImageDifference.h"
 #include "MuR/OpImageDisplace.h"
 #include "MuR/OpImageGradient.h"
 #include "MuR/OpImageInterpolate.h"
 #include "MuR/OpImageInvert.h"
 #include "MuR/OpImageLuminance.h"
-#include "MuR/OpImageMipmap.h"
 #include "MuR/OpImageNormalCombine.h"
 #include "MuR/OpImageProject.h"
 #include "MuR/OpImageRasterMesh.h"
-#include "MuR/OpImageResize.h"
 #include "MuR/OpImageSaturate.h"
 #include "MuR/OpImageTransform.h"
 #include "MuR/OpLayoutPack.h"
@@ -944,8 +939,10 @@ namespace mu
 
 			int32 MipsToSkip = item.ExecutionOptions;
             Ptr<const Image> Source;
-			program.GetConstant(cat, Source, MipsToSkip,
-				[this](int32 x, int32 y, int32 m, EImageFormat f) { return CreateImage(x,y,m,f); } );
+			program.GetConstant(cat, Source, MipsToSkip, [this](int32 x, int32 y, int32 m, EImageFormat f, EInitializationType i)
+				{
+					return CreateImage(x, y, m, f, i);
+				});
 
 			// Assume the ROM has been loaded previously in a task generated at IssueOp
 			check(Source);
@@ -2987,6 +2984,8 @@ namespace mu
     {
 		MUTABLE_CPUPROFILER_SCOPE(RunCode_Image);
 
+		FImageOperator ImOp = MakeImageOperator(this);
+
 		OP_TYPE type = pModel->GetPrivate()->m_program.GetOpType(item.At);
 		switch (type)
         {
@@ -3126,7 +3125,7 @@ namespace mu
 						Ptr<Image> Formatted = CreateImage( New->GetSizeX(), New->GetSizeY(), New->GetLODCount(), BaseFormat, EInitializationType::NotInitialized );
 
 						bool bSuccess = false;
-						ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), New.get());
+						ImOp.ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), New.get());
 						check(bSuccess); // Decompression cannot fail
 
 						Release(New);
@@ -3187,7 +3186,7 @@ namespace mu
 						Ptr<Image> Formatted = CreateImage(Blended->GetSizeX(), Blended->GetSizeY(), Blended->GetLODCount(), Base->GetFormat(), EInitializationType::NotInitialized);
 
 						bool bSuccess = false;
-						ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), Blended.get());
+						ImOp.ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), Blended.get());
 						check(bSuccess);
 
 						Release(Blended);
@@ -3201,7 +3200,7 @@ namespace mu
 						MUTABLE_CPUPROFILER_SCOPE(ImageResize_BlendedFixForMultilayer);
 
 						Ptr<Image> Resized = CreateImage(ResultSize[0], ResultSize[1], Blended->GetLODCount(), Blended->GetFormat(), EInitializationType::NotInitialized);
-						ImageResizeLinear(Resized.get(), 0, Blended.get());
+						ImOp.ImageResizeLinear(Resized.get(), 0, Blended.get());
 						Release(Blended);
 						Blended = Resized;
 					}
@@ -3250,7 +3249,7 @@ namespace mu
 							MUTABLE_CPUPROFILER_SCOPE(ImageResize_MaskFixForMultilayer);
 
 							Ptr<Image> Resized = CreateImage(ResultSize[0], ResultSize[1], Mask->GetLODCount(), Mask->GetFormat(), EInitializationType::NotInitialized);
-							ImageResizeLinear(Resized.get(), 0, Mask.get());
+							ImOp.ImageResizeLinear(Resized.get(), 0, Mask.get());
 							Release(Mask);
 							Mask = Resized;
 						}
@@ -3401,17 +3400,17 @@ namespace mu
 					MUTABLE_CPUPROFILER_SCOPE(ImageNormalComposite_EmergencyFix);
 
 					int levelCount = Base->GetLODCount();
-					ImagePtr pDest = CreateImage(Normal->GetSizeX(), Normal->GetSizeY(), levelCount, Normal->GetFormat());
+					ImagePtr Dest = CreateImage(Normal->GetSizeX(), Normal->GetSizeY(), levelCount, Normal->GetFormat(), EInitializationType::NotInitialized);
 
 					FMipmapGenerationSettings mipSettings{};
-					ImageMipmap(m_pSystem->WorkingMemoryManager,m_pSettings->ImageCompressionQuality, pDest.get(), Normal.get(), levelCount, mipSettings);
+					ImOp.ImageMipmap(m_pSettings->ImageCompressionQuality, Dest.get(), Normal.get(), levelCount, mipSettings);
 
 					Release(Normal);
-					Normal = pDest;
+					Normal = Dest;
 				}
 
 
-                ImagePtr Result = CreateImage( Base->GetSizeX(), Base->GetSizeY(), Base->GetLODCount(), Base->GetFormat() );
+                ImagePtr Result = CreateImage( Base->GetSizeX(), Base->GetSizeY(), Base->GetLODCount(), Base->GetFormat(), EInitializationType::NotInitialized);
 				ImageNormalComposite(Result.get(), Base.get(), Normal.get(), args.mode, args.power);
 
 				Release(Base);
@@ -3516,7 +3515,7 @@ namespace mu
                 if ( Base->GetSize()!=DestSize )
                 {
 					Ptr<Image> Result = CreateImage(DestSize[0], DestSize[1], Base->GetLODCount(), Base->GetFormat(), EInitializationType::NotInitialized);
-					ImageResizeLinear( Result.get(), m_pSettings->ImageCompressionQuality, Base.get() );
+					ImOp.ImageResizeLinear( Result.get(), m_pSettings->ImageCompressionQuality, Base.get());
 					Release(Base);
 
                     // If the source image had mips, generate them as well for the resized image.
@@ -3527,12 +3526,11 @@ namespace mu
                     if (sourceHasMips)
                     {
                         int levelCount = Image::GetMipmapCount( Result->GetSizeX(), Result->GetSizeY() );
-                        Ptr<Image> Mipmapped = CreateImage( Result->GetSizeX(), Result->GetSizeY(), levelCount, Result->GetFormat() );
+                        Ptr<Image> Mipmapped = CreateImage( Result->GetSizeX(), Result->GetSizeY(), levelCount, Result->GetFormat(), EInitializationType::NotInitialized);
 
 						FMipmapGenerationSettings mipSettings{};
 
-                        ImageMipmap( m_pSystem->WorkingMemoryManager, m_pSettings->ImageCompressionQuality,
-                                     Mipmapped.get(), Result.get(), levelCount, mipSettings );
+						ImOp.ImageMipmap( m_pSettings->ImageCompressionQuality, Mipmapped.get(), Result.get(), levelCount, mipSettings );
 
 						Release(Result);
 						Result = Mipmapped;
@@ -3613,9 +3611,9 @@ namespace mu
 					//ReducedBlockSizeInPixels.X = BlockSizeInPixels.X >> MipsToSkip;
 					//ReducedBlockSizeInPixels.Y = BlockSizeInPixels.Y >> MipsToSkip;
 					//const FImageFormatData& FormatData = GetImageFormatData((EImageFormat)args.format);
-					//int MinBlockSize = FMath::Max(FormatData.m_pixelsPerBlockX, FormatData.m_pixelsPerBlockY);
-					//ReducedBlockSizeInPixels.X = FMath::Max<int32>(ReducedBlockSizeInPixels.X, FormatData.m_pixelsPerBlockX);
-					//ReducedBlockSizeInPixels.Y = FMath::Max<int32>(ReducedBlockSizeInPixels.Y, FormatData.m_pixelsPerBlockY);
+					//int MinBlockSize = FMath::Max(FormatData.PixelsPerBlockX, FormatData.PixelsPerBlockY);
+					//ReducedBlockSizeInPixels.X = FMath::Max<int32>(ReducedBlockSizeInPixels.X, FormatData.PixelsPerBlockX);
+					//ReducedBlockSizeInPixels.Y = FMath::Max<int32>(ReducedBlockSizeInPixels.Y, FormatData.PixelsPerBlockY);
 					//FIntPoint ReducedImageSizeInPixels = SizeInBlocks * ReducedBlockSizeInPixels;
 
 					// This method simply reduces the size and assumes all the other operations will handle degeenrate cases.
@@ -3640,8 +3638,9 @@ namespace mu
                     }
                 }
 
-                ImagePtr pNew = CreateImage(ImageSizeInPixels.X, ImageSizeInPixels.Y, MipsToGenerate, EImageFormat(args.format) );
-                StoreImage( item, pNew );
+				// It needs to be initialized in case it has gaps.
+                ImagePtr New = CreateImage(ImageSizeInPixels.X, ImageSizeInPixels.Y, MipsToGenerate, EImageFormat(args.format), EInitializationType::Black );
+                StoreImage( item, New );
                 break;
             }
 
@@ -3801,7 +3800,7 @@ namespace mu
 						{
 							MUTABLE_CPUPROFILER_SCOPE(ImageResize_ForInterpolate);
 							Ptr<Image> Resized = CreateImage(pNew->GetSizeX(), pNew->GetSizeY(), pMax->GetLODCount(), pMax->GetFormat(), EInitializationType::NotInitialized);
-							ImageResizeLinear(Resized.get(), 0, pMax.get());
+							ImOp.ImageResizeLinear(Resized.get(), 0, pMax.get());
 							Release(pMax);
 							pMax = Resized;
 						}
@@ -3810,10 +3809,10 @@ namespace mu
 						{
 							MUTABLE_CPUPROFILER_SCOPE(Mipmap_ForInterpolate);
 
-							ImagePtr pDest = CreateImage(pNew->GetSizeX(), pNew->GetSizeY(), LevelCount, pNew->GetFormat());
+							ImagePtr pDest = CreateImage(pNew->GetSizeX(), pNew->GetSizeY(), LevelCount, pNew->GetFormat(), EInitializationType::NotInitialized);
 
 							FMipmapGenerationSettings settings{};
-							ImageMipmap(m_pSystem->WorkingMemoryManager, m_pSettings->ImageCompressionQuality, pDest.get(), pNew.get(), LevelCount, settings);
+							ImOp.ImageMipmap(m_pSettings->ImageCompressionQuality, pDest.get(), pNew.get(), LevelCount, settings);
 
 							Release(pNew);
 							pNew = pDest;
@@ -3823,10 +3822,10 @@ namespace mu
 						{
 							MUTABLE_CPUPROFILER_SCOPE(Mipmap_ForInterpolate);
 
-							ImagePtr pDest = CreateImage(pMax->GetSizeX(), pMax->GetSizeY(), LevelCount, pMax->GetFormat());
+							ImagePtr pDest = CreateImage(pMax->GetSizeX(), pMax->GetSizeY(), LevelCount, pMax->GetFormat(), EInitializationType::NotInitialized);
 
 							FMipmapGenerationSettings settings{};
-							ImageMipmap(m_pSystem->WorkingMemoryManager, m_pSettings->ImageCompressionQuality, pDest.get(), pMax.get(), LevelCount, settings);
+							ImOp.ImageMipmap(m_pSettings->ImageCompressionQuality, pDest.get(), pMax.get(), LevelCount, settings);
 
 							Release(pMax);
 							pMax = pDest;
@@ -3965,7 +3964,7 @@ namespace mu
 				{
 					MUTABLE_CPUPROFILER_SCOPE(ImageResize_ForColourmap);
 					Ptr<Image> Resized = CreateImage(Source->GetSizeX(), Source->GetSizeY(), 1, Mask->GetFormat(), EInitializationType::NotInitialized);
-					ImageResizeLinear(Resized.get(), 0, Mask.get());
+					ImOp.ImageResizeLinear(Resized.get(), 0, Mask.get());
 					Release(Mask);
 					Mask = Resized;
 				}
@@ -4012,7 +4011,7 @@ namespace mu
 				FVector4f colour0 = LoadColor(FScheduledOp::FromOpAndOptions(args.colour0, item, 0));
 				FVector4f colour1 = LoadColor(FScheduledOp::FromOpAndOptions(args.colour1, item, 0));
 
-				ImagePtr pResult = CreateImage(args.size[0], args.size[1], 1, EImageFormat::IF_RGB_UBYTE);
+				ImagePtr pResult = CreateImage(args.size[0], args.size[1], 1, EImageFormat::IF_RGB_UBYTE, EInitializationType::NotInitialized);
                 ImageGradient( pResult.get(), colour0, colour1 );
 
 				StoreImage( item, pResult );
@@ -4045,7 +4044,7 @@ namespace mu
 
                 float c = LoadScalar(FScheduledOp::FromOpAndOptions(args.threshold, item, 0));
 
-                Ptr<Image> Result = CreateImage(pA->GetSizeX(), pA->GetSizeY(), pA->GetLODCount(), EImageFormat::IF_L_UBYTE);
+                Ptr<Image> Result = CreateImage(pA->GetSizeX(), pA->GetSizeY(), pA->GetLODCount(), EImageFormat::IF_L_UBYTE, EInitializationType::NotInitialized);
 				ImageBinarise( Result.get(), pA.get(), c );
 
 				Release(pA);
@@ -4116,7 +4115,7 @@ namespace mu
 
                 ImagePtr pA = CreateImage( SizeX, SizeY, FMath::Max(LODs,1), EImageFormat(args.format), EInitializationType::NotInitialized );
 
-                pA->FillColour(c);
+				ImOp.FillColor(pA.get(), c);
 
 				StoreImage( item, pA );
                 break;
@@ -4180,8 +4179,8 @@ namespace mu
 				ImagePtr pResult;
 				if (!rect.IsEmpty())
 				{
-					pResult = CreateImage( rect.size[0], rect.size[1], 1, pA->GetFormat() );
-					ImageCrop(pResult.get(), m_pSettings->ImageCompressionQuality, pA.get(), rect);
+					pResult = CreateImage( rect.size[0], rect.size[1], 1, pA->GetFormat(), EInitializationType::NotInitialized);
+					ImOp.ImageCrop(pResult.get(), m_pSettings->ImageCompressionQuality, pA.get(), rect);
 				}
 
 				Release(pA);
@@ -4242,12 +4241,12 @@ namespace mu
 					// This is usually enforced at object compilation time.
 					if (pResult->GetFormat() != pB->GetFormat())
 					{
-						MUTABLE_CPUPROFILER_SCOPE(ImagPatcheReformat);
+						MUTABLE_CPUPROFILER_SCOPE(ImagPatchReformat);
 
 						EImageFormat format = GetMostGenericFormat(pResult->GetFormat(), pB->GetFormat());
 
 						const FImageFormatData& finfo = GetImageFormatData(format);
-						if (finfo.m_pixelsPerBlockX == 0)
+						if (finfo.PixelsPerBlockX == 0)
 						{
 							format = GetUncompressedFormat(format);
 						}
@@ -4256,7 +4255,7 @@ namespace mu
 						{
 							Ptr<Image> Formatted = CreateImage(pResult->GetSizeX(), pResult->GetSizeY(), pResult->GetLODCount(), format, EInitializationType::NotInitialized);
 							bool bSuccess = false;
-							ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), pResult.get());
+							ImOp.ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), pResult.get());
 							check(bSuccess);
 							Release(pResult);
 							pResult = Formatted;
@@ -4265,7 +4264,7 @@ namespace mu
 						{
 							Ptr<Image> Formatted = CreateImage(pB->GetSizeX(), pB->GetSizeY(), pB->GetLODCount(), format, EInitializationType::NotInitialized);
 							bool bSuccess = false;
-							ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), pB.get());
+							ImOp.ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), pB.get());
 							check(bSuccess);
 							Release(pB);
 						}
@@ -4274,10 +4273,10 @@ namespace mu
 					// Don't patch if below the image compression block size.
 					const FImageFormatData& finfo = GetImageFormatData(pResult->GetFormat());
 					bApplyPatch =
-						(rect.min[0] % finfo.m_pixelsPerBlockX == 0) &&
-						(rect.min[1] % finfo.m_pixelsPerBlockY == 0) &&
-						(rect.size[0] % finfo.m_pixelsPerBlockX == 0) &&
-						(rect.size[1] % finfo.m_pixelsPerBlockY == 0) &&
+						(rect.min[0] % finfo.PixelsPerBlockX == 0) &&
+						(rect.min[1] % finfo.PixelsPerBlockY == 0) &&
+						(rect.size[0] % finfo.PixelsPerBlockX == 0) &&
+						(rect.size[1] % finfo.PixelsPerBlockY == 0) &&
 						(rect.min[0] + rect.size[0]) <= pResult->GetSizeX() &&
 						(rect.min[1] + rect.size[1]) <= pResult->GetSizeY()
 						;
@@ -4285,7 +4284,7 @@ namespace mu
 
 				if (bApplyPatch)
 				{
-					ImageCompose(pResult.get(), pB.get(), rect);
+					ImOp.ImageCompose(pResult.get(), pB.get(), rect);
 					pResult->m_flags = 0;
 				}
 				else
@@ -4358,7 +4357,7 @@ namespace mu
 					}
 
                     // Flat mesh UV raster
-					Ptr<Image> ResultImage = CreateImage(SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE);
+					Ptr<Image> ResultImage = CreateImage(SizeX, SizeY, 1, EImageFormat::IF_L_UBYTE, EInitializationType::Black);
 					if (pMesh)
 					{
 						ImageRasterMesh(pMesh.get(), ResultImage.get(), args.blockIndex, CropMin, UncroppedSize);
@@ -4484,7 +4483,7 @@ namespace mu
 						MUTABLE_CPUPROFILER_SCOPE(ImageResize_MaskFixForProjection);
 
 						Ptr<Image> Resized = CreateImage(SizeX, SizeY, Mask->GetLODCount(), Mask->GetFormat(), EInitializationType::NotInitialized);
-						ImageResizeLinear(Resized.get(), 0, Mask.get());
+						ImOp.ImageResizeLinear(Resized.get(), 0, Mask.get());
 						Release(Mask);
 						Mask = Resized;
 					}
@@ -4508,7 +4507,7 @@ namespace mu
 					MUTABLE_CPUPROFILER_SCOPE(RunCode_RasterMesh_ReformatSource);
 					Ptr<Image> Formatted = CreateImage(Source->GetSizeX(), Source->GetSizeY(), Source->GetLODCount(), Format, EInitializationType::NotInitialized);
 					bool bSuccess = false;
-					ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), Source.get());
+					ImOp.ImagePixelFormat(bSuccess, m_pSettings->ImageCompressionQuality, Formatted.get(), Source.get());
 					check(bSuccess); 
 					Release(Source);
 					Source = Formatted;
@@ -4543,7 +4542,7 @@ namespace mu
 					{
 						MUTABLE_CPUPROFILER_SCOPE(RunCode_RasterMesh_BilinearMipGen);
 
-						Ptr<Image> NewImage = CreateImage(Source->GetSizeX(), Source->GetSizeY(), 2, Source->GetFormat());
+						Ptr<Image> NewImage = CreateImage(Source->GetSizeX(), Source->GetSizeY(), 2, Source->GetFormat(), EInitializationType::NotInitialized);
 
 						check(NewImage->GetDataSize() >= Source->GetDataSize());
 						FMemory::Memcpy(NewImage->GetData(), Source->GetData(), Source->GetDataSize());
@@ -4556,7 +4555,7 @@ namespace mu
 				}
 
 				// Allocate new image after bilinear mip generation to reduce operation memory peak.
-				Ptr<Image> pNew = CreateImage(SizeX, SizeY, 1, Format);
+				Ptr<Image> New = CreateImage(SizeX, SizeY, 1, Format, EInitializationType::Black);
 
 				if (args.projector && Source && Source->GetSizeX() > 0 && Source->GetSizeY() > 0)
 				{
@@ -4565,7 +4564,7 @@ namespace mu
 					switch (Projector.type)
 					{
 					case PROJECTOR_TYPE::PLANAR:
-						ImageRasterProjectedPlanar(pMesh.get(), pNew.get(),
+						ImageRasterProjectedPlanar(pMesh.get(), New.get(),
 							Source.get(), Mask.get(),
 							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
 							SamplingMethod,
@@ -4576,7 +4575,7 @@ namespace mu
 						break;
 
 					case PROJECTOR_TYPE::WRAPPING:
-						ImageRasterProjectedWrapping(pMesh.get(), pNew.get(),
+						ImageRasterProjectedWrapping(pMesh.get(), New.get(),
 							Source.get(), Mask.get(),
 							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
 							SamplingMethod,
@@ -4587,7 +4586,7 @@ namespace mu
 						break;
 
 					case PROJECTOR_TYPE::CYLINDRICAL:
-						ImageRasterProjectedCylindrical(pMesh.get(), pNew.get(),
+						ImageRasterProjectedCylindrical(pMesh.get(), New.get(),
 							Source.get(), Mask.get(),
 							args.bIsRGBFadingEnabled, args.bIsAlphaFadingEnabled,
 							FadeStartRad, FadeEndRad,
@@ -4606,7 +4605,7 @@ namespace mu
 				Release(pMesh);
 				Release(Source);
 				Release(Mask);
-				StoreImage(item, pNew);
+				StoreImage(item, New);
 
                 break;
             }
@@ -4633,7 +4632,7 @@ namespace mu
 
                 Ptr<const Image> Mask = LoadImage( FCacheAddress(args.mask,item) );
 
-                Ptr<Image> Result = CreateImage( Mask->GetSizeX(), Mask->GetSizeY(), Mask->GetLODCount(), EImageFormat::IF_L_UBYTE);
+                Ptr<Image> Result = CreateImage( Mask->GetSizeX(), Mask->GetSizeY(), Mask->GetLODCount(), EImageFormat::IF_L_UBYTE, EInitializationType::NotInitialized);
 
                 ImageMakeGrowMap(Result.get(), Mask.get(), args.border );
 				Result->m_flags |= Image::IF_CANNOT_BE_SCALED;
@@ -4684,7 +4683,7 @@ namespace mu
 					MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyHackForDisplacementStep1);
 
 					Ptr<Image> Resized = CreateImage(pMap->GetSizeX(), pMap->GetSizeY(), Source->GetLODCount(), Source->GetFormat(), EInitializationType::NotInitialized);
-					ImageResizeLinear(Resized.get(), 0, Source.get());
+					ImOp.ImageResizeLinear(Resized.get(), 0, Source.get());
 					Release(Source);
 					Source = Resized;
 				}
@@ -4701,7 +4700,7 @@ namespace mu
 					{
 						MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyHackForDisplacementStep2);
 						Ptr<Image> Resized = CreateImage(OriginalSourceScale[0], OriginalSourceScale[1], Result->GetLODCount(), Result->GetFormat(), EInitializationType::NotInitialized);
-						ImageResizeLinear(Resized.get(), 0, Result.get());
+						ImOp.ImageResizeLinear(Resized.get(), 0, Result.get());
 						Release(Result);
 						Result = Resized;
 					}
@@ -4764,10 +4763,10 @@ namespace mu
 					static_cast<uint16>(FMath::Clamp(FMath::FloorToInt(float(BaseSize.Y) * FMath::Abs(Scale.Y)), 2, BaseSize.Y)));
 	
 				Ptr<Image> pSampleImage = CreateImage(SampleImageSize[0], SampleImageSize[1], BaseLODs, BaseFormat, EInitializationType::NotInitialized);
-				ImageResizeLinear(pSampleImage.get(), 0, pBaseImage.get());
+				ImOp.ImageResizeLinear( pSampleImage.get(), 0, pBaseImage.get());
 				Release(pBaseImage);
 
-				Ptr<Image> Result = CreateImage(BaseSize.X, BaseSize.Y, 1, BaseFormat);
+				Ptr<Image> Result = CreateImage(BaseSize.X, BaseSize.Y, 1, BaseFormat, EInitializationType::NotInitialized);
 				ImageTransform(Result.get(), pSampleImage.get(), Offset, Scale, Rotation, static_cast<EAddressMode>(Args.AddressMode));
 
 				Release(pSampleImage);
@@ -6128,7 +6127,7 @@ namespace mu
 				EImageFormat NewFormat = args.format;
 				if (args.formatIfAlpha != EImageFormat::IF_NONE
 					&&
-					GetImageFormatData(OldFormat).m_channels > 3)
+					GetImageFormatData(OldFormat).Channels > 3)
 				{
 					NewFormat = args.formatIfAlpha;
 				}

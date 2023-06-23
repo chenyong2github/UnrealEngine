@@ -23,10 +23,7 @@
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
 #include "MuR/OpImageBlend.h"
-#include "MuR/OpImageCompose.h"
-#include "MuR/OpImageMipmap.h"
 #include "MuR/OpImageNormalCombine.h"
-#include "MuR/OpImageResize.h"
 #include "MuR/OpImageSaturate.h"
 #include "MuR/OpImageInvert.h"
 #include "MuR/Operations.h"
@@ -272,7 +269,7 @@ namespace mu
 			// TODO: We should get the actual format from the arguments for a more precise calculation.
 			OP::ImagePixelFormatArgs args = Program.GetOpArgs<OP::ImagePixelFormatArgs>(Candidate.At);
 			bool bIsCompressed = GetUncompressedFormat(args.format) != args.format;
-			bool bIsSmallish = GetImageFormatData(args.format).m_bytesPerBlock < 2;
+			bool bIsSmallish = GetImageFormatData(args.format).BytesPerBlock < 2;
 			if (bIsCompressed || bIsSmallish)
 			{
 				OpDelta = -10;
@@ -617,7 +614,7 @@ namespace mu
 				}
 
 				// If we reached here it means we didn't find an op to wait for. Try to wait for a loading op.
-				// \todo: unify laoding ops with normal ones?
+				// \todo: unify loading ops with normal ones?
 				for (FRomLoadOp& o : m_romLoadOps)
 				{
 					if (o.m_romIndex >= 0)
@@ -734,6 +731,8 @@ namespace mu
 			return false;
 		}
 
+		FImageOperator ImOp = MakeImageOperator(Runner);
+
 		// Input data fixes
 		InitialFormat = Base->GetFormat();
 
@@ -742,7 +741,7 @@ namespace mu
 			EImageFormat UncompressedFormat = GetUncompressedFormat(InitialFormat);
 			Ptr<Image> Formatted = Runner->CreateImage( Base->GetSizeX(), Base->GetSizeY(), Base->GetLODCount(), UncompressedFormat, EInitializationType::NotInitialized );
 			bool bSuccess = false;
-			ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Base.get());
+			ImOp.ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Base.get());
 			check(bSuccess); // Decompression cannot fail
 			Runner->Release(Base);
 			Base = Formatted;
@@ -752,7 +751,7 @@ namespace mu
 		{
 			Ptr<Image> Formatted = Runner->CreateImage(Blended->GetSizeX(), Blended->GetSizeY(), Blended->GetLODCount(), Base->GetFormat(), EInitializationType::NotInitialized);
 			bool bSuccess = false;
-			ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Blended.get());
+			ImOp.ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Blended.get());
 			check(bSuccess); // Decompression cannot fail
 			Runner->Release(Blended);
 			Blended = Formatted;
@@ -762,7 +761,7 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyFix);
 			Ptr<Image> Resized = Runner->CreateImage(Base->GetSizeX(), Base->GetSizeY(), 1, Blended->GetFormat(), EInitializationType::NotInitialized);
-			ImageResizeLinear(Resized.get(), ImageCompressionQuality, Blended.get());
+			ImOp.ImageResizeLinear(Resized.get(), ImageCompressionQuality, Blended.get());
 			Runner->Release(Blended);
 			Blended = Resized;
 
@@ -774,7 +773,7 @@ namespace mu
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyFix);
 				Ptr<Image> Resized = Runner->CreateImage(Base->GetSizeX(), Base->GetSizeY(), 1, Mask->GetFormat(), EInitializationType::NotInitialized);
-				ImageResizeLinear(Resized.get(), ImageCompressionQuality, Mask.get());
+				ImOp.ImageResizeLinear(Resized.get(), ImageCompressionQuality, Mask.get());
 				Runner->Release(Mask);
 				Mask = Resized;
 
@@ -786,15 +785,13 @@ namespace mu
 				MUTABLE_CPUPROFILER_SCOPE(ImageLayer_EmergencyFix);
 
 				int32 levelCount = Base->GetLODCount();
-				ImagePtr pDest = Runner->CreateImage(Mask->GetSizeX(), Mask->GetSizeY(),
-					levelCount,
-					Mask->GetFormat());
+				Ptr<Image> Dest = Runner->CreateImage(Mask->GetSizeX(), Mask->GetSizeY(), levelCount, Mask->GetFormat(), EInitializationType::NotInitialized);
 
 				FMipmapGenerationSettings settings{};
-				ImageMipmap(Runner->m_pSystem->WorkingMemoryManager, ImageCompressionQuality, pDest.get(), Mask.get(), levelCount, settings);
+				ImOp.ImageMipmap(ImageCompressionQuality, Dest.get(), Mask.get(), levelCount, settings);
 
 				Runner->Release(Mask);
-				Mask = pDest;
+				Mask = Dest;
 			}
 		}
 
@@ -958,7 +955,9 @@ namespace mu
 			{
 				Ptr<Image> Formatted = Runner->CreateImage(Result->GetSizeX(), Result->GetSizeY(), Result->GetLODCount(), InitialFormat, EInitializationType::NotInitialized);
 				bool bSuccess = false;
-				ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Result.get());
+
+				FImageOperator ImOp = MakeImageOperator(Runner);
+				ImOp.ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Result.get());
 				check(bSuccess);
 
 				Runner->Release(Result);
@@ -1035,11 +1034,13 @@ namespace mu
 
 		if (Args.mask && Mask)
 		{
+			FImageOperator ImOp = MakeImageOperator(Runner);
+
 			if (Base->GetSize() != Mask->GetSize())
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyFixSize);
 				Ptr<Image> Resized = Runner->CreateImage(Base->GetSizeX(), Base->GetSizeY(), 1, Mask->GetFormat(), EInitializationType::NotInitialized);
-				ImageResizeLinear(Resized.get(), ImageCompressionQuality, Mask.get());
+				ImOp.ImageResizeLinear(Resized.get(), ImageCompressionQuality, Mask.get() );
 				Runner->Release(Mask);
 				Mask = Resized;
 			}
@@ -1049,10 +1050,10 @@ namespace mu
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ImageResize_EmergencyFixMips);
 				int32 levelCount = Base->GetLODCount();
-				Ptr<Image> pDest = Runner->CreateImage(Mask->GetSizeX(), Mask->GetSizeY(), levelCount, Mask->GetFormat());
+				Ptr<Image> pDest = Runner->CreateImage(Mask->GetSizeX(), Mask->GetSizeY(), levelCount, Mask->GetFormat(), EInitializationType::NotInitialized);
 
 				FMipmapGenerationSettings settings{};
-				ImageMipmap(Runner->m_pSystem->WorkingMemoryManager, ImageCompressionQuality, pDest.get(), Mask.get(), levelCount, settings);
+				ImOp.ImageMipmap(ImageCompressionQuality, pDest.get(), Mask.get(), levelCount, settings);
 
 				Runner->Release(Mask);
 				Mask = pDest;
@@ -1130,7 +1131,13 @@ namespace mu
 					case EBlendType::BT_OVERLAY: BufferLayerColour<OverlayChannel>(Result.get(), Result.get(), Color); break;
 					case EBlendType::BT_LIGHTEN: BufferLayerColour<LightenChannel>(Result.get(), Result.get(), Color); break;
 					case EBlendType::BT_MULTIPLY: BufferLayerColour<MultiplyChannel>(Result.get(), Result.get(), Color); break;
-					case EBlendType::BT_BLEND: Result->FillColour(Color); break;
+					case EBlendType::BT_BLEND: 
+					{
+						// In this case we know it is already an uncompressed image, and we won't need additional allocations;
+						FImageOperator ImOp = FImageOperator::GetDefault();
+						ImOp.FillColor( Result.get(), Color); 
+						break;
+					}
 					default: check(false);
 					}
 				}
@@ -1248,7 +1255,7 @@ namespace mu
 		TargetFormat = Args.format;
 		if (Args.formatIfAlpha != EImageFormat::IF_NONE
 			&&
-			GetImageFormatData(Base->GetFormat()).m_channels > 3)
+			GetImageFormatData(Base->GetFormat()).Channels > 3)
 		{
 			TargetFormat = Args.formatIfAlpha;
 		}
@@ -1271,7 +1278,8 @@ namespace mu
 		MUTABLE_CPUPROFILER_SCOPE(FImagePixelFormatTask);
 		
 		bool bSuccess = false;
-		ImagePixelFormat(bSuccess, ImageCompressionQuality, Result.get(), Base.get(), -1);
+		FImageOperator ImOp = FImageOperator::GetDefault();
+		ImOp.ImagePixelFormat(bSuccess, ImageCompressionQuality, Result.get(), Base.get(), -1);
 
 		int32 OriginalDataSize = FMath::Max(Result->m_data.Num(), Base->m_data.Num());
 		int32 ExcessDataSize = OriginalDataSize * 4 + 4;
@@ -1283,7 +1291,7 @@ namespace mu
 			// We need to support it anyway for small mips or scaled images.
 			Result->m_data.SetNum(ExcessDataSize);
 			bSuccess = false;
-			ImagePixelFormat(bSuccess,ImageCompressionQuality, Result.get(), Base.get(), -1);
+			ImOp.ImagePixelFormat(bSuccess,ImageCompressionQuality, Result.get(), Base.get(), -1);
 			ExcessDataSize *= 4;
 		}
 
@@ -1323,7 +1331,7 @@ namespace mu
 		OP::ImageMipmapArgs Args;
 		Ptr<const Image> Base;
 		Ptr<Image> Result;
-		FScratchImageMipmap Scratch;
+		FImageOperator::FScratchImageMipmap Scratch;
 	};
 
 
@@ -1379,7 +1387,8 @@ namespace mu
 		Result = Runner->CreateImage(Base->GetSizeX(), Base->GetSizeY(), LevelCount, Base->GetFormat(), EInitializationType::NotInitialized);
 		Result->m_flags = Base->m_flags;
 
-		ImageMipmap_PrepareScratch( Runner->m_pSystem->WorkingMemoryManager, Result.get(), Base.get(), LevelCount, Scratch);
+		FImageOperator ImOp = MakeImageOperator(Runner);
+		ImOp.ImageMipmap_PrepareScratch( Result.get(), Base.get(), LevelCount, Scratch);
 
 		return true;
 	}
@@ -1391,15 +1400,17 @@ namespace mu
 		// This runs in a worker thread
 		MUTABLE_CPUPROFILER_SCOPE(FImageMipmapTask);
 
+		FImageOperator ImOp = FImageOperator::GetDefault();
 		FMipmapGenerationSettings settings{};
-		ImageMipmap(Scratch, ImageCompressionQuality, Result.get(), Base.get(), Result->GetLODCount(), settings);
+		ImOp.ImageMipmap(Scratch, ImageCompressionQuality, Result.get(), Base.get(), Result->GetLODCount(), settings);
 	}
 
 
 	//---------------------------------------------------------------------------------------------
 	void FImageMipmapTask::Complete(CodeRunner* Runner)
 	{
-		ImageMipmap_ReleaseScratch(Runner->m_pSystem->WorkingMemoryManager, Scratch);
+		FImageOperator ImOp = MakeImageOperator(Runner);
+		ImOp.ImageMipmap_ReleaseScratch(Scratch);
 
 		// This runs in the Runner thread
 		Runner->Release(Base);
@@ -1462,6 +1473,10 @@ namespace mu
 		// Create destination data
 		EImageFormat format = (EImageFormat)Args.format;
 
+		FImageOperator ImOp = MakeImageOperator(Runner);
+
+		int32 ResultLODs = Sources[0]->GetLODCount();
+
 		// Be defensive: ensure image sizes match.
 		for (int i = 1; i < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++i)
 		{
@@ -1469,13 +1484,14 @@ namespace mu
 			{
 				MUTABLE_CPUPROFILER_SCOPE(ImageResize_ForSwizzle);
 				Ptr<Image> Resized = Runner->CreateImage(Sources[0]->GetSizeX(), Sources[0]->GetSizeY(), 1, Sources[i]->GetFormat(), EInitializationType::NotInitialized);
-				ImageResizeLinear(Resized.get(), 0, Sources[i].get());
+				ImOp.ImageResizeLinear(Resized.get(), 0, Sources[i].get());
 				Runner->Release(Sources[i]);
 				Sources[i] = Resized;
+				ResultLODs = 1;
 			}
 		}
 
-		Result = Runner->CreateImage(Sources[0]->GetSizeX(), Sources[0]->GetSizeY(), Sources[0]->GetLODCount(), Args.format, EInitializationType::Black);
+		Result = Runner->CreateImage(Sources[0]->GetSizeX(), Sources[0]->GetSizeY(), ResultLODs, Args.format, EInitializationType::Black);
 		return true;
 	}
 
@@ -1496,6 +1512,8 @@ namespace mu
 		{
 			Runner->Release(Sources[i]);
 		}
+
+		// \TODO: If Result LODs differ from Source[0]'s, rebuild mips?
 
 		// If no shortcut was taken
 		if (Result)
@@ -1663,9 +1681,8 @@ namespace mu
 
 		// Warning: This will actually allocate temp memory that may exceed the budget.
 		// \TODO: Fix it.
-		// Warning: This may allocate memory if the image is compressed.
-		// \TODO: treat this case in the Prepare.
-		ImageResizeLinear( Result.get(), ImageCompressionQuality, Base.get() );
+		FImageOperator ImOp = FImageOperator::GetDefault();
+		ImOp.ImageResizeLinear( Result.get(), ImageCompressionQuality, Base.get());
 
 		int32 LodCount = Result->GetLODCount();
 		if (LodCount>1)
@@ -1762,7 +1779,9 @@ namespace mu
 		// This runs on a random worker thread
 		MUTABLE_CPUPROFILER_SCOPE(FImageResizeRelTask);
 
-		ImageResizeLinear(Result.get(), ImageCompressionQuality, Base.get());
+		// \TODO: Track allocs
+		FImageOperator ImOp = FImageOperator::GetDefault();
+		ImOp.ImageResizeLinear(Result.get(), ImageCompressionQuality, Base.get());
 
 		int32 LodCount = Result->GetLODCount();
 		if (LodCount > 1)
@@ -1927,6 +1946,8 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(ImageComposeWithoutMask);
 
+			FImageOperator ImOp = MakeImageOperator(Runner);
+
 			EImageFormat Format = GetMostGenericFormat(Result->GetFormat(), Block->GetFormat());
 
 			// Resize image if it doesn't fit in the new block size
@@ -1937,7 +1958,7 @@ namespace mu
 				// This now happens more often since the generation of specific mips on request. For this reason
 				// this warning is usually acceptable.
 				Ptr<Image> Resized = Runner->CreateImage(Rect.size[0], Rect.size[1], 1, Block->GetFormat(), EInitializationType::NotInitialized );
-				ImageResizeLinear(Resized.get(), ImageCompressionQuality, Block.get() );
+				ImOp.ImageResizeLinear(Resized.get(), ImageCompressionQuality, Block.get());
 				Runner->Release(Block);
 				Block = Resized;
 			}
@@ -1952,7 +1973,7 @@ namespace mu
 				{
 					Ptr<Image> Formatted = Runner->CreateImage(Result->GetSizeX(), Result->GetSizeY(), Result->GetLODCount(), Format, EInitializationType::NotInitialized);
 					bool bSuccess = false;
-					ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Result.get());
+					ImOp.ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Result.get());
 					check(bSuccess); // Decompression cannot fail
 					Runner->Release(Result);
 					Result = Formatted;
@@ -1961,7 +1982,7 @@ namespace mu
 				{
 					Ptr<Image> Formatted = Runner->CreateImage(Block->GetSizeX(), Block->GetSizeY(), Block->GetLODCount(), Format, EInitializationType::NotInitialized);
 					bool bSuccess = false;
-					ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Block.get());
+					ImOp.ImagePixelFormat(bSuccess, ImageCompressionQuality, Formatted.get(), Block.get());
 					check(bSuccess); // Decompression cannot fail
 					Runner->Release(Block);
 					Block = Formatted;
@@ -1984,7 +2005,9 @@ namespace mu
 			MUTABLE_CPUPROFILER_SCOPE(ImageComposeWithoutMask);
 
 			// Compose without a mask
-			ImageCompose(Result.get(), Block.get(), Rect);
+			// \TODO: track allocs
+			FImageOperator ImOp = FImageOperator::GetDefault();
+			ImOp.ImageCompose(Result.get(), Block.get(), Rect);
 		}
 		else
 		{

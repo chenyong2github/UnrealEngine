@@ -236,7 +236,7 @@ namespace mu
 			default:
 			{
 				// Generic
-				int pixelSize = GetImageFormatData( pResult->GetFormat() ).m_bytesPerBlock;
+				int pixelSize = GetImageFormatData( pResult->GetFormat() ).BytesPerBlock;
 				//for ( int y=0; y<sizeY; ++y )
 				const auto ProcessRow = [
 					pSourceData, pMap, pResult, sizeX, sizeY, pixelSize
@@ -272,7 +272,7 @@ namespace mu
 
         else if (mapFormat==EImageFormat::IF_L_UBYTE_RLE )
 		{
-            int pixelSize = GetImageFormatData( pResult->GetFormat() ).m_bytesPerBlock;
+            int pixelSize = GetImageFormatData( pResult->GetFormat() ).BytesPerBlock;
 
 			const uint8* pMapData = pMap->GetData();
 			uint8* pResultData = pResult->GetData();

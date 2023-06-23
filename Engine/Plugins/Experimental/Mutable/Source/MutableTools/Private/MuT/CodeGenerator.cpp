@@ -1389,7 +1389,7 @@ namespace mu
 								bop->op.args.ImageBlankLayout.blockSize[0] = uint16(blockSizeX);
 								bop->op.args.ImageBlankLayout.blockSize[1] = uint16(blockSizeY);
 								// We support block compression directly here, but not non-block compression
-								if (GetImageFormatData(desc.m_format).m_pixelsPerBlockX == 0)
+								if (GetImageFormatData(desc.m_format).PixelsPerBlockX == 0)
 								{
 									// It's something like RLE
 									bop->op.args.ImageBlankLayout.format = GetUncompressedFormat(desc.m_format);
@@ -1605,8 +1605,8 @@ namespace mu
 								// we will devide the layout block by the format block
 								const FImageFormatData& finfo = GetImageFormatData(desc.m_format);
 
-								int mipsX = (int)ceilf(logf((float)blockSizeX / finfo.m_pixelsPerBlockX) / logf(2.0f));
-								int mipsY = (int)ceilf(logf((float)blockSizeY / finfo.m_pixelsPerBlockY) / logf(2.0f));
+								int mipsX = (int)ceilf(logf((float)blockSizeX / finfo.PixelsPerBlockX) / logf(2.0f));
+								int mipsY = (int)ceilf(logf((float)blockSizeY / finfo.PixelsPerBlockY) / logf(2.0f));
 								mop->BlockLevels = (uint8_t)FMath::Max(mipsX, mipsY);
 
 								mop->AddressMode = mipmapNode->GetPrivate()->m_settings.m_addressMode;
@@ -1632,8 +1632,8 @@ namespace mu
 								// we will devide the layout block by the format block
 								const FImageFormatData& finfo = GetImageFormatData(desc.m_format);
 
-								int mipsX = (int)ceilf(logf((float)blockSizeX / finfo.m_pixelsPerBlockX) / logf(2.0f));
-								int mipsY = (int)ceilf(logf((float)blockSizeY / finfo.m_pixelsPerBlockY) / logf(2.0f));
+								int mipsX = (int)ceilf(logf((float)blockSizeX / finfo.PixelsPerBlockX) / logf(2.0f));
+								int mipsY = (int)ceilf(logf((float)blockSizeY / finfo.PixelsPerBlockY) / logf(2.0f));
 								mop->BlockLevels = (uint8_t)FMath::Max(mipsX, mipsY);
 
 							// Not important for the end of the mip tail?

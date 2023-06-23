@@ -3,12 +3,12 @@
 #include "MuR/Image.h"
 
 #include "HAL/UnrealMemory.h"
+#include "HAL/IConsoleManager.h"
 #include "Math/UnrealMathSSE.h"
 #include "Math/NumericLimits.h"
 #include "MuR/ImagePrivate.h"
 #include "MuR/MutableMath.h"
 #include "MuR/MutableTrace.h"
-#include "MuR/OpImageResize.h"
 
 #include <initializer_list>
 
@@ -81,6 +81,29 @@ namespace mu
     }
 
 
+	//---------------------------------------------------------------------------------------------
+	void FMipmapGenerationSettings::Serialise(OutputArchive& arch) const
+	{
+		uint32 ver = 0;
+		arch << ver;
+
+		arch << m_sharpenFactor;
+		arch << m_filterType;
+		arch << m_ditherMipmapAlpha;
+	}
+
+	void FMipmapGenerationSettings::Unserialise(InputArchive& arch)
+	{
+		uint32 ver = 0;
+		arch >> ver;
+		check(ver == 0);
+
+		arch >> m_sharpenFactor;
+		arch >> m_filterType;
+		arch >> m_ditherMipmapAlpha;
+	}
+
+
     //---------------------------------------------------------------------------------------------
     Image::Image()
     {
@@ -96,16 +119,18 @@ namespace mu
         check(format != EImageFormat::IF_NONE);
 		check(format < EImageFormat::IF_COUNT);
 
-		check(sizeX <= TNumericLimits<uint16>::Max())
-		check(sizeY <= TNumericLimits<uint16>::Max())
-		check(lods <= TNumericLimits<uint8>::Max())
+		check(sizeX <= TNumericLimits<uint16>::Max());
+		check(sizeY <= TNumericLimits<uint16>::Max());
+		check(lods <= TNumericLimits<uint8>::Max());
+
+		// TODO: check that lods is sensible for the size.
 
         m_format = format;
         m_size = FImageSize( (uint16)sizeX, (uint16)sizeY );
-        m_lods = (uint8_t)lods;
+        m_lods = (uint8)lods;
 
         const FImageFormatData& fdata = GetImageFormatData( format );
-        int32 PixelsPerBlock = fdata.m_pixelsPerBlockX*fdata.m_pixelsPerBlockY;
+        int32 PixelsPerBlock = fdata.PixelsPerBlockX*fdata.PixelsPerBlockY;
         if (PixelsPerBlock)
         {
 			if (Init == EInitializationType::Black)
@@ -134,11 +159,11 @@ namespace mu
 		else
 		{
 			const FImageFormatData& fdata = GetImageFormatData(m_format);
-			check(fdata.m_bytesPerBlock <= FImageFormatData::MAX_BYTES_PER_BLOCK);
+			check(fdata.BytesPerBlock <= FImageFormatData::MAX_BYTES_PER_BLOCK);
 
 			constexpr uint8 ZeroedBlock[FImageFormatData::MAX_BYTES_PER_BLOCK] = { 0 };
 
-			const SIZE_T BlockSizeSanitized = FMath::Min<SIZE_T>(FImageFormatData::MAX_BYTES_PER_BLOCK, fdata.m_bytesPerBlock);
+			const SIZE_T BlockSizeSanitized = FMath::Min<SIZE_T>(FImageFormatData::MAX_BYTES_PER_BLOCK, fdata.BytesPerBlock);
 			const bool bIsFormatBlackBlockZeroed = FMemory::Memcmp(fdata.BlackBlock, ZeroedBlock, BlockSizeSanitized) == 0;
 
 			if (bIsFormatBlackBlockZeroed)
@@ -151,10 +176,10 @@ namespace mu
 			{
 				m_data.SetNumUninitialized(DataSize);
 
-				check(fdata.m_bytesPerBlock > 0);
-				for (int32 BlockDataOffset = 0; BlockDataOffset < DataSize; BlockDataOffset += fdata.m_bytesPerBlock)
+				check(fdata.BytesPerBlock > 0);
+				for (int32 BlockDataOffset = 0; BlockDataOffset < DataSize; BlockDataOffset += fdata.BytesPerBlock)
 				{
-					FMemory::Memcpy(m_data.GetData() + BlockDataOffset, fdata.BlackBlock, fdata.m_bytesPerBlock);
+					FMemory::Memcpy(m_data.GetData() + BlockDataOffset, fdata.BlackBlock, fdata.BytesPerBlock);
 				}
 			}
 		}
@@ -224,45 +249,50 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	Ptr<Image> Image::ExtractMip(int32 Mip) const
+	Ptr<Image> FImageOperator::ExtractMip(const Image* This, int32 Mip)
 	{
-		if (Mip == 0 && m_lods == 1)
+		if (Mip == 0 && This->m_lods == 1)
 		{
-			return Clone();
+			return CloneImage(This);
 		}
 
-		FIntVector2 MipSize = CalculateMipSize(Mip);
+		FIntVector2 MipSize = This->CalculateMipSize(Mip);
 
 		int32 Quality = 4;
 
-		if (m_lods > Mip)
+		if (This->m_lods > Mip)
 		{
-			const uint8* SourceData = GetMipData(Mip);
-			int32 DataSize = CalculateDataSize(Mip);
+			const uint8* SourceData = This->GetMipData(Mip);
+			int32 DataSize = This->CalculateDataSize(Mip);
 
 			if (DataSize)
 			{
-				Ptr<Image> pResult = new Image(MipSize[0], MipSize[1], 1, m_format );
-				pResult->m_flags = m_flags;
+				Ptr<Image> pResult = CreateImage(MipSize[0], MipSize[1], 1, This->m_format, EInitializationType::NotInitialized);
+				pResult->m_flags = This->m_flags;
 				uint8* DestData = pResult->GetData();
 				FMemory::Memcpy(DestData, SourceData, DataSize);
 				return pResult;
 			}
 			else
 			{
-				EImageFormat uncompressedFormat = GetUncompressedFormat(m_format);
+				EImageFormat uncompressedFormat = GetUncompressedFormat(This->m_format);
 				// TODO: OnlyLOD=Mip and then ExtractMip(0)?
-				Ptr<Image> pTemp = ImagePixelFormat(Quality, this, uncompressedFormat);
-				pTemp = pTemp->ExtractMip(Mip);
-				Ptr<Image> pResult = ImagePixelFormat(Quality, pTemp.get(), m_format);
-				pResult->m_flags = m_flags;
-				return pResult;
+				Ptr<Image> Temp = ImagePixelFormat(Quality, This, uncompressedFormat);
+				Temp = ExtractMip(Temp.get(), Mip);
+				Ptr<Image> Result = ImagePixelFormat(Quality, Temp.get(), This->m_format);
+				Result->m_flags = This->m_flags;
+				ReleaseImage(Temp);
+				return Result;
 			}
 		}
 
 		// We need to generate the mip
 		// \TODO: optimize, quality
-		return ImageResizeLinear(Quality, this, FImageSize(MipSize[0],MipSize[1]))->ExtractMip(0);
+		Ptr<Image> Resized = CreateImage(MipSize[0], MipSize[1],1,This->GetFormat(),EInitializationType::NotInitialized);
+		ImageResizeLinear(Resized.get(), Quality, This);
+		Ptr<Image> Result = ExtractMip( Resized.get(), 0);
+		ReleaseImage(Resized);
+		return Result;
 	}
 
 
@@ -350,14 +380,14 @@ namespace mu
 		int32 res = 0;
 
 		const FImageFormatData& fdata = GetImageFormatData(Format);
-		if (fdata.m_bytesPerBlock)
+		if (fdata.BytesPerBlock)
 		{
 			for (int32 LodIndex = 0; LodIndex < FMath::Max(1, LodCount); ++LodIndex)
 			{
-				int32 blocksX = FMath::DivideAndRoundUp(SizeX, int32(fdata.m_pixelsPerBlockX));
-				int32 blocksY = FMath::DivideAndRoundUp(SizeY, int32(fdata.m_pixelsPerBlockY));
+				int32 blocksX = FMath::DivideAndRoundUp(SizeX, int32(fdata.PixelsPerBlockX));
+				int32 blocksY = FMath::DivideAndRoundUp(SizeY, int32(fdata.PixelsPerBlockY));
 
-				res += (blocksX * blocksY) * fdata.m_bytesPerBlock;
+				res += (blocksX * blocksY) * fdata.BytesPerBlock;
 
 				SizeX = FMath::DivideAndRoundUp(SizeX, 2);
 				SizeY = FMath::DivideAndRoundUp(SizeY, 2);
@@ -381,18 +411,18 @@ namespace mu
 		int32 res = 0;
 
         const FImageFormatData& fdata = GetImageFormatData( m_format );
-        if (fdata.m_bytesPerBlock)
+        if (fdata.BytesPerBlock)
         {
             FImageSize s = m_size;
 
             for ( int l=0; l< FMath::Max(1,(int)m_lods); ++l )
             {
-                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.m_pixelsPerBlockX );
-                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.m_pixelsPerBlockY );
+                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.PixelsPerBlockX );
+                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.PixelsPerBlockY );
 
                 if ( mip==l )
                 {
-                    res = (blocksX*blocksY) * fdata.m_bytesPerBlock;
+                    res = (blocksX*blocksY) * fdata.BytesPerBlock;
                     break;
                 }
 
@@ -411,16 +441,16 @@ namespace mu
 		int32 res = 0;
 
         const FImageFormatData& fdata = GetImageFormatData( m_format );
-        if (fdata.m_bytesPerBlock)
+        if (fdata.BytesPerBlock)
         {
             FImageSize s = m_size;
 
             for ( int l=0; l<FMath::Max(1,(int)m_lods); ++l )
             {
-                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.m_pixelsPerBlockX );
-                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.m_pixelsPerBlockY );
+                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.PixelsPerBlockX );
+                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.PixelsPerBlockY );
 
-                res += (blocksX*blocksY) * fdata.m_pixelsPerBlockX * fdata.m_pixelsPerBlockY;
+                res += (blocksX*blocksY) * fdata.PixelsPerBlockX * fdata.PixelsPerBlockY;
 
                 s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
                 s[1] = FMath::DivideAndRoundUp( s[1], (uint16)2 );
@@ -446,18 +476,18 @@ namespace mu
 		int32 res = 0;
 
         const FImageFormatData& fdata = GetImageFormatData( m_format );
-        if (fdata.m_bytesPerBlock)
+        if (fdata.BytesPerBlock)
         {
             FImageSize s = m_size;
 
             for ( int l=0; l<mip+1; ++l )
             {
-                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.m_pixelsPerBlockX );
-                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.m_pixelsPerBlockY );
+                int blocksX = FMath::DivideAndRoundUp( s[0], (uint16)fdata.PixelsPerBlockX );
+                int blocksY = FMath::DivideAndRoundUp( s[1], (uint16)fdata.PixelsPerBlockY );
 
                 if ( l==mip )
                 {
-                    res = (blocksX*blocksY) * fdata.m_pixelsPerBlockX * fdata.m_pixelsPerBlockY;
+                    res = (blocksX*blocksY) * fdata.PixelsPerBlockX * fdata.PixelsPerBlockY;
                 }
 
                 s[0] = FMath::DivideAndRoundUp( s[0], (uint16)2 );
@@ -521,17 +551,17 @@ namespace mu
 
 		const FImageFormatData& fdata = GetImageFormatData(m_format);
 
-		if (fdata.m_bytesPerBlock)
+		if (fdata.BytesPerBlock)
 		{
 			// Fixed-sized formats
 			FImageSize s = m_size;
 
 			for (int l = 0; l < mip; ++l)
 			{
-				int blocksX = FMath::DivideAndRoundUp(s[0], (uint16)fdata.m_pixelsPerBlockX);
-				int blocksY = FMath::DivideAndRoundUp(s[1], (uint16)fdata.m_pixelsPerBlockY);
+				int blocksX = FMath::DivideAndRoundUp(s[0], (uint16)fdata.PixelsPerBlockX);
+				int blocksY = FMath::DivideAndRoundUp(s[1], (uint16)fdata.PixelsPerBlockY);
 
-				pResult += (blocksX * blocksY) * fdata.m_bytesPerBlock;
+				pResult += (blocksX * blocksY) * fdata.BytesPerBlock;
 
 				s[0] = FMath::DivideAndRoundUp(s[0], (uint16)2);
 				s[1] = FMath::DivideAndRoundUp(s[1], (uint16)2);
@@ -566,17 +596,17 @@ namespace mu
 
 		const FImageFormatData& fdata = GetImageFormatData(m_format);
 
-		if (fdata.m_bytesPerBlock)
+		if (fdata.BytesPerBlock)
 		{
 			// Fixed-sized formats
 			FImageSize s = m_size;
 
 			for (int l = 0; l < mip; ++l)
 			{
-				int blocksX = FMath::DivideAndRoundUp(s[0], (uint16)fdata.m_pixelsPerBlockX);
-				int blocksY = FMath::DivideAndRoundUp(s[1], (uint16)fdata.m_pixelsPerBlockY);
+				int blocksX = FMath::DivideAndRoundUp(s[0], (uint16)fdata.PixelsPerBlockX);
+				int blocksY = FMath::DivideAndRoundUp(s[1], (uint16)fdata.PixelsPerBlockY);
 
-				pResult += (blocksX * blocksY) * fdata.m_bytesPerBlock;
+				pResult += (blocksX * blocksY) * fdata.BytesPerBlock;
 
 				s[0] = FMath::DivideAndRoundUp(s[0], (uint16)2);
 				s[1] = FMath::DivideAndRoundUp(s[1], (uint16)2);
@@ -606,7 +636,7 @@ namespace mu
 		int32 res = 0;
 
         const FImageFormatData& fdata = GetImageFormatData( m_format );
-        if (fdata.m_bytesPerBlock)
+        if (fdata.BytesPerBlock)
         {
 			return CalculateDataSize();
         }
@@ -643,21 +673,21 @@ namespace mu
         const FImageFormatData& fdata = GetImageFormatData( m_format );
 
         int pixelX = FMath::Max( 0, FMath::Min( m_size[0]-1, (int)(coords[0] * m_size[0] )));
-        int blockX = pixelX / fdata.m_pixelsPerBlockX;
-        int blockPixelX = pixelX % fdata.m_pixelsPerBlockX;
+        int blockX = pixelX / fdata.PixelsPerBlockX;
+        int blockPixelX = pixelX % fdata.PixelsPerBlockX;
 
         int pixelY = FMath::Max( 0, FMath::Min( m_size[1]-1, (int)(coords[1] * m_size[1] )));
-        int blockY = pixelY / fdata.m_pixelsPerBlockY;
-        int blockPixelY = pixelY % fdata.m_pixelsPerBlockY;
+        int blockY = pixelY / fdata.PixelsPerBlockY;
+        int blockPixelY = pixelY % fdata.PixelsPerBlockY;
 
-        int blocksPerRow = m_size[0] / fdata.m_pixelsPerBlockX;
+        int blocksPerRow = m_size[0] / fdata.PixelsPerBlockX;
         int blockOffset = blockX + blockY * blocksPerRow;
 
         // Non-generic part
         if ( m_format== EImageFormat::IF_RGB_UBYTE )
         {
-            int byteOffset = blockOffset * fdata.m_bytesPerBlock
-                    + ( blockPixelY * fdata.m_pixelsPerBlockX + blockPixelX ) * 3;
+            int byteOffset = blockOffset * fdata.BytesPerBlock
+                    + ( blockPixelY * fdata.PixelsPerBlockX + blockPixelX ) * 3;
 
             result[0] = m_data[ byteOffset+0 ] / 255.0f;
             result[1] = m_data[ byteOffset+1 ] / 255.0f;
@@ -666,8 +696,8 @@ namespace mu
         }
         else if ( m_format== EImageFormat::IF_RGBA_UBYTE )
         {
-            int byteOffset = blockOffset * fdata.m_bytesPerBlock
-                    + ( blockPixelY * fdata.m_pixelsPerBlockX + blockPixelX ) * 4;
+            int byteOffset = blockOffset * fdata.BytesPerBlock
+                    + ( blockPixelY * fdata.PixelsPerBlockX + blockPixelX ) * 4;
 
             result[0] = m_data[ byteOffset+0 ] / 255.0f;
             result[1] = m_data[ byteOffset+1 ] / 255.0f;
@@ -676,8 +706,8 @@ namespace mu
         }
         else if ( m_format== EImageFormat::IF_BGRA_UBYTE )
         {
-            int byteOffset = blockOffset * fdata.m_bytesPerBlock
-                    + ( blockPixelY * fdata.m_pixelsPerBlockX + blockPixelX ) * 4;
+            int byteOffset = blockOffset * fdata.BytesPerBlock
+                    + ( blockPixelY * fdata.PixelsPerBlockX + blockPixelX ) * 4;
 
             result[0] = m_data[ byteOffset+2 ] / 255.0f;
             result[1] = m_data[ byteOffset+1 ] / 255.0f;
@@ -686,8 +716,8 @@ namespace mu
         }
         else if ( m_format== EImageFormat::IF_L_UBYTE )
         {
-            int byteOffset = blockOffset * fdata.m_bytesPerBlock
-                    + ( blockPixelY * fdata.m_pixelsPerBlockX + blockPixelX ) * 1;
+            int byteOffset = blockOffset * fdata.BytesPerBlock
+                    + ( blockPixelY * fdata.PixelsPerBlockX + blockPixelX ) * 1;
 
             result[0] = m_data[ byteOffset ] / 255.0f;
             result[1] = m_data[ byteOffset ] / 255.0f;
@@ -1026,7 +1056,7 @@ namespace mu
   //      case IF_RGBA_UBYTE:
   //      case IF_BGRA_UBYTE:
   //      {
-  //          size_t bytesPerPixel = GetImageFormatData( m_format ).m_bytesPerBlock;
+  //          size_t bytesPerPixel = GetImageFormatData( m_format ).BytesPerBlock;
   //          size_t rowStride = sx * bytesPerPixel;
 
   //          // Find top
@@ -1104,7 +1134,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void Image::ReduceLODsTo(int32 NewLODCount)
 	{
-		bool bIsBlockBased = GetImageFormatData(m_format).m_bytesPerBlock > 0;
+		bool bIsBlockBased = GetImageFormatData(m_format).BytesPerBlock > 0;
 		int32 MaxLODs = GetMipmapCount(m_size[0], m_size[1]);
 		int32 LODSToSkip = MaxLODs - NewLODCount;
 		if (LODSToSkip > 0 && bIsBlockBased)
@@ -1133,7 +1163,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	void Image::ReduceLODs(int32 LODSToSkip)
 	{
-		bool bIsBlockBased = GetImageFormatData(m_format).m_bytesPerBlock > 0;
+		bool bIsBlockBased = GetImageFormatData(m_format).BytesPerBlock > 0;
 		if (LODSToSkip > 0 && bIsBlockBased)
 		{
 			check(LODSToSkip < m_lods);
@@ -1158,19 +1188,19 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void Image::FillColour(FVector4f c)
+	void FImageOperator::FillColor(Image* Target, FVector4f Color)
 	{
-		EImageFormat Format = GetFormat();
+		EImageFormat Format = Target->GetFormat();
 		switch (Format)
 		{
 		case EImageFormat::IF_RGB_UBYTE:
 		{
 			// TODO: Optimize: don't write bytes one by one
-			int pixelCount = CalculatePixelCount();
-			uint8* pData = GetData();
-			uint8 r = uint8(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f));
-			uint8 g = uint8(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f));
-			uint8 b = uint8(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f));
+			int pixelCount = Target->CalculatePixelCount();
+			uint8* pData = Target->GetData();
+			uint8 r = uint8(FMath::Clamp(255.0f * Color[0], 0.0f, 255.0f));
+			uint8 g = uint8(FMath::Clamp(255.0f * Color[1], 0.0f, 255.0f));
+			uint8 b = uint8(FMath::Clamp(255.0f * Color[2], 0.0f, 255.0f));
 			for (int p = 0; p < pixelCount; ++p)
 			{
 				pData[0] = r;
@@ -1184,12 +1214,12 @@ namespace mu
 		case EImageFormat::IF_RGBA_UBYTE:
 		{
 			// TODO: Optimize: don't write bytes one by one
-			int pixelCount = CalculatePixelCount();
-			uint8* pData = GetData();
-			uint8 r = uint8(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f));
-			uint8 g = uint8(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f));
-			uint8 b = uint8(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f));
-			uint8 a = uint8(FMath::Clamp(255.0f * c[3], 0.0f, 255.0f));
+			int pixelCount = Target->CalculatePixelCount();
+			uint8* pData = Target->GetData();
+			uint8 r = uint8(FMath::Clamp(255.0f * Color[0], 0.0f, 255.0f));
+			uint8 g = uint8(FMath::Clamp(255.0f * Color[1], 0.0f, 255.0f));
+			uint8 b = uint8(FMath::Clamp(255.0f * Color[2], 0.0f, 255.0f));
+			uint8 a = uint8(FMath::Clamp(255.0f * Color[3], 0.0f, 255.0f));
 			for (int p = 0; p < pixelCount; ++p)
 			{
 				pData[0] = r;
@@ -1204,12 +1234,12 @@ namespace mu
 		case EImageFormat::IF_BGRA_UBYTE:
 		{
 			// TODO: Optimize: don't write bytes one by one
-			int pixelCount = CalculatePixelCount();
-			uint8* pData = GetData();
-			uint8 r = uint8(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f));
-			uint8 g = uint8(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f));
-			uint8 b = uint8(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f));
-			uint8 a = uint8(FMath::Clamp(255.0f * c[3], 0.0f, 255.0f));
+			int pixelCount = Target->CalculatePixelCount();
+			uint8* pData = Target->GetData();
+			uint8 r = uint8(FMath::Clamp(255.0f * Color[0], 0.0f, 255.0f));
+			uint8 g = uint8(FMath::Clamp(255.0f * Color[1], 0.0f, 255.0f));
+			uint8 b = uint8(FMath::Clamp(255.0f * Color[2], 0.0f, 255.0f));
+			uint8 a = uint8(FMath::Clamp(255.0f * Color[3], 0.0f, 255.0f));
 			for (int p = 0; p < pixelCount; ++p)
 			{
 				pData[0] = b;
@@ -1223,9 +1253,9 @@ namespace mu
 
 		case EImageFormat::IF_L_UBYTE:
 		{
-			int pixelCount = CalculatePixelCount();
-			uint8* pData = GetData();
-			uint8 v = FMath::Min<uint8>(255, FMath::Max<uint8>(0, uint8(255.0f * c[0])));
+			int pixelCount = Target->CalculatePixelCount();
+			uint8* pData = Target->GetData();
+			uint8 v = FMath::Min<uint8>(255, FMath::Max<uint8>(0, uint8(255.0f * Color[0])));
 			FMemory::Memset(pData, v, pixelCount);
 			break;
 		}
@@ -1234,28 +1264,29 @@ namespace mu
 		{
 			// Generic case that supports compressed formats.
 			const FImageFormatData& FormatData = GetImageFormatData(Format);
-			Ptr<Image> Block = new Image(FormatData.m_pixelsPerBlockX, FormatData.m_pixelsPerBlockY, 1, EImageFormat::IF_RGBA_UBYTE, EInitializationType::NotInitialized);
+			Ptr<Image> Block = CreateImage(FormatData.PixelsPerBlockX, FormatData.PixelsPerBlockY, 1, EImageFormat::IF_RGBA_UBYTE, EInitializationType::NotInitialized);
 
-			uint32 Pixel = (uint32(FMath::Clamp(255.0f * c[0], 0.0f, 255.0f)) << 0)
-				| (uint32(FMath::Clamp(255.0f * c[1], 0.0f, 255.0f)) << 8)
-				| (uint32(FMath::Clamp(255.0f * c[2], 0.0f, 255.0f)) << 16)
-				| (uint32(FMath::Clamp(255.0f * c[3], 0.0f, 255.0f)) << 24);
+			uint32 Pixel = (uint32(FMath::Clamp(255.0f * Color[0], 0.0f, 255.0f)) << 0)
+				| (uint32(FMath::Clamp(255.0f * Color[1], 0.0f, 255.0f)) << 8)
+				| (uint32(FMath::Clamp(255.0f * Color[2], 0.0f, 255.0f)) << 16)
+				| (uint32(FMath::Clamp(255.0f * Color[3], 0.0f, 255.0f)) << 24);
 			uint32* BlockData = reinterpret_cast<uint32*>(Block->GetData());
-			for (int32 I = 0; I < FormatData.m_pixelsPerBlockX * FormatData.m_pixelsPerBlockY; ++I)
+			for (int32 I = 0; I < FormatData.PixelsPerBlockX * FormatData.PixelsPerBlockY; ++I)
 			{
 				*BlockData = Pixel;
 				BlockData += 1;
 			}
 			Ptr<Image> Converted = ImagePixelFormat(0, Block.get(), Format);
+			ReleaseImage(Block);
 
-			int32 DataSize = CalculateDataSize();
-			check(DataSize % FormatData.m_bytesPerBlock == 0);
-			int32 BlockCount = DataSize / FormatData.m_bytesPerBlock;
-			uint8* TargetData = GetData();
+			int32 DataSize = Target->CalculateDataSize();
+			check(DataSize % FormatData.BytesPerBlock == 0);
+			int32 BlockCount = DataSize / FormatData.BytesPerBlock;
+			uint8* TargetData = Target->GetData();
 			while (BlockCount)
 			{
-				FMemory::Memcpy(TargetData, Converted->GetData(), FormatData.m_bytesPerBlock);
-				TargetData += FormatData.m_bytesPerBlock;
+				FMemory::Memcpy(TargetData, Converted->GetData(), FormatData.BytesPerBlock);
+				TargetData += FormatData.BytesPerBlock;
 				--BlockCount;
 			}
 			break;
