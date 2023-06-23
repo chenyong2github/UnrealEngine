@@ -5505,7 +5505,7 @@ void UAnimSequence::FinishAsyncTasks()
 				else
 				{
 					// Failed to compress
-					UE_LOG(LogAnimation, Warning, TEXT("Failed to finish async Animation Compression task for %s, as the generated data is not valid."), *GetName());					
+					UE_LOG(LogAnimation, Display, TEXT("Failed to finish async Animation Compression task for %s, as the generated data is not valid."), *GetName());					
 					ResetData();
 				}
 			}
