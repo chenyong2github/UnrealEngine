@@ -344,7 +344,6 @@ private:
 	EOS_NotificationId SessionInviteAcceptedId;
 	FCallbackBase* SessionInviteAcceptedCallback;
 
-	bool bIsDedicatedServer;
 	bool bIsUsingP2PSockets;
 	bool bUsePresenceAttribute = false;
 
