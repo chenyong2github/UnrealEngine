@@ -114,6 +114,13 @@ void UCurveEditorBakeFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEd
 				MinKey = DisplayRate.AsSeconds(FFrameRate::TransformTime(CustomRange.Min, TickResolution, DisplayRate));
 				MaxKey = DisplayRate.AsSeconds(FFrameRate::TransformTime(CustomRange.Max, TickResolution, DisplayRate));
 			}
+
+			if (MaxKey < MinKey)
+			{
+				const double TempMinKey = MinKey;
+				MinKey = MaxKey;
+				MaxKey = TempMinKey;
+			}
 		}
 		else
 		{
