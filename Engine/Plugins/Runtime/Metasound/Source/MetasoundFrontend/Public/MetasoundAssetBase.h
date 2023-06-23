@@ -208,7 +208,7 @@ protected:
 		TArray<FMetasoundFrontendClassInput> TransmittableInputs;
 
 		// Core graph.
-		TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> Graph;
+		TSharedPtr<Metasound::FGraph, ESPMode::ThreadSafe> Graph;
 	};
 
 	// Returns the cached runtime data.
@@ -235,5 +235,5 @@ private:
 	FGuid CurrentCachedRuntimeDataChangeID;
 	FRuntimeData CachedRuntimeData;
 
-	TSharedPtr<Metasound::IGraph, ESPMode::ThreadSafe> BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreprocessDoc, const TSet<FName>& InTransmittableInputNames) const;
+	TSharedPtr<Metasound::FGraph, ESPMode::ThreadSafe> BuildMetasoundDocument(const FMetasoundFrontendDocument& InPreprocessDoc, const TSet<FName>& InTransmittableInputNames) const;
 };

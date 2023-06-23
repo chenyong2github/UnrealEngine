@@ -5,16 +5,6 @@
 
 namespace Metasound
 {
-	FGraph::FGraph(const IGraph& InOther)
-	: InstanceName(InOther.GetInstanceName())
-	, InstanceID(InOther.GetInstanceID())
-	, Metadata(InOther.GetMetadata())
-	, Edges(InOther.GetDataEdges())
-	, InputDestinations(InOther.GetInputDataDestinations())
-	, OutputSources(InOther.GetOutputDataSources())
-	{
-	}
-
 	FGraph::FGraph(const FString& InInstanceName, const FGuid& InInstanceID)
 	: InstanceName(InInstanceName)
 	, InstanceID(InInstanceID)
@@ -177,6 +167,38 @@ namespace Metasound
 			return (InEdge.To.Node == &InNode) || (InEdge.From.Node == &InNode);
 		};
 		Edges.RemoveAllSwap(ContainsNode);
+	}
+
+	void FGraph::AddNode(const FGuid& InNodeID, TSharedPtr<const INode> InNode)
+	{
+		Nodes.Add(InNodeID, InNode);
+	}
+
+	const INode* FGraph::FindNode(const FGuid& InNodeID) const
+	{
+		if (const TSharedPtr<const INode>* NodePtr = Nodes.Find(InNodeID))
+		{
+			return NodePtr->Get();
+		}
+		return nullptr;
+	}
+
+	bool FGraph::RemoveNode(const FGuid& InNodeID, bool bInRemoveDataEdgesWithNode)
+	{
+		if (bInRemoveDataEdgesWithNode)
+		{
+			TSharedPtr<const INode> NodePtr;
+			if (Nodes.RemoveAndCopyValue(InNodeID, NodePtr))
+			{
+				RemoveDataEdgesWithNode(*NodePtr);
+				return true;
+			}
+			return false;
+		}
+		else
+		{
+			return Nodes.Remove(InNodeID) != 0;
+		}
 	}
 
 	const TArray<FDataEdge>& FGraph::GetDataEdges() const

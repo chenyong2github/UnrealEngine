@@ -2,11 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "MetasoundFrontend.h"
+#include "Containers/Array.h"
+#include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/UnrealString.h"
+#include "MetasoundFrontendDocument.h"
 #include "MetasoundGraph.h"
+#include "MetasoundNodeConstructorParams.h"
 #include "MetasoundNodeInterface.h"
+#include "MetasoundVertex.h"
+#include "Misc/Guid.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
 
 namespace Metasound
 {
@@ -44,21 +51,6 @@ namespace Metasound
 			 */
 			void AddOutputNode(FGuid InNodeID, int32 InIndex, const FVertexName& InVertexName, TSharedPtr<const INode> InNode);
 
-			/** Store a node on this graph. 
-			 *
-			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
-			 * @param InNode - A shared pointer to a node. 
-			 */
-			void AddNode(FGuid InNodeID, TSharedPtr<const INode> InNode);
-
-			/** Retrieve node by node ID.
-			 *
-			 * @param InNodeID - The NodeID of the requested Node.
-			 *
-			 * @return Pointer to the Node if it is stored on this graph. nullptr otherwise. 
-			 */
-			const INode* FindNode(FGuid InNodeID) const;
-
 			/** Retrieve node by input index.
 			 *
 			 * @param InIndex - The index of the requested input.
@@ -75,20 +67,13 @@ namespace Metasound
 			 */
 			const INode* FindOutputNode(int32 InIndex) const;
 
-			/** Returns true if all edges, destinations and sources refer to 
-			 * nodes stored in this graph. */
+			UE_DEPRECATED(5.3, "This function is no longer analyzes node ownership and will always return true.")
 			bool OwnsAllReferencedNodes() const;
 
 		private:
 
-			void StoreNode(TSharedPtr<const INode> InNode);
-
 			TMap<int32, const INode*> InputNodes;
 			TMap<int32, const INode*> OutputNodes;
-
-			TMap<FGuid, const INode*> NodeMap;
-			TSet<const INode*> StoredNodes;
-			TArray<TSharedPtr<const INode>> NodeStorage;
 	};
 
 	/** FFrontendGraphBuilder builds a FFrontendGraph from a FMetasoundDocument

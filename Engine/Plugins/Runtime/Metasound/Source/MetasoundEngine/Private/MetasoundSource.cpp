@@ -1023,7 +1023,7 @@ TSharedPtr<Metasound::DynamicGraph::FDynamicOperatorTransactor> UMetaSoundSource
 
 	if (bInIsEnabled && (!DynamicTransactor.IsValid()))
 	{
-		TSharedPtr<IGraph> CurrentGraph = GetRuntimeData().Graph;
+		TSharedPtr<FGraph> CurrentGraph = GetRuntimeData().Graph;
 		if (CurrentGraph.IsValid())
 		{
 			DynamicTransactor = MakeShared<FDynamicOperatorTransactor>(*CurrentGraph);

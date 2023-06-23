@@ -18,7 +18,6 @@ namespace Metasound
 	{
 		public:
 
-			FGraph(const IGraph& InOther);
 			FGraph(const FString& InInstanceName, const FGuid& InInstanceID);
 
 			virtual ~FGraph() = default;
@@ -96,6 +95,30 @@ namespace Metasound
 			/** Removes all edges with connected to the node. */
 			void RemoveDataEdgesWithNode(const INode& InNode);
 
+			/** Store a node on this graph. 
+			 *
+			 * @param InNodeID - The NodeID related to the parent FMetasoundFrontendClass.
+			 * @param InNode - A shared pointer to a node. 
+			 */
+			void AddNode(const FGuid& InNodeID, TSharedPtr<const INode> InNode);
+
+			/** Retrieve node by node ID.
+			 *
+			 * @param InNodeID - The NodeID of the requested Node.
+			 *
+			 * @return Pointer to the Node if it is stored on this graph. nullptr otherwise. 
+			 */
+			const INode* FindNode(const FGuid& InNodeID) const;
+
+			/** Removes node from graph.
+			 *
+			 * @param InNodeID - ID of node to remove.
+			 * @param bInRemoveDataEdgesWithNode - If true, will also call RemoveDataEdgesWithNode(...)
+			 *
+			 * @return true if node exists and is removed, false otherwise. 
+			 */
+			bool RemoveNode(const FGuid& InNodeID, bool bInRemoveDataEdgesWithNode = true);
+
 			/** Add an input data destination to describe how data provided 
 			 * outside this graph should be routed internally.
 			 *
@@ -164,6 +187,7 @@ namespace Metasound
 			FNodeClassMetadata Metadata;
 
 			TArray<FDataEdge> Edges;
+			TSortedMap<FGuid, TSharedPtr<const INode>> Nodes;
 
 			FInputDataDestinationCollection InputDestinations;
 			FOutputDataSourceCollection OutputSources;

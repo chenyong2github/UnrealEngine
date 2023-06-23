@@ -64,31 +64,6 @@ namespace Metasound
 		}
 	}
 
-	/** Store a node on this graph. */
-	void FFrontendGraph::AddNode(FGuid InNodeID, TSharedPtr<const INode> InNode)
-	{
-		if (InNode.IsValid())
-		{
-			// There shouldn't be duplicate IDs. 
-			check(!NodeMap.Contains(InNodeID));
-
-			NodeMap.Add(InNodeID, InNode.Get());
-			StoreNode(InNode);
-		}
-	}
-
-	const INode* FFrontendGraph::FindNode(FGuid InNodeID) const
-	{
-		const INode* const* NodePtr = NodeMap.Find(InNodeID);
-
-		if (nullptr != NodePtr)
-		{
-			return *NodePtr;
-		}
-
-		return nullptr;
-	}
-
 	const INode* FFrontendGraph::FindInputNode(int32 InIndex) const
 	{
 		const INode* const* NodePtr = InputNodes.Find(InIndex);
@@ -113,50 +88,10 @@ namespace Metasound
 		return nullptr;
 	}
 
-	/** Returns true if all edges, destinations and sources refer to 
-	 * nodes stored in this graph. */
 	bool FFrontendGraph::OwnsAllReferencedNodes() const
 	{
-		const TArray<FDataEdge>& AllEdges = GetDataEdges();
-		for (const FDataEdge& Edge : AllEdges)
-		{
-			if (!StoredNodes.Contains(Edge.From.Node))
-			{
-				return false;
-			}
-
-			if (!StoredNodes.Contains(Edge.To.Node))
-			{
-				return false;
-			}
-		}
-
-		const FInputDataDestinationCollection& AllInputDestinations = GetInputDataDestinations();
-		for (auto& DestTuple : AllInputDestinations)
-		{
-			if (!StoredNodes.Contains(DestTuple.Value.Node))
-			{
-				return false;
-			}
-		}
-
-		const FOutputDataSourceCollection& AllOutputSources = GetOutputDataSources();
-		for (auto& SourceTuple : AllOutputSources)
-		{
-			if (!StoredNodes.Contains(SourceTuple.Value.Node))
-			{
-				return false;
-			}
-		}
-
+		// This function is deprecated in 5.3 and is no longer functional.
 		return true;
-	}
-
-	void FFrontendGraph::StoreNode(TSharedPtr<const INode> InNode)
-	{
-		check(InNode.IsValid());
-		StoredNodes.Add(InNode.Get());
-		NodeStorage.Add(InNode);
 	}
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateVariableNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendGraph& InGraph)
@@ -827,7 +762,6 @@ namespace Metasound
 
 		if (bSuccess)
 		{
-			check(BuildGraphContext.Graph->OwnsAllReferencedNodes());
 			return MoveTemp(BuildGraphContext.Graph);
 		}
 		else

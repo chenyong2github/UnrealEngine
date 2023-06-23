@@ -58,7 +58,7 @@ namespace Metasound
 			}
 		}
 
-		FDynamicOperatorTransactor::FDynamicOperatorTransactor(const IGraph& InGraph)
+		FDynamicOperatorTransactor::FDynamicOperatorTransactor(const FGraph& InGraph)
 		: Graph(InGraph)
 		{
 		}
@@ -87,11 +87,9 @@ namespace Metasound
 				return;
 			}
 
-			// Cache underlying pointer to node for later use. TUniquePtr<INode> will be moved to node
-			// map thus invalidating `TUniquePtr<INode> InNode`. 
-			INode* NodePtr = InNode.Get();
+			TSharedRef<const INode> NodePtr(InNode.Release());
 
-			NodeMap.Add(InNodeID, MoveTemp(InNode));
+			Graph.AddNode(InNodeID, NodePtr);
 
 			auto CreateAddNodeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
 			{
@@ -107,7 +105,7 @@ namespace Metasound
 
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FDynamicOperatorTransactor::RemoveNode);
 
-			if (const INode* Node = FindNode(InNodeID))
+			if (const INode* Node = Graph.FindNode(InNodeID))
 			{
 				FOperatorID OperatorID = GetOperatorID(Node);
 				auto CreateRemoveNodeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
@@ -116,12 +114,13 @@ namespace Metasound
 				};
 				EnqueueTransformOnOperatorQueues(CreateRemoveNodeTransform);
 
-				Graph.RemoveDataEdgesWithNode(*Node);
-				NodeMap.Remove(InNodeID);
+				constexpr bool bRemoveDataEdgesWithNode = true;
+				bool bRemovedNodeFromGraph = Graph.RemoveNode(InNodeID, bRemoveDataEdgesWithNode);
+				check(bRemovedNodeFromGraph); //< Should always be true because we know the node exists in the Graph from `Graph.FindNode(...)`
 			}
 			else
 			{
-				UE_LOG(LogMetaSound, Error, TEXT("No node found in dynamic transactor with ID %s"), *InNodeID.ToString());
+				UE_LOG(LogMetaSound, Error, TEXT("No node found in dynamic transactor graph with ID %s"), *InNodeID.ToString());
 			}
 		}
 
@@ -132,8 +131,8 @@ namespace Metasound
 
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FDynamicOperatorTransactor::AddDataEdge);
 
-			const INode* FromNode = FindNode(InFromNodeID);
-			const INode* ToNode = FindNode(InToNodeID);
+			const INode* FromNode = Graph.FindNode(InFromNodeID);
+			const INode* ToNode = Graph.FindNode(InToNodeID);
 
 			if ((nullptr == ToNode) || (nullptr == FromNode))
 			{
@@ -150,8 +149,8 @@ namespace Metasound
 
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FDynamicOperatorTransactor::RemoveDataEdge);
 
-			const INode* FromNode = FindNode(InFromNodeID);
-			const INode* ToNode = FindNode(InToNodeID);
+			const INode* FromNode = Graph.FindNode(InFromNodeID);
+			const INode* ToNode = Graph.FindNode(InToNodeID);
 			const INode* ReplacementLiteralNode = InReplacementLiteralNode.Get(); // Cache pointer because TUniquePtr<INode> will get moved
 
 			if ((nullptr == ToNode) || (nullptr == FromNode))
@@ -197,7 +196,6 @@ namespace Metasound
 
 			auto CreateRemoveEdgeTransform = [&](const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) -> TUniquePtr<IDynamicOperatorTransform>
 			{
-
 				// Add the literal node.
 				TUniquePtr<IDynamicOperatorTransform> AddNodeTransform = CreateAddOperatorTransform(*ReplacementLiteralNode, InOperatorSettings, InEnvironment);
 
@@ -232,7 +230,7 @@ namespace Metasound
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FDynamicOperatorTransactor::SetValue);
 
-			const INode* Node = FindNode(InNodeID);
+			const INode* Node = Graph.FindNode(InNodeID);
 			const INode* LiteralNode = InLiteralNode.Get();
 
 			if (nullptr == Node)
@@ -271,7 +269,7 @@ namespace Metasound
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FDynamicOperatorTransactor::AddInputDataDestination);
 
-			const INode* Node = FindNode(InNodeID);
+			const INode* Node = Graph.FindNode(InNodeID);
 			if (nullptr == Node)
 			{
 				UE_LOG(LogMetaSound, Error, TEXT("Cannot add Input Data Destination %s:%s because of missing node"), *InNodeID.ToString(), *InVertexName.ToString());
@@ -331,7 +329,7 @@ namespace Metasound
 		{
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::FDynamicOperatorTransactor::AddOutputDataSource);
 
-			const INode* Node = FindNode(InNodeID);
+			const INode* Node = Graph.FindNode(InNodeID);
 			if (nullptr == Node)
 			{
 				UE_LOG(LogMetaSound, Error, TEXT("Cannot add Output Data Source %s:%s because of missing node"), *InNodeID.ToString(), *InVertexName.ToString());
@@ -410,19 +408,6 @@ namespace Metasound
 			};
 
 			EnqueueTransformOnOperatorQueues(CreateAddEdgeTransform);
-		}
-
-		const INode* FDynamicOperatorTransactor::FindNode(const FGuid& InNodeID) const
-		{
-			if (const TUniquePtr<INode>* NodePtr = NodeMap.Find(InNodeID))
-			{
-				return NodePtr->Get();
-			}
-			else
-			{
-				UE_LOG(LogMetaSound, Error, TEXT("Graph does not contain node with ID %s"), *InNodeID.ToString());
-				return nullptr;
-			}
 		}
 
 		TUniquePtr<IDynamicOperatorTransform> FDynamicOperatorTransactor::CreateAddOperatorTransform(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) const

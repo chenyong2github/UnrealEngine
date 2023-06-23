@@ -32,7 +32,7 @@ namespace Metasound
 			FDynamicOperatorTransactor(const FDynamicOperatorTransactor&) = delete;
 
 			FDynamicOperatorTransactor();
-			FDynamicOperatorTransactor(const IGraph& InGraph);
+			FDynamicOperatorTransactor(const FGraph& InGraph);
 
 			/** Create a queue for communication with a dynamic operator. */
 			TSharedRef<TSpscQueue<TUniquePtr<IDynamicOperatorTransform>>> CreateTransformQueue(const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment);
@@ -88,8 +88,6 @@ namespace Metasound
 
 			void AddDataEdgeInternal(const INode& InFromNode, const FVertexName& InFromVertex, const FGuid& InToNodeID, const INode& InToNode, const FVertexName& InToVertex);
 
-			const INode* FindNode(const FGuid& InNodeID) const;
-
 			using FCreateTransformFunctionRef = TFunctionRef<TUniquePtr<IDynamicOperatorTransform>(const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment)>;
 
 			TUniquePtr<IDynamicOperatorTransform> CreateAddOperatorTransform(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FMetasoundEnvironment& InEnvironment) const;
@@ -107,7 +105,6 @@ namespace Metasound
 
 			TArray<FDynamicOperatorInfo> OperatorInfos;
 
-			TSortedMap<FGuid, TUniquePtr<INode>> NodeMap;
 			struct FLiteralNodeID
 			{
 				FGuid ToNode;
