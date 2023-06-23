@@ -751,6 +751,7 @@ FHttpCacheStore::FPutPackageOp::FPutPackageOp(FHttpCacheStore& InCacheStore, IRe
 	, Owner(InOwner)
 	, Name(InName)
 {
+	RequestStats.Name = Name;
 }
 
 void FHttpCacheStore::FPutPackageOp::Put(const FCacheKey& InKey, FCbPackage&& Package, FOnPackageComplete&& OnComplete)
@@ -1058,6 +1059,7 @@ FHttpCacheStore::FGetRecordOp::FGetRecordOp(FHttpCacheStore& InCacheStore, IRequ
 	, Owner(InOwner)
 	, Name(InName)
 {
+	RequestStats.Name = Name;
 }
 
 void FHttpCacheStore::FGetRecordOp::GetRecordOnly(const FCacheKey& InKey, const ECachePolicy RecordPolicy, FOnRecordComplete&& InOnComplete)
@@ -1524,6 +1526,7 @@ FHttpCacheStore::FGetValueOp::FGetValueOp(FHttpCacheStore& InCacheStore, IReques
 	, Owner(InOwner)
 	, Name(InName)
 {
+	RequestStats.Name = Name;
 }
 
 void FHttpCacheStore::FGetValueOp::Get(const FCacheKey& InKey, ECachePolicy InPolicy, FOnComplete&& InOnComplete)

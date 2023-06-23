@@ -1692,6 +1692,7 @@ void FS3CacheStore::Get(
 		EStatus Status = EStatus::Error;
 		FOptionalCacheRecord Record;
 		FRequestStats RequestStats;
+		RequestStats.Name = Request.Name;
 		RequestStats.Bucket = Request.Key.Bucket;
 		RequestStats.Type = ERequestType::Record;
 		RequestStats.Op = ERequestOp::Get;
@@ -1735,6 +1736,7 @@ void FS3CacheStore::GetValue(
 		bool bOk;
 		FValue Value;
 		FRequestStats RequestStats;
+		RequestStats.Name = Request.Name;
 		RequestStats.Bucket = Request.Key.Bucket;
 		RequestStats.Type = ERequestType::Value;
 		RequestStats.Op = ERequestOp::Get;
@@ -1778,6 +1780,7 @@ void FS3CacheStore::GetChunks(
 		FSharedBuffer Buffer;
 		uint64 RawSize = 0;
 		FRequestStats RequestStats;
+		RequestStats.Name = Request.Name;
 		RequestStats.Bucket = Request.Key.Bucket;
 		RequestStats.Type = Request.Id.IsNull() ? ERequestType::Value : ERequestType::Record;
 		RequestStats.Op = ERequestOp::GetChunk;

@@ -227,6 +227,7 @@ void FZenCacheStore::StartRequests(
 	for (const auto& Request : In)
 	{
 		auto& RequestWithStats = Out[Out.Emplace(Request)];
+		RequestWithStats.Stats.Name = Request.Name;
 		RequestWithStats.Stats.Bucket = BucketAccessor(Request);
 		RequestWithStats.Stats.Type = TypeAccessor(Request);
 		RequestWithStats.Stats.Op = Op;

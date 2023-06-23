@@ -210,6 +210,7 @@ void FMemoryCacheStore::Put(
 		const TConstArrayView<FValueWithId> Values = Record.GetValues();
 
 		FRequestStats RequestStats;
+		RequestStats.Name = Request.Name;
 		RequestStats.Bucket = Key.Bucket;
 		RequestStats.Type = ERequestType::Record;
 		RequestStats.Op = ERequestOp::Put;
@@ -396,6 +397,7 @@ void FMemoryCacheStore::Get(
 		EStatus Status = EStatus::Error;
 
 		FRequestStats RequestStats;
+		RequestStats.Name = Request.Name;
 		RequestStats.Bucket = Key.Bucket;
 		RequestStats.Type = ERequestType::Record;
 		RequestStats.Op = ERequestOp::Get;
@@ -506,6 +508,7 @@ void FMemoryCacheStore::PutValue(
 		const FValue& Value = Request.Value;
 
 		FRequestStats RequestStats;
+		RequestStats.Name = Request.Name;
 		RequestStats.Bucket = Key.Bucket;
 		RequestStats.Type = ERequestType::Value;
 		RequestStats.Op = ERequestOp::Put;
@@ -594,6 +597,7 @@ void FMemoryCacheStore::GetValue(
 		EStatus Status = EStatus::Error;
 
 		FRequestStats RequestStats;
+		RequestStats.Name = Request.Name;
 		RequestStats.Bucket = Key.Bucket;
 		RequestStats.Type = ERequestType::Value;
 		RequestStats.Op = ERequestOp::Get;
@@ -659,6 +663,7 @@ void FMemoryCacheStore::GetChunks(
 	for (const FCacheGetChunkRequest& Request : Requests)
 	{
 		FRequestStats RequestStats;
+		RequestStats.Name = Request.Name;
 		RequestStats.Bucket = Request.Key.Bucket;
 		RequestStats.Type = Request.Id.IsNull() ? ERequestType::Value : ERequestType::Record;
 		RequestStats.Op = ERequestOp::GetChunk;

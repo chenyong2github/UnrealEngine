@@ -176,6 +176,8 @@ enum class ECacheStoreStatusCode : uint8
  */
 struct FCacheStoreRequestStats final
 {
+	/** A name to identify this request for logging and profiling. An object path is typically sufficient. */
+	FSharedString Name;
 	/** Bucket that contains the data being accessed by this request. */
 	FCacheBucket Bucket;
 	/** Size of the raw data and metadata that was read from the cache store. */
