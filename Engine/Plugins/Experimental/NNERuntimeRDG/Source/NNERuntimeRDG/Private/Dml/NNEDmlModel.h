@@ -5,8 +5,6 @@
 #include "NNEDmlCommon.h"
 #include "NNERuntimeRDGModel.h"
 
-#define NNE_USE_D3D12_RESOURCES
-
 struct ID3D12DynamicRHI;
 
 namespace UE::NNERuntimeRDG::Private::Dml
@@ -86,12 +84,8 @@ private:
 
 	TArray<int32>						ConstantCPUTensorIndices;
 
-#ifdef NNE_USE_D3D12_RESOURCES
-	TComPtr<ID3D12Resource>				PersistBuff;
-	TComPtr<ID3D12Resource>				TempBuff;
-#else
 	FBufferRHIRef						PersistBuff;
-#endif
+	FBufferRHIRef						TempBuff;
 	uint64								MemSizeWeights;
 	uint64								MemSizeTemp;
 	uint64								MemSizePersist;
