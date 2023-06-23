@@ -20,7 +20,7 @@ class UInputMappingContext;
  * Populate this data asset with Input Mapping Contexts that have player mappable actions in them. 
  */
 UCLASS(BlueprintType, Meta = (DisplayName = "Player Mappable Input Config", ShortTooltip = "Data asset used to define a set of player mappable controller/keyboard mappings."))
-class ENHANCEDINPUT_API UPlayerMappableInputConfig : public UPrimaryDataAsset
+class UE_DEPRECATED(5.3, "UPlayerMappableInputConfig has been deprecated. Please use UEnhancedInputUserSettings instead.") ENHANCEDINPUT_API UPlayerMappableInputConfig : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 

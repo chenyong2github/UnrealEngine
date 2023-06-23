@@ -11,6 +11,8 @@
 
 #define LOCTEXT_NAMESPACE "PlayerMappableInputConfig"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UPlayerMappableInputConfig::UPlayerMappableInputConfig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ConfigName(GetFName())
@@ -130,5 +132,6 @@ TArray<FEnhancedActionKeyMapping> UPlayerMappableInputConfig::GetKeysBoundToActi
 	return OutMappings;
 }
 
-#undef LOCTEXT_NAMESPACE
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+#undef LOCTEXT_NAMESPACE
