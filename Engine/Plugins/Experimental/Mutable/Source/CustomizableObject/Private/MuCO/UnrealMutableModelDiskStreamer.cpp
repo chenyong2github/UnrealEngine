@@ -143,7 +143,7 @@ bool FUnrealMutableModelBulkStreamer::PrepareStreamingForObject(UCustomizableObj
 
 #if WITH_EDITOR
 		FString FolderPath = CustomizableObject->GetCompiledDataFolderPath(true);
-		FString FullFileName = FolderPath + CustomizableObject->GetCompiledDataFileName(false);
+		FString FullFileName = FolderPath + CustomizableObject->GetCompiledDataFileName(false, nullptr, true);
 
 		IAsyncReadFileHandle* ReadFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FullFileName);
 		if (!ReadFileHandle)

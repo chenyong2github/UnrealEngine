@@ -16,7 +16,7 @@ private:
 
 public:
 
-	void SetModel(const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& Model);
+	void SetModel(const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& Model, const FGuid Identifier);
 	const TSharedPtr<mu::Model, ESPMode::ThreadSafe>& GetModel();
 	TSharedPtr<const mu::Model, ESPMode::ThreadSafe> GetModel() const;
 
@@ -24,8 +24,9 @@ public:
 	bool bLocked = false;
 
 #if WITH_EDITOR
-	bool bModelCompiledForCook = false;
+	FGuid Identifier;
 
+	bool bModelCompiledForCook = false;
 	TArray<FString> CachedPlatformNames;
 #endif
 

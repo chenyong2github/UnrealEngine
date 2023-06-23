@@ -1266,12 +1266,6 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 			}
 		}
 
-		// Initializes a unique identifier for this object
-		if (!Options.bIsCooking)
-		{
-			Object->InitializeIdentifier();
-		}
-
 		if (CompileTask.IsValid()) // Don't start compilation if there's a compilation running
 		{
 			// TODO : warning?

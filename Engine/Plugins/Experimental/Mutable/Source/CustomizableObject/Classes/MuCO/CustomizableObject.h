@@ -1439,7 +1439,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 392;
+	static const int32 CurrentSupportedVersion = 393;
 
 public:
 
@@ -1464,7 +1464,7 @@ public:
 	FString GetCompiledDataFolderPath(bool bIsEditorData) const;
 
 	// Compose file name 
-	FString GetCompiledDataFileName(bool bIsModel, const ITargetPlatform* InTargetPlatform = nullptr) const;
+	FString GetCompiledDataFileName(bool bIsModel, const ITargetPlatform* InTargetPlatform = nullptr, bool bIsDiskStreamer = false);
 
 	/** Used to set the flag IsRoot */
 	void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
@@ -1473,9 +1473,6 @@ public:
 	FString GetDesc() override;
 
 	bool IsEditorOnly() const override;
-
-	// Initialize if not set.
-	void InitializeIdentifier();
 
 	// Begin UObject interface.
 	void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
@@ -1624,6 +1621,10 @@ public:
 	UPROPERTY()
 	bool bIsChildObject = false;
 
+	/** Unique Identifier - used to locate Model and Streamable data on disk. Should not be modified. */
+	UPROPERTY(Transient)
+	FGuid Identifier;
+
 	FPostCompileDelegate PostCompileDelegate;
 
 	void PostCompile();
@@ -1661,10 +1662,6 @@ public:
 	/** Used to prevent GC of MaskOutCache and keep it in memory while it's needed */
 	UPROPERTY(Transient)
 	TObjectPtr<UMutableMaskOutCache> MaskOutCache_HardRef;
-
-	/** Unique Identifier - used to locate Model and Streamable data on disk. Should not be modified. */
-	UPROPERTY()
-	FGuid Identifier;
 
 	/** Unique identifier. Regenerated each time the object is compiled. */
 	UPROPERTY()
