@@ -34,11 +34,22 @@ public:
 
 private:
 
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
+
 	virtual void HandlePreloadObjectsForCompilation(UBlueprint* OwningBlueprint) override final;
 	virtual void HandleGenerateFunctionGraphs(FKismetCompilerContext* CompilerContext) override final;
 
+	void HandleGenerateFunctionGraphs(FKismetCompilerContext* CompilerContext, UMovieSceneSequence* MovieSceneSequence);
+
+private:
+
+	/** List of movie scenes that are bound to the director blueprint */
+	UPROPERTY()
+	TArray<TWeakObjectPtr<UMovieSceneSequence>> WeakMovieSceneSequences;
+
 	/** The movie scene that is bound to the director blueprint */
 	UPROPERTY()
-	TWeakObjectPtr<UMovieSceneSequence> WeakMovieSceneSequence;
+	TWeakObjectPtr<UMovieSceneSequence> WeakMovieSceneSequence_DEPRECATED;
 };
 
