@@ -548,18 +548,6 @@ UObject* USparseVolumeTextureFactory::ImportInternal(UClass* InClass, UObject* I
 		}
 	};
 
-	auto ComputeNumMipLevels = [](const FIntVector3& VolumeBoundsMin, const FIntVector3& VolumeBoundsMax)
-	{
-		int32 Levels = 1;
-		FIntVector3 Resolution = VolumeBoundsMax - VolumeBoundsMin;
-		while (Resolution.X > SPARSE_VOLUME_TILE_RES || Resolution.Y > SPARSE_VOLUME_TILE_RES || Resolution.Z > SPARSE_VOLUME_TILE_RES)
-		{
-			Resolution /= 2;
-			++Levels;
-		}
-		return Levels;
-	};
-
 	FIntVector3 VolumeBoundsMin = FIntVector3(INT32_MAX, INT32_MAX, INT32_MAX);
 	FIntVector3 VolumeBoundsMax = FIntVector3(INT32_MIN, INT32_MIN, INT32_MIN);
 

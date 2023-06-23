@@ -44,6 +44,13 @@ struct FHeader
 
 	FHeader() = default;
 	ENGINE_API FHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelFormat FormatA, EPixelFormat FormatB, const FVector4f& FallbackValueA, const FVector4f& FallbackValueB);
+
+	// PageTableVolumeAABBMin needs to be aligned to a power of two such that (PageTableVolumeAABBMin / pow(2, MipLevel)) results in an integer value for all mip levels. Otherwise we could end up
+	// with higher mip levels that are shifted in world space (due to PageTableVolumeAABBMin getting rounded down for every mip level) and would therefore not have corresponding voxels for voxels of lower mip levels.
+	// Such a shifted page table mip level causes clearly visible artifacts because the volume looks cut off where the page table ends.
+	// This problem can be avoided by aligning PageTableVolumeAABBMin to pow(2, (NumMipLevelsGlobal - 1)), where NumMipLevelsGlobal is the maximum number of mip levels in the entire animated SVT sequence.
+	ENGINE_API void UpdatePageTableFromGlobalNumMipLevels(int32 NumMipLevelsGlobal);
+	ENGINE_API bool Validate(bool bPrintToLog);
 };
 
 // Describes a mip level of a SVT frame in terms of the sizes and offsets of the data in the built bulk data.
@@ -373,10 +380,10 @@ public:
 	// and doesn't need to match the exact number if it is not known at the time.
 	ENGINE_API virtual bool BeginInitialize(int32 NumExpectedFrames);
 	ENGINE_API virtual bool AppendFrame(UE::SVT::FTextureData& UncookedFrame);
-	ENGINE_API virtual bool EndInitialize(int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+	ENGINE_API virtual bool EndInitialize();
 
 	// Convenience function wrapping the multi-phase initialization functions above
-	virtual bool Initialize(const TArrayView<UE::SVT::FTextureData>& UncookedData, int32 NumMipLevels = INDEX_NONE /*Create entire mip chain by default*/);
+	virtual bool Initialize(const TArrayView<UE::SVT::FTextureData>& UncookedData);
 	// Consider using USparseVolumeTextureFrame::GetFrameAndIssueStreamingRequest() if the frame should have streaming requests issued.
 	USparseVolumeTextureFrame* GetFrame(int32 FrameIndex) const { return Frames.IsValidIndex(FrameIndex) ? Frames[FrameIndex] : nullptr; }
 

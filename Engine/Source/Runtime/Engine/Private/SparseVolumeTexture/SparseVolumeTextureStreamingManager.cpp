@@ -1364,8 +1364,6 @@ void FStreamingManager::AddInternal(FRDGBuilder& GraphBuilder, FNewSparseVolumeT
 			const FMipLevelStreamingInfo* RootStreamingInfo = !Resources->MipLevelStreamingInfo.IsEmpty() ? &Resources->MipLevelStreamingInfo.Last() : nullptr;
 			if (!Resources->RootData.IsEmpty() && RootStreamingInfo)
 			{
-				check((RootStreamingInfo->TileDataSize[0] > 0) || (RootStreamingInfo->TileDataSize[1] > 0));
-
 				const uint32 TileCoord = SVTInfo.TileDataTexture->Allocate();
 				check(TileCoord != INDEX_NONE);
 				FrameInfo.TileAllocations.Last()[0] = TileCoord;

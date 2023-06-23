@@ -416,9 +416,9 @@ public:
 				GridToComponentMappings[SourceGridIndex].Add(Mapping);
 			}
 		}
-
-		SVTCreateInfo.VirtualVolumeAABBMin= SmallestAABBMin - VolumeBoundsMin;
-		SVTCreateInfo.VirtualVolumeAABBMax = LargestAABBMax - VolumeBoundsMin;
+		const bool bEmptyBounds = SmallestAABBMin.X >= LargestAABBMax.X || SmallestAABBMin.Y >= LargestAABBMax.Y || SmallestAABBMin.Z >= LargestAABBMax.Z;
+		SVTCreateInfo.VirtualVolumeAABBMin = bEmptyBounds ? FIntVector3(INT32_MAX) : (SmallestAABBMin - VolumeBoundsMin);
+		SVTCreateInfo.VirtualVolumeAABBMax = bEmptyBounds ? FIntVector3(INT32_MIN) : (LargestAABBMax - VolumeBoundsMin);
 
 		return true;
 	}

@@ -60,30 +60,8 @@ bool FTextureData::Create(const ITextureDataProvider& DataProvider)
 	const FTextureDataCreateInfo CreateInfo = DataProvider.GetCreateInfo();
 
 	Header = FHeader(CreateInfo.VirtualVolumeAABBMin, CreateInfo.VirtualVolumeAABBMax, CreateInfo.AttributesFormats[0], CreateInfo.AttributesFormats[1], CreateInfo.FallbackValues[0], CreateInfo.FallbackValues[1]);
-
-	for (int32 i = 0; i < 2; ++i)
+	if (!Header.Validate(true /*bPrintToLog*/))
 	{
-		if (!SVT::IsSupportedFormat(Header.AttributesFormats[i]))
-		{
-			UE_LOG(LogSparseVolumeTextureData, Warning, TEXT("'%s' is not a supported SparseVolumeTexture format!"), GPixelFormats[Header.AttributesFormats[i]].Name);
-			return false;
-		}
-	}
-
-	if (Header.PageTableVolumeResolution.X > SVT::MaxVolumeTextureDim
-		|| Header.PageTableVolumeResolution.Y > SVT::MaxVolumeTextureDim
-		|| Header.PageTableVolumeResolution.Z > SVT::MaxVolumeTextureDim)
-	{
-		UE_LOG(LogSparseVolumeTextureData, Warning, TEXT("SparseVolumeTexture page table texture dimensions exceed limit (%ix%ix%i): %ix%ix%i"),
-			SVT::MaxVolumeTextureDim, SVT::MaxVolumeTextureDim, SVT::MaxVolumeTextureDim,
-			Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z);
-		return false;
-	}
-
-	const int64 PageTableSizeBytes = (int64)Header.PageTableVolumeResolution.X * (int64)Header.PageTableVolumeResolution.Y * (int64)Header.PageTableVolumeResolution.Z * sizeof(uint32);
-	if (PageTableSizeBytes > SVT::MaxResourceSize)
-	{
-		UE_LOG(LogSparseVolumeTextureData, Warning, TEXT("SparseVolumeTexture page table texture memory size (%ll) exceeds the 2048MB GPU resource limit!"), (long long)PageTableSizeBytes);
 		return false;
 	}
 
@@ -174,7 +152,7 @@ bool FTextureData::Create(const ITextureDataProvider& DataProvider)
 	DataProvider.IteratePhysicalSource([&](const FIntVector3& Coord, int32 AttributesIdx, int32 ComponentIdx, float VoxelValue)
 		{
 			const FIntVector3 GridCoord = Coord;
-			check(IsInBounds(GridCoord, FIntVector3::ZeroValue, Header.VirtualVolumeAABBMax));
+			check(IsInBounds(GridCoord, Header.VirtualVolumeAABBMin, Header.VirtualVolumeAABBMax));
 			const FIntVector3 PageCoord = (GridCoord / SPARSE_VOLUME_TILE_RES) - Header.PageTableVolumeAABBMin;
 			check(IsInBounds(PageCoord, FIntVector3::ZeroValue, Header.PageTableVolumeResolution));
 			const int32 PageIndex = PageCoord.Z * (Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) + PageCoord.Y * Header.PageTableVolumeResolution.X + PageCoord.X;
@@ -194,33 +172,11 @@ bool FTextureData::Create(const ITextureDataProvider& DataProvider)
 bool FTextureData::CreateFromDense(const FTextureDataCreateInfo& CreateInfo, const TArrayView64<uint8>& VoxelDataA, const TArrayView64<uint8>& VoxelDataB)
 {	
 	Header = FHeader(CreateInfo.VirtualVolumeAABBMin, CreateInfo.VirtualVolumeAABBMax, CreateInfo.AttributesFormats[0], CreateInfo.AttributesFormats[1], CreateInfo.FallbackValues[0], CreateInfo.FallbackValues[1]);
-
-	for (int32 i = 0; i < 2; ++i)
+	if (!Header.Validate(true /*bPrintToLog*/))
 	{
-		if (!SVT::IsSupportedFormat(Header.AttributesFormats[i]))
-		{
-			UE_LOG(LogSparseVolumeTextureData, Warning, TEXT("'%s' is not a supported SparseVolumeTexture format!"), GPixelFormats[Header.AttributesFormats[i]].Name);
-			return false;
-		}
-	}
-
-	if (Header.PageTableVolumeResolution.X > SVT::MaxVolumeTextureDim
-		|| Header.PageTableVolumeResolution.Y > SVT::MaxVolumeTextureDim
-		|| Header.PageTableVolumeResolution.Z > SVT::MaxVolumeTextureDim)
-	{
-		UE_LOG(LogSparseVolumeTextureData, Warning, TEXT("SparseVolumeTexture page table texture dimensions exceed limit (%ix%ix%i): %ix%ix%i"),
-			SVT::MaxVolumeTextureDim, SVT::MaxVolumeTextureDim, SVT::MaxVolumeTextureDim,
-			Header.PageTableVolumeResolution.X, Header.PageTableVolumeResolution.Y, Header.PageTableVolumeResolution.Z);
 		return false;
 	}
-
-	const int64 PageTableSizeBytes = (int64)Header.PageTableVolumeResolution.X * (int64)Header.PageTableVolumeResolution.Y * (int64)Header.PageTableVolumeResolution.Z * sizeof(uint32);
-	if (PageTableSizeBytes > SVT::MaxResourceSize)
-	{
-		UE_LOG(LogSparseVolumeTextureData, Warning, TEXT("SparseVolumeTexture page table texture memory size (%ll) exceeds the 2048MB GPU resource limit!"), (long long)PageTableSizeBytes);
-		return false;
-	}
-
+	
 	const int64 FormatSize[] = { GPixelFormats[Header.AttributesFormats[0]].BlockBytes, GPixelFormats[Header.AttributesFormats[1]].BlockBytes };
 	const FIntVector3 FractionalPageOffset = Header.VirtualVolumeAABBMin % SPARSE_VOLUME_TILE_RES; // Offset from page origin to source data volume origin
 	uint8 NullTileValuesU8[2][sizeof(float) * 4] = {};
@@ -510,10 +466,10 @@ bool FTextureData::GenerateMipMaps(const FTextureDataAddressingInfo& AddressingI
 	if (NumMipLevels == -1)
 	{
 		NumMipLevels = 1;
-		FIntVector3 Resolution = Header.VirtualVolumeResolution;
-		while (Resolution.X > SPARSE_VOLUME_TILE_RES || Resolution.Y > SPARSE_VOLUME_TILE_RES || Resolution.Z > SPARSE_VOLUME_TILE_RES)
+		FIntVector3 PageTableResolution = Header.PageTableVolumeResolution;
+		while (PageTableResolution.X > 1 || PageTableResolution.Y > 1 || PageTableResolution.Z > 1)
 		{
-			Resolution /= 2;
+			PageTableResolution /= 2;
 			++NumMipLevels;
 		}
 	}
@@ -526,7 +482,7 @@ bool FTextureData::GenerateMipMaps(const FTextureDataAddressingInfo& AddressingI
 	{
 		MipMaps.AddDefaulted();
 
-		const FIntVector3 PageTableVolumeAABBMin = (Header.VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES) >> MipLevel;
+		const FIntVector3 PageTableVolumeAABBMin = Header.PageTableVolumeAABBMin >> MipLevel;
 		const FIntVector3 PageTableVolumeResolution = ShiftRightAndMax(Header.PageTableVolumeResolution, MipLevel, 1);
 		check(FMath::IsPowerOfTwo(PageTableVolumeResolution.X)
 			&& FMath::IsPowerOfTwo(PageTableVolumeResolution.Y)
@@ -767,10 +723,15 @@ bool FTextureData::DeduplicateTiles()
 	return true;
 }
 
-bool FTextureData::BuildDerivedData(const FTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevels, bool bMoveMip0FromThis, FTextureData& OutDerivedData)
+bool FTextureData::BuildDerivedData(const FTextureDataAddressingInfo& AddressingInfo, int32 NumMipLevelsGlobal, bool bMoveMip0FromThis, FTextureData& OutDerivedData)
 {
 	OutDerivedData = FTextureData{};
 	OutDerivedData.Header = Header;
+	OutDerivedData.Header.UpdatePageTableFromGlobalNumMipLevels(NumMipLevelsGlobal);
+	if (!OutDerivedData.Header.Validate(true /*bPrintToLog*/))
+	{
+		return false;
+	}
 	OutDerivedData.MipMaps.SetNum(1);
 	if (bMoveMip0FromThis)
 	{
@@ -780,6 +741,45 @@ bool FTextureData::BuildDerivedData(const FTextureDataAddressingInfo& Addressing
 	else
 	{
 		OutDerivedData.MipMaps[0] = MipMaps[0];
+	}
+
+	// Page table changed due to UpdatePageTableFromGlobalNumMipLevels(), so we need to recreate it based on the old one
+	if (OutDerivedData.Header.PageTableVolumeAABBMin != Header.PageTableVolumeAABBMin
+		|| OutDerivedData.Header.PageTableVolumeAABBMax != Header.PageTableVolumeAABBMax
+		|| OutDerivedData.Header.PageTableVolumeResolution != Header.PageTableVolumeResolution)
+	{
+		TArray<uint32> PageTableNew;
+		PageTableNew.SetNumZeroed(OutDerivedData.Header.PageTableVolumeResolution.X * OutDerivedData.Header.PageTableVolumeResolution.Y * OutDerivedData.Header.PageTableVolumeResolution.Z);
+
+		// Iterate over new page table and copy entries from old one
+		for (int32 Z = OutDerivedData.Header.PageTableVolumeAABBMin.Z; Z < OutDerivedData.Header.PageTableVolumeAABBMax.Z; ++Z)
+		{
+			for (int32 Y = OutDerivedData.Header.PageTableVolumeAABBMin.Y; Y < OutDerivedData.Header.PageTableVolumeAABBMax.Y; ++Y)
+			{
+				for (int32 X = OutDerivedData.Header.PageTableVolumeAABBMin.X; X < OutDerivedData.Header.PageTableVolumeAABBMax.X; ++X)
+				{
+					FIntVector3 GlobalPageTableCoord(X, Y, Z);
+					if (IsInBounds(GlobalPageTableCoord, Header.PageTableVolumeAABBMin, Header.PageTableVolumeAABBMax))
+					{
+						const FIntVector3 LocalPageTableCoordOld = GlobalPageTableCoord - Header.PageTableVolumeAABBMin;
+						const int32 PageTableIndexOld = (LocalPageTableCoordOld.Z * Header.PageTableVolumeResolution.Y * Header.PageTableVolumeResolution.X) 
+							+ (LocalPageTableCoordOld.Y * Header.PageTableVolumeResolution.X) 
+							+ LocalPageTableCoordOld.X;
+						check(OutDerivedData.MipMaps[0].PageTable.IsValidIndex(PageTableIndexOld));
+
+						const FIntVector3 LocalPageTableCoordNew = GlobalPageTableCoord - OutDerivedData.Header.PageTableVolumeAABBMin;
+						const int32 PageTableIndexNew = (LocalPageTableCoordNew.Z * OutDerivedData.Header.PageTableVolumeResolution.Y * OutDerivedData.Header.PageTableVolumeResolution.X) 
+							+ (LocalPageTableCoordNew.Y * OutDerivedData.Header.PageTableVolumeResolution.X) 
+							+ LocalPageTableCoordNew.X;
+						check(PageTableNew.IsValidIndex(PageTableIndexNew));
+
+						PageTableNew[PageTableIndexNew] = OutDerivedData.MipMaps[0].PageTable[PageTableIndexOld];
+					}
+				}
+			}
+		}
+
+		OutDerivedData.MipMaps[0].PageTable = MoveTemp(PageTableNew);
 	}
 
 	// Generate border voxels of mip0
@@ -809,7 +809,7 @@ bool FTextureData::BuildDerivedData(const FTextureDataAddressingInfo& Addressing
 	}
 
 	// Generate all remaining mips. Also generates border voxels.
-	if (!OutDerivedData.GenerateMipMaps(AddressingInfo, NumMipLevels))
+	if (!OutDerivedData.GenerateMipMaps(AddressingInfo))
 	{
 		return false;
 	}

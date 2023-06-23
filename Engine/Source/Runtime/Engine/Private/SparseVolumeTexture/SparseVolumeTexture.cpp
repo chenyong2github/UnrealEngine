@@ -89,13 +89,14 @@ namespace UE
 namespace SVT
 {
 
-static int32 ComputeNumMipLevels(const FIntVector3& InResolution)
+static int32 ComputeNumMipLevels(const FIntVector3& InVirtualVolumeMin, const FIntVector3& InVirtualVolumeMax)
 {
+	FHeader DummyHeader(InVirtualVolumeMin, InVirtualVolumeMax, PF_Unknown, PF_Unknown, FVector4f(), FVector4f());
 	int32 Levels = 1;
-	FIntVector3 Resolution = InResolution;
-	while (Resolution.X > SPARSE_VOLUME_TILE_RES || Resolution.Y > SPARSE_VOLUME_TILE_RES || Resolution.Z > SPARSE_VOLUME_TILE_RES)
+	FIntVector3 PageTableResolution = DummyHeader.PageTableVolumeResolution;
+	while (PageTableResolution.X > 1 || PageTableResolution.Y > 1 || PageTableResolution.Z > 1)
 	{
-		Resolution /= 2;
+		PageTableResolution /= 2;
 		++Levels;
 	}
 	return Levels;
@@ -128,6 +129,60 @@ FHeader::FHeader(const FIntVector3& AABBMin, const FIntVector3& AABBMax, EPixelF
 
 	FallbackValues[0] = FallbackValueA;
 	FallbackValues[1] = FallbackValueB;
+}
+
+void FHeader::UpdatePageTableFromGlobalNumMipLevels(int32 NumMipLevelsGlobal)
+{
+	check(NumMipLevelsGlobal < 32);
+	const int32 Alignment = 1 << (NumMipLevelsGlobal - 1);
+
+	PageTableVolumeAABBMin = ((VirtualVolumeAABBMin / SPARSE_VOLUME_TILE_RES) / Alignment) * Alignment;
+	PageTableVolumeAABBMax = (VirtualVolumeAABBMax + FIntVector3(SPARSE_VOLUME_TILE_RES - 1)) / SPARSE_VOLUME_TILE_RES;
+	PageTableVolumeResolution = PageTableVolumeAABBMax - PageTableVolumeAABBMin;
+
+	// We need to ensure a power of two resolution for the page table in order to fit all mips of the page table into the physical mips of the texture resource.
+	PageTableVolumeResolution.X = FMath::RoundUpToPowerOfTwo(PageTableVolumeResolution.X);
+	PageTableVolumeResolution.Y = FMath::RoundUpToPowerOfTwo(PageTableVolumeResolution.Y);
+	PageTableVolumeResolution.Z = FMath::RoundUpToPowerOfTwo(PageTableVolumeResolution.Z);
+	PageTableVolumeAABBMax = PageTableVolumeAABBMin + PageTableVolumeResolution;
+}
+
+bool FHeader::Validate(bool bPrintToLog)
+{
+	for (int32 i = 0; i < 2; ++i)
+	{
+		if (!SVT::IsSupportedFormat(AttributesFormats[i]))
+		{
+			if (bPrintToLog)
+			{
+				UE_LOG(LogSparseVolumeTexture, Warning, TEXT("'%s' is not a supported SparseVolumeTexture format!"), GPixelFormats[AttributesFormats[i]].Name);
+			}
+			return false;
+		}
+	}
+
+	if (PageTableVolumeResolution.X > SVT::MaxVolumeTextureDim || PageTableVolumeResolution.Y > SVT::MaxVolumeTextureDim || PageTableVolumeResolution.Z > SVT::MaxVolumeTextureDim)
+	{
+		if (bPrintToLog)
+		{
+			UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SparseVolumeTexture page table texture dimensions exceed limit (%ix%ix%i): %ix%ix%i"),
+				SVT::MaxVolumeTextureDim, SVT::MaxVolumeTextureDim, SVT::MaxVolumeTextureDim,
+				PageTableVolumeResolution.X, PageTableVolumeResolution.Y, PageTableVolumeResolution.Z);
+		}
+		return false;
+	}
+
+	const int64 PageTableSizeBytes = (int64)PageTableVolumeResolution.X * (int64)PageTableVolumeResolution.Y * (int64)PageTableVolumeResolution.Z * sizeof(uint32);
+	if (PageTableSizeBytes > SVT::MaxResourceSize)
+	{
+		if (bPrintToLog)
+		{
+			UE_LOG(LogSparseVolumeTexture, Warning, TEXT("SparseVolumeTexture page table texture memory size (%ll) exceeds the 2048MB GPU resource limit!"), (long long)PageTableSizeBytes);
+		}
+		return false;
+	}
+
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -256,10 +311,10 @@ bool FResources::Build(USparseVolumeTextureFrame* Owner, UE::Serialization::FEdi
 		AddressingInfo.AddressY = Owner->GetTextureAddressY();
 		AddressingInfo.AddressZ = Owner->GetTextureAddressZ();
 
-		const int32 NumMipLevelsRequested = -1; // generate entire mip chain
+		const int32 NumMipLevelsGlobal = Owner->GetNumMipLevels();
 		const bool bMoveMip0FromSource = true; // we have no need to keep SourceTextureData around
 		FTextureData DerivedTextureData;
-		if (!SourceTextureData.BuildDerivedData(AddressingInfo, NumMipLevelsRequested, bMoveMip0FromSource, DerivedTextureData))
+		if (!SourceTextureData.BuildDerivedData(AddressingInfo, NumMipLevelsGlobal, bMoveMip0FromSource, DerivedTextureData))
 		{
 			return false;
 		}
@@ -1062,7 +1117,16 @@ bool UStreamableSparseVolumeTexture::AppendFrame(UE::SVT::FTextureData& Uncooked
 	VolumeBoundsMax.Y = FMath::Max(VolumeBoundsMax.Y, UncookedFrame.Header.VirtualVolumeAABBMax.Y);
 	VolumeBoundsMax.Z = FMath::Max(VolumeBoundsMax.Z, UncookedFrame.Header.VirtualVolumeAABBMax.Z);
 
-	VolumeResolution = VolumeBoundsMax;
+	if (VolumeBoundsMin.X >= VolumeBoundsMax.X || VolumeBoundsMin.Y >= VolumeBoundsMax.Y || VolumeBoundsMin.Z >= VolumeBoundsMax.Z)
+	{
+		// Force a minimum resolution of (1, 1, 1) if the frames were empty so far
+		VolumeResolution = FIntVector3(1, 1, 1);
+	}
+	else
+	{
+		VolumeResolution = VolumeBoundsMax;
+	}
+	
 
 	USparseVolumeTextureFrame* Frame = NewObject<USparseVolumeTextureFrame>(this);
 	if (Frame->Initialize(this, Frames.Num(), UncookedFrame))
@@ -1077,7 +1141,7 @@ bool UStreamableSparseVolumeTexture::AppendFrame(UE::SVT::FTextureData& Uncooked
 #endif
 }
 
-bool UStreamableSparseVolumeTexture::EndInitialize(int32 InNumMipLevels)
+bool UStreamableSparseVolumeTexture::EndInitialize()
 {
 #if WITH_EDITORONLY_DATA
 	if (InitState != EInitState_Pending)
@@ -1105,10 +1169,10 @@ bool UStreamableSparseVolumeTexture::EndInitialize(int32 InNumMipLevels)
 			VolumeBoundsMin.X, VolumeBoundsMin.Y, VolumeBoundsMin.Z);
 	}
 
-	const int32 NumMipLevelsFullMipChain = UE::SVT::ComputeNumMipLevels(VolumeResolution);
+	const int32 NumMipLevelsFullMipChain = UE::SVT::ComputeNumMipLevels(VolumeBoundsMin, VolumeBoundsMax);
 	check(NumMipLevelsFullMipChain > 0);
 
-	NumMipLevels = (InNumMipLevels <= INDEX_NONE) ? NumMipLevelsFullMipChain : FMath::Clamp(InNumMipLevels, 1, NumMipLevelsFullMipChain);
+	NumMipLevels = NumMipLevelsFullMipChain;
 	NumFrames = Frames.Num();
 
 	for (USparseVolumeTextureFrame* Frame : Frames)
@@ -1124,7 +1188,7 @@ bool UStreamableSparseVolumeTexture::EndInitialize(int32 InNumMipLevels)
 #endif
 }
 
-bool UStreamableSparseVolumeTexture::Initialize(const TArrayView<UE::SVT::FTextureData>& InUncookedData, int32 InNumMipLevels)
+bool UStreamableSparseVolumeTexture::Initialize(const TArrayView<UE::SVT::FTextureData>& InUncookedData)
 {
 	if (InUncookedData.IsEmpty())
 	{
@@ -1143,7 +1207,7 @@ bool UStreamableSparseVolumeTexture::Initialize(const TArrayView<UE::SVT::FTextu
 			return false;
 		}
 	}
-	if (!EndInitialize(InNumMipLevels))
+	if (!EndInitialize())
 	{
 		return false;
 	}
