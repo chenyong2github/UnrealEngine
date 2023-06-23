@@ -218,7 +218,9 @@ void UXRCreativeVREditorMode::EnableStereo()
 		Viewport->SetRenderDirectlyToWindow(true);
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	UOpenXRInputFunctionLibrary::BeginXRSession(Cast<UPlayerMappableInputConfig>(MappableInputConfig.TryLoad()));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 

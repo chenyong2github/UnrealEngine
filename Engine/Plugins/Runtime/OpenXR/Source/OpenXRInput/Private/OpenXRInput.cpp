@@ -372,6 +372,7 @@ bool FOpenXRInputPlugin::FOpenXRInput::BuildActions(XrSession Session)
 		}
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!MappableInputConfig)
 	{
 		// Attempt to load the default input config from the OpenXR input settings.
@@ -392,6 +393,7 @@ bool FOpenXRInputPlugin::FOpenXRInput::BuildActions(XrSession Session)
 
 		BuildLegacyActions(Profiles);
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	for (TPair<FString, FInteractionProfile>& Pair : Profiles)
 	{
@@ -550,6 +552,7 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildEnhancedActions(TMap<FString, FInter
 		return;
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (const TPair<TObjectPtr<UInputMappingContext>, int32> MappingContext : MappableInputConfig->GetMappingContexts())
 	{
 		FOpenXRActionSet ActionSet(Instance, MappingContext.Key->GetFName(), MappingContext.Key->ContextDescription.ToString(), ToXrPriority(MappingContext.Value), MappingContext.Key);
@@ -583,6 +586,7 @@ void FOpenXRInputPlugin::FOpenXRInput::BuildEnhancedActions(TMap<FString, FInter
 		}
 		ActionSets.Emplace(MoveTemp(ActionSet));
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FOpenXRInputPlugin::FOpenXRInput::DestroyActions()
@@ -1384,6 +1388,7 @@ float FOpenXRInputPlugin::FOpenXRInput::GetHapticAmplitudeScale() const
 	return 1.0f;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool FOpenXRInputPlugin::FOpenXRInput::SetPlayerMappableInputConfig(TObjectPtr<class UPlayerMappableInputConfig> InputConfig)
 {
 	if (bActionsAttached)
@@ -1396,5 +1401,6 @@ bool FOpenXRInputPlugin::FOpenXRInput::SetPlayerMappableInputConfig(TObjectPtr<c
 	MappableInputConfig = TStrongObjectPtr<class UPlayerMappableInputConfig>(InputConfig);
 	return true;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE // "OpenXRInputPlugin"

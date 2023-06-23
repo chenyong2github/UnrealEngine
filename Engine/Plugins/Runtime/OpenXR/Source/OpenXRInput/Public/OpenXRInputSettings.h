@@ -15,9 +15,11 @@ class OPENXRINPUT_API UOpenXRInputSettings : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Set a mappable input config to allow OpenXR runtimes to remap the Enhanced Input actions. */
 	UPROPERTY(config, EditAnywhere, Category = "Enhanced Input", meta = (DisplayName = "Mappable Input Config for XR", AllowedClasses = "/Script/EnhancedInput.PlayerMappableInputConfig"))
 	FSoftObjectPath MappableInputConfig = nullptr;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// UObject interface
 #if WITH_EDITOR

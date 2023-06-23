@@ -15,6 +15,7 @@ UOpenXRInputFunctionLibrary::UOpenXRInputFunctionLibrary(const FObjectInitialize
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UOpenXRInputFunctionLibrary::BeginXRSession(UPlayerMappableInputConfig* InputConfig)
 {
 	if (!InputConfig)
@@ -41,6 +42,7 @@ bool UOpenXRInputFunctionLibrary::BeginXRSession(UPlayerMappableInputConfig* Inp
 
 	return UHeadMountedDisplayFunctionLibrary::EnableHMD(true);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UOpenXRInputFunctionLibrary::EndXRSession()
 {

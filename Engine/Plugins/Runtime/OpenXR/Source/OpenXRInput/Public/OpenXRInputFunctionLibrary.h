@@ -12,6 +12,7 @@ class OPENXRINPUT_API UOpenXRInputFunctionLibrary : public UBlueprintFunctionLib
 {
 	GENERATED_UCLASS_BODY()
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	* Add a player mappable input config for Enhanced Input. This will make the tracking system aware of the actions and bindings that are used for XR motion controllers.
 	* Attaching input configs to the session can only be done once, so if multiple input configs need to be added only check AttachToSession for the last input config.
@@ -23,6 +24,7 @@ class OPENXRINPUT_API UOpenXRInputFunctionLibrary : public UBlueprintFunctionLib
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")
 	static bool BeginXRSession(class UPlayerMappableInputConfig* InputConfig);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 	UFUNCTION(BlueprintCallable, Category = "Input|XRTracking")

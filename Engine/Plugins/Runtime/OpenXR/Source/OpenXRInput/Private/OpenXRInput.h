@@ -16,7 +16,6 @@ class UInputAction;
 class UInputTrigger;
 class UInputModifier;
 class UInputMappingContext;
-class UPlayerMappableInputConfig;
 struct FInputActionKeyMapping;
 struct FInputAxisKeyMapping;
 struct FKey;
@@ -127,7 +126,9 @@ public:
 		virtual bool GetControllerOrientationAndPositionForTime(const int32 ControllerIndex, const FName MotionSource, FTimespan Time, bool& OutTimeWasUsed, FRotator& OutOrientation, FVector& OutPosition, bool& OutbProvidedLinearVelocity, FVector& OutLinearVelocity, bool& OutbProvidedAngularVelocity, FVector& OutAngularVelocityRadPerSec, bool& OutbProvidedLinearAcceleration, FVector& OutLinearAcceleration, float WorldToMetersScale) const override;
 		virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const FName MotionSource) const override;
 		virtual void EnumerateSources(TArray<FMotionControllerSource>& SourcesOut) const override;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		virtual bool SetPlayerMappableInputConfig(TObjectPtr<class UPlayerMappableInputConfig> InputConfig) override;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// IHapticDevice overrides
 		IHapticDevice* GetHapticDevice() override { return (IHapticDevice*)this; }
@@ -147,7 +148,9 @@ public:
 		TMap<EControllerHand, FOpenXRController> Controllers;
 		TMap<FName, EControllerHand> MotionSourceToControllerHandMap;
 
-		TStrongObjectPtr<UPlayerMappableInputConfig> MappableInputConfig;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		TStrongObjectPtr<class UPlayerMappableInputConfig> MappableInputConfig;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		XrAction GetActionForMotionSource(FName MotionSource) const;
 		int32 GetDeviceIDForMotionSource(FName MotionSource) const;

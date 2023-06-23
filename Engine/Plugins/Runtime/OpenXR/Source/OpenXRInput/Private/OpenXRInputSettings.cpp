@@ -21,6 +21,7 @@ void UOpenXRInputSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 
 	const FName MemberPropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UOpenXRInputSettings, MappableInputConfig))
 	{
 		TArray<IMotionController*> MotionControllers = IModularFeatures::Get().GetModularFeatureImplementations<IMotionController>(IMotionController::GetModularFeatureName());
@@ -34,5 +35,6 @@ void UOpenXRInputSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 			MotionController->SetPlayerMappableInputConfig((UPlayerMappableInputConfig*)MappableInputConfig.TryLoad());
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif
