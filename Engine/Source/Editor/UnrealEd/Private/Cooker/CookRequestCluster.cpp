@@ -25,6 +25,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/RedirectCollector.h"
 #include "Misc/ReverseIterate.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/StringBuilder.h"
 #include "String/Find.h"
 #include "UObject/CoreRedirects.h"
@@ -127,6 +128,21 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 		{
 			NewReachablePlatforms = BufferPlatforms;
 		}
+		if (Discovery->Instigator.Category == EInstigator::ForceExplorableSaveTimeSoftDependency)
+		{
+			// This package was possibly previously marked as not explorable, but now it is marked as explorable.
+			// One example of this is externalactor packages - they are by default not cookable and not explorable
+			// (see comment in FRequestCluster::IsRequestCookable). But once WorldPartition loads them, we need to mark
+			// them as explored so that their imports are marked as expected and all of their soft dependencies
+			// are included.
+			for (const ITargetPlatform* TargetPlatform : NewReachablePlatforms)
+			{
+				if (TargetPlatform != CookerLoadingPlatformKey)
+				{
+					PackageData.FindOrAddPlatformData(TargetPlatform).MarkAsExplorable();
+				}
+			}
+		}
 
 		if (PackageData.HasReachablePlatforms(NewReachablePlatforms))
 		{
@@ -173,7 +189,8 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& InCOTFS, TRingBuffer<FDisc
 			// Adding packages to the cook should happen only for a few types of instigators, from external package
 			// requests, or during cluster exploration. If not expected, add a diagnostic message.
 			if (Discovery->Instigator.Category != EInstigator::SaveTimeHardDependency &&
-				Discovery->Instigator.Category != EInstigator::SaveTimeSoftDependency)
+				Discovery->Instigator.Category != EInstigator::SaveTimeSoftDependency &&
+				Discovery->Instigator.Category != EInstigator::ForceExplorableSaveTimeSoftDependency)
 			{
 				COTFS.OnDiscoveredPackageDebug(PackageData.GetPackageName(), Discovery->Instigator);
 			}
@@ -1487,6 +1504,13 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName P
 		return;
 	}
 
+	FPackagePlatformData* PlatformData = PackageData.FindPlatformData(Platform);
+	bool bExplorableOverride = PlatformData ? PlatformData->IsExplorableOverride() : false;
+	ON_SCOPE_EXIT
+	{
+		bOutExplorable = bOutExplorable | bExplorableOverride;
+	};
+
 	FName FileName = PackageData.GetFileName();
 	if (InCOTFS.PackageTracker->NeverCookPackageList.Contains(FileName))
 	{
@@ -1496,19 +1520,13 @@ void FRequestCluster::IsRequestCookable(const ITargetPlatform* Platform, FName P
 			// NeverCookPackageList and checking naming convention here.
 			OutReason = ESuppressCookReason::NeverCook;
 			bOutCookable = false;
-			bOutExplorable = true;
-			if (InCOTFS.bSkipOnlyEditorOnly)
-			{
-				bOutExplorable = true;
-			}
-			else
-			{
-				// ONLYEDITORONLY_TODO
-				// Workaround to avoid changing behavior from legacy graph search. In legacy graph search ExternalActors
-				// were uncookable and unexplorable, and so packages referenced through externalactors referenced by e.g. GameFeatureData
-				// would not be cooked.
-				bOutExplorable = false;
-			}
+
+			// EXTERNALACTOR_TODO: We want to explore externalactors, because they add references to the cook that will
+			// otherwise not be found until the map package loads them and adds them as unsolicited packages
+			// But some externalactor packages will never be loaded by the generator, and we don't have a way to discover which
+			// ones will not be loaded until we load the Map and WorldPartition object.
+			// So set them to explorable = false until we implement an interface to determine which actors will be loaded up front.
+			bOutExplorable = false;
 		}
 		else
 		{

@@ -881,7 +881,8 @@ void FCookWorkerServer::QueueDiscoveredPackage(FDiscoveredPackageReplication&& D
 		DiscoveredPlatforms = Platforms.GetPlatforms(COTFS, &Instigator, OrderedSessionAndSpecialPlatforms, &BufferPlatforms);
 	}
 
-	if (PackageData.HasReachablePlatforms(DiscoveredPlatforms))
+	if (Instigator.Category != EInstigator::ForceExplorableSaveTimeSoftDependency &&
+		PackageData.HasReachablePlatforms(DiscoveredPlatforms))
 	{
 		// The CookWorker thought this was a new package, but the Director already knows about it; ignore the report
 		return;

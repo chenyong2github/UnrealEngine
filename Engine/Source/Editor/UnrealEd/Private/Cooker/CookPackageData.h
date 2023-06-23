@@ -151,12 +151,26 @@ struct FPackagePlatformData
 
 	/**
 	 * Whether the package is searchable for transitive dependencies during Cluster evaluation.
-	 * This can be true even if the package is not cookable. Initially true, may be set false during Cluster search */
+	 * This can be true even if the package is not cookable. Initially true, may be set false during Cluster search
+	 */
 	bool IsExplorable() const { return bExplorable != 0; }
 	void SetExplorable(bool bValue) { bExplorable = (uint32)bValue; }
 
+	/**
+	 * Whether the package, which might be set as not explorable from IsRequestCookable, is set to explorable
+	 * based on conditions discovered during the cook.
+	 */
+	bool IsExplorableOverride() const { return bExplorableOverride != 0; }
+	void SetExplorableOverride(bool bValue) { bExplorableOverride = (uint32)bValue; }
+
 	/** All flags modified by reachability calculations are returned to default. */
 	void ResetReachable();
+	/**
+	 * Mark the platform as ExplorableOverride=true and reset all data necessary to reexplore it, including reachability.
+	 * Caller is responsbile for marking it again as reachable.
+	 */
+	void MarkAsExplorable();
+
 	/** Called on CookWorkers to indicate reachable,cookable,etc for packages sent from Director. */
 	void MarkCookableForWorker(FCookWorkerClient& CookWorkerClient);
 
@@ -181,6 +195,7 @@ private:
 	uint32 bSaveTimedOut : 1;
 	uint32 bCookable : 1;
 	uint32 bExplorable : 1;
+	uint32 bExplorableOverride : 1;
 	uint32 bIterativelySkipped : 1;
 	uint32 bRegisteredForCachedObjectsInOuter : 1;
 	uint32 CookResults : (int)ECookResult::NumBits;

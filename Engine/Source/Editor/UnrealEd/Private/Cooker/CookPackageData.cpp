@@ -53,8 +53,8 @@ static FAutoConsoleVariableRef CVarPollAsyncPeriod(
 //////////////////////////////////////////////////////////////////////////
 // FPackageData
 FPackagePlatformData::FPackagePlatformData()
-	: bReachable(0), bVisitedByCluster(0), bSaveTimedOut(0), bCookable(1), bExplorable(1), bIterativelySkipped(0)
-	, bRegisteredForCachedObjectsInOuter(0), CookResults((uint8)ECookResult::NotAttempted)
+	: bReachable(0), bVisitedByCluster(0), bSaveTimedOut(0), bCookable(1), bExplorable(1), bExplorableOverride(0)
+	, bIterativelySkipped(0), bRegisteredForCachedObjectsInOuter(0), CookResults((uint8)ECookResult::NotAttempted)
 {
 }
 
@@ -64,6 +64,12 @@ void FPackagePlatformData::ResetReachable()
 	SetVisitedByCluster(false);
 	SetCookable(true);
 	SetExplorable(true);
+}
+
+void FPackagePlatformData::MarkAsExplorable()
+{
+	ResetReachable();
+	SetExplorableOverride(true);
 }
 
 void FPackagePlatformData::MarkCookableForWorker(FCookWorkerClient& CookWorkerClient)

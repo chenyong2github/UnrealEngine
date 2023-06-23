@@ -52,6 +52,7 @@ namespace UE::Cook
 	CallbackMacro(EditorOnlyLoad, false) \
 	CallbackMacro(SaveTimeHardDependency, false) \
 	CallbackMacro(SaveTimeSoftDependency, false) \
+	CallbackMacro(ForceExplorableSaveTimeSoftDependency, false) \
 	CallbackMacro(GeneratedPackage, false) \
 
 

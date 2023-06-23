@@ -2897,7 +2897,8 @@ void UCookOnTheFlyServer::QueueDiscoveredPackage(UE::Cook::FPackageData& Package
 		DiscoveredPlatforms = ReachablePlatforms.GetPlatforms(*this, &Instigator,
 			TConstArrayView<const ITargetPlatform*>(), &BufferPlatforms);
 	}
-	if (PackageData.HasReachablePlatforms(DiscoveredPlatforms))
+	if (Instigator.Category != EInstigator::ForceExplorableSaveTimeSoftDependency &&
+		PackageData.HasReachablePlatforms(DiscoveredPlatforms))
 	{
 		// Not a new discovery; ignore
 		return;
@@ -4114,7 +4115,28 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages(TArray<FName>* OutDiscovere
 			}
 		}
 
-		if (PackageData->FindOrAddPlatformData(CookerLoadingPlatformKey).IsReachable() || Instigator.Category == EInstigator::EditorOnlyLoad)
+		if (Instigator.Category == EInstigator::EditorOnlyLoad)
+		{
+			// This load was expected so we do not need to add a hidden dependency for it.
+			// If we are using legacy WhatGetsCookedRules, queue the package for cooking because it was loaded.
+			if (!bSkipOnlyEditorOnly)
+			{
+				QueueDiscoveredPackage(*PackageData, FInstigator(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
+			}
+		}
+		else if (bSkipOnlyEditorOnly &&
+					(Instigator.Category == EInstigator::ForceExplorableSaveTimeSoftDependency ||
+						(PackageTracker->NeverCookPackageList.Contains(PackageData->GetFileName()) &&
+							INDEX_NONE != UE::String::FindFirst(WriteToString<256>(PackageData->GetPackageName()),
+								ULevel::GetExternalActorsFolderName(), ESearchCase::IgnoreCase))))
+		{
+			// ONLYEDITORONLY_TODO: WorldPartition should mark up these loads with EInstigator::ForceExplorableSaveTimeSoftDependency rather than
+			// needing to use a naming convention. We should also mark them once, during Save, rather than marking them
+			// and reexploring them every time they are loaded.
+			Instigator.Category = EInstigator::ForceExplorableSaveTimeSoftDependency;
+			QueueDiscoveredPackage(*PackageData, FInstigator(Instigator), EDiscoveredPlatformSet::CopyFromInstigator);
+		}
+		else if (PackageData->FindOrAddPlatformData(CookerLoadingPlatformKey).IsReachable())
 		{
 			// This load was expected so we do not need to add a hidden dependency for it.
 			// If we are using legacy WhatGetsCookedRules, queue the package for cooking because it was loaded.
@@ -6871,6 +6893,7 @@ TArray<UE::Cook::FInstigator> UCookOnTheFlyServer::GetInstigatorChain(FName Pack
 			case EInstigator::EditorOnlyLoad: bGetNext = true; break;
 			case EInstigator::SaveTimeHardDependency: bGetNext = true; break;
 			case EInstigator::SaveTimeSoftDependency: bGetNext = true; break;
+			case EInstigator::ForceExplorableSaveTimeSoftDependency: bGetNext = true; break;
 			case EInstigator::GeneratedPackage: bGetNext = true; break;
 			default: break;
 		}
@@ -12166,7 +12189,8 @@ void UCookOnTheFlyServer::OnDiscoveredPackageDebug(FName PackageName, const UE::
 	switch (Instigator.Category)
 	{
 	case EInstigator::StartupPackage: [[fallthrough]];
-	case EInstigator::GeneratedPackage:
+	case EInstigator::GeneratedPackage: [[fallthrough]];
+	case EInstigator::ForceExplorableSaveTimeSoftDependency:
 		// Not a Hidden dependency
 		return;
 	default:
