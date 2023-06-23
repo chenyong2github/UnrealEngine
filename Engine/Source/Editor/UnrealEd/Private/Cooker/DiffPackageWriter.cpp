@@ -149,7 +149,13 @@ void FDiffPackageWriter::WritePackageData(const FPackageInfo& Info, FLargeMemory
 
 	FArchiveStackTrace& Writer = static_cast<FArchiveStackTrace&>(ExportsArchive);
 	ICookedPackageWriter::FPreviousCookedBytesData PreviousInnerData;
-	Inner->GetPreviousCookedBytes(LocalInfo, PreviousInnerData);
+	if (!Inner->GetPreviousCookedBytes(LocalInfo, PreviousInnerData))
+	{
+		PreviousInnerData.Data.Reset();
+		PreviousInnerData.HeaderSize = 0;
+		PreviousInnerData.Size = 0;
+	}
+	check(PreviousInnerData.Data.Get() != nullptr || (PreviousInnerData.Size == 0 && PreviousInnerData.HeaderSize == 0));
 
 	FArchiveStackTrace::FPackageData PreviousPackageData;
 	PreviousPackageData.Data = PreviousInnerData.Data.Get();
