@@ -451,7 +451,7 @@ void UNiagaraDataInterfaceRenderTargetVolume::SetShaderParameters(const FNiagara
 	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
 
 	// Ensure RDG resources are ready to use
-	if (InstanceData_RT->TransientRDGTexture == nullptr)
+	if (InstanceData_RT->TransientRDGTexture == nullptr && InstanceData_RT->RenderTarget)
 	{
 		InstanceData_RT->TransientRDGTexture = GraphBuilder.RegisterExternalTexture(InstanceData_RT->RenderTarget);
 		InstanceData_RT->TransientRDGSRV = GraphBuilder.CreateSRV(InstanceData_RT->TransientRDGTexture);
@@ -1109,6 +1109,11 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 
 	//-TEMP: Until we prune data interface on cook this will avoid consuming memory
 	const bool bValidGpuDataInterface = NiagaraDataInterfaceRenderTargetCommon::GIgnoreCookedOut == 0 || IsUsedWithGPUEmitter();
+
+	if (::IsValid(InstanceData->TargetTexture) == false)
+	{
+		InstanceData->TargetTexture = nullptr;
+	}
 
 	// Do we need to create a new texture?
 	if (bValidGpuDataInterface && !bInheritUserParameterSettings && (InstanceData->TargetTexture == nullptr))
