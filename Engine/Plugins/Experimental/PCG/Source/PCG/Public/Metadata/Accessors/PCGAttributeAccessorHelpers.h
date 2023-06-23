@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Templates/UniquePtr.h"
+#include "UObject/NameTypes.h"
 
 enum class EPCGExtraProperties : uint8;
 class IPCGAttributeAccessor;
