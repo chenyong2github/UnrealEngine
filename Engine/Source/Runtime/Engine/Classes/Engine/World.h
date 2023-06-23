@@ -3635,6 +3635,21 @@ public:
 	virtual void NotifyControlMessage(UNetConnection* Connection, uint8 MessageType, class FInBunch& Bunch) override;
 	//~ End FNetworkNotify Interface
 
+	/**
+	 * Log error and close connection for prelogin failures.
+	 */
+	bool PreLoginCheckError(UNetConnection* Connection, const FString& ErrorMsg);
+
+	/**
+	 * Check GameMode PreLogin results and welcome player if needed.
+	 */
+	void PreLoginComplete(const FString& ErrorMsg, TWeakObjectPtr<UNetConnection> WeakConnection);
+
+	/**
+	 * Check GameMode PreLogin results for split screen player joins.
+	 */
+	void PreLoginCompleteSplit(const FString& ErrorMsg, TWeakObjectPtr<UNetConnection> WeakConnection, FUniqueNetIdRepl SplitRequestUniqueIdRepl, FString SplitRequestURL);
+
 	/** Welcome a new player joining this server. */
 	void WelcomePlayer(UNetConnection* Connection);
 

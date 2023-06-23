@@ -669,6 +669,13 @@ void AGameModeBase::PreLogin(const FString& Options, const FString& Address, con
 	FGameModeEvents::GameModePreLoginEvent.Broadcast(this, UniqueId, ErrorMessage);
 }
 
+void AGameModeBase::PreLoginAsync(const FString& Options, const FString& Address, const FUniqueNetIdRepl& UniqueId, const FOnPreLoginCompleteDelegate& OnComplete)
+{
+	FString ErrorMessage;
+	PreLogin(Options, Address, UniqueId, ErrorMessage);
+	OnComplete.ExecuteIfBound(ErrorMessage);
+}
+
 APlayerController* AGameModeBase::Login(UPlayer* NewPlayer, ENetRole InRemoteRole, const FString& Portal, const FString& Options, const FUniqueNetIdRepl& UniqueId, FString& ErrorMessage)
 {
 	if (GameSession == nullptr)
