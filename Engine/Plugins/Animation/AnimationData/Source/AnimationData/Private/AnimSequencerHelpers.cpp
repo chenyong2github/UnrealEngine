@@ -23,8 +23,7 @@ void AnimSequencerHelpers::ConvertFloatChannelToRichCurve(const FMovieSceneFloat
 	{
 		// Convert from channel to requested frame-rate
 		const FFrameNumber KeyFrameNumber = Times[KeyIndex];
-		const FFrameTime ConvertedKeyFrameTime = FFrameRate::TransformTime(KeyFrameNumber, Channel.GetTickResolution(), TargetFrameRate);
-		const double KeyTime = TargetFrameRate.AsSeconds(ConvertedKeyFrameTime);
+		const double KeyTime = Channel.GetTickResolution().AsSeconds(KeyFrameNumber);
 
 		OutCurve.Keys[KeyIndex].Time = static_cast<float>(KeyTime);
 
