@@ -20,7 +20,7 @@ public class OpenSSL : ModuleRules
 
 			string LibPath = Path.Combine(OpenSSLPath, "lib", PlatformSubdir);
 
-			string LibExt = (Target.Architecture == UnrealArch.IOSSimulator) ? ".sim.a" : ".a";
+			string LibExt = (Target.Platform == UnrealTargetPlatform.IOS && Target.Architecture == UnrealArch.IOSSimulator) ? ".sim.a" : ".a";
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl" + LibExt));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto" + LibExt));
 		}
