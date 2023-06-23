@@ -4,6 +4,7 @@
 
 #include "JwtGlobals.h"
 #include "JwtUtils.h"
+#include "JwtAlgorithms.h"
 
 #include "Algo/Count.h"
 #include "Serialization/JsonSerializer.h"
@@ -269,13 +270,117 @@ bool FJsonWebToken::GetClaim(const FStringView InName, TSharedPtr<FJsonValue>& O
 }
 
 
-/**
- * Verify the JWT's signature.
- *
- * TODO(vri): Implement JWT verification with public key
- */
 bool FJsonWebToken::Verify() const
 {
 	UE_LOG(LogJwt, Error, TEXT("[FJsonWebToken::Verify] JWT signature verification is not implemented yet and will always return false."));
 	return false;
 }
+
+
+bool FJsonWebToken::Verify(
+	const IJwtAlgorithm& Algorithm, const FStringView ExpectedIssuer) const
+{
+	// Check whether the signature is set
+	if (!Signature.IsSet())
+	{
+		UE_LOG(LogJwt, Error,
+			TEXT("[FJsonWebToken::Verify] No signature to verify."));
+
+		return false;
+	}
+
+	FString IndicatedAlgorithm;
+
+	// Check whether the algorithm is set
+	if (!GetAlgorithm(IndicatedAlgorithm))
+	{
+		UE_LOG(LogJwt, Error,
+			TEXT("[FJsonWebToken::Verify] Could not get token's algorithm."));
+
+		return false;
+	}
+
+	// Check whether the algorithms match
+	if (Algorithm.GetAlgString() != IndicatedAlgorithm)
+	{
+		UE_LOG(LogJwt, Error,
+			TEXT("[FJsonWebToken::Verify] Algorithms don't match."));
+
+		return false;
+	}
+
+	TArray<uint8> EncodedHeaderPayloadBytes;
+	FJwtUtils::StringViewToBytes(EncodedHeaderPayload, EncodedHeaderPayloadBytes);
+
+	// Verify the signature
+	if (!Algorithm.VerifySignature(EncodedHeaderPayloadBytes, Signature.GetValue()))
+	{
+		UE_LOG(LogJwt, Error,
+			TEXT("[FJsonWebToken::Verify] Signature verification failed."));
+
+		return false;
+	}
+
+	FString Issuer;
+
+	// Check whether the issuer is set
+	if (!GetIssuer(Issuer))
+	{
+		UE_LOG(LogJwt, Error,
+			TEXT("[FJsonWebToken::Verify] Issuer not set."));
+
+		return false;
+	}
+
+	// Check whether the issuers match
+	if (ExpectedIssuer != FStringView(Issuer))
+	{
+		UE_LOG(LogJwt, Error,
+			TEXT("[FJsonWebToken::Verify] Issuer does not match expected issuer."));
+
+		return false;
+	}
+
+	int64 IssuedAt = 0, Expiration = 0;
+
+	// Check whether IssuedAt and Expiration timestamps are set
+	if (!GetIssuedAt(IssuedAt) || !GetExpiration(Expiration))
+	{
+		UE_LOG(LogJwt, Error,
+			TEXT("[FJsonWebToken::Verify] IssuedAt or Expiration timestamp is not set."));
+
+		return false;
+	}
+
+	const FDateTime Now = FDateTime::UtcNow();
+	const FDateTime TimeIssuedAt = FDateTime::FromUnixTimestamp(IssuedAt);
+	const FDateTime TimeExpires = FDateTime::FromUnixTimestamp(Expiration);
+
+	// Check whether the token has expired or is invalid
+	if (TimeIssuedAt >= Now || TimeExpires <= Now)
+	{
+		UE_LOG(LogJwt, Error,
+			TEXT("[FJsonWebToken::Verify] Token not valid or has expired already."));
+
+		return false;
+	}
+
+	int64 NotBefore = 0;
+
+	// Check whether the token is used before NotBefore, if it's set
+	if (GetNotBefore(NotBefore))
+	{
+		const FDateTime TimeNotBefore = FDateTime::FromUnixTimestamp(NotBefore);
+
+		if (TimeNotBefore >= Now)
+		{
+			UE_LOG(LogJwt, Error,
+				TEXT("[FJsonWebToken::Verify] Token not valid yet."));
+
+			return false;
+		}
+	}
+
+	return true;
+}
+

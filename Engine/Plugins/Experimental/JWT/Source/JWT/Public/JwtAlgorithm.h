@@ -21,7 +21,7 @@ public:
 	/**
 	 * Gets the algorithm's string representation.
 	 */
-	virtual inline const FString& GetAlgString() = 0;
+	virtual inline const FString& GetAlgString() const = 0;
 
 	/**
 	 * Verifies the decoded signature with the encoded message.

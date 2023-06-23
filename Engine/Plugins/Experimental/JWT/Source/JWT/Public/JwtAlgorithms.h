@@ -23,7 +23,7 @@ public:
 
 	// ~ IJwtAlgorithm interface
 
-	virtual inline const FString& GetAlgString() override
+	virtual inline const FString& GetAlgString() const override
 	{
 		return AlgorithmString;
 	}

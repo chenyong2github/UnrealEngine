@@ -6,6 +6,7 @@
 
 class FJsonObject;
 class FJsonValue;
+class IJwtAlgorithm;
 enum class EJson;
 
 
@@ -122,14 +123,26 @@ public:
 	}
 
 	/**
-	 * Perform verification of the encoded header and encoded payload.
-	 * The is done using the cryptographic algorithm specified in the header, and a secret value obtained
-	 * by key-lookup, to generate a signature.  The generated signature must be identical to the signature
-	 * provided in the JWT for verification to succeed.
-	 * 
-	 * @return true if the header and payload were verified successfully (signature match), otherwise false.
+	 * Deprecated method to signature validate the JWT.
+	 *
+	 * @return False
 	 */
+	UE_DEPRECATED(5.3, "Verify() without arguments is deprecated. Please use Verify(Algorithm, ExpectedIssuer) instead.")
 	bool Verify() const;
+
+	/**
+	 * Signature validate and verify the JWT.
+	 * - Validates the signature against the encoded header and encoded payload
+	 * - Verifies the basic claims of the JWT
+	 * - Ensures the issuers match
+	 *
+	 * @param Algorithm Implementation of the cryptographic algorithm used for signature validation
+	 * @param ExpectedIssuer The expected issuer
+	 *
+	 * @return Whether the JWT was successfully verified
+	 */
+	bool Verify(
+		const IJwtAlgorithm& Algorithm, const FStringView ExpectedIssuer) const;
 
 private:
 	FJsonWebToken(
