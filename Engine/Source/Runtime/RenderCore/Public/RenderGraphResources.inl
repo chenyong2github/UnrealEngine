@@ -126,7 +126,9 @@ inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc)
 		OutDesc.Dimension = ETextureDimension::Texture2DArray;
 	}
 
-	OutDesc.Flags = InDesc.Flags | ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking;
+	OutDesc.Flags = InDesc.Flags;
+	// UE-TODO: UE-188415 fix flags that we force in Render Target Pool
+	//OutDesc.Flags |= ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking;
 	OutDesc.FastVRAMPercentage = InDesc.FastVRAMPercentage;
 	check(OutDesc.IsValid());
 

@@ -77,7 +77,8 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(FRHITexture
 	Desc.Flags |= TexCreate_ShaderResource;
 
 	// Render target pool always forces textures into non streaming memory.
-	Desc.Flags |= ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking;
+	// UE-TODO: UE-188415 fix flags that we force in Render Target Pool
+	//Desc.Flags |= ETextureCreateFlags::ForceIntoNonStreamingMemoryTracking;
 
 	const uint32 DescHash = GetTypeHash(Desc);
 
