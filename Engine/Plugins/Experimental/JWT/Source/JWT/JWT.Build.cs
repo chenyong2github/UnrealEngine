@@ -9,13 +9,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Core"
-				}
-			);
-
-			PrivateDependencyModuleNames.AddRange(
-				new string[]
-				{
+					"Core",
 					"Json",
 					"PlatformCrypto",
 					"PlatformCryptoOpenSSL"

@@ -2,7 +2,11 @@
 
 #include "JwtAlgorithms.h"
 
-#include "JwtUtils.h"
+
+FJwtAlgorithm_RS256::FJwtAlgorithm_RS256()
+{
+	EncryptionContext = FJwtUtils::GetEncryptionContext();
+}
 
 
 FJwtAlgorithm_RS256::~FJwtAlgorithm_RS256()
@@ -18,9 +22,6 @@ bool FJwtAlgorithm_RS256::VerifySignature(
 	const TArrayView<const uint8> EncodedMessage,
 	const TArrayView<const uint8> DecodedSignature) const
 {
-	TUniquePtr<FEncryptionContext> EncryptionContext
-		= FJwtUtils::GetEncryptionContext();
-
 	if (!EncryptionContext.IsValid())
 	{
 		return false;
@@ -41,9 +42,6 @@ bool FJwtAlgorithm_RS256::VerifySignature(
 
 bool FJwtAlgorithm_RS256::SetPublicKey(const TArrayView<const uint8> InKey)
 {
-	TUniquePtr<FEncryptionContext> EncryptionContext
-		= FJwtUtils::GetEncryptionContext();
-
 	if (!EncryptionContext.IsValid())
 	{
 		return false;
@@ -80,9 +78,6 @@ bool FJwtAlgorithm_RS256::SetPublicKey(const FStringView InKey)
 
 void FJwtAlgorithm_RS256::DestroyKey(void* Key)
 {
-	TUniquePtr<FEncryptionContext> EncryptionContext
-		= FJwtUtils::GetEncryptionContext();
-
 	if (!EncryptionContext.IsValid())
 	{
 		return;

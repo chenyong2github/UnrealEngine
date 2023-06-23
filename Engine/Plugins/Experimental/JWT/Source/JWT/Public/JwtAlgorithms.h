@@ -4,6 +4,8 @@
 
 #include "JwtAlgorithm.h"
 
+#include "JwtUtils.h"
+
 
 class JWT_API FJwtAlgorithm_RS256
 	: public IJwtAlgorithm
@@ -11,7 +13,7 @@ class JWT_API FJwtAlgorithm_RS256
 
 public:
 
-	FJwtAlgorithm_RS256() = default;
+	FJwtAlgorithm_RS256();
 
 	FJwtAlgorithm_RS256(const FJwtAlgorithm_RS256&) = delete;
 
@@ -67,6 +69,9 @@ protected:
 	const FString AlgorithmString = "RS256";
 
 private:
+
+	/** Holds the unique pointer to the encryption context (OpenSSL/SwitchSSL). */
+	TUniquePtr<FEncryptionContext> EncryptionContext = nullptr;
 
 	/** Holds the public key pointer. */
 	void* PublicKey = nullptr;
