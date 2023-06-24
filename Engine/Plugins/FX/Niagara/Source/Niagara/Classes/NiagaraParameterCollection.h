@@ -137,6 +137,7 @@ public:
 	//~UObject interface
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)override;
+	NIAGARA_API virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 #endif
 	//~UObject interface
 
