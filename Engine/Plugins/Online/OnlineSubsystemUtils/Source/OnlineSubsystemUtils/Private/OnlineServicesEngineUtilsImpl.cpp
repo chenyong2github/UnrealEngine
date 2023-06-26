@@ -11,6 +11,7 @@
 #include "Online/OnlineServicesRegistry.h"
 
 #if WITH_EDITOR
+#include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #endif
 
