@@ -1430,11 +1430,6 @@ bool FStateTreePropertyPath::ResolveIndirectionsWithValue(const FStateTreeDataVi
 				}
 			}
 		}
-#else
-		if (bHandleRedirects)
-		{
-			ensureMsgf(false, TEXT("The bHandleRedirects option is only available on editor builds."));
-		}
 #endif // WITH_EDITORONLY_DATA
 
 		if (!Property)
