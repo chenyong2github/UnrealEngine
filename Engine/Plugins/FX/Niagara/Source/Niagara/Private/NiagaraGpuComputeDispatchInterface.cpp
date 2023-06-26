@@ -77,78 +77,12 @@ FRDGTextureSRVRef FNiagaraGpuComputeDispatchInterface::GetBlackTextureSRV(FRDGBu
 
 FRDGTextureUAVRef FNiagaraGpuComputeDispatchInterface::GetEmptyTextureUAV(FRDGBuilder& GraphBuilder, EPixelFormat Format, ETextureDimension TextureDimension) const
 {
-	check(UE::PixelFormat::HasCapabilities(Format, EPixelFormatCapabilities::TypedUAVStore));
-
-	switch (TextureDimension)
-	{
-		case ETextureDimension::Texture2D:
-			return
-				GraphBuilder.CreateUAV(
-					GraphBuilder.CreateTexture(
-						FRDGTextureDesc::Create2D(FIntPoint(1, 1), Format, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV),
-						TEXT("NiagaraEmptyTextureUAV::Texture2D")
-					),
-					ERDGUnorderedAccessViewFlags::SkipBarrier
-				);
-
-		case ETextureDimension::Texture2DArray:
-			return
-				GraphBuilder.CreateUAV(
-					GraphBuilder.CreateTexture(
-						FRDGTextureDesc::Create2DArray(FIntPoint(1, 1), Format, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, 1),
-						TEXT("NiagaraEmptyTextureUAV::Texture2DArray")
-					),
-					ERDGUnorderedAccessViewFlags::SkipBarrier
-				);
-
-		case ETextureDimension::Texture3D:
-			return
-				GraphBuilder.CreateUAV(
-					GraphBuilder.CreateTexture(
-						FRDGTextureDesc::Create3D(FIntVector(1, 1, 1), Format, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV),
-						TEXT("NiagaraEmptyTextureUAV::Texture3D")
-					),
-					ERDGUnorderedAccessViewFlags::SkipBarrier
-				);
-
-		case ETextureDimension::TextureCube:
-			return
-				GraphBuilder.CreateUAV(
-					GraphBuilder.CreateTexture(
-						FRDGTextureDesc::CreateCube(1, Format, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV),
-						TEXT("NiagaraEmptyTextureUAV::TextureCube")
-					),
-					ERDGUnorderedAccessViewFlags::SkipBarrier
-				);
-
-		case ETextureDimension::TextureCubeArray:
-			return
-				GraphBuilder.CreateUAV(
-					GraphBuilder.CreateTexture(
-						FRDGTextureDesc::CreateCubeArray(1, Format, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, 1),
-						TEXT("NiagaraEmptyTextureUAV::TextureCubeArray")
-					),
-					ERDGUnorderedAccessViewFlags::SkipBarrier
-				);
-
-		default:
-			checkNoEntry();
-			return nullptr;
-	}
+	return EmptyUAVPoolPtr->GetEmptyRDGUAVFromPool(GraphBuilder, Format, TextureDimension);
 }
 
 FRDGBufferUAVRef FNiagaraGpuComputeDispatchInterface::GetEmptyBufferUAV(FRDGBuilder& GraphBuilder, EPixelFormat Format) const
 {
-	const uint32 BytesPerElement = GPixelFormats[Format].BlockBytes;
-	return
-		GraphBuilder.CreateUAV(
-			GraphBuilder.CreateBuffer(
-				FRDGBufferDesc::CreateBufferDesc(BytesPerElement, 1),
-				TEXT("ENiagaraEmptyUAVType::Buffer")
-			),
-			Format,
-			ERDGUnorderedAccessViewFlags::SkipBarrier
-		);
+	return EmptyUAVPoolPtr->GetEmptyRDGUAVFromPool(GraphBuilder, Format);
 }
 
 FRDGBufferSRVRef FNiagaraGpuComputeDispatchInterface::GetEmptyBufferSRV(FRDGBuilder& GraphBuilder, EPixelFormat Format) const
