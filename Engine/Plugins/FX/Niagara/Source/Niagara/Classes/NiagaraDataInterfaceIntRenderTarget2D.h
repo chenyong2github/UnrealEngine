@@ -21,7 +21,8 @@ class UNiagaraDataInterfaceIntRenderTarget2D : public UNiagaraDataInterfaceRWBas
 
 public:
 	NIAGARA_API virtual void PostInitProperties() override;
-	
+	virtual bool CanBeInCluster() const override { return false; }
+
 	//~ UNiagaraDataInterface interface
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
 	NIAGARA_API virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;

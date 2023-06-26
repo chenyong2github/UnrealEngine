@@ -81,7 +81,8 @@ class UNiagaraDataInterfaceRenderTargetVolume : public UNiagaraDataInterfaceRWBa
 
 public:
 	NIAGARA_API virtual void PostInitProperties() override;
-	
+	virtual bool CanBeInCluster() const override { return false; }
+
 	//~ UNiagaraDataInterface interface
 	// VM functionality
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
